@@ -35,45 +35,58 @@ DefinitionBlock (
 /****************************************************************
  * PCI Bus definition
  ****************************************************************/
+#define BOARD_SPECIFIC_PCI_RESOURSES \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
+         0x0000, \
+         0x0CF7, \
+         0x0000, \
+         0x0CF8, \
+         ,, , TypeStatic) \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
+         0x0D00, \
+         0xADFF, \
+         0x0000, \
+         0xA100, \
+         ,, , TypeStatic) \
+     /* 0xae00-0xae0e hole for PCI hotplug, hw/acpi/piix4.c:PCI_HOTPLUG_ADDR */ \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
+         0xAE0F, \
+         0xAEFF, \
+         0x0000, \
+         0x00F1, \
+         ,, , TypeStatic) \
+     /* 0xaf00-0xaf1f hole for CPU hotplug, hw/acpi/piix4.c:PIIX4_PROC_BASE */ \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
+         0xAF20, \
+         0xAFDF, \
+         0x0000, \
+         0x00C0, \
+         ,, , TypeStatic) \
+     /* 0xafe0-0xafe3 hole for ACPI.GPE0, hw/acpi/piix4.c:GPE_BASE */ \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
+         0xAFE4, \
+         0xFFFF, \
+         0x0000, \
+         0x501C, \
+         ,, , TypeStatic)
 
     Scope(\_SB) {
         Device(PCI0) {
             Name(_HID, EisaId("PNP0A03"))
             Name(_ADR, 0x00)
             Name(_UID, 1)
+//#define PX13 S0B_
+//            External(PX13, DeviceObj)
         }
     }
 
 #include "acpi-dsdt-pci-crs.dsl"
 #include "acpi-dsdt-hpet.dsl"
-
-
-/****************************************************************
- * VGA
- ****************************************************************/
-
-    Scope(\_SB.PCI0) {
-        Device(VGA) {
-            Name(_ADR, 0x00020000)
-            OperationRegion(PCIC, PCI_Config, Zero, 0x4)
-            Field(PCIC, DWordAcc, NoLock, Preserve) {
-                VEND, 32
-            }
-            Method(_S1D, 0, NotSerialized) {
-                Return (0x00)
-            }
-            Method(_S2D, 0, NotSerialized) {
-                Return (0x00)
-            }
-            Method(_S3D, 0, NotSerialized) {
-                If (LEqual(VEND, 0x1001b36)) {
-                    Return (0x03)           // QXL
-                } Else {
-                    Return (0x00)
-                }
-            }
-        }
-    }
 
 
 /****************************************************************
@@ -93,6 +106,9 @@ DefinitionBlock (
  ****************************************************************/
 
     Scope(\_SB.PCI0) {
+
+        External(ISA, DeviceObj)
+
         Device(ISA) {
             Name(_ADR, 0x00010000)
 
@@ -114,6 +130,7 @@ DefinitionBlock (
         }
     }
 
+#define DSDT_APPLESMC_STA piix_dsdt_applesmc_sta
 #include "acpi-dsdt-isa.dsl"
 
 
@@ -133,32 +150,28 @@ DefinitionBlock (
             B0EJ, 32,
         }
 
+        OperationRegion(BNMR, SystemIO, 0xae10, 0x04)
+        Field(BNMR, DWordAcc, NoLock, WriteAsZeros) {
+            BNUM, 32,
+        }
+
+        /* Lock to protect access to fields above. */
+        Mutex(BLCK, 0)
+
         /* Methods called by bulk generated PCI devices below */
 
         /* Methods called by hotplug devices */
-        Method(PCEJ, 1, NotSerialized) {
+        Method(PCEJ, 2, NotSerialized) {
             // _EJ0 method - eject callback
-            Store(ShiftLeft(1, Arg0), B0EJ)
+            Acquire(BLCK, 0xFFFF)
+            Store(Arg0, BNUM)
+            Store(ShiftLeft(1, Arg1), B0EJ)
+            Release(BLCK)
             Return (0x0)
         }
 
         /* Hotplug notification method supplied by SSDT */
         External(\_SB.PCI0.PCNT, MethodObj)
-
-        /* PCI hotplug notify method */
-        Method(PCNF, 0) {
-            // Local0 = iterator
-            Store(Zero, Local0)
-            While (LLess(Local0, 31)) {
-                Increment(Local0)
-                If (And(PCIU, ShiftLeft(1, Local0))) {
-                    PCNT(Local0, 1)
-                }
-                If (And(PCID, ShiftLeft(1, Local0))) {
-                    PCNT(Local0, 3)
-                }
-            }
-        }
     }
 
 
@@ -235,7 +248,7 @@ DefinitionBlock (
             }
             Return (0x0B)
         }
-        Method(IQCR, 1, NotSerialized) {
+        Method(IQCR, 1, Serialized) {
             // _CRS method - get current settings
             Name(PRR0, ResourceTemplate() {
                 Interrupt(, Level, ActiveHigh, Shared) { 0 }
@@ -293,6 +306,8 @@ DefinitionBlock (
         }
     }
 
+#include "hw/acpi/cpu_hotplug_defs.h"
+#define CPU_STATUS_BASE PIIX4_CPU_HOTPLUG_IO_BASE
 #include "acpi-dsdt-cpu-hotplug.dsl"
 
 
@@ -307,7 +322,9 @@ DefinitionBlock (
         }
         Method(_E01) {
             // PCI hotplug event
-            \_SB.PCI0.PCNF()
+            Acquire(\_SB.PCI0.BLCK, 0xFFFF)
+            \_SB.PCI0.PCNT()
+            Release(\_SB.PCI0.BLCK)
         }
         Method(_E02) {
             // CPU hotplug event

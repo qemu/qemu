@@ -126,23 +126,6 @@ void qemu_spice_wakeup(SimpleSpiceDisplay *ssd)
     spice_qxl_wakeup(&ssd->qxl);
 }
 
-static int spice_display_is_running;
-
-void qemu_spice_display_start(void)
-{
-    spice_display_is_running = true;
-}
-
-void qemu_spice_display_stop(void)
-{
-    spice_display_is_running = false;
-}
-
-int qemu_spice_display_is_running(SimpleSpiceDisplay *ssd)
-{
-    return spice_display_is_running;
-}
-
 static void qemu_spice_create_one_update(SimpleSpiceDisplay *ssd,
                                          QXLRect *rect)
 {
@@ -371,6 +354,7 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
                                DisplaySurface *surface)
 {
     SimpleSpiceUpdate *update;
+    bool need_destroy;
 
     dprint(1, "%s/%d:\n", __func__, ssd->qxl.id);
 
@@ -383,14 +367,19 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
     }
 
     qemu_mutex_lock(&ssd->lock);
+    need_destroy = (ssd->ds != NULL);
     ssd->ds = surface;
     while ((update = QTAILQ_FIRST(&ssd->updates)) != NULL) {
         QTAILQ_REMOVE(&ssd->updates, update, next);
         qemu_spice_destroy_update(ssd, update);
     }
     qemu_mutex_unlock(&ssd->lock);
-    qemu_spice_destroy_host_primary(ssd);
-    qemu_spice_create_host_primary(ssd);
+    if (need_destroy) {
+        qemu_spice_destroy_host_primary(ssd);
+    }
+    if (ssd->ds) {
+        qemu_spice_create_host_primary(ssd);
+    }
 
     memset(&ssd->dirty, 0, sizeof(ssd->dirty));
     ssd->notify++;
@@ -554,10 +543,29 @@ static void interface_set_client_capabilities(QXLInstance *sin,
 }
 
 static int interface_client_monitors_config(QXLInstance *sin,
-                                        VDAgentMonitorsConfig *monitors_config)
+                                            VDAgentMonitorsConfig *mc)
 {
-    dprint(3, "%s:\n", __func__);
-    return 0; /* == not supported by guest */
+    SimpleSpiceDisplay *ssd = container_of(sin, SimpleSpiceDisplay, qxl);
+    QemuUIInfo info;
+    int rc;
+
+    /*
+     * FIXME: multihead is tricky due to the way
+     * spice has multihead implemented.
+     */
+    memset(&info, 0, sizeof(info));
+    if (mc->num_of_monitors > 0) {
+        info.width  = mc->monitors[0].width;
+        info.height = mc->monitors[0].height;
+    }
+    rc = dpy_set_ui_info(ssd->dcl.con, &info);
+    dprint(1, "%s/%d: size %dx%d, rc %d   <---   ==========================\n",
+           __func__, ssd->qxl.id, info.width, info.height, rc);
+    if (rc != 0) {
+        return 0; /* == not supported by guest */
+    } else {
+        return 1;
+    }
 }
 
 static const QXLInterface dpy_interface = {
@@ -627,8 +635,6 @@ static void qemu_spice_display_init_one(QemuConsole *con)
     ssd->dcl.ops = &display_listener_ops;
     ssd->dcl.con = con;
     register_displaychangelistener(&ssd->dcl);
-
-    qemu_spice_create_host_primary(ssd);
 }
 
 void qemu_spice_display_init(void)

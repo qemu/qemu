@@ -1866,7 +1866,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                             SHIFT_IMM_ROR((0x20 - args[2]) & 0x1f) :
                             SHIFT_IMM_LSL(0));
         } else {
-            tcg_out_dat_imm(s, COND_AL, ARITH_RSB, TCG_REG_TMP, args[1], 0x20);
+            tcg_out_dat_imm(s, COND_AL, ARITH_RSB, TCG_REG_TMP, args[2], 0x20);
             tcg_out_dat_reg(s, COND_AL, ARITH_MOV, args[0], 0, args[1],
                             SHIFT_REG_ROR(TCG_REG_TMP));
         }

@@ -190,7 +190,8 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
             goto fail;
         }
         if (strncmp(footer->creator, "conectix", 8)) {
-            ret = -EMEDIUMTYPE;
+            error_setg(errp, "invalid VPC image");
+            ret = -EINVAL;
             goto fail;
         }
         disk_type = VHD_FIXED;

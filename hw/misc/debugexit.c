@@ -47,8 +47,8 @@ static void debug_exit_realizefn(DeviceState *d, Error **errp)
 }
 
 static Property debug_exit_properties[] = {
-    DEFINE_PROP_HEX32("iobase", ISADebugExitState, iobase, 0x501),
-    DEFINE_PROP_HEX32("iosize", ISADebugExitState, iosize, 0x02),
+    DEFINE_PROP_UINT32("iobase", ISADebugExitState, iobase, 0x501),
+    DEFINE_PROP_UINT32("iosize", ISADebugExitState, iosize, 0x02),
     DEFINE_PROP_END_OF_LIST(),
 };
 

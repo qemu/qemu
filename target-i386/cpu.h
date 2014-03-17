@@ -38,8 +38,10 @@
 
 #ifdef TARGET_X86_64
 #define ELF_MACHINE     EM_X86_64
+#define ELF_MACHINE_UNAME "x86_64"
 #else
 #define ELF_MACHINE     EM_386
+#define ELF_MACHINE_UNAME "i686"
 #endif
 
 #define CPUArchState struct CPUX86State
@@ -380,9 +382,14 @@
 
 #define MSR_VM_HSAVE_PA                 0xc0010117
 
-#define XSTATE_FP                       1
-#define XSTATE_SSE                      2
-#define XSTATE_YMM                      4
+#define MSR_IA32_BNDCFGS                0x00000d90
+
+#define XSTATE_FP                       (1ULL << 0)
+#define XSTATE_SSE                      (1ULL << 1)
+#define XSTATE_YMM                      (1ULL << 2)
+#define XSTATE_BNDREGS                  (1ULL << 3)
+#define XSTATE_BNDCSR                   (1ULL << 4)
+
 
 /* CPUID feature words */
 typedef enum FeatureWord {
@@ -545,6 +552,7 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_EBX_ERMS     (1 << 9)
 #define CPUID_7_0_EBX_INVPCID  (1 << 10)
 #define CPUID_7_0_EBX_RTM      (1 << 11)
+#define CPUID_7_0_EBX_MPX      (1 << 14)
 #define CPUID_7_0_EBX_RDSEED   (1 << 18)
 #define CPUID_7_0_EBX_ADX      (1 << 19)
 #define CPUID_7_0_EBX_SMAP     (1 << 20)
@@ -694,6 +702,16 @@ typedef union {
     float32 _s[2];
     uint64_t q;
 } MMXReg;
+
+typedef struct BNDReg {
+    uint64_t lb;
+    uint64_t ub;
+} BNDReg;
+
+typedef struct BNDCSReg {
+    uint64_t cfgu;
+    uint64_t sts;
+} BNDCSReg;
 
 #ifdef HOST_WORDS_BIGENDIAN
 #define XMM_B(n) _b[15 - (n)]
@@ -846,6 +864,10 @@ typedef struct CPUX86State {
     uint64_t msr_fixed_counters[MAX_FIXED_COUNTERS];
     uint64_t msr_gp_counters[MAX_GP_COUNTERS];
     uint64_t msr_gp_evtsel[MAX_GP_COUNTERS];
+    uint64_t msr_hv_hypercall;
+    uint64_t msr_hv_guest_os_id;
+    uint64_t msr_hv_vapic;
+    uint64_t msr_hv_tsc;
 
     /* exception/interrupt handling */
     int error_code;
@@ -853,8 +875,8 @@ typedef struct CPUX86State {
     target_ulong exception_next_eip;
     target_ulong dr[8]; /* debug registers */
     union {
-        CPUBreakpoint *cpu_breakpoint[4];
-        CPUWatchpoint *cpu_watchpoint[4];
+        struct CPUBreakpoint *cpu_breakpoint[4];
+        struct CPUWatchpoint *cpu_watchpoint[4];
     }; /* break/watchpoints for dr[0..3] */
     uint32_t smbase;
     int old_exception;  /* exception in flight */
@@ -865,6 +887,7 @@ typedef struct CPUX86State {
 
     CPU_COMMON
 
+    /* Fields from here on are preserved across CPU reset. */
     uint64_t pat;
 
     /* processor features (e.g. for CPUID insn) */
@@ -895,10 +918,6 @@ typedef struct CPUX86State {
     int tsc_khz;
     void *kvm_xsave_buf;
 
-    /* in order to simplify APIC support, we leave this pointer to the
-       user */
-    struct DeviceState *apic_state;
-
     uint64_t mcg_cap;
     uint64_t mcg_ctl;
     uint64_t mce_banks[MCE_BANKS_DEF*4];
@@ -912,6 +931,9 @@ typedef struct CPUX86State {
 
     uint64_t xstate_bv;
     XMMReg ymmh_regs[CPU_NB_REGS];
+    BNDReg bnd_regs[4];
+    BNDCSReg bndcs_regs;
+    uint64_t msr_bndcfgs;
 
     uint64_t xcr0;
 
@@ -1046,9 +1068,8 @@ void host_cpuid(uint32_t function, uint32_t count,
                 uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
 
 /* helper.c */
-int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
+int x86_cpu_handle_mmu_fault(CPUState *cpu, vaddr addr,
                              int is_write, int mmu_idx);
-#define cpu_handle_mmu_fault cpu_x86_handle_mmu_fault
 void x86_cpu_set_a20(X86CPU *cpu, int a20_state);
 
 static inline bool hw_local_breakpoint_enabled(unsigned long dr7, int index)
@@ -1165,20 +1186,6 @@ void optimize_flags_init(void);
 #include "hw/i386/apic.h"
 #endif
 
-static inline bool cpu_has_work(CPUState *cs)
-{
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-
-    return ((cs->interrupt_request & (CPU_INTERRUPT_HARD |
-                                      CPU_INTERRUPT_POLL)) &&
-            (env->eflags & IF_MASK)) ||
-           (cs->interrupt_request & (CPU_INTERRUPT_NMI |
-                                     CPU_INTERRUPT_INIT |
-                                     CPU_INTERRUPT_SIPI |
-                                     CPU_INTERRUPT_MCE));
-}
-
 #include "exec/exec-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUX86State *env, target_ulong *pc,
@@ -1240,6 +1247,9 @@ static inline void cpu_load_efer(CPUX86State *env, uint64_t val)
     }
 }
 
+/* fpu_helper.c */
+void cpu_set_mxcsr(CPUX86State *env, uint32_t val);
+
 /* svm_helper.c */
 void cpu_svm_check_intercept_param(CPUX86State *env1, uint32_t type,
                                    uint64_t param);
@@ -1252,10 +1262,10 @@ void do_smm_enter(X86CPU *cpu);
 
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 
-void disable_kvm_pv_eoi(void);
-
 void x86_cpu_compat_set_features(const char *cpu_model, FeatureWord w,
                                  uint32_t feat_add, uint32_t feat_remove);
+
+void x86_cpu_compat_disable_kvm_features(FeatureWord w, uint32_t features);
 
 
 /* Return name of 32-bit register, from a R_* constant */

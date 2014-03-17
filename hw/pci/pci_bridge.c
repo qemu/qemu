@@ -268,7 +268,7 @@ void pci_bridge_write_config(PCIDevice *d,
     newctl = pci_get_word(d->config + PCI_BRIDGE_CONTROL);
     if (~oldctl & newctl & PCI_BRIDGE_CTL_BUS_RESET) {
         /* Trigger hot reset on 0->1 transition. */
-        pci_bus_reset(&s->sec_bus);
+        qbus_reset_all(&s->sec_bus.qbus);
     }
 }
 
@@ -372,7 +372,7 @@ int pci_bridge_initfn(PCIDevice *dev, const char *typename)
     sec_bus->parent_dev = dev;
     sec_bus->map_irq = br->map_irq ? br->map_irq : pci_swizzle_map_irq_fn;
     sec_bus->address_space_mem = &br->address_space_mem;
-    memory_region_init(&br->address_space_mem, OBJECT(br), "pci_bridge_pci", INT64_MAX);
+    memory_region_init(&br->address_space_mem, OBJECT(br), "pci_bridge_pci", UINT64_MAX);
     sec_bus->address_space_io = &br->address_space_io;
     memory_region_init(&br->address_space_io, OBJECT(br), "pci_bridge_io", 65536);
     br->windows = pci_bridge_region_init(br);
@@ -391,7 +391,7 @@ void pci_bridge_exitfn(PCIDevice *pci_dev)
     pci_bridge_region_cleanup(s, s->windows);
     memory_region_destroy(&s->address_space_mem);
     memory_region_destroy(&s->address_space_io);
-    /* qbus_free() is called automatically during device deletion */
+    /* object_unparent() is called automatically during device deletion */
 }
 
 /*

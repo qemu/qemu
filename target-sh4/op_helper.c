@@ -38,18 +38,18 @@
 #define SHIFT 3
 #include "exec/softmmu_template.h"
 
-void tlb_fill(CPUSH4State *env, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
     int ret;
 
-    ret = cpu_sh4_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = superh_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (ret) {
         /* now we have a real cpu fault */
         if (retaddr) {
-            cpu_restore_state(env, retaddr);
+            cpu_restore_state(cs, retaddr);
         }
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 
@@ -58,8 +58,10 @@ void tlb_fill(CPUSH4State *env, target_ulong addr, int is_write, int mmu_idx,
 void helper_ldtlb(CPUSH4State *env)
 {
 #ifdef CONFIG_USER_ONLY
+    SuperHCPU *cpu = sh_env_get_cpu(env);
+
     /* XXXXX */
-    cpu_abort(env, "Unhandled ldtlb");
+    cpu_abort(CPU(cpu), "Unhandled ldtlb");
 #else
     cpu_load_tlb(env);
 #endif
@@ -68,11 +70,13 @@ void helper_ldtlb(CPUSH4State *env)
 static inline void QEMU_NORETURN raise_exception(CPUSH4State *env, int index,
                                                  uintptr_t retaddr)
 {
-    env->exception_index = index;
+    CPUState *cs = CPU(sh_env_get_cpu(env));
+
+    cs->exception_index = index;
     if (retaddr) {
-        cpu_restore_state(env, retaddr);
+        cpu_restore_state(cs, retaddr);
     }
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void helper_raise_illegal_instruction(CPUSH4State *env)

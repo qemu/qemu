@@ -366,7 +366,7 @@ static int vapic_enable(VAPICROMState *s, X86CPU *cpu)
         (((hwaddr)cpu_number) << VAPIC_CPU_SHIFT);
     cpu_physical_memory_rw(vapic_paddr + offsetof(VAPICState, enabled),
                            (void *)&enabled, sizeof(enabled), 1);
-    apic_enable_vapic(cpu->env.apic_state, vapic_paddr);
+    apic_enable_vapic(cpu->apic_state, vapic_paddr);
 
     s->state = VAPIC_ACTIVE;
 
@@ -406,7 +406,7 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
     }
 
     if (!kvm_enabled()) {
-        cpu_restore_state(env, env->mem_io_pc);
+        cpu_restore_state(cs, cs->mem_io_pc);
         cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
                              &current_flags);
     }
@@ -448,8 +448,8 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
 
     if (!kvm_enabled()) {
         cs->current_tb = NULL;
-        tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
-        cpu_resume_from_signal(env, NULL);
+        tb_gen_code(cs, current_pc, current_cs_base, current_flags, 1);
+        cpu_resume_from_signal(cs, NULL);
     }
 }
 
@@ -496,12 +496,10 @@ static void vapic_enable_tpr_reporting(bool enable)
     };
     CPUState *cs;
     X86CPU *cpu;
-    CPUX86State *env;
 
     CPU_FOREACH(cs) {
         cpu = X86_CPU(cs);
-        env = &cpu->env;
-        info.apic = env->apic_state;
+        info.apic = cpu->apic_state;
         run_on_cpu(cs, vapic_do_enable_tpr_reporting, &info);
     }
 }
@@ -700,7 +698,7 @@ static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
     default:
     case 4:
         if (!kvm_irqchip_in_kernel()) {
-            apic_poll_irq(env->apic_state);
+            apic_poll_irq(cpu->apic_state);
         }
         break;
     }
@@ -827,7 +825,6 @@ static void vapic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->no_user = 1;
     dc->reset   = vapic_reset;
     dc->vmsd    = &vmstate_vapic;
     dc->realize = vapic_realize;

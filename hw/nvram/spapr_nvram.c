@@ -55,12 +55,12 @@ static void rtas_nvram_fetch(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     void *membuf;
 
     if ((nargs != 3) || (nret != 2)) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
     if (!nvram) {
-        rtas_st(rets, 0, -1);
+        rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
         rtas_st(rets, 1, 0);
         return;
     }
@@ -71,7 +71,7 @@ static void rtas_nvram_fetch(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
     if (((offset + len) < offset)
         || ((offset + len) > nvram->size)) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         rtas_st(rets, 1, 0);
         return;
     }
@@ -87,7 +87,7 @@ static void rtas_nvram_fetch(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     }
     cpu_physical_memory_unmap(membuf, len, 1, len);
 
-    rtas_st(rets, 0, (alen < len) ? -1 : 0);
+    rtas_st(rets, 0, (alen < len) ? RTAS_OUT_HW_ERROR : RTAS_OUT_SUCCESS);
     rtas_st(rets, 1, (alen < 0) ? 0 : alen);
 }
 
@@ -102,12 +102,12 @@ static void rtas_nvram_store(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     void *membuf;
 
     if ((nargs != 3) || (nret != 2)) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
     if (!nvram) {
-        rtas_st(rets, 0, -1);
+        rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
         return;
     }
 
@@ -117,7 +117,7 @@ static void rtas_nvram_store(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
     if (((offset + len) < offset)
         || ((offset + len) > nvram->size)) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
@@ -132,7 +132,7 @@ static void rtas_nvram_store(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     }
     cpu_physical_memory_unmap(membuf, len, 0, len);
 
-    rtas_st(rets, 0, (alen < len) ? -1 : 0);
+    rtas_st(rets, 0, (alen < len) ? RTAS_OUT_HW_ERROR : RTAS_OUT_SUCCESS);
     rtas_st(rets, 1, (alen < 0) ? 0 : alen);
 }
 

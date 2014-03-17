@@ -161,7 +161,7 @@ static int configure_tpm(QemuOpts *opts)
 
     /* validate backend specific opts */
     qemu_opts_validate(opts, be->opts, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         qerror_report_err(local_err);
         error_free(local_err);
         return 1;

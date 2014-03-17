@@ -1,0 +1,49 @@
+QA output created by 081
+
+== creating quorum files ==
+Formatting 'TEST_DIR/1.IMGFMT', fmt=IMGFMT size=10485760 
+Formatting 'TEST_DIR/2.IMGFMT', fmt=IMGFMT size=10485760 
+Formatting 'TEST_DIR/3.IMGFMT', fmt=IMGFMT size=10485760 
+
+== writing images ==
+wrote 10485760/10485760 bytes at offset 0
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== checking quorum write ==
+read 10485760/10485760 bytes at offset 0
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 10485760/10485760 bytes at offset 0
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 10485760/10485760 bytes at offset 0
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== corrupting image ==
+wrote 10485760/10485760 bytes at offset 0
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== checking quorum correction ==
+read 10485760/10485760 bytes at offset 0
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== checking mixed reference/option specification ==
+Testing: -drive file=TEST_DIR/2.IMGFMT,format=IMGFMT,if=none,id=drive2
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "QUORUM_REPORT_BAD", "data": {"node-name": "", "sectors-count": 20480, "sector-num": 0}}
+read 10485760/10485760 bytes at offset 0
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{"return": ""}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "DEVICE_TRAY_MOVED", "data": {"device": "ide1-cd0", "tray-open": true}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "DEVICE_TRAY_MOVED", "data": {"device": "floppy0", "tray-open": true}}
+
+
+== breaking quorum ==
+wrote 10485760/10485760 bytes at offset 0
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== checking that quorum is broken ==
+qemu-io: can't open device (null): Could not read image for determining its format: Input/output error
+*** done

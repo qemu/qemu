@@ -43,7 +43,7 @@
 
 /* config register */
 #define R_CONFIG            (0x00 / 4)
-#define IFMODE              (1 << 31)
+#define IFMODE              (1U << 31)
 #define ENDIAN              (1 << 26)
 #define MODEFAIL_GEN_EN     (1 << 17)
 #define MAN_START_COM       (1 << 16)
@@ -87,7 +87,7 @@
 
 #define R_LQSPI_CFG         (0xa0 / 4)
 #define R_LQSPI_CFG_RESET       0x03A002EB
-#define LQSPI_CFG_LQ_MODE       (1 << 31)
+#define LQSPI_CFG_LQ_MODE       (1U << 31)
 #define LQSPI_CFG_TWO_MEM       (1 << 30)
 #define LQSPI_CFG_SEP_BUS       (1 << 30)
 #define LQSPI_CFG_U_PAGE        (1 << 28)

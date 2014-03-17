@@ -377,15 +377,6 @@ MMU   OK
 EXCP  KO partially implemented
 Remarks: Should be able to boot but there is no hw platform currently emulated.
 
-PowerPC 970GX:
-INSN  KO Altivec missing and more
-SPR   KO
-MSR   ?
-IRQ   OK
-MMU   OK
-EXCP  KO partially implemented
-Remarks: Should be able to boot but there is no hw platform currently emulated.
-
 PowerPC Cell:
 INSN  KO Altivec missing and more
 SPR   KO

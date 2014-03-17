@@ -222,7 +222,7 @@ int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             return 4;
 
         case IDX_MXCSR_REG:
-            env->mxcsr = ldl_p(mem_buf);
+            cpu_set_mxcsr(env, ldl_p(mem_buf));
             return 4;
         }
     }

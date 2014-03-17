@@ -1,4 +1,4 @@
-devices-dirs-$(CONFIG_REALLY_VIRTFS) += 9pfs/
+devices-dirs-$(call land, $(CONFIG_VIRTIO),$(call land,$(CONFIG_VIRTFS),$(CONFIG_PCI))) += 9pfs/
 devices-dirs-$(CONFIG_ACPI) += acpi/
 devices-dirs-$(CONFIG_SOFTMMU) += audio/
 devices-dirs-$(CONFIG_SOFTMMU) += block/
@@ -12,6 +12,7 @@ devices-dirs-$(CONFIG_SOFTMMU) += i2c/
 devices-dirs-$(CONFIG_SOFTMMU) += ide/
 devices-dirs-$(CONFIG_SOFTMMU) += input/
 devices-dirs-$(CONFIG_SOFTMMU) += intc/
+devices-dirs-$(CONFIG_IPACK) += ipack/
 devices-dirs-$(CONFIG_SOFTMMU) += isa/
 devices-dirs-$(CONFIG_SOFTMMU) += misc/
 devices-dirs-$(CONFIG_SOFTMMU) += net/

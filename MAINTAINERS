@@ -158,7 +158,6 @@ Guest CPU Cores (KVM):
 ----------------------
 
 Overall
-M: Gleb Natapov <gleb@redhat.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
@@ -176,12 +175,14 @@ S: Maintained
 F: target-ppc/kvm.c
 
 S390
+M: Christian Borntraeger <borntraeger@de.ibm.com>
+M: Cornelia Huck <cornelia.huck@de.ibm.com>
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: target-s390x/kvm.c
+F: hw/intc/s390_flic.[hc]
 
 X86
-M: Gleb Natapov <gleb@redhat.com>
 M: Marcelo Tosatti <mtosatti@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
@@ -219,6 +220,13 @@ F: *win32*
 
 ARM Machines
 ------------
+Allwinner-a10
+M: Li Guang <lig.fnst@cn.fujitsu.com>
+S: Maintained
+F: hw/*/allwinner-a10*
+F: include/hw/*/allwinner-a10*
+F: hw/arm/cubieboard.c
+
 Exynos
 M: Evgeny Voevodin <e.voevodin@samsung.com>
 M: Maksim Kozlov <m.kozlov@samsung.com>
@@ -232,6 +240,12 @@ M: Mark Langsdorf <mark.langsdorf@calxeda.com>
 S: Supported
 F: hw/arm/highbank.c
 F: hw/net/xgmac.c
+
+Canon DIGIC
+M: Antony Pavlov <antonynpavlov@gmail.com>
+S: Maintained
+F: include/hw/arm/digic.h
+F: hw/*/digic*
 
 Gumstix
 M: qemu-devel@nongnu.org
@@ -482,10 +496,13 @@ F: hw/s390x/s390-*.c
 
 S390 Virtio-ccw
 M: Cornelia Huck <cornelia.huck@de.ibm.com>
+M: Christian Borntraeger <borntraeger@de.ibm.com>
 M: Alexander Graf <agraf@suse.de>
 S: Supported
 F: hw/s390x/s390-virtio-ccw.c
 F: hw/s390x/css.[hc]
+F: hw/s390x/sclp*.[hc]
+F: hw/s390x/ipl*.[hc]
 T: git git://github.com/cohuck/qemu virtio-ccw-upstr
 
 UniCore32 Machines
@@ -500,9 +517,23 @@ X86 Machines
 ------------
 PC
 M: Anthony Liguori <aliguori@amazon.com>
+M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
-F: hw/i386/pc.[ch]
-F: hw/i386/pc_piix.c
+F: include/hw/i386/
+F: hw/i386/
+F: hw/pci-host/piix.c
+F: hw/pci-host/q35.c
+F: hw/pci-host/pam.c
+F: include/hw/pci-host/q35.h
+F: include/hw/pci-host/pam.h
+F: hw/isa/piix4.c
+F: hw/isa/lpc_ich9.c
+F: hw/i2c/smbus_ich9.c
+F: hw/acpi/piix4.c
+F: hw/acpi/ich9.c
+F: include/hw/acpi/ich9.h
+F: include/hw/acpi/piix.h
+
 
 Xtensa Machines
 ---------------
@@ -583,6 +614,7 @@ F: hw/*/*vhost*
 
 virtio
 M: Anthony Liguori <aliguori@amazon.com>
+M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: hw/*/virtio*
 
@@ -601,6 +633,7 @@ F: hw/block/virtio-blk.c
 
 virtio-ccw
 M: Cornelia Huck <cornelia.huck@de.ibm.com>
+M: Christian Borntraeger <borntraeger@de.ibm.com>
 S: Supported
 F: hw/s390x/virtio-ccw.[hc]
 T: git git://github.com/cohuck/qemu virtio-ccw-upstr
@@ -687,6 +720,7 @@ F: ui/
 
 Cocoa graphics
 M: Andreas Färber <andreas.faerber@web.de>
+M: Peter Maydell <peter.maydell@linaro.org>
 S: Odd Fixes
 F: ui/cocoa.m
 
@@ -697,7 +731,7 @@ F: vl.c
 
 Human Monitor (HMP)
 M: Luiz Capitulino <lcapitulino@redhat.com>
-S: Supported
+S: Maintained
 F: monitor.c
 F: hmp.c
 F: hmp-commands.hx
@@ -729,7 +763,7 @@ T: git git://github.com/bonzini/qemu.git nbd-next
 QAPI
 M: Luiz Capitulino <lcapitulino@redhat.com>
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
-S: Supported
+S: Maintained
 F: qapi/
 T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
@@ -743,7 +777,7 @@ T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 QMP
 M: Luiz Capitulino <lcapitulino@redhat.com>
-S: Supported
+S: Maintained
 F: qmp.c
 F: monitor.c
 F: qmp-commands.hx
@@ -907,6 +941,11 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 M: Peter Lieven <pl@kamp.de>
 S: Supported
 F: block/iscsi.c
+
+NFS
+M: Peter Lieven <pl@kamp.de>
+S: Maintained
+F: block/nfs.c
 
 SSH
 M: Richard W.M. Jones <rjones@redhat.com>

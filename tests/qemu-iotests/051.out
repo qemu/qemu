@@ -17,6 +17,21 @@ Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
 
 
+=== Unknown protocol option ===
+
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=on
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=on: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=1234
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=1234: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=foo
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=foo: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+
+
 === Invalid format ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=foo
@@ -90,7 +105,6 @@ QEMU_PROG: Initialization of device ide-hd failed
 Testing: -drive if=virtio
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -drive if=virtio: Device needs media, but drive is empty
-QEMU_PROG: -drive if=virtio: Device initialization failed.
 QEMU_PROG: -drive if=virtio: Device initialization failed.
 QEMU_PROG: -drive if=virtio: Device 'virtio-blk-pci' could not be initialized
 
@@ -223,7 +237,31 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: could not open disk image TEST_DIR/t.qcow2: Can't use 'qcow2' as a block driver for the protocol level
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device '' doesn't support the option 'filename'
+
+
+=== Leaving out required options ===
+
+Testing: -drive driver=file
+QEMU_PROG: -drive driver=file: could not open disk image ide0-hd0: The 'file' block driver requires a file name
+
+Testing: -drive driver=nbd
+QEMU_PROG: -drive driver=nbd: could not open disk image ide0-hd0: one of path and host must be specified.
+
+Testing: -drive driver=raw
+QEMU_PROG: -drive driver=raw: could not open disk image ide0-hd0: Can't use 'raw' as a block driver for the protocol level
+
+Testing: -drive file.driver=file
+QEMU_PROG: -drive file.driver=file: could not open disk image ide0-hd0: The 'file' block driver requires a file name
+
+Testing: -drive file.driver=nbd
+QEMU_PROG: -drive file.driver=nbd: could not open disk image ide0-hd0: one of path and host must be specified.
+
+Testing: -drive file.driver=raw
+QEMU_PROG: -drive file.driver=raw: could not open disk image ide0-hd0: Can't use 'raw' as a block driver for the protocol level
+
+Testing: -drive foo=bar
+QEMU_PROG: -drive foo=bar: could not open disk image ide0-hd0: Must specify either driver or file
 
 
 === Parsing protocol from file name ===

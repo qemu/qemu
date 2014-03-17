@@ -19,6 +19,7 @@
  */
 
 #include <zlib.h>
+#include <stdint.h>
 
 #include "qemu-common.h"
 #include "qemu/timer.h"
@@ -1126,6 +1127,7 @@ static void qxl_reset_state(PCIQXLDevice *d)
     d->num_free_res = 0;
     d->last_release = NULL;
     memset(&d->ssd.dirty, 0, sizeof(d->ssd.dirty));
+    qxl_update_irq(d);
 }
 
 static void qxl_soft_reset(PCIQXLDevice *d)
@@ -1144,7 +1146,13 @@ static void qxl_soft_reset(PCIQXLDevice *d)
 
 static void qxl_hard_reset(PCIQXLDevice *d, int loadvm)
 {
+    bool startstop = qemu_spice_display_is_running(&d->ssd);
+
     trace_qxl_hard_reset(d->id, loadvm);
+
+    if (startstop) {
+        qemu_spice_display_stop();
+    }
 
     qxl_spice_reset_cursor(d);
     qxl_spice_reset_image_cache(d);
@@ -1159,6 +1167,10 @@ static void qxl_hard_reset(PCIQXLDevice *d, int loadvm)
     }
     qemu_spice_create_host_memslot(&d->ssd);
     qxl_soft_reset(d);
+
+    if (startstop) {
+        qemu_spice_display_start();
+    }
 }
 
 static void qxl_reset_handler(DeviceState *dev)
@@ -1350,14 +1362,16 @@ static void qxl_create_guest_primary(PCIQXLDevice *qxl, int loadvm,
 {
     QXLDevSurfaceCreate surface;
     QXLSurfaceCreate *sc = &qxl->guest_primary.surface;
-    int size;
-    int requested_height = le32_to_cpu(sc->height);
+    uint32_t requested_height = le32_to_cpu(sc->height);
     int requested_stride = le32_to_cpu(sc->stride);
 
-    size = abs(requested_stride) * requested_height;
-    if (size > qxl->vgamem_size) {
-        qxl_set_guest_bug(qxl, "%s: requested primary larger then framebuffer"
-                               " size", __func__);
+    if (requested_stride == INT32_MIN ||
+        abs(requested_stride) * (uint64_t)requested_height
+                                        > qxl->vgamem_size) {
+        qxl_set_guest_bug(qxl, "%s: requested primary larger than framebuffer"
+                               " stride %d x height %" PRIu32 " > %" PRIu32,
+                               __func__, requested_stride, requested_height,
+                               qxl->vgamem_size);
         return;
     }
 
@@ -1415,7 +1429,7 @@ static int qxl_destroy_primary(PCIQXLDevice *d, qxl_async_io async)
     return 1;
 }
 
-static void qxl_set_mode(PCIQXLDevice *d, int modenr, int loadvm)
+static void qxl_set_mode(PCIQXLDevice *d, unsigned int modenr, int loadvm)
 {
     pcibus_t start = d->pci.io_regions[QXL_RAM_RANGE_INDEX].addr;
     pcibus_t end   = d->pci.io_regions[QXL_RAM_RANGE_INDEX].size + start;
@@ -1425,6 +1439,12 @@ static void qxl_set_mode(PCIQXLDevice *d, int modenr, int loadvm)
         .mem_start = start,
         .mem_end = end
     };
+
+    if (modenr >= d->modes->n_modes) {
+        qxl_set_guest_bug(d, "mode number out of range");
+        return;
+    }
+
     QXLSurfaceCreate surface = {
         .width      = mode->x_res,
         .height     = mode->y_res,
@@ -2049,7 +2069,7 @@ static int qxl_init_primary(PCIDevice *dev)
     portio_list_set_flush_coalesced(qxl_vga_port_list);
     portio_list_add(qxl_vga_port_list, pci_address_space_io(dev), 0x3b0);
 
-    vga->con = graphic_console_init(DEVICE(dev), &qxl_ops, qxl);
+    vga->con = graphic_console_init(DEVICE(dev), 0, &qxl_ops, qxl);
     qemu_spice_display_init_common(&qxl->ssd);
 
     rc = qxl_init_common(qxl);
@@ -2074,7 +2094,7 @@ static int qxl_init_secondary(PCIDevice *dev)
                            qxl->vga.vram_size);
     vmstate_register_ram(&qxl->vga.vram, &qxl->pci.qdev);
     qxl->vga.vram_ptr = memory_region_get_ram_ptr(&qxl->vga.vram);
-    qxl->vga.con = graphic_console_init(DEVICE(dev), &qxl_ops, qxl);
+    qxl->vga.con = graphic_console_init(DEVICE(dev), 0, &qxl_ops, qxl);
 
     return qxl_init_common(qxl);
 }
@@ -2289,7 +2309,6 @@ static void qxl_primary_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->no_hotplug = 1;
     k->init = qxl_init_primary;
     k->romfile = "vgabios-qxl.bin";
     k->vendor_id = REDHAT_PCI_VENDOR_ID;
@@ -2300,6 +2319,7 @@ static void qxl_primary_class_init(ObjectClass *klass, void *data)
     dc->reset = qxl_reset_handler;
     dc->vmsd = &qxl_vmstate;
     dc->props = qxl_properties;
+    dc->hotpluggable = false;
 }
 
 static const TypeInfo qxl_primary_info = {

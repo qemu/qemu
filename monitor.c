@@ -37,8 +37,9 @@
 #include "ui/qemu-spice.h"
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
-#include "monitor/readline.h"
+#include "qemu/readline.h"
 #include "ui/console.h"
+#include "ui/input.h"
 #include "sysemu/blockdev.h"
 #include "audio/audio.h"
 #include "disas/disas.h"
@@ -56,6 +57,7 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/json-streamer.h"
 #include "qapi/qmp/json-parser.h"
+#include <qom/object_interfaces.h>
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "trace.h"
@@ -217,8 +219,8 @@ static const mon_cmd_t qmp_cmds[];
 Monitor *cur_mon;
 Monitor *default_mon;
 
-static void monitor_command_cb(Monitor *mon, const char *cmdline,
-                               void *opaque);
+static void monitor_command_cb(void *opaque, const char *cmdline,
+                               void *readline_opaque);
 
 static inline int qmp_cmd_mode(const Monitor *mon)
 {
@@ -288,8 +290,8 @@ void monitor_flush(Monitor *mon)
 
     if (len && !mon->mux_out) {
         rc = qemu_chr_fe_write(mon->chr, (const uint8_t *) buf, len);
-        if (rc == len) {
-            /* all flushed */
+        if ((rc < 0 && errno != EAGAIN) || (rc == len)) {
+            /* all flushed or error */
             QDECREF(mon->outbuf);
             mon->outbuf = qstring_new();
             return;
@@ -507,6 +509,8 @@ static const char *monitor_event_names[] = {
     [QEVENT_SPICE_MIGRATE_COMPLETED] = "SPICE_MIGRATE_COMPLETED",
     [QEVENT_GUEST_PANICKED] = "GUEST_PANICKED",
     [QEVENT_BLOCK_IMAGE_CORRUPTED] = "BLOCK_IMAGE_CORRUPTED",
+    [QEVENT_QUORUM_FAILURE] = "QUORUM_FAILURE",
+    [QEVENT_QUORUM_REPORT_BAD] = "QUORUM_REPORT_BAD",
 };
 QEMU_BUILD_BUG_ON(ARRAY_SIZE(monitor_event_names) != QEVENT_MAX)
 
@@ -637,6 +641,9 @@ static void monitor_protocol_event_init(void)
     monitor_protocol_event_throttle(QEVENT_RTC_CHANGE, 1000);
     monitor_protocol_event_throttle(QEVENT_BALLOON_CHANGE, 1000);
     monitor_protocol_event_throttle(QEVENT_WATCHDOG, 1000);
+    /* limit the rate of quorum events to avoid hammering the management */
+    monitor_protocol_event_throttle(QEVENT_QUORUM_REPORT_BAD, 1000);
+    monitor_protocol_event_throttle(QEVENT_QUORUM_FAILURE, 1000);
 }
 
 /**
@@ -1445,7 +1452,7 @@ static void do_sum(Monitor *mon, const QDict *qdict)
 
     sum = 0;
     for(addr = start; addr < (start + size); addr++) {
-        uint8_t val = ldub_phys(addr);
+        uint8_t val = ldub_phys(&address_space_memory, addr);
         /* BSD sum algorithm ('sum' Unix command) */
         sum = (sum >> 1) | (sum << 15);
         sum += val;
@@ -1457,23 +1464,43 @@ static int mouse_button_state;
 
 static void do_mouse_move(Monitor *mon, const QDict *qdict)
 {
-    int dx, dy, dz;
+    int dx, dy, dz, button;
     const char *dx_str = qdict_get_str(qdict, "dx_str");
     const char *dy_str = qdict_get_str(qdict, "dy_str");
     const char *dz_str = qdict_get_try_str(qdict, "dz_str");
+
     dx = strtol(dx_str, NULL, 0);
     dy = strtol(dy_str, NULL, 0);
-    dz = 0;
-    if (dz_str)
+    qemu_input_queue_rel(NULL, INPUT_AXIS_X, dx);
+    qemu_input_queue_rel(NULL, INPUT_AXIS_Y, dy);
+
+    if (dz_str) {
         dz = strtol(dz_str, NULL, 0);
-    kbd_mouse_event(dx, dy, dz, mouse_button_state);
+        if (dz != 0) {
+            button = (dz > 0) ? INPUT_BUTTON_WHEEL_UP : INPUT_BUTTON_WHEEL_DOWN;
+            qemu_input_queue_btn(NULL, button, true);
+            qemu_input_event_sync();
+            qemu_input_queue_btn(NULL, button, false);
+        }
+    }
+    qemu_input_event_sync();
 }
 
 static void do_mouse_button(Monitor *mon, const QDict *qdict)
 {
+    static uint32_t bmap[INPUT_BUTTON_MAX] = {
+        [INPUT_BUTTON_LEFT]       = MOUSE_EVENT_LBUTTON,
+        [INPUT_BUTTON_MIDDLE]     = MOUSE_EVENT_MBUTTON,
+        [INPUT_BUTTON_RIGHT]      = MOUSE_EVENT_RBUTTON,
+    };
     int button_state = qdict_get_int(qdict, "button_state");
+
+    if (mouse_button_state == button_state) {
+        return;
+    }
+    qemu_input_update_buttons(NULL, bmap, mouse_button_state, button_state);
+    qemu_input_event_sync();
     mouse_button_state = button_state;
-    kbd_mouse_event(0, 0, 0, mouse_button_state);
 }
 
 static void do_ioport_read(Monitor *mon, const QDict *qdict)
@@ -2015,10 +2042,6 @@ int64_t dev_time;
 
 static void do_info_profile(Monitor *mon, const QDict *qdict)
 {
-    int64_t total;
-    total = qemu_time;
-    if (total == 0)
-        total = 1;
     monitor_printf(mon, "async time  %" PRId64 " (%0.3f)\n",
                    dev_time, dev_time / (double)get_ticks_per_sec());
     monitor_printf(mon, "qemu time   %" PRId64 " (%0.3f)\n",
@@ -4254,6 +4277,87 @@ static const char *next_arg_type(const char *typestr)
     return (p != NULL ? ++p : typestr);
 }
 
+static void device_add_completion(ReadLineState *rs, const char *str)
+{
+    GSList *list, *elt;
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    list = elt = object_class_get_list(TYPE_DEVICE, false);
+    while (elt) {
+        const char *name;
+        DeviceClass *dc = OBJECT_CLASS_CHECK(DeviceClass, elt->data,
+                                             TYPE_DEVICE);
+        name = object_class_get_name(OBJECT_CLASS(dc));
+        if (!strncmp(name, str, len)) {
+            readline_add_completion(rs, name);
+        }
+        elt = elt->next;
+    }
+    g_slist_free(list);
+}
+
+static void object_add_completion(ReadLineState *rs, const char *str)
+{
+    GSList *list, *elt;
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    list = elt = object_class_get_list(TYPE_USER_CREATABLE, false);
+    while (elt) {
+        const char *name;
+
+        name = object_class_get_name(OBJECT_CLASS(elt->data));
+        if (!strncmp(name, str, len) && strcmp(name, TYPE_USER_CREATABLE)) {
+            readline_add_completion(rs, name);
+        }
+        elt = elt->next;
+    }
+    g_slist_free(list);
+}
+
+static void device_del_completion(ReadLineState *rs, BusState *bus,
+                                  const char *str, size_t len)
+{
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
+        BusState *dev_child;
+
+        if (dev->id && !strncmp(str, dev->id, len)) {
+            readline_add_completion(rs, dev->id);
+        }
+
+        QLIST_FOREACH(dev_child, &dev->child_bus, sibling) {
+            device_del_completion(rs, dev_child, str, len);
+        }
+    }
+}
+
+static void object_del_completion(ReadLineState *rs, const char *str)
+{
+    ObjectPropertyInfoList *list, *start;
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+
+    start = list = qmp_qom_list("/objects", NULL);
+    while (list) {
+        ObjectPropertyInfo *info = list->value;
+
+        if (!strncmp(info->type, "child<", 5)
+            && !strncmp(info->name, str, len)) {
+            readline_add_completion(rs, info->name);
+        }
+        list = list->next;
+    }
+    qapi_free_ObjectPropertyInfoList(start);
+}
+
 static void monitor_find_completion_by_table(Monitor *mon,
                                              const mon_cmd_t *cmd_table,
                                              char **args,
@@ -4317,6 +4421,13 @@ static void monitor_find_completion_by_table(Monitor *mon,
             readline_set_completion_index(mon->rs, strlen(str));
             bdrv_iterate(block_completion_it, &mbs);
             break;
+        case 'O':
+            if (!strcmp(cmd->name, "device_add") && nb_args == 2) {
+                device_add_completion(mon->rs, str);
+            } else if (!strcmp(cmd->name, "object_add") && nb_args == 2) {
+                object_add_completion(mon->rs, str);
+            }
+            break;
         case 's':
         case 'S':
             if (!strcmp(cmd->name, "sendkey")) {
@@ -4330,6 +4441,12 @@ static void monitor_find_completion_by_table(Monitor *mon,
             } else if (!strcmp(cmd->name, "help|?")) {
                 monitor_find_completion_by_table(mon, cmd_table,
                                                  &args[1], nb_args - 1);
+            } else if (!strcmp(cmd->name, "device_del") && nb_args == 2) {
+                size_t len = strlen(str);
+                readline_set_completion_index(mon->rs, len);
+                device_del_completion(mon->rs, sysbus_get_default(), str, len);
+            } else if (!strcmp(cmd->name, "object_del") && nb_args == 2) {
+                object_del_completion(mon->rs, str);
             }
             break;
         default:
@@ -4338,9 +4455,10 @@ static void monitor_find_completion_by_table(Monitor *mon,
     }
 }
 
-static void monitor_find_completion(Monitor *mon,
+static void monitor_find_completion(void *opaque,
                                     const char *cmdline)
 {
+    Monitor *mon = opaque;
     char *args[MAX_ARGS];
     int nb_args, len;
 
@@ -4751,8 +4869,11 @@ static void monitor_read(void *opaque, const uint8_t *buf, int size)
     cur_mon = old_mon;
 }
 
-static void monitor_command_cb(Monitor *mon, const char *cmdline, void *opaque)
+static void monitor_command_cb(void *opaque, const char *cmdline,
+                               void *readline_opaque)
 {
+    Monitor *mon = opaque;
+
     monitor_suspend(mon);
     handle_user_command(mon, cmdline);
     monitor_resume(mon);
@@ -4881,6 +5002,23 @@ static void sortcmdlist(void)
  * End:
  */
 
+/* These functions just adapt the readline interface in a typesafe way.  We
+ * could cast function pointers but that discards compiler checks.
+ */
+static void GCC_FMT_ATTR(2, 3) monitor_readline_printf(void *opaque,
+                                                       const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    monitor_vprintf(opaque, fmt, ap);
+    va_end(ap);
+}
+
+static void monitor_readline_flush(void *opaque)
+{
+    monitor_flush(opaque);
+}
+
 void monitor_init(CharDriverState *chr, int flags)
 {
     static int is_first_init = 1;
@@ -4898,7 +5036,10 @@ void monitor_init(CharDriverState *chr, int flags)
     mon->chr = chr;
     mon->flags = flags;
     if (flags & MONITOR_USE_READLINE) {
-        mon->rs = readline_init(mon, monitor_find_completion);
+        mon->rs = readline_init(monitor_readline_printf,
+                                monitor_readline_flush,
+                                mon,
+                                monitor_find_completion);
         monitor_read_command(mon, 0);
     }
 
@@ -4920,9 +5061,11 @@ void monitor_init(CharDriverState *chr, int flags)
         default_mon = mon;
 }
 
-static void bdrv_password_cb(Monitor *mon, const char *password, void *opaque)
+static void bdrv_password_cb(void *opaque, const char *password,
+                             void *readline_opaque)
 {
-    BlockDriverState *bs = opaque;
+    Monitor *mon = opaque;
+    BlockDriverState *bs = readline_opaque;
     int ret = 0;
 
     if (bdrv_set_key(bs, password) != 0) {

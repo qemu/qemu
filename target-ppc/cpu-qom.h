@@ -38,6 +38,8 @@
 #define POWERPC_CPU_GET_CLASS(obj) \
     OBJECT_GET_CLASS(PowerPCCPUClass, (obj), TYPE_POWERPC_CPU)
 
+typedef struct PowerPCCPU PowerPCCPU;
+
 /**
  * PowerPCCPUClass:
  * @parent_realize: The parent class' realize handler.
@@ -54,6 +56,7 @@ typedef struct PowerPCCPUClass {
     void (*parent_reset)(CPUState *cpu);
 
     uint32_t pvr;
+    uint32_t pvr_mask;
     uint32_t svr;
     uint64_t insns_flags;
     uint64_t insns_flags2;
@@ -70,7 +73,7 @@ typedef struct PowerPCCPUClass {
     void (*init_proc)(CPUPPCState *env);
     int  (*check_pow)(CPUPPCState *env);
 #if defined(CONFIG_SOFTMMU)
-    int (*handle_mmu_fault)(CPUPPCState *env, target_ulong eaddr, int rwx,
+    int (*handle_mmu_fault)(PowerPCCPU *cpu, target_ulong eaddr, int rwx,
                             int mmu_idx);
 #endif
 } PowerPCCPUClass;
@@ -78,16 +81,18 @@ typedef struct PowerPCCPUClass {
 /**
  * PowerPCCPU:
  * @env: #CPUPPCState
+ * @cpu_dt_id: CPU index used in the device tree. KVM uses this index too
  *
  * A PowerPC CPU.
  */
-typedef struct PowerPCCPU {
+struct PowerPCCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
 
     CPUPPCState env;
-} PowerPCCPU;
+    int cpu_dt_id;
+};
 
 static inline PowerPCCPU *ppc_env_get_cpu(CPUPPCState *env)
 {
@@ -99,6 +104,7 @@ static inline PowerPCCPU *ppc_env_get_cpu(CPUPPCState *env)
 #define ENV_OFFSET offsetof(PowerPCCPU, env)
 
 PowerPCCPUClass *ppc_cpu_class_by_pvr(uint32_t pvr);
+PowerPCCPUClass *ppc_cpu_class_by_pvr_mask(uint32_t pvr);
 
 void ppc_cpu_do_interrupt(CPUState *cpu);
 void ppc_cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,

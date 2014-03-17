@@ -30,6 +30,7 @@
 #include "hw/sysbus.h"
 #include "qemu/range.h"
 #include "ui/pixel_ops.h"
+#include "exec/address-spaces.h"
 
 /*
  * Status: 2010/05/07
@@ -1448,5 +1449,5 @@ void sm501_init(MemoryRegion *address_space_mem, uint32_t base,
     }
 
     /* create qemu graphic console */
-    s->con = graphic_console_init(DEVICE(dev), &sm501_ops, s);
+    s->con = graphic_console_init(DEVICE(dev), 0, &sm501_ops, s);
 }

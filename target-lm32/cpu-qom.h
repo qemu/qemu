@@ -60,6 +60,12 @@ typedef struct LM32CPU {
     /*< public >*/
 
     CPULM32State env;
+
+    uint32_t revision;
+    uint8_t num_interrupts;
+    uint8_t num_breakpoints;
+    uint8_t num_watchpoints;
+    uint32_t features;
 } LM32CPU;
 
 static inline LM32CPU *lm32_env_get_cpu(CPULM32State *env)

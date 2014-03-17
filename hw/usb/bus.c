@@ -16,6 +16,8 @@ static Property usb_props[] = {
     DEFINE_PROP_STRING("serial", USBDevice, serial),
     DEFINE_PROP_BIT("full-path", USBDevice, flags,
                     USB_DEV_FLAG_FULL_PATH, true),
+    DEFINE_PROP_BIT("msos-desc", USBDevice, flags,
+                    USB_DEV_FLAG_MSOS_DESC_ENABLE, true),
     DEFINE_PROP_END_OF_LIST()
 };
 

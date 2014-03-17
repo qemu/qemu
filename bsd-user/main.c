@@ -1000,7 +1000,7 @@ int main(int argc, char **argv)
     memset(ts, 0, sizeof(TaskState));
     init_task_state(ts);
     ts->info = info;
-    env->opaque = ts;
+    cpu->opaque = ts;
 
 #if defined(TARGET_I386)
     cpu_x86_set_cpl(env, 3);

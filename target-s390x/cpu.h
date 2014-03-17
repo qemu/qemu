@@ -28,6 +28,7 @@
 #define TARGET_LONG_BITS 64
 
 #define ELF_MACHINE	EM_S390
+#define ELF_MACHINE_UNAME "S390X"
 
 #define CPUArchState struct CPUS390XState
 
@@ -78,11 +79,6 @@ typedef struct MchkQueue {
     uint16_t type;
 } MchkQueue;
 
-/* Defined values for CPUS390XState.runtime_reg_dirty_mask */
-#define KVM_S390_RUNTIME_DIRTY_NONE     0
-#define KVM_S390_RUNTIME_DIRTY_PARTIAL  1
-#define KVM_S390_RUNTIME_DIRTY_FULL     2
-
 typedef struct CPUS390XState {
     uint64_t regs[16];     /* GP registers */
     CPU_DoubleU fregs[16]; /* FP registers */
@@ -126,12 +122,9 @@ typedef struct CPUS390XState {
     uint64_t cputm;
     uint32_t todpr;
 
-    /* on S390 the runtime register set has two dirty states:
-     * a partial dirty state in which only the registers that
-     * are needed all the time are fetched. And a fully dirty
-     * state in which all runtime registers are fetched.
-     */
-    uint32_t runtime_reg_dirty_mask;
+    uint64_t pfault_token;
+    uint64_t pfault_compare;
+    uint64_t pfault_select;
 
     CPU_COMMON
 
@@ -327,9 +320,8 @@ int cpu_s390x_exec(CPUS390XState *s);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_s390x_signal_handler(int host_signum, void *pinfo,
                            void *puc);
-int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw,
-                                int mmu_idx);
-#define cpu_handle_mmu_fault cpu_s390x_handle_mmu_fault
+int s390_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
+                              int mmu_idx);
 
 #include "ioinst.h"
 
@@ -351,6 +343,9 @@ static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb)
 
     return addr;
 }
+
+/* Base/displacement are at the same locations. */
+#define decode_basedisp_rs decode_basedisp_s
 
 void s390x_tod_timer(void *opaque);
 void s390x_cpu_timer(void *opaque);
@@ -968,7 +963,7 @@ struct sysib_322 {
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr);
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags);
-int sclp_service_call(uint32_t sccb, uint64_t code);
+int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code);
 uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
                  uint64_t vr);
 
@@ -1045,15 +1040,6 @@ static inline void cpu_inject_crw_mchk(S390CPU *cpu)
     cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    S390CPU *s390_cpu = S390_CPU(cpu);
-    CPUS390XState *env = &s390_cpu->env;
-
-    return (cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
-        (env->psw.mask & PSW_MASK_EXT);
-}
-
 /* fpu_helper.c */
 uint32_t set_cc_nz_f32(float32 v);
 uint32_t set_cc_nz_f64(float64 v);
@@ -1073,7 +1059,6 @@ void kvm_s390_io_interrupt(S390CPU *cpu, uint16_t subchannel_id,
                            uint32_t io_int_word);
 void kvm_s390_crw_mchk(S390CPU *cpu);
 void kvm_s390_enable_css_support(S390CPU *cpu);
-int kvm_s390_get_registers_partial(CPUState *cpu);
 int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
                                     int vq, bool assign);
 int kvm_s390_cpu_restart(S390CPU *cpu);
@@ -1090,10 +1075,6 @@ static inline void kvm_s390_crw_mchk(S390CPU *cpu)
 }
 static inline void kvm_s390_enable_css_support(S390CPU *cpu)
 {
-}
-static inline int kvm_s390_get_registers_partial(CPUState *cpu)
-{
-    return -ENOSYS;
 }
 static inline int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier,
                                                   uint32_t sch, int vq,

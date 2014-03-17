@@ -186,6 +186,14 @@ static const char *event_names[BLKDBG_EVENT_MAX] = {
 
     [BLKDBG_FLUSH_TO_OS]                    = "flush_to_os",
     [BLKDBG_FLUSH_TO_DISK]                  = "flush_to_disk",
+
+    [BLKDBG_PWRITEV_RMW_HEAD]               = "pwritev_rmw.head",
+    [BLKDBG_PWRITEV_RMW_AFTER_HEAD]         = "pwritev_rmw.after_head",
+    [BLKDBG_PWRITEV_RMW_TAIL]               = "pwritev_rmw.tail",
+    [BLKDBG_PWRITEV_RMW_AFTER_TAIL]         = "pwritev_rmw.after_tail",
+    [BLKDBG_PWRITEV]                        = "pwritev",
+    [BLKDBG_PWRITEV_ZERO]                   = "pwritev_zero",
+    [BLKDBG_PWRITEV_DONE]                   = "pwritev_done",
 };
 
 static int get_event_by_name(const char *name, BlkDebugEvent *event)
@@ -271,19 +279,33 @@ static void remove_rule(BlkdebugRule *rule)
     g_free(rule);
 }
 
-static int read_config(BDRVBlkdebugState *s, const char *filename)
+static int read_config(BDRVBlkdebugState *s, const char *filename,
+                       QDict *options, Error **errp)
 {
-    FILE *f;
+    FILE *f = NULL;
     int ret;
     struct add_rule_data d;
+    Error *local_err = NULL;
 
-    f = fopen(filename, "r");
-    if (f == NULL) {
-        return -errno;
+    if (filename) {
+        f = fopen(filename, "r");
+        if (f == NULL) {
+            error_setg_errno(errp, errno, "Could not read blkdebug config file");
+            return -errno;
+        }
+
+        ret = qemu_config_parse(f, config_groups, filename);
+        if (ret < 0) {
+            error_setg(errp, "Could not parse blkdebug config file");
+            ret = -EINVAL;
+            goto fail;
+        }
     }
 
-    ret = qemu_config_parse(f, config_groups, filename);
-    if (ret < 0) {
+    qemu_config_parse_qdict(options, config_groups, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
         goto fail;
     }
 
@@ -298,7 +320,9 @@ static int read_config(BDRVBlkdebugState *s, const char *filename)
 fail:
     qemu_opts_reset(&inject_error_opts);
     qemu_opts_reset(&set_state_opts);
-    fclose(f);
+    if (f) {
+        fclose(f);
+    }
     return ret;
 }
 
@@ -310,7 +334,9 @@ static void blkdebug_parse_filename(const char *filename, QDict *options,
 
     /* Parse the blkdebug: prefix */
     if (!strstart(filename, "blkdebug:", &filename)) {
-        error_setg(errp, "File name string must start with 'blkdebug:'");
+        /* There was no prefix; therefore, all options have to be already
+           present in the QDict (except for the filename) */
+        qdict_put(options, "x-image", qstring_from_str(filename));
         return;
     }
 
@@ -346,6 +372,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "[internal use only, will be removed]",
         },
+        {
+            .name = "align",
+            .type = QEMU_OPT_SIZE,
+            .help = "Required alignment in bytes",
+        },
         { /* end of list */ }
     },
 };
@@ -356,46 +387,53 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVBlkdebugState *s = bs->opaque;
     QemuOpts *opts;
     Error *local_err = NULL;
-    const char *filename, *config;
+    const char *config;
+    uint64_t align;
     int ret;
 
-    opts = qemu_opts_create_nofail(&runtime_opts);
+    opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
-        goto fail;
+        goto out;
     }
 
-    /* Read rules from config file */
+    /* Read rules from config file or command line options */
     config = qemu_opt_get(opts, "config");
-    if (config) {
-        ret = read_config(s, config);
-        if (ret < 0) {
-            error_setg_errno(errp, -ret, "Could not read blkdebug config file");
-            goto fail;
-        }
+    ret = read_config(s, config, options, errp);
+    if (ret) {
+        goto out;
     }
 
     /* Set initial state */
     s->state = 1;
 
     /* Open the backing file */
-    filename = qemu_opt_get(opts, "x-image");
-    if (filename == NULL) {
-        error_setg(errp, "Could not retrieve image file name");
-        ret = -EINVAL;
-        goto fail;
-    }
-
-    ret = bdrv_file_open(&bs->file, filename, NULL, flags, &local_err);
+    assert(bs->file == NULL);
+    ret = bdrv_open_image(&bs->file, qemu_opt_get(opts, "x-image"), options, "image",
+                          flags | BDRV_O_PROTOCOL, false, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
-        goto fail;
+        goto out;
+    }
+
+    /* Set request alignment */
+    align = qemu_opt_get_size(opts, "align", bs->request_alignment);
+    if (align > 0 && align < INT_MAX && !(align & (align - 1))) {
+        bs->request_alignment = align;
+    } else {
+        error_setg(errp, "Invalid alignment");
+        ret = -EINVAL;
+        goto fail_unref;
     }
 
     ret = 0;
-fail:
+    goto out;
+
+fail_unref:
+    bdrv_unref(bs->file);
+out:
     qemu_opts_del(opts);
     return ret;
 }
@@ -594,9 +632,9 @@ static int blkdebug_debug_breakpoint(BlockDriverState *bs, const char *event,
 static int blkdebug_debug_resume(BlockDriverState *bs, const char *tag)
 {
     BDRVBlkdebugState *s = bs->opaque;
-    BlkdebugSuspendedReq *r;
+    BlkdebugSuspendedReq *r, *next;
 
-    QLIST_FOREACH(r, &s->suspended_reqs, next) {
+    QLIST_FOREACH_SAFE(r, &s->suspended_reqs, next, next) {
         if (!strcmp(r->tag, tag)) {
             qemu_coroutine_enter(r->co, NULL);
             return 0;
@@ -609,7 +647,7 @@ static int blkdebug_debug_remove_breakpoint(BlockDriverState *bs,
                                             const char *tag)
 {
     BDRVBlkdebugState *s = bs->opaque;
-    BlkdebugSuspendedReq *r;
+    BlkdebugSuspendedReq *r, *r_next;
     BlkdebugRule *rule, *next;
     int i, ret = -ENOENT;
 
@@ -622,7 +660,7 @@ static int blkdebug_debug_remove_breakpoint(BlockDriverState *bs,
             }
         }
     }
-    QLIST_FOREACH(r, &s->suspended_reqs, next) {
+    QLIST_FOREACH_SAFE(r, &s->suspended_reqs, next, r_next) {
         if (!strcmp(r->tag, tag)) {
             qemu_coroutine_enter(r->co, NULL);
             ret = 0;

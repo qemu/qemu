@@ -18,76 +18,65 @@ from tracetool import out
 
 PUBLIC = True
 
-
 def c(events):
-    out('#include <ust/marker.h>',
-        '#undef mutex_lock',
-        '#undef mutex_unlock',
-        '#undef inline',
-        '#undef wmb',
-        '#include "trace.h"')
-
-    for e in events:
-        argnames = ", ".join(e.args.names())
-        if len(e.args) > 0:
-            argnames = ', ' + argnames
-
-            out('DEFINE_TRACE(ust_%(name)s);',
-                '',
-                'static void ust_%(name)s_probe(%(args)s)',
-                '{',
-                '    trace_mark(ust, %(name)s, %(fmt)s%(argnames)s);',
-                '}',
-                name = e.name,
-                args = e.args,
-                fmt = e.fmt,
-                argnames = argnames,
-                )
-
-        else:
-            out('DEFINE_TRACE(ust_%(name)s);',
-                '',
-                'static void ust_%(name)s_probe(%(args)s)',
-                '{',
-                '    trace_mark(ust, %(name)s, UST_MARKER_NOARGS);',
-                '}',
-                name = e.name,
-                args = e.args,
-                )
-
-    # register probes
-    out('',
-        'static void __attribute__((constructor)) trace_init(void)',
-        '{')
-
-    for e in events:
-        out('    register_trace_ust_%(name)s(ust_%(name)s_probe);',
-            name = e.name,
-            )
-
-    out('}')
+    pass
 
 
 def h(events):
-    out('#include <ust/tracepoint.h>',
-        '#undef mutex_lock',
-        '#undef mutex_unlock',
-        '#undef inline',
-        '#undef wmb')
+    out('#include <lttng/tracepoint.h>',
+        '#include "trace/generated-ust-provider.h"',
+        '')
+    for e in events:
+        argnames = ", ".join(e.args.names())
+        if len(e.args) > 0:
+            argnames = ", " + argnames
 
+        out('static inline void trace_%(name)s(%(args)s)',
+            '{',
+            '    tracepoint(qemu, %(name)s%(tp_args)s);',
+            '}',
+            '',
+            name = e.name,
+            args = e.args,
+            tp_args = argnames,
+            )
+
+def ust_events_c(events):
+    pass
+
+def ust_events_h(events):
     for e in events:
         if len(e.args) > 0:
-            out('DECLARE_TRACE(ust_%(name)s, TP_PROTO(%(args)s), TP_ARGS(%(argnames)s));',
-                '#define trace_%(name)s trace_ust_%(name)s',
+            out('TRACEPOINT_EVENT(',
+                '   qemu,',
+                '   %(name)s,',
+                '   TP_ARGS(%(args)s),',
+                '   TP_FIELDS(',
                 name = e.name,
-                args = e.args,
-                argnames = ", ".join(e.args.names()),
+                args = ", ".join(", ".join(i) for i in e.args),
                 )
+
+            for t,n in e.args:
+                if ('int' in t) or ('long' in t) or ('unsigned' in t) or ('size_t' in t):
+                    out('       ctf_integer(' + t + ', ' + n + ', ' + n + ')')
+                elif ('double' in t) or ('float' in t):
+                    out('       ctf_float(' + t + ', ' + n + ', ' + n + ')')
+                elif ('char *' in t) or ('char*' in t):
+                    out('       ctf_string(' + n + ', ' + n + ')')
+                elif ('void *' in t) or ('void*' in t):
+                    out('       ctf_integer_hex(unsigned long, ' + n + ', ' + n + ')')
+
+            out('   )',
+                ')',
+                '')
 
         else:
-            out('_DECLARE_TRACEPOINT_NOARGS(ust_%(name)s);',
-                '#define trace_%(name)s trace_ust_%(name)s',
+            out('TRACEPOINT_EVENT(',
+                '   qemu,',
+                '   %(name)s,',
+                '   TP_ARGS(void),',
+                '   TP_FIELDS()',
+                ')',
+                '',
                 name = e.name,
                 )
-
-    out()

@@ -529,7 +529,8 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
             "state directory=%s\n"
             "log file=%s/log.smbd\n"
             "smb passwd file=%s/smbpasswd\n"
-            "security = share\n"
+            "security = user\n"
+            "map to guest = Bad User\n"
             "[qemu]\n"
             "path=%s\n"
             "read only=no\n"
@@ -549,7 +550,8 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
     snprintf(smb_cmdline, sizeof(smb_cmdline), "%s -s %s",
              CONFIG_SMBD_COMMAND, smb_conf);
 
-    if (slirp_add_exec(s->slirp, 0, smb_cmdline, &vserver_addr, 139) < 0) {
+    if (slirp_add_exec(s->slirp, 0, smb_cmdline, &vserver_addr, 139) < 0 ||
+        slirp_add_exec(s->slirp, 0, smb_cmdline, &vserver_addr, 445) < 0) {
         slirp_smb_cleanup(s);
         error_report("conflicting/invalid smbserver address");
         return -1;

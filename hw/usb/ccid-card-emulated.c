@@ -546,10 +546,10 @@ static int emulated_initfn(CCIDCardState *base)
         printf("%s: failed to initialize vcard\n", EMULATED_DEV_NAME);
         return -1;
     }
-    qemu_thread_create(&card->event_thread_id, event_thread, card,
-                       QEMU_THREAD_JOINABLE);
-    qemu_thread_create(&card->apdu_thread_id, handle_apdu_thread, card,
-                       QEMU_THREAD_JOINABLE);
+    qemu_thread_create(&card->event_thread_id, "ccid/event", event_thread,
+                       card, QEMU_THREAD_JOINABLE);
+    qemu_thread_create(&card->apdu_thread_id, "ccid/apdu", handle_apdu_thread,
+                       card, QEMU_THREAD_JOINABLE);
     return 0;
 }
 

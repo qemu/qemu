@@ -18,11 +18,10 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu-common.h"
 #include "bios-linker-loader.h"
 #include "hw/nvram/fw_cfg.h"
 
-#include <string.h>
-#include <assert.h>
 #include "qemu/bswap.h"
 
 #define BIOS_LINKER_LOADER_FILESZ FW_CFG_MAX_FILE_PATH

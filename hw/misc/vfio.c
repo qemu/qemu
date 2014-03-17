@@ -135,12 +135,18 @@ enum {
 
 struct VFIOGroup;
 
+typedef struct VFIOType1 {
+    MemoryListener listener;
+    int error;
+    bool initialized;
+} VFIOType1;
+
 typedef struct VFIOContainer {
     int fd; /* /dev/vfio/vfio, empowered by the attached groups */
     struct {
         /* enable abstraction to support various iommu backends */
         union {
-            MemoryListener listener; /* Used by type1 iommu */
+            VFIOType1 type1;
         };
         void (*release)(struct VFIOContainer *);
     } iommu_data;
@@ -191,6 +197,7 @@ typedef struct VFIODevice {
     bool has_flr;
     bool has_pm_reset;
     bool needs_reset;
+    bool rom_read_failed;
 } VFIODevice;
 
 typedef struct VFIOGroup {
@@ -201,6 +208,29 @@ typedef struct VFIOGroup {
     QLIST_ENTRY(VFIOGroup) next;
     QLIST_ENTRY(VFIOGroup) container_next;
 } VFIOGroup;
+
+typedef struct VFIORomBlacklistEntry {
+    uint16_t vendor_id;
+    uint16_t device_id;
+} VFIORomBlacklistEntry;
+
+/*
+ * List of device ids/vendor ids for which to disable
+ * option rom loading. This avoids the guest hangs during rom
+ * execution as noticed with the BCM 57810 card for lack of a
+ * more better way to handle such issues.
+ * The  user can still override by specifying a romfile or
+ * rombar=1.
+ * Please see https://bugs.launchpad.net/qemu/+bug/1284874
+ * for an analysis of the 57810 card hang. When adding
+ * a new vendor id/device id combination below, please also add
+ * your card/environment details and information that could
+ * help in debugging to the bug tracking this issue
+ */
+static const VFIORomBlacklistEntry romblacklist[] = {
+    /* Broadcom BCM 57810 */
+    { 0x14e4, 0x168e }
+};
 
 #define MSIX_CAP_LENGTH 12
 
@@ -592,7 +622,7 @@ static void vfio_msi_interrupt(void *opaque)
         return;
     }
 
-#ifdef VFIO_DEBUG
+#ifdef DEBUG_VFIO
     MSIMessage msg;
 
     if (vdev->interrupt == VFIO_INT_MSIX) {
@@ -1125,6 +1155,14 @@ static void vfio_pci_load_rom(VFIODevice *vdev)
     vdev->rom_offset = reg_info.offset;
 
     if (!vdev->rom_size) {
+        vdev->rom_read_failed = true;
+        error_report("vfio-pci: Cannot read device rom at "
+                    "%04x:%02x:%02x.%x\n",
+                    vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                    vdev->host.function);
+        error_printf("Device option ROM contents are probably invalid "
+                    "(check dmesg).\nSkip option ROM probe with rombar=0, "
+                    "or load from file with romfile=\n");
         return;
     }
 
@@ -1156,6 +1194,9 @@ static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
     /* Load the ROM lazily when the guest tries to read it */
     if (unlikely(!vdev->rom)) {
         vfio_pci_load_rom(vdev);
+        if (unlikely(!vdev->rom && !vdev->rom_read_failed)) {
+            vfio_pci_load_rom(vdev);
+        }
     }
 
     memcpy(&val, vdev->rom + addr,
@@ -1179,13 +1220,43 @@ static const MemoryRegionOps vfio_rom_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static bool vfio_blacklist_opt_rom(VFIODevice *vdev)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    uint16_t vendor_id, device_id;
+    int count = 0;
+
+    vendor_id = pci_get_word(pdev->config + PCI_VENDOR_ID);
+    device_id = pci_get_word(pdev->config + PCI_DEVICE_ID);
+
+    while (count < ARRAY_SIZE(romblacklist)) {
+        if (romblacklist[count].vendor_id == vendor_id &&
+            romblacklist[count].device_id == device_id) {
+                return true;
+        }
+        count++;
+    }
+
+    return false;
+}
+
 static void vfio_pci_size_rom(VFIODevice *vdev)
 {
     uint32_t orig, size = cpu_to_le32((uint32_t)PCI_ROM_ADDRESS_MASK);
     off_t offset = vdev->config_offset + PCI_ROM_ADDRESS;
+    DeviceState *dev = DEVICE(vdev);
     char name[32];
 
     if (vdev->pdev.romfile || !vdev->pdev.rom_bar) {
+        /* Since pci handles romfile, just print a message and return */
+        if (vfio_blacklist_opt_rom(vdev) && vdev->pdev.romfile) {
+            error_printf("Warning : Device at %04x:%02x:%02x.%x "
+                         "is known to cause system instability issues during "
+                         "option rom execution. "
+                         "Proceeding anyway since user specified romfile\n",
+                         vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                         vdev->host.function);
+        }
         return;
     }
 
@@ -1209,6 +1280,26 @@ static void vfio_pci_size_rom(VFIODevice *vdev)
         return;
     }
 
+    if (vfio_blacklist_opt_rom(vdev)) {
+        if (dev->opts && qemu_opt_get(dev->opts, "rombar")) {
+            error_printf("Warning : Device at %04x:%02x:%02x.%x "
+                         "is known to cause system instability issues during "
+                         "option rom execution. "
+                         "Proceeding anyway since user specified non zero value for "
+                         "rombar\n",
+                         vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                         vdev->host.function);
+        } else {
+            error_printf("Warning : Rom loading for device at "
+                         "%04x:%02x:%02x.%x has been disabled due to "
+                         "system instability issues. "
+                         "Specify rombar=1 or romfile to force\n",
+                         vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                         vdev->host.function);
+            return;
+        }
+    }
+
     DPRINTF("%04x:%02x:%02x.%x ROM size 0x%x\n", vdev->host.domain,
             vdev->host.bus, vdev->host.slot, vdev->host.function, size);
 
@@ -1223,6 +1314,7 @@ static void vfio_pci_size_rom(VFIODevice *vdev)
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &vdev->pdev.rom);
 
     vdev->pdev.has_rom = true;
+    vdev->rom_read_failed = false;
 }
 
 static void vfio_vga_write(void *opaque, hwaddr addr,
@@ -1968,6 +2060,7 @@ static void vfio_vga_quirk_teardown(VFIODevice *vdev)
         while (!QLIST_EMPTY(&vdev->vga.region[i].quirks)) {
             VFIOQuirk *quirk = QLIST_FIRST(&vdev->vga.region[i].quirks);
             memory_region_del_subregion(&vdev->vga.region[i].mem, &quirk->mem);
+            memory_region_destroy(&quirk->mem);
             QLIST_REMOVE(quirk, next);
             g_free(quirk);
         }
@@ -1990,6 +2083,7 @@ static void vfio_bar_quirk_teardown(VFIODevice *vdev, int nr)
     while (!QLIST_EMPTY(&bar->quirks)) {
         VFIOQuirk *quirk = QLIST_FIRST(&bar->quirks);
         memory_region_del_subregion(&bar->mem, &quirk->mem);
+        memory_region_destroy(&quirk->mem);
         QLIST_REMOVE(quirk, next);
         g_free(quirk);
     }
@@ -2141,14 +2235,21 @@ static int vfio_dma_map(VFIOContainer *container, hwaddr iova,
 
 static bool vfio_listener_skipped_section(MemoryRegionSection *section)
 {
-    return !memory_region_is_ram(section->mr);
+    return !memory_region_is_ram(section->mr) ||
+           /*
+            * Sizing an enabled 64-bit BAR can cause spurious mappings to
+            * addresses in the upper part of the 64-bit address space.  These
+            * are never accessed by the CPU and beyond the address width of
+            * some IOMMU hardware.  TODO: VFIO should tell us the IOMMU width.
+            */
+           section->offset_within_address_space & (1ULL << 63);
 }
 
 static void vfio_listener_region_add(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer,
-                                            iommu_data.listener);
+                                            iommu_data.type1.listener);
     hwaddr iova, end;
     void *vaddr;
     int ret;
@@ -2190,6 +2291,19 @@ static void vfio_listener_region_add(MemoryListener *listener,
         error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
                      "0x%"HWADDR_PRIx", %p) = %d (%m)",
                      container, iova, end - iova, vaddr, ret);
+
+        /*
+         * On the initfn path, store the first error in the container so we
+         * can gracefully fail.  Runtime, there's not much we can do other
+         * than throw a hardware error.
+         */
+        if (!container->iommu_data.type1.initialized) {
+            if (!container->iommu_data.type1.error) {
+                container->iommu_data.type1.error = ret;
+            }
+        } else {
+            hw_error("vfio: DMA mapping failed, unable to continue\n");
+        }
     }
 }
 
@@ -2197,7 +2311,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer,
-                                            iommu_data.listener);
+                                            iommu_data.type1.listener);
     hwaddr iova, end;
     int ret;
 
@@ -2242,7 +2356,7 @@ static MemoryListener vfio_memory_listener = {
 
 static void vfio_listener_release(VFIOContainer *container)
 {
-    memory_listener_unregister(&container->iommu_data.listener);
+    memory_listener_unregister(&container->iommu_data.type1.listener);
 }
 
 /*
@@ -2412,10 +2526,12 @@ static void vfio_unmap_bar(VFIODevice *vdev, int nr)
 
     memory_region_del_subregion(&bar->mem, &bar->mmap_mem);
     munmap(bar->mmap, memory_region_size(&bar->mmap_mem));
+    memory_region_destroy(&bar->mmap_mem);
 
     if (vdev->msix && vdev->msix->table_bar == nr) {
         memory_region_del_subregion(&bar->mem, &vdev->msix->mmap_mem);
         munmap(vdev->msix->mmap, memory_region_size(&vdev->msix->mmap_mem));
+        memory_region_destroy(&vdev->msix->mmap_mem);
     }
 
     memory_region_destroy(&bar->mem);
@@ -2501,7 +2617,7 @@ static void vfio_map_bar(VFIODevice *vdev, int nr)
      * potentially insert a direct-mapped subregion before and after it.
      */
     if (vdev->msix && vdev->msix->table_bar == nr) {
-        size = vdev->msix->table_offset & TARGET_PAGE_MASK;
+        size = vdev->msix->table_offset & qemu_host_page_mask;
     }
 
     strncat(name, " mmap", sizeof(name) - strlen(name) - 1);
@@ -2513,8 +2629,8 @@ static void vfio_map_bar(VFIODevice *vdev, int nr)
     if (vdev->msix && vdev->msix->table_bar == nr) {
         unsigned start;
 
-        start = TARGET_PAGE_ALIGN(vdev->msix->table_offset +
-                                  (vdev->msix->entries * PCI_MSIX_ENTRY_SIZE));
+        start = HOST_PAGE_ALIGN(vdev->msix->table_offset +
+                                (vdev->msix->entries * PCI_MSIX_ENTRY_SIZE));
 
         size = start < bar->size ? bar->size - start : 0;
         strncat(name, " msix-hi", sizeof(name) - strlen(name) - 1);
@@ -3212,10 +3328,23 @@ static int vfio_connect_container(VFIOGroup *group)
             return -errno;
         }
 
-        container->iommu_data.listener = vfio_memory_listener;
+        container->iommu_data.type1.listener = vfio_memory_listener;
         container->iommu_data.release = vfio_listener_release;
 
-        memory_listener_register(&container->iommu_data.listener, &address_space_memory);
+        memory_listener_register(&container->iommu_data.type1.listener,
+                                 &address_space_memory);
+
+        if (container->iommu_data.type1.error) {
+            ret = container->iommu_data.type1.error;
+            vfio_listener_release(container);
+            g_free(container);
+            close(fd);
+            error_report("vfio: memory listener initialization failed for container\n");
+            return ret;
+        }
+
+        container->iommu_data.type1.initialized = true;
+
     } else {
         error_report("vfio: No available IOMMU models");
         g_free(container);
@@ -3625,10 +3754,10 @@ static int vfio_initfn(PCIDevice *pdev)
 
     strncat(path, "iommu_group", sizeof(path) - strlen(path) - 1);
 
-    len = readlink(path, iommu_group_path, PATH_MAX);
-    if (len <= 0) {
+    len = readlink(path, iommu_group_path, sizeof(path));
+    if (len <= 0 || len >= sizeof(path)) {
         error_report("vfio: error no iommu_group for device");
-        return -errno;
+        return len < 0 ? -errno : ENAMETOOLONG;
     }
 
     iommu_group_path[len] = 0;

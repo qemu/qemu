@@ -31,7 +31,7 @@
  * bitmap_andnot(dst, src1, src2, nbits)	*dst = *src1 & ~(*src2)
  * bitmap_complement(dst, src, nbits)		*dst = ~(*src)
  * bitmap_equal(src1, src2, nbits)		Are *src1 and *src2 equal?
- * bitmap_intersects(src1, src2, nbits) 	Do *src1 and *src2 overlap?
+ * bitmap_intersects(src1, src2, nbits)         Do *src1 and *src2 overlap?
  * bitmap_empty(src, nbits)			Are all bits zero in *src?
  * bitmap_full(src, nbits)			Are all bits set in *src?
  * bitmap_set(dst, pos, nbits)			Set specified bit area
@@ -62,71 +62,71 @@
         )
 
 #define DECLARE_BITMAP(name,bits)                  \
-	unsigned long name[BITS_TO_LONGS(bits)]
+        unsigned long name[BITS_TO_LONGS(bits)]
 
 #define small_nbits(nbits)                      \
-	((nbits) <= BITS_PER_LONG)
+        ((nbits) <= BITS_PER_LONG)
 
-int slow_bitmap_empty(const unsigned long *bitmap, int bits);
-int slow_bitmap_full(const unsigned long *bitmap, int bits);
+int slow_bitmap_empty(const unsigned long *bitmap, long bits);
+int slow_bitmap_full(const unsigned long *bitmap, long bits);
 int slow_bitmap_equal(const unsigned long *bitmap1,
-                   const unsigned long *bitmap2, int bits);
+                      const unsigned long *bitmap2, long bits);
 void slow_bitmap_complement(unsigned long *dst, const unsigned long *src,
-                         int bits);
+                            long bits);
 void slow_bitmap_shift_right(unsigned long *dst,
-                          const unsigned long *src, int shift, int bits);
+                             const unsigned long *src, int shift, long bits);
 void slow_bitmap_shift_left(unsigned long *dst,
-                         const unsigned long *src, int shift, int bits);
+                            const unsigned long *src, int shift, long bits);
 int slow_bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
-                 const unsigned long *bitmap2, int bits);
+                    const unsigned long *bitmap2, long bits);
 void slow_bitmap_or(unsigned long *dst, const unsigned long *bitmap1,
-                 const unsigned long *bitmap2, int bits);
+                    const unsigned long *bitmap2, long bits);
 void slow_bitmap_xor(unsigned long *dst, const unsigned long *bitmap1,
-                  const unsigned long *bitmap2, int bits);
+                     const unsigned long *bitmap2, long bits);
 int slow_bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
-                    const unsigned long *bitmap2, int bits);
+                       const unsigned long *bitmap2, long bits);
 int slow_bitmap_intersects(const unsigned long *bitmap1,
-			const unsigned long *bitmap2, int bits);
+                           const unsigned long *bitmap2, long bits);
 
-static inline unsigned long *bitmap_new(int nbits)
+static inline unsigned long *bitmap_new(long nbits)
 {
-    int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
+    long len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
     return g_malloc0(len);
 }
 
-static inline void bitmap_zero(unsigned long *dst, int nbits)
+static inline void bitmap_zero(unsigned long *dst, long nbits)
 {
     if (small_nbits(nbits)) {
         *dst = 0UL;
     } else {
-        int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
+        long len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
         memset(dst, 0, len);
     }
 }
 
-static inline void bitmap_fill(unsigned long *dst, int nbits)
+static inline void bitmap_fill(unsigned long *dst, long nbits)
 {
     size_t nlongs = BITS_TO_LONGS(nbits);
     if (!small_nbits(nbits)) {
-        int len = (nlongs - 1) * sizeof(unsigned long);
+        long len = (nlongs - 1) * sizeof(unsigned long);
         memset(dst, 0xff,  len);
     }
     dst[nlongs - 1] = BITMAP_LAST_WORD_MASK(nbits);
 }
 
 static inline void bitmap_copy(unsigned long *dst, const unsigned long *src,
-                               int nbits)
+                               long nbits)
 {
     if (small_nbits(nbits)) {
         *dst = *src;
     } else {
-        int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
+        long len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
         memcpy(dst, src, len);
     }
 }
 
 static inline int bitmap_and(unsigned long *dst, const unsigned long *src1,
-                             const unsigned long *src2, int nbits)
+                             const unsigned long *src2, long nbits)
 {
     if (small_nbits(nbits)) {
         return (*dst = *src1 & *src2) != 0;
@@ -135,7 +135,7 @@ static inline int bitmap_and(unsigned long *dst, const unsigned long *src1,
 }
 
 static inline void bitmap_or(unsigned long *dst, const unsigned long *src1,
-			const unsigned long *src2, int nbits)
+                             const unsigned long *src2, long nbits)
 {
     if (small_nbits(nbits)) {
         *dst = *src1 | *src2;
@@ -145,7 +145,7 @@ static inline void bitmap_or(unsigned long *dst, const unsigned long *src1,
 }
 
 static inline void bitmap_xor(unsigned long *dst, const unsigned long *src1,
-			const unsigned long *src2, int nbits)
+                              const unsigned long *src2, long nbits)
 {
     if (small_nbits(nbits)) {
         *dst = *src1 ^ *src2;
@@ -155,7 +155,7 @@ static inline void bitmap_xor(unsigned long *dst, const unsigned long *src1,
 }
 
 static inline int bitmap_andnot(unsigned long *dst, const unsigned long *src1,
-			const unsigned long *src2, int nbits)
+                                const unsigned long *src2, long nbits)
 {
     if (small_nbits(nbits)) {
         return (*dst = *src1 & ~(*src2)) != 0;
@@ -163,8 +163,9 @@ static inline int bitmap_andnot(unsigned long *dst, const unsigned long *src1,
     return slow_bitmap_andnot(dst, src1, src2, nbits);
 }
 
-static inline void bitmap_complement(unsigned long *dst, const unsigned long *src,
-			int nbits)
+static inline void bitmap_complement(unsigned long *dst,
+                                     const unsigned long *src,
+                                     long nbits)
 {
     if (small_nbits(nbits)) {
         *dst = ~(*src) & BITMAP_LAST_WORD_MASK(nbits);
@@ -174,7 +175,7 @@ static inline void bitmap_complement(unsigned long *dst, const unsigned long *sr
 }
 
 static inline int bitmap_equal(const unsigned long *src1,
-			const unsigned long *src2, int nbits)
+                               const unsigned long *src2, long nbits)
 {
     if (small_nbits(nbits)) {
         return ! ((*src1 ^ *src2) & BITMAP_LAST_WORD_MASK(nbits));
@@ -183,7 +184,7 @@ static inline int bitmap_equal(const unsigned long *src1,
     }
 }
 
-static inline int bitmap_empty(const unsigned long *src, int nbits)
+static inline int bitmap_empty(const unsigned long *src, long nbits)
 {
     if (small_nbits(nbits)) {
         return ! (*src & BITMAP_LAST_WORD_MASK(nbits));
@@ -192,7 +193,7 @@ static inline int bitmap_empty(const unsigned long *src, int nbits)
     }
 }
 
-static inline int bitmap_full(const unsigned long *src, int nbits)
+static inline int bitmap_full(const unsigned long *src, long nbits)
 {
     if (small_nbits(nbits)) {
         return ! (~(*src) & BITMAP_LAST_WORD_MASK(nbits));
@@ -202,7 +203,7 @@ static inline int bitmap_full(const unsigned long *src, int nbits)
 }
 
 static inline int bitmap_intersects(const unsigned long *src1,
-			const unsigned long *src2, int nbits)
+                                    const unsigned long *src2, long nbits)
 {
     if (small_nbits(nbits)) {
         return ((*src1 & *src2) & BITMAP_LAST_WORD_MASK(nbits)) != 0;
@@ -211,12 +212,21 @@ static inline int bitmap_intersects(const unsigned long *src1,
     }
 }
 
-void bitmap_set(unsigned long *map, int i, int len);
-void bitmap_clear(unsigned long *map, int start, int nr);
+void bitmap_set(unsigned long *map, long i, long len);
+void bitmap_clear(unsigned long *map, long start, long nr);
 unsigned long bitmap_find_next_zero_area(unsigned long *map,
-					 unsigned long size,
-					 unsigned long start,
-					 unsigned int nr,
-					 unsigned long align_mask);
+                                         unsigned long size,
+                                         unsigned long start,
+                                         unsigned long nr,
+                                         unsigned long align_mask);
+
+static inline unsigned long *bitmap_zero_extend(unsigned long *old,
+                                                long old_nbits, long new_nbits)
+{
+    long new_len = BITS_TO_LONGS(new_nbits) * sizeof(unsigned long);
+    unsigned long *new = g_realloc(old, new_len);
+    bitmap_clear(new, old_nbits, new_nbits - old_nbits);
+    return new;
+}
 
 #endif /* BITMAP_H */

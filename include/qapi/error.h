@@ -95,4 +95,10 @@ void error_propagate(Error **dst_err, Error *local_err);
  */
 void error_free(Error *err);
 
+/**
+ * If passed to error_set and friends, abort().
+ */
+
+extern Error *error_abort;
+
 #endif

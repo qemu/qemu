@@ -124,6 +124,7 @@ static void vring_init(struct vring *vr, unsigned int num, void *p,
     vr->used->flags = VRING_USED_F_NO_NOTIFY;
     vr->used->idx = 0;
     vr->used_idx = 0;
+    vr->next_idx = 0;
 
     debug_print_addr("init vr", vr);
 }

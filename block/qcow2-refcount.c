@@ -96,7 +96,8 @@ static int get_refcount(BlockDriverState *bs, int64_t cluster_index)
     refcount_table_index = cluster_index >> (s->cluster_bits - REFCOUNT_SHIFT);
     if (refcount_table_index >= s->refcount_table_size)
         return 0;
-    refcount_block_offset = s->refcount_table[refcount_table_index];
+    refcount_block_offset =
+        s->refcount_table[refcount_table_index] & REFT_OFFSET_MASK;
     if (!refcount_block_offset)
         return 0;
 
@@ -676,7 +677,13 @@ int qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
     BDRVQcowState *s = bs->opaque;
     uint64_t cluster_index;
     uint64_t old_free_cluster_index;
-    int i, refcount, ret;
+    uint64_t i;
+    int refcount, ret;
+
+    assert(nb_clusters >= 0);
+    if (nb_clusters == 0) {
+        return 0;
+    }
 
     /* Check how many clusters there are free */
     cluster_index = offset >> s->cluster_bits;

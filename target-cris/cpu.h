@@ -42,6 +42,10 @@
 /* CRIS-specific interrupt pending bits.  */
 #define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
 
+/* CRUS CPU device objects interrupt lines.  */
+#define CRIS_CPU_IRQ 0
+#define CRIS_CPU_NMI 1
+
 /* Register aliases. R0 - R15 */
 #define R_FP  8
 #define R_SP  14
@@ -167,8 +171,8 @@ typedef struct CPUCRISState {
 
 	CPU_COMMON
 
-	/* Members after CPU_COMMON are preserved across resets.  */
-	void *load_info;
+    /* Members from load_info on are preserved across resets.  */
+    void *load_info;
 } CPUCRISState;
 
 #include "cpu-qom.h"
@@ -243,9 +247,8 @@ static inline int cpu_mmu_index (CPUCRISState *env)
 	return !!(env->pregs[PR_CCS] & U_FLAG);
 }
 
-int cpu_cris_handle_mmu_fault(CPUCRISState *env, target_ulong address, int rw,
+int cris_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
                               int mmu_idx);
-#define cpu_handle_mmu_fault cpu_cris_handle_mmu_fault
 
 /* Support function regs.  */
 #define SFR_RW_GC_CFG      0][0
@@ -271,11 +274,6 @@ static inline void cpu_get_tb_cpu_state(CPUCRISState *env, target_ulong *pc,
 
 #define cpu_list cris_cpu_list
 void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf);
-
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
-}
 
 #include "exec/exec-all.h"
 

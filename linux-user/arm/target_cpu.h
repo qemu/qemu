@@ -29,7 +29,7 @@ static inline void cpu_clone_regs(CPUARMState *env, target_ulong newsp)
 
 static inline void cpu_set_tls(CPUARMState *env, target_ulong newtls)
 {
-    env->cp15.c13_tls2 = newtls;
+    env->cp15.tpidrro_el0 = newtls;
 }
 
 #endif

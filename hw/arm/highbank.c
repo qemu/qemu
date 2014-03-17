@@ -26,12 +26,13 @@
 #include "hw/boards.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
+#include "qemu/error-report.h"
 
-#define SMP_BOOT_ADDR 0x100
-#define SMP_BOOT_REG  0x40
-#define GIC_BASE_ADDR 0xfff10000
+#define SMP_BOOT_ADDR           0x100
+#define SMP_BOOT_REG            0x40
+#define MPCORE_PERIPHBASE       0xfff10000
 
-#define NIRQ_GIC      160
+#define NIRQ_GIC                160
 
 /* Board init.  */
 
@@ -54,7 +55,7 @@ static void hb_write_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
         0xe1110001, /* tst     r1, r1 */
         0x0afffffb, /* beq     <wfi> */
         0xe12fff11, /* bx      r1 */
-        GIC_BASE_ADDR      /* privbase: gic address.  */
+        MPCORE_PERIPHBASE   /* privbase: MPCore peripheral base address.  */
     };
     for (n = 0; n < ARRAY_SIZE(smpboot); n++) {
         smpboot[n] = tswap32(smpboot[n]);
@@ -68,11 +69,11 @@ static void hb_reset_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
 
     switch (info->nb_cpus) {
     case 4:
-        stl_phys_notdirty(SMP_BOOT_REG + 0x30, 0);
+        stl_phys_notdirty(&address_space_memory, SMP_BOOT_REG + 0x30, 0);
     case 3:
-        stl_phys_notdirty(SMP_BOOT_REG + 0x20, 0);
+        stl_phys_notdirty(&address_space_memory, SMP_BOOT_REG + 0x20, 0);
     case 2:
-        stl_phys_notdirty(SMP_BOOT_REG + 0x10, 0);
+        stl_phys_notdirty(&address_space_memory, SMP_BOOT_REG + 0x10, 0);
         env->regs[15] = SMP_BOOT_ADDR;
         break;
     default:
@@ -125,7 +126,7 @@ typedef struct {
     SysBusDevice parent_obj;
     /*< public >*/
 
-    MemoryRegion *iomem;
+    MemoryRegion iomem;
     uint32_t regs[NUM_REGS];
 } HighbankRegsState;
 
@@ -154,10 +155,9 @@ static int highbank_regs_init(SysBusDevice *dev)
 {
     HighbankRegsState *s = HIGHBANK_REGISTERS(dev);
 
-    s->iomem = g_new(MemoryRegion, 1);
-    memory_region_init_io(s->iomem, OBJECT(s), &hb_mem_ops, s->regs,
+    memory_region_init_io(&s->iomem, OBJECT(s), &hb_mem_ops, s->regs,
                           "highbank_regs", 0x1000);
-    sysbus_init_mmio(dev, s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
 }
@@ -229,15 +229,23 @@ static void calxeda_init(QEMUMachineInitArgs *args, enum cxmachines machine)
     }
 
     for (n = 0; n < smp_cpus; n++) {
+        ObjectClass *oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
         ARMCPU *cpu;
-        cpu = cpu_arm_init(cpu_model);
-        if (cpu == NULL) {
-            fprintf(stderr, "Unable to find CPU definition\n");
+        Error *err = NULL;
+
+        cpu = ARM_CPU(object_new(object_class_get_name(oc)));
+
+        object_property_set_int(OBJECT(cpu), MPCORE_PERIPHBASE, "reset-cbar",
+                                &err);
+        if (err) {
+            error_report("%s", error_get_pretty(err));
             exit(1);
         }
-
-        /* This will become a QOM property eventually */
-        cpu->reset_cbar = GIC_BASE_ADDR;
+        object_property_set_bool(OBJECT(cpu), true, "realized", &err);
+        if (err) {
+            error_report("%s", error_get_pretty(err));
+            exit(1);
+        }
         cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ);
     }
 
@@ -279,7 +287,7 @@ static void calxeda_init(QEMUMachineInitArgs *args, enum cxmachines machine)
     qdev_prop_set_uint32(dev, "num-irq", NIRQ_GIC);
     qdev_init_nofail(dev);
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(busdev, 0, GIC_BASE_ADDR);
+    sysbus_mmio_map(busdev, 0, MPCORE_PERIPHBASE);
     for (n = 0; n < smp_cpus; n++) {
         sysbus_connect_irq(busdev, n, cpu_irq[n]);
     }

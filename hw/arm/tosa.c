@@ -132,15 +132,20 @@ static int tosa_ssp_init(SSISlave *dev)
     return 0;
 }
 
+#define TYPE_TOSA_DAC "tosa_dac"
+#define TOSA_DAC(obj) OBJECT_CHECK(TosaDACState, (obj), TYPE_TOSA_DAC)
+
 typedef struct {
-    I2CSlave i2c;
+    I2CSlave parent_obj;
+
     int len;
     char buf[3];
 } TosaDACState;
 
 static int tosa_dac_send(I2CSlave *i2c, uint8_t data)
 {
-    TosaDACState *s = FROM_I2C_SLAVE(TosaDACState, i2c);
+    TosaDACState *s = TOSA_DAC(i2c);
+
     s->buf[s->len] = data;
     if (s->len ++ > 2) {
 #ifdef VERBOSE
@@ -159,7 +164,8 @@ static int tosa_dac_send(I2CSlave *i2c, uint8_t data)
 
 static void tosa_dac_event(I2CSlave *i2c, enum i2c_event event)
 {
-    TosaDACState *s = FROM_I2C_SLAVE(TosaDACState, i2c);
+    TosaDACState *s = TOSA_DAC(i2c);
+
     s->len = 0;
     switch (event) {
     case I2C_START_SEND:
@@ -194,8 +200,8 @@ static int tosa_dac_init(I2CSlave *i2c)
 
 static void tosa_tg_init(PXA2xxState *cpu)
 {
-    i2c_bus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
-    i2c_create_slave(bus, "tosa_dac", DAC_BASE);
+    I2CBus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
+    i2c_create_slave(bus, TYPE_TOSA_DAC, DAC_BASE);
     ssi_create_slave(cpu->ssp[1], "tosa-ssp");
 }
 
@@ -271,7 +277,7 @@ static void tosa_dac_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo tosa_dac_info = {
-    .name          = "tosa_dac",
+    .name          = TYPE_TOSA_DAC,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(TosaDACState),
     .class_init    = tosa_dac_class_init,

@@ -31,7 +31,8 @@ typedef struct MirrorBlockJob {
     BlockJob common;
     RateLimit limit;
     BlockDriverState *target;
-    MirrorSyncMode mode;
+    BlockDriverState *base;
+    bool is_none_mode;
     BlockdevOnError on_source_error, on_target_error;
     bool synced;
     bool should_complete;
@@ -95,6 +96,7 @@ static void mirror_iteration_done(MirrorOp *op, int ret)
         bitmap_set(s->cow_bitmap, chunk_num, nb_chunks);
     }
 
+    qemu_iovec_destroy(&op->qiov);
     g_slice_free(MirrorOp, op);
     qemu_coroutine_enter(s->common.co, NULL);
 }
@@ -335,10 +337,9 @@ static void coroutine_fn mirror_run(void *opaque)
     sectors_per_chunk = s->granularity >> BDRV_SECTOR_BITS;
     mirror_free_init(s);
 
-    if (s->mode != MIRROR_SYNC_MODE_NONE) {
+    if (!s->is_none_mode) {
         /* First part, loop on the sectors and initialize the dirty bitmap.  */
-        BlockDriverState *base;
-        base = s->mode == MIRROR_SYNC_MODE_FULL ? NULL : bs->backing_hd;
+        BlockDriverState *base = s->base;
         for (sector_num = 0; sector_num < end; ) {
             int64_t next = (sector_num | (sectors_per_chunk - 1)) + 1;
             ret = bdrv_is_allocated_above(bs, base,
@@ -481,8 +482,14 @@ immediate_exit:
             bdrv_reopen(s->target, bdrv_get_flags(s->common.bs), NULL);
         }
         bdrv_swap(s->target, s->common.bs);
+        if (s->common.driver->job_type == BLOCK_JOB_TYPE_COMMIT) {
+            /* drop the bs loop chain formed by the swap: break the loop then
+             * trigger the unref from the top one */
+            BlockDriverState *p = s->base->backing_hd;
+            s->base->backing_hd = NULL;
+            bdrv_unref(p);
+        }
     }
-    bdrv_close(s->target);
     bdrv_unref(s->target);
     block_job_completed(&s->common, ret);
 }
@@ -513,9 +520,6 @@ static void mirror_complete(BlockJob *job, Error **errp)
 
     ret = bdrv_open_backing_file(s->target, NULL, &local_err);
     if (ret < 0) {
-        char backing_filename[PATH_MAX];
-        bdrv_get_full_backing_filename(s->target, backing_filename,
-                                       sizeof(backing_filename));
         error_propagate(errp, local_err);
         return;
     }
@@ -536,12 +540,24 @@ static const BlockJobDriver mirror_job_driver = {
     .complete      = mirror_complete,
 };
 
-void mirror_start(BlockDriverState *bs, BlockDriverState *target,
-                  int64_t speed, int64_t granularity, int64_t buf_size,
-                  MirrorSyncMode mode, BlockdevOnError on_source_error,
-                  BlockdevOnError on_target_error,
-                  BlockDriverCompletionFunc *cb,
-                  void *opaque, Error **errp)
+static const BlockJobDriver commit_active_job_driver = {
+    .instance_size = sizeof(MirrorBlockJob),
+    .job_type      = BLOCK_JOB_TYPE_COMMIT,
+    .set_speed     = mirror_set_speed,
+    .iostatus_reset
+                   = mirror_iostatus_reset,
+    .complete      = mirror_complete,
+};
+
+static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
+                            int64_t speed, int64_t granularity,
+                            int64_t buf_size,
+                            BlockdevOnError on_source_error,
+                            BlockdevOnError on_target_error,
+                            BlockDriverCompletionFunc *cb,
+                            void *opaque, Error **errp,
+                            const BlockJobDriver *driver,
+                            bool is_none_mode, BlockDriverState *base)
 {
     MirrorBlockJob *s;
 
@@ -566,7 +582,8 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
         return;
     }
 
-    s = block_job_create(&mirror_job_driver, bs, speed, cb, opaque, errp);
+
+    s = block_job_create(driver, bs, speed, cb, opaque, errp);
     if (!s) {
         return;
     }
@@ -574,7 +591,8 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
     s->on_source_error = on_source_error;
     s->on_target_error = on_target_error;
     s->target = target;
-    s->mode = mode;
+    s->is_none_mode = is_none_mode;
+    s->base = base;
     s->granularity = granularity;
     s->buf_size = MAX(buf_size, granularity);
 
@@ -585,4 +603,81 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
     s->common.co = qemu_coroutine_create(mirror_run);
     trace_mirror_start(bs, s, s->common.co, opaque);
     qemu_coroutine_enter(s->common.co, s);
+}
+
+void mirror_start(BlockDriverState *bs, BlockDriverState *target,
+                  int64_t speed, int64_t granularity, int64_t buf_size,
+                  MirrorSyncMode mode, BlockdevOnError on_source_error,
+                  BlockdevOnError on_target_error,
+                  BlockDriverCompletionFunc *cb,
+                  void *opaque, Error **errp)
+{
+    bool is_none_mode;
+    BlockDriverState *base;
+
+    is_none_mode = mode == MIRROR_SYNC_MODE_NONE;
+    base = mode == MIRROR_SYNC_MODE_TOP ? bs->backing_hd : NULL;
+    mirror_start_job(bs, target, speed, granularity, buf_size,
+                     on_source_error, on_target_error, cb, opaque, errp,
+                     &mirror_job_driver, is_none_mode, base);
+}
+
+void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
+                         int64_t speed,
+                         BlockdevOnError on_error,
+                         BlockDriverCompletionFunc *cb,
+                         void *opaque, Error **errp)
+{
+    int64_t length, base_length;
+    int orig_base_flags;
+    int ret;
+    Error *local_err = NULL;
+
+    orig_base_flags = bdrv_get_flags(base);
+
+    if (bdrv_reopen(base, bs->open_flags, errp)) {
+        return;
+    }
+
+    length = bdrv_getlength(bs);
+    if (length < 0) {
+        error_setg_errno(errp, -length,
+                         "Unable to determine length of %s", bs->filename);
+        goto error_restore_flags;
+    }
+
+    base_length = bdrv_getlength(base);
+    if (base_length < 0) {
+        error_setg_errno(errp, -base_length,
+                         "Unable to determine length of %s", base->filename);
+        goto error_restore_flags;
+    }
+
+    if (length > base_length) {
+        ret = bdrv_truncate(base, length);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret,
+                            "Top image %s is larger than base image %s, and "
+                             "resize of base image failed",
+                             bs->filename, base->filename);
+            goto error_restore_flags;
+        }
+    }
+
+    bdrv_ref(base);
+    mirror_start_job(bs, base, speed, 0, 0,
+                     on_error, on_error, cb, opaque, &local_err,
+                     &commit_active_job_driver, false, base);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        goto error_restore_flags;
+    }
+
+    return;
+
+error_restore_flags:
+    /* ignore error and errp for bdrv_reopen, because we want to propagate
+     * the original error */
+    bdrv_reopen(base, orig_base_flags, NULL);
+    return;
 }

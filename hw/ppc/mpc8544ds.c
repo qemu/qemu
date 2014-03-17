@@ -21,9 +21,9 @@ static void mpc8544ds_fixup_devtree(PPCE500Params *params, void *fdt)
     const char model[] = "MPC8544DS";
     const char compatible[] = "MPC8544DS\0MPC85xxDS";
 
-    qemu_devtree_setprop(fdt, "/", "model", model, sizeof(model));
-    qemu_devtree_setprop(fdt, "/", "compatible", compatible,
-                         sizeof(compatible));
+    qemu_fdt_setprop(fdt, "/", "model", model, sizeof(model));
+    qemu_fdt_setprop(fdt, "/", "compatible", compatible,
+                     sizeof(compatible));
 }
 
 static void mpc8544ds_init(QEMUMachineInitArgs *args)

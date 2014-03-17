@@ -204,6 +204,7 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
 static void raise_mmu_exception(CPUMIPSState *env, target_ulong address,
                                 int rw, int tlb_error)
 {
+    CPUState *cs = CPU(mips_env_get_cpu(env));
     int exception = 0, error_code = 0;
 
     switch (tlb_error) {
@@ -249,7 +250,7 @@ static void raise_mmu_exception(CPUMIPSState *env, target_ulong address,
                         ((address & 0xC00000000000ULL) >> (55 - env->SEGBITS)) |
                         ((address & ((1ULL << env->SEGBITS) - 1) & 0xFFFFFFFFFFFFE000ULL) >> 9);
 #endif
-    env->exception_index = exception;
+    cs->exception_index = exception;
     env->error_code = error_code;
 }
 
@@ -268,9 +269,11 @@ hwaddr mips_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 }
 #endif
 
-int cpu_mips_handle_mmu_fault (CPUMIPSState *env, target_ulong address, int rw,
-                               int mmu_idx)
+int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                              int mmu_idx)
 {
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
 #if !defined(CONFIG_USER_ONLY)
     hwaddr physical;
     int prot;
@@ -279,9 +282,9 @@ int cpu_mips_handle_mmu_fault (CPUMIPSState *env, target_ulong address, int rw,
     int ret = 0;
 
 #if 0
-    log_cpu_state(CPU(mips_env_get_cpu(env)), 0);
+    log_cpu_state(cs, 0);
 #endif
-    qemu_log("%s pc " TARGET_FMT_lx " ad " TARGET_FMT_lx " rw %d mmu_idx %d\n",
+    qemu_log("%s pc " TARGET_FMT_lx " ad %" VADDR_PRIx " rw %d mmu_idx %d\n",
               __func__, env->active_tc.PC, address, rw, mmu_idx);
 
     rw &= 1;
@@ -293,10 +296,11 @@ int cpu_mips_handle_mmu_fault (CPUMIPSState *env, target_ulong address, int rw,
     access_type = ACCESS_INT;
     ret = get_physical_address(env, &physical, &prot,
                                address, rw, access_type);
-    qemu_log("%s address=" TARGET_FMT_lx " ret %d physical " TARGET_FMT_plx " prot %d\n",
-              __func__, address, ret, physical, prot);
+    qemu_log("%s address=%" VADDR_PRIx " ret %d physical " TARGET_FMT_plx
+             " prot %d\n",
+             __func__, address, ret, physical, prot);
     if (ret == TLBRET_MATCH) {
-        tlb_set_page(env, address & TARGET_PAGE_MASK,
+        tlb_set_page(cs, address & TARGET_PAGE_MASK,
                      physical & TARGET_PAGE_MASK, prot | PAGE_EXEC,
                      mmu_idx, TARGET_PAGE_SIZE);
         ret = 0;
@@ -401,27 +405,29 @@ static void set_hflags_for_handler (CPUMIPSState *env)
 
 void mips_cpu_do_interrupt(CPUState *cs)
 {
+#if !defined(CONFIG_USER_ONLY)
     MIPSCPU *cpu = MIPS_CPU(cs);
     CPUMIPSState *env = &cpu->env;
-#if !defined(CONFIG_USER_ONLY)
     target_ulong offset;
     int cause = -1;
     const char *name;
 
-    if (qemu_log_enabled() && env->exception_index != EXCP_EXT_INTERRUPT) {
-        if (env->exception_index < 0 || env->exception_index > EXCP_LAST)
+    if (qemu_log_enabled() && cs->exception_index != EXCP_EXT_INTERRUPT) {
+        if (cs->exception_index < 0 || cs->exception_index > EXCP_LAST) {
             name = "unknown";
-        else
-            name = excp_names[env->exception_index];
+        } else {
+            name = excp_names[cs->exception_index];
+        }
 
         qemu_log("%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " %s exception\n",
                  __func__, env->active_tc.PC, env->CP0_EPC, name);
     }
-    if (env->exception_index == EXCP_EXT_INTERRUPT &&
-        (env->hflags & MIPS_HFLAG_DM))
-        env->exception_index = EXCP_DINT;
+    if (cs->exception_index == EXCP_EXT_INTERRUPT &&
+        (env->hflags & MIPS_HFLAG_DM)) {
+        cs->exception_index = EXCP_DINT;
+    }
     offset = 0x180;
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case EXCP_DSS:
         env->CP0_Debug |= 1 << CP0DB_DSS;
         /* Debug single step cannot be raised inside a delay slot and
@@ -629,11 +635,11 @@ void mips_cpu_do_interrupt(CPUState *cs)
         env->CP0_Cause = (env->CP0_Cause & ~(0x1f << CP0Ca_EC)) | (cause << CP0Ca_EC);
         break;
     default:
-        qemu_log("Invalid MIPS exception %d. Exiting\n", env->exception_index);
-        printf("Invalid MIPS exception %d. Exiting\n", env->exception_index);
+        qemu_log("Invalid MIPS exception %d. Exiting\n", cs->exception_index);
+        printf("Invalid MIPS exception %d. Exiting\n", cs->exception_index);
         exit(1);
     }
-    if (qemu_log_enabled() && env->exception_index != EXCP_EXT_INTERRUPT) {
+    if (qemu_log_enabled() && cs->exception_index != EXCP_EXT_INTERRUPT) {
         qemu_log("%s: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " cause %d\n"
                 "    S %08x C %08x A " TARGET_FMT_lx " D " TARGET_FMT_lx "\n",
                 __func__, env->active_tc.PC, env->CP0_EPC, cause,
@@ -641,12 +647,14 @@ void mips_cpu_do_interrupt(CPUState *cs)
                 env->CP0_DEPC);
     }
 #endif
-    env->exception_index = EXCP_NONE;
+    cs->exception_index = EXCP_NONE;
 }
 
 #if !defined(CONFIG_USER_ONLY)
 void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra)
 {
+    MIPSCPU *cpu = mips_env_get_cpu(env);
+    CPUState *cs;
     r4k_tlb_t *tlb;
     target_ulong addr;
     target_ulong end;
@@ -672,6 +680,7 @@ void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra)
     /* 1k pages are not supported. */
     mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
     if (tlb->V0) {
+        cs = CPU(cpu);
         addr = tlb->VPN & ~mask;
 #if defined(TARGET_MIPS64)
         if (addr >= (0xFFFFFFFF80000000ULL & env->SEGMask)) {
@@ -680,11 +689,12 @@ void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra)
 #endif
         end = addr | (mask >> 1);
         while (addr < end) {
-            tlb_flush_page (env, addr);
+            tlb_flush_page(cs, addr);
             addr += TARGET_PAGE_SIZE;
         }
     }
     if (tlb->V1) {
+        cs = CPU(cpu);
         addr = (tlb->VPN & ~mask) | ((mask >> 1) + 1);
 #if defined(TARGET_MIPS64)
         if (addr >= (0xFFFFFFFF80000000ULL & env->SEGMask)) {
@@ -693,7 +703,7 @@ void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra)
 #endif
         end = addr | mask;
         while (addr - 1 < end) {
-            tlb_flush_page (env, addr);
+            tlb_flush_page(cs, addr);
             addr += TARGET_PAGE_SIZE;
         }
     }

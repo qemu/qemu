@@ -8,11 +8,11 @@ obj-$(CONFIG_PSERIES) += spapr_pci.o
 obj-y += ppc405_boards.o ppc4xx_devs.o ppc405_uc.o ppc440_bamboo.o
 obj-y += ppc4xx_pci.o
 # PReP
-obj-y += prep.o
+obj-$(CONFIG_PREP) += prep.o
 # OldWorld PowerMac
-obj-y += mac_oldworld.o
+obj-$(CONFIG_MAC) += mac_oldworld.o
 # NewWorld PowerMac
-obj-y += mac_newworld.o
+obj-$(CONFIG_MAC) += mac_newworld.o
 # e500
 obj-$(CONFIG_E500) += e500.o mpc8544ds.o e500plat.o
 obj-$(CONFIG_E500) += mpc8544_guts.o ppce500_spin.o

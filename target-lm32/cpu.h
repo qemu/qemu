@@ -163,11 +163,15 @@ struct CPULM32State {
 
     /* debug registers */
     uint32_t dc;        /* debug control */
-    uint32_t bp[4];     /* breakpoint addresses */
-    uint32_t wp[4];     /* watchpoint addresses */
+    uint32_t bp[4];     /* breakpoints */
+    uint32_t wp[4];     /* watchpoints */
+
+    struct CPUBreakpoint *cpu_breakpoint[4];
+    struct CPUWatchpoint *cpu_watchpoint[4];
 
     CPU_COMMON
 
+    /* Fields from here on are preserved across CPU reset. */
     uint32_t eba;       /* exception base address */
     uint32_t deba;      /* debug exception base address */
 
@@ -177,25 +181,42 @@ struct CPULM32State {
     DeviceState *juart_state;
 
     /* processor core features */
-    uint32_t features;
     uint32_t flags;
-    uint8_t num_bps;
-    uint8_t num_wps;
 
 };
+
+typedef enum {
+    LM32_WP_DISABLED = 0,
+    LM32_WP_READ,
+    LM32_WP_WRITE,
+    LM32_WP_READ_WRITE,
+} lm32_wp_t;
+
+static inline lm32_wp_t lm32_wp_type(uint32_t dc, int idx)
+{
+    assert(idx < 4);
+    return (dc >> (idx+1)*2) & 0x3;
+}
 
 #include "cpu-qom.h"
 
 LM32CPU *cpu_lm32_init(const char *cpu_model);
-void cpu_lm32_list(FILE *f, fprintf_function cpu_fprintf);
 int cpu_lm32_exec(CPULM32State *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_lm32_signal_handler(int host_signum, void *pinfo,
                           void *puc);
+void lm32_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 void lm32_translate_init(void);
 void cpu_lm32_set_phys_msb_ignore(CPULM32State *env, int value);
+void QEMU_NORETURN raise_exception(CPULM32State *env, int index);
+void lm32_debug_excp_handler(CPULM32State *env);
+void lm32_breakpoint_insert(CPULM32State *env, int index, target_ulong address);
+void lm32_breakpoint_remove(CPULM32State *env, int index);
+void lm32_watchpoint_insert(CPULM32State *env, int index, target_ulong address,
+        lm32_wp_t wp_type);
+void lm32_watchpoint_remove(CPULM32State *env, int index);
 
 static inline CPULM32State *cpu_init(const char *cpu_model)
 {
@@ -206,14 +227,13 @@ static inline CPULM32State *cpu_init(const char *cpu_model)
     return &cpu->env;
 }
 
-#define cpu_list cpu_lm32_list
+#define cpu_list lm32_cpu_list
 #define cpu_exec cpu_lm32_exec
 #define cpu_gen_code cpu_lm32_gen_code
 #define cpu_signal_handler cpu_lm32_signal_handler
 
-int cpu_lm32_handle_mmu_fault(CPULM32State *env, target_ulong address, int rw,
+int lm32_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
                               int mmu_idx);
-#define cpu_handle_mmu_fault cpu_lm32_handle_mmu_fault
 
 #include "exec/cpu-all.h"
 
@@ -223,11 +243,6 @@ static inline void cpu_get_tb_cpu_state(CPULM32State *env, target_ulong *pc,
     *pc = env->pc;
     *cs_base = 0;
     *flags = 0;
-}
-
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
 #include "exec/exec-all.h"

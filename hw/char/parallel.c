@@ -595,7 +595,7 @@ bool parallel_mm_init(MemoryRegion *address_space,
 
 static Property parallel_isa_properties[] = {
     DEFINE_PROP_UINT32("index", ISAParallelState, index,   -1),
-    DEFINE_PROP_HEX32("iobase", ISAParallelState, iobase,  -1),
+    DEFINE_PROP_UINT32("iobase", ISAParallelState, iobase,  -1),
     DEFINE_PROP_UINT32("irq",   ISAParallelState, isairq,  7),
     DEFINE_PROP_CHR("chardev",  ISAParallelState, state.chr),
     DEFINE_PROP_END_OF_LIST(),

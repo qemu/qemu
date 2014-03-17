@@ -22,7 +22,9 @@ mech_list: digest-md5
 # Some older builds of MIT kerberos on Linux ignore this option &
 # instead need KRB5_KTNAME env var.
 # For modern Linux, and other OS, this should be sufficient
-keytab: /etc/qemu/krb5.tab
+#
+# There is no default value here, uncomment if you need this
+#keytab: /etc/qemu/krb5.tab
 
 # If using digest-md5 for username/passwds, then this is the file
 # containing the passwds. Use 'saslpasswd2 -a qemu [username]'

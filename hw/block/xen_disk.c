@@ -483,7 +483,18 @@ static void qemu_aio_complete(void *opaque, int ret)
     ioreq->status = ioreq->aio_errors ? BLKIF_RSP_ERROR : BLKIF_RSP_OKAY;
     ioreq_unmap(ioreq);
     ioreq_finish(ioreq);
-    bdrv_acct_done(ioreq->blkdev->bs, &ioreq->acct);
+    switch (ioreq->req.operation) {
+    case BLKIF_OP_WRITE:
+    case BLKIF_OP_FLUSH_DISKCACHE:
+        if (!ioreq->req.nr_segments) {
+            break;
+        }
+    case BLKIF_OP_READ:
+        bdrv_acct_done(ioreq->blkdev->bs, &ioreq->acct);
+        break;
+    default:
+        break;
+    }
     qemu_bh_schedule(ioreq->blkdev->bh);
 }
 
@@ -813,8 +824,8 @@ static int blk_connect(struct XenDevice *xendev)
             Error *local_err = NULL;
             BlockDriver *drv = bdrv_find_whitelisted_format(blkdev->fileproto,
                                                            readonly);
-            if (bdrv_open(blkdev->bs,
-                          blkdev->filename, NULL, qflags, drv, &local_err) != 0)
+            if (bdrv_open(&blkdev->bs, blkdev->filename, NULL, NULL, qflags,
+                          drv, &local_err) != 0)
             {
                 xen_be_printf(&blkdev->xendev, 0, "error: %s\n",
                               error_get_pretty(local_err));

@@ -32,12 +32,6 @@
 #include "block/block_int.h"
 #include "block/qapi.h"
 #include <getopt.h>
-#include <stdio.h>
-#include <stdarg.h>
-
-#ifdef _WIN32
-#include <windows.h>
-#endif
 
 typedef struct img_cmd_t {
     const char *name;
@@ -250,16 +244,19 @@ static int print_block_option_help(const char *filename, const char *fmt)
         return 1;
     }
 
-    proto_drv = bdrv_find_protocol(filename, true);
-    if (!proto_drv) {
-        error_report("Unknown protocol '%s'", filename);
-        return 1;
-    }
-
     create_options = append_option_parameters(create_options,
                                               drv->create_options);
-    create_options = append_option_parameters(create_options,
-                                              proto_drv->create_options);
+
+    if (filename) {
+        proto_drv = bdrv_find_protocol(filename, true);
+        if (!proto_drv) {
+            error_report("Unknown protocol '%s'", filename);
+            return 1;
+        }
+        create_options = append_option_parameters(create_options,
+                                                  proto_drv->create_options);
+    }
+
     print_option_help(create_options);
     free_option_parameters(create_options);
     return 0;
@@ -289,7 +286,7 @@ static BlockDriverState *bdrv_new_open(const char *filename,
         drv = NULL;
     }
 
-    ret = bdrv_open(bs, filename, NULL, flags, drv, &local_err);
+    ret = bdrv_open(&bs, filename, NULL, NULL, flags, drv, &local_err);
     if (ret < 0) {
         error_report("Could not open '%s': %s", filename,
                      error_get_pretty(local_err));
@@ -310,9 +307,7 @@ static BlockDriverState *bdrv_new_open(const char *filename,
     }
     return bs;
 fail:
-    if (bs) {
-        bdrv_unref(bs);
-    }
+    bdrv_unref(bs);
     return NULL;
 }
 
@@ -371,13 +366,23 @@ static int img_create(int argc, char **argv)
         case 'e':
             error_report("option -e is deprecated, please use \'-o "
                   "encryption\' instead!");
-            return 1;
+            goto fail;
         case '6':
             error_report("option -6 is deprecated, please use \'-o "
                   "compat6\' instead!");
-            return 1;
+            goto fail;
         case 'o':
-            options = optarg;
+            if (!is_valid_option_list(optarg)) {
+                error_report("Invalid option list: %s", optarg);
+                goto fail;
+            }
+            if (!options) {
+                options = g_strdup(optarg);
+            } else {
+                char *old_options = options;
+                options = g_strdup_printf("%s,%s", options, optarg);
+                g_free(old_options);
+            }
             break;
         case 'q':
             quiet = true;
@@ -386,10 +391,16 @@ static int img_create(int argc, char **argv)
     }
 
     /* Get the filename */
+    filename = (optind < argc) ? argv[optind] : NULL;
+    if (options && has_help_option(options)) {
+        g_free(options);
+        return print_block_option_help(filename, fmt);
+    }
+
     if (optind >= argc) {
         help();
     }
-    filename = argv[optind++];
+    optind++;
 
     /* Get image size, if specified */
     if (optind < argc) {
@@ -405,7 +416,7 @@ static int img_create(int argc, char **argv)
                 error_report("kilobytes, megabytes, gigabytes, terabytes, "
                              "petabytes and exabytes.");
             }
-            return 1;
+            goto fail;
         }
         img_size = (uint64_t)sval;
     }
@@ -413,19 +424,20 @@ static int img_create(int argc, char **argv)
         help();
     }
 
-    if (options && is_help_option(options)) {
-        return print_block_option_help(filename, fmt);
-    }
-
     bdrv_img_create(filename, fmt, base_filename, base_fmt,
                     options, img_size, BDRV_O_FLAGS, &local_err, quiet);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_report("%s: %s", filename, error_get_pretty(local_err));
         error_free(local_err);
-        return 1;
+        goto fail;
     }
 
+    g_free(options);
     return 0;
+
+fail:
+    g_free(options);
+    return 1;
 }
 
 static void dump_json_image_check(ImageCheck *check, bool quiet)
@@ -1135,8 +1147,7 @@ static int img_convert(int argc, char **argv)
     const char *fmt, *out_fmt, *cache, *out_baseimg, *out_filename;
     BlockDriver *drv, *proto_drv;
     BlockDriverState **bs = NULL, *out_bs = NULL;
-    int64_t total_sectors, nb_sectors, sector_num, bs_offset,
-            sector_num_next_status = 0;
+    int64_t total_sectors, nb_sectors, sector_num, bs_offset;
     uint64_t bs_sectors;
     uint8_t * buf = NULL;
     size_t bufsectors = IO_BUF_SIZE / BDRV_SECTOR_SIZE;
@@ -1182,13 +1193,26 @@ static int img_convert(int argc, char **argv)
         case 'e':
             error_report("option -e is deprecated, please use \'-o "
                   "encryption\' instead!");
-            return 1;
+            ret = -1;
+            goto fail_getopt;
         case '6':
             error_report("option -6 is deprecated, please use \'-o "
                   "compat6\' instead!");
-            return 1;
+            ret = -1;
+            goto fail_getopt;
         case 'o':
-            options = optarg;
+            if (!is_valid_option_list(optarg)) {
+                error_report("Invalid option list: %s", optarg);
+                ret = -1;
+                goto fail_getopt;
+            }
+            if (!options) {
+                options = g_strdup(optarg);
+            } else {
+                char *old_options = options;
+                options = g_strdup_printf("%s,%s", options, optarg);
+                g_free(old_options);
+            }
             break;
         case 's':
             snapshot_name = optarg;
@@ -1199,7 +1223,8 @@ static int img_convert(int argc, char **argv)
                 if (!sn_opts) {
                     error_report("Failed in parsing snapshot param '%s'",
                                  optarg);
-                    return 1;
+                    ret = -1;
+                    goto fail_getopt;
                 }
             } else {
                 snapshot_name = optarg;
@@ -1212,7 +1237,8 @@ static int img_convert(int argc, char **argv)
             sval = strtosz_suffix(optarg, &end, STRTOSZ_DEFSUFFIX_B);
             if (sval < 0 || *end) {
                 error_report("Invalid minimum zero buffer size for sparse output specified");
-                return 1;
+                ret = -1;
+                goto fail_getopt;
             }
 
             min_sparse = sval / BDRV_SECTOR_SIZE;
@@ -1233,24 +1259,25 @@ static int img_convert(int argc, char **argv)
         }
     }
 
+    /* Initialize before goto out */
     if (quiet) {
         progress = 0;
     }
+    qemu_progress_init(progress, 1.0);
+
 
     bs_n = argc - optind - 1;
+    out_filename = bs_n >= 1 ? argv[argc - 1] : NULL;
+
+    if (options && has_help_option(options)) {
+        ret = print_block_option_help(out_filename, out_fmt);
+        goto out;
+    }
+
     if (bs_n < 1) {
         help();
     }
 
-    out_filename = argv[argc - 1];
-
-    /* Initialize before goto out */
-    qemu_progress_init(progress, 1.0);
-
-    if (options && is_help_option(options)) {
-        ret = print_block_option_help(out_filename, out_fmt);
-        goto out;
-    }
 
     if (bs_n > 1 && out_baseimg) {
         error_report("-B makes no sense when concatenating multiple input "
@@ -1290,7 +1317,7 @@ static int img_convert(int argc, char **argv)
 
         bdrv_snapshot_load_tmp_by_id_or_name(bs[0], snapshot_name, &local_err);
     }
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_report("Failed to load snapshot: %s",
                      error_get_pretty(local_err));
         error_free(local_err);
@@ -1505,6 +1532,8 @@ static int img_convert(int argc, char **argv)
         /* signal EOF to align */
         bdrv_write_compressed(out_bs, 0, NULL, 0);
     } else {
+        int64_t sectors_to_read, sectors_read, sector_num_next_status;
+        bool count_allocated_sectors;
         int has_zero_init = min_sparse ? bdrv_has_zero_init(out_bs) : 0;
 
         if (!has_zero_init && bdrv_can_write_zeroes_with_unmap(out_bs)) {
@@ -1515,12 +1544,21 @@ static int img_convert(int argc, char **argv)
             has_zero_init = 1;
         }
 
+        sectors_to_read = total_sectors;
+        count_allocated_sectors = progress && (out_baseimg || has_zero_init);
+restart:
         sector_num = 0; // total number of sectors converted so far
-        nb_sectors = total_sectors - sector_num;
+        sectors_read = 0;
+        sector_num_next_status = 0;
 
         for(;;) {
             nb_sectors = total_sectors - sector_num;
             if (nb_sectors <= 0) {
+                if (count_allocated_sectors) {
+                    sectors_to_read = sectors_read;
+                    count_allocated_sectors = false;
+                    goto restart;
+                }
                 ret = 0;
                 break;
             }
@@ -1586,8 +1624,14 @@ static int img_convert(int argc, char **argv)
             }
 
             n = MIN(n, bs_sectors - (sector_num - bs_offset));
-            n1 = n;
 
+            sectors_read += n;
+            if (count_allocated_sectors) {
+                sector_num += n;
+                continue;
+            }
+
+            n1 = n;
             ret = bdrv_read(bs[bs_i], sector_num - bs_offset, buf, n);
             if (ret < 0) {
                 error_report("error while reading sector %" PRId64 ": %s",
@@ -1612,7 +1656,7 @@ static int img_convert(int argc, char **argv)
                 n -= n1;
                 buf1 += n1 * 512;
             }
-            qemu_progress_print(100.0 * sector_num / total_sectors, 0);
+            qemu_progress_print(100.0 * sectors_read / sectors_to_read, 0);
         }
     }
 out:
@@ -1637,6 +1681,9 @@ out:
         }
         g_free(bs);
     }
+fail_getopt:
+    g_free(options);
+
     if (ret) {
         return 1;
     }
@@ -1759,7 +1806,7 @@ static ImageInfoList *collect_image_info_list(const char *filename,
         }
 
         bdrv_query_image_info(bs, &info, &err);
-        if (error_is_set(&err)) {
+        if (err) {
             error_report("%s", error_get_pretty(err));
             error_free(err);
             goto err;
@@ -2168,7 +2215,7 @@ static int img_snapshot(int argc, char **argv)
 
     case SNAPSHOT_DELETE:
         bdrv_snapshot_delete_by_id_or_name(bs, snapshot_name, &err);
-        if (error_is_set(&err)) {
+        if (err) {
             error_report("Could not delete snapshot '%s': (%s)",
                          snapshot_name, error_get_pretty(err));
             error_free(err);
@@ -2298,7 +2345,7 @@ static int img_rebase(int argc, char **argv)
 
         bs_old_backing = bdrv_new("old_backing");
         bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
-        ret = bdrv_open(bs_old_backing, backing_name, NULL, BDRV_O_FLAGS,
+        ret = bdrv_open(&bs_old_backing, backing_name, NULL, NULL, BDRV_O_FLAGS,
                         old_backing_drv, &local_err);
         if (ret) {
             error_report("Could not open old backing file '%s': %s",
@@ -2308,8 +2355,8 @@ static int img_rebase(int argc, char **argv)
         }
         if (out_baseimg[0]) {
             bs_new_backing = bdrv_new("new_backing");
-            ret = bdrv_open(bs_new_backing, out_baseimg, NULL, BDRV_O_FLAGS,
-                        new_backing_drv, &local_err);
+            ret = bdrv_open(&bs_new_backing, out_baseimg, NULL, NULL,
+                            BDRV_O_FLAGS, new_backing_drv, &local_err);
             if (ret) {
                 error_report("Could not open new backing file '%s': %s",
                              out_baseimg, error_get_pretty(local_err));
@@ -2548,7 +2595,7 @@ static int img_resize(int argc, char **argv)
     }
 
     /* Parse size */
-    param = qemu_opts_create_nofail(&resize_options);
+    param = qemu_opts_create(&resize_options, NULL, 0, &error_abort);
     if (qemu_opt_set(param, BLOCK_OPT_SIZE, size)) {
         /* Error message already printed when size parsing fails */
         ret = -1;
@@ -2621,7 +2668,18 @@ static int img_amend(int argc, char **argv)
                 help();
                 break;
             case 'o':
-                options = optarg;
+                if (!is_valid_option_list(optarg)) {
+                    error_report("Invalid option list: %s", optarg);
+                    ret = -1;
+                    goto out;
+                }
+                if (!options) {
+                    options = g_strdup(optarg);
+                } else {
+                    char *old_options = options;
+                    options = g_strdup_printf("%s,%s", options, optarg);
+                    g_free(old_options);
+                }
                 break;
             case 'f':
                 fmt = optarg;
@@ -2632,15 +2690,21 @@ static int img_amend(int argc, char **argv)
         }
     }
 
-    if (optind != argc - 1) {
-        help();
-    }
-
     if (!options) {
         help();
     }
 
-    filename = argv[argc - 1];
+    filename = (optind == argc - 1) ? argv[argc - 1] : NULL;
+    if (fmt && has_help_option(options)) {
+        /* If a format is explicitly specified (and possibly no filename is
+         * given), print option help here */
+        ret = print_block_option_help(filename, fmt);
+        goto out;
+    }
+
+    if (optind != argc - 1) {
+        help();
+    }
 
     bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR, true, quiet);
     if (!bs) {
@@ -2651,7 +2715,8 @@ static int img_amend(int argc, char **argv)
 
     fmt = bs->drv->format_name;
 
-    if (is_help_option(options)) {
+    if (has_help_option(options)) {
+        /* If the format was auto-detected, print option help here */
         ret = print_block_option_help(filename, fmt);
         goto out;
     }
@@ -2678,6 +2743,8 @@ out:
     }
     free_option_parameters(create_options);
     free_option_parameters(options_param);
+    g_free(options);
+
     if (ret) {
         return 1;
     }
@@ -2703,6 +2770,7 @@ int main(int argc, char **argv)
 #endif
 
     error_set_progname(argv[0]);
+    qemu_init_exec_dir(argv[0]);
 
     qemu_init_main_loop();
     bdrv_init();

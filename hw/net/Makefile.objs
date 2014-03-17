@@ -18,6 +18,7 @@ common-obj-$(CONFIG_OPENCORES_ETH) += opencores_eth.o
 common-obj-$(CONFIG_XGMAC) += xgmac.o
 common-obj-$(CONFIG_MIPSNET) += mipsnet.o
 common-obj-$(CONFIG_XILINX_AXI) += xilinx_axienet.o
+common-obj-$(CONFIG_ALLWINNER_EMAC) += allwinner_emac.o
 
 common-obj-$(CONFIG_CADENCE) += cadence_gem.o
 common-obj-$(CONFIG_STELLARIS_ENET) += stellaris_enet.o
@@ -31,3 +32,6 @@ obj-$(CONFIG_XILINX_ETHLITE) += xilinx_ethlite.o
 
 obj-$(CONFIG_VIRTIO) += virtio-net.o
 obj-y += vhost_net.o
+
+obj-$(CONFIG_ETSEC) += fsl_etsec/etsec.o fsl_etsec/registers.o \
+			fsl_etsec/rings.o fsl_etsec/miim.o

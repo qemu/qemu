@@ -22,6 +22,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/timer.h"
+#include "exec/address-spaces.h"
 #include "exec/memory.h"
 
 #define DATA_SIZE (1 << SHIFT)
@@ -30,23 +31,26 @@
 #define SUFFIX q
 #define LSUFFIX q
 #define SDATA_TYPE  int64_t
+#define DATA_TYPE  uint64_t
 #elif DATA_SIZE == 4
 #define SUFFIX l
 #define LSUFFIX l
 #define SDATA_TYPE  int32_t
+#define DATA_TYPE  uint32_t
 #elif DATA_SIZE == 2
 #define SUFFIX w
 #define LSUFFIX uw
 #define SDATA_TYPE  int16_t
+#define DATA_TYPE  uint16_t
 #elif DATA_SIZE == 1
 #define SUFFIX b
 #define LSUFFIX ub
 #define SDATA_TYPE  int8_t
+#define DATA_TYPE  uint8_t
 #else
 #error unsupported data size
 #endif
 
-#define DATA_TYPE   glue(u, SDATA_TYPE)
 
 /* For the benefit of TCG generated code, we want to avoid the complication
    of ABI-specific return type promotion and always return a value extended
@@ -118,15 +122,16 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
                                               uintptr_t retaddr)
 {
     uint64_t val;
-    MemoryRegion *mr = iotlb_to_region(physaddr);
+    CPUState *cpu = ENV_GET_CPU(env);
+    MemoryRegion *mr = iotlb_to_region(cpu->as, physaddr);
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
-    env->mem_io_pc = retaddr;
-    if (mr != &io_mem_rom && mr != &io_mem_notdirty && !can_do_io(env)) {
-        cpu_io_recompile(env, retaddr);
+    cpu->mem_io_pc = retaddr;
+    if (mr != &io_mem_rom && mr != &io_mem_notdirty && !cpu_can_do_io(cpu)) {
+        cpu_io_recompile(cpu, retaddr);
     }
 
-    env->mem_io_vaddr = addr;
+    cpu->mem_io_vaddr = addr;
     io_mem_read(mr, physaddr, &val, 1 << SHIFT);
     return val;
 }
@@ -153,7 +158,7 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
             do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
         }
 #endif
-        tlb_fill(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+        tlb_fill(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
         tlb_addr = env->tlb_table[mmu_idx][index].ADDR_READ;
     }
 
@@ -235,7 +240,7 @@ WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
             do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
         }
 #endif
-        tlb_fill(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+        tlb_fill(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
         tlb_addr = env->tlb_table[mmu_idx][index].ADDR_READ;
     }
 
@@ -324,15 +329,16 @@ static inline void glue(io_write, SUFFIX)(CPUArchState *env,
                                           target_ulong addr,
                                           uintptr_t retaddr)
 {
-    MemoryRegion *mr = iotlb_to_region(physaddr);
+    CPUState *cpu = ENV_GET_CPU(env);
+    MemoryRegion *mr = iotlb_to_region(cpu->as, physaddr);
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
-    if (mr != &io_mem_rom && mr != &io_mem_notdirty && !can_do_io(env)) {
-        cpu_io_recompile(env, retaddr);
+    if (mr != &io_mem_rom && mr != &io_mem_notdirty && !cpu_can_do_io(cpu)) {
+        cpu_io_recompile(cpu, retaddr);
     }
 
-    env->mem_io_vaddr = addr;
-    env->mem_io_pc = retaddr;
+    cpu->mem_io_vaddr = addr;
+    cpu->mem_io_pc = retaddr;
     io_mem_write(mr, physaddr, val, 1 << SHIFT);
 }
 
@@ -354,7 +360,7 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
             do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
         }
 #endif
-        tlb_fill(env, addr, 1, mmu_idx, retaddr);
+        tlb_fill(ENV_GET_CPU(env), addr, 1, mmu_idx, retaddr);
         tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
     }
 
@@ -430,7 +436,7 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
             do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
         }
 #endif
-        tlb_fill(env, addr, 1, mmu_idx, retaddr);
+        tlb_fill(ENV_GET_CPU(env), addr, 1, mmu_idx, retaddr);
         tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
     }
 

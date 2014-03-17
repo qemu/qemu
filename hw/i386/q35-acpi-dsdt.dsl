@@ -48,6 +48,22 @@ DefinitionBlock (
 /****************************************************************
  * PCI Bus definition
  ****************************************************************/
+#define BOARD_SPECIFIC_PCI_RESOURSES \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
+         0x0000, \
+         0x0CD7, \
+         0x0000, \
+         0x0CD8, \
+         ,, , TypeStatic) \
+     /* 0xcd8-0xcf7 hole for CPU hotplug, hw/acpi/ich9.c:ICH9_PROC_BASE */ \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
+         0x0D00, \
+         0xFFFF, \
+         0x0000, \
+         0xF300, \
+         ,, , TypeStatic)
 
     Scope(\_SB) {
         Device(PCI0) {
@@ -55,6 +71,8 @@ DefinitionBlock (
             Name(_CID, EisaId("PNP0A03"))
             Name(_ADR, 0x00)
             Name(_UID, 1)
+
+            External(ISA, DeviceObj)
 
             // _OSC: based on sample of ACPI3.0b spec
             Name(SUPP, 0) // PCI _OSC Support Field value
@@ -118,34 +136,13 @@ DefinitionBlock (
 
 
 /****************************************************************
- * VGA
- ****************************************************************/
-
-    Scope(\_SB.PCI0) {
-        Device(VGA) {
-            Name(_ADR, 0x00010000)
-            Method(_S1D, 0, NotSerialized) {
-                Return (0x00)
-            }
-            Method(_S2D, 0, NotSerialized) {
-                Return (0x00)
-            }
-            Method(_S3D, 0, NotSerialized) {
-                Return (0x00)
-            }
-        }
-    }
-
-
-/****************************************************************
  * LPC ISA bridge
  ****************************************************************/
 
     Scope(\_SB.PCI0) {
         /* PCI D31:f0 LPC ISA bridge */
         Device(ISA) {
-            /* PCI D31:f0 */
-            Name(_ADR, 0x001f0000)
+            Name (_ADR, 0x001F0000)  // _ADR: Address
 
             /* ICH9 PCI to ISA irq remapping */
             OperationRegion(PIRQ, PCI_Config, 0x60, 0x0C)
@@ -171,6 +168,7 @@ DefinitionBlock (
         }
     }
 
+#define DSDT_APPLESMC_STA q35_dsdt_applesmc_sta
 #include "acpi-dsdt-isa.dsl"
 
 
@@ -333,7 +331,7 @@ DefinitionBlock (
             }
             Return (0x0B)
         }
-        Method(IQCR, 1, NotSerialized) {
+        Method(IQCR, 1, Serialized) {
             // _CRS method - get current settings
             Name(PRR0, ResourceTemplate() {
                 Interrupt(, Level, ActiveHigh, Shared) { 0 }
@@ -404,6 +402,8 @@ DefinitionBlock (
         define_gsi_link(GSIH, 0, 0x17)
     }
 
+#include "hw/acpi/cpu_hotplug_defs.h"
+#define CPU_STATUS_BASE ICH9_CPU_HOTPLUG_IO_BASE
 #include "acpi-dsdt-cpu-hotplug.dsl"
 
 
@@ -417,10 +417,10 @@ DefinitionBlock (
         Method(_L00) {
         }
         Method(_L01) {
+        }
+        Method(_E02) {
             // CPU hotplug event
             \_SB.PRSC()
-        }
-        Method(_L02) {
         }
         Method(_L03) {
         }

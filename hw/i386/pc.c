@@ -171,14 +171,15 @@ void cpu_smm_update(CPUX86State *env)
 /* IRQ handling */
 int cpu_get_pic_interrupt(CPUX86State *env)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     int intno;
 
-    intno = apic_get_interrupt(env->apic_state);
+    intno = apic_get_interrupt(cpu->apic_state);
     if (intno >= 0) {
         return intno;
     }
     /* read the irq from the PIC */
-    if (!apic_accept_pic_intr(env->apic_state)) {
+    if (!apic_accept_pic_intr(cpu->apic_state)) {
         return -1;
     }
 
@@ -190,15 +191,13 @@ static void pic_irq_request(void *opaque, int irq, int level)
 {
     CPUState *cs = first_cpu;
     X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
 
     DPRINTF("pic_irqs: %s irq %d\n", level? "raise" : "lower", irq);
-    if (env->apic_state) {
+    if (cpu->apic_state) {
         CPU_FOREACH(cs) {
             cpu = X86_CPU(cs);
-            env = &cpu->env;
-            if (apic_accept_pic_intr(env->apic_state)) {
-                apic_deliver_pic_intr(env->apic_state, level);
+            if (apic_accept_pic_intr(cpu->apic_state)) {
+                apic_deliver_pic_intr(cpu->apic_state, level);
             }
         }
     } else {
@@ -547,10 +546,15 @@ static void port92_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->no_user = 1;
     dc->realize = port92_realizefn;
     dc->reset = port92_reset;
     dc->vmsd = &vmstate_port92_isa;
+    /*
+     * Reason: unlike ordinary ISA devices, this one needs additional
+     * wiring: its A20 output line needs to be wired up by
+     * port92_init().
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo port92_info = {
@@ -831,8 +835,8 @@ static void load_linux(FWCfgState *fw_cfg,
 
         initrd_size = get_image_size(initrd_filename);
         if (initrd_size < 0) {
-            fprintf(stderr, "qemu: error reading initrd %s\n",
-                    initrd_filename);
+            fprintf(stderr, "qemu: error reading initrd %s: %s\n",
+                    initrd_filename, strerror(errno));
             exit(1);
         }
 
@@ -908,7 +912,7 @@ DeviceState *cpu_get_current_apic(void)
 {
     if (current_cpu) {
         X86CPU *cpu = X86_CPU(current_cpu);
-        return cpu->env.apic_state;
+        return cpu->apic_state;
     } else {
         return NULL;
     }
@@ -1002,7 +1006,7 @@ void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
     }
 
     /* map APIC MMIO area if CPU has APIC */
-    if (cpu && cpu->env.apic_state) {
+    if (cpu && cpu->apic_state) {
         /* XXX: what if the base changes? */
         sysbus_mmio_map_overlap(SYS_BUS_DEVICE(icc_bridge), 0,
                                 APIC_DEFAULT_ADDRESS, 0x1000);
@@ -1068,6 +1072,7 @@ PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
     PcGuestInfo *guest_info = &guest_info_state->info;
     int i, j;
 
+    guest_info->ram_size_below_4g = below_4g_mem_size;
     guest_info->ram_size = below_4g_mem_size + above_4g_mem_size;
     guest_info->apic_id_limit = pc_apic_id_limit(max_cpus);
     guest_info->apic_xrupt_override = kvm_allows_irq0_override();
@@ -1093,21 +1098,13 @@ PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
     return guest_info;
 }
 
-void pc_init_pci64_hole(PcPciInfo *pci_info, uint64_t pci_hole64_start,
-                        uint64_t pci_hole64_size)
+/* setup pci memory address space mapping into system address space */
+void pc_pci_as_mapping_init(Object *owner, MemoryRegion *system_memory,
+                            MemoryRegion *pci_address_space)
 {
-    if ((sizeof(hwaddr) == 4) || (!pci_hole64_size)) {
-        return;
-    }
-    /*
-     * BIOS does not set MTRR entries for the 64 bit window, so no need to
-     * align address to power of two.  Align address at 1G, this makes sure
-     * it can be exactly covered with a PAT entry even when using huge
-     * pages.
-     */
-    pci_info->w64.begin = ROUND_UP(pci_hole64_start, 0x1ULL << 30);
-    pci_info->w64.end = pci_info->w64.begin + pci_hole64_size;
-    assert(pci_info->w64.begin <= pci_info->w64.end);
+    /* Set to lower priority than RAM */
+    memory_region_add_subregion_overlap(system_memory, 0x0,
+                                        pci_address_space, -1);
 }
 
 void pc_acpi_init(const char *default_dsdt)
@@ -1261,7 +1258,8 @@ static const MemoryRegionOps ioportF0_io_ops = {
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
                           ISADevice **floppy,
-                          bool no_vmport)
+                          bool no_vmport,
+                          uint32 hpet_irqs)
 {
     int i;
     DriveInfo *fd[MAX_FD];
@@ -1288,9 +1286,21 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
      * when the HPET wants to take over. Thus we have to disable the latter.
      */
     if (!no_hpet && (!kvm_irqchip_in_kernel() || kvm_has_pit_state2())) {
-        hpet = sysbus_try_create_simple("hpet", HPET_BASE, NULL);
-
+        /* In order to set property, here not using sysbus_try_create_simple */
+        hpet = qdev_try_create(NULL, TYPE_HPET);
         if (hpet) {
+            /* For pc-piix-*, hpet's intcap is always IRQ2. For pc-q35-1.7
+             * and earlier, use IRQ2 for compat. Otherwise, use IRQ16~23,
+             * IRQ8 and IRQ2.
+             */
+            uint8_t compat = object_property_get_int(OBJECT(hpet),
+                    HPET_INTCAP, NULL);
+            if (!compat) {
+                qdev_prop_set_uint32(hpet, HPET_INTCAP, hpet_irqs);
+            }
+            qdev_init_nofail(hpet);
+            sysbus_mmio_map(SYS_BUS_DEVICE(hpet), 0, HPET_BASE);
+
             for (i = 0; i < GSI_NUM_PINS; i++) {
                 sysbus_connect_irq(SYS_BUS_DEVICE(hpet), i, gsi[i]);
             }

@@ -1086,7 +1086,8 @@ static int proxy_ioc_getversion(FsContext *fs_ctx, V9fsPath *path,
      * we can get fd for regular files and directories only
      */
     if (!S_ISREG(st_mode) && !S_ISDIR(st_mode)) {
-        return 0;
+        errno = ENOTTY;
+        return -1;
     }
     err = v9fs_request(fs_ctx->private, T_GETVERSION, st_gen, "s", path);
     if (err < 0) {

@@ -224,27 +224,24 @@ static const VMStateDescription vmstate_pxa2xx_cm = {
     }
 };
 
-static int pxa2xx_clkcfg_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                              uint64_t *value)
+static uint64_t pxa2xx_clkcfg_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     PXA2xxState *s = (PXA2xxState *)ri->opaque;
-    *value = s->clkcfg;
-    return 0;
+    return s->clkcfg;
 }
 
-static int pxa2xx_clkcfg_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                               uint64_t value)
+static void pxa2xx_clkcfg_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
 {
     PXA2xxState *s = (PXA2xxState *)ri->opaque;
     s->clkcfg = value & 0xf;
     if (value & 2) {
         printf("%s: CPU frequency change attempt\n", __func__);
     }
-    return 0;
 }
 
-static int pxa2xx_pwrmode_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                                uint64_t value)
+static void pxa2xx_pwrmode_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                 uint64_t value)
 {
     PXA2xxState *s = (PXA2xxState *)ri->opaque;
     static const char *pwrmode[8] = {
@@ -262,7 +259,7 @@ static int pxa2xx_pwrmode_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     case 1:
         /* Idle */
-        if (!(s->cm_regs[CCCR >> 2] & (1 << 31))) { /* CPDIS */
+        if (!(s->cm_regs[CCCR >> 2] & (1U << 31))) { /* CPDIS */
             cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_HALT);
             break;
         }
@@ -275,11 +272,11 @@ static int pxa2xx_pwrmode_write(CPUARMState *env, const ARMCPRegInfo *ri,
         goto message;
 
     case 3:
-        s->cpu->env.uncached_cpsr =
-            ARM_CPU_MODE_SVC | CPSR_A | CPSR_F | CPSR_I;
+        s->cpu->env.uncached_cpsr = ARM_CPU_MODE_SVC;
+        s->cpu->env.daif = PSTATE_A | PSTATE_F | PSTATE_I;
         s->cpu->env.cp15.c1_sys = 0;
         s->cpu->env.cp15.c1_coproc = 0;
-        s->cpu->env.cp15.c2_base0 = 0;
+        s->cpu->env.cp15.ttbr0_el1 = 0;
         s->cpu->env.cp15.c3 = 0;
         s->pm_regs[PSSR >> 2] |= 0x8; /* Set STS */
         s->pm_regs[RCSR >> 2] |= 0x8; /* Set GPR */
@@ -310,36 +307,29 @@ static int pxa2xx_pwrmode_write(CPUARMState *env, const ARMCPRegInfo *ri,
         printf("%s: machine entered %s mode\n", __func__,
                pwrmode[value & 7]);
     }
-
-    return 0;
 }
 
-static int pxa2xx_cppmnc_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                              uint64_t *value)
+static uint64_t pxa2xx_cppmnc_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     PXA2xxState *s = (PXA2xxState *)ri->opaque;
-    *value = s->pmnc;
-    return 0;
+    return s->pmnc;
 }
 
-static int pxa2xx_cppmnc_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                               uint64_t value)
+static void pxa2xx_cppmnc_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
 {
     PXA2xxState *s = (PXA2xxState *)ri->opaque;
     s->pmnc = value;
-    return 0;
 }
 
-static int pxa2xx_cpccnt_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                              uint64_t *value)
+static uint64_t pxa2xx_cpccnt_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     PXA2xxState *s = (PXA2xxState *)ri->opaque;
     if (s->pmnc & 1) {
-        *value = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     } else {
-        *value = 0;
+        return 0;
     }
-    return 0;
 }
 
 static const ARMCPRegInfo pxa_cp_reginfo[] = {
@@ -506,7 +496,7 @@ typedef struct {
 #define SSCR0_SSE	(1 << 7)
 #define SSCR0_RIM	(1 << 22)
 #define SSCR0_TIM	(1 << 23)
-#define SSCR0_MOD	(1 << 31)
+#define SSCR0_MOD       (1U << 31)
 #define SSCR0_DSS(x)	(((((x) >> 16) & 0x10) | ((x) & 0xf)) + 1)
 #define SSCR1_RIE	(1 << 0)
 #define SSCR1_TIE	(1 << 1)
@@ -1016,7 +1006,7 @@ static void pxa2xx_rtc_write(void *opaque, hwaddr addr,
 
     switch (addr) {
     case RTTR:
-        if (!(s->rttr & (1 << 31))) {
+        if (!(s->rttr & (1U << 31))) {
             pxa2xx_rtc_hzupdate(s);
             s->rttr = value;
             pxa2xx_rtc_alarm_update(s, s->rtsr);
@@ -1222,8 +1212,14 @@ static const TypeInfo pxa2xx_rtc_sysbus_info = {
 };
 
 /* I2C Interface */
-typedef struct {
-    I2CSlave i2c;
+
+#define TYPE_PXA2XX_I2C_SLAVE "pxa2xx-i2c-slave"
+#define PXA2XX_I2C_SLAVE(obj) \
+    OBJECT_CHECK(PXA2xxI2CSlaveState, (obj), TYPE_PXA2XX_I2C_SLAVE)
+
+typedef struct PXA2xxI2CSlaveState {
+    I2CSlave parent_obj;
+
     PXA2xxI2CState *host;
 } PXA2xxI2CSlaveState;
 
@@ -1238,7 +1234,7 @@ struct PXA2xxI2CState {
 
     MemoryRegion iomem;
     PXA2xxI2CSlaveState *slave;
-    i2c_bus *bus;
+    I2CBus *bus;
     qemu_irq irq;
     uint32_t offset;
     uint32_t region_size;
@@ -1268,7 +1264,7 @@ static void pxa2xx_i2c_update(PXA2xxI2CState *s)
 /* These are only stubs now.  */
 static void pxa2xx_i2c_event(I2CSlave *i2c, enum i2c_event event)
 {
-    PXA2xxI2CSlaveState *slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, i2c);
+    PXA2xxI2CSlaveState *slave = PXA2XX_I2C_SLAVE(i2c);
     PXA2xxI2CState *s = slave->host;
 
     switch (event) {
@@ -1292,10 +1288,12 @@ static void pxa2xx_i2c_event(I2CSlave *i2c, enum i2c_event event)
 
 static int pxa2xx_i2c_rx(I2CSlave *i2c)
 {
-    PXA2xxI2CSlaveState *slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, i2c);
+    PXA2xxI2CSlaveState *slave = PXA2XX_I2C_SLAVE(i2c);
     PXA2xxI2CState *s = slave->host;
-    if ((s->control & (1 << 14)) || !(s->control & (1 << 6)))
+
+    if ((s->control & (1 << 14)) || !(s->control & (1 << 6))) {
         return 0;
+    }
 
     if (s->status & (1 << 0)) {			/* RWM */
         s->status |= 1 << 6;			/* set ITE */
@@ -1307,10 +1305,12 @@ static int pxa2xx_i2c_rx(I2CSlave *i2c)
 
 static int pxa2xx_i2c_tx(I2CSlave *i2c, uint8_t data)
 {
-    PXA2xxI2CSlaveState *slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, i2c);
+    PXA2xxI2CSlaveState *slave = PXA2XX_I2C_SLAVE(i2c);
     PXA2xxI2CState *s = slave->host;
-    if ((s->control & (1 << 14)) || !(s->control & (1 << 6)))
+
+    if ((s->control & (1 << 14)) || !(s->control & (1 << 6))) {
         return 1;
+    }
 
     if (!(s->status & (1 << 0))) {		/* RWM */
         s->status |= 1 << 7;			/* set IRF */
@@ -1325,6 +1325,7 @@ static uint64_t pxa2xx_i2c_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     PXA2xxI2CState *s = (PXA2xxI2CState *) opaque;
+    I2CSlave *slave;
 
     addr -= s->offset;
     switch (addr) {
@@ -1333,7 +1334,8 @@ static uint64_t pxa2xx_i2c_read(void *opaque, hwaddr addr,
     case ISR:
         return s->status | (i2c_bus_busy(s->bus) << 2);
     case ISAR:
-        return s->slave->i2c.address;
+        slave = I2C_SLAVE(s->slave);
+        return slave->address;
     case IDBR:
         return s->data;
     case IBMR:
@@ -1408,7 +1410,7 @@ static void pxa2xx_i2c_write(void *opaque, hwaddr addr,
         break;
 
     case ISAR:
-        i2c_set_slave_address(&s->slave->i2c, value & 0x7f);
+        i2c_set_slave_address(I2C_SLAVE(s->slave), value & 0x7f);
         break;
 
     case IDBR:
@@ -1432,7 +1434,7 @@ static const VMStateDescription vmstate_pxa2xx_i2c_slave = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_I2C_SLAVE(i2c, PXA2xxI2CSlaveState),
+        VMSTATE_I2C_SLAVE(parent_obj, PXA2xxI2CSlaveState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -1448,7 +1450,7 @@ static const VMStateDescription vmstate_pxa2xx_i2c = {
         VMSTATE_UINT8(ibmr, PXA2xxI2CState),
         VMSTATE_UINT8(data, PXA2xxI2CState),
         VMSTATE_STRUCT_POINTER(slave, PXA2xxI2CState,
-                               vmstate_pxa2xx_i2c_slave, PXA2xxI2CSlaveState *),
+                               vmstate_pxa2xx_i2c_slave, PXA2xxI2CSlaveState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -1470,7 +1472,7 @@ static void pxa2xx_i2c_slave_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pxa2xx_i2c_slave_info = {
-    .name          = "pxa2xx-i2c-slave",
+    .name          = TYPE_PXA2XX_I2C_SLAVE,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(PXA2xxI2CSlaveState),
     .class_init    = pxa2xx_i2c_slave_class_init,
@@ -1482,7 +1484,7 @@ PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
     DeviceState *dev;
     SysBusDevice *i2c_dev;
     PXA2xxI2CState *s;
-    i2c_bus *i2cbus;
+    I2CBus *i2cbus;
 
     dev = qdev_create(NULL, TYPE_PXA2XX_I2C);
     qdev_prop_set_uint32(dev, "size", region_size + 1);
@@ -1496,8 +1498,8 @@ PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
     s = PXA2XX_I2C(i2c_dev);
     /* FIXME: Should the slave device really be on a separate bus?  */
     i2cbus = i2c_init_bus(dev, "dummy");
-    dev = i2c_create_slave(i2cbus, "pxa2xx-i2c-slave", 0);
-    s->slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, I2C_SLAVE(dev));
+    dev = i2c_create_slave(i2cbus, TYPE_PXA2XX_I2C_SLAVE, 0);
+    s->slave = PXA2XX_I2C_SLAVE(dev);
     s->slave->host = s;
 
     return s;
@@ -1518,7 +1520,7 @@ static int pxa2xx_i2c_initfn(SysBusDevice *sbd)
     return 0;
 }
 
-i2c_bus *pxa2xx_i2c_bus(PXA2xxI2CState *s)
+I2CBus *pxa2xx_i2c_bus(PXA2xxI2CState *s)
 {
     return s->bus;
 }

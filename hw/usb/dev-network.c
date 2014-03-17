@@ -266,7 +266,7 @@ static const USBDescDevice desc_device_net = {
             .bNumInterfaces        = 2,
             .bConfigurationValue   = DEV_RNDIS_CONFIG_VALUE,
             .iConfiguration        = STRING_RNDIS,
-            .bmAttributes          = 0xc0,
+            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
             .bMaxPower             = 0x32,
             .nif = ARRAY_SIZE(desc_iface_rndis),
             .ifs = desc_iface_rndis,
@@ -274,7 +274,7 @@ static const USBDescDevice desc_device_net = {
             .bNumInterfaces        = 2,
             .bConfigurationValue   = DEV_CONFIG_VALUE,
             .iConfiguration        = STRING_CDC,
-            .bmAttributes          = 0xc0,
+            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
             .bMaxPower             = 0x32,
             .nif = ARRAY_SIZE(desc_iface_cdc),
             .ifs = desc_iface_cdc,
@@ -1391,7 +1391,7 @@ static USBDevice *usb_net_init(USBBus *bus, const char *cmdline)
     qemu_opt_set(opts, "model", "usb");
 
     idx = net_client_init(opts, 0, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         qerror_report_err(local_err);
         error_free(local_err);
         return NULL;

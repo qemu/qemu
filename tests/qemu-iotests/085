@@ -1,0 +1,192 @@
+#!/bin/bash
+#
+# Live snapshot tests
+#
+# This tests live snapshots of images on a running QEMU instance, using
+# QMP commands.  Both single disk snapshots, and transactional group
+# snapshots are performed.
+#
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=jcody@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1	# failure is the default!
+qemu_pid=
+
+QMP_IN="${TEST_DIR}/qmp-in-$$"
+QMP_OUT="${TEST_DIR}/qmp-out-$$"
+
+snapshot_virt0="snapshot-v0.qcow2"
+snapshot_virt1="snapshot-v1.qcow2"
+
+MAX_SNAPSHOTS=10
+
+_cleanup()
+{
+    kill -KILL ${qemu_pid}
+    wait ${qemu_pid} 2>/dev/null  # silent kill
+
+    rm -f "${QMP_IN}" "${QMP_OUT}"
+    for i in $(seq 1 ${MAX_SNAPSHOTS})
+    do
+        rm -f "${TEST_DIR}/${i}-${snapshot_virt0}"
+        rm -f "${TEST_DIR}/${i}-${snapshot_virt1}"
+    done
+	_cleanup_test_img
+
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+# Wait for expected QMP response from QEMU.  Will time out
+# after 10 seconds, which counts as failure.
+#
+# $1 is the string to expect
+#
+# If $silent is set to anything but an empty string, then
+# response is not echoed out.
+function timed_wait_for()
+{
+    while read -t 10 resp <&5
+    do
+        if [ "${silent}" == "" ]; then
+            echo "${resp}" | _filter_testdir | _filter_qemu
+        fi
+        grep -q "${1}" < <(echo ${resp})
+        if [ $? -eq 0 ]; then
+            return
+        fi
+    done
+    echo "Timeout waiting for ${1}"
+    exit 1  # Timeout means the test failed
+}
+
+# Sends QMP command to QEMU, and waits for the expected response
+#
+# ${1}:  String of the QMP command to send
+# ${2}:  String that the QEMU response should contain
+function send_qmp_cmd()
+{
+    echo "${1}" >&6
+    timed_wait_for "${2}"
+}
+
+# ${1}: unique identifier for the snapshot filename
+function create_single_snapshot()
+{
+    cmd="{ 'execute': 'blockdev-snapshot-sync',
+                      'arguments': { 'device': 'virtio0',
+                                     'snapshot-file':'"${TEST_DIR}/${1}-${snapshot_virt0}"',
+                                     'format': 'qcow2' } }"
+    send_qmp_cmd "${cmd}" "return"
+}
+
+# ${1}: unique identifier for the snapshot filename
+function create_group_snapshot()
+{
+    cmd="{ 'execute': 'transaction', 'arguments':
+           {'actions': [
+               { 'type': 'blockdev-snapshot-sync', 'data' :
+                   { 'device': 'virtio0',
+                      'snapshot-file': '"${TEST_DIR}/${1}-${snapshot_virt0}"' } },
+               { 'type': 'blockdev-snapshot-sync', 'data' :
+                   { 'device': 'virtio1',
+                       'snapshot-file': '"${TEST_DIR}/${1}-${snapshot_virt1}"' } } ]
+             } }"
+
+    send_qmp_cmd "${cmd}" "return"
+}
+
+size=128M
+
+mkfifo "${QMP_IN}"
+mkfifo "${QMP_OUT}"
+
+_make_test_img $size
+mv "${TEST_IMG}" "${TEST_IMG}.orig"
+_make_test_img $size
+
+echo
+echo === Running QEMU ===
+echo
+
+"${QEMU}" -nographic -monitor none -serial none -qmp stdio\
+          -drive file="${TEST_IMG}.orig",if=virtio\
+          -drive file="${TEST_IMG}",if=virtio 2>&1 >"${QMP_OUT}" <"${QMP_IN}"&
+qemu_pid=$!
+
+# redirect fifos to file descriptors, to keep from blocking
+exec 5<"${QMP_OUT}"
+exec 6>"${QMP_IN}"
+
+# Don't print response, since it has version information in it
+silent=yes timed_wait_for "capabilities"
+
+echo
+echo === Sending capabilities ===
+echo
+
+send_qmp_cmd "{ 'execute': 'qmp_capabilities' }" "return"
+
+echo
+echo === Create a single snapshot on virtio0 ===
+echo
+
+create_single_snapshot 1
+
+
+echo
+echo === Invalid command - missing device and nodename ===
+echo
+
+send_qmp_cmd "{ 'execute': 'blockdev-snapshot-sync',
+                      'arguments': { 'snapshot-file':'"${TEST_DIR}"/1-${snapshot_virt0}',
+                                     'format': 'qcow2' } }" "error"
+
+echo
+echo === Invalid command - missing snapshot-file ===
+echo
+
+send_qmp_cmd "{ 'execute': 'blockdev-snapshot-sync',
+                      'arguments': { 'device': 'virtio0',
+                                     'format': 'qcow2' } }" "error"
+echo
+echo
+echo === Create several transactional group snapshots ===
+echo
+
+for i in $(seq 2 ${MAX_SNAPSHOTS})
+do
+    create_group_snapshot ${i}
+done
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

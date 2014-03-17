@@ -78,8 +78,11 @@ static GHashTable *type_table_get(void)
     return type_table;
 }
 
+static bool enumerating_types;
+
 static void type_table_add(TypeImpl *ti)
 {
+    assert(!enumerating_types);
     g_hash_table_insert(type_table_get(), (void *)ti->name, ti);
 }
 
@@ -88,7 +91,7 @@ static TypeImpl *type_table_lookup(const char *name)
     return g_hash_table_lookup(type_table_get(), name);
 }
 
-static TypeImpl *type_register_internal(const TypeInfo *info)
+static TypeImpl *type_new(const TypeInfo *info)
 {
     TypeImpl *ti = g_malloc0(sizeof(*ti));
     int i;
@@ -122,8 +125,15 @@ static TypeImpl *type_register_internal(const TypeInfo *info)
     }
     ti->num_interfaces = i;
 
-    type_table_add(ti);
+    return ti;
+}
 
+static TypeImpl *type_register_internal(const TypeInfo *info)
+{
+    TypeImpl *ti;
+    ti = type_new(info);
+
+    type_table_add(ti);
     return ti;
 }
 
@@ -206,22 +216,25 @@ static bool type_is_ancestor(TypeImpl *type, TypeImpl *target_type)
 
 static void type_initialize(TypeImpl *ti);
 
-static void type_initialize_interface(TypeImpl *ti, const char *parent)
+static void type_initialize_interface(TypeImpl *ti, TypeImpl *interface_type,
+                                      TypeImpl *parent_type)
 {
     InterfaceClass *new_iface;
     TypeInfo info = { };
     TypeImpl *iface_impl;
 
-    info.parent = parent;
-    info.name = g_strdup_printf("%s::%s", ti->name, info.parent);
+    info.parent = parent_type->name;
+    info.name = g_strdup_printf("%s::%s", ti->name, interface_type->name);
     info.abstract = true;
 
-    iface_impl = type_register(&info);
+    iface_impl = type_new(&info);
+    iface_impl->parent_type = parent_type;
     type_initialize(iface_impl);
     g_free((char *)info.name);
 
     new_iface = (InterfaceClass *)iface_impl->class;
     new_iface->concrete_class = ti->class;
+    new_iface->interface_type = interface_type;
 
     ti->class->interfaces = g_slist_append(ti->class->interfaces,
                                            iface_impl->class);
@@ -251,8 +264,10 @@ static void type_initialize(TypeImpl *ti)
         ti->class->interfaces = NULL;
 
         for (e = parent->class->interfaces; e; e = e->next) {
-            ObjectClass *iface = e->data;
-            type_initialize_interface(ti, object_class_get_name(iface));
+            InterfaceClass *iface = e->data;
+            ObjectClass *klass = OBJECT_CLASS(iface);
+
+            type_initialize_interface(ti, iface->interface_type, klass->type);
         }
 
         for (i = 0; i < ti->num_interfaces; i++) {
@@ -269,7 +284,7 @@ static void type_initialize(TypeImpl *ti)
                 continue;
             }
 
-            type_initialize_interface(ti, ti->interfaces[i].typename);
+            type_initialize_interface(ti, t, t);
         }
     }
 
@@ -285,8 +300,6 @@ static void type_initialize(TypeImpl *ti)
     if (ti->class_init) {
         ti->class_init(ti->class, ti->class_data);
     }
-
-
 }
 
 static void object_init_with_type(Object *obj, TypeImpl *ti)
@@ -458,7 +471,7 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename,
     Object *inst;
 
     for (i = 0; obj && i < OBJECT_CLASS_CAST_CACHE; i++) {
-        if (obj->class->cast_cache[i] == typename) {
+        if (obj->class->object_cast_cache[i] == typename) {
             goto out;
         }
     }
@@ -475,9 +488,10 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename,
 
     if (obj && obj == inst) {
         for (i = 1; i < OBJECT_CLASS_CAST_CACHE; i++) {
-            obj->class->cast_cache[i - 1] = obj->class->cast_cache[i];
+            obj->class->object_cast_cache[i - 1] =
+                    obj->class->object_cast_cache[i];
         }
-        obj->class->cast_cache[i - 1] = typename;
+        obj->class->object_cast_cache[i - 1] = typename;
     }
 
 out:
@@ -547,7 +561,7 @@ ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
     int i;
 
     for (i = 0; class && i < OBJECT_CLASS_CAST_CACHE; i++) {
-        if (class->cast_cache[i] == typename) {
+        if (class->class_cast_cache[i] == typename) {
             ret = class;
             goto out;
         }
@@ -568,9 +582,9 @@ ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
 #ifdef CONFIG_QOM_CAST_DEBUG
     if (class && ret == class) {
         for (i = 1; i < OBJECT_CLASS_CAST_CACHE; i++) {
-            class->cast_cache[i - 1] = class->cast_cache[i];
+            class->class_cast_cache[i - 1] = class->class_cast_cache[i];
         }
-        class->cast_cache[i - 1] = typename;
+        class->class_cast_cache[i - 1] = typename;
     }
 out:
 #endif
@@ -659,7 +673,9 @@ void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
 {
     OCFData data = { fn, implements_type, include_abstract, opaque };
 
+    enumerating_types = true;
     g_hash_table_foreach(type_table_get(), object_class_foreach_tramp, &data);
+    enumerating_types = false;
 }
 
 int object_child_foreach(Object *obj, int (*fn)(Object *child, void *opaque),
@@ -932,13 +948,13 @@ void object_property_parse(Object *obj, const char *string,
     string_input_visitor_cleanup(mi);
 }
 
-char *object_property_print(Object *obj, const char *name,
+char *object_property_print(Object *obj, const char *name, bool human,
                             Error **errp)
 {
     StringOutputVisitor *mo;
     char *string;
 
-    mo = string_output_visitor_new();
+    mo = string_output_visitor_new(human);
     object_property_get(obj, string_output_get_visitor(mo), name, errp);
     string = string_output_get_string(mo);
     string_output_visitor_cleanup(mo);
@@ -988,17 +1004,22 @@ static void object_finalize_child_property(Object *obj, const char *name,
 void object_property_add_child(Object *obj, const char *name,
                                Object *child, Error **errp)
 {
+    Error *local_err = NULL;
     gchar *type;
 
     type = g_strdup_printf("child<%s>", object_get_typename(OBJECT(child)));
 
-    object_property_add(obj, name, type, object_get_child_property,
-                        NULL, object_finalize_child_property, child, errp);
-
+    object_property_add(obj, name, type, object_get_child_property, NULL,
+                        object_finalize_child_property, child, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto out;
+    }
     object_ref(child);
     g_assert(child->parent == NULL);
     child->parent = obj;
 
+out:
     g_free(type);
 }
 
@@ -1081,39 +1102,49 @@ void object_property_add_link(Object *obj, const char *name,
     g_free(full_type);
 }
 
+gchar *object_get_canonical_path_component(Object *obj)
+{
+    ObjectProperty *prop = NULL;
+
+    g_assert(obj);
+    g_assert(obj->parent != NULL);
+
+    QTAILQ_FOREACH(prop, &obj->parent->properties, node) {
+        if (!object_property_is_child(prop)) {
+            continue;
+        }
+
+        if (prop->opaque == obj) {
+            return g_strdup(prop->name);
+        }
+    }
+
+    /* obj had a parent but was not a child, should never happen */
+    g_assert_not_reached();
+    return NULL;
+}
+
 gchar *object_get_canonical_path(Object *obj)
 {
     Object *root = object_get_root();
-    char *newpath = NULL, *path = NULL;
+    char *newpath, *path = NULL;
 
     while (obj != root) {
-        ObjectProperty *prop = NULL;
+        char *component = object_get_canonical_path_component(obj);
 
-        g_assert(obj->parent != NULL);
-
-        QTAILQ_FOREACH(prop, &obj->parent->properties, node) {
-            if (!object_property_is_child(prop)) {
-                continue;
-            }
-
-            if (prop->opaque == obj) {
-                if (path) {
-                    newpath = g_strdup_printf("%s/%s", prop->name, path);
-                    g_free(path);
-                    path = newpath;
-                } else {
-                    path = g_strdup(prop->name);
-                }
-                break;
-            }
+        if (path) {
+            newpath = g_strdup_printf("%s/%s", component, path);
+            g_free(component);
+            g_free(path);
+            path = newpath;
+        } else {
+            path = component;
         }
-
-        g_assert(prop != NULL);
 
         obj = obj->parent;
     }
 
-    newpath = g_strdup_printf("/%s", path);
+    newpath = g_strdup_printf("/%s", path ? path : "");
     g_free(path);
 
     return newpath;
@@ -1272,6 +1303,7 @@ void object_property_add_str(Object *obj, const char *name,
                            void (*set)(Object *, const char *, Error **),
                            Error **errp)
 {
+    Error *local_err = NULL;
     StringProperty *prop = g_malloc0(sizeof(*prop));
 
     prop->get = get;
@@ -1281,7 +1313,11 @@ void object_property_add_str(Object *obj, const char *name,
                         get ? property_get_str : NULL,
                         set ? property_set_str : NULL,
                         property_release_str,
-                        prop, errp);
+                        prop, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(prop);
+    }
 }
 
 typedef struct BoolProperty
@@ -1328,6 +1364,7 @@ void object_property_add_bool(Object *obj, const char *name,
                               void (*set)(Object *, bool, Error **),
                               Error **errp)
 {
+    Error *local_err = NULL;
     BoolProperty *prop = g_malloc0(sizeof(*prop));
 
     prop->get = get;
@@ -1337,7 +1374,11 @@ void object_property_add_bool(Object *obj, const char *name,
                         get ? property_get_bool : NULL,
                         set ? property_set_bool : NULL,
                         property_release_bool,
-                        prop, errp);
+                        prop, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(prop);
+    }
 }
 
 static char *qdev_get_type(Object *obj, Error **errp)

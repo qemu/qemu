@@ -86,7 +86,7 @@ static void isa_ne2000_realizefn(DeviceState *dev, Error **errp)
 }
 
 static Property ne2000_isa_properties[] = {
-    DEFINE_PROP_HEX32("iobase", ISANE2000State, iobase, 0x300),
+    DEFINE_PROP_UINT32("iobase", ISANE2000State, iobase, 0x300),
     DEFINE_PROP_UINT32("irq",   ISANE2000State, isairq, 9),
     DEFINE_NIC_PROPERTIES(ISANE2000State, ne2000.c),
     DEFINE_PROP_END_OF_LIST(),

@@ -4,6 +4,7 @@ check-qint
 check-qjson
 check-qlist
 check-qstring
+check-qom-interface
 test-aio
 test-bitops
 test-throttle
@@ -20,6 +21,7 @@ test-qmp-commands
 test-qmp-input-strict
 test-qmp-marshal.c
 test-thread-pool
+test-vmstate
 test-x86-cpuid
 test-xbzrle
 *-test

@@ -25,6 +25,7 @@
 #include "qemu-common.h"
 #include "qemu/timer.h"
 #include "qemu/sockets.h"	// struct in_addr needed for libslirp.h
+#include "sysemu/qtest.h"
 #include "slirp/libslirp.h"
 #include "qemu/main-loop.h"
 #include "block/aio.h"
@@ -208,7 +209,7 @@ static int os_host_main_loop_wait(int64_t timeout)
     if (!timeout && (spin_counter > MAX_MAIN_LOOP_SPIN)) {
         static bool notified;
 
-        if (!notified) {
+        if (!notified && !qtest_enabled()) {
             fprintf(stderr,
                     "main-loop: WARNING: I/O thread spun for %d iterations\n",
                     MAX_MAIN_LOOP_SPIN);

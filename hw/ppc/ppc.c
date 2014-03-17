@@ -26,6 +26,7 @@
 #include "hw/ppc/ppc_e500.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/cpus.h"
 #include "hw/timer/m48t59.h"
 #include "qemu/log.h"
 #include "hw/loader.h"
@@ -1361,4 +1362,25 @@ int PPC_NVRAM_set_params (nvram_t *nvram, uint16_t NVRAM_size,
     NVRAM_set_word(nvram,   0xFC, crc);
 
     return 0;
+}
+
+/* CPU device-tree ID helpers */
+int ppc_get_vcpu_dt_id(PowerPCCPU *cpu)
+{
+    return cpu->cpu_dt_id;
+}
+
+PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        if (cpu->cpu_dt_id == cpu_dt_id) {
+            return cpu;
+        }
+    }
+
+    return NULL;
 }

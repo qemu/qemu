@@ -495,7 +495,7 @@ static int xenfb_map_fb(struct XenFB *xenfb)
     munmap(map, n_fbdirs * XC_PAGE_SIZE);
 
     xenfb->pixels = xc_map_foreign_pages(xen_xc, xenfb->c.xendev.dom,
-					 PROT_READ | PROT_WRITE, fbmfns, xenfb->fbpages);
+            PROT_READ, fbmfns, xenfb->fbpages);
     if (xenfb->pixels == NULL)
 	goto out;
 
@@ -903,6 +903,11 @@ static void fb_disconnect(struct XenDevice *xendev)
     fb->pixels = mmap(fb->pixels, fb->fbpages * XC_PAGE_SIZE,
                       PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON,
                       -1, 0);
+    if (fb->pixels == MAP_FAILED) {
+        xen_be_printf(xendev, 0,
+                "Couldn't replace the framebuffer with anonymous memory errno=%d\n",
+                errno);
+    }
     common_unbind(&fb->c);
     fb->feature_update = 0;
     fb->bug_trigger    = 0;
@@ -987,7 +992,7 @@ wait_more:
 
     /* vfb */
     fb = container_of(xfb, struct XenFB, c.xendev);
-    fb->c.con = graphic_console_init(NULL, &xenfb_ops, fb);
+    fb->c.con = graphic_console_init(NULL, 0, &xenfb_ops, fb);
     fb->have_console = 1;
 
     /* vkbd */

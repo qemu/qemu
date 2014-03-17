@@ -120,17 +120,18 @@
 # This command tries to set guest time to the given value,
 # then sets the Hardware Clock to the current System Time.
 # This will make it easier for a guest to resynchronize
-# without waiting for NTP.
+# without waiting for NTP. If no @time is specified, then
+# the time to set is read from RTC.
 #
-# @time: time of nanoseconds, relative to the Epoch of
-#        1970-01-01 in UTC.
+# @time: #optional time of nanoseconds, relative to the Epoch
+#        of 1970-01-01 in UTC.
 #
 # Returns: Nothing on success.
 #
 # Since: 1.5
 ##
 { 'command': 'guest-set-time',
-  'data': { 'time': 'int' } }
+  'data': { '*time': 'int' } }
 
 ##
 # @GuestAgentCommandInfo:

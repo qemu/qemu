@@ -168,11 +168,13 @@ void helper_store_fpcr(CPUAlphaState *env, uint64_t val)
 }
 
 #if defined(CONFIG_USER_ONLY)
-int cpu_alpha_handle_mmu_fault(CPUAlphaState *env, target_ulong address,
+int alpha_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
                                int rw, int mmu_idx)
 {
-    env->exception_index = EXCP_MMFAULT;
-    env->trap_arg0 = address;
+    AlphaCPU *cpu = ALPHA_CPU(cs);
+
+    cs->exception_index = EXCP_MMFAULT;
+    cpu->env.trap_arg0 = address;
     return 1;
 }
 #else
@@ -213,6 +215,7 @@ static int get_physical_address(CPUAlphaState *env, target_ulong addr,
                                 int prot_need, int mmu_idx,
                                 target_ulong *pphys, int *pprot)
 {
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
     target_long saddr = addr;
     target_ulong phys = 0;
     target_ulong L1pte, L2pte, L3pte;
@@ -251,7 +254,7 @@ static int get_physical_address(CPUAlphaState *env, target_ulong addr,
 
     /* L1 page table read.  */
     index = (addr >> (TARGET_PAGE_BITS + 20)) & 0x3ff;
-    L1pte = ldq_phys(pt + index*8);
+    L1pte = ldq_phys(cs->as, pt + index*8);
 
     if (unlikely((L1pte & PTE_VALID) == 0)) {
         ret = MM_K_TNV;
@@ -264,7 +267,7 @@ static int get_physical_address(CPUAlphaState *env, target_ulong addr,
 
     /* L2 page table read.  */
     index = (addr >> (TARGET_PAGE_BITS + 10)) & 0x3ff;
-    L2pte = ldq_phys(pt + index*8);
+    L2pte = ldq_phys(cs->as, pt + index*8);
 
     if (unlikely((L2pte & PTE_VALID) == 0)) {
         ret = MM_K_TNV;
@@ -277,7 +280,7 @@ static int get_physical_address(CPUAlphaState *env, target_ulong addr,
 
     /* L3 page table read.  */
     index = (addr >> TARGET_PAGE_BITS) & 0x3ff;
-    L3pte = ldq_phys(pt + index*8);
+    L3pte = ldq_phys(cs->as, pt + index*8);
 
     phys = L3pte >> 32 << TARGET_PAGE_BITS;
     if (unlikely((L3pte & PTE_VALID) == 0)) {
@@ -325,22 +328,24 @@ hwaddr alpha_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     return (fail >= 0 ? -1 : phys);
 }
 
-int cpu_alpha_handle_mmu_fault(CPUAlphaState *env, target_ulong addr, int rw,
+int alpha_cpu_handle_mmu_fault(CPUState *cs, vaddr addr, int rw,
                                int mmu_idx)
 {
+    AlphaCPU *cpu = ALPHA_CPU(cs);
+    CPUAlphaState *env = &cpu->env;
     target_ulong phys;
     int prot, fail;
 
     fail = get_physical_address(env, addr, 1 << rw, mmu_idx, &phys, &prot);
     if (unlikely(fail >= 0)) {
-        env->exception_index = EXCP_MMFAULT;
+        cs->exception_index = EXCP_MMFAULT;
         env->trap_arg0 = addr;
         env->trap_arg1 = fail;
         env->trap_arg2 = (rw == 2 ? -1 : rw);
         return 1;
     }
 
-    tlb_set_page(env, addr & TARGET_PAGE_MASK, phys & TARGET_PAGE_MASK,
+    tlb_set_page(cs, addr & TARGET_PAGE_MASK, phys & TARGET_PAGE_MASK,
                  prot, mmu_idx, TARGET_PAGE_SIZE);
     return 0;
 }
@@ -350,7 +355,7 @@ void alpha_cpu_do_interrupt(CPUState *cs)
 {
     AlphaCPU *cpu = ALPHA_CPU(cs);
     CPUAlphaState *env = &cpu->env;
-    int i = env->exception_index;
+    int i = cs->exception_index;
 
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
         static int count;
@@ -401,7 +406,7 @@ void alpha_cpu_do_interrupt(CPUState *cs)
                  ++count, name, env->error_code, env->pc, env->ir[IR_SP]);
     }
 
-    env->exception_index = -1;
+    cs->exception_index = -1;
 
 #if !defined(CONFIG_USER_ONLY)
     switch (i) {
@@ -447,7 +452,7 @@ void alpha_cpu_do_interrupt(CPUState *cs)
         }
         break;
     default:
-        cpu_abort(env, "Unhandled CPU exception");
+        cpu_abort(cs, "Unhandled CPU exception");
     }
 
     /* Remember where the exception happened.  Emulate real hardware in
@@ -503,21 +508,27 @@ void alpha_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
    We expect that ENV->PC has already been updated.  */
 void QEMU_NORETURN helper_excp(CPUAlphaState *env, int excp, int error)
 {
-    env->exception_index = excp;
+    AlphaCPU *cpu = alpha_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
+    cs->exception_index = excp;
     env->error_code = error;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 /* This may be called from any of the helpers to set up EXCEPTION_INDEX.  */
 void QEMU_NORETURN dynamic_excp(CPUAlphaState *env, uintptr_t retaddr,
                                 int excp, int error)
 {
-    env->exception_index = excp;
+    AlphaCPU *cpu = alpha_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
+    cs->exception_index = excp;
     env->error_code = error;
     if (retaddr) {
-        cpu_restore_state(env, retaddr);
+        cpu_restore_state(cs, retaddr);
     }
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void QEMU_NORETURN arith_excp(CPUAlphaState *env, uintptr_t retaddr,

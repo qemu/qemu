@@ -1199,7 +1199,7 @@ static void vmsvga_init(DeviceState *dev, struct vmsvga_state_s *s,
     s->scratch_size = SVGA_SCRATCH_SIZE;
     s->scratch = g_malloc(s->scratch_size * 4);
 
-    s->vga.con = graphic_console_init(dev, &vmsvga_ops, s);
+    s->vga.con = graphic_console_init(dev, 0, &vmsvga_ops, s);
 
     s->fifo_size = SVGA_FIFO_SIZE;
     memory_region_init_ram(&s->fifo_ram, NULL, "vmsvga.fifo", s->fifo_size);
@@ -1296,7 +1296,6 @@ static void vmsvga_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->no_hotplug = 1;
     k->init = pci_vmsvga_initfn;
     k->romfile = "vgabios-vmware.bin";
     k->vendor_id = PCI_VENDOR_ID_VMWARE;
@@ -1307,6 +1306,7 @@ static void vmsvga_class_init(ObjectClass *klass, void *data)
     dc->reset = vmsvga_reset;
     dc->vmsd = &vmstate_vmware_vga;
     dc->props = vga_vmware_properties;
+    dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 

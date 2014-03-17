@@ -41,15 +41,16 @@ static void virtio_9p_get_config(VirtIODevice *vdev, uint8_t *config)
     g_free(cfg);
 }
 
-static int virtio_9p_device_init(VirtIODevice *vdev)
+static void virtio_9p_device_realize(DeviceState *dev, Error **errp)
 {
-    V9fsState *s = VIRTIO_9P(vdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    V9fsState *s = VIRTIO_9P(dev);
     int i, len;
     struct stat stat;
     FsDriverEntry *fse;
     V9fsPath path;
 
-    virtio_init(VIRTIO_DEVICE(s), "virtio-9p", VIRTIO_ID_9P,
+    virtio_init(vdev, "virtio-9p", VIRTIO_ID_9P,
                 sizeof(struct virtio_9p_config) + MAX_TAG_LEN);
 
     /* initialize pdu allocator */
@@ -67,16 +68,16 @@ static int virtio_9p_device_init(VirtIODevice *vdev)
 
     if (!fse) {
         /* We don't have a fsdev identified by fsdev_id */
-        fprintf(stderr, "Virtio-9p device couldn't find fsdev with the "
-                "id = %s\n",
-                s->fsconf.fsdev_id ? s->fsconf.fsdev_id : "NULL");
+        error_setg(errp, "Virtio-9p device couldn't find fsdev with the "
+                   "id = %s",
+                   s->fsconf.fsdev_id ? s->fsconf.fsdev_id : "NULL");
         goto out;
     }
 
     if (!s->fsconf.tag) {
         /* we haven't specified a mount_tag */
-        fprintf(stderr, "fsdev with id %s needs mount_tag arguments\n",
-                s->fsconf.fsdev_id);
+        error_setg(errp, "fsdev with id %s needs mount_tag arguments",
+                   s->fsconf.fsdev_id);
         goto out;
     }
 
@@ -85,8 +86,8 @@ static int virtio_9p_device_init(VirtIODevice *vdev)
     s->ctx.exops.get_st_gen = NULL;
     len = strlen(s->fsconf.tag);
     if (len > MAX_TAG_LEN - 1) {
-        fprintf(stderr, "mount tag '%s' (%d bytes) is longer than "
-                "maximum (%d bytes)", s->fsconf.tag, len, MAX_TAG_LEN - 1);
+        error_setg(errp, "mount tag '%s' (%d bytes) is longer than "
+                   "maximum (%d bytes)", s->fsconf.tag, len, MAX_TAG_LEN - 1);
         goto out;
     }
 
@@ -99,12 +100,12 @@ static int virtio_9p_device_init(VirtIODevice *vdev)
     qemu_co_rwlock_init(&s->rename_lock);
 
     if (s->ops->init(&s->ctx) < 0) {
-        fprintf(stderr, "Virtio-9p Failed to initialize fs-driver with id:%s"
-                " and export path:%s\n", s->fsconf.fsdev_id, s->ctx.fs_root);
+        error_setg(errp, "Virtio-9p Failed to initialize fs-driver with id:%s"
+                   " and export path:%s", s->fsconf.fsdev_id, s->ctx.fs_root);
         goto out;
     }
     if (v9fs_init_worker_threads() < 0) {
-        fprintf(stderr, "worker thread initialization failed\n");
+        error_setg(errp, "worker thread initialization failed");
         goto out;
     }
 
@@ -114,28 +115,25 @@ static int virtio_9p_device_init(VirtIODevice *vdev)
      * use co-routines here.
      */
     if (s->ops->name_to_path(&s->ctx, NULL, "/", &path) < 0) {
-        fprintf(stderr,
-                "error in converting name to path %s", strerror(errno));
+        error_setg(errp,
+                   "error in converting name to path %s", strerror(errno));
         goto out;
     }
     if (s->ops->lstat(&s->ctx, &path, &stat)) {
-        fprintf(stderr, "share path %s does not exist\n", fse->path);
+        error_setg(errp, "share path %s does not exist", fse->path);
         goto out;
     } else if (!S_ISDIR(stat.st_mode)) {
-        fprintf(stderr, "share path %s is not a directory\n", fse->path);
+        error_setg(errp, "share path %s is not a directory", fse->path);
         goto out;
     }
     v9fs_path_free(&path);
 
-    return 0;
+    return;
 out:
     g_free(s->ctx.fs_root);
     g_free(s->tag);
     virtio_cleanup(vdev);
     v9fs_path_free(&path);
-
-    return -1;
-
 }
 
 /* virtio-9p device */
@@ -149,9 +147,10 @@ static void virtio_9p_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
     dc->props = virtio_9p_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    vdc->init = virtio_9p_device_init;
+    vdc->realize = virtio_9p_device_realize;
     vdc->get_features = virtio_9p_get_features;
     vdc->get_config = virtio_9p_get_config;
 }

@@ -1013,7 +1013,7 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
                           "pxa2xx-lcd-controller", 0x00100000);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
-    s->con = graphic_console_init(NULL, &pxa2xx_ops, s);
+    s->con = graphic_console_init(NULL, 0, &pxa2xx_ops, s);
     surface = qemu_console_surface(s->con);
 
     switch (surface_bits_per_pixel(surface)) {

@@ -63,6 +63,21 @@ static const VMStateDescription vmstate_ymmh_reg = {
 #define VMSTATE_YMMH_REGS_VARS(_field, _state, _n, _v)                         \
     VMSTATE_STRUCT_ARRAY(_field, _state, _n, _v, vmstate_ymmh_reg, XMMReg)
 
+static const VMStateDescription vmstate_bnd_regs = {
+    .name = "bnd_regs",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT64(lb, BNDReg),
+        VMSTATE_UINT64(ub, BNDReg),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+#define VMSTATE_BND_REGS(_field, _state, _n)          \
+    VMSTATE_STRUCT_ARRAY(_field, _state, _n, 0, vmstate_bnd_regs, BNDReg)
+
 static const VMStateDescription vmstate_mtrr_var = {
     .name = "mtrr_var",
     .version_id = 1,
@@ -275,6 +290,7 @@ static void cpu_pre_save(void *opaque)
 static int cpu_post_load(void *opaque, int version_id)
 {
     X86CPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
     int i;
 
@@ -304,12 +320,12 @@ static int cpu_post_load(void *opaque, int version_id)
         env->fptags[i] = (env->fptag_vmstate >> i) & 1;
     }
 
-    cpu_breakpoint_remove_all(env, BP_CPU);
-    cpu_watchpoint_remove_all(env, BP_CPU);
+    cpu_breakpoint_remove_all(cs, BP_CPU);
+    cpu_watchpoint_remove_all(cs, BP_CPU);
     for (i = 0; i < DR7_MAX_BP; i++) {
         hw_breakpoint_insert(env, i);
     }
-    tlb_flush(env, 1);
+    tlb_flush(cs, 1);
 
     return 0;
 }
@@ -506,6 +522,97 @@ static const VMStateDescription vmstate_msr_architectural_pmu = {
     }
 };
 
+static bool mpx_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+    unsigned int i;
+
+    for (i = 0; i < 4; i++) {
+        if (env->bnd_regs[i].lb || env->bnd_regs[i].ub) {
+            return true;
+        }
+    }
+
+    if (env->bndcs_regs.cfgu || env->bndcs_regs.sts) {
+        return true;
+    }
+
+    return !!env->msr_bndcfgs;
+}
+
+static const VMStateDescription vmstate_mpx = {
+    .name = "cpu/mpx",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_BND_REGS(env.bnd_regs, X86CPU, 4),
+        VMSTATE_UINT64(env.bndcs_regs.cfgu, X86CPU),
+        VMSTATE_UINT64(env.bndcs_regs.sts, X86CPU),
+        VMSTATE_UINT64(env.msr_bndcfgs, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool hyperv_hypercall_enable_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->msr_hv_hypercall != 0 || env->msr_hv_guest_os_id != 0;
+}
+
+static const VMStateDescription vmstate_msr_hypercall_hypercall = {
+    .name = "cpu/msr_hyperv_hypercall",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(env.msr_hv_hypercall, X86CPU),
+        VMSTATE_UINT64(env.msr_hv_guest_os_id, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool hyperv_vapic_enable_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->msr_hv_vapic != 0;
+}
+
+static const VMStateDescription vmstate_msr_hyperv_vapic = {
+    .name = "cpu/msr_hyperv_vapic",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(env.msr_hv_vapic, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool hyperv_time_enable_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->msr_hv_tsc != 0;
+}
+
+static const VMStateDescription vmstate_msr_hyperv_time = {
+    .name = "cpu/msr_hyperv_time",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(env.msr_hv_tsc, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_x86_cpu = {
     .name = "cpu",
     .version_id = 12,
@@ -637,6 +744,18 @@ const VMStateDescription vmstate_x86_cpu = {
         }, {
             .vmsd = &vmstate_msr_architectural_pmu,
             .needed = pmu_enable_needed,
+        } , {
+            .vmsd = &vmstate_mpx,
+            .needed = mpx_needed,
+        }, {
+            .vmsd = &vmstate_msr_hypercall_hypercall,
+            .needed = hyperv_hypercall_enable_needed,
+        }, {
+            .vmsd = &vmstate_msr_hyperv_vapic,
+            .needed = hyperv_vapic_enable_needed,
+        }, {
+            .vmsd = &vmstate_msr_hyperv_time,
+            .needed = hyperv_time_enable_needed,
         } , {
             /* empty */
         }

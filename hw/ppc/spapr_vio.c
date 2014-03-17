@@ -331,25 +331,25 @@ static void rtas_set_tce_bypass(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     uint32_t unit, enable;
 
     if (nargs != 2) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
     unit = rtas_ld(args, 0);
     enable = rtas_ld(args, 1);
     dev = spapr_vio_find_by_reg(bus, unit);
     if (!dev) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
     if (!dev->tcet) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
     spapr_tce_set_bypass(dev->tcet, !!enable);
 
-    rtas_st(rets, 0, 0);
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
 static void rtas_quiesce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
@@ -362,7 +362,7 @@ static void rtas_quiesce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     VIOsPAPRDevice *dev = NULL;
 
     if (nargs != 0) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
@@ -371,7 +371,7 @@ static void rtas_quiesce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         spapr_vio_quiesce_one(dev);
     }
 
-    rtas_st(rets, 0, 0);
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
 static VIOsPAPRDevice *reg_conflict(VIOsPAPRDevice *dev)
@@ -528,11 +528,9 @@ static int spapr_vio_bridge_init(SysBusDevice *dev)
 
 static void spapr_vio_bridge_class_init(ObjectClass *klass, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = spapr_vio_bridge_init;
-    dc->no_user = 1;
 }
 
 static const TypeInfo spapr_vio_bridge_info = {

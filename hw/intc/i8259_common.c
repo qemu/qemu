@@ -123,9 +123,9 @@ static const VMStateDescription vmstate_pic_common = {
 };
 
 static Property pic_properties_common[] = {
-    DEFINE_PROP_HEX32("iobase", PICCommonState, iobase,  -1),
-    DEFINE_PROP_HEX32("elcr_addr", PICCommonState, elcr_addr,  -1),
-    DEFINE_PROP_HEX8("elcr_mask", PICCommonState, elcr_mask,  -1),
+    DEFINE_PROP_UINT32("iobase", PICCommonState, iobase,  -1),
+    DEFINE_PROP_UINT32("elcr_addr", PICCommonState, elcr_addr,  -1),
+    DEFINE_PROP_UINT8("elcr_mask", PICCommonState, elcr_mask,  -1),
     DEFINE_PROP_BIT("master", PICCommonState, master,  0, false),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -135,9 +135,15 @@ static void pic_common_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_pic_common;
-    dc->no_user = 1;
     dc->props = pic_properties_common;
     dc->realize = pic_common_realize;
+    /*
+     * Reason: unlike ordinary ISA devices, the PICs need additional
+     * wiring: its IRQ input lines are set up by board code, and the
+     * wiring of the slave to the master is hard-coded in device model
+     * code.
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo pic_common_type = {

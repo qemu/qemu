@@ -1,0 +1,278 @@
+#!/bin/bash
+#
+# Test concurrent pread/pwrite
+#
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt raw
+_supported_proto generic
+_supported_os Linux
+
+CLUSTER_SIZE=4k
+size=128M
+
+_make_test_img $size
+
+echo
+echo "== Some concurrent requests involving RMW =="
+
+function test_io()
+{
+echo "open -o file.align=4k blkdebug::$TEST_IMG"
+# A simple RMW request
+cat  <<EOF
+aio_write -P 10 0x200 0x200
+aio_flush
+EOF
+
+# Sequential RMW requests on the same physical sector
+off=0x1000
+for ev in "head" "after_head" "tail" "after_tail"; do
+cat  <<EOF
+break pwritev_rmw.$ev A
+aio_write -P 10 $((off + 0x200)) 0x200
+wait_break A
+aio_write -P 11 $((off + 0x400)) 0x200
+sleep 100
+resume A
+aio_flush
+EOF
+off=$((off + 0x1000))
+done
+
+# Chained dependencies
+cat  <<EOF
+break pwritev_rmw.after_tail A
+aio_write -P 10 0x5000 0x200
+wait_break A
+aio_write -P 11 0x5200 0x200
+aio_write -P 12 0x5400 0x200
+aio_write -P 13 0x5600 0x200
+aio_write -P 14 0x5800 0x200
+aio_write -P 15 0x5a00 0x200
+aio_write -P 16 0x5c00 0x200
+aio_write -P 17 0x5e00 0x200
+sleep 100
+resume A
+aio_flush
+EOF
+
+# Overlapping multiple requests
+cat  <<EOF
+break pwritev_rmw.after_tail A
+aio_write -P 10 0x6000 0x200
+wait_break A
+break pwritev_rmw.after_head B
+aio_write -P 10 0x7e00 0x200
+wait_break B
+aio_write -P 11 0x6800 0x1000
+resume A
+sleep 100
+resume B
+aio_flush
+EOF
+
+cat  <<EOF
+break pwritev_rmw.after_tail A
+aio_write -P 10 0x8000 0x200
+wait_break A
+break pwritev_rmw.after_head B
+aio_write -P 10 0x9e00 0x200
+wait_break B
+aio_write -P 11 0x8800 0x1000
+resume B
+sleep 100
+resume A
+aio_flush
+EOF
+
+cat  <<EOF
+break pwritev_rmw.after_tail A
+aio_write -P 10 0xa000 0x200
+wait_break A
+aio_write -P 11 0xa800 0x1000
+break pwritev_rmw.after_head B
+aio_write -P 10 0xbe00 0x200
+wait_break B
+resume A
+sleep 100
+resume B
+aio_flush
+EOF
+
+cat  <<EOF
+break pwritev_rmw.after_tail A
+aio_write -P 10 0xc000 0x200
+wait_break A
+aio_write -P 11 0xc800 0x1000
+break pwritev_rmw.after_head B
+aio_write -P 10 0xde00 0x200
+wait_break B
+resume B
+sleep 100
+resume A
+aio_flush
+EOF
+
+# Only RMW for the tail part
+cat  <<EOF
+break pwritev_rmw.after_tail A
+aio_write -P 10 0xe000 0x1800
+wait_break A
+aio_write -P 11 0xf000 0xc00
+sleep 100
+resume A
+aio_flush
+EOF
+
+cat  <<EOF
+break pwritev A
+aio_write -P 10 0x10000 0x800
+wait_break A
+break pwritev_rmw.after_tail B
+aio_write -P 11 0x10000 0x400
+break pwritev_done C
+resume A
+wait_break C
+resume C
+sleep 100
+wait_break B
+resume B
+aio_flush
+EOF
+
+cat  <<EOF
+break pwritev A
+aio_write -P 10 0x11000 0x800
+wait_break A
+aio_write -P 11 0x11000 0x1000
+sleep 100
+resume A
+aio_flush
+EOF
+}
+
+test_io | $QEMU_IO  | _filter_qemu_io | \
+    sed -e 's,[0-9/]* bytes at offset [0-9]*,XXX/XXX bytes at offset XXX,g' \
+        -e 's/^[0-9]* \(bytes\|KiB\)/XXX bytes/' \
+        -e '/Suspended/d'
+
+echo
+echo "== Verify image content =="
+
+function verify_io()
+{
+    # A simple RMW request
+    echo read -P 0       0 0x200
+    echo read -P 10  0x200 0x200
+    echo read -P 0   0x400 0xc00
+
+    # Sequential RMW requests on the same physical sector
+    echo read -P 0  0x1000 0x200
+    echo read -P 10 0x1200 0x200
+    echo read -P 11 0x1400 0x200
+    echo read -P 0  0x1600 0xa00
+
+    echo read -P 0  0x2000 0x200
+    echo read -P 10 0x2200 0x200
+    echo read -P 11 0x2400 0x200
+    echo read -P 0  0x2600 0xa00
+
+    echo read -P 0  0x3000 0x200
+    echo read -P 10 0x3200 0x200
+    echo read -P 11 0x3400 0x200
+    echo read -P 0  0x3600 0xa00
+
+    echo read -P 0  0x4000 0x200
+    echo read -P 10 0x4200 0x200
+    echo read -P 11 0x4400 0x200
+    echo read -P 0  0x4600 0xa00
+
+    # Chained dependencies
+    echo read -P 10 0x5000 0x200
+    echo read -P 11 0x5200 0x200
+    echo read -P 12 0x5400 0x200
+    echo read -P 13 0x5600 0x200
+    echo read -P 14 0x5800 0x200
+    echo read -P 15 0x5a00 0x200
+    echo read -P 16 0x5c00 0x200
+    echo read -P 17 0x5e00 0x200
+
+    # Overlapping multiple requests
+    echo read -P 10 0x6000 0x200
+    echo read -P  0 0x6200 0x600
+    echo read -P 11 0x6800 0x1000
+    echo read -P  0 0x7800 0x600
+    echo read -P 10 0x7e00 0x200
+
+    echo read -P 10 0x8000 0x200
+    echo read -P  0 0x8200 0x600
+    echo read -P 11 0x8800 0x1000
+    echo read -P  0 0x9800 0x600
+    echo read -P 10 0x9e00 0x200
+
+    echo read -P 10 0xa000 0x200
+    echo read -P  0 0xa200 0x600
+    echo read -P 11 0xa800 0x1000
+    echo read -P  0 0xb800 0x600
+    echo read -P 10 0xbe00 0x200
+
+    echo read -P 10 0xc000 0x200
+    echo read -P  0 0xc200 0x600
+    echo read -P 11 0xc800 0x1000
+    echo read -P  0 0xd800 0x600
+    echo read -P 10 0xde00 0x200
+
+    # Only RMW for the tail part
+    echo read -P 10 0xe000 0x1000
+    echo read -P 11 0xf800 0x400
+    echo read -P  0 0xfc00 0x400
+
+    echo read -P 11 0x10000 0x400
+    echo read -P 10 0x10400 0x400
+
+    echo read -P 11 0x11800 0x800
+}
+
+verify_io | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
+
+_check_test_img
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

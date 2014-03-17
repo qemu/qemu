@@ -704,8 +704,7 @@ static int load_flat_shared_library(int id, struct lib_info *libs)
 
 #endif /* CONFIG_BINFMT_SHARED_FLAT */
 
-int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
-                    struct image_info * info)
+int load_flt_binary(struct linux_binprm *bprm, struct image_info *info)
 {
     struct lib_info libinfo[MAX_SHARED_LIBS];
     abi_ulong p = bprm->p;

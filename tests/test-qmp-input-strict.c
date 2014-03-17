@@ -92,7 +92,7 @@ static void test_validate_struct(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'integer': -42, 'boolean': true, 'string': 'foo' }");
 
     visit_type_TestStruct(v, &p, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     g_free(p->string);
     g_free(p);
 }
@@ -107,7 +107,7 @@ static void test_validate_struct_nested(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'string0': 'string0', 'dict1': { 'string1': 'string1', 'dict2': { 'userdef1': { 'integer': 42, 'string': 'string' }, 'string2': 'string2'}}}");
 
     visit_type_UserDefNested(v, &udp, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     qapi_free_UserDefNested(udp);
 }
 
@@ -121,7 +121,7 @@ static void test_validate_list(TestInputVisitorData *data,
     v = validate_test_init(data, "[ { 'string': 'string0', 'integer': 42 }, { 'string': 'string1', 'integer': 43 }, { 'string': 'string2', 'integer': 44 } ]");
 
     visit_type_UserDefOneList(v, &head, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     qapi_free_UserDefOneList(head);
 }
 
@@ -132,11 +132,43 @@ static void test_validate_union(TestInputVisitorData *data,
     Visitor *v;
     Error *errp = NULL;
 
-    v = validate_test_init(data, "{ 'type': 'b', 'data' : { 'integer': 42 } }");
+    v = validate_test_init(data, "{ 'type': 'b', 'integer': 41, 'data' : { 'integer': 42 } }");
 
     visit_type_UserDefUnion(v, &tmp, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     qapi_free_UserDefUnion(tmp);
+}
+
+static void test_validate_union_flat(TestInputVisitorData *data,
+                                     const void *unused)
+{
+    UserDefFlatUnion *tmp = NULL;
+    Visitor *v;
+    Error *errp = NULL;
+
+    v = validate_test_init(data,
+                           "{ 'enum1': 'value1', "
+                           "'string': 'str', "
+                           "'boolean': true }");
+    /* TODO when generator bug is fixed, add 'integer': 41 */
+
+    visit_type_UserDefFlatUnion(v, &tmp, NULL, &errp);
+    g_assert(!error_is_set(&errp));
+    qapi_free_UserDefFlatUnion(tmp);
+}
+
+static void test_validate_union_anon(TestInputVisitorData *data,
+                                     const void *unused)
+{
+    UserDefAnonUnion *tmp = NULL;
+    Visitor *v;
+    Error *errp = NULL;
+
+    v = validate_test_init(data, "42");
+
+    visit_type_UserDefAnonUnion(v, &tmp, NULL, &errp);
+    g_assert(!error_is_set(&errp));
+    qapi_free_UserDefAnonUnion(tmp);
 }
 
 static void test_validate_fail_struct(TestInputVisitorData *data,
@@ -149,7 +181,7 @@ static void test_validate_fail_struct(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'integer': -42, 'boolean': true, 'string': 'foo', 'extra': 42 }");
 
     visit_type_TestStruct(v, &p, NULL, &errp);
-    g_assert(error_is_set(&errp));
+    g_assert(errp);
     if (p) {
         g_free(p->string);
     }
@@ -166,7 +198,7 @@ static void test_validate_fail_struct_nested(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'string0': 'string0', 'dict1': { 'string1': 'string1', 'dict2': { 'userdef1': { 'integer': 42, 'string': 'string', 'extra': [42, 23, {'foo':'bar'}] }, 'string2': 'string2'}}}");
 
     visit_type_UserDefNested(v, &udp, NULL, &errp);
-    g_assert(error_is_set(&errp));
+    g_assert(errp);
     qapi_free_UserDefNested(udp);
 }
 
@@ -180,7 +212,7 @@ static void test_validate_fail_list(TestInputVisitorData *data,
     v = validate_test_init(data, "[ { 'string': 'string0', 'integer': 42 }, { 'string': 'string1', 'integer': 43 }, { 'string': 'string2', 'integer': 44, 'extra': 'ggg' } ]");
 
     visit_type_UserDefOneList(v, &head, NULL, &errp);
-    g_assert(error_is_set(&errp));
+    g_assert(errp);
     qapi_free_UserDefOneList(head);
 }
 
@@ -191,11 +223,39 @@ static void test_validate_fail_union(TestInputVisitorData *data,
     Error *errp = NULL;
     Visitor *v;
 
-    v = validate_test_init(data, "{ 'type': 'b', 'data' : { 'integer': 42 }, 'extra': 'yyy' }");
+    v = validate_test_init(data, "{ 'type': 'b', 'data' : { 'integer': 42 } }");
 
     visit_type_UserDefUnion(v, &tmp, NULL, &errp);
-    g_assert(error_is_set(&errp));
+    g_assert(errp);
     qapi_free_UserDefUnion(tmp);
+}
+
+static void test_validate_fail_union_flat(TestInputVisitorData *data,
+                                          const void *unused)
+{
+    UserDefFlatUnion *tmp = NULL;
+    Error *errp = NULL;
+    Visitor *v;
+
+    v = validate_test_init(data, "{ 'string': 'c', 'integer': 41, 'boolean': true }");
+
+    visit_type_UserDefFlatUnion(v, &tmp, NULL, &errp);
+    g_assert(error_is_set(&errp));
+    qapi_free_UserDefFlatUnion(tmp);
+}
+
+static void test_validate_fail_union_anon(TestInputVisitorData *data,
+                                          const void *unused)
+{
+    UserDefAnonUnion *tmp = NULL;
+    Visitor *v;
+    Error *errp = NULL;
+
+    v = validate_test_init(data, "3.14");
+
+    visit_type_UserDefAnonUnion(v, &tmp, NULL, &errp);
+    g_assert(error_is_set(&errp));
+    qapi_free_UserDefAnonUnion(tmp);
 }
 
 static void validate_test_add(const char *testpath,
@@ -220,6 +280,10 @@ int main(int argc, char **argv)
                        &testdata, test_validate_list);
     validate_test_add("/visitor/input-strict/pass/union",
                        &testdata, test_validate_union);
+    validate_test_add("/visitor/input-strict/pass/union-flat",
+                       &testdata, test_validate_union_flat);
+    validate_test_add("/visitor/input-strict/pass/union-anon",
+                       &testdata, test_validate_union_anon);
     validate_test_add("/visitor/input-strict/fail/struct",
                        &testdata, test_validate_fail_struct);
     validate_test_add("/visitor/input-strict/fail/struct-nested",
@@ -228,6 +292,10 @@ int main(int argc, char **argv)
                        &testdata, test_validate_fail_list);
     validate_test_add("/visitor/input-strict/fail/union",
                        &testdata, test_validate_fail_union);
+    validate_test_add("/visitor/input-strict/fail/union-flat",
+                       &testdata, test_validate_fail_union_flat);
+    validate_test_add("/visitor/input-strict/fail/union-anon",
+                       &testdata, test_validate_fail_union_anon);
 
     g_test_run();
 

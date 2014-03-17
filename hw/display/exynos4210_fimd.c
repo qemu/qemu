@@ -1917,7 +1917,7 @@ static int exynos4210_fimd_init(SysBusDevice *dev)
     memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_fimd_mmio_ops, s,
             "exynos4210.fimd", FIMD_REGS_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
-    s->console = graphic_console_init(DEVICE(dev), &exynos4210_fimd_ops, s);
+    s->console = graphic_console_init(DEVICE(dev), 0, &exynos4210_fimd_ops, s);
 
     return 0;
 }

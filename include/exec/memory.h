@@ -16,6 +16,11 @@
 
 #ifndef CONFIG_USER_ONLY
 
+#define DIRTY_MEMORY_VGA       0
+#define DIRTY_MEMORY_CODE      1
+#define DIRTY_MEMORY_MIGRATION 2
+#define DIRTY_MEMORY_NUM       3        /* num of dirty bits */
+
 #include <stdint.h>
 #include <stdbool.h>
 #include "qemu-common.h"
@@ -32,13 +37,6 @@
 
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegionMmio MemoryRegionMmio;
-
-/* Must match *_DIRTY_FLAGS in cpu-all.h.  To be replaced with dynamic
- * registration.
- */
-#define DIRTY_MEMORY_VGA       0
-#define DIRTY_MEMORY_CODE      1
-#define DIRTY_MEMORY_MIGRATION 3
 
 struct MemoryRegionMmio {
     CPUReadMemoryFunc *read[3];
@@ -164,8 +162,6 @@ struct MemoryRegion {
     MemoryRegionIoeventfd *ioeventfds;
     NotifierList iommu_notify;
 };
-
-typedef struct MemoryListener MemoryListener;
 
 /**
  * MemoryListener: callbacks structure for updates to the physical memory map
@@ -840,13 +836,13 @@ void memory_region_set_alias_offset(MemoryRegion *mr,
                                     hwaddr offset);
 
 /**
- * memory_region_present: translate an address/size relative to a
- * MemoryRegion into a #MemoryRegionSection.
+ * memory_region_present: checks if an address relative to a @parent
+ * translates into #MemoryRegion within @parent
  *
  * Answer whether a #MemoryRegion within @parent covers the address
  * @addr.
  *
- * @parent: a MemoryRegion within which @addr is a relative address
+ * @parent: a #MemoryRegion within which @addr is a relative address
  * @addr: the area within @parent to be searched
  */
 bool memory_region_present(MemoryRegion *parent, hwaddr addr);

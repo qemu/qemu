@@ -223,13 +223,13 @@ static void *cur_chip = NULL;	/* current chip point */
 /* static OPLSAMPLE  *bufL,*bufR; */
 static OPL_CH *S_CH;
 static OPL_CH *E_CH;
-OPL_SLOT *SLOT7_1,*SLOT7_2,*SLOT8_1,*SLOT8_2;
+static OPL_SLOT *SLOT7_1, *SLOT7_2, *SLOT8_1, *SLOT8_2;
 
 static INT32 outd[1];
 static INT32 ams;
 static INT32 vib;
-INT32  *ams_table;
-INT32  *vib_table;
+static INT32 *ams_table;
+static INT32 *vib_table;
 static INT32 amsIncr;
 static INT32 vibIncr;
 static INT32 feedback2;		/* connect for SLOT 2 */

@@ -29,7 +29,6 @@ typedef struct QError {
 QString *qerror_human(const QError *qerror);
 void qerror_report(ErrorClass err_class, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 void qerror_report_err(Error *err);
-void assert_no_error(Error *err);
 
 /*
  * QError class list
@@ -106,7 +105,7 @@ void assert_no_error(Error *err);
     ERROR_CLASS_GENERIC_ERROR, "Device '%s' does not support hotplugging"
 
 #define QERR_DEVICE_NOT_ACTIVE \
-    ERROR_CLASS_DEVICE_NOT_ACTIVE, "Device '%s' has not been activated"
+    ERROR_CLASS_DEVICE_NOT_ACTIVE, "No %s device has been activated"
 
 #define QERR_DEVICE_NOT_ENCRYPTED \
     ERROR_CLASS_GENERIC_ERROR, "Device '%s' is not encrypted"
@@ -160,7 +159,7 @@ void assert_no_error(Error *err);
     ERROR_CLASS_GENERIC_ERROR, "Invalid JSON syntax"
 
 #define QERR_KVM_MISSING_CAP \
-    ERROR_CLASS_K_V_M_MISSING_CAP, "Using KVM without %s, %s unavailable"
+    ERROR_CLASS_KVM_MISSING_CAP, "Using KVM without %s, %s unavailable"
 
 #define QERR_MIGRATION_ACTIVE \
     ERROR_CLASS_GENERIC_ERROR, "There's a migration process in progress"

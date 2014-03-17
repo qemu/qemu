@@ -1133,6 +1133,18 @@ uint32_t HELPER(neon_cnt_u8)(uint32_t x)
     return x;
 }
 
+/* Reverse bits in each 8 bit word */
+uint32_t HELPER(neon_rbit_u8)(uint32_t x)
+{
+    x =  ((x & 0xf0f0f0f0) >> 4)
+       | ((x & 0x0f0f0f0f) << 4);
+    x =  ((x & 0x88888888) >> 3)
+       | ((x & 0x44444444) >> 1)
+       | ((x & 0x22222222) << 1)
+       | ((x & 0x11111111) << 3);
+    return x;
+}
+
 #define NEON_QDMULH16(dest, src1, src2, round) do { \
     uint32_t tmp = (int32_t)(int16_t) src1 * (int16_t) src2; \
     if ((tmp ^ (tmp << 1)) & SIGNBIT) { \
@@ -1765,18 +1777,6 @@ uint32_t HELPER(neon_qneg_s32)(CPUARMState *env, uint32_t x)
 }
 
 /* NEON Float helpers.  */
-uint32_t HELPER(neon_min_f32)(uint32_t a, uint32_t b, void *fpstp)
-{
-    float_status *fpst = fpstp;
-    return float32_val(float32_min(make_float32(a), make_float32(b), fpst));
-}
-
-uint32_t HELPER(neon_max_f32)(uint32_t a, uint32_t b, void *fpstp)
-{
-    float_status *fpst = fpstp;
-    return float32_val(float32_max(make_float32(a), make_float32(b), fpst));
-}
-
 uint32_t HELPER(neon_abd_f32)(uint32_t a, uint32_t b, void *fpstp)
 {
     float_status *fpst = fpstp;
@@ -1821,6 +1821,22 @@ uint32_t HELPER(neon_acgt_f32)(uint32_t a, uint32_t b, void *fpstp)
     float32 f0 = float32_abs(make_float32(a));
     float32 f1 = float32_abs(make_float32(b));
     return -float32_lt(f1, f0, fpst);
+}
+
+uint64_t HELPER(neon_acge_f64)(uint64_t a, uint64_t b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    float64 f0 = float64_abs(make_float64(a));
+    float64 f1 = float64_abs(make_float64(b));
+    return -float64_le(f1, f0, fpst);
+}
+
+uint64_t HELPER(neon_acgt_f64)(uint64_t a, uint64_t b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    float64 f0 = float64_abs(make_float64(a));
+    float64 f1 = float64_abs(make_float64(b));
+    return -float64_lt(f1, f0, fpst);
 }
 
 #define ELEM(V, N, SIZE) (((V) >> ((N) * (SIZE))) & ((1ull << (SIZE)) - 1))

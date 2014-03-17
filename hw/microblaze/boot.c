@@ -79,19 +79,19 @@ static int microblaze_load_dtb(hwaddr addr,
     }
 
     if (kernel_cmdline) {
-        r = qemu_devtree_setprop_string(fdt, "/chosen", "bootargs",
-                                                        kernel_cmdline);
+        r = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
+                                    kernel_cmdline);
         if (r < 0) {
             fprintf(stderr, "couldn't set /chosen/bootargs\n");
         }
     }
 
     if (initrd_start) {
-        qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-start",
-                                  initrd_start);
+        qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start",
+                              initrd_start);
 
-        qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-end",
-                                  initrd_end);
+        qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
+                              initrd_end);
     }
 
     cpu_physical_memory_write(addr, fdt, fdt_size);

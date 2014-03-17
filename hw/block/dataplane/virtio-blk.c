@@ -23,6 +23,7 @@
 #include "virtio-blk.h"
 #include "block/aio.h"
 #include "hw/virtio/virtio-bus.h"
+#include "monitor/monitor.h" /* for object_add() */
 
 enum {
     SEG_MAX = 126,                  /* maximum number of I/O segments */
@@ -35,7 +36,7 @@ enum {
 typedef struct {
     struct iocb iocb;               /* Linux AIO control block */
     QEMUIOVector *inhdr;            /* iovecs for virtio_blk_inhdr */
-    unsigned int head;              /* vring descriptor index */
+    VirtQueueElement *elem;         /* saved data from the virtqueue */
     struct iovec *bounce_iov;       /* used if guest buffers are unaligned */
     QEMUIOVector *read_qiov;        /* for read completion /w bounce buffer */
 } VirtIOBlockRequest;
@@ -44,8 +45,6 @@ struct VirtIOBlockDataPlane {
     bool started;
     bool starting;
     bool stopping;
-    QEMUBH *start_bh;
-    QemuThread thread;
 
     VirtIOBlkConf *blk;
     int fd;                         /* image file descriptor */
@@ -59,12 +58,14 @@ struct VirtIOBlockDataPlane {
      * (because you don't own the file descriptor or handle; you just
      * use it).
      */
+    IOThread *iothread;
+    bool internal_iothread;
     AioContext *ctx;
     EventNotifier io_notifier;      /* Linux AIO completion */
     EventNotifier host_notifier;    /* doorbell */
 
     IOQueue ioqueue;                /* Linux AIO queue (should really be per
-                                       dataplane thread) */
+                                       IOThread) */
     VirtIOBlockRequest requests[REQ_MAX]; /* pool of requests, managed by the
                                              queue */
 
@@ -96,7 +97,7 @@ static void complete_request(struct iocb *iocb, ssize_t ret, void *opaque)
         len = 0;
     }
 
-    trace_virtio_blk_data_plane_complete_request(s, req->head, ret);
+    trace_virtio_blk_data_plane_complete_request(s, req->elem->index, ret);
 
     if (req->read_qiov) {
         assert(req->bounce_iov);
@@ -118,12 +119,12 @@ static void complete_request(struct iocb *iocb, ssize_t ret, void *opaque)
      * written to, but for virtio-blk it seems to be the number of bytes
      * transferred plus the status bytes.
      */
-    vring_push(&s->vring, req->head, len + sizeof(hdr));
-
+    vring_push(&s->vring, req->elem, len + sizeof(hdr));
+    req->elem = NULL;
     s->num_reqs--;
 }
 
-static void complete_request_early(VirtIOBlockDataPlane *s, unsigned int head,
+static void complete_request_early(VirtIOBlockDataPlane *s, VirtQueueElement *elem,
                                    QEMUIOVector *inhdr, unsigned char status)
 {
     struct virtio_blk_inhdr hdr = {
@@ -134,26 +135,26 @@ static void complete_request_early(VirtIOBlockDataPlane *s, unsigned int head,
     qemu_iovec_destroy(inhdr);
     g_slice_free(QEMUIOVector, inhdr);
 
-    vring_push(&s->vring, head, sizeof(hdr));
+    vring_push(&s->vring, elem, sizeof(hdr));
     notify_guest(s);
 }
 
 /* Get disk serial number */
 static void do_get_id_cmd(VirtIOBlockDataPlane *s,
                           struct iovec *iov, unsigned int iov_cnt,
-                          unsigned int head, QEMUIOVector *inhdr)
+                          VirtQueueElement *elem, QEMUIOVector *inhdr)
 {
     char id[VIRTIO_BLK_ID_BYTES];
 
-    /* Serial number not NUL-terminated when shorter than buffer */
+    /* Serial number not NUL-terminated when longer than buffer */
     strncpy(id, s->blk->serial ? s->blk->serial : "", sizeof(id));
     iov_from_buf(iov, iov_cnt, 0, id, sizeof(id));
-    complete_request_early(s, head, inhdr, VIRTIO_BLK_S_OK);
+    complete_request_early(s, elem, inhdr, VIRTIO_BLK_S_OK);
 }
 
 static int do_rdwr_cmd(VirtIOBlockDataPlane *s, bool read,
-                       struct iovec *iov, unsigned int iov_cnt,
-                       long long offset, unsigned int head,
+                       struct iovec *iov, unsigned iov_cnt,
+                       long long offset, VirtQueueElement *elem,
                        QEMUIOVector *inhdr)
 {
     struct iocb *iocb;
@@ -186,19 +187,20 @@ static int do_rdwr_cmd(VirtIOBlockDataPlane *s, bool read,
 
     /* Fill in virtio block metadata needed for completion */
     VirtIOBlockRequest *req = container_of(iocb, VirtIOBlockRequest, iocb);
-    req->head = head;
+    req->elem = elem;
     req->inhdr = inhdr;
     req->bounce_iov = bounce_iov;
     req->read_qiov = read_qiov;
     return 0;
 }
 
-static int process_request(IOQueue *ioq, struct iovec iov[],
-                           unsigned int out_num, unsigned int in_num,
-                           unsigned int head)
+static int process_request(IOQueue *ioq, VirtQueueElement *elem)
 {
     VirtIOBlockDataPlane *s = container_of(ioq, VirtIOBlockDataPlane, ioqueue);
-    struct iovec *in_iov = &iov[out_num];
+    struct iovec *iov = elem->out_sg;
+    struct iovec *in_iov = elem->in_sg;
+    unsigned out_num = elem->out_num;
+    unsigned in_num = elem->in_num;
     struct virtio_blk_outhdr outhdr;
     QEMUIOVector *inhdr;
     size_t in_size;
@@ -229,29 +231,29 @@ static int process_request(IOQueue *ioq, struct iovec iov[],
 
     switch (outhdr.type) {
     case VIRTIO_BLK_T_IN:
-        do_rdwr_cmd(s, true, in_iov, in_num, outhdr.sector * 512, head, inhdr);
+        do_rdwr_cmd(s, true, in_iov, in_num, outhdr.sector * 512, elem, inhdr);
         return 0;
 
     case VIRTIO_BLK_T_OUT:
-        do_rdwr_cmd(s, false, iov, out_num, outhdr.sector * 512, head, inhdr);
+        do_rdwr_cmd(s, false, iov, out_num, outhdr.sector * 512, elem, inhdr);
         return 0;
 
     case VIRTIO_BLK_T_SCSI_CMD:
         /* TODO support SCSI commands */
-        complete_request_early(s, head, inhdr, VIRTIO_BLK_S_UNSUPP);
+        complete_request_early(s, elem, inhdr, VIRTIO_BLK_S_UNSUPP);
         return 0;
 
     case VIRTIO_BLK_T_FLUSH:
         /* TODO fdsync not supported by Linux AIO, do it synchronously here! */
         if (qemu_fdatasync(s->fd) < 0) {
-            complete_request_early(s, head, inhdr, VIRTIO_BLK_S_IOERR);
+            complete_request_early(s, elem, inhdr, VIRTIO_BLK_S_IOERR);
         } else {
-            complete_request_early(s, head, inhdr, VIRTIO_BLK_S_OK);
+            complete_request_early(s, elem, inhdr, VIRTIO_BLK_S_OK);
         }
         return 0;
 
     case VIRTIO_BLK_T_GET_ID:
-        do_get_id_cmd(s, in_iov, in_num, head, inhdr);
+        do_get_id_cmd(s, in_iov, in_num, elem, inhdr);
         return 0;
 
     default:
@@ -267,29 +269,8 @@ static void handle_notify(EventNotifier *e)
     VirtIOBlockDataPlane *s = container_of(e, VirtIOBlockDataPlane,
                                            host_notifier);
 
-    /* There is one array of iovecs into which all new requests are extracted
-     * from the vring.  Requests are read from the vring and the translated
-     * descriptors are written to the iovecs array.  The iovecs do not have to
-     * persist across handle_notify() calls because the kernel copies the
-     * iovecs on io_submit().
-     *
-     * Handling io_submit() EAGAIN may require storing the requests across
-     * handle_notify() calls until the kernel has sufficient resources to
-     * accept more I/O.  This is not implemented yet.
-     */
-    struct iovec iovec[VRING_MAX];
-    struct iovec *end = &iovec[VRING_MAX];
-    struct iovec *iov = iovec;
-
-    /* When a request is read from the vring, the index of the first descriptor
-     * (aka head) is returned so that the completed request can be pushed onto
-     * the vring later.
-     *
-     * The number of hypervisor read-only iovecs is out_num.  The number of
-     * hypervisor write-only iovecs is in_num.
-     */
-    int head;
-    unsigned int out_num = 0, in_num = 0;
+    VirtQueueElement *elem;
+    int ret;
     unsigned int num_queued;
 
     event_notifier_test_and_clear(&s->host_notifier);
@@ -298,29 +279,31 @@ static void handle_notify(EventNotifier *e)
         vring_disable_notification(s->vdev, &s->vring);
 
         for (;;) {
-            head = vring_pop(s->vdev, &s->vring, iov, end, &out_num, &in_num);
-            if (head < 0) {
+            ret = vring_pop(s->vdev, &s->vring, &elem);
+            if (ret < 0) {
+                assert(elem == NULL);
                 break; /* no more requests */
             }
 
-            trace_virtio_blk_data_plane_process_request(s, out_num, in_num,
-                                                        head);
+            trace_virtio_blk_data_plane_process_request(s, elem->out_num,
+                                                        elem->in_num, elem->index);
 
-            if (process_request(&s->ioqueue, iov, out_num, in_num, head) < 0) {
+            if (process_request(&s->ioqueue, elem) < 0) {
                 vring_set_broken(&s->vring);
+                vring_free_element(elem);
+                ret = -EFAULT;
                 break;
             }
-            iov += out_num + in_num;
         }
 
-        if (likely(head == -EAGAIN)) { /* vring emptied */
+        if (likely(ret == -EAGAIN)) { /* vring emptied */
             /* Re-enable guest->host notifies and stop processing the vring.
              * But if the guest has snuck in more descriptors, keep processing.
              */
             if (vring_enable_notification(s->vdev, &s->vring)) {
                 break;
             }
-        } else { /* head == -ENOBUFS or fatal error, iovecs[] is depleted */
+        } else { /* ret == -ENOBUFS or fatal error, iovecs[] is depleted */
             /* Since there are no iovecs[] left, stop processing for now.  Do
              * not re-enable guest->host notifies since the I/O completion
              * handler knows to check for more vring descriptors anyway.
@@ -360,28 +343,10 @@ static void handle_io(EventNotifier *e)
     }
 }
 
-static void *data_plane_thread(void *opaque)
-{
-    VirtIOBlockDataPlane *s = opaque;
-
-    while (!s->stopping || s->num_reqs > 0) {
-        aio_poll(s->ctx, true);
-    }
-    return NULL;
-}
-
-static void start_data_plane_bh(void *opaque)
-{
-    VirtIOBlockDataPlane *s = opaque;
-
-    qemu_bh_delete(s->start_bh);
-    s->start_bh = NULL;
-    qemu_thread_create(&s->thread, data_plane_thread,
-                       s, QEMU_THREAD_JOINABLE);
-}
-
-bool virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
-                                  VirtIOBlockDataPlane **dataplane)
+/* Context: QEMU global mutex held */
+void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
+                                  VirtIOBlockDataPlane **dataplane,
+                                  Error **errp)
 {
     VirtIOBlockDataPlane *s;
     int fd;
@@ -389,33 +354,35 @@ bool virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     *dataplane = NULL;
 
     if (!blk->data_plane) {
-        return true;
+        return;
     }
 
     if (blk->scsi) {
-        error_report("device is incompatible with x-data-plane, use scsi=off");
-        return false;
+        error_setg(errp,
+                   "device is incompatible with x-data-plane, use scsi=off");
+        return;
     }
 
     if (blk->config_wce) {
-        error_report("device is incompatible with x-data-plane, "
-                     "use config-wce=off");
-        return false;
+        error_setg(errp, "device is incompatible with x-data-plane, "
+                         "use config-wce=off");
+        return;
     }
 
     /* If dataplane is (re-)enabled while the guest is running there could be
      * block jobs that can conflict.
      */
     if (bdrv_in_use(blk->conf.bs)) {
-        error_report("cannot start dataplane thread while device is in use");
-        return false;
+        error_setg(errp,
+                   "cannot start dataplane thread while device is in use");
+        return;
     }
 
     fd = raw_get_aio_fd(blk->conf.bs);
     if (fd < 0) {
-        error_report("drive is incompatible with x-data-plane, "
-                     "use format=raw,cache=none,aio=native");
-        return false;
+        error_setg(errp, "drive is incompatible with x-data-plane, "
+                         "use format=raw,cache=none,aio=native");
+        return;
     }
 
     s = g_new0(VirtIOBlockDataPlane, 1);
@@ -423,13 +390,33 @@ bool virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     s->fd = fd;
     s->blk = blk;
 
+    if (blk->iothread) {
+        s->internal_iothread = false;
+        s->iothread = blk->iothread;
+        object_ref(OBJECT(s->iothread));
+    } else {
+        /* Create per-device IOThread if none specified */
+        Error *local_err = NULL;
+
+        s->internal_iothread = true;
+        object_add(TYPE_IOTHREAD, vdev->name, NULL, NULL, &local_err);
+        if (error_is_set(&local_err)) {
+            error_propagate(errp, local_err);
+            g_free(s);
+            return;
+        }
+        s->iothread = iothread_find(vdev->name);
+        assert(s->iothread);
+    }
+    s->ctx = iothread_get_aio_context(s->iothread);
+
     /* Prevent block operations that conflict with data plane thread */
     bdrv_set_in_use(blk->conf.bs, 1);
 
     *dataplane = s;
-    return true;
 }
 
+/* Context: QEMU global mutex held */
 void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
 {
     if (!s) {
@@ -438,9 +425,14 @@ void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
 
     virtio_blk_data_plane_stop(s);
     bdrv_set_in_use(s->blk->conf.bs, 0);
+    object_unref(OBJECT(s->iothread));
+    if (s->internal_iothread) {
+        object_unparent(OBJECT(s->iothread));
+    }
     g_free(s);
 }
 
+/* Context: QEMU global mutex held */
 void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s->vdev)));
@@ -464,8 +456,6 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
         return;
     }
 
-    s->ctx = aio_context_new();
-
     /* Set up guest notifier (irq) */
     if (k->set_guest_notifiers(qbus->parent, 1, true) != 0) {
         fprintf(stderr, "virtio-blk failed to set guest notifier, "
@@ -480,7 +470,6 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
         exit(1);
     }
     s->host_notifier = *virtio_queue_get_host_notifier(vq);
-    aio_set_event_notifier(s->ctx, &s->host_notifier, handle_notify);
 
     /* Set up ioqueue */
     ioq_init(&s->ioqueue, s->fd, REQ_MAX);
@@ -488,7 +477,6 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
         ioq_put_iocb(&s->ioqueue, &s->requests[i].iocb);
     }
     s->io_notifier = *ioq_get_notifier(&s->ioqueue);
-    aio_set_event_notifier(s->ctx, &s->io_notifier, handle_io);
 
     s->starting = false;
     s->started = true;
@@ -497,11 +485,14 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
     /* Kick right away to begin processing requests already in vring */
     event_notifier_set(virtio_queue_get_host_notifier(vq));
 
-    /* Spawn thread in BH so it inherits iothread cpusets */
-    s->start_bh = qemu_bh_new(start_data_plane_bh, s);
-    qemu_bh_schedule(s->start_bh);
+    /* Get this show started by hooking up our callbacks */
+    aio_context_acquire(s->ctx);
+    aio_set_event_notifier(s->ctx, &s->host_notifier, handle_notify);
+    aio_set_event_notifier(s->ctx, &s->io_notifier, handle_io);
+    aio_context_release(s->ctx);
 }
 
+/* Context: QEMU global mutex held */
 void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s->vdev)));
@@ -512,27 +503,32 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
     s->stopping = true;
     trace_virtio_blk_data_plane_stop(s);
 
-    /* Stop thread or cancel pending thread creation BH */
-    if (s->start_bh) {
-        qemu_bh_delete(s->start_bh);
-        s->start_bh = NULL;
-    } else {
-        aio_notify(s->ctx);
-        qemu_thread_join(&s->thread);
+    aio_context_acquire(s->ctx);
+
+    /* Stop notifications for new requests from guest */
+    aio_set_event_notifier(s->ctx, &s->host_notifier, NULL);
+
+    /* Complete pending requests */
+    while (s->num_reqs > 0) {
+        aio_poll(s->ctx, true);
     }
 
+    /* Stop ioq callbacks (there are no pending requests left) */
     aio_set_event_notifier(s->ctx, &s->io_notifier, NULL);
+
+    aio_context_release(s->ctx);
+
+    /* Sync vring state back to virtqueue so that non-dataplane request
+     * processing can continue when we disable the host notifier below.
+     */
+    vring_teardown(&s->vring, s->vdev, 0);
+
     ioq_cleanup(&s->ioqueue);
-
-    aio_set_event_notifier(s->ctx, &s->host_notifier, NULL);
     k->set_host_notifier(qbus->parent, 0, false);
-
-    aio_context_unref(s->ctx);
 
     /* Clean up guest notifier (irq) */
     k->set_guest_notifiers(qbus->parent, 1, false);
 
-    vring_teardown(&s->vring, s->vdev, 0);
     s->started = false;
     s->stopping = false;
 }

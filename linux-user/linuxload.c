@@ -89,8 +89,7 @@ static int prepare_binprm(struct linux_binprm *bprm)
 abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
                               abi_ulong stringp, int push_ptr)
 {
-    CPUArchState *env = thread_cpu->env_ptr;
-    TaskState *ts = (TaskState *)env->opaque;
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
     int n = sizeof(abi_ulong);
     abi_ulong envp;
     abi_ulong argv;
@@ -154,13 +153,13 @@ int loader_exec(int fdexec, const char *filename, char **argv, char **envp,
                 && bprm->buf[1] == 'E'
                 && bprm->buf[2] == 'L'
                 && bprm->buf[3] == 'F') {
-            retval = load_elf_binary(bprm, regs, infop);
+            retval = load_elf_binary(bprm, infop);
 #if defined(TARGET_HAS_BFLT)
         } else if (bprm->buf[0] == 'b'
                 && bprm->buf[1] == 'F'
                 && bprm->buf[2] == 'L'
                 && bprm->buf[3] == 'T') {
-            retval = load_flt_binary(bprm,regs,infop);
+            retval = load_flt_binary(bprm, infop);
 #endif
         } else {
             return -ENOEXEC;

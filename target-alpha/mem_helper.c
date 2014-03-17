@@ -24,46 +24,53 @@
 /* Softmmu support */
 #ifndef CONFIG_USER_ONLY
 
-uint64_t helper_ldl_phys(uint64_t p)
+uint64_t helper_ldl_phys(CPUAlphaState *env, uint64_t p)
 {
-    return (int32_t)ldl_phys(p);
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
+    return (int32_t)ldl_phys(cs->as, p);
 }
 
-uint64_t helper_ldq_phys(uint64_t p)
+uint64_t helper_ldq_phys(CPUAlphaState *env, uint64_t p)
 {
-    return ldq_phys(p);
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
+    return ldq_phys(cs->as, p);
 }
 
 uint64_t helper_ldl_l_phys(CPUAlphaState *env, uint64_t p)
 {
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
     env->lock_addr = p;
-    return env->lock_value = (int32_t)ldl_phys(p);
+    return env->lock_value = (int32_t)ldl_phys(cs->as, p);
 }
 
 uint64_t helper_ldq_l_phys(CPUAlphaState *env, uint64_t p)
 {
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
     env->lock_addr = p;
-    return env->lock_value = ldq_phys(p);
+    return env->lock_value = ldq_phys(cs->as, p);
 }
 
-void helper_stl_phys(uint64_t p, uint64_t v)
+void helper_stl_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 {
-    stl_phys(p, v);
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
+    stl_phys(cs->as, p, v);
 }
 
-void helper_stq_phys(uint64_t p, uint64_t v)
+void helper_stq_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 {
-    stq_phys(p, v);
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
+    stq_phys(cs->as, p, v);
 }
 
 uint64_t helper_stl_c_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 {
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
     uint64_t ret = 0;
 
     if (p == env->lock_addr) {
-        int32_t old = ldl_phys(p);
+        int32_t old = ldl_phys(cs->as, p);
         if (old == (int32_t)env->lock_value) {
-            stl_phys(p, v);
+            stl_phys(cs->as, p, v);
             ret = 1;
         }
     }
@@ -74,12 +81,13 @@ uint64_t helper_stl_c_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 
 uint64_t helper_stq_c_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 {
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
     uint64_t ret = 0;
 
     if (p == env->lock_addr) {
-        uint64_t old = ldq_phys(p);
+        uint64_t old = ldq_phys(cs->as, p);
         if (old == env->lock_value) {
-            stq_phys(p, v);
+            stq_phys(cs->as, p, v);
             ret = 1;
         }
     }
@@ -91,11 +99,13 @@ uint64_t helper_stq_c_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 static void do_unaligned_access(CPUAlphaState *env, target_ulong addr,
                                 int is_write, int is_user, uintptr_t retaddr)
 {
+    AlphaCPU *cpu = alpha_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
     uint64_t pc;
     uint32_t insn;
 
     if (retaddr) {
-        cpu_restore_state(env, retaddr);
+        cpu_restore_state(cs, retaddr);
     }
 
     pc = env->pc;
@@ -104,9 +114,9 @@ static void do_unaligned_access(CPUAlphaState *env, target_ulong addr,
     env->trap_arg0 = addr;
     env->trap_arg1 = insn >> 26;                /* opcode */
     env->trap_arg2 = (insn >> 21) & 31;         /* dest regno */
-    env->exception_index = EXCP_UNALIGN;
+    cs->exception_index = EXCP_UNALIGN;
     env->error_code = 0;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void alpha_cpu_unassigned_access(CPUState *cs, hwaddr addr,
@@ -142,18 +152,18 @@ void alpha_cpu_unassigned_access(CPUState *cs, hwaddr addr,
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUAlphaState *env, target_ulong addr, int is_write,
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write,
               int mmu_idx, uintptr_t retaddr)
 {
     int ret;
 
-    ret = cpu_alpha_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = alpha_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (unlikely(ret != 0)) {
         if (retaddr) {
-            cpu_restore_state(env, retaddr);
+            cpu_restore_state(cs, retaddr);
         }
         /* Exception index and error code are already set */
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 #endif /* CONFIG_USER_ONLY */

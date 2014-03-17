@@ -34,6 +34,11 @@
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
+#if LIBCURL_VERSION_NUM >= 0x071000
+/* The multi interface timer callback was introduced in 7.16.0 */
+#define NEED_CURL_TIMER_CALLBACK
+#endif
+
 #define PROTOCOLS (CURLPROTO_HTTP | CURLPROTO_HTTPS | \
                    CURLPROTO_FTP | CURLPROTO_FTPS | \
                    CURLPROTO_TFTP)
@@ -77,6 +82,7 @@ typedef struct CURLState
 
 typedef struct BDRVCURLState {
     CURLM *multi;
+    QEMUTimer timer;
     size_t len;
     CURLState states[CURL_NUM_STATES];
     char *url;
@@ -86,6 +92,23 @@ typedef struct BDRVCURLState {
 
 static void curl_clean_state(CURLState *s);
 static void curl_multi_do(void *arg);
+
+#ifdef NEED_CURL_TIMER_CALLBACK
+static int curl_timer_cb(CURLM *multi, long timeout_ms, void *opaque)
+{
+    BDRVCURLState *s = opaque;
+
+    DPRINTF("CURL: timer callback timeout_ms %ld\n", timeout_ms);
+    if (timeout_ms == -1) {
+        timer_del(&s->timer);
+    } else {
+        int64_t timeout_ns = (int64_t)timeout_ms * 1000 * 1000;
+        timer_mod(&s->timer,
+                  qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + timeout_ns);
+    }
+    return 0;
+}
+#endif
 
 static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
                         void *s, void *sp)
@@ -209,19 +232,9 @@ static int curl_find_buf(BDRVCURLState *s, size_t start, size_t len,
     return FIND_RET_NONE;
 }
 
-static void curl_multi_do(void *arg)
+static void curl_multi_read(BDRVCURLState *s)
 {
-    BDRVCURLState *s = (BDRVCURLState *)arg;
-    int running;
-    int r;
     int msgs_in_queue;
-
-    if (!s->multi)
-        return;
-
-    do {
-        r = curl_multi_socket_all(s->multi, &running);
-    } while(r == CURLM_CALL_MULTI_PERFORM);
 
     /* Try to find done transfers, so we can free the easy
      * handle again. */
@@ -264,6 +277,41 @@ static void curl_multi_do(void *arg)
                 break;
         }
     } while(msgs_in_queue);
+}
+
+static void curl_multi_do(void *arg)
+{
+    BDRVCURLState *s = (BDRVCURLState *)arg;
+    int running;
+    int r;
+
+    if (!s->multi) {
+        return;
+    }
+
+    do {
+        r = curl_multi_socket_all(s->multi, &running);
+    } while(r == CURLM_CALL_MULTI_PERFORM);
+
+    curl_multi_read(s);
+}
+
+static void curl_multi_timeout_do(void *arg)
+{
+#ifdef NEED_CURL_TIMER_CALLBACK
+    BDRVCURLState *s = (BDRVCURLState *)arg;
+    int running;
+
+    if (!s->multi) {
+        return;
+    }
+
+    curl_multi_socket_action(s->multi, CURL_SOCKET_TIMEOUT, 0, &running);
+
+    curl_multi_read(s);
+#else
+    abort();
+#endif
 }
 
 static CURLState *curl_init_state(BDRVCURLState *s)
@@ -408,30 +456,27 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     static int inited = 0;
 
     if (flags & BDRV_O_RDWR) {
-        qerror_report(ERROR_CLASS_GENERIC_ERROR,
-                      "curl block device does not support writes");
+        error_setg(errp, "curl block device does not support writes");
         return -EROFS;
     }
 
-    opts = qemu_opts_create_nofail(&runtime_opts);
+    opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (error_is_set(&local_err)) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         goto out_noclean;
     }
 
     s->readahead_size = qemu_opt_get_size(opts, "readahead", READ_AHEAD_SIZE);
     if ((s->readahead_size & 0x1ff) != 0) {
-        fprintf(stderr, "HTTP_READAHEAD_SIZE %zd is not a multiple of 512\n",
-                s->readahead_size);
+        error_setg(errp, "HTTP_READAHEAD_SIZE %zd is not a multiple of 512",
+                   s->readahead_size);
         goto out_noclean;
     }
 
     file = qemu_opt_get(opts, "url");
     if (file == NULL) {
-        qerror_report(ERROR_CLASS_GENERIC_ERROR, "curl block driver requires "
-                      "an 'url' option");
+        error_setg(errp, "curl block driver requires an 'url' option");
         goto out_noclean;
     }
 
@@ -473,12 +518,20 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     curl_easy_cleanup(state->curl);
     state->curl = NULL;
 
+    aio_timer_init(bdrv_get_aio_context(bs), &s->timer,
+                   QEMU_CLOCK_REALTIME, SCALE_NS,
+                   curl_multi_timeout_do, s);
+
     // Now we know the file exists and its size, so let's
     // initialize the multi interface!
 
     s->multi = curl_multi_init();
     curl_multi_setopt(s->multi, CURLMOPT_SOCKETDATA, s);
     curl_multi_setopt(s->multi, CURLMOPT_SOCKETFUNCTION, curl_sock_cb);
+#ifdef NEED_CURL_TIMER_CALLBACK
+    curl_multi_setopt(s->multi, CURLMOPT_TIMERDATA, s);
+    curl_multi_setopt(s->multi, CURLMOPT_TIMERFUNCTION, curl_timer_cb);
+#endif
     curl_multi_do(s);
 
     qemu_opts_del(opts);
@@ -597,6 +650,9 @@ static void curl_close(BlockDriverState *bs)
     }
     if (s->multi)
         curl_multi_cleanup(s->multi);
+
+    timer_del(&s->timer);
+
     g_free(s->url);
 }
 

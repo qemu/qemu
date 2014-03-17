@@ -1321,6 +1321,7 @@ static bool cmd_exec_dev_diagnostic(IDEState *s, uint8_t cmd)
         s->status = 0; /* ATAPI spec (v6) section 9.10 defines packet
                         * devices to return a clear status register
                         * with READY_STAT *not* set. */
+        s->error = 0x01;
     } else {
         s->status = READY_STAT | SEEK_STAT;
         /* The bits of the error register are not as usual for this command!
@@ -2103,7 +2104,7 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
     s->smart_selftest_count = 0;
     if (kind == IDE_CD) {
         bdrv_set_dev_ops(bs, &ide_cd_block_ops, s);
-        bdrv_set_buffer_alignment(bs, 2048);
+        bdrv_set_guest_block_size(bs, 2048);
     } else {
         if (!bdrv_is_inserted(s->bs)) {
             error_report("Device needs media, but drive is empty");

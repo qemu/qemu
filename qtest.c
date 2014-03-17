@@ -22,8 +22,6 @@
 
 #define MAX_IRQ 256
 
-const char *qtest_chrdev;
-const char *qtest_log;
 bool qtest_allowed;
 
 static DeviceState *irq_intercept_dev;
@@ -406,7 +404,7 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
 
         qtest_send_prefix(chr);
         qtest_send(chr, "OK\n");
-    } else if (strcmp(words[0], "clock_step") == 0) {
+    } else if (qtest_enabled() && strcmp(words[0], "clock_step") == 0) {
         int64_t ns;
 
         if (words[1]) {
@@ -417,7 +415,7 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         qtest_clock_warp(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + ns);
         qtest_send_prefix(chr);
         qtest_send(chr, "OK %"PRIi64"\n", (int64_t)qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
-    } else if (strcmp(words[0], "clock_set") == 0) {
+    } else if (qtest_enabled() && strcmp(words[0], "clock_set") == 0) {
         int64_t ns;
 
         g_assert(words[1]);
@@ -502,14 +500,24 @@ static void qtest_event(void *opaque, int event)
     }
 }
 
-int qtest_init(void)
+int qtest_init_accel(QEMUMachine *machine)
+{
+    configure_icount("0");
+
+    return 0;
+}
+
+void qtest_init(const char *qtest_chrdev, const char *qtest_log, Error **errp)
 {
     CharDriverState *chr;
 
-    g_assert(qtest_chrdev != NULL);
-
-    configure_icount("0");
     chr = qemu_chr_new("qtest", qtest_chrdev, NULL);
+
+    if (chr == NULL) {
+        error_setg(errp, "Failed to initialize device for qtest: \"%s\"",
+                   qtest_chrdev);
+        return;
+    }
 
     qemu_chr_add_handlers(chr, qtest_can_read, qtest_read, qtest_event, chr);
     qemu_chr_fe_set_echo(chr, true);
@@ -525,6 +533,9 @@ int qtest_init(void)
     }
 
     qtest_chr = chr;
+}
 
-    return 0;
+bool qtest_driver(void)
+{
+    return qtest_chr;
 }

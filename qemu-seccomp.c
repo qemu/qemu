@@ -220,7 +220,12 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(io_cancel), 241 },
     { SCMP_SYS(io_setup), 241 },
     { SCMP_SYS(io_destroy), 241 },
-    { SCMP_SYS(arch_prctl), 240 }
+    { SCMP_SYS(arch_prctl), 240 },
+    { SCMP_SYS(mkdir), 240 },
+    { SCMP_SYS(fchmod), 240 },
+    { SCMP_SYS(shmget), 240 },
+    { SCMP_SYS(shmat), 240 },
+    { SCMP_SYS(shmdt), 240 }
 };
 
 int seccomp_start(void)
@@ -231,6 +236,7 @@ int seccomp_start(void)
 
     ctx = seccomp_init(SCMP_ACT_KILL);
     if (ctx == NULL) {
+        rc = -1;
         goto seccomp_return;
     }
 

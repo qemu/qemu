@@ -85,7 +85,7 @@
 struct PXA2xxKeyPadState {
     MemoryRegion iomem;
     qemu_irq    irq;
-    struct  keymap *map;
+    const struct  keymap *map;
     int         pressed_cnt;
     int         alt_code;
 
@@ -322,8 +322,8 @@ PXA2xxKeyPadState *pxa27x_keypad_init(MemoryRegion *sysmem,
     return s;
 }
 
-void pxa27x_register_keypad(PXA2xxKeyPadState *kp, struct keymap *map,
-        int size)
+void pxa27x_register_keypad(PXA2xxKeyPadState *kp,
+                            const struct keymap *map, int size)
 {
     if(!map || size < 0x80) {
         fprintf(stderr, "%s - No PXA keypad map defined\n", __FUNCTION__);

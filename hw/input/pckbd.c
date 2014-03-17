@@ -281,7 +281,7 @@ static void kbd_write_command(void *opaque, hwaddr addr,
         kbd_update_irq(s);
         break;
     case KBD_CCMD_READ_INPORT:
-        kbd_queue(s, 0x00, 0);
+        kbd_queue(s, 0x80, 0);
         break;
     case KBD_CCMD_READ_OUTPORT:
         kbd_queue(s, s->outport, 0);
@@ -522,7 +522,6 @@ static void i8042_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = i8042_realizefn;
-    dc->no_user = 1;
     dc->vmsd = &vmstate_kbd_isa;
 }
 

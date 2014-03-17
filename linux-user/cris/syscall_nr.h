@@ -335,3 +335,4 @@
 #define TARGET_NR_inotify_init1      332
 #define TARGET_NR_preadv             333
 #define TARGET_NR_pwritev            334
+#define TARGET_NR_setns              335

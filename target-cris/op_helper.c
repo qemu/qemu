@@ -54,23 +54,25 @@
 /* Try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
-void tlb_fill(CPUCRISState *env, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
+    CRISCPU *cpu = CRIS_CPU(cs);
+    CPUCRISState *env = &cpu->env;
     int ret;
 
     D_LOG("%s pc=%x tpc=%x ra=%p\n", __func__,
           env->pc, env->pregs[PR_EDA], (void *)retaddr);
-    ret = cpu_cris_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = cris_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */
-            if (cpu_restore_state(env, retaddr)) {
+            if (cpu_restore_state(cs, retaddr)) {
 		/* Evaluate flags after retranslation.  */
                 helper_top_evaluate_flags(env);
             }
         }
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 
@@ -78,8 +80,10 @@ void tlb_fill(CPUCRISState *env, target_ulong addr, int is_write, int mmu_idx,
 
 void helper_raise_exception(CPUCRISState *env, uint32_t index)
 {
-	env->exception_index = index;
-        cpu_loop_exit(env);
+    CPUState *cs = CPU(cris_env_get_cpu(env));
+
+    cs->exception_index = index;
+    cpu_loop_exit(cs);
 }
 
 void helper_tlb_flush_pid(CPUCRISState *env, uint32_t pid)
@@ -94,8 +98,11 @@ void helper_tlb_flush_pid(CPUCRISState *env, uint32_t pid)
 void helper_spc_write(CPUCRISState *env, uint32_t new_spc)
 {
 #if !defined(CONFIG_USER_ONLY)
-	tlb_flush_page(env, env->pregs[PR_SPC]);
-	tlb_flush_page(env, new_spc);
+    CRISCPU *cpu = cris_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
+    tlb_flush_page(cs, env->pregs[PR_SPC]);
+    tlb_flush_page(cs, new_spc);
 #endif
 }
 
@@ -110,6 +117,9 @@ void helper_dump(uint32_t a0, uint32_t a1, uint32_t a2)
 
 void helper_movl_sreg_reg(CPUCRISState *env, uint32_t sreg, uint32_t reg)
 {
+#if !defined(CONFIG_USER_ONLY)
+    CRISCPU *cpu = cris_env_get_cpu(env);
+#endif
 	uint32_t srs;
 	srs = env->pregs[PR_SRS];
 	srs &= 3;
@@ -151,7 +161,7 @@ void helper_movl_sreg_reg(CPUCRISState *env, uint32_t sreg, uint32_t reg)
 			D_LOG("tlb flush vaddr=%x v=%d pc=%x\n", 
 				  vaddr, tlb_v, env->pc);
 			if (tlb_v) {
-				tlb_flush_page(env, vaddr);
+                tlb_flush_page(CPU(cpu), vaddr);
 			}
 		}
 	}

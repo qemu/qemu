@@ -191,6 +191,7 @@ static void load_fpu(QEMUFile *f, CPUMIPSFPUContext *fpu)
 int cpu_load(QEMUFile *f, void *opaque, int version_id)
 {
     CPUMIPSState *env = opaque;
+    MIPSCPU *cpu = mips_env_get_cpu(env);
     int i;
 
     if (version_id != 3)
@@ -303,6 +304,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         load_fpu(f, &env->fpus[i]);
 
     /* XXX: ensure compatibility for halted bit ? */
-    tlb_flush(env, 1);
+    tlb_flush(CPU(cpu), 1);
     return 0;
 }

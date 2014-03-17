@@ -1998,8 +1998,7 @@ give_up:
     free(syms);
 }
 
-int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
-                    struct image_info * info)
+int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
 {
     struct image_info interp_info;
     struct elfhdr elf_ex;
@@ -2622,7 +2621,8 @@ static int write_note(struct memelfnote *men, int fd)
 
 static void fill_thread_info(struct elf_note_info *info, const CPUArchState *env)
 {
-    TaskState *ts = (TaskState *)env->opaque;
+    CPUState *cpu = ENV_GET_CPU((CPUArchState *)env);
+    TaskState *ts = (TaskState *)cpu->opaque;
     struct elf_thread_status *ets;
 
     ets = g_malloc0(sizeof (*ets));
@@ -2637,17 +2637,23 @@ static void fill_thread_info(struct elf_note_info *info, const CPUArchState *env
     info->notes_size += note_size(&ets->notes[0]);
 }
 
+static void init_note_info(struct elf_note_info *info)
+{
+    /* Initialize the elf_note_info structure so that it is at
+     * least safe to call free_note_info() on it. Must be
+     * called before calling fill_note_info().
+     */
+    memset(info, 0, sizeof (*info));
+    QTAILQ_INIT(&info->thread_list);
+}
+
 static int fill_note_info(struct elf_note_info *info,
                           long signr, const CPUArchState *env)
 {
 #define NUMNOTES 3
-    CPUState *cpu = NULL;
-    TaskState *ts = (TaskState *)env->opaque;
+    CPUState *cpu = ENV_GET_CPU((CPUArchState *)env);
+    TaskState *ts = (TaskState *)cpu->opaque;
     int i;
-
-    (void) memset(info, 0, sizeof (*info));
-
-    QTAILQ_INIT(&info->thread_list);
 
     info->notes = g_malloc0(NUMNOTES * sizeof (struct memelfnote));
     if (info->notes == NULL)
@@ -2770,7 +2776,8 @@ static int write_note_info(struct elf_note_info *info, int fd)
  */
 static int elf_core_dump(int signr, const CPUArchState *env)
 {
-    const TaskState *ts = (const TaskState *)env->opaque;
+    const CPUState *cpu = ENV_GET_CPU((CPUArchState *)env);
+    const TaskState *ts = (const TaskState *)cpu->opaque;
     struct vm_area_struct *vma = NULL;
     char corefile[PATH_MAX];
     struct elf_note_info info;
@@ -2781,6 +2788,8 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     off_t offset = 0, data_offset = 0;
     int segs = 0;
     int fd = -1;
+
+    init_note_info(&info);
 
     errno = 0;
     getrlimit(RLIMIT_CORE, &dumpsize);

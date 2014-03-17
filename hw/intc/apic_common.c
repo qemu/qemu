@@ -27,21 +27,21 @@
 static int apic_irq_delivered;
 bool apic_report_tpr_access;
 
-void cpu_set_apic_base(DeviceState *d, uint64_t val)
+void cpu_set_apic_base(DeviceState *dev, uint64_t val)
 {
     trace_cpu_set_apic_base(val);
 
-    if (d) {
-        APICCommonState *s = APIC_COMMON(d);
+    if (dev) {
+        APICCommonState *s = APIC_COMMON(dev);
         APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
         info->set_base(s, val);
     }
 }
 
-uint64_t cpu_get_apic_base(DeviceState *d)
+uint64_t cpu_get_apic_base(DeviceState *dev)
 {
-    if (d) {
-        APICCommonState *s = APIC_COMMON(d);
+    if (dev) {
+        APICCommonState *s = APIC_COMMON(dev);
         trace_cpu_get_apic_base((uint64_t)s->apicbase);
         return s->apicbase;
     } else {
@@ -50,39 +50,39 @@ uint64_t cpu_get_apic_base(DeviceState *d)
     }
 }
 
-void cpu_set_apic_tpr(DeviceState *d, uint8_t val)
+void cpu_set_apic_tpr(DeviceState *dev, uint8_t val)
 {
     APICCommonState *s;
     APICCommonClass *info;
 
-    if (!d) {
+    if (!dev) {
         return;
     }
 
-    s = APIC_COMMON(d);
+    s = APIC_COMMON(dev);
     info = APIC_COMMON_GET_CLASS(s);
 
     info->set_tpr(s, val);
 }
 
-uint8_t cpu_get_apic_tpr(DeviceState *d)
+uint8_t cpu_get_apic_tpr(DeviceState *dev)
 {
     APICCommonState *s;
     APICCommonClass *info;
 
-    if (!d) {
+    if (!dev) {
         return 0;
     }
 
-    s = APIC_COMMON(d);
+    s = APIC_COMMON(dev);
     info = APIC_COMMON_GET_CLASS(s);
 
     return info->get_tpr(s);
 }
 
-void apic_enable_tpr_access_reporting(DeviceState *d, bool enable)
+void apic_enable_tpr_access_reporting(DeviceState *dev, bool enable)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonState *s = APIC_COMMON(dev);
     APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
 
     apic_report_tpr_access = enable;
@@ -91,19 +91,19 @@ void apic_enable_tpr_access_reporting(DeviceState *d, bool enable)
     }
 }
 
-void apic_enable_vapic(DeviceState *d, hwaddr paddr)
+void apic_enable_vapic(DeviceState *dev, hwaddr paddr)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonState *s = APIC_COMMON(dev);
     APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
 
     s->vapic_paddr = paddr;
     info->vapic_base_update(s);
 }
 
-void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip,
+void apic_handle_tpr_access_report(DeviceState *dev, target_ulong ip,
                                    TPRAccess access)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonState *s = APIC_COMMON(dev);
 
     vapic_report_tpr_access(s->vapic, CPU(s->cpu), ip, access);
 }
@@ -129,9 +129,9 @@ int apic_get_irq_delivered(void)
     return apic_irq_delivered;
 }
 
-void apic_deliver_nmi(DeviceState *d)
+void apic_deliver_nmi(DeviceState *dev)
 {
-    APICCommonState *s = APIC_COMMON(d);
+    APICCommonState *s = APIC_COMMON(dev);
     APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
 
     info->external_nmi(s);
@@ -170,9 +170,9 @@ bool apic_next_timer(APICCommonState *s, int64_t current_time)
     return true;
 }
 
-void apic_init_reset(DeviceState *d)
+void apic_init_reset(DeviceState *dev)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonState *s = APIC_COMMON(dev);
     int i;
 
     if (!s) {
@@ -203,19 +203,19 @@ void apic_init_reset(DeviceState *d)
     s->timer_expiry = -1;
 }
 
-void apic_designate_bsp(DeviceState *d)
+void apic_designate_bsp(DeviceState *dev)
 {
-    if (d == NULL) {
+    if (dev == NULL) {
         return;
     }
 
-    APICCommonState *s = APIC_COMMON(d);
+    APICCommonState *s = APIC_COMMON(dev);
     s->apicbase |= MSR_IA32_APICBASE_BSP;
 }
 
-static void apic_reset_common(DeviceState *d)
+static void apic_reset_common(DeviceState *dev)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonState *s = APIC_COMMON(dev);
     APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
     bool bsp;
 
@@ -226,7 +226,7 @@ static void apic_reset_common(DeviceState *d)
     s->vapic_paddr = 0;
     info->vapic_base_update(s);
 
-    apic_init_reset(d);
+    apic_init_reset(dev);
 
     if (bsp) {
         /*
@@ -284,7 +284,7 @@ static int apic_load_old(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int apic_init_common(ICCDevice *dev)
+static void apic_common_realize(DeviceState *dev, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(dev);
     APICCommonClass *info;
@@ -293,14 +293,16 @@ static int apic_init_common(ICCDevice *dev)
     static bool mmio_registered;
 
     if (apic_no >= MAX_APICS) {
-        return -1;
+        error_setg(errp, "%s initialization failed.",
+                   object_get_typename(OBJECT(dev)));
+        return;
     }
     s->idx = apic_no++;
 
     info = APIC_COMMON_GET_CLASS(s);
-    info->init(s);
+    info->realize(dev, errp);
     if (!mmio_registered) {
-        ICCBus *b = ICC_BUS(qdev_get_parent_bus(DEVICE(dev)));
+        ICCBus *b = ICC_BUS(qdev_get_parent_bus(dev));
         memory_region_add_subregion(b->apic_address_space, 0, &s->io_memory);
         mmio_registered = true;
     }
@@ -315,7 +317,6 @@ static int apic_init_common(ICCDevice *dev)
         info->enable_tpr_reporting(s, true);
     }
 
-    return 0;
 }
 
 static void apic_dispatch_pre_save(void *opaque)
@@ -386,9 +387,13 @@ static void apic_common_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd = &vmstate_apic_common;
     dc->reset = apic_reset_common;
-    dc->no_user = 1;
     dc->props = apic_properties_common;
-    idc->init = apic_init_common;
+    idc->realize = apic_common_realize;
+    /*
+     * Reason: APIC and CPU need to be wired up by
+     * x86_cpu_apic_create()
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo apic_common_type = {
@@ -400,9 +405,9 @@ static const TypeInfo apic_common_type = {
     .abstract = true,
 };
 
-static void register_types(void)
+static void apic_common_register_types(void)
 {
     type_register_static(&apic_common_type);
 }
 
-type_init(register_types)
+type_init(apic_common_register_types)

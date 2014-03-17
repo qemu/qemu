@@ -105,7 +105,7 @@ static inline uint32_t pxa2xx_pic_highest(PXA2xxPICState *s) {
 
     for (i = PXA2XX_PIC_SRCS - 1; i >= 0; i --) {
         irq = s->priority[i] & 0x3f;
-        if ((s->priority[i] & (1 << 31)) && irq < PXA2XX_PIC_SRCS) {
+        if ((s->priority[i] & (1U << 31)) && irq < PXA2XX_PIC_SRCS) {
             /* Source peripheral ID is valid.  */
             bit = 1 << (irq & 31);
             int_set = (irq >= 32);
@@ -119,7 +119,7 @@ static inline uint32_t pxa2xx_pic_highest(PXA2xxPICState *s) {
             if (mask[int_set] & bit & ~s->is_fiq[int_set]) {
                 /* IRQ asserted */
                 ichp &= 0x0000ffff;
-                ichp |= (1 << 31) | (irq << 16);
+                ichp |= (1U << 31) | (irq << 16);
             }
         }
     }
@@ -217,20 +217,17 @@ static const int pxa2xx_cp_reg_map[0x10] = {
     [0xa] = ICPR2,
 };
 
-static int pxa2xx_pic_cp_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                              uint64_t *value)
+static uint64_t pxa2xx_pic_cp_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     int offset = pxa2xx_cp_reg_map[ri->crn];
-    *value = pxa2xx_pic_mem_read(ri->opaque, offset, 4);
-    return 0;
+    return pxa2xx_pic_mem_read(ri->opaque, offset, 4);
 }
 
-static int pxa2xx_pic_cp_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                               uint64_t value)
+static void pxa2xx_pic_cp_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
 {
     int offset = pxa2xx_cp_reg_map[ri->crn];
     pxa2xx_pic_mem_write(ri->opaque, offset, value, 4);
-    return 0;
 }
 
 #define REGINFO_FOR_PIC_CP(NAME, CRN) \

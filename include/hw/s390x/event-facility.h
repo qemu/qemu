@@ -17,10 +17,12 @@
 
 #include <hw/qdev.h>
 #include "qemu/thread.h"
+#include "hw/s390x/sclp.h"
 
 /* SCLP event types */
 #define SCLP_EVENT_OPRTNS_COMMAND               0x01
 #define SCLP_EVENT_MESSAGE                      0x02
+#define SCLP_EVENT_CONFIG_MGT_DATA              0x04
 #define SCLP_EVENT_PMSGCMD                      0x09
 #define SCLP_EVENT_ASCII_CONSOLE_DATA           0x1a
 #define SCLP_EVENT_SIGNAL_QUIESCE               0x1d
@@ -28,6 +30,7 @@
 /* SCLP event masks */
 #define SCLP_EVENT_MASK_SIGNAL_QUIESCE          0x00000008
 #define SCLP_EVENT_MASK_MSG_ASCII               0x00000040
+#define SCLP_EVENT_MASK_CONFIG_MGT_DATA         0x10000000
 #define SCLP_EVENT_MASK_OP_CMD                  0x80000000
 #define SCLP_EVENT_MASK_MSG                     0x40000000
 #define SCLP_EVENT_MASK_PMSGCMD                 0x00800000
@@ -42,6 +45,8 @@
      OBJECT_CLASS_CHECK(SCLPEventClass, (klass), TYPE_SCLP_EVENT)
 #define SCLP_EVENT_GET_CLASS(obj) \
      OBJECT_GET_CLASS(SCLPEventClass, (obj), TYPE_SCLP_EVENT)
+
+#define TYPE_SCLP_CPU_HOTPLUG "sclp-cpu-hotplug"
 
 typedef struct WriteEventMask {
     SCCBHeader h;
@@ -170,5 +175,24 @@ typedef struct SCLPEventClass {
     /* can we handle this event type? */
     bool (*can_handle_event)(uint8_t type);
 } SCLPEventClass;
+
+#define TYPE_SCLP_EVENT_FACILITY "s390-sclp-event-facility"
+#define EVENT_FACILITY(obj) \
+     OBJECT_CHECK(SCLPEventFacility, (obj), TYPE_SCLP_EVENT_FACILITY)
+#define EVENT_FACILITY_CLASS(klass) \
+     OBJECT_CLASS_CHECK(SCLPEventFacilityClass, (klass), \
+                        TYPE_SCLP_EVENT_FACILITY)
+#define EVENT_FACILITY_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(SCLPEventFacilityClass, (obj), \
+                      TYPE_SCLP_EVENT_FACILITY)
+
+typedef struct SCLPEventFacility SCLPEventFacility;
+
+typedef struct SCLPEventFacilityClass {
+    DeviceClass parent_class;
+    int (*init)(SCLPEventFacility *ef);
+    void (*command_handler)(SCLPEventFacility *ef, SCCB *sccb, uint64_t code);
+    bool (*event_pending)(SCLPEventFacility *ef);
+} SCLPEventFacilityClass;
 
 #endif

@@ -606,7 +606,8 @@ int qcow2_snapshot_delete(BlockDriverState *bs,
     s->nb_snapshots--;
     ret = qcow2_write_snapshots(bs);
     if (ret < 0) {
-        error_setg(errp, "Failed to remove snapshot from snapshot list");
+        error_setg_errno(errp, -ret,
+                         "Failed to remove snapshot from snapshot list");
         return ret;
     }
 
@@ -624,7 +625,7 @@ int qcow2_snapshot_delete(BlockDriverState *bs,
     ret = qcow2_update_snapshot_refcount(bs, sn.l1_table_offset,
                                          sn.l1_size, -1);
     if (ret < 0) {
-        error_setg(errp, "Failed to free the cluster and L1 table");
+        error_setg_errno(errp, -ret, "Failed to free the cluster and L1 table");
         return ret;
     }
     qcow2_free_clusters(bs, sn.l1_table_offset, sn.l1_size * sizeof(uint64_t),
@@ -633,7 +634,8 @@ int qcow2_snapshot_delete(BlockDriverState *bs,
     /* must update the copied flag on the current cluster offsets */
     ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 0);
     if (ret < 0) {
-        error_setg(errp, "Failed to update snapshot status in disk");
+        error_setg_errno(errp, -ret,
+                         "Failed to update snapshot status in disk");
         return ret;
     }
 

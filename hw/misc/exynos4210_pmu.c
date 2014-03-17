@@ -383,8 +383,7 @@ static const Exynos4210PmuReg exynos4210_pmu_regs[] = {
     {"GPS_ALIVE_OPTION", GPS_ALIVE_OPTION, 0x00000001},
 };
 
-#define PMU_NUM_OF_REGISTERS     \
-    (sizeof(exynos4210_pmu_regs) / sizeof(Exynos4210PmuReg))
+#define PMU_NUM_OF_REGISTERS ARRAY_SIZE(exynos4210_pmu_regs)
 
 #define TYPE_EXYNOS4210_PMU "exynos4210.pmu"
 #define EXYNOS4210_PMU(obj) \

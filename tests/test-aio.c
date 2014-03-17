@@ -112,6 +112,64 @@ static void test_notify(void)
     g_assert(!aio_poll(ctx, false));
 }
 
+typedef struct {
+    QemuMutex start_lock;
+    bool thread_acquired;
+} AcquireTestData;
+
+static void *test_acquire_thread(void *opaque)
+{
+    AcquireTestData *data = opaque;
+
+    /* Wait for other thread to let us start */
+    qemu_mutex_lock(&data->start_lock);
+    qemu_mutex_unlock(&data->start_lock);
+
+    aio_context_acquire(ctx);
+    aio_context_release(ctx);
+
+    data->thread_acquired = true; /* success, we got here */
+
+    return NULL;
+}
+
+static void dummy_notifier_read(EventNotifier *unused)
+{
+    g_assert(false); /* should never be invoked */
+}
+
+static void test_acquire(void)
+{
+    QemuThread thread;
+    EventNotifier notifier;
+    AcquireTestData data;
+
+    /* Dummy event notifier ensures aio_poll() will block */
+    event_notifier_init(&notifier, false);
+    aio_set_event_notifier(ctx, &notifier, dummy_notifier_read);
+    g_assert(!aio_poll(ctx, false)); /* consume aio_notify() */
+
+    qemu_mutex_init(&data.start_lock);
+    qemu_mutex_lock(&data.start_lock);
+    data.thread_acquired = false;
+
+    qemu_thread_create(&thread, "test_acquire_thread",
+                       test_acquire_thread,
+                       &data, QEMU_THREAD_JOINABLE);
+
+    /* Block in aio_poll(), let other thread kick us and acquire context */
+    aio_context_acquire(ctx);
+    qemu_mutex_unlock(&data.start_lock); /* let the thread run */
+    g_assert(!aio_poll(ctx, true));
+    aio_context_release(ctx);
+
+    qemu_thread_join(&thread);
+    aio_set_event_notifier(ctx, &notifier, NULL);
+    event_notifier_cleanup(&notifier);
+
+    g_assert(data.thread_acquired);
+}
+
 static void test_bh_schedule(void)
 {
     BHTestData data = { .n = 0 };
@@ -775,6 +833,7 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/aio/notify",                  test_notify);
+    g_test_add_func("/aio/acquire",                 test_acquire);
     g_test_add_func("/aio/bh/schedule",             test_bh_schedule);
     g_test_add_func("/aio/bh/schedule10",           test_bh_schedule10);
     g_test_add_func("/aio/bh/cancel",               test_bh_cancel);

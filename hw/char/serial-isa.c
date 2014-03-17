@@ -88,7 +88,7 @@ static const VMStateDescription vmstate_isa_serial = {
 
 static Property serial_isa_properties[] = {
     DEFINE_PROP_UINT32("index",  ISASerialState, index,   -1),
-    DEFINE_PROP_HEX32("iobase",  ISASerialState, iobase,  -1),
+    DEFINE_PROP_UINT32("iobase",  ISASerialState, iobase,  -1),
     DEFINE_PROP_UINT32("irq",    ISASerialState, isairq,  -1),
     DEFINE_PROP_CHR("chardev",   ISASerialState, state.chr),
     DEFINE_PROP_UINT32("wakeup", ISASerialState, state.wakeup, 0),

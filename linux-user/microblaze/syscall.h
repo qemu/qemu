@@ -1,8 +1,8 @@
 #ifndef MICROBLAZE_SYSCALLS_H
 #define MICROBLAZE_SYSCALLS_H 1
 
-
 #define UNAME_MACHINE "microblaze"
+#define UNAME_MINIMUM_RELEASE "2.6.32"
 
 /* We use microblaze_reg_t to keep things similar to the kernel sources.  */
 typedef uint32_t microblaze_reg_t;

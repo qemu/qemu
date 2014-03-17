@@ -175,6 +175,7 @@ typedef struct CPUSH4State {
 
     CPU_COMMON
 
+    /* Fields from here on are preserved over CPU reset. */
     int id;			/* CPU model */
 
     /* The features that we should emulate. See sh_features above.  */
@@ -193,9 +194,8 @@ SuperHCPU *cpu_sh4_init(const char *cpu_model);
 int cpu_sh4_exec(CPUSH4State * s);
 int cpu_sh4_signal_handler(int host_signum, void *pinfo,
                            void *puc);
-int cpu_sh4_handle_mmu_fault(CPUSH4State * env, target_ulong address, int rw,
-                             int mmu_idx);
-#define cpu_handle_mmu_fault cpu_sh4_handle_mmu_fault
+int superh_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
+                                int mmu_idx);
 
 void sh4_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 #if !defined(CONFIG_USER_ONLY)
@@ -350,11 +350,6 @@ static inline void cpu_get_tb_cpu_state(CPUSH4State *env, target_ulong *pc,
             | (env->sr & (SR_MD | SR_RB))                      /* Bits 29-30 */
             | (env->sr & SR_FD)                                /* Bit 15 */
             | (env->movcal_backup ? TB_FLAG_PENDING_MOVCA : 0); /* Bit 4 */
-}
-
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
 #include "exec/exec-all.h"

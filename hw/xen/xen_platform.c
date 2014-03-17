@@ -27,6 +27,7 @@
 
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
+#include "hw/ide.h"
 #include "hw/pci/pci.h"
 #include "hw/irq.h"
 #include "hw/xen/xen_common.h"
@@ -110,7 +111,7 @@ static void unplug_disks(PCIBus *b, PCIDevice *d, void *o)
     if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
             PCI_CLASS_STORAGE_IDE
             && strcmp(d->name, "xen-pci-passthrough") != 0) {
-        qdev_unplug(DEVICE(d), NULL);
+        pci_piix3_xen_ide_unplug(DEVICE(d));
     }
 }
 

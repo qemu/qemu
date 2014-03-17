@@ -69,6 +69,7 @@ struct CharDriverState {
     void (*chr_accept_input)(struct CharDriverState *chr);
     void (*chr_set_echo)(struct CharDriverState *chr, bool echo);
     void (*chr_set_fe_open)(struct CharDriverState *chr, int fe_open);
+    void (*chr_fe_event)(struct CharDriverState *chr, int event);
     void *opaque;
     char *label;
     char *filename;
@@ -136,6 +137,15 @@ void qemu_chr_fe_set_echo(struct CharDriverState *chr, bool echo);
  * front end is ready (or not) to begin doing I/O.
  */
 void qemu_chr_fe_set_open(struct CharDriverState *chr, int fe_open);
+
+/**
+ * @qemu_chr_fe_event:
+ *
+ * Send an event from the front end to the back end.
+ *
+ * @event the event to send
+ */
+void qemu_chr_fe_event(CharDriverState *s, int event);
 
 /**
  * @qemu_chr_fe_printf:

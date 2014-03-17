@@ -1,0 +1,139 @@
+#!/bin/bash
+#
+# Test unsupported blockdev-add cases
+#
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+function do_run_qemu()
+{
+    echo Testing: "$@"
+    $QEMU -nographic -qmp stdio -serial none "$@"
+    echo
+}
+
+function run_qemu()
+{
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp | sed -e 's/\("actual-size":\s*\)[0-9]\+/\1SIZE/g'
+}
+
+size=128M
+
+_make_test_img $size
+
+echo
+echo === Missing ID ===
+echo
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+  "arguments": {
+      "options": {
+        "driver": "$IMGFMT",
+        "file": {
+            "driver": "file",
+            "filename": "$TEST_IMG"
+        }
+      }
+    }
+  }
+{ "execute": "quit" }
+EOF
+
+echo
+echo === aio=native without O_DIRECT ===
+echo
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+  "arguments": {
+      "options": {
+        "driver": "$IMGFMT",
+        "id": "disk",
+        "aio": "native",
+        "file": {
+            "driver": "file",
+            "filename": "$TEST_IMG"
+        }
+      }
+    }
+  }
+{ "execute": "quit" }
+EOF
+
+echo
+echo === Encrypted image ===
+echo
+
+_make_test_img -o encryption=on $size
+run_qemu -S <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+  "arguments": {
+      "options": {
+        "driver": "$IMGFMT",
+        "id": "disk",
+        "file": {
+            "driver": "file",
+            "filename": "$TEST_IMG"
+        }
+      }
+    }
+  }
+{ "execute": "quit" }
+EOF
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+  "arguments": {
+      "options": {
+        "driver": "$IMGFMT",
+        "id": "disk",
+        "file": {
+            "driver": "file",
+            "filename": "$TEST_IMG"
+        }
+      }
+    }
+  }
+{ "execute": "quit" }
+EOF
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

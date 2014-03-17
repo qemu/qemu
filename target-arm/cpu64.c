@@ -45,6 +45,7 @@ static void aarch64_any_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_ARM_DIV);
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
     set_feature(&cpu->env, ARM_FEATURE_AARCH64);
+    cpu->ctr = 0x80030003; /* 32 byte I and D cacheline size, VIPT icache */
 }
 #endif
 
@@ -58,6 +59,7 @@ static const ARMCPUInfo aarch64_cpus[] = {
 #ifdef CONFIG_USER_ONLY
     { .name = "any",         .initfn = aarch64_any_initfn },
 #endif
+    { .name = NULL }
 };
 
 static void aarch64_cpu_initfn(Object *obj)
@@ -68,11 +70,22 @@ static void aarch64_cpu_finalizefn(Object *obj)
 {
 }
 
+static void aarch64_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    /*
+     * TODO: this will need updating for system emulation,
+     * when the core may be in AArch32 mode.
+     */
+    cpu->env.pc = value;
+}
+
 static void aarch64_cpu_class_init(ObjectClass *oc, void *data)
 {
     CPUClass *cc = CPU_CLASS(oc);
 
     cc->dump_state = aarch64_cpu_dump_state;
+    cc->set_pc = aarch64_cpu_set_pc;
     cc->gdb_read_register = aarch64_cpu_gdb_read_register;
     cc->gdb_write_register = aarch64_cpu_gdb_write_register;
     cc->gdb_num_core_regs = 34;
@@ -107,11 +120,13 @@ static const TypeInfo aarch64_cpu_type_info = {
 
 static void aarch64_cpu_register_types(void)
 {
-    int i;
+    const ARMCPUInfo *info = aarch64_cpus;
 
     type_register_static(&aarch64_cpu_type_info);
-    for (i = 0; i < ARRAY_SIZE(aarch64_cpus); i++) {
-        aarch64_cpu_register(&aarch64_cpus[i]);
+
+    while (info->name) {
+        aarch64_cpu_register(info);
+        info++;
     }
 }
 

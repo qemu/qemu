@@ -66,7 +66,6 @@ struct AppleSMCData {
     QLIST_ENTRY(AppleSMCData) node;
 };
 
-#define TYPE_APPLE_SMC "isa-applesmc"
 #define APPLE_SMC(obj) OBJECT_CHECK(AppleSMCState, (obj), TYPE_APPLE_SMC)
 
 typedef struct AppleSMCState AppleSMCState;
@@ -250,7 +249,7 @@ static void applesmc_isa_realize(DeviceState *dev, Error **errp)
 }
 
 static Property applesmc_isa_properties[] = {
-    DEFINE_PROP_HEX32("iobase", AppleSMCState, iobase,
+    DEFINE_PROP_UINT32("iobase", AppleSMCState, iobase,
                       APPLESMC_DEFAULT_IOBASE),
     DEFINE_PROP_STRING("osk", AppleSMCState, osk),
     DEFINE_PROP_END_OF_LIST(),

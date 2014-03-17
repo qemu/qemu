@@ -518,7 +518,6 @@ static void fuzz_registers(void)
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
-    char *cmdline;
     int fd;
     int ret;
 
@@ -538,9 +537,7 @@ int main(int argc, char **argv)
     /* Run the tests */
     g_test_init(&argc, &argv, NULL);
 
-    cmdline = g_strdup_printf("-vnc none ");
-
-    qtest_start(cmdline);
+    qtest_start(NULL);
     qtest_irq_intercept_in(global_qtest, "ioapic");
     qtest_add_func("/fdc/cmos", test_cmos);
     qtest_add_func("/fdc/no_media_on_start", test_no_media_on_start);

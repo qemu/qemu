@@ -402,6 +402,7 @@ usb_desc_config(int addr, int index, int len, int ret) "dev %d query config %d, 
 usb_desc_other_speed_config(int addr, int index, int len, int ret) "dev %d query config %d, len %d, ret %d"
 usb_desc_string(int addr, int index, int len, int ret) "dev %d query string %d, len %d, ret %d"
 usb_desc_bos(int addr, int len, int ret) "dev %d bos, len %d, ret %d"
+usb_desc_msos(int addr, int index, int len, int ret) "dev %d msos, index 0x%x, len %d, ret %d"
 usb_set_addr(int addr) "dev %d"
 usb_set_config(int addr, int config, int ret) "dev %d, config %d, ret %d"
 usb_set_interface(int addr, int iface, int alt, int ret) "dev %d, interface %d, altsetting %d, ret %d"
@@ -485,6 +486,7 @@ runstate_set(int new_state) "new state %d"
 g_malloc(size_t size, void *ptr) "size %zu ptr %p"
 g_realloc(void *ptr, size_t size, void *newptr) "ptr %p size %zu newptr %p"
 g_free(void *ptr) "ptr %p"
+system_wakeup_request(int reason) "reason=%d"
 
 # block/qcow2.c
 qcow2_writev_start_req(void *co, int64_t sector, int nb_sectors) "co %p sector %" PRIx64 " nb_sectors %d"
@@ -494,10 +496,10 @@ qcow2_writev_done_part(void *co, int cur_nr_sectors) "co %p cur_nr_sectors %d"
 qcow2_writev_data(void *co, uint64_t offset) "co %p offset %" PRIx64
 
 # block/qcow2-cluster.c
-qcow2_alloc_clusters_offset(void *co, uint64_t offset, int n_start, int n_end) "co %p offet %" PRIx64 " n_start %d n_end %d"
-qcow2_handle_copied(void *co, uint64_t guest_offset, uint64_t host_offset, uint64_t bytes) "co %p guest_offet %" PRIx64 " host_offset %" PRIx64 " bytes %" PRIx64
-qcow2_handle_alloc(void *co, uint64_t guest_offset, uint64_t host_offset, uint64_t bytes) "co %p guest_offet %" PRIx64 " host_offset %" PRIx64 " bytes %" PRIx64
-qcow2_do_alloc_clusters_offset(void *co, uint64_t guest_offset, uint64_t host_offset, int nb_clusters) "co %p guest_offet %" PRIx64 " host_offset %" PRIx64 " nb_clusters %d"
+qcow2_alloc_clusters_offset(void *co, uint64_t offset, int num) "co %p offset %" PRIx64 " num %d"
+qcow2_handle_copied(void *co, uint64_t guest_offset, uint64_t host_offset, uint64_t bytes) "co %p guest_offset %" PRIx64 " host_offset %" PRIx64 " bytes %" PRIx64
+qcow2_handle_alloc(void *co, uint64_t guest_offset, uint64_t host_offset, uint64_t bytes) "co %p guest_offset %" PRIx64 " host_offset %" PRIx64 " bytes %" PRIx64
+qcow2_do_alloc_clusters_offset(void *co, uint64_t guest_offset, uint64_t host_offset, int nb_clusters) "co %p guest_offset %" PRIx64 " host_offset %" PRIx64 " nb_clusters %d"
 qcow2_cluster_alloc_phys(void *co) "co %p"
 qcow2_cluster_link_l2(void *co, int nb_clusters) "co %p nb_clusters %d"
 
@@ -1019,6 +1021,15 @@ gd_switch(int width, int height) "width=%d, height=%d"
 gd_update(int x, int y, int w, int h) "x=%d, y=%d, w=%d, h=%d"
 gd_key_event(int gdk_keycode, int qemu_keycode, const char *action) "translated GDK keycode %d to QEMU keycode %d (%s)"
 
+# ui/input.c
+input_event_key_number(int conidx, int number, bool down) "con %d, key number 0x%d, down %d"
+input_event_key_qcode(int conidx, const char *qcode, bool down) "con %d, key qcode %s, down %d"
+input_event_btn(int conidx, const char *btn, bool down) "con %d, button %s, down %d"
+input_event_rel(int conidx, const char *axis, int value) "con %d, axis %s, value %d"
+input_event_abs(int conidx, const char *axis, int value) "con %d, axis %s, value 0x%x"
+input_event_sync(void) ""
+input_mouse_mode(int absolute) "absolute %d"
+
 # hw/display/vmware_vga.c
 vmware_value_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
 vmware_value_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
@@ -1029,8 +1040,8 @@ vmware_scratch_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
 vmware_setmode(uint32_t w, uint32_t h, uint32_t bpp) "%dx%d @ %d bpp"
 
 # savevm.c
-savevm_section_start(void) ""
-savevm_section_end(unsigned int section_id) "section_id %u"
+savevm_section_start(const char *id, unsigned int section_id) "%s, section_id %u"
+savevm_section_end(const char *id, unsigned int section_id) "%s, section_id %u"
 
 # arch_init.c
 migration_bitmap_sync_start(void) ""
@@ -1135,6 +1146,7 @@ xics_ics_eoi(int nr) "ics_eoi: irq %#x"
 
 # hw/ppc/spapr_iommu.c
 spapr_iommu_put(uint64_t liobn, uint64_t ioba, uint64_t tce, uint64_t ret) "liobn=%"PRIx64" ioba=0x%"PRIx64" tce=0x%"PRIx64" ret=%"PRId64
+spapr_iommu_get(uint64_t liobn, uint64_t ioba, uint64_t ret, uint64_t tce) "liobn=%"PRIx64" ioba=0x%"PRIx64" ret=%"PRId64" tce=0x%"PRIx64
 spapr_iommu_xlate(uint64_t liobn, uint64_t ioba, uint64_t tce, unsigned perm, unsigned pgsize) "liobn=%"PRIx64" 0x%"PRIx64" -> 0x%"PRIx64" perm=%u mask=%x"
 spapr_iommu_new_table(uint64_t liobn, void *tcet, void *table, int fd) "liobn=%"PRIx64" tcet=%p table=%p fd=%d"
 
@@ -1156,10 +1168,16 @@ css_chpid_add(uint8_t cssid, uint8_t chpid, uint8_t type) "CSS: add chpid %x.%02
 css_new_image(uint8_t cssid, const char *default_cssid) "CSS: add css image %02x %s"
 css_assign_subch(const char *do_assign, uint8_t cssid, uint8_t ssid, uint16_t schid, uint16_t devno) "CSS: %s %x.%x.%04x (devno %04x)"
 css_io_interrupt(int cssid, int ssid, int schid, uint32_t intparm, uint8_t isc, const char *conditional) "CSS: I/O interrupt on sch %x.%x.%04x (intparm %08x, isc %x) %s"
+css_adapter_interrupt(uint8_t isc) "CSS: adapter I/O interrupt (isc %x)"
 
 # hw/s390x/virtio-ccw.c
 virtio_ccw_interpret_ccw(int cssid, int ssid, int schid, int cmd_code) "VIRTIO-CCW: %x.%x.%04x: interpret command %x"
 virtio_ccw_new_device(int cssid, int ssid, int schid, int devno, const char *devno_mode) "VIRTIO-CCW: add subchannel %x.%x.%04x, devno %04x (%s)"
+
+# hw/intc/s390_flic.c
+flic_create_device(int err) "flic: create device failed %d"
+flic_no_device_api(int err) "flic: no Device Contral API support %d"
+flic_reset_failed(int err) "flic: reset failed %d"
 
 # migration.c
 migrate_set_state(int new_state) "new state %d"
@@ -1169,6 +1187,9 @@ kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"
 kvm_vm_ioctl(int type, void *arg) "type 0x%x, arg %p"
 kvm_vcpu_ioctl(int cpu_index, int type, void *arg) "cpu_index %d, type 0x%x, arg %p"
 kvm_run_exit(int cpu_index, uint32_t reason) "cpu_index %d, reason %d"
+kvm_device_ioctl(int fd, int type, void *arg) "dev fd %d, type 0x%x, arg %p"
+kvm_failed_spr_set(int str, const char *msg) "Warning: Unable to set SPR %d to KVM: %s"
+kvm_failed_spr_get(int str, const char *msg) "Warning: Unable to retrieve SPR %d from KVM: %s"
 
 # memory.c
 memory_region_ops_read(void *mr, uint64_t addr, uint64_t value, unsigned size) "mr %p addr %#"PRIx64" value %#"PRIx64" size %u"

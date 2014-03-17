@@ -157,6 +157,11 @@
 #define USB_DEV_CAP_USB2_EXT            0x02
 #define USB_DEV_CAP_SUPERSPEED          0x03
 
+#define USB_CFG_ATT_ONE              (1 << 7) /* should always be set */
+#define USB_CFG_ATT_SELFPOWER        (1 << 6)
+#define USB_CFG_ATT_WAKEUP           (1 << 5)
+#define USB_CFG_ATT_BATTERY          (1 << 4)
+
 #define USB_ENDPOINT_XFER_CONTROL	0
 #define USB_ENDPOINT_XFER_ISOC		1
 #define USB_ENDPOINT_XFER_BULK		2
@@ -182,6 +187,7 @@ typedef struct USBDescIface USBDescIface;
 typedef struct USBDescEndpoint USBDescEndpoint;
 typedef struct USBDescOther USBDescOther;
 typedef struct USBDescString USBDescString;
+typedef struct USBDescMSOS USBDescMSOS;
 
 struct USBDescString {
     uint8_t index;
@@ -208,6 +214,8 @@ struct USBEndpoint {
 enum USBDeviceFlags {
     USB_DEV_FLAG_FULL_PATH,
     USB_DEV_FLAG_IS_HOST,
+    USB_DEV_FLAG_MSOS_DESC_ENABLE,
+    USB_DEV_FLAG_MSOS_DESC_IN_USE,
 };
 
 /* definition of a USB device */

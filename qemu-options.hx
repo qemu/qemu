@@ -328,9 +328,11 @@ possible drivers and properties, use @code{-device help} and
 ETEXI
 
 DEF("name", HAS_ARG, QEMU_OPTION_name,
-    "-name string1[,process=string2]\n"
+    "-name string1[,process=string2][,debug-threads=on|off]\n"
     "                set the name of the guest\n"
-    "                string1 sets the window title and string2 the process name (on Linux)\n",
+    "                string1 sets the window title and string2 the process name (on Linux)\n"
+    "                When debug-threads is enabled, individual threads are given a separate name (on Linux)\n"
+    "                NOTE: The thread names are for debugging and not a stable API.\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -name @var{name}
@@ -339,6 +341,7 @@ Sets the @var{name} of the guest.
 This name will be displayed in the SDL window caption.
 The @var{name} will also be used for the VNC server.
 Also optionally set the top visible process name in Linux.
+Naming of individual threads can also be enabled on Linux to aid debugging.
 ETEXI
 
 DEF("uuid", HAS_ARG, QEMU_OPTION_uuid,
@@ -2096,7 +2099,7 @@ ETEXI
 DEF("iscsi", HAS_ARG, QEMU_OPTION_iscsi,
     "-iscsi [user=user][,password=password]\n"
     "       [,header-digest=CRC32C|CR32C-NONE|NONE-CRC32C|NONE\n"
-    "       [,initiator-name=iqn]\n"
+    "       [,initiator-name=initiator-iqn][,id=target-iqn]\n"
     "                iSCSI session parameters\n", QEMU_ARCH_ALL)
 STEXI
 
@@ -2419,6 +2422,8 @@ vc:80Cx24C
 No device is allocated.
 @item null
 void device
+@item chardev:@var{id}
+Use a named character device defined with the @code{-chardev} option.
 @item /dev/XXX
 [Linux only] Use host tty, e.g. @file{/dev/ttyS0}. The host serial port
 parameters are set according to the emulated ones.

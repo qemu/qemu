@@ -12,9 +12,6 @@ extern PropertyInfo qdev_prop_uint16;
 extern PropertyInfo qdev_prop_uint32;
 extern PropertyInfo qdev_prop_int32;
 extern PropertyInfo qdev_prop_uint64;
-extern PropertyInfo qdev_prop_hex8;
-extern PropertyInfo qdev_prop_hex32;
-extern PropertyInfo qdev_prop_hex64;
 extern PropertyInfo qdev_prop_size;
 extern PropertyInfo qdev_prop_string;
 extern PropertyInfo qdev_prop_chr;
@@ -25,6 +22,7 @@ extern PropertyInfo qdev_prop_bios_chs_trans;
 extern PropertyInfo qdev_prop_drive;
 extern PropertyInfo qdev_prop_netdev;
 extern PropertyInfo qdev_prop_vlan;
+extern PropertyInfo qdev_prop_iothread;
 extern PropertyInfo qdev_prop_pci_devfn;
 extern PropertyInfo qdev_prop_blocksize;
 extern PropertyInfo qdev_prop_pci_host_devaddr;
@@ -111,19 +109,30 @@ extern PropertyInfo qdev_prop_arraylen;
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_int32, int32_t)
 #define DEFINE_PROP_UINT64(_n, _s, _f, _d)                      \
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_uint64, uint64_t)
-#define DEFINE_PROP_HEX8(_n, _s, _f, _d)                       \
-    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_hex8, uint8_t)
-#define DEFINE_PROP_HEX32(_n, _s, _f, _d)                       \
-    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_hex32, uint32_t)
-#define DEFINE_PROP_HEX64(_n, _s, _f, _d)                       \
-    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_hex64, uint64_t)
 #define DEFINE_PROP_SIZE(_n, _s, _f, _d)                       \
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_size, uint64_t)
 #define DEFINE_PROP_PCI_DEVFN(_n, _s, _f, _d)                   \
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_pci_devfn, int32_t)
 
+/*
+ * Please avoid pointer properties.  If you must use them, you must
+ * cover them in their device's class init function as follows:
+ *
+ * - If the property must be set, the device cannot be used with
+ *   device_add, so add code like this:
+ *   |* Reason: pointer property "NAME-OF-YOUR-PROP" *|
+ *   DeviceClass *dc = DEVICE_CLASS(class);
+ *   dc->cannot_instantiate_with_device_add_yet = true;
+ *
+ * - If the property may safely remain null, document it like this:
+ *   |*
+ *    * Note: pointer property "interrupt_vector" may remain null, thus
+ *    * no need for dc->cannot_instantiate_with_device_add_yet = true;
+ *    *|
+ */
 #define DEFINE_PROP_PTR(_n, _s, _f)             \
     DEFINE_PROP(_n, _s, _f, qdev_prop_ptr, void*)
+
 #define DEFINE_PROP_CHR(_n, _s, _f)             \
     DEFINE_PROP(_n, _s, _f, qdev_prop_chr, CharDriverState*)
 #define DEFINE_PROP_STRING(_n, _s, _f)             \
@@ -134,6 +143,8 @@ extern PropertyInfo qdev_prop_arraylen;
     DEFINE_PROP(_n, _s, _f, qdev_prop_vlan, NICPeers)
 #define DEFINE_PROP_DRIVE(_n, _s, _f) \
     DEFINE_PROP(_n, _s, _f, qdev_prop_drive, BlockDriverState *)
+#define DEFINE_PROP_IOTHREAD(_n, _s, _f)             \
+    DEFINE_PROP(_n, _s, _f, qdev_prop_iothread, IOThread *)
 #define DEFINE_PROP_MACADDR(_n, _s, _f)         \
     DEFINE_PROP(_n, _s, _f, qdev_prop_macaddr, MACAddr)
 #define DEFINE_PROP_LOSTTICKPOLICY(_n, _s, _f, _d) \
@@ -151,8 +162,6 @@ extern PropertyInfo qdev_prop_arraylen;
 
 /* Set properties between creation and init.  */
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop);
-void qdev_prop_parse(DeviceState *dev, const char *name, const char *value,
-                     Error **errp);
 void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value);
 void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value);
 void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value);

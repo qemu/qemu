@@ -121,6 +121,8 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
     sc->write_data = eeprom_write_data;
     sc->read_data = eeprom_read_data;
     dc->props = smbus_eeprom_properties;
+    /* Reason: pointer property "data" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo smbus_eeprom_info = {
@@ -137,7 +139,7 @@ static void smbus_eeprom_register_types(void)
 
 type_init(smbus_eeprom_register_types)
 
-void smbus_eeprom_init(i2c_bus *smbus, int nb_eeprom,
+void smbus_eeprom_init(I2CBus *smbus, int nb_eeprom,
                        const uint8_t *eeprom_spd, int eeprom_spd_size)
 {
     int i;

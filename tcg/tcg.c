@@ -41,7 +41,7 @@
 #include "qemu/host-utils.h"
 #include "qemu/timer.h"
 
-/* Note: the long term plan is to reduce the dependancies on the QEMU
+/* Note: the long term plan is to reduce the dependencies on the QEMU
    CPU definitions. Currently they are used for qemu_ld/st
    instructions */
 #define NO_CPU_IO_DEFS
@@ -526,7 +526,7 @@ static inline int tcg_temp_new_internal(TCGType type, int temp_local)
             ts->temp_local = temp_local;
             ts->name = NULL;
             ts++;
-            ts->base_type = TCG_TYPE_I32;
+            ts->base_type = type;
             ts->type = TCG_TYPE_I32;
             ts->temp_allocated = 1;
             ts->temp_local = temp_local;
@@ -586,7 +586,7 @@ static void tcg_temp_free_internal(int idx)
     assert(ts->temp_allocated != 0);
     ts->temp_allocated = 0;
 
-    k = ts->type + (ts->temp_local ? TCG_TYPE_COUNT : 0);
+    k = ts->base_type + (ts->temp_local ? TCG_TYPE_COUNT : 0);
     set_bit(idx, s->free_temps[k].l);
 }
 

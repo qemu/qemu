@@ -119,7 +119,8 @@ static const USBDescDevice desc_device_hub = {
         {
             .bNumInterfaces        = 1,
             .bConfigurationValue   = 1,
-            .bmAttributes          = 0xe0,
+            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER |
+                                     USB_CFG_ATT_WAKEUP,
             .nif = 1,
             .ifs = &desc_iface_hub,
         },

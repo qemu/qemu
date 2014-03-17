@@ -809,22 +809,26 @@ static inline void omap_pin_funcmux1_update(struct omap_mpu_state_s *s,
                 uint32_t diff, uint32_t value)
 {
     if (s->compat1509) {
-        if (diff & (1 << 31))			/* MCBSP3_CLK_HIZ_DI */
-            omap_clk_onoff(omap_findclk(s, "mcbsp3.clkx"),
-                            (value >> 31) & 1);
-        if (diff & (1 << 1))			/* CLK32K */
-            omap_clk_onoff(omap_findclk(s, "clk32k_out"),
-                            (~value >> 1) & 1);
+        if (diff & (1U << 31)) {
+            /* MCBSP3_CLK_HIZ_DI */
+            omap_clk_onoff(omap_findclk(s, "mcbsp3.clkx"), (value >> 31) & 1);
+        }
+        if (diff & (1 << 1)) {
+            /* CLK32K */
+            omap_clk_onoff(omap_findclk(s, "clk32k_out"), (~value >> 1) & 1);
+        }
     }
 }
 
 static inline void omap_pin_modconf1_update(struct omap_mpu_state_s *s,
                 uint32_t diff, uint32_t value)
 {
-    if (diff & (1 << 31))			/* CONF_MOD_UART3_CLK_MODE_R */
-         omap_clk_reparent(omap_findclk(s, "uart3_ck"),
-                         omap_findclk(s, ((value >> 31) & 1) ?
-                                 "ck_48m" : "armper_ck"));
+    if (diff & (1U << 31)) {
+        /* CONF_MOD_UART3_CLK_MODE_R */
+        omap_clk_reparent(omap_findclk(s, "uart3_ck"),
+                          omap_findclk(s, ((value >> 31) & 1) ?
+                                       "ck_48m" : "armper_ck"));
+    }
     if (diff & (1 << 30))			/* CONF_MOD_UART2_CLK_MODE_R */
          omap_clk_reparent(omap_findclk(s, "uart2_ck"),
                          omap_findclk(s, ((value >> 30) & 1) ?

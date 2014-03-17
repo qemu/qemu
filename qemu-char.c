@@ -213,7 +213,7 @@ void qemu_chr_add_handlers(CharDriverState *s,
     s->chr_read = fd_read;
     s->chr_event = fd_event;
     s->handler_opaque = opaque;
-    if (s->chr_update_read_handler)
+    if (fe_open && s->chr_update_read_handler)
         s->chr_update_read_handler(s);
 
     if (!s->explicit_fe_open) {
@@ -1136,12 +1136,13 @@ static void pty_chr_state(CharDriverState *chr, int connected)
         if (!s->connected) {
             s->connected = 1;
             qemu_chr_be_generic_open(chr);
+        }
+        if (!chr->fd_in_tag) {
             chr->fd_in_tag = io_add_watch_poll(s->fd, pty_chr_read_poll,
                                                pty_chr_read, chr);
         }
     }
 }
-
 
 static void pty_chr_close(struct CharDriverState *chr)
 {
@@ -1975,8 +1976,7 @@ static void win_stdio_wait_func(void *opaque)
     DWORD              dwSize;
     int                i;
 
-    ret = ReadConsoleInput(stdio->hStdIn, buf, sizeof(buf) / sizeof(*buf),
-                           &dwSize);
+    ret = ReadConsoleInput(stdio->hStdIn, buf, ARRAY_SIZE(buf), &dwSize);
 
     if (!ret) {
         /* Avoid error storm */
@@ -2510,6 +2510,17 @@ static void tcp_chr_connect(void *opaque)
     qemu_chr_be_generic_open(chr);
 }
 
+static void tcp_chr_update_read_handler(CharDriverState *chr)
+{
+    TCPCharDriver *s = chr->opaque;
+
+    remove_fd_in_watch(chr);
+    if (s->chan) {
+        chr->fd_in_tag = io_add_watch_poll(s->chan, tcp_chr_read_poll,
+                                           tcp_chr_read, chr);
+    }
+}
+
 #define IACSET(x,a,b,c) x[0] = a; x[1] = b; x[2] = c;
 static void tcp_chr_telnet_init(int fd)
 {
@@ -2665,6 +2676,7 @@ static CharDriverState *qemu_chr_open_socket_fd(int fd, bool do_nodelay,
     chr->get_msgfd = tcp_get_msgfd;
     chr->chr_add_client = tcp_chr_add_client;
     chr->chr_add_watch = tcp_chr_add_watch;
+    chr->chr_update_read_handler = tcp_chr_update_read_handler;
     /* be isn't opened until we get a connection */
     chr->explicit_be_open = true;
 
@@ -2726,7 +2738,7 @@ static CharDriverState *qemu_chr_open_socket(QemuOpts *opts)
 
     chr = qemu_chr_open_socket_fd(fd, do_nodelay, is_listen, is_telnet,
                                   is_waitconnect, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         goto fail;
     }
     return chr;
@@ -2939,7 +2951,7 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
     Error *local_err = NULL;
 
     opts = qemu_opts_create(qemu_find_opts("chardev"), label, 1, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         qerror_report_err(local_err);
         error_free(local_err);
         return NULL;
@@ -3324,7 +3336,7 @@ CharDriverState *qemu_chr_new(const char *label, const char *filename, void (*in
         return NULL;
 
     chr = qemu_chr_new_from_opts(opts, init, &err);
-    if (error_is_set(&err)) {
+    if (err) {
         error_report("%s", error_get_pretty(err));
         error_free(err);
     }
@@ -3350,6 +3362,13 @@ void qemu_chr_fe_set_open(struct CharDriverState *chr, int fe_open)
     chr->fe_open = fe_open;
     if (chr->chr_set_fe_open) {
         chr->chr_set_fe_open(chr, fe_open);
+    }
+}
+
+void qemu_chr_fe_event(struct CharDriverState *chr, int event)
+{
+    if (chr->chr_fe_event) {
+        chr->chr_fe_event(chr, event);
     }
 }
 
@@ -3424,6 +3443,25 @@ ChardevInfoList *qmp_query_chardev(Error **errp)
     }
 
     return chr_list;
+}
+
+ChardevBackendInfoList *qmp_query_chardev_backends(Error **errp)
+{
+    ChardevBackendInfoList *backend_list = NULL;
+    CharDriver *c = NULL;
+    GSList *i = NULL;
+
+    for (i = backends; i; i = i->next) {
+        ChardevBackendInfoList *info = g_malloc0(sizeof(*info));
+        c = i->data;
+        info->value = g_malloc0(sizeof(*info->value));
+        info->value->name = g_strdup(c->name);
+
+        info->next = backend_list;
+        backend_list = info;
+    }
+
+    return backend_list;
 }
 
 CharDriverState *qemu_chr_find(const char *name)

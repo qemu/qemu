@@ -21,6 +21,7 @@
 
 #include "qemu-common.h"
 #include "exec/cpu-common.h"
+#include "exec/memory.h"
 #include "qemu/thread.h"
 #include "qom/cpu.h"
 
@@ -359,9 +360,6 @@ int page_check_range(target_ulong start, target_ulong len, int flags);
 
 CPUArchState *cpu_copy(CPUArchState *env);
 
-void QEMU_NORETURN cpu_abort(CPUArchState *env, const char *fmt, ...)
-    GCC_FMT_ATTR(2, 3);
-
 /* Flags for use in ENV->INTERRUPT_PENDING.
 
    The numbers assigned here are non-sequential in order to preserve
@@ -412,27 +410,6 @@ void QEMU_NORETURN cpu_abort(CPUArchState *env, const char *fmt, ...)
      | CPU_INTERRUPT_TGT_EXT_3   \
      | CPU_INTERRUPT_TGT_EXT_4)
 
-/* Breakpoint/watchpoint flags */
-#define BP_MEM_READ           0x01
-#define BP_MEM_WRITE          0x02
-#define BP_MEM_ACCESS         (BP_MEM_READ | BP_MEM_WRITE)
-#define BP_STOP_BEFORE_ACCESS 0x04
-#define BP_WATCHPOINT_HIT     0x08
-#define BP_GDB                0x10
-#define BP_CPU                0x20
-
-int cpu_breakpoint_insert(CPUArchState *env, target_ulong pc, int flags,
-                          CPUBreakpoint **breakpoint);
-int cpu_breakpoint_remove(CPUArchState *env, target_ulong pc, int flags);
-void cpu_breakpoint_remove_by_ref(CPUArchState *env, CPUBreakpoint *breakpoint);
-void cpu_breakpoint_remove_all(CPUArchState *env, int mask);
-int cpu_watchpoint_insert(CPUArchState *env, target_ulong addr, target_ulong len,
-                          int flags, CPUWatchpoint **watchpoint);
-int cpu_watchpoint_remove(CPUArchState *env, target_ulong addr,
-                          target_ulong len, int flags);
-void cpu_watchpoint_remove_by_ref(CPUArchState *env, CPUWatchpoint *watchpoint);
-void cpu_watchpoint_remove_all(CPUArchState *env, int mask);
-
 #if !defined(CONFIG_USER_ONLY)
 
 /* memory API */
@@ -459,7 +436,7 @@ typedef struct RAMBlock {
 typedef struct RAMList {
     QemuMutex mutex;
     /* Protected by the iothread lock.  */
-    uint8_t *phys_dirty;
+    unsigned long *dirty_memory[DIRTY_MEMORY_NUM];
     RAMBlock *mru_block;
     /* Protected by the ramlist lock.  */
     QTAILQ_HEAD(, RAMBlock) blocks;

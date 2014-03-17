@@ -420,8 +420,8 @@ static int xen_pt_register_regions(XenPCIPassthroughState *s)
                               "xen-pci-pt-bar", r->size);
         pci_register_bar(&s->dev, i, type, &s->bar[i]);
 
-        XEN_PT_LOG(&s->dev, "IO region %i registered (size=0x%lx"PRIx64
-                   " base_addr=0x%lx"PRIx64" type: %#x)\n",
+        XEN_PT_LOG(&s->dev, "IO region %i registered (size=0x%08"PRIx64
+                   " base_addr=0x%08"PRIx64" type: %#x)\n",
                    i, r->size, r->base_addr, type);
     }
 
@@ -440,8 +440,8 @@ static int xen_pt_register_regions(XenPCIPassthroughState *s)
 
         s->bases[PCI_ROM_SLOT].access.maddr = d->rom.base_addr;
 
-        memory_region_init_rom_device(&s->rom, OBJECT(s), NULL, NULL,
-                                      "xen-pci-pt-rom", d->rom.size);
+        memory_region_init_io(&s->rom, OBJECT(s), &ops, &s->dev,
+                              "xen-pci-pt-rom", d->rom.size);
         pci_register_bar(&s->dev, PCI_ROM_SLOT, PCI_BASE_ADDRESS_MEM_PREFETCH,
                          &s->rom);
 

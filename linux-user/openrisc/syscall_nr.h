@@ -378,9 +378,13 @@
 #define TARGET_NR_syncfs 267
 #define TARGET_NR_setns 268
 #define TARGET_NR_sendmmsg 269
+#define TARGET_NR_process_vm_readv 270
+#define TARGET_NR_process_vm_writev 271
+#define TARGET_NR_kcmp 272
+#define TARGET_NR_finit_module 273
 
 #undef TARGET_NR_syscalls
-#define TARGET_NR_syscalls 270
+#define TARGET_NR_syscalls 274
 
 /*
  * All syscalls below here should go away really,

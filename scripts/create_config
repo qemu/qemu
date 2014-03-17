@@ -26,6 +26,10 @@ case $line in
     # save for the next definitions
     prefix=${line#*=}
     ;;
+ IASL=*) # iasl executable
+    value=${line#*=}
+    echo "#define CONFIG_IASL $value"
+    ;;
  CONFIG_AUDIO_DRIVERS=*)
     drivers=${line#*=}
     echo "#define CONFIG_AUDIO_DRIVERS \\"
@@ -103,6 +107,9 @@ case $line in
     name=${line%=*}
     value=${line#*=}
     echo "#define $name $value"
+    ;;
+ DSOSUF=*)
+    echo "#define HOST_DSOSUF \"${line#*=}\""
     ;;
 esac
 

@@ -229,7 +229,7 @@ static const USBDescDevice desc_device_bluetooth = {
         {
             .bNumInterfaces        = 2,
             .bConfigurationValue   = 1,
-            .bmAttributes          = 0xc0,
+            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
             .bMaxPower             = 0,
             .nif = ARRAY_SIZE(desc_iface_bluetooth),
             .ifs = desc_iface_bluetooth,

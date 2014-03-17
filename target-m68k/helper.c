@@ -132,6 +132,7 @@ void m68k_cpu_init_gdb(M68kCPU *cpu)
 
 void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)
 {
+    M68kCPU *cpu = m68k_env_get_cpu(env);
     int flags;
     uint32_t src;
     uint32_t dest;
@@ -204,7 +205,7 @@ void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)
             flags |= CCF_C;
         break;
     default:
-        cpu_abort(env, "Bad CC_OP %d", cc_op);
+        cpu_abort(CPU(cpu), "Bad CC_OP %d", cc_op);
     }
     env->cc_op = CC_OP_FLAGS;
     env->cc_dest = flags;
@@ -212,6 +213,8 @@ void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)
 
 void HELPER(movec)(CPUM68KState *env, uint32_t reg, uint32_t val)
 {
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+
     switch (reg) {
     case 0x02: /* CACR */
         env->cacr = val;
@@ -225,7 +228,7 @@ void HELPER(movec)(CPUM68KState *env, uint32_t reg, uint32_t val)
         break;
     /* TODO: Implement control registers.  */
     default:
-        cpu_abort(env, "Unimplemented control register write 0x%x = 0x%x\n",
+        cpu_abort(CPU(cpu), "Unimplemented control register write 0x%x = 0x%x\n",
                   reg, val);
     }
 }
@@ -277,11 +280,13 @@ void m68k_switch_sp(CPUM68KState *env)
 
 #if defined(CONFIG_USER_ONLY)
 
-int cpu_m68k_handle_mmu_fault (CPUM68KState *env, target_ulong address, int rw,
-                               int mmu_idx)
+int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                              int mmu_idx)
 {
-    env->exception_index = EXCP_ACCESS;
-    env->mmu.ar = address;
+    M68kCPU *cpu = M68K_CPU(cs);
+
+    cs->exception_index = EXCP_ACCESS;
+    cpu->env.mmu.ar = address;
     return 1;
 }
 
@@ -295,14 +300,14 @@ hwaddr m68k_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     return addr;
 }
 
-int cpu_m68k_handle_mmu_fault (CPUM68KState *env, target_ulong address, int rw,
-                               int mmu_idx)
+int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                              int mmu_idx)
 {
     int prot;
 
     address &= TARGET_PAGE_MASK;
     prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-    tlb_set_page(env, address, address, prot, mmu_idx, TARGET_PAGE_SIZE);
+    tlb_set_page(cs, address, address, prot, mmu_idx, TARGET_PAGE_SIZE);
     return 0;
 }
 

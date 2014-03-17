@@ -358,7 +358,8 @@ struct ObjectClass
     Type type;
     GSList *interfaces;
 
-    const char *cast_cache[OBJECT_CLASS_CAST_CACHE];
+    const char *object_cast_cache[OBJECT_CLASS_CAST_CACHE];
+    const char *class_cast_cache[OBJECT_CLASS_CAST_CACHE];
 
     ObjectUnparent *unparent;
 };
@@ -535,6 +536,7 @@ struct InterfaceClass
     ObjectClass parent_class;
     /*< private >*/
     ObjectClass *concrete_class;
+    Type interface_type;
 };
 
 #define TYPE_INTERFACE "interface"
@@ -944,12 +946,13 @@ void object_property_parse(Object *obj, const char *string,
  * object_property_print:
  * @obj: the object
  * @name: the name of the property
+ * @human: if true, print for human consumption
  * @errp: returns an error if this function fails
  *
  * Returns a string representation of the value of the property.  The
  * caller shall free the string.
  */
-char *object_property_print(Object *obj, const char *name,
+char *object_property_print(Object *obj, const char *name, bool human,
                             Error **errp);
 
 /**
@@ -969,6 +972,14 @@ const char *object_property_get_type(Object *obj, const char *name,
  * Returns: the root object of the composition tree
  */
 Object *object_get_root(void);
+
+/**
+ * object_get_canonical_path_component:
+ *
+ * Returns: The final component in the object's canonical path.  The canonical
+ * path is the path within the composition tree starting from the root.
+ */
+gchar *object_get_canonical_path_component(Object *obj);
 
 /**
  * object_get_canonical_path:

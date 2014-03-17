@@ -85,7 +85,8 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (memcmp(ph.magic, HEADER_MAGIC, 16) ||
         (le32_to_cpu(ph.version) != HEADER_VERSION)) {
-        ret = -EMEDIUMTYPE;
+        error_setg(errp, "Image not in Parallels format");
+        ret = -EINVAL;
         goto fail;
     }
 

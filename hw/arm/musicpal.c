@@ -92,8 +92,6 @@
 #define MP_ETH_CRDP3            0x4AC
 #define MP_ETH_CTDP0            0x4E0
 #define MP_ETH_CTDP1            0x4E4
-#define MP_ETH_CTDP2            0x4E8
-#define MP_ETH_CTDP3            0x4EC
 
 /* MII PHY access */
 #define MP_ETH_SMIR_DATA        0x0000FFFF
@@ -112,10 +110,10 @@
 #define MP_PHY_88E3015          0x01410E20
 
 /* TX descriptor status */
-#define MP_ETH_TX_OWN           (1 << 31)
+#define MP_ETH_TX_OWN           (1U << 31)
 
 /* RX descriptor status */
-#define MP_ETH_RX_OWN           (1 << 31)
+#define MP_ETH_RX_OWN           (1U << 31)
 
 /* Interrupt cause/mask bits */
 #define MP_ETH_IRQ_RX_BIT       0
@@ -308,7 +306,7 @@ static uint64_t mv88w8618_eth_read(void *opaque, hwaddr offset,
     case MP_ETH_CRDP0 ... MP_ETH_CRDP3:
         return s->rx_queue[(offset - MP_ETH_CRDP0)/4];
 
-    case MP_ETH_CTDP0 ... MP_ETH_CTDP3:
+    case MP_ETH_CTDP0 ... MP_ETH_CTDP1:
         return s->tx_queue[(offset - MP_ETH_CTDP0)/4];
 
     default:
@@ -362,7 +360,7 @@ static void mv88w8618_eth_write(void *opaque, hwaddr offset,
             s->cur_rx[(offset - MP_ETH_CRDP0)/4] = value;
         break;
 
-    case MP_ETH_CTDP0 ... MP_ETH_CTDP3:
+    case MP_ETH_CTDP0 ... MP_ETH_CTDP1:
         s->tx_queue[(offset - MP_ETH_CTDP0)/4] = value;
         break;
     }
@@ -632,7 +630,7 @@ static int musicpal_lcd_init(SysBusDevice *sbd)
                           "musicpal-lcd", MP_LCD_SIZE);
     sysbus_init_mmio(sbd, &s->iomem);
 
-    s->con = graphic_console_init(dev, &musicpal_gfx_ops, s);
+    s->con = graphic_console_init(dev, 0, &musicpal_gfx_ops, s);
     qemu_console_resize(s->con, 128*3, 64*3);
 
     qdev_init_gpio_in(dev, musicpal_lcd_gpio_brightness_in, 3);
@@ -1593,7 +1591,7 @@ static void musicpal_init(QEMUMachineInitArgs *args)
     DeviceState *key_dev;
     DeviceState *wm8750_dev;
     SysBusDevice *s;
-    i2c_bus *i2c;
+    I2CBus *i2c;
     int i;
     unsigned long flash_size;
     DriveInfo *dinfo;
@@ -1687,7 +1685,7 @@ static void musicpal_init(QEMUMachineInitArgs *args)
     dev = sysbus_create_simple(TYPE_MUSICPAL_GPIO, MP_GPIO_BASE,
                                pic[MP_GPIO_IRQ]);
     i2c_dev = sysbus_create_simple("gpio_i2c", -1, NULL);
-    i2c = (i2c_bus *)qdev_get_child_bus(i2c_dev, "i2c");
+    i2c = (I2CBus *)qdev_get_child_bus(i2c_dev, "i2c");
 
     lcd_dev = sysbus_create_simple(TYPE_MUSICPAL_LCD, MP_LCD_BASE, NULL);
     key_dev = sysbus_create_simple(TYPE_MUSICPAL_KEY, -1, NULL);

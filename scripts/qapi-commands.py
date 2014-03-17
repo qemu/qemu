@@ -7,8 +7,8 @@
 #  Anthony Liguori <aliguori@us.ibm.com>
 #  Michael Roth    <mdroth@linux.vnet.ibm.com>
 #
-# This work is licensed under the terms of the GNU GPLv2.
-# See the COPYING.LIB file in the top-level directory.
+# This work is licensed under the terms of the GNU GPL, version 2.
+# See the COPYING file in the top-level directory.
 
 from ordereddict import OrderedDict
 from qapi import *
@@ -22,13 +22,6 @@ def type_visitor(name):
         return 'visit_type_%sList' % name[0]
     else:
         return 'visit_type_%s' % name
-
-def generate_decl_enum(name, members, genlist=True):
-    return mcgen('''
-
-void %(visitor)s(Visitor *m, %(name)s * obj, const char *name, Error **errp);
-''',
-                 visitor=type_visitor(name))
 
 def generate_command_decl(name, args, ret_type):
     arglist=""
@@ -75,19 +68,6 @@ def gen_marshal_output_call(name, ret_type):
     if not ret_type:
         return ""
     return "qmp_marshal_output_%s(retval, ret, errp);" % c_fun(name)
-
-def gen_visitor_output_containers_decl(ret_type):
-    ret = ""
-    push_indent()
-    if ret_type:
-        ret += mcgen('''
-QmpOutputVisitor *mo;
-QapiDeallocVisitor *md;
-Visitor *v;
-''')
-    pop_indent()
-
-    return ret
 
 def gen_visitor_input_containers_decl(args):
     ret = ""

@@ -304,6 +304,7 @@ typedef struct CPUOpenRISCState {
 
     CPU_COMMON
 
+    /* Fields from here on are preserved across CPU reset. */
 #ifndef CONFIG_USER_ONLY
     CPUOpenRISCTLBContext * tlb;
 
@@ -353,15 +354,13 @@ hwaddr openrisc_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int openrisc_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int openrisc_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 void openrisc_translate_init(void);
-int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
-                                  target_ulong address,
+int openrisc_cpu_handle_mmu_fault(CPUState *cpu, vaddr address,
                                   int rw, int mmu_idx);
 int cpu_openrisc_signal_handler(int host_signum, void *pinfo, void *puc);
 
 #define cpu_list cpu_openrisc_list
 #define cpu_exec cpu_openrisc_exec
 #define cpu_gen_code cpu_openrisc_gen_code
-#define cpu_handle_mmu_fault cpu_openrisc_handle_mmu_fault
 #define cpu_signal_handler cpu_openrisc_signal_handler
 
 #ifndef CONFIG_USER_ONLY
@@ -419,11 +418,6 @@ static inline int cpu_mmu_index(CPUOpenRISCState *env)
 }
 
 #define CPU_INTERRUPT_TIMER   CPU_INTERRUPT_TGT_INT_0
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request & (CPU_INTERRUPT_HARD |
-                                     CPU_INTERRUPT_TIMER);
-}
 
 #include "exec/exec-all.h"
 

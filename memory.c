@@ -22,6 +22,7 @@
 #include <assert.h>
 
 #include "exec/memory-internal.h"
+#include "exec/ram_addr.h"
 
 //#define DEBUG_UNASSIGNED
 
@@ -1174,15 +1175,14 @@ bool memory_region_get_dirty(MemoryRegion *mr, hwaddr addr,
                              hwaddr size, unsigned client)
 {
     assert(mr->terminates);
-    return cpu_physical_memory_get_dirty(mr->ram_addr + addr, size,
-                                         1 << client);
+    return cpu_physical_memory_get_dirty(mr->ram_addr + addr, size, client);
 }
 
 void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
                              hwaddr size)
 {
     assert(mr->terminates);
-    return cpu_physical_memory_set_dirty_range(mr->ram_addr + addr, size, -1);
+    cpu_physical_memory_set_dirty_range(mr->ram_addr + addr, size);
 }
 
 bool memory_region_test_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
@@ -1190,12 +1190,9 @@ bool memory_region_test_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
 {
     bool ret;
     assert(mr->terminates);
-    ret = cpu_physical_memory_get_dirty(mr->ram_addr + addr, size,
-                                        1 << client);
+    ret = cpu_physical_memory_get_dirty(mr->ram_addr + addr, size, client);
     if (ret) {
-        cpu_physical_memory_reset_dirty(mr->ram_addr + addr,
-                                        mr->ram_addr + addr + size,
-                                        1 << client);
+        cpu_physical_memory_reset_dirty(mr->ram_addr + addr, size, client);
     }
     return ret;
 }
@@ -1241,9 +1238,7 @@ void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
                                hwaddr size, unsigned client)
 {
     assert(mr->terminates);
-    cpu_physical_memory_reset_dirty(mr->ram_addr + addr,
-                                    mr->ram_addr + addr + size,
-                                    1 << client);
+    cpu_physical_memory_reset_dirty(mr->ram_addr + addr, size, client);
 }
 
 void *memory_region_get_ram_ptr(MemoryRegion *mr)
@@ -1567,7 +1562,7 @@ static FlatRange *flatview_lookup(FlatView *view, AddrRange addr)
 bool memory_region_present(MemoryRegion *parent, hwaddr addr)
 {
     MemoryRegion *mr = memory_region_find(parent, addr, 1).mr;
-    if (!mr) {
+    if (!mr || (mr == parent)) {
         return false;
     }
     memory_region_unref(mr);
@@ -1596,6 +1591,7 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
     view = address_space_get_flatview(as);
     fr = flatview_lookup(view, range);
     if (!fr) {
+        flatview_unref(view);
         return ret;
     }
 

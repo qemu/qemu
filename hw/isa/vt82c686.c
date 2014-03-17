@@ -369,8 +369,8 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
     return 0;
 }
 
-i2c_bus *vt82c686b_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                       qemu_irq sci_irq)
+I2CBus *vt82c686b_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
+                          qemu_irq sci_irq)
 {
     PCIDevice *dev;
     VT686PMState *s;
@@ -480,8 +480,12 @@ static void via_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_BRIDGE_ISA;
     k->revision = 0x40;
     dc->desc = "ISA bridge";
-    dc->no_user = 1;
     dc->vmsd = &vmstate_via;
+    /*
+     * Reason: part of VIA VT82C686 southbridge, needs to be wired up,
+     * e.g. by mips_fulong2e_init()
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo via_info = {

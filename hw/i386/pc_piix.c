@@ -28,6 +28,7 @@
 #include "hw/loader.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic.h"
+#include "hw/i386/smbios.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_ids.h"
 #include "hw/usb.h"
@@ -59,6 +60,12 @@ static const int ide_irq[MAX_IDE_BUS] = { 14, 15 };
 
 static bool has_pci_info;
 static bool has_acpi_build = true;
+static bool smbios_type1_defaults = true;
+/* Make sure that guest addresses aligned at 1Gbyte boundaries get mapped to
+ * host addresses aligned at 1Gbyte boundaries.  This way we can use 1GByte
+ * pages in the host.
+ */
+static bool gigabyte_align = true;
 
 /* PC hardware initialisation */
 static void pc_init1(QEMUMachineInitArgs *args,
@@ -104,9 +111,17 @@ static void pc_init1(QEMUMachineInitArgs *args,
         kvmclock_create();
     }
 
+    /* Check whether RAM fits below 4G (leaving 1/2 GByte for IO memory).
+     * If it doesn't, we need to split it in chunks below and above 4G.
+     * In any case, try to make sure that guest addresses aligned at
+     * 1G boundaries get mapped to host addresses aligned at 1G boundaries.
+     * For old machine types, use whatever split we used historically to avoid
+     * breaking migration.
+     */
     if (args->ram_size >= 0xe0000000) {
-        above_4g_mem_size = args->ram_size - 0xe0000000;
-        below_4g_mem_size = 0xe0000000;
+        ram_addr_t lowmem = gigabyte_align ? 0xc0000000 : 0xe0000000;
+        above_4g_mem_size = args->ram_size - lowmem;
+        below_4g_mem_size = lowmem;
     } else {
         above_4g_mem_size = 0;
         below_4g_mem_size = args->ram_size;
@@ -114,7 +129,7 @@ static void pc_init1(QEMUMachineInitArgs *args,
 
     if (pci_enabled) {
         pci_memory = g_new(MemoryRegion, 1);
-        memory_region_init(pci_memory, NULL, "pci", INT64_MAX);
+        memory_region_init(pci_memory, NULL, "pci", UINT64_MAX);
         rom_memory = pci_memory;
     } else {
         pci_memory = NULL;
@@ -127,6 +142,12 @@ static void pc_init1(QEMUMachineInitArgs *args,
 
     guest_info->has_pci_info = has_pci_info;
     guest_info->isapc_ram_fw = !pci_enabled;
+
+    if (smbios_type1_defaults) {
+        /* These values are guest ABI, do not change */
+        smbios_set_type1_defaults("QEMU", "Standard PC (i440FX + PIIX, 1996)",
+                                  args->machine->name);
+    }
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
@@ -150,7 +171,6 @@ static void pc_init1(QEMUMachineInitArgs *args,
         pci_bus = i440fx_init(&i440fx_state, &piix3_devfn, &isa_bus, gsi,
                               system_memory, system_io, args->ram_size,
                               below_4g_mem_size,
-                              0x100000000ULL - below_4g_mem_size,
                               above_4g_mem_size,
                               pci_memory, ram_memory);
     } else {
@@ -183,7 +203,8 @@ static void pc_init1(QEMUMachineInitArgs *args,
     pc_vga_init(isa_bus, pci_enabled ? pci_bus : NULL);
 
     /* init basic PC hardware */
-    pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, xen_enabled());
+    pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, xen_enabled(),
+        0x4);
 
     pc_nic_init(isa_bus, pci_bus);
 
@@ -200,10 +221,16 @@ static void pc_init1(QEMUMachineInitArgs *args,
     } else {
         for(i = 0; i < MAX_IDE_BUS; i++) {
             ISADevice *dev;
+            char busname[] = "ide.0";
             dev = isa_ide_init(isa_bus, ide_iobase[i], ide_iobase2[i],
                                ide_irq[i],
                                hd[MAX_IDE_DEVS * i], hd[MAX_IDE_DEVS * i + 1]);
-            idebus[i] = qdev_get_child_bus(DEVICE(dev), "ide.0");
+            /*
+             * The ide bus name is ide.0 for the first bus and ide.1 for the
+             * second one.
+             */
+            busname[4] = '0' + i;
+            idebus[i] = qdev_get_child_bus(DEVICE(dev), busname);
         }
     }
 
@@ -215,7 +242,7 @@ static void pc_init1(QEMUMachineInitArgs *args,
     }
 
     if (pci_enabled && acpi_enabled) {
-        i2c_bus *smbus;
+        I2CBus *smbus;
 
         smi_irq = qemu_allocate_irqs(pc_acpi_smi_interrupt, first_cpu, 1);
         /* TODO: Populate SPD eeprom data.  */
@@ -235,10 +262,19 @@ static void pc_init_pci(QEMUMachineInitArgs *args)
     pc_init1(args, 1, 1);
 }
 
+static void pc_compat_1_7(QEMUMachineInitArgs *args)
+{
+    smbios_type1_defaults = false;
+    gigabyte_align = false;
+    option_rom_has_mr = true;
+    x86_cpu_compat_disable_kvm_features(FEAT_1_ECX, CPUID_EXT_X2APIC);
+}
+
 static void pc_compat_1_6(QEMUMachineInitArgs *args)
 {
+    pc_compat_1_7(args);
     has_pci_info = false;
-    rom_file_in_ram = false;
+    rom_file_has_mr = false;
     has_acpi_build = false;
 }
 
@@ -264,7 +300,13 @@ static void pc_compat_1_3(QEMUMachineInitArgs *args)
 static void pc_compat_1_2(QEMUMachineInitArgs *args)
 {
     pc_compat_1_3(args);
-    disable_kvm_pv_eoi();
+    x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
+}
+
+static void pc_init_pci_1_7(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_7(args);
+    pc_init_pci(args);
 }
 
 static void pc_init_pci_1_6(QEMUMachineInitArgs *args)
@@ -303,7 +345,8 @@ static void pc_init_pci_no_kvmclock(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
     has_acpi_build = false;
-    disable_kvm_pv_eoi();
+    smbios_type1_defaults = false;
+    x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
     enable_compat_apic_id_mode();
     pc_init1(args, 1, 0);
 }
@@ -312,10 +355,11 @@ static void pc_init_isa(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
     has_acpi_build = false;
+    smbios_type1_defaults = false;
     if (!args->cpu_model) {
         args->cpu_model = "486";
     }
-    disable_kvm_pv_eoi();
+    x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
     enable_compat_apic_id_mode();
     pc_init1(args, 0, 1);
 }
@@ -356,7 +400,11 @@ static QEMUMachine pc_i440fx_machine_v2_0 = {
 static QEMUMachine pc_i440fx_machine_v1_7 = {
     PC_I440FX_1_7_MACHINE_OPTIONS,
     .name = "pc-i440fx-1.7",
-    .init = pc_init_pci,
+    .init = pc_init_pci_1_7,
+    .compat_props = (GlobalProperty[]) {
+        PC_COMPAT_1_7,
+        { /* end of list */ }
+    },
 };
 
 #define PC_I440FX_1_6_MACHINE_OPTIONS PC_I440FX_MACHINE_OPTIONS
@@ -753,6 +801,17 @@ static QEMUMachine xenfv_machine = {
     .max_cpus = HVM_MAX_VCPUS,
     .default_machine_opts = "accel=xen",
     .hot_add_cpu = pc_hot_add_cpu,
+    .compat_props = (GlobalProperty[]) {
+        /* xenfv has no fwcfg and so does not load acpi from QEMU.
+         * as such new acpi features don't work.
+         */
+        {
+            .driver   = "PIIX4_PM",
+            .property = "acpi-pci-hotplug-with-bridge-support",
+            .value    = "off",
+        },
+        { /* end of list */ }
+    },
 };
 #endif
 

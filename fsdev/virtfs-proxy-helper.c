@@ -595,7 +595,7 @@ static int do_readlink(struct iovec *iovec, struct iovec *out_iovec)
     }
     buffer = g_malloc(size);
     v9fs_string_init(&target);
-    retval = readlink(path.data, buffer, size);
+    retval = readlink(path.data, buffer, size - 1);
     if (retval > 0) {
         buffer[retval] = '\0';
         v9fs_string_sprintf(&target, "%s", buffer);

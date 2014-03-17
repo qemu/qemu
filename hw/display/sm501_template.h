@@ -120,7 +120,7 @@ static void glue(draw_hwc_line_, PIXEL_NAME)(SM501State * s, int crt,
 
         /* get pixel value */
         if (i % 4 == 0) {
-            bitset = ldub_phys(cursor_addr);
+            bitset = ldub_phys(&address_space_memory, cursor_addr);
             cursor_addr++;
         }
         v = bitset & 3;

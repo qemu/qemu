@@ -149,7 +149,7 @@ static void i82374_isa_realize(DeviceState *dev, Error **errp)
 }
 
 static Property i82374_properties[] = {
-    DEFINE_PROP_HEX32("iobase", ISAi82374State, iobase, 0x400),
+    DEFINE_PROP_UINT32("iobase", ISAi82374State, iobase, 0x400),
     DEFINE_PROP_END_OF_LIST()
 };
 

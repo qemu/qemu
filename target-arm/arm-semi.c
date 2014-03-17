@@ -127,7 +127,7 @@ static void arm_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
 #ifdef CONFIG_USER_ONLY
-    TaskState *ts = env->opaque;
+    TaskState *ts = cs->opaque;
 #endif
 
     if (ret == (target_ulong)-1) {
@@ -164,7 +164,7 @@ static void arm_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
     cpu_memory_rw_debug(cs, env->regs[13]-64+32, (uint8_t *)&size, 4, 0);
     env->regs[0] = be32_to_cpu(size);
 #ifdef CONFIG_USER_ONLY
-    ((TaskState *)env->opaque)->swi_errno = err;
+    ((TaskState *)cs->opaque)->swi_errno = err;
 #else
     syscall_err = err;
 #endif
@@ -183,6 +183,7 @@ static void arm_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
 uint32_t do_arm_semihosting(CPUARMState *env)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
     target_ulong args;
     target_ulong arg0, arg1, arg2, arg3;
     char * s;
@@ -190,7 +191,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
     uint32_t ret;
     uint32_t len;
 #ifdef CONFIG_USER_ONLY
-    TaskState *ts = env->opaque;
+    TaskState *ts = cs->opaque;
 #else
     CPUARMState *ts = env;
 #endif
@@ -554,7 +555,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
         exit(0);
     default:
         fprintf(stderr, "qemu: Unsupported SemiHosting SWI 0x%02x\n", nr);
-        cpu_dump_state(CPU(cpu), stderr, fprintf, 0);
+        cpu_dump_state(cs, stderr, fprintf, 0);
         abort();
     }
 }

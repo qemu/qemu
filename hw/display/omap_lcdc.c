@@ -406,7 +406,7 @@ struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
     memory_region_init_io(&s->iomem, NULL, &omap_lcdc_ops, s, "omap.lcdc", 0x100);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
-    s->con = graphic_console_init(NULL, &omap_ops, s);
+    s->con = graphic_console_init(NULL, 0, &omap_ops, s);
 
     return s;
 }
