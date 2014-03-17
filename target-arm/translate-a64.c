@@ -7140,6 +7140,9 @@ static void handle_2misc_reciprocal(DisasContext *s, int opcode,
         for (pass = 0; pass < (is_scalar ? 1 : 2); pass++) {
             read_vec_element(s, tcg_op, rn, pass, MO_64);
             switch (opcode) {
+            case 0x3d: /* FRECPE */
+                gen_helper_recpe_f64(tcg_res, tcg_op, fpst);
+                break;
             case 0x3f: /* FRECPX */
                 gen_helper_frecpx_f64(tcg_res, tcg_op, fpst);
                 break;
@@ -7169,6 +7172,12 @@ static void handle_2misc_reciprocal(DisasContext *s, int opcode,
             read_vec_element_i32(s, tcg_op, rn, pass, MO_32);
 
             switch (opcode) {
+            case 0x3c: /* URECPE */
+                gen_helper_recpe_u32(tcg_res, tcg_op, fpst);
+                break;
+            case 0x3d: /* FRECPE */
+                gen_helper_recpe_f32(tcg_res, tcg_op, fpst);
+                break;
             case 0x3f: /* FRECPX */
                 gen_helper_frecpx_f32(tcg_res, tcg_op, fpst);
                 break;
@@ -7247,6 +7256,7 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
             handle_simd_intfp_conv(s, rd, rn, 1, is_signed, 0, size);
             return;
         }
+        case 0x3d: /* FRECPE */
         case 0x3f: /* FRECPX */
             handle_2misc_reciprocal(s, opcode, true, u, true, size, rn, rd);
             return;
@@ -7267,7 +7277,6 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
             is_fcvt = true;
             rmode = FPROUNDING_TIEAWAY;
             break;
-        case 0x3d: /* FRECPE */
         case 0x56: /* FCVTXN, FCVTXN2 */
         case 0x7d: /* FRSQRTE */
             unsupported_encoding(s, insn);
@@ -9205,6 +9214,15 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                 return;
             }
             break;
+        case 0x3c: /* URECPE */
+            if (size == 3) {
+                unallocated_encoding(s);
+                return;
+            }
+            /* fall through */
+        case 0x3d: /* FRECPE */
+            handle_2misc_reciprocal(s, opcode, false, u, is_q, size, rn, rd);
+            return;
         case 0x16: /* FCVTN, FCVTN2 */
             /* handle_2misc_narrow does a 2*size -> size operation, but these
              * instructions encode the source size rather than dest size.
@@ -9238,8 +9256,6 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                 return;
             }
             break;
-        case 0x3c: /* URECPE */
-        case 0x3d: /* FRECPE */
         case 0x56: /* FCVTXN, FCVTXN2 */
         case 0x7c: /* URSQRTE */
         case 0x7d: /* FRSQRTE */
