@@ -81,6 +81,7 @@ typedef void NeonGenNarrowEnvFn(TCGv_i32, TCGv_ptr, TCGv_i64);
 typedef void NeonGenWidenFn(TCGv_i64, TCGv_i32);
 typedef void NeonGenTwoSingleOPFn(TCGv_i32, TCGv_i32, TCGv_i32, TCGv_ptr);
 typedef void NeonGenTwoDoubleOPFn(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_ptr);
+typedef void NeonGenOneOpFn(TCGv_i64, TCGv_i64);
 
 /* initialize TCG globals.  */
 void a64_translate_init(void)
@@ -8456,6 +8457,78 @@ static void handle_rev(DisasContext *s, int opcode, bool u,
     }
 }
 
+static void handle_2misc_pairwise(DisasContext *s, int opcode, bool u,
+                                  bool is_q, int size, int rn, int rd)
+{
+    /* Implement the pairwise operations from 2-misc:
+     * SADDLP, UADDLP, SADALP, UADALP.
+     * These all add pairs of elements in the input to produce a
+     * double-width result element in the output (possibly accumulating).
+     */
+    bool accum = (opcode == 0x6);
+    int maxpass = is_q ? 2 : 1;
+    int pass;
+    TCGv_i64 tcg_res[2];
+
+    if (size == 2) {
+        /* 32 + 32 -> 64 op */
+        TCGMemOp memop = size + (u ? 0 : MO_SIGN);
+
+        for (pass = 0; pass < maxpass; pass++) {
+            TCGv_i64 tcg_op1 = tcg_temp_new_i64();
+            TCGv_i64 tcg_op2 = tcg_temp_new_i64();
+
+            tcg_res[pass] = tcg_temp_new_i64();
+
+            read_vec_element(s, tcg_op1, rn, pass * 2, memop);
+            read_vec_element(s, tcg_op2, rn, pass * 2 + 1, memop);
+            tcg_gen_add_i64(tcg_res[pass], tcg_op1, tcg_op2);
+            if (accum) {
+                read_vec_element(s, tcg_op1, rd, pass, MO_64);
+                tcg_gen_add_i64(tcg_res[pass], tcg_res[pass], tcg_op1);
+            }
+
+            tcg_temp_free_i64(tcg_op1);
+            tcg_temp_free_i64(tcg_op2);
+        }
+    } else {
+        for (pass = 0; pass < maxpass; pass++) {
+            TCGv_i64 tcg_op = tcg_temp_new_i64();
+            NeonGenOneOpFn *genfn;
+            static NeonGenOneOpFn * const fns[2][2] = {
+                { gen_helper_neon_addlp_s8,  gen_helper_neon_addlp_u8 },
+                { gen_helper_neon_addlp_s16,  gen_helper_neon_addlp_u16 },
+            };
+
+            genfn = fns[size][u];
+
+            tcg_res[pass] = tcg_temp_new_i64();
+
+            read_vec_element(s, tcg_op, rn, pass, MO_64);
+            genfn(tcg_res[pass], tcg_op);
+
+            if (accum) {
+                read_vec_element(s, tcg_op, rd, pass, MO_64);
+                if (size == 0) {
+                    gen_helper_neon_addl_u16(tcg_res[pass],
+                                             tcg_res[pass], tcg_op);
+                } else {
+                    gen_helper_neon_addl_u32(tcg_res[pass],
+                                             tcg_res[pass], tcg_op);
+                }
+            }
+            tcg_temp_free_i64(tcg_op);
+        }
+    }
+    if (!is_q) {
+        tcg_res[1] = tcg_const_i64(0);
+    }
+    for (pass = 0; pass < 2; pass++) {
+        write_vec_element(s, tcg_res[pass], rd, pass, MO_64);
+        tcg_temp_free_i64(tcg_res[pass]);
+    }
+}
+
 /* C3.6.17 AdvSIMD two reg misc
  *   31  30  29 28       24 23  22 21       17 16    12 11 10 9    5 4    0
  * +---+---+---+-----------+------+-----------+--------+-----+------+------+
@@ -8510,7 +8583,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        unsupported_encoding(s, insn);
+        handle_2misc_pairwise(s, opcode, u, is_q, size, rn, rd);
         return;
     case 0x13: /* SHLL, SHLL2 */
         if (u == 0 || size == 3) {
