@@ -648,7 +648,7 @@ static void sync_c0_tcstatus(CPUMIPSState *cpu, int tc,
 {
     uint32_t status;
     uint32_t tcu, tmx, tasid, tksu;
-    uint32_t mask = ((1 << CP0St_CU3)
+    uint32_t mask = ((1U << CP0St_CU3)
                        | (1 << CP0St_CU2)
                        | (1 << CP0St_CU1)
                        | (1 << CP0St_CU0)
