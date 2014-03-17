@@ -55,6 +55,7 @@ typedef struct PRePPCIState {
     qemu_irq irq[PCI_NUM_PINS];
     PCIBus pci_bus;
     AddressSpace pci_io_as;
+    MemoryRegion pci_io;
     MemoryRegion pci_io_non_contiguous;
     MemoryRegion pci_intack;
     RavenPCIState pci_dev;
@@ -134,7 +135,7 @@ static uint64_t raven_io_read(void *opaque, hwaddr addr,
     uint8_t buf[4];
 
     addr = raven_io_address(s, addr);
-    address_space_read(&s->pci_io_as, addr, buf, size);
+    address_space_read(&s->pci_io_as, addr + 0x80000000, buf, size);
 
     if (size == 1) {
         return buf[0];
@@ -165,7 +166,7 @@ static void raven_io_write(void *opaque, hwaddr addr,
         g_assert_not_reached();
     }
 
-    address_space_write(&s->pci_io_as, addr, buf, size);
+    address_space_write(&s->pci_io_as, addr + 0x80000000, buf, size);
 }
 
 static const MemoryRegionOps raven_io_ops = {
@@ -215,13 +216,11 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
 
     memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_be_ops, s,
                           "pci-conf-idx", 1);
-    sysbus_add_io(dev, 0xcf8, &h->conf_mem);
-    sysbus_init_ioports(&h->busdev, 0xcf8, 1);
+    memory_region_add_subregion(&s->pci_io, 0xcf8, &h->conf_mem);
 
     memory_region_init_io(&h->data_mem, OBJECT(h), &pci_host_data_be_ops, s,
                           "pci-conf-data", 1);
-    sysbus_add_io(dev, 0xcfc, &h->data_mem);
-    sysbus_init_ioports(&h->busdev, 0xcfc, 1);
+    memory_region_add_subregion(&s->pci_io, 0xcfc, &h->data_mem);
 
     memory_region_init_io(&h->mmcfg, OBJECT(s), &PPC_PCIIO_ops, s, "pciio", 0x00400000);
     memory_region_add_subregion(address_space_mem, 0x80800000, &h->mmcfg);
@@ -239,18 +238,20 @@ static void raven_pcihost_initfn(Object *obj)
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(obj);
     MemoryRegion *address_space_mem = get_system_memory();
-    MemoryRegion *address_space_io = get_system_io();
     DeviceState *pci_dev;
 
+    memory_region_init(&s->pci_io, obj, "pci-io", 0x3f800000);
     memory_region_init_io(&s->pci_io_non_contiguous, obj, &raven_io_ops, s,
                           "pci-io-non-contiguous", 0x00800000);
-    address_space_init(&s->pci_io_as, get_system_io(), "raven-io");
+    address_space_init(&s->pci_io_as, &s->pci_io, "raven-io");
 
     /* CPU address space */
+    memory_region_add_subregion(address_space_mem, 0x80000000, &s->pci_io);
     memory_region_add_subregion_overlap(address_space_mem, 0x80000000,
                                         &s->pci_io_non_contiguous, 1);
     pci_bus_new_inplace(&s->pci_bus, sizeof(s->pci_bus), DEVICE(obj), NULL,
-                        address_space_mem, address_space_io, 0, TYPE_PCI_BUS);
+                        address_space_mem, &s->pci_io, 0, TYPE_PCI_BUS);
+
     h->bus = &s->pci_bus;
 
     object_initialize(&s->pci_dev, sizeof(s->pci_dev), TYPE_RAVEN_PCI_DEVICE);
