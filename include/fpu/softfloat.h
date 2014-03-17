@@ -245,6 +245,13 @@ INLINE flag get_default_nan_mode(float_status *status)
 void float_raise( int8 flags STATUS_PARAM);
 
 /*----------------------------------------------------------------------------
+| If `a' is denormal and we are in flush-to-zero mode then set the
+| input-denormal exception and return zero. Otherwise just return the value.
+*----------------------------------------------------------------------------*/
+float32 float32_squash_input_denormal(float32 a STATUS_PARAM);
+float64 float64_squash_input_denormal(float64 a STATUS_PARAM);
+
+/*----------------------------------------------------------------------------
 | Options to indicate which negations to perform in float*_muladd()
 | Using these differs from negating an input or output before calling
 | the muladd function in that this means that a NaN doesn't have its
