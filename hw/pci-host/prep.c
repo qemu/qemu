@@ -225,12 +225,12 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
 
     pci_bus_irqs(&s->pci_bus, prep_set_irq, prep_map_irq, s->irq, PCI_NUM_PINS);
 
-    memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_be_ops, s,
-                          "pci-conf-idx", 1);
+    memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_le_ops, s,
+                          "pci-conf-idx", 4);
     memory_region_add_subregion(&s->pci_io, 0xcf8, &h->conf_mem);
 
-    memory_region_init_io(&h->data_mem, OBJECT(h), &pci_host_data_be_ops, s,
-                          "pci-conf-data", 1);
+    memory_region_init_io(&h->data_mem, OBJECT(h), &pci_host_data_le_ops, s,
+                          "pci-conf-data", 4);
     memory_region_add_subregion(&s->pci_io, 0xcfc, &h->data_mem);
 
     memory_region_init_io(&h->mmcfg, OBJECT(s), &PPC_PCIIO_ops, s, "pciio", 0x00400000);
