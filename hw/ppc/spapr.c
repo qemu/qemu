@@ -26,6 +26,7 @@
  */
 #include "sysemu/sysemu.h"
 #include "hw/hw.h"
+#include "hw/fw-path-provider.h"
 #include "elf.h"
 #include "net/net.h"
 #include "sysemu/blockdev.h"
@@ -45,6 +46,8 @@
 #include "hw/pci/msi.h"
 
 #include "hw/pci/pci.h"
+#include "hw/scsi/scsi.h"
+#include "hw/virtio/virtio-scsi.h"
 
 #include "exec/address-spaces.h"
 #include "hw/usb.h"
@@ -600,7 +603,9 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
                                hwaddr rtas_addr,
                                hwaddr rtas_size)
 {
-    int ret;
+    int ret, i;
+    size_t cb = 0;
+    char *bootlist;
     void *fdt;
     sPAPRPHBState *phb;
 
@@ -640,6 +645,21 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
     ret = spapr_fixup_cpu_dt(fdt, spapr);
     if (ret < 0) {
         fprintf(stderr, "Couldn't finalize CPU device tree properties\n");
+    }
+
+    bootlist = get_boot_devices_list(&cb, true);
+    if (cb && bootlist) {
+        int offset = fdt_path_offset(fdt, "/chosen");
+        if (offset < 0) {
+            exit(1);
+        }
+        for (i = 0; i < cb; i++) {
+            if (bootlist[i] == '\n') {
+                bootlist[i] = ' ';
+            }
+
+        }
+        ret = fdt_setprop_string(fdt, offset, "qemu,boot-list", bootlist);
     }
 
     if (!spapr->has_graphics) {
@@ -1412,11 +1432,70 @@ static QEMUMachine spapr_machine = {
     .kvm_type = spapr_kvm_type,
 };
 
+/*
+ * Implementation of an interface to adjust firmware patch
+ * for the bootindex property handling.
+ */
+static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,
+                                   DeviceState *dev)
+{
+#define CAST(type, obj, name) \
+    ((type *)object_dynamic_cast(OBJECT(obj), (name)))
+    SCSIDevice *d = CAST(SCSIDevice,  dev, TYPE_SCSI_DEVICE);
+    sPAPRPHBState *phb = CAST(sPAPRPHBState, dev, TYPE_SPAPR_PCI_HOST_BRIDGE);
+
+    if (d) {
+        void *spapr = CAST(void, bus->parent, "spapr-vscsi");
+        VirtIOSCSI *virtio = CAST(VirtIOSCSI, bus->parent, TYPE_VIRTIO_SCSI);
+        USBDevice *usb = CAST(USBDevice, bus->parent, TYPE_USB_DEVICE);
+
+        if (spapr) {
+            /*
+             * Replace "channel@0/disk@0,0" with "disk@8000000000000000":
+             * We use SRP luns of the form 8000 | (bus << 8) | (id << 5) | lun
+             * in the top 16 bits of the 64-bit LUN
+             */
+            unsigned id = 0x8000 | (d->id << 8) | d->lun;
+            return g_strdup_printf("%s@%"PRIX64, qdev_fw_name(dev),
+                                   (uint64_t)id << 48);
+        } else if (virtio) {
+            /*
+             * We use SRP luns of the form 01000000 | (target << 8) | lun
+             * in the top 32 bits of the 64-bit LUN
+             * Note: the quote above is from SLOF and it is wrong,
+             * the actual binding is:
+             * swap 0100 or 10 << or 20 << ( target lun-id -- srplun )
+             */
+            unsigned id = 0x1000000 | (d->id << 16) | d->lun;
+            return g_strdup_printf("%s@%"PRIX64, qdev_fw_name(dev),
+                                   (uint64_t)id << 32);
+        } else if (usb) {
+            /*
+             * We use SRP luns of the form 01000000 | (usb-port << 16) | lun
+             * in the top 32 bits of the 64-bit LUN
+             */
+            unsigned usb_port = atoi(usb->port->path);
+            unsigned id = 0x1000000 | (usb_port << 16) | d->lun;
+            return g_strdup_printf("%s@%"PRIX64, qdev_fw_name(dev),
+                                   (uint64_t)id << 32);
+        }
+    }
+
+    if (phb) {
+        /* Replace "pci" with "pci@800000020000000" */
+        return g_strdup_printf("pci@%"PRIX64, phb->buid);
+    }
+
+    return NULL;
+}
+
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
 
     mc->qemu_machine = data;
+    fwc->get_dev_path = spapr_get_fw_dev_path;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -1424,6 +1503,10 @@ static const TypeInfo spapr_machine_info = {
     .parent        = TYPE_MACHINE,
     .class_init    = spapr_machine_class_init,
     .class_data    = &spapr_machine,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_FW_PATH_PROVIDER },
+        { }
+    },
 };
 
 static void spapr_machine_register_types(void)
