@@ -5907,6 +5907,94 @@ static void handle_scalar_simd_shli(DisasContext *s, bool insert,
     tcg_temp_free_i64(tcg_rd);
 }
 
+/* SQSHRN/SQSHRUN - Saturating (signed/unsigned) shift right with
+ * (signed/unsigned) narrowing */
+static void handle_vec_simd_sqshrn(DisasContext *s, bool is_scalar, bool is_q,
+                                   bool is_u_shift, bool is_u_narrow,
+                                   int immh, int immb, int opcode,
+                                   int rn, int rd)
+{
+    int immhb = immh << 3 | immb;
+    int size = 32 - clz32(immh) - 1;
+    int esize = 8 << size;
+    int shift = (2 * esize) - immhb;
+    int elements = is_scalar ? 1 : (64 / esize);
+    bool round = extract32(opcode, 0, 1);
+    TCGMemOp ldop = (size + 1) | (is_u_shift ? 0 : MO_SIGN);
+    TCGv_i64 tcg_rn, tcg_rd, tcg_round;
+    TCGv_i32 tcg_rd_narrowed;
+    TCGv_i64 tcg_final;
+
+    static NeonGenNarrowEnvFn * const signed_narrow_fns[4][2] = {
+        { gen_helper_neon_narrow_sat_s8,
+          gen_helper_neon_unarrow_sat8 },
+        { gen_helper_neon_narrow_sat_s16,
+          gen_helper_neon_unarrow_sat16 },
+        { gen_helper_neon_narrow_sat_s32,
+          gen_helper_neon_unarrow_sat32 },
+        { NULL, NULL },
+    };
+    static NeonGenNarrowEnvFn * const unsigned_narrow_fns[4] = {
+        gen_helper_neon_narrow_sat_u8,
+        gen_helper_neon_narrow_sat_u16,
+        gen_helper_neon_narrow_sat_u32,
+        NULL
+    };
+    NeonGenNarrowEnvFn *narrowfn;
+
+    int i;
+
+    assert(size < 4);
+
+    if (extract32(immh, 3, 1)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (is_u_shift) {
+        narrowfn = unsigned_narrow_fns[size];
+    } else {
+        narrowfn = signed_narrow_fns[size][is_u_narrow ? 1 : 0];
+    }
+
+    tcg_rn = tcg_temp_new_i64();
+    tcg_rd = tcg_temp_new_i64();
+    tcg_rd_narrowed = tcg_temp_new_i32();
+    tcg_final = tcg_const_i64(0);
+
+    if (round) {
+        uint64_t round_const = 1ULL << (shift - 1);
+        tcg_round = tcg_const_i64(round_const);
+    } else {
+        TCGV_UNUSED_I64(tcg_round);
+    }
+
+    for (i = 0; i < elements; i++) {
+        read_vec_element(s, tcg_rn, rn, i, ldop);
+        handle_shri_with_rndacc(tcg_rd, tcg_rn, tcg_round,
+                                false, is_u_shift, size+1, shift);
+        narrowfn(tcg_rd_narrowed, cpu_env, tcg_rd);
+        tcg_gen_extu_i32_i64(tcg_rd, tcg_rd_narrowed);
+        tcg_gen_deposit_i64(tcg_final, tcg_final, tcg_rd, esize * i, esize);
+    }
+
+    if (!is_q) {
+        clear_vec_high(s, rd);
+        write_vec_element(s, tcg_final, rd, 0, MO_64);
+    } else {
+        write_vec_element(s, tcg_final, rd, 1, MO_64);
+    }
+
+    if (round) {
+        tcg_temp_free_i64(tcg_round);
+    }
+    tcg_temp_free_i64(tcg_rn);
+    tcg_temp_free_i64(tcg_rd);
+    tcg_temp_free_i32(tcg_rd_narrowed);
+    tcg_temp_free_i64(tcg_final);
+    return;
+}
+
 /* Common vector code for handling integer to FP conversion */
 static void handle_simd_intfp_conv(DisasContext *s, int rd, int rn,
                                    int elements, int is_signed,
@@ -6013,6 +6101,11 @@ static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
     int immh = extract32(insn, 19, 4);
     bool is_u = extract32(insn, 29, 1);
 
+    if (immh == 0) {
+        unallocated_encoding(s);
+        return;
+    }
+
     switch (opcode) {
     case 0x00: /* SSHR / USHR */
     case 0x02: /* SSRA / USRA */
@@ -6026,6 +6119,20 @@ static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
     case 0x1c: /* SCVTF, UCVTF */
         handle_simd_shift_intfp_conv(s, true, false, is_u, immh, immb,
                                      opcode, rn, rd);
+        break;
+    case 0x10: /* SQSHRUN, SQSHRUN2 */
+    case 0x11: /* SQRSHRUN, SQRSHRUN2 */
+        if (!is_u) {
+            unallocated_encoding(s);
+            return;
+        }
+        handle_vec_simd_sqshrn(s, true, false, false, true,
+                               immh, immb, opcode, rn, rd);
+        break;
+    case 0x12: /* SQSHRN, SQSHRN2, UQSHRN */
+    case 0x13: /* SQRSHRN, SQRSHRN2, UQRSHRN, UQRSHRN2 */
+        handle_vec_simd_sqshrn(s, true, false, is_u, is_u,
+                               immh, immb, opcode, rn, rd);
         break;
     default:
         unsupported_encoding(s, insn);
@@ -6985,6 +7092,63 @@ static void handle_vec_simd_wshli(DisasContext *s, bool is_q, bool is_u,
     }
 }
 
+/* SHRN/RSHRN - Shift right with narrowing (and potential rounding) */
+static void handle_vec_simd_shrn(DisasContext *s, bool is_q,
+                                 int immh, int immb, int opcode, int rn, int rd)
+{
+    int immhb = immh << 3 | immb;
+    int size = 32 - clz32(immh) - 1;
+    int dsize = 64;
+    int esize = 8 << size;
+    int elements = dsize/esize;
+    int shift = (2 * esize) - immhb;
+    bool round = extract32(opcode, 0, 1);
+    TCGv_i64 tcg_rn, tcg_rd, tcg_final;
+    TCGv_i64 tcg_round;
+    int i;
+
+    if (extract32(immh, 3, 1)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    tcg_rn = tcg_temp_new_i64();
+    tcg_rd = tcg_temp_new_i64();
+    tcg_final = tcg_temp_new_i64();
+    read_vec_element(s, tcg_final, rd, is_q ? 1 : 0, MO_64);
+
+    if (round) {
+        uint64_t round_const = 1ULL << (shift - 1);
+        tcg_round = tcg_const_i64(round_const);
+    } else {
+        TCGV_UNUSED_I64(tcg_round);
+    }
+
+    for (i = 0; i < elements; i++) {
+        read_vec_element(s, tcg_rn, rn, i, size+1);
+        handle_shri_with_rndacc(tcg_rd, tcg_rn, tcg_round,
+                                false, true, size+1, shift);
+
+        tcg_gen_deposit_i64(tcg_final, tcg_final, tcg_rd, esize * i, esize);
+    }
+
+    if (!is_q) {
+        clear_vec_high(s, rd);
+        write_vec_element(s, tcg_final, rd, 0, MO_64);
+    } else {
+        write_vec_element(s, tcg_final, rd, 1, MO_64);
+    }
+
+    if (round) {
+        tcg_temp_free_i64(tcg_round);
+    }
+    tcg_temp_free_i64(tcg_rn);
+    tcg_temp_free_i64(tcg_rd);
+    tcg_temp_free_i64(tcg_final);
+    return;
+}
+
+
 /* C3.6.14 AdvSIMD shift by immediate
  *  31  30   29 28         23 22  19 18  16 15    11  10 9    5 4    0
  * +---+---+---+-------------+------+------+--------+---+------+------+
@@ -7011,6 +7175,20 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
     case 0x0a: /* SHL / SLI */
         handle_vec_simd_shli(s, is_q, is_u, immh, immb, opcode, rn, rd);
         break;
+    case 0x10: /* SHRN */
+    case 0x11: /* RSHRN / SQRSHRUN */
+        if (is_u) {
+            handle_vec_simd_sqshrn(s, false, is_q, false, true, immh, immb,
+                                   opcode, rn, rd);
+        } else {
+            handle_vec_simd_shrn(s, is_q, immh, immb, opcode, rn, rd);
+        }
+        break;
+    case 0x12: /* SQSHRN / UQSHRN */
+    case 0x13: /* SQRSHRN / UQRSHRN */
+        handle_vec_simd_sqshrn(s, false, is_q, is_u, is_u, immh, immb,
+                               opcode, rn, rd);
+        break;
     case 0x14: /* SSHLL / USHLL */
         handle_vec_simd_wshli(s, is_q, is_u, immh, immb, opcode, rn, rd);
         break;
@@ -7022,9 +7200,6 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
         unsupported_encoding(s, insn);
         return;
     default:
-        /* We don't currently implement any of the Narrow or
-         * saturating shifts.
-         */
         unsupported_encoding(s, insn);
         return;
     }
