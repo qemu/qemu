@@ -25,6 +25,7 @@
 #include "hw/loader.h"
 #include "trace.h"
 #include "ui/console.h"
+#include "ui/vnc.h"
 #include "hw/pci/pci.h"
 
 #undef VERBOSE
@@ -218,7 +219,7 @@ enum {
 
 /* These values can probably be changed arbitrarily.  */
 #define SVGA_SCRATCH_SIZE               0x8000
-#define SVGA_MAX_WIDTH                  2360
+#define SVGA_MAX_WIDTH                  ROUND_UP(2360, VNC_DIRTY_PIXELS_PER_BIT)
 #define SVGA_MAX_HEIGHT                 1770
 
 #ifdef VERBOSE
