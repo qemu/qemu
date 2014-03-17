@@ -1938,7 +1938,7 @@ The following options are specific to the PowerPC emulation:
 
 @item -g @var{W}x@var{H}[x@var{DEPTH}]
 
-Set the initial VGA graphic mode. The default is 800x600x15.
+Set the initial VGA graphic mode. The default is 800x600x32.
 
 @item -prom-env @var{string}
 
