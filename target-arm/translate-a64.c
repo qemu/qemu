@@ -6800,6 +6800,17 @@ static void handle_2misc_64(DisasContext *s, int opcode, bool u,
         tcg_temp_free_i32(tcg_shift);
         break;
     }
+    case 0x18: /* FRINTN */
+    case 0x19: /* FRINTM */
+    case 0x38: /* FRINTP */
+    case 0x39: /* FRINTZ */
+    case 0x58: /* FRINTA */
+    case 0x79: /* FRINTI */
+        gen_helper_rintd(tcg_rd, tcg_rn, tcg_fpstatus);
+        break;
+    case 0x59: /* FRINTX */
+        gen_helper_rintd_exact(tcg_rd, tcg_rn, tcg_fpstatus);
+        break;
     default:
         g_assert_not_reached();
     }
@@ -8999,12 +9010,29 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         case 0x19: /* FRINTM */
         case 0x38: /* FRINTP */
         case 0x39: /* FRINTZ */
+            need_rmode = true;
+            rmode = extract32(opcode, 5, 1) | (extract32(opcode, 0, 1) << 1);
+            /* fall through */
+        case 0x59: /* FRINTX */
+        case 0x79: /* FRINTI */
+            need_fpstatus = true;
+            if (size == 3 && !is_q) {
+                unallocated_encoding(s);
+                return;
+            }
+            break;
+        case 0x58: /* FRINTA */
+            need_rmode = true;
+            rmode = FPROUNDING_TIEAWAY;
+            need_fpstatus = true;
+            if (size == 3 && !is_q) {
+                unallocated_encoding(s);
+                return;
+            }
+            break;
         case 0x3c: /* URECPE */
         case 0x3d: /* FRECPE */
         case 0x56: /* FCVTXN, FCVTXN2 */
-        case 0x58: /* FRINTA */
-        case 0x59: /* FRINTX */
-        case 0x79: /* FRINTI */
         case 0x7c: /* URSQRTE */
         case 0x7d: /* FRSQRTE */
             unsupported_encoding(s, insn);
@@ -9130,6 +9158,17 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                     tcg_temp_free_i32(tcg_shift);
                     break;
                 }
+                case 0x18: /* FRINTN */
+                case 0x19: /* FRINTM */
+                case 0x38: /* FRINTP */
+                case 0x39: /* FRINTZ */
+                case 0x58: /* FRINTA */
+                case 0x79: /* FRINTI */
+                    gen_helper_rints(tcg_res, tcg_op, tcg_fpstatus);
+                    break;
+                case 0x59: /* FRINTX */
+                    gen_helper_rints_exact(tcg_res, tcg_op, tcg_fpstatus);
+                    break;
                 default:
                     g_assert_not_reached();
                 }
