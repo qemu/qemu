@@ -345,6 +345,6 @@ int index_from_key(const char *key);
 
 /* gtk.c */
 void early_gtk_display_init(void);
-void gtk_display_init(DisplayState *ds, bool full_screen);
+void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover);
 
 #endif

@@ -810,6 +810,7 @@ ETEXI
 DEF("display", HAS_ARG, QEMU_OPTION_display,
     "-display sdl[,frame=on|off][,alt_grab=on|off][,ctrl_grab=on|off]\n"
     "            [,window_close=on|off]|curses|none|\n"
+    "            gtk[,grab_on_hover=on|off]|\n"
     "            vnc=<display>[,<optargs>]\n"
     "                select display type\n", QEMU_ARCH_ALL)
 STEXI
@@ -833,6 +834,10 @@ graphics card, but its output will not be displayed to the QEMU
 user. This option differs from the -nographic option in that it
 only affects what is done with video output; -nographic also changes
 the destination of the serial and parallel port data.
+@item gtk
+Display video output in a GTK window. This interface provides drop-down
+menus and other UI elements to configure and control the VM during
+runtime.
 @item vnc
 Start a VNC server on display <arg>
 @end table

@@ -340,13 +340,17 @@ static void gd_mouse_set(DisplayChangeListener *dcl,
     GdkDeviceManager *mgr;
     gint x_root, y_root;
 
+    if (qemu_input_is_absolute()) {
+        return;
+    }
+
     dpy = gtk_widget_get_display(s->drawing_area);
     mgr = gdk_display_get_device_manager(dpy);
     gdk_window_get_root_coords(gtk_widget_get_window(s->drawing_area),
                                x, y, &x_root, &y_root);
     gdk_device_warp(gdk_device_manager_get_client_pointer(mgr),
                     gtk_widget_get_screen(s->drawing_area),
-                    x, y);
+                    x_root, y_root);
 }
 #else
 static void gd_mouse_set(DisplayChangeListener *dcl,
@@ -354,6 +358,10 @@ static void gd_mouse_set(DisplayChangeListener *dcl,
 {
     GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
     gint x_root, y_root;
+
+    if (qemu_input_is_absolute()) {
+        return;
+    }
 
     gdk_window_get_root_coords(gtk_widget_get_window(s->drawing_area),
                                x, y, &x_root, &y_root);
@@ -1438,7 +1446,7 @@ static const DisplayChangeListenerOps dcl_ops = {
     .dpy_cursor_define = gd_cursor_define,
 };
 
-void gtk_display_init(DisplayState *ds, bool full_screen)
+void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
 {
     GtkDisplayState *s = g_malloc0(sizeof(*s));
     char *filename;
@@ -1516,6 +1524,9 @@ void gtk_display_init(DisplayState *ds, bool full_screen)
 
     if (full_screen) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->full_screen_item));
+    }
+    if (grab_on_hover) {
+        gtk_menu_item_activate(GTK_MENU_ITEM(s->grab_on_hover_item));
     }
 
     register_displaychangelistener(&s->dcl);
