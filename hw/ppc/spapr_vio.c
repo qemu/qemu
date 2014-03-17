@@ -68,6 +68,7 @@ static void spapr_vio_bus_class_init(ObjectClass *klass, void *data)
     BusClass *k = BUS_CLASS(klass);
 
     k->get_dev_path = spapr_vio_get_dev_name;
+    k->get_fw_dev_path = spapr_vio_get_dev_name;
 }
 
 static const TypeInfo spapr_vio_bus_info = {
@@ -529,7 +530,9 @@ static int spapr_vio_bridge_init(SysBusDevice *dev)
 static void spapr_vio_bridge_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->fw_name = "vdevice";
     k->init = spapr_vio_bridge_init;
 }
 
