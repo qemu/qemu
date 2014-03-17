@@ -6623,6 +6623,9 @@ static void handle_2misc_64(DisasContext *s, int opcode, bool u,
     case 0x6f: /* FNEG */
         gen_helper_vfp_negd(tcg_rd, tcg_rn);
         break;
+    case 0x7f: /* FSQRT */
+        gen_helper_vfp_sqrtd(tcg_rd, tcg_rn, cpu_env);
+        break;
     default:
         g_assert_not_reached();
     }
@@ -8392,6 +8395,12 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             }
             handle_2misc_fcmp_zero(s, opcode, false, u, is_q, size, rn, rd);
             return;
+        case 0x7f: /* FSQRT */
+            if (size == 3 && !is_q) {
+                unallocated_encoding(s);
+                return;
+            }
+            break;
         case 0x16: /* FCVTN, FCVTN2 */
         case 0x17: /* FCVTL, FCVTL2 */
         case 0x18: /* FRINTN */
@@ -8416,7 +8425,6 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         case 0x7b: /* FCVTZU */
         case 0x7c: /* URSQRTE */
         case 0x7d: /* FRSQRTE */
-        case 0x7f: /* FSQRT */
             unsupported_encoding(s, insn);
             return;
         default:
@@ -8492,6 +8500,9 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                     break;
                 case 0x6f: /* FNEG */
                     gen_helper_vfp_negs(tcg_res, tcg_op);
+                    break;
+                case 0x7f: /* FSQRT */
+                    gen_helper_vfp_sqrts(tcg_res, tcg_op, cpu_env);
                     break;
                 default:
                     g_assert_not_reached();
