@@ -6683,11 +6683,14 @@ static void disas_simd_scalar_three_reg_same(DisasContext *s, uint32_t insn)
 }
 
 static void handle_2misc_64(DisasContext *s, int opcode, bool u,
-                            TCGv_i64 tcg_rd, TCGv_i64 tcg_rn)
+                            TCGv_i64 tcg_rd, TCGv_i64 tcg_rn,
+                            TCGv_i32 tcg_rmode, TCGv_ptr tcg_fpstatus)
 {
     /* Handle 64->64 opcodes which are shared between the scalar and
      * vector 2-reg-misc groups. We cover every integer opcode where size == 3
      * is valid in either group and also the double-precision fp ops.
+     * The caller only need provide tcg_rmode and tcg_fpstatus if the op
+     * requires them.
      */
     TCGCond cond;
 
@@ -6741,6 +6744,28 @@ static void handle_2misc_64(DisasContext *s, int opcode, bool u,
     case 0x7f: /* FSQRT */
         gen_helper_vfp_sqrtd(tcg_rd, tcg_rn, cpu_env);
         break;
+    case 0x1a: /* FCVTNS */
+    case 0x1b: /* FCVTMS */
+    case 0x1c: /* FCVTAS */
+    case 0x3a: /* FCVTPS */
+    case 0x3b: /* FCVTZS */
+    {
+        TCGv_i32 tcg_shift = tcg_const_i32(0);
+        gen_helper_vfp_tosqd(tcg_rd, tcg_rn, tcg_shift, tcg_fpstatus);
+        tcg_temp_free_i32(tcg_shift);
+        break;
+    }
+    case 0x5a: /* FCVTNU */
+    case 0x5b: /* FCVTMU */
+    case 0x5c: /* FCVTAU */
+    case 0x7a: /* FCVTPU */
+    case 0x7b: /* FCVTZU */
+    {
+        TCGv_i32 tcg_shift = tcg_const_i32(0);
+        gen_helper_vfp_touqd(tcg_rd, tcg_rn, tcg_shift, tcg_fpstatus);
+        tcg_temp_free_i32(tcg_shift);
+        break;
+    }
     default:
         g_assert_not_reached();
     }
@@ -6868,6 +6893,10 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
     int opcode = extract32(insn, 12, 5);
     int size = extract32(insn, 22, 2);
     bool u = extract32(insn, 29, 1);
+    bool is_fcvt = false;
+    int rmode;
+    TCGv_i32 tcg_rmode;
+    TCGv_ptr tcg_fpstatus;
 
     switch (opcode) {
     case 0xa: /* CMLT */
@@ -6909,17 +6938,24 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
         }
         case 0x1a: /* FCVTNS */
         case 0x1b: /* FCVTMS */
-        case 0x1c: /* FCVTAS */
         case 0x3a: /* FCVTPS */
         case 0x3b: /* FCVTZS */
+        case 0x5a: /* FCVTNU */
+        case 0x5b: /* FCVTMU */
+        case 0x7a: /* FCVTPU */
+        case 0x7b: /* FCVTZU */
+            is_fcvt = true;
+            rmode = extract32(opcode, 5, 1) | (extract32(opcode, 0, 1) << 1);
+            break;
+        case 0x1c: /* FCVTAS */
+        case 0x5c: /* FCVTAU */
+            /* TIEAWAY doesn't fit in the usual rounding mode encoding */
+            is_fcvt = true;
+            rmode = FPROUNDING_TIEAWAY;
+            break;
         case 0x3d: /* FRECPE */
         case 0x3f: /* FRECPX */
         case 0x56: /* FCVTXN, FCVTXN2 */
-        case 0x5a: /* FCVTNU */
-        case 0x5b: /* FCVTMU */
-        case 0x5c: /* FCVTAU */
-        case 0x7a: /* FCVTPU */
-        case 0x7b: /* FCVTZU */
         case 0x7d: /* FRSQRTE */
             unsupported_encoding(s, insn);
             return;
@@ -6938,17 +6974,65 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
         return;
     }
 
+    if (is_fcvt) {
+        tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+        tcg_fpstatus = get_fpstatus_ptr();
+    } else {
+        TCGV_UNUSED_I32(tcg_rmode);
+        TCGV_UNUSED_PTR(tcg_fpstatus);
+    }
+
     if (size == 3) {
         TCGv_i64 tcg_rn = read_fp_dreg(s, rn);
         TCGv_i64 tcg_rd = tcg_temp_new_i64();
 
-        handle_2misc_64(s, opcode, u, tcg_rd, tcg_rn);
+        handle_2misc_64(s, opcode, u, tcg_rd, tcg_rn, tcg_rmode, tcg_fpstatus);
         write_fp_dreg(s, rd, tcg_rd);
         tcg_temp_free_i64(tcg_rd);
         tcg_temp_free_i64(tcg_rn);
+    } else if (size == 2) {
+        TCGv_i32 tcg_rn = read_fp_sreg(s, rn);
+        TCGv_i32 tcg_rd = tcg_temp_new_i32();
+
+        switch (opcode) {
+        case 0x1a: /* FCVTNS */
+        case 0x1b: /* FCVTMS */
+        case 0x1c: /* FCVTAS */
+        case 0x3a: /* FCVTPS */
+        case 0x3b: /* FCVTZS */
+        {
+            TCGv_i32 tcg_shift = tcg_const_i32(0);
+            gen_helper_vfp_tosls(tcg_rd, tcg_rn, tcg_shift, tcg_fpstatus);
+            tcg_temp_free_i32(tcg_shift);
+            break;
+        }
+        case 0x5a: /* FCVTNU */
+        case 0x5b: /* FCVTMU */
+        case 0x5c: /* FCVTAU */
+        case 0x7a: /* FCVTPU */
+        case 0x7b: /* FCVTZU */
+        {
+            TCGv_i32 tcg_shift = tcg_const_i32(0);
+            gen_helper_vfp_touls(tcg_rd, tcg_rn, tcg_shift, tcg_fpstatus);
+            tcg_temp_free_i32(tcg_shift);
+            break;
+        }
+        default:
+            g_assert_not_reached();
+        }
+
+        write_fp_sreg(s, rd, tcg_rd);
+        tcg_temp_free_i32(tcg_rd);
+        tcg_temp_free_i32(tcg_rn);
     } else {
-        /* the 'size might not be 64' ops aren't implemented yet */
         g_assert_not_reached();
+    }
+
+    if (is_fcvt) {
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+        tcg_temp_free_i32(tcg_rmode);
+        tcg_temp_free_ptr(tcg_fpstatus);
     }
 }
 
@@ -8573,6 +8657,11 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
     bool is_q = extract32(insn, 30, 1);
     int rn = extract32(insn, 5, 5);
     int rd = extract32(insn, 0, 5);
+    bool need_fpstatus = false;
+    bool need_rmode = false;
+    int rmode = -1;
+    TCGv_i32 tcg_rmode;
+    TCGv_ptr tcg_fpstatus;
 
     switch (opcode) {
     case 0x0: /* REV64, REV32 */
@@ -8691,28 +8780,44 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                 return;
             }
             break;
+        case 0x1a: /* FCVTNS */
+        case 0x1b: /* FCVTMS */
+        case 0x3a: /* FCVTPS */
+        case 0x3b: /* FCVTZS */
+        case 0x5a: /* FCVTNU */
+        case 0x5b: /* FCVTMU */
+        case 0x7a: /* FCVTPU */
+        case 0x7b: /* FCVTZU */
+            need_fpstatus = true;
+            need_rmode = true;
+            rmode = extract32(opcode, 5, 1) | (extract32(opcode, 0, 1) << 1);
+            if (size == 3 && !is_q) {
+                unallocated_encoding(s);
+                return;
+            }
+            break;
+        case 0x5c: /* FCVTAU */
+        case 0x1c: /* FCVTAS */
+            need_fpstatus = true;
+            need_rmode = true;
+            rmode = FPROUNDING_TIEAWAY;
+            if (size == 3 && !is_q) {
+                unallocated_encoding(s);
+                return;
+            }
+            break;
         case 0x16: /* FCVTN, FCVTN2 */
         case 0x17: /* FCVTL, FCVTL2 */
         case 0x18: /* FRINTN */
         case 0x19: /* FRINTM */
-        case 0x1a: /* FCVTNS */
-        case 0x1b: /* FCVTMS */
-        case 0x1c: /* FCVTAS */
         case 0x38: /* FRINTP */
         case 0x39: /* FRINTZ */
-        case 0x3a: /* FCVTPS */
-        case 0x3b: /* FCVTZS */
         case 0x3c: /* URECPE */
         case 0x3d: /* FRECPE */
         case 0x56: /* FCVTXN, FCVTXN2 */
         case 0x58: /* FRINTA */
         case 0x59: /* FRINTX */
-        case 0x5a: /* FCVTNU */
-        case 0x5b: /* FCVTMU */
-        case 0x5c: /* FCVTAU */
         case 0x79: /* FRINTI */
-        case 0x7a: /* FCVTPU */
-        case 0x7b: /* FCVTZU */
         case 0x7c: /* URSQRTE */
         case 0x7d: /* FRSQRTE */
             unsupported_encoding(s, insn);
@@ -8728,6 +8833,18 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         return;
     }
 
+    if (need_fpstatus) {
+        tcg_fpstatus = get_fpstatus_ptr();
+    } else {
+        TCGV_UNUSED_PTR(tcg_fpstatus);
+    }
+    if (need_rmode) {
+        tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+    } else {
+        TCGV_UNUSED_I32(tcg_rmode);
+    }
+
     if (size == 3) {
         /* All 64-bit element operations can be shared with scalar 2misc */
         int pass;
@@ -8738,7 +8855,8 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
 
             read_vec_element(s, tcg_op, rn, pass, MO_64);
 
-            handle_2misc_64(s, opcode, u, tcg_res, tcg_op);
+            handle_2misc_64(s, opcode, u, tcg_res, tcg_op,
+                            tcg_rmode, tcg_fpstatus);
 
             write_vec_element(s, tcg_res, rd, pass, MO_64);
 
@@ -8801,6 +8919,30 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                 case 0x7f: /* FSQRT */
                     gen_helper_vfp_sqrts(tcg_res, tcg_op, cpu_env);
                     break;
+                case 0x1a: /* FCVTNS */
+                case 0x1b: /* FCVTMS */
+                case 0x1c: /* FCVTAS */
+                case 0x3a: /* FCVTPS */
+                case 0x3b: /* FCVTZS */
+                {
+                    TCGv_i32 tcg_shift = tcg_const_i32(0);
+                    gen_helper_vfp_tosls(tcg_res, tcg_op,
+                                         tcg_shift, tcg_fpstatus);
+                    tcg_temp_free_i32(tcg_shift);
+                    break;
+                }
+                case 0x5a: /* FCVTNU */
+                case 0x5b: /* FCVTMU */
+                case 0x5c: /* FCVTAU */
+                case 0x7a: /* FCVTPU */
+                case 0x7b: /* FCVTZU */
+                {
+                    TCGv_i32 tcg_shift = tcg_const_i32(0);
+                    gen_helper_vfp_touls(tcg_res, tcg_op,
+                                         tcg_shift, tcg_fpstatus);
+                    tcg_temp_free_i32(tcg_shift);
+                    break;
+                }
                 default:
                     g_assert_not_reached();
                 }
@@ -8892,6 +9034,14 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
     }
     if (!is_q) {
         clear_vec_high(s, rd);
+    }
+
+    if (need_rmode) {
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+        tcg_temp_free_i32(tcg_rmode);
+    }
+    if (need_fpstatus) {
+        tcg_temp_free_ptr(tcg_fpstatus);
     }
 }
 
