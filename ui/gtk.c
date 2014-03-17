@@ -1251,7 +1251,11 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
 
     vte_terminal_set_scrollback_lines(VTE_TERMINAL(vc->terminal), -1);
 
+#if VTE_CHECK_VERSION(0, 28, 0) && GTK_CHECK_VERSION(3, 0, 0)
+    vadjustment = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(vc->terminal));
+#else
     vadjustment = vte_terminal_get_adjustment(VTE_TERMINAL(vc->terminal));
+#endif
 
     scrolled_window = gtk_scrolled_window_new(NULL, vadjustment);
     gtk_container_add(GTK_CONTAINER(scrolled_window), vc->terminal);
