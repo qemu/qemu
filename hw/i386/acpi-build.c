@@ -999,10 +999,15 @@ build_ssdt(GArray *table_data, GArray *linker,
            AcpiCpuInfo *cpu, AcpiPmInfo *pm, AcpiMiscInfo *misc,
            PcPciInfo *pci, PcGuestInfo *guest_info)
 {
-    int acpi_cpus = MIN(0xff, guest_info->apic_id_limit);
+    unsigned acpi_cpus = guest_info->apic_id_limit;
     int ssdt_start = table_data->len;
     uint8_t *ssdt_ptr;
     int i;
+
+    /* The current AML generator can cover the APIC ID range [0..255],
+     * inclusive, for VCPU hotplug. */
+    QEMU_BUILD_BUG_ON(ACPI_CPU_HOTPLUG_ID_LIMIT > 256);
+    g_assert(acpi_cpus <= ACPI_CPU_HOTPLUG_ID_LIMIT);
 
     /* Copy header and patch values in the S3_ / S4_ / S5_ packages */
     ssdt_ptr = acpi_data_push(table_data, sizeof(ssdp_misc_aml));
