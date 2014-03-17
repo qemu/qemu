@@ -504,7 +504,7 @@ static void fw_cfg_machine_ready(struct Notifier *n, void *data)
 {
     size_t len;
     FWCfgState *s = container_of(n, FWCfgState, machine_ready);
-    char *bootindex = get_boot_devices_list(&len);
+    char *bootindex = get_boot_devices_list(&len, false);
 
     fw_cfg_add_file(s, "bootorder", (uint8_t*)bootindex, len);
 }
