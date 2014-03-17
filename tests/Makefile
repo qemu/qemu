@@ -206,6 +206,7 @@ tests/test-int128$(EXESUF): tests/test-int128.o
 tests/test-qdev-global-props$(EXESUF): tests/test-qdev-global-props.o \
 	hw/core/qdev.o hw/core/qdev-properties.o hw/core/hotplug.o\
 	hw/core/irq.o \
+	hw/core/fw-path-provider.o \
 	$(qom-core-obj) \
 	$(test-qapi-obj-y) \
 	libqemuutil.a libqemustub.a

@@ -26,6 +26,7 @@
    this API directly.  */
 
 #include "hw/qdev.h"
+#include "hw/fw-path-provider.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
@@ -568,6 +569,18 @@ static char *bus_get_fw_dev_path(BusState *bus, DeviceState *dev)
     return NULL;
 }
 
+static char *qdev_get_fw_dev_path_from_handler(BusState *bus, DeviceState *dev)
+{
+    Object *obj = OBJECT(dev);
+    char *d = NULL;
+
+    while (!d && obj->parent) {
+        obj = obj->parent;
+        d = fw_path_provider_try_get_dev_path(obj, bus, dev);
+    }
+    return d;
+}
+
 static int qdev_get_fw_dev_path_helper(DeviceState *dev, char *p, int size)
 {
     int l = 0;
@@ -575,7 +588,10 @@ static int qdev_get_fw_dev_path_helper(DeviceState *dev, char *p, int size)
     if (dev && dev->parent_bus) {
         char *d;
         l = qdev_get_fw_dev_path_helper(dev->parent_bus->parent, p, size);
-        d = bus_get_fw_dev_path(dev->parent_bus, dev);
+        d = qdev_get_fw_dev_path_from_handler(dev->parent_bus, dev);
+        if (!d) {
+            d = bus_get_fw_dev_path(dev->parent_bus, dev);
+        }
         if (d) {
             l += snprintf(p + l, size - l, "%s", d);
             g_free(d);
