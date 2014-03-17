@@ -59,6 +59,10 @@ typedef struct PRePPCIState {
     MemoryRegion pci_io_non_contiguous;
     MemoryRegion pci_memory;
     MemoryRegion pci_intack;
+    MemoryRegion bm;
+    MemoryRegion bm_ram_alias;
+    MemoryRegion bm_pci_memory_alias;
+    AddressSpace bm_as;
     RavenPCIState pci_dev;
 
     int contiguous_map;
@@ -190,6 +194,14 @@ static void prep_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[irq_num] , level);
 }
 
+static AddressSpace *raven_pcihost_set_iommu(PCIBus *bus, void *opaque,
+                                             int devfn)
+{
+    PREPPCIState *s = opaque;
+
+    return &s->bm_as;
+}
+
 static void raven_change_gpio(void *opaque, int n, int level)
 {
     PREPPCIState *s = opaque;
@@ -254,6 +266,18 @@ static void raven_pcihost_initfn(Object *obj)
     memory_region_add_subregion(address_space_mem, 0xc0000000, &s->pci_memory);
     pci_bus_new_inplace(&s->pci_bus, sizeof(s->pci_bus), DEVICE(obj), NULL,
                         &s->pci_memory, &s->pci_io, 0, TYPE_PCI_BUS);
+
+    /* Bus master address space */
+    memory_region_init(&s->bm, obj, "bm-raven", UINT32_MAX);
+    memory_region_init_alias(&s->bm_pci_memory_alias, obj, "bm-pci-memory",
+                             &s->pci_memory, 0,
+                             memory_region_size(&s->pci_memory));
+    memory_region_init_alias(&s->bm_ram_alias, obj, "bm-system",
+                             get_system_memory(), 0, 0x80000000);
+    memory_region_add_subregion(&s->bm, 0         , &s->bm_pci_memory_alias);
+    memory_region_add_subregion(&s->bm, 0x80000000, &s->bm_ram_alias);
+    address_space_init(&s->bm_as, &s->bm, "raven-bm");
+    pci_setup_iommu(&s->pci_bus, raven_pcihost_set_iommu, s);
 
     h->bus = &s->pci_bus;
 
