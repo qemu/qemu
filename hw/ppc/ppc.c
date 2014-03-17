@@ -1002,7 +1002,7 @@ static void cpu_4xx_wdt_cb (void *opaque)
     case 0x1:
         timer_mod(ppc40x_timer->wdt_timer, next);
         ppc40x_timer->wdt_next = next;
-        env->spr[SPR_40x_TSR] |= 1 << 31;
+        env->spr[SPR_40x_TSR] |= 1U << 31;
         break;
     case 0x2:
         timer_mod(ppc40x_timer->wdt_timer, next);
