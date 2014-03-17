@@ -7146,6 +7146,9 @@ static void handle_2misc_reciprocal(DisasContext *s, int opcode,
             case 0x3f: /* FRECPX */
                 gen_helper_frecpx_f64(tcg_res, tcg_op, fpst);
                 break;
+            case 0x7d: /* FRSQRTE */
+                gen_helper_rsqrte_f64(tcg_res, tcg_op, fpst);
+                break;
             default:
                 g_assert_not_reached();
             }
@@ -7180,6 +7183,9 @@ static void handle_2misc_reciprocal(DisasContext *s, int opcode,
                 break;
             case 0x3f: /* FRECPX */
                 gen_helper_frecpx_f32(tcg_res, tcg_op, fpst);
+                break;
+            case 0x7d: /* FRSQRTE */
+                gen_helper_rsqrte_f32(tcg_res, tcg_op, fpst);
                 break;
             default:
                 g_assert_not_reached();
@@ -7378,6 +7384,7 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
         }
         case 0x3d: /* FRECPE */
         case 0x3f: /* FRECPX */
+        case 0x7d: /* FRSQRTE */
             handle_2misc_reciprocal(s, opcode, true, u, true, size, rn, rd);
             return;
         case 0x1a: /* FCVTNS */
@@ -7403,9 +7410,6 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
                 return;
             }
             handle_2misc_narrow(s, true, opcode, u, false, size - 1, rn, rd);
-            return;
-        case 0x7d: /* FRSQRTE */
-            unsupported_encoding(s, insn);
             return;
         default:
             unallocated_encoding(s);
@@ -9255,6 +9259,11 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             }
             /* fall through */
         case 0x3d: /* FRECPE */
+        case 0x7d: /* FRSQRTE */
+            if (size == 3 && !is_q) {
+                unallocated_encoding(s);
+                return;
+            }
             handle_2misc_reciprocal(s, opcode, false, u, is_q, size, rn, rd);
             return;
         case 0x56: /* FCVTXN, FCVTXN2 */
@@ -9297,9 +9306,12 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             }
             break;
         case 0x7c: /* URSQRTE */
-        case 0x7d: /* FRSQRTE */
-            unsupported_encoding(s, insn);
-            return;
+            if (size == 3) {
+                unallocated_encoding(s);
+                return;
+            }
+            need_fpstatus = true;
+            break;
         default:
             unallocated_encoding(s);
             return;
@@ -9431,6 +9443,9 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                     break;
                 case 0x59: /* FRINTX */
                     gen_helper_rints_exact(tcg_res, tcg_op, tcg_fpstatus);
+                    break;
+                case 0x7c: /* URSQRTE */
+                    gen_helper_rsqrte_u32(tcg_res, tcg_op, tcg_fpstatus);
                     break;
                 default:
                     g_assert_not_reached();

@@ -6689,8 +6689,12 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                             break;
                         }
                         case NEON_2RM_VRSQRTE:
-                            gen_helper_rsqrte_u32(tmp, tmp, cpu_env);
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            gen_helper_rsqrte_u32(tmp, tmp, fpstatus);
+                            tcg_temp_free_ptr(fpstatus);
                             break;
+                        }
                         case NEON_2RM_VRECPE_F:
                         {
                             TCGv_ptr fpstatus = get_fpstatus_ptr(1);
@@ -6699,8 +6703,12 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                             break;
                         }
                         case NEON_2RM_VRSQRTE_F:
-                            gen_helper_rsqrte_f32(cpu_F0s, cpu_F0s, cpu_env);
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            gen_helper_rsqrte_f32(cpu_F0s, cpu_F0s, fpstatus);
+                            tcg_temp_free_ptr(fpstatus);
                             break;
+                        }
                         case NEON_2RM_VCVT_FS: /* VCVT.F32.S32 */
                             gen_vfp_sito(0, 1);
                             break;

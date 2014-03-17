@@ -4721,12 +4721,12 @@ float64 HELPER(recpe_f64)(float64 input, void *fpstp)
 /* The algorithm that must be used to calculate the estimate
  * is specified by the ARM ARM.
  */
-static float64 recip_sqrt_estimate(float64 a, CPUARMState *env)
+static float64 recip_sqrt_estimate(float64 a, float_status *real_fp_status)
 {
     /* These calculations mustn't set any fp exception flags,
      * so we use a local copy of the fp_status.
      */
-    float_status dummy_status = env->vfp.standard_fp_status;
+    float_status dummy_status = *real_fp_status;
     float_status *s = &dummy_status;
     float64 q;
     int64_t q_int;
@@ -4773,55 +4773,133 @@ static float64 recip_sqrt_estimate(float64 a, CPUARMState *env)
     return float64_div(int64_to_float64(q_int, s), float64_256, s);
 }
 
-float32 HELPER(rsqrte_f32)(float32 a, CPUARMState *env)
+float32 HELPER(rsqrte_f32)(float32 input, void *fpstp)
 {
-    float_status *s = &env->vfp.standard_fp_status;
+    float_status *s = fpstp;
+    float32 f32 = float32_squash_input_denormal(input, s);
+    uint32_t val = float32_val(f32);
+    uint32_t f32_sbit = 0x80000000 & val;
+    int32_t f32_exp = extract32(val, 23, 8);
+    uint32_t f32_frac = extract32(val, 0, 23);
+    uint64_t f64_frac;
+    uint64_t val64;
     int result_exp;
     float64 f64;
-    uint32_t val;
-    uint64_t val64;
 
-    val = float32_val(a);
-
-    if (float32_is_any_nan(a)) {
-        if (float32_is_signaling_nan(a)) {
+    if (float32_is_any_nan(f32)) {
+        float32 nan = f32;
+        if (float32_is_signaling_nan(f32)) {
             float_raise(float_flag_invalid, s);
+            nan = float32_maybe_silence_nan(f32);
         }
-        return float32_default_nan;
-    } else if (float32_is_zero_or_denormal(a)) {
-        if (!float32_is_zero(a)) {
-            float_raise(float_flag_input_denormal, s);
+        if (s->default_nan_mode) {
+            nan =  float32_default_nan;
         }
+        return nan;
+    } else if (float32_is_zero(f32)) {
         float_raise(float_flag_divbyzero, s);
-        return float32_set_sign(float32_infinity, float32_is_neg(a));
-    } else if (float32_is_neg(a)) {
+        return float32_set_sign(float32_infinity, float32_is_neg(f32));
+    } else if (float32_is_neg(f32)) {
         float_raise(float_flag_invalid, s);
         return float32_default_nan;
-    } else if (float32_is_infinity(a)) {
+    } else if (float32_is_infinity(f32)) {
         return float32_zero;
     }
 
-    /* Normalize to a double-precision value between 0.25 and 1.0,
+    /* Scale and normalize to a double-precision value between 0.25 and 1.0,
      * preserving the parity of the exponent.  */
-    if ((val & 0x800000) == 0) {
-        f64 = make_float64(((uint64_t)(val & 0x80000000) << 32)
-                           | (0x3feULL << 52)
-                           | ((uint64_t)(val & 0x7fffff) << 29));
-    } else {
-        f64 = make_float64(((uint64_t)(val & 0x80000000) << 32)
-                           | (0x3fdULL << 52)
-                           | ((uint64_t)(val & 0x7fffff) << 29));
+
+    f64_frac = ((uint64_t) f32_frac) << 29;
+    if (f32_exp == 0) {
+        while (extract64(f64_frac, 51, 1) == 0) {
+            f64_frac = f64_frac << 1;
+            f32_exp = f32_exp-1;
+        }
+        f64_frac = extract64(f64_frac, 0, 51) << 1;
     }
 
-    result_exp = (380 - ((val & 0x7f800000) >> 23)) / 2;
+    if (extract64(f32_exp, 0, 1) == 0) {
+        f64 = make_float64(((uint64_t) f32_sbit) << 32
+                           | (0x3feULL << 52)
+                           | f64_frac);
+    } else {
+        f64 = make_float64(((uint64_t) f32_sbit) << 32
+                           | (0x3fdULL << 52)
+                           | f64_frac);
+    }
 
-    f64 = recip_sqrt_estimate(f64, env);
+    result_exp = (380 - f32_exp) / 2;
+
+    f64 = recip_sqrt_estimate(f64, s);
 
     val64 = float64_val(f64);
 
     val = ((result_exp & 0xff) << 23)
         | ((val64 >> 29)  & 0x7fffff);
     return make_float32(val);
+}
+
+float64 HELPER(rsqrte_f64)(float64 input, void *fpstp)
+{
+    float_status *s = fpstp;
+    float64 f64 = float64_squash_input_denormal(input, s);
+    uint64_t val = float64_val(f64);
+    uint64_t f64_sbit = 0x8000000000000000ULL & val;
+    int64_t f64_exp = extract64(val, 52, 11);
+    uint64_t f64_frac = extract64(val, 0, 52);
+    int64_t result_exp;
+    uint64_t result_frac;
+
+    if (float64_is_any_nan(f64)) {
+        float64 nan = f64;
+        if (float64_is_signaling_nan(f64)) {
+            float_raise(float_flag_invalid, s);
+            nan = float64_maybe_silence_nan(f64);
+        }
+        if (s->default_nan_mode) {
+            nan =  float64_default_nan;
+        }
+        return nan;
+    } else if (float64_is_zero(f64)) {
+        float_raise(float_flag_divbyzero, s);
+        return float64_set_sign(float64_infinity, float64_is_neg(f64));
+    } else if (float64_is_neg(f64)) {
+        float_raise(float_flag_invalid, s);
+        return float64_default_nan;
+    } else if (float64_is_infinity(f64)) {
+        return float64_zero;
+    }
+
+    /* Scale and normalize to a double-precision value between 0.25 and 1.0,
+     * preserving the parity of the exponent.  */
+
+    if (f64_exp == 0) {
+        while (extract64(f64_frac, 51, 1) == 0) {
+            f64_frac = f64_frac << 1;
+            f64_exp = f64_exp - 1;
+        }
+        f64_frac = extract64(f64_frac, 0, 51) << 1;
+    }
+
+    if (extract64(f64_exp, 0, 1) == 0) {
+        f64 = make_float64(f64_sbit
+                           | (0x3feULL << 52)
+                           | f64_frac);
+    } else {
+        f64 = make_float64(f64_sbit
+                           | (0x3fdULL << 52)
+                           | f64_frac);
+    }
+
+    result_exp = (3068 - f64_exp) / 2;
+
+    f64 = recip_sqrt_estimate(f64, s);
+
+    result_frac = extract64(float64_val(f64), 0, 52);
+
+    return make_float64(f64_sbit |
+                        ((result_exp & 0x7ff) << 52) |
+                        result_frac);
 }
 
 uint32_t HELPER(recpe_u32)(uint32_t a, void *fpstp)
@@ -4841,8 +4919,9 @@ uint32_t HELPER(recpe_u32)(uint32_t a, void *fpstp)
     return 0x80000000 | ((float64_val(f64) >> 21) & 0x7fffffff);
 }
 
-uint32_t HELPER(rsqrte_u32)(uint32_t a, CPUARMState *env)
+uint32_t HELPER(rsqrte_u32)(uint32_t a, void *fpstp)
 {
+    float_status *fpst = fpstp;
     float64 f64;
 
     if ((a & 0xc0000000) == 0) {
@@ -4857,7 +4936,7 @@ uint32_t HELPER(rsqrte_u32)(uint32_t a, CPUARMState *env)
                            | ((uint64_t)(a & 0x3fffffff) << 22));
     }
 
-    f64 = recip_sqrt_estimate(f64, env);
+    f64 = recip_sqrt_estimate(f64, fpst);
 
     return 0x80000000 | ((float64_val(f64) >> 21) & 0x7fffffff);
 }
