@@ -1050,9 +1050,9 @@ build_ssdt(GArray *table_data, GArray *linker,
 
         {
             GArray *package = build_alloc_array();
-            uint8_t op = 0x12; /* PackageOp */
+            uint8_t op = 0x13; /* VarPackageOp */
 
-            build_append_byte(package, acpi_cpus); /* NumElements */
+            build_append_int(package, acpi_cpus); /* VarNumElements */
             for (i = 0; i < acpi_cpus; i++) {
                 uint8_t b = test_bit(i, cpu->found_cpus) ? 0x01 : 0x00;
                 build_append_byte(package, b);
