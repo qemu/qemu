@@ -5907,6 +5907,95 @@ static void handle_scalar_simd_shli(DisasContext *s, bool insert,
     tcg_temp_free_i64(tcg_rd);
 }
 
+/* Common vector code for handling integer to FP conversion */
+static void handle_simd_intfp_conv(DisasContext *s, int rd, int rn,
+                                   int elements, int is_signed,
+                                   int fracbits, int size)
+{
+    bool is_double = size == 3 ? true : false;
+    TCGv_ptr tcg_fpst = get_fpstatus_ptr();
+    TCGv_i32 tcg_shift = tcg_const_i32(fracbits);
+    TCGv_i64 tcg_int = tcg_temp_new_i64();
+    TCGMemOp mop = size | (is_signed ? MO_SIGN : 0);
+    int pass;
+
+    for (pass = 0; pass < elements; pass++) {
+        read_vec_element(s, tcg_int, rn, pass, mop);
+
+        if (is_double) {
+            TCGv_i64 tcg_double = tcg_temp_new_i64();
+            if (is_signed) {
+                gen_helper_vfp_sqtod(tcg_double, tcg_int,
+                                     tcg_shift, tcg_fpst);
+            } else {
+                gen_helper_vfp_uqtod(tcg_double, tcg_int,
+                                     tcg_shift, tcg_fpst);
+            }
+            if (elements == 1) {
+                write_fp_dreg(s, rd, tcg_double);
+            } else {
+                write_vec_element(s, tcg_double, rd, pass, MO_64);
+            }
+            tcg_temp_free_i64(tcg_double);
+        } else {
+            TCGv_i32 tcg_single = tcg_temp_new_i32();
+            if (is_signed) {
+                gen_helper_vfp_sqtos(tcg_single, tcg_int,
+                                     tcg_shift, tcg_fpst);
+            } else {
+                gen_helper_vfp_uqtos(tcg_single, tcg_int,
+                                     tcg_shift, tcg_fpst);
+            }
+            if (elements == 1) {
+                write_fp_sreg(s, rd, tcg_single);
+            } else {
+                write_vec_element_i32(s, tcg_single, rd, pass, MO_32);
+            }
+            tcg_temp_free_i32(tcg_single);
+        }
+    }
+
+    if (!is_double && elements == 2) {
+        clear_vec_high(s, rd);
+    }
+
+    tcg_temp_free_i64(tcg_int);
+    tcg_temp_free_ptr(tcg_fpst);
+    tcg_temp_free_i32(tcg_shift);
+}
+
+/* UCVTF/SCVTF - Integer to FP conversion */
+static void handle_simd_shift_intfp_conv(DisasContext *s, bool is_scalar,
+                                         bool is_q, bool is_u,
+                                         int immh, int immb, int opcode,
+                                         int rn, int rd)
+{
+    bool is_double = extract32(immh, 3, 1);
+    int size = is_double ? MO_64 : MO_32;
+    int elements;
+    int immhb = immh << 3 | immb;
+    int fracbits = (is_double ? 128 : 64) - immhb;
+
+    if (!extract32(immh, 2, 2)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (is_scalar) {
+        elements = 1;
+    } else {
+        elements = is_double ? 2 : is_q ? 4 : 2;
+        if (is_double && !is_q) {
+            unallocated_encoding(s);
+            return;
+        }
+    }
+    /* immh == 0 would be a failure of the decode logic */
+    g_assert(immh);
+
+    handle_simd_intfp_conv(s, rd, rn, elements, !is_u, fracbits, size);
+}
+
 /* C3.6.9 AdvSIMD scalar shift by immediate
  *  31 30  29 28         23 22  19 18  16 15    11  10 9    5 4    0
  * +-----+---+-------------+------+------+--------+---+------+------+
@@ -5933,6 +6022,10 @@ static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
         break;
     case 0x0a: /* SHL / SLI */
         handle_scalar_simd_shli(s, is_u, immh, immb, opcode, rn, rd);
+        break;
+    case 0x1c: /* SCVTF, UCVTF */
+        handle_simd_shift_intfp_conv(s, true, false, is_u, immh, immb,
+                                     opcode, rn, rd);
         break;
     default:
         unsupported_encoding(s, insn);
@@ -6689,10 +6782,16 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
         case 0x6d: /* FCMLE (zero) */
             handle_2misc_fcmp_zero(s, opcode, true, u, true, size, rn, rd);
             return;
+        case 0x1d: /* SCVTF */
+        case 0x5d: /* UCVTF */
+        {
+            bool is_signed = (opcode == 0x1d);
+            handle_simd_intfp_conv(s, rd, rn, 1, is_signed, 0, size);
+            return;
+        }
         case 0x1a: /* FCVTNS */
         case 0x1b: /* FCVTMS */
         case 0x1c: /* FCVTAS */
-        case 0x1d: /* SCVTF */
         case 0x3a: /* FCVTPS */
         case 0x3b: /* FCVTZS */
         case 0x3d: /* FRECPE */
@@ -6701,7 +6800,6 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
         case 0x5a: /* FCVTNU */
         case 0x5b: /* FCVTMU */
         case 0x5c: /* FCVTAU */
-        case 0x5d: /* UCVTF */
         case 0x7a: /* FCVTPU */
         case 0x7b: /* FCVTZU */
         case 0x7d: /* FRSQRTE */
@@ -6877,7 +6975,6 @@ static void handle_vec_simd_wshli(DisasContext *s, bool is_q, bool is_u,
     }
 }
 
-
 /* C3.6.14 AdvSIMD shift by immediate
  *  31  30   29 28         23 22  19 18  16 15    11  10 9    5 4    0
  * +---+---+---+-------------+------+------+--------+---+------+------+
@@ -6907,10 +7004,16 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
     case 0x14: /* SSHLL / USHLL */
         handle_vec_simd_wshli(s, is_q, is_u, immh, immb, opcode, rn, rd);
         break;
+    case 0x1c: /* SCVTF / UCVTF */
+        handle_simd_shift_intfp_conv(s, false, is_q, is_u, immh, immb,
+                                     opcode, rn, rd);
+        break;
+    case 0x1f: /* FCVTZS/ FCVTZU */
+        unsupported_encoding(s, insn);
+        return;
     default:
-        /* We don't currently implement any of the Narrow or saturating shifts;
-         * nor do we implement the fixed-point conversions in this
-         * encoding group (SCVTF, FCVTZS, UCVTF, FCVTZU).
+        /* We don't currently implement any of the Narrow or
+         * saturating shifts.
          */
         unsupported_encoding(s, insn);
         return;
@@ -8255,8 +8358,9 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         /* Floating point: U, size[1] and opcode indicate operation;
          * size[0] indicates single or double precision.
          */
+        int is_double = extract32(size, 0, 1);
         opcode |= (extract32(size, 1, 1) << 5) | (u << 6);
-        size = extract32(size, 0, 1) ? 3 : 2;
+        size = is_double ? 3 : 2;
         switch (opcode) {
         case 0x2f: /* FABS */
         case 0x6f: /* FNEG */
@@ -8265,6 +8369,18 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                 return;
             }
             break;
+        case 0x1d: /* SCVTF */
+        case 0x5d: /* UCVTF */
+        {
+            bool is_signed = (opcode == 0x1d) ? true : false;
+            int elements = is_double ? 2 : is_q ? 4 : 2;
+            if (is_double && !is_q) {
+                unallocated_encoding(s);
+                return;
+            }
+            handle_simd_intfp_conv(s, rd, rn, elements, is_signed, 0, size);
+            return;
+        }
         case 0x2c: /* FCMGT (zero) */
         case 0x2d: /* FCMEQ (zero) */
         case 0x2e: /* FCMLT (zero) */
@@ -8283,7 +8399,6 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         case 0x1a: /* FCVTNS */
         case 0x1b: /* FCVTMS */
         case 0x1c: /* FCVTAS */
-        case 0x1d: /* SCVTF */
         case 0x38: /* FRINTP */
         case 0x39: /* FRINTZ */
         case 0x3a: /* FCVTPS */
@@ -8296,7 +8411,6 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         case 0x5a: /* FCVTNU */
         case 0x5b: /* FCVTMU */
         case 0x5c: /* FCVTAU */
-        case 0x5d: /* UCVTF */
         case 0x79: /* FRINTI */
         case 0x7a: /* FCVTPU */
         case 0x7b: /* FCVTZU */
