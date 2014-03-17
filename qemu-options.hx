@@ -1043,7 +1043,7 @@ Rotate graphical output some deg left (only PXA LCD).
 ETEXI
 
 DEF("vga", HAS_ARG, QEMU_OPTION_vga,
-    "-vga [std|cirrus|vmware|qxl|xenfb|none]\n"
+    "-vga [std|cirrus|vmware|qxl|xenfb|tcx|cg3|none]\n"
     "                select video card type\n", QEMU_ARCH_ALL)
 STEXI
 @item -vga @var{type}
@@ -1068,6 +1068,14 @@ card.
 QXL paravirtual graphic card.  It is VGA compatible (including VESA
 2.0 VBE support).  Works best with qxl guest drivers installed though.
 Recommended choice when using the spice protocol.
+@item tcx
+(sun4m only) Sun TCX framebuffer. This is the default framebuffer for
+sun4m machines and offers both 8-bit and 24-bit colour depths at a
+fixed resolution of 1024x768.
+@item cg3
+(sun4m only) Sun cgthree framebuffer. This is a simple 8-bit framebuffer
+for sun4m machines available in both 1024x768 (OpenBIOS) and 1152x900 (OBP)
+resolutions aimed at people wishing to run older Solaris versions.
 @item none
 Disable VGA card.
 @end table
