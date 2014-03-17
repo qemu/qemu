@@ -8529,6 +8529,36 @@ static void handle_2misc_pairwise(DisasContext *s, int opcode, bool u,
     }
 }
 
+static void handle_shll(DisasContext *s, bool is_q, int size, int rn, int rd)
+{
+    /* Implement SHLL and SHLL2 */
+    int pass;
+    int part = is_q ? 2 : 0;
+    TCGv_i64 tcg_res[2];
+
+    for (pass = 0; pass < 2; pass++) {
+        static NeonGenWidenFn * const widenfns[3] = {
+            gen_helper_neon_widen_u8,
+            gen_helper_neon_widen_u16,
+            tcg_gen_extu_i32_i64,
+        };
+        NeonGenWidenFn *widenfn = widenfns[size];
+        TCGv_i32 tcg_op = tcg_temp_new_i32();
+
+        read_vec_element_i32(s, tcg_op, rn, part + pass, MO_32);
+        tcg_res[pass] = tcg_temp_new_i64();
+        widenfn(tcg_res[pass], tcg_op);
+        tcg_gen_shli_i64(tcg_res[pass], tcg_res[pass], 8 << size);
+
+        tcg_temp_free_i32(tcg_op);
+    }
+
+    for (pass = 0; pass < 2; pass++) {
+        write_vec_element(s, tcg_res[pass], rd, pass, MO_64);
+        tcg_temp_free_i64(tcg_res[pass]);
+    }
+}
+
 /* C3.6.17 AdvSIMD two reg misc
  *   31  30  29 28       24 23  22 21       17 16    12 11 10 9    5 4    0
  * +---+---+---+-----------+------+-----------+--------+-----+------+------+
@@ -8590,7 +8620,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        unsupported_encoding(s, insn);
+        handle_shll(s, is_q, size, rn, rd);
         return;
     case 0xa: /* CMLT */
         if (u == 1) {
