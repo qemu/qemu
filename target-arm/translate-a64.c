@@ -3096,12 +3096,11 @@ static void disas_add_sub_ext_reg(DisasContext *s, uint32_t insn)
 
     /* non-flag setting ops may use SP */
     if (!setflags) {
-        tcg_rn = read_cpu_reg_sp(s, rn, sf);
         tcg_rd = cpu_reg_sp(s, rd);
     } else {
-        tcg_rn = read_cpu_reg(s, rn, sf);
         tcg_rd = cpu_reg(s, rd);
     }
+    tcg_rn = read_cpu_reg_sp(s, rn, sf);
 
     tcg_rm = read_cpu_reg(s, rm, sf);
     ext_and_shift_reg(tcg_rm, tcg_rm, option, imm3);
