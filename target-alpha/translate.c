@@ -1927,6 +1927,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                     else {
                         tcg_gen_neg_i64(cpu_ir[rc], cpu_ir[rb]);
                         tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rc]);
+                    }
                 }
             }
             break;
@@ -1991,7 +1992,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], -lit);
-                    else
+                    else {
                         tcg_gen_neg_i64(cpu_ir[rc], cpu_ir[rb]);
                         tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rc]);
                     }

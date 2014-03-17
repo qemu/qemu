@@ -288,19 +288,19 @@ static void *nbd_client_thread(void *arg)
     ret = nbd_receive_negotiate(sock, NULL, &nbdflags,
                                 &size, &blocksize);
     if (ret < 0) {
-        goto out;
+        goto out_socket;
     }
 
     fd = open(device, O_RDWR);
     if (fd < 0) {
         /* Linux-only, we can use %m in printf.  */
         fprintf(stderr, "Failed to open %s: %m", device);
-        goto out;
+        goto out_socket;
     }
 
     ret = nbd_init(fd, sock, nbdflags, size, blocksize);
     if (ret < 0) {
-        goto out;
+        goto out_fd;
     }
 
     /* update partition table */
@@ -316,12 +316,16 @@ static void *nbd_client_thread(void *arg)
 
     ret = nbd_client(fd);
     if (ret) {
-        goto out;
+        goto out_fd;
     }
     close(fd);
     kill(getpid(), SIGTERM);
     return (void *) EXIT_SUCCESS;
 
+out_fd:
+    close(fd);
+out_socket:
+    closesocket(sock);
 out:
     kill(getpid(), SIGTERM);
     return (void *) EXIT_FAILURE;
@@ -355,6 +359,11 @@ static void nbd_accept(void *opaque)
     socklen_t addr_len = sizeof(addr);
 
     int fd = accept(server_fd, (struct sockaddr *)&addr, &addr_len);
+    if (fd < 0) {
+        perror("accept");
+        return;
+    }
+
     if (state >= TERMINATE) {
         close(fd);
         return;
