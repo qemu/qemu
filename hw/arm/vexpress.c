@@ -32,6 +32,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/block/flash.h"
 #include "sysemu/device_tree.h"
+#include "qemu/error-report.h"
 #include <libfdt.h>
 
 #define VEXPRESS_BOARD_ID 0x8e0
@@ -173,6 +174,64 @@ struct VEDBoardInfo {
     DBoardInitFn *init;
 };
 
+static void init_cpus(const char *cpu_model, const char *privdev,
+                      hwaddr periphbase, qemu_irq *pic)
+{
+    ObjectClass *cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
+    DeviceState *dev;
+    SysBusDevice *busdev;
+    int n;
+
+    if (!cpu_oc) {
+        fprintf(stderr, "Unable to find CPU definition\n");
+        exit(1);
+    }
+
+    /* Create the actual CPUs */
+    for (n = 0; n < smp_cpus; n++) {
+        Object *cpuobj = object_new(object_class_get_name(cpu_oc));
+        Error *err = NULL;
+
+        object_property_set_int(cpuobj, periphbase, "reset-cbar", &err);
+        if (err) {
+            error_report("%s", error_get_pretty(err));
+            exit(1);
+        }
+        object_property_set_bool(cpuobj, true, "realized", &err);
+        if (err) {
+            error_report("%s", error_get_pretty(err));
+            exit(1);
+        }
+    }
+
+    /* Create the private peripheral devices (including the GIC);
+     * this must happen after the CPUs are created because a15mpcore_priv
+     * wires itself up to the CPU's generic_timer gpio out lines.
+     */
+    dev = qdev_create(NULL, privdev);
+    qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
+    qdev_init_nofail(dev);
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(busdev, 0, periphbase);
+
+    /* Interrupts [42:0] are from the motherboard;
+     * [47:43] are reserved; [63:48] are daughterboard
+     * peripherals. Note that some documentation numbers
+     * external interrupts starting from 32 (because there
+     * are internal interrupts 0..31).
+     */
+    for (n = 0; n < 64; n++) {
+        pic[n] = qdev_get_gpio_in(dev, n);
+    }
+
+    /* Connect the CPUs to the GIC */
+    for (n = 0; n < smp_cpus; n++) {
+        DeviceState *cpudev = DEVICE(qemu_get_cpu(n));
+
+        sysbus_connect_irq(busdev, n, qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
+    }
+}
+
 static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
                                   ram_addr_t ram_size,
                                   const char *cpu_model,
@@ -181,23 +240,10 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *lowram = g_new(MemoryRegion, 1);
-    DeviceState *dev;
-    SysBusDevice *busdev;
-    int n;
-    qemu_irq cpu_irq[4];
     ram_addr_t low_ram_size;
 
     if (!cpu_model) {
         cpu_model = "cortex-a9";
-    }
-
-    for (n = 0; n < smp_cpus; n++) {
-        ARMCPU *cpu = cpu_arm_init(cpu_model);
-        if (!cpu) {
-            fprintf(stderr, "Unable to find CPU definition\n");
-            exit(1);
-        }
-        cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ);
     }
 
     if (ram_size > 0x40000000) {
@@ -221,23 +267,7 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
     memory_region_add_subregion(sysmem, 0x60000000, ram);
 
     /* 0x1e000000 A9MPCore (SCU) private memory region */
-    dev = qdev_create(NULL, "a9mpcore_priv");
-    qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
-    qdev_init_nofail(dev);
-    busdev = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(busdev, 0, 0x1e000000);
-    for (n = 0; n < smp_cpus; n++) {
-        sysbus_connect_irq(busdev, n, cpu_irq[n]);
-    }
-    /* Interrupts [42:0] are from the motherboard;
-     * [47:43] are reserved; [63:48] are daughterboard
-     * peripherals. Note that some documentation numbers
-     * external interrupts starting from 32 (because the
-     * A9MP has internal interrupts 0..31).
-     */
-    for (n = 0; n < 64; n++) {
-        pic[n] = qdev_get_gpio_in(dev, n);
-    }
+    init_cpus(cpu_model, "a9mpcore_priv", 0x1e000000, pic);
 
     /* Daughterboard peripherals : 0x10020000 .. 0x20000000 */
 
@@ -296,27 +326,12 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
                                    const char *cpu_model,
                                    qemu_irq *pic)
 {
-    int n;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
-    qemu_irq cpu_irq[4];
-    DeviceState *dev;
-    SysBusDevice *busdev;
 
     if (!cpu_model) {
         cpu_model = "cortex-a15";
-    }
-
-    for (n = 0; n < smp_cpus; n++) {
-        ARMCPU *cpu;
-
-        cpu = cpu_arm_init(cpu_model);
-        if (!cpu) {
-            fprintf(stderr, "Unable to find CPU definition\n");
-            exit(1);
-        }
-        cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ);
     }
 
     {
@@ -337,23 +352,7 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
     memory_region_add_subregion(sysmem, 0x80000000, ram);
 
     /* 0x2c000000 A15MPCore private memory region (GIC) */
-    dev = qdev_create(NULL, "a15mpcore_priv");
-    qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
-    qdev_init_nofail(dev);
-    busdev = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(busdev, 0, 0x2c000000);
-    for (n = 0; n < smp_cpus; n++) {
-        sysbus_connect_irq(busdev, n, cpu_irq[n]);
-    }
-    /* Interrupts [42:0] are from the motherboard;
-     * [47:43] are reserved; [63:48] are daughterboard
-     * peripherals. Note that some documentation numbers
-     * external interrupts starting from 32 (because there
-     * are internal interrupts 0..31).
-     */
-    for (n = 0; n < 64; n++) {
-        pic[n] = qdev_get_gpio_in(dev, n);
-    }
+    init_cpus(cpu_model, "a15mpcore_priv", 0x2c000000, pic);
 
     /* A15 daughterboard peripherals: */
 
