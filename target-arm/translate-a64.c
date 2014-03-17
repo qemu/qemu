@@ -7200,7 +7200,8 @@ static void handle_2misc_reciprocal(DisasContext *s, int opcode,
     tcg_temp_free_ptr(fpst);
 }
 
-static void handle_2misc_narrow(DisasContext *s, int opcode, bool u, bool is_q,
+static void handle_2misc_narrow(DisasContext *s, bool scalar,
+                                int opcode, bool u, bool is_q,
                                 int size, int rn, int rd)
 {
     /* Handle 2-reg-misc ops which are narrowing (so each 2*size element
@@ -7209,13 +7210,22 @@ static void handle_2misc_narrow(DisasContext *s, int opcode, bool u, bool is_q,
     int pass;
     TCGv_i32 tcg_res[2];
     int destelt = is_q ? 2 : 0;
+    int passes = scalar ? 1 : 2;
 
-    for (pass = 0; pass < 2; pass++) {
+    if (scalar) {
+        tcg_res[1] = tcg_const_i32(0);
+    }
+
+    for (pass = 0; pass < passes; pass++) {
         TCGv_i64 tcg_op = tcg_temp_new_i64();
         NeonGenNarrowFn *genfn = NULL;
         NeonGenNarrowEnvFn *genenvfn = NULL;
 
-        read_vec_element(s, tcg_op, rn, pass, MO_64);
+        if (scalar) {
+            read_vec_element(s, tcg_op, rn, pass, size + 1);
+        } else {
+            read_vec_element(s, tcg_op, rn, pass, MO_64);
+        }
         tcg_res[pass] = tcg_temp_new_i32();
 
         switch (opcode) {
@@ -7323,6 +7333,19 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
             return;
         }
         break;
+    case 0x12: /* SQXTUN */
+        if (u) {
+            unallocated_encoding(s);
+            return;
+        }
+        /* fall through */
+    case 0x14: /* SQXTN, UQXTN */
+        if (size == 3) {
+            unallocated_encoding(s);
+            return;
+        }
+        handle_2misc_narrow(s, true, opcode, u, false, size, rn, rd);
+        return;
     case 0xc ... 0xf:
     case 0x16 ... 0x1d:
     case 0x1f:
@@ -7379,8 +7402,6 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
     default:
         /* Other categories of encoding in this class:
          *  + SUQADD/USQADD/SQABS/SQNEG : size 8, 16, 32 or 64
-         *  + SQXTN/SQXTN2/SQXTUN/SQXTUN2/UQXTN/UQXTN2:
-         *    narrowing saturate ops: size 64/32/16 -> 32/16/8
          */
         unsupported_encoding(s, insn);
         return;
@@ -9096,7 +9117,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        handle_2misc_narrow(s, opcode, u, is_q, size, rn, rd);
+        handle_2misc_narrow(s, false, opcode, u, is_q, size, rn, rd);
         return;
     case 0x4: /* CLS, CLZ */
         if (size == 3) {
@@ -9227,7 +9248,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             /* handle_2misc_narrow does a 2*size -> size operation, but these
              * instructions encode the source size rather than dest size.
              */
-            handle_2misc_narrow(s, opcode, 0, is_q, size - 1, rn, rd);
+            handle_2misc_narrow(s, false, opcode, 0, is_q, size - 1, rn, rd);
             return;
         case 0x17: /* FCVTL, FCVTL2 */
             handle_2misc_widening(s, opcode, is_q, size, rn, rd);
