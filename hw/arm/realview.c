@@ -18,6 +18,7 @@
 #include "hw/i2c/i2c.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
+#include "qemu/error-report.h"
 
 #define SMP_BOOT_ADDR 0xe0000000
 #define SMP_BOOTREG_ADDR 0x10000030
@@ -49,6 +50,7 @@ static void realview_init(QEMUMachineInitArgs *args,
 {
     ARMCPU *cpu = NULL;
     CPUARMState *env;
+    ObjectClass *cpu_oc;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram_lo = g_new(MemoryRegion, 1);
     MemoryRegion *ram_hi = g_new(MemoryRegion, 1);
@@ -70,12 +72,14 @@ static void realview_init(QEMUMachineInitArgs *args,
     uint32_t sys_id;
     ram_addr_t low_ram_size;
     ram_addr_t ram_size = args->ram_size;
+    hwaddr periphbase = 0;
 
     switch (board_type) {
     case BOARD_EB:
         break;
     case BOARD_EB_MPCORE:
         is_mpcore = 1;
+        periphbase = 0x10100000;
         break;
     case BOARD_PB_A8:
         is_pb = 1;
@@ -83,16 +87,37 @@ static void realview_init(QEMUMachineInitArgs *args,
     case BOARD_PBX_A9:
         is_mpcore = 1;
         is_pb = 1;
+        periphbase = 0x1f000000;
         break;
     }
+
+    cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, args->cpu_model);
+    if (!cpu_oc) {
+        fprintf(stderr, "Unable to find CPU definition\n");
+        exit(1);
+    }
+
     for (n = 0; n < smp_cpus; n++) {
-        cpu = cpu_arm_init(args->cpu_model);
-        if (!cpu) {
-            fprintf(stderr, "Unable to find CPU definition\n");
+        Object *cpuobj = object_new(object_class_get_name(cpu_oc));
+        Error *err = NULL;
+
+        if (is_pb && is_mpcore) {
+            object_property_set_int(cpuobj, periphbase, "reset-cbar", &err);
+            if (err) {
+                error_report("%s", error_get_pretty(err));
+                exit(1);
+            }
+        }
+
+        object_property_set_bool(cpuobj, true, "realized", &err);
+        if (err) {
+            error_report("%s", error_get_pretty(err));
             exit(1);
         }
-        cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ);
+
+        cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpuobj), ARM_CPU_IRQ);
     }
+    cpu = ARM_CPU(first_cpu);
     env = &cpu->env;
     if (arm_feature(env, ARM_FEATURE_V7)) {
         if (is_mpcore) {
@@ -141,16 +166,10 @@ static void realview_init(QEMUMachineInitArgs *args,
     sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, 0x10000000);
 
     if (is_mpcore) {
-        hwaddr periphbase;
         dev = qdev_create(NULL, is_pb ? "a9mpcore_priv": "realview_mpcore");
         qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
         qdev_init_nofail(dev);
         busdev = SYS_BUS_DEVICE(dev);
-        if (is_pb) {
-            periphbase = 0x1f000000;
-        } else {
-            periphbase = 0x10100000;
-        }
         sysbus_mmio_map(busdev, 0, periphbase);
         for (n = 0; n < smp_cpus; n++) {
             sysbus_connect_irq(busdev, n, cpu_irq[n]);
