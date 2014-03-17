@@ -6886,6 +6886,72 @@ static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
     tcg_temp_free_ptr(fpst);
 }
 
+static void handle_2misc_reciprocal(DisasContext *s, int opcode,
+                                    bool is_scalar, bool is_u, bool is_q,
+                                    int size, int rn, int rd)
+{
+    bool is_double = (size == 3);
+    TCGv_ptr fpst = get_fpstatus_ptr();
+
+    if (is_double) {
+        TCGv_i64 tcg_op = tcg_temp_new_i64();
+        TCGv_i64 tcg_res = tcg_temp_new_i64();
+        int pass;
+
+        for (pass = 0; pass < (is_scalar ? 1 : 2); pass++) {
+            read_vec_element(s, tcg_op, rn, pass, MO_64);
+            switch (opcode) {
+            case 0x3f: /* FRECPX */
+                gen_helper_frecpx_f64(tcg_res, tcg_op, fpst);
+                break;
+            default:
+                g_assert_not_reached();
+            }
+            write_vec_element(s, tcg_res, rd, pass, MO_64);
+        }
+        if (is_scalar) {
+            clear_vec_high(s, rd);
+        }
+
+        tcg_temp_free_i64(tcg_res);
+        tcg_temp_free_i64(tcg_op);
+    } else {
+        TCGv_i32 tcg_op = tcg_temp_new_i32();
+        TCGv_i32 tcg_res = tcg_temp_new_i32();
+        int pass, maxpasses;
+
+        if (is_scalar) {
+            maxpasses = 1;
+        } else {
+            maxpasses = is_q ? 4 : 2;
+        }
+
+        for (pass = 0; pass < maxpasses; pass++) {
+            read_vec_element_i32(s, tcg_op, rn, pass, MO_32);
+
+            switch (opcode) {
+            case 0x3f: /* FRECPX */
+                gen_helper_frecpx_f32(tcg_res, tcg_op, fpst);
+                break;
+            default:
+                g_assert_not_reached();
+            }
+
+            if (is_scalar) {
+                write_fp_sreg(s, rd, tcg_res);
+            } else {
+                write_vec_element_i32(s, tcg_res, rd, pass, MO_32);
+            }
+        }
+        tcg_temp_free_i32(tcg_res);
+        tcg_temp_free_i32(tcg_op);
+        if (!is_q && !is_scalar) {
+            clear_vec_high(s, rd);
+        }
+    }
+    tcg_temp_free_ptr(fpst);
+}
+
 /* C3.6.12 AdvSIMD scalar two reg misc
  *  31 30  29 28       24 23  22 21       17 16    12 11 10 9    5 4    0
  * +-----+---+-----------+------+-----------+--------+-----+------+------+
@@ -6942,6 +7008,9 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
             handle_simd_intfp_conv(s, rd, rn, 1, is_signed, 0, size);
             return;
         }
+        case 0x3f: /* FRECPX */
+            handle_2misc_reciprocal(s, opcode, true, u, true, size, rn, rd);
+            return;
         case 0x1a: /* FCVTNS */
         case 0x1b: /* FCVTMS */
         case 0x3a: /* FCVTPS */
@@ -6960,7 +7029,6 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
             rmode = FPROUNDING_TIEAWAY;
             break;
         case 0x3d: /* FRECPE */
-        case 0x3f: /* FRECPX */
         case 0x56: /* FCVTXN, FCVTXN2 */
         case 0x7d: /* FRSQRTE */
             unsupported_encoding(s, insn);

@@ -354,3 +354,62 @@ uint64_t HELPER(neon_addlp_u16)(uint64_t a)
     tmp += (a >> 16) & 0x0000ffff0000ffffULL;
     return tmp;
 }
+
+/* Floating-point reciprocal exponent - see FPRecpX in ARM ARM */
+float32 HELPER(frecpx_f32)(float32 a, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    uint32_t val32, sbit;
+    int32_t exp;
+
+    if (float32_is_any_nan(a)) {
+        float32 nan = a;
+        if (float32_is_signaling_nan(a)) {
+            float_raise(float_flag_invalid, fpst);
+            nan = float32_maybe_silence_nan(a);
+        }
+        if (fpst->default_nan_mode) {
+            nan = float32_default_nan;
+        }
+        return nan;
+    }
+
+    val32 = float32_val(a);
+    sbit = 0x80000000ULL & val32;
+    exp = extract32(val32, 23, 8);
+
+    if (exp == 0) {
+        return make_float32(sbit | (0xfe << 23));
+    } else {
+        return make_float32(sbit | (~exp & 0xff) << 23);
+    }
+}
+
+float64 HELPER(frecpx_f64)(float64 a, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    uint64_t val64, sbit;
+    int64_t exp;
+
+    if (float64_is_any_nan(a)) {
+        float64 nan = a;
+        if (float64_is_signaling_nan(a)) {
+            float_raise(float_flag_invalid, fpst);
+            nan = float64_maybe_silence_nan(a);
+        }
+        if (fpst->default_nan_mode) {
+            nan = float64_default_nan;
+        }
+        return nan;
+    }
+
+    val64 = float64_val(a);
+    sbit = 0x8000000000000000ULL & val64;
+    exp = extract64(float64_val(a), 52, 11);
+
+    if (exp == 0) {
+        return make_float64(sbit | (0x7feULL << 52));
+    } else {
+        return make_float64(sbit | (~exp & 0x7ffULL) << 52);
+    }
+}
