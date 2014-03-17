@@ -8450,13 +8450,30 @@ static void handle_2misc_narrow(DisasContext *s, int opcode, bool u, bool is_q,
             genenvfn = fns[size][u];
             break;
         }
+        case 0x16: /* FCVTN, FCVTN2 */
+            /* 32 bit to 16 bit or 64 bit to 32 bit float conversion */
+            if (size == 2) {
+                gen_helper_vfp_fcvtsd(tcg_res[pass], tcg_op, cpu_env);
+            } else {
+                TCGv_i32 tcg_lo = tcg_temp_new_i32();
+                TCGv_i32 tcg_hi = tcg_temp_new_i32();
+                tcg_gen_trunc_i64_i32(tcg_lo, tcg_op);
+                gen_helper_vfp_fcvt_f32_to_f16(tcg_lo, tcg_lo, cpu_env);
+                tcg_gen_shri_i64(tcg_op, tcg_op, 32);
+                tcg_gen_trunc_i64_i32(tcg_hi, tcg_op);
+                gen_helper_vfp_fcvt_f32_to_f16(tcg_hi, tcg_hi, cpu_env);
+                tcg_gen_deposit_i32(tcg_res[pass], tcg_lo, tcg_hi, 16, 16);
+                tcg_temp_free_i32(tcg_lo);
+                tcg_temp_free_i32(tcg_hi);
+            }
+            break;
         default:
             g_assert_not_reached();
         }
 
         if (genfn) {
             genfn(tcg_res[pass], tcg_op);
-        } else {
+        } else if (genenvfn) {
             genenvfn(tcg_res[pass], cpu_env, tcg_op);
         }
 
@@ -8807,6 +8824,11 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             }
             break;
         case 0x16: /* FCVTN, FCVTN2 */
+            /* handle_2misc_narrow does a 2*size -> size operation, but these
+             * instructions encode the source size rather than dest size.
+             */
+            handle_2misc_narrow(s, opcode, 0, is_q, size - 1, rn, rd);
+            return;
         case 0x17: /* FCVTL, FCVTL2 */
         case 0x18: /* FRINTN */
         case 0x19: /* FRINTM */
