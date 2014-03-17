@@ -6135,8 +6135,14 @@ static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
         handle_vec_simd_sqshrn(s, true, false, is_u, is_u,
                                immh, immb, opcode, rn, rd);
         break;
-    default:
+    case 0x8: /* SRI */
+    case 0xc: /* SQSHLU */
+    case 0xe: /* SQSHL, UQSHL */
+    case 0x1f: /* FCVTZS, FCVTZU */
         unsupported_encoding(s, insn);
+        break;
+    default:
+        unallocated_encoding(s);
         break;
     }
 }
@@ -7281,11 +7287,14 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
         handle_simd_shift_intfp_conv(s, false, is_q, is_u, immh, immb,
                                      opcode, rn, rd);
         break;
+    case 0x8: /* SRI */
+    case 0xc: /* SQSHLU */
+    case 0xe: /* SQSHL, UQSHL */
     case 0x1f: /* FCVTZS/ FCVTZU */
         unsupported_encoding(s, insn);
         return;
     default:
-        unsupported_encoding(s, insn);
+        unallocated_encoding(s);
         return;
     }
 }
