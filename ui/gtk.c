@@ -1362,10 +1362,10 @@ static GtkWidget *gd_create_menu_machine(GtkDisplayState *s, GtkAccelGroup *acce
     separator = gtk_separator_menu_item_new();
     gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), separator);
 
-    s->reset_item = gtk_image_menu_item_new_with_mnemonic(_("_Reset"));
+    s->reset_item = gtk_menu_item_new_with_mnemonic(_("_Reset"));
     gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), s->reset_item);
 
-    s->powerdown_item = gtk_image_menu_item_new_with_mnemonic(_("Power _Down"));
+    s->powerdown_item = gtk_menu_item_new_with_mnemonic(_("Power _Down"));
     gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), s->powerdown_item);
 
     separator = gtk_separator_menu_item_new();
