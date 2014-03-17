@@ -54,8 +54,12 @@ typedef struct PRePPCIState {
 
     qemu_irq irq[PCI_NUM_PINS];
     PCIBus pci_bus;
+    AddressSpace pci_io_as;
+    MemoryRegion pci_io_non_contiguous;
     MemoryRegion pci_intack;
     RavenPCIState pci_dev;
+
+    int contiguous_map;
 } PREPPCIState;
 
 #define BIOS_SIZE (1024 * 1024)
@@ -107,6 +111,71 @@ static const MemoryRegionOps PPC_intack_ops = {
     },
 };
 
+static inline hwaddr raven_io_address(PREPPCIState *s,
+                                      hwaddr addr)
+{
+    if (s->contiguous_map == 0) {
+        /* 64 KB contiguous space for IOs */
+        addr &= 0xFFFF;
+    } else {
+        /* 8 MB non-contiguous space for IOs */
+        addr = (addr & 0x1F) | ((addr & 0x007FFF000) >> 7);
+    }
+
+    /* FIXME: handle endianness switch */
+
+    return addr;
+}
+
+static uint64_t raven_io_read(void *opaque, hwaddr addr,
+                              unsigned int size)
+{
+    PREPPCIState *s = opaque;
+    uint8_t buf[4];
+
+    addr = raven_io_address(s, addr);
+    address_space_read(&s->pci_io_as, addr, buf, size);
+
+    if (size == 1) {
+        return buf[0];
+    } else if (size == 2) {
+        return lduw_p(buf);
+    } else if (size == 4) {
+        return ldl_p(buf);
+    } else {
+        g_assert_not_reached();
+    }
+}
+
+static void raven_io_write(void *opaque, hwaddr addr,
+                           uint64_t val, unsigned int size)
+{
+    PREPPCIState *s = opaque;
+    uint8_t buf[4];
+
+    addr = raven_io_address(s, addr);
+
+    if (size == 1) {
+        buf[0] = val;
+    } else if (size == 2) {
+        stw_p(buf, val);
+    } else if (size == 4) {
+        stl_p(buf, val);
+    } else {
+        g_assert_not_reached();
+    }
+
+    address_space_write(&s->pci_io_as, addr, buf, size);
+}
+
+static const MemoryRegionOps raven_io_ops = {
+    .read = raven_io_read,
+    .write = raven_io_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl.max_access_size = 4,
+    .valid.unaligned = true,
+};
+
 static int prep_map_irq(PCIDevice *pci_dev, int irq_num)
 {
     return (irq_num + (pci_dev->devfn >> 3)) & 1;
@@ -117,6 +186,13 @@ static void prep_set_irq(void *opaque, int irq_num, int level)
     qemu_irq *pic = opaque;
 
     qemu_set_irq(pic[irq_num] , level);
+}
+
+static void raven_change_gpio(void *opaque, int n, int level)
+{
+    PREPPCIState *s = opaque;
+
+    s->contiguous_map = level;
 }
 
 static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
@@ -132,6 +208,8 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
     for (i = 0; i < PCI_NUM_PINS; i++) {
         sysbus_init_irq(dev, &s->irq[i]);
     }
+
+    qdev_init_gpio_in(d, raven_change_gpio, 1);
 
     pci_bus_irqs(&s->pci_bus, prep_set_irq, prep_map_irq, s->irq, PCI_NUM_PINS);
 
@@ -164,6 +242,13 @@ static void raven_pcihost_initfn(Object *obj)
     MemoryRegion *address_space_io = get_system_io();
     DeviceState *pci_dev;
 
+    memory_region_init_io(&s->pci_io_non_contiguous, obj, &raven_io_ops, s,
+                          "pci-io-non-contiguous", 0x00800000);
+    address_space_init(&s->pci_io_as, get_system_io(), "raven-io");
+
+    /* CPU address space */
+    memory_region_add_subregion_overlap(address_space_mem, 0x80000000,
+                                        &s->pci_io_non_contiguous, 1);
     pci_bus_new_inplace(&s->pci_bus, sizeof(s->pci_bus), DEVICE(obj), NULL,
                         address_space_mem, address_space_io, 0, TYPE_PCI_BUS);
     h->bus = &s->pci_bus;
