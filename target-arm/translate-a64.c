@@ -5828,6 +5828,21 @@ static void handle_shli_with_ins(TCGv_i64 tcg_res, TCGv_i64 tcg_src,
     }
 }
 
+/* SRI: shift right with insert */
+static void handle_shri_with_ins(TCGv_i64 tcg_res, TCGv_i64 tcg_src,
+                                 int size, int shift)
+{
+    int esize = 8 << size;
+
+    /* shift count same as element size is valid but does nothing;
+     * special case to avoid potential shift by 64.
+     */
+    if (shift != esize) {
+        tcg_gen_shri_i64(tcg_src, tcg_src, shift);
+        tcg_gen_deposit_i64(tcg_res, tcg_res, tcg_src, 0, esize - shift);
+    }
+}
+
 /* SSHR[RA]/USHR[RA] - Scalar shift right (optional rounding/accumulate) */
 static void handle_scalar_simd_shri(DisasContext *s,
                                     bool is_u, int immh, int immb,
@@ -5838,6 +5853,7 @@ static void handle_scalar_simd_shri(DisasContext *s,
     int shift = 2 * (8 << size) - immhb;
     bool accumulate = false;
     bool round = false;
+    bool insert = false;
     TCGv_i64 tcg_rn;
     TCGv_i64 tcg_rd;
     TCGv_i64 tcg_round;
@@ -5857,6 +5873,9 @@ static void handle_scalar_simd_shri(DisasContext *s,
     case 0x06: /* SRSRA / URSRA (accum + rounding) */
         accumulate = round = true;
         break;
+    case 0x08: /* SRI */
+        insert = true;
+        break;
     }
 
     if (round) {
@@ -5867,10 +5886,14 @@ static void handle_scalar_simd_shri(DisasContext *s,
     }
 
     tcg_rn = read_fp_dreg(s, rn);
-    tcg_rd = accumulate ? read_fp_dreg(s, rd) : tcg_temp_new_i64();
+    tcg_rd = (accumulate || insert) ? read_fp_dreg(s, rd) : tcg_temp_new_i64();
 
-    handle_shri_with_rndacc(tcg_rd, tcg_rn, tcg_round,
-                               accumulate, is_u, size, shift);
+    if (insert) {
+        handle_shri_with_ins(tcg_rd, tcg_rn, size, shift);
+    } else {
+        handle_shri_with_rndacc(tcg_rd, tcg_rn, tcg_round,
+                                accumulate, is_u, size, shift);
+    }
 
     write_fp_dreg(s, rd, tcg_rd);
 
@@ -6108,6 +6131,12 @@ static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
     }
 
     switch (opcode) {
+    case 0x08: /* SRI */
+        if (!is_u) {
+            unallocated_encoding(s);
+            return;
+        }
+        /* fall through */
     case 0x00: /* SSHR / USHR */
     case 0x02: /* SSRA / USRA */
     case 0x04: /* SRSHR / URSHR */
@@ -6135,7 +6164,6 @@ static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
         handle_vec_simd_sqshrn(s, true, false, is_u, is_u,
                                immh, immb, opcode, rn, rd);
         break;
-    case 0x8: /* SRI */
     case 0xc: /* SQSHLU */
     case 0xe: /* SQSHL, UQSHL */
     case 0x1f: /* FCVTZS, FCVTZU */
@@ -7119,6 +7147,7 @@ static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
     int shift = 2 * (8 << size) - immhb;
     bool accumulate = false;
     bool round = false;
+    bool insert = false;
     int dsize = is_q ? 128 : 64;
     int esize = 8 << size;
     int elements = dsize/esize;
@@ -7148,6 +7177,9 @@ static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
     case 0x06: /* SRSRA / URSRA (accum + rounding) */
         accumulate = round = true;
         break;
+    case 0x08: /* SRI */
+        insert = true;
+        break;
     }
 
     if (round) {
@@ -7159,12 +7191,16 @@ static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
 
     for (i = 0; i < elements; i++) {
         read_vec_element(s, tcg_rn, rn, i, memop);
-        if (accumulate) {
+        if (accumulate || insert) {
             read_vec_element(s, tcg_rd, rd, i, memop);
         }
 
-        handle_shri_with_rndacc(tcg_rd, tcg_rn, tcg_round,
-                                accumulate, is_u, size, shift);
+        if (insert) {
+            handle_shri_with_ins(tcg_rd, tcg_rn, size, shift);
+        } else {
+            handle_shri_with_rndacc(tcg_rd, tcg_rn, tcg_round,
+                                    accumulate, is_u, size, shift);
+        }
 
         write_vec_element(s, tcg_rd, rd, i, size);
     }
@@ -7325,6 +7361,12 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
     bool is_q = extract32(insn, 30, 1);
 
     switch (opcode) {
+    case 0x08: /* SRI */
+        if (!is_u) {
+            unallocated_encoding(s);
+            return;
+        }
+        /* fall through */
     case 0x00: /* SSHR / USHR */
     case 0x02: /* SSRA / USRA (accumulate) */
     case 0x04: /* SRSHR / URSHR (rounding) */
@@ -7355,7 +7397,6 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
         handle_simd_shift_intfp_conv(s, false, is_q, is_u, immh, immb,
                                      opcode, rn, rd);
         break;
-    case 0x8: /* SRI */
     case 0xc: /* SQSHLU */
     case 0xe: /* SQSHL, UQSHL */
     case 0x1f: /* FCVTZS/ FCVTZU */
