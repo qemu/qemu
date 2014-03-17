@@ -1383,7 +1383,7 @@ static int write_reftable_entry(BlockDriverState *bs, int rt_index)
  * does _not_ decrement the reference count for the currently occupied cluster.
  *
  * This function prints an informative message to stderr on error (and returns
- * -errno); on success, 0 is returned.
+ * -errno); on success, the offset of the newly allocated cluster is returned.
  */
 static int64_t realloc_refcount_block(BlockDriverState *bs, int reftable_index,
                                       uint64_t offset)
