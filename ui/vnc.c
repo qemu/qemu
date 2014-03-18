@@ -888,7 +888,7 @@ static int vnc_update_client(VncState *vs, int has_dirty, bool sync)
         VncDisplay *vd = vs->vd;
         VncJob *job;
         int y;
-        int height;
+        int height, width;
         int n = 0;
 
         if (vs->output.offset && !vs->audio_cap && !vs->force_update)
@@ -907,6 +907,7 @@ static int vnc_update_client(VncState *vs, int has_dirty, bool sync)
         job = vnc_job_new(vs);
 
         height = MIN(pixman_image_get_height(vd->server), vs->client_height);
+        width = MIN(pixman_image_get_width(vd->server), vs->client_width);
 
         y = 0;
         for (;;) {
@@ -925,8 +926,11 @@ static int vnc_update_client(VncState *vs, int has_dirty, bool sync)
                                     VNC_DIRTY_BPL(vs), x);
             bitmap_clear(vs->dirty[y], x, x2 - x);
             h = find_and_clear_dirty_height(vs, y, x, x2, height);
-            n += vnc_job_add_rect(job, x * VNC_DIRTY_PIXELS_PER_BIT, y,
-                                  (x2 - x) * VNC_DIRTY_PIXELS_PER_BIT, h);
+            x2 = MIN(x2, width / VNC_DIRTY_PIXELS_PER_BIT);
+            if (x2 > x) {
+                n += vnc_job_add_rect(job, x * VNC_DIRTY_PIXELS_PER_BIT, y,
+                                      (x2 - x) * VNC_DIRTY_PIXELS_PER_BIT, h);
+            }
         }
 
         vnc_job_push(job);
