@@ -220,34 +220,34 @@ static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y)
         return x ^ y;
 
     case INDEX_op_shl_i32:
-        return (uint32_t)x << (uint32_t)y;
+        return (uint32_t)x << (y & 31);
 
     case INDEX_op_shl_i64:
-        return (uint64_t)x << (uint64_t)y;
+        return (uint64_t)x << (y & 63);
 
     case INDEX_op_shr_i32:
-        return (uint32_t)x >> (uint32_t)y;
+        return (uint32_t)x >> (y & 31);
 
     case INDEX_op_shr_i64:
-        return (uint64_t)x >> (uint64_t)y;
+        return (uint64_t)x >> (y & 63);
 
     case INDEX_op_sar_i32:
-        return (int32_t)x >> (int32_t)y;
+        return (int32_t)x >> (y & 31);
 
     case INDEX_op_sar_i64:
-        return (int64_t)x >> (int64_t)y;
+        return (int64_t)x >> (y & 63);
 
     case INDEX_op_rotr_i32:
-        return ror32(x, y);
+        return ror32(x, y & 31);
 
     case INDEX_op_rotr_i64:
-        return ror64(x, y);
+        return ror64(x, y & 63);
 
     case INDEX_op_rotl_i32:
-        return rol32(x, y);
+        return rol32(x, y & 31);
 
     case INDEX_op_rotl_i64:
-        return rol64(x, y);
+        return rol64(x, y & 63);
 
     CASE_OP_32_64(not):
         return ~x;
@@ -806,29 +806,34 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
 
         case INDEX_op_sar_i32:
             if (temps[args[2]].state == TCG_TEMP_CONST) {
-                mask = (int32_t)temps[args[1]].mask >> temps[args[2]].val;
+                tmp = temps[args[2]].val & 31;
+                mask = (int32_t)temps[args[1]].mask >> tmp;
             }
             break;
         case INDEX_op_sar_i64:
             if (temps[args[2]].state == TCG_TEMP_CONST) {
-                mask = (int64_t)temps[args[1]].mask >> temps[args[2]].val;
+                tmp = temps[args[2]].val & 63;
+                mask = (int64_t)temps[args[1]].mask >> tmp;
             }
             break;
 
         case INDEX_op_shr_i32:
             if (temps[args[2]].state == TCG_TEMP_CONST) {
-                mask = (uint32_t)temps[args[1]].mask >> temps[args[2]].val;
+                tmp = temps[args[2]].val & 31;
+                mask = (uint32_t)temps[args[1]].mask >> tmp;
             }
             break;
         case INDEX_op_shr_i64:
             if (temps[args[2]].state == TCG_TEMP_CONST) {
-                mask = (uint64_t)temps[args[1]].mask >> temps[args[2]].val;
+                tmp = temps[args[2]].val & 63;
+                mask = (uint64_t)temps[args[1]].mask >> tmp;
             }
             break;
 
         CASE_OP_32_64(shl):
             if (temps[args[2]].state == TCG_TEMP_CONST) {
-                mask = temps[args[1]].mask << temps[args[2]].val;
+                tmp = temps[args[2]].val & (TCG_TARGET_REG_BITS - 1);
+                mask = temps[args[1]].mask << tmp;
             }
             break;
 
