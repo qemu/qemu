@@ -133,7 +133,14 @@ extern uint8_t qemu_extra_params_fw[2];
 extern QEMUClockType rtc_clock;
 
 #define MAX_NODES 64
+
+/* The following shall be true for all CPUs:
+ *   cpu->cpu_index < max_cpus <= MAX_CPUMASK_BITS
+ *
+ * Note that cpu->get_arch_id() may be larger than MAX_CPUMASK_BITS.
+ */
 #define MAX_CPUMASK_BITS 255
+
 extern int nb_numa_nodes;
 extern uint64_t node_mem[MAX_NODES];
 extern unsigned long *node_cpumask[MAX_NODES];
