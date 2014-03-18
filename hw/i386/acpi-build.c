@@ -226,14 +226,14 @@ static void acpi_get_pci_info(PcPciInfo *info)
 
 static void
 build_header(GArray *linker, GArray *table_data,
-             AcpiTableHeader *h, uint32_t sig, int len, uint8_t rev)
+             AcpiTableHeader *h, const char *sig, int len, uint8_t rev)
 {
-    h->signature = cpu_to_le32(sig);
+    memcpy(&h->signature, sig, 4);
     h->length = cpu_to_le32(len);
     h->revision = rev;
     memcpy(h->oem_id, ACPI_BUILD_APPNAME6, 6);
     memcpy(h->oem_table_id, ACPI_BUILD_APPNAME4, 4);
-    memcpy(h->oem_table_id + 4, (void *)&sig, 4);
+    memcpy(h->oem_table_id + 4, sig, 4);
     h->oem_revision = cpu_to_le32(1);
     memcpy(h->asl_compiler_id, ACPI_BUILD_APPNAME4, 4);
     h->asl_compiler_revision = cpu_to_le32(1);
@@ -495,7 +495,7 @@ static void
 build_facs(GArray *table_data, GArray *linker, PcGuestInfo *guest_info)
 {
     AcpiFacsDescriptorRev1 *facs = acpi_data_push(table_data, sizeof *facs);
-    facs->signature = cpu_to_le32(ACPI_FACS_SIGNATURE);
+    memcpy(&facs->signature, "FACS", 4);
     facs->length = cpu_to_le32(sizeof(*facs));
 }
 
@@ -552,7 +552,7 @@ build_fadt(GArray *table_data, GArray *linker, AcpiPmInfo *pm,
     fadt_setup(fadt, pm);
 
     build_header(linker, table_data,
-                 (void *)fadt, ACPI_FACP_SIGNATURE, sizeof(*fadt), 1);
+                 (void *)fadt, "FACP", sizeof(*fadt), 1);
 }
 
 static void
@@ -621,7 +621,7 @@ build_madt(GArray *table_data, GArray *linker, AcpiCpuInfo *cpu,
     local_nmi->lint         = 1; /* ACPI_LINT1 */
 
     build_header(linker, table_data,
-                 (void *)(table_data->data + madt_start), ACPI_APIC_SIGNATURE,
+                 (void *)(table_data->data + madt_start), "APIC",
                  table_data->len - madt_start, 1);
 }
 
@@ -1098,7 +1098,7 @@ build_ssdt(GArray *table_data, GArray *linker,
 
     build_header(linker, table_data,
                  (void *)(table_data->data + ssdt_start),
-                 ACPI_SSDT_SIGNATURE, table_data->len - ssdt_start, 1);
+                 "SSDT", table_data->len - ssdt_start, 1);
 }
 
 static void
@@ -1113,7 +1113,7 @@ build_hpet(GArray *table_data, GArray *linker)
     hpet->timer_block_id = cpu_to_le32(0x8086a201);
     hpet->addr.address = cpu_to_le64(HPET_BASE);
     build_header(linker, table_data,
-                 (void *)hpet, ACPI_HPET_SIGNATURE, sizeof(*hpet), 1);
+                 (void *)hpet, "HPET", sizeof(*hpet), 1);
 }
 
 static void
@@ -1205,7 +1205,7 @@ build_srat(GArray *table_data, GArray *linker,
 
     build_header(linker, table_data,
                  (void *)(table_data->data + srat_start),
-                 ACPI_SRAT_SIGNATURE,
+                 "SRAT",
                  table_data->len - srat_start, 1);
 }
 
@@ -1213,7 +1213,7 @@ static void
 build_mcfg_q35(GArray *table_data, GArray *linker, AcpiMcfgInfo *info)
 {
     AcpiTableMcfg *mcfg;
-    uint32_t sig;
+    const char *sig;
     int len = sizeof(*mcfg) + 1 * sizeof(mcfg->allocation[0]);
 
     mcfg = acpi_data_push(table_data, len);
@@ -1230,9 +1230,10 @@ build_mcfg_q35(GArray *table_data, GArray *linker, AcpiMcfgInfo *info)
      * ACPI spec requires OSPMs to ignore such tables.
      */
     if (info->mcfg_base == PCIE_BASE_ADDR_UNMAPPED) {
-        sig = ACPI_RSRV_SIGNATURE;
+        /* Reserved signature: ignored by OSPM */
+        sig = "QEMU";
     } else {
-        sig = ACPI_MCFG_SIGNATURE;
+        sig = "MCFG";
     }
     build_header(linker, table_data, (void *)mcfg, sig, len, 1);
 }
@@ -1248,7 +1249,7 @@ build_dsdt(GArray *table_data, GArray *linker, AcpiMiscInfo *misc)
     memcpy(dsdt, misc->dsdt_code, misc->dsdt_size);
 
     memset(dsdt, 0, sizeof *dsdt);
-    build_header(linker, table_data, dsdt, ACPI_DSDT_SIGNATURE,
+    build_header(linker, table_data, dsdt, "DSDT",
                  misc->dsdt_size, 1);
 }
 
@@ -1273,7 +1274,7 @@ build_rsdt(GArray *table_data, GArray *linker, GArray *table_offsets)
                                        sizeof(uint32_t));
     }
     build_header(linker, table_data,
-                 (void *)rsdt, ACPI_RSDT_SIGNATURE, rsdt_len, 1);
+                 (void *)rsdt, "RSDT", rsdt_len, 1);
 }
 
 static GArray *
@@ -1284,7 +1285,7 @@ build_rsdp(GArray *rsdp_table, GArray *linker, unsigned rsdt)
     bios_linker_loader_alloc(linker, ACPI_BUILD_RSDP_FILE, 1,
                              true /* fseg memory */);
 
-    rsdp->signature = cpu_to_le64(ACPI_RSDP_SIGNATURE);
+    memcpy(&rsdp->signature, "RSD PTR ", 8);
     memcpy(rsdp->oem_id, ACPI_BUILD_APPNAME6, 6);
     rsdp->rsdt_physical_address = cpu_to_le32(rsdt);
     /* Address to be filled by Guest linker */
