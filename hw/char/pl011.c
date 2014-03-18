@@ -221,7 +221,7 @@ static void pl011_put_fifo(void *opaque, uint32_t value)
     s->read_fifo[slot] = value;
     s->read_count++;
     s->flags &= ~PL011_FLAG_RXFE;
-    if (s->cr & 0x10 || s->read_count == 16) {
+    if (!(s->lcr & 0x10) || s->read_count == 16) {
         s->flags |= PL011_FLAG_RXFF;
     }
     if (s->read_count == s->read_trigger) {
