@@ -60,6 +60,11 @@ uint32_t HELPER(cls32)(uint32_t x)
     return clrsb32(x);
 }
 
+uint32_t HELPER(clz32)(uint32_t x)
+{
+    return clz32(x);
+}
+
 uint64_t HELPER(rbit64)(uint64_t x)
 {
     /* assign the correct byte position */
@@ -180,6 +185,36 @@ uint64_t HELPER(simd_tbl)(CPUARMState *env, uint64_t result, uint64_t indices,
     return result;
 }
 
+/* Helper function for 64 bit polynomial multiply case:
+ * perform PolynomialMult(op1, op2) and return either the top or
+ * bottom half of the 128 bit result.
+ */
+uint64_t HELPER(neon_pmull_64_lo)(uint64_t op1, uint64_t op2)
+{
+    int bitnum;
+    uint64_t res = 0;
+
+    for (bitnum = 0; bitnum < 64; bitnum++) {
+        if (op1 & (1ULL << bitnum)) {
+            res ^= op2 << bitnum;
+        }
+    }
+    return res;
+}
+uint64_t HELPER(neon_pmull_64_hi)(uint64_t op1, uint64_t op2)
+{
+    int bitnum;
+    uint64_t res = 0;
+
+    /* bit 0 of op1 can't influence the high 64 bits at all */
+    for (bitnum = 1; bitnum < 64; bitnum++) {
+        if (op1 & (1ULL << bitnum)) {
+            res ^= op2 >> (64 - bitnum);
+        }
+    }
+    return res;
+}
+
 /* 64bit/double versions of the neon float compare functions */
 uint64_t HELPER(neon_ceq_f64)(float64 a, float64 b, void *fpstp)
 {
@@ -257,4 +292,147 @@ float64 HELPER(rsqrtsf_f64)(float64 a, float64 b, void *fpstp)
         return float64_one_point_five;
     }
     return float64_muladd(a, b, float64_three, float_muladd_halve_result, fpst);
+}
+
+/* Pairwise long add: add pairs of adjacent elements into
+ * double-width elements in the result (eg _s8 is an 8x8->16 op)
+ */
+uint64_t HELPER(neon_addlp_s8)(uint64_t a)
+{
+    uint64_t nsignmask = 0x0080008000800080ULL;
+    uint64_t wsignmask = 0x8000800080008000ULL;
+    uint64_t elementmask = 0x00ff00ff00ff00ffULL;
+    uint64_t tmp1, tmp2;
+    uint64_t res, signres;
+
+    /* Extract odd elements, sign extend each to a 16 bit field */
+    tmp1 = a & elementmask;
+    tmp1 ^= nsignmask;
+    tmp1 |= wsignmask;
+    tmp1 = (tmp1 - nsignmask) ^ wsignmask;
+    /* Ditto for the even elements */
+    tmp2 = (a >> 8) & elementmask;
+    tmp2 ^= nsignmask;
+    tmp2 |= wsignmask;
+    tmp2 = (tmp2 - nsignmask) ^ wsignmask;
+
+    /* calculate the result by summing bits 0..14, 16..22, etc,
+     * and then adjusting the sign bits 15, 23, etc manually.
+     * This ensures the addition can't overflow the 16 bit field.
+     */
+    signres = (tmp1 ^ tmp2) & wsignmask;
+    res = (tmp1 & ~wsignmask) + (tmp2 & ~wsignmask);
+    res ^= signres;
+
+    return res;
+}
+
+uint64_t HELPER(neon_addlp_u8)(uint64_t a)
+{
+    uint64_t tmp;
+
+    tmp = a & 0x00ff00ff00ff00ffULL;
+    tmp += (a >> 8) & 0x00ff00ff00ff00ffULL;
+    return tmp;
+}
+
+uint64_t HELPER(neon_addlp_s16)(uint64_t a)
+{
+    int32_t reslo, reshi;
+
+    reslo = (int32_t)(int16_t)a + (int32_t)(int16_t)(a >> 16);
+    reshi = (int32_t)(int16_t)(a >> 32) + (int32_t)(int16_t)(a >> 48);
+
+    return (uint32_t)reslo | (((uint64_t)reshi) << 32);
+}
+
+uint64_t HELPER(neon_addlp_u16)(uint64_t a)
+{
+    uint64_t tmp;
+
+    tmp = a & 0x0000ffff0000ffffULL;
+    tmp += (a >> 16) & 0x0000ffff0000ffffULL;
+    return tmp;
+}
+
+/* Floating-point reciprocal exponent - see FPRecpX in ARM ARM */
+float32 HELPER(frecpx_f32)(float32 a, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    uint32_t val32, sbit;
+    int32_t exp;
+
+    if (float32_is_any_nan(a)) {
+        float32 nan = a;
+        if (float32_is_signaling_nan(a)) {
+            float_raise(float_flag_invalid, fpst);
+            nan = float32_maybe_silence_nan(a);
+        }
+        if (fpst->default_nan_mode) {
+            nan = float32_default_nan;
+        }
+        return nan;
+    }
+
+    val32 = float32_val(a);
+    sbit = 0x80000000ULL & val32;
+    exp = extract32(val32, 23, 8);
+
+    if (exp == 0) {
+        return make_float32(sbit | (0xfe << 23));
+    } else {
+        return make_float32(sbit | (~exp & 0xff) << 23);
+    }
+}
+
+float64 HELPER(frecpx_f64)(float64 a, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    uint64_t val64, sbit;
+    int64_t exp;
+
+    if (float64_is_any_nan(a)) {
+        float64 nan = a;
+        if (float64_is_signaling_nan(a)) {
+            float_raise(float_flag_invalid, fpst);
+            nan = float64_maybe_silence_nan(a);
+        }
+        if (fpst->default_nan_mode) {
+            nan = float64_default_nan;
+        }
+        return nan;
+    }
+
+    val64 = float64_val(a);
+    sbit = 0x8000000000000000ULL & val64;
+    exp = extract64(float64_val(a), 52, 11);
+
+    if (exp == 0) {
+        return make_float64(sbit | (0x7feULL << 52));
+    } else {
+        return make_float64(sbit | (~exp & 0x7ffULL) << 52);
+    }
+}
+
+float32 HELPER(fcvtx_f64_to_f32)(float64 a, CPUARMState *env)
+{
+    /* Von Neumann rounding is implemented by using round-to-zero
+     * and then setting the LSB of the result if Inexact was raised.
+     */
+    float32 r;
+    float_status *fpst = &env->vfp.fp_status;
+    float_status tstat = *fpst;
+    int exflags;
+
+    set_float_rounding_mode(float_round_to_zero, &tstat);
+    set_float_exception_flags(0, &tstat);
+    r = float64_to_float32(a, &tstat);
+    r = float32_maybe_silence_nan(r);
+    exflags = get_float_exception_flags(&tstat);
+    if (exflags & float_flag_inexact) {
+        r = make_float32(float32_val(r) | 1);
+    }
+    exflags |= get_float_exception_flags(fpst);
+    set_float_exception_flags(exflags, fpst);
+    return r;
 }

@@ -390,6 +390,12 @@ static void machvirt_init(QEMUMachineInitArgs *args)
         if (n > 0) {
             object_property_set_bool(cpuobj, true, "start-powered-off", NULL);
         }
+
+        if (object_property_find(cpuobj, "reset-cbar", NULL)) {
+            object_property_set_int(cpuobj, vbi->memmap[VIRT_CPUPERIPHS].base,
+                                    "reset-cbar", &error_abort);
+        }
+
         object_property_set_bool(cpuobj, true, "realized", NULL);
     }
     fdt_add_cpu_nodes(vbi);

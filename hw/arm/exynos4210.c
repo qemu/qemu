@@ -143,11 +143,21 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     unsigned long mem_size;
     DeviceState *dev;
     SysBusDevice *busdev;
+    ObjectClass *cpu_oc;
+
+    cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, "cortex-a9");
+    assert(cpu_oc);
 
     for (n = 0; n < EXYNOS4210_NCPUS; n++) {
-        s->cpu[n] = cpu_arm_init("cortex-a9");
-        if (!s->cpu[n]) {
-            fprintf(stderr, "Unable to find CPU %d definition\n", n);
+        Object *cpuobj = object_new(object_class_get_name(cpu_oc));
+        Error *err = NULL;
+
+        s->cpu[n] = ARM_CPU(cpuobj);
+        object_property_set_int(cpuobj, EXYNOS4210_SMP_PRIVATE_BASE_ADDR,
+                                "reset-cbar", &error_abort);
+        object_property_set_bool(cpuobj, true, "realized", &err);
+        if (err) {
+            error_report("%s", error_get_pretty(err));
             exit(1);
         }
     }

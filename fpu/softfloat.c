@@ -288,7 +288,7 @@ INLINE flag extractFloat32Sign( float32 a )
 | If `a' is denormal and we are in flush-to-zero mode then set the
 | input-denormal exception and return zero. Otherwise just return the value.
 *----------------------------------------------------------------------------*/
-static float32 float32_squash_input_denormal(float32 a STATUS_PARAM)
+float32 float32_squash_input_denormal(float32 a STATUS_PARAM)
 {
     if (STATUS(flush_inputs_to_zero)) {
         if (extractFloat32Exp(a) == 0 && extractFloat32Frac(a) != 0) {
@@ -473,7 +473,7 @@ INLINE flag extractFloat64Sign( float64 a )
 | If `a' is denormal and we are in flush-to-zero mode then set the
 | input-denormal exception and return zero. Otherwise just return the value.
 *----------------------------------------------------------------------------*/
-static float64 float64_squash_input_denormal(float64 a STATUS_PARAM)
+float64 float64_squash_input_denormal(float64 a STATUS_PARAM)
 {
     if (STATUS(flush_inputs_to_zero)) {
         if (extractFloat64Exp(a) == 0 && extractFloat64Frac(a) != 0) {
