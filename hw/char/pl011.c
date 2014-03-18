@@ -162,6 +162,11 @@ static void pl011_write(void *opaque, hwaddr offset,
         s->fbrd = value;
         break;
     case 11: /* UARTLCR_H */
+        /* Reset the FIFO state on FIFO enable or disable */
+        if ((s->lcr ^ value) & 0x10) {
+            s->read_count = 0;
+            s->read_pos = 0;
+        }
         s->lcr = value;
         pl011_set_read_trigger(s);
         break;
