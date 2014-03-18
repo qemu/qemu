@@ -36,6 +36,12 @@ or a memory location which is stored in a register outside QEMU TBs
 A TCG "basic block" corresponds to a list of instructions terminated
 by a branch instruction. 
 
+An operation with "undefined behavior" may result in a crash.
+
+An operation with "unspecified behavior" shall not crash.  However,
+the result may be one of several possibilities so may be considered
+an "undefined result".
+
 3) Intermediate representation
 
 3.1) Introduction
@@ -239,23 +245,25 @@ t0=t1|~t2
 
 * shl_i32/i64 t0, t1, t2
 
-t0=t1 << t2. Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
+t0=t1 << t2. Unspecified behavior if t2 < 0 or t2 >= 32 (resp 64)
 
 * shr_i32/i64 t0, t1, t2
 
-t0=t1 >> t2 (unsigned). Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
+t0=t1 >> t2 (unsigned). Unspecified behavior if t2 < 0 or t2 >= 32 (resp 64)
 
 * sar_i32/i64 t0, t1, t2
 
-t0=t1 >> t2 (signed). Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
+t0=t1 >> t2 (signed). Unspecified behavior if t2 < 0 or t2 >= 32 (resp 64)
 
 * rotl_i32/i64 t0, t1, t2
 
-Rotation of t2 bits to the left. Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
+Rotation of t2 bits to the left.
+Unspecified behavior if t2 < 0 or t2 >= 32 (resp 64)
 
 * rotr_i32/i64 t0, t1, t2
 
-Rotation of t2 bits to the right. Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
+Rotation of t2 bits to the right.
+Unspecified behavior if t2 < 0 or t2 >= 32 (resp 64)
 
 ********* Misc
 
