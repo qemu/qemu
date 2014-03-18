@@ -23,7 +23,6 @@
 #define MACHINE_Q35 "q35"
 
 #define ACPI_REBUILD_EXPECTED_AML "TEST_ACPI_REBUILD_AML"
-#define ACPI_SSDT_SIGNATURE 0x54445353 /* SSDT */
 
 /* DSDT and SSDTs format */
 typedef struct {
@@ -100,6 +99,20 @@ typedef struct {
         ACPI_READ_ARRAY((table)->asl_compiler_id, addr);         \
         ACPI_READ_FIELD((table)->asl_compiler_revision, addr);   \
     } while (0);
+
+#define ACPI_ASSERT_CMP(actual, expected) do { \
+    uint32_t ACPI_ASSERT_CMP_le = cpu_to_le32(actual); \
+    char ACPI_ASSERT_CMP_str[5] = {}; \
+    memcpy(ACPI_ASSERT_CMP_str, &ACPI_ASSERT_CMP_le, 4); \
+    g_assert_cmpstr(ACPI_ASSERT_CMP_str, ==, expected); \
+} while (0)
+
+#define ACPI_ASSERT_CMP64(actual, expected) do { \
+    uint64_t ACPI_ASSERT_CMP_le = cpu_to_le64(actual); \
+    char ACPI_ASSERT_CMP_str[9] = {}; \
+    memcpy(ACPI_ASSERT_CMP_str, &ACPI_ASSERT_CMP_le, 8); \
+    g_assert_cmpstr(ACPI_ASSERT_CMP_str, ==, expected); \
+} while (0)
 
 /* Boot sector code: write SIGNATURE into memory,
  * then halt.
@@ -213,7 +226,7 @@ static void test_acpi_rsdp_table(test_data *data)
     uint32_t addr = data->rsdp_addr;
 
     ACPI_READ_FIELD(rsdp_table->signature, addr);
-    g_assert_cmphex(rsdp_table->signature, ==, ACPI_RSDP_SIGNATURE);
+    ACPI_ASSERT_CMP64(rsdp_table->signature, "RSD PTR ");
 
     ACPI_READ_FIELD(rsdp_table->checksum, addr);
     ACPI_READ_ARRAY(rsdp_table->oem_id, addr);
@@ -235,7 +248,7 @@ static void test_acpi_rsdt_table(test_data *data)
 
     /* read the header */
     ACPI_READ_TABLE_HEADER(rsdt_table, addr);
-    g_assert_cmphex(rsdt_table->signature, ==, ACPI_RSDT_SIGNATURE);
+    ACPI_ASSERT_CMP(rsdt_table->signature, "RSDT");
 
     /* compute the table entries in rsdt */
     tables_nr = (rsdt_table->length - sizeof(AcpiRsdtDescriptorRev1)) /
@@ -304,7 +317,7 @@ static void test_acpi_fadt_table(test_data *data)
     ACPI_READ_FIELD(fadt_table->reserved4b, addr);
     ACPI_READ_FIELD(fadt_table->flags, addr);
 
-    g_assert_cmphex(fadt_table->signature, ==, ACPI_FACP_SIGNATURE);
+    ACPI_ASSERT_CMP(fadt_table->signature, "FACP");
     g_assert(!acpi_checksum((uint8_t *)fadt_table, fadt_table->length));
 }
 
@@ -321,7 +334,7 @@ static void test_acpi_facs_table(test_data *data)
     ACPI_READ_FIELD(facs_table->flags, addr);
     ACPI_READ_ARRAY(facs_table->resverved3, addr);
 
-    g_assert_cmphex(facs_table->signature, ==, ACPI_FACS_SIGNATURE);
+    ACPI_ASSERT_CMP(facs_table->signature, "FACS");
 }
 
 static void test_dst_table(AcpiSdtTable *sdt_table, uint32_t addr)
@@ -348,7 +361,7 @@ static void test_acpi_dsdt_table(test_data *data)
     data->tables = g_array_new(false, true, sizeof(AcpiSdtTable));
 
     test_dst_table(&dsdt_table, addr);
-    g_assert_cmphex(dsdt_table.header.signature, ==, ACPI_DSDT_SIGNATURE);
+    ACPI_ASSERT_CMP(dsdt_table.header.signature, "DSDT");
 
     /* Place DSDT first */
     g_array_append_val(data->tables, dsdt_table);
@@ -383,8 +396,9 @@ static void dump_aml_files(test_data *data, bool rebuild)
         g_assert(sdt->aml);
 
         if (rebuild) {
+            uint32_t signature = cpu_to_le32(sdt->header.signature);
             aml_file = g_strdup_printf("%s/%s/%.4s", data_dir, data->machine,
-                                       (gchar *)&sdt->header.signature);
+                                       (gchar *)&signature);
             fd = g_open(aml_file, O_WRONLY|O_TRUNC|O_CREAT,
                         S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH);
         } else {
@@ -406,9 +420,9 @@ static void dump_aml_files(test_data *data, bool rebuild)
     }
 }
 
-static bool compare_signature(AcpiSdtTable *sdt, uint32_t signature)
+static bool compare_signature(AcpiSdtTable *sdt, const char *signature)
 {
-   return sdt->header.signature == signature;
+   return !memcmp(&sdt->header.signature, signature, 4);
 }
 
 static bool load_asl(GArray *sdts, AcpiSdtTable *sdt)
@@ -427,12 +441,12 @@ static bool load_asl(GArray *sdts, AcpiSdtTable *sdt)
 
     /* build command line */
     g_string_append_printf(command_line, " -p %s ", sdt->asl_file);
-    if (compare_signature(sdt, ACPI_DSDT_SIGNATURE) ||
-        compare_signature(sdt, ACPI_SSDT_SIGNATURE)) {
+    if (compare_signature(sdt, "DSDT") ||
+        compare_signature(sdt, "SSDT")) {
         for (i = 0; i < sdts->len; ++i) {
             temp = &g_array_index(sdts, AcpiSdtTable, i);
-            if (compare_signature(temp, ACPI_DSDT_SIGNATURE) ||
-                compare_signature(temp, ACPI_SSDT_SIGNATURE)) {
+            if (compare_signature(temp, "DSDT") ||
+                compare_signature(temp, "SSDT")) {
                 g_string_append_printf(command_line, "-e %s ", temp->aml_file);
             }
         }
@@ -495,13 +509,16 @@ static GArray *load_expected_aml(test_data *data)
     GArray *exp_tables = g_array_new(false, true, sizeof(AcpiSdtTable));
     for (i = 0; i < data->tables->len; ++i) {
         AcpiSdtTable exp_sdt;
+        uint32_t signature;
+
         sdt = &g_array_index(data->tables, AcpiSdtTable, i);
 
         memset(&exp_sdt, 0, sizeof(exp_sdt));
         exp_sdt.header.signature = sdt->header.signature;
 
+        signature = cpu_to_le32(sdt->header.signature);
         aml_file = g_strdup_printf("%s/%s/%.4s", data_dir, data->machine,
-                                   (gchar *)&exp_sdt.header.signature);
+                                   (gchar *)&signature);
         exp_sdt.aml_file = aml_file;
         g_assert(g_file_test(aml_file, G_FILE_TEST_EXISTS));
         ret = g_file_get_contents(aml_file, &exp_sdt.aml,
@@ -543,12 +560,13 @@ static void test_acpi_asl(test_data *data)
         g_assert(!err || exp_err);
 
         if (g_strcmp0(asl->str, exp_asl->str)) {
+            uint32_t signature = cpu_to_le32(exp_sdt->header.signature);
             sdt->tmp_files_retain = true;
             exp_sdt->tmp_files_retain = true;
             fprintf(stderr,
                     "acpi-test: Warning! %.4s mismatch. "
                     "Actual [asl:%s, aml:%s], Expected [asl:%s, aml:%s].\n",
-                    (gchar *)&exp_sdt->header.signature,
+                    (gchar *)&signature,
                     sdt->asl_file, sdt->aml_file,
                     exp_sdt->asl_file, exp_sdt->aml_file);
         }
