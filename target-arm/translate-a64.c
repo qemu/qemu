@@ -73,6 +73,7 @@ typedef struct AArch64DecodeTable {
 } AArch64DecodeTable;
 
 /* Function prototype for gen_ functions for calling Neon helpers */
+typedef void NeonGenOneOpEnvFn(TCGv_i32, TCGv_ptr, TCGv_i32);
 typedef void NeonGenTwoOpFn(TCGv_i32, TCGv_i32, TCGv_i32);
 typedef void NeonGenTwoOpEnvFn(TCGv_i32, TCGv_ptr, TCGv_i32, TCGv_i32);
 typedef void NeonGenTwo64OpFn(TCGv_i64, TCGv_i64, TCGv_i64);
@@ -6942,6 +6943,13 @@ static void handle_2misc_64(DisasContext *s, int opcode, bool u,
          */
         tcg_gen_not_i64(tcg_rd, tcg_rn);
         break;
+    case 0x7: /* SQABS, SQNEG */
+        if (u) {
+            gen_helper_neon_qneg_s64(tcg_rd, cpu_env, tcg_rn);
+        } else {
+            gen_helper_neon_qabs_s64(tcg_rd, cpu_env, tcg_rn);
+        }
+        break;
     case 0xa: /* CMLT */
         /* 64 bit integer comparison against zero, result is
          * test ? (2^64 - 1) : 0. We implement via setcond(!test) and
@@ -7332,6 +7340,8 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
     TCGv_ptr tcg_fpstatus;
 
     switch (opcode) {
+    case 0x7: /* SQABS / SQNEG */
+        break;
     case 0xa: /* CMLT */
         if (u) {
             unallocated_encoding(s);
@@ -7441,11 +7451,25 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
         write_fp_dreg(s, rd, tcg_rd);
         tcg_temp_free_i64(tcg_rd);
         tcg_temp_free_i64(tcg_rn);
-    } else if (size == 2) {
-        TCGv_i32 tcg_rn = read_fp_sreg(s, rn);
+    } else {
+        TCGv_i32 tcg_rn = tcg_temp_new_i32();
         TCGv_i32 tcg_rd = tcg_temp_new_i32();
 
+        read_vec_element_i32(s, tcg_rn, rn, 0, size);
+
         switch (opcode) {
+        case 0x7: /* SQABS, SQNEG */
+        {
+            NeonGenOneOpEnvFn *genfn;
+            static NeonGenOneOpEnvFn * const fns[3][2] = {
+                { gen_helper_neon_qabs_s8, gen_helper_neon_qneg_s8 },
+                { gen_helper_neon_qabs_s16, gen_helper_neon_qneg_s16 },
+                { gen_helper_neon_qabs_s32, gen_helper_neon_qneg_s32 },
+            };
+            genfn = fns[size][u];
+            genfn(tcg_rd, cpu_env, tcg_rn);
+            break;
+        }
         case 0x1a: /* FCVTNS */
         case 0x1b: /* FCVTMS */
         case 0x1c: /* FCVTAS */
@@ -7475,8 +7499,6 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
         write_fp_sreg(s, rd, tcg_rd);
         tcg_temp_free_i32(tcg_rd);
         tcg_temp_free_i32(tcg_rn);
-    } else {
-        g_assert_not_reached();
     }
 
     if (is_fcvt) {
@@ -9177,8 +9199,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        unsupported_encoding(s, insn);
-        return;
+        break;
     case 0xc ... 0xf:
     case 0x16 ... 0x1d:
     case 0x1f:
@@ -9389,6 +9410,13 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                         gen_helper_cls32(tcg_res, tcg_op);
                     }
                     break;
+                case 0x7: /* SQABS, SQNEG */
+                    if (u) {
+                        gen_helper_neon_qneg_s32(tcg_res, cpu_env, tcg_op);
+                    } else {
+                        gen_helper_neon_qabs_s32(tcg_res, cpu_env, tcg_op);
+                    }
+                    break;
                 case 0xb: /* ABS, NEG */
                     if (u) {
                         tcg_gen_neg_i32(tcg_res, tcg_op);
@@ -9463,6 +9491,17 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                         gen_helper_neon_cnt_u8(tcg_res, tcg_op);
                     }
                     break;
+                case 0x7: /* SQABS, SQNEG */
+                {
+                    NeonGenOneOpEnvFn *genfn;
+                    static NeonGenOneOpEnvFn * const fns[2][2] = {
+                        { gen_helper_neon_qabs_s8, gen_helper_neon_qneg_s8 },
+                        { gen_helper_neon_qabs_s16, gen_helper_neon_qneg_s16 },
+                    };
+                    genfn = fns[size][u];
+                    genfn(tcg_res, cpu_env, tcg_op);
+                    break;
+                }
                 case 0x8: /* CMGT, CMGE */
                 case 0x9: /* CMEQ, CMLE */
                 case 0xa: /* CMLT */

@@ -1776,6 +1776,28 @@ uint32_t HELPER(neon_qneg_s32)(CPUARMState *env, uint32_t x)
     return x;
 }
 
+uint64_t HELPER(neon_qabs_s64)(CPUARMState *env, uint64_t x)
+{
+    if (x == SIGNBIT64) {
+        SET_QC();
+        x = ~SIGNBIT64;
+    } else if ((int64_t)x < 0) {
+        x = -x;
+    }
+    return x;
+}
+
+uint64_t HELPER(neon_qneg_s64)(CPUARMState *env, uint64_t x)
+{
+    if (x == SIGNBIT64) {
+        SET_QC();
+        x = ~SIGNBIT64;
+    } else {
+        x = -x;
+    }
+    return x;
+}
+
 /* NEON Float helpers.  */
 uint32_t HELPER(neon_abd_f32)(uint32_t a, uint32_t b, void *fpstp)
 {
