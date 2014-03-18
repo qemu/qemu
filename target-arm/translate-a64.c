@@ -7321,6 +7321,101 @@ static void handle_2misc_narrow(DisasContext *s, bool scalar,
     }
 }
 
+/* Remaining saturating accumulating ops */
+static void handle_2misc_satacc(DisasContext *s, bool is_scalar, bool is_u,
+                                bool is_q, int size, int rn, int rd)
+{
+    bool is_double = (size == 3);
+
+    if (is_double) {
+        TCGv_i64 tcg_rn = tcg_temp_new_i64();
+        TCGv_i64 tcg_rd = tcg_temp_new_i64();
+        int pass;
+
+        for (pass = 0; pass < (is_scalar ? 1 : 2); pass++) {
+            read_vec_element(s, tcg_rn, rn, pass, MO_64);
+            read_vec_element(s, tcg_rd, rd, pass, MO_64);
+
+            if (is_u) { /* USQADD */
+                gen_helper_neon_uqadd_s64(tcg_rd, cpu_env, tcg_rn, tcg_rd);
+            } else { /* SUQADD */
+                gen_helper_neon_sqadd_u64(tcg_rd, cpu_env, tcg_rn, tcg_rd);
+            }
+            write_vec_element(s, tcg_rd, rd, pass, MO_64);
+        }
+        if (is_scalar) {
+            clear_vec_high(s, rd);
+        }
+
+        tcg_temp_free_i64(tcg_rd);
+        tcg_temp_free_i64(tcg_rn);
+    } else {
+        TCGv_i32 tcg_rn = tcg_temp_new_i32();
+        TCGv_i32 tcg_rd = tcg_temp_new_i32();
+        int pass, maxpasses;
+
+        if (is_scalar) {
+            maxpasses = 1;
+        } else {
+            maxpasses = is_q ? 4 : 2;
+        }
+
+        for (pass = 0; pass < maxpasses; pass++) {
+            if (is_scalar) {
+                read_vec_element_i32(s, tcg_rn, rn, pass, size);
+                read_vec_element_i32(s, tcg_rd, rd, pass, size);
+            } else {
+                read_vec_element_i32(s, tcg_rn, rn, pass, MO_32);
+                read_vec_element_i32(s, tcg_rd, rd, pass, MO_32);
+            }
+
+            if (is_u) { /* USQADD */
+                switch (size) {
+                case 0:
+                    gen_helper_neon_uqadd_s8(tcg_rd, cpu_env, tcg_rn, tcg_rd);
+                    break;
+                case 1:
+                    gen_helper_neon_uqadd_s16(tcg_rd, cpu_env, tcg_rn, tcg_rd);
+                    break;
+                case 2:
+                    gen_helper_neon_uqadd_s32(tcg_rd, cpu_env, tcg_rn, tcg_rd);
+                    break;
+                default:
+                    g_assert_not_reached();
+                }
+            } else { /* SUQADD */
+                switch (size) {
+                case 0:
+                    gen_helper_neon_sqadd_u8(tcg_rd, cpu_env, tcg_rn, tcg_rd);
+                    break;
+                case 1:
+                    gen_helper_neon_sqadd_u16(tcg_rd, cpu_env, tcg_rn, tcg_rd);
+                    break;
+                case 2:
+                    gen_helper_neon_sqadd_u32(tcg_rd, cpu_env, tcg_rn, tcg_rd);
+                    break;
+                default:
+                    g_assert_not_reached();
+                }
+            }
+
+            if (is_scalar) {
+                TCGv_i64 tcg_zero = tcg_const_i64(0);
+                write_vec_element(s, tcg_zero, rd, 0, MO_64);
+                tcg_temp_free_i64(tcg_zero);
+            }
+            write_vec_element_i32(s, tcg_rd, rd, pass, MO_32);
+        }
+
+        if (!is_q) {
+            clear_vec_high(s, rd);
+        }
+
+        tcg_temp_free_i32(tcg_rd);
+        tcg_temp_free_i32(tcg_rn);
+    }
+}
+
 /* C3.6.12 AdvSIMD scalar two reg misc
  *  31 30  29 28       24 23  22 21       17 16    12 11 10 9    5 4    0
  * +-----+---+-----------+------+-----------+--------+-----+------+------+
@@ -7340,6 +7435,9 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
     TCGv_ptr tcg_fpstatus;
 
     switch (opcode) {
+    case 0x3: /* USQADD / SUQADD*/
+        handle_2misc_satacc(s, true, u, false, size, rn, rd);
+        return;
     case 0x7: /* SQABS / SQNEG */
         break;
     case 0xa: /* CMLT */
@@ -7427,10 +7525,7 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
         }
         break;
     default:
-        /* Other categories of encoding in this class:
-         *  + SUQADD/USQADD/SQABS/SQNEG : size 8, 16, 32 or 64
-         */
-        unsupported_encoding(s, insn);
+        unallocated_encoding(s);
         return;
     }
 
@@ -9194,6 +9289,12 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         }
         break;
     case 0x3: /* SUQADD, USQADD */
+        if (size == 3 && !is_q) {
+            unallocated_encoding(s);
+            return;
+        }
+        handle_2misc_satacc(s, false, u, is_q, size, rn, rd);
+        return;
     case 0x7: /* SQABS, SQNEG */
         if (size == 3 && !is_q) {
             unallocated_encoding(s);
