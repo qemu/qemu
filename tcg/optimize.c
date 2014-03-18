@@ -843,9 +843,8 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             break;
 
         CASE_OP_32_64(deposit):
-            tmp = ((1ull << args[4]) - 1);
-            mask = ((temps[args[1]].mask & ~(tmp << args[3]))
-                    | ((temps[args[2]].mask & tmp) << args[3]));
+            mask = deposit64(temps[args[1]].mask, args[3], args[4],
+                             temps[args[2]].mask);
             break;
 
         CASE_OP_32_64(or):
@@ -1060,9 +1059,8 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             if (temps[args[1]].state == TCG_TEMP_CONST
                 && temps[args[2]].state == TCG_TEMP_CONST) {
                 s->gen_opc_buf[op_index] = op_to_movi(op);
-                tmp = ((1ull << args[4]) - 1);
-                tmp = (temps[args[1]].val & ~(tmp << args[3]))
-                      | ((temps[args[2]].val & tmp) << args[3]);
+                tmp = deposit64(temps[args[1]].val, args[3], args[4],
+                                temps[args[2]].val);
                 tcg_opt_gen_movi(gen_args, args[0], tmp);
                 gen_args += 2;
                 args += 5;
