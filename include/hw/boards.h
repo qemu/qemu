@@ -54,6 +54,7 @@ struct QEMUMachine {
 int qemu_register_machine(QEMUMachine *m);
 
 #define TYPE_MACHINE "machine"
+#undef MACHINE  /* BSD defines it and QEMU does not use it */
 #define MACHINE(obj) \
     OBJECT_CHECK(MachineState, (obj), TYPE_MACHINE)
 #define MACHINE_GET_CLASS(obj) \

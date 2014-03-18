@@ -58,6 +58,7 @@ int main(int argc, char **argv)
 
 #include <glib.h>
 
+#include "qemu/sockets.h"
 #include "hw/hw.h"
 #include "hw/boards.h"
 #include "hw/usb.h"
@@ -103,7 +104,6 @@ int main(int argc, char **argv)
 
 #include "disas/disas.h"
 
-#include "qemu/sockets.h"
 
 #include "slirp/libslirp.h"
 
