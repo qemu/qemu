@@ -1413,7 +1413,7 @@ static void smp_parse(QemuOpts *opts)
         max_cpus = smp_cpus;
     }
 
-    if (max_cpus > 255) {
+    if (max_cpus > MAX_CPUMASK_BITS) {
         fprintf(stderr, "Unsupported number of maxcpus\n");
         exit(1);
     }
