@@ -20,6 +20,7 @@ typedef struct PL011State {
     uint32_t readbuff;
     uint32_t flags;
     uint32_t lcr;
+    uint32_t rsr;
     uint32_t cr;
     uint32_t dmacr;
     uint32_t int_enabled;
@@ -81,13 +82,14 @@ static uint64_t pl011_read(void *opaque, hwaddr offset,
         }
         if (s->read_count == s->read_trigger - 1)
             s->int_level &= ~ PL011_INT_RX;
+        s->rsr = c >> 8;
         pl011_update(s);
         if (s->chr) {
             qemu_chr_accept_input(s->chr);
         }
         return c;
-    case 1: /* UARTCR */
-        return 0;
+    case 1: /* UARTRSR */
+        return s->rsr;
     case 6: /* UARTFR */
         return s->flags;
     case 8: /* UARTILPR */
@@ -146,8 +148,8 @@ static void pl011_write(void *opaque, hwaddr offset,
         s->int_level |= PL011_INT_TX;
         pl011_update(s);
         break;
-    case 1: /* UARTCR */
-        s->cr = value;
+    case 1: /* UARTRSR/UARTECR */
+        s->rsr = 0;
         break;
     case 6: /* UARTFR */
         /* Writes to Flag register are ignored.  */
@@ -247,13 +249,14 @@ static const MemoryRegionOps pl011_ops = {
 
 static const VMStateDescription vmstate_pl011 = {
     .name = "pl011",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
     .fields      = (VMStateField[]) {
         VMSTATE_UINT32(readbuff, PL011State),
         VMSTATE_UINT32(flags, PL011State),
         VMSTATE_UINT32(lcr, PL011State),
+        VMSTATE_UINT32(rsr, PL011State),
         VMSTATE_UINT32(cr, PL011State),
         VMSTATE_UINT32(dmacr, PL011State),
         VMSTATE_UINT32(int_enabled, PL011State),
