@@ -334,6 +334,7 @@ struct ppc_spr_t {
     void (*hea_write)(void *opaque, int spr_num, int gpr_num);
 #endif
     const char *name;
+    target_ulong default_value;
 #ifdef CONFIG_KVM
     /* We (ab)use the fact that all the SPRs will have ids for the
      * ONE_REG interface will have KVM_REG_PPC to use 0 as meaning,

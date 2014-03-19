@@ -631,7 +631,7 @@ static inline void _spr_register(CPUPPCState *env, int num,
 #if defined(CONFIG_KVM)
     spr->one_reg_id = one_reg_id,
 #endif
-    env->spr[num] = initial_value;
+    env->spr[num] = spr->default_value = initial_value;
 }
 
 /* Generic PowerPC SPRs */
@@ -8381,6 +8381,7 @@ static void ppc_cpu_reset(CPUState *s)
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
     target_ulong msr;
+    int i;
 
     pcc->parent_reset(s);
 
@@ -8433,6 +8434,15 @@ static void ppc_cpu_reset(CPUState *s)
     env->dtl_addr = 0;
     env->dtl_size = 0;
 #endif /* TARGET_PPC64 */
+
+    for (i = 0; i < ARRAY_SIZE(env->spr_cb); i++) {
+        ppc_spr_t *spr = &env->spr_cb[i];
+
+        if (!spr->name) {
+            continue;
+        }
+        env->spr[i] = spr->default_value;
+    }
 
     /* Flush all TLBs */
     tlb_flush(s, 1);
