@@ -801,29 +801,6 @@ static void gen_fcvtql_v(DisasContext *ctx, int rb, int rc)
     gen_fcvtql(rb, rc);
 }
 
-#define FARITH2(name)                                                   \
-    static inline void glue(gen_f, name)(int rb, int rc)                \
-    {                                                                   \
-        if (unlikely(rc == 31)) {                                       \
-            return;                                                     \
-        }                                                               \
-        if (rb != 31) {                                                 \
-            gen_helper_ ## name(cpu_fir[rc], cpu_env, cpu_fir[rb]);     \
-        } else {                                                        \
-            TCGv tmp = tcg_const_i64(0);                                \
-            gen_helper_ ## name(cpu_fir[rc], cpu_env, tmp);             \
-            tcg_temp_free(tmp);                                         \
-        }                                                               \
-    }
-
-/* ??? VAX instruction qualifiers ignored.  */
-FARITH2(sqrtf)
-FARITH2(sqrtg)
-FARITH2(cvtgf)
-FARITH2(cvtgq)
-FARITH2(cvtqf)
-FARITH2(cvtqg)
-
 static void gen_ieee_arith2(DisasContext *ctx,
                             void (*helper)(TCGv, TCGv_ptr, TCGv),
                             int rb, int rc, int fn11)
@@ -2222,13 +2199,13 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 
     case 0x14:
         REQUIRE_TB_FLAG(TB_FLAGS_AMASK_FIX);
+        vc = dest_fpr(ctx, rc);
         switch (fpfn) { /* fn11 & 0x3F */
         case 0x04:
             /* ITOFS */
             REQUIRE_REG_31(rb);
             t32 = tcg_temp_new_i32();
             va = load_gpr(ctx, ra);
-            vc = dest_fpr(ctx, rc);
             tcg_gen_trunc_i64_i32(t32, va);
             gen_helper_memory_to_s(vc, t32);
             tcg_temp_free_i32(t32);
@@ -2236,7 +2213,8 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x0A:
             /* SQRTF */
             REQUIRE_REG_31(ra);
-            gen_fsqrtf(rb, rc);
+            vb = load_fpr(ctx, rb);
+            gen_helper_sqrtf(vc, cpu_env, vb);
             break;
         case 0x0B:
             /* SQRTS */
@@ -2248,7 +2226,6 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             REQUIRE_REG_31(rb);
             t32 = tcg_temp_new_i32();
             va = load_gpr(ctx, ra);
-            vc = dest_fpr(ctx, rc);
             tcg_gen_trunc_i64_i32(t32, va);
             gen_helper_memory_to_f(vc, t32);
             tcg_temp_free_i32(t32);
@@ -2257,13 +2234,13 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* ITOFT */
             REQUIRE_REG_31(rb);
             va = load_gpr(ctx, ra);
-            vc = dest_fpr(ctx, rc);
             tcg_gen_mov_i64(vc, va);
             break;
         case 0x2A:
             /* SQRTG */
             REQUIRE_REG_31(ra);
-            gen_fsqrtg(rb, rc);
+            vb = load_fpr(ctx, rb);
+            gen_helper_sqrtg(vc, cpu_env, vb);
             break;
         case 0x02B:
             /* SQRTT */
@@ -2278,6 +2255,8 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     case 0x15:
         /* VAX floating point */
         /* XXX: rounding mode and trap are ignored (!) */
+        vc = dest_fpr(ctx, rc);
+        vb = load_fpr(ctx, rb);
         switch (fpfn) { /* fn11 & 0x3F */
         case 0x00:
             /* ADDF */
@@ -2330,7 +2309,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x2C:
             /* CVTGF */
             REQUIRE_REG_31(ra);
-            gen_fcvtgf(rb, rc);
+            gen_helper_cvtgf(vc, cpu_env, vb);
             break;
         case 0x2D:
             /* CVTGD -- TODO */
@@ -2339,17 +2318,17 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x2F:
             /* CVTGQ */
             REQUIRE_REG_31(ra);
-            gen_fcvtgq(rb, rc);
+            gen_helper_cvtgq(vc, cpu_env, vb);
             break;
         case 0x3C:
             /* CVTQF */
             REQUIRE_REG_31(ra);
-            gen_fcvtqf(rb, rc);
+            gen_helper_cvtqf(vc, cpu_env, vb);
             break;
         case 0x3E:
             /* CVTQG */
             REQUIRE_REG_31(ra);
-            gen_fcvtqg(rb, rc);
+            gen_helper_cvtqg(vc, cpu_env, vb);
             break;
         default:
             goto invalid_opc;
