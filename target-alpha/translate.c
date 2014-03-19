@@ -1387,11 +1387,7 @@ static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
 
 static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 {
-    uint32_t palcode;
-    int32_t disp21, disp16;
-#ifndef CONFIG_USER_ONLY
-    int32_t disp12;
-#endif
+    int32_t disp21, disp16, disp12 __attribute__((unused));
     uint16_t fn11;
     uint8_t opc, ra, rb, rc, fpfn, fn7, lit;
     bool islit;
@@ -1400,34 +1396,31 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     ExitStatus ret;
 
     /* Decode all instruction fields */
-    opc = insn >> 26;
-    ra = (insn >> 21) & 0x1F;
-    rb = (insn >> 16) & 0x1F;
-    rc = insn & 0x1F;
-    islit = (insn >> 12) & 1;
+    opc = extract32(insn, 26, 6);
+    ra = extract32(insn, 21, 5);
+    rb = extract32(insn, 16, 5);
+    rc = extract32(insn, 0, 5);
+    islit = extract32(insn, 12, 1);
+    lit = extract32(insn, 13, 8);
+
+    disp21 = sextract32(insn, 0, 21);
+    disp16 = sextract32(insn, 0, 16);
+    disp12 = sextract32(insn, 0, 12);
+
+    fn11 = extract32(insn, 5, 11);
+    fpfn = extract32(insn, 5, 6);
+    fn7 = extract32(insn, 5, 7);
+
     if (rb == 31 && !islit) {
-        islit = 1;
+        islit = true;
         lit = 0;
-    } else {
-        lit = (insn >> 13) & 0xFF;
     }
-    palcode = insn & 0x03FFFFFF;
-    disp21 = ((int32_t)((insn & 0x001FFFFF) << 11)) >> 11;
-    disp16 = (int16_t)(insn & 0x0000FFFF);
-#ifndef CONFIG_USER_ONLY
-    disp12 = (int32_t)((insn & 0x00000FFF) << 20) >> 20;
-#endif
-    fn11 = (insn >> 5) & 0x000007FF;
-    fpfn = fn11 & 0x3F;
-    fn7 = (insn >> 5) & 0x0000007F;
-    LOG_DISAS("opc %02x ra %2d rb %2d rc %2d disp16 %6d\n",
-              opc, ra, rb, rc, disp16);
 
     ret = NO_EXIT;
     switch (opc) {
     case 0x00:
         /* CALL_PAL */
-        ret = gen_call_pal(ctx, palcode);
+        ret = gen_call_pal(ctx, insn & 0x03ffffff);
         break;
     case 0x01:
         /* OPC01 */
@@ -2313,7 +2306,8 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 #ifndef CONFIG_USER_ONLY
         REQUIRE_TB_FLAG(TB_FLAGS_PAL_MODE);
         va = dest_gpr(ctx, ra);
-        return gen_mfpr(va, insn & 0xffff);
+        ret = gen_mfpr(va, insn & 0xffff);
+        break;
 #else
         goto invalid_opc;
 #endif
@@ -2548,7 +2542,8 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 #ifndef CONFIG_USER_ONLY
         REQUIRE_TB_FLAG(TB_FLAGS_PAL_MODE);
         vb = load_gpr(ctx, rb);
-        return gen_mtpr(ctx, vb, insn & 0xffff);
+        ret = gen_mtpr(ctx, vb, insn & 0xffff);
+        break;
 #else
         goto invalid_opc;
 #endif
