@@ -96,6 +96,7 @@ DEF_HELPER_FLAGS_3(fp_exc_raise_s, TCG_CALL_NO_WG, void, env, i32, i32)
 
 DEF_HELPER_FLAGS_2(ieee_input, TCG_CALL_NO_WG, void, env, i64)
 DEF_HELPER_FLAGS_2(ieee_input_cmp, TCG_CALL_NO_WG, void, env, i64)
+DEF_HELPER_FLAGS_2(fcvtql_v_input, TCG_CALL_NO_WG, void, env, i64)
 
 #if !defined (CONFIG_USER_ONLY)
 DEF_HELPER_2(hw_ret, void, env, i64)

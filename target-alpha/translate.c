@@ -716,61 +716,32 @@ static inline void gen_fp_exc_raise(int rc, int fn11)
     gen_fp_exc_raise_ignore(rc, fn11, fn11 & QUAL_I ? 0 : float_flag_inexact);
 }
 
-static void gen_fcvtlq(int rb, int rc)
+static void gen_fcvtlq(TCGv vc, TCGv vb)
 {
-    if (unlikely(rc == 31)) {
-        return;
-    }
-    if (unlikely(rb == 31)) {
-        tcg_gen_movi_i64(cpu_fir[rc], 0);
-    } else {
-        TCGv tmp = tcg_temp_new();
+    TCGv tmp = tcg_temp_new();
 
-        /* The arithmetic right shift here, plus the sign-extended mask below
-           yields a sign-extended result without an explicit ext32s_i64.  */
-        tcg_gen_sari_i64(tmp, cpu_fir[rb], 32);
-        tcg_gen_shri_i64(cpu_fir[rc], cpu_fir[rb], 29);
-        tcg_gen_andi_i64(tmp, tmp, (int32_t)0xc0000000);
-        tcg_gen_andi_i64(cpu_fir[rc], cpu_fir[rc], 0x3fffffff);
-        tcg_gen_or_i64(cpu_fir[rc], cpu_fir[rc], tmp);
+    /* The arithmetic right shift here, plus the sign-extended mask below
+       yields a sign-extended result without an explicit ext32s_i64.  */
+    tcg_gen_sari_i64(tmp, vb, 32);
+    tcg_gen_shri_i64(vc, vb, 29);
+    tcg_gen_andi_i64(tmp, tmp, (int32_t)0xc0000000);
+    tcg_gen_andi_i64(vc, vc, 0x3fffffff);
+    tcg_gen_or_i64(vc, vc, tmp);
 
-        tcg_temp_free(tmp);
-    }
+    tcg_temp_free(tmp);
 }
 
-static void gen_fcvtql(int rb, int rc)
+static void gen_fcvtql(TCGv vc, TCGv vb)
 {
-    if (unlikely(rc == 31)) {
-        return;
-    }
-    if (unlikely(rb == 31)) {
-        tcg_gen_movi_i64(cpu_fir[rc], 0);
-    } else {
-        TCGv tmp = tcg_temp_new();
+    TCGv tmp = tcg_temp_new();
 
-        tcg_gen_andi_i64(tmp, cpu_fir[rb], 0xC0000000);
-        tcg_gen_andi_i64(cpu_fir[rc], cpu_fir[rb], 0x3FFFFFFF);
-        tcg_gen_shli_i64(tmp, tmp, 32);
-        tcg_gen_shli_i64(cpu_fir[rc], cpu_fir[rc], 29);
-        tcg_gen_or_i64(cpu_fir[rc], cpu_fir[rc], tmp);
+    tcg_gen_andi_i64(tmp, vb, (int32_t)0xc0000000);
+    tcg_gen_andi_i64(vc, vb, 0x3FFFFFFF);
+    tcg_gen_shli_i64(tmp, tmp, 32);
+    tcg_gen_shli_i64(vc, vc, 29);
+    tcg_gen_or_i64(vc, vc, tmp);
 
-        tcg_temp_free(tmp);
-    }
-}
-
-static void gen_fcvtql_v(DisasContext *ctx, int rb, int rc)
-{
-    if (rb != 31) {
-        int lab = gen_new_label();
-        TCGv tmp = tcg_temp_new();
-
-        tcg_gen_ext32s_i64(tmp, cpu_fir[rb]);
-        tcg_gen_brcond_i64(TCG_COND_EQ, tmp, cpu_fir[rb], lab);
-        gen_excp(ctx, EXCP_ARITH, EXC_M_IOV);
-
-        gen_set_label(lab);
-    }
-    gen_fcvtql(rb, rc);
+    tcg_temp_free(tmp);
 }
 
 static void gen_ieee_arith2(DisasContext *ctx,
@@ -2259,7 +2230,9 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x010:
             /* CVTLQ */
             REQUIRE_REG_31(ra);
-            gen_fcvtlq(rb, rc);
+            vc = dest_fpr(ctx, rc);
+            vb = load_fpr(ctx, rb);
+            gen_fcvtlq(vc, vb);
             break;
         case 0x020:
             /* CPYS */
@@ -2323,7 +2296,9 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x030:
             /* CVTQL */
             REQUIRE_REG_31(ra);
-            gen_fcvtql(rb, rc);
+            vc = dest_fpr(ctx, rc);
+            vb = load_fpr(ctx, rb);
+            gen_fcvtql(vc, vb);
             break;
         case 0x130:
             /* CVTQL/V */
@@ -2333,7 +2308,10 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* ??? I'm pretty sure there's nothing that /sv needs to do that
                /v doesn't do.  The only thing I can think is that /sv is a
                valid instruction merely for completeness in the ISA.  */
-            gen_fcvtql_v(ctx, rb, rc);
+            vc = dest_fpr(ctx, rc);
+            vb = load_fpr(ctx, rb);
+            gen_helper_fcvtql_v_input(cpu_env, vb);
+            gen_fcvtql(vc, vb);
             break;
         default:
             goto invalid_opc;

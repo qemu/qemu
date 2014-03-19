@@ -820,3 +820,10 @@ uint64_t helper_cvtqg(CPUAlphaState *env, uint64_t a)
     fr = int64_to_float64(a, &FP_STATUS);
     return float64_to_g(fr);
 }
+
+void helper_fcvtql_v_input(CPUAlphaState *env, uint64_t val)
+{
+    if (val != (int32_t)val) {
+        arith_excp(env, GETPC(), EXC_M_IOV, 0);
+    }
+}
