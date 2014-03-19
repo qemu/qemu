@@ -2755,39 +2755,33 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         }
         ret = EXIT_PC_UPDATED;
         break;
+
     case 0x1B:
         /* HW_LD (PALcode) */
 #ifndef CONFIG_USER_ONLY
         REQUIRE_TB_FLAG(TB_FLAGS_PAL_MODE);
         {
-            TCGv addr;
+            TCGv addr = tcg_temp_new();
+            vb = load_gpr(ctx, rb);
+            va = dest_gpr(ctx, ra);
 
-            if (ra == 31) {
-                break;
-            }
-
-            addr = tcg_temp_new();
-            if (rb != 31) {
-                tcg_gen_addi_i64(addr, cpu_ir[rb], disp12);
-            } else {
-                tcg_gen_movi_i64(addr, disp12);
-            }
+            tcg_gen_addi_i64(addr, vb, disp12);
             switch ((insn >> 12) & 0xF) {
             case 0x0:
                 /* Longword physical access (hw_ldl/p) */
-                gen_helper_ldl_phys(cpu_ir[ra], cpu_env, addr);
+                gen_helper_ldl_phys(va, cpu_env, addr);
                 break;
             case 0x1:
                 /* Quadword physical access (hw_ldq/p) */
-                gen_helper_ldq_phys(cpu_ir[ra], cpu_env, addr);
+                gen_helper_ldq_phys(va, cpu_env, addr);
                 break;
             case 0x2:
                 /* Longword physical access with lock (hw_ldl_l/p) */
-                gen_helper_ldl_l_phys(cpu_ir[ra], cpu_env, addr);
+                gen_helper_ldl_l_phys(va, cpu_env, addr);
                 break;
             case 0x3:
                 /* Quadword physical access with lock (hw_ldq_l/p) */
-                gen_helper_ldq_l_phys(cpu_ir[ra], cpu_env, addr);
+                gen_helper_ldq_l_phys(va, cpu_env, addr);
                 break;
             case 0x4:
                 /* Longword virtual PTE fetch (hw_ldl/v) */
@@ -2810,11 +2804,11 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                 goto invalid_opc;
             case 0xA:
                 /* Longword virtual access with protection check (hw_ldl/w) */
-                tcg_gen_qemu_ld_i64(cpu_ir[ra], addr, MMU_KERNEL_IDX, MO_LESL);
+                tcg_gen_qemu_ld_i64(va, addr, MMU_KERNEL_IDX, MO_LESL);
                 break;
             case 0xB:
                 /* Quadword virtual access with protection check (hw_ldq/w) */
-                tcg_gen_qemu_ld_i64(cpu_ir[ra], addr, MMU_KERNEL_IDX, MO_LEQ);
+                tcg_gen_qemu_ld_i64(va, addr, MMU_KERNEL_IDX, MO_LEQ);
                 break;
             case 0xC:
                 /* Longword virtual access with alt access mode (hw_ldl/a)*/
@@ -2825,12 +2819,12 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             case 0xE:
                 /* Longword virtual access with alternate access mode and
                    protection checks (hw_ldl/wa) */
-                tcg_gen_qemu_ld_i64(cpu_ir[ra], addr, MMU_USER_IDX, MO_LESL);
+                tcg_gen_qemu_ld_i64(va, addr, MMU_USER_IDX, MO_LESL);
                 break;
             case 0xF:
                 /* Quadword virtual access with alternate access mode and
                    protection checks (hw_ldq/wa) */
-                tcg_gen_qemu_ld_i64(cpu_ir[ra], addr, MMU_USER_IDX, MO_LEQ);
+                tcg_gen_qemu_ld_i64(va, addr, MMU_USER_IDX, MO_LEQ);
                 break;
             }
             tcg_temp_free(addr);
