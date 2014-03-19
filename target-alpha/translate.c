@@ -279,10 +279,10 @@ static inline void gen_qemu_ldq_l(TCGv t0, TCGv t1, int flags)
 static inline void gen_load_mem(DisasContext *ctx,
                                 void (*tcg_gen_qemu_load)(TCGv t0, TCGv t1,
                                                           int flags),
-                                int ra, int rb, int32_t disp16, int fp,
-                                int clear)
+                                int ra, int rb, int32_t disp16, bool fp,
+                                bool clear)
 {
-    TCGv addr, va;
+    TCGv tmp, addr, va;
 
     /* LDQ_U with ra $31 is UNOP.  Other various loads are forms of
        prefetches, which we can treat as nops.  No worries about
@@ -291,23 +291,22 @@ static inline void gen_load_mem(DisasContext *ctx,
         return;
     }
 
-    addr = tcg_temp_new();
-    if (rb != 31) {
-        tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
-        if (clear) {
-            tcg_gen_andi_i64(addr, addr, ~0x7);
-        }
-    } else {
-        if (clear) {
-            disp16 &= ~0x7;
-        }
-        tcg_gen_movi_i64(addr, disp16);
+    tmp = tcg_temp_new();
+    addr = load_gpr(ctx, rb);
+
+    if (disp16) {
+        tcg_gen_addi_i64(tmp, addr, disp16);
+        addr = tmp;
+    }
+    if (clear) {
+        tcg_gen_andi_i64(tmp, addr, ~0x7);
+        addr = tmp;
     }
 
     va = (fp ? cpu_fir[ra] : cpu_ir[ra]);
     tcg_gen_qemu_load(va, addr, ctx->mem_idx);
 
-    tcg_temp_free(addr);
+    tcg_temp_free(tmp);
 }
 
 static inline void gen_qemu_stf(TCGv t0, TCGv t1, int flags)
@@ -337,35 +336,27 @@ static inline void gen_qemu_sts(TCGv t0, TCGv t1, int flags)
 static inline void gen_store_mem(DisasContext *ctx,
                                  void (*tcg_gen_qemu_store)(TCGv t0, TCGv t1,
                                                             int flags),
-                                 int ra, int rb, int32_t disp16, int fp,
-                                 int clear)
+                                 int ra, int rb, int32_t disp16, bool fp,
+                                 bool clear)
 {
-    TCGv addr, va;
+    TCGv tmp, addr, va;
 
-    addr = tcg_temp_new();
-    if (rb != 31) {
-        tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
-        if (clear) {
-            tcg_gen_andi_i64(addr, addr, ~0x7);
-        }
-    } else {
-        if (clear) {
-            disp16 &= ~0x7;
-        }
-        tcg_gen_movi_i64(addr, disp16);
+    tmp = tcg_temp_new();
+    addr = load_gpr(ctx, rb);
+
+    if (disp16) {
+        tcg_gen_addi_i64(tmp, addr, disp16);
+        addr = tmp;
+    }
+    if (clear) {
+        tcg_gen_andi_i64(tmp, addr, ~0x7);
+        addr = tmp;
     }
 
-    if (ra == 31) {
-        va = tcg_const_i64(0);
-    } else {
-        va = (fp ? cpu_fir[ra] : cpu_ir[ra]);
-    }
+    va = (fp ? load_fpr(ctx, ra) : load_gpr(ctx, ra));
     tcg_gen_qemu_store(va, addr, ctx->mem_idx);
 
-    tcg_temp_free(addr);
-    if (ra == 31) {
-        tcg_temp_free(va);
-    }
+    tcg_temp_free(tmp);
 }
 
 static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
