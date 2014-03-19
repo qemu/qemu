@@ -559,42 +559,6 @@ static ExitStatus gen_fbcond(DisasContext *ctx, TCGCond cond, int ra,
     return gen_bcond_internal(ctx, cond, cmp_tmp, disp);
 }
 
-static void gen_cmov(TCGCond cond, int ra, int rb, int rc,
-                     int islit, uint8_t lit, int mask)
-{
-    TCGv_i64 c1, z, v1;
-
-    if (unlikely(rc == 31)) {
-        return;
-    }
-
-    if (ra == 31) {
-        /* Very uncommon case - Do not bother to optimize.  */
-        c1 = tcg_const_i64(0);
-    } else if (mask) {
-        c1 = tcg_const_i64(1);
-        tcg_gen_and_i64(c1, c1, cpu_ir[ra]);
-    } else {
-        c1 = cpu_ir[ra];
-    }
-    if (islit) {
-        v1 = tcg_const_i64(lit);
-    } else {
-        v1 = cpu_ir[rb];
-    }
-    z = tcg_const_i64(0);
-
-    tcg_gen_movcond_i64(cond, cpu_ir[rc], c1, z, v1, cpu_ir[rc]);
-
-    tcg_temp_free_i64(z);
-    if (ra == 31 || mask) {
-        tcg_temp_free_i64(c1);
-    }
-    if (islit) {
-        tcg_temp_free_i64(v1);
-    }
-}
-
 static void gen_fcmov(TCGCond cond, int ra, int rb, int rc)
 {
     TCGv_i64 c1, z, v1;
@@ -2061,11 +2025,19 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x14:
             /* CMOVLBS */
-            gen_cmov(TCG_COND_NE, ra, rb, rc, islit, lit, 1);
+            tmp = tcg_temp_new();
+            tcg_gen_andi_i64(tmp, va, 1);
+            tcg_gen_movcond_i64(TCG_COND_NE, vc, tmp, load_zero(ctx),
+                                vb, load_gpr(ctx, rc));
+            tcg_temp_free(tmp);
             break;
         case 0x16:
             /* CMOVLBC */
-            gen_cmov(TCG_COND_EQ, ra, rb, rc, islit, lit, 1);
+            tmp = tcg_temp_new();
+            tcg_gen_andi_i64(tmp, va, 1);
+            tcg_gen_movcond_i64(TCG_COND_EQ, vc, tmp, load_zero(ctx),
+                                vb, load_gpr(ctx, rc));
+            tcg_temp_free(tmp);
             break;
         case 0x20:
             /* BIS */
@@ -2073,11 +2045,13 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x24:
             /* CMOVEQ */
-            gen_cmov(TCG_COND_EQ, ra, rb, rc, islit, lit, 0);
+            tcg_gen_movcond_i64(TCG_COND_EQ, vc, va, load_zero(ctx),
+                                vb, load_gpr(ctx, rc));
             break;
         case 0x26:
             /* CMOVNE */
-            gen_cmov(TCG_COND_NE, ra, rb, rc, islit, lit, 0);
+            tcg_gen_movcond_i64(TCG_COND_NE, vc, va, load_zero(ctx),
+                                vb, load_gpr(ctx, rc));
             break;
         case 0x28:
             /* ORNOT */
@@ -2089,11 +2063,13 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x44:
             /* CMOVLT */
-            gen_cmov(TCG_COND_LT, ra, rb, rc, islit, lit, 0);
+            tcg_gen_movcond_i64(TCG_COND_LT, vc, va, load_zero(ctx),
+                                vb, load_gpr(ctx, rc));
             break;
         case 0x46:
             /* CMOVGE */
-            gen_cmov(TCG_COND_GE, ra, rb, rc, islit, lit, 0);
+            tcg_gen_movcond_i64(TCG_COND_GE, vc, va, load_zero(ctx),
+                                vb, load_gpr(ctx, rc));
             break;
         case 0x48:
             /* EQV */
@@ -2109,11 +2085,13 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x64:
             /* CMOVLE */
-            gen_cmov(TCG_COND_LE, ra, rb, rc, islit, lit, 0);
+            tcg_gen_movcond_i64(TCG_COND_LE, vc, va, load_zero(ctx),
+                                vb, load_gpr(ctx, rc));
             break;
         case 0x66:
             /* CMOVGT */
-            gen_cmov(TCG_COND_GT, ra, rb, rc, islit, lit, 0);
+            tcg_gen_movcond_i64(TCG_COND_GT, vc, va, load_zero(ctx),
+                                vb, load_gpr(ctx, rc));
             break;
         case 0x6C:
             /* IMPLVER */
