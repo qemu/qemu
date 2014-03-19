@@ -97,8 +97,7 @@ static void bus_add_child(BusState *bus, DeviceState *child)
     snprintf(name, sizeof(name), "child[%d]", kid->index);
     object_property_add_link(OBJECT(bus), name,
                              object_get_typename(OBJECT(child)),
-                             (Object **)&kid->child,
-                             NULL);
+                             (Object **)&kid->child, 0, NULL);
 }
 
 void qdev_set_parent_bus(DeviceState *dev, BusState *bus)
@@ -824,7 +823,8 @@ static void device_initfn(Object *obj)
     } while (class != object_class_by_name(TYPE_DEVICE));
 
     object_property_add_link(OBJECT(dev), "parent_bus", TYPE_BUS,
-                             (Object **)&dev->parent_bus, &error_abort);
+                             (Object **)&dev->parent_bus, 0,
+                             &error_abort);
 }
 
 static void device_post_init(Object *obj)
@@ -944,7 +944,9 @@ static void qbus_initfn(Object *obj)
     QTAILQ_INIT(&bus->children);
     object_property_add_link(obj, QDEV_HOTPLUG_HANDLER_PROPERTY,
                              TYPE_HOTPLUG_HANDLER,
-                             (Object **)&bus->hotplug_handler, NULL);
+                             (Object **)&bus->hotplug_handler,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             NULL);
     object_property_add_bool(obj, "realized",
                              bus_get_realized, bus_set_realized, NULL);
 }

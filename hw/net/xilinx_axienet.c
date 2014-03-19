@@ -945,9 +945,13 @@ static void xilinx_enet_realize(DeviceState *dev, Error **errp)
     Error *local_errp = NULL;
 
     object_property_add_link(OBJECT(ds), "enet", "xlnx.axi-ethernet",
-                             (Object **) &ds->enet, &local_errp);
+                             (Object **) &ds->enet,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &local_errp);
     object_property_add_link(OBJECT(cs), "enet", "xlnx.axi-ethernet",
-                             (Object **) &cs->enet, &local_errp);
+                             (Object **) &cs->enet,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &local_errp);
     if (local_errp) {
         goto xilinx_enet_realize_fail;
     }
@@ -982,10 +986,14 @@ static void xilinx_enet_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     object_property_add_link(obj, "axistream-connected", TYPE_STREAM_SLAVE,
-                             (Object **) &s->tx_data_dev, &error_abort);
+                             (Object **) &s->tx_data_dev,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &error_abort);
     object_property_add_link(obj, "axistream-control-connected",
                              TYPE_STREAM_SLAVE,
-                             (Object **) &s->tx_control_dev, &error_abort);
+                             (Object **) &s->tx_control_dev,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &error_abort);
 
     object_initialize(&s->rx_data_dev, sizeof(s->rx_data_dev),
                       TYPE_XILINX_AXI_ENET_DATA_STREAM);

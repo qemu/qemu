@@ -1023,10 +1023,16 @@ out:
     g_free(type);
 }
 
+typedef struct {
+    Object **child;
+    ObjectPropertyLinkFlags flags;
+} LinkProperty;
+
 static void object_get_link_property(Object *obj, Visitor *v, void *opaque,
                                      const char *name, Error **errp)
 {
-    Object **child = opaque;
+    LinkProperty *lprop = opaque;
+    Object **child = lprop->child;
     gchar *path;
 
     if (*child) {
@@ -1081,7 +1087,8 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
                                      const char *name, Error **errp)
 {
     Error *local_err = NULL;
-    Object **child = opaque;
+    LinkProperty *prop = opaque;
+    Object **child = prop->child;
     Object *old_target = *child;
     Object *new_target = NULL;
     char *path = NULL;
@@ -1107,18 +1114,41 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
     }
 }
 
+static void object_release_link_property(Object *obj, const char *name,
+                                         void *opaque)
+{
+    LinkProperty *prop = opaque;
+
+    if ((prop->flags & OBJ_PROP_LINK_UNREF_ON_RELEASE) && *prop->child) {
+        object_unref(*prop->child);
+    }
+    g_free(prop);
+}
+
 void object_property_add_link(Object *obj, const char *name,
                               const char *type, Object **child,
+                              ObjectPropertyLinkFlags flags,
                               Error **errp)
 {
+    Error *local_err = NULL;
+    LinkProperty *prop = g_malloc(sizeof(*prop));
     gchar *full_type;
+
+    prop->child = child;
+    prop->flags = flags;
 
     full_type = g_strdup_printf("link<%s>", type);
 
     object_property_add(obj, name, full_type,
                         object_get_link_property,
                         object_set_link_property,
-                        NULL, child, errp);
+                        object_release_link_property,
+                        prop,
+                        &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(prop);
+    }
 
     g_free(full_type);
 }

@@ -198,7 +198,7 @@ static void pxa2xx_pcmcia_initfn(Object *obj)
     s->slot.irq = qemu_allocate_irqs(pxa2xx_pcmcia_set_irq, s, 1)[0];
 
     object_property_add_link(obj, "card", TYPE_PCMCIA_CARD,
-                             (Object **)&s->card, NULL);
+                             (Object **)&s->card, 0, NULL);
 }
 
 /* Insert a new card into a slot */

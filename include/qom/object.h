@@ -1067,12 +1067,18 @@ Object *object_resolve_path_component(Object *parent, const gchar *part);
 void object_property_add_child(Object *obj, const char *name,
                                Object *child, Error **errp);
 
+typedef enum {
+    /* Unref the link pointer when the property is deleted */
+    OBJ_PROP_LINK_UNREF_ON_RELEASE = 0x1,
+} ObjectPropertyLinkFlags;
+
 /**
  * object_property_add_link:
  * @obj: the object to add a property to
  * @name: the name of the property
  * @type: the qobj type of the link
  * @child: a pointer to where the link object reference is stored
+ * @flags: additional options for the link
  * @errp: if an error occurs, a pointer to an area to store the area
  *
  * Links establish relationships between objects.  Links are unidirectional
@@ -1084,10 +1090,13 @@ void object_property_add_child(Object *obj, const char *name,
  * Ownership of the pointer that @child points to is transferred to the
  * link property.  The reference count for <code>*@child</code> is
  * managed by the property from after the function returns till the
- * property is deleted with object_property_del().
+ * property is deleted with object_property_del().  If the
+ * <code>@flags</code> <code>OBJ_PROP_LINK_UNREF_ON_RELEASE</code> bit is set,
+ * the reference count is decremented when the property is deleted.
  */
 void object_property_add_link(Object *obj, const char *name,
                               const char *type, Object **child,
+                              ObjectPropertyLinkFlags flags,
                               Error **errp);
 
 /**

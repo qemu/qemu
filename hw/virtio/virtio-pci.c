@@ -1517,7 +1517,8 @@ static void virtio_rng_initfn(Object *obj)
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_RNG);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
     object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
-                             (Object **)&dev->vdev.conf.rng, NULL);
+                             (Object **)&dev->vdev.conf.rng,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE, NULL);
 
 }
 
