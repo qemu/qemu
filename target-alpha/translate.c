@@ -2735,6 +2735,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             goto invalid_opc;
         }
         break;
+
     case 0x19:
         /* HW_MFPR (PALcode) */
 #ifndef CONFIG_USER_ONLY
@@ -2743,14 +2744,12 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 #else
         goto invalid_opc;
 #endif
+
     case 0x1A:
         /* JMP, JSR, RET, JSR_COROUTINE.  These only differ by the branch
            prediction stack action, which of course we don't implement.  */
-        if (rb != 31) {
-            tcg_gen_andi_i64(cpu_pc, cpu_ir[rb], ~3);
-        } else {
-            tcg_gen_movi_i64(cpu_pc, 0);
-        }
+        vb = load_gpr(ctx, rb);
+        tcg_gen_andi_i64(cpu_pc, vb, ~3);
         if (ra != 31) {
             tcg_gen_movi_i64(cpu_ir[ra], ctx->pc);
         }
