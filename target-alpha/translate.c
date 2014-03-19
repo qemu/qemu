@@ -2992,40 +2992,33 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 #else
         goto invalid_opc;
 #endif
+
     case 0x1F:
         /* HW_ST (PALcode) */
 #ifndef CONFIG_USER_ONLY
         REQUIRE_TB_FLAG(TB_FLAGS_PAL_MODE);
         {
-            TCGv addr, val;
-            addr = tcg_temp_new();
-            if (rb != 31) {
-                tcg_gen_addi_i64(addr, cpu_ir[rb], disp12);
-            } else {
-                tcg_gen_movi_i64(addr, disp12);
-            }
-            if (ra != 31) {
-                val = cpu_ir[ra];
-            } else {
-                val = tcg_temp_new();
-                tcg_gen_movi_i64(val, 0);
-            }
+            TCGv addr = tcg_temp_new();
+            va = load_gpr(ctx, ra);
+            vb = load_gpr(ctx, rb);
+
+            tcg_gen_addi_i64(addr, vb, disp12);
             switch ((insn >> 12) & 0xF) {
             case 0x0:
                 /* Longword physical access */
-                gen_helper_stl_phys(cpu_env, addr, val);
+                gen_helper_stl_phys(cpu_env, addr, va);
                 break;
             case 0x1:
                 /* Quadword physical access */
-                gen_helper_stq_phys(cpu_env, addr, val);
+                gen_helper_stq_phys(cpu_env, addr, va);
                 break;
             case 0x2:
                 /* Longword physical access with lock */
-                gen_helper_stl_c_phys(val, cpu_env, addr, val);
+                gen_helper_stl_c_phys(dest_gpr(ctx, ra), cpu_env, addr, va);
                 break;
             case 0x3:
                 /* Quadword physical access with lock */
-                gen_helper_stq_c_phys(val, cpu_env, addr, val);
+                gen_helper_stq_c_phys(dest_gpr(ctx, ra), cpu_env, addr, va);
                 break;
             case 0x4:
                 /* Longword virtual access */
@@ -3063,9 +3056,6 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             case 0xF:
                 /* Invalid */
                 goto invalid_opc;
-            }
-            if (ra == 31) {
-                tcg_temp_free(val);
             }
             tcg_temp_free(addr);
             break;
