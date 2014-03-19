@@ -1202,50 +1202,36 @@ static inline void gen_zap(int ra, int rb, int rc, int islit, uint8_t lit)
 
 
 /* EXTWH, EXTLH, EXTQH */
-static void gen_ext_h(int ra, int rb, int rc, int islit,
+static void gen_ext_h(DisasContext *ctx, TCGv vc, TCGv va, int rb, bool islit,
                       uint8_t lit, uint8_t byte_mask)
 {
-    if (unlikely(rc == 31)) {
-        return;
-    } else if (unlikely(ra == 31)) {
-        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    if (islit) {
+        tcg_gen_shli_i64(vc, va, (64 - lit * 8) & 0x3f);
     } else {
-        if (islit) {
-            lit = (64 - (lit & 7) * 8) & 0x3f;
-            tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], lit);
-        } else {
-            TCGv tmp1 = tcg_temp_new();
-            tcg_gen_andi_i64(tmp1, cpu_ir[rb], 7);
-            tcg_gen_shli_i64(tmp1, tmp1, 3);
-            tcg_gen_neg_i64(tmp1, tmp1);
-            tcg_gen_andi_i64(tmp1, tmp1, 0x3f);
-            tcg_gen_shl_i64(cpu_ir[rc], cpu_ir[ra], tmp1);
-            tcg_temp_free(tmp1);
-        }
-        gen_zapnoti(cpu_ir[rc], cpu_ir[rc], byte_mask);
+        TCGv tmp = tcg_temp_new();
+        tcg_gen_shli_i64(tmp, load_gpr(ctx, rb), 3);
+        tcg_gen_neg_i64(tmp, tmp);
+        tcg_gen_andi_i64(tmp, tmp, 0x3f);
+        tcg_gen_shl_i64(vc, va, tmp);
+        tcg_temp_free(tmp);
     }
+    gen_zapnoti(vc, vc, byte_mask);
 }
 
 /* EXTBL, EXTWL, EXTLL, EXTQL */
-static void gen_ext_l(int ra, int rb, int rc, int islit,
+static void gen_ext_l(DisasContext *ctx, TCGv vc, TCGv va, int rb, bool islit,
                       uint8_t lit, uint8_t byte_mask)
 {
-    if (unlikely(rc == 31)) {
-        return;
-    } else if (unlikely(ra == 31)) {
-        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    if (islit) {
+        tcg_gen_shri_i64(vc, va, (lit & 7) * 8);
     } else {
-        if (islit) {
-            tcg_gen_shri_i64(cpu_ir[rc], cpu_ir[ra], (lit & 7) * 8);
-        } else {
-            TCGv tmp = tcg_temp_new();
-            tcg_gen_andi_i64(tmp, cpu_ir[rb], 7);
-            tcg_gen_shli_i64(tmp, tmp, 3);
-            tcg_gen_shr_i64(cpu_ir[rc], cpu_ir[ra], tmp);
-            tcg_temp_free(tmp);
-        }
-        gen_zapnoti(cpu_ir[rc], cpu_ir[rc], byte_mask);
+        TCGv tmp = tcg_temp_new();
+        tcg_gen_andi_i64(tmp, load_gpr(ctx, rb), 7);
+        tcg_gen_shli_i64(tmp, tmp, 3);
+        tcg_gen_shr_i64(vc, va, tmp);
+        tcg_temp_free(tmp);
     }
+    gen_zapnoti(vc, vc, byte_mask);
 }
 
 /* INSWH, INSLH, INSQH */
@@ -2104,7 +2090,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x06:
             /* EXTBL */
-            gen_ext_l(ra, rb, rc, islit, lit, 0x01);
+            gen_ext_l(ctx, vc, va, rb, islit, lit, 0x01);
             break;
         case 0x0B:
             /* INSBL */
@@ -2116,7 +2102,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x16:
             /* EXTWL */
-            gen_ext_l(ra, rb, rc, islit, lit, 0x03);
+            gen_ext_l(ctx, vc, va, rb, islit, lit, 0x03);
             break;
         case 0x1B:
             /* INSWL */
@@ -2128,7 +2114,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x26:
             /* EXTLL */
-            gen_ext_l(ra, rb, rc, islit, lit, 0x0f);
+            gen_ext_l(ctx, vc, va, rb, islit, lit, 0x0f);
             break;
         case 0x2B:
             /* INSLL */
@@ -2160,7 +2146,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x36:
             /* EXTQL */
-            gen_ext_l(ra, rb, rc, islit, lit, 0xff);
+            gen_ext_l(ctx, vc, va, rb, islit, lit, 0xff);
             break;
         case 0x39:
             /* SLL */
@@ -2200,7 +2186,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x5A:
             /* EXTWH */
-            gen_ext_h(ra, rb, rc, islit, lit, 0x03);
+            gen_ext_h(ctx, vc, va, rb, islit, lit, 0x03);
             break;
         case 0x62:
             /* MSKLH */
@@ -2212,7 +2198,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x6A:
             /* EXTLH */
-            gen_ext_h(ra, rb, rc, islit, lit, 0x0f);
+            gen_ext_h(ctx, vc, va, rb, islit, lit, 0x0f);
             break;
         case 0x72:
             /* MSKQH */
@@ -2224,7 +2210,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x7A:
             /* EXTQH */
-            gen_ext_h(ra, rb, rc, islit, lit, 0xff);
+            gen_ext_h(ctx, vc, va, rb, islit, lit, 0xff);
             break;
         default:
             goto invalid_opc;
