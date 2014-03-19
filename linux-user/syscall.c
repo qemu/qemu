@@ -43,6 +43,7 @@
 #include <sys/resource.h>
 #include <sys/mman.h>
 #include <sys/swap.h>
+#include <linux/capability.h>
 #include <signal.h>
 #include <sched.h>
 #ifdef __ia64__
@@ -243,6 +244,10 @@ _syscall3(int, sys_sched_setaffinity, pid_t, pid, unsigned int, len,
           unsigned long *, user_mask_ptr);
 _syscall4(int, reboot, int, magic1, int, magic2, unsigned int, cmd,
           void *, arg);
+_syscall2(int, capget, struct __user_cap_header_struct *, header,
+          struct __user_cap_data_struct *, data);
+_syscall2(int, capset, struct __user_cap_header_struct *, header,
+          struct __user_cap_data_struct *, data);
 
 static bitmask_transtbl fcntl_flags_tbl[] = {
   { TARGET_O_ACCMODE,   TARGET_O_WRONLY,    O_ACCMODE,   O_WRONLY,    },
@@ -4421,6 +4426,14 @@ static int target_to_host_fcntl_cmd(int cmd)
 #endif
         case TARGET_F_NOTIFY:
             return F_NOTIFY;
+#ifdef F_GETOWN_EX
+	case TARGET_F_GETOWN_EX:
+	    return F_GETOWN_EX;
+#endif
+#ifdef F_SETOWN_EX
+	case TARGET_F_SETOWN_EX:
+	    return F_SETOWN_EX;
+#endif
 	default:
             return -TARGET_EINVAL;
     }
@@ -4443,6 +4456,10 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
     struct target_flock *target_fl;
     struct flock64 fl64;
     struct target_flock64 *target_fl64;
+#ifdef F_GETOWN_EX
+    struct f_owner_ex fox;
+    struct target_f_owner_ex *target_fox;
+#endif
     abi_long ret;
     int host_cmd = target_to_host_fcntl_cmd(cmd);
 
@@ -4535,6 +4552,30 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
     case TARGET_F_SETFL:
         ret = get_errno(fcntl(fd, host_cmd, target_to_host_bitmask(arg, fcntl_flags_tbl)));
         break;
+
+#ifdef F_GETOWN_EX
+    case TARGET_F_GETOWN_EX:
+        ret = get_errno(fcntl(fd, host_cmd, &fox));
+        if (ret >= 0) {
+            if (!lock_user_struct(VERIFY_WRITE, target_fox, arg, 0))
+                return -TARGET_EFAULT;
+            target_fox->type = tswap32(fox.type);
+            target_fox->pid = tswap32(fox.pid);
+            unlock_user_struct(target_fox, arg, 1);
+        }
+        break;
+#endif
+
+#ifdef F_SETOWN_EX
+    case TARGET_F_SETOWN_EX:
+        if (!lock_user_struct(VERIFY_READ, target_fox, arg, 1))
+            return -TARGET_EFAULT;
+        fox.type = tswap32(target_fox->type);
+        fox.pid = tswap32(target_fox->pid);
+        unlock_user_struct(target_fox, arg, 0);
+        ret = get_errno(fcntl(fd, host_cmd, &fox));
+        break;
+#endif
 
     case TARGET_F_SETOWN:
     case TARGET_F_GETOWN:
@@ -5993,7 +6034,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             sigset_t cur_set;
             abi_ulong target_set;
-            sigprocmask(0, NULL, &cur_set);
+            do_sigprocmask(0, NULL, &cur_set);
             host_to_target_old_sigset(&target_set, &cur_set);
             ret = target_set;
         }
@@ -6004,10 +6045,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             sigset_t set, oset, cur_set;
             abi_ulong target_set = arg1;
-            sigprocmask(0, NULL, &cur_set);
+            do_sigprocmask(0, NULL, &cur_set);
             target_to_host_old_sigset(&set, &target_set);
             sigorset(&set, &set, &cur_set);
-            sigprocmask(SIG_SETMASK, &set, &oset);
+            do_sigprocmask(SIG_SETMASK, &set, &oset);
             host_to_target_old_sigset(&target_set, &oset);
             ret = target_set;
         }
@@ -6038,7 +6079,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             mask = arg2;
             target_to_host_old_sigset(&set, &mask);
 
-            ret = get_errno(sigprocmask(how, &set, &oldset));
+            ret = get_errno(do_sigprocmask(how, &set, &oldset));
             if (!is_error(ret)) {
                 host_to_target_old_sigset(&mask, &oldset);
                 ret = mask;
@@ -6072,7 +6113,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 how = 0;
                 set_ptr = NULL;
             }
-            ret = get_errno(sigprocmask(how, set_ptr, &oldset));
+            ret = get_errno(do_sigprocmask(how, set_ptr, &oldset));
             if (!is_error(ret) && arg3) {
                 if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_sigset_t), 0)))
                     goto efault;
@@ -6112,7 +6153,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 how = 0;
                 set_ptr = NULL;
             }
-            ret = get_errno(sigprocmask(how, set_ptr, &oldset));
+            ret = get_errno(do_sigprocmask(how, set_ptr, &oldset));
             if (!is_error(ret) && arg3) {
                 if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_sigset_t), 0)))
                     goto efault;
@@ -7641,9 +7682,75 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         unlock_user(p, arg1, ret);
         break;
     case TARGET_NR_capget:
-        goto unimplemented;
     case TARGET_NR_capset:
-        goto unimplemented;
+    {
+        struct target_user_cap_header *target_header;
+        struct target_user_cap_data *target_data = NULL;
+        struct __user_cap_header_struct header;
+        struct __user_cap_data_struct data[2];
+        struct __user_cap_data_struct *dataptr = NULL;
+        int i, target_datalen;
+        int data_items = 1;
+
+        if (!lock_user_struct(VERIFY_WRITE, target_header, arg1, 1)) {
+            goto efault;
+        }
+        header.version = tswap32(target_header->version);
+        header.pid = tswap32(target_header->pid);
+
+        if (header.version != _LINUX_CAPABILITY_VERSION_1) {
+            /* Version 2 and up takes pointer to two user_data structs */
+            data_items = 2;
+        }
+
+        target_datalen = sizeof(*target_data) * data_items;
+
+        if (arg2) {
+            if (num == TARGET_NR_capget) {
+                target_data = lock_user(VERIFY_WRITE, arg2, target_datalen, 0);
+            } else {
+                target_data = lock_user(VERIFY_READ, arg2, target_datalen, 1);
+            }
+            if (!target_data) {
+                unlock_user_struct(target_header, arg1, 0);
+                goto efault;
+            }
+
+            if (num == TARGET_NR_capset) {
+                for (i = 0; i < data_items; i++) {
+                    data[i].effective = tswap32(target_data[i].effective);
+                    data[i].permitted = tswap32(target_data[i].permitted);
+                    data[i].inheritable = tswap32(target_data[i].inheritable);
+                }
+            }
+
+            dataptr = data;
+        }
+
+        if (num == TARGET_NR_capget) {
+            ret = get_errno(capget(&header, dataptr));
+        } else {
+            ret = get_errno(capset(&header, dataptr));
+        }
+
+        /* The kernel always updates version for both capget and capset */
+        target_header->version = tswap32(header.version);
+        unlock_user_struct(target_header, arg1, 1);
+
+        if (arg2) {
+            if (num == TARGET_NR_capget) {
+                for (i = 0; i < data_items; i++) {
+                    target_data[i].effective = tswap32(data[i].effective);
+                    target_data[i].permitted = tswap32(data[i].permitted);
+                    target_data[i].inheritable = tswap32(data[i].inheritable);
+                }
+                unlock_user(target_data, arg2, target_datalen);
+            } else {
+                unlock_user(target_data, arg2, 0);
+            }
+        }
+        break;
+    }
     case TARGET_NR_sigaltstack:
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_MIPS) || \
     defined(TARGET_SPARC) || defined(TARGET_PPC) || defined(TARGET_ALPHA) || \
@@ -8125,7 +8232,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             mask = arg2;
             target_to_host_old_sigset(&set, &mask);
-            sigprocmask(how, &set, &oldset);
+            do_sigprocmask(how, &set, &oldset);
             host_to_target_old_sigset(&mask, &oldset);
             ret = mask;
         }
@@ -9148,6 +9255,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_atomic_barrier:
     {
         /* Like the kernel implementation and the qemu arm barrier, no-op this? */
+        ret = 0;
         break;
     }
 #endif
