@@ -1274,15 +1274,9 @@ static int cpu_pr_data(int pr)
     return 0;
 }
 
-static ExitStatus gen_mfpr(int ra, int regno)
+static ExitStatus gen_mfpr(TCGv va, int regno)
 {
     int data = cpu_pr_data(regno);
-
-    /* In our emulated PALcode, these processor registers have no
-       side effects from reading.  */
-    if (ra == 31) {
-        return NO_EXIT;
-    }
 
     /* Special help for VMTIME and WALLTIME.  */
     if (regno == 250 || regno == 249) {
@@ -1292,11 +1286,11 @@ static ExitStatus gen_mfpr(int ra, int regno)
 	}
         if (use_icount) {
             gen_io_start();
-            helper(cpu_ir[ra]);
+            helper(va);
             gen_io_end();
             return EXIT_PC_STALE;
         } else {
-            helper(cpu_ir[ra]);
+            helper(va);
             return NO_EXIT;
         }
     }
@@ -1304,27 +1298,21 @@ static ExitStatus gen_mfpr(int ra, int regno)
     /* The basic registers are data only, and unknown registers
        are read-zero, write-ignore.  */
     if (data == 0) {
-        tcg_gen_movi_i64(cpu_ir[ra], 0);
+        tcg_gen_movi_i64(va, 0);
     } else if (data & PR_BYTE) {
-        tcg_gen_ld8u_i64(cpu_ir[ra], cpu_env, data & ~PR_BYTE);
+        tcg_gen_ld8u_i64(va, cpu_env, data & ~PR_BYTE);
     } else if (data & PR_LONG) {
-        tcg_gen_ld32s_i64(cpu_ir[ra], cpu_env, data & ~PR_LONG);
+        tcg_gen_ld32s_i64(va, cpu_env, data & ~PR_LONG);
     } else {
-        tcg_gen_ld_i64(cpu_ir[ra], cpu_env, data);
+        tcg_gen_ld_i64(va, cpu_env, data);
     }
     return NO_EXIT;
 }
 
-static ExitStatus gen_mtpr(DisasContext *ctx, int rb, int regno)
+static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
 {
     TCGv tmp;
     int data;
-
-    if (rb == 31) {
-        tmp = tcg_const_i64(0);
-    } else {
-        tmp = cpu_ir[rb];
-    }
 
     switch (regno) {
     case 255:
@@ -1334,7 +1322,7 @@ static ExitStatus gen_mtpr(DisasContext *ctx, int rb, int regno)
 
     case 254:
         /* TBIS */
-        gen_helper_tbis(cpu_env, tmp);
+        gen_helper_tbis(cpu_env, vb);
         break;
 
     case 253:
@@ -1346,17 +1334,17 @@ static ExitStatus gen_mtpr(DisasContext *ctx, int rb, int regno)
 
     case 252:
         /* HALT */
-        gen_helper_halt(tmp);
+        gen_helper_halt(vb);
         return EXIT_PC_STALE;
 
     case 251:
         /* ALARM */
-        gen_helper_set_alarm(cpu_env, tmp);
+        gen_helper_set_alarm(cpu_env, vb);
         break;
 
     case 7:
         /* PALBR */
-        tcg_gen_st_i64(tmp, cpu_env, offsetof(CPUAlphaState, palbr));
+        tcg_gen_st_i64(vb, cpu_env, offsetof(CPUAlphaState, palbr));
         /* Changing the PAL base register implies un-chaining all of the TBs
            that ended with a CALL_PAL.  Since the base register usually only
            changes during boot, flushing everything works well.  */
@@ -1369,18 +1357,14 @@ static ExitStatus gen_mtpr(DisasContext *ctx, int rb, int regno)
         data = cpu_pr_data(regno);
         if (data != 0) {
             if (data & PR_BYTE) {
-                tcg_gen_st8_i64(tmp, cpu_env, data & ~PR_BYTE);
+                tcg_gen_st8_i64(vb, cpu_env, data & ~PR_BYTE);
             } else if (data & PR_LONG) {
-                tcg_gen_st32_i64(tmp, cpu_env, data & ~PR_LONG);
+                tcg_gen_st32_i64(vb, cpu_env, data & ~PR_LONG);
             } else {
-                tcg_gen_st_i64(tmp, cpu_env, data);
+                tcg_gen_st_i64(vb, cpu_env, data);
             }
         }
         break;
-    }
-
-    if (rb == 31) {
-        tcg_temp_free(tmp);
     }
 
     return NO_EXIT;
@@ -2328,7 +2312,8 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         /* HW_MFPR (PALcode) */
 #ifndef CONFIG_USER_ONLY
         REQUIRE_TB_FLAG(TB_FLAGS_PAL_MODE);
-        return gen_mfpr(ra, insn & 0xffff);
+        va = dest_gpr(ctx, ra);
+        return gen_mfpr(va, insn & 0xffff);
 #else
         goto invalid_opc;
 #endif
@@ -2562,7 +2547,8 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         /* HW_MTPR (PALcode) */
 #ifndef CONFIG_USER_ONLY
         REQUIRE_TB_FLAG(TB_FLAGS_PAL_MODE);
-        return gen_mtpr(ctx, rb, insn & 0xffff);
+        vb = load_gpr(ctx, rb);
+        return gen_mtpr(ctx, vb, insn & 0xffff);
 #else
         goto invalid_opc;
 #endif
