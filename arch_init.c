@@ -45,6 +45,7 @@
 #include "hw/audio/pcspk.h"
 #include "migration/page_cache.h"
 #include "qemu/config-file.h"
+#include "qemu/error-report.h"
 #include "qmp-commands.h"
 #include "trace.h"
 #include "exec/cpu-all.h"
@@ -167,11 +168,8 @@ static struct {
     /* Cache for XBZRLE, Protected by lock. */
     PageCache *cache;
     QemuMutex lock;
-} XBZRLE = {
-    .encoded_buf = NULL,
-    .current_buf = NULL,
-    .cache = NULL,
-};
+} XBZRLE;
+
 /* buffer used for XBZRLE decoding */
 static uint8_t *xbzrle_decoded_buf;
 
@@ -187,41 +185,44 @@ static void XBZRLE_cache_unlock(void)
         qemu_mutex_unlock(&XBZRLE.lock);
 }
 
+/*
+ * called from qmp_migrate_set_cache_size in main thread, possibly while
+ * a migration is in progress.
+ * A running migration maybe using the cache and might finish during this
+ * call, hence changes to the cache are protected by XBZRLE.lock().
+ */
 int64_t xbzrle_cache_resize(int64_t new_size)
 {
-    PageCache *new_cache, *cache_to_free;
+    PageCache *new_cache;
+    int64_t ret;
 
     if (new_size < TARGET_PAGE_SIZE) {
         return -1;
     }
 
-    /* no need to lock, the current thread holds qemu big lock */
+    XBZRLE_cache_lock();
+
     if (XBZRLE.cache != NULL) {
-        /* check XBZRLE.cache again later */
         if (pow2floor(new_size) == migrate_xbzrle_cache_size()) {
-            return pow2floor(new_size);
+            goto out_new_size;
         }
         new_cache = cache_init(new_size / TARGET_PAGE_SIZE,
                                         TARGET_PAGE_SIZE);
         if (!new_cache) {
-            DPRINTF("Error creating cache\n");
-            return -1;
+            error_report("Error creating cache");
+            ret = -1;
+            goto out;
         }
 
-        XBZRLE_cache_lock();
-        /* the XBZRLE.cache may have be destroyed, check it again */
-        if (XBZRLE.cache != NULL) {
-            cache_to_free = XBZRLE.cache;
-            XBZRLE.cache = new_cache;
-        } else {
-            cache_to_free = new_cache;
-        }
-        XBZRLE_cache_unlock();
-
-        cache_fini(cache_to_free);
+        cache_fini(XBZRLE.cache);
+        XBZRLE.cache = new_cache;
     }
 
-    return pow2floor(new_size);
+out_new_size:
+    ret = pow2floor(new_size);
+out:
+    XBZRLE_cache_unlock();
+    return ret;
 }
 
 /* accounting for migration statistics */
@@ -732,28 +733,27 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     dirty_rate_high_cnt = 0;
 
     if (migrate_use_xbzrle()) {
-        qemu_mutex_lock_iothread();
+        XBZRLE_cache_lock();
         XBZRLE.cache = cache_init(migrate_xbzrle_cache_size() /
                                   TARGET_PAGE_SIZE,
                                   TARGET_PAGE_SIZE);
         if (!XBZRLE.cache) {
-            qemu_mutex_unlock_iothread();
-            DPRINTF("Error creating cache\n");
+            XBZRLE_cache_unlock();
+            error_report("Error creating cache");
             return -1;
         }
-        qemu_mutex_init(&XBZRLE.lock);
-        qemu_mutex_unlock_iothread();
+        XBZRLE_cache_unlock();
 
         /* We prefer not to abort if there is no memory */
         XBZRLE.encoded_buf = g_try_malloc0(TARGET_PAGE_SIZE);
         if (!XBZRLE.encoded_buf) {
-            DPRINTF("Error allocating encoded_buf\n");
+            error_report("Error allocating encoded_buf");
             return -1;
         }
 
         XBZRLE.current_buf = g_try_malloc(TARGET_PAGE_SIZE);
         if (!XBZRLE.current_buf) {
-            DPRINTF("Error allocating current_buf\n");
+            error_report("Error allocating current_buf");
             g_free(XBZRLE.encoded_buf);
             XBZRLE.encoded_buf = NULL;
             return -1;
@@ -1119,6 +1119,7 @@ static SaveVMHandlers savevm_ram_handlers = {
 
 void ram_mig_init(void)
 {
+    qemu_mutex_init(&XBZRLE.lock);
     register_savevm_live(NULL, "ram", 0, 4, &savevm_ram_handlers, NULL);
 }
 
