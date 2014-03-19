@@ -1457,43 +1457,6 @@ ARITH3(maxuw4)
 ARITH3(maxsw4)
 ARITH3(perr)
 
-/* Code to call arith3 helpers */
-#define ARITH3_EX(name)                                                 \
-    static inline void glue(gen_, name)(int ra, int rb, int rc,         \
-                                        int islit, uint8_t lit)         \
-    {                                                                   \
-        if (unlikely(rc == 31)) {                                       \
-            return;                                                     \
-        }                                                               \
-        if (ra != 31) {                                                 \
-            if (islit) {                                                \
-                TCGv tmp = tcg_const_i64(lit);                          \
-                gen_helper_ ## name(cpu_ir[rc], cpu_env,                \
-                                    cpu_ir[ra], tmp);                   \
-                tcg_temp_free(tmp);                                     \
-            } else {                                                    \
-                gen_helper_ ## name(cpu_ir[rc], cpu_env,                \
-                                    cpu_ir[ra], cpu_ir[rb]);            \
-            }                                                           \
-        } else {                                                        \
-            TCGv tmp1 = tcg_const_i64(0);                               \
-            if (islit) {                                                \
-                TCGv tmp2 = tcg_const_i64(lit);                         \
-                gen_helper_ ## name(cpu_ir[rc], cpu_env, tmp1, tmp2);   \
-                tcg_temp_free(tmp2);                                    \
-            } else {                                                    \
-                gen_helper_ ## name(cpu_ir[rc], cpu_env, tmp1, cpu_ir[rb]); \
-            }                                                           \
-            tcg_temp_free(tmp1);                                        \
-        }                                                               \
-    }
-ARITH3_EX(addlv)
-ARITH3_EX(sublv)
-ARITH3_EX(addqv)
-ARITH3_EX(subqv)
-ARITH3_EX(mullv)
-ARITH3_EX(mulqv)
-
 #define MVIOP2(name)                                    \
 static inline void glue(gen_, name)(int rb, int rc)     \
 {                                                       \
@@ -2032,11 +1995,11 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x40:
             /* ADDL/V */
-            gen_addlv(ra, rb, rc, islit, lit);
+            gen_helper_addlv(vc, cpu_env, va, vb);
             break;
         case 0x49:
             /* SUBL/V */
-            gen_sublv(ra, rb, rc, islit, lit);
+            gen_helper_sublv(vc, cpu_env, va, vb);
             break;
         case 0x4D:
             /* CMPLT */
@@ -2044,11 +2007,11 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x60:
             /* ADDQ/V */
-            gen_addqv(ra, rb, rc, islit, lit);
+            gen_helper_addqv(vc, cpu_env, va, vb);
             break;
         case 0x69:
             /* SUBQ/V */
-            gen_subqv(ra, rb, rc, islit, lit);
+            gen_helper_subqv(vc, cpu_env, va, vb);
             break;
         case 0x6D:
             /* CMPLE */
@@ -2321,11 +2284,11 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x40:
             /* MULL/V */
-            gen_mullv(ra, rb, rc, islit, lit);
+            gen_helper_mullv(vc, cpu_env, va, vb);
             break;
         case 0x60:
             /* MULQ/V */
-            gen_mulqv(ra, rb, rc, islit, lit);
+            gen_helper_mulqv(vc, cpu_env, va, vb);
             break;
         default:
             goto invalid_opc;
