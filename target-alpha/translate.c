@@ -2833,43 +2833,30 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 #else
         goto invalid_opc;
 #endif
+
     case 0x1C:
+        vc = dest_gpr(ctx, rc);
         switch (fn7) {
         case 0x00:
             /* SEXTB */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
             REQUIRE_REG_31(ra);
-            if (likely(rc != 31)) {
-                if (islit) {
-                    tcg_gen_movi_i64(cpu_ir[rc], (int64_t)((int8_t)lit));
-                } else {
-                    tcg_gen_ext8s_i64(cpu_ir[rc], cpu_ir[rb]);
-                }
-            }
+            vb = load_gpr_lit(ctx, rb, lit, islit);
+            tcg_gen_ext8s_i64(vc, vb);
             break;
         case 0x01:
             /* SEXTW */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
             REQUIRE_REG_31(ra);
-            if (likely(rc != 31)) {
-                if (islit) {
-                    tcg_gen_movi_i64(cpu_ir[rc], (int64_t)((int16_t)lit));
-                } else {
-                    tcg_gen_ext16s_i64(cpu_ir[rc], cpu_ir[rb]);
-                }
-            }
+            vb = load_gpr_lit(ctx, rb, lit, islit);
+            tcg_gen_ext16s_i64(vc, vb);
             break;
         case 0x30:
             /* CTPOP */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
             REQUIRE_REG_31(ra);
-            if (likely(rc != 31)) {
-                if (islit) {
-                    tcg_gen_movi_i64(cpu_ir[rc], ctpop64(lit));
-                } else {
-                    gen_helper_ctpop(cpu_ir[rc], cpu_ir[rb]);
-                }
-            }
+            vb = load_gpr_lit(ctx, rb, lit, islit);
+            gen_helper_ctpop(vc, vb);
             break;
         case 0x31:
             /* PERR */
@@ -2880,25 +2867,15 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* CTLZ */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
             REQUIRE_REG_31(ra);
-            if (likely(rc != 31)) {
-                if (islit) {
-                    tcg_gen_movi_i64(cpu_ir[rc], clz64(lit));
-                } else {
-                    gen_helper_ctlz(cpu_ir[rc], cpu_ir[rb]);
-                }
-            }
+            vb = load_gpr_lit(ctx, rb, lit, islit);
+            gen_helper_ctlz(vc, vb);
             break;
         case 0x33:
             /* CTTZ */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
             REQUIRE_REG_31(ra);
-            if (likely(rc != 31)) {
-                if (islit) {
-                    tcg_gen_movi_i64(cpu_ir[rc], ctz64(lit));
-                } else {
-                    gen_helper_cttz(cpu_ir[rc], cpu_ir[rb]);
-                }
-            }
+            vb = load_gpr_lit(ctx, rb, lit, islit);
+            gen_helper_cttz(vc, vb);
             break;
         case 0x34:
             /* UNPKBW */
@@ -2968,30 +2945,18 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* FTOIT */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_FIX);
             REQUIRE_REG_31(rb);
-            if (likely(rc != 31)) {
-                if (ra != 31) {
-                    tcg_gen_mov_i64(cpu_ir[rc], cpu_fir[ra]);
-                } else {
-                    tcg_gen_movi_i64(cpu_ir[rc], 0);
-                }
-            }
+            va = load_fpr(ctx, ra);
+            tcg_gen_mov_i64(vc, va);
             break;
         case 0x78:
             /* FTOIS */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_FIX);
             REQUIRE_REG_31(rb);
-            if (rc != 31) {
-                TCGv_i32 tmp1 = tcg_temp_new_i32();
-                if (ra != 31) {
-                    gen_helper_s_to_memory(tmp1, cpu_fir[ra]);
-                } else {
-                    TCGv tmp2 = tcg_const_i64(0);
-                    gen_helper_s_to_memory(tmp1, tmp2);
-                    tcg_temp_free(tmp2);
-                }
-                tcg_gen_ext_i32_i64(cpu_ir[rc], tmp1);
-                tcg_temp_free_i32(tmp1);
-            }
+            t32 = tcg_temp_new_i32();
+            va = load_fpr(ctx, ra);
+            gen_helper_s_to_memory(t32, va);
+            tcg_gen_ext_i32_i64(vc, t32);
+            tcg_temp_free_i32(t32);
             break;
         default:
             goto invalid_opc;
