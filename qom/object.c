@@ -1023,8 +1023,15 @@ out:
     g_free(type);
 }
 
+void object_property_allow_set_link(Object *obj, const char *name,
+                                    Object *val, Error **errp)
+{
+    /* Allow the link to be set, always */
+}
+
 typedef struct {
     Object **child;
+    void (*check)(Object *, const char *, Object *, Error **);
     ObjectPropertyLinkFlags flags;
 } LinkProperty;
 
@@ -1105,6 +1112,12 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
         return;
     }
 
+    prop->check(obj, name, new_target, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     if (new_target) {
         object_ref(new_target);
     }
@@ -1127,6 +1140,8 @@ static void object_release_link_property(Object *obj, const char *name,
 
 void object_property_add_link(Object *obj, const char *name,
                               const char *type, Object **child,
+                              void (*check)(Object *, const char *,
+                                            Object *, Error **),
                               ObjectPropertyLinkFlags flags,
                               Error **errp)
 {
@@ -1135,13 +1150,14 @@ void object_property_add_link(Object *obj, const char *name,
     gchar *full_type;
 
     prop->child = child;
+    prop->check = check;
     prop->flags = flags;
 
     full_type = g_strdup_printf("link<%s>", type);
 
     object_property_add(obj, name, full_type,
                         object_get_link_property,
-                        object_set_link_property,
+                        check ? object_set_link_property : NULL,
                         object_release_link_property,
                         prop,
                         &local_err);

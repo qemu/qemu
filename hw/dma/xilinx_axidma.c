@@ -538,10 +538,12 @@ static void xilinx_axidma_realize(DeviceState *dev, Error **errp)
 
     object_property_add_link(OBJECT(ds), "dma", TYPE_XILINX_AXI_DMA,
                              (Object **)&ds->dma,
+                             object_property_allow_set_link,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE,
                              &local_errp);
     object_property_add_link(OBJECT(cs), "dma", TYPE_XILINX_AXI_DMA,
                              (Object **)&cs->dma,
+                             object_property_allow_set_link,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE,
                              &local_errp);
     if (local_errp) {
@@ -576,11 +578,13 @@ static void xilinx_axidma_init(Object *obj)
 
     object_property_add_link(obj, "axistream-connected", TYPE_STREAM_SLAVE,
                              (Object **)&s->tx_data_dev,
+                             qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE,
                              &error_abort);
     object_property_add_link(obj, "axistream-control-connected",
                              TYPE_STREAM_SLAVE,
                              (Object **)&s->tx_control_dev,
+                             qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE,
                              &error_abort);
 

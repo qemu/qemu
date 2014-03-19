@@ -224,6 +224,7 @@ static void virtio_rng_initfn(Object *obj)
 
     object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
                              (Object **)&vrng->conf.rng,
+                             qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE, NULL);
 }
 

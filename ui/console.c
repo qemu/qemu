@@ -1181,6 +1181,7 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type)
     s = QEMU_CONSOLE(obj);
     object_property_add_link(obj, "device", TYPE_DEVICE,
                              (Object **)&s->device,
+                             object_property_allow_set_link,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE,
                              &local_err);
     object_property_add_uint32_ptr(obj, "head",

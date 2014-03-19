@@ -1073,11 +1073,22 @@ typedef enum {
 } ObjectPropertyLinkFlags;
 
 /**
+ * object_property_allow_set_link:
+ *
+ * The default implementation of the object_property_add_link() check()
+ * callback function.  It allows the link property to be set and never returns
+ * an error.
+ */
+void object_property_allow_set_link(Object *, const char *,
+                                    Object *, Error **);
+
+/**
  * object_property_add_link:
  * @obj: the object to add a property to
  * @name: the name of the property
  * @type: the qobj type of the link
  * @child: a pointer to where the link object reference is stored
+ * @check: callback to veto setting or NULL if the property is read-only
  * @flags: additional options for the link
  * @errp: if an error occurs, a pointer to an area to store the area
  *
@@ -1086,6 +1097,11 @@ typedef enum {
  * between objects.
  *
  * Links form the graph in the object model.
+ *
+ * The <code>@check()</code> callback is invoked when
+ * object_property_set_link() is called and can raise an error to prevent the
+ * link being set.  If <code>@check</code> is NULL, the property is read-only
+ * and cannot be set.
  *
  * Ownership of the pointer that @child points to is transferred to the
  * link property.  The reference count for <code>*@child</code> is
@@ -1096,6 +1112,8 @@ typedef enum {
  */
 void object_property_add_link(Object *obj, const char *name,
                               const char *type, Object **child,
+                              void (*check)(Object *obj, const char *name,
+                                            Object *val, Error **errp),
                               ObjectPropertyLinkFlags flags,
                               Error **errp);
 
