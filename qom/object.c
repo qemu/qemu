@@ -1080,27 +1080,28 @@ static Object *object_resolve_link(Object *obj, const char *name,
 static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
                                      const char *name, Error **errp)
 {
+    Error *local_err = NULL;
     Object **child = opaque;
-    Object *old_target;
-    char *path;
+    Object *old_target = *child;
+    Object *new_target = NULL;
+    char *path = NULL;
 
-    visit_type_str(v, &path, name, errp);
+    visit_type_str(v, &path, name, &local_err);
 
-    old_target = *child;
-    *child = NULL;
-
-    if (strcmp(path, "") != 0) {
-        Object *target;
-
-        target = object_resolve_link(obj, name, path, errp);
-        if (target) {
-            object_ref(target);
-            *child = target;
-        }
+    if (!local_err && strcmp(path, "") != 0) {
+        new_target = object_resolve_link(obj, name, path, &local_err);
     }
 
     g_free(path);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
+    if (new_target) {
+        object_ref(new_target);
+    }
+    *child = new_target;
     if (old_target != NULL) {
         object_unref(old_target);
     }
