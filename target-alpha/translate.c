@@ -197,7 +197,7 @@ static TCGv dest_gpr(DisasContext *ctx, unsigned reg)
     }
 }
 
-static TCGv __attribute__((unused)) load_fpr(DisasContext *ctx, unsigned reg)
+static TCGv load_fpr(DisasContext *ctx, unsigned reg)
 {
     if (likely(reg < 31)) {
         return cpu_fir[reg];
@@ -2429,6 +2429,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             goto invalid_opc;
         }
         break;
+
     case 0x15:
         /* VAX floating point */
         /* XXX: rounding mode and trap are ignored (!) */
@@ -2509,6 +2510,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             goto invalid_opc;
         }
         break;
+
     case 0x16:
         /* IEEE floating-point */
         switch (fpfn) { /* fn11 & 0x3F */
@@ -2589,6 +2591,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             goto invalid_opc;
         }
         break;
+
     case 0x17:
         switch (fn11) {
         case 0x010:
@@ -2597,18 +2600,20 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             gen_fcvtlq(rb, rc);
             break;
         case 0x020:
-            if (likely(rc != 31)) {
-                if (ra == rb) {
-                    /* FMOV */
-                    if (ra == 31) {
-                        tcg_gen_movi_i64(cpu_fir[rc], 0);
-                    } else {
-                        tcg_gen_mov_i64(cpu_fir[rc], cpu_fir[ra]);
-                    }
+            /* CPYS */
+            if (rc == 31) {
+                /* Special case CPYS as FNOP.  */
+            } else if (ra == rb) {
+                vc = dest_fpr(ctx, rc);
+                /* Special case CPYS as FMOV.  */
+                if (ra == 31) {
+                    tcg_gen_movi_i64(vc, 0);
                 } else {
-                    /* CPYS */
-                    gen_fcpys(ra, rb, rc);
+                    va = load_fpr(ctx, ra);
+                    tcg_gen_mov_i64(vc, va);
                 }
+            } else {
+                gen_fcpys(ra, rb, rc);
             }
             break;
         case 0x021:
@@ -2621,19 +2626,13 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x024:
             /* MT_FPCR */
-            if (likely(ra != 31)) {
-                gen_helper_store_fpcr(cpu_env, cpu_fir[ra]);
-            } else {
-                TCGv tmp = tcg_const_i64(0);
-                gen_helper_store_fpcr(cpu_env, tmp);
-                tcg_temp_free(tmp);
-            }
+            va = load_fpr(ctx, ra);
+            gen_helper_store_fpcr(cpu_env, va);
             break;
         case 0x025:
             /* MF_FPCR */
-            if (likely(ra != 31)) {
-                gen_helper_load_fpcr(cpu_fir[ra], cpu_env);
-            }
+            va = dest_fpr(ctx, ra);
+            gen_helper_load_fpcr(va, cpu_env);
             break;
         case 0x02A:
             /* FCMOVEQ */
