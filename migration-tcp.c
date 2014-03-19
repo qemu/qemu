@@ -13,7 +13,10 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include <string.h>
+
 #include "qemu-common.h"
+#include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "migration/migration.h"
 #include "migration/qemu-file.h"
@@ -56,24 +59,26 @@ static void tcp_accept_incoming_migration(void *opaque)
     socklen_t addrlen = sizeof(addr);
     int s = (intptr_t)opaque;
     QEMUFile *f;
-    int c;
+    int c, err;
 
     do {
         c = qemu_accept(s, (struct sockaddr *)&addr, &addrlen);
-    } while (c == -1 && socket_error() == EINTR);
+        err = socket_error();
+    } while (c < 0 && err == EINTR);
     qemu_set_fd_handler2(s, NULL, NULL, NULL, NULL);
     closesocket(s);
 
     DPRINTF("accepted migration\n");
 
-    if (c == -1) {
-        fprintf(stderr, "could not accept migration connection\n");
-        goto out;
+    if (c < 0) {
+        error_report("could not accept migration connection (%s)",
+                     strerror(err));
+        return;
     }
 
     f = qemu_fopen_socket(c, "rb");
     if (f == NULL) {
-        fprintf(stderr, "could not qemu_fopen socket\n");
+        error_report("could not qemu_fopen socket");
         goto out;
     }
 
