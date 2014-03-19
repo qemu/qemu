@@ -204,4 +204,15 @@ void qdev_property_add_static(DeviceState *dev, Property *prop, Error **errp);
  */
 void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
                                  Error **errp);
+
+/**
+ * qdev_prop_allow_set_link_before_realize:
+ *
+ * Set the #Error object if an attempt is made to set the link after realize.
+ * This function should be used as the check() argument to
+ * object_property_add_link().
+ */
+void qdev_prop_allow_set_link_before_realize(Object *obj, const char *name,
+                                             Object *val, Error **errp);
+
 #endif

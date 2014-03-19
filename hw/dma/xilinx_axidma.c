@@ -537,9 +537,15 @@ static void xilinx_axidma_realize(DeviceState *dev, Error **errp)
     Error *local_errp = NULL;
 
     object_property_add_link(OBJECT(ds), "dma", TYPE_XILINX_AXI_DMA,
-                             (Object **)&ds->dma, &local_errp);
+                             (Object **)&ds->dma,
+                             object_property_allow_set_link,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &local_errp);
     object_property_add_link(OBJECT(cs), "dma", TYPE_XILINX_AXI_DMA,
-                             (Object **)&cs->dma, &local_errp);
+                             (Object **)&cs->dma,
+                             object_property_allow_set_link,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &local_errp);
     if (local_errp) {
         goto xilinx_axidma_realize_fail;
     }
@@ -571,10 +577,16 @@ static void xilinx_axidma_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     object_property_add_link(obj, "axistream-connected", TYPE_STREAM_SLAVE,
-                             (Object **)&s->tx_data_dev, &error_abort);
+                             (Object **)&s->tx_data_dev,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &error_abort);
     object_property_add_link(obj, "axistream-control-connected",
                              TYPE_STREAM_SLAVE,
-                             (Object **)&s->tx_control_dev, &error_abort);
+                             (Object **)&s->tx_control_dev,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &error_abort);
 
     object_initialize(&s->rx_data_dev, sizeof(s->rx_data_dev),
                       TYPE_XILINX_AXI_DMA_DATA_STREAM);

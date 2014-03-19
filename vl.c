@@ -58,6 +58,7 @@ int main(int argc, char **argv)
 
 #include <glib.h>
 
+#include "qemu/sockets.h"
 #include "hw/hw.h"
 #include "hw/boards.h"
 #include "hw/usb.h"
@@ -103,7 +104,6 @@ int main(int argc, char **argv)
 
 #include "disas/disas.h"
 
-#include "qemu/sockets.h"
 
 #include "slirp/libslirp.h"
 
@@ -1587,14 +1587,16 @@ static void machine_class_init(ObjectClass *oc, void *data)
 
 int qemu_register_machine(QEMUMachine *m)
 {
+    char *name = g_strconcat(m->name, TYPE_MACHINE_SUFFIX, NULL);
     TypeInfo ti = {
-        .name       = g_strconcat(m->name, TYPE_MACHINE_SUFFIX, NULL),
+        .name       = name,
         .parent     = TYPE_MACHINE,
         .class_init = machine_class_init,
         .class_data = (void *)m,
     };
 
     type_register(&ti);
+    g_free(name);
 
     return 0;
 }
