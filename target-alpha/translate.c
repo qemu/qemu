@@ -807,18 +807,12 @@ static void gen_ieee_arith2(DisasContext *ctx,
 {
     TCGv vb;
 
-    /* ??? This is wrong: the instruction is not a nop, it still may
-       raise exceptions.  */
-    if (unlikely(rc == 31)) {
-        return;
-    }
-
     gen_qual_roundmode(ctx, fn11);
     gen_qual_flushzero(ctx, fn11);
     gen_fp_exc_clear();
 
     vb = gen_ieee_input(ctx, rb, fn11, 0);
-    helper(cpu_fir[rc], cpu_env, vb);
+    helper(dest_fpr(ctx, rc), cpu_env, vb);
 
     gen_fp_exc_raise(rc, fn11);
 }
@@ -836,35 +830,30 @@ IEEE_ARITH2(cvtts)
 
 static void gen_fcvttq(DisasContext *ctx, int rb, int rc, int fn11)
 {
-    TCGv vb;
+    TCGv vb, vc;
     int ignore = 0;
-
-    /* ??? This is wrong: the instruction is not a nop, it still may
-       raise exceptions.  */
-    if (unlikely(rc == 31)) {
-        return;
-    }
 
     /* No need to set flushzero, since we have an integer output.  */
     gen_fp_exc_clear();
     vb = gen_ieee_input(ctx, rb, fn11, 0);
+    vc = dest_fpr(ctx, rc);
 
     /* Almost all integer conversions use cropped rounding, and most
        also do not have integer overflow enabled.  Special case that.  */
     switch (fn11) {
     case QUAL_RM_C:
-        gen_helper_cvttq_c(cpu_fir[rc], cpu_env, vb);
+        gen_helper_cvttq_c(vc, cpu_env, vb);
         break;
     case QUAL_V | QUAL_RM_C:
     case QUAL_S | QUAL_V | QUAL_RM_C:
         ignore = float_flag_inexact;
         /* FALLTHRU */
     case QUAL_S | QUAL_V | QUAL_I | QUAL_RM_C:
-        gen_helper_cvttq_svic(cpu_fir[rc], cpu_env, vb);
+        gen_helper_cvttq_svic(vc, cpu_env, vb);
         break;
     default:
         gen_qual_roundmode(ctx, fn11);
-        gen_helper_cvttq(cpu_fir[rc], cpu_env, vb);
+        gen_helper_cvttq(vc, cpu_env, vb);
         ignore |= (fn11 & QUAL_V ? 0 : float_flag_overflow);
         ignore |= (fn11 & QUAL_I ? 0 : float_flag_inexact);
         break;
@@ -877,35 +866,21 @@ static void gen_ieee_intcvt(DisasContext *ctx,
                             void (*helper)(TCGv, TCGv_ptr, TCGv),
 			    int rb, int rc, int fn11)
 {
-    TCGv vb;
-
-    /* ??? This is wrong: the instruction is not a nop, it still may
-       raise exceptions.  */
-    if (unlikely(rc == 31)) {
-        return;
-    }
+    TCGv vb, vc;
 
     gen_qual_roundmode(ctx, fn11);
-
-    if (rb == 31) {
-        vb = tcg_const_i64(0);
-    } else {
-        vb = cpu_fir[rb];
-    }
+    vb = load_fpr(ctx, rb);
+    vc = dest_fpr(ctx, rc);
 
     /* The only exception that can be raised by integer conversion
        is inexact.  Thus we only need to worry about exceptions when
        inexact handling is requested.  */
     if (fn11 & QUAL_I) {
         gen_fp_exc_clear();
-        helper(cpu_fir[rc], cpu_env, vb);
+        helper(vc, cpu_env, vb);
         gen_fp_exc_raise(rc, fn11);
     } else {
-        helper(cpu_fir[rc], cpu_env, vb);
-    }
-
-    if (rb == 31) {
-        tcg_temp_free(vb);
+        helper(vc, cpu_env, vb);
     }
 }
 
@@ -997,13 +972,7 @@ static void gen_ieee_arith3(DisasContext *ctx,
                             void (*helper)(TCGv, TCGv_ptr, TCGv, TCGv),
                             int ra, int rb, int rc, int fn11)
 {
-    TCGv va, vb;
-
-    /* ??? This is wrong: the instruction is not a nop, it still may
-       raise exceptions.  */
-    if (unlikely(rc == 31)) {
-        return;
-    }
+    TCGv va, vb, vc;
 
     gen_qual_roundmode(ctx, fn11);
     gen_qual_flushzero(ctx, fn11);
@@ -1011,7 +980,8 @@ static void gen_ieee_arith3(DisasContext *ctx,
 
     va = gen_ieee_input(ctx, ra, fn11, 0);
     vb = gen_ieee_input(ctx, rb, fn11, 0);
-    helper(cpu_fir[rc], cpu_env, va, vb);
+    vc = dest_fpr(ctx, rc);
+    helper(vc, cpu_env, va, vb);
 
     gen_fp_exc_raise(rc, fn11);
 }
@@ -1035,19 +1005,14 @@ static void gen_ieee_compare(DisasContext *ctx,
                              void (*helper)(TCGv, TCGv_ptr, TCGv, TCGv),
                              int ra, int rb, int rc, int fn11)
 {
-    TCGv va, vb;
-
-    /* ??? This is wrong: the instruction is not a nop, it still may
-       raise exceptions.  */
-    if (unlikely(rc == 31)) {
-        return;
-    }
+    TCGv va, vb, vc;
 
     gen_fp_exc_clear();
 
     va = gen_ieee_input(ctx, ra, fn11, 1);
     vb = gen_ieee_input(ctx, rb, fn11, 1);
-    helper(cpu_fir[rc], cpu_env, va, vb);
+    vc = dest_fpr(ctx, rc);
+    helper(vc, cpu_env, va, vb);
 
     gen_fp_exc_raise(rc, fn11);
 }
