@@ -162,6 +162,9 @@ static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
                                   OBJECT(vrng->conf.default_backend),
                                   NULL);
 
+        /* The child property took a reference, we can safely drop ours now */
+        object_unref(OBJECT(vrng->conf.default_backend));
+
         object_property_set_link(OBJECT(dev),
                                  OBJECT(vrng->conf.default_backend),
                                  "rng", NULL);
