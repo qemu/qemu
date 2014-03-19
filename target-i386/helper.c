@@ -941,6 +941,14 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
             pdpe = ldq_phys(cs->as, pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK))
                 return -1;
+
+            if (pdpe & PG_PSE_MASK) {
+                page_size = 1024 * 1024 * 1024;
+                pte = pdpe & ~( (page_size - 1) & ~0xfff);
+                pte &= ~(PG_NX_MASK | PG_HI_USER_MASK);
+                goto out;
+            }
+
         } else
 #endif
         {
@@ -993,6 +1001,9 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
         pte = pte & env->a20_mask;
     }
 
+#ifdef TARGET_X86_64
+out:
+#endif
     page_offset = (addr & TARGET_PAGE_MASK) & (page_size - 1);
     paddr = (pte & TARGET_PAGE_MASK) + page_offset;
     return paddr;
