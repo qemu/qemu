@@ -1235,75 +1235,64 @@ static void gen_ext_l(DisasContext *ctx, TCGv vc, TCGv va, int rb, bool islit,
 }
 
 /* INSWH, INSLH, INSQH */
-static void gen_ins_h(int ra, int rb, int rc, int islit,
+static void gen_ins_h(DisasContext *ctx, TCGv vc, TCGv va, int rb, bool islit,
                       uint8_t lit, uint8_t byte_mask)
 {
-    if (unlikely(rc == 31)) {
-        return;
-    } else if (unlikely(ra == 31) || (islit && (lit & 7) == 0)) {
-        tcg_gen_movi_i64(cpu_ir[rc], 0);
-    } else {
-        TCGv tmp = tcg_temp_new();
+    TCGv tmp = tcg_temp_new();
 
-        /* The instruction description has us left-shift the byte mask
-           and extract bits <15:8> and apply that zap at the end.  This
-           is equivalent to simply performing the zap first and shifting
-           afterward.  */
-        gen_zapnoti (tmp, cpu_ir[ra], byte_mask);
+    /* The instruction description has us left-shift the byte mask and extract
+       bits <15:8> and apply that zap at the end.  This is equivalent to simply
+       performing the zap first and shifting afterward.  */
+    gen_zapnoti(tmp, va, byte_mask);
 
-        if (islit) {
-            /* Note that we have handled the lit==0 case above.  */
-            tcg_gen_shri_i64 (cpu_ir[rc], tmp, 64 - (lit & 7) * 8);
+    if (islit) {
+        lit &= 7;
+        if (unlikely(lit == 0)) {
+            tcg_gen_movi_i64(vc, 0);
         } else {
-            TCGv shift = tcg_temp_new();
-
-            /* If (B & 7) == 0, we need to shift by 64 and leave a zero.
-               Do this portably by splitting the shift into two parts:
-               shift_count-1 and 1.  Arrange for the -1 by using
-               ones-complement instead of twos-complement in the negation:
-               ~((B & 7) * 8) & 63.  */
-
-            tcg_gen_andi_i64(shift, cpu_ir[rb], 7);
-            tcg_gen_shli_i64(shift, shift, 3);
-            tcg_gen_not_i64(shift, shift);
-            tcg_gen_andi_i64(shift, shift, 0x3f);
-
-            tcg_gen_shr_i64(cpu_ir[rc], tmp, shift);
-            tcg_gen_shri_i64(cpu_ir[rc], cpu_ir[rc], 1);
-            tcg_temp_free(shift);
+            tcg_gen_shri_i64(vc, tmp, 64 - lit * 8);
         }
-        tcg_temp_free(tmp);
+    } else {
+        TCGv shift = tcg_temp_new();
+
+        /* If (B & 7) == 0, we need to shift by 64 and leave a zero.  Do this
+           portably by splitting the shift into two parts: shift_count-1 and 1.
+           Arrange for the -1 by using ones-complement instead of
+           twos-complement in the negation: ~(B * 8) & 63.  */
+
+        tcg_gen_shli_i64(shift, load_gpr(ctx, rb), 3);
+        tcg_gen_not_i64(shift, shift);
+        tcg_gen_andi_i64(shift, shift, 0x3f);
+
+        tcg_gen_shr_i64(vc, tmp, shift);
+        tcg_gen_shri_i64(vc, vc, 1);
+        tcg_temp_free(shift);
     }
+    tcg_temp_free(tmp);
 }
 
 /* INSBL, INSWL, INSLL, INSQL */
-static void gen_ins_l(int ra, int rb, int rc, int islit,
+static void gen_ins_l(DisasContext *ctx, TCGv vc, TCGv va, int rb, bool islit,
                       uint8_t lit, uint8_t byte_mask)
 {
-    if (unlikely(rc == 31)) {
-        return;
-    } else if (unlikely(ra == 31)) {
-        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    TCGv tmp = tcg_temp_new();
+
+    /* The instruction description has us left-shift the byte mask
+       the same number of byte slots as the data and apply the zap
+       at the end.  This is equivalent to simply performing the zap
+       first and shifting afterward.  */
+    gen_zapnoti(tmp, va, byte_mask);
+
+    if (islit) {
+        tcg_gen_shli_i64(vc, tmp, (lit & 7) * 8);
     } else {
-        TCGv tmp = tcg_temp_new();
-
-        /* The instruction description has us left-shift the byte mask
-           the same number of byte slots as the data and apply the zap
-           at the end.  This is equivalent to simply performing the zap
-           first and shifting afterward.  */
-        gen_zapnoti (tmp, cpu_ir[ra], byte_mask);
-
-        if (islit) {
-            tcg_gen_shli_i64(cpu_ir[rc], tmp, (lit & 7) * 8);
-        } else {
-            TCGv shift = tcg_temp_new();
-            tcg_gen_andi_i64(shift, cpu_ir[rb], 7);
-            tcg_gen_shli_i64(shift, shift, 3);
-            tcg_gen_shl_i64(cpu_ir[rc], tmp, shift);
-            tcg_temp_free(shift);
-        }
-        tcg_temp_free(tmp);
+        TCGv shift = tcg_temp_new();
+        tcg_gen_andi_i64(shift, load_gpr(ctx, rb), 7);
+        tcg_gen_shli_i64(shift, shift, 3);
+        tcg_gen_shl_i64(vc, tmp, shift);
+        tcg_temp_free(shift);
     }
+    tcg_temp_free(tmp);
 }
 
 /* MSKWH, MSKLH, MSKQH */
@@ -2094,7 +2083,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x0B:
             /* INSBL */
-            gen_ins_l(ra, rb, rc, islit, lit, 0x01);
+            gen_ins_l(ctx, vc, va, rb, islit, lit, 0x01);
             break;
         case 0x12:
             /* MSKWL */
@@ -2106,7 +2095,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x1B:
             /* INSWL */
-            gen_ins_l(ra, rb, rc, islit, lit, 0x03);
+            gen_ins_l(ctx, vc, va, rb, islit, lit, 0x03);
             break;
         case 0x22:
             /* MSKLL */
@@ -2118,7 +2107,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x2B:
             /* INSLL */
-            gen_ins_l(ra, rb, rc, islit, lit, 0x0f);
+            gen_ins_l(ctx, vc, va, rb, islit, lit, 0x0f);
             break;
         case 0x30:
             /* ZAP */
@@ -2162,7 +2151,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x3B:
             /* INSQL */
-            gen_ins_l(ra, rb, rc, islit, lit, 0xff);
+            gen_ins_l(ctx, vc, va, rb, islit, lit, 0xff);
             break;
         case 0x3C:
             /* SRA */
@@ -2182,7 +2171,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x57:
             /* INSWH */
-            gen_ins_h(ra, rb, rc, islit, lit, 0x03);
+            gen_ins_h(ctx, vc, va, rb, islit, lit, 0x03);
             break;
         case 0x5A:
             /* EXTWH */
@@ -2194,7 +2183,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x67:
             /* INSLH */
-            gen_ins_h(ra, rb, rc, islit, lit, 0x0f);
+            gen_ins_h(ctx, vc, va, rb, islit, lit, 0x0f);
             break;
         case 0x6A:
             /* EXTLH */
@@ -2206,7 +2195,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x77:
             /* INSQH */
-            gen_ins_h(ra, rb, rc, islit, lit, 0xff);
+            gen_ins_h(ctx, vc, va, rb, islit, lit, 0xff);
             break;
         case 0x7A:
             /* EXTQH */
