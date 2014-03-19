@@ -670,21 +670,21 @@ static void gen_qual_flushzero(DisasContext *ctx, int fn11)
     tcg_temp_free_i32(tmp);
 }
 
-static TCGv gen_ieee_input(int reg, int fn11, int is_cmp)
+static TCGv gen_ieee_input(DisasContext *ctx, int reg, int fn11, int is_cmp)
 {
     TCGv val;
-    if (reg == 31) {
-        val = tcg_const_i64(0);
+
+    if (unlikely(reg == 31)) {
+        val = load_zero(ctx);
     } else {
+        val = cpu_fir[reg];
         if ((fn11 & QUAL_S) == 0) {
             if (is_cmp) {
-                gen_helper_ieee_input_cmp(cpu_env, cpu_fir[reg]);
+                gen_helper_ieee_input_cmp(cpu_env, val);
             } else {
-                gen_helper_ieee_input(cpu_env, cpu_fir[reg]);
+                gen_helper_ieee_input(cpu_env, val);
             }
         }
-        val = tcg_temp_new();
-        tcg_gen_mov_i64(val, cpu_fir[reg]);
     }
     return val;
 }
@@ -817,9 +817,8 @@ static void gen_ieee_arith2(DisasContext *ctx,
     gen_qual_flushzero(ctx, fn11);
     gen_fp_exc_clear();
 
-    vb = gen_ieee_input(rb, fn11, 0);
+    vb = gen_ieee_input(ctx, rb, fn11, 0);
     helper(cpu_fir[rc], cpu_env, vb);
-    tcg_temp_free(vb);
 
     gen_fp_exc_raise(rc, fn11);
 }
@@ -848,7 +847,7 @@ static void gen_fcvttq(DisasContext *ctx, int rb, int rc, int fn11)
 
     /* No need to set flushzero, since we have an integer output.  */
     gen_fp_exc_clear();
-    vb = gen_ieee_input(rb, fn11, 0);
+    vb = gen_ieee_input(ctx, rb, fn11, 0);
 
     /* Almost all integer conversions use cropped rounding, and most
        also do not have integer overflow enabled.  Special case that.  */
@@ -870,7 +869,6 @@ static void gen_fcvttq(DisasContext *ctx, int rb, int rc, int fn11)
         ignore |= (fn11 & QUAL_I ? 0 : float_flag_inexact);
         break;
     }
-    tcg_temp_free(vb);
 
     gen_fp_exc_raise_ignore(rc, fn11, ignore);
 }
@@ -1011,11 +1009,9 @@ static void gen_ieee_arith3(DisasContext *ctx,
     gen_qual_flushzero(ctx, fn11);
     gen_fp_exc_clear();
 
-    va = gen_ieee_input(ra, fn11, 0);
-    vb = gen_ieee_input(rb, fn11, 0);
+    va = gen_ieee_input(ctx, ra, fn11, 0);
+    vb = gen_ieee_input(ctx, rb, fn11, 0);
     helper(cpu_fir[rc], cpu_env, va, vb);
-    tcg_temp_free(va);
-    tcg_temp_free(vb);
 
     gen_fp_exc_raise(rc, fn11);
 }
@@ -1049,11 +1045,9 @@ static void gen_ieee_compare(DisasContext *ctx,
 
     gen_fp_exc_clear();
 
-    va = gen_ieee_input(ra, fn11, 1);
-    vb = gen_ieee_input(rb, fn11, 1);
+    va = gen_ieee_input(ctx, ra, fn11, 1);
+    vb = gen_ieee_input(ctx, rb, fn11, 1);
     helper(cpu_fir[rc], cpu_env, va, vb);
-    tcg_temp_free(va);
-    tcg_temp_free(vb);
 
     gen_fp_exc_raise(rc, fn11);
 }
