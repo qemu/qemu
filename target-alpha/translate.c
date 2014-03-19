@@ -1509,36 +1509,6 @@ MVIOP2(pkwb)
 MVIOP2(unpkbl)
 MVIOP2(unpkbw)
 
-static void gen_cmp(TCGCond cond, int ra, int rb, int rc,
-                    int islit, uint8_t lit)
-{
-    TCGv va, vb;
-
-    if (unlikely(rc == 31)) {
-        return;
-    }
-
-    if (ra == 31) {
-        va = tcg_const_i64(0);
-    } else {
-        va = cpu_ir[ra];
-    }
-    if (islit) {
-        vb = tcg_const_i64(lit);
-    } else {
-        vb = cpu_ir[rb];
-    }
-
-    tcg_gen_setcond_i64(cond, cpu_ir[rc], va, vb);
-
-    if (ra == 31) {
-        tcg_temp_free(va);
-    }
-    if (islit) {
-        tcg_temp_free(vb);
-    }
-}
-
 static void gen_rx(int ra, int set)
 {
     TCGv_i32 tmp;
@@ -2014,7 +1984,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x1D:
             /* CMPULT */
-            gen_cmp(TCG_COND_LTU, ra, rb, rc, islit, lit);
+            tcg_gen_setcond_i64(TCG_COND_LTU, vc, va, vb);
             break;
         case 0x20:
             /* ADDQ */
@@ -2040,7 +2010,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x2D:
             /* CMPEQ */
-            gen_cmp(TCG_COND_EQ, ra, rb, rc, islit, lit);
+            tcg_gen_setcond_i64(TCG_COND_EQ, vc, va, vb);
             break;
         case 0x32:
             /* S8ADDQ */
@@ -2058,7 +2028,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x3D:
             /* CMPULE */
-            gen_cmp(TCG_COND_LEU, ra, rb, rc, islit, lit);
+            tcg_gen_setcond_i64(TCG_COND_LEU, vc, va, vb);
             break;
         case 0x40:
             /* ADDL/V */
@@ -2070,7 +2040,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x4D:
             /* CMPLT */
-            gen_cmp(TCG_COND_LT, ra, rb, rc, islit, lit);
+            tcg_gen_setcond_i64(TCG_COND_LT, vc, va, vb);
             break;
         case 0x60:
             /* ADDQ/V */
@@ -2082,7 +2052,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x6D:
             /* CMPLE */
-            gen_cmp(TCG_COND_LE, ra, rb, rc, islit, lit);
+            tcg_gen_setcond_i64(TCG_COND_LE, vc, va, vb);
             break;
         default:
             goto invalid_opc;
