@@ -1258,21 +1258,6 @@ static void gen_msk_l(DisasContext *ctx, TCGv vc, TCGv va, int rb, bool islit,
     }
 }
 
-#define MVIOP2(name)                                    \
-static inline void glue(gen_, name)(int rb, int rc)     \
-{                                                       \
-    if (unlikely(rc == 31))                             \
-        return;                                         \
-    if (unlikely(rb == 31))                             \
-        tcg_gen_movi_i64(cpu_ir[rc], 0);                \
-    else                                                \
-        gen_helper_ ## name (cpu_ir[rc], cpu_ir[rb]);   \
-}
-MVIOP2(pklb)
-MVIOP2(pkwb)
-MVIOP2(unpkbl)
-MVIOP2(unpkbw)
-
 static void gen_rx(int ra, int set)
 {
     TCGv_i32 tmp;
@@ -2643,25 +2628,25 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* UNPKBW */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
             REQUIRE_REG_31(ra);
-            gen_unpkbw(rb, rc);
+            gen_helper_unpkbw(vc, vb);
             break;
         case 0x35:
             /* UNPKBL */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
             REQUIRE_REG_31(ra);
-            gen_unpkbl(rb, rc);
+            gen_helper_unpkbl(vc, vb);
             break;
         case 0x36:
             /* PKWB */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
             REQUIRE_REG_31(ra);
-            gen_pkwb(rb, rc);
+            gen_helper_pkwb(vc, vb);
             break;
         case 0x37:
             /* PKLB */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
             REQUIRE_REG_31(ra);
-            gen_pklb(rb, rc);
+            gen_helper_pklb(vc, vb);
             break;
         case 0x38:
             /* MINSB8 */
