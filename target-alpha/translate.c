@@ -497,15 +497,11 @@ static ExitStatus gen_bcond(DisasContext *ctx, TCGCond cond, int ra,
 {
     TCGv cmp_tmp;
 
-    if (unlikely(ra == 31)) {
-        cmp_tmp = tcg_const_i64(0);
-    } else {
+    if (mask) {
         cmp_tmp = tcg_temp_new();
-        if (mask) {
-            tcg_gen_andi_i64(cmp_tmp, cpu_ir[ra], 1);
-        } else {
-            tcg_gen_mov_i64(cmp_tmp, cpu_ir[ra]);
-        }
+        tcg_gen_andi_i64(cmp_tmp, load_gpr(ctx, ra), 1);
+    } else {
+        cmp_tmp = load_gpr(ctx, ra);
     }
 
     return gen_bcond_internal(ctx, cond, cmp_tmp, disp);
@@ -546,16 +542,8 @@ static void gen_fold_mzero(TCGCond cond, TCGv dest, TCGv src)
 static ExitStatus gen_fbcond(DisasContext *ctx, TCGCond cond, int ra,
                              int32_t disp)
 {
-    TCGv cmp_tmp;
-
-    if (unlikely(ra == 31)) {
-        /* Very uncommon case, but easier to optimize it to an integer
-           comparison than continuing with the floating point comparison.  */
-        return gen_bcond(ctx, cond, ra, disp, 0);
-    }
-
-    cmp_tmp = tcg_temp_new();
-    gen_fold_mzero(cond, cmp_tmp, cpu_fir[ra]);
+    TCGv cmp_tmp = tcg_temp_new();
+    gen_fold_mzero(cond, cmp_tmp, load_fpr(ctx, ra));
     return gen_bcond_internal(ctx, cond, cmp_tmp, disp);
 }
 
