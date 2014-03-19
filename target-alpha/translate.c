@@ -2962,6 +2962,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             goto invalid_opc;
         }
         break;
+
     case 0x1D:
         /* HW_MTPR (PALcode) */
 #ifndef CONFIG_USER_ONLY
@@ -2970,6 +2971,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 #else
         goto invalid_opc;
 #endif
+
     case 0x1E:
         /* HW_RET (PALcode) */
 #ifndef CONFIG_USER_ONLY
@@ -2978,12 +2980,12 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* Pre-EV6 CPUs interpreted this as HW_REI, loading the return
                address from EXC_ADDR.  This turns out to be useful for our
                emulation PALcode, so continue to accept it.  */
-            TCGv tmp = tcg_temp_new();
+            tmp = tcg_temp_new();
             tcg_gen_ld_i64(tmp, cpu_env, offsetof(CPUAlphaState, exc_addr));
             gen_helper_hw_ret(cpu_env, tmp);
             tcg_temp_free(tmp);
         } else {
-            gen_helper_hw_ret(cpu_env, cpu_ir[rb]);
+            gen_helper_hw_ret(cpu_env, load_gpr(ctx, rb));
         }
         ret = EXIT_PC_UPDATED;
         break;
