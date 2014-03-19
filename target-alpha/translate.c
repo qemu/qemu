@@ -836,79 +836,22 @@ static inline void glue(gen_f, name)(DisasContext *ctx,         \
 IEEE_INTCVT(cvtqs)
 IEEE_INTCVT(cvtqt)
 
-static void gen_cpys_internal(int ra, int rb, int rc, int inv_a, uint64_t mask)
+static void gen_cpy_mask(TCGv vc, TCGv va, TCGv vb, bool inv_a, uint64_t mask)
 {
-    TCGv va, vb, vmask;
-    int za = 0, zb = 0;
+    TCGv vmask = tcg_const_i64(mask);
+    TCGv tmp = tcg_temp_new_i64();
 
-    if (unlikely(rc == 31)) {
-        return;
-    }
-
-    vmask = tcg_const_i64(mask);
-
-    TCGV_UNUSED_I64(va);
-    if (ra == 31) {
-        if (inv_a) {
-            va = vmask;
-        } else {
-            za = 1;
-        }
+    if (inv_a) {
+        tcg_gen_andc_i64(tmp, vmask, va);
     } else {
-        va = tcg_temp_new_i64();
-        tcg_gen_mov_i64(va, cpu_fir[ra]);
-        if (inv_a) {
-            tcg_gen_andc_i64(va, vmask, va);
-        } else {
-            tcg_gen_and_i64(va, va, vmask);
-        }
+        tcg_gen_and_i64(tmp, va, vmask);
     }
 
-    TCGV_UNUSED_I64(vb);
-    if (rb == 31) {
-        zb = 1;
-    } else {
-        vb = tcg_temp_new_i64();
-        tcg_gen_andc_i64(vb, cpu_fir[rb], vmask);
-    }
-
-    switch (za << 1 | zb) {
-    case 0 | 0:
-        tcg_gen_or_i64(cpu_fir[rc], va, vb);
-        break;
-    case 0 | 1:
-        tcg_gen_mov_i64(cpu_fir[rc], va);
-        break;
-    case 2 | 0:
-        tcg_gen_mov_i64(cpu_fir[rc], vb);
-        break;
-    case 2 | 1:
-        tcg_gen_movi_i64(cpu_fir[rc], 0);
-        break;
-    }
+    tcg_gen_andc_i64(vc, vb, vmask);
+    tcg_gen_or_i64(vc, vc, tmp);
 
     tcg_temp_free(vmask);
-    if (ra != 31) {
-        tcg_temp_free(va);
-    }
-    if (rb != 31) {
-        tcg_temp_free(vb);
-    }
-}
-
-static inline void gen_fcpys(int ra, int rb, int rc)
-{
-    gen_cpys_internal(ra, rb, rc, 0, 0x8000000000000000ULL);
-}
-
-static inline void gen_fcpysn(int ra, int rb, int rc)
-{
-    gen_cpys_internal(ra, rb, rc, 1, 0x8000000000000000ULL);
-}
-
-static inline void gen_fcpyse(int ra, int rb, int rc)
-{
-    gen_cpys_internal(ra, rb, rc, 0, 0xFFF0000000000000ULL);
+    tcg_temp_free(tmp);
 }
 
 static void gen_ieee_arith3(DisasContext *ctx,
@@ -2238,26 +2181,31 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* CPYS */
             if (rc == 31) {
                 /* Special case CPYS as FNOP.  */
-            } else if (ra == rb) {
-                vc = dest_fpr(ctx, rc);
-                /* Special case CPYS as FMOV.  */
-                if (ra == 31) {
-                    tcg_gen_movi_i64(vc, 0);
-                } else {
-                    va = load_fpr(ctx, ra);
-                    tcg_gen_mov_i64(vc, va);
-                }
             } else {
-                gen_fcpys(ra, rb, rc);
+                vc = dest_fpr(ctx, rc);
+                va = load_fpr(ctx, ra);
+                if (ra == rb) {
+                    /* Special case CPYS as FMOV.  */
+                    tcg_gen_mov_i64(vc, va);
+                } else {
+                    vb = load_fpr(ctx, rb);
+                    gen_cpy_mask(vc, va, vb, 0, 0x8000000000000000ULL);
+                }
             }
             break;
         case 0x021:
             /* CPYSN */
-            gen_fcpysn(ra, rb, rc);
+            vc = dest_fpr(ctx, rc);
+            vb = load_fpr(ctx, rb);
+            va = load_fpr(ctx, ra);
+            gen_cpy_mask(vc, va, vb, 1, 0x8000000000000000ULL);
             break;
         case 0x022:
             /* CPYSE */
-            gen_fcpyse(ra, rb, rc);
+            vc = dest_fpr(ctx, rc);
+            vb = load_fpr(ctx, rb);
+            va = load_fpr(ctx, ra);
+            gen_cpy_mask(vc, va, vb, 0, 0xFFF0000000000000ULL);
             break;
         case 0x024:
             /* MT_FPCR */
