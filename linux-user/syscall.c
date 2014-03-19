@@ -7698,7 +7698,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         header.version = tswap32(target_header->version);
         header.pid = tswap32(target_header->pid);
 
-        if (header.version != _LINUX_CAPABILITY_VERSION_1) {
+        if (header.version != _LINUX_CAPABILITY_VERSION) {
             /* Version 2 and up takes pointer to two user_data structs */
             data_items = 2;
         }
