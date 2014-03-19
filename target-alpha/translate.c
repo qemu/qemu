@@ -1169,37 +1169,10 @@ static void gen_zapnoti(TCGv dest, TCGv src, uint8_t lit)
         tcg_gen_mov_i64(dest, src);
         break;
     default:
-        tcg_gen_andi_i64 (dest, src, zapnot_mask (lit));
+        tcg_gen_andi_i64(dest, src, zapnot_mask(lit));
         break;
     }
 }
-
-static inline void gen_zapnot(int ra, int rb, int rc, int islit, uint8_t lit)
-{
-    if (unlikely(rc == 31)) {
-        return;
-    } else if (unlikely(ra == 31)) {
-        tcg_gen_movi_i64(cpu_ir[rc], 0);
-    } else if (islit) {
-        gen_zapnoti(cpu_ir[rc], cpu_ir[ra], lit);
-    } else {
-        gen_helper_zapnot (cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
-    }
-}
-
-static inline void gen_zap(int ra, int rb, int rc, int islit, uint8_t lit)
-{
-    if (unlikely(rc == 31)) {
-        return;
-    } else if (unlikely(ra == 31)) {
-        tcg_gen_movi_i64(cpu_ir[rc], 0);
-    } else if (islit) {
-        gen_zapnoti(cpu_ir[rc], cpu_ir[ra], ~lit);
-    } else {
-        gen_helper_zap (cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
-    }
-}
-
 
 /* EXTWH, EXTLH, EXTQH */
 static void gen_ext_h(DisasContext *ctx, TCGv vc, TCGv va, int rb, bool islit,
@@ -2111,11 +2084,19 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x30:
             /* ZAP */
-            gen_zap(ra, rb, rc, islit, lit);
+            if (islit) {
+                gen_zapnoti(vc, va, ~lit);
+            } else {
+                gen_helper_zap(vc, va, load_gpr(ctx, rb));
+            }
             break;
         case 0x31:
             /* ZAPNOT */
-            gen_zapnot(ra, rb, rc, islit, lit);
+            if (islit) {
+                gen_zapnoti(vc, va, lit);
+            } else {
+                gen_helper_zapnot(vc, va, load_gpr(ctx, rb));
+            }
             break;
         case 0x32:
             /* MSKQL */
