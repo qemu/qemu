@@ -995,48 +995,6 @@ static inline void gen_fcpyse(int ra, int rb, int rc)
     gen_cpys_internal(ra, rb, rc, 0, 0xFFF0000000000000ULL);
 }
 
-#define FARITH3(name)                                                   \
-    static inline void glue(gen_f, name)(int ra, int rb, int rc)        \
-    {                                                                   \
-        TCGv va, vb;                                                    \
-                                                                        \
-        if (unlikely(rc == 31)) {                                       \
-            return;                                                     \
-        }                                                               \
-        if (ra == 31) {                                                 \
-            va = tcg_const_i64(0);                                      \
-        } else {                                                        \
-            va = cpu_fir[ra];                                           \
-        }                                                               \
-        if (rb == 31) {                                                 \
-            vb = tcg_const_i64(0);                                      \
-        } else {                                                        \
-            vb = cpu_fir[rb];                                           \
-        }                                                               \
-                                                                        \
-        gen_helper_ ## name(cpu_fir[rc], cpu_env, va, vb);              \
-                                                                        \
-        if (ra == 31) {                                                 \
-            tcg_temp_free(va);                                          \
-        }                                                               \
-        if (rb == 31) {                                                 \
-            tcg_temp_free(vb);                                          \
-        }                                                               \
-    }
-
-/* ??? VAX instruction qualifiers ignored.  */
-FARITH3(addf)
-FARITH3(subf)
-FARITH3(mulf)
-FARITH3(divf)
-FARITH3(addg)
-FARITH3(subg)
-FARITH3(mulg)
-FARITH3(divg)
-FARITH3(cmpgeq)
-FARITH3(cmpglt)
-FARITH3(cmpgle)
-
 static void gen_ieee_arith3(DisasContext *ctx,
                             void (*helper)(TCGv, TCGv_ptr, TCGv, TCGv),
                             int ra, int rb, int rc, int fn11)
@@ -2257,22 +2215,23 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         /* XXX: rounding mode and trap are ignored (!) */
         vc = dest_fpr(ctx, rc);
         vb = load_fpr(ctx, rb);
+        va = load_fpr(ctx, ra);
         switch (fpfn) { /* fn11 & 0x3F */
         case 0x00:
             /* ADDF */
-            gen_faddf(ra, rb, rc);
+            gen_helper_addf(vc, cpu_env, va, vb);
             break;
         case 0x01:
             /* SUBF */
-            gen_fsubf(ra, rb, rc);
+            gen_helper_subf(vc, cpu_env, va, vb);
             break;
         case 0x02:
             /* MULF */
-            gen_fmulf(ra, rb, rc);
+            gen_helper_mulf(vc, cpu_env, va, vb);
             break;
         case 0x03:
             /* DIVF */
-            gen_fdivf(ra, rb, rc);
+            gen_helper_divf(vc, cpu_env, va, vb);
             break;
         case 0x1E:
             /* CVTDG -- TODO */
@@ -2280,31 +2239,31 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             goto invalid_opc;
         case 0x20:
             /* ADDG */
-            gen_faddg(ra, rb, rc);
+            gen_helper_addg(vc, cpu_env, va, vb);
             break;
         case 0x21:
             /* SUBG */
-            gen_fsubg(ra, rb, rc);
+            gen_helper_subg(vc, cpu_env, va, vb);
             break;
         case 0x22:
             /* MULG */
-            gen_fmulg(ra, rb, rc);
+            gen_helper_mulg(vc, cpu_env, va, vb);
             break;
         case 0x23:
             /* DIVG */
-            gen_fdivg(ra, rb, rc);
+            gen_helper_divg(vc, cpu_env, va, vb);
             break;
         case 0x25:
             /* CMPGEQ */
-            gen_fcmpgeq(ra, rb, rc);
+            gen_helper_cmpgeq(vc, cpu_env, va, vb);
             break;
         case 0x26:
             /* CMPGLT */
-            gen_fcmpglt(ra, rb, rc);
+            gen_helper_cmpglt(vc, cpu_env, va, vb);
             break;
         case 0x27:
             /* CMPGLE */
-            gen_fcmpgle(ra, rb, rc);
+            gen_helper_cmpgle(vc, cpu_env, va, vb);
             break;
         case 0x2C:
             /* CVTGF */
