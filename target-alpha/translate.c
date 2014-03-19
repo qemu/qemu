@@ -2677,6 +2677,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             goto invalid_opc;
         }
         break;
+
     case 0x18:
         switch ((uint16_t)disp16) {
         case 0x0000:
@@ -2705,15 +2706,14 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0xC000:
             /* RPCC */
-            if (ra != 31) {
-                if (use_icount) {
-                    gen_io_start();
-                    gen_helper_load_pcc(cpu_ir[ra], cpu_env);
-                    gen_io_end();
-                    ret = EXIT_PC_STALE;
-                } else {
-                    gen_helper_load_pcc(cpu_ir[ra], cpu_env);
-                }
+            va = dest_gpr(ctx, ra);
+            if (use_icount) {
+                gen_io_start();
+                gen_helper_load_pcc(va, cpu_env);
+                gen_io_end();
+                ret = EXIT_PC_STALE;
+            } else {
+                gen_helper_load_pcc(va, cpu_env);
             }
             break;
         case 0xE000:
