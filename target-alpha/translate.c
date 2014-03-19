@@ -1772,6 +1772,13 @@ static ExitStatus gen_mtpr(DisasContext *ctx, int rb, int regno)
         }                                       \
     } while (0)
 
+#define REQUIRE_REG_31(WHICH)                   \
+    do {                                        \
+        if (WHICH != 31) {                      \
+            goto invalid_opc;                   \
+        }                                       \
+    } while (0)
+
 static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 {
     uint32_t palcode;
@@ -1780,7 +1787,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     int32_t disp12;
 #endif
     uint16_t fn11;
-    uint8_t opc, ra, rb, rc, fpfn, fn7, islit, real_islit;
+    uint8_t opc, ra, rb, rc, fpfn, fn7, islit;
     uint8_t lit;
     ExitStatus ret;
 
@@ -1789,7 +1796,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     ra = (insn >> 21) & 0x1F;
     rb = (insn >> 16) & 0x1F;
     rc = insn & 0x1F;
-    real_islit = islit = (insn >> 12) & 1;
+    islit = (insn >> 12) & 1;
     if (rb == 31 && !islit) {
         islit = 1;
         lit = 0;
@@ -2303,6 +2310,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x61:
             /* AMASK */
+            REQUIRE_REG_31(ra);
             if (likely(rc != 31)) {
                 uint64_t amask = ctx->tb->flags >> TB_FLAGS_AMASK_SHIFT;
 
@@ -2323,6 +2331,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x6C:
             /* IMPLVER */
+            REQUIRE_REG_31(ra);
             if (rc != 31) {
                 tcg_gen_movi_i64(cpu_ir[rc], ctx->implver);
             }
@@ -2544,6 +2553,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         switch (fpfn) { /* fn11 & 0x3F */
         case 0x04:
             /* ITOFS */
+            REQUIRE_REG_31(rb);
             if (likely(rc != 31)) {
                 if (ra != 31) {
                     TCGv_i32 tmp = tcg_temp_new_i32();
@@ -2556,14 +2566,17 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x0A:
             /* SQRTF */
+            REQUIRE_REG_31(ra);
             gen_fsqrtf(rb, rc);
             break;
         case 0x0B:
             /* SQRTS */
+            REQUIRE_REG_31(ra);
             gen_fsqrts(ctx, rb, rc, fn11);
             break;
         case 0x14:
             /* ITOFF */
+            REQUIRE_REG_31(rb);
             if (likely(rc != 31)) {
                 if (ra != 31) {
                     TCGv_i32 tmp = tcg_temp_new_i32();
@@ -2576,6 +2589,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x24:
             /* ITOFT */
+            REQUIRE_REG_31(rb);
             if (likely(rc != 31)) {
                 if (ra != 31) {
                     tcg_gen_mov_i64(cpu_fir[rc], cpu_ir[ra]);
@@ -2586,10 +2600,12 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x2A:
             /* SQRTG */
+            REQUIRE_REG_31(ra);
             gen_fsqrtg(rb, rc);
             break;
         case 0x02B:
             /* SQRTT */
+            REQUIRE_REG_31(ra);
             gen_fsqrtt(ctx, rb, rc, fn11);
             break;
         default:
@@ -2617,13 +2633,9 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             gen_fdivf(ra, rb, rc);
             break;
         case 0x1E:
-            /* CVTDG */
-#if 0 // TODO
-            gen_fcvtdg(rb, rc);
-#else
+            /* CVTDG -- TODO */
+            REQUIRE_REG_31(ra);
             goto invalid_opc;
-#endif
-            break;
         case 0x20:
             /* ADDG */
             gen_faddg(ra, rb, rc);
@@ -2654,26 +2666,26 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x2C:
             /* CVTGF */
+            REQUIRE_REG_31(ra);
             gen_fcvtgf(rb, rc);
             break;
         case 0x2D:
-            /* CVTGD */
-#if 0 // TODO
-            gen_fcvtgd(rb, rc);
-#else
+            /* CVTGD -- TODO */
+            REQUIRE_REG_31(ra);
             goto invalid_opc;
-#endif
-            break;
         case 0x2F:
             /* CVTGQ */
+            REQUIRE_REG_31(ra);
             gen_fcvtgq(rb, rc);
             break;
         case 0x3C:
             /* CVTQF */
+            REQUIRE_REG_31(ra);
             gen_fcvtqf(rb, rc);
             break;
         case 0x3E:
             /* CVTQG */
+            REQUIRE_REG_31(ra);
             gen_fcvtqg(rb, rc);
             break;
         default:
@@ -2732,6 +2744,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             gen_fcmptle(ctx, ra, rb, rc, fn11);
             break;
         case 0x2C:
+            REQUIRE_REG_31(ra);
             if (fn11 == 0x2AC || fn11 == 0x6AC) {
                 /* CVTST */
                 gen_fcvtst(ctx, rb, rc, fn11);
@@ -2742,14 +2755,17 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x2F:
             /* CVTTQ */
+            REQUIRE_REG_31(ra);
             gen_fcvttq(ctx, rb, rc, fn11);
             break;
         case 0x3C:
             /* CVTQS */
+            REQUIRE_REG_31(ra);
             gen_fcvtqs(ctx, rb, rc, fn11);
             break;
         case 0x3E:
             /* CVTQT */
+            REQUIRE_REG_31(ra);
             gen_fcvtqt(ctx, rb, rc, fn11);
             break;
         default:
@@ -2760,6 +2776,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         switch (fn11) {
         case 0x010:
             /* CVTLQ */
+            REQUIRE_REG_31(ra);
             gen_fcvtlq(rb, rc);
             break;
         case 0x020:
@@ -2827,12 +2844,14 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x030:
             /* CVTQL */
+            REQUIRE_REG_31(ra);
             gen_fcvtql(rb, rc);
             break;
         case 0x130:
             /* CVTQL/V */
         case 0x530:
             /* CVTQL/SV */
+            REQUIRE_REG_31(ra);
             /* ??? I'm pretty sure there's nothing that /sv needs to do that
                /v doesn't do.  The only thing I can think is that /sv is a
                valid instruction merely for completeness in the ISA.  */
@@ -3010,6 +3029,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x00:
             /* SEXTB */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
+            REQUIRE_REG_31(ra);
             if (likely(rc != 31)) {
                 if (islit) {
                     tcg_gen_movi_i64(cpu_ir[rc], (int64_t)((int8_t)lit));
@@ -3021,6 +3041,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x01:
             /* SEXTW */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
+            REQUIRE_REG_31(ra);
             if (likely(rc != 31)) {
                 if (islit) {
                     tcg_gen_movi_i64(cpu_ir[rc], (int64_t)((int16_t)lit));
@@ -3032,6 +3053,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x30:
             /* CTPOP */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
+            REQUIRE_REG_31(ra);
             if (likely(rc != 31)) {
                 if (islit) {
                     tcg_gen_movi_i64(cpu_ir[rc], ctpop64(lit));
@@ -3048,6 +3070,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x32:
             /* CTLZ */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
+            REQUIRE_REG_31(ra);
             if (likely(rc != 31)) {
                 if (islit) {
                     tcg_gen_movi_i64(cpu_ir[rc], clz64(lit));
@@ -3059,6 +3082,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x33:
             /* CTTZ */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
+            REQUIRE_REG_31(ra);
             if (likely(rc != 31)) {
                 if (islit) {
                     tcg_gen_movi_i64(cpu_ir[rc], ctz64(lit));
@@ -3070,33 +3094,25 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x34:
             /* UNPKBW */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
-            if (real_islit || ra != 31) {
-                goto invalid_opc;
-            }
+            REQUIRE_REG_31(ra);
             gen_unpkbw(rb, rc);
             break;
         case 0x35:
             /* UNPKBL */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
-            if (real_islit || ra != 31) {
-                goto invalid_opc;
-            }
+            REQUIRE_REG_31(ra);
             gen_unpkbl(rb, rc);
             break;
         case 0x36:
             /* PKWB */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
-            if (real_islit || ra != 31) {
-                goto invalid_opc;
-            }
+            REQUIRE_REG_31(ra);
             gen_pkwb(rb, rc);
             break;
         case 0x37:
             /* PKLB */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
-            if (real_islit || ra != 31) {
-                goto invalid_opc;
-            }
+            REQUIRE_REG_31(ra);
             gen_pklb(rb, rc);
             break;
         case 0x38:
@@ -3142,6 +3158,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x70:
             /* FTOIT */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_FIX);
+            REQUIRE_REG_31(rb);
             if (likely(rc != 31)) {
                 if (ra != 31) {
                     tcg_gen_mov_i64(cpu_ir[rc], cpu_fir[ra]);
@@ -3153,6 +3170,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x78:
             /* FTOIS */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_FIX);
+            REQUIRE_REG_31(rb);
             if (rc != 31) {
                 TCGv_i32 tmp1 = tcg_temp_new_i32();
                 if (ra != 31) {
