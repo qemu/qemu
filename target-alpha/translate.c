@@ -1321,15 +1321,11 @@ static void gen_ins_l(int ra, int rb, int rc, int islit,
 }
 
 /* MSKWH, MSKLH, MSKQH */
-static void gen_msk_h(int ra, int rb, int rc, int islit,
+static void gen_msk_h(DisasContext *ctx, TCGv vc, TCGv va, int rb, bool islit,
                       uint8_t lit, uint8_t byte_mask)
 {
-    if (unlikely(rc == 31)) {
-        return;
-    } else if (unlikely(ra == 31)) {
-        tcg_gen_movi_i64(cpu_ir[rc], 0);
-    } else if (islit) {
-        gen_zapnoti (cpu_ir[rc], cpu_ir[ra], ~((byte_mask << (lit & 7)) >> 8));
+    if (islit) {
+        gen_zapnoti(vc, va, ~((byte_mask << (lit & 7)) >> 8));
     } else {
         TCGv shift = tcg_temp_new();
         TCGv mask = tcg_temp_new();
@@ -1341,17 +1337,16 @@ static void gen_msk_h(int ra, int rb, int rc, int islit,
            shift of 64 bits in order to generate a zero.  This is done by
            splitting the shift into two parts, the variable shift - 1
            followed by a constant 1 shift.  The code we expand below is
-           equivalent to ~((B & 7) * 8) & 63.  */
+           equivalent to ~(B * 8) & 63.  */
 
-        tcg_gen_andi_i64(shift, cpu_ir[rb], 7);
-        tcg_gen_shli_i64(shift, shift, 3);
+        tcg_gen_shli_i64(shift, load_gpr(ctx, rb), 3);
         tcg_gen_not_i64(shift, shift);
         tcg_gen_andi_i64(shift, shift, 0x3f);
         tcg_gen_movi_i64(mask, zapnot_mask (byte_mask));
         tcg_gen_shr_i64(mask, mask, shift);
         tcg_gen_shri_i64(mask, mask, 1);
 
-        tcg_gen_andc_i64(cpu_ir[rc], cpu_ir[ra], mask);
+        tcg_gen_andc_i64(vc, va, mask);
 
         tcg_temp_free(mask);
         tcg_temp_free(shift);
@@ -1359,25 +1354,21 @@ static void gen_msk_h(int ra, int rb, int rc, int islit,
 }
 
 /* MSKBL, MSKWL, MSKLL, MSKQL */
-static void gen_msk_l(int ra, int rb, int rc, int islit,
+static void gen_msk_l(DisasContext *ctx, TCGv vc, TCGv va, int rb, bool islit,
                       uint8_t lit, uint8_t byte_mask)
 {
-    if (unlikely(rc == 31)) {
-        return;
-    } else if (unlikely(ra == 31)) {
-        tcg_gen_movi_i64(cpu_ir[rc], 0);
-    } else if (islit) {
-        gen_zapnoti (cpu_ir[rc], cpu_ir[ra], ~(byte_mask << (lit & 7)));
+    if (islit) {
+        gen_zapnoti(vc, va, ~(byte_mask << (lit & 7)));
     } else {
         TCGv shift = tcg_temp_new();
         TCGv mask = tcg_temp_new();
 
-        tcg_gen_andi_i64(shift, cpu_ir[rb], 7);
+        tcg_gen_andi_i64(shift, load_gpr(ctx, rb), 7);
         tcg_gen_shli_i64(shift, shift, 3);
-        tcg_gen_movi_i64(mask, zapnot_mask (byte_mask));
+        tcg_gen_movi_i64(mask, zapnot_mask(byte_mask));
         tcg_gen_shl_i64(mask, mask, shift);
 
-        tcg_gen_andc_i64(cpu_ir[rc], cpu_ir[ra], mask);
+        tcg_gen_andc_i64(vc, va, mask);
 
         tcg_temp_free(mask);
         tcg_temp_free(shift);
@@ -2109,7 +2100,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         switch (fn7) {
         case 0x02:
             /* MSKBL */
-            gen_msk_l(ra, rb, rc, islit, lit, 0x01);
+            gen_msk_l(ctx, vc, va, rb, islit, lit, 0x01);
             break;
         case 0x06:
             /* EXTBL */
@@ -2121,7 +2112,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x12:
             /* MSKWL */
-            gen_msk_l(ra, rb, rc, islit, lit, 0x03);
+            gen_msk_l(ctx, vc, va, rb, islit, lit, 0x03);
             break;
         case 0x16:
             /* EXTWL */
@@ -2133,7 +2124,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x22:
             /* MSKLL */
-            gen_msk_l(ra, rb, rc, islit, lit, 0x0f);
+            gen_msk_l(ctx, vc, va, rb, islit, lit, 0x0f);
             break;
         case 0x26:
             /* EXTLL */
@@ -2153,7 +2144,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x32:
             /* MSKQL */
-            gen_msk_l(ra, rb, rc, islit, lit, 0xff);
+            gen_msk_l(ctx, vc, va, rb, islit, lit, 0xff);
             break;
         case 0x34:
             /* SRL */
@@ -2201,7 +2192,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x52:
             /* MSKWH */
-            gen_msk_h(ra, rb, rc, islit, lit, 0x03);
+            gen_msk_h(ctx, vc, va, rb, islit, lit, 0x03);
             break;
         case 0x57:
             /* INSWH */
@@ -2213,7 +2204,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x62:
             /* MSKLH */
-            gen_msk_h(ra, rb, rc, islit, lit, 0x0f);
+            gen_msk_h(ctx, vc, va, rb, islit, lit, 0x0f);
             break;
         case 0x67:
             /* INSLH */
@@ -2225,7 +2216,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x72:
             /* MSKQH */
-            gen_msk_h(ra, rb, rc, islit, lit, 0xff);
+            gen_msk_h(ctx, vc, va, rb, islit, lit, 0xff);
             break;
         case 0x77:
             /* INSQH */
