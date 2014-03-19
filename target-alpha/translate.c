@@ -2340,55 +2340,26 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             goto invalid_opc;
         }
         break;
+
     case 0x13:
+        vc = dest_gpr(ctx, rc);
+        vb = load_gpr_lit(ctx, rb, lit, islit);
+        va = load_gpr(ctx, ra);
         switch (fn7) {
         case 0x00:
             /* MULL */
-            if (likely(rc != 31)) {
-                if (ra == 31) {
-                    tcg_gen_movi_i64(cpu_ir[rc], 0);
-                } else {
-                    if (islit) {
-                        tcg_gen_muli_i64(cpu_ir[rc], cpu_ir[ra], lit);
-                    } else {
-                        tcg_gen_mul_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
-                    }
-                    tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rc]);
-                }
-            }
+            tcg_gen_mul_i64(vc, va, vb);
+            tcg_gen_ext32s_i64(vc, vc);
             break;
         case 0x20:
             /* MULQ */
-            if (likely(rc != 31)) {
-                if (ra == 31) {
-                    tcg_gen_movi_i64(cpu_ir[rc], 0);
-                } else if (islit) {
-                    tcg_gen_muli_i64(cpu_ir[rc], cpu_ir[ra], lit);
-                } else {
-                    tcg_gen_mul_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
-                }
-            }
+            tcg_gen_mul_i64(vc, va, vb);
             break;
         case 0x30:
             /* UMULH */
-            {
-                TCGv low;
-                if (unlikely(rc == 31)){
-                    break;
-                }
-                if (ra == 31) {
-                    tcg_gen_movi_i64(cpu_ir[rc], 0);
-                    break;
-                }
-                low = tcg_temp_new();
-                if (islit) {
-                    tcg_gen_movi_tl(low, lit);
-                    tcg_gen_mulu2_i64(low, cpu_ir[rc], cpu_ir[ra], low);
-                } else {
-                    tcg_gen_mulu2_i64(low, cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
-                }
-                tcg_temp_free(low);
-            }
+            tmp = tcg_temp_new();
+            tcg_gen_mulu2_i64(tmp, vc, va, vb);
+            tcg_temp_free(tmp);
             break;
         case 0x40:
             /* MULL/V */
