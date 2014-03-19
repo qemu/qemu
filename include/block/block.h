@@ -329,8 +329,8 @@ BlockDriverAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque);
 
 /* Invalidate any cached metadata used by image formats */
-void bdrv_invalidate_cache(BlockDriverState *bs);
-void bdrv_invalidate_cache_all(void);
+void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp);
+void bdrv_invalidate_cache_all(Error **errp);
 
 void bdrv_clear_incoming_migration_all(void);
 

@@ -625,13 +625,18 @@ static int64_t quorum_getlength(BlockDriverState *bs)
     return result;
 }
 
-static void quorum_invalidate_cache(BlockDriverState *bs)
+static void quorum_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     BDRVQuorumState *s = bs->opaque;
+    Error *local_err = NULL;
     int i;
 
     for (i = 0; i < s->num_children; i++) {
-        bdrv_invalidate_cache(s->bs[i]);
+        bdrv_invalidate_cache(s->bs[i], &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
     }
 }
 

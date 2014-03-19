@@ -1087,7 +1087,7 @@ writev_help(void)
 " writes a range of bytes from the given offset source from multiple buffers\n"
 "\n"
 " Example:\n"
-" 'write 512 1k 1k' - writes 2 kilobytes at 512 bytes into the open file\n"
+" 'writev 512 1k 1k' - writes 2 kilobytes at 512 bytes into the open file\n"
 "\n"
 " Writes into a segment of the currently open file, using a buffer\n"
 " filled with a set pattern (0xcdcdcdcd).\n"

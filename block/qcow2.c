@@ -1156,7 +1156,7 @@ static void qcow2_close(BlockDriverState *bs)
     qcow2_free_snapshots(bs);
 }
 
-static void qcow2_invalidate_cache(BlockDriverState *bs)
+static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     BDRVQcowState *s = bs->opaque;
     int flags = s->flags;
@@ -1164,6 +1164,8 @@ static void qcow2_invalidate_cache(BlockDriverState *bs)
     AES_KEY aes_decrypt_key;
     uint32_t crypt_method = 0;
     QDict *options;
+    Error *local_err = NULL;
+    int ret;
 
     /*
      * Backing files are read-only which makes all of their metadata immutable,
@@ -1178,11 +1180,25 @@ static void qcow2_invalidate_cache(BlockDriverState *bs)
 
     qcow2_close(bs);
 
-    bdrv_invalidate_cache(bs->file);
+    bdrv_invalidate_cache(bs->file, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     memset(s, 0, sizeof(BDRVQcowState));
     options = qdict_clone_shallow(bs->options);
-    qcow2_open(bs, options, flags, NULL);
+
+    ret = qcow2_open(bs, options, flags, &local_err);
+    if (local_err) {
+        error_setg(errp, "Could not reopen qcow2 layer: %s",
+                   error_get_pretty(local_err));
+        error_free(local_err);
+        return;
+    } else if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not reopen qcow2 layer");
+        return;
+    }
 
     QDECREF(options);
 

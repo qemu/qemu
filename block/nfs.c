@@ -112,6 +112,9 @@ nfs_co_generic_cb(int ret, struct nfs_context *nfs, void *data,
     if (task->ret == 0 && task->st) {
         memcpy(task->st, data, sizeof(struct stat));
     }
+    if (task->ret < 0) {
+        error_report("NFS Error: %s", nfs_get_error(nfs));
+    }
     if (task->co) {
         task->bh = qemu_bh_new(nfs_co_generic_bh_cb, task);
         qemu_bh_schedule(task->bh);

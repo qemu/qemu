@@ -1558,16 +1558,31 @@ static int bdrv_qed_change_backing_file(BlockDriverState *bs,
     return ret;
 }
 
-static void bdrv_qed_invalidate_cache(BlockDriverState *bs)
+static void bdrv_qed_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     BDRVQEDState *s = bs->opaque;
+    Error *local_err = NULL;
+    int ret;
 
     bdrv_qed_close(bs);
 
-    bdrv_invalidate_cache(bs->file);
+    bdrv_invalidate_cache(bs->file, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     memset(s, 0, sizeof(BDRVQEDState));
-    bdrv_qed_open(bs, NULL, bs->open_flags, NULL);
+    ret = bdrv_qed_open(bs, NULL, bs->open_flags, &local_err);
+    if (local_err) {
+        error_setg(errp, "Could not reopen qed layer: %s",
+                   error_get_pretty(local_err));
+        error_free(local_err);
+        return;
+    } else if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not reopen qed layer");
+        return;
+    }
 }
 
 static int bdrv_qed_check(BlockDriverState *bs, BdrvCheckResult *result,

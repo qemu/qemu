@@ -393,7 +393,6 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     if (blk->iothread) {
         s->internal_iothread = false;
         s->iothread = blk->iothread;
-        object_ref(OBJECT(s->iothread));
     } else {
         /* Create per-device IOThread if none specified */
         Error *local_err = NULL;
@@ -408,6 +407,7 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
         s->iothread = iothread_find(vdev->name);
         assert(s->iothread);
     }
+    object_ref(OBJECT(s->iothread));
     s->ctx = iothread_get_aio_context(s->iothread);
 
     /* Prevent block operations that conflict with data plane thread */

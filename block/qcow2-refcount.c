@@ -1383,7 +1383,7 @@ static int write_reftable_entry(BlockDriverState *bs, int rt_index)
  * does _not_ decrement the reference count for the currently occupied cluster.
  *
  * This function prints an informative message to stderr on error (and returns
- * -errno); on success, 0 is returned.
+ * -errno); on success, the offset of the newly allocated cluster is returned.
  */
 static int64_t realloc_refcount_block(BlockDriverState *bs, int reftable_index,
                                       uint64_t offset)
@@ -1399,14 +1399,14 @@ static int64_t realloc_refcount_block(BlockDriverState *bs, int reftable_index,
         fprintf(stderr, "Could not allocate new cluster: %s\n",
                 strerror(-new_offset));
         ret = new_offset;
-        goto fail;
+        goto done;
     }
 
     /* fetch current refcount block content */
     ret = qcow2_cache_get(bs, s->refcount_block_cache, offset, &refcount_block);
     if (ret < 0) {
         fprintf(stderr, "Could not fetch refcount block: %s\n", strerror(-ret));
-        goto fail;
+        goto fail_free_cluster;
     }
 
     /* new block has not yet been entered into refcount table, therefore it is
@@ -1417,8 +1417,7 @@ static int64_t realloc_refcount_block(BlockDriverState *bs, int reftable_index,
                 "check failed: %s\n", strerror(-ret));
         /* the image will be marked corrupt, so don't even attempt on freeing
          * the cluster */
-        new_offset = 0;
-        goto fail;
+        goto done;
     }
 
     /* write to new block */
@@ -1426,7 +1425,7 @@ static int64_t realloc_refcount_block(BlockDriverState *bs, int reftable_index,
             s->cluster_sectors);
     if (ret < 0) {
         fprintf(stderr, "Could not write refcount block: %s\n", strerror(-ret));
-        goto fail;
+        goto fail_free_cluster;
     }
 
     /* update refcount table */
@@ -1436,24 +1435,27 @@ static int64_t realloc_refcount_block(BlockDriverState *bs, int reftable_index,
     if (ret < 0) {
         fprintf(stderr, "Could not update refcount table: %s\n",
                 strerror(-ret));
-        goto fail;
+        goto fail_free_cluster;
     }
 
-fail:
-    if (new_offset && (ret < 0)) {
-        qcow2_free_clusters(bs, new_offset, s->cluster_size,
-                QCOW2_DISCARD_ALWAYS);
-    }
+    goto done;
+
+fail_free_cluster:
+    qcow2_free_clusters(bs, new_offset, s->cluster_size, QCOW2_DISCARD_OTHER);
+
+done:
     if (refcount_block) {
-        if (ret < 0) {
-            qcow2_cache_put(bs, s->refcount_block_cache, &refcount_block);
-        } else {
-            ret = qcow2_cache_put(bs, s->refcount_block_cache, &refcount_block);
-        }
+        /* This should never fail, as it would only do so if the given refcount
+         * block cannot be found in the cache. As this is impossible as long as
+         * there are no bugs, assert the success. */
+        int tmp = qcow2_cache_put(bs, s->refcount_block_cache, &refcount_block);
+        assert(tmp == 0);
     }
+
     if (ret < 0) {
         return ret;
     }
+
     return new_offset;
 }
 

@@ -3868,7 +3868,7 @@ fi
 ##########################################
 # Do we have libnfs
 if test "$libnfs" != "no" ; then
-  if $pkg_config --atleast-version=1.9.2 libnfs; then
+  if $pkg_config --atleast-version=1.9.3 libnfs; then
     libnfs="yes"
     libnfs_libs=$($pkg_config --libs libnfs)
     LIBS="$LIBS $libnfs_libs"

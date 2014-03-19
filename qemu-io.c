@@ -193,10 +193,11 @@ static const cmdinfo_t quit_cmd = {
 static void usage(const char *name)
 {
     printf(
-"Usage: %s [-h] [-V] [-rsnm] [-c cmd] ... [file]\n"
+"Usage: %s [-h] [-V] [-rsnm] [-c STRING] ... [file]\n"
 "QEMU Disk exerciser\n"
 "\n"
-"  -c, --cmd            command to execute\n"
+"  -c, --cmd STRING     execute command with its arguments\n"
+"                       from the given string\n"
 "  -r, --read-only      export read-only\n"
 "  -s, --snapshot       use snapshot file\n"
 "  -n, --nocache        disable host cache\n"
@@ -207,8 +208,10 @@ static void usage(const char *name)
 "  -T, --trace FILE     enable trace events listed in the given file\n"
 "  -h, --help           display this help and exit\n"
 "  -V, --version        output version information and exit\n"
+"\n"
+"See '%s -c help' for information on available commands."
 "\n",
-    name);
+    name, name);
 }
 
 static char *get_prompt(void)
