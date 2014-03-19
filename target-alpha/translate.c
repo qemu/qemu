@@ -2203,7 +2203,10 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             goto invalid_opc;
         }
         break;
+
     case 0x12:
+        vc = dest_gpr(ctx, rc);
+        va = load_gpr(ctx, ra);
         switch (fn7) {
         case 0x02:
             /* MSKBL */
@@ -2255,18 +2258,14 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x34:
             /* SRL */
-            if (likely(rc != 31)) {
-                if (ra != 31) {
-                    if (islit) {
-                        tcg_gen_shri_i64(cpu_ir[rc], cpu_ir[ra], lit & 0x3f);
-                    } else {
-                        TCGv shift = tcg_temp_new();
-                        tcg_gen_andi_i64(shift, cpu_ir[rb], 0x3f);
-                        tcg_gen_shr_i64(cpu_ir[rc], cpu_ir[ra], shift);
-                        tcg_temp_free(shift);
-                    }
-                } else
-                    tcg_gen_movi_i64(cpu_ir[rc], 0);
+            if (islit) {
+                tcg_gen_shri_i64(vc, va, lit & 0x3f);
+            } else {
+                tmp = tcg_temp_new();
+                vb = load_gpr(ctx, rb);
+                tcg_gen_andi_i64(tmp, vb, 0x3f);
+                tcg_gen_shr_i64(vc, va, tmp);
+                tcg_temp_free(tmp);
             }
             break;
         case 0x36:
@@ -2275,18 +2274,14 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x39:
             /* SLL */
-            if (likely(rc != 31)) {
-                if (ra != 31) {
-                    if (islit) {
-                        tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], lit & 0x3f);
-                    } else {
-                        TCGv shift = tcg_temp_new();
-                        tcg_gen_andi_i64(shift, cpu_ir[rb], 0x3f);
-                        tcg_gen_shl_i64(cpu_ir[rc], cpu_ir[ra], shift);
-                        tcg_temp_free(shift);
-                    }
-                } else
-                    tcg_gen_movi_i64(cpu_ir[rc], 0);
+            if (islit) {
+                tcg_gen_shli_i64(vc, va, lit & 0x3f);
+            } else {
+                tmp = tcg_temp_new();
+                vb = load_gpr(ctx, rb);
+                tcg_gen_andi_i64(tmp, vb, 0x3f);
+                tcg_gen_shl_i64(vc, va, tmp);
+                tcg_temp_free(tmp);
             }
             break;
         case 0x3B:
@@ -2295,18 +2290,14 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x3C:
             /* SRA */
-            if (likely(rc != 31)) {
-                if (ra != 31) {
-                    if (islit) {
-                        tcg_gen_sari_i64(cpu_ir[rc], cpu_ir[ra], lit & 0x3f);
-                    } else {
-                        TCGv shift = tcg_temp_new();
-                        tcg_gen_andi_i64(shift, cpu_ir[rb], 0x3f);
-                        tcg_gen_sar_i64(cpu_ir[rc], cpu_ir[ra], shift);
-                        tcg_temp_free(shift);
-                    }
-                } else
-                    tcg_gen_movi_i64(cpu_ir[rc], 0);
+            if (islit) {
+                tcg_gen_sari_i64(vc, va, lit & 0x3f);
+            } else {
+                tmp = tcg_temp_new();
+                vb = load_gpr(ctx, rb);
+                tcg_gen_andi_i64(tmp, vb, 0x3f);
+                tcg_gen_sar_i64(vc, va, tmp);
+                tcg_temp_free(tmp);
             }
             break;
         case 0x52:
