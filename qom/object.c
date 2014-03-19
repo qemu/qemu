@@ -1039,17 +1039,50 @@ static void object_get_link_property(Object *obj, Visitor *v, void *opaque,
     }
 }
 
+/*
+ * object_resolve_link:
+ *
+ * Lookup an object and ensure its type matches the link property type.  This
+ * is similar to object_resolve_path() except type verification against the
+ * link property is performed.
+ *
+ * Returns: The matched object or NULL on path lookup failures.
+ */
+static Object *object_resolve_link(Object *obj, const char *name,
+                                   const char *path, Error **errp)
+{
+    const char *type;
+    gchar *target_type;
+    bool ambiguous = false;
+    Object *target;
+
+    /* Go from link<FOO> to FOO.  */
+    type = object_property_get_type(obj, name, NULL);
+    target_type = g_strndup(&type[5], strlen(type) - 6);
+    target = object_resolve_path_type(path, target_type, &ambiguous);
+
+    if (ambiguous) {
+        error_set(errp, QERR_AMBIGUOUS_PATH, path);
+    } else if (!target) {
+        target = object_resolve_path(path, &ambiguous);
+        if (target || ambiguous) {
+            error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, target_type);
+        } else {
+            error_set(errp, QERR_DEVICE_NOT_FOUND, path);
+        }
+        target = NULL;
+    }
+    g_free(target_type);
+
+    return target;
+}
+
 static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
                                      const char *name, Error **errp)
 {
     Object **child = opaque;
     Object *old_target;
-    bool ambiguous = false;
-    const char *type;
     char *path;
-    gchar *target_type;
-
-    type = object_property_get_type(obj, name, NULL);
 
     visit_type_str(v, &path, name, errp);
 
@@ -1059,24 +1092,11 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
     if (strcmp(path, "") != 0) {
         Object *target;
 
-        /* Go from link<FOO> to FOO.  */
-        target_type = g_strndup(&type[5], strlen(type) - 6);
-        target = object_resolve_path_type(path, target_type, &ambiguous);
-
-        if (ambiguous) {
-            error_set(errp, QERR_AMBIGUOUS_PATH, path);
-        } else if (target) {
+        target = object_resolve_link(obj, name, path, errp);
+        if (target) {
             object_ref(target);
             *child = target;
-        } else {
-            target = object_resolve_path(path, &ambiguous);
-            if (target || ambiguous) {
-                error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, target_type);
-            } else {
-                error_set(errp, QERR_DEVICE_NOT_FOUND, path);
-            }
         }
-        g_free(target_type);
     }
 
     g_free(path);
