@@ -83,6 +83,7 @@
 #define DIAG_KVM_BREAKPOINT             0x501
 
 #define ICPT_INSTRUCTION                0x04
+#define ICPT_EXT_INT                    0x14
 #define ICPT_WAITPSW                    0x1c
 #define ICPT_SOFT_INTERCEPT             0x24
 #define ICPT_CPU_STOP                   0x28
@@ -930,6 +931,28 @@ static bool is_special_wait_psw(CPUState *cs)
     return cs->kvm_run->psw_addr == 0xfffUL;
 }
 
+static void guest_panicked(void)
+{
+    QObject *data;
+
+    data = qobject_from_jsonf("{ 'action': %s }", "pause");
+    monitor_protocol_event(QEVENT_GUEST_PANICKED, data);
+    qobject_decref(data);
+
+    vm_stop(RUN_STATE_GUEST_PANICKED);
+}
+
+static void unmanageable_intercept(S390CPU *cpu, const char *str, int pswoffset)
+{
+    CPUState *cs = CPU(cpu);
+
+    error_report("Unmanageable %s! CPU%i new PSW: 0x%016lx:%016lx",
+                 str, cs->cpu_index, ldq_phys(cs->as, cpu->env.psa + pswoffset),
+                 ldq_phys(cs->as, cpu->env.psa + pswoffset + 8));
+    s390_del_running_cpu(cpu);
+    guest_panicked();
+}
+
 static int handle_intercept(S390CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -943,18 +966,18 @@ static int handle_intercept(S390CPU *cpu)
         case ICPT_INSTRUCTION:
             r = handle_instruction(cpu, run);
             break;
+        case ICPT_EXT_INT:
+            unmanageable_intercept(cpu, "external interrupt",
+                                   offsetof(LowCore, external_new_psw));
+            r = EXCP_HALTED;
+            break;
         case ICPT_WAITPSW:
             /* disabled wait, since enabled wait is handled in kernel */
             if (s390_del_running_cpu(cpu) == 0) {
                 if (is_special_wait_psw(cs)) {
                     qemu_system_shutdown_request();
                 } else {
-                    QObject *data;
-
-                    data = qobject_from_jsonf("{ 'action': %s }", "pause");
-                    monitor_protocol_event(QEVENT_GUEST_PANICKED, data);
-                    qobject_decref(data);
-                    vm_stop(RUN_STATE_GUEST_PANICKED);
+                    guest_panicked();
                 }
             }
             r = EXCP_HALTED;
