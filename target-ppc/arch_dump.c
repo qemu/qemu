@@ -164,7 +164,7 @@ static void ppc64_write_elf64_speregset(Note *note, PowerPCCPU *cpu)
     speregset->spe_fscr = cpu_to_be32(cpu->env.spe_fscr);
 }
 
-struct NoteFuncDescStruct {
+static const struct NoteFuncDescStruct {
     int contents_size;
     void (*note_contents_func)(Note *note, PowerPCCPU *cpu);
 } note_func[] = {
@@ -196,7 +196,7 @@ ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
     int name_size = 8; /* "CORE" or "QEMU" rounded */
     size_t elf_note_size = 0;
     int note_head_size;
-    NoteFuncDesc *nf;
+    const NoteFuncDesc *nf;
 
     if (class != ELFCLASS64) {
         return -1;
@@ -221,7 +221,7 @@ static int ppc64_write_all_elf64_notes(const char *note_name,
     Note note;
     int ret = -1;
     int note_size;
-    NoteFuncDesc *nf;
+    const NoteFuncDesc *nf;
 
     for (nf = note_func; nf->note_contents_func; nf++) {
         note.hdr.n_namesz = cpu_to_be32(sizeof(note.name));

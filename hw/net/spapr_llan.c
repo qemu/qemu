@@ -29,6 +29,7 @@
 #include "hw/qdev.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
+#include "sysemu/sysemu.h"
 
 #include <libfdt.h>
 
@@ -212,6 +213,8 @@ static int spapr_vlan_init(VIOsPAPRDevice *sdev)
     dev->nic = qemu_new_nic(&net_spapr_vlan_info, &dev->nicconf,
                             object_get_typename(OBJECT(sdev)), sdev->qdev.id, dev);
     qemu_format_nic_info_str(qemu_get_queue(dev->nic), dev->nicconf.macaddr.a);
+
+    add_boot_device_path(dev->nicconf.bootindex, DEVICE(dev), "");
 
     return 0;
 }

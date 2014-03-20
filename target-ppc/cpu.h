@@ -334,6 +334,7 @@ struct ppc_spr_t {
     void (*hea_write)(void *opaque, int spr_num, int gpr_num);
 #endif
     const char *name;
+    target_ulong default_value;
 #ifdef CONFIG_KVM
     /* We (ab)use the fact that all the SPRs will have ids for the
      * ONE_REG interface will have KVM_REG_PPC to use 0 as meaning,
@@ -1900,6 +1901,8 @@ enum {
     PPC2_LSQ_ISA207    = 0x0000000000002000ULL,
     /* ISA 2.07 Altivec                                                      */
     PPC2_ALTIVEC_207   = 0x0000000000004000ULL,
+    /* PowerISA 2.07 Book3s specification                                    */
+    PPC2_ISA207S       = 0x0000000000008000ULL,
 
 #define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_VSX | PPC2_PRCNTL | PPC2_DBRX | \
                         PPC2_ISA205 | PPC2_VSX207 | PPC2_PERM_ISA206 | \

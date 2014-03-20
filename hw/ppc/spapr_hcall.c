@@ -4,6 +4,36 @@
 #include "hw/ppc/spapr.h"
 #include "mmu-hash64.h"
 
+struct SPRSyncState {
+    CPUState *cs;
+    int spr;
+    target_ulong value;
+    target_ulong mask;
+};
+
+static void do_spr_sync(void *arg)
+{
+    struct SPRSyncState *s = arg;
+    PowerPCCPU *cpu = POWERPC_CPU(s->cs);
+    CPUPPCState *env = &cpu->env;
+
+    cpu_synchronize_state(s->cs);
+    env->spr[s->spr] &= ~s->mask;
+    env->spr[s->spr] |= s->value;
+}
+
+static void set_spr(CPUState *cs, int spr, target_ulong value,
+                    target_ulong mask)
+{
+    struct SPRSyncState s = {
+        .cs = cs,
+        .spr = spr,
+        .value = value,
+        .mask = mask
+    };
+    run_on_cpu(cs, do_spr_sync, &s);
+}
+
 static target_ulong compute_tlbie_rb(target_ulong v, target_ulong r,
                                      target_ulong pte_index)
 {
@@ -110,16 +140,15 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     if (likely((flags & H_EXACT) == 0)) {
         pte_index &= ~7ULL;
         token = ppc_hash64_start_access(cpu, pte_index);
-        do {
-            if (index == 8) {
-                ppc_hash64_stop_access(token);
-                return H_PTEG_FULL;
-            }
+        for (; index < 8; index++) {
             if ((ppc_hash64_load_hpte0(env, token, index) & HPTE64_V_VALID) == 0) {
                 break;
             }
-        } while (index++);
+        }
         ppc_hash64_stop_access(token);
+        if (index == 8) {
+            return H_PTEG_FULL;
+        }
     } else {
         token = ppc_hash64_start_access(cpu, pte_index);
         if (ppc_hash64_load_hpte0(env, token, 0) & HPTE64_V_VALID) {
@@ -690,7 +719,7 @@ static target_ulong h_set_mode(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     target_ulong value2 = args[3];
     target_ulong ret = H_P2;
 
-    if (resource == H_SET_MODE_ENDIAN) {
+    if (resource == H_SET_MODE_RESOURCE_LE) {
         if (value1) {
             ret = H_P3;
             goto out;
@@ -699,22 +728,17 @@ static target_ulong h_set_mode(PowerPCCPU *cpu, sPAPREnvironment *spapr,
             ret = H_P4;
             goto out;
         }
-
         switch (mflags) {
         case H_SET_MODE_ENDIAN_BIG:
             CPU_FOREACH(cs) {
-                PowerPCCPU *cp = POWERPC_CPU(cs);
-                CPUPPCState *env = &cp->env;
-                env->spr[SPR_LPCR] &= ~LPCR_ILE;
+                set_spr(cs, SPR_LPCR, 0, LPCR_ILE);
             }
             ret = H_SUCCESS;
             break;
 
         case H_SET_MODE_ENDIAN_LITTLE:
             CPU_FOREACH(cs) {
-                PowerPCCPU *cp = POWERPC_CPU(cs);
-                CPUPPCState *env = &cp->env;
-                env->spr[SPR_LPCR] |= LPCR_ILE;
+                set_spr(cs, SPR_LPCR, LPCR_ILE, LPCR_ILE);
             }
             ret = H_SUCCESS;
             break;
