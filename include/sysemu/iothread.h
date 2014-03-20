@@ -15,10 +15,20 @@
 #define IOTHREAD_H
 
 #include "block/aio.h"
+#include "qemu/thread.h"
 
 #define TYPE_IOTHREAD "iothread"
 
-typedef struct IOThread IOThread;
+typedef struct {
+    Object parent_obj;
+
+    QemuThread thread;
+    AioContext *ctx;
+    QemuMutex init_done_lock;
+    QemuCond init_done_cond;    /* is thread initialization done? */
+    bool stopping;
+    int thread_id;
+} IOThread;
 
 #define IOTHREAD(obj) \
    OBJECT_CHECK(IOThread, obj, TYPE_IOTHREAD)

@@ -14,7 +14,6 @@
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
 #include "qemu/module.h"
-#include "qemu/thread.h"
 #include "block/aio.h"
 #include "sysemu/iothread.h"
 #include "qmp-commands.h"
@@ -22,16 +21,6 @@
 #define IOTHREADS_PATH "/objects"
 
 typedef ObjectClass IOThreadClass;
-struct IOThread {
-    Object parent_obj;
-
-    QemuThread thread;
-    AioContext *ctx;
-    QemuMutex init_done_lock;
-    QemuCond init_done_cond;    /* is thread initialization done? */
-    bool stopping;
-    int thread_id;
-};
 
 #define IOTHREAD_GET_CLASS(obj) \
    OBJECT_GET_CLASS(IOThreadClass, obj, TYPE_IOTHREAD)
