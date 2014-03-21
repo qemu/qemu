@@ -98,7 +98,14 @@ static void mirror_iteration_done(MirrorOp *op, int ret)
 
     qemu_iovec_destroy(&op->qiov);
     g_slice_free(MirrorOp, op);
-    qemu_coroutine_enter(s->common.co, NULL);
+
+    /* Enter coroutine when it is not sleeping.  The coroutine sleeps to
+     * rate-limit itself.  The coroutine will eventually resume since there is
+     * a sleep timeout so don't wake it early.
+     */
+    if (s->common.busy) {
+        qemu_coroutine_enter(s->common.co, NULL);
+    }
 }
 
 static void mirror_write_complete(void *opaque, int ret)
