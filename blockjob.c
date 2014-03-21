@@ -88,7 +88,7 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     Error *local_err = NULL;
 
     if (!job->driver->set_speed) {
-        error_set(errp, QERR_NOT_SUPPORTED);
+        error_set(errp, QERR_UNSUPPORTED);
         return;
     }
     job->driver->set_speed(job, speed, &local_err);

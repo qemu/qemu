@@ -122,9 +122,6 @@ void qerror_report_err(Error *err);
 #define QERR_MISSING_PARAMETER \
     ERROR_CLASS_GENERIC_ERROR, "Parameter '%s' is missing"
 
-#define QERR_NOT_SUPPORTED \
-    ERROR_CLASS_GENERIC_ERROR, "Not supported"
-
 #define QERR_PERMISSION_DENIED \
     ERROR_CLASS_GENERIC_ERROR, "Insufficient permission to perform this operation"
 
