@@ -352,33 +352,6 @@ void monitor_printf(Monitor *mon, const char *fmt, ...)
     va_end(ap);
 }
 
-void monitor_print_filename(Monitor *mon, const char *filename)
-{
-    int i;
-
-    for (i = 0; filename[i]; i++) {
-        switch (filename[i]) {
-        case ' ':
-        case '"':
-        case '\\':
-            monitor_printf(mon, "\\%c", filename[i]);
-            break;
-        case '\t':
-            monitor_printf(mon, "\\t");
-            break;
-        case '\r':
-            monitor_printf(mon, "\\r");
-            break;
-        case '\n':
-            monitor_printf(mon, "\\n");
-            break;
-        default:
-            monitor_printf(mon, "%c", filename[i]);
-            break;
-        }
-    }
-}
-
 static int GCC_FMT_ATTR(2, 3) monitor_fprintf(FILE *stream,
                                               const char *fmt, ...)
 {
