@@ -35,9 +35,6 @@ void qerror_report_err(Error *err);
  * Please keep the definitions in alphabetical order.
  * Use scripts/check-qerror.sh to check.
  */
-#define QERR_ADD_CLIENT_FAILED \
-    ERROR_CLASS_GENERIC_ERROR, "Could not add client"
-
 #define QERR_AMBIGUOUS_PATH \
     ERROR_CLASS_GENERIC_ERROR, "Path '%s' does not uniquely identify an object"
 
@@ -200,9 +197,6 @@ void qerror_report_err(Error *err);
 #define QERR_QGA_COMMAND_FAILED \
     ERROR_CLASS_GENERIC_ERROR, "Guest agent command failed, error was '%s'"
 
-#define QERR_QGA_LOGGING_FAILED \
-    ERROR_CLASS_GENERIC_ERROR, "Guest agent failed to log non-optional log statement"
-
 #define QERR_QMP_BAD_INPUT_OBJECT \
     ERROR_CLASS_GENERIC_ERROR, "Expected '%s' in QMP input"
 
@@ -217,9 +211,6 @@ void qerror_report_err(Error *err);
 
 #define QERR_SET_PASSWD_FAILED \
     ERROR_CLASS_GENERIC_ERROR, "Could not set password"
-
-#define QERR_TOO_MANY_FILES \
-    ERROR_CLASS_GENERIC_ERROR, "Too many open files"
 
 #define QERR_UNDEFINED_ERROR \
     ERROR_CLASS_GENERIC_ERROR, "An undefined error has occurred"
