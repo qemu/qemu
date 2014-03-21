@@ -153,7 +153,7 @@ void alpha_translate_init(void)
 static TCGv load_zero(DisasContext *ctx)
 {
     if (TCGV_IS_UNUSED_I64(ctx->zero)) {
-        ctx->zero = tcg_const_local_i64(0);
+        ctx->zero = tcg_const_i64(0);
     }
     return ctx->zero;
 }
@@ -161,7 +161,7 @@ static TCGv load_zero(DisasContext *ctx)
 static TCGv dest_sink(DisasContext *ctx)
 {
     if (TCGV_IS_UNUSED_I64(ctx->sink)) {
-        ctx->sink = tcg_temp_local_new();
+        ctx->sink = tcg_temp_new();
     }
     return ctx->sink;
 }
