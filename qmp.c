@@ -166,7 +166,7 @@ void qmp_cont(Error **errp)
     Error *local_err = NULL;
 
     if (runstate_needs_reset()) {
-        error_set(errp, QERR_RESET_REQUIRED);
+        error_setg(errp, "Resetting the Virtual Machine is required");
         return;
     } else if (runstate_check(RUN_STATE_SUSPENDED)) {
         return;

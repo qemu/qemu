@@ -1520,14 +1520,16 @@ static void eject_device(BlockDriverState *bs, int force, Error **errp)
         return;
     }
     if (!bdrv_dev_has_removable_media(bs)) {
-        error_set(errp, QERR_DEVICE_NOT_REMOVABLE, bdrv_get_device_name(bs));
+        error_setg(errp, "Device '%s' is not removable",
+                   bdrv_get_device_name(bs));
         return;
     }
 
     if (bdrv_dev_is_medium_locked(bs) && !bdrv_dev_is_tray_open(bs)) {
         bdrv_dev_eject_request(bs, force);
         if (!force) {
-            error_set(errp, QERR_DEVICE_LOCKED, bdrv_get_device_name(bs));
+            error_setg(errp, "Device '%s' is locked",
+                       bdrv_get_device_name(bs));
             return;
         }
     }
@@ -2219,7 +2221,8 @@ void qmp_block_job_cancel(const char *device,
         return;
     }
     if (job->paused && !force) {
-        error_set(errp, QERR_BLOCK_JOB_PAUSED, device);
+        error_setg(errp, "The block job for device '%s' is currently paused",
+                   device);
         return;
     }
 

@@ -819,7 +819,7 @@ QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
         opts = qemu_opts_find(list, id);
         if (opts != NULL) {
             if (fail_if_exists && !list->merge_lists) {
-                error_set(errp, QERR_DUPLICATE_ID, id, list->name);
+                error_setg(errp, "Duplicate ID '%s' for %s", id, list->name);
                 return NULL;
             } else {
                 return opts;

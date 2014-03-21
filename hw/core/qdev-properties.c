@@ -587,8 +587,9 @@ static void set_blocksize(Object *obj, Visitor *v, void *opaque,
 
     /* We rely on power-of-2 blocksizes for bitmasks */
     if ((value & (value - 1)) != 0) {
-        error_set(errp, QERR_PROPERTY_VALUE_NOT_POWER_OF_2,
-                  dev->id?:"", name, (int64_t)value);
+        error_setg(errp,
+                  "Property %s.%s doesn't take value '%" PRId64 "', it's not a power of 2",
+                  dev->id ?: "", name, (int64_t)value);
         return;
     }
 
@@ -853,7 +854,7 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
 {
     switch (ret) {
     case -EEXIST:
-        error_set(errp, QERR_PROPERTY_VALUE_IN_USE,
+        error_setg(errp, "Property '%s.%s' can't take value '%s', it's in use",
                   object_get_typename(OBJECT(dev)), prop->name, value);
         break;
     default:
@@ -862,7 +863,7 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
                   object_get_typename(OBJECT(dev)), prop->name, value);
         break;
     case -ENOENT:
-        error_set(errp, QERR_PROPERTY_VALUE_NOT_FOUND,
+        error_setg(errp, "Property '%s.%s' can't find value '%s'",
                   object_get_typename(OBJECT(dev)), prop->name, value);
         break;
     case 0:

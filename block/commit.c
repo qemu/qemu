@@ -194,7 +194,7 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
     if ((on_error == BLOCKDEV_ON_ERROR_STOP ||
          on_error == BLOCKDEV_ON_ERROR_ENOSPC) &&
         !bdrv_iostatus_is_enabled(bs)) {
-        error_set(errp, QERR_INVALID_PARAMETER_COMBINATION);
+        error_setg(errp, "Invalid parameter combination");
         return;
     }
 

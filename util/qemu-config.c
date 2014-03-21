@@ -20,7 +20,7 @@ static QemuOptsList *find_list(QemuOptsList **lists, const char *group,
             break;
     }
     if (lists[i] == NULL) {
-        error_set(errp, QERR_INVALID_OPTION_GROUP, group);
+        error_setg(errp, "There is no option group '%s'", group);
     }
     return lists[i];
 }

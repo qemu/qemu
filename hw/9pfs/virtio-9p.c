@@ -987,8 +987,9 @@ static void v9fs_attach(void *opaque)
      */
     if (!s->migration_blocker) {
         s->root_fid = fid;
-        error_set(&s->migration_blocker, QERR_VIRTFS_FEATURE_BLOCKS_MIGRATION,
-                  s->ctx.fs_root ? s->ctx.fs_root : "NULL", s->tag);
+        error_setg(&s->migration_blocker,
+                   "Migration is disabled when VirtFS export path '%s' is mounted in the guest using mount_tag '%s'",
+                   s->ctx.fs_root ? s->ctx.fs_root : "NULL", s->tag);
         migrate_add_blocker(s->migration_blocker);
     }
 out:

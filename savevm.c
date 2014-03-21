@@ -453,7 +453,8 @@ bool qemu_savevm_state_blocked(Error **errp)
 
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (se->no_migrate) {
-            error_set(errp, QERR_MIGRATION_NOT_SUPPORTED, se->idstr);
+            error_setg(errp, "State blocked by non-migratable device '%s'",
+                       se->idstr);
             return true;
         }
     }

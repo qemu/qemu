@@ -422,12 +422,14 @@ static BusState *qbus_find(const char *path)
              * one child bus accept it nevertheless */
             switch (dev->num_child_bus) {
             case 0:
-                qerror_report(QERR_DEVICE_NO_BUS, elem);
+                qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                              "Device '%s' has no child bus", elem);
                 return NULL;
             case 1:
                 return QLIST_FIRST(&dev->child_bus);
             default:
-                qerror_report(QERR_DEVICE_MULTIPLE_BUSSES, elem);
+                qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                              "Device '%s' has multiple child busses", elem);
                 if (!monitor_cur_is_qmp()) {
                     qbus_list_bus(dev);
                 }
@@ -505,14 +507,16 @@ DeviceState *qdev_device_add(QemuOpts *opts)
             return NULL;
         }
         if (!object_dynamic_cast(OBJECT(bus), dc->bus_type)) {
-            qerror_report(QERR_BAD_BUS_FOR_DEVICE,
+            qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                          "Device '%s' can't go on a %s bus",
                           driver, object_get_typename(OBJECT(bus)));
             return NULL;
         }
     } else if (dc->bus_type != NULL) {
         bus = qbus_find_recursive(sysbus_get_default(), NULL, dc->bus_type);
         if (!bus) {
-            qerror_report(QERR_NO_BUS_FOR_DEVICE,
+            qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                          "No '%s' bus found for device '%s'",
                           dc->bus_type, driver);
             return NULL;
         }

@@ -71,7 +71,7 @@ static void qmp_input_push(QmpInputVisitor *qiv, QObject *obj, Error **errp)
     GHashTable *h;
 
     if (qiv->nb_stack >= QIV_STACK_SIZE) {
-        error_set(errp, QERR_BUFFER_OVERRUN);
+        error_setg(errp, "An internal buffer overran");
         return;
     }
 
