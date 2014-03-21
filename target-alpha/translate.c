@@ -376,11 +376,7 @@ static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
     addr = tcg_temp_local_new();
 #endif
 
-    if (rb != 31) {
-        tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
-    } else {
-        tcg_gen_movi_i64(addr, disp16);
-    }
+    tcg_gen_addi_i64(addr, load_gpr(ctx, rb), disp16);
 
 #if defined(CONFIG_USER_ONLY)
     /* ??? This is handled via a complicated version of compare-and-swap
