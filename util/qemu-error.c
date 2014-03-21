@@ -165,7 +165,7 @@ const char *error_get_progname(void)
 /*
  * Print current location to current monitor if we have one, else to stderr.
  */
-void error_print_loc(void)
+static void error_print_loc(void)
 {
     const char *sep = "";
     int i;
