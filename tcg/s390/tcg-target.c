@@ -238,6 +238,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
    call-saved registers.  Likewise prefer the call-clobbered registers
    in reverse order to maximize the chance of avoiding the arguments.  */
 static const int tcg_target_reg_alloc_order[] = {
+    /* Call saved registers.  */
     TCG_REG_R13,
     TCG_REG_R12,
     TCG_REG_R11,
@@ -246,9 +247,11 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R8,
     TCG_REG_R7,
     TCG_REG_R6,
+    /* Call clobbered registers.  */
     TCG_REG_R14,
     TCG_REG_R0,
     TCG_REG_R1,
+    /* Argument registers, in reverse order of allocation.  */
     TCG_REG_R5,
     TCG_REG_R4,
     TCG_REG_R3,
@@ -308,22 +311,29 @@ static const uint8_t tcg_cond_to_ltr_cond[] = {
 };
 
 #ifdef CONFIG_SOFTMMU
-/* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
-   int mmu_idx) */
-static void * const qemu_ld_helpers[4] = {
-    helper_ldb_mmu,
-    helper_ldw_mmu,
-    helper_ldl_mmu,
-    helper_ldq_mmu,
+static void * const qemu_ld_helpers[16] = {
+    [MO_UB]   = helper_ret_ldub_mmu,
+    [MO_SB]   = helper_ret_ldsb_mmu,
+    [MO_LEUW] = helper_le_lduw_mmu,
+    [MO_LESW] = helper_le_ldsw_mmu,
+    [MO_LEUL] = helper_le_ldul_mmu,
+    [MO_LESL] = helper_le_ldsl_mmu,
+    [MO_LEQ]  = helper_le_ldq_mmu,
+    [MO_BEUW] = helper_be_lduw_mmu,
+    [MO_BESW] = helper_be_ldsw_mmu,
+    [MO_BEUL] = helper_be_ldul_mmu,
+    [MO_BESL] = helper_be_ldsl_mmu,
+    [MO_BEQ]  = helper_be_ldq_mmu,
 };
 
-/* helper signature: helper_st_mmu(CPUState *env, target_ulong addr,
-   uintxx_t val, int mmu_idx) */
-static void * const qemu_st_helpers[4] = {
-    helper_stb_mmu,
-    helper_stw_mmu,
-    helper_stl_mmu,
-    helper_stq_mmu,
+static void * const qemu_st_helpers[16] = {
+    [MO_UB]   = helper_ret_stb_mmu,
+    [MO_LEUW] = helper_le_stw_mmu,
+    [MO_LEUL] = helper_le_stl_mmu,
+    [MO_LEQ]  = helper_le_stq_mmu,
+    [MO_BEUW] = helper_be_stw_mmu,
+    [MO_BEUL] = helper_be_stl_mmu,
+    [MO_BEQ]  = helper_be_stq_mmu,
 };
 #endif
 
@@ -1384,6 +1394,7 @@ static TCGReg tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
     const TCGReg arg1 = tcg_target_call_iarg_regs[1];
     const TCGReg arg2 = tcg_target_call_iarg_regs[2];
     const TCGReg arg3 = tcg_target_call_iarg_regs[3];
+    const TCGReg arg4 = tcg_target_call_iarg_regs[4];
     TCGMemOp s_bits = opc & MO_SIZE;
     tcg_insn_unit *label1_ptr;
     tcg_target_long ofs;
@@ -1445,29 +1456,15 @@ static TCGReg tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
             tcg_abort();
         }
         tcg_out_movi(s, TCG_TYPE_I32, arg3, mem_index);
-        tcg_out_mov(s, TCG_TYPE_I64, arg0, TCG_AREG0);
-        tcg_out_call(s, qemu_st_helpers[s_bits]);
+        tcg_out_mov(s, TCG_TYPE_PTR, arg0, TCG_AREG0);
+        tcg_out_movi(s, TCG_TYPE_PTR, arg4, (uintptr_t)s->code_ptr);
+        tcg_out_call(s, qemu_st_helpers[opc]);
     } else {
         tcg_out_movi(s, TCG_TYPE_I32, arg2, mem_index);
-        tcg_out_mov(s, TCG_TYPE_I64, arg0, TCG_AREG0);
-        tcg_out_call(s, qemu_ld_helpers[s_bits]);
-
-        /* sign extension */
-        switch (opc & MO_SSIZE) {
-        case MO_SB:
-            tgen_ext8s(s, TCG_TYPE_I64, data_reg, TCG_REG_R2);
-            break;
-        case MO_SW:
-            tgen_ext16s(s, TCG_TYPE_I64, data_reg, TCG_REG_R2);
-            break;
-        case MO_SL:
-            tgen_ext32s(s, data_reg, TCG_REG_R2);
-            break;
-        default:
-            /* unsigned -> just copy */
-            tcg_out_mov(s, TCG_TYPE_I64, data_reg, TCG_REG_R2);
-            break;
-        }
+        tcg_out_mov(s, TCG_TYPE_PTR, arg0, TCG_AREG0);
+        tcg_out_movi(s, TCG_TYPE_PTR, arg3, (uintptr_t)s->code_ptr);
+        tcg_out_call(s, qemu_ld_helpers[opc]);
+        tcg_out_mov(s, TCG_TYPE_I64, data_reg, TCG_REG_R2);
     }
 
     /* jump to label2 (end) */
@@ -1511,59 +1508,39 @@ static void tcg_prepare_user_ldst(TCGContext *s, TCGReg *addr_reg,
 
 /* load data with address translation (if applicable)
    and endianness conversion */
-static void tcg_out_qemu_ld(TCGContext* s, const TCGArg* args, TCGMemOp opc)
+static void tcg_out_qemu_ld(TCGContext* s, TCGReg data_reg, TCGReg addr_reg,
+                            TCGMemOp opc, int mem_index)
 {
-    TCGReg addr_reg, data_reg;
 #if defined(CONFIG_SOFTMMU)
-    int mem_index;
     tcg_insn_unit *label2_ptr;
-#else
-    TCGReg index_reg;
-    tcg_target_long disp;
-#endif
-
-    data_reg = *args++;
-    addr_reg = *args++;
-
-#if defined(CONFIG_SOFTMMU)
-    mem_index = *args;
 
     addr_reg = tcg_prepare_qemu_ldst(s, data_reg, addr_reg, mem_index,
                                      opc, &label2_ptr, 0);
-
     tcg_out_qemu_ld_direct(s, opc, data_reg, addr_reg, TCG_REG_NONE, 0);
-
     tcg_finish_qemu_ldst(s, label2_ptr);
 #else
+    TCGReg index_reg;
+    tcg_target_long disp;
+
     tcg_prepare_user_ldst(s, &addr_reg, &index_reg, &disp);
     tcg_out_qemu_ld_direct(s, opc, data_reg, addr_reg, index_reg, disp);
 #endif
 }
 
-static void tcg_out_qemu_st(TCGContext* s, const TCGArg* args, TCGMemOp opc)
+static void tcg_out_qemu_st(TCGContext* s, TCGReg data_reg, TCGReg addr_reg,
+                            TCGMemOp opc, int mem_index)
 {
-    TCGReg addr_reg, data_reg;
 #if defined(CONFIG_SOFTMMU)
-    int mem_index;
     tcg_insn_unit *label2_ptr;
-#else
-    TCGReg index_reg;
-    tcg_target_long disp;
-#endif
-
-    data_reg = *args++;
-    addr_reg = *args++;
-
-#if defined(CONFIG_SOFTMMU)
-    mem_index = *args;
 
     addr_reg = tcg_prepare_qemu_ldst(s, data_reg, addr_reg, mem_index,
                                      opc, &label2_ptr, 1);
-
     tcg_out_qemu_st_direct(s, opc, data_reg, addr_reg, TCG_REG_NONE, 0);
-
     tcg_finish_qemu_ldst(s, label2_ptr);
 #else
+    TCGReg index_reg;
+    tcg_target_long disp;
+
     tcg_prepare_user_ldst(s, &addr_reg, &index_reg, &disp);
     tcg_out_qemu_st_direct(s, opc, data_reg, addr_reg, index_reg, disp);
 #endif
@@ -1797,37 +1774,14 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                      args[2], const_args[2], args[3]);
         break;
 
-    case INDEX_op_qemu_ld8u:
-        tcg_out_qemu_ld(s, args, MO_UB);
-        break;
-    case INDEX_op_qemu_ld8s:
-        tcg_out_qemu_ld(s, args, MO_SB);
-        break;
-    case INDEX_op_qemu_ld16u:
-        tcg_out_qemu_ld(s, args, MO_TEUW);
-        break;
-    case INDEX_op_qemu_ld16s:
-        tcg_out_qemu_ld(s, args, MO_TESW);
-        break;
-    case INDEX_op_qemu_ld32:
+    case INDEX_op_qemu_ld_i32:
         /* ??? Technically we can use a non-extending instruction.  */
-        tcg_out_qemu_ld(s, args, MO_TEUL);
+    case INDEX_op_qemu_ld_i64:
+        tcg_out_qemu_ld(s, args[0], args[1], args[2], args[3]);
         break;
-    case INDEX_op_qemu_ld64:
-        tcg_out_qemu_ld(s, args, MO_TEQ);
-        break;
-
-    case INDEX_op_qemu_st8:
-        tcg_out_qemu_st(s, args, MO_UB);
-        break;
-    case INDEX_op_qemu_st16:
-        tcg_out_qemu_st(s, args, MO_TEUW);
-        break;
-    case INDEX_op_qemu_st32:
-        tcg_out_qemu_st(s, args, MO_TEUL);
-        break;
-    case INDEX_op_qemu_st64:
-        tcg_out_qemu_st(s, args, MO_TEQ);
+    case INDEX_op_qemu_st_i32:
+    case INDEX_op_qemu_st_i64:
+        tcg_out_qemu_st(s, args[0], args[1], args[2], args[3]);
         break;
 
     case INDEX_op_ld16s_i64:
@@ -2023,13 +1977,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                      args[2], const_args[2], args[3]);
         break;
 
-    case INDEX_op_qemu_ld32u:
-        tcg_out_qemu_ld(s, args, MO_TEUL);
-        break;
-    case INDEX_op_qemu_ld32s:
-        tcg_out_qemu_ld(s, args, MO_TESL);
-        break;
-
     OP_32_64(deposit):
         tgen_deposit(s, args[0], args[2], args[3], args[4]);
         break;
@@ -2094,17 +2041,10 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_movcond_i32, { "r", "r", "rC", "r", "0" } },
     { INDEX_op_deposit_i32, { "r", "0", "r" } },
 
-    { INDEX_op_qemu_ld8u, { "r", "L" } },
-    { INDEX_op_qemu_ld8s, { "r", "L" } },
-    { INDEX_op_qemu_ld16u, { "r", "L" } },
-    { INDEX_op_qemu_ld16s, { "r", "L" } },
-    { INDEX_op_qemu_ld32, { "r", "L" } },
-    { INDEX_op_qemu_ld64, { "r", "L" } },
-
-    { INDEX_op_qemu_st8, { "L", "L" } },
-    { INDEX_op_qemu_st16, { "L", "L" } },
-    { INDEX_op_qemu_st32, { "L", "L" } },
-    { INDEX_op_qemu_st64, { "L", "L" } },
+    { INDEX_op_qemu_ld_i32, { "r", "L" } },
+    { INDEX_op_qemu_ld_i64, { "r", "L" } },
+    { INDEX_op_qemu_st_i32, { "L", "L" } },
+    { INDEX_op_qemu_st_i64, { "L", "L" } },
 
     { INDEX_op_ld8u_i64, { "r", "r" } },
     { INDEX_op_ld8s_i64, { "r", "r" } },
@@ -2159,9 +2099,6 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_movcond_i64, { "r", "r", "rC", "r", "0" } },
     { INDEX_op_deposit_i64, { "r", "0", "r" } },
 
-    { INDEX_op_qemu_ld32u, { "r", "L" } },
-    { INDEX_op_qemu_ld32s, { "r", "L" } },
-
     { -1 },
 };
 
@@ -2196,6 +2133,9 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R3);
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R4);
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R5);
+    /* The r6 register is technically call-saved, but it's also a parameter
+       register, so it can get killed by setup for the qemu_st helper.  */
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R6);
     /* The return register can be considered call-clobbered.  */
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R14);
 
