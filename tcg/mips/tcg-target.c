@@ -222,6 +222,8 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type,
 
 /* instruction opcodes */
 enum {
+    OPC_J        = 0x02 << 26,
+    OPC_JAL      = 0x03 << 26,
     OPC_BEQ      = 0x04 << 26,
     OPC_BNE      = 0x05 << 26,
     OPC_BLEZ     = 0x06 << 26,
@@ -343,6 +345,29 @@ static inline void tcg_out_opc_sa(TCGContext *s, int opc,
     inst |= (sa & 0x1F) <<  6;
     tcg_out32(s, inst);
 
+}
+
+/*
+ * Type jump.
+ * Returns true if the branch was in range and the insn was emitted.
+ */
+static bool tcg_out_opc_jmp(TCGContext *s, int opc, void *target)
+{
+    uintptr_t dest = (uintptr_t)target;
+    uintptr_t from = (uintptr_t)s->code_ptr + 4;
+    int32_t inst;
+
+    /* The pc-region branch happens within the 256MB region of
+       the delay slot (thus the +4).  */
+    if ((from ^ dest) & -(1 << 28)) {
+        return false;
+    }
+    assert((dest & 3) == 0);
+
+    inst = opc;
+    inst |= (dest >> 2) & 0x3ffffff;
+    tcg_out32(s, inst);
+    return true;
 }
 
 static inline void tcg_out_nop(TCGContext *s)
@@ -1247,10 +1272,17 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 #endif
 }
 
-static void tcg_out_call(TCGContext *s, tcg_insn_unit *target)
+static void tcg_out_call(TCGContext *s, tcg_insn_unit *arg)
 {
-    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T9, (intptr_t)target);
-    tcg_out_opc_reg(s, OPC_JALR, TCG_REG_RA, TCG_REG_T9, 0);
+    /* Note that the ABI requires the called function's address to be
+       loaded into T9, even if a direct branch is in range.  */
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T9, (uintptr_t)arg);
+
+    /* But do try a direct branch, allowing the cpu better insn prefetch.  */
+    if (!tcg_out_opc_jmp(s, OPC_JAL, arg)) {
+        tcg_out_opc_reg(s, OPC_JALR, TCG_REG_RA, TCG_REG_T9, 0);
+    }
+
     tcg_out_nop(s);
 }
 
@@ -1259,9 +1291,11 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 {
     switch(opc) {
     case INDEX_op_exit_tb:
-        tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_V0, args[0]);
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_AT, (uintptr_t)tb_ret_addr);
-        tcg_out_opc_reg(s, OPC_JR, 0, TCG_REG_AT, 0);
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_V0, args[0]);
+        if (!tcg_out_opc_jmp(s, OPC_J, tb_ret_addr)) {
+            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_AT, (uintptr_t)tb_ret_addr);
+            tcg_out_opc_reg(s, OPC_JR, 0, TCG_REG_AT, 0);
+        }
         tcg_out_nop(s);
         break;
     case INDEX_op_goto_tb:
