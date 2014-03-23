@@ -328,7 +328,6 @@ static void grlib_gptimer_reset(DeviceState *d)
 
     unit->scaler = 0;
     unit->reload = 0;
-    unit->config = 0;
 
     unit->config  = unit->nr_timers;
     unit->config |= unit->irq_line << 3;
