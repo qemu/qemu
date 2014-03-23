@@ -480,16 +480,18 @@ static inline void tcg_out_ext16s(TCGContext *s, TCGReg ret, TCGReg arg)
     }
 }
 
-static inline void tcg_out_ldst(TCGContext *s, int opc, TCGArg arg,
-                                TCGReg arg1, TCGArg arg2)
+static void tcg_out_ldst(TCGContext *s, int opc, TCGReg data,
+                         TCGReg addr, intptr_t ofs)
 {
-    if (arg2 == (int16_t) arg2) {
-        tcg_out_opc_imm(s, opc, arg, arg1, arg2);
-    } else {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_AT, arg2);
-        tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_AT, TCG_REG_AT, arg1);
-        tcg_out_opc_imm(s, opc, arg, TCG_REG_AT, 0);
+    int16_t lo = ofs;
+    if (ofs != lo) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_AT, ofs - lo);
+        if (addr != TCG_REG_ZERO) {
+            tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_AT, TCG_REG_AT, addr);
+        }
+        addr = TCG_REG_AT;
     }
+    tcg_out_opc_imm(s, opc, data, addr, lo);
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
@@ -1315,9 +1317,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_abort();
         } else {
             /* indirect jump method */
-            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_AT,
-                         (uintptr_t)(s->tb_next + args[0]));
-            tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_AT, TCG_REG_AT, 0);
+            tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_AT, TCG_REG_ZERO,
+                       (uintptr_t)(s->tb_next + args[0]));
             tcg_out_opc_reg(s, OPC_JR, 0, TCG_REG_AT, 0);
         }
         tcg_out_nop(s);
