@@ -392,8 +392,10 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
     } else if (arg == (uint16_t)arg) {
         tcg_out_opc_imm(s, OPC_ORI, reg, TCG_REG_ZERO, arg);
     } else {
-        tcg_out_opc_imm(s, OPC_LUI, reg, 0, arg >> 16);
-        tcg_out_opc_imm(s, OPC_ORI, reg, reg, arg & 0xffff);
+        tcg_out_opc_imm(s, OPC_LUI, reg, TCG_REG_ZERO, arg >> 16);
+        if (arg & 0xffff) {
+            tcg_out_opc_imm(s, OPC_ORI, reg, reg, arg & 0xffff);
+        }
     }
 }
 
@@ -1291,12 +1293,21 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 {
     switch(opc) {
     case INDEX_op_exit_tb:
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_V0, args[0]);
-        if (!tcg_out_opc_jmp(s, OPC_J, tb_ret_addr)) {
-            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_AT, (uintptr_t)tb_ret_addr);
-            tcg_out_opc_reg(s, OPC_JR, 0, TCG_REG_AT, 0);
+        {
+            uintptr_t a0 = args[0];
+            TCGReg b0 = TCG_REG_ZERO;
+
+            if (a0 & ~0xffff) {
+                tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_V0, a0 & ~0xffff);
+                b0 = TCG_REG_V0;
+            }
+            if (!tcg_out_opc_jmp(s, OPC_J, tb_ret_addr)) {
+                tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_AT,
+                             (uintptr_t)tb_ret_addr);
+                tcg_out_opc_reg(s, OPC_JR, 0, TCG_REG_AT, 0);
+            }
+            tcg_out_opc_imm(s, OPC_ORI, TCG_REG_V0, b0, a0 & 0xffff);
         }
-        tcg_out_nop(s);
         break;
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
