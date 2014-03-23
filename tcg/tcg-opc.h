@@ -40,7 +40,7 @@ DEF(discard, 1, 0, 0, TCG_OPF_NOT_PRESENT)
 DEF(set_label, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_NOT_PRESENT)
 
 /* variable number of parameters */
-DEF(call, 0, 1, 2, TCG_OPF_CALL_CLOBBER)
+DEF(call, 0, 0, 3, TCG_OPF_CALL_CLOBBER)
 
 DEF(br, 0, 0, 1, TCG_OPF_BB_END)
 

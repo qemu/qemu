@@ -725,7 +725,7 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs);
 #define tcg_temp_free_ptr(T) tcg_temp_free_i64(TCGV_PTR_TO_NAT(T))
 #endif
 
-void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
+void tcg_gen_callN(TCGContext *s, void *func, unsigned int flags,
                    int sizemask, TCGArg ret, int nargs, TCGArg *args);
 
 void tcg_gen_shifti_i64(TCGv_i64 ret, TCGv_i64 arg1,

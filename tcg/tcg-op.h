@@ -390,11 +390,7 @@ static inline int tcg_gen_sizemask(int n, int is_64bit, int is_signed)
 static inline void tcg_gen_helperN(void *func, int flags, int sizemask,
                                    TCGArg ret, int nargs, TCGArg *args)
 {
-    TCGv_ptr fn;
-    fn = tcg_const_ptr(func);
-    tcg_gen_callN(&tcg_ctx, fn, flags, sizemask, ret,
-                  nargs, args);
-    tcg_temp_free_ptr(fn);
+    tcg_gen_callN(&tcg_ctx, func, flags, sizemask, ret, nargs, args);
 }
 
 /* Note: Both tcg_gen_helper32() and tcg_gen_helper64() are currently
@@ -405,29 +401,23 @@ static inline void tcg_gen_helperN(void *func, int flags, int sizemask,
 static inline void tcg_gen_helper32(void *func, int sizemask, TCGv_i32 ret,
                                     TCGv_i32 a, TCGv_i32 b)
 {
-    TCGv_ptr fn;
     TCGArg args[2];
-    fn = tcg_const_ptr(func);
     args[0] = GET_TCGV_I32(a);
     args[1] = GET_TCGV_I32(b);
-    tcg_gen_callN(&tcg_ctx, fn,
+    tcg_gen_callN(&tcg_ctx, func,
                   TCG_CALL_NO_READ_GLOBALS | TCG_CALL_NO_SIDE_EFFECTS,
                   sizemask, GET_TCGV_I32(ret), 2, args);
-    tcg_temp_free_ptr(fn);
 }
 
 static inline void tcg_gen_helper64(void *func, int sizemask, TCGv_i64 ret,
                                     TCGv_i64 a, TCGv_i64 b)
 {
-    TCGv_ptr fn;
     TCGArg args[2];
-    fn = tcg_const_ptr(func);
     args[0] = GET_TCGV_I64(a);
     args[1] = GET_TCGV_I64(b);
-    tcg_gen_callN(&tcg_ctx, fn,
+    tcg_gen_callN(&tcg_ctx, func,
                   TCG_CALL_NO_READ_GLOBALS | TCG_CALL_NO_SIDE_EFFECTS,
                   sizemask, GET_TCGV_I64(ret), 2, args);
-    tcg_temp_free_ptr(fn);
 }
 
 /* 32 bit ops */
