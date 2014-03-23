@@ -1273,11 +1273,6 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *dest)
 static void tcg_out_qemu_ld_direct(TCGContext *s, TCGMemOp opc, TCGReg data,
                                    TCGReg base, TCGReg index, int disp)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
-    const int bswap = 0;
-#else
-    const int bswap = 1;
-#endif
     switch (opc) {
     case MO_UB:
         tcg_out_insn(s, RXY, LLGC, data, base, index, disp);
@@ -1285,49 +1280,50 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGMemOp opc, TCGReg data,
     case MO_SB:
         tcg_out_insn(s, RXY, LGB, data, base, index, disp);
         break;
+
+    case MO_UW | MO_BSWAP:
+        /* swapped unsigned halfword load with upper bits zeroed */
+        tcg_out_insn(s, RXY, LRVH, data, base, index, disp);
+        tgen_ext16u(s, TCG_TYPE_I64, data, data);
+        break;
     case MO_UW:
-        if (bswap) {
-            /* swapped unsigned halfword load with upper bits zeroed */
-            tcg_out_insn(s, RXY, LRVH, data, base, index, disp);
-            tgen_ext16u(s, TCG_TYPE_I64, data, data);
-        } else {
-            tcg_out_insn(s, RXY, LLGH, data, base, index, disp);
-        }
+        tcg_out_insn(s, RXY, LLGH, data, base, index, disp);
+        break;
+
+    case MO_SW | MO_BSWAP:
+        /* swapped sign-extended halfword load */
+        tcg_out_insn(s, RXY, LRVH, data, base, index, disp);
+        tgen_ext16s(s, TCG_TYPE_I64, data, data);
         break;
     case MO_SW:
-        if (bswap) {
-            /* swapped sign-extended halfword load */
-            tcg_out_insn(s, RXY, LRVH, data, base, index, disp);
-            tgen_ext16s(s, TCG_TYPE_I64, data, data);
-        } else {
-            tcg_out_insn(s, RXY, LGH, data, base, index, disp);
-        }
+        tcg_out_insn(s, RXY, LGH, data, base, index, disp);
+        break;
+
+    case MO_UL | MO_BSWAP:
+        /* swapped unsigned int load with upper bits zeroed */
+        tcg_out_insn(s, RXY, LRV, data, base, index, disp);
+        tgen_ext32u(s, data, data);
         break;
     case MO_UL:
-        if (bswap) {
-            /* swapped unsigned int load with upper bits zeroed */
-            tcg_out_insn(s, RXY, LRV, data, base, index, disp);
-            tgen_ext32u(s, data, data);
-        } else {
-            tcg_out_insn(s, RXY, LLGF, data, base, index, disp);
-        }
+        tcg_out_insn(s, RXY, LLGF, data, base, index, disp);
+        break;
+
+    case MO_SL | MO_BSWAP:
+        /* swapped sign-extended int load */
+        tcg_out_insn(s, RXY, LRV, data, base, index, disp);
+        tgen_ext32s(s, data, data);
         break;
     case MO_SL:
-        if (bswap) {
-            /* swapped sign-extended int load */
-            tcg_out_insn(s, RXY, LRV, data, base, index, disp);
-            tgen_ext32s(s, data, data);
-        } else {
-            tcg_out_insn(s, RXY, LGF, data, base, index, disp);
-        }
+        tcg_out_insn(s, RXY, LGF, data, base, index, disp);
+        break;
+
+    case MO_Q | MO_BSWAP:
+        tcg_out_insn(s, RXY, LRVG, data, base, index, disp);
         break;
     case MO_Q:
-        if (bswap) {
-            tcg_out_insn(s, RXY, LRVG, data, base, index, disp);
-        } else {
-            tcg_out_insn(s, RXY, LG, data, base, index, disp);
-        }
+        tcg_out_insn(s, RXY, LG, data, base, index, disp);
         break;
+
     default:
         tcg_abort();
     }
@@ -1336,11 +1332,6 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGMemOp opc, TCGReg data,
 static void tcg_out_qemu_st_direct(TCGContext *s, TCGMemOp opc, TCGReg data,
                                    TCGReg base, TCGReg index, int disp)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
-    const int bswap = 0;
-#else
-    const int bswap = 1;
-#endif
     switch (opc) {
     case MO_UB:
         if (disp >= 0 && disp < 0x1000) {
@@ -1349,31 +1340,36 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGMemOp opc, TCGReg data,
             tcg_out_insn(s, RXY, STCY, data, base, index, disp);
         }
         break;
+
+    case MO_UW | MO_BSWAP:
+        tcg_out_insn(s, RXY, STRVH, data, base, index, disp);
+        break;
     case MO_UW:
-        if (bswap) {
-            tcg_out_insn(s, RXY, STRVH, data, base, index, disp);
-        } else if (disp >= 0 && disp < 0x1000) {
+        if (disp >= 0 && disp < 0x1000) {
             tcg_out_insn(s, RX, STH, data, base, index, disp);
         } else {
             tcg_out_insn(s, RXY, STHY, data, base, index, disp);
         }
         break;
+
+    case MO_UL | MO_BSWAP:
+        tcg_out_insn(s, RXY, STRV, data, base, index, disp);
+        break;
     case MO_UL:
-        if (bswap) {
-            tcg_out_insn(s, RXY, STRV, data, base, index, disp);
-        } else if (disp >= 0 && disp < 0x1000) {
+        if (disp >= 0 && disp < 0x1000) {
             tcg_out_insn(s, RX, ST, data, base, index, disp);
         } else {
             tcg_out_insn(s, RXY, STY, data, base, index, disp);
         }
         break;
-    case MO_Q:
-        if (bswap) {
-            tcg_out_insn(s, RXY, STRVG, data, base, index, disp);
-        } else {
-            tcg_out_insn(s, RXY, STG, data, base, index, disp);
-        }
+
+    case MO_Q | MO_BSWAP:
+        tcg_out_insn(s, RXY, STRVG, data, base, index, disp);
         break;
+    case MO_Q:
+        tcg_out_insn(s, RXY, STG, data, base, index, disp);
+        break;
+
     default:
         tcg_abort();
     }
@@ -1457,7 +1453,7 @@ static TCGReg tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
         tcg_out_call(s, qemu_ld_helpers[s_bits]);
 
         /* sign extension */
-        switch (opc) {
+        switch (opc & MO_SSIZE) {
         case MO_SB:
             tgen_ext8s(s, TCG_TYPE_I64, data_reg, TCG_REG_R2);
             break;
@@ -1808,30 +1804,30 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_qemu_ld(s, args, MO_SB);
         break;
     case INDEX_op_qemu_ld16u:
-        tcg_out_qemu_ld(s, args, MO_UW);
+        tcg_out_qemu_ld(s, args, MO_TEUW);
         break;
     case INDEX_op_qemu_ld16s:
-        tcg_out_qemu_ld(s, args, MO_SW);
+        tcg_out_qemu_ld(s, args, MO_TESW);
         break;
     case INDEX_op_qemu_ld32:
         /* ??? Technically we can use a non-extending instruction.  */
-        tcg_out_qemu_ld(s, args, MO_UL);
+        tcg_out_qemu_ld(s, args, MO_TEUL);
         break;
     case INDEX_op_qemu_ld64:
-        tcg_out_qemu_ld(s, args, MO_Q);
+        tcg_out_qemu_ld(s, args, MO_TEQ);
         break;
 
     case INDEX_op_qemu_st8:
         tcg_out_qemu_st(s, args, MO_UB);
         break;
     case INDEX_op_qemu_st16:
-        tcg_out_qemu_st(s, args, MO_UW);
+        tcg_out_qemu_st(s, args, MO_TEUW);
         break;
     case INDEX_op_qemu_st32:
-        tcg_out_qemu_st(s, args, MO_UL);
+        tcg_out_qemu_st(s, args, MO_TEUL);
         break;
     case INDEX_op_qemu_st64:
-        tcg_out_qemu_st(s, args, MO_Q);
+        tcg_out_qemu_st(s, args, MO_TEQ);
         break;
 
     case INDEX_op_ld16s_i64:
@@ -2028,10 +2024,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_qemu_ld32u:
-        tcg_out_qemu_ld(s, args, MO_UL);
+        tcg_out_qemu_ld(s, args, MO_TEUL);
         break;
     case INDEX_op_qemu_ld32s:
-        tcg_out_qemu_ld(s, args, MO_SL);
+        tcg_out_qemu_ld(s, args, MO_TESL);
         break;
 
     OP_32_64(deposit):
