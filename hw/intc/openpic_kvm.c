@@ -200,7 +200,7 @@ static void kvm_openpic_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_in(dev, kvm_openpic_set_irq, OPENPIC_MAX_IRQ);
 
     opp->mem_listener.region_add = kvm_openpic_region_add;
-    opp->mem_listener.region_add = kvm_openpic_region_del;
+    opp->mem_listener.region_del = kvm_openpic_region_del;
     memory_listener_register(&opp->mem_listener, &address_space_memory);
 
     /* indicate pic capabilities */
