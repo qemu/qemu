@@ -933,6 +933,20 @@ static inline bool risbg_mask(uint64_t c)
     return c == -lsb;
 }
 
+static void tgen_andi_risbg(TCGContext *s, TCGReg out, TCGReg in, uint64_t val)
+{
+    int msb, lsb;
+    if ((val & 0x8000000000000001ull) == 0x8000000000000001ull) {
+        /* Achieve wraparound by swapping msb and lsb.  */
+        msb = 64 - ctz64(~val);
+        lsb = clz64(~val) - 1;
+    } else {
+        msb = clz64(val);
+        lsb = 63 - ctz64(val);
+    }
+    tcg_out_risbg(s, out, in, msb, lsb, 0, 1);
+}
+
 static void tgen_andi(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
 {
     static const S390Opcode ni_insns[4] = {
@@ -980,16 +994,7 @@ static void tgen_andi(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
         }
     }
     if ((facilities & FACILITY_GEN_INST_EXT) && risbg_mask(val)) {
-        int msb, lsb;
-        if ((val & 0x8000000000000001ull) == 0x8000000000000001ull) {
-            /* Achieve wraparound by swapping msb and lsb.  */
-            msb = 64 - ctz64(~val);
-            lsb = clz64(~val) - 1;
-        } else {
-            msb = clz64(val);
-            lsb = 63 - ctz64(val);
-        }
-        tcg_out_risbg(s, dest, dest, msb, lsb, 0, 1);
+        tgen_andi_risbg(s, dest, dest, val);
         return;
     }
 
@@ -1398,21 +1403,23 @@ static TCGReg tcg_out_tlb_read(TCGContext* s, TCGReg addr_reg, TCGMemOp opc,
                                int mem_index, bool is_ld)
 {
     TCGMemOp s_bits = opc & MO_SIZE;
+    uint64_t tlb_mask = TARGET_PAGE_MASK | ((1 << s_bits) - 1);
     int ofs;
 
-    tcg_out_sh64(s, RSY_SRLG, TCG_REG_R2, addr_reg, TCG_REG_NONE,
-                 TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
-
-    if (TARGET_LONG_BITS == 32) {
-        tgen_ext32u(s, TCG_REG_R3, addr_reg);
+    if (facilities & FACILITY_GEN_INST_EXT) {
+        tcg_out_risbg(s, TCG_REG_R2, addr_reg,
+                      64 - CPU_TLB_BITS - CPU_TLB_ENTRY_BITS,
+                      63 - CPU_TLB_ENTRY_BITS,
+                      64 + CPU_TLB_ENTRY_BITS - TARGET_PAGE_BITS, 1);
+        tgen_andi_risbg(s, TCG_REG_R3, addr_reg, tlb_mask);
     } else {
-        tcg_out_mov(s, TCG_TYPE_I64, TCG_REG_R3, addr_reg);
+        tcg_out_sh64(s, RSY_SRLG, TCG_REG_R2, addr_reg, TCG_REG_NONE,
+                     TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
+        tcg_out_movi(s, TCG_TYPE_TL, TCG_REG_R3, addr_reg);
+        tgen_andi(s, TCG_TYPE_I64, TCG_REG_R2,
+                  (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
+        tgen_andi(s, TCG_TYPE_TL, TCG_REG_R3, tlb_mask);
     }
-
-    tgen_andi(s, TCG_TYPE_I64, TCG_REG_R2,
-              (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
-    tgen_andi(s, TCG_TYPE_I64, TCG_REG_R3,
-              TARGET_PAGE_MASK | ((1 << s_bits) - 1));
 
     if (is_ld) {
         ofs = offsetof(CPUArchState, tlb_table[mem_index][0].addr_read);
