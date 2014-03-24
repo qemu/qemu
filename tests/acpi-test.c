@@ -456,13 +456,12 @@ static bool load_asl(GArray *sdts, AcpiSdtTable *sdt)
     /* pass 'out' and 'out_err' in order to be redirected */
     ret = g_spawn_command_line_sync(command_line->str, &out, &out_err, NULL, &error);
     g_assert_no_error(error);
-
     if (ret) {
         ret = g_file_get_contents(sdt->asl_file, (gchar **)&sdt->asl,
                                   &sdt->asl_len, &error);
         g_assert(ret);
         g_assert_no_error(error);
-        g_assert(sdt->asl_len);
+        ret = (sdt->asl_len > 0);
     }
 
     g_free(out);
@@ -560,15 +559,20 @@ static void test_acpi_asl(test_data *data)
         g_assert(!err || exp_err);
 
         if (g_strcmp0(asl->str, exp_asl->str)) {
-            uint32_t signature = cpu_to_le32(exp_sdt->header.signature);
-            sdt->tmp_files_retain = true;
-            exp_sdt->tmp_files_retain = true;
-            fprintf(stderr,
-                    "acpi-test: Warning! %.4s mismatch. "
-                    "Actual [asl:%s, aml:%s], Expected [asl:%s, aml:%s].\n",
-                    (gchar *)&signature,
-                    sdt->asl_file, sdt->aml_file,
-                    exp_sdt->asl_file, exp_sdt->aml_file);
+            if (exp_err) {
+                fprintf(stderr,
+                        "Warning! iasl couldn't parse the expected aml\n");
+            } else {
+                uint32_t signature = cpu_to_le32(exp_sdt->header.signature);
+                sdt->tmp_files_retain = true;
+                exp_sdt->tmp_files_retain = true;
+                fprintf(stderr,
+                        "acpi-test: Warning! %.4s mismatch. "
+                        "Actual [asl:%s, aml:%s], Expected [asl:%s, aml:%s].\n",
+                        (gchar *)&signature,
+                        sdt->asl_file, sdt->aml_file,
+                        exp_sdt->asl_file, exp_sdt->aml_file);
+          }
         }
         g_string_free(asl, true);
         g_string_free(exp_asl, true);
