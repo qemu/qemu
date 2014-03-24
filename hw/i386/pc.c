@@ -53,6 +53,7 @@
 #include "qemu/bitmap.h"
 #include "qemu/config-file.h"
 #include "hw/acpi/acpi.h"
+#include "hw/acpi/cpu_hotplug.h"
 #include "hw/cpu/icc_bus.h"
 #include "hw/boards.h"
 #include "hw/pci/pci_host.h"
@@ -974,6 +975,13 @@ void pc_hot_add_cpu(const int64_t id, Error **errp)
         return;
     }
 
+    if (apic_id >= ACPI_CPU_HOTPLUG_ID_LIMIT) {
+        error_setg(errp, "Unable to add CPU: %" PRIi64
+                   ", resulting APIC ID (%" PRIi64 ") is too large",
+                   id, apic_id);
+        return;
+    }
+
     icc_bridge = DEVICE(object_resolve_path_type("icc-bridge",
                                                  TYPE_ICC_BRIDGE, NULL));
     pc_new_cpu(current_cpu_model, apic_id, icc_bridge, errp);
@@ -984,6 +992,7 @@ void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
     int i;
     X86CPU *cpu = NULL;
     Error *error = NULL;
+    unsigned long apic_id_limit;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -994,6 +1003,13 @@ void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
 #endif
     }
     current_cpu_model = cpu_model;
+
+    apic_id_limit = pc_apic_id_limit(max_cpus);
+    if (apic_id_limit > ACPI_CPU_HOTPLUG_ID_LIMIT) {
+        error_report("max_cpus is too large. APIC ID of last CPU is %lu",
+                     apic_id_limit - 1);
+        exit(1);
+    }
 
     for (i = 0; i < smp_cpus; i++) {
         cpu = pc_new_cpu(cpu_model, x86_cpu_apic_id_from_index(i),

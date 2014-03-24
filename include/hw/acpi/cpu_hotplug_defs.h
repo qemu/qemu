@@ -17,7 +17,15 @@
  * between C and ASL code.
  */
 #define ACPI_CPU_HOTPLUG_STATUS 4
+
+/* Limit for CPU arch IDs for CPU hotplug. All hotpluggable CPUs should
+ * have CPUClass.get_arch_id() < ACPI_CPU_HOTPLUG_ID_LIMIT.
+ */
+#define ACPI_CPU_HOTPLUG_ID_LIMIT 256
+
+/* 256 CPU IDs, 8 bits per entry: */
 #define ACPI_GPE_PROC_LEN 32
+
 #define ICH9_CPU_HOTPLUG_IO_BASE 0x0CD8
 #define PIIX4_CPU_HOTPLUG_IO_BASE 0xaf00
 

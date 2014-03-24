@@ -52,8 +52,6 @@ struct Acpi20GenericAddress {
 } QEMU_PACKED;
 typedef struct Acpi20GenericAddress Acpi20GenericAddress;
 
-#define ACPI_RSDP_SIGNATURE 0x2052545020445352LL // "RSD PTR "
-
 struct AcpiRsdpDescriptor {        /* Root System Descriptor Pointer */
     uint64_t signature;              /* ACPI signature, contains "RSD PTR " */
     uint8_t  checksum;               /* To make sum of struct == 0 */
@@ -92,7 +90,6 @@ typedef struct AcpiTableHeader AcpiTableHeader;
 /*
  * ACPI 1.0 Fixed ACPI Description Table (FADT)
  */
-#define ACPI_FACP_SIGNATURE 0x50434146 // FACP
 struct AcpiFadtDescriptorRev1
 {
     ACPI_TABLE_HEADER_DEF     /* ACPI common table header */
@@ -141,7 +138,6 @@ typedef struct AcpiFadtDescriptorRev1 AcpiFadtDescriptorRev1;
 /*
  * ACPI 1.0 Root System Description Table (RSDT)
  */
-#define ACPI_RSDT_SIGNATURE 0x54445352 // RSDT
 struct AcpiRsdtDescriptorRev1
 {
     ACPI_TABLE_HEADER_DEF       /* ACPI common table header */
@@ -153,7 +149,6 @@ typedef struct AcpiRsdtDescriptorRev1 AcpiRsdtDescriptorRev1;
 /*
  * ACPI 1.0 Firmware ACPI Control Structure (FACS)
  */
-#define ACPI_FACS_SIGNATURE 0x53434146 // FACS
 struct AcpiFacsDescriptorRev1
 {
     uint32_t signature;           /* ACPI Signature */
@@ -169,7 +164,6 @@ typedef struct AcpiFacsDescriptorRev1 AcpiFacsDescriptorRev1;
 /*
  * Differentiated System Description Table (DSDT)
  */
-#define ACPI_DSDT_SIGNATURE 0x54445344 // DSDT
 
 /*
  * MADT values and structures
@@ -182,7 +176,6 @@ typedef struct AcpiFacsDescriptorRev1 AcpiFacsDescriptorRev1;
 
 /* Master MADT */
 
-#define ACPI_APIC_SIGNATURE 0x43495041 // APIC
 struct AcpiMultipleApicTable
 {
     ACPI_TABLE_HEADER_DEF     /* ACPI common table header */
@@ -253,7 +246,6 @@ typedef struct AcpiMadtLocalNmi AcpiMadtLocalNmi;
 /*
  * HPET Description Table
  */
-#define ACPI_HPET_SIGNATURE 0x54455048 // HPET
 struct Acpi20Hpet {
     ACPI_TABLE_HEADER_DEF                    /* ACPI common table header */
     uint32_t           timer_block_id;
@@ -268,7 +260,6 @@ typedef struct Acpi20Hpet Acpi20Hpet;
  * SRAT (NUMA topology description) table
  */
 
-#define ACPI_SRAT_SIGNATURE 0x54415253 // SRAT
 struct AcpiSystemResourceAffinityTable
 {
     ACPI_TABLE_HEADER_DEF
@@ -315,11 +306,6 @@ struct AcpiMcfgAllocation {
     uint32_t reserved;
 } QEMU_PACKED;
 typedef struct AcpiMcfgAllocation AcpiMcfgAllocation;
-
-#define ACPI_MCFG_SIGNATURE 0x4746434d       // MCFG
-
-/* Reserved signature: ignored by OSPM */
-#define ACPI_RSRV_SIGNATURE 0x554d4551       // QEMU
 
 struct AcpiTableMcfg {
     ACPI_TABLE_HEADER_DEF;
