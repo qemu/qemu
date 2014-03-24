@@ -27,6 +27,9 @@
 /* Shorthand for size of a pointer.  Avoid promotion to unsigned.  */
 #define SZP  ((int)sizeof(void *))
 
+/* Shorthand for size of a register.  */
+#define SZR  (TCG_TARGET_REG_BITS / 8)
+
 #define TCG_CT_CONST_S16  0x100
 #define TCG_CT_CONST_U16  0x200
 #define TCG_CT_CONST_S32  0x400
@@ -35,14 +38,6 @@
 #define TCG_CT_CONST_MONE 0x2000
 
 static tcg_insn_unit *tb_ret_addr;
-
-#if TARGET_LONG_BITS == 32
-#define LD_ADDR LWZ
-#define CMP_L 0
-#else
-#define LD_ADDR LD
-#define CMP_L (1<<21)
-#endif
 
 #ifndef GUEST_BASE
 #define GUEST_BASE 0
@@ -1117,9 +1112,9 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *target)
             ofs = 0;
         }
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, arg);
-        tcg_out32(s, LD | TAI(TCG_REG_R0, TCG_REG_R2, ofs));
+        tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R0, TCG_REG_R2, ofs);
         tcg_out32(s, MTSPR | RA(TCG_REG_R0) | CTR);
-        tcg_out32(s, LD | TAI(TCG_REG_R2, TCG_REG_R2, ofs + 8));
+        tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R2, TCG_REG_R2, ofs + SZP);
         tcg_out32(s, BCCTR | BO_ALWAYS | LK);
     }
 #endif
@@ -1231,11 +1226,11 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGMemOp s_bits, TCGReg addr_reg,
     tcg_out32(s, ADD | TAB(TCG_REG_R3, TCG_REG_R3, base));
 
     /* Load the tlb comparator.  */
-    tcg_out32(s, LD_ADDR | TAI(TCG_REG_R2, TCG_REG_R3, cmp_off));
+    tcg_out_ld(s, TCG_TYPE_TL, TCG_REG_R2, TCG_REG_R3, cmp_off);
 
     /* Load the TLB addend for use on the fast path.  Do this asap
        to minimize any load use delay.  */
-    tcg_out32(s, LD | TAI(TCG_REG_R3, TCG_REG_R3, add_off));
+    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R3, TCG_REG_R3, add_off);
 
     /* Clear the non-page, non-alignment bits from the address.  */
     if (TARGET_LONG_BITS == 32) {
@@ -1249,7 +1244,7 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGMemOp s_bits, TCGReg addr_reg,
         tcg_out_rld(s, RLDICL, TCG_REG_R0, TCG_REG_R0, TARGET_PAGE_BITS, 0);
     }
 
-    tcg_out32(s, CMP | BF(7) | RA(TCG_REG_R0) | RB(TCG_REG_R2) | CMP_L);
+    tcg_out_cmp(s, TCG_COND_EQ, TCG_REG_R0, TCG_REG_R2, 0, 7, TCG_TYPE_TL);
 
     return addr_reg;
 }
@@ -1444,10 +1439,10 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out32(s, MFSPR | RT(TCG_REG_R0) | LR);
     tcg_out32(s, STDU | SAI(TCG_REG_R1, TCG_REG_R1, -FRAME_SIZE));
     for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i) {
-        tcg_out32(s, STD | SAI(tcg_target_callee_save_regs[i], 1, 
-                               REG_SAVE_BOT + i * 8));
+        tcg_out_st(s, TCG_TYPE_REG, tcg_target_callee_save_regs[i],
+                   TCG_REG_R1, REG_SAVE_BOT + i * SZR);
     }
-    tcg_out32(s, STD | SAI(TCG_REG_R0, TCG_REG_R1, FRAME_SIZE + 16));
+    tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_R0, TCG_REG_R1, FRAME_SIZE + 16);
 
 #ifdef CONFIG_USE_GUEST_BASE
     if (GUEST_BASE) {
@@ -1464,10 +1459,10 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tb_ret_addr = s->code_ptr;
 
     for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i) {
-        tcg_out32(s, LD | TAI(tcg_target_callee_save_regs[i], TCG_REG_R1,
-                              REG_SAVE_BOT + i * 8));
+        tcg_out_ld(s, TCG_TYPE_REG, tcg_target_callee_save_regs[i],
+                   TCG_REG_R1, REG_SAVE_BOT + i * SZR);
     }
-    tcg_out32(s, LD | TAI(TCG_REG_R0, TCG_REG_R1, FRAME_SIZE + 16));
+    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R0, TCG_REG_R1, FRAME_SIZE + 16);
     tcg_out32(s, MTSPR | RS(TCG_REG_R0) | LR);
     tcg_out32(s, ADDI | TAI(TCG_REG_R1, TCG_REG_R1, FRAME_SIZE));
     tcg_out32(s, BCLR | BO_ALWAYS);
