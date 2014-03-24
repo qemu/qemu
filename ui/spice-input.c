@@ -176,7 +176,7 @@ static void tablet_position(SpiceTabletInstance* sin, int x, int y,
 
     spice_update_buttons(pointer, 0, buttons_state);
     qemu_input_queue_abs(NULL, INPUT_AXIS_X, x, pointer->width);
-    qemu_input_queue_abs(NULL, INPUT_AXIS_Y, y, pointer->width);
+    qemu_input_queue_abs(NULL, INPUT_AXIS_Y, y, pointer->height);
     qemu_input_event_sync();
 }
 
