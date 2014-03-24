@@ -24,6 +24,9 @@
 
 #include "tcg-be-ldst.h"
 
+/* Shorthand for size of a pointer.  Avoid promotion to unsigned.  */
+#define SZP  ((int)sizeof(void *))
+
 #define TCG_CT_CONST_S16  0x100
 #define TCG_CT_CONST_U16  0x200
 #define TCG_CT_CONST_S32  0x400
@@ -701,7 +704,7 @@ static void tcg_out_b(TCGContext *s, int mask, tcg_insn_unit *target)
     if (in_range_b(disp)) {
         tcg_out32(s, B | (disp & 0x3fffffc) | mask);
     } else {
-        tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_R0, (uintptr_t)target);
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R0, (uintptr_t)target);
         tcg_out32(s, MTSPR | RS(TCG_REG_R0) | CTR);
         tcg_out32(s, BCCTR | BO_ALWAYS | mask);
     }
@@ -719,7 +722,7 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *target)
     intptr_t diff = tcg_pcrel_diff(s, tgt);
 
     if (in_range_b(diff) && toc == (uint32_t)toc) {
-        tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_R2, toc);
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, toc);
         tcg_out_b(s, LK, tgt);
     } else {
         /* Fold the low bits of the constant into the addresses below.  */
@@ -731,7 +734,7 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *target)
         } else {
             ofs = 0;
         }
-        tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_R2, arg);
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, arg);
         tcg_out32(s, LD | TAI(TCG_REG_R0, TCG_REG_R2, ofs));
         tcg_out32(s, MTSPR | RA(TCG_REG_R0) | CTR);
         tcg_out32(s, LD | TAI(TCG_REG_R2, TCG_REG_R2, ofs + 8));
@@ -766,7 +769,7 @@ static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
 
     /* For unaligned, or very large offsets, use the indexed form.  */
     if (offset & align || offset != (int32_t)offset) {
-        tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_R2, orig);
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, orig);
         tcg_out32(s, opx | TAB(rt, base, TCG_REG_R2));
         return;
     }
@@ -1118,7 +1121,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
 #ifdef CONFIG_USE_GUEST_BASE
     if (GUEST_BASE) {
-        tcg_out_movi(s, TCG_TYPE_I64, TCG_GUEST_BASE_REG, GUEST_BASE);
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, GUEST_BASE);
         tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
     }
 #endif
@@ -1476,7 +1479,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 
     switch (opc) {
     case INDEX_op_exit_tb:
-        tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_R3, args[0]);
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R3, args[0]);
         tcg_out_b(s, 0, tb_ret_addr);
         break;
     case INDEX_op_goto_tb:
@@ -1868,7 +1871,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_rlw(s, RLWIMI, a0, a1, 24, 16, 23);
 
         if (a0 == TCG_REG_R0) {
-            tcg_out_mov(s, TCG_TYPE_I64, args[0], a0);
+            tcg_out_mov(s, TCG_TYPE_REG, args[0], a0);
         }
         break;
 
@@ -1900,7 +1903,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_rlw(s, RLWIMI, a0, a2, 24, 16, 23);
 
         if (a0 == 0) {
-            tcg_out_mov(s, TCG_TYPE_I64, args[0], a0);
+            tcg_out_mov(s, TCG_TYPE_REG, args[0], a0);
         }
         break;
 
@@ -1951,7 +1954,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
             tcg_out32(s, ADDE | TAB(a1, args[3], args[5]));
         }
         if (a0 != args[0]) {
-            tcg_out_mov(s, TCG_TYPE_I64, args[0], a0);
+            tcg_out_mov(s, TCG_TYPE_REG, args[0], a0);
         }
         break;
 
@@ -1971,7 +1974,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
             tcg_out32(s, SUBFE | TAB(a1, args[5], args[4]));
         }
         if (a0 != args[0]) {
-            tcg_out_mov(s, TCG_TYPE_I64, args[0], a0);
+            tcg_out_mov(s, TCG_TYPE_REG, args[0], a0);
         }
         break;
 
