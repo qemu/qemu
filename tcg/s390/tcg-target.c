@@ -2181,18 +2181,17 @@ static void tcg_target_init(TCGContext *s)
     tcg_add_target_add_op_defs(s390_op_defs);
 }
 
+#define FRAME_SIZE  ((int)(TCG_TARGET_CALL_STACK_OFFSET          \
+                           + TCG_STATIC_CALL_ARGS_SIZE           \
+                           + CPU_TEMP_BUF_NLONGS * sizeof(long)))
+
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
-    tcg_target_long frame_size;
-
     /* stmg %r6,%r15,48(%r15) (save registers) */
     tcg_out_insn(s, RXY, STMG, TCG_REG_R6, TCG_REG_R15, TCG_REG_R15, 48);
 
     /* aghi %r15,-frame_size */
-    frame_size = TCG_TARGET_CALL_STACK_OFFSET;
-    frame_size += TCG_STATIC_CALL_ARGS_SIZE;
-    frame_size += CPU_TEMP_BUF_NLONGS * sizeof(long);
-    tcg_out_insn(s, RI, AGHI, TCG_REG_R15, -frame_size);
+    tcg_out_insn(s, RI, AGHI, TCG_REG_R15, -FRAME_SIZE);
 
     tcg_set_frame(s, TCG_REG_CALL_STACK,
                   TCG_STATIC_CALL_ARGS_SIZE + TCG_TARGET_CALL_STACK_OFFSET,
@@ -2211,8 +2210,57 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     /* lmg %r6,%r15,fs+48(%r15) (restore registers) */
     tcg_out_insn(s, RXY, LMG, TCG_REG_R6, TCG_REG_R15, TCG_REG_R15,
-                 frame_size + 48);
+                 FRAME_SIZE + 48);
 
     /* br %r14 (return) */
     tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, TCG_REG_R14);
+}
+
+typedef struct {
+    DebugFrameCIE cie;
+    DebugFrameFDEHeader fde;
+    uint8_t fde_def_cfa[4];
+    uint8_t fde_reg_ofs[18];
+} DebugFrame;
+
+/* We're expecting a 2 byte uleb128 encoded value.  */
+QEMU_BUILD_BUG_ON(FRAME_SIZE >= (1 << 14));
+
+#define ELF_HOST_MACHINE  EM_S390
+
+static DebugFrame debug_frame = {
+    .cie.len = sizeof(DebugFrameCIE)-4, /* length after .len member */
+    .cie.id = -1,
+    .cie.version = 1,
+    .cie.code_align = 1,
+    .cie.data_align = 8,                /* sleb128 8 */
+    .cie.return_column = TCG_REG_R14,
+
+    /* Total FDE size does not include the "len" member.  */
+    .fde.len = sizeof(DebugFrame) - offsetof(DebugFrame, fde.cie_offset),
+
+    .fde_def_cfa = {
+        12, TCG_REG_CALL_STACK,         /* DW_CFA_def_cfa %r15, ... */
+        (FRAME_SIZE & 0x7f) | 0x80,     /* ... uleb128 FRAME_SIZE */
+        (FRAME_SIZE >> 7)
+    },
+    .fde_reg_ofs = {
+        0x86, 6,                        /* DW_CFA_offset, %r6, 48 */
+        0x87, 7,                        /* DW_CFA_offset, %r7, 56 */
+        0x88, 8,                        /* DW_CFA_offset, %r8, 64 */
+        0x89, 9,                        /* DW_CFA_offset, %r92, 72 */
+        0x8a, 10,                       /* DW_CFA_offset, %r10, 80 */
+        0x8b, 11,                       /* DW_CFA_offset, %r11, 88 */
+        0x8c, 12,                       /* DW_CFA_offset, %r12, 96 */
+        0x8d, 13,                       /* DW_CFA_offset, %r13, 104 */
+        0x8e, 14,                       /* DW_CFA_offset, %r14, 112 */
+    }
+};
+
+void tcg_register_jit(void *buf, size_t buf_size)
+{
+    debug_frame.fde.func_start = (uintptr_t)buf;
+    debug_frame.fde.func_len = buf_size;
+
+    tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
