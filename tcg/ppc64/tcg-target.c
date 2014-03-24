@@ -710,39 +710,6 @@ static void tcg_out_b(TCGContext *s, int mask, tcg_insn_unit *target)
     }
 }
 
-static void tcg_out_call(TCGContext *s, tcg_insn_unit *target)
-{
-#ifdef __APPLE__
-    tcg_out_b(s, LK, target);
-#else
-    /* Look through the descriptor.  If the branch is in range, and we
-       don't have to spend too much effort on building the toc.  */
-    void *tgt = ((void **)target)[0];
-    uintptr_t toc = ((uintptr_t *)target)[1];
-    intptr_t diff = tcg_pcrel_diff(s, tgt);
-
-    if (in_range_b(diff) && toc == (uint32_t)toc) {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, toc);
-        tcg_out_b(s, LK, tgt);
-    } else {
-        /* Fold the low bits of the constant into the addresses below.  */
-        intptr_t arg = (intptr_t)target;
-        int ofs = (int16_t)arg;
-
-        if (ofs + 8 < 0x8000) {
-            arg -= ofs;
-        } else {
-            ofs = 0;
-        }
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, arg);
-        tcg_out32(s, LD | TAI(TCG_REG_R0, TCG_REG_R2, ofs));
-        tcg_out32(s, MTSPR | RA(TCG_REG_R0) | CTR);
-        tcg_out32(s, LD | TAI(TCG_REG_R2, TCG_REG_R2, ofs + 8));
-        tcg_out32(s, BCCTR | BO_ALWAYS | LK);
-    }
-#endif
-}
-
 static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
                              TCGReg base, tcg_target_long offset)
 {
@@ -793,6 +760,367 @@ static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
     if (opi != ADDI || base != rt || l0 != 0) {
         tcg_out32(s, opi | TAI(rt, base, l0));
     }
+}
+
+static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
+                              TCGReg arg1, intptr_t arg2)
+{
+    int opi, opx;
+
+    if (type == TCG_TYPE_I32) {
+        opi = LWZ, opx = LWZX;
+    } else {
+        opi = LD, opx = LDX;
+    }
+    tcg_out_mem_long(s, opi, opx, ret, arg1, arg2);
+}
+
+static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
+                              TCGReg arg1, intptr_t arg2)
+{
+    int opi, opx;
+
+    if (type == TCG_TYPE_I32) {
+        opi = STW, opx = STWX;
+    } else {
+        opi = STD, opx = STDX;
+    }
+    tcg_out_mem_long(s, opi, opx, arg, arg1, arg2);
+}
+
+static void tcg_out_cmp(TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
+                        int const_arg2, int cr, TCGType type)
+{
+    int imm;
+    uint32_t op;
+
+    /* Simplify the comparisons below wrt CMPI.  */
+    if (type == TCG_TYPE_I32) {
+        arg2 = (int32_t)arg2;
+    }
+
+    switch (cond) {
+    case TCG_COND_EQ:
+    case TCG_COND_NE:
+        if (const_arg2) {
+            if ((int16_t) arg2 == arg2) {
+                op = CMPI;
+                imm = 1;
+                break;
+            } else if ((uint16_t) arg2 == arg2) {
+                op = CMPLI;
+                imm = 1;
+                break;
+            }
+        }
+        op = CMPL;
+        imm = 0;
+        break;
+
+    case TCG_COND_LT:
+    case TCG_COND_GE:
+    case TCG_COND_LE:
+    case TCG_COND_GT:
+        if (const_arg2) {
+            if ((int16_t) arg2 == arg2) {
+                op = CMPI;
+                imm = 1;
+                break;
+            }
+        }
+        op = CMP;
+        imm = 0;
+        break;
+
+    case TCG_COND_LTU:
+    case TCG_COND_GEU:
+    case TCG_COND_LEU:
+    case TCG_COND_GTU:
+        if (const_arg2) {
+            if ((uint16_t) arg2 == arg2) {
+                op = CMPLI;
+                imm = 1;
+                break;
+            }
+        }
+        op = CMPL;
+        imm = 0;
+        break;
+
+    default:
+        tcg_abort();
+    }
+    op |= BF(cr) | ((type == TCG_TYPE_I64) << 21);
+
+    if (imm) {
+        tcg_out32(s, op | RA(arg1) | (arg2 & 0xffff));
+    } else {
+        if (const_arg2) {
+            tcg_out_movi(s, type, TCG_REG_R0, arg2);
+            arg2 = TCG_REG_R0;
+        }
+        tcg_out32(s, op | RA(arg1) | RB(arg2));
+    }
+}
+
+static void tcg_out_setcond_eq0(TCGContext *s, TCGType type,
+                                TCGReg dst, TCGReg src)
+{
+    tcg_out32(s, (type == TCG_TYPE_I64 ? CNTLZD : CNTLZW) | RS(src) | RA(dst));
+    tcg_out_shri64(s, dst, dst, type == TCG_TYPE_I64 ? 6 : 5);
+}
+
+static void tcg_out_setcond_ne0(TCGContext *s, TCGReg dst, TCGReg src)
+{
+    /* X != 0 implies X + -1 generates a carry.  Extra addition
+       trickery means: R = X-1 + ~X + C = X-1 + (-X+1) + C = C.  */
+    if (dst != src) {
+        tcg_out32(s, ADDIC | TAI(dst, src, -1));
+        tcg_out32(s, SUBFE | TAB(dst, dst, src));
+    } else {
+        tcg_out32(s, ADDIC | TAI(TCG_REG_R0, src, -1));
+        tcg_out32(s, SUBFE | TAB(dst, TCG_REG_R0, src));
+    }
+}
+
+static TCGReg tcg_gen_setcond_xor(TCGContext *s, TCGReg arg1, TCGArg arg2,
+                                  bool const_arg2)
+{
+    if (const_arg2) {
+        if ((uint32_t)arg2 == arg2) {
+            tcg_out_xori32(s, TCG_REG_R0, arg1, arg2);
+        } else {
+            tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_R0, arg2);
+            tcg_out32(s, XOR | SAB(arg1, TCG_REG_R0, TCG_REG_R0));
+        }
+    } else {
+        tcg_out32(s, XOR | SAB(arg1, TCG_REG_R0, arg2));
+    }
+    return TCG_REG_R0;
+}
+
+static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
+                            TCGArg arg0, TCGArg arg1, TCGArg arg2,
+                            int const_arg2)
+{
+    int crop, sh;
+
+    /* Ignore high bits of a potential constant arg2.  */
+    if (type == TCG_TYPE_I32) {
+        arg2 = (uint32_t)arg2;
+    }
+
+    /* Handle common and trivial cases before handling anything else.  */
+    if (arg2 == 0) {
+        switch (cond) {
+        case TCG_COND_EQ:
+            tcg_out_setcond_eq0(s, type, arg0, arg1);
+            return;
+        case TCG_COND_NE:
+            if (type == TCG_TYPE_I32) {
+                tcg_out_ext32u(s, TCG_REG_R0, arg1);
+                arg1 = TCG_REG_R0;
+            }
+            tcg_out_setcond_ne0(s, arg0, arg1);
+            return;
+        case TCG_COND_GE:
+            tcg_out32(s, NOR | SAB(arg1, arg0, arg1));
+            arg1 = arg0;
+            /* FALLTHRU */
+        case TCG_COND_LT:
+            /* Extract the sign bit.  */
+            tcg_out_rld(s, RLDICL, arg0, arg1,
+                        type == TCG_TYPE_I64 ? 1 : 33, 63);
+            return;
+        default:
+            break;
+        }
+    }
+
+    /* If we have ISEL, we can implement everything with 3 or 4 insns.
+       All other cases below are also at least 3 insns, so speed up the
+       code generator by not considering them and always using ISEL.  */
+    if (HAVE_ISEL) {
+        int isel, tab;
+
+        tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 7, type);
+
+        isel = tcg_to_isel[cond];
+
+        tcg_out_movi(s, type, arg0, 1);
+        if (isel & 1) {
+            /* arg0 = (bc ? 0 : 1) */
+            tab = TAB(arg0, 0, arg0);
+            isel &= ~1;
+        } else {
+            /* arg0 = (bc ? 1 : 0) */
+            tcg_out_movi(s, type, TCG_REG_R0, 0);
+            tab = TAB(arg0, arg0, TCG_REG_R0);
+        }
+        tcg_out32(s, isel | tab);
+        return;
+    }
+
+    switch (cond) {
+    case TCG_COND_EQ:
+        arg1 = tcg_gen_setcond_xor(s, arg1, arg2, const_arg2);
+        tcg_out_setcond_eq0(s, type, arg0, arg1);
+        return;
+
+    case TCG_COND_NE:
+        arg1 = tcg_gen_setcond_xor(s, arg1, arg2, const_arg2);
+        /* Discard the high bits only once, rather than both inputs.  */
+        if (type == TCG_TYPE_I32) {
+            tcg_out_ext32u(s, TCG_REG_R0, arg1);
+            arg1 = TCG_REG_R0;
+        }
+        tcg_out_setcond_ne0(s, arg0, arg1);
+        return;
+
+    case TCG_COND_GT:
+    case TCG_COND_GTU:
+        sh = 30;
+        crop = 0;
+        goto crtest;
+
+    case TCG_COND_LT:
+    case TCG_COND_LTU:
+        sh = 29;
+        crop = 0;
+        goto crtest;
+
+    case TCG_COND_GE:
+    case TCG_COND_GEU:
+        sh = 31;
+        crop = CRNOR | BT(7, CR_EQ) | BA(7, CR_LT) | BB(7, CR_LT);
+        goto crtest;
+
+    case TCG_COND_LE:
+    case TCG_COND_LEU:
+        sh = 31;
+        crop = CRNOR | BT(7, CR_EQ) | BA(7, CR_GT) | BB(7, CR_GT);
+    crtest:
+        tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 7, type);
+        if (crop) {
+            tcg_out32(s, crop);
+        }
+        tcg_out32(s, MFOCRF | RT(TCG_REG_R0) | FXM(7));
+        tcg_out_rlw(s, RLWINM, arg0, TCG_REG_R0, sh, 31, 31);
+        break;
+
+    default:
+        tcg_abort();
+    }
+}
+
+static void tcg_out_bc(TCGContext *s, int bc, int label_index)
+{
+    TCGLabel *l = &s->labels[label_index];
+
+    if (l->has_value) {
+        tcg_out32(s, bc | reloc_pc14_val(s->code_ptr, l->u.value_ptr));
+    } else {
+        tcg_out_reloc(s, s->code_ptr, R_PPC_REL14, label_index, 0);
+        tcg_out_bc_noaddr(s, bc);
+    }
+}
+
+static void tcg_out_brcond(TCGContext *s, TCGCond cond,
+                           TCGArg arg1, TCGArg arg2, int const_arg2,
+                           int label_index, TCGType type)
+{
+    tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 7, type);
+    tcg_out_bc(s, tcg_to_bc[cond], label_index);
+}
+
+static void tcg_out_movcond(TCGContext *s, TCGType type, TCGCond cond,
+                            TCGArg dest, TCGArg c1, TCGArg c2, TCGArg v1,
+                            TCGArg v2, bool const_c2)
+{
+    /* If for some reason both inputs are zero, don't produce bad code.  */
+    if (v1 == 0 && v2 == 0) {
+        tcg_out_movi(s, type, dest, 0);
+        return;
+    }
+
+    tcg_out_cmp(s, cond, c1, c2, const_c2, 7, type);
+
+    if (HAVE_ISEL) {
+        int isel = tcg_to_isel[cond];
+
+        /* Swap the V operands if the operation indicates inversion.  */
+        if (isel & 1) {
+            int t = v1;
+            v1 = v2;
+            v2 = t;
+            isel &= ~1;
+        }
+        /* V1 == 0 is handled by isel; V2 == 0 must be handled by hand.  */
+        if (v2 == 0) {
+            tcg_out_movi(s, type, TCG_REG_R0, 0);
+        }
+        tcg_out32(s, isel | TAB(dest, v1, v2));
+    } else {
+        if (dest == v2) {
+            cond = tcg_invert_cond(cond);
+            v2 = v1;
+        } else if (dest != v1) {
+            if (v1 == 0) {
+                tcg_out_movi(s, type, dest, 0);
+            } else {
+                tcg_out_mov(s, type, dest, v1);
+            }
+        }
+        /* Branch forward over one insn */
+        tcg_out32(s, tcg_to_bc[cond] | 8);
+        if (v2 == 0) {
+            tcg_out_movi(s, type, dest, 0);
+        } else {
+            tcg_out_mov(s, type, dest, v2);
+        }
+    }
+}
+
+void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
+{
+    TCGContext s;
+
+    s.code_buf = s.code_ptr = (tcg_insn_unit *)jmp_addr;
+    tcg_out_b(&s, 0, (tcg_insn_unit *)addr);
+    flush_icache_range(jmp_addr, jmp_addr + tcg_current_code_size(&s));
+}
+
+static void tcg_out_call(TCGContext *s, tcg_insn_unit *target)
+{
+#ifdef __APPLE__
+    tcg_out_b(s, LK, target);
+#else
+    /* Look through the descriptor.  If the branch is in range, and we
+       don't have to spend too much effort on building the toc.  */
+    void *tgt = ((void **)target)[0];
+    uintptr_t toc = ((uintptr_t *)target)[1];
+    intptr_t diff = tcg_pcrel_diff(s, tgt);
+
+    if (in_range_b(diff) && toc == (uint32_t)toc) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, toc);
+        tcg_out_b(s, LK, tgt);
+    } else {
+        /* Fold the low bits of the constant into the addresses below.  */
+        intptr_t arg = (intptr_t)target;
+        int ofs = (int16_t)arg;
+
+        if (ofs + 8 < 0x8000) {
+            arg -= ofs;
+        } else {
+            ofs = 0;
+        }
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, arg);
+        tcg_out32(s, LD | TAI(TCG_REG_R0, TCG_REG_R2, ofs));
+        tcg_out32(s, MTSPR | RA(TCG_REG_R0) | CTR);
+        tcg_out32(s, LD | TAI(TCG_REG_R2, TCG_REG_R2, ofs + 8));
+        tcg_out32(s, BCCTR | BO_ALWAYS | LK);
+    }
+#endif
 }
 
 static const uint32_t qemu_ldx_opc[16] = {
@@ -1141,334 +1469,6 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out32(s, MTSPR | RS(TCG_REG_R0) | LR);
     tcg_out32(s, ADDI | TAI(TCG_REG_R1, TCG_REG_R1, FRAME_SIZE));
     tcg_out32(s, BCLR | BO_ALWAYS);
-}
-
-static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
-                              TCGReg arg1, intptr_t arg2)
-{
-    int opi, opx;
-
-    if (type == TCG_TYPE_I32) {
-        opi = LWZ, opx = LWZX;
-    } else {
-        opi = LD, opx = LDX;
-    }
-    tcg_out_mem_long(s, opi, opx, ret, arg1, arg2);
-}
-
-static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, intptr_t arg2)
-{
-    int opi, opx;
-
-    if (type == TCG_TYPE_I32) {
-        opi = STW, opx = STWX;
-    } else {
-        opi = STD, opx = STDX;
-    }
-    tcg_out_mem_long(s, opi, opx, arg, arg1, arg2);
-}
-
-static void tcg_out_cmp(TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
-                        int const_arg2, int cr, TCGType type)
-{
-    int imm;
-    uint32_t op;
-
-    /* Simplify the comparisons below wrt CMPI.  */
-    if (type == TCG_TYPE_I32) {
-        arg2 = (int32_t)arg2;
-    }
-
-    switch (cond) {
-    case TCG_COND_EQ:
-    case TCG_COND_NE:
-        if (const_arg2) {
-            if ((int16_t) arg2 == arg2) {
-                op = CMPI;
-                imm = 1;
-                break;
-            } else if ((uint16_t) arg2 == arg2) {
-                op = CMPLI;
-                imm = 1;
-                break;
-            }
-        }
-        op = CMPL;
-        imm = 0;
-        break;
-
-    case TCG_COND_LT:
-    case TCG_COND_GE:
-    case TCG_COND_LE:
-    case TCG_COND_GT:
-        if (const_arg2) {
-            if ((int16_t) arg2 == arg2) {
-                op = CMPI;
-                imm = 1;
-                break;
-            }
-        }
-        op = CMP;
-        imm = 0;
-        break;
-
-    case TCG_COND_LTU:
-    case TCG_COND_GEU:
-    case TCG_COND_LEU:
-    case TCG_COND_GTU:
-        if (const_arg2) {
-            if ((uint16_t) arg2 == arg2) {
-                op = CMPLI;
-                imm = 1;
-                break;
-            }
-        }
-        op = CMPL;
-        imm = 0;
-        break;
-
-    default:
-        tcg_abort();
-    }
-    op |= BF(cr) | ((type == TCG_TYPE_I64) << 21);
-
-    if (imm) {
-        tcg_out32(s, op | RA(arg1) | (arg2 & 0xffff));
-    } else {
-        if (const_arg2) {
-            tcg_out_movi(s, type, TCG_REG_R0, arg2);
-            arg2 = TCG_REG_R0;
-        }
-        tcg_out32(s, op | RA(arg1) | RB(arg2));
-    }
-}
-
-static void tcg_out_setcond_eq0(TCGContext *s, TCGType type,
-                                TCGReg dst, TCGReg src)
-{
-    tcg_out32(s, (type == TCG_TYPE_I64 ? CNTLZD : CNTLZW) | RS(src) | RA(dst));
-    tcg_out_shri64(s, dst, dst, type == TCG_TYPE_I64 ? 6 : 5);
-}
-
-static void tcg_out_setcond_ne0(TCGContext *s, TCGReg dst, TCGReg src)
-{
-    /* X != 0 implies X + -1 generates a carry.  Extra addition
-       trickery means: R = X-1 + ~X + C = X-1 + (-X+1) + C = C.  */
-    if (dst != src) {
-        tcg_out32(s, ADDIC | TAI(dst, src, -1));
-        tcg_out32(s, SUBFE | TAB(dst, dst, src));
-    } else {
-        tcg_out32(s, ADDIC | TAI(TCG_REG_R0, src, -1));
-        tcg_out32(s, SUBFE | TAB(dst, TCG_REG_R0, src));
-    }
-}
-
-static TCGReg tcg_gen_setcond_xor(TCGContext *s, TCGReg arg1, TCGArg arg2,
-                                  bool const_arg2)
-{
-    if (const_arg2) {
-        if ((uint32_t)arg2 == arg2) {
-            tcg_out_xori32(s, TCG_REG_R0, arg1, arg2);
-        } else {
-            tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_R0, arg2);
-            tcg_out32(s, XOR | SAB(arg1, TCG_REG_R0, TCG_REG_R0));
-        }
-    } else {
-        tcg_out32(s, XOR | SAB(arg1, TCG_REG_R0, arg2));
-    }
-    return TCG_REG_R0;
-}
-
-static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
-                            TCGArg arg0, TCGArg arg1, TCGArg arg2,
-                            int const_arg2)
-{
-    int crop, sh;
-
-    /* Ignore high bits of a potential constant arg2.  */
-    if (type == TCG_TYPE_I32) {
-        arg2 = (uint32_t)arg2;
-    }
-
-    /* Handle common and trivial cases before handling anything else.  */
-    if (arg2 == 0) {
-        switch (cond) {
-        case TCG_COND_EQ:
-            tcg_out_setcond_eq0(s, type, arg0, arg1);
-            return;
-        case TCG_COND_NE:
-            if (type == TCG_TYPE_I32) {
-                tcg_out_ext32u(s, TCG_REG_R0, arg1);
-                arg1 = TCG_REG_R0;
-            }
-            tcg_out_setcond_ne0(s, arg0, arg1);
-            return;
-        case TCG_COND_GE:
-            tcg_out32(s, NOR | SAB(arg1, arg0, arg1));
-            arg1 = arg0;
-            /* FALLTHRU */
-        case TCG_COND_LT:
-            /* Extract the sign bit.  */
-            tcg_out_rld(s, RLDICL, arg0, arg1,
-                        type == TCG_TYPE_I64 ? 1 : 33, 63);
-            return;
-        default:
-            break;
-        }
-    }
-
-    /* If we have ISEL, we can implement everything with 3 or 4 insns.
-       All other cases below are also at least 3 insns, so speed up the
-       code generator by not considering them and always using ISEL.  */
-    if (HAVE_ISEL) {
-        int isel, tab;
-
-        tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 7, type);
-
-        isel = tcg_to_isel[cond];
-
-        tcg_out_movi(s, type, arg0, 1);
-        if (isel & 1) {
-            /* arg0 = (bc ? 0 : 1) */
-            tab = TAB(arg0, 0, arg0);
-            isel &= ~1;
-        } else {
-            /* arg0 = (bc ? 1 : 0) */
-            tcg_out_movi(s, type, TCG_REG_R0, 0);
-            tab = TAB(arg0, arg0, TCG_REG_R0);
-        }
-        tcg_out32(s, isel | tab);
-        return;
-    }
-
-    switch (cond) {
-    case TCG_COND_EQ:
-        arg1 = tcg_gen_setcond_xor(s, arg1, arg2, const_arg2);
-        tcg_out_setcond_eq0(s, type, arg0, arg1);
-        return;
-
-    case TCG_COND_NE:
-        arg1 = tcg_gen_setcond_xor(s, arg1, arg2, const_arg2);
-        /* Discard the high bits only once, rather than both inputs.  */
-        if (type == TCG_TYPE_I32) {
-            tcg_out_ext32u(s, TCG_REG_R0, arg1);
-            arg1 = TCG_REG_R0;
-        }
-        tcg_out_setcond_ne0(s, arg0, arg1);
-        return;
-
-    case TCG_COND_GT:
-    case TCG_COND_GTU:
-        sh = 30;
-        crop = 0;
-        goto crtest;
-
-    case TCG_COND_LT:
-    case TCG_COND_LTU:
-        sh = 29;
-        crop = 0;
-        goto crtest;
-
-    case TCG_COND_GE:
-    case TCG_COND_GEU:
-        sh = 31;
-        crop = CRNOR | BT(7, CR_EQ) | BA(7, CR_LT) | BB(7, CR_LT);
-        goto crtest;
-
-    case TCG_COND_LE:
-    case TCG_COND_LEU:
-        sh = 31;
-        crop = CRNOR | BT(7, CR_EQ) | BA(7, CR_GT) | BB(7, CR_GT);
-    crtest:
-        tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 7, type);
-        if (crop) {
-            tcg_out32(s, crop);
-        }
-        tcg_out32(s, MFOCRF | RT(TCG_REG_R0) | FXM(7));
-        tcg_out_rlw(s, RLWINM, arg0, TCG_REG_R0, sh, 31, 31);
-        break;
-
-    default:
-        tcg_abort();
-    }
-}
-
-static void tcg_out_bc(TCGContext *s, int bc, int label_index)
-{
-    TCGLabel *l = &s->labels[label_index];
-
-    if (l->has_value) {
-        tcg_out32(s, bc | reloc_pc14_val(s->code_ptr, l->u.value_ptr));
-    } else {
-        tcg_out_reloc(s, s->code_ptr, R_PPC_REL14, label_index, 0);
-        tcg_out_bc_noaddr(s, bc);
-    }
-}
-
-static void tcg_out_brcond(TCGContext *s, TCGCond cond,
-                           TCGArg arg1, TCGArg arg2, int const_arg2,
-                           int label_index, TCGType type)
-{
-    tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 7, type);
-    tcg_out_bc(s, tcg_to_bc[cond], label_index);
-}
-
-static void tcg_out_movcond(TCGContext *s, TCGType type, TCGCond cond,
-                            TCGArg dest, TCGArg c1, TCGArg c2, TCGArg v1,
-                            TCGArg v2, bool const_c2)
-{
-    /* If for some reason both inputs are zero, don't produce bad code.  */
-    if (v1 == 0 && v2 == 0) {
-        tcg_out_movi(s, type, dest, 0);
-        return;
-    }
-
-    tcg_out_cmp(s, cond, c1, c2, const_c2, 7, type);
-
-    if (HAVE_ISEL) {
-        int isel = tcg_to_isel[cond];
-
-        /* Swap the V operands if the operation indicates inversion.  */
-        if (isel & 1) {
-            int t = v1;
-            v1 = v2;
-            v2 = t;
-            isel &= ~1;
-        }
-        /* V1 == 0 is handled by isel; V2 == 0 must be handled by hand.  */
-        if (v2 == 0) {
-            tcg_out_movi(s, type, TCG_REG_R0, 0);
-        }
-        tcg_out32(s, isel | TAB(dest, v1, v2));
-    } else {
-        if (dest == v2) {
-            cond = tcg_invert_cond(cond);
-            v2 = v1;
-        } else if (dest != v1) {
-            if (v1 == 0) {
-                tcg_out_movi(s, type, dest, 0);
-            } else {
-                tcg_out_mov(s, type, dest, v1);
-            }
-        }
-        /* Branch forward over one insn */
-        tcg_out32(s, tcg_to_bc[cond] | 8);
-        if (v2 == 0) {
-            tcg_out_movi(s, type, dest, 0);
-        } else {
-            tcg_out_mov(s, type, dest, v2);
-        }
-    }
-}
-
-void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
-{
-    TCGContext s;
-
-    s.code_buf = s.code_ptr = (tcg_insn_unit *)jmp_addr;
-    tcg_out_b(&s, 0, (tcg_insn_unit *)addr);
-    flush_icache_range(jmp_addr, jmp_addr + tcg_current_code_size(&s));
 }
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
