@@ -60,6 +60,13 @@ static int arm_arch = __ARM_ARCH;
 bool use_idiv_instructions;
 #endif
 
+/* ??? Ought to think about changing CONFIG_SOFTMMU to always defined.  */
+#ifdef CONFIG_SOFTMMU
+# define USING_SOFTMMU 1
+#else
+# define USING_SOFTMMU 0
+#endif
+
 #ifndef NDEBUG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%r0",
@@ -1404,7 +1411,9 @@ static inline void tcg_out_qemu_ld_index(TCGContext *s, TCGMemOp opc,
             TCGReg dl = (bswap ? datahi : datalo);
             TCGReg dh = (bswap ? datalo : datahi);
 
-            if (use_armv6_instructions && (dl & 1) == 0 && dh == dl + 1) {
+            /* Avoid ldrd for user-only emulation, to handle unaligned.  */
+            if (USING_SOFTMMU && use_armv6_instructions
+                && (dl & 1) == 0 && dh == dl + 1) {
                 tcg_out_ldrd_r(s, COND_AL, dl, addrlo, addend);
             } else if (dl != addend) {
                 tcg_out_ld32_rwb(s, COND_AL, dl, addend, addrlo);
@@ -1463,7 +1472,9 @@ static inline void tcg_out_qemu_ld_direct(TCGContext *s, TCGMemOp opc,
             TCGReg dl = (bswap ? datahi : datalo);
             TCGReg dh = (bswap ? datalo : datahi);
 
-            if (use_armv6_instructions && (dl & 1) == 0 && dh == dl + 1) {
+            /* Avoid ldrd for user-only emulation, to handle unaligned.  */
+            if (USING_SOFTMMU && use_armv6_instructions
+                && (dl & 1) == 0 && dh == dl + 1) {
                 tcg_out_ldrd_8(s, COND_AL, dl, addrlo, 0);
             } else if (dl == addrlo) {
                 tcg_out_ld32_12(s, COND_AL, dh, addrlo, bswap ? 0 : 4);
@@ -1548,12 +1559,13 @@ static inline void tcg_out_qemu_st_index(TCGContext *s, int cond, TCGMemOp opc,
         }
         break;
     case MO_64:
+        /* Avoid strd for user-only emulation, to handle unaligned.  */
         if (bswap) {
             tcg_out_bswap32(s, cond, TCG_REG_R0, datahi);
             tcg_out_st32_rwb(s, cond, TCG_REG_R0, addend, addrlo);
             tcg_out_bswap32(s, cond, TCG_REG_R0, datalo);
             tcg_out_st32_12(s, cond, TCG_REG_R0, addend, 4);
-        } else if (use_armv6_instructions
+        } else if (USING_SOFTMMU && use_armv6_instructions
                    && (datalo & 1) == 0 && datahi == datalo + 1) {
             tcg_out_strd_r(s, cond, datalo, addrlo, addend);
         } else {
@@ -1592,12 +1604,13 @@ static inline void tcg_out_qemu_st_direct(TCGContext *s, TCGMemOp opc,
         }
         break;
     case MO_64:
+        /* Avoid strd for user-only emulation, to handle unaligned.  */
         if (bswap) {
             tcg_out_bswap32(s, COND_AL, TCG_REG_R0, datahi);
             tcg_out_st32_12(s, COND_AL, TCG_REG_R0, addrlo, 0);
             tcg_out_bswap32(s, COND_AL, TCG_REG_R0, datalo);
             tcg_out_st32_12(s, COND_AL, TCG_REG_R0, addrlo, 4);
-        } else if (use_armv6_instructions
+        } else if (USING_SOFTMMU && use_armv6_instructions
                    && (datalo & 1) == 0 && datahi == datalo + 1) {
             tcg_out_strd_8(s, COND_AL, datalo, addrlo, 0);
         } else {
