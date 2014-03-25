@@ -41,10 +41,6 @@ typedef enum {
     TCG_AREG0 = TCG_REG_R27
 } TCGReg;
 
-/* used for function call generation */
-#define TCG_TARGET_STACK_ALIGN 16
-#define TCG_TARGET_CALL_STACK_OFFSET 48
-
 /* optional instructions automatically implemented */
 #define TCG_TARGET_HAS_ext8u_i32        0 /* andi */
 #define TCG_TARGET_HAS_ext16u_i32       0
@@ -101,7 +97,5 @@ typedef enum {
 #define TCG_TARGET_HAS_muls2_i64        0
 #define TCG_TARGET_HAS_muluh_i64        1
 #define TCG_TARGET_HAS_mulsh_i64        1
-
-#define TCG_TARGET_EXTEND_ARGS 1
 
 #endif

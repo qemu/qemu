@@ -1406,6 +1406,11 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
 #endif
 }
 
+/* Parameters for function call generation, used in tcg.c.  */
+#define TCG_TARGET_STACK_ALIGN       16
+#define TCG_TARGET_CALL_STACK_OFFSET 48
+#define TCG_TARGET_EXTEND_ARGS       1
+
 #define FRAME_SIZE ((int) \
     ((8                     /* back chain */              \
       + 8                   /* CR */                      \
