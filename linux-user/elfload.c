@@ -1455,6 +1455,8 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     info->auxv_len = sp_auxv - sp;
 
     sp = loader_build_argptr(envc, argc, sp, p, 0);
+    /* Check the right amount of stack was allocated for auxvec, envp & argv. */
+    assert(sp_auxv - sp == size);
     return sp;
 }
 
