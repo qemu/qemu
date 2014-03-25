@@ -1414,6 +1414,10 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
 # define LINK_AREA_SIZE                (6 * SZR)
 # define LR_OFFSET                     (1 * SZR)
 # define TCG_TARGET_CALL_STACK_OFFSET  (LINK_AREA_SIZE + 8 * SZR)
+#elif defined(_CALL_ELF) && _CALL_ELF == 2
+# define LINK_AREA_SIZE                (4 * SZR)
+# define LR_OFFSET                     (1 * SZR)
+# define TCG_TARGET_CALL_STACK_OFFSET  LINK_AREA_SIZE
 #else
 # error
 #endif
