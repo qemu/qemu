@@ -19,6 +19,15 @@
 #include "sysemu/sysemu.h"
 #include "hw/timer/allwinner-a10-pit.h"
 
+static void a10_pit_update_irq(AwA10PITState *s)
+{
+    int i;
+
+    for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
+        qemu_set_irq(s->irq[i], !!(s->irq_status & s->irq_enable & (1 << i)));
+    }
+}
+
 static uint64_t a10_pit_read(void *opaque, hwaddr offset, unsigned size)
 {
     AwA10PITState *s = AW_A10_PIT(opaque);
@@ -74,9 +83,11 @@ static void a10_pit_write(void *opaque, hwaddr offset, uint64_t value,
     switch (offset) {
     case AW_A10_PIT_TIMER_IRQ_EN:
         s->irq_enable = value;
+        a10_pit_update_irq(s);
         break;
     case AW_A10_PIT_TIMER_IRQ_ST:
         s->irq_status &= ~value;
+        a10_pit_update_irq(s);
         break;
     case AW_A10_PIT_TIMER_BASE ... AW_A10_PIT_TIMER_BASE_END:
         index = offset & 0xf0;
@@ -178,6 +189,8 @@ static void a10_pit_reset(DeviceState *dev)
 
     s->irq_enable = 0;
     s->irq_status = 0;
+    a10_pit_update_irq(s);
+
     for (i = 0; i < 6; i++) {
         s->control[i] = AW_A10_PIT_DEFAULT_CLOCK;
         s->interval[i] = 0;
@@ -203,7 +216,7 @@ static void a10_pit_timer_cb(void *opaque)
             ptimer_stop(s->timer[i]);
             s->control[i] &= ~AW_A10_PIT_TIMER_EN;
         }
-        qemu_irq_pulse(s->irq[i]);
+        a10_pit_update_irq(s);
     }
 }
 
