@@ -1408,46 +1408,53 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
 
 /* Parameters for function call generation, used in tcg.c.  */
 #define TCG_TARGET_STACK_ALIGN       16
-#define TCG_TARGET_CALL_STACK_OFFSET ((6 + 8) * SZR)
 #define TCG_TARGET_EXTEND_ARGS       1
 
-#define FRAME_SIZE ((int) \
-    ((8                     /* back chain */              \
-      + 8                   /* CR */                      \
-      + 8                   /* LR */                      \
-      + 8                   /* compiler doubleword */     \
-      + 8                   /* link editor doubleword */  \
-      + 8                   /* TOC save area */           \
-      + TCG_STATIC_CALL_ARGS_SIZE                         \
-      + CPU_TEMP_BUF_NLONGS * sizeof(long)                \
-      + ARRAY_SIZE(tcg_target_callee_save_regs) * 8       \
-      + 15) & ~15))
+#ifdef _CALL_AIX
+# define LINK_AREA_SIZE                (6 * SZR)
+# define LR_OFFSET                     (1 * SZR)
+# define TCG_TARGET_CALL_STACK_OFFSET  (LINK_AREA_SIZE + 8 * SZR)
+#else
+# error
+#endif
 
-#define REG_SAVE_BOT (FRAME_SIZE - ARRAY_SIZE(tcg_target_callee_save_regs) * 8)
+#define CPU_TEMP_BUF_SIZE  (CPU_TEMP_BUF_NLONGS * (int)sizeof(long))
+#define REG_SAVE_SIZE      ((int)ARRAY_SIZE(tcg_target_callee_save_regs) * SZR)
+
+#define FRAME_SIZE ((TCG_TARGET_CALL_STACK_OFFSET   \
+                     + TCG_STATIC_CALL_ARGS_SIZE    \
+                     + CPU_TEMP_BUF_SIZE            \
+                     + REG_SAVE_SIZE                \
+                     + TCG_TARGET_STACK_ALIGN - 1)  \
+                    & -TCG_TARGET_STACK_ALIGN)
+
+#define REG_SAVE_BOT (FRAME_SIZE - REG_SAVE_SIZE)
 
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
     int i;
 
-    tcg_set_frame(s, TCG_REG_CALL_STACK,
-                  REG_SAVE_BOT - CPU_TEMP_BUF_NLONGS * sizeof(long),
-                  CPU_TEMP_BUF_NLONGS * sizeof(long));
+    tcg_set_frame(s, TCG_REG_CALL_STACK, REG_SAVE_BOT - CPU_TEMP_BUF_SIZE,
+                  CPU_TEMP_BUF_SIZE);
 
-#ifndef __APPLE__
-    /* First emit adhoc function descriptor */
-    tcg_out64(s, (uint64_t)s->code_ptr + 24); /* entry point */
-    tcg_out64(s, 0);                          /* toc */
-    tcg_out64(s, 0);                          /* environment pointer */
+#ifdef _CALL_AIX
+    {
+      void **desc = (void **)s->code_ptr;
+      desc[0] = desc + 2;                   /* entry point */
+      desc[1] = 0;                          /* environment pointer */
+      s->code_ptr = (void *)(desc + 2);     /* skip over descriptor */
+    }
 #endif
 
     /* Prologue */
     tcg_out32(s, MFSPR | RT(TCG_REG_R0) | LR);
     tcg_out32(s, STDU | SAI(TCG_REG_R1, TCG_REG_R1, -FRAME_SIZE));
+
     for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i) {
         tcg_out_st(s, TCG_TYPE_REG, tcg_target_callee_save_regs[i],
                    TCG_REG_R1, REG_SAVE_BOT + i * SZR);
     }
-    tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_R0, TCG_REG_R1, FRAME_SIZE + 16);
+    tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_R0, TCG_REG_R1, FRAME_SIZE+LR_OFFSET);
 
 #ifdef CONFIG_USE_GUEST_BASE
     if (GUEST_BASE) {
@@ -1463,11 +1470,11 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     /* Epilogue */
     tb_ret_addr = s->code_ptr;
 
+    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R0, TCG_REG_R1, FRAME_SIZE+LR_OFFSET);
     for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i) {
         tcg_out_ld(s, TCG_TYPE_REG, tcg_target_callee_save_regs[i],
                    TCG_REG_R1, REG_SAVE_BOT + i * SZR);
     }
-    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R0, TCG_REG_R1, FRAME_SIZE + 16);
     tcg_out32(s, MTSPR | RS(TCG_REG_R0) | LR);
     tcg_out32(s, ADDI | TAI(TCG_REG_R1, TCG_REG_R1, FRAME_SIZE));
     tcg_out32(s, BCLR | BO_ALWAYS);
@@ -2158,19 +2165,20 @@ static DebugFrame debug_frame = {
     .cie.id = -1,
     .cie.version = 1,
     .cie.code_align = 1,
-    .cie.data_align = 0x78,             /* sleb128 -8 */
+    .cie.data_align = (-SZR & 0x7f),         /* sleb128 -SZR */
     .cie.return_column = 65,
 
     /* Total FDE size does not include the "len" member.  */
     .fde.len = sizeof(DebugFrame) - offsetof(DebugFrame, fde.cie_offset),
 
     .fde_def_cfa = {
-        12, 1,                          /* DW_CFA_def_cfa r1, ... */
+        12, TCG_REG_R1,                 /* DW_CFA_def_cfa r1, ... */
         (FRAME_SIZE & 0x7f) | 0x80,     /* ... uleb128 FRAME_SIZE */
         (FRAME_SIZE >> 7)
     },
     .fde_reg_ofs = {
-        0x11, 65, 0x7e,                 /* DW_CFA_offset_extended_sf, lr, 16 */
+        /* DW_CFA_offset_extended_sf, lr, LR_OFFSET */
+        0x11, 65, (LR_OFFSET / -SZR) & 0x7f,
     }
 };
 
@@ -2181,10 +2189,10 @@ void tcg_register_jit(void *buf, size_t buf_size)
 
     for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i, p += 2) {
         p[0] = 0x80 + tcg_target_callee_save_regs[i];
-        p[1] = (FRAME_SIZE - (REG_SAVE_BOT + i * 8)) / 8;
+        p[1] = (FRAME_SIZE - (REG_SAVE_BOT + i * SZR)) / SZR;
     }
 
-    debug_frame.fde.func_start = (tcg_target_long) buf;
+    debug_frame.fde.func_start = (uintptr_t)buf;
     debug_frame.fde.func_len = buf_size;
 
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
