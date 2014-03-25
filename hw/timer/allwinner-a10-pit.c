@@ -193,18 +193,17 @@ static void a10_pit_reset(DeviceState *dev)
 
 static void a10_pit_timer_cb(void *opaque)
 {
-    AwA10PITState *s = AW_A10_PIT(opaque);
-    uint8_t i;
+    AwA10TimerContext *tc = opaque;
+    AwA10PITState *s = tc->container;
+    uint8_t i = tc->index;
 
-    for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
-        if (s->control[i] & AW_A10_PIT_TIMER_EN) {
-            s->irq_status |= 1 << i;
-            if (s->control[i] & AW_A10_PIT_TIMER_MODE) {
-                ptimer_stop(s->timer[i]);
-                s->control[i] &= ~AW_A10_PIT_TIMER_EN;
-            }
-            qemu_irq_pulse(s->irq[i]);
+    if (s->control[i] & AW_A10_PIT_TIMER_EN) {
+        s->irq_status |= 1 << i;
+        if (s->control[i] & AW_A10_PIT_TIMER_MODE) {
+            ptimer_stop(s->timer[i]);
+            s->control[i] &= ~AW_A10_PIT_TIMER_EN;
         }
+        qemu_irq_pulse(s->irq[i]);
     }
 }
 
@@ -223,7 +222,11 @@ static void a10_pit_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 
     for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
-        bh[i] = qemu_bh_new(a10_pit_timer_cb, s);
+        AwA10TimerContext *tc = &s->timer_context[i];
+
+        tc->container = s;
+        tc->index = i;
+        bh[i] = qemu_bh_new(a10_pit_timer_cb, tc);
         s->timer[i] = ptimer_init(bh[i]);
         ptimer_set_freq(s->timer[i], 240000);
     }

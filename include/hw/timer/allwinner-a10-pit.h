@@ -35,12 +35,20 @@
 
 #define AW_A10_PIT_DEFAULT_CLOCK   0x4
 
-typedef struct AwA10PITState {
+typedef struct AwA10PITState AwA10PITState;
+
+typedef struct AwA10TimerContext {
+    AwA10PITState *container;
+    int index;
+} AwA10TimerContext;
+
+struct AwA10PITState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
     qemu_irq irq[AW_A10_PIT_TIMER_NR];
     ptimer_state * timer[AW_A10_PIT_TIMER_NR];
+    AwA10TimerContext timer_context[AW_A10_PIT_TIMER_NR];
     MemoryRegion iomem;
 
     uint32_t irq_enable;
@@ -53,6 +61,6 @@ typedef struct AwA10PITState {
     uint32_t count_lo;
     uint32_t count_hi;
     uint32_t count_ctl;
-} AwA10PITState;
+};
 
 #endif
