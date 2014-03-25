@@ -144,6 +144,7 @@
 #define MII_BMSR_10T_FD     (1 << 12)
 #define MII_BMSR_10T_HD     (1 << 11)
 #define MII_BMSR_MFPS       (1 << 6)
+#define MII_BMSR_AN_COMP    (1 << 5)
 #define MII_BMSR_AUTONEG    (1 << 3)
 #define MII_BMSR_LINK_ST    (1 << 2)
 
