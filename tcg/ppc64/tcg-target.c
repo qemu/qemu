@@ -714,9 +714,8 @@ static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
                              TCGReg base, tcg_target_long offset)
 {
     tcg_target_long orig = offset, l0, l1, extra = 0, align = 0;
+    bool is_store = false;
     TCGReg rs = TCG_REG_R2;
-
-    assert(rt != TCG_REG_R2 && base != TCG_REG_R2);
 
     switch (opi) {
     case LD: case LWA:
@@ -725,19 +724,22 @@ static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
     default:
         if (rt != TCG_REG_R0) {
             rs = rt;
+            break;
         }
         break;
     case STD:
         align = 3;
-        break;
+        /* FALLTHRU */
     case STB: case STH: case STW:
+        is_store = true;
         break;
     }
 
     /* For unaligned, or very large offsets, use the indexed form.  */
     if (offset & align || offset != (int32_t)offset) {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, orig);
-        tcg_out32(s, opx | TAB(rt, base, TCG_REG_R2));
+        tcg_debug_assert(rs != base && (!is_store || rs != rt));
+        tcg_out_movi(s, TCG_TYPE_PTR, rs, orig);
+        tcg_out32(s, opx | TAB(rt, base, rs));
         return;
     }
 
