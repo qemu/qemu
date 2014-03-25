@@ -1809,6 +1809,7 @@ static ImageInfoList *collect_image_info_list(const char *filename,
         if (err) {
             error_report("%s", error_get_pretty(err));
             error_free(err);
+            bdrv_unref(bs);
             goto err;
         }
 
