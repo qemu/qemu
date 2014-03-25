@@ -612,6 +612,13 @@ static void handle_windowevent(DisplayChangeListener *dcl, SDL_Event *ev)
     switch (ev->window.event) {
     case SDL_WINDOWEVENT_RESIZED:
         sdl_scale(scon, ev->window.data1, ev->window.data2);
+        {
+            QemuUIInfo info;
+            memset(&info, 0, sizeof(info));
+            info.width = ev->window.data1;
+            info.height = ev->window.data2;
+            dpy_set_ui_info(scon->dcl.con, &info);
+        }
         graphic_hw_invalidate(scon->dcl.con);
         graphic_hw_update(scon->dcl.con);
         break;
