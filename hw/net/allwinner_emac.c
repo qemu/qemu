@@ -391,9 +391,11 @@ static void aw_emac_write(void *opaque, hwaddr offset, uint64_t value,
         break;
     case EMAC_INT_CTL_REG:
         s->int_ctl = value;
+        aw_emac_update_irq(s);
         break;
     case EMAC_INT_STA_REG:
         s->int_sta &= ~value;
+        aw_emac_update_irq(s);
         break;
     case EMAC_MAC_MADR_REG:
         s->phy_target = value;
