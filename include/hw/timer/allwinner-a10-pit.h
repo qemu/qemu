@@ -50,6 +50,7 @@ struct AwA10PITState {
     ptimer_state * timer[AW_A10_PIT_TIMER_NR];
     AwA10TimerContext timer_context[AW_A10_PIT_TIMER_NR];
     MemoryRegion iomem;
+    uint32_t clk_freq[4];
 
     uint32_t irq_enable;
     uint32_t irq_status;
