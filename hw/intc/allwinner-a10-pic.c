@@ -49,6 +49,8 @@ static void aw_a10_pic_set_irq(void *opaque, int irq, int level)
 
     if (level) {
         set_bit(irq % 32, (void *)&s->irq_pending[irq / 32]);
+    } else {
+        clear_bit(irq % 32, (void *)&s->irq_pending[irq / 32]);
     }
     aw_a10_pic_update(s);
 }
@@ -102,7 +104,11 @@ static void aw_a10_pic_write(void *opaque, hwaddr offset, uint64_t value,
         s->nmi = value;
         break;
     case AW_A10_PIC_IRQ_PENDING ... AW_A10_PIC_IRQ_PENDING + 8:
-        s->irq_pending[index] &= ~value;
+        /*
+         * The register is read-only; nevertheless, Linux (including
+         * the version originally shipped by Allwinner) pretends to
+         * write to the register. Just ignore it.
+         */
         break;
     case AW_A10_PIC_FIQ_PENDING ... AW_A10_PIC_FIQ_PENDING + 8:
         s->fiq_pending[index] &= ~value;
