@@ -24,6 +24,10 @@
 
 #include "tcg-be-ldst.h"
 
+#if defined _CALL_DARWIN || defined __APPLE__
+#define TCG_TARGET_CALL_DARWIN
+#endif
+
 /* Shorthand for size of a pointer.  Avoid promotion to unsigned.  */
 #define SZP  ((int)sizeof(void *))
 
@@ -1431,12 +1435,26 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
 # define LINK_AREA_SIZE                (6 * SZR)
 # define LR_OFFSET                     (1 * SZR)
 # define TCG_TARGET_CALL_STACK_OFFSET  (LINK_AREA_SIZE + 8 * SZR)
-#elif defined(_CALL_ELF) && _CALL_ELF == 2
-# define LINK_AREA_SIZE                (4 * SZR)
-# define LR_OFFSET                     (1 * SZR)
+#elif TCG_TARGET_REG_BITS == 64
+# if defined(_CALL_ELF) && _CALL_ELF == 2
+#  define LINK_AREA_SIZE               (4 * SZR)
+#  define LR_OFFSET                    (1 * SZR)
+# endif
+#else /* TCG_TARGET_REG_BITS == 32 */
+# if defined(_CALL_SYSV)
+#  define TCG_TARGET_CALL_ALIGN_ARGS   1
+#  define LINK_AREA_SIZE               (2 * SZR)
+#  define LR_OFFSET                    (1 * SZR)
+# elif defined(TCG_TARGET_CALL_DARWIN)
+#  define LINK_AREA_SIZE               24
+#  define LR_OFFSET                    8
+# endif
+#endif
+#ifndef LR_OFFSET
+# error "Unhandled abi"
+#endif
+#ifndef TCG_TARGET_CALL_STACK_OFFSET
 # define TCG_TARGET_CALL_STACK_OFFSET  LINK_AREA_SIZE
-#else
-# error
 #endif
 
 #define CPU_TEMP_BUF_SIZE  (CPU_TEMP_BUF_NLONGS * (int)sizeof(long))
@@ -1469,7 +1487,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     /* Prologue */
     tcg_out32(s, MFSPR | RT(TCG_REG_R0) | LR);
-    tcg_out32(s, STDU | SAI(TCG_REG_R1, TCG_REG_R1, -FRAME_SIZE));
+    tcg_out32(s, (SZR == 8 ? STDU : STWU)
+              | SAI(TCG_REG_R1, TCG_REG_R1, -FRAME_SIZE));
 
     for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i) {
         tcg_out_st(s, TCG_TYPE_REG, tcg_target_callee_save_regs[i],
@@ -2169,6 +2188,7 @@ static void tcg_target_init(TCGContext *s)
     tcg_add_target_add_op_defs(ppc_op_defs);
 }
 
+#ifdef __ELF__
 typedef struct {
     DebugFrameCIE cie;
     DebugFrameFDEHeader fde;
@@ -2179,7 +2199,11 @@ typedef struct {
 /* We're expecting a 2 byte uleb128 encoded value.  */
 QEMU_BUILD_BUG_ON(FRAME_SIZE >= (1 << 14));
 
-#define ELF_HOST_MACHINE EM_PPC64
+#if TCG_TARGET_REG_BITS == 64
+# define ELF_HOST_MACHINE EM_PPC64
+#else
+# define ELF_HOST_MACHINE EM_PPC
+#endif
 
 static DebugFrame debug_frame = {
     .cie.len = sizeof(DebugFrameCIE)-4, /* length after .len member */
@@ -2218,3 +2242,4 @@ void tcg_register_jit(void *buf, size_t buf_size)
 
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
+#endif /* __ELF__ */
