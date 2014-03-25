@@ -1192,11 +1192,8 @@ static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
     uint64_t val = ((uint64_t)1 << (size * 8)) - 1;
 
     /* Load the ROM lazily when the guest tries to read it */
-    if (unlikely(!vdev->rom)) {
+    if (unlikely(!vdev->rom && !vdev->rom_read_failed)) {
         vfio_pci_load_rom(vdev);
-        if (unlikely(!vdev->rom && !vdev->rom_read_failed)) {
-            vfio_pci_load_rom(vdev);
-        }
     }
 
     memcpy(&val, vdev->rom + addr,
