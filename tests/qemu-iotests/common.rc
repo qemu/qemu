@@ -364,6 +364,9 @@ _fail()
 #
 _supported_fmt()
 {
+    # "generic" is suitable for most image formats. For some formats it doesn't
+    # work, however (most notably read-only formats), so they can opt out by
+    # setting IMGFMT_GENERIC to false.
     for f; do
         if [ "$f" = "$IMGFMT" -o "$f" = "generic" -a "$IMGFMT_GENERIC" = "true" ]; then
             return

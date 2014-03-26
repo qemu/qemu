@@ -137,6 +137,7 @@ common options
 check options
     -raw                test raw (default)
     -cow                test cow
+    -cloop              test cloop
     -qcow               test qcow
     -qcow2              test qcow2
     -qed                test qed
@@ -175,6 +176,12 @@ testlist options
 
         -cow)
             IMGFMT=cow
+            xpand=false
+            ;;
+
+        -cloop)
+            IMGFMT=cloop
+            IMGFMT_GENERIC=false
             xpand=false
             ;;
 
