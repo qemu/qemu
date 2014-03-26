@@ -99,6 +99,13 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
     s->n_blocks = be32_to_cpu(s->n_blocks);
 
     /* read offsets */
+    if (s->n_blocks > UINT32_MAX / sizeof(uint64_t)) {
+        /* Prevent integer overflow */
+        error_setg(errp, "n_blocks %u must be %zu or less",
+                   s->n_blocks,
+                   UINT32_MAX / sizeof(uint64_t));
+        return -EINVAL;
+    }
     offsets_size = s->n_blocks * sizeof(uint64_t);
     s->offsets = g_malloc(offsets_size);
 

@@ -43,6 +43,7 @@ _supported_proto generic
 _supported_os Linux
 
 block_size_offset=128
+n_blocks_offset=132
 
 echo
 echo "== check that the first sector can be read =="
@@ -65,6 +66,12 @@ echo
 echo "== huge block_size ==="
 _use_sample_img simple-pattern.cloop.bz2
 poke_file "$TEST_IMG" "$block_size_offset" "\xff\xff\xfe\x00"
+$QEMU_IO -c "read 0 512" $TEST_IMG 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== offsets_size overflow ==="
+_use_sample_img simple-pattern.cloop.bz2
+poke_file "$TEST_IMG" "$n_blocks_offset" "\xff\xff\xff\xff"
 $QEMU_IO -c "read 0 512" $TEST_IMG 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done
