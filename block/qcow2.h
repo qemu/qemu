@@ -222,8 +222,8 @@ typedef struct BDRVQcowState {
     uint64_t *refcount_table;
     uint64_t refcount_table_offset;
     uint32_t refcount_table_size;
-    int64_t free_cluster_index;
-    int64_t free_byte_offset;
+    uint64_t free_cluster_index;
+    uint64_t free_byte_offset;
 
     CoMutex lock;
 
@@ -467,7 +467,7 @@ void qcow2_refcount_close(BlockDriverState *bs);
 int qcow2_update_cluster_refcount(BlockDriverState *bs, int64_t cluster_index,
                                   int addend, enum qcow2_discard_type type);
 
-int64_t qcow2_alloc_clusters(BlockDriverState *bs, int64_t size);
+int64_t qcow2_alloc_clusters(BlockDriverState *bs, uint64_t size);
 int qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
     int nb_clusters);
 int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size);
