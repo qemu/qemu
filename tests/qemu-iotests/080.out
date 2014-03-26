@@ -59,6 +59,10 @@ no file open, try 'help open'
 qemu-io: can't open device TEST_DIR/t.qcow2: Invalid L1 table offset
 no file open, try 'help open'
 
+== Invalid L1 table (with internal snapshot in the image) ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': L1 table is too small
+
 == Invalid backing file size ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
 qemu-io: can't open device TEST_DIR/t.qcow2: Backing file name too long

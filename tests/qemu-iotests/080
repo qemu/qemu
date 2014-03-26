@@ -139,6 +139,13 @@ poke_file "$TEST_IMG" "$offset_l1_size" "\x00\x00\x00\x01"
 { $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 echo
+echo "== Invalid L1 table (with internal snapshot in the image) =="
+_make_test_img 64M
+{ $QEMU_IMG snapshot -c foo $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+poke_file "$TEST_IMG" "$offset_l1_size" "\x00\x00\x00\x00"
+_img_info
+
+echo
 echo "== Invalid backing file size =="
 _make_test_img 64M
 poke_file "$TEST_IMG" "$offset_backing_file_offset" "\x00\x00\x00\x00\x00\x00\x10\x00"
