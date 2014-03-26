@@ -26,31 +26,6 @@
 #include "block/block_int.h"
 #include "block/qcow2.h"
 
-typedef struct QEMU_PACKED QCowSnapshotHeader {
-    /* header is 8 byte aligned */
-    uint64_t l1_table_offset;
-
-    uint32_t l1_size;
-    uint16_t id_str_size;
-    uint16_t name_size;
-
-    uint32_t date_sec;
-    uint32_t date_nsec;
-
-    uint64_t vm_clock_nsec;
-
-    uint32_t vm_state_size;
-    uint32_t extra_data_size; /* for extension */
-    /* extra data follows */
-    /* id_str follows */
-    /* name follows  */
-} QCowSnapshotHeader;
-
-typedef struct QEMU_PACKED QCowSnapshotExtraData {
-    uint64_t vm_state_size_large;
-    uint64_t disk_size;
-} QCowSnapshotExtraData;
-
 void qcow2_free_snapshots(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
@@ -356,6 +331,10 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     int i, ret;
     uint64_t *l1_table = NULL;
     int64_t l1_table_offset;
+
+    if (s->nb_snapshots >= QCOW_MAX_SNAPSHOTS) {
+        return -EFBIG;
+    }
 
     memset(sn, 0, sizeof(*sn));
 

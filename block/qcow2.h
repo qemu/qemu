@@ -38,6 +38,7 @@
 #define QCOW_CRYPT_AES  1
 
 #define QCOW_MAX_CRYPT_CLUSTERS 32
+#define QCOW_MAX_SNAPSHOTS 65536
 
 /* indicate that the refcount of the referenced cluster is exactly one. */
 #define QCOW_OFLAG_COPIED     (1ULL << 63)
@@ -96,6 +97,32 @@ typedef struct QCowHeader {
     uint32_t refcount_order;
     uint32_t header_length;
 } QEMU_PACKED QCowHeader;
+
+typedef struct QEMU_PACKED QCowSnapshotHeader {
+    /* header is 8 byte aligned */
+    uint64_t l1_table_offset;
+
+    uint32_t l1_size;
+    uint16_t id_str_size;
+    uint16_t name_size;
+
+    uint32_t date_sec;
+    uint32_t date_nsec;
+
+    uint64_t vm_clock_nsec;
+
+    uint32_t vm_state_size;
+    uint32_t extra_data_size; /* for extension */
+    /* extra data follows */
+    /* id_str follows */
+    /* name follows  */
+} QCowSnapshotHeader;
+
+typedef struct QEMU_PACKED QCowSnapshotExtraData {
+    uint64_t vm_state_size_large;
+    uint64_t disk_size;
+} QCowSnapshotExtraData;
+
 
 typedef struct QCowSnapshot {
     uint64_t l1_table_offset;
@@ -202,7 +229,7 @@ typedef struct BDRVQcowState {
     AES_KEY aes_decrypt_key;
     uint64_t snapshots_offset;
     int snapshots_size;
-    int nb_snapshots;
+    unsigned int nb_snapshots;
     QCowSnapshot *snapshots;
 
     int flags;
