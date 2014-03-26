@@ -67,13 +67,13 @@ struct bochs_header {
 typedef struct BDRVBochsState {
     CoMutex lock;
     uint32_t *catalog_bitmap;
-    int catalog_size;
+    uint32_t catalog_size;
 
-    int data_offset;
+    uint32_t data_offset;
 
-    int bitmap_blocks;
-    int extent_blocks;
-    int extent_size;
+    uint32_t bitmap_blocks;
+    uint32_t extent_blocks;
+    uint32_t extent_size;
 } BDRVBochsState;
 
 static int bochs_probe(const uint8_t *buf, int buf_size, const char *filename)
@@ -97,7 +97,7 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
     BDRVBochsState *s = bs->opaque;
-    int i;
+    uint32_t i;
     struct bochs_header bochs;
     int ret;
 
@@ -153,8 +153,8 @@ fail:
 static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 {
     BDRVBochsState *s = bs->opaque;
-    int64_t offset = sector_num * 512;
-    int64_t extent_index, extent_offset, bitmap_offset;
+    uint64_t offset = sector_num * 512;
+    uint64_t extent_index, extent_offset, bitmap_offset;
     char bitmap_entry;
 
     // seek to sector
