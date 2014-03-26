@@ -298,21 +298,10 @@ static inline int dmg_read_chunk(BlockDriverState *bs, int sector_num)
         s->current_chunk = s->n_chunks;
         switch (s->types[chunk]) {
         case 0x80000005: { /* zlib compressed */
-            int i;
-
             /* we need to buffer, because only the chunk as whole can be
              * inflated. */
-            i = 0;
-            do {
-                ret = bdrv_pread(bs->file, s->offsets[chunk] + i,
-                                 s->compressed_chunk + i,
-                                 s->lengths[chunk] - i);
-                if (ret < 0 && errno == EINTR) {
-                    ret = 0;
-                }
-                i += ret;
-            } while (ret >= 0 && ret + i < s->lengths[chunk]);
-
+            ret = bdrv_pread(bs->file, s->offsets[chunk],
+                             s->compressed_chunk, s->lengths[chunk]);
             if (ret != s->lengths[chunk]) {
                 return -1;
             }
