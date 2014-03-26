@@ -609,9 +609,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     s->refcount_table_size =
         header.refcount_table_clusters << (s->cluster_bits - 3);
 
-    if (header.refcount_table_clusters > (0x800000 >> s->cluster_bits)) {
-        /* 8 MB refcount table is enough for 2 PB images at 64k cluster size
-         * (128 GB for 512 byte clusters, 2 EB for 2 MB clusters) */
+    if (header.refcount_table_clusters > qcow2_max_refcount_clusters(s)) {
         error_setg(errp, "Reference count table too large");
         ret = -EINVAL;
         goto fail;

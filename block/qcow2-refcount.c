@@ -311,6 +311,10 @@ static int alloc_refcount_block(BlockDriverState *bs,
     uint64_t refcount_block_clusters = 1 << (s->cluster_bits - REFCOUNT_SHIFT);
     uint64_t blocks_used = DIV_ROUND_UP(cluster_index, refcount_block_clusters);
 
+    if (blocks_used > QCOW_MAX_REFTABLE_SIZE / sizeof(uint64_t)) {
+        return -EFBIG;
+    }
+
     /* And now we need at least one block more for the new metadata */
     uint64_t table_size = next_refcount_table_size(s, blocks_used + 1);
     uint64_t last_table_size;
