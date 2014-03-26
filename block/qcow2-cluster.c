@@ -55,7 +55,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
         }
     }
 
-    if (new_l1_size > INT_MAX) {
+    if (new_l1_size > INT_MAX / sizeof(uint64_t)) {
         return -EFBIG;
     }
 
