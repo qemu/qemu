@@ -186,8 +186,9 @@ static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 	return -1; /* not allocated */
     }
 
-    bitmap_offset = s->data_offset + (512 * s->catalog_bitmap[extent_index] *
-	(s->extent_blocks + s->bitmap_blocks));
+    bitmap_offset = s->data_offset +
+        (512 * (uint64_t) s->catalog_bitmap[extent_index] *
+        (s->extent_blocks + s->bitmap_blocks));
 
     /* read in bitmap for current extent */
     if (bdrv_pread(bs->file, bitmap_offset + (extent_offset / 8),
