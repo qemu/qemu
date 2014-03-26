@@ -89,7 +89,7 @@ static int load_refcount_block(BlockDriverState *bs,
 static int get_refcount(BlockDriverState *bs, int64_t cluster_index)
 {
     BDRVQcowState *s = bs->opaque;
-    int refcount_table_index, block_index;
+    uint64_t refcount_table_index, block_index;
     int64_t refcount_block_offset;
     int ret;
     uint16_t *refcount_block;
