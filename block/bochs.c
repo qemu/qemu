@@ -148,6 +148,14 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
     s->extent_blocks = 1 + (le32_to_cpu(bochs.extent) - 1) / 512;
 
     s->extent_size = le32_to_cpu(bochs.extent);
+    if (s->extent_size == 0) {
+        error_setg(errp, "Extent size may not be zero");
+        return -EINVAL;
+    } else if (s->extent_size > 0x800000) {
+        error_setg(errp, "Extent size %" PRIu32 " is too large",
+                   s->extent_size);
+        return -EINVAL;
+    }
 
     if (s->catalog_size < bs->total_sectors / s->extent_size) {
         error_setg(errp, "Catalog size is too small for this disk size");
