@@ -128,6 +128,7 @@ common options
 
 check options
     -raw                test raw (default)
+    -bochs              test bochs
     -cow                test cow
     -cloop              test cloop
     -qcow               test qcow
@@ -160,6 +161,12 @@ testlist options
 
         -raw)
             IMGFMT=raw
+            xpand=false
+            ;;
+
+        -bochs)
+            IMGFMT=bochs
+            IMGFMT_GENERIC=false
             xpand=false
             ;;
 
