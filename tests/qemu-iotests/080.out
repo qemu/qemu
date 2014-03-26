@@ -47,4 +47,15 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 qemu-img: Could not create snapshot 'test': -27 (File too large)
 read 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Invalid L1 table ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+qemu-io: can't open device TEST_DIR/t.qcow2: Active L1 table too large
+no file open, try 'help open'
+qemu-io: can't open device TEST_DIR/t.qcow2: Active L1 table too large
+no file open, try 'help open'
+qemu-io: can't open device TEST_DIR/t.qcow2: Invalid L1 table offset
+no file open, try 'help open'
+qemu-io: can't open device TEST_DIR/t.qcow2: Invalid L1 table offset
+no file open, try 'help open'
 *** done
