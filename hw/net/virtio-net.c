@@ -514,6 +514,12 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
         }
         vhost_net_ack_features(tap_get_vhost_net(nc->peer), features);
     }
+
+    if ((1 << VIRTIO_NET_F_CTRL_VLAN) & features) {
+        memset(n->vlans, 0, MAX_VLAN >> 3);
+    } else {
+        memset(n->vlans, 0xff, MAX_VLAN >> 3);
+    }
 }
 
 static int virtio_net_handle_rx_mode(VirtIONet *n, uint8_t cmd,
