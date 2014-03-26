@@ -281,7 +281,7 @@ fail:
 }
 
 static inline int is_sector_in_chunk(BDRVDMGState* s,
-                uint32_t chunk_num, int sector_num)
+                uint32_t chunk_num, uint64_t sector_num)
 {
     if (chunk_num >= s->n_chunks || s->sectors[chunk_num] > sector_num ||
             s->sectors[chunk_num] + s->sectorcounts[chunk_num] <= sector_num) {
@@ -291,7 +291,7 @@ static inline int is_sector_in_chunk(BDRVDMGState* s,
     }
 }
 
-static inline uint32_t search_chunk(BDRVDMGState *s, int sector_num)
+static inline uint32_t search_chunk(BDRVDMGState *s, uint64_t sector_num)
 {
     /* binary search */
     uint32_t chunk1 = 0, chunk2 = s->n_chunks, chunk3;
@@ -308,7 +308,7 @@ static inline uint32_t search_chunk(BDRVDMGState *s, int sector_num)
     return s->n_chunks; /* error */
 }
 
-static inline int dmg_read_chunk(BlockDriverState *bs, int sector_num)
+static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
 {
     BDRVDMGState *s = bs->opaque;
 
