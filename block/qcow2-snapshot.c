@@ -116,8 +116,14 @@ int qcow2_read_snapshots(BlockDriverState *bs)
         }
         offset += name_size;
         sn->name[name_size] = '\0';
+
+        if (offset - s->snapshots_offset > QCOW_MAX_SNAPSHOTS_SIZE) {
+            ret = -EFBIG;
+            goto fail;
+        }
     }
 
+    assert(offset - s->snapshots_offset <= INT_MAX);
     s->snapshots_size = offset - s->snapshots_offset;
     return 0;
 
@@ -138,7 +144,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
         uint32_t nb_snapshots;
         uint64_t snapshots_offset;
     } QEMU_PACKED header_data;
-    int64_t offset, snapshots_offset;
+    int64_t offset, snapshots_offset = 0;
     int ret;
 
     /* compute the size of the snapshots */
@@ -150,7 +156,14 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
         offset += sizeof(extra);
         offset += strlen(sn->id_str);
         offset += strlen(sn->name);
+
+        if (offset > QCOW_MAX_SNAPSHOTS_SIZE) {
+            ret = -EFBIG;
+            goto fail;
+        }
     }
+
+    assert(offset <= INT_MAX);
     snapshots_size = offset;
 
     /* Allocate space for the new snapshot list */
