@@ -118,6 +118,8 @@
 #define TCG_TARGET_HAS_mulu2_i64        0
 #define TCG_TARGET_HAS_muluh_i64        0
 #define TCG_TARGET_HAS_mulsh_i64        0
+#else
+#define TCG_TARGET_HAS_mulu2_i32        1
 #endif /* TCG_TARGET_REG_BITS == 64 */
 
 #define TCG_TARGET_HAS_new_ldst         0

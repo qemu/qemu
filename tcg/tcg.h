@@ -97,7 +97,6 @@ typedef uint64_t TCGRegSet;
 /* Turn some undef macros into true macros.  */
 #define TCG_TARGET_HAS_add2_i32         1
 #define TCG_TARGET_HAS_sub2_i32         1
-#define TCG_TARGET_HAS_mulu2_i32        1
 #endif
 
 #ifndef TCG_TARGET_deposit_i32_valid
@@ -119,6 +118,13 @@ typedef uint64_t TCGRegSet;
 #elif defined(TCG_TARGET_HAS_div2_i64)
 #define TCG_TARGET_HAS_div_i64          0
 #define TCG_TARGET_HAS_rem_i64          0
+#endif
+
+/* For 32-bit targets, some sort of unsigned widening multiply is required.  */
+#if TCG_TARGET_REG_BITS == 32 \
+    && !(defined(TCG_TARGET_HAS_mulu2_i32) \
+         || defined(TCG_TARGET_HAS_muluh_i32))
+# error "Missing unsigned widening multiply"
 #endif
 
 typedef enum TCGOpcode {
