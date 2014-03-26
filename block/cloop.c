@@ -107,6 +107,15 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
     offsets_size = s->n_blocks * sizeof(uint64_t);
+    if (offsets_size > 512 * 1024 * 1024) {
+        /* Prevent ridiculous offsets_size which causes memory allocation to
+         * fail or overflows bdrv_pread() size.  In practice the 512 MB
+         * offsets[] limit supports 16 TB images at 256 KB block size.
+         */
+        error_setg(errp, "image requires too many offsets, "
+                   "try increasing block size");
+        return -EINVAL;
+    }
     s->offsets = g_malloc(offsets_size);
 
     ret = bdrv_pread(bs->file, 128 + 4 + 4, s->offsets, offsets_size);

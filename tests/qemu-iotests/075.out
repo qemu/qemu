@@ -19,4 +19,8 @@ no file open, try 'help open'
 == offsets_size overflow ===
 qemu-io: can't open device TEST_DIR/simple-pattern.cloop: n_blocks 4294967295 must be 536870911 or less
 no file open, try 'help open'
+
+== refuse images that require too many offsets ===
+qemu-io: can't open device TEST_DIR/simple-pattern.cloop: image requires too many offsets, try increasing block size
+no file open, try 'help open'
 *** done
