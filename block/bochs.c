@@ -123,7 +123,14 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
         bs->total_sectors = le64_to_cpu(bochs.extra.redolog.disk) / 512;
     }
 
+    /* Limit to 1M entries to avoid unbounded allocation. This is what is
+     * needed for the largest image that bximage can create (~8 TB). */
     s->catalog_size = le32_to_cpu(bochs.catalog);
+    if (s->catalog_size > 0x100000) {
+        error_setg(errp, "Catalog size is too large");
+        return -EFBIG;
+    }
+
     s->catalog_bitmap = g_malloc(s->catalog_size * 4);
 
     ret = bdrv_pread(bs->file, le32_to_cpu(bochs.header), s->catalog_bitmap,
@@ -141,6 +148,12 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
     s->extent_blocks = 1 + (le32_to_cpu(bochs.extent) - 1) / 512;
 
     s->extent_size = le32_to_cpu(bochs.extent);
+
+    if (s->catalog_size < bs->total_sectors / s->extent_size) {
+        error_setg(errp, "Catalog size is too small for this disk size");
+        ret = -EINVAL;
+        goto fail;
+    }
 
     qemu_co_mutex_init(&s->lock);
     return 0;
