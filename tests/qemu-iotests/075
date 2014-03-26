@@ -42,9 +42,29 @@ _supported_fmt cloop
 _supported_proto generic
 _supported_os Linux
 
+block_size_offset=128
+
 echo
 echo "== check that the first sector can be read =="
 _use_sample_img simple-pattern.cloop.bz2
+$QEMU_IO -c "read 0 512" $TEST_IMG 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== block_size must be a multiple of 512 =="
+_use_sample_img simple-pattern.cloop.bz2
+poke_file "$TEST_IMG" "$block_size_offset" "\x00\x00\x02\x01"
+$QEMU_IO -c "read 0 512" $TEST_IMG 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== block_size cannot be zero =="
+_use_sample_img simple-pattern.cloop.bz2
+poke_file "$TEST_IMG" "$block_size_offset" "\x00\x00\x00\x00"
+$QEMU_IO -c "read 0 512" $TEST_IMG 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== huge block_size ==="
+_use_sample_img simple-pattern.cloop.bz2
+poke_file "$TEST_IMG" "$block_size_offset" "\xff\xff\xfe\x00"
 $QEMU_IO -c "read 0 512" $TEST_IMG 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done
