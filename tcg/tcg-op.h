@@ -2437,14 +2437,12 @@ static inline void tcg_gen_muls2_i32(TCGv_i32 rl, TCGv_i32 rh,
         tcg_gen_op3_i32(INDEX_op_mulsh_i32, rh, arg1, arg2);
         tcg_gen_mov_i32(rl, t);
         tcg_temp_free_i32(t);
-    } else if (TCG_TARGET_REG_BITS == 32 && TCG_TARGET_HAS_mulu2_i32) {
+    } else if (TCG_TARGET_REG_BITS == 32) {
         TCGv_i32 t0 = tcg_temp_new_i32();
         TCGv_i32 t1 = tcg_temp_new_i32();
         TCGv_i32 t2 = tcg_temp_new_i32();
         TCGv_i32 t3 = tcg_temp_new_i32();
-        tcg_gen_op4_i32(INDEX_op_mulu2_i32, t0, t1, arg1, arg2);
-        /* Allow the optimizer room to replace mulu2 with two moves.  */
-        tcg_gen_op0(INDEX_op_nop);
+        tcg_gen_mulu2_i32(t0, t1, arg1, arg2);
         /* Adjust for negative inputs.  */
         tcg_gen_sari_i32(t2, arg1, 31);
         tcg_gen_sari_i32(t3, arg2, 31);
