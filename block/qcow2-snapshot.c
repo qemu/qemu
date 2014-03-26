@@ -680,7 +680,7 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs,
     sn = &s->snapshots[snapshot_index];
 
     /* Allocate and read in the snapshot's L1 table */
-    new_l1_bytes = s->l1_size * sizeof(uint64_t);
+    new_l1_bytes = sn->l1_size * sizeof(uint64_t);
     new_l1_table = g_malloc0(align_offset(new_l1_bytes, 512));
 
     ret = bdrv_pread(bs->file, sn->l1_table_offset, new_l1_table, new_l1_bytes);

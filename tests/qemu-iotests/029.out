@@ -20,4 +20,8 @@ wrote 4096/4096 bytes at offset 1099511627776
 read 4096/4096 bytes at offset 1099511627776
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 No errors were found on the image.
+
+qcow2_snapshot_load_tmp() should take the L1 size from the snapshot
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
 *** done
