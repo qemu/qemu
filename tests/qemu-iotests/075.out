@@ -15,4 +15,8 @@ no file open, try 'help open'
 == huge block_size ===
 qemu-io: can't open device TEST_DIR/simple-pattern.cloop: block_size 4294966784 must be 64 MB or less
 no file open, try 'help open'
+
+== offsets_size overflow ===
+qemu-io: can't open device TEST_DIR/simple-pattern.cloop: n_blocks 4294967295 must be 536870911 or less
+no file open, try 'help open'
 *** done
