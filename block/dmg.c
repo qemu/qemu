@@ -27,6 +27,14 @@
 #include "qemu/module.h"
 #include <zlib.h>
 
+enum {
+    /* Limit chunk sizes to prevent unreasonable amounts of memory being used
+     * or truncating when converting to 32-bit types
+     */
+    DMG_LENGTHS_MAX = 64 * 1024 * 1024, /* 64 MB */
+    DMG_SECTORCOUNTS_MAX = DMG_LENGTHS_MAX / 512,
+};
+
 typedef struct BDRVDMGState {
     CoMutex lock;
     /* each chunk contains a certain number of sectors,
@@ -208,6 +216,14 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
                 }
                 offset += 8;
 
+                if (s->sectorcounts[i] > DMG_SECTORCOUNTS_MAX) {
+                    error_report("sector count %" PRIu64 " for chunk %u is "
+                                 "larger than max (%u)",
+                                 s->sectorcounts[i], i, DMG_SECTORCOUNTS_MAX);
+                    ret = -EINVAL;
+                    goto fail;
+                }
+
                 ret = read_uint64(bs, offset, &s->offsets[i]);
                 if (ret < 0) {
                     goto fail;
@@ -220,6 +236,14 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
                     goto fail;
                 }
                 offset += 8;
+
+                if (s->lengths[i] > DMG_LENGTHS_MAX) {
+                    error_report("length %" PRIu64 " for chunk %u is larger "
+                                 "than max (%u)",
+                                 s->lengths[i], i, DMG_LENGTHS_MAX);
+                    ret = -EINVAL;
+                    goto fail;
+                }
 
                 if (s->lengths[i] > max_compressed_size) {
                     max_compressed_size = s->lengths[i];
