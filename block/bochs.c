@@ -39,45 +39,30 @@
 // not allocated: 0xffffffff
 
 // always little-endian
-struct bochs_header_v1 {
-    char magic[32]; // "Bochs Virtual HD Image"
-    char type[16]; // "Redolog"
-    char subtype[16]; // "Undoable" / "Volatile" / "Growing"
-    uint32_t version;
-    uint32_t header; // size of header
-
-    union {
-	struct {
-	    uint32_t catalog; // num of entries
-	    uint32_t bitmap; // bitmap size
-	    uint32_t extent; // extent size
-	    uint64_t disk; // disk size
-	    char padding[HEADER_SIZE - 64 - 8 - 20];
-	} redolog;
-	char padding[HEADER_SIZE - 64 - 8];
-    } extra;
-};
-
-// always little-endian
 struct bochs_header {
-    char magic[32]; // "Bochs Virtual HD Image"
-    char type[16]; // "Redolog"
-    char subtype[16]; // "Undoable" / "Volatile" / "Growing"
+    char magic[32];     /* "Bochs Virtual HD Image" */
+    char type[16];      /* "Redolog" */
+    char subtype[16];   /* "Undoable" / "Volatile" / "Growing" */
     uint32_t version;
-    uint32_t header; // size of header
+    uint32_t header;    /* size of header */
+
+    uint32_t catalog;   /* num of entries */
+    uint32_t bitmap;    /* bitmap size */
+    uint32_t extent;    /* extent size */
 
     union {
-	struct {
-	    uint32_t catalog; // num of entries
-	    uint32_t bitmap; // bitmap size
-	    uint32_t extent; // extent size
-	    uint32_t reserved; // for ???
-	    uint64_t disk; // disk size
-	    char padding[HEADER_SIZE - 64 - 8 - 24];
-	} redolog;
-	char padding[HEADER_SIZE - 64 - 8];
+        struct {
+            uint32_t reserved;  /* for ??? */
+            uint64_t disk;      /* disk size */
+            char padding[HEADER_SIZE - 64 - 20 - 12];
+        } QEMU_PACKED redolog;
+        struct {
+            uint64_t disk;      /* disk size */
+            char padding[HEADER_SIZE - 64 - 20 - 8];
+        } QEMU_PACKED redolog_v1;
+        char padding[HEADER_SIZE - 64 - 20];
     } extra;
-};
+} QEMU_PACKED;
 
 typedef struct BDRVBochsState {
     CoMutex lock;
@@ -114,7 +99,6 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVBochsState *s = bs->opaque;
     int i;
     struct bochs_header bochs;
-    struct bochs_header_v1 header_v1;
     int ret;
 
     bs->read_only = 1; // no write support yet
@@ -134,13 +118,12 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (le32_to_cpu(bochs.version) == HEADER_V1) {
-      memcpy(&header_v1, &bochs, sizeof(bochs));
-      bs->total_sectors = le64_to_cpu(header_v1.extra.redolog.disk) / 512;
+        bs->total_sectors = le64_to_cpu(bochs.extra.redolog_v1.disk) / 512;
     } else {
-      bs->total_sectors = le64_to_cpu(bochs.extra.redolog.disk) / 512;
+        bs->total_sectors = le64_to_cpu(bochs.extra.redolog.disk) / 512;
     }
 
-    s->catalog_size = le32_to_cpu(bochs.extra.redolog.catalog);
+    s->catalog_size = le32_to_cpu(bochs.catalog);
     s->catalog_bitmap = g_malloc(s->catalog_size * 4);
 
     ret = bdrv_pread(bs->file, le32_to_cpu(bochs.header), s->catalog_bitmap,
@@ -154,10 +137,10 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->data_offset = le32_to_cpu(bochs.header) + (s->catalog_size * 4);
 
-    s->bitmap_blocks = 1 + (le32_to_cpu(bochs.extra.redolog.bitmap) - 1) / 512;
-    s->extent_blocks = 1 + (le32_to_cpu(bochs.extra.redolog.extent) - 1) / 512;
+    s->bitmap_blocks = 1 + (le32_to_cpu(bochs.bitmap) - 1) / 512;
+    s->extent_blocks = 1 + (le32_to_cpu(bochs.extent) - 1) / 512;
 
-    s->extent_size = le32_to_cpu(bochs.extra.redolog.extent);
+    s->extent_size = le32_to_cpu(bochs.extent);
 
     qemu_co_mutex_init(&s->lock);
     return 0;
