@@ -100,6 +100,37 @@ static int read_uint32(BlockDriverState *bs, int64_t offset, uint32_t *result)
     return 0;
 }
 
+/* Increase max chunk sizes, if necessary.  This function is used to calculate
+ * the buffer sizes needed for compressed/uncompressed chunk I/O.
+ */
+static void update_max_chunk_size(BDRVDMGState *s, uint32_t chunk,
+                                  uint32_t *max_compressed_size,
+                                  uint32_t *max_sectors_per_chunk)
+{
+    uint32_t compressed_size = 0;
+    uint32_t uncompressed_sectors = 0;
+
+    switch (s->types[chunk]) {
+    case 0x80000005: /* zlib compressed */
+        compressed_size = s->lengths[chunk];
+        uncompressed_sectors = s->sectorcounts[chunk];
+        break;
+    case 1: /* copy */
+        uncompressed_sectors = (s->lengths[chunk] + 511) / 512;
+        break;
+    case 2: /* zero */
+        uncompressed_sectors = s->sectorcounts[chunk];
+        break;
+    }
+
+    if (compressed_size > *max_compressed_size) {
+        *max_compressed_size = compressed_size;
+    }
+    if (uncompressed_sectors > *max_sectors_per_chunk) {
+        *max_sectors_per_chunk = uncompressed_sectors;
+    }
+}
+
 static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
@@ -245,12 +276,8 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
                     goto fail;
                 }
 
-                if (s->lengths[i] > max_compressed_size) {
-                    max_compressed_size = s->lengths[i];
-                }
-                if (s->sectorcounts[i] > max_sectors_per_chunk) {
-                    max_sectors_per_chunk = s->sectorcounts[i];
-                }
+                update_max_chunk_size(s, i, &max_compressed_size,
+                                      &max_sectors_per_chunk);
             }
             s->n_chunks += chunk_count;
         }
