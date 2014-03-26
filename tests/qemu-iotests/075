@@ -44,6 +44,7 @@ _supported_os Linux
 
 block_size_offset=128
 n_blocks_offset=132
+offsets_offset=136
 
 echo
 echo "== check that the first sector can be read =="
@@ -78,6 +79,20 @@ echo
 echo "== refuse images that require too many offsets ==="
 _use_sample_img simple-pattern.cloop.bz2
 poke_file "$TEST_IMG" "$n_blocks_offset" "\x04\x00\x00\x01"
+$QEMU_IO -c "read 0 512" $TEST_IMG 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== refuse images with non-monotonically increasing offsets =="
+_use_sample_img simple-pattern.cloop.bz2
+poke_file "$TEST_IMG" "$offsets_offset" "\x00\x00\x00\x00\xff\xff\xff\xff"
+poke_file "$TEST_IMG" $((offsets_offset + 8)) "\x00\x00\x00\x00\xff\xfe\x00\x00"
+$QEMU_IO -c "read 0 512" $TEST_IMG 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== refuse images with invalid compressed block size =="
+_use_sample_img simple-pattern.cloop.bz2
+poke_file "$TEST_IMG" "$offsets_offset" "\x00\x00\x00\x00\x00\x00\x00\x00"
+poke_file "$TEST_IMG" $((offsets_offset + 8)) "\xff\xff\xff\xff\xff\xff\xff\xff"
 $QEMU_IO -c "read 0 512" $TEST_IMG 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done

@@ -23,4 +23,12 @@ no file open, try 'help open'
 == refuse images that require too many offsets ===
 qemu-io: can't open device TEST_DIR/simple-pattern.cloop: image requires too many offsets, try increasing block size
 no file open, try 'help open'
+
+== refuse images with non-monotonically increasing offsets ==
+qemu-io: can't open device TEST_DIR/simple-pattern.cloop: offsets not monotonically increasing at index 1, image file is corrupt
+no file open, try 'help open'
+
+== refuse images with invalid compressed block size ==
+qemu-io: can't open device TEST_DIR/simple-pattern.cloop: invalid compressed block size at index 1, image file is corrupt
+no file open, try 'help open'
 *** done
