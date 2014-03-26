@@ -28,7 +28,7 @@
 #include "qemu/range.h"
 #include "qapi/qmp/types.h"
 
-static int64_t alloc_clusters_noref(BlockDriverState *bs, int64_t size);
+static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size);
 static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
                             int64_t offset, int64_t length,
                             int addend, enum qcow2_discard_type type);
@@ -635,15 +635,16 @@ int qcow2_update_cluster_refcount(BlockDriverState *bs,
 
 
 /* return < 0 if error */
-static int64_t alloc_clusters_noref(BlockDriverState *bs, int64_t size)
+static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size)
 {
     BDRVQcowState *s = bs->opaque;
-    int i, nb_clusters, refcount;
+    uint64_t i, nb_clusters;
+    int refcount;
 
     nb_clusters = size_to_clusters(s, size);
 retry:
     for(i = 0; i < nb_clusters; i++) {
-        int64_t next_cluster_index = s->free_cluster_index++;
+        uint64_t next_cluster_index = s->free_cluster_index++;
         refcount = get_refcount(bs, next_cluster_index);
 
         if (refcount < 0) {
@@ -660,7 +661,7 @@ retry:
     return (s->free_cluster_index - nb_clusters) << s->cluster_bits;
 }
 
-int64_t qcow2_alloc_clusters(BlockDriverState *bs, int64_t size)
+int64_t qcow2_alloc_clusters(BlockDriverState *bs, uint64_t size)
 {
     int64_t offset;
     int ret;
