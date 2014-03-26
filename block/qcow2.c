@@ -577,9 +577,18 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     s->csize_shift = (62 - (s->cluster_bits - 8));
     s->csize_mask = (1 << (s->cluster_bits - 8)) - 1;
     s->cluster_offset_mask = (1LL << s->csize_shift) - 1;
+
     s->refcount_table_offset = header.refcount_table_offset;
     s->refcount_table_size =
         header.refcount_table_clusters << (s->cluster_bits - 3);
+
+    if (header.refcount_table_clusters > (0x800000 >> s->cluster_bits)) {
+        /* 8 MB refcount table is enough for 2 PB images at 64k cluster size
+         * (128 GB for 512 byte clusters, 2 EB for 2 MB clusters) */
+        error_setg(errp, "Reference count table too large");
+        ret = -EINVAL;
+        goto fail;
+    }
 
     s->snapshots_offset = header.snapshots_offset;
     s->nb_snapshots = header.nb_snapshots;
