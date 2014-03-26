@@ -445,7 +445,8 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
     BDRVQcowState *s = bs->opaque;
-    int len, i, ret = 0;
+    unsigned int len, i;
+    int ret = 0;
     QCowHeader header;
     QemuOpts *opts;
     Error *local_err = NULL;
@@ -721,8 +722,10 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     /* read the backing file name */
     if (header.backing_file_offset != 0) {
         len = header.backing_file_size;
-        if (len > 1023) {
-            len = 1023;
+        if (len > MIN(1023, s->cluster_size - header.backing_file_offset)) {
+            error_setg(errp, "Backing file name too long");
+            ret = -EINVAL;
+            goto fail;
         }
         ret = bdrv_pread(bs->file, header.backing_file_offset,
                          bs->backing_file, len);

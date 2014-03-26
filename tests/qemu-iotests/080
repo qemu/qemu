@@ -45,6 +45,7 @@ _supported_os Linux
 header_size=104
 
 offset_backing_file_offset=8
+offset_backing_file_size=16
 offset_l1_size=36
 offset_l1_table_offset=40
 offset_refcount_table_offset=48
@@ -133,6 +134,13 @@ poke_file "$TEST_IMG" "$offset_l1_size" "\x00\x00\xff\xff"
 
 poke_file "$TEST_IMG" "$offset_l1_table_offset" "\x12\x34\x56\x78\x90\xab\xcd\xef"
 poke_file "$TEST_IMG" "$offset_l1_size" "\x00\x00\x00\x01"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== Invalid backing file size =="
+_make_test_img 64M
+poke_file "$TEST_IMG" "$offset_backing_file_offset" "\x00\x00\x00\x00\x00\x00\x10\x00"
+poke_file "$TEST_IMG" "$offset_backing_file_size" "\xff\xff\xff\xff"
 { $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done
