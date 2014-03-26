@@ -1,0 +1,6 @@
+QA output created by 075
+
+== check that the first sector can be read ==
+read 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+*** done
