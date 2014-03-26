@@ -182,7 +182,7 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
                 offset += 4;
                 if (s->types[i] != 0x80000005 && s->types[i] != 1 &&
                     s->types[i] != 2) {
-                    if (s->types[i] == 0xffffffff) {
+                    if (s->types[i] == 0xffffffff && i > 0) {
                         last_in_offset = s->offsets[i - 1] + s->lengths[i - 1];
                         last_out_offset = s->sectors[i - 1] +
                                           s->sectorcounts[i - 1];
