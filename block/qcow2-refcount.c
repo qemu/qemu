@@ -1020,8 +1020,7 @@ static void inc_refcounts(BlockDriverState *bs,
                           int64_t offset, int64_t size)
 {
     BDRVQcowState *s = bs->opaque;
-    int64_t start, last, cluster_offset;
-    int k;
+    uint64_t start, last, cluster_offset, k;
 
     if (size <= 0)
         return;
@@ -1031,11 +1030,7 @@ static void inc_refcounts(BlockDriverState *bs,
     for(cluster_offset = start; cluster_offset <= last;
         cluster_offset += s->cluster_size) {
         k = cluster_offset >> s->cluster_bits;
-        if (k < 0) {
-            fprintf(stderr, "ERROR: invalid cluster offset=0x%" PRIx64 "\n",
-                cluster_offset);
-            res->corruptions++;
-        } else if (k >= refcount_table_size) {
+        if (k >= refcount_table_size) {
             fprintf(stderr, "Warning: cluster offset=0x%" PRIx64 " is after "
                 "the end of the image file, can't properly check refcounts.\n",
                 cluster_offset);
@@ -1478,14 +1473,19 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                           BdrvCheckMode fix)
 {
     BDRVQcowState *s = bs->opaque;
-    int64_t size, i, highest_cluster;
-    int nb_clusters, refcount1, refcount2;
+    int64_t size, i, highest_cluster, nb_clusters;
+    int refcount1, refcount2;
     QCowSnapshot *sn;
     uint16_t *refcount_table;
     int ret;
 
     size = bdrv_getlength(bs->file);
     nb_clusters = size_to_clusters(s, size);
+    if (nb_clusters > INT_MAX) {
+        res->check_errors++;
+        return -EFBIG;
+    }
+
     refcount_table = g_malloc0(nb_clusters * sizeof(uint16_t));
 
     res->bfi.total_clusters =
