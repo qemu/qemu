@@ -637,9 +637,6 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    s->snapshots_offset = header.snapshots_offset;
-    s->nb_snapshots = header.nb_snapshots;
-
     /* read the level 1 table */
     if (header.l1_size > 0x2000000) {
         /* 32 MB L1 table is enough for 2 PB images at 64k cluster size
@@ -733,6 +730,10 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         }
         bs->backing_file[len] = '\0';
     }
+
+    /* Internal snapshots */
+    s->snapshots_offset = header.snapshots_offset;
+    s->nb_snapshots = header.nb_snapshots;
 
     ret = qcow2_read_snapshots(bs);
     if (ret < 0) {
