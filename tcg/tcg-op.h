@@ -2520,26 +2520,6 @@ static inline void tcg_gen_mulu2_i64(TCGv_i64 rl, TCGv_i64 rh,
         tcg_gen_op3_i64(INDEX_op_muluh_i64, rh, arg1, arg2);
         tcg_gen_mov_i64(rl, t);
         tcg_temp_free_i64(t);
-    } else if (TCG_TARGET_HAS_mulu2_i64) {
-        TCGv_i64 t0 = tcg_temp_new_i64();
-        TCGv_i64 t1 = tcg_temp_new_i64();
-        TCGv_i64 t2 = tcg_temp_new_i64();
-        TCGv_i64 t3 = tcg_temp_new_i64();
-        tcg_gen_op4_i64(INDEX_op_mulu2_i64, t0, t1, arg1, arg2);
-        /* Allow the optimizer room to replace mulu2 with two moves.  */
-        tcg_gen_op0(INDEX_op_nop);
-        /* Adjust for negative inputs.  */
-        tcg_gen_sari_i64(t2, arg1, 63);
-        tcg_gen_sari_i64(t3, arg2, 63);
-        tcg_gen_and_i64(t2, t2, arg2);
-        tcg_gen_and_i64(t3, t3, arg1);
-        tcg_gen_sub_i64(rh, t1, t2);
-        tcg_gen_sub_i64(rh, rh, t3);
-        tcg_gen_mov_i64(rl, t0);
-        tcg_temp_free_i64(t0);
-        tcg_temp_free_i64(t1);
-        tcg_temp_free_i64(t2);
-        tcg_temp_free_i64(t3);
     } else {
         TCGv_i64 t0 = tcg_temp_new_i64();
         int sizemask = 0;
@@ -2567,6 +2547,24 @@ static inline void tcg_gen_muls2_i64(TCGv_i64 rl, TCGv_i64 rh,
         tcg_gen_op3_i64(INDEX_op_mulsh_i64, rh, arg1, arg2);
         tcg_gen_mov_i64(rl, t);
         tcg_temp_free_i64(t);
+    } else if (TCG_TARGET_HAS_mulu2_i64 || TCG_TARGET_HAS_muluh_i64) {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        TCGv_i64 t2 = tcg_temp_new_i64();
+        TCGv_i64 t3 = tcg_temp_new_i64();
+        tcg_gen_mulu2_i64(t0, t1, arg1, arg2);
+        /* Adjust for negative inputs.  */
+        tcg_gen_sari_i64(t2, arg1, 63);
+        tcg_gen_sari_i64(t3, arg2, 63);
+        tcg_gen_and_i64(t2, t2, arg2);
+        tcg_gen_and_i64(t3, t3, arg1);
+        tcg_gen_sub_i64(rh, t1, t2);
+        tcg_gen_sub_i64(rh, rh, t3);
+        tcg_gen_mov_i64(rl, t0);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+        tcg_temp_free_i64(t2);
+        tcg_temp_free_i64(t3);
     } else {
         TCGv_i64 t0 = tcg_temp_new_i64();
         int sizemask = 0;
