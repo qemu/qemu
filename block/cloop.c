@@ -26,6 +26,9 @@
 #include "qemu/module.h"
 #include <zlib.h>
 
+/* Maximum compressed block size */
+#define MAX_BLOCK_SIZE (64 * 1024 * 1024)
+
 typedef struct BDRVCloopState {
     CoMutex lock;
     uint32_t block_size;
@@ -68,6 +71,26 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
         return ret;
     }
     s->block_size = be32_to_cpu(s->block_size);
+    if (s->block_size % 512) {
+        error_setg(errp, "block_size %u must be a multiple of 512",
+                   s->block_size);
+        return -EINVAL;
+    }
+    if (s->block_size == 0) {
+        error_setg(errp, "block_size cannot be zero");
+        return -EINVAL;
+    }
+
+    /* cloop's create_compressed_fs.c warns about block sizes beyond 256 KB but
+     * we can accept more.  Prevent ridiculous values like 4 GB - 1 since we
+     * need a buffer this big.
+     */
+    if (s->block_size > MAX_BLOCK_SIZE) {
+        error_setg(errp, "block_size %u must be %u MB or less",
+                   s->block_size,
+                   MAX_BLOCK_SIZE / (1024 * 1024));
+        return -EINVAL;
+    }
 
     ret = bdrv_pread(bs->file, 128 + 4, &s->n_blocks, 4);
     if (ret < 0) {
