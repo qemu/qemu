@@ -359,15 +359,6 @@ static int coroutine_fn copy_sectors(BlockDriverState *bs,
     struct iovec iov;
     int n, ret;
 
-    /*
-     * If this is the last cluster and it is only partially used, we must only
-     * copy until the end of the image, or bdrv_check_request will fail for the
-     * bdrv_read/write calls below.
-     */
-    if (start_sect + n_end > bs->total_sectors) {
-        n_end = bs->total_sectors - start_sect;
-    }
-
     n = n_end - n_start;
     if (n <= 0) {
         return 0;
