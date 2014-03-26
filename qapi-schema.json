@@ -4184,6 +4184,8 @@
 #
 # @unicast: unicast receive state
 #
+# @vlan: vlan receive state (Since 2.0)
+#
 # @broadcast-allowed: whether to receive broadcast
 #
 # @multicast-overflow: multicast table is overflowed or not
@@ -4207,6 +4209,7 @@
     'promiscuous':        'bool',
     'multicast':          'RxState',
     'unicast':            'RxState',
+    'vlan':               'RxState',
     'broadcast-allowed':  'bool',
     'multicast-overflow': 'bool',
     'unicast-overflow':   'bool',

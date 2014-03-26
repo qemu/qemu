@@ -3407,6 +3407,7 @@ Each array entry contains the following:
 - "promiscuous": promiscuous mode is enabled (json-bool)
 - "multicast": multicast receive state (one of 'normal', 'none', 'all')
 - "unicast": unicast receive state  (one of 'normal', 'none', 'all')
+- "vlan": vlan receive state (one of 'normal', 'none', 'all') (Since 2.0)
 - "broadcast-allowed": allow to receive broadcast (json-bool)
 - "multicast-overflow": multicast table is overflowed (json-bool)
 - "unicast-overflow": unicast table is overflowed (json-bool)
@@ -3424,6 +3425,7 @@ Example:
             "name": "vnet0",
             "main-mac": "52:54:00:12:34:56",
             "unicast": "normal",
+            "vlan": "normal",
             "vlan-table": [
                 4,
                 0
