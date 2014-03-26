@@ -161,7 +161,8 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
         }
 
         if (type == 0x6d697368 && count >= 244) {
-            int new_size, chunk_count;
+            size_t new_size;
+            uint32_t chunk_count;
 
             offset += 4;
             offset += 200;
