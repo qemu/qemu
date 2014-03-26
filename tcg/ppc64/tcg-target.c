@@ -410,6 +410,7 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define OR     XO31(444)
 #define XOR    XO31(316)
 #define MULLW  XO31(235)
+#define MULHW  XO31( 75)
 #define MULHWU XO31( 11)
 #define DIVW   XO31(491)
 #define DIVWU  XO31(459)
@@ -2263,6 +2264,9 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_muluh_i32:
         tcg_out32(s, MULHWU | TAB(args[0], args[1], args[2]));
         break;
+    case INDEX_op_mulsh_i32:
+        tcg_out32(s, MULHW | TAB(args[0], args[1], args[2]));
+        break;
     case INDEX_op_muluh_i64:
         tcg_out32(s, MULHDU | TAB(args[0], args[1], args[2]));
         break;
@@ -2329,6 +2333,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
 
     { INDEX_op_muluh_i32, { "r", "r", "r" } },
+    { INDEX_op_mulsh_i32, { "r", "r", "r" } },
 
 #if TCG_TARGET_REG_BITS == 64
     { INDEX_op_ld8u_i64, { "r", "r" } },
