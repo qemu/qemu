@@ -1,0 +1,9 @@
+QA output created by 080
+
+== Huge header size ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+qemu-io: can't open device TEST_DIR/t.qcow2: qcow2 header exceeds cluster size
+no file open, try 'help open'
+qemu-io: can't open device TEST_DIR/t.qcow2: qcow2 header exceeds cluster size
+no file open, try 'help open'
+*** done
