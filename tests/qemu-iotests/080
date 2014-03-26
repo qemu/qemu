@@ -43,6 +43,8 @@ _supported_proto generic
 _supported_os Linux
 
 header_size=104
+
+offset_backing_file_offset=8
 offset_header_size=100
 offset_ext_magic=$header_size
 offset_ext_size=$((header_size + 4))
@@ -53,6 +55,16 @@ _make_test_img 64M
 poke_file "$TEST_IMG" "$offset_header_size" "\xff\xff\xff\xff"
 { $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 poke_file "$TEST_IMG" "$offset_header_size" "\x7f\xff\xff\xff"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== Huge unknown header extension =="
+_make_test_img 64M
+poke_file "$TEST_IMG" "$offset_backing_file_offset" "\xff\xff\xff\xff\xff\xff\xff\xff"
+poke_file "$TEST_IMG" "$offset_ext_magic" "\x12\x34\x56\x78"
+poke_file "$TEST_IMG" "$offset_ext_size" "\x7f\xff\xff\xff"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+poke_file "$TEST_IMG" "$offset_backing_file_offset" "\x00\x00\x00\x00\x00\x00\x00\x00"
 { $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done
