@@ -11,4 +11,8 @@ no file open, try 'help open'
 == Overflow in catalog allocation ==
 qemu-io: can't open device TEST_DIR/fake.parallels: Catalog too large
 no file open, try 'help open'
+
+== Zero sectors per track ==
+qemu-io: can't open device TEST_DIR/fake.parallels: Invalid image: Zero sectors per track
+no file open, try 'help open'
 *** done

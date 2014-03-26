@@ -42,6 +42,7 @@ _supported_fmt parallels
 _supported_proto generic
 _supported_os Linux
 
+tracks_offset=$((0x1c))
 catalog_entries_offset=$((0x20))
 nb_sectors_offset=$((0x24))
 
@@ -62,6 +63,12 @@ _use_sample_img fake.parallels.bz2
 poke_file "$TEST_IMG" "$nb_sectors_offset" "\xff\xff\xff\xff"
 poke_file "$TEST_IMG" "$catalog_entries_offset" "\x01\x00\x00\x40"
 { $QEMU_IO -c "read 64M 64M" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== Zero sectors per track =="
+_use_sample_img fake.parallels.bz2
+poke_file "$TEST_IMG" "$tracks_offset" "\x00\x00\x00\x00"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done
 echo "*** done"
