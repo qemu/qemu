@@ -40,8 +40,10 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
 int qcow2_refcount_init(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
-    int ret, refcount_table_size2, i;
+    unsigned int refcount_table_size2, i;
+    int ret;
 
+    assert(s->refcount_table_size <= INT_MAX / sizeof(uint64_t));
     refcount_table_size2 = s->refcount_table_size * sizeof(uint64_t);
     s->refcount_table = g_malloc(refcount_table_size2);
     if (s->refcount_table_size > 0) {
