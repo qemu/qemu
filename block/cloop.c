@@ -99,14 +99,14 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
     s->n_blocks = be32_to_cpu(s->n_blocks);
 
     /* read offsets */
-    if (s->n_blocks > UINT32_MAX / sizeof(uint64_t)) {
+    if (s->n_blocks > (UINT32_MAX - 1) / sizeof(uint64_t)) {
         /* Prevent integer overflow */
         error_setg(errp, "n_blocks %u must be %zu or less",
                    s->n_blocks,
-                   UINT32_MAX / sizeof(uint64_t));
+                   (UINT32_MAX - 1) / sizeof(uint64_t));
         return -EINVAL;
     }
-    offsets_size = s->n_blocks * sizeof(uint64_t);
+    offsets_size = (s->n_blocks + 1) * sizeof(uint64_t);
     if (offsets_size > 512 * 1024 * 1024) {
         /* Prevent ridiculous offsets_size which causes memory allocation to
          * fail or overflows bdrv_pread() size.  In practice the 512 MB
@@ -123,7 +123,7 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    for(i=0;i<s->n_blocks;i++) {
+    for (i = 0; i < s->n_blocks + 1; i++) {
         uint64_t size;
 
         s->offsets[i] = be64_to_cpu(s->offsets[i]);
@@ -243,9 +243,7 @@ static coroutine_fn int cloop_co_read(BlockDriverState *bs, int64_t sector_num,
 static void cloop_close(BlockDriverState *bs)
 {
     BDRVCloopState *s = bs->opaque;
-    if (s->n_blocks > 0) {
-        g_free(s->offsets);
-    }
+    g_free(s->offsets);
     g_free(s->compressed_block);
     g_free(s->uncompressed_block);
     inflateEnd(&s->zstream);
