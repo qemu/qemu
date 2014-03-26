@@ -47,6 +47,8 @@ header_size=104
 offset_backing_file_offset=8
 offset_refcount_table_offset=48
 offset_refcount_table_clusters=56
+offset_nb_snapshots=60
+offset_snapshots_offset=64
 offset_header_size=100
 offset_ext_magic=$header_size
 offset_ext_size=$((header_size + 4))
@@ -88,6 +90,31 @@ echo "== Huge refcount offset =="
 _make_test_img 64M
 poke_file "$TEST_IMG" "$offset_refcount_table_offset" "\xff\xff\xff\xff\xff\xff\x00\x00"
 poke_file "$TEST_IMG" "$offset_refcount_table_clusters" "\x00\x00\x00\x7f"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== Invalid snapshot table =="
+_make_test_img 64M
+poke_file "$TEST_IMG" "$offset_nb_snapshots" "\xff\xff\xff\xff"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+poke_file "$TEST_IMG" "$offset_nb_snapshots" "\x7f\xff\xff\xff"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+poke_file "$TEST_IMG" "$offset_snapshots_offset" "\xff\xff\xff\xff\xff\xff\x00\x00"
+poke_file "$TEST_IMG" "$offset_nb_snapshots" "\x00\x00\xff\xff"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+poke_file "$TEST_IMG" "$offset_snapshots_offset" "\x12\x34\x56\x78\x90\xab\xcd\xef"
+poke_file "$TEST_IMG" "$offset_nb_snapshots" "\x00\x00\x00\x00"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== Hitting snapshot table size limit =="
+_make_test_img 64M
+# Put the refcount table in a more or less safe place (16 MB)
+poke_file "$TEST_IMG" "$offset_snapshots_offset" "\x00\x00\x00\x00\x01\x00\x00\x00"
+poke_file "$TEST_IMG" "$offset_nb_snapshots" "\x00\x01\x00\x00"
+{ $QEMU_IMG snapshot -c test $TEST_IMG; } 2>&1 | _filter_testdir
 { $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done
