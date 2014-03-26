@@ -124,12 +124,36 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     for(i=0;i<s->n_blocks;i++) {
+        uint64_t size;
+
         s->offsets[i] = be64_to_cpu(s->offsets[i]);
-        if (i > 0) {
-            uint32_t size = s->offsets[i] - s->offsets[i - 1];
-            if (size > max_compressed_block_size) {
-                max_compressed_block_size = size;
-            }
+        if (i == 0) {
+            continue;
+        }
+
+        if (s->offsets[i] < s->offsets[i - 1]) {
+            error_setg(errp, "offsets not monotonically increasing at "
+                       "index %u, image file is corrupt", i);
+            ret = -EINVAL;
+            goto fail;
+        }
+
+        size = s->offsets[i] - s->offsets[i - 1];
+
+        /* Compressed blocks should be smaller than the uncompressed block size
+         * but maybe compression performed poorly so the compressed block is
+         * actually bigger.  Clamp down on unrealistic values to prevent
+         * ridiculous s->compressed_block allocation.
+         */
+        if (size > 2 * MAX_BLOCK_SIZE) {
+            error_setg(errp, "invalid compressed block size at index %u, "
+                       "image file is corrupt", i);
+            ret = -EINVAL;
+            goto fail;
+        }
+
+        if (size > max_compressed_block_size) {
+            max_compressed_block_size = size;
         }
     }
 
