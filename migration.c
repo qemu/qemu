@@ -26,16 +26,6 @@
 #include "qmp-commands.h"
 #include "trace.h"
 
-//#define DEBUG_MIGRATION
-
-#ifdef DEBUG_MIGRATION
-#define DPRINTF(fmt, ...) \
-    do { printf("migration: " fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
-
 enum {
     MIG_STATE_ERROR = -1,
     MIG_STATE_NONE,
@@ -112,7 +102,6 @@ static void process_incoming_migration_co(void *opaque)
         exit(EXIT_FAILURE);
     }
     qemu_announce_self();
-    DPRINTF("successfully loaded vm state\n");
 
     bdrv_clear_incoming_migration_all();
     /* Make sure all file formats flush their mutable metadata */
@@ -306,7 +295,7 @@ static void migrate_fd_cleanup(void *opaque)
     s->cleanup_bh = NULL;
 
     if (s->file) {
-        DPRINTF("closing file\n");
+        trace_migrate_fd_cleanup();
         qemu_mutex_unlock_iothread();
         qemu_thread_join(&s->thread);
         qemu_mutex_lock_iothread();
@@ -329,7 +318,7 @@ static void migrate_fd_cleanup(void *opaque)
 
 void migrate_fd_error(MigrationState *s)
 {
-    DPRINTF("setting error state\n");
+    trace_migrate_fd_error();
     assert(s->file == NULL);
     s->state = MIG_STATE_ERROR;
     trace_migrate_set_state(MIG_STATE_ERROR);
@@ -339,7 +328,7 @@ void migrate_fd_error(MigrationState *s)
 static void migrate_fd_cancel(MigrationState *s)
 {
     int old_state ;
-    DPRINTF("cancelling migration\n");
+    trace_migrate_fd_cancel();
 
     do {
         old_state = s->state;
@@ -589,29 +578,23 @@ static void *migration_thread(void *opaque)
     int64_t start_time = initial_time;
     bool old_vm_running = false;
 
-    DPRINTF("beginning savevm\n");
     qemu_savevm_state_begin(s->file, &s->params);
 
     s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
     migrate_set_state(s, MIG_STATE_SETUP, MIG_STATE_ACTIVE);
-
-    DPRINTF("setup complete\n");
 
     while (s->state == MIG_STATE_ACTIVE) {
         int64_t current_time;
         uint64_t pending_size;
 
         if (!qemu_file_rate_limit(s->file)) {
-            DPRINTF("iterate\n");
             pending_size = qemu_savevm_state_pending(s->file, max_size);
-            DPRINTF("pending size %" PRIu64 " max %" PRIu64 "\n",
-                    pending_size, max_size);
+            trace_migrate_pending(pending_size, max_size);
             if (pending_size && pending_size >= max_size) {
                 qemu_savevm_state_iterate(s->file);
             } else {
                 int ret;
 
-                DPRINTF("done iterating\n");
                 qemu_mutex_lock_iothread();
                 start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
                 qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
@@ -650,9 +633,8 @@ static void *migration_thread(void *opaque)
             s->mbps = time_spent ? (((double) transferred_bytes * 8.0) /
                     ((double) time_spent / 1000.0)) / 1000.0 / 1000.0 : -1;
 
-            DPRINTF("transferred %" PRIu64 " time_spent %" PRIu64
-                    " bandwidth %g max_size %" PRId64 "\n",
-                    transferred_bytes, time_spent, bandwidth, max_size);
+            trace_migrate_transferred(transferred_bytes, time_spent,
+                                      bandwidth, max_size);
             /* if we haven't sent anything, we don't want to recalculate
                10000 is a small enough number for our purposes */
             if (s->dirty_bytes_rate && transferred_bytes > 10000) {

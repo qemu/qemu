@@ -3,6 +3,7 @@
 #include "migration/qemu-file.h"
 #include "migration/vmstate.h"
 #include "qemu/bitops.h"
+#include "trace.h"
 
 static void vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
                                     void *opaque);
@@ -73,6 +74,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
 
                 }
                 if (ret < 0) {
+                    trace_vmstate_load_field_error(field->name, ret);
                     return ret;
                 }
             }

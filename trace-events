@@ -1042,6 +1042,17 @@ vmware_setmode(uint32_t w, uint32_t h, uint32_t bpp) "%dx%d @ %d bpp"
 # savevm.c
 savevm_section_start(const char *id, unsigned int section_id) "%s, section_id %u"
 savevm_section_end(const char *id, unsigned int section_id) "%s, section_id %u"
+savevm_state_begin(void) ""
+savevm_state_iterate(void) ""
+savevm_state_complete(void) ""
+savevm_state_cancel(void) ""
+vmstate_save(const char *idstr, const char *vmsd_name) "%s, %s"
+vmstate_load(const char *idstr, const char *vmsd_name) "%s, %s"
+vmstate_load_field_error(const char *field, int ret) "field \"%s\" load failed, ret = %d"
+qemu_announce_self_iter(const char *mac) "%s"
+
+# qemu-file.c
+qemu_file_fclose(void) ""
 
 # arch_init.c
 migration_bitmap_sync_start(void) ""
@@ -1181,6 +1192,11 @@ flic_reset_failed(int err) "flic: reset failed %d"
 
 # migration.c
 migrate_set_state(int new_state) "new state %d"
+migrate_fd_cleanup(void) ""
+migrate_fd_error(void) ""
+migrate_fd_cancel(void) ""
+migrate_pending(uint64_t size, uint64_t max) "pending size %" PRIu64 " max %" PRIu64
+migrate_transferred(uint64_t tranferred, uint64_t time_spent, double bandwidth, uint64_t size) "transferred %" PRIu64 " time_spent %" PRIu64 " bandwidth %g max_size %" PRId64
 
 # kvm-all.c
 kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"
