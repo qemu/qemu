@@ -907,7 +907,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
 
             build_append_byte(notify, 0x7B); /* AndOp */
             build_append_byte(notify, 0x68); /* Arg0Op */
-            build_append_int(notify, 0x1 << i);
+            build_append_int(notify, 0x1U << i);
             build_append_byte(notify, 0x00); /* NullName */
             build_append_byte(notify, 0x86); /* NotifyOp */
             build_append_nameseg(notify, "S%.02X_", PCI_DEVFN(i, 0));

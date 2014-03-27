@@ -775,7 +775,7 @@ static inline void compute_hflags(CPUMIPSState *env)
            and disable the MIPS IV extensions to the MIPS III ISA.
            Some other MIPS IV CPUs ignore the bit, so the check here
            would be too restrictive for them.  */
-        if (env->CP0_Status & (1 << CP0St_CU3)) {
+        if (env->CP0_Status & (1U << CP0St_CU3)) {
             env->hflags |= MIPS_HFLAG_COP1X;
         }
     }

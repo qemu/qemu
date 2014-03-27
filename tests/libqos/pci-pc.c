@@ -110,37 +110,37 @@ static void qpci_pc_io_writel(QPCIBus *bus, void *addr, uint32_t value)
 
 static uint8_t qpci_pc_config_readb(QPCIBus *bus, int devfn, uint8_t offset)
 {
-    outl(0xcf8, (1 << 31) | (devfn << 8) | offset);
+    outl(0xcf8, (1U << 31) | (devfn << 8) | offset);
     return inb(0xcfc);
 }
 
 static uint16_t qpci_pc_config_readw(QPCIBus *bus, int devfn, uint8_t offset)
 {
-    outl(0xcf8, (1 << 31) | (devfn << 8) | offset);
+    outl(0xcf8, (1U << 31) | (devfn << 8) | offset);
     return inw(0xcfc);
 }
 
 static uint32_t qpci_pc_config_readl(QPCIBus *bus, int devfn, uint8_t offset)
 {
-    outl(0xcf8, (1 << 31) | (devfn << 8) | offset);
+    outl(0xcf8, (1U << 31) | (devfn << 8) | offset);
     return inl(0xcfc);
 }
 
 static void qpci_pc_config_writeb(QPCIBus *bus, int devfn, uint8_t offset, uint8_t value)
 {
-    outl(0xcf8, (1 << 31) | (devfn << 8) | offset);
+    outl(0xcf8, (1U << 31) | (devfn << 8) | offset);
     outb(0xcfc, value);
 }
 
 static void qpci_pc_config_writew(QPCIBus *bus, int devfn, uint8_t offset, uint16_t value)
 {
-    outl(0xcf8, (1 << 31) | (devfn << 8) | offset);
+    outl(0xcf8, (1U << 31) | (devfn << 8) | offset);
     outw(0xcfc, value);
 }
 
 static void qpci_pc_config_writel(QPCIBus *bus, int devfn, uint8_t offset, uint32_t value)
 {
-    outl(0xcf8, (1 << 31) | (devfn << 8) | offset);
+    outl(0xcf8, (1U << 31) | (devfn << 8) | offset);
     outl(0xcfc, value);
 }
 

@@ -4043,8 +4043,6 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     struct target_rt_sigframe *frame;
     abi_ulong info_addr, uc_addr;
 
-    frame_addr = get_sigframe(ka, env, sizeof *frame);
-
     frame_addr = get_sigframe(ka, env, sizeof(*frame));
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0)) {
         goto give_sigsegv;

@@ -421,7 +421,7 @@ static const VMStateDescription vmstate_bmdma_current = {
     }
 };
 
-const VMStateDescription vmstate_bmdma_status = {
+static const VMStateDescription vmstate_bmdma_status = {
     .name ="ide bmdma/status",
     .version_id = 1,
     .minimum_version_id = 1,

@@ -1938,7 +1938,7 @@ The following options are specific to the PowerPC emulation:
 
 @item -g @var{W}x@var{H}[x@var{DEPTH}]
 
-Set the initial VGA graphic mode. The default is 800x600x15.
+Set the initial VGA graphic mode. The default is 800x600x32.
 
 @item -prom-env @var{string}
 
@@ -1996,7 +1996,7 @@ QEMU emulates the following sun4m peripherals:
 @item
 IOMMU
 @item
-TCX Frame buffer
+TCX or cgthree Frame buffer
 @item
 Lance (Am7990) Ethernet
 @item
@@ -2023,7 +2023,7 @@ firmware implementation. The goal is to implement a 100% IEEE
 
 A sample Linux 2.6 series kernel and ram disk image are available on
 the QEMU web site. There are still issues with NetBSD and OpenBSD, but
-some kernel versions work. Please note that currently Solaris kernels
+some kernel versions work. Please note that currently older Solaris kernels
 don't work probably due to interface issues between OpenBIOS and
 Solaris.
 
@@ -2035,8 +2035,9 @@ The following options are specific to the Sparc32 emulation:
 
 @item -g @var{W}x@var{H}x[x@var{DEPTH}]
 
-Set the initial TCX graphic mode. The default is 1024x768x8, currently
-the only other possible mode is 1024x768x24.
+Set the initial graphics mode. For TCX, the default is 1024x768x8 with the
+option of 1024x768x24. For cgthree, the default is 1024x768x8 with the option
+of 1152x900x8 for people who wish to use OBP.
 
 @item -prom-env @var{string}
 

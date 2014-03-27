@@ -71,8 +71,9 @@ static void update_irq(struct xlx_pic *p)
 
     /* Update the vector register.  */
     for (i = 0; i < 32; i++) {
-        if (p->regs[R_IPR] & (1 << i))
+        if (p->regs[R_IPR] & (1U << i)) {
             break;
+        }
     }
     if (i == 32)
         i = ~0;

@@ -234,15 +234,15 @@ struct ohci_iso_td {
 #define OHCI_STATUS_OCR       (1<<3)
 #define OHCI_STATUS_SOC       ((1<<6)|(1<<7))
 
-#define OHCI_INTR_SO          (1<<0) /* Scheduling overrun */
-#define OHCI_INTR_WD          (1<<1) /* HcDoneHead writeback */
-#define OHCI_INTR_SF          (1<<2) /* Start of frame */
-#define OHCI_INTR_RD          (1<<3) /* Resume detect */
-#define OHCI_INTR_UE          (1<<4) /* Unrecoverable error */
-#define OHCI_INTR_FNO         (1<<5) /* Frame number overflow */
-#define OHCI_INTR_RHSC        (1<<6) /* Root hub status change */
-#define OHCI_INTR_OC          (1<<30) /* Ownership change */
-#define OHCI_INTR_MIE         (1<<31) /* Master Interrupt Enable */
+#define OHCI_INTR_SO          (1U<<0) /* Scheduling overrun */
+#define OHCI_INTR_WD          (1U<<1) /* HcDoneHead writeback */
+#define OHCI_INTR_SF          (1U<<2) /* Start of frame */
+#define OHCI_INTR_RD          (1U<<3) /* Resume detect */
+#define OHCI_INTR_UE          (1U<<4) /* Unrecoverable error */
+#define OHCI_INTR_FNO         (1U<<5) /* Frame number overflow */
+#define OHCI_INTR_RHSC        (1U<<6) /* Root hub status change */
+#define OHCI_INTR_OC          (1U<<30) /* Ownership change */
+#define OHCI_INTR_MIE         (1U<<31) /* Master Interrupt Enable */
 
 #define OHCI_HCCA_SIZE        0x100
 #define OHCI_HCCA_MASK        0xffffff00
@@ -253,7 +253,7 @@ struct ohci_iso_td {
 #define OHCI_FMI_FSMPS        0xffff0000
 #define OHCI_FMI_FIT          0x80000000
 
-#define OHCI_FR_RT            (1<<31)
+#define OHCI_FR_RT            (1U<<31)
 
 #define OHCI_LS_THRESH        0x628
 
@@ -265,12 +265,12 @@ struct ohci_iso_td {
 #define OHCI_RHA_NOCP         (1<<12)
 #define OHCI_RHA_POTPGT_MASK  0xff000000
 
-#define OHCI_RHS_LPS          (1<<0)
-#define OHCI_RHS_OCI          (1<<1)
-#define OHCI_RHS_DRWE         (1<<15)
-#define OHCI_RHS_LPSC         (1<<16)
-#define OHCI_RHS_OCIC         (1<<17)
-#define OHCI_RHS_CRWE         (1<<31)
+#define OHCI_RHS_LPS          (1U<<0)
+#define OHCI_RHS_OCI          (1U<<1)
+#define OHCI_RHS_DRWE         (1U<<15)
+#define OHCI_RHS_LPSC         (1U<<16)
+#define OHCI_RHS_OCIC         (1U<<17)
+#define OHCI_RHS_CRWE         (1U<<31)
 
 #define OHCI_PORT_CCS         (1<<0)
 #define OHCI_PORT_PES         (1<<1)
