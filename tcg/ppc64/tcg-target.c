@@ -2009,18 +2009,18 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 
     case INDEX_op_sub2_i64:
         a0 = args[0], a1 = args[1];
-        if (a0 == args[5] || (!const_args[4] && a0 == args[4])) {
+        if (a0 == args[5] || (!const_args[3] && a0 == args[3])) {
             a0 = TCG_REG_R0;
         }
         if (const_args[2]) {
-            tcg_out32(s, SUBFIC | TAI(a0, args[3], args[2]));
+            tcg_out32(s, SUBFIC | TAI(a0, args[4], args[2]));
         } else {
-            tcg_out32(s, SUBFC | TAB(a0, args[3], args[2]));
+            tcg_out32(s, SUBFC | TAB(a0, args[4], args[2]));
         }
-        if (const_args[4]) {
-            tcg_out32(s, (args[4] ? SUBFME : SUBFZE) | RT(a1) | RA(args[5]));
+        if (const_args[3]) {
+            tcg_out32(s, (args[3] ? SUBFME : SUBFZE) | RT(a1) | RA(args[5]));
         } else {
-            tcg_out32(s, SUBFE | TAB(a1, args[5], args[4]));
+            tcg_out32(s, SUBFE | TAB(a1, args[5], args[3]));
         }
         if (a0 != args[0]) {
             tcg_out_mov(s, TCG_TYPE_REG, args[0], a0);
@@ -2146,7 +2146,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_deposit_i64, { "r", "0", "rZ" } },
 
     { INDEX_op_add2_i64, { "r", "r", "r", "r", "rI", "rZM" } },
-    { INDEX_op_sub2_i64, { "r", "r", "rI", "r", "rZM", "r" } },
+    { INDEX_op_sub2_i64, { "r", "r", "rI", "rZM", "r", "r" } },
     { INDEX_op_mulsh_i64, { "r", "r", "r" } },
     { INDEX_op_muluh_i64, { "r", "r", "r" } },
 
