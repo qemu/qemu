@@ -335,7 +335,8 @@ void qtest_add_func(const char *str, void (*fn));
  */
 static inline QTestState *qtest_start(const char *args)
 {
-    return qtest_init(args);
+    global_qtest = qtest_init(args);
+    return global_qtest;
 }
 
 /**
@@ -346,6 +347,7 @@ static inline QTestState *qtest_start(const char *args)
 static inline void qtest_end(void)
 {
     qtest_quit(global_qtest);
+    global_qtest = NULL;
 }
 
 /**
