@@ -426,7 +426,8 @@ static bool in_superpage(DisasContext *ctx, int64_t addr)
 static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
 {
     /* Suppress goto_tb in the case of single-steping and IO.  */
-    if (ctx->singlestep_enabled || (ctx->tb->cflags & CF_LAST_IO)) {
+    if ((ctx->tb->cflags & CF_LAST_IO)
+        || ctx->singlestep_enabled || singlestep) {
         return false;
     }
     /* If the destination is in the superpage, the page perms can't change.  */
