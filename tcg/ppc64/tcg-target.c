@@ -542,6 +542,7 @@ static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 static inline void tcg_out_rld(TCGContext *s, int op, TCGReg ra, TCGReg rs,
                                int sh, int mb)
 {
+    assert(TCG_TARGET_REG_BITS == 64);
     sh = SH(sh & 0x1f) | (((sh >> 5) & 1) << 1);
     mb = MB64((mb >> 5) | ((mb << 1) & 0x3f));
     tcg_out32(s, op | RA(ra) | RS(rs) | sh | mb);
@@ -558,9 +559,19 @@ static inline void tcg_out_ext32u(TCGContext *s, TCGReg dst, TCGReg src)
     tcg_out_rld(s, RLDICL, dst, src, 0, 32);
 }
 
+static inline void tcg_out_shli32(TCGContext *s, TCGReg dst, TCGReg src, int c)
+{
+    tcg_out_rlw(s, RLWINM, dst, src, c, 0, 31 - c);
+}
+
 static inline void tcg_out_shli64(TCGContext *s, TCGReg dst, TCGReg src, int c)
 {
     tcg_out_rld(s, RLDICR, dst, src, c, 63 - c);
+}
+
+static inline void tcg_out_shri32(TCGContext *s, TCGReg dst, TCGReg src, int c)
+{
+    tcg_out_rlw(s, RLWINM, dst, src, 32 - c, c, 31);
 }
 
 static inline void tcg_out_shri64(TCGContext *s, TCGReg dst, TCGReg src, int c)
@@ -674,6 +685,7 @@ static void tcg_out_andi64(TCGContext *s, TCGReg dst, TCGReg src, uint64_t c)
 {
     int mb, me;
 
+    assert(TCG_TARGET_REG_BITS == 64);
     if ((c & 0xffff) == c) {
         tcg_out32(s, ANDI | SAI(src, dst, c));
         return;
@@ -786,6 +798,7 @@ static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
 {
     int opi, opx;
 
+    assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
     if (type == TCG_TYPE_I32) {
         opi = LWZ, opx = LWZX;
     } else {
@@ -799,6 +812,7 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
 {
     int opi, opx;
 
+    assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
     if (type == TCG_TYPE_I32) {
         opi = STW, opx = STWX;
     } else {
@@ -887,8 +901,13 @@ static void tcg_out_cmp(TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
 static void tcg_out_setcond_eq0(TCGContext *s, TCGType type,
                                 TCGReg dst, TCGReg src)
 {
-    tcg_out32(s, (type == TCG_TYPE_I64 ? CNTLZD : CNTLZW) | RS(src) | RA(dst));
-    tcg_out_shri64(s, dst, dst, type == TCG_TYPE_I64 ? 6 : 5);
+    if (type == TCG_TYPE_I32) {
+        tcg_out32(s, CNTLZW | RS(src) | RA(dst));
+        tcg_out_shri32(s, dst, dst, 5);
+    } else {
+        tcg_out32(s, CNTLZD | RS(src) | RA(dst));
+        tcg_out_shri64(s, dst, dst, 6);
+    }
 }
 
 static void tcg_out_setcond_ne0(TCGContext *s, TCGReg dst, TCGReg src)
@@ -926,6 +945,8 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
 {
     int crop, sh;
 
+    assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
+
     /* Ignore high bits of a potential constant arg2.  */
     if (type == TCG_TYPE_I32) {
         arg2 = (uint32_t)arg2;
@@ -938,7 +959,7 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
             tcg_out_setcond_eq0(s, type, arg0, arg1);
             return;
         case TCG_COND_NE:
-            if (type == TCG_TYPE_I32) {
+            if (TCG_TARGET_REG_BITS == 64 && type == TCG_TYPE_I32) {
                 tcg_out_ext32u(s, TCG_REG_R0, arg1);
                 arg1 = TCG_REG_R0;
             }
@@ -950,8 +971,11 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
             /* FALLTHRU */
         case TCG_COND_LT:
             /* Extract the sign bit.  */
-            tcg_out_rld(s, RLDICL, arg0, arg1,
-                        type == TCG_TYPE_I64 ? 1 : 33, 63);
+            if (type == TCG_TYPE_I32) {
+                tcg_out_shri32(s, arg0, arg1, 31);
+            } else {
+                tcg_out_shri64(s, arg0, arg1, 63);
+            }
             return;
         default:
             break;
@@ -991,7 +1015,7 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
     case TCG_COND_NE:
         arg1 = tcg_gen_setcond_xor(s, arg1, arg2, const_arg2);
         /* Discard the high bits only once, rather than both inputs.  */
-        if (type == TCG_TYPE_I32) {
+        if (TCG_TARGET_REG_BITS == 64 && type == TCG_TYPE_I32) {
             tcg_out_ext32u(s, TCG_REG_R0, arg1);
             arg1 = TCG_REG_R0;
         }
@@ -1935,14 +1959,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 
     case INDEX_op_shl_i32:
         if (const_args[2]) {
-            tcg_out_rlw(s, RLWINM, args[0], args[1], args[2], 0, 31 - args[2]);
+            tcg_out_shli32(s, args[0], args[1], args[2]);
         } else {
             tcg_out32(s, SLW | SAB(args[1], args[0], args[2]));
         }
         break;
     case INDEX_op_shr_i32:
         if (const_args[2]) {
-            tcg_out_rlw(s, RLWINM, args[0], args[1], 32 - args[2], args[2], 31);
+            tcg_out_shri32(s, args[0], args[1], args[2]);
         } else {
             tcg_out32(s, SRW | SAB(args[1], args[0], args[2]));
         }
