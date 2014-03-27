@@ -85,8 +85,8 @@ static target_ulong helper_udiv_common(CPUSPARCState *env, target_ulong a,
     }
 
     x0 = x0 / x1;
-    if (x0 > 0xffffffff) {
-        x0 = 0xffffffff;
+    if (x0 > UINT32_MAX) {
+        x0 = UINT32_MAX;
         overflow = 1;
     }
 
@@ -122,12 +122,15 @@ static target_ulong helper_sdiv_common(CPUSPARCState *env, target_ulong a,
     if (x1 == 0) {
         cpu_restore_state(CPU(cpu), GETPC());
         helper_raise_exception(env, TT_DIV_ZERO);
-    }
-
-    x0 = x0 / x1;
-    if ((int32_t) x0 != x0) {
-        x0 = x0 < 0 ? 0x80000000 : 0x7fffffff;
+    } else if (x1 == -1 && x0 == INT64_MIN) {
+        x0 = INT32_MAX;
         overflow = 1;
+    } else {
+        x0 = x0 / x1;
+        if ((int32_t) x0 != x0) {
+            x0 = x0 < 0 ? INT32_MIN : INT32_MAX;
+            overflow = 1;
+        }
     }
 
     if (cc) {
