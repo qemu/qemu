@@ -726,11 +726,8 @@ static void reset_ram_globals(void)
 static int ram_save_setup(QEMUFile *f, void *opaque)
 {
     RAMBlock *block;
-    int64_t ram_pages = last_ram_offset() >> TARGET_PAGE_BITS;
+    int64_t ram_bitmap_pages; /* Size of bitmap in pages, including gaps */
 
-    migration_bitmap = bitmap_new(ram_pages);
-    bitmap_set(migration_bitmap, 0, ram_pages);
-    migration_dirty_pages = ram_pages;
     mig_throttle_on = false;
     dirty_rate_high_cnt = 0;
 
@@ -769,6 +766,22 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     qemu_mutex_lock_ramlist();
     bytes_transferred = 0;
     reset_ram_globals();
+
+    ram_bitmap_pages = last_ram_offset() >> TARGET_PAGE_BITS;
+    migration_bitmap = bitmap_new(ram_bitmap_pages);
+    bitmap_set(migration_bitmap, 0, ram_bitmap_pages);
+
+    /*
+     * Count the total number of pages used by ram blocks not including any
+     * gaps due to alignment or unplugs.
+     */
+    migration_dirty_pages = 0;
+    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
+        uint64_t block_pages;
+
+        block_pages = block->length >> TARGET_PAGE_BITS;
+        migration_dirty_pages += block_pages;
+    }
 
     memory_global_dirty_log_start();
     migration_bitmap_sync();
