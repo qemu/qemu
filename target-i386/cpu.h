@@ -1162,7 +1162,7 @@ static inline CPUX86State *cpu_init(const char *cpu_model)
 static inline int cpu_mmu_index(CPUX86State *env)
 {
     return (env->hflags & HF_CPL_MASK) == 3 ? MMU_USER_IDX :
-        ((env->hflags & HF_SMAP_MASK) && (env->eflags & AC_MASK))
+        (!(env->hflags & HF_SMAP_MASK) || (env->eflags & AC_MASK))
         ? MMU_KNOSMAP_IDX : MMU_KSMAP_IDX;
 }
 
