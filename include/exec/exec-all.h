@@ -351,6 +351,7 @@ uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 
 #define ACCESS_TYPE (NB_MMU_MODES + 1)
 #define MEMSUFFIX _code
+#define SOFTMMU_CODE_ACCESS
 
 #define DATA_SIZE 1
 #include "exec/softmmu_header.h"
@@ -366,6 +367,7 @@ uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 
 #undef ACCESS_TYPE
 #undef MEMSUFFIX
+#undef SOFTMMU_CODE_ACCESS
 
 #endif
 

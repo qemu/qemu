@@ -72,7 +72,7 @@
 #define RES_TYPE uint32_t
 #endif
 
-#if ACCESS_TYPE == (NB_MMU_MODES + 1)
+#ifdef SOFTMMU_CODE_ACCESS
 #define ADDR_READ addr_code
 #else
 #define ADDR_READ addr_read
@@ -124,7 +124,7 @@ glue(glue(cpu_lds, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr)
 }
 #endif
 
-#if ACCESS_TYPE != (NB_MMU_MODES + 1)
+#ifndef SOFTMMU_CODE_ACCESS
 
 /* generic store macro */
 
@@ -148,9 +148,7 @@ glue(glue(cpu_st, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr,
     }
 }
 
-#endif /* ACCESS_TYPE != (NB_MMU_MODES + 1) */
 
-#if ACCESS_TYPE != (NB_MMU_MODES + 1)
 
 #if DATA_SIZE == 8
 static inline float64 glue(cpu_ldfq, MEMSUFFIX)(CPUArchState *env,
@@ -200,7 +198,7 @@ static inline void glue(cpu_stfl, MEMSUFFIX)(CPUArchState *env,
 }
 #endif /* DATA_SIZE == 4 */
 
-#endif /* ACCESS_TYPE != (NB_MMU_MODES + 1) */
+#endif /* !SOFTMMU_CODE_ACCESS */
 
 #undef RES_TYPE
 #undef DATA_TYPE
