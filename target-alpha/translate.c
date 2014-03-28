@@ -89,11 +89,6 @@ static TCGv cpu_pc;
 static TCGv cpu_lock_addr;
 static TCGv cpu_lock_st_addr;
 static TCGv cpu_lock_value;
-static TCGv cpu_unique;
-#ifndef CONFIG_USER_ONLY
-static TCGv cpu_sysval;
-static TCGv cpu_usp;
-#endif
 
 #include "exec/gen-icount.h"
 
@@ -107,11 +102,6 @@ void alpha_translate_init(void)
         DEF_VAR(lock_addr),
         DEF_VAR(lock_st_addr),
         DEF_VAR(lock_value),
-        DEF_VAR(unique),
-#ifndef CONFIG_USER_ONLY
-        DEF_VAR(sysval),
-        DEF_VAR(usp),
-#endif
     };
 
 #undef DEF_VAR
@@ -1139,11 +1129,13 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             break;
         case 0x9E:
             /* RDUNIQUE */
-            tcg_gen_mov_i64(cpu_ir[IR_V0], cpu_unique);
+            tcg_gen_ld_i64(cpu_ir[IR_V0], cpu_env,
+                           offsetof(CPUAlphaState, unique));
             break;
         case 0x9F:
             /* WRUNIQUE */
-            tcg_gen_mov_i64(cpu_unique, cpu_ir[IR_A0]);
+            tcg_gen_st_i64(cpu_ir[IR_A0], cpu_env,
+                           offsetof(CPUAlphaState, unique));
             break;
         default:
             palcode &= 0xbf;
@@ -1166,15 +1158,18 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             break;
         case 0x2D:
             /* WRVPTPTR */
-            tcg_gen_st_i64(cpu_ir[IR_A0], cpu_env, offsetof(CPUAlphaState, vptptr));
+            tcg_gen_st_i64(cpu_ir[IR_A0], cpu_env,
+                           offsetof(CPUAlphaState, vptptr));
             break;
         case 0x31:
             /* WRVAL */
-            tcg_gen_mov_i64(cpu_sysval, cpu_ir[IR_A0]);
+            tcg_gen_st_i64(cpu_ir[IR_A0], cpu_env,
+                           offsetof(CPUAlphaState, sysval));
             break;
         case 0x32:
             /* RDVAL */
-            tcg_gen_mov_i64(cpu_ir[IR_V0], cpu_sysval);
+            tcg_gen_ld_i64(cpu_ir[IR_V0], cpu_env,
+                           offsetof(CPUAlphaState, sysval));
             break;
 
         case 0x35: {
@@ -1183,7 +1178,8 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
 
             /* Note that we already know we're in kernel mode, so we know
                that PS only contains the 3 IPL bits.  */
-            tcg_gen_ld8u_i64(cpu_ir[IR_V0], cpu_env, offsetof(CPUAlphaState, ps));
+            tcg_gen_ld8u_i64(cpu_ir[IR_V0], cpu_env,
+                             offsetof(CPUAlphaState, ps));
 
             /* But make sure and store only the 3 IPL bits from the user.  */
             tmp = tcg_temp_new();
@@ -1195,15 +1191,18 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
 
         case 0x36:
             /* RDPS */
-            tcg_gen_ld8u_i64(cpu_ir[IR_V0], cpu_env, offsetof(CPUAlphaState, ps));
+            tcg_gen_ld8u_i64(cpu_ir[IR_V0], cpu_env,
+                             offsetof(CPUAlphaState, ps));
             break;
         case 0x38:
             /* WRUSP */
-            tcg_gen_mov_i64(cpu_usp, cpu_ir[IR_A0]);
+            tcg_gen_st_i64(cpu_ir[IR_A0], cpu_env,
+                           offsetof(CPUAlphaState, usp));
             break;
         case 0x3A:
             /* RDUSP */
-            tcg_gen_mov_i64(cpu_ir[IR_V0], cpu_usp);
+            tcg_gen_st_i64(cpu_ir[IR_V0], cpu_env,
+                           offsetof(CPUAlphaState, usp));
             break;
         case 0x3C:
             /* WHAMI */
