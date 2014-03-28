@@ -65,6 +65,8 @@ static void bh_test_cb(void *opaque)
     }
 }
 
+#if !defined(_WIN32)
+
 static void timer_test_cb(void *opaque)
 {
     TimerTestData *data = opaque;
@@ -77,6 +79,8 @@ static void timer_test_cb(void *opaque)
 static void dummy_io_handler_read(void *opaque)
 {
 }
+
+#endif /* !_WIN32 */
 
 static void bh_delete_cb(void *opaque)
 {
@@ -423,6 +427,8 @@ static void test_wait_event_notifier_noflush(void)
     event_notifier_cleanup(&data.e);
 }
 
+#if !defined(_WIN32)
+
 static void test_timer_schedule(void)
 {
     TimerTestData data = { .n = 0, .ctx = ctx, .ns = SCALE_MS * 750LL,
@@ -483,6 +489,8 @@ static void test_timer_schedule(void)
 
     timer_del(&data.timer);
 }
+
+#endif /* !_WIN32 */
 
 /* Now the same tests, using the context as a GSource.  They are
  * very similar to the ones above, with g_main_context_iteration
@@ -766,6 +774,8 @@ static void test_source_wait_event_notifier_noflush(void)
     event_notifier_cleanup(&data.e);
 }
 
+#if !defined(_WIN32)
+
 static void test_source_timer_schedule(void)
 {
     TimerTestData data = { .n = 0, .ctx = ctx, .ns = SCALE_MS * 750LL,
@@ -815,6 +825,8 @@ static void test_source_timer_schedule(void)
     timer_del(&data.timer);
 }
 
+#endif /* !_WIN32 */
+
 
 /* End of tests.  */
 
@@ -845,7 +857,9 @@ int main(int argc, char **argv)
     g_test_add_func("/aio/event/wait",              test_wait_event_notifier);
     g_test_add_func("/aio/event/wait/no-flush-cb",  test_wait_event_notifier_noflush);
     g_test_add_func("/aio/event/flush",             test_flush_event_notifier);
+#if !defined(_WIN32)
     g_test_add_func("/aio/timer/schedule",          test_timer_schedule);
+#endif
 
     g_test_add_func("/aio-gsource/notify",                  test_source_notify);
     g_test_add_func("/aio-gsource/flush",                   test_source_flush);
@@ -860,6 +874,8 @@ int main(int argc, char **argv)
     g_test_add_func("/aio-gsource/event/wait",              test_source_wait_event_notifier);
     g_test_add_func("/aio-gsource/event/wait/no-flush-cb",  test_source_wait_event_notifier_noflush);
     g_test_add_func("/aio-gsource/event/flush",             test_source_flush_event_notifier);
+#if !defined(_WIN32)
     g_test_add_func("/aio-gsource/timer/schedule",          test_source_timer_schedule);
+#endif
     return g_test_run();
 }
