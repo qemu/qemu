@@ -506,7 +506,8 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                 timer->cmp = (uint32_t)timer->cmp;
                 timer->period = (uint32_t)timer->period;
             }
-            if (activating_bit(old_val, new_val, HPET_TN_ENABLE)) {
+            if (activating_bit(old_val, new_val, HPET_TN_ENABLE) &&
+                hpet_enabled(s)) {
                 hpet_set_timer(timer);
             } else if (deactivating_bit(old_val, new_val, HPET_TN_ENABLE)) {
                 hpet_del_timer(timer);

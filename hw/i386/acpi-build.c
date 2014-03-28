@@ -841,7 +841,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
         pc = PCI_DEVICE_GET_CLASS(pdev);
         dc = DEVICE_GET_CLASS(pdev);
 
-        if (pc->class_id == PCI_CLASS_BRIDGE_ISA) {
+        if (pc->class_id == PCI_CLASS_BRIDGE_ISA || pc->is_bridge) {
             set_bit(slot, slot_device_system);
         }
 
@@ -882,7 +882,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
             memcpy(pcihp, ACPI_PCIVGA_AML, ACPI_PCIVGA_SIZEOF);
             patch_pcivga(i, pcihp);
         } else if (system) {
-            /* Nothing to do: system devices are in DSDT. */
+            /* Nothing to do: system devices are in DSDT or in SSDT above. */
         } else if (present) {
             void *pcihp = acpi_data_push(bus_table,
                                          ACPI_PCINOHP_SIZEOF);

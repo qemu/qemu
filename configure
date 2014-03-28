@@ -2712,6 +2712,24 @@ if test "$mingw32" != yes -a "$pthread" = no; then
       "Make sure to have the pthread libs and headers installed."
 fi
 
+# check for pthread_setname_np
+pthread_setname_np=no
+cat > $TMPC << EOF
+#include <pthread.h>
+
+static void *f(void *p) { return NULL; }
+int main(void)
+{
+    pthread_t thread;
+    pthread_create(&thread, 0, f, 0);
+    pthread_setname_np(thread, "QEMU");
+    return 0;
+}
+EOF
+if compile_prog "" "$pthread_lib" ; then
+  pthread_setname_np=yes
+fi
+
 ##########################################
 # rbd probe
 if test "$rbd" != "no" ; then
@@ -4646,6 +4664,16 @@ fi
 
 if test "$rdma" = "yes" ; then
   echo "CONFIG_RDMA=y" >> $config_host_mak
+fi
+
+# Hold two types of flag:
+#   CONFIG_THREAD_SETNAME_BYTHREAD  - we've got a way of setting the name on
+#                                     a thread we have a handle to
+#   CONFIG_PTHREAD_SETNAME_NP       - A way of doing it on a particular
+#                                     platform
+if test "$pthread_setname_np" = "yes" ; then
+  echo "CONFIG_THREAD_SETNAME_BYTHREAD=y" >> $config_host_mak
+  echo "CONFIG_PTHREAD_SETNAME_NP=y" >> $config_host_mak
 fi
 
 if test "$tcg_interpreter" = "yes"; then
