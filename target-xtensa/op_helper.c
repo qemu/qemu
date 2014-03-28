@@ -31,7 +31,6 @@
 #include "exec/softmmu_exec.h"
 #include "exec/address-spaces.h"
 
-#define ALIGNED_ONLY
 #define MMUSUFFIX _mmu
 
 #define SHIFT 0

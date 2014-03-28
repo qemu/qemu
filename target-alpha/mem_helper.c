@@ -134,7 +134,6 @@ void alpha_cpu_unassigned_access(CPUState *cs, hwaddr addr,
 #include "exec/softmmu_exec.h"
 
 #define MMUSUFFIX _mmu
-#define ALIGNED_ONLY
 
 #define SHIFT 0
 #include "exec/softmmu_template.h"

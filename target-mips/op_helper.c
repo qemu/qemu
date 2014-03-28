@@ -2129,7 +2129,6 @@ void helper_wait(CPUMIPSState *env)
 #if !defined(CONFIG_USER_ONLY)
 
 #define MMUSUFFIX _mmu
-#define ALIGNED_ONLY
 
 #define SHIFT 0
 #include "exec/softmmu_template.h"

@@ -5,6 +5,8 @@
 #include "qemu-common.h"
 #include "qemu/bswap.h"
 
+#define ALIGNED_ONLY
+
 #if !defined(TARGET_SPARC64)
 #define TARGET_LONG_BITS 32
 #define TARGET_DPREGS 16
