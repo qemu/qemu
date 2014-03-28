@@ -506,6 +506,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
                                    s->incompatible_features &
                                    ~QCOW2_INCOMPAT_MASK);
         ret = -ENOTSUP;
+        g_free(feature_table);
         goto fail;
     }
 
@@ -744,6 +745,9 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     s->l1_table = NULL;
     if (s->l2_table_cache) {
         qcow2_cache_destroy(bs, s->l2_table_cache);
+    }
+    if (s->refcount_block_cache) {
+        qcow2_cache_destroy(bs, s->refcount_block_cache);
     }
     g_free(s->cluster_cache);
     qemu_vfree(s->cluster_data);
