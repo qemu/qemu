@@ -25,6 +25,7 @@
 #define TCG_TARGET_PPC 1
 
 #define TCG_TARGET_NB_REGS 32
+#define TCG_TARGET_INSN_UNIT_SIZE 4
 
 typedef enum {
     TCG_REG_R0 = 0,
