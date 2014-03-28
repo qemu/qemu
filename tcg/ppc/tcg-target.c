@@ -41,6 +41,30 @@
 # define TCG_REG_TMP1   TCG_REG_R12
 #endif
 
+/* For the 64-bit target, we don't like the 5 insn sequence needed to build
+   full 64-bit addresses.  Better to have a base register to which we can
+   apply a 32-bit displacement.
+
+   There are generally three items of interest:
+   (1) helper functions in the main executable,
+   (2) TranslationBlock data structures,
+   (3) the return address in the epilogue.
+
+   For user-only, we USE_STATIC_CODE_GEN_BUFFER, so the code_gen_buffer
+   will be inside the main executable, and thus near enough to make a
+   pointer to the epilogue be within 2GB of all helper functions.
+
+   For softmmu, we'll let the kernel choose the address of code_gen_buffer,
+   and odds are it'll be somewhere close to the main malloc arena, and so
+   a pointer to the epilogue will be within 2GB of the TranslationBlocks.
+
+   For --enable-pie, everything will be kinda near everything else,
+   somewhere in high memory.
+
+   Thus we choose to keep the return address in a call-saved register.  */
+#define TCG_REG_RA     TCG_REG_R31
+#define USE_REG_RA     (TCG_TARGET_REG_BITS == 64)
+
 /* Shorthand for size of a pointer.  Avoid promotion to unsigned.  */
 #define SZP  ((int)sizeof(void *))
 
@@ -467,6 +491,8 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define TW     XO31( 4)
 #define TRAP   (TW | TO(31))
 
+#define NOP    ORI  /* ori 0,0,0 */
+
 #define RT(r) ((r)<<21)
 #define RS(r) ((r)<<21)
 #define RA(r) ((r)<<16)
@@ -530,6 +556,9 @@ static const uint32_t tcg_to_isel[] = {
     [TCG_COND_LEU] = ISEL | BC_(7, CR_GT) | 1,
     [TCG_COND_GTU] = ISEL | BC_(7, CR_GT),
 };
+
+static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
+                             TCGReg base, tcg_target_long offset);
 
 static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 {
@@ -601,7 +630,17 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg ret,
         tcg_out32(s, ADDI | TAI(ret, 0, arg));
         tcg_out32(s, ORIS | SAI(ret, ret, arg >> 16));
     } else {
-        int32_t high = arg >> 31 >> 1;
+        int32_t high;
+
+        if (USE_REG_RA) {
+            intptr_t diff = arg - (intptr_t)tb_ret_addr;
+            if (diff == (int32_t)diff) {
+                tcg_out_mem_long(s, ADDI, ADD, ret, TCG_REG_RA, diff);
+                return;
+            }
+        }
+
+        high = arg >> 31 >> 1;
         tcg_out_movi32(s, ret, high);
         if (high) {
             tcg_out_shli64(s, ret, ret, 32);
@@ -1714,17 +1753,15 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 {
     int i;
 
+#ifdef _CALL_AIX
+    void **desc = (void **)s->code_ptr;
+    desc[0] = desc + 2;                   /* entry point */
+    desc[1] = 0;                          /* environment pointer */
+    s->code_ptr = (void *)(desc + 2);     /* skip over descriptor */
+#endif
+
     tcg_set_frame(s, TCG_REG_CALL_STACK, REG_SAVE_BOT - CPU_TEMP_BUF_SIZE,
                   CPU_TEMP_BUF_SIZE);
-
-#ifdef _CALL_AIX
-    {
-      void **desc = (void **)s->code_ptr;
-      desc[0] = desc + 2;                   /* entry point */
-      desc[1] = 0;                          /* environment pointer */
-      s->code_ptr = (void *)(desc + 2);     /* skip over descriptor */
-    }
-#endif
 
     /* Prologue */
     tcg_out32(s, MFSPR | RT(TCG_REG_R0) | LR);
@@ -1746,10 +1783,36 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
     tcg_out32(s, MTSPR | RS(tcg_target_call_iarg_regs[1]) | CTR);
-    tcg_out32(s, BCCTR | BO_ALWAYS);
+
+    if (USE_REG_RA) {
+#ifdef _CALL_AIX
+        /* Make the caller load the value as the TOC into R2.  */
+        tb_ret_addr = s->code_ptr + 2;
+        desc[1] = tb_ret_addr;
+        tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_RA, TCG_REG_R2);
+        tcg_out32(s, BCCTR | BO_ALWAYS);
+#elif defined(_CALL_ELF) && _CALL_ELF == 2
+        /* Compute from the incoming R12 value.  */
+        tb_ret_addr = s->code_ptr + 2;
+        tcg_out32(s, ADDI | TAI(TCG_REG_RA, TCG_REG_R12,
+                                tcg_ptr_byte_diff(tb_ret_addr, s->code_buf)));
+        tcg_out32(s, BCCTR | BO_ALWAYS);
+#else
+        /* Reserve max 5 insns for the constant load.  */
+        tb_ret_addr = s->code_ptr + 6;
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_RA, (intptr_t)tb_ret_addr);
+        tcg_out32(s, BCCTR | BO_ALWAYS);
+        while (s->code_ptr < tb_ret_addr) {
+            tcg_out32(s, NOP);
+        }
+#endif
+    } else {
+        tcg_out32(s, BCCTR | BO_ALWAYS);
+        tb_ret_addr = s->code_ptr;
+    }
 
     /* Epilogue */
-    tb_ret_addr = s->code_ptr;
+    assert(tb_ret_addr == s->code_ptr);
 
     tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R0, TCG_REG_R1, FRAME_SIZE+LR_OFFSET);
     for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i) {
@@ -1769,6 +1832,21 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 
     switch (opc) {
     case INDEX_op_exit_tb:
+        if (USE_REG_RA) {
+            ptrdiff_t disp = tcg_pcrel_diff(s, tb_ret_addr);
+
+            /* If we can use a direct branch, otherwise use the value in RA.
+               Note that the direct branch is always forward.  If it's in
+               range now, it'll still be in range after the movi.  Don't
+               bother about the 20 bytes where the test here fails but it
+               would succeed below.  */
+            if (!in_range_b(disp)) {
+                tcg_out32(s, MTSPR | RS(TCG_REG_RA) | CTR);
+                tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R3, args[0]);
+                tcg_out32(s, BCCTR | BO_ALWAYS);
+                break;
+            }
+        }
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R3, args[0]);
         tcg_out_b(s, 0, tb_ret_addr);
         break;
@@ -2479,6 +2557,9 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R13); /* thread pointer */
 #endif
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP1); /* mem temp */
+    if (USE_REG_RA) {
+        tcg_regset_set_reg(s->reserved_regs, TCG_REG_RA);  /* return addr */
+    }
 
     tcg_add_target_add_op_defs(ppc_op_defs);
 }
