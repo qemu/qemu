@@ -34,6 +34,24 @@
 # define LOG_PCALL_STATE(cpu) do { } while (0)
 #endif
 
+#ifndef CONFIG_USER_ONLY
+#define CPU_MMU_INDEX (cpu_mmu_index_kernel(env))
+#define MEMSUFFIX _kernel
+#define DATA_SIZE 1
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 2
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 4
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 8
+#include "exec/cpu_ldst_template.h"
+#undef CPU_MMU_INDEX
+#undef MEMSUFFIX
+#endif
+
 /* return non zero if error */
 static inline int load_segment(CPUX86State *env, uint32_t *e1_ptr,
                                uint32_t *e2_ptr, int selector)
