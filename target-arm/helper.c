@@ -7,6 +7,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/bitops.h"
 #include "qemu/crc32c.h"
+#include "arm_ldst.h"
 #include <zlib.h> /* For crc32 */
 
 #ifndef CONFIG_USER_ONLY

@@ -30,6 +30,7 @@
 #include "tcg-op.h"
 #include "qemu/log.h"
 #include "qemu/bitops.h"
+#include "arm_ldst.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
