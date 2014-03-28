@@ -122,11 +122,21 @@ static inline void tcg_out8(TCGContext *s, uint8_t v)
     *s->code_ptr++ = v;
 }
 
+static inline void tcg_patch8(uint8_t *p, uint8_t v)
+{
+    memcpy(p, &v, sizeof(v));
+}
+
 static inline void tcg_out16(TCGContext *s, uint16_t v)
 {
     uint8_t *p = s->code_ptr;
     memcpy(p, &v, sizeof(v));
     s->code_ptr = p + 2;
+}
+
+static inline void tcg_patch16(uint8_t *p, uint16_t v)
+{
+    memcpy(p, &v, sizeof(v));
 }
 
 static inline void tcg_out32(TCGContext *s, uint32_t v)
@@ -136,11 +146,21 @@ static inline void tcg_out32(TCGContext *s, uint32_t v)
     s->code_ptr = p + 4;
 }
 
+static inline void tcg_patch32(uint8_t *p, uint32_t v)
+{
+    memcpy(p, &v, sizeof(v));
+}
+
 static inline void tcg_out64(TCGContext *s, uint64_t v)
 {
     uint8_t *p = s->code_ptr;
     memcpy(p, &v, sizeof(v));
     s->code_ptr = p + 8;
+}
+
+static inline void tcg_patch64(uint8_t *p, uint64_t v)
+{
+    memcpy(p, &v, sizeof(v));
 }
 
 /* label relocation processing */

@@ -151,14 +151,14 @@ static void patch_reloc(uint8_t *code_ptr, int type,
         if (value != (int32_t)value) {
             tcg_abort();
         }
-        *(uint32_t *)code_ptr = value;
+        tcg_patch32(code_ptr, value);
         break;
     case R_386_PC8:
         value -= (uintptr_t)code_ptr;
         if (value != (int8_t)value) {
             tcg_abort();
         }
-        *(uint8_t *)code_ptr = value;
+        tcg_patch8(code_ptr, value);
         break;
     default:
         tcg_abort();
@@ -1276,9 +1276,9 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     uint8_t **label_ptr = &l->label_ptr[0];
 
     /* resolve label address */
-    *(uint32_t *)label_ptr[0] = (uint32_t)(s->code_ptr - label_ptr[0] - 4);
+    tcg_patch32(label_ptr[0], s->code_ptr - label_ptr[0] - 4);
     if (TARGET_LONG_BITS > TCG_TARGET_REG_BITS) {
-        *(uint32_t *)label_ptr[1] = (uint32_t)(s->code_ptr - label_ptr[1] - 4);
+        tcg_patch32(label_ptr[1], s->code_ptr - label_ptr[1] - 4);
     }
 
     if (TCG_TARGET_REG_BITS == 32) {
@@ -1360,9 +1360,9 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     TCGReg retaddr;
 
     /* resolve label address */
-    *(uint32_t *)label_ptr[0] = (uint32_t)(s->code_ptr - label_ptr[0] - 4);
+    tcg_patch32(label_ptr[0], s->code_ptr - label_ptr[0] - 4);
     if (TARGET_LONG_BITS > TCG_TARGET_REG_BITS) {
-        *(uint32_t *)label_ptr[1] = (uint32_t)(s->code_ptr - label_ptr[1] - 4);
+        tcg_patch32(label_ptr[1], s->code_ptr - label_ptr[1] - 4);
     }
 
     if (TCG_TARGET_REG_BITS == 32) {
