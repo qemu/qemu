@@ -126,25 +126,6 @@ static const int qcode_to_number[] = {
 
     [Q_KEY_CODE_INSERT] = 0xd2,
     [Q_KEY_CODE_DELETE] = 0xd3,
-#ifdef NEED_CPU_H
-#if defined(TARGET_SPARC) && !defined(TARGET_SPARC64)
-    [Q_KEY_CODE_STOP] = 0xf0,
-    [Q_KEY_CODE_AGAIN] = 0xf1,
-    [Q_KEY_CODE_PROPS] = 0xf2,
-    [Q_KEY_CODE_UNDO] = 0xf3,
-    [Q_KEY_CODE_FRONT] = 0xf4,
-    [Q_KEY_CODE_COPY] = 0xf5,
-    [Q_KEY_CODE_OPEN] = 0xf6,
-    [Q_KEY_CODE_PASTE] = 0xf7,
-    [Q_KEY_CODE_FIND] = 0xf8,
-    [Q_KEY_CODE_CUT] = 0xf9,
-    [Q_KEY_CODE_LF] = 0xfa,
-    [Q_KEY_CODE_HELP] = 0xfb,
-    [Q_KEY_CODE_META_L] = 0xfc,
-    [Q_KEY_CODE_META_R] = 0xfd,
-    [Q_KEY_CODE_COMPOSE] = 0xfe,
-#endif
-#endif
     [Q_KEY_CODE_MAX] = 0,
 };
 
