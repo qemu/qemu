@@ -48,20 +48,11 @@
 #endif
 
 #if ACCESS_TYPE < (NB_MMU_MODES)
-
 #define CPU_MMU_INDEX ACCESS_TYPE
-#define MMUSUFFIX _mmu
-
 #elif ACCESS_TYPE == (NB_MMU_MODES)
-
 #define CPU_MMU_INDEX (cpu_mmu_index(env))
-#define MMUSUFFIX _mmu
-
 #elif ACCESS_TYPE == (NB_MMU_MODES + 1)
-
 #define CPU_MMU_INDEX (cpu_mmu_index(env))
-#define MMUSUFFIX _cmmu
-
 #else
 #error invalid ACCESS_TYPE
 #endif
@@ -74,8 +65,10 @@
 
 #ifdef SOFTMMU_CODE_ACCESS
 #define ADDR_READ addr_code
+#define MMUSUFFIX _cmmu
 #else
 #define ADDR_READ addr_read
+#define MMUSUFFIX _mmu
 #endif
 
 /* generic load/store macros */
