@@ -349,7 +349,7 @@ uint16_t helper_ldw_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 uint32_t helper_ldl_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 
-#define ACCESS_TYPE (NB_MMU_MODES + 1)
+#define CPU_MMU_INDEX (cpu_mmu_index(env))
 #define MEMSUFFIX _code
 #define SOFTMMU_CODE_ACCESS
 
@@ -365,7 +365,7 @@ uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 #define DATA_SIZE 8
 #include "exec/softmmu_header.h"
 
-#undef ACCESS_TYPE
+#undef CPU_MMU_INDEX
 #undef MEMSUFFIX
 #undef SOFTMMU_CODE_ACCESS
 

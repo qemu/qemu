@@ -22,7 +22,7 @@
 /* The memory helpers for tcg-generated code need tcg_target_long etc.  */
 #include "tcg.h"
 
-#define ACCESS_TYPE 0
+#define CPU_MMU_INDEX 0
 #define MEMSUFFIX MMU_MODE0_SUFFIX
 #define DATA_SIZE 1
 #include "exec/softmmu_header.h"
@@ -35,10 +35,10 @@
 
 #define DATA_SIZE 8
 #include "exec/softmmu_header.h"
-#undef ACCESS_TYPE
+#undef CPU_MMU_INDEX
 #undef MEMSUFFIX
 
-#define ACCESS_TYPE 1
+#define CPU_MMU_INDEX 1
 #define MEMSUFFIX MMU_MODE1_SUFFIX
 #define DATA_SIZE 1
 #include "exec/softmmu_header.h"
@@ -51,12 +51,12 @@
 
 #define DATA_SIZE 8
 #include "exec/softmmu_header.h"
-#undef ACCESS_TYPE
+#undef CPU_MMU_INDEX
 #undef MEMSUFFIX
 
 #if (NB_MMU_MODES >= 3)
 
-#define ACCESS_TYPE 2
+#define CPU_MMU_INDEX 2
 #define MEMSUFFIX MMU_MODE2_SUFFIX
 #define DATA_SIZE 1
 #include "exec/softmmu_header.h"
@@ -69,13 +69,13 @@
 
 #define DATA_SIZE 8
 #include "exec/softmmu_header.h"
-#undef ACCESS_TYPE
+#undef CPU_MMU_INDEX
 #undef MEMSUFFIX
 #endif /* (NB_MMU_MODES >= 3) */
 
 #if (NB_MMU_MODES >= 4)
 
-#define ACCESS_TYPE 3
+#define CPU_MMU_INDEX 3
 #define MEMSUFFIX MMU_MODE3_SUFFIX
 #define DATA_SIZE 1
 #include "exec/softmmu_header.h"
@@ -88,13 +88,13 @@
 
 #define DATA_SIZE 8
 #include "exec/softmmu_header.h"
-#undef ACCESS_TYPE
+#undef CPU_MMU_INDEX
 #undef MEMSUFFIX
 #endif /* (NB_MMU_MODES >= 4) */
 
 #if (NB_MMU_MODES >= 5)
 
-#define ACCESS_TYPE 4
+#define CPU_MMU_INDEX 4
 #define MEMSUFFIX MMU_MODE4_SUFFIX
 #define DATA_SIZE 1
 #include "exec/softmmu_header.h"
@@ -107,13 +107,13 @@
 
 #define DATA_SIZE 8
 #include "exec/softmmu_header.h"
-#undef ACCESS_TYPE
+#undef CPU_MMU_INDEX
 #undef MEMSUFFIX
 #endif /* (NB_MMU_MODES >= 5) */
 
 #if (NB_MMU_MODES >= 6)
 
-#define ACCESS_TYPE 5
+#define CPU_MMU_INDEX 5
 #define MEMSUFFIX MMU_MODE5_SUFFIX
 #define DATA_SIZE 1
 #include "exec/softmmu_header.h"
@@ -126,7 +126,7 @@
 
 #define DATA_SIZE 8
 #include "exec/softmmu_header.h"
-#undef ACCESS_TYPE
+#undef CPU_MMU_INDEX
 #undef MEMSUFFIX
 #endif /* (NB_MMU_MODES >= 6) */
 
@@ -135,7 +135,7 @@
 #endif /* (NB_MMU_MODES > 6) */
 
 /* these access are slower, they must be as rare as possible */
-#define ACCESS_TYPE (NB_MMU_MODES)
+#define CPU_MMU_INDEX (cpu_mmu_index(env))
 #define MEMSUFFIX _data
 #define DATA_SIZE 1
 #include "exec/softmmu_header.h"
@@ -148,7 +148,7 @@
 
 #define DATA_SIZE 8
 #include "exec/softmmu_header.h"
-#undef ACCESS_TYPE
+#undef CPU_MMU_INDEX
 #undef MEMSUFFIX
 
 #define ldub(p) ldub_data(p)

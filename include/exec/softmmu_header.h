@@ -47,16 +47,6 @@
 #error unsupported data size
 #endif
 
-#if ACCESS_TYPE < (NB_MMU_MODES)
-#define CPU_MMU_INDEX ACCESS_TYPE
-#elif ACCESS_TYPE == (NB_MMU_MODES)
-#define CPU_MMU_INDEX (cpu_mmu_index(env))
-#elif ACCESS_TYPE == (NB_MMU_MODES + 1)
-#define CPU_MMU_INDEX (cpu_mmu_index(env))
-#else
-#error invalid ACCESS_TYPE
-#endif
-
 #if DATA_SIZE == 8
 #define RES_TYPE uint64_t
 #else
@@ -199,6 +189,5 @@ static inline void glue(cpu_stfl, MEMSUFFIX)(CPUArchState *env,
 #undef SUFFIX
 #undef USUFFIX
 #undef DATA_SIZE
-#undef CPU_MMU_INDEX
 #undef MMUSUFFIX
 #undef ADDR_READ
