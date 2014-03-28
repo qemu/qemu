@@ -65,7 +65,7 @@
 /* Forward declarations for functions declared in tcg-target.c and used here. */
 static void tcg_target_init(TCGContext *s);
 static void tcg_target_qemu_prologue(TCGContext *s);
-static void patch_reloc(uint8_t *code_ptr, int type, 
+static void patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend);
 
 /* The CIE and FDE header definitions will be common to all hosts.  */
@@ -117,55 +117,87 @@ const size_t tcg_op_defs_max = ARRAY_SIZE(tcg_op_defs);
 static TCGRegSet tcg_target_available_regs[2];
 static TCGRegSet tcg_target_call_clobber_regs;
 
+#if TCG_TARGET_INSN_UNIT_SIZE == 1
 static inline void tcg_out8(TCGContext *s, uint8_t v)
 {
     *s->code_ptr++ = v;
 }
 
-static inline void tcg_patch8(uint8_t *p, uint8_t v)
+static inline void tcg_patch8(tcg_insn_unit *p, uint8_t v)
 {
-    memcpy(p, &v, sizeof(v));
+    *p = v;
 }
+#endif
 
+#if TCG_TARGET_INSN_UNIT_SIZE <= 2
 static inline void tcg_out16(TCGContext *s, uint16_t v)
 {
-    uint8_t *p = s->code_ptr;
-    memcpy(p, &v, sizeof(v));
-    s->code_ptr = p + 2;
+    if (TCG_TARGET_INSN_UNIT_SIZE == 2) {
+        *s->code_ptr++ = v;
+    } else {
+        tcg_insn_unit *p = s->code_ptr;
+        memcpy(p, &v, sizeof(v));
+        s->code_ptr = p + (2 / TCG_TARGET_INSN_UNIT_SIZE);
+    }
 }
 
-static inline void tcg_patch16(uint8_t *p, uint16_t v)
+static inline void tcg_patch16(tcg_insn_unit *p, uint16_t v)
 {
-    memcpy(p, &v, sizeof(v));
+    if (TCG_TARGET_INSN_UNIT_SIZE == 2) {
+        *p = v;
+    } else {
+        memcpy(p, &v, sizeof(v));
+    }
 }
+#endif
 
+#if TCG_TARGET_INSN_UNIT_SIZE <= 4
 static inline void tcg_out32(TCGContext *s, uint32_t v)
 {
-    uint8_t *p = s->code_ptr;
-    memcpy(p, &v, sizeof(v));
-    s->code_ptr = p + 4;
+    if (TCG_TARGET_INSN_UNIT_SIZE == 4) {
+        *s->code_ptr++ = v;
+    } else {
+        tcg_insn_unit *p = s->code_ptr;
+        memcpy(p, &v, sizeof(v));
+        s->code_ptr = p + (4 / TCG_TARGET_INSN_UNIT_SIZE);
+    }
 }
 
-static inline void tcg_patch32(uint8_t *p, uint32_t v)
+static inline void tcg_patch32(tcg_insn_unit *p, uint32_t v)
 {
-    memcpy(p, &v, sizeof(v));
+    if (TCG_TARGET_INSN_UNIT_SIZE == 4) {
+        *p = v;
+    } else {
+        memcpy(p, &v, sizeof(v));
+    }
 }
+#endif
 
+#if TCG_TARGET_INSN_UNIT_SIZE <= 8
 static inline void tcg_out64(TCGContext *s, uint64_t v)
 {
-    uint8_t *p = s->code_ptr;
-    memcpy(p, &v, sizeof(v));
-    s->code_ptr = p + 8;
+    if (TCG_TARGET_INSN_UNIT_SIZE == 8) {
+        *s->code_ptr++ = v;
+    } else {
+        tcg_insn_unit *p = s->code_ptr;
+        memcpy(p, &v, sizeof(v));
+        s->code_ptr = p + (8 / TCG_TARGET_INSN_UNIT_SIZE);
+    }
 }
 
-static inline void tcg_patch64(uint8_t *p, uint64_t v)
+static inline void tcg_patch64(tcg_insn_unit *p, uint64_t v)
 {
-    memcpy(p, &v, sizeof(v));
+    if (TCG_TARGET_INSN_UNIT_SIZE == 8) {
+        *p = v;
+    } else {
+        memcpy(p, &v, sizeof(v));
+    }
 }
+#endif
 
 /* label relocation processing */
 
-static void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type,
+static void tcg_out_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
                           int label_index, intptr_t addend)
 {
     TCGLabel *l;
@@ -188,23 +220,20 @@ static void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type,
     }
 }
 
-static void tcg_out_label(TCGContext *s, int label_index, void *ptr)
+static void tcg_out_label(TCGContext *s, int label_index, tcg_insn_unit *ptr)
 {
-    TCGLabel *l;
-    TCGRelocation *r;
+    TCGLabel *l = &s->labels[label_index];
     intptr_t value = (intptr_t)ptr;
+    TCGRelocation *r;
 
-    l = &s->labels[label_index];
-    if (l->has_value) {
-        tcg_abort();
-    }
-    r = l->u.first_reloc;
-    while (r != NULL) {
+    assert(!l->has_value);
+
+    for (r = l->u.first_reloc; r != NULL; r = r->next) {
         patch_reloc(r->ptr, r->type, value, r->addend);
-        r = r->next;
     }
+
     l->has_value = 1;
-    l->u.value = value;
+    l->u.value_ptr = ptr;
 }
 
 int gen_new_label(void)
@@ -359,7 +388,7 @@ void tcg_prologue_init(TCGContext *s)
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
-        size_t size = s->code_ptr - s->code_buf;
+        size_t size = tcg_current_code_size(s);
         qemu_log("PROLOGUE: [size=%zu]\n", size);
         log_disas(s->code_buf, size);
         qemu_log("\n");
@@ -2538,7 +2567,8 @@ static void dump_op_count(void)
 #endif
 
 
-static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
+static inline int tcg_gen_code_common(TCGContext *s,
+                                      tcg_insn_unit *gen_code_buf,
                                       long search_pc)
 {
     TCGOpcode opc;
@@ -2653,7 +2683,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
         }
         args += def->nb_args;
     next:
-        if (search_pc >= 0 && search_pc < s->code_ptr - gen_code_buf) {
+        if (search_pc >= 0 && search_pc < tcg_current_code_size(s)) {
             return op_index;
         }
         op_index++;
@@ -2667,7 +2697,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
     return -1;
 }
 
-int tcg_gen_code(TCGContext *s, uint8_t *gen_code_buf)
+int tcg_gen_code(TCGContext *s, tcg_insn_unit *gen_code_buf)
 {
 #ifdef CONFIG_PROFILER
     {
@@ -2686,16 +2716,17 @@ int tcg_gen_code(TCGContext *s, uint8_t *gen_code_buf)
     tcg_gen_code_common(s, gen_code_buf, -1);
 
     /* flush instruction cache */
-    flush_icache_range((uintptr_t)gen_code_buf, (uintptr_t)s->code_ptr);
+    flush_icache_range((uintptr_t)s->code_buf, (uintptr_t)s->code_ptr);
 
-    return s->code_ptr -  gen_code_buf;
+    return tcg_current_code_size(s);
 }
 
 /* Return the index of the micro operation such as the pc after is <
    offset bytes from the start of the TB.  The contents of gen_code_buf must
    not be changed, though writing the same values is ok.
    Return -1 if not found. */
-int tcg_gen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset)
+int tcg_gen_code_search_pc(TCGContext *s, tcg_insn_unit *gen_code_buf,
+                           long offset)
 {
     return tcg_gen_code_common(s, gen_code_buf, offset);
 }

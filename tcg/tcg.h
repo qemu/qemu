@@ -146,10 +146,26 @@ typedef enum TCGOpcode {
 #define tcg_regset_andnot(d, a, b) (d) = (a) & ~(b)
 #define tcg_regset_not(d, a) (d) = ~(a)
 
+#ifndef TCG_TARGET_INSN_UNIT_SIZE
+#define TCG_TARGET_INSN_UNIT_SIZE 1
+#endif
+#if TCG_TARGET_INSN_UNIT_SIZE == 1
+typedef uint8_t tcg_insn_unit;
+#elif TCG_TARGET_INSN_UNIT_SIZE == 2
+typedef uint16_t tcg_insn_unit;
+#elif TCG_TARGET_INSN_UNIT_SIZE == 4
+typedef uint32_t tcg_insn_unit;
+#elif TCG_TARGET_INSN_UNIT_SIZE == 8
+typedef uint64_t tcg_insn_unit;
+#else
+/* The port better have done this.  */
+#endif
+
+
 typedef struct TCGRelocation {
     struct TCGRelocation *next;
     int type;
-    uint8_t *ptr;
+    tcg_insn_unit *ptr;
     intptr_t addend;
 } TCGRelocation; 
 
@@ -157,6 +173,7 @@ typedef struct TCGLabel {
     int has_value;
     union {
         uintptr_t value;
+        tcg_insn_unit *value_ptr;
         TCGRelocation *first_reloc;
     } u;
 } TCGLabel;
@@ -464,7 +481,7 @@ struct TCGContext {
     int nb_temps;
 
     /* goto_tb support */
-    uint8_t *code_buf;
+    tcg_insn_unit *code_buf;
     uintptr_t *tb_next;
     uint16_t *tb_next_offset;
     uint16_t *tb_jmp_offset; /* != NULL if USE_DIRECT_JUMP */
@@ -485,7 +502,7 @@ struct TCGContext {
     intptr_t frame_end;
     int frame_reg;
 
-    uint8_t *code_ptr;
+    tcg_insn_unit *code_ptr;
     TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */
     TCGTempSet free_temps[TCG_TYPE_COUNT * 2];
 
@@ -524,14 +541,17 @@ struct TCGContext {
     uint16_t gen_opc_icount[OPC_BUF_SIZE];
     uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 
-    /* Code generation */
+    /* Code generation.  Note that we specifically do not use tcg_insn_unit
+       here, because there's too much arithmetic throughout that relies
+       on addition and subtraction working on bytes.  Rely on the GCC
+       extension that allows arithmetic on void*.  */
     int code_gen_max_blocks;
-    uint8_t *code_gen_prologue;
-    uint8_t *code_gen_buffer;
+    void *code_gen_prologue;
+    void *code_gen_buffer;
     size_t code_gen_buffer_size;
     /* threshold to flush the translated code buffer */
     size_t code_gen_buffer_max_size;
-    uint8_t *code_gen_ptr;
+    void *code_gen_ptr;
 
     TBContext tb_ctx;
 
@@ -566,8 +586,9 @@ void tcg_context_init(TCGContext *s);
 void tcg_prologue_init(TCGContext *s);
 void tcg_func_start(TCGContext *s);
 
-int tcg_gen_code(TCGContext *s, uint8_t *gen_code_buf);
-int tcg_gen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset);
+int tcg_gen_code(TCGContext *s, tcg_insn_unit *gen_code_buf);
+int tcg_gen_code_search_pc(TCGContext *s, tcg_insn_unit *gen_code_buf,
+                           long offset);
 
 void tcg_set_frame(TCGContext *s, int reg, intptr_t start, intptr_t size);
 

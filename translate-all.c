@@ -143,7 +143,7 @@ void cpu_gen_init(void)
 int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 {
     TCGContext *s = &tcg_ctx;
-    uint8_t *gen_code_buf;
+    tcg_insn_unit *gen_code_buf;
     int gen_code_size;
 #ifdef CONFIG_PROFILER
     int64_t ti;
@@ -186,8 +186,8 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
-        qemu_log("OUT: [size=%d]\n", *gen_code_size_ptr);
-        log_disas(tb->tc_ptr, *gen_code_size_ptr);
+        qemu_log("OUT: [size=%d]\n", gen_code_size);
+        log_disas(tb->tc_ptr, gen_code_size);
         qemu_log("\n");
         qemu_log_flush();
     }
@@ -235,7 +235,8 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
     s->tb_jmp_offset = NULL;
     s->tb_next = tb->tb_next;
 #endif
-    j = tcg_gen_code_search_pc(s, (uint8_t *)tc_ptr, searched_pc - tc_ptr);
+    j = tcg_gen_code_search_pc(s, (tcg_insn_unit *)tc_ptr,
+                               searched_pc - tc_ptr);
     if (j < 0)
         return -1;
     /* now find start of instruction before */
@@ -944,7 +945,6 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 {
     CPUArchState *env = cpu->env_ptr;
     TranslationBlock *tb;
-    uint8_t *tc_ptr;
     tb_page_addr_t phys_pc, phys_page2;
     target_ulong virt_page2;
     int code_gen_size;
@@ -959,8 +959,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         /* Don't forget to invalidate previous TB info.  */
         tcg_ctx.tb_ctx.tb_invalidated_flag = 1;
     }
-    tc_ptr = tcg_ctx.code_gen_ptr;
-    tb->tc_ptr = tc_ptr;
+    tb->tc_ptr = tcg_ctx.code_gen_ptr;
     tb->cs_base = cs_base;
     tb->flags = flags;
     tb->cflags = cflags;

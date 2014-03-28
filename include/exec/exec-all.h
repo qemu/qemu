@@ -145,7 +145,7 @@ struct TranslationBlock {
 #define CF_COUNT_MASK  0x7fff
 #define CF_LAST_IO     0x8000 /* Last insn may be an IO access.  */
 
-    uint8_t *tc_ptr;    /* pointer to the translated code */
+    void *tc_ptr;    /* pointer to the translated code */
     /* next matching tb for physical address. */
     struct TranslationBlock *phys_hash_next;
     /* first and second physical page containing code. The lower bit
