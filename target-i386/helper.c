@@ -654,7 +654,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
                     goto do_fault_protect;
                 }
                 /* fall through */
-            case MMU_KSMAP_IDX:
+            case MMU_KNOSMAP_IDX:
                 if (is_write1 == 2 && (env->cr[4] & CR4_SMEP_MASK) &&
                     (ptep & PG_USER_MASK)) {
                     goto do_fault_protect;
@@ -716,7 +716,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
                     goto do_fault_protect;
                 }
                 /* fall through */
-            case MMU_KSMAP_IDX:
+            case MMU_KNOSMAP_IDX:
                 if (is_write1 == 2 && (env->cr[4] & CR4_SMEP_MASK) &&
                     (ptep & PG_USER_MASK)) {
                     goto do_fault_protect;
@@ -771,7 +771,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
                     goto do_fault_protect;
                 }
                 /* fall through */
-            case MMU_KSMAP_IDX:
+            case MMU_KNOSMAP_IDX:
                 if (is_write1 == 2 && (env->cr[4] & CR4_SMEP_MASK) &&
                     (pde & PG_USER_MASK)) {
                     goto do_fault_protect;
@@ -828,7 +828,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
                     goto do_fault_protect;
                 }
                 /* fall through */
-            case MMU_KSMAP_IDX:
+            case MMU_KNOSMAP_IDX:
                 if (is_write1 == 2 && (env->cr[4] & CR4_SMEP_MASK) &&
                     (ptep & PG_USER_MASK)) {
                     goto do_fault_protect;

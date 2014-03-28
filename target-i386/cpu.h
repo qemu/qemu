@@ -1155,15 +1155,15 @@ static inline CPUX86State *cpu_init(const char *cpu_model)
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
 #define MMU_MODE1_SUFFIX _user
-#define MMU_MODE2_SUFFIX _ksmap /* Kernel with SMAP override */
+#define MMU_MODE2_SUFFIX _knosmap /* SMAP disabled or CPL<3 && AC=1 */
 #define MMU_KERNEL_IDX  0
 #define MMU_USER_IDX    1
-#define MMU_KSMAP_IDX   2
+#define MMU_KNOSMAP_IDX 2
 static inline int cpu_mmu_index (CPUX86State *env)
 {
     return (env->hflags & HF_CPL_MASK) == 3 ? MMU_USER_IDX :
         ((env->hflags & HF_SMAP_MASK) && (env->eflags & AC_MASK))
-        ? MMU_KSMAP_IDX : MMU_KERNEL_IDX;
+        ? MMU_KNOSMAP_IDX : MMU_KERNEL_IDX;
 }
 
 #define CC_DST  (env->cc_dst)
