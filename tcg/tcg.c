@@ -125,21 +125,21 @@ static inline void tcg_out8(TCGContext *s, uint8_t v)
 static inline void tcg_out16(TCGContext *s, uint16_t v)
 {
     uint8_t *p = s->code_ptr;
-    *(uint16_t *)p = v;
+    memcpy(p, &v, sizeof(v));
     s->code_ptr = p + 2;
 }
 
 static inline void tcg_out32(TCGContext *s, uint32_t v)
 {
     uint8_t *p = s->code_ptr;
-    *(uint32_t *)p = v;
+    memcpy(p, &v, sizeof(v));
     s->code_ptr = p + 4;
 }
 
 static inline void tcg_out64(TCGContext *s, uint64_t v)
 {
     uint8_t *p = s->code_ptr;
-    *(uint64_t *)p = v;
+    memcpy(p, &v, sizeof(v));
     s->code_ptr = p + 8;
 }
 
