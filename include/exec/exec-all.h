@@ -344,31 +344,6 @@ bool io_mem_write(struct MemoryRegion *mr, hwaddr addr,
 void tlb_fill(CPUState *cpu, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr);
 
-uint8_t helper_ldb_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-uint16_t helper_ldw_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-uint32_t helper_ldl_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-
-#define CPU_MMU_INDEX (cpu_mmu_index(env))
-#define MEMSUFFIX _code
-#define SOFTMMU_CODE_ACCESS
-
-#define DATA_SIZE 1
-#include "exec/softmmu_header.h"
-
-#define DATA_SIZE 2
-#include "exec/softmmu_header.h"
-
-#define DATA_SIZE 4
-#include "exec/softmmu_header.h"
-
-#define DATA_SIZE 8
-#include "exec/softmmu_header.h"
-
-#undef CPU_MMU_INDEX
-#undef MEMSUFFIX
-#undef SOFTMMU_CODE_ACCESS
-
 #endif
 
 #if defined(CONFIG_USER_ONLY)

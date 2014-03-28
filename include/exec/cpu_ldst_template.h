@@ -8,7 +8,7 @@
  * 32 and 64 bit cases, also generate floating point functions with
  * the same size.
  *
- * Not used directly but included from softmmu_exec.h and exec-all.h.
+ * Not used directly but included from cpu_ldst.h.
  *
  *  Copyright (c) 2003 Fabrice Bellard
  *
