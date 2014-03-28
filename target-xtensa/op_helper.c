@@ -30,20 +30,7 @@
 #include "qemu/host-utils.h"
 #include "exec/softmmu_exec.h"
 #include "exec/address-spaces.h"
-
-#define MMUSUFFIX _mmu
-
-#define SHIFT 0
-#include "exec/softmmu_template.h"
-
-#define SHIFT 1
-#include "exec/softmmu_template.h"
-
-#define SHIFT 2
-#include "exec/softmmu_template.h"
-
-#define SHIFT 3
-#include "exec/softmmu_template.h"
+#include "qemu/timer.h"
 
 void xtensa_cpu_do_unaligned_access(CPUState *cs,
         vaddr addr, int is_write, int is_user, uintptr_t retaddr)

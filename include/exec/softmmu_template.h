@@ -116,6 +116,7 @@
 # define helper_te_st_name  helper_le_st_name
 #endif
 
+#ifndef SOFTMMU_CODE_ACCESS
 static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
                                               hwaddr physaddr,
                                               target_ulong addr,
@@ -135,6 +136,7 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
     io_mem_read(mr, physaddr, &val, 1 << SHIFT);
     return val;
 }
+#endif
 
 #ifdef SOFTMMU_CODE_ACCESS
 static __attribute__((unused))
