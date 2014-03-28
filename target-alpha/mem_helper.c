@@ -96,11 +96,11 @@ uint64_t helper_stq_c_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
     return ret;
 }
 
-static void do_unaligned_access(CPUAlphaState *env, target_ulong addr,
-                                int is_write, int is_user, uintptr_t retaddr)
+void alpha_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                   int is_write, int is_user, uintptr_t retaddr)
 {
-    AlphaCPU *cpu = alpha_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    AlphaCPU *cpu = ALPHA_CPU(cs);
+    CPUAlphaState *env = &cpu->env;
     uint64_t pc;
     uint32_t insn;
 

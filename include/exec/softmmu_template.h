@@ -155,7 +155,8 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
          != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0) {
-            do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+            cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
+                                 mmu_idx, retaddr);
         }
 #endif
         tlb_fill(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
@@ -186,7 +187,8 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
         unsigned shift;
     do_unaligned_access:
 #ifdef ALIGNED_ONLY
-        do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+        cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
+                             mmu_idx, retaddr);
 #endif
         addr1 = addr & ~(DATA_SIZE - 1);
         addr2 = addr1 + DATA_SIZE;
@@ -204,7 +206,8 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
     /* Handle aligned access or unaligned access in the same page.  */
 #ifdef ALIGNED_ONLY
     if ((addr & (DATA_SIZE - 1)) != 0) {
-        do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+        cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
+                             mmu_idx, retaddr);
     }
 #endif
 
@@ -237,7 +240,8 @@ WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
          != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0) {
-            do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+            cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
+                                 mmu_idx, retaddr);
         }
 #endif
         tlb_fill(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
@@ -268,7 +272,8 @@ WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
         unsigned shift;
     do_unaligned_access:
 #ifdef ALIGNED_ONLY
-        do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+        cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
+                             mmu_idx, retaddr);
 #endif
         addr1 = addr & ~(DATA_SIZE - 1);
         addr2 = addr1 + DATA_SIZE;
@@ -286,7 +291,8 @@ WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
     /* Handle aligned access or unaligned access in the same page.  */
 #ifdef ALIGNED_ONLY
     if ((addr & (DATA_SIZE - 1)) != 0) {
-        do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+        cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
+                             mmu_idx, retaddr);
     }
 #endif
 
@@ -357,7 +363,7 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
         != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0) {
-            do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
+            cpu_unaligned_access(ENV_GET_CPU(env), addr, 1, mmu_idx, retaddr);
         }
 #endif
         tlb_fill(ENV_GET_CPU(env), addr, 1, mmu_idx, retaddr);
@@ -386,7 +392,7 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
         int i;
     do_unaligned_access:
 #ifdef ALIGNED_ONLY
-        do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
+        cpu_unaligned_access(ENV_GET_CPU(env), addr, 1, mmu_idx, retaddr);
 #endif
         /* XXX: not efficient, but simple */
         /* Note: relies on the fact that tlb_fill() does not remove the
@@ -405,7 +411,7 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     /* Handle aligned access or unaligned access in the same page.  */
 #ifdef ALIGNED_ONLY
     if ((addr & (DATA_SIZE - 1)) != 0) {
-        do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
+        cpu_unaligned_access(ENV_GET_CPU(env), addr, 1, mmu_idx, retaddr);
     }
 #endif
 
@@ -433,7 +439,7 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
         != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0) {
-            do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
+            cpu_unaligned_access(ENV_GET_CPU(env), addr, 1, mmu_idx, retaddr);
         }
 #endif
         tlb_fill(ENV_GET_CPU(env), addr, 1, mmu_idx, retaddr);
@@ -462,7 +468,7 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
         int i;
     do_unaligned_access:
 #ifdef ALIGNED_ONLY
-        do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
+        cpu_unaligned_access(ENV_GET_CPU(env), addr, 1, mmu_idx, retaddr);
 #endif
         /* XXX: not efficient, but simple */
         /* Note: relies on the fact that tlb_fill() does not remove the
@@ -481,7 +487,7 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     /* Handle aligned access or unaligned access in the same page.  */
 #ifdef ALIGNED_ONLY
     if ((addr & (DATA_SIZE - 1)) != 0) {
-        do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
+        cpu_unaligned_access(ENV_GET_CPU(env), addr, 1, mmu_idx, retaddr);
     }
 #endif
 

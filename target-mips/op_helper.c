@@ -2128,10 +2128,6 @@ void helper_wait(CPUMIPSState *env)
 
 #if !defined(CONFIG_USER_ONLY)
 
-static void QEMU_NORETURN do_unaligned_access(CPUMIPSState *env,
-                                              target_ulong addr, int is_write,
-                                              int is_user, uintptr_t retaddr);
-
 #define MMUSUFFIX _mmu
 #define ALIGNED_ONLY
 
@@ -2147,9 +2143,12 @@ static void QEMU_NORETURN do_unaligned_access(CPUMIPSState *env,
 #define SHIFT 3
 #include "exec/softmmu_template.h"
 
-static void do_unaligned_access(CPUMIPSState *env, target_ulong addr,
-                                int is_write, int is_user, uintptr_t retaddr)
+void mips_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                  int is_write, int is_user, uintptr_t retaddr)
 {
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
+
     env->CP0_BadVAddr = addr;
     do_raise_exception(env, (is_write == 1) ? EXCP_AdES : EXCP_AdEL, retaddr);
 }
