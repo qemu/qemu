@@ -53,7 +53,12 @@ typedef uint64_t vaddr;
 
 #define TYPE_CPU "cpu"
 
-#define CPU(obj) OBJECT_CHECK(CPUState, (obj), TYPE_CPU)
+/* Since this macro is used a lot in hot code paths and in conjunction with
+ * FooCPU *foo_env_get_cpu(), we deviate from usual QOM practice by using
+ * an unchecked cast.
+ */
+#define CPU(obj) ((CPUState *)(obj))
+
 #define CPU_CLASS(class) OBJECT_CLASS_CHECK(CPUClass, (class), TYPE_CPU)
 #define CPU_GET_CLASS(obj) OBJECT_GET_CLASS(CPUClass, (obj), TYPE_CPU)
 
