@@ -334,16 +334,16 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
 #define MMUSUFFIX _mmu
 
 #define SHIFT 0
-#include "exec/softmmu_template.h"
+#include "softmmu_template.h"
 
 #define SHIFT 1
-#include "exec/softmmu_template.h"
+#include "softmmu_template.h"
 
 #define SHIFT 2
-#include "exec/softmmu_template.h"
+#include "softmmu_template.h"
 
 #define SHIFT 3
-#include "exec/softmmu_template.h"
+#include "softmmu_template.h"
 #undef MMUSUFFIX
 
 #define MMUSUFFIX _cmmu
@@ -354,13 +354,13 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
 #define SOFTMMU_CODE_ACCESS
 
 #define SHIFT 0
-#include "exec/softmmu_template.h"
+#include "softmmu_template.h"
 
 #define SHIFT 1
-#include "exec/softmmu_template.h"
+#include "softmmu_template.h"
 
 #define SHIFT 2
-#include "exec/softmmu_template.h"
+#include "softmmu_template.h"
 
 #define SHIFT 3
-#include "exec/softmmu_template.h"
+#include "softmmu_template.h"
