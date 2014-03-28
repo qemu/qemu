@@ -164,8 +164,8 @@ static void vhost_scsi_set_config(VirtIODevice *vdev,
     VirtIOSCSIConfig *scsiconf = (VirtIOSCSIConfig *)config;
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
 
-    if ((uint32_t) ldl_raw(&scsiconf->sense_size) != vs->sense_size ||
-        (uint32_t) ldl_raw(&scsiconf->cdb_size) != vs->cdb_size) {
+    if ((uint32_t) ldl_p(&scsiconf->sense_size) != vs->sense_size ||
+        (uint32_t) ldl_p(&scsiconf->cdb_size) != vs->cdb_size) {
         error_report("vhost-scsi does not support changing the sense data and CDB sizes");
         exit(1);
     }

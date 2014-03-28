@@ -487,12 +487,12 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
 
     bdrv_get_geometry(s->bs, &capacity);
     memset(&blkcfg, 0, sizeof(blkcfg));
-    stq_raw(&blkcfg.capacity, capacity);
-    stl_raw(&blkcfg.seg_max, 128 - 2);
-    stw_raw(&blkcfg.cylinders, s->conf->cyls);
-    stl_raw(&blkcfg.blk_size, blk_size);
-    stw_raw(&blkcfg.min_io_size, s->conf->min_io_size / blk_size);
-    stw_raw(&blkcfg.opt_io_size, s->conf->opt_io_size / blk_size);
+    stq_p(&blkcfg.capacity, capacity);
+    stl_p(&blkcfg.seg_max, 128 - 2);
+    stw_p(&blkcfg.cylinders, s->conf->cyls);
+    stl_p(&blkcfg.blk_size, blk_size);
+    stw_p(&blkcfg.min_io_size, s->conf->min_io_size / blk_size);
+    stw_p(&blkcfg.opt_io_size, s->conf->opt_io_size / blk_size);
     blkcfg.heads = s->conf->heads;
     /*
      * We must ensure that the block device capacity is a multiple of

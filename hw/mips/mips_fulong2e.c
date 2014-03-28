@@ -178,24 +178,24 @@ static void write_bootloader (CPUMIPSState *env, uint8_t *base, int64_t kernel_a
     /* Small bootloader */
     p = (uint32_t *) base;
 
-    stl_raw(p++, 0x0bf00010);                                      /* j 0x1fc00040 */
-    stl_raw(p++, 0x00000000);                                      /* nop */
+    stl_p(p++, 0x0bf00010);                                      /* j 0x1fc00040 */
+    stl_p(p++, 0x00000000);                                      /* nop */
 
     /* Second part of the bootloader */
     p = (uint32_t *) (base + 0x040);
 
-    stl_raw(p++, 0x3c040000);                                      /* lui a0, 0 */
-    stl_raw(p++, 0x34840002);                                      /* ori a0, a0, 2 */
-    stl_raw(p++, 0x3c050000 | ((ENVP_ADDR >> 16) & 0xffff));       /* lui a1, high(ENVP_ADDR) */
-    stl_raw(p++, 0x34a50000 | (ENVP_ADDR & 0xffff));               /* ori a1, a0, low(ENVP_ADDR) */
-    stl_raw(p++, 0x3c060000 | (((ENVP_ADDR + 8) >> 16) & 0xffff)); /* lui a2, high(ENVP_ADDR + 8) */
-    stl_raw(p++, 0x34c60000 | ((ENVP_ADDR + 8) & 0xffff));         /* ori a2, a2, low(ENVP_ADDR + 8) */
-    stl_raw(p++, 0x3c070000 | (loaderparams.ram_size >> 16));      /* lui a3, high(env->ram_size) */
-    stl_raw(p++, 0x34e70000 | (loaderparams.ram_size & 0xffff));   /* ori a3, a3, low(env->ram_size) */
-    stl_raw(p++, 0x3c1f0000 | ((kernel_addr >> 16) & 0xffff));     /* lui ra, high(kernel_addr) */;
-    stl_raw(p++, 0x37ff0000 | (kernel_addr & 0xffff));             /* ori ra, ra, low(kernel_addr) */
-    stl_raw(p++, 0x03e00008);                                      /* jr ra */
-    stl_raw(p++, 0x00000000);                                      /* nop */
+    stl_p(p++, 0x3c040000);                                      /* lui a0, 0 */
+    stl_p(p++, 0x34840002);                                      /* ori a0, a0, 2 */
+    stl_p(p++, 0x3c050000 | ((ENVP_ADDR >> 16) & 0xffff));       /* lui a1, high(ENVP_ADDR) */
+    stl_p(p++, 0x34a50000 | (ENVP_ADDR & 0xffff));               /* ori a1, a0, low(ENVP_ADDR) */
+    stl_p(p++, 0x3c060000 | (((ENVP_ADDR + 8) >> 16) & 0xffff)); /* lui a2, high(ENVP_ADDR + 8) */
+    stl_p(p++, 0x34c60000 | ((ENVP_ADDR + 8) & 0xffff));         /* ori a2, a2, low(ENVP_ADDR + 8) */
+    stl_p(p++, 0x3c070000 | (loaderparams.ram_size >> 16));      /* lui a3, high(env->ram_size) */
+    stl_p(p++, 0x34e70000 | (loaderparams.ram_size & 0xffff));   /* ori a3, a3, low(env->ram_size) */
+    stl_p(p++, 0x3c1f0000 | ((kernel_addr >> 16) & 0xffff));     /* lui ra, high(kernel_addr) */;
+    stl_p(p++, 0x37ff0000 | (kernel_addr & 0xffff));             /* ori ra, ra, low(kernel_addr) */
+    stl_p(p++, 0x03e00008);                                      /* jr ra */
+    stl_p(p++, 0x00000000);                                      /* nop */
 }
 
 
