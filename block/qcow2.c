@@ -1602,7 +1602,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
      */
     BlockDriverState* bs;
     QCowHeader *header;
-    uint8_t* refcount_table;
+    uint64_t* refcount_table;
     Error *local_err = NULL;
     int ret;
 
@@ -1654,9 +1654,10 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         goto out;
     }
 
-    /* Write an empty refcount table */
-    refcount_table = g_malloc0(cluster_size);
-    ret = bdrv_pwrite(bs, cluster_size, refcount_table, cluster_size);
+    /* Write a refcount table with one refcount block */
+    refcount_table = g_malloc0(2 * cluster_size);
+    refcount_table[0] = cpu_to_be64(2 * cluster_size);
+    ret = bdrv_pwrite(bs, cluster_size, refcount_table, 2 * cluster_size);
     g_free(refcount_table);
 
     if (ret < 0) {
@@ -1681,7 +1682,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         goto out;
     }
 
-    ret = qcow2_alloc_clusters(bs, 2 * cluster_size);
+    ret = qcow2_alloc_clusters(bs, 3 * cluster_size);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not allocate clusters for qcow2 "
                          "header and refcount table");
