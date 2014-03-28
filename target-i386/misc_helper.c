@@ -20,10 +20,7 @@
 #include "cpu.h"
 #include "exec/ioport.h"
 #include "exec/helper-proto.h"
-
-#if !defined(CONFIG_USER_ONLY)
-#include "exec/softmmu_exec.h"
-#endif /* !defined(CONFIG_USER_ONLY) */
+#include "exec/cpu_ldst.h"
 
 /* check if Port I/O is allowed in TSS */
 static inline void check_io(CPUX86State *env, int addr, int size)

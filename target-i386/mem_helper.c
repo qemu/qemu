@@ -19,10 +19,7 @@
 
 #include "cpu.h"
 #include "exec/helper-proto.h"
-
-#if !defined(CONFIG_USER_ONLY)
-#include "exec/softmmu_exec.h"
-#endif /* !defined(CONFIG_USER_ONLY) */
+#include "exec/cpu_ldst.h"
 
 /* broken thread support */
 

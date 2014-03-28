@@ -19,6 +19,7 @@
 
 #include "cpu.h"
 #include "exec/helper-proto.h"
+#include "exec/cpu_ldst.h"
 
 //#define DEBUG_MMU
 //#define DEBUG_MXCC
@@ -63,10 +64,6 @@
 
 #define QT0 (env->qt0)
 #define QT1 (env->qt1)
-
-#if !defined(CONFIG_USER_ONLY)
-#include "exec/softmmu_exec.h"
-#endif
 
 #if defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
 /* Calculates TSB pointer value for fault page size 8k or 64k */

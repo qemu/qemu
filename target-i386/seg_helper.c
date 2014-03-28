@@ -21,12 +21,9 @@
 #include "cpu.h"
 #include "qemu/log.h"
 #include "exec/helper-proto.h"
+#include "exec/cpu_ldst.h"
 
 //#define DEBUG_PCALL
-
-#if !defined(CONFIG_USER_ONLY)
-#include "exec/softmmu_exec.h"
-#endif /* !defined(CONFIG_USER_ONLY) */
 
 #ifdef DEBUG_PCALL
 # define LOG_PCALL(...) qemu_log_mask(CPU_LOG_PCALL, ## __VA_ARGS__)

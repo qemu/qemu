@@ -1,8 +1,5 @@
 /*
- * OpenRISC MMU helper routines
- *
- * Copyright (c) 2011-2012 Jia Liu <proljc@gmail.com>
- *                         Zhizhou Zhang <etouzh@gmail.com>
+ *  Software MMU support
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,27 +13,23 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
+ *
  */
 
-#include "cpu.h"
-#include "exec/cpu_ldst.h"
+/*
+ * Generate inline load/store functions for all MMU modes (typically
+ * at least _user and _kernel) as well as _data versions, for all data
+ * sizes.
+ *
+ * Used by target op helpers.
+ *
+ * MMU mode suffixes are defined in target cpu.h.
+ */
+#ifndef CPU_LDST_H
+#define CPU_LDST_H
 
-#ifndef CONFIG_USER_ONLY
-
-void tlb_fill(CPUState *cs, target_ulong addr, int is_write,
-              int mmu_idx, uintptr_t retaddr)
-{
-    int ret;
-
-    ret = openrisc_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
-
-    if (ret) {
-        if (retaddr) {
-            /* now we have a real cpu fault.  */
-            cpu_restore_state(cs, retaddr);
-        }
-        /* Raise Exception.  */
-        cpu_loop_exit(cs);
-    }
-}
+#if !defined(CONFIG_USER_ONLY)
+#include "exec/softmmu_exec.h"
 #endif
+
+#endif /* CPU_LDST_H */

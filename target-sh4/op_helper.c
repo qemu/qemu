@@ -20,9 +20,9 @@
 #include <stdlib.h>
 #include "cpu.h"
 #include "exec/helper-proto.h"
+#include "exec/cpu_ldst.h"
 
 #ifndef CONFIG_USER_ONLY
-#include "exec/softmmu_exec.h"
 
 void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)

@@ -28,6 +28,7 @@
 #include "disas/disas.h"
 #include "exec/helper-proto.h"
 #include "tcg-op.h"
+#include "exec/cpu_ldst.h"
 
 #include "exec/helper-gen.h"
 

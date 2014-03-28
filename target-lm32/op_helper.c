@@ -6,7 +6,7 @@
 #include "hw/lm32/lm32_pic.h"
 #include "hw/char/lm32_juart.h"
 
-#include "exec/softmmu_exec.h"
+#include "exec/cpu_ldst.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/sysemu.h"

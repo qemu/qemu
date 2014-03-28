@@ -19,7 +19,7 @@
 
 #include "cpu.h"
 #include "exec/helper-proto.h"
-
+#include "exec/cpu_ldst.h"
 
 /* Softmmu support */
 #ifndef CONFIG_USER_ONLY
@@ -130,8 +130,6 @@ void alpha_cpu_unassigned_access(CPUState *cs, hwaddr addr,
     env->trap_arg1 = is_write ? 1 : 0;
     dynamic_excp(env, 0, EXCP_MCHK, 0);
 }
-
-#include "exec/softmmu_exec.h"
 
 /* try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not

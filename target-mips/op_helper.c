@@ -19,12 +19,8 @@
 #include <stdlib.h>
 #include "cpu.h"
 #include "qemu/host-utils.h"
-
 #include "exec/helper-proto.h"
-
-#if !defined(CONFIG_USER_ONLY)
-#include "exec/softmmu_exec.h"
-#endif /* !defined(CONFIG_USER_ONLY) */
+#include "exec/cpu_ldst.h"
 
 #ifndef CONFIG_USER_ONLY
 static inline void cpu_mips_tlb_flush (CPUMIPSState *env, int flush_global);

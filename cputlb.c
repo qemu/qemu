@@ -22,6 +22,7 @@
 #include "exec/exec-all.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
+#include "exec/cpu_ldst.h"
 
 #include "exec/cputlb.h"
 

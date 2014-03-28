@@ -22,11 +22,11 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
+#include "exec/cpu_ldst.h"
 
 #define D(x)
 
 #if !defined(CONFIG_USER_ONLY)
-#include "exec/softmmu_exec.h"
 
 /* Try to fill the TLB and return an exception if error. If retaddr is
  * NULL, it means that the function was called in C code (i.e. not

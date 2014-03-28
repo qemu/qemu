@@ -7,12 +7,11 @@
 #include "sysemu/sysemu.h"
 #include "qemu/bitops.h"
 #include "qemu/crc32c.h"
+#include "exec/cpu_ldst.h"
 #include "arm_ldst.h"
 #include <zlib.h> /* For crc32 */
 
 #ifndef CONFIG_USER_ONLY
-#include "exec/softmmu_exec.h"
-
 static inline int get_phys_addr(CPUARMState *env, target_ulong address,
                                 int access_type, int is_user,
                                 hwaddr *phys_ptr, int *prot,

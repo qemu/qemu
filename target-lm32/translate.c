@@ -22,6 +22,7 @@
 #include "exec/helper-proto.h"
 #include "tcg-op.h"
 
+#include "exec/cpu_ldst.h"
 #include "hw/lm32/lm32_pic.h"
 
 #include "exec/helper-gen.h"
