@@ -279,37 +279,32 @@ static inline int check_fit_i32(int32_t val, unsigned int bits)
 # define check_fit_ptr  check_fit_i32
 #endif
 
-static void patch_reloc(uint8_t *code_ptr, int type,
+static void patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     uint32_t insn;
-    value += addend;
+
+    assert(addend == 0);
+    value = tcg_ptr_byte_diff((tcg_insn_unit *)value, code_ptr);
+
     switch (type) {
-    case R_SPARC_32:
-        if (value != (uint32_t)value) {
-            tcg_abort();
-        }
-        *(uint32_t *)code_ptr = value;
-        break;
     case R_SPARC_WDISP16:
-        value -= (intptr_t)code_ptr;
         if (!check_fit_ptr(value >> 2, 16)) {
             tcg_abort();
         }
-        insn = *(uint32_t *)code_ptr;
+        insn = *code_ptr;
         insn &= ~INSN_OFF16(-1);
         insn |= INSN_OFF16(value);
-        *(uint32_t *)code_ptr = insn;
+        *code_ptr = insn;
         break;
     case R_SPARC_WDISP19:
-        value -= (intptr_t)code_ptr;
         if (!check_fit_ptr(value >> 2, 19)) {
             tcg_abort();
         }
-        insn = *(uint32_t *)code_ptr;
+        insn = *code_ptr;
         insn &= ~INSN_OFF19(-1);
         insn |= INSN_OFF19(value);
-        *(uint32_t *)code_ptr = insn;
+        *code_ptr = insn;
         break;
     default:
         tcg_abort();
@@ -573,10 +568,10 @@ static void tcg_out_bpcc(TCGContext *s, int scond, int flags, int label)
     int off19;
 
     if (l->has_value) {
-        off19 = INSN_OFF19(l->u.value - (unsigned long)s->code_ptr);
+        off19 = INSN_OFF19(tcg_pcrel_diff(s, l->u.value_ptr));
     } else {
         /* Make sure to preserve destinations during retranslation.  */
-        off19 = *(uint32_t *)s->code_ptr & INSN_OFF19(-1);
+        off19 = *s->code_ptr & INSN_OFF19(-1);
         tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP19, label, 0);
     }
     tcg_out_bpcc0(s, scond, flags, off19);
@@ -620,10 +615,10 @@ static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond, TCGReg arg1,
         int off16;
 
         if (l->has_value) {
-            off16 = INSN_OFF16(l->u.value - (unsigned long)s->code_ptr);
+            off16 = INSN_OFF16(tcg_pcrel_diff(s, l->u.value_ptr));
         } else {
             /* Make sure to preserve destinations during retranslation.  */
-            off16 = *(uint32_t *)s->code_ptr & INSN_OFF16(-1);
+            off16 = *s->code_ptr & INSN_OFF16(-1);
             tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP16, label, 0);
         }
         tcg_out32(s, INSN_OP(0) | INSN_OP2(3) | BPR_PT | INSN_RS1(arg1)
@@ -740,62 +735,60 @@ static void tcg_out_addsub2(TCGContext *s, TCGReg rl, TCGReg rh,
     tcg_out_mov(s, TCG_TYPE_I32, rl, tmp);
 }
 
-static void tcg_out_calli(TCGContext *s, uintptr_t dest)
+static void tcg_out_calli(TCGContext *s, tcg_insn_unit *dest)
 {
-    intptr_t disp = dest - (uintptr_t)s->code_ptr;
+    ptrdiff_t disp = tcg_pcrel_diff(s, dest);
 
     if (disp == (int32_t)disp) {
         tcg_out32(s, CALL | (uint32_t)disp >> 2);
     } else {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T1, dest & ~0xfff);
-        tcg_out_arithi(s, TCG_REG_O7, TCG_REG_T1, dest & 0xfff, JMPL);
+        uintptr_t desti = (uintptr_t)dest;
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T1, desti & ~0xfff);
+        tcg_out_arithi(s, TCG_REG_O7, TCG_REG_T1, desti & 0xfff, JMPL);
     }
 }
 
 #ifdef CONFIG_SOFTMMU
-static uintptr_t qemu_ld_trampoline[16];
-static uintptr_t qemu_st_trampoline[16];
+static tcg_insn_unit *qemu_ld_trampoline[16];
+static tcg_insn_unit *qemu_st_trampoline[16];
 
 static void build_trampolines(TCGContext *s)
 {
-    static uintptr_t const qemu_ld_helpers[16] = {
-        [MO_UB]   = (uintptr_t)helper_ret_ldub_mmu,
-        [MO_SB]   = (uintptr_t)helper_ret_ldsb_mmu,
-        [MO_LEUW] = (uintptr_t)helper_le_lduw_mmu,
-        [MO_LESW] = (uintptr_t)helper_le_ldsw_mmu,
-        [MO_LEUL] = (uintptr_t)helper_le_ldul_mmu,
-        [MO_LEQ]  = (uintptr_t)helper_le_ldq_mmu,
-        [MO_BEUW] = (uintptr_t)helper_be_lduw_mmu,
-        [MO_BESW] = (uintptr_t)helper_be_ldsw_mmu,
-        [MO_BEUL] = (uintptr_t)helper_be_ldul_mmu,
-        [MO_BEQ]  = (uintptr_t)helper_be_ldq_mmu,
+    static void * const qemu_ld_helpers[16] = {
+        [MO_UB]   = helper_ret_ldub_mmu,
+        [MO_SB]   = helper_ret_ldsb_mmu,
+        [MO_LEUW] = helper_le_lduw_mmu,
+        [MO_LESW] = helper_le_ldsw_mmu,
+        [MO_LEUL] = helper_le_ldul_mmu,
+        [MO_LEQ]  = helper_le_ldq_mmu,
+        [MO_BEUW] = helper_be_lduw_mmu,
+        [MO_BESW] = helper_be_ldsw_mmu,
+        [MO_BEUL] = helper_be_ldul_mmu,
+        [MO_BEQ]  = helper_be_ldq_mmu,
     };
-    static uintptr_t const qemu_st_helpers[16] = {
-        [MO_UB]   = (uintptr_t)helper_ret_stb_mmu,
-        [MO_LEUW] = (uintptr_t)helper_le_stw_mmu,
-        [MO_LEUL] = (uintptr_t)helper_le_stl_mmu,
-        [MO_LEQ]  = (uintptr_t)helper_le_stq_mmu,
-        [MO_BEUW] = (uintptr_t)helper_be_stw_mmu,
-        [MO_BEUL] = (uintptr_t)helper_be_stl_mmu,
-        [MO_BEQ]  = (uintptr_t)helper_be_stq_mmu,
+    static void * const qemu_st_helpers[16] = {
+        [MO_UB]   = helper_ret_stb_mmu,
+        [MO_LEUW] = helper_le_stw_mmu,
+        [MO_LEUL] = helper_le_stl_mmu,
+        [MO_LEQ]  = helper_le_stq_mmu,
+        [MO_BEUW] = helper_be_stw_mmu,
+        [MO_BEUL] = helper_be_stl_mmu,
+        [MO_BEQ]  = helper_be_stq_mmu,
     };
 
     int i;
     TCGReg ra;
-    uintptr_t tramp;
 
     for (i = 0; i < 16; ++i) {
-        if (qemu_ld_helpers[i] == 0) {
+        if (qemu_ld_helpers[i] == NULL) {
             continue;
         }
 
         /* May as well align the trampoline.  */
-        tramp = (uintptr_t)s->code_ptr;
-        while (tramp & 15) {
+        while ((uintptr_t)s->code_ptr & 15) {
             tcg_out_nop(s);
-            tramp += 4;
         }
-        qemu_ld_trampoline[i] = tramp;
+        qemu_ld_trampoline[i] = s->code_ptr;
 
         if (SPARC64 || TARGET_LONG_BITS == 32) {
             ra = TCG_REG_O3;
@@ -815,17 +808,15 @@ static void build_trampolines(TCGContext *s)
     }
 
     for (i = 0; i < 16; ++i) {
-        if (qemu_st_helpers[i] == 0) {
+        if (qemu_st_helpers[i] == NULL) {
             continue;
         }
 
         /* May as well align the trampoline.  */
-        tramp = (uintptr_t)s->code_ptr;
-        while (tramp & 15) {
+        while ((uintptr_t)s->code_ptr & 15) {
             tcg_out_nop(s);
-            tramp += 4;
         }
-        qemu_st_trampoline[i] = tramp;
+        qemu_st_trampoline[i] = s->code_ptr;
 
         if (SPARC64) {
             ra = TCG_REG_O4;
@@ -1005,8 +996,8 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
 #ifdef CONFIG_SOFTMMU
     TCGMemOp s_bits = memop & MO_SIZE;
     TCGReg addrz, param;
-    uintptr_t func;
-    uint32_t *label_ptr;
+    tcg_insn_unit *func;
+    tcg_insn_unit *label_ptr;
 
     addrz = tcg_out_tlb_load(s, addr, memi, s_bits,
                              offsetof(CPUTLBEntry, addr_read));
@@ -1016,7 +1007,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
        over the TLB Miss case.  */
 
     /* beq,a,pt %[xi]cc, label0 */
-    label_ptr = (uint32_t *)s->code_ptr;
+    label_ptr = s->code_ptr;
     tcg_out_bpcc0(s, COND_E, BPCC_A | BPCC_PT
                   | (TARGET_LONG_BITS == 64 ? BPCC_XCC : BPCC_ICC), 0);
     /* delay slot */
@@ -1038,7 +1029,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
     } else {
         func = qemu_ld_trampoline[memop];
     }
-    assert(func != 0);
+    assert(func != NULL);
     tcg_out_calli(s, func);
     /* delay slot */
     tcg_out_movi(s, TCG_TYPE_I32, param, memi);
@@ -1067,7 +1058,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
         }
     }
 
-    *label_ptr |= INSN_OFF19((uintptr_t)s->code_ptr - (uintptr_t)label_ptr);
+    *label_ptr |= INSN_OFF19(tcg_ptr_byte_diff(s->code_ptr, label_ptr));
 #else
     if (SPARC64 && TARGET_LONG_BITS == 32) {
         tcg_out_arithi(s, TCG_REG_T1, addr, 0, SHIFT_SRL);
@@ -1085,8 +1076,8 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
 #ifdef CONFIG_SOFTMMU
     TCGMemOp s_bits = memop & MO_SIZE;
     TCGReg addrz, param;
-    uintptr_t func;
-    uint32_t *label_ptr;
+    tcg_insn_unit *func;
+    tcg_insn_unit *label_ptr;
 
     addrz = tcg_out_tlb_load(s, addr, memi, s_bits,
                              offsetof(CPUTLBEntry, addr_write));
@@ -1094,7 +1085,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
     /* The fast path is exactly one insn.  Thus we can perform the entire
        TLB Hit in the (annulled) delay slot of the branch over TLB Miss.  */
     /* beq,a,pt %[xi]cc, label0 */
-    label_ptr = (uint32_t *)s->code_ptr;
+    label_ptr = s->code_ptr;
     tcg_out_bpcc0(s, COND_E, BPCC_A | BPCC_PT
                   | (TARGET_LONG_BITS == 64 ? BPCC_XCC : BPCC_ICC), 0);
     /* delay slot */
@@ -1115,12 +1106,12 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
     tcg_out_mov(s, TCG_TYPE_REG, param++, data);
 
     func = qemu_st_trampoline[memop];
-    assert(func != 0);
+    assert(func != NULL);
     tcg_out_calli(s, func);
     /* delay slot */
     tcg_out_movi(s, TCG_TYPE_REG, param, memi);
 
-    *label_ptr |= INSN_OFF19((uintptr_t)s->code_ptr - (uintptr_t)label_ptr);
+    *label_ptr |= INSN_OFF19(tcg_ptr_byte_diff(s->code_ptr, label_ptr));
 #else
     if (SPARC64 && TARGET_LONG_BITS == 32) {
         tcg_out_arithi(s, TCG_REG_T1, addr, 0, SHIFT_SRL);
@@ -1159,21 +1150,20 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
             /* direct jump method */
-            uint32_t old_insn = *(uint32_t *)s->code_ptr;
-            s->tb_jmp_offset[a0] = s->code_ptr - s->code_buf;
+            s->tb_jmp_offset[a0] = tcg_current_code_size(s);
             /* Make sure to preserve links during retranslation.  */
-            tcg_out32(s, CALL | (old_insn & ~INSN_OP(-1)));
+            tcg_out32(s, CALL | (*s->code_ptr & ~INSN_OP(-1)));
         } else {
             /* indirect jump method */
             tcg_out_ld_ptr(s, TCG_REG_T1, (uintptr_t)(s->tb_next + a0));
             tcg_out_arithi(s, TCG_REG_G0, TCG_REG_T1, 0, JMPL);
         }
         tcg_out_nop(s);
-        s->tb_next_offset[a0] = s->code_ptr - s->code_buf;
+        s->tb_next_offset[a0] = tcg_current_code_size(s);
         break;
     case INDEX_op_call:
         if (const_args[0]) {
-            tcg_out_calli(s, a0);
+            tcg_out_calli(s, (void *)(uintptr_t)a0);
         } else {
             tcg_out_arithi(s, TCG_REG_O7, a0, 0, JMPL);
         }

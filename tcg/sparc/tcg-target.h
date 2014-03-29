@@ -26,6 +26,7 @@
 
 #define TCG_TARGET_REG_BITS 64
 
+#define TCG_TARGET_INSN_UNIT_SIZE 4
 #define TCG_TARGET_NB_REGS 32
 
 typedef enum {
