@@ -743,6 +743,7 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs);
 void tcg_gen_callN(TCGContext *s, void *func,
                    TCGArg ret, int nargs, TCGArg *args);
 
+void tcg_op_remove(TCGContext *s, TCGOp *op);
 void tcg_optimize(TCGContext *s);
 
 /* only used for debugging purposes */

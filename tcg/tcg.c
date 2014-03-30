@@ -1244,6 +1244,29 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
 #endif
 }
 
+void tcg_op_remove(TCGContext *s, TCGOp *op)
+{
+    int next = op->next;
+    int prev = op->prev;
+
+    if (next >= 0) {
+        s->gen_op_buf[next].prev = prev;
+    } else {
+        s->gen_last_op_idx = prev;
+    }
+    if (prev >= 0) {
+        s->gen_op_buf[prev].next = next;
+    } else {
+        s->gen_first_op_idx = next;
+    }
+
+    *op = (TCGOp){ .opc = INDEX_op_nop, .next = -1, .prev = -1 };
+
+#ifdef CONFIG_PROFILER
+    s->del_op_count++;
+#endif
+}
+
 #ifdef USE_LIVENESS_ANALYSIS
 /* liveness analysis: end of function: all temps are dead, and globals
    should be in memory. */
@@ -1466,10 +1489,7 @@ static void tcg_liveness_analysis(TCGContext *s)
                     }
                 }
             do_remove:
-                op->opc = INDEX_op_nop;
-#ifdef CONFIG_PROFILER
-                s->del_op_count++;
-#endif
+                tcg_op_remove(s, op);
             } else {
             do_not_remove:
                 /* output args are dead */
