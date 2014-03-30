@@ -668,6 +668,7 @@ F: audio/
 F: hw/audio/
 F: tests/ac97-test.c
 F: tests/es1370-test.c
+F: tests/intel-hda-test.c
 
 Block
 M: Kevin Wolf <kwolf@redhat.com>
