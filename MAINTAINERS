@@ -666,6 +666,7 @@ M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
 F: audio/
 F: hw/audio/
+F: tests/ac97-test.c
 
 Block
 M: Kevin Wolf <kwolf@redhat.com>
