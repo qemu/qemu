@@ -109,6 +109,8 @@ check-qtest-pci-y += tests/nvme-test$(EXESUF)
 gcov-files-pci-y += hw/block/nvme.c
 check-qtest-pci-y += tests/ac97-test$(EXESUF)
 gcov-files-pci-y += hw/audio/ac97.c
+check-qtest-pci-y += tests/es1370-test$(EXESUF)
+gcov-files-pci-y += hw/audio/es1370.c
 check-qtest-pci-y += $(check-qtest-virtio-y)
 gcov-files-pci-y += $(gcov-files-virtio-y) hw/virtio/virtio-pci.c
 check-qtest-pci-y += tests/tpci200-test$(EXESUF)
@@ -295,6 +297,7 @@ tests/nvme-test$(EXESUF): tests/nvme-test.o
 tests/pvpanic-test$(EXESUF): tests/pvpanic-test.o
 tests/i82801b11-test$(EXESUF): tests/i82801b11-test.o
 tests/ac97-test$(EXESUF): tests/ac97-test.o
+tests/es1370-test$(EXESUF): tests/es1370-test.o
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
 
 # QTest rules
