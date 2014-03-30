@@ -5320,7 +5320,7 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
         }
     }
     gen_tb_end(tb, num_insns);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+
     if (spc) {
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;

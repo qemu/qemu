@@ -3133,7 +3133,6 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
         gen_jumpi(&dc, dc.pc, 0);
     }
     gen_tb_end(tb, insn_count);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {

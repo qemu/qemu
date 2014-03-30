@@ -11598,7 +11598,7 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
         tcg_gen_exit_tb(0);
     }
     gen_tb_end(tb, num_insns);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+
     if (unlikely(search_pc)) {
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;

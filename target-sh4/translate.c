@@ -1962,7 +1962,7 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
     }
 
     gen_tb_end(tb, num_insns);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+
     if (search_pc) {
         i = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         ii++;
