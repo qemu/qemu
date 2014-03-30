@@ -4832,7 +4832,6 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
     DisasContext dc;
     target_ulong pc_start;
     uint64_t next_page_start;
-    uint16_t *gen_opc_end;
     int j, lj = -1;
     int num_insns, max_insns;
     CPUBreakpoint *bp;
@@ -4851,8 +4850,6 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
     dc.cc_op = CC_OP_DYNAMIC;
     do_debug = dc.singlestep_enabled = cs->singlestep_enabled;
 
-    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
-
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
 
     num_insns = 0;
@@ -4865,7 +4862,7 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
 
     do {
         if (search_pc) {
-            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+            j = tcg_op_buf_count();
             if (lj < j) {
                 lj++;
                 while (lj < j) {
@@ -4903,7 +4900,7 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
            or exhaust instruction count, stop generation.  */
         if (status == NO_EXIT
             && (dc.pc >= next_page_start
-                || tcg_ctx.gen_opc_ptr >= gen_opc_end
+                || tcg_op_buf_full()
                 || num_insns >= max_insns
                 || singlestep
                 || cs->singlestep_enabled)) {
@@ -4940,7 +4937,7 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
     gen_tb_end(tb, num_insns);
 
     if (search_pc) {
-        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+        j = tcg_op_buf_count();
         lj++;
         while (lj <= j) {
             tcg_ctx.gen_opc_instr_start[lj++] = 0;

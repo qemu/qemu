@@ -537,6 +537,18 @@ struct TCGContext {
 
 extern TCGContext tcg_ctx;
 
+/* The number of opcodes emitted so far.  */
+static inline int tcg_op_buf_count(void)
+{
+    return tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+}
+
+/* Test for whether to terminate the TB for using too many opcodes.  */
+static inline bool tcg_op_buf_full(void)
+{
+    return tcg_op_buf_count() >= OPC_MAX_SIZE;
+}
+
 /* pool based memory allocation */
 
 void *tcg_malloc_internal(TCGContext *s, int size);
