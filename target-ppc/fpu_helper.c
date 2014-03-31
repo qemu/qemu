@@ -1793,8 +1793,8 @@ typedef union _ppc_vsr_t {
 static void getVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
 {
     if (n < 32) {
-        vsr->f64[0] = env->fpr[n];
-        vsr->u64[1] = env->vsr[n];
+        vsr->VsrD(0) = env->fpr[n];
+        vsr->VsrD(1) = env->vsr[n];
     } else {
         vsr->u64[0] = env->avr[n-32].u64[0];
         vsr->u64[1] = env->avr[n-32].u64[1];
@@ -1804,8 +1804,8 @@ static void getVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
 static void putVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
 {
     if (n < 32) {
-        env->fpr[n] = vsr->f64[0];
-        env->vsr[n] = vsr->u64[1];
+        env->fpr[n] = vsr->VsrD(0);
+        env->vsr[n] = vsr->VsrD(1);
     } else {
         env->avr[n-32].u64[0] = vsr->u64[0];
         env->avr[n-32].u64[1] = vsr->u64[1];
