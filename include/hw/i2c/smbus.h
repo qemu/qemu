@@ -66,16 +66,16 @@ struct SMBusDevice {
 };
 
 /* Master device commands.  */
-void smbus_quick_command(I2CBus *bus, uint8_t addr, int read);
+int smbus_quick_command(I2CBus *bus, uint8_t addr, int read);
 int smbus_receive_byte(I2CBus *bus, uint8_t addr);
-void smbus_send_byte(I2CBus *bus, uint8_t addr, uint8_t data);
+int smbus_send_byte(I2CBus *bus, uint8_t addr, uint8_t data);
 int smbus_read_byte(I2CBus *bus, uint8_t addr, uint8_t command);
-void smbus_write_byte(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t data);
+int smbus_write_byte(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t data);
 int smbus_read_word(I2CBus *bus, uint8_t addr, uint8_t command);
-void smbus_write_word(I2CBus *bus, uint8_t addr, uint8_t command, uint16_t data);
+int smbus_write_word(I2CBus *bus, uint8_t addr, uint8_t command, uint16_t data);
 int smbus_read_block(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t *data);
-void smbus_write_block(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t *data,
-                       int len);
+int smbus_write_block(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t *data,
+                      int len);
 
 void smbus_eeprom_init(I2CBus *smbus, int nb_eeprom,
                        const uint8_t *eeprom_spd, int size);
