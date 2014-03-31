@@ -2512,7 +2512,6 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                \
     getVSR(xT(opcode), &xt, env);                                  \
                                                                    \
     for (i = 0; i < nels; i++) {                                   \
-        int j = 2*i + JOFFSET;                                     \
         xt.tfld = stp##_to_##ttp(xb.sfld, &env->fp_status);        \
         if (unlikely(stp##_is_signaling_nan(xb.sfld))) {           \
             fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0); \
@@ -2528,10 +2527,10 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                \
     helper_float_check_status(env);                                \
 }
 
-VSX_CVT_FP_TO_FP(xscvdpsp, 1, float64, float32, f64[i], f32[j], 1)
-VSX_CVT_FP_TO_FP(xscvspdp, 1, float32, float64, f32[j], f64[i], 1)
-VSX_CVT_FP_TO_FP(xvcvdpsp, 2, float64, float32, f64[i], f32[j], 0)
-VSX_CVT_FP_TO_FP(xvcvspdp, 2, float32, float64, f32[j], f64[i], 0)
+VSX_CVT_FP_TO_FP(xscvdpsp, 1, float64, float32, VsrD(0), VsrW(0), 1)
+VSX_CVT_FP_TO_FP(xscvspdp, 1, float32, float64, VsrW(0), VsrD(0), 1)
+VSX_CVT_FP_TO_FP(xvcvdpsp, 2, float64, float32, VsrD(i), VsrW(2*i), 0)
+VSX_CVT_FP_TO_FP(xvcvspdp, 2, float32, float64, VsrW(2*i), VsrD(i), 0)
 
 uint64_t helper_xscvdpspn(CPUPPCState *env, uint64_t xb)
 {
