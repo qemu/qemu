@@ -1820,7 +1820,7 @@ static void putVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
  *   op    - operation (add or sub)
  *   nels  - number of elements (1, 2 or 4)
  *   tp    - type (float32 or float64)
- *   fld   - vsr_t field (f32 or f64)
+ *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  *   sfprf - set FPRF
  */
 #define VSX_ADD_SUB(name, op, nels, tp, fld, sfprf, r2sp)                    \
@@ -1837,44 +1837,44 @@ void helper_##name(CPUPPCState *env, uint32_t opcode)                        \
     for (i = 0; i < nels; i++) {                                             \
         float_status tstat = env->fp_status;                                 \
         set_float_exception_flags(0, &tstat);                                \
-        xt.fld[i] = tp##_##op(xa.fld[i], xb.fld[i], &tstat);                 \
+        xt.fld = tp##_##op(xa.fld, xb.fld, &tstat);                          \
         env->fp_status.float_exception_flags |= tstat.float_exception_flags; \
                                                                              \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {    \
-            if (tp##_is_infinity(xa.fld[i]) && tp##_is_infinity(xb.fld[i])) {\
+            if (tp##_is_infinity(xa.fld) && tp##_is_infinity(xb.fld)) {      \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, sfprf);    \
-            } else if (tp##_is_signaling_nan(xa.fld[i]) ||                   \
-                       tp##_is_signaling_nan(xb.fld[i])) {                   \
+            } else if (tp##_is_signaling_nan(xa.fld) ||                      \
+                       tp##_is_signaling_nan(xb.fld)) {                      \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);   \
             }                                                                \
         }                                                                    \
                                                                              \
         if (r2sp) {                                                          \
-            xt.fld[i] = helper_frsp(env, xt.fld[i]);                         \
+            xt.fld = helper_frsp(env, xt.fld);                               \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
-            helper_compute_fprf(env, xt.fld[i], sfprf);                      \
+            helper_compute_fprf(env, xt.fld, sfprf);                         \
         }                                                                    \
     }                                                                        \
     putVSR(xT(opcode), &xt, env);                                            \
     helper_float_check_status(env);                                          \
 }
 
-VSX_ADD_SUB(xsadddp, add, 1, float64, f64, 1, 0)
-VSX_ADD_SUB(xsaddsp, add, 1, float64, f64, 1, 1)
-VSX_ADD_SUB(xvadddp, add, 2, float64, f64, 0, 0)
-VSX_ADD_SUB(xvaddsp, add, 4, float32, f32, 0, 0)
-VSX_ADD_SUB(xssubdp, sub, 1, float64, f64, 1, 0)
-VSX_ADD_SUB(xssubsp, sub, 1, float64, f64, 1, 1)
-VSX_ADD_SUB(xvsubdp, sub, 2, float64, f64, 0, 0)
-VSX_ADD_SUB(xvsubsp, sub, 4, float32, f32, 0, 0)
+VSX_ADD_SUB(xsadddp, add, 1, float64, VsrD(0), 1, 0)
+VSX_ADD_SUB(xsaddsp, add, 1, float64, VsrD(0), 1, 1)
+VSX_ADD_SUB(xvadddp, add, 2, float64, VsrD(i), 0, 0)
+VSX_ADD_SUB(xvaddsp, add, 4, float32, VsrW(i), 0, 0)
+VSX_ADD_SUB(xssubdp, sub, 1, float64, VsrD(0), 1, 0)
+VSX_ADD_SUB(xssubsp, sub, 1, float64, VsrD(0), 1, 1)
+VSX_ADD_SUB(xvsubdp, sub, 2, float64, VsrD(i), 0, 0)
+VSX_ADD_SUB(xvsubsp, sub, 4, float32, VsrW(i), 0, 0)
 
 /* VSX_MUL - VSX floating point multiply
  *   op    - instruction mnemonic
  *   nels  - number of elements (1, 2 or 4)
  *   tp    - type (float32 or float64)
- *   fld   - vsr_t field (f32 or f64)
+ *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  *   sfprf - set FPRF
  */
 #define VSX_MUL(op, nels, tp, fld, sfprf, r2sp)                              \
@@ -1891,25 +1891,25 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
     for (i = 0; i < nels; i++) {                                             \
         float_status tstat = env->fp_status;                                 \
         set_float_exception_flags(0, &tstat);                                \
-        xt.fld[i] = tp##_mul(xa.fld[i], xb.fld[i], &tstat);                  \
+        xt.fld = tp##_mul(xa.fld, xb.fld, &tstat);                           \
         env->fp_status.float_exception_flags |= tstat.float_exception_flags; \
                                                                              \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {    \
-            if ((tp##_is_infinity(xa.fld[i]) && tp##_is_zero(xb.fld[i])) ||  \
-                (tp##_is_infinity(xb.fld[i]) && tp##_is_zero(xa.fld[i]))) {  \
+            if ((tp##_is_infinity(xa.fld) && tp##_is_zero(xb.fld)) ||        \
+                (tp##_is_infinity(xb.fld) && tp##_is_zero(xa.fld))) {        \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, sfprf);    \
-            } else if (tp##_is_signaling_nan(xa.fld[i]) ||                   \
-                       tp##_is_signaling_nan(xb.fld[i])) {                   \
+            } else if (tp##_is_signaling_nan(xa.fld) ||                      \
+                       tp##_is_signaling_nan(xb.fld)) {                      \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);   \
             }                                                                \
         }                                                                    \
                                                                              \
         if (r2sp) {                                                          \
-            xt.fld[i] = helper_frsp(env, xt.fld[i]);                         \
+            xt.fld = helper_frsp(env, xt.fld);                               \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
-            helper_compute_fprf(env, xt.fld[i], sfprf);                      \
+            helper_compute_fprf(env, xt.fld, sfprf);                         \
         }                                                                    \
     }                                                                        \
                                                                              \
@@ -1917,16 +1917,16 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
     helper_float_check_status(env);                                          \
 }
 
-VSX_MUL(xsmuldp, 1, float64, f64, 1, 0)
-VSX_MUL(xsmulsp, 1, float64, f64, 1, 1)
-VSX_MUL(xvmuldp, 2, float64, f64, 0, 0)
-VSX_MUL(xvmulsp, 4, float32, f32, 0, 0)
+VSX_MUL(xsmuldp, 1, float64, VsrD(0), 1, 0)
+VSX_MUL(xsmulsp, 1, float64, VsrD(0), 1, 1)
+VSX_MUL(xvmuldp, 2, float64, VsrD(i), 0, 0)
+VSX_MUL(xvmulsp, 4, float32, VsrW(i), 0, 0)
 
 /* VSX_DIV - VSX floating point divide
  *   op    - instruction mnemonic
  *   nels  - number of elements (1, 2 or 4)
  *   tp    - type (float32 or float64)
- *   fld   - vsr_t field (f32 or f64)
+ *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  *   sfprf - set FPRF
  */
 #define VSX_DIV(op, nels, tp, fld, sfprf, r2sp)                               \
@@ -1943,27 +1943,27 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
     for (i = 0; i < nels; i++) {                                              \
         float_status tstat = env->fp_status;                                  \
         set_float_exception_flags(0, &tstat);                                 \
-        xt.fld[i] = tp##_div(xa.fld[i], xb.fld[i], &tstat);                   \
+        xt.fld = tp##_div(xa.fld, xb.fld, &tstat);                            \
         env->fp_status.float_exception_flags |= tstat.float_exception_flags;  \
                                                                               \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {     \
-            if (tp##_is_infinity(xa.fld[i]) && tp##_is_infinity(xb.fld[i])) { \
+            if (tp##_is_infinity(xa.fld) && tp##_is_infinity(xb.fld)) {       \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIDI, sfprf);     \
-            } else if (tp##_is_zero(xa.fld[i]) &&                             \
-                tp##_is_zero(xb.fld[i])) {                                    \
+            } else if (tp##_is_zero(xa.fld) &&                                \
+                tp##_is_zero(xb.fld)) {                                       \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXZDZ, sfprf);     \
-            } else if (tp##_is_signaling_nan(xa.fld[i]) ||                    \
-                tp##_is_signaling_nan(xb.fld[i])) {                           \
+            } else if (tp##_is_signaling_nan(xa.fld) ||                       \
+                tp##_is_signaling_nan(xb.fld)) {                              \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);    \
             }                                                                 \
         }                                                                     \
                                                                               \
         if (r2sp) {                                                           \
-            xt.fld[i] = helper_frsp(env, xt.fld[i]);                          \
+            xt.fld = helper_frsp(env, xt.fld);                                \
         }                                                                     \
                                                                               \
         if (sfprf) {                                                          \
-            helper_compute_fprf(env, xt.fld[i], sfprf);                       \
+            helper_compute_fprf(env, xt.fld, sfprf);                          \
         }                                                                     \
     }                                                                         \
                                                                               \
@@ -1971,16 +1971,16 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
     helper_float_check_status(env);                                           \
 }
 
-VSX_DIV(xsdivdp, 1, float64, f64, 1, 0)
-VSX_DIV(xsdivsp, 1, float64, f64, 1, 1)
-VSX_DIV(xvdivdp, 2, float64, f64, 0, 0)
-VSX_DIV(xvdivsp, 4, float32, f32, 0, 0)
+VSX_DIV(xsdivdp, 1, float64, VsrD(0), 1, 0)
+VSX_DIV(xsdivsp, 1, float64, VsrD(0), 1, 1)
+VSX_DIV(xvdivdp, 2, float64, VsrD(i), 0, 0)
+VSX_DIV(xvdivsp, 4, float32, VsrW(i), 0, 0)
 
 /* VSX_RE  - VSX floating point reciprocal estimate
  *   op    - instruction mnemonic
  *   nels  - number of elements (1, 2 or 4)
  *   tp    - type (float32 or float64)
- *   fld   - vsr_t field (f32 or f64)
+ *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  *   sfprf - set FPRF
  */
 #define VSX_RE(op, nels, tp, fld, sfprf, r2sp)                                \
@@ -1994,17 +1994,17 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
     helper_reset_fpstatus(env);                                               \
                                                                               \
     for (i = 0; i < nels; i++) {                                              \
-        if (unlikely(tp##_is_signaling_nan(xb.fld[i]))) {                     \
+        if (unlikely(tp##_is_signaling_nan(xb.fld))) {                        \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);    \
         }                                                                     \
-        xt.fld[i] = tp##_div(tp##_one, xb.fld[i], &env->fp_status);           \
+        xt.fld = tp##_div(tp##_one, xb.fld, &env->fp_status);                 \
                                                                               \
         if (r2sp) {                                                           \
-            xt.fld[i] = helper_frsp(env, xt.fld[i]);                          \
+            xt.fld = helper_frsp(env, xt.fld);                                \
         }                                                                     \
                                                                               \
         if (sfprf) {                                                          \
-            helper_compute_fprf(env, xt.fld[0], sfprf);                       \
+            helper_compute_fprf(env, xt.fld, sfprf);                          \
         }                                                                     \
     }                                                                         \
                                                                               \
@@ -2012,16 +2012,16 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
     helper_float_check_status(env);                                           \
 }
 
-VSX_RE(xsredp, 1, float64, f64, 1, 0)
-VSX_RE(xsresp, 1, float64, f64, 1, 1)
-VSX_RE(xvredp, 2, float64, f64, 0, 0)
-VSX_RE(xvresp, 4, float32, f32, 0, 0)
+VSX_RE(xsredp, 1, float64, VsrD(0), 1, 0)
+VSX_RE(xsresp, 1, float64, VsrD(0), 1, 1)
+VSX_RE(xvredp, 2, float64, VsrD(i), 0, 0)
+VSX_RE(xvresp, 4, float32, VsrW(i), 0, 0)
 
 /* VSX_SQRT - VSX floating point square root
  *   op    - instruction mnemonic
  *   nels  - number of elements (1, 2 or 4)
  *   tp    - type (float32 or float64)
- *   fld   - vsr_t field (f32 or f64)
+ *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  *   sfprf - set FPRF
  */
 #define VSX_SQRT(op, nels, tp, fld, sfprf, r2sp)                             \
@@ -2037,23 +2037,23 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
     for (i = 0; i < nels; i++) {                                             \
         float_status tstat = env->fp_status;                                 \
         set_float_exception_flags(0, &tstat);                                \
-        xt.fld[i] = tp##_sqrt(xb.fld[i], &tstat);                            \
+        xt.fld = tp##_sqrt(xb.fld, &tstat);                                  \
         env->fp_status.float_exception_flags |= tstat.float_exception_flags; \
                                                                              \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {    \
-            if (tp##_is_neg(xb.fld[i]) && !tp##_is_zero(xb.fld[i])) {        \
+            if (tp##_is_neg(xb.fld) && !tp##_is_zero(xb.fld)) {              \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, sfprf);   \
-            } else if (tp##_is_signaling_nan(xb.fld[i])) {                   \
+            } else if (tp##_is_signaling_nan(xb.fld)) {                      \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);   \
             }                                                                \
         }                                                                    \
                                                                              \
         if (r2sp) {                                                          \
-            xt.fld[i] = helper_frsp(env, xt.fld[i]);                         \
+            xt.fld = helper_frsp(env, xt.fld);                               \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
-            helper_compute_fprf(env, xt.fld[i], sfprf);                      \
+            helper_compute_fprf(env, xt.fld, sfprf);                         \
         }                                                                    \
     }                                                                        \
                                                                              \
@@ -2061,16 +2061,16 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
     helper_float_check_status(env);                                          \
 }
 
-VSX_SQRT(xssqrtdp, 1, float64, f64, 1, 0)
-VSX_SQRT(xssqrtsp, 1, float64, f64, 1, 1)
-VSX_SQRT(xvsqrtdp, 2, float64, f64, 0, 0)
-VSX_SQRT(xvsqrtsp, 4, float32, f32, 0, 0)
+VSX_SQRT(xssqrtdp, 1, float64, VsrD(0), 1, 0)
+VSX_SQRT(xssqrtsp, 1, float64, VsrD(0), 1, 1)
+VSX_SQRT(xvsqrtdp, 2, float64, VsrD(i), 0, 0)
+VSX_SQRT(xvsqrtsp, 4, float32, VsrW(i), 0, 0)
 
 /* VSX_RSQRTE - VSX floating point reciprocal square root estimate
  *   op    - instruction mnemonic
  *   nels  - number of elements (1, 2 or 4)
  *   tp    - type (float32 or float64)
- *   fld   - vsr_t field (f32 or f64)
+ *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  *   sfprf - set FPRF
  */
 #define VSX_RSQRTE(op, nels, tp, fld, sfprf, r2sp)                           \
@@ -2086,24 +2086,24 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
     for (i = 0; i < nels; i++) {                                             \
         float_status tstat = env->fp_status;                                 \
         set_float_exception_flags(0, &tstat);                                \
-        xt.fld[i] = tp##_sqrt(xb.fld[i], &tstat);                            \
-        xt.fld[i] = tp##_div(tp##_one, xt.fld[i], &tstat);                   \
+        xt.fld = tp##_sqrt(xb.fld, &tstat);                                  \
+        xt.fld = tp##_div(tp##_one, xt.fld, &tstat);                         \
         env->fp_status.float_exception_flags |= tstat.float_exception_flags; \
                                                                              \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {    \
-            if (tp##_is_neg(xb.fld[i]) && !tp##_is_zero(xb.fld[i])) {        \
+            if (tp##_is_neg(xb.fld) && !tp##_is_zero(xb.fld)) {              \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, sfprf);   \
-            } else if (tp##_is_signaling_nan(xb.fld[i])) {                   \
+            } else if (tp##_is_signaling_nan(xb.fld)) {                      \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);   \
             }                                                                \
         }                                                                    \
                                                                              \
         if (r2sp) {                                                          \
-            xt.fld[i] = helper_frsp(env, xt.fld[i]);                         \
+            xt.fld = helper_frsp(env, xt.fld);                               \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
-            helper_compute_fprf(env, xt.fld[i], sfprf);                      \
+            helper_compute_fprf(env, xt.fld, sfprf);                         \
         }                                                                    \
     }                                                                        \
                                                                              \
@@ -2111,16 +2111,16 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
     helper_float_check_status(env);                                          \
 }
 
-VSX_RSQRTE(xsrsqrtedp, 1, float64, f64, 1, 0)
-VSX_RSQRTE(xsrsqrtesp, 1, float64, f64, 1, 1)
-VSX_RSQRTE(xvrsqrtedp, 2, float64, f64, 0, 0)
-VSX_RSQRTE(xvrsqrtesp, 4, float32, f32, 0, 0)
+VSX_RSQRTE(xsrsqrtedp, 1, float64, VsrD(0), 1, 0)
+VSX_RSQRTE(xsrsqrtesp, 1, float64, VsrD(0), 1, 1)
+VSX_RSQRTE(xvrsqrtedp, 2, float64, VsrD(i), 0, 0)
+VSX_RSQRTE(xvrsqrtesp, 4, float32, VsrW(i), 0, 0)
 
 /* VSX_TDIV - VSX floating point test for divide
  *   op    - instruction mnemonic
  *   nels  - number of elements (1, 2 or 4)
  *   tp    - type (float32 or float64)
- *   fld   - vsr_t field (f32 or f64)
+ *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  *   emin  - minimum unbiased exponent
  *   emax  - maximum unbiased exponent
  *   nbits - number of fraction bits
@@ -2137,28 +2137,28 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
     getVSR(xB(opcode), &xb, env);                                       \
                                                                         \
     for (i = 0; i < nels; i++) {                                        \
-        if (unlikely(tp##_is_infinity(xa.fld[i]) ||                     \
-                     tp##_is_infinity(xb.fld[i]) ||                     \
-                     tp##_is_zero(xb.fld[i]))) {                        \
+        if (unlikely(tp##_is_infinity(xa.fld) ||                        \
+                     tp##_is_infinity(xb.fld) ||                        \
+                     tp##_is_zero(xb.fld))) {                           \
             fe_flag = 1;                                                \
             fg_flag = 1;                                                \
         } else {                                                        \
-            int e_a = ppc_##tp##_get_unbiased_exp(xa.fld[i]);           \
-            int e_b = ppc_##tp##_get_unbiased_exp(xb.fld[i]);           \
+            int e_a = ppc_##tp##_get_unbiased_exp(xa.fld);              \
+            int e_b = ppc_##tp##_get_unbiased_exp(xb.fld);              \
                                                                         \
-            if (unlikely(tp##_is_any_nan(xa.fld[i]) ||                  \
-                         tp##_is_any_nan(xb.fld[i]))) {                 \
+            if (unlikely(tp##_is_any_nan(xa.fld) ||                     \
+                         tp##_is_any_nan(xb.fld))) {                    \
                 fe_flag = 1;                                            \
             } else if ((e_b <= emin) || (e_b >= (emax-2))) {            \
                 fe_flag = 1;                                            \
-            } else if (!tp##_is_zero(xa.fld[i]) &&                      \
+            } else if (!tp##_is_zero(xa.fld) &&                         \
                        (((e_a - e_b) >= emax) ||                        \
                         ((e_a - e_b) <= (emin+1)) ||                    \
                          (e_a <= (emin+nbits)))) {                      \
                 fe_flag = 1;                                            \
             }                                                           \
                                                                         \
-            if (unlikely(tp##_is_zero_or_denormal(xb.fld[i]))) {        \
+            if (unlikely(tp##_is_zero_or_denormal(xb.fld))) {           \
                 /* XB is not zero because of the above check and */     \
                 /* so must be denormalized.                      */     \
                 fg_flag = 1;                                            \
@@ -2169,15 +2169,15 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
     env->crf[BF(opcode)] = 0x8 | (fg_flag ? 4 : 0) | (fe_flag ? 2 : 0); \
 }
 
-VSX_TDIV(xstdivdp, 1, float64, f64, -1022, 1023, 52)
-VSX_TDIV(xvtdivdp, 2, float64, f64, -1022, 1023, 52)
-VSX_TDIV(xvtdivsp, 4, float32, f32, -126, 127, 23)
+VSX_TDIV(xstdivdp, 1, float64, VsrD(0), -1022, 1023, 52)
+VSX_TDIV(xvtdivdp, 2, float64, VsrD(i), -1022, 1023, 52)
+VSX_TDIV(xvtdivsp, 4, float32, VsrW(i), -126, 127, 23)
 
 /* VSX_TSQRT - VSX floating point test for square root
  *   op    - instruction mnemonic
  *   nels  - number of elements (1, 2 or 4)
  *   tp    - type (float32 or float64)
- *   fld   - vsr_t field (f32 or f64)
+ *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  *   emin  - minimum unbiased exponent
  *   emax  - maximum unbiased exponent
  *   nbits - number of fraction bits
@@ -2194,25 +2194,25 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
     getVSR(xB(opcode), &xb, env);                                       \
                                                                         \
     for (i = 0; i < nels; i++) {                                        \
-        if (unlikely(tp##_is_infinity(xb.fld[i]) ||                     \
-                     tp##_is_zero(xb.fld[i]))) {                        \
+        if (unlikely(tp##_is_infinity(xb.fld) ||                        \
+                     tp##_is_zero(xb.fld))) {                           \
             fe_flag = 1;                                                \
             fg_flag = 1;                                                \
         } else {                                                        \
-            int e_b = ppc_##tp##_get_unbiased_exp(xb.fld[i]);           \
+            int e_b = ppc_##tp##_get_unbiased_exp(xb.fld);              \
                                                                         \
-            if (unlikely(tp##_is_any_nan(xb.fld[i]))) {                 \
+            if (unlikely(tp##_is_any_nan(xb.fld))) {                    \
                 fe_flag = 1;                                            \
-            } else if (unlikely(tp##_is_zero(xb.fld[i]))) {             \
+            } else if (unlikely(tp##_is_zero(xb.fld))) {                \
                 fe_flag = 1;                                            \
-            } else if (unlikely(tp##_is_neg(xb.fld[i]))) {              \
+            } else if (unlikely(tp##_is_neg(xb.fld))) {                 \
                 fe_flag = 1;                                            \
-            } else if (!tp##_is_zero(xb.fld[i]) &&                      \
+            } else if (!tp##_is_zero(xb.fld) &&                         \
                       (e_b <= (emin+nbits))) {                          \
                 fe_flag = 1;                                            \
             }                                                           \
                                                                         \
-            if (unlikely(tp##_is_zero_or_denormal(xb.fld[i]))) {        \
+            if (unlikely(tp##_is_zero_or_denormal(xb.fld))) {           \
                 /* XB is not zero because of the above check and */     \
                 /* therefore must be denormalized.               */     \
                 fg_flag = 1;                                            \
@@ -2223,15 +2223,15 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
     env->crf[BF(opcode)] = 0x8 | (fg_flag ? 4 : 0) | (fe_flag ? 2 : 0); \
 }
 
-VSX_TSQRT(xstsqrtdp, 1, float64, f64, -1022, 52)
-VSX_TSQRT(xvtsqrtdp, 2, float64, f64, -1022, 52)
-VSX_TSQRT(xvtsqrtsp, 4, float32, f32, -126, 23)
+VSX_TSQRT(xstsqrtdp, 1, float64, VsrD(0), -1022, 52)
+VSX_TSQRT(xvtsqrtdp, 2, float64, VsrD(i), -1022, 52)
+VSX_TSQRT(xvtsqrtsp, 4, float32, VsrW(i), -126, 23)
 
 /* VSX_MADD - VSX floating point muliply/add variations
  *   op    - instruction mnemonic
  *   nels  - number of elements (1, 2 or 4)
  *   tp    - type (float32 or float64)
- *   fld   - vsr_t field (f32 or f64)
+ *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  *   maddflgs - flags for the float*muladd routine that control the
  *           various forms (madd, msub, nmadd, nmsub)
  *   afrm  - A form (1=A, 0=M)
@@ -2267,43 +2267,43 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
             /* Avoid double rounding errors by rounding the intermediate */   \
             /* result to odd.                                            */   \
             set_float_rounding_mode(float_round_to_zero, &tstat);             \
-            xt_out.fld[i] = tp##_muladd(xa.fld[i], b->fld[i], c->fld[i],      \
+            xt_out.fld = tp##_muladd(xa.fld, b->fld, c->fld,                  \
                                        maddflgs, &tstat);                     \
-            xt_out.fld[i] |= (get_float_exception_flags(&tstat) &             \
+            xt_out.fld |= (get_float_exception_flags(&tstat) &                \
                               float_flag_inexact) != 0;                       \
         } else {                                                              \
-            xt_out.fld[i] = tp##_muladd(xa.fld[i], b->fld[i], c->fld[i],      \
+            xt_out.fld = tp##_muladd(xa.fld, b->fld, c->fld,                  \
                                         maddflgs, &tstat);                    \
         }                                                                     \
         env->fp_status.float_exception_flags |= tstat.float_exception_flags;  \
                                                                               \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {     \
-            if (tp##_is_signaling_nan(xa.fld[i]) ||                           \
-                tp##_is_signaling_nan(b->fld[i]) ||                           \
-                tp##_is_signaling_nan(c->fld[i])) {                           \
+            if (tp##_is_signaling_nan(xa.fld) ||                              \
+                tp##_is_signaling_nan(b->fld) ||                              \
+                tp##_is_signaling_nan(c->fld)) {                              \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);    \
                 tstat.float_exception_flags &= ~float_flag_invalid;           \
             }                                                                 \
-            if ((tp##_is_infinity(xa.fld[i]) && tp##_is_zero(b->fld[i])) ||   \
-                (tp##_is_zero(xa.fld[i]) && tp##_is_infinity(b->fld[i]))) {   \
-                xt_out.fld[i] = float64_to_##tp(fload_invalid_op_excp(env,    \
+            if ((tp##_is_infinity(xa.fld) && tp##_is_zero(b->fld)) ||         \
+                (tp##_is_zero(xa.fld) && tp##_is_infinity(b->fld))) {         \
+                xt_out.fld = float64_to_##tp(fload_invalid_op_excp(env,       \
                     POWERPC_EXCP_FP_VXIMZ, sfprf), &env->fp_status);          \
                 tstat.float_exception_flags &= ~float_flag_invalid;           \
             }                                                                 \
             if ((tstat.float_exception_flags & float_flag_invalid) &&         \
-                ((tp##_is_infinity(xa.fld[i]) ||                              \
-                  tp##_is_infinity(b->fld[i])) &&                             \
-                  tp##_is_infinity(c->fld[i]))) {                             \
+                ((tp##_is_infinity(xa.fld) ||                                 \
+                  tp##_is_infinity(b->fld)) &&                                \
+                  tp##_is_infinity(c->fld))) {                                \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, sfprf);     \
             }                                                                 \
         }                                                                     \
                                                                               \
         if (r2sp) {                                                           \
-            xt_out.fld[i] = helper_frsp(env, xt_out.fld[i]);                  \
+            xt_out.fld = helper_frsp(env, xt_out.fld);                        \
         }                                                                     \
                                                                               \
         if (sfprf) {                                                          \
-            helper_compute_fprf(env, xt_out.fld[i], sfprf);                   \
+            helper_compute_fprf(env, xt_out.fld, sfprf);                      \
         }                                                                     \
     }                                                                         \
     putVSR(xT(opcode), &xt_out, env);                                         \
@@ -2315,41 +2315,41 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
 #define NMADD_FLGS float_muladd_negate_result
 #define NMSUB_FLGS (float_muladd_negate_c | float_muladd_negate_result)
 
-VSX_MADD(xsmaddadp, 1, float64, f64, MADD_FLGS, 1, 1, 0)
-VSX_MADD(xsmaddmdp, 1, float64, f64, MADD_FLGS, 0, 1, 0)
-VSX_MADD(xsmsubadp, 1, float64, f64, MSUB_FLGS, 1, 1, 0)
-VSX_MADD(xsmsubmdp, 1, float64, f64, MSUB_FLGS, 0, 1, 0)
-VSX_MADD(xsnmaddadp, 1, float64, f64, NMADD_FLGS, 1, 1, 0)
-VSX_MADD(xsnmaddmdp, 1, float64, f64, NMADD_FLGS, 0, 1, 0)
-VSX_MADD(xsnmsubadp, 1, float64, f64, NMSUB_FLGS, 1, 1, 0)
-VSX_MADD(xsnmsubmdp, 1, float64, f64, NMSUB_FLGS, 0, 1, 0)
+VSX_MADD(xsmaddadp, 1, float64, VsrD(0), MADD_FLGS, 1, 1, 0)
+VSX_MADD(xsmaddmdp, 1, float64, VsrD(0), MADD_FLGS, 0, 1, 0)
+VSX_MADD(xsmsubadp, 1, float64, VsrD(0), MSUB_FLGS, 1, 1, 0)
+VSX_MADD(xsmsubmdp, 1, float64, VsrD(0), MSUB_FLGS, 0, 1, 0)
+VSX_MADD(xsnmaddadp, 1, float64, VsrD(0), NMADD_FLGS, 1, 1, 0)
+VSX_MADD(xsnmaddmdp, 1, float64, VsrD(0), NMADD_FLGS, 0, 1, 0)
+VSX_MADD(xsnmsubadp, 1, float64, VsrD(0), NMSUB_FLGS, 1, 1, 0)
+VSX_MADD(xsnmsubmdp, 1, float64, VsrD(0), NMSUB_FLGS, 0, 1, 0)
 
-VSX_MADD(xsmaddasp, 1, float64, f64, MADD_FLGS, 1, 1, 1)
-VSX_MADD(xsmaddmsp, 1, float64, f64, MADD_FLGS, 0, 1, 1)
-VSX_MADD(xsmsubasp, 1, float64, f64, MSUB_FLGS, 1, 1, 1)
-VSX_MADD(xsmsubmsp, 1, float64, f64, MSUB_FLGS, 0, 1, 1)
-VSX_MADD(xsnmaddasp, 1, float64, f64, NMADD_FLGS, 1, 1, 1)
-VSX_MADD(xsnmaddmsp, 1, float64, f64, NMADD_FLGS, 0, 1, 1)
-VSX_MADD(xsnmsubasp, 1, float64, f64, NMSUB_FLGS, 1, 1, 1)
-VSX_MADD(xsnmsubmsp, 1, float64, f64, NMSUB_FLGS, 0, 1, 1)
+VSX_MADD(xsmaddasp, 1, float64, VsrD(0), MADD_FLGS, 1, 1, 1)
+VSX_MADD(xsmaddmsp, 1, float64, VsrD(0), MADD_FLGS, 0, 1, 1)
+VSX_MADD(xsmsubasp, 1, float64, VsrD(0), MSUB_FLGS, 1, 1, 1)
+VSX_MADD(xsmsubmsp, 1, float64, VsrD(0), MSUB_FLGS, 0, 1, 1)
+VSX_MADD(xsnmaddasp, 1, float64, VsrD(0), NMADD_FLGS, 1, 1, 1)
+VSX_MADD(xsnmaddmsp, 1, float64, VsrD(0), NMADD_FLGS, 0, 1, 1)
+VSX_MADD(xsnmsubasp, 1, float64, VsrD(0), NMSUB_FLGS, 1, 1, 1)
+VSX_MADD(xsnmsubmsp, 1, float64, VsrD(0), NMSUB_FLGS, 0, 1, 1)
 
-VSX_MADD(xvmaddadp, 2, float64, f64, MADD_FLGS, 1, 0, 0)
-VSX_MADD(xvmaddmdp, 2, float64, f64, MADD_FLGS, 0, 0, 0)
-VSX_MADD(xvmsubadp, 2, float64, f64, MSUB_FLGS, 1, 0, 0)
-VSX_MADD(xvmsubmdp, 2, float64, f64, MSUB_FLGS, 0, 0, 0)
-VSX_MADD(xvnmaddadp, 2, float64, f64, NMADD_FLGS, 1, 0, 0)
-VSX_MADD(xvnmaddmdp, 2, float64, f64, NMADD_FLGS, 0, 0, 0)
-VSX_MADD(xvnmsubadp, 2, float64, f64, NMSUB_FLGS, 1, 0, 0)
-VSX_MADD(xvnmsubmdp, 2, float64, f64, NMSUB_FLGS, 0, 0, 0)
+VSX_MADD(xvmaddadp, 2, float64, VsrD(i), MADD_FLGS, 1, 0, 0)
+VSX_MADD(xvmaddmdp, 2, float64, VsrD(i), MADD_FLGS, 0, 0, 0)
+VSX_MADD(xvmsubadp, 2, float64, VsrD(i), MSUB_FLGS, 1, 0, 0)
+VSX_MADD(xvmsubmdp, 2, float64, VsrD(i), MSUB_FLGS, 0, 0, 0)
+VSX_MADD(xvnmaddadp, 2, float64, VsrD(i), NMADD_FLGS, 1, 0, 0)
+VSX_MADD(xvnmaddmdp, 2, float64, VsrD(i), NMADD_FLGS, 0, 0, 0)
+VSX_MADD(xvnmsubadp, 2, float64, VsrD(i), NMSUB_FLGS, 1, 0, 0)
+VSX_MADD(xvnmsubmdp, 2, float64, VsrD(i), NMSUB_FLGS, 0, 0, 0)
 
-VSX_MADD(xvmaddasp, 4, float32, f32, MADD_FLGS, 1, 0, 0)
-VSX_MADD(xvmaddmsp, 4, float32, f32, MADD_FLGS, 0, 0, 0)
-VSX_MADD(xvmsubasp, 4, float32, f32, MSUB_FLGS, 1, 0, 0)
-VSX_MADD(xvmsubmsp, 4, float32, f32, MSUB_FLGS, 0, 0, 0)
-VSX_MADD(xvnmaddasp, 4, float32, f32, NMADD_FLGS, 1, 0, 0)
-VSX_MADD(xvnmaddmsp, 4, float32, f32, NMADD_FLGS, 0, 0, 0)
-VSX_MADD(xvnmsubasp, 4, float32, f32, NMSUB_FLGS, 1, 0, 0)
-VSX_MADD(xvnmsubmsp, 4, float32, f32, NMSUB_FLGS, 0, 0, 0)
+VSX_MADD(xvmaddasp, 4, float32, VsrW(i), MADD_FLGS, 1, 0, 0)
+VSX_MADD(xvmaddmsp, 4, float32, VsrW(i), MADD_FLGS, 0, 0, 0)
+VSX_MADD(xvmsubasp, 4, float32, VsrW(i), MSUB_FLGS, 1, 0, 0)
+VSX_MADD(xvmsubmsp, 4, float32, VsrW(i), MSUB_FLGS, 0, 0, 0)
+VSX_MADD(xvnmaddasp, 4, float32, VsrW(i), NMADD_FLGS, 1, 0, 0)
+VSX_MADD(xvnmaddmsp, 4, float32, VsrW(i), NMADD_FLGS, 0, 0, 0)
+VSX_MADD(xvnmsubasp, 4, float32, VsrW(i), NMSUB_FLGS, 1, 0, 0)
+VSX_MADD(xvnmsubmsp, 4, float32, VsrW(i), NMSUB_FLGS, 0, 0, 0)
 
 #define VSX_SCALAR_CMP(op, ordered)                                      \
 void helper_##op(CPUPPCState *env, uint32_t opcode)                      \
@@ -2398,7 +2398,7 @@ VSX_SCALAR_CMP(xscmpudp, 0)
  *   op    - operation (max or min)
  *   nels  - number of elements (1, 2 or 4)
  *   tp    - type (float32 or float64)
- *   fld   - vsr_t field (f32 or f64)
+ *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  */
 #define VSX_MAX_MIN(name, op, nels, tp, fld)                                  \
 void helper_##name(CPUPPCState *env, uint32_t opcode)                         \
@@ -2411,9 +2411,9 @@ void helper_##name(CPUPPCState *env, uint32_t opcode)                         \
     getVSR(xT(opcode), &xt, env);                                             \
                                                                               \
     for (i = 0; i < nels; i++) {                                              \
-        xt.fld[i] = tp##_##op(xa.fld[i], xb.fld[i], &env->fp_status);         \
-        if (unlikely(tp##_is_signaling_nan(xa.fld[i]) ||                      \
-                     tp##_is_signaling_nan(xb.fld[i]))) {                     \
+        xt.fld = tp##_##op(xa.fld, xb.fld, &env->fp_status);                  \
+        if (unlikely(tp##_is_signaling_nan(xa.fld) ||                         \
+                     tp##_is_signaling_nan(xb.fld))) {                        \
             fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);            \
         }                                                                     \
     }                                                                         \
@@ -2422,18 +2422,18 @@ void helper_##name(CPUPPCState *env, uint32_t opcode)                         \
     helper_float_check_status(env);                                           \
 }
 
-VSX_MAX_MIN(xsmaxdp, maxnum, 1, float64, f64)
-VSX_MAX_MIN(xvmaxdp, maxnum, 2, float64, f64)
-VSX_MAX_MIN(xvmaxsp, maxnum, 4, float32, f32)
-VSX_MAX_MIN(xsmindp, minnum, 1, float64, f64)
-VSX_MAX_MIN(xvmindp, minnum, 2, float64, f64)
-VSX_MAX_MIN(xvminsp, minnum, 4, float32, f32)
+VSX_MAX_MIN(xsmaxdp, maxnum, 1, float64, VsrD(0))
+VSX_MAX_MIN(xvmaxdp, maxnum, 2, float64, VsrD(i))
+VSX_MAX_MIN(xvmaxsp, maxnum, 4, float32, VsrW(i))
+VSX_MAX_MIN(xsmindp, minnum, 1, float64, VsrD(0))
+VSX_MAX_MIN(xvmindp, minnum, 2, float64, VsrD(i))
+VSX_MAX_MIN(xvminsp, minnum, 4, float32, VsrW(i))
 
 /* VSX_CMP - VSX floating point compare
  *   op    - instruction mnemonic
  *   nels  - number of elements (1, 2 or 4)
  *   tp    - type (float32 or float64)
- *   fld   - vsr_t field (f32 or f64)
+ *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  *   cmp   - comparison operation
  *   svxvc - set VXVC bit
  */
@@ -2450,23 +2450,23 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                       \
     getVSR(xT(opcode), &xt, env);                                         \
                                                                           \
     for (i = 0; i < nels; i++) {                                          \
-        if (unlikely(tp##_is_any_nan(xa.fld[i]) ||                        \
-                     tp##_is_any_nan(xb.fld[i]))) {                       \
-            if (tp##_is_signaling_nan(xa.fld[i]) ||                       \
-                tp##_is_signaling_nan(xb.fld[i])) {                       \
+        if (unlikely(tp##_is_any_nan(xa.fld) ||                           \
+                     tp##_is_any_nan(xb.fld))) {                          \
+            if (tp##_is_signaling_nan(xa.fld) ||                          \
+                tp##_is_signaling_nan(xb.fld)) {                          \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);    \
             }                                                             \
             if (svxvc) {                                                  \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXVC, 0);      \
             }                                                             \
-            xt.fld[i] = 0;                                                \
+            xt.fld = 0;                                                   \
             all_true = 0;                                                 \
         } else {                                                          \
-            if (tp##_##cmp(xb.fld[i], xa.fld[i], &env->fp_status) == 1) { \
-                xt.fld[i] = -1;                                           \
+            if (tp##_##cmp(xb.fld, xa.fld, &env->fp_status) == 1) {       \
+                xt.fld = -1;                                              \
                 all_false = 0;                                            \
             } else {                                                      \
-                xt.fld[i] = 0;                                            \
+                xt.fld = 0;                                               \
                 all_true = 0;                                             \
             }                                                             \
         }                                                                 \
@@ -2479,12 +2479,12 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                       \
     helper_float_check_status(env);                                       \
  }
 
-VSX_CMP(xvcmpeqdp, 2, float64, f64, eq, 0)
-VSX_CMP(xvcmpgedp, 2, float64, f64, le, 1)
-VSX_CMP(xvcmpgtdp, 2, float64, f64, lt, 1)
-VSX_CMP(xvcmpeqsp, 4, float32, f32, eq, 0)
-VSX_CMP(xvcmpgesp, 4, float32, f32, le, 1)
-VSX_CMP(xvcmpgtsp, 4, float32, f32, lt, 1)
+VSX_CMP(xvcmpeqdp, 2, float64, VsrD(i), eq, 0)
+VSX_CMP(xvcmpgedp, 2, float64, VsrD(i), le, 1)
+VSX_CMP(xvcmpgtdp, 2, float64, VsrD(i), lt, 1)
+VSX_CMP(xvcmpeqsp, 4, float32, VsrW(i), eq, 0)
+VSX_CMP(xvcmpgesp, 4, float32, VsrW(i), le, 1)
+VSX_CMP(xvcmpgtsp, 4, float32, VsrW(i), lt, 1)
 
 #if defined(HOST_WORDS_BIGENDIAN)
 #define JOFFSET 0
@@ -2671,7 +2671,7 @@ VSX_CVT_INT_TO_FP(xvcvuxwsp, 4, uint32, float32, u32[j], f32[i], i, 0, 0)
  *   op    - instruction mnemonic
  *   nels  - number of elements (1, 2 or 4)
  *   tp    - type (float32 or float64)
- *   fld   - vsr_t field (f32 or f64)
+ *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  *   rmode - rounding mode
  *   sfprf - set FPRF
  */
@@ -2688,14 +2688,14 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                    \
     }                                                                  \
                                                                        \
     for (i = 0; i < nels; i++) {                                       \
-        if (unlikely(tp##_is_signaling_nan(xb.fld[i]))) {              \
+        if (unlikely(tp##_is_signaling_nan(xb.fld))) {                 \
             fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);     \
-            xt.fld[i] = tp##_snan_to_qnan(xb.fld[i]);                  \
+            xt.fld = tp##_snan_to_qnan(xb.fld);                        \
         } else {                                                       \
-            xt.fld[i] = tp##_round_to_int(xb.fld[i], &env->fp_status); \
+            xt.fld = tp##_round_to_int(xb.fld, &env->fp_status);       \
         }                                                              \
         if (sfprf) {                                                   \
-            helper_compute_fprf(env, xt.fld[i], sfprf);                \
+            helper_compute_fprf(env, xt.fld, sfprf);                   \
         }                                                              \
     }                                                                  \
                                                                        \
@@ -2711,23 +2711,23 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                    \
     helper_float_check_status(env);                                    \
 }
 
-VSX_ROUND(xsrdpi, 1, float64, f64, float_round_nearest_even, 1)
-VSX_ROUND(xsrdpic, 1, float64, f64, FLOAT_ROUND_CURRENT, 1)
-VSX_ROUND(xsrdpim, 1, float64, f64, float_round_down, 1)
-VSX_ROUND(xsrdpip, 1, float64, f64, float_round_up, 1)
-VSX_ROUND(xsrdpiz, 1, float64, f64, float_round_to_zero, 1)
+VSX_ROUND(xsrdpi, 1, float64, VsrD(0), float_round_nearest_even, 1)
+VSX_ROUND(xsrdpic, 1, float64, VsrD(0), FLOAT_ROUND_CURRENT, 1)
+VSX_ROUND(xsrdpim, 1, float64, VsrD(0), float_round_down, 1)
+VSX_ROUND(xsrdpip, 1, float64, VsrD(0), float_round_up, 1)
+VSX_ROUND(xsrdpiz, 1, float64, VsrD(0), float_round_to_zero, 1)
 
-VSX_ROUND(xvrdpi, 2, float64, f64, float_round_nearest_even, 0)
-VSX_ROUND(xvrdpic, 2, float64, f64, FLOAT_ROUND_CURRENT, 0)
-VSX_ROUND(xvrdpim, 2, float64, f64, float_round_down, 0)
-VSX_ROUND(xvrdpip, 2, float64, f64, float_round_up, 0)
-VSX_ROUND(xvrdpiz, 2, float64, f64, float_round_to_zero, 0)
+VSX_ROUND(xvrdpi, 2, float64, VsrD(i), float_round_nearest_even, 0)
+VSX_ROUND(xvrdpic, 2, float64, VsrD(i), FLOAT_ROUND_CURRENT, 0)
+VSX_ROUND(xvrdpim, 2, float64, VsrD(i), float_round_down, 0)
+VSX_ROUND(xvrdpip, 2, float64, VsrD(i), float_round_up, 0)
+VSX_ROUND(xvrdpiz, 2, float64, VsrD(i), float_round_to_zero, 0)
 
-VSX_ROUND(xvrspi, 4, float32, f32, float_round_nearest_even, 0)
-VSX_ROUND(xvrspic, 4, float32, f32, FLOAT_ROUND_CURRENT, 0)
-VSX_ROUND(xvrspim, 4, float32, f32, float_round_down, 0)
-VSX_ROUND(xvrspip, 4, float32, f32, float_round_up, 0)
-VSX_ROUND(xvrspiz, 4, float32, f32, float_round_to_zero, 0)
+VSX_ROUND(xvrspi, 4, float32, VsrW(i), float_round_nearest_even, 0)
+VSX_ROUND(xvrspic, 4, float32, VsrW(i), FLOAT_ROUND_CURRENT, 0)
+VSX_ROUND(xvrspim, 4, float32, VsrW(i), float_round_down, 0)
+VSX_ROUND(xvrspip, 4, float32, VsrW(i), float_round_up, 0)
+VSX_ROUND(xvrspiz, 4, float32, VsrW(i), float_round_to_zero, 0)
 
 uint64_t helper_xsrsp(CPUPPCState *env, uint64_t xb)
 {
