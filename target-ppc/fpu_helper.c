@@ -2568,7 +2568,8 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
             fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 0);            \
             xt.tfld = rnan;                                                  \
         } else {                                                             \
-            xt.tfld = stp##_to_##ttp(xb.sfld, &env->fp_status);              \
+            xt.tfld = stp##_to_##ttp##_round_to_zero(xb.sfld,                \
+                          &env->fp_status);                                  \
             if (env->fp_status.float_exception_flags & float_flag_invalid) { \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 0);        \
             }                                                                \
