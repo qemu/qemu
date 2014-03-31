@@ -296,7 +296,15 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
     int ct = arg_ct->ct;
     if (ct & TCG_CT_CONST) {
         return 1;
-    } else if ((ct & TCG_CT_CONST_S16) && val == (int16_t)val) {
+    }
+
+    /* The only 32-bit constraint we use aside from
+       TCG_CT_CONST is TCG_CT_CONST_S16.  */
+    if (type == TCG_TYPE_I32) {
+        val = (int32_t)val;
+    }
+
+    if ((ct & TCG_CT_CONST_S16) && val == (int16_t)val) {
         return 1;
     } else if ((ct & TCG_CT_CONST_U16) && val == (uint16_t)val) {
         return 1;
