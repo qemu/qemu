@@ -1628,6 +1628,26 @@ uint64 float32_to_uint64(float32 a STATUS_PARAM)
 
 /*----------------------------------------------------------------------------
 | Returns the result of converting the single-precision floating-point value
+| `a' to the 64-bit unsigned integer format.  The conversion is
+| performed according to the IEC/IEEE Standard for Binary Floating-Point
+| Arithmetic, except that the conversion is always rounded toward zero.  If
+| `a' is a NaN, the largest unsigned integer is returned.  Otherwise, if the
+| conversion overflows, the largest unsigned integer is returned.  If the
+| 'a' is negative, the result is rounded and zero is returned; values that do
+| not round to zero will raise the inexact flag.
+*----------------------------------------------------------------------------*/
+
+uint64 float32_to_uint64_round_to_zero(float32 a STATUS_PARAM)
+{
+    signed char current_rounding_mode = STATUS(float_rounding_mode);
+    set_float_rounding_mode(float_round_to_zero STATUS_VAR);
+    int64_t v = float32_to_uint64(a STATUS_VAR);
+    set_float_rounding_mode(current_rounding_mode STATUS_VAR);
+    return v;
+}
+
+/*----------------------------------------------------------------------------
+| Returns the result of converting the single-precision floating-point value
 | `a' to the 64-bit two's complement integer format.  The conversion is
 | performed according to the IEC/IEEE Standard for Binary Floating-Point
 | Arithmetic, except that the conversion is always rounded toward zero.  If
