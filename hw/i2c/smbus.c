@@ -214,7 +214,7 @@ void smbus_quick_command(I2CBus *bus, uint8_t addr, int read)
     i2c_end_transfer(bus);
 }
 
-uint8_t smbus_receive_byte(I2CBus *bus, uint8_t addr)
+int smbus_receive_byte(I2CBus *bus, uint8_t addr)
 {
     uint8_t data;
 
@@ -232,7 +232,7 @@ void smbus_send_byte(I2CBus *bus, uint8_t addr, uint8_t data)
     i2c_end_transfer(bus);
 }
 
-uint8_t smbus_read_byte(I2CBus *bus, uint8_t addr, uint8_t command)
+int smbus_read_byte(I2CBus *bus, uint8_t addr, uint8_t command)
 {
     uint8_t data;
     i2c_start_transfer(bus, addr, 0);
@@ -252,7 +252,7 @@ void smbus_write_byte(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t data)
     i2c_end_transfer(bus);
 }
 
-uint16_t smbus_read_word(I2CBus *bus, uint8_t addr, uint8_t command)
+int smbus_read_word(I2CBus *bus, uint8_t addr, uint8_t command)
 {
     uint16_t data;
     i2c_start_transfer(bus, addr, 0);
