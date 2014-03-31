@@ -42,6 +42,7 @@
 #define TCG_CT_CONST_ORI   0x200
 #define TCG_CT_CONST_XORI  0x400
 #define TCG_CT_CONST_CMPI  0x800
+#define TCG_CT_CONST_ADLI  0x1000
 
 /* Several places within the instruction set 0 means "no register"
    rather than TCG_REG_R0.  */
@@ -403,6 +404,9 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_clear(ct->u.regs);
         tcg_regset_set_reg(ct->u.regs, TCG_REG_R3);
         break;
+    case 'A':
+        ct->ct |= TCG_CT_CONST_ADLI;
+        break;
     case 'K':
         ct->ct |= TCG_CT_CONST_MULI;
         break;
@@ -507,6 +511,20 @@ static int tcg_match_cmpi(TCGType type, tcg_target_long val)
     }
 }
 
+/* Immediates to be used with add2/sub2.  */
+
+static int tcg_match_add2i(TCGType type, tcg_target_long val)
+{
+    if (facilities & FACILITY_EXT_IMM) {
+        if (type == TCG_TYPE_I32) {
+            return 1;
+        } else if (val >= -0xffffffffll && val <= 0xffffffffll) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* Test if a constant matches the constraint. */
 static int tcg_target_const_match(tcg_target_long val, TCGType type,
                                   const TCGArgConstraint *arg_ct)
@@ -532,6 +550,8 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
         } else {
             return val == (int16_t)val;
         }
+    } else if (ct & TCG_CT_CONST_ADLI) {
+        return tcg_match_add2i(type, val);
     } else if (ct & TCG_CT_CONST_ORI) {
         return tcg_match_ori(type, val);
     } else if (ct & TCG_CT_CONST_XORI) {
@@ -1780,13 +1800,19 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_add2_i32:
-        /* ??? Make use of ALFI.  */
-        tcg_out_insn(s, RR, ALR, args[0], args[4]);
+        if (const_args[4]) {
+            tcg_out_insn(s, RIL, ALFI, args[0], args[4]);
+        } else {
+            tcg_out_insn(s, RR, ALR, args[0], args[4]);
+        }
         tcg_out_insn(s, RRE, ALCR, args[1], args[5]);
         break;
     case INDEX_op_sub2_i32:
-        /* ??? Make use of SLFI.  */
-        tcg_out_insn(s, RR, SLR, args[0], args[4]);
+        if (const_args[4]) {
+            tcg_out_insn(s, RIL, SLFI, args[0], args[4]);
+        } else {
+            tcg_out_insn(s, RR, SLR, args[0], args[4]);
+        }
         tcg_out_insn(s, RRE, SLBR, args[1], args[5]);
         break;
 
@@ -1987,13 +2013,27 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_add2_i64:
-        /* ??? Make use of ALGFI and SLGFI.  */
-        tcg_out_insn(s, RRE, ALGR, args[0], args[4]);
+        if (const_args[4]) {
+            if ((int64_t)args[4] >= 0) {
+                tcg_out_insn(s, RIL, ALGFI, args[0], args[4]);
+            } else {
+                tcg_out_insn(s, RIL, SLGFI, args[0], -args[4]);
+            }
+        } else {
+            tcg_out_insn(s, RRE, ALGR, args[0], args[4]);
+        }
         tcg_out_insn(s, RRE, ALCGR, args[1], args[5]);
         break;
     case INDEX_op_sub2_i64:
-        /* ??? Make use of ALGFI and SLGFI.  */
-        tcg_out_insn(s, RRE, SLGR, args[0], args[4]);
+        if (const_args[4]) {
+            if ((int64_t)args[4] >= 0) {
+                tcg_out_insn(s, RIL, SLGFI, args[0], args[4]);
+            } else {
+                tcg_out_insn(s, RIL, ALGFI, args[0], -args[4]);
+            }
+        } else {
+            tcg_out_insn(s, RRE, SLGR, args[0], args[4]);
+        }
         tcg_out_insn(s, RRE, SLBGR, args[1], args[5]);
         break;
 
@@ -2066,8 +2106,8 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_bswap16_i32, { "r", "r" } },
     { INDEX_op_bswap32_i32, { "r", "r" } },
 
-    { INDEX_op_add2_i32, { "r", "r", "0", "1", "r", "r" } },
-    { INDEX_op_sub2_i32, { "r", "r", "0", "1", "r", "r" } },
+    { INDEX_op_add2_i32, { "r", "r", "0", "1", "rA", "r" } },
+    { INDEX_op_sub2_i32, { "r", "r", "0", "1", "rA", "r" } },
 
     { INDEX_op_brcond_i32, { "r", "rC" } },
     { INDEX_op_setcond_i32, { "r", "r", "rC" } },
@@ -2124,8 +2164,8 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_bswap32_i64, { "r", "r" } },
     { INDEX_op_bswap64_i64, { "r", "r" } },
 
-    { INDEX_op_add2_i64, { "r", "r", "0", "1", "r", "r" } },
-    { INDEX_op_sub2_i64, { "r", "r", "0", "1", "r", "r" } },
+    { INDEX_op_add2_i64, { "r", "r", "0", "1", "rA", "r" } },
+    { INDEX_op_sub2_i64, { "r", "r", "0", "1", "rA", "r" } },
 
     { INDEX_op_brcond_i64, { "r", "rC" } },
     { INDEX_op_setcond_i64, { "r", "r", "rC" } },
