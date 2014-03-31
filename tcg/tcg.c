@@ -101,7 +101,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                        const int *const_args);
 static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
                        intptr_t arg2);
-static int tcg_target_const_match(tcg_target_long val,
+static int tcg_target_const_match(tcg_target_long val, TCGType type,
                                   const TCGArgConstraint *arg_ct);
 static void tcg_out_tb_init(TCGContext *s);
 static void tcg_out_tb_finalize(TCGContext *s);
@@ -2121,7 +2121,7 @@ static void tcg_reg_alloc_op(TCGContext *s,
             ts->mem_coherent = 1;
             s->reg_to_temp[reg] = arg;
         } else if (ts->val_type == TEMP_VAL_CONST) {
-            if (tcg_target_const_match(ts->val, arg_ct)) {
+            if (tcg_target_const_match(ts->val, ts->type, arg_ct)) {
                 /* constant is OK for instruction */
                 const_args[i] = 1;
                 new_args[i] = ts->val;
@@ -2365,7 +2365,7 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
         func_arg = reg;
         tcg_regset_set_reg(allocated_regs, reg);
     } else if (ts->val_type == TEMP_VAL_CONST) {
-        if (tcg_target_const_match(func_addr, arg_ct)) {
+        if (tcg_target_const_match(func_addr, ts->type, arg_ct)) {
             const_func_arg = 1;
             func_arg = func_addr;
         } else {

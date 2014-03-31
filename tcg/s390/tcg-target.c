@@ -515,7 +515,7 @@ static int tcg_match_cmpi(int ct, tcg_target_long val)
 }
 
 /* Test if a constant matches the constraint. */
-static int tcg_target_const_match(tcg_target_long val,
+static int tcg_target_const_match(tcg_target_long val, TCGType type,
                                   const TCGArgConstraint *arg_ct)
 {
     int ct = arg_ct->ct;
