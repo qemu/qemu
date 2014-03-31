@@ -24,8 +24,6 @@
 #ifndef TCG_TARGET_S390 
 #define TCG_TARGET_S390 1
 
-#define TCG_TARGET_WORDS_BIGENDIAN
-
 typedef enum TCGReg {
     TCG_REG_R0 = 0,
     TCG_REG_R1,

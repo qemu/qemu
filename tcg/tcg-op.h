@@ -858,7 +858,7 @@ static inline void tcg_gen_ld_i64(TCGv_i64 ret, TCGv_ptr arg2,
 {
     /* since arg2 and ret have different types, they cannot be the
        same temporary */
-#ifdef TCG_TARGET_WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
     tcg_gen_ld_i32(TCGV_HIGH(ret), arg2, offset);
     tcg_gen_ld_i32(TCGV_LOW(ret), arg2, offset + 4);
 #else
@@ -888,7 +888,7 @@ static inline void tcg_gen_st32_i64(TCGv_i64 arg1, TCGv_ptr arg2,
 static inline void tcg_gen_st_i64(TCGv_i64 arg1, TCGv_ptr arg2,
                                   tcg_target_long offset)
 {
-#ifdef TCG_TARGET_WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
     tcg_gen_st_i32(TCGV_HIGH(arg1), arg2, offset);
     tcg_gen_st_i32(TCGV_LOW(arg1), arg2, offset + 4);
 #else

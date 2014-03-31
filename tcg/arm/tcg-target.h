@@ -25,7 +25,6 @@
 #ifndef TCG_TARGET_ARM 
 #define TCG_TARGET_ARM 1
 
-#undef TCG_TARGET_WORDS_BIGENDIAN
 #undef TCG_TARGET_STACK_GROWSUP
 
 typedef enum {

@@ -24,7 +24,6 @@
 #ifndef TCG_TARGET_PPC 
 #define TCG_TARGET_PPC 1
 
-#define TCG_TARGET_WORDS_BIGENDIAN
 #define TCG_TARGET_NB_REGS 32
 
 typedef enum {

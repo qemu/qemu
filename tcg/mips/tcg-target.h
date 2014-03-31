@@ -26,10 +26,6 @@
 #ifndef TCG_TARGET_MIPS 
 #define TCG_TARGET_MIPS 1
 
-#ifdef __MIPSEB__
-# define TCG_TARGET_WORDS_BIGENDIAN
-#endif
-
 #define TCG_TARGET_NB_REGS 32
 
 typedef enum {

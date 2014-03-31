@@ -444,7 +444,7 @@ static inline int tcg_global_mem_new_internal(TCGType type, int reg,
         ts->fixed_reg = 0;
         ts->mem_allocated = 1;
         ts->mem_reg = reg;
-#ifdef TCG_TARGET_WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
         ts->mem_offset = offset + 4;
 #else
         ts->mem_offset = offset;
@@ -459,7 +459,7 @@ static inline int tcg_global_mem_new_internal(TCGType type, int reg,
         ts->fixed_reg = 0;
         ts->mem_allocated = 1;
         ts->mem_reg = reg;
-#ifdef TCG_TARGET_WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
         ts->mem_offset = offset;
 #else
         ts->mem_offset = offset + 4;
@@ -686,7 +686,7 @@ void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
     if (ret != TCG_CALL_DUMMY_ARG) {
 #if TCG_TARGET_REG_BITS < 64
         if (sizemask & 1) {
-#ifdef TCG_TARGET_WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
             *s->gen_opparam_ptr++ = ret + 1;
             *s->gen_opparam_ptr++ = ret;
 #else
@@ -725,7 +725,7 @@ void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
 	       order.  If another such target is added, this logic may
 	       have to get more complicated to differentiate between
 	       stack arguments and register arguments.  */
-#if defined(TCG_TARGET_WORDS_BIGENDIAN) != defined(TCG_TARGET_STACK_GROWSUP)
+#if defined(HOST_WORDS_BIGENDIAN) != defined(TCG_TARGET_STACK_GROWSUP)
             *s->gen_opparam_ptr++ = args[i] + 1;
             *s->gen_opparam_ptr++ = args[i];
 #else

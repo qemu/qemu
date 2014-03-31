@@ -26,7 +26,7 @@
 
 #include "tcg-be-null.h"
 
-#if defined(TCG_TARGET_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
 # define TCG_NEED_BSWAP 0
 #else
 # define TCG_NEED_BSWAP 1
@@ -589,7 +589,7 @@ static inline void tcg_out_call_iarg_reg64(TCGContext *s, int *arg_num,
 {
     (*arg_num) = (*arg_num + 1) & ~1;
 
-#if defined(TCG_TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
     tcg_out_call_iarg_reg32(s, arg_num, arg_high);
     tcg_out_call_iarg_reg32(s, arg_num, arg_low);
 #else
@@ -964,7 +964,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 #if defined(CONFIG_SOFTMMU)
 # if TARGET_LONG_BITS == 64
     addr_regh = *args++;
-#  if defined(TCG_TARGET_WORDS_BIGENDIAN)
+#  if defined(HOST_WORDS_BIGENDIAN)
     addr_memh = 0;
     addr_meml = 4;
 #  else
@@ -979,7 +979,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 #endif
 
     if (opc == 3) {
-#if defined(TCG_TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
         data_reg1 = data_regh;
         data_reg2 = data_regl;
 #else
@@ -1152,7 +1152,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 #if defined(CONFIG_SOFTMMU)
 # if TARGET_LONG_BITS == 64
     addr_regh = *args++;
-#  if defined(TCG_TARGET_WORDS_BIGENDIAN)
+#  if defined(HOST_WORDS_BIGENDIAN)
     addr_memh = 0;
     addr_meml = 4;
 #  else
@@ -1167,7 +1167,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 #endif
 
     if (opc == 3) {
-#if defined(TCG_TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
         data_reg1 = data_regh;
         data_reg2 = data_regl;
 #else

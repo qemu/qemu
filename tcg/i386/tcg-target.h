@@ -24,8 +24,6 @@
 #ifndef TCG_TARGET_I386 
 #define TCG_TARGET_I386 1
 
-#undef TCG_TARGET_WORDS_BIGENDIAN
-
 #ifdef __x86_64__
 # define TCG_TARGET_REG_BITS  64
 # define TCG_TARGET_NB_REGS   16
