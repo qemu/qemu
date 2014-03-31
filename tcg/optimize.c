@@ -67,6 +67,37 @@ static void reset_temp(TCGArg temp)
     temps[temp].mask = -1;
 }
 
+static TCGOp *insert_op_before(TCGContext *s, TCGOp *old_op,
+                                TCGOpcode opc, int nargs)
+{
+    int oi = s->gen_next_op_idx;
+    int pi = s->gen_next_parm_idx;
+    int prev = old_op->prev;
+    int next = old_op - s->gen_op_buf;
+    TCGOp *new_op;
+
+    tcg_debug_assert(oi < OPC_BUF_SIZE);
+    tcg_debug_assert(pi + nargs <= OPPARAM_BUF_SIZE);
+    s->gen_next_op_idx = oi + 1;
+    s->gen_next_parm_idx = pi + nargs;
+
+    new_op = &s->gen_op_buf[oi];
+    *new_op = (TCGOp){
+        .opc = opc,
+        .args = pi,
+        .prev = prev,
+        .next = next
+    };
+    if (prev >= 0) {
+        s->gen_op_buf[prev].next = oi;
+    } else {
+        s->gen_first_op_idx = oi;
+    }
+    old_op->prev = oi;
+
+    return new_op;
+}
+
 /* Reset all temporaries, given that there are NB_TEMPS of them.  */
 static void reset_all_temps(int nb_temps)
 {
@@ -1108,23 +1139,14 @@ static void tcg_constant_folding(TCGContext *s)
                 uint64_t a = ((uint64_t)ah << 32) | al;
                 uint64_t b = ((uint64_t)bh << 32) | bl;
                 TCGArg rl, rh;
-                TCGOp *op2;
-                TCGArg *args2;
+                TCGOp *op2 = insert_op_before(s, op, INDEX_op_movi_i32, 2);
+                TCGArg *args2 = &s->gen_opparam_buf[op2->args];
 
                 if (opc == INDEX_op_add2_i32) {
                     a += b;
                 } else {
                     a -= b;
                 }
-
-                /* We emit the extra nop when we emit the add2/sub2.  */
-                op2 = &s->gen_op_buf[oi_next];
-                assert(op2->opc == INDEX_op_nop);
-
-                /* But we still have to allocate args for the op.  */
-                op2->args = s->gen_next_parm_idx;
-                s->gen_next_parm_idx += 2;
-                args2 = &s->gen_opparam_buf[op2->args];
 
                 rl = args[0];
                 rh = args[1];
@@ -1144,17 +1166,8 @@ static void tcg_constant_folding(TCGContext *s)
                 uint32_t b = temps[args[3]].val;
                 uint64_t r = (uint64_t)a * b;
                 TCGArg rl, rh;
-                TCGOp *op2;
-                TCGArg *args2;
-
-                /* We emit the extra nop when we emit the mulu2.  */
-                op2 = &s->gen_op_buf[oi_next];
-                assert(op2->opc == INDEX_op_nop);
-
-                /* But we still have to allocate args for the op.  */
-                op2->args = s->gen_next_parm_idx;
-                s->gen_next_parm_idx += 2;
-                args2 = &s->gen_opparam_buf[op2->args];
+                TCGOp *op2 = insert_op_before(s, op, INDEX_op_movi_i32, 2);
+                TCGArg *args2 = &s->gen_opparam_buf[op2->args];
 
                 rl = args[0];
                 rh = args[1];
