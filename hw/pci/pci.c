@@ -189,9 +189,9 @@ static void pci_do_device_reset(PCIDevice *dev)
 {
     int r;
 
-    dev->irq_state = 0;
-    pci_update_irq_status(dev);
     pci_device_deassert_intx(dev);
+    assert(dev->irq_state == 0);
+
     /* Clear all writable bits */
     pci_word_test_and_clear_mask(dev->config + PCI_COMMAND,
                                  pci_get_word(dev->wmask + PCI_COMMAND) |
