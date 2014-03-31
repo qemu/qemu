@@ -20,37 +20,55 @@
 static I2CAdapter *i2c;
 static uint8_t addr;
 
-static void send_and_receive(void)
+static uint16_t tmp105_get16(I2CAdapter *i2c, uint8_t addr, uint8_t reg)
+{
+    uint8_t resp[2];
+    i2c_send(i2c, addr, &reg, 1);
+    i2c_recv(i2c, addr, resp, 2);
+    return (resp[0] << 8) | resp[1];
+}
+
+static void tmp105_set8(I2CAdapter *i2c, uint8_t addr, uint8_t reg,
+                        uint8_t value)
+{
+    uint8_t cmd[2];
+    uint8_t resp[1];
+
+    cmd[0] = reg;
+    cmd[1] = value;
+    i2c_send(i2c, addr, cmd, 2);
+    i2c_recv(i2c, addr, resp, 1);
+    g_assert_cmphex(resp[0], ==, cmd[1]);
+}
+
+static void tmp105_set16(I2CAdapter *i2c, uint8_t addr, uint8_t reg,
+                         uint16_t value)
 {
     uint8_t cmd[3];
     uint8_t resp[2];
 
-    cmd[0] = TMP105_REG_TEMPERATURE;
-    i2c_send(i2c, addr, cmd, 1);
-    i2c_recv(i2c, addr, resp, 2);
-    g_assert_cmpuint(((uint16_t)resp[0] << 8) | resp[1], ==, 0);
-
-    cmd[0] = TMP105_REG_CONFIG;
-    cmd[1] = 0x0; /* matches the reset value */
-    i2c_send(i2c, addr, cmd, 2);
-    i2c_recv(i2c, addr, resp, 1);
-    g_assert_cmphex(resp[0], ==, cmd[1]);
-
-    cmd[0] = TMP105_REG_T_LOW;
-    cmd[1] = 0x12;
-    cmd[2] = 0x34;
+    cmd[0] = reg;
+    cmd[1] = value >> 8;
+    cmd[2] = value & 255;
     i2c_send(i2c, addr, cmd, 3);
     i2c_recv(i2c, addr, resp, 2);
     g_assert_cmphex(resp[0], ==, cmd[1]);
     g_assert_cmphex(resp[1], ==, cmd[2]);
+}
 
-    cmd[0] = TMP105_REG_T_HIGH;
-    cmd[1] = 0x42;
-    cmd[2] = 0x31;
-    i2c_send(i2c, addr, cmd, 3);
-    i2c_recv(i2c, addr, resp, 2);
-    g_assert_cmphex(resp[0], ==, cmd[1]);
-    g_assert_cmphex(resp[1], ==, cmd[2]);
+
+static void send_and_receive(void)
+{
+    uint16_t value;
+
+    value = tmp105_get16(i2c, addr, TMP105_REG_TEMPERATURE);
+    g_assert_cmpuint(value, ==, 0);
+
+    /* reset */
+    tmp105_set8(i2c, addr, TMP105_REG_CONFIG, 0);
+
+    tmp105_set16(i2c, addr, TMP105_REG_T_LOW, 0x1234);
+    tmp105_set16(i2c, addr, TMP105_REG_T_HIGH, 0x4231);
 }
 
 int main(int argc, char **argv)
