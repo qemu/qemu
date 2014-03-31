@@ -38,11 +38,10 @@
    a 32-bit displacement here Just In Case.  */
 #define USE_LONG_BRANCHES 0
 
-#define TCG_CT_CONST_32    0x0100
-#define TCG_CT_CONST_MULI  0x0800
-#define TCG_CT_CONST_ORI   0x2000
-#define TCG_CT_CONST_XORI  0x4000
-#define TCG_CT_CONST_CMPI  0x8000
+#define TCG_CT_CONST_MULI  0x100
+#define TCG_CT_CONST_ORI   0x200
+#define TCG_CT_CONST_XORI  0x400
+#define TCG_CT_CONST_CMPI  0x800
 
 /* Several places within the instruction set 0 means "no register"
    rather than TCG_REG_R0.  */
@@ -407,9 +406,6 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_clear(ct->u.regs);
         tcg_regset_set_reg(ct->u.regs, TCG_REG_R3);
         break;
-    case 'W':                  /* force 32-bit ("word") immediate */
-        ct->ct |= TCG_CT_CONST_32;
-        break;
     case 'K':
         ct->ct |= TCG_CT_CONST_MULI;
         break;
@@ -437,10 +433,10 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
    can load efficiently, and the immediate load plus the reg-reg OR is
    smaller than the sequential OI's.  */
 
-static int tcg_match_ori(int ct, tcg_target_long val)
+static int tcg_match_ori(TCGType type, tcg_target_long val)
 {
     if (facilities & FACILITY_EXT_IMM) {
-        if (ct & TCG_CT_CONST_32) {
+        if (type == TCG_TYPE_I32) {
             /* All 32-bit ORs can be performed with 1 48-bit insn.  */
             return 1;
         }
@@ -466,13 +462,13 @@ static int tcg_match_ori(int ct, tcg_target_long val)
    extended-immediate facility.  That said, there are a few patterns for
    which it is better to load the value into a register first.  */
 
-static int tcg_match_xori(int ct, tcg_target_long val)
+static int tcg_match_xori(TCGType type, tcg_target_long val)
 {
     if ((facilities & FACILITY_EXT_IMM) == 0) {
         return 0;
     }
 
-    if (ct & TCG_CT_CONST_32) {
+    if (type == TCG_TYPE_I32) {
         /* All 32-bit XORs can be performed with 1 48-bit insn.  */
         return 1;
     }
@@ -487,11 +483,11 @@ static int tcg_match_xori(int ct, tcg_target_long val)
 
 /* Imediates to be used with comparisons.  */
 
-static int tcg_match_cmpi(int ct, tcg_target_long val)
+static int tcg_match_cmpi(TCGType type, tcg_target_long val)
 {
     if (facilities & FACILITY_EXT_IMM) {
         /* The COMPARE IMMEDIATE instruction is available.  */
-        if (ct & TCG_CT_CONST_32) {
+        if (type == TCG_TYPE_I32) {
             /* We have a 32-bit immediate and can compare against anything.  */
             return 1;
         } else {
@@ -524,8 +520,7 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
         return 1;
     }
 
-    /* Handle the modifiers.  */
-    if (ct & TCG_CT_CONST_32) {
+    if (type == TCG_TYPE_I32) {
         val = (int32_t)val;
     }
 
@@ -541,11 +536,11 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
             return val == (int16_t)val;
         }
     } else if (ct & TCG_CT_CONST_ORI) {
-        return tcg_match_ori(ct, val);
+        return tcg_match_ori(type, val);
     } else if (ct & TCG_CT_CONST_XORI) {
-        return tcg_match_xori(ct, val);
+        return tcg_match_xori(type, val);
     } else if (ct & TCG_CT_CONST_CMPI) {
-        return tcg_match_cmpi(ct, val);
+        return tcg_match_cmpi(type, val);
     }
 
     return 0;
@@ -2112,8 +2107,8 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_divu2_i32, { "b", "a", "0", "1", "r" } },
 
     { INDEX_op_and_i32, { "r", "0", "ri" } },
-    { INDEX_op_or_i32, { "r", "0", "rWO" } },
-    { INDEX_op_xor_i32, { "r", "0", "rWX" } },
+    { INDEX_op_or_i32, { "r", "0", "rO" } },
+    { INDEX_op_xor_i32, { "r", "0", "rX" } },
 
     { INDEX_op_neg_i32, { "r", "r" } },
 
@@ -2135,9 +2130,9 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_add2_i32, { "r", "r", "0", "1", "r", "r" } },
     { INDEX_op_sub2_i32, { "r", "r", "0", "1", "r", "r" } },
 
-    { INDEX_op_brcond_i32, { "r", "rWC" } },
-    { INDEX_op_setcond_i32, { "r", "r", "rWC" } },
-    { INDEX_op_movcond_i32, { "r", "r", "rWC", "r", "0" } },
+    { INDEX_op_brcond_i32, { "r", "rC" } },
+    { INDEX_op_setcond_i32, { "r", "r", "rC" } },
+    { INDEX_op_movcond_i32, { "r", "r", "rC", "r", "0" } },
     { INDEX_op_deposit_i32, { "r", "0", "r" } },
 
     { INDEX_op_qemu_ld8u, { "r", "L" } },
