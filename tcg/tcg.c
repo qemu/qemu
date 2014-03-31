@@ -1260,7 +1260,7 @@ void tcg_op_remove(TCGContext *s, TCGOp *op)
         s->gen_first_op_idx = next;
     }
 
-    *op = (TCGOp){ .opc = INDEX_op_nop, .next = -1, .prev = -1 };
+    memset(op, -1, sizeof(*op));
 
 #ifdef CONFIG_PROFILER
     s->del_op_count++;
@@ -1385,8 +1385,6 @@ static void tcg_liveness_analysis(TCGContext *s)
             }
             break;
         case INDEX_op_debug_insn_start:
-        case INDEX_op_nop:
-        case INDEX_op_end:
             break;
         case INDEX_op_discard:
             /* mark the temporary as dead */
@@ -2244,7 +2242,7 @@ void tcg_dump_op_count(FILE *f, fprintf_function cpu_fprintf)
 {
     int i;
 
-    for(i = INDEX_op_end; i < NB_OPS; i++) {
+    for (i = 0; i < NB_OPS; i++) {
         cpu_fprintf(f, "%s %" PRId64 "\n", tcg_op_defs[i].name,
                     tcg_table_op_count[i]);
     }
@@ -2328,7 +2326,6 @@ static inline int tcg_gen_code_common(TCGContext *s,
             tcg_reg_alloc_movi(s, args, dead_args, sync_args);
             break;
         case INDEX_op_debug_insn_start:
-        case INDEX_op_nop:
             break;
         case INDEX_op_discard:
             temp_dead(s, args[0]);

@@ -27,15 +27,6 @@
  */
 
 /* predefined ops */
-DEF(end, 0, 0, 0, TCG_OPF_NOT_PRESENT) /* must be kept first */
-DEF(nop, 0, 0, 0, TCG_OPF_NOT_PRESENT)
-DEF(nop1, 0, 0, 1, TCG_OPF_NOT_PRESENT)
-DEF(nop2, 0, 0, 2, TCG_OPF_NOT_PRESENT)
-DEF(nop3, 0, 0, 3, TCG_OPF_NOT_PRESENT)
-
-/* variable number of parameters */
-DEF(nopn, 0, 0, 1, TCG_OPF_NOT_PRESENT)
-
 DEF(discard, 1, 0, 0, TCG_OPF_NOT_PRESENT)
 DEF(set_label, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_NOT_PRESENT)
 
