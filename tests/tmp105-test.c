@@ -15,10 +15,10 @@
 
 #define OMAP2_I2C_1_BASE 0x48070000
 
-#define N8X0_ADDR 0x48
+#define TMP105_TEST_ID   "tmp105-test"
+#define TMP105_TEST_ADDR 0x49
 
 static I2CAdapter *i2c;
-static uint8_t addr;
 
 static uint16_t tmp105_get16(I2CAdapter *i2c, uint8_t addr, uint8_t reg)
 {
@@ -61,14 +61,14 @@ static void send_and_receive(void)
 {
     uint16_t value;
 
-    value = tmp105_get16(i2c, addr, TMP105_REG_TEMPERATURE);
+    value = tmp105_get16(i2c, TMP105_TEST_ADDR, TMP105_REG_TEMPERATURE);
     g_assert_cmpuint(value, ==, 0);
 
     /* reset */
-    tmp105_set8(i2c, addr, TMP105_REG_CONFIG, 0);
+    tmp105_set8(i2c, TMP105_TEST_ADDR, TMP105_REG_CONFIG, 0);
 
-    tmp105_set16(i2c, addr, TMP105_REG_T_LOW, 0x1234);
-    tmp105_set16(i2c, addr, TMP105_REG_T_HIGH, 0x4231);
+    tmp105_set16(i2c, TMP105_TEST_ADDR, TMP105_REG_T_LOW, 0x1234);
+    tmp105_set16(i2c, TMP105_TEST_ADDR, TMP105_REG_T_HIGH, 0x4231);
 }
 
 int main(int argc, char **argv)
@@ -78,9 +78,10 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
-    s = qtest_start("-machine n800");
+    s = qtest_start("-machine n800 "
+                    "-device tmp105,bus=i2c-bus.0,id=" TMP105_TEST_ID
+                    ",address=0x49");
     i2c = omap_i2c_create(OMAP2_I2C_1_BASE);
-    addr = N8X0_ADDR;
 
     qtest_add_func("/tmp105/tx-rx", send_and_receive);
 
