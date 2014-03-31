@@ -83,6 +83,14 @@ void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap);
 QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
 
 /**
+ * qtest_receive:
+ * @s: #QTestState instance to operate on.
+ *
+ * Reads a QMP message from QEMU and returns the response.
+ */
+QDict *qtest_qmp_receive(QTestState *s);
+
+/**
  * qtest_get_irq:
  * @s: #QTestState instance to operate on.
  * @num: Interrupt to observe.
@@ -335,7 +343,8 @@ void qtest_add_func(const char *str, void (*fn));
  */
 static inline QTestState *qtest_start(const char *args)
 {
-    return qtest_init(args);
+    global_qtest = qtest_init(args);
+    return global_qtest;
 }
 
 /**
@@ -346,6 +355,7 @@ static inline QTestState *qtest_start(const char *args)
 static inline void qtest_end(void)
 {
     qtest_quit(global_qtest);
+    global_qtest = NULL;
 }
 
 /**
@@ -363,6 +373,16 @@ QDict *qmp(const char *fmt, ...);
  * Sends a QMP message to QEMU and consumes the response.
  */
 void qmp_discard_response(const char *fmt, ...);
+
+/**
+ * qmp_receive:
+ *
+ * Reads a QMP message from QEMU and returns the response.
+ */
+static inline QDict *qmp_receive(void)
+{
+    return qtest_qmp_receive(global_qtest);
+}
 
 /**
  * get_irq:

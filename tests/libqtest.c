@@ -48,6 +48,9 @@ struct QTestState
     struct sigaction sigact_old; /* restored on exit */
 };
 
+static GList *qtest_instances;
+static struct sigaction sigact_old;
+
 #define g_assert_no_errno(ret) do { \
     g_assert_cmpint(ret, !=, -1); \
 } while (0)
@@ -104,7 +107,28 @@ static void kill_qemu(QTestState *s)
 
 static void sigabrt_handler(int signo)
 {
-    kill_qemu(global_qtest);
+    GList *elem;
+    for (elem = qtest_instances; elem; elem = elem->next) {
+        kill_qemu(elem->data);
+    }
+}
+
+static void setup_sigabrt_handler(void)
+{
+    struct sigaction sigact;
+
+    /* Catch SIGABRT to clean up on g_assert() failure */
+    sigact = (struct sigaction){
+        .sa_handler = sigabrt_handler,
+        .sa_flags = SA_RESETHAND,
+    };
+    sigemptyset(&sigact.sa_mask);
+    sigaction(SIGABRT, &sigact, &sigact_old);
+}
+
+static void cleanup_sigabrt_handler(void)
+{
+    sigaction(SIGABRT, &sigact_old, NULL);
 }
 
 QTestState *qtest_init(const char *extra_args)
@@ -115,12 +139,11 @@ QTestState *qtest_init(const char *extra_args)
     gchar *qmp_socket_path;
     gchar *command;
     const char *qemu_binary;
-    struct sigaction sigact;
 
     qemu_binary = getenv("QTEST_QEMU_BINARY");
     g_assert(qemu_binary != NULL);
 
-    global_qtest = s = g_malloc(sizeof(*s));
+    s = g_malloc(sizeof(*s));
 
     socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
     qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
@@ -128,13 +151,12 @@ QTestState *qtest_init(const char *extra_args)
     sock = init_socket(socket_path);
     qmpsock = init_socket(qmp_socket_path);
 
-    /* Catch SIGABRT to clean up on g_assert() failure */
-    sigact = (struct sigaction){
-        .sa_handler = sigabrt_handler,
-        .sa_flags = SA_RESETHAND,
-    };
-    sigemptyset(&sigact.sa_mask);
-    sigaction(SIGABRT, &sigact, &s->sigact_old);
+    /* Only install SIGABRT handler once */
+    if (!qtest_instances) {
+        setup_sigabrt_handler();
+    }
+
+    qtest_instances = g_list_prepend(qtest_instances, s);
 
     s->qemu_pid = fork();
     if (s->qemu_pid == 0) {
@@ -180,8 +202,12 @@ QTestState *qtest_init(const char *extra_args)
 
 void qtest_quit(QTestState *s)
 {
-    sigaction(SIGABRT, &s->sigact_old, NULL);
-    global_qtest = NULL;
+    /* Uninstall SIGABRT handler on last instance */
+    if (qtest_instances && !qtest_instances->next) {
+        cleanup_sigabrt_handler();
+    }
+
+    qtest_instances = g_list_remove(qtest_instances, s);
 
     kill_qemu(s);
     close(s->fd);
@@ -319,14 +345,10 @@ static void qmp_response(JSONMessageParser *parser, QList *tokens)
     qmp->response = (QDict *)obj;
 }
 
-QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
+QDict *qtest_qmp_receive(QTestState *s)
 {
     QMPResponseParser qmp;
 
-    /* Send QMP request */
-    socket_sendf(s->qmp_fd, fmt, ap);
-
-    /* Receive reply */
     qmp.response = NULL;
     json_message_parser_init(&qmp.parser, qmp_response);
     while (!qmp.response) {
@@ -348,6 +370,15 @@ QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
     json_message_parser_destroy(&qmp.parser);
 
     return qmp.response;
+}
+
+QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
+{
+    /* Send QMP request */
+    socket_sendf(s->qmp_fd, fmt, ap);
+
+    /* Receive reply */
+    return qtest_qmp_receive(s);
 }
 
 QDict *qtest_qmp(QTestState *s, const char *fmt, ...)

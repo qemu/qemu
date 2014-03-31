@@ -35,7 +35,7 @@ check-unit-y += tests/test-visitor-serialization$(EXESUF)
 check-unit-y += tests/test-iov$(EXESUF)
 gcov-files-test-iov-y = util/iov.c
 check-unit-y += tests/test-aio$(EXESUF)
-check-unit-y += tests/test-rfifolock$(EXESUF)
+check-unit-$(CONFIG_POSIX) += tests/test-rfifolock$(EXESUF)
 check-unit-y += tests/test-throttle$(EXESUF)
 gcov-files-test-aio-$(CONFIG_WIN32) = aio-win32.c
 gcov-files-test-aio-$(CONFIG_POSIX) = aio-posix.c
@@ -59,7 +59,7 @@ check-unit-y += tests/test-bitops$(EXESUF)
 check-unit-y += tests/test-qdev-global-props$(EXESUF)
 check-unit-y += tests/check-qom-interface$(EXESUF)
 gcov-files-check-qom-interface-y = qom/object.c
-check-unit-y += tests/test-vmstate$(EXESUF)
+check-unit-$(CONFIG_POSIX) += tests/test-vmstate$(EXESUF)
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -84,6 +84,11 @@ check-qtest-virtio-y += tests/virtio-rng-test$(EXESUF)
 gcov-files-virtio-y += hw/virtio/virtio-rng.c
 check-qtest-virtio-y += tests/virtio-scsi-test$(EXESUF)
 gcov-files-virtio-y += i386-softmmu/hw/scsi/virtio-scsi.c
+ifeq ($(CONFIG_VIRTIO)$(CONFIG_VIRTFS)$(CONFIG_PCI),yyy)
+check-qtest-virtio-y += tests/virtio-9p-test$(EXESUF)
+gcov-files-virtio-y += hw/9pfs/virtio-9p.c
+gcov-files-virtio-y += i386-softmmu/hw/9pfs/virtio-9p-device.c
+endif
 check-qtest-virtio-y += tests/virtio-serial-test$(EXESUF)
 gcov-files-virtio-y += i386-softmmu/hw/char/virtio-serial-bus.c
 check-qtest-virtio-y += $(check-qtest-virtioserial-y)
@@ -100,6 +105,8 @@ check-qtest-pci-y += tests/eepro100-test$(EXESUF)
 gcov-files-pci-y += hw/net/eepro100.c
 check-qtest-pci-y += tests/ne2000-test$(EXESUF)
 gcov-files-pci-y += hw/net/ne2000.c
+check-qtest-pci-y += tests/nvme-test$(EXESUF)
+gcov-files-pci-y += hw/block/nvme.c
 check-qtest-pci-y += $(check-qtest-virtio-y)
 gcov-files-pci-y += $(gcov-files-virtio-y) hw/virtio/virtio-pci.c
 check-qtest-pci-y += tests/tpci200-test$(EXESUF)
@@ -126,6 +133,10 @@ check-qtest-i386-y += tests/vmxnet3-test$(EXESUF)
 gcov-files-i386-y += hw/net/vmxnet3.c
 gcov-files-i386-y += hw/net/vmxnet_rx_pkt.c
 gcov-files-i386-y += hw/net/vmxnet_tx_pkt.c
+check-qtest-i386-y += tests/pvpanic-test$(EXESUF)
+gcov-files-i386-y += i386-softmmu/hw/misc/pvpanic.c
+check-qtest-i386-y += tests/i82801b11-test$(EXESUF)
+gcov-files-i386-y += hw/pci-bridge/i82801b11.c
 check-qtest-x86_64-y = $(check-qtest-i386-y)
 gcov-files-i386-y += i386-softmmu/hw/timer/mc146818rtc.c
 gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y))
@@ -265,6 +276,7 @@ tests/virtio-blk-test$(EXESUF): tests/virtio-blk-test.o
 tests/virtio-net-test$(EXESUF): tests/virtio-net-test.o
 tests/virtio-rng-test$(EXESUF): tests/virtio-rng-test.o
 tests/virtio-scsi-test$(EXESUF): tests/virtio-scsi-test.o
+tests/virtio-9p-test$(EXESUF): tests/virtio-9p-test.o
 tests/virtio-serial-test$(EXESUF): tests/virtio-serial-test.o
 tests/virtio-console-test$(EXESUF): tests/virtio-console-test.o
 tests/tpci200-test$(EXESUF): tests/tpci200-test.o
@@ -272,13 +284,18 @@ tests/ipoctal232-test$(EXESUF): tests/ipoctal232-test.o
 tests/qom-test$(EXESUF): tests/qom-test.o
 tests/blockdev-test$(EXESUF): tests/blockdev-test.o $(libqos-pc-obj-y)
 tests/qdev-monitor-test$(EXESUF): tests/qdev-monitor-test.o $(libqos-pc-obj-y)
+tests/nvme-test$(EXESUF): tests/nvme-test.o
+tests/pvpanic-test$(EXESUF): tests/pvpanic-test.o
+tests/i82801b11-test$(EXESUF): tests/i82801b11-test.o
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
 
 # QTest rules
 
 TARGETS=$(patsubst %-softmmu,%, $(filter %-softmmu,$(TARGET_DIRS)))
+ifeq ($(CONFIG_POSIX),y)
 QTEST_TARGETS=$(foreach TARGET,$(TARGETS), $(if $(check-qtest-$(TARGET)-y), $(TARGET),))
-check-qtest-$(CONFIG_POSIX)=$(foreach TARGET,$(TARGETS), $(check-qtest-$(TARGET)-y))
+check-qtest-y=$(foreach TARGET,$(TARGETS), $(check-qtest-$(TARGET)-y))
+endif
 
 qtest-obj-y = tests/libqtest.o libqemuutil.a libqemustub.a
 $(check-qtest-y): $(qtest-obj-y)
