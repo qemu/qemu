@@ -1217,8 +1217,8 @@ Advanced options (experts only):
   --enable-modules         enable modules support
   --enable-debug-tcg       enable TCG debugging
   --disable-debug-tcg      disable TCG debugging (default)
-  --enable-debug-info       enable debugging information (default)
-  --disable-debug-info      disable debugging information
+  --enable-debug-info      enable debugging information (default)
+  --disable-debug-info     disable debugging information
   --enable-debug           enable common debug build options
   --enable-sparse          enable sparse checker
   --disable-sparse         disable sparse checker (default)
