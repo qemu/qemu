@@ -102,11 +102,10 @@ static inline void patch_reloc(uint8_t *code_ptr, int type,
     }
 }
 
-#define TCG_CT_CONST_IS32 0x100
-#define TCG_CT_CONST_AIMM 0x200
-#define TCG_CT_CONST_LIMM 0x400
-#define TCG_CT_CONST_ZERO 0x800
-#define TCG_CT_CONST_MONE 0x1000
+#define TCG_CT_CONST_AIMM 0x100
+#define TCG_CT_CONST_LIMM 0x200
+#define TCG_CT_CONST_ZERO 0x400
+#define TCG_CT_CONST_MONE 0x800
 
 /* parse target specific constraints */
 static int target_parse_constraint(TCGArgConstraint *ct,
@@ -130,9 +129,6 @@ static int target_parse_constraint(TCGArgConstraint *ct,
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_X2);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_X3);
 #endif
-        break;
-    case 'w': /* The operand should be considered 32-bit.  */
-        ct->ct |= TCG_CT_CONST_IS32;
         break;
     case 'A': /* Valid for arithmetic immediate (positive or negative).  */
         ct->ct |= TCG_CT_CONST_AIMM;
@@ -188,7 +184,7 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
     if (ct & TCG_CT_CONST) {
         return 1;
     }
-    if (ct & TCG_CT_CONST_IS32) {
+    if (type == TCG_TYPE_I32) {
         val = (int32_t)val;
     }
     if ((ct & TCG_CT_CONST_AIMM) && (is_aimm(val) || is_aimm(-val))) {
@@ -1663,9 +1659,9 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_st32_i64, { "rZ", "r" } },
     { INDEX_op_st_i64, { "rZ", "r" } },
 
-    { INDEX_op_add_i32, { "r", "r", "rwA" } },
+    { INDEX_op_add_i32, { "r", "r", "rA" } },
     { INDEX_op_add_i64, { "r", "r", "rA" } },
-    { INDEX_op_sub_i32, { "r", "r", "rwA" } },
+    { INDEX_op_sub_i32, { "r", "r", "rA" } },
     { INDEX_op_sub_i64, { "r", "r", "rA" } },
     { INDEX_op_mul_i32, { "r", "r", "r" } },
     { INDEX_op_mul_i64, { "r", "r", "r" } },
@@ -1677,17 +1673,17 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_rem_i64, { "r", "r", "r" } },
     { INDEX_op_remu_i32, { "r", "r", "r" } },
     { INDEX_op_remu_i64, { "r", "r", "r" } },
-    { INDEX_op_and_i32, { "r", "r", "rwL" } },
+    { INDEX_op_and_i32, { "r", "r", "rL" } },
     { INDEX_op_and_i64, { "r", "r", "rL" } },
-    { INDEX_op_or_i32, { "r", "r", "rwL" } },
+    { INDEX_op_or_i32, { "r", "r", "rL" } },
     { INDEX_op_or_i64, { "r", "r", "rL" } },
-    { INDEX_op_xor_i32, { "r", "r", "rwL" } },
+    { INDEX_op_xor_i32, { "r", "r", "rL" } },
     { INDEX_op_xor_i64, { "r", "r", "rL" } },
-    { INDEX_op_andc_i32, { "r", "r", "rwL" } },
+    { INDEX_op_andc_i32, { "r", "r", "rL" } },
     { INDEX_op_andc_i64, { "r", "r", "rL" } },
-    { INDEX_op_orc_i32, { "r", "r", "rwL" } },
+    { INDEX_op_orc_i32, { "r", "r", "rL" } },
     { INDEX_op_orc_i64, { "r", "r", "rL" } },
-    { INDEX_op_eqv_i32, { "r", "r", "rwL" } },
+    { INDEX_op_eqv_i32, { "r", "r", "rL" } },
     { INDEX_op_eqv_i64, { "r", "r", "rL" } },
 
     { INDEX_op_neg_i32, { "r", "r" } },
@@ -1706,11 +1702,11 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_rotl_i64, { "r", "r", "ri" } },
     { INDEX_op_rotr_i64, { "r", "r", "ri" } },
 
-    { INDEX_op_brcond_i32, { "r", "rwA" } },
+    { INDEX_op_brcond_i32, { "r", "rA" } },
     { INDEX_op_brcond_i64, { "r", "rA" } },
-    { INDEX_op_setcond_i32, { "r", "r", "rwA" } },
+    { INDEX_op_setcond_i32, { "r", "r", "rA" } },
     { INDEX_op_setcond_i64, { "r", "r", "rA" } },
-    { INDEX_op_movcond_i32, { "r", "r", "rwA", "rZ", "rZ" } },
+    { INDEX_op_movcond_i32, { "r", "r", "rA", "rZ", "rZ" } },
     { INDEX_op_movcond_i64, { "r", "r", "rA", "rZ", "rZ" } },
 
     { INDEX_op_qemu_ld_i32, { "r", "l" } },
@@ -1739,9 +1735,9 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
     { INDEX_op_deposit_i64, { "r", "0", "rZ" } },
 
-    { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rwA", "rwMZ" } },
+    { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rA", "rMZ" } },
     { INDEX_op_add2_i64, { "r", "r", "rZ", "rZ", "rA", "rMZ" } },
-    { INDEX_op_sub2_i32, { "r", "r", "rZ", "rZ", "rwA", "rwMZ" } },
+    { INDEX_op_sub2_i32, { "r", "r", "rZ", "rZ", "rA", "rMZ" } },
     { INDEX_op_sub2_i64, { "r", "r", "rZ", "rZ", "rA", "rMZ" } },
 
     { INDEX_op_muluh_i64, { "r", "r", "r" } },
