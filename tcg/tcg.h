@@ -724,6 +724,51 @@ TCGv_i32 tcg_const_local_i32(int32_t val);
 TCGv_i64 tcg_const_local_i64(int64_t val);
 
 /**
+ * tcg_ptr_byte_diff
+ * @a, @b: addresses to be differenced
+ *
+ * There are many places within the TCG backends where we need a byte
+ * difference between two pointers.  While this can be accomplished
+ * with local casting, it's easy to get wrong -- especially if one is
+ * concerned with the signedness of the result.
+ *
+ * This version relies on GCC's void pointer arithmetic to get the
+ * correct result.
+ */
+
+static inline ptrdiff_t tcg_ptr_byte_diff(void *a, void *b)
+{
+    return a - b;
+}
+
+/**
+ * tcg_pcrel_diff
+ * @s: the tcg context
+ * @target: address of the target
+ *
+ * Produce a pc-relative difference, from the current code_ptr
+ * to the destination address.
+ */
+
+static inline ptrdiff_t tcg_pcrel_diff(TCGContext *s, void *target)
+{
+    return tcg_ptr_byte_diff(target, s->code_ptr);
+}
+
+/**
+ * tcg_current_code_size
+ * @s: the tcg context
+ *
+ * Compute the current code size within the translation block.
+ * This is used to fill in qemu's data structures for goto_tb.
+ */
+
+static inline size_t tcg_current_code_size(TCGContext *s)
+{
+    return tcg_ptr_byte_diff(s->code_ptr, s->code_buf);
+}
+
+/**
  * tcg_qemu_tb_exec:
  * @env: CPUArchState * for the CPU
  * @tb_ptr: address of generated code for the TB to execute
