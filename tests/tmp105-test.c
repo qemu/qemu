@@ -20,6 +20,14 @@
 
 static I2CAdapter *i2c;
 
+static uint16_t tmp105_get8(I2CAdapter *i2c, uint8_t addr, uint8_t reg)
+{
+    uint8_t resp[1];
+    i2c_send(i2c, addr, &reg, 1);
+    i2c_recv(i2c, addr, resp, 1);
+    return resp[0];
+}
+
 static uint16_t tmp105_get16(I2CAdapter *i2c, uint8_t addr, uint8_t reg)
 {
     uint8_t resp[2];
@@ -56,16 +64,81 @@ static void tmp105_set16(I2CAdapter *i2c, uint8_t addr, uint8_t reg,
     g_assert_cmphex(resp[1], ==, cmd[2]);
 }
 
+static int qmp_tmp105_get_temperature(const char *id)
+{
+    QDict *response;
+    int ret;
 
+    response = qmp("{ 'execute': 'qom-get', 'arguments': { 'path': '%s', "
+                   "'property': 'temperature' } }", id);
+    g_assert(qdict_haskey(response, "return"));
+    ret = qdict_get_int(response, "return");
+    QDECREF(response);
+    return ret;
+}
+
+static void qmp_tmp105_set_temperature(const char *id, int value)
+{
+    QDict *response;
+
+    response = qmp("{ 'execute': 'qom-set', 'arguments': { 'path': '%s', "
+                   "'property': 'temperature', 'value': %d } }", id, value);
+    g_assert(qdict_haskey(response, "return"));
+    QDECREF(response);
+}
+
+#define TMP105_PRECISION (1000/16)
 static void send_and_receive(void)
 {
     uint16_t value;
 
-    value = tmp105_get16(i2c, TMP105_TEST_ADDR, TMP105_REG_TEMPERATURE);
+    value = qmp_tmp105_get_temperature(TMP105_TEST_ID);
     g_assert_cmpuint(value, ==, 0);
 
-    /* reset */
-    tmp105_set8(i2c, TMP105_TEST_ADDR, TMP105_REG_CONFIG, 0);
+    value = tmp105_get16(i2c, TMP105_TEST_ADDR, TMP105_REG_TEMPERATURE);
+    g_assert_cmphex(value, ==, 0);
+
+    qmp_tmp105_set_temperature(TMP105_TEST_ID, 20000);
+    value = qmp_tmp105_get_temperature(TMP105_TEST_ID);
+    g_assert_cmpuint(value, ==, 20000);
+
+    value = tmp105_get16(i2c, TMP105_TEST_ADDR, TMP105_REG_TEMPERATURE);
+    g_assert_cmphex(value, ==, 0x1400);
+
+    qmp_tmp105_set_temperature(TMP105_TEST_ID, 20938); /* 20 + 15/16 */
+    value = qmp_tmp105_get_temperature(TMP105_TEST_ID);
+    g_assert_cmpuint(value, >=, 20938 - TMP105_PRECISION/2);
+    g_assert_cmpuint(value, <, 20938 + TMP105_PRECISION/2);
+
+    /* Set config */
+    tmp105_set8(i2c, TMP105_TEST_ADDR, TMP105_REG_CONFIG, 0x60);
+    value = tmp105_get8(i2c, TMP105_TEST_ADDR, TMP105_REG_CONFIG);
+    g_assert_cmphex(value, ==, 0x60);
+
+    value = tmp105_get16(i2c, TMP105_TEST_ADDR, TMP105_REG_TEMPERATURE);
+    g_assert_cmphex(value, ==, 0x14f0);
+
+    /* Set precision to 9, 10, 11 bits.  */
+    tmp105_set8(i2c, TMP105_TEST_ADDR, TMP105_REG_CONFIG, 0x00);
+    value = tmp105_get16(i2c, TMP105_TEST_ADDR, TMP105_REG_TEMPERATURE);
+    g_assert_cmphex(value, ==, 0x1480);
+
+    tmp105_set8(i2c, TMP105_TEST_ADDR, TMP105_REG_CONFIG, 0x20);
+    value = tmp105_get16(i2c, TMP105_TEST_ADDR, TMP105_REG_TEMPERATURE);
+    g_assert_cmphex(value, ==, 0x14c0);
+
+    tmp105_set8(i2c, TMP105_TEST_ADDR, TMP105_REG_CONFIG, 0x40);
+    value = tmp105_get16(i2c, TMP105_TEST_ADDR, TMP105_REG_TEMPERATURE);
+    g_assert_cmphex(value, ==, 0x14e0);
+
+    /* stored precision remains the same */
+    value = qmp_tmp105_get_temperature(TMP105_TEST_ID);
+    g_assert_cmpuint(value, >=, 20938 - TMP105_PRECISION/2);
+    g_assert_cmpuint(value, <, 20938 + TMP105_PRECISION/2);
+
+    tmp105_set8(i2c, TMP105_TEST_ADDR, TMP105_REG_CONFIG, 0x60);
+    value = tmp105_get16(i2c, TMP105_TEST_ADDR, TMP105_REG_TEMPERATURE);
+    g_assert_cmphex(value, ==, 0x14f0);
 
     tmp105_set16(i2c, TMP105_TEST_ADDR, TMP105_REG_T_LOW, 0x1234);
     tmp105_set16(i2c, TMP105_TEST_ADDR, TMP105_REG_T_HIGH, 0x4231);
