@@ -1782,6 +1782,14 @@ typedef union _ppc_vsr_t {
     float64 f64[2];
 } ppc_vsr_t;
 
+#if defined(HOST_WORDS_BIGENDIAN)
+#define VsrW(i) u32[i]
+#define VsrD(i) u64[i]
+#else
+#define VsrW(i) u32[3-(i)]
+#define VsrD(i) u64[1-(i)]
+#endif
+
 static void getVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
 {
     if (n < 32) {
