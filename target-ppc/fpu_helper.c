@@ -2360,10 +2360,10 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                      \
     getVSR(xA(opcode), &xa, env);                                        \
     getVSR(xB(opcode), &xb, env);                                        \
                                                                          \
-    if (unlikely(float64_is_any_nan(xa.f64[0]) ||                        \
-                 float64_is_any_nan(xb.f64[0]))) {                       \
-        if (float64_is_signaling_nan(xa.f64[0]) ||                       \
-            float64_is_signaling_nan(xb.f64[0])) {                       \
+    if (unlikely(float64_is_any_nan(xa.VsrD(0)) ||                       \
+                 float64_is_any_nan(xb.VsrD(0)))) {                      \
+        if (float64_is_signaling_nan(xa.VsrD(0)) ||                      \
+            float64_is_signaling_nan(xb.VsrD(0))) {                      \
             fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);       \
         }                                                                \
         if (ordered) {                                                   \
@@ -2371,9 +2371,10 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                      \
         }                                                                \
         cc = 1;                                                          \
     } else {                                                             \
-        if (float64_lt(xa.f64[0], xb.f64[0], &env->fp_status)) {         \
+        if (float64_lt(xa.VsrD(0), xb.VsrD(0), &env->fp_status)) {       \
             cc = 8;                                                      \
-        } else if (!float64_le(xa.f64[0], xb.f64[0], &env->fp_status)) { \
+        } else if (!float64_le(xa.VsrD(0), xb.VsrD(0),                   \
+                               &env->fp_status)) { \
             cc = 4;                                                      \
         } else {                                                         \
             cc = 2;                                                      \
