@@ -24,6 +24,8 @@
 #ifndef TCG_TARGET_I386 
 #define TCG_TARGET_I386 1
 
+#define TCG_TARGET_INSN_UNIT_SIZE  1
+
 #ifdef __x86_64__
 # define TCG_TARGET_REG_BITS  64
 # define TCG_TARGET_NB_REGS   16
