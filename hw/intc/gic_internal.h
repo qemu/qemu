@@ -82,6 +82,7 @@ typedef struct GICState {
     uint16_t last_active[GIC_MAXIRQ][NCPU];
 
     uint16_t priority_mask[NCPU];
+    uint16_t binary_point;
     uint16_t running_irq[NCPU];
     uint16_t running_priority[NCPU];
     uint16_t current_pending[NCPU];
