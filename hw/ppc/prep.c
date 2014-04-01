@@ -382,7 +382,6 @@ static void ppc_prep_init(MachineState *machine)
 #endif
     int linux_boot, i, nb_nics1;
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    MemoryRegion *vga = g_new(MemoryRegion, 1);
     uint32_t kernel_base, initrd_base;
     long kernel_size, initrd_size;
     DeviceState *dev;
@@ -508,14 +507,6 @@ static void ppc_prep_init(MachineState *machine)
 
     /* init basic PC hardware */
     pci_vga_init(pci_bus);
-    /* Open Hack'Ware hack: PCI BAR#0 is programmed to 0xf0000000.
-     * While bios will access framebuffer at 0xf0000000, real physical
-     * address is 0xf0000000 + 0xc0000000 (PCI memory base).
-     * Alias the wrong memory accesses to the right place.
-     */
-    memory_region_init_alias(vga, NULL, "vga-alias", pci_address_space(pci),
-                             0xf0000000, 0x1000000);
-    memory_region_add_subregion_overlap(sysmem, 0xf0000000, vga, 10);
 
     nb_nics1 = nb_nics;
     if (nb_nics1 > NE2000_NB_MAX)
