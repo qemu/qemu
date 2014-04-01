@@ -278,7 +278,7 @@ static void sdl_hide_cursor(void)
         SDL_ShowCursor(1);
         SDL_SetCursor(sdl_cursor_hidden);
     } else {
-        SDL_ShowCursor(0);
+        SDL_SetRelativeMouseMode(SDL_TRUE);
     }
 }
 
@@ -289,6 +289,7 @@ static void sdl_show_cursor(void)
     }
 
     if (!qemu_input_is_absolute()) {
+        SDL_SetRelativeMouseMode(SDL_FALSE);
         SDL_ShowCursor(1);
         if (guest_cursor &&
             (gui_grab || qemu_input_is_absolute() || absolute_enabled)) {
