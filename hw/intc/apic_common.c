@@ -117,7 +117,12 @@ void apic_report_irq_delivered(int delivered)
 
 void apic_reset_irq_delivered(void)
 {
-    trace_apic_reset_irq_delivered(apic_irq_delivered);
+    /* Copy this into a local variable to encourage gcc to emit a plain
+     * register for a sys/sdt.h marker.  For details on this workaround, see:
+     * https://sourceware.org/bugzilla/show_bug.cgi?id=13296
+     */
+    volatile int a_i_d = apic_irq_delivered;
+    trace_apic_reset_irq_delivered(a_i_d);
 
     apic_irq_delivered = 0;
 }
