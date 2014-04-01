@@ -39,56 +39,41 @@
 // not allocated: 0xffffffff
 
 // always little-endian
-struct bochs_header_v1 {
-    char magic[32]; // "Bochs Virtual HD Image"
-    char type[16]; // "Redolog"
-    char subtype[16]; // "Undoable" / "Volatile" / "Growing"
-    uint32_t version;
-    uint32_t header; // size of header
-
-    union {
-	struct {
-	    uint32_t catalog; // num of entries
-	    uint32_t bitmap; // bitmap size
-	    uint32_t extent; // extent size
-	    uint64_t disk; // disk size
-	    char padding[HEADER_SIZE - 64 - 8 - 20];
-	} redolog;
-	char padding[HEADER_SIZE - 64 - 8];
-    } extra;
-};
-
-// always little-endian
 struct bochs_header {
-    char magic[32]; // "Bochs Virtual HD Image"
-    char type[16]; // "Redolog"
-    char subtype[16]; // "Undoable" / "Volatile" / "Growing"
+    char magic[32];     /* "Bochs Virtual HD Image" */
+    char type[16];      /* "Redolog" */
+    char subtype[16];   /* "Undoable" / "Volatile" / "Growing" */
     uint32_t version;
-    uint32_t header; // size of header
+    uint32_t header;    /* size of header */
+
+    uint32_t catalog;   /* num of entries */
+    uint32_t bitmap;    /* bitmap size */
+    uint32_t extent;    /* extent size */
 
     union {
-	struct {
-	    uint32_t catalog; // num of entries
-	    uint32_t bitmap; // bitmap size
-	    uint32_t extent; // extent size
-	    uint32_t reserved; // for ???
-	    uint64_t disk; // disk size
-	    char padding[HEADER_SIZE - 64 - 8 - 24];
-	} redolog;
-	char padding[HEADER_SIZE - 64 - 8];
+        struct {
+            uint32_t reserved;  /* for ??? */
+            uint64_t disk;      /* disk size */
+            char padding[HEADER_SIZE - 64 - 20 - 12];
+        } QEMU_PACKED redolog;
+        struct {
+            uint64_t disk;      /* disk size */
+            char padding[HEADER_SIZE - 64 - 20 - 8];
+        } QEMU_PACKED redolog_v1;
+        char padding[HEADER_SIZE - 64 - 20];
     } extra;
-};
+} QEMU_PACKED;
 
 typedef struct BDRVBochsState {
     CoMutex lock;
     uint32_t *catalog_bitmap;
-    int catalog_size;
+    uint32_t catalog_size;
 
-    int data_offset;
+    uint32_t data_offset;
 
-    int bitmap_blocks;
-    int extent_blocks;
-    int extent_size;
+    uint32_t bitmap_blocks;
+    uint32_t extent_blocks;
+    uint32_t extent_size;
 } BDRVBochsState;
 
 static int bochs_probe(const uint8_t *buf, int buf_size, const char *filename)
@@ -112,9 +97,8 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
     BDRVBochsState *s = bs->opaque;
-    int i;
+    uint32_t i;
     struct bochs_header bochs;
-    struct bochs_header_v1 header_v1;
     int ret;
 
     bs->read_only = 1; // no write support yet
@@ -134,13 +118,19 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (le32_to_cpu(bochs.version) == HEADER_V1) {
-      memcpy(&header_v1, &bochs, sizeof(bochs));
-      bs->total_sectors = le64_to_cpu(header_v1.extra.redolog.disk) / 512;
+        bs->total_sectors = le64_to_cpu(bochs.extra.redolog_v1.disk) / 512;
     } else {
-      bs->total_sectors = le64_to_cpu(bochs.extra.redolog.disk) / 512;
+        bs->total_sectors = le64_to_cpu(bochs.extra.redolog.disk) / 512;
     }
 
-    s->catalog_size = le32_to_cpu(bochs.extra.redolog.catalog);
+    /* Limit to 1M entries to avoid unbounded allocation. This is what is
+     * needed for the largest image that bximage can create (~8 TB). */
+    s->catalog_size = le32_to_cpu(bochs.catalog);
+    if (s->catalog_size > 0x100000) {
+        error_setg(errp, "Catalog size is too large");
+        return -EFBIG;
+    }
+
     s->catalog_bitmap = g_malloc(s->catalog_size * 4);
 
     ret = bdrv_pread(bs->file, le32_to_cpu(bochs.header), s->catalog_bitmap,
@@ -154,10 +144,24 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->data_offset = le32_to_cpu(bochs.header) + (s->catalog_size * 4);
 
-    s->bitmap_blocks = 1 + (le32_to_cpu(bochs.extra.redolog.bitmap) - 1) / 512;
-    s->extent_blocks = 1 + (le32_to_cpu(bochs.extra.redolog.extent) - 1) / 512;
+    s->bitmap_blocks = 1 + (le32_to_cpu(bochs.bitmap) - 1) / 512;
+    s->extent_blocks = 1 + (le32_to_cpu(bochs.extent) - 1) / 512;
 
-    s->extent_size = le32_to_cpu(bochs.extra.redolog.extent);
+    s->extent_size = le32_to_cpu(bochs.extent);
+    if (s->extent_size == 0) {
+        error_setg(errp, "Extent size may not be zero");
+        return -EINVAL;
+    } else if (s->extent_size > 0x800000) {
+        error_setg(errp, "Extent size %" PRIu32 " is too large",
+                   s->extent_size);
+        return -EINVAL;
+    }
+
+    if (s->catalog_size < bs->total_sectors / s->extent_size) {
+        error_setg(errp, "Catalog size is too small for this disk size");
+        ret = -EINVAL;
+        goto fail;
+    }
 
     qemu_co_mutex_init(&s->lock);
     return 0;
@@ -170,8 +174,8 @@ fail:
 static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 {
     BDRVBochsState *s = bs->opaque;
-    int64_t offset = sector_num * 512;
-    int64_t extent_index, extent_offset, bitmap_offset;
+    uint64_t offset = sector_num * 512;
+    uint64_t extent_index, extent_offset, bitmap_offset;
     char bitmap_entry;
 
     // seek to sector
@@ -182,8 +186,9 @@ static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 	return -1; /* not allocated */
     }
 
-    bitmap_offset = s->data_offset + (512 * s->catalog_bitmap[extent_index] *
-	(s->extent_blocks + s->bitmap_blocks));
+    bitmap_offset = s->data_offset +
+        (512 * (uint64_t) s->catalog_bitmap[extent_index] *
+        (s->extent_blocks + s->bitmap_blocks));
 
     /* read in bitmap for current extent */
     if (bdrv_pread(bs->file, bitmap_offset + (extent_offset / 8),

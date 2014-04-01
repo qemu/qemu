@@ -1119,6 +1119,7 @@ DLOG(if (stderr == NULL) {
         if (!s->fat_type) {
             s->fat_type = 16;
         }
+        s->first_sectors_number = 0x40;
         cyls = s->fat_type == 12 ? 64 : 1024;
         heads = 16;
         secs = 63;
@@ -1146,7 +1147,6 @@ DLOG(if (stderr == NULL) {
 
     s->current_cluster=0xffffffff;
 
-    s->first_sectors_number=0x40;
     /* read only is the default for safety */
     bs->read_only = 1;
     s->qcow = s->write_target = NULL;

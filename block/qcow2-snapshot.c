@@ -26,31 +26,6 @@
 #include "block/block_int.h"
 #include "block/qcow2.h"
 
-typedef struct QEMU_PACKED QCowSnapshotHeader {
-    /* header is 8 byte aligned */
-    uint64_t l1_table_offset;
-
-    uint32_t l1_size;
-    uint16_t id_str_size;
-    uint16_t name_size;
-
-    uint32_t date_sec;
-    uint32_t date_nsec;
-
-    uint64_t vm_clock_nsec;
-
-    uint32_t vm_state_size;
-    uint32_t extra_data_size; /* for extension */
-    /* extra data follows */
-    /* id_str follows */
-    /* name follows  */
-} QCowSnapshotHeader;
-
-typedef struct QEMU_PACKED QCowSnapshotExtraData {
-    uint64_t vm_state_size_large;
-    uint64_t disk_size;
-} QCowSnapshotExtraData;
-
 void qcow2_free_snapshots(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
@@ -141,8 +116,14 @@ int qcow2_read_snapshots(BlockDriverState *bs)
         }
         offset += name_size;
         sn->name[name_size] = '\0';
+
+        if (offset - s->snapshots_offset > QCOW_MAX_SNAPSHOTS_SIZE) {
+            ret = -EFBIG;
+            goto fail;
+        }
     }
 
+    assert(offset - s->snapshots_offset <= INT_MAX);
     s->snapshots_size = offset - s->snapshots_offset;
     return 0;
 
@@ -163,7 +144,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
         uint32_t nb_snapshots;
         uint64_t snapshots_offset;
     } QEMU_PACKED header_data;
-    int64_t offset, snapshots_offset;
+    int64_t offset, snapshots_offset = 0;
     int ret;
 
     /* compute the size of the snapshots */
@@ -175,7 +156,14 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
         offset += sizeof(extra);
         offset += strlen(sn->id_str);
         offset += strlen(sn->name);
+
+        if (offset > QCOW_MAX_SNAPSHOTS_SIZE) {
+            ret = -EFBIG;
+            goto fail;
+        }
     }
+
+    assert(offset <= INT_MAX);
     snapshots_size = offset;
 
     /* Allocate space for the new snapshot list */
@@ -356,6 +344,10 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     int i, ret;
     uint64_t *l1_table = NULL;
     int64_t l1_table_offset;
+
+    if (s->nb_snapshots >= QCOW_MAX_SNAPSHOTS) {
+        return -EFBIG;
+    }
 
     memset(sn, 0, sizeof(*sn));
 
@@ -701,7 +693,11 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs,
     sn = &s->snapshots[snapshot_index];
 
     /* Allocate and read in the snapshot's L1 table */
-    new_l1_bytes = s->l1_size * sizeof(uint64_t);
+    if (sn->l1_size > QCOW_MAX_L1_SIZE) {
+        error_setg(errp, "Snapshot L1 table too large");
+        return -EFBIG;
+    }
+    new_l1_bytes = sn->l1_size * sizeof(uint64_t);
     new_l1_table = g_malloc0(align_offset(new_l1_bytes, 512));
 
     ret = bdrv_pread(bs->file, sn->l1_table_offset, new_l1_table, new_l1_bytes);

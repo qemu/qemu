@@ -1,0 +1,104 @@
+#!/bin/bash
+#
+# Test case for VDI header corruption; image too large, and too many blocks
+#
+# Copyright (C) 2013 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=jcody@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+# This tests vdi-specific header fields
+_supported_fmt vdi
+_supported_proto generic
+_supported_os Linux
+
+ds_offset=368  # disk image size field offset
+bs_offset=376  # block size field offset
+bii_offset=384 # block in image field offset
+
+echo
+echo "=== Testing image size bounds ==="
+echo
+_make_test_img 64M
+
+# check for image size too large
+# poke max image size, and appropriate blocks_in_image value
+echo "Test 1: Maximum size (1024 TB):"
+poke_file "$TEST_IMG" "$ds_offset" "\x00\x00\xf0\xff\xff\xff\x03\x00"
+poke_file "$TEST_IMG" "$bii_offset" "\xff\xff\xff\x3f"
+_img_info
+
+echo
+echo "Test 2: Size too large (1024TB + 1)"
+# This should be too large (-EINVAL):
+poke_file "$TEST_IMG" "$ds_offset" "\x00\x00\xf1\xff\xff\xff\x03\x00"
+_img_info
+
+echo
+echo "Test 3: Size valid (64M), but Blocks In Image too small (63)"
+# This sets the size to 64M, but with a blocks_in_image size that is
+# too small
+poke_file "$TEST_IMG" "$ds_offset" "\x00\x00\x00\x04\x00\x00\x00\x00"
+# For a 64M image, we would need a blocks_in_image value of at least 64,
+# so 63 should be too small and give us -ENOTSUP
+poke_file "$TEST_IMG" "$bii_offset" "\x3f\x00\x00\x00"
+_img_info
+
+echo
+echo "Test 4: Size valid (64M), but Blocks In Image exceeds max allowed"
+# Now check the bounds of blocks_in_image - 0x3fffffff should be the max
+# value here, and we should get -ENOTSUP
+poke_file "$TEST_IMG" "$bii_offset" "\x00\x00\x00\x40"
+_img_info
+
+# Finally, 1MB is the only block size supported.  Verify that
+# a value != 1MB results in error, both smaller and larger
+echo
+echo "Test 5: Valid Image: 64MB, Blocks In Image 64, Block Size 1MB"
+poke_file "$TEST_IMG" "$bii_offset" "\x40\x00\x00\x00" # reset bii to valid
+poke_file "$TEST_IMG" "$bs_offset" "\x00\x00\x10\x00"  # valid
+_img_info
+echo
+echo "Test 6: Block Size != 1MB; too small test (1MB - 1)"
+poke_file "$TEST_IMG" "$bs_offset" "\xff\xff\x0f\x00"  # invalid (too small)
+_img_info
+echo
+echo "Test 7: Block Size != 1MB; too large test (1MB + 64KB)"
+poke_file "$TEST_IMG" "$bs_offset" "\x00\x00\x11\x00"  # invalid (too large)
+_img_info
+# success, all done
+echo
+echo "*** done"
+rm -f $seq.full
+status=0

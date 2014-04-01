@@ -1,0 +1,33 @@
+QA output created by 084
+
+=== Testing image size bounds ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Test 1: Maximum size (1024 TB):
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 1024T (1125899905794048 bytes)
+cluster_size: 1048576
+
+Test 2: Size too large (1024TB + 1)
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Unsupported VDI image size (size is 0x3fffffff10000, max supported is 0x3fffffff00000)
+
+Test 3: Size valid (64M), but Blocks In Image too small (63)
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': unsupported VDI image (disk size 67108864, image bitmap has room for 66060288)
+
+Test 4: Size valid (64M), but Blocks In Image exceeds max allowed
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': unsupported VDI image (too many blocks 1073741824, max is 1073741823)
+
+Test 5: Valid Image: 64MB, Blocks In Image 64, Block Size 1MB
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+cluster_size: 1048576
+
+Test 6: Block Size != 1MB; too small test (1MB - 1)
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': unsupported VDI image (block size 1048575 is not 1048576)
+
+Test 7: Block Size != 1MB; too large test (1MB + 64KB)
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': unsupported VDI image (block size 1114112 is not 1048576)
+
+*** done

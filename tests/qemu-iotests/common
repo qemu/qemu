@@ -136,7 +136,10 @@ common options
 
 check options
     -raw                test raw (default)
+    -bochs              test bochs
     -cow                test cow
+    -cloop              test cloop
+    -parallels          test parallels
     -qcow               test qcow
     -qcow2              test qcow2
     -qed                test qed
@@ -173,8 +176,26 @@ testlist options
             xpand=false
             ;;
 
+        -bochs)
+            IMGFMT=bochs
+            IMGFMT_GENERIC=false
+            xpand=false
+            ;;
+
         -cow)
             IMGFMT=cow
+            xpand=false
+            ;;
+
+        -cloop)
+            IMGFMT=cloop
+            IMGFMT_GENERIC=false
+            xpand=false
+            ;;
+
+        -parallels)
+            IMGFMT=parallels
+            IMGFMT_GENERIC=false
             xpand=false
             ;;
 
