@@ -403,13 +403,17 @@ static void sdl_send_mouse_event(struct sdl2_state *scon, int dx, int dy,
         }
         qemu_input_queue_abs(scon->dcl.con, INPUT_AXIS_X, off_x + x, max_w);
         qemu_input_queue_abs(scon->dcl.con, INPUT_AXIS_Y, off_y + y, max_h);
-    } else if (guest_cursor) {
-        x -= guest_x;
-        y -= guest_y;
-        guest_x += x;
-        guest_y += y;
-        qemu_input_queue_rel(scon->dcl.con, INPUT_AXIS_X, x);
-        qemu_input_queue_rel(scon->dcl.con, INPUT_AXIS_Y, y);
+    } else {
+        if (guest_cursor) {
+            x -= guest_x;
+            y -= guest_y;
+            guest_x += x;
+            guest_y += y;
+            dx = x;
+            dy = y;
+        }
+        qemu_input_queue_rel(scon->dcl.con, INPUT_AXIS_X, dx);
+        qemu_input_queue_rel(scon->dcl.con, INPUT_AXIS_Y, dy);
     }
     qemu_input_event_sync();
 }
