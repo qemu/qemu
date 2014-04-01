@@ -346,9 +346,6 @@ static void ppc_prep_reset(void *opaque)
     PowerPCCPU *cpu = opaque;
 
     cpu_reset(CPU(cpu));
-
-    /* Reset address */
-    cpu->env.nip = 0xfffffffc;
 }
 
 static const MemoryRegionPortio prep_portio_list[] = {
