@@ -1531,7 +1531,9 @@ static int preallocate(BlockDriverState *bs)
             return ret;
         }
 
-        if (meta != NULL) {
+        while (meta) {
+            QCowL2Meta *next = meta->next;
+
             ret = qcow2_alloc_cluster_link_l2(bs, meta);
             if (ret < 0) {
                 qcow2_free_any_clusters(bs, meta->alloc_offset,
@@ -1542,6 +1544,9 @@ static int preallocate(BlockDriverState *bs)
             /* There are no dependent requests, but we need to remove our
              * request from the list of in-flight requests */
             QLIST_REMOVE(meta, next_in_flight);
+
+            g_free(meta);
+            meta = next;
         }
 
         /* TODO Preallocate data if requested */
