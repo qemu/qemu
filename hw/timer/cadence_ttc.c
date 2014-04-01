@@ -346,11 +346,13 @@ static void cadence_ttc_write(void *opaque, hwaddr offset,
     case 0x34:
     case 0x38:
         s->reg_match[0] = value & 0xffff;
+        break;
 
     case 0x3c: /* match register */
     case 0x40:
     case 0x44:
         s->reg_match[1] = value & 0xffff;
+        break;
 
     case 0x48: /* match register */
     case 0x4c:
