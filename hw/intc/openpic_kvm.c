@@ -118,6 +118,11 @@ static void kvm_openpic_region_add(MemoryListener *listener,
         abort();
     }
 
+    /* Ignore events on regions that are not us */
+    if (section->mr != &opp->mem) {
+        return;
+    }
+
     reg_base = section->offset_within_address_space;
 
     attr.group = KVM_DEV_MPIC_GRP_MISC;
@@ -139,6 +144,11 @@ static void kvm_openpic_region_del(MemoryListener *listener,
     struct kvm_device_attr attr;
     uint64_t reg_base = 0;
     int ret;
+
+    /* Ignore events on regions that are not us */
+    if (section->mr != &opp->mem) {
+        return;
+    }
 
     attr.group = KVM_DEV_MPIC_GRP_MISC;
     attr.attr = KVM_DEV_MPIC_BASE_ADDR;
