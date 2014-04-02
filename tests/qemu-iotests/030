@@ -50,15 +50,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
 
-        completed = False
-        while not completed:
-            for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_COMPLETED':
-                    self.assert_qmp(event, 'data/type', 'stream')
-                    self.assert_qmp(event, 'data/device', 'drive0')
-                    self.assert_qmp(event, 'data/offset', self.image_len)
-                    self.assert_qmp(event, 'data/len', self.image_len)
-                    completed = True
+        self.wait_until_completed()
 
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
@@ -89,15 +81,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         self.vm.resume_drive('drive0')
-        completed = False
-        while not completed:
-            for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_COMPLETED':
-                    self.assert_qmp(event, 'data/type', 'stream')
-                    self.assert_qmp(event, 'data/device', 'drive0')
-                    self.assert_qmp(event, 'data/offset', self.image_len)
-                    self.assert_qmp(event, 'data/len', self.image_len)
-                    completed = True
+        self.wait_until_completed()
 
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
@@ -112,15 +96,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         result = self.vm.qmp('block-stream', device='drive0', base=mid_img)
         self.assert_qmp(result, 'return', {})
 
-        completed = False
-        while not completed:
-            for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_COMPLETED':
-                    self.assert_qmp(event, 'data/type', 'stream')
-                    self.assert_qmp(event, 'data/device', 'drive0')
-                    self.assert_qmp(event, 'data/offset', self.image_len)
-                    self.assert_qmp(event, 'data/len', self.image_len)
-                    completed = True
+        self.wait_until_completed()
 
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
@@ -152,15 +128,7 @@ class TestSmallerBackingFile(iotests.QMPTestCase):
         result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
 
-        completed = False
-        while not completed:
-            for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_COMPLETED':
-                    self.assert_qmp(event, 'data/type', 'stream')
-                    self.assert_qmp(event, 'data/device', 'drive0')
-                    self.assert_qmp(event, 'data/offset', self.image_len)
-                    self.assert_qmp(event, 'data/len', self.image_len)
-                    completed = True
+        self.wait_until_completed()
 
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
@@ -442,15 +410,7 @@ class TestSetSpeed(iotests.QMPTestCase):
         result = self.vm.qmp('block-job-set-speed', device='drive0', speed=8 * 1024 * 1024)
         self.assert_qmp(result, 'return', {})
 
-        completed = False
-        while not completed:
-            for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_COMPLETED':
-                    self.assert_qmp(event, 'data/type', 'stream')
-                    self.assert_qmp(event, 'data/device', 'drive0')
-                    self.assert_qmp(event, 'data/offset', self.image_len)
-                    self.assert_qmp(event, 'data/len', self.image_len)
-                    completed = True
+        self.wait_until_completed()
 
         self.assert_no_active_block_jobs()
 
