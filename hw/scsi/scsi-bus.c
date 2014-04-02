@@ -101,7 +101,6 @@ static void scsi_dma_restart_bh(void *opaque)
                 scsi_req_continue(req);
                 break;
             case SCSI_XFER_NONE:
-                assert(!req->sg);
                 scsi_req_dequeue(req);
                 scsi_req_enqueue(req);
                 break;
