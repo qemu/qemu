@@ -1335,18 +1335,20 @@ static int iscsi_refresh_limits(BlockDriverState *bs)
 
     /* We don't actually refresh here, but just return data queried in
      * iscsi_open(): iscsi targets don't change their limits. */
-    if (iscsilun->lbp.lbpu || iscsilun->lbp.lbpws) {
+    if (iscsilun->lbp.lbpu) {
         if (iscsilun->bl.max_unmap < 0xffffffff) {
             bs->bl.max_discard = sector_lun2qemu(iscsilun->bl.max_unmap,
                                                  iscsilun);
         }
         bs->bl.discard_alignment = sector_lun2qemu(iscsilun->bl.opt_unmap_gran,
                                                    iscsilun);
+    }
 
-        if (iscsilun->bl.max_ws_len < 0xffffffff) {
-            bs->bl.max_write_zeroes = sector_lun2qemu(iscsilun->bl.max_ws_len,
-                                                      iscsilun);
-        }
+    if (iscsilun->bl.max_ws_len < 0xffffffff) {
+        bs->bl.max_write_zeroes = sector_lun2qemu(iscsilun->bl.max_ws_len,
+                                                  iscsilun);
+    }
+    if (iscsilun->lbp.lbpws) {
         bs->bl.write_zeroes_alignment = sector_lun2qemu(iscsilun->bl.opt_unmap_gran,
                                                         iscsilun);
     }
