@@ -1209,7 +1209,7 @@ void vmstate_register_ram(MemoryRegion *mr, DeviceState *dev)
 
 void vmstate_unregister_ram(MemoryRegion *mr, DeviceState *dev)
 {
-    /* Nothing do to while the implementation is in RAMBlock */
+    qemu_ram_unset_idstr(memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK);
 }
 
 void vmstate_register_ram_global(MemoryRegion *mr)
