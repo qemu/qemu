@@ -1201,17 +1201,24 @@ static void qemu_ram_setup_dump(void *addr, ram_addr_t size)
     }
 }
 
-void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
+static RAMBlock *find_ram_block(ram_addr_t addr)
 {
-    RAMBlock *new_block, *block;
+    RAMBlock *block;
 
-    new_block = NULL;
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         if (block->offset == addr) {
-            new_block = block;
-            break;
+            return block;
         }
     }
+
+    return NULL;
+}
+
+void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
+{
+    RAMBlock *new_block = find_ram_block(addr);
+    RAMBlock *block;
+
     assert(new_block);
     assert(!new_block->idstr[0]);
 
@@ -1234,6 +1241,15 @@ void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
         }
     }
     qemu_mutex_unlock_ramlist();
+}
+
+void qemu_ram_unset_idstr(ram_addr_t addr)
+{
+    RAMBlock *block = find_ram_block(addr);
+
+    if (block) {
+        memset(block->idstr, 0, sizeof(block->idstr));
+    }
 }
 
 static int memory_try_enable_merging(void *addr, size_t len)
