@@ -11,6 +11,8 @@
 # include <sys/endian.h>
 # include <sys/types.h>
 # include <machine/bswap.h>
+#elif defined(__FreeBSD__)
+# include <sys/endian.h>
 #elif defined(CONFIG_BYTESWAP_H)
 # include <byteswap.h>
 
