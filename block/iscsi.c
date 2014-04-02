@@ -417,6 +417,10 @@ static int coroutine_fn iscsi_co_flush(BlockDriverState *bs)
     IscsiLun *iscsilun = bs->opaque;
     struct IscsiTask iTask;
 
+    if (bs->sg) {
+        return 0;
+    }
+
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 
 retry:
