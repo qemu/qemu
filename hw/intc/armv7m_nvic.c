@@ -209,8 +209,8 @@ static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
     case 0xd08: /* Vector Table Offset.  */
         return cpu_single_env->v7m.vecbase;
     case 0xd0c: /* Application Interrupt/Reset Control.  */
-        printf("read airc %x\n", (0xfa050000 | ((s->gic.binary_point & 0x3) << 8)));
-        return (0xfa050000 | ((s->gic.binary_point & 0x3) << 8));
+        printf("read airc %x\n", (0xfa050000 | ((s->gic.binary_point & 0x7) << 8)));
+        return (0xfa050000 | ((s->gic.binary_point & 0x7) << 8));
     case 0xd10: /* System Control.  */
         /* TODO: Implement SLEEPONEXIT.  */
         printf("SYSTEM_CONTROL\n");
@@ -346,7 +346,7 @@ static void nvic_writel(nvic_state *s, uint32_t offset, uint32_t value)
             if (value & 5) {
                 qemu_log_mask(LOG_UNIMP, "AIRCR system reset unimplemented\n");
             }
-            s->gic.binary_point = ((value >> 8) & 0x3);
+            s->gic.binary_point = ((value >> 8) & 0x7);
         }
         break;
     case 0xd10: /* System Control.  */

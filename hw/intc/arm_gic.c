@@ -34,6 +34,10 @@ static const uint8_t gic_id[] = {
     0x90, 0x13, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1
 };
 
+static const uint16_t binary_point_mask[8] = {
+    0xF0, 0xF0, 0xF0, 0xF0, 0xE0, 0xC0, 0x80, 0x00
+};
+
 #define NUM_CPU(s) ((s)->num_cpu)
 
 static inline int gic_get_current_cpu(GICState *s)
@@ -51,6 +55,7 @@ void gic_update(GICState *s)
 {
     int best_irq;
     int best_prio;
+    int best_sub_prio;
     int irq;
     int level;
     int cpu;
@@ -64,11 +69,18 @@ void gic_update(GICState *s)
             return;
         }
         best_prio = 0x100;
+        best_sub_prio = 0x100;
         best_irq = 1023;
         for (irq = 0; irq < s->num_irq; irq++) {
             if (GIC_TEST_ENABLED(irq, cm) && GIC_TEST_PENDING(irq, cm)) {
                 if (GIC_GET_PRIORITY(irq, cpu) < best_prio) {
                     best_prio = GIC_GET_PRIORITY(irq, cpu);
+                    best_sub_prio = GIC_GET_SUBPRIORITY(irq, cpu);
+                    best_irq = irq;
+                }
+                else if ((GIC_GET_PRIORITY(irq, cpu) == best_prio) &&
+                        GIC_GET_SUBPRIORITY(irq, cpu) < best_sub_prio) {
+                    best_sub_prio = GIC_GET_SUBPRIORITY(irq, cpu);
                     best_irq = irq;
                 }
             }
@@ -552,6 +564,7 @@ static uint32_t gic_cpu_read(GICState *s, int cpu, int offset)
         return s->priority_mask[cpu];
     case 0x08: /* Binary Point */
         /* ??? Not implemented.  */
+        printf("BINARY POINT\n");
         return 0;
     case 0x0c: /* Acknowledge */
         return gic_acknowledge_irq(s, cpu);
@@ -577,7 +590,7 @@ static void gic_cpu_write(GICState *s, int cpu, int offset, uint32_t value)
         s->priority_mask[cpu] = (value & 0xff);
         break;
     case 0x08: /* Binary Point */
-        /* ??? Not implemented.  */
+        s->binary_point = ((value >> 8) & 0x7);
         break;
     case 0x10: /* End Of Interrupt */
         return gic_complete_irq(s, cpu, value & 0x3ff);

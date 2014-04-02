@@ -54,10 +54,20 @@
 #define GIC_SET_TRIGGER(irq) s->irq_state[irq].trigger = true
 #define GIC_CLEAR_TRIGGER(irq) s->irq_state[irq].trigger = false
 #define GIC_TEST_TRIGGER(irq) s->irq_state[irq].trigger
-#define GIC_GET_PRIORITY(irq, cpu) (((irq) < GIC_INTERNAL) ?            \
+//#define GIC_GET_PRIORITY(irq, cpu) (binary_point_mask[s->binary_point] & \
+//                                    (((irq) < GIC_INTERNAL) ?            \
+//                                    s->priority1[irq][cpu] :            \
+//                                    s->priority2[(irq) - GIC_INTERNAL]))
+#define GIC_GET_PRIORITY(irq, cpu) ( \
+                                    (((irq) < GIC_INTERNAL) ?            \
                                     s->priority1[irq][cpu] :            \
-                                    s->priority2[(irq) - GIC_INTERNAL])
+                                    s->priority2[(irq) - GIC_INTERNAL]))
+#define GIC_GET_SUBPRIORITY(irq, cpu) (~binary_point_mask[s->binary_point] & \
+                                    (((irq) < GIC_INTERNAL) ?            \
+                                    s->priority1[irq][cpu] :            \
+                                    s->priority2[(irq) - GIC_INTERNAL]))
 #define GIC_TARGET(irq) s->irq_target[irq]
+
 
 typedef struct gic_irq_state {
     /* The enable bits are only banked for per-cpu interrupts.  */

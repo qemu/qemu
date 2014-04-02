@@ -30,11 +30,10 @@
 /* DEFINITIONS*/
 
 /* See the README file for details on these settings. */
-//#define DEBUG_STM32_UART
+#define DEBUG_STM32_UART
 //#define STM32_UART_NO_BAUD_DELAY
-//#define STM32_UART_ENABLE_OVERRUN
+#define STM32_UART_ENABLE_OVERRUN
 
-#define DEBUG_STM32_UART 1
 #ifdef DEBUG_STM32_UART
 #define DPRINTF(fmt, ...)                                       \
     do { printf("STM32_UART: " fmt , ## __VA_ARGS__); } while (0)
