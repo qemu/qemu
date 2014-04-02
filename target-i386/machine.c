@@ -569,8 +569,8 @@ static const VMStateDescription vmstate_msr_hypercall_hypercall = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_UINT64(env.msr_hv_hypercall, X86CPU),
         VMSTATE_UINT64(env.msr_hv_guest_os_id, X86CPU),
+        VMSTATE_UINT64(env.msr_hv_hypercall, X86CPU),
         VMSTATE_END_OF_LIST()
     }
 };
