@@ -417,6 +417,10 @@ static int coroutine_fn iscsi_co_flush(BlockDriverState *bs)
     IscsiLun *iscsilun = bs->opaque;
     struct IscsiTask iTask;
 
+    if (bs->sg) {
+        return 0;
+    }
+
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 
 retry:
@@ -838,7 +842,8 @@ retry:
 
     if (iTask.status == SCSI_STATUS_CHECK_CONDITION &&
         iTask.task->sense.key == SCSI_SENSE_ILLEGAL_REQUEST &&
-        iTask.task->sense.ascq == SCSI_SENSE_ASCQ_INVALID_OPERATION_CODE) {
+        (iTask.task->sense.ascq == SCSI_SENSE_ASCQ_INVALID_OPERATION_CODE ||
+         iTask.task->sense.ascq == SCSI_SENSE_ASCQ_INVALID_FIELD_IN_CDB)) {
         /* WRITE SAME is not supported by the target */
         iscsilun->has_write_same = false;
         scsi_free_scsi_task(iTask.task);
@@ -1330,18 +1335,20 @@ static int iscsi_refresh_limits(BlockDriverState *bs)
 
     /* We don't actually refresh here, but just return data queried in
      * iscsi_open(): iscsi targets don't change their limits. */
-    if (iscsilun->lbp.lbpu || iscsilun->lbp.lbpws) {
+    if (iscsilun->lbp.lbpu) {
         if (iscsilun->bl.max_unmap < 0xffffffff) {
             bs->bl.max_discard = sector_lun2qemu(iscsilun->bl.max_unmap,
                                                  iscsilun);
         }
         bs->bl.discard_alignment = sector_lun2qemu(iscsilun->bl.opt_unmap_gran,
                                                    iscsilun);
+    }
 
-        if (iscsilun->bl.max_ws_len < 0xffffffff) {
-            bs->bl.max_write_zeroes = sector_lun2qemu(iscsilun->bl.max_ws_len,
-                                                      iscsilun);
-        }
+    if (iscsilun->bl.max_ws_len < 0xffffffff) {
+        bs->bl.max_write_zeroes = sector_lun2qemu(iscsilun->bl.max_ws_len,
+                                                  iscsilun);
+    }
+    if (iscsilun->lbp.lbpws) {
         bs->bl.write_zeroes_alignment = sector_lun2qemu(iscsilun->bl.opt_unmap_gran,
                                                         iscsilun);
     }
