@@ -36,6 +36,7 @@
 #include "sysemu/device_tree.h"
 #include "qapi/qmp/qjson.h"
 #include "monitor/monitor.h"
+#include "trace.h"
 
 /* #define DEBUG_KVM */
 
@@ -128,14 +129,42 @@ void kvm_arch_reset_vcpu(CPUState *cpu)
     }
 }
 
+static int kvm_set_one_reg(CPUState *cs, uint64_t id, void *source)
+{
+    struct kvm_one_reg reg;
+    int r;
+
+    reg.id = id;
+    reg.addr = (uint64_t) source;
+    r = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+    if (r) {
+        trace_kvm_failed_reg_set(id, strerror(errno));
+    }
+    return r;
+}
+
+static int kvm_get_one_reg(CPUState *cs, uint64_t id, void *target)
+{
+    struct kvm_one_reg reg;
+    int r;
+
+    reg.id = id;
+    reg.addr = (uint64_t) target;
+    r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (r) {
+        trace_kvm_failed_reg_get(id, strerror(errno));
+    }
+    return r;
+}
+
+
 int kvm_arch_put_registers(CPUState *cs, int level)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
-    struct kvm_one_reg reg;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
-    int ret;
+    int r;
     int i;
 
     /* always save the PSW  and the GPRS*/
@@ -151,9 +180,9 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         for (i = 0; i < 16; i++) {
             regs.gprs[i] = env->regs[i];
         }
-        ret = kvm_vcpu_ioctl(cs, KVM_SET_REGS, &regs);
-        if (ret < 0) {
-            return ret;
+        r = kvm_vcpu_ioctl(cs, KVM_SET_REGS, &regs);
+        if (r < 0) {
+            return r;
         }
     }
 
@@ -162,47 +191,27 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return 0;
     }
 
-    reg.id = KVM_REG_S390_CPU_TIMER;
-    reg.addr = (__u64)&(env->cputm);
-    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
-    if (ret < 0) {
-        return ret;
-    }
-
-    reg.id = KVM_REG_S390_CLOCK_COMP;
-    reg.addr = (__u64)&(env->ckc);
-    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
-    if (ret < 0) {
-        return ret;
-    }
-
-    reg.id = KVM_REG_S390_TODPR;
-    reg.addr = (__u64)&(env->todpr);
-    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
-    if (ret < 0) {
-        return ret;
-    }
+    /*
+     * These ONE_REGS are not protected by a capability. As they are only
+     * necessary for migration we just trace a possible error, but don't
+     * return with an error return code.
+     */
+    kvm_set_one_reg(cs, KVM_REG_S390_CPU_TIMER, &env->cputm);
+    kvm_set_one_reg(cs, KVM_REG_S390_CLOCK_COMP, &env->ckc);
+    kvm_set_one_reg(cs, KVM_REG_S390_TODPR, &env->todpr);
 
     if (cap_async_pf) {
-        reg.id = KVM_REG_S390_PFTOKEN;
-        reg.addr = (__u64)&(env->pfault_token);
-        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
-        if (ret < 0) {
-            return ret;
+        r = kvm_set_one_reg(cs, KVM_REG_S390_PFTOKEN, &env->pfault_token);
+        if (r < 0) {
+            return r;
         }
-
-        reg.id = KVM_REG_S390_PFCOMPARE;
-        reg.addr = (__u64)&(env->pfault_compare);
-        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
-        if (ret < 0) {
-            return ret;
+        r = kvm_set_one_reg(cs, KVM_REG_S390_PFCOMPARE, &env->pfault_compare);
+        if (r < 0) {
+            return r;
         }
-
-        reg.id = KVM_REG_S390_PFSELECT;
-        reg.addr = (__u64)&(env->pfault_select);
-        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
-        if (ret < 0) {
-            return ret;
+        r = kvm_set_one_reg(cs, KVM_REG_S390_PFSELECT, &env->pfault_select);
+        if (r < 0) {
+            return r;
         }
     }
 
@@ -220,9 +229,9 @@ int kvm_arch_put_registers(CPUState *cs, int level)
             sregs.acrs[i] = env->aregs[i];
             sregs.crs[i] = env->cregs[i];
         }
-        ret = kvm_vcpu_ioctl(cs, KVM_SET_SREGS, &sregs);
-        if (ret < 0) {
-            return ret;
+        r = kvm_vcpu_ioctl(cs, KVM_SET_SREGS, &sregs);
+        if (r < 0) {
+            return r;
         }
     }
 
@@ -240,7 +249,6 @@ int kvm_arch_get_registers(CPUState *cs)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
-    struct kvm_one_reg reg;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
     int i, r;
@@ -288,46 +296,25 @@ int kvm_arch_get_registers(CPUState *cs)
         env->psa = cs->kvm_run->s.regs.prefix;
     }
 
-    /* One Regs */
-    reg.id = KVM_REG_S390_CPU_TIMER;
-    reg.addr = (__u64)&(env->cputm);
-    r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
-    if (r < 0) {
-        return r;
-    }
-
-    reg.id = KVM_REG_S390_CLOCK_COMP;
-    reg.addr = (__u64)&(env->ckc);
-    r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
-    if (r < 0) {
-        return r;
-    }
-
-    reg.id = KVM_REG_S390_TODPR;
-    reg.addr = (__u64)&(env->todpr);
-    r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
-    if (r < 0) {
-        return r;
-    }
+    /*
+     * These ONE_REGS are not protected by a capability. As they are only
+     * necessary for migration we just trace a possible error, but don't
+     * return with an error return code.
+     */
+    kvm_get_one_reg(cs, KVM_REG_S390_CPU_TIMER, &env->cputm);
+    kvm_get_one_reg(cs, KVM_REG_S390_CLOCK_COMP, &env->ckc);
+    kvm_get_one_reg(cs, KVM_REG_S390_TODPR, &env->todpr);
 
     if (cap_async_pf) {
-        reg.id = KVM_REG_S390_PFTOKEN;
-        reg.addr = (__u64)&(env->pfault_token);
-        r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+        r = kvm_get_one_reg(cs, KVM_REG_S390_PFTOKEN, &env->pfault_token);
         if (r < 0) {
             return r;
         }
-
-        reg.id = KVM_REG_S390_PFCOMPARE;
-        reg.addr = (__u64)&(env->pfault_compare);
-        r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+        r = kvm_get_one_reg(cs, KVM_REG_S390_PFCOMPARE, &env->pfault_compare);
         if (r < 0) {
             return r;
         }
-
-        reg.id = KVM_REG_S390_PFSELECT;
-        reg.addr = (__u64)&(env->pfault_select);
-        r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+        r = kvm_get_one_reg(cs, KVM_REG_S390_PFSELECT, &env->pfault_select);
         if (r < 0) {
             return r;
         }
