@@ -1664,6 +1664,7 @@ static void assigned_dev_register_msix_mmio(AssignedDevice *dev, Error **errp)
                            MAP_ANONYMOUS|MAP_PRIVATE, 0, 0);
     if (dev->msix_table == MAP_FAILED) {
         error_setg_errno(errp, errno, "failed to allocate msix_table");
+        dev->msix_table = NULL;
         return;
     }
 
