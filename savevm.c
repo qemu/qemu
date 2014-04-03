@@ -1111,8 +1111,9 @@ const VMStateInfo vmstate_info_int32_equal = {
     .put  = put_int32,
 };
 
-/* 32 bit int. Check that the received value is less than or equal to
-   the one in the field */
+/* 32 bit int. Check that the received value is non-negative
+ * and less than or equal to the one in the field.
+ */
 
 static int get_int32_le(QEMUFile *f, void *pv, size_t size)
 {
@@ -1120,7 +1121,7 @@ static int get_int32_le(QEMUFile *f, void *pv, size_t size)
     int32_t loaded;
     qemu_get_sbe32s(f, &loaded);
 
-    if (loaded <= *cur) {
+    if (loaded >= 0 && loaded <= *cur) {
         *cur = loaded;
         return 0;
     }
