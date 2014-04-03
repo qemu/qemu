@@ -1271,20 +1271,13 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGMemOp memop,
     }
 }
 
-static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGMemOp memop)
+static void tcg_out_qemu_ld(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
+                            TCGMemOp memop, int mem_index)
 {
-    TCGReg addr_reg, data_reg;
 #ifdef CONFIG_SOFTMMU
-    int mem_index;
-    TCGMemOp s_bits;
+    TCGMemOp s_bits = memop & MO_SIZE;
     uint8_t *label_ptr;
-#endif
-    data_reg = args[0];
-    addr_reg = args[1];
 
-#ifdef CONFIG_SOFTMMU
-    mem_index = args[2];
-    s_bits = memop & MO_SIZE;
     tcg_out_tlb_read(s, addr_reg, s_bits, &label_ptr, mem_index, 1);
     tcg_out_qemu_ld_direct(s, memop, data_reg, addr_reg, TCG_REG_X1);
     add_qemu_ldst_label(s, 1, memop, data_reg, addr_reg,
@@ -1295,20 +1288,12 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGMemOp memop)
 #endif /* CONFIG_SOFTMMU */
 }
 
-static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, TCGMemOp memop)
+static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
+                            TCGMemOp memop, int mem_index)
 {
-    TCGReg addr_reg, data_reg;
 #ifdef CONFIG_SOFTMMU
-    int mem_index;
-    TCGMemOp s_bits;
+    TCGMemOp s_bits = memop & MO_SIZE;
     uint8_t *label_ptr;
-#endif
-    data_reg = args[0];
-    addr_reg = args[1];
-
-#ifdef CONFIG_SOFTMMU
-    mem_index = args[2];
-    s_bits = memop & MO_SIZE;
 
     tcg_out_tlb_read(s, addr_reg, s_bits, &label_ptr, mem_index, 0);
     tcg_out_qemu_st_direct(s, memop, data_reg, addr_reg, TCG_REG_X1);
@@ -1588,38 +1573,38 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_qemu_ld8u:
-        tcg_out_qemu_ld(s, args, MO_UB);
+        tcg_out_qemu_ld(s, a0, a1, MO_UB, a2);
         break;
     case INDEX_op_qemu_ld8s:
-        tcg_out_qemu_ld(s, args, MO_SB);
+        tcg_out_qemu_ld(s, a0, a1, MO_SB, a2);
         break;
     case INDEX_op_qemu_ld16u:
-        tcg_out_qemu_ld(s, args, MO_TEUW);
+        tcg_out_qemu_ld(s, a0, a1, MO_TEUW, a2);
         break;
     case INDEX_op_qemu_ld16s:
-        tcg_out_qemu_ld(s, args, MO_TESW);
+        tcg_out_qemu_ld(s, a0, a1, MO_TESW, a2);
         break;
     case INDEX_op_qemu_ld32u:
     case INDEX_op_qemu_ld32:
-        tcg_out_qemu_ld(s, args, MO_TEUL);
+        tcg_out_qemu_ld(s, a0, a1, MO_TEUL, a2);
         break;
     case INDEX_op_qemu_ld32s:
-        tcg_out_qemu_ld(s, args, MO_TESL);
+        tcg_out_qemu_ld(s, a0, a1, MO_TESL, a2);
         break;
     case INDEX_op_qemu_ld64:
-        tcg_out_qemu_ld(s, args, MO_TEQ);
+        tcg_out_qemu_ld(s, a0, a1, MO_TEQ, a2);
         break;
     case INDEX_op_qemu_st8:
-        tcg_out_qemu_st(s, args, MO_UB);
+        tcg_out_qemu_st(s, a0, a1, MO_UB, a2);
         break;
     case INDEX_op_qemu_st16:
-        tcg_out_qemu_st(s, args, MO_TEUW);
+        tcg_out_qemu_st(s, a0, a1, MO_TEUW, a2);
         break;
     case INDEX_op_qemu_st32:
-        tcg_out_qemu_st(s, args, MO_TEUL);
+        tcg_out_qemu_st(s, a0, a1, MO_TEUL, a2);
         break;
     case INDEX_op_qemu_st64:
-        tcg_out_qemu_st(s, args, MO_TEQ);
+        tcg_out_qemu_st(s, a0, a1, MO_TEQ, a2);
         break;
 
     case INDEX_op_bswap32_i64:
