@@ -63,11 +63,12 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
     if (version_id > vmsd->version_id) {
         return -EINVAL;
     }
-    if (version_id < vmsd->minimum_version_id_old) {
-        return -EINVAL;
-    }
     if  (version_id < vmsd->minimum_version_id) {
-        return vmsd->load_state_old(f, opaque, version_id);
+        if (vmsd->load_state_old &&
+            version_id >= vmsd->minimum_version_id_old) {
+            return vmsd->load_state_old(f, opaque, version_id);
+        }
+        return -EINVAL;
     }
     if (vmsd->pre_load) {
         int ret = vmsd->pre_load(opaque);

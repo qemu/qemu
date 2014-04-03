@@ -139,7 +139,6 @@ static const VMStateDescription vmstate_kbd = {
     .name = "pckbd",
     .version_id = 3,
     .minimum_version_id = 3,
-    .minimum_version_id_old = 3,
     .fields      = (VMStateField []) {
         VMSTATE_UINT8(write_cmd, KBDState),
         VMSTATE_UINT8(status, KBDState),
@@ -168,12 +167,13 @@ You can see that there are several version fields:
 - minimum_version_id: the minimum version_id that VMState is able to understand
   for that device.
 - minimum_version_id_old: For devices that were not able to port to vmstate, we can
-  assign a function that knows how to read this old state.
+  assign a function that knows how to read this old state. This field is
+  ignored if there is no load_state_old handler.
 
 So, VMState is able to read versions from minimum_version_id to
-version_id.  And the function load_state_old() is able to load state
-from minimum_version_id_old to minimum_version_id.  This function is
-deprecated and will be removed when no more users are left.
+version_id.  And the function load_state_old() (if present) is able to
+load state from minimum_version_id_old to minimum_version_id.  This
+function is deprecated and will be removed when no more users are left.
 
 ===  Massaging functions ===
 
@@ -255,7 +255,6 @@ const VMStateDescription vmstate_ide_drive_pio_state = {
     .name = "ide_drive/pio_state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .pre_save = ide_drive_pio_pre_save,
     .post_load = ide_drive_pio_post_load,
     .fields      = (VMStateField []) {
@@ -275,7 +274,6 @@ const VMStateDescription vmstate_ide_drive = {
     .name = "ide_drive",
     .version_id = 3,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .post_load = ide_drive_post_load,
     .fields      = (VMStateField []) {
         .... several fields ....
