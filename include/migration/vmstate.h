@@ -100,6 +100,7 @@ enum VMStateFlags {
     VMS_MULTIPLY         = 0x200,  /* multiply "size" field by field_size */
     VMS_VARRAY_UINT8     = 0x400,  /* Array with size in uint8_t field*/
     VMS_VARRAY_UINT32    = 0x800,  /* Array with size in uint32_t field*/
+    VMS_MUST_EXIST       = 0x1000, /* Field must exist in input */
 };
 
 typedef struct {
