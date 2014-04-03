@@ -218,6 +218,14 @@ echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG" 
 echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG",snapshot=on | _filter_qemu_io
 echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file.filename="$TEST_IMG",driver=qcow2,snapshot=on | _filter_qemu_io
 echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file.filename="$TEST_IMG",driver=qcow2 -snapshot | _filter_qemu_io
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="file:$TEST_IMG" -snapshot | _filter_qemu_io
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="file:$TEST_IMG",snapshot=on | _filter_qemu_io
+
+# Opening a read-only file r/w with snapshot=on
+chmod u-w "$TEST_IMG"
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG" -snapshot | _filter_qemu_io
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG",snapshot=on | _filter_qemu_io
+chmod u+w "$TEST_IMG"
 
 $QEMU_IO -c "read -P 0x11 0 4k" "$TEST_IMG" | _filter_qemu_io
 

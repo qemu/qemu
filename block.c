@@ -767,6 +767,11 @@ static int bdrv_open_flags(BlockDriverState *bs, int flags)
 {
     int open_flags = flags | BDRV_O_CACHE_WB;
 
+    /* The backing file of a temporary snapshot is read-only */
+    if (flags & BDRV_O_SNAPSHOT) {
+        open_flags &= ~BDRV_O_RDWR;
+    }
+
     /*
      * Clear flags that are internal to the block layer before opening the
      * image.
@@ -1162,6 +1167,68 @@ done:
     return ret;
 }
 
+void bdrv_append_temp_snapshot(BlockDriverState *bs, Error **errp)
+{
+    /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
+    char tmp_filename[PATH_MAX + 1];
+
+    int64_t total_size;
+    BlockDriver *bdrv_qcow2;
+    QEMUOptionParameter *create_options;
+    QDict *snapshot_options;
+    BlockDriverState *bs_snapshot;
+    Error *local_err;
+    int ret;
+
+    /* if snapshot, we create a temporary backing file and open it
+       instead of opening 'filename' directly */
+
+    /* Get the required size from the image */
+    total_size = bdrv_getlength(bs) & BDRV_SECTOR_MASK;
+
+    /* Create the temporary image */
+    ret = get_tmp_filename(tmp_filename, sizeof(tmp_filename));
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not get temporary filename");
+        return;
+    }
+
+    bdrv_qcow2 = bdrv_find_format("qcow2");
+    create_options = parse_option_parameters("", bdrv_qcow2->create_options,
+                                             NULL);
+
+    set_option_parameter_int(create_options, BLOCK_OPT_SIZE, total_size);
+
+    ret = bdrv_create(bdrv_qcow2, tmp_filename, create_options, &local_err);
+    free_option_parameters(create_options);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not create temporary overlay "
+                         "'%s': %s", tmp_filename,
+                         error_get_pretty(local_err));
+        error_free(local_err);
+        return;
+    }
+
+    /* Prepare a new options QDict for the temporary file */
+    snapshot_options = qdict_new();
+    qdict_put(snapshot_options, "file.driver",
+              qstring_from_str("file"));
+    qdict_put(snapshot_options, "file.filename",
+              qstring_from_str(tmp_filename));
+
+    bs_snapshot = bdrv_new("");
+    bs_snapshot->is_temporary = 1;
+
+    ret = bdrv_open(&bs_snapshot, NULL, NULL, snapshot_options,
+                    bs->open_flags & ~BDRV_O_SNAPSHOT, bdrv_qcow2, &local_err);
+    if (ret < 0) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    bdrv_append(bs_snapshot, bs);
+}
+
 /*
  * Opens a disk image (raw, qcow2, vmdk, ...)
  *
@@ -1182,8 +1249,6 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
               BlockDriver *drv, Error **errp)
 {
     int ret;
-    /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
-    char tmp_filename[PATH_MAX + 1];
     BlockDriverState *file = NULL, *bs;
     const char *drvname;
     Error *local_err = NULL;
@@ -1241,74 +1306,6 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         } else {
             goto fail;
         }
-    }
-
-    /* For snapshot=on, create a temporary qcow2 overlay */
-    if (flags & BDRV_O_SNAPSHOT) {
-        BlockDriverState *bs1;
-        int64_t total_size;
-        BlockDriver *bdrv_qcow2;
-        QEMUOptionParameter *create_options;
-        QDict *snapshot_options;
-
-        /* if snapshot, we create a temporary backing file and open it
-           instead of opening 'filename' directly */
-
-        /* Get the required size from the image */
-        QINCREF(options);
-        bs1 = NULL;
-        ret = bdrv_open(&bs1, filename, NULL, options, BDRV_O_NO_BACKING,
-                        drv, &local_err);
-        if (ret < 0) {
-            goto fail;
-        }
-        total_size = bdrv_getlength(bs1) & BDRV_SECTOR_MASK;
-
-        bdrv_unref(bs1);
-
-        /* Create the temporary image */
-        ret = get_tmp_filename(tmp_filename, sizeof(tmp_filename));
-        if (ret < 0) {
-            error_setg_errno(errp, -ret, "Could not get temporary filename");
-            goto fail;
-        }
-
-        bdrv_qcow2 = bdrv_find_format("qcow2");
-        create_options = parse_option_parameters("", bdrv_qcow2->create_options,
-                                                 NULL);
-
-        set_option_parameter_int(create_options, BLOCK_OPT_SIZE, total_size);
-
-        ret = bdrv_create(bdrv_qcow2, tmp_filename, create_options, &local_err);
-        free_option_parameters(create_options);
-        if (ret < 0) {
-            error_setg_errno(errp, -ret, "Could not create temporary overlay "
-                             "'%s': %s", tmp_filename,
-                             error_get_pretty(local_err));
-            error_free(local_err);
-            local_err = NULL;
-            goto fail;
-        }
-
-        /* Prepare a new options QDict for the temporary file, where user
-         * options refer to the backing file */
-        if (filename) {
-            qdict_put(options, "file.filename", qstring_from_str(filename));
-        }
-        if (drv) {
-            qdict_put(options, "driver", qstring_from_str(drv->format_name));
-        }
-
-        snapshot_options = qdict_new();
-        qdict_put(snapshot_options, "backing", options);
-        qdict_flatten(snapshot_options);
-
-        bs->options = snapshot_options;
-        options = qdict_clone_shallow(bs->options);
-
-        filename = tmp_filename;
-        drv = bdrv_qcow2;
-        bs->is_temporary = 1;
     }
 
     /* Open image file without format layer */
@@ -1371,6 +1368,17 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
             goto close_and_fail;
         }
     }
+
+    /* For snapshot=on, create a temporary qcow2 overlay. bs points to the
+     * temporary snapshot afterwards. */
+    if (flags & BDRV_O_SNAPSHOT) {
+        bdrv_append_temp_snapshot(bs, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            goto close_and_fail;
+        }
+    }
+
 
 done:
     /* Check if any unknown options were used */
