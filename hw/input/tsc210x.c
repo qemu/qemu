@@ -1070,9 +1070,21 @@ static int tsc210x_load(QEMUFile *f, void *opaque, int version_id)
     s->enabled = qemu_get_byte(f);
     s->host_mode = qemu_get_byte(f);
     s->function = qemu_get_byte(f);
+    if (s->function < 0 || s->function >= ARRAY_SIZE(mode_regs)) {
+        return -EINVAL;
+    }
     s->nextfunction = qemu_get_byte(f);
+    if (s->nextfunction < 0 || s->nextfunction >= ARRAY_SIZE(mode_regs)) {
+        return -EINVAL;
+    }
     s->precision = qemu_get_byte(f);
+    if (s->precision < 0 || s->precision >= ARRAY_SIZE(resolution)) {
+        return -EINVAL;
+    }
     s->nextprecision = qemu_get_byte(f);
+    if (s->nextprecision < 0 || s->nextprecision >= ARRAY_SIZE(resolution)) {
+        return -EINVAL;
+    }
     s->filter = qemu_get_byte(f);
     s->pin_func = qemu_get_byte(f);
     s->ref = qemu_get_byte(f);
