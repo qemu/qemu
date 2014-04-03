@@ -199,6 +199,8 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     kvm_set_one_reg(cs, KVM_REG_S390_CPU_TIMER, &env->cputm);
     kvm_set_one_reg(cs, KVM_REG_S390_CLOCK_COMP, &env->ckc);
     kvm_set_one_reg(cs, KVM_REG_S390_TODPR, &env->todpr);
+    kvm_set_one_reg(cs, KVM_REG_S390_GBEA, &env->gbea);
+    kvm_set_one_reg(cs, KVM_REG_S390_PP, &env->pp);
 
     if (cap_async_pf) {
         r = kvm_set_one_reg(cs, KVM_REG_S390_PFTOKEN, &env->pfault_token);
@@ -304,6 +306,8 @@ int kvm_arch_get_registers(CPUState *cs)
     kvm_get_one_reg(cs, KVM_REG_S390_CPU_TIMER, &env->cputm);
     kvm_get_one_reg(cs, KVM_REG_S390_CLOCK_COMP, &env->ckc);
     kvm_get_one_reg(cs, KVM_REG_S390_TODPR, &env->todpr);
+    kvm_get_one_reg(cs, KVM_REG_S390_GBEA, &env->gbea);
+    kvm_get_one_reg(cs, KVM_REG_S390_PP, &env->pp);
 
     if (cap_async_pf) {
         r = kvm_get_one_reg(cs, KVM_REG_S390_PFTOKEN, &env->pfault_token);
