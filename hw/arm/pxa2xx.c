@@ -732,7 +732,7 @@ static void pxa2xx_ssp_save(QEMUFile *f, void *opaque)
 static int pxa2xx_ssp_load(QEMUFile *f, void *opaque, int version_id)
 {
     PXA2xxSSPState *s = (PXA2xxSSPState *) opaque;
-    int i;
+    int i, v;
 
     s->enable = qemu_get_be32(f);
 
@@ -746,7 +746,11 @@ static int pxa2xx_ssp_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_8s(f, &s->ssrsa);
     qemu_get_8s(f, &s->ssacd);
 
-    s->rx_level = qemu_get_byte(f);
+    v = qemu_get_byte(f);
+    if (v < 0 || v > ARRAY_SIZE(s->rx_fifo)) {
+        return -EINVAL;
+    }
+    s->rx_level = v;
     s->rx_start = 0;
     for (i = 0; i < s->rx_level; i ++)
         s->rx_fifo[i] = qemu_get_byte(f);
