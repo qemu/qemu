@@ -204,6 +204,14 @@ extern const VMStateInfo vmstate_info_bitmap;
     .offset       = vmstate_offset_value(_state, _field, _type),     \
 }
 
+/* Validate state using a boolean predicate. */
+#define VMSTATE_VALIDATE(_name, _test) { \
+    .name         = (_name),                                         \
+    .field_exists = (_test),                                         \
+    .flags        = VMS_ARRAY | VMS_MUST_EXIST,                      \
+    .num          = 0, /* 0 elements: no data, only run _test */     \
+}
+
 #define VMSTATE_POINTER(_field, _state, _version, _info, _type) {    \
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
