@@ -176,8 +176,8 @@ typedef struct VirtIONet {
     uint8_t nobcast;
     uint8_t vhost_started;
     struct {
-        int in_use;
-        int first_multi;
+        uint32_t in_use;
+        uint32_t first_multi;
         uint8_t multi_overflow;
         uint8_t uni_overflow;
         uint8_t *macs;
