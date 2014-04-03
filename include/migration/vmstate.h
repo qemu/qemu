@@ -601,7 +601,7 @@ extern const VMStateInfo vmstate_info_bitmap;
 #define VMSTATE_UINT64_EQUAL(_f, _s)                                  \
     VMSTATE_UINT64_EQUAL_V(_f, _s, 0)
 
-#define VMSTATE_INT32_LE(_f, _s)                                   \
+#define VMSTATE_INT32_POSITIVE_LE(_f, _s)                             \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_le, int32_t)
 
 #define VMSTATE_UINT8_TEST(_f, _s, _t)                               \

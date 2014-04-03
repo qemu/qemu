@@ -248,7 +248,7 @@ const VMStateDescription vmstate_arm_cpu = {
         /* The length-check must come before the arrays to avoid
          * incoming data possibly overflowing the array.
          */
-        VMSTATE_INT32_LE(cpreg_vmstate_array_len, ARMCPU),
+        VMSTATE_INT32_POSITIVE_LE(cpreg_vmstate_array_len, ARMCPU),
         VMSTATE_VARRAY_INT32(cpreg_vmstate_indexes, ARMCPU,
                              cpreg_vmstate_array_len,
                              0, vmstate_info_uint64, uint64_t),
