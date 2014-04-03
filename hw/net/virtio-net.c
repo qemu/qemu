@@ -1407,6 +1407,11 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         }
 
         n->curr_queues = qemu_get_be16(f);
+        if (n->curr_queues > n->max_queues) {
+            error_report("virtio-net: curr_queues %x > max_queues %x",
+                         n->curr_queues, n->max_queues);
+            return -1;
+        }
         for (i = 1; i < n->curr_queues; i++) {
             n->vqs[i].tx_waiting = qemu_get_be32(f);
         }
