@@ -304,7 +304,7 @@ S: Maintained
 F: hw/*/versatile*
 
 Xilinx Zynq
-M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
+M: Peter Crosthwaite <peter.crosthwaite@xilinx.com>
 S: Maintained
 F: hw/arm/xilinx_zynq.c
 F: hw/misc/zynq_slcr.c
@@ -353,7 +353,7 @@ S: Maintained
 F: hw/microblaze/petalogix_s3adsp1800_mmu.c
 
 petalogix_ml605
-M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
+M: Peter Crosthwaite <peter.crosthwaite@xilinx.com>
 S: Maintained
 F: hw/microblaze/petalogix_ml605_mmu.c
 
@@ -592,7 +592,7 @@ S: Orphan
 F: hw/scsi/lsi53c895a.c
 
 SSI
-M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
+M: Peter Crosthwaite <peter.crosthwaite@xilinx.com>
 S: Maintained
 F: hw/ssi/*
 F: hw/block/m25p80.c
@@ -652,7 +652,7 @@ F: hw/block/nvme*
 F: tests/nvme-test.c
 
 Xilinx EDK
-M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
+M: Peter Crosthwaite <peter.crosthwaite@xilinx.com>
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: hw/*/xilinx_*
@@ -696,7 +696,7 @@ F: include/hw/cpu/icc_bus.h
 F: hw/cpu/icc_bus.c
 
 Device Tree
-M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
+M: Peter Crosthwaite <peter.crosthwaite@xilinx.com>
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: device_tree.[ch]
