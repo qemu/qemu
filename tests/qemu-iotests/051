@@ -204,6 +204,10 @@ run_qemu -hda foo:bar
 run_qemu -drive file=foo:bar
 run_qemu -drive file.filename=foo:bar
 
+run_qemu -hda "file:$TEST_IMG"
+run_qemu -drive file="file:$TEST_IMG"
+run_qemu -drive file.filename="file:$TEST_IMG"
+
 echo
 echo === Snapshot mode ===
 echo

@@ -968,7 +968,7 @@ static int bdrv_file_open(BlockDriverState *bs, const char *filename,
 {
     BlockDriver *drv;
     const char *drvname;
-    bool allow_protocol_prefix = false;
+    bool parse_filename = false;
     Error *local_err = NULL;
     int ret;
 
@@ -977,7 +977,7 @@ static int bdrv_file_open(BlockDriverState *bs, const char *filename,
         filename = qdict_get_try_str(*options, "filename");
     } else if (filename && !qdict_haskey(*options, "filename")) {
         qdict_put(*options, "filename", qstring_from_str(filename));
-        allow_protocol_prefix = true;
+        parse_filename = true;
     } else {
         error_setg(errp, "Can't specify 'file' and 'filename' options at the "
                    "same time");
@@ -994,7 +994,7 @@ static int bdrv_file_open(BlockDriverState *bs, const char *filename,
         }
         qdict_del(*options, "driver");
     } else if (filename) {
-        drv = bdrv_find_protocol(filename, allow_protocol_prefix);
+        drv = bdrv_find_protocol(filename, parse_filename);
         if (!drv) {
             error_setg(errp, "Unknown protocol");
         }
@@ -1010,7 +1010,7 @@ static int bdrv_file_open(BlockDriverState *bs, const char *filename,
     }
 
     /* Parse the filename and open it */
-    if (drv->bdrv_parse_filename && filename) {
+    if (drv->bdrv_parse_filename && parse_filename) {
         drv->bdrv_parse_filename(filename, *options, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
