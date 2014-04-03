@@ -907,6 +907,9 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
     qemu_get_8s(f, &vdev->status);
     qemu_get_8s(f, &vdev->isr);
     qemu_get_be16s(f, &vdev->queue_sel);
+    if (vdev->queue_sel >= VIRTIO_PCI_QUEUE_MAX) {
+        return -1;
+    }
     qemu_get_be32s(f, &features);
 
     if (virtio_set_features(vdev, features) < 0) {
