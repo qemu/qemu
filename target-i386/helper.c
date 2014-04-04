@@ -716,47 +716,9 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
         /* if PSE bit is set, then we use a 4MB page */
         if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
             page_size = 4096 * 1024;
-            switch (mmu_idx) {
-            case MMU_USER_IDX:
-                if (!(pde & PG_USER_MASK)) {
-                    goto do_fault_protect;
-                }
-                if (is_write && !(pde & PG_RW_MASK)) {
-                    goto do_fault_protect;
-                }
-                break;
-
-            case MMU_KSMAP_IDX:
-                if (is_write1 != 2 && (pde & PG_USER_MASK)) {
-                    goto do_fault_protect;
-                }
-                /* fall through */
-            case MMU_KNOSMAP_IDX:
-                if (is_write1 == 2 && (env->cr[4] & CR4_SMEP_MASK) &&
-                    (pde & PG_USER_MASK)) {
-                    goto do_fault_protect;
-                }
-                if ((env->cr[0] & CR0_WP_MASK) &&
-                    is_write && !(pde & PG_RW_MASK)) {
-                    goto do_fault_protect;
-                }
-                break;
-
-            default: /* cannot happen */
-                break;
-            }
-            is_dirty = is_write && !(pde & PG_DIRTY_MASK);
-            if (!(pde & PG_ACCESSED_MASK) || is_dirty) {
-                pde |= PG_ACCESSED_MASK;
-                if (is_dirty) {
-                    pde |= PG_DIRTY_MASK;
-                }
-                stl_phys_notdirty(cs->as, pde_addr, pde);
-            }
-
-            pte = pde & ~((page_size - 1) & ~0xfff); /* align to page_size */
-            ptep = pte;
-            virt_addr = addr & ~(page_size - 1);
+            ptep = pde;
+            pte_addr = pde_addr;
+            pte = pde;
         } else {
             if (!(pde & PG_ACCESSED_MASK)) {
                 pde |= PG_ACCESSED_MASK;
@@ -773,46 +735,48 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             }
             /* combine pde and pte user and rw protections */
             ptep = pte & pde;
-            switch (mmu_idx) {
-            case MMU_USER_IDX:
-                if (!(ptep & PG_USER_MASK)) {
-                    goto do_fault_protect;
-                }
-                if (is_write && !(ptep & PG_RW_MASK)) {
-                    goto do_fault_protect;
-                }
-                break;
-
-            case MMU_KSMAP_IDX:
-                if (is_write1 != 2 && (ptep & PG_USER_MASK)) {
-                    goto do_fault_protect;
-                }
-                /* fall through */
-            case MMU_KNOSMAP_IDX:
-                if (is_write1 == 2 && (env->cr[4] & CR4_SMEP_MASK) &&
-                    (ptep & PG_USER_MASK)) {
-                    goto do_fault_protect;
-                }
-                if ((env->cr[0] & CR0_WP_MASK) &&
-                    is_write && !(ptep & PG_RW_MASK)) {
-                    goto do_fault_protect;
-                }
-                break;
-
-            default: /* cannot happen */
-                break;
-            }
-            is_dirty = is_write && !(pte & PG_DIRTY_MASK);
-            if (!(pte & PG_ACCESSED_MASK) || is_dirty) {
-                pte |= PG_ACCESSED_MASK;
-                if (is_dirty) {
-                    pte |= PG_DIRTY_MASK;
-                }
-                stl_phys_notdirty(cs->as, pte_addr, pte);
-            }
             page_size = 4096;
-            virt_addr = addr & ~0xfff;
         }
+        switch (mmu_idx) {
+        case MMU_USER_IDX:
+            if (!(ptep & PG_USER_MASK)) {
+                goto do_fault_protect;
+            }
+            if (is_write && !(ptep & PG_RW_MASK)) {
+                goto do_fault_protect;
+            }
+            break;
+
+        case MMU_KSMAP_IDX:
+            if (is_write1 != 2 && (ptep & PG_USER_MASK)) {
+                goto do_fault_protect;
+            }
+            /* fall through */
+        case MMU_KNOSMAP_IDX:
+            if (is_write1 == 2 && (env->cr[4] & CR4_SMEP_MASK) &&
+                (ptep & PG_USER_MASK)) {
+                goto do_fault_protect;
+            }
+            if ((env->cr[0] & CR0_WP_MASK) &&
+                is_write && !(ptep & PG_RW_MASK)) {
+                goto do_fault_protect;
+            }
+            break;
+
+        default: /* cannot happen */
+            break;
+        }
+        is_dirty = is_write && !(pte & PG_DIRTY_MASK);
+        if (!(pte & PG_ACCESSED_MASK) || is_dirty) {
+            pte |= PG_ACCESSED_MASK;
+            if (is_dirty) {
+                pte |= PG_DIRTY_MASK;
+            }
+            stl_phys_notdirty(cs->as, pte_addr, pte);
+        }
+        /* align to page_size */
+        pte &= ~((page_size - 1) & ~0xfff);
+        virt_addr = addr & ~(page_size - 1);
     }
     /* the page can be put in the TLB */
     prot = PAGE_READ;
