@@ -2391,6 +2391,7 @@ static int vmxnet3_post_load(void *opaque, int version_id)
         }
     }
 
+    vmxnet3_validate_queues(s);
     vmxnet3_validate_interrupts(s);
 
     return 0;
