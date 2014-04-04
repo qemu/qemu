@@ -1101,8 +1101,10 @@ static struct scsi_task *iscsi_do_inquiry(struct iscsi_context *iscsi, int lun,
     return task;
 
 fail:
-    error_setg(errp, "iSCSI: Inquiry command failed : %s",
-               iscsi_get_error(iscsi));
+    if (!error_is_set(errp)) {
+        error_setg(errp, "iSCSI: Inquiry command failed : %s",
+                   iscsi_get_error(iscsi));
+    }
     if (task != NULL) {
         scsi_free_scsi_task(task);
     }
