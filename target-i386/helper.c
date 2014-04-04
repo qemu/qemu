@@ -605,6 +605,13 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
                 pdpe |= PG_ACCESSED_MASK;
                 stl_phys_notdirty(cs->as, pdpe_addr, pdpe);
             }
+            if (pdpe & PG_PSE_MASK) {
+                /* 1 GB page */
+                page_size = 1024 * 1024 * 1024;
+                pte_addr = pdpe_addr;
+                pte = pdpe;
+                goto do_check_protect;
+            }
         } else
 #endif
         {
