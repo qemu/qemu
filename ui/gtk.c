@@ -159,6 +159,8 @@ typedef struct GtkDisplayState
     gboolean last_set;
     int last_x;
     int last_y;
+    int grab_x_root;
+    int grab_y_root;
 
     double scale_x;
     double scale_y;
@@ -971,8 +973,8 @@ static void gd_ungrab_keyboard(GtkDisplayState *s)
 
 static void gd_grab_pointer(GtkDisplayState *s)
 {
-#if GTK_CHECK_VERSION(3, 0, 0)
     GdkDisplay *display = gtk_widget_get_display(s->drawing_area);
+#if GTK_CHECK_VERSION(3, 0, 0)
     GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
     GList *devices = gdk_device_manager_list_devices(mgr,
                                                      GDK_DEVICE_TYPE_MASTER);
@@ -996,6 +998,8 @@ static void gd_grab_pointer(GtkDisplayState *s)
         tmp = tmp->next;
     }
     g_list_free(devices);
+    gdk_device_get_position(gdk_device_manager_get_client_pointer(mgr),
+                            NULL, &s->grab_x_root, &s->grab_y_root);
 #else
     gdk_pointer_grab(gtk_widget_get_window(s->drawing_area),
                      FALSE, /* All events to come to our window directly */
@@ -1007,13 +1011,15 @@ static void gd_grab_pointer(GtkDisplayState *s)
                      NULL, /* Allow cursor to move over entire desktop */
                      s->null_cursor,
                      GDK_CURRENT_TIME);
+    gdk_display_get_pointer(display, NULL,
+                            &s->grab_x_root, &s->grab_y_root, NULL);
 #endif
 }
 
 static void gd_ungrab_pointer(GtkDisplayState *s)
 {
-#if GTK_CHECK_VERSION(3, 0, 0)
     GdkDisplay *display = gtk_widget_get_display(s->drawing_area);
+#if GTK_CHECK_VERSION(3, 0, 0)
     GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
     GList *devices = gdk_device_manager_list_devices(mgr,
                                                      GDK_DEVICE_TYPE_MASTER);
@@ -1027,8 +1033,14 @@ static void gd_ungrab_pointer(GtkDisplayState *s)
         tmp = tmp->next;
     }
     g_list_free(devices);
+    gdk_device_warp(gdk_device_manager_get_client_pointer(mgr),
+                    gtk_widget_get_screen(s->drawing_area),
+                    s->grab_x_root, s->grab_y_root);
 #else
     gdk_pointer_ungrab(GDK_CURRENT_TIME);
+    gdk_display_warp_pointer(display,
+                             gtk_widget_get_screen(s->drawing_area),
+                             s->grab_x_root, s->grab_y_root);
 #endif
 }
 
