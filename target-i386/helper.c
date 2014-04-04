@@ -670,8 +670,9 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             is_dirty = is_write && !(pde & PG_DIRTY_MASK);
             if (!(pde & PG_ACCESSED_MASK) || is_dirty) {
                 pde |= PG_ACCESSED_MASK;
-                if (is_dirty)
+                if (is_dirty) {
                     pde |= PG_DIRTY_MASK;
+                }
                 stl_phys_notdirty(cs->as, pde_addr, pde);
             }
             /* align to page_size */
@@ -731,8 +732,9 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             is_dirty = is_write && !(pte & PG_DIRTY_MASK);
             if (!(pte & PG_ACCESSED_MASK) || is_dirty) {
                 pte |= PG_ACCESSED_MASK;
-                if (is_dirty)
+                if (is_dirty) {
                     pte |= PG_DIRTY_MASK;
+                }
                 stl_phys_notdirty(cs->as, pte_addr, pte);
             }
             page_size = 4096;
@@ -785,12 +787,13 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             is_dirty = is_write && !(pde & PG_DIRTY_MASK);
             if (!(pde & PG_ACCESSED_MASK) || is_dirty) {
                 pde |= PG_ACCESSED_MASK;
-                if (is_dirty)
+                if (is_dirty) {
                     pde |= PG_DIRTY_MASK;
+                }
                 stl_phys_notdirty(cs->as, pde_addr, pde);
             }
 
-            pte = pde & ~( (page_size - 1) & ~0xfff); /* align to page_size */
+            pte = pde & ~((page_size - 1) & ~0xfff); /* align to page_size */
             ptep = pte;
             virt_addr = addr & ~(page_size - 1);
         } else {
@@ -841,8 +844,9 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             is_dirty = is_write && !(pte & PG_DIRTY_MASK);
             if (!(pte & PG_ACCESSED_MASK) || is_dirty) {
                 pte |= PG_ACCESSED_MASK;
-                if (is_dirty)
+                if (is_dirty) {
                     pte |= PG_DIRTY_MASK;
+                }
                 stl_phys_notdirty(cs->as, pte_addr, pte);
             }
             page_size = 4096;
