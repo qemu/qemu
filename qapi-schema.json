@@ -651,13 +651,15 @@
 #
 # @mbps: throughput in megabits/sec. (since 1.6)
 #
+# @dirty-sync-count: number of times that dirty ram was synchronized (since 2.1)
+#
 # Since: 0.14.0
 ##
 { 'type': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
            'duplicate': 'int', 'skipped': 'int', 'normal': 'int',
            'normal-bytes': 'int', 'dirty-pages-rate' : 'int',
-           'mbps' : 'number' } }
+           'mbps' : 'number', 'dirty-sync-count' : 'int' } }
 
 ##
 # @XBZRLECacheStats

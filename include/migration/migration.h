@@ -61,6 +61,7 @@ struct MigrationState
     bool enabled_capabilities[MIGRATION_CAPABILITY_MAX];
     int64_t xbzrle_cache_size;
     int64_t setup_time;
+    int64_t dirty_sync_count;
 };
 
 void process_incoming_migration(QEMUFile *f);

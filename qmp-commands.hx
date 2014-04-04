@@ -2967,6 +2967,7 @@ The main json-object contains the following:
             pages. This is just normal pages times size of one page,
             but this way upper levels don't need to care about page
             size (json-int)
+         - "dirty-sync-count": times that dirty ram was synchronized (json-int)
 - "disk": only present if "status" is "active" and it is a block migration,
   it is a json-object with the following disk information:
          - "transferred": amount transferred in bytes (json-int)
@@ -3004,7 +3005,8 @@ Examples:
           "downtime":12345,
           "duplicate":123,
           "normal":123,
-          "normal-bytes":123456
+          "normal-bytes":123456,
+          "dirty-sync-count":15
         }
      }
    }
@@ -3029,7 +3031,8 @@ Examples:
             "expected-downtime":12345,
             "duplicate":123,
             "normal":123,
-            "normal-bytes":123456
+            "normal-bytes":123456,
+            "dirty-sync-count":15
          }
       }
    }
@@ -3049,7 +3052,8 @@ Examples:
             "expected-downtime":12345,
             "duplicate":123,
             "normal":123,
-            "normal-bytes":123456
+            "normal-bytes":123456,
+            "dirty-sync-count":15
          },
          "disk":{
             "total":20971520,
@@ -3075,7 +3079,8 @@ Examples:
             "expected-downtime":12345,
             "duplicate":10,
             "normal":3333,
-            "normal-bytes":3412992
+            "normal-bytes":3412992,
+            "dirty-sync-count":15
          },
          "xbzrle-cache":{
             "cache-size":67108864,
