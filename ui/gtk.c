@@ -156,6 +156,7 @@ typedef struct GtkDisplayState
     DisplayChangeListener dcl;
     DisplaySurface *ds;
     int button_mask;
+    gboolean last_set;
     int last_x;
     int last_y;
 
@@ -616,25 +617,25 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
     x = (motion->x - mx) / s->scale_x;
     y = (motion->y - my) / s->scale_y;
 
-    if (x < 0 || y < 0 ||
-        x >= surface_width(s->ds) ||
-        y >= surface_height(s->ds)) {
-        return TRUE;
-    }
-
     if (qemu_input_is_absolute()) {
+        if (x < 0 || y < 0 ||
+            x >= surface_width(s->ds) ||
+            y >= surface_height(s->ds)) {
+            return TRUE;
+        }
         qemu_input_queue_abs(s->dcl.con, INPUT_AXIS_X, x,
                              surface_width(s->ds));
         qemu_input_queue_abs(s->dcl.con, INPUT_AXIS_Y, y,
                              surface_height(s->ds));
         qemu_input_event_sync();
-    } else if (s->last_x != -1 && s->last_y != -1 && gd_is_grab_active(s)) {
+    } else if (s->last_set && gd_is_grab_active(s)) {
         qemu_input_queue_rel(s->dcl.con, INPUT_AXIS_X, x - s->last_x);
         qemu_input_queue_rel(s->dcl.con, INPUT_AXIS_Y, y - s->last_y);
         qemu_input_event_sync();
     }
     s->last_x = x;
     s->last_y = y;
+    s->last_set = TRUE;
 
     if (!qemu_input_is_absolute() && gd_is_grab_active(s)) {
         GdkScreen *screen = gtk_widget_get_screen(s->drawing_area);
@@ -669,8 +670,7 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
             GdkDisplay *display = gtk_widget_get_display(widget);
             gdk_display_warp_pointer(display, screen, x, y);
 #endif
-            s->last_x = -1;
-            s->last_y = -1;
+            s->last_set = FALSE;
             return FALSE;
         }
     }
