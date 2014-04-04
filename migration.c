@@ -174,6 +174,7 @@ static void get_xbzrle_cache_stats(MigrationInfo *info)
         info->xbzrle_cache->bytes = xbzrle_mig_bytes_transferred();
         info->xbzrle_cache->pages = xbzrle_mig_pages_transferred();
         info->xbzrle_cache->cache_miss = xbzrle_mig_pages_cache_miss();
+        info->xbzrle_cache->cache_miss_rate = xbzrle_mig_cache_miss_rate();
         info->xbzrle_cache->overflow = xbzrle_mig_pages_overflow();
     }
 }

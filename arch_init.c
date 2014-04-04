@@ -236,6 +236,7 @@ typedef struct AccountingInfo {
     uint64_t xbzrle_bytes;
     uint64_t xbzrle_pages;
     uint64_t xbzrle_cache_miss;
+    double xbzrle_cache_miss_rate;
     uint64_t xbzrle_overflows;
 } AccountingInfo;
 
@@ -289,6 +290,11 @@ uint64_t xbzrle_mig_pages_transferred(void)
 uint64_t xbzrle_mig_pages_cache_miss(void)
 {
     return acct_info.xbzrle_cache_miss;
+}
+
+double xbzrle_mig_cache_miss_rate(void)
+{
+    return acct_info.xbzrle_cache_miss_rate;
 }
 
 uint64_t xbzrle_mig_pages_overflow(void)
@@ -489,6 +495,8 @@ static void migration_bitmap_sync(void)
     static int64_t num_dirty_pages_period;
     int64_t end_time;
     int64_t bytes_xfer_now;
+    static uint64_t xbzrle_cache_miss_prev;
+    static uint64_t iterations_prev;
 
     bitmap_sync_count++;
 
@@ -531,6 +539,16 @@ static void migration_bitmap_sync(void)
              bytes_xfer_prev = bytes_xfer_now;
         } else {
              mig_throttle_on = false;
+        }
+        if (migrate_use_xbzrle()) {
+            if (iterations_prev != 0) {
+                acct_info.xbzrle_cache_miss_rate =
+                   (double)(acct_info.xbzrle_cache_miss -
+                            xbzrle_cache_miss_prev) /
+                   (acct_info.iterations - iterations_prev);
+            }
+            iterations_prev = acct_info.iterations;
+            xbzrle_cache_miss_prev = acct_info.xbzrle_cache_miss;
         }
         s->dirty_pages_rate = num_dirty_pages_period * 1000
             / (end_time - start_time);

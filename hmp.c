@@ -214,6 +214,8 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->xbzrle_cache->pages);
         monitor_printf(mon, "xbzrle cache miss: %" PRIu64 "\n",
                        info->xbzrle_cache->cache_miss);
+        monitor_printf(mon, "xbzrle cache miss rate: %0.2f\n",
+                       info->xbzrle_cache->cache_miss_rate);
         monitor_printf(mon, "xbzrle overflow : %" PRIu64 "\n",
                        info->xbzrle_cache->overflow);
     }

@@ -674,13 +674,16 @@
 #
 # @cache-miss: number of cache miss
 #
+# @cache-miss-rate: rate of cache miss (since 2.1)
+#
 # @overflow: number of overflows
 #
 # Since: 1.2
 ##
 { 'type': 'XBZRLECacheStats',
   'data': {'cache-size': 'int', 'bytes': 'int', 'pages': 'int',
-           'cache-miss': 'int', 'overflow': 'int' } }
+           'cache-miss': 'int', 'cache-miss-rate': 'number',
+           'overflow': 'int' } }
 
 ##
 # @MigrationInfo

@@ -124,6 +124,7 @@ uint64_t xbzrle_mig_bytes_transferred(void);
 uint64_t xbzrle_mig_pages_transferred(void);
 uint64_t xbzrle_mig_pages_overflow(void);
 uint64_t xbzrle_mig_pages_cache_miss(void);
+double xbzrle_mig_cache_miss_rate(void);
 
 void ram_handle_compressed(void *host, uint8_t ch, uint64_t size);
 

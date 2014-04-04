@@ -2979,6 +2979,7 @@ The main json-object contains the following:
          - "bytes": number of bytes transferred for XBZRLE compressed pages
          - "pages": number of XBZRLE compressed pages
          - "cache-miss": number of XBRZRLE page cache misses
+         - "cache-miss-rate": rate of XBRZRLE page cache misses
          - "overflow": number of times XBZRLE overflows.  This means
            that the XBZRLE encoding was bigger than just sent the
            whole page, and then we sent the whole page instead (as as
@@ -3087,6 +3088,7 @@ Examples:
             "bytes":20971520,
             "pages":2444343,
             "cache-miss":2244,
+            "cache-miss-rate":0.123,
             "overflow":34434
          }
       }
