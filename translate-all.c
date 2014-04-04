@@ -1777,7 +1777,6 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
                     return -1;
                 }
             }
-            return 0;
         }
     }
     return 0;
