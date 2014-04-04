@@ -659,49 +659,6 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
         }
 
         ptep ^= PG_NX_MASK;
-        if ((ptep & PG_NX_MASK) && is_write1 == 2) {
-            goto do_fault_protect;
-        }
-        switch (mmu_idx) {
-        case MMU_USER_IDX:
-            if (!(ptep & PG_USER_MASK)) {
-                goto do_fault_protect;
-            }
-            if (is_write && !(ptep & PG_RW_MASK)) {
-                goto do_fault_protect;
-            }
-            break;
-
-        case MMU_KSMAP_IDX:
-            if (is_write1 != 2 && (ptep & PG_USER_MASK)) {
-                goto do_fault_protect;
-            }
-            /* fall through */
-        case MMU_KNOSMAP_IDX:
-            if (is_write1 == 2 && (env->cr[4] & CR4_SMEP_MASK) &&
-                (ptep & PG_USER_MASK)) {
-                goto do_fault_protect;
-            }
-            if ((env->cr[0] & CR0_WP_MASK) &&
-                is_write && !(ptep & PG_RW_MASK)) {
-                goto do_fault_protect;
-            }
-            break;
-
-        default: /* cannot happen */
-            break;
-        }
-        is_dirty = is_write && !(pte & PG_DIRTY_MASK);
-        if (!(pte & PG_ACCESSED_MASK) || is_dirty) {
-            pte |= PG_ACCESSED_MASK;
-            if (is_dirty) {
-                pte |= PG_DIRTY_MASK;
-            }
-            stl_phys_notdirty(cs->as, pte_addr, pte);
-        }
-        /* align to page_size */
-        pte &= ((PHYS_ADDR_MASK & ~(page_size - 1)) | 0xfff);
-        virt_addr = addr & ~(page_size - 1);
     } else {
         uint32_t pde;
 
@@ -737,47 +694,52 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             ptep = pte & pde;
             page_size = 4096;
         }
-        switch (mmu_idx) {
-        case MMU_USER_IDX:
-            if (!(ptep & PG_USER_MASK)) {
-                goto do_fault_protect;
-            }
-            if (is_write && !(ptep & PG_RW_MASK)) {
-                goto do_fault_protect;
-            }
-            break;
-
-        case MMU_KSMAP_IDX:
-            if (is_write1 != 2 && (ptep & PG_USER_MASK)) {
-                goto do_fault_protect;
-            }
-            /* fall through */
-        case MMU_KNOSMAP_IDX:
-            if (is_write1 == 2 && (env->cr[4] & CR4_SMEP_MASK) &&
-                (ptep & PG_USER_MASK)) {
-                goto do_fault_protect;
-            }
-            if ((env->cr[0] & CR0_WP_MASK) &&
-                is_write && !(ptep & PG_RW_MASK)) {
-                goto do_fault_protect;
-            }
-            break;
-
-        default: /* cannot happen */
-            break;
-        }
-        is_dirty = is_write && !(pte & PG_DIRTY_MASK);
-        if (!(pte & PG_ACCESSED_MASK) || is_dirty) {
-            pte |= PG_ACCESSED_MASK;
-            if (is_dirty) {
-                pte |= PG_DIRTY_MASK;
-            }
-            stl_phys_notdirty(cs->as, pte_addr, pte);
-        }
-        /* align to page_size */
-        pte &= ~((page_size - 1) & ~0xfff);
-        virt_addr = addr & ~(page_size - 1);
     }
+
+    if ((ptep & PG_NX_MASK) && is_write1 == 2) {
+        goto do_fault_protect;
+    }
+    switch (mmu_idx) {
+    case MMU_USER_IDX:
+        if (!(ptep & PG_USER_MASK)) {
+            goto do_fault_protect;
+        }
+        if (is_write && !(ptep & PG_RW_MASK)) {
+            goto do_fault_protect;
+        }
+        break;
+
+    case MMU_KSMAP_IDX:
+        if (is_write1 != 2 && (ptep & PG_USER_MASK)) {
+            goto do_fault_protect;
+        }
+        /* fall through */
+    case MMU_KNOSMAP_IDX:
+        if (is_write1 == 2 && (env->cr[4] & CR4_SMEP_MASK) &&
+            (ptep & PG_USER_MASK)) {
+            goto do_fault_protect;
+        }
+        if ((env->cr[0] & CR0_WP_MASK) &&
+            is_write && !(ptep & PG_RW_MASK)) {
+            goto do_fault_protect;
+        }
+        break;
+
+    default: /* cannot happen */
+        break;
+    }
+    is_dirty = is_write && !(pte & PG_DIRTY_MASK);
+    if (!(pte & PG_ACCESSED_MASK) || is_dirty) {
+        pte |= PG_ACCESSED_MASK;
+        if (is_dirty) {
+            pte |= PG_DIRTY_MASK;
+        }
+        stl_phys_notdirty(cs->as, pte_addr, pte);
+    }
+    /* align to page_size */
+    pte &= ((PHYS_ADDR_MASK & ~(page_size - 1)) | 0xfff);
+    virt_addr = addr & ~(page_size - 1);
+
     /* the page can be put in the TLB */
     prot = PAGE_READ;
     if (!(ptep & PG_NX_MASK))
