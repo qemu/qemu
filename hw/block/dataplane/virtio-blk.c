@@ -23,7 +23,7 @@
 #include "virtio-blk.h"
 #include "block/aio.h"
 #include "hw/virtio/virtio-bus.h"
-#include "monitor/monitor.h" /* for object_add() */
+#include "qom/object_interfaces.h"
 
 enum {
     SEG_MAX = 126,                  /* maximum number of I/O segments */
@@ -59,7 +59,7 @@ struct VirtIOBlockDataPlane {
      * use it).
      */
     IOThread *iothread;
-    bool internal_iothread;
+    IOThread internal_iothread_obj;
     AioContext *ctx;
     EventNotifier io_notifier;      /* Linux AIO completion */
     EventNotifier host_notifier;    /* doorbell */
@@ -391,23 +391,19 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     s->blk = blk;
 
     if (blk->iothread) {
-        s->internal_iothread = false;
         s->iothread = blk->iothread;
+        object_ref(OBJECT(s->iothread));
     } else {
-        /* Create per-device IOThread if none specified */
-        Error *local_err = NULL;
-
-        s->internal_iothread = true;
-        object_add(TYPE_IOTHREAD, vdev->name, NULL, NULL, &local_err);
-        if (error_is_set(&local_err)) {
-            error_propagate(errp, local_err);
-            g_free(s);
-            return;
-        }
-        s->iothread = iothread_find(vdev->name);
-        assert(s->iothread);
+        /* Create per-device IOThread if none specified.  This is for
+         * x-data-plane option compatibility.  If x-data-plane is removed we
+         * can drop this.
+         */
+        object_initialize(&s->internal_iothread_obj,
+                          sizeof(s->internal_iothread_obj),
+                          TYPE_IOTHREAD);
+        user_creatable_complete(OBJECT(&s->internal_iothread_obj), &error_abort);
+        s->iothread = &s->internal_iothread_obj;
     }
-    object_ref(OBJECT(s->iothread));
     s->ctx = iothread_get_aio_context(s->iothread);
 
     /* Prevent block operations that conflict with data plane thread */
@@ -426,9 +422,6 @@ void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
     virtio_blk_data_plane_stop(s);
     bdrv_set_in_use(s->blk->conf.bs, 0);
     object_unref(OBJECT(s->iothread));
-    if (s->internal_iothread) {
-        object_unparent(OBJECT(s->iothread));
-    }
     g_free(s);
 }
 

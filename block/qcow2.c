@@ -269,12 +269,15 @@ static int qcow2_mark_clean(BlockDriverState *bs)
     BDRVQcowState *s = bs->opaque;
 
     if (s->incompatible_features & QCOW2_INCOMPAT_DIRTY) {
-        int ret = bdrv_flush(bs);
+        int ret;
+
+        s->incompatible_features &= ~QCOW2_INCOMPAT_DIRTY;
+
+        ret = bdrv_flush(bs);
         if (ret < 0) {
             return ret;
         }
 
-        s->incompatible_features &= ~QCOW2_INCOMPAT_DIRTY;
         return qcow2_update_header(bs);
     }
     return 0;
@@ -900,11 +903,25 @@ static int qcow2_set_key(BlockDriverState *bs, const char *key)
     return 0;
 }
 
-/* We have nothing to do for QCOW2 reopen, stubs just return
- * success */
+/* We have no actual commit/abort logic for qcow2, but we need to write out any
+ * unwritten data if we reopen read-only. */
 static int qcow2_reopen_prepare(BDRVReopenState *state,
                                 BlockReopenQueue *queue, Error **errp)
 {
+    int ret;
+
+    if ((state->flags & BDRV_O_RDWR) == 0) {
+        ret = bdrv_flush(state->bs);
+        if (ret < 0) {
+            return ret;
+        }
+
+        ret = qcow2_mark_clean(state->bs);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     return 0;
 }
 
