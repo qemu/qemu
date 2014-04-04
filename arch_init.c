@@ -111,6 +111,8 @@ static bool mig_throttle_on;
 static int dirty_rate_high_cnt;
 static void check_guest_throttling(void);
 
+static uint64_t bitmap_sync_count;
+
 /***********************************************************/
 /* ram save/restore */
 
@@ -488,6 +490,8 @@ static void migration_bitmap_sync(void)
     int64_t end_time;
     int64_t bytes_xfer_now;
 
+    bitmap_sync_count++;
+
     if (!bytes_xfer_prev) {
         bytes_xfer_prev = ram_bytes_transferred();
     }
@@ -732,6 +736,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     mig_throttle_on = false;
     dirty_rate_high_cnt = 0;
+    bitmap_sync_count = 0;
 
     if (migrate_use_xbzrle()) {
         XBZRLE_cache_lock();
