@@ -1336,6 +1336,23 @@ static void vmxnet3_validate_interrupts(VMXNET3State *s)
     }
 }
 
+static void vmxnet3_validate_queues(VMXNET3State *s)
+{
+    /*
+    * txq_num and rxq_num are total number of queues
+    * configured by guest. These numbers must not
+    * exceed corresponding maximal values.
+    */
+
+    if (s->txq_num > VMXNET3_DEVICE_MAX_TX_QUEUES) {
+        hw_error("Bad TX queues number: %d\n", s->txq_num);
+    }
+
+    if (s->rxq_num > VMXNET3_DEVICE_MAX_RX_QUEUES) {
+        hw_error("Bad RX queues number: %d\n", s->rxq_num);
+    }
+}
+
 static void vmxnet3_activate_device(VMXNET3State *s)
 {
     int i;
@@ -1382,7 +1399,7 @@ static void vmxnet3_activate_device(VMXNET3State *s)
         VMXNET3_READ_DRV_SHARED8(s->drv_shmem, devRead.misc.numRxQueues);
 
     VMW_CFPRN("Number of TX/RX queues %u/%u", s->txq_num, s->rxq_num);
-    assert(s->txq_num <= VMXNET3_DEVICE_MAX_TX_QUEUES);
+    vmxnet3_validate_queues(s);
 
     qdescr_table_pa =
         VMXNET3_READ_DRV_SHARED64(s->drv_shmem, devRead.misc.queueDescPA);
