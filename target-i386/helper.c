@@ -636,27 +636,27 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             page_size = 2048 * 1024;
             pte_addr = pde_addr;
             pte = pde;
-        } else {
-            /* 4 KB page */
-            if (!(pde & PG_ACCESSED_MASK)) {
-                pde |= PG_ACCESSED_MASK;
-                stl_phys_notdirty(cs->as, pde_addr, pde);
-            }
-            pte_addr = ((pde & PHYS_ADDR_MASK) + (((addr >> 12) & 0x1ff) << 3)) &
-                env->a20_mask;
-            pte = ldq_phys(cs->as, pte_addr);
-            if (!(pte & PG_PRESENT_MASK)) {
-                error_code = 0;
-                goto do_fault;
-            }
-            if (!(env->efer & MSR_EFER_NXE) && (pte & PG_NX_MASK)) {
-                error_code = PG_ERROR_RSVD_MASK;
-                goto do_fault;
-            }
-            /* combine pde and pte nx, user and rw protections */
-            ptep &= pte ^ PG_NX_MASK;
-            page_size = 4096;
+            goto do_check_protect;
         }
+        /* 4 KB page */
+        if (!(pde & PG_ACCESSED_MASK)) {
+            pde |= PG_ACCESSED_MASK;
+            stl_phys_notdirty(cs->as, pde_addr, pde);
+        }
+        pte_addr = ((pde & PHYS_ADDR_MASK) + (((addr >> 12) & 0x1ff) << 3)) &
+            env->a20_mask;
+        pte = ldq_phys(cs->as, pte_addr);
+        if (!(pte & PG_PRESENT_MASK)) {
+            error_code = 0;
+            goto do_fault;
+        }
+        if (!(env->efer & MSR_EFER_NXE) && (pte & PG_NX_MASK)) {
+            error_code = PG_ERROR_RSVD_MASK;
+            goto do_fault;
+        }
+        /* combine pde and pte nx, user and rw protections */
+        ptep &= pte ^ PG_NX_MASK;
+        page_size = 4096;
     } else {
         uint32_t pde;
 
@@ -675,26 +675,28 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             page_size = 4096 * 1024;
             pte_addr = pde_addr;
             pte = pde;
-        } else {
-            if (!(pde & PG_ACCESSED_MASK)) {
-                pde |= PG_ACCESSED_MASK;
-                stl_phys_notdirty(cs->as, pde_addr, pde);
-            }
-
-            /* page directory entry */
-            pte_addr = ((pde & ~0xfff) + ((addr >> 10) & 0xffc)) &
-                env->a20_mask;
-            pte = ldl_phys(cs->as, pte_addr);
-            if (!(pte & PG_PRESENT_MASK)) {
-                error_code = 0;
-                goto do_fault;
-            }
-            /* combine pde and pte user and rw protections */
-            ptep &= pte | PG_NX_MASK;
-            page_size = 4096;
+            goto do_check_protect;
         }
+
+        if (!(pde & PG_ACCESSED_MASK)) {
+            pde |= PG_ACCESSED_MASK;
+            stl_phys_notdirty(cs->as, pde_addr, pde);
+        }
+
+        /* page directory entry */
+        pte_addr = ((pde & ~0xfff) + ((addr >> 10) & 0xffc)) &
+            env->a20_mask;
+        pte = ldl_phys(cs->as, pte_addr);
+        if (!(pte & PG_PRESENT_MASK)) {
+            error_code = 0;
+            goto do_fault;
+        }
+        /* combine pde and pte user and rw protections */
+        ptep &= pte | PG_NX_MASK;
+        page_size = 4096;
     }
 
+do_check_protect:
     ptep ^= PG_NX_MASK;
     if ((ptep & PG_NX_MASK) && is_write1 == 2) {
         goto do_fault_protect;
