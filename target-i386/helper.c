@@ -657,8 +657,6 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             ptep &= pte ^ PG_NX_MASK;
             page_size = 4096;
         }
-
-        ptep ^= PG_NX_MASK;
     } else {
         uint32_t pde;
 
@@ -670,10 +668,11 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             error_code = 0;
             goto do_fault;
         }
+        ptep = pde | PG_NX_MASK;
+
         /* if PSE bit is set, then we use a 4MB page */
         if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
             page_size = 4096 * 1024;
-            ptep = pde;
             pte_addr = pde_addr;
             pte = pde;
         } else {
@@ -691,11 +690,12 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
                 goto do_fault;
             }
             /* combine pde and pte user and rw protections */
-            ptep = pte & pde;
+            ptep &= pte | PG_NX_MASK;
             page_size = 4096;
         }
     }
 
+    ptep ^= PG_NX_MASK;
     if ((ptep & PG_NX_MASK) && is_write1 == 2) {
         goto do_fault_protect;
     }
