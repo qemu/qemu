@@ -1184,7 +1184,12 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, Error **errp)
        instead of opening 'filename' directly */
 
     /* Get the required size from the image */
-    total_size = bdrv_getlength(bs) & BDRV_SECTOR_MASK;
+    total_size = bdrv_getlength(bs);
+    if (total_size < 0) {
+        error_setg_errno(errp, -total_size, "Could not get image size");
+        return;
+    }
+    total_size &= BDRV_SECTOR_MASK;
 
     /* Create the temporary image */
     ret = get_tmp_filename(tmp_filename, sizeof(tmp_filename));
