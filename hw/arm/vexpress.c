@@ -192,10 +192,9 @@ static void init_cpus(const char *cpu_model, const char *privdev,
         Object *cpuobj = object_new(object_class_get_name(cpu_oc));
         Error *err = NULL;
 
-        object_property_set_int(cpuobj, periphbase, "reset-cbar", &err);
-        if (err) {
-            error_report("%s", error_get_pretty(err));
-            exit(1);
+        if (object_property_find(cpuobj, "reset-cbar", NULL)) {
+            object_property_set_int(cpuobj, periphbase,
+                                    "reset-cbar", &error_abort);
         }
         object_property_set_bool(cpuobj, true, "realized", &err);
         if (err) {
