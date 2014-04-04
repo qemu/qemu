@@ -233,6 +233,11 @@ static void calxeda_init(QEMUMachineInitArgs *args, enum cxmachines machine)
         ARMCPU *cpu;
         Error *err = NULL;
 
+        if (!oc) {
+            error_report("Unable to find CPU definition");
+            exit(1);
+        }
+
         cpu = ARM_CPU(object_new(object_class_get_name(oc)));
 
         object_property_set_int(OBJECT(cpu), MPCORE_PERIPHBASE, "reset-cbar",
