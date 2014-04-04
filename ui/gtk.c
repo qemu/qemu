@@ -765,6 +765,14 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
     return TRUE;
 }
 
+static gboolean gd_event(GtkWidget *widget, GdkEvent *event, void *opaque)
+{
+    if (event->type == GDK_MOTION_NOTIFY) {
+        return gd_motion_event(widget, &event->motion, opaque);
+    }
+    return FALSE;
+}
+
 /** Window Menu Actions **/
 
 static void gd_menu_pause(GtkMenuItem *item, void *opaque)
@@ -1267,8 +1275,8 @@ static void gd_connect_signals(GtkDisplayState *s)
     g_signal_connect(s->drawing_area, "expose-event",
                      G_CALLBACK(gd_expose_event), s);
 #endif
-    g_signal_connect(s->drawing_area, "motion-notify-event",
-                     G_CALLBACK(gd_motion_event), s);
+    g_signal_connect(s->drawing_area, "event",
+                     G_CALLBACK(gd_event), s);
     g_signal_connect(s->drawing_area, "button-press-event",
                      G_CALLBACK(gd_button_event), s);
     g_signal_connect(s->drawing_area, "button-release-event",
