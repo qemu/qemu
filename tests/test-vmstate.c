@@ -44,14 +44,14 @@ void yield_until_fd_readable(int fd)
 }
 
 /* Duplicate temp_fd and seek to the beginning of the file */
-static int dup_temp_fd(bool truncate)
+static QEMUFile *open_test_file(bool write)
 {
     int fd = dup(temp_fd);
     lseek(fd, 0, SEEK_SET);
-    if (truncate) {
+    if (write) {
         g_assert_cmpint(ftruncate(fd, 0), ==, 0);
     }
-    return fd;
+    return qemu_fdopen(fd, write ? "wb" : "rb");
 }
 
 typedef struct TestSruct {
@@ -76,13 +76,13 @@ static const VMStateDescription vmstate_simple = {
 
 static void test_simple_save(void)
 {
-    QEMUFile *fsave = qemu_fdopen(dup_temp_fd(true), "wb");
+    QEMUFile *fsave = open_test_file(true);
     TestStruct obj = { .a = 1, .b = 2, .c = 3, .d = 4 };
     vmstate_save_state(fsave, &vmstate_simple, &obj);
     g_assert(!qemu_file_get_error(fsave));
     qemu_fclose(fsave);
 
-    QEMUFile *loading = qemu_fdopen(dup_temp_fd(false), "rb");
+    QEMUFile *loading = open_test_file(false);
     uint8_t expected[] = {
         0, 0, 0, 1, /* a */
         0, 0, 0, 2, /* b */
@@ -104,7 +104,7 @@ static void test_simple_save(void)
 
 static void test_simple_load(void)
 {
-    QEMUFile *fsave = qemu_fdopen(dup_temp_fd(true), "wb");
+    QEMUFile *fsave = open_test_file(true);
     uint8_t buf[] = {
         0, 0, 0, 10,             /* a */
         0, 0, 0, 20,             /* b */
@@ -115,7 +115,7 @@ static void test_simple_load(void)
     qemu_put_buffer(fsave, buf, sizeof(buf));
     qemu_fclose(fsave);
 
-    QEMUFile *loading = qemu_fdopen(dup_temp_fd(false), "rb");
+    QEMUFile *loading = open_test_file(false);
     TestStruct obj;
     vmstate_load_state(loading, &vmstate_simple, &obj, 1);
     g_assert(!qemu_file_get_error(loading));
@@ -145,7 +145,7 @@ static const VMStateDescription vmstate_versioned = {
 
 static void test_load_v1(void)
 {
-    QEMUFile *fsave = qemu_fdopen(dup_temp_fd(true), "wb");
+    QEMUFile *fsave = open_test_file(true);
     uint8_t buf[] = {
         0, 0, 0, 10,             /* a */
         0, 0, 0, 30,             /* c */
@@ -155,7 +155,7 @@ static void test_load_v1(void)
     qemu_put_buffer(fsave, buf, sizeof(buf));
     qemu_fclose(fsave);
 
-    QEMUFile *loading = qemu_fdopen(dup_temp_fd(false), "rb");
+    QEMUFile *loading = open_test_file(false);
     TestStruct obj = { .b = 200, .e = 500, .f = 600 };
     vmstate_load_state(loading, &vmstate_versioned, &obj, 1);
     g_assert(!qemu_file_get_error(loading));
@@ -170,7 +170,7 @@ static void test_load_v1(void)
 
 static void test_load_v2(void)
 {
-    QEMUFile *fsave = qemu_fdopen(dup_temp_fd(true), "wb");
+    QEMUFile *fsave = open_test_file(true);
     uint8_t buf[] = {
         0, 0, 0, 10,             /* a */
         0, 0, 0, 20,             /* b */
@@ -183,7 +183,7 @@ static void test_load_v2(void)
     qemu_put_buffer(fsave, buf, sizeof(buf));
     qemu_fclose(fsave);
 
-    QEMUFile *loading = qemu_fdopen(dup_temp_fd(false), "rb");
+    QEMUFile *loading = open_test_file(false);
     TestStruct obj;
     vmstate_load_state(loading, &vmstate_versioned, &obj, 2);
     g_assert_cmpint(obj.a, ==, 10);
@@ -219,14 +219,14 @@ static const VMStateDescription vmstate_skipping = {
 
 static void test_save_noskip(void)
 {
-    QEMUFile *fsave = qemu_fdopen(dup_temp_fd(true), "wb");
+    QEMUFile *fsave = open_test_file(true);
     TestStruct obj = { .a = 1, .b = 2, .c = 3, .d = 4, .e = 5, .f = 6,
                        .skip_c_e = false };
     vmstate_save_state(fsave, &vmstate_skipping, &obj);
     g_assert(!qemu_file_get_error(fsave));
     qemu_fclose(fsave);
 
-    QEMUFile *loading = qemu_fdopen(dup_temp_fd(false), "rb");
+    QEMUFile *loading = open_test_file(false);
     uint8_t expected[] = {
         0, 0, 0, 1,             /* a */
         0, 0, 0, 2,             /* b */
@@ -250,14 +250,14 @@ static void test_save_noskip(void)
 
 static void test_save_skip(void)
 {
-    QEMUFile *fsave = qemu_fdopen(dup_temp_fd(true), "wb");
+    QEMUFile *fsave = open_test_file(true);
     TestStruct obj = { .a = 1, .b = 2, .c = 3, .d = 4, .e = 5, .f = 6,
                        .skip_c_e = true };
     vmstate_save_state(fsave, &vmstate_skipping, &obj);
     g_assert(!qemu_file_get_error(fsave));
     qemu_fclose(fsave);
 
-    QEMUFile *loading = qemu_fdopen(dup_temp_fd(false), "rb");
+    QEMUFile *loading = open_test_file(false);
     uint8_t expected[] = {
         0, 0, 0, 1,             /* a */
         0, 0, 0, 2,             /* b */
@@ -280,7 +280,7 @@ static void test_save_skip(void)
 
 static void test_load_noskip(void)
 {
-    QEMUFile *fsave = qemu_fdopen(dup_temp_fd(true), "wb");
+    QEMUFile *fsave = open_test_file(true);
     uint8_t buf[] = {
         0, 0, 0, 10,             /* a */
         0, 0, 0, 20,             /* b */
@@ -293,7 +293,7 @@ static void test_load_noskip(void)
     qemu_put_buffer(fsave, buf, sizeof(buf));
     qemu_fclose(fsave);
 
-    QEMUFile *loading = qemu_fdopen(dup_temp_fd(false), "rb");
+    QEMUFile *loading = open_test_file(false);
     TestStruct obj = { .skip_c_e = false };
     vmstate_load_state(loading, &vmstate_skipping, &obj, 2);
     g_assert(!qemu_file_get_error(loading));
@@ -308,7 +308,7 @@ static void test_load_noskip(void)
 
 static void test_load_skip(void)
 {
-    QEMUFile *fsave = qemu_fdopen(dup_temp_fd(true), "wb");
+    QEMUFile *fsave = open_test_file(true);
     uint8_t buf[] = {
         0, 0, 0, 10,             /* a */
         0, 0, 0, 20,             /* b */
@@ -319,7 +319,7 @@ static void test_load_skip(void)
     qemu_put_buffer(fsave, buf, sizeof(buf));
     qemu_fclose(fsave);
 
-    QEMUFile *loading = qemu_fdopen(dup_temp_fd(false), "rb");
+    QEMUFile *loading = open_test_file(false);
     TestStruct obj = { .skip_c_e = true, .c = 300, .e = 500 };
     vmstate_load_state(loading, &vmstate_skipping, &obj, 2);
     g_assert(!qemu_file_get_error(loading));
