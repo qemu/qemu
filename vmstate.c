@@ -98,7 +98,11 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                     ret = field->info->get(f, addr, size);
 
                 }
+                if (ret >= 0) {
+                    ret = qemu_file_get_error(f);
+                }
                 if (ret < 0) {
+                    qemu_file_set_error(f, ret);
                     trace_vmstate_load_field_error(field->name, ret);
                     return ret;
                 }
