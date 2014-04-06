@@ -55,7 +55,6 @@ void gic_update(GICState *s)
 {
     int best_irq;
     int best_prio;
-    int best_sub_prio;
     int irq;
     int level;
     int cpu;
@@ -69,18 +68,11 @@ void gic_update(GICState *s)
             return;
         }
         best_prio = 0x100;
-        best_sub_prio = 0x100;
         best_irq = 1023;
         for (irq = 0; irq < s->num_irq; irq++) {
             if (GIC_TEST_ENABLED(irq, cm) && GIC_TEST_PENDING(irq, cm)) {
                 if (GIC_GET_PRIORITY(irq, cpu) < best_prio) {
                     best_prio = GIC_GET_PRIORITY(irq, cpu);
-                    best_sub_prio = GIC_GET_SUBPRIORITY(irq, cpu);
-                    best_irq = irq;
-                }
-                else if ((GIC_GET_PRIORITY(irq, cpu) == best_prio) &&
-                        GIC_GET_SUBPRIORITY(irq, cpu) < best_sub_prio) {
-                    best_sub_prio = GIC_GET_SUBPRIORITY(irq, cpu);
                     best_irq = irq;
                 }
             }
@@ -563,9 +555,7 @@ static uint32_t gic_cpu_read(GICState *s, int cpu, int offset)
     case 0x04: /* Priority mask */
         return s->priority_mask[cpu];
     case 0x08: /* Binary Point */
-        /* ??? Not implemented.  */
-        printf("BINARY POINT\n");
-        return 0;
+        return (s->binary_point << 8);
     case 0x0c: /* Acknowledge */
         return gic_acknowledge_irq(s, cpu);
     case 0x14: /* Running Priority */
