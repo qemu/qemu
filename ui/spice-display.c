@@ -549,6 +549,10 @@ static int interface_client_monitors_config(QXLInstance *sin,
     QemuUIInfo info;
     int rc;
 
+    if (!mc) {
+        return 1;
+    }
+
     /*
      * FIXME: multihead is tricky due to the way
      * spice has multihead implemented.
