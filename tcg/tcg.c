@@ -310,6 +310,8 @@ void tcg_pool_reset(TCGContext *s)
 typedef struct TCGHelperInfo {
     void *func;
     const char *name;
+    unsigned flags;
+    unsigned sizemask;
 } TCGHelperInfo;
 
 #include "exec/helper-proto.h"
@@ -696,6 +698,11 @@ void tcg_gen_callN(TCGContext *s, void *func, unsigned int flags,
     int real_args;
     int nb_rets;
     TCGArg *nparam;
+    TCGHelperInfo *info;
+
+    info = g_hash_table_lookup(s->helpers, (gpointer)func);
+    assert(info != NULL);
+    assert(info->sizemask == sizemask);
 
 #if defined(__sparc__) && !defined(__arch64__) \
     && !defined(CONFIG_TCG_INTERPRETER)
