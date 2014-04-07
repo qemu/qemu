@@ -717,7 +717,8 @@ F: hw/display/qxl*
 
 Graphics
 M: Anthony Liguori <aliguori@amazon.com>
-S: Maintained
+M: Gerd Hoffmann <kraxel@redhat.com>
+S: Odd Fixes
 F: ui/
 
 Cocoa graphics
