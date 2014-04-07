@@ -343,6 +343,21 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
     /* There is no cached config, allocate MSIs */
     if (!phb->msi_table[ndev].nvec) {
+        int max_irqs = 0;
+        if (ret_intr_type == RTAS_TYPE_MSI) {
+            max_irqs = msi_nr_vectors_allocated(pdev);
+        } else if (ret_intr_type == RTAS_TYPE_MSIX) {
+            max_irqs = pdev->msix_entries_nr;
+        }
+        if (!max_irqs) {
+            error_report("Requested interrupt type %d is not enabled for device#%d",
+                         ret_intr_type, ndev);
+            rtas_st(rets, 0, -1); /* Hardware error */
+            return;
+        }
+        if (req_num > max_irqs) {
+            req_num = max_irqs;
+        }
         irq = spapr_allocate_irq_block(req_num, false,
                                        ret_intr_type == RTAS_TYPE_MSI);
         if (irq < 0) {
