@@ -59,6 +59,17 @@ static int ppc_gdb_register_len(int n)
 }
 
 
+static void ppc_gdb_swap_register(uint8_t *mem_buf, int n, int len)
+{
+    if (len == 4) {
+        bswap32s((uint32_t *)mem_buf);
+    } else if (len == 8) {
+        bswap64s((uint64_t *)mem_buf);
+    } else {
+        g_assert_not_reached();
+    }
+}
+
 /* Old gdb always expects FP registers.  Newer (xml-aware) gdb only
  * expects whatever the target description contains.  Due to a
  * historical mishap the FP registers appear in between core integer
@@ -114,6 +125,10 @@ int ppc_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
             break;
         }
     }
+    if (msr_le) {
+        /* If cpu is in LE mode, convert memory contents to LE. */
+        ppc_gdb_swap_register(mem_buf, n, r);
+    }
     return r;
 }
 
@@ -125,6 +140,10 @@ int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 
     if (!r) {
         return r;
+    }
+    if (msr_le) {
+        /* If cpu is in LE mode, convert memory contents to LE. */
+        ppc_gdb_swap_register(mem_buf, n, r);
     }
     if (n < 32) {
         /* gprs */
