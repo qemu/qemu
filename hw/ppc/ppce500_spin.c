@@ -65,9 +65,9 @@ static void spin_reset(void *opaque)
     for (i = 0; i < MAX_CPUS; i++) {
         SpinInfo *info = &s->spin[i];
 
-        info->pir = i;
-        info->r3 = i;
-        info->addr = 1;
+        stl_p(&info->pir, i);
+        stq_p(&info->r3, i);
+        stq_p(&info->addr, 1);
     }
 }
 
