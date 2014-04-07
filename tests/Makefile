@@ -394,7 +394,8 @@ check-block: $(patsubst %,check-%, $(check-block-y))
 check: check-qapi-schema check-unit check-qtest
 check-clean:
 	$(MAKE) -C tests/tcg clean
-	rm -rf $(check-unit-y) $(check-qtest-i386-y) $(check-qtest-x86_64-y) $(check-qtest-sparc64-y) $(check-qtest-sparc-y) tests/*.o $(QEMU_IOTESTS_HELPERS-y)
+	rm -rf $(check-unit-y) tests/*.o $(QEMU_IOTESTS_HELPERS-y)
+	rm -rf $(sort $(foreach target,$(SYSEMU_TARGET_LIST), $(check-qtest-$(target)-y)))
 
 clean: check-clean
 
