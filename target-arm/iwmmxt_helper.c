@@ -24,7 +24,7 @@
 
 #include "cpu.h"
 #include "exec/exec-all.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 
 /* iwMMXt macros extracted from GNU gdb.  */
 

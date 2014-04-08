@@ -1,7 +1,7 @@
 #include "cpu.h"
 #include "internals.h"
 #include "exec/gdbstub.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"

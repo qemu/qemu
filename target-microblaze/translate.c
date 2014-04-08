@@ -21,11 +21,9 @@
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 #include "microblaze-decode.h"
-
-#define GEN_HELPER 1
-#include "helper.h"
+#include "exec/helper-gen.h"
 
 #define SIM_COMPAT 0
 #define DISAS_GNU 1

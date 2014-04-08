@@ -1,5 +1,3 @@
-#include "exec/def-helper.h"
-
 DEF_HELPER_1(bitrev, i32, i32)
 DEF_HELPER_1(ff1, i32, i32)
 DEF_HELPER_2(sats, i32, i32, i32)
@@ -50,5 +48,3 @@ DEF_HELPER_3(set_mac_extu, void, env, i32, i32)
 
 DEF_HELPER_2(flush_flags, void, env, i32)
 DEF_HELPER_2(raise_exception, void, env, i32)
-
-#include "exec/def-helper.h"

@@ -20,7 +20,7 @@
 #include "cpu.h"
 #include "qemu/log.h"
 #include "sysemu/sysemu.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 
 #if 0
 #define raise_exception_err(env, a, b)                                  \

@@ -26,7 +26,7 @@
  */
 
 #include "cpu.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
 #include "exec/softmmu_exec.h"
 #include "exec/address-spaces.h"

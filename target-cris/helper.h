@@ -1,5 +1,3 @@
-#include "exec/def-helper.h"
-
 DEF_HELPER_2(raise_exception, void, env, i32)
 DEF_HELPER_2(tlb_flush_pid, void, env, i32)
 DEF_HELPER_2(spc_write, void, env, i32)
@@ -25,5 +23,3 @@ DEF_HELPER_FLAGS_3(evaluate_flags_move_4, TCG_CALL_NO_SE, i32, env, i32, i32)
 DEF_HELPER_FLAGS_3(evaluate_flags_move_2, TCG_CALL_NO_SE, i32, env, i32, i32)
 DEF_HELPER_1(evaluate_flags, void, env)
 DEF_HELPER_1(top_evaluate_flags, void, env)
-
-#include "exec/def-helper.h"

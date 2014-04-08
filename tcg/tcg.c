@@ -307,16 +307,15 @@ void tcg_pool_reset(TCGContext *s)
     s->pool_current = NULL;
 }
 
-#include "helper.h"
-
 typedef struct TCGHelperInfo {
     void *func;
     const char *name;
 } TCGHelperInfo;
 
+#include "exec/helper-proto.h"
+
 static const TCGHelperInfo all_helpers[] = {
-#define GEN_HELPER 2
-#include "helper.h"
+#include "exec/helper-tcg.h"
 
     /* Include tcg-runtime.c functions.  */
     { tcg_helper_div_i32, "div_i32" },

@@ -1,6 +1,6 @@
 #include <assert.h>
 #include "cpu.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
 
 #include "hw/lm32/lm32_pic.h"

@@ -19,7 +19,7 @@
 
 #include "cpu.h"
 #include "exec/gdbstub.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
 #include "sysemu/sysemu.h"
 #include "qemu/bitops.h"

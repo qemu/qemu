@@ -20,7 +20,7 @@
 #include "cpu.h"
 #include "qemu/host-utils.h"
 
-#include "helper.h"
+#include "exec/helper-proto.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "exec/softmmu_exec.h"

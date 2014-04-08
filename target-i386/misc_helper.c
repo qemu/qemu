@@ -19,7 +19,7 @@
 
 #include "cpu.h"
 #include "exec/ioport.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "exec/softmmu_exec.h"
