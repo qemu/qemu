@@ -476,8 +476,15 @@ static void gd_change_runstate(void *opaque, int running, RunState state)
 
 static void gd_mouse_mode_change(Notifier *notify, void *data)
 {
-    gd_update_cursor(container_of(notify, GtkDisplayState, mouse_mode_notifier),
-                     FALSE);
+    GtkDisplayState *s;
+
+    s = container_of(notify, GtkDisplayState, mouse_mode_notifier);
+    /* release the grab at switching to absolute mode */
+    if (qemu_input_is_absolute() && gd_is_grab_active(s)) {
+        gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
+                                       FALSE);
+    }
+    gd_update_cursor(s, FALSE);
 }
 
 /** GTK Events **/
@@ -684,6 +691,14 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
 {
     GtkDisplayState *s = opaque;
     InputButton btn;
+
+    /* implicitly grab the input at the first click in the relative mode */
+    if (button->button == 1 && button->type == GDK_BUTTON_PRESS &&
+        !qemu_input_is_absolute() && !gd_is_grab_active(s)) {
+        gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
+                                       TRUE);
+        return TRUE;
+    }
 
     if (button->button == 1) {
         btn = INPUT_BUTTON_LEFT;
