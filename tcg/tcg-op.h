@@ -23,13 +23,6 @@
  */
 #include "tcg.h"
 #include "exec/helper-proto.h"
-
-static inline void tcg_gen_helperN(void *func, int flags, int sizemask,
-                                   TCGArg ret, int nargs, TCGArg *args)
-{
-    tcg_gen_callN(&tcg_ctx, func, flags, sizemask, ret, nargs, args);
-}
-
 #include "exec/helper-gen.h"
 
 int gen_new_label(void);
