@@ -356,7 +356,7 @@ void tcg_context_init(TCGContext *s)
 
     for (i = 0; i < ARRAY_SIZE(all_helpers); ++i) {
         g_hash_table_insert(helper_table, (gpointer)all_helpers[i].func,
-                            (gpointer)all_helpers[i].name);
+                            (gpointer)&all_helpers[i]);
     }
 
     tcg_target_init(s);
@@ -1149,7 +1149,10 @@ static inline const char *tcg_find_helper(TCGContext *s, uintptr_t val)
 {
     const char *ret = NULL;
     if (s->helpers) {
-        ret = g_hash_table_lookup(s->helpers, (gpointer)val);
+        TCGHelperInfo *info = g_hash_table_lookup(s->helpers, (gpointer)val);
+        if (info) {
+            ret = info->name;
+        }
     }
     return ret;
 }
