@@ -101,7 +101,7 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
     hreg_compute_hflags(env);
 #if !defined(CONFIG_USER_ONLY)
     if (unlikely(msr_pow == 1)) {
-        if ((*env->check_pow)(env)) {
+        if (!env->pending_interrupts && (*env->check_pow)(env)) {
             cs->halted = 1;
             excp = EXCP_HALTED;
         }

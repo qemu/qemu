@@ -723,7 +723,6 @@ void ppc_hw_interrupt(CPUPPCState *env)
     if ((msr_ee != 0 || msr_hv == 0 || msr_pr != 0) && hdice != 0) {
         /* Hypervisor decrementer exception */
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_HDECR)) {
-            env->pending_interrupts &= ~(1 << PPC_INTERRUPT_HDECR);
             powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_HDECR);
             return;
         }
@@ -767,7 +766,9 @@ void ppc_hw_interrupt(CPUPPCState *env)
         }
         /* Decrementer exception */
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_DECR)) {
-            env->pending_interrupts &= ~(1 << PPC_INTERRUPT_DECR);
+            if (ppc_decr_clear_on_delivery(env)) {
+                env->pending_interrupts &= ~(1 << PPC_INTERRUPT_DECR);
+            }
             powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_DECR);
             return;
         }

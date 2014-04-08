@@ -620,6 +620,13 @@ static void cpu_ppc_tb_start (CPUPPCState *env)
     }
 }
 
+bool ppc_decr_clear_on_delivery(CPUPPCState *env)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+    int flags = PPC_DECR_UNDERFLOW_TRIGGERED | PPC_DECR_UNDERFLOW_LEVEL;
+    return ((tb_env->flags & flags) == PPC_DECR_UNDERFLOW_TRIGGERED);
+}
+
 static inline uint32_t _cpu_ppc_load_decr(CPUPPCState *env, uint64_t next)
 {
     ppc_tb_t *tb_env = env->tb_env;
@@ -677,6 +684,11 @@ static inline void cpu_ppc_decr_excp(PowerPCCPU *cpu)
     ppc_set_irq(cpu, PPC_INTERRUPT_DECR, 1);
 }
 
+static inline void cpu_ppc_decr_lower(PowerPCCPU *cpu)
+{
+    ppc_set_irq(cpu, PPC_INTERRUPT_DECR, 0);
+}
+
 static inline void cpu_ppc_hdecr_excp(PowerPCCPU *cpu)
 {
     /* Raise it */
@@ -684,11 +696,16 @@ static inline void cpu_ppc_hdecr_excp(PowerPCCPU *cpu)
     ppc_set_irq(cpu, PPC_INTERRUPT_HDECR, 1);
 }
 
+static inline void cpu_ppc_hdecr_lower(PowerPCCPU *cpu)
+{
+    ppc_set_irq(cpu, PPC_INTERRUPT_HDECR, 0);
+}
+
 static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
                                  QEMUTimer *timer,
-                                 void (*raise_excp)(PowerPCCPU *),
-                                 uint32_t decr, uint32_t value,
-                                 int is_excp)
+                                 void (*raise_excp)(void *),
+                                 void (*lower_excp)(PowerPCCPU *),
+                                 uint32_t decr, uint32_t value)
 {
     CPUPPCState *env = &cpu->env;
     ppc_tb_t *tb_env = env->tb_env;
@@ -702,59 +719,74 @@ static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
         return;
     }
 
+    /*
+     * Going from 2 -> 1, 1 -> 0 or 0 -> -1 is the event to generate a DEC
+     * interrupt.
+     *
+     * If we get a really small DEC value, we can assume that by the time we
+     * handled it we should inject an interrupt already.
+     *
+     * On MSB level based DEC implementations the MSB always means the interrupt
+     * is pending, so raise it on those.
+     *
+     * On MSB edge based DEC implementations the MSB going from 0 -> 1 triggers
+     * an edge interrupt, so raise it here too.
+     */
+    if ((value < 3) ||
+        ((tb_env->flags & PPC_DECR_UNDERFLOW_LEVEL) && (value & 0x80000000)) ||
+        ((tb_env->flags & PPC_DECR_UNDERFLOW_TRIGGERED) && (value & 0x80000000)
+          && !(decr & 0x80000000))) {
+        (*raise_excp)(cpu);
+        return;
+    }
+
+    /* On MSB level based systems a 0 for the MSB stops interrupt delivery */
+    if (!(value & 0x80000000) && (tb_env->flags & PPC_DECR_UNDERFLOW_LEVEL)) {
+        (*lower_excp)(cpu);
+    }
+
+    /* Calculate the next timer event */
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     next = now + muldiv64(value, get_ticks_per_sec(), tb_env->decr_freq);
-    if (is_excp) {
-        next += *nextp - now;
-    }
-    if (next == now) {
-        next++;
-    }
     *nextp = next;
+
     /* Adjust timer */
     timer_mod(timer, next);
-
-    /* If we set a negative value and the decrementer was positive, raise an
-     * exception.
-     */
-    if ((tb_env->flags & PPC_DECR_UNDERFLOW_TRIGGERED)
-        && (value & 0x80000000)
-        && !(decr & 0x80000000)) {
-        (*raise_excp)(cpu);
-    }
 }
 
 static inline void _cpu_ppc_store_decr(PowerPCCPU *cpu, uint32_t decr,
-                                       uint32_t value, int is_excp)
+                                       uint32_t value)
 {
     ppc_tb_t *tb_env = cpu->env.tb_env;
 
     __cpu_ppc_store_decr(cpu, &tb_env->decr_next, tb_env->decr_timer,
-                         &cpu_ppc_decr_excp, decr, value, is_excp);
+                         tb_env->decr_timer->cb, &cpu_ppc_decr_lower, decr,
+                         value);
 }
 
 void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value)
 {
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
 
-    _cpu_ppc_store_decr(cpu, cpu_ppc_load_decr(env), value, 0);
+    _cpu_ppc_store_decr(cpu, cpu_ppc_load_decr(env), value);
 }
 
 static void cpu_ppc_decr_cb(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
 
-    _cpu_ppc_store_decr(cpu, 0x00000000, 0xFFFFFFFF, 1);
+    cpu_ppc_decr_excp(cpu);
 }
 
 static inline void _cpu_ppc_store_hdecr(PowerPCCPU *cpu, uint32_t hdecr,
-                                        uint32_t value, int is_excp)
+                                        uint32_t value)
 {
     ppc_tb_t *tb_env = cpu->env.tb_env;
 
     if (tb_env->hdecr_timer != NULL) {
         __cpu_ppc_store_decr(cpu, &tb_env->hdecr_next, tb_env->hdecr_timer,
-                             &cpu_ppc_hdecr_excp, hdecr, value, is_excp);
+                             tb_env->hdecr_timer->cb, &cpu_ppc_hdecr_lower,
+                             hdecr, value);
     }
 }
 
@@ -762,14 +794,14 @@ void cpu_ppc_store_hdecr (CPUPPCState *env, uint32_t value)
 {
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
 
-    _cpu_ppc_store_hdecr(cpu, cpu_ppc_load_hdecr(env), value, 0);
+    _cpu_ppc_store_hdecr(cpu, cpu_ppc_load_hdecr(env), value);
 }
 
 static void cpu_ppc_hdecr_cb(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
 
-    _cpu_ppc_store_hdecr(cpu, 0x00000000, 0xFFFFFFFF, 1);
+    cpu_ppc_hdecr_excp(cpu);
 }
 
 static void cpu_ppc_store_purr(PowerPCCPU *cpu, uint64_t value)
@@ -792,8 +824,8 @@ static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
      * if a decrementer exception is pending when it enables msr_ee at startup,
      * it's not ready to handle it...
      */
-    _cpu_ppc_store_decr(cpu, 0xFFFFFFFF, 0xFFFFFFFF, 0);
-    _cpu_ppc_store_hdecr(cpu, 0xFFFFFFFF, 0xFFFFFFFF, 0);
+    _cpu_ppc_store_decr(cpu, 0xFFFFFFFF, 0xFFFFFFFF);
+    _cpu_ppc_store_hdecr(cpu, 0xFFFFFFFF, 0xFFFFFFFF);
     cpu_ppc_store_purr(cpu, 0x0000000000000000ULL);
 }
 
@@ -806,6 +838,10 @@ clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
     tb_env = g_malloc0(sizeof(ppc_tb_t));
     env->tb_env = tb_env;
     tb_env->flags = PPC_DECR_UNDERFLOW_TRIGGERED;
+    if (env->insns_flags & PPC_SEGMENT_64B) {
+        /* All Book3S 64bit CPUs implement level based DEC logic */
+        tb_env->flags |= PPC_DECR_UNDERFLOW_LEVEL;
+    }
     /* Create new timer */
     tb_env->decr_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &cpu_ppc_decr_cb, cpu);
     if (0) {

@@ -342,6 +342,7 @@ uint32 float32_to_uint32( float32 STATUS_PARAM );
 uint32 float32_to_uint32_round_to_zero( float32 STATUS_PARAM );
 int64 float32_to_int64( float32 STATUS_PARAM );
 uint64 float32_to_uint64(float32 STATUS_PARAM);
+uint64 float32_to_uint64_round_to_zero(float32 STATUS_PARAM);
 int64 float32_to_int64_round_to_zero( float32 STATUS_PARAM );
 float64 float32_to_float64( float32 STATUS_PARAM );
 floatx80 float32_to_floatx80( float32 STATUS_PARAM );

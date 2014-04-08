@@ -649,7 +649,7 @@ void ppce500_init(QEMUMachineInitArgs *args, PPCE500Params *params)
         input = (qemu_irq *)env->irq_inputs;
         irqs[i][OPENPIC_OUTPUT_INT] = input[PPCE500_INPUT_INT];
         irqs[i][OPENPIC_OUTPUT_CINT] = input[PPCE500_INPUT_CINT];
-        env->spr[SPR_BOOKE_PIR] = cs->cpu_index = i;
+        env->spr_cb[SPR_BOOKE_PIR].default_value = cs->cpu_index = i;
         env->mpic_iack = MPC8544_CCSRBAR_BASE +
                          MPC8544_MPIC_REGS_OFFSET + 0xa0;
 

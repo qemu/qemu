@@ -44,6 +44,9 @@ struct ppc_tb_t {
 #define PPC_DECR_ZERO_TRIGGERED      (1 << 3) /* Decr interrupt triggered when
                                                * the decrementer reaches zero.
                                                */
+#define PPC_DECR_UNDERFLOW_LEVEL     (1 << 4) /* Decr interrupt active when
+                                               * the most significant bit is 1.
+                                               */
 
 uint64_t cpu_ppc_get_tb(ppc_tb_t *tb_env, uint64_t vmclk, int64_t tb_offset);
 clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq);
