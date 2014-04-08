@@ -112,8 +112,7 @@
   ((dh_is_64bit(t) << (n*2)) | (dh_is_signed(t) << (n*2+1)))
 
 #define dh_arg(t, n) \
-  args[n - 1] = glue(GET_TCGV_, dh_alias(t))(glue(arg, n)); \
-  sizemask |= dh_sizemask(t, n)
+  (args[n - 1] = glue(GET_TCGV_, dh_alias(t))(glue(arg, n)))
 
 #define dh_arg_decl(t, n) glue(TCGv_, dh_alias(t)) glue(arg, n)
 

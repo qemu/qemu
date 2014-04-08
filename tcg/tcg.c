@@ -691,18 +691,17 @@ int tcg_check_temp_count(void)
 /* Note: we convert the 64 bit args to 32 bit and do some alignment
    and endian swap. Maybe it would be better to do the alignment
    and endian swap in tcg_reg_alloc_call(). */
-void tcg_gen_callN(TCGContext *s, void *func, unsigned int flags,
-                   int sizemask, TCGArg ret, int nargs, TCGArg *args)
+void tcg_gen_callN(TCGContext *s, void *func, TCGArg ret,
+                   int nargs, TCGArg *args)
 {
-    int i;
-    int real_args;
-    int nb_rets;
+    int i, real_args, nb_rets;
+    unsigned sizemask, flags;
     TCGArg *nparam;
     TCGHelperInfo *info;
 
     info = g_hash_table_lookup(s->helpers, (gpointer)func);
-    assert(info != NULL);
-    assert(info->sizemask == sizemask);
+    flags = info->flags;
+    sizemask = info->sizemask;
 
 #if defined(__sparc__) && !defined(__arch64__) \
     && !defined(CONFIG_TCG_INTERPRETER)
@@ -788,9 +787,8 @@ void tcg_gen_callN(TCGContext *s, void *func, unsigned int flags,
     }
     real_args = 0;
     for (i = 0; i < nargs; i++) {
-#if TCG_TARGET_REG_BITS < 64
         int is_64bit = sizemask & (1 << (i+1)*2);
-        if (is_64bit) {
+        if (TCG_TARGET_REG_BITS < 64 && is_64bit) {
 #ifdef TCG_TARGET_CALL_ALIGN_ARGS
             /* some targets want aligned 64 bit args */
             if (real_args & 1) {
@@ -818,7 +816,6 @@ void tcg_gen_callN(TCGContext *s, void *func, unsigned int flags,
             real_args += 2;
             continue;
         }
-#endif /* TCG_TARGET_REG_BITS < 64 */
 
         *s->gen_opparam_ptr++ = args[i];
         real_args++;
