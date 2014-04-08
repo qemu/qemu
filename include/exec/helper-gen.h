@@ -80,6 +80,7 @@ static inline void glue(gen_helper_, name)(dh_retvar_decl(ret) \
 }
 
 #include "helper.h"
+#include "tcg-runtime.h"
 
 #undef DEF_HELPER_FLAGS_0
 #undef DEF_HELPER_FLAGS_1

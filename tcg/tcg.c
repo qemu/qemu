@@ -316,22 +316,6 @@ typedef struct TCGHelperInfo {
 
 static const TCGHelperInfo all_helpers[] = {
 #include "exec/helper-tcg.h"
-
-    /* Include tcg-runtime.c functions.  */
-    { tcg_helper_div_i32, "div_i32" },
-    { tcg_helper_rem_i32, "rem_i32" },
-    { tcg_helper_divu_i32, "divu_i32" },
-    { tcg_helper_remu_i32, "remu_i32" },
-
-    { tcg_helper_shl_i64, "shl_i64" },
-    { tcg_helper_shr_i64, "shr_i64" },
-    { tcg_helper_sar_i64, "sar_i64" },
-    { tcg_helper_div_i64, "div_i64" },
-    { tcg_helper_rem_i64, "rem_i64" },
-    { tcg_helper_divu_i64, "divu_i64" },
-    { tcg_helper_remu_i64, "remu_i64" },
-    { tcg_helper_mulsh_i64, "mulsh_i64" },
-    { tcg_helper_muluh_i64, "muluh_i64" },
 };
 
 void tcg_context_init(TCGContext *s)

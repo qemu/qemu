@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "tcg.h"
+#include "exec/helper-proto.h"
 
 int gen_new_label(void);
 
@@ -712,7 +713,7 @@ static inline void tcg_gen_div_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
         sizemask |= tcg_gen_sizemask(0, 0, 1);
         sizemask |= tcg_gen_sizemask(1, 0, 1);
         sizemask |= tcg_gen_sizemask(2, 0, 1);
-        tcg_gen_helper32(tcg_helper_div_i32, sizemask, ret, arg1, arg2);
+        tcg_gen_helper32(helper_div_i32, sizemask, ret, arg1, arg2);
     }
 }
 
@@ -737,7 +738,7 @@ static inline void tcg_gen_rem_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
         sizemask |= tcg_gen_sizemask(0, 0, 1);
         sizemask |= tcg_gen_sizemask(1, 0, 1);
         sizemask |= tcg_gen_sizemask(2, 0, 1);
-        tcg_gen_helper32(tcg_helper_rem_i32, sizemask, ret, arg1, arg2);
+        tcg_gen_helper32(helper_rem_i32, sizemask, ret, arg1, arg2);
     }
 }
 
@@ -756,7 +757,7 @@ static inline void tcg_gen_divu_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
         sizemask |= tcg_gen_sizemask(0, 0, 0);
         sizemask |= tcg_gen_sizemask(1, 0, 0);
         sizemask |= tcg_gen_sizemask(2, 0, 0);
-        tcg_gen_helper32(tcg_helper_divu_i32, sizemask, ret, arg1, arg2);
+        tcg_gen_helper32(helper_divu_i32, sizemask, ret, arg1, arg2);
     }
 }
 
@@ -781,7 +782,7 @@ static inline void tcg_gen_remu_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
         sizemask |= tcg_gen_sizemask(0, 0, 0);
         sizemask |= tcg_gen_sizemask(1, 0, 0);
         sizemask |= tcg_gen_sizemask(2, 0, 0);
-        tcg_gen_helper32(tcg_helper_remu_i32, sizemask, ret, arg1, arg2);
+        tcg_gen_helper32(helper_remu_i32, sizemask, ret, arg1, arg2);
     }
 }
 
@@ -951,7 +952,7 @@ static inline void tcg_gen_shl_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
     sizemask |= tcg_gen_sizemask(1, 1, 1);
     sizemask |= tcg_gen_sizemask(2, 1, 1);
 
-    tcg_gen_helper64(tcg_helper_shl_i64, sizemask, ret, arg1, arg2);
+    tcg_gen_helper64(helper_shl_i64, sizemask, ret, arg1, arg2);
 }
 
 static inline void tcg_gen_shli_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
@@ -967,7 +968,7 @@ static inline void tcg_gen_shr_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
     sizemask |= tcg_gen_sizemask(1, 1, 1);
     sizemask |= tcg_gen_sizemask(2, 1, 1);
 
-    tcg_gen_helper64(tcg_helper_shr_i64, sizemask, ret, arg1, arg2);
+    tcg_gen_helper64(helper_shr_i64, sizemask, ret, arg1, arg2);
 }
 
 static inline void tcg_gen_shri_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
@@ -983,7 +984,7 @@ static inline void tcg_gen_sar_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
     sizemask |= tcg_gen_sizemask(1, 1, 1);
     sizemask |= tcg_gen_sizemask(2, 1, 1);
 
-    tcg_gen_helper64(tcg_helper_sar_i64, sizemask, ret, arg1, arg2);
+    tcg_gen_helper64(helper_sar_i64, sizemask, ret, arg1, arg2);
 }
 
 static inline void tcg_gen_sari_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
@@ -1057,7 +1058,7 @@ static inline void tcg_gen_div_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
     sizemask |= tcg_gen_sizemask(1, 1, 1);
     sizemask |= tcg_gen_sizemask(2, 1, 1);
 
-    tcg_gen_helper64(tcg_helper_div_i64, sizemask, ret, arg1, arg2);
+    tcg_gen_helper64(helper_div_i64, sizemask, ret, arg1, arg2);
 }
 
 static inline void tcg_gen_rem_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
@@ -1068,7 +1069,7 @@ static inline void tcg_gen_rem_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
     sizemask |= tcg_gen_sizemask(1, 1, 1);
     sizemask |= tcg_gen_sizemask(2, 1, 1);
 
-    tcg_gen_helper64(tcg_helper_rem_i64, sizemask, ret, arg1, arg2);
+    tcg_gen_helper64(helper_rem_i64, sizemask, ret, arg1, arg2);
 }
 
 static inline void tcg_gen_divu_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
@@ -1079,7 +1080,7 @@ static inline void tcg_gen_divu_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
     sizemask |= tcg_gen_sizemask(1, 1, 0);
     sizemask |= tcg_gen_sizemask(2, 1, 0);
 
-    tcg_gen_helper64(tcg_helper_divu_i64, sizemask, ret, arg1, arg2);
+    tcg_gen_helper64(helper_divu_i64, sizemask, ret, arg1, arg2);
 }
 
 static inline void tcg_gen_remu_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
@@ -1090,7 +1091,7 @@ static inline void tcg_gen_remu_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
     sizemask |= tcg_gen_sizemask(1, 1, 0);
     sizemask |= tcg_gen_sizemask(2, 1, 0);
 
-    tcg_gen_helper64(tcg_helper_remu_i64, sizemask, ret, arg1, arg2);
+    tcg_gen_helper64(helper_remu_i64, sizemask, ret, arg1, arg2);
 }
 
 #else
@@ -1362,7 +1363,7 @@ static inline void tcg_gen_div_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
         sizemask |= tcg_gen_sizemask(0, 1, 1);
         sizemask |= tcg_gen_sizemask(1, 1, 1);
         sizemask |= tcg_gen_sizemask(2, 1, 1);
-        tcg_gen_helper64(tcg_helper_div_i64, sizemask, ret, arg1, arg2);
+        tcg_gen_helper64(helper_div_i64, sizemask, ret, arg1, arg2);
     }
 }
 
@@ -1387,7 +1388,7 @@ static inline void tcg_gen_rem_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
         sizemask |= tcg_gen_sizemask(0, 1, 1);
         sizemask |= tcg_gen_sizemask(1, 1, 1);
         sizemask |= tcg_gen_sizemask(2, 1, 1);
-        tcg_gen_helper64(tcg_helper_rem_i64, sizemask, ret, arg1, arg2);
+        tcg_gen_helper64(helper_rem_i64, sizemask, ret, arg1, arg2);
     }
 }
 
@@ -1406,7 +1407,7 @@ static inline void tcg_gen_divu_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
         sizemask |= tcg_gen_sizemask(0, 1, 0);
         sizemask |= tcg_gen_sizemask(1, 1, 0);
         sizemask |= tcg_gen_sizemask(2, 1, 0);
-        tcg_gen_helper64(tcg_helper_divu_i64, sizemask, ret, arg1, arg2);
+        tcg_gen_helper64(helper_divu_i64, sizemask, ret, arg1, arg2);
     }
 }
 
@@ -1431,7 +1432,7 @@ static inline void tcg_gen_remu_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
         sizemask |= tcg_gen_sizemask(0, 1, 0);
         sizemask |= tcg_gen_sizemask(1, 1, 0);
         sizemask |= tcg_gen_sizemask(2, 1, 0);
-        tcg_gen_helper64(tcg_helper_remu_i64, sizemask, ret, arg1, arg2);
+        tcg_gen_helper64(helper_remu_i64, sizemask, ret, arg1, arg2);
     }
 }
 #endif /* TCG_TARGET_REG_BITS == 32 */
@@ -2536,7 +2537,7 @@ static inline void tcg_gen_mulu2_i64(TCGv_i64 rl, TCGv_i64 rh,
         sizemask |= tcg_gen_sizemask(1, 1, 0);
         sizemask |= tcg_gen_sizemask(2, 1, 0);
         tcg_gen_mul_i64(t0, arg1, arg2);
-        tcg_gen_helper64(tcg_helper_muluh_i64, sizemask, rh, arg1, arg2);
+        tcg_gen_helper64(helper_muluh_i64, sizemask, rh, arg1, arg2);
         tcg_gen_mov_i64(rl, t0);
         tcg_temp_free_i64(t0);
     }
@@ -2581,7 +2582,7 @@ static inline void tcg_gen_muls2_i64(TCGv_i64 rl, TCGv_i64 rh,
         sizemask |= tcg_gen_sizemask(1, 1, 1);
         sizemask |= tcg_gen_sizemask(2, 1, 1);
         tcg_gen_mul_i64(t0, arg1, arg2);
-        tcg_gen_helper64(tcg_helper_mulsh_i64, sizemask, rh, arg1, arg2);
+        tcg_gen_helper64(helper_mulsh_i64, sizemask, rh, arg1, arg2);
         tcg_gen_mov_i64(rl, t0);
         tcg_temp_free_i64(t0);
     }

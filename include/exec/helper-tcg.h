@@ -24,6 +24,7 @@ DEF_HELPER_FLAGS_0(name, flags, ret)
 DEF_HELPER_FLAGS_0(name, flags, ret)
 
 #include "helper.h"
+#include "tcg-runtime.h"
 
 #undef DEF_HELPER_FLAGS_0
 #undef DEF_HELPER_FLAGS_1

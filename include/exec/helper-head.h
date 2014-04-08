@@ -18,6 +18,8 @@
 #ifndef DEF_HELPER_H
 #define DEF_HELPER_H 1
 
+#include "qemu/osdep.h"
+
 #define HELPER(name) glue(helper_, name)
 
 #define GET_TCGV_i32 GET_TCGV_I32
@@ -32,10 +34,12 @@
 #define dh_alias_s64 i64
 #define dh_alias_f32 i32
 #define dh_alias_f64 i64
-#if TARGET_LONG_BITS == 32
-#define dh_alias_tl i32
-#else
-#define dh_alias_tl i64
+#ifdef TARGET_LONG_BITS
+# if TARGET_LONG_BITS == 32
+#  define dh_alias_tl i32
+# else
+#  define dh_alias_tl i64
+# endif
 #endif
 #define dh_alias_ptr ptr
 #define dh_alias_void void
