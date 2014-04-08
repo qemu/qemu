@@ -145,9 +145,9 @@ static uint64_t raven_io_read(void *opaque, hwaddr addr,
     if (size == 1) {
         return buf[0];
     } else if (size == 2) {
-        return lduw_p(buf);
+        return lduw_le_p(buf);
     } else if (size == 4) {
-        return ldl_p(buf);
+        return ldl_le_p(buf);
     } else {
         g_assert_not_reached();
     }
@@ -164,9 +164,9 @@ static void raven_io_write(void *opaque, hwaddr addr,
     if (size == 1) {
         buf[0] = val;
     } else if (size == 2) {
-        stw_p(buf, val);
+        stw_le_p(buf, val);
     } else if (size == 4) {
-        stl_p(buf, val);
+        stl_le_p(buf, val);
     } else {
         g_assert_not_reached();
     }
