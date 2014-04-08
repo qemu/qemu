@@ -530,7 +530,15 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
     return RAM_SAVE_CONTROL_NOT_SUPP;
 }
 
-static void qemu_fill_buffer(QEMUFile *f)
+/*
+ * Attempt to fill the buffer from the underlying file
+ * Returns the number of bytes read, or negative value for an error.
+ *
+ * Note that it can return a partially full buffer even in a not error/not EOF
+ * case if the underlying file descriptor gives a short read, and that can
+ * happen even on a blocking fd.
+ */
+static ssize_t qemu_fill_buffer(QEMUFile *f)
 {
     int len;
     int pending;
@@ -554,6 +562,8 @@ static void qemu_fill_buffer(QEMUFile *f)
     } else if (len != -EAGAIN) {
         qemu_file_set_error(f, len);
     }
+
+    return len;
 }
 
 int qemu_get_fd(QEMUFile *f)
@@ -685,17 +695,39 @@ void qemu_file_skip(QEMUFile *f, int size)
     }
 }
 
+/*
+ * Read 'size' bytes from file (at 'offset') into buf without moving the
+ * pointer.
+ *
+ * It will return size bytes unless there was an error, in which case it will
+ * return as many as it managed to read (assuming blocking fd's which
+ * all current QEMUFile are)
+ */
 int qemu_peek_buffer(QEMUFile *f, uint8_t *buf, int size, size_t offset)
 {
     int pending;
     int index;
 
     assert(!qemu_file_is_writable(f));
+    assert(offset < IO_BUF_SIZE);
+    assert(size <= IO_BUF_SIZE - offset);
 
+    /* The 1st byte to read from */
     index = f->buf_index + offset;
+    /* The number of available bytes starting at index */
     pending = f->buf_size - index;
-    if (pending < size) {
-        qemu_fill_buffer(f);
+
+    /*
+     * qemu_fill_buffer might return just a few bytes, even when there isn't
+     * an error, so loop collecting them until we get enough.
+     */
+    while (pending < size) {
+        int received = qemu_fill_buffer(f);
+
+        if (received <= 0) {
+            break;
+        }
+
         index = f->buf_index + offset;
         pending = f->buf_size - index;
     }
@@ -711,6 +743,14 @@ int qemu_peek_buffer(QEMUFile *f, uint8_t *buf, int size, size_t offset)
     return size;
 }
 
+/*
+ * Read 'size' bytes of data from the file into buf.
+ * 'size' can be larger than the internal buffer.
+ *
+ * It will return size bytes unless there was an error, in which case it will
+ * return as many as it managed to read (assuming blocking fd's which
+ * all current QEMUFile are)
+ */
 int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size)
 {
     int pending = size;
@@ -719,7 +759,7 @@ int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size)
     while (pending > 0) {
         int res;
 
-        res = qemu_peek_buffer(f, buf, pending, 0);
+        res = qemu_peek_buffer(f, buf, MIN(pending, IO_BUF_SIZE), 0);
         if (res == 0) {
             return done;
         }
@@ -731,11 +771,16 @@ int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size)
     return done;
 }
 
+/*
+ * Peeks a single byte from the buffer; this isn't guaranteed to work if
+ * offset leaves a gap after the previous read/peeked data.
+ */
 int qemu_peek_byte(QEMUFile *f, int offset)
 {
     int index = f->buf_index + offset;
 
     assert(!qemu_file_is_writable(f));
+    assert(offset < IO_BUF_SIZE);
 
     if (index >= f->buf_size) {
         qemu_fill_buffer(f);
