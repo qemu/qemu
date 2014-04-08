@@ -9,8 +9,7 @@
 #define DEF_HELPER_FLAGS_0(name, flags, ret) \
 static inline void glue(gen_helper_, name)(dh_retvar_decl0(ret)) \
 { \
-  int sizemask; \
-  sizemask = dh_is_64bit(ret); \
+  int sizemask = dh_sizemask(ret, 0); \
   tcg_gen_callN(&tcg_ctx, HELPER(name), flags, sizemask, dh_retvar(ret), 0, NULL); \
 }
 
@@ -18,8 +17,7 @@ static inline void glue(gen_helper_, name)(dh_retvar_decl0(ret)) \
 static inline void glue(gen_helper_, name)(dh_retvar_decl(ret) dh_arg_decl(t1, 1)) \
 { \
   TCGArg args[1]; \
-  int sizemask = 0; \
-  dh_sizemask(ret, 0); \
+  int sizemask = dh_sizemask(ret, 0); \
   dh_arg(t1, 1); \
   tcg_gen_callN(&tcg_ctx, HELPER(name), flags, sizemask, dh_retvar(ret), 1, args); \
 }
@@ -29,8 +27,7 @@ static inline void glue(gen_helper_, name)(dh_retvar_decl(ret) dh_arg_decl(t1, 1
     dh_arg_decl(t2, 2)) \
 { \
   TCGArg args[2]; \
-  int sizemask = 0; \
-  dh_sizemask(ret, 0); \
+  int sizemask = dh_sizemask(ret, 0); \
   dh_arg(t1, 1); \
   dh_arg(t2, 2); \
   tcg_gen_callN(&tcg_ctx, HELPER(name), flags, sizemask, dh_retvar(ret), 2, args); \
@@ -41,8 +38,7 @@ static inline void glue(gen_helper_, name)(dh_retvar_decl(ret) dh_arg_decl(t1, 1
     dh_arg_decl(t2, 2), dh_arg_decl(t3, 3)) \
 { \
   TCGArg args[3]; \
-  int sizemask = 0; \
-  dh_sizemask(ret, 0); \
+  int sizemask = dh_sizemask(ret, 0); \
   dh_arg(t1, 1); \
   dh_arg(t2, 2); \
   dh_arg(t3, 3); \
@@ -54,8 +50,7 @@ static inline void glue(gen_helper_, name)(dh_retvar_decl(ret) dh_arg_decl(t1, 1
     dh_arg_decl(t2, 2), dh_arg_decl(t3, 3), dh_arg_decl(t4, 4)) \
 { \
   TCGArg args[4]; \
-  int sizemask = 0; \
-  dh_sizemask(ret, 0); \
+  int sizemask = dh_sizemask(ret, 0); \
   dh_arg(t1, 1); \
   dh_arg(t2, 2); \
   dh_arg(t3, 3); \
@@ -69,8 +64,7 @@ static inline void glue(gen_helper_, name)(dh_retvar_decl(ret) \
     dh_arg_decl(t4, 4), dh_arg_decl(t5, 5)) \
 { \
   TCGArg args[5]; \
-  int sizemask = 0; \
-  dh_sizemask(ret, 0); \
+  int sizemask = dh_sizemask(ret, 0); \
   dh_arg(t1, 1); \
   dh_arg(t2, 2); \
   dh_arg(t3, 3); \
