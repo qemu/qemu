@@ -4430,7 +4430,7 @@ int main(int argc, char **argv, char **envp)
     qdev_machine_init();
 
     current_machine->init_args = (QEMUMachineInitArgs) {
-        .machine = machine,
+        .machine = machine_class,
         .ram_size = ram_size,
         .boot_order = boot_order,
         .kernel_filename = kernel_filename,

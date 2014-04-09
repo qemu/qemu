@@ -7,8 +7,10 @@
 #include "hw/qdev.h"
 #include "qom/object.h"
 
+typedef struct MachineClass MachineClass;
+
 typedef struct QEMUMachineInitArgs {
-    const QEMUMachine *machine;
+    const MachineClass *machine;
     ram_addr_t ram_size;
     const char *boot_order;
     const char *kernel_filename;
@@ -62,7 +64,6 @@ int qemu_register_machine(QEMUMachine *m);
     OBJECT_CLASS_CHECK(MachineClass, (klass), TYPE_MACHINE)
 
 typedef struct MachineState MachineState;
-typedef struct MachineClass MachineClass;
 
 MachineClass *find_default_machine(void);
 extern MachineState *current_machine;
