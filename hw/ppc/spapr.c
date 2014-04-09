@@ -1419,19 +1419,6 @@ static int spapr_kvm_type(const char *vm_type)
     exit(1);
 }
 
-static QEMUMachine spapr_machine = {
-    .name = "pseries",
-    .desc = "pSeries Logical Partition (PAPR compliant)",
-    .is_default = 1,
-    .init = ppc_spapr_init,
-    .reset = ppc_spapr_reset,
-    .block_default_type = IF_SCSI,
-    .max_cpus = MAX_CPUS,
-    .no_parallel = 1,
-    .default_boot_order = NULL,
-    .kvm_type = spapr_kvm_type,
-};
-
 /*
  * Implementation of an interface to adjust firmware patch
  * for the bootindex property handling.
@@ -1493,31 +1480,17 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
-    QEMUMachine *qm = data;
 
-    mc->qemu_machine = data;
-
-    mc->name = qm->name;
-    mc->alias = qm->alias;
-    mc->desc = qm->desc;
-    mc->init = qm->init;
-    mc->reset = qm->reset;
-    mc->hot_add_cpu = qm->hot_add_cpu;
-    mc->kvm_type = qm->kvm_type;
-    mc->block_default_type = qm->block_default_type;
-    mc->max_cpus = qm->max_cpus;
-    mc->no_serial = qm->no_serial;
-    mc->no_parallel = qm->no_parallel;
-    mc->use_virtcon = qm->use_virtcon;
-    mc->use_sclp = qm->use_sclp;
-    mc->no_floppy = qm->no_floppy;
-    mc->no_cdrom = qm->no_cdrom;
-    mc->no_sdcard = qm->no_sdcard;
-    mc->is_default = qm->is_default;
-    mc->default_machine_opts = qm->default_machine_opts;
-    mc->default_boot_order = qm->default_boot_order;
-    mc->compat_props = qm->compat_props;
-    mc->hw_version = qm->hw_version;
+    mc->name = "pseries";
+    mc->desc = "pSeries Logical Partition (PAPR compliant)";
+    mc->is_default = 1;
+    mc->init = ppc_spapr_init;
+    mc->reset = ppc_spapr_reset;
+    mc->block_default_type = IF_SCSI;
+    mc->max_cpus = MAX_CPUS;
+    mc->no_parallel = 1;
+    mc->default_boot_order = NULL;
+    mc->kvm_type = spapr_kvm_type;
 
     fwc->get_dev_path = spapr_get_fw_dev_path;
 }
@@ -1526,7 +1499,6 @@ static const TypeInfo spapr_machine_info = {
     .name          = TYPE_SPAPR_MACHINE,
     .parent        = TYPE_MACHINE,
     .class_init    = spapr_machine_class_init,
-    .class_data    = &spapr_machine,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_FW_PATH_PROVIDER },
         { }

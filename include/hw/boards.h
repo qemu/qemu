@@ -76,8 +76,6 @@ struct MachineClass {
     ObjectClass parent_class;
     /*< public >*/
 
-    QEMUMachine *qemu_machine;
-
     const char *name;
     const char *alias;
     const char *desc;

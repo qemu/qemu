@@ -117,8 +117,8 @@ void qmp_cpu_add(int64_t id, Error **errp)
     MachineClass *mc;
 
     mc = MACHINE_GET_CLASS(current_machine);
-    if (mc->qemu_machine->hot_add_cpu) {
-        mc->qemu_machine->hot_add_cpu(id, errp);
+    if (mc->hot_add_cpu) {
+        mc->hot_add_cpu(id, errp);
     } else {
         error_setg(errp, "Not supported");
     }

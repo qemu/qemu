@@ -1590,8 +1590,6 @@ static void machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     QEMUMachine *qm = data;
 
-    mc->qemu_machine = data;
-
     mc->name = qm->name;
     mc->alias = qm->alias;
     mc->desc = qm->desc;
@@ -1639,12 +1637,12 @@ static MachineClass *find_machine(const char *name)
     for (el = machines; el; el = el->next) {
         MachineClass *temp = el->data;
 
-        if (!strcmp(temp->qemu_machine->name, name)) {
+        if (!strcmp(temp->name, name)) {
             mc = temp;
             break;
         }
-        if (temp->qemu_machine->alias &&
-            !strcmp(temp->qemu_machine->alias, name)) {
+        if (temp->alias &&
+            !strcmp(temp->alias, name)) {
             mc = temp;
             break;
         }
@@ -1662,7 +1660,7 @@ MachineClass *find_default_machine(void)
     for (el = machines; el; el = el->next) {
         MachineClass *temp = el->data;
 
-        if (temp->qemu_machine->is_default) {
+        if (temp->is_default) {
             mc = temp;
             break;
         }
@@ -1676,27 +1674,25 @@ MachineInfoList *qmp_query_machines(Error **errp)
 {
     GSList *el, *machines = object_class_get_list(TYPE_MACHINE, false);
     MachineInfoList *mach_list = NULL;
-    QEMUMachine *m;
 
     for (el = machines; el; el = el->next) {
         MachineClass *mc = el->data;
         MachineInfoList *entry;
         MachineInfo *info;
 
-        m = mc->qemu_machine;
         info = g_malloc0(sizeof(*info));
-        if (m->is_default) {
+        if (mc->is_default) {
             info->has_is_default = true;
             info->is_default = true;
         }
 
-        if (m->alias) {
+        if (mc->alias) {
             info->has_alias = true;
-            info->alias = g_strdup(m->alias);
+            info->alias = g_strdup(mc->alias);
         }
 
-        info->name = g_strdup(m->name);
-        info->cpu_max = !m->max_cpus ? 1 : m->max_cpus;
+        info->name = g_strdup(mc->name);
+        info->cpu_max = !mc->max_cpus ? 1 : mc->max_cpus;
 
         entry = g_malloc0(sizeof(*entry));
         entry->value = info;
@@ -1902,8 +1898,8 @@ void qemu_system_reset(bool report)
 
     mc = current_machine ? MACHINE_GET_CLASS(current_machine) : NULL;
 
-    if (mc && mc->qemu_machine->reset) {
-        mc->qemu_machine->reset();
+    if (mc && mc->reset) {
+        mc->reset();
     } else {
         qemu_devices_reset();
     }
@@ -2712,12 +2708,11 @@ static MachineClass *machine_parse(const char *name)
         printf("Supported machines are:\n");
         for (el = machines; el; el = el->next) {
             MachineClass *mc = el->data;
-            QEMUMachine *m = mc->qemu_machine;
-            if (m->alias) {
-                printf("%-20s %s (alias of %s)\n", m->alias, m->desc, m->name);
+            if (mc->alias) {
+                printf("%-20s %s (alias of %s)\n", mc->alias, mc->desc, mc->name);
             }
-            printf("%-20s %s%s\n", m->name, m->desc,
-                   m->is_default ? " (default)" : "");
+            printf("%-20s %s%s\n", mc->name, mc->desc,
+                   mc->is_default ? " (default)" : "");
         }
     }
 
@@ -2971,7 +2966,6 @@ int main(int argc, char **argv, char **envp)
     const char *optarg;
     const char *loadvm = NULL;
     MachineClass *machine_class;
-    QEMUMachine *machine;
     const char *cpu_model;
     const char *vga_model = NULL;
     const char *qtest_chrdev = NULL;
@@ -3999,9 +3993,8 @@ int main(int argc, char **argv, char **envp)
     object_property_add_child(object_get_root(), "machine",
                               OBJECT(current_machine), &error_abort);
 
-    machine = machine_class->qemu_machine;
-    if (machine->hw_version) {
-        qemu_set_version(machine->hw_version);
+    if (machine_class->hw_version) {
+        qemu_set_version(machine_class->hw_version);
     }
 
     if (qemu_opts_foreach(qemu_find_opts("object"),
@@ -4061,11 +4054,11 @@ int main(int argc, char **argv, char **envp)
 
     smp_parse(qemu_opts_find(qemu_find_opts("smp-opts"), NULL));
 
-    machine->max_cpus = machine->max_cpus ?: 1; /* Default to UP */
-    if (smp_cpus > machine->max_cpus) {
+    machine_class->max_cpus = machine_class->max_cpus ?: 1; /* Default to UP */
+    if (smp_cpus > machine_class->max_cpus) {
         fprintf(stderr, "Number of SMP cpus requested (%d), exceeds max cpus "
-                "supported by machine `%s' (%d)\n", smp_cpus,  machine->name,
-                machine->max_cpus);
+                "supported by machine `%s' (%d)\n", smp_cpus,
+                machine_class->name, machine_class->max_cpus);
         exit(1);
     }
 
@@ -4073,9 +4066,9 @@ int main(int argc, char **argv, char **envp)
      * Get the default machine options from the machine if it is not already
      * specified either by the configuration file or by the command line.
      */
-    if (machine->default_machine_opts) {
+    if (machine_class->default_machine_opts) {
         qemu_opts_set_defaults(qemu_find_opts("machine"),
-                               machine->default_machine_opts, 0);
+                               machine_class->default_machine_opts, 0);
     }
 
     qemu_opts_foreach(qemu_find_opts("device"), default_driver_check, NULL, 0);
@@ -4084,25 +4077,25 @@ int main(int argc, char **argv, char **envp)
     if (!vga_model && !default_vga) {
         vga_interface_type = VGA_DEVICE;
     }
-    if (!has_defaults || machine->no_serial) {
+    if (!has_defaults || machine_class->no_serial) {
         default_serial = 0;
     }
-    if (!has_defaults || machine->no_parallel) {
+    if (!has_defaults || machine_class->no_parallel) {
         default_parallel = 0;
     }
-    if (!has_defaults || !machine->use_virtcon) {
+    if (!has_defaults || !machine_class->use_virtcon) {
         default_virtcon = 0;
     }
-    if (!has_defaults || !machine->use_sclp) {
+    if (!has_defaults || !machine_class->use_sclp) {
         default_sclp = 0;
     }
-    if (!has_defaults || machine->no_floppy) {
+    if (!has_defaults || machine_class->no_floppy) {
         default_floppy = 0;
     }
-    if (!has_defaults || machine->no_cdrom) {
+    if (!has_defaults || machine_class->no_cdrom) {
         default_cdrom = 0;
     }
-    if (!has_defaults || machine->no_sdcard) {
+    if (!has_defaults || machine_class->no_sdcard) {
         default_sdcard = 0;
     }
     if (!has_defaults) {
@@ -4240,7 +4233,7 @@ int main(int argc, char **argv, char **envp)
     kernel_cmdline = qemu_opt_get(machine_opts, "append");
     bios_name = qemu_opt_get(machine_opts, "firmware");
 
-    boot_order = machine->default_boot_order;
+    boot_order = machine_class->default_boot_order;
     opts = qemu_opts_find(qemu_find_opts("boot-opts"), NULL);
     if (opts) {
         char *normal_boot_order;
@@ -4334,11 +4327,11 @@ int main(int argc, char **argv, char **envp)
     if (snapshot)
         qemu_opts_foreach(qemu_find_opts("drive"), drive_enable_snapshot, NULL, 0);
     if (qemu_opts_foreach(qemu_find_opts("drive"), drive_init_func,
-                          &machine->block_default_type, 1) != 0) {
+                          &machine_class->block_default_type, 1) != 0) {
         exit(1);
     }
 
-    default_drive(default_cdrom, snapshot, machine->block_default_type, 2,
+    default_drive(default_cdrom, snapshot, machine_class->block_default_type, 2,
                   CDROM_OPTS);
     default_drive(default_floppy, snapshot, IF_FLOPPY, 0, FD_OPTS);
     default_drive(default_sdcard, snapshot, IF_SD, 0, SD_OPTS);
@@ -4422,8 +4415,8 @@ int main(int argc, char **argv, char **envp)
             exit (i == 1 ? 1 : 0);
     }
 
-    if (machine->compat_props) {
-        qdev_prop_register_global_list(machine->compat_props);
+    if (machine_class->compat_props) {
+        qdev_prop_register_global_list(machine_class->compat_props);
     }
     qemu_add_globals();
 
@@ -4438,7 +4431,7 @@ int main(int argc, char **argv, char **envp)
         .initrd_filename = initrd_filename,
         .cpu_model = cpu_model };
 
-    machine->init(&current_machine->init_args);
+    machine_class->init(&current_machine->init_args);
 
     audio_init();
 
