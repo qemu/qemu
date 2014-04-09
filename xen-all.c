@@ -1001,7 +1001,7 @@ static void xen_exit_notifier(Notifier *n, void *data)
     xs_daemon_close(state->xenstore);
 }
 
-int xen_init(QEMUMachine *machine)
+int xen_init(MachineClass *mc)
 {
     xen_xc = xen_xc_interface_open(0, 0, 0);
     if (xen_xc == XC_HANDLER_INITIAL_VALUE) {

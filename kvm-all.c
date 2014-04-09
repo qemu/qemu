@@ -1341,7 +1341,7 @@ static int kvm_max_vcpus(KVMState *s)
     return (ret) ? ret : kvm_recommended_vcpus(s);
 }
 
-int kvm_init(QEMUMachine *machine)
+int kvm_init(MachineClass *mc)
 {
     static const char upgrade_note[] =
         "Please upgrade to at least kernel 2.6.29 or recent kvm-kmod\n"
@@ -1433,8 +1433,8 @@ int kvm_init(QEMUMachine *machine)
     }
 
     kvm_type = qemu_opt_get(qemu_get_machine_opts(), "kvm-type");
-    if (machine->kvm_type) {
-        type = machine->kvm_type(kvm_type);
+    if (mc->kvm_type) {
+        type = mc->kvm_type(kvm_type);
     } else if (kvm_type) {
         fprintf(stderr, "Invalid argument kvm-type=%s\n", kvm_type);
         goto err;

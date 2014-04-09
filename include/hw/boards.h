@@ -3,11 +3,10 @@
 #ifndef HW_BOARDS_H
 #define HW_BOARDS_H
 
+#include "qemu/typedefs.h"
 #include "sysemu/blockdev.h"
 #include "hw/qdev.h"
 #include "qom/object.h"
-
-typedef struct MachineClass MachineClass;
 
 typedef struct QEMUMachineInitArgs {
     const MachineClass *machine;
