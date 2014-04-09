@@ -46,7 +46,6 @@ struct QEMUMachine {
     const char *default_machine_opts;
     const char *default_boot_order;
     GlobalProperty *compat_props;
-    struct QEMUMachine *next;
     const char *hw_version;
 };
 
