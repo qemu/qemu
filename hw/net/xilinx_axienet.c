@@ -142,6 +142,9 @@ tdk_write(struct PHY *phy, unsigned int req, unsigned int data)
             phy->regs[regnum] = data;
             break;
     }
+
+    /* Unconditionally clear regs[BMCR][BMCR_RESET] */
+    phy->regs[0] &= ~0x8000;
 }
 
 static void
