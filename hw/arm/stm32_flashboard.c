@@ -107,22 +107,19 @@ static void ledDrive2_irq_handler(void *opaque, int n, int level)
 
 static void gpiob_irq_handler(void *opaque, int n, int level)
 {
-    /* There should only be one IRQ for the LED */
-    assert(n == 0);
-
-    int gpio = ((int)opaque);
-
     int64_t now = qemu_get_clock_ns(vm_clock);
+    
+    int gpio = (int) opaque;
 
     /* Assume that the IRQ is only triggered if the LED has changed state.
      * If this is not correct, we may get multiple LED Offs or Ons in a row.
      */
     switch (level) {
         case 0:
-            printf("(%ld) GPIO[%d] Off\n", now, gpio);
+            printf("(%"PRId64") GPIO[%d] Off\n", now, gpio);
             break;
         case 1:
-            printf("(%ld) GPIO[%d] On\n", now, gpio);
+            printf("(%"PRId64") GPIO[%d] On\n", now, gpio);
             break;
     }
 }
@@ -202,7 +199,7 @@ static void stm32_flashboard_init(QEMUMachineInitArgs *args)
     /* Connect GPIO B pin 9-15 - GPIO1-8 */
     for (i = 0; i < OUTPUTGPIOS; i++)
     {
-        gpiob[i] = qemu_allocate_irqs(gpiob_irq_handler, i+1, 1);
+        gpiob[i] = qemu_allocate_irqs(gpiob_irq_handler, (void*)i+1, 1);
         qdev_connect_gpio_out(gpio_b, 9+i, gpiob[i][0]);
     }
 
