@@ -1588,8 +1588,31 @@ MachineState *current_machine;
 static void machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    QEMUMachine *qm = data;
 
     mc->qemu_machine = data;
+
+    mc->name = qm->name;
+    mc->alias = qm->alias;
+    mc->desc = qm->desc;
+    mc->init = qm->init;
+    mc->reset = qm->reset;
+    mc->hot_add_cpu = qm->hot_add_cpu;
+    mc->kvm_type = qm->kvm_type;
+    mc->block_default_type = qm->block_default_type;
+    mc->max_cpus = qm->max_cpus;
+    mc->no_serial = qm->no_serial;
+    mc->no_parallel = qm->no_parallel;
+    mc->use_virtcon = qm->use_virtcon;
+    mc->use_sclp = qm->use_sclp;
+    mc->no_floppy = qm->no_floppy;
+    mc->no_cdrom = qm->no_cdrom;
+    mc->no_sdcard = qm->no_sdcard;
+    mc->is_default = qm->is_default;
+    mc->default_machine_opts = qm->default_machine_opts;
+    mc->default_boot_order = qm->default_boot_order;
+    mc->compat_props = qm->compat_props;
+    mc->hw_version = qm->hw_version;
 }
 
 int qemu_register_machine(QEMUMachine *m)
