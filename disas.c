@@ -445,6 +445,8 @@ monitor_fprintf(FILE *stream, const char *fmt, ...)
     return 0;
 }
 
+/* Disassembler for the monitor.
+   See target_disas for a description of flags. */
 void monitor_disas(Monitor *mon, CPUArchState *env,
                    target_ulong pc, int nb_insn, int is_physical, int flags)
 {
@@ -485,11 +487,19 @@ void monitor_disas(Monitor *mon, CPUArchState *env,
     s.info.mach = bfd_mach_sparc_v9b;
 #endif
 #elif defined(TARGET_PPC)
+    if (flags & 0xFFFF) {
+        /* If we have a precise definition of the instruction set, use it. */
+        s.info.mach = flags & 0xFFFF;
+    } else {
 #ifdef TARGET_PPC64
-    s.info.mach = bfd_mach_ppc64;
+        s.info.mach = bfd_mach_ppc64;
 #else
-    s.info.mach = bfd_mach_ppc;
+        s.info.mach = bfd_mach_ppc;
 #endif
+    }
+    if ((flags >> 16) & 1) {
+        s.info.endian = BFD_ENDIAN_LITTLE;
+    }
     print_insn = print_insn_ppc;
 #elif defined(TARGET_M68K)
     print_insn = print_insn_m68k;

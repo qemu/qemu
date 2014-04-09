@@ -1285,6 +1285,10 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
             }
         }
 #endif
+#ifdef TARGET_PPC
+        flags = msr_le << 16;
+        flags |= env->bfd_mach;
+#endif
         monitor_disas(mon, env, addr, count, is_physical, flags);
         return;
     }
