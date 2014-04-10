@@ -576,6 +576,7 @@ again:
             goto again;
         }
         error_report("%s: read failed, errno = %d", __func__, errno);
+        return 1;
     }
 
     /* Restore or clear multifunction, this is always controlled by qemu */
