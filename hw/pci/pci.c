@@ -2013,12 +2013,32 @@ static void pci_del_option_rom(PCIDevice *pdev)
 int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
                        uint8_t offset, uint8_t size)
 {
+    int ret;
+    Error *local_err = NULL;
+
+    ret = pci_add_capability2(pdev, cap_id, offset, size, &local_err);
+    if (local_err) {
+        assert(ret < 0);
+        error_report("%s", error_get_pretty(local_err));
+        error_free(local_err);
+    } else {
+        /* success implies a positive offset in config space */
+        assert(ret > 0);
+    }
+    return ret;
+}
+
+int pci_add_capability2(PCIDevice *pdev, uint8_t cap_id,
+                       uint8_t offset, uint8_t size,
+                       Error **errp)
+{
     uint8_t *config;
     int i, overlapping_cap;
 
     if (!offset) {
         offset = pci_find_space(pdev, size);
         if (!offset) {
+            error_setg(errp, "out of PCI config space");
             return -ENOSPC;
         }
     } else {
@@ -2029,12 +2049,12 @@ int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
         for (i = offset; i < offset + size; i++) {
             overlapping_cap = pci_find_capability_at_offset(pdev, i);
             if (overlapping_cap) {
-                fprintf(stderr, "ERROR: %s:%02x:%02x.%x "
-                        "Attempt to add PCI capability %x at offset "
-                        "%x overlaps existing capability %x at offset %x\n",
-                        pci_root_bus_path(pdev), pci_bus_num(pdev->bus),
-                        PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
-                        cap_id, offset, overlapping_cap, i);
+                error_setg(errp, "%s:%02x:%02x.%x "
+                           "Attempt to add PCI capability %x at offset "
+                           "%x overlaps existing capability %x at offset %x",
+                           pci_root_bus_path(pdev), pci_bus_num(pdev->bus),
+                           PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
+                           cap_id, offset, overlapping_cap, i);
                 return -EINVAL;
             }
         }
