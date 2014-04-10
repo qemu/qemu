@@ -499,7 +499,8 @@ static int assigned_dev_register_regions(PCIRegion *io_regions,
     return 0;
 }
 
-static int get_real_id(const char *devpath, const char *idname, uint16_t *val)
+static void get_real_id(const char *devpath, const char *idname, uint16_t *val,
+                        Error **errp)
 {
     FILE *f;
     char name[128];
@@ -508,34 +509,33 @@ static int get_real_id(const char *devpath, const char *idname, uint16_t *val)
     snprintf(name, sizeof(name), "%s%s", devpath, idname);
     f = fopen(name, "r");
     if (f == NULL) {
-        error_report("%s: %s: %m", __func__, name);
-        return -1;
+        error_setg_file_open(errp, errno, name);
+        return;
     }
     if (fscanf(f, "%li\n", &id) == 1) {
         *val = id;
     } else {
-        fclose(f);
-        return -1;
+        error_setg(errp, "Failed to parse contents of '%s'", name);
     }
     fclose(f);
-
-    return 0;
 }
 
-static int get_real_vendor_id(const char *devpath, uint16_t *val)
+static void get_real_vendor_id(const char *devpath, uint16_t *val,
+                               Error **errp)
 {
-    return get_real_id(devpath, "vendor", val);
+    get_real_id(devpath, "vendor", val, errp);
 }
 
-static int get_real_device_id(const char *devpath, uint16_t *val)
+static void get_real_device_id(const char *devpath, uint16_t *val,
+                               Error **errp)
 {
-    return get_real_id(devpath, "device", val);
+    get_real_id(devpath, "device", val, errp);
 }
 
 static int get_real_device(AssignedDevice *pci_dev)
 {
     char dir[128], name[128];
-    int fd, r = 0, v;
+    int fd, r = 0;
     FILE *f;
     uint64_t start, end, size, flags;
     uint16_t id;
@@ -639,16 +639,20 @@ again:
     fclose(f);
 
     /* read and fill vendor ID */
-    v = get_real_vendor_id(dir, &id);
-    if (v) {
+    get_real_vendor_id(dir, &id, &local_err);
+    if (local_err) {
+        error_report("%s", error_get_pretty(local_err));
+        error_free(local_err);
         return 1;
     }
     pci_dev->dev.config[0] = id & 0xff;
     pci_dev->dev.config[1] = (id & 0xff00) >> 8;
 
     /* read and fill device ID */
-    v = get_real_device_id(dir, &id);
-    if (v) {
+    get_real_device_id(dir, &id, &local_err);
+    if (local_err) {
+        error_report("%s", error_get_pretty(local_err));
+        error_free(local_err);
         return 1;
     }
     pci_dev->dev.config[2] = id & 0xff;
@@ -741,6 +745,7 @@ static char *assign_failed_examine(const AssignedDevice *dev)
     char name[PATH_MAX], dir[PATH_MAX], driver[PATH_MAX] = {}, *ns;
     uint16_t vendor_id, device_id;
     int r;
+    Error *local_err = NULL;
 
     snprintf(dir, sizeof(dir), "/sys/bus/pci/devices/%04x:%02x:%02x.%01x/",
             dev->host.domain, dev->host.bus, dev->host.slot,
@@ -761,8 +766,12 @@ static char *assign_failed_examine(const AssignedDevice *dev)
 
     ns++;
 
-    if (get_real_vendor_id(dir, &vendor_id) ||
-        get_real_device_id(dir, &device_id)) {
+    if ((get_real_vendor_id(dir, &vendor_id, &local_err), local_err) ||
+        (get_real_device_id(dir, &device_id, &local_err), local_err)) {
+        /* We're already analyzing an assignment error, so we suppress this
+         * one just like the others above.
+         */
+        error_free(local_err);
         goto fail;
     }
 
