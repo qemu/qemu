@@ -795,7 +795,7 @@ fail:
     return g_strdup("Couldn't find out why.");
 }
 
-static int assign_device(AssignedDevice *dev)
+static void assign_device(AssignedDevice *dev, Error **errp)
 {
     uint32_t flags = KVM_DEV_ASSIGN_ENABLE_IOMMU;
     int r;
@@ -803,15 +803,15 @@ static int assign_device(AssignedDevice *dev)
     /* Only pass non-zero PCI segment to capable module */
     if (!kvm_check_extension(kvm_state, KVM_CAP_PCI_SEGMENT) &&
         dev->host.domain) {
-        error_report("Can't assign device inside non-zero PCI segment "
-                     "as this KVM module doesn't support it.");
-        return -ENODEV;
+        error_setg(errp, "Can't assign device inside non-zero PCI segment "
+                   "as this KVM module doesn't support it.");
+        return;
     }
 
     if (!kvm_check_extension(kvm_state, KVM_CAP_IOMMU)) {
-        error_report("No IOMMU found.  Unable to assign device \"%s\"",
-                     dev->dev.qdev.id);
-        return -ENODEV;
+        error_setg(errp, "No IOMMU found.  Unable to assign device \"%s\"",
+                   dev->dev.qdev.id);
+        return;
     }
 
     if (dev->features & ASSIGNED_DEVICE_SHARE_INTX_MASK &&
@@ -826,18 +826,17 @@ static int assign_device(AssignedDevice *dev)
             char *cause;
 
             cause = assign_failed_examine(dev);
-            error_report("Failed to assign device \"%s\" : %s\n%s",
-                         dev->dev.qdev.id, strerror(-r), cause);
+            error_setg_errno(errp, -r, "Failed to assign device \"%s\"\n%s",
+                             dev->dev.qdev.id, cause);
             g_free(cause);
             break;
         }
         default:
-            error_report("Failed to assign device \"%s\" : %s",
-                         dev->dev.qdev.id, strerror(-r));
+            error_setg_errno(errp, -r, "Failed to assign device \"%s\"",
+                             dev->dev.qdev.id);
             break;
         }
     }
-    return r;
 }
 
 static void verify_irqchip_in_kernel(Error **errp)
@@ -1812,8 +1811,10 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
     dev->intx_route.irq = -1;
 
     /* assign device to guest */
-    r = assign_device(dev);
-    if (r < 0) {
+    assign_device(dev, &local_err);
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         goto out;
     }
 
