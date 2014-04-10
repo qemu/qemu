@@ -178,10 +178,10 @@ _rm_test_img()
     local img=$1
     if [ "$IMGFMT" = "vmdk" ]; then
         # Remove all the extents for vmdk
-        $QEMU_IMG info $img 2>/dev/null | grep 'filename:' | cut -f 2 -d: \
+        "$QEMU_IMG" info "$img" 2>/dev/null | grep 'filename:' | cut -f 2 -d: \
             | xargs -I {} rm -f "{}"
     fi
-    rm -f $img
+    rm -f "$img"
 }
 
 _cleanup_test_img()
