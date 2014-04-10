@@ -541,6 +541,7 @@ static int get_real_device(AssignedDevice *pci_dev)
     uint16_t id;
     PCIRegion *rp;
     PCIDevRegions *dev = &pci_dev->real_device;
+    Error *local_err = NULL;
 
     dev->region_number = 0;
 
@@ -551,8 +552,12 @@ static int get_real_device(AssignedDevice *pci_dev)
     snprintf(name, sizeof(name), "%sconfig", dir);
 
     if (pci_dev->configfd_name && *pci_dev->configfd_name) {
-        dev->config_fd = monitor_handle_fd_param(cur_mon, pci_dev->configfd_name);
-        if (dev->config_fd < 0) {
+        dev->config_fd = monitor_handle_fd_param2(cur_mon,
+                                                  pci_dev->configfd_name,
+                                                  &local_err);
+        if (local_err) {
+            qerror_report_err(local_err);
+            error_free(local_err);
             return 1;
         }
     } else {
