@@ -1225,7 +1225,8 @@ Object *object_resolve_path_component(Object *parent, const gchar *part)
     }
 
     if (object_property_is_link(prop)) {
-        return *(Object **)prop->opaque;
+        LinkProperty *lprop = prop->opaque;
+        return *lprop->child;
     } else if (object_property_is_child(prop)) {
         return prop->opaque;
     } else {
