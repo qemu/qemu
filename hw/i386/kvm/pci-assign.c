@@ -1756,14 +1756,14 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
     Error *local_err = NULL;
 
     if (!kvm_enabled()) {
-        error_report("pci-assign: error: requires KVM support");
-        return -1;
+        error_setg(&local_err, "pci-assign requires KVM support");
+        goto exit_with_error;
     }
 
     if (!dev->host.domain && !dev->host.bus && !dev->host.slot &&
         !dev->host.function) {
-        error_report("pci-assign: error: no host device specified");
-        return -1;
+        error_setg(&local_err, "no host device specified");
+        goto exit_with_error;
     }
 
     /*
@@ -1788,14 +1788,10 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
 
     get_real_device(dev, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         goto out;
     }
 
     if (assigned_device_pci_cap_init(pci_dev, &local_err) < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         goto out;
     }
 
@@ -1803,8 +1799,6 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
     if (dev->cap.available & ASSIGNED_DEVICE_CAP_MSIX) {
         assigned_dev_register_msix_mmio(dev, &local_err);
         if (local_err) {
-            qerror_report_err(local_err);
-            error_free(local_err);
             goto out;
         }
     }
@@ -1814,8 +1808,6 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
                                   dev->real_device.region_number, dev,
                                   &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         goto out;
     }
 
@@ -1828,16 +1820,12 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
     /* assign device to guest */
     assign_device(dev, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         goto out;
     }
 
     /* assign legacy INTx to the device */
     r = assign_intx(dev, &local_err);
     if (r < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         goto assigned_out;
     }
 
@@ -1849,8 +1837,14 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
 
 assigned_out:
     deassign_device(dev);
+
 out:
     free_assigned_device(dev);
+
+exit_with_error:
+    assert(local_err);
+    qerror_report_err(local_err);
+    error_free(local_err);
     return -1;
 }
 
