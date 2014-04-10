@@ -841,14 +841,12 @@ static int assign_device(AssignedDevice *dev)
     return r;
 }
 
-static bool check_irqchip_in_kernel(void)
+static void verify_irqchip_in_kernel(Error **errp)
 {
     if (kvm_irqchip_in_kernel()) {
-        return true;
+        return;
     }
-    error_report("pci-assign: error: requires KVM with in-kernel irqchip "
-                 "enabled");
-    return false;
+    error_setg(errp, "pci-assign requires KVM with in-kernel irqchip enabled");
 }
 
 static int assign_intx(AssignedDevice *dev)
@@ -857,6 +855,7 @@ static int assign_intx(AssignedDevice *dev)
     PCIINTxRoute intx_route;
     bool intx_host_msi;
     int r;
+    Error *local_err = NULL;
 
     /* Interrupt PIN 0 means don't use INTx */
     if (assigned_dev_pci_read_byte(&dev->dev, PCI_INTERRUPT_PIN) == 0) {
@@ -864,7 +863,10 @@ static int assign_intx(AssignedDevice *dev)
         return 0;
     }
 
-    if (!check_irqchip_in_kernel()) {
+    verify_irqchip_in_kernel(&local_err);
+    if (local_err) {
+        error_report("%s", error_get_pretty(local_err));
+        error_free(local_err);
         return -ENOTSUP;
     }
 
@@ -1241,6 +1243,7 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
     AssignedDevice *dev = DO_UPCAST(AssignedDevice, dev, pci_dev);
     PCIRegion *pci_region = dev->real_device.regions;
     int ret, pos;
+    Error *local_err = NULL;
 
     /* Clear initial capabilities pointer and status copied from hw */
     pci_set_byte(pci_dev->config + PCI_CAPABILITY_LIST, 0);
@@ -1252,7 +1255,10 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
      * MSI capability is the 1st capability in capability config */
     pos = pci_find_cap_offset(pci_dev, PCI_CAP_ID_MSI, 0);
     if (pos != 0 && kvm_check_extension(kvm_state, KVM_CAP_ASSIGN_DEV_IRQ)) {
-        if (!check_irqchip_in_kernel()) {
+        verify_irqchip_in_kernel(&local_err);
+        if (local_err) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
             return -ENOTSUP;
         }
         dev->cap.available |= ASSIGNED_DEVICE_CAP_MSI;
@@ -1281,7 +1287,10 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         int bar_nr;
         uint32_t msix_table_entry;
 
-        if (!check_irqchip_in_kernel()) {
+        verify_irqchip_in_kernel(&local_err);
+        if (local_err) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
             return -ENOTSUP;
         }
         dev->cap.available |= ASSIGNED_DEVICE_CAP_MSIX;
