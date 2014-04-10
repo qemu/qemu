@@ -1876,6 +1876,10 @@ void qmp_block_commit(const char *device,
      */
     BlockdevOnError on_error = BLOCKDEV_ON_ERROR_REPORT;
 
+    if (!has_speed) {
+        speed = 0;
+    }
+
     /* drain all i/o before commits */
     bdrv_drain_all();
 
