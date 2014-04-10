@@ -1263,8 +1263,11 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         }
         dev->cap.available |= ASSIGNED_DEVICE_CAP_MSI;
         /* Only 32-bit/no-mask currently supported */
-        ret = pci_add_capability(pci_dev, PCI_CAP_ID_MSI, pos, 10);
+        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_MSI, pos, 10,
+                                  &local_err);
         if (ret < 0) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
             return ret;
         }
         pci_dev->msi_cap = pos;
@@ -1294,8 +1297,11 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
             return -ENOTSUP;
         }
         dev->cap.available |= ASSIGNED_DEVICE_CAP_MSIX;
-        ret = pci_add_capability(pci_dev, PCI_CAP_ID_MSIX, pos, 12);
+        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_MSIX, pos, 12,
+                                  &local_err);
         if (ret < 0) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
             return ret;
         }
         pci_dev->msix_cap = pos;
@@ -1322,8 +1328,11 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
     if (pos) {
         uint16_t pmc;
 
-        ret = pci_add_capability(pci_dev, PCI_CAP_ID_PM, pos, PCI_PM_SIZEOF);
+        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_PM, pos, PCI_PM_SIZEOF,
+                                  &local_err);
         if (ret < 0) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
             return ret;
         }
 
@@ -1388,8 +1397,11 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
             return -EINVAL;
         }
 
-        ret = pci_add_capability(pci_dev, PCI_CAP_ID_EXP, pos, size);
+        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_EXP, pos, size,
+                                  &local_err);
         if (ret < 0) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
             return ret;
         }
 
@@ -1462,8 +1474,11 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         uint32_t status;
 
         /* Only expose the minimum, 8 byte capability */
-        ret = pci_add_capability(pci_dev, PCI_CAP_ID_PCIX, pos, 8);
+        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_PCIX, pos, 8,
+                                  &local_err);
         if (ret < 0) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
             return ret;
         }
 
@@ -1488,8 +1503,11 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
     pos = pci_find_cap_offset(pci_dev, PCI_CAP_ID_VPD, 0);
     if (pos) {
         /* Direct R/W passthrough */
-        ret = pci_add_capability(pci_dev, PCI_CAP_ID_VPD, pos, 8);
+        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_VPD, pos, 8,
+                                  &local_err);
         if (ret < 0) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
             return ret;
         }
 
@@ -1504,8 +1522,11 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         pos += PCI_CAP_LIST_NEXT) {
         uint8_t len = pci_get_byte(pci_dev->config + pos + PCI_CAP_FLAGS);
         /* Direct R/W passthrough */
-        ret = pci_add_capability(pci_dev, PCI_CAP_ID_VNDR, pos, len);
+        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_VNDR, pos, len,
+                                  &local_err);
         if (ret < 0) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
             return ret;
         }
 
