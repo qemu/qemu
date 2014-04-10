@@ -1237,7 +1237,7 @@ static void assigned_dev_setup_cap_read(AssignedDevice *dev, uint32_t offset,
     assigned_dev_emulate_config_read(dev, offset + PCI_CAP_LIST_NEXT, 1);
 }
 
-static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
+static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
 {
     AssignedDevice *dev = DO_UPCAST(AssignedDevice, dev, pci_dev);
     PCIRegion *pci_region = dev->real_device.regions;
@@ -1256,8 +1256,7 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
     if (pos != 0 && kvm_check_extension(kvm_state, KVM_CAP_ASSIGN_DEV_IRQ)) {
         verify_irqchip_in_kernel(&local_err);
         if (local_err) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_propagate(errp, local_err);
             return -ENOTSUP;
         }
         dev->cap.available |= ASSIGNED_DEVICE_CAP_MSI;
@@ -1265,8 +1264,7 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         ret = pci_add_capability2(pci_dev, PCI_CAP_ID_MSI, pos, 10,
                                   &local_err);
         if (ret < 0) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_propagate(errp, local_err);
             return ret;
         }
         pci_dev->msi_cap = pos;
@@ -1291,16 +1289,14 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
 
         verify_irqchip_in_kernel(&local_err);
         if (local_err) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_propagate(errp, local_err);
             return -ENOTSUP;
         }
         dev->cap.available |= ASSIGNED_DEVICE_CAP_MSIX;
         ret = pci_add_capability2(pci_dev, PCI_CAP_ID_MSIX, pos, 12,
                                   &local_err);
         if (ret < 0) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_propagate(errp, local_err);
             return ret;
         }
         pci_dev->msix_cap = pos;
@@ -1330,8 +1326,7 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         ret = pci_add_capability2(pci_dev, PCI_CAP_ID_PM, pos, PCI_PM_SIZEOF,
                                   &local_err);
         if (ret < 0) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1369,8 +1364,8 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
              */
             size = MIN(0x3c, PCI_CONFIG_SPACE_SIZE - pos);
             if (size < 0x34) {
-                error_report("%s: Invalid size PCIe cap-id 0x%x",
-                             __func__, PCI_CAP_ID_EXP);
+                error_setg(errp, "Invalid size PCIe cap-id 0x%x",
+                           PCI_CAP_ID_EXP);
                 return -EINVAL;
             } else if (size != 0x3c) {
                 error_report("WARNING, %s: PCIe cap-id 0x%x has "
@@ -1391,16 +1386,15 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         }
 
         if (size == 0) {
-            error_report("%s: Unsupported PCI express capability version %d",
-                         __func__, version);
+            error_setg(errp, "Unsupported PCI express capability version %d",
+                       version);
             return -EINVAL;
         }
 
         ret = pci_add_capability2(pci_dev, PCI_CAP_ID_EXP, pos, size,
                                   &local_err);
         if (ret < 0) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1410,8 +1404,8 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         type = (type & PCI_EXP_FLAGS_TYPE) >> 4;
         if (type != PCI_EXP_TYPE_ENDPOINT &&
             type != PCI_EXP_TYPE_LEG_END && type != PCI_EXP_TYPE_RC_END) {
-            error_report("Device assignment only supports endpoint assignment,"
-                         " device type %d", type);
+            error_setg(errp, "Device assignment only supports endpoint "
+                       "assignment, device type %d", type);
             return -EINVAL;
         }
 
@@ -1476,8 +1470,7 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         ret = pci_add_capability2(pci_dev, PCI_CAP_ID_PCIX, pos, 8,
                                   &local_err);
         if (ret < 0) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1505,8 +1498,7 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         ret = pci_add_capability2(pci_dev, PCI_CAP_ID_VPD, pos, 8,
                                   &local_err);
         if (ret < 0) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1524,8 +1516,7 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         ret = pci_add_capability2(pci_dev, PCI_CAP_ID_VNDR, pos, len,
                                   &local_err);
         if (ret < 0) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1789,7 +1780,9 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
         goto out;
     }
 
-    if (assigned_device_pci_cap_init(pci_dev) < 0) {
+    if (assigned_device_pci_cap_init(pci_dev, &local_err) < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         goto out;
     }
 
