@@ -731,7 +731,12 @@ static void free_assigned_device(AssignedDevice *dev)
     free_msi_virqs(dev);
 }
 
-static void assign_failed_examine(AssignedDevice *dev)
+/* This function tries to determine the cause of the PCI assignment failure. It
+ * always returns the cause as a dynamically allocated, human readable string.
+ * If the function fails to determine the cause for any internal reason, then
+ * the returned string will state that fact.
+ */
+static char *assign_failed_examine(const AssignedDevice *dev)
 {
     char name[PATH_MAX], dir[PATH_MAX], driver[PATH_MAX] = {}, *ns;
     uint16_t vendor_id, device_id;
@@ -761,8 +766,8 @@ static void assign_failed_examine(AssignedDevice *dev)
         goto fail;
     }
 
-    error_printf("*** The driver '%s' is occupying your device "
-        "%04x:%02x:%02x.%x.\n"
+    return g_strdup_printf(
+        "*** The driver '%s' is occupying your device %04x:%02x:%02x.%x.\n"
         "***\n"
         "*** You can try the following commands to free it:\n"
         "***\n"
@@ -778,10 +783,8 @@ static void assign_failed_examine(AssignedDevice *dev)
         ns, dev->host.domain, dev->host.bus, dev->host.slot,
         dev->host.function, vendor_id, device_id);
 
-    return;
-
 fail:
-    error_report("Couldn't find out why.");
+    return g_strdup("Couldn't find out why.");
 }
 
 static int assign_device(AssignedDevice *dev)
@@ -810,14 +813,19 @@ static int assign_device(AssignedDevice *dev)
 
     r = kvm_device_pci_assign(kvm_state, &dev->host, flags, &dev->dev_id);
     if (r < 0) {
-        error_report("Failed to assign device \"%s\" : %s",
-                     dev->dev.qdev.id, strerror(-r));
-
         switch (r) {
-        case -EBUSY:
-            assign_failed_examine(dev);
+        case -EBUSY: {
+            char *cause;
+
+            cause = assign_failed_examine(dev);
+            error_report("Failed to assign device \"%s\" : %s\n%s",
+                         dev->dev.qdev.id, strerror(-r), cause);
+            g_free(cause);
             break;
+        }
         default:
+            error_report("Failed to assign device \"%s\" : %s",
+                         dev->dev.qdev.id, strerror(-r));
             break;
         }
     }
