@@ -847,7 +847,7 @@ static void verify_irqchip_in_kernel(Error **errp)
     error_setg(errp, "pci-assign requires KVM with in-kernel irqchip enabled");
 }
 
-static int assign_intx(AssignedDevice *dev)
+static int assign_intx(AssignedDevice *dev, Error **errp)
 {
     AssignedIRQType new_type;
     PCIINTxRoute intx_route;
@@ -863,8 +863,7 @@ static int assign_intx(AssignedDevice *dev)
 
     verify_irqchip_in_kernel(&local_err);
     if (local_err) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_propagate(errp, local_err);
         return -ENOTSUP;
     }
 
@@ -927,10 +926,11 @@ retry:
             dev->features |= ASSIGNED_DEVICE_PREFER_MSI_MASK;
             goto retry;
         }
-        error_report("Failed to assign irq for \"%s\": %s",
-                     dev->dev.qdev.id, strerror(-r));
-        error_report("Perhaps you are assigning a device "
-                     "that shares an IRQ with another device?");
+        error_setg_errno(errp, -r,
+                         "Failed to assign irq for \"%s\"\n"
+                         "Perhaps you are assigning a device "
+                         "that shares an IRQ with another device?",
+                         dev->dev.qdev.id);
         return r;
     }
 
@@ -956,8 +956,11 @@ static void assigned_dev_update_irq_routing(PCIDevice *dev)
     Error *err = NULL;
     int r;
 
-    r = assign_intx(assigned_dev);
+    r = assign_intx(assigned_dev, &err);
     if (r < 0) {
+        error_report("%s", error_get_pretty(err));
+        error_free(err);
+        err = NULL;
         qdev_unplug(&dev->qdev, &err);
         assert(!err);
     }
@@ -1008,7 +1011,13 @@ static void assigned_dev_update_msi(PCIDevice *pci_dev)
         assigned_dev->intx_route.irq = -1;
         assigned_dev->assigned_irq_type = ASSIGNED_IRQ_MSI;
     } else {
-        assign_intx(assigned_dev);
+        Error *local_err = NULL;
+
+        assign_intx(assigned_dev, &local_err);
+        if (local_err) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
+        }
     }
 }
 
@@ -1150,7 +1159,13 @@ static void assigned_dev_update_msix(PCIDevice *pci_dev)
         assigned_dev->intx_route.irq = -1;
         assigned_dev->assigned_irq_type = ASSIGNED_IRQ_MSIX;
     } else {
-        assign_intx(assigned_dev);
+        Error *local_err = NULL;
+
+        assign_intx(assigned_dev, &local_err);
+        if (local_err) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
+        }
     }
 }
 
@@ -1819,8 +1834,10 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
     }
 
     /* assign legacy INTx to the device */
-    r = assign_intx(dev);
+    r = assign_intx(dev, &local_err);
     if (r < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         goto assigned_out;
     }
 
