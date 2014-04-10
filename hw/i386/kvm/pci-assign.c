@@ -532,7 +532,7 @@ static void get_real_device_id(const char *devpath, uint16_t *val,
     get_real_id(devpath, "device", val, errp);
 }
 
-static int get_real_device(AssignedDevice *pci_dev)
+static void get_real_device(AssignedDevice *pci_dev, Error **errp)
 {
     char dir[128], name[128];
     int fd, r = 0;
@@ -556,16 +556,15 @@ static int get_real_device(AssignedDevice *pci_dev)
                                                   pci_dev->configfd_name,
                                                   &local_err);
         if (local_err) {
-            qerror_report_err(local_err);
-            error_free(local_err);
-            return 1;
+            error_propagate(errp, local_err);
+            return;
         }
     } else {
         dev->config_fd = open(name, O_RDWR);
 
         if (dev->config_fd == -1) {
-            error_report("%s: %s: %m", __func__, name);
-            return 1;
+            error_setg_file_open(errp, errno, name);
+            return;
         }
     }
 again:
@@ -575,8 +574,10 @@ again:
         if (errno == EINTR || errno == EAGAIN) {
             goto again;
         }
-        error_report("%s: read failed, errno = %d", __func__, errno);
-        return 1;
+        error_setg_errno(errp, errno, "read(\"%s\")",
+                         (pci_dev->configfd_name && *pci_dev->configfd_name) ?
+                         pci_dev->configfd_name : name);
+        return;
     }
 
     /* Restore or clear multifunction, this is always controlled by qemu */
@@ -596,8 +597,8 @@ again:
 
     f = fopen(name, "r");
     if (f == NULL) {
-        error_report("%s: %s: %m", __func__, name);
-        return 1;
+        error_setg_file_open(errp, errno, name);
+        return;
     }
 
     for (r = 0; r < PCI_ROM_SLOT; r++) {
@@ -642,9 +643,8 @@ again:
     /* read and fill vendor ID */
     get_real_vendor_id(dir, &id, &local_err);
     if (local_err) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
-        return 1;
+        error_propagate(errp, local_err);
+        return;
     }
     pci_dev->dev.config[0] = id & 0xff;
     pci_dev->dev.config[1] = (id & 0xff00) >> 8;
@@ -652,9 +652,8 @@ again:
     /* read and fill device ID */
     get_real_device_id(dir, &id, &local_err);
     if (local_err) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
-        return 1;
+        error_propagate(errp, local_err);
+        return;
     }
     pci_dev->dev.config[2] = id & 0xff;
     pci_dev->dev.config[3] = (id & 0xff00) >> 8;
@@ -663,7 +662,6 @@ again:
                                  PCI_COMMAND_MASTER | PCI_COMMAND_INTX_DISABLE);
 
     dev->region_number = r;
-    return 0;
 }
 
 static void free_msi_virqs(AssignedDevice *dev)
@@ -1751,6 +1749,7 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
     AssignedDevice *dev = DO_UPCAST(AssignedDevice, dev, pci_dev);
     uint8_t e_intx;
     int r;
+    Error *local_err = NULL;
 
     if (!kvm_enabled()) {
         error_report("pci-assign: error: requires KVM support");
@@ -1783,9 +1782,10 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
     memcpy(dev->emulate_config_write, dev->emulate_config_read,
            sizeof(dev->emulate_config_read));
 
-    if (get_real_device(dev)) {
-        error_report("pci-assign: Error: Couldn't get real device (%s)!",
-                     dev->dev.qdev.id);
+    get_real_device(dev, &local_err);
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         goto out;
     }
 
