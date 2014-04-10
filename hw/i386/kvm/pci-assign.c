@@ -394,9 +394,10 @@ static uint8_t pci_find_cap_offset(PCIDevice *d, uint8_t cap, uint8_t start)
     return 0;
 }
 
-static int assigned_dev_register_regions(PCIRegion *io_regions,
-                                         unsigned long regions_num,
-                                         AssignedDevice *pci_dev)
+static void assigned_dev_register_regions(PCIRegion *io_regions,
+                                          unsigned long regions_num,
+                                          AssignedDevice *pci_dev,
+                                          Error **errp)
 {
     uint32_t i;
     PCIRegion *cur_region = io_regions;
@@ -425,9 +426,9 @@ static int assigned_dev_register_regions(PCIRegion *io_regions,
 
             if (pci_dev->v_addrs[i].u.r_virtbase == MAP_FAILED) {
                 pci_dev->v_addrs[i].u.r_virtbase = NULL;
-                error_report("%s: Error: Couldn't mmap 0x%" PRIx64 "!",
-                             __func__, cur_region->base_addr);
-                return -1;
+                error_setg_errno(errp, errno, "Couldn't mmap 0x%" PRIx64 "!",
+                                 cur_region->base_addr);
+                return;
             }
 
             pci_dev->v_addrs[i].r_size = cur_region->size;
@@ -496,7 +497,6 @@ static int assigned_dev_register_regions(PCIRegion *io_regions,
     }
 
     /* success */
-    return 0;
 }
 
 static void get_real_id(const char *devpath, const char *idname, uint16_t *val,
@@ -1796,9 +1796,12 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
     }
 
     /* handle real device's MMIO/PIO BARs */
-    if (assigned_dev_register_regions(dev->real_device.regions,
-                                      dev->real_device.region_number,
-                                      dev)) {
+    assigned_dev_register_regions(dev->real_device.regions,
+                                  dev->real_device.region_number, dev,
+                                  &local_err);
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         goto out;
     }
 
