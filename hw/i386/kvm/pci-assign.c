@@ -1644,20 +1644,19 @@ static void assigned_dev_msix_reset(AssignedDevice *dev)
     }
 }
 
-static int assigned_dev_register_msix_mmio(AssignedDevice *dev)
+static void assigned_dev_register_msix_mmio(AssignedDevice *dev, Error **errp)
 {
     dev->msix_table = mmap(NULL, MSIX_PAGE_SIZE, PROT_READ|PROT_WRITE,
                            MAP_ANONYMOUS|MAP_PRIVATE, 0, 0);
     if (dev->msix_table == MAP_FAILED) {
-        error_report("fail allocate msix_table! %s", strerror(errno));
-        return -EFAULT;
+        error_setg_errno(errp, errno, "failed to allocate msix_table");
+        return;
     }
 
     assigned_dev_msix_reset(dev);
 
     memory_region_init_io(&dev->mmio, OBJECT(dev), &assigned_dev_msix_mmio_ops,
                           dev, "assigned-dev-msix", MSIX_PAGE_SIZE);
-    return 0;
 }
 
 static void assigned_dev_unregister_msix_mmio(AssignedDevice *dev)
@@ -1788,7 +1787,10 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
 
     /* intercept MSI-X entry page in the MMIO */
     if (dev->cap.available & ASSIGNED_DEVICE_CAP_MSIX) {
-        if (assigned_dev_register_msix_mmio(dev)) {
+        assigned_dev_register_msix_mmio(dev, &local_err);
+        if (local_err) {
+            qerror_report_err(local_err);
+            error_free(local_err);
             goto out;
         }
     }
