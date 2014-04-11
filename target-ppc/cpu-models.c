@@ -1134,10 +1134,6 @@
     POWERPC_DEF("POWER6A",       CPU_POWERPC_POWER6A,                POWER6,
                 "POWER6A")
 #endif
-    POWERPC_DEF("POWER7_v2.0",   CPU_POWERPC_POWER7_v20,             POWER7,
-                "POWER7 v2.0")
-    POWERPC_DEF("POWER7_v2.1",   CPU_POWERPC_POWER7_v21,             POWER7,
-                "POWER7 v2.1")
     POWERPC_DEF("POWER7_v2.3",   CPU_POWERPC_POWER7_v23,             POWER7,
                 "POWER7 v2.3")
     POWERPC_DEF("POWER7+_v2.1",  CPU_POWERPC_POWER7P_v21,            POWER7P,
