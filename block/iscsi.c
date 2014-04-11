@@ -1233,6 +1233,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     iscsi_readcapacity_sync(iscsilun, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
+        ret = -EINVAL;
         goto out;
     }
     bs->total_sectors = sector_lun2qemu(iscsilun->num_blocks, iscsilun);
