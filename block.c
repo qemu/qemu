@@ -793,7 +793,7 @@ static int bdrv_inherited_flags(int flags)
     }
 
     /* Clear flags that only apply to the top layer */
-    flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+    flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_COPY_ON_READ);
 
     return flags;
 }
