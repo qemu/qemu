@@ -8218,12 +8218,6 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
         }
     }
 
-    for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
-        if (strcmp(ppc_cpu_aliases[i].alias, name) == 0) {
-            return ppc_cpu_class_by_alias(&ppc_cpu_aliases[i]);
-        }
-    }
-
     list = object_class_get_list(TYPE_POWERPC_CPU, false);
     item = g_slist_find_custom(list, name, ppc_cpu_compare_class_name);
     if (item != NULL) {
@@ -8231,7 +8225,17 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
     }
     g_slist_free(list);
 
-    return ret;
+    if (ret) {
+        return ret;
+    }
+
+    for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
+        if (strcmp(ppc_cpu_aliases[i].alias, name) == 0) {
+            return ppc_cpu_class_by_alias(&ppc_cpu_aliases[i]);
+        }
+    }
+
+    return NULL;
 }
 
 PowerPCCPU *cpu_ppc_init(const char *cpu_model)
