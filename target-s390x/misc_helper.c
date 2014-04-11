@@ -136,6 +136,7 @@ static int modified_clear_reset(S390CPU *cpu)
     pause_all_vcpus();
     cpu_synchronize_all_states();
     cpu_full_reset_all();
+    cmma_reset(cpu);
     io_subsystem_reset();
     scc->load_normal(CPU(cpu));
     cpu_synchronize_all_post_reset();
@@ -150,6 +151,7 @@ static int load_normal_reset(S390CPU *cpu)
     pause_all_vcpus();
     cpu_synchronize_all_states();
     cpu_reset_all();
+    cmma_reset(cpu);
     io_subsystem_reset();
     scc->initial_cpu_reset(CPU(cpu));
     scc->load_normal(CPU(cpu));

@@ -1074,6 +1074,7 @@ void kvm_s390_enable_css_support(S390CPU *cpu);
 int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
                                     int vq, bool assign);
 int kvm_s390_cpu_restart(S390CPU *cpu);
+void kvm_s390_clear_cmma_callback(void *opaque);
 #else
 static inline void kvm_s390_io_interrupt(S390CPU *cpu,
                                         uint16_t subchannel_id,
@@ -1098,7 +1099,18 @@ static inline int kvm_s390_cpu_restart(S390CPU *cpu)
 {
     return -ENOSYS;
 }
+static inline void kvm_s390_clear_cmma_callback(void *opaque)
+{
+}
 #endif
+
+static inline void cmma_reset(S390CPU *cpu)
+{
+    if (kvm_enabled()) {
+        CPUState *cs = CPU(cpu);
+        kvm_s390_clear_cmma_callback(cs->kvm_state);
+    }
+}
 
 static inline int s390_cpu_restart(S390CPU *cpu)
 {

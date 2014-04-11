@@ -32,6 +32,7 @@
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
+#include "hw/hw.h"
 #include "cpu.h"
 #include "sysemu/device_tree.h"
 #include "qapi/qmp/qjson.h"
@@ -104,10 +105,67 @@ static int cap_async_pf;
 
 static void *legacy_s390_alloc(size_t size);
 
+static int kvm_s390_check_clear_cmma(KVMState *s)
+{
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MEM_CTRL,
+        .attr = KVM_S390_VM_MEM_CLR_CMMA,
+    };
+
+    return kvm_vm_ioctl(s, KVM_HAS_DEVICE_ATTR, &attr);
+}
+
+static int kvm_s390_check_enable_cmma(KVMState *s)
+{
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MEM_CTRL,
+        .attr = KVM_S390_VM_MEM_ENABLE_CMMA,
+    };
+
+    return kvm_vm_ioctl(s, KVM_HAS_DEVICE_ATTR, &attr);
+}
+
+void kvm_s390_clear_cmma_callback(void *opaque)
+{
+    int rc;
+    KVMState *s = opaque;
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MEM_CTRL,
+        .attr = KVM_S390_VM_MEM_CLR_CMMA,
+    };
+
+    rc = kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
+    trace_kvm_clear_cmma(rc);
+}
+
+static void kvm_s390_enable_cmma(KVMState *s)
+{
+    int rc;
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MEM_CTRL,
+        .attr = KVM_S390_VM_MEM_ENABLE_CMMA,
+    };
+
+    if (kvm_s390_check_enable_cmma(s) || kvm_s390_check_clear_cmma(s)) {
+        return;
+    }
+
+    rc = kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
+    if (!rc) {
+        qemu_register_reset(kvm_s390_clear_cmma_callback, s);
+    }
+    trace_kvm_enable_cmma(rc);
+}
+
 int kvm_arch_init(KVMState *s)
 {
     cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
     cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
+
+    if (kvm_check_extension(s, KVM_CAP_VM_ATTRIBUTES)) {
+        kvm_s390_enable_cmma(s);
+    }
+
     if (!kvm_check_extension(s, KVM_CAP_S390_GMAP)
         || !kvm_check_extension(s, KVM_CAP_S390_COW)) {
         phys_mem_set_alloc(legacy_s390_alloc);
