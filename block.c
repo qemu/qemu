@@ -774,6 +774,30 @@ void bdrv_disable_copy_on_read(BlockDriverState *bs)
     bs->copy_on_read--;
 }
 
+/*
+ * Returns the flags that bs->file should get, based on the given flags for
+ * the parent BDS
+ */
+static int bdrv_inherited_flags(int flags)
+{
+    /* Enable protocol handling, disable format probing for bs->file */
+    flags |= BDRV_O_PROTOCOL;
+
+    /* Our block drivers take care to send flushes and respect unmap policy,
+     * so we can enable both unconditionally on lower layers. */
+    flags |= BDRV_O_CACHE_WB | BDRV_O_UNMAP;
+
+    /* The backing file of a temporary snapshot is read-only */
+    if (flags & BDRV_O_SNAPSHOT) {
+        flags &= ~BDRV_O_RDWR;
+    }
+
+    /* Clear flags that only apply to the top layer */
+    flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+
+    return flags;
+}
+
 static int bdrv_open_flags(BlockDriverState *bs, int flags)
 {
     int open_flags = flags | BDRV_O_CACHE_WB;
@@ -1333,8 +1357,8 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
 
     assert(file == NULL);
     ret = bdrv_open_image(&file, filename, options, "file",
-                          bdrv_open_flags(bs, flags | BDRV_O_UNMAP) |
-                          BDRV_O_PROTOCOL, true, &local_err);
+                          bdrv_inherited_flags(flags),
+                          true, &local_err);
     if (ret < 0) {
         goto unlink_and_fail;
     }
