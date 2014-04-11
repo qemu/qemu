@@ -44,7 +44,7 @@ static bool is_blacklisted(const char *arch, const char *mach)
     return false;
 }
 
-static void test_properties(const char *path)
+static void test_properties(const char *path, bool recurse)
 {
     char *child_path;
     QDict *response, *tuple;
@@ -56,14 +56,21 @@ static void test_properties(const char *path)
                    "  'arguments': { 'path': '%s' } }", path);
     g_assert(response);
 
+    if (!recurse) {
+        return;
+    }
+
     g_assert(qdict_haskey(response, "return"));
     list = qobject_to_qlist(qdict_get(response, "return"));
     QLIST_FOREACH_ENTRY(list, entry) {
         tuple = qobject_to_qdict(qlist_entry_obj(entry));
-        if (strstart(qdict_get_str(tuple, "type"), "child<", NULL)) {
+        bool is_child = strstart(qdict_get_str(tuple, "type"), "child<", NULL);
+        bool is_link = strstart(qdict_get_str(tuple, "type"), "link<", NULL);
+
+        if (is_child || is_link) {
             child_path = g_strdup_printf("%s/%s",
                                          path, qdict_get_str(tuple, "name"));
-            test_properties(child_path);
+            test_properties(child_path, is_child);
             g_free(child_path);
         } else {
             const char *prop = qdict_get_str(tuple, "name");
@@ -87,7 +94,7 @@ static void test_machine(gconstpointer data)
     args = g_strdup_printf("-machine %s", machine);
     qtest_start(args);
 
-    test_properties("/machine");
+    test_properties("/machine", true);
 
     response = qmp("{ 'execute': 'quit' }");
     g_assert(qdict_haskey(response, "return"));
