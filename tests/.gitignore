@@ -23,6 +23,7 @@ test-qmp-input-strict
 test-qmp-input-visitor
 test-qmp-marshal.c
 test-qmp-output-visitor
+test-rfifolock
 test-string-input-visitor
 test-string-output-visitor
 test-thread-pool
