@@ -390,6 +390,9 @@ static void raw_close(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     CloseHandle(s->hfile);
+    if (bs->open_flags & BDRV_O_TEMPORARY) {
+        unlink(bs->filename);
+    }
 }
 
 static int raw_truncate(BlockDriverState *bs, int64_t offset)

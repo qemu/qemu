@@ -808,7 +808,7 @@ static int bdrv_backing_flags(int flags)
     flags &= ~(BDRV_O_RDWR | BDRV_O_COPY_ON_READ);
 
     /* snapshot=on is handled on the top layer */
-    flags &= ~BDRV_O_SNAPSHOT;
+    flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_TEMPORARY);
 
     return flags;
 }
@@ -831,7 +831,7 @@ static int bdrv_open_flags(BlockDriverState *bs, int flags)
     /*
      * Snapshots should be writable.
      */
-    if (bs->is_temporary) {
+    if (flags & BDRV_O_TEMPORARY) {
         open_flags |= BDRV_O_RDWR;
     }
 
@@ -990,13 +990,6 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     bdrv_refresh_limits(bs);
     assert(bdrv_opt_mem_align(bs) != 0);
     assert((bs->request_alignment != 0) || bs->sg);
-
-#ifndef _WIN32
-    if (bs->is_temporary) {
-        assert(bs->filename[0] != '\0');
-        unlink(bs->filename);
-    }
-#endif
     return 0;
 
 free_and_fail:
@@ -1267,10 +1260,10 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, Error **errp)
               qstring_from_str(tmp_filename));
 
     bs_snapshot = bdrv_new("", &error_abort);
-    bs_snapshot->is_temporary = 1;
 
     ret = bdrv_open(&bs_snapshot, NULL, NULL, snapshot_options,
-                    bs->open_flags & ~BDRV_O_SNAPSHOT, bdrv_qcow2, &local_err);
+                    (bs->open_flags & ~BDRV_O_SNAPSHOT) | BDRV_O_TEMPORARY,
+                    bdrv_qcow2, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto out;
@@ -1371,7 +1364,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
                           bdrv_inherited_flags(flags),
                           true, &local_err);
     if (ret < 0) {
-        goto unlink_and_fail;
+        goto fail;
     }
 
     /* Find the right image format driver */
@@ -1382,7 +1375,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         if (!drv) {
             error_setg(errp, "Invalid driver: '%s'", drvname);
             ret = -EINVAL;
-            goto unlink_and_fail;
+            goto fail;
         }
     }
 
@@ -1392,18 +1385,18 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         } else {
             error_setg(errp, "Must specify either driver or file");
             ret = -EINVAL;
-            goto unlink_and_fail;
+            goto fail;
         }
     }
 
     if (!drv) {
-        goto unlink_and_fail;
+        goto fail;
     }
 
     /* Open the image */
     ret = bdrv_open_common(bs, file, options, flags, drv, &local_err);
     if (ret < 0) {
-        goto unlink_and_fail;
+        goto fail;
     }
 
     if (file && (bs->file != file)) {
@@ -1465,14 +1458,10 @@ done:
     *pbs = bs;
     return 0;
 
-unlink_and_fail:
+fail:
     if (file != NULL) {
         bdrv_unref(file);
     }
-    if (bs->is_temporary) {
-        unlink(filename);
-    }
-fail:
     QDECREF(bs->options);
     QDECREF(options);
     bs->options = NULL;
@@ -1752,11 +1741,6 @@ void bdrv_close(BlockDriverState *bs)
         }
         bs->drv->bdrv_close(bs);
         g_free(bs->opaque);
-#ifdef _WIN32
-        if (bs->is_temporary) {
-            unlink(bs->filename);
-        }
-#endif
         bs->opaque = NULL;
         bs->drv = NULL;
         bs->copy_on_read = 0;
