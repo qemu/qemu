@@ -1602,7 +1602,7 @@ static bool cmd_smart(IDEState *s, uint8_t cmd)
         case 2: /* extended self test */
             s->smart_selftest_count++;
             if (s->smart_selftest_count > 21) {
-                s->smart_selftest_count = 0;
+                s->smart_selftest_count = 1;
             }
             n = 2 + (s->smart_selftest_count - 1) * 24;
             s->smart_selftest_data[n] = s->sector;
