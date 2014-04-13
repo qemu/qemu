@@ -137,6 +137,7 @@ typedef struct mon_cmd_t {
      * used, and mhandler of 1st level plays the role of help function.
      */
     struct mon_cmd_t *sub_table;
+    void (*command_completion)(ReadLineState *rs, int nb_args, const char *str);
 } mon_cmd_t;
 
 /* file descriptors passed via SCM_RIGHTS */
@@ -4271,10 +4272,14 @@ static void device_add_completion(ReadLineState *rs, const char *str)
     g_slist_free(list);
 }
 
-static void object_add_completion(ReadLineState *rs, const char *str)
+void object_add_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     GSList *list, *elt;
     size_t len;
+
+    if (nb_args != 2) {
+        return;
+    }
 
     len = strlen(str);
     readline_set_completion_index(rs, len);
@@ -4310,11 +4315,14 @@ static void device_del_completion(ReadLineState *rs, BusState *bus,
     }
 }
 
-static void object_del_completion(ReadLineState *rs, const char *str)
+void object_del_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     ObjectPropertyInfoList *list, *start;
     size_t len;
 
+    if (nb_args != 2) {
+        return;
+    }
     len = strlen(str);
     readline_set_completion_index(rs, len);
 
@@ -4368,6 +4376,9 @@ static void monitor_find_completion_by_table(Monitor *mon,
             return monitor_find_completion_by_table(mon, cmd->sub_table,
                                                     &args[1], nb_args - 1);
         }
+        if (cmd->command_completion) {
+            return cmd->command_completion(mon->rs, nb_args, args[nb_args - 1]);
+        }
 
         ptype = next_arg_type(cmd->args_type);
         for(i = 0; i < nb_args - 2; i++) {
@@ -4397,8 +4408,6 @@ static void monitor_find_completion_by_table(Monitor *mon,
         case 'O':
             if (!strcmp(cmd->name, "device_add") && nb_args == 2) {
                 device_add_completion(mon->rs, str);
-            } else if (!strcmp(cmd->name, "object_add") && nb_args == 2) {
-                object_add_completion(mon->rs, str);
             }
             break;
         case 's':
@@ -4418,8 +4427,6 @@ static void monitor_find_completion_by_table(Monitor *mon,
                 size_t len = strlen(str);
                 readline_set_completion_index(mon->rs, len);
                 device_del_completion(mon->rs, sysbus_get_default(), str, len);
-            } else if (!strcmp(cmd->name, "object_del") && nb_args == 2) {
-                object_del_completion(mon->rs, str);
             }
             break;
         default:

@@ -1254,6 +1254,7 @@ ETEXI
         .params     = "[qom-type=]type,id=str[,prop=value][,...]",
         .help       = "create QOM object",
         .mhandler.cmd = hmp_object_add,
+        .command_completion = object_add_completion,
     },
 
 STEXI
@@ -1268,6 +1269,7 @@ ETEXI
         .params     = "id",
         .help       = "destroy QOM object",
         .mhandler.cmd = hmp_object_del,
+        .command_completion = object_del_completion,
     },
 
 STEXI
