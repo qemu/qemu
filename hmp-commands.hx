@@ -176,7 +176,7 @@ ETEXI
 
     {
         .name       = "drive_del",
-        .args_type  = "id:s",
+        .args_type  = "id:B",
         .params     = "device",
         .help       = "remove host block device",
         .user_print = monitor_user_noop,
