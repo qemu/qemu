@@ -658,6 +658,7 @@ ETEXI
         .help       = "add device, like -device on the command line",
         .user_print = monitor_user_noop,
         .mhandler.cmd_new = do_device_add,
+        .command_completion = device_add_completion,
     },
 
 STEXI
@@ -673,6 +674,7 @@ ETEXI
         .params     = "device",
         .help       = "remove device",
         .mhandler.cmd = hmp_device_del,
+        .command_completion = device_del_completion,
     },
 
 STEXI
