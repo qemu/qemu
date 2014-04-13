@@ -705,17 +705,6 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
 #else
     int qemu_keycode;
 
-#ifdef _WIN32
-    /* MapVirtualKey doesn't return scancode with needed higher byte */
-    UINT qemu_keycode = MapVirtualKey(gdk_keycode, MAPVK_VK_TO_VSC);
-    switch (qemu_keycode) {
-    case 103:   /* alt gr */
-        qemu_keycode = 56 | SCANCODE_GREY;
-        break;
-    }
-#else
-    int qemu_keycode;
-
     if (gdk_keycode < 9) {
         qemu_keycode = 0;
     } else if (gdk_keycode < 97) {
