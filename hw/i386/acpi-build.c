@@ -391,7 +391,7 @@ static void build_append_int(GArray *table, uint32_t value)
         build_append_byte(table, 0x01); /* OneOp */
     } else if (value <= 0xFF) {
         build_append_value(table, value, 1);
-    } else if (value <= 0xFFFFF) {
+    } else if (value <= 0xFFFF) {
         build_append_value(table, value, 2);
     } else {
         build_append_value(table, value, 4);
