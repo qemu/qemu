@@ -840,37 +840,52 @@ static void tcg_out_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
     tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
 }
 
-static void tcg_out_call(TCGContext *s, tcg_insn_unit *arg)
+static void tcg_out_call_int(TCGContext *s, tcg_insn_unit *arg, bool tail)
 {
     /* Note that the ABI requires the called function's address to be
        loaded into T9, even if a direct branch is in range.  */
     tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T9, (uintptr_t)arg);
 
     /* But do try a direct branch, allowing the cpu better insn prefetch.  */
-    if (!tcg_out_opc_jmp(s, OPC_JAL, arg)) {
-        tcg_out_opc_reg(s, OPC_JALR, TCG_REG_RA, TCG_REG_T9, 0);
+    if (tail) {
+        if (!tcg_out_opc_jmp(s, OPC_J, arg)) {
+            tcg_out_opc_reg(s, OPC_JR, 0, TCG_REG_T9, 0);
+        }
+    } else {
+        if (!tcg_out_opc_jmp(s, OPC_JAL, arg)) {
+            tcg_out_opc_reg(s, OPC_JALR, TCG_REG_RA, TCG_REG_T9, 0);
+        }
     }
+}
 
+static void tcg_out_call(TCGContext *s, tcg_insn_unit *arg)
+{
+    tcg_out_call_int(s, arg, false);
     tcg_out_nop(s);
 }
 
 #if defined(CONFIG_SOFTMMU)
-/* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
-   int mmu_idx) */
-static void * const qemu_ld_helpers[4] = {
-    helper_ldb_mmu,
-    helper_ldw_mmu,
-    helper_ldl_mmu,
-    helper_ldq_mmu,
+static void * const qemu_ld_helpers[16] = {
+    [MO_UB]   = helper_ret_ldub_mmu,
+    [MO_SB]   = helper_ret_ldsb_mmu,
+    [MO_LEUW] = helper_le_lduw_mmu,
+    [MO_LESW] = helper_le_ldsw_mmu,
+    [MO_LEUL] = helper_le_ldul_mmu,
+    [MO_LEQ]  = helper_le_ldq_mmu,
+    [MO_BEUW] = helper_be_lduw_mmu,
+    [MO_BESW] = helper_be_ldsw_mmu,
+    [MO_BEUL] = helper_be_ldul_mmu,
+    [MO_BEQ]  = helper_be_ldq_mmu,
 };
 
-/* helper signature: helper_st_mmu(CPUState *env, target_ulong addr,
-   uintxx_t val, int mmu_idx) */
-static void * const qemu_st_helpers[4] = {
-    helper_stb_mmu,
-    helper_stw_mmu,
-    helper_stl_mmu,
-    helper_stq_mmu,
+static void * const qemu_st_helpers[16] = {
+    [MO_UB]   = helper_ret_stb_mmu,
+    [MO_LEUW] = helper_le_stw_mmu,
+    [MO_LEUL] = helper_le_stl_mmu,
+    [MO_LEQ]  = helper_le_stq_mmu,
+    [MO_BEUW] = helper_be_stw_mmu,
+    [MO_BEUL] = helper_be_stl_mmu,
+    [MO_BEQ]  = helper_be_stq_mmu,
 };
 
 /* Helper routines for marshalling helper function arguments into
@@ -1019,6 +1034,7 @@ static void add_qemu_ldst_label(TCGContext *s, int is_ld, TCGMemOp opc,
 static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 {
     TCGMemOp opc = l->opc;
+    TCGReg v0;
     int i;
 
     /* resolve label address */
@@ -1027,47 +1043,34 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
         reloc_pc16(l->label_ptr[1], s->code_ptr);
     }
 
-    i = 0;
-    i = tcg_out_call_iarg_reg(s, i, TCG_AREG0);
+    i = 1;
     if (TARGET_LONG_BITS == 64) {
         i = tcg_out_call_iarg_reg2(s, i, l->addrlo_reg, l->addrhi_reg);
     } else {
         i = tcg_out_call_iarg_reg(s, i, l->addrlo_reg);
     }
     i = tcg_out_call_iarg_imm(s, i, l->mem_index);
-    tcg_out_call(s, qemu_ld_helpers[opc & MO_SIZE]);
+    i = tcg_out_call_iarg_imm(s, i, (intptr_t)l->raddr);
+    tcg_out_call_int(s, qemu_ld_helpers[opc], false);
+    /* delay slot */
+    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0], TCG_AREG0);
 
-    switch (opc & MO_SSIZE) {
-    case MO_UB:
-        tcg_out_opc_imm(s, OPC_ANDI, l->datalo_reg, TCG_REG_V0, 0xff);
-        break;
-    case MO_SB:
-        tcg_out_ext8s(s, l->datalo_reg, TCG_REG_V0);
-        break;
-    case MO_UW:
-        tcg_out_opc_imm(s, OPC_ANDI, l->datalo_reg, TCG_REG_V0, 0xffff);
-        break;
-    case MO_SW:
-        tcg_out_ext16s(s, l->datalo_reg, TCG_REG_V0);
-        break;
-    case MO_UL:
-        tcg_out_mov(s, TCG_TYPE_I32, l->datalo_reg, TCG_REG_V0);
-        break;
-    case MO_Q:
+    v0 = l->datalo_reg;
+    if ((opc & MO_SIZE) == MO_64) {
         /* We eliminated V0 from the possible output registers, so it
            cannot be clobbered here.  So we must move V1 first.  */
-        tcg_out_mov(s, TCG_TYPE_I32, MIPS_BE ? l->datalo_reg : l->datahi_reg,
-                    TCG_REG_V1);
-        tcg_out_mov(s, TCG_TYPE_I32, MIPS_BE ? l->datahi_reg : l->datalo_reg,
-                    TCG_REG_V0);
-        break;
-    default:
-        tcg_abort();
+        if (MIPS_BE) {
+            tcg_out_mov(s, TCG_TYPE_I32, v0, TCG_REG_V1);
+            v0 = l->datahi_reg;
+        } else {
+            tcg_out_mov(s, TCG_TYPE_I32, l->datahi_reg, TCG_REG_V1);
+        }
     }
 
     reloc_pc16(s->code_ptr, l->raddr);
     tcg_out_opc_br(s, OPC_BEQ, TCG_REG_ZERO, TCG_REG_ZERO);
-    tcg_out_nop(s);
+    /* delay slot */
+    tcg_out_mov(s, TCG_TYPE_REG, v0, TCG_REG_V0);
 }
 
 static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
@@ -1082,8 +1085,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
         reloc_pc16(l->label_ptr[1], s->code_ptr);
     }
 
-    i = 0;
-    i = tcg_out_call_iarg_reg(s, i, TCG_AREG0);
+    i = 1;
     if (TARGET_LONG_BITS == 64) {
         i = tcg_out_call_iarg_reg2(s, i, l->addrlo_reg, l->addrhi_reg);
     } else {
@@ -1106,11 +1108,14 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
         tcg_abort();
     }
     i = tcg_out_call_iarg_imm(s, i, l->mem_index);
-    tcg_out_call(s, qemu_st_helpers[s_bits]);
 
-    reloc_pc16(s->code_ptr, l->raddr);
-    tcg_out_opc_br(s, OPC_BEQ, TCG_REG_ZERO, TCG_REG_ZERO);
-    tcg_out_nop(s);
+    /* Tail call to the store helper.  Thus force the return address
+       computation to take place in the return address register.  */
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_RA, (intptr_t)l->raddr);
+    i = tcg_out_call_iarg_reg(s, i, TCG_REG_RA);
+    tcg_out_call_int(s, qemu_st_helpers[opc], true);
+    /* delay slot */
+    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0], TCG_AREG0);
 }
 #endif
 
