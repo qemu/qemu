@@ -4,10 +4,7 @@ QA output created by 084
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
 Test 1: Maximum size (1024 TB):
-image: TEST_DIR/t.IMGFMT
-file format: IMGFMT
-virtual size: 1024T (1125899905794048 bytes)
-cluster_size: 1048576
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Could not open 'TEST_DIR/t.IMGFMT': Invalid argument
 
 Test 2: Size too large (1024TB + 1)
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Unsupported VDI image size (size is 0x3fffffff10000, max supported is 0x3fffffff00000)
