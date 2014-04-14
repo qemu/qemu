@@ -2749,9 +2749,15 @@ int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num,
  */
 int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags)
 {
-    int64_t target_size = bdrv_getlength(bs) / BDRV_SECTOR_SIZE;
+    int64_t target_size;
     int64_t ret, nb_sectors, sector_num = 0;
     int n;
+
+    target_size = bdrv_getlength(bs);
+    if (target_size < 0) {
+        return target_size;
+    }
+    target_size /= BDRV_SECTOR_SIZE;
 
     for (;;) {
         nb_sectors = target_size - sector_num;
