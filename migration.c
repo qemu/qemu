@@ -419,6 +419,11 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         return;
     }
 
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        error_setg(errp, "Guest is waiting for an incoming migration");
+        return;
+    }
+
     if (qemu_savevm_state_blocked(errp)) {
         return;
     }
