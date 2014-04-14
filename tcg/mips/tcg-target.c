@@ -1165,10 +1165,11 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
     }
 }
 
-static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGMemOp opc)
+static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
 {
     TCGReg addr_regl, addr_regh __attribute__((unused));
     TCGReg data_regl, data_regh;
+    TCGMemOp opc;
 #if defined(CONFIG_SOFTMMU)
     tcg_insn_unit *label_ptr[2];
     int mem_index;
@@ -1179,9 +1180,10 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGMemOp opc)
     TCGReg base = TCG_REG_V0;
 
     data_regl = *args++;
-    data_regh = ((opc & MO_SIZE) == MO_64 ? *args++ : 0);
+    data_regh = (is_64 ? *args++ : 0);
     addr_regl = *args++;
     addr_regh = (TARGET_LONG_BITS == 64 ? *args++ : 0);
+    opc = *args++;
 
 #if defined(CONFIG_SOFTMMU)
     mem_index = *args;
@@ -1246,10 +1248,11 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
     }
 }
 
-static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, TCGMemOp opc)
+static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
 {
     TCGReg addr_regl, addr_regh __attribute__((unused));
     TCGReg data_regl, data_regh, base;
+    TCGMemOp opc;
 #if defined(CONFIG_SOFTMMU)
     tcg_insn_unit *label_ptr[2];
     int mem_index;
@@ -1257,9 +1260,10 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, TCGMemOp opc)
 #endif
 
     data_regl = *args++;
-    data_regh = ((opc & MO_SIZE) == MO_64 ? *args++ : 0);
+    data_regh = (is_64 ? *args++ : 0);
     addr_regl = *args++;
     addr_regh = (TARGET_LONG_BITS == 64 ? *args++ : 0);
+    opc = *args++;
 
 #if defined(CONFIG_SOFTMMU)
     mem_index = *args;
@@ -1543,35 +1547,17 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_setcond2(s, args[5], args[0], args[1], args[2], args[3], args[4]);
         break;
 
-    case INDEX_op_qemu_ld8u:
-        tcg_out_qemu_ld(s, args, MO_UB);
+    case INDEX_op_qemu_ld_i32:
+        tcg_out_qemu_ld(s, args, false);
         break;
-    case INDEX_op_qemu_ld8s:
-        tcg_out_qemu_ld(s, args, MO_SB);
+    case INDEX_op_qemu_ld_i64:
+        tcg_out_qemu_ld(s, args, true);
         break;
-    case INDEX_op_qemu_ld16u:
-        tcg_out_qemu_ld(s, args, MO_TEUW);
+    case INDEX_op_qemu_st_i32:
+        tcg_out_qemu_st(s, args, false);
         break;
-    case INDEX_op_qemu_ld16s:
-        tcg_out_qemu_ld(s, args, MO_TESW);
-        break;
-    case INDEX_op_qemu_ld32:
-        tcg_out_qemu_ld(s, args, MO_TEUL);
-        break;
-    case INDEX_op_qemu_ld64:
-        tcg_out_qemu_ld(s, args, MO_TEQ);
-        break;
-    case INDEX_op_qemu_st8:
-        tcg_out_qemu_st(s, args, MO_UB);
-        break;
-    case INDEX_op_qemu_st16:
-        tcg_out_qemu_st(s, args, MO_TEUW);
-        break;
-    case INDEX_op_qemu_st32:
-        tcg_out_qemu_st(s, args, MO_TEUL);
-        break;
-    case INDEX_op_qemu_st64:
-        tcg_out_qemu_st(s, args, MO_TEQ);
+    case INDEX_op_qemu_st_i64:
+        tcg_out_qemu_st(s, args, true);
         break;
 
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
@@ -1638,29 +1624,15 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_brcond2_i32, { "rZ", "rZ", "rZ", "rZ" } },
 
 #if TARGET_LONG_BITS == 32
-    { INDEX_op_qemu_ld8u, { "L", "lZ" } },
-    { INDEX_op_qemu_ld8s, { "L", "lZ" } },
-    { INDEX_op_qemu_ld16u, { "L", "lZ" } },
-    { INDEX_op_qemu_ld16s, { "L", "lZ" } },
-    { INDEX_op_qemu_ld32, { "L", "lZ" } },
-    { INDEX_op_qemu_ld64, { "L", "L", "lZ" } },
-
-    { INDEX_op_qemu_st8, { "SZ", "SZ" } },
-    { INDEX_op_qemu_st16, { "SZ", "SZ" } },
-    { INDEX_op_qemu_st32, { "SZ", "SZ" } },
-    { INDEX_op_qemu_st64, { "SZ", "SZ", "SZ" } },
+    { INDEX_op_qemu_ld_i32, { "L", "lZ" } },
+    { INDEX_op_qemu_st_i32, { "SZ", "SZ" } },
+    { INDEX_op_qemu_ld_i64, { "L", "L", "lZ" } },
+    { INDEX_op_qemu_st_i64, { "SZ", "SZ", "SZ" } },
 #else
-    { INDEX_op_qemu_ld8u, { "L", "lZ", "lZ" } },
-    { INDEX_op_qemu_ld8s, { "L", "lZ", "lZ" } },
-    { INDEX_op_qemu_ld16u, { "L", "lZ", "lZ" } },
-    { INDEX_op_qemu_ld16s, { "L", "lZ", "lZ" } },
-    { INDEX_op_qemu_ld32, { "L", "lZ", "lZ" } },
-    { INDEX_op_qemu_ld64, { "L", "L", "lZ", "lZ" } },
-
-    { INDEX_op_qemu_st8, { "SZ", "SZ", "SZ" } },
-    { INDEX_op_qemu_st16, { "SZ", "SZ", "SZ" } },
-    { INDEX_op_qemu_st32, { "SZ", "SZ", "SZ" } },
-    { INDEX_op_qemu_st64, { "SZ", "SZ", "SZ", "SZ" } },
+    { INDEX_op_qemu_ld_i32, { "L", "lZ", "lZ" } },
+    { INDEX_op_qemu_st_i32, { "SZ", "SZ", "SZ" } },
+    { INDEX_op_qemu_ld_i64, { "L", "L", "lZ", "lZ" } },
+    { INDEX_op_qemu_st_i64, { "SZ", "SZ", "SZ", "SZ" } },
 #endif
     { -1 },
 };
