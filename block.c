@@ -2581,6 +2581,10 @@ static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
 {
     int64_t len;
 
+    if (size > INT_MAX) {
+        return -EIO;
+    }
+
     if (!bdrv_is_inserted(bs))
         return -ENOMEDIUM;
 
