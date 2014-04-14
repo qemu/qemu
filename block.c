@@ -2601,7 +2601,7 @@ static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
 static int bdrv_check_request(BlockDriverState *bs, int64_t sector_num,
                               int nb_sectors)
 {
-    if (nb_sectors > INT_MAX / BDRV_SECTOR_SIZE) {
+    if (nb_sectors < 0 || nb_sectors > INT_MAX / BDRV_SECTOR_SIZE) {
         return -EIO;
     }
 
