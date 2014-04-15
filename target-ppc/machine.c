@@ -160,6 +160,11 @@ static int cpu_post_load(void *opaque, int version_id)
     CPUPPCState *env = &cpu->env;
     int i;
 
+    /*
+     * We always ignore the source PVR. The user or management
+     * software has to take care of running QEMU in a compatible mode.
+     */
+    env->spr[SPR_PVR] = env->spr_cb[SPR_PVR].default_value;
     env->lr = env->spr[SPR_LR];
     env->ctr = env->spr[SPR_CTR];
     env->xer = env->spr[SPR_XER];
@@ -459,8 +464,7 @@ const VMStateDescription vmstate_ppc_cpu = {
     .pre_save = cpu_pre_save,
     .post_load = cpu_post_load,
     .fields = (VMStateField[]) {
-        /* Verify we haven't changed the pvr */
-        VMSTATE_UINTTL_EQUAL(env.spr[SPR_PVR], PowerPCCPU),
+        VMSTATE_UNUSED(sizeof(target_ulong)), /* was _EQUAL(env.spr[SPR_PVR]) */
 
         /* User mode architected state */
         VMSTATE_UINTTL_ARRAY(env.gpr, PowerPCCPU, 32),
