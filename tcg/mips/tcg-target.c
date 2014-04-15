@@ -249,7 +249,7 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type,
 }
 
 /* instruction opcodes */
-enum {
+typedef enum {
     OPC_J        = 0x02 << 26,
     OPC_JAL      = 0x03 << 26,
     OPC_BEQ      = 0x04 << 26,
@@ -314,12 +314,12 @@ enum {
     OPC_WSBH     = OPC_SPECIAL3 | 0x0a0,
     OPC_SEB      = OPC_SPECIAL3 | 0x420,
     OPC_SEH      = OPC_SPECIAL3 | 0x620,
-};
+} MIPSInsn;
 
 /*
  * Type reg
  */
-static inline void tcg_out_opc_reg(TCGContext *s, int opc,
+static inline void tcg_out_opc_reg(TCGContext *s, MIPSInsn opc,
                                    TCGReg rd, TCGReg rs, TCGReg rt)
 {
     int32_t inst;
@@ -334,7 +334,7 @@ static inline void tcg_out_opc_reg(TCGContext *s, int opc,
 /*
  * Type immediate
  */
-static inline void tcg_out_opc_imm(TCGContext *s, int opc,
+static inline void tcg_out_opc_imm(TCGContext *s, MIPSInsn opc,
                                    TCGReg rt, TCGReg rs, TCGArg imm)
 {
     int32_t inst;
@@ -349,7 +349,7 @@ static inline void tcg_out_opc_imm(TCGContext *s, int opc,
 /*
  * Type bitfield
  */
-static inline void tcg_out_opc_bf(TCGContext *s, int opc, TCGReg rt,
+static inline void tcg_out_opc_bf(TCGContext *s, MIPSInsn opc, TCGReg rt,
                                   TCGReg rs, int msb, int lsb)
 {
     int32_t inst;
@@ -365,7 +365,7 @@ static inline void tcg_out_opc_bf(TCGContext *s, int opc, TCGReg rt,
 /*
  * Type branch
  */
-static inline void tcg_out_opc_br(TCGContext *s, int opc,
+static inline void tcg_out_opc_br(TCGContext *s, MIPSInsn opc,
                                   TCGReg rt, TCGReg rs)
 {
     /* We pay attention here to not modify the branch target by reading
@@ -379,7 +379,7 @@ static inline void tcg_out_opc_br(TCGContext *s, int opc,
 /*
  * Type sa
  */
-static inline void tcg_out_opc_sa(TCGContext *s, int opc,
+static inline void tcg_out_opc_sa(TCGContext *s, MIPSInsn opc,
                                   TCGReg rd, TCGReg rt, TCGArg sa)
 {
     int32_t inst;
@@ -396,7 +396,7 @@ static inline void tcg_out_opc_sa(TCGContext *s, int opc,
  * Type jump.
  * Returns true if the branch was in range and the insn was emitted.
  */
-static bool tcg_out_opc_jmp(TCGContext *s, int opc, void *target)
+static bool tcg_out_opc_jmp(TCGContext *s, MIPSInsn opc, void *target)
 {
     uintptr_t dest = (uintptr_t)target;
     uintptr_t from = (uintptr_t)s->code_ptr + 4;
@@ -525,7 +525,7 @@ static inline void tcg_out_ext16s(TCGContext *s, TCGReg ret, TCGReg arg)
     }
 }
 
-static void tcg_out_ldst(TCGContext *s, int opc, TCGReg data,
+static void tcg_out_ldst(TCGContext *s, MIPSInsn opc, TCGReg data,
                          TCGReg addr, intptr_t ofs)
 {
     int16_t lo = ofs;
