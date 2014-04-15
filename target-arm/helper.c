@@ -2258,8 +2258,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
      * be read-only (ie write causes UNDEF exception).
      */
     {
-        ARMCPRegInfo id_cp_reginfo[] = {
-            /* Note that the MIDR isn't a simple constant register because
+        ARMCPRegInfo id_pre_v8_midr_cp_reginfo[] = {
+            /* Pre-v8 MIDR space.
+             * Note that the MIDR isn't a simple constant register because
              * of the TI925 behaviour where writes to another register can
              * cause the MIDR value to change.
              *
@@ -2273,22 +2274,6 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .writefn = arm_cp_write_ignore, .raw_writefn = raw_write,
               .fieldoffset = offsetof(CPUARMState, cp15.c0_cpuid),
               .type = ARM_CP_OVERRIDE },
-            { .name = "MIDR_EL1", .state = ARM_CP_STATE_AA64,
-              .opc0 = 3, .opc1 = 0, .opc2 = 0, .crn = 0, .crm = 0,
-              .access = PL1_R, .resetvalue = cpu->midr, .type = ARM_CP_CONST },
-            { .name = "CTR",
-              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 1,
-              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->ctr },
-            { .name = "CTR_EL0", .state = ARM_CP_STATE_AA64,
-              .opc0 = 3, .opc1 = 3, .opc2 = 1, .crn = 0, .crm = 0,
-              .access = PL0_R, .accessfn = ctr_el0_access,
-              .type = ARM_CP_CONST, .resetvalue = cpu->ctr },
-            { .name = "TCMTR",
-              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 2,
-              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
-            { .name = "TLBTR",
-              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 3,
-              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
             /* crn = 0 op1 = 0 crm = 3..7 : currently unassigned; we RAZ. */
             { .name = "DUMMY",
               .cp = 15, .crn = 0, .crm = 3, .opc1 = 0, .opc2 = CP_ANY,
@@ -2307,6 +2292,37 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
             REGINFO_SENTINEL
         };
+        ARMCPRegInfo id_v8_midr_cp_reginfo[] = {
+            /* v8 MIDR -- the wildcard isn't necessary, and nor is the
+             * variable-MIDR TI925 behaviour. Instead we have a single
+             * (strictly speaking IMPDEF) alias of the MIDR, REVIDR.
+             */
+            { .name = "MIDR_EL1", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 0, .opc2 = 0,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->midr },
+            { .name = "REVIDR_EL1", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 0, .opc2 = 6,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->midr },
+            REGINFO_SENTINEL
+        };
+        ARMCPRegInfo id_cp_reginfo[] = {
+            /* These are common to v8 and pre-v8 */
+            { .name = "CTR",
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 1,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->ctr },
+            { .name = "CTR_EL0", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 3, .opc2 = 1, .crn = 0, .crm = 0,
+              .access = PL0_R, .accessfn = ctr_el0_access,
+              .type = ARM_CP_CONST, .resetvalue = cpu->ctr },
+            /* TCMTR and TLBTR exist in v8 but have no 64-bit versions */
+            { .name = "TCMTR",
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 2,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "TLBTR",
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 3,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            REGINFO_SENTINEL
+        };
         ARMCPRegInfo crn0_wi_reginfo = {
             .name = "CRN0_WI", .cp = 15, .crn = 0, .crm = CP_ANY,
             .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_W,
@@ -2321,9 +2337,18 @@ void register_cp_regs_for_features(ARMCPU *cpu)
              * UNDEF.
              */
             define_one_arm_cp_reg(cpu, &crn0_wi_reginfo);
+            for (r = id_pre_v8_midr_cp_reginfo;
+                 r->type != ARM_CP_SENTINEL; r++) {
+                r->access = PL1_RW;
+            }
             for (r = id_cp_reginfo; r->type != ARM_CP_SENTINEL; r++) {
                 r->access = PL1_RW;
             }
+        }
+        if (arm_feature(env, ARM_FEATURE_V8)) {
+            define_arm_cp_regs(cpu, id_v8_midr_cp_reginfo);
+        } else {
+            define_arm_cp_regs(cpu, id_pre_v8_midr_cp_reginfo);
         }
         define_arm_cp_regs(cpu, id_cp_reginfo);
     }
