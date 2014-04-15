@@ -25,6 +25,20 @@
 #ifndef TARGET_ARM_INTERNALS_H
 #define TARGET_ARM_INTERNALS_H
 
+static inline bool excp_is_internal(int excp)
+{
+    /* Return true if this exception number represents a QEMU-internal
+     * exception that will not be passed to the guest.
+     */
+    return excp == EXCP_INTERRUPT
+        || excp == EXCP_HLT
+        || excp == EXCP_DEBUG
+        || excp == EXCP_HALTED
+        || excp == EXCP_EXCEPTION_EXIT
+        || excp == EXCP_KERNEL_TRAP
+        || excp == EXCP_STREX;
+}
+
 /* Scale factor for generic timers, ie number of ns per tick.
  * This gives a 62.5MHz timer.
  */

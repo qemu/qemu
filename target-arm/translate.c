@@ -183,12 +183,23 @@ static inline void gen_set_cpsr(TCGv_i32 var, uint32_t mask)
 /* Set NZCV flags from the high 4 bits of var.  */
 #define gen_set_nzcv(var) gen_set_cpsr(var, CPSR_NZCV)
 
-static void gen_exception(int excp)
+static void gen_exception_internal(int excp)
 {
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_movi_i32(tmp, excp);
-    gen_helper_exception(cpu_env, tmp);
-    tcg_temp_free_i32(tmp);
+    TCGv_i32 tcg_excp = tcg_const_i32(excp);
+
+    assert(excp_is_internal(excp));
+    gen_helper_exception_internal(cpu_env, tcg_excp);
+    tcg_temp_free_i32(tcg_excp);
+}
+
+static void gen_exception(int excp, uint32_t syndrome)
+{
+    TCGv_i32 tcg_excp = tcg_const_i32(excp);
+    TCGv_i32 tcg_syn = tcg_const_i32(syndrome);
+
+    gen_helper_exception_with_syndrome(cpu_env, tcg_excp, tcg_syn);
+    tcg_temp_free_i32(tcg_syn);
+    tcg_temp_free_i32(tcg_excp);
 }
 
 static void gen_smul_dual(TCGv_i32 a, TCGv_i32 b)
@@ -898,6 +909,33 @@ DO_GEN_ST(32, MO_TEUL)
 static inline void gen_set_pc_im(DisasContext *s, target_ulong val)
 {
     tcg_gen_movi_i32(cpu_R[15], val);
+}
+
+static inline void
+gen_set_condexec (DisasContext *s)
+{
+    if (s->condexec_mask) {
+        uint32_t val = (s->condexec_cond << 4) | (s->condexec_mask >> 1);
+        TCGv_i32 tmp = tcg_temp_new_i32();
+        tcg_gen_movi_i32(tmp, val);
+        store_cpu_field(tmp, condexec_bits);
+    }
+}
+
+static void gen_exception_internal_insn(DisasContext *s, int offset, int excp)
+{
+    gen_set_condexec(s);
+    gen_set_pc_im(s, s->pc - offset);
+    gen_exception_internal(excp);
+    s->is_jmp = DISAS_JUMP;
+}
+
+static void gen_exception_insn(DisasContext *s, int offset, int excp, int syn)
+{
+    gen_set_condexec(s);
+    gen_set_pc_im(s, s->pc - offset);
+    gen_exception(excp, syn);
+    s->is_jmp = DISAS_JUMP;
 }
 
 /* Force a TB lookup after an instruction that changes the CPU state.  */
@@ -3911,25 +3949,6 @@ static void gen_rfe(DisasContext *s, TCGv_i32 pc, TCGv_i32 cpsr)
     tcg_temp_free_i32(cpsr);
     store_reg(s, 15, pc);
     s->is_jmp = DISAS_UPDATE;
-}
-
-static inline void
-gen_set_condexec (DisasContext *s)
-{
-    if (s->condexec_mask) {
-        uint32_t val = (s->condexec_cond << 4) | (s->condexec_mask >> 1);
-        TCGv_i32 tmp = tcg_temp_new_i32();
-        tcg_gen_movi_i32(tmp, val);
-        store_cpu_field(tmp, condexec_bits);
-    }
-}
-
-static void gen_exception_insn(DisasContext *s, int offset, int excp)
-{
-    gen_set_condexec(s);
-    gen_set_pc_im(s, s->pc - offset);
-    gen_exception(excp);
-    s->is_jmp = DISAS_JUMP;
 }
 
 static void gen_nop_hint(DisasContext *s, int val)
@@ -7160,7 +7179,7 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
     tcg_gen_extu_i32_i64(cpu_exclusive_test, addr);
     tcg_gen_movi_i32(cpu_exclusive_info,
                      size | (rd << 4) | (rt << 8) | (rt2 << 12));
-    gen_exception_insn(s, 4, EXCP_STREX);
+    gen_exception_internal_insn(s, 4, EXCP_STREX);
 }
 #else
 static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
@@ -7670,6 +7689,8 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             store_reg(s, rd, tmp);
             break;
         case 7:
+        {
+            int imm16 = extract32(insn, 0, 4) | (extract32(insn, 8, 12) << 4);
             /* SMC instruction (op1 == 3)
                and undefined instructions (op1 == 0 || op1 == 2)
                will trap */
@@ -7678,8 +7699,9 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             }
             /* bkpt */
             ARCH(5);
-            gen_exception_insn(s, 4, EXCP_BKPT);
+            gen_exception_insn(s, 4, EXCP_BKPT, syn_aa32_bkpt(imm16, false));
             break;
+        }
         case 0x8: /* signed multiply */
         case 0xa:
         case 0xc:
@@ -8686,11 +8708,12 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
         case 0xf:
             /* swi */
             gen_set_pc_im(s, s->pc);
+            s->svc_imm = extract32(insn, 0, 24);
             s->is_jmp = DISAS_SWI;
             break;
         default:
         illegal_op:
-            gen_exception_insn(s, 4, EXCP_UDEF);
+            gen_exception_insn(s, 4, EXCP_UDEF, syn_uncategorized());
             break;
         }
     }
@@ -10501,9 +10524,12 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
             break;
 
         case 0xe: /* bkpt */
+        {
+            int imm8 = extract32(insn, 0, 8);
             ARCH(5);
-            gen_exception_insn(s, 2, EXCP_BKPT);
+            gen_exception_insn(s, 2, EXCP_BKPT, syn_aa32_bkpt(imm8, true));
             break;
+        }
 
         case 0xa: /* rev */
             ARCH(6);
@@ -10620,6 +10646,7 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
         if (cond == 0xf) {
             /* swi */
             gen_set_pc_im(s, s->pc);
+            s->svc_imm = extract32(insn, 0, 8);
             s->is_jmp = DISAS_SWI;
             break;
         }
@@ -10655,11 +10682,11 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
     }
     return;
 undef32:
-    gen_exception_insn(s, 4, EXCP_UDEF);
+    gen_exception_insn(s, 4, EXCP_UDEF, syn_uncategorized());
     return;
 illegal_op:
 undef:
-    gen_exception_insn(s, 2, EXCP_UDEF);
+    gen_exception_insn(s, 2, EXCP_UDEF, syn_uncategorized());
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
@@ -10780,7 +10807,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
         if (dc->pc >= 0xffff0000) {
             /* We always get here via a jump, so know we are not in a
                conditional execution block.  */
-            gen_exception(EXCP_KERNEL_TRAP);
+            gen_exception_internal(EXCP_KERNEL_TRAP);
             dc->is_jmp = DISAS_UPDATE;
             break;
         }
@@ -10788,7 +10815,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
         if (dc->pc >= 0xfffffff0 && IS_M(env)) {
             /* We always get here via a jump, so know we are not in a
                conditional execution block.  */
-            gen_exception(EXCP_EXCEPTION_EXIT);
+            gen_exception_internal(EXCP_EXCEPTION_EXIT);
             dc->is_jmp = DISAS_UPDATE;
             break;
         }
@@ -10797,7 +10824,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
         if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
             QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (bp->pc == dc->pc) {
-                    gen_exception_insn(dc, 0, EXCP_DEBUG);
+                    gen_exception_internal_insn(dc, 0, EXCP_DEBUG);
                     /* Advance PC so that clearing the breakpoint will
                        invalidate this TB.  */
                     dc->pc += 2;
@@ -10877,9 +10904,9 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
         if (dc->condjmp) {
             gen_set_condexec(dc);
             if (dc->is_jmp == DISAS_SWI) {
-                gen_exception(EXCP_SWI);
+                gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb));
             } else {
-                gen_exception(EXCP_DEBUG);
+                gen_exception_internal(EXCP_DEBUG);
             }
             gen_set_label(dc->condlabel);
         }
@@ -10889,11 +10916,11 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
         }
         gen_set_condexec(dc);
         if (dc->is_jmp == DISAS_SWI && !dc->condjmp) {
-            gen_exception(EXCP_SWI);
+            gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb));
         } else {
             /* FIXME: Single stepping a WFI insn will not halt
                the CPU.  */
-            gen_exception(EXCP_DEBUG);
+            gen_exception_internal(EXCP_DEBUG);
         }
     } else {
         /* While branches must always occur at the end of an IT block,
@@ -10925,7 +10952,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
             gen_helper_wfe(cpu_env);
             break;
         case DISAS_SWI:
-            gen_exception(EXCP_SWI);
+            gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb));
             break;
         }
         if (dc->condjmp) {

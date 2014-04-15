@@ -244,11 +244,30 @@ void HELPER(wfe)(CPUARMState *env)
     cpu_loop_exit(cs);
 }
 
-void HELPER(exception)(CPUARMState *env, uint32_t excp)
+/* Raise an internal-to-QEMU exception. This is limited to only
+ * those EXCP values which are special cases for QEMU to interrupt
+ * execution and not to be used for exceptions which are passed to
+ * the guest (those must all have syndrome information and thus should
+ * use exception_with_syndrome).
+ */
+void HELPER(exception_internal)(CPUARMState *env, uint32_t excp)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
 
+    assert(excp_is_internal(excp));
     cs->exception_index = excp;
+    cpu_loop_exit(cs);
+}
+
+/* Raise an exception with the specified syndrome register value */
+void HELPER(exception_with_syndrome)(CPUARMState *env, uint32_t excp,
+                                     uint32_t syndrome)
+{
+    CPUState *cs = CPU(arm_env_get_cpu(env));
+
+    assert(!excp_is_internal(excp));
+    cs->exception_index = excp;
+    env->exception.syndrome = syndrome;
     cpu_loop_exit(cs);
 }
 

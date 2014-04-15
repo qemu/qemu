@@ -23,6 +23,10 @@ typedef struct DisasContext {
     int vfp_enabled;
     int vec_len;
     int vec_stride;
+    /* Immediate value in AArch32 SVC insn; must be set if is_jmp == DISAS_SWI
+     * so that top level loop can generate correct syndrome information.
+     */
+    uint32_t svc_imm;
     int aarch64;
     int current_pl;
     GHashTable *cp_regs;

@@ -176,18 +176,37 @@ void gen_a64_set_pc_im(uint64_t val)
     tcg_gen_movi_i64(cpu_pc, val);
 }
 
-static void gen_exception(int excp)
+static void gen_exception_internal(int excp)
 {
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_movi_i32(tmp, excp);
-    gen_helper_exception(cpu_env, tmp);
-    tcg_temp_free_i32(tmp);
+    TCGv_i32 tcg_excp = tcg_const_i32(excp);
+
+    assert(excp_is_internal(excp));
+    gen_helper_exception_internal(cpu_env, tcg_excp);
+    tcg_temp_free_i32(tcg_excp);
 }
 
-static void gen_exception_insn(DisasContext *s, int offset, int excp)
+static void gen_exception(int excp, uint32_t syndrome)
+{
+    TCGv_i32 tcg_excp = tcg_const_i32(excp);
+    TCGv_i32 tcg_syn = tcg_const_i32(syndrome);
+
+    gen_helper_exception_with_syndrome(cpu_env, tcg_excp, tcg_syn);
+    tcg_temp_free_i32(tcg_syn);
+    tcg_temp_free_i32(tcg_excp);
+}
+
+static void gen_exception_internal_insn(DisasContext *s, int offset, int excp)
 {
     gen_a64_set_pc_im(s->pc - offset);
-    gen_exception(excp);
+    gen_exception_internal(excp);
+    s->is_jmp = DISAS_EXC;
+}
+
+static void gen_exception_insn(DisasContext *s, int offset, int excp,
+                               uint32_t syndrome)
+{
+    gen_a64_set_pc_im(s->pc - offset);
+    gen_exception(excp, syndrome);
     s->is_jmp = DISAS_EXC;
 }
 
@@ -219,7 +238,7 @@ static inline void gen_goto_tb(DisasContext *s, int n, uint64_t dest)
     } else {
         gen_a64_set_pc_im(dest);
         if (s->singlestep_enabled) {
-            gen_exception(EXCP_DEBUG);
+            gen_exception_internal(EXCP_DEBUG);
         }
         tcg_gen_exit_tb(0);
         s->is_jmp = DISAS_JUMP;
@@ -228,7 +247,8 @@ static inline void gen_goto_tb(DisasContext *s, int n, uint64_t dest)
 
 static void unallocated_encoding(DisasContext *s)
 {
-    gen_exception_insn(s, 4, EXCP_UDEF);
+    /* Unallocated and reserved encodings are uncategorized */
+    gen_exception_insn(s, 4, EXCP_UDEF, syn_uncategorized());
 }
 
 #define unsupported_encoding(s, insn)                                    \
@@ -1373,6 +1393,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
 {
     int opc = extract32(insn, 21, 3);
     int op2_ll = extract32(insn, 0, 5);
+    int imm16 = extract32(insn, 5, 16);
 
     switch (opc) {
     case 0:
@@ -1383,7 +1404,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             break;
         }
-        gen_exception_insn(s, 0, EXCP_SWI);
+        gen_exception_insn(s, 0, EXCP_SWI, syn_aa64_svc(imm16));
         break;
     case 1:
         if (op2_ll != 0) {
@@ -1391,7 +1412,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
             break;
         }
         /* BRK */
-        gen_exception_insn(s, 0, EXCP_BKPT);
+        gen_exception_insn(s, 0, EXCP_BKPT, syn_aa64_bkpt(imm16));
         break;
     case 2:
         if (op2_ll != 0) {
@@ -1540,7 +1561,7 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
     tcg_gen_mov_i64(cpu_exclusive_test, addr);
     tcg_gen_movi_i32(cpu_exclusive_info,
                      size | is_pair << 2 | (rd << 4) | (rt << 9) | (rt2 << 14));
-    gen_exception_insn(s, 4, EXCP_STREX);
+    gen_exception_internal_insn(s, 4, EXCP_STREX);
 }
 #else
 static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
@@ -10338,7 +10359,7 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
         if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
             QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (bp->pc == dc->pc) {
-                    gen_exception_insn(dc, 0, EXCP_DEBUG);
+                    gen_exception_internal_insn(dc, 0, EXCP_DEBUG);
                     /* Advance PC so that clearing the breakpoint will
                        invalidate this TB.  */
                     dc->pc += 2;
@@ -10401,7 +10422,7 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
         if (dc->is_jmp != DISAS_JUMP) {
             gen_a64_set_pc_im(dc->pc);
         }
-        gen_exception(EXCP_DEBUG);
+        gen_exception_internal(EXCP_DEBUG);
     } else {
         switch (dc->is_jmp) {
         case DISAS_NEXT:
