@@ -150,6 +150,8 @@ typedef struct ARMCPU {
     uint32_t reset_cbar;
     uint32_t reset_auxcr;
     bool reset_hivecs;
+    /* DCZ blocksize, in log_2(words), ie low 4 bits of DCZID_EL0 */
+    uint32_t dcz_blocksize;
 } ARMCPU;
 
 #define TYPE_AARCH64_CPU "aarch64-cpu"

@@ -10,6 +10,8 @@
 #include <zlib.h> /* For crc32 */
 
 #ifndef CONFIG_USER_ONLY
+#include "exec/softmmu_exec.h"
+
 static inline int get_phys_addr(CPUARMState *env, target_ulong address,
                                 int access_type, int is_user,
                                 hwaddr *phys_ptr, int *prot,
@@ -1745,6 +1747,29 @@ static void tlbi_aa64_asid_write(CPUARMState *env, const ARMCPRegInfo *ri,
     tlb_flush(CPU(cpu), asid == 0);
 }
 
+static CPAccessResult aa64_zva_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    /* We don't implement EL2, so the only control on DC ZVA is the
+     * bit in the SCTLR which can prohibit access for EL0.
+     */
+    if (arm_current_pl(env) == 0 && !(env->cp15.c1_sys & SCTLR_DZE)) {
+        return CP_ACCESS_TRAP;
+    }
+    return CP_ACCESS_OK;
+}
+
+static uint64_t aa64_dczid_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    int dzp_bit = 1 << 4;
+
+    /* DZP indicates whether DC ZVA access is allowed */
+    if (aa64_zva_access(env, NULL) != CP_ACCESS_OK) {
+        dzp_bit = 0;
+    }
+    return cpu->dcz_blocksize | dzp_bit;
+}
+
 static const ARMCPRegInfo v8_cp_reginfo[] = {
     /* Minimal set of EL0-visible registers. This will need to be expanded
      * significantly for system emulation of AArch64 CPUs.
@@ -1764,13 +1789,18 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "FPSR", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .opc2 = 1, .crn = 4, .crm = 4,
       .access = PL0_RW, .readfn = aa64_fpsr_read, .writefn = aa64_fpsr_write },
-    /* Prohibit use of DC ZVA. OPTME: implement DC ZVA and allow its use.
-     * For system mode the DZP bit here will need to be computed, not constant.
-     */
     { .name = "DCZID_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .opc2 = 7, .crn = 0, .crm = 0,
-      .access = PL0_R, .type = ARM_CP_CONST,
-      .resetvalue = 0x10 },
+      .access = PL0_R, .type = ARM_CP_NO_MIGRATE,
+      .readfn = aa64_dczid_read },
+    { .name = "DC_ZVA", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 3, .crn = 7, .crm = 4, .opc2 = 1,
+      .access = PL0_W, .type = ARM_CP_DC_ZVA,
+#ifndef CONFIG_USER_ONLY
+      /* Avoid overhead of an access check that always passes in user-mode */
+      .accessfn = aa64_zva_access,
+#endif
+    },
     { .name = "CURRENTEL", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .opc2 = 2, .crn = 4, .crm = 2,
       .access = PL1_R, .type = ARM_CP_CURRENTEL },
@@ -3929,6 +3959,88 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
 }
 
 #endif
+
+void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
+{
+    /* Implement DC ZVA, which zeroes a fixed-length block of memory.
+     * Note that we do not implement the (architecturally mandated)
+     * alignment fault for attempts to use this on Device memory
+     * (which matches the usual QEMU behaviour of not implementing either
+     * alignment faults or any memory attribute handling).
+     */
+
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    uint64_t blocklen = 4 << cpu->dcz_blocksize;
+    uint64_t vaddr = vaddr_in & ~(blocklen - 1);
+
+#ifndef CONFIG_USER_ONLY
+    {
+        /* Slightly awkwardly, QEMU's TARGET_PAGE_SIZE may be less than
+         * the block size so we might have to do more than one TLB lookup.
+         * We know that in fact for any v8 CPU the page size is at least 4K
+         * and the block size must be 2K or less, but TARGET_PAGE_SIZE is only
+         * 1K as an artefact of legacy v5 subpage support being present in the
+         * same QEMU executable.
+         */
+        int maxidx = DIV_ROUND_UP(blocklen, TARGET_PAGE_SIZE);
+        void *hostaddr[maxidx];
+        int try, i;
+
+        for (try = 0; try < 2; try++) {
+
+            for (i = 0; i < maxidx; i++) {
+                hostaddr[i] = tlb_vaddr_to_host(env,
+                                                vaddr + TARGET_PAGE_SIZE * i,
+                                                1, cpu_mmu_index(env));
+                if (!hostaddr[i]) {
+                    break;
+                }
+            }
+            if (i == maxidx) {
+                /* If it's all in the TLB it's fair game for just writing to;
+                 * we know we don't need to update dirty status, etc.
+                 */
+                for (i = 0; i < maxidx - 1; i++) {
+                    memset(hostaddr[i], 0, TARGET_PAGE_SIZE);
+                }
+                memset(hostaddr[i], 0, blocklen - (i * TARGET_PAGE_SIZE));
+                return;
+            }
+            /* OK, try a store and see if we can populate the tlb. This
+             * might cause an exception if the memory isn't writable,
+             * in which case we will longjmp out of here. We must for
+             * this purpose use the actual register value passed to us
+             * so that we get the fault address right.
+             */
+            helper_ret_stb_mmu(env, vaddr_in, 0, cpu_mmu_index(env), GETRA());
+            /* Now we can populate the other TLB entries, if any */
+            for (i = 0; i < maxidx; i++) {
+                uint64_t va = vaddr + TARGET_PAGE_SIZE * i;
+                if (va != (vaddr_in & TARGET_PAGE_MASK)) {
+                    helper_ret_stb_mmu(env, va, 0, cpu_mmu_index(env), GETRA());
+                }
+            }
+        }
+
+        /* Slow path (probably attempt to do this to an I/O device or
+         * similar, or clearing of a block of code we have translations
+         * cached for). Just do a series of byte writes as the architecture
+         * demands. It's not worth trying to use a cpu_physical_memory_map(),
+         * memset(), unmap() sequence here because:
+         *  + we'd need to account for the blocksize being larger than a page
+         *  + the direct-RAM access case is almost always going to be dealt
+         *    with in the fastpath code above, so there's no speed benefit
+         *  + we would have to deal with the map returning NULL because the
+         *    bounce buffer was in use
+         */
+        for (i = 0; i < blocklen; i++) {
+            helper_ret_stb_mmu(env, vaddr + i, 0, cpu_mmu_index(env), GETRA());
+        }
+    }
+#else
+    memset(g2h(vaddr), 0, blocklen);
+#endif
+}
 
 /* Note that signed overflow is undefined in C.  The following routines are
    careful to use unsigned types where modulo arithmetic is required.
