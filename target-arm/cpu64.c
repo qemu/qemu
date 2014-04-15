@@ -172,11 +172,15 @@ static void aarch64_cpu_finalizefn(Object *obj)
 static void aarch64_cpu_set_pc(CPUState *cs, vaddr value)
 {
     ARMCPU *cpu = ARM_CPU(cs);
-    /*
-     * TODO: this will need updating for system emulation,
-     * when the core may be in AArch32 mode.
+    /* It's OK to look at env for the current mode here, because it's
+     * never possible for an AArch64 TB to chain to an AArch32 TB.
+     * (Otherwise we would need to use synchronize_from_tb instead.)
      */
-    cpu->env.pc = value;
+    if (is_a64(&cpu->env)) {
+        cpu->env.pc = value;
+    } else {
+        cpu->env.regs[15] = value;
+    }
 }
 
 static void aarch64_cpu_class_init(ObjectClass *oc, void *data)
