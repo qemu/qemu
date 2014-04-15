@@ -20,7 +20,8 @@ typedef struct DisasContext {
 #if !defined(CONFIG_USER_ONLY)
     int user;
 #endif
-    int vfp_enabled;
+    bool cpacr_fpen; /* FP enabled via CPACR.FPEN */
+    bool vfp_enabled; /* FP enabled via FPSCR.EN */
     int vec_len;
     int vec_stride;
     /* Immediate value in AArch32 SVC insn; must be set if is_jmp == DISAS_SWI
