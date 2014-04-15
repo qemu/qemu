@@ -2316,7 +2316,8 @@ void register_cp_regs_for_features(ARMCPU *cpu)
 
     if (arm_feature(env, ARM_FEATURE_AUXCR)) {
         ARMCPRegInfo auxcr = {
-            .name = "AUXCR", .cp = 15, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 1,
+            .name = "ACTLR_EL1", .state = ARM_CP_STATE_BOTH,
+            .opc0 = 3, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 1,
             .access = PL1_RW, .type = ARM_CP_CONST,
             .resetvalue = cpu->reset_auxcr
         };
