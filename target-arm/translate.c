@@ -11047,6 +11047,11 @@ void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     int i;
     uint32_t psr;
 
+    if (is_a64(env)) {
+        aarch64_cpu_dump_state(cs, f, cpu_fprintf, flags);
+        return;
+    }
+
     for(i=0;i<16;i++) {
         cpu_fprintf(f, "R%02d=%08x", i, env->regs[i]);
         if ((i % 4) == 3)

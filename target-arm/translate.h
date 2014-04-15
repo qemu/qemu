@@ -72,6 +72,8 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
                                         TranslationBlock *tb,
                                         bool search_pc);
 void gen_a64_set_pc_im(uint64_t val);
+void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
+                            fprintf_function cpu_fprintf, int flags);
 #else
 static inline void a64_translate_init(void)
 {
@@ -84,6 +86,12 @@ static inline void gen_intermediate_code_internal_a64(ARMCPU *cpu,
 }
 
 static inline void gen_a64_set_pc_im(uint64_t val)
+{
+}
+
+static inline void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
+                                          fprintf_function cpu_fprintf,
+                                          int flags)
 {
 }
 #endif
