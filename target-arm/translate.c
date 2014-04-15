@@ -6862,10 +6862,53 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
              * runtime; this may result in an exception.
              */
             TCGv_ptr tmpptr;
+            TCGv_i32 tcg_syn;
+            uint32_t syndrome;
+
+            /* Note that since we are an implementation which takes an
+             * exception on a trapped conditional instruction only if the
+             * instruction passes its condition code check, we can take
+             * advantage of the clause in the ARM ARM that allows us to set
+             * the COND field in the instruction to 0xE in all cases.
+             * We could fish the actual condition out of the insn (ARM)
+             * or the condexec bits (Thumb) but it isn't necessary.
+             */
+            switch (cpnum) {
+            case 14:
+                if (is64) {
+                    syndrome = syn_cp14_rrt_trap(1, 0xe, opc1, crm, rt, rt2,
+                                                 isread, s->thumb);
+                } else {
+                    syndrome = syn_cp14_rt_trap(1, 0xe, opc1, opc2, crn, crm,
+                                                rt, isread, s->thumb);
+                }
+                break;
+            case 15:
+                if (is64) {
+                    syndrome = syn_cp15_rrt_trap(1, 0xe, opc1, crm, rt, rt2,
+                                                 isread, s->thumb);
+                } else {
+                    syndrome = syn_cp15_rt_trap(1, 0xe, opc1, opc2, crn, crm,
+                                                rt, isread, s->thumb);
+                }
+                break;
+            default:
+                /* ARMv8 defines that only coprocessors 14 and 15 exist,
+                 * so this can only happen if this is an ARMv7 or earlier CPU,
+                 * in which case the syndrome information won't actually be
+                 * guest visible.
+                 */
+                assert(!arm_feature(env, ARM_FEATURE_V8));
+                syndrome = syn_uncategorized();
+                break;
+            }
+
             gen_set_pc_im(s, s->pc);
             tmpptr = tcg_const_ptr(ri);
-            gen_helper_access_check_cp_reg(cpu_env, tmpptr);
+            tcg_syn = tcg_const_i32(syndrome);
+            gen_helper_access_check_cp_reg(cpu_env, tmpptr, tcg_syn);
             tcg_temp_free_ptr(tmpptr);
+            tcg_temp_free_i32(tcg_syn);
         }
 
         /* Handle special cases first */

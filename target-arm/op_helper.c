@@ -294,17 +294,17 @@ void HELPER(set_user_reg)(CPUARMState *env, uint32_t regno, uint32_t val)
     }
 }
 
-void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip)
+void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome)
 {
     const ARMCPRegInfo *ri = rip;
     switch (ri->accessfn(env, ri)) {
     case CP_ACCESS_OK:
         return;
     case CP_ACCESS_TRAP:
+        env->exception.syndrome = syndrome;
+        break;
     case CP_ACCESS_TRAP_UNCATEGORIZED:
-        /* These cases will eventually need to generate different
-         * syndrome information.
-         */
+        env->exception.syndrome = syn_uncategorized();
         break;
     default:
         g_assert_not_reached();
