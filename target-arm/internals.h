@@ -188,4 +188,17 @@ static inline uint32_t syn_cp15_rrt_trap(int cv, int cond, int opc1, int crm,
         | (rt2 << 10) | (rt << 5) | (crm << 1) | isread;
 }
 
+static inline uint32_t syn_insn_abort(int same_el, int ea, int s1ptw, int fsc)
+{
+    return (EC_INSNABORT << ARM_EL_EC_SHIFT) | (same_el << ARM_EL_EC_SHIFT)
+        | (ea << 9) | (s1ptw << 7) | fsc;
+}
+
+static inline uint32_t syn_data_abort(int same_el, int ea, int cm, int s1ptw,
+                                      int wnr, int fsc)
+{
+    return (EC_DATAABORT << ARM_EL_EC_SHIFT) | (same_el << ARM_EL_EC_SHIFT)
+        | (ea << 9) | (cm << 8) | (s1ptw << 7) | (wnr << 6) | fsc;
+}
+
 #endif
