@@ -67,10 +67,6 @@ typedef enum {
     TCG_AREG0 = TCG_REG_S0,
 } TCGReg;
 
-#define TCG_CT_CONST_ZERO 0x100
-#define TCG_CT_CONST_U16  0x200
-#define TCG_CT_CONST_S16  0x400
-
 /* used for function call generation */
 #define TCG_TARGET_STACK_ALIGN 8
 #define TCG_TARGET_CALL_STACK_OFFSET 16

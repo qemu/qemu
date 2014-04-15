@@ -155,6 +155,16 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
     reloc_pc16(code_ptr, (tcg_insn_unit *)value);
 }
 
+#define TCG_CT_CONST_ZERO 0x100
+#define TCG_CT_CONST_U16  0x200
+#define TCG_CT_CONST_S16  0x400
+#define TCG_CT_CONST_P2M1 0x800
+
+static inline bool is_p2m1(tcg_target_long val)
+{
+    return val && ((val + 1) & val) == 0;
+}
+
 /* parse target specific constraints */
 static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
 {
@@ -200,6 +210,9 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     case 'J':
         ct->ct |= TCG_CT_CONST_S16;
         break;
+    case 'K':
+        ct->ct |= TCG_CT_CONST_P2M1;
+        break;
     case 'Z':
         /* We are cheating a bit here, using the fact that the register
            ZERO is also the register number 0. Hence there is no need
@@ -220,16 +233,19 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type,
 {
     int ct;
     ct = arg_ct->ct;
-    if (ct & TCG_CT_CONST)
+    if (ct & TCG_CT_CONST) {
         return 1;
-    else if ((ct & TCG_CT_CONST_ZERO) && val == 0)
+    } else if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
         return 1;
-    else if ((ct & TCG_CT_CONST_U16) && val == (uint16_t)val)
+    } else if ((ct & TCG_CT_CONST_U16) && val == (uint16_t)val) {
         return 1;
-    else if ((ct & TCG_CT_CONST_S16) && val == (int16_t)val)
+    } else if ((ct & TCG_CT_CONST_S16) && val == (int16_t)val) {
         return 1;
-    else
-        return 0;
+    } else if ((ct & TCG_CT_CONST_P2M1)
+               && use_mips32r2_instructions && is_p2m1(val)) {
+        return 1;
+    }
+    return 0;
 }
 
 /* instruction opcodes */
@@ -293,6 +309,7 @@ enum {
     OPC_MUL      = OPC_SPECIAL2 | 0x002,
 
     OPC_SPECIAL3 = 0x1f << 26,
+    OPC_EXT      = OPC_SPECIAL3 | 0x000,
     OPC_INS      = OPC_SPECIAL3 | 0x004,
     OPC_WSBH     = OPC_SPECIAL3 | 0x0a0,
     OPC_SEB      = OPC_SPECIAL3 | 0x420,
@@ -326,6 +343,22 @@ static inline void tcg_out_opc_imm(TCGContext *s, int opc,
     inst |= (rs & 0x1F) << 21;
     inst |= (rt & 0x1F) << 16;
     inst |= (imm & 0xffff);
+    tcg_out32(s, inst);
+}
+
+/*
+ * Type bitfield
+ */
+static inline void tcg_out_opc_bf(TCGContext *s, int opc, TCGReg rt,
+                                  TCGReg rs, int msb, int lsb)
+{
+    int32_t inst;
+
+    inst = opc;
+    inst |= (rs & 0x1F) << 21;
+    inst |= (rt & 0x1F) << 16;
+    inst |= (msb & 0x1F) << 11;
+    inst |= (lsb & 0x1F) << 6;
     tcg_out32(s, inst);
 }
 
@@ -1455,7 +1488,14 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_and_i32:
         if (const_args[2]) {
-            tcg_out_opc_imm(s, OPC_ANDI, args[0], args[1], args[2]);
+            if (args[2] == (uint16_t)args[2]) {
+                tcg_out_opc_imm(s, OPC_ANDI, args[0], args[1], args[2]);
+            } else {
+                int msb = ctz32(~args[2]) - 1;
+                assert(use_mips32r2_instructions);
+                assert(is_p2m1(args[2]));
+                tcg_out_opc_bf(s, OPC_EXT, args[0], args[1], msb, 0);
+            }
         } else {
             tcg_out_opc_reg(s, OPC_AND, args[0], args[1], args[2]);
         }
@@ -1535,8 +1575,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_deposit_i32:
-        tcg_out_opc_imm(s, OPC_INS, args[0], args[2],
-                        ((args[3] + args[4] - 1) << 11) | (args[3] << 6));
+        tcg_out_opc_bf(s, OPC_INS, args[0], args[2],
+                       args[3] + args[4] - 1, args[3]);
         break;
 
     case INDEX_op_brcond_i32:
@@ -1604,7 +1644,7 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_remu_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_sub_i32, { "r", "rZ", "rJ" } },
 
-    { INDEX_op_and_i32, { "r", "rZ", "rI" } },
+    { INDEX_op_and_i32, { "r", "rZ", "rIK" } },
     { INDEX_op_nor_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_not_i32, { "r", "rZ" } },
     { INDEX_op_or_i32, { "r", "rZ", "rIZ" } },
