@@ -665,6 +665,21 @@ static void csselr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     env->cp15.c0_cssel = value & 0xf;
 }
 
+static uint64_t isr_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    CPUState *cs = ENV_GET_CPU(env);
+    uint64_t ret = 0;
+
+    if (cs->interrupt_request & CPU_INTERRUPT_HARD) {
+        ret |= CPSR_I;
+    }
+    if (cs->interrupt_request & CPU_INTERRUPT_FIQ) {
+        ret |= CPSR_F;
+    }
+    /* External aborts are not possible in QEMU so A bit is always clear */
+    return ret;
+}
+
 static const ARMCPRegInfo v7_cp_reginfo[] = {
     /* DBGDRAR, DBGDSAR: always RAZ since we don't implement memory mapped
      * debug components
@@ -782,6 +797,9 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .cp = 15, .opc1 = 0, .crn = 10, .crm = 2, .opc2 = 1, .access = PL1_RW,
       .fieldoffset = offsetofhigh32(CPUARMState, cp15.mair_el1),
       .resetfn = arm_cp_reset_ignore },
+    { .name = "ISR_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 1, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_R, .readfn = isr_read },
     REGINFO_SENTINEL
 };
 
