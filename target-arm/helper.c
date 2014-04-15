@@ -1911,6 +1911,10 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "OSLAR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 2, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 4,
       .access = PL1_W, .type = ARM_CP_NOP },
+    { .name = "ELR_EL1", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 0, .opc2 = 1,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, elr_el1) },
     REGINFO_SENTINEL
 };
 

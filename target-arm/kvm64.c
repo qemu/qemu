@@ -144,9 +144,15 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return ret;
     }
 
+    reg.id = AARCH64_CORE_REG(elr_el1);
+    reg.addr = (uintptr_t) &env->elr_el1;
+    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+    if (ret) {
+        return ret;
+    }
+
     /* TODO:
      * SP_EL1
-     * ELR_EL1
      * SPSR[]
      * FP state
      * system registers
@@ -190,6 +196,13 @@ int kvm_arch_get_registers(CPUState *cs)
 
     reg.id = AARCH64_CORE_REG(regs.pc);
     reg.addr = (uintptr_t) &env->pc;
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (ret) {
+        return ret;
+    }
+
+    reg.id = AARCH64_CORE_REG(elr_el1);
+    reg.addr = (uintptr_t) &env->elr_el1;
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret) {
         return ret;
