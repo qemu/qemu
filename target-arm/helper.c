@@ -1275,40 +1275,44 @@ static uint32_t extended_mpu_ap_bits(uint32_t val)
 static void pmsav5_data_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                  uint64_t value)
 {
-    env->cp15.c5_data = extended_mpu_ap_bits(value);
+    env->cp15.pmsav5_data_ap = extended_mpu_ap_bits(value);
 }
 
 static uint64_t pmsav5_data_ap_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    return simple_mpu_ap_bits(env->cp15.c5_data);
+    return simple_mpu_ap_bits(env->cp15.pmsav5_data_ap);
 }
 
 static void pmsav5_insn_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                  uint64_t value)
 {
-    env->cp15.c5_insn = extended_mpu_ap_bits(value);
+    env->cp15.pmsav5_insn_ap = extended_mpu_ap_bits(value);
 }
 
 static uint64_t pmsav5_insn_ap_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    return simple_mpu_ap_bits(env->cp15.c5_insn);
+    return simple_mpu_ap_bits(env->cp15.pmsav5_insn_ap);
 }
 
 static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
     { .name = "DATA_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_NO_MIGRATE,
-      .fieldoffset = offsetof(CPUARMState, cp15.c5_data), .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.pmsav5_data_ap),
+      .resetvalue = 0,
       .readfn = pmsav5_data_ap_read, .writefn = pmsav5_data_ap_write, },
     { .name = "INSN_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW, .type = ARM_CP_NO_MIGRATE,
-      .fieldoffset = offsetof(CPUARMState, cp15.c5_insn), .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.pmsav5_insn_ap),
+      .resetvalue = 0,
       .readfn = pmsav5_insn_ap_read, .writefn = pmsav5_insn_ap_write, },
     { .name = "DATA_EXT_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW,
-      .fieldoffset = offsetof(CPUARMState, cp15.c5_data), .resetvalue = 0, },
+      .fieldoffset = offsetof(CPUARMState, cp15.pmsav5_data_ap),
+      .resetvalue = 0, },
     { .name = "INSN_EXT_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 3,
       .access = PL1_RW,
-      .fieldoffset = offsetof(CPUARMState, cp15.c5_insn), .resetvalue = 0, },
+      .fieldoffset = offsetof(CPUARMState, cp15.pmsav5_insn_ap),
+      .resetvalue = 0, },
     { .name = "DCACHE_CFG", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c2_data), .resetvalue = 0, },
@@ -3676,9 +3680,9 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
 	return 2;
 
     if (access_type == 2) {
-	mask = env->cp15.c5_insn;
+        mask = env->cp15.pmsav5_insn_ap;
     } else {
-	mask = env->cp15.c5_data;
+        mask = env->cp15.pmsav5_data_ap;
     }
     mask = (mask >> (n * 4)) & 0xf;
     switch (mask) {

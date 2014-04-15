@@ -179,6 +179,8 @@ typedef struct CPUARMState {
         uint32_t c2_insn; /* MPU instruction cachable bits.  */
         uint32_t c3; /* MMU domain access control register
                         MPU write buffer control.  */
+        uint32_t pmsav5_data_ap; /* PMSAv5 MPU data access permissions */
+        uint32_t pmsav5_insn_ap; /* PMSAv5 MPU insn access permissions */
         uint32_t c5_insn; /* Fault status registers.  */
         uint32_t c5_data;
         uint32_t c6_region[8]; /* MPU base/size registers.  */
