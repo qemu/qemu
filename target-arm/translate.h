@@ -32,6 +32,14 @@ typedef struct DisasContext {
     int current_pl;
     GHashTable *cp_regs;
     uint64_t features; /* CPU features bits */
+    /* Because unallocated encodings generate different exception syndrome
+     * information from traps due to FP being disabled, we can't do a single
+     * "is fp access disabled" check at a high level in the decode tree.
+     * To help in catching bugs where the access check was forgotten in some
+     * code path, we set this flag when the access check is done, and assert
+     * that it is set at the point where we actually touch the FP regs.
+     */
+    bool fp_access_checked;
 #define TMP_A64_MAX 16
     int tmp_a64_count;
     TCGv_i64 tmp_a64[TMP_A64_MAX];

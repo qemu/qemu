@@ -353,11 +353,30 @@ static TCGv_i64 read_cpu_reg_sp(DisasContext *s, int reg, int sf)
     return v;
 }
 
+/* We should have at some point before trying to access an FP register
+ * done the necessary access check, so assert that
+ * (a) we did the check and
+ * (b) we didn't then just plough ahead anyway if it failed.
+ * Print the instruction pattern in the abort message so we can figure
+ * out what we need to fix if a user encounters this problem in the wild.
+ */
+static inline void assert_fp_access_checked(DisasContext *s)
+{
+#ifdef CONFIG_DEBUG_TCG
+    if (unlikely(!s->fp_access_checked || !s->cpacr_fpen)) {
+        fprintf(stderr, "target-arm: FP access check missing for "
+                "instruction 0x%08x\n", s->insn);
+        abort();
+    }
+#endif
+}
+
 /* Return the offset into CPUARMState of an element of specified
  * size, 'element' places in from the least significant end of
  * the FP/vector register Qn.
  */
-static inline int vec_reg_offset(int regno, int element, TCGMemOp size)
+static inline int vec_reg_offset(DisasContext *s, int regno,
+                                 int element, TCGMemOp size)
 {
     int offs = offsetof(CPUARMState, vfp.regs[regno * 2]);
 #ifdef HOST_WORDS_BIGENDIAN
@@ -372,6 +391,7 @@ static inline int vec_reg_offset(int regno, int element, TCGMemOp size)
 #else
     offs += element * (1 << size);
 #endif
+    assert_fp_access_checked(s);
     return offs;
 }
 
@@ -380,18 +400,20 @@ static inline int vec_reg_offset(int regno, int element, TCGMemOp size)
  * Dn, Sn, Hn or Bn).
  * (Note that this is not the same mapping as for A32; see cpu.h)
  */
-static inline int fp_reg_offset(int regno, TCGMemOp size)
+static inline int fp_reg_offset(DisasContext *s, int regno, TCGMemOp size)
 {
     int offs = offsetof(CPUARMState, vfp.regs[regno * 2]);
 #ifdef HOST_WORDS_BIGENDIAN
     offs += (8 - (1 << size));
 #endif
+    assert_fp_access_checked(s);
     return offs;
 }
 
 /* Offset of the high half of the 128 bit vector Qn */
-static inline int fp_reg_hi_offset(int regno)
+static inline int fp_reg_hi_offset(DisasContext *s, int regno)
 {
+    assert_fp_access_checked(s);
     return offsetof(CPUARMState, vfp.regs[regno * 2 + 1]);
 }
 
@@ -405,7 +427,7 @@ static TCGv_i64 read_fp_dreg(DisasContext *s, int reg)
 {
     TCGv_i64 v = tcg_temp_new_i64();
 
-    tcg_gen_ld_i64(v, cpu_env, fp_reg_offset(reg, MO_64));
+    tcg_gen_ld_i64(v, cpu_env, fp_reg_offset(s, reg, MO_64));
     return v;
 }
 
@@ -413,7 +435,7 @@ static TCGv_i32 read_fp_sreg(DisasContext *s, int reg)
 {
     TCGv_i32 v = tcg_temp_new_i32();
 
-    tcg_gen_ld_i32(v, cpu_env, fp_reg_offset(reg, MO_32));
+    tcg_gen_ld_i32(v, cpu_env, fp_reg_offset(s, reg, MO_32));
     return v;
 }
 
@@ -421,8 +443,8 @@ static void write_fp_dreg(DisasContext *s, int reg, TCGv_i64 v)
 {
     TCGv_i64 tcg_zero = tcg_const_i64(0);
 
-    tcg_gen_st_i64(v, cpu_env, fp_reg_offset(reg, MO_64));
-    tcg_gen_st_i64(tcg_zero, cpu_env, fp_reg_hi_offset(reg));
+    tcg_gen_st_i64(v, cpu_env, fp_reg_offset(s, reg, MO_64));
+    tcg_gen_st_i64(tcg_zero, cpu_env, fp_reg_hi_offset(s, reg));
     tcg_temp_free_i64(tcg_zero);
 }
 
@@ -693,14 +715,14 @@ static void do_fp_st(DisasContext *s, int srcidx, TCGv_i64 tcg_addr, int size)
 {
     /* This writes the bottom N bits of a 128 bit wide vector to memory */
     TCGv_i64 tmp = tcg_temp_new_i64();
-    tcg_gen_ld_i64(tmp, cpu_env, fp_reg_offset(srcidx, MO_64));
+    tcg_gen_ld_i64(tmp, cpu_env, fp_reg_offset(s, srcidx, MO_64));
     if (size < 4) {
         tcg_gen_qemu_st_i64(tmp, tcg_addr, get_mem_index(s), MO_TE + size);
     } else {
         TCGv_i64 tcg_hiaddr = tcg_temp_new_i64();
         tcg_gen_qemu_st_i64(tmp, tcg_addr, get_mem_index(s), MO_TEQ);
         tcg_gen_qemu_st64(tmp, tcg_addr, get_mem_index(s));
-        tcg_gen_ld_i64(tmp, cpu_env, fp_reg_hi_offset(srcidx));
+        tcg_gen_ld_i64(tmp, cpu_env, fp_reg_hi_offset(s, srcidx));
         tcg_gen_addi_i64(tcg_hiaddr, tcg_addr, 8);
         tcg_gen_qemu_st_i64(tmp, tcg_hiaddr, get_mem_index(s), MO_TEQ);
         tcg_temp_free_i64(tcg_hiaddr);
@@ -733,8 +755,8 @@ static void do_fp_ld(DisasContext *s, int destidx, TCGv_i64 tcg_addr, int size)
         tcg_temp_free_i64(tcg_hiaddr);
     }
 
-    tcg_gen_st_i64(tmplo, cpu_env, fp_reg_offset(destidx, MO_64));
-    tcg_gen_st_i64(tmphi, cpu_env, fp_reg_hi_offset(destidx));
+    tcg_gen_st_i64(tmplo, cpu_env, fp_reg_offset(s, destidx, MO_64));
+    tcg_gen_st_i64(tmphi, cpu_env, fp_reg_hi_offset(s, destidx));
 
     tcg_temp_free_i64(tmplo);
     tcg_temp_free_i64(tmphi);
@@ -756,7 +778,7 @@ static void do_fp_ld(DisasContext *s, int destidx, TCGv_i64 tcg_addr, int size)
 static void read_vec_element(DisasContext *s, TCGv_i64 tcg_dest, int srcidx,
                              int element, TCGMemOp memop)
 {
-    int vect_off = vec_reg_offset(srcidx, element, memop & MO_SIZE);
+    int vect_off = vec_reg_offset(s, srcidx, element, memop & MO_SIZE);
     switch (memop) {
     case MO_8:
         tcg_gen_ld8u_i64(tcg_dest, cpu_env, vect_off);
@@ -788,7 +810,7 @@ static void read_vec_element(DisasContext *s, TCGv_i64 tcg_dest, int srcidx,
 static void read_vec_element_i32(DisasContext *s, TCGv_i32 tcg_dest, int srcidx,
                                  int element, TCGMemOp memop)
 {
-    int vect_off = vec_reg_offset(srcidx, element, memop & MO_SIZE);
+    int vect_off = vec_reg_offset(s, srcidx, element, memop & MO_SIZE);
     switch (memop) {
     case MO_8:
         tcg_gen_ld8u_i32(tcg_dest, cpu_env, vect_off);
@@ -815,7 +837,7 @@ static void read_vec_element_i32(DisasContext *s, TCGv_i32 tcg_dest, int srcidx,
 static void write_vec_element(DisasContext *s, TCGv_i64 tcg_src, int destidx,
                               int element, TCGMemOp memop)
 {
-    int vect_off = vec_reg_offset(destidx, element, memop & MO_SIZE);
+    int vect_off = vec_reg_offset(s, destidx, element, memop & MO_SIZE);
     switch (memop) {
     case MO_8:
         tcg_gen_st8_i64(tcg_src, cpu_env, vect_off);
@@ -837,7 +859,7 @@ static void write_vec_element(DisasContext *s, TCGv_i64 tcg_src, int destidx,
 static void write_vec_element_i32(DisasContext *s, TCGv_i32 tcg_src,
                                   int destidx, int element, TCGMemOp memop)
 {
-    int vect_off = vec_reg_offset(destidx, element, memop & MO_SIZE);
+    int vect_off = vec_reg_offset(s, destidx, element, memop & MO_SIZE);
     switch (memop) {
     case MO_8:
         tcg_gen_st8_i32(tcg_src, cpu_env, vect_off);
@@ -899,6 +921,9 @@ static void do_vec_ld(DisasContext *s, int destidx, int element,
  */
 static inline bool fp_access_check(DisasContext *s)
 {
+    assert(!s->fp_access_checked);
+    s->fp_access_checked = true;
+
     if (s->cpacr_fpen) {
         return true;
     }
@@ -4748,9 +4773,9 @@ static void handle_fmov(DisasContext *s, int rd, int rn, int type, bool itof)
             /* 32 bit */
             TCGv_i64 tmp = tcg_temp_new_i64();
             tcg_gen_ext32u_i64(tmp, tcg_rn);
-            tcg_gen_st_i64(tmp, cpu_env, fp_reg_offset(rd, MO_64));
+            tcg_gen_st_i64(tmp, cpu_env, fp_reg_offset(s, rd, MO_64));
             tcg_gen_movi_i64(tmp, 0);
-            tcg_gen_st_i64(tmp, cpu_env, fp_reg_hi_offset(rd));
+            tcg_gen_st_i64(tmp, cpu_env, fp_reg_hi_offset(s, rd));
             tcg_temp_free_i64(tmp);
             break;
         }
@@ -4758,14 +4783,14 @@ static void handle_fmov(DisasContext *s, int rd, int rn, int type, bool itof)
         {
             /* 64 bit */
             TCGv_i64 tmp = tcg_const_i64(0);
-            tcg_gen_st_i64(tcg_rn, cpu_env, fp_reg_offset(rd, MO_64));
-            tcg_gen_st_i64(tmp, cpu_env, fp_reg_hi_offset(rd));
+            tcg_gen_st_i64(tcg_rn, cpu_env, fp_reg_offset(s, rd, MO_64));
+            tcg_gen_st_i64(tmp, cpu_env, fp_reg_hi_offset(s, rd));
             tcg_temp_free_i64(tmp);
             break;
         }
         case 2:
             /* 64 bit to top half. */
-            tcg_gen_st_i64(tcg_rn, cpu_env, fp_reg_hi_offset(rd));
+            tcg_gen_st_i64(tcg_rn, cpu_env, fp_reg_hi_offset(s, rd));
             break;
         }
     } else {
@@ -4774,15 +4799,15 @@ static void handle_fmov(DisasContext *s, int rd, int rn, int type, bool itof)
         switch (type) {
         case 0:
             /* 32 bit */
-            tcg_gen_ld32u_i64(tcg_rd, cpu_env, fp_reg_offset(rn, MO_32));
+            tcg_gen_ld32u_i64(tcg_rd, cpu_env, fp_reg_offset(s, rn, MO_32));
             break;
         case 1:
             /* 64 bit */
-            tcg_gen_ld_i64(tcg_rd, cpu_env, fp_reg_offset(rn, MO_64));
+            tcg_gen_ld_i64(tcg_rd, cpu_env, fp_reg_offset(s, rn, MO_64));
             break;
         case 2:
             /* 64 bits from top half */
-            tcg_gen_ld_i64(tcg_rd, cpu_env, fp_reg_hi_offset(rn));
+            tcg_gen_ld_i64(tcg_rd, cpu_env, fp_reg_hi_offset(s, rn));
             break;
         }
     }
@@ -5727,7 +5752,7 @@ static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
     tcg_rd = new_tmp_a64(s);
 
     for (i = 0; i < 2; i++) {
-        int foffs = i ? fp_reg_hi_offset(rd) : fp_reg_offset(rd, MO_64);
+        int foffs = i ? fp_reg_hi_offset(s, rd) : fp_reg_offset(s, rd, MO_64);
 
         if (i == 1 && !is_q) {
             /* non-quad ops clear high half of vector */
@@ -10556,6 +10581,8 @@ static void disas_a64_insn(CPUARMState *env, DisasContext *s)
     insn = arm_ldl_code(env, s->pc, s->bswap_code);
     s->insn = insn;
     s->pc += 4;
+
+    s->fp_access_checked = false;
 
     switch (extract32(insn, 25, 4)) {
     case 0x0: case 0x1: case 0x2: case 0x3: /* UNALLOCATED */
