@@ -39,6 +39,37 @@ static inline bool excp_is_internal(int excp)
         || excp == EXCP_STREX;
 }
 
+/* Exception names for debug logging; note that not all of these
+ * precisely correspond to architectural exceptions.
+ */
+static const char * const excnames[] = {
+    [EXCP_UDEF] = "Undefined Instruction",
+    [EXCP_SWI] = "SVC",
+    [EXCP_PREFETCH_ABORT] = "Prefetch Abort",
+    [EXCP_DATA_ABORT] = "Data Abort",
+    [EXCP_IRQ] = "IRQ",
+    [EXCP_FIQ] = "FIQ",
+    [EXCP_BKPT] = "Breakpoint",
+    [EXCP_EXCEPTION_EXIT] = "QEMU v7M exception exit",
+    [EXCP_KERNEL_TRAP] = "QEMU intercept of kernel commpage",
+    [EXCP_STREX] = "QEMU intercept of STREX",
+};
+
+static inline void arm_log_exception(int idx)
+{
+    if (qemu_loglevel_mask(CPU_LOG_INT)) {
+        const char *exc = NULL;
+
+        if (idx >= 0 && idx < ARRAY_SIZE(excnames)) {
+            exc = excnames[idx];
+        }
+        if (!exc) {
+            exc = "unknown";
+        }
+        qemu_log_mask(CPU_LOG_INT, "Taking exception %d [%s]\n", idx, exc);
+    }
+}
+
 /* Scale factor for generic timers, ie number of ns per tick.
  * This gives a 62.5MHz timer.
  */
