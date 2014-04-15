@@ -201,7 +201,7 @@ typedef struct CPUARMState {
         uint64_t mair_el1;
         uint64_t c12_vbar; /* vector base address register */
         uint32_t c13_fcse; /* FCSE PID.  */
-        uint32_t c13_context; /* Context ID.  */
+        uint64_t contextidr_el1; /* Context ID.  */
         uint64_t tpidr_el0; /* User RW Thread register.  */
         uint64_t tpidrro_el0; /* User RO Thread register.  */
         uint64_t tpidr_el1; /* Privileged Thread register.  */

@@ -304,6 +304,17 @@ void init_cpreg_list(ARMCPU *cpu)
     g_list_free(keys);
 }
 
+/* Return true if extended addresses are enabled.
+ * This is always the case if our translation regime is 64 bit,
+ * but depends on TTBCR.EAE for 32 bit.
+ */
+static inline bool extended_addresses_enabled(CPUARMState *env)
+{
+    return arm_el_is_aa64(env, 1)
+        || ((arm_feature(env, ARM_FEATURE_LPAE)
+             && (env->cp15.c2_control & (1U << 31))));
+}
+
 static void dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
@@ -330,14 +341,15 @@ static void contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
 
-    if (env->cp15.c13_context != value && !arm_feature(env, ARM_FEATURE_MPU)) {
+    if (env->cp15.contextidr_el1 != value && !arm_feature(env, ARM_FEATURE_MPU)
+        && !extended_addresses_enabled(env)) {
         /* For VMSA (when not using the LPAE long descriptor page table
          * format) this register includes the ASID, so do a TLB flush.
          * For PMSA it is purely a process ID and no action is needed.
          */
         tlb_flush(CPU(cpu), 1);
     }
-    env->cp15.c13_context = value;
+    env->cp15.contextidr_el1 = value;
 }
 
 static void tlbiall_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -391,8 +403,10 @@ static const ARMCPRegInfo cp_reginfo[] = {
     { .name = "FCSEIDR", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c13_fcse),
       .resetvalue = 0, .writefn = fcse_write, .raw_writefn = raw_write, },
-    { .name = "CONTEXTIDR", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 1,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c13_context),
+    { .name = "CONTEXTIDR", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .crn = 13, .crm = 0, .opc2 = 1,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.contextidr_el1),
       .resetvalue = 0, .writefn = contextidr_write, .raw_writefn = raw_write, },
     /* ??? This covers not just the impdef TLB lockdown registers but also
      * some v7VMSA registers relating to TEX remap, so it is overly broad.
@@ -1154,17 +1168,6 @@ static void par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 
 #ifndef CONFIG_USER_ONLY
 /* get_phys_addr() isn't present for user-mode-only targets */
-
-/* Return true if extended addresses are enabled.
- * This is always the case if our translation regime is 64 bit,
- * but depends on TTBCR.EAE for 32 bit.
- */
-static inline bool extended_addresses_enabled(CPUARMState *env)
-{
-    return arm_el_is_aa64(env, 1)
-        || ((arm_feature(env, ARM_FEATURE_LPAE)
-             && (env->cp15.c2_control & (1U << 31))));
-}
 
 static CPAccessResult ats_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
