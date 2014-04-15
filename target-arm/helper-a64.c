@@ -23,6 +23,7 @@
 #include "qemu/host-utils.h"
 #include "sysemu/sysemu.h"
 #include "qemu/bitops.h"
+#include "internals.h"
 
 /* C2.4.7 Multiply and divide */
 /* special cases for 0 and LLONG_MIN are mandated by the standard */
@@ -435,4 +436,79 @@ float32 HELPER(fcvtx_f64_to_f32)(float64 a, CPUARMState *env)
     exflags |= get_float_exception_flags(fpst);
     set_float_exception_flags(exflags, fpst);
     return r;
+}
+
+/* Handle a CPU exception.  */
+void aarch64_cpu_do_interrupt(CPUState *cs)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    target_ulong addr = env->cp15.c12_vbar;
+    int i;
+
+    if (arm_current_pl(env) == 0) {
+        if (env->aarch64) {
+            addr += 0x400;
+        } else {
+            addr += 0x600;
+        }
+    } else if (pstate_read(env) & PSTATE_SP) {
+        addr += 0x200;
+    }
+
+    arm_log_exception(cs->exception_index);
+    qemu_log_mask(CPU_LOG_INT, "...from EL%d\n", arm_current_pl(env));
+    if (qemu_loglevel_mask(CPU_LOG_INT)
+        && !excp_is_internal(cs->exception_index)) {
+        qemu_log_mask(CPU_LOG_INT, "...with ESR 0x%" PRIx32 "\n",
+                      env->exception.syndrome);
+    }
+
+    env->cp15.esr_el1 = env->exception.syndrome;
+    env->cp15.far_el1 = env->exception.vaddress;
+
+    switch (cs->exception_index) {
+    case EXCP_PREFETCH_ABORT:
+    case EXCP_DATA_ABORT:
+        qemu_log_mask(CPU_LOG_INT, "...with FAR 0x%" PRIx64 "\n",
+                      env->cp15.far_el1);
+        break;
+    case EXCP_BKPT:
+    case EXCP_UDEF:
+    case EXCP_SWI:
+        break;
+    case EXCP_IRQ:
+        addr += 0x80;
+        break;
+    case EXCP_FIQ:
+        addr += 0x100;
+        break;
+    default:
+        cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
+    }
+
+    if (is_a64(env)) {
+        env->banked_spsr[0] = pstate_read(env);
+        env->sp_el[arm_current_pl(env)] = env->xregs[31];
+        env->xregs[31] = env->sp_el[1];
+        env->elr_el1 = env->pc;
+    } else {
+        env->banked_spsr[0] = cpsr_read(env);
+        if (!env->thumb) {
+            env->cp15.esr_el1 |= 1 << 25;
+        }
+        env->elr_el1 = env->regs[15];
+
+        for (i = 0; i < 15; i++) {
+            env->xregs[i] = env->regs[i];
+        }
+
+        env->condexec_bits = 0;
+    }
+
+    pstate_write(env, PSTATE_DAIF | PSTATE_MODE_EL1h);
+    env->aarch64 = 1;
+
+    env->pc = addr;
+    cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }

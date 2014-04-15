@@ -384,6 +384,66 @@ void HELPER(msr_i_pstate)(CPUARMState *env, uint32_t op, uint32_t imm)
     }
 }
 
+void HELPER(exception_return)(CPUARMState *env)
+{
+    uint32_t spsr = env->banked_spsr[0];
+    int new_el, i;
+
+    if (env->pstate & PSTATE_SP) {
+        env->sp_el[1] = env->xregs[31];
+    } else {
+        env->sp_el[0] = env->xregs[31];
+    }
+
+    env->exclusive_addr = -1;
+
+    if (spsr & PSTATE_nRW) {
+        env->aarch64 = 0;
+        new_el = 0;
+        env->uncached_cpsr = 0x10;
+        cpsr_write(env, spsr, ~0);
+        for (i = 0; i < 15; i++) {
+            env->regs[i] = env->xregs[i];
+        }
+
+        env->regs[15] = env->elr_el1 & ~0x1;
+    } else {
+        new_el = extract32(spsr, 2, 2);
+        if (new_el > 1) {
+            /* Return to unimplemented EL */
+            goto illegal_return;
+        }
+        if (extract32(spsr, 1, 1)) {
+            /* Return with reserved M[1] bit set */
+            goto illegal_return;
+        }
+        if (new_el == 0 && (spsr & PSTATE_SP)) {
+            /* Return to EL1 with M[0] bit set */
+            goto illegal_return;
+        }
+        env->aarch64 = 1;
+        pstate_write(env, spsr);
+        env->xregs[31] = env->sp_el[new_el];
+        env->pc = env->elr_el1;
+    }
+
+    return;
+
+illegal_return:
+    /* Illegal return events of various kinds have architecturally
+     * mandated behaviour:
+     * restore NZCV and DAIF from SPSR_ELx
+     * set PSTATE.IL
+     * restore PC from ELR_ELx
+     * no change to exception level, execution state or stack pointer
+     */
+    env->pstate |= PSTATE_IL;
+    env->pc = env->elr_el1;
+    spsr &= PSTATE_NZCV | PSTATE_DAIF;
+    spsr |= pstate_read(env) & ~(PSTATE_NZCV | PSTATE_DAIF);
+    pstate_write(env, spsr);
+}
+
 /* ??? Flag setting arithmetic is awkward because we need to do comparisons.
    The only way to do that in TCG is a conditional branch, which clobbers
    all our temporaries.  For now implement these as helper functions.  */
