@@ -167,8 +167,16 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return ret;
     }
 
+    for (i = 0; i < KVM_NR_SPSR; i++) {
+        reg.id = AARCH64_CORE_REG(spsr[i]);
+        reg.addr = (uintptr_t) &env->banked_spsr[i - 1];
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret) {
+            return ret;
+        }
+    }
+
     /* TODO:
-     * SPSR[]
      * FP state
      * system registers
      */
@@ -237,6 +245,15 @@ int kvm_arch_get_registers(CPUState *cs)
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret) {
         return ret;
+    }
+
+    for (i = 0; i < KVM_NR_SPSR; i++) {
+        reg.id = AARCH64_CORE_REG(spsr[i]);
+        reg.addr = (uintptr_t) &env->banked_spsr[i - 1];
+        ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+        if (ret) {
+            return ret;
+        }
     }
 
     /* TODO: other registers */
