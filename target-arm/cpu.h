@@ -1104,6 +1104,8 @@ static inline int cpu_mmu_index (CPUARMState *env)
 #define ARM_TBFLAG_CONDEXEC_MASK    (0xff << ARM_TBFLAG_CONDEXEC_SHIFT)
 #define ARM_TBFLAG_BSWAP_CODE_SHIFT 16
 #define ARM_TBFLAG_BSWAP_CODE_MASK  (1 << ARM_TBFLAG_BSWAP_CODE_SHIFT)
+#define ARM_TBFLAG_CPACR_FPEN_SHIFT 17
+#define ARM_TBFLAG_CPACR_FPEN_MASK  (1 << ARM_TBFLAG_CPACR_FPEN_SHIFT)
 
 /* Bit usage when in AArch64 state */
 #define ARM_TBFLAG_AA64_EL_SHIFT    0
@@ -1128,6 +1130,8 @@ static inline int cpu_mmu_index (CPUARMState *env)
     (((F) & ARM_TBFLAG_CONDEXEC_MASK) >> ARM_TBFLAG_CONDEXEC_SHIFT)
 #define ARM_TBFLAG_BSWAP_CODE(F) \
     (((F) & ARM_TBFLAG_BSWAP_CODE_MASK) >> ARM_TBFLAG_BSWAP_CODE_SHIFT)
+#define ARM_TBFLAG_CPACR_FPEN(F) \
+    (((F) & ARM_TBFLAG_CPACR_FPEN_MASK) >> ARM_TBFLAG_CPACR_FPEN_SHIFT)
 #define ARM_TBFLAG_AA64_EL(F) \
     (((F) & ARM_TBFLAG_AA64_EL_MASK) >> ARM_TBFLAG_AA64_EL_SHIFT)
 #define ARM_TBFLAG_AA64_FPEN(F) \
@@ -1161,8 +1165,12 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
         if (privmode) {
             *flags |= ARM_TBFLAG_PRIV_MASK;
         }
-        if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)) {
+        if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)
+            || arm_el_is_aa64(env, 1)) {
             *flags |= ARM_TBFLAG_VFPEN_MASK;
+        }
+        if (fpen == 3 || (fpen == 1 && arm_current_pl(env) != 0)) {
+            *flags |= ARM_TBFLAG_CPACR_FPEN_MASK;
         }
     }
 
