@@ -1691,6 +1691,20 @@ static void aa64_fpsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     vfp_set_fpsr(env, value);
 }
 
+static CPAccessResult aa64_daif_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    if (arm_current_pl(env) == 0 && !(env->cp15.c1_sys & SCTLR_UMA)) {
+        return CP_ACCESS_TRAP;
+    }
+    return CP_ACCESS_OK;
+}
+
+static void aa64_daif_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    env->daif = value & PSTATE_DAIF;
+}
+
 static CPAccessResult aa64_cacheop_access(CPUARMState *env,
                                           const ARMCPRegInfo *ri)
 {
@@ -1737,6 +1751,12 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "NZCV", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .opc2 = 0, .crn = 4, .crm = 2,
       .access = PL0_RW, .type = ARM_CP_NZCV },
+    { .name = "DAIF", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .opc2 = 1, .crn = 4, .crm = 2,
+      .type = ARM_CP_NO_MIGRATE,
+      .access = PL0_RW, .accessfn = aa64_daif_access,
+      .fieldoffset = offsetof(CPUARMState, daif),
+      .writefn = aa64_daif_write, .resetfn = arm_cp_reset_ignore },
     { .name = "FPCR", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .opc2 = 0, .crn = 4, .crm = 4,
       .access = PL0_RW, .readfn = aa64_fpcr_read, .writefn = aa64_fpcr_write },
