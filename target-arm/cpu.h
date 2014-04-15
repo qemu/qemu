@@ -181,11 +181,10 @@ typedef struct CPUARMState {
                         MPU write buffer control.  */
         uint32_t pmsav5_data_ap; /* PMSAv5 MPU data access permissions */
         uint32_t pmsav5_insn_ap; /* PMSAv5 MPU insn access permissions */
-        uint32_t c5_insn; /* Fault status registers.  */
-        uint32_t c5_data;
+        uint32_t ifsr_el2; /* Fault status registers.  */
+        uint64_t esr_el1;
         uint32_t c6_region[8]; /* MPU base/size registers.  */
-        uint32_t c6_insn; /* Fault address registers.  */
-        uint32_t c6_data;
+        uint64_t far_el1; /* Fault address registers.  */
         uint32_t c7_par;  /* Translation result. */
         uint32_t c7_par_hi;  /* Translation result, high 32 bits */
         uint32_t c9_insn; /* Cache lockdown registers.  */

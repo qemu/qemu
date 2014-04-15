@@ -425,7 +425,7 @@ static void arm1026_initfn(Object *obj)
         ARMCPRegInfo ifar = {
             .name = "IFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 1,
             .access = PL1_RW,
-            .fieldoffset = offsetof(CPUARMState, cp15.c6_insn),
+            .fieldoffset = offsetofhigh32(CPUARMState, cp15.far_el1),
             .resetvalue = 0
         };
         define_one_arm_cp_reg(cpu, &ifar);
