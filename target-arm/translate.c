@@ -2967,9 +2967,10 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
         if ((insn & 0x0fe00fff) != 0x0ee00a10)
             return 1;
         rn = (insn >> 16) & 0xf;
-        if (rn != ARM_VFP_FPSID && rn != ARM_VFP_FPEXC
-            && rn != ARM_VFP_MVFR1 && rn != ARM_VFP_MVFR0)
+        if (rn != ARM_VFP_FPSID && rn != ARM_VFP_FPEXC && rn != ARM_VFP_MVFR2
+            && rn != ARM_VFP_MVFR1 && rn != ARM_VFP_MVFR0) {
             return 1;
+        }
     }
 
     if (extract32(insn, 28, 4) == 0xf) {
@@ -3115,6 +3116,11 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                                 gen_helper_vfp_get_fpscr(tmp, cpu_env);
                             }
                             break;
+                        case ARM_VFP_MVFR2:
+                            if (!arm_feature(env, ARM_FEATURE_V8)) {
+                                return 1;
+                            }
+                            /* fall through */
                         case ARM_VFP_MVFR0:
                         case ARM_VFP_MVFR1:
                             if (IS_USER(s)

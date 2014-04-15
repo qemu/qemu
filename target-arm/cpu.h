@@ -572,6 +572,7 @@ enum arm_cpu_mode {
 /* VFP system registers.  */
 #define ARM_VFP_FPSID   0
 #define ARM_VFP_FPSCR   1
+#define ARM_VFP_MVFR2   5
 #define ARM_VFP_MVFR1   6
 #define ARM_VFP_MVFR0   7
 #define ARM_VFP_FPEXC   8
