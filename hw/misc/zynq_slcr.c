@@ -413,15 +413,13 @@ static const MemoryRegionOps slcr_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int zynq_slcr_init(SysBusDevice *dev)
+static void zynq_slcr_init(Object *obj)
 {
-    ZynqSLCRState *s = ZYNQ_SLCR(dev);
+    ZynqSLCRState *s = ZYNQ_SLCR(obj);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &slcr_ops, s, "slcr",
+    memory_region_init_io(&s->iomem, obj, &slcr_ops, s, "slcr",
                           ZYNQ_SLCR_MMIO_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
-
-    return 0;
+    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
 }
 
 static const VMStateDescription vmstate_zynq_slcr = {
@@ -438,9 +436,7 @@ static const VMStateDescription vmstate_zynq_slcr = {
 static void zynq_slcr_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
 
-    sdc->init = zynq_slcr_init;
     dc->vmsd = &vmstate_zynq_slcr;
     dc->reset = zynq_slcr_reset;
 }
@@ -450,6 +446,7 @@ static const TypeInfo zynq_slcr_info = {
     .name  = TYPE_ZYNQ_SLCR,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(ZynqSLCRState),
+    .instance_init = zynq_slcr_init,
 };
 
 static void zynq_slcr_register_types(void)
