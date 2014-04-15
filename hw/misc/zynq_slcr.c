@@ -19,14 +19,16 @@
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 
-#ifdef ZYNQ_ARM_SLCR_ERR_DEBUG
-#define DB_PRINT(...) do { \
-    fprintf(stderr,  ": %s: ", __func__); \
-    fprintf(stderr, ## __VA_ARGS__); \
-    } while (0);
-#else
-    #define DB_PRINT(...)
+#ifndef ZYNQ_SLCR_ERR_DEBUG
+#define ZYNQ_SLCR_ERR_DEBUG 0
 #endif
+
+#define DB_PRINT(...) do { \
+        if (ZYNQ_SLCR_ERR_DEBUG) { \
+            fprintf(stderr,  ": %s: ", __func__); \
+            fprintf(stderr, ## __VA_ARGS__); \
+        } \
+    } while (0);
 
 #define XILINX_LOCK_KEY 0x767b
 #define XILINX_UNLOCK_KEY 0xdf0d
