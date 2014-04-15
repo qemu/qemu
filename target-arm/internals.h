@@ -60,6 +60,31 @@ enum arm_fprounding {
 
 int arm_rmode_to_sf(int rmode);
 
+static inline void update_spsel(CPUARMState *env, uint32_t imm)
+{
+    /* Update PSTATE SPSel bit; this requires us to update the
+     * working stack pointer in xregs[31].
+     */
+    if (!((imm ^ env->pstate) & PSTATE_SP)) {
+        return;
+    }
+    env->pstate = deposit32(env->pstate, 0, 1, imm);
+
+    /* EL0 has no access rights to update SPSel, and this code
+     * assumes we are updating SP for EL1 while running as EL1.
+     */
+    assert(arm_current_pl(env) == 1);
+    if (env->pstate & PSTATE_SP) {
+        /* Switch from using SP_EL0 to using SP_ELx */
+        env->sp_el[0] = env->xregs[31];
+        env->xregs[31] = env->sp_el[1];
+    } else {
+        /* Switch from SP_EL0 to SP_ELx */
+        env->sp_el[1] = env->xregs[31];
+        env->xregs[31] = env->sp_el[0];
+    }
+}
+
 /* Valid Syndrome Register EC field values */
 enum arm_exception_class {
     EC_UNCATEGORIZED          = 0x00,

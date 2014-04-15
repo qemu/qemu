@@ -163,6 +163,7 @@ typedef struct CPUARMState {
     uint64_t daif; /* exception masks, in the bits they are in in PSTATE */
 
     uint64_t elr_el1; /* AArch64 ELR_EL1 */
+    uint64_t sp_el[2]; /* AArch64 banked stack pointers */
 
     /* System control coprocessor (cp15) */
     struct {
@@ -434,6 +435,7 @@ int arm_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
  * Only these are valid when in AArch64 mode; in
  * AArch32 mode SPSRs are basically CPSR-format.
  */
+#define PSTATE_SP (1U)
 #define PSTATE_M (0xFU)
 #define PSTATE_nRW (1U << 4)
 #define PSTATE_F (1U << 6)

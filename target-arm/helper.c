@@ -1783,6 +1783,27 @@ static uint64_t aa64_dczid_read(CPUARMState *env, const ARMCPRegInfo *ri)
     return cpu->dcz_blocksize | dzp_bit;
 }
 
+static CPAccessResult sp_el0_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    if (!env->pstate & PSTATE_SP) {
+        /* Access to SP_EL0 is undefined if it's being used as
+         * the stack pointer.
+         */
+        return CP_ACCESS_TRAP_UNCATEGORIZED;
+    }
+    return CP_ACCESS_OK;
+}
+
+static uint64_t spsel_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    return env->pstate & PSTATE_SP;
+}
+
+static void spsel_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t val)
+{
+    update_spsel(env, val);
+}
+
 static const ARMCPRegInfo v8_cp_reginfo[] = {
     /* Minimal set of EL0-visible registers. This will need to be expanded
      * significantly for system emulation of AArch64 CPUs.
@@ -1915,6 +1936,19 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .type = ARM_CP_NO_MIGRATE,
       .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 0, .opc2 = 1,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, elr_el1) },
+    /* We rely on the access checks not allowing the guest to write to the
+     * state field when SPSel indicates that it's being used as the stack
+     * pointer.
+     */
+    { .name = "SP_EL0", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 1, .opc2 = 0,
+      .access = PL1_RW, .accessfn = sp_el0_access,
+      .type = ARM_CP_NO_MIGRATE,
+      .fieldoffset = offsetof(CPUARMState, sp_el[0]) },
+    { .name = "SPSel", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 2, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE,
+      .access = PL1_RW, .readfn = spsel_read, .writefn = spsel_write },
     REGINFO_SENTINEL
 };
 

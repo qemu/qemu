@@ -371,7 +371,7 @@ void HELPER(msr_i_pstate)(CPUARMState *env, uint32_t op, uint32_t imm)
 
     switch (op) {
     case 0x05: /* SPSel */
-        env->pstate = deposit32(env->pstate, 0, 1, imm);
+        update_spsel(env, imm);
         break;
     case 0x1e: /* DAIFSet */
         env->daif |= (imm << 6) & PSTATE_DAIF;
