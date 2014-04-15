@@ -532,7 +532,7 @@ SpiceInfo *qmp_query_spice(Error **errp)
     info->auth = g_strdup(auth);
 
     info->has_host = true;
-    info->host = g_strdup(addr ? addr : "0.0.0.0");
+    info->host = g_strdup(addr ? addr : "*");
 
     info->has_compiled_version = true;
     major = (SPICE_SERVER_VERSION & 0xff0000) >> 16;
