@@ -60,8 +60,11 @@ typedef enum {
     TCG_REG_K1,
     TCG_REG_GP,
     TCG_REG_SP,
-    TCG_REG_FP,
+    TCG_REG_S8,
     TCG_REG_RA,
+
+    TCG_REG_CALL_STACK = TCG_REG_SP,
+    TCG_AREG0 = TCG_REG_S0,
 } TCGReg;
 
 #define TCG_CT_CONST_ZERO 0x100
@@ -69,7 +72,6 @@ typedef enum {
 #define TCG_CT_CONST_S16  0x400
 
 /* used for function call generation */
-#define TCG_REG_CALL_STACK TCG_REG_SP
 #define TCG_TARGET_STACK_ALIGN 8
 #define TCG_TARGET_CALL_STACK_OFFSET 16
 #define TCG_TARGET_CALL_ALIGN_ARGS 1
@@ -126,8 +128,6 @@ extern bool use_mips32r2_instructions;
 #define TCG_TARGET_HAS_neg_i32          0 /* sub  rd, zero, rt   */
 #define TCG_TARGET_HAS_ext8u_i32        0 /* andi rt, rs, 0xff   */
 #define TCG_TARGET_HAS_ext16u_i32       0 /* andi rt, rs, 0xffff */
-
-#define TCG_AREG0 TCG_REG_S0
 
 #ifdef __OpenBSD__
 #include <machine/sysarch.h>

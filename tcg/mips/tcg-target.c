@@ -67,13 +67,14 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "k1",
     "gp",
     "sp",
-    "fp",
+    "s8",
     "ra",
 };
 #endif
 
 /* check if we really need so many registers :P */
 static const TCGReg tcg_target_reg_alloc_order[] = {
+    /* Call saved registers.  */
     TCG_REG_S0,
     TCG_REG_S1,
     TCG_REG_S2,
@@ -82,6 +83,10 @@ static const TCGReg tcg_target_reg_alloc_order[] = {
     TCG_REG_S5,
     TCG_REG_S6,
     TCG_REG_S7,
+    TCG_REG_S8,
+
+    /* Call clobbered registers.  */
+    TCG_REG_T0,
     TCG_REG_T1,
     TCG_REG_T2,
     TCG_REG_T3,
@@ -91,12 +96,14 @@ static const TCGReg tcg_target_reg_alloc_order[] = {
     TCG_REG_T7,
     TCG_REG_T8,
     TCG_REG_T9,
-    TCG_REG_A0,
-    TCG_REG_A1,
-    TCG_REG_A2,
-    TCG_REG_A3,
+    TCG_REG_V1,
     TCG_REG_V0,
-    TCG_REG_V1
+
+    /* Argument registers, opposite order of allocation.  */
+    TCG_REG_A3,
+    TCG_REG_A2,
+    TCG_REG_A1,
+    TCG_REG_A0,
 };
 
 static const TCGReg tcg_target_call_iarg_regs[4] = {
@@ -1646,7 +1653,7 @@ static int tcg_target_callee_save_regs[] = {
     TCG_REG_S5,
     TCG_REG_S6,
     TCG_REG_S7,
-    TCG_REG_FP,
+    TCG_REG_S8,
     TCG_REG_RA,       /* should be last for ABI compliance */
 };
 
@@ -1778,6 +1785,7 @@ static void tcg_target_init(TCGContext *s)
                    (1 << TCG_REG_A1) |
                    (1 << TCG_REG_A2) |
                    (1 << TCG_REG_A3) |
+                   (1 << TCG_REG_T0) |
                    (1 << TCG_REG_T1) |
                    (1 << TCG_REG_T2) |
                    (1 << TCG_REG_T3) |
