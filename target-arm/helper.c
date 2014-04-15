@@ -2464,12 +2464,39 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
 
     if (arm_feature(env, ARM_FEATURE_CBAR)) {
-        ARMCPRegInfo cbar = {
-            .name = "CBAR", .cp = 15, .crn = 15, .crm = 0, .opc1 = 4, .opc2 = 0,
-            .access = PL1_R|PL3_W, .resetvalue = cpu->reset_cbar,
-            .fieldoffset = offsetof(CPUARMState, cp15.c15_config_base_address)
-        };
-        define_one_arm_cp_reg(cpu, &cbar);
+        if (arm_feature(env, ARM_FEATURE_AARCH64)) {
+            /* 32 bit view is [31:18] 0...0 [43:32]. */
+            uint32_t cbar32 = (extract64(cpu->reset_cbar, 18, 14) << 18)
+                | extract64(cpu->reset_cbar, 32, 12);
+            ARMCPRegInfo cbar_reginfo[] = {
+                { .name = "CBAR",
+                  .type = ARM_CP_CONST,
+                  .cp = 15, .crn = 15, .crm = 0, .opc1 = 4, .opc2 = 0,
+                  .access = PL1_R, .resetvalue = cpu->reset_cbar },
+                { .name = "CBAR_EL1", .state = ARM_CP_STATE_AA64,
+                  .type = ARM_CP_CONST,
+                  .opc0 = 3, .opc1 = 1, .crn = 15, .crm = 3, .opc2 = 0,
+                  .access = PL1_R, .resetvalue = cbar32 },
+                REGINFO_SENTINEL
+            };
+            /* We don't implement a r/w 64 bit CBAR currently */
+            assert(arm_feature(env, ARM_FEATURE_CBAR_RO));
+            define_arm_cp_regs(cpu, cbar_reginfo);
+        } else {
+            ARMCPRegInfo cbar = {
+                .name = "CBAR",
+                .cp = 15, .crn = 15, .crm = 0, .opc1 = 4, .opc2 = 0,
+                .access = PL1_R|PL3_W, .resetvalue = cpu->reset_cbar,
+                .fieldoffset = offsetof(CPUARMState,
+                                        cp15.c15_config_base_address)
+            };
+            if (arm_feature(env, ARM_FEATURE_CBAR_RO)) {
+                cbar.access = PL1_R;
+                cbar.fieldoffset = 0;
+                cbar.type = ARM_CP_CONST;
+            }
+            define_one_arm_cp_reg(cpu, &cbar);
+        }
     }
 
     /* Generic registers whose values depend on the implementation */

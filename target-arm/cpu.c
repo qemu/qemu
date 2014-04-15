@@ -262,7 +262,7 @@ static void arm_cpu_initfn(Object *obj)
 }
 
 static Property arm_cpu_reset_cbar_property =
-            DEFINE_PROP_UINT32("reset-cbar", ARMCPU, reset_cbar, 0);
+            DEFINE_PROP_UINT64("reset-cbar", ARMCPU, reset_cbar, 0);
 
 static Property arm_cpu_reset_hivecs_property =
             DEFINE_PROP_BOOL("reset-hivecs", ARMCPU, reset_hivecs, false);
@@ -274,7 +274,8 @@ static void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
 
-    if (arm_feature(&cpu->env, ARM_FEATURE_CBAR)) {
+    if (arm_feature(&cpu->env, ARM_FEATURE_CBAR) ||
+        arm_feature(&cpu->env, ARM_FEATURE_CBAR_RO)) {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_reset_cbar_property,
                                  &error_abort);
     }
@@ -348,6 +349,9 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
         set_feature(env, ARM_FEATURE_V7MP);
         set_feature(env, ARM_FEATURE_PXN);
+    }
+    if (arm_feature(env, ARM_FEATURE_CBAR_RO)) {
+        set_feature(env, ARM_FEATURE_CBAR);
     }
 
     if (cpu->reset_hivecs) {

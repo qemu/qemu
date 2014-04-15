@@ -148,7 +148,7 @@ typedef struct ARMCPU {
      * in the order L1DCache, L1ICache, L2DCache, L2ICache, etc.
      */
     uint32_t ccsidr[16];
-    uint32_t reset_cbar;
+    uint64_t reset_cbar;
     uint32_t reset_auxcr;
     bool reset_hivecs;
     /* DCZ blocksize, in log_2(words), ie low 4 bits of DCZID_EL0 */
