@@ -4404,15 +4404,15 @@ int main(int argc, char **argv, char **envp)
 
     qdev_machine_init();
 
-    QEMUMachineInitArgs args = { .machine = machine,
-                                 .ram_size = ram_size,
-                                 .boot_order = boot_order,
-                                 .kernel_filename = kernel_filename,
-                                 .kernel_cmdline = kernel_cmdline,
-                                 .initrd_filename = initrd_filename,
-                                 .cpu_model = cpu_model };
+    current_machine->init_args = (QEMUMachineInitArgs) {
+        .machine = machine,
+        .ram_size = ram_size,
+        .boot_order = boot_order,
+        .kernel_filename = kernel_filename,
+        .kernel_cmdline = kernel_cmdline,
+        .initrd_filename = initrd_filename,
+        .cpu_model = cpu_model };
 
-    current_machine->init_args = args;
     machine->init(&current_machine->init_args);
 
     audio_init();
