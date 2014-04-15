@@ -483,17 +483,17 @@ static void arm_kernel_cmpxchg64_helper(CPUARMState *env)
     addr = env->regs[2];
 
     if (get_user_u64(oldval, env->regs[0])) {
-        env->cp15.c6_data = env->regs[0];
+        env->exception.vaddress = env->regs[0];
         goto segv;
     };
 
     if (get_user_u64(newval, env->regs[1])) {
-        env->cp15.c6_data = env->regs[1];
+        env->exception.vaddress = env->regs[1];
         goto segv;
     };
 
     if (get_user_u64(val, addr)) {
-        env->cp15.c6_data = addr;
+        env->exception.vaddress = addr;
         goto segv;
     }
 
@@ -501,7 +501,7 @@ static void arm_kernel_cmpxchg64_helper(CPUARMState *env)
         val = newval;
 
         if (put_user_u64(val, addr)) {
-            env->cp15.c6_data = addr;
+            env->exception.vaddress = addr;
             goto segv;
         };
 
@@ -523,7 +523,7 @@ segv:
     info.si_errno = 0;
     /* XXX: check env->error_code */
     info.si_code = TARGET_SEGV_MAPERR;
-    info._sifields._sigfault._addr = env->cp15.c6_data;
+    info._sifields._sigfault._addr = env->exception.vaddress;
     queue_signal(env, info.si_signo, &info);
 
     end_exclusive();
@@ -620,14 +620,14 @@ static int do_strex(CPUARMState *env)
         abort();
     }
     if (segv) {
-        env->cp15.c6_data = addr;
+        env->exception.vaddress = addr;
         goto done;
     }
     if (size == 3) {
         uint32_t valhi;
         segv = get_user_u32(valhi, addr + 4);
         if (segv) {
-            env->cp15.c6_data = addr + 4;
+            env->exception.vaddress = addr + 4;
             goto done;
         }
         val = deposit64(val, 32, 32, valhi);
@@ -650,14 +650,14 @@ static int do_strex(CPUARMState *env)
         break;
     }
     if (segv) {
-        env->cp15.c6_data = addr;
+        env->exception.vaddress = addr;
         goto done;
     }
     if (size == 3) {
         val = env->regs[(env->exclusive_info >> 12) & 0xf];
         segv = put_user_u32(val, addr + 4);
         if (segv) {
-            env->cp15.c6_data = addr + 4;
+            env->exception.vaddress = addr + 4;
             goto done;
         }
     }
@@ -832,12 +832,14 @@ void cpu_loop(CPUARMState *env)
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
             break;
+        case EXCP_STREX:
+            if (!do_strex(env)) {
+                break;
+            }
+            /* fall through for segv */
         case EXCP_PREFETCH_ABORT:
-            addr = env->cp15.c6_insn;
-            goto do_segv;
         case EXCP_DATA_ABORT:
-            addr = env->cp15.c6_data;
-        do_segv:
+            addr = env->exception.vaddress;
             {
                 info.si_signo = SIGSEGV;
                 info.si_errno = 0;
@@ -864,12 +866,6 @@ void cpu_loop(CPUARMState *env)
         case EXCP_KERNEL_TRAP:
             if (do_kernel_trap(env))
               goto error;
-            break;
-        case EXCP_STREX:
-            if (do_strex(env)) {
-                addr = env->cp15.c6_data;
-                goto do_segv;
-            }
             break;
         default:
         error:
@@ -933,7 +929,7 @@ static int do_strex_a64(CPUARMState *env)
         abort();
     }
     if (segv) {
-        env->cp15.c6_data = addr;
+        env->exception.vaddress = addr;
         goto error;
     }
     if (val != env->exclusive_val) {
@@ -946,7 +942,7 @@ static int do_strex_a64(CPUARMState *env)
             segv = get_user_u64(val, addr + 8);
         }
         if (segv) {
-            env->cp15.c6_data = addr + (size == 2 ? 4 : 8);
+            env->exception.vaddress = addr + (size == 2 ? 4 : 8);
             goto error;
         }
         if (val != env->exclusive_high) {
@@ -981,7 +977,7 @@ static int do_strex_a64(CPUARMState *env)
             segv = put_user_u64(val, addr + 8);
         }
         if (segv) {
-            env->cp15.c6_data = addr + (size == 2 ? 4 : 8);
+            env->exception.vaddress = addr + (size == 2 ? 4 : 8);
             goto error;
         }
     }
@@ -1037,12 +1033,14 @@ void cpu_loop(CPUARMState *env)
             info._sifields._sigfault._addr = env->pc;
             queue_signal(env, info.si_signo, &info);
             break;
+        case EXCP_STREX:
+            if (!do_strex_a64(env)) {
+                break;
+            }
+            /* fall through for segv */
         case EXCP_PREFETCH_ABORT:
-            addr = env->cp15.c6_insn;
-            goto do_segv;
         case EXCP_DATA_ABORT:
-            addr = env->cp15.c6_data;
-        do_segv:
+            addr = env->exception.vaddress;
             info.si_signo = SIGSEGV;
             info.si_errno = 0;
             /* XXX: check env->error_code */
@@ -1058,12 +1056,6 @@ void cpu_loop(CPUARMState *env)
                 info.si_errno = 0;
                 info.si_code = TARGET_TRAP_BRKPT;
                 queue_signal(env, info.si_signo, &info);
-            }
-            break;
-        case EXCP_STREX:
-            if (do_strex_a64(env)) {
-                addr = env->cp15.c6_data;
-                goto do_segv;
             }
             break;
         default:

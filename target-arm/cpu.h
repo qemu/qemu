@@ -233,6 +233,21 @@ typedef struct CPUARMState {
         int pending_exception;
     } v7m;
 
+    /* Information associated with an exception about to be taken:
+     * code which raises an exception must set cs->exception_index and
+     * the relevant parts of this structure; the cpu_do_interrupt function
+     * will then set the guest-visible registers as part of the exception
+     * entry process.
+     */
+    struct {
+        uint32_t syndrome; /* AArch64 format syndrome register */
+        uint32_t fsr; /* AArch32 format fault status register info */
+        uint64_t vaddress; /* virtual addr associated with exception, if any */
+        /* If we implement EL2 we will also need to store information
+         * about the intermediate physical address for stage 2 faults.
+         */
+    } exception;
+
     /* Thumb-2 EE state.  */
     uint32_t teecr;
     uint32_t teehbr;
