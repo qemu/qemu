@@ -19,6 +19,7 @@
  */
 
 #include "cpu.h"
+#include "internals.h"
 #include "qemu-common.h"
 #include "hw/qdev-properties.h"
 #include "qapi/qmp/qerror.h"

@@ -1,4 +1,5 @@
 #include "cpu.h"
+#include "internals.h"
 #include "exec/gdbstub.h"
 #include "helper.h"
 #include "qemu/host-utils.h"

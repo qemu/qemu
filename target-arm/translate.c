@@ -25,6 +25,7 @@
 #include <inttypes.h>
 
 #include "cpu.h"
+#include "internals.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
 #include "qemu/log.h"

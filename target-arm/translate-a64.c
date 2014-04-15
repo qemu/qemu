@@ -26,6 +26,7 @@
 #include "tcg-op.h"
 #include "qemu/log.h"
 #include "translate.h"
+#include "internals.h"
 #include "qemu/host-utils.h"
 
 #include "exec/gen-icount.h"

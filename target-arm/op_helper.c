@@ -18,6 +18,7 @@
  */
 #include "cpu.h"
 #include "helper.h"
+#include "internals.h"
 
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)

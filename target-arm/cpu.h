@@ -111,11 +111,6 @@ typedef struct ARMGenericTimer {
 #define GTIMER_VIRT 1
 #define NUM_GTIMERS 2
 
-/* Scale factor for generic timers, ie number of ns per tick.
- * This gives a 62.5MHz timer.
- */
-#define GTIMER_SCALE 16
-
 typedef struct CPUARMState {
     /* Regs for current mode.  */
     uint32_t regs[16];
@@ -322,11 +317,7 @@ typedef struct CPUARMState {
 #include "cpu-qom.h"
 
 ARMCPU *cpu_arm_init(const char *cpu_model);
-void arm_translate_init(void);
-void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu);
 int cpu_arm_exec(CPUARMState *s);
-int bank_number(int mode);
-void switch_mode(CPUARMState *, int);
 uint32_t do_arm_semihosting(CPUARMState *env);
 
 static inline bool is_a64(CPUARMState *env)
@@ -547,17 +538,6 @@ static inline void vfp_set_fpcr(CPUARMState *env, uint32_t val)
     uint32_t new_fpscr = (vfp_get_fpscr(env) & ~FPCR_MASK) | (val & FPCR_MASK);
     vfp_set_fpscr(env, new_fpscr);
 }
-
-enum arm_fprounding {
-    FPROUNDING_TIEEVEN,
-    FPROUNDING_POSINF,
-    FPROUNDING_NEGINF,
-    FPROUNDING_ZERO,
-    FPROUNDING_TIEAWAY,
-    FPROUNDING_ODD
-};
-
-int arm_rmode_to_sf(int rmode);
 
 enum arm_cpu_mode {
   ARM_CPU_MODE_USR = 0x10,

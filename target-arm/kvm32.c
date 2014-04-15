@@ -21,6 +21,7 @@
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
 #include "cpu.h"
+#include "internals.h"
 #include "hw/arm/arm.h"
 
 static inline void set_feature(uint64_t *features, int feature)
