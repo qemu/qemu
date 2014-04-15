@@ -1192,11 +1192,11 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
 static void par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
-        env->cp15.c7_par = value;
+        env->cp15.par_el1 = value;
     } else if (arm_feature(env, ARM_FEATURE_V7)) {
-        env->cp15.c7_par = value & 0xfffff6ff;
+        env->cp15.par_el1 = value & 0xfffff6ff;
     } else {
-        env->cp15.c7_par = value & 0xfffff1ff;
+        env->cp15.par_el1 = value & 0xfffff1ff;
     }
 }
 
@@ -1243,8 +1243,7 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
              * fault.
              */
         }
-        env->cp15.c7_par = par64;
-        env->cp15.c7_par_hi = par64 >> 32;
+        env->cp15.par_el1 = par64;
     } else {
         /* ret is a DFSR/IFSR value for the short descriptor
          * translation table format (with WnR always clear).
@@ -1254,16 +1253,15 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
             /* We do not set any attribute bits in the PAR */
             if (page_size == (1 << 24)
                 && arm_feature(env, ARM_FEATURE_V7)) {
-                env->cp15.c7_par = (phys_addr & 0xff000000) | 1 << 1;
+                env->cp15.par_el1 = (phys_addr & 0xff000000) | 1 << 1;
             } else {
-                env->cp15.c7_par = phys_addr & 0xfffff000;
+                env->cp15.par_el1 = phys_addr & 0xfffff000;
             }
         } else {
-            env->cp15.c7_par = ((ret & (1 << 10)) >> 5) |
+            env->cp15.par_el1 = ((ret & (1 << 10)) >> 5) |
                 ((ret & (1 << 12)) >> 6) |
                 ((ret & 0xf) << 1) | 1;
         }
-        env->cp15.c7_par_hi = 0;
     }
 }
 #endif
@@ -1271,7 +1269,7 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 static const ARMCPRegInfo vapa_cp_reginfo[] = {
     { .name = "PAR", .cp = 15, .crn = 7, .crm = 4, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .resetvalue = 0,
-      .fieldoffset = offsetof(CPUARMState, cp15.c7_par),
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.par_el1),
       .writefn = par_write },
 #ifndef CONFIG_USER_ONLY
     { .name = "ATS", .cp = 15, .crn = 7, .crm = 8, .opc1 = 0, .opc2 = CP_ANY,
@@ -1674,24 +1672,6 @@ static const ARMCPRegInfo mpidr_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-static uint64_t par64_read(CPUARMState *env, const ARMCPRegInfo *ri)
-{
-    return ((uint64_t)env->cp15.c7_par_hi << 32) | env->cp15.c7_par;
-}
-
-static void par64_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                        uint64_t value)
-{
-    env->cp15.c7_par_hi = value >> 32;
-    env->cp15.c7_par = value;
-}
-
-static void par64_reset(CPUARMState *env, const ARMCPRegInfo *ri)
-{
-    env->cp15.c7_par_hi = 0;
-    env->cp15.c7_par = 0;
-}
-
 static const ARMCPRegInfo lpae_cp_reginfo[] = {
     /* NOP AMAIR0/1: the override is because these clash with the rather
      * broadly specified TLB_LOCKDOWN entry in the generic cp_reginfo.
@@ -1711,7 +1691,7 @@ static const ARMCPRegInfo lpae_cp_reginfo[] = {
       .access = PL0_R, .type = ARM_CP_CONST|ARM_CP_64BIT, .resetvalue = 0 },
     { .name = "PAR", .cp = 15, .crm = 7, .opc1 = 0,
       .access = PL1_RW, .type = ARM_CP_64BIT,
-      .readfn = par64_read, .writefn = par64_write, .resetfn = par64_reset },
+      .fieldoffset = offsetof(CPUARMState, cp15.par_el1), .resetvalue = 0 },
     { .name = "TTBR0", .cp = 15, .crm = 2, .opc1 = 0,
       .access = PL1_RW, .type = ARM_CP_64BIT | ARM_CP_NO_MIGRATE,
       .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el1),
@@ -1960,6 +1940,21 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 7, .opc2 = 7,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
       .writefn = tlbi_aa64_vaa_write },
+#ifndef CONFIG_USER_ONLY
+    /* 64 bit address translation operations */
+    { .name = "AT_S1E1R", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 0,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE, .writefn = ats_write },
+    { .name = "AT_S1E1W", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 1,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE, .writefn = ats_write },
+    { .name = "AT_S1E0R", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 2,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE, .writefn = ats_write },
+    { .name = "AT_S1E0W", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 3,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE, .writefn = ats_write },
+#endif
     /* 32 bit TLB invalidates, Inner Shareable */
     { .name = "TLBIALLIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 0,
       .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiall_write },

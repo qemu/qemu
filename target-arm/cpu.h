@@ -188,8 +188,7 @@ typedef struct CPUARMState {
         uint64_t esr_el1;
         uint32_t c6_region[8]; /* MPU base/size registers.  */
         uint64_t far_el1; /* Fault address registers.  */
-        uint32_t c7_par;  /* Translation result. */
-        uint32_t c7_par_hi;  /* Translation result, high 32 bits */
+        uint64_t par_el1;  /* Translation result. */
         uint32_t c9_insn; /* Cache lockdown registers.  */
         uint32_t c9_data;
         uint32_t c9_pmcr; /* performance monitor control register */
