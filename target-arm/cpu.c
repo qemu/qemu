@@ -105,6 +105,7 @@ static void arm_cpu_reset(CPUState *s)
         env->cp15.c1_coproc = deposit64(env->cp15.c1_coproc, 20, 2, 3);
 #else
         env->pstate = PSTATE_MODE_EL1h;
+        env->pc = cpu->rvbar;
 #endif
     } else {
 #if defined(CONFIG_USER_ONLY)
@@ -266,6 +267,9 @@ static Property arm_cpu_reset_cbar_property =
 static Property arm_cpu_reset_hivecs_property =
             DEFINE_PROP_BOOL("reset-hivecs", ARMCPU, reset_hivecs, false);
 
+static Property arm_cpu_rvbar_property =
+            DEFINE_PROP_UINT64("rvbar", ARMCPU, rvbar, 0);
+
 static void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -277,6 +281,11 @@ static void arm_cpu_post_init(Object *obj)
 
     if (!arm_feature(&cpu->env, ARM_FEATURE_M)) {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_reset_hivecs_property,
+                                 &error_abort);
+    }
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_rvbar_property,
                                  &error_abort);
     }
 }
