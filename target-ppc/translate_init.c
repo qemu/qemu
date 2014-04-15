@@ -3156,7 +3156,15 @@ POWERPC_FAMILY(401)(ObjectClass *oc, void *data)
                        PPC_CACHE_DCBZ |
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_4xx_COMMON | PPC_40x_EXCP;
-    pcc->msr_mask = 0x00000000000FD201ULL;
+    pcc->msr_mask = (1ull << MSR_KEY) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_REAL;
     pcc->excp_model = POWERPC_EXCP_40x;
     pcc->bus_model = PPC_FLAGS_INPUT_401;
@@ -3203,7 +3211,18 @@ POWERPC_FAMILY(401x2)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
                        PPC_4xx_COMMON | PPC_40x_EXCP;
-    pcc->msr_mask = 0x00000000001FD231ULL;
+    pcc->msr_mask = (1ull << 20) |
+                    (1ull << MSR_KEY) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_4xx_Z;
     pcc->excp_model = POWERPC_EXCP_40x;
     pcc->bus_model = PPC_FLAGS_INPUT_401;
@@ -3244,7 +3263,19 @@ POWERPC_FAMILY(401x3)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
                        PPC_4xx_COMMON | PPC_40x_EXCP;
-    pcc->msr_mask = 0x00000000001FD631ULL;
+    pcc->msr_mask = (1ull << 20) |
+                    (1ull << MSR_KEY) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_DWE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_4xx_Z;
     pcc->excp_model = POWERPC_EXCP_40x;
     pcc->bus_model = PPC_FLAGS_INPUT_401;
@@ -3291,7 +3322,18 @@ POWERPC_FAMILY(IOP480)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
                        PPC_4xx_COMMON | PPC_40x_EXCP;
-    pcc->msr_mask = 0x00000000001FD231ULL;
+    pcc->msr_mask = (1ull << 20) |
+                    (1ull << MSR_KEY) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_4xx_Z;
     pcc->excp_model = POWERPC_EXCP_40x;
     pcc->bus_model = PPC_FLAGS_INPUT_401;
@@ -3330,7 +3372,15 @@ POWERPC_FAMILY(403)(ObjectClass *oc, void *data)
                        PPC_CACHE_DCBZ |
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_4xx_COMMON | PPC_40x_EXCP;
-    pcc->msr_mask = 0x000000000007D00DULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_PE) |
+                    (1ull << MSR_PX) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_REAL;
     pcc->excp_model = POWERPC_EXCP_40x;
     pcc->bus_model = PPC_FLAGS_INPUT_401;
@@ -3389,7 +3439,15 @@ POWERPC_FAMILY(403GCX)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
                        PPC_4xx_COMMON | PPC_40x_EXCP;
-    pcc->msr_mask = 0x000000000007D00DULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_PE) |
+                    (1ull << MSR_PX) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_4xx_Z;
     pcc->excp_model = POWERPC_EXCP_40x;
     pcc->bus_model = PPC_FLAGS_INPUT_401;
@@ -3447,7 +3505,15 @@ POWERPC_FAMILY(405)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
                        PPC_4xx_COMMON | PPC_405_MAC | PPC_40x_EXCP;
-    pcc->msr_mask = 0x000000000006E630ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_DWE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR);
     pcc->mmu_model = POWERPC_MMU_SOFT_4xx;
     pcc->excp_model = POWERPC_EXCP_40x;
     pcc->bus_model = PPC_FLAGS_INPUT_405;
@@ -3540,7 +3606,18 @@ POWERPC_FAMILY(440EP)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBSYNC | PPC_MFTB |
                        PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
                        PPC_440_SPEC;
-    pcc->msr_mask = 0x000000000006FF30ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_DWE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR);
     pcc->mmu_model = POWERPC_MMU_BOOKE;
     pcc->excp_model = POWERPC_EXCP_BOOKE;
     pcc->bus_model = PPC_FLAGS_INPUT_BookE;
@@ -3612,7 +3689,18 @@ POWERPC_FAMILY(440GP)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBSYNC | PPC_TLBIVA | PPC_MFTB |
                        PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
                        PPC_440_SPEC;
-    pcc->msr_mask = 0x000000000006FF30ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_DWE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR);
     pcc->mmu_model = POWERPC_MMU_BOOKE;
     pcc->excp_model = POWERPC_EXCP_BOOKE;
     pcc->bus_model = PPC_FLAGS_INPUT_BookE;
@@ -3684,7 +3772,18 @@ POWERPC_FAMILY(440x4)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBSYNC | PPC_MFTB |
                        PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
                        PPC_440_SPEC;
-    pcc->msr_mask = 0x000000000006FF30ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_DWE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR);
     pcc->mmu_model = POWERPC_MMU_BOOKE;
     pcc->excp_model = POWERPC_EXCP_BOOKE;
     pcc->bus_model = PPC_FLAGS_INPUT_BookE;
@@ -3774,7 +3873,18 @@ POWERPC_FAMILY(440x5)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBSYNC | PPC_MFTB |
                        PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
                        PPC_440_SPEC;
-    pcc->msr_mask = 0x000000000006FF30ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_DWE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR);
     pcc->mmu_model = POWERPC_MMU_BOOKE;
     pcc->excp_model = POWERPC_EXCP_BOOKE;
     pcc->bus_model = PPC_FLAGS_INPUT_BookE;
@@ -3870,7 +3980,18 @@ POWERPC_FAMILY(460)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBSYNC | PPC_TLBIVA |
                        PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
                        PPC_440_SPEC;
-    pcc->msr_mask = 0x000000000006FF30ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_DWE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR);
     pcc->mmu_model = POWERPC_MMU_BOOKE;
     pcc->excp_model = POWERPC_EXCP_BOOKE;
     pcc->bus_model = PPC_FLAGS_INPUT_BookE;
@@ -3969,7 +4090,18 @@ POWERPC_FAMILY(460F)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBSYNC | PPC_TLBIVA |
                        PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
                        PPC_440_SPEC;
-    pcc->msr_mask = 0x000000000006FF30ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_DWE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR);
     pcc->mmu_model = POWERPC_MMU_BOOKE;
     pcc->excp_model = POWERPC_EXCP_BOOKE;
     pcc->bus_model = PPC_FLAGS_INPUT_BookE;
@@ -4002,7 +4134,18 @@ POWERPC_FAMILY(MPC5xx)(ObjectClass *oc, void *data)
                        PPC_MEM_EIEIO | PPC_MEM_SYNC |
                        PPC_CACHE_ICBI | PPC_FLOAT | PPC_FLOAT_STFIWX |
                        PPC_MFTB;
-    pcc->msr_mask = 0x000000000001FF43ULL;
+    pcc->msr_mask = (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_REAL;
     pcc->excp_model = POWERPC_EXCP_603;
     pcc->bus_model = PPC_FLAGS_INPUT_RCPU;
@@ -4034,7 +4177,18 @@ POWERPC_FAMILY(MPC8xx)(ObjectClass *oc, void *data)
     pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING  |
                        PPC_MEM_EIEIO | PPC_MEM_SYNC |
                        PPC_CACHE_ICBI | PPC_MFTB;
-    pcc->msr_mask = 0x000000000001F673ULL;
+    pcc->msr_mask = (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_MPC8xx;
     pcc->excp_model = POWERPC_EXCP_603;
     pcc->bus_model = PPC_FLAGS_INPUT_RCPU;
@@ -4100,7 +4254,21 @@ POWERPC_FAMILY(G2)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000006FFF2ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_TGPR) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_AL) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_RI);
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
     pcc->excp_model = POWERPC_EXCP_G2;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
@@ -4191,7 +4359,23 @@ POWERPC_FAMILY(G2LE)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000007FFF3ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_TGPR) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_AL) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
     pcc->excp_model = POWERPC_EXCP_G2;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
@@ -4331,7 +4515,20 @@ POWERPC_FAMILY(e200)(ObjectClass *oc, void *data)
                        PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
                        PPC_MEM_TLBSYNC | PPC_TLBIVAX |
                        PPC_BOOKE;
-    pcc->msr_mask = 0x000000000606FF30ULL;
+    pcc->msr_mask = (1ull << MSR_UCLE) |
+                    (1ull << MSR_SPE) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_DWE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR);
     pcc->mmu_model = POWERPC_MMU_BOOKE206;
     pcc->excp_model = POWERPC_EXCP_BOOKE;
     pcc->bus_model = PPC_FLAGS_INPUT_BookE;
@@ -4389,7 +4586,23 @@ POWERPC_FAMILY(e300)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000007FFF3ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_TGPR) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_AL) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
     pcc->excp_model = POWERPC_EXCP_603;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
@@ -4628,7 +4841,20 @@ POWERPC_FAMILY(e500v1)(ObjectClass *oc, void *data)
                        PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
                        PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC;
     pcc->insns_flags2 = PPC2_BOOKE206;
-    pcc->msr_mask = 0x000000000606FF30ULL;
+    pcc->msr_mask = (1ull << MSR_UCLE) |
+                    (1ull << MSR_SPE) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_DWE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR);
     pcc->mmu_model = POWERPC_MMU_BOOKE206;
     pcc->excp_model = POWERPC_EXCP_BOOKE;
     pcc->bus_model = PPC_FLAGS_INPUT_BookE;
@@ -4658,7 +4884,20 @@ POWERPC_FAMILY(e500v2)(ObjectClass *oc, void *data)
                        PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
                        PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC;
     pcc->insns_flags2 = PPC2_BOOKE206;
-    pcc->msr_mask = 0x000000000606FF30ULL;
+    pcc->msr_mask = (1ull << MSR_UCLE) |
+                    (1ull << MSR_SPE) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_DWE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR);
     pcc->mmu_model = POWERPC_MMU_BOOKE206;
     pcc->excp_model = POWERPC_EXCP_BOOKE;
     pcc->bus_model = PPC_FLAGS_INPUT_BookE;
@@ -4690,7 +4929,20 @@ POWERPC_FAMILY(e500mc)(ObjectClass *oc, void *data)
                        PPC_FLOAT_STFIWX | PPC_WAIT |
                        PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC;
     pcc->insns_flags2 = PPC2_BOOKE206 | PPC2_PRCNTL;
-    pcc->msr_mask = 0x000000001402FB36ULL;
+    pcc->msr_mask = (1ull << MSR_GS) |
+                    (1ull << MSR_UCLE) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PX) |
+                    (1ull << MSR_RI);
     pcc->mmu_model = POWERPC_MMU_BOOKE206;
     pcc->excp_model = POWERPC_EXCP_BOOKE;
     pcc->bus_model = PPC_FLAGS_INPUT_BookE;
@@ -4724,7 +4976,21 @@ POWERPC_FAMILY(e5500)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC |
                        PPC_64B | PPC_POPCNTB | PPC_POPCNTWD;
     pcc->insns_flags2 = PPC2_BOOKE206 | PPC2_PRCNTL | PPC2_PERM_ISA206;
-    pcc->msr_mask = 0x000000009402FB36ULL;
+    pcc->msr_mask = (1ull << MSR_CM) |
+                    (1ull << MSR_GS) |
+                    (1ull << MSR_UCLE) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PX) |
+                    (1ull << MSR_RI);
     pcc->mmu_model = POWERPC_MMU_BOOKE206;
     pcc->excp_model = POWERPC_EXCP_BOOKE;
     pcc->bus_model = PPC_FLAGS_INPUT_BookE;
@@ -4746,7 +5012,17 @@ POWERPC_FAMILY(POWER)(ObjectClass *oc, void *data)
     dc->desc = "POWER";
     /* pcc->insns_flags = XXX_TODO; */
     /* POWER RSC (from RAD6000) */
-    pcc->msr_mask = 0x00000000FEF0ULL;
+    pcc->msr_mask = (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_AL) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR);
 }
 
 #define POWERPC_MSRR_601     (0x0000000000001040ULL)
@@ -4801,7 +5077,16 @@ POWERPC_FAMILY(601)(ObjectClass *oc, void *data)
                        PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
                        PPC_MEM_SYNC | PPC_MEM_EIEIO | PPC_MEM_TLBIE |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000000FD70ULL;
+    pcc->msr_mask = (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR);
     pcc->mmu_model = POWERPC_MMU_601;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
@@ -4837,7 +5122,16 @@ POWERPC_FAMILY(601v)(ObjectClass *oc, void *data)
                        PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
                        PPC_MEM_SYNC | PPC_MEM_EIEIO | PPC_MEM_TLBIE |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000000FD70ULL;
+    pcc->msr_mask = (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR);
     pcc->mmu_model = POWERPC_MMU_601;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
@@ -4889,7 +5183,24 @@ POWERPC_FAMILY(602)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_6xx_TLB | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_602_SPEC;
-    pcc->msr_mask = 0x0000000000C7FF73ULL;
+    pcc->msr_mask = (1ull << MSR_VSX) |
+                    (1ull << MSR_SA) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_TGPR) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     /* XXX: 602 MMU is quite specific. Should add a special case */
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
     pcc->excp_model = POWERPC_EXCP_602;
@@ -4941,7 +5252,22 @@ POWERPC_FAMILY(603)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000007FF73ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_TGPR) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
     pcc->excp_model = POWERPC_EXCP_603;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
@@ -4992,7 +5318,22 @@ POWERPC_FAMILY(603E)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000007FF73ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_TGPR) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
     pcc->excp_model = POWERPC_EXCP_603E;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
@@ -5037,7 +5378,22 @@ POWERPC_FAMILY(604)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
@@ -5105,7 +5461,22 @@ POWERPC_FAMILY(604E)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
@@ -5160,7 +5531,22 @@ POWERPC_FAMILY(740)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
@@ -5223,7 +5609,22 @@ POWERPC_FAMILY(750)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
@@ -5409,7 +5810,22 @@ POWERPC_FAMILY(750cl)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
@@ -5476,7 +5892,22 @@ POWERPC_FAMILY(750cx)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
@@ -5548,7 +5979,22 @@ POWERPC_FAMILY(750fx)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
@@ -5620,7 +6066,22 @@ POWERPC_FAMILY(750gx)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
@@ -5683,7 +6144,22 @@ POWERPC_FAMILY(745)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
     pcc->excp_model = POWERPC_EXCP_7x5;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
@@ -5754,7 +6230,22 @@ POWERPC_FAMILY(755)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN;
-    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
     pcc->excp_model = POWERPC_EXCP_7x5;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
@@ -5812,7 +6303,23 @@ POWERPC_FAMILY(7400)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIA |
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
-    pcc->msr_mask = 0x000000000205FF77ULL;
+    pcc->msr_mask = (1ull << MSR_VR) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
@@ -5880,7 +6387,23 @@ POWERPC_FAMILY(7410)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIA |
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
-    pcc->msr_mask = 0x000000000205FF77ULL;
+    pcc->msr_mask = (1ull << MSR_VR) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
@@ -5974,7 +6497,23 @@ POWERPC_FAMILY(7440)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIA | PPC_74xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
-    pcc->msr_mask = 0x000000000205FF77ULL;
+    pcc->msr_mask = (1ull << MSR_VR) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_74xx;
     pcc->excp_model = POWERPC_EXCP_74xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
@@ -6091,7 +6630,23 @@ POWERPC_FAMILY(7450)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIA | PPC_74xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
-    pcc->msr_mask = 0x000000000205FF77ULL;
+    pcc->msr_mask = (1ull << MSR_VR) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_74xx;
     pcc->excp_model = POWERPC_EXCP_74xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
@@ -6211,7 +6766,23 @@ POWERPC_FAMILY(7445)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIA | PPC_74xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
-    pcc->msr_mask = 0x000000000205FF77ULL;
+    pcc->msr_mask = (1ull << MSR_VR) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_74xx;
     pcc->excp_model = POWERPC_EXCP_74xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
@@ -6333,7 +6904,23 @@ POWERPC_FAMILY(7455)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIA | PPC_74xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
-    pcc->msr_mask = 0x000000000205FF77ULL;
+    pcc->msr_mask = (1ull << MSR_VR) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_74xx;
     pcc->excp_model = POWERPC_EXCP_74xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
@@ -6479,7 +7066,23 @@ POWERPC_FAMILY(7457)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIA | PPC_74xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
-    pcc->msr_mask = 0x000000000205FF77ULL;
+    pcc->msr_mask = (1ull << MSR_VR) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_74xx;
     pcc->excp_model = POWERPC_EXCP_74xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
@@ -6601,7 +7204,23 @@ POWERPC_FAMILY(e600)(ObjectClass *oc, void *data)
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
     pcc->insns_flags2 = PPC_NONE;
-    pcc->msr_mask = 0x000000000205FF77ULL;
+    pcc->msr_mask = (1ull << MSR_VR) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_ILE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_EP) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
@@ -6688,7 +7307,22 @@ POWERPC_FAMILY(970)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_64B | PPC_ALTIVEC |
                        PPC_SEGMENT_64B | PPC_SLBI;
-    pcc->msr_mask = 0x900000000204FF36ULL;
+    pcc->msr_mask = (1ull << MSR_SF) |
+                    (1ull << MSR_SHV) |
+                    (1ull << MSR_VR) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI);
     pcc->mmu_model = POWERPC_MMU_64B;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
@@ -6782,7 +7416,21 @@ POWERPC_FAMILY(970FX)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_64B | PPC_ALTIVEC |
                        PPC_SEGMENT_64B | PPC_SLBI;
-    pcc->msr_mask = 0x800000000204FF36ULL;
+    pcc->msr_mask = (1ull << MSR_SF) |
+                    (1ull << MSR_VR) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI);
     pcc->mmu_model = POWERPC_MMU_64B;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
@@ -6870,7 +7518,22 @@ POWERPC_FAMILY(970MP)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_64B | PPC_ALTIVEC |
                        PPC_SEGMENT_64B | PPC_SLBI;
-    pcc->msr_mask = 0x900000000204FF36ULL;
+    pcc->msr_mask = (1ull << MSR_SF) |
+                    (1ull << MSR_SHV) |
+                    (1ull << MSR_VR) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI);
     pcc->mmu_model = POWERPC_MMU_64B;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
@@ -6962,7 +7625,21 @@ POWERPC_FAMILY(POWER5P)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_64B |
                        PPC_SEGMENT_64B | PPC_SLBI;
-    pcc->msr_mask = 0x800000000204FF36ULL;
+    pcc->msr_mask = (1ull << MSR_SF) |
+                    (1ull << MSR_VR) |
+                    (1ull << MSR_POW) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI);
     pcc->mmu_model = POWERPC_MMU_64B;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
@@ -7083,7 +7760,22 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
                         PPC2_PERM_ISA206 | PPC2_DIVE_ISA206 |
                         PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206 |
                         PPC2_FP_TST_ISA206;
-    pcc->msr_mask = 0x800000000280FF37ULL;
+    pcc->msr_mask = (1ull << MSR_SF) |
+                    (1ull << MSR_VR) |
+                    (1ull << MSR_VSX) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_2_06;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
@@ -7126,7 +7818,22 @@ POWERPC_FAMILY(POWER7P)(ObjectClass *oc, void *data)
                         PPC2_PERM_ISA206 | PPC2_DIVE_ISA206 |
                         PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206 |
                         PPC2_FP_TST_ISA206;
-    pcc->msr_mask = 0x800000000280FF37ULL;
+    pcc->msr_mask = (1ull << MSR_SF) |
+                    (1ull << MSR_VR) |
+                    (1ull << MSR_VSX) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_2_06;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
@@ -7183,7 +7890,22 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
                         PPC2_FP_TST_ISA206 | PPC2_BCTAR_ISA207 |
                         PPC2_LSQ_ISA207 | PPC2_ALTIVEC_207 |
                         PPC2_ISA205 | PPC2_ISA207S;
-    pcc->msr_mask = 0x800000000280FF37ULL;
+    pcc->msr_mask = (1ull << MSR_SF) |
+                    (1ull << MSR_VR) |
+                    (1ull << MSR_VSX) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_SE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR) |
+                    (1ull << MSR_PMM) |
+                    (1ull << MSR_RI) |
+                    (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_2_06;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
