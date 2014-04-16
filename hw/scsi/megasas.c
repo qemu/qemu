@@ -2085,6 +2085,7 @@ static const VMStateDescription vmstate_megasas = {
     .minimum_version_id_old = 0,
     .fields      = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, MegasasState),
+        VMSTATE_MSIX(parent_obj, MegasasState),
 
         VMSTATE_INT32(fw_state, MegasasState),
         VMSTATE_INT32(intr_mask, MegasasState),
@@ -2100,9 +2101,7 @@ static void megasas_scsi_uninit(PCIDevice *d)
 {
     MegasasState *s = MEGASAS(d);
 
-#ifdef USE_MSIX
-    msix_uninit(d, &s->mmio_io);
-#endif
+    msix_uninit(d, &s->mmio_io, &s->mmio_io);
     memory_region_destroy(&s->mmio_io);
     memory_region_destroy(&s->port_io);
     memory_region_destroy(&s->queue_io);
@@ -2141,15 +2140,11 @@ static int megasas_scsi_init(PCIDevice *dev)
     memory_region_init_io(&s->queue_io, OBJECT(s), &megasas_queue_ops, s,
                           "megasas-queue", 0x40000);
 
-#ifdef USE_MSIX
-    /* MSI-X support is currently broken */
     if (megasas_use_msix(s) &&
-        msix_init(dev, 15, &s->mmio_io, 0, 0x2000)) {
+        msix_init(dev, 15, &s->mmio_io, 0, 0x2000,
+                  &s->mmio_io, 0, 0x3800, 0x68)) {
         s->flags &= ~MEGASAS_MASK_USE_MSIX;
     }
-#else
-    s->flags &= ~MEGASAS_MASK_USE_MSIX;
-#endif
 
     bar_type = PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_64;
     pci_register_bar(dev, 0, bar_type, &s->mmio_io);
@@ -2168,7 +2163,7 @@ static int megasas_scsi_init(PCIDevice *dev)
         s->sas_addr |= PCI_FUNC(dev->devfn);
     }
     if (!s->hba_serial) {
-	s->hba_serial = g_strdup(MEGASAS_HBA_SERIAL);
+        s->hba_serial = g_strdup(MEGASAS_HBA_SERIAL);
     }
     if (s->fw_sge >= MEGASAS_MAX_SGE - MFI_PASS_FRAME_SIZE) {
         s->fw_sge = MEGASAS_MAX_SGE - MFI_PASS_FRAME_SIZE;
@@ -2213,10 +2208,8 @@ static Property megasas_properties[] = {
                        MEGASAS_DEFAULT_FRAMES),
     DEFINE_PROP_STRING("hba_serial", MegasasState, hba_serial),
     DEFINE_PROP_UINT64("sas_address", MegasasState, sas_addr, 0),
-#ifdef USE_MSIX
     DEFINE_PROP_BIT("use_msix", MegasasState, flags,
                     MEGASAS_FLAG_USE_MSIX, false),
-#endif
     DEFINE_PROP_BIT("use_jbod", MegasasState, flags,
                     MEGASAS_FLAG_USE_JBOD, false),
     DEFINE_PROP_END_OF_LIST(),
