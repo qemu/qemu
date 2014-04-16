@@ -2463,8 +2463,13 @@ static int scsi_block_initfn(SCSIDevice *dev)
     }
 
     /* check we are using a driver managing SG_IO (version 3 and after) */
-    if (bdrv_ioctl(s->qdev.conf.bs, SG_GET_VERSION_NUM, &sg_version) < 0 ||
-        sg_version < 30000) {
+    rc =  bdrv_ioctl(s->qdev.conf.bs, SG_GET_VERSION_NUM, &sg_version);
+    if (rc < 0) {
+        error_report("scsi-block: can not get version number: %s",
+                     strerror(-rc));
+        return -1;
+    }
+    if (sg_version < 30000) {
         error_report("scsi-block: scsi generic interface too old");
         return -1;
     }
