@@ -716,7 +716,7 @@ static const VMStateDescription vmstate_usb_msd = {
     .name = "usb-storage",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_USB_DEVICE(dev, MSDState),
         VMSTATE_UINT32(mode, MSDState),
         VMSTATE_UINT32(scsi_len, MSDState),
