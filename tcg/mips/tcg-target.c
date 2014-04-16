@@ -701,6 +701,37 @@ static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
     tcg_out_nop(s);
 }
 
+static void tcg_out_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
+                             TCGReg al, TCGReg ah, TCGReg bl, TCGReg bh)
+{
+    TCGReg tmp0 = TCG_TMP0;
+    TCGReg tmp1 = ret;
+
+    assert(ret != TCG_TMP0);
+    if (ret == ah || ret == bh) {
+        assert(ret != TCG_TMP1);
+        tmp1 = TCG_TMP1;
+    }
+
+    switch (cond) {
+    case TCG_COND_EQ:
+    case TCG_COND_NE:
+        tcg_out_setcond(s, cond, tmp0, ah, bh);
+        tcg_out_setcond(s, cond, ret, al, bl);
+        tcg_out_opc_reg(s, (cond == TCG_COND_EQ ? OPC_AND : OPC_OR),
+                        ret, ret, tmp0);
+        break;
+
+    default:
+        tcg_out_setcond(s, TCG_COND_EQ, tmp0, ah, bh);
+        tcg_out_setcond(s, tcg_unsigned_cond(cond), tmp1, al, bl);
+        tcg_out_opc_reg(s, OPC_AND, tmp1, tmp1, tmp0);
+        tcg_out_setcond(s, tcg_high_cond(cond), tmp0, ah, bh);
+        tcg_out_opc_reg(s, OPC_OR, ret, tmp1, tmp0);
+        break;
+    }
+}
+
 /* XXX: we implement it at the target level to avoid having to
    handle cross basic blocks temporaries */
 static void tcg_out_brcond2(TCGContext *s, TCGCond cond, TCGArg arg1,
@@ -827,70 +858,6 @@ static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
         tcg_abort();
         break;
     }
-}
-
-/* XXX: we implement it at the target level to avoid having to
-   handle cross basic blocks temporaries */
-static void tcg_out_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
-                             TCGArg arg1, TCGArg arg2, TCGArg arg3, TCGArg arg4)
-{
-    switch (cond) {
-    case TCG_COND_EQ:
-        tcg_out_setcond(s, TCG_COND_EQ, TCG_TMP0, arg2, arg4);
-        tcg_out_setcond(s, TCG_COND_EQ, TCG_TMP1, arg1, arg3);
-        tcg_out_opc_reg(s, OPC_AND, ret, TCG_TMP0, TCG_TMP1);
-        return;
-    case TCG_COND_NE:
-        tcg_out_setcond(s, TCG_COND_NE, TCG_TMP0, arg2, arg4);
-        tcg_out_setcond(s, TCG_COND_NE, TCG_TMP1, arg1, arg3);
-        tcg_out_opc_reg(s, OPC_OR, ret, TCG_TMP0, TCG_TMP1);
-        return;
-    case TCG_COND_LT:
-    case TCG_COND_LE:
-        tcg_out_setcond(s, TCG_COND_LT, TCG_TMP0, arg2, arg4);
-        break;
-    case TCG_COND_GT:
-    case TCG_COND_GE:
-        tcg_out_setcond(s, TCG_COND_GT, TCG_TMP0, arg2, arg4);
-        break;
-    case TCG_COND_LTU:
-    case TCG_COND_LEU:
-        tcg_out_setcond(s, TCG_COND_LTU, TCG_TMP0, arg2, arg4);
-        break;
-    case TCG_COND_GTU:
-    case TCG_COND_GEU:
-        tcg_out_setcond(s, TCG_COND_GTU, TCG_TMP0, arg2, arg4);
-        break;
-    default:
-        tcg_abort();
-        break;
-    }
-
-    tcg_out_setcond(s, TCG_COND_EQ, TCG_TMP1, arg2, arg4);
-
-    switch(cond) {
-    case TCG_COND_LT:
-    case TCG_COND_LTU:
-        tcg_out_setcond(s, TCG_COND_LTU, ret, arg1, arg3);
-        break;
-    case TCG_COND_LE:
-    case TCG_COND_LEU:
-        tcg_out_setcond(s, TCG_COND_LEU, ret, arg1, arg3);
-        break;
-    case TCG_COND_GT:
-    case TCG_COND_GTU:
-        tcg_out_setcond(s, TCG_COND_GTU, ret, arg1, arg3);
-        break;
-    case TCG_COND_GE:
-    case TCG_COND_GEU:
-        tcg_out_setcond(s, TCG_COND_GEU, ret, arg1, arg3);
-        break;
-    default:
-        tcg_abort();
-    }
-
-    tcg_out_opc_reg(s, OPC_AND, ret, ret, TCG_TMP1);
-    tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_TMP0);
 }
 
 static void tcg_out_call_int(TCGContext *s, tcg_insn_unit *arg, bool tail)
