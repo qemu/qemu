@@ -459,7 +459,6 @@ static const VMStateDescription vmstate_g364fb = {
     .name = "g364fb",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = g364fb_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_VBUFFER_UINT32(vram, G364State, 1, NULL, 0, vram_size),

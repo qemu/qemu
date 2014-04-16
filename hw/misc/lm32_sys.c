@@ -141,8 +141,7 @@ static const VMStateDescription vmstate_lm32_sys = {
     .name = "lm32-sys",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, LM32SysState, R_MAX),
         VMSTATE_BUFFER(testname, LM32SysState),
         VMSTATE_END_OF_LIST()

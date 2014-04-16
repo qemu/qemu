@@ -139,7 +139,7 @@ static const VMStateDescription vmstate_kbd = {
     .name = "pckbd",
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT8(write_cmd, KBDState),
         VMSTATE_UINT8(status, KBDState),
         VMSTATE_UINT8(mode, KBDState),
@@ -257,7 +257,7 @@ const VMStateDescription vmstate_ide_drive_pio_state = {
     .minimum_version_id = 1,
     .pre_save = ide_drive_pio_pre_save,
     .post_load = ide_drive_pio_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_INT32(req_nb_sectors, IDEState),
         VMSTATE_VARRAY_INT32(io_buffer, IDEState, io_buffer_total_len, 1,
                              vmstate_info_uint8, uint8_t),
@@ -275,7 +275,7 @@ const VMStateDescription vmstate_ide_drive = {
     .version_id = 3,
     .minimum_version_id = 0,
     .post_load = ide_drive_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         .... several fields ....
         VMSTATE_END_OF_LIST()
     },

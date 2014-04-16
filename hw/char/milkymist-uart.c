@@ -221,8 +221,7 @@ static const VMStateDescription vmstate_milkymist_uart = {
     .name = "milkymist-uart",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, MilkymistUartState, R_MAX),
         VMSTATE_END_OF_LIST()
     }

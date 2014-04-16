@@ -270,8 +270,7 @@ static const VMStateDescription vmstate_lm32_uart = {
     .name = "lm32-uart",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, LM32UartState, R_MAX),
         VMSTATE_END_OF_LIST()
     }

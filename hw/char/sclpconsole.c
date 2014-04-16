@@ -185,8 +185,7 @@ static const VMStateDescription vmstate_sclpconsole = {
     .name = "sclpconsole",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_BOOL(event.event_pending, SCLPConsole),
         VMSTATE_UINT8_ARRAY(iov, SCLPConsole, SIZE_BUFFER_VT220),
         VMSTATE_UINT32(iov_sclp, SCLPConsole),

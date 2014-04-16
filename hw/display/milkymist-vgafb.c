@@ -305,9 +305,8 @@ static const VMStateDescription vmstate_milkymist_vgafb = {
     .name = "milkymist-vgafb",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = vgafb_post_load,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, MilkymistVgafbState, R_MAX),
         VMSTATE_END_OF_LIST()
     }

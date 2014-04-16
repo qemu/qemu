@@ -129,8 +129,7 @@ static const VMStateDescription vmstate_lm32_juart = {
     .name = "lm32-juart",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(jtx, LM32JuartState),
         VMSTATE_UINT32(jrx, LM32JuartState),
         VMSTATE_END_OF_LIST()

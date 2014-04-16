@@ -492,8 +492,7 @@ static const VMStateDescription vmstate_milkymist_minimac2_mdio = {
     .name = "milkymist-minimac2-mdio",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_INT32(last_clk, MilkymistMinimac2MdioState),
         VMSTATE_INT32(count, MilkymistMinimac2MdioState),
         VMSTATE_UINT32(data, MilkymistMinimac2MdioState),
@@ -509,8 +508,7 @@ static const VMStateDescription vmstate_milkymist_minimac2 = {
     .name = "milkymist-minimac2",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, MilkymistMinimac2State, R_MAX),
         VMSTATE_UINT16_ARRAY(phy_regs, MilkymistMinimac2State, R_PHY_MAX),
         VMSTATE_STRUCT(mdio, MilkymistMinimac2State, 0,

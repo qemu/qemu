@@ -169,8 +169,7 @@ static const VMStateDescription vmstate_lm32_pic = {
     .name = "lm32-pic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(im, LM32PicState),
         VMSTATE_UINT32(ip, LM32PicState),
         VMSTATE_UINT32(irq_state, LM32PicState),
