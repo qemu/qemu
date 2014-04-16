@@ -1391,6 +1391,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
 static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                               const TCGArg *args, const int *const_args)
 {
+    MIPSInsn i1, i2;
     TCGArg a0, a1, a2;
     int c2;
 
@@ -1434,141 +1435,141 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_ld8u_i32:
-        tcg_out_ldst(s, OPC_LBU, a0, a1, a2);
-        break;
+        i1 = OPC_LBU;
+        goto do_ldst;
     case INDEX_op_ld8s_i32:
-        tcg_out_ldst(s, OPC_LB, a0, a1, a2);
-        break;
+        i1 = OPC_LB;
+        goto do_ldst;
     case INDEX_op_ld16u_i32:
-        tcg_out_ldst(s, OPC_LHU, a0, a1, a2);
-        break;
+        i1 = OPC_LHU;
+        goto do_ldst;
     case INDEX_op_ld16s_i32:
-        tcg_out_ldst(s, OPC_LH, a0, a1, a2);
-        break;
+        i1 = OPC_LH;
+        goto do_ldst;
     case INDEX_op_ld_i32:
-        tcg_out_ldst(s, OPC_LW, a0, a1, a2);
-        break;
+        i1 = OPC_LW;
+        goto do_ldst;
     case INDEX_op_st8_i32:
-        tcg_out_ldst(s, OPC_SB, a0, a1, a2);
-        break;
+        i1 = OPC_SB;
+        goto do_ldst;
     case INDEX_op_st16_i32:
-        tcg_out_ldst(s, OPC_SH, a0, a1, a2);
-        break;
+        i1 = OPC_SH;
+        goto do_ldst;
     case INDEX_op_st_i32:
-        tcg_out_ldst(s, OPC_SW, a0, a1, a2);
+        i1 = OPC_SW;
+    do_ldst:
+        tcg_out_ldst(s, i1, a0, a1, a2);
         break;
 
     case INDEX_op_add_i32:
+        i1 = OPC_ADDU, i2 = OPC_ADDIU;
+        goto do_binary;
+    case INDEX_op_or_i32:
+        i1 = OPC_OR, i2 = OPC_ORI;
+        goto do_binary;
+    case INDEX_op_xor_i32:
+        i1 = OPC_XOR, i2 = OPC_XORI;
+    do_binary:
         if (c2) {
-            tcg_out_opc_imm(s, OPC_ADDIU, a0, a1, a2);
-        } else {
-            tcg_out_opc_reg(s, OPC_ADDU, a0, a1, a2);
+            tcg_out_opc_imm(s, i2, a0, a1, a2);
+            break;
         }
+    do_binaryv:
+        tcg_out_opc_reg(s, i1, a0, a1, a2);
         break;
+
     case INDEX_op_sub_i32:
         if (c2) {
             tcg_out_opc_imm(s, OPC_ADDIU, a0, a1, -a2);
-        } else {
-            tcg_out_opc_reg(s, OPC_SUBU, a0, a1, a2);
+            break;
         }
-        break;
+        i1 = OPC_SUBU;
+        goto do_binary;
+    case INDEX_op_and_i32:
+        if (c2 && a2 != (uint16_t)a2) {
+            int msb = ctz32(~a2) - 1;
+            assert(use_mips32r2_instructions);
+            assert(is_p2m1(a2));
+            tcg_out_opc_bf(s, OPC_EXT, a0, a1, msb, 0);
+            break;
+        }
+        i1 = OPC_AND, i2 = OPC_ANDI;
+        goto do_binary;
+    case INDEX_op_nor_i32:
+        i1 = OPC_NOR;
+        goto do_binaryv;
+
     case INDEX_op_mul_i32:
         if (use_mips32_instructions) {
             tcg_out_opc_reg(s, OPC_MUL, a0, a1, a2);
-        } else {
-            tcg_out_opc_reg(s, OPC_MULT, 0, a1, a2);
-            tcg_out_opc_reg(s, OPC_MFLO, a0, 0, 0);
+            break;
         }
-        break;
-    case INDEX_op_muls2_i32:
-        tcg_out_opc_reg(s, OPC_MULT, 0, a2, args[3]);
-        tcg_out_opc_reg(s, OPC_MFLO, a0, 0, 0);
-        tcg_out_opc_reg(s, OPC_MFHI, a1, 0, 0);
-        break;
-    case INDEX_op_mulu2_i32:
-        tcg_out_opc_reg(s, OPC_MULTU, 0, a2, args[3]);
-        tcg_out_opc_reg(s, OPC_MFLO, a0, 0, 0);
-        tcg_out_opc_reg(s, OPC_MFHI, a1, 0, 0);
-        break;
+        i1 = OPC_MULT, i2 = OPC_MFLO;
+        goto do_hilo1;
     case INDEX_op_mulsh_i32:
-        tcg_out_opc_reg(s, OPC_MULT, 0, a1, a2);
-        tcg_out_opc_reg(s, OPC_MFHI, a0, 0, 0);
-        break;
+        i1 = OPC_MULT, i2 = OPC_MFHI;
+        goto do_hilo1;
     case INDEX_op_muluh_i32:
-        tcg_out_opc_reg(s, OPC_MULTU, 0, a1, a2);
-        tcg_out_opc_reg(s, OPC_MFHI, a0, 0, 0);
-        break;
+        i1 = OPC_MULTU, i2 = OPC_MFHI;
+        goto do_hilo1;
     case INDEX_op_div_i32:
-        tcg_out_opc_reg(s, OPC_DIV, 0, a1, a2);
-        tcg_out_opc_reg(s, OPC_MFLO, a0, 0, 0);
-        break;
+        i1 = OPC_DIV, i2 = OPC_MFLO;
+        goto do_hilo1;
     case INDEX_op_divu_i32:
-        tcg_out_opc_reg(s, OPC_DIVU, 0, a1, a2);
-        tcg_out_opc_reg(s, OPC_MFLO, a0, 0, 0);
-        break;
+        i1 = OPC_DIVU, i2 = OPC_MFLO;
+        goto do_hilo1;
     case INDEX_op_rem_i32:
-        tcg_out_opc_reg(s, OPC_DIV, 0, a1, a2);
-        tcg_out_opc_reg(s, OPC_MFHI, a0, 0, 0);
-        break;
+        i1 = OPC_DIV, i2 = OPC_MFHI;
+        goto do_hilo1;
     case INDEX_op_remu_i32:
-        tcg_out_opc_reg(s, OPC_DIVU, 0, a1, a2);
-        tcg_out_opc_reg(s, OPC_MFHI, a0, 0, 0);
+        i1 = OPC_DIVU, i2 = OPC_MFHI;
+    do_hilo1:
+        tcg_out_opc_reg(s, i1, 0, a1, a2);
+        tcg_out_opc_reg(s, i2, a0, 0, 0);
         break;
 
-    case INDEX_op_and_i32:
-        if (c2) {
-            if (a2 == (uint16_t)a2) {
-                tcg_out_opc_imm(s, OPC_ANDI, a0, a1, a2);
-            } else {
-                int msb = ctz32(~a2) - 1;
-                assert(use_mips32r2_instructions);
-                assert(is_p2m1(a2));
-                tcg_out_opc_bf(s, OPC_EXT, a0, a1, msb, 0);
-            }
-        } else {
-            tcg_out_opc_reg(s, OPC_AND, a0, a1, a2);
-        }
+    case INDEX_op_muls2_i32:
+        i1 = OPC_MULT;
+        goto do_hilo2;
+    case INDEX_op_mulu2_i32:
+        i1 = OPC_MULTU;
+    do_hilo2:
+        tcg_out_opc_reg(s, i1, 0, a2, args[3]);
+        tcg_out_opc_reg(s, OPC_MFLO, a0, 0, 0);
+        tcg_out_opc_reg(s, OPC_MFHI, a1, 0, 0);
         break;
-    case INDEX_op_or_i32:
-        if (c2) {
-            tcg_out_opc_imm(s, OPC_ORI, a0, a1, a2);
-        } else {
-            tcg_out_opc_reg(s, OPC_OR, a0, a1, a2);
-        }
-        break;
-    case INDEX_op_nor_i32:
-        tcg_out_opc_reg(s, OPC_NOR, a0, a1, a2);
-        break;
+
     case INDEX_op_not_i32:
-        tcg_out_opc_reg(s, OPC_NOR, a0, TCG_REG_ZERO, a1);
-        break;
-    case INDEX_op_xor_i32:
-        if (c2) {
-            tcg_out_opc_imm(s, OPC_XORI, a0, a1, a2);
-        } else {
-            tcg_out_opc_reg(s, OPC_XOR, a0, a1, a2);
-        }
+        i1 = OPC_NOR;
+        goto do_unary;
+    case INDEX_op_bswap16_i32:
+        i1 = OPC_WSBH;
+        goto do_unary;
+    case INDEX_op_ext8s_i32:
+        i1 = OPC_SEB;
+        goto do_unary;
+    case INDEX_op_ext16s_i32:
+        i1 = OPC_SEH;
+    do_unary:
+        tcg_out_opc_reg(s, i1, a0, TCG_REG_ZERO, a1);
         break;
 
     case INDEX_op_sar_i32:
-        if (c2) {
-            tcg_out_opc_sa(s, OPC_SRA, a0, a1, a2);
-        } else {
-            tcg_out_opc_reg(s, OPC_SRAV, a0, a2, a1);
-        }
-        break;
+        i1 = OPC_SRAV, i2 = OPC_SRA;
+        goto do_shift;
     case INDEX_op_shl_i32:
-        if (c2) {
-            tcg_out_opc_sa(s, OPC_SLL, a0, a1, a2);
-        } else {
-            tcg_out_opc_reg(s, OPC_SLLV, a0, a2, a1);
-        }
-        break;
+        i1 = OPC_SLLV, i2 = OPC_SLL;
+        goto do_shift;
     case INDEX_op_shr_i32:
+        i1 = OPC_SRLV, i2 = OPC_SRL;
+        goto do_shift;
+    case INDEX_op_rotr_i32:
+        i1 = OPC_ROTRV, i2 = OPC_ROTR;
+    do_shift:
         if (c2) {
-            tcg_out_opc_sa(s, OPC_SRL, a0, a1, a2);
+            tcg_out_opc_sa(s, i2, a0, a1, a2);
         } else {
-            tcg_out_opc_reg(s, OPC_SRLV, a0, a2, a1);
+            tcg_out_opc_reg(s, i1, a0, a2, a1);
         }
         break;
     case INDEX_op_rotl_i32:
@@ -1579,27 +1580,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out_opc_reg(s, OPC_ROTRV, a0, TCG_TMP0, a1);
         }
         break;
-    case INDEX_op_rotr_i32:
-        if (c2) {
-            tcg_out_opc_sa(s, OPC_ROTR, a0, a1, a2);
-        } else {
-            tcg_out_opc_reg(s, OPC_ROTRV, a0, a2, a1);
-        }
-        break;
 
-    case INDEX_op_bswap16_i32:
-        tcg_out_opc_reg(s, OPC_WSBH, a0, 0, a1);
-        break;
     case INDEX_op_bswap32_i32:
         tcg_out_opc_reg(s, OPC_WSBH, a0, 0, a1);
         tcg_out_opc_sa(s, OPC_ROTR, a0, a0, 16);
-        break;
-
-    case INDEX_op_ext8s_i32:
-        tcg_out_opc_reg(s, OPC_SEB, a0, 0, a1);
-        break;
-    case INDEX_op_ext16s_i32:
-        tcg_out_opc_reg(s, OPC_SEH, a0, 0, a1);
         break;
 
     case INDEX_op_deposit_i32:
