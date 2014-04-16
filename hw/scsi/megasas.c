@@ -21,6 +21,7 @@
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "sysemu/dma.h"
+#include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "qemu/iov.h"
 #include "hw/scsi/scsi.h"
@@ -43,9 +44,11 @@
 
 #define MEGASAS_FLAG_USE_JBOD      0
 #define MEGASAS_MASK_USE_JBOD      (1 << MEGASAS_FLAG_USE_JBOD)
-#define MEGASAS_FLAG_USE_MSIX      1
+#define MEGASAS_FLAG_USE_MSI       1
+#define MEGASAS_MASK_USE_MSI       (1 << MEGASAS_FLAG_USE_MSI)
+#define MEGASAS_FLAG_USE_MSIX      2
 #define MEGASAS_MASK_USE_MSIX      (1 << MEGASAS_FLAG_USE_MSIX)
-#define MEGASAS_FLAG_USE_QUEUE64   2
+#define MEGASAS_FLAG_USE_QUEUE64   3
 #define MEGASAS_MASK_USE_QUEUE64   (1 << MEGASAS_FLAG_USE_QUEUE64)
 
 static const char *mfi_frame_desc[] = {
@@ -130,6 +133,11 @@ static bool megasas_intr_enabled(MegasasState *s)
 static bool megasas_use_queue64(MegasasState *s)
 {
     return s->flags & MEGASAS_MASK_USE_QUEUE64;
+}
+
+static bool megasas_use_msi(MegasasState *s)
+{
+    return s->flags & MEGASAS_MASK_USE_MSI;
 }
 
 static bool megasas_use_msix(MegasasState *s)
@@ -538,6 +546,9 @@ static void megasas_complete_frame(MegasasState *s, uint64_t context)
             if (msix_enabled(pci_dev)) {
                 trace_megasas_msix_raise(0);
                 msix_notify(pci_dev, 0);
+            } else if (msi_enabled(pci_dev)) {
+                trace_megasas_msi_raise(0);
+                msi_notify(pci_dev, 0);
             } else {
                 trace_megasas_irq_raise();
                 pci_irq_assert(pci_dev);
@@ -1956,12 +1967,20 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
         break;
     case MFI_OMSK:
         s->intr_mask = val;
-        if (!megasas_intr_enabled(s) && !msix_enabled(pci_dev)) {
+        if (!megasas_intr_enabled(s) &&
+            !msi_enabled(pci_dev) &&
+            !msix_enabled(pci_dev)) {
             trace_megasas_irq_lower();
             pci_irq_deassert(pci_dev);
         }
         if (megasas_intr_enabled(s)) {
-            trace_megasas_intr_enabled();
+            if (msix_enabled(pci_dev)) {
+                trace_megasas_msix_enabled(0);
+            } else if (msi_enabled(pci_dev)) {
+                trace_megasas_msi_enabled(0);
+            } else {
+                trace_megasas_intr_enabled();
+            }
         } else {
             trace_megasas_intr_disabled();
         }
@@ -2101,7 +2120,12 @@ static void megasas_scsi_uninit(PCIDevice *d)
 {
     MegasasState *s = MEGASAS(d);
 
-    msix_uninit(d, &s->mmio_io, &s->mmio_io);
+    if (megasas_use_msix(s)) {
+        msix_uninit(d, &s->mmio_io, &s->mmio_io);
+    }
+    if (megasas_use_msi(s)) {
+        msi_uninit(d);
+    }
     memory_region_destroy(&s->mmio_io);
     memory_region_destroy(&s->port_io);
     memory_region_destroy(&s->queue_io);
@@ -2140,6 +2164,10 @@ static int megasas_scsi_init(PCIDevice *dev)
     memory_region_init_io(&s->queue_io, OBJECT(s), &megasas_queue_ops, s,
                           "megasas-queue", 0x40000);
 
+    if (megasas_use_msi(s) &&
+        msi_init(dev, 0x50, 1, true, false)) {
+        s->flags &= ~MEGASAS_MASK_USE_MSI;
+    }
     if (megasas_use_msix(s) &&
         msix_init(dev, 15, &s->mmio_io, 0, 0x2000,
                   &s->mmio_io, 0, 0x3800, 0x68)) {
@@ -2176,7 +2204,6 @@ static int megasas_scsi_init(PCIDevice *dev)
         s->fw_cmds = MEGASAS_MAX_FRAMES;
     }
     trace_megasas_init(s->fw_sge, s->fw_cmds,
-                       megasas_use_msix(s) ? "MSI-X" : "INTx",
                        megasas_is_jbod(s) ? "jbod" : "raid");
     s->fw_luns = (MFI_MAX_LD > MAX_SCSI_DEVS) ?
         MAX_SCSI_DEVS : MFI_MAX_LD;
@@ -2201,6 +2228,13 @@ static int megasas_scsi_init(PCIDevice *dev)
     return 0;
 }
 
+static void
+megasas_write_config(PCIDevice *pci, uint32_t addr, uint32_t val, int len)
+{
+    pci_default_write_config(pci, addr, val, len);
+    msi_write_config(pci, addr, val, len);
+}
+
 static Property megasas_properties[] = {
     DEFINE_PROP_UINT32("max_sge", MegasasState, fw_sge,
                        MEGASAS_DEFAULT_SGE),
@@ -2208,6 +2242,8 @@ static Property megasas_properties[] = {
                        MEGASAS_DEFAULT_FRAMES),
     DEFINE_PROP_STRING("hba_serial", MegasasState, hba_serial),
     DEFINE_PROP_UINT64("sas_address", MegasasState, sas_addr, 0),
+    DEFINE_PROP_BIT("use_msi", MegasasState, flags,
+                    MEGASAS_FLAG_USE_MSI, false),
     DEFINE_PROP_BIT("use_msix", MegasasState, flags,
                     MEGASAS_FLAG_USE_MSIX, false),
     DEFINE_PROP_BIT("use_jbod", MegasasState, flags,
@@ -2232,6 +2268,7 @@ static void megasas_class_init(ObjectClass *oc, void *data)
     dc->vmsd = &vmstate_megasas;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->desc = "LSI MegaRAID SAS 1078";
+    pc->config_write = megasas_write_config;
 }
 
 static const TypeInfo megasas_info = {
