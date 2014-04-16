@@ -1106,6 +1106,21 @@ static int megasas_dcmd_ld_get_list(MegasasState *s, MegasasCmd *cmd)
     return MFI_STAT_OK;
 }
 
+static int megasas_dcmd_ld_list_query(MegasasState *s, MegasasCmd *cmd)
+{
+    uint16_t flags;
+
+    /* mbox0 contains flags */
+    flags = le16_to_cpu(cmd->frame->dcmd.mbox[0]);
+    trace_megasas_dcmd_ld_list_query(cmd->index, flags);
+    if (flags == MR_LD_QUERY_TYPE_ALL ||
+        flags == MR_LD_QUERY_TYPE_EXPOSED_TO_HOST) {
+        return megasas_dcmd_ld_get_list(s, cmd);
+    }
+
+    return MFI_STAT_OK;
+}
+
 static int megasas_ld_get_info_submit(SCSIDevice *sdev, int lun,
                                       MegasasCmd *cmd)
 {
@@ -1409,6 +1424,8 @@ static const struct dcmd_cmd_tbl_t {
       megasas_dcmd_dummy },
     { MFI_DCMD_LD_GET_LIST, "LD_GET_LIST",
       megasas_dcmd_ld_get_list},
+    { MFI_DCMD_LD_LIST_QUERY, "LD_LIST_QUERY",
+      megasas_dcmd_ld_list_query },
     { MFI_DCMD_LD_GET_INFO, "LD_GET_INFO",
       megasas_dcmd_ld_get_info },
     { MFI_DCMD_LD_GET_PROP, "LD_GET_PROP",
