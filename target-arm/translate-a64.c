@@ -7455,7 +7455,7 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
         }
         break;
     case 0x12: /* SQXTUN */
-        if (u) {
+        if (!u) {
             unallocated_encoding(s);
             return;
         }
