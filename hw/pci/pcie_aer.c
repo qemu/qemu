@@ -784,8 +784,7 @@ static const VMStateDescription vmstate_pcie_aer_err = {
     .name = "PCIE_AER_ERROR",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields     = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(status, PCIEAERErr),
         VMSTATE_UINT16(source_id, PCIEAERErr),
         VMSTATE_UINT16(flags, PCIEAERErr),
@@ -806,8 +805,7 @@ const VMStateDescription vmstate_pcie_aer_log = {
     .name = "PCIE_AER_ERROR_LOG",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields     = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT16(log_num, PCIEAERLog),
         VMSTATE_UINT16_EQUAL(log_max, PCIEAERLog),
         VMSTATE_VALIDATE("log_num <= log_max", pcie_aer_state_log_num_valid),

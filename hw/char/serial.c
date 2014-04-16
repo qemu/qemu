@@ -602,7 +602,7 @@ const VMStateDescription vmstate_serial = {
     .minimum_version_id = 2,
     .pre_save = serial_pre_save,
     .post_load = serial_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT16_V(divider, SerialState, 2),
         VMSTATE_UINT8(rbr, SerialState),
         VMSTATE_UINT8(ier, SerialState),

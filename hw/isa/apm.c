@@ -72,7 +72,6 @@ const VMStateDescription vmstate_apm = {
     .name = "APM State",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(apmc, APMState),
         VMSTATE_UINT8(apms, APMState),

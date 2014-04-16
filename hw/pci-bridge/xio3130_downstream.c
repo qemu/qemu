@@ -151,7 +151,6 @@ static const VMStateDescription vmstate_xio3130_downstream = {
     .name = "xio3130-express-downstream-port",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = pcie_cap_slot_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_PCIE_DEVICE(parent_obj.parent_obj.parent_obj, PCIESlot),

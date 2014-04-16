@@ -230,9 +230,8 @@ static const VMStateDescription vmstate_acpi = {
     .name = "vt82c686b_pm",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = vmstate_acpi_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, VT686PMState),
         VMSTATE_UINT16(ar.pm1.evt.sts, VT686PMState),
         VMSTATE_UINT16(ar.pm1.evt.en, VT686PMState),
@@ -418,8 +417,7 @@ static const VMStateDescription vmstate_via = {
     .name = "vt82c686b",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, VT82C686BState),
         VMSTATE_END_OF_LIST()
     }

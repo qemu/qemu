@@ -616,7 +616,6 @@ static const VMStateDescription vmstate_ich9_lpc = {
     .name = "ICH9LPC",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = ich9_lpc_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(d, ICH9LPCState),

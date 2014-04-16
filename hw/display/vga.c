@@ -2214,9 +2214,8 @@ const VMStateDescription vmstate_vga_common = {
     .name = "vga",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
     .post_load = vga_common_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(latch, VGACommonState),
         VMSTATE_UINT8(sr_index, VGACommonState),
         VMSTATE_PARTIAL_BUFFER(sr, VGACommonState, 8),
