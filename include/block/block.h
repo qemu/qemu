@@ -429,7 +429,8 @@ bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov);
 
 struct HBitmapIter;
 typedef struct BdrvDirtyBitmap BdrvDirtyBitmap;
-BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs, int granularity);
+BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs, int granularity,
+                                          Error **errp);
 void bdrv_release_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap);
 BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs);
 int bdrv_get_dirty(BlockDriverState *bs, BdrvDirtyBitmap *bitmap, int64_t sector);
