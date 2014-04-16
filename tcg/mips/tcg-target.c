@@ -701,6 +701,40 @@ static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
     tcg_out_nop(s);
 }
 
+static TCGReg tcg_out_reduce_eq2(TCGContext *s, TCGReg tmp0, TCGReg tmp1,
+                                 TCGReg al, TCGReg ah,
+                                 TCGReg bl, TCGReg bh)
+{
+    /* Merge highpart comparison into AH.  */
+    if (bh != 0) {
+        if (ah != 0) {
+            tcg_out_opc_reg(s, OPC_XOR, tmp0, ah, bh);
+            ah = tmp0;
+        } else {
+            ah = bh;
+        }
+    }
+    /* Merge lowpart comparison into AL.  */
+    if (bl != 0) {
+        if (al != 0) {
+            tcg_out_opc_reg(s, OPC_XOR, tmp1, al, bl);
+            al = tmp1;
+        } else {
+            al = bl;
+        }
+    }
+    /* Merge high and low part comparisons into AL.  */
+    if (ah != 0) {
+        if (al != 0) {
+            tcg_out_opc_reg(s, OPC_OR, tmp0, ah, al);
+            al = tmp0;
+        } else {
+            al = ah;
+        }
+    }
+    return al;
+}
+
 static void tcg_out_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
                              TCGReg al, TCGReg ah, TCGReg bl, TCGReg bh)
 {
@@ -716,10 +750,8 @@ static void tcg_out_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
     switch (cond) {
     case TCG_COND_EQ:
     case TCG_COND_NE:
-        tcg_out_setcond(s, cond, tmp0, ah, bh);
-        tcg_out_setcond(s, cond, ret, al, bl);
-        tcg_out_opc_reg(s, (cond == TCG_COND_EQ ? OPC_AND : OPC_OR),
-                        ret, ret, tmp0);
+        tmp1 = tcg_out_reduce_eq2(s, tmp0, tmp1, al, ah, bl, bh);
+        tcg_out_setcond(s, cond, ret, tmp1, TCG_REG_ZERO);
         break;
 
     default:
