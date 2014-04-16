@@ -473,7 +473,7 @@ ssize_t qemu_deliver_packet(NetClientState *sender,
 
     if (ret == 0) {
         nc->receive_disabled = 1;
-    };
+    }
 
     return ret;
 }
