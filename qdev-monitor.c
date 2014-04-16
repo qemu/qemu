@@ -206,7 +206,7 @@ int qdev_device_help(QemuOpts *opts)
         }
     }
 
-    if (!klass) {
+    if (!object_class_dynamic_cast(klass, TYPE_DEVICE)) {
         return 0;
     }
     do {
