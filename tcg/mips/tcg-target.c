@@ -794,65 +794,33 @@ static void tcg_out_brcond2(TCGContext *s, TCGCond cond, TCGReg al, TCGReg ah,
 }
 
 static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
-                            TCGArg c1, TCGArg c2, TCGArg v)
+                            TCGReg c1, TCGReg c2, TCGReg v)
 {
+    MIPSInsn m_opc = OPC_MOVN;
+
     switch (cond) {
     case TCG_COND_EQ:
-        if (c1 == 0) {
-            tcg_out_opc_reg(s, OPC_MOVZ, ret, v, c2);
-        } else if (c2 == 0) {
-            tcg_out_opc_reg(s, OPC_MOVZ, ret, v, c1);
-        } else {
-            tcg_out_opc_reg(s, OPC_XOR, TCG_TMP0, c1, c2);
-            tcg_out_opc_reg(s, OPC_MOVZ, ret, v, TCG_TMP0);
-        }
-        break;
+        m_opc = OPC_MOVZ;
+        /* FALLTHRU */
     case TCG_COND_NE:
-        if (c1 == 0) {
-            tcg_out_opc_reg(s, OPC_MOVN, ret, v, c2);
-        } else if (c2 == 0) {
-            tcg_out_opc_reg(s, OPC_MOVN, ret, v, c1);
-        } else {
+        if (c2 != 0) {
             tcg_out_opc_reg(s, OPC_XOR, TCG_TMP0, c1, c2);
-            tcg_out_opc_reg(s, OPC_MOVN, ret, v, TCG_TMP0);
+            c1 = TCG_TMP0;
         }
         break;
-    case TCG_COND_LT:
-        tcg_out_opc_reg(s, OPC_SLT, TCG_TMP0, c1, c2);
-        tcg_out_opc_reg(s, OPC_MOVN, ret, v, TCG_TMP0);
-        break;
-    case TCG_COND_LTU:
-        tcg_out_opc_reg(s, OPC_SLTU, TCG_TMP0, c1, c2);
-        tcg_out_opc_reg(s, OPC_MOVN, ret, v, TCG_TMP0);
-        break;
-    case TCG_COND_GE:
-        tcg_out_opc_reg(s, OPC_SLT, TCG_TMP0, c1, c2);
-        tcg_out_opc_reg(s, OPC_MOVZ, ret, v, TCG_TMP0);
-        break;
-    case TCG_COND_GEU:
-        tcg_out_opc_reg(s, OPC_SLTU, TCG_TMP0, c1, c2);
-        tcg_out_opc_reg(s, OPC_MOVZ, ret, v, TCG_TMP0);
-        break;
-    case TCG_COND_LE:
-        tcg_out_opc_reg(s, OPC_SLT, TCG_TMP0, c2, c1);
-        tcg_out_opc_reg(s, OPC_MOVZ, ret, v, TCG_TMP0);
-        break;
-    case TCG_COND_LEU:
-        tcg_out_opc_reg(s, OPC_SLTU, TCG_TMP0, c2, c1);
-        tcg_out_opc_reg(s, OPC_MOVZ, ret, v, TCG_TMP0);
-        break;
-    case TCG_COND_GT:
-        tcg_out_opc_reg(s, OPC_SLT, TCG_TMP0, c2, c1);
-        tcg_out_opc_reg(s, OPC_MOVN, ret, v, TCG_TMP0);
-        break;
-    case TCG_COND_GTU:
-        tcg_out_opc_reg(s, OPC_SLTU, TCG_TMP0, c2, c1);
-        tcg_out_opc_reg(s, OPC_MOVN, ret, v, TCG_TMP0);
-        break;
+
     default:
-        tcg_abort();
+        /* Minimize code size by prefering a compare not requiring INV.  */
+        if (mips_cmp_map[cond] & MIPS_CMP_INV) {
+            cond = tcg_invert_cond(cond);
+            m_opc = OPC_MOVZ;
+        }
+        tcg_out_setcond(s, cond, TCG_TMP0, c1, c2);
+        c1 = TCG_TMP0;
         break;
     }
+
+    tcg_out_opc_reg(s, m_opc, ret, v, c1);
 }
 
 static void tcg_out_call_int(TCGContext *s, tcg_insn_unit *arg, bool tail)
