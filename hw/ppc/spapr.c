@@ -819,8 +819,7 @@ static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(next_irq, sPAPREnvironment),
 
         /* RTC offset */

@@ -278,8 +278,7 @@ static const VMStateDescription vmstate_pci_outbound = {
     .name = "pci_outbound",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(potar, struct pci_outbound),
         VMSTATE_UINT32(potear, struct pci_outbound),
         VMSTATE_UINT32(powbar, struct pci_outbound),
@@ -292,8 +291,7 @@ static const VMStateDescription vmstate_pci_inbound = {
     .name = "pci_inbound",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(pitar, struct pci_inbound),
         VMSTATE_UINT32(piwbar, struct pci_inbound),
         VMSTATE_UINT32(piwbear, struct pci_inbound),
@@ -306,8 +304,7 @@ static const VMStateDescription vmstate_ppce500_pci = {
     .name = "ppce500_pci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(pob, PPCE500PCIState, PPCE500_PCI_NR_POBS, 1,
                              vmstate_pci_outbound, struct pci_outbound),
         VMSTATE_STRUCT_ARRAY(pib, PPCE500PCIState, PPCE500_PCI_NR_PIBS, 1,
