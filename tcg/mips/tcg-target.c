@@ -156,9 +156,10 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
 }
 
 #define TCG_CT_CONST_ZERO 0x100
-#define TCG_CT_CONST_U16  0x200
-#define TCG_CT_CONST_S16  0x400
-#define TCG_CT_CONST_P2M1 0x800
+#define TCG_CT_CONST_U16  0x200    /* Unsigned 16-bit: 0 - 0xffff.  */
+#define TCG_CT_CONST_S16  0x400    /* Signed 16-bit: -32768 - 32767 */
+#define TCG_CT_CONST_P2M1 0x800    /* Power of 2 minus 1.  */
+#define TCG_CT_CONST_N16  0x1000   /* "Negatable" 16-bit: -32767 - 32767 */
 
 static inline bool is_p2m1(tcg_target_long val)
 {
@@ -213,6 +214,9 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     case 'K':
         ct->ct |= TCG_CT_CONST_P2M1;
         break;
+    case 'N':
+        ct->ct |= TCG_CT_CONST_N16;
+        break;
     case 'Z':
         /* We are cheating a bit here, using the fact that the register
            ZERO is also the register number 0. Hence there is no need
@@ -240,6 +244,8 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type,
     } else if ((ct & TCG_CT_CONST_U16) && val == (uint16_t)val) {
         return 1;
     } else if ((ct & TCG_CT_CONST_S16) && val == (int16_t)val) {
+        return 1;
+    } else if ((ct & TCG_CT_CONST_N16) && val >= -32767 && val <= 32767) {
         return 1;
     } else if ((ct & TCG_CT_CONST_P2M1)
                && use_mips32r2_instructions && is_p2m1(val)) {
@@ -1642,7 +1648,7 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_divu_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_rem_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_remu_i32, { "r", "rZ", "rZ" } },
-    { INDEX_op_sub_i32, { "r", "rZ", "rJ" } },
+    { INDEX_op_sub_i32, { "r", "rZ", "rN" } },
 
     { INDEX_op_and_i32, { "r", "rZ", "rIK" } },
     { INDEX_op_nor_i32, { "r", "rZ", "rZ" } },
@@ -1670,7 +1676,7 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_setcond2_i32, { "r", "rZ", "rZ", "rZ", "rZ" } },
 
     { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rJ", "rJ" } },
-    { INDEX_op_sub2_i32, { "r", "r", "rZ", "rZ", "rJ", "rJ" } },
+    { INDEX_op_sub2_i32, { "r", "r", "rZ", "rZ", "rN", "rN" } },
     { INDEX_op_brcond2_i32, { "rZ", "rZ", "rZ", "rZ" } },
 
 #if TARGET_LONG_BITS == 32
