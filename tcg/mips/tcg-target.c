@@ -567,6 +567,73 @@ static inline void tcg_out_addi(TCGContext *s, TCGReg reg, TCGArg val)
     }
 }
 
+/* Bit 0 set if inversion required; bit 1 set if swapping required.  */
+#define MIPS_CMP_INV  1
+#define MIPS_CMP_SWAP 2
+
+static const uint8_t mips_cmp_map[16] = {
+    [TCG_COND_LT]  = 0,
+    [TCG_COND_LTU] = 0,
+    [TCG_COND_GE]  = MIPS_CMP_INV,
+    [TCG_COND_GEU] = MIPS_CMP_INV,
+    [TCG_COND_LE]  = MIPS_CMP_INV | MIPS_CMP_SWAP,
+    [TCG_COND_LEU] = MIPS_CMP_INV | MIPS_CMP_SWAP,
+    [TCG_COND_GT]  = MIPS_CMP_SWAP,
+    [TCG_COND_GTU] = MIPS_CMP_SWAP,
+};
+
+static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGReg ret,
+                            TCGReg arg1, TCGReg arg2)
+{
+    MIPSInsn s_opc = OPC_SLTU;
+    int cmp_map;
+
+    switch (cond) {
+    case TCG_COND_EQ:
+        if (arg2 != 0) {
+            tcg_out_opc_reg(s, OPC_XOR, ret, arg1, arg2);
+            arg1 = ret;
+        }
+        tcg_out_opc_imm(s, OPC_SLTIU, ret, arg1, 1);
+        break;
+
+    case TCG_COND_NE:
+        if (arg2 != 0) {
+            tcg_out_opc_reg(s, OPC_XOR, ret, arg1, arg2);
+            arg1 = ret;
+        }
+        tcg_out_opc_reg(s, OPC_SLTU, ret, TCG_REG_ZERO, arg1);
+        break;
+
+    case TCG_COND_LT:
+    case TCG_COND_GE:
+    case TCG_COND_LE:
+    case TCG_COND_GT:
+        s_opc = OPC_SLT;
+        /* FALLTHRU */
+
+    case TCG_COND_LTU:
+    case TCG_COND_GEU:
+    case TCG_COND_LEU:
+    case TCG_COND_GTU:
+        cmp_map = mips_cmp_map[cond];
+        if (cmp_map & MIPS_CMP_SWAP) {
+            TCGReg t = arg1;
+            arg1 = arg2;
+            arg2 = t;
+        }
+        tcg_out_opc_reg(s, s_opc, ret, arg1, arg2);
+        if (cmp_map & MIPS_CMP_INV) {
+            tcg_out_opc_imm(s, OPC_XORI, ret, ret, 1);
+        }
+        break;
+
+     default:
+         tcg_abort();
+         break;
+     }
+}
+
 static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGArg arg1,
                            TCGArg arg2, int label_index)
 {
@@ -760,64 +827,6 @@ static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
     case TCG_COND_GTU:
         tcg_out_opc_reg(s, OPC_SLTU, TCG_TMP0, c2, c1);
         tcg_out_opc_reg(s, OPC_MOVN, ret, v, TCG_TMP0);
-        break;
-    default:
-        tcg_abort();
-        break;
-    }
-}
-
-static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGReg ret,
-                            TCGArg arg1, TCGArg arg2)
-{
-    switch (cond) {
-    case TCG_COND_EQ:
-        if (arg1 == 0) {
-            tcg_out_opc_imm(s, OPC_SLTIU, ret, arg2, 1);
-        } else if (arg2 == 0) {
-            tcg_out_opc_imm(s, OPC_SLTIU, ret, arg1, 1);
-        } else {
-            tcg_out_opc_reg(s, OPC_XOR, ret, arg1, arg2);
-            tcg_out_opc_imm(s, OPC_SLTIU, ret, ret, 1);
-        }
-        break;
-    case TCG_COND_NE:
-        if (arg1 == 0) {
-            tcg_out_opc_reg(s, OPC_SLTU, ret, TCG_REG_ZERO, arg2);
-        } else if (arg2 == 0) {
-            tcg_out_opc_reg(s, OPC_SLTU, ret, TCG_REG_ZERO, arg1);
-        } else {
-            tcg_out_opc_reg(s, OPC_XOR, ret, arg1, arg2);
-            tcg_out_opc_reg(s, OPC_SLTU, ret, TCG_REG_ZERO, ret);
-        }
-        break;
-    case TCG_COND_LT:
-        tcg_out_opc_reg(s, OPC_SLT, ret, arg1, arg2);
-        break;
-    case TCG_COND_LTU:
-        tcg_out_opc_reg(s, OPC_SLTU, ret, arg1, arg2);
-        break;
-    case TCG_COND_GE:
-        tcg_out_opc_reg(s, OPC_SLT, ret, arg1, arg2);
-        tcg_out_opc_imm(s, OPC_XORI, ret, ret, 1);
-        break;
-    case TCG_COND_GEU:
-        tcg_out_opc_reg(s, OPC_SLTU, ret, arg1, arg2);
-        tcg_out_opc_imm(s, OPC_XORI, ret, ret, 1);
-        break;
-    case TCG_COND_LE:
-        tcg_out_opc_reg(s, OPC_SLT, ret, arg2, arg1);
-        tcg_out_opc_imm(s, OPC_XORI, ret, ret, 1);
-        break;
-    case TCG_COND_LEU:
-        tcg_out_opc_reg(s, OPC_SLTU, ret, arg2, arg1);
-        tcg_out_opc_imm(s, OPC_XORI, ret, ret, 1);
-        break;
-    case TCG_COND_GT:
-        tcg_out_opc_reg(s, OPC_SLT, ret, arg2, arg1);
-        break;
-    case TCG_COND_GTU:
-        tcg_out_opc_reg(s, OPC_SLTU, ret, arg2, arg1);
         break;
     default:
         tcg_abort();
