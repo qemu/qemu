@@ -764,70 +764,33 @@ static void tcg_out_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
     }
 }
 
-/* XXX: we implement it at the target level to avoid having to
-   handle cross basic blocks temporaries */
-static void tcg_out_brcond2(TCGContext *s, TCGCond cond, TCGArg arg1,
-                            TCGArg arg2, TCGArg arg3, TCGArg arg4,
-                            int label_index)
+static void tcg_out_brcond2(TCGContext *s, TCGCond cond, TCGReg al, TCGReg ah,
+                            TCGReg bl, TCGReg bh, int label_index)
 {
-    tcg_insn_unit *label_ptr;
+    TCGCond b_cond = TCG_COND_NE;
+    TCGReg tmp = TCG_TMP1;
 
-    switch(cond) {
-    case TCG_COND_NE:
-        tcg_out_brcond(s, TCG_COND_NE, arg2, arg4, label_index);
-        tcg_out_brcond(s, TCG_COND_NE, arg1, arg3, label_index);
-        return;
-    case TCG_COND_EQ:
+    /* With branches, we emit between 4 and 9 insns with 2 or 3 branches.
+       With setcond, we emit between 3 and 10 insns and only 1 branch,
+       which ought to get better branch prediction.  */
+     switch (cond) {
+     case TCG_COND_EQ:
+     case TCG_COND_NE:
+        b_cond = cond;
+        tmp = tcg_out_reduce_eq2(s, TCG_TMP0, TCG_TMP1, al, ah, bl, bh);
         break;
-    case TCG_COND_LT:
-    case TCG_COND_LE:
-        tcg_out_brcond(s, TCG_COND_LT, arg2, arg4, label_index);
-        break;
-    case TCG_COND_GT:
-    case TCG_COND_GE:
-        tcg_out_brcond(s, TCG_COND_GT, arg2, arg4, label_index);
-        break;
-    case TCG_COND_LTU:
-    case TCG_COND_LEU:
-        tcg_out_brcond(s, TCG_COND_LTU, arg2, arg4, label_index);
-        break;
-    case TCG_COND_GTU:
-    case TCG_COND_GEU:
-        tcg_out_brcond(s, TCG_COND_GTU, arg2, arg4, label_index);
-        break;
+
     default:
-        tcg_abort();
+        /* Minimize code size by prefering a compare not requiring INV.  */
+        if (mips_cmp_map[cond] & MIPS_CMP_INV) {
+            cond = tcg_invert_cond(cond);
+            b_cond = TCG_COND_EQ;
+        }
+        tcg_out_setcond2(s, cond, tmp, al, ah, bl, bh);
+        break;
     }
 
-    label_ptr = s->code_ptr;
-    tcg_out_opc_br(s, OPC_BNE, arg2, arg4);
-    tcg_out_nop(s);
-
-    switch(cond) {
-    case TCG_COND_EQ:
-        tcg_out_brcond(s, TCG_COND_EQ, arg1, arg3, label_index);
-        break;
-    case TCG_COND_LT:
-    case TCG_COND_LTU:
-        tcg_out_brcond(s, TCG_COND_LTU, arg1, arg3, label_index);
-        break;
-    case TCG_COND_LE:
-    case TCG_COND_LEU:
-        tcg_out_brcond(s, TCG_COND_LEU, arg1, arg3, label_index);
-        break;
-    case TCG_COND_GT:
-    case TCG_COND_GTU:
-        tcg_out_brcond(s, TCG_COND_GTU, arg1, arg3, label_index);
-        break;
-    case TCG_COND_GE:
-    case TCG_COND_GEU:
-        tcg_out_brcond(s, TCG_COND_GEU, arg1, arg3, label_index);
-        break;
-    default:
-        tcg_abort();
-    }
-
-    reloc_pc16(label_ptr, s->code_ptr);
+    tcg_out_brcond(s, b_cond, tmp, TCG_REG_ZERO, label_index);
 }
 
 static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
