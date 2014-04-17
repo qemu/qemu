@@ -89,8 +89,8 @@ static int socket_accept(int sock)
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (void *)&timeout,
                sizeof(timeout));
 
-    addrlen = sizeof(addr);
     do {
+        addrlen = sizeof(addr);
         ret = accept(sock, (struct sockaddr *)&addr, &addrlen);
     } while (ret == -1 && errno == EINTR);
     if (ret == -1) {
