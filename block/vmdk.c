@@ -262,7 +262,7 @@ static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
     p_name = strstr(desc, cid_str);
     if (p_name != NULL) {
         p_name += cid_str_size;
-        sscanf(p_name, "%x", &cid);
+        sscanf(p_name, "%" SCNx32, &cid);
     }
 
     return cid;
@@ -290,7 +290,7 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
     p_name = strstr(desc, "CID");
     if (p_name != NULL) {
         p_name += sizeof("CID");
-        snprintf(p_name, sizeof(desc) - (p_name - desc), "%x\n", cid);
+        snprintf(p_name, sizeof(desc) - (p_name - desc), "%" PRIx32 "\n", cid);
         pstrcat(desc, sizeof(desc), tmp_desc);
     }
 
@@ -1708,8 +1708,8 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
     const char desc_template[] =
         "# Disk DescriptorFile\n"
         "version=1\n"
-        "CID=%x\n"
-        "parentCID=%x\n"
+        "CID=%" PRIx32 "\n"
+        "parentCID=%" PRIx32 "\n"
         "createType=\"%s\"\n"
         "%s"
         "\n"
@@ -1851,7 +1851,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
     }
     /* generate descriptor file */
     desc = g_strdup_printf(desc_template,
-                           (unsigned int)time(NULL),
+                           (uint32_t)time(NULL),
                            parent_cid,
                            fmt,
                            parent_desc_line,
