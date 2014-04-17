@@ -26,3 +26,4 @@ obj-$(CONFIG_XICS) += xics.o
 obj-$(CONFIG_XICS_KVM) += xics_kvm.o
 obj-$(CONFIG_ALLWINNER_A10_PIC) += allwinner-a10-pic.o
 obj-$(CONFIG_S390_FLIC) += s390_flic.o
+obj-$(CONFIG_S390_FLIC_KVM) += s390_flic_kvm.o
