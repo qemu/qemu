@@ -1242,25 +1242,40 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
         target_cmsg->cmsg_type = tswap32(cmsg->cmsg_type);
         target_cmsg->cmsg_len = tswapal(TARGET_CMSG_LEN(len));
 
-        if ((cmsg->cmsg_level == SOL_SOCKET) &&
-                                (cmsg->cmsg_type == SCM_RIGHTS)) {
-            int *fd = (int *)data;
-            int *target_fd = (int *)target_data;
-            int i, numfds = len / sizeof(int);
+        switch (cmsg->cmsg_level) {
+        case SOL_SOCKET:
+            switch (cmsg->cmsg_type) {
+            case SCM_RIGHTS:
+            {
+                int *fd = (int *)data;
+                int *target_fd = (int *)target_data;
+                int i, numfds = len / sizeof(int);
 
-            for (i = 0; i < numfds; i++)
-                target_fd[i] = tswap32(fd[i]);
-        } else if ((cmsg->cmsg_level == SOL_SOCKET) &&
-                                (cmsg->cmsg_type == SO_TIMESTAMP) &&
-                                (len == sizeof(struct timeval))) {
-            /* copy struct timeval to target */
-            struct timeval *tv = (struct timeval *)data;
-            struct target_timeval *target_tv =
-                                        (struct target_timeval *)target_data;
+                for (i = 0; i < numfds; i++)
+                    target_fd[i] = tswap32(fd[i]);
+                break;
+            }
+            case SO_TIMESTAMP:
+            {
+                struct timeval *tv = (struct timeval *)data;
+                struct target_timeval *target_tv =
+                    (struct target_timeval *)target_data;
 
-            target_tv->tv_sec = tswapal(tv->tv_sec);
-            target_tv->tv_usec = tswapal(tv->tv_usec);
-        } else {
+                if (len != sizeof(struct timeval))
+                    goto unimplemented;
+
+                /* copy struct timeval to target */
+                target_tv->tv_sec = tswapal(tv->tv_sec);
+                target_tv->tv_usec = tswapal(tv->tv_usec);
+                break;
+            }
+            default:
+                goto unimplemented;
+            }
+            break;
+
+        default:
+        unimplemented:
             gemu_log("Unsupported ancillary data: %d/%d\n",
                                         cmsg->cmsg_level, cmsg->cmsg_type);
             memcpy(target_data, data, len);
