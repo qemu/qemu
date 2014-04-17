@@ -1000,10 +1000,13 @@ ETEXI
 
     {
         .name       = "dump-guest-memory",
-        .args_type  = "paging:-p,filename:F,begin:i?,length:i?",
-        .params     = "[-p] filename [begin length]",
+        .args_type  = "paging:-p,zlib:-z,lzo:-l,snappy:-s,filename:F,begin:i?,length:i?",
+        .params     = "[-p] [-z|-l|-s] filename [begin length]",
         .help       = "dump guest memory into file 'filename'.\n\t\t\t"
                       "-p: do paging to get guest's memory mapping.\n\t\t\t"
+                      "-z: dump in kdump-compressed format, with zlib compression.\n\t\t\t"
+                      "-l: dump in kdump-compressed format, with lzo compression.\n\t\t\t"
+                      "-s: dump in kdump-compressed format, with snappy compression.\n\t\t\t"
                       "begin: the starting physical address.\n\t\t\t"
                       "length: the memory size, in bytes.",
         .mhandler.cmd = hmp_dump_guest_memory,
@@ -1012,10 +1015,14 @@ ETEXI
 
 STEXI
 @item dump-guest-memory [-p] @var{filename} @var{begin} @var{length}
+@item dump-guest-memory [-z|-l|-s] @var{filename}
 @findex dump-guest-memory
 Dump guest memory to @var{protocol}. The file can be processed with crash or
-gdb.
+gdb. Without -z|-l|-s, the dump format is ELF.
         -p: do paging to get guest's memory mapping.
+        -z: dump in kdump-compressed format, with zlib compression.
+        -l: dump in kdump-compressed format, with lzo compression.
+        -s: dump in kdump-compressed format, with snappy compression.
   filename: dump file name.
      begin: the starting physical address. It's optional, and should be
             specified together with length.
