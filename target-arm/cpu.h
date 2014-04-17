@@ -111,11 +111,6 @@ typedef struct ARMGenericTimer {
 #define GTIMER_VIRT 1
 #define NUM_GTIMERS 2
 
-/* Scale factor for generic timers, ie number of ns per tick.
- * This gives a 62.5MHz timer.
- */
-#define GTIMER_SCALE 16
-
 typedef struct CPUARMState {
     /* Regs for current mode.  */
     uint32_t regs[16];
@@ -148,7 +143,7 @@ typedef struct CPUARMState {
     uint32_t spsr;
 
     /* Banked registers.  */
-    uint32_t banked_spsr[6];
+    uint64_t banked_spsr[6];
     uint32_t banked_r13[6];
     uint32_t banked_r14[6];
 
@@ -165,7 +160,10 @@ typedef struct CPUARMState {
     uint32_t GE; /* cpsr[19:16] */
     uint32_t thumb; /* cpsr[5]. 0 = arm mode, 1 = thumb mode. */
     uint32_t condexec_bits; /* IT bits.  cpsr[15:10,26:25].  */
-    uint32_t daif; /* exception masks, in the bits they are in in PSTATE */
+    uint64_t daif; /* exception masks, in the bits they are in in PSTATE */
+
+    uint64_t elr_el1; /* AArch64 ELR_EL1 */
+    uint64_t sp_el[2]; /* AArch64 banked stack pointers */
 
     /* System control coprocessor (cp15) */
     struct {
@@ -184,13 +182,13 @@ typedef struct CPUARMState {
         uint32_t c2_insn; /* MPU instruction cachable bits.  */
         uint32_t c3; /* MMU domain access control register
                         MPU write buffer control.  */
-        uint32_t c5_insn; /* Fault status registers.  */
-        uint32_t c5_data;
+        uint32_t pmsav5_data_ap; /* PMSAv5 MPU data access permissions */
+        uint32_t pmsav5_insn_ap; /* PMSAv5 MPU insn access permissions */
+        uint32_t ifsr_el2; /* Fault status registers.  */
+        uint64_t esr_el1;
         uint32_t c6_region[8]; /* MPU base/size registers.  */
-        uint32_t c6_insn; /* Fault address registers.  */
-        uint32_t c6_data;
-        uint32_t c7_par;  /* Translation result. */
-        uint32_t c7_par_hi;  /* Translation result, high 32 bits */
+        uint64_t far_el1; /* Fault address registers.  */
+        uint64_t par_el1;  /* Translation result. */
         uint32_t c9_insn; /* Cache lockdown registers.  */
         uint32_t c9_data;
         uint32_t c9_pmcr; /* performance monitor control register */
@@ -202,7 +200,7 @@ typedef struct CPUARMState {
         uint64_t mair_el1;
         uint64_t c12_vbar; /* vector base address register */
         uint32_t c13_fcse; /* FCSE PID.  */
-        uint32_t c13_context; /* Context ID.  */
+        uint64_t contextidr_el1; /* Context ID.  */
         uint64_t tpidr_el0; /* User RW Thread register.  */
         uint64_t tpidrro_el0; /* User RO Thread register.  */
         uint64_t tpidr_el1; /* Privileged Thread register.  */
@@ -237,6 +235,21 @@ typedef struct CPUARMState {
         int exception;
         int pending_exception;
     } v7m;
+
+    /* Information associated with an exception about to be taken:
+     * code which raises an exception must set cs->exception_index and
+     * the relevant parts of this structure; the cpu_do_interrupt function
+     * will then set the guest-visible registers as part of the exception
+     * entry process.
+     */
+    struct {
+        uint32_t syndrome; /* AArch64 format syndrome register */
+        uint32_t fsr; /* AArch32 format fault status register info */
+        uint64_t vaddress; /* virtual addr associated with exception, if any */
+        /* If we implement EL2 we will also need to store information
+         * about the intermediate physical address for stage 2 faults.
+         */
+    } exception;
 
     /* Thumb-2 EE state.  */
     uint32_t teecr;
@@ -322,11 +335,7 @@ typedef struct CPUARMState {
 #include "cpu-qom.h"
 
 ARMCPU *cpu_arm_init(const char *cpu_model);
-void arm_translate_init(void);
-void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu);
 int cpu_arm_exec(CPUARMState *s);
-int bank_number(int mode);
-void switch_mode(CPUARMState *, int);
 uint32_t do_arm_semihosting(CPUARMState *env);
 
 static inline bool is_a64(CPUARMState *env)
@@ -425,6 +434,7 @@ int arm_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
  * Only these are valid when in AArch64 mode; in
  * AArch32 mode SPSRs are basically CPSR-format.
  */
+#define PSTATE_SP (1U)
 #define PSTATE_M (0xFU)
 #define PSTATE_nRW (1U << 4)
 #define PSTATE_F (1U << 6)
@@ -548,17 +558,6 @@ static inline void vfp_set_fpcr(CPUARMState *env, uint32_t val)
     vfp_set_fpscr(env, new_fpscr);
 }
 
-enum arm_fprounding {
-    FPROUNDING_TIEEVEN,
-    FPROUNDING_POSINF,
-    FPROUNDING_NEGINF,
-    FPROUNDING_ZERO,
-    FPROUNDING_TIEAWAY,
-    FPROUNDING_ODD
-};
-
-int arm_rmode_to_sf(int rmode);
-
 enum arm_cpu_mode {
   ARM_CPU_MODE_USR = 0x10,
   ARM_CPU_MODE_FIQ = 0x11,
@@ -572,6 +571,7 @@ enum arm_cpu_mode {
 /* VFP system registers.  */
 #define ARM_VFP_FPSID   0
 #define ARM_VFP_FPSCR   1
+#define ARM_VFP_MVFR2   5
 #define ARM_VFP_MVFR1   6
 #define ARM_VFP_MVFR0   7
 #define ARM_VFP_FPEXC   8
@@ -630,6 +630,7 @@ enum arm_features {
     ARM_FEATURE_V8_AES, /* implements AES part of v8 Crypto Extensions */
     ARM_FEATURE_CBAR, /* has cp15 CBAR */
     ARM_FEATURE_CRC, /* ARMv8 CRC instructions */
+    ARM_FEATURE_CBAR_RO, /* has cp15 CBAR and it is read-only */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
@@ -763,7 +764,8 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
 #define ARM_CP_WFI (ARM_CP_SPECIAL | (2 << 8))
 #define ARM_CP_NZCV (ARM_CP_SPECIAL | (3 << 8))
 #define ARM_CP_CURRENTEL (ARM_CP_SPECIAL | (4 << 8))
-#define ARM_LAST_SPECIAL ARM_CP_CURRENTEL
+#define ARM_CP_DC_ZVA (ARM_CP_SPECIAL | (5 << 8))
+#define ARM_LAST_SPECIAL ARM_CP_DC_ZVA
 /* Used only as a terminator for ARMCPRegInfo lists */
 #define ARM_CP_SENTINEL 0xffff
 /* Mask of only the flag bits in a type field */
@@ -1109,10 +1111,14 @@ static inline int cpu_mmu_index (CPUARMState *env)
 #define ARM_TBFLAG_CONDEXEC_MASK    (0xff << ARM_TBFLAG_CONDEXEC_SHIFT)
 #define ARM_TBFLAG_BSWAP_CODE_SHIFT 16
 #define ARM_TBFLAG_BSWAP_CODE_MASK  (1 << ARM_TBFLAG_BSWAP_CODE_SHIFT)
+#define ARM_TBFLAG_CPACR_FPEN_SHIFT 17
+#define ARM_TBFLAG_CPACR_FPEN_MASK  (1 << ARM_TBFLAG_CPACR_FPEN_SHIFT)
 
 /* Bit usage when in AArch64 state */
 #define ARM_TBFLAG_AA64_EL_SHIFT    0
 #define ARM_TBFLAG_AA64_EL_MASK     (0x3 << ARM_TBFLAG_AA64_EL_SHIFT)
+#define ARM_TBFLAG_AA64_FPEN_SHIFT  2
+#define ARM_TBFLAG_AA64_FPEN_MASK   (1 << ARM_TBFLAG_AA64_FPEN_SHIFT)
 
 /* some convenience accessor macros */
 #define ARM_TBFLAG_AARCH64_STATE(F) \
@@ -1131,16 +1137,25 @@ static inline int cpu_mmu_index (CPUARMState *env)
     (((F) & ARM_TBFLAG_CONDEXEC_MASK) >> ARM_TBFLAG_CONDEXEC_SHIFT)
 #define ARM_TBFLAG_BSWAP_CODE(F) \
     (((F) & ARM_TBFLAG_BSWAP_CODE_MASK) >> ARM_TBFLAG_BSWAP_CODE_SHIFT)
+#define ARM_TBFLAG_CPACR_FPEN(F) \
+    (((F) & ARM_TBFLAG_CPACR_FPEN_MASK) >> ARM_TBFLAG_CPACR_FPEN_SHIFT)
 #define ARM_TBFLAG_AA64_EL(F) \
     (((F) & ARM_TBFLAG_AA64_EL_MASK) >> ARM_TBFLAG_AA64_EL_SHIFT)
+#define ARM_TBFLAG_AA64_FPEN(F) \
+    (((F) & ARM_TBFLAG_AA64_FPEN_MASK) >> ARM_TBFLAG_AA64_FPEN_SHIFT)
 
 static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
+    int fpen = extract32(env->cp15.c1_coproc, 20, 2);
+
     if (is_a64(env)) {
         *pc = env->pc;
         *flags = ARM_TBFLAG_AARCH64_STATE_MASK
             | (arm_current_pl(env) << ARM_TBFLAG_AA64_EL_SHIFT);
+        if (fpen == 3 || (fpen == 1 && arm_current_pl(env) != 0)) {
+            *flags |= ARM_TBFLAG_AA64_FPEN_MASK;
+        }
     } else {
         int privmode;
         *pc = env->regs[15];
@@ -1157,8 +1172,12 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
         if (privmode) {
             *flags |= ARM_TBFLAG_PRIV_MASK;
         }
-        if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)) {
+        if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)
+            || arm_el_is_aa64(env, 1)) {
             *flags |= ARM_TBFLAG_VFPEN_MASK;
+        }
+        if (fpen == 3 || (fpen == 1 && arm_current_pl(env) != 0)) {
+            *flags |= ARM_TBFLAG_CPACR_FPEN_MASK;
         }
     }
 

@@ -25,6 +25,7 @@
 #include <inttypes.h>
 
 #include "cpu.h"
+#include "internals.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
 #include "qemu/log.h"
@@ -182,12 +183,23 @@ static inline void gen_set_cpsr(TCGv_i32 var, uint32_t mask)
 /* Set NZCV flags from the high 4 bits of var.  */
 #define gen_set_nzcv(var) gen_set_cpsr(var, CPSR_NZCV)
 
-static void gen_exception(int excp)
+static void gen_exception_internal(int excp)
 {
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_movi_i32(tmp, excp);
-    gen_helper_exception(cpu_env, tmp);
-    tcg_temp_free_i32(tmp);
+    TCGv_i32 tcg_excp = tcg_const_i32(excp);
+
+    assert(excp_is_internal(excp));
+    gen_helper_exception_internal(cpu_env, tcg_excp);
+    tcg_temp_free_i32(tcg_excp);
+}
+
+static void gen_exception(int excp, uint32_t syndrome)
+{
+    TCGv_i32 tcg_excp = tcg_const_i32(excp);
+    TCGv_i32 tcg_syn = tcg_const_i32(syndrome);
+
+    gen_helper_exception_with_syndrome(cpu_env, tcg_excp, tcg_syn);
+    tcg_temp_free_i32(tcg_syn);
+    tcg_temp_free_i32(tcg_excp);
 }
 
 static void gen_smul_dual(TCGv_i32 a, TCGv_i32 b)
@@ -897,6 +909,33 @@ DO_GEN_ST(32, MO_TEUL)
 static inline void gen_set_pc_im(DisasContext *s, target_ulong val)
 {
     tcg_gen_movi_i32(cpu_R[15], val);
+}
+
+static inline void
+gen_set_condexec (DisasContext *s)
+{
+    if (s->condexec_mask) {
+        uint32_t val = (s->condexec_cond << 4) | (s->condexec_mask >> 1);
+        TCGv_i32 tmp = tcg_temp_new_i32();
+        tcg_gen_movi_i32(tmp, val);
+        store_cpu_field(tmp, condexec_bits);
+    }
+}
+
+static void gen_exception_internal_insn(DisasContext *s, int offset, int excp)
+{
+    gen_set_condexec(s);
+    gen_set_pc_im(s, s->pc - offset);
+    gen_exception_internal(excp);
+    s->is_jmp = DISAS_JUMP;
+}
+
+static void gen_exception_insn(DisasContext *s, int offset, int excp, int syn)
+{
+    gen_set_condexec(s);
+    gen_set_pc_im(s, s->pc - offset);
+    gen_exception(excp, syn);
+    s->is_jmp = DISAS_JUMP;
 }
 
 /* Force a TB lookup after an instruction that changes the CPU state.  */
@@ -2913,14 +2952,25 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
     if (!arm_feature(env, ARM_FEATURE_VFP))
         return 1;
 
+    /* FIXME: this access check should not take precedence over UNDEF
+     * for invalid encodings; we will generate incorrect syndrome information
+     * for attempts to execute invalid vfp/neon encodings with FP disabled.
+     */
+    if (!s->cpacr_fpen) {
+        gen_exception_insn(s, 4, EXCP_UDEF,
+                           syn_fp_access_trap(1, 0xe, s->thumb));
+        return 0;
+    }
+
     if (!s->vfp_enabled) {
         /* VFP disabled.  Only allow fmxr/fmrx to/from some control regs.  */
         if ((insn & 0x0fe00fff) != 0x0ee00a10)
             return 1;
         rn = (insn >> 16) & 0xf;
-        if (rn != ARM_VFP_FPSID && rn != ARM_VFP_FPEXC
-            && rn != ARM_VFP_MVFR1 && rn != ARM_VFP_MVFR0)
+        if (rn != ARM_VFP_FPSID && rn != ARM_VFP_FPEXC && rn != ARM_VFP_MVFR2
+            && rn != ARM_VFP_MVFR1 && rn != ARM_VFP_MVFR0) {
             return 1;
+        }
     }
 
     if (extract32(insn, 28, 4) == 0xf) {
@@ -3066,6 +3116,11 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                                 gen_helper_vfp_get_fpscr(tmp, cpu_env);
                             }
                             break;
+                        case ARM_VFP_MVFR2:
+                            if (!arm_feature(env, ARM_FEATURE_V8)) {
+                                return 1;
+                            }
+                            /* fall through */
                         case ARM_VFP_MVFR0:
                         case ARM_VFP_MVFR1:
                             if (IS_USER(s)
@@ -3912,25 +3967,6 @@ static void gen_rfe(DisasContext *s, TCGv_i32 pc, TCGv_i32 cpsr)
     s->is_jmp = DISAS_UPDATE;
 }
 
-static inline void
-gen_set_condexec (DisasContext *s)
-{
-    if (s->condexec_mask) {
-        uint32_t val = (s->condexec_cond << 4) | (s->condexec_mask >> 1);
-        TCGv_i32 tmp = tcg_temp_new_i32();
-        tcg_gen_movi_i32(tmp, val);
-        store_cpu_field(tmp, condexec_bits);
-    }
-}
-
-static void gen_exception_insn(DisasContext *s, int offset, int excp)
-{
-    gen_set_condexec(s);
-    gen_set_pc_im(s, s->pc - offset);
-    gen_exception(excp);
-    s->is_jmp = DISAS_JUMP;
-}
-
 static void gen_nop_hint(DisasContext *s, int val)
 {
     switch (val) {
@@ -4211,6 +4247,16 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
     TCGv_i32 tmp;
     TCGv_i32 tmp2;
     TCGv_i64 tmp64;
+
+    /* FIXME: this access check should not take precedence over UNDEF
+     * for invalid encodings; we will generate incorrect syndrome information
+     * for attempts to execute invalid vfp/neon encodings with FP disabled.
+     */
+    if (!s->cpacr_fpen) {
+        gen_exception_insn(s, 4, EXCP_UDEF,
+                           syn_fp_access_trap(1, 0xe, s->thumb));
+        return 0;
+    }
 
     if (!s->vfp_enabled)
       return 1;
@@ -4933,6 +4979,16 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
     uint32_t imm, mask;
     TCGv_i32 tmp, tmp2, tmp3, tmp4, tmp5;
     TCGv_i64 tmp64;
+
+    /* FIXME: this access check should not take precedence over UNDEF
+     * for invalid encodings; we will generate incorrect syndrome information
+     * for attempts to execute invalid vfp/neon encodings with FP disabled.
+     */
+    if (!s->cpacr_fpen) {
+        gen_exception_insn(s, 4, EXCP_UDEF,
+                           syn_fp_access_trap(1, 0xe, s->thumb));
+        return 0;
+    }
 
     if (!s->vfp_enabled)
       return 1;
@@ -6861,10 +6917,53 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
              * runtime; this may result in an exception.
              */
             TCGv_ptr tmpptr;
+            TCGv_i32 tcg_syn;
+            uint32_t syndrome;
+
+            /* Note that since we are an implementation which takes an
+             * exception on a trapped conditional instruction only if the
+             * instruction passes its condition code check, we can take
+             * advantage of the clause in the ARM ARM that allows us to set
+             * the COND field in the instruction to 0xE in all cases.
+             * We could fish the actual condition out of the insn (ARM)
+             * or the condexec bits (Thumb) but it isn't necessary.
+             */
+            switch (cpnum) {
+            case 14:
+                if (is64) {
+                    syndrome = syn_cp14_rrt_trap(1, 0xe, opc1, crm, rt, rt2,
+                                                 isread, s->thumb);
+                } else {
+                    syndrome = syn_cp14_rt_trap(1, 0xe, opc1, opc2, crn, crm,
+                                                rt, isread, s->thumb);
+                }
+                break;
+            case 15:
+                if (is64) {
+                    syndrome = syn_cp15_rrt_trap(1, 0xe, opc1, crm, rt, rt2,
+                                                 isread, s->thumb);
+                } else {
+                    syndrome = syn_cp15_rt_trap(1, 0xe, opc1, opc2, crn, crm,
+                                                rt, isread, s->thumb);
+                }
+                break;
+            default:
+                /* ARMv8 defines that only coprocessors 14 and 15 exist,
+                 * so this can only happen if this is an ARMv7 or earlier CPU,
+                 * in which case the syndrome information won't actually be
+                 * guest visible.
+                 */
+                assert(!arm_feature(env, ARM_FEATURE_V8));
+                syndrome = syn_uncategorized();
+                break;
+            }
+
             gen_set_pc_im(s, s->pc);
             tmpptr = tcg_const_ptr(ri);
-            gen_helper_access_check_cp_reg(cpu_env, tmpptr);
+            tcg_syn = tcg_const_i32(syndrome);
+            gen_helper_access_check_cp_reg(cpu_env, tmpptr, tcg_syn);
             tcg_temp_free_ptr(tmpptr);
+            tcg_temp_free_i32(tcg_syn);
         }
 
         /* Handle special cases first */
@@ -7116,7 +7215,7 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
     tcg_gen_extu_i32_i64(cpu_exclusive_test, addr);
     tcg_gen_movi_i32(cpu_exclusive_info,
                      size | (rd << 4) | (rt << 8) | (rt2 << 12));
-    gen_exception_insn(s, 4, EXCP_STREX);
+    gen_exception_internal_insn(s, 4, EXCP_STREX);
 }
 #else
 static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
@@ -7626,6 +7725,8 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             store_reg(s, rd, tmp);
             break;
         case 7:
+        {
+            int imm16 = extract32(insn, 0, 4) | (extract32(insn, 8, 12) << 4);
             /* SMC instruction (op1 == 3)
                and undefined instructions (op1 == 0 || op1 == 2)
                will trap */
@@ -7634,8 +7735,9 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             }
             /* bkpt */
             ARCH(5);
-            gen_exception_insn(s, 4, EXCP_BKPT);
+            gen_exception_insn(s, 4, EXCP_BKPT, syn_aa32_bkpt(imm16, false));
             break;
+        }
         case 0x8: /* signed multiply */
         case 0xa:
         case 0xc:
@@ -8328,27 +8430,39 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                         if (insn & (1 << 5))
                             gen_swap_half(tmp2);
                         gen_smul_dual(tmp, tmp2);
-                        if (insn & (1 << 6)) {
-                            /* This subtraction cannot overflow. */
-                            tcg_gen_sub_i32(tmp, tmp, tmp2);
-                        } else {
-                            /* This addition cannot overflow 32 bits;
-                             * however it may overflow considered as a signed
-                             * operation, in which case we must set the Q flag.
-                             */
-                            gen_helper_add_setq(tmp, cpu_env, tmp, tmp2);
-                        }
-                        tcg_temp_free_i32(tmp2);
                         if (insn & (1 << 22)) {
                             /* smlald, smlsld */
+                            TCGv_i64 tmp64_2;
+
                             tmp64 = tcg_temp_new_i64();
+                            tmp64_2 = tcg_temp_new_i64();
                             tcg_gen_ext_i32_i64(tmp64, tmp);
+                            tcg_gen_ext_i32_i64(tmp64_2, tmp2);
                             tcg_temp_free_i32(tmp);
+                            tcg_temp_free_i32(tmp2);
+                            if (insn & (1 << 6)) {
+                                tcg_gen_sub_i64(tmp64, tmp64, tmp64_2);
+                            } else {
+                                tcg_gen_add_i64(tmp64, tmp64, tmp64_2);
+                            }
+                            tcg_temp_free_i64(tmp64_2);
                             gen_addq(s, tmp64, rd, rn);
                             gen_storeq_reg(s, rd, rn, tmp64);
                             tcg_temp_free_i64(tmp64);
                         } else {
                             /* smuad, smusd, smlad, smlsd */
+                            if (insn & (1 << 6)) {
+                                /* This subtraction cannot overflow. */
+                                tcg_gen_sub_i32(tmp, tmp, tmp2);
+                            } else {
+                                /* This addition cannot overflow 32 bits;
+                                 * however it may overflow considered as a
+                                 * signed operation, in which case we must set
+                                 * the Q flag.
+                                 */
+                                gen_helper_add_setq(tmp, cpu_env, tmp, tmp2);
+                            }
+                            tcg_temp_free_i32(tmp2);
                             if (rd != 15)
                               {
                                 tmp2 = load_reg(s, rd);
@@ -8642,11 +8756,12 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
         case 0xf:
             /* swi */
             gen_set_pc_im(s, s->pc);
+            s->svc_imm = extract32(insn, 0, 24);
             s->is_jmp = DISAS_SWI;
             break;
         default:
         illegal_op:
-            gen_exception_insn(s, 4, EXCP_UDEF);
+            gen_exception_insn(s, 4, EXCP_UDEF, syn_uncategorized());
             break;
         }
     }
@@ -10457,9 +10572,12 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
             break;
 
         case 0xe: /* bkpt */
+        {
+            int imm8 = extract32(insn, 0, 8);
             ARCH(5);
-            gen_exception_insn(s, 2, EXCP_BKPT);
+            gen_exception_insn(s, 2, EXCP_BKPT, syn_aa32_bkpt(imm8, true));
             break;
+        }
 
         case 0xa: /* rev */
             ARCH(6);
@@ -10576,6 +10694,7 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
         if (cond == 0xf) {
             /* swi */
             gen_set_pc_im(s, s->pc);
+            s->svc_imm = extract32(insn, 0, 8);
             s->is_jmp = DISAS_SWI;
             break;
         }
@@ -10611,11 +10730,11 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
     }
     return;
 undef32:
-    gen_exception_insn(s, 4, EXCP_UDEF);
+    gen_exception_insn(s, 4, EXCP_UDEF, syn_uncategorized());
     return;
 illegal_op:
 undef:
-    gen_exception_insn(s, 2, EXCP_UDEF);
+    gen_exception_insn(s, 2, EXCP_UDEF, syn_uncategorized());
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
@@ -10665,6 +10784,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
 #if !defined(CONFIG_USER_ONLY)
     dc->user = (ARM_TBFLAG_PRIV(tb->flags) == 0);
 #endif
+    dc->cpacr_fpen = ARM_TBFLAG_CPACR_FPEN(tb->flags);
     dc->vfp_enabled = ARM_TBFLAG_VFPEN(tb->flags);
     dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);
     dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
@@ -10736,7 +10856,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
         if (dc->pc >= 0xffff0000) {
             /* We always get here via a jump, so know we are not in a
                conditional execution block.  */
-            gen_exception(EXCP_KERNEL_TRAP);
+            gen_exception_internal(EXCP_KERNEL_TRAP);
             dc->is_jmp = DISAS_UPDATE;
             break;
         }
@@ -10744,7 +10864,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
         if (dc->pc >= 0xfffffff0 && IS_M(env)) {
             /* We always get here via a jump, so know we are not in a
                conditional execution block.  */
-            gen_exception(EXCP_EXCEPTION_EXIT);
+            gen_exception_internal(EXCP_EXCEPTION_EXIT);
             dc->is_jmp = DISAS_UPDATE;
             break;
         }
@@ -10753,7 +10873,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
         if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
             QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (bp->pc == dc->pc) {
-                    gen_exception_insn(dc, 0, EXCP_DEBUG);
+                    gen_exception_internal_insn(dc, 0, EXCP_DEBUG);
                     /* Advance PC so that clearing the breakpoint will
                        invalidate this TB.  */
                     dc->pc += 2;
@@ -10833,9 +10953,9 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
         if (dc->condjmp) {
             gen_set_condexec(dc);
             if (dc->is_jmp == DISAS_SWI) {
-                gen_exception(EXCP_SWI);
+                gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb));
             } else {
-                gen_exception(EXCP_DEBUG);
+                gen_exception_internal(EXCP_DEBUG);
             }
             gen_set_label(dc->condlabel);
         }
@@ -10845,11 +10965,11 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
         }
         gen_set_condexec(dc);
         if (dc->is_jmp == DISAS_SWI && !dc->condjmp) {
-            gen_exception(EXCP_SWI);
+            gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb));
         } else {
             /* FIXME: Single stepping a WFI insn will not halt
                the CPU.  */
-            gen_exception(EXCP_DEBUG);
+            gen_exception_internal(EXCP_DEBUG);
         }
     } else {
         /* While branches must always occur at the end of an IT block,
@@ -10881,7 +11001,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
             gen_helper_wfe(cpu_env);
             break;
         case DISAS_SWI:
-            gen_exception(EXCP_SWI);
+            gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb));
             break;
         }
         if (dc->condjmp) {
@@ -10938,6 +11058,11 @@ void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     CPUARMState *env = &cpu->env;
     int i;
     uint32_t psr;
+
+    if (is_a64(env)) {
+        aarch64_cpu_dump_state(cs, f, cpu_fprintf, flags);
+        return;
+    }
 
     for(i=0;i<16;i++) {
         cpu_fprintf(f, "R%02d=%08x", i, env->regs[i]);

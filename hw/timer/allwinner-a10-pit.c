@@ -19,6 +19,15 @@
 #include "sysemu/sysemu.h"
 #include "hw/timer/allwinner-a10-pit.h"
 
+static void a10_pit_update_irq(AwA10PITState *s)
+{
+    int i;
+
+    for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
+        qemu_set_irq(s->irq[i], !!(s->irq_status & s->irq_enable & (1 << i)));
+    }
+}
+
 static uint64_t a10_pit_read(void *opaque, hwaddr offset, unsigned size)
 {
     AwA10PITState *s = AW_A10_PIT(opaque);
@@ -65,6 +74,22 @@ static uint64_t a10_pit_read(void *opaque, hwaddr offset, unsigned size)
     return 0;
 }
 
+static void a10_pit_set_freq(AwA10PITState *s, int index)
+{
+    uint32_t prescaler, source, source_freq;
+
+    prescaler = 1 << extract32(s->control[index], 4, 3);
+    source = extract32(s->control[index], 2, 2);
+    source_freq = s->clk_freq[source];
+
+    if (source_freq) {
+        ptimer_set_freq(s->timer[index], source_freq / prescaler);
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid clock source %u\n",
+                      __func__, source);
+    }
+}
+
 static void a10_pit_write(void *opaque, hwaddr offset, uint64_t value,
                             unsigned size)
 {
@@ -74,9 +99,11 @@ static void a10_pit_write(void *opaque, hwaddr offset, uint64_t value,
     switch (offset) {
     case AW_A10_PIT_TIMER_IRQ_EN:
         s->irq_enable = value;
+        a10_pit_update_irq(s);
         break;
     case AW_A10_PIT_TIMER_IRQ_ST:
         s->irq_status &= ~value;
+        a10_pit_update_irq(s);
         break;
     case AW_A10_PIT_TIMER_BASE ... AW_A10_PIT_TIMER_BASE_END:
         index = offset & 0xf0;
@@ -85,6 +112,7 @@ static void a10_pit_write(void *opaque, hwaddr offset, uint64_t value,
         switch (offset & 0x0f) {
         case AW_A10_PIT_TIMER_CONTROL:
             s->control[index] = value;
+            a10_pit_set_freq(s, index);
             if (s->control[index] & AW_A10_PIT_TIMER_RELOAD) {
                 ptimer_set_count(s->timer[index], s->interval[index]);
             }
@@ -150,6 +178,14 @@ static const MemoryRegionOps a10_pit_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static Property a10_pit_properties[] = {
+    DEFINE_PROP_UINT32("clk0-freq", AwA10PITState, clk_freq[0], 0),
+    DEFINE_PROP_UINT32("clk1-freq", AwA10PITState, clk_freq[1], 0),
+    DEFINE_PROP_UINT32("clk2-freq", AwA10PITState, clk_freq[2], 0),
+    DEFINE_PROP_UINT32("clk3-freq", AwA10PITState, clk_freq[3], 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_a10_pit = {
     .name = "a10.pit",
     .version_id = 1,
@@ -178,11 +214,14 @@ static void a10_pit_reset(DeviceState *dev)
 
     s->irq_enable = 0;
     s->irq_status = 0;
+    a10_pit_update_irq(s);
+
     for (i = 0; i < 6; i++) {
         s->control[i] = AW_A10_PIT_DEFAULT_CLOCK;
         s->interval[i] = 0;
         s->count[i] = 0;
         ptimer_stop(s->timer[i]);
+        a10_pit_set_freq(s, i);
     }
     s->watch_dog_mode = 0;
     s->watch_dog_control = 0;
@@ -193,18 +232,17 @@ static void a10_pit_reset(DeviceState *dev)
 
 static void a10_pit_timer_cb(void *opaque)
 {
-    AwA10PITState *s = AW_A10_PIT(opaque);
-    uint8_t i;
+    AwA10TimerContext *tc = opaque;
+    AwA10PITState *s = tc->container;
+    uint8_t i = tc->index;
 
-    for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
-        if (s->control[i] & AW_A10_PIT_TIMER_EN) {
-            s->irq_status |= 1 << i;
-            if (s->control[i] & AW_A10_PIT_TIMER_MODE) {
-                ptimer_stop(s->timer[i]);
-                s->control[i] &= ~AW_A10_PIT_TIMER_EN;
-            }
-            qemu_irq_pulse(s->irq[i]);
+    if (s->control[i] & AW_A10_PIT_TIMER_EN) {
+        s->irq_status |= 1 << i;
+        if (s->control[i] & AW_A10_PIT_TIMER_MODE) {
+            ptimer_stop(s->timer[i]);
+            s->control[i] &= ~AW_A10_PIT_TIMER_EN;
         }
+        a10_pit_update_irq(s);
     }
 }
 
@@ -223,9 +261,12 @@ static void a10_pit_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 
     for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
-        bh[i] = qemu_bh_new(a10_pit_timer_cb, s);
+        AwA10TimerContext *tc = &s->timer_context[i];
+
+        tc->container = s;
+        tc->index = i;
+        bh[i] = qemu_bh_new(a10_pit_timer_cb, tc);
         s->timer[i] = ptimer_init(bh[i]);
-        ptimer_set_freq(s->timer[i], 240000);
     }
 }
 
@@ -234,6 +275,7 @@ static void a10_pit_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->reset = a10_pit_reset;
+    dc->props = a10_pit_properties;
     dc->desc = "allwinner a10 timer";
     dc->vmsd = &vmstate_a10_pit;
 }

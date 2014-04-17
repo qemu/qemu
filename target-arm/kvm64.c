@@ -121,8 +121,24 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
     }
 
+    /* KVM puts SP_EL0 in regs.sp and SP_EL1 in regs.sp_el1. On the
+     * QEMU side we keep the current SP in xregs[31] as well.
+     */
+    if (env->pstate & PSTATE_SP) {
+        env->sp_el[1] = env->xregs[31];
+    } else {
+        env->sp_el[0] = env->xregs[31];
+    }
+
     reg.id = AARCH64_CORE_REG(regs.sp);
-    reg.addr = (uintptr_t) &env->xregs[31];
+    reg.addr = (uintptr_t) &env->sp_el[0];
+    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+    if (ret) {
+        return ret;
+    }
+
+    reg.id = AARCH64_CORE_REG(sp_el1);
+    reg.addr = (uintptr_t) &env->sp_el[1];
     ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
     if (ret) {
         return ret;
@@ -144,10 +160,23 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return ret;
     }
 
+    reg.id = AARCH64_CORE_REG(elr_el1);
+    reg.addr = (uintptr_t) &env->elr_el1;
+    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+    if (ret) {
+        return ret;
+    }
+
+    for (i = 0; i < KVM_NR_SPSR; i++) {
+        reg.id = AARCH64_CORE_REG(spsr[i]);
+        reg.addr = (uintptr_t) &env->banked_spsr[i - 1];
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret) {
+            return ret;
+        }
+    }
+
     /* TODO:
-     * SP_EL1
-     * ELR_EL1
-     * SPSR[]
      * FP state
      * system registers
      */
@@ -174,7 +203,14 @@ int kvm_arch_get_registers(CPUState *cs)
     }
 
     reg.id = AARCH64_CORE_REG(regs.sp);
-    reg.addr = (uintptr_t) &env->xregs[31];
+    reg.addr = (uintptr_t) &env->sp_el[0];
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (ret) {
+        return ret;
+    }
+
+    reg.id = AARCH64_CORE_REG(sp_el1);
+    reg.addr = (uintptr_t) &env->sp_el[1];
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret) {
         return ret;
@@ -188,11 +224,36 @@ int kvm_arch_get_registers(CPUState *cs)
     }
     pstate_write(env, val);
 
+    /* KVM puts SP_EL0 in regs.sp and SP_EL1 in regs.sp_el1. On the
+     * QEMU side we keep the current SP in xregs[31] as well.
+     */
+    if (env->pstate & PSTATE_SP) {
+        env->xregs[31] = env->sp_el[1];
+    } else {
+        env->xregs[31] = env->sp_el[0];
+    }
+
     reg.id = AARCH64_CORE_REG(regs.pc);
     reg.addr = (uintptr_t) &env->pc;
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret) {
         return ret;
+    }
+
+    reg.id = AARCH64_CORE_REG(elr_el1);
+    reg.addr = (uintptr_t) &env->elr_el1;
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (ret) {
+        return ret;
+    }
+
+    for (i = 0; i < KVM_NR_SPSR; i++) {
+        reg.id = AARCH64_CORE_REG(spsr[i]);
+        reg.addr = (uintptr_t) &env->banked_spsr[i - 1];
+        ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+        if (ret) {
+            return ret;
+        }
     }
 
     /* TODO: other registers */

@@ -18,6 +18,7 @@
  */
 #include "cpu.h"
 #include "helper.h"
+#include "internals.h"
 
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)
@@ -243,11 +244,30 @@ void HELPER(wfe)(CPUARMState *env)
     cpu_loop_exit(cs);
 }
 
-void HELPER(exception)(CPUARMState *env, uint32_t excp)
+/* Raise an internal-to-QEMU exception. This is limited to only
+ * those EXCP values which are special cases for QEMU to interrupt
+ * execution and not to be used for exceptions which are passed to
+ * the guest (those must all have syndrome information and thus should
+ * use exception_with_syndrome).
+ */
+void HELPER(exception_internal)(CPUARMState *env, uint32_t excp)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
 
+    assert(excp_is_internal(excp));
     cs->exception_index = excp;
+    cpu_loop_exit(cs);
+}
+
+/* Raise an exception with the specified syndrome register value */
+void HELPER(exception_with_syndrome)(CPUARMState *env, uint32_t excp,
+                                     uint32_t syndrome)
+{
+    CPUState *cs = CPU(arm_env_get_cpu(env));
+
+    assert(!excp_is_internal(excp));
+    cs->exception_index = excp;
+    env->exception.syndrome = syndrome;
     cpu_loop_exit(cs);
 }
 
@@ -293,17 +313,17 @@ void HELPER(set_user_reg)(CPUARMState *env, uint32_t regno, uint32_t val)
     }
 }
 
-void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip)
+void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome)
 {
     const ARMCPRegInfo *ri = rip;
     switch (ri->accessfn(env, ri)) {
     case CP_ACCESS_OK:
         return;
     case CP_ACCESS_TRAP:
+        env->exception.syndrome = syndrome;
+        break;
     case CP_ACCESS_TRAP_UNCATEGORIZED:
-        /* These cases will eventually need to generate different
-         * syndrome information.
-         */
+        env->exception.syndrome = syn_uncategorized();
         break;
     default:
         g_assert_not_reached();
@@ -351,7 +371,7 @@ void HELPER(msr_i_pstate)(CPUARMState *env, uint32_t op, uint32_t imm)
 
     switch (op) {
     case 0x05: /* SPSel */
-        env->pstate = deposit32(env->pstate, 0, 1, imm);
+        update_spsel(env, imm);
         break;
     case 0x1e: /* DAIFSet */
         env->daif |= (imm << 6) & PSTATE_DAIF;
@@ -362,6 +382,66 @@ void HELPER(msr_i_pstate)(CPUARMState *env, uint32_t op, uint32_t imm)
     default:
         g_assert_not_reached();
     }
+}
+
+void HELPER(exception_return)(CPUARMState *env)
+{
+    uint32_t spsr = env->banked_spsr[0];
+    int new_el, i;
+
+    if (env->pstate & PSTATE_SP) {
+        env->sp_el[1] = env->xregs[31];
+    } else {
+        env->sp_el[0] = env->xregs[31];
+    }
+
+    env->exclusive_addr = -1;
+
+    if (spsr & PSTATE_nRW) {
+        env->aarch64 = 0;
+        new_el = 0;
+        env->uncached_cpsr = 0x10;
+        cpsr_write(env, spsr, ~0);
+        for (i = 0; i < 15; i++) {
+            env->regs[i] = env->xregs[i];
+        }
+
+        env->regs[15] = env->elr_el1 & ~0x1;
+    } else {
+        new_el = extract32(spsr, 2, 2);
+        if (new_el > 1) {
+            /* Return to unimplemented EL */
+            goto illegal_return;
+        }
+        if (extract32(spsr, 1, 1)) {
+            /* Return with reserved M[1] bit set */
+            goto illegal_return;
+        }
+        if (new_el == 0 && (spsr & PSTATE_SP)) {
+            /* Return to EL1 with M[0] bit set */
+            goto illegal_return;
+        }
+        env->aarch64 = 1;
+        pstate_write(env, spsr);
+        env->xregs[31] = env->sp_el[new_el];
+        env->pc = env->elr_el1;
+    }
+
+    return;
+
+illegal_return:
+    /* Illegal return events of various kinds have architecturally
+     * mandated behaviour:
+     * restore NZCV and DAIF from SPSR_ELx
+     * set PSTATE.IL
+     * restore PC from ELR_ELx
+     * no change to exception level, execution state or stack pointer
+     */
+    env->pstate |= PSTATE_IL;
+    env->pc = env->elr_el1;
+    spsr &= PSTATE_NZCV | PSTATE_DAIF;
+    spsr |= pstate_read(env) & ~(PSTATE_NZCV | PSTATE_DAIF);
+    pstate_write(env, spsr);
 }
 
 /* ??? Flag setting arithmetic is awkward because we need to do comparisons.

@@ -20,13 +20,26 @@ typedef struct DisasContext {
 #if !defined(CONFIG_USER_ONLY)
     int user;
 #endif
-    int vfp_enabled;
+    bool cpacr_fpen; /* FP enabled via CPACR.FPEN */
+    bool vfp_enabled; /* FP enabled via FPSCR.EN */
     int vec_len;
     int vec_stride;
+    /* Immediate value in AArch32 SVC insn; must be set if is_jmp == DISAS_SWI
+     * so that top level loop can generate correct syndrome information.
+     */
+    uint32_t svc_imm;
     int aarch64;
     int current_pl;
     GHashTable *cp_regs;
     uint64_t features; /* CPU features bits */
+    /* Because unallocated encodings generate different exception syndrome
+     * information from traps due to FP being disabled, we can't do a single
+     * "is fp access disabled" check at a high level in the decode tree.
+     * To help in catching bugs where the access check was forgotten in some
+     * code path, we set this flag when the access check is done, and assert
+     * that it is set at the point where we actually touch the FP regs.
+     */
+    bool fp_access_checked;
 #define TMP_A64_MAX 16
     int tmp_a64_count;
     TCGv_i64 tmp_a64[TMP_A64_MAX];
@@ -59,6 +72,8 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
                                         TranslationBlock *tb,
                                         bool search_pc);
 void gen_a64_set_pc_im(uint64_t val);
+void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
+                            fprintf_function cpu_fprintf, int flags);
 #else
 static inline void a64_translate_init(void)
 {
@@ -71,6 +86,12 @@ static inline void gen_intermediate_code_internal_a64(ARMCPU *cpu,
 }
 
 static inline void gen_a64_set_pc_im(uint64_t val)
+{
+}
+
+static inline void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
+                                          fprintf_function cpu_fprintf,
+                                          int flags)
 {
 }
 #endif

@@ -43,6 +43,19 @@ static void cubieboard_init(QEMUMachineInitArgs *args)
         exit(1);
     }
 
+    object_property_set_int(OBJECT(&s->a10->timer), 32768, "clk0-freq", &err);
+    if (err != NULL) {
+        error_report("Couldn't set clk0 frequency: %s", error_get_pretty(err));
+        exit(1);
+    }
+
+    object_property_set_int(OBJECT(&s->a10->timer), 24000000, "clk1-freq",
+                            &err);
+    if (err != NULL) {
+        error_report("Couldn't set clk1 frequency: %s", error_get_pretty(err));
+        exit(1);
+    }
+
     object_property_set_bool(OBJECT(s->a10), true, "realized", &err);
     if (err != NULL) {
         error_report("Couldn't realize Allwinner A10: %s",

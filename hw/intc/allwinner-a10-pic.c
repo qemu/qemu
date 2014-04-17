@@ -23,11 +23,20 @@
 static void aw_a10_pic_update(AwA10PICState *s)
 {
     uint8_t i;
-    int irq = 0, fiq = 0;
+    int irq = 0, fiq = 0, pending;
+
+    s->vector = 0;
 
     for (i = 0; i < AW_A10_PIC_REG_NUM; i++) {
         irq |= s->irq_pending[i] & ~s->mask[i];
         fiq |= s->select[i] & s->irq_pending[i] & ~s->mask[i];
+
+        if (!s->vector) {
+            pending = ffs(s->irq_pending[i] & ~s->mask[i]);
+            if (pending) {
+                s->vector = (i * 32 + pending - 1) * 4;
+            }
+        }
     }
 
     qemu_set_irq(s->parent_irq, !!irq);
@@ -40,6 +49,8 @@ static void aw_a10_pic_set_irq(void *opaque, int irq, int level)
 
     if (level) {
         set_bit(irq % 32, (void *)&s->irq_pending[irq / 32]);
+    } else {
+        clear_bit(irq % 32, (void *)&s->irq_pending[irq / 32]);
     }
     aw_a10_pic_update(s);
 }
@@ -84,9 +95,6 @@ static void aw_a10_pic_write(void *opaque, hwaddr offset, uint64_t value,
     uint8_t index = (offset & 0xc) / 4;
 
     switch (offset) {
-    case AW_A10_PIC_VECTOR:
-        s->vector = value & ~0x3;
-        break;
     case AW_A10_PIC_BASE_ADDR:
         s->base_addr = value & ~0x3;
     case AW_A10_PIC_PROTECT:
@@ -96,7 +104,11 @@ static void aw_a10_pic_write(void *opaque, hwaddr offset, uint64_t value,
         s->nmi = value;
         break;
     case AW_A10_PIC_IRQ_PENDING ... AW_A10_PIC_IRQ_PENDING + 8:
-        s->irq_pending[index] &= ~value;
+        /*
+         * The register is read-only; nevertheless, Linux (including
+         * the version originally shipped by Allwinner) pretends to
+         * write to the register. Just ignore it.
+         */
         break;
     case AW_A10_PIC_FIQ_PENDING ... AW_A10_PIC_FIQ_PENDING + 8:
         s->fiq_pending[index] &= ~value;

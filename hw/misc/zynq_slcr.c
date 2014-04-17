@@ -19,102 +19,155 @@
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 
-#ifdef ZYNQ_ARM_SLCR_ERR_DEBUG
-#define DB_PRINT(...) do { \
-    fprintf(stderr,  ": %s: ", __func__); \
-    fprintf(stderr, ## __VA_ARGS__); \
-    } while (0);
-#else
-    #define DB_PRINT(...)
+#ifndef ZYNQ_SLCR_ERR_DEBUG
+#define ZYNQ_SLCR_ERR_DEBUG 0
 #endif
+
+#define DB_PRINT(...) do { \
+        if (ZYNQ_SLCR_ERR_DEBUG) { \
+            fprintf(stderr,  ": %s: ", __func__); \
+            fprintf(stderr, ## __VA_ARGS__); \
+        } \
+    } while (0);
 
 #define XILINX_LOCK_KEY 0x767b
 #define XILINX_UNLOCK_KEY 0xdf0d
 
 #define R_PSS_RST_CTRL_SOFT_RST 0x1
 
-typedef enum {
-  ARM_PLL_CTRL,
-  DDR_PLL_CTRL,
-  IO_PLL_CTRL,
-  PLL_STATUS,
-  ARM_PPL_CFG,
-  DDR_PLL_CFG,
-  IO_PLL_CFG,
-  PLL_BG_CTRL,
-  PLL_MAX
-} PLLValues;
+enum {
+    SCL             = 0x000 / 4,
+    LOCK,
+    UNLOCK,
+    LOCKSTA,
 
-typedef enum {
-  ARM_CLK_CTRL,
-  DDR_CLK_CTRL,
-  DCI_CLK_CTRL,
-  APER_CLK_CTRL,
-  USB0_CLK_CTRL,
-  USB1_CLK_CTRL,
-  GEM0_RCLK_CTRL,
-  GEM1_RCLK_CTRL,
-  GEM0_CLK_CTRL,
-  GEM1_CLK_CTRL,
-  SMC_CLK_CTRL,
-  LQSPI_CLK_CTRL,
-  SDIO_CLK_CTRL,
-  UART_CLK_CTRL,
-  SPI_CLK_CTRL,
-  CAN_CLK_CTRL,
-  CAN_MIOCLK_CTRL,
-  DBG_CLK_CTRL,
-  PCAP_CLK_CTRL,
-  TOPSW_CLK_CTRL,
-  CLK_MAX
-} ClkValues;
+    ARM_PLL_CTRL    = 0x100 / 4,
+    DDR_PLL_CTRL,
+    IO_PLL_CTRL,
+    PLL_STATUS,
+    ARM_PLL_CFG,
+    DDR_PLL_CFG,
+    IO_PLL_CFG,
 
-typedef enum {
-  CLK_CTRL,
-  THR_CTRL,
-  THR_CNT,
-  THR_STA,
-  FPGA_MAX
-} FPGAValues;
+    ARM_CLK_CTRL    = 0x120 / 4,
+    DDR_CLK_CTRL,
+    DCI_CLK_CTRL,
+    APER_CLK_CTRL,
+    USB0_CLK_CTRL,
+    USB1_CLK_CTRL,
+    GEM0_RCLK_CTRL,
+    GEM1_RCLK_CTRL,
+    GEM0_CLK_CTRL,
+    GEM1_CLK_CTRL,
+    SMC_CLK_CTRL,
+    LQSPI_CLK_CTRL,
+    SDIO_CLK_CTRL,
+    UART_CLK_CTRL,
+    SPI_CLK_CTRL,
+    CAN_CLK_CTRL,
+    CAN_MIOCLK_CTRL,
+    DBG_CLK_CTRL,
+    PCAP_CLK_CTRL,
+    TOPSW_CLK_CTRL,
 
-typedef enum {
-  SYNC_CTRL,
-  SYNC_STATUS,
-  BANDGAP_TRIP,
-  CC_TEST,
-  PLL_PREDIVISOR,
-  CLK_621_TRUE,
-  PICTURE_DBG,
-  PICTURE_DBG_UCNT,
-  PICTURE_DBG_LCNT,
-  MISC_MAX
-} MiscValues;
+#define FPGA_CTRL_REGS(n, start) \
+    FPGA ## n ## _CLK_CTRL = (start) / 4, \
+    FPGA ## n ## _THR_CTRL, \
+    FPGA ## n ## _THR_CNT, \
+    FPGA ## n ## _THR_STA,
+    FPGA_CTRL_REGS(0, 0x170)
+    FPGA_CTRL_REGS(1, 0x180)
+    FPGA_CTRL_REGS(2, 0x190)
+    FPGA_CTRL_REGS(3, 0x1a0)
 
-typedef enum {
-  PSS,
-  DDDR,
-  DMAC = 3,
-  USB,
-  GEM,
-  SDIO,
-  SPI,
-  CAN,
-  I2C,
-  UART,
-  GPIO,
-  LQSPI,
-  SMC,
-  OCM,
-  DEVCI,
-  FPGA,
-  A9_CPU,
-  RS_AWDT,
-  RST_REASON,
-  RST_REASON_CLR,
-  REBOOT_STATUS,
-  BOOT_MODE,
-  RESET_MAX
-} ResetValues;
+    BANDGAP_TRIP    = 0x1b8 / 4,
+    PLL_PREDIVISOR  = 0x1c0 / 4,
+    CLK_621_TRUE,
+
+    PSS_RST_CTRL    = 0x200 / 4,
+    DDR_RST_CTRL,
+    TOPSW_RESET_CTRL,
+    DMAC_RST_CTRL,
+    USB_RST_CTRL,
+    GEM_RST_CTRL,
+    SDIO_RST_CTRL,
+    SPI_RST_CTRL,
+    CAN_RST_CTRL,
+    I2C_RST_CTRL,
+    UART_RST_CTRL,
+    GPIO_RST_CTRL,
+    LQSPI_RST_CTRL,
+    SMC_RST_CTRL,
+    OCM_RST_CTRL,
+    FPGA_RST_CTRL   = 0x240 / 4,
+    A9_CPU_RST_CTRL,
+
+    RS_AWDT_CTRL    = 0x24c / 4,
+    RST_REASON,
+
+    REBOOT_STATUS   = 0x258 / 4,
+    BOOT_MODE,
+
+    APU_CTRL        = 0x300 / 4,
+    WDT_CLK_SEL,
+
+    TZ_DMA_NS       = 0x440 / 4,
+    TZ_DMA_IRQ_NS,
+    TZ_DMA_PERIPH_NS,
+
+    PSS_IDCODE      = 0x530 / 4,
+
+    DDR_URGENT      = 0x600 / 4,
+    DDR_CAL_START   = 0x60c / 4,
+    DDR_REF_START   = 0x614 / 4,
+    DDR_CMD_STA,
+    DDR_URGENT_SEL,
+    DDR_DFI_STATUS,
+
+    MIO             = 0x700 / 4,
+#define MIO_LENGTH 54
+
+    MIO_LOOPBACK    = 0x804 / 4,
+    MIO_MST_TRI0,
+    MIO_MST_TRI1,
+
+    SD0_WP_CD_SEL   = 0x830 / 4,
+    SD1_WP_CD_SEL,
+
+    LVL_SHFTR_EN    = 0x900 / 4,
+    OCM_CFG         = 0x910 / 4,
+
+    CPU_RAM         = 0xa00 / 4,
+
+    IOU             = 0xa30 / 4,
+
+    DMAC_RAM        = 0xa50 / 4,
+
+    AFI0            = 0xa60 / 4,
+    AFI1 = AFI0 + 3,
+    AFI2 = AFI1 + 3,
+    AFI3 = AFI2 + 3,
+#define AFI_LENGTH 3
+
+    OCM             = 0xa90 / 4,
+
+    DEVCI_RAM       = 0xaa0 / 4,
+
+    CSG_RAM         = 0xab0 / 4,
+
+    GPIOB_CTRL      = 0xb00 / 4,
+    GPIOB_CFG_CMOS18,
+    GPIOB_CFG_CMOS25,
+    GPIOB_CFG_CMOS33,
+    GPIOB_CFG_HSTL  = 0xb14 / 4,
+    GPIOB_DRVR_BIAS_CTRL,
+
+    DDRIOB          = 0xb40 / 4,
+#define DDRIOB_LENGTH 14
+};
+
+#define ZYNQ_SLCR_MMIO_SIZE     0x1000
+#define ZYNQ_SLCR_NUM_REGS      (ZYNQ_SLCR_MMIO_SIZE / 4)
 
 #define TYPE_ZYNQ_SLCR "xilinx,zynq_slcr"
 #define ZYNQ_SLCR(obj) OBJECT_CHECK(ZynqSLCRState, (obj), TYPE_ZYNQ_SLCR)
@@ -124,42 +177,7 @@ typedef struct ZynqSLCRState {
 
     MemoryRegion iomem;
 
-    union {
-        struct {
-            uint16_t scl;
-            uint16_t lockval;
-            uint32_t pll[PLL_MAX]; /* 0x100 - 0x11C */
-            uint32_t clk[CLK_MAX]; /* 0x120 - 0x16C */
-            uint32_t fpga[4][FPGA_MAX]; /* 0x170 - 0x1AC */
-            uint32_t misc[MISC_MAX]; /* 0x1B0 - 0x1D8 */
-            uint32_t reset[RESET_MAX]; /* 0x200 - 0x25C */
-            uint32_t apu_ctrl; /* 0x300 */
-            uint32_t wdt_clk_sel; /* 0x304 */
-            uint32_t tz_ocm[3]; /* 0x400 - 0x408 */
-            uint32_t tz_ddr; /* 0x430 */
-            uint32_t tz_dma[3]; /* 0x440 - 0x448 */
-            uint32_t tz_misc[3]; /* 0x450 - 0x458 */
-            uint32_t tz_fpga[2]; /* 0x484 - 0x488 */
-            uint32_t dbg_ctrl; /* 0x500 */
-            uint32_t pss_idcode; /* 0x530 */
-            uint32_t ddr[8]; /* 0x600 - 0x620 - 0x604-missing */
-            uint32_t mio[54]; /* 0x700 - 0x7D4 */
-            uint32_t mio_func[4]; /* 0x800 - 0x810 */
-            uint32_t sd[2]; /* 0x830 - 0x834 */
-            uint32_t lvl_shftr_en; /* 0x900 */
-            uint32_t ocm_cfg; /* 0x910 */
-            uint32_t cpu_ram[8]; /* 0xA00 - 0xA1C */
-            uint32_t iou[7]; /* 0xA30 - 0xA48 */
-            uint32_t dmac_ram; /* 0xA50 */
-            uint32_t afi[4][3]; /* 0xA60 - 0xA8C */
-            uint32_t ocm[3]; /* 0xA90 - 0xA98 */
-            uint32_t devci_ram; /* 0xAA0 */
-            uint32_t csg_ram; /* 0xAB0 */
-            uint32_t gpiob[12]; /* 0xB00 - 0xB2C */
-            uint32_t ddriob[14]; /* 0xB40 - 0xB74 */
-        };
-        uint8_t data[0x1000];
-    };
+    uint32_t regs[ZYNQ_SLCR_NUM_REGS];
 } ZynqSLCRState;
 
 static void zynq_slcr_reset(DeviceState *d)
@@ -169,177 +187,169 @@ static void zynq_slcr_reset(DeviceState *d)
 
     DB_PRINT("RESET\n");
 
-    s->lockval = 1;
+    s->regs[LOCKSTA] = 1;
     /* 0x100 - 0x11C */
-    s->pll[ARM_PLL_CTRL] = 0x0001A008;
-    s->pll[DDR_PLL_CTRL] = 0x0001A008;
-    s->pll[IO_PLL_CTRL] = 0x0001A008;
-    s->pll[PLL_STATUS] = 0x0000003F;
-    s->pll[ARM_PPL_CFG] = 0x00014000;
-    s->pll[DDR_PLL_CFG] = 0x00014000;
-    s->pll[IO_PLL_CFG] = 0x00014000;
+    s->regs[ARM_PLL_CTRL]   = 0x0001A008;
+    s->regs[DDR_PLL_CTRL]   = 0x0001A008;
+    s->regs[IO_PLL_CTRL]    = 0x0001A008;
+    s->regs[PLL_STATUS]     = 0x0000003F;
+    s->regs[ARM_PLL_CFG]    = 0x00014000;
+    s->regs[DDR_PLL_CFG]    = 0x00014000;
+    s->regs[IO_PLL_CFG]     = 0x00014000;
 
     /* 0x120 - 0x16C */
-    s->clk[ARM_CLK_CTRL] = 0x1F000400;
-    s->clk[DDR_CLK_CTRL] = 0x18400003;
-    s->clk[DCI_CLK_CTRL] = 0x01E03201;
-    s->clk[APER_CLK_CTRL] = 0x01FFCCCD;
-    s->clk[USB0_CLK_CTRL] = s->clk[USB1_CLK_CTRL] = 0x00101941;
-    s->clk[GEM0_RCLK_CTRL] = s->clk[GEM1_RCLK_CTRL] = 0x00000001;
-    s->clk[GEM0_CLK_CTRL] = s->clk[GEM1_CLK_CTRL] = 0x00003C01;
-    s->clk[SMC_CLK_CTRL] = 0x00003C01;
-    s->clk[LQSPI_CLK_CTRL] = 0x00002821;
-    s->clk[SDIO_CLK_CTRL] = 0x00001E03;
-    s->clk[UART_CLK_CTRL] = 0x00003F03;
-    s->clk[SPI_CLK_CTRL] = 0x00003F03;
-    s->clk[CAN_CLK_CTRL] = 0x00501903;
-    s->clk[DBG_CLK_CTRL] = 0x00000F03;
-    s->clk[PCAP_CLK_CTRL] = 0x00000F01;
+    s->regs[ARM_CLK_CTRL]   = 0x1F000400;
+    s->regs[DDR_CLK_CTRL]   = 0x18400003;
+    s->regs[DCI_CLK_CTRL]   = 0x01E03201;
+    s->regs[APER_CLK_CTRL]  = 0x01FFCCCD;
+    s->regs[USB0_CLK_CTRL]  = s->regs[USB1_CLK_CTRL]    = 0x00101941;
+    s->regs[GEM0_RCLK_CTRL] = s->regs[GEM1_RCLK_CTRL]   = 0x00000001;
+    s->regs[GEM0_CLK_CTRL]  = s->regs[GEM1_CLK_CTRL]    = 0x00003C01;
+    s->regs[SMC_CLK_CTRL]   = 0x00003C01;
+    s->regs[LQSPI_CLK_CTRL] = 0x00002821;
+    s->regs[SDIO_CLK_CTRL]  = 0x00001E03;
+    s->regs[UART_CLK_CTRL]  = 0x00003F03;
+    s->regs[SPI_CLK_CTRL]   = 0x00003F03;
+    s->regs[CAN_CLK_CTRL]   = 0x00501903;
+    s->regs[DBG_CLK_CTRL]   = 0x00000F03;
+    s->regs[PCAP_CLK_CTRL]  = 0x00000F01;
 
     /* 0x170 - 0x1AC */
-    s->fpga[0][CLK_CTRL] = s->fpga[1][CLK_CTRL] = s->fpga[2][CLK_CTRL] =
-            s->fpga[3][CLK_CTRL] = 0x00101800;
-    s->fpga[0][THR_STA] = s->fpga[1][THR_STA] = s->fpga[2][THR_STA] =
-            s->fpga[3][THR_STA] = 0x00010000;
+    s->regs[FPGA0_CLK_CTRL] = s->regs[FPGA1_CLK_CTRL] = s->regs[FPGA2_CLK_CTRL]
+                            = s->regs[FPGA3_CLK_CTRL] = 0x00101800;
+    s->regs[FPGA0_THR_STA] = s->regs[FPGA1_THR_STA] = s->regs[FPGA2_THR_STA]
+                           = s->regs[FPGA3_THR_STA] = 0x00010000;
 
     /* 0x1B0 - 0x1D8 */
-    s->misc[BANDGAP_TRIP] = 0x0000001F;
-    s->misc[PLL_PREDIVISOR] = 0x00000001;
-    s->misc[CLK_621_TRUE] = 0x00000001;
+    s->regs[BANDGAP_TRIP]   = 0x0000001F;
+    s->regs[PLL_PREDIVISOR] = 0x00000001;
+    s->regs[CLK_621_TRUE]   = 0x00000001;
 
     /* 0x200 - 0x25C */
-    s->reset[FPGA] = 0x01F33F0F;
-    s->reset[RST_REASON] = 0x00000040;
+    s->regs[FPGA_RST_CTRL]  = 0x01F33F0F;
+    s->regs[RST_REASON]     = 0x00000040;
+
+    s->regs[BOOT_MODE]      = 0x00000001;
 
     /* 0x700 - 0x7D4 */
     for (i = 0; i < 54; i++) {
-        s->mio[i] = 0x00001601;
+        s->regs[MIO + i] = 0x00001601;
     }
     for (i = 2; i <= 8; i++) {
-        s->mio[i] = 0x00000601;
+        s->regs[MIO + i] = 0x00000601;
     }
 
-    /* MIO_MST_TRI0, MIO_MST_TRI1 */
-    s->mio_func[2] = s->mio_func[3] = 0xFFFFFFFF;
+    s->regs[MIO_MST_TRI0] = s->regs[MIO_MST_TRI1] = 0xFFFFFFFF;
 
-    s->cpu_ram[0] = s->cpu_ram[1] = s->cpu_ram[3] =
-            s->cpu_ram[4] = s->cpu_ram[7] = 0x00010101;
-    s->cpu_ram[2] = s->cpu_ram[5] = 0x01010101;
-    s->cpu_ram[6] = 0x00000001;
+    s->regs[CPU_RAM + 0] = s->regs[CPU_RAM + 1] = s->regs[CPU_RAM + 3]
+                         = s->regs[CPU_RAM + 4] = s->regs[CPU_RAM + 7]
+                         = 0x00010101;
+    s->regs[CPU_RAM + 2] = s->regs[CPU_RAM + 5] = 0x01010101;
+    s->regs[CPU_RAM + 6] = 0x00000001;
 
-    s->iou[0] = s->iou[1] = s->iou[2] = s->iou[3] = 0x09090909;
-    s->iou[4] = s->iou[5] = 0x00090909;
-    s->iou[6] = 0x00000909;
+    s->regs[IOU + 0] = s->regs[IOU + 1] = s->regs[IOU + 2] = s->regs[IOU + 3]
+                     = 0x09090909;
+    s->regs[IOU + 4] = s->regs[IOU + 5] = 0x00090909;
+    s->regs[IOU + 6] = 0x00000909;
 
-    s->dmac_ram = 0x00000009;
+    s->regs[DMAC_RAM] = 0x00000009;
 
-    s->afi[0][0] = s->afi[0][1] = 0x09090909;
-    s->afi[1][0] = s->afi[1][1] = 0x09090909;
-    s->afi[2][0] = s->afi[2][1] = 0x09090909;
-    s->afi[3][0] = s->afi[3][1] = 0x09090909;
-    s->afi[0][2] = s->afi[1][2] = s->afi[2][2] = s->afi[3][2] = 0x00000909;
+    s->regs[AFI0 + 0] = s->regs[AFI0 + 1] = 0x09090909;
+    s->regs[AFI1 + 0] = s->regs[AFI1 + 1] = 0x09090909;
+    s->regs[AFI2 + 0] = s->regs[AFI2 + 1] = 0x09090909;
+    s->regs[AFI3 + 0] = s->regs[AFI3 + 1] = 0x09090909;
+    s->regs[AFI0 + 2] = s->regs[AFI1 + 2] = s->regs[AFI2 + 2]
+                      = s->regs[AFI3 + 2] = 0x00000909;
 
-    s->ocm[0] = 0x01010101;
-    s->ocm[1] = s->ocm[2] = 0x09090909;
+    s->regs[OCM + 0]    = 0x01010101;
+    s->regs[OCM + 1]    = s->regs[OCM + 2] = 0x09090909;
 
-    s->devci_ram = 0x00000909;
-    s->csg_ram = 0x00000001;
+    s->regs[DEVCI_RAM]  = 0x00000909;
+    s->regs[CSG_RAM]    = 0x00000001;
 
-    s->ddriob[0] = s->ddriob[1] = s->ddriob[2] = s->ddriob[3] = 0x00000e00;
-    s->ddriob[4] = s->ddriob[5] = s->ddriob[6] = 0x00000e00;
-    s->ddriob[12] = 0x00000021;
+    s->regs[DDRIOB + 0] = s->regs[DDRIOB + 1] = s->regs[DDRIOB + 2]
+                        = s->regs[DDRIOB + 3] = 0x00000e00;
+    s->regs[DDRIOB + 4] = s->regs[DDRIOB + 5] = s->regs[DDRIOB + 6]
+                        = 0x00000e00;
+    s->regs[DDRIOB + 12] = 0x00000021;
 }
 
-static inline uint32_t zynq_slcr_read_imp(void *opaque,
-    hwaddr offset)
-{
-    ZynqSLCRState *s = (ZynqSLCRState *)opaque;
 
+static bool zynq_slcr_check_offset(hwaddr offset, bool rnw)
+{
     switch (offset) {
-    case 0x0: /* SCL */
-        return s->scl;
-    case 0x4: /* LOCK */
-    case 0x8: /* UNLOCK */
-        DB_PRINT("Reading SCLR_LOCK/UNLOCK is not enabled\n");
-        return 0;
-    case 0x0C: /* LOCKSTA */
-        return s->lockval;
-    case 0x100 ... 0x11C:
-        return s->pll[(offset - 0x100) / 4];
-    case 0x120 ... 0x16C:
-        return s->clk[(offset - 0x120) / 4];
-    case 0x170 ... 0x1AC:
-        return s->fpga[0][(offset - 0x170) / 4];
-    case 0x1B0 ... 0x1D8:
-        return s->misc[(offset - 0x1B0) / 4];
-    case 0x200 ... 0x258:
-        return s->reset[(offset - 0x200) / 4];
-    case 0x25c:
-        return 1;
-    case 0x300:
-        return s->apu_ctrl;
-    case 0x304:
-        return s->wdt_clk_sel;
-    case 0x400 ... 0x408:
-        return s->tz_ocm[(offset - 0x400) / 4];
-    case 0x430:
-        return s->tz_ddr;
-    case 0x440 ... 0x448:
-        return s->tz_dma[(offset - 0x440) / 4];
-    case 0x450 ... 0x458:
-        return s->tz_misc[(offset - 0x450) / 4];
-    case 0x484 ... 0x488:
-        return s->tz_fpga[(offset - 0x484) / 4];
-    case 0x500:
-        return s->dbg_ctrl;
-    case 0x530:
-        return s->pss_idcode;
-    case 0x600 ... 0x620:
-        if (offset == 0x604) {
-            goto bad_reg;
-        }
-        return s->ddr[(offset - 0x600) / 4];
-    case 0x700 ... 0x7D4:
-        return s->mio[(offset - 0x700) / 4];
-    case 0x800 ... 0x810:
-        return s->mio_func[(offset - 0x800) / 4];
-    case 0x830 ... 0x834:
-        return s->sd[(offset - 0x830) / 4];
-    case 0x900:
-        return s->lvl_shftr_en;
-    case 0x910:
-        return s->ocm_cfg;
-    case 0xA00 ... 0xA1C:
-        return s->cpu_ram[(offset - 0xA00) / 4];
-    case 0xA30 ... 0xA48:
-        return s->iou[(offset - 0xA30) / 4];
-    case 0xA50:
-        return s->dmac_ram;
-    case 0xA60 ... 0xA8C:
-        return s->afi[0][(offset - 0xA60) / 4];
-    case 0xA90 ... 0xA98:
-        return s->ocm[(offset - 0xA90) / 4];
-    case 0xAA0:
-        return s->devci_ram;
-    case 0xAB0:
-        return s->csg_ram;
-    case 0xB00 ... 0xB2C:
-        return s->gpiob[(offset - 0xB00) / 4];
-    case 0xB40 ... 0xB74:
-        return s->ddriob[(offset - 0xB40) / 4];
+    case LOCK:
+    case UNLOCK:
+    case DDR_CAL_START:
+    case DDR_REF_START:
+        return !rnw; /* Write only */
+    case LOCKSTA:
+    case FPGA0_THR_STA:
+    case FPGA1_THR_STA:
+    case FPGA2_THR_STA:
+    case FPGA3_THR_STA:
+    case BOOT_MODE:
+    case PSS_IDCODE:
+    case DDR_CMD_STA:
+    case DDR_DFI_STATUS:
+    case PLL_STATUS:
+        return rnw;/* read only */
+    case SCL:
+    case ARM_PLL_CTRL ... IO_PLL_CTRL:
+    case ARM_PLL_CFG ... IO_PLL_CFG:
+    case ARM_CLK_CTRL ... TOPSW_CLK_CTRL:
+    case FPGA0_CLK_CTRL ... FPGA0_THR_CNT:
+    case FPGA1_CLK_CTRL ... FPGA1_THR_CNT:
+    case FPGA2_CLK_CTRL ... FPGA2_THR_CNT:
+    case FPGA3_CLK_CTRL ... FPGA3_THR_CNT:
+    case BANDGAP_TRIP:
+    case PLL_PREDIVISOR:
+    case CLK_621_TRUE:
+    case PSS_RST_CTRL ... A9_CPU_RST_CTRL:
+    case RS_AWDT_CTRL:
+    case RST_REASON:
+    case REBOOT_STATUS:
+    case APU_CTRL:
+    case WDT_CLK_SEL:
+    case TZ_DMA_NS ... TZ_DMA_PERIPH_NS:
+    case DDR_URGENT:
+    case DDR_URGENT_SEL:
+    case MIO ... MIO + MIO_LENGTH - 1:
+    case MIO_LOOPBACK ... MIO_MST_TRI1:
+    case SD0_WP_CD_SEL:
+    case SD1_WP_CD_SEL:
+    case LVL_SHFTR_EN:
+    case OCM_CFG:
+    case CPU_RAM:
+    case IOU:
+    case DMAC_RAM:
+    case AFI0 ... AFI3 + AFI_LENGTH - 1:
+    case OCM:
+    case DEVCI_RAM:
+    case CSG_RAM:
+    case GPIOB_CTRL ... GPIOB_CFG_CMOS33:
+    case GPIOB_CFG_HSTL:
+    case GPIOB_DRVR_BIAS_CTRL:
+    case DDRIOB ... DDRIOB + DDRIOB_LENGTH - 1:
+        return true;
     default:
-    bad_reg:
-        DB_PRINT("Bad register offset 0x%x\n", (int)offset);
-        return 0;
+        return false;
     }
 }
 
 static uint64_t zynq_slcr_read(void *opaque, hwaddr offset,
     unsigned size)
 {
-    uint32_t ret = zynq_slcr_read_imp(opaque, offset);
+    ZynqSLCRState *s = opaque;
+    offset /= 4;
+    uint32_t ret = s->regs[offset];
 
-    DB_PRINT("addr: %08x data: %08x\n", (unsigned)offset, (unsigned)ret);
+    if (!zynq_slcr_check_offset(offset, true)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "zynq_slcr: Invalid read access to "
+                      " addr %" HWADDR_PRIx "\n", offset * 4);
+    }
+
+    DB_PRINT("addr: %08" HWADDR_PRIx " data: %08" PRIx32 "\n", offset * 4, ret);
     return ret;
 }
 
@@ -347,148 +357,55 @@ static void zynq_slcr_write(void *opaque, hwaddr offset,
                           uint64_t val, unsigned size)
 {
     ZynqSLCRState *s = (ZynqSLCRState *)opaque;
+    offset /= 4;
 
-    DB_PRINT("offset: %08x data: %08x\n", (unsigned)offset, (unsigned)val);
+    DB_PRINT("addr: %08" HWADDR_PRIx " data: %08" PRIx64 "\n", offset * 4, val);
+
+    if (!zynq_slcr_check_offset(offset, false)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "zynq_slcr: Invalid write access to "
+                      "addr %" HWADDR_PRIx "\n", offset * 4);
+        return;
+    }
 
     switch (offset) {
-    case 0x00: /* SCL */
-        s->scl = val & 0x1;
-    return;
-    case 0x4: /* SLCR_LOCK */
+    case SCL:
+        s->regs[SCL] = val & 0x1;
+        return;
+    case LOCK:
         if ((val & 0xFFFF) == XILINX_LOCK_KEY) {
             DB_PRINT("XILINX LOCK 0xF8000000 + 0x%x <= 0x%x\n", (int)offset,
                 (unsigned)val & 0xFFFF);
-            s->lockval = 1;
+            s->regs[LOCKSTA] = 1;
         } else {
             DB_PRINT("WRONG XILINX LOCK KEY 0xF8000000 + 0x%x <= 0x%x\n",
                 (int)offset, (unsigned)val & 0xFFFF);
         }
         return;
-    case 0x8: /* SLCR_UNLOCK */
+    case UNLOCK:
         if ((val & 0xFFFF) == XILINX_UNLOCK_KEY) {
             DB_PRINT("XILINX UNLOCK 0xF8000000 + 0x%x <= 0x%x\n", (int)offset,
                 (unsigned)val & 0xFFFF);
-            s->lockval = 0;
+            s->regs[LOCKSTA] = 0;
         } else {
             DB_PRINT("WRONG XILINX UNLOCK KEY 0xF8000000 + 0x%x <= 0x%x\n",
                 (int)offset, (unsigned)val & 0xFFFF);
         }
         return;
-    case 0xc: /* LOCKSTA */
-        DB_PRINT("Writing SCLR_LOCKSTA is not enabled\n");
+    }
+
+    if (!s->regs[LOCKSTA]) {
+        s->regs[offset / 4] = val;
+    } else {
+        DB_PRINT("SCLR registers are locked. Unlock them first\n");
         return;
     }
 
-    if (!s->lockval) {
-        switch (offset) {
-        case 0x100 ... 0x11C:
-            if (offset == 0x10C) {
-                goto bad_reg;
-            }
-            s->pll[(offset - 0x100) / 4] = val;
-            break;
-        case 0x120 ... 0x16C:
-            s->clk[(offset - 0x120) / 4] = val;
-            break;
-        case 0x170 ... 0x1AC:
-            s->fpga[0][(offset - 0x170) / 4] = val;
-            break;
-        case 0x1B0 ... 0x1D8:
-            s->misc[(offset - 0x1B0) / 4] = val;
-            break;
-        case 0x200 ... 0x25C:
-            if (offset == 0x250) {
-                goto bad_reg;
-            }
-            s->reset[(offset - 0x200) / 4] = val;
-            if (offset == 0x200 && (val & R_PSS_RST_CTRL_SOFT_RST)) {
-                qemu_system_reset_request();
-            }
-            break;
-        case 0x300:
-            s->apu_ctrl = val;
-            break;
-        case 0x304:
-            s->wdt_clk_sel = val;
-            break;
-        case 0x400 ... 0x408:
-            s->tz_ocm[(offset - 0x400) / 4] = val;
-            break;
-        case 0x430:
-            s->tz_ddr = val;
-            break;
-        case 0x440 ... 0x448:
-            s->tz_dma[(offset - 0x440) / 4] = val;
-            break;
-        case 0x450 ... 0x458:
-            s->tz_misc[(offset - 0x450) / 4] = val;
-            break;
-        case 0x484 ... 0x488:
-            s->tz_fpga[(offset - 0x484) / 4] = val;
-            break;
-        case 0x500:
-            s->dbg_ctrl = val;
-            break;
-        case 0x530:
-            s->pss_idcode = val;
-            break;
-        case 0x600 ... 0x620:
-            if (offset == 0x604) {
-                goto bad_reg;
-            }
-            s->ddr[(offset - 0x600) / 4] = val;
-            break;
-        case 0x700 ... 0x7D4:
-            s->mio[(offset - 0x700) / 4] = val;
-            break;
-        case 0x800 ... 0x810:
-            s->mio_func[(offset - 0x800) / 4] = val;
-            break;
-        case 0x830 ... 0x834:
-            s->sd[(offset - 0x830) / 4] = val;
-            break;
-        case 0x900:
-            s->lvl_shftr_en = val;
-            break;
-        case 0x910:
-            break;
-        case 0xA00 ... 0xA1C:
-            s->cpu_ram[(offset - 0xA00) / 4] = val;
-            break;
-        case 0xA30 ... 0xA48:
-            s->iou[(offset - 0xA30) / 4] = val;
-            break;
-        case 0xA50:
-            s->dmac_ram = val;
-            break;
-        case 0xA60 ... 0xA8C:
-            s->afi[0][(offset - 0xA60) / 4] = val;
-            break;
-        case 0xA90:
-            s->ocm[0] = val;
-            break;
-        case 0xAA0:
-            s->devci_ram = val;
-            break;
-        case 0xAB0:
-            s->csg_ram = val;
-            break;
-        case 0xB00 ... 0xB2C:
-            if (offset == 0xB20 || offset == 0xB2C) {
-                goto bad_reg;
-            }
-            s->gpiob[(offset - 0xB00) / 4] = val;
-            break;
-        case 0xB40 ... 0xB74:
-            s->ddriob[(offset - 0xB40) / 4] = val;
-            break;
-        default:
-        bad_reg:
-            DB_PRINT("Bad register write %x <= %08x\n", (int)offset,
-                     (unsigned)val);
+    switch (offset) {
+    case PSS_RST_CTRL:
+        if (val & R_PSS_RST_CTRL_SOFT_RST) {
+            qemu_system_reset_request();
         }
-    } else {
-        DB_PRINT("SCLR registers are locked. Unlock them first\n");
+        break;
     }
 }
 
@@ -498,23 +415,22 @@ static const MemoryRegionOps slcr_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int zynq_slcr_init(SysBusDevice *dev)
+static void zynq_slcr_init(Object *obj)
 {
-    ZynqSLCRState *s = ZYNQ_SLCR(dev);
+    ZynqSLCRState *s = ZYNQ_SLCR(obj);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &slcr_ops, s, "slcr", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-
-    return 0;
+    memory_region_init_io(&s->iomem, obj, &slcr_ops, s, "slcr",
+                          ZYNQ_SLCR_MMIO_SIZE);
+    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
 }
 
 static const VMStateDescription vmstate_zynq_slcr = {
     .name = "zynq_slcr",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
     .fields      = (VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(data, ZynqSLCRState, 0x1000),
+        VMSTATE_UINT32_ARRAY(regs, ZynqSLCRState, ZYNQ_SLCR_NUM_REGS),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -522,9 +438,7 @@ static const VMStateDescription vmstate_zynq_slcr = {
 static void zynq_slcr_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
 
-    sdc->init = zynq_slcr_init;
     dc->vmsd = &vmstate_zynq_slcr;
     dc->reset = zynq_slcr_reset;
 }
@@ -534,6 +448,7 @@ static const TypeInfo zynq_slcr_info = {
     .name  = TYPE_ZYNQ_SLCR,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(ZynqSLCRState),
+    .instance_init = zynq_slcr_init,
 };
 
 static void zynq_slcr_register_types(void)

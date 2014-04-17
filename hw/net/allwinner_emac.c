@@ -27,11 +27,11 @@ static uint8_t padding[60];
 static void mii_set_link(RTL8201CPState *mii, bool link_ok)
 {
     if (link_ok) {
-        mii->bmsr |= MII_BMSR_LINK_ST;
+        mii->bmsr |= MII_BMSR_LINK_ST | MII_BMSR_AN_COMP;
         mii->anlpar |= MII_ANAR_TXFD | MII_ANAR_10FD | MII_ANAR_10 |
                        MII_ANAR_CSMACD;
     } else {
-        mii->bmsr &= ~MII_BMSR_LINK_ST;
+        mii->bmsr &= ~(MII_BMSR_LINK_ST | MII_BMSR_AN_COMP);
         mii->anlpar = MII_ANAR_TX;
     }
 }
@@ -391,9 +391,11 @@ static void aw_emac_write(void *opaque, hwaddr offset, uint64_t value,
         break;
     case EMAC_INT_CTL_REG:
         s->int_ctl = value;
+        aw_emac_update_irq(s);
         break;
     case EMAC_INT_STA_REG:
         s->int_sta &= ~value;
+        aw_emac_update_irq(s);
         break;
     case EMAC_MAC_MADR_REG:
         s->phy_target = value;
