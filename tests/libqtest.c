@@ -93,6 +93,9 @@ static int socket_accept(int sock)
     do {
         ret = accept(sock, (struct sockaddr *)&addr, &addrlen);
     } while (ret == -1 && errno == EINTR);
+    if (ret == -1) {
+        fprintf(stderr, "%s failed: %s\n", __func__, strerror(errno));
+    }
     close(sock);
 
     return ret;
