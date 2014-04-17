@@ -452,12 +452,6 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
         }
     }
 
-    if (bdrv_find_node(qemu_opts_id(opts))) {
-        error_setg(errp, "device id=%s is conflicting with a node-name",
-                   qemu_opts_id(opts));
-        goto early_err;
-    }
-
     /* init */
     dinfo = g_malloc0(sizeof(*dinfo));
     dinfo->id = g_strdup(qemu_opts_id(opts));

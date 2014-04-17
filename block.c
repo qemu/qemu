@@ -336,6 +336,17 @@ BlockDriverState *bdrv_new(const char *device_name, Error **errp)
 {
     BlockDriverState *bs;
 
+    if (bdrv_find(device_name)) {
+        error_setg(errp, "Device with id '%s' already exists",
+                   device_name);
+        return NULL;
+    }
+    if (bdrv_find_node(device_name)) {
+        error_setg(errp, "Device with node-name '%s' already exists",
+                   device_name);
+        return NULL;
+    }
+
     bs = g_malloc0(sizeof(BlockDriverState));
     QLIST_INIT(&bs->dirty_bitmaps);
     pstrcpy(bs->device_name, sizeof(bs->device_name), device_name);
