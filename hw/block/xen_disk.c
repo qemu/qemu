@@ -817,11 +817,14 @@ static int blk_connect(struct XenDevice *xendev)
     index = (blkdev->xendev.dev - 202 * 256) / 16;
     blkdev->dinfo = drive_get(IF_XEN, 0, index);
     if (!blkdev->dinfo) {
+        Error *local_err = NULL;
         /* setup via xenbus -> create new block driver instance */
         xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
-        blkdev->bs = bdrv_new(blkdev->dev);
+        blkdev->bs = bdrv_new(blkdev->dev, &local_err);
+        if (local_err) {
+            blkdev->bs = NULL;
+        }
         if (blkdev->bs) {
-            Error *local_err = NULL;
             BlockDriver *drv = bdrv_find_whitelisted_format(blkdev->fileproto,
                                                            readonly);
             if (bdrv_open(&blkdev->bs, blkdev->filename, NULL, NULL, qflags,

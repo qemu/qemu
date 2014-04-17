@@ -461,7 +461,11 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     /* init */
     dinfo = g_malloc0(sizeof(*dinfo));
     dinfo->id = g_strdup(qemu_opts_id(opts));
-    dinfo->bdrv = bdrv_new(dinfo->id);
+    dinfo->bdrv = bdrv_new(dinfo->id, &error);
+    if (error) {
+        error_propagate(errp, error);
+        goto bdrv_new_err;
+    }
     dinfo->bdrv->open_flags = snapshot ? BDRV_O_SNAPSHOT : 0;
     dinfo->bdrv->read_only = ro;
     dinfo->refcount = 1;
@@ -523,8 +527,9 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
 
 err:
     bdrv_unref(dinfo->bdrv);
-    g_free(dinfo->id);
     QTAILQ_REMOVE(&drives, dinfo, next);
+bdrv_new_err:
+    g_free(dinfo->id);
     g_free(dinfo);
 early_err:
     QDECREF(bs_opts);

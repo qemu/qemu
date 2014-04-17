@@ -180,7 +180,7 @@ int bdrv_create(BlockDriver *drv, const char* filename,
     QEMUOptionParameter *options, Error **errp);
 int bdrv_create_file(const char* filename, QEMUOptionParameter *options,
                      Error **errp);
-BlockDriverState *bdrv_new(const char *device_name);
+BlockDriverState *bdrv_new(const char *device_name, Error **errp);
 void bdrv_make_anon(BlockDriverState *bs);
 void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old);
 void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);

@@ -332,7 +332,7 @@ void bdrv_register(BlockDriver *bdrv)
 }
 
 /* create a new block device (by default it is empty) */
-BlockDriverState *bdrv_new(const char *device_name)
+BlockDriverState *bdrv_new(const char *device_name, Error **errp)
 {
     BlockDriverState *bs;
 
@@ -1220,7 +1220,7 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, Error **errp)
     qdict_put(snapshot_options, "file.filename",
               qstring_from_str(tmp_filename));
 
-    bs_snapshot = bdrv_new("");
+    bs_snapshot = bdrv_new("", &error_abort);
     bs_snapshot->is_temporary = 1;
 
     ret = bdrv_open(&bs_snapshot, NULL, NULL, snapshot_options,
@@ -1287,7 +1287,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     if (*pbs) {
         bs = *pbs;
     } else {
-        bs = bdrv_new("");
+        bs = bdrv_new("", &error_abort);
     }
 
     /* NULL means an empty set of options */

@@ -274,7 +274,7 @@ static BlockDriverState *bdrv_new_open(const char *filename,
     Error *local_err = NULL;
     int ret;
 
-    bs = bdrv_new("image");
+    bs = bdrv_new("image", &error_abort);
 
     if (fmt) {
         drv = bdrv_find_format(fmt);
@@ -2344,7 +2344,7 @@ static int img_rebase(int argc, char **argv)
     } else {
         char backing_name[1024];
 
-        bs_old_backing = bdrv_new("old_backing");
+        bs_old_backing = bdrv_new("old_backing", &error_abort);
         bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
         ret = bdrv_open(&bs_old_backing, backing_name, NULL, NULL, BDRV_O_FLAGS,
                         old_backing_drv, &local_err);
@@ -2355,7 +2355,7 @@ static int img_rebase(int argc, char **argv)
             goto out;
         }
         if (out_baseimg[0]) {
-            bs_new_backing = bdrv_new("new_backing");
+            bs_new_backing = bdrv_new("new_backing", &error_abort);
             ret = bdrv_open(&bs_new_backing, out_baseimg, NULL, NULL,
                             BDRV_O_FLAGS, new_backing_drv, &local_err);
             if (ret) {

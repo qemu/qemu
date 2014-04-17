@@ -1401,7 +1401,7 @@ static int iscsi_create(const char *filename, QEMUOptionParameter *options,
     IscsiLun *iscsilun = NULL;
     QDict *bs_options;
 
-    bs = bdrv_new("");
+    bs = bdrv_new("", &error_abort);
 
     /* Read out options */
     while (options && options->name) {
