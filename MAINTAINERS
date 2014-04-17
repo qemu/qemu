@@ -52,6 +52,13 @@ General Project Administration
 ------------------------------
 M: Anthony Liguori <aliguori@amazon.com>
 
+Responsible Disclosure, Reporting Security Issues
+------------------------------
+W: http://wiki.qemu.org/SecurityProcess
+M: Michael S. Tsirkin <mst@redhat.com>
+M: Anthony Liguori <aliguori@amazon.com>
+L: secalert@redhat.com
+
 Guest CPU cores (TCG):
 ----------------------
 Alpha
