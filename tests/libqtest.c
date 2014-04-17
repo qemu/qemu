@@ -72,7 +72,8 @@ static int init_socket(const char *socket_path)
         ret = bind(sock, (struct sockaddr *)&addr, sizeof(addr));
     } while (ret == -1 && errno == EINTR);
     g_assert_no_errno(ret);
-    listen(sock, 1);
+    ret = listen(sock, 1);
+    g_assert_no_errno(ret);
 
     return sock;
 }
