@@ -1269,6 +1269,17 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
                 target_tv->tv_usec = tswapal(tv->tv_usec);
                 break;
             }
+            case SCM_CREDENTIALS:
+            {
+                struct ucred *cred = (struct ucred *)data;
+                struct target_ucred *target_cred =
+                    (struct target_ucred *)target_data;
+
+                __put_user(cred->pid, &target_cred->pid);
+                __put_user(cred->uid, &target_cred->uid);
+                __put_user(cred->gid, &target_cred->gid);
+                break;
+            }
             default:
                 goto unimplemented;
             }
