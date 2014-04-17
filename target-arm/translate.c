@@ -8430,27 +8430,39 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                         if (insn & (1 << 5))
                             gen_swap_half(tmp2);
                         gen_smul_dual(tmp, tmp2);
-                        if (insn & (1 << 6)) {
-                            /* This subtraction cannot overflow. */
-                            tcg_gen_sub_i32(tmp, tmp, tmp2);
-                        } else {
-                            /* This addition cannot overflow 32 bits;
-                             * however it may overflow considered as a signed
-                             * operation, in which case we must set the Q flag.
-                             */
-                            gen_helper_add_setq(tmp, cpu_env, tmp, tmp2);
-                        }
-                        tcg_temp_free_i32(tmp2);
                         if (insn & (1 << 22)) {
                             /* smlald, smlsld */
+                            TCGv_i64 tmp64_2;
+
                             tmp64 = tcg_temp_new_i64();
+                            tmp64_2 = tcg_temp_new_i64();
                             tcg_gen_ext_i32_i64(tmp64, tmp);
+                            tcg_gen_ext_i32_i64(tmp64_2, tmp2);
                             tcg_temp_free_i32(tmp);
+                            tcg_temp_free_i32(tmp2);
+                            if (insn & (1 << 6)) {
+                                tcg_gen_sub_i64(tmp64, tmp64, tmp64_2);
+                            } else {
+                                tcg_gen_add_i64(tmp64, tmp64, tmp64_2);
+                            }
+                            tcg_temp_free_i64(tmp64_2);
                             gen_addq(s, tmp64, rd, rn);
                             gen_storeq_reg(s, rd, rn, tmp64);
                             tcg_temp_free_i64(tmp64);
                         } else {
                             /* smuad, smusd, smlad, smlsd */
+                            if (insn & (1 << 6)) {
+                                /* This subtraction cannot overflow. */
+                                tcg_gen_sub_i32(tmp, tmp, tmp2);
+                            } else {
+                                /* This addition cannot overflow 32 bits;
+                                 * however it may overflow considered as a
+                                 * signed operation, in which case we must set
+                                 * the Q flag.
+                                 */
+                                gen_helper_add_setq(tmp, cpu_env, tmp, tmp2);
+                            }
+                            tcg_temp_free_i32(tmp2);
                             if (rd != 15)
                               {
                                 tmp2 = load_reg(s, rd);
