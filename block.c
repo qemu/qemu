@@ -1067,9 +1067,9 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
         /* if snapshot, we create a temporary backing file and open it
            instead of opening 'filename' directly */
 
-        /* if there is a backing file, use it */
         bs1 = bdrv_new("");
-        ret = bdrv_open(bs1, filename, NULL, 0, drv, &local_err);
+        ret = bdrv_open(bs1, filename, NULL, BDRV_O_NO_BACKING, drv,
+                        &local_err);
         if (ret < 0) {
             bdrv_unref(bs1);
             goto fail;
