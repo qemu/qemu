@@ -536,3 +536,38 @@ uint32_t helper_##op(CPUPPCState *env, uint64_t *a, uint64_t *b)         \
 
 DFP_HELPER_TSTEX(dtstex, 64)
 DFP_HELPER_TSTEX(dtstexq, 128)
+
+#define DFP_HELPER_TSTSF(op, size)                                       \
+uint32_t helper_##op(CPUPPCState *env, uint64_t *a, uint64_t *b)         \
+{                                                                        \
+    struct PPC_DFP dfp;                                                  \
+    unsigned k;                                                          \
+                                                                         \
+    dfp_prepare_decimal##size(&dfp, 0, b, env);                          \
+                                                                         \
+    k = *a & 0x3F;                                                       \
+                                                                         \
+    if (unlikely(decNumberIsSpecial(&dfp.b))) {                          \
+        dfp.crbf = 1;                                                    \
+    } else if (k == 0) {                                                 \
+        dfp.crbf = 4;                                                    \
+    } else if (unlikely(decNumberIsZero(&dfp.b))) {                      \
+        /* Zero has no sig digits */                                     \
+        dfp.crbf = 4;                                                    \
+    } else {                                                             \
+        unsigned nsd = dfp.b.digits;                                     \
+        if (k < nsd) {                                                   \
+            dfp.crbf = 8;                                                \
+        } else if (k > nsd) {                                            \
+            dfp.crbf = 4;                                                \
+        } else {                                                         \
+            dfp.crbf = 2;                                                \
+        }                                                                \
+    }                                                                    \
+                                                                         \
+    dfp_set_FPCC_from_CRBF(&dfp);                                        \
+    return dfp.crbf;                                                     \
+}
+
+DFP_HELPER_TSTSF(dtstsf, 64)
+DFP_HELPER_TSTSF(dtstsfq, 128)
