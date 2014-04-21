@@ -449,3 +449,58 @@ uint32_t helper_##op(CPUPPCState *env, uint64_t *a, uint32_t dcm)        \
 
 DFP_HELPER_TSTDC(dtstdc, 64)
 DFP_HELPER_TSTDC(dtstdcq, 128)
+
+#define DFP_HELPER_TSTDG(op, size)                                       \
+uint32_t helper_##op(CPUPPCState *env, uint64_t *a, uint32_t dcm)        \
+{                                                                        \
+    struct PPC_DFP dfp;                                                  \
+    int minexp, maxexp, nzero_digits, nzero_idx, is_negative, is_zero,   \
+        is_extreme_exp, is_subnormal, is_normal, leftmost_is_nonzero,    \
+        match;                                                           \
+                                                                         \
+    dfp_prepare_decimal##size(&dfp, a, 0, env);                          \
+                                                                         \
+    if ((size) == 64) {                                                  \
+        minexp = -398;                                                   \
+        maxexp = 369;                                                    \
+        nzero_digits = 16;                                               \
+        nzero_idx = 5;                                                   \
+    } else if ((size) == 128) {                                          \
+        minexp = -6176;                                                  \
+        maxexp = 6111;                                                   \
+        nzero_digits = 34;                                               \
+        nzero_idx = 11;                                                  \
+    }                                                                    \
+                                                                         \
+    is_negative = decNumberIsNegative(&dfp.a);                           \
+    is_zero = decNumberIsZero(&dfp.a);                                   \
+    is_extreme_exp = (dfp.a.exponent == maxexp) ||                       \
+                     (dfp.a.exponent == minexp);                         \
+    is_subnormal = decNumberIsSubnormal(&dfp.a, &dfp.context);           \
+    is_normal = decNumberIsNormal(&dfp.a, &dfp.context);                 \
+    leftmost_is_nonzero = (dfp.a.digits == nzero_digits) &&              \
+                          (dfp.a.lsu[nzero_idx] != 0);                   \
+    match = 0;                                                           \
+                                                                         \
+    match |= (dcm & 0x20) && is_zero && !is_extreme_exp;                 \
+    match |= (dcm & 0x10) && is_zero && is_extreme_exp;                  \
+    match |= (dcm & 0x08) &&                                             \
+             (is_subnormal || (is_normal && is_extreme_exp));            \
+    match |= (dcm & 0x04) && is_normal && !is_extreme_exp &&             \
+             !leftmost_is_nonzero;                                       \
+    match |= (dcm & 0x02) && is_normal && !is_extreme_exp &&             \
+             leftmost_is_nonzero;                                        \
+    match |= (dcm & 0x01) && decNumberIsSpecial(&dfp.a);                 \
+                                                                         \
+    if (is_negative) {                                                   \
+        dfp.crbf = match ? 0xA : 0x8;                                    \
+    } else {                                                             \
+        dfp.crbf = match ? 0x2 : 0x0;                                    \
+    }                                                                    \
+                                                                         \
+    dfp_set_FPCC_from_CRBF(&dfp);                                        \
+    return dfp.crbf;                                                     \
+}
+
+DFP_HELPER_TSTDG(dtstdg, 64)
+DFP_HELPER_TSTDG(dtstdgq, 128)
