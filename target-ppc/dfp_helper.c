@@ -79,6 +79,47 @@ static void dfp_prepare_rounding_mode(decContext *context, uint64_t fpscr)
     decContextSetRounding(context, rnd);
 }
 
+static void dfp_set_round_mode_from_immediate(uint8_t r, uint8_t rmc,
+                                                  struct PPC_DFP *dfp)
+{
+    enum rounding rnd;
+    if (r == 0) {
+        switch (rmc & 3) {
+        case 0:
+            rnd = DEC_ROUND_HALF_EVEN;
+            break;
+        case 1:
+            rnd = DEC_ROUND_DOWN;
+            break;
+        case 2:
+            rnd = DEC_ROUND_HALF_UP;
+            break;
+        case 3: /* use FPSCR rounding mode */
+            return;
+        default:
+            assert(0); /* cannot get here */
+        }
+    } else { /* r == 1 */
+        switch (rmc & 3) {
+        case 0:
+            rnd = DEC_ROUND_CEILING;
+            break;
+        case 1:
+            rnd = DEC_ROUND_FLOOR;
+            break;
+        case 2:
+            rnd = DEC_ROUND_UP;
+            break;
+        case 3:
+            rnd = DEC_ROUND_HALF_DOWN;
+            break;
+        default:
+            assert(0); /* cannot get here */
+        }
+    }
+    decContextSetRounding(&dfp->context, rnd);
+}
+
 static void dfp_prepare_decimal64(struct PPC_DFP *dfp, uint64_t *a,
                 uint64_t *b, CPUPPCState *env)
 {
@@ -301,6 +342,15 @@ static void dfp_check_for_VXVC(struct PPC_DFP *dfp)
     }
 }
 
+static void dfp_check_for_VXCVI(struct PPC_DFP *dfp)
+{
+    if ((dfp->context.status & DEC_Invalid_operation) &&
+        (!decNumberIsSNaN(&dfp->a)) &&
+        (!decNumberIsSNaN(&dfp->b))) {
+        dfp_set_FPSCR_flag(dfp, FP_VX | FP_VXCVI, FP_VE);
+    }
+}
+
 static void dfp_set_CRBF_from_T(struct PPC_DFP *dfp)
 {
     if (decNumberIsNaN(&dfp->t)) {
@@ -318,6 +368,12 @@ static void dfp_set_FPCC_from_CRBF(struct PPC_DFP *dfp)
 {
     dfp->env->fpscr &= ~(0xF << 12);
     dfp->env->fpscr |= (dfp->crbf << 12);
+}
+
+static inline void dfp_makeQNaN(decNumber *dn)
+{
+    dn->bits &= ~DECSPECIAL;
+    dn->bits |= DECNAN;
 }
 
 #define DFP_HELPER_TAB(op, dnop, postprocs, size)                              \
@@ -571,3 +627,79 @@ uint32_t helper_##op(CPUPPCState *env, uint64_t *a, uint64_t *b)         \
 
 DFP_HELPER_TSTSF(dtstsf, 64)
 DFP_HELPER_TSTSF(dtstsfq, 128)
+
+static void QUA_PPs(struct PPC_DFP *dfp)
+{
+    dfp_set_FPRF_from_FRT(dfp);
+    dfp_check_for_XX(dfp);
+    dfp_check_for_VXSNAN(dfp);
+    dfp_check_for_VXCVI(dfp);
+}
+
+static void dfp_quantize(uint8_t rmc, struct PPC_DFP *dfp)
+{
+    dfp_set_round_mode_from_immediate(0, rmc, dfp);
+    decNumberQuantize(&dfp->t, &dfp->b, &dfp->a, &dfp->context);
+    if (decNumberIsSNaN(&dfp->a)) {
+        dfp->t = dfp->a;
+        dfp_makeQNaN(&dfp->t);
+    } else if (decNumberIsSNaN(&dfp->b)) {
+        dfp->t = dfp->b;
+        dfp_makeQNaN(&dfp->t);
+    } else if (decNumberIsQNaN(&dfp->a)) {
+        dfp->t = dfp->a;
+    } else if (decNumberIsQNaN(&dfp->b)) {
+        dfp->t = dfp->b;
+    }
+}
+
+#define DFP_HELPER_QUAI(op, size)                                       \
+void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *b,            \
+                 uint32_t te, uint32_t rmc)                             \
+{                                                                       \
+    struct PPC_DFP dfp;                                                 \
+                                                                        \
+    dfp_prepare_decimal##size(&dfp, 0, b, env);                         \
+                                                                        \
+    decNumberFromUInt32(&dfp.a, 1);                                     \
+    dfp.a.exponent = (int32_t)((int8_t)(te << 3) >> 3);                 \
+                                                                        \
+    dfp_quantize(rmc, &dfp);                                            \
+    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t,         \
+                              &dfp.context);                            \
+    QUA_PPs(&dfp);                                                      \
+                                                                        \
+    if (size == 64) {                                                   \
+        t[0] = dfp.t64[0];                                              \
+    } else if (size == 128) {                                           \
+        t[0] = dfp.t64[HI_IDX];                                         \
+        t[1] = dfp.t64[LO_IDX];                                         \
+    }                                                                   \
+}
+
+DFP_HELPER_QUAI(dquai, 64)
+DFP_HELPER_QUAI(dquaiq, 128)
+
+#define DFP_HELPER_QUA(op, size)                                        \
+void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *a,            \
+                 uint64_t *b, uint32_t rmc)                             \
+{                                                                       \
+    struct PPC_DFP dfp;                                                 \
+                                                                        \
+    dfp_prepare_decimal##size(&dfp, a, b, env);                         \
+                                                                        \
+    dfp_quantize(rmc, &dfp);                                            \
+    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t,         \
+                              &dfp.context);                            \
+    QUA_PPs(&dfp);                                                      \
+                                                                        \
+    if (size == 64) {                                                   \
+        t[0] = dfp.t64[0];                                              \
+    } else if (size == 128) {                                           \
+        t[0] = dfp.t64[HI_IDX];                                         \
+        t[1] = dfp.t64[LO_IDX];                                         \
+    }                                                                   \
+}
+
+DFP_HELPER_QUA(dqua, 64)
+DFP_HELPER_QUA(dquaq, 128)

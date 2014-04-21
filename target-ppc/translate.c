@@ -8376,6 +8376,10 @@ GEN_DFP_BF_A_B(dtstex)
 GEN_DFP_BF_A_B(dtstexq)
 GEN_DFP_BF_A_B(dtstsf)
 GEN_DFP_BF_A_B(dtstsfq)
+GEN_DFP_T_B_U32_U32_Rc(dquai, SIMM5, RMC)
+GEN_DFP_T_B_U32_U32_Rc(dquaiq, SIMM5, RMC)
+GEN_DFP_T_A_B_I32_Rc(dqua, RMC)
+GEN_DFP_T_A_B_I32_Rc(dquaq, RMC)
 /***                           SPE extension                               ***/
 /* Register moves */
 
@@ -11323,6 +11327,10 @@ GEN_DFP_BF_A_B(dtstex, 0x02, 0x05),
 GEN_DFP_BF_Ap_Bp(dtstexq, 0x02, 0x05),
 GEN_DFP_BF_A_B(dtstsf, 0x02, 0x15),
 GEN_DFP_BF_A_Bp(dtstsfq, 0x02, 0x15),
+GEN_DFP_TE_T_B_RMC_Rc(dquai, 0x03, 0x02),
+GEN_DFP_TE_Tp_Bp_RMC_Rc(dquaiq, 0x03, 0x02),
+GEN_DFP_T_A_B_RMC_Rc(dqua, 0x03, 0x00),
+GEN_DFP_Tp_Ap_Bp_RMC_Rc(dquaq, 0x03, 0x00),
 #undef GEN_SPE
 #define GEN_SPE(name0, name1, opc2, opc3, inval0, inval1, type) \
     GEN_OPCODE_DUAL(name0##_##name1, 0x04, opc2, opc3, inval0, inval1, type, PPC_NONE)
