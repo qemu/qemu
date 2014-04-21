@@ -261,6 +261,16 @@ static void dfp_check_for_VXISI_subtract(struct PPC_DFP *dfp)
     dfp_check_for_VXISI(dfp, 1);
 }
 
+static void dfp_check_for_VXIMZ(struct PPC_DFP *dfp)
+{
+    if (dfp->context.status & DEC_Invalid_operation) {
+        if ((decNumberIsInfinite(&dfp->a) && decNumberIsZero(&dfp->b)) ||
+            (decNumberIsInfinite(&dfp->b) && decNumberIsZero(&dfp->a))) {
+            dfp_set_FPSCR_flag(dfp, FP_VX | FP_VXIMZ, FP_VE);
+        }
+    }
+}
+
 #define DFP_HELPER_TAB(op, dnop, postprocs, size)                              \
 void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *a, uint64_t *b)      \
 {                                                                              \
@@ -302,3 +312,16 @@ static void SUB_PPs(struct PPC_DFP *dfp)
 
 DFP_HELPER_TAB(dsub, decNumberSubtract, SUB_PPs, 64)
 DFP_HELPER_TAB(dsubq, decNumberSubtract, SUB_PPs, 128)
+
+static void MUL_PPs(struct PPC_DFP *dfp)
+{
+    dfp_set_FPRF_from_FRT(dfp);
+    dfp_check_for_OX(dfp);
+    dfp_check_for_UX(dfp);
+    dfp_check_for_XX(dfp);
+    dfp_check_for_VXSNAN(dfp);
+    dfp_check_for_VXIMZ(dfp);
+}
+
+DFP_HELPER_TAB(dmul, decNumberMultiply, MUL_PPs, 64)
+DFP_HELPER_TAB(dmulq, decNumberMultiply, MUL_PPs, 128)
