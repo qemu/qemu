@@ -130,3 +130,34 @@ static void dfp_prepare_decimal128(struct PPC_DFP *dfp, uint64_t *a,
         decNumberZero(&dfp->b);
     }
 }
+
+#define FP_FX       (1ull << FPSCR_FX)
+#define FP_FEX      (1ull << FPSCR_FEX)
+#define FP_OX       (1ull << FPSCR_OX)
+#define FP_OE       (1ull << FPSCR_OE)
+#define FP_UX       (1ull << FPSCR_UX)
+#define FP_UE       (1ull << FPSCR_UE)
+#define FP_XX       (1ull << FPSCR_XX)
+#define FP_XE       (1ull << FPSCR_XE)
+#define FP_ZX       (1ull << FPSCR_ZX)
+#define FP_ZE       (1ull << FPSCR_ZE)
+#define FP_VX       (1ull << FPSCR_VX)
+#define FP_VXSNAN   (1ull << FPSCR_VXSNAN)
+#define FP_VXISI    (1ull << FPSCR_VXISI)
+#define FP_VXIMZ    (1ull << FPSCR_VXIMZ)
+#define FP_VXZDZ    (1ull << FPSCR_VXZDZ)
+#define FP_VXIDI    (1ull << FPSCR_VXIDI)
+#define FP_VXVC     (1ull << FPSCR_VXVC)
+#define FP_VXCVI    (1ull << FPSCR_VXCVI)
+#define FP_VE       (1ull << FPSCR_VE)
+#define FP_FI       (1ull << FPSCR_FI)
+
+__attribute__ ((unused))
+static void dfp_set_FPSCR_flag(struct PPC_DFP *dfp, uint64_t flag,
+                uint64_t enabled)
+{
+    dfp->env->fpscr |= (flag | FP_FX);
+    if (dfp->env->fpscr & enabled) {
+        dfp->env->fpscr |= FP_FEX;
+    }
+}
