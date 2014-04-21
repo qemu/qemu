@@ -7403,7 +7403,6 @@ static void decSetMaxValue(decNumber *dn, decContext *set) {
 /* ------------------------------------------------------------------ */
 static void decSetSubnormal(decNumber *dn, decContext *set, Int *residue,
 			    uInt *status) {
-  Int	     dnexp;	      /* saves original exponent */
   decContext workset;	      /* work */
   Int	     etiny, adjust;   /* .. */
 
@@ -7448,7 +7447,6 @@ static void decSetSubnormal(decNumber *dn, decContext *set, Int *residue,
 
   /* adjust>0, so need to rescale the result so exponent becomes Etiny */
   /* [this code is similar to that in rescale] */
-  dnexp=dn->exponent;			/* save exponent */
   workset=*set;				/* clone rounding, etc. */
   workset.digits=dn->digits-adjust;	/* set requested length */
   workset.emin-=adjust;			/* and adjust emin to match */
