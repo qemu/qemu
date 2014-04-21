@@ -294,6 +294,32 @@ static void dfp_check_for_VXIDI(struct PPC_DFP *dfp)
     }
 }
 
+static void dfp_check_for_VXVC(struct PPC_DFP *dfp)
+{
+    if (decNumberIsNaN(&dfp->a) || decNumberIsNaN(&dfp->b)) {
+        dfp_set_FPSCR_flag(dfp, FP_VX | FP_VXVC, FP_VE);
+    }
+}
+
+static void dfp_set_CRBF_from_T(struct PPC_DFP *dfp)
+{
+    if (decNumberIsNaN(&dfp->t)) {
+        dfp->crbf = 1;
+    } else if (decNumberIsZero(&dfp->t)) {
+        dfp->crbf = 2;
+    } else if (decNumberIsNegative(&dfp->t)) {
+        dfp->crbf = 8;
+    } else {
+        dfp->crbf = 4;
+    }
+}
+
+static void dfp_set_FPCC_from_CRBF(struct PPC_DFP *dfp)
+{
+    dfp->env->fpscr &= ~(0xF << 12);
+    dfp->env->fpscr |= (dfp->crbf << 12);
+}
+
 #define DFP_HELPER_TAB(op, dnop, postprocs, size)                              \
 void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *a, uint64_t *b)      \
 {                                                                              \
@@ -363,3 +389,35 @@ static void DIV_PPs(struct PPC_DFP *dfp)
 
 DFP_HELPER_TAB(ddiv, decNumberDivide, DIV_PPs, 64)
 DFP_HELPER_TAB(ddivq, decNumberDivide, DIV_PPs, 128)
+
+#define DFP_HELPER_BF_AB(op, dnop, postprocs, size)                            \
+uint32_t helper_##op(CPUPPCState *env, uint64_t *a, uint64_t *b)               \
+{                                                                              \
+    struct PPC_DFP dfp;                                                        \
+    dfp_prepare_decimal##size(&dfp, a, b, env);                                \
+    dnop(&dfp.t, &dfp.a, &dfp.b, &dfp.context);                                \
+    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t, &dfp.context); \
+    postprocs(&dfp);                                                           \
+    return dfp.crbf;                                                           \
+}
+
+static void CMPU_PPs(struct PPC_DFP *dfp)
+{
+    dfp_set_CRBF_from_T(dfp);
+    dfp_set_FPCC_from_CRBF(dfp);
+    dfp_check_for_VXSNAN(dfp);
+}
+
+DFP_HELPER_BF_AB(dcmpu, decNumberCompare, CMPU_PPs, 64)
+DFP_HELPER_BF_AB(dcmpuq, decNumberCompare, CMPU_PPs, 128)
+
+static void CMPO_PPs(struct PPC_DFP *dfp)
+{
+    dfp_set_CRBF_from_T(dfp);
+    dfp_set_FPCC_from_CRBF(dfp);
+    dfp_check_for_VXSNAN(dfp);
+    dfp_check_for_VXVC(dfp);
+}
+
+DFP_HELPER_BF_AB(dcmpo, decNumberCompare, CMPO_PPs, 64)
+DFP_HELPER_BF_AB(dcmpoq, decNumberCompare, CMPO_PPs, 128)
