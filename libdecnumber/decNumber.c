@@ -3541,7 +3541,7 @@ uByte * decNumberGetBCD(const decNumber *dn, uint8_t *bcd) {
 /* and bcd[0] zero.						      */
 /* ------------------------------------------------------------------ */
 decNumber * decNumberSetBCD(decNumber *dn, const uByte *bcd, uInt n) {
-  Unit *up=dn->lsu+D2U(dn->digits)-1;	/* -> msu [target pointer] */
+  Unit *up = dn->lsu + D2U(n) - 1;      /* -> msu [target pointer] */
   const uByte *ub=bcd;			/* -> source msd */
 
   #if DECDPUN==1			/* trivial simple copy */
