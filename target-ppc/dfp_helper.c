@@ -983,3 +983,69 @@ void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *b)                  \
 
 DFP_HELPER_CTFIX(dctfix, 64)
 DFP_HELPER_CTFIX(dctfixq, 128)
+
+static inline void dfp_set_bcd_digit_64(uint64_t *t, uint8_t digit,
+                                            unsigned n)
+{
+    *t |= ((uint64_t)(digit & 0xF) << (n << 2));
+}
+
+static inline void dfp_set_bcd_digit_128(uint64_t *t, uint8_t digit,
+                                             unsigned n)
+{
+    t[(n & 0x10) ? HI_IDX : LO_IDX] |=
+        ((uint64_t)(digit & 0xF) << ((n & 15) << 2));
+}
+
+static inline void dfp_set_sign_64(uint64_t *t, uint8_t sgn)
+{
+    *t <<= 4;
+    *t |= (sgn & 0xF);
+}
+
+static inline void dfp_set_sign_128(uint64_t *t, uint8_t sgn)
+{
+    t[HI_IDX] <<= 4;
+    t[HI_IDX] |= (t[LO_IDX] >> 60);
+    t[LO_IDX] <<= 4;
+    t[LO_IDX] |= (sgn & 0xF);
+}
+
+#define DFP_HELPER_DEDPD(op, size)                                        \
+void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *b, uint32_t sp) \
+{                                                                         \
+    struct PPC_DFP dfp;                                                   \
+    uint8_t digits[34];                                                   \
+    int i, N;                                                             \
+                                                                          \
+    dfp_prepare_decimal##size(&dfp, 0, b, env);                           \
+                                                                          \
+    decNumberGetBCD(&dfp.b, digits);                                      \
+    dfp.t64[0] = dfp.t64[1] = 0;                                          \
+    N = dfp.b.digits;                                                     \
+                                                                          \
+    for (i = 0; (i < N) && (i < (size)/4); i++) {                         \
+        dfp_set_bcd_digit_##size(dfp.t64, digits[N-i-1], i);              \
+    }                                                                     \
+                                                                          \
+    if (sp & 2) {                                                         \
+        uint8_t sgn;                                                      \
+                                                                          \
+        if (decNumberIsNegative(&dfp.b)) {                                \
+            sgn = 0xD;                                                    \
+        } else {                                                          \
+            sgn = ((sp & 1) ? 0xF : 0xC);                                 \
+        }                                                                 \
+        dfp_set_sign_##size(dfp.t64, sgn);                                \
+    }                                                                     \
+                                                                          \
+    if (size == 64) {                                                     \
+        t[0] = dfp.t64[0];                                                \
+    } else if (size == 128) {                                             \
+        t[0] = dfp.t64[HI_IDX];                                           \
+        t[1] = dfp.t64[LO_IDX];                                           \
+    }                                                                     \
+}
+
+DFP_HELPER_DEDPD(ddedpd, 64)
+DFP_HELPER_DEDPD(ddedpdq, 128)
