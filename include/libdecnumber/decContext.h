@@ -237,7 +237,6 @@
 
   /* decContext routines					      */
 
-  #include "decContextSymbols.h"
 
   extern decContext  * decContextClearStatus(decContext *, uint32_t);
   extern decContext  * decContextDefault(decContext *, int32_t);

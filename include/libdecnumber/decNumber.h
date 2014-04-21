@@ -111,7 +111,6 @@
   /* decNumber public functions and macros			      */
   /* ---------------------------------------------------------------- */
 
-  #include "decNumberSymbols.h"
 
   /* Conversions						      */
   decNumber * decNumberFromInt32(decNumber *, int32_t);

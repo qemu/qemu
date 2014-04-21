@@ -82,7 +82,6 @@
   /* Routines							      */
   /* ---------------------------------------------------------------- */
 
-  #include "decimal128Symbols.h"
 
   /* String conversions						      */
   decimal128 * decimal128FromString(decimal128 *, const char *, decContext *);

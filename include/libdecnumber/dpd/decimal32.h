@@ -80,7 +80,6 @@
   /* Routines							      */
   /* ---------------------------------------------------------------- */
 
-  #include "decimal32Symbols.h"
 
   /* String conversions						      */
   decimal32 * decimal32FromString(decimal32 *, const char *, decContext *);

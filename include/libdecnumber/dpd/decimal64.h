@@ -82,7 +82,6 @@
   /* Routines							      */
   /* ---------------------------------------------------------------- */
 
-  #include "decimal64Symbols.h"
 
   /* String conversions						      */
   decimal64 * decimal64FromString(decimal64 *, const char *, decContext *);

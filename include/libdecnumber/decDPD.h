@@ -35,7 +35,6 @@
 /* ------------------------------------------------------------------------ */
 /* For details, see: http://www2.hursley.ibm.com/decimal/DPDecimal.html	    */
 
-#include "decDPDSymbols.h"
 
 /* This include file defines several DPD and BCD conversion tables:	    */
 /*									    */
