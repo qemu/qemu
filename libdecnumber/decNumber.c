@@ -436,6 +436,36 @@ uInt decNumberToUInt32(const decNumber *dn, decContext *set) {
   return 0;
   } /* decNumberToUInt32 */
 
+decNumber *decNumberFromInt64(decNumber *dn, int64_t in)
+{
+    uint64_t unsig = in;
+    if (in < 0) {
+        unsig = -unsig;
+    }
+
+    decNumberFromUInt64(dn, unsig);
+    if (in < 0) {
+        dn->bits = DECNEG;        /* sign needed */
+    }
+    return dn;
+} /* decNumberFromInt64 */
+
+decNumber *decNumberFromUInt64(decNumber *dn, uint64_t uin)
+{
+    Unit *up;                             /* work pointer */
+    decNumberZero(dn);                    /* clean */
+    if (uin == 0) {
+        return dn;                /* [or decGetDigits bad call] */
+    }
+    for (up = dn->lsu; uin > 0; up++) {
+        *up = (Unit)(uin % (DECDPUNMAX + 1));
+        uin = uin / (DECDPUNMAX + 1);
+    }
+    dn->digits = decGetDigits(dn->lsu, up-dn->lsu);
+    return dn;
+} /* decNumberFromUInt64 */
+
+
 /* ------------------------------------------------------------------ */
 /* to-scientific-string -- conversion to numeric string		      */
 /* to-engineering-string -- conversion to numeric string	      */

@@ -115,6 +115,8 @@
   /* Conversions						      */
   decNumber * decNumberFromInt32(decNumber *, int32_t);
   decNumber * decNumberFromUInt32(decNumber *, uint32_t);
+  decNumber *decNumberFromInt64(decNumber *, int64_t);
+  decNumber *decNumberFromUInt64(decNumber *, uint64_t);
   decNumber * decNumberFromString(decNumber *, const char *, decContext *);
   char	    * decNumberToString(const decNumber *, char *);
   char	    * decNumberToEngString(const decNumber *, char *);
