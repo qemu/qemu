@@ -504,3 +504,35 @@ uint32_t helper_##op(CPUPPCState *env, uint64_t *a, uint32_t dcm)        \
 
 DFP_HELPER_TSTDG(dtstdg, 64)
 DFP_HELPER_TSTDG(dtstdgq, 128)
+
+#define DFP_HELPER_TSTEX(op, size)                                       \
+uint32_t helper_##op(CPUPPCState *env, uint64_t *a, uint64_t *b)         \
+{                                                                        \
+    struct PPC_DFP dfp;                                                  \
+    int expa, expb, a_is_special, b_is_special;                          \
+                                                                         \
+    dfp_prepare_decimal##size(&dfp, a, b, env);                          \
+                                                                         \
+    expa = dfp.a.exponent;                                               \
+    expb = dfp.b.exponent;                                               \
+    a_is_special = decNumberIsSpecial(&dfp.a);                           \
+    b_is_special = decNumberIsSpecial(&dfp.b);                           \
+                                                                         \
+    if (a_is_special || b_is_special) {                                  \
+        int atype = a_is_special ? (decNumberIsNaN(&dfp.a) ? 4 : 2) : 1; \
+        int btype = b_is_special ? (decNumberIsNaN(&dfp.b) ? 4 : 2) : 1; \
+        dfp.crbf = (atype ^ btype) ? 0x1 : 0x2;                          \
+    } else if (expa < expb) {                                            \
+        dfp.crbf = 0x8;                                                  \
+    } else if (expa > expb) {                                            \
+        dfp.crbf = 0x4;                                                  \
+    } else {                                                             \
+        dfp.crbf = 0x2;                                                  \
+    }                                                                    \
+                                                                         \
+    dfp_set_FPCC_from_CRBF(&dfp);                                        \
+    return dfp.crbf;                                                     \
+}
+
+DFP_HELPER_TSTEX(dtstex, 64)
+DFP_HELPER_TSTEX(dtstexq, 128)
