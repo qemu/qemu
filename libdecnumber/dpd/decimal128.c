@@ -50,8 +50,6 @@
 
 /* Utility routines and tables [in decimal64.c] */
 extern const uInt   COMBEXP[32], COMBMSD[32];
-extern const uShort DPD2BIN[1024];
-extern const uShort BIN2DPD[1000];	/* [not used] */
 extern const uByte  BIN2CHAR[4001];
 
 extern void decDigitsFromDPD(decNumber *, const uInt *, Int);
