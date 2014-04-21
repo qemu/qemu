@@ -79,7 +79,6 @@ static void dfp_prepare_rounding_mode(decContext *context, uint64_t fpscr)
     decContextSetRounding(context, rnd);
 }
 
-__attribute__ ((unused))
 static void dfp_prepare_decimal64(struct PPC_DFP *dfp, uint64_t *a,
                 uint64_t *b, CPUPPCState *env)
 {
@@ -104,7 +103,6 @@ static void dfp_prepare_decimal64(struct PPC_DFP *dfp, uint64_t *a,
     }
 }
 
-__attribute__ ((unused))
 static void dfp_prepare_decimal128(struct PPC_DFP *dfp, uint64_t *a,
                 uint64_t *b, CPUPPCState *env)
 {
@@ -152,7 +150,6 @@ static void dfp_prepare_decimal128(struct PPC_DFP *dfp, uint64_t *a,
 #define FP_VE       (1ull << FPSCR_VE)
 #define FP_FI       (1ull << FPSCR_FI)
 
-__attribute__ ((unused))
 static void dfp_set_FPSCR_flag(struct PPC_DFP *dfp, uint64_t flag,
                 uint64_t enabled)
 {
@@ -161,3 +158,129 @@ static void dfp_set_FPSCR_flag(struct PPC_DFP *dfp, uint64_t flag,
         dfp->env->fpscr |= FP_FEX;
     }
 }
+
+static void dfp_set_FPRF_from_FRT_with_context(struct PPC_DFP *dfp,
+                decContext *context)
+{
+    uint64_t fprf = 0;
+
+    /* construct FPRF */
+    switch (decNumberClass(&dfp->t, context)) {
+    case DEC_CLASS_SNAN:
+        fprf = 0x01;
+        break;
+    case DEC_CLASS_QNAN:
+        fprf = 0x11;
+        break;
+    case DEC_CLASS_NEG_INF:
+        fprf = 0x09;
+        break;
+    case DEC_CLASS_NEG_NORMAL:
+        fprf = 0x08;
+        break;
+    case DEC_CLASS_NEG_SUBNORMAL:
+        fprf = 0x18;
+        break;
+    case DEC_CLASS_NEG_ZERO:
+        fprf = 0x12;
+        break;
+    case DEC_CLASS_POS_ZERO:
+        fprf = 0x02;
+        break;
+    case DEC_CLASS_POS_SUBNORMAL:
+        fprf = 0x14;
+        break;
+    case DEC_CLASS_POS_NORMAL:
+        fprf = 0x04;
+        break;
+    case DEC_CLASS_POS_INF:
+        fprf = 0x05;
+        break;
+    default:
+        assert(0); /* should never get here */
+    }
+    dfp->env->fpscr &= ~(0x1F << 12);
+    dfp->env->fpscr |= (fprf << 12);
+}
+
+static void dfp_set_FPRF_from_FRT(struct PPC_DFP *dfp)
+{
+    dfp_set_FPRF_from_FRT_with_context(dfp, &dfp->context);
+}
+
+static void dfp_check_for_OX(struct PPC_DFP *dfp)
+{
+    if (dfp->context.status & DEC_Overflow) {
+        dfp_set_FPSCR_flag(dfp, FP_OX, FP_OE);
+    }
+}
+
+static void dfp_check_for_UX(struct PPC_DFP *dfp)
+{
+    if (dfp->context.status & DEC_Underflow) {
+        dfp_set_FPSCR_flag(dfp, FP_UX, FP_UE);
+    }
+}
+
+static void dfp_check_for_XX(struct PPC_DFP *dfp)
+{
+    if (dfp->context.status & DEC_Inexact) {
+        dfp_set_FPSCR_flag(dfp, FP_XX | FP_FI, FP_XE);
+    }
+}
+
+static void dfp_check_for_VXSNAN(struct PPC_DFP *dfp)
+{
+    if (dfp->context.status & DEC_Invalid_operation) {
+        if (decNumberIsSNaN(&dfp->a) || decNumberIsSNaN(&dfp->b)) {
+            dfp_set_FPSCR_flag(dfp, FP_VX | FP_VXSNAN, FP_VE);
+        }
+    }
+}
+
+static void dfp_check_for_VXISI(struct PPC_DFP *dfp, int testForSameSign)
+{
+    if (dfp->context.status & DEC_Invalid_operation) {
+        if (decNumberIsInfinite(&dfp->a) && decNumberIsInfinite(&dfp->b)) {
+            int same = decNumberClass(&dfp->a, &dfp->context) ==
+                       decNumberClass(&dfp->b, &dfp->context);
+            if ((same && testForSameSign) || (!same && !testForSameSign)) {
+                dfp_set_FPSCR_flag(dfp, FP_VX | FP_VXISI, FP_VE);
+            }
+        }
+    }
+}
+
+static void dfp_check_for_VXISI_add(struct PPC_DFP *dfp)
+{
+    dfp_check_for_VXISI(dfp, 0);
+}
+
+#define DFP_HELPER_TAB(op, dnop, postprocs, size)                              \
+void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *a, uint64_t *b)      \
+{                                                                              \
+    struct PPC_DFP dfp;                                                        \
+    dfp_prepare_decimal##size(&dfp, a, b, env);                                \
+    dnop(&dfp.t, &dfp.a, &dfp.b, &dfp.context);                                \
+    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t, &dfp.context); \
+    postprocs(&dfp);                                                           \
+    if (size == 64) {                                                          \
+        t[0] = dfp.t64[0];                                                     \
+    } else if (size == 128) {                                                  \
+        t[0] = dfp.t64[HI_IDX];                                                \
+        t[1] = dfp.t64[LO_IDX];                                                \
+    }                                                                          \
+}
+
+static void ADD_PPs(struct PPC_DFP *dfp)
+{
+    dfp_set_FPRF_from_FRT(dfp);
+    dfp_check_for_OX(dfp);
+    dfp_check_for_UX(dfp);
+    dfp_check_for_XX(dfp);
+    dfp_check_for_VXSNAN(dfp);
+    dfp_check_for_VXISI_add(dfp);
+}
+
+DFP_HELPER_TAB(dadd, decNumberAdd, ADD_PPs, 64)
+DFP_HELPER_TAB(daddq, decNumberAdd, ADD_PPs, 128)

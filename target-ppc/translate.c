@@ -8197,7 +8197,6 @@ static inline TCGv_ptr gen_fprp_ptr(int reg)
 }
 
 #if defined(TARGET_PPC64)
-__attribute__ ((unused))
 static void gen_set_cr6_from_fpscr(DisasContext *ctx)
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
@@ -8206,7 +8205,6 @@ static void gen_set_cr6_from_fpscr(DisasContext *ctx)
     tcg_temp_free_i32(tmp);
 }
 #else
-__attribute__ ((unused))
 static void gen_set_cr6_from_fpscr(DisasContext *ctx)
 {
         tcg_gen_shri_tl(cpu_crf[1], cpu_fpscr, 28);
@@ -8357,6 +8355,9 @@ static void gen_##name(DisasContext *ctx)          \
     tcg_temp_free_ptr(rs);                         \
     tcg_temp_free_i32(i32);                        \
 }
+
+GEN_DFP_T_A_B_Rc(dadd)
+GEN_DFP_T_A_B_Rc(daddq)
 
 /***                           SPE extension                               ***/
 /* Register moves */
@@ -11285,6 +11286,8 @@ _GEN_DFP_LONGx2(name, op1, op2, 0x00000000)
 #define GEN_DFP_Tp_Ap_SH_Rc(name, op1, op2) \
 _GEN_DFP_QUADx2(name, op1, op2, 0x00210000)
 
+GEN_DFP_T_A_B_Rc(dadd, 0x02, 0x00),
+GEN_DFP_Tp_Ap_Bp_Rc(daddq, 0x02, 0x00),
 #undef GEN_SPE
 #define GEN_SPE(name0, name1, opc2, opc3, inval0, inval1, type) \
     GEN_OPCODE_DUAL(name0##_##name1, 0x04, opc2, opc3, inval0, inval1, type, PPC_NONE)
