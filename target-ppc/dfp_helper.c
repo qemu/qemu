@@ -229,6 +229,13 @@ static void dfp_check_for_XX(struct PPC_DFP *dfp)
     }
 }
 
+static void dfp_check_for_ZX(struct PPC_DFP *dfp)
+{
+    if (dfp->context.status & DEC_Division_by_zero) {
+        dfp_set_FPSCR_flag(dfp, FP_ZX, FP_ZE);
+    }
+}
+
 static void dfp_check_for_VXSNAN(struct PPC_DFP *dfp)
 {
     if (dfp->context.status & DEC_Invalid_operation) {
@@ -267,6 +274,22 @@ static void dfp_check_for_VXIMZ(struct PPC_DFP *dfp)
         if ((decNumberIsInfinite(&dfp->a) && decNumberIsZero(&dfp->b)) ||
             (decNumberIsInfinite(&dfp->b) && decNumberIsZero(&dfp->a))) {
             dfp_set_FPSCR_flag(dfp, FP_VX | FP_VXIMZ, FP_VE);
+        }
+    }
+}
+
+static void dfp_check_for_VXZDZ(struct PPC_DFP *dfp)
+{
+    if (dfp->context.status & DEC_Division_undefined) {
+        dfp_set_FPSCR_flag(dfp, FP_VX | FP_VXZDZ, FP_VE);
+    }
+}
+
+static void dfp_check_for_VXIDI(struct PPC_DFP *dfp)
+{
+    if (dfp->context.status & DEC_Invalid_operation) {
+        if (decNumberIsInfinite(&dfp->a) && decNumberIsInfinite(&dfp->b)) {
+            dfp_set_FPSCR_flag(dfp, FP_VX | FP_VXIDI, FP_VE);
         }
     }
 }
@@ -325,3 +348,18 @@ static void MUL_PPs(struct PPC_DFP *dfp)
 
 DFP_HELPER_TAB(dmul, decNumberMultiply, MUL_PPs, 64)
 DFP_HELPER_TAB(dmulq, decNumberMultiply, MUL_PPs, 128)
+
+static void DIV_PPs(struct PPC_DFP *dfp)
+{
+    dfp_set_FPRF_from_FRT(dfp);
+    dfp_check_for_OX(dfp);
+    dfp_check_for_UX(dfp);
+    dfp_check_for_ZX(dfp);
+    dfp_check_for_XX(dfp);
+    dfp_check_for_VXSNAN(dfp);
+    dfp_check_for_VXZDZ(dfp);
+    dfp_check_for_VXIDI(dfp);
+}
+
+DFP_HELPER_TAB(ddiv, decNumberDivide, DIV_PPs, 64)
+DFP_HELPER_TAB(ddivq, decNumberDivide, DIV_PPs, 128)
