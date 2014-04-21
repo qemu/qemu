@@ -98,7 +98,7 @@
 
   /* Shared lookup tables					      */
   extern const uByte  DECSTICKYTAB[10]; /* re-round digits if sticky  */
-  extern const uInt   DECPOWERS[10];	/* powers of ten table	      */
+  extern const uLong  DECPOWERS[19];    /* powers of ten table        */
   /* The following are included from decDPD.h			      */
   extern const uShort DPD2BIN[1024];	/* DPD -> 0-999		      */
   extern const uShort BIN2DPD[1000];	/* 0-999 -> DPD		      */

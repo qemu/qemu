@@ -465,6 +465,50 @@ decNumber *decNumberFromUInt64(decNumber *dn, uint64_t uin)
     return dn;
 } /* decNumberFromUInt64 */
 
+/* ------------------------------------------------------------------ */
+/* to-int64 -- conversion to int64                                    */
+/*                                                                    */
+/*  dn is the decNumber to convert.  dn is assumed to have been       */
+/*    rounded to a floating point integer value.                      */
+/*  set is the context for reporting errors                           */
+/*  returns the converted decNumber, or 0 if Invalid is set           */
+/*                                                                    */
+/* Invalid is set if the decNumber is a NaN, Infinite or is out of    */
+/* range for a signed 64 bit integer.                                 */
+/* ------------------------------------------------------------------ */
+
+int64_t decNumberIntegralToInt64(const decNumber *dn, decContext *set)
+{
+    if (decNumberIsSpecial(dn) || (dn->exponent < 0) ||
+       (dn->digits + dn->exponent > 19)) {
+        goto Invalid;
+    } else {
+        int64_t d;        /* work */
+        const Unit *up;   /* .. */
+        uint64_t hi = 0;
+        up = dn->lsu;     /* -> lsu */
+
+        for (d = 1; d <= dn->digits; up++, d += DECDPUN) {
+            uint64_t prev = hi;
+            hi += *up * powers[d-1];
+            if ((hi < prev) || (hi > INT64_MAX)) {
+                goto Invalid;
+            }
+        }
+
+        uint64_t prev = hi;
+        hi *= (uint64_t)powers[dn->exponent];
+        if ((hi < prev) || (hi > INT64_MAX)) {
+            goto Invalid;
+        }
+        return (decNumberIsNegative(dn)) ? -((int64_t)hi) : (int64_t)hi;
+    }
+
+Invalid:
+    decContextSetStatus(set, DEC_Invalid_operation);
+    return 0;
+} /* decNumberIntegralToInt64 */
+
 
 /* ------------------------------------------------------------------ */
 /* to-scientific-string -- conversion to numeric string		      */
@@ -4259,7 +4303,7 @@ static decNumber * decDivideOp(decNumber *res,
   uByte bits;			   /* working sign */
   Unit	*target;		   /* work */
   const Unit *source;		   /* .. */
-  uInt	const *pow;		   /* .. */
+  uLong const *pow;                /* .. */
   Int	shift, cut;		   /* .. */
   #if DECSUBSET
   Int	dropped;		   /* work */
