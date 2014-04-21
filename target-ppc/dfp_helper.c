@@ -1152,3 +1152,71 @@ void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *b)   \
 
 DFP_HELPER_XEX(dxex, 64)
 DFP_HELPER_XEX(dxexq, 128)
+
+static void dfp_set_raw_exp_64(uint64_t *t, uint64_t raw)
+{
+    *t &= 0x8003ffffffffffffULL;
+    *t |= (raw << (63-13));
+}
+
+static void dfp_set_raw_exp_128(uint64_t *t, uint64_t raw)
+{
+    t[HI_IDX] &= 0x80003fffffffffffULL;
+    t[HI_IDX] |= (raw << (63-17));
+}
+
+#define DFP_HELPER_IEX(op, size)                                          \
+void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *a, uint64_t *b) \
+{                                                                         \
+    struct PPC_DFP dfp;                                                   \
+    uint64_t raw_qnan, raw_snan, raw_inf, max_exp;                        \
+    int bias;                                                             \
+    int64_t exp = *((int64_t *)a);                                        \
+                                                                          \
+    dfp_prepare_decimal##size(&dfp, 0, b, env);                           \
+                                                                          \
+    if ((size) == 64) {                                                   \
+        max_exp = 767;                                                    \
+        raw_qnan = 0x1F00;                                                \
+        raw_snan = 0x1F80;                                                \
+        raw_inf = 0x1E00;                                                 \
+        bias = 398;                                                       \
+    } else if ((size) == 128) {                                           \
+        max_exp = 12287;                                                  \
+        raw_qnan = 0x1f000;                                               \
+        raw_snan = 0x1f800;                                               \
+        raw_inf = 0x1e000;                                                \
+        bias = 6176;                                                      \
+    } else {                                                              \
+        assert(0);                                                        \
+    }                                                                     \
+                                                                          \
+    if (unlikely((exp < 0) || (exp > max_exp))) {                         \
+        dfp.t64[0] = dfp.b64[0];                                          \
+        dfp.t64[1] = dfp.b64[1];                                          \
+        if (exp == -1) {                                                  \
+            dfp_set_raw_exp_##size(dfp.t64, raw_inf);                     \
+        } else if (exp == -3) {                                           \
+            dfp_set_raw_exp_##size(dfp.t64, raw_snan);                    \
+        } else {                                                          \
+            dfp_set_raw_exp_##size(dfp.t64, raw_qnan);                    \
+        }                                                                 \
+    } else {                                                              \
+        dfp.t = dfp.b;                                                    \
+        if (unlikely(decNumberIsSpecial(&dfp.t))) {                       \
+            dfp.t.bits &= ~DECSPECIAL;                                    \
+        }                                                                 \
+        dfp.t.exponent = exp - bias;                                      \
+        decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t,       \
+                                  &dfp.context);                          \
+    }                                                                     \
+    if (size == 64) {                                                     \
+        t[0] = dfp.t64[0];                                                \
+    } else if (size == 128) {                                             \
+        t[0] = dfp.t64[HI_IDX];                                           \
+        t[1] = dfp.t64[LO_IDX];                                           \
+    }                                                                     \
+}
+
+DFP_HELPER_IEX(diex, 64)
+DFP_HELPER_IEX(diexq, 128)
