@@ -249,6 +249,20 @@ static void dfp_set_FPRF_from_FRT(struct PPC_DFP *dfp)
     dfp_set_FPRF_from_FRT_with_context(dfp, &dfp->context);
 }
 
+static void dfp_set_FPRF_from_FRT_short(struct PPC_DFP *dfp)
+{
+    decContext shortContext;
+    decContextDefault(&shortContext, DEC_INIT_DECIMAL32);
+    dfp_set_FPRF_from_FRT_with_context(dfp, &shortContext);
+}
+
+static void dfp_set_FPRF_from_FRT_long(struct PPC_DFP *dfp)
+{
+    decContext longContext;
+    decContextDefault(&longContext, DEC_INIT_DECIMAL64);
+    dfp_set_FPRF_from_FRT_with_context(dfp, &longContext);
+}
+
 static void dfp_check_for_OX(struct PPC_DFP *dfp)
 {
     if (dfp->context.status & DEC_Overflow) {
@@ -872,4 +886,38 @@ void helper_dctqpq(CPUPPCState *env, uint64_t *t, uint64_t *b)
     decimal128FromNumber((decimal128 *)&dfp.t64, &dfp.t, &dfp.context);
     t[0] = dfp.t64[HI_IDX];
     t[1] = dfp.t64[LO_IDX];
+}
+
+void helper_drsp(CPUPPCState *env, uint64_t *t, uint64_t *b)
+{
+    struct PPC_DFP dfp;
+    uint32_t t_short = 0;
+    dfp_prepare_decimal64(&dfp, 0, b, env);
+    decimal32FromNumber((decimal32 *)&t_short, &dfp.b, &dfp.context);
+    decimal32ToNumber((decimal32 *)&t_short, &dfp.t);
+
+    dfp_set_FPRF_from_FRT_short(&dfp);
+    dfp_check_for_OX(&dfp);
+    dfp_check_for_UX(&dfp);
+    dfp_check_for_XX(&dfp);
+
+    *t = t_short;
+}
+
+void helper_drdpq(CPUPPCState *env, uint64_t *t, uint64_t *b)
+{
+    struct PPC_DFP dfp;
+    dfp_prepare_decimal128(&dfp, 0, b, env);
+    decimal64FromNumber((decimal64 *)&dfp.t64, &dfp.b, &dfp.context);
+    decimal64ToNumber((decimal64 *)&dfp.t64, &dfp.t);
+
+    dfp_check_for_VXSNAN_and_convert_to_QNaN(&dfp);
+    dfp_set_FPRF_from_FRT_long(&dfp);
+    dfp_check_for_OX(&dfp);
+    dfp_check_for_UX(&dfp);
+    dfp_check_for_XX(&dfp);
+
+    decimal64FromNumber((decimal64 *)dfp.t64, &dfp.t, &dfp.context);
+    t[0] = dfp.t64[0];
+    t[1] = 0;
 }
