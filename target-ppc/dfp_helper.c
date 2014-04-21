@@ -1049,3 +1049,75 @@ void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *b, uint32_t sp) \
 
 DFP_HELPER_DEDPD(ddedpd, 64)
 DFP_HELPER_DEDPD(ddedpdq, 128)
+
+static inline uint8_t dfp_get_bcd_digit_64(uint64_t *t, unsigned n)
+{
+    return *t >> ((n << 2) & 63) & 15;
+}
+
+static inline uint8_t dfp_get_bcd_digit_128(uint64_t *t, unsigned n)
+{
+    return t[(n & 0x10) ? HI_IDX : LO_IDX] >> ((n << 2) & 63) & 15;
+}
+
+#define DFP_HELPER_ENBCD(op, size)                                           \
+void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *b, uint32_t s)     \
+{                                                                            \
+    struct PPC_DFP dfp;                                                      \
+    uint8_t digits[32];                                                      \
+    int n = 0, offset = 0, sgn = 0, nonzero = 0;                             \
+                                                                             \
+    dfp_prepare_decimal##size(&dfp, 0, b, env);                              \
+                                                                             \
+    decNumberZero(&dfp.t);                                                   \
+                                                                             \
+    if (s) {                                                                 \
+        uint8_t sgnNibble = dfp_get_bcd_digit_##size(dfp.b64, offset++);     \
+        switch (sgnNibble) {                                                 \
+        case 0xD:                                                            \
+        case 0xB:                                                            \
+            sgn = 1;                                                         \
+            break;                                                           \
+        case 0xC:                                                            \
+        case 0xF:                                                            \
+        case 0xA:                                                            \
+        case 0xE:                                                            \
+            sgn = 0;                                                         \
+            break;                                                           \
+        default:                                                             \
+            dfp_set_FPSCR_flag(&dfp, FP_VX | FP_VXCVI, FPSCR_VE);            \
+            return;                                                          \
+        }                                                                    \
+        }                                                                    \
+                                                                             \
+    while (offset < (size)/4) {                                              \
+        n++;                                                                 \
+        digits[(size)/4-n] = dfp_get_bcd_digit_##size(dfp.b64, offset++);    \
+        if (digits[(size)/4-n] > 10) {                                       \
+            dfp_set_FPSCR_flag(&dfp, FP_VX | FP_VXCVI, FPSCR_VE);            \
+            return;                                                          \
+        } else {                                                             \
+            nonzero |= (digits[(size)/4-n] > 0);                             \
+        }                                                                    \
+    }                                                                        \
+                                                                             \
+    if (nonzero) {                                                           \
+        decNumberSetBCD(&dfp.t, digits+((size)/4)-n, n);                     \
+    }                                                                        \
+                                                                             \
+    if (s && sgn)  {                                                         \
+        dfp.t.bits |= DECNEG;                                                \
+    }                                                                        \
+    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t,              \
+                              &dfp.context);                                 \
+    dfp_set_FPRF_from_FRT(&dfp);                                             \
+    if ((size) == 64) {                                                      \
+        t[0] = dfp.t64[0];                                                   \
+    } else if ((size) == 128) {                                              \
+        t[0] = dfp.t64[HI_IDX];                                              \
+        t[1] = dfp.t64[LO_IDX];                                              \
+    }                                                                        \
+}
+
+DFP_HELPER_ENBCD(denbcd, 64)
+DFP_HELPER_ENBCD(denbcdq, 128)
