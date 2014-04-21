@@ -8392,6 +8392,8 @@ GEN_DFP_T_B_Rc(drsp)
 GEN_DFP_T_B_Rc(drdpq)
 GEN_DFP_T_B_Rc(dcffix)
 GEN_DFP_T_B_Rc(dcffixq)
+GEN_DFP_T_B_Rc(dctfix)
+GEN_DFP_T_B_Rc(dctfixq)
 /***                           SPE extension                               ***/
 /* Register moves */
 
@@ -11355,6 +11357,8 @@ GEN_DFP_T_B_Rc(drsp, 0x02, 0x18),
 GEN_DFP_Tp_Bp_Rc(drdpq, 0x02, 0x18),
 GEN_DFP_T_B_Rc(dcffix, 0x02, 0x19),
 GEN_DFP_Tp_B_Rc(dcffixq, 0x02, 0x19),
+GEN_DFP_T_B_Rc(dctfix, 0x02, 0x09),
+GEN_DFP_T_Bp_Rc(dctfixq, 0x02, 0x09),
 #undef GEN_SPE
 #define GEN_SPE(name0, name1, opc2, opc3, inval0, inval1, type) \
     GEN_OPCODE_DUAL(name0##_##name1, 0x04, opc2, opc3, inval0, inval1, type, PPC_NONE)

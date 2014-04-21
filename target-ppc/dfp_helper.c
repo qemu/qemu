@@ -947,3 +947,39 @@ static void CFFIX_PPs(struct PPC_DFP *dfp)
 
 DFP_HELPER_CFFIX(dcffix, 64)
 DFP_HELPER_CFFIX(dcffixq, 128)
+
+#define DFP_HELPER_CTFIX(op, size)                                            \
+void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *b)                  \
+{                                                                             \
+    struct PPC_DFP dfp;                                                       \
+    dfp_prepare_decimal##size(&dfp, 0, b, env);                               \
+                                                                              \
+    if (unlikely(decNumberIsSpecial(&dfp.b))) {                               \
+        uint64_t invalid_flags = FP_VX | FP_VXCVI;                            \
+        if (decNumberIsInfinite(&dfp.b)) {                                    \
+            dfp.t64[0] = decNumberIsNegative(&dfp.b) ? INT64_MIN : INT64_MAX; \
+        } else { /* NaN */                                                    \
+            dfp.t64[0] = INT64_MIN;                                           \
+            if (decNumberIsSNaN(&dfp.b)) {                                    \
+                invalid_flags |= FP_VXSNAN;                                   \
+            }                                                                 \
+        }                                                                     \
+        dfp_set_FPSCR_flag(&dfp, invalid_flags, FP_VE);                       \
+    } else if (unlikely(decNumberIsZero(&dfp.b))) {                           \
+        dfp.t64[0] = 0;                                                       \
+    } else {                                                                  \
+        decNumberToIntegralExact(&dfp.b, &dfp.b, &dfp.context);               \
+        dfp.t64[0] = decNumberIntegralToInt64(&dfp.b, &dfp.context);          \
+        if (decContextTestStatus(&dfp.context, DEC_Invalid_operation)) {      \
+            dfp.t64[0] = decNumberIsNegative(&dfp.b) ? INT64_MIN : INT64_MAX; \
+            dfp_set_FPSCR_flag(&dfp, FP_VX | FP_VXCVI, FP_VE);                \
+        } else {                                                              \
+            dfp_check_for_XX(&dfp);                                           \
+        }                                                                     \
+    }                                                                         \
+                                                                              \
+    *t = dfp.t64[0];                                                          \
+}
+
+DFP_HELPER_CTFIX(dctfix, 64)
+DFP_HELPER_CTFIX(dctfixq, 128)
