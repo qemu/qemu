@@ -376,6 +376,23 @@ static inline void dfp_makeQNaN(decNumber *dn)
     dn->bits |= DECNAN;
 }
 
+static inline int dfp_get_digit(decNumber *dn, int n)
+{
+    assert(DECDPUN == 3);
+    int unit = n / DECDPUN;
+    int dig = n % DECDPUN;
+    switch (dig) {
+    case 0:
+        return dn->lsu[unit] % 10;
+    case 1:
+        return (dn->lsu[unit] / 10) % 10;
+    case 2:
+        return dn->lsu[unit] / 100;
+    default:
+        assert(0);
+    }
+}
+
 #define DFP_HELPER_TAB(op, dnop, postprocs, size)                              \
 void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *a, uint64_t *b)      \
 {                                                                              \
@@ -703,3 +720,83 @@ void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *a,            \
 
 DFP_HELPER_QUA(dqua, 64)
 DFP_HELPER_QUA(dquaq, 128)
+
+static void _dfp_reround(uint8_t rmc, int32_t ref_sig, int32_t xmax,
+                             struct PPC_DFP *dfp)
+{
+    int msd_orig, msd_rslt;
+
+    if (unlikely((ref_sig == 0) || (dfp->b.digits <= ref_sig))) {
+        dfp->t = dfp->b;
+        if (decNumberIsSNaN(&dfp->b)) {
+            dfp_makeQNaN(&dfp->t);
+            dfp_set_FPSCR_flag(dfp, FP_VX | FP_VXSNAN, FPSCR_VE);
+        }
+        return;
+    }
+
+    /* Reround is equivalent to quantizing b with 1**E(n) where */
+    /* n = exp(b) + numDigits(b) - reference_significance.      */
+
+    decNumberFromUInt32(&dfp->a, 1);
+    dfp->a.exponent = dfp->b.exponent + dfp->b.digits - ref_sig;
+
+    if (unlikely(dfp->a.exponent > xmax)) {
+        dfp->t.digits = 0;
+        dfp->t.bits &= ~DECNEG;
+        dfp_makeQNaN(&dfp->t);
+        dfp_set_FPSCR_flag(dfp, FP_VX | FP_VXCVI, FPSCR_VE);
+        return;
+    }
+
+    dfp_quantize(rmc, dfp);
+
+    msd_orig = dfp_get_digit(&dfp->b, dfp->b.digits-1);
+    msd_rslt = dfp_get_digit(&dfp->t, dfp->t.digits-1);
+
+    /* If the quantization resulted in rounding up to the next magnitude, */
+    /* then we need to shift the significand and adjust the exponent.     */
+
+    if (unlikely((msd_orig == 9) && (msd_rslt == 1))) {
+
+        decNumber negone;
+
+        decNumberFromInt32(&negone, -1);
+        decNumberShift(&dfp->t, &dfp->t, &negone, &dfp->context);
+        dfp->t.exponent++;
+
+        if (unlikely(dfp->t.exponent > xmax)) {
+            dfp_makeQNaN(&dfp->t);
+            dfp->t.digits = 0;
+            dfp_set_FPSCR_flag(dfp, FP_VX | FP_VXCVI, FP_VE);
+            /* Inhibit XX in this case */
+            decContextClearStatus(&dfp->context, DEC_Inexact);
+        }
+    }
+}
+
+#define DFP_HELPER_RRND(op, size)                                       \
+void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *a,            \
+                 uint64_t *b, uint32_t rmc)                             \
+{                                                                       \
+    struct PPC_DFP dfp;                                                 \
+    int32_t ref_sig = *a & 0x3F;                                        \
+    int32_t xmax = ((size) == 64) ? 369 : 6111;                         \
+                                                                        \
+    dfp_prepare_decimal##size(&dfp, 0, b, env);                         \
+                                                                        \
+    _dfp_reround(rmc, ref_sig, xmax, &dfp);                             \
+    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t,         \
+                              &dfp.context);                            \
+    QUA_PPs(&dfp);                                                      \
+                                                                        \
+    if (size == 64) {                                                   \
+        t[0] = dfp.t64[0];                                              \
+    } else if (size == 128) {                                           \
+        t[0] = dfp.t64[HI_IDX];                                         \
+        t[1] = dfp.t64[LO_IDX];                                         \
+    }                                                                   \
+}
+
+DFP_HELPER_RRND(drrnd, 64)
+DFP_HELPER_RRND(drrndq, 128)
