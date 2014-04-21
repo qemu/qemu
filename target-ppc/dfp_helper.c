@@ -421,3 +421,31 @@ static void CMPO_PPs(struct PPC_DFP *dfp)
 
 DFP_HELPER_BF_AB(dcmpo, decNumberCompare, CMPO_PPs, 64)
 DFP_HELPER_BF_AB(dcmpoq, decNumberCompare, CMPO_PPs, 128)
+
+#define DFP_HELPER_TSTDC(op, size)                                       \
+uint32_t helper_##op(CPUPPCState *env, uint64_t *a, uint32_t dcm)        \
+{                                                                        \
+    struct PPC_DFP dfp;                                                  \
+    int match = 0;                                                       \
+                                                                         \
+    dfp_prepare_decimal##size(&dfp, a, 0, env);                          \
+                                                                         \
+    match |= (dcm & 0x20) && decNumberIsZero(&dfp.a);                    \
+    match |= (dcm & 0x10) && decNumberIsSubnormal(&dfp.a, &dfp.context); \
+    match |= (dcm & 0x08) && decNumberIsNormal(&dfp.a, &dfp.context);    \
+    match |= (dcm & 0x04) && decNumberIsInfinite(&dfp.a);                \
+    match |= (dcm & 0x02) && decNumberIsQNaN(&dfp.a);                    \
+    match |= (dcm & 0x01) && decNumberIsSNaN(&dfp.a);                    \
+                                                                         \
+    if (decNumberIsNegative(&dfp.a)) {                                   \
+        dfp.crbf = match ? 0xA : 0x8;                                    \
+    } else {                                                             \
+        dfp.crbf = match ? 0x2 : 0x0;                                    \
+    }                                                                    \
+                                                                         \
+    dfp_set_FPCC_from_CRBF(&dfp);                                        \
+    return dfp.crbf;                                                     \
+}
+
+DFP_HELPER_TSTDC(dtstdc, 64)
+DFP_HELPER_TSTDC(dtstdcq, 128)
