@@ -1220,3 +1220,98 @@ void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *a, uint64_t *b) \
 
 DFP_HELPER_IEX(diex, 64)
 DFP_HELPER_IEX(diexq, 128)
+
+static void dfp_clear_lmd_from_g5msb(uint64_t *t)
+{
+
+    /* The most significant 5 bits of the PowerPC DFP format combine bits  */
+    /* from the left-most decimal digit (LMD) and the biased exponent.     */
+    /* This  routine clears the LMD bits while preserving the exponent     */
+    /*  bits.  See "Figure 80: Encoding of bits 0:4 of the G field for     */
+    /*  Finite Numbers" in the Power ISA for additional details.           */
+
+    uint64_t g5msb = (*t >> 58) & 0x1F;
+
+    if ((g5msb >> 3) < 3) { /* LMD in [0-7] ? */
+       *t &= ~(7ULL << 58);
+    } else {
+       switch (g5msb & 7) {
+       case 0:
+       case 1:
+           g5msb = 0;
+           break;
+       case 2:
+       case 3:
+           g5msb = 0x8;
+           break;
+       case 4:
+       case 5:
+           g5msb = 0x10;
+           break;
+       case 6:
+           g5msb = 0x1E;
+           break;
+       case 7:
+           g5msb = 0x1F;
+           break;
+       }
+
+        *t &= ~(0x1fULL << 58);
+        *t |= (g5msb << 58);
+    }
+}
+
+#define DFP_HELPER_SHIFT(op, size, shift_left)                      \
+void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *a,        \
+                 uint32_t sh)                                       \
+{                                                                   \
+    struct PPC_DFP dfp;                                             \
+    unsigned max_digits = ((size) == 64) ? 16 : 34;                 \
+                                                                    \
+    dfp_prepare_decimal##size(&dfp, a, 0, env);                     \
+                                                                    \
+    if (sh <= max_digits) {                                         \
+                                                                    \
+        decNumber shd;                                              \
+        unsigned special = dfp.a.bits & DECSPECIAL;                 \
+                                                                    \
+        if (shift_left) {                                           \
+            decNumberFromUInt32(&shd, sh);                          \
+        } else {                                                    \
+            decNumberFromInt32(&shd, -((int32_t)sh));               \
+        }                                                           \
+                                                                    \
+        dfp.a.bits &= ~DECSPECIAL;                                  \
+        decNumberShift(&dfp.t, &dfp.a, &shd, &dfp.context);         \
+                                                                    \
+        dfp.t.bits |= special;                                      \
+        if (special && (dfp.t.digits >= max_digits)) {              \
+            dfp.t.digits = max_digits - 1;                          \
+        }                                                           \
+                                                                    \
+        decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t, \
+                                  &dfp.context);                    \
+    } else {                                                        \
+        if ((size) == 64) {                                         \
+            dfp.t64[0] = dfp.a64[0] & 0xFFFC000000000000ULL;        \
+            dfp_clear_lmd_from_g5msb(dfp.t64);                      \
+        } else {                                                    \
+            dfp.t64[HI_IDX] = dfp.a64[HI_IDX] &                     \
+                              0xFFFFC00000000000ULL;                \
+            dfp_clear_lmd_from_g5msb(dfp.t64 + HI_IDX);             \
+            dfp.t64[LO_IDX] = 0;                                    \
+        }                                                           \
+    }                                                               \
+                                                                    \
+    if ((size) == 64) {                                             \
+        t[0] = dfp.t64[0];                                          \
+    } else {                                                        \
+        t[0] = dfp.t64[HI_IDX];                                     \
+        t[1] = dfp.t64[LO_IDX];                                     \
+    }                                                               \
+}
+
+DFP_HELPER_SHIFT(dscli, 64, 1)
+DFP_HELPER_SHIFT(dscliq, 128, 1)
+DFP_HELPER_SHIFT(dscri, 64, 0)
+DFP_HELPER_SHIFT(dscriq, 128, 0)
