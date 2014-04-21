@@ -1121,3 +1121,34 @@ void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *b, uint32_t s)     \
 
 DFP_HELPER_ENBCD(denbcd, 64)
 DFP_HELPER_ENBCD(denbcdq, 128)
+
+#define DFP_HELPER_XEX(op, size)                               \
+void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *b)   \
+{                                                              \
+    struct PPC_DFP dfp;                                        \
+                                                               \
+    dfp_prepare_decimal##size(&dfp, 0, b, env);                \
+                                                               \
+    if (unlikely(decNumberIsSpecial(&dfp.b))) {                \
+        if (decNumberIsInfinite(&dfp.b)) {                     \
+            *t = -1;                                           \
+        } else if (decNumberIsSNaN(&dfp.b)) {                  \
+            *t = -3;                                           \
+        } else if (decNumberIsQNaN(&dfp.b)) {                  \
+            *t = -2;                                           \
+        } else {                                               \
+            assert(0);                                         \
+        }                                                      \
+    } else {                                                   \
+        if ((size) == 64) {                                    \
+            *t = dfp.b.exponent + 398;                         \
+        } else if ((size) == 128) {                            \
+            *t = dfp.b.exponent + 6176;                        \
+        } else {                                               \
+            assert(0);                                         \
+        }                                                      \
+    }                                                          \
+}
+
+DFP_HELPER_XEX(dxex, 64)
+DFP_HELPER_XEX(dxexq, 128)
