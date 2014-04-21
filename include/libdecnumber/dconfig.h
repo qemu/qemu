@@ -27,26 +27,14 @@
    Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-#ifdef IN_LIBGCC2
+#include "config-host.h"
 
-#include "tconfig.h"
-#include "coretypes.h"
-#include "tm.h"
-
-#ifndef LIBGCC2_WORDS_BIG_ENDIAN
-#define LIBGCC2_WORDS_BIG_ENDIAN WORDS_BIG_ENDIAN
-#endif
-
-#ifndef LIBGCC2_FLOAT_WORDS_BIG_ENDIAN
-#define LIBGCC2_FLOAT_WORDS_BIG_ENDIAN LIBGCC2_WORDS_BIG_ENDIAN
-#endif
-
-#if LIBGCC2_FLOAT_WORDS_BIG_ENDIAN
+#if defined(HOST_WORDS_BIGENDIAN)
 #define WORDS_BIGENDIAN 1
+#else
+#define WORDS_BIGENDIAN 0
 #endif
 
-#else
-
-#include "config.h"
-
+#ifndef DECDPUN
+#define DECDPUN 3
 #endif
