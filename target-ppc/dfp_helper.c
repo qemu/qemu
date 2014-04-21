@@ -921,3 +921,29 @@ void helper_drdpq(CPUPPCState *env, uint64_t *t, uint64_t *b)
     t[0] = dfp.t64[0];
     t[1] = 0;
 }
+
+#define DFP_HELPER_CFFIX(op, size)                                             \
+void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *b)                   \
+{                                                                              \
+    struct PPC_DFP dfp;                                                        \
+    dfp_prepare_decimal##size(&dfp, 0, b, env);                                \
+    decNumberFromInt64(&dfp.t, (int64_t)(*b));                                 \
+    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t, &dfp.context); \
+    CFFIX_PPs(&dfp);                                                           \
+                                                                               \
+    if (size == 64) {                                                          \
+        t[0] = dfp.t64[0];                                                     \
+    } else if (size == 128) {                                                  \
+        t[0] = dfp.t64[HI_IDX];                                                \
+        t[1] = dfp.t64[LO_IDX];                                                \
+    }                                                                          \
+}
+
+static void CFFIX_PPs(struct PPC_DFP *dfp)
+{
+    dfp_set_FPRF_from_FRT(dfp);
+    dfp_check_for_XX(dfp);
+}
+
+DFP_HELPER_CFFIX(dcffix, 64)
+DFP_HELPER_CFFIX(dcffixq, 128)
