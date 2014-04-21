@@ -28,6 +28,111 @@
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 
+#if 0
+typedef struct 
+{
+    I2CSlave i2c;
+    int len;
+    uint8_t buf[3];
+
+} MCP4017State;
+
+static int mcp4017_send(I2CSlave *i2c, uint8_t data)
+{
+    MCP4017State *s = FROM_I2C_SLAVE(MCP4017State, i2c);
+    s->buf[s->len] = data;
+    if (s->len++ > 2) {
+        DPRINTF("%s: message too long (%i bytes)\n",
+            __func__, s->len);
+        return 1;
+    }
+
+    if (s->len == 2) {
+        DPRINTF("%s: reg %d value 0x%02x\n", __func__,
+                s->buf[0], s->buf[1]);
+    }
+
+    return 0;
+}
+
+static void mcp4017_event(I2CSlave *i2c, enum i2c_event event)
+{
+    MCP4017State *s = FROM_I2C_SLAVE(MCP4017State, i2c);
+    switch (event) {
+    case I2C_START_SEND:
+        s->len = 0;
+        break;
+    case I2C_START_RECV:
+        if (s->len != 1) {
+            DPRINTF("%s: short message!?\n", __func__);
+        }
+        break;
+    case I2C_FINISH:
+        break;
+    default:
+        break;
+    }
+}
+
+static int mcp4017_recv(I2CSlave *slave)
+{
+    int retval = 0x00;
+    MCP4017State *s = FROM_I2C_SLAVE(MCP4017State, slave);
+
+    switch (s->buf[0]) {
+    /* Return hardcoded battery voltage,
+     * 0xf0 means ~4.1V
+     */
+    case 0x02:
+        retval = 0xf0;
+        break;
+    /* Return 0x00 for other regs,
+     * we don't know what they are for,
+     * anyway they return 0x00 on real hardware.
+     */
+    default:
+        break;
+    }
+
+    return retval;
+}
+
+static int mcp4017_init(I2CSlave *i2c)
+{
+    /* Nothing to do.  */
+    return 0;
+}
+
+static VMStateDescription vmstate_mcp4017_state = {
+    .name = "mcp4017",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT32(len, MCP4017State),
+        VMSTATE_BUFFER(buf, MCP4017State),
+        VMSTATE_END_OF_LIST(),
+    }
+};
+static void mcp4017_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+
+    k->init  = mcp4017_init;
+    k->event = mcp4017_event;
+    k->recv  = mcp4017_recv;
+    k->send  = mcp4017_send;
+    dc->vmsd = &vmstate_mcp4017_state;
+}
+
+static const TypeInfo mcp4017_info = {
+    .name          = "mcp4017",
+    .parent        = TYPE_I2C_SLAVE,
+    .instance_size = sizeof(MCP4017State),
+    .class_init    = mcp4017_class_init,
+};
+#endif
 
 typedef struct
 {
@@ -44,22 +149,24 @@ typedef struct
 static void printLedStatus(Stm32Flashboard *s)
 {
     int64_t now = qemu_get_clock_ns(vm_clock);
+    int64_t secs = now / 1000000000;
+    int64_t frac = (now % 1000000000) / 10000;
 
     if (!s->ledDrive1 && !s->ledDrive2)
     {
-        printf("(%"PRId64") LED %s\n", now, "Shutdown");
+        printf("(%"PRId64".%05"PRId64") LED %s\n", secs, frac, "Shutdown");
     }
     else if (s->ledDrive1 && !s->ledDrive2)
     {
-        printf("(%"PRId64") LED %s\n", now, "Low current");
+        printf("(%"PRId64".%05"PRId64") LED %s\n", secs, frac, "Low current");
     }
     else if (!s->ledDrive1 && s->ledDrive2)
     {
-        printf("(%"PRId64") LED %s\n", now, "High current");
+        printf("(%"PRId64".%05"PRId64") LED %s\n", secs, frac, "High current");
     }
     else if (s->ledDrive1 && s->ledDrive2)
     {
-        printf("(%"PRId64") LED %s\n", now, "Low+High current");
+        printf("(%"PRId64".%05"PRId64") LED %s\n", secs, frac, "Low+High current");
     }
 }
 
@@ -108,7 +215,9 @@ static void ledDrive2_irq_handler(void *opaque, int n, int level)
 static void gpiob_irq_handler(void *opaque, int n, int level)
 {
     int64_t now = qemu_get_clock_ns(vm_clock);
-    
+    int64_t secs = now / 1000000000;
+    int64_t frac = (now % 1000000000) / 10000;
+
     int gpio = (int) opaque;
 
     /* Assume that the IRQ is only triggered if the LED has changed state.
@@ -116,10 +225,10 @@ static void gpiob_irq_handler(void *opaque, int n, int level)
      */
     switch (level) {
         case 0:
-            printf("(%"PRId64") GPIO[%d] Off\n", now, gpio);
+            printf("(%"PRId64".%05"PRId64") GPIO %d\n", secs, frac, gpio);
             break;
         case 1:
-            printf("(%"PRId64") GPIO[%d] On\n", now, gpio);
+            printf("(%"PRId64".%05"PRId64") GPIO %d\n", secs, frac, gpio);
             break;
     }
 }
@@ -168,7 +277,7 @@ static void stm32_flashboard_init(QEMUMachineInitArgs *args)
 
     s = (Stm32Flashboard *)g_malloc0(sizeof(Stm32Flashboard));
 
-    stm32_init(/*flash_size*/0x00010000,
+    stm32_init(/*flash_size*/0x00020000,
                /*ram_size*/0x00004fff,
                kernel_filename,
                12000000,
@@ -178,11 +287,13 @@ static void stm32_flashboard_init(QEMUMachineInitArgs *args)
     DeviceState *gpio_b = DEVICE(object_resolve_path("/machine/stm32/gpio[b]", NULL));
     DeviceState *uart1 = DEVICE(object_resolve_path("/machine/stm32/uart[1]", NULL));
     DeviceState *uart2 = DEVICE(object_resolve_path("/machine/stm32/uart[2]", NULL));
+    DeviceState *i2c1 = DEVICE(object_resolve_path("/machine/stm32/i2c[1]", NULL));
 
     assert(gpio_a);
     assert(gpio_b);
     assert(uart1);
     assert(uart2);
+    //assert(i2c1);
 
     /* Connect LED_DRIVER_1 to GPIO A pin 1 */
     ledDriver1IRQ = qemu_allocate_irqs(ledDrive1_irq_handler, s, 1);
@@ -213,6 +324,9 @@ static void stm32_flashboard_init(QEMUMachineInitArgs *args)
             (Stm32Uart *)uart2,
             serial_hds[1],
             STM32_USART2_NO_REMAP);
+    
+    /* Connect I2C */
+    //type_register_static(&mcp4017_info);
  }
 
 static QEMUMachine stm32_flashboard_machine = {

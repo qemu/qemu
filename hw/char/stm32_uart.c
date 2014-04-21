@@ -31,7 +31,7 @@
 
 /* See the README file for details on these settings. */
 #define DEBUG_STM32_UART
-#define STM32_UART_NO_BAUD_DELAY
+//#define STM32_UART_NO_BAUD_DELAY
 //#define STM32_UART_ENABLE_OVERRUN
 
 #ifdef DEBUG_STM32_UART
