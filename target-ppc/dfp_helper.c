@@ -256,6 +256,11 @@ static void dfp_check_for_VXISI_add(struct PPC_DFP *dfp)
     dfp_check_for_VXISI(dfp, 0);
 }
 
+static void dfp_check_for_VXISI_subtract(struct PPC_DFP *dfp)
+{
+    dfp_check_for_VXISI(dfp, 1);
+}
+
 #define DFP_HELPER_TAB(op, dnop, postprocs, size)                              \
 void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *a, uint64_t *b)      \
 {                                                                              \
@@ -284,3 +289,16 @@ static void ADD_PPs(struct PPC_DFP *dfp)
 
 DFP_HELPER_TAB(dadd, decNumberAdd, ADD_PPs, 64)
 DFP_HELPER_TAB(daddq, decNumberAdd, ADD_PPs, 128)
+
+static void SUB_PPs(struct PPC_DFP *dfp)
+{
+    dfp_set_FPRF_from_FRT(dfp);
+    dfp_check_for_OX(dfp);
+    dfp_check_for_UX(dfp);
+    dfp_check_for_XX(dfp);
+    dfp_check_for_VXSNAN(dfp);
+    dfp_check_for_VXISI_subtract(dfp);
+}
+
+DFP_HELPER_TAB(dsub, decNumberSubtract, SUB_PPs, 64)
+DFP_HELPER_TAB(dsubq, decNumberSubtract, SUB_PPs, 128)

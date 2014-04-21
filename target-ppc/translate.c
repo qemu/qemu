@@ -8358,7 +8358,8 @@ static void gen_##name(DisasContext *ctx)          \
 
 GEN_DFP_T_A_B_Rc(dadd)
 GEN_DFP_T_A_B_Rc(daddq)
-
+GEN_DFP_T_A_B_Rc(dsub)
+GEN_DFP_T_A_B_Rc(dsubq)
 /***                           SPE extension                               ***/
 /* Register moves */
 
@@ -11288,6 +11289,8 @@ _GEN_DFP_QUADx2(name, op1, op2, 0x00210000)
 
 GEN_DFP_T_A_B_Rc(dadd, 0x02, 0x00),
 GEN_DFP_Tp_Ap_Bp_Rc(daddq, 0x02, 0x00),
+GEN_DFP_T_A_B_Rc(dsub, 0x02, 0x10),
+GEN_DFP_Tp_Ap_Bp_Rc(dsubq, 0x02, 0x10),
 #undef GEN_SPE
 #define GEN_SPE(name0, name1, opc2, opc3, inval0, inval1, type) \
     GEN_OPCODE_DUAL(name0##_##name1, 0x04, opc2, opc3, inval0, inval1, type, PPC_NONE)
