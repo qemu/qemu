@@ -44,7 +44,7 @@
 
   #include <stdlib.h>	      /* for abs			      */
   #include <string.h>	      /* for memset, strcpy		      */
-  #include "dconfig.h"	      /* for WORDS_BIGENDIAN                  */
+  #include "libdecnumber/dconfig.h"
 
   /* Conditional code flag -- set this to match hardware platform     */
   /* 1=little-endian, 0=big-endian	                              */

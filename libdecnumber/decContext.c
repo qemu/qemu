@@ -37,9 +37,9 @@
 
 #include <string.h>	      /* for strcmp */
 #include <stdio.h>	      /* for printf if DECCHECK */
-#include "dconfig.h"	      /* for GCC definitions */
-#include "decContext.h"	      /* context and base types */
-#include "decNumberLocal.h"   /* decNumber local types, etc. */
+#include "libdecnumber/dconfig.h"
+#include "libdecnumber/decContext.h"
+#include "libdecnumber/decNumberLocal.h"
 
 #if DECCHECK
 /* compile-time endian tester [assumes sizeof(Int)>1] */

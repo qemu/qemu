@@ -42,11 +42,11 @@
 #include <string.h>	      /* [for memset/memcpy] */
 #include <stdio.h>	      /* [for printf] */
 
-#include "dconfig.h"	      /* GCC definitions */
+#include "libdecnumber/dconfig.h"
 #define	 DECNUMDIGITS 34      /* make decNumbers with space for 34 */
-#include "decNumber.h"	      /* base number library */
-#include "decNumberLocal.h"   /* decNumber local types, etc. */
-#include "decimal128.h"	      /* our primary include */
+#include "libdecnumber/decNumber.h"
+#include "libdecnumber/decNumberLocal.h"
+#include "libdecnumber/dpd/decimal128.h"
 
 /* Utility routines and tables [in decimal64.c] */
 extern const uInt   COMBEXP[32], COMBMSD[32];

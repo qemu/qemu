@@ -60,7 +60,7 @@
     #define DECNUMDIGITS DECIMAL32_Pmax /* size if not already defined*/
   #endif
   #ifndef DECNUMBER
-    #include "decNumber.h"		/* context and number library */
+    #include "libdecnumber/decNumber.h"
   #endif
 
   /* Decimal 32-bit type, accessible by bytes */

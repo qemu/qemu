@@ -39,7 +39,7 @@
   #define DECAUTHOR   "Mike Cowlishaw"		      /* Who to blame */
 
   #if !defined(DECCONTEXT)
-    #include "decContext.h"
+    #include "libdecnumber/decContext.h"
   #endif
 
   /* Bit settings for decNumber.bits				      */
