@@ -8382,6 +8382,10 @@ GEN_DFP_T_A_B_I32_Rc(dqua, RMC)
 GEN_DFP_T_A_B_I32_Rc(dquaq, RMC)
 GEN_DFP_T_A_B_I32_Rc(drrnd, RMC)
 GEN_DFP_T_A_B_I32_Rc(drrndq, RMC)
+GEN_DFP_T_B_U32_U32_Rc(drintx, FPW, RMC)
+GEN_DFP_T_B_U32_U32_Rc(drintxq, FPW, RMC)
+GEN_DFP_T_B_U32_U32_Rc(drintn, FPW, RMC)
+GEN_DFP_T_B_U32_U32_Rc(drintnq, FPW, RMC)
 /***                           SPE extension                               ***/
 /* Register moves */
 
@@ -11335,6 +11339,10 @@ GEN_DFP_T_A_B_RMC_Rc(dqua, 0x03, 0x00),
 GEN_DFP_Tp_Ap_Bp_RMC_Rc(dquaq, 0x03, 0x00),
 GEN_DFP_T_A_B_RMC_Rc(drrnd, 0x03, 0x01),
 GEN_DFP_Tp_A_Bp_RMC_Rc(drrndq, 0x03, 0x01),
+GEN_DFP_R_T_B_RMC_Rc(drintx, 0x03, 0x03),
+GEN_DFP_R_Tp_Bp_RMC_Rc(drintxq, 0x03, 0x03),
+GEN_DFP_R_T_B_RMC_Rc(drintn, 0x03, 0x07),
+GEN_DFP_R_Tp_Bp_RMC_Rc(drintnq, 0x03, 0x07),
 #undef GEN_SPE
 #define GEN_SPE(name0, name1, opc2, opc3, inval0, inval1, type) \
     GEN_OPCODE_DUAL(name0##_##name1, 0x04, opc2, opc3, inval0, inval1, type, PPC_NONE)

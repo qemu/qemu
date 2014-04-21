@@ -800,3 +800,43 @@ void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *a,            \
 
 DFP_HELPER_RRND(drrnd, 64)
 DFP_HELPER_RRND(drrndq, 128)
+
+#define DFP_HELPER_RINT(op, postprocs, size)                                   \
+void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *b,                   \
+             uint32_t r, uint32_t rmc)                                         \
+{                                                                              \
+    struct PPC_DFP dfp;                                                        \
+                                                                               \
+    dfp_prepare_decimal##size(&dfp, 0, b, env);                                \
+                                                                               \
+    dfp_set_round_mode_from_immediate(r, rmc, &dfp);                           \
+    decNumberToIntegralExact(&dfp.t, &dfp.b, &dfp.context);                    \
+    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t, &dfp.context); \
+    postprocs(&dfp);                                                           \
+                                                                               \
+    if (size == 64) {                                                          \
+        t[0] = dfp.t64[0];                                                     \
+    } else if (size == 128) {                                                  \
+        t[0] = dfp.t64[HI_IDX];                                                \
+        t[1] = dfp.t64[LO_IDX];                                                \
+    }                                                                          \
+}
+
+static void RINTX_PPs(struct PPC_DFP *dfp)
+{
+    dfp_set_FPRF_from_FRT(dfp);
+    dfp_check_for_XX(dfp);
+    dfp_check_for_VXSNAN(dfp);
+}
+
+DFP_HELPER_RINT(drintx, RINTX_PPs, 64)
+DFP_HELPER_RINT(drintxq, RINTX_PPs, 128)
+
+static void RINTN_PPs(struct PPC_DFP *dfp)
+{
+    dfp_set_FPRF_from_FRT(dfp);
+    dfp_check_for_VXSNAN(dfp);
+}
+
+DFP_HELPER_RINT(drintn, RINTN_PPs, 64)
+DFP_HELPER_RINT(drintnq, RINTN_PPs, 128)
