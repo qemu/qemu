@@ -286,6 +286,15 @@ static void dfp_check_for_VXSNAN(struct PPC_DFP *dfp)
     }
 }
 
+static void dfp_check_for_VXSNAN_and_convert_to_QNaN(struct PPC_DFP *dfp)
+{
+    if (decNumberIsSNaN(&dfp->t)) {
+        dfp->t.bits &= ~DECSNAN;
+        dfp->t.bits |= DECNAN;
+        dfp_set_FPSCR_flag(dfp, FP_VX | FP_VXSNAN, FP_VE);
+    }
+}
+
 static void dfp_check_for_VXISI(struct PPC_DFP *dfp, int testForSameSign)
 {
     if (dfp->context.status & DEC_Invalid_operation) {
@@ -840,3 +849,27 @@ static void RINTN_PPs(struct PPC_DFP *dfp)
 
 DFP_HELPER_RINT(drintn, RINTN_PPs, 64)
 DFP_HELPER_RINT(drintnq, RINTN_PPs, 128)
+
+void helper_dctdp(CPUPPCState *env, uint64_t *t, uint64_t *b)
+{
+    struct PPC_DFP dfp;
+    uint32_t b_short = *b;
+    dfp_prepare_decimal64(&dfp, 0, 0, env);
+    decimal32ToNumber((decimal32 *)&b_short, &dfp.t);
+    decimal64FromNumber((decimal64 *)t, &dfp.t, &dfp.context);
+    dfp_set_FPRF_from_FRT(&dfp);
+}
+
+void helper_dctqpq(CPUPPCState *env, uint64_t *t, uint64_t *b)
+{
+    struct PPC_DFP dfp;
+    dfp_prepare_decimal128(&dfp, 0, 0, env);
+    decimal64ToNumber((decimal64 *)b, &dfp.t);
+
+    dfp_check_for_VXSNAN_and_convert_to_QNaN(&dfp);
+    dfp_set_FPRF_from_FRT(&dfp);
+
+    decimal128FromNumber((decimal128 *)&dfp.t64, &dfp.t, &dfp.context);
+    t[0] = dfp.t64[HI_IDX];
+    t[1] = dfp.t64[LO_IDX];
+}
