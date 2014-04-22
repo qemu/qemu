@@ -57,8 +57,22 @@ static void format_print(void *opaque, const char *name)
     printf(" %s", name);
 }
 
+static void QEMU_NORETURN GCC_FMT_ATTR(1, 2) error_exit(const char *fmt, ...)
+{
+    va_list ap;
+
+    error_printf("qemu-img: ");
+
+    va_start(ap, fmt);
+    error_vprintf(fmt, ap);
+    va_end(ap);
+
+    error_printf("\nTry 'qemu-img --help' for more information\n");
+    exit(EXIT_FAILURE);
+}
+
 /* Please keep in synch with qemu-img.texi */
-static void help(void)
+static void QEMU_NORETURN help(void)
 {
     const char *help_msg =
            "qemu-img version " QEMU_VERSION ", Copyright (c) 2004-2008 Fabrice Bellard\n"
@@ -129,7 +143,7 @@ static void help(void)
     printf("%s\nSupported formats:", help_msg);
     bdrv_iterate_format(format_print, NULL);
     printf("\n");
-    exit(1);
+    exit(EXIT_SUCCESS);
 }
 
 static int GCC_FMT_ATTR(2, 3) qprintf(bool quiet, const char *fmt, ...)
@@ -399,7 +413,7 @@ static int img_create(int argc, char **argv)
     }
 
     if (optind >= argc) {
-        help();
+        error_exit("Expecting image file name");
     }
     optind++;
 
@@ -422,7 +436,7 @@ static int img_create(int argc, char **argv)
         img_size = (uint64_t)sval;
     }
     if (optind != argc) {
-        help();
+        error_exit("Unexpected argument: %s", argv[optind]);
     }
 
     bdrv_img_create(filename, fmt, base_filename, base_fmt,
@@ -591,7 +605,8 @@ static int img_check(int argc, char **argv)
             } else if (!strcmp(optarg, "all")) {
                 fix = BDRV_FIX_LEAKS | BDRV_FIX_ERRORS;
             } else {
-                help();
+                error_exit("Unknown option value for -r "
+                           "(expecting 'leaks' or 'all'): %s", optarg);
             }
             break;
         case OPTION_OUTPUT:
@@ -603,7 +618,7 @@ static int img_check(int argc, char **argv)
         }
     }
     if (optind != argc - 1) {
-        help();
+        error_exit("Expecting one image file name");
     }
     filename = argv[optind++];
 
@@ -714,7 +729,7 @@ static int img_commit(int argc, char **argv)
         }
     }
     if (optind != argc - 1) {
-        help();
+        error_exit("Expecting one image file name");
     }
     filename = argv[optind++];
 
@@ -960,7 +975,7 @@ static int img_compare(int argc, char **argv)
 
 
     if (optind != argc - 2) {
-        help();
+        error_exit("Expecting two image file names");
     }
     filename1 = argv[optind++];
     filename2 = argv[optind++];
@@ -1276,7 +1291,7 @@ static int img_convert(int argc, char **argv)
     }
 
     if (bs_n < 1) {
-        help();
+        error_exit("Must specify image file name");
     }
 
 
@@ -1886,7 +1901,7 @@ static int img_info(int argc, char **argv)
         }
     }
     if (optind != argc - 1) {
-        help();
+        error_exit("Expecting one image file name");
     }
     filename = argv[optind++];
 
@@ -2050,10 +2065,10 @@ static int img_map(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc) {
-        help();
+    if (optind != argc - 1) {
+        error_exit("Expecting one image file name");
     }
-    filename = argv[optind++];
+    filename = argv[optind];
 
     if (output && !strcmp(output, "json")) {
         output_format = OFORMAT_JSON;
@@ -2142,7 +2157,7 @@ static int img_snapshot(int argc, char **argv)
             return 0;
         case 'l':
             if (action) {
-                help();
+                error_exit("Cannot mix '-l', '-a', '-c', '-d'");
                 return 0;
             }
             action = SNAPSHOT_LIST;
@@ -2150,7 +2165,7 @@ static int img_snapshot(int argc, char **argv)
             break;
         case 'a':
             if (action) {
-                help();
+                error_exit("Cannot mix '-l', '-a', '-c', '-d'");
                 return 0;
             }
             action = SNAPSHOT_APPLY;
@@ -2158,7 +2173,7 @@ static int img_snapshot(int argc, char **argv)
             break;
         case 'c':
             if (action) {
-                help();
+                error_exit("Cannot mix '-l', '-a', '-c', '-d'");
                 return 0;
             }
             action = SNAPSHOT_CREATE;
@@ -2166,7 +2181,7 @@ static int img_snapshot(int argc, char **argv)
             break;
         case 'd':
             if (action) {
-                help();
+                error_exit("Cannot mix '-l', '-a', '-c', '-d'");
                 return 0;
             }
             action = SNAPSHOT_DELETE;
@@ -2179,7 +2194,7 @@ static int img_snapshot(int argc, char **argv)
     }
 
     if (optind != argc - 1) {
-        help();
+        error_exit("Expecting one image file name");
     }
     filename = argv[optind++];
 
@@ -2292,8 +2307,11 @@ static int img_rebase(int argc, char **argv)
         progress = 0;
     }
 
-    if ((optind != argc - 1) || (!unsafe && !out_baseimg)) {
-        help();
+    if (optind != argc - 1) {
+        error_exit("Expecting one image file name");
+    }
+    if (!unsafe && !out_baseimg) {
+        error_exit("Must specify backing file (-b) or use unsafe mode (-u)");
     }
     filename = argv[optind++];
 
@@ -2553,7 +2571,7 @@ static int img_resize(int argc, char **argv)
     /* Remove size from argv manually so that negative numbers are not treated
      * as options by getopt. */
     if (argc < 3) {
-        help();
+        error_exit("Not enough arguments");
         return 1;
     }
 
@@ -2580,7 +2598,7 @@ static int img_resize(int argc, char **argv)
         }
     }
     if (optind != argc - 1) {
-        help();
+        error_exit("Expecting one image file name");
     }
     filename = argv[optind++];
 
@@ -2697,7 +2715,7 @@ static int img_amend(int argc, char **argv)
     }
 
     if (!options) {
-        help();
+        error_exit("Must specify options (-o)");
     }
 
     filename = (optind == argc - 1) ? argv[argc - 1] : NULL;
@@ -2709,7 +2727,7 @@ static int img_amend(int argc, char **argv)
     }
 
     if (optind != argc - 1) {
-        help();
+        error_exit("Expecting one image file name");
     }
 
     bs = bdrv_new_open("image", filename, fmt,
@@ -2781,8 +2799,9 @@ int main(int argc, char **argv)
 
     qemu_init_main_loop();
     bdrv_init();
-    if (argc < 2)
-        help();
+    if (argc < 2) {
+        error_exit("Not enough arguments");
+    }
     cmdname = argv[1];
     argc--; argv++;
 
@@ -2794,6 +2813,5 @@ int main(int argc, char **argv)
     }
 
     /* not found */
-    help();
-    return 0;
+    error_exit("Command not found: %s", cmdname);
 }
