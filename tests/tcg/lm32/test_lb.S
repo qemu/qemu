@@ -8,10 +8,12 @@ lb r3, (r1+0)
 check_r3 0x7e
 
 test_name LB_2
+load r1 data
 lb r3, (r1+1)
 check_r3 0x7f
 
 test_name LB_3
+load r1 data
 lb r3, (r1+-1)
 check_r3 0x7d
 
@@ -21,10 +23,12 @@ lb r3, (r1+0)
 check_r3 0xfffffffe
 
 test_name LB_5
+load r1 data_msb
 lb r3, (r1+1)
 check_r3 0xffffffff
 
 test_name LB_6
+load r1 data_msb
 lb r3, (r1+-1)
 check_r3 0xfffffffd
 
