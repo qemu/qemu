@@ -1068,14 +1068,14 @@ fail:
  */
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
 {
-    char backing_filename[PATH_MAX];
-    int back_flags, ret;
+    char *backing_filename = g_malloc0(PATH_MAX);
+    int back_flags, ret = 0;
     BlockDriver *back_drv = NULL;
     Error *local_err = NULL;
 
     if (bs->backing_hd != NULL) {
         QDECREF(options);
-        return 0;
+        goto free_exit;
     }
 
     /* NULL means an empty set of options */
@@ -1088,10 +1088,9 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         backing_filename[0] = '\0';
     } else if (bs->backing_file[0] == '\0' && qdict_size(options) == 0) {
         QDECREF(options);
-        return 0;
+        goto free_exit;
     } else {
-        bdrv_get_full_backing_filename(bs, backing_filename,
-                                       sizeof(backing_filename));
+        bdrv_get_full_backing_filename(bs, backing_filename, PATH_MAX);
     }
 
     if (bs->backing_format[0] != '\0') {
@@ -1112,7 +1111,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         error_setg(errp, "Could not open backing file: %s",
                    error_get_pretty(local_err));
         error_free(local_err);
-        return ret;
+        goto free_exit;
     }
 
     if (bs->backing_hd->file) {
@@ -1123,7 +1122,9 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
     /* Recalculate the BlockLimits with the backing file */
     bdrv_refresh_limits(bs);
 
-    return 0;
+free_exit:
+    g_free(backing_filename);
+    return ret;
 }
 
 /*
@@ -1180,8 +1181,7 @@ done:
 void bdrv_append_temp_snapshot(BlockDriverState *bs, Error **errp)
 {
     /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
-    char tmp_filename[PATH_MAX + 1];
-
+    char *tmp_filename = g_malloc0(PATH_MAX + 1);
     int64_t total_size;
     BlockDriver *bdrv_qcow2;
     QEMUOptionParameter *create_options;
@@ -1197,15 +1197,15 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, Error **errp)
     total_size = bdrv_getlength(bs);
     if (total_size < 0) {
         error_setg_errno(errp, -total_size, "Could not get image size");
-        return;
+        goto out;
     }
     total_size &= BDRV_SECTOR_MASK;
 
     /* Create the temporary image */
-    ret = get_tmp_filename(tmp_filename, sizeof(tmp_filename));
+    ret = get_tmp_filename(tmp_filename, PATH_MAX + 1);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not get temporary filename");
-        return;
+        goto out;
     }
 
     bdrv_qcow2 = bdrv_find_format("qcow2");
@@ -1221,7 +1221,7 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, Error **errp)
                          "'%s': %s", tmp_filename,
                          error_get_pretty(local_err));
         error_free(local_err);
-        return;
+        goto out;
     }
 
     /* Prepare a new options QDict for the temporary file */
@@ -1238,10 +1238,13 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, Error **errp)
                     bs->open_flags & ~BDRV_O_SNAPSHOT, bdrv_qcow2, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
-        return;
+        goto out;
     }
 
     bdrv_append(bs_snapshot, bs);
+
+out:
+    g_free(tmp_filename);
 }
 
 /*
