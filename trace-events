@@ -627,9 +627,6 @@ lm32_uart_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
 lm32_uart_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
 lm32_uart_irq_state(int level) "irq state %d"
 
-# hw/misc/lm32_sys.c
-lm32_sys_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-
 # hw/scsi/megasas.c
 megasas_init_firmware(uint64_t pa) "pa %" PRIx64 " "
 megasas_init_queue(uint64_t queue_pa, int queue_len, uint64_t head, uint64_t tail, uint32_t flags) "queue at %" PRIx64 " len %d head %" PRIx64 " tail %" PRIx64 " flags %x"
