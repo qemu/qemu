@@ -1,7 +1,7 @@
 /*
  *  LatticeMico32 helper routines.
  *
- *  Copyright (c) 2010 Michael Walle <michael@walle.cc>
+ *  Copyright (c) 2010-2014 Michael Walle <michael@walle.cc>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,6 +19,7 @@
 
 #include "cpu.h"
 #include "qemu/host-utils.h"
+#include "sysemu/sysemu.h"
 
 int lm32_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                               int mmu_idx)
@@ -159,11 +160,20 @@ void lm32_cpu_do_interrupt(CPUState *cs)
             "exception at pc=%x type=%x\n", env->pc, cs->exception_index);
 
     switch (cs->exception_index) {
+    case EXCP_SYSTEMCALL:
+        if (unlikely(semihosting_enabled)) {
+            /* do_semicall() returns true if call was handled. Otherwise
+             * do the normal exception handling. */
+            if (lm32_cpu_do_semihosting(cs)) {
+                env->pc += 4;
+                break;
+            }
+        }
+        /* fall through */
     case EXCP_INSN_BUS_ERROR:
     case EXCP_DATA_BUS_ERROR:
     case EXCP_DIVIDE_BY_ZERO:
     case EXCP_IRQ:
-    case EXCP_SYSTEMCALL:
         /* non-debug exceptions */
         env->regs[R_EA] = env->pc;
         env->ie |= (env->ie & IE_IE) ? IE_EIE : 0;

@@ -26,6 +26,15 @@ first BSP which instantiate this model. A (32 bit) write to 0xfff0000
 causes a vm shutdown.
 
 
+Semihosting
+-----------
+Semihosting on this target is supported. Some system calls like read, write
+and exit are executed on the host if semihosting is enabled. See
+target/lm32-semi.c for all supported system calls. Emulation aware programs
+can use this mechanism to shut down the virtual machine and print to the
+host console. See the tcg tests for an example.
+
+
 Special instructions
 --------------------
 The translation recognizes one special instruction to halt the cpu:
