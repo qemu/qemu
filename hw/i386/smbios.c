@@ -21,9 +21,8 @@
 #include "hw/i386/smbios.h"
 #include "hw/loader.h"
 
-/*
- * Structures shared with the BIOS
- */
+
+/* legacy structures and constants for <= 2.0 machines */
 struct smbios_header {
     uint16_t length;
     uint8_t type;
@@ -46,6 +45,9 @@ struct smbios_table {
 
 static uint8_t *smbios_entries;
 static size_t smbios_entries_len;
+/* end: legacy structures & constants for <= 2.0 machines */
+
+
 static int smbios_type4_count = 0;
 static bool smbios_immutable;
 
@@ -187,6 +189,8 @@ static void smbios_check_collision(int type, int entry)
     }
 }
 
+
+/* legacy setup functions for <= 2.0 machines */
 static void smbios_add_field(int type, int offset, const void *data, size_t len)
 {
     struct smbios_field *field;
@@ -256,8 +260,8 @@ static void smbios_build_type_1_fields(void)
     }
 }
 
-void smbios_set_type1_defaults(const char *manufacturer,
-                               const char *product, const char *version)
+void smbios_set_defaults(const char *manufacturer, const char *product,
+                         const char *version)
 {
     if (!type1.manufacturer) {
         type1.manufacturer = manufacturer;
@@ -270,7 +274,7 @@ void smbios_set_type1_defaults(const char *manufacturer,
     }
 }
 
-uint8_t *smbios_get_table(size_t *length)
+uint8_t *smbios_get_table_legacy(size_t *length)
 {
     if (!smbios_immutable) {
         smbios_build_type_0_fields();
@@ -281,6 +285,8 @@ uint8_t *smbios_get_table(size_t *length)
     *length = smbios_entries_len;
     return smbios_entries;
 }
+/* end: legacy setup functions for <= 2.0 machines */
+
 
 static void save_opt(const char **dest, QemuOpts *opts, const char *name)
 {

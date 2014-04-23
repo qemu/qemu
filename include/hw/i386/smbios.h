@@ -16,9 +16,9 @@
 #include "qemu/option.h"
 
 void smbios_entry_add(QemuOpts *opts);
-void smbios_set_type1_defaults(const char *manufacturer,
-                               const char *product, const char *version);
-uint8_t *smbios_get_table(size_t *length);
+void smbios_set_defaults(const char *manufacturer, const char *product,
+                         const char *version);
+uint8_t *smbios_get_table_legacy(size_t *length);
 
 /*
  * SMBIOS spec defined tables
