@@ -60,7 +60,7 @@ static const int ide_irq[MAX_IDE_BUS] = { 14, 15 };
 
 static bool has_pci_info;
 static bool has_acpi_build = true;
-static bool smbios_type1_defaults = true;
+static bool smbios_defaults = true;
 /* Make sure that guest addresses aligned at 1Gbyte boundaries get mapped to
  * host addresses aligned at 1Gbyte boundaries.  This way we can use 1GByte
  * pages in the host.
@@ -143,10 +143,10 @@ static void pc_init1(QEMUMachineInitArgs *args,
     guest_info->has_pci_info = has_pci_info;
     guest_info->isapc_ram_fw = !pci_enabled;
 
-    if (smbios_type1_defaults) {
+    if (smbios_defaults) {
         /* These values are guest ABI, do not change */
-        smbios_set_type1_defaults("QEMU", "Standard PC (i440FX + PIIX, 1996)",
-                                  args->machine->name);
+        smbios_set_defaults("QEMU", "Standard PC (i440FX + PIIX, 1996)",
+                            args->machine->name);
     }
 
     /* allocate ram and load rom/bios */
@@ -269,7 +269,7 @@ static void pc_compat_2_0(QEMUMachineInitArgs *args)
 static void pc_compat_1_7(QEMUMachineInitArgs *args)
 {
     pc_compat_2_0(args);
-    smbios_type1_defaults = false;
+    smbios_defaults = false;
     gigabyte_align = false;
     option_rom_has_mr = true;
     x86_cpu_compat_disable_kvm_features(FEAT_1_ECX, CPUID_EXT_X2APIC);
@@ -356,7 +356,7 @@ static void pc_init_pci_no_kvmclock(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
     has_acpi_build = false;
-    smbios_type1_defaults = false;
+    smbios_defaults = false;
     x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
     enable_compat_apic_id_mode();
     pc_init1(args, 1, 0);
@@ -366,7 +366,7 @@ static void pc_init_isa(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
     has_acpi_build = false;
-    smbios_type1_defaults = false;
+    smbios_defaults = false;
     if (!args->cpu_model) {
         args->cpu_model = "486";
     }

@@ -670,7 +670,7 @@ static FWCfgState *bochs_bios_init(void)
                      acpi_tables, acpi_tables_len);
     fw_cfg_add_i32(fw_cfg, FW_CFG_IRQ0_OVERRIDE, kvm_allows_irq0_override());
 
-    smbios_table = smbios_get_table(&smbios_len);
+    smbios_table = smbios_get_table_legacy(&smbios_len);
     if (smbios_table)
         fw_cfg_add_bytes(fw_cfg, FW_CFG_SMBIOS_ENTRIES,
                          smbios_table, smbios_len);
