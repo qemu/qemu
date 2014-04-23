@@ -619,11 +619,12 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
         struct target_sigaltstack ss;
 
 	ret = -TARGET_EFAULT;
-        if (!lock_user_struct(VERIFY_READ, uss, uss_addr, 1)
-	    || __get_user(ss.ss_sp, &uss->ss_sp)
-	    || __get_user(ss.ss_size, &uss->ss_size)
-	    || __get_user(ss.ss_flags, &uss->ss_flags))
+        if (!lock_user_struct(VERIFY_READ, uss, uss_addr, 1)) {
             goto out;
+        }
+        __get_user(ss.ss_sp, &uss->ss_sp);
+        __get_user(ss.ss_size, &uss->ss_size);
+        __get_user(ss.ss_flags, &uss->ss_flags);
         unlock_user_struct(uss, uss_addr, 0);
 
 	ret = -TARGET_EPERM;
