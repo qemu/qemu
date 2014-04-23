@@ -911,7 +911,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 {
 	abi_ulong frame_addr;
 	struct sigframe *frame;
-	int i, err = 0;
+	int i;
 
 	frame_addr = get_sigframe(ka, env, sizeof(*frame));
 
@@ -920,18 +920,13 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
     __put_user(current_exec_domain_sig(sig),
                &frame->sig);
-	if (err)
-		goto give_sigsegv;
 
 	setup_sigcontext(&frame->sc, &frame->fpstate, env, set->sig[0],
                          frame_addr + offsetof(struct sigframe, fpstate));
-	if (err)
-		goto give_sigsegv;
 
-        for(i = 1; i < TARGET_NSIG_WORDS; i++) {
-            if (__put_user(set->sig[i], &frame->extramask[i - 1]))
-                goto give_sigsegv;
-        }
+    for(i = 1; i < TARGET_NSIG_WORDS; i++) {
+        __put_user(set->sig[i], &frame->extramask[i - 1]);
+    }
 
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
@@ -950,8 +945,6 @@ static void setup_frame(int sig, struct target_sigaction *ka,
         __put_user(val16, (uint16_t *)(frame->retcode+6));
 	}
 
-	if (err)
-		goto give_sigsegv;
 
 	/* Set up registers for signal handler */
 	env->regs[R_ESP] = frame_addr;
@@ -968,7 +961,6 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 	return;
 
 give_sigsegv:
-	unlock_user_struct(frame, frame_addr, 1);
 	if (sig == TARGET_SIGSEGV)
 		ka->_sa_handler = TARGET_SIG_DFL;
 	force_sig(TARGET_SIGSEGV /* , current */);
