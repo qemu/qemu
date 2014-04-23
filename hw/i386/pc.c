@@ -612,6 +612,21 @@ int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
     return e820_entries;
 }
 
+int e820_get_num_entries(void)
+{
+    return e820_entries;
+}
+
+bool e820_get_entry(int idx, uint32_t type, uint64_t *address, uint64_t *length)
+{
+    if (idx < e820_entries && e820_table[idx].type == cpu_to_le32(type)) {
+        *address = le64_to_cpu(e820_table[idx].address);
+        *length = le64_to_cpu(e820_table[idx].length);
+        return true;
+    }
+    return false;
+}
+
 /* Calculates the limit to CPU APIC ID values
  *
  * This function returns the limit for the APIC ID value, so that all
