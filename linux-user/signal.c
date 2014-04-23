@@ -1096,11 +1096,9 @@ long do_sigreturn(CPUX86State *env)
     if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1))
         goto badframe;
     /* set blocked signals */
-    if (__get_user(target_set.sig[0], &frame->sc.oldmask))
-        goto badframe;
+    __get_user(target_set.sig[0], &frame->sc.oldmask);
     for(i = 1; i < TARGET_NSIG_WORDS; i++) {
-        if (__get_user(target_set.sig[i], &frame->extramask[i - 1]))
-            goto badframe;
+        __get_user(target_set.sig[i], &frame->extramask[i - 1]);
     }
 
     target_to_host_sigset_internal(&set, &target_set);
@@ -1896,12 +1894,10 @@ static long do_sigreturn_v1(CPUARMState *env)
 	if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1))
                 goto badframe;
 
-	if (__get_user(set.sig[0], &frame->sc.oldmask))
-            goto badframe;
-        for(i = 1; i < TARGET_NSIG_WORDS; i++) {
-            if (__get_user(set.sig[i], &frame->extramask[i - 1]))
-                goto badframe;
-        }
+    __get_user(set.sig[0], &frame->sc.oldmask);
+    for(i = 1; i < TARGET_NSIG_WORDS; i++) {
+        __get_user(set.sig[i], &frame->extramask[i - 1]);
+    }
 
         target_to_host_sigset_internal(&host_set, &set);
         do_sigprocmask(SIG_SETMASK, &host_set, NULL);
@@ -1918,7 +1914,6 @@ static long do_sigreturn_v1(CPUARMState *env)
         return env->regs[0];
 
 badframe:
-	unlock_user_struct(frame, frame_addr, 0);
         force_sig(TARGET_SIGSEGV /* , current */);
 	return 0;
 }
@@ -2985,8 +2980,7 @@ long do_sigreturn(CPUMIPSState *regs)
    	goto badframe;
 
     for(i = 0; i < TARGET_NSIG_WORDS; i++) {
-   	if(__get_user(target_set.sig[i], &frame->sf_mask.sig[i]))
-	    goto badframe;
+        __get_user(target_set.sig[i], &frame->sf_mask.sig[i]);
     }
 
     target_to_host_sigset_internal(&blocked, &target_set);
@@ -3627,11 +3621,9 @@ long do_sigreturn(CPUMBState *env)
         goto badframe;
 
     /* Restore blocked signals */
-    if (__get_user(target_set.sig[0], &frame->uc.tuc_mcontext.oldmask))
-        goto badframe;
+    __get_user(target_set.sig[0], &frame->uc.tuc_mcontext.oldmask);
     for(i = 1; i < TARGET_NSIG_WORDS; i++) {
-        if (__get_user(target_set.sig[i], &frame->extramask[i - 1]))
-            goto badframe;
+       __get_user(target_set.sig[i], &frame->extramask[i - 1]);
     }
     target_to_host_sigset_internal(&set, &target_set);
     do_sigprocmask(SIG_SETMASK, &set, NULL);
@@ -3644,7 +3636,6 @@ long do_sigreturn(CPUMBState *env)
     unlock_user_struct(frame, frame_addr, 0);
     return env->regs[10];
   badframe:
-    unlock_user_struct(frame, frame_addr, 0);
     force_sig(TARGET_SIGSEGV);
 }
 
@@ -3802,11 +3793,9 @@ long do_sigreturn(CPUCRISState *env)
 		goto badframe;
 
 	/* Restore blocked signals */
-	if (__get_user(target_set.sig[0], &frame->sc.oldmask))
-		goto badframe;
+    __get_user(target_set.sig[0], &frame->sc.oldmask);
 	for(i = 1; i < TARGET_NSIG_WORDS; i++) {
-		if (__get_user(target_set.sig[i], &frame->extramask[i - 1]))
-			goto badframe;
+        __get_user(target_set.sig[i], &frame->extramask[i - 1]);
 	}
 	target_to_host_sigset_internal(&set, &target_set);
         do_sigprocmask(SIG_SETMASK, &set, NULL);
@@ -3815,7 +3804,6 @@ long do_sigreturn(CPUCRISState *env)
 	unlock_user_struct(frame, frame_addr, 0);
 	return env->regs[10];
   badframe:
-	unlock_user_struct(frame, frame_addr, 0);
 	force_sig(TARGET_SIGSEGV);
 }
 
@@ -4323,9 +4311,7 @@ long do_sigreturn(CPUS390XState *env)
     if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1)) {
         goto badframe;
     }
-    if (__get_user(target_set.sig[0], &frame->sc.oldmask[0])) {
-        goto badframe;
-    }
+    __get_user(target_set.sig[0], &frame->sc.oldmask[0]);
 
     target_to_host_sigset_internal(&set, &target_set);
     do_sigprocmask(SIG_SETMASK, &set, NULL); /* ~_BLOCKABLE? */
@@ -4338,7 +4324,6 @@ long do_sigreturn(CPUS390XState *env)
     return env->regs[2];
 
 badframe:
-    unlock_user_struct(frame, frame_addr, 0);
     force_sig(TARGET_SIGSEGV);
     return 0;
 }
@@ -4879,15 +4864,13 @@ long do_sigreturn(CPUPPCState *env)
 #if defined(TARGET_PPC64)
     set.sig[0] = sc->oldmask + ((long)(sc->_unused[3]) << 32);
 #else
-    if(__get_user(set.sig[0], &sc->oldmask) ||
-       __get_user(set.sig[1], &sc->_unused[3]))
-       goto sigsegv;
+    __get_user(set.sig[0], &sc->oldmask);
+    __get_user(set.sig[1], &sc->_unused[3]);
 #endif
     target_to_host_sigset_internal(&blocked, &set);
     do_sigprocmask(SIG_SETMASK, &blocked, NULL);
 
-    if (__get_user(sr_addr, &sc->regs))
-        goto sigsegv;
+    __get_user(sr_addr, &sc->regs);
     if (!lock_user_struct(VERIFY_READ, sr, sr_addr, 1))
         goto sigsegv;
     if (restore_user_regs(env, sr, 1))
@@ -5281,12 +5264,10 @@ long do_sigreturn(CPUM68KState *env)
 
     /* set blocked signals */
 
-    if (__get_user(target_set.sig[0], &frame->sc.sc_mask))
-        goto badframe;
+    __get_user(target_set.sig[0], &frame->sc.sc_mask);
 
     for(i = 1; i < TARGET_NSIG_WORDS; i++) {
-        if (__get_user(target_set.sig[i], &frame->extramask[i - 1]))
-            goto badframe;
+        __get_user(target_set.sig[i], &frame->extramask[i - 1]);
     }
 
     target_to_host_sigset_internal(&set, &target_set);
@@ -5300,7 +5281,6 @@ long do_sigreturn(CPUM68KState *env)
     return d0;
 
 badframe:
-    unlock_user_struct(frame, frame_addr, 0);
     force_sig(TARGET_SIGSEGV);
     return 0;
 }
@@ -5555,9 +5535,7 @@ long do_sigreturn(CPUAlphaState *env)
     }
 
     target_sigemptyset(&target_set);
-    if (__get_user(target_set.sig[0], &sc->sc_mask)) {
-        goto badframe;
-    }
+    __get_user(target_set.sig[0], &sc->sc_mask);
 
     target_to_host_sigset_internal(&set, &target_set);
     do_sigprocmask(SIG_SETMASK, &set, NULL);
@@ -5567,7 +5545,6 @@ long do_sigreturn(CPUAlphaState *env)
     return env->ir[IR_V0];
 
  badframe:
-    unlock_user_struct(sc, sc_addr, 0);
     force_sig(TARGET_SIGSEGV);
 }
 
