@@ -721,11 +721,10 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     return ret;
 }
 
-static inline int copy_siginfo_to_user(target_siginfo_t *tinfo,
+static inline void copy_siginfo_to_user(target_siginfo_t *tinfo,
                                        const target_siginfo_t *info)
 {
     tswap_siginfo(tinfo, info);
-    return 0;
 }
 
 static inline int current_exec_domain_sig(int sig)
@@ -985,9 +984,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     __put_user(addr, &frame->pinfo);
         addr = frame_addr + offsetof(struct rt_sigframe, uc);
     __put_user(addr, &frame->puc);
-	err |= copy_siginfo_to_user(&frame->info, info);
-	if (err)
-		goto give_sigsegv;
+	copy_siginfo_to_user(&frame->info, info);
 
 	/* Create the ucontext.  */
     __put_user(0, &frame->uc.tuc_flags);
@@ -1361,9 +1358,7 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
     env->pc = ka->_sa_handler;
     env->xregs[30] = return_addr;
     if (info) {
-        if (copy_siginfo_to_user(&frame->info, info)) {
-            goto give_sigsegv;
-        }
+        copy_siginfo_to_user(&frame->info, info);
         env->xregs[1] = frame_addr + offsetof(struct target_rt_sigframe, info);
         env->xregs[2] = frame_addr + offsetof(struct target_rt_sigframe, uc);
     }
@@ -3361,7 +3356,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     signal = current_exec_domain_sig(sig);
 
-    err |= copy_siginfo_to_user(&frame->info, info);
+    copy_siginfo_to_user(&frame->info, info);
 
     /* Create the ucontext.  */
     __put_user(0, &frame->uc.tuc_flags);
@@ -4041,10 +4036,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     __put_user(uc_addr, &frame->puc);
 
     if (ka->sa_flags & SA_SIGINFO) {
-        err |= copy_siginfo_to_user(&frame->info, info);
-    }
-    if (err) {
-        goto give_sigsegv;
+        copy_siginfo_to_user(&frame->info, info);
     }
 
     /*err |= __clear_user(&frame->uc, offsetof(struct ucontext, uc_mcontext));*/
@@ -4304,9 +4296,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     }
 
     qemu_log("%s: 1\n", __FUNCTION__);
-    if (copy_siginfo_to_user(&frame->info, info)) {
-        goto give_sigsegv;
-    }
+    copy_siginfo_to_user(&frame->info, info);
 
     /* Create the ucontext.  */
     __put_user(0, &frame->uc.tuc_flags);
@@ -4880,7 +4870,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     signal = current_exec_domain_sig(sig);
 
-    err |= copy_siginfo_to_user(&rt_sf->info, info);
+    copy_siginfo_to_user(&rt_sf->info, info);
 
     __put_user(0, &rt_sf->uc.tuc_flags);
     __put_user(0, &rt_sf->uc.tuc_link);
@@ -5298,7 +5288,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     uc_addr = frame_addr + offsetof(struct target_rt_sigframe, uc);
     __put_user(uc_addr, &frame->puc);
 
-    err |= copy_siginfo_to_user(&frame->info, info);
+    copy_siginfo_to_user(&frame->info, info);
 
     /* Create the ucontext */
 
@@ -5584,7 +5574,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
         goto give_sigsegv;
     }
 
-    err |= copy_siginfo_to_user(&frame->info, info);
+    copy_siginfo_to_user(&frame->info, info);
 
     __put_user(0, &frame->uc.tuc_flags);
     __put_user(0, &frame->uc.tuc_link);
