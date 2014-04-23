@@ -260,20 +260,6 @@ static void smbios_build_type_1_fields(void)
     }
 }
 
-void smbios_set_defaults(const char *manufacturer, const char *product,
-                         const char *version)
-{
-    if (!type1.manufacturer) {
-        type1.manufacturer = manufacturer;
-    }
-    if (!type1.product) {
-        type1.product = product;
-    }
-    if (!type1.version) {
-        type1.version = version;
-    }
-}
-
 uint8_t *smbios_get_table_legacy(size_t *length)
 {
     if (!smbios_immutable) {
@@ -287,6 +273,19 @@ uint8_t *smbios_get_table_legacy(size_t *length)
 }
 /* end: legacy setup functions for <= 2.0 machines */
 
+
+#define SMBIOS_SET_DEFAULT(field, value)                                  \
+    if (!field) {                                                         \
+        field = value;                                                    \
+    }
+
+void smbios_set_defaults(const char *manufacturer, const char *product,
+                         const char *version)
+{
+    SMBIOS_SET_DEFAULT(type1.manufacturer, manufacturer);
+    SMBIOS_SET_DEFAULT(type1.product, product);
+    SMBIOS_SET_DEFAULT(type1.version, version);
+}
 
 static void save_opt(const char **dest, QemuOpts *opts, const char *name)
 {
