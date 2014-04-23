@@ -4819,8 +4819,7 @@ static int do_setcontext(struct target_ucontext *ucp, CPUPPCState *env, int sig)
     fprintf (stderr, "do_setcontext: not implemented\n");
     return 0;
 #else
-    if (__get_user(mcp_addr, &ucp->tuc_regs))
-        return 1;
+    __get_user(mcp_addr, &ucp->tuc_regs);
 
     if (!lock_user_struct(VERIFY_READ, mcp, mcp_addr, 1))
         return 1;
