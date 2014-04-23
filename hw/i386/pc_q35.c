@@ -51,6 +51,7 @@
 static bool has_pci_info;
 static bool has_acpi_build = true;
 static bool smbios_defaults = true;
+static bool smbios_legacy_mode;
 /* Make sure that guest addresses aligned at 1Gbyte boundaries get mapped to
  * host addresses aligned at 1Gbyte boundaries.  This way we can use 1GByte
  * pages in the host.
@@ -133,7 +134,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     if (smbios_defaults) {
         /* These values are guest ABI, do not change */
         smbios_set_defaults("QEMU", "Standard PC (Q35 + ICH9, 2009)",
-                            args->machine->name);
+                            args->machine->name, smbios_legacy_mode);
     }
 
     /* allocate ram and load rom/bios */
@@ -242,6 +243,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
 
 static void pc_compat_2_0(QEMUMachineInitArgs *args)
 {
+    smbios_legacy_mode = true;
 }
 
 static void pc_compat_1_7(QEMUMachineInitArgs *args)
