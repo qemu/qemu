@@ -15,6 +15,8 @@
 
 #include "qemu/option.h"
 
+#define SMBIOS_MAX_TYPE 127
+
 void smbios_entry_add(QemuOpts *opts);
 void smbios_set_defaults(const char *manufacturer, const char *product,
                          const char *version);

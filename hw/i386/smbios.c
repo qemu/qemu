@@ -51,11 +51,8 @@ static size_t smbios_entries_len;
 static int smbios_type4_count = 0;
 static bool smbios_immutable;
 
-static struct {
-    bool seen;
-    int headertype;
-    Location loc;
-} first_opt[2];
+static DECLARE_BITMAP(have_binfile_bitmap, SMBIOS_MAX_TYPE+1);
+static DECLARE_BITMAP(have_fields_bitmap, SMBIOS_MAX_TYPE+1);
 
 static struct {
     const char *vendor, *version, *date;
@@ -163,29 +160,6 @@ static void smbios_validate_table(void)
     if (smbios_type4_count && smbios_type4_count != smp_cpus) {
         error_report("Number of SMBIOS Type 4 tables must match cpu count");
         exit(1);
-    }
-}
-
-/*
- * To avoid unresolvable overlaps in data, don't allow both
- * tables and fields for the same smbios type.
- */
-static void smbios_check_collision(int type, int entry)
-{
-    if (type < ARRAY_SIZE(first_opt)) {
-        if (first_opt[type].seen) {
-            if (first_opt[type].headertype != entry) {
-                error_report("Can't mix file= and type= for same type");
-                loc_push_restore(&first_opt[type].loc);
-                error_report("This is the conflicting setting");
-                loc_pop(&first_opt[type].loc);
-                exit(1);
-            }
-        } else {
-            first_opt[type].seen = true;
-            first_opt[type].headertype = entry;
-            loc_save(&first_opt[type].loc);
-        }
     }
 }
 
@@ -337,7 +311,14 @@ void smbios_entry_add(QemuOpts *opts)
         }
 
         header = (struct smbios_structure_header *)(table->data);
-        smbios_check_collision(header->type, SMBIOS_TABLE_ENTRY);
+
+        if (test_bit(header->type, have_fields_bitmap)) {
+            error_report("can't load type %d struct, fields already specified!",
+                         header->type);
+            exit(1);
+        }
+        set_bit(header->type, have_binfile_bitmap);
+
         if (header->type == 4) {
             smbios_type4_count++;
         }
@@ -352,7 +333,16 @@ void smbios_entry_add(QemuOpts *opts)
     if (val) {
         unsigned long type = strtoul(val, NULL, 0);
 
-        smbios_check_collision(type, SMBIOS_FIELD_ENTRY);
+        if (type > SMBIOS_MAX_TYPE) {
+            error_report("out of range!");
+            exit(1);
+        }
+
+        if (test_bit(type, have_binfile_bitmap)) {
+            error_report("can't add fields, binary file already loaded!");
+            exit(1);
+        }
+        set_bit(type, have_fields_bitmap);
 
         switch (type) {
         case 0:
