@@ -4486,7 +4486,7 @@ static target_ulong get_sigframe(struct target_sigaction *ka,
     return newsp;
 }
 
-static int save_user_regs(CPUPPCState *env, struct target_mcontext *frame,
+static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame,
                           int sigret)
 {
     target_ulong msr = env->msr;
@@ -4499,21 +4499,17 @@ static int save_user_regs(CPUPPCState *env, struct target_mcontext *frame,
 
     /* Save general registers.  */
     for (i = 0; i < ARRAY_SIZE(env->gpr); i++) {
-        if (__put_user(env->gpr[i], &frame->mc_gregs[i])) {
-            return 1;
-        }
+       __put_user(env->gpr[i], &frame->mc_gregs[i]);
     }
-    if (__put_user(env->nip, &frame->mc_gregs[TARGET_PT_NIP])
-        || __put_user(env->ctr, &frame->mc_gregs[TARGET_PT_CTR])
-        || __put_user(env->lr, &frame->mc_gregs[TARGET_PT_LNK])
-        || __put_user(env->xer, &frame->mc_gregs[TARGET_PT_XER]))
-        return 1;
+    __put_user(env->nip, &frame->mc_gregs[TARGET_PT_NIP]);
+    __put_user(env->ctr, &frame->mc_gregs[TARGET_PT_CTR]);
+    __put_user(env->lr, &frame->mc_gregs[TARGET_PT_LNK]);
+    __put_user(env->xer, &frame->mc_gregs[TARGET_PT_XER]);
 
     for (i = 0; i < ARRAY_SIZE(env->crf); i++) {
         ccr |= env->crf[i] << (32 - ((i + 1) * 4));
     }
-    if (__put_user(ccr, &frame->mc_gregs[TARGET_PT_CCR]))
-        return 1;
+    __put_user(ccr, &frame->mc_gregs[TARGET_PT_CCR]);
 
     /* Save Altivec registers if necessary.  */
     if (env->insns_flags & PPC_ALTIVEC) {
@@ -4521,69 +4517,53 @@ static int save_user_regs(CPUPPCState *env, struct target_mcontext *frame,
             ppc_avr_t *avr = &env->avr[i];
             ppc_avr_t *vreg = &frame->mc_vregs.altivec[i];
 
-            if (__put_user(avr->u64[0], &vreg->u64[0]) ||
-                __put_user(avr->u64[1], &vreg->u64[1])) {
-                return 1;
-            }
+            __put_user(avr->u64[0], &vreg->u64[0]);
+            __put_user(avr->u64[1], &vreg->u64[1]);
         }
         /* Set MSR_VR in the saved MSR value to indicate that
            frame->mc_vregs contains valid data.  */
         msr |= MSR_VR;
-        if (__put_user((uint32_t)env->spr[SPR_VRSAVE],
-                       &frame->mc_vregs.altivec[32].u32[3]))
-            return 1;
+        __put_user((uint32_t)env->spr[SPR_VRSAVE],
+                   &frame->mc_vregs.altivec[32].u32[3]);
     }
 
     /* Save floating point registers.  */
     if (env->insns_flags & PPC_FLOAT) {
         for (i = 0; i < ARRAY_SIZE(env->fpr); i++) {
-            if (__put_user(env->fpr[i], &frame->mc_fregs[i])) {
-                return 1;
-            }
+            __put_user(env->fpr[i], &frame->mc_fregs[i]);
         }
-        if (__put_user((uint64_t) env->fpscr, &frame->mc_fregs[32]))
-            return 1;
+        __put_user((uint64_t) env->fpscr, &frame->mc_fregs[32]);
     }
 
     /* Save SPE registers.  The kernel only saves the high half.  */
     if (env->insns_flags & PPC_SPE) {
 #if defined(TARGET_PPC64)
         for (i = 0; i < ARRAY_SIZE(env->gpr); i++) {
-            if (__put_user(env->gpr[i] >> 32, &frame->mc_vregs.spe[i])) {
-                return 1;
-            }
+            __put_user(env->gpr[i] >> 32, &frame->mc_vregs.spe[i]);
         }
 #else
         for (i = 0; i < ARRAY_SIZE(env->gprh); i++) {
-            if (__put_user(env->gprh[i], &frame->mc_vregs.spe[i])) {
-                return 1;
-            }
+            __put_user(env->gprh[i], &frame->mc_vregs.spe[i]);
         }
 #endif
         /* Set MSR_SPE in the saved MSR value to indicate that
            frame->mc_vregs contains valid data.  */
         msr |= MSR_SPE;
-        if (__put_user(env->spe_fscr, &frame->mc_vregs.spe[32]))
-            return 1;
+        __put_user(env->spe_fscr, &frame->mc_vregs.spe[32]);
     }
 
     /* Store MSR.  */
-    if (__put_user(msr, &frame->mc_gregs[TARGET_PT_MSR]))
-        return 1;
+    __put_user(msr, &frame->mc_gregs[TARGET_PT_MSR]);
 
     /* Set up the sigreturn trampoline: li r0,sigret; sc.  */
     if (sigret) {
-        if (__put_user(0x38000000UL | sigret, &frame->tramp[0]) ||
-            __put_user(0x44000002UL, &frame->tramp[1])) {
-            return 1;
-        }
+        __put_user(0x38000000UL | sigret, &frame->tramp[0]);
+        __put_user(0x44000002UL, &frame->tramp[1]);
     }
-
-    return 0;
 }
 
-static int restore_user_regs(CPUPPCState *env,
-                             struct target_mcontext *frame, int sig)
+static void restore_user_regs(CPUPPCState *env,
+                              struct target_mcontext *frame, int sig)
 {
     target_ulong save_r2 = 0;
     target_ulong msr;
@@ -4597,17 +4577,13 @@ static int restore_user_regs(CPUPPCState *env,
 
     /* Restore general registers.  */
     for (i = 0; i < ARRAY_SIZE(env->gpr); i++) {
-        if (__get_user(env->gpr[i], &frame->mc_gregs[i])) {
-            return 1;
-        }
+        __get_user(env->gpr[i], &frame->mc_gregs[i]);
     }
-    if (__get_user(env->nip, &frame->mc_gregs[TARGET_PT_NIP])
-        || __get_user(env->ctr, &frame->mc_gregs[TARGET_PT_CTR])
-        || __get_user(env->lr, &frame->mc_gregs[TARGET_PT_LNK])
-        || __get_user(env->xer, &frame->mc_gregs[TARGET_PT_XER]))
-        return 1;
-    if (__get_user(ccr, &frame->mc_gregs[TARGET_PT_CCR]))
-        return 1;
+    __get_user(env->nip, &frame->mc_gregs[TARGET_PT_NIP]);
+    __get_user(env->ctr, &frame->mc_gregs[TARGET_PT_CTR]);
+    __get_user(env->lr, &frame->mc_gregs[TARGET_PT_LNK]);
+    __get_user(env->xer, &frame->mc_gregs[TARGET_PT_XER]);
+    __get_user(ccr, &frame->mc_gregs[TARGET_PT_CCR]);
 
     for (i = 0; i < ARRAY_SIZE(env->crf); i++) {
         env->crf[i] = (ccr >> (32 - ((i + 1) * 4))) & 0xf;
@@ -4617,8 +4593,7 @@ static int restore_user_regs(CPUPPCState *env,
         env->gpr[2] = save_r2;
     }
     /* Restore MSR.  */
-    if (__get_user(msr, &frame->mc_gregs[TARGET_PT_MSR]))
-        return 1;
+    __get_user(msr, &frame->mc_gregs[TARGET_PT_MSR]);
 
     /* If doing signal return, restore the previous little-endian mode.  */
     if (sig)
@@ -4630,28 +4605,22 @@ static int restore_user_regs(CPUPPCState *env,
             ppc_avr_t *avr = &env->avr[i];
             ppc_avr_t *vreg = &frame->mc_vregs.altivec[i];
 
-            if (__get_user(avr->u64[0], &vreg->u64[0]) ||
-                __get_user(avr->u64[1], &vreg->u64[1])) {
-                return 1;
-            }
+            __get_user(avr->u64[0], &vreg->u64[0]);
+            __get_user(avr->u64[1], &vreg->u64[1]);
         }
         /* Set MSR_VEC in the saved MSR value to indicate that
            frame->mc_vregs contains valid data.  */
-        if (__get_user(env->spr[SPR_VRSAVE],
-                       (target_ulong *)(&frame->mc_vregs.altivec[32].u32[3])))
-            return 1;
+        __get_user(env->spr[SPR_VRSAVE],
+                   (target_ulong *)(&frame->mc_vregs.altivec[32].u32[3]));
     }
 
     /* Restore floating point registers.  */
     if (env->insns_flags & PPC_FLOAT) {
         uint64_t fpscr;
         for (i = 0; i < ARRAY_SIZE(env->fpr); i++) {
-            if (__get_user(env->fpr[i], &frame->mc_fregs[i])) {
-                return 1;
-            }
+            __get_user(env->fpr[i], &frame->mc_fregs[i]);
         }
-        if (__get_user(fpscr, &frame->mc_fregs[32]))
-            return 1;
+        __get_user(fpscr, &frame->mc_fregs[32]);
         env->fpscr = (uint32_t) fpscr;
     }
 
@@ -4661,23 +4630,16 @@ static int restore_user_regs(CPUPPCState *env,
         for (i = 0; i < ARRAY_SIZE(env->gpr); i++) {
             uint32_t hi;
 
-            if (__get_user(hi, &frame->mc_vregs.spe[i])) {
-                return 1;
-            }
+            __get_user(hi, &frame->mc_vregs.spe[i]);
             env->gpr[i] = ((uint64_t)hi << 32) | ((uint32_t) env->gpr[i]);
         }
 #else
         for (i = 0; i < ARRAY_SIZE(env->gprh); i++) {
-            if (__get_user(env->gprh[i], &frame->mc_vregs.spe[i])) {
-                return 1;
-            }
+            __get_user(env->gprh[i], &frame->mc_vregs.spe[i]);
         }
 #endif
-        if (__get_user(env->spe_fscr, &frame->mc_vregs.spe[32]))
-            return 1;
+        __get_user(env->spe_fscr, &frame->mc_vregs.spe[32]);
     }
-
-    return 0;
 }
 
 static void setup_frame(int sig, struct target_sigaction *ka,
@@ -4707,7 +4669,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     __put_user(sig, &sc->signal);
 
     /* Save user regs.  */
-    err |= save_user_regs(env, &frame->mctx, TARGET_NR_sigreturn);
+    save_user_regs(env, &frame->mctx, TARGET_NR_sigreturn);
 
     /* The kernel checks for the presence of a VDSO here.  We don't
        emulate a vdso, so use a sigreturn system call.  */
@@ -4773,7 +4735,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     }
 
     frame = &rt_sf->uc.tuc_mcontext;
-    err |= save_user_regs(env, frame, TARGET_NR_rt_sigreturn);
+    save_user_regs(env, frame, TARGET_NR_rt_sigreturn);
 
     /* The kernel checks for the presence of a VDSO here.  We don't
        emulate a vdso, so use a sigreturn system call.  */
@@ -4833,8 +4795,7 @@ long do_sigreturn(CPUPPCState *env)
     __get_user(sr_addr, &sc->regs);
     if (!lock_user_struct(VERIFY_READ, sr, sr_addr, 1))
         goto sigsegv;
-    if (restore_user_regs(env, sr, 1))
-        goto sigsegv;
+    restore_user_regs(env, sr, 1);
 
     unlock_user_struct(sr, sr_addr, 1);
     unlock_user_struct(sc, sc_addr, 1);
@@ -4872,15 +4833,10 @@ static int do_setcontext(struct target_ucontext *ucp, CPUPPCState *env, int sig)
 
     target_to_host_sigset_internal(&blocked, &set);
     do_sigprocmask(SIG_SETMASK, &blocked, NULL);
-    if (restore_user_regs(env, mcp, sig))
-        goto sigsegv;
+    restore_user_regs(env, mcp, sig);
 
     unlock_user_struct(mcp, mcp_addr, 1);
     return 0;
-
-sigsegv:
-    unlock_user_struct(mcp, mcp_addr, 1);
-    return 1;
 #endif
 }
 
