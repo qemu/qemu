@@ -2527,7 +2527,6 @@ void sparc64_set_context(CPUSPARCState *env)
     target_mc_gregset_t *grp;
     abi_ulong pc, npc, tstate;
     abi_ulong fp, i7, w_addr;
-    int err = 0;
     unsigned int i;
 
     ucp_addr = env->regwptr[UREG_I0];
@@ -2536,15 +2535,14 @@ void sparc64_set_context(CPUSPARCState *env)
     grp  = &ucp->tuc_mcontext.mc_gregs;
     __get_user(pc, &((*grp)[MC_PC]));
     __get_user(npc, &((*grp)[MC_NPC]));
-    if (err || ((pc | npc) & 3))
+    if ((pc | npc) & 3)
         goto do_sigsegv;
     if (env->regwptr[UREG_I1]) {
         target_sigset_t target_set;
         sigset_t set;
 
         if (TARGET_NSIG_WORDS == 1) {
-            if (__get_user(target_set.sig[0], &ucp->tuc_sigmask.sig[0]))
-                goto do_sigsegv;
+            __get_user(target_set.sig[0], &ucp->tuc_sigmask.sig[0]);
         } else {
             abi_ulong *src, *dst;
             src = ucp->tuc_sigmask.sig;
@@ -2552,8 +2550,6 @@ void sparc64_set_context(CPUSPARCState *env)
             for (i = 0; i < TARGET_NSIG_WORDS; i++, dst++, src++) {
                 __get_user(*dst, src);
             }
-            if (err)
-                goto do_sigsegv;
         }
         target_to_host_sigset_internal(&set, &target_set);
         do_sigprocmask(SIG_SETMASK, &set, NULL);
@@ -2596,7 +2592,7 @@ void sparc64_set_context(CPUSPARCState *env)
      * is only restored if fenab is non-zero in:
      *   __get_user(fenab, &(ucp->tuc_mcontext.mc_fpregs.mcfpu_enab));
      */
-    err |= __get_user(env->fprs, &(ucp->tuc_mcontext.mc_fpregs.mcfpu_fprs));
+    __get_user(env->fprs, &(ucp->tuc_mcontext.mc_fpregs.mcfpu_fprs));
     {
         uint32_t *src = ucp->tuc_mcontext.mc_fpregs.mcfpu_fregs.sregs;
         for (i = 0; i < 64; i++, src++) {
@@ -2611,8 +2607,6 @@ void sparc64_set_context(CPUSPARCState *env)
                &(ucp->tuc_mcontext.mc_fpregs.mcfpu_fsr));
     __get_user(env->gsr,
                &(ucp->tuc_mcontext.mc_fpregs.mcfpu_gsr));
-    if (err)
-        goto do_sigsegv;
     unlock_user_struct(ucp, ucp_addr, 0);
     return;
  do_sigsegv:
