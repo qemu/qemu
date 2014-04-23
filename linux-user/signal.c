@@ -836,12 +836,11 @@ struct rt_sigframe
  */
 
 /* XXX: save x87 state */
-static int
-setup_sigcontext(struct target_sigcontext *sc, struct target_fpstate *fpstate,
-		 CPUX86State *env, abi_ulong mask, abi_ulong fpstate_addr)
+static void setup_sigcontext(struct target_sigcontext *sc,
+        struct target_fpstate *fpstate, CPUX86State *env, abi_ulong mask,
+        abi_ulong fpstate_addr)
 {
     CPUState *cs = CPU(x86_env_get_cpu(env));
-    int err = 0;
     uint16_t magic;
 
 	/* already locked in setup_frame() */
@@ -874,7 +873,6 @@ setup_sigcontext(struct target_sigcontext *sc, struct target_fpstate *fpstate,
 	/* non-iBCS2 extensions.. */
     __put_user(mask, &sc->oldmask);
     __put_user(env->cr[2], &sc->cr2);
-	return err;
 }
 
 /*
@@ -994,9 +992,9 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
                &frame->uc.tuc_stack.ss_flags);
     __put_user(target_sigaltstack_used.ss_size,
                &frame->uc.tuc_stack.ss_size);
-	err |= setup_sigcontext(&frame->uc.tuc_mcontext, &frame->fpstate,
-			        env, set->sig[0], 
-                                frame_addr + offsetof(struct rt_sigframe, fpstate));
+    setup_sigcontext(&frame->uc.tuc_mcontext, &frame->fpstate, env,
+            set->sig[0], frame_addr + offsetof(struct rt_sigframe, fpstate));
+
         for(i = 0; i < TARGET_NSIG_WORDS; i++) {
             if (__put_user(set->sig[i], &frame->uc.tuc_sigmask.sig[i]))
                 goto give_sigsegv;
@@ -2855,10 +2853,9 @@ static inline int install_sigtramp(unsigned int *tramp,   unsigned int syscall)
     return err;
 }
 
-static inline int
-setup_sigcontext(CPUMIPSState *regs, struct target_sigcontext *sc)
+static inline void setup_sigcontext(CPUMIPSState *regs,
+        struct target_sigcontext *sc)
 {
-    int err = 0;
     int i;
 
     __put_user(exception_resume_pc(regs), &sc->sc_pc);
@@ -2890,8 +2887,6 @@ setup_sigcontext(CPUMIPSState *regs, struct target_sigcontext *sc)
     for (i = 0; i < 32; ++i) {
         __put_user(regs->active_fpu.fpr[i].d, &sc->sc_fpregs[i]);
     }
-
-    return err;
 }
 
 static inline int
@@ -2978,8 +2973,7 @@ static void setup_frame(int sig, struct target_sigaction * ka,
 
     install_sigtramp(frame->sf_code, TARGET_NR_sigreturn);
 
-    if(setup_sigcontext(regs, &frame->sf_sc))
-	goto give_sigsegv;
+    setup_sigcontext(regs, &frame->sf_sc);
 
     for(i = 0; i < TARGET_NSIG_WORDS; i++) {
 	if(__put_user(set->sig[i], &frame->sf_mask.sig[i]))
@@ -3226,10 +3220,9 @@ static abi_ulong get_sigframe(struct target_sigaction *ka,
     return (sp - frame_size) & -8ul;
 }
 
-static int setup_sigcontext(struct target_sigcontext *sc,
+static void setup_sigcontext(struct target_sigcontext *sc,
                             CPUSH4State *regs, unsigned long mask)
 {
-    int err = 0;
     int i;
 
 #define COPY(x)         __put_user(regs->x, &sc->sc_##x)
@@ -3254,8 +3247,6 @@ static int setup_sigcontext(struct target_sigcontext *sc,
 
     /* non-iBCS2 extensions.. */
     __put_user(mask, &sc->oldmask);
-
-    return err;
 }
 
 static int restore_sigcontext(CPUSH4State *regs, struct target_sigcontext *sc,
@@ -3304,7 +3295,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
     signal = current_exec_domain_sig(sig);
 
-    err |= setup_sigcontext(&frame->sc, regs, set->sig[0]);
+    setup_sigcontext(&frame->sc, regs, set->sig[0]);
 
     for (i = 0; i < TARGET_NSIG_WORDS - 1; i++) {
         __put_user(set->sig[i + 1], &frame->extramask[i]);
@@ -3954,11 +3945,10 @@ badframe:
 
 /* Set up a signal frame.  */
 
-static int setup_sigcontext(struct target_sigcontext *sc,
+static void setup_sigcontext(struct target_sigcontext *sc,
                             CPUOpenRISCState *regs,
                             unsigned long mask)
 {
-    int err = 0;
     unsigned long usp = regs->gpr[1];
 
     /* copy the regs. they are first in sc so we can use sc directly */
@@ -3972,7 +3962,7 @@ static int setup_sigcontext(struct target_sigcontext *sc,
 
     /* then some other stuff */
     __put_user(mask, &sc->oldmask);
-    __put_user(usp, &sc->usp); return err;
+    __put_user(usp, &sc->usp);
 }
 
 static inline unsigned long align_sigframe(unsigned long sp)
@@ -4047,13 +4037,9 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     __put_user(sas_ss_flags(env->gpr[1]), &frame->uc.tuc_stack.ss_flags);
     __put_user(target_sigaltstack_used.ss_size,
                &frame->uc.tuc_stack.ss_size);
-    err |= setup_sigcontext(&frame->sc, env, set->sig[0]);
+    setup_sigcontext(&frame->sc, env, set->sig[0]);
 
     /*err |= copy_to_user(frame->uc.tuc_sigmask, set, sizeof(*set));*/
-
-    if (err) {
-        goto give_sigsegv;
-    }
 
     /* trampoline - the desired return ip is the retcode itself */
     return_ip = (unsigned long)&frame->retcode;
@@ -5087,12 +5073,9 @@ struct target_rt_sigframe
     struct target_ucontext uc;
 };
 
-static int
-setup_sigcontext(struct target_sigcontext *sc, CPUM68KState *env,
-                 abi_ulong mask)
+static void setup_sigcontext(struct target_sigcontext *sc, CPUM68KState *env,
+        abi_ulong mask)
 {
-    int err = 0;
-
     __put_user(mask, &sc->sc_mask);
     __put_user(env->aregs[7], &sc->sc_usp);
     __put_user(env->dregs[0], &sc->sc_d0);
@@ -5101,8 +5084,6 @@ setup_sigcontext(struct target_sigcontext *sc, CPUM68KState *env,
     __put_user(env->aregs[1], &sc->sc_a1);
     __put_user(env->sr, &sc->sc_sr);
     __put_user(env->pc, &sc->sc_pc);
-
-    return err;
 }
 
 static int
@@ -5162,9 +5143,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     sc_addr = frame_addr + offsetof(struct target_sigframe, sc);
     __put_user(sc_addr, &frame->psc);
 
-    err |= setup_sigcontext(&frame->sc, env, set->sig[0]);
-    if (err)
-	goto give_sigsegv;
+    setup_sigcontext(&frame->sc, env, set->sig[0]);
 
     for(i = 1; i < TARGET_NSIG_WORDS; i++) {
         if (__put_user(set->sig[i], &frame->extramask[i - 1]))
@@ -5456,10 +5435,10 @@ struct target_rt_sigframe {
 #define INSN_LDI_R0             0x201f0000
 #define INSN_CALLSYS            0x00000083
 
-static int setup_sigcontext(struct target_sigcontext *sc, CPUAlphaState *env,
+static void setup_sigcontext(struct target_sigcontext *sc, CPUAlphaState *env,
                             abi_ulong frame_addr, target_sigset_t *set)
 {
-    int i, err = 0;
+    int i;
 
     __put_user(on_sig_stack(frame_addr), &sc->sc_onstack);
     __put_user(set->sig[0], &sc->sc_mask);
@@ -5480,8 +5459,6 @@ static int setup_sigcontext(struct target_sigcontext *sc, CPUAlphaState *env,
     __put_user(0, &sc->sc_traparg_a0); /* FIXME */
     __put_user(0, &sc->sc_traparg_a1); /* FIXME */
     __put_user(0, &sc->sc_traparg_a2); /* FIXME */
-
-    return err;
 }
 
 static int restore_sigcontext(CPUAlphaState *env,
@@ -5530,7 +5507,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
         goto give_sigsegv;
     }
 
-    err |= setup_sigcontext(&frame->sc, env, frame_addr, set);
+    setup_sigcontext(&frame->sc, env, frame_addr, set);
 
     if (ka->sa_restorer) {
         r26 = ka->sa_restorer;
@@ -5585,7 +5562,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
                &frame->uc.tuc_stack.ss_flags);
     __put_user(target_sigaltstack_used.ss_size,
                &frame->uc.tuc_stack.ss_size);
-    err |= setup_sigcontext(&frame->uc.tuc_mcontext, env, frame_addr, set);
+    setup_sigcontext(&frame->uc.tuc_mcontext, env, frame_addr, set);
     for (i = 0; i < TARGET_NSIG_WORDS; ++i) {
         __put_user(set->sig[i], &frame->uc.tuc_sigmask.sig[i]);
     }
