@@ -99,8 +99,6 @@ static inline void gdk_drawable_get_size(GdkWindow *w, gint *ww, gint *wh)
 #endif
 
 #define HOTKEY_MODIFIERS        (GDK_CONTROL_MASK | GDK_MOD1_MASK)
-#define IGNORE_MODIFIER_MASK \
-    (GDK_MODIFIER_MASK & ~(GDK_LOCK_MASK | GDK_MOD2_MASK))
 
 static const int modifier_keycode[] = {
     /* shift, control, alt keys, meta keys, both left & right */
@@ -488,24 +486,6 @@ static void gd_mouse_mode_change(Notifier *notify, void *data)
 }
 
 /** GTK Events **/
-
-static gboolean gd_window_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
-{
-    GtkDisplayState *s = opaque;
-    gboolean handled = FALSE;
-
-    if (!gd_is_grab_active(s) ||
-        (key->state & IGNORE_MODIFIER_MASK) == HOTKEY_MODIFIERS) {
-        handled = gtk_window_activate_key(GTK_WINDOW(widget), key);
-    }
-    if (handled) {
-        gtk_release_modifiers(s);
-    } else {
-        handled = gtk_window_propagate_key_event(GTK_WINDOW(widget), key);
-    }
-
-    return handled;
-}
 
 static gboolean gd_window_close(GtkWidget *widget, GdkEvent *event,
                                 void *opaque)
@@ -1272,8 +1252,6 @@ static void gd_connect_signals(GtkDisplayState *s)
     g_signal_connect(s->show_tabs_item, "activate",
                      G_CALLBACK(gd_menu_show_tabs), s);
 
-    g_signal_connect(s->window, "key-press-event",
-                     G_CALLBACK(gd_window_key_event), s);
     g_signal_connect(s->window, "delete-event",
                      G_CALLBACK(gd_window_close), s);
 
