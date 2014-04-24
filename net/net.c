@@ -1066,6 +1066,10 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
                        " rx-filter querying", name);
             break;
         }
+
+        if (has_name) {
+            break;
+        }
     }
 
     if (filter_list == NULL && !error_is_set(errp) && has_name) {
