@@ -4285,10 +4285,13 @@
 #
 # Drivers that are supported in block device operations.
 #
+# @host_device, @host_cdrom, @host_floppy: Since 2.1
+#
 # Since: 2.0
 ##
 { 'enum': 'BlockdevDriver',
-  'data': [ 'file', 'http', 'https', 'ftp', 'ftps', 'tftp', 'vvfat', 'blkdebug',
+  'data': [ 'file', 'host_device', 'host_cdrom', 'host_floppy',
+            'http', 'https', 'ftp', 'ftps', 'tftp', 'vvfat', 'blkdebug',
             'blkverify', 'bochs', 'cloop', 'cow', 'dmg', 'parallels', 'qcow',
             'qcow2', 'qed', 'raw', 'vdi', 'vhdx', 'vmdk', 'vpc', 'quorum' ] }
 
@@ -4555,6 +4558,9 @@
   'discriminator': 'driver',
   'data': {
       'file':       'BlockdevOptionsFile',
+      'host_device':'BlockdevOptionsFile',
+      'host_cdrom': 'BlockdevOptionsFile',
+      'host_floppy':'BlockdevOptionsFile',
       'http':       'BlockdevOptionsFile',
       'https':      'BlockdevOptionsFile',
       'ftp':        'BlockdevOptionsFile',
