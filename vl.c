@@ -2740,7 +2740,7 @@ static int configure_accelerator(QEMUMachine *machine)
                 if (!accel_list[i].available()) {
                     printf("%s not supported for this target\n",
                            accel_list[i].name);
-                    continue;
+                    break;
                 }
                 *(accel_list[i].allowed) = true;
                 ret = accel_list[i].init(machine);
