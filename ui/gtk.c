@@ -115,7 +115,6 @@ typedef struct VirtualConsole
     GtkWidget *scrolled_window;
     CharDriverState *chr;
 #endif
-    int fd;
 } VirtualConsole;
 
 typedef struct GtkDisplayState
@@ -1162,9 +1161,12 @@ static gboolean gd_focus_out_event(GtkWidget *widget,
 
 static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
+#if defined(CONFIG_VTE)
     VirtualConsole *vc = chr->opaque;
 
-    return vc ? write(vc->fd, buf, len) : len;
+    vte_terminal_feed(VTE_TERMINAL(vc->terminal), (const char *)buf, len);
+#endif
+    return len;
 }
 
 static int nb_vcs;
@@ -1190,19 +1192,12 @@ void early_gtk_display_init(void)
 }
 
 #if defined(CONFIG_VTE)
-static gboolean gd_vc_in(GIOChannel *chan, GIOCondition cond, void *opaque)
+static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
+                         gpointer user_data)
 {
-    VirtualConsole *vc = opaque;
-    uint8_t buffer[1024];
-    ssize_t len;
+    VirtualConsole *vc = user_data;
 
-    len = read(vc->fd, buffer, sizeof(buffer));
-    if (len <= 0) {
-        return FALSE;
-    }
-
-    qemu_chr_be_write(vc->chr, buffer, len);
-
+    qemu_chr_be_write(vc->chr, (uint8_t  *)text, (unsigned int)size);
     return TRUE;
 }
 #endif
@@ -1214,13 +1209,8 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     const char *label;
     char buffer[32];
     char path[32];
-#if VTE_CHECK_VERSION(0, 26, 0)
-    VtePty *pty;
-#endif
-    GIOChannel *chan;
     GtkWidget *scrolled_window;
     GtkAdjustment *vadjustment;
-    int master_fd, slave_fd;
 
     snprintf(buffer, sizeof(buffer), "vc%d", index);
     snprintf(path, sizeof(path), "<QEMU>/View/VC%d", index);
@@ -1239,16 +1229,7 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     gtk_accel_map_add_entry(path, GDK_KEY_2 + index, HOTKEY_MODIFIERS);
 
     vc->terminal = vte_terminal_new();
-
-    master_fd = qemu_openpty_raw(&slave_fd, NULL);
-    g_assert(master_fd != -1);
-
-#if VTE_CHECK_VERSION(0, 26, 0)
-    pty = vte_pty_new_foreign(master_fd, NULL);
-    vte_terminal_set_pty_object(VTE_TERMINAL(vc->terminal), pty);
-#else
-    vte_terminal_set_pty(VTE_TERMINAL(vc->terminal), master_fd);
-#endif
+    g_signal_connect(vc->terminal, "commit", G_CALLBACK(gd_vc_in), vc);
 
     vte_terminal_set_scrollback_lines(VTE_TERMINAL(vc->terminal), -1);
 
@@ -1263,7 +1244,6 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
 
     vte_terminal_set_size(VTE_TERMINAL(vc->terminal), 80, 25);
 
-    vc->fd = slave_fd;
     vc->chr->opaque = vc;
     vc->scrolled_window = scrolled_window;
 
@@ -1280,9 +1260,6 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     if (vc->chr->init) {
         vc->chr->init(vc->chr);
     }
-
-    chan = g_io_channel_unix_new(vc->fd);
-    g_io_add_watch(chan, G_IO_IN, gd_vc_in, vc);
 
 #endif /* CONFIG_VTE */
     return group;
