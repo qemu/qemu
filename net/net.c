@@ -1045,7 +1045,7 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
         if (nc->info->type != NET_CLIENT_OPTIONS_KIND_NIC) {
             if (has_name) {
                 error_setg(errp, "net client(%s) isn't a NIC", name);
-                break;
+                return NULL;
             }
             continue;
         }
@@ -1064,7 +1064,7 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
         } else if (has_name) {
             error_setg(errp, "net client(%s) doesn't support"
                        " rx-filter querying", name);
-            break;
+            return NULL;
         }
 
         if (has_name) {
@@ -1072,7 +1072,7 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
         }
     }
 
-    if (filter_list == NULL && !error_is_set(errp) && has_name) {
+    if (filter_list == NULL && has_name) {
         error_setg(errp, "invalid net client name: %s", name);
     }
 
