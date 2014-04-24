@@ -63,16 +63,18 @@ typedef struct AcpiPciHpFind {
 
 static int acpi_pcihp_get_bsel(PCIBus *bus)
 {
-    QObject *o = object_property_get_qobject(OBJECT(bus),
-                                             ACPI_PCIHP_PROP_BSEL, NULL);
-    int64_t bsel = -1;
-    if (o) {
-        bsel = qint_get_int(qobject_to_qint(o));
-    }
-    if (bsel < 0) {
+    Error *local_err = NULL;
+    int64_t bsel = object_property_get_int(OBJECT(bus), ACPI_PCIHP_PROP_BSEL,
+                                           &local_err);
+
+    if (local_err || bsel < 0 || bsel >= ACPI_PCIHP_MAX_HOTPLUG_BUS) {
+        if (local_err) {
+            error_free(local_err);
+        }
         return -1;
+    } else {
+        return bsel;
     }
-    return bsel;
 }
 
 static void acpi_pcihp_test_hotplug_bus(PCIBus *bus, void *opaque)
