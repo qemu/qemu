@@ -1297,6 +1297,52 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
     }
 }
 
+static void tcg_out_addsub2(TCGContext *s, TCGReg rl, TCGReg rh, TCGReg al,
+                            TCGReg ah, TCGArg bl, TCGArg bh, bool cbl,
+                            bool cbh, bool is_sub)
+{
+    TCGReg th = TCG_TMP1;
+
+    /* If we have a negative constant such that negating it would
+       make the high part zero, we can (usually) eliminate one insn.  */
+    if (cbl && cbh && bh == -1 && bl != 0) {
+        bl = -bl;
+        bh = 0;
+        is_sub = !is_sub;
+    }
+
+    /* By operating on the high part first, we get to use the final
+       carry operation to move back from the temporary.  */
+    if (!cbh) {
+        tcg_out_opc_reg(s, (is_sub ? OPC_SUBU : OPC_ADDU), th, ah, bh);
+    } else if (bh != 0 || ah == rl) {
+        tcg_out_opc_imm(s, OPC_ADDIU, th, ah, (is_sub ? -bh : bh));
+    } else {
+        th = ah;
+    }
+
+    /* Note that tcg optimization should eliminate the bl == 0 case.  */
+    if (is_sub) {
+        if (cbl) {
+            tcg_out_opc_imm(s, OPC_SLTIU, TCG_TMP0, al, bl);
+            tcg_out_opc_imm(s, OPC_ADDIU, rl, al, -bl);
+        } else {
+            tcg_out_opc_reg(s, OPC_SLTU, TCG_TMP0, al, bl);
+            tcg_out_opc_reg(s, OPC_SUBU, rl, al, bl);
+        }
+        tcg_out_opc_reg(s, OPC_SUBU, rh, th, TCG_TMP0);
+    } else {
+        if (cbl) {
+            tcg_out_opc_imm(s, OPC_ADDIU, rl, al, bl);
+            tcg_out_opc_imm(s, OPC_SLTIU, TCG_TMP0, rl, bl);
+        } else {
+            tcg_out_opc_reg(s, OPC_ADDU, rl, al, bl);
+            tcg_out_opc_reg(s, OPC_SLTU, TCG_TMP0, rl, (rl == bl ? al : bl));
+        }
+        tcg_out_opc_reg(s, OPC_ADDU, rh, th, TCG_TMP0);
+    }
+}
+
 static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
 {
     TCGReg addr_regl, addr_regh __attribute__((unused));
@@ -1419,42 +1465,12 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out_opc_reg(s, OPC_ADDU, a0, a1, a2);
         }
         break;
-    case INDEX_op_add2_i32:
-        if (const_args[4]) {
-            tcg_out_opc_imm(s, OPC_ADDIU, TCG_TMP0, a2, args[4]);
-        } else {
-            tcg_out_opc_reg(s, OPC_ADDU, TCG_TMP0, a2, args[4]);
-        }
-        tcg_out_opc_reg(s, OPC_SLTU, TCG_TMP1, TCG_TMP0, a2);
-        if (const_args[5]) {
-            tcg_out_opc_imm(s, OPC_ADDIU, a1, args[3], args[5]);
-        } else {
-             tcg_out_opc_reg(s, OPC_ADDU, a1, args[3], args[5]);
-        }
-        tcg_out_opc_reg(s, OPC_ADDU, a1, a1, TCG_TMP1);
-        tcg_out_mov(s, TCG_TYPE_I32, a0, TCG_TMP0);
-        break;
     case INDEX_op_sub_i32:
         if (c2) {
             tcg_out_opc_imm(s, OPC_ADDIU, a0, a1, -a2);
         } else {
             tcg_out_opc_reg(s, OPC_SUBU, a0, a1, a2);
         }
-        break;
-    case INDEX_op_sub2_i32:
-        if (const_args[4]) {
-            tcg_out_opc_imm(s, OPC_ADDIU, TCG_TMP0, a2, -args[4]);
-        } else {
-            tcg_out_opc_reg(s, OPC_SUBU, TCG_TMP0, a2, args[4]);
-        }
-        tcg_out_opc_reg(s, OPC_SLTU, TCG_TMP1, a2, TCG_TMP0);
-        if (const_args[5]) {
-            tcg_out_opc_imm(s, OPC_ADDIU, a1, args[3], -args[5]);
-        } else {
-             tcg_out_opc_reg(s, OPC_SUBU, a1, args[3], args[5]);
-        }
-        tcg_out_opc_reg(s, OPC_SUBU, a1, a1, TCG_TMP1);
-        tcg_out_mov(s, TCG_TYPE_I32, a0, TCG_TMP0);
         break;
     case INDEX_op_mul_i32:
         if (use_mips32_instructions) {
@@ -1621,6 +1637,15 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_qemu_st(s, args, true);
         break;
 
+    case INDEX_op_add2_i32:
+        tcg_out_addsub2(s, a0, a1, a2, args[3], args[4], args[5],
+                        const_args[4], const_args[5], false);
+        break;
+    case INDEX_op_sub2_i32:
+        tcg_out_addsub2(s, a0, a1, a2, args[3], args[4], args[5],
+                        const_args[4], const_args[5], true);
+        break;
+
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
@@ -1680,7 +1705,7 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_setcond_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_setcond2_i32, { "r", "rZ", "rZ", "rZ", "rZ" } },
 
-    { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rJ", "rJ" } },
+    { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rN", "rN" } },
     { INDEX_op_sub2_i32, { "r", "r", "rZ", "rZ", "rN", "rN" } },
     { INDEX_op_brcond2_i32, { "rZ", "rZ", "rZ", "rZ" } },
 
