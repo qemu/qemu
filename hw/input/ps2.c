@@ -71,10 +71,12 @@
 #define MOUSE_STATUS_ENABLED    0x20
 #define MOUSE_STATUS_SCALE21    0x10
 
-#define PS2_QUEUE_SIZE 256
+#define PS2_QUEUE_SIZE 16  /* Buffer size required by PS/2 protocol */
 
 typedef struct {
-    uint8_t data[PS2_QUEUE_SIZE];
+    /* Keep the data array 256 bytes long, which compatibility
+     with older qemu versions. */
+    uint8_t data[256];
     int rptr, wptr, count;
 } PS2Queue;
 
@@ -137,7 +139,7 @@ void ps2_queue(void *opaque, int b)
     PS2State *s = (PS2State *)opaque;
     PS2Queue *q = &s->queue;
 
-    if (q->count >= PS2_QUEUE_SIZE)
+    if (q->count >= PS2_QUEUE_SIZE - 1)
         return;
     q->data[q->wptr] = b;
     if (++q->wptr == PS2_QUEUE_SIZE)
@@ -374,9 +376,8 @@ static void ps2_mouse_event(void *opaque,
         qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
     }
 
-    if (!(s->mouse_status & MOUSE_STATUS_REMOTE) &&
-        (s->common.queue.count < (PS2_QUEUE_SIZE - 16))) {
-        for(;;) {
+    if (!(s->mouse_status & MOUSE_STATUS_REMOTE)) {
+        while (s->common.queue.count < PS2_QUEUE_SIZE - 4) {
             /* if not remote, send event. Multiple events are sent if
                too big deltas */
             ps2_mouse_send_packet(s);
@@ -528,6 +529,34 @@ static void ps2_common_reset(PS2State *s)
     s->update_irq(s->update_arg, 0);
 }
 
+static void ps2_common_post_load(PS2State *s)
+{
+    PS2Queue *q = &s->queue;
+    int size;
+    int i;
+    int tmp_data[PS2_QUEUE_SIZE];
+
+    /* set the useful data buffer queue size, < PS2_QUEUE_SIZE */
+    size = q->count > PS2_QUEUE_SIZE ? 0 : q->count;
+
+    /* move the queue elements to the start of data array */
+    if (size > 0) {
+        for (i = 0; i < size; i++) {
+            /* move the queue elements to the temporary buffer */
+            tmp_data[i] = q->data[q->rptr];
+            if (++q->rptr == 256) {
+                q->rptr = 0;
+            }
+        }
+        memcpy(q->data, tmp_data, size);
+    }
+    /* reset rptr/wptr/count */
+    q->rptr = 0;
+    q->wptr = size;
+    q->count = size;
+    s->update_irq(s->update_arg, q->count != 0);
+}
+
 static void ps2_kbd_reset(void *opaque)
 {
     PS2KbdState *s = (PS2KbdState *) opaque;
@@ -600,10 +629,22 @@ static const VMStateDescription vmstate_ps2_keyboard_ledstate = {
 static int ps2_kbd_post_load(void* opaque, int version_id)
 {
     PS2KbdState *s = (PS2KbdState*)opaque;
+    PS2State *ps2 = &s->common;
 
     if (version_id == 2)
         s->scancode_set=2;
+
+    ps2_common_post_load(ps2);
+
     return 0;
+}
+
+static void ps2_kbd_pre_save(void *opaque)
+{
+    PS2KbdState *s = (PS2KbdState *)opaque;
+    PS2State *ps2 = &s->common;
+
+    ps2_common_post_load(ps2);
 }
 
 static const VMStateDescription vmstate_ps2_keyboard = {
@@ -612,6 +653,7 @@ static const VMStateDescription vmstate_ps2_keyboard = {
     .minimum_version_id = 2,
     .minimum_version_id_old = 2,
     .post_load = ps2_kbd_post_load,
+    .pre_save = ps2_kbd_pre_save,
     .fields      = (VMStateField []) {
         VMSTATE_STRUCT(common, PS2KbdState, 0, vmstate_ps2_common, PS2State),
         VMSTATE_INT32(scan_enabled, PS2KbdState),
@@ -629,11 +671,31 @@ static const VMStateDescription vmstate_ps2_keyboard = {
     }
 };
 
+static int ps2_mouse_post_load(void *opaque, int version_id)
+{
+    PS2MouseState *s = (PS2MouseState *)opaque;
+    PS2State *ps2 = &s->common;
+
+    ps2_common_post_load(ps2);
+
+    return 0;
+}
+
+static void ps2_mouse_pre_save(void *opaque)
+{
+    PS2MouseState *s = (PS2MouseState *)opaque;
+    PS2State *ps2 = &s->common;
+
+    ps2_common_post_load(ps2);
+}
+
 static const VMStateDescription vmstate_ps2_mouse = {
     .name = "ps2mouse",
     .version_id = 2,
     .minimum_version_id = 2,
     .minimum_version_id_old = 2,
+    .post_load = ps2_mouse_post_load,
+    .pre_save = ps2_mouse_pre_save,
     .fields      = (VMStateField []) {
         VMSTATE_STRUCT(common, PS2MouseState, 0, vmstate_ps2_common, PS2State),
         VMSTATE_UINT8(mouse_status, PS2MouseState),
