@@ -1167,9 +1167,9 @@ static void text_console_update(void *opaque, console_ch_t *chardata)
     }
 }
 
-static QemuConsole *new_console(DisplayState *ds, console_type_t console_type)
+static QemuConsole *new_console(DisplayState *ds, console_type_t console_type,
+                                uint32_t head)
 {
-    Error *local_err = NULL;
     Object *obj;
     QemuConsole *s;
     int i;
@@ -1179,13 +1179,14 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type)
 
     obj = object_new(TYPE_QEMU_CONSOLE);
     s = QEMU_CONSOLE(obj);
+    s->head = head;
     object_property_add_link(obj, "device", TYPE_DEVICE,
                              (Object **)&s->device,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE,
-                             &local_err);
+                             &error_abort);
     object_property_add_uint32_ptr(obj, "head",
-                                   &s->head, &local_err);
+                                   &s->head, &error_abort);
 
     if (!active_console || ((active_console->console_type != GRAPHIC_CONSOLE) &&
         (console_type == GRAPHIC_CONSOLE))) {
@@ -1560,7 +1561,6 @@ static DisplayState *get_alloc_displaystate(void)
  */
 DisplayState *init_displaystate(void)
 {
-    Error *local_err = NULL;
     gchar *name;
     int i;
 
@@ -1579,7 +1579,7 @@ DisplayState *init_displaystate(void)
          * doesn't change any more */
         name = g_strdup_printf("console[%d]", i);
         object_property_add_child(container_get(object_get_root(), "/backend"),
-                                  name, OBJECT(consoles[i]), &local_err);
+                                  name, OBJECT(consoles[i]), &error_abort);
         g_free(name);
     }
 
@@ -1590,7 +1590,6 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
                                   const GraphicHwOps *hw_ops,
                                   void *opaque)
 {
-    Error *local_err = NULL;
     int width = 640;
     int height = 480;
     QemuConsole *s;
@@ -1598,14 +1597,12 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
 
     ds = get_alloc_displaystate();
     trace_console_gfx_new();
-    s = new_console(ds, GRAPHIC_CONSOLE);
+    s = new_console(ds, GRAPHIC_CONSOLE, head);
     s->hw_ops = hw_ops;
     s->hw = opaque;
     if (dev) {
-        object_property_set_link(OBJECT(s), OBJECT(dev),
-                                 "device", &local_err);
-        object_property_set_int(OBJECT(s), head,
-                                "head", &local_err);
+        object_property_set_link(OBJECT(s), OBJECT(dev), "device",
+                                 &error_abort);
     }
 
     s->surface = qemu_create_displaysurface(width, height);
@@ -1622,7 +1619,6 @@ QemuConsole *qemu_console_lookup_by_index(unsigned int index)
 
 QemuConsole *qemu_console_lookup_by_device(DeviceState *dev, uint32_t head)
 {
-    Error *local_err = NULL;
     Object *obj;
     uint32_t h;
     int i;
@@ -1632,12 +1628,12 @@ QemuConsole *qemu_console_lookup_by_device(DeviceState *dev, uint32_t head)
             continue;
         }
         obj = object_property_get_link(OBJECT(consoles[i]),
-                                       "device", &local_err);
+                                       "device", &error_abort);
         if (DEVICE(obj) != dev) {
             continue;
         }
         h = object_property_get_int(OBJECT(consoles[i]),
-                                    "head", &local_err);
+                                    "head", &error_abort);
         if (h != head) {
             continue;
         }
@@ -1811,9 +1807,9 @@ static CharDriverState *text_console_init(ChardevVC *vc)
 
     trace_console_txt_new(width, height);
     if (width == 0 || height == 0) {
-        s = new_console(NULL, TEXT_CONSOLE);
+        s = new_console(NULL, TEXT_CONSOLE, 0);
     } else {
-        s = new_console(NULL, TEXT_CONSOLE_FIXED_SIZE);
+        s = new_console(NULL, TEXT_CONSOLE_FIXED_SIZE, 0);
         s->surface = qemu_create_displaysurface(width, height);
     }
 
