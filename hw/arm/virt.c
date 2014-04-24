@@ -96,10 +96,10 @@ typedef struct VirtBoardInfo {
 static const MemMapEntry a15memmap[] = {
     /* Space up to 0x8000000 is reserved for a boot ROM */
     [VIRT_FLASH] = { 0, 0x8000000 },
-    [VIRT_CPUPERIPHS] = { 0x8000000, 0x8000 },
+    [VIRT_CPUPERIPHS] = { 0x8000000, 0x20000 },
     /* GIC distributor and CPU interfaces sit inside the CPU peripheral space */
-    [VIRT_GIC_DIST] = { 0x8001000, 0x1000 },
-    [VIRT_GIC_CPU] = { 0x8002000, 0x1000 },
+    [VIRT_GIC_DIST] = { 0x8000000, 0x10000 },
+    [VIRT_GIC_CPU] = { 0x8010000, 0x10000 },
     [VIRT_UART] = { 0x9000000, 0x1000 },
     [VIRT_MMIO] = { 0xa000000, 0x200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
