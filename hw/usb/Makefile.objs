@@ -26,6 +26,10 @@ common-obj-y                          += ccid-card-passthru.o
 common-obj-$(CONFIG_SMARTCARD_NSS)    += ccid-card-emulated.o
 endif
 
+ifeq ($(CONFIG_POSIX),y)
+common-obj-$(CONFIG_USB_STORAGE_MTP)  += dev-mtp.o
+endif
+
 # usb redirection
 common-obj-$(CONFIG_USB_REDIR) += redirect.o quirks.o
 

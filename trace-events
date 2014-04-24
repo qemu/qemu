@@ -433,6 +433,27 @@ usb_uas_tmf_abort_task(int addr, uint16_t tag, uint16_t task_tag) "dev %d, tag 0
 usb_uas_tmf_logical_unit_reset(int addr, uint16_t tag, int lun) "dev %d, tag 0x%x, lun %d"
 usb_uas_tmf_unsupported(int addr, uint16_t tag, uint32_t function) "dev %d, tag 0x%x, function 0x%x"
 
+# hw/usb/dev-mtp.c
+usb_mtp_reset(int addr) "dev %d"
+usb_mtp_command(int dev, uint16_t code, uint32_t trans, uint32_t arg0, uint32_t arg1, uint32_t arg2, uint32_t arg3, uint32_t arg4) "dev %d, code 0x%x, trans 0x%x, args 0x%x, 0x%x, 0x%x, 0x%x, 0x%x"
+usb_mtp_success(int dev, uint32_t trans, uint32_t arg0, uint32_t arg1) "dev %d, trans 0x%x, args 0x%x, 0x%x"
+usb_mtp_error(int dev, uint16_t code, uint32_t trans, uint32_t arg0, uint32_t arg1) "dev %d, code 0x%x, trans 0x%x, args 0x%x, 0x%x"
+usb_mtp_data_in(int dev, uint32_t trans, uint32_t len) "dev %d, trans 0x%x, len %d"
+usb_mtp_data_out(int dev, uint32_t trans, uint32_t len) "dev %d, trans 0x%x, len %d"
+usb_mtp_xfer(int dev, uint32_t ep, uint32_t dlen, uint32_t plen) "dev %d, ep %d, %d/%d"
+usb_mtp_nak(int dev, uint32_t ep) "dev %d, ep %d"
+usb_mtp_stall(int dev, const char *reason) "dev %d, reason: %s"
+usb_mtp_op_get_device_info(int dev) "dev %d"
+usb_mtp_op_open_session(int dev) "dev %d"
+usb_mtp_op_close_session(int dev) "dev %d"
+usb_mtp_op_get_storage_ids(int dev) "dev %d"
+usb_mtp_op_get_storage_info(int dev) "dev %d"
+usb_mtp_op_get_num_objects(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
+usb_mtp_op_get_object_handles(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
+usb_mtp_op_get_object_info(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
+usb_mtp_op_get_object(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
+usb_mtp_op_get_partial_object(int dev, uint32_t handle, const char *path, uint32_t offset, uint32_t length) "dev %d, handle 0x%x, path %s, off %d, len %d"
+
 # hw/usb/host-libusb.c
 usb_host_open_started(int bus, int addr) "dev %d:%d"
 usb_host_open_success(int bus, int addr) "dev %d:%d"
