@@ -1354,7 +1354,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
             /* direct jump method */
-            tcg_abort();
+            s->tb_jmp_offset[a0] = tcg_current_code_size(s);
+            /* Avoid clobbering the address during retranslation.  */
+            tcg_out32(s, OPC_J | (*(uint32_t *)s->code_ptr & 0x3ffffff));
         } else {
             /* indirect jump method */
             tcg_out_ld(s, TCG_TYPE_PTR, TCG_TMP0, TCG_REG_ZERO,
@@ -1804,4 +1806,11 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_GP);   /* global pointer */
 
     tcg_add_target_add_op_defs(mips_op_defs);
+}
+
+void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
+{
+    uint32_t *ptr = (uint32_t *)jmp_addr;
+    *ptr = deposit32(*ptr, 0, 26, addr >> 2);
+    flush_icache_range(jmp_addr, jmp_addr + 4);
 }
