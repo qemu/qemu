@@ -298,7 +298,7 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
 }
 
 /* test if a constant matches the constraint */
-static int tcg_target_const_match(tcg_target_long val,
+static int tcg_target_const_match(tcg_target_long val, TCGType type,
                                   const TCGArgConstraint *arg_ct)
 {
     int ct;
@@ -524,7 +524,7 @@ static void tcg_out_call (TCGContext *s, tcg_target_long arg, int const_arg,
 #if defined(CONFIG_SOFTMMU)
 
 static void add_qemu_ldst_label (TCGContext *s,
-                                 int is_ld,
+                                 bool is_ld,
                                  TCGMemOp opc,
                                  int data_reg,
                                  int data_reg2,
@@ -720,7 +720,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
         break;
     }
 #ifdef CONFIG_SOFTMMU
-    add_qemu_ldst_label(s, 1, opc, datalo, datahi, addrlo,
+    add_qemu_ldst_label(s, true, opc, datalo, datahi, addrlo,
                         addrhi, mem_index, s->code_ptr, label_ptr);
 #endif
 }
@@ -779,7 +779,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
     }
 
 #ifdef CONFIG_SOFTMMU
-    add_qemu_ldst_label(s, 0, opc, datalo, datahi, addrlo, addrhi,
+    add_qemu_ldst_label(s, false, opc, datalo, datahi, addrlo, addrhi,
                         mem_index, s->code_ptr, label_ptr);
 #endif
 }

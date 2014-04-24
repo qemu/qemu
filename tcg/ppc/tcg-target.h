@@ -24,7 +24,6 @@
 #ifndef TCG_TARGET_PPC 
 #define TCG_TARGET_PPC 1
 
-#define TCG_TARGET_WORDS_BIGENDIAN
 #define TCG_TARGET_NB_REGS 32
 
 typedef enum {
@@ -95,6 +94,7 @@ typedef enum {
 #define TCG_TARGET_HAS_nor_i32          1
 #define TCG_TARGET_HAS_deposit_i32      1
 #define TCG_TARGET_HAS_movcond_i32      1
+#define TCG_TARGET_HAS_mulu2_i32        1
 #define TCG_TARGET_HAS_muls2_i32        0
 #define TCG_TARGET_HAS_muluh_i32        0
 #define TCG_TARGET_HAS_mulsh_i32        0

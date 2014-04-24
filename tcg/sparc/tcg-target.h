@@ -32,8 +32,6 @@
 # error Unknown pointer size for tcg target
 #endif
 
-#define TCG_TARGET_WORDS_BIGENDIAN
-
 #define TCG_TARGET_NB_REGS 32
 
 typedef enum {
