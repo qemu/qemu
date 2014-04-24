@@ -26,6 +26,7 @@
 #define TCG_TARGET_ARM 1
 
 #undef TCG_TARGET_STACK_GROWSUP
+#define TCG_TARGET_INSN_UNIT_SIZE 4
 
 typedef enum {
     TCG_REG_R0 = 0,
