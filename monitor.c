@@ -2228,6 +2228,7 @@ void qmp_getfd(const char *fdname, Error **errp)
     }
 
     if (qemu_isdigit(fdname[0])) {
+        close(fd);
         error_set(errp, QERR_INVALID_PARAMETER_VALUE, "fdname",
                   "a name not starting with a digit");
         return;
