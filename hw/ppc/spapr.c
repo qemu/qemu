@@ -585,6 +585,26 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     /* event-sources */
     spapr_events_fdt_skel(fdt, epow_irq);
 
+    /* /hypervisor node */
+    if (kvm_enabled()) {
+        uint8_t hypercall[16];
+
+        /* indicate KVM hypercall interface */
+        _FDT((fdt_begin_node(fdt, "hypervisor")));
+        _FDT((fdt_property_string(fdt, "compatible", "linux,kvm")));
+        if (kvmppc_has_cap_fixup_hcalls()) {
+            /*
+             * Older KVM versions with older guest kernels were broken with the
+             * magic page, don't allow the guest to map it.
+             */
+            kvmppc_get_hypercall(first_cpu->env_ptr, hypercall,
+                                 sizeof(hypercall));
+            _FDT((fdt_property(fdt, "hcall-instructions", hypercall,
+                              sizeof(hypercall))));
+        }
+        _FDT((fdt_end_node(fdt)));
+    }
+
     _FDT((fdt_end_node(fdt))); /* close root node */
     _FDT((fdt_finish(fdt)));
 
