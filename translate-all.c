@@ -475,6 +475,10 @@ static inline PageDesc *page_find(tb_page_addr_t index)
 #elif defined(__s390x__)
   /* We have a +- 4GB range on the branches; leave some slop.  */
 # define MAX_CODE_GEN_BUFFER_SIZE  (3ul * 1024 * 1024 * 1024)
+#elif defined(__mips__)
+  /* We have a 256MB branch region, but leave room to make sure the
+     main executable is also within that region.  */
+# define MAX_CODE_GEN_BUFFER_SIZE  (128ul * 1024 * 1024)
 #else
 # define MAX_CODE_GEN_BUFFER_SIZE  ((size_t)-1)
 #endif
@@ -545,6 +549,15 @@ static inline void *alloc_code_gen_buffer(void)
     start = 0x40000000ul;
 # elif defined(__s390x__)
     start = 0x90000000ul;
+# elif defined(__mips__)
+    /* ??? We ought to more explicitly manage layout for softmmu too.  */
+#  ifdef CONFIG_USER_ONLY
+    start = 0x68000000ul;
+#  elif _MIPS_SIM == _ABI64
+    start = 0x128000000ul;
+#  else
+    start = 0x08000000ul;
+#  endif
 # endif
 
     buf = mmap((void *)start, tcg_ctx.code_gen_buffer_size,
