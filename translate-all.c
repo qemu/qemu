@@ -513,14 +513,47 @@ static inline size_t size_code_gen_buffer(size_t tb_size)
     return tb_size;
 }
 
+#ifdef __mips__
+/* In order to use J and JAL within the code_gen_buffer, we require
+   that the buffer not cross a 256MB boundary.  */
+static inline bool cross_256mb(void *addr, size_t size)
+{
+    return ((uintptr_t)addr ^ ((uintptr_t)addr + size)) & 0xf0000000;
+}
+
+/* We weren't able to allocate a buffer without crossing that boundary,
+   so make do with the larger portion of the buffer that doesn't cross.
+   Returns the new base of the buffer, and adjusts code_gen_buffer_size.  */
+static inline void *split_cross_256mb(void *buf1, size_t size1)
+{
+    void *buf2 = (void *)(((uintptr_t)buf1 + size1) & 0xf0000000);
+    size_t size2 = buf1 + size1 - buf2;
+
+    size1 = buf2 - buf1;
+    if (size1 < size2) {
+        size1 = size2;
+        buf1 = buf2;
+    }
+
+    tcg_ctx.code_gen_buffer_size = size1;
+    return buf1;
+}
+#endif
+
 #ifdef USE_STATIC_CODE_GEN_BUFFER
 static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE]
     __attribute__((aligned(CODE_GEN_ALIGN)));
 
 static inline void *alloc_code_gen_buffer(void)
 {
-    map_exec(static_code_gen_buffer, tcg_ctx.code_gen_buffer_size);
-    return static_code_gen_buffer;
+    void *buf = static_code_gen_buffer;
+#ifdef __mips__
+    if (cross_256mb(buf, tcg_ctx.code_gen_buffer_size)) {
+        buf = split_cross_256mb(buf, tcg_ctx.code_gen_buffer_size);
+    }
+#endif
+    map_exec(buf, tcg_ctx.code_gen_buffer_size);
+    return buf;
 }
 #elif defined(USE_MMAP)
 static inline void *alloc_code_gen_buffer(void)
@@ -562,16 +595,63 @@ static inline void *alloc_code_gen_buffer(void)
 
     buf = mmap((void *)start, tcg_ctx.code_gen_buffer_size,
                PROT_WRITE | PROT_READ | PROT_EXEC, flags, -1, 0);
-    return buf == MAP_FAILED ? NULL : buf;
+    if (buf == MAP_FAILED) {
+        return NULL;
+    }
+
+#ifdef __mips__
+    if (cross_256mb(buf, tcg_ctx.code_gen_buffer_size)) {
+        /* Try again, with the original still mapped, to avoid re-aquiring
+           that 256mb crossing.  This time don't specify an address.  */
+        size_t size2, size1 = tcg_ctx.code_gen_buffer_size;
+        void *buf2 = mmap(NULL, size1, PROT_WRITE | PROT_READ | PROT_EXEC,
+                          flags, -1, 0);
+        if (buf2 != MAP_FAILED) {
+            if (!cross_256mb(buf2, size1)) {
+                /* Success!  Use the new buffer.  */
+                munmap(buf, size1);
+                return buf2;
+            }
+            /* Failure.  Work with what we had.  */
+            munmap(buf2, size1);
+        }
+
+        /* Split the original buffer.  Free the smaller half.  */
+        buf2 = split_cross_256mb(buf, size1);
+        size2 = tcg_ctx.code_gen_buffer_size;
+        munmap(buf + (buf == buf2 ? size2 : 0), size1 - size2);
+        return buf2;
+    }
+#endif
+
+    return buf;
 }
 #else
 static inline void *alloc_code_gen_buffer(void)
 {
     void *buf = g_malloc(tcg_ctx.code_gen_buffer_size);
 
-    if (buf) {
-        map_exec(buf, tcg_ctx.code_gen_buffer_size);
+    if (buf == NULL) {
+        return NULL;
     }
+
+#ifdef __mips__
+    if (cross_256mb(buf, tcg_ctx.code_gen_buffer_size)) {
+        void *buf2 = g_malloc(tcg_ctx.code_gen_buffer_size);
+        if (buf2 != NULL && !cross_256mb(buf2, size1)) {
+            /* Success!  Use the new buffer.  */
+            free(buf);
+            buf = buf2;
+        } else {
+            /* Failure.  Work with what we had.  Since this is malloc
+               and not mmap, we can't free the other half.  */
+            free(buf2);
+            buf = split_cross_256mb(buf, tcg_ctx.code_gen_buffer_size);
+        }
+    }
+#endif
+
+    map_exec(buf, tcg_ctx.code_gen_buffer_size);
     return buf;
 }
 #endif /* USE_STATIC_CODE_GEN_BUFFER, USE_MMAP */
