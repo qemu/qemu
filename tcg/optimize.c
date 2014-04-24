@@ -859,6 +859,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             break;
 
         CASE_OP_32_64(setcond):
+        case INDEX_op_setcond2_i32:
             mask = 1;
             break;
 
@@ -1193,11 +1194,13 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             tmp = do_constant_folding_cond2(&args[0], &args[2], args[4]);
             if (tmp != 2) {
                 if (tmp) {
+            do_brcond_true:
                     reset_all_temps(nb_temps);
                     s->gen_opc_buf[op_index] = INDEX_op_br;
                     gen_args[0] = args[5];
                     gen_args += 1;
                 } else {
+            do_brcond_false:
                     s->gen_opc_buf[op_index] = INDEX_op_nop;
                 }
             } else if ((args[4] == TCG_COND_LT || args[4] == TCG_COND_GE)
@@ -1207,6 +1210,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                        && temps[args[3]].val == 0) {
                 /* Simplify LT/GE comparisons vs zero to a single compare
                    vs the high word of the input.  */
+            do_brcond_high:
                 reset_all_temps(nb_temps);
                 s->gen_opc_buf[op_index] = INDEX_op_brcond_i32;
                 gen_args[0] = args[1];
@@ -1214,6 +1218,49 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 gen_args[2] = args[4];
                 gen_args[3] = args[5];
                 gen_args += 4;
+            } else if (args[4] == TCG_COND_EQ) {
+                /* Simplify EQ comparisons where one of the pairs
+                   can be simplified.  */
+                tmp = do_constant_folding_cond(INDEX_op_brcond_i32,
+                                               args[0], args[2], TCG_COND_EQ);
+                if (tmp == 0) {
+                    goto do_brcond_false;
+                } else if (tmp == 1) {
+                    goto do_brcond_high;
+                }
+                tmp = do_constant_folding_cond(INDEX_op_brcond_i32,
+                                               args[1], args[3], TCG_COND_EQ);
+                if (tmp == 0) {
+                    goto do_brcond_false;
+                } else if (tmp != 1) {
+                    goto do_default;
+                }
+            do_brcond_low:
+                reset_all_temps(nb_temps);
+                s->gen_opc_buf[op_index] = INDEX_op_brcond_i32;
+                gen_args[0] = args[0];
+                gen_args[1] = args[2];
+                gen_args[2] = args[4];
+                gen_args[3] = args[5];
+                gen_args += 4;
+            } else if (args[4] == TCG_COND_NE) {
+                /* Simplify NE comparisons where one of the pairs
+                   can be simplified.  */
+                tmp = do_constant_folding_cond(INDEX_op_brcond_i32,
+                                               args[0], args[2], TCG_COND_NE);
+                if (tmp == 0) {
+                    goto do_brcond_high;
+                } else if (tmp == 1) {
+                    goto do_brcond_true;
+                }
+                tmp = do_constant_folding_cond(INDEX_op_brcond_i32,
+                                               args[1], args[3], TCG_COND_NE);
+                if (tmp == 0) {
+                    goto do_brcond_low;
+                } else if (tmp == 1) {
+                    goto do_brcond_true;
+                }
+                goto do_default;
             } else {
                 goto do_default;
             }
@@ -1223,6 +1270,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         case INDEX_op_setcond2_i32:
             tmp = do_constant_folding_cond2(&args[1], &args[3], args[5]);
             if (tmp != 2) {
+            do_setcond_const:
                 s->gen_opc_buf[op_index] = INDEX_op_movi_i32;
                 tcg_opt_gen_movi(gen_args, args[0], tmp);
                 gen_args += 2;
@@ -1233,13 +1281,59 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                        && temps[args[4]].val == 0) {
                 /* Simplify LT/GE comparisons vs zero to a single compare
                    vs the high word of the input.  */
+            do_setcond_high:
                 s->gen_opc_buf[op_index] = INDEX_op_setcond_i32;
                 reset_temp(args[0]);
+                temps[args[0]].mask = 1;
                 gen_args[0] = args[0];
                 gen_args[1] = args[2];
                 gen_args[2] = args[4];
                 gen_args[3] = args[5];
                 gen_args += 4;
+            } else if (args[5] == TCG_COND_EQ) {
+                /* Simplify EQ comparisons where one of the pairs
+                   can be simplified.  */
+                tmp = do_constant_folding_cond(INDEX_op_setcond_i32,
+                                               args[1], args[3], TCG_COND_EQ);
+                if (tmp == 0) {
+                    goto do_setcond_const;
+                } else if (tmp == 1) {
+                    goto do_setcond_high;
+                }
+                tmp = do_constant_folding_cond(INDEX_op_setcond_i32,
+                                               args[2], args[4], TCG_COND_EQ);
+                if (tmp == 0) {
+                    goto do_setcond_high;
+                } else if (tmp != 1) {
+                    goto do_default;
+                }
+            do_setcond_low:
+                reset_temp(args[0]);
+                temps[args[0]].mask = 1;
+                s->gen_opc_buf[op_index] = INDEX_op_setcond_i32;
+                gen_args[0] = args[0];
+                gen_args[1] = args[1];
+                gen_args[2] = args[3];
+                gen_args[3] = args[5];
+                gen_args += 4;
+            } else if (args[5] == TCG_COND_NE) {
+                /* Simplify NE comparisons where one of the pairs
+                   can be simplified.  */
+                tmp = do_constant_folding_cond(INDEX_op_setcond_i32,
+                                               args[1], args[3], TCG_COND_NE);
+                if (tmp == 0) {
+                    goto do_setcond_high;
+                } else if (tmp == 1) {
+                    goto do_setcond_const;
+                }
+                tmp = do_constant_folding_cond(INDEX_op_setcond_i32,
+                                               args[2], args[4], TCG_COND_NE);
+                if (tmp == 0) {
+                    goto do_setcond_low;
+                } else if (tmp == 1) {
+                    goto do_setcond_const;
+                }
+                goto do_default;
             } else {
                 goto do_default;
             }
