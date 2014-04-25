@@ -320,7 +320,7 @@ static const uint8_t tcg_cond_to_ltr_cond[] = {
 #ifdef CONFIG_SOFTMMU
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
-static const void * const qemu_ld_helpers[4] = {
+static void * const qemu_ld_helpers[4] = {
     helper_ldb_mmu,
     helper_ldw_mmu,
     helper_ldl_mmu,
@@ -329,7 +329,7 @@ static const void * const qemu_ld_helpers[4] = {
 
 /* helper signature: helper_st_mmu(CPUState *env, target_ulong addr,
    uintxx_t val, int mmu_idx) */
-static const void * const qemu_st_helpers[4] = {
+static void * const qemu_st_helpers[4] = {
     helper_stb_mmu,
     helper_stw_mmu,
     helper_stl_mmu,
@@ -337,7 +337,7 @@ static const void * const qemu_st_helpers[4] = {
 };
 #endif
 
-static uint8_t *tb_ret_addr;
+static tcg_insn_unit *tb_ret_addr;
 
 /* A list of relevant facilities used by this translator.  Some of these
    are required for proper operation, and these are checked at startup.  */
@@ -350,23 +350,20 @@ static uint8_t *tb_ret_addr;
 
 static uint64_t facilities;
 
-static void patch_reloc(uint8_t *code_ptr, int type,
+static void patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
-    intptr_t code_ptr_tl = (intptr_t)code_ptr;
-    intptr_t pcrel2;
-
-    /* ??? Not the usual definition of "addend".  */
-    pcrel2 = (value - (code_ptr_tl + addend)) >> 1;
+    intptr_t pcrel2 = (tcg_insn_unit *)value - (code_ptr - 1);
+    assert(addend == -2);
 
     switch (type) {
     case R_390_PC16DBL:
         assert(pcrel2 == (int16_t)pcrel2);
-        *(int16_t *)code_ptr = pcrel2;
+        tcg_patch16(code_ptr, pcrel2);
         break;
     case R_390_PC32DBL:
         assert(pcrel2 == (int32_t)pcrel2);
-        *(int32_t *)code_ptr = pcrel2;
+        tcg_patch32(code_ptr, pcrel2);
         break;
     default:
         tcg_abort();
@@ -672,7 +669,7 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
 
     /* Try for PC-relative address load.  */
     if ((sval & 1) == 0) {
-        intptr_t off = (sval - (intptr_t)s->code_ptr) >> 1;
+        ptrdiff_t off = tcg_pcrel_diff(s, (void *)sval) >> 1;
         if (off == (int32_t)off) {
             tcg_out_insn(s, RIL, LARL, ret, off);
             return;
@@ -789,10 +786,10 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg data,
 /* load data from an absolute host address */
 static void tcg_out_ld_abs(TCGContext *s, TCGType type, TCGReg dest, void *abs)
 {
-    tcg_target_long addr = (tcg_target_long)abs;
+    intptr_t addr = (intptr_t)abs;
 
-    if (facilities & FACILITY_GEN_INST_EXT) {
-        tcg_target_long disp = (addr - (tcg_target_long)s->code_ptr) >> 1;
+    if ((facilities & FACILITY_GEN_INST_EXT) && !(addr & 1)) {
+        ptrdiff_t disp = tcg_pcrel_diff(s, abs) >> 1;
         if (disp == (int32_t)disp) {
             if (type == TCG_TYPE_I32) {
                 tcg_out_insn(s, RIL, LRL, dest, disp);
@@ -1154,15 +1151,15 @@ static void tgen_deposit(TCGContext *s, TCGReg dest, TCGReg src,
     tcg_out_risbg(s, dest, src, msb, lsb, ofs, 0);
 }
 
-static void tgen_gotoi(TCGContext *s, int cc, tcg_target_long dest)
+static void tgen_gotoi(TCGContext *s, int cc, tcg_insn_unit *dest)
 {
-    tcg_target_long off = (dest - (tcg_target_long)s->code_ptr) >> 1;
-    if (off > -0x8000 && off < 0x7fff) {
+    ptrdiff_t off = dest - s->code_ptr;
+    if (off == (int16_t)off) {
         tcg_out_insn(s, RI, BRC, cc, off);
     } else if (off == (int32_t)off) {
         tcg_out_insn(s, RIL, BRCL, cc, off);
     } else {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_TMP0, dest);
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_TMP0, (uintptr_t)dest);
         tcg_out_insn(s, RR, BCR, cc, TCG_TMP0);
     }
 }
@@ -1171,15 +1168,15 @@ static void tgen_branch(TCGContext *s, int cc, int labelno)
 {
     TCGLabel* l = &s->labels[labelno];
     if (l->has_value) {
-        tgen_gotoi(s, cc, l->u.value);
+        tgen_gotoi(s, cc, l->u.value_ptr);
     } else if (USE_LONG_BRANCHES) {
         tcg_out16(s, RIL_BRCL | (cc << 4));
         tcg_out_reloc(s, s->code_ptr, R_390_PC32DBL, labelno, -2);
-        s->code_ptr += 4;
+        s->code_ptr += 2;
     } else {
         tcg_out16(s, RI_BRC | (cc << 4));
         tcg_out_reloc(s, s->code_ptr, R_390_PC16DBL, labelno, -2);
-        s->code_ptr += 2;
+        s->code_ptr += 1;
     }
 }
 
@@ -1187,14 +1184,14 @@ static void tgen_compare_branch(TCGContext *s, S390Opcode opc, int cc,
                                 TCGReg r1, TCGReg r2, int labelno)
 {
     TCGLabel* l = &s->labels[labelno];
-    tcg_target_long off;
+    intptr_t off;
 
     if (l->has_value) {
-        off = (l->u.value - (tcg_target_long)s->code_ptr) >> 1;
+        off = l->u.value_ptr - s->code_ptr;
     } else {
         /* We need to keep the offset unchanged for retranslation.  */
-        off = ((int16_t *)s->code_ptr)[1];
-        tcg_out_reloc(s, s->code_ptr + 2, R_390_PC16DBL, labelno, -2);
+        off = s->code_ptr[1];
+        tcg_out_reloc(s, s->code_ptr + 1, R_390_PC16DBL, labelno, -2);
     }
 
     tcg_out16(s, (opc & 0xff00) | (r1 << 4) | r2);
@@ -1209,11 +1206,11 @@ static void tgen_compare_imm_branch(TCGContext *s, S390Opcode opc, int cc,
     tcg_target_long off;
 
     if (l->has_value) {
-        off = (l->u.value - (tcg_target_long)s->code_ptr) >> 1;
+        off = l->u.value_ptr - s->code_ptr;
     } else {
         /* We need to keep the offset unchanged for retranslation.  */
-        off = ((int16_t *)s->code_ptr)[1];
-        tcg_out_reloc(s, s->code_ptr + 2, R_390_PC16DBL, labelno, -2);
+        off = s->code_ptr[1];
+        tcg_out_reloc(s, s->code_ptr + 1, R_390_PC16DBL, labelno, -2);
     }
 
     tcg_out16(s, (opc & 0xff00) | (r1 << 4) | cc);
@@ -1272,13 +1269,13 @@ static void tgen_brcond(TCGContext *s, TCGType type, TCGCond c,
     tgen_branch(s, cc, labelno);
 }
 
-static void tgen_calli(TCGContext *s, tcg_target_long dest)
+static void tgen_calli(TCGContext *s, tcg_insn_unit *dest)
 {
-    tcg_target_long off = (dest - (tcg_target_long)s->code_ptr) >> 1;
+    ptrdiff_t off = dest - s->code_ptr;
     if (off == (int32_t)off) {
         tcg_out_insn(s, RIL, BRASL, TCG_REG_R14, off);
     } else {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_TMP0, dest);
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_TMP0, (uintptr_t)dest);
         tcg_out_insn(s, RR, BASR, TCG_REG_R14, TCG_TMP0);
     }
 }
@@ -1395,14 +1392,14 @@ static void tcg_out_qemu_st_direct(TCGContext *s, int opc, TCGReg data,
 #if defined(CONFIG_SOFTMMU)
 static TCGReg tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
                                     TCGReg addr_reg, int mem_index, int opc,
-                                    uint16_t **label2_ptr_p, int is_store)
+                                    tcg_insn_unit **label2_ptr_p, int is_store)
 {
     const TCGReg arg0 = tcg_target_call_iarg_regs[0];
     const TCGReg arg1 = tcg_target_call_iarg_regs[1];
     const TCGReg arg2 = tcg_target_call_iarg_regs[2];
     const TCGReg arg3 = tcg_target_call_iarg_regs[3];
     int s_bits = opc & 3;
-    uint16_t *label1_ptr;
+    tcg_insn_unit *label1_ptr;
     tcg_target_long ofs;
 
     if (TARGET_LONG_BITS == 32) {
@@ -1436,7 +1433,7 @@ static TCGReg tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
         tcg_out_mov(s, TCG_TYPE_I64, arg1, addr_reg);
     }
 
-    label1_ptr = (uint16_t*)s->code_ptr;
+    label1_ptr = s->code_ptr;
 
     /* je label1 (offset will be patched in later) */
     tcg_out_insn(s, RI, BRC, S390_CC_EQ, 0);
@@ -1463,11 +1460,11 @@ static TCGReg tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
         }
         tcg_out_movi(s, TCG_TYPE_I32, arg3, mem_index);
         tcg_out_mov(s, TCG_TYPE_I64, arg0, TCG_AREG0);
-        tgen_calli(s, (tcg_target_ulong)qemu_st_helpers[s_bits]);
+        tgen_calli(s, qemu_st_helpers[s_bits]);
     } else {
         tcg_out_movi(s, TCG_TYPE_I32, arg2, mem_index);
         tcg_out_mov(s, TCG_TYPE_I64, arg0, TCG_AREG0);
-        tgen_calli(s, (tcg_target_ulong)qemu_ld_helpers[s_bits]);
+        tgen_calli(s, qemu_ld_helpers[s_bits]);
 
         /* sign extension */
         switch (opc) {
@@ -1488,13 +1485,12 @@ static TCGReg tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
     }
 
     /* jump to label2 (end) */
-    *label2_ptr_p = (uint16_t*)s->code_ptr;
+    *label2_ptr_p = s->code_ptr;
 
     tcg_out_insn(s, RI, BRC, S390_CC_ALWAYS, 0);
 
     /* this is label1, patch branch */
-    *(label1_ptr + 1) = ((unsigned long)s->code_ptr -
-                         (unsigned long)label1_ptr) >> 1;
+    label1_ptr[1] = s->code_ptr - label1_ptr;
 
     ofs = offsetof(CPUArchState, tlb_table[mem_index][0].addend);
     assert(ofs < 0x80000);
@@ -1504,11 +1500,10 @@ static TCGReg tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
     return arg1;
 }
 
-static void tcg_finish_qemu_ldst(TCGContext* s, uint16_t *label2_ptr)
+static void tcg_finish_qemu_ldst(TCGContext* s, tcg_insn_unit *label2_ptr)
 {
     /* patch branch */
-    *(label2_ptr + 1) = ((unsigned long)s->code_ptr -
-                         (unsigned long)label2_ptr) >> 1;
+    label2_ptr[1] = s->code_ptr - label2_ptr;
 }
 #else
 static void tcg_prepare_user_ldst(TCGContext *s, TCGReg *addr_reg,
@@ -1535,7 +1530,7 @@ static void tcg_out_qemu_ld(TCGContext* s, const TCGArg* args, int opc)
     TCGReg addr_reg, data_reg;
 #if defined(CONFIG_SOFTMMU)
     int mem_index;
-    uint16_t *label2_ptr;
+    tcg_insn_unit *label2_ptr;
 #else
     TCGReg index_reg;
     tcg_target_long disp;
@@ -1564,7 +1559,7 @@ static void tcg_out_qemu_st(TCGContext* s, const TCGArg* args, int opc)
     TCGReg addr_reg, data_reg;
 #if defined(CONFIG_SOFTMMU)
     int mem_index;
-    uint16_t *label2_ptr;
+    tcg_insn_unit *label2_ptr;
 #else
     TCGReg index_reg;
     tcg_target_long disp;
@@ -1602,7 +1597,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_exit_tb:
         /* return value */
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, args[0]);
-        tgen_gotoi(s, S390_CC_ALWAYS, (unsigned long)tb_ret_addr);
+        tgen_gotoi(s, S390_CC_ALWAYS, tb_ret_addr);
         break;
 
     case INDEX_op_goto_tb:
@@ -1614,12 +1609,12 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             /* and go there */
             tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, TCG_TMP0);
         }
-        s->tb_next_offset[args[0]] = s->code_ptr - s->code_buf;
+        s->tb_next_offset[args[0]] = tcg_current_code_size(s);
         break;
 
     case INDEX_op_call:
         if (const_args[0]) {
-            tgen_calli(s, args[0]);
+            tgen_calli(s, (tcg_insn_unit *)(intptr_t)args[0]);
         } else {
             tcg_out_insn(s, RR, BASR, TCG_REG_R14, args[0]);
         }
