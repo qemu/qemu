@@ -798,6 +798,21 @@ static int bdrv_inherited_flags(int flags)
     return flags;
 }
 
+/*
+ * Returns the flags that bs->backing_hd should get, based on the given flags
+ * for the parent BDS
+ */
+static int bdrv_backing_flags(int flags)
+{
+    /* backing files always opened read-only */
+    flags &= ~(BDRV_O_RDWR | BDRV_O_COPY_ON_READ);
+
+    /* snapshot=on is handled on the top layer */
+    flags &= ~BDRV_O_SNAPSHOT;
+
+    return flags;
+}
+
 static int bdrv_open_flags(BlockDriverState *bs, int flags)
 {
     int open_flags = flags | BDRV_O_CACHE_WB;
@@ -1093,7 +1108,7 @@ fail:
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
 {
     char *backing_filename = g_malloc0(PATH_MAX);
-    int back_flags, ret = 0;
+    int ret = 0;
     BlockDriver *back_drv = NULL;
     Error *local_err = NULL;
 
@@ -1121,14 +1136,10 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         back_drv = bdrv_find_format(bs->backing_format);
     }
 
-    /* backing files always opened read-only */
-    back_flags = bs->open_flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT |
-                                    BDRV_O_COPY_ON_READ);
-
     assert(bs->backing_hd == NULL);
     ret = bdrv_open(&bs->backing_hd,
                     *backing_filename ? backing_filename : NULL, NULL, options,
-                    back_flags, back_drv, &local_err);
+                    bdrv_backing_flags(bs->open_flags), back_drv, &local_err);
     if (ret < 0) {
         bs->backing_hd = NULL;
         bs->open_flags |= BDRV_O_NO_BACKING;
