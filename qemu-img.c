@@ -2789,6 +2789,12 @@ int main(int argc, char **argv)
 {
     const img_cmd_t *cmd;
     const char *cmdname;
+    int c;
+    int option_index = 0;
+    static const struct option long_options[] = {
+        {"help", no_argument, 0, 'h'},
+        {0, 0, 0, 0}
+    };
 
 #ifdef CONFIG_POSIX
     signal(SIGPIPE, SIG_IGN);
@@ -2803,13 +2809,18 @@ int main(int argc, char **argv)
         error_exit("Not enough arguments");
     }
     cmdname = argv[1];
-    argc--; argv++;
 
     /* find the command */
     for(cmd = img_cmds; cmd->name != NULL; cmd++) {
         if (!strcmp(cmdname, cmd->name)) {
-            return cmd->handler(argc, argv);
+            return cmd->handler(argc - 1, argv + 1);
         }
+    }
+
+    c = getopt_long(argc, argv, "h", long_options, &option_index);
+
+    if (c == 'h') {
+        help();
     }
 
     /* not found */
