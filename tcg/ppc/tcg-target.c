@@ -489,23 +489,14 @@ static void tcg_out_b(TCGContext *s, int mask, tcg_insn_unit *target)
     }
 }
 
-static void tcg_out_callr(TCGContext *s, TCGReg reg, int lk)
-{
-#ifdef _CALL_AIX
-    tcg_out32(s, LWZ | RT(TCG_REG_R0) | RA(reg));
-    tcg_out32(s, MTSPR | RA(TCG_REG_R0) | CTR);
-    tcg_out32(s, LWZ | RT(TCG_REG_R2) | RA(reg) | 4);
-#else
-    tcg_out32(s, MTSPR | RS(reg) | CTR);
-#endif
-    tcg_out32(s, BCCTR | BO_ALWAYS | lk);
-}
-
 static void tcg_out_call1(TCGContext *s, tcg_insn_unit *target, int lk)
 {
 #ifdef _CALL_AIX
     tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, (uintptr_t)target);
-    tcg_out_callr(s, TCG_REG_R2, lk);
+    tcg_out32(s, LWZ | RT(TCG_REG_R0) | RA(reg));
+    tcg_out32(s, MTSPR | RA(TCG_REG_R0) | CTR);
+    tcg_out32(s, LWZ | RT(TCG_REG_R2) | RA(reg) | 4);
+    tcg_out32(s, BCCTR | BO_ALWAYS | lk);
 #else
     tcg_out_b(s, lk, target);
 #endif
@@ -880,7 +871,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 #endif
 
 #ifdef CONFIG_SOFTMMU
-static void emit_ldst_trampoline(TCGContext *s, void *ptr)
+static void emit_ldst_trampoline(TCGContext *s, tcg_insn_unit *ptr)
 {
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_R3, TCG_AREG0);
     tcg_out_call1(s, ptr, 0);
@@ -1390,16 +1381,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
             }
         }
         break;
-    case INDEX_op_call:
-        if (const_args[0]) {
-            tcg_out_call(s, (void *)(uintptr_t)args[0]);
-        } else {
-            tcg_out_callr(s, args[0], LK);
-        }
-        break;
-    case INDEX_op_movi_i32:
-        tcg_out_movi(s, TCG_TYPE_I32, args[0], args[1]);
-        break;
     case INDEX_op_ld8u_i32:
         tcg_out_ldst (s, args[0], args[1], args[2], LBZ, LBZX);
         break;
@@ -1835,20 +1816,19 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                          const_args[2]);
         break;
 
+    case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
+    case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
+    case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     default:
-        tcg_dump_ops (s);
-        tcg_abort ();
+        tcg_abort();
     }
 }
 
 static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
-    { INDEX_op_call, { "ri" } },
     { INDEX_op_br, { } },
 
-    { INDEX_op_mov_i32, { "r", "r" } },
-    { INDEX_op_movi_i32, { "r" } },
     { INDEX_op_ld8u_i32, { "r", "r" } },
     { INDEX_op_ld8s_i32, { "r", "r" } },
     { INDEX_op_ld16u_i32, { "r", "r" } },

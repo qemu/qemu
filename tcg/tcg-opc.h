@@ -40,7 +40,7 @@ DEF(discard, 1, 0, 0, TCG_OPF_NOT_PRESENT)
 DEF(set_label, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_NOT_PRESENT)
 
 /* variable number of parameters */
-DEF(call, 0, 0, 3, TCG_OPF_CALL_CLOBBER)
+DEF(call, 0, 0, 3, TCG_OPF_CALL_CLOBBER | TCG_OPF_NOT_PRESENT)
 
 DEF(br, 0, 0, 1, TCG_OPF_BB_END)
 
@@ -51,8 +51,8 @@ DEF(br, 0, 0, 1, TCG_OPF_BB_END)
 # define IMPL64  TCG_OPF_64BIT
 #endif
 
-DEF(mov_i32, 1, 1, 0, 0)
-DEF(movi_i32, 1, 0, 1, 0)
+DEF(mov_i32, 1, 1, 0, TCG_OPF_NOT_PRESENT)
+DEF(movi_i32, 1, 0, 1, TCG_OPF_NOT_PRESENT)
 DEF(setcond_i32, 1, 2, 1, 0)
 DEF(movcond_i32, 1, 4, 1, IMPL(TCG_TARGET_HAS_movcond_i32))
 /* load/store */
@@ -110,8 +110,8 @@ DEF(eqv_i32, 1, 2, 0, IMPL(TCG_TARGET_HAS_eqv_i32))
 DEF(nand_i32, 1, 2, 0, IMPL(TCG_TARGET_HAS_nand_i32))
 DEF(nor_i32, 1, 2, 0, IMPL(TCG_TARGET_HAS_nor_i32))
 
-DEF(mov_i64, 1, 1, 0, IMPL64)
-DEF(movi_i64, 1, 0, 1, IMPL64)
+DEF(mov_i64, 1, 1, 0, TCG_OPF_64BIT | TCG_OPF_NOT_PRESENT)
+DEF(movi_i64, 1, 0, 1, TCG_OPF_64BIT | TCG_OPF_NOT_PRESENT)
 DEF(setcond_i64, 1, 2, 1, IMPL64)
 DEF(movcond_i64, 1, 4, 1, IMPL64 | IMPL(TCG_TARGET_HAS_movcond_i64))
 /* load/store */

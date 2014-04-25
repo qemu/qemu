@@ -1278,19 +1278,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_nop(s);
         s->tb_next_offset[args[0]] = tcg_current_code_size(s);
         break;
-    case INDEX_op_call:
-        assert(const_args[0]);
-        tcg_out_call(s, (tcg_insn_unit *)(intptr_t)args[0]);
-        break;
     case INDEX_op_br:
         tcg_out_brcond(s, TCG_COND_EQ, TCG_REG_ZERO, TCG_REG_ZERO, args[0]);
-        break;
-
-    case INDEX_op_mov_i32:
-        tcg_out_mov(s, TCG_TYPE_I32, args[0], args[1]);
-        break;
-    case INDEX_op_movi_i32:
-        tcg_out_movi(s, TCG_TYPE_I32, args[0], args[1]);
         break;
 
     case INDEX_op_ld8u_i32:
@@ -1540,6 +1529,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_qemu_st(s, args, 3);
         break;
 
+    case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
+    case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
+    case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     default:
         tcg_abort();
     }
@@ -1548,11 +1540,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
-    { INDEX_op_call, { "i" } },
     { INDEX_op_br, { } },
 
-    { INDEX_op_mov_i32, { "r", "r" } },
-    { INDEX_op_movi_i32, { "r" } },
     { INDEX_op_ld8u_i32, { "r", "r" } },
     { INDEX_op_ld8s_i32, { "r", "r" } },
     { INDEX_op_ld16u_i32, { "r", "r" } },

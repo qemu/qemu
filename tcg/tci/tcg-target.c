@@ -59,11 +59,7 @@
 static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_exit_tb, { NULL } },
     { INDEX_op_goto_tb, { NULL } },
-    { INDEX_op_call, { RI } },
     { INDEX_op_br, { NULL } },
-
-    { INDEX_op_mov_i32, { R, R } },
-    { INDEX_op_movi_i32, { R } },
 
     { INDEX_op_ld8u_i32, { R, R } },
     { INDEX_op_ld8s_i32, { R, R } },
@@ -141,9 +137,6 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
 #endif
 
 #if TCG_TARGET_REG_BITS == 64
-    { INDEX_op_mov_i64, { R, R } },
-    { INDEX_op_movi_i64, { R } },
-
     { INDEX_op_ld8u_i64, { R, R } },
     { INDEX_op_ld8s_i64, { R, R } },
     { INDEX_op_ld16u_i64, { R, R } },
@@ -581,9 +574,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_br:
         tci_out_label(s, args[0]);
         break;
-    case INDEX_op_call:
-        tcg_out_ri(s, const_args[0], args[0]);
-        break;
     case INDEX_op_setcond_i32:
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
@@ -608,9 +598,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out8(s, args[3]);   /* condition */
         break;
 #endif
-    case INDEX_op_movi_i32:
-        TODO(); /* Handled by tcg_out_movi? */
-        break;
     case INDEX_op_ld8u_i32:
     case INDEX_op_ld8s_i32:
     case INDEX_op_ld16u_i32:
@@ -666,10 +653,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 
 #if TCG_TARGET_REG_BITS == 64
-    case INDEX_op_mov_i64:
-    case INDEX_op_movi_i64:
-        TODO();
-        break;
     case INDEX_op_add_i64:
     case INDEX_op_sub_i64:
     case INDEX_op_mul_i64:
@@ -837,11 +820,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_i(s, *args);
 #endif
         break;
-    case INDEX_op_end:
-        TODO();
-        break;
+    case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
+    case INDEX_op_mov_i64:
+    case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
+    case INDEX_op_movi_i64:
+    case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     default:
-        fprintf(stderr, "Missing: %s\n", tcg_op_defs[opc].name);
         tcg_abort();
     }
     old_code_ptr[1] = s->code_ptr - old_code_ptr;

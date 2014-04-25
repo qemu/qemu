@@ -1167,15 +1167,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_nop(s);
         s->tb_next_offset[a0] = tcg_current_code_size(s);
         break;
-    case INDEX_op_call:
-        if (const_args[0]) {
-            tcg_out_call(s, (void *)(uintptr_t)a0);
-        } else {
-            tcg_out_arithi(s, TCG_REG_O7, a0, 0, JMPL);
-            /* delay slot */
-            tcg_out_nop(s);
-        }
-        break;
     case INDEX_op_br:
         tcg_out_bpcc(s, COND_A, BPCC_PT, a0);
         tcg_out_nop(s);
@@ -1369,13 +1360,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 	tcg_out_arithc(s, a0, TCG_REG_G0, a1, const_args[1], c);
 	break;
 
+    case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
-    case INDEX_op_mov_i32:
+    case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
     case INDEX_op_movi_i64:
-    case INDEX_op_movi_i32:
-        /* Always implemented with tcg_out_mov/i, never with tcg_out_op.  */
+    case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     default:
-        /* Opcode not implemented.  */
         tcg_abort();
     }
 }
@@ -1383,11 +1373,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
-    { INDEX_op_call, { "ri" } },
     { INDEX_op_br, { } },
 
-    { INDEX_op_mov_i32, { "r", "r" } },
-    { INDEX_op_movi_i32, { "r" } },
     { INDEX_op_ld8u_i32, { "r", "r" } },
     { INDEX_op_ld8s_i32, { "r", "r" } },
     { INDEX_op_ld16u_i32, { "r", "r" } },
@@ -1424,8 +1411,6 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_mulu2_i32, { "r", "r", "rZ", "rJ" } },
     { INDEX_op_muls2_i32, { "r", "r", "rZ", "rJ" } },
 
-    { INDEX_op_mov_i64, { "R", "R" } },
-    { INDEX_op_movi_i64, { "R" } },
     { INDEX_op_ld8u_i64, { "R", "r" } },
     { INDEX_op_ld8s_i64, { "R", "r" } },
     { INDEX_op_ld16u_i64, { "R", "r" } },

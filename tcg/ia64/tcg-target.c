@@ -865,20 +865,6 @@ static inline void tcg_out_call(TCGContext *s, tcg_insn_unit *desc)
                                TCG_REG_B0, disp));
 }
 
-static inline void tcg_out_callr(TCGContext *s, TCGReg addr)
-{
-    tcg_out_bundle(s, MmI,
-                   tcg_opc_m1 (TCG_REG_P0, OPC_LD8_M1, TCG_REG_R2, addr),
-                   tcg_opc_a4 (TCG_REG_P0, OPC_ADDS_A4, TCG_REG_R3, 8, addr),
-                   tcg_opc_i21(TCG_REG_P0, OPC_MOV_I21,
-                               TCG_REG_B6, TCG_REG_R2, 0));
-    tcg_out_bundle(s, mmB,
-                   tcg_opc_m1 (TCG_REG_P0, OPC_LD8_M1, TCG_REG_R1, TCG_REG_R3),
-                   INSN_NOP_M,
-                   tcg_opc_b5 (TCG_REG_P0, OPC_BR_CALL_SPTK_MANY_B5,
-                               TCG_REG_B0, TCG_REG_B6));
-}
-
 static void tcg_out_exit_tb(TCGContext *s, tcg_target_long arg)
 {
     uint64_t imm, opc1;
@@ -2009,22 +1995,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_br:
         tcg_out_br(s, args[0]);
         break;
-    case INDEX_op_call:
-        if (likely(const_args[0])) {
-            tcg_out_call(s, (tcg_insn_unit *)(intptr_t)args[0]);
-        } else {
-            tcg_out_callr(s, args[0]);
-        }
-        break;
     case INDEX_op_goto_tb:
         tcg_out_goto_tb(s, args[0]);
-        break;
-
-    case INDEX_op_movi_i32:
-        tcg_out_movi(s, TCG_TYPE_I32, args[0], args[1]);
-        break;
-    case INDEX_op_movi_i64:
-        tcg_out_movi(s, TCG_TYPE_I64, args[0], args[1]);
         break;
 
     case INDEX_op_ld8u_i32:
@@ -2236,6 +2208,11 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_qemu_st(s, args);
         break;
 
+    case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
+    case INDEX_op_mov_i64:
+    case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
+    case INDEX_op_movi_i64:
+    case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     default:
         tcg_abort();
     }
@@ -2243,12 +2220,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
 static const TCGTargetOpDef ia64_op_defs[] = {
     { INDEX_op_br, { } },
-    { INDEX_op_call, { "ri" } },
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
-
-    { INDEX_op_mov_i32, { "r", "r" } },
-    { INDEX_op_movi_i32, { "r" } },
 
     { INDEX_op_ld8u_i32, { "r", "r" } },
     { INDEX_op_ld8s_i32, { "r", "r" } },
@@ -2290,9 +2263,6 @@ static const TCGTargetOpDef ia64_op_defs[] = {
     { INDEX_op_brcond_i32, { "rZ", "rZ" } },
     { INDEX_op_setcond_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_movcond_i32, { "r", "rZ", "rZ", "rI", "rI" } },
-
-    { INDEX_op_mov_i64, { "r", "r" } },
-    { INDEX_op_movi_i64, { "r" } },
 
     { INDEX_op_ld8u_i64, { "r", "r" } },
     { INDEX_op_ld8s_i64, { "r", "r" } },

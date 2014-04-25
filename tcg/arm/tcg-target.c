@@ -1038,17 +1038,6 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *addr)
     }
 }
 
-static inline void tcg_out_callr(TCGContext *s, int cond, int arg)
-{
-    if (use_armv5t_instructions) {
-        tcg_out_blx(s, cond, arg);
-    } else {
-        tcg_out_dat_reg(s, cond, ARITH_MOV, TCG_REG_R14, 0,
-                        TCG_REG_PC, SHIFT_IMM_LSL(0));
-        tcg_out_bx(s, cond, arg);
-    }
-}
-
 static inline void tcg_out_goto_label(TCGContext *s, int cond, int label_index)
 {
     TCGLabel *l = &s->labels[label_index];
@@ -1667,13 +1656,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         s->tb_next_offset[args[0]] = tcg_current_code_size(s);
         break;
-    case INDEX_op_call:
-        if (const_args[0]) {
-            tcg_out_call(s, (void *)args[0]);
-        } else {
-            tcg_out_callr(s, COND_AL, args[0]);
-        }
-        break;
     case INDEX_op_br:
         tcg_out_goto_label(s, COND_AL, args[0]);
         break;
@@ -1703,13 +1685,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_st32(s, COND_AL, args[0], args[1], args[2]);
         break;
 
-    case INDEX_op_mov_i32:
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        args[0], 0, args[1], SHIFT_IMM_LSL(0));
-        break;
-    case INDEX_op_movi_i32:
-        tcg_out_movi32(s, COND_AL, args[0], args[1]);
-        break;
     case INDEX_op_movcond_i32:
         /* Constraints mean that v2 is always in the same register as dest,
          * so we only need to do "if condition passed, move v1 to dest".
@@ -1925,6 +1900,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_udiv(s, COND_AL, args[0], args[1], args[2]);
         break;
 
+    case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
+    case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
+    case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     default:
         tcg_abort();
     }
@@ -1933,11 +1911,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
-    { INDEX_op_call, { "ri" } },
     { INDEX_op_br, { } },
-
-    { INDEX_op_mov_i32, { "r", "r" } },
-    { INDEX_op_movi_i32, { "r" } },
 
     { INDEX_op_ld8u_i32, { "r", "r" } },
     { INDEX_op_ld8s_i32, { "r", "r" } },

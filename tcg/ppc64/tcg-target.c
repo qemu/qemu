@@ -1502,27 +1502,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
             }
         }
         break;
-    case INDEX_op_call:
-        if (const_args[0]) {
-            tcg_out_call(s, (void *)(uintptr_t)arg);
-        } else {
-#ifdef __APPLE__
-            tcg_out32(s, MTSPR | RS(arg) | LR);
-            tcg_out32(s, BCLR | BO_ALWAYS | LK);
-#else
-            tcg_out32(s, LD | TAI(TCG_REG_R0, arg, 0));
-            tcg_out32(s, MTSPR | RA(TCG_REG_R0) | CTR);
-            tcg_out32(s, LD | TAI(TCG_REG_R2, arg, 8));
-            tcg_out32(s, BCCTR | BO_ALWAYS | LK);
-#endif
-        }
-        break;
-    case INDEX_op_movi_i32:
-        tcg_out_movi(s, TCG_TYPE_I32, args[0], args[1]);
-        break;
-    case INDEX_op_movi_i64:
-        tcg_out_movi(s, TCG_TYPE_I64, args[0], args[1]);
-        break;
     case INDEX_op_ld8u_i32:
     case INDEX_op_ld8u_i64:
         tcg_out_mem_long(s, LBZ, LBZX, args[0], args[1], args[2]);
@@ -2003,8 +1982,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out32(s, MULHD | TAB(args[0], args[1], args[2]));
         break;
 
+    case INDEX_op_mov_i32:   /* Always emitted via tcg_out_mov.  */
+    case INDEX_op_mov_i64:
+    case INDEX_op_movi_i32:  /* Always emitted via tcg_out_movi.  */
+    case INDEX_op_movi_i64:
+    case INDEX_op_call:      /* Always emitted via tcg_out_call.  */
     default:
-        tcg_dump_ops(s);
         tcg_abort();
     }
 }
@@ -2012,13 +1995,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
-    { INDEX_op_call, { "ri" } },
     { INDEX_op_br, { } },
-
-    { INDEX_op_mov_i32, { "r", "r" } },
-    { INDEX_op_mov_i64, { "r", "r" } },
-    { INDEX_op_movi_i32, { "r" } },
-    { INDEX_op_movi_i64, { "r" } },
 
     { INDEX_op_ld8u_i32, { "r", "r" } },
     { INDEX_op_ld8s_i32, { "r", "r" } },
