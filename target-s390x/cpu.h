@@ -270,6 +270,9 @@ typedef struct CPUS390XState {
 #define FLAG_MASK_64            (PSW_MASK_64     >> 32)
 #define FLAG_MASK_32            0x00001000
 
+/* Control register 0 bits */
+#define CR0_EDAT                0x0000000000800000ULL
+
 static inline int cpu_mmu_index (CPUS390XState *env)
 {
     if (env->psw.mask & PSW_MASK_PSTATE) {
@@ -927,6 +930,7 @@ struct sysib_322 {
 #define _REGION_ENTRY_LENGTH    0x03      /* region third length              */
 
 #define _SEGMENT_ENTRY_ORIGIN   ~0x7ffULL /* segment table origin             */
+#define _SEGMENT_ENTRY_FC       0x400     /* format control                   */
 #define _SEGMENT_ENTRY_RO       0x200     /* page protection bit              */
 #define _SEGMENT_ENTRY_INV      0x20      /* invalid segment table entry      */
 

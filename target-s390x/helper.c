@@ -184,6 +184,50 @@ static target_ulong mmu_real2abs(CPUS390XState *env, target_ulong raddr)
     return raddr;
 }
 
+/* Decode page table entry (normal 4KB page) */
+static int mmu_translate_pte(CPUS390XState *env, target_ulong vaddr,
+                             uint64_t asc, uint64_t asce,
+                             target_ulong *raddr, int *flags, int rw)
+{
+    if (asce & _PAGE_INVALID) {
+        DPRINTF("%s: PTE=0x%" PRIx64 " invalid\n", __func__, asce);
+        trigger_page_fault(env, vaddr, PGM_PAGE_TRANS, asc, rw);
+        return -1;
+    }
+
+    if (asce & _PAGE_RO) {
+        *flags &= ~PAGE_WRITE;
+    }
+
+    *raddr = asce & _ASCE_ORIGIN;
+
+    PTE_DPRINTF("%s: PTE=0x%" PRIx64 "\n", __func__, asce);
+
+    return 0;
+}
+
+/* Decode EDAT1 segment frame absolute address (1MB page) */
+static int mmu_translate_sfaa(CPUS390XState *env, target_ulong vaddr,
+                              uint64_t asc, uint64_t asce, target_ulong *raddr,
+                              int *flags, int rw)
+{
+    if (asce & _SEGMENT_ENTRY_INV) {
+        DPRINTF("%s: SEG=0x%" PRIx64 " invalid\n", __func__, asce);
+        trigger_page_fault(env, vaddr, PGM_SEGMENT_TRANS, asc, rw);
+        return -1;
+    }
+
+    if (asce & _SEGMENT_ENTRY_RO) {
+        *flags &= ~PAGE_WRITE;
+    }
+
+    *raddr = (asce & 0xfffffffffff00000ULL) | (vaddr & 0xfffff);
+
+    PTE_DPRINTF("%s: SEG=0x%" PRIx64 "\n", __func__, asce);
+
+    return 0;
+}
+
 static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
                               uint64_t asc, uint64_t asce, int level,
                               target_ulong *raddr, int *flags, int rw)
@@ -243,28 +287,18 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
     PTE_DPRINTF("%s: 0x%" PRIx64 " + 0x%" PRIx64 " => 0x%016" PRIx64 "\n",
                 __func__, origin, offs, new_asce);
 
-    if (level != _ASCE_TYPE_SEGMENT) {
+    if (level == _ASCE_TYPE_SEGMENT) {
+        /* 4KB page */
+        return mmu_translate_pte(env, vaddr, asc, new_asce, raddr, flags, rw);
+    } else if (level - 4 == _ASCE_TYPE_SEGMENT &&
+               (new_asce & _SEGMENT_ENTRY_FC) && (env->cregs[0] & CR0_EDAT)) {
+        /* 1MB page */
+        return mmu_translate_sfaa(env, vaddr, asc, new_asce, raddr, flags, rw);
+    } else {
         /* yet another region */
         return mmu_translate_asce(env, vaddr, asc, new_asce, level - 4, raddr,
                                   flags, rw);
     }
-
-    /* PTE */
-    if (new_asce & _PAGE_INVALID) {
-        DPRINTF("%s: PTE=0x%" PRIx64 " invalid\n", __func__, new_asce);
-        trigger_page_fault(env, vaddr, PGM_PAGE_TRANS, asc, rw);
-        return -1;
-    }
-
-    if (new_asce & _PAGE_RO) {
-        *flags &= ~PAGE_WRITE;
-    }
-
-    *raddr = new_asce & _ASCE_ORIGIN;
-
-    PTE_DPRINTF("%s: PTE=0x%" PRIx64 "\n", __func__, new_asce);
-
-    return 0;
 }
 
 static int mmu_translate_asc(CPUS390XState *env, target_ulong vaddr,
