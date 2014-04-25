@@ -1010,7 +1010,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
     seq_iter++;
 
-    if (version_id < 4 || version_id > 4) {
+    if (version_id != 4) {
         return -EINVAL;
     }
 
@@ -1021,44 +1021,42 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         addr &= TARGET_PAGE_MASK;
 
         if (flags & RAM_SAVE_FLAG_MEM_SIZE) {
-            if (version_id == 4) {
-                /* Synchronize RAM block list */
-                char id[256];
-                ram_addr_t length;
-                ram_addr_t total_ram_bytes = addr;
+            /* Synchronize RAM block list */
+            char id[256];
+            ram_addr_t length;
+            ram_addr_t total_ram_bytes = addr;
 
-                while (total_ram_bytes) {
-                    RAMBlock *block;
-                    uint8_t len;
+            while (total_ram_bytes) {
+                RAMBlock *block;
+                uint8_t len;
 
-                    len = qemu_get_byte(f);
-                    qemu_get_buffer(f, (uint8_t *)id, len);
-                    id[len] = 0;
-                    length = qemu_get_be64(f);
+                len = qemu_get_byte(f);
+                qemu_get_buffer(f, (uint8_t *)id, len);
+                id[len] = 0;
+                length = qemu_get_be64(f);
 
-                    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-                        if (!strncmp(id, block->idstr, sizeof(id))) {
-                            if (block->length != length) {
-                                fprintf(stderr,
-                                        "Length mismatch: %s: " RAM_ADDR_FMT
-                                        " in != " RAM_ADDR_FMT "\n", id, length,
-                                        block->length);
-                                ret =  -EINVAL;
-                                goto done;
-                            }
-                            break;
+                QTAILQ_FOREACH(block, &ram_list.blocks, next) {
+                    if (!strncmp(id, block->idstr, sizeof(id))) {
+                        if (block->length != length) {
+                            fprintf(stderr,
+                                    "Length mismatch: %s: " RAM_ADDR_FMT
+                                    " in != " RAM_ADDR_FMT "\n", id, length,
+                                    block->length);
+                            ret =  -EINVAL;
+                            goto done;
                         }
+                        break;
                     }
-
-                    if (!block) {
-                        fprintf(stderr, "Unknown ramblock \"%s\", cannot "
-                                "accept migration\n", id);
-                        ret = -EINVAL;
-                        goto done;
-                    }
-
-                    total_ram_bytes -= length;
                 }
+
+                if (!block) {
+                    fprintf(stderr, "Unknown ramblock \"%s\", cannot "
+                            "accept migration\n", id);
+                    ret = -EINVAL;
+                    goto done;
+                }
+
+                total_ram_bytes -= length;
             }
         }
 
