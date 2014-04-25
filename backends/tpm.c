@@ -112,6 +112,7 @@ static void tpm_backend_prop_set_opened(Object *obj, bool value, Error **errp)
 {
     TPMBackend *s = TPM_BACKEND(obj);
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    Error *local_err = NULL;
 
     if (value == s->opened) {
         return;
@@ -123,12 +124,14 @@ static void tpm_backend_prop_set_opened(Object *obj, bool value, Error **errp)
     }
 
     if (k->opened) {
-        k->opened(s, errp);
+        k->opened(s, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
     }
 
-    if (!error_is_set(errp)) {
-        s->opened = value;
-    }
+    s->opened = true;
 }
 
 static void tpm_backend_instance_init(Object *obj)
