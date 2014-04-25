@@ -50,6 +50,7 @@ enum mtp_code {
     RES_INVALID_TRANSACTION_ID     = 0x2004,
     RES_OPERATION_NOT_SUPPORTED    = 0x2005,
     RES_PARAMETER_NOT_SUPPORTED    = 0x2006,
+    RES_INCOMPLETE_TRANSFER        = 0x2007,
     RES_INVALID_STORAGE_ID         = 0x2008,
     RES_INVALID_OBJECT_HANDLE      = 0x2009,
     RES_SPEC_BY_FORMAT_UNSUPPORTED = 0x2014,
@@ -946,7 +947,8 @@ static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
                 }
                 rc = read(d->fd, d->data, dlen);
                 if (rc != dlen) {
-                    fprintf(stderr, "%s: TODO: handle read error\n", __func__);
+                    memset(d->data, 0, dlen);
+                    s->result->code = RES_INCOMPLETE_TRANSFER;
                 }
                 usb_packet_copy(p, d->data, dlen);
             }
