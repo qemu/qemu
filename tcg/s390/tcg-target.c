@@ -1269,7 +1269,7 @@ static void tgen_brcond(TCGContext *s, TCGType type, TCGCond c,
     tgen_branch(s, cc, labelno);
 }
 
-static void tgen_calli(TCGContext *s, tcg_insn_unit *dest)
+static void tcg_out_call(TCGContext *s, tcg_insn_unit *dest)
 {
     ptrdiff_t off = dest - s->code_ptr;
     if (off == (int32_t)off) {
@@ -1460,11 +1460,11 @@ static TCGReg tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
         }
         tcg_out_movi(s, TCG_TYPE_I32, arg3, mem_index);
         tcg_out_mov(s, TCG_TYPE_I64, arg0, TCG_AREG0);
-        tgen_calli(s, qemu_st_helpers[s_bits]);
+        tcg_out_call(s, qemu_st_helpers[s_bits]);
     } else {
         tcg_out_movi(s, TCG_TYPE_I32, arg2, mem_index);
         tcg_out_mov(s, TCG_TYPE_I64, arg0, TCG_AREG0);
-        tgen_calli(s, qemu_ld_helpers[s_bits]);
+        tcg_out_call(s, qemu_ld_helpers[s_bits]);
 
         /* sign extension */
         switch (opc) {
@@ -1614,7 +1614,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_call:
         if (const_args[0]) {
-            tgen_calli(s, (tcg_insn_unit *)(intptr_t)args[0]);
+            tcg_out_call(s, (tcg_insn_unit *)(intptr_t)args[0]);
         } else {
             tcg_out_insn(s, RR, BASR, TCG_REG_R14, args[0]);
         }
