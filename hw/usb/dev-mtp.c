@@ -294,7 +294,7 @@ static MTPObject *usb_mtp_object_alloc(MTPState *s, uint32_t handle,
         goto ignore;
     }
 
-    fprintf(stderr, "%s: 0x%x %s\n", __func__, o->handle, o->path);
+    trace_usb_mtp_object_alloc(s->dev.addr, o->handle, o->path);
 
     QTAILQ_INSERT_TAIL(&s->objects, o, next);
     return o;
@@ -310,7 +310,7 @@ static void usb_mtp_object_free(MTPState *s, MTPObject *o)
 {
     int i;
 
-    fprintf(stderr, "%s: 0x%x %s\n", __func__, o->handle, o->path);
+    trace_usb_mtp_object_free(s->dev.addr, o->handle, o->path);
 
     QTAILQ_REMOVE(&s->objects, o, next);
     for (i = 0; i < o->nchildren; i++) {
@@ -843,8 +843,7 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         res0 = data_in->length;
         break;
     default:
-        fprintf(stderr, "%s: unknown command code 0x%04x\n",
-                __func__, c->code);
+        trace_usb_mtp_op_unknown(s->dev.addr, c->code);
         usb_mtp_queue_result(s, RES_OPERATION_NOT_SUPPORTED,
                              c->trans, 0, 0, 0);
         return;
@@ -892,6 +891,7 @@ static void usb_mtp_handle_control(USBDevice *dev, USBPacket *p,
 
 static void usb_mtp_cancel_packet(USBDevice *dev, USBPacket *p)
 {
+    /* we don't use async packets, so this should never be called */
     fprintf(stderr, "%s\n", __func__);
 }
 
