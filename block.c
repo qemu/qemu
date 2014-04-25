@@ -1864,7 +1864,6 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
                                      BlockDriverState *bs_src)
 {
     /* move some fields that need to stay attached to the device */
-    bs_dest->open_flags         = bs_src->open_flags;
 
     /* dev info */
     bs_dest->dev_ops            = bs_src->dev_ops;
