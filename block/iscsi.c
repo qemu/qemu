@@ -1095,16 +1095,15 @@ static struct scsi_task *iscsi_do_inquiry(struct iscsi_context *iscsi, int lun,
     *inq = scsi_datain_unmarshall(task);
     if (*inq == NULL) {
         error_setg(errp, "iSCSI: failed to unmarshall inquiry datain blob");
-        goto fail;
+        goto fail_with_err;
     }
 
     return task;
 
 fail:
-    if (!error_is_set(errp)) {
-        error_setg(errp, "iSCSI: Inquiry command failed : %s",
-                   iscsi_get_error(iscsi));
-    }
+    error_setg(errp, "iSCSI: Inquiry command failed : %s",
+               iscsi_get_error(iscsi));
+fail_with_err:
     if (task != NULL) {
         scsi_free_scsi_task(task);
     }
