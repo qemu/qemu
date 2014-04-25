@@ -1011,8 +1011,7 @@ static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
             usb_mtp_command(s, &cmd);
             break;
         default:
-            iov_hexdump(p->iov.iov, p->iov.niov, stderr, "mtp-out", 32);
-            trace_usb_mtp_stall(s->dev.addr, "TODO: implement data-out");
+            /* not needed as long as the mtp device is read-only */
             p->status = USB_RET_STALL;
             return;
         }
