@@ -669,6 +669,7 @@ static MTPData *usb_mtp_get_object(MTPState *s, MTPControl *c,
 
     d->fd = open(o->path, O_RDONLY);
     if (d->fd == -1) {
+        usb_mtp_data_free(d);
         return NULL;
     }
     d->length = o->stat.st_size;
@@ -688,6 +689,7 @@ static MTPData *usb_mtp_get_partial_object(MTPState *s, MTPControl *c,
 
     d->fd = open(o->path, O_RDONLY);
     if (d->fd == -1) {
+        usb_mtp_data_free(d);
         return NULL;
     }
 
