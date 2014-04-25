@@ -548,7 +548,7 @@ static MTPData *usb_mtp_get_device_info(MTPState *s, MTPControl *c)
     usb_mtp_add_wstr(d, L"" MTP_MANUFACTURER);
     usb_mtp_add_wstr(d, L"" MTP_PRODUCT);
     usb_mtp_add_wstr(d, L"0.1");
-    usb_mtp_add_wstr(d, L"123456789abcdef123456789abcdef");
+    usb_mtp_add_wstr(d, L"0123456789abcdef0123456789abcdef");
 
     return d;
 }
