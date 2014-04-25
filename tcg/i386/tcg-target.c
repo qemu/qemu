@@ -1113,7 +1113,7 @@ static void tcg_out_branch(TCGContext *s, int call, tcg_insn_unit *dest)
     }
 }
 
-static inline void tcg_out_calli(TCGContext *s, tcg_insn_unit *dest)
+static inline void tcg_out_call(TCGContext *s, tcg_insn_unit *dest)
 {
     tcg_out_branch(s, 1, dest);
 }
@@ -1308,7 +1308,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
                      (uintptr_t)l->raddr);
     }
 
-    tcg_out_calli(s, qemu_ld_helpers[opc & ~MO_SIGN]);
+    tcg_out_call(s, qemu_ld_helpers[opc & ~MO_SIGN]);
 
     data_reg = l->datalo_reg;
     switch (opc & MO_SSIZE) {
@@ -1748,7 +1748,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_call:
         if (const_args[0]) {
-            tcg_out_calli(s, (tcg_insn_unit *)(uintptr_t)args[0]);
+            tcg_out_call(s, (tcg_insn_unit *)(uintptr_t)args[0]);
         } else {
             /* call *reg */
             tcg_out_modrm(s, OPC_GRP5, EXT5_CALLN_Ev, args[0]);
