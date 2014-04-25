@@ -25,6 +25,12 @@
 #ifndef TCG_TARGET_IA64 
 #define TCG_TARGET_IA64 1
 
+#define TCG_TARGET_INSN_UNIT_SIZE 16
+typedef struct {
+    uint64_t lo __attribute__((aligned(16)));
+    uint64_t hi;
+} tcg_insn_unit;
+
 /* We only map the first 64 registers */
 #define TCG_TARGET_NB_REGS 64
 typedef enum {
