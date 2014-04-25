@@ -121,6 +121,9 @@ pic_write(void *opaque, hwaddr addr,
         case R_CIE:
             p->regs[R_IER] &= ~value; /* Atomic clear ie.  */
             break;
+        case R_MER:
+            p->regs[R_MER] = value & 0x3;
+            break;
         case R_ISR:
             if ((p->regs[R_MER] & 2)) {
                 break;
