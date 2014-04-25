@@ -26,6 +26,7 @@
 #ifndef TCG_TARGET_MIPS 
 #define TCG_TARGET_MIPS 1
 
+#define TCG_TARGET_INSN_UNIT_SIZE 4
 #define TCG_TARGET_NB_REGS 32
 
 typedef enum {
