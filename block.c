@@ -1525,8 +1525,11 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
         QSIMPLEQ_INIT(bs_queue);
     }
 
+    /* bdrv_open() masks this flag out */
+    flags &= ~BDRV_O_PROTOCOL;
+
     if (bs->file) {
-        bdrv_reopen_queue(bs_queue, bs->file, flags);
+        bdrv_reopen_queue(bs_queue, bs->file, bdrv_inherited_flags(flags));
     }
 
     bs_entry = g_new0(BlockReopenQueueEntry, 1);
