@@ -1115,6 +1115,7 @@ typedef struct InternalSnapshotState {
 static void internal_snapshot_prepare(BlkTransactionState *common,
                                       Error **errp)
 {
+    Error *local_err = NULL;
     const char *device;
     const char *name;
     BlockDriverState *bs;
@@ -1163,8 +1164,10 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
     }
 
     /* check whether a snapshot with name exist */
-    ret = bdrv_snapshot_find_by_id_and_name(bs, NULL, name, &old_sn, errp);
-    if (error_is_set(errp)) {
+    ret = bdrv_snapshot_find_by_id_and_name(bs, NULL, name, &old_sn,
+                                            &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     } else if (ret) {
         error_setg(errp,
