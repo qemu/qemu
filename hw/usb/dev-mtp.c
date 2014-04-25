@@ -416,7 +416,7 @@ static void usb_mtp_add_u32(MTPData *data, uint32_t val)
 
 static void usb_mtp_add_u64(MTPData *data, uint64_t val)
 {
-    usb_mtp_realloc(data, 4);
+    usb_mtp_realloc(data, 8);
     data->data[data->length++] = (val >>  0) & 0xff;
     data->data[data->length++] = (val >>  8) & 0xff;
     data->data[data->length++] = (val >> 16) & 0xff;
@@ -424,7 +424,7 @@ static void usb_mtp_add_u64(MTPData *data, uint64_t val)
     data->data[data->length++] = (val >> 32) & 0xff;
     data->data[data->length++] = (val >> 40) & 0xff;
     data->data[data->length++] = (val >> 48) & 0xff;
-    data->data[data->length++] = (val >> 54) & 0xff;
+    data->data[data->length++] = (val >> 56) & 0xff;
 }
 
 static void usb_mtp_add_u16_array(MTPData *data, uint32_t len,
