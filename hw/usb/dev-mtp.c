@@ -998,6 +998,14 @@ static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
             cmd.argc = (le32_to_cpu(container.length) - sizeof(container))
                 / sizeof(uint32_t);
             cmd.trans = le32_to_cpu(container.trans);
+            if (cmd.argc > ARRAY_SIZE(cmd.argv)) {
+                cmd.argc = ARRAY_SIZE(cmd.argv);
+            }
+            if (p->iov.size < sizeof(container) + cmd.argc * sizeof(uint32_t)) {
+                trace_usb_mtp_stall(s->dev.addr, "packet too small");
+                p->status = USB_RET_STALL;
+                return;
+            }
             usb_packet_copy(p, &params, cmd.argc * sizeof(uint32_t));
             for (i = 0; i < cmd.argc; i++) {
                 cmd.argv[i] = le32_to_cpu(params[i]);
