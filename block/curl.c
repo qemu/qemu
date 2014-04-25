@@ -543,7 +543,7 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     return 0;
 
 out:
-    fprintf(stderr, "CURL: Error opening file: %s\n", state->errmsg);
+    error_setg(errp, "CURL: Error opening file: %s", state->errmsg);
     curl_easy_cleanup(state->curl);
     state->curl = NULL;
 out_noclean:

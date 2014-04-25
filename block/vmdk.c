@@ -262,7 +262,7 @@ static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
     p_name = strstr(desc, cid_str);
     if (p_name != NULL) {
         p_name += cid_str_size;
-        sscanf(p_name, "%x", &cid);
+        sscanf(p_name, "%" SCNx32, &cid);
     }
 
     return cid;
@@ -290,7 +290,7 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
     p_name = strstr(desc, "CID");
     if (p_name != NULL) {
         p_name += sizeof("CID");
-        snprintf(p_name, sizeof(desc) - (p_name - desc), "%x\n", cid);
+        snprintf(p_name, sizeof(desc) - (p_name - desc), "%" PRIx32 "\n", cid);
         pstrcat(desc, sizeof(desc), tmp_desc);
     }
 
@@ -640,7 +640,7 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
 
     if (le32_to_cpu(header.version) > 3) {
         char buf[64];
-        snprintf(buf, sizeof(buf), "VMDK version %d",
+        snprintf(buf, sizeof(buf), "VMDK version %" PRId32,
                  le32_to_cpu(header.version));
         error_set(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
                   bs->device_name, "vmdk", buf);
@@ -671,8 +671,9 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     }
     if (bdrv_getlength(file) <
             le64_to_cpu(header.grain_offset) * BDRV_SECTOR_SIZE) {
-        error_setg(errp, "File truncated, expecting at least %lld bytes",
-                   le64_to_cpu(header.grain_offset) * BDRV_SECTOR_SIZE);
+        error_setg(errp, "File truncated, expecting at least %" PRId64 " bytes",
+                   (int64_t)(le64_to_cpu(header.grain_offset)
+                             * BDRV_SECTOR_SIZE));
         return -EINVAL;
     }
 
@@ -1707,8 +1708,8 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
     const char desc_template[] =
         "# Disk DescriptorFile\n"
         "version=1\n"
-        "CID=%x\n"
-        "parentCID=%x\n"
+        "CID=%" PRIx32 "\n"
+        "parentCID=%" PRIx32 "\n"
         "createType=\"%s\"\n"
         "%s"
         "\n"
@@ -1720,7 +1721,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
         "\n"
         "ddb.virtualHWVersion = \"%d\"\n"
         "ddb.geometry.cylinders = \"%" PRId64 "\"\n"
-        "ddb.geometry.heads = \"%d\"\n"
+        "ddb.geometry.heads = \"%" PRIu32 "\"\n"
         "ddb.geometry.sectors = \"63\"\n"
         "ddb.adapterType = \"%s\"\n";
 
@@ -1780,9 +1781,9 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
              strcmp(fmt, "twoGbMaxExtentFlat"));
     compress = !strcmp(fmt, "streamOptimized");
     if (flat) {
-        desc_extent_line = "RW %lld FLAT \"%s\" 0\n";
+        desc_extent_line = "RW %" PRId64 " FLAT \"%s\" 0\n";
     } else {
-        desc_extent_line = "RW %lld SPARSE \"%s\"\n";
+        desc_extent_line = "RW %" PRId64 " SPARSE \"%s\"\n";
     }
     if (flat && backing_file) {
         error_setg(errp, "Flat image can't have backing file");
@@ -1850,7 +1851,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
     }
     /* generate descriptor file */
     desc = g_strdup_printf(desc_template,
-                           (unsigned int)time(NULL),
+                           (uint32_t)time(NULL),
                            parent_cid,
                            fmt,
                            parent_desc_line,

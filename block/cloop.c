@@ -72,7 +72,7 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
     }
     s->block_size = be32_to_cpu(s->block_size);
     if (s->block_size % 512) {
-        error_setg(errp, "block_size %u must be a multiple of 512",
+        error_setg(errp, "block_size %" PRIu32 " must be a multiple of 512",
                    s->block_size);
         return -EINVAL;
     }
@@ -86,7 +86,7 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
      * need a buffer this big.
      */
     if (s->block_size > MAX_BLOCK_SIZE) {
-        error_setg(errp, "block_size %u must be %u MB or less",
+        error_setg(errp, "block_size %" PRIu32 " must be %u MB or less",
                    s->block_size,
                    MAX_BLOCK_SIZE / (1024 * 1024));
         return -EINVAL;
@@ -101,7 +101,7 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
     /* read offsets */
     if (s->n_blocks > (UINT32_MAX - 1) / sizeof(uint64_t)) {
         /* Prevent integer overflow */
-        error_setg(errp, "n_blocks %u must be %zu or less",
+        error_setg(errp, "n_blocks %" PRIu32 " must be %zu or less",
                    s->n_blocks,
                    (UINT32_MAX - 1) / sizeof(uint64_t));
         return -EINVAL;
@@ -133,7 +133,7 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
 
         if (s->offsets[i] < s->offsets[i - 1]) {
             error_setg(errp, "offsets not monotonically increasing at "
-                       "index %u, image file is corrupt", i);
+                       "index %" PRIu32 ", image file is corrupt", i);
             ret = -EINVAL;
             goto fail;
         }
@@ -146,8 +146,8 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
          * ridiculous s->compressed_block allocation.
          */
         if (size > 2 * MAX_BLOCK_SIZE) {
-            error_setg(errp, "invalid compressed block size at index %u, "
-                       "image file is corrupt", i);
+            error_setg(errp, "invalid compressed block size at index %" PRIu32
+                       ", image file is corrupt", i);
             ret = -EINVAL;
             goto fail;
         }

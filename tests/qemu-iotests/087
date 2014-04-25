@@ -73,6 +73,91 @@ run_qemu <<EOF
 EOF
 
 echo
+echo === Duplicate ID ===
+echo
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+  "arguments": {
+      "options": {
+        "driver": "$IMGFMT",
+        "id": "disk",
+        "node-name": "test-node",
+        "file": {
+            "driver": "file",
+            "filename": "$TEST_IMG"
+        }
+      }
+    }
+  }
+{ "execute": "blockdev-add",
+  "arguments": {
+      "options": {
+        "driver": "$IMGFMT",
+        "id": "disk",
+        "file": {
+            "driver": "file",
+            "filename": "$TEST_IMG"
+        }
+      }
+    }
+  }
+{ "execute": "blockdev-add",
+  "arguments": {
+      "options": {
+        "driver": "$IMGFMT",
+        "id": "test-node",
+        "file": {
+            "driver": "file",
+            "filename": "$TEST_IMG"
+        }
+      }
+    }
+  }
+{ "execute": "blockdev-add",
+  "arguments": {
+      "options": {
+        "driver": "$IMGFMT",
+        "id": "disk2",
+        "node-name": "disk",
+        "file": {
+            "driver": "file",
+            "filename": "$TEST_IMG"
+        }
+      }
+    }
+  }
+{ "execute": "blockdev-add",
+  "arguments": {
+      "options": {
+        "driver": "$IMGFMT",
+        "id": "disk2",
+        "node-name": "test-node",
+        "file": {
+            "driver": "file",
+            "filename": "$TEST_IMG"
+        }
+      }
+    }
+  }
+{ "execute": "blockdev-add",
+  "arguments": {
+      "options": {
+        "driver": "$IMGFMT",
+        "id": "disk3",
+        "node-name": "disk3",
+        "file": {
+            "driver": "file",
+            "filename": "$TEST_IMG"
+        }
+      }
+    }
+  }
+{ "execute": "quit" }
+EOF
+
+echo
 echo === aio=native without O_DIRECT ===
 echo
 
