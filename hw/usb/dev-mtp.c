@@ -1046,7 +1046,7 @@ static int usb_mtp_initfn(USBDevice *dev)
     QTAILQ_INIT(&s->objects);
     if (s->desc == NULL) {
         s->desc = strrchr(s->root, '/');
-        if (s->desc) {
+        if (s->desc && s->desc[0]) {
             s->desc = g_strdup(s->desc + 1);
         } else {
             s->desc = g_strdup("none");
