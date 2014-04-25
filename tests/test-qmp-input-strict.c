@@ -153,7 +153,7 @@ static void test_validate_union_flat(TestInputVisitorData *data,
     /* TODO when generator bug is fixed, add 'integer': 41 */
 
     visit_type_UserDefFlatUnion(v, &tmp, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     qapi_free_UserDefFlatUnion(tmp);
 }
 
@@ -167,7 +167,7 @@ static void test_validate_union_anon(TestInputVisitorData *data,
     v = validate_test_init(data, "42");
 
     visit_type_UserDefAnonUnion(v, &tmp, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     qapi_free_UserDefAnonUnion(tmp);
 }
 
@@ -240,7 +240,7 @@ static void test_validate_fail_union_flat(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'string': 'c', 'integer': 41, 'boolean': true }");
 
     visit_type_UserDefFlatUnion(v, &tmp, NULL, &errp);
-    g_assert(error_is_set(&errp));
+    g_assert(errp);
     qapi_free_UserDefFlatUnion(tmp);
 }
 
@@ -254,7 +254,7 @@ static void test_validate_fail_union_anon(TestInputVisitorData *data,
     v = validate_test_init(data, "3.14");
 
     visit_type_UserDefAnonUnion(v, &tmp, NULL, &errp);
-    g_assert(error_is_set(&errp));
+    g_assert(errp);
     qapi_free_UserDefAnonUnion(tmp);
 }
 

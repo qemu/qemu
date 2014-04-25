@@ -864,7 +864,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
 
     node_name = qdict_get_try_str(options, "node-name");
     bdrv_assign_node_name(bs, node_name, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return -EINVAL;
     }
