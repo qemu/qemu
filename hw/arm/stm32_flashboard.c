@@ -225,10 +225,10 @@ static void gpiob_irq_handler(void *opaque, int n, int level)
      */
     switch (level) {
         case 0:
-            printf("(%"PRId64".%05"PRId64") GPIO %d\n", secs, frac, gpio);
+            printf("(%"PRId64".%05"PRId64") GPIO %d Off\n", secs, frac, gpio);
             break;
         case 1:
-            printf("(%"PRId64".%05"PRId64") GPIO %d\n", secs, frac, gpio);
+            printf("(%"PRId64".%05"PRId64") GPIO %d On\n", secs, frac, gpio);
             break;
     }
 }
@@ -253,6 +253,10 @@ static void stm32_flashboard_key_event(void *opaque, int keycode)
     if(core_keycode == 0x30) {
         if(make) {
             if(!s->triggered) {
+                int64_t now = qemu_get_clock_ns(vm_clock);
+                int64_t secs = now / 1000000000;
+                int64_t frac = (now % 1000000000) / 10000;
+                printf("(%"PRId64".%05"PRId64") Trigger GPIO 0\n", secs, frac);
                 qemu_irq_raise(s->triggerIRQ);
                 s->triggered = true;
             }
