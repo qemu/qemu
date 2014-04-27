@@ -619,9 +619,21 @@ static const char* vsh_header =
     "OUTPUT oT1 = result.texcoord[1];\n"
     "OUTPUT oT2 = result.texcoord[2];\n"
     "OUTPUT oT3 = result.texcoord[3];\n"
+
     /* All constants in 1 array declaration (requires NV_gpu_program4?) */
     "PARAM c[] = { program.env[0..191] };\n"
-    "PARAM mvp[4] = { state.matrix.mvp };\n";
+
+    /* w component of outputs are expected to be initialised to 1 */
+    "MOV R12, 0.0;\n"
+    "MOV R12.w, 1.0;\n"
+    "MOV oD0.w, 1.0;\n"
+    "MOV oD1.w, 1.0;\n"
+    "MOV oB0.w, 1.0;\n"
+    "MOV oB1.w, 1.0;\n"
+    "MOV oT0.w, 1.0;\n"
+    "MOV oT1.w, 1.0;\n"
+    "MOV oT2.w, 1.0;\n"
+    "MOV oT3.w, 1.0;\n";
 
 
 QString* vsh_translate(uint16_t version,
@@ -682,9 +694,10 @@ QString* vsh_translate(uint16_t version,
         "RCP R1.z, R1.z;\n"
 
         "MUL R12.xyz, R12, R1;\n"
+        "MOV R12.w, 1.0;\n"
 
-        /* undo the perspective divide */
-        "MUL R12.xyz, R12, R12.w;\n"
+        /* undo the perspective divide? */
+        //"MUL R12.xyz, R12, R12.w;\n"
 
         /* Z coord [0;1]->[-1;1] mapping, see comment in transform_projection
          * in state.c
