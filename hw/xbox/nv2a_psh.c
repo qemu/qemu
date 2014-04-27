@@ -578,7 +578,7 @@ static QString* psh_convert(struct PixelShader *ps)
         ps->cur_stage = i;
         qstring_append_fmt(ps->code, "// Stage %d\n", i);
         add_stage_code(ps, ps->stage[i].rgb_input, ps->stage[i].rgb_output, "rgb", false);
-        add_stage_code(ps, ps->stage[i].alpha_input, ps->stage[i].alpha_output, "a", false);
+        add_stage_code(ps, ps->stage[i].alpha_input, ps->stage[i].alpha_output, "a", true);
     }
 
     if (ps->final_input.enabled) {
