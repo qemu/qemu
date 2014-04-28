@@ -43,6 +43,7 @@
 #include "config-host.h"
 
 #define TCG_TARGET_INTERPRETER 1
+#define TCG_TARGET_INSN_UNIT_SIZE 1
 
 #if UINTPTR_MAX == UINT32_MAX
 # define TCG_TARGET_REG_BITS 32

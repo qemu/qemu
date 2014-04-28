@@ -371,14 +371,18 @@ static const char *const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 };
 #endif
 
-static void patch_reloc(uint8_t *code_ptr, int type,
+static void patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     /* tcg_out_reloc always uses the same type, addend. */
     assert(type == sizeof(tcg_target_long));
     assert(addend == 0);
     assert(value != 0);
-    *(tcg_target_long *)code_ptr = value;
+    if (TCG_TARGET_REG_BITS == 32) {
+        tcg_patch32(code_ptr, value);
+    } else {
+        tcg_patch64(code_ptr, value);
+    }
 }
 
 /* Parse target specific constraints. */
@@ -413,8 +417,11 @@ void tci_disas(uint8_t opc)
 /* Write value (native size). */
 static void tcg_out_i(TCGContext *s, tcg_target_ulong v)
 {
-    *(tcg_target_ulong *)s->code_ptr = v;
-    s->code_ptr += sizeof(tcg_target_ulong);
+    if (TCG_TARGET_REG_BITS == 32) {
+        tcg_out32(s, v);
+    } else {
+        tcg_out64(s, v);
+    }
 }
 
 /* Write opcode. */
@@ -557,14 +564,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         if (s->tb_jmp_offset) {
             /* Direct jump method. */
             assert(args[0] < ARRAY_SIZE(s->tb_jmp_offset));
-            s->tb_jmp_offset[args[0]] = s->code_ptr - s->code_buf;
+            s->tb_jmp_offset[args[0]] = tcg_current_code_size(s);
             tcg_out32(s, 0);
         } else {
             /* Indirect jump method. */
             TODO();
         }
         assert(args[0] < ARRAY_SIZE(s->tb_next_offset));
-        s->tb_next_offset[args[0]] = s->code_ptr - s->code_buf;
+        s->tb_next_offset[args[0]] = tcg_current_code_size(s);
         break;
     case INDEX_op_br:
         tci_out_label(s, args[0]);
