@@ -147,9 +147,8 @@ typedef enum TCGOpcode {
 #define tcg_regset_not(d, a) (d) = ~(a)
 
 #ifndef TCG_TARGET_INSN_UNIT_SIZE
-#define TCG_TARGET_INSN_UNIT_SIZE 1
-#endif
-#if TCG_TARGET_INSN_UNIT_SIZE == 1
+# error "Missing TCG_TARGET_INSN_UNIT_SIZE"
+#elif TCG_TARGET_INSN_UNIT_SIZE == 1
 typedef uint8_t tcg_insn_unit;
 #elif TCG_TARGET_INSN_UNIT_SIZE == 2
 typedef uint16_t tcg_insn_unit;
