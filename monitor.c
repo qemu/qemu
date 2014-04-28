@@ -137,6 +137,7 @@ typedef struct mon_cmd_t {
      * used, and mhandler of 1st level plays the role of help function.
      */
     struct mon_cmd_t *sub_table;
+    void (*command_completion)(ReadLineState *rs, int nb_args, const char *str);
 } mon_cmd_t;
 
 /* file descriptors passed via SCM_RIGHTS */
@@ -350,33 +351,6 @@ void monitor_printf(Monitor *mon, const char *fmt, ...)
     va_start(ap, fmt);
     monitor_vprintf(mon, fmt, ap);
     va_end(ap);
-}
-
-void monitor_print_filename(Monitor *mon, const char *filename)
-{
-    int i;
-
-    for (i = 0; filename[i]; i++) {
-        switch (filename[i]) {
-        case ' ':
-        case '"':
-        case '\\':
-            monitor_printf(mon, "\\%c", filename[i]);
-            break;
-        case '\t':
-            monitor_printf(mon, "\\t");
-            break;
-        case '\r':
-            monitor_printf(mon, "\\r");
-            break;
-        case '\n':
-            monitor_printf(mon, "\\n");
-            break;
-        default:
-            monitor_printf(mon, "%c", filename[i]);
-            break;
-        }
-    }
 }
 
 static int GCC_FMT_ATTR(2, 3) monitor_fprintf(FILE *stream,
@@ -2254,6 +2228,7 @@ void qmp_getfd(const char *fdname, Error **errp)
     }
 
     if (qemu_isdigit(fdname[0])) {
+        close(fd);
         error_set(errp, QERR_INVALID_PARAMETER_VALUE, "fdname",
                   "a name not starting with a digit");
         return;
@@ -4277,10 +4252,14 @@ static const char *next_arg_type(const char *typestr)
     return (p != NULL ? ++p : typestr);
 }
 
-static void device_add_completion(ReadLineState *rs, const char *str)
+void device_add_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     GSList *list, *elt;
     size_t len;
+
+    if (nb_args != 2) {
+        return;
+    }
 
     len = strlen(str);
     readline_set_completion_index(rs, len);
@@ -4290,7 +4269,9 @@ static void device_add_completion(ReadLineState *rs, const char *str)
         DeviceClass *dc = OBJECT_CLASS_CHECK(DeviceClass, elt->data,
                                              TYPE_DEVICE);
         name = object_class_get_name(OBJECT_CLASS(dc));
-        if (!strncmp(name, str, len)) {
+
+        if (!dc->cannot_instantiate_with_device_add_yet
+            && !strncmp(name, str, len)) {
             readline_add_completion(rs, name);
         }
         elt = elt->next;
@@ -4298,10 +4279,14 @@ static void device_add_completion(ReadLineState *rs, const char *str)
     g_slist_free(list);
 }
 
-static void object_add_completion(ReadLineState *rs, const char *str)
+void object_add_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     GSList *list, *elt;
     size_t len;
+
+    if (nb_args != 2) {
+        return;
+    }
 
     len = strlen(str);
     readline_set_completion_index(rs, len);
@@ -4318,8 +4303,8 @@ static void object_add_completion(ReadLineState *rs, const char *str)
     g_slist_free(list);
 }
 
-static void device_del_completion(ReadLineState *rs, BusState *bus,
-                                  const char *str, size_t len)
+static void device_del_bus_completion(ReadLineState *rs,  BusState *bus,
+                                      const char *str, size_t len)
 {
     BusChild *kid;
 
@@ -4332,16 +4317,32 @@ static void device_del_completion(ReadLineState *rs, BusState *bus,
         }
 
         QLIST_FOREACH(dev_child, &dev->child_bus, sibling) {
-            device_del_completion(rs, dev_child, str, len);
+            device_del_bus_completion(rs, dev_child, str, len);
         }
     }
 }
 
-static void object_del_completion(ReadLineState *rs, const char *str)
+void device_del_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    size_t len;
+
+    if (nb_args != 2) {
+        return;
+    }
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    device_del_bus_completion(rs, sysbus_get_default(), str, len);
+}
+
+void object_del_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     ObjectPropertyInfoList *list, *start;
     size_t len;
 
+    if (nb_args != 2) {
+        return;
+    }
     len = strlen(str);
     readline_set_completion_index(rs, len);
 
@@ -4395,6 +4396,9 @@ static void monitor_find_completion_by_table(Monitor *mon,
             return monitor_find_completion_by_table(mon, cmd->sub_table,
                                                     &args[1], nb_args - 1);
         }
+        if (cmd->command_completion) {
+            return cmd->command_completion(mon->rs, nb_args, args[nb_args - 1]);
+        }
 
         ptype = next_arg_type(cmd->args_type);
         for(i = 0; i < nb_args - 2; i++) {
@@ -4421,13 +4425,6 @@ static void monitor_find_completion_by_table(Monitor *mon,
             readline_set_completion_index(mon->rs, strlen(str));
             bdrv_iterate(block_completion_it, &mbs);
             break;
-        case 'O':
-            if (!strcmp(cmd->name, "device_add") && nb_args == 2) {
-                device_add_completion(mon->rs, str);
-            } else if (!strcmp(cmd->name, "object_add") && nb_args == 2) {
-                object_add_completion(mon->rs, str);
-            }
-            break;
         case 's':
         case 'S':
             if (!strcmp(cmd->name, "sendkey")) {
@@ -4441,12 +4438,6 @@ static void monitor_find_completion_by_table(Monitor *mon,
             } else if (!strcmp(cmd->name, "help|?")) {
                 monitor_find_completion_by_table(mon, cmd_table,
                                                  &args[1], nb_args - 1);
-            } else if (!strcmp(cmd->name, "device_del") && nb_args == 2) {
-                size_t len = strlen(str);
-                readline_set_completion_index(mon->rs, len);
-                device_del_completion(mon->rs, sysbus_get_default(), str, len);
-            } else if (!strcmp(cmd->name, "object_del") && nb_args == 2) {
-                object_del_completion(mon->rs, str);
             }
             break;
         default:

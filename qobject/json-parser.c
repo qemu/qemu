@@ -110,7 +110,7 @@ static void GCC_FMT_ATTR(3, 4) parse_error(JSONParserContext *ctxt,
         error_free(ctxt->err);
         ctxt->err = NULL;
     }
-    error_set(&ctxt->err, QERR_JSON_PARSE_ERROR, message);
+    error_setg(&ctxt->err, "JSON parse error, %s", message);
 }
 
 /**

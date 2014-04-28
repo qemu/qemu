@@ -166,7 +166,7 @@ void qmp_cont(Error **errp)
     Error *local_err = NULL;
 
     if (runstate_needs_reset()) {
-        error_set(errp, QERR_RESET_REQUIRED);
+        error_setg(errp, "Resetting the Virtual Machine is required");
         return;
     } else if (runstate_check(RUN_STATE_SUSPENDED)) {
         return;
@@ -540,11 +540,24 @@ void object_add(const char *type, const char *id, const QDict *qdict,
                 Visitor *v, Error **errp)
 {
     Object *obj;
+    ObjectClass *klass;
     const QDictEntry *e;
     Error *local_err = NULL;
 
-    if (!object_class_by_name(type)) {
+    klass = object_class_by_name(type);
+    if (!klass) {
         error_setg(errp, "invalid class name");
+        return;
+    }
+
+    if (!object_class_dynamic_cast(klass, TYPE_USER_CREATABLE)) {
+        error_setg(errp, "object type '%s' isn't supported by object-add",
+                   type);
+        return;
+    }
+
+    if (object_class_is_abstract(klass)) {
+        error_setg(errp, "object type '%s' is abstract", type);
         return;
     }
 
@@ -556,12 +569,6 @@ void object_add(const char *type, const char *id, const QDict *qdict,
                 goto out;
             }
         }
-    }
-
-    if (!object_dynamic_cast(obj, TYPE_USER_CREATABLE)) {
-        error_setg(&local_err, "object type '%s' isn't supported by object-add",
-                   type);
-        goto out;
     }
 
     user_creatable_complete(obj, &local_err);

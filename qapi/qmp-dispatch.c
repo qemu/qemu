@@ -80,7 +80,8 @@ static QObject *do_qmp_dispatch(QObject *request, Error **errp)
         return NULL;
     }
     if (!cmd->enabled) {
-        error_set(errp, QERR_COMMAND_DISABLED, command);
+        error_setg(errp, "The command %s has been disabled for this instance",
+                   command);
         return NULL;
     }
 

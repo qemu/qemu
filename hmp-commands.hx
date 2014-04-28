@@ -176,7 +176,7 @@ ETEXI
 
     {
         .name       = "drive_del",
-        .args_type  = "id:s",
+        .args_type  = "id:B",
         .params     = "device",
         .help       = "remove host block device",
         .user_print = monitor_user_noop,
@@ -658,6 +658,7 @@ ETEXI
         .help       = "add device, like -device on the command line",
         .user_print = monitor_user_noop,
         .mhandler.cmd_new = do_device_add,
+        .command_completion = device_add_completion,
     },
 
 STEXI
@@ -673,6 +674,7 @@ ETEXI
         .params     = "device",
         .help       = "remove device",
         .mhandler.cmd = hmp_device_del,
+        .command_completion = device_del_completion,
     },
 
 STEXI
@@ -998,26 +1000,34 @@ ETEXI
 
     {
         .name       = "dump-guest-memory",
-        .args_type  = "paging:-p,filename:F,begin:i?,length:i?",
-        .params     = "[-p] filename [begin] [length]",
-        .help       = "dump guest memory to file"
-                      "\n\t\t\t begin(optional): the starting physical address"
-                      "\n\t\t\t length(optional): the memory size, in bytes",
+        .args_type  = "paging:-p,zlib:-z,lzo:-l,snappy:-s,filename:F,begin:i?,length:i?",
+        .params     = "[-p] [-z|-l|-s] filename [begin length]",
+        .help       = "dump guest memory into file 'filename'.\n\t\t\t"
+                      "-p: do paging to get guest's memory mapping.\n\t\t\t"
+                      "-z: dump in kdump-compressed format, with zlib compression.\n\t\t\t"
+                      "-l: dump in kdump-compressed format, with lzo compression.\n\t\t\t"
+                      "-s: dump in kdump-compressed format, with snappy compression.\n\t\t\t"
+                      "begin: the starting physical address.\n\t\t\t"
+                      "length: the memory size, in bytes.",
         .mhandler.cmd = hmp_dump_guest_memory,
     },
 
 
 STEXI
-@item dump-guest-memory [-p] @var{protocol} @var{begin} @var{length}
+@item dump-guest-memory [-p] @var{filename} @var{begin} @var{length}
+@item dump-guest-memory [-z|-l|-s] @var{filename}
 @findex dump-guest-memory
 Dump guest memory to @var{protocol}. The file can be processed with crash or
-gdb.
-  filename: dump file name
-    paging: do paging to get guest's memory mapping
+gdb. Without -z|-l|-s, the dump format is ELF.
+        -p: do paging to get guest's memory mapping.
+        -z: dump in kdump-compressed format, with zlib compression.
+        -l: dump in kdump-compressed format, with lzo compression.
+        -s: dump in kdump-compressed format, with snappy compression.
+  filename: dump file name.
      begin: the starting physical address. It's optional, and should be
-            specified with length together.
+            specified together with length.
     length: the memory size, in bytes. It's optional, and should be specified
-            with begin together.
+            together with begin.
 ETEXI
 
     {
@@ -1254,6 +1264,7 @@ ETEXI
         .params     = "[qom-type=]type,id=str[,prop=value][,...]",
         .help       = "create QOM object",
         .mhandler.cmd = hmp_object_add,
+        .command_completion = object_add_completion,
     },
 
 STEXI
@@ -1268,6 +1279,7 @@ ETEXI
         .params     = "id",
         .help       = "destroy QOM object",
         .mhandler.cmd = hmp_object_del,
+        .command_completion = object_del_completion,
     },
 
 STEXI

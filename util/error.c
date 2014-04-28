@@ -12,10 +12,7 @@
 
 #include "qemu-common.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qjson.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi-types.h"
-#include "qapi/qmp/qerror.h"
+#include "qemu/error-report.h"
 
 struct Error
 {

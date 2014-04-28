@@ -14,7 +14,6 @@ stub-obj-y += iothread-lock.o
 stub-obj-y += migr-blocker.o
 stub-obj-y += mon-is-qmp.o
 stub-obj-y += mon-printf.o
-stub-obj-y += mon-print-filename.o
 stub-obj-y += mon-protocol-event.o
 stub-obj-y += mon-set-error.o
 stub-obj-y += pci-drive-hot-add.o
