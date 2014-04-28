@@ -329,7 +329,7 @@ static void coroutine_fn mirror_run(void *opaque)
         return;
     }
 
-    length = (bdrv_getlength(bs) + s->granularity - 1) / s->granularity;
+    length = DIV_ROUND_UP(s->common.len, s->granularity);
     s->in_flight_bitmap = bitmap_new(length);
 
     /* If we have no backing file yet in the destination, we cannot let
