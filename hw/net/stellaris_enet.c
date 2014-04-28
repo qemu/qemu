@@ -8,6 +8,7 @@
  */
 #include "hw/sysbus.h"
 #include "net/net.h"
+#include "migration/migration.h"
 #include <zlib.h>
 
 //#define DEBUG_STELLARIS_ENET 1
@@ -75,6 +76,7 @@ typedef struct {
     NICConf conf;
     qemu_irq irq;
     MemoryRegion mmio;
+    Error *migration_blocker;
 } stellaris_enet_state;
 
 static void stellaris_enet_update(stellaris_enet_state *s)
@@ -362,7 +364,7 @@ static int stellaris_enet_load(QEMUFile *f, void *opaque, int version_id)
     stellaris_enet_state *s = (stellaris_enet_state *)opaque;
     int i;
 
-    if (version_id != 1)
+    if (1)
         return -EINVAL;
 
     s->ris = qemu_get_be32(f);
@@ -423,12 +425,19 @@ static int stellaris_enet_init(SysBusDevice *sbd)
     stellaris_enet_reset(s);
     register_savevm(dev, "stellaris_enet", -1, 1,
                     stellaris_enet_save, stellaris_enet_load, s);
+
+    error_setg(&s->migration_blocker,
+            "stellaris_enet does not support migration");
+    migrate_add_blocker(s->migration_blocker);
     return 0;
 }
 
 static void stellaris_enet_unrealize(DeviceState *dev, Error **errp)
 {
     stellaris_enet_state *s = STELLARIS_ENET(dev);
+
+    migrate_del_blocker(s->migration_blocker);
+    error_free(s->migration_blocker);
 
     unregister_savevm(DEVICE(s), "stellaris_enet", s);
 
