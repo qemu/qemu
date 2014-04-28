@@ -219,6 +219,13 @@ static void gpiob_irq_handler(void *opaque, int n, int level)
     int64_t frac = (now % 1000000000) / 10000;
 
     int gpio = (int) opaque;
+    switch (gpio)
+    {
+        case 4: gpio = 7; break;
+        case 5: gpio = 6; break;
+        case 6: gpio = 5; break;
+        case 7: gpio = 4; break;
+    }
 
     /* Assume that the IRQ is only triggered if the LED has changed state.
      * If this is not correct, we may get multiple LED Offs or Ons in a row.
