@@ -8,6 +8,8 @@
 
 QemuOptsList *qemu_find_opts(const char *group);
 QemuOptsList *qemu_find_opts_err(const char *group, Error **errp);
+QemuOpts *qemu_find_opts_singleton(const char *group);
+
 void qemu_add_opts(QemuOptsList *list);
 void qemu_add_drive_opts(QemuOptsList *list);
 int qemu_set_option(const char *str);

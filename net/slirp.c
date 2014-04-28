@@ -527,6 +527,7 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
             "pid directory=%s\n"
             "lock directory=%s\n"
             "state directory=%s\n"
+            "ncalrpc dir=%s/ncalrpc\n"
             "log file=%s/log.smbd\n"
             "smb passwd file=%s/smbpasswd\n"
             "security = user\n"
@@ -536,6 +537,7 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
             "read only=no\n"
             "guest ok=yes\n"
             "force user=%s\n",
+            s->smb_dir,
             s->smb_dir,
             s->smb_dir,
             s->smb_dir,

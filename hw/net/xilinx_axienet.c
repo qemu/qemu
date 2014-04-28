@@ -98,7 +98,7 @@ static unsigned int tdk_read(struct PHY *phy, unsigned int req)
             r |= 1;
             break;
         case 17:
-            /* Marvel PHY on many xilinx boards.  */
+            /* Marvell PHY on many xilinx boards.  */
             r = 0x8000; /* 1000Mb  */
             break;
         case 18:

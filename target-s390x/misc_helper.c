@@ -336,7 +336,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
             ebcdic_put(sysib.model, "QEMU            ", 16);
             ebcdic_put(sysib.sequence, "QEMU            ", 16);
             ebcdic_put(sysib.plant, "QEMU", 4);
-            cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
+            cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
         } else if ((sel1 == 2) && (sel2 == 1)) {
             /* Basic Machine CPU */
             struct sysib_121 sysib;
@@ -346,7 +346,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
             ebcdic_put(sysib.sequence, "QEMUQEMUQEMUQEMU", 16);
             ebcdic_put(sysib.plant, "QEMU", 4);
             stw_p(&sysib.cpu_addr, env->cpu_num);
-            cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
+            cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
         } else if ((sel1 == 2) && (sel2 == 2)) {
             /* Basic Machine CPUs */
             struct sysib_122 sysib;
@@ -358,7 +358,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
             stw_p(&sysib.active_cpus, 1);
             stw_p(&sysib.standby_cpus, 0);
             stw_p(&sysib.reserved_cpus, 0);
-            cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
+            cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
         } else {
             cc = 3;
         }
@@ -375,7 +375,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
                 ebcdic_put(sysib.plant, "QEMU", 4);
                 stw_p(&sysib.cpu_addr, env->cpu_num);
                 stw_p(&sysib.cpu_id, 0);
-                cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
+                cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
             } else if ((sel1 == 2) && (sel2 == 2)) {
                 /* LPAR CPUs */
                 struct sysib_222 sysib;
@@ -392,7 +392,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
                 stl_p(&sysib.caf, 1000);
                 stw_p(&sysib.dedicated_cpus, 0);
                 stw_p(&sysib.shared_cpus, 0);
-                cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
+                cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
             } else {
                 cc = 3;
             }
@@ -414,7 +414,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
                 ebcdic_put(sysib.vm[0].name, "KVMguest", 8);
                 stl_p(&sysib.vm[0].caf, 1000);
                 ebcdic_put(sysib.vm[0].cpi, "KVM/Linux       ", 16);
-                cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
+                cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
             } else {
                 cc = 3;
             }

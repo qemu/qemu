@@ -1087,7 +1087,10 @@ for opt do
   ;;
   --enable-quorum) quorum="yes"
   ;;
-  *) echo "ERROR: unknown option $opt"; show_help="yes"
+  *)
+      echo "ERROR: unknown option $opt"
+      echo "Try '$0 --help' for more information"
+      exit 1
   ;;
   esac
 done
@@ -1353,7 +1356,7 @@ Advanced options (experts only):
 
 NOTE: The object files are built at the place where configure is launched
 EOF
-exit 1
+exit 0
 fi
 
 # Now we have handled --enable-tcg-interpreter and know we're not just

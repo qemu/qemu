@@ -760,6 +760,7 @@ static int proxy_socket(const char *path, uid_t uid, gid_t gid)
         return -1;
     }
 
+    size = sizeof(qemu);
     client = accept(sock, (struct sockaddr *)&qemu, &size);
     if (client < 0) {
         do_perror("accept");

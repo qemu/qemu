@@ -39,6 +39,20 @@ QemuOptsList *qemu_find_opts(const char *group)
     return ret;
 }
 
+QemuOpts *qemu_find_opts_singleton(const char *group)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+
+    list = qemu_find_opts(group);
+    assert(list);
+    opts = qemu_opts_find(list, NULL);
+    if (!opts) {
+        opts = qemu_opts_create(list, NULL, 0, &error_abort);
+    }
+    return opts;
+}
+
 static CommandLineParameterInfoList *query_option_descs(const QemuOptDesc *desc)
 {
     CommandLineParameterInfoList *param_list = NULL, *entry;
