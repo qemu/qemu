@@ -898,6 +898,7 @@ int virtio_set_features(VirtIODevice *vdev, uint32_t val)
 int virtio_load(VirtIODevice *vdev, QEMUFile *f)
 {
     int i, ret;
+    int32_t config_len;
     uint32_t num;
     uint32_t features;
     uint32_t supported_features;
@@ -924,7 +925,12 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
                      features, supported_features);
         return -1;
     }
-    vdev->config_len = qemu_get_be32(f);
+    config_len = qemu_get_be32(f);
+    if (config_len != vdev->config_len) {
+        error_report("Unexpected config length 0x%x. Expected 0x%zx",
+                     config_len, vdev->config_len);
+        return -1;
+    }
     qemu_get_buffer(f, vdev->config, vdev->config_len);
 
     num = qemu_get_be32(f);
