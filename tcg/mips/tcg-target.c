@@ -153,11 +153,6 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         ct->ct |= TCG_CT_REG;
         tcg_regset_set(ct->u.regs, 0xffffffff);
         break;
-    case 'C':
-        ct->ct |= TCG_CT_REG;
-        tcg_regset_clear(ct->u.regs);
-        tcg_regset_set_reg(ct->u.regs, TCG_REG_T9);
-        break;
     case 'L': /* qemu_ld output arg constraint */
         ct->ct |= TCG_CT_REG;
         tcg_regset_set(ct->u.regs, 0xffffffff);
@@ -1252,6 +1247,13 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 #endif
 }
 
+static void tcg_out_call(TCGContext *s, tcg_insn_unit *target)
+{
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T9, (intptr_t)target);
+    tcg_out_opc_reg(s, OPC_JALR, TCG_REG_RA, TCG_REG_T9, 0);
+    tcg_out_nop(s);
+}
+
 static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                               const TCGArg *args, const int *const_args)
 {
@@ -1277,8 +1279,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         s->tb_next_offset[args[0]] = tcg_current_code_size(s);
         break;
     case INDEX_op_call:
-        tcg_out_opc_reg(s, OPC_JALR, TCG_REG_RA, args[0], 0);
-        tcg_out_nop(s);
+        assert(const_args[0]);
+        tcg_out_call(s, (tcg_insn_unit *)(intptr_t)args[0]);
         break;
     case INDEX_op_br:
         tcg_out_brcond(s, TCG_COND_EQ, TCG_REG_ZERO, TCG_REG_ZERO, args[0]);
@@ -1546,7 +1548,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
-    { INDEX_op_call, { "C" } },
+    { INDEX_op_call, { "i" } },
     { INDEX_op_br, { } },
 
     { INDEX_op_mov_i32, { "r", "r" } },
