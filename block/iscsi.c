@@ -1386,7 +1386,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     /* Guess the internal cluster (page) size of the iscsi target by the means
      * of opt_unmap_gran. Transfer the unmap granularity only if it has a
      * reasonable size */
-    if (iscsilun->bl.opt_unmap_gran * iscsilun->block_size >= 64 * 1024 &&
+    if (iscsilun->bl.opt_unmap_gran * iscsilun->block_size >= 4 * 1024 &&
         iscsilun->bl.opt_unmap_gran * iscsilun->block_size <= 16 * 1024 * 1024) {
         iscsilun->cluster_sectors = (iscsilun->bl.opt_unmap_gran *
                                      iscsilun->block_size) >> BDRV_SECTOR_BITS;
