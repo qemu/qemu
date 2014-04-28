@@ -24,6 +24,18 @@ static void pci_stdvga(void)
     qtest_end();
 }
 
+static void pci_secondary(void)
+{
+    qtest_start("-vga none -device secondary-vga");
+    qtest_end();
+}
+
+static void pci_multihead(void)
+{
+    qtest_start("-vga none -device VGA -device secondary-vga");
+    qtest_end();
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -32,6 +44,8 @@ int main(int argc, char **argv)
 
     qtest_add_func("/display/pci/cirrus", pci_cirrus);
     qtest_add_func("/display/pci/stdvga", pci_stdvga);
+    qtest_add_func("/display/pci/secondary", pci_secondary);
+    qtest_add_func("/display/pci/multihead", pci_multihead);
     ret = g_test_run();
 
     return ret;
