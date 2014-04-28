@@ -809,13 +809,14 @@ coroutine_fn iscsi_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
         return -EINVAL;
     }
 
-    if (!(flags & BDRV_REQ_MAY_UNMAP) && !iscsilun->has_write_same) {
-        /* WRITE SAME without UNMAP is not supported by the target */
-        return -ENOTSUP;
+    if ((flags & BDRV_REQ_MAY_UNMAP) && !iscsilun->lbp.lbpws) {
+        /* WRITE SAME with UNMAP is not supported by the target,
+         * fall back and try WRITE SAME without UNMAP */
+        flags &= ~BDRV_REQ_MAY_UNMAP;
     }
 
-    if ((flags & BDRV_REQ_MAY_UNMAP) && !iscsilun->lbp.lbpws) {
-        /* WRITE SAME with UNMAP is not supported by the target */
+    if (!(flags & BDRV_REQ_MAY_UNMAP) && !iscsilun->has_write_same) {
+        /* WRITE SAME without UNMAP is not supported by the target */
         return -ENOTSUP;
     }
 
