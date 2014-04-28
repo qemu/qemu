@@ -707,7 +707,7 @@ static void tcg_out_b(TCGContext *s, int mask, tcg_insn_unit *target)
     }
 }
 
-static void tcg_out_calli(TCGContext *s, void *target)
+static void tcg_out_call(TCGContext *s, tcg_insn_unit *target)
 {
 #ifdef __APPLE__
     tcg_out_b(s, LK, target);
@@ -738,23 +738,6 @@ static void tcg_out_calli(TCGContext *s, void *target)
         tcg_out32(s, BCCTR | BO_ALWAYS | LK);
     }
 #endif
-}
-
-static void tcg_out_call(TCGContext *s, TCGArg arg, int const_arg)
-{
-    if (const_arg) {
-        tcg_out_calli(s, (void *)(uintptr_t)arg);
-    } else {
-#ifdef __APPLE__
-        tcg_out32(s, MTSPR | RS(arg) | LR);
-        tcg_out32(s, BCLR | BO_ALWAYS | LK);
-#else
-        tcg_out32(s, LD | TAI(TCG_REG_R0, arg, 0));
-        tcg_out32(s, MTSPR | RA(TCG_REG_R0) | CTR);
-        tcg_out32(s, LD | TAI(TCG_REG_R2, arg, 8));
-        tcg_out32(s, BCCTR | BO_ALWAYS | LK);
-#endif
-    }
 }
 
 static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
@@ -971,7 +954,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_R5, lb->mem_index);
     tcg_out32(s, MFSPR | RT(TCG_REG_R6) | LR);
 
-    tcg_out_calli(s, qemu_ld_helpers[opc & ~MO_SIGN]);
+    tcg_out_call(s, qemu_ld_helpers[opc & ~MO_SIGN]);
 
     if (opc & MO_SIGN) {
         uint32_t insn = qemu_exts_opc[opc & MO_SIZE];
@@ -1001,7 +984,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_R6, lb->mem_index);
     tcg_out32(s, MFSPR | RT(TCG_REG_R7) | LR);
 
-    tcg_out_calli(s, qemu_st_helpers[opc]);
+    tcg_out_call(s, qemu_st_helpers[opc]);
 
     tcg_out_b(s, 0, lb->raddr);
 }
@@ -1520,7 +1503,19 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         }
         break;
     case INDEX_op_call:
-        tcg_out_call(s, args[0], const_args[0]);
+        if (const_args[0]) {
+            tcg_out_call(s, (void *)(uintptr_t)arg);
+        } else {
+#ifdef __APPLE__
+            tcg_out32(s, MTSPR | RS(arg) | LR);
+            tcg_out32(s, BCLR | BO_ALWAYS | LK);
+#else
+            tcg_out32(s, LD | TAI(TCG_REG_R0, arg, 0));
+            tcg_out32(s, MTSPR | RA(TCG_REG_R0) | CTR);
+            tcg_out32(s, LD | TAI(TCG_REG_R2, arg, 8));
+            tcg_out32(s, BCCTR | BO_ALWAYS | LK);
+#endif
+        }
         break;
     case INDEX_op_movi_i32:
         tcg_out_movi(s, TCG_TYPE_I32, args[0], args[1]);
