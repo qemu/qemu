@@ -680,7 +680,7 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
     mirror_start_job(bs, base, speed, 0, 0,
                      on_error, on_error, cb, opaque, &local_err,
                      &commit_active_job_driver, false, base);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         goto error_restore_flags;
     }

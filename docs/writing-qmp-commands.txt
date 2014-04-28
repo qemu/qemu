@@ -311,7 +311,7 @@ void hmp_hello_world(Monitor *mon, const QDict *qdict)
     Error *errp = NULL;
 
     qmp_hello_world(!!message, message, &errp);
-    if (error_is_set(&errp)) {
+    if (errp) {
         monitor_printf(mon, "%s\n", error_get_pretty(errp));
         error_free(errp);
         return;
@@ -483,7 +483,7 @@ void hmp_info_alarm_clock(Monitor *mon)
     Error *errp = NULL;
 
     clock = qmp_query_alarm_clock(&errp);
-    if (error_is_set(&errp)) {
+    if (errp) {
         monitor_printf(mon, "Could not query alarm clock information\n");
         error_free(errp);
         return;
@@ -634,7 +634,7 @@ void hmp_info_alarm_methods(Monitor *mon)
     Error *errp = NULL;
 
     method_list = qmp_query_alarm_methods(&errp);
-    if (error_is_set(&errp)) {
+    if (errp) {
         monitor_printf(mon, "Could not query alarm methods\n");
         error_free(errp);
         return;

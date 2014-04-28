@@ -674,6 +674,8 @@ S: Supported
 F: block*
 F: block/
 F: hw/block/
+F: qemu-img*
+F: qemu-io*
 T: git git://repo.or.cz/qemu/kevin.git block
 T: git git://github.com/stefanha/qemu.git block
 

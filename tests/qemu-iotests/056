@@ -57,14 +57,7 @@ class TestSyncModesNoneAndTop(iotests.QMPTestCase):
                              format=iotests.imgfmt, target=target_img)
         self.assert_qmp(result, 'return', {})
 
-        # Custom completed check as we are not copying all data.
-        completed = False
-        while not completed:
-            for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_COMPLETED':
-                    self.assert_qmp(event, 'data/device', 'drive0')
-                    self.assert_qmp_absent(event, 'data/error')
-                    completed = True
+        self.wait_until_completed(check_offset=False)
 
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
