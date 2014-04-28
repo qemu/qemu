@@ -95,7 +95,15 @@ typedef struct IscsiAIOCB {
 #define NOP_INTERVAL 5000
 #define MAX_NOP_FAILURES 3
 #define ISCSI_CMD_RETRIES 5
-#define ISCSI_CHECKALLOC_THRES 63
+
+/* this threshhold is a trade-off knob to choose between
+ * the potential additional overhead of an extra GET_LBA_STATUS request
+ * vs. unnecessarily reading a lot of zero sectors over the wire.
+ * If a read request is greater or equal than ISCSI_CHECKALLOC_THRES
+ * sectors we check the allocation status of the area covered by the
+ * request first if the allocationmap indicates that the area might be
+ * unallocated. */
+#define ISCSI_CHECKALLOC_THRES 64
 
 static void
 iscsi_bh_cb(void *p)
@@ -505,7 +513,7 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
     }
 
 #if defined(LIBISCSI_FEATURE_IOVECTOR)
-    if (iscsilun->lbprz && nb_sectors > ISCSI_CHECKALLOC_THRES &&
+    if (iscsilun->lbprz && nb_sectors >= ISCSI_CHECKALLOC_THRES &&
         !iscsi_allocationmap_is_allocated(iscsilun, sector_num, nb_sectors)) {
         int64_t ret;
         int pnum;
