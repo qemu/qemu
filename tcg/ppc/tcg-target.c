@@ -501,7 +501,7 @@ static void tcg_out_callr(TCGContext *s, TCGReg reg, int lk)
     tcg_out32(s, BCCTR | BO_ALWAYS | lk);
 }
 
-static void tcg_out_calli(TCGContext *s, void *target, int lk)
+static void tcg_out_call1(TCGContext *s, tcg_insn_unit *target, int lk)
 {
 #ifdef _CALL_AIX
     tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, (uintptr_t)target);
@@ -509,6 +509,11 @@ static void tcg_out_calli(TCGContext *s, void *target, int lk)
 #else
     tcg_out_b(s, lk, target);
 #endif
+}
+
+static void tcg_out_call(TCGContext *s, tcg_insn_unit *target)
+{
+    tcg_out_call1(s, target, LK);
 }
 
 #if defined(CONFIG_SOFTMMU)
@@ -878,7 +883,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 static void emit_ldst_trampoline(TCGContext *s, void *ptr)
 {
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_R3, TCG_AREG0);
-    tcg_out_calli(s, ptr, 0);
+    tcg_out_call1(s, ptr, 0);
 }
 #endif
 
@@ -1387,7 +1392,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
     case INDEX_op_call:
         if (const_args[0]) {
-            tcg_out_calli(s, (void *)(uintptr_t)args[0], LK);
+            tcg_out_call(s, (void *)(uintptr_t)args[0]);
         } else {
             tcg_out_callr(s, args[0], LK);
         }
