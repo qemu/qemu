@@ -1416,15 +1416,16 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
     /* ACPI tables pointed to by RSDT */
     acpi_add_table(table_offsets, tables->table_data);
     build_fadt(tables->table_data, tables->linker, &pm, facs, dsdt);
-    acpi_add_table(table_offsets, tables->table_data);
 
+    acpi_add_table(table_offsets, tables->table_data);
     build_ssdt(tables->table_data, tables->linker, &cpu, &pm, &misc, &pci,
                guest_info);
-    acpi_add_table(table_offsets, tables->table_data);
 
-    build_madt(tables->table_data, tables->linker, &cpu, guest_info);
     acpi_add_table(table_offsets, tables->table_data);
+    build_madt(tables->table_data, tables->linker, &cpu, guest_info);
+
     if (misc.has_hpet) {
+        acpi_add_table(table_offsets, tables->table_data);
         build_hpet(tables->table_data, tables->linker);
     }
     if (guest_info->numa_nodes) {
