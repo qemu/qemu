@@ -126,6 +126,9 @@ typedef struct CPUS390XState {
     uint64_t pfault_compare;
     uint64_t pfault_select;
 
+    uint64_t gbea;
+    uint64_t pp;
+
     CPU_COMMON
 
     /* reset does memset(0) up to here */
