@@ -549,6 +549,11 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
     old_code_ptr[1] = s->code_ptr - old_code_ptr;
 }
 
+static inline void tcg_out_call(TCGContext *s, tcg_insn_unit *arg)
+{
+    tcg_out_ri(s, 1, (uintptr_t)arg);
+}
+
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                        const int *const_args)
 {
