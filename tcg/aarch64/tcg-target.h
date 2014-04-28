@@ -13,6 +13,7 @@
 #ifndef TCG_TARGET_AARCH64
 #define TCG_TARGET_AARCH64 1
 
+#define TCG_TARGET_INSN_UNIT_SIZE  4
 #undef TCG_TARGET_STACK_GROWSUP
 
 typedef enum {
