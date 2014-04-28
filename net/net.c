@@ -473,7 +473,7 @@ ssize_t qemu_deliver_packet(NetClientState *sender,
 
     if (ret == 0) {
         nc->receive_disabled = 1;
-    };
+    }
 
     return ret;
 }
@@ -1045,7 +1045,7 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
         if (nc->info->type != NET_CLIENT_OPTIONS_KIND_NIC) {
             if (has_name) {
                 error_setg(errp, "net client(%s) isn't a NIC", name);
-                break;
+                return NULL;
             }
             continue;
         }
@@ -1064,11 +1064,15 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
         } else if (has_name) {
             error_setg(errp, "net client(%s) doesn't support"
                        " rx-filter querying", name);
+            return NULL;
+        }
+
+        if (has_name) {
             break;
         }
     }
 
-    if (filter_list == NULL && !error_is_set(errp) && has_name) {
+    if (filter_list == NULL && has_name) {
         error_setg(errp, "invalid net client name: %s", name);
     }
 
