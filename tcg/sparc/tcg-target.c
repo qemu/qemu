@@ -735,7 +735,7 @@ static void tcg_out_addsub2(TCGContext *s, TCGReg rl, TCGReg rh,
     tcg_out_mov(s, TCG_TYPE_I32, rl, tmp);
 }
 
-static void tcg_out_calli(TCGContext *s, tcg_insn_unit *dest)
+static void tcg_out_call_nodelay(TCGContext *s, tcg_insn_unit *dest)
 {
     ptrdiff_t disp = tcg_pcrel_diff(s, dest);
 
@@ -746,6 +746,12 @@ static void tcg_out_calli(TCGContext *s, tcg_insn_unit *dest)
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T1, desti & ~0xfff);
         tcg_out_arithi(s, TCG_REG_O7, TCG_REG_T1, desti & 0xfff, JMPL);
     }
+}
+
+static void tcg_out_call(TCGContext *s, tcg_insn_unit *dest)
+{
+    tcg_out_call_nodelay(s, dest);
+    tcg_out_nop(s);
 }
 
 #ifdef CONFIG_SOFTMMU
@@ -803,7 +809,7 @@ static void build_trampolines(TCGContext *s)
         /* Set the env operand.  */
         tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_O0, TCG_AREG0);
         /* Tail call.  */
-        tcg_out_calli(s, qemu_ld_helpers[i]);
+        tcg_out_call_nodelay(s, qemu_ld_helpers[i]);
         tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_O7, ra);
     }
 
@@ -850,7 +856,7 @@ static void build_trampolines(TCGContext *s)
         /* Set the env operand.  */
         tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_O0, TCG_AREG0);
         /* Tail call.  */
-        tcg_out_calli(s, qemu_st_helpers[i]);
+        tcg_out_call_nodelay(s, qemu_st_helpers[i]);
         tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_O7, ra);
     }
 }
@@ -1030,7 +1036,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
         func = qemu_ld_trampoline[memop];
     }
     assert(func != NULL);
-    tcg_out_calli(s, func);
+    tcg_out_call_nodelay(s, func);
     /* delay slot */
     tcg_out_movi(s, TCG_TYPE_I32, param, memi);
 
@@ -1107,7 +1113,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
 
     func = qemu_st_trampoline[memop];
     assert(func != NULL);
-    tcg_out_calli(s, func);
+    tcg_out_call_nodelay(s, func);
     /* delay slot */
     tcg_out_movi(s, TCG_TYPE_REG, param, memi);
 
@@ -1163,12 +1169,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_call:
         if (const_args[0]) {
-            tcg_out_calli(s, (void *)(uintptr_t)a0);
+            tcg_out_call(s, (void *)(uintptr_t)a0);
         } else {
             tcg_out_arithi(s, TCG_REG_O7, a0, 0, JMPL);
+            /* delay slot */
+            tcg_out_nop(s);
         }
-        /* delay slot */
-        tcg_out_nop(s);
         break;
     case INDEX_op_br:
         tcg_out_bpcc(s, COND_A, BPCC_PT, a0);
