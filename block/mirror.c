@@ -325,8 +325,8 @@ static void coroutine_fn mirror_run(void *opaque)
 
     s->common.len = bdrv_getlength(bs);
     if (s->common.len <= 0) {
-        block_job_completed(&s->common, s->common.len);
-        return;
+        ret = s->common.len;
+        goto immediate_exit;
     }
 
     length = DIV_ROUND_UP(s->common.len, s->granularity);
