@@ -756,6 +756,7 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options,
     vdi_header_to_le(&header);
     if (write(fd, &header, sizeof(header)) < 0) {
         result = -errno;
+        goto close_and_exit;
     }
 
     if (bmap_size > 0) {
@@ -769,6 +770,8 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options,
         }
         if (write(fd, bmap, bmap_size) < 0) {
             result = -errno;
+            g_free(bmap);
+            goto close_and_exit;
         }
         g_free(bmap);
     }
@@ -776,10 +779,12 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options,
     if (image_type == VDI_TYPE_STATIC) {
         if (ftruncate(fd, sizeof(header) + bmap_size + blocks * block_size)) {
             result = -errno;
+            goto close_and_exit;
         }
     }
 
-    if (close(fd) < 0) {
+close_and_exit:
+    if ((close(fd) < 0) && !result) {
         result = -errno;
     }
 
