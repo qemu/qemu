@@ -2096,13 +2096,12 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
 {
     TCGRegSet allocated_regs;
     TCGTemp *ts, *ots;
-    const TCGArgConstraint *arg_ct, *oarg_ct;
+    TCGType type;
 
     tcg_regset_set(allocated_regs, s->reserved_regs);
     ots = &s->temps[args[0]];
     ts = &s->temps[args[1]];
-    oarg_ct = &def->args_ct[0];
-    arg_ct = &def->args_ct[1];
+    type = ots->type;
 
     /* If the source value is not in a register, and we're going to be
        forced to have it in a register in order to perform the copy,
@@ -2110,12 +2109,13 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
        we don't have to reload SOURCE the next time it is used. */
     if (((NEED_SYNC_ARG(0) || ots->fixed_reg) && ts->val_type != TEMP_VAL_REG)
         || ts->val_type == TEMP_VAL_MEM) {
-        ts->reg = tcg_reg_alloc(s, arg_ct->u.regs, allocated_regs);
+        ts->reg = tcg_reg_alloc(s, tcg_target_available_regs[type],
+                                allocated_regs);
         if (ts->val_type == TEMP_VAL_MEM) {
-            tcg_out_ld(s, ts->type, ts->reg, ts->mem_reg, ts->mem_offset);
+            tcg_out_ld(s, type, ts->reg, ts->mem_reg, ts->mem_offset);
             ts->mem_coherent = 1;
         } else if (ts->val_type == TEMP_VAL_CONST) {
-            tcg_out_movi(s, ts->type, ts->reg, ts->val);
+            tcg_out_movi(s, type, ts->reg, ts->val);
         }
         s->reg_to_temp[ts->reg] = args[1];
         ts->val_type = TEMP_VAL_REG;
@@ -2130,7 +2130,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
         if (!ots->mem_allocated) {
             temp_allocate_frame(s, args[0]);
         }
-        tcg_out_st(s, ots->type, ts->reg, ots->mem_reg, ots->mem_offset);
+        tcg_out_st(s, type, ts->reg, ots->mem_reg, ots->mem_offset);
         if (IS_DEAD_ARG(1)) {
             temp_dead(s, args[1]);
         }
@@ -2158,9 +2158,10 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
                 /* When allocating a new register, make sure to not spill the
                    input one. */
                 tcg_regset_set_reg(allocated_regs, ts->reg);
-                ots->reg = tcg_reg_alloc(s, oarg_ct->u.regs, allocated_regs);
+                ots->reg = tcg_reg_alloc(s, tcg_target_available_regs[type],
+                                         allocated_regs);
             }
-            tcg_out_mov(s, ots->type, ots->reg, ts->reg);
+            tcg_out_mov(s, type, ots->reg, ts->reg);
         }
         ots->val_type = TEMP_VAL_REG;
         ots->mem_coherent = 0;
