@@ -82,7 +82,7 @@ static int cow_open(BlockDriverState *bs, QDict *options, int flags,
     if (be32_to_cpu(cow_header.version) != COW_VERSION) {
         char version[64];
         snprintf(version, sizeof(version),
-               "COW version %d", cow_header.version);
+               "COW version %" PRIu32, cow_header.version);
         error_set(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
             bs->device_name, "cow", version);
         ret = -ENOTSUP;

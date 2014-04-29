@@ -119,7 +119,8 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     }
     if (header.version != QCOW_VERSION) {
         char version[64];
-        snprintf(version, sizeof(version), "QCOW version %d", header.version);
+        snprintf(version, sizeof(version), "QCOW version %" PRIu32,
+                 header.version);
         error_set(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
                   bs->device_name, "qcow", version);
         ret = -ENOTSUP;

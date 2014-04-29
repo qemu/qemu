@@ -408,34 +408,35 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (header.signature != VDI_SIGNATURE) {
-        error_setg(errp, "Image not in VDI format (bad signature %08x)", header.signature);
+        error_setg(errp, "Image not in VDI format (bad signature %08" PRIx32
+                   ")", header.signature);
         ret = -EINVAL;
         goto fail;
     } else if (header.version != VDI_VERSION_1_1) {
-        error_setg(errp, "unsupported VDI image (version %u.%u)",
-                   header.version >> 16, header.version & 0xffff);
+        error_setg(errp, "unsupported VDI image (version %" PRIu32 ".%" PRIu32
+                   ")", header.version >> 16, header.version & 0xffff);
         ret = -ENOTSUP;
         goto fail;
     } else if (header.offset_bmap % SECTOR_SIZE != 0) {
         /* We only support block maps which start on a sector boundary. */
         error_setg(errp, "unsupported VDI image (unaligned block map offset "
-                   "0x%x)", header.offset_bmap);
+                   "0x%" PRIx32 ")", header.offset_bmap);
         ret = -ENOTSUP;
         goto fail;
     } else if (header.offset_data % SECTOR_SIZE != 0) {
         /* We only support data blocks which start on a sector boundary. */
-        error_setg(errp, "unsupported VDI image (unaligned data offset 0x%x)",
-                   header.offset_data);
+        error_setg(errp, "unsupported VDI image (unaligned data offset 0x%"
+                   PRIx32 ")", header.offset_data);
         ret = -ENOTSUP;
         goto fail;
     } else if (header.sector_size != SECTOR_SIZE) {
-        error_setg(errp, "unsupported VDI image (sector size %u is not %u)",
-                   header.sector_size, SECTOR_SIZE);
+        error_setg(errp, "unsupported VDI image (sector size %" PRIu32
+                   " is not %u)", header.sector_size, SECTOR_SIZE);
         ret = -ENOTSUP;
         goto fail;
     } else if (header.block_size != DEFAULT_CLUSTER_SIZE) {
-        error_setg(errp, "unsupported VDI image (block size %u is not %u)",
-                   header.block_size, DEFAULT_CLUSTER_SIZE);
+        error_setg(errp, "unsupported VDI image (block size %" PRIu32
+                   " is not %u)", header.block_size, DEFAULT_CLUSTER_SIZE);
         ret = -ENOTSUP;
         goto fail;
     } else if (header.disk_size >

@@ -124,8 +124,9 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 
         case QCOW2_EXT_MAGIC_BACKING_FORMAT:
             if (ext.len >= sizeof(bs->backing_format)) {
-                error_setg(errp, "ERROR: ext_backing_format: len=%u too large"
-                           " (>=%zu)", ext.len, sizeof(bs->backing_format));
+                error_setg(errp, "ERROR: ext_backing_format: len=%" PRIu32
+                           " too large (>=%zu)", ext.len,
+                           sizeof(bs->backing_format));
                 return 2;
             }
             ret = bdrv_pread(bs->file, offset, bs->backing_format, ext.len);
@@ -483,7 +484,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
     if (header.version < 2 || header.version > 3) {
-        report_unsupported(bs, errp, "QCOW version %d", header.version);
+        report_unsupported(bs, errp, "QCOW version %" PRIu32, header.version);
         ret = -ENOTSUP;
         goto fail;
     }
@@ -493,7 +494,8 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     /* Initialise cluster size */
     if (header.cluster_bits < MIN_CLUSTER_BITS ||
         header.cluster_bits > MAX_CLUSTER_BITS) {
-        error_setg(errp, "Unsupported cluster size: 2^%i", header.cluster_bits);
+        error_setg(errp, "Unsupported cluster size: 2^%" PRIu32,
+                   header.cluster_bits);
         ret = -EINVAL;
         goto fail;
     }
@@ -591,7 +593,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     s->refcount_order = header.refcount_order;
 
     if (header.crypt_method > QCOW_CRYPT_AES) {
-        error_setg(errp, "Unsupported encryption method: %i",
+        error_setg(errp, "Unsupported encryption method: %" PRIu32,
                    header.crypt_method);
         ret = -EINVAL;
         goto fail;
