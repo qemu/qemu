@@ -1487,6 +1487,11 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     int ret;
 
     size = bdrv_getlength(bs->file);
+    if (size < 0) {
+        res->check_errors++;
+        return size;
+    }
+
     nb_clusters = size_to_clusters(s, size);
     if (nb_clusters > INT_MAX) {
         res->check_errors++;
