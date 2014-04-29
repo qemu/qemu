@@ -71,6 +71,7 @@ typedef struct CURLState
     struct BDRVCURLState *s;
     CURLAIOCB *acb[CURL_NUM_ACB];
     CURL *curl;
+    curl_socket_t sock_fd;
     char *orig_buf;
     size_t buf_start;
     size_t buf_off;
@@ -92,6 +93,7 @@ typedef struct BDRVCURLState {
 
 static void curl_clean_state(CURLState *s);
 static void curl_multi_do(void *arg);
+static void curl_multi_read(void *arg);
 
 #ifdef NEED_CURL_TIMER_CALLBACK
 static int curl_timer_cb(CURLM *multi, long timeout_ms, void *opaque)
@@ -113,16 +115,20 @@ static int curl_timer_cb(CURLM *multi, long timeout_ms, void *opaque)
 static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
                         void *s, void *sp)
 {
+    CURLState *state = NULL;
+    curl_easy_getinfo(curl, CURLINFO_PRIVATE, (char **)&state);
+    state->sock_fd = fd;
+
     DPRINTF("CURL (AIO): Sock action %d on fd %d\n", action, fd);
     switch (action) {
         case CURL_POLL_IN:
-            qemu_aio_set_fd_handler(fd, curl_multi_do, NULL, s);
+            qemu_aio_set_fd_handler(fd, curl_multi_read, NULL, state);
             break;
         case CURL_POLL_OUT:
-            qemu_aio_set_fd_handler(fd, NULL, curl_multi_do, s);
+            qemu_aio_set_fd_handler(fd, NULL, curl_multi_do, state);
             break;
         case CURL_POLL_INOUT:
-            qemu_aio_set_fd_handler(fd, curl_multi_do, curl_multi_do, s);
+            qemu_aio_set_fd_handler(fd, curl_multi_read, curl_multi_do, state);
             break;
         case CURL_POLL_REMOVE:
             qemu_aio_set_fd_handler(fd, NULL, NULL, NULL);
@@ -236,7 +242,7 @@ static int curl_find_buf(BDRVCURLState *s, size_t start, size_t len,
     return FIND_RET_NONE;
 }
 
-static void curl_multi_read(BDRVCURLState *s)
+static void curl_multi_check_completion(BDRVCURLState *s)
 {
     int msgs_in_queue;
 
@@ -286,19 +292,26 @@ static void curl_multi_read(BDRVCURLState *s)
 
 static void curl_multi_do(void *arg)
 {
-    BDRVCURLState *s = (BDRVCURLState *)arg;
+    CURLState *s = (CURLState *)arg;
     int running;
     int r;
 
-    if (!s->multi) {
+    if (!s->s->multi) {
         return;
     }
 
     do {
-        r = curl_multi_socket_all(s->multi, &running);
+        r = curl_multi_socket_action(s->s->multi, s->sock_fd, 0, &running);
     } while(r == CURLM_CALL_MULTI_PERFORM);
 
-    curl_multi_read(s);
+}
+
+static void curl_multi_read(void *arg)
+{
+    CURLState *s = (CURLState *)arg;
+
+    curl_multi_do(arg);
+    curl_multi_check_completion(s->s);
 }
 
 static void curl_multi_timeout_do(void *arg)
@@ -313,7 +326,7 @@ static void curl_multi_timeout_do(void *arg)
 
     curl_multi_socket_action(s->multi, CURL_SOCKET_TIMEOUT, 0, &running);
 
-    curl_multi_read(s);
+    curl_multi_check_completion(s);
 #else
     abort();
 #endif
@@ -529,7 +542,6 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     // initialize the multi interface!
 
     s->multi = curl_multi_init();
-    curl_multi_setopt(s->multi, CURLMOPT_SOCKETDATA, s);
     curl_multi_setopt(s->multi, CURLMOPT_SOCKETFUNCTION, curl_sock_cb);
 #ifdef NEED_CURL_TIMER_CALLBACK
     curl_multi_setopt(s->multi, CURLMOPT_TIMERDATA, s);
