@@ -109,6 +109,8 @@ typedef struct VirtualConsole
 {
     GtkWidget *menu_item;
 #if defined(CONFIG_VTE)
+    GtkWidget *box;
+    GtkWidget *scrollbar;
     GtkWidget *terminal;
     CharDriverState *chr;
 #endif
@@ -1125,6 +1127,18 @@ static gboolean gd_focus_out_event(GtkWidget *widget,
 /** Virtual Console Callbacks **/
 
 #if defined(CONFIG_VTE)
+static void gd_vc_adjustment_changed(GtkAdjustment *adjustment, void *opaque)
+{
+    VirtualConsole *vc = opaque;
+
+    if (gtk_adjustment_get_upper(adjustment) >
+        gtk_adjustment_get_page_size(adjustment)) {
+        gtk_widget_show(vc->scrollbar);
+    } else {
+        gtk_widget_hide(vc->scrollbar);
+    }
+}
+
 static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     VirtualConsole *vc = chr->opaque;
@@ -1165,6 +1179,9 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     const char *label;
     char buffer[32];
     char path[32];
+    GtkWidget *box;
+    GtkWidget *scrollbar;
+    GtkAdjustment *vadjustment;
 
     snprintf(buffer, sizeof(buffer), "vc%d", index);
     snprintf(path, sizeof(path), "<QEMU>/View/VC%d", index);
@@ -1186,12 +1203,33 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     g_signal_connect(vc->terminal, "commit", G_CALLBACK(gd_vc_in), vc);
 
     vte_terminal_set_scrollback_lines(VTE_TERMINAL(vc->terminal), -1);
-
     vte_terminal_set_size(VTE_TERMINAL(vc->terminal), 80, 25);
 
-    vc->chr->opaque = vc;
+#if VTE_CHECK_VERSION(0, 28, 0) && GTK_CHECK_VERSION(3, 0, 0)
+    vadjustment = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(vc->terminal));
+#else
+    vadjustment = vte_terminal_get_adjustment(VTE_TERMINAL(vc->terminal));
+#endif
 
-    gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), vc->terminal,
+#if GTK_CHECK_VERSION(3, 0, 0)
+    box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    scrollbar = gtk_scrollbar_new(GTK_ORIENTATION_VERTICAL, vadjustment);
+#else
+    box = gtk_hbox_new(false, 2);
+    scrollbar = gtk_vscrollbar_new(vadjustment);
+#endif
+
+    gtk_box_pack_start(GTK_BOX(box), vc->terminal, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(box), scrollbar, FALSE, FALSE, 0);
+
+    vc->chr->opaque = vc;
+    vc->box = box;
+    vc->scrollbar = scrollbar;
+
+    g_signal_connect(vadjustment, "changed",
+                     G_CALLBACK(gd_vc_adjustment_changed), vc);
+
+    gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), box,
                              gtk_label_new(label));
     g_signal_connect(vc->menu_item, "activate",
                      G_CALLBACK(gd_menu_switch_vc), s);
