@@ -143,10 +143,7 @@ endif # CONFIG_SOFTMMU
 %/translate.o: QEMU_CFLAGS += $(TRANSLATE_OPT_CFLAGS)
 
 dummy := $(call unnest-vars,,obj-y)
-
-# we are making another call to unnest-vars with different vars, protect obj-y,
-# it can be overriden in subdir Makefile.objs
-obj-y-save := $(obj-y)
+all-obj-y := $(obj-y)
 
 block-obj-y :=
 common-obj-y :=
@@ -156,11 +153,7 @@ dummy := $(call unnest-vars,.., \
                block-obj-m \
                common-obj-y \
                common-obj-m)
-
-# Now restore obj-y
-obj-y := $(obj-y-save)
-
-all-obj-y = $(obj-y) $(common-obj-y)
+all-obj-y += $(common-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(block-obj-y)
 
 ifndef CONFIG_HAIKU
