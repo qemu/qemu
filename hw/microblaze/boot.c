@@ -148,7 +148,7 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, hwaddr ddr_base,
                                    big_endian, ELF_MACHINE, 0);
         }
         /* Always boot into physical ram.  */
-        boot_info.bootstrap_pc = ddr_base + (entry & 0x0fffffff);
+        boot_info.bootstrap_pc = (uint32_t)entry;
 
         /* If it wasn't an ELF image, try an u-boot image.  */
         if (kernel_size < 0) {
