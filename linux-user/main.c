@@ -4051,8 +4051,6 @@ int main(int argc, char **argv, char **envp)
 #endif
 
 #if defined(TARGET_I386)
-    cpu_x86_set_cpl(env, 3);
-
     env->cr[0] = CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK;
     env->hflags |= HF_PE_MASK;
     if (env->features[FEAT_1_EDX] & CPUID_SSE) {

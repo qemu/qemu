@@ -282,9 +282,6 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
                           env->vm_vmcb + offsetof(struct vmcb, save.dr7));
     env->dr[6] = ldq_phys(cs->as,
                           env->vm_vmcb + offsetof(struct vmcb, save.dr6));
-    cpu_x86_set_cpl(env, ldub_phys(cs->as,
-                                   env->vm_vmcb + offsetof(struct vmcb,
-                                                           save.cpl)));
 
     /* FIXME: guest state consistency checks */
 
@@ -729,7 +726,6 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
                           env->vm_hsave + offsetof(struct vmcb, save.dr7));
 
     /* other setups */
-    cpu_x86_set_cpl(env, 0);
     stq_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb, control.exit_code),
              exit_code);
     stq_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb, control.exit_info_1),
