@@ -155,7 +155,7 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
     DPRINTF("CURL: Just reading %zd bytes\n", realsize);
 
     if (!s || !s->orig_buf)
-        goto read_end;
+        return 0;
 
     if (s->buf_off >= s->buf_len) {
         /* buffer full, read nothing */
@@ -180,7 +180,6 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
         }
     }
 
-read_end:
     return realsize;
 }
 
