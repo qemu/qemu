@@ -535,7 +535,6 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     curl_multi_setopt(s->multi, CURLMOPT_TIMERDATA, s);
     curl_multi_setopt(s->multi, CURLMOPT_TIMERFUNCTION, curl_timer_cb);
 #endif
-    curl_multi_do(s);
 
     qemu_opts_del(opts);
     return 0;
@@ -564,6 +563,7 @@ static const AIOCBInfo curl_aiocb_info = {
 static void curl_readv_bh_cb(void *p)
 {
     CURLState *state;
+    int running;
 
     CURLAIOCB *acb = p;
     BDRVCURLState *s = acb->common.bs->opaque;
@@ -612,8 +612,9 @@ static void curl_readv_bh_cb(void *p)
     curl_easy_setopt(state->curl, CURLOPT_RANGE, state->range);
 
     curl_multi_add_handle(s->multi, state->curl);
-    curl_multi_do(s);
 
+    /* Tell curl it needs to kick things off */
+    curl_multi_socket_action(s->multi, CURL_SOCKET_TIMEOUT, 0, &running);
 }
 
 static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,
