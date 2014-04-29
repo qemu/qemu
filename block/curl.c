@@ -220,7 +220,8 @@ static int curl_find_buf(BDRVCURLState *s, size_t start, size_t len,
         }
 
         // Wait for unfinished chunks
-        if ((start >= state->buf_start) &&
+        if (state->in_use &&
+            (start >= state->buf_start) &&
             (start <= buf_fend) &&
             (end >= state->buf_start) &&
             (end <= buf_fend))
