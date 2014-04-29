@@ -411,7 +411,7 @@ static int sys_inotify_init1(int flags)
 #endif
 #define __NR_sys_ppoll __NR_ppoll
 _syscall5(int, sys_ppoll, struct pollfd *, fds, nfds_t, nfds,
-          struct timespec *, timeout, const __sigset_t *, sigmask,
+          struct timespec *, timeout, const sigset_t *, sigmask,
           size_t, sigsetsize)
 #endif
 
