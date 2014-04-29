@@ -32,6 +32,7 @@ enum qxl_mode {
 
 typedef struct PCIQXLDevice {
     PCIDevice          pci;
+    PortioList         vga_port_list;
     SimpleSpiceDisplay ssd;
     int                id;
     uint32_t           debug;

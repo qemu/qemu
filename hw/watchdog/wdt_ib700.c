@@ -42,6 +42,8 @@ typedef struct IB700state {
     ISADevice parent_obj;
 
     QEMUTimer *timer;
+
+    PortioList port_list;
 } IB700State;
 
 /* This is the timer.  We use a global here because the watchdog
@@ -106,14 +108,13 @@ static const MemoryRegionPortio wdt_portio_list[] = {
 static void wdt_ib700_realize(DeviceState *dev, Error **errp)
 {
     IB700State *s = IB700(dev);
-    PortioList *port_list = g_new(PortioList, 1);
 
     ib700_debug("watchdog init\n");
 
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ib700_timer_expired, s);
 
-    portio_list_init(port_list, OBJECT(s), wdt_portio_list, s, "ib700");
-    portio_list_add(port_list, isa_address_space_io(&s->parent_obj), 0);
+    portio_list_init(&s->port_list, OBJECT(s), wdt_portio_list, s, "ib700");
+    portio_list_add(&s->port_list, isa_address_space_io(&s->parent_obj), 0);
 }
 
 static void wdt_ib700_reset(DeviceState *dev)
