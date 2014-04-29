@@ -228,6 +228,7 @@ endef
 define unnest-vars
 $(eval obj := $1)
 $(eval nested-vars := $2)
+$(foreach v,$(nested-vars),$(call fix-obj-vars,$v,$(if $(obj),$(obj)/)))
 $(eval old-nested-dirs := )
 $(call unnest-vars-1)
 $(if $1,$(foreach v,$(nested-vars),$(eval \
