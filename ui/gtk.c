@@ -108,8 +108,8 @@ static const int modifier_keycode[] = {
 typedef struct VirtualConsole
 {
     GtkWidget *menu_item;
-    GtkWidget *terminal;
 #if defined(CONFIG_VTE)
+    GtkWidget *terminal;
     CharDriverState *chr;
 #endif
 } VirtualConsole;
@@ -1124,13 +1124,12 @@ static gboolean gd_focus_out_event(GtkWidget *widget,
 
 /** Virtual Console Callbacks **/
 
+#if defined(CONFIG_VTE)
 static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
-#if defined(CONFIG_VTE)
     VirtualConsole *vc = chr->opaque;
 
     vte_terminal_feed(VTE_TERMINAL(vc->terminal), (const char *)buf, len);
-#endif
     return len;
 }
 
@@ -1151,12 +1150,6 @@ static CharDriverState *gd_vc_handler(ChardevVC *unused)
     return chr;
 }
 
-void early_gtk_display_init(void)
-{
-    register_vc_handler(gd_vc_handler);
-}
-
-#if defined(CONFIG_VTE)
 static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
                          gpointer user_data)
 {
@@ -1165,12 +1158,10 @@ static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
     qemu_chr_be_write(vc->chr, (uint8_t  *)text, (unsigned int)size);
     return TRUE;
 }
-#endif
 
 static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSList *group,
                           GtkWidget *view_menu)
 {
-#if defined(CONFIG_VTE)
     const char *label;
     char buffer[32];
     char path[32];
@@ -1212,9 +1203,22 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
         vc->chr->init(vc->chr);
     }
 
-#endif /* CONFIG_VTE */
     return group;
 }
+
+static void gd_vcs_init(GtkDisplayState *s, GSList *group,
+                        GtkWidget *view_menu)
+{
+    int i;
+
+    for (i = 0; i < nb_vcs; i++) {
+        VirtualConsole *vc = &s->vc[i];
+
+        group = gd_vc_init(s, vc, i, group, view_menu);
+        s->nb_vcs++;
+    }
+}
+#endif /* CONFIG_VTE */
 
 /** Window Creation **/
 
@@ -1316,7 +1320,6 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_g
     GSList *group = NULL;
     GtkWidget *view_menu;
     GtkWidget *separator;
-    int i;
 
     view_menu = gtk_menu_new();
     gtk_menu_set_accel_group(GTK_MENU(view_menu), accel_group);
@@ -1378,12 +1381,9 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_g
     gtk_accel_map_add_entry("<QEMU>/View/VGA", GDK_KEY_1, HOTKEY_MODIFIERS);
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->vga_item);
 
-    for (i = 0; i < nb_vcs; i++) {
-        VirtualConsole *vc = &s->vc[i];
-
-        group = gd_vc_init(s, vc, i, group, view_menu);
-        s->nb_vcs++;
-    }
+#if defined(CONFIG_VTE)
+    gd_vcs_init(s, group, view_menu);
+#endif
 
     separator = gtk_separator_menu_item_new();
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), separator);
@@ -1511,4 +1511,11 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
     register_displaychangelistener(&s->dcl);
 
     global_state = s;
+}
+
+void early_gtk_display_init(void)
+{
+#if defined(CONFIG_VTE)
+    register_vc_handler(gd_vc_handler);
+#endif
 }
