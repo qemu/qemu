@@ -337,8 +337,7 @@ static CURLState *curl_init_state(BDRVCURLState *s)
             break;
         }
         if (!state) {
-            g_usleep(100);
-            curl_multi_do(s);
+            qemu_aio_wait();
         }
     } while(!state);
 
