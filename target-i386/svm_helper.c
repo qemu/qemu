@@ -703,7 +703,8 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
     cpu_load_eflags(env, ldq_phys(cs->as,
                                   env->vm_hsave + offsetof(struct vmcb,
                                                            save.rflags)),
-                    ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
+                    ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK |
+                      VM_MASK));
     CC_OP = CC_OP_EFLAGS;
 
     svm_load_seg_cache(env, env->vm_hsave + offsetof(struct vmcb, save.es),
@@ -755,10 +756,6 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
     /* If the host is in PAE mode, the processor reloads the host's PDPEs
        from the page table indicated the host's CR3. If the PDPEs contain
        illegal state, the processor causes a shutdown. */
-
-    /* Forces CR0.PE = 1, RFLAGS.VM = 0. */
-    env->cr[0] |= CR0_PE_MASK;
-    env->eflags &= ~VM_MASK;
 
     /* Disables all breakpoints in the host DR7 register. */
 
