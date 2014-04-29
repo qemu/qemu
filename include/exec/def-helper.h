@@ -84,7 +84,7 @@
 #define dh_is_64bit_noreturn 0
 #define dh_is_64bit_i32 0
 #define dh_is_64bit_i64 1
-#define dh_is_64bit_ptr (TCG_TARGET_REG_BITS == 64)
+#define dh_is_64bit_ptr (sizeof(void *) == 8)
 #define dh_is_64bit(t) glue(dh_is_64bit_, dh_alias(t))
 
 #define dh_is_signed_void 0

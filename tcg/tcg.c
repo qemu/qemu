@@ -664,7 +664,36 @@ void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
     int nb_rets;
     TCGArg *nparam;
 
-#if defined(TCG_TARGET_EXTEND_ARGS) && TCG_TARGET_REG_BITS == 64
+#if defined(__sparc__) && !defined(__arch64__) \
+    && !defined(CONFIG_TCG_INTERPRETER)
+    /* We have 64-bit values in one register, but need to pass as two
+       separate parameters.  Split them.  */
+    int orig_sizemask = sizemask;
+    int orig_nargs = nargs;
+    TCGv_i64 retl, reth;
+
+    TCGV_UNUSED_I64(retl);
+    TCGV_UNUSED_I64(reth);
+    if (sizemask != 0) {
+        TCGArg *split_args = __builtin_alloca(sizeof(TCGArg) * nargs * 2);
+        for (i = real_args = 0; i < nargs; ++i) {
+            int is_64bit = sizemask & (1 << (i+1)*2);
+            if (is_64bit) {
+                TCGv_i64 orig = MAKE_TCGV_I64(args[i]);
+                TCGv_i32 h = tcg_temp_new_i32();
+                TCGv_i32 l = tcg_temp_new_i32();
+                tcg_gen_extr_i64_i32(l, h, orig);
+                split_args[real_args++] = GET_TCGV_I32(h);
+                split_args[real_args++] = GET_TCGV_I32(l);
+            } else {
+                split_args[real_args++] = args[i];
+            }
+        }
+        nargs = real_args;
+        args = split_args;
+        sizemask = 0;
+    }
+#elif defined(TCG_TARGET_EXTEND_ARGS) && TCG_TARGET_REG_BITS == 64
     for (i = 0; i < nargs; ++i) {
         int is_64bit = sizemask & (1 << (i+1)*2);
         int is_signed = sizemask & (2 << (i+1)*2);
@@ -684,8 +713,23 @@ void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
     *s->gen_opc_ptr++ = INDEX_op_call;
     nparam = s->gen_opparam_ptr++;
     if (ret != TCG_CALL_DUMMY_ARG) {
-#if TCG_TARGET_REG_BITS < 64
-        if (sizemask & 1) {
+#if defined(__sparc__) && !defined(__arch64__) \
+    && !defined(CONFIG_TCG_INTERPRETER)
+        if (orig_sizemask & 1) {
+            /* The 32-bit ABI is going to return the 64-bit value in
+               the %o0/%o1 register pair.  Prepare for this by using
+               two return temporaries, and reassemble below.  */
+            retl = tcg_temp_new_i64();
+            reth = tcg_temp_new_i64();
+            *s->gen_opparam_ptr++ = GET_TCGV_I64(reth);
+            *s->gen_opparam_ptr++ = GET_TCGV_I64(retl);
+            nb_rets = 2;
+        } else {
+            *s->gen_opparam_ptr++ = ret;
+            nb_rets = 1;
+        }
+#else
+        if (TCG_TARGET_REG_BITS < 64 && (sizemask & 1)) {
 #ifdef HOST_WORDS_BIGENDIAN
             *s->gen_opparam_ptr++ = ret + 1;
             *s->gen_opparam_ptr++ = ret;
@@ -694,12 +738,11 @@ void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
             *s->gen_opparam_ptr++ = ret + 1;
 #endif
             nb_rets = 2;
-        } else
-#endif
-        {
+        } else {
             *s->gen_opparam_ptr++ = ret;
             nb_rets = 1;
         }
+#endif
     } else {
         nb_rets = 0;
     }
@@ -749,7 +792,29 @@ void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
     /* total parameters, needed to go backward in the instruction stream */
     *s->gen_opparam_ptr++ = 1 + nb_rets + real_args + 3;
 
-#if defined(TCG_TARGET_EXTEND_ARGS) && TCG_TARGET_REG_BITS == 64
+#if defined(__sparc__) && !defined(__arch64__) \
+    && !defined(CONFIG_TCG_INTERPRETER)
+    /* Free all of the parts we allocated above.  */
+    for (i = real_args = 0; i < orig_nargs; ++i) {
+        int is_64bit = orig_sizemask & (1 << (i+1)*2);
+        if (is_64bit) {
+            TCGv_i32 h = MAKE_TCGV_I32(args[real_args++]);
+            TCGv_i32 l = MAKE_TCGV_I32(args[real_args++]);
+            tcg_temp_free_i32(h);
+            tcg_temp_free_i32(l);
+        } else {
+            real_args++;
+        }
+    }
+    if (orig_sizemask & 1) {
+        /* The 32-bit ABI returned two 32-bit pieces.  Re-assemble them.
+           Note that describing these as TCGv_i64 eliminates an unnecessary
+           zero-extension that tcg_gen_concat_i32_i64 would create.  */
+        tcg_gen_concat32_i64(MAKE_TCGV_I64(ret), retl, reth);
+        tcg_temp_free_i64(retl);
+        tcg_temp_free_i64(reth);
+    }
+#elif defined(TCG_TARGET_EXTEND_ARGS) && TCG_TARGET_REG_BITS == 64
     for (i = 0; i < nargs; ++i) {
         int is_64bit = sizemask & (1 << (i+1)*2);
         if (!is_64bit) {
@@ -2411,6 +2476,7 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
         ts = &s->temps[arg];
         reg = tcg_target_call_oarg_regs[i];
         assert(s->reg_to_temp[reg] == -1);
+
         if (ts->fixed_reg) {
             if (ts->reg != reg) {
                 tcg_out_mov(s, ts->type, ts->reg, reg);
