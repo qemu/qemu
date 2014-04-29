@@ -653,6 +653,13 @@ retry:
             goto retry;
         }
     }
+
+    /* Make sure that all offsets in the "allocated" range are representable
+     * in an int64_t */
+    if (s->free_cluster_index - 1 > (INT64_MAX >> s->cluster_bits)) {
+        return -EFBIG;
+    }
+
 #ifdef DEBUG_ALLOC2
     fprintf(stderr, "alloc_clusters: size=%" PRId64 " -> %" PRId64 "\n",
             size,
