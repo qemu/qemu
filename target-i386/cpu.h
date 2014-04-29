@@ -797,6 +797,10 @@ typedef struct CPUX86State {
     target_ulong cr[5]; /* NOTE: cr1 is unused */
     int32_t a20_mask;
 
+    BNDReg bnd_regs[4];
+    BNDCSReg bndcs_regs;
+    uint64_t msr_bndcfgs;
+
     /* FPU state */
     unsigned int fpstt; /* top of stack index */
     uint16_t fpus;
@@ -818,6 +822,8 @@ typedef struct CPUX86State {
     XMMReg xmm_regs[CPU_NB_REGS];
     XMMReg xmm_t0;
     MMXReg mmx_t0;
+
+    XMMReg ymmh_regs[CPU_NB_REGS];
 
     /* sysenter registers */
     uint32_t sysenter_cs;
@@ -928,12 +934,7 @@ typedef struct CPUX86State {
     uint16_t fpus_vmstate;
     uint16_t fptag_vmstate;
     uint16_t fpregs_format_vmstate;
-
     uint64_t xstate_bv;
-    XMMReg ymmh_regs[CPU_NB_REGS];
-    BNDReg bnd_regs[4];
-    BNDCSReg bndcs_regs;
-    uint64_t msr_bndcfgs;
 
     uint64_t xcr0;
 
