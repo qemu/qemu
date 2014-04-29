@@ -726,6 +726,16 @@ S: Odd Fixes
 F: gdbstub*
 F: gdb-xml/
 
+Memory API
+M: Paolo Bonzini <pbonzini@redhat.com>
+S: Supported
+F: include/exec/ioport.h
+F: ioport.c
+F: include/exec/memory.h
+F: memory.c
+F: include/exec/memory-internal.h
+F: exec.c
+
 SPICE
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Supported
