@@ -42,6 +42,13 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     if (min_size <= s->l1_size)
         return 0;
 
+    /* Do a sanity check on min_size before trying to calculate new_l1_size
+     * (this prevents overflows during the while loop for the calculation of
+     * new_l1_size) */
+    if (min_size > INT_MAX / sizeof(uint64_t)) {
+        return -EFBIG;
+    }
+
     if (exact_size) {
         new_l1_size = min_size;
     } else {
