@@ -801,6 +801,8 @@ typedef struct CPUX86State {
     XMMReg xmm_t0;
     MMXReg mmx_t0;
 
+    XMMReg ymmh_regs[CPU_NB_REGS];
+
     /* sysenter registers */
     uint32_t sysenter_cs;
     target_ulong sysenter_esp;
@@ -909,9 +911,7 @@ typedef struct CPUX86State {
     uint16_t fpus_vmstate;
     uint16_t fptag_vmstate;
     uint16_t fpregs_format_vmstate;
-
     uint64_t xstate_bv;
-    XMMReg ymmh_regs[CPU_NB_REGS];
 
     uint64_t xcr0;
 
