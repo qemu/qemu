@@ -1058,17 +1058,10 @@ static void gd_change_page(GtkNotebook *nb, gpointer arg1, guint arg2,
                            gpointer data)
 {
     GtkDisplayState *s = data;
-    guint last_page;
     gboolean on_vga;
 
     if (!gtk_widget_get_realized(s->notebook)) {
         return;
-    }
-
-    last_page = gtk_notebook_get_current_page(nb);
-
-    if (last_page) {
-        gtk_widget_set_size_request(s->vc[last_page - 1].terminal, -1, -1);
     }
 
     on_vga = arg2 == 0;
@@ -1086,14 +1079,7 @@ static void gd_change_page(GtkNotebook *nb, gpointer arg1, guint arg2,
     } else {
 #if defined(CONFIG_VTE)
         VirtualConsole *vc = &s->vc[arg2 - 1];
-        VteTerminal *term = VTE_TERMINAL(vc->terminal);
-        int width, height;
-
-        width = 80 * vte_terminal_get_char_width(term);
-        height = 25 * vte_terminal_get_char_height(term);
-
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(vc->menu_item), TRUE);
-        gtk_widget_set_size_request(vc->terminal, width, height);
 #else
         g_assert_not_reached();
 #endif
