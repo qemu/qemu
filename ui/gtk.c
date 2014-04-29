@@ -110,7 +110,6 @@ typedef struct VirtualConsole
     GtkWidget *menu_item;
     GtkWidget *terminal;
 #if defined(CONFIG_VTE)
-    GtkWidget *scrolled_window;
     CharDriverState *chr;
 #endif
 } VirtualConsole;
@@ -1189,8 +1188,6 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     const char *label;
     char buffer[32];
     char path[32];
-    GtkWidget *scrolled_window;
-    GtkAdjustment *vadjustment;
 
     snprintf(buffer, sizeof(buffer), "vc%d", index);
     snprintf(path, sizeof(path), "<QEMU>/View/VC%d", index);
@@ -1213,24 +1210,12 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
 
     vte_terminal_set_scrollback_lines(VTE_TERMINAL(vc->terminal), -1);
 
-#if VTE_CHECK_VERSION(0, 28, 0) && GTK_CHECK_VERSION(3, 0, 0)
-    vadjustment = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(vc->terminal));
-#else
-    vadjustment = vte_terminal_get_adjustment(VTE_TERMINAL(vc->terminal));
-#endif
-
-    scrolled_window = gtk_scrolled_window_new(NULL, vadjustment);
-    gtk_container_add(GTK_CONTAINER(scrolled_window), vc->terminal);
-
     vte_terminal_set_size(VTE_TERMINAL(vc->terminal), 80, 25);
 
     vc->chr->opaque = vc;
-    vc->scrolled_window = scrolled_window;
 
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(vc->scrolled_window),
-                                   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-
-    gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), scrolled_window, gtk_label_new(label));
+    gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), vc->terminal,
+                             gtk_label_new(label));
     g_signal_connect(vc->menu_item, "activate",
                      G_CALLBACK(gd_menu_switch_vc), s);
 
