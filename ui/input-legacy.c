@@ -74,38 +74,44 @@ int index_from_key(const char *key)
     return i;
 }
 
-static int *keycodes;
-static int keycodes_size;
+static KeyValue **keyvalues;
+static int keyvalues_size;
 static QEMUTimer *key_timer;
 
-static void free_keycodes(void)
+static void free_keyvalues(void)
 {
-    g_free(keycodes);
-    keycodes = NULL;
-    keycodes_size = 0;
+    g_free(keyvalues);
+    keyvalues = NULL;
+    keyvalues_size = 0;
 }
 
 static void release_keys(void *opaque)
 {
-    while (keycodes_size > 0) {
-        qemu_input_event_send_key_number(NULL, keycodes[--keycodes_size],
-                                         false);
+    while (keyvalues_size > 0) {
+        qemu_input_event_send_key(NULL, keyvalues[--keyvalues_size],
+                                  false);
     }
 
-    free_keycodes();
+    free_keyvalues();
+}
+
+static KeyValue *copy_key_value(KeyValue *src)
+{
+    KeyValue *dst = g_new(KeyValue, 1);
+    memcpy(dst, src, sizeof(*src));
+    return dst;
 }
 
 void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
                   Error **errp)
 {
-    int keycode;
     KeyValueList *p;
 
     if (!key_timer) {
         key_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, release_keys, NULL);
     }
 
-    if (keycodes != NULL) {
+    if (keyvalues != NULL) {
         timer_del(key_timer);
         release_keys(NULL);
     }
@@ -115,23 +121,16 @@ void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
     }
 
     for (p = keys; p != NULL; p = p->next) {
-        /* key down events */
-        keycode = qemu_input_key_value_to_number(p->value);
-        if (keycode < 0x01 || keycode > 0xff) {
-            error_setg(errp, "invalid hex keycode 0x%x", keycode);
-            free_keycodes();
-            return;
-        }
+        qemu_input_event_send_key(NULL, copy_key_value(p->value), true);
 
-        qemu_input_event_send_key_number(NULL, keycode, true);
-
-        keycodes = g_realloc(keycodes, sizeof(int) * (keycodes_size + 1));
-        keycodes[keycodes_size++] = keycode;
+        keyvalues = g_realloc(keyvalues, sizeof(KeyValue *) *
+                              (keyvalues_size + 1));
+        keyvalues[keyvalues_size++] = copy_key_value(p->value);
     }
 
     /* delayed key up events */
     timer_mod(key_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                   muldiv64(get_ticks_per_sec(), hold_time, 1000));
+              muldiv64(get_ticks_per_sec(), hold_time, 1000));
 }
 
 static void legacy_kbd_event(DeviceState *dev, QemuConsole *src,
