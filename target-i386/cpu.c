@@ -1815,6 +1815,16 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
     return cpu_list;
 }
 
+static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w)
+{
+    FeatureWordInfo *wi = &feature_word_info[w];
+
+    assert(kvm_enabled());
+    return kvm_arch_get_supported_cpuid(kvm_state, wi->cpuid_eax,
+                                                   wi->cpuid_ecx,
+                                                   wi->cpuid_reg);
+}
+
 /*
  * Filters CPU feature words based on host availability of each feature.
  *
@@ -1822,20 +1832,14 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
  *
  * Returns: 0 if all flags are supported by the host, non-zero otherwise.
  */
-static int filter_features_for_kvm(X86CPU *cpu)
+static int x86_cpu_filter_features(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
-    KVMState *s = kvm_state;
     FeatureWord w;
     int rv = 0;
 
-    assert(kvm_enabled());
-
     for (w = 0; w < FEATURE_WORDS; w++) {
-        FeatureWordInfo *wi = &feature_word_info[w];
-        uint32_t host_feat = kvm_arch_get_supported_cpuid(s, wi->cpuid_eax,
-                                                             wi->cpuid_ecx,
-                                                             wi->cpuid_reg);
+        uint32_t host_feat = x86_cpu_get_supported_feature_word(w);
         uint32_t requested_features = env->features[w];
         env->features[w] &= host_feat;
         cpu->filtered_features[w] = requested_features & ~env->features[w];
@@ -2598,7 +2602,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         env->features[FEAT_8000_0001_ECX] &= TCG_EXT3_FEATURES;
         env->features[FEAT_SVM] &= TCG_SVM_FEATURES;
     } else {
-        if (filter_features_for_kvm(cpu) && cpu->enforce_cpuid) {
+        if (x86_cpu_filter_features(cpu) && cpu->enforce_cpuid) {
             error_setg(&local_err,
                        "Host's CPU doesn't support requested features");
             goto out;
