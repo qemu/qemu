@@ -1263,8 +1263,9 @@ static void report_unavailable_features(FeatureWord w, uint32_t mask)
         if (1 << i & mask) {
             const char *reg = get_register_name_32(f->cpuid_reg);
             assert(reg);
-            fprintf(stderr, "warning: host doesn't support requested feature: "
+            fprintf(stderr, "warning: %s doesn't support requested feature: "
                 "CPUID.%02XH:%s%s%s [bit %d]\n",
+                kvm_enabled() ? "host" : "TCG",
                 f->cpuid_eax, reg,
                 f->feat_names[i] ? "." : "",
                 f->feat_names[i] ? f->feat_names[i] : "", i);
@@ -1829,16 +1830,19 @@ static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w)
 {
     FeatureWordInfo *wi = &feature_word_info[w];
 
-    assert(kvm_enabled());
-    return kvm_arch_get_supported_cpuid(kvm_state, wi->cpuid_eax,
-                                                   wi->cpuid_ecx,
-                                                   wi->cpuid_reg);
+    if (kvm_enabled()) {
+        return kvm_arch_get_supported_cpuid(kvm_state, wi->cpuid_eax,
+                                                       wi->cpuid_ecx,
+                                                       wi->cpuid_reg);
+    } else if (tcg_enabled()) {
+        return wi->tcg_features;
+    } else {
+        return ~0;
+    }
 }
 
 /*
  * Filters CPU feature words based on host availability of each feature.
- *
- * This function may be called only if KVM is enabled.
  *
  * Returns: 0 if all flags are supported by the host, non-zero otherwise.
  */
@@ -2596,17 +2600,13 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
            & CPUID_EXT2_AMD_ALIASES);
     }
 
-    if (!kvm_enabled()) {
-        FeatureWord w;
-        for (w = 0; w < FEATURE_WORDS; w++) {
-            env->features[w] &= feature_word_info[w].tcg_features;
-        }
-    } else {
-        if (x86_cpu_filter_features(cpu) && cpu->enforce_cpuid) {
-            error_setg(&local_err,
-                       "Host's CPU doesn't support requested features");
-            goto out;
-        }
+
+    if (x86_cpu_filter_features(cpu) && cpu->enforce_cpuid) {
+        error_setg(&local_err,
+                   kvm_enabled() ?
+                       "Host doesn't support requested features" :
+                       "TCG doesn't support requested features");
+        goto out;
     }
 
 #ifndef CONFIG_USER_ONLY
