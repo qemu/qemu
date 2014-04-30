@@ -1206,6 +1206,26 @@ static gboolean gd_focus_out_event(GtkWidget *widget,
 
 /** Virtual Console Callbacks **/
 
+static GSList *gd_vc_menu_init(GtkDisplayState *s, VirtualConsole *vc,
+                               const char *label, int idx,
+                               GSList *group, GtkWidget *view_menu)
+{
+    char path[32];
+
+    snprintf(path, sizeof(path), "<QEMU>/View/VC%d", idx);
+
+    vc->menu_item = gtk_radio_menu_item_new_with_mnemonic(group, label);
+    group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(vc->menu_item));
+    gtk_menu_item_set_accel_path(GTK_MENU_ITEM(vc->menu_item), path);
+    gtk_accel_map_add_entry(path, GDK_KEY_1 + idx, HOTKEY_MODIFIERS);
+
+    g_signal_connect(vc->menu_item, "activate",
+                     G_CALLBACK(gd_menu_switch_vc), s);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), vc->menu_item);
+
+    return group;
+}
+
 #if defined(CONFIG_VTE)
 static void gd_vc_adjustment_changed(GtkAdjustment *adjustment, void *opaque)
 {
@@ -1253,32 +1273,22 @@ static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
     return TRUE;
 }
 
-static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc, int index,
+static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
+                              CharDriverState *chr, int idx,
                               GSList *group, GtkWidget *view_menu)
 {
     const char *label;
     char buffer[32];
-    char path[32];
     GtkWidget *box;
     GtkWidget *scrollbar;
     GtkAdjustment *vadjustment;
 
-    snprintf(buffer, sizeof(buffer), "vc%d", index);
-    snprintf(path, sizeof(path), "<QEMU>/View/VC%d", index);
-
     vc->s = s;
-    vc->vte.chr = vcs[index];
+    vc->vte.chr = chr;
 
-    if (vc->vte.chr->label) {
-        label = vc->vte.chr->label;
-    } else {
-        label = buffer;
-    }
-
-    vc->menu_item = gtk_radio_menu_item_new_with_mnemonic(group, label);
-    group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(vc->menu_item));
-    gtk_menu_item_set_accel_path(GTK_MENU_ITEM(vc->menu_item), path);
-    gtk_accel_map_add_entry(path, GDK_KEY_2 + index, HOTKEY_MODIFIERS);
+    snprintf(buffer, sizeof(buffer), "vc%d", idx);
+    label = vc->vte.chr->label ? vc->vte.chr->label : buffer;
+    group = gd_vc_menu_init(s, vc, vc->vte.chr->label, idx, group, view_menu);
 
     vc->vte.terminal = vte_terminal_new();
     g_signal_connect(vc->vte.terminal, "commit", G_CALLBACK(gd_vc_in), vc);
@@ -1315,10 +1325,6 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc, int index,
     vc->tab_item = box;
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), vc->tab_item,
                              gtk_label_new(label));
-    g_signal_connect(vc->menu_item, "activate",
-                     G_CALLBACK(gd_menu_switch_vc), s);
-
-    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), vc->menu_item);
 
     qemu_chr_be_generic_open(vc->vte.chr);
     if (vc->vte.chr->init) {
@@ -1328,15 +1334,14 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc, int index,
     return group;
 }
 
-static void gd_vcs_init(GtkDisplayState *s, int offset, GSList *group,
+static void gd_vcs_init(GtkDisplayState *s, GSList *group,
                         GtkWidget *view_menu)
 {
     int i;
 
     for (i = 0; i < nb_vcs; i++) {
-        VirtualConsole *vc = &s->vc[offset+i];
-
-        group = gd_vc_vte_init(s, vc, i, group, view_menu);
+        VirtualConsole *vc = &s->vc[s->nb_vcs];
+        group = gd_vc_vte_init(s, vc, vcs[i], s->nb_vcs, group, view_menu);
         s->nb_vcs++;
     }
 }
@@ -1449,7 +1454,7 @@ static const DisplayChangeListenerOps dcl_ops = {
 };
 
 static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
-                              QemuConsole *con, int index,
+                              QemuConsole *con, int idx,
                               GSList *group, GtkWidget *view_menu)
 {
     vc->s = s;
@@ -1475,15 +1480,7 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
                              vc->tab_item, gtk_label_new("VGA"));
     gd_connect_vc_gfx_signals(vc);
 
-    vc->menu_item = gtk_radio_menu_item_new_with_mnemonic(group, "_VGA");
-    group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(vc->menu_item));
-    gtk_menu_item_set_accel_path(GTK_MENU_ITEM(vc->menu_item),
-                                 "<QEMU>/View/VGA");
-    gtk_accel_map_add_entry("<QEMU>/View/VGA", GDK_KEY_1, HOTKEY_MODIFIERS);
-    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), vc->menu_item);
-
-    g_signal_connect(vc->menu_item, "activate",
-                     G_CALLBACK(gd_menu_switch_vc), s);
+    group = gd_vc_menu_init(s, vc, "VGA", idx, group, view_menu);
 
     vc->gfx.dcl.ops = &dcl_ops;
     vc->gfx.dcl.con = con;
@@ -1497,6 +1494,8 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_g
     GSList *group = NULL;
     GtkWidget *view_menu;
     GtkWidget *separator;
+    QemuConsole *con;
+    int vc;
 
     view_menu = gtk_menu_new();
     gtk_menu_set_accel_group(GTK_MENU(view_menu), accel_group);
@@ -1552,12 +1551,19 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_g
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), separator);
 
     /* gfx */
-    group = gd_vc_gfx_init(s, &s->vc[0], qemu_console_lookup_by_index(0), 0,
-                           group, view_menu);
+    for (vc = 0;; vc++) {
+        con = qemu_console_lookup_by_index(vc);
+        if (!con || !qemu_console_is_graphic(con)) {
+            break;
+        }
+        group = gd_vc_gfx_init(s, &s->vc[vc], con,
+                               vc, group, view_menu);
+        s->nb_vcs++;
+    }
 
 #if defined(CONFIG_VTE)
     /* vte */
-    gd_vcs_init(s, 1, group, view_menu);
+    gd_vcs_init(s, group, view_menu);
 #endif
 
     separator = gtk_separator_menu_item_new();
