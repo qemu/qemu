@@ -325,42 +325,51 @@ typedef struct FeatureWordInfo {
     bool cpuid_needs_ecx; /* CPUID instruction uses ECX as input */
     uint32_t cpuid_ecx;   /* Input ECX value for CPUID */
     int cpuid_reg;        /* output register (R_* constant) */
+    uint32_t tcg_features; /* Feature flags supported by TCG */
 } FeatureWordInfo;
 
 static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     [FEAT_1_EDX] = {
         .feat_names = feature_name,
         .cpuid_eax = 1, .cpuid_reg = R_EDX,
+        .tcg_features = TCG_FEATURES,
     },
     [FEAT_1_ECX] = {
         .feat_names = ext_feature_name,
         .cpuid_eax = 1, .cpuid_reg = R_ECX,
+        .tcg_features = TCG_EXT_FEATURES,
     },
     [FEAT_8000_0001_EDX] = {
         .feat_names = ext2_feature_name,
         .cpuid_eax = 0x80000001, .cpuid_reg = R_EDX,
+        .tcg_features = TCG_EXT2_FEATURES,
     },
     [FEAT_8000_0001_ECX] = {
         .feat_names = ext3_feature_name,
         .cpuid_eax = 0x80000001, .cpuid_reg = R_ECX,
+        .tcg_features = TCG_EXT3_FEATURES,
     },
     [FEAT_C000_0001_EDX] = {
         .feat_names = ext4_feature_name,
         .cpuid_eax = 0xC0000001, .cpuid_reg = R_EDX,
+        .tcg_features = TCG_EXT4_FEATURES,
     },
     [FEAT_KVM] = {
         .feat_names = kvm_feature_name,
         .cpuid_eax = KVM_CPUID_FEATURES, .cpuid_reg = R_EAX,
+        .tcg_features = TCG_KVM_FEATURES,
     },
     [FEAT_SVM] = {
         .feat_names = svm_feature_name,
         .cpuid_eax = 0x8000000A, .cpuid_reg = R_EDX,
+        .tcg_features = TCG_SVM_FEATURES,
     },
     [FEAT_7_0_EBX] = {
         .feat_names = cpuid_7_0_ebx_feature_name,
         .cpuid_eax = 7,
         .cpuid_needs_ecx = true, .cpuid_ecx = 0,
         .cpuid_reg = R_EBX,
+        .tcg_features = TCG_7_0_EBX_FEATURES,
     },
 };
 
@@ -2588,14 +2597,10 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
     if (!kvm_enabled()) {
-        env->features[FEAT_1_EDX] &= TCG_FEATURES;
-        env->features[FEAT_1_ECX] &= TCG_EXT_FEATURES;
-        env->features[FEAT_7_0_EBX] &= TCG_7_0_EBX_FEATURES;
-        env->features[FEAT_8000_0001_EDX] &= TCG_EXT2_FEATURES;
-        env->features[FEAT_8000_0001_ECX] &= TCG_EXT3_FEATURES;
-        env->features[FEAT_SVM] &= TCG_SVM_FEATURES;
-        env->features[FEAT_KVM] &= TCG_KVM_FEATURES;
-        env->features[FEAT_C000_0001_EDX] &= TCG_EXT4_FEATURES;
+        FeatureWord w;
+        for (w = 0; w < FEATURE_WORDS; w++) {
+            env->features[w] &= feature_word_info[w].tcg_features;
+        }
     } else {
         if (x86_cpu_filter_features(cpu) && cpu->enforce_cpuid) {
             error_setg(&local_err,
