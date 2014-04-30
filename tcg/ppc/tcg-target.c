@@ -2538,3 +2538,99 @@ void tcg_register_jit(void *buf, size_t buf_size)
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
 #endif /* __ELF__ */
+
+static size_t dcache_bsize = 16;
+static size_t icache_bsize = 16;
+
+void flush_icache_range(uintptr_t start, uintptr_t stop)
+{
+    uintptr_t p, start1, stop1;
+    size_t dsize = dcache_bsize;
+    size_t isize = icache_bsize;
+
+    start1 = start & ~(dsize - 1);
+    stop1 = (stop + dsize - 1) & ~(dsize - 1);
+    for (p = start1; p < stop1; p += dsize) {
+        asm volatile ("dcbst 0,%0" : : "r"(p) : "memory");
+    }
+    asm volatile ("sync" : : : "memory");
+
+    start &= start & ~(isize - 1);
+    stop1 = (stop + isize - 1) & ~(isize - 1);
+    for (p = start1; p < stop1; p += isize) {
+        asm volatile ("icbi 0,%0" : : "r"(p) : "memory");
+    }
+    asm volatile ("sync" : : : "memory");
+    asm volatile ("isync" : : : "memory");
+}
+
+#if defined _AIX
+#include <sys/systemcfg.h>
+
+static void __attribute__((constructor)) tcg_cache_init(void)
+{
+    icache_bsize = _system_configuration.icache_line;
+    dcache_bsize = _system_configuration.dcache_line;
+}
+
+#elif defined __linux__
+static void __attribute__((constructor)) tcg_cache_init(void)
+{
+    unsigned long dsize = qemu_getauxval(AT_DCACHEBSIZE);
+    unsigned long isize = qemu_getauxval(AT_ICACHEBSIZE);
+
+    if (dsize == 0 || isize == 0) {
+        if (dsize == 0) {
+            fprintf(stderr, "getauxval AT_DCACHEBSIZE failed\n");
+        }
+        if (isize == 0) {
+            fprintf(stderr, "getauxval AT_ICACHEBSIZE failed\n");
+        }
+        exit(1);
+    }
+    dcache_bsize = dsize;
+    icache_bsize = isize;
+}
+
+#elif defined __APPLE__
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+static void __attribute__((constructor)) tcg_cache_init(void)
+{
+    size_t len;
+    unsigned cacheline;
+    int name[2] = { CTL_HW, HW_CACHELINE };
+
+    len = sizeof(cacheline);
+    if (sysctl(name, 2, &cacheline, &len, NULL, 0)) {
+        perror("sysctl CTL_HW HW_CACHELINE failed");
+        exit(1);
+    }
+    dcache_bsize = cacheline;
+    icache_bsize = cacheline;
+}
+
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+static void __attribute__((constructor)) tcg_cache_init(void)
+{
+    size_t len = 4;
+    unsigned cacheline;
+
+    if (sysctlbyname ("machdep.cacheline_size", &cacheline, &len, NULL, 0)) {
+        fprintf(stderr, "sysctlbyname machdep.cacheline_size failed: %s\n",
+                strerror(errno));
+        exit(1);
+    }
+    dcache_bsize = cacheline;
+    icache_bsize = cacheline;
+}
+#endif

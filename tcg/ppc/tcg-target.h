@@ -106,4 +106,6 @@ typedef enum {
 #define TCG_TARGET_HAS_mulsh_i64        1
 #endif
 
+void flush_icache_range(uintptr_t start, uintptr_t stop);
+
 #endif
