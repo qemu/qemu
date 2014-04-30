@@ -1089,9 +1089,7 @@ void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
 
 static void tcg_out_call(TCGContext *s, tcg_insn_unit *target)
 {
-#ifdef __APPLE__
-    tcg_out_b(s, LK, target);
-#else
+#ifdef _CALL_AIX
     /* Look through the descriptor.  If the branch is in range, and we
        don't have to spend too much effort on building the toc.  */
     void *tgt = ((void **)target)[0];
@@ -1117,6 +1115,8 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *target)
         tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R2, TCG_REG_R2, ofs + SZP);
         tcg_out32(s, BCCTR | BO_ALWAYS | LK);
     }
+#else
+    tcg_out_b(s, LK, target);
 #endif
 }
 
