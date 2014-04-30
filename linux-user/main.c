@@ -3829,7 +3829,6 @@ int main(int argc, char **argv, char **envp)
 
     module_call_init(MODULE_INIT_QOM);
 
-    qemu_init_auxval(envp);
     qemu_cache_utils_init();
 
     if ((envlist = envlist_create()) == NULL) {

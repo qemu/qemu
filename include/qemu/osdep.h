@@ -251,18 +251,6 @@ unsigned long qemu_getauxval(unsigned long type);
 static inline unsigned long qemu_getauxval(unsigned long type) { return 0; }
 #endif
 
-/**
- * qemu_init_auxval:
- * @envp: the third argument to main
- *
- * If supported and required, locate the auxiliary vector at program startup.
- */
-#if defined(CONFIG_GETAUXVAL) || !defined(__linux__)
-static inline void qemu_init_auxval(char **envp) { }
-#else
-void qemu_init_auxval(char **envp);
-#endif
-
 void qemu_set_tty_echo(int fd, bool echo);
 
 void os_mem_prealloc(int fd, char *area, size_t sz);
