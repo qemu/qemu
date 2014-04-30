@@ -1234,11 +1234,11 @@ static const TypeInfo host_x86_cpu_type_info = {
 
 #endif
 
-static int unavailable_host_feature(FeatureWordInfo *f, uint32_t mask)
+static void report_unavailable_features(FeatureWordInfo *f, uint32_t mask)
 {
     int i;
 
-    for (i = 0; i < 32; ++i)
+    for (i = 0; i < 32; ++i) {
         if (1 << i & mask) {
             const char *reg = get_register_name_32(f->cpuid_reg);
             assert(reg);
@@ -1247,9 +1247,8 @@ static int unavailable_host_feature(FeatureWordInfo *f, uint32_t mask)
                 f->cpuid_eax, reg,
                 f->feat_names[i] ? "." : "",
                 f->feat_names[i] ? f->feat_names[i] : "", i);
-            break;
         }
-    return 0;
+    }
 }
 
 /* Check if all requested cpu flags are making their way to the guest
@@ -1272,12 +1271,10 @@ static int kvm_check_features_against_host(KVMState *s, X86CPU *cpu)
         uint32_t host_feat = kvm_arch_get_supported_cpuid(s, wi->cpuid_eax,
                                                              wi->cpuid_ecx,
                                                              wi->cpuid_reg);
-        uint32_t mask;
-        for (mask = 1; mask; mask <<= 1) {
-            if (guest_feat & mask && !(host_feat & mask)) {
-                unavailable_host_feature(wi, mask);
-                rv = 1;
-            }
+        uint32_t unavailable_features = guest_feat & ~host_feat;
+        if (unavailable_features) {
+            report_unavailable_features(wi, unavailable_features);
+            rv = 1;
         }
     }
     return rv;
