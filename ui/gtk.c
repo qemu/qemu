@@ -190,7 +190,11 @@ static bool gd_grab_on_hover(GtkDisplayState *s)
 
 static bool gd_on_vga(GtkDisplayState *s)
 {
-    return gtk_notebook_get_current_page(GTK_NOTEBOOK(s->notebook)) == 0;
+    gint p1, p2;
+
+    p1 = gtk_notebook_get_current_page(GTK_NOTEBOOK(s->notebook));
+    p2 = gtk_notebook_page_num(GTK_NOTEBOOK(s->notebook), s->drawing_area);
+    return p1 == p2;
 }
 
 static void gd_update_cursor(GtkDisplayState *s, gboolean override)
@@ -805,19 +809,25 @@ static void gd_menu_quit(GtkMenuItem *item, void *opaque)
 static void gd_menu_switch_vc(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
+    gint page;
 
     if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(s->vga_item))) {
-        gtk_notebook_set_current_page(GTK_NOTEBOOK(s->notebook), 0);
+        page = gtk_notebook_page_num(GTK_NOTEBOOK(s->notebook),
+                                     s->drawing_area);
+        gtk_notebook_set_current_page(GTK_NOTEBOOK(s->notebook), page);
     } else {
-        int i;
-
         gtk_release_modifiers(s);
+#if defined(CONFIG_VTE)
+        gint i;
         for (i = 0; i < s->nb_vcs; i++) {
             if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(s->vc[i].menu_item))) {
-                gtk_notebook_set_current_page(GTK_NOTEBOOK(s->notebook), i + 1);
-                break;
+                page = gtk_notebook_page_num(GTK_NOTEBOOK(s->notebook),
+                                             s->vc[i].box);
+                gtk_notebook_set_current_page(GTK_NOTEBOOK(s->notebook), page);
+                return;
             }
         }
+#endif
     }
 }
 
@@ -1061,12 +1071,14 @@ static void gd_change_page(GtkNotebook *nb, gpointer arg1, guint arg2,
 {
     GtkDisplayState *s = data;
     gboolean on_vga;
+    gint page;
 
     if (!gtk_widget_get_realized(s->notebook)) {
         return;
     }
 
-    on_vga = arg2 == 0;
+    page = gtk_notebook_page_num(GTK_NOTEBOOK(s->notebook), s->drawing_area);
+    on_vga = arg2 == page;
 
     if (!on_vga) {
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
@@ -1076,12 +1088,20 @@ static void gd_change_page(GtkNotebook *nb, gpointer arg1, guint arg2,
                                        TRUE);
     }
 
-    if (arg2 == 0) {
+    if (on_vga) {
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->vga_item), TRUE);
     } else {
 #if defined(CONFIG_VTE)
-        VirtualConsole *vc = &s->vc[arg2 - 1];
-        gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(vc->menu_item), TRUE);
+        VirtualConsole *vc;
+        gint page, i;
+        for (i = 0; i < s->nb_vcs; i++) {
+            vc = &s->vc[i];
+            page = gtk_notebook_page_num(GTK_NOTEBOOK(s->notebook), vc->box);
+            if (page == arg2) {
+                gtk_check_menu_item_set_active
+                    (GTK_CHECK_MENU_ITEM(vc->menu_item), TRUE);
+            }
+        }
 #else
         g_assert_not_reached();
 #endif
