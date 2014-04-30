@@ -373,6 +373,12 @@ static uint32_t kvm_default_features[FEATURE_WORDS] = {
     [FEAT_1_ECX] = CPUID_EXT_X2APIC,
 };
 
+/* Features that are not added by default to any CPU model when KVM is enabled.
+ */
+static uint32_t kvm_default_unset_features[FEATURE_WORDS] = {
+    [FEAT_1_ECX] = CPUID_EXT_MONITOR,
+};
+
 void x86_cpu_compat_disable_kvm_features(FeatureWord w, uint32_t features)
 {
     kvm_default_features[w] &= ~features;
@@ -1888,6 +1894,7 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
         FeatureWord w;
         for (w = 0; w < FEATURE_WORDS; w++) {
             env->features[w] |= kvm_default_features[w];
+            env->features[w] &= ~kvm_default_unset_features[w];
         }
     }
 
