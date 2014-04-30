@@ -263,6 +263,17 @@ static const char *cpuid_7_0_ebx_feature_name[] = {
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 };
 
+static const char *cpuid_apm_edx_feature_name[] = {
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    "invtsc", NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+};
+
 #define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
 #define PENTIUM_FEATURES (I486_FEATURES | CPUID_DE | CPUID_TSC | \
           CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_MMX | CPUID_APIC)
@@ -317,6 +328,7 @@ static const char *cpuid_7_0_ebx_feature_name[] = {
           CPUID_7_0_EBX_FSGSBASE, CPUID_7_0_EBX_HLE, CPUID_7_0_EBX_AVX2,
           CPUID_7_0_EBX_ERMS, CPUID_7_0_EBX_INVPCID, CPUID_7_0_EBX_RTM,
           CPUID_7_0_EBX_RDSEED */
+#define TCG_APM_FEATURES 0
 
 
 typedef struct FeatureWordInfo {
@@ -371,6 +383,13 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .cpuid_needs_ecx = true, .cpuid_ecx = 0,
         .cpuid_reg = R_EBX,
         .tcg_features = TCG_7_0_EBX_FEATURES,
+    },
+    [FEAT_8000_0007_EDX] = {
+        .feat_names = cpuid_apm_edx_feature_name,
+        .cpuid_eax = 0x80000007,
+        .cpuid_reg = R_EDX,
+        .tcg_features = TCG_APM_FEATURES,
+        .unmigratable_flags = CPUID_APM_INVTSC,
     },
 };
 
@@ -2384,6 +2403,12 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *edx = ((L3_SIZE_KB/512) << 18) | \
                (AMD_ENC_ASSOC(L3_ASSOCIATIVITY) << 12) | \
                (L3_LINES_PER_TAG << 8) | (L3_LINE_SIZE);
+        break;
+    case 0x80000007:
+        *eax = 0;
+        *ebx = 0;
+        *ecx = 0;
+        *edx = env->features[FEAT_8000_0007_EDX];
         break;
     case 0x80000008:
         /* virtual & phys address size in low 2 bytes. */
