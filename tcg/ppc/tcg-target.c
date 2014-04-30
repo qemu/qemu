@@ -1318,7 +1318,7 @@ static void tcg_out_brcond2 (TCGContext *s, const TCGArg *args,
     tcg_out_bc (s, (BC | BI (7, CR_EQ) | BO_COND_TRUE), args[5]);
 }
 
-void ppc_tb_set_jmp_target (unsigned long jmp_addr, unsigned long addr)
+void ppc_tb_set_jmp_target (uintptr_t jmp_addr, uintptr_t addr)
 {
     uint32_t *ptr;
     long disp = addr - jmp_addr;
