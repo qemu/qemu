@@ -326,6 +326,7 @@ typedef struct FeatureWordInfo {
     uint32_t cpuid_ecx;   /* Input ECX value for CPUID */
     int cpuid_reg;        /* output register (R_* constant) */
     uint32_t tcg_features; /* Feature flags supported by TCG */
+    uint32_t unmigratable_flags; /* Feature flags known to be unmigratable */
 } FeatureWordInfo;
 
 static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
@@ -447,6 +448,31 @@ static uint32_t kvm_default_unset_features[FEATURE_WORDS] = {
 void x86_cpu_compat_disable_kvm_features(FeatureWord w, uint32_t features)
 {
     kvm_default_features[w] &= ~features;
+}
+
+/*
+ * Returns the set of feature flags that are supported and migratable by
+ * QEMU, for a given FeatureWord.
+ */
+static uint32_t x86_cpu_get_migratable_flags(FeatureWord w)
+{
+    FeatureWordInfo *wi = &feature_word_info[w];
+    uint32_t r = 0;
+    int i;
+
+    for (i = 0; i < 32; i++) {
+        uint32_t f = 1U << i;
+        /* If the feature name is unknown, it is not supported by QEMU yet */
+        if (!wi->feat_names[i]) {
+            continue;
+        }
+        /* Skip features known to QEMU, but explicitly marked as unmigratable */
+        if (wi->unmigratable_flags & f) {
+            continue;
+        }
+        r |= f;
+    }
+    return r;
 }
 
 void host_cpuid(uint32_t function, uint32_t count,
@@ -1194,12 +1220,18 @@ static int cpu_x86_fill_model_id(char *str)
 
 static X86CPUDefinition host_cpudef;
 
+static Property host_x86_cpu_properties[] = {
+    DEFINE_PROP_BOOL("migratable", X86CPU, migratable, false),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 /* class_init for the "host" CPU model
  *
  * This function may be called before KVM is initialized.
  */
 static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(oc);
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
 
@@ -1221,7 +1253,12 @@ static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
     /* level, xlevel, xlevel2, and the feature words are initialized on
      * instance_init, because they require KVM to be initialized.
      */
+
+    dc->props = host_x86_cpu_properties;
 }
+
+static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
+                                                   bool migratable_only);
 
 static void host_x86_cpu_initfn(Object *obj)
 {
@@ -1237,10 +1274,8 @@ static void host_x86_cpu_initfn(Object *obj)
     env->cpuid_xlevel2 = kvm_arch_get_supported_cpuid(s, 0xC0000000, 0, R_EAX);
 
     for (w = 0; w < FEATURE_WORDS; w++) {
-        FeatureWordInfo *wi = &feature_word_info[w];
         env->features[w] =
-            kvm_arch_get_supported_cpuid(s, wi->cpuid_eax, wi->cpuid_ecx,
-                                         wi->cpuid_reg);
+            x86_cpu_get_supported_feature_word(w, cpu->migratable);
     }
     object_property_set_bool(OBJECT(cpu), true, "pmu", &error_abort);
 }
@@ -1826,19 +1861,25 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
     return cpu_list;
 }
 
-static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w)
+static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
+                                                   bool migratable_only)
 {
     FeatureWordInfo *wi = &feature_word_info[w];
+    uint32_t r;
 
     if (kvm_enabled()) {
-        return kvm_arch_get_supported_cpuid(kvm_state, wi->cpuid_eax,
-                                                       wi->cpuid_ecx,
-                                                       wi->cpuid_reg);
+        r = kvm_arch_get_supported_cpuid(kvm_state, wi->cpuid_eax,
+                                                    wi->cpuid_ecx,
+                                                    wi->cpuid_reg);
     } else if (tcg_enabled()) {
-        return wi->tcg_features;
+        r = wi->tcg_features;
     } else {
         return ~0;
     }
+    if (migratable_only) {
+        r &= x86_cpu_get_migratable_flags(w);
+    }
+    return r;
 }
 
 /*
@@ -1853,7 +1894,8 @@ static int x86_cpu_filter_features(X86CPU *cpu)
     int rv = 0;
 
     for (w = 0; w < FEATURE_WORDS; w++) {
-        uint32_t host_feat = x86_cpu_get_supported_feature_word(w);
+        uint32_t host_feat =
+            x86_cpu_get_supported_feature_word(w, cpu->migratable);
         uint32_t requested_features = env->features[w];
         env->features[w] &= host_feat;
         cpu->filtered_features[w] = requested_features & ~env->features[w];
