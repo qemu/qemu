@@ -1251,35 +1251,6 @@ static void report_unavailable_features(FeatureWordInfo *f, uint32_t mask)
     }
 }
 
-/* Check if all requested cpu flags are making their way to the guest
- *
- * Returns 0 if all flags are supported by the host, non-zero otherwise.
- *
- * This function may be called only if KVM is enabled.
- */
-static int kvm_check_features_against_host(KVMState *s, X86CPU *cpu)
-{
-    CPUX86State *env = &cpu->env;
-    int rv = 0;
-    FeatureWord w;
-
-    assert(kvm_enabled());
-
-    for (w = 0; w < FEATURE_WORDS; w++) {
-        FeatureWordInfo *wi = &feature_word_info[w];
-        uint32_t guest_feat = env->features[w];
-        uint32_t host_feat = kvm_arch_get_supported_cpuid(s, wi->cpuid_eax,
-                                                             wi->cpuid_ecx,
-                                                             wi->cpuid_reg);
-        uint32_t unavailable_features = guest_feat & ~host_feat;
-        if (unavailable_features) {
-            report_unavailable_features(wi, unavailable_features);
-            rv = 1;
-        }
-    }
-    return rv;
-}
-
 static void x86_cpuid_version_get_family(Object *obj, Visitor *v, void *opaque,
                                          const char *name, Error **errp)
 {
@@ -1843,11 +1814,21 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
     return cpu_list;
 }
 
-static void filter_features_for_kvm(X86CPU *cpu)
+/*
+ * Filters CPU feature words based on host availability of each feature.
+ *
+ * This function may be called only if KVM is enabled.
+ *
+ * Returns: 0 if all flags are supported by the host, non-zero otherwise.
+ */
+static int filter_features_for_kvm(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
     KVMState *s = kvm_state;
     FeatureWord w;
+    int rv = 0;
+
+    assert(kvm_enabled());
 
     for (w = 0; w < FEATURE_WORDS; w++) {
         FeatureWordInfo *wi = &feature_word_info[w];
@@ -1857,7 +1838,15 @@ static void filter_features_for_kvm(X86CPU *cpu)
         uint32_t requested_features = env->features[w];
         env->features[w] &= host_feat;
         cpu->filtered_features[w] = requested_features & ~env->features[w];
+        if (cpu->filtered_features[w]) {
+            if (cpu->check_cpuid || cpu->enforce_cpuid) {
+                report_unavailable_features(wi, cpu->filtered_features[w]);
+            }
+            rv = 1;
+        }
     }
+
+    return rv;
 }
 
 /* Load data from X86CPUDefinition
@@ -2608,14 +2597,11 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         env->features[FEAT_8000_0001_ECX] &= TCG_EXT3_FEATURES;
         env->features[FEAT_SVM] &= TCG_SVM_FEATURES;
     } else {
-        KVMState *s = kvm_state;
-        if ((cpu->check_cpuid || cpu->enforce_cpuid)
-            && kvm_check_features_against_host(s, cpu) && cpu->enforce_cpuid) {
+        if (filter_features_for_kvm(cpu) && cpu->enforce_cpuid) {
             error_setg(&local_err,
                        "Host's CPU doesn't support requested features");
             goto out;
         }
-        filter_features_for_kvm(cpu);
     }
 
 #ifndef CONFIG_USER_ONLY
