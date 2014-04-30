@@ -585,7 +585,9 @@ struct X86CPUDefinition {
           TCG_EXT2_X86_64_FEATURES)
 #define TCG_EXT3_FEATURES (CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM | \
           CPUID_EXT3_CR8LEG | CPUID_EXT3_ABM | CPUID_EXT3_SSE4A)
+#define TCG_EXT4_FEATURES 0
 #define TCG_SVM_FEATURES 0
+#define TCG_KVM_FEATURES 0
 #define TCG_7_0_EBX_FEATURES (CPUID_7_0_EBX_SMEP | CPUID_7_0_EBX_SMAP | \
           CPUID_7_0_EBX_BMI1 | CPUID_7_0_EBX_BMI2 | CPUID_7_0_EBX_ADX)
           /* missing:
@@ -2606,6 +2608,8 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         env->features[FEAT_8000_0001_EDX] &= TCG_EXT2_FEATURES;
         env->features[FEAT_8000_0001_ECX] &= TCG_EXT3_FEATURES;
         env->features[FEAT_SVM] &= TCG_SVM_FEATURES;
+        env->features[FEAT_KVM] &= TCG_KVM_FEATURES;
+        env->features[FEAT_C000_0001_EDX] &= TCG_EXT4_FEATURES;
     } else {
         if (x86_cpu_filter_features(cpu) && cpu->enforce_cpuid) {
             error_setg(&local_err,
