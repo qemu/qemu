@@ -1,0 +1,200 @@
+#!/bin/bash
+#
+# This allows for launching of multiple QEMU instances, with independent
+# communication possible to each instance.
+#
+# Each instance can choose, at launch, to use either the QMP or the
+# HMP (monitor) interface.
+#
+# All instances are cleaned up via _cleanup_qemu, including killing the
+# running qemu instance.
+#
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+QEMU_COMM_TIMEOUT=10
+
+QEMU_FIFO_IN="${TEST_DIR}/qmp-in-$$"
+QEMU_FIFO_OUT="${TEST_DIR}/qmp-out-$$"
+
+QEMU_PID=
+_QEMU_HANDLE=0
+QEMU_HANDLE=0
+
+# If bash version is >= 4.1, these will be overwritten and dynamic
+# file descriptor values assigned.
+_out_fd=3
+_in_fd=4
+
+# Wait for expected QMP response from QEMU.  Will time out
+# after 10 seconds, which counts as failure.
+#
+# Override QEMU_COMM_TIMEOUT for a timeout different than the
+# default 10 seconds
+#
+# $1: The handle to use
+# $2+ All remaining arguments comprise the string to search for
+#    in the response.
+#
+# If $silent is set to anything but an empty string, then
+# response is not echoed out.
+function _timed_wait_for()
+{
+    local h=${1}
+    shift
+
+    QEMU_STATUS[$h]=0
+    while read -t ${QEMU_COMM_TIMEOUT} resp <&${QEMU_OUT[$h]}
+    do
+        if [ -z "${silent}" ]; then
+            echo "${resp}" | _filter_testdir | _filter_qemu \
+                           | _filter_qemu_io | _filter_qmp
+        fi
+        grep -q "${*}" < <(echo ${resp})
+        if [ $? -eq 0 ]; then
+            return
+        fi
+    done
+    QEMU_STATUS[$h]=-1
+    if [ -z "${qemu_error_no_exit}" ]; then
+        echo "Timeout waiting for ${*} on handle ${h}"
+        exit 1  # Timeout means the test failed
+    fi
+}
+
+
+# Sends QMP or HMP command to QEMU, and waits for the expected response
+#
+# $1:       QEMU handle to use
+# $2:       String of the QMP command to send
+# ${@: -1}  (Last string passed)
+#             String that the QEMU response should contain. If it is a null
+#             string, do not wait for a response
+#
+# Set qemu_cmd_repeat to the number of times to repeat the cmd
+# until either timeout, or a response.  If it is not set, or <=0,
+# then the command is only sent once.
+#
+# If $qemu_error_no_exit is set, then even if the expected response
+# is not seen, we will not exit.  $QEMU_STATUS[$1] will be set it -1 in
+# that case.
+function _send_qemu_cmd()
+{
+    local h=${1}
+    local count=1
+    local cmd=
+    local use_error=${qemu_error_no_exit}
+    shift
+
+    if [ ${qemu_cmd_repeat} -gt 0 ] 2>/dev/null; then
+        count=${qemu_cmd_repeat}
+        use_error="no"
+    fi
+    # This array element extraction is done to accomodate pathnames with spaces
+    cmd=${@: 1:${#@}-1}
+    shift $(($# - 1))
+
+    while [ ${count} -gt 0 ]
+    do
+        echo "${cmd}" >&${QEMU_IN[${h}]}
+        if [ -n "${1}" ]; then
+            qemu_error_no_exit=${use_error} _timed_wait_for ${h} "${1}"
+            if [ ${QEMU_STATUS[$h]} -eq 0 ]; then
+                return
+            fi
+        fi
+        let count--;
+    done
+    if [ ${QEMU_STATUS[$h]} -ne 0 ] && [ -z "${qemu_error_no_exit}" ]; then
+        echo "Timeout waiting for ${1} on handle ${h}"
+        exit 1 #Timeout means the test failed
+    fi
+}
+
+
+# Launch a QEMU process.
+#
+# Input parameters:
+# $qemu_comm_method: set this variable to 'monitor' (case insensitive)
+#                    to use the QEMU HMP monitor for communication.
+#                    Otherwise, the default of QMP is used.
+# Returns:
+# $QEMU_HANDLE: set to a handle value to communicate with this QEMU instance.
+#
+function _launch_qemu()
+{
+    local comm=
+    local fifo_out=
+    local fifo_in=
+
+    if (shopt -s nocasematch; [[ "${qemu_comm_method}" == "monitor" ]])
+    then
+        comm="-monitor stdio"
+    else
+        local qemu_comm_method="qmp"
+        comm="-monitor none -qmp stdio"
+    fi
+
+    fifo_out=${QEMU_FIFO_OUT}_${_QEMU_HANDLE}
+    fifo_in=${QEMU_FIFO_IN}_${_QEMU_HANDLE}
+    mkfifo "${fifo_out}"
+    mkfifo "${fifo_in}"
+
+    "${QEMU}" -nographic -serial none ${comm} -machine accel=qtest "${@}" 2>&1 \
+                                                                >"${fifo_out}" \
+                                                                <"${fifo_in}" &
+    QEMU_PID[${_QEMU_HANDLE}]=$!
+
+    if [[ "${BASH_VERSINFO[0]}" -ge "5" ||
+        ("${BASH_VERSINFO[0]}" -ge "4"  &&  "${BASH_VERSINFO[1]}" -ge "1") ]]
+    then
+        # bash >= 4.1 required for automatic fd
+        exec {_out_fd}<"${fifo_out}"
+        exec {_in_fd}>"${fifo_in}"
+    else
+        let _out_fd++
+        let _in_fd++
+        eval "exec ${_out_fd}<'${fifo_out}'"
+        eval "exec ${_in_fd}>'${fifo_in}'"
+    fi
+
+    QEMU_OUT[${_QEMU_HANDLE}]=${_out_fd}
+    QEMU_IN[${_QEMU_HANDLE}]=${_in_fd}
+    QEMU_STATUS[${_QEMU_HANDLE}]=0
+
+    if [ "${qemu_comm_method}" == "qmp" ]
+    then
+        # Don't print response, since it has version information in it
+        silent=yes _timed_wait_for ${_QEMU_HANDLE} "capabilities"
+    fi
+    QEMU_HANDLE=${_QEMU_HANDLE}
+    let _QEMU_HANDLE++
+}
+
+
+# Silenty kills the QEMU process
+function _cleanup_qemu()
+{
+    # QEMU_PID[], QEMU_IN[], QEMU_OUT[] all use same indices
+    for i in "${!QEMU_OUT[@]}"
+    do
+        kill -KILL ${QEMU_PID[$i]} 2>/dev/null
+        wait ${QEMU_PID[$i]} 2>/dev/null # silent kill
+        rm -f "${QEMU_FIFO_IN}_${i}" "${QEMU_FIFO_OUT}_${i}"
+        eval "exec ${QEMU_IN[$i]}<&-"   # close file descriptors
+        eval "exec ${QEMU_OUT[$i]}<&-"
+    done
+}
