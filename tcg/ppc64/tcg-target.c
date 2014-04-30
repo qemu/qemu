@@ -796,6 +796,8 @@ static void tcg_out_cmp(TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
     int imm;
     uint32_t op;
 
+    tcg_debug_assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
+
     /* Simplify the comparisons below wrt CMPI.  */
     if (type == TCG_TYPE_I32) {
         arg2 = (int32_t)arg2;
@@ -1081,6 +1083,83 @@ static void tcg_out_movcond(TCGContext *s, TCGType type, TCGCond cond,
             tcg_out_mov(s, type, dest, v2);
         }
     }
+}
+
+static void tcg_out_cmp2(TCGContext *s, const TCGArg *args,
+                         const int *const_args)
+{
+    static const struct { uint8_t bit1, bit2; } bits[] = {
+        [TCG_COND_LT ] = { CR_LT, CR_LT },
+        [TCG_COND_LE ] = { CR_LT, CR_GT },
+        [TCG_COND_GT ] = { CR_GT, CR_GT },
+        [TCG_COND_GE ] = { CR_GT, CR_LT },
+        [TCG_COND_LTU] = { CR_LT, CR_LT },
+        [TCG_COND_LEU] = { CR_LT, CR_GT },
+        [TCG_COND_GTU] = { CR_GT, CR_GT },
+        [TCG_COND_GEU] = { CR_GT, CR_LT },
+    };
+
+    TCGCond cond = args[4], cond2;
+    TCGArg al, ah, bl, bh;
+    int blconst, bhconst;
+    int op, bit1, bit2;
+
+    al = args[0];
+    ah = args[1];
+    bl = args[2];
+    bh = args[3];
+    blconst = const_args[2];
+    bhconst = const_args[3];
+
+    switch (cond) {
+    case TCG_COND_EQ:
+        op = CRAND;
+        goto do_equality;
+    case TCG_COND_NE:
+        op = CRNAND;
+    do_equality:
+        tcg_out_cmp(s, cond, al, bl, blconst, 6, TCG_TYPE_I32);
+        tcg_out_cmp(s, cond, ah, bh, bhconst, 7, TCG_TYPE_I32);
+        tcg_out32(s, op | BT(7, CR_EQ) | BA(6, CR_EQ) | BB(7, CR_EQ));
+        break;
+
+    case TCG_COND_LT:
+    case TCG_COND_LE:
+    case TCG_COND_GT:
+    case TCG_COND_GE:
+    case TCG_COND_LTU:
+    case TCG_COND_LEU:
+    case TCG_COND_GTU:
+    case TCG_COND_GEU:
+        bit1 = bits[cond].bit1;
+        bit2 = bits[cond].bit2;
+        op = (bit1 != bit2 ? CRANDC : CRAND);
+        cond2 = tcg_unsigned_cond(cond);
+
+        tcg_out_cmp(s, cond, ah, bh, bhconst, 6, TCG_TYPE_I32);
+        tcg_out_cmp(s, cond2, al, bl, blconst, 7, TCG_TYPE_I32);
+        tcg_out32(s, op | BT(7, CR_EQ) | BA(6, CR_EQ) | BB(7, bit2));
+        tcg_out32(s, CROR | BT(7, CR_EQ) | BA(6, bit1) | BB(7, CR_EQ));
+        break;
+
+    default:
+        tcg_abort();
+    }
+}
+
+static void tcg_out_setcond2(TCGContext *s, const TCGArg *args,
+                             const int *const_args)
+{
+    tcg_out_cmp2(s, args + 1, const_args + 1);
+    tcg_out32(s, MFOCRF | RT(TCG_REG_R0) | FXM(7));
+    tcg_out_rlw(s, RLWINM, args[0], TCG_REG_R0, 31, 31, 31);
+}
+
+static void tcg_out_brcond2 (TCGContext *s, const TCGArg *args,
+                             const int *const_args)
+{
+    tcg_out_cmp2(s, args, const_args);
+    tcg_out_bc(s, BC | BI(7, CR_EQ) | BO_COND_TRUE, args[5]);
 }
 
 void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
@@ -1760,10 +1839,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_brcond(s, args[2], args[0], args[1], const_args[1],
                        args[3], TCG_TYPE_I32);
         break;
-
     case INDEX_op_brcond_i64:
         tcg_out_brcond(s, args[2], args[0], args[1], const_args[1],
                        args[3], TCG_TYPE_I64);
+        break;
+    case INDEX_op_brcond2_i32:
+        tcg_out_brcond2(s, args, const_args);
         break;
 
     case INDEX_op_neg_i32:
@@ -1885,6 +1966,9 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_setcond_i64:
         tcg_out_setcond(s, TCG_TYPE_I64, args[3], args[0], args[1], args[2],
                         const_args[2]);
+        break;
+    case INDEX_op_setcond2_i32:
+        tcg_out_setcond2(s, args, const_args);
         break;
 
     case INDEX_op_bswap16_i32:
@@ -2036,6 +2120,9 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         }
         break;
 
+    case INDEX_op_muluh_i32:
+        tcg_out32(s, MULHWU | TAB(args[0], args[1], args[2]));
+        break;
     case INDEX_op_muluh_i64:
         tcg_out32(s, MULHDU | TAB(args[0], args[1], args[2]));
         break;
@@ -2101,6 +2188,8 @@ static const TCGTargetOpDef ppc_op_defs[] = {
 
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
 
+    { INDEX_op_muluh_i32, { "r", "r", "r" } },
+
 #if TCG_TARGET_REG_BITS == 64
     { INDEX_op_ld8u_i64, { "r", "r" } },
     { INDEX_op_ld8s_i64, { "r", "r" } },
@@ -2153,6 +2242,11 @@ static const TCGTargetOpDef ppc_op_defs[] = {
 
     { INDEX_op_mulsh_i64, { "r", "r", "r" } },
     { INDEX_op_muluh_i64, { "r", "r", "r" } },
+#endif
+
+#if TCG_TARGET_REG_BITS == 32
+    { INDEX_op_brcond2_i32, { "r", "r", "ri", "ri" } },
+    { INDEX_op_setcond2_i32, { "r", "r", "r", "ri", "ri" } },
 #endif
 
 #if TCG_TARGET_REG_BITS == 64
