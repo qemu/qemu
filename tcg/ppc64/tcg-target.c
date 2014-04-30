@@ -514,9 +514,9 @@ static const uint32_t tcg_to_isel[] = {
     [TCG_COND_GTU] = ISEL | BC_(7, CR_GT),
 };
 
-static inline void tcg_out_mov(TCGContext *s, TCGType type,
-                               TCGReg ret, TCGReg arg)
+static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 {
+    tcg_debug_assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
     if (ret != arg) {
         tcg_out32(s, OR | SAB(arg, ret, arg));
     }
@@ -566,13 +566,14 @@ static void tcg_out_movi32(TCGContext *s, TCGReg ret, int32_t arg)
 static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg ret,
                          tcg_target_long arg)
 {
+    tcg_debug_assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
     if (type == TCG_TYPE_I32 || arg == (int32_t)arg) {
         tcg_out_movi32(s, ret, arg);
     } else if (arg == (uint32_t)arg && !(arg & 0x8000)) {
         tcg_out32(s, ADDI | TAI(ret, 0, arg));
         tcg_out32(s, ORIS | SAI(ret, ret, arg >> 16));
     } else {
-        int32_t high = arg >> 32;
+        int32_t high = arg >> 31 >> 1;
         tcg_out_movi32(s, ret, high);
         if (high) {
             tcg_out_shli64(s, ret, ret, 32);
@@ -1984,7 +1985,11 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                         args[3], args[4], const_args[2]);
         break;
 
+#if TCG_TARGET_REG_BITS == 64
     case INDEX_op_add2_i64:
+#else
+    case INDEX_op_add2_i32:
+#endif
         /* Note that the CA bit is defined based on the word size of the
            environment.  So in 64-bit mode it's always carry-out of bit 63.
            The fallback code using deposit works just as well for 32-bit.  */
@@ -2007,7 +2012,11 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         }
         break;
 
+#if TCG_TARGET_REG_BITS == 64
     case INDEX_op_sub2_i64:
+#else
+    case INDEX_op_sub2_i32:
+#endif
         a0 = args[0], a1 = args[1];
         if (a0 == args[5] || (!const_args[3] && a0 == args[3])) {
             a0 = TCG_REG_R0;
@@ -2054,21 +2063,10 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_ld16u_i32, { "r", "r" } },
     { INDEX_op_ld16s_i32, { "r", "r" } },
     { INDEX_op_ld_i32, { "r", "r" } },
-    { INDEX_op_ld_i64, { "r", "r" } },
-    { INDEX_op_st8_i32, { "r", "r" } },
-    { INDEX_op_st8_i64, { "r", "r" } },
-    { INDEX_op_st16_i32, { "r", "r" } },
-    { INDEX_op_st16_i64, { "r", "r" } },
-    { INDEX_op_st_i32, { "r", "r" } },
-    { INDEX_op_st_i64, { "r", "r" } },
-    { INDEX_op_st32_i64, { "r", "r" } },
 
-    { INDEX_op_ld8u_i64, { "r", "r" } },
-    { INDEX_op_ld8s_i64, { "r", "r" } },
-    { INDEX_op_ld16u_i64, { "r", "r" } },
-    { INDEX_op_ld16s_i64, { "r", "r" } },
-    { INDEX_op_ld32u_i64, { "r", "r" } },
-    { INDEX_op_ld32s_i64, { "r", "r" } },
+    { INDEX_op_st8_i32, { "r", "r" } },
+    { INDEX_op_st16_i32, { "r", "r" } },
+    { INDEX_op_st_i32, { "r", "r" } },
 
     { INDEX_op_add_i32, { "r", "r", "ri" } },
     { INDEX_op_mul_i32, { "r", "r", "rI" } },
@@ -2090,11 +2088,32 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_rotl_i32, { "r", "r", "ri" } },
     { INDEX_op_rotr_i32, { "r", "r", "ri" } },
 
-    { INDEX_op_brcond_i32, { "r", "ri" } },
-    { INDEX_op_brcond_i64, { "r", "ri" } },
-
     { INDEX_op_neg_i32, { "r", "r" } },
     { INDEX_op_not_i32, { "r", "r" } },
+    { INDEX_op_ext8s_i32, { "r", "r" } },
+    { INDEX_op_ext16s_i32, { "r", "r" } },
+    { INDEX_op_bswap16_i32, { "r", "r" } },
+    { INDEX_op_bswap32_i32, { "r", "r" } },
+
+    { INDEX_op_brcond_i32, { "r", "ri" } },
+    { INDEX_op_setcond_i32, { "r", "r", "ri" } },
+    { INDEX_op_movcond_i32, { "r", "r", "ri", "rZ", "rZ" } },
+
+    { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
+
+#if TCG_TARGET_REG_BITS == 64
+    { INDEX_op_ld8u_i64, { "r", "r" } },
+    { INDEX_op_ld8s_i64, { "r", "r" } },
+    { INDEX_op_ld16u_i64, { "r", "r" } },
+    { INDEX_op_ld16s_i64, { "r", "r" } },
+    { INDEX_op_ld32u_i64, { "r", "r" } },
+    { INDEX_op_ld32s_i64, { "r", "r" } },
+    { INDEX_op_ld_i64, { "r", "r" } },
+
+    { INDEX_op_st8_i64, { "r", "r" } },
+    { INDEX_op_st16_i64, { "r", "r" } },
+    { INDEX_op_st32_i64, { "r", "r" } },
+    { INDEX_op_st_i64, { "r", "r" } },
 
     { INDEX_op_add_i64, { "r", "r", "rT" } },
     { INDEX_op_sub_i64, { "r", "rI", "rT" } },
@@ -2119,36 +2138,47 @@ static const TCGTargetOpDef ppc_op_defs[] = {
 
     { INDEX_op_neg_i64, { "r", "r" } },
     { INDEX_op_not_i64, { "r", "r" } },
-
-    { INDEX_op_qemu_ld_i32, { "r", "L" } },
-    { INDEX_op_qemu_ld_i64, { "r", "L" } },
-    { INDEX_op_qemu_st_i32, { "S", "S" } },
-    { INDEX_op_qemu_st_i64, { "S", "S" } },
-
-    { INDEX_op_ext8s_i32, { "r", "r" } },
-    { INDEX_op_ext16s_i32, { "r", "r" } },
     { INDEX_op_ext8s_i64, { "r", "r" } },
     { INDEX_op_ext16s_i64, { "r", "r" } },
     { INDEX_op_ext32s_i64, { "r", "r" } },
-
-    { INDEX_op_setcond_i32, { "r", "r", "ri" } },
-    { INDEX_op_setcond_i64, { "r", "r", "ri" } },
-    { INDEX_op_movcond_i32, { "r", "r", "ri", "rZ", "rZ" } },
-    { INDEX_op_movcond_i64, { "r", "r", "ri", "rZ", "rZ" } },
-
-    { INDEX_op_bswap16_i32, { "r", "r" } },
     { INDEX_op_bswap16_i64, { "r", "r" } },
-    { INDEX_op_bswap32_i32, { "r", "r" } },
     { INDEX_op_bswap32_i64, { "r", "r" } },
     { INDEX_op_bswap64_i64, { "r", "r" } },
 
-    { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
+    { INDEX_op_brcond_i64, { "r", "ri" } },
+    { INDEX_op_setcond_i64, { "r", "r", "ri" } },
+    { INDEX_op_movcond_i64, { "r", "r", "ri", "rZ", "rZ" } },
+
     { INDEX_op_deposit_i64, { "r", "0", "rZ" } },
 
-    { INDEX_op_add2_i64, { "r", "r", "r", "r", "rI", "rZM" } },
-    { INDEX_op_sub2_i64, { "r", "r", "rI", "rZM", "r", "r" } },
     { INDEX_op_mulsh_i64, { "r", "r", "r" } },
     { INDEX_op_muluh_i64, { "r", "r", "r" } },
+#endif
+
+#if TCG_TARGET_REG_BITS == 64
+    { INDEX_op_add2_i64, { "r", "r", "r", "r", "rI", "rZM" } },
+    { INDEX_op_sub2_i64, { "r", "r", "rI", "rZM", "r", "r" } },
+#else
+    { INDEX_op_add2_i32, { "r", "r", "r", "r", "rI", "rZM" } },
+    { INDEX_op_sub2_i32, { "r", "r", "rI", "rZM", "r", "r" } },
+#endif
+
+#if TCG_TARGET_REG_BITS == 64
+    { INDEX_op_qemu_ld_i32, { "r", "L" } },
+    { INDEX_op_qemu_st_i32, { "S", "S" } },
+    { INDEX_op_qemu_ld_i64, { "r", "L" } },
+    { INDEX_op_qemu_st_i64, { "S", "S" } },
+#elif TARGET_LONG_BITS == 32
+    { INDEX_op_qemu_ld_i32, { "r", "L" } },
+    { INDEX_op_qemu_st_i32, { "S", "S" } },
+    { INDEX_op_qemu_ld_i64, { "r", "r", "L" } },
+    { INDEX_op_qemu_st_i64, { "S", "S", "S" } },
+#else
+    { INDEX_op_qemu_ld_i32, { "r", "L", "L" } },
+    { INDEX_op_qemu_st_i32, { "S", "S", "S" } },
+    { INDEX_op_qemu_ld_i64, { "r", "r", "L", "L" } },
+    { INDEX_op_qemu_st_i64, { "S", "S", "S", "S" } },
+#endif
 
     { -1 },
 };
