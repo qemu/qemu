@@ -1115,6 +1115,23 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *target)
         tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R2, TCG_REG_R2, ofs + SZP);
         tcg_out32(s, BCCTR | BO_ALWAYS | LK);
     }
+#elif defined(_CALL_ELF) && _CALL_ELF == 2
+    intptr_t diff;
+
+    /* In the ELFv2 ABI, we have to set up r12 to contain the destination
+       address, which the callee uses to compute its TOC address.  */
+    /* FIXME: when the branch is in range, we could avoid r12 load if we
+       knew that the destination uses the same TOC, and what its local
+       entry point offset is.  */
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R12, (intptr_t)target);
+
+    diff = tcg_pcrel_diff(s, target);
+    if (in_range_b(diff)) {
+        tcg_out_b(s, LK, target);
+    } else {
+        tcg_out32(s, MTSPR | RS(TCG_REG_R12) | CTR);
+        tcg_out32(s, BCCTR | BO_ALWAYS | LK);
+    }
 #else
     tcg_out_b(s, LK, target);
 #endif
