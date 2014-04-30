@@ -1234,8 +1234,9 @@ static const TypeInfo host_x86_cpu_type_info = {
 
 #endif
 
-static void report_unavailable_features(FeatureWordInfo *f, uint32_t mask)
+static void report_unavailable_features(FeatureWord w, uint32_t mask)
 {
+    FeatureWordInfo *f = &feature_word_info[w];
     int i;
 
     for (i = 0; i < 32; ++i) {
@@ -1840,7 +1841,7 @@ static int filter_features_for_kvm(X86CPU *cpu)
         cpu->filtered_features[w] = requested_features & ~env->features[w];
         if (cpu->filtered_features[w]) {
             if (cpu->check_cpuid || cpu->enforce_cpuid) {
-                report_unavailable_features(wi, cpu->filtered_features[w]);
+                report_unavailable_features(w, cpu->filtered_features[w]);
             }
             rv = 1;
         }
