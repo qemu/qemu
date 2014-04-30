@@ -105,15 +105,23 @@ static const int modifier_keycode[] = {
     0x2a, 0x36, 0x1d, 0x9d, 0x38, 0xb8, 0xdb, 0xdd,
 };
 
-typedef struct VirtualConsole
-{
-    GtkWidget *menu_item;
 #if defined(CONFIG_VTE)
+typedef struct VirtualVteConsole {
     GtkWidget *box;
     GtkWidget *scrollbar;
     GtkWidget *terminal;
     CharDriverState *chr;
+} VirtualVteConsole;
 #endif
+
+typedef struct VirtualConsole {
+    GtkWidget *menu_item;
+    GtkWidget *tab_item;
+    union {
+#if defined(CONFIG_VTE)
+        VirtualVteConsole vte;
+#endif
+    };
 } VirtualConsole;
 
 typedef struct GtkDisplayState
@@ -177,6 +185,36 @@ typedef struct GtkDisplayState
 static GtkDisplayState *global_state;
 
 /** Utility Functions **/
+
+static VirtualConsole *gd_vc_find_by_menu(GtkDisplayState *s)
+{
+    VirtualConsole *vc;
+    gint i;
+
+    for (i = 0; i < s->nb_vcs; i++) {
+        vc = &s->vc[i];
+        if (gtk_check_menu_item_get_active
+            (GTK_CHECK_MENU_ITEM(vc->menu_item))) {
+            return vc;
+        }
+    }
+    return NULL;
+}
+
+static VirtualConsole *gd_vc_find_by_page(GtkDisplayState *s, gint page)
+{
+    VirtualConsole *vc;
+    gint i, p;
+
+    for (i = 0; i < s->nb_vcs; i++) {
+        vc = &s->vc[i];
+        p = gtk_notebook_page_num(GTK_NOTEBOOK(s->notebook), vc->tab_item);
+        if (p == page) {
+            return vc;
+        }
+    }
+    return NULL;
+}
 
 static bool gd_is_grab_active(GtkDisplayState *s)
 {
@@ -817,17 +855,12 @@ static void gd_menu_switch_vc(GtkMenuItem *item, void *opaque)
         gtk_notebook_set_current_page(GTK_NOTEBOOK(s->notebook), page);
     } else {
         gtk_release_modifiers(s);
-#if defined(CONFIG_VTE)
-        gint i;
-        for (i = 0; i < s->nb_vcs; i++) {
-            if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(s->vc[i].menu_item))) {
-                page = gtk_notebook_page_num(GTK_NOTEBOOK(s->notebook),
-                                             s->vc[i].box);
-                gtk_notebook_set_current_page(GTK_NOTEBOOK(s->notebook), page);
-                return;
-            }
+        VirtualConsole *vc = gd_vc_find_by_menu(s);
+        if (vc) {
+            page = gtk_notebook_page_num(GTK_NOTEBOOK(s->notebook),
+                                         vc->tab_item);
+            gtk_notebook_set_current_page(GTK_NOTEBOOK(s->notebook), page);
         }
-#endif
     }
 }
 
@@ -1091,20 +1124,12 @@ static void gd_change_page(GtkNotebook *nb, gpointer arg1, guint arg2,
     if (on_vga) {
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->vga_item), TRUE);
     } else {
-#if defined(CONFIG_VTE)
         VirtualConsole *vc;
-        gint page, i;
-        for (i = 0; i < s->nb_vcs; i++) {
-            vc = &s->vc[i];
-            page = gtk_notebook_page_num(GTK_NOTEBOOK(s->notebook), vc->box);
-            if (page == arg2) {
-                gtk_check_menu_item_set_active
-                    (GTK_CHECK_MENU_ITEM(vc->menu_item), TRUE);
-            }
+        vc = gd_vc_find_by_page(s, arg2);
+        if (vc) {
+            gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(vc->menu_item),
+                                           TRUE);
         }
-#else
-        g_assert_not_reached();
-#endif
     }
 
     gtk_widget_set_sensitive(s->grab_item, on_vga);
@@ -1153,9 +1178,9 @@ static void gd_vc_adjustment_changed(GtkAdjustment *adjustment, void *opaque)
 
     if (gtk_adjustment_get_upper(adjustment) >
         gtk_adjustment_get_page_size(adjustment)) {
-        gtk_widget_show(vc->scrollbar);
+        gtk_widget_show(vc->vte.scrollbar);
     } else {
-        gtk_widget_hide(vc->scrollbar);
+        gtk_widget_hide(vc->vte.scrollbar);
     }
 }
 
@@ -1163,7 +1188,7 @@ static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     VirtualConsole *vc = chr->opaque;
 
-    vte_terminal_feed(VTE_TERMINAL(vc->terminal), (const char *)buf, len);
+    vte_terminal_feed(VTE_TERMINAL(vc->vte.terminal), (const char *)buf, len);
     return len;
 }
 
@@ -1189,7 +1214,7 @@ static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
 {
     VirtualConsole *vc = user_data;
 
-    qemu_chr_be_write(vc->chr, (uint8_t  *)text, (unsigned int)size);
+    qemu_chr_be_write(vc->vte.chr, (uint8_t  *)text, (unsigned int)size);
     return TRUE;
 }
 
@@ -1206,10 +1231,10 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     snprintf(buffer, sizeof(buffer), "vc%d", index);
     snprintf(path, sizeof(path), "<QEMU>/View/VC%d", index);
 
-    vc->chr = vcs[index];
+    vc->vte.chr = vcs[index];
 
-    if (vc->chr->label) {
-        label = vc->chr->label;
+    if (vc->vte.chr->label) {
+        label = vc->vte.chr->label;
     } else {
         label = buffer;
     }
@@ -1219,16 +1244,17 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(vc->menu_item), path);
     gtk_accel_map_add_entry(path, GDK_KEY_2 + index, HOTKEY_MODIFIERS);
 
-    vc->terminal = vte_terminal_new();
-    g_signal_connect(vc->terminal, "commit", G_CALLBACK(gd_vc_in), vc);
+    vc->vte.terminal = vte_terminal_new();
+    g_signal_connect(vc->vte.terminal, "commit", G_CALLBACK(gd_vc_in), vc);
 
-    vte_terminal_set_scrollback_lines(VTE_TERMINAL(vc->terminal), -1);
-    vte_terminal_set_size(VTE_TERMINAL(vc->terminal), 80, 25);
+    vte_terminal_set_scrollback_lines(VTE_TERMINAL(vc->vte.terminal), -1);
+    vte_terminal_set_size(VTE_TERMINAL(vc->vte.terminal), 80, 25);
 
 #if VTE_CHECK_VERSION(0, 28, 0) && GTK_CHECK_VERSION(3, 0, 0)
-    vadjustment = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(vc->terminal));
+    vadjustment = gtk_scrollable_get_vadjustment
+        (GTK_SCROLLABLE(vc->vte.terminal));
 #else
-    vadjustment = vte_terminal_get_adjustment(VTE_TERMINAL(vc->terminal));
+    vadjustment = vte_terminal_get_adjustment(VTE_TERMINAL(vc->vte.terminal));
 #endif
 
 #if GTK_CHECK_VERSION(3, 0, 0)
@@ -1239,26 +1265,27 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     scrollbar = gtk_vscrollbar_new(vadjustment);
 #endif
 
-    gtk_box_pack_start(GTK_BOX(box), vc->terminal, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(box), vc->vte.terminal, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(box), scrollbar, FALSE, FALSE, 0);
 
-    vc->chr->opaque = vc;
-    vc->box = box;
-    vc->scrollbar = scrollbar;
+    vc->vte.chr->opaque = vc;
+    vc->vte.box = box;
+    vc->vte.scrollbar = scrollbar;
 
     g_signal_connect(vadjustment, "changed",
                      G_CALLBACK(gd_vc_adjustment_changed), vc);
 
-    gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), box,
+    vc->tab_item = box;
+    gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), vc->tab_item,
                              gtk_label_new(label));
     g_signal_connect(vc->menu_item, "activate",
                      G_CALLBACK(gd_menu_switch_vc), s);
 
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), vc->menu_item);
 
-    qemu_chr_be_generic_open(vc->chr);
-    if (vc->chr->init) {
-        vc->chr->init(vc->chr);
+    qemu_chr_be_generic_open(vc->vte.chr);
+    if (vc->vte.chr->init) {
+        vc->vte.chr->init(vc->vte.chr);
     }
 
     return group;
