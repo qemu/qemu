@@ -4747,6 +4747,8 @@ elif test "$ARCH" = "s390x" ; then
   QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/s390 $QEMU_INCLUDES"
 elif test "$ARCH" = "x86_64" -o "$ARCH" = "x32" ; then
   QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/i386 $QEMU_INCLUDES"
+elif test "$ARCH" = "ppc" ; then
+  QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/ppc64 $QEMU_INCLUDES"
 else
   QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/\$(ARCH) $QEMU_INCLUDES"
 fi
