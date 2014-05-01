@@ -68,6 +68,10 @@
 #include "keymaps.h"
 #include "sysemu/char.h"
 #include "qom/object.h"
+#ifndef _WIN32
+#include <gdk/gdkx.h>
+#include <X11/XKBlib.h>
+#endif
 
 #define MAX_VCS 10
 
@@ -197,6 +201,7 @@ struct GtkDisplayState {
     bool external_pause_update;
 
     bool modifier_pressed[ARRAY_SIZE(modifier_keycode)];
+    bool has_evdev;
 };
 
 static GtkDisplayState *global_state;
@@ -842,7 +847,11 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
     } else if (gdk_keycode < 97) {
         qemu_keycode = gdk_keycode - 8;
     } else if (gdk_keycode < 158) {
-        qemu_keycode = translate_evdev_keycode(gdk_keycode - 97);
+        if (s->has_evdev) {
+            qemu_keycode = translate_evdev_keycode(gdk_keycode - 97);
+        } else {
+            qemu_keycode = translate_xfree86_keycode(gdk_keycode - 97);
+        }
     } else if (gdk_keycode == 208) { /* Hiragana_Katakana */
         qemu_keycode = 0x70;
     } else if (gdk_keycode == 211) { /* backslash */
@@ -1719,6 +1728,29 @@ static void gd_create_menus(GtkDisplayState *s)
     s->accel_group = accel_group;
 }
 
+static void gd_set_keycode_type(GtkDisplayState *s)
+{
+#ifndef _WIN32
+    char *keycodes = NULL;
+    GdkDisplay *display = gtk_widget_get_display(s->window);
+    Display *x11_display = gdk_x11_display_get_xdisplay(display);
+    XkbDescPtr desc = XkbGetKeyboard(x11_display, XkbGBN_AllComponentsMask,
+                                     XkbUseCoreKbd);
+
+    if (desc && desc->names) {
+        keycodes = XGetAtomName(x11_display, desc->names->keycodes);
+    }
+    if (keycodes == NULL) {
+        fprintf(stderr, "could not lookup keycode name\n");
+    } else if (strstart(keycodes, "evdev", NULL)) {
+        s->has_evdev = true;
+    } else if (!strstart(keycodes, "xfree86", NULL)) {
+        fprintf(stderr, "unknown keycodes `%s', please report to "
+                "qemu-devel@nongnu.org\n", keycodes);
+    }
+#endif
+}
+
 void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
 {
     GtkDisplayState *s = g_malloc0(sizeof(*s));
@@ -1781,6 +1813,8 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
     if (grab_on_hover) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->grab_on_hover_item));
     }
+
+    gd_set_keycode_type(s);
 
     global_state = s;
 }
