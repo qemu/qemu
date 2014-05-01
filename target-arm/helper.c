@@ -657,7 +657,7 @@ static void vbar_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * contexts. (ARMv8 would permit us to do no masking at all, but ARMv7
      * requires the bottom five bits to be RAZ/WI because they're UNK/SBZP.)
      */
-    env->cp15.c12_vbar = value & ~0x1Ful;
+    env->cp15.c12_vbar = value & ~0x1FULL;
 }
 
 static uint64_t ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
