@@ -546,7 +546,7 @@ static int pmintenclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static int vbar_write(CPUARMState *env, const ARMCPRegInfo *ri,
                       uint64_t value)
 {
-    env->cp15.c12_vbar = value & ~0x1Ful;
+    env->cp15.c12_vbar = value & ~0x1FULL;
     return 0;
 }
 
