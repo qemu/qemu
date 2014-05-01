@@ -1242,8 +1242,7 @@ static int target_setup_sigframe(struct target_rt_sigframe *sf,
     __put_user(env->pc, &sf->uc.tuc_mcontext.pc);
     __put_user(pstate_read(env), &sf->uc.tuc_mcontext.pstate);
 
-    __put_user(/*current->thread.fault_address*/ 0,
-            &sf->uc.tuc_mcontext.fault_address);
+    __put_user(env->exception.vaddress, &sf->uc.tuc_mcontext.fault_address);
 
     for (i = 0; i < TARGET_NSIG_WORDS; i++) {
         __put_user(set->sig[i], &sf->uc.tuc_sigmask.sig[i]);
