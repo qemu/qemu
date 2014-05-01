@@ -5,9 +5,10 @@ QEMU Standard VGA
 Exists in two variants, for isa and pci.
 
 command line switches:
-    -vga std            [ picks isa for -M isapc, otherwise pci ]
-    -device VGA         [ pci variant ]
-    -device isa-vga     [ isa variant ]
+    -vga std               [ picks isa for -M isapc, otherwise pci ]
+    -device VGA            [ pci variant ]
+    -device isa-vga        [ isa variant ]
+    -device secondary-vga  [ legacy-free pci variant ]
 
 
 PCI spec
@@ -31,8 +32,14 @@ PCI ROM Region:
    Holds the vgabios (qemu 0.14+).
 
 
+The legacy-free variant has no ROM and has PCI_CLASS_DISPLAY_OTHER
+instead of PCI_CLASS_DISPLAY_VGA.
+
+
 IO ports used
 -------------
+
+Doesn't apply to the legacy-free pci variant, use the MMIO bar instead.
 
 03c0 - 03df : standard vga ports
 01ce        : bochs vbe interface index port

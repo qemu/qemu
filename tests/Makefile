@@ -113,6 +113,10 @@ check-qtest-pci-y += tests/tpci200-test$(EXESUF)
 gcov-files-pci-y += hw/ipack/tpci200.c
 check-qtest-pci-y += $(check-qtest-ipack-y)
 gcov-files-pci-y += $(gcov-files-ipack-y)
+check-qtest-pci-y += tests/display-vga-test$(EXESUF)
+gcov-files-pci-y += hw/display/vga.c
+gcov-files-pci-y += hw/display/cirrus_vga.c
+gcov-files-pci-y += hw/display/vga-pci.c
 
 check-qtest-i386-y = tests/endianness-test$(EXESUF)
 check-qtest-i386-y += tests/fdc-test$(EXESUF)
@@ -280,6 +284,7 @@ tests/virtio-9p-test$(EXESUF): tests/virtio-9p-test.o
 tests/virtio-serial-test$(EXESUF): tests/virtio-serial-test.o
 tests/virtio-console-test$(EXESUF): tests/virtio-console-test.o
 tests/tpci200-test$(EXESUF): tests/tpci200-test.o
+tests/display-vga-test$(EXESUF): tests/display-vga-test.o
 tests/ipoctal232-test$(EXESUF): tests/ipoctal232-test.o
 tests/qom-test$(EXESUF): tests/qom-test.o
 tests/blockdev-test$(EXESUF): tests/blockdev-test.o $(libqos-pc-obj-y)
