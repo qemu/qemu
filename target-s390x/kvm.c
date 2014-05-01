@@ -929,12 +929,10 @@ void kvm_s390_crw_mchk(S390CPU *cpu)
 
 void kvm_s390_enable_css_support(S390CPU *cpu)
 {
-    struct kvm_enable_cap cap = {};
     int r;
 
     /* Activate host kernel channel subsystem support. */
-    cap.cap = KVM_CAP_S390_CSS_SUPPORT;
-    r = kvm_vcpu_ioctl(CPU(cpu), KVM_ENABLE_CAP, &cap);
+    r = kvm_vcpu_enable_cap(CPU(cpu), KVM_CAP_S390_CSS_SUPPORT, 0);
     assert(r == 0);
 }
 

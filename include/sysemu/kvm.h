@@ -294,6 +294,36 @@ bool kvm_arch_stop_on_emulation_error(CPUState *cpu);
 
 int kvm_check_extension(KVMState *s, unsigned int extension);
 
+#define kvm_vm_enable_cap(s, capability, cap_flags, ...)             \
+    ({                                                               \
+        struct kvm_enable_cap cap = {                                \
+            .cap = capability,                                       \
+            .flags = cap_flags,                                      \
+        };                                                           \
+        uint64_t args_tmp[] = { __VA_ARGS__ };                       \
+        int i;                                                       \
+        for (i = 0; i < ARRAY_SIZE(args_tmp) &&                      \
+                     i < ARRAY_SIZE(cap.args); i++) {                \
+            cap.args[i] = args_tmp[i];                               \
+        }                                                            \
+        kvm_vm_ioctl(s, KVM_ENABLE_CAP, &cap);                       \
+    })
+
+#define kvm_vcpu_enable_cap(cpu, capability, cap_flags, ...)         \
+    ({                                                               \
+        struct kvm_enable_cap cap = {                                \
+            .cap = capability,                                       \
+            .flags = cap_flags,                                      \
+        };                                                           \
+        uint64_t args_tmp[] = { __VA_ARGS__ };                       \
+        int i;                                                       \
+        for (i = 0; i < ARRAY_SIZE(args_tmp) &&                      \
+                     i < ARRAY_SIZE(cap.args); i++) {                \
+            cap.args[i] = args_tmp[i];                               \
+        }                                                            \
+        kvm_vcpu_ioctl(cpu, KVM_ENABLE_CAP, &cap);                   \
+    })
+
 uint32_t kvm_arch_get_supported_cpuid(KVMState *env, uint32_t function,
                                       uint32_t index, int reg);
 

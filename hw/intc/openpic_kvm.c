@@ -234,13 +234,9 @@ static void kvm_openpic_realize(DeviceState *dev, Error **errp)
 int kvm_openpic_connect_vcpu(DeviceState *d, CPUState *cs)
 {
     KVMOpenPICState *opp = KVM_OPENPIC(d);
-    struct kvm_enable_cap encap = {};
 
-    encap.cap = KVM_CAP_IRQ_MPIC;
-    encap.args[0] = opp->fd;
-    encap.args[1] = kvm_arch_vcpu_id(cs);
-
-    return kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &encap);
+    return kvm_vcpu_enable_cap(cs, KVM_CAP_IRQ_MPIC, 0, opp->fd,
+                               kvm_arch_vcpu_id(cs));
 }
 
 static Property kvm_openpic_properties[] = {
