@@ -120,6 +120,22 @@ int ppc64_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
                                int cpuid, void *opaque);
 #ifndef CONFIG_USER_ONLY
 extern const struct VMStateDescription vmstate_ppc_cpu;
+
+typedef struct PPCTimebase {
+    uint64_t guest_timebase;
+    int64_t time_of_the_day_ns;
+} PPCTimebase;
+
+extern const struct VMStateDescription vmstate_ppc_timebase;
+
+#define VMSTATE_PPC_TIMEBASE_V(_field, _state, _version) {            \
+    .name       = (stringify(_field)),                                \
+    .version_id = (_version),                                         \
+    .size       = sizeof(PPCTimebase),                                \
+    .vmsd       = &vmstate_ppc_timebase,                              \
+    .flags      = VMS_STRUCT,                                         \
+    .offset     = vmstate_offset_value(_state, _field, PPCTimebase),  \
+}
 #endif
 
 #endif

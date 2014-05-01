@@ -35,6 +35,7 @@
 #include "hw/sysbus.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
+#include "hw/ppc/ppc.h"
 #include "sysemu/watchdog.h"
 #include "trace.h"
 
@@ -865,6 +866,8 @@ int kvm_arch_put_registers(CPUState *cs, int level)
                 DPRINTF("Warning: Unable to set VPA information to KVM\n");
             }
         }
+
+        kvm_set_one_reg(cs, KVM_REG_PPC_TB_OFFSET, &env->tb_env->tb_offset);
 #endif /* TARGET_PPC64 */
     }
 
@@ -1089,6 +1092,8 @@ int kvm_arch_get_registers(CPUState *cs)
                 DPRINTF("Warning: Unable to get VPA information from KVM\n");
             }
         }
+
+        kvm_get_one_reg(cs, KVM_REG_PPC_TB_OFFSET, &env->tb_env->tb_offset);
 #endif
     }
 

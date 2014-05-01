@@ -29,6 +29,7 @@ typedef struct sPAPREnvironment {
     target_ulong entry_point;
     uint32_t next_irq;
     uint64_t rtc_offset;
+    struct PPCTimebase tb;
     bool has_graphics;
 
     uint32_t epow_irq;
