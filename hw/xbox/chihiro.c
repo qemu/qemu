@@ -173,6 +173,7 @@ static void chihiro_ide_interface_init(const char *rom_file,
         assert(fd != -1);
         rc = read(fd, memory_region_get_ram_ptr(rom), rom_size);
         assert(rc == rom_size);
+        close(fd);
     }
 
 
@@ -186,6 +187,7 @@ static void chihiro_ide_interface_init(const char *rom_file,
         assert(fd != -1);
         rc = read(fd, memory_region_get_ram_ptr(rom), filesystem_size);
         assert(rc == filesystem_size);
+        close(fd);
     }
 
     /* create the device */
