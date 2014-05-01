@@ -272,6 +272,11 @@ void readline_set_completion_index(ReadLineState *rs, int index)
     rs->completion_index = index;
 }
 
+static int completion_comp(const void *a, const void *b)
+{
+    return strcmp(*(const char **) a, *(const char **) b);
+}
+
 static void readline_completion(ReadLineState *rs)
 {
     int len, i, j, max_width, nb_cols, max_prefix;
@@ -295,6 +300,8 @@ static void readline_completion(ReadLineState *rs)
         if (len > 0 && rs->completions[0][len - 1] != '/')
             readline_insert_char(rs, ' ');
     } else {
+        qsort(rs->completions, rs->nb_completions, sizeof(char *),
+              completion_comp);
         rs->printf_func(rs->opaque, "\n");
         max_width = 0;
         max_prefix = 0;	
