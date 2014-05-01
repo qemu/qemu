@@ -1578,6 +1578,21 @@ static const ARMCPRegInfo xscale_cp_reginfo[] = {
       .cp = 15, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 1, .access = PL1_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c1_xscaleauxcr),
       .resetvalue = 0, },
+    /* XScale specific cache-lockdown: since we have no cache we NOP these
+     * and hope the guest does not really rely on cache behaviour.
+     */
+    { .name = "XSCALE_LOCK_ICACHE_LINE",
+      .cp = 15, .opc1 = 0, .crn = 9, .crm = 1, .opc2 = 0,
+      .access = PL1_W, .type = ARM_CP_NOP },
+    { .name = "XSCALE_UNLOCK_ICACHE",
+      .cp = 15, .opc1 = 0, .crn = 9, .crm = 1, .opc2 = 1,
+      .access = PL1_W, .type = ARM_CP_NOP },
+    { .name = "XSCALE_DCACHE_LOCK",
+      .cp = 15, .opc1 = 0, .crn = 9, .crm = 2, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_NOP },
+    { .name = "XSCALE_UNLOCK_DCACHE",
+      .cp = 15, .opc1 = 0, .crn = 9, .crm = 2, .opc2 = 1,
+      .access = PL1_W, .type = ARM_CP_NOP },
     REGINFO_SENTINEL
 };
 
