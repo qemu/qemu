@@ -1151,6 +1151,8 @@ static void handle_hint(DisasContext *s, uint32_t insn,
         return;
     case 1: /* YIELD */
     case 2: /* WFE */
+        s->is_jmp = DISAS_WFE;
+        return;
     case 4: /* SEV */
     case 5: /* SEVL */
         /* we treat all as NOP at least for now */
@@ -10764,6 +10766,10 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
         case DISAS_TB_JUMP:
         case DISAS_EXC:
         case DISAS_SWI:
+            break;
+        case DISAS_WFE:
+            gen_a64_set_pc_im(dc->pc);
+            gen_helper_wfe(cpu_env);
             break;
         case DISAS_WFI:
             /* This is a special case because we don't want to just halt the CPU
