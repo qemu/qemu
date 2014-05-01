@@ -93,13 +93,12 @@ static inline void gdk_drawable_get_size(GdkWindow *w, gint *ww, gint *wh)
 #define GDK_KEY_2 GDK_2
 #define GDK_KEY_f GDK_f
 #define GDK_KEY_g GDK_g
+#define GDK_KEY_q GDK_q
 #define GDK_KEY_plus GDK_plus
 #define GDK_KEY_minus GDK_minus
 #endif
 
 #define HOTKEY_MODIFIERS        (GDK_CONTROL_MASK | GDK_MOD1_MASK)
-#define IGNORE_MODIFIER_MASK \
-    (GDK_MODIFIER_MASK & ~(GDK_LOCK_MASK | GDK_MOD2_MASK))
 
 static const int modifier_keycode[] = {
     /* shift, control, alt keys, meta keys, both left & right */
@@ -114,7 +113,6 @@ typedef struct VirtualConsole
     GtkWidget *scrolled_window;
     CharDriverState *chr;
 #endif
-    int fd;
 } VirtualConsole;
 
 typedef struct GtkDisplayState
@@ -488,24 +486,6 @@ static void gd_mouse_mode_change(Notifier *notify, void *data)
 }
 
 /** GTK Events **/
-
-static gboolean gd_window_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
-{
-    GtkDisplayState *s = opaque;
-    gboolean handled = FALSE;
-
-    if (!gd_is_grab_active(s) ||
-        (key->state & IGNORE_MODIFIER_MASK) == HOTKEY_MODIFIERS) {
-        handled = gtk_window_activate_key(GTK_WINDOW(widget), key);
-    }
-    if (handled) {
-        gtk_release_modifiers(s);
-    } else {
-        handled = gtk_window_propagate_key_event(GTK_WINDOW(widget), key);
-    }
-
-    return handled;
-}
 
 static gboolean gd_window_close(GtkWidget *widget, GdkEvent *event,
                                 void *opaque)
@@ -1161,9 +1141,12 @@ static gboolean gd_focus_out_event(GtkWidget *widget,
 
 static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
+#if defined(CONFIG_VTE)
     VirtualConsole *vc = chr->opaque;
 
-    return vc ? write(vc->fd, buf, len) : len;
+    vte_terminal_feed(VTE_TERMINAL(vc->terminal), (const char *)buf, len);
+#endif
+    return len;
 }
 
 static int nb_vcs;
@@ -1189,19 +1172,12 @@ void early_gtk_display_init(void)
 }
 
 #if defined(CONFIG_VTE)
-static gboolean gd_vc_in(GIOChannel *chan, GIOCondition cond, void *opaque)
+static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
+                         gpointer user_data)
 {
-    VirtualConsole *vc = opaque;
-    uint8_t buffer[1024];
-    ssize_t len;
+    VirtualConsole *vc = user_data;
 
-    len = read(vc->fd, buffer, sizeof(buffer));
-    if (len <= 0) {
-        return FALSE;
-    }
-
-    qemu_chr_be_write(vc->chr, buffer, len);
-
+    qemu_chr_be_write(vc->chr, (uint8_t  *)text, (unsigned int)size);
     return TRUE;
 }
 #endif
@@ -1213,13 +1189,8 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     const char *label;
     char buffer[32];
     char path[32];
-#if VTE_CHECK_VERSION(0, 26, 0)
-    VtePty *pty;
-#endif
-    GIOChannel *chan;
     GtkWidget *scrolled_window;
     GtkAdjustment *vadjustment;
-    int master_fd, slave_fd;
 
     snprintf(buffer, sizeof(buffer), "vc%d", index);
     snprintf(path, sizeof(path), "<QEMU>/View/VC%d", index);
@@ -1238,27 +1209,21 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     gtk_accel_map_add_entry(path, GDK_KEY_2 + index, HOTKEY_MODIFIERS);
 
     vc->terminal = vte_terminal_new();
-
-    master_fd = qemu_openpty_raw(&slave_fd, NULL);
-    g_assert(master_fd != -1);
-
-#if VTE_CHECK_VERSION(0, 26, 0)
-    pty = vte_pty_new_foreign(master_fd, NULL);
-    vte_terminal_set_pty_object(VTE_TERMINAL(vc->terminal), pty);
-#else
-    vte_terminal_set_pty(VTE_TERMINAL(vc->terminal), master_fd);
-#endif
+    g_signal_connect(vc->terminal, "commit", G_CALLBACK(gd_vc_in), vc);
 
     vte_terminal_set_scrollback_lines(VTE_TERMINAL(vc->terminal), -1);
 
+#if VTE_CHECK_VERSION(0, 28, 0) && GTK_CHECK_VERSION(3, 0, 0)
+    vadjustment = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(vc->terminal));
+#else
     vadjustment = vte_terminal_get_adjustment(VTE_TERMINAL(vc->terminal));
+#endif
 
     scrolled_window = gtk_scrolled_window_new(NULL, vadjustment);
     gtk_container_add(GTK_CONTAINER(scrolled_window), vc->terminal);
 
     vte_terminal_set_size(VTE_TERMINAL(vc->terminal), 80, 25);
 
-    vc->fd = slave_fd;
     vc->chr->opaque = vc;
     vc->scrolled_window = scrolled_window;
 
@@ -1276,9 +1241,6 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
         vc->chr->init(vc->chr);
     }
 
-    chan = g_io_channel_unix_new(vc->fd);
-    g_io_add_watch(chan, G_IO_IN, gd_vc_in, vc);
-
 #endif /* CONFIG_VTE */
     return group;
 }
@@ -1290,8 +1252,6 @@ static void gd_connect_signals(GtkDisplayState *s)
     g_signal_connect(s->show_tabs_item, "activate",
                      G_CALLBACK(gd_menu_show_tabs), s);
 
-    g_signal_connect(s->window, "key-press-event",
-                     G_CALLBACK(gd_window_key_event), s);
     g_signal_connect(s->window, "delete-event",
                      G_CALLBACK(gd_window_close), s);
 
@@ -1351,7 +1311,6 @@ static GtkWidget *gd_create_menu_machine(GtkDisplayState *s, GtkAccelGroup *acce
 {
     GtkWidget *machine_menu;
     GtkWidget *separator;
-    GtkStockItem item;
 
     machine_menu = gtk_menu_new();
     gtk_menu_set_accel_group(GTK_MENU(machine_menu), accel_group);
@@ -1362,20 +1321,20 @@ static GtkWidget *gd_create_menu_machine(GtkDisplayState *s, GtkAccelGroup *acce
     separator = gtk_separator_menu_item_new();
     gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), separator);
 
-    s->reset_item = gtk_image_menu_item_new_with_mnemonic(_("_Reset"));
+    s->reset_item = gtk_menu_item_new_with_mnemonic(_("_Reset"));
     gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), s->reset_item);
 
-    s->powerdown_item = gtk_image_menu_item_new_with_mnemonic(_("Power _Down"));
+    s->powerdown_item = gtk_menu_item_new_with_mnemonic(_("Power _Down"));
     gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), s->powerdown_item);
 
     separator = gtk_separator_menu_item_new();
     gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), separator);
 
-    s->quit_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_QUIT, NULL);
-    gtk_stock_lookup(GTK_STOCK_QUIT, &item);
+    s->quit_item = gtk_menu_item_new_with_mnemonic(_("_Quit"));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->quit_item),
                                  "<QEMU>/Machine/Quit");
-    gtk_accel_map_add_entry("<QEMU>/Machine/Quit", item.keyval, item.modifier);
+    gtk_accel_map_add_entry("<QEMU>/Machine/Quit",
+                            GDK_KEY_q, HOTKEY_MODIFIERS);
     gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), s->quit_item);
 
     return machine_menu;
@@ -1391,8 +1350,7 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_g
     view_menu = gtk_menu_new();
     gtk_menu_set_accel_group(GTK_MENU(view_menu), accel_group);
 
-    s->full_screen_item =
-        gtk_image_menu_item_new_from_stock(GTK_STOCK_FULLSCREEN, NULL);
+    s->full_screen_item = gtk_menu_item_new_with_mnemonic(_("_Fullscreen"));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->full_screen_item),
                                  "<QEMU>/View/Full Screen");
     gtk_accel_map_add_entry("<QEMU>/View/Full Screen", GDK_KEY_f,
@@ -1402,21 +1360,21 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_g
     separator = gtk_separator_menu_item_new();
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), separator);
 
-    s->zoom_in_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_ZOOM_IN, NULL);
+    s->zoom_in_item = gtk_menu_item_new_with_mnemonic(_("Zoom _In"));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->zoom_in_item),
                                  "<QEMU>/View/Zoom In");
     gtk_accel_map_add_entry("<QEMU>/View/Zoom In", GDK_KEY_plus,
                             HOTKEY_MODIFIERS);
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->zoom_in_item);
 
-    s->zoom_out_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_ZOOM_OUT, NULL);
+    s->zoom_out_item = gtk_menu_item_new_with_mnemonic(_("Zoom _Out"));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->zoom_out_item),
                                  "<QEMU>/View/Zoom Out");
     gtk_accel_map_add_entry("<QEMU>/View/Zoom Out", GDK_KEY_minus,
                             HOTKEY_MODIFIERS);
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->zoom_out_item);
 
-    s->zoom_fixed_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_ZOOM_100, NULL);
+    s->zoom_fixed_item = gtk_menu_item_new_with_mnemonic(_("Best _Fit"));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->zoom_fixed_item),
                                  "<QEMU>/View/Zoom Fixed");
     gtk_accel_map_add_entry("<QEMU>/View/Zoom Fixed", GDK_KEY_0,
