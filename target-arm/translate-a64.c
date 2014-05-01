@@ -1509,8 +1509,10 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
     switch (opc) {
     case 0: /* BR */
     case 2: /* RET */
+        tcg_gen_mov_i64(cpu_pc, cpu_reg(s, rn));
         break;
     case 1: /* BLR */
+        tcg_gen_mov_i64(cpu_pc, cpu_reg(s, rn));
         tcg_gen_movi_i64(cpu_reg(s, 30), s->pc);
         break;
     case 4: /* ERET */
@@ -1529,7 +1531,6 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         return;
     }
 
-    tcg_gen_mov_i64(cpu_pc, cpu_reg(s, rn));
     s->is_jmp = DISAS_JUMP;
 }
 
