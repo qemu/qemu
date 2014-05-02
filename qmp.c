@@ -146,24 +146,9 @@ SpiceInfo *qmp_query_spice(Error **errp)
 };
 #endif
 
-static void iostatus_bdrv_it(void *opaque, BlockDriverState *bs)
-{
-    bdrv_iostatus_reset(bs);
-}
-
-static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs)
-{
-    Error **errp = opaque;
-
-    if (!error_is_set(errp) && bdrv_key_required(bs)) {
-        error_set(errp, QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs),
-                  bdrv_get_encrypted_filename(bs));
-    }
-}
-
 void qmp_cont(Error **errp)
 {
-    Error *local_err = NULL;
+    BlockDriverState *bs;
 
     if (runstate_needs_reset()) {
         error_setg(errp, "Resetting the Virtual Machine is required");
@@ -172,11 +157,16 @@ void qmp_cont(Error **errp)
         return;
     }
 
-    bdrv_iterate(iostatus_bdrv_it, NULL);
-    bdrv_iterate(encrypted_bdrv_it, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
+    for (bs = bdrv_next(NULL); bs; bs = bdrv_next(bs)) {
+        bdrv_iostatus_reset(bs);
+    }
+    for (bs = bdrv_next(NULL); bs; bs = bdrv_next(bs)) {
+        if (bdrv_key_required(bs)) {
+            error_set(errp, QERR_DEVICE_ENCRYPTED,
+                      bdrv_get_device_name(bs),
+                      bdrv_get_encrypted_filename(bs));
+            return;
+        }
     }
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
