@@ -215,9 +215,10 @@ typedef union {
  *   q: 64 bits
  *
  * endian is:
- * (empty): host endian
+ *   he   : host endian
  *   be   : big endian
  *   le   : little endian
+ * (except for byte accesses, which have no endian infix).
  */
 
 static inline int ldub_p(const void *ptr)
@@ -239,82 +240,82 @@ static inline void stb_p(void *ptr, uint8_t v)
    operations.  Thus we don't need to play games with packed attributes, or
    inline byte-by-byte stores.  */
 
-static inline int lduw_p(const void *ptr)
+static inline int lduw_he_p(const void *ptr)
 {
     uint16_t r;
     memcpy(&r, ptr, sizeof(r));
     return r;
 }
 
-static inline int ldsw_p(const void *ptr)
+static inline int ldsw_he_p(const void *ptr)
 {
     int16_t r;
     memcpy(&r, ptr, sizeof(r));
     return r;
 }
 
-static inline void stw_p(void *ptr, uint16_t v)
+static inline void stw_he_p(void *ptr, uint16_t v)
 {
     memcpy(ptr, &v, sizeof(v));
 }
 
-static inline int ldl_p(const void *ptr)
+static inline int ldl_he_p(const void *ptr)
 {
     int32_t r;
     memcpy(&r, ptr, sizeof(r));
     return r;
 }
 
-static inline void stl_p(void *ptr, uint32_t v)
+static inline void stl_he_p(void *ptr, uint32_t v)
 {
     memcpy(ptr, &v, sizeof(v));
 }
 
-static inline uint64_t ldq_p(const void *ptr)
+static inline uint64_t ldq_he_p(const void *ptr)
 {
     uint64_t r;
     memcpy(&r, ptr, sizeof(r));
     return r;
 }
 
-static inline void stq_p(void *ptr, uint64_t v)
+static inline void stq_he_p(void *ptr, uint64_t v)
 {
     memcpy(ptr, &v, sizeof(v));
 }
 
 static inline int lduw_le_p(const void *ptr)
 {
-    return (uint16_t)le_bswap(lduw_p(ptr), 16);
+    return (uint16_t)le_bswap(lduw_he_p(ptr), 16);
 }
 
 static inline int ldsw_le_p(const void *ptr)
 {
-    return (int16_t)le_bswap(lduw_p(ptr), 16);
+    return (int16_t)le_bswap(lduw_he_p(ptr), 16);
 }
 
 static inline int ldl_le_p(const void *ptr)
 {
-    return le_bswap(ldl_p(ptr), 32);
+    return le_bswap(ldl_he_p(ptr), 32);
 }
 
 static inline uint64_t ldq_le_p(const void *ptr)
 {
-    return le_bswap(ldq_p(ptr), 64);
+    return le_bswap(ldq_he_p(ptr), 64);
 }
 
 static inline void stw_le_p(void *ptr, uint16_t v)
 {
-    stw_p(ptr, le_bswap(v, 16));
+    stw_he_p(ptr, le_bswap(v, 16));
 }
 
 static inline void stl_le_p(void *ptr, uint32_t v)
 {
-    stl_p(ptr, le_bswap(v, 32));
+    stl_he_p(ptr, le_bswap(v, 32));
 }
 
 static inline void stq_le_p(void *ptr, uint64_t v)
 {
-    stq_p(ptr, le_bswap(v, 64));
+    stq_he_p(ptr, le_bswap(v, 64));
 }
 
 /* float access */
@@ -349,37 +350,37 @@ static inline void stfq_le_p(void *ptr, float64 v)
 
 static inline int lduw_be_p(const void *ptr)
 {
-    return (uint16_t)be_bswap(lduw_p(ptr), 16);
+    return (uint16_t)be_bswap(lduw_he_p(ptr), 16);
 }
 
 static inline int ldsw_be_p(const void *ptr)
 {
-    return (int16_t)be_bswap(lduw_p(ptr), 16);
+    return (int16_t)be_bswap(lduw_he_p(ptr), 16);
 }
 
 static inline int ldl_be_p(const void *ptr)
 {
-    return be_bswap(ldl_p(ptr), 32);
+    return be_bswap(ldl_he_p(ptr), 32);
 }
 
 static inline uint64_t ldq_be_p(const void *ptr)
 {
-    return be_bswap(ldq_p(ptr), 64);
+    return be_bswap(ldq_he_p(ptr), 64);
 }
 
 static inline void stw_be_p(void *ptr, uint16_t v)
 {
-    stw_p(ptr, be_bswap(v, 16));
+    stw_he_p(ptr, be_bswap(v, 16));
 }
 
 static inline void stl_be_p(void *ptr, uint32_t v)
 {
-    stl_p(ptr, be_bswap(v, 32));
+    stl_he_p(ptr, be_bswap(v, 32));
 }
 
 static inline void stq_be_p(void *ptr, uint64_t v)
 {
-    stq_p(ptr, be_bswap(v, 64));
+    stq_he_p(ptr, be_bswap(v, 64));
 }
 
 /* float access */
