@@ -87,6 +87,7 @@ static void execute_async(DWORD WINAPI (*func)(LPVOID), LPVOID opaque,
 
 void qmp_guest_shutdown(bool has_mode, const char *mode, Error **errp)
 {
+    Error *local_err = NULL;
     UINT shutdown_flag = EWX_FORCE;
 
     slog("guest-shutdown called, mode: %s", mode);
@@ -105,8 +106,9 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **errp)
 
     /* Request a shutdown privilege, but try to shut down the system
        anyway. */
-    acquire_privilege(SE_SHUTDOWN_NAME, errp);
-    if (error_is_set(errp)) {
+    acquire_privilege(SE_SHUTDOWN_NAME, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
@@ -191,14 +193,16 @@ int64_t qmp_guest_fsfreeze_freeze(Error **errp)
     /* cannot risk guest agent blocking itself on a write in this state */
     ga_set_frozen(ga_state);
 
-    qga_vss_fsfreeze(&i, errp, true);
-    if (error_is_set(errp)) {
+    qga_vss_fsfreeze(&i, &local_err, true);
+    if (local_err) {
+        error_propagate(errp, local_err);
         goto error;
     }
 
     return i;
 
 error:
+    local_err = NULL;
     qmp_guest_fsfreeze_thaw(&local_err);
     if (local_err) {
         g_debug("cleanup thaw: %s", error_get_pretty(local_err));
@@ -313,28 +317,32 @@ static DWORD WINAPI do_suspend(LPVOID opaque)
 
 void qmp_guest_suspend_disk(Error **errp)
 {
+    Error *local_err = NULL;
     GuestSuspendMode *mode = g_malloc(sizeof(GuestSuspendMode));
 
     *mode = GUEST_SUSPEND_MODE_DISK;
-    check_suspend_mode(*mode, errp);
-    acquire_privilege(SE_SHUTDOWN_NAME, errp);
-    execute_async(do_suspend, mode, errp);
+    check_suspend_mode(*mode, &local_err);
+    acquire_privilege(SE_SHUTDOWN_NAME, &local_err);
+    execute_async(do_suspend, mode, &local_err);
 
-    if (error_is_set(errp)) {
+    if (local_err) {
+        error_propagate(errp, local_err);
         g_free(mode);
     }
 }
 
 void qmp_guest_suspend_ram(Error **errp)
 {
+    Error *local_err = NULL;
     GuestSuspendMode *mode = g_malloc(sizeof(GuestSuspendMode));
 
     *mode = GUEST_SUSPEND_MODE_RAM;
-    check_suspend_mode(*mode, errp);
-    acquire_privilege(SE_SHUTDOWN_NAME, errp);
-    execute_async(do_suspend, mode, errp);
+    check_suspend_mode(*mode, &local_err);
+    acquire_privilege(SE_SHUTDOWN_NAME, &local_err);
+    execute_async(do_suspend, mode, &local_err);
 
-    if (error_is_set(errp)) {
+    if (local_err) {
+        error_propagate(errp, local_err);
         g_free(mode);
     }
 }
@@ -375,6 +383,7 @@ int64_t qmp_guest_get_time(Error **errp)
 
 void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 {
+    Error *local_err = NULL;
     SYSTEMTIME ts;
     FILETIME tf;
     LONGLONG time;
@@ -406,8 +415,9 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
         }
     }
 
-    acquire_privilege(SE_SYSTEMTIME_NAME, errp);
-    if (error_is_set(errp)) {
+    acquire_privilege(SE_SYSTEMTIME_NAME, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 

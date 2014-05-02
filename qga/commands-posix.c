@@ -1067,8 +1067,11 @@ out:
 
 void qmp_guest_suspend_disk(Error **errp)
 {
-    bios_supports_mode("pm-is-supported", "--hibernate", "disk", errp);
-    if (error_is_set(errp)) {
+    Error *local_err = NULL;
+
+    bios_supports_mode("pm-is-supported", "--hibernate", "disk", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
@@ -1077,8 +1080,11 @@ void qmp_guest_suspend_disk(Error **errp)
 
 void qmp_guest_suspend_ram(Error **errp)
 {
-    bios_supports_mode("pm-is-supported", "--suspend", "mem", errp);
-    if (error_is_set(errp)) {
+    Error *local_err = NULL;
+
+    bios_supports_mode("pm-is-supported", "--suspend", "mem", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
@@ -1087,8 +1093,12 @@ void qmp_guest_suspend_ram(Error **errp)
 
 void qmp_guest_suspend_hybrid(Error **errp)
 {
-    bios_supports_mode("pm-is-supported", "--suspend-hybrid", NULL, errp);
-    if (error_is_set(errp)) {
+    Error *local_err = NULL;
+
+    bios_supports_mode("pm-is-supported", "--suspend-hybrid", NULL,
+                       &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
