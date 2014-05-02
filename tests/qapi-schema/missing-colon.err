@@ -1,1 +1,1 @@
-<stdin>:1:10: Expected ":"
+tests/qapi-schema/missing-colon.json:1:10: Expected ":"

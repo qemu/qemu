@@ -12,10 +12,11 @@
 
 from qapi import *
 from pprint import pprint
+import os
 import sys
 
 try:
-    exprs = parse_schema(sys.stdin)
+    exprs = parse_schema(sys.argv[1])
 except SystemExit:
     raise
 

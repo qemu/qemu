@@ -243,17 +243,17 @@ tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
 tests/test-qapi-types.c tests/test-qapi-types.h :\
 $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py \
-		$(gen-out-type) -o tests -p "test-" < $<, \
+		$(gen-out-type) -o tests -p "test-" -i $<, \
 		"  GEN   $@")
 tests/test-qapi-visit.c tests/test-qapi-visit.h :\
 $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-visit.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py \
-		$(gen-out-type) -o tests -p "test-" < $<, \
+		$(gen-out-type) -o tests -p "test-" -i $<, \
 		"  GEN   $@")
 tests/test-qmp-commands.h tests/test-qmp-marshal.c :\
 $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-commands.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py \
-		$(gen-out-type) -o tests -p "test-" < $<, \
+		$(gen-out-type) -o tests -p "test-" -i $<, \
 		"  GEN   $@")
 
 tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
@@ -408,11 +408,12 @@ check-tests/test-qapi.py: tests/test-qapi.py
 $(patsubst %, check-%, $(check-qapi-schema-y)): check-%.json: $(SRC_PATH)/%.json
 	$(call quiet-command, PYTHONPATH=$(SRC_PATH)/scripts \
 		$(PYTHON) $(SRC_PATH)/tests/qapi-schema/test-qapi.py \
-		<$^ >$*.test.out 2>$*.test.err; \
+		$^ >$*.test.out 2>$*.test.err; \
 		echo $$? >$*.test.exit, \
 		"  TEST  $*.out")
 	@diff -q $(SRC_PATH)/$*.out $*.test.out
-	@diff -q $(SRC_PATH)/$*.err $*.test.err
+	@# Sanitize error messages (make them independent of build directory)
+	@perl -p -e 's|\Q$(SRC_PATH)\E/||g' $*.test.err | diff -q $(SRC_PATH)/$*.err -
 	@diff -q $(SRC_PATH)/$*.exit $*.test.exit
 
 # Consolidated targets

@@ -1,1 +1,1 @@
-<stdin>:2:10: Duplicate key "key"
+tests/qapi-schema/duplicate-key.json:2:10: Duplicate key "key"

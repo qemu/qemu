@@ -397,13 +397,14 @@ void visit_type_%(name)s(Visitor *m, %(name)s * obj, const char *name, Error **e
                 name=name)
 
 try:
-    opts, args = getopt.gnu_getopt(sys.argv[1:], "chbp:o:",
+    opts, args = getopt.gnu_getopt(sys.argv[1:], "chbp:i:o:",
                                    ["source", "header", "builtins", "prefix=",
-                                    "output-dir="])
+                                    "input-file=", "output-dir="])
 except getopt.GetoptError, err:
     print str(err)
     sys.exit(1)
 
+input_file = ""
 output_dir = ""
 prefix = ""
 c_file = 'qapi-visit.c'
@@ -416,6 +417,8 @@ do_builtins = False
 for o, a in opts:
     if o in ("-p", "--prefix"):
         prefix = a
+    elif o in ("-i", "--input-file"):
+        input_file = a
     elif o in ("-o", "--output-dir"):
         output_dir = a + "/"
     elif o in ("-c", "--source"):
@@ -494,7 +497,7 @@ fdecl.write(mcgen('''
 ''',
                   prefix=prefix, guard=guardname(h_file)))
 
-exprs = parse_schema(sys.stdin)
+exprs = parse_schema(input_file)
 
 # to avoid header dependency hell, we always generate declarations
 # for built-in types in our header files and simply guard them

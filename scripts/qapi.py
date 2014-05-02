@@ -12,6 +12,7 @@
 # See the COPYING file in the top-level directory.
 
 from ordereddict import OrderedDict
+import os
 import sys
 
 builtin_types = [
@@ -263,9 +264,9 @@ def check_exprs(schema):
         if expr.has_key('union'):
             check_union(expr, expr_elem['info'])
 
-def parse_schema(fp):
+def parse_schema(input_file):
     try:
-        schema = QAPISchema(fp)
+        schema = QAPISchema(open(input_file, "r"))
     except QAPISchemaError, e:
         print >>sys.stderr, e
         exit(1)
