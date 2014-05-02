@@ -223,8 +223,8 @@ static int64_t guest_file_handle_add(FILE *fh, Error **errp)
     int64_t handle;
 
     handle = ga_get_fd_handle(ga_state, errp);
-    if (error_is_set(errp)) {
-        return 0;
+    if (handle < 0) {
+        return -1;
     }
 
     gfh = g_malloc0(sizeof(GuestFileHandle));
@@ -407,7 +407,7 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode,
     }
 
     handle = guest_file_handle_add(fh, errp);
-    if (error_is_set(errp)) {
+    if (handle < 0) {
         fclose(fh);
         return -1;
     }
