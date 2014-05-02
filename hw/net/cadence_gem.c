@@ -388,7 +388,7 @@ typedef struct GemState {
 } GemState;
 
 /* The broadcast MAC address: 0xFFFFFFFFFFFF */
-const uint8_t broadcast_addr[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+static const uint8_t broadcast_addr[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 /*
  * gem_init_register_masks:
