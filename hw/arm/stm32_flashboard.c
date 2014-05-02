@@ -139,7 +139,8 @@ typedef struct
     Stm32 *stm32;
 
     bool     triggered;
-    qemu_irq triggerIRQ;
+    qemu_irq gpioIRQ;
+    qemu_irq odIRQ;
 
     bool ledDrive1;
     bool ledDrive2;
@@ -219,12 +220,20 @@ static void gpiob_irq_handler(void *opaque, int n, int level)
     int64_t frac = (now % 1000000000) / 10000;
 
     int gpio = (int) opaque;
+    const char *name;
     switch (gpio)
     {
-        case 4: gpio = 7; break;
-        case 5: gpio = 6; break;
-        case 6: gpio = 5; break;
-        case 7: gpio = 4; break;
+        case 1: name = "GPIO 1"; break;
+        case 2: name = "GPIO 2"; break;
+        case 3: name = "GPIO 3"; break;
+        case 4: name = "GPIO 7"; break;
+        case 5: name = "GPIO 6"; break;
+        case 6: name = "GPIO 5"; break;
+        case 7: name = "GPIO 4"; break;
+        case 8: name = "GPIO EN"; break;
+        case 9: name = "OD IN"; break;
+        case 10: name = "OD 1"; break;
+        case 11: name = "OD 2"; break;
     }
 
     /* Assume that the IRQ is only triggered if the LED has changed state.
@@ -232,10 +241,10 @@ static void gpiob_irq_handler(void *opaque, int n, int level)
      */
     switch (level) {
         case 0:
-            printf("(%"PRId64".%05"PRId64") GPIO %d Off\n", secs, frac, gpio);
+            printf("(%"PRId64".%05"PRId64") %s Off\n", secs, frac, name);
             break;
         case 1:
-            printf("(%"PRId64".%05"PRId64") GPIO %d On\n", secs, frac, gpio);
+            printf("(%"PRId64".%05"PRId64") %s On\n", secs, frac, name);
             break;
     }
 }
@@ -257,19 +266,38 @@ static void stm32_flashboard_key_event(void *opaque, int keycode)
     /* Responds when a "B" key press is received.
      * Inside the monitor, you can type "sendkey b"
      */
-    if(core_keycode == 0x30) {
+    if(core_keycode == 0x30) 
+    {
         if(make) {
             if(!s->triggered) {
                 int64_t now = qemu_get_clock_ns(vm_clock);
                 int64_t secs = now / 1000000000;
                 int64_t frac = (now % 1000000000) / 10000;
                 printf("(%"PRId64".%05"PRId64") Trigger GPIO 0\n", secs, frac);
-                qemu_irq_raise(s->triggerIRQ);
+                qemu_irq_raise(s->gpioIRQ);
                 s->triggered = true;
             }
         } else {
             if(s->triggered) {
-                qemu_irq_lower(s->triggerIRQ);
+                qemu_irq_lower(s->gpioIRQ);
+                s->triggered = false;
+            }
+        }
+    }
+    else if (core_keycode == 0x31)
+    {
+        if(make) {
+            if(!s->triggered) {
+                int64_t now = qemu_get_clock_ns(vm_clock);
+                int64_t secs = now / 1000000000;
+                int64_t frac = (now % 1000000000) / 10000;
+                printf("(%"PRId64".%05"PRId64") Trigger OD_IN\n", secs, frac);
+                qemu_irq_raise(s->odIRQ);
+                s->triggered = true;
+            }
+        } else {
+            if(s->triggered) {
+                qemu_irq_lower(s->odIRQ);
                 s->triggered = false;
             }
         }
@@ -277,7 +305,7 @@ static void stm32_flashboard_key_event(void *opaque, int keycode)
     return;
 }
 
-#define OUTPUTGPIOS 7
+#define OUTPUTGPIOS 10
 
 static void stm32_flashboard_init(QEMUMachineInitArgs *args)
 {
@@ -315,15 +343,32 @@ static void stm32_flashboard_init(QEMUMachineInitArgs *args)
     qdev_connect_gpio_out(gpio_a, 6, ledDriver2IRQ[0]);
 
     /* Connect trigger to GPIO B pin 8 - GPIO0 */
-    s->triggerIRQ = qdev_get_gpio_in(gpio_b, 8);
+    s->gpioIRQ = qdev_get_gpio_in(gpio_b, 8);
     qemu_add_kbd_event_handler(stm32_flashboard_key_event, s);
 
     /* Connect GPIO B pin 9-15 - GPIO1-8 */
-    for (i = 0; i < OUTPUTGPIOS; i++)
+    for (i = 0; i < 7; i++)
     {
         gpiob[i] = qemu_allocate_irqs(gpiob_irq_handler, (void*)i+1, 1);
         qdev_connect_gpio_out(gpio_b, 9+i, gpiob[i][0]);
     }
+
+    /* Connect the OD outputs */
+    gpiob[i] = qemu_allocate_irqs(gpiob_irq_handler, (void*)10, 1);
+    qdev_connect_gpio_out(gpio_b, 1, gpiob[i][0]);
+    i++;
+    gpiob[i] = qemu_allocate_irqs(gpiob_irq_handler, (void*)11, 1);
+    qdev_connect_gpio_out(gpio_b, 2, gpiob[i][0]);
+    i++;
+
+    /* Connect the GPIO EN outputs */
+    gpiob[i] = qemu_allocate_irqs(gpiob_irq_handler, (void*)8, 1);
+    qdev_connect_gpio_out(gpio_b, 5, gpiob[i][0]);
+    i++;
+
+    /* Connect trigger to GPIO B pin 0 - OD_IN */
+    s->odIRQ = qdev_get_gpio_in(gpio_b, 0);
+    qemu_add_kbd_event_handler(stm32_flashboard_key_event, s);
 
     /* Connect RS232 to UART */
     stm32_uart_connect(
