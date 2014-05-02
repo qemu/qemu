@@ -5225,6 +5225,11 @@ static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
         { NULL, NULL, NULL }
     };
 
+    if (is_proc_myself(pathname, "exe")) {
+        int execfd = qemu_getauxval(AT_EXECFD);
+        return execfd ? execfd : get_errno(open(exec_path, flags, mode));
+    }
+
     for (fake_open = fakes; fake_open->filename; fake_open++) {
         if (fake_open->cmp(pathname, fake_open->filename)) {
             break;
