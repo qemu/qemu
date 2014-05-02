@@ -71,6 +71,7 @@ typedef struct CURLState
     struct BDRVCURLState *s;
     CURLAIOCB *acb[CURL_NUM_ACB];
     CURL *curl;
+    curl_socket_t sock_fd;
     char *orig_buf;
     size_t buf_start;
     size_t buf_off;
@@ -92,6 +93,7 @@ typedef struct BDRVCURLState {
 
 static void curl_clean_state(CURLState *s);
 static void curl_multi_do(void *arg);
+static void curl_multi_read(void *arg);
 
 #ifdef NEED_CURL_TIMER_CALLBACK
 static int curl_timer_cb(CURLM *multi, long timeout_ms, void *opaque)
@@ -113,16 +115,20 @@ static int curl_timer_cb(CURLM *multi, long timeout_ms, void *opaque)
 static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
                         void *s, void *sp)
 {
+    CURLState *state = NULL;
+    curl_easy_getinfo(curl, CURLINFO_PRIVATE, (char **)&state);
+    state->sock_fd = fd;
+
     DPRINTF("CURL (AIO): Sock action %d on fd %d\n", action, fd);
     switch (action) {
         case CURL_POLL_IN:
-            qemu_aio_set_fd_handler(fd, curl_multi_do, NULL, s);
+            qemu_aio_set_fd_handler(fd, curl_multi_read, NULL, state);
             break;
         case CURL_POLL_OUT:
-            qemu_aio_set_fd_handler(fd, NULL, curl_multi_do, s);
+            qemu_aio_set_fd_handler(fd, NULL, curl_multi_do, state);
             break;
         case CURL_POLL_INOUT:
-            qemu_aio_set_fd_handler(fd, curl_multi_do, curl_multi_do, s);
+            qemu_aio_set_fd_handler(fd, curl_multi_read, curl_multi_do, state);
             break;
         case CURL_POLL_REMOVE:
             qemu_aio_set_fd_handler(fd, NULL, NULL, NULL);
@@ -155,7 +161,7 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
     DPRINTF("CURL: Just reading %zd bytes\n", realsize);
 
     if (!s || !s->orig_buf)
-        goto read_end;
+        return 0;
 
     if (s->buf_off >= s->buf_len) {
         /* buffer full, read nothing */
@@ -180,7 +186,6 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
         }
     }
 
-read_end:
     return realsize;
 }
 
@@ -215,7 +220,8 @@ static int curl_find_buf(BDRVCURLState *s, size_t start, size_t len,
         }
 
         // Wait for unfinished chunks
-        if ((start >= state->buf_start) &&
+        if (state->in_use &&
+            (start >= state->buf_start) &&
             (start <= buf_fend) &&
             (end >= state->buf_start) &&
             (end <= buf_fend))
@@ -237,68 +243,69 @@ static int curl_find_buf(BDRVCURLState *s, size_t start, size_t len,
     return FIND_RET_NONE;
 }
 
-static void curl_multi_read(BDRVCURLState *s)
+static void curl_multi_check_completion(BDRVCURLState *s)
 {
     int msgs_in_queue;
 
     /* Try to find done transfers, so we can free the easy
      * handle again. */
-    do {
+    for (;;) {
         CURLMsg *msg;
         msg = curl_multi_info_read(s->multi, &msgs_in_queue);
 
+        /* Quit when there are no more completions */
         if (!msg)
             break;
-        if (msg->msg == CURLMSG_NONE)
-            break;
 
-        switch (msg->msg) {
-            case CURLMSG_DONE:
-            {
-                CURLState *state = NULL;
-                curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, (char**)&state);
+        if (msg->msg == CURLMSG_DONE) {
+            CURLState *state = NULL;
+            curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE,
+                              (char **)&state);
 
-                /* ACBs for successful messages get completed in curl_read_cb */
-                if (msg->data.result != CURLE_OK) {
-                    int i;
-                    for (i = 0; i < CURL_NUM_ACB; i++) {
-                        CURLAIOCB *acb = state->acb[i];
+            /* ACBs for successful messages get completed in curl_read_cb */
+            if (msg->data.result != CURLE_OK) {
+                int i;
+                for (i = 0; i < CURL_NUM_ACB; i++) {
+                    CURLAIOCB *acb = state->acb[i];
 
-                        if (acb == NULL) {
-                            continue;
-                        }
-
-                        acb->common.cb(acb->common.opaque, -EIO);
-                        qemu_aio_release(acb);
-                        state->acb[i] = NULL;
+                    if (acb == NULL) {
+                        continue;
                     }
-                }
 
-                curl_clean_state(state);
-                break;
+                    acb->common.cb(acb->common.opaque, -EIO);
+                    qemu_aio_release(acb);
+                    state->acb[i] = NULL;
+                }
             }
-            default:
-                msgs_in_queue = 0;
-                break;
+
+            curl_clean_state(state);
+            break;
         }
-    } while(msgs_in_queue);
+    }
 }
 
 static void curl_multi_do(void *arg)
 {
-    BDRVCURLState *s = (BDRVCURLState *)arg;
+    CURLState *s = (CURLState *)arg;
     int running;
     int r;
 
-    if (!s->multi) {
+    if (!s->s->multi) {
         return;
     }
 
     do {
-        r = curl_multi_socket_all(s->multi, &running);
+        r = curl_multi_socket_action(s->s->multi, s->sock_fd, 0, &running);
     } while(r == CURLM_CALL_MULTI_PERFORM);
 
-    curl_multi_read(s);
+}
+
+static void curl_multi_read(void *arg)
+{
+    CURLState *s = (CURLState *)arg;
+
+    curl_multi_do(arg);
+    curl_multi_check_completion(s->s);
 }
 
 static void curl_multi_timeout_do(void *arg)
@@ -313,7 +320,7 @@ static void curl_multi_timeout_do(void *arg)
 
     curl_multi_socket_action(s->multi, CURL_SOCKET_TIMEOUT, 0, &running);
 
-    curl_multi_read(s);
+    curl_multi_check_completion(s);
 #else
     abort();
 #endif
@@ -337,44 +344,42 @@ static CURLState *curl_init_state(BDRVCURLState *s)
             break;
         }
         if (!state) {
-            g_usleep(100);
-            curl_multi_do(s);
+            qemu_aio_wait();
         }
     } while(!state);
 
-    if (state->curl)
-        goto has_curl;
+    if (!state->curl) {
+        state->curl = curl_easy_init();
+        if (!state->curl) {
+            return NULL;
+        }
+        curl_easy_setopt(state->curl, CURLOPT_URL, s->url);
+        curl_easy_setopt(state->curl, CURLOPT_TIMEOUT, 5);
+        curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION,
+                         (void *)curl_read_cb);
+        curl_easy_setopt(state->curl, CURLOPT_WRITEDATA, (void *)state);
+        curl_easy_setopt(state->curl, CURLOPT_PRIVATE, (void *)state);
+        curl_easy_setopt(state->curl, CURLOPT_AUTOREFERER, 1);
+        curl_easy_setopt(state->curl, CURLOPT_FOLLOWLOCATION, 1);
+        curl_easy_setopt(state->curl, CURLOPT_NOSIGNAL, 1);
+        curl_easy_setopt(state->curl, CURLOPT_ERRORBUFFER, state->errmsg);
+        curl_easy_setopt(state->curl, CURLOPT_FAILONERROR, 1);
 
-    state->curl = curl_easy_init();
-    if (!state->curl)
-        return NULL;
-    curl_easy_setopt(state->curl, CURLOPT_URL, s->url);
-    curl_easy_setopt(state->curl, CURLOPT_TIMEOUT, 5);
-    curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION, (void *)curl_read_cb);
-    curl_easy_setopt(state->curl, CURLOPT_WRITEDATA, (void *)state);
-    curl_easy_setopt(state->curl, CURLOPT_PRIVATE, (void *)state);
-    curl_easy_setopt(state->curl, CURLOPT_AUTOREFERER, 1);
-    curl_easy_setopt(state->curl, CURLOPT_FOLLOWLOCATION, 1);
-    curl_easy_setopt(state->curl, CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(state->curl, CURLOPT_ERRORBUFFER, state->errmsg);
-    curl_easy_setopt(state->curl, CURLOPT_FAILONERROR, 1);
-
-    /* Restrict supported protocols to avoid security issues in the more
-     * obscure protocols.  For example, do not allow POP3/SMTP/IMAP see
-     * CVE-2013-0249.
-     *
-     * Restricting protocols is only supported from 7.19.4 upwards.
-     */
+        /* Restrict supported protocols to avoid security issues in the more
+         * obscure protocols.  For example, do not allow POP3/SMTP/IMAP see
+         * CVE-2013-0249.
+         *
+         * Restricting protocols is only supported from 7.19.4 upwards.
+         */
 #if LIBCURL_VERSION_NUM >= 0x071304
-    curl_easy_setopt(state->curl, CURLOPT_PROTOCOLS, PROTOCOLS);
-    curl_easy_setopt(state->curl, CURLOPT_REDIR_PROTOCOLS, PROTOCOLS);
+        curl_easy_setopt(state->curl, CURLOPT_PROTOCOLS, PROTOCOLS);
+        curl_easy_setopt(state->curl, CURLOPT_REDIR_PROTOCOLS, PROTOCOLS);
 #endif
 
 #ifdef DEBUG_VERBOSE
-    curl_easy_setopt(state->curl, CURLOPT_VERBOSE, 1);
+        curl_easy_setopt(state->curl, CURLOPT_VERBOSE, 1);
 #endif
-
-has_curl:
+    }
 
     state->s = s;
 
@@ -531,13 +536,11 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     // initialize the multi interface!
 
     s->multi = curl_multi_init();
-    curl_multi_setopt(s->multi, CURLMOPT_SOCKETDATA, s);
     curl_multi_setopt(s->multi, CURLMOPT_SOCKETFUNCTION, curl_sock_cb);
 #ifdef NEED_CURL_TIMER_CALLBACK
     curl_multi_setopt(s->multi, CURLMOPT_TIMERDATA, s);
     curl_multi_setopt(s->multi, CURLMOPT_TIMERFUNCTION, curl_timer_cb);
 #endif
-    curl_multi_do(s);
 
     qemu_opts_del(opts);
     return 0;
@@ -566,6 +569,7 @@ static const AIOCBInfo curl_aiocb_info = {
 static void curl_readv_bh_cb(void *p)
 {
     CURLState *state;
+    int running;
 
     CURLAIOCB *acb = p;
     BDRVCURLState *s = acb->common.bs->opaque;
@@ -614,8 +618,9 @@ static void curl_readv_bh_cb(void *p)
     curl_easy_setopt(state->curl, CURLOPT_RANGE, state->range);
 
     curl_multi_add_handle(s->multi, state->curl);
-    curl_multi_do(s);
 
+    /* Tell curl it needs to kick things off */
+    curl_multi_socket_action(s->multi, CURL_SOCKET_TIMEOUT, 0, &running);
 }
 
 static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,

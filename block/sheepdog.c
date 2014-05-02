@@ -1099,7 +1099,7 @@ static int find_vdi_name(BDRVSheepdogState *s, const char *filename,
     }
 
     if (rsp->result != SD_RES_SUCCESS) {
-        error_report("cannot get vdi info, %s, %s %d %s",
+        error_report("cannot get vdi info, %s, %s %" PRIu32 " %s",
                      sd_strerror(rsp->result), filename, snapid, tag);
         if (rsp->result == SD_RES_NO_VDI) {
             ret = -ENOENT;
@@ -2316,8 +2316,8 @@ static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
             sn_tab[found].vm_state_size = inode.vm_state_size;
             sn_tab[found].vm_clock_nsec = inode.vm_clock_nsec;
 
-            snprintf(sn_tab[found].id_str, sizeof(sn_tab[found].id_str), "%u",
-                     inode.snap_id);
+            snprintf(sn_tab[found].id_str, sizeof(sn_tab[found].id_str),
+                     "%" PRIu32, inode.snap_id);
             pstrcpy(sn_tab[found].name,
                     MIN(sizeof(sn_tab[found].name), sizeof(inode.tag)),
                     inode.tag);

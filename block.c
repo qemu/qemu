@@ -774,6 +774,45 @@ void bdrv_disable_copy_on_read(BlockDriverState *bs)
     bs->copy_on_read--;
 }
 
+/*
+ * Returns the flags that bs->file should get, based on the given flags for
+ * the parent BDS
+ */
+static int bdrv_inherited_flags(int flags)
+{
+    /* Enable protocol handling, disable format probing for bs->file */
+    flags |= BDRV_O_PROTOCOL;
+
+    /* Our block drivers take care to send flushes and respect unmap policy,
+     * so we can enable both unconditionally on lower layers. */
+    flags |= BDRV_O_CACHE_WB | BDRV_O_UNMAP;
+
+    /* The backing file of a temporary snapshot is read-only */
+    if (flags & BDRV_O_SNAPSHOT) {
+        flags &= ~BDRV_O_RDWR;
+    }
+
+    /* Clear flags that only apply to the top layer */
+    flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_COPY_ON_READ);
+
+    return flags;
+}
+
+/*
+ * Returns the flags that bs->backing_hd should get, based on the given flags
+ * for the parent BDS
+ */
+static int bdrv_backing_flags(int flags)
+{
+    /* backing files always opened read-only */
+    flags &= ~(BDRV_O_RDWR | BDRV_O_COPY_ON_READ);
+
+    /* snapshot=on is handled on the top layer */
+    flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_TEMPORARY);
+
+    return flags;
+}
+
 static int bdrv_open_flags(BlockDriverState *bs, int flags)
 {
     int open_flags = flags | BDRV_O_CACHE_WB;
@@ -792,7 +831,7 @@ static int bdrv_open_flags(BlockDriverState *bs, int flags)
     /*
      * Snapshots should be writable.
      */
-    if (bs->is_temporary) {
+    if (flags & BDRV_O_TEMPORARY) {
         open_flags |= BDRV_O_RDWR;
     }
 
@@ -951,13 +990,6 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     bdrv_refresh_limits(bs);
     assert(bdrv_opt_mem_align(bs) != 0);
     assert((bs->request_alignment != 0) || bs->sg);
-
-#ifndef _WIN32
-    if (bs->is_temporary) {
-        assert(bs->filename[0] != '\0');
-        unlink(bs->filename);
-    }
-#endif
     return 0;
 
 free_and_fail:
@@ -1069,7 +1101,7 @@ fail:
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
 {
     char *backing_filename = g_malloc0(PATH_MAX);
-    int back_flags, ret = 0;
+    int ret = 0;
     BlockDriver *back_drv = NULL;
     Error *local_err = NULL;
 
@@ -1097,14 +1129,10 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         back_drv = bdrv_find_format(bs->backing_format);
     }
 
-    /* backing files always opened read-only */
-    back_flags = bs->open_flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT |
-                                    BDRV_O_COPY_ON_READ);
-
     assert(bs->backing_hd == NULL);
     ret = bdrv_open(&bs->backing_hd,
                     *backing_filename ? backing_filename : NULL, NULL, options,
-                    back_flags, back_drv, &local_err);
+                    bdrv_backing_flags(bs->open_flags), back_drv, &local_err);
     if (ret < 0) {
         bs->backing_hd = NULL;
         bs->open_flags |= BDRV_O_NO_BACKING;
@@ -1232,10 +1260,10 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, Error **errp)
               qstring_from_str(tmp_filename));
 
     bs_snapshot = bdrv_new("", &error_abort);
-    bs_snapshot->is_temporary = 1;
 
     ret = bdrv_open(&bs_snapshot, NULL, NULL, snapshot_options,
-                    bs->open_flags & ~BDRV_O_SNAPSHOT, bdrv_qcow2, &local_err);
+                    (bs->open_flags & ~BDRV_O_SNAPSHOT) | BDRV_O_TEMPORARY,
+                    bdrv_qcow2, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto out;
@@ -1333,10 +1361,10 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
 
     assert(file == NULL);
     ret = bdrv_open_image(&file, filename, options, "file",
-                          bdrv_open_flags(bs, flags | BDRV_O_UNMAP) |
-                          BDRV_O_PROTOCOL, true, &local_err);
+                          bdrv_inherited_flags(flags),
+                          true, &local_err);
     if (ret < 0) {
-        goto unlink_and_fail;
+        goto fail;
     }
 
     /* Find the right image format driver */
@@ -1347,7 +1375,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         if (!drv) {
             error_setg(errp, "Invalid driver: '%s'", drvname);
             ret = -EINVAL;
-            goto unlink_and_fail;
+            goto fail;
         }
     }
 
@@ -1357,18 +1385,18 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         } else {
             error_setg(errp, "Must specify either driver or file");
             ret = -EINVAL;
-            goto unlink_and_fail;
+            goto fail;
         }
     }
 
     if (!drv) {
-        goto unlink_and_fail;
+        goto fail;
     }
 
     /* Open the image */
     ret = bdrv_open_common(bs, file, options, flags, drv, &local_err);
     if (ret < 0) {
-        goto unlink_and_fail;
+        goto fail;
     }
 
     if (file && (bs->file != file)) {
@@ -1430,14 +1458,10 @@ done:
     *pbs = bs;
     return 0;
 
-unlink_and_fail:
+fail:
     if (file != NULL) {
         bdrv_unref(file);
     }
-    if (bs->is_temporary) {
-        unlink(filename);
-    }
-fail:
     QDECREF(bs->options);
     QDECREF(options);
     bs->options = NULL;
@@ -1501,8 +1525,11 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
         QSIMPLEQ_INIT(bs_queue);
     }
 
+    /* bdrv_open() masks this flag out */
+    flags &= ~BDRV_O_PROTOCOL;
+
     if (bs->file) {
-        bdrv_reopen_queue(bs_queue, bs->file, flags);
+        bdrv_reopen_queue(bs_queue, bs->file, bdrv_inherited_flags(flags));
     }
 
     bs_entry = g_new0(BlockReopenQueueEntry, 1);
@@ -1717,11 +1744,6 @@ void bdrv_close(BlockDriverState *bs)
         }
         bs->drv->bdrv_close(bs);
         g_free(bs->opaque);
-#ifdef _WIN32
-        if (bs->is_temporary) {
-            unlink(bs->filename);
-        }
-#endif
         bs->opaque = NULL;
         bs->drv = NULL;
         bs->copy_on_read = 0;
@@ -1845,7 +1867,6 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
                                      BlockDriverState *bs_src)
 {
     /* move some fields that need to stay attached to the device */
-    bs_dest->open_flags         = bs_src->open_flags;
 
     /* dev info */
     bs_dest->dev_ops            = bs_src->dev_ops;
@@ -3601,10 +3622,25 @@ void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
                          void *opaque)
 {
     BlockDriver *drv;
+    int count = 0;
+    const char **formats = NULL;
 
     QLIST_FOREACH(drv, &bdrv_drivers, list) {
-        it(opaque, drv->format_name);
+        if (drv->format_name) {
+            bool found = false;
+            int i = count;
+            while (formats && i && !found) {
+                found = !strcmp(formats[--i], drv->format_name);
+            }
+
+            if (!found) {
+                formats = g_realloc(formats, (count + 1) * sizeof(char *));
+                formats[count++] = drv->format_name;
+                it(opaque, drv->format_name);
+            }
+        }
     }
+    g_free(formats);
 }
 
 /* This function is to find block backend bs */

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Test qemu-img progress output
+# Test for discarding compressed clusters on qcow2 images
 #
 # Copyright (C) 2014 Red Hat, Inc.
 #
@@ -19,12 +19,12 @@
 #
 
 # creator
-owner=kwolf@redhat.com
+owner=mreitz@redhat.com
 
-seq=`basename $0`
+seq="$(basename $0)"
 echo "QA output created by $seq"
 
-here=`pwd`
+here="$PWD"
 tmp=/tmp/$$
 status=1	# failure is the default!
 
@@ -42,22 +42,18 @@ _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
 
-function run_qemu_img()
-{
-    echo
-    echo Testing: "$@" | _filter_testdir
-}
+IMG_SIZE=128K
 
-size=128M
+_make_test_img $IMG_SIZE
 
-_make_test_img $size
-$QEMU_IO -c 'write 0 1M' "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c 'write 2M 1M' "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c 'write 4M 1M' "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c 'write 32M 1M' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'write -c -P 42 0 64k' \
+         -c 'write -c -P 23 64k 64k' \
+         -c 'discard 64k 64k' \
+         "$TEST_IMG" | _filter_qemu_io
 
-$QEMU_IMG convert -p -O $IMGFMT -f $IMGFMT "$TEST_IMG" "$TEST_IMG".base  2>&1 |\
-    _filter_testdir | sed -e 's/\r/\n/g'
+$QEMU_IO -c 'read -P 0 64k 64k' "$TEST_IMG" | _filter_qemu_io
+
+_check_test_img
 
 # success, all done
 echo "*** done"

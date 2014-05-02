@@ -33,6 +33,9 @@
 #include "block/qapi.h"
 #include <getopt.h>
 
+#define QEMU_IMG_VERSION "qemu-img version " QEMU_VERSION \
+                          ", Copyright (c) 2004-2008 Fabrice Bellard\n"
+
 typedef struct img_cmd_t {
     const char *name;
     int (*handler)(int argc, char **argv);
@@ -75,7 +78,7 @@ static void QEMU_NORETURN GCC_FMT_ATTR(1, 2) error_exit(const char *fmt, ...)
 static void QEMU_NORETURN help(void)
 {
     const char *help_msg =
-           "qemu-img version " QEMU_VERSION ", Copyright (c) 2004-2008 Fabrice Bellard\n"
+           QEMU_IMG_VERSION
            "usage: qemu-img command [command options]\n"
            "QEMU disk image utility\n"
            "\n"
@@ -2789,6 +2792,12 @@ int main(int argc, char **argv)
 {
     const img_cmd_t *cmd;
     const char *cmdname;
+    int c;
+    static const struct option long_options[] = {
+        {"help", no_argument, 0, 'h'},
+        {"version", no_argument, 0, 'v'},
+        {0, 0, 0, 0}
+    };
 
 #ifdef CONFIG_POSIX
     signal(SIGPIPE, SIG_IGN);
@@ -2803,13 +2812,22 @@ int main(int argc, char **argv)
         error_exit("Not enough arguments");
     }
     cmdname = argv[1];
-    argc--; argv++;
 
     /* find the command */
-    for(cmd = img_cmds; cmd->name != NULL; cmd++) {
+    for (cmd = img_cmds; cmd->name != NULL; cmd++) {
         if (!strcmp(cmdname, cmd->name)) {
-            return cmd->handler(argc, argv);
+            return cmd->handler(argc - 1, argv + 1);
         }
+    }
+
+    c = getopt_long(argc, argv, "h", long_options, NULL);
+
+    if (c == 'h') {
+        help();
+    }
+    if (c == 'v') {
+        printf(QEMU_IMG_VERSION);
+        return 0;
     }
 
     /* not found */

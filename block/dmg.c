@@ -248,8 +248,8 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
                 offset += 8;
 
                 if (s->sectorcounts[i] > DMG_SECTORCOUNTS_MAX) {
-                    error_report("sector count %" PRIu64 " for chunk %u is "
-                                 "larger than max (%u)",
+                    error_report("sector count %" PRIu64 " for chunk %" PRIu32
+                                 " is larger than max (%u)",
                                  s->sectorcounts[i], i, DMG_SECTORCOUNTS_MAX);
                     ret = -EINVAL;
                     goto fail;
@@ -269,8 +269,8 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
                 offset += 8;
 
                 if (s->lengths[i] > DMG_LENGTHS_MAX) {
-                    error_report("length %" PRIu64 " for chunk %u is larger "
-                                 "than max (%u)",
+                    error_report("length %" PRIu64 " for chunk %" PRIu32
+                                 " is larger than max (%u)",
                                  s->lengths[i], i, DMG_LENGTHS_MAX);
                     ret = -EINVAL;
                     goto fail;

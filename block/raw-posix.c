@@ -366,7 +366,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     BDRVRawState *s = bs->opaque;
     QemuOpts *opts;
     Error *local_err = NULL;
-    const char *filename;
+    const char *filename = NULL;
     int fd, ret;
     struct stat st;
 
@@ -446,6 +446,9 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 
     ret = 0;
 fail:
+    if (filename && (bdrv_flags & BDRV_O_TEMPORARY)) {
+        unlink(filename);
+    }
     qemu_opts_del(opts);
     return ret;
 }

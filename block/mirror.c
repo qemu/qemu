@@ -325,11 +325,11 @@ static void coroutine_fn mirror_run(void *opaque)
 
     s->common.len = bdrv_getlength(bs);
     if (s->common.len <= 0) {
-        block_job_completed(&s->common, s->common.len);
-        return;
+        ret = s->common.len;
+        goto immediate_exit;
     }
 
-    length = (bdrv_getlength(bs) + s->granularity - 1) / s->granularity;
+    length = DIV_ROUND_UP(s->common.len, s->granularity);
     s->in_flight_bitmap = bitmap_new(length);
 
     /* If we have no backing file yet in the destination, we cannot let
@@ -339,7 +339,10 @@ static void coroutine_fn mirror_run(void *opaque)
     bdrv_get_backing_filename(s->target, backing_filename,
                               sizeof(backing_filename));
     if (backing_filename[0] && !s->target->backing_hd) {
-        bdrv_get_info(s->target, &bdi);
+        ret = bdrv_get_info(s->target, &bdi);
+        if (ret < 0) {
+            goto immediate_exit;
+        }
         if (s->granularity < bdi.cluster_size) {
             s->buf_size = MAX(s->buf_size, bdi.cluster_size);
             s->cow_bitmap = bitmap_new(length);

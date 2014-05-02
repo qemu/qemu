@@ -653,6 +653,13 @@ retry:
             goto retry;
         }
     }
+
+    /* Make sure that all offsets in the "allocated" range are representable
+     * in an int64_t */
+    if (s->free_cluster_index - 1 > (INT64_MAX >> s->cluster_bits)) {
+        return -EFBIG;
+    }
+
 #ifdef DEBUG_ALLOC2
     fprintf(stderr, "alloc_clusters: size=%" PRId64 " -> %" PRId64 "\n",
             size,
@@ -1480,6 +1487,11 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     int ret;
 
     size = bdrv_getlength(bs->file);
+    if (size < 0) {
+        res->check_errors++;
+        return size;
+    }
+
     nb_clusters = size_to_clusters(s, size);
     if (nb_clusters > INT_MAX) {
         res->check_errors++;
