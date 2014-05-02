@@ -67,9 +67,8 @@ static QObject *do_qmp_dispatch(QObject *request, Error **errp)
     QmpCommand *cmd;
     QObject *ret = NULL;
 
-
     dict = qmp_dispatch_check_obj(request, errp);
-    if (!dict || error_is_set(errp)) {
+    if (!dict) {
         return NULL;
     }
 
