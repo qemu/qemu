@@ -1151,6 +1151,8 @@ static void handle_hint(DisasContext *s, uint32_t insn,
         return;
     case 1: /* YIELD */
     case 2: /* WFE */
+        s->is_jmp = DISAS_WFE;
+        return;
     case 4: /* SEV */
     case 5: /* SEVL */
         /* we treat all as NOP at least for now */
@@ -1507,8 +1509,10 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
     switch (opc) {
     case 0: /* BR */
     case 2: /* RET */
+        tcg_gen_mov_i64(cpu_pc, cpu_reg(s, rn));
         break;
     case 1: /* BLR */
+        tcg_gen_mov_i64(cpu_pc, cpu_reg(s, rn));
         tcg_gen_movi_i64(cpu_reg(s, 30), s->pc);
         break;
     case 4: /* ERET */
@@ -1527,7 +1531,6 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         return;
     }
 
-    tcg_gen_mov_i64(cpu_pc, cpu_reg(s, rn));
     s->is_jmp = DISAS_JUMP;
 }
 
@@ -10764,6 +10767,10 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
         case DISAS_TB_JUMP:
         case DISAS_EXC:
         case DISAS_SWI:
+            break;
+        case DISAS_WFE:
+            gen_a64_set_pc_im(dc->pc);
+            gen_helper_wfe(cpu_env);
             break;
         case DISAS_WFI:
             /* This is a special case because we don't want to just halt the CPU

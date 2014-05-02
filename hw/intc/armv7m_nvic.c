@@ -173,7 +173,7 @@ static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
         return 10000;
     case 0xd00: /* CPUID Base.  */
         cpu = ARM_CPU(current_cpu);
-        return cpu->env.cp15.c0_cpuid;
+        return cpu->midr;
     case 0xd04: /* Interrupt Control State.  */
         /* VECTACTIVE */
         val = s->gic.running_irq[0];
