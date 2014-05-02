@@ -20,6 +20,7 @@
 #include "hw/i386/pc.h"
 #include "ui/console.h"
 #include "hw/pci/pci.h"
+#include "ui/console.h"
 #include "hw/display/vga.h"
 #include "hw/display/vga_int.h"
 #include "qemu/queue.h"
@@ -292,6 +293,42 @@
 #   define NV_PCRTC_INTR_EN_0_VBLANK                            (1 << 0)
 #define NV_PCRTC_START                                   0x00000800
 #define NV_PCRTC_CONFIG                                  0x00000804
+
+
+#define NV_PVIDEO_INTR                                   0x00000100
+#   define NV_PVIDEO_INTR_BUFFER_0                              (1 << 0)
+#   define NV_PVIDEO_INTR_BUFFER_1                              (1 << 4)
+#define NV_PVIDEO_INTR_EN                                0x00000140
+#   define NV_PVIDEO_INTR_EN_BUFFER_0                           (1 << 0)
+#   define NV_PVIDEO_INTR_EN_BUFFER_1                           (1 << 4)
+#define NV_PVIDEO_BUFFER                                 0x00000700
+#   define NV_PVIDEO_BUFFER_0_USE                               (1 << 0)
+#   define NV_PVIDEO_BUFFER_1_USE                               (1 << 4)
+#define NV_PVIDEO_STOP                                   0x00000704
+#define NV_PVIDEO_BASE                                   0x00000900
+#define NV_PVIDEO_LIMIT                                  0x00000908
+#define NV_PVIDEO_LUMINANCE                              0x00000910
+#define NV_PVIDEO_CHROMINANCE                            0x00000918
+#define NV_PVIDEO_OFFSET                                 0x00000920
+#define NV_PVIDEO_SIZE_IN                                0x00000928
+#   define NV_PVIDEO_SIZE_IN_WIDTH                            0x000007FF
+#   define NV_PVIDEO_SIZE_IN_HEIGHT                           0x07FF0000
+#define NV_PVIDEO_POINT_IN                               0x00000930
+#   define NV_PVIDEO_POINT_IN_S                               0x00007FFF
+#   define NV_PVIDEO_POINT_IN_T                               0xFFFE0000
+#define NV_PVIDEO_DS_DX                                  0x00000938
+#define NV_PVIDEO_DT_DY                                  0x00000940
+#define NV_PVIDEO_POINT_OUT                              0x00000948
+#   define NV_PVIDEO_POINT_OUT_X                              0x00000FFF
+#   define NV_PVIDEO_POINT_OUT_Y                              0x0FFF0000
+#define NV_PVIDEO_SIZE_OUT                               0x00000950
+#   define NV_PVIDEO_SIZE_OUT_WIDTH                           0x00000FFF
+#   define NV_PVIDEO_SIZE_OUT_HEIGHT                          0x0FFF0000
+#define NV_PVIDEO_FORMAT                                 0x00000958
+#   define NV_PVIDEO_FORMAT_PITCH                             0x00001FFF
+#   define NV_PVIDEO_FORMAT_COLOR                             0x00030000
+#       define NV_PVIDEO_FORMAT_COLOR_LE_CR8YB8CB8YA8             1
+#   define NV_PVIDEO_FORMAT_DISPLAY                            (1 << 20)
 
 
 #define NV_PTIMER_INTR_0                                 0x00000100
@@ -1020,6 +1057,10 @@ typedef struct NV2AState {
 
         Cache1State cache1;
     } pfifo;
+
+    struct {
+        uint32_t regs[0x1000];
+    } pvideo;
 
     struct {
         uint32_t pending_interrupts;
@@ -3560,16 +3601,56 @@ static void prma_write(void *opaque, hwaddr addr,
 }
 
 
-static uint64_t pvideo_read(void *opaque,
-                                  hwaddr addr, unsigned int size)
+static void pvideo_vga_invalidate(NV2AState *d)
 {
-    reg_log_read(NV_PVIDEO, addr, 0);
-    return 0;
+    int y1 = GET_MASK(d->pvideo.regs[NV_PVIDEO_POINT_OUT],
+                      NV_PVIDEO_POINT_OUT_Y);
+    int y2 = y1 + GET_MASK(d->pvideo.regs[NV_PVIDEO_SIZE_OUT],
+                           NV_PVIDEO_SIZE_OUT_HEIGHT);
+    NV2A_DPRINTF("pvideo_vga_invalidate %d %d\n", y1, y2);
+    vga_invalidate_scanlines(&d->vga, y1, y2);
+}
+
+static uint64_t pvideo_read(void *opaque,
+                            hwaddr addr, unsigned int size)
+{
+    NV2AState *d = opaque;
+
+    uint64_t r = 0;
+    switch (addr) {
+    case NV_PVIDEO_STOP:
+        r = 0;
+        break;
+    default:
+        r = d->pvideo.regs[addr];
+        break;
+    }
+
+    reg_log_read(NV_PVIDEO, addr, r);
+    return r;
 }
 static void pvideo_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned int size)
+                         uint64_t val, unsigned int size)
 {
+    NV2AState *d = opaque;
+
     reg_log_write(NV_PVIDEO, addr, val);
+
+    switch (addr) {
+    case NV_PVIDEO_BUFFER:
+        d->pvideo.regs[addr] = val;
+        d->vga.enable_overlay = true;
+        pvideo_vga_invalidate(d);
+        break;
+    case NV_PVIDEO_STOP:
+        d->pvideo.regs[NV_PVIDEO_BUFFER] = 0;
+        d->vga.enable_overlay = false;
+        pvideo_vga_invalidate(d);
+        break;
+    default:
+        d->pvideo.regs[addr] = val;
+        break;
+    }
 }
 
 
@@ -4430,6 +4511,102 @@ static void pgraph_method_log(unsigned int subchannel,
     last = method;
 }
 
+static uint8_t cliptobyte(int x)
+{
+    return (uint8_t)((x < 0) ? 0 : ((x > 255) ? 255 : x));
+}
+
+static void nv2a_overlay_draw_line(VGACommonState *vga, uint8_t *line, int y)
+{
+    NV2A_DPRINTF("nv2a_overlay_draw_line\n");
+
+    NV2AState *d = container_of(vga, NV2AState, vga);
+    DisplaySurface *surface = qemu_console_surface(d->vga.con);
+
+    int surf_bpp = surface_bytes_per_pixel(surface);
+    int surf_width = surface_width(surface);
+
+    if (!(d->pvideo.regs[NV_PVIDEO_BUFFER] & NV_PVIDEO_BUFFER_0_USE)) return;
+
+    hwaddr base = d->pvideo.regs[NV_PVIDEO_BASE];
+    hwaddr limit = d->pvideo.regs[NV_PVIDEO_LIMIT];
+    hwaddr offset = d->pvideo.regs[NV_PVIDEO_OFFSET];
+
+    int in_width = GET_MASK(d->pvideo.regs[NV_PVIDEO_SIZE_IN],
+                            NV_PVIDEO_SIZE_IN_WIDTH);
+    int in_height = GET_MASK(d->pvideo.regs[NV_PVIDEO_SIZE_IN],
+                             NV_PVIDEO_SIZE_IN_HEIGHT);
+    int in_s = GET_MASK(d->pvideo.regs[NV_PVIDEO_POINT_IN],
+                        NV_PVIDEO_POINT_IN_S);
+    int in_t = GET_MASK(d->pvideo.regs[NV_PVIDEO_POINT_IN],
+                        NV_PVIDEO_POINT_IN_T);
+    int in_pitch = GET_MASK(d->pvideo.regs[NV_PVIDEO_FORMAT],
+                            NV_PVIDEO_FORMAT_PITCH);
+    int in_color = GET_MASK(d->pvideo.regs[NV_PVIDEO_FORMAT],
+                            NV_PVIDEO_FORMAT_COLOR);
+
+    // TODO: support other color formats
+    assert(in_color == NV_PVIDEO_FORMAT_COLOR_LE_CR8YB8CB8YA8);
+
+    int out_width = GET_MASK(d->pvideo.regs[NV_PVIDEO_SIZE_OUT],
+                             NV_PVIDEO_SIZE_OUT_WIDTH);
+    int out_height = GET_MASK(d->pvideo.regs[NV_PVIDEO_SIZE_OUT],
+                             NV_PVIDEO_SIZE_OUT_HEIGHT);
+    int out_x = GET_MASK(d->pvideo.regs[NV_PVIDEO_POINT_OUT],
+                         NV_PVIDEO_POINT_OUT_X);
+    int out_y = GET_MASK(d->pvideo.regs[NV_PVIDEO_POINT_OUT],
+                         NV_PVIDEO_POINT_OUT_Y);
+
+
+    if (y < out_y || y >= out_y + out_height) return;
+
+    // TODO: scaling, color keys
+
+    int in_y = y - out_y;
+    if (in_y >= in_height) return;
+
+    assert(offset + in_pitch * (in_y + 1) <= limit);
+    uint8_t *in_line = d->vram_ptr + base + offset + in_pitch * in_y;
+
+    int x;
+    for (x=0; x<out_width; x++) {
+        int ox = out_x + x;
+        if (ox >= surf_width) break;
+        int ix = in_s + x;
+        if (ix >= in_width) break;
+
+        // YUY2 to RGB
+        int c, d, e;
+        c = (int)in_line[ix * 2] - 16;
+        if (ix % 2) {
+            d = (int)in_line[ix * 2 - 1] - 128;
+            e = (int)in_line[ix * 2 + 1] - 128;
+        } else {
+            d = (int)in_line[ix * 2 + 1] - 128;
+            e = (int)in_line[ix * 2 + 3] - 128;
+        }
+        int r, g, b;
+        r = cliptobyte((298 * c + 409 * e + 128) >> 8);
+        g = cliptobyte((298 * c - 100 * d - 208 * e + 128) >> 8);
+        b = cliptobyte((298 * c + 516 * d + 128) >> 8);
+
+        unsigned int pixel = vga->rgb_to_pixel(r, g, b);
+        switch (surf_bpp) {
+        case 1:
+            ((uint8_t*)line)[ox] = pixel;
+            break;
+        case 2:
+            ((uint16_t*)line)[ox] = pixel;
+            break;
+        case 4:
+            ((uint32_t*)line)[ox] = pixel;
+            break;
+        default:
+            assert(false);
+            break;
+        }
+    }
+}
 
 static int nv2a_get_bpp(VGACommonState *s)
 {
@@ -4531,6 +4708,7 @@ static int nv2a_initfn(PCIDevice *dev)
     vga_common_init(vga, OBJECT(dev));
     vga->get_bpp = nv2a_get_bpp;
     vga->get_offsets = nv2a_get_offsets;
+    vga->overlay_draw_line = nv2a_overlay_draw_line;
 
     d->hw_ops = *vga->hw_ops;
     d->hw_ops.gfx_update = nv2a_vga_gfx_update;

@@ -1691,8 +1691,9 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     if (s->line_offset != s->last_line_offset ||
         disp_width != s->last_width ||
         height != s->last_height ||
-        s->last_depth != depth) {
-        if (depth == 32 || (depth == 16 && !byteswap)) {
+        s->last_depth != depth ||
+        s->enable_overlay != s->last_enable_overlay) {
+        if (!s->enable_overlay && (depth == 32 || (depth == 16 && !byteswap))) {
             surface = qemu_create_displaysurface_from(disp_width,
                     height, depth, s->line_offset,
                     s->vram_ptr + (s->start_addr * 4), byteswap);
@@ -1707,8 +1708,9 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         s->last_height = height;
         s->last_line_offset = s->line_offset;
         s->last_depth = depth;
+        s->last_enable_overlay = s->enable_overlay;
         full_update = 1;
-    } else if (is_buffer_shared(surface) &&
+    } else if (!s->enable_overlay && is_buffer_shared(surface) &&
                (full_update || surface_data(surface) != s->vram_ptr
                 + (s->start_addr * 4))) {
         surface = qemu_create_displaysurface_from(disp_width,
@@ -1815,6 +1817,8 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
                 page_max = page1;
             if (!(is_buffer_shared(surface))) {
                 vga_draw_line(s, d, s->vram_ptr + addr, width);
+                if (s->overlay_draw_line)
+                    s->overlay_draw_line(s, d, y);
                 if (s->cursor_draw_line)
                     s->cursor_draw_line(s, d, y);
             }
