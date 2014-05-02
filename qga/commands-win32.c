@@ -35,10 +35,6 @@ static void acquire_privilege(const char *name, Error **errp)
     TOKEN_PRIVILEGES priv;
     Error *local_err = NULL;
 
-    if (error_is_set(errp)) {
-        return;
-    }
-
     if (OpenProcessToken(GetCurrentProcess(),
         TOKEN_ADJUST_PRIVILEGES|TOKEN_QUERY, &token))
     {
@@ -74,9 +70,6 @@ static void execute_async(DWORD WINAPI (*func)(LPVOID), LPVOID opaque,
 {
     Error *local_err = NULL;
 
-    if (error_is_set(errp)) {
-        return;
-    }
     HANDLE thread = CreateThread(NULL, 0, func, opaque, 0, NULL);
     if (!thread) {
         error_set(&local_err, QERR_QGA_COMMAND_FAILED,
@@ -268,9 +261,6 @@ static void check_suspend_mode(GuestSuspendMode mode, Error **errp)
     SYSTEM_POWER_CAPABILITIES sys_pwr_caps;
     Error *local_err = NULL;
 
-    if (error_is_set(errp)) {
-        return;
-    }
     ZeroMemory(&sys_pwr_caps, sizeof(sys_pwr_caps));
     if (!GetPwrCapabilities(&sys_pwr_caps)) {
         error_set(&local_err, QERR_QGA_COMMAND_FAILED,
