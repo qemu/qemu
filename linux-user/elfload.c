@@ -346,10 +346,11 @@ enum
     ARM_HWCAP_ARM_EDSP      = 1 << 7,
     ARM_HWCAP_ARM_JAVA      = 1 << 8,
     ARM_HWCAP_ARM_IWMMXT    = 1 << 9,
-    ARM_HWCAP_ARM_THUMBEE   = 1 << 10,
-    ARM_HWCAP_ARM_NEON      = 1 << 11,
-    ARM_HWCAP_ARM_VFPv3     = 1 << 12,
-    ARM_HWCAP_ARM_VFPv3D16  = 1 << 13,
+    ARM_HWCAP_ARM_CRUNCH    = 1 << 10,
+    ARM_HWCAP_ARM_THUMBEE   = 1 << 11,
+    ARM_HWCAP_ARM_NEON      = 1 << 12,
+    ARM_HWCAP_ARM_VFPv3     = 1 << 13,
+    ARM_HWCAP_ARM_VFPv3D16  = 1 << 14,
 };
 
 #ifndef TARGET_AARCH64
