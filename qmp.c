@@ -41,7 +41,7 @@ NameInfo *qmp_query_name(Error **errp)
     return info;
 }
 
-VersionInfo *qmp_query_version(Error **err)
+VersionInfo *qmp_query_version(Error **errp)
 {
     VersionInfo *info = g_malloc0(sizeof(*info));
     const char *version = QEMU_VERSION;
@@ -82,7 +82,7 @@ UuidInfo *qmp_query_uuid(Error **errp)
     return info;
 }
 
-void qmp_quit(Error **err)
+void qmp_quit(Error **errp)
 {
     no_shutdown = 0;
     qemu_system_shutdown_request();
@@ -153,10 +153,10 @@ static void iostatus_bdrv_it(void *opaque, BlockDriverState *bs)
 
 static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs)
 {
-    Error **err = opaque;
+    Error **errp = opaque;
 
-    if (!error_is_set(err) && bdrv_key_required(bs)) {
-        error_set(err, QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs),
+    if (!error_is_set(errp) && bdrv_key_required(bs)) {
+        error_set(errp, QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs),
                   bdrv_get_encrypted_filename(bs));
     }
 }
@@ -405,12 +405,12 @@ static void qmp_change_vnc(const char *target, bool has_arg, const char *arg,
 #endif /* !CONFIG_VNC */
 
 void qmp_change(const char *device, const char *target,
-                bool has_arg, const char *arg, Error **err)
+                bool has_arg, const char *arg, Error **errp)
 {
     if (strcmp(device, "vnc") == 0) {
-        qmp_change_vnc(target, has_arg, arg, err);
+        qmp_change_vnc(target, has_arg, arg, errp);
     } else {
-        qmp_change_blockdev(device, target, arg, err);
+        qmp_change_blockdev(device, target, arg, errp);
     }
 }
 
