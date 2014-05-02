@@ -27,14 +27,16 @@ typedef struct Error Error;
  * printf-style human message.  This function is not meant to be used outside
  * of QEMU.
  */
-void error_set(Error **err, ErrorClass err_class, const char *fmt, ...) GCC_FMT_ATTR(3, 4);
+void error_set(Error **errp, ErrorClass err_class, const char *fmt, ...)
+    GCC_FMT_ATTR(3, 4);
 
 /**
  * Set an indirect pointer to an error given a ErrorClass value and a
  * printf-style human message, followed by a strerror() string if
  * @os_error is not zero.
  */
-void error_set_errno(Error **err, int os_error, ErrorClass err_class, const char *fmt, ...) GCC_FMT_ATTR(4, 5);
+void error_set_errno(Error **errp, int os_error, ErrorClass err_class,
+                     const char *fmt, ...) GCC_FMT_ATTR(4, 5);
 
 #ifdef _WIN32
 /**
@@ -42,19 +44,22 @@ void error_set_errno(Error **err, int os_error, ErrorClass err_class, const char
  * printf-style human message, followed by a g_win32_error_message() string if
  * @win32_err is not zero.
  */
-void error_set_win32(Error **err, int win32_err, ErrorClass err_class, const char *fmt, ...) GCC_FMT_ATTR(4, 5);
+void error_set_win32(Error **errp, int win32_err, ErrorClass err_class,
+                     const char *fmt, ...) GCC_FMT_ATTR(4, 5);
 #endif
 
 /**
  * Same as error_set(), but sets a generic error
  */
-#define error_setg(err, fmt, ...) \
-    error_set(err, ERROR_CLASS_GENERIC_ERROR, fmt, ## __VA_ARGS__)
-#define error_setg_errno(err, os_error, fmt, ...) \
-    error_set_errno(err, os_error, ERROR_CLASS_GENERIC_ERROR, fmt, ## __VA_ARGS__)
+#define error_setg(errp, fmt, ...) \
+    error_set(errp, ERROR_CLASS_GENERIC_ERROR, fmt, ## __VA_ARGS__)
+#define error_setg_errno(errp, os_error, fmt, ...) \
+    error_set_errno(errp, os_error, ERROR_CLASS_GENERIC_ERROR, \
+                    fmt, ## __VA_ARGS__)
 #ifdef _WIN32
-#define error_setg_win32(err, win32_err, fmt, ...) \
-    error_set_win32(err, win32_err, ERROR_CLASS_GENERIC_ERROR, fmt, ## __VA_ARGS__)
+#define error_setg_win32(errp, win32_err, fmt, ...) \
+    error_set_win32(errp, win32_err, ERROR_CLASS_GENERIC_ERROR, \
+                    fmt, ## __VA_ARGS__)
 #endif
 
 /**
@@ -66,7 +71,7 @@ void error_setg_file_open(Error **errp, int os_errno, const char *filename);
  * Returns true if an indirect pointer to an error is pointing to a valid
  * error object.
  */
-bool error_is_set(Error **err);
+bool error_is_set(Error **errp);
 
 /*
  * Get the error class of an error object.
@@ -88,7 +93,7 @@ const char *error_get_pretty(Error *err);
  * always transfer ownership of the error reference and handles the case where
  * dst_err is NULL correctly.  Errors after the first are discarded.
  */
-void error_propagate(Error **dst_err, Error *local_err);
+void error_propagate(Error **dst_errp, Error *local_err);
 
 /**
  * Free an error object.

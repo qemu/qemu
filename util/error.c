@@ -165,13 +165,13 @@ void error_free(Error *err)
     }
 }
 
-void error_propagate(Error **dst_err, Error *local_err)
+void error_propagate(Error **dst_errp, Error *local_err)
 {
-    if (local_err && dst_err == &error_abort) {
+    if (local_err && dst_errp == &error_abort) {
         error_report("%s", error_get_pretty(local_err));
         abort();
-    } else if (dst_err && !*dst_err) {
-        *dst_err = local_err;
+    } else if (dst_errp && !*dst_errp) {
+        *dst_errp = local_err;
     } else if (local_err) {
         error_free(local_err);
     }
