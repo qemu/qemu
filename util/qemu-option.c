@@ -1036,7 +1036,7 @@ static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
     const char *value;
     int n;
 
-    if (!strcmp(key, "id") || error_is_set(state->errp)) {
+    if (!strcmp(key, "id") || *state->errp) {
         return;
     }
 
