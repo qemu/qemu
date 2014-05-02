@@ -254,6 +254,7 @@ typedef int64_t  Elf64_Sxword;
 #define AT_SECURE	23	/* boolean, was exec suid-like? */
 #define AT_BASE_PLATFORM 24	/* string identifying real platforms */
 #define AT_RANDOM	25	/* address of 16 random bytes */
+#define AT_HWCAP2       26      /* extension of AT_HWCAP */
 #define AT_EXECFN	31	/* filename of the executable */
 #define AT_SYSINFO	32	/* address of kernel entry point */
 #define AT_SYSINFO_EHDR	33	/* address of kernel vdso */

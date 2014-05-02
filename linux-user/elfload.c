@@ -20,6 +20,7 @@
 #undef ARCH_DLINFO
 #undef ELF_PLATFORM
 #undef ELF_HWCAP
+#undef ELF_HWCAP2
 #undef ELF_CLASS
 #undef ELF_DATA
 #undef ELF_ARCH
@@ -353,6 +354,14 @@ enum
     ARM_HWCAP_ARM_EVTSTRM   = 1 << 21,
 };
 
+enum {
+    ARM_HWCAP2_ARM_AES      = 1 << 0,
+    ARM_HWCAP2_ARM_PMULL    = 1 << 1,
+    ARM_HWCAP2_ARM_SHA1     = 1 << 2,
+    ARM_HWCAP2_ARM_SHA2     = 1 << 3,
+    ARM_HWCAP2_ARM_CRC32    = 1 << 4,
+};
+
 /* The commpage only exists for 32 bit kernels */
 
 #define TARGET_HAS_VALIDATE_GUEST_SPACE
@@ -416,6 +425,7 @@ static int validate_guest_space(unsigned long guest_base,
 }
 
 #define ELF_HWCAP get_elf_hwcap()
+#define ELF_HWCAP2 get_elf_hwcap2()
 
 static uint32_t get_elf_hwcap(void)
 {
@@ -448,10 +458,21 @@ static uint32_t get_elf_hwcap(void)
      */
     GET_FEATURE(ARM_FEATURE_VFP3, ARM_HWCAP_ARM_VFPD32);
     GET_FEATURE(ARM_FEATURE_LPAE, ARM_HWCAP_ARM_LPAE);
-#undef GET_FEATURE
 
     return hwcaps;
 }
+
+static uint32_t get_elf_hwcap2(void)
+{
+    ARMCPU *cpu = ARM_CPU(thread_cpu);
+    uint32_t hwcaps = 0;
+
+    GET_FEATURE(ARM_FEATURE_V8_AES, ARM_HWCAP2_ARM_AES);
+    GET_FEATURE(ARM_FEATURE_CRC, ARM_HWCAP2_ARM_CRC32);
+    return hwcaps;
+}
+
+#undef GET_FEATURE
 
 #else
 /* 64 bit ARM definitions */
@@ -1486,6 +1507,9 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
 #ifdef DLINFO_ARCH_ITEMS
     size += DLINFO_ARCH_ITEMS * 2;
 #endif
+#ifdef ELF_HWCAP2
+    size += 2;
+#endif
     size += envc + argc + 2;
     size += 1;  /* argc itself */
     size *= n;
@@ -1518,6 +1542,10 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     NEW_AUX_ENT(AT_HWCAP, (abi_ulong) ELF_HWCAP);
     NEW_AUX_ENT(AT_CLKTCK, (abi_ulong) sysconf(_SC_CLK_TCK));
     NEW_AUX_ENT(AT_RANDOM, (abi_ulong) u_rand_bytes);
+
+#ifdef ELF_HWCAP2
+    NEW_AUX_ENT(AT_HWCAP2, (abi_ulong) ELF_HWCAP2);
+#endif
 
     if (k_platform)
         NEW_AUX_ENT(AT_PLATFORM, u_platform);
