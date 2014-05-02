@@ -110,11 +110,11 @@ static QObject *do_qmp_dispatch(QObject *request, Error **errp)
     return ret;
 }
 
-QObject *qmp_build_error_object(Error *errp)
+QObject *qmp_build_error_object(Error *err)
 {
     return qobject_from_jsonf("{ 'class': %s, 'desc': %s }",
-                              ErrorClass_lookup[error_get_class(errp)],
-                              error_get_pretty(errp));
+                              ErrorClass_lookup[error_get_class(err)],
+                              error_get_pretty(err));
 }
 
 QObject *qmp_dispatch(QObject *request)

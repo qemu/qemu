@@ -45,11 +45,11 @@ static void test_visitor_out_int(TestOutputVisitorData *data,
                                  const void *unused)
 {
     int64_t value = -42;
-    Error *errp = NULL;
+    Error *err = NULL;
     char *str;
 
-    visit_type_int(data->ov, &value, NULL, &errp);
-    g_assert(!errp);
+    visit_type_int(data->ov, &value, NULL, &err);
+    g_assert(!err);
 
     str = string_output_get_string(data->sov);
     g_assert(str != NULL);
@@ -60,12 +60,12 @@ static void test_visitor_out_int(TestOutputVisitorData *data,
 static void test_visitor_out_bool(TestOutputVisitorData *data,
                                   const void *unused)
 {
-    Error *errp = NULL;
+    Error *err = NULL;
     bool value = true;
     char *str;
 
-    visit_type_bool(data->ov, &value, NULL, &errp);
-    g_assert(!errp);
+    visit_type_bool(data->ov, &value, NULL, &err);
+    g_assert(!err);
 
     str = string_output_get_string(data->sov);
     g_assert(str != NULL);
@@ -77,11 +77,11 @@ static void test_visitor_out_number(TestOutputVisitorData *data,
                                     const void *unused)
 {
     double value = 3.14;
-    Error *errp = NULL;
+    Error *err = NULL;
     char *str;
 
-    visit_type_number(data->ov, &value, NULL, &errp);
-    g_assert(!errp);
+    visit_type_number(data->ov, &value, NULL, &err);
+    g_assert(!err);
 
     str = string_output_get_string(data->sov);
     g_assert(str != NULL);
@@ -93,11 +93,11 @@ static void test_visitor_out_string(TestOutputVisitorData *data,
                                     const void *unused)
 {
     char *string = (char *) "Q E M U";
-    Error *errp = NULL;
+    Error *err = NULL;
     char *str;
 
-    visit_type_str(data->ov, &string, NULL, &errp);
-    g_assert(!errp);
+    visit_type_str(data->ov, &string, NULL, &err);
+    g_assert(!err);
 
     str = string_output_get_string(data->sov);
     g_assert(str != NULL);
@@ -109,12 +109,12 @@ static void test_visitor_out_no_string(TestOutputVisitorData *data,
                                        const void *unused)
 {
     char *string = NULL;
-    Error *errp = NULL;
+    Error *err = NULL;
     char *str;
 
     /* A null string should return "" */
-    visit_type_str(data->ov, &string, NULL, &errp);
-    g_assert(!errp);
+    visit_type_str(data->ov, &string, NULL, &err);
+    g_assert(!err);
 
     str = string_output_get_string(data->sov);
     g_assert(str != NULL);
@@ -125,13 +125,13 @@ static void test_visitor_out_no_string(TestOutputVisitorData *data,
 static void test_visitor_out_enum(TestOutputVisitorData *data,
                                   const void *unused)
 {
-    Error *errp = NULL;
+    Error *err = NULL;
     char *str;
     EnumOne i;
 
     for (i = 0; i < ENUM_ONE_MAX; i++) {
-        visit_type_EnumOne(data->ov, &i, "unused", &errp);
-        g_assert(!errp);
+        visit_type_EnumOne(data->ov, &i, "unused", &err);
+        g_assert(!err);
 
         str = string_output_get_string(data->sov);
         g_assert(str != NULL);
@@ -144,13 +144,13 @@ static void test_visitor_out_enum_errors(TestOutputVisitorData *data,
                                          const void *unused)
 {
     EnumOne i, bad_values[] = { ENUM_ONE_MAX, -1 };
-    Error *errp;
+    Error *err;
 
     for (i = 0; i < ARRAY_SIZE(bad_values) ; i++) {
-        errp = NULL;
-        visit_type_EnumOne(data->ov, &bad_values[i], "unused", &errp);
-        g_assert(errp);
-        error_free(errp);
+        err = NULL;
+        visit_type_EnumOne(data->ov, &bad_values[i], "unused", &err);
+        g_assert(err);
+        error_free(err);
     }
 }
 

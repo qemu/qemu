@@ -308,12 +308,12 @@ Here's the implementation of the "hello-world" HMP command:
 void hmp_hello_world(Monitor *mon, const QDict *qdict)
 {
     const char *message = qdict_get_try_str(qdict, "message");
-    Error *errp = NULL;
+    Error *err = NULL;
 
-    qmp_hello_world(!!message, message, &errp);
-    if (errp) {
-        monitor_printf(mon, "%s\n", error_get_pretty(errp));
-        error_free(errp);
+    qmp_hello_world(!!message, message, &err);
+    if (err) {
+        monitor_printf(mon, "%s\n", error_get_pretty(err));
+        error_free(err);
         return;
     }
 }
@@ -328,7 +328,7 @@ There are three important points to be noticed:
 2. hmp_hello_world() performs error checking. In this example we just print
    the error description to the user, but we could do more, like taking
    different actions depending on the error qmp_hello_world() returns
-3. The "errp" variable must be initialized to NULL before performing the
+3. The "err" variable must be initialized to NULL before performing the
    QMP call
 
 There's one last step to actually make the command available to monitor users,
@@ -480,12 +480,12 @@ Here's the HMP counterpart of the query-alarm-clock command:
 void hmp_info_alarm_clock(Monitor *mon)
 {
     QemuAlarmClock *clock;
-    Error *errp = NULL;
+    Error *err = NULL;
 
-    clock = qmp_query_alarm_clock(&errp);
-    if (errp) {
+    clock = qmp_query_alarm_clock(&err);
+    if (err) {
         monitor_printf(mon, "Could not query alarm clock information\n");
-        error_free(errp);
+        error_free(err);
         return;
     }
 
@@ -631,12 +631,12 @@ has to traverse the list, it's shown below for reference:
 void hmp_info_alarm_methods(Monitor *mon)
 {
     TimerAlarmMethodList *method_list, *method;
-    Error *errp = NULL;
+    Error *err = NULL;
 
-    method_list = qmp_query_alarm_methods(&errp);
-    if (errp) {
+    method_list = qmp_query_alarm_methods(&err);
+    if (err) {
         monitor_printf(mon, "Could not query alarm methods\n");
-        error_free(errp);
+        error_free(err);
         return;
     }
 
