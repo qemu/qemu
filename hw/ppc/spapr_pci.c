@@ -280,7 +280,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     unsigned int req_num = rtas_ld(args, 4); /* 0 == remove all */
     unsigned int seq_num = rtas_ld(args, 5);
     unsigned int ret_intr_type;
-    int ndev, irq;
+    int ndev, irq, max_irqs = 0;
     sPAPRPHBState *phb = NULL;
     PCIDevice *pdev = NULL;
 
@@ -333,6 +333,23 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     }
     trace_spapr_pci_msi("Configuring MSI", ndev, config_addr);
 
+    /* Check if the device supports as many IRQs as requested */
+    if (ret_intr_type == RTAS_TYPE_MSI) {
+        max_irqs = msi_nr_vectors_allocated(pdev);
+    } else if (ret_intr_type == RTAS_TYPE_MSIX) {
+        max_irqs = pdev->msix_entries_nr;
+    }
+    if (!max_irqs) {
+        error_report("Requested interrupt type %d is not enabled for device#%d",
+                     ret_intr_type, ndev);
+        rtas_st(rets, 0, -1); /* Hardware error */
+        return;
+    }
+    /* Correct the number if the guest asked for too many */
+    if (req_num > max_irqs) {
+        req_num = max_irqs;
+    }
+
     /* Check if there is an old config and MSI number has not changed */
     if (phb->msi_table[ndev].nvec && (req_num != phb->msi_table[ndev].nvec)) {
         /* Unexpected behaviour */
@@ -343,21 +360,6 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
     /* There is no cached config, allocate MSIs */
     if (!phb->msi_table[ndev].nvec) {
-        int max_irqs = 0;
-        if (ret_intr_type == RTAS_TYPE_MSI) {
-            max_irqs = msi_nr_vectors_allocated(pdev);
-        } else if (ret_intr_type == RTAS_TYPE_MSIX) {
-            max_irqs = pdev->msix_entries_nr;
-        }
-        if (!max_irqs) {
-            error_report("Requested interrupt type %d is not enabled for device#%d",
-                         ret_intr_type, ndev);
-            rtas_st(rets, 0, -1); /* Hardware error */
-            return;
-        }
-        if (req_num > max_irqs) {
-            req_num = max_irqs;
-        }
         irq = spapr_allocate_irq_block(req_num, false,
                                        ret_intr_type == RTAS_TYPE_MSI);
         if (irq < 0) {
