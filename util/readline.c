@@ -279,9 +279,7 @@ static void readline_completion(ReadLineState *rs)
 
     rs->nb_completions = 0;
 
-    cmdline = g_malloc(rs->cmd_buf_index + 1);
-    memcpy(cmdline, rs->cmd_buf, rs->cmd_buf_index);
-    cmdline[rs->cmd_buf_index] = '\0';
+    cmdline = g_strndup(rs->cmd_buf, rs->cmd_buf_index);
     rs->completion_finder(rs->opaque, cmdline);
     g_free(cmdline);
 
