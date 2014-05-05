@@ -268,6 +268,9 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
 #define PC_COMPAT_2_0 \
         {\
+            .driver   = "apic",\
+            .property = "version",\
+            .value    = stringify(0x11),\
         }
 
 #define PC_COMPAT_1_7 \
