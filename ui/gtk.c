@@ -296,35 +296,23 @@ static void gd_update_caption(GtkDisplayState *s)
 static void gd_update_windowsize(VirtualConsole *vc)
 {
     GtkDisplayState *s = vc->s;
+    double sx, sy;
 
-    if (!s->full_screen) {
-        GtkRequisition req;
-        double sx, sy;
-
-        if (s->free_scale) {
-            sx = vc->gfx.scale_x;
-            sy = vc->gfx.scale_y;
-
-            vc->gfx.scale_y = 1.0;
-            vc->gfx.scale_x = 1.0;
-        } else {
-            sx = 1.0;
-            sy = 1.0;
-        }
-
-        gtk_widget_set_size_request
-            (vc->gfx.drawing_area,
-             surface_width(vc->gfx.ds) * vc->gfx.scale_x,
-             surface_height(vc->gfx.ds) * vc->gfx.scale_y);
-#if GTK_CHECK_VERSION(3, 0, 0)
-        gtk_widget_get_preferred_size(s->vbox, NULL, &req);
-#else
-        gtk_widget_size_request(s->vbox, &req);
-#endif
-
-        gtk_window_resize(GTK_WINDOW(s->window),
-                          req.width * sx, req.height * sy);
+    if (vc->type != GD_VC_GFX || s->full_screen) {
+        return;
     }
+
+    if (s->free_scale) {
+        sx = 1.0;
+        sy = 1.0;
+    } else {
+        sx = vc->gfx.scale_x;
+        sy = vc->gfx.scale_y;
+    }
+    gtk_widget_set_size_request(vc->gfx.drawing_area,
+                                surface_width(vc->gfx.ds) * sx,
+                                surface_height(vc->gfx.ds) * sy);
+    gtk_window_resize(GTK_WINDOW(s->window), 320, 240);
 }
 
 static void gd_update_full_redraw(VirtualConsole *vc)
