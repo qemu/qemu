@@ -67,6 +67,7 @@
 #include "x_keymap.h"
 #include "keymaps.h"
 #include "sysemu/char.h"
+#include "qom/object.h"
 
 #define MAX_VCS 10
 
@@ -1457,6 +1458,15 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
                               QemuConsole *con, int idx,
                               GSList *group, GtkWidget *view_menu)
 {
+    const char *label = "VGA";
+    Error *local_err = NULL;
+    Object *obj;
+
+    obj = object_property_get_link(OBJECT(con), "device", &local_err);
+    if (obj) {
+        label = object_get_typename(obj);
+    }
+
     vc->s = s;
     vc->gfx.scale_x = 1.0;
     vc->gfx.scale_y = 1.0;
@@ -1477,10 +1487,10 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
     vc->type = GD_VC_GFX;
     vc->tab_item = vc->gfx.drawing_area;
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook),
-                             vc->tab_item, gtk_label_new("VGA"));
+                             vc->tab_item, gtk_label_new(label));
     gd_connect_vc_gfx_signals(vc);
 
-    group = gd_vc_menu_init(s, vc, "VGA", idx, group, view_menu);
+    group = gd_vc_menu_init(s, vc, label, idx, group, view_menu);
 
     vc->gfx.dcl.ops = &dcl_ops;
     vc->gfx.dcl.con = con;
