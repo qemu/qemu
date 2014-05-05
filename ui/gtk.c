@@ -134,6 +134,8 @@ typedef enum VirtualConsoleType {
 
 typedef struct VirtualConsole {
     GtkDisplayState *s;
+    char *label;
+    GtkWidget *window;
     GtkWidget *menu_item;
     GtkWidget *tab_item;
     VirtualConsoleType type;
@@ -173,6 +175,7 @@ struct GtkDisplayState {
     VirtualConsole vc[MAX_VCS];
 
     GtkWidget *show_tabs_item;
+    GtkWidget *untabify_item;
 
     GtkWidget *vbox;
     GtkWidget *notebook;
@@ -891,6 +894,50 @@ static void gd_menu_show_tabs(GtkMenuItem *item, void *opaque)
     }
 }
 
+static gboolean gd_tab_window_close(GtkWidget *widget, GdkEvent *event,
+                                    void *opaque)
+{
+    VirtualConsole *vc = opaque;
+    GtkDisplayState *s = vc->s;
+
+    gtk_widget_set_sensitive(vc->menu_item, true);
+    gtk_widget_reparent(vc->tab_item, s->notebook);
+    gtk_notebook_set_tab_label_text(GTK_NOTEBOOK(s->notebook),
+                                    vc->tab_item, vc->label);
+    gtk_widget_destroy(vc->window);
+    vc->window = NULL;
+    return TRUE;
+}
+
+static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
+{
+    GtkDisplayState *s = opaque;
+    VirtualConsole *vc = gd_vc_find_current(s);
+    char *title;
+
+    if (vc->type == GD_VC_GFX) {
+        /* temporary: needs more work to get grabs etc correct */
+        return;
+    }
+    if (!vc->window) {
+        gtk_widget_set_sensitive(vc->menu_item, false);
+        vc->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+        gtk_widget_reparent(vc->tab_item, vc->window);
+
+        if (qemu_name) {
+            title = g_strdup_printf("QEMU (%s): %s", qemu_name, vc->label);
+        } else {
+            title = g_strdup_printf("QEMU: %s", vc->label);
+        }
+        gtk_window_set_title(GTK_WINDOW(vc->window), title);
+        g_free(title);
+
+        g_signal_connect(vc->window, "delete-event",
+                         G_CALLBACK(gd_tab_window_close), vc);
+        gtk_widget_show_all(vc->window);
+    }
+}
+
 static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
@@ -1196,14 +1243,13 @@ static gboolean gd_focus_out_event(GtkWidget *widget,
 /** Virtual Console Callbacks **/
 
 static GSList *gd_vc_menu_init(GtkDisplayState *s, VirtualConsole *vc,
-                               const char *label, int idx,
-                               GSList *group, GtkWidget *view_menu)
+                               int idx, GSList *group, GtkWidget *view_menu)
 {
     char path[32];
 
     snprintf(path, sizeof(path), "<QEMU>/View/VC%d", idx);
 
-    vc->menu_item = gtk_radio_menu_item_new_with_mnemonic(group, label);
+    vc->menu_item = gtk_radio_menu_item_new_with_mnemonic(group, vc->label);
     group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(vc->menu_item));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(vc->menu_item), path);
     gtk_accel_map_add_entry(path, GDK_KEY_1 + idx, HOTKEY_MODIFIERS);
@@ -1266,7 +1312,6 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
                               CharDriverState *chr, int idx,
                               GSList *group, GtkWidget *view_menu)
 {
-    const char *label;
     char buffer[32];
     GtkWidget *box;
     GtkWidget *scrollbar;
@@ -1276,8 +1321,9 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
     vc->vte.chr = chr;
 
     snprintf(buffer, sizeof(buffer), "vc%d", idx);
-    label = vc->vte.chr->label ? vc->vte.chr->label : buffer;
-    group = gd_vc_menu_init(s, vc, vc->vte.chr->label, idx, group, view_menu);
+    vc->label = g_strdup_printf("%s", vc->vte.chr->label
+                                ? vc->vte.chr->label : buffer);
+    group = gd_vc_menu_init(s, vc, idx, group, view_menu);
 
     vc->vte.terminal = vte_terminal_new();
     g_signal_connect(vc->vte.terminal, "commit", G_CALLBACK(gd_vc_in), vc);
@@ -1313,7 +1359,7 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
     vc->type = GD_VC_VTE;
     vc->tab_item = box;
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), vc->tab_item,
-                             gtk_label_new(label));
+                             gtk_label_new(vc->label));
 
     qemu_chr_be_generic_open(vc->vte.chr);
     if (vc->vte.chr->init) {
@@ -1372,6 +1418,8 @@ static void gd_connect_signals(GtkDisplayState *s)
 {
     g_signal_connect(s->show_tabs_item, "activate",
                      G_CALLBACK(gd_menu_show_tabs), s);
+    g_signal_connect(s->untabify_item, "activate",
+                     G_CALLBACK(gd_menu_untabify), s);
 
     g_signal_connect(s->window, "delete-event",
                      G_CALLBACK(gd_window_close), s);
@@ -1446,13 +1494,14 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
                               QemuConsole *con, int idx,
                               GSList *group, GtkWidget *view_menu)
 {
-    const char *label = "VGA";
     Error *local_err = NULL;
     Object *obj;
 
     obj = object_property_get_link(OBJECT(con), "device", &local_err);
     if (obj) {
-        label = object_get_typename(obj);
+        vc->label = g_strdup_printf("%s", object_get_typename(obj));
+    } else {
+        vc->label = g_strdup_printf("VGA");
     }
 
     vc->s = s;
@@ -1475,10 +1524,10 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
     vc->type = GD_VC_GFX;
     vc->tab_item = vc->gfx.drawing_area;
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook),
-                             vc->tab_item, gtk_label_new(label));
+                             vc->tab_item, gtk_label_new(vc->label));
     gd_connect_vc_gfx_signals(vc);
 
-    group = gd_vc_menu_init(s, vc, label, idx, group, view_menu);
+    group = gd_vc_menu_init(s, vc, idx, group, view_menu);
 
     vc->gfx.dcl.ops = &dcl_ops;
     vc->gfx.dcl.con = con;
@@ -1569,6 +1618,9 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_g
 
     s->show_tabs_item = gtk_check_menu_item_new_with_mnemonic(_("Show _Tabs"));
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->show_tabs_item);
+
+    s->untabify_item = gtk_menu_item_new_with_mnemonic(_("Detach Tab"));
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->untabify_item);
 
     return view_menu;
 }
