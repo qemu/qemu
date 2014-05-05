@@ -242,8 +242,12 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
 int e820_get_num_entries(void);
 bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
+#define PC_Q35_COMPAT_2_0 \
+        PC_COMPAT_2_0
+
 #define PC_Q35_COMPAT_1_7 \
         PC_COMPAT_1_7, \
+        PC_Q35_COMPAT_2_0, \
         {\
             .driver   = "hpet",\
             .property = HPET_INTCAP,\
@@ -262,7 +266,12 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         PC_COMPAT_1_4, \
         PC_Q35_COMPAT_1_5
 
+#define PC_COMPAT_2_0 \
+        {\
+        }
+
 #define PC_COMPAT_1_7 \
+        PC_COMPAT_2_0, \
         {\
             .driver   = TYPE_USB_DEVICE,\
             .property = "msos-desc",\
