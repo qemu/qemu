@@ -1496,6 +1496,19 @@ static coroutine_fn int vmdk_co_write(BlockDriverState *bs, int64_t sector_num,
     return ret;
 }
 
+static int vmdk_write_compressed(BlockDriverState *bs,
+                                 int64_t sector_num,
+                                 const uint8_t *buf,
+                                 int nb_sectors)
+{
+    BDRVVmdkState *s = bs->opaque;
+    if (s->num_extents == 1 && s->extents[0].compressed) {
+        return vmdk_write(bs, sector_num, buf, nb_sectors, false, false);
+    } else {
+        return -ENOTSUP;
+    }
+}
+
 static int coroutine_fn vmdk_co_write_zeroes(BlockDriverState *bs,
                                              int64_t sector_num,
                                              int nb_sectors,
@@ -2109,6 +2122,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_reopen_prepare          = vmdk_reopen_prepare,
     .bdrv_read                    = vmdk_co_read,
     .bdrv_write                   = vmdk_co_write,
+    .bdrv_write_compressed        = vmdk_write_compressed,
     .bdrv_co_write_zeroes         = vmdk_co_write_zeroes,
     .bdrv_close                   = vmdk_close,
     .bdrv_create                  = vmdk_create,
