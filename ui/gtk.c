@@ -1183,7 +1183,9 @@ static void gd_menu_grab_input(GtkMenuItem *item, void *opaque)
     VirtualConsole *vc = gd_vc_find_current(s);
 
     if (gd_is_grab_active(s)) {
-        gd_grab_keyboard(vc);
+        if (!gd_grab_on_hover(s)) {
+            gd_grab_keyboard(vc);
+        }
         gd_grab_pointer(vc);
     } else {
         gd_ungrab_keyboard(s);
