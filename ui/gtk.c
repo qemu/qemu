@@ -1058,6 +1058,7 @@ static void gd_grab_keyboard(VirtualConsole *vc)
                       FALSE,
                       GDK_CURRENT_TIME);
 #endif
+    trace_gd_grab(vc->label, "kbd", true);
 }
 
 static void gd_ungrab_keyboard(VirtualConsole *vc)
@@ -1080,6 +1081,7 @@ static void gd_ungrab_keyboard(VirtualConsole *vc)
 #else
     gdk_keyboard_ungrab(GDK_CURRENT_TIME);
 #endif
+    trace_gd_grab(vc->label, "kbd", false);
 }
 
 static void gd_grab_pointer(VirtualConsole *vc)
@@ -1125,6 +1127,7 @@ static void gd_grab_pointer(VirtualConsole *vc)
     gdk_display_get_pointer(display, NULL,
                             &vc->s->grab_x_root, &vc->s->grab_y_root, NULL);
 #endif
+    trace_gd_grab(vc->label, "ptr", true);
 }
 
 static void gd_ungrab_pointer(VirtualConsole *vc)
@@ -1153,6 +1156,7 @@ static void gd_ungrab_pointer(VirtualConsole *vc)
                              gtk_widget_get_screen(vc->gfx.drawing_area),
                              vc->s->grab_x_root, vc->s->grab_y_root);
 #endif
+    trace_gd_grab(vc->label, "ptr", false);
 }
 
 static void gd_menu_grab_input(GtkMenuItem *item, void *opaque)

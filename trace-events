@@ -1048,6 +1048,7 @@ ppm_save(const char *filename, void *display_surface) "%s surface=%p"
 gd_switch(const char *tab, int width, int height) "tab=%s, width=%d, height=%d"
 gd_update(const char *tab, int x, int y, int w, int h) "tab=%s, x=%d, y=%d, w=%d, h=%d"
 gd_key_event(const char *tab, int gdk_keycode, int qemu_keycode, const char *action) "tab=%s, translated GDK keycode %d to QEMU keycode %d (%s)"
+gd_grab(const char *tab, const char *device, bool on) "tab=%s, %s %d"
 
 # ui/input.c
 input_event_key_number(int conidx, int number, bool down) "con %d, key number 0x%x, down %d"
