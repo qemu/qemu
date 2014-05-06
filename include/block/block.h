@@ -34,6 +34,10 @@ typedef struct BlockDriverInfo {
      * opened with BDRV_O_UNMAP flag for this to work.
      */
     bool can_write_zeroes_with_unmap;
+    /*
+     * True if this block driver only supports compressed writes
+     */
+    bool needs_compressed_writes;
 } BlockDriverInfo;
 
 typedef struct BlockFragInfo {

@@ -1502,6 +1502,7 @@ static int img_convert(int argc, char **argv)
             goto out;
         }
     } else {
+        compress = compress || bdi.needs_compressed_writes;
         cluster_sectors = bdi.cluster_size / BDRV_SECTOR_SIZE;
     }
 
