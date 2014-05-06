@@ -2050,6 +2050,7 @@ qemu-img: Could not open 'TEST_DIR/t.IMGFMT': File truncated, expecting at least
 image: TEST_DIR/iotest-version3.IMGFMT
 file format: IMGFMT
 virtual size: 1.0G (1073741824 bytes)
+cluster_size: 65536
 
 === Testing 4TB monolithicFlat creation and IO ===
 Formatting 'TEST_DIR/iotest-version3.IMGFMT', fmt=IMGFMT size=4398046511104
