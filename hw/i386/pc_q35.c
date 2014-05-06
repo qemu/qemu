@@ -50,7 +50,8 @@
 
 static bool has_pci_info;
 static bool has_acpi_build = true;
-static bool smbios_type1_defaults = true;
+static bool smbios_defaults = true;
+static bool smbios_legacy_mode;
 /* Make sure that guest addresses aligned at 1Gbyte boundaries get mapped to
  * host addresses aligned at 1Gbyte boundaries.  This way we can use 1GByte
  * pages in the host.
@@ -130,10 +131,10 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     guest_info->isapc_ram_fw = false;
     guest_info->has_acpi_build = has_acpi_build;
 
-    if (smbios_type1_defaults) {
+    if (smbios_defaults) {
         /* These values are guest ABI, do not change */
-        smbios_set_type1_defaults("QEMU", "Standard PC (Q35 + ICH9, 2009)",
-                                  args->machine->name);
+        smbios_set_defaults("QEMU", "Standard PC (Q35 + ICH9, 2009)",
+                            args->machine->name, smbios_legacy_mode);
     }
 
     /* allocate ram and load rom/bios */
@@ -240,9 +241,15 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     }
 }
 
+static void pc_compat_2_0(QEMUMachineInitArgs *args)
+{
+    smbios_legacy_mode = true;
+}
+
 static void pc_compat_1_7(QEMUMachineInitArgs *args)
 {
-    smbios_type1_defaults = false;
+    pc_compat_2_0(args);
+    smbios_defaults = false;
     gigabyte_align = false;
     option_rom_has_mr = true;
     x86_cpu_compat_disable_kvm_features(FEAT_1_ECX, CPUID_EXT_X2APIC);
@@ -266,6 +273,12 @@ static void pc_compat_1_4(QEMUMachineInitArgs *args)
     pc_compat_1_5(args);
     x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
     x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
+}
+
+static void pc_q35_init_2_0(QEMUMachineInitArgs *args)
+{
+    pc_compat_2_0(args);
+    pc_q35_init(args);
 }
 
 static void pc_q35_init_1_7(QEMUMachineInitArgs *args)
@@ -297,15 +310,23 @@ static void pc_q35_init_1_4(QEMUMachineInitArgs *args)
     .desc = "Standard PC (Q35 + ICH9, 2009)", \
     .hot_add_cpu = pc_hot_add_cpu
 
-#define PC_Q35_2_0_MACHINE_OPTIONS                      \
+#define PC_Q35_2_1_MACHINE_OPTIONS                      \
     PC_Q35_MACHINE_OPTIONS,                             \
     .default_machine_opts = "firmware=bios-256k.bin"
+
+static QEMUMachine pc_q35_machine_v2_1 = {
+    PC_Q35_2_1_MACHINE_OPTIONS,
+    .name = "pc-q35-2.1",
+    .alias = "q35",
+    .init = pc_q35_init,
+};
+
+#define PC_Q35_2_0_MACHINE_OPTIONS PC_Q35_2_1_MACHINE_OPTIONS
 
 static QEMUMachine pc_q35_machine_v2_0 = {
     PC_Q35_2_0_MACHINE_OPTIONS,
     .name = "pc-q35-2.0",
-    .alias = "q35",
-    .init = pc_q35_init,
+    .init = pc_q35_init_2_0,
 };
 
 #define PC_Q35_1_7_MACHINE_OPTIONS PC_Q35_MACHINE_OPTIONS
@@ -358,6 +379,7 @@ static QEMUMachine pc_q35_machine_v1_4 = {
 
 static void pc_q35_machine_init(void)
 {
+    qemu_register_machine(&pc_q35_machine_v2_1);
     qemu_register_machine(&pc_q35_machine_v2_0);
     qemu_register_machine(&pc_q35_machine_v1_7);
     qemu_register_machine(&pc_q35_machine_v1_6);

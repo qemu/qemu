@@ -239,6 +239,8 @@ uint16_t pvpanic_port(void);
 #define E820_UNUSABLE   5
 
 int e820_add_entry(uint64_t, uint64_t, uint32_t);
+int e820_get_num_entries(void);
+bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
 #define PC_Q35_COMPAT_1_7 \
         PC_COMPAT_1_7, \

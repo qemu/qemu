@@ -60,7 +60,8 @@ static const int ide_irq[MAX_IDE_BUS] = { 14, 15 };
 
 static bool has_pci_info;
 static bool has_acpi_build = true;
-static bool smbios_type1_defaults = true;
+static bool smbios_defaults = true;
+static bool smbios_legacy_mode;
 /* Make sure that guest addresses aligned at 1Gbyte boundaries get mapped to
  * host addresses aligned at 1Gbyte boundaries.  This way we can use 1GByte
  * pages in the host.
@@ -143,10 +144,10 @@ static void pc_init1(QEMUMachineInitArgs *args,
     guest_info->has_pci_info = has_pci_info;
     guest_info->isapc_ram_fw = !pci_enabled;
 
-    if (smbios_type1_defaults) {
+    if (smbios_defaults) {
         /* These values are guest ABI, do not change */
-        smbios_set_type1_defaults("QEMU", "Standard PC (i440FX + PIIX, 1996)",
-                                  args->machine->name);
+        smbios_set_defaults("QEMU", "Standard PC (i440FX + PIIX, 1996)",
+                            args->machine->name, smbios_legacy_mode);
     }
 
     /* allocate ram and load rom/bios */
@@ -262,9 +263,15 @@ static void pc_init_pci(QEMUMachineInitArgs *args)
     pc_init1(args, 1, 1);
 }
 
+static void pc_compat_2_0(QEMUMachineInitArgs *args)
+{
+    smbios_legacy_mode = true;
+}
+
 static void pc_compat_1_7(QEMUMachineInitArgs *args)
 {
-    smbios_type1_defaults = false;
+    pc_compat_2_0(args);
+    smbios_defaults = false;
     gigabyte_align = false;
     option_rom_has_mr = true;
     x86_cpu_compat_disable_kvm_features(FEAT_1_ECX, CPUID_EXT_X2APIC);
@@ -301,6 +308,12 @@ static void pc_compat_1_2(QEMUMachineInitArgs *args)
 {
     pc_compat_1_3(args);
     x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
+}
+
+static void pc_init_pci_2_0(QEMUMachineInitArgs *args)
+{
+    pc_compat_2_0(args);
+    pc_init_pci(args);
 }
 
 static void pc_init_pci_1_7(QEMUMachineInitArgs *args)
@@ -345,7 +358,7 @@ static void pc_init_pci_no_kvmclock(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
     has_acpi_build = false;
-    smbios_type1_defaults = false;
+    smbios_defaults = false;
     x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
     enable_compat_apic_id_mode();
     pc_init1(args, 1, 0);
@@ -355,7 +368,7 @@ static void pc_init_isa(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
     has_acpi_build = false;
-    smbios_type1_defaults = false;
+    smbios_defaults = false;
     if (!args->cpu_model) {
         args->cpu_model = "486";
     }
@@ -383,16 +396,24 @@ static void pc_xen_hvm_init(QEMUMachineInitArgs *args)
     .desc = "Standard PC (i440FX + PIIX, 1996)", \
     .hot_add_cpu = pc_hot_add_cpu
 
-#define PC_I440FX_2_0_MACHINE_OPTIONS                           \
+#define PC_I440FX_2_1_MACHINE_OPTIONS                           \
     PC_I440FX_MACHINE_OPTIONS,                                  \
     .default_machine_opts = "firmware=bios-256k.bin"
+
+static QEMUMachine pc_i440fx_machine_v2_1 = {
+    PC_I440FX_2_1_MACHINE_OPTIONS,
+    .name = "pc-i440fx-2.1",
+    .alias = "pc",
+    .init = pc_init_pci,
+    .is_default = 1,
+};
+
+#define PC_I440FX_2_0_MACHINE_OPTIONS PC_I440FX_2_1_MACHINE_OPTIONS
 
 static QEMUMachine pc_i440fx_machine_v2_0 = {
     PC_I440FX_2_0_MACHINE_OPTIONS,
     .name = "pc-i440fx-2.0",
-    .alias = "pc",
-    .init = pc_init_pci,
-    .is_default = 1,
+    .init = pc_init_pci_2_0,
 };
 
 #define PC_I440FX_1_7_MACHINE_OPTIONS PC_I440FX_MACHINE_OPTIONS
@@ -817,6 +838,7 @@ static QEMUMachine xenfv_machine = {
 
 static void pc_machine_init(void)
 {
+    qemu_register_machine(&pc_i440fx_machine_v2_1);
     qemu_register_machine(&pc_i440fx_machine_v2_0);
     qemu_register_machine(&pc_i440fx_machine_v1_7);
     qemu_register_machine(&pc_i440fx_machine_v1_6);
