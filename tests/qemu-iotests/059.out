@@ -2046,6 +2046,13 @@ RW 12582912 VMFS "dummy.IMGFMT" 1
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=107374182400
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': File truncated, expecting at least 13172736 bytes
 
+=== Converting to streamOptimized from image with small cluster size===
+Formatting 'TEST_DIR/t.vmdk.IMGFMT', fmt=IMGFMT size=1073741824
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 10240
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
 === Testing version 3 ===
 image: TEST_DIR/iotest-version3.IMGFMT
 file format: IMGFMT
