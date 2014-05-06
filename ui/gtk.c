@@ -185,6 +185,8 @@ struct GtkDisplayState {
     int last_y;
     int grab_x_root;
     int grab_y_root;
+    VirtualConsole *kbd_owner;
+    VirtualConsole *ptr_owner;
 
     gboolean full_screen;
 
@@ -1058,11 +1060,19 @@ static void gd_grab_keyboard(VirtualConsole *vc)
                       FALSE,
                       GDK_CURRENT_TIME);
 #endif
+    vc->s->kbd_owner = vc;
     trace_gd_grab(vc->label, "kbd", true);
 }
 
-static void gd_ungrab_keyboard(VirtualConsole *vc)
+static void gd_ungrab_keyboard(GtkDisplayState *s)
 {
+    VirtualConsole *vc = s->kbd_owner;
+
+    if (vc == NULL) {
+        return;
+    }
+    s->kbd_owner = NULL;
+
 #if GTK_CHECK_VERSION(3, 0, 0)
     GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
     GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
@@ -1127,11 +1137,19 @@ static void gd_grab_pointer(VirtualConsole *vc)
     gdk_display_get_pointer(display, NULL,
                             &vc->s->grab_x_root, &vc->s->grab_y_root, NULL);
 #endif
+    vc->s->ptr_owner = vc;
     trace_gd_grab(vc->label, "ptr", true);
 }
 
-static void gd_ungrab_pointer(VirtualConsole *vc)
+static void gd_ungrab_pointer(GtkDisplayState *s)
 {
+    VirtualConsole *vc = s->ptr_owner;
+
+    if (vc == NULL) {
+        return;
+    }
+    s->ptr_owner = NULL;
+
     GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
 #if GTK_CHECK_VERSION(3, 0, 0)
     GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
@@ -1168,8 +1186,8 @@ static void gd_menu_grab_input(GtkMenuItem *item, void *opaque)
         gd_grab_keyboard(vc);
         gd_grab_pointer(vc);
     } else {
-        gd_ungrab_keyboard(vc);
-        gd_ungrab_pointer(vc);
+        gd_ungrab_keyboard(s);
+        gd_ungrab_pointer(s);
     }
 
     gd_update_caption(s);
@@ -1227,7 +1245,7 @@ static gboolean gd_leave_event(GtkWidget *widget, GdkEventCrossing *crossing,
     GtkDisplayState *s = vc->s;
 
     if (!gd_is_grab_active(s) && gd_grab_on_hover(s)) {
-        gd_ungrab_keyboard(vc);
+        gd_ungrab_keyboard(s);
     }
 
     return TRUE;
