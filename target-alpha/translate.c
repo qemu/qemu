@@ -1201,7 +1201,7 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             break;
         case 0x3A:
             /* RDUSP */
-            tcg_gen_st_i64(cpu_ir[IR_V0], cpu_env,
+            tcg_gen_ld_i64(cpu_ir[IR_V0], cpu_env,
                            offsetof(CPUAlphaState, usp));
             break;
         case 0x3C:
