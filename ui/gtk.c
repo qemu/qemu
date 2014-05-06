@@ -355,7 +355,7 @@ static void gd_update(DisplayChangeListener *dcl,
     int fbw, fbh;
     int ww, wh;
 
-    trace_gd_update(x, y, w, h);
+    trace_gd_update(vc->label, x, y, w, h);
 
     if (vc->gfx.convert) {
         pixman_image_composite(PIXMAN_OP_SRC, vc->gfx.ds->image,
@@ -461,7 +461,7 @@ static void gd_switch(DisplayChangeListener *dcl,
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
     bool resized = true;
 
-    trace_gd_switch(surface_width(surface), surface_height(surface));
+    trace_gd_switch(vc->label, surface_width(surface), surface_height(surface));
 
     if (vc->gfx.surface) {
         cairo_surface_destroy(vc->gfx.surface);
@@ -815,7 +815,7 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
     }
 #endif
 
-    trace_gd_key_event(gdk_keycode, qemu_keycode,
+    trace_gd_key_event(vc->label, gdk_keycode, qemu_keycode,
                        (key->type == GDK_KEY_PRESS) ? "down" : "up");
 
     for (i = 0; i < ARRAY_SIZE(modifier_keycode); i++) {
