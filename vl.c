@@ -3024,7 +3024,6 @@ int main(int argc, char **argv, char **envp)
 
     runstate_init();
 
-    init_clocks();
     rtc_clock = QEMU_CLOCK_HOST;
 
     qemu_init_auxval(envp);
