@@ -553,6 +553,7 @@ static void gd_change_runstate(void *opaque, int running, RunState state)
 static void gd_mouse_mode_change(Notifier *notify, void *data)
 {
     GtkDisplayState *s;
+    int i;
 
     s = container_of(notify, GtkDisplayState, mouse_mode_notifier);
     /* release the grab at switching to absolute mode */
@@ -560,7 +561,10 @@ static void gd_mouse_mode_change(Notifier *notify, void *data)
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
                                        FALSE);
     }
-    gd_update_cursor(gd_vc_find_current(s));
+    for (i = 0; i < s->nb_vcs; i++) {
+        VirtualConsole *vc = &s->vc[i];
+        gd_update_cursor(vc);
+    }
 }
 
 /** GTK Events **/
