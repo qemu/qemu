@@ -453,6 +453,9 @@ usb_mtp_op_get_object_handles(int dev, uint32_t handle, const char *path) "dev %
 usb_mtp_op_get_object_info(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
 usb_mtp_op_get_object(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
 usb_mtp_op_get_partial_object(int dev, uint32_t handle, const char *path, uint32_t offset, uint32_t length) "dev %d, handle 0x%x, path %s, off %d, len %d"
+usb_mtp_op_unknown(int dev, uint32_t code) "dev %d, command code 0x%x"
+usb_mtp_object_alloc(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
+usb_mtp_object_free(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
 
 # hw/usb/host-libusb.c
 usb_host_open_started(int bus, int addr) "dev %d:%d"
