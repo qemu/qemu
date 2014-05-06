@@ -1165,19 +1165,19 @@ Example:
 
 -> { "execute": "transaction",
      "arguments": { "actions": [
-         { 'type': 'blockdev-snapshot-sync', 'data' : { "device": "ide-hd0",
+         { "type": "blockdev-snapshot-sync", "data" : { "device": "ide-hd0",
                                          "snapshot-file": "/some/place/my-image",
                                          "format": "qcow2" } },
-         { 'type': 'blockdev-snapshot-sync', 'data' : { "node-name": "myfile",
+         { "type": "blockdev-snapshot-sync", "data" : { "node-name": "myfile",
                                          "snapshot-file": "/some/place/my-image2",
                                          "snapshot-node-name": "node3432",
                                          "mode": "existing",
                                          "format": "qcow2" } },
-         { 'type': 'blockdev-snapshot-sync', 'data' : { "device": "ide-hd1",
+         { "type": "blockdev-snapshot-sync", "data" : { "device": "ide-hd1",
                                          "snapshot-file": "/some/place/my-image2",
                                          "mode": "existing",
                                          "format": "qcow2" } },
-         { 'type': 'blockdev-snapshot-internal-sync', 'data' : {
+         { "type": "blockdev-snapshot-internal-sync", "data" : {
                                          "device": "ide-hd2",
                                          "name": "snapshot0" } } ] } }
 <- { "return": {} }
