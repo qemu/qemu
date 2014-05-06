@@ -20,6 +20,7 @@
 #undef ARCH_DLINFO
 #undef ELF_PLATFORM
 #undef ELF_HWCAP
+#undef ELF_HWCAP2
 #undef ELF_CLASS
 #undef ELF_DATA
 #undef ELF_ARCH
@@ -267,17 +268,15 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *en
 
 #ifdef TARGET_ARM
 
+#ifndef TARGET_AARCH64
+/* 32 bit ARM definitions */
+
 #define ELF_START_MMAP 0x80000000
 
 #define elf_check_arch(x) ((x) == ELF_MACHINE)
 
 #define ELF_ARCH        ELF_MACHINE
-
-#ifdef TARGET_AARCH64
-#define ELF_CLASS       ELFCLASS64
-#else
 #define ELF_CLASS       ELFCLASS32
-#endif
 
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
@@ -285,10 +284,6 @@ static inline void init_thread(struct target_pt_regs *regs,
     abi_long stack = infop->start_stack;
     memset(regs, 0, sizeof(*regs));
 
-#ifdef TARGET_AARCH64
-    regs->pc = infop->entry & ~0x3ULL;
-    regs->sp = stack;
-#else
     regs->ARM_cpsr = 0x10;
     if (infop->entry & 1)
         regs->ARM_cpsr |= CPSR_T;
@@ -302,7 +297,6 @@ static inline void init_thread(struct target_pt_regs *regs,
     /* For uClinux PIC binaries.  */
     /* XXX: Linux does this only on ARM with no MMU (do we care ?) */
     regs->ARM_r10 = infop->start_data;
-#endif
 }
 
 #define ELF_NREG    18
@@ -346,13 +340,28 @@ enum
     ARM_HWCAP_ARM_EDSP      = 1 << 7,
     ARM_HWCAP_ARM_JAVA      = 1 << 8,
     ARM_HWCAP_ARM_IWMMXT    = 1 << 9,
-    ARM_HWCAP_ARM_THUMBEE   = 1 << 10,
-    ARM_HWCAP_ARM_NEON      = 1 << 11,
-    ARM_HWCAP_ARM_VFPv3     = 1 << 12,
-    ARM_HWCAP_ARM_VFPv3D16  = 1 << 13,
+    ARM_HWCAP_ARM_CRUNCH    = 1 << 10,
+    ARM_HWCAP_ARM_THUMBEE   = 1 << 11,
+    ARM_HWCAP_ARM_NEON      = 1 << 12,
+    ARM_HWCAP_ARM_VFPv3     = 1 << 13,
+    ARM_HWCAP_ARM_VFPv3D16  = 1 << 14,
+    ARM_HWCAP_ARM_TLS       = 1 << 15,
+    ARM_HWCAP_ARM_VFPv4     = 1 << 16,
+    ARM_HWCAP_ARM_IDIVA     = 1 << 17,
+    ARM_HWCAP_ARM_IDIVT     = 1 << 18,
+    ARM_HWCAP_ARM_VFPD32    = 1 << 19,
+    ARM_HWCAP_ARM_LPAE      = 1 << 20,
+    ARM_HWCAP_ARM_EVTSTRM   = 1 << 21,
 };
 
-#ifndef TARGET_AARCH64
+enum {
+    ARM_HWCAP2_ARM_AES      = 1 << 0,
+    ARM_HWCAP2_ARM_PMULL    = 1 << 1,
+    ARM_HWCAP2_ARM_SHA1     = 1 << 2,
+    ARM_HWCAP2_ARM_SHA2     = 1 << 3,
+    ARM_HWCAP2_ARM_CRC32    = 1 << 4,
+};
+
 /* The commpage only exists for 32 bit kernels */
 
 #define TARGET_HAS_VALIDATE_GUEST_SPACE
@@ -414,9 +423,9 @@ static int validate_guest_space(unsigned long guest_base,
 
     return 1; /* All good */
 }
-#endif
 
 #define ELF_HWCAP get_elf_hwcap()
+#define ELF_HWCAP2 get_elf_hwcap2()
 
 static uint32_t get_elf_hwcap(void)
 {
@@ -427,23 +436,114 @@ static uint32_t get_elf_hwcap(void)
     hwcaps |= ARM_HWCAP_ARM_HALF;
     hwcaps |= ARM_HWCAP_ARM_THUMB;
     hwcaps |= ARM_HWCAP_ARM_FAST_MULT;
-    hwcaps |= ARM_HWCAP_ARM_FPA;
 
     /* probe for the extra features */
 #define GET_FEATURE(feat, hwcap) \
     do { if (arm_feature(&cpu->env, feat)) { hwcaps |= hwcap; } } while (0)
+    /* EDSP is in v5TE and above, but all our v5 CPUs are v5TE */
+    GET_FEATURE(ARM_FEATURE_V5, ARM_HWCAP_ARM_EDSP);
     GET_FEATURE(ARM_FEATURE_VFP, ARM_HWCAP_ARM_VFP);
     GET_FEATURE(ARM_FEATURE_IWMMXT, ARM_HWCAP_ARM_IWMMXT);
     GET_FEATURE(ARM_FEATURE_THUMB2EE, ARM_HWCAP_ARM_THUMBEE);
     GET_FEATURE(ARM_FEATURE_NEON, ARM_HWCAP_ARM_NEON);
     GET_FEATURE(ARM_FEATURE_VFP3, ARM_HWCAP_ARM_VFPv3);
-    GET_FEATURE(ARM_FEATURE_VFP_FP16, ARM_HWCAP_ARM_VFPv3D16);
+    GET_FEATURE(ARM_FEATURE_V6K, ARM_HWCAP_ARM_TLS);
+    GET_FEATURE(ARM_FEATURE_VFP4, ARM_HWCAP_ARM_VFPv4);
+    GET_FEATURE(ARM_FEATURE_ARM_DIV, ARM_HWCAP_ARM_IDIVA);
+    GET_FEATURE(ARM_FEATURE_THUMB_DIV, ARM_HWCAP_ARM_IDIVT);
+    /* All QEMU's VFPv3 CPUs have 32 registers, see VFP_DREG in translate.c.
+     * Note that the ARM_HWCAP_ARM_VFPv3D16 bit is always the inverse of
+     * ARM_HWCAP_ARM_VFPD32 (and so always clear for QEMU); it is unrelated
+     * to our VFP_FP16 feature bit.
+     */
+    GET_FEATURE(ARM_FEATURE_VFP3, ARM_HWCAP_ARM_VFPD32);
+    GET_FEATURE(ARM_FEATURE_LPAE, ARM_HWCAP_ARM_LPAE);
+
+    return hwcaps;
+}
+
+static uint32_t get_elf_hwcap2(void)
+{
+    ARMCPU *cpu = ARM_CPU(thread_cpu);
+    uint32_t hwcaps = 0;
+
+    GET_FEATURE(ARM_FEATURE_V8_AES, ARM_HWCAP2_ARM_AES);
+    GET_FEATURE(ARM_FEATURE_CRC, ARM_HWCAP2_ARM_CRC32);
+    return hwcaps;
+}
+
+#undef GET_FEATURE
+
+#else
+/* 64 bit ARM definitions */
+#define ELF_START_MMAP 0x80000000
+
+#define elf_check_arch(x) ((x) == ELF_MACHINE)
+
+#define ELF_ARCH        ELF_MACHINE
+#define ELF_CLASS       ELFCLASS64
+#define ELF_PLATFORM    "aarch64"
+
+static inline void init_thread(struct target_pt_regs *regs,
+                               struct image_info *infop)
+{
+    abi_long stack = infop->start_stack;
+    memset(regs, 0, sizeof(*regs));
+
+    regs->pc = infop->entry & ~0x3ULL;
+    regs->sp = stack;
+}
+
+#define ELF_NREG    34
+typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
+
+static void elf_core_copy_regs(target_elf_gregset_t *regs,
+                               const CPUARMState *env)
+{
+    int i;
+
+    for (i = 0; i < 32; i++) {
+        (*regs)[i] = tswapreg(env->xregs[i]);
+    }
+    (*regs)[32] = tswapreg(env->pc);
+    (*regs)[33] = tswapreg(pstate_read((CPUARMState *)env));
+}
+
+#define USE_ELF_CORE_DUMP
+#define ELF_EXEC_PAGESIZE       4096
+
+enum {
+    ARM_HWCAP_A64_FP            = 1 << 0,
+    ARM_HWCAP_A64_ASIMD         = 1 << 1,
+    ARM_HWCAP_A64_EVTSTRM       = 1 << 2,
+    ARM_HWCAP_A64_AES           = 1 << 3,
+    ARM_HWCAP_A64_PMULL         = 1 << 4,
+    ARM_HWCAP_A64_SHA1          = 1 << 5,
+    ARM_HWCAP_A64_SHA2          = 1 << 6,
+    ARM_HWCAP_A64_CRC32         = 1 << 7,
+};
+
+#define ELF_HWCAP get_elf_hwcap()
+
+static uint32_t get_elf_hwcap(void)
+{
+    ARMCPU *cpu = ARM_CPU(thread_cpu);
+    uint32_t hwcaps = 0;
+
+    hwcaps |= ARM_HWCAP_A64_FP;
+    hwcaps |= ARM_HWCAP_A64_ASIMD;
+
+    /* probe for the extra features */
+#define GET_FEATURE(feat, hwcap) \
+    do { if (arm_feature(&cpu->env, feat)) { hwcaps |= hwcap; } } while (0)
+    GET_FEATURE(ARM_FEATURE_V8_AES, ARM_HWCAP_A64_PMULL);
 #undef GET_FEATURE
 
     return hwcaps;
 }
 
-#endif
+#endif /* not TARGET_AARCH64 */
+#endif /* TARGET_ARM */
 
 #ifdef TARGET_UNICORE32
 
@@ -1407,6 +1507,9 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
 #ifdef DLINFO_ARCH_ITEMS
     size += DLINFO_ARCH_ITEMS * 2;
 #endif
+#ifdef ELF_HWCAP2
+    size += 2;
+#endif
     size += envc + argc + 2;
     size += 1;  /* argc itself */
     size *= n;
@@ -1440,6 +1543,10 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     NEW_AUX_ENT(AT_CLKTCK, (abi_ulong) sysconf(_SC_CLK_TCK));
     NEW_AUX_ENT(AT_RANDOM, (abi_ulong) u_rand_bytes);
 
+#ifdef ELF_HWCAP2
+    NEW_AUX_ENT(AT_HWCAP2, (abi_ulong) ELF_HWCAP2);
+#endif
+
     if (k_platform)
         NEW_AUX_ENT(AT_PLATFORM, u_platform);
 #ifdef ARCH_DLINFO
@@ -1455,6 +1562,8 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     info->auxv_len = sp_auxv - sp;
 
     sp = loader_build_argptr(envc, argc, sp, p, 0);
+    /* Check the right amount of stack was allocated for auxvec, envp & argv. */
+    assert(sp_auxv - sp == size);
     return sp;
 }
 

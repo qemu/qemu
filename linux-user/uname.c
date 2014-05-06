@@ -21,7 +21,7 @@
 
 #include "qemu.h"
 //#include "qemu-common.h"
-#include "cpu-uname.h"
+#include "uname.h"
 
 /* return highest utsname machine name for emulated instruction set
  *
@@ -69,4 +69,103 @@ const char *cpu_to_uname_machine(void *cpu_env)
     /* default is #define-d in each arch/ subdir */
     return UNAME_MACHINE;
 #endif
+}
+
+
+#define COPY_UTSNAME_FIELD(dest, src) \
+  do { \
+      /* __NEW_UTS_LEN doesn't include terminating null */ \
+      (void) strncpy((dest), (src), __NEW_UTS_LEN); \
+      (dest)[__NEW_UTS_LEN] = '\0'; \
+  } while (0)
+
+int sys_uname(struct new_utsname *buf)
+{
+  struct utsname uts_buf;
+
+  if (uname(&uts_buf) < 0)
+      return (-1);
+
+  /*
+   * Just in case these have some differences, we
+   * translate utsname to new_utsname (which is the
+   * struct linux kernel uses).
+   */
+
+  memset(buf, 0, sizeof(*buf));
+  COPY_UTSNAME_FIELD(buf->sysname, uts_buf.sysname);
+  COPY_UTSNAME_FIELD(buf->nodename, uts_buf.nodename);
+  COPY_UTSNAME_FIELD(buf->release, uts_buf.release);
+  COPY_UTSNAME_FIELD(buf->version, uts_buf.version);
+  COPY_UTSNAME_FIELD(buf->machine, uts_buf.machine);
+#ifdef _GNU_SOURCE
+  COPY_UTSNAME_FIELD(buf->domainname, uts_buf.domainname);
+#endif
+  return (0);
+
+#undef COPY_UTSNAME_FIELD
+}
+
+static int relstr_to_int(const char *s)
+{
+    /* Convert a uname release string like "2.6.18" to an integer
+     * of the form 0x020612. (Beware that 0x020612 is *not* 2.6.12.)
+     */
+    int i, n, tmp;
+
+    tmp = 0;
+    for (i = 0; i < 3; i++) {
+        n = 0;
+        while (*s >= '0' && *s <= '9') {
+            n *= 10;
+            n += *s - '0';
+            s++;
+        }
+        tmp = (tmp << 8) + n;
+        if (*s == '.') {
+            s++;
+        }
+    }
+    return tmp;
+}
+
+int get_osversion(void)
+{
+    static int osversion;
+    struct new_utsname buf;
+    const char *s;
+
+    if (osversion)
+        return osversion;
+    if (qemu_uname_release && *qemu_uname_release) {
+        s = qemu_uname_release;
+    } else {
+        if (sys_uname(&buf))
+            return 0;
+        s = buf.release;
+    }
+    osversion = relstr_to_int(s);
+    return osversion;
+}
+
+void init_qemu_uname_release(void)
+{
+    /* Initialize qemu_uname_release for later use.
+     * If the host kernel is too old and the user hasn't asked for
+     * a specific fake version number, we might want to fake a minimum
+     * target kernel version.
+     */
+    struct new_utsname buf;
+
+    if (qemu_uname_release && *qemu_uname_release) {
+        return;
+    }
+
+    if (sys_uname(&buf)) {
+        return;
+    }
+
+    if (relstr_to_int(buf.release) < relstr_to_int(UNAME_MINIMUM_RELEASE)) {
+        qemu_uname_release = UNAME_MINIMUM_RELEASE;
+    }
 }

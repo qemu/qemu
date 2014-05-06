@@ -60,7 +60,6 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <sys/statfs.h>
 #include <utime.h>
 #include <sys/sysinfo.h>
-#include <sys/utsname.h>
 //#include <sys/user.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
@@ -92,7 +91,6 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 
 #include <linux/termios.h>
 #include <linux/unistd.h>
-#include <linux/utsname.h>
 #include <linux/cdrom.h>
 #include <linux/hdreg.h>
 #include <linux/soundcard.h>
@@ -110,7 +108,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/filter.h>
 #include <linux/blkpg.h>
 #include "linux_loop.h"
-#include "cpu-uname.h"
+#include "uname.h"
 
 #include "qemu.h"
 
@@ -198,6 +196,11 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #define __NR__llseek __NR_lseek
 #endif
 
+/* Newer kernel ports have llseek() instead of _llseek() */
+#if defined(TARGET_NR_llseek) && !defined(TARGET_NR__llseek)
+#define TARGET_NR__llseek TARGET_NR_llseek
+#endif
+
 #ifdef __NR_gettid
 _syscall0(int, gettid)
 #else
@@ -281,40 +284,6 @@ static bitmask_transtbl fcntl_flags_tbl[] = {
 #endif
   { 0, 0, 0, 0 }
 };
-
-#define COPY_UTSNAME_FIELD(dest, src) \
-  do { \
-      /* __NEW_UTS_LEN doesn't include terminating null */ \
-      (void) strncpy((dest), (src), __NEW_UTS_LEN); \
-      (dest)[__NEW_UTS_LEN] = '\0'; \
-  } while (0)
-
-static int sys_uname(struct new_utsname *buf)
-{
-  struct utsname uts_buf;
-
-  if (uname(&uts_buf) < 0)
-      return (-1);
-
-  /*
-   * Just in case these have some differences, we
-   * translate utsname to new_utsname (which is the
-   * struct linux kernel uses).
-   */
-
-  memset(buf, 0, sizeof(*buf));
-  COPY_UTSNAME_FIELD(buf->sysname, uts_buf.sysname);
-  COPY_UTSNAME_FIELD(buf->nodename, uts_buf.nodename);
-  COPY_UTSNAME_FIELD(buf->release, uts_buf.release);
-  COPY_UTSNAME_FIELD(buf->version, uts_buf.version);
-  COPY_UTSNAME_FIELD(buf->machine, uts_buf.machine);
-#ifdef _GNU_SOURCE
-  COPY_UTSNAME_FIELD(buf->domainname, uts_buf.domainname);
-#endif
-  return (0);
-
-#undef COPY_UTSNAME_FIELD
-}
 
 static int sys_getcwd1(char *buf, size_t size)
 {
@@ -406,7 +375,7 @@ static int sys_inotify_init1(int flags)
 #endif
 #define __NR_sys_ppoll __NR_ppoll
 _syscall5(int, sys_ppoll, struct pollfd *, fds, nfds_t, nfds,
-          struct timespec *, timeout, const __sigset_t *, sigmask,
+          struct timespec *, timeout, const sigset_t *, sigmask,
           size_t, sigsetsize)
 #endif
 
@@ -1242,25 +1211,51 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
         target_cmsg->cmsg_type = tswap32(cmsg->cmsg_type);
         target_cmsg->cmsg_len = tswapal(TARGET_CMSG_LEN(len));
 
-        if ((cmsg->cmsg_level == SOL_SOCKET) &&
-                                (cmsg->cmsg_type == SCM_RIGHTS)) {
-            int *fd = (int *)data;
-            int *target_fd = (int *)target_data;
-            int i, numfds = len / sizeof(int);
+        switch (cmsg->cmsg_level) {
+        case SOL_SOCKET:
+            switch (cmsg->cmsg_type) {
+            case SCM_RIGHTS:
+            {
+                int *fd = (int *)data;
+                int *target_fd = (int *)target_data;
+                int i, numfds = len / sizeof(int);
 
-            for (i = 0; i < numfds; i++)
-                target_fd[i] = tswap32(fd[i]);
-        } else if ((cmsg->cmsg_level == SOL_SOCKET) &&
-                                (cmsg->cmsg_type == SO_TIMESTAMP) &&
-                                (len == sizeof(struct timeval))) {
-            /* copy struct timeval to target */
-            struct timeval *tv = (struct timeval *)data;
-            struct target_timeval *target_tv =
-                                        (struct target_timeval *)target_data;
+                for (i = 0; i < numfds; i++)
+                    target_fd[i] = tswap32(fd[i]);
+                break;
+            }
+            case SO_TIMESTAMP:
+            {
+                struct timeval *tv = (struct timeval *)data;
+                struct target_timeval *target_tv =
+                    (struct target_timeval *)target_data;
 
-            target_tv->tv_sec = tswapal(tv->tv_sec);
-            target_tv->tv_usec = tswapal(tv->tv_usec);
-        } else {
+                if (len != sizeof(struct timeval))
+                    goto unimplemented;
+
+                /* copy struct timeval to target */
+                target_tv->tv_sec = tswapal(tv->tv_sec);
+                target_tv->tv_usec = tswapal(tv->tv_usec);
+                break;
+            }
+            case SCM_CREDENTIALS:
+            {
+                struct ucred *cred = (struct ucred *)data;
+                struct target_ucred *target_cred =
+                    (struct target_ucred *)target_data;
+
+                __put_user(cred->pid, &target_cred->pid);
+                __put_user(cred->uid, &target_cred->uid);
+                __put_user(cred->gid, &target_cred->gid);
+                break;
+            }
+            default:
+                goto unimplemented;
+            }
+            break;
+
+        default:
+        unimplemented:
             gemu_log("Unsupported ancillary data: %d/%d\n",
                                         cmsg->cmsg_level, cmsg->cmsg_type);
             memcpy(target_data, data, len);
@@ -4952,72 +4947,6 @@ int host_to_target_waitstatus(int status)
     return status;
 }
 
-static int relstr_to_int(const char *s)
-{
-    /* Convert a uname release string like "2.6.18" to an integer
-     * of the form 0x020612. (Beware that 0x020612 is *not* 2.6.12.)
-     */
-    int i, n, tmp;
-
-    tmp = 0;
-    for (i = 0; i < 3; i++) {
-        n = 0;
-        while (*s >= '0' && *s <= '9') {
-            n *= 10;
-            n += *s - '0';
-            s++;
-        }
-        tmp = (tmp << 8) + n;
-        if (*s == '.') {
-            s++;
-        }
-    }
-    return tmp;
-}
-
-int get_osversion(void)
-{
-    static int osversion;
-    struct new_utsname buf;
-    const char *s;
-
-    if (osversion)
-        return osversion;
-    if (qemu_uname_release && *qemu_uname_release) {
-        s = qemu_uname_release;
-    } else {
-        if (sys_uname(&buf))
-            return 0;
-        s = buf.release;
-    }
-    osversion = relstr_to_int(s);
-    return osversion;
-}
-
-void init_qemu_uname_release(void)
-{
-    /* Initialize qemu_uname_release for later use.
-     * If the host kernel is too old and the user hasn't asked for
-     * a specific fake version number, we might want to fake a minimum
-     * target kernel version.
-     */
-#ifdef UNAME_MINIMUM_RELEASE
-    struct new_utsname buf;
-
-    if (qemu_uname_release && *qemu_uname_release) {
-        return;
-    }
-
-    if (sys_uname(&buf)) {
-        return;
-    }
-
-    if (relstr_to_int(buf.release) < relstr_to_int(UNAME_MINIMUM_RELEASE)) {
-        qemu_uname_release = UNAME_MINIMUM_RELEASE;
-    }
-#endif
-}
-
 static int open_self_maps(void *cpu_env, int fd)
 {
 #if defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_UNICORE32)
@@ -5224,6 +5153,11 @@ static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
 #endif
         { NULL, NULL, NULL }
     };
+
+    if (is_proc_myself(pathname, "exe")) {
+        int execfd = qemu_getauxval(AT_EXECFD);
+        return execfd ? execfd : get_errno(open(exec_path, flags, mode));
+    }
 
     for (fake_open = fakes; fake_open->filename; fake_open++) {
         if (fake_open->cmp(pathname, fake_open->filename)) {
@@ -6309,7 +6243,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             struct rusage rusage;
             ret = get_errno(getrusage(arg1, &rusage));
             if (!is_error(ret)) {
-                host_to_target_rusage(arg2, &rusage);
+                ret = host_to_target_rusage(arg2, &rusage);
             }
         }
         break;
@@ -6974,6 +6908,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             abi_long status_ptr = arg2;
             struct rusage rusage, *rusage_ptr;
             abi_ulong target_rusage = arg4;
+            abi_long rusage_err;
             if (target_rusage)
                 rusage_ptr = &rusage;
             else
@@ -6985,8 +6920,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     if (put_user_s32(status, status_ptr))
                         goto efault;
                 }
-                if (target_rusage)
-                    host_to_target_rusage(target_rusage, &rusage);
+                if (target_rusage) {
+                    rusage_err = host_to_target_rusage(target_rusage, &rusage);
+                    if (rusage_err) {
+                        ret = rusage_err;
+                    }
+                }
             }
         }
         break;
