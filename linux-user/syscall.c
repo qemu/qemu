@@ -1856,7 +1856,7 @@ static abi_long do_socket(int domain, int type, int protocol)
     }
 
     if (domain == PF_NETLINK)
-        return -EAFNOSUPPORT; /* do not NETLINK socket connections possible */
+        return -TARGET_EAFNOSUPPORT;
     ret = get_errno(socket(domain, type, protocol));
     if (ret >= 0) {
         ret = sock_flags_fixup(ret, target_type);
