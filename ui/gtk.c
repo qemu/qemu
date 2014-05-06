@@ -271,11 +271,20 @@ static void gd_update_cursor(VirtualConsole *vc)
 static void gd_update_caption(GtkDisplayState *s)
 {
     const char *status = "";
+    gchar *prefix;
     gchar *title;
     const char *grab = "";
     bool is_paused = !runstate_is_running();
+    int i;
 
-    if (gd_is_grab_active(s)) {
+    if (qemu_name) {
+        prefix = g_strdup_printf("QEMU (%s)", qemu_name);
+    } else {
+        prefix = g_strdup_printf("QEMU");
+    }
+
+    if (s->ptr_owner != NULL &&
+        s->ptr_owner->window == NULL) {
         grab = _(" - Press Ctrl+Alt+G to release grab");
     }
 
@@ -287,15 +296,24 @@ static void gd_update_caption(GtkDisplayState *s)
                                    is_paused);
     s->external_pause_update = false;
 
-    if (qemu_name) {
-        title = g_strdup_printf("QEMU (%s)%s%s", qemu_name, status, grab);
-    } else {
-        title = g_strdup_printf("QEMU%s%s", status, grab);
+    title = g_strdup_printf("%s%s%s", prefix, status, grab);
+    gtk_window_set_title(GTK_WINDOW(s->window), title);
+    g_free(title);
+
+    for (i = 0; i < s->nb_vcs; i++) {
+        VirtualConsole *vc = &s->vc[i];
+
+        if (!vc->window) {
+            continue;
+        }
+        title = g_strdup_printf("%s: %s%s%s", prefix, vc->label,
+                                vc == s->kbd_owner ? " +kbd" : "",
+                                vc == s->ptr_owner ? " +ptr" : "");
+        gtk_window_set_title(GTK_WINDOW(vc->window), title);
+        g_free(title);
     }
 
-    gtk_window_set_title(GTK_WINDOW(s->window), title);
-
-    g_free(title);
+    g_free(prefix);
 }
 
 static void gd_update_windowsize(VirtualConsole *vc)
@@ -915,7 +933,6 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
     VirtualConsole *vc = gd_vc_find_current(s);
-    char *title;
 
     if (vc->type == GD_VC_GFX) {
         /* temporary: needs more work to get grabs etc correct */
@@ -926,17 +943,11 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
         vc->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
         gtk_widget_reparent(vc->tab_item, vc->window);
 
-        if (qemu_name) {
-            title = g_strdup_printf("QEMU (%s): %s", qemu_name, vc->label);
-        } else {
-            title = g_strdup_printf("QEMU: %s", vc->label);
-        }
-        gtk_window_set_title(GTK_WINDOW(vc->window), title);
-        g_free(title);
-
         g_signal_connect(vc->window, "delete-event",
                          G_CALLBACK(gd_tab_window_close), vc);
         gtk_widget_show_all(vc->window);
+
+        gd_update_caption(s);
     }
 }
 
