@@ -912,7 +912,7 @@ static void handle_kbd_command(ChannelState *s, int val)
     case 0xf:
         clear_queue(s);
         put_queue(s, 0xfe);
-        put_queue(s, 0); // XXX, layout?
+        put_queue(s, 0x21); /*  en-us layout */
         break;
     default:
         break;
