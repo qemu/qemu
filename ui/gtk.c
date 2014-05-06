@@ -201,6 +201,9 @@ struct GtkDisplayState {
 
 static GtkDisplayState *global_state;
 
+static void gd_grab_pointer(VirtualConsole *vc);
+static void gd_ungrab_pointer(GtkDisplayState *s);
+
 /** Utility Functions **/
 
 static VirtualConsole *gd_vc_find_by_menu(GtkDisplayState *s)
@@ -261,7 +264,7 @@ static void gd_update_cursor(VirtualConsole *vc)
     }
 
     window = gtk_widget_get_window(GTK_WIDGET(vc->gfx.drawing_area));
-    if (s->full_screen || qemu_input_is_absolute() || gd_is_grab_active(s)) {
+    if (s->full_screen || qemu_input_is_absolute() || s->ptr_owner == vc) {
         gdk_window_set_cursor(window, s->null_cursor);
     } else {
         gdk_window_set_cursor(window, NULL);
@@ -702,7 +705,7 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
         qemu_input_queue_abs(vc->gfx.dcl.con, INPUT_AXIS_Y, y,
                              surface_height(vc->gfx.ds));
         qemu_input_event_sync();
-    } else if (s->last_set && gd_is_grab_active(s)) {
+    } else if (s->last_set && s->ptr_owner == vc) {
         qemu_input_queue_rel(vc->gfx.dcl.con, INPUT_AXIS_X, x - s->last_x);
         qemu_input_queue_rel(vc->gfx.dcl.con, INPUT_AXIS_Y, y - s->last_y);
         qemu_input_event_sync();
@@ -711,7 +714,7 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
     s->last_y = y;
     s->last_set = TRUE;
 
-    if (!qemu_input_is_absolute() && gd_is_grab_active(s)) {
+    if (!qemu_input_is_absolute() && s->ptr_owner == vc) {
         GdkScreen *screen = gtk_widget_get_screen(vc->gfx.drawing_area);
         int x = (int)motion->x_root;
         int y = (int)motion->y_root;
@@ -760,9 +763,18 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
 
     /* implicitly grab the input at the first click in the relative mode */
     if (button->button == 1 && button->type == GDK_BUTTON_PRESS &&
-        !qemu_input_is_absolute() && !gd_is_grab_active(s)) {
-        gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
-                                       TRUE);
+        !qemu_input_is_absolute() && s->ptr_owner != vc) {
+        gd_ungrab_pointer(s);
+        if (!vc->window) {
+            gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
+                                           TRUE);
+        } else {
+#if 0
+            /* FIXME: no way (yet) to ungrab */
+            gd_grab_pointer(vc);
+#endif
+            gd_update_caption(s);
+        }
         return TRUE;
     }
 
@@ -1224,7 +1236,6 @@ static void gd_change_page(GtkNotebook *nb, gpointer arg1, guint arg2,
     }
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(vc->menu_item),
                                    TRUE);
-
     on_vga = (vc->type == GD_VC_GFX);
     if (!on_vga) {
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
@@ -1244,10 +1255,11 @@ static gboolean gd_enter_event(GtkWidget *widget, GdkEventCrossing *crossing,
     VirtualConsole *vc = opaque;
     GtkDisplayState *s = vc->s;
 
-    if (!gd_is_grab_active(s) && gd_grab_on_hover(s)) {
+    if (gd_grab_on_hover(s)) {
+        gd_ungrab_keyboard(s);
         gd_grab_keyboard(vc);
+        gd_update_caption(s);
     }
-
     return TRUE;
 }
 
@@ -1257,10 +1269,10 @@ static gboolean gd_leave_event(GtkWidget *widget, GdkEventCrossing *crossing,
     VirtualConsole *vc = opaque;
     GtkDisplayState *s = vc->s;
 
-    if (!gd_is_grab_active(s) && gd_grab_on_hover(s)) {
+    if (gd_grab_on_hover(s)) {
         gd_ungrab_keyboard(s);
+        gd_update_caption(s);
     }
-
     return TRUE;
 }
 
@@ -1271,7 +1283,6 @@ static gboolean gd_focus_out_event(GtkWidget *widget,
     GtkDisplayState *s = vc->s;
 
     gtk_release_modifiers(s);
-
     return TRUE;
 }
 
