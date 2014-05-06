@@ -338,7 +338,11 @@ static void gd_update_windowsize(VirtualConsole *vc)
     gtk_widget_set_size_request(vc->gfx.drawing_area,
                                 surface_width(vc->gfx.ds) * sx,
                                 surface_height(vc->gfx.ds) * sy);
-    gtk_window_resize(GTK_WINDOW(s->window), 320, 240);
+    if (vc->window) {
+        gtk_window_resize(GTK_WINDOW(vc->window), 320, 240);
+    } else {
+        gtk_window_resize(GTK_WINDOW(s->window), 320, 240);
+    }
 }
 
 static void gd_update_full_redraw(VirtualConsole *vc)
@@ -962,8 +966,8 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
     VirtualConsole *vc = gd_vc_find_current(s);
 
     if (vc->type == GD_VC_GFX) {
-        /* temporary: needs more work to get grabs etc correct */
-        return;
+        gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
+                                       FALSE);
     }
     if (!vc->window) {
         gtk_widget_set_sensitive(vc->menu_item, false);
