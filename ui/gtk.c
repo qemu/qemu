@@ -773,10 +773,7 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
             gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
                                            TRUE);
         } else {
-#if 0
-            /* FIXME: no way (yet) to ungrab */
             gd_grab_pointer(vc);
-#endif
             gd_update_caption(s);
         }
         return TRUE;
@@ -945,6 +942,20 @@ static gboolean gd_tab_window_close(GtkWidget *widget, GdkEvent *event,
     return TRUE;
 }
 
+static gboolean gd_win_grab(void *opaque)
+{
+    VirtualConsole *vc = opaque;
+
+    fprintf(stderr, "%s: %s\n", __func__, vc->label);
+    if (vc->s->ptr_owner) {
+        gd_ungrab_pointer(vc->s);
+    } else {
+        gd_grab_pointer(vc);
+    }
+    gd_update_caption(vc->s);
+    return TRUE;
+}
+
 static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
@@ -963,6 +974,13 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
                          G_CALLBACK(gd_tab_window_close), vc);
         gtk_widget_show_all(vc->window);
 
+        GtkAccelGroup *ag = gtk_accel_group_new();
+        gtk_window_add_accel_group(GTK_WINDOW(vc->window), ag);
+
+        GClosure *cb = g_cclosure_new_swap(G_CALLBACK(gd_win_grab), vc, NULL);
+        gtk_accel_group_connect(ag, GDK_KEY_g, HOTKEY_MODIFIERS, 0, cb);
+
+        fprintf(stderr, "%s: %p\n", __func__, vc);
         gd_update_caption(s);
     }
 }
