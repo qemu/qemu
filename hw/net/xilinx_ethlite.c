@@ -196,8 +196,9 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     memcpy(&s->regs[rxbase + R_RX_BUF0], buf, size);
 
     s->regs[rxbase + R_RX_CTRL0] |= CTRL_S;
-    if (s->regs[rxbase + R_RX_CTRL0] & CTRL_I)
+    if (s->regs[R_RX_CTRL0] & CTRL_I) {
         eth_pulse_irq(s);
+    }
 
     /* If c_rx_pingpong was set flip buffers.  */
     s->rxbuf ^= s->c_rx_pingpong;
