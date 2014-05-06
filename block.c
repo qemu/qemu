@@ -775,6 +775,16 @@ void bdrv_disable_copy_on_read(BlockDriverState *bs)
 }
 
 /*
+ * Returns the flags that a temporary snapshot should get, based on the
+ * originally requested flags (the originally requested image will have flags
+ * like a backing file)
+ */
+static int bdrv_temp_snapshot_flags(int flags)
+{
+    return (flags & ~BDRV_O_SNAPSHOT) | BDRV_O_TEMPORARY;
+}
+
+/*
  * Returns the flags that bs->file should get, based on the given flags for
  * the parent BDS
  */
@@ -786,11 +796,6 @@ static int bdrv_inherited_flags(int flags)
     /* Our block drivers take care to send flushes and respect unmap policy,
      * so we can enable both unconditionally on lower layers. */
     flags |= BDRV_O_CACHE_WB | BDRV_O_UNMAP;
-
-    /* The backing file of a temporary snapshot is read-only */
-    if (flags & BDRV_O_SNAPSHOT) {
-        flags &= ~BDRV_O_RDWR;
-    }
 
     /* Clear flags that only apply to the top layer */
     flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_COPY_ON_READ);
@@ -816,11 +821,6 @@ static int bdrv_backing_flags(int flags)
 static int bdrv_open_flags(BlockDriverState *bs, int flags)
 {
     int open_flags = flags | BDRV_O_CACHE_WB;
-
-    /* The backing file of a temporary snapshot is read-only */
-    if (flags & BDRV_O_SNAPSHOT) {
-        open_flags &= ~BDRV_O_RDWR;
-    }
 
     /*
      * Clear flags that are internal to the block layer before opening the
@@ -1206,7 +1206,7 @@ done:
     return ret;
 }
 
-void bdrv_append_temp_snapshot(BlockDriverState *bs, Error **errp)
+void bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
 {
     /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
     char *tmp_filename = g_malloc0(PATH_MAX + 1);
@@ -1262,8 +1262,7 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, Error **errp)
     bs_snapshot = bdrv_new("", &error_abort);
 
     ret = bdrv_open(&bs_snapshot, NULL, NULL, snapshot_options,
-                    (bs->open_flags & ~BDRV_O_SNAPSHOT) | BDRV_O_TEMPORARY,
-                    bdrv_qcow2, &local_err);
+                    flags, bdrv_qcow2, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto out;
@@ -1298,6 +1297,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     BlockDriverState *file = NULL, *bs;
     const char *drvname;
     Error *local_err = NULL;
+    int snapshot_flags = 0;
 
     assert(pbs);
 
@@ -1358,6 +1358,10 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     if (flags & BDRV_O_RDWR) {
         flags |= BDRV_O_ALLOW_RDWR;
     }
+    if (flags & BDRV_O_SNAPSHOT) {
+        snapshot_flags = bdrv_temp_snapshot_flags(flags);
+        flags = bdrv_backing_flags(flags);
+    }
 
     assert(file == NULL);
     ret = bdrv_open_image(&file, filename, options, "file",
@@ -1417,8 +1421,8 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
 
     /* For snapshot=on, create a temporary qcow2 overlay. bs points to the
      * temporary snapshot afterwards. */
-    if (flags & BDRV_O_SNAPSHOT) {
-        bdrv_append_temp_snapshot(bs, &local_err);
+    if (snapshot_flags) {
+        bdrv_append_temp_snapshot(bs, snapshot_flags, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             goto close_and_fail;

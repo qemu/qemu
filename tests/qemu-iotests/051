@@ -233,6 +233,10 @@ echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG",
 
 $QEMU_IO -c "read -P 0x22 0 4k" "$TEST_IMG" | _filter_qemu_io
 
+echo -e 'qemu-io ide0-hd0 "write -P 0x33 0 4k"\ncommit ide0-hd0' | run_qemu -drive file="$TEST_IMG",snapshot=on | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0x33 0 4k" "$TEST_IMG" | _filter_qemu_io
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
