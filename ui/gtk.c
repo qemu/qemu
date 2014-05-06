@@ -204,8 +204,6 @@ struct GtkDisplayState {
     bool has_evdev;
 };
 
-static GtkDisplayState *global_state;
-
 static void gd_grab_pointer(VirtualConsole *vc);
 static void gd_ungrab_pointer(GtkDisplayState *s);
 
@@ -1815,8 +1813,6 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
     }
 
     gd_set_keycode_type(s);
-
-    global_state = s;
 }
 
 void early_gtk_display_init(void)
