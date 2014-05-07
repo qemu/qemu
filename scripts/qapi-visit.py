@@ -128,12 +128,14 @@ if (!err) {
 ''',
         name=full_name)
 
+    ret += mcgen('''
+    /* Always call end_struct if start_struct succeeded.  */
+    visit_end_struct(m, &err);
+}
+error_propagate(errp, err);
+''')
     pop_indent()
     ret += mcgen('''
-        /* Always call end_struct if start_struct succeeded.  */
-        visit_end_struct(m, &err);
-    }
-    error_propagate(errp, err);
 }
 ''')
     return ret
@@ -289,18 +291,14 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
 ''',
                  name=name)
 
-
-    push_indent()
     push_indent()
     push_indent()
 
     if base:
         ret += mcgen('''
-    visit_type_%(name)s_fields(m, obj, &err);
+        visit_type_%(name)s_fields(m, obj, &err);
 ''',
             name=name)
-
-    pop_indent()
 
     if not discriminator:
         disc_key = "type"
@@ -343,19 +341,17 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
         }
         error_propagate(errp, err);
         err = NULL;
-    }
 ''')
     pop_indent()
-    ret += mcgen('''
-        /* Always call end_struct if start_struct succeeded.  */
-        visit_end_struct(m, &err);
-    }
-    error_propagate(errp, err);
-}
-''')
+    pop_indent()
 
-    pop_indent();
     ret += mcgen('''
+            }
+            /* Always call end_struct if start_struct succeeded.  */
+            visit_end_struct(m, &err);
+        }
+        error_propagate(errp, err);
+    }
 }
 ''')
 
