@@ -2,7 +2,7 @@ obj-$(CONFIG_KVM) += kvm/
 obj-y += multiboot.o smbios.o
 obj-y += pc.o pc_piix.o pc_q35.o
 obj-y += pc_sysfw.o
-obj-$(CONFIG_XEN) += ../xenpv/
+obj-$(CONFIG_XEN) += ../xenpv/ xen/
 
 obj-y += kvmvapic.o
 obj-y += acpi-build.o
