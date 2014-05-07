@@ -40,6 +40,17 @@ enumeration types and union types.
 Generally speaking, types definitions should always use CamelCase for the type
 names. Command names should be all lower case with words separated by a hyphen.
 
+
+=== Includes ===
+
+The QAPI schema definitions can be modularized using the 'include' directive:
+
+ { 'include': 'path/to/file.json'}
+
+The directive is evaluated recursively, and include paths are relative to the
+file using the directive.
+
+
 === Complex types ===
 
 A complex type is a dictionary containing a single key whose value is a
