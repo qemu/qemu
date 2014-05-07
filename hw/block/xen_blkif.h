@@ -79,6 +79,12 @@ static inline void blkif_get_x86_32_req(blkif_request_t *dst, blkif_x86_32_reque
 	dst->handle = src->handle;
 	dst->id = src->id;
 	dst->sector_number = src->sector_number;
+	if (src->operation == BLKIF_OP_DISCARD) {
+		struct blkif_request_discard *s = (void *)src;
+		struct blkif_request_discard *d = (void *)dst;
+		d->nr_sectors = s->nr_sectors;
+		return;
+	}
 	if (n > src->nr_segments)
 		n = src->nr_segments;
 	for (i = 0; i < n; i++)
@@ -94,6 +100,12 @@ static inline void blkif_get_x86_64_req(blkif_request_t *dst, blkif_x86_64_reque
 	dst->handle = src->handle;
 	dst->id = src->id;
 	dst->sector_number = src->sector_number;
+	if (src->operation == BLKIF_OP_DISCARD) {
+		struct blkif_request_discard *s = (void *)src;
+		struct blkif_request_discard *d = (void *)dst;
+		d->nr_sectors = s->nr_sectors;
+		return;
+	}
 	if (n > src->nr_segments)
 		n = src->nr_segments;
 	for (i = 0; i < n; i++)
