@@ -804,13 +804,33 @@ static void rtc_get_date(Object *obj, Visitor *v, void *opaque,
         goto out;
     }
     visit_type_int32(v, &current_tm.tm_year, "tm_year", &err);
+    if (err) {
+        goto out_end;
+    }
     visit_type_int32(v, &current_tm.tm_mon, "tm_mon", &err);
+    if (err) {
+        goto out_end;
+    }
     visit_type_int32(v, &current_tm.tm_mday, "tm_mday", &err);
+    if (err) {
+        goto out_end;
+    }
     visit_type_int32(v, &current_tm.tm_hour, "tm_hour", &err);
+    if (err) {
+        goto out_end;
+    }
     visit_type_int32(v, &current_tm.tm_min, "tm_min", &err);
+    if (err) {
+        goto out_end;
+    }
     visit_type_int32(v, &current_tm.tm_sec, "tm_sec", &err);
-    visit_end_struct(v, &err);
-
+    if (err) {
+        goto out_end;
+    }
+out_end:
+    error_propagate(errp, err);
+    err = NULL;
+    visit_end_struct(v, errp);
 out:
     error_propagate(errp, err);
 }

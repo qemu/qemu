@@ -121,23 +121,27 @@ static void balloon_stats_get_all(Object *obj, struct Visitor *v,
     if (err) {
         goto out;
     }
-
     visit_type_int(v, &s->stats_last_update, "last-update", &err);
+    if (err) {
+        goto out_end;
+    }
 
     visit_start_struct(v, NULL, NULL, "stats", 0, &err);
     if (err) {
         goto out_end;
     }
-        
-    for (i = 0; i < VIRTIO_BALLOON_S_NR; i++) {
+    for (i = 0; !err && i < VIRTIO_BALLOON_S_NR; i++) {
         visit_type_int64(v, (int64_t *) &s->stats[i], balloon_stat_names[i],
                          &err);
     }
+    error_propagate(errp, err);
+    err = NULL;
     visit_end_struct(v, &err);
 
 out_end:
+    error_propagate(errp, err);
+    err = NULL;
     visit_end_struct(v, &err);
-
 out:
     error_propagate(errp, err);
 }

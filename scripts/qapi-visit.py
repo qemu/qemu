@@ -2,16 +2,19 @@
 # QAPI visitor generator
 #
 # Copyright IBM, Corp. 2011
+# Copyright (C) 2014 Red Hat, Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
 #  Michael Roth    <mdroth@linux.vnet.ibm.com>
+#  Markus Armbruster <armbru@redhat.com>
 #
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
 from ordereddict import OrderedDict
 from qapi import *
+import re
 import sys
 import os
 import getopt
@@ -32,9 +35,7 @@ static void visit_type_implicit_%(c_type)s(Visitor *m, %(c_type)s **obj, Error *
 
     visit_start_implicit_struct(m, (void **)obj, sizeof(%(c_type)s), &err);
     if (!err) {
-        visit_type_%(c_type)s_fields(m, obj, &err);
-        error_propagate(errp, err);
-        err = NULL;
+        visit_type_%(c_type)s_fields(m, obj, errp);
         visit_end_implicit_struct(m, &err);
     }
     error_propagate(errp, err);
@@ -64,12 +65,9 @@ def generate_visit_struct_fields(name, field_prefix, fn_prefix, members, base = 
 
 static void visit_type_%(full_name)s_field_%(c_name)s(Visitor *m, %(name)s **obj, Error **errp)
 {
-    Error *err = NULL;
 ''',
                          name=name, full_name=full_name, c_name=c_var(argname))
-            push_indent()
             ret += generate_visit_struct_body(full_name, argname, argentry)
-            pop_indent()
             ret += mcgen('''
 }
 ''')
@@ -89,6 +87,9 @@ static void visit_type_%(full_name)s_fields(Visitor *m, %(name)s ** obj, Error *
     if base:
         ret += mcgen('''
 visit_type_implicit_%(type)s(m, &(*obj)->%(c_prefix)s%(c_name)s, &err);
+if (err) {
+    goto out;
+}
 ''',
                      c_prefix=c_var(field_prefix),
                      type=type_name(base), c_name=c_var('base'))
@@ -97,7 +98,7 @@ visit_type_implicit_%(type)s(m, &(*obj)->%(c_prefix)s%(c_name)s, &err);
         if optional:
             ret += mcgen('''
 visit_optional(m, &(*obj)->%(c_prefix)shas_%(c_name)s, "%(name)s", &err);
-if ((*obj)->%(prefix)shas_%(c_name)s) {
+if (!err && (*obj)->%(prefix)shas_%(c_name)s) {
 ''',
                          c_prefix=c_var(field_prefix), prefix=field_prefix,
                          c_name=c_var(argname), name=argname)
@@ -121,10 +122,19 @@ visit_type_%(type)s(m, &(*obj)->%(c_prefix)s%(c_name)s, "%(name)s", &err);
             ret += mcgen('''
 }
 ''')
+        ret += mcgen('''
+if (err) {
+    goto out;
+}
+''')
 
     pop_indent()
-    ret += mcgen('''
+    if re.search('^ *goto out\\;', ret, re.MULTILINE):
+        ret += mcgen('''
 
+out:
+''')
+    ret += mcgen('''
     error_propagate(errp, err);
 }
 ''')
@@ -133,9 +143,9 @@ visit_type_%(type)s(m, &(*obj)->%(c_prefix)s%(c_name)s, "%(name)s", &err);
 
 def generate_visit_struct_body(field_prefix, name, members):
     ret = mcgen('''
-if (!error_is_set(errp)) {
+    Error *err = NULL;
+
 ''')
-    push_indent()
 
     if not field_prefix:
         full_name = name
@@ -144,36 +154,26 @@ if (!error_is_set(errp)) {
 
     if len(field_prefix):
         ret += mcgen('''
-visit_start_struct(m, NULL, "", "%(name)s", 0, &err);
+    visit_start_struct(m, NULL, "", "%(name)s", 0, &err);
 ''',
                 name=name)
     else:
         ret += mcgen('''
-Error *err = NULL;
-visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
+    visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
 ''',
                 name=name)
 
     ret += mcgen('''
-if (!err) {
-    if (*obj) {
-        visit_type_%(name)s_fields(m, obj, &err);
-        error_propagate(errp, err);
-        err = NULL;
+    if (!err) {
+        if (*obj) {
+            visit_type_%(name)s_fields(m, obj, errp);
+        }
+        visit_end_struct(m, &err);
     }
+    error_propagate(errp, err);
 ''',
         name=full_name)
 
-    ret += mcgen('''
-    /* Always call end_struct if start_struct succeeded.  */
-    visit_end_struct(m, &err);
-}
-error_propagate(errp, err);
-''')
-    pop_indent()
-    ret += mcgen('''
-}
-''')
     return ret
 
 def generate_visit_struct(expr):
@@ -191,9 +191,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
 ''',
                 name=name)
 
-    push_indent()
     ret += generate_visit_struct_body("", name, members)
-    pop_indent()
 
     ret += mcgen('''
 }
@@ -205,24 +203,26 @@ def generate_visit_list(name, members):
 
 void visit_type_%(name)sList(Visitor *m, %(name)sList ** obj, const char *name, Error **errp)
 {
-    GenericList *i, **prev = (GenericList **)obj;
     Error *err = NULL;
+    GenericList *i, **prev;
 
-    if (!error_is_set(errp)) {
-        visit_start_list(m, name, &err);
-        if (!err) {
-            for (; (i = visit_next_list(m, prev, &err)) != NULL; prev = &i) {
-                %(name)sList *native_i = (%(name)sList *)i;
-                visit_type_%(name)s(m, &native_i->value, NULL, &err);
-            }
-            error_propagate(errp, err);
-            err = NULL;
-
-            /* Always call end_list if start_list succeeded.  */
-            visit_end_list(m, &err);
-        }
-        error_propagate(errp, err);
+    visit_start_list(m, name, &err);
+    if (err) {
+        goto out;
     }
+
+    for (prev = (GenericList **)obj;
+         !err && (i = visit_next_list(m, prev, &err)) != NULL;
+         prev = &i) {
+        %(name)sList *native_i = (%(name)sList *)i;
+        visit_type_%(name)s(m, &native_i->value, NULL, &err);
+    }
+
+    error_propagate(errp, err);
+    err = NULL;
+    visit_end_list(m, &err);
+out:
+    error_propagate(errp, err);
 }
 ''',
                 name=name)
@@ -244,10 +244,15 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
 {
     Error *err = NULL;
 
-    if (!error_is_set(errp)) {
-        visit_start_implicit_struct(m, (void**) obj, sizeof(%(name)s), &err);
-        visit_get_next_type(m, (int*) &(*obj)->kind, %(name)s_qtypes, name, &err);
-        switch ((*obj)->kind) {
+    visit_start_implicit_struct(m, (void**) obj, sizeof(%(name)s), &err);
+    if (err) {
+        goto out;
+    }
+    visit_get_next_type(m, (int*) &(*obj)->kind, %(name)s_qtypes, name, &err);
+    if (err) {
+        goto out_end;
+    }
+    switch ((*obj)->kind) {
 ''',
     name=name)
 
@@ -262,22 +267,24 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
 
         enum_full_value = generate_enum_full_value(disc_type, key)
         ret += mcgen('''
-        case %(enum_full_value)s:
-            visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, name, &err);
-            break;
+    case %(enum_full_value)s:
+        visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, name, &err);
+        break;
 ''',
                 enum_full_value = enum_full_value,
                 c_type = type_name(members[key]),
                 c_name = c_fun(key))
 
     ret += mcgen('''
-        default:
-            abort();
-        }
-        error_propagate(errp, err);
-        err = NULL;
-        visit_end_implicit_struct(m, &err);
+    default:
+        abort();
     }
+out_end:
+    error_propagate(errp, err);
+    err = NULL;
+    visit_end_implicit_struct(m, &err);
+out:
+    error_propagate(errp, err);
 }
 ''')
 
@@ -324,19 +331,20 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
 {
     Error *err = NULL;
 
-    if (!error_is_set(errp)) {
-        visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
-        if (!err) {
-            if (*obj) {
+    visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
+    if (err) {
+        goto out;
+    }
+    if (*obj) {
 ''',
                  name=name)
-
-    push_indent()
-    push_indent()
 
     if base:
         ret += mcgen('''
         visit_type_%(name)s_fields(m, obj, &err);
+        if (err) {
+            goto out_obj;
+        }
 ''',
             name=name)
 
@@ -346,8 +354,10 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
         disc_key = discriminator
     ret += mcgen('''
         visit_type_%(disc_type)s(m, &(*obj)->kind, "%(disc_key)s", &err);
-        if (!err) {
-            switch ((*obj)->kind) {
+        if (err) {
+            goto out_obj;
+        }
+        switch ((*obj)->kind) {
 ''',
                  disc_type = disc_type,
                  disc_key = disc_key)
@@ -360,32 +370,25 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
 
         enum_full_value = generate_enum_full_value(disc_type, key)
         ret += mcgen('''
-            case %(enum_full_value)s:
-                ''' + fmt + '''
-                break;
+        case %(enum_full_value)s:
+            ''' + fmt + '''
+            break;
 ''',
                 enum_full_value = enum_full_value,
                 c_type=type_name(members[key]),
                 c_name=c_fun(key))
 
     ret += mcgen('''
-            default:
-                abort();
-            }
+        default:
+            abort();
         }
+out_obj:
         error_propagate(errp, err);
         err = NULL;
-''')
-    pop_indent()
-    pop_indent()
-
-    ret += mcgen('''
-            }
-            /* Always call end_struct if start_struct succeeded.  */
-            visit_end_struct(m, &err);
-        }
-        error_propagate(errp, err);
     }
+    visit_end_struct(m, &err);
+out:
+    error_propagate(errp, err);
 }
 ''')
 
@@ -505,7 +508,7 @@ fdecl.write(mcgen('''
 /* THIS FILE IS AUTOMATICALLY GENERATED, DO NOT MODIFY */
 
 /*
- * schema-defined QAPI visitor function
+ * schema-defined QAPI visitor functions
  *
  * Copyright IBM, Corp. 2011
  *

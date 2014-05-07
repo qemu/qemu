@@ -275,7 +275,6 @@ Example:
         qapi_dealloc_visitor_cleanup(md);
     }
 
-
     void qapi_free_UserDefOne(UserDefOne * obj)
     {
         QapiDeallocVisitor *md;
@@ -352,49 +351,54 @@ Example:
     {
         Error *err = NULL;
         visit_type_int(m, &(*obj)->integer, "integer", &err);
+        if (err) {
+            goto out;
+        }
         visit_type_str(m, &(*obj)->string, "string", &err);
+        if (err) {
+            goto out;
+        }
 
+    out:
         error_propagate(errp, err);
     }
 
     void visit_type_UserDefOne(Visitor *m, UserDefOne ** obj, const char *name, Error **errp)
     {
-        if (!error_is_set(errp)) {
-            Error *err = NULL;
-            visit_start_struct(m, (void **)obj, "UserDefOne", name, sizeof(UserDefOne), &err);
-            if (!err) {
-                if (*obj) {
-                    visit_type_UserDefOne_fields(m, obj, &err);
-                    error_propagate(errp, err);
-                    err = NULL;
-                }
-                /* Always call end_struct if start_struct succeeded.  */
-                visit_end_struct(m, &err);
+        Error *err = NULL;
+
+        visit_start_struct(m, (void **)obj, "UserDefOne", name, sizeof(UserDefOne), &err);
+        if (!err) {
+            if (*obj) {
+                visit_type_UserDefOne_fields(m, obj, errp);
             }
-            error_propagate(errp, err);
+            visit_end_struct(m, &err);
         }
+        error_propagate(errp, err);
     }
 
     void visit_type_UserDefOneList(Visitor *m, UserDefOneList ** obj, const char *name, Error **errp)
     {
-        GenericList *i, **prev = (GenericList **)obj;
         Error *err = NULL;
+        GenericList *i, **prev;
 
-        if (!error_is_set(errp)) {
-            visit_start_list(m, name, &err);
-            if (!err) {
-                for (; (i = visit_next_list(m, prev, &err)) != NULL; prev = &i) {
-                    UserDefOneList *native_i = (UserDefOneList *)i;
-                    visit_type_UserDefOne(m, &native_i->value, NULL, &err);
-                }
-                error_propagate(errp, err);
-                err = NULL;
-
-                /* Always call end_list if start_list succeeded.  */
-                visit_end_list(m, &err);
-            }
-            error_propagate(errp, err);
+        visit_start_list(m, name, &err);
+        if (err) {
+            goto out;
         }
+
+        for (prev = (GenericList **)obj;
+             !err && (i = visit_next_list(m, prev, &err)) != NULL;
+             prev = &i) {
+            UserDefOneList *native_i = (UserDefOneList *)i;
+            visit_type_UserDefOne(m, &native_i->value, NULL, &err);
+        }
+
+        error_propagate(errp, err);
+        err = NULL;
+        visit_end_list(m, &err);
+    out:
+        error_propagate(errp, err);
     }
     mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qapi-visit.h
 [Uninteresting stuff omitted...]
@@ -434,15 +438,20 @@ Example:
 
     static void qmp_marshal_output_my_command(UserDefOne * ret_in, QObject **ret_out, Error **errp)
     {
+        Error *local_err = NULL;
         QmpOutputVisitor *mo = qmp_output_visitor_new();
         QapiDeallocVisitor *md;
         Visitor *v;
 
         v = qmp_output_get_visitor(mo);
-        visit_type_UserDefOne(v, &ret_in, "unused", errp);
-        if (!error_is_set(errp)) {
-            *ret_out = qmp_output_get_qobject(mo);
+        visit_type_UserDefOne(v, &ret_in, "unused", &local_err);
+        if (local_err) {
+            goto out;
         }
+        *ret_out = qmp_output_get_qobject(mo);
+
+    out:
+        error_propagate(errp, local_err);
         qmp_output_visitor_cleanup(mo);
         md = qapi_dealloc_visitor_new();
         v = qapi_dealloc_get_visitor(md);
@@ -452,6 +461,7 @@ Example:
 
     static void qmp_marshal_input_my_command(QDict *args, QObject **ret, Error **errp)
     {
+        Error *local_err = NULL;
         UserDefOne * retval = NULL;
         QmpInputVisitor *mi = qmp_input_visitor_new_strict(QOBJECT(args));
         QapiDeallocVisitor *md;
@@ -459,17 +469,20 @@ Example:
         UserDefOne * arg1 = NULL;
 
         v = qmp_input_get_visitor(mi);
-        visit_type_UserDefOne(v, &arg1, "arg1", errp);
-
-        if (error_is_set(errp)) {
+        visit_type_UserDefOne(v, &arg1, "arg1", &local_err);
+        if (local_err) {
             goto out;
         }
-        retval = qmp_my_command(arg1, errp);
-        if (!error_is_set(errp)) {
-            qmp_marshal_output_my_command(retval, ret, errp);
+
+        retval = qmp_my_command(arg1, &local_err);
+        if (local_err) {
+            goto out;
         }
 
+        qmp_marshal_output_my_command(retval, ret, &local_err);
+
     out:
+        error_propagate(errp, local_err);
         qmp_input_visitor_cleanup(mi);
         md = qapi_dealloc_visitor_new();
         v = qapi_dealloc_get_visitor(md);
