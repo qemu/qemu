@@ -4376,6 +4376,28 @@ void object_del_completion(ReadLineState *rs, int nb_args, const char *str)
     qapi_free_ObjectPropertyInfoList(start);
 }
 
+void sendkey_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    int i;
+    char *sep;
+    size_t len;
+
+    if (nb_args != 2) {
+        return;
+    }
+    sep = strrchr(str, '-');
+    if (sep) {
+        str = sep + 1;
+    }
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    for (i = 0; i < Q_KEY_CODE_MAX; i++) {
+        if (!strncmp(str, QKeyCode_lookup[i], len)) {
+            readline_add_completion(rs, QKeyCode_lookup[i]);
+        }
+    }
+}
+
 static void monitor_find_completion_by_table(Monitor *mon,
                                              const mon_cmd_t *cmd_table,
                                              char **args,
@@ -4444,15 +4466,7 @@ static void monitor_find_completion_by_table(Monitor *mon,
             break;
         case 's':
         case 'S':
-            if (!strcmp(cmd->name, "sendkey")) {
-                char *sep = strrchr(str, '-');
-                if (sep)
-                    str = sep + 1;
-                readline_set_completion_index(mon->rs, strlen(str));
-                for (i = 0; i < Q_KEY_CODE_MAX; i++) {
-                    cmd_completion(mon, str, QKeyCode_lookup[i]);
-                }
-            } else if (!strcmp(cmd->name, "help|?")) {
+            if (!strcmp(cmd->name, "help|?")) {
                 monitor_find_completion_by_table(mon, cmd_table,
                                                  &args[1], nb_args - 1);
             }
