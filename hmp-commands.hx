@@ -1623,6 +1623,7 @@ ETEXI
         .params     = "args",
         .help       = "add chardev",
         .mhandler.cmd = hmp_chardev_add,
+        .command_completion = chardev_add_completion,
     },
 
 STEXI
