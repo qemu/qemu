@@ -1866,3 +1866,29 @@ void hmp_info_memory_devices(Monitor *mon, const QDict *qdict)
 
     qapi_free_MemoryDeviceInfoList(info_list);
 }
+
+void hmp_qom_list(Monitor *mon, const QDict *qdict)
+{
+    const char *path = qdict_get_try_str(qdict, "path");
+    ObjectPropertyInfoList *list;
+    Error *err = NULL;
+
+    if (path == NULL) {
+        monitor_printf(mon, "/\n");
+        return;
+    }
+
+    list = qmp_qom_list(path, &err);
+    if (err == NULL) {
+        ObjectPropertyInfoList *start = list;
+        while (list != NULL) {
+            ObjectPropertyInfo *value = list->value;
+
+            monitor_printf(mon, "%s (%s)\n",
+                           value->name, value->type);
+            list = list->next;
+        }
+        qapi_free_ObjectPropertyInfoList(start);
+    }
+    hmp_handle_error(mon, &err);
+}

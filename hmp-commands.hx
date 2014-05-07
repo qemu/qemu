@@ -1674,6 +1674,19 @@ Add CPU with id @var{id}
 ETEXI
 
     {
+        .name       = "qom-list",
+        .args_type  = "path:s?",
+        .params     = "path",
+        .help       = "list QOM properties",
+        .mhandler.cmd  = hmp_qom_list,
+    },
+
+STEXI
+@item qom-list [@var{path}]
+Print QOM properties of object at location @var{path}
+ETEXI
+
+    {
         .name       = "info",
         .args_type  = "item:s?",
         .params     = "[subcommand]",
