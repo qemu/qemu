@@ -1252,6 +1252,7 @@ ETEXI
         .params     = "id",
         .help       = "remove host network device",
         .mhandler.cmd = hmp_netdev_del,
+        .command_completion = netdev_del_completion,
     },
 
 STEXI

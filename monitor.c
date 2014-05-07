@@ -4493,6 +4493,32 @@ void set_link_completion(ReadLineState *rs, int nb_args, const char *str)
     }
 }
 
+void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    int len, count, i;
+    NetClientState *ncs[255];
+
+    if (nb_args != 2) {
+        return;
+    }
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    count = qemu_find_net_clients_except(NULL, ncs, NET_CLIENT_OPTIONS_KIND_NIC,
+                                         255);
+    for (i = 0; i < count; i++) {
+        QemuOpts *opts;
+        const char *name = ncs[i]->name;
+        if (strncmp(str, name, len)) {
+            continue;
+        }
+        opts = qemu_opts_find(qemu_find_opts_err("netdev", NULL), name);
+        if (opts) {
+            readline_add_completion(rs, name);
+        }
+    }
+}
+
 static void monitor_find_completion_by_table(Monitor *mon,
                                              const mon_cmd_t *cmd_table,
                                              char **args,

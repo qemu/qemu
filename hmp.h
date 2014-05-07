@@ -102,5 +102,6 @@ void chardev_remove_completion(ReadLineState *rs, int nb_args, const char *str);
 void chardev_add_completion(ReadLineState *rs, int nb_args, const char *str);
 void set_link_completion(ReadLineState *rs, int nb_args, const char *str);
 void netdev_add_completion(ReadLineState *rs, int nb_args, const char *str);
+void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str);
 
 #endif
