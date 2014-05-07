@@ -83,6 +83,7 @@
 #define DIAG_KVM_BREAKPOINT             0x501
 
 #define ICPT_INSTRUCTION                0x04
+#define ICPT_PROGRAM                    0x08
 #define ICPT_EXT_INT                    0x14
 #define ICPT_WAITPSW                    0x1c
 #define ICPT_SOFT_INTERCEPT             0x24
@@ -965,6 +966,11 @@ static int handle_intercept(S390CPU *cpu)
     switch (icpt_code) {
         case ICPT_INSTRUCTION:
             r = handle_instruction(cpu, run);
+            break;
+        case ICPT_PROGRAM:
+            unmanageable_intercept(cpu, "program interrupt",
+                                   offsetof(LowCore, program_new_psw));
+            r = EXCP_HALTED;
             break;
         case ICPT_EXT_INT:
             unmanageable_intercept(cpu, "external interrupt",
