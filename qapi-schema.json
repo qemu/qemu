@@ -651,13 +651,15 @@
 #
 # @mbps: throughput in megabits/sec. (since 1.6)
 #
+# @dirty-sync-count: number of times that dirty ram was synchronized (since 2.1)
+#
 # Since: 0.14.0
 ##
 { 'type': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
            'duplicate': 'int', 'skipped': 'int', 'normal': 'int',
            'normal-bytes': 'int', 'dirty-pages-rate' : 'int',
-           'mbps' : 'number' } }
+           'mbps' : 'number', 'dirty-sync-count' : 'int' } }
 
 ##
 # @XBZRLECacheStats
@@ -672,13 +674,16 @@
 #
 # @cache-miss: number of cache miss
 #
+# @cache-miss-rate: rate of cache miss (since 2.1)
+#
 # @overflow: number of overflows
 #
 # Since: 1.2
 ##
 { 'type': 'XBZRLECacheStats',
   'data': {'cache-size': 'int', 'bytes': 'int', 'pages': 'int',
-           'cache-miss': 'int', 'overflow': 'int' } }
+           'cache-miss': 'int', 'cache-miss-rate': 'number',
+           'overflow': 'int' } }
 
 ##
 # @MigrationInfo

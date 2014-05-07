@@ -61,6 +61,7 @@ struct MigrationState
     bool enabled_capabilities[MIGRATION_CAPABILITY_MAX];
     int64_t xbzrle_cache_size;
     int64_t setup_time;
+    int64_t dirty_sync_count;
 };
 
 void process_incoming_migration(QEMUFile *f);
@@ -113,8 +114,6 @@ void free_xbzrle_decoded_buf(void);
 
 void acct_update_position(QEMUFile *f, size_t size, bool zero);
 
-extern SaveVMHandlers savevm_ram_handlers;
-
 uint64_t dup_mig_bytes_transferred(void);
 uint64_t dup_mig_pages_transferred(void);
 uint64_t skipped_mig_bytes_transferred(void);
@@ -125,6 +124,7 @@ uint64_t xbzrle_mig_bytes_transferred(void);
 uint64_t xbzrle_mig_pages_transferred(void);
 uint64_t xbzrle_mig_pages_overflow(void);
 uint64_t xbzrle_mig_pages_cache_miss(void);
+double xbzrle_mig_cache_miss_rate(void);
 
 void ram_handle_compressed(void *host, uint8_t ch, uint64_t size);
 

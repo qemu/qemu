@@ -1362,10 +1362,17 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         if (n->mac_table.in_use <= MAC_TABLE_ENTRIES) {
             qemu_get_buffer(f, n->mac_table.macs,
                             n->mac_table.in_use * ETH_ALEN);
-        } else if (n->mac_table.in_use) {
-            uint8_t *buf = g_malloc0(n->mac_table.in_use);
-            qemu_get_buffer(f, buf, n->mac_table.in_use * ETH_ALEN);
-            g_free(buf);
+        } else {
+            int64_t i;
+
+            /* Overflow detected - can happen if source has a larger MAC table.
+             * We simply set overflow flag so there's no need to maintain the
+             * table of addresses, discard them all.
+             * Note: 64 bit math to avoid integer overflow.
+             */
+            for (i = 0; i < (int64_t)n->mac_table.in_use * ETH_ALEN; ++i) {
+                qemu_get_byte(f);
+            }
             n->mac_table.multi_overflow = n->mac_table.uni_overflow = 1;
             n->mac_table.in_use = 0;
         }
@@ -1407,6 +1414,11 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         }
 
         n->curr_queues = qemu_get_be16(f);
+        if (n->curr_queues > n->max_queues) {
+            error_report("virtio-net: curr_queues %x > max_queues %x",
+                         n->curr_queues, n->max_queues);
+            return -1;
+        }
         for (i = 1; i < n->curr_queues; i++) {
             n->vqs[i].tx_waiting = qemu_get_be32(f);
         }

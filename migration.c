@@ -174,6 +174,7 @@ static void get_xbzrle_cache_stats(MigrationInfo *info)
         info->xbzrle_cache->bytes = xbzrle_mig_bytes_transferred();
         info->xbzrle_cache->pages = xbzrle_mig_pages_transferred();
         info->xbzrle_cache->cache_miss = xbzrle_mig_pages_cache_miss();
+        info->xbzrle_cache->cache_miss_rate = xbzrle_mig_cache_miss_rate();
         info->xbzrle_cache->overflow = xbzrle_mig_pages_overflow();
     }
 }
@@ -215,6 +216,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->normal_bytes = norm_mig_bytes_transferred();
         info->ram->dirty_pages_rate = s->dirty_pages_rate;
         info->ram->mbps = s->mbps;
+        info->ram->dirty_sync_count = s->dirty_sync_count;
 
         if (blk_mig_active()) {
             info->has_disk = true;
@@ -248,6 +250,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->normal = norm_mig_pages_transferred();
         info->ram->normal_bytes = norm_mig_bytes_transferred();
         info->ram->mbps = s->mbps;
+        info->ram->dirty_sync_count = s->dirty_sync_count;
         break;
     case MIG_STATE_ERROR:
         info->has_status = true;
@@ -416,6 +419,11 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     if (s->state == MIG_STATE_ACTIVE || s->state == MIG_STATE_SETUP ||
         s->state == MIG_STATE_CANCELLING) {
         error_set(errp, QERR_MIGRATION_ACTIVE);
+        return;
+    }
+
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        error_setg(errp, "Guest is waiting for an incoming migration");
         return;
     }
 

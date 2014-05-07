@@ -2967,6 +2967,7 @@ The main json-object contains the following:
             pages. This is just normal pages times size of one page,
             but this way upper levels don't need to care about page
             size (json-int)
+         - "dirty-sync-count": times that dirty ram was synchronized (json-int)
 - "disk": only present if "status" is "active" and it is a block migration,
   it is a json-object with the following disk information:
          - "transferred": amount transferred in bytes (json-int)
@@ -2978,6 +2979,7 @@ The main json-object contains the following:
          - "bytes": number of bytes transferred for XBZRLE compressed pages
          - "pages": number of XBZRLE compressed pages
          - "cache-miss": number of XBRZRLE page cache misses
+         - "cache-miss-rate": rate of XBRZRLE page cache misses
          - "overflow": number of times XBZRLE overflows.  This means
            that the XBZRLE encoding was bigger than just sent the
            whole page, and then we sent the whole page instead (as as
@@ -3004,7 +3006,8 @@ Examples:
           "downtime":12345,
           "duplicate":123,
           "normal":123,
-          "normal-bytes":123456
+          "normal-bytes":123456,
+          "dirty-sync-count":15
         }
      }
    }
@@ -3029,7 +3032,8 @@ Examples:
             "expected-downtime":12345,
             "duplicate":123,
             "normal":123,
-            "normal-bytes":123456
+            "normal-bytes":123456,
+            "dirty-sync-count":15
          }
       }
    }
@@ -3049,7 +3053,8 @@ Examples:
             "expected-downtime":12345,
             "duplicate":123,
             "normal":123,
-            "normal-bytes":123456
+            "normal-bytes":123456,
+            "dirty-sync-count":15
          },
          "disk":{
             "total":20971520,
@@ -3075,13 +3080,15 @@ Examples:
             "expected-downtime":12345,
             "duplicate":10,
             "normal":3333,
-            "normal-bytes":3412992
+            "normal-bytes":3412992,
+            "dirty-sync-count":15
          },
          "xbzrle-cache":{
             "cache-size":67108864,
             "bytes":20971520,
             "pages":2444343,
             "cache-miss":2244,
+            "cache-miss-rate":0.123,
             "overflow":34434
          }
       }
