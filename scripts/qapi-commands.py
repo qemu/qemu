@@ -131,7 +131,7 @@ v = qmp_input_get_visitor(mi);
     for argname, argtype, optional, structured in parse_args(args):
         if optional:
             ret += mcgen('''
-visit_start_optional(v, &has_%(c_name)s, "%(name)s", %(errp)s);
+visit_optional(v, &has_%(c_name)s, "%(name)s", %(errp)s);
 if (has_%(c_name)s) {
 ''',
                          c_name=c_var(argname), name=argname, errp=errparg)
@@ -145,8 +145,7 @@ if (has_%(c_name)s) {
             pop_indent()
             ret += mcgen('''
 }
-visit_end_optional(v, %(errp)s);
-''', errp=errparg)
+''')
 
     if dealloc:
         ret += mcgen('''

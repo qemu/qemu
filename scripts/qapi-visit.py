@@ -61,7 +61,7 @@ if (!err) {
     for argname, argentry, optional, structured in parse_args(members):
         if optional:
             ret += mcgen('''
-visit_start_optional(m, &(*obj)->%(c_prefix)shas_%(c_name)s, "%(name)s", &err);
+visit_optional(m, &(*obj)->%(c_prefix)shas_%(c_name)s, "%(name)s", &err);
 if ((*obj)->%(prefix)shas_%(c_name)s) {
 ''',
                          c_prefix=c_var(field_prefix), prefix=field_prefix,
@@ -82,7 +82,6 @@ visit_type_%(type)s(m, &(*obj)->%(c_prefix)s%(c_name)s, "%(name)s", &err);
             pop_indent()
             ret += mcgen('''
 }
-visit_end_optional(m, &err);
 ''')
 
     pop_indent()

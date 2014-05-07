@@ -120,8 +120,8 @@ static void parse_type_number(Visitor *v, double *obj, const char *name,
     *obj = val;
 }
 
-static void parse_start_optional(Visitor *v, bool *present,
-                                 const char *name, Error **errp)
+static void parse_optional(Visitor *v, bool *present, const char *name,
+                           Error **errp)
 {
     StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
 
@@ -155,7 +155,7 @@ StringInputVisitor *string_input_visitor_new(const char *str)
     v->visitor.type_bool = parse_type_bool;
     v->visitor.type_str = parse_type_str;
     v->visitor.type_number = parse_type_number;
-    v->visitor.start_optional = parse_start_optional;
+    v->visitor.optional = parse_optional;
 
     v->string = str;
     return v;

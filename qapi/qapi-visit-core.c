@@ -69,18 +69,11 @@ void visit_end_list(Visitor *v, Error **errp)
     v->end_list(v, errp);
 }
 
-void visit_start_optional(Visitor *v, bool *present, const char *name,
-                          Error **errp)
+void visit_optional(Visitor *v, bool *present, const char *name,
+                    Error **errp)
 {
-    if (!error_is_set(errp) && v->start_optional) {
-        v->start_optional(v, present, name, errp);
-    }
-}
-
-void visit_end_optional(Visitor *v, Error **errp)
-{
-    if (!error_is_set(errp) && v->end_optional) {
-        v->end_optional(v, errp);
+    if (!error_is_set(errp) && v->optional) {
+        v->optional(v, present, name, errp);
     }
 }
 
