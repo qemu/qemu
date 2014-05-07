@@ -434,8 +434,8 @@ Example:
 
     static void qmp_marshal_output_my_command(UserDefOne * ret_in, QObject **ret_out, Error **errp)
     {
-        QapiDeallocVisitor *md = qapi_dealloc_visitor_new();
         QmpOutputVisitor *mo = qmp_output_visitor_new();
+        QapiDeallocVisitor *md;
         Visitor *v;
 
         v = qmp_output_get_visitor(mo);
@@ -444,6 +444,7 @@ Example:
             *ret_out = qmp_output_get_qobject(mo);
         }
         qmp_output_visitor_cleanup(mo);
+        md = qapi_dealloc_visitor_new();
         v = qapi_dealloc_get_visitor(md);
         visit_type_UserDefOne(v, &ret_in, "unused", NULL);
         qapi_dealloc_visitor_cleanup(md);
@@ -452,15 +453,13 @@ Example:
     static void qmp_marshal_input_my_command(QDict *args, QObject **ret, Error **errp)
     {
         UserDefOne * retval = NULL;
-        QmpInputVisitor *mi;
+        QmpInputVisitor *mi = qmp_input_visitor_new_strict(QOBJECT(args));
         QapiDeallocVisitor *md;
         Visitor *v;
         UserDefOne * arg1 = NULL;
 
-        mi = qmp_input_visitor_new_strict(QOBJECT(args));
         v = qmp_input_get_visitor(mi);
         visit_type_UserDefOne(v, &arg1, "arg1", errp);
-        qmp_input_visitor_cleanup(mi);
 
         if (error_is_set(errp)) {
             goto out;
@@ -471,6 +470,7 @@ Example:
         }
 
     out:
+        qmp_input_visitor_cleanup(mi);
         md = qapi_dealloc_visitor_new();
         v = qapi_dealloc_get_visitor(md);
         visit_type_UserDefOne(v, &arg1, "arg1", NULL);

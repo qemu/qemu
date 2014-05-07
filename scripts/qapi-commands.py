@@ -69,16 +69,17 @@ def gen_marshal_output_call(name, ret_type):
         return ""
     return "qmp_marshal_output_%s(retval, ret, errp);" % c_fun(name)
 
-def gen_visitor_input_containers_decl(args):
+def gen_visitor_input_containers_decl(args, obj):
     ret = ""
 
     push_indent()
     if len(args) > 0:
         ret += mcgen('''
-QmpInputVisitor *mi;
+QmpInputVisitor *mi = qmp_input_visitor_new_strict(%(obj)s);
 QapiDeallocVisitor *md;
 Visitor *v;
-''')
+''',
+                     obj=obj)
     pop_indent()
 
     return ret.rstrip()
@@ -106,7 +107,7 @@ bool has_%(argname)s = false;
     pop_indent()
     return ret.rstrip()
 
-def gen_visitor_input_block(args, obj, dealloc=False):
+def gen_visitor_input_block(args, dealloc=False):
     ret = ""
     errparg = 'errp'
 
@@ -118,15 +119,14 @@ def gen_visitor_input_block(args, obj, dealloc=False):
     if dealloc:
         errparg = 'NULL'
         ret += mcgen('''
+qmp_input_visitor_cleanup(mi);
 md = qapi_dealloc_visitor_new();
 v = qapi_dealloc_get_visitor(md);
 ''')
     else:
         ret += mcgen('''
-mi = qmp_input_visitor_new_strict(%(obj)s);
 v = qmp_input_get_visitor(mi);
-''',
-                     obj=obj)
+''')
 
     for argname, argtype, optional, structured in parse_args(args):
         if optional:
@@ -152,10 +152,6 @@ visit_end_optional(v, %(errp)s);
         ret += mcgen('''
 qapi_dealloc_visitor_cleanup(md);
 ''')
-    else:
-        ret += mcgen('''
-qmp_input_visitor_cleanup(mi);
-''')
     pop_indent()
     return ret.rstrip()
 
@@ -166,8 +162,8 @@ def gen_marshal_output(name, args, ret_type, middle_mode):
     ret = mcgen('''
 static void qmp_marshal_output_%(c_name)s(%(c_ret_type)s ret_in, QObject **ret_out, Error **errp)
 {
-    QapiDeallocVisitor *md = qapi_dealloc_visitor_new();
     QmpOutputVisitor *mo = qmp_output_visitor_new();
+    QapiDeallocVisitor *md;
     Visitor *v;
 
     v = qmp_output_get_visitor(mo);
@@ -176,6 +172,7 @@ static void qmp_marshal_output_%(c_name)s(%(c_ret_type)s ret_in, QObject **ret_o
         *ret_out = qmp_output_get_qobject(mo);
     }
     qmp_output_visitor_cleanup(mo);
+    md = qapi_dealloc_visitor_new();
     v = qapi_dealloc_get_visitor(md);
     %(visitor)s(v, &ret_in, "unused", NULL);
     qapi_dealloc_visitor_cleanup(md);
@@ -228,9 +225,9 @@ def gen_marshal_input(name, args, ret_type, middle_mode):
 %(visitor_input_block)s
 
 ''',
-                     visitor_input_containers_decl=gen_visitor_input_containers_decl(args),
+                     visitor_input_containers_decl=gen_visitor_input_containers_decl(args, "QOBJECT(args)"),
                      visitor_input_vars_decl=gen_visitor_input_vars_decl(args),
-                     visitor_input_block=gen_visitor_input_block(args, "QOBJECT(args)"))
+                     visitor_input_block=gen_visitor_input_block(args))
     else:
         ret += mcgen('''
     (void)args;
@@ -250,7 +247,7 @@ out:
     ret += mcgen('''
 %(visitor_input_block_cleanup)s
 ''',
-                 visitor_input_block_cleanup=gen_visitor_input_block(args, None,
+                 visitor_input_block_cleanup=gen_visitor_input_block(args,
                                                                      dealloc=True))
 
     if middle_mode:
