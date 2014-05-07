@@ -140,7 +140,6 @@ static void sch_handle_clear_func(SubchDev *sch)
     s->flags &= ~SCSW_FLAGS_MASK_PNO;
 
     /* We always 'attempt to issue the clear signal', and we always succeed. */
-    sch->orb = NULL;
     sch->channel_prog = 0x0;
     sch->last_cmd_valid = false;
     s->ctrl &= ~SCSW_ACTL_CLEAR_PEND;
@@ -163,7 +162,6 @@ static void sch_handle_halt_func(SubchDev *sch)
     path = 0x80;
 
     /* We always 'attempt to issue the halt signal', and we always succeed. */
-    sch->orb = NULL;
     sch->channel_prog = 0x0;
     sch->last_cmd_valid = false;
     s->ctrl &= ~SCSW_ACTL_HALT_PEND;
@@ -317,12 +315,11 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr)
     return ret;
 }
 
-static void sch_handle_start_func(SubchDev *sch)
+static void sch_handle_start_func(SubchDev *sch, ORB *orb)
 {
 
     PMCW *p = &sch->curr_status.pmcw;
     SCSW *s = &sch->curr_status.scsw;
-    ORB *orb = sch->orb;
     int path;
     int ret;
 
@@ -331,6 +328,7 @@ static void sch_handle_start_func(SubchDev *sch)
 
     if (!(s->ctrl & SCSW_ACTL_SUSP)) {
         /* Look at the orb and try to execute the channel program. */
+        assert(orb != NULL); /* resume does not pass an orb */
         p->intparm = orb->intparm;
         if (!(orb->lpm & path)) {
             /* Generate a deferred cc 3 condition. */
@@ -406,7 +404,7 @@ static void sch_handle_start_func(SubchDev *sch)
  * read/writes) asynchronous later on if we start supporting more than
  * our current very simple devices.
  */
-static void do_subchannel_work(SubchDev *sch)
+static void do_subchannel_work(SubchDev *sch, ORB *orb)
 {
 
     SCSW *s = &sch->curr_status.scsw;
@@ -416,7 +414,7 @@ static void do_subchannel_work(SubchDev *sch)
     } else if (s->ctrl & SCSW_FCTL_HALT_FUNC) {
         sch_handle_halt_func(sch);
     } else if (s->ctrl & SCSW_FCTL_START_FUNC) {
-        sch_handle_start_func(sch);
+        sch_handle_start_func(sch, orb);
     } else {
         /* Cannot happen. */
         return;
@@ -594,7 +592,6 @@ int css_do_xsch(SubchDev *sch)
                  SCSW_ACTL_SUSP);
     sch->channel_prog = 0x0;
     sch->last_cmd_valid = false;
-    sch->orb = NULL;
     s->dstat = 0;
     s->cstat = 0;
     ret = 0;
@@ -618,7 +615,7 @@ int css_do_csch(SubchDev *sch)
     s->ctrl &= ~(SCSW_CTRL_MASK_FCTL | SCSW_CTRL_MASK_ACTL);
     s->ctrl |= SCSW_FCTL_CLEAR_FUNC | SCSW_FCTL_CLEAR_FUNC;
 
-    do_subchannel_work(sch);
+    do_subchannel_work(sch, NULL);
     ret = 0;
 
 out:
@@ -659,7 +656,7 @@ int css_do_hsch(SubchDev *sch)
     }
     s->ctrl |= SCSW_ACTL_HALT_PEND;
 
-    do_subchannel_work(sch);
+    do_subchannel_work(sch, NULL);
     ret = 0;
 
 out:
@@ -721,13 +718,12 @@ int css_do_ssch(SubchDev *sch, ORB *orb)
     if (channel_subsys->chnmon_active) {
         css_update_chnmon(sch);
     }
-    sch->orb = orb;
     sch->channel_prog = orb->cpa;
     /* Trigger the start function. */
     s->ctrl |= (SCSW_FCTL_START_FUNC | SCSW_ACTL_START_PEND);
     s->flags &= ~SCSW_FLAGS_MASK_PNO;
 
-    do_subchannel_work(sch);
+    do_subchannel_work(sch, orb);
     ret = 0;
 
 out:
@@ -957,7 +953,7 @@ int css_do_rsch(SubchDev *sch)
     }
 
     s->ctrl |= SCSW_ACTL_RESUME_PEND;
-    do_subchannel_work(sch);
+    do_subchannel_work(sch, NULL);
     ret = 0;
 
 out:
@@ -1267,7 +1263,6 @@ void css_reset_sch(SubchDev *sch)
 
     sch->channel_prog = 0x0;
     sch->last_cmd_valid = false;
-    sch->orb = NULL;
     sch->thinint_active = false;
 }
 

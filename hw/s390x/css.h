@@ -76,7 +76,6 @@ struct SubchDev {
     hwaddr channel_prog;
     CCW1 last_cmd;
     bool last_cmd_valid;
-    ORB *orb;
     bool thinint_active;
     /* transport-provided data: */
     int (*ccw_cb) (SubchDev *, CCW1);

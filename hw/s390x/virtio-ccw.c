@@ -559,7 +559,6 @@ static int virtio_ccw_device_init(VirtioCcwDevice *dev, VirtIODevice *vdev)
     /* Initialize subchannel structure. */
     sch->channel_prog = 0x0;
     sch->last_cmd_valid = false;
-    sch->orb = NULL;
     sch->thinint_active = false;
     /*
      * Use a device number if provided. Otherwise, fall back to subchannel
