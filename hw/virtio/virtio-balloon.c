@@ -142,10 +142,12 @@ static void balloon_stats_set_poll_interval(Object *obj, struct Visitor *v,
                                             Error **errp)
 {
     VirtIOBalloon *s = opaque;
+    Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, &value, name, errp);
-    if (error_is_set(errp)) {
+    visit_type_int(v, &value, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 

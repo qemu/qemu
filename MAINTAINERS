@@ -601,6 +601,7 @@ USB
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
 F: hw/usb/*
+F: tests/usb-hcd-ehci-test.c
 
 VFIO
 M: Alex Williamson <alex.williamson@redhat.com>
@@ -666,6 +667,9 @@ M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
 F: audio/
 F: hw/audio/
+F: tests/ac97-test.c
+F: tests/es1370-test.c
+F: tests/intel-hda-test.c
 
 Block
 M: Kevin Wolf <kwolf@redhat.com>
@@ -779,6 +783,17 @@ M: Markus Armbruster <armbru@redhat.com>
 S: Supported
 F: qapi-schema.json
 T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
+
+QOM
+M: Anthony Liguori <aliguori@amazon.com>
+M: Andreas Färber <afaerber@suse.de>
+S: Supported
+T: git git://github.com/afaerber/qemu-cpu.git qom-next
+F: include/qom/
+X: include/qom/cpu.h
+F: qom/
+X: qom/cpu.c
+F: tests/qom-test.c
 
 QMP
 M: Luiz Capitulino <lcapitulino@redhat.com>

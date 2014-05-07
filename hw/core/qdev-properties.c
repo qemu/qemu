@@ -751,6 +751,7 @@ static void set_prop_arraylen(Object *obj, Visitor *v, void *opaque,
     Property *prop = opaque;
     uint32_t *alenptr = qdev_get_prop_ptr(dev, prop);
     void **arrayptr = (void *)dev + prop->arrayoffset;
+    Error *local_err = NULL;
     void *eltptr;
     const char *arrayname;
     int i;
@@ -764,8 +765,9 @@ static void set_prop_arraylen(Object *obj, Visitor *v, void *opaque,
                    name);
         return;
     }
-    visit_type_uint32(v, alenptr, name, errp);
-    if (error_is_set(errp)) {
+    visit_type_uint32(v, alenptr, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
     if (!*alenptr) {
@@ -802,8 +804,9 @@ static void set_prop_arraylen(Object *obj, Visitor *v, void *opaque,
                             arrayprop->prop.info->get,
                             arrayprop->prop.info->set,
                             array_element_release,
-                            arrayprop, errp);
-        if (error_is_set(errp)) {
+                            arrayprop, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
             return;
         }
     }

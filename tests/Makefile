@@ -107,6 +107,10 @@ check-qtest-pci-y += tests/ne2000-test$(EXESUF)
 gcov-files-pci-y += hw/net/ne2000.c
 check-qtest-pci-y += tests/nvme-test$(EXESUF)
 gcov-files-pci-y += hw/block/nvme.c
+check-qtest-pci-y += tests/ac97-test$(EXESUF)
+gcov-files-pci-y += hw/audio/ac97.c
+check-qtest-pci-y += tests/es1370-test$(EXESUF)
+gcov-files-pci-y += hw/audio/es1370.c
 check-qtest-pci-y += $(check-qtest-virtio-y)
 gcov-files-pci-y += $(gcov-files-virtio-y) hw/virtio/virtio-pci.c
 check-qtest-pci-y += tests/tpci200-test$(EXESUF)
@@ -117,6 +121,8 @@ check-qtest-pci-y += tests/display-vga-test$(EXESUF)
 gcov-files-pci-y += hw/display/vga.c
 gcov-files-pci-y += hw/display/cirrus_vga.c
 gcov-files-pci-y += hw/display/vga-pci.c
+check-qtest-pci-y += tests/intel-hda-test$(EXESUF)
+gcov-files-pci-y += hw/audio/intel-hda.c hw/audio/hda-codec.c
 
 check-qtest-i386-y = tests/endianness-test$(EXESUF)
 check-qtest-i386-y += tests/fdc-test$(EXESUF)
@@ -141,6 +147,11 @@ check-qtest-i386-y += tests/pvpanic-test$(EXESUF)
 gcov-files-i386-y += i386-softmmu/hw/misc/pvpanic.c
 check-qtest-i386-y += tests/i82801b11-test$(EXESUF)
 gcov-files-i386-y += hw/pci-bridge/i82801b11.c
+check-qtest-i386-y += tests/ioh3420-test$(EXESUF)
+gcov-files-i386-y += hw/pci-bridge/ioh3420.c
+check-qtest-i386-y += tests/usb-hcd-ehci-test$(EXESUF)
+gcov-files-i386-y += hw/usb/hcd-ehci.c
+gcov-files-i386-y += hw/usb/hcd-uhci.c
 check-qtest-x86_64-y = $(check-qtest-i386-y)
 gcov-files-i386-y += i386-softmmu/hw/timer/mc146818rtc.c
 gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y))
@@ -292,6 +303,11 @@ tests/qdev-monitor-test$(EXESUF): tests/qdev-monitor-test.o $(libqos-pc-obj-y)
 tests/nvme-test$(EXESUF): tests/nvme-test.o
 tests/pvpanic-test$(EXESUF): tests/pvpanic-test.o
 tests/i82801b11-test$(EXESUF): tests/i82801b11-test.o
+tests/ac97-test$(EXESUF): tests/ac97-test.o
+tests/es1370-test$(EXESUF): tests/es1370-test.o
+tests/intel-hda-test$(EXESUF): tests/intel-hda-test.o
+tests/ioh3420-test$(EXESUF): tests/ioh3420-test.o
+tests/usb-hcd-ehci-test$(EXESUF): tests/usb-hcd-ehci-test.o
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
 
 # QTest rules

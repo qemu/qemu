@@ -2355,8 +2355,6 @@ void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
 {
     MemoryRegion *vga_io_memory;
     const MemoryRegionPortio *vga_ports, *vbe_ports;
-    PortioList *vga_port_list = g_new(PortioList, 1);
-    PortioList *vbe_port_list = g_new(PortioList, 1);
 
     qemu_register_reset(vga_reset, s);
 
@@ -2371,13 +2369,13 @@ void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
                                         1);
     memory_region_set_coalescing(vga_io_memory);
     if (init_vga_ports) {
-        portio_list_init(vga_port_list, obj, vga_ports, s, "vga");
-        portio_list_set_flush_coalesced(vga_port_list);
-        portio_list_add(vga_port_list, address_space_io, 0x3b0);
+        portio_list_init(&s->vga_port_list, obj, vga_ports, s, "vga");
+        portio_list_set_flush_coalesced(&s->vga_port_list);
+        portio_list_add(&s->vga_port_list, address_space_io, 0x3b0);
     }
     if (vbe_ports) {
-        portio_list_init(vbe_port_list, obj, vbe_ports, s, "vbe");
-        portio_list_add(vbe_port_list, address_space_io, 0x1ce);
+        portio_list_init(&s->vbe_port_list, obj, vbe_ports, s, "vbe");
+        portio_list_add(&s->vbe_port_list, address_space_io, 0x1ce);
     }
 }
 

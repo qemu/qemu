@@ -47,7 +47,7 @@ qemu_irq *xen_interrupt_controller_init(void)
     return NULL;
 }
 
-int xen_init(QEMUMachine *machine)
+int xen_init(MachineClass *mc)
 {
     return -ENOSYS;
 }

@@ -124,6 +124,8 @@ typedef struct VGACommonState {
     void (*get_resolution)(struct VGACommonState *s,
                         int *pwidth,
                         int *pheight);
+    PortioList vga_port_list;
+    PortioList vbe_port_list;
     /* bochs vbe state */
     uint16_t vbe_index;
     uint16_t vbe_regs[VBE_DISPI_INDEX_NB];

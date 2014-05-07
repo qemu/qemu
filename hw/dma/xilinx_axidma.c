@@ -534,24 +534,24 @@ static void xilinx_axidma_realize(DeviceState *dev, Error **errp)
     XilinxAXIDMAStreamSlave *ds = XILINX_AXI_DMA_DATA_STREAM(&s->rx_data_dev);
     XilinxAXIDMAStreamSlave *cs = XILINX_AXI_DMA_CONTROL_STREAM(
                                                             &s->rx_control_dev);
-    Error *local_errp = NULL;
+    Error *local_err = NULL;
 
     object_property_add_link(OBJECT(ds), "dma", TYPE_XILINX_AXI_DMA,
                              (Object **)&ds->dma,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE,
-                             &local_errp);
+                             &local_err);
     object_property_add_link(OBJECT(cs), "dma", TYPE_XILINX_AXI_DMA,
                              (Object **)&cs->dma,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE,
-                             &local_errp);
-    if (local_errp) {
+                             &local_err);
+    if (local_err) {
         goto xilinx_axidma_realize_fail;
     }
-    object_property_set_link(OBJECT(ds), OBJECT(s), "dma", &local_errp);
-    object_property_set_link(OBJECT(cs), OBJECT(s), "dma", &local_errp);
-    if (local_errp) {
+    object_property_set_link(OBJECT(ds), OBJECT(s), "dma", &local_err);
+    object_property_set_link(OBJECT(cs), OBJECT(s), "dma", &local_err);
+    if (local_err) {
         goto xilinx_axidma_realize_fail;
     }
 
@@ -567,7 +567,7 @@ static void xilinx_axidma_realize(DeviceState *dev, Error **errp)
 
 xilinx_axidma_realize_fail:
     if (!*errp) {
-        *errp = local_errp;
+        *errp = local_err;
     }
 }
 

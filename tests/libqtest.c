@@ -72,7 +72,8 @@ static int init_socket(const char *socket_path)
         ret = bind(sock, (struct sockaddr *)&addr, sizeof(addr));
     } while (ret == -1 && errno == EINTR);
     g_assert_no_errno(ret);
-    listen(sock, 1);
+    ret = listen(sock, 1);
+    g_assert_no_errno(ret);
 
     return sock;
 }
@@ -88,10 +89,13 @@ static int socket_accept(int sock)
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (void *)&timeout,
                sizeof(timeout));
 
-    addrlen = sizeof(addr);
     do {
+        addrlen = sizeof(addr);
         ret = accept(sock, (struct sockaddr *)&addr, &addrlen);
     } while (ret == -1 && errno == EINTR);
+    if (ret == -1) {
+        fprintf(stderr, "%s failed: %s\n", __func__, strerror(errno));
+    }
     close(sock);
 
     return ret;

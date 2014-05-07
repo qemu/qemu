@@ -517,10 +517,12 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
     GICState *s = KVM_ARM_GIC(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     KVMARMGICClass *kgc = KVM_ARM_GIC_GET_CLASS(s);
+    Error *local_err = NULL;
     int ret;
 
-    kgc->parent_realize(dev, errp);
-    if (error_is_set(errp)) {
+    kgc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 

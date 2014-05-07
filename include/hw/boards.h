@@ -3,12 +3,13 @@
 #ifndef HW_BOARDS_H
 #define HW_BOARDS_H
 
+#include "qemu/typedefs.h"
 #include "sysemu/blockdev.h"
 #include "hw/qdev.h"
 #include "qom/object.h"
 
 typedef struct QEMUMachineInitArgs {
-    const QEMUMachine *machine;
+    const MachineClass *machine;
     ram_addr_t ram_size;
     const char *boot_order;
     const char *kernel_filename;
@@ -46,7 +47,6 @@ struct QEMUMachine {
     const char *default_machine_opts;
     const char *default_boot_order;
     GlobalProperty *compat_props;
-    struct QEMUMachine *next;
     const char *hw_version;
 };
 
@@ -63,7 +63,6 @@ int qemu_register_machine(QEMUMachine *m);
     OBJECT_CLASS_CHECK(MachineClass, (klass), TYPE_MACHINE)
 
 typedef struct MachineState MachineState;
-typedef struct MachineClass MachineClass;
 
 MachineClass *find_default_machine(void);
 extern MachineState *current_machine;
@@ -77,7 +76,29 @@ struct MachineClass {
     ObjectClass parent_class;
     /*< public >*/
 
-    QEMUMachine *qemu_machine;
+    const char *name;
+    const char *alias;
+    const char *desc;
+
+    void (*init)(QEMUMachineInitArgs *args);
+    void (*reset)(void);
+    void (*hot_add_cpu)(const int64_t id, Error **errp);
+    int (*kvm_type)(const char *arg);
+
+    BlockInterfaceType block_default_type;
+    int max_cpus;
+    unsigned int no_serial:1,
+        no_parallel:1,
+        use_virtcon:1,
+        use_sclp:1,
+        no_floppy:1,
+        no_cdrom:1,
+        no_sdcard:1;
+    int is_default;
+    const char *default_machine_opts;
+    const char *default_boot_order;
+    GlobalProperty *compat_props;
+    const char *hw_version;
 };
 
 /**
