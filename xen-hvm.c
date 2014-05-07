@@ -323,7 +323,7 @@ go_physmap:
 
     xc_domain_pin_memory_cacheattr(xen_xc, xen_domid,
                                    start_addr >> TARGET_PAGE_BITS,
-                                   (start_addr + size) >> TARGET_PAGE_BITS,
+                                   (start_addr + size - 1) >> TARGET_PAGE_BITS,
                                    XEN_DOMCTL_MEM_CACHEATTR_WB);
 
     snprintf(path, sizeof(path),
