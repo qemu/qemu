@@ -633,7 +633,7 @@ int qemu_find_net_clients_except(const char *id, NetClientState **ncs,
         if (nc->info->type == type) {
             continue;
         }
-        if (!strcmp(nc->name, id)) {
+        if (!id || !strcmp(nc->name, id)) {
             if (ret < max) {
                 ncs[ret] = nc;
             }

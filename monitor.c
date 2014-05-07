@@ -4269,6 +4269,17 @@ static const char *next_arg_type(const char *typestr)
     return (p != NULL ? ++p : typestr);
 }
 
+static void add_completion_option(ReadLineState *rs, const char *str,
+                                  const char *option)
+{
+    if (!str || !option) {
+        return;
+    }
+    if (!strncmp(option, str, strlen(str))) {
+        readline_add_completion(rs, option);
+    }
+}
+
 void chardev_add_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     size_t len;
@@ -4441,6 +4452,29 @@ void sendkey_completion(ReadLineState *rs, int nb_args, const char *str)
         if (!strncmp(str, QKeyCode_lookup[i], len)) {
             readline_add_completion(rs, QKeyCode_lookup[i]);
         }
+    }
+}
+
+void set_link_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    if (nb_args == 2) {
+        NetClientState *ncs[255];
+        int count, i;
+        count = qemu_find_net_clients_except(NULL, ncs,
+                                             NET_CLIENT_OPTIONS_KIND_NONE, 255);
+        for (i = 0; i < count; i++) {
+            const char *name = ncs[i]->name;
+            if (!strncmp(str, name, len)) {
+                readline_add_completion(rs, name);
+            }
+        }
+    } else if (nb_args == 3) {
+        add_completion_option(rs, str, "on");
+        add_completion_option(rs, str, "off");
     }
 }
 

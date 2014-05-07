@@ -1340,6 +1340,7 @@ ETEXI
         .params     = "name on|off",
         .help       = "change the link status of a network adapter",
         .mhandler.cmd = hmp_set_link,
+        .command_completion = set_link_completion,
     },
 
 STEXI
