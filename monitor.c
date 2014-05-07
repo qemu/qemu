@@ -4303,6 +4303,21 @@ void chardev_add_completion(ReadLineState *rs, int nb_args, const char *str)
     qapi_free_ChardevBackendInfoList(start);
 }
 
+void netdev_add_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    size_t len;
+    int i;
+
+    if (nb_args != 2) {
+        return;
+    }
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    for (i = 0; NetClientOptionsKind_lookup[i]; i++) {
+        add_completion_option(rs, str, NetClientOptionsKind_lookup[i]);
+    }
+}
+
 void device_add_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     GSList *list, *elt;
