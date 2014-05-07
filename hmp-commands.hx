@@ -1639,6 +1639,7 @@ ETEXI
         .params     = "id",
         .help       = "remove chardev",
         .mhandler.cmd = hmp_chardev_remove,
+        .command_completion = chardev_remove_completion,
     },
 
 STEXI

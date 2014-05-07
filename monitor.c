@@ -4339,6 +4339,29 @@ static void device_del_bus_completion(ReadLineState *rs,  BusState *bus,
     }
 }
 
+void chardev_remove_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    size_t len;
+    ChardevInfoList *list, *start;
+
+    if (nb_args != 2) {
+        return;
+    }
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+
+    start = list = qmp_query_chardev(NULL);
+    while (list) {
+        ChardevInfo *chr = list->value;
+
+        if (!strncmp(chr->label, str, len)) {
+            readline_add_completion(rs, chr->label);
+        }
+        list = list->next;
+    }
+    qapi_free_ChardevInfoList(start);
+}
+
 void device_del_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     size_t len;

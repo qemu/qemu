@@ -98,5 +98,6 @@ void object_del_completion(ReadLineState *rs, int nb_args, const char *str);
 void device_add_completion(ReadLineState *rs, int nb_args, const char *str);
 void device_del_completion(ReadLineState *rs, int nb_args, const char *str);
 void sendkey_completion(ReadLineState *rs, int nb_args, const char *str);
+void chardev_remove_completion(ReadLineState *rs, int nb_args, const char *str);
 
 #endif
