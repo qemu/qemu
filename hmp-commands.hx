@@ -1782,6 +1782,8 @@ show balloon information
 show device tree
 @item info qdm
 show qdev device model list
+@item info qom-tree
+show object composition tree
 @item info roms
 show roms
 @item info tpm
