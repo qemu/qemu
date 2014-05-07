@@ -26,9 +26,9 @@
 #include <xen/hvm/params.h>
 #include <xen/hvm/e820.h>
 
-//#define DEBUG_XEN
+//#define DEBUG_XEN_HVM
 
-#ifdef DEBUG_XEN
+#ifdef DEBUG_XEN_HVM
 #define DPRINTF(fmt, ...) \
     do { fprintf(stderr, "xen: " fmt, ## __VA_ARGS__); } while (0)
 #else
@@ -323,7 +323,7 @@ go_physmap:
 
     xc_domain_pin_memory_cacheattr(xen_xc, xen_domid,
                                    start_addr >> TARGET_PAGE_BITS,
-                                   (start_addr + size) >> TARGET_PAGE_BITS,
+                                   (start_addr + size - 1) >> TARGET_PAGE_BITS,
                                    XEN_DOMCTL_MEM_CACHEATTR_WB);
 
     snprintf(path, sizeof(path),
@@ -568,15 +568,6 @@ static MemoryListener xen_memory_listener = {
     .log_global_stop = xen_log_global_stop,
     .priority = 10,
 };
-
-void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
-{
-    if (enable) {
-        memory_global_dirty_log_start();
-    } else {
-        memory_global_dirty_log_stop();
-    }
-}
 
 /* get the ioreq packets from share mem */
 static ioreq_t *cpu_get_ioreq_from_shared_memory(XenIOState *state, int vcpu)
@@ -880,82 +871,6 @@ static void cpu_handle_ioreq(void *opaque)
     }
 }
 
-static int store_dev_info(int domid, CharDriverState *cs, const char *string)
-{
-    struct xs_handle *xs = NULL;
-    char *path = NULL;
-    char *newpath = NULL;
-    char *pts = NULL;
-    int ret = -1;
-
-    /* Only continue if we're talking to a pty. */
-    if (strncmp(cs->filename, "pty:", 4)) {
-        return 0;
-    }
-    pts = cs->filename + 4;
-
-    /* We now have everything we need to set the xenstore entry. */
-    xs = xs_open(0);
-    if (xs == NULL) {
-        fprintf(stderr, "Could not contact XenStore\n");
-        goto out;
-    }
-
-    path = xs_get_domain_path(xs, domid);
-    if (path == NULL) {
-        fprintf(stderr, "xs_get_domain_path() error\n");
-        goto out;
-    }
-    newpath = realloc(path, (strlen(path) + strlen(string) +
-                strlen("/tty") + 1));
-    if (newpath == NULL) {
-        fprintf(stderr, "realloc error\n");
-        goto out;
-    }
-    path = newpath;
-
-    strcat(path, string);
-    strcat(path, "/tty");
-    if (!xs_write(xs, XBT_NULL, path, pts, strlen(pts))) {
-        fprintf(stderr, "xs_write for '%s' fail", string);
-        goto out;
-    }
-    ret = 0;
-
-out:
-    free(path);
-    xs_close(xs);
-
-    return ret;
-}
-
-void xenstore_store_pv_console_info(int i, CharDriverState *chr)
-{
-    if (i == 0) {
-        store_dev_info(xen_domid, chr, "/console");
-    } else {
-        char buf[32];
-        snprintf(buf, sizeof(buf), "/device/console/%d", i);
-        store_dev_info(xen_domid, chr, buf);
-    }
-}
-
-static void xenstore_record_dm_state(struct xs_handle *xs, const char *state)
-{
-    char path[50];
-
-    if (xs == NULL) {
-        fprintf(stderr, "xenstore connection not initialized\n");
-        exit(1);
-    }
-
-    snprintf(path, sizeof (path), "device-model/%u/state", xen_domid);
-    if (!xs_write(xs, XBT_NULL, path, state, strlen(state))) {
-        fprintf(stderr, "error recording dm state\n");
-        exit(1);
-    }
-}
-
 static void xen_main_loop_prepare(XenIOState *state)
 {
     int evtchn_fd = -1;
@@ -973,17 +888,6 @@ static void xen_main_loop_prepare(XenIOState *state)
 }
 
 
-/* Initialise Xen */
-
-static void xen_change_state_handler(void *opaque, int running,
-                                     RunState state)
-{
-    if (running) {
-        /* record state running */
-        xenstore_record_dm_state(xenstore, "running");
-    }
-}
-
 static void xen_hvm_change_state_handler(void *opaque, int running,
                                          RunState rstate)
 {
@@ -999,18 +903,6 @@ static void xen_exit_notifier(Notifier *n, void *data)
 
     xc_evtchn_close(state->xce_handle);
     xs_daemon_close(state->xenstore);
-}
-
-int xen_init(MachineClass *mc)
-{
-    xen_xc = xen_xc_interface_open(0, 0, 0);
-    if (xen_xc == XC_HANDLER_INITIAL_VALUE) {
-        xen_be_printf(NULL, 0, "can't open xen interface\n");
-        return -1;
-    }
-    qemu_add_vm_change_state_handler(xen_change_state_handler, NULL);
-
-    return 0;
 }
 
 static void xen_read_physmap(XenIOState *state)
@@ -1224,5 +1116,14 @@ void xen_modified_memory(ram_addr_t start, ram_addr_t length)
                     "%s failed for "RAM_ADDR_FMT" ("RAM_ADDR_FMT"): %i, %s\n",
                     __func__, start, nb_pages, rc, strerror(-rc));
         }
+    }
+}
+
+void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
+{
+    if (enable) {
+        memory_global_dirty_log_start();
+    } else {
+        memory_global_dirty_log_stop();
     }
 }

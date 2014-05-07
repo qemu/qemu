@@ -13,10 +13,6 @@
 #include "exec/memory.h"
 #include "qmp-commands.h"
 
-void xenstore_store_pv_console_info(int i, CharDriverState *chr)
-{
-}
-
 int xen_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
 {
     return -1;
@@ -47,16 +43,7 @@ qemu_irq *xen_interrupt_controller_init(void)
     return NULL;
 }
 
-int xen_init(MachineClass *mc)
-{
-    return -ENOSYS;
-}
-
 void xen_register_framebuffer(MemoryRegion *mr)
-{
-}
-
-void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
 {
 }
 
@@ -67,4 +54,8 @@ void xen_modified_memory(ram_addr_t start, ram_addr_t length)
 int xen_hvm_init(MemoryRegion **ram_memory)
 {
     return 0;
+}
+
+void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
+{
 }
