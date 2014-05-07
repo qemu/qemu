@@ -1,0 +1,13 @@
+QA output created by 092
+
+== Invalid cluster size ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+qemu-io: can't open device TEST_DIR/t.qcow: Cluster size must be between 512 and 64k
+no file open, try 'help open'
+qemu-io: can't open device TEST_DIR/t.qcow: Cluster size must be between 512 and 64k
+no file open, try 'help open'
+qemu-io: can't open device TEST_DIR/t.qcow: Cluster size must be between 512 and 64k
+no file open, try 'help open'
+qemu-io: can't open device TEST_DIR/t.qcow: Cluster size must be between 512 and 64k
+no file open, try 'help open'
+*** done
