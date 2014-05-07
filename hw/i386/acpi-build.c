@@ -156,18 +156,21 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     } else {
         pm->s3_disabled = false;
     }
+    qobject_decref(o);
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S4_DISABLED, NULL);
     if (o) {
         pm->s4_disabled = qint_get_int(qobject_to_qint(o));
     } else {
         pm->s4_disabled = false;
     }
+    qobject_decref(o);
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S4_VAL, NULL);
     if (o) {
         pm->s4_val = qint_get_int(qobject_to_qint(o));
     } else {
         pm->s4_val = false;
     }
+    qobject_decref(o);
 
     /* Fill in mandatory properties */
     pm->sci_int = object_property_get_int(obj, ACPI_PM_PROP_SCI_INT, NULL);
@@ -973,6 +976,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
         }
     }
 
+    qobject_decref(bsel);
     build_free_array(bus_table);
     build_pci_bus_state_cleanup(child);
     g_free(child);
@@ -1362,10 +1366,12 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
         return false;
     }
     mcfg->mcfg_base = qint_get_int(qobject_to_qint(o));
+    qobject_decref(o);
 
     o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_SIZE, NULL);
     assert(o);
     mcfg->mcfg_size = qint_get_int(qobject_to_qint(o));
+    qobject_decref(o);
     return true;
 }
 
@@ -1410,15 +1416,16 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
     /* ACPI tables pointed to by RSDT */
     acpi_add_table(table_offsets, tables->table_data);
     build_fadt(tables->table_data, tables->linker, &pm, facs, dsdt);
-    acpi_add_table(table_offsets, tables->table_data);
 
+    acpi_add_table(table_offsets, tables->table_data);
     build_ssdt(tables->table_data, tables->linker, &cpu, &pm, &misc, &pci,
                guest_info);
-    acpi_add_table(table_offsets, tables->table_data);
 
-    build_madt(tables->table_data, tables->linker, &cpu, guest_info);
     acpi_add_table(table_offsets, tables->table_data);
+    build_madt(tables->table_data, tables->linker, &cpu, guest_info);
+
     if (misc.has_hpet) {
+        acpi_add_table(table_offsets, tables->table_data);
         build_hpet(tables->table_data, tables->linker);
     }
     if (guest_info->numa_nodes) {
