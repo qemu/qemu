@@ -46,9 +46,6 @@ struct Visitor
                            Error **errp);
     void (*end_optional)(Visitor *v, Error **errp);
 
-    void (*start_handle)(Visitor *v, void **obj, const char *kind,
-                         const char *name, Error **errp);
-    void (*end_handle)(Visitor *v, Error **errp);
     void (*type_uint8)(Visitor *v, uint8_t *obj, const char *name, Error **errp);
     void (*type_uint16)(Visitor *v, uint16_t *obj, const char *name, Error **errp);
     void (*type_uint32)(Visitor *v, uint32_t *obj, const char *name, Error **errp);

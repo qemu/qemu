@@ -17,21 +17,6 @@
 #include "qapi/visitor.h"
 #include "qapi/visitor-impl.h"
 
-void visit_start_handle(Visitor *v, void **obj, const char *kind,
-                        const char *name, Error **errp)
-{
-    if (!error_is_set(errp) && v->start_handle) {
-        v->start_handle(v, obj, kind, name, errp);
-    }
-}
-
-void visit_end_handle(Visitor *v, Error **errp)
-{
-    if (!error_is_set(errp) && v->end_handle) {
-        v->end_handle(v, errp);
-    }
-}
-
 void visit_start_struct(Visitor *v, void **obj, const char *kind,
                         const char *name, size_t size, Error **errp)
 {
