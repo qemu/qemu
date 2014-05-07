@@ -60,7 +60,7 @@ static void visit_type_%(full_name)s_fields(Visitor *m, %(name)s ** obj, Error *
 
     if base:
         ret += mcgen('''
-visit_start_implicit_struct(m, (void**) &(*obj)->%(c_name)s, sizeof(%(type)s), &err);
+visit_start_implicit_struct(m, (void**) &(*obj)->%(c_prefix)s%(c_name)s, sizeof(%(type)s), &err);
 if (!err) {
     visit_type_%(type)s_fields(m, &(*obj)->%(c_prefix)s%(c_name)s, &err);
     error_propagate(errp, err);
