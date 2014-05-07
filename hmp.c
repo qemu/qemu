@@ -1892,3 +1892,24 @@ void hmp_qom_list(Monitor *mon, const QDict *qdict)
     }
     hmp_handle_error(mon, &err);
 }
+
+void hmp_qom_set(Monitor *mon, const QDict *qdict)
+{
+    const char *path = qdict_get_str(qdict, "path");
+    const char *property = qdict_get_str(qdict, "property");
+    const char *value = qdict_get_str(qdict, "value");
+    Error *err = NULL;
+    bool ambiguous = false;
+    Object *obj;
+
+    obj = object_resolve_path(path, &ambiguous);
+    if (obj == NULL) {
+        error_set(&err, QERR_DEVICE_NOT_FOUND, path);
+    } else {
+        if (ambiguous) {
+            monitor_printf(mon, "Warning: Path '%s' is ambiguous\n", path);
+        }
+        object_property_parse(obj, value, property, &err);
+    }
+    hmp_handle_error(mon, &err);
+}
