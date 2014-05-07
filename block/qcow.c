@@ -128,11 +128,17 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    if (header.size <= 1 || header.cluster_bits < 9) {
-        error_setg(errp, "invalid value in qcow header");
+    if (header.size <= 1) {
+        error_setg(errp, "Image size is too small (must be at least 2 bytes)");
         ret = -EINVAL;
         goto fail;
     }
+    if (header.cluster_bits < 9 || header.cluster_bits > 16) {
+        error_setg(errp, "Cluster size must be between 512 and 64k");
+        ret = -EINVAL;
+        goto fail;
+    }
+
     if (header.crypt_method > QCOW_CRYPT_AES) {
         error_setg(errp, "invalid encryption method in qcow header");
         ret = -EINVAL;
