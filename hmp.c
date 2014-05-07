@@ -1388,6 +1388,7 @@ void hmp_netdev_del(Monitor *mon, const QDict *qdict)
 void hmp_object_add(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
+    Error *err_end = NULL;
     QemuOpts *opts;
     char *type = NULL;
     char *id = NULL;
@@ -1411,24 +1412,23 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
     qdict_del(pdict, "qom-type");
     visit_type_str(opts_get_visitor(ov), &type, "qom-type", &err);
     if (err) {
-        goto out_clean;
+        goto out_end;
     }
 
     qdict_del(pdict, "id");
     visit_type_str(opts_get_visitor(ov), &id, "id", &err);
     if (err) {
-        goto out_clean;
+        goto out_end;
     }
 
     object_add(type, id, pdict, opts_get_visitor(ov), &err);
-    if (err) {
-        goto out_clean;
-    }
-    visit_end_struct(opts_get_visitor(ov), &err);
-    if (err) {
+
+out_end:
+    visit_end_struct(opts_get_visitor(ov), &err_end);
+    if (!err && err_end) {
         qmp_object_del(id, NULL);
     }
-
+    error_propagate(&err, err_end);
 out_clean:
     opts_visitor_cleanup(ov);
 
