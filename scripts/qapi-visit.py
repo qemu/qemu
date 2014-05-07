@@ -17,6 +17,31 @@ import os
 import getopt
 import errno
 
+implicit_structs = []
+
+def generate_visit_implicit_struct(type):
+    global implicit_structs
+    if type in implicit_structs:
+        return ''
+    implicit_structs.append(type)
+    return mcgen('''
+
+static void visit_type_implicit_%(c_type)s(Visitor *m, %(c_type)s **obj, Error **errp)
+{
+    Error *err = NULL;
+
+    visit_start_implicit_struct(m, (void **)obj, sizeof(%(c_type)s), &err);
+    if (!err) {
+        visit_type_%(c_type)s_fields(m, obj, &err);
+        error_propagate(errp, err);
+        err = NULL;
+        visit_end_implicit_struct(m, &err);
+    }
+    error_propagate(errp, err);
+}
+''',
+                 c_type=type_name(type))
+
 def generate_visit_struct_fields(name, field_prefix, fn_prefix, members, base = None):
     substructs = []
     ret = ''
@@ -49,6 +74,9 @@ static void visit_type_%(full_name)s_field_%(c_name)s(Visitor *m, %(name)s **obj
 }
 ''')
 
+    if base:
+        ret += generate_visit_implicit_struct(base)
+
     ret += mcgen('''
 
 static void visit_type_%(full_name)s_fields(Visitor *m, %(name)s ** obj, Error **errp)
@@ -60,13 +88,7 @@ static void visit_type_%(full_name)s_fields(Visitor *m, %(name)s ** obj, Error *
 
     if base:
         ret += mcgen('''
-visit_start_implicit_struct(m, (void**) &(*obj)->%(c_prefix)s%(c_name)s, sizeof(%(type)s), &err);
-if (!err) {
-    visit_type_%(type)s_fields(m, &(*obj)->%(c_prefix)s%(c_name)s, &err);
-    error_propagate(errp, err);
-    err = NULL;
-    visit_end_implicit_struct(m, &err);
-}
+visit_type_implicit_%(type)s(m, &(*obj)->%(c_prefix)s%(c_name)s, &err);
 ''',
                      c_prefix=c_var(field_prefix),
                      type=type_name(base), c_name=c_var('base'))
@@ -292,6 +314,10 @@ def generate_visit_union(expr):
             del base_fields[discriminator]
         ret += generate_visit_struct_fields(name, "", "", base_fields)
 
+    if discriminator:
+        for key in members:
+            ret += generate_visit_implicit_struct(members[key])
+
     ret += mcgen('''
 
 void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **errp)
@@ -330,13 +356,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
         if not discriminator:
             fmt = 'visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, "data", &err);'
         else:
-            fmt = '''visit_start_implicit_struct(m, (void**) &(*obj)->%(c_name)s, sizeof(%(c_type)s), &err);
-                if (!err) {
-                    visit_type_%(c_type)s_fields(m, &(*obj)->%(c_name)s, &err);
-                    error_propagate(errp, err);
-                    err = NULL;
-                    visit_end_implicit_struct(m, &err);
-                }'''
+            fmt = 'visit_type_implicit_%(c_type)s(m, &(*obj)->%(c_name)s, &err);'
 
         enum_full_value = generate_enum_full_value(disc_type, key)
         ret += mcgen('''
