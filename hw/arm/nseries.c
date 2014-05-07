@@ -1278,14 +1278,14 @@ static int n810_atag_setup(const struct arm_boot_info *info, void *p)
     return n8x0_atag_setup(p, 810);
 }
 
-static void n8x0_init(QEMUMachineInitArgs *args,
+static void n8x0_init(MachineState *machine,
                       struct arm_boot_info *binfo, int model)
 {
     MemoryRegion *sysmem = get_system_memory();
     struct n800_s *s = (struct n800_s *) g_malloc0(sizeof(*s));
     int sdram_size = binfo->ram_size;
 
-    s->mpu = omap2420_mpu_init(sysmem, sdram_size, args->cpu_model);
+    s->mpu = omap2420_mpu_init(sysmem, sdram_size, machine->cpu_model);
 
     /* Setup peripherals
      *
@@ -1329,18 +1329,18 @@ static void n8x0_init(QEMUMachineInitArgs *args,
         n8x0_usb_setup(s);
     }
 
-    if (args->kernel_filename) {
+    if (machine->kernel_filename) {
         /* Or at the linux loader.  */
-        binfo->kernel_filename = args->kernel_filename;
-        binfo->kernel_cmdline = args->kernel_cmdline;
-        binfo->initrd_filename = args->initrd_filename;
+        binfo->kernel_filename = machine->kernel_filename;
+        binfo->kernel_cmdline = machine->kernel_cmdline;
+        binfo->initrd_filename = machine->initrd_filename;
         arm_load_kernel(s->mpu->cpu, binfo);
 
         qemu_register_reset(n8x0_boot_init, s);
     }
 
     if (option_rom[0].name &&
-        (args->boot_order[0] == 'n' || !args->kernel_filename)) {
+        (machine->boot_order[0] == 'n' || !machine->kernel_filename)) {
         uint8_t nolo_tags[0x10000];
         /* No, wait, better start at the ROM.  */
         s->mpu->cpu->env.regs[15] = OMAP2_Q2_BASE + 0x400000;
@@ -1382,14 +1382,14 @@ static struct arm_boot_info n810_binfo = {
     .atag_board = n810_atag_setup,
 };
 
-static void n800_init(QEMUMachineInitArgs *args)
+static void n800_init(MachineState *machine)
 {
-    return n8x0_init(args, &n800_binfo, 800);
+    return n8x0_init(machine, &n800_binfo, 800);
 }
 
-static void n810_init(QEMUMachineInitArgs *args)
+static void n810_init(MachineState *machine)
 {
-    return n8x0_init(args, &n810_binfo, 810);
+    return n8x0_init(machine, &n810_binfo, 810);
 }
 
 static QEMUMachine n800_machine = {

@@ -26,7 +26,7 @@ static void mpc8544ds_fixup_devtree(PPCE500Params *params, void *fdt)
                      sizeof(compatible));
 }
 
-static void mpc8544ds_init(QEMUMachineInitArgs *args)
+static void mpc8544ds_init(MachineState *machine)
 {
     PPCE500Params params = {
         .pci_first_slot = 0x11,
@@ -35,7 +35,7 @@ static void mpc8544ds_init(QEMUMachineInitArgs *args)
         .mpic_version = OPENPIC_MODEL_FSL_MPIC_20,
     };
 
-    ppce500_init(args, &params);
+    ppce500_init(machine, &params);
 }
 
 

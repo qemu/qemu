@@ -173,7 +173,7 @@ static int vpb_sic_init(SysBusDevice *sbd)
 
 static struct arm_boot_info versatile_binfo;
 
-static void versatile_init(QEMUMachineInitArgs *args, int board_id)
+static void versatile_init(MachineState *machine, int board_id)
 {
     ARMCPU *cpu;
     MemoryRegion *sysmem = get_system_memory();
@@ -190,15 +190,15 @@ static void versatile_init(QEMUMachineInitArgs *args, int board_id)
     int done_smc = 0;
     DriveInfo *dinfo;
 
-    if (!args->cpu_model) {
-        args->cpu_model = "arm926";
+    if (!machine->cpu_model) {
+        machine->cpu_model = "arm926";
     }
-    cpu = cpu_arm_init(args->cpu_model);
+    cpu = cpu_arm_init(machine->cpu_model);
     if (!cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    memory_region_init_ram(ram, NULL, "versatile.ram", args->ram_size);
+    memory_region_init_ram(ram, NULL, "versatile.ram", machine->ram_size);
     vmstate_register_ram_global(ram);
     /* ??? RAM should repeat to fill physical memory space.  */
     /* SDRAM at address zero.  */
@@ -344,22 +344,22 @@ static void versatile_init(QEMUMachineInitArgs *args, int board_id)
         fprintf(stderr, "qemu: Error registering flash memory.\n");
     }
 
-    versatile_binfo.ram_size = args->ram_size;
-    versatile_binfo.kernel_filename = args->kernel_filename;
-    versatile_binfo.kernel_cmdline = args->kernel_cmdline;
-    versatile_binfo.initrd_filename = args->initrd_filename;
+    versatile_binfo.ram_size = machine->ram_size;
+    versatile_binfo.kernel_filename = machine->kernel_filename;
+    versatile_binfo.kernel_cmdline = machine->kernel_cmdline;
+    versatile_binfo.initrd_filename = machine->initrd_filename;
     versatile_binfo.board_id = board_id;
     arm_load_kernel(cpu, &versatile_binfo);
 }
 
-static void vpb_init(QEMUMachineInitArgs *args)
+static void vpb_init(MachineState *machine)
 {
-    versatile_init(args, 0x183);
+    versatile_init(machine, 0x183);
 }
 
-static void vab_init(QEMUMachineInitArgs *args)
+static void vab_init(MachineState *machine)
 {
-    versatile_init(args, 0x25e);
+    versatile_init(machine, 0x25e);
 }
 
 static QEMUMachine versatilepb_machine = {

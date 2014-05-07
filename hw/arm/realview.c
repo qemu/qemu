@@ -45,7 +45,7 @@ static const int realview_board_id[] = {
     0x76d
 };
 
-static void realview_init(QEMUMachineInitArgs *args,
+static void realview_init(MachineState *machine,
                           enum realview_board_type board_type)
 {
     ARMCPU *cpu = NULL;
@@ -71,7 +71,7 @@ static void realview_init(QEMUMachineInitArgs *args,
     uint32_t proc_id = 0;
     uint32_t sys_id;
     ram_addr_t low_ram_size;
-    ram_addr_t ram_size = args->ram_size;
+    ram_addr_t ram_size = machine->ram_size;
     hwaddr periphbase = 0;
 
     switch (board_type) {
@@ -91,7 +91,7 @@ static void realview_init(QEMUMachineInitArgs *args,
         break;
     }
 
-    cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, args->cpu_model);
+    cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, machine->cpu_model);
     if (!cpu_oc) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
@@ -342,45 +342,45 @@ static void realview_init(QEMUMachineInitArgs *args,
     memory_region_add_subregion(sysmem, SMP_BOOT_ADDR, ram_hack);
 
     realview_binfo.ram_size = ram_size;
-    realview_binfo.kernel_filename = args->kernel_filename;
-    realview_binfo.kernel_cmdline = args->kernel_cmdline;
-    realview_binfo.initrd_filename = args->initrd_filename;
+    realview_binfo.kernel_filename = machine->kernel_filename;
+    realview_binfo.kernel_cmdline = machine->kernel_cmdline;
+    realview_binfo.initrd_filename = machine->initrd_filename;
     realview_binfo.nb_cpus = smp_cpus;
     realview_binfo.board_id = realview_board_id[board_type];
     realview_binfo.loader_start = (board_type == BOARD_PB_A8 ? 0x70000000 : 0);
     arm_load_kernel(ARM_CPU(first_cpu), &realview_binfo);
 }
 
-static void realview_eb_init(QEMUMachineInitArgs *args)
+static void realview_eb_init(MachineState *machine)
 {
-    if (!args->cpu_model) {
-        args->cpu_model = "arm926";
+    if (!machine->cpu_model) {
+        machine->cpu_model = "arm926";
     }
-    realview_init(args, BOARD_EB);
+    realview_init(machine, BOARD_EB);
 }
 
-static void realview_eb_mpcore_init(QEMUMachineInitArgs *args)
+static void realview_eb_mpcore_init(MachineState *machine)
 {
-    if (!args->cpu_model) {
-        args->cpu_model = "arm11mpcore";
+    if (!machine->cpu_model) {
+        machine->cpu_model = "arm11mpcore";
     }
-    realview_init(args, BOARD_EB_MPCORE);
+    realview_init(machine, BOARD_EB_MPCORE);
 }
 
-static void realview_pb_a8_init(QEMUMachineInitArgs *args)
+static void realview_pb_a8_init(MachineState *machine)
 {
-    if (!args->cpu_model) {
-        args->cpu_model = "cortex-a8";
+    if (!machine->cpu_model) {
+        machine->cpu_model = "cortex-a8";
     }
-    realview_init(args, BOARD_PB_A8);
+    realview_init(machine, BOARD_PB_A8);
 }
 
-static void realview_pbx_a9_init(QEMUMachineInitArgs *args)
+static void realview_pbx_a9_init(MachineState *machine)
 {
-    if (!args->cpu_model) {
-        args->cpu_model = "cortex-a9";
+    if (!machine->cpu_model) {
+        machine->cpu_model = "cortex-a9";
     }
-    realview_init(args, BOARD_PBX_A9);
+    realview_init(machine, BOARD_PBX_A9);
 }
 
 static QEMUMachine realview_eb_machine = {

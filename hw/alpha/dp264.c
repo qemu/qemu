@@ -43,13 +43,13 @@ static int clipper_pci_map_irq(PCIDevice *d, int irq_num)
     return (slot + 1) * 4 + irq_num;
 }
 
-static void clipper_init(QEMUMachineInitArgs *args)
+static void clipper_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     AlphaCPU *cpus[4];
     PCIBus *pci_bus;
     ISABus *isa_bus;

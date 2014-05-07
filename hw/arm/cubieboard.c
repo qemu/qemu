@@ -30,7 +30,7 @@ typedef struct CubieBoardState {
     MemoryRegion sdram;
 } CubieBoardState;
 
-static void cubieboard_init(QEMUMachineInitArgs *args)
+static void cubieboard_init(MachineState *machine)
 {
     CubieBoardState *s = g_new(CubieBoardState, 1);
     Error *err = NULL;
@@ -63,14 +63,15 @@ static void cubieboard_init(QEMUMachineInitArgs *args)
         exit(1);
     }
 
-    memory_region_init_ram(&s->sdram, NULL, "cubieboard.ram", args->ram_size);
+    memory_region_init_ram(&s->sdram, NULL, "cubieboard.ram",
+                           machine->ram_size);
     vmstate_register_ram_global(&s->sdram);
     memory_region_add_subregion(get_system_memory(), AW_A10_SDRAM_BASE,
                                 &s->sdram);
 
-    cubieboard_binfo.ram_size = args->ram_size;
-    cubieboard_binfo.kernel_filename = args->kernel_filename;
-    cubieboard_binfo.kernel_cmdline = args->kernel_cmdline;
+    cubieboard_binfo.ram_size = machine->ram_size;
+    cubieboard_binfo.kernel_filename = machine->kernel_filename;
+    cubieboard_binfo.kernel_cmdline = machine->kernel_cmdline;
     arm_load_kernel(&s->a10->cpu, &cubieboard_binfo);
 }
 

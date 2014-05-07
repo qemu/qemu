@@ -4425,16 +4425,14 @@ int main(int argc, char **argv, char **envp)
 
     qdev_machine_init();
 
-    current_machine->init_args = (QEMUMachineInitArgs) {
-        .machine = machine_class,
-        .ram_size = ram_size,
-        .boot_order = boot_order,
-        .kernel_filename = kernel_filename,
-        .kernel_cmdline = kernel_cmdline,
-        .initrd_filename = initrd_filename,
-        .cpu_model = cpu_model };
+    current_machine->ram_size = ram_size;
+    current_machine->boot_order = boot_order;
+    current_machine->kernel_filename = kernel_filename;
+    current_machine->kernel_cmdline = kernel_cmdline;
+    current_machine->initrd_filename = initrd_filename;
+    current_machine->cpu_model = cpu_model;
 
-    machine_class->init(&current_machine->init_args);
+    machine_class->init(current_machine);
 
     audio_init();
 

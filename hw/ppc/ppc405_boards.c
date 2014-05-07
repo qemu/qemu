@@ -172,12 +172,12 @@ static void ref405ep_fpga_init(MemoryRegion *sysmem, uint32_t base)
     qemu_register_reset(&ref405ep_fpga_reset, fpga);
 }
 
-static void ref405ep_init(QEMUMachineInitArgs *args)
+static void ref405ep_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     char *filename;
     ppc4xx_bd_info_t bd;
     CPUPPCState *env;
@@ -499,11 +499,11 @@ static void taihu_cpld_init(MemoryRegion *sysmem, uint32_t base)
     qemu_register_reset(&taihu_cpld_reset, cpld);
 }
 
-static void taihu_405ep_init(QEMUMachineInitArgs *args)
+static void taihu_405ep_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *kernel_filename = args->kernel_filename;
-    const char *initrd_filename = args->initrd_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *initrd_filename = machine->initrd_filename;
     char *filename;
     qemu_irq *pic;
     MemoryRegion *sysmem = get_system_memory();

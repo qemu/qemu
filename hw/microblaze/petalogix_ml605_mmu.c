@@ -79,9 +79,9 @@ static void machine_cpu_reset(MicroBlazeCPU *cpu)
 }
 
 static void
-petalogix_ml605_init(QEMUMachineInitArgs *args)
+petalogix_ml605_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
+    ram_addr_t ram_size = machine->ram_size;
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev, *dma, *eth0;
     Object *ds, *cs;
@@ -202,7 +202,7 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
     }
 
     microblaze_load_kernel(cpu, ddr_base, ram_size,
-                           args->initrd_filename,
+                           machine->initrd_filename,
                            BINARY_DEVICE_TREE_FILE,
                            machine_cpu_reset);
 

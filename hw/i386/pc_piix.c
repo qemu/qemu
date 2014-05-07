@@ -69,7 +69,7 @@ static bool smbios_legacy_mode;
 static bool gigabyte_align = true;
 
 /* PC hardware initialisation */
-static void pc_init1(QEMUMachineInitArgs *args,
+static void pc_init1(MachineState *machine,
                      int pci_enabled,
                      int kvmclock_enabled)
 {
@@ -106,7 +106,7 @@ static void pc_init1(QEMUMachineInitArgs *args,
     object_property_add_child(qdev_get_machine(), "icc-bridge",
                               OBJECT(icc_bridge), NULL);
 
-    pc_cpus_init(args->cpu_model, icc_bridge);
+    pc_cpus_init(machine->cpu_model, icc_bridge);
 
     if (kvm_enabled() && kvmclock_enabled) {
         kvmclock_create();
@@ -119,13 +119,13 @@ static void pc_init1(QEMUMachineInitArgs *args,
      * For old machine types, use whatever split we used historically to avoid
      * breaking migration.
      */
-    if (args->ram_size >= 0xe0000000) {
+    if (machine->ram_size >= 0xe0000000) {
         ram_addr_t lowmem = gigabyte_align ? 0xc0000000 : 0xe0000000;
-        above_4g_mem_size = args->ram_size - lowmem;
+        above_4g_mem_size = machine->ram_size - lowmem;
         below_4g_mem_size = lowmem;
     } else {
         above_4g_mem_size = 0;
-        below_4g_mem_size = args->ram_size;
+        below_4g_mem_size = machine->ram_size;
     }
 
     if (pci_enabled) {
@@ -145,16 +145,17 @@ static void pc_init1(QEMUMachineInitArgs *args,
     guest_info->isapc_ram_fw = !pci_enabled;
 
     if (smbios_defaults) {
+        MachineClass *mc = MACHINE_GET_CLASS(machine);
         /* These values are guest ABI, do not change */
         smbios_set_defaults("QEMU", "Standard PC (i440FX + PIIX, 1996)",
-                            args->machine->name, smbios_legacy_mode);
+                            mc->name, smbios_legacy_mode);
     }
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
         fw_cfg = pc_memory_init(system_memory,
-                       args->kernel_filename, args->kernel_cmdline,
-                       args->initrd_filename,
+                       machine->kernel_filename, machine->kernel_cmdline,
+                       machine->initrd_filename,
                        below_4g_mem_size, above_4g_mem_size,
                        rom_memory, &ram_memory, guest_info);
     }
@@ -170,7 +171,7 @@ static void pc_init1(QEMUMachineInitArgs *args,
 
     if (pci_enabled) {
         pci_bus = i440fx_init(&i440fx_state, &piix3_devfn, &isa_bus, gsi,
-                              system_memory, system_io, args->ram_size,
+                              system_memory, system_io, machine->ram_size,
                               below_4g_mem_size,
                               above_4g_mem_size,
                               pci_memory, ram_memory);
@@ -235,7 +236,7 @@ static void pc_init1(QEMUMachineInitArgs *args,
         }
     }
 
-    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, args->boot_order,
+    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, machine->boot_order,
                  floppy, idebus[0], idebus[1], rtc_state);
 
     if (pci_enabled && usb_enabled(false)) {
@@ -258,131 +259,131 @@ static void pc_init1(QEMUMachineInitArgs *args,
     }
 }
 
-static void pc_init_pci(QEMUMachineInitArgs *args)
+static void pc_init_pci(MachineState *machine)
 {
-    pc_init1(args, 1, 1);
+    pc_init1(machine, 1, 1);
 }
 
-static void pc_compat_2_0(QEMUMachineInitArgs *args)
+static void pc_compat_2_0(MachineState *machine)
 {
     smbios_legacy_mode = true;
 }
 
-static void pc_compat_1_7(QEMUMachineInitArgs *args)
+static void pc_compat_1_7(MachineState *machine)
 {
-    pc_compat_2_0(args);
+    pc_compat_2_0(machine);
     smbios_defaults = false;
     gigabyte_align = false;
     option_rom_has_mr = true;
     x86_cpu_compat_disable_kvm_features(FEAT_1_ECX, CPUID_EXT_X2APIC);
 }
 
-static void pc_compat_1_6(QEMUMachineInitArgs *args)
+static void pc_compat_1_6(MachineState *machine)
 {
-    pc_compat_1_7(args);
+    pc_compat_1_7(machine);
     has_pci_info = false;
     rom_file_has_mr = false;
     has_acpi_build = false;
 }
 
-static void pc_compat_1_5(QEMUMachineInitArgs *args)
+static void pc_compat_1_5(MachineState *machine)
 {
-    pc_compat_1_6(args);
+    pc_compat_1_6(machine);
 }
 
-static void pc_compat_1_4(QEMUMachineInitArgs *args)
+static void pc_compat_1_4(MachineState *machine)
 {
-    pc_compat_1_5(args);
+    pc_compat_1_5(machine);
     x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
     x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
 }
 
-static void pc_compat_1_3(QEMUMachineInitArgs *args)
+static void pc_compat_1_3(MachineState *machine)
 {
-    pc_compat_1_4(args);
+    pc_compat_1_4(machine);
     enable_compat_apic_id_mode();
 }
 
 /* PC compat function for pc-0.14 to pc-1.2 */
-static void pc_compat_1_2(QEMUMachineInitArgs *args)
+static void pc_compat_1_2(MachineState *machine)
 {
-    pc_compat_1_3(args);
+    pc_compat_1_3(machine);
     x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
 }
 
-static void pc_init_pci_2_0(QEMUMachineInitArgs *args)
+static void pc_init_pci_2_0(MachineState *machine)
 {
-    pc_compat_2_0(args);
-    pc_init_pci(args);
+    pc_compat_2_0(machine);
+    pc_init_pci(machine);
 }
 
-static void pc_init_pci_1_7(QEMUMachineInitArgs *args)
+static void pc_init_pci_1_7(MachineState *machine)
 {
-    pc_compat_1_7(args);
-    pc_init_pci(args);
+    pc_compat_1_7(machine);
+    pc_init_pci(machine);
 }
 
-static void pc_init_pci_1_6(QEMUMachineInitArgs *args)
+static void pc_init_pci_1_6(MachineState *machine)
 {
-    pc_compat_1_6(args);
-    pc_init_pci(args);
+    pc_compat_1_6(machine);
+    pc_init_pci(machine);
 }
 
-static void pc_init_pci_1_5(QEMUMachineInitArgs *args)
+static void pc_init_pci_1_5(MachineState *machine)
 {
-    pc_compat_1_5(args);
-    pc_init_pci(args);
+    pc_compat_1_5(machine);
+    pc_init_pci(machine);
 }
 
-static void pc_init_pci_1_4(QEMUMachineInitArgs *args)
+static void pc_init_pci_1_4(MachineState *machine)
 {
-    pc_compat_1_4(args);
-    pc_init_pci(args);
+    pc_compat_1_4(machine);
+    pc_init_pci(machine);
 }
 
-static void pc_init_pci_1_3(QEMUMachineInitArgs *args)
+static void pc_init_pci_1_3(MachineState *machine)
 {
-    pc_compat_1_3(args);
-    pc_init_pci(args);
+    pc_compat_1_3(machine);
+    pc_init_pci(machine);
 }
 
 /* PC machine init function for pc-0.14 to pc-1.2 */
-static void pc_init_pci_1_2(QEMUMachineInitArgs *args)
+static void pc_init_pci_1_2(MachineState *machine)
 {
-    pc_compat_1_2(args);
-    pc_init_pci(args);
+    pc_compat_1_2(machine);
+    pc_init_pci(machine);
 }
 
 /* PC init function for pc-0.10 to pc-0.13, and reused by xenfv */
-static void pc_init_pci_no_kvmclock(QEMUMachineInitArgs *args)
+static void pc_init_pci_no_kvmclock(MachineState *machine)
 {
     has_pci_info = false;
     has_acpi_build = false;
     smbios_defaults = false;
     x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
     enable_compat_apic_id_mode();
-    pc_init1(args, 1, 0);
+    pc_init1(machine, 1, 0);
 }
 
-static void pc_init_isa(QEMUMachineInitArgs *args)
+static void pc_init_isa(MachineState *machine)
 {
     has_pci_info = false;
     has_acpi_build = false;
     smbios_defaults = false;
-    if (!args->cpu_model) {
-        args->cpu_model = "486";
+    if (!machine->cpu_model) {
+        machine->cpu_model = "486";
     }
     x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
     enable_compat_apic_id_mode();
-    pc_init1(args, 0, 1);
+    pc_init1(machine, 0, 1);
 }
 
 #ifdef CONFIG_XEN
-static void pc_xen_hvm_init(QEMUMachineInitArgs *args)
+static void pc_xen_hvm_init(MachineState *machine)
 {
     PCIBus *bus;
 
-    pc_init_pci(args);
+    pc_init_pci(machine);
 
     bus = pci_find_primary_bus();
     if (bus != NULL) {
