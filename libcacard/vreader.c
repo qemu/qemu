@@ -273,12 +273,12 @@ vreader_xfr_bytes(VReader *reader,
         response = vcard_make_response(status);
         card_status = VCARD_DONE;
     } else {
-        g_debug("%s: CLS=0x%x,INS=0x%x,P1=0x%x,P2=0x%x,Lc=%d,Le=%d %s\n",
+        g_debug("%s: CLS=0x%x,INS=0x%x,P1=0x%x,P2=0x%x,Lc=%d,Le=%d %s",
               __func__, apdu->a_cla, apdu->a_ins, apdu->a_p1, apdu->a_p2,
               apdu->a_Lc, apdu->a_Le, apdu_ins_to_string(apdu->a_ins));
         card_status = vcard_process_apdu(card, apdu, &response);
         if (response) {
-            g_debug("%s: status=%d sw1=0x%x sw2=0x%x len=%d (total=%d)\n",
+            g_debug("%s: status=%d sw1=0x%x sw2=0x%x len=%d (total=%d)",
                   __func__, response->b_status, response->b_sw1,
                   response->b_sw2, response->b_len, response->b_total_len);
         }

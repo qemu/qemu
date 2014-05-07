@@ -21,7 +21,7 @@
 #include <sys/stat.h>
 
 /* Root node for synth file system */
-V9fsSynthNode v9fs_synth_root = {
+static V9fsSynthNode v9fs_synth_root = {
     .name = "/",
     .actual_attr = {
         .mode = 0555 | S_IFDIR,

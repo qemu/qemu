@@ -115,14 +115,11 @@ static inline GThread *create_thread(GThreadFunc func, gpointer data)
 
 static void __attribute__((constructor)) coroutine_init(void)
 {
-    if (!g_thread_supported()) {
 #if !GLIB_CHECK_VERSION(2, 31, 0)
+    if (!g_thread_supported()) {
         g_thread_init(NULL);
-#else
-        fprintf(stderr, "glib threading failed to initialize.\n");
-        exit(1);
-#endif
     }
+#endif
 
     init_coroutine_cond();
 }

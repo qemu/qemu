@@ -24,4 +24,16 @@ static inline guint g_timeout_add_seconds(guint interval, GSourceFunc function,
 }
 #endif
 
+#if !GLIB_CHECK_VERSION(2, 20, 0)
+/*
+ * Glib before 2.20.0 doesn't implement g_poll, so wrap it to compile properly
+ * on older systems.
+ */
+static inline gint g_poll(GPollFD *fds, guint nfds, gint timeout)
+{
+    GMainContext *ctx = g_main_context_default();
+    return g_main_context_get_poll_func(ctx)(fds, nfds, timeout);
+}
+#endif
+
 #endif

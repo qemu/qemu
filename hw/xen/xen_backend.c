@@ -45,7 +45,6 @@
 
 /* public */
 XenXC xen_xc = XC_HANDLER_INITIAL_VALUE;
-XenGnttab xen_xcg = XC_HANDLER_INITIAL_VALUE;
 struct xs_handle *xenstore = NULL;
 const char *xen_protocol;
 

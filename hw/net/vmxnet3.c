@@ -2305,7 +2305,7 @@ static void vmxnet3_put_txq_descr(QEMUFile *f, void *pv, size_t size)
     vmxnet3_put_tx_stats_to_file(f, &r->txq_stats);
 }
 
-const VMStateInfo txq_descr_info = {
+static const VMStateInfo txq_descr_info = {
     .name = "txq_descr",
     .get = vmxnet3_get_txq_descr,
     .put = vmxnet3_put_txq_descr
@@ -2397,7 +2397,7 @@ static int vmxnet3_post_load(void *opaque, int version_id)
     return 0;
 }
 
-const VMStateInfo rxq_descr_info = {
+static const VMStateInfo rxq_descr_info = {
     .name = "rxq_descr",
     .get = vmxnet3_get_rxq_descr,
     .put = vmxnet3_put_rxq_descr
@@ -2423,7 +2423,7 @@ static void vmxnet3_put_int_state(QEMUFile *f, void *pv, size_t size)
     qemu_put_byte(f, r->is_asserted);
 }
 
-const VMStateInfo int_state_info = {
+static const VMStateInfo int_state_info = {
     .name = "int_state",
     .get = vmxnet3_get_int_state,
     .put = vmxnet3_put_int_state

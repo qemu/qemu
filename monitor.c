@@ -488,7 +488,7 @@ static const char *monitor_event_names[] = {
 };
 QEMU_BUILD_BUG_ON(ARRAY_SIZE(monitor_event_names) != QEVENT_MAX)
 
-MonitorEventState monitor_event_state[QEVENT_MAX];
+static MonitorEventState monitor_event_state[QEVENT_MAX];
 
 /*
  * Emits the event to every monitor instance

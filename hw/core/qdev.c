@@ -660,8 +660,8 @@ static void qdev_get_legacy_property(Object *obj, Visitor *v, void *opaque,
  * Legacy properties are string versions of other OOM properties.  The format
  * of the string depends on the property type.
  */
-void qdev_property_add_legacy(DeviceState *dev, Property *prop,
-                              Error **errp)
+static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
+                                     Error **errp)
 {
     gchar *name;
 

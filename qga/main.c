@@ -1110,7 +1110,7 @@ int main(int argc, char **argv)
 
     if (ga_is_frozen(s)) {
         if (daemonize) {
-            /* delay opening/locking of pidfile till filesystem are unfrozen */
+            /* delay opening/locking of pidfile till filesystems are unfrozen */
             s->deferred_options.pid_filepath = pid_filepath;
             become_daemon(NULL);
         }

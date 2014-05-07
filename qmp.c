@@ -200,7 +200,11 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
 
     obj = object_resolve_path(path, &ambiguous);
     if (obj == NULL) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, path);
+        if (ambiguous) {
+            error_setg(errp, "Path '%s' is ambiguous", path);
+        } else {
+            error_set(errp, QERR_DEVICE_NOT_FOUND, path);
+        }
         return NULL;
     }
 

@@ -32,7 +32,7 @@ struct SCLPEventFacility {
     unsigned int receive_mask;
 };
 
-SCLPEvent cpu_hotplug;
+static SCLPEvent cpu_hotplug;
 
 /* return true if any child has event pending set */
 static bool event_pending(SCLPEventFacility *ef)

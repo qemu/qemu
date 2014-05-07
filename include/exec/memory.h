@@ -110,7 +110,7 @@ struct MemoryRegionOps {
         /* If true, unaligned accesses are supported.  Otherwise all accesses
          * are converted to (possibly multiple) naturally aligned accesses.
          */
-         bool unaligned;
+        bool unaligned;
     } impl;
 
     /* If .read and .write are not present, old_mmio may be used for
