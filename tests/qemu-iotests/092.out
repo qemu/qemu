@@ -28,4 +28,11 @@ qemu-io: can't open device TEST_DIR/t.qcow: Image too large
 no file open, try 'help open'
 qemu-io: can't open device TEST_DIR/t.qcow: Image too large
 no file open, try 'help open'
+
+== Invalid backing file length ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+qemu-io: can't open device TEST_DIR/t.qcow: Backing file name too long
+no file open, try 'help open'
+qemu-io: can't open device TEST_DIR/t.qcow: Backing file name too long
+no file open, try 'help open'
 *** done
