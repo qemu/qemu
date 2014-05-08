@@ -247,6 +247,19 @@ struct BlockDriver {
      */
     int (*bdrv_has_zero_init)(BlockDriverState *bs);
 
+    /* Remove fd handlers, timers, and other event loop callbacks so the event
+     * loop is no longer in use.  Called with no in-flight requests and in
+     * depth-first traversal order with parents before child nodes.
+     */
+    void (*bdrv_detach_aio_context)(BlockDriverState *bs);
+
+    /* Add fd handlers, timers, and other event loop callbacks so I/O requests
+     * can be processed again.  Called with no in-flight requests and in
+     * depth-first traversal order with child nodes before parent nodes.
+     */
+    void (*bdrv_attach_aio_context)(BlockDriverState *bs,
+                                    AioContext *new_context);
+
     QLIST_ENTRY(BlockDriver) list;
 };
 
@@ -296,6 +309,8 @@ struct BlockDriverState {
     /* TODO change to DeviceState when all users are qdevified */
     const BlockDevOps *dev_ops;
     void *dev_opaque;
+
+    AioContext *aio_context; /* event loop used for fd handlers, timers, etc */
 
     char filename[1024];
     char backing_file[1024]; /* if non zero, the image is a diff of
@@ -395,6 +410,27 @@ void bdrv_add_before_write_notifier(BlockDriverState *bs,
  * Returns: the currently bound #AioContext
  */
 AioContext *bdrv_get_aio_context(BlockDriverState *bs);
+
+/**
+ * bdrv_detach_aio_context:
+ *
+ * May be called from .bdrv_detach_aio_context() to detach children from the
+ * current #AioContext.  This is only needed by block drivers that manage their
+ * own children.  Both ->file and ->backing_hd are automatically handled and
+ * block drivers should not call this function on them explicitly.
+ */
+void bdrv_detach_aio_context(BlockDriverState *bs);
+
+/**
+ * bdrv_attach_aio_context:
+ *
+ * May be called from .bdrv_attach_aio_context() to attach children to the new
+ * #AioContext.  This is only needed by block drivers that manage their own
+ * children.  Both ->file and ->backing_hd are automatically handled and block
+ * drivers should not call this function on them explicitly.
+ */
+void bdrv_attach_aio_context(BlockDriverState *bs,
+                             AioContext *new_context);
 
 #ifdef _WIN32
 int is_windows_drive(const char *filename);

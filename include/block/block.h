@@ -574,4 +574,15 @@ int bdrv_debug_remove_breakpoint(BlockDriverState *bs, const char *tag);
 int bdrv_debug_resume(BlockDriverState *bs, const char *tag);
 bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag);
 
+/**
+ * bdrv_set_aio_context:
+ *
+ * Changes the #AioContext used for fd handlers, timers, and BHs by this
+ * BlockDriverState and all its children.
+ *
+ * This function must be called from the old #AioContext or with a lock held so
+ * the old #AioContext is not executing.
+ */
+void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context);
+
 #endif

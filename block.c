@@ -363,6 +363,7 @@ BlockDriverState *bdrv_new(const char *device_name, Error **errp)
     qemu_co_queue_init(&bs->throttled_reqs[0]);
     qemu_co_queue_init(&bs->throttled_reqs[1]);
     bs->refcnt = 1;
+    bs->aio_context = qemu_get_aio_context();
 
     return bs;
 }
@@ -5661,8 +5662,60 @@ out:
 
 AioContext *bdrv_get_aio_context(BlockDriverState *bs)
 {
-    /* Currently BlockDriverState always uses the main loop AioContext */
-    return qemu_get_aio_context();
+    return bs->aio_context;
+}
+
+void bdrv_detach_aio_context(BlockDriverState *bs)
+{
+    if (!bs->drv) {
+        return;
+    }
+
+    if (bs->drv->bdrv_detach_aio_context) {
+        bs->drv->bdrv_detach_aio_context(bs);
+    }
+    if (bs->file) {
+        bdrv_detach_aio_context(bs->file);
+    }
+    if (bs->backing_hd) {
+        bdrv_detach_aio_context(bs->backing_hd);
+    }
+
+    bs->aio_context = NULL;
+}
+
+void bdrv_attach_aio_context(BlockDriverState *bs,
+                             AioContext *new_context)
+{
+    if (!bs->drv) {
+        return;
+    }
+
+    bs->aio_context = new_context;
+
+    if (bs->backing_hd) {
+        bdrv_attach_aio_context(bs->backing_hd, new_context);
+    }
+    if (bs->file) {
+        bdrv_attach_aio_context(bs->file, new_context);
+    }
+    if (bs->drv->bdrv_attach_aio_context) {
+        bs->drv->bdrv_attach_aio_context(bs, new_context);
+    }
+}
+
+void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
+{
+    bdrv_drain_all(); /* ensure there are no in-flight requests */
+
+    bdrv_detach_aio_context(bs);
+
+    /* This function executes in the old AioContext so acquire the new one in
+     * case it runs in a different thread.
+     */
+    aio_context_acquire(new_context);
+    bdrv_attach_aio_context(bs, new_context);
+    aio_context_release(new_context);
 }
 
 void bdrv_add_before_write_notifier(BlockDriverState *bs,
