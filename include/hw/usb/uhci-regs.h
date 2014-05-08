@@ -27,6 +27,7 @@
 #define UHCI_PORT_SUSPEND (1 << 12)
 #define UHCI_PORT_RESET (1 << 9)
 #define UHCI_PORT_LSDA  (1 << 8)
+#define UHCI_PORT_RSVD1 (1 << 7)
 #define UHCI_PORT_RD    (1 << 6)
 #define UHCI_PORT_ENC   (1 << 3)
 #define UHCI_PORT_EN    (1 << 2)
