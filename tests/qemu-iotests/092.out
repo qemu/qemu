@@ -21,4 +21,11 @@ qemu-io: can't open device TEST_DIR/t.qcow: L2 table size must be between 512 an
 no file open, try 'help open'
 qemu-io: can't open device TEST_DIR/t.qcow: L2 table size must be between 512 and 64k
 no file open, try 'help open'
+
+== Invalid size ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+qemu-io: can't open device TEST_DIR/t.qcow: Image too large
+no file open, try 'help open'
+qemu-io: can't open device TEST_DIR/t.qcow: Image too large
+no file open, try 'help open'
 *** done

@@ -61,7 +61,7 @@ typedef struct BDRVQcowState {
     int cluster_sectors;
     int l2_bits;
     int l2_size;
-    int l1_size;
+    unsigned int l1_size;
     uint64_t cluster_offset_mask;
     uint64_t l1_table_offset;
     uint64_t *l1_table;
@@ -166,7 +166,19 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* read the level 1 table */
     shift = s->cluster_bits + s->l2_bits;
-    s->l1_size = (header.size + (1LL << shift) - 1) >> shift;
+    if (header.size > UINT64_MAX - (1LL << shift)) {
+        error_setg(errp, "Image too large");
+        ret = -EINVAL;
+        goto fail;
+    } else {
+        uint64_t l1_size = (header.size + (1LL << shift) - 1) >> shift;
+        if (l1_size > INT_MAX / sizeof(uint64_t)) {
+            error_setg(errp, "Image too large");
+            ret = -EINVAL;
+            goto fail;
+        }
+        s->l1_size = l1_size;
+    }
 
     s->l1_table_offset = header.l1_table_offset;
     s->l1_table = g_malloc(s->l1_size * sizeof(uint64_t));
