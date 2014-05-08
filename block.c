@@ -1856,7 +1856,11 @@ void bdrv_close_all(void)
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(aio_context);
         bdrv_close(bs);
+        aio_context_release(aio_context);
     }
 }
 
@@ -2352,12 +2356,17 @@ int bdrv_commit_all(void)
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(aio_context);
         if (bs->drv && bs->backing_hd) {
             int ret = bdrv_commit(bs);
             if (ret < 0) {
+                aio_context_release(aio_context);
                 return ret;
             }
         }
+        aio_context_release(aio_context);
     }
     return 0;
 }
@@ -3833,10 +3842,15 @@ int bdrv_flush_all(void)
     int result = 0;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-        int ret = bdrv_flush(bs);
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+        int ret;
+
+        aio_context_acquire(aio_context);
+        ret = bdrv_flush(bs);
         if (ret < 0 && !result) {
             result = ret;
         }
+        aio_context_release(aio_context);
     }
 
     return result;
@@ -4982,7 +4996,11 @@ void bdrv_invalidate_cache_all(Error **errp)
     Error *local_err = NULL;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(aio_context);
         bdrv_invalidate_cache(bs, &local_err);
+        aio_context_release(aio_context);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
@@ -4995,7 +5013,11 @@ void bdrv_clear_incoming_migration_all(void)
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(aio_context);
         bs->open_flags = bs->open_flags & ~(BDRV_O_INCOMING);
+        aio_context_release(aio_context);
     }
 }
 
