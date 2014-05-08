@@ -37,6 +37,8 @@ void *laio_init(void);
 BlockDriverAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque, int type);
+void laio_detach_aio_context(void *s, AioContext *old_context);
+void laio_attach_aio_context(void *s, AioContext *new_context);
 #endif
 
 #ifdef _WIN32
