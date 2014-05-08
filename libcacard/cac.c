@@ -310,16 +310,11 @@ static VCardAppletPrivate *
 cac_new_pki_applet_private(const unsigned char *cert,
                            int cert_len, VCardKey *key)
 {
-    CACPKIAppletData *pki_applet_data = NULL;
-    VCardAppletPrivate *applet_private = NULL;
-    applet_private = (VCardAppletPrivate *)g_malloc(sizeof(VCardAppletPrivate));
+    CACPKIAppletData *pki_applet_data;
+    VCardAppletPrivate *applet_private;
 
+    applet_private = g_new0(VCardAppletPrivate, 1);
     pki_applet_data = &(applet_private->u.pki_data);
-    pki_applet_data->cert_buffer = NULL;
-    pki_applet_data->cert_buffer_len = 0;
-    pki_applet_data->sign_buffer = NULL;
-    pki_applet_data->sign_buffer_len = 0;
-    pki_applet_data->key = NULL;
     pki_applet_data->cert = (unsigned char *)g_malloc(cert_len+1);
     /*
      * if we want to support compression, then we simply change the 0 to a 1

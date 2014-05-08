@@ -115,7 +115,7 @@ vreader_new(const char *name, VReaderEmul *private,
 {
     VReader *reader;
 
-    reader = (VReader *)g_malloc(sizeof(VReader));
+    reader = g_new(VReader, 1);
     qemu_mutex_init(&reader->lock);
     reader->reference_count = 1;
     reader->name = g_strdup(name);
@@ -312,10 +312,7 @@ vreader_list_entry_new(VReader *reader)
 {
     VReaderListEntry *new_reader_list_entry;
 
-    new_reader_list_entry = (VReaderListEntry *)
-                               g_malloc(sizeof(VReaderListEntry));
-    new_reader_list_entry->next = NULL;
-    new_reader_list_entry->prev = NULL;
+    new_reader_list_entry = g_new0(VReaderListEntry, 1);
     new_reader_list_entry->reader = vreader_reference(reader);
     return new_reader_list_entry;
 }
@@ -336,9 +333,7 @@ vreader_list_new(void)
 {
     VReaderList *new_reader_list;
 
-    new_reader_list = (VReaderList *)g_malloc(sizeof(VReaderList));
-    new_reader_list->head = NULL;
-    new_reader_list->tail = NULL;
+    new_reader_list = g_new0(VReaderList, 1);
     return new_reader_list;
 }
 

@@ -51,7 +51,7 @@ vcard_response_new_data(unsigned char *buf, int len)
 {
     VCardResponse *new_response;
 
-    new_response = (VCardResponse *)g_malloc(sizeof(VCardResponse));
+    new_response = g_new(VCardResponse, 1);
     new_response->b_data = g_malloc(len + 2);
     memcpy(new_response->b_data, buf, len);
     new_response->b_total_len = len+2;
@@ -132,7 +132,7 @@ vcard_response_new_status(vcard_7816_status_t status)
 {
     VCardResponse *new_response;
 
-    new_response = (VCardResponse *)g_malloc(sizeof(VCardResponse));
+    new_response = g_new(VCardResponse, 1);
     new_response->b_data = &new_response->b_sw1;
     new_response->b_len = 0;
     new_response->b_total_len = 2;
@@ -149,7 +149,7 @@ vcard_response_new_status_bytes(unsigned char sw1, unsigned char sw2)
 {
     VCardResponse *new_response;
 
-    new_response = (VCardResponse *)g_malloc(sizeof(VCardResponse));
+    new_response = g_new(VCardResponse, 1);
     new_response->b_data = &new_response->b_sw1;
     new_response->b_len = 0;
     new_response->b_total_len = 2;
@@ -336,9 +336,8 @@ vcard_apdu_new(unsigned char *raw_apdu, int len, vcard_7816_status_t *status)
         return NULL;
     }
 
-    new_apdu = (VCardAPDU *)g_malloc(sizeof(VCardAPDU));
-    new_apdu->a_data = g_malloc(len);
-    memcpy(new_apdu->a_data, raw_apdu, len);
+    new_apdu = g_new(VCardAPDU, 1);
+    new_apdu->a_data = g_memdup(raw_apdu, len);
     new_apdu->a_len = len;
     *status = vcard_apdu_set_class(new_apdu);
     if (*status != VCARD7816_STATUS_SUCCESS) {

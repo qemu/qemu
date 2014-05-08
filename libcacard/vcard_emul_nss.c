@@ -94,9 +94,9 @@ static void
 vcard_emul_alloc_arrays(unsigned char ***certsp, int **cert_lenp,
                         VCardKey ***keysp, int cert_count)
 {
-    *certsp = (unsigned char **)g_malloc(sizeof(unsigned char *)*cert_count);
-    *cert_lenp = (int *)g_malloc(sizeof(int)*cert_count);
-    *keysp = (VCardKey **)g_malloc(sizeof(VCardKey *)*cert_count);
+    *certsp = g_new(unsigned char *, cert_count);
+    *cert_lenp = g_new(int, cert_count);
+    *keysp = g_new(VCardKey *, cert_count);
 }
 
 /*
@@ -139,7 +139,7 @@ vcard_emul_make_key(PK11SlotInfo *slot, CERTCertificate *cert)
 {
     VCardKey *key;
 
-    key = (VCardKey *)g_malloc(sizeof(VCardKey));
+    key = g_new(VCardKey, 1);
     key->slot = PK11_ReferenceSlot(slot);
     key->cert = CERT_DupCertificate(cert);
     /* NOTE: if we aren't logged into the token, this could return NULL */
@@ -449,7 +449,7 @@ vreader_emul_new(PK11SlotInfo *slot, VCardEmulType type, const char *params)
 {
     VReaderEmul *new_reader_emul;
 
-    new_reader_emul = (VReaderEmul *)g_malloc(sizeof(VReaderEmul));
+    new_reader_emul = g_new(VReaderEmul, 1);
 
     new_reader_emul->slot = PK11_ReferenceSlot(slot);
     new_reader_emul->default_type = type;
@@ -1189,7 +1189,7 @@ vcard_emul_options(const char *args)
                 g_strndup(type_params, type_params_length);
             count = count_tokens(args, ',', ')') + 1;
             vreaderOpt->cert_count = count;
-            vreaderOpt->cert_name = (char **)g_malloc(count*sizeof(char *));
+            vreaderOpt->cert_name = g_new(char *, count);
             for (i = 0; i < count; i++) {
                 const char *cert = args;
                 args = strpbrk(args, ",)");
