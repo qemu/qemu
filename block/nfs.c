@@ -40,6 +40,7 @@ typedef struct NFSClient {
     struct nfsfh *fh;
     int events;
     bool has_zero_init;
+    AioContext *aio_context;
 } NFSClient;
 
 typedef struct NFSRPC {
@@ -49,6 +50,7 @@ typedef struct NFSRPC {
     struct stat *st;
     Coroutine *co;
     QEMUBH *bh;
+    NFSClient *client;
 } NFSRPC;
 
 static void nfs_process_read(void *arg);
@@ -58,10 +60,11 @@ static void nfs_set_events(NFSClient *client)
 {
     int ev = nfs_which_events(client->context);
     if (ev != client->events) {
-        qemu_aio_set_fd_handler(nfs_get_fd(client->context),
-                      (ev & POLLIN) ? nfs_process_read : NULL,
-                      (ev & POLLOUT) ? nfs_process_write : NULL,
-                      client);
+        aio_set_fd_handler(client->aio_context,
+                           nfs_get_fd(client->context),
+                           (ev & POLLIN) ? nfs_process_read : NULL,
+                           (ev & POLLOUT) ? nfs_process_write : NULL,
+                           client);
 
     }
     client->events = ev;
@@ -84,7 +87,8 @@ static void nfs_process_write(void *arg)
 static void nfs_co_init_task(NFSClient *client, NFSRPC *task)
 {
     *task = (NFSRPC) {
-        .co         = qemu_coroutine_self(),
+        .co             = qemu_coroutine_self(),
+        .client         = client,
     };
 }
 
@@ -116,7 +120,8 @@ nfs_co_generic_cb(int ret, struct nfs_context *nfs, void *data,
         error_report("NFS Error: %s", nfs_get_error(nfs));
     }
     if (task->co) {
-        task->bh = qemu_bh_new(nfs_co_generic_bh_cb, task);
+        task->bh = aio_bh_new(task->client->aio_context,
+                              nfs_co_generic_bh_cb, task);
         qemu_bh_schedule(task->bh);
     }
 }
@@ -224,13 +229,34 @@ static QemuOptsList runtime_opts = {
     },
 };
 
+static void nfs_detach_aio_context(BlockDriverState *bs)
+{
+    NFSClient *client = bs->opaque;
+
+    aio_set_fd_handler(client->aio_context,
+                       nfs_get_fd(client->context),
+                       NULL, NULL, NULL);
+    client->events = 0;
+}
+
+static void nfs_attach_aio_context(BlockDriverState *bs,
+                                   AioContext *new_context)
+{
+    NFSClient *client = bs->opaque;
+
+    client->aio_context = new_context;
+    nfs_set_events(client);
+}
+
 static void nfs_client_close(NFSClient *client)
 {
     if (client->context) {
         if (client->fh) {
             nfs_close(client->context, client->fh);
         }
-        qemu_aio_set_fd_handler(nfs_get_fd(client->context), NULL, NULL, NULL);
+        aio_set_fd_handler(client->aio_context,
+                           nfs_get_fd(client->context),
+                           NULL, NULL, NULL);
         nfs_destroy_context(client->context);
     }
     memset(client, 0, sizeof(NFSClient));
@@ -345,6 +371,8 @@ static int nfs_file_open(BlockDriverState *bs, QDict *options, int flags,
     QemuOpts *opts;
     Error *local_err = NULL;
 
+    client->aio_context = bdrv_get_aio_context(bs);
+
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (local_err) {
@@ -367,6 +395,8 @@ static int nfs_file_create(const char *url, QEMUOptionParameter *options,
     int ret = 0;
     int64_t total_size = 0;
     NFSClient *client = g_malloc0(sizeof(NFSClient));
+
+    client->aio_context = qemu_get_aio_context();
 
     /* Read out options */
     while (options && options->name) {
@@ -407,7 +437,7 @@ static int64_t nfs_get_allocated_file_size(BlockDriverState *bs)
 
     while (!task.complete) {
         nfs_set_events(client);
-        qemu_aio_wait();
+        aio_poll(client->aio_context, true);
     }
 
     return (task.ret < 0 ? task.ret : st.st_blocks * st.st_blksize);
@@ -420,22 +450,25 @@ static int nfs_file_truncate(BlockDriverState *bs, int64_t offset)
 }
 
 static BlockDriver bdrv_nfs = {
-    .format_name     = "nfs",
-    .protocol_name   = "nfs",
+    .format_name                    = "nfs",
+    .protocol_name                  = "nfs",
 
-    .instance_size   = sizeof(NFSClient),
-    .bdrv_needs_filename = true,
-    .bdrv_has_zero_init = nfs_has_zero_init,
-    .bdrv_get_allocated_file_size = nfs_get_allocated_file_size,
-    .bdrv_truncate = nfs_file_truncate,
+    .instance_size                  = sizeof(NFSClient),
+    .bdrv_needs_filename            = true,
+    .bdrv_has_zero_init             = nfs_has_zero_init,
+    .bdrv_get_allocated_file_size   = nfs_get_allocated_file_size,
+    .bdrv_truncate                  = nfs_file_truncate,
 
-    .bdrv_file_open  = nfs_file_open,
-    .bdrv_close      = nfs_file_close,
-    .bdrv_create     = nfs_file_create,
+    .bdrv_file_open                 = nfs_file_open,
+    .bdrv_close                     = nfs_file_close,
+    .bdrv_create                    = nfs_file_create,
 
-    .bdrv_co_readv         = nfs_co_readv,
-    .bdrv_co_writev        = nfs_co_writev,
-    .bdrv_co_flush_to_disk = nfs_co_flush,
+    .bdrv_co_readv                  = nfs_co_readv,
+    .bdrv_co_writev                 = nfs_co_writev,
+    .bdrv_co_flush_to_disk          = nfs_co_flush,
+
+    .bdrv_detach_aio_context        = nfs_detach_aio_context,
+    .bdrv_attach_aio_context        = nfs_attach_aio_context,
 };
 
 static void nfs_block_init(void)
