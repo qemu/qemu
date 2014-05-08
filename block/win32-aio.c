@@ -204,3 +204,11 @@ out_free_state:
     g_free(s);
     return NULL;
 }
+
+void win32_aio_cleanup(QEMUWin32AIOState *aio)
+{
+    qemu_aio_set_event_notifier(&aio->e, NULL);
+    CloseHandle(aio->hIOCP);
+    event_notifier_cleanup(&aio->e);
+    g_free(aio);
+}

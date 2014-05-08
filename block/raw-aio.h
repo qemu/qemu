@@ -45,6 +45,7 @@ void laio_attach_aio_context(void *s, AioContext *new_context);
 #ifdef _WIN32
 typedef struct QEMUWin32AIOState QEMUWin32AIOState;
 QEMUWin32AIOState *win32_aio_init(void);
+void win32_aio_cleanup(QEMUWin32AIOState *aio);
 int win32_aio_attach(QEMUWin32AIOState *aio, HANDLE hfile);
 BlockDriverAIOCB *win32_aio_submit(BlockDriverState *bs,
         QEMUWin32AIOState *aio, HANDLE hfile,
