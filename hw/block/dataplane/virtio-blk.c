@@ -40,7 +40,6 @@ struct VirtIOBlockDataPlane {
     bool stopping;
 
     VirtIOBlkConf *blk;
-    int fd;                         /* image file descriptor */
 
     VirtIODevice *vdev;
     Vring vring;                    /* virtqueue vring */
@@ -179,6 +178,32 @@ static void do_rdwr_cmd(VirtIOBlockDataPlane *s, bool read,
     }
 }
 
+static void complete_flush(void *opaque, int ret)
+{
+    VirtIOBlockRequest *req = opaque;
+    unsigned char status;
+
+    if (ret == 0) {
+        status = VIRTIO_BLK_S_OK;
+    } else {
+        status = VIRTIO_BLK_S_IOERR;
+    }
+
+    complete_request_early(req->s, req->elem, req->inhdr, status);
+    g_slice_free(VirtIOBlockRequest, req);
+}
+
+static void do_flush_cmd(VirtIOBlockDataPlane *s, VirtQueueElement *elem,
+                         QEMUIOVector *inhdr)
+{
+    VirtIOBlockRequest *req = g_slice_new(VirtIOBlockRequest);
+    req->s = s;
+    req->elem = elem;
+    req->inhdr = inhdr;
+
+    bdrv_aio_flush(s->blk->conf.bs, complete_flush, req);
+}
+
 static int process_request(VirtIOBlockDataPlane *s, VirtQueueElement *elem)
 {
     struct iovec *iov = elem->out_sg;
@@ -232,12 +257,7 @@ static int process_request(VirtIOBlockDataPlane *s, VirtQueueElement *elem)
         return 0;
 
     case VIRTIO_BLK_T_FLUSH:
-        /* TODO fdsync not supported by Linux AIO, do it synchronously here! */
-        if (qemu_fdatasync(s->fd) < 0) {
-            complete_request_early(s, elem, inhdr, VIRTIO_BLK_S_IOERR);
-        } else {
-            complete_request_early(s, elem, inhdr, VIRTIO_BLK_S_OK);
-        }
+        do_flush_cmd(s, elem, inhdr);
         return 0;
 
     case VIRTIO_BLK_T_GET_ID:
@@ -302,7 +322,6 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
                                   Error **errp)
 {
     VirtIOBlockDataPlane *s;
-    int fd;
     Error *local_err = NULL;
 
     *dataplane = NULL;
@@ -333,16 +352,8 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
         return;
     }
 
-    fd = raw_get_aio_fd(blk->conf.bs);
-    if (fd < 0) {
-        error_setg(errp, "drive is incompatible with x-data-plane, "
-                         "use format=raw,cache=none,aio=native");
-        return;
-    }
-
     s = g_new0(VirtIOBlockDataPlane, 1);
     s->vdev = vdev;
-    s->fd = fd;
     s->blk = blk;
 
     if (blk->iothread) {
