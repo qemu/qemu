@@ -24,7 +24,14 @@ static inline guint g_timeout_add_seconds(guint interval, GSourceFunc function,
 }
 #endif
 
-#if !GLIB_CHECK_VERSION(2, 20, 0)
+#ifdef _WIN32
+/*
+ * g_poll has a problem on Windows when using
+ * timeouts < 10ms, so use wrapper.
+ */
+#define g_poll(fds, nfds, timeout) g_poll_fixed(fds, nfds, timeout)
+gint g_poll_fixed(GPollFD *fds, guint nfds, gint timeout);
+#elif !GLIB_CHECK_VERSION(2, 20, 0)
 /*
  * Glib before 2.20.0 doesn't implement g_poll, so wrap it to compile properly
  * on older systems.

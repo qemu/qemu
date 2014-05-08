@@ -238,3 +238,115 @@ char *qemu_get_exec_dir(void)
 {
     return g_strdup(exec_dir);
 }
+
+/*
+ * g_poll has a problem on Windows when using
+ * timeouts < 10ms, in glib/gpoll.c:
+ *
+ * // If not, and we have a significant timeout, poll again with
+ * // timeout then. Note that this will return indication for only
+ * // one event, or only for messages. We ignore timeouts less than
+ * // ten milliseconds as they are mostly pointless on Windows, the
+ * // MsgWaitForMultipleObjectsEx() call will timeout right away
+ * // anyway.
+ *
+ * if (retval == 0 && (timeout == INFINITE || timeout >= 10))
+ *   retval = poll_rest (poll_msgs, handles, nhandles, fds, nfds, timeout);
+ *
+ * So whenever g_poll is called with timeout < 10ms it does
+ * a quick poll instead of wait, this causes significant performance
+ * degradation of QEMU, thus we should use WaitForMultipleObjectsEx
+ * directly
+ */
+gint g_poll_fixed(GPollFD *fds, guint nfds, gint timeout)
+{
+    guint i;
+    HANDLE handles[MAXIMUM_WAIT_OBJECTS];
+    gint nhandles = 0;
+    int num_completed = 0;
+
+    for (i = 0; i < nfds; i++) {
+        gint j;
+
+        if (fds[i].fd <= 0) {
+            continue;
+        }
+
+        /* don't add same handle several times
+         */
+        for (j = 0; j < nhandles; j++) {
+            if (handles[j] == (HANDLE)fds[i].fd) {
+                break;
+            }
+        }
+
+        if (j == nhandles) {
+            if (nhandles == MAXIMUM_WAIT_OBJECTS) {
+                fprintf(stderr, "Too many handles to wait for!\n");
+                break;
+            } else {
+                handles[nhandles++] = (HANDLE)fds[i].fd;
+            }
+        }
+    }
+
+    for (i = 0; i < nfds; ++i) {
+        fds[i].revents = 0;
+    }
+
+    if (timeout == -1) {
+        timeout = INFINITE;
+    }
+
+    if (nhandles == 0) {
+        if (timeout == INFINITE) {
+            return -1;
+        } else {
+            SleepEx(timeout, TRUE);
+            return 0;
+        }
+    }
+
+    while (1) {
+        DWORD res;
+        gint j;
+
+        res = WaitForMultipleObjectsEx(nhandles, handles, FALSE,
+            timeout, TRUE);
+
+        if (res == WAIT_FAILED) {
+            for (i = 0; i < nfds; ++i) {
+                fds[i].revents = 0;
+            }
+
+            return -1;
+        } else if ((res == WAIT_TIMEOUT) || (res == WAIT_IO_COMPLETION) ||
+                   ((int)res < (int)WAIT_OBJECT_0) ||
+                   (res >= (WAIT_OBJECT_0 + nhandles))) {
+            break;
+        }
+
+        for (i = 0; i < nfds; ++i) {
+            if (handles[res - WAIT_OBJECT_0] == (HANDLE)fds[i].fd) {
+                fds[i].revents = fds[i].events;
+            }
+        }
+
+        ++num_completed;
+
+        if (nhandles <= 1) {
+            break;
+        }
+
+        /* poll the rest of the handles
+         */
+        for (j = res - WAIT_OBJECT_0 + 1; j < nhandles; j++) {
+            handles[j - 1] = handles[j];
+        }
+        --nhandles;
+
+        timeout = 0;
+    }
+
+    return num_completed;
+}
