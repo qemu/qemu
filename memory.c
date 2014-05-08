@@ -28,6 +28,7 @@
 
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
+static bool ioeventfd_update_pending;
 static bool global_dirty_log = false;
 
 /* flat_view_mutex is taken around reading as->current_map; the critical
@@ -786,22 +787,34 @@ void memory_region_transaction_begin(void)
     ++memory_region_transaction_depth;
 }
 
+static void memory_region_clear_pending(void)
+{
+    memory_region_update_pending = false;
+    ioeventfd_update_pending = false;
+}
+
 void memory_region_transaction_commit(void)
 {
     AddressSpace *as;
 
     assert(memory_region_transaction_depth);
     --memory_region_transaction_depth;
-    if (!memory_region_transaction_depth && memory_region_update_pending) {
-        memory_region_update_pending = false;
-        MEMORY_LISTENER_CALL_GLOBAL(begin, Forward);
+    if (!memory_region_transaction_depth) {
+        if (memory_region_update_pending) {
+            MEMORY_LISTENER_CALL_GLOBAL(begin, Forward);
 
-        QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-            address_space_update_topology(as);
+            QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
+                address_space_update_topology(as);
+            }
+
+            MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
+        } else if (ioeventfd_update_pending) {
+            QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
+                address_space_update_ioeventfds(as);
+            }
         }
-
-        MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
-    }
+        memory_region_clear_pending();
+   }
 }
 
 static void memory_region_destructor_none(MemoryRegion *mr)
@@ -1373,7 +1386,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
     memmove(&mr->ioeventfds[i+1], &mr->ioeventfds[i],
             sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb-1 - i));
     mr->ioeventfds[i] = mrfd;
-    memory_region_update_pending |= mr->enabled;
+    ioeventfd_update_pending |= mr->enabled;
     memory_region_transaction_commit();
 }
 
@@ -1406,7 +1419,7 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     --mr->ioeventfd_nb;
     mr->ioeventfds = g_realloc(mr->ioeventfds,
                                   sizeof(*mr->ioeventfds)*mr->ioeventfd_nb + 1);
-    memory_region_update_pending |= mr->enabled;
+    ioeventfd_update_pending |= mr->enabled;
     memory_region_transaction_commit();
 }
 
