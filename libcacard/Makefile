@@ -18,7 +18,7 @@ vscclient$(EXESUF): libcacard/vscclient.o libcacard.la
 # Rules for building libcacard standalone library
 
 libcacard.la: LDFLAGS += -rpath $(libdir) -no-undefined \
-	-export-syms $(SRC_PATH)/libcacard/libcacard.syms
+	-export-symbols $(SRC_PATH)/libcacard/libcacard.syms
 libcacard.la: $(libcacard-lobj-y)
 	$(call LINK,$^)
 
