@@ -47,4 +47,8 @@ int nbd_client_session_co_writev(NbdClientSession *client, int64_t sector_num,
 int nbd_client_session_co_readv(NbdClientSession *client, int64_t sector_num,
                                 int nb_sectors, QEMUIOVector *qiov);
 
+void nbd_client_session_detach_aio_context(NbdClientSession *client);
+void nbd_client_session_attach_aio_context(NbdClientSession *client,
+                                           AioContext *new_context);
+
 #endif /* NBD_CLIENT_H */

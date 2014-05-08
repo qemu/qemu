@@ -49,7 +49,7 @@ static void nbd_teardown_connection(NbdClientSession *client)
     shutdown(client->sock, 2);
     nbd_recv_coroutines_enter_all(client);
 
-    qemu_aio_set_fd_handler(client->sock, NULL, NULL, NULL);
+    nbd_client_session_detach_aio_context(client);
     closesocket(client->sock);
     client->sock = -1;
 }
@@ -103,11 +103,14 @@ static int nbd_co_send_request(NbdClientSession *s,
     struct nbd_request *request,
     QEMUIOVector *qiov, int offset)
 {
+    AioContext *aio_context;
     int rc, ret;
 
     qemu_co_mutex_lock(&s->send_mutex);
     s->send_coroutine = qemu_coroutine_self();
-    qemu_aio_set_fd_handler(s->sock, nbd_reply_ready, nbd_restart_write, s);
+    aio_context = bdrv_get_aio_context(s->bs);
+    aio_set_fd_handler(aio_context, s->sock,
+                       nbd_reply_ready, nbd_restart_write, s);
     if (qiov) {
         if (!s->is_unix) {
             socket_set_cork(s->sock, 1);
@@ -126,7 +129,7 @@ static int nbd_co_send_request(NbdClientSession *s,
     } else {
         rc = nbd_send_request(s->sock, request);
     }
-    qemu_aio_set_fd_handler(s->sock, nbd_reply_ready, NULL, s);
+    aio_set_fd_handler(aio_context, s->sock, nbd_reply_ready, NULL, s);
     s->send_coroutine = NULL;
     qemu_co_mutex_unlock(&s->send_mutex);
     return rc;
@@ -335,6 +338,19 @@ int nbd_client_session_co_discard(NbdClientSession *client, int64_t sector_num,
 
 }
 
+void nbd_client_session_detach_aio_context(NbdClientSession *client)
+{
+    aio_set_fd_handler(bdrv_get_aio_context(client->bs), client->sock,
+                       NULL, NULL, NULL);
+}
+
+void nbd_client_session_attach_aio_context(NbdClientSession *client,
+                                           AioContext *new_context)
+{
+    aio_set_fd_handler(new_context, client->sock,
+                       nbd_reply_ready, NULL, client);
+}
+
 void nbd_client_session_close(NbdClientSession *client)
 {
     struct nbd_request request = {
@@ -381,7 +397,7 @@ int nbd_client_session_init(NbdClientSession *client, BlockDriverState *bs,
     /* Now that we're connected, set the socket to be non-blocking and
      * kick the reply mechanism.  */
     qemu_set_nonblock(sock);
-    qemu_aio_set_fd_handler(sock, nbd_reply_ready, NULL, client);
+    nbd_client_session_attach_aio_context(client, bdrv_get_aio_context(bs));
 
     logout("Established connection with NBD server\n");
     return 0;

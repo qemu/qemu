@@ -323,46 +323,67 @@ static int64_t nbd_getlength(BlockDriverState *bs)
     return s->client.size;
 }
 
+static void nbd_detach_aio_context(BlockDriverState *bs)
+{
+    BDRVNBDState *s = bs->opaque;
+
+    nbd_client_session_detach_aio_context(&s->client);
+}
+
+static void nbd_attach_aio_context(BlockDriverState *bs,
+                                   AioContext *new_context)
+{
+    BDRVNBDState *s = bs->opaque;
+
+    nbd_client_session_attach_aio_context(&s->client, new_context);
+}
+
 static BlockDriver bdrv_nbd = {
-    .format_name         = "nbd",
-    .protocol_name       = "nbd",
-    .instance_size       = sizeof(BDRVNBDState),
-    .bdrv_parse_filename = nbd_parse_filename,
-    .bdrv_file_open      = nbd_open,
-    .bdrv_co_readv       = nbd_co_readv,
-    .bdrv_co_writev      = nbd_co_writev,
-    .bdrv_close          = nbd_close,
-    .bdrv_co_flush_to_os = nbd_co_flush,
-    .bdrv_co_discard     = nbd_co_discard,
-    .bdrv_getlength      = nbd_getlength,
+    .format_name                = "nbd",
+    .protocol_name              = "nbd",
+    .instance_size              = sizeof(BDRVNBDState),
+    .bdrv_parse_filename        = nbd_parse_filename,
+    .bdrv_file_open             = nbd_open,
+    .bdrv_co_readv              = nbd_co_readv,
+    .bdrv_co_writev             = nbd_co_writev,
+    .bdrv_close                 = nbd_close,
+    .bdrv_co_flush_to_os        = nbd_co_flush,
+    .bdrv_co_discard            = nbd_co_discard,
+    .bdrv_getlength             = nbd_getlength,
+    .bdrv_detach_aio_context    = nbd_detach_aio_context,
+    .bdrv_attach_aio_context    = nbd_attach_aio_context,
 };
 
 static BlockDriver bdrv_nbd_tcp = {
-    .format_name         = "nbd",
-    .protocol_name       = "nbd+tcp",
-    .instance_size       = sizeof(BDRVNBDState),
-    .bdrv_parse_filename = nbd_parse_filename,
-    .bdrv_file_open      = nbd_open,
-    .bdrv_co_readv       = nbd_co_readv,
-    .bdrv_co_writev      = nbd_co_writev,
-    .bdrv_close          = nbd_close,
-    .bdrv_co_flush_to_os = nbd_co_flush,
-    .bdrv_co_discard     = nbd_co_discard,
-    .bdrv_getlength      = nbd_getlength,
+    .format_name                = "nbd",
+    .protocol_name              = "nbd+tcp",
+    .instance_size              = sizeof(BDRVNBDState),
+    .bdrv_parse_filename        = nbd_parse_filename,
+    .bdrv_file_open             = nbd_open,
+    .bdrv_co_readv              = nbd_co_readv,
+    .bdrv_co_writev             = nbd_co_writev,
+    .bdrv_close                 = nbd_close,
+    .bdrv_co_flush_to_os        = nbd_co_flush,
+    .bdrv_co_discard            = nbd_co_discard,
+    .bdrv_getlength             = nbd_getlength,
+    .bdrv_detach_aio_context    = nbd_detach_aio_context,
+    .bdrv_attach_aio_context    = nbd_attach_aio_context,
 };
 
 static BlockDriver bdrv_nbd_unix = {
-    .format_name         = "nbd",
-    .protocol_name       = "nbd+unix",
-    .instance_size       = sizeof(BDRVNBDState),
-    .bdrv_parse_filename = nbd_parse_filename,
-    .bdrv_file_open      = nbd_open,
-    .bdrv_co_readv       = nbd_co_readv,
-    .bdrv_co_writev      = nbd_co_writev,
-    .bdrv_close          = nbd_close,
-    .bdrv_co_flush_to_os = nbd_co_flush,
-    .bdrv_co_discard     = nbd_co_discard,
-    .bdrv_getlength      = nbd_getlength,
+    .format_name                = "nbd",
+    .protocol_name              = "nbd+unix",
+    .instance_size              = sizeof(BDRVNBDState),
+    .bdrv_parse_filename        = nbd_parse_filename,
+    .bdrv_file_open             = nbd_open,
+    .bdrv_co_readv              = nbd_co_readv,
+    .bdrv_co_writev             = nbd_co_writev,
+    .bdrv_close                 = nbd_close,
+    .bdrv_co_flush_to_os        = nbd_co_flush,
+    .bdrv_co_discard            = nbd_co_discard,
+    .bdrv_getlength             = nbd_getlength,
+    .bdrv_detach_aio_context    = nbd_detach_aio_context,
+    .bdrv_attach_aio_context    = nbd_attach_aio_context,
 };
 
 static void bdrv_nbd_init(void)
