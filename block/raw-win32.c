@@ -200,6 +200,25 @@ static int set_sparse(int fd)
 				 NULL, 0, NULL, 0, &returned, NULL);
 }
 
+static void raw_detach_aio_context(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+
+    if (s->aio) {
+        win32_aio_detach_aio_context(s->aio, bdrv_get_aio_context(bs));
+    }
+}
+
+static void raw_attach_aio_context(BlockDriverState *bs,
+                                   AioContext *new_context)
+{
+    BDRVRawState *s = bs->opaque;
+
+    if (s->aio) {
+        win32_aio_attach_aio_context(s->aio, new_context);
+    }
+}
+
 static void raw_probe_alignment(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
@@ -339,6 +358,8 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
             error_setg_errno(errp, -ret, "Could not enable AIO");
             goto fail;
         }
+
+        win32_aio_attach_aio_context(s->aio, bdrv_get_aio_context(bs));
     }
 
     raw_probe_alignment(bs);
@@ -388,6 +409,7 @@ static void raw_close(BlockDriverState *bs)
     BDRVRawState *s = bs->opaque;
 
     if (s->aio) {
+        win32_aio_detach_aio_context(s->aio, bdrv_get_aio_context(bs));
         win32_aio_cleanup(s->aio);
         s->aio = NULL;
     }
@@ -686,6 +708,9 @@ static BlockDriver bdrv_host_device = {
     .bdrv_aio_readv     = raw_aio_readv,
     .bdrv_aio_writev    = raw_aio_writev,
     .bdrv_aio_flush     = raw_aio_flush,
+
+    .bdrv_detach_aio_context = raw_detach_aio_context,
+    .bdrv_attach_aio_context = raw_attach_aio_context,
 
     .bdrv_getlength      = raw_getlength,
     .has_variable_length = true,
