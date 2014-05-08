@@ -773,7 +773,7 @@ static void restart_coroutine(void *opaque)
     qemu_coroutine_enter(co, NULL);
 }
 
-static coroutine_fn void set_fd_handler(BDRVSSHState *s)
+static coroutine_fn void set_fd_handler(BDRVSSHState *s, BlockDriverState *bs)
 {
     int r;
     IOHandler *rd_handler = NULL, *wr_handler = NULL;
@@ -791,24 +791,26 @@ static coroutine_fn void set_fd_handler(BDRVSSHState *s)
     DPRINTF("s->sock=%d rd_handler=%p wr_handler=%p", s->sock,
             rd_handler, wr_handler);
 
-    qemu_aio_set_fd_handler(s->sock, rd_handler, wr_handler, co);
+    aio_set_fd_handler(bdrv_get_aio_context(bs), s->sock,
+                       rd_handler, wr_handler, co);
 }
 
-static coroutine_fn void clear_fd_handler(BDRVSSHState *s)
+static coroutine_fn void clear_fd_handler(BDRVSSHState *s,
+                                          BlockDriverState *bs)
 {
     DPRINTF("s->sock=%d", s->sock);
-    qemu_aio_set_fd_handler(s->sock, NULL, NULL, NULL);
+    aio_set_fd_handler(bdrv_get_aio_context(bs), s->sock, NULL, NULL, NULL);
 }
 
 /* A non-blocking call returned EAGAIN, so yield, ensuring the
  * handlers are set up so that we'll be rescheduled when there is an
  * interesting event on the socket.
  */
-static coroutine_fn void co_yield(BDRVSSHState *s)
+static coroutine_fn void co_yield(BDRVSSHState *s, BlockDriverState *bs)
 {
-    set_fd_handler(s);
+    set_fd_handler(s, bs);
     qemu_coroutine_yield();
-    clear_fd_handler(s);
+    clear_fd_handler(s, bs);
 }
 
 /* SFTP has a function `libssh2_sftp_seek64' which seeks to a position
@@ -838,7 +840,7 @@ static void ssh_seek(BDRVSSHState *s, int64_t offset, int flags)
     }
 }
 
-static coroutine_fn int ssh_read(BDRVSSHState *s,
+static coroutine_fn int ssh_read(BDRVSSHState *s, BlockDriverState *bs,
                                  int64_t offset, size_t size,
                                  QEMUIOVector *qiov)
 {
@@ -871,7 +873,7 @@ static coroutine_fn int ssh_read(BDRVSSHState *s,
         DPRINTF("sftp_read returned %zd", r);
 
         if (r == LIBSSH2_ERROR_EAGAIN || r == LIBSSH2_ERROR_TIMEOUT) {
-            co_yield(s);
+            co_yield(s, bs);
             goto again;
         }
         if (r < 0) {
@@ -906,14 +908,14 @@ static coroutine_fn int ssh_co_readv(BlockDriverState *bs,
     int ret;
 
     qemu_co_mutex_lock(&s->lock);
-    ret = ssh_read(s, sector_num * BDRV_SECTOR_SIZE,
+    ret = ssh_read(s, bs, sector_num * BDRV_SECTOR_SIZE,
                    nb_sectors * BDRV_SECTOR_SIZE, qiov);
     qemu_co_mutex_unlock(&s->lock);
 
     return ret;
 }
 
-static int ssh_write(BDRVSSHState *s,
+static int ssh_write(BDRVSSHState *s, BlockDriverState *bs,
                      int64_t offset, size_t size,
                      QEMUIOVector *qiov)
 {
@@ -941,7 +943,7 @@ static int ssh_write(BDRVSSHState *s,
         DPRINTF("sftp_write returned %zd", r);
 
         if (r == LIBSSH2_ERROR_EAGAIN || r == LIBSSH2_ERROR_TIMEOUT) {
-            co_yield(s);
+            co_yield(s, bs);
             goto again;
         }
         if (r < 0) {
@@ -960,7 +962,7 @@ static int ssh_write(BDRVSSHState *s,
          */
         if (r == 0) {
             ssh_seek(s, offset + written, SSH_SEEK_WRITE|SSH_SEEK_FORCE);
-            co_yield(s);
+            co_yield(s, bs);
             goto again;
         }
 
@@ -988,7 +990,7 @@ static coroutine_fn int ssh_co_writev(BlockDriverState *bs,
     int ret;
 
     qemu_co_mutex_lock(&s->lock);
-    ret = ssh_write(s, sector_num * BDRV_SECTOR_SIZE,
+    ret = ssh_write(s, bs, sector_num * BDRV_SECTOR_SIZE,
                     nb_sectors * BDRV_SECTOR_SIZE, qiov);
     qemu_co_mutex_unlock(&s->lock);
 
@@ -1009,7 +1011,7 @@ static void unsafe_flush_warning(BDRVSSHState *s, const char *what)
 
 #ifdef HAS_LIBSSH2_SFTP_FSYNC
 
-static coroutine_fn int ssh_flush(BDRVSSHState *s)
+static coroutine_fn int ssh_flush(BDRVSSHState *s, BlockDriverState *bs)
 {
     int r;
 
@@ -1017,7 +1019,7 @@ static coroutine_fn int ssh_flush(BDRVSSHState *s)
  again:
     r = libssh2_sftp_fsync(s->sftp_handle);
     if (r == LIBSSH2_ERROR_EAGAIN || r == LIBSSH2_ERROR_TIMEOUT) {
-        co_yield(s);
+        co_yield(s, bs);
         goto again;
     }
     if (r == LIBSSH2_ERROR_SFTP_PROTOCOL &&
@@ -1039,7 +1041,7 @@ static coroutine_fn int ssh_co_flush(BlockDriverState *bs)
     int ret;
 
     qemu_co_mutex_lock(&s->lock);
-    ret = ssh_flush(s);
+    ret = ssh_flush(s, bs);
     qemu_co_mutex_unlock(&s->lock);
 
     return ret;
