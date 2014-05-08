@@ -31,7 +31,7 @@ $(obj)/generated-events.h: $(obj)/generated-events.h-timestamp
 $(obj)/generated-events.h-timestamp: $(SRC_PATH)/trace-events
 	$(call quiet-command,$(TRACETOOL) \
 		--format=events-h \
-		--backend=events \
+		--backend=$(TRACE_BACKEND) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
 	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
@@ -39,7 +39,7 @@ $(obj)/generated-events.c: $(obj)/generated-events.c-timestamp $(BUILD_DIR)/conf
 $(obj)/generated-events.c-timestamp: $(SRC_PATH)/trace-events
 	$(call quiet-command,$(TRACETOOL) \
 		--format=events-c \
-		--backend=events \
+		--backend=$(TRACE_BACKEND) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
 	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 

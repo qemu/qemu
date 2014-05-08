@@ -4153,7 +4153,9 @@ echo "libcap-ng support $cap_ng"
 echo "vhost-net support $vhost_net"
 echo "vhost-scsi support $vhost_scsi"
 echo "Trace backend     $trace_backend"
+if test "$trace_backend" = "simple"; then
 echo "Trace output file $trace_file-<pid>"
+fi
 if test "$spice" = "yes"; then
 echo "spice support     $spice ($spice_protocol_version/$spice_server_version)"
 else

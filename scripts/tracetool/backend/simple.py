@@ -6,7 +6,7 @@ Simple built-in backend.
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -26,76 +26,74 @@ def is_string(arg):
     else:
         return False
 
-def c(events):
+
+def generate_h_begin(events):
+    for event in events:
+        out('void _simple_%(api)s(%(args)s);',
+            api=event.api(),
+            args=event.args)
+    out('')
+
+
+def generate_h(event):
+    out('    _simple_%(api)s(%(args)s);',
+        api=event.api(),
+        args=", ".join(event.args.names()))
+
+
+def generate_c_begin(events):
     out('#include "trace.h"',
         '#include "trace/control.h"',
         '#include "trace/simple.h"',
+        '')
+
+
+def generate_c(event):
+    out('void _simple_%(api)s(%(args)s)',
+        '{',
+        '    TraceBufferRecord rec;',
+        api=event.api(),
+        args=event.args)
+    sizes = []
+    for type_, name in event.args:
+        if is_string(type_):
+            out('    size_t arg%(name)s_len = %(name)s ? MIN(strlen(%(name)s), MAX_TRACE_STRLEN) : 0;',
+                name=name)
+            strsizeinfo = "4 + arg%s_len" % name
+            sizes.append(strsizeinfo)
+        else:
+            sizes.append("8")
+    sizestr = " + ".join(sizes)
+    if len(event.args) == 0:
+        sizestr = '0'
+
+
+    out('',
+        '    if (!trace_event_get_state(%(event_id)s)) {',
+        '        return;',
+        '    }',
         '',
-        )
+        '    if (trace_record_start(&rec, %(event_id)s, %(size_str)s)) {',
+        '        return; /* Trace Buffer Full, Event Dropped ! */',
+        '    }',
+        event_id='TRACE_' + event.name.upper(),
+        size_str=sizestr)
 
-    for num, event in enumerate(events):
-        out('void trace_%(name)s(%(args)s)',
-            '{',
-            '    TraceBufferRecord rec;',
-            name = event.name,
-            args = event.args,
-            )
-        sizes = []
+    if len(event.args) > 0:
         for type_, name in event.args:
+            # string
             if is_string(type_):
-                out('    size_t arg%(name)s_len = %(name)s ? MIN(strlen(%(name)s), MAX_TRACE_STRLEN) : 0;',
-                    name = name,
-                   )
-                strsizeinfo = "4 + arg%s_len" % name
-                sizes.append(strsizeinfo)
+                out('    trace_record_write_str(&rec, %(name)s, arg%(name)s_len);',
+                    name=name)
+            # pointer var (not string)
+            elif type_.endswith('*'):
+                out('    trace_record_write_u64(&rec, (uintptr_t)(uint64_t *)%(name)s);',
+                    name=name)
+            # primitive data type
             else:
-                sizes.append("8")
-        sizestr = " + ".join(sizes)
-        if len(event.args) == 0:
-            sizestr = '0'
+                out('    trace_record_write_u64(&rec, (uint64_t)%(name)s);',
+                   name=name)
 
-
-        out('',
-            '    TraceEvent *eventp = trace_event_id(%(event_enum)s);',
-            '    bool _state = trace_event_get_state_dynamic(eventp);',
-            '    if (!_state) {',
-            '        return;',
-            '    }',
-            '',
-            '    if (trace_record_start(&rec, %(event_id)s, %(size_str)s)) {',
-            '        return; /* Trace Buffer Full, Event Dropped ! */',
-            '    }',
-            event_enum = 'TRACE_' + event.name.upper(),
-            event_id = num,
-            size_str = sizestr,
-            )
-
-        if len(event.args) > 0:
-            for type_, name in event.args:
-                # string
-                if is_string(type_):
-                    out('    trace_record_write_str(&rec, %(name)s, arg%(name)s_len);',
-                        name = name,
-                       )
-                # pointer var (not string)
-                elif type_.endswith('*'):
-                    out('    trace_record_write_u64(&rec, (uintptr_t)(uint64_t *)%(name)s);',
-                        name = name,
-                       )
-                # primitive data type
-                else:
-                    out('    trace_record_write_u64(&rec, (uint64_t)%(name)s);',
-                       name = name,
-                       )
-
-        out('    trace_record_finish(&rec);',
-            '}',
-            '')
-
-
-def h(events):
-    for event in events:
-        out('void trace_%(name)s(%(args)s);',
-            name = event.name,
-            args = event.args,
-            )
+    out('    trace_record_finish(&rec);',
+        '}',
+        '')
