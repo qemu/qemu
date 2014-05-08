@@ -16,6 +16,7 @@ typedef struct GlusterAIOCB {
     int ret;
     QEMUBH *bh;
     Coroutine *coroutine;
+    AioContext *aio_context;
 } GlusterAIOCB;
 
 typedef struct BDRVGlusterState {
@@ -249,7 +250,7 @@ static void gluster_finish_aiocb(struct glfs_fd *fd, ssize_t ret, void *arg)
         acb->ret = -EIO; /* Partial read/write - fail it */
     }
 
-    acb->bh = qemu_bh_new(qemu_gluster_complete_aio, acb);
+    acb->bh = aio_bh_new(acb->aio_context, qemu_gluster_complete_aio, acb);
     qemu_bh_schedule(acb->bh);
 }
 
@@ -436,6 +437,7 @@ static coroutine_fn int qemu_gluster_co_write_zeroes(BlockDriverState *bs,
     acb->size = size;
     acb->ret = 0;
     acb->coroutine = qemu_coroutine_self();
+    acb->aio_context = bdrv_get_aio_context(bs);
 
     ret = glfs_zerofill_async(s->fd, offset, size, &gluster_finish_aiocb, acb);
     if (ret < 0) {
@@ -549,6 +551,7 @@ static coroutine_fn int qemu_gluster_co_rw(BlockDriverState *bs,
     acb->size = size;
     acb->ret = 0;
     acb->coroutine = qemu_coroutine_self();
+    acb->aio_context = bdrv_get_aio_context(bs);
 
     if (write) {
         ret = glfs_pwritev_async(s->fd, qiov->iov, qiov->niov, offset, 0,
@@ -605,6 +608,7 @@ static coroutine_fn int qemu_gluster_co_flush_to_disk(BlockDriverState *bs)
     acb->size = 0;
     acb->ret = 0;
     acb->coroutine = qemu_coroutine_self();
+    acb->aio_context = bdrv_get_aio_context(bs);
 
     ret = glfs_fsync_async(s->fd, &gluster_finish_aiocb, acb);
     if (ret < 0) {
@@ -633,6 +637,7 @@ static coroutine_fn int qemu_gluster_co_discard(BlockDriverState *bs,
     acb->size = 0;
     acb->ret = 0;
     acb->coroutine = qemu_coroutine_self();
+    acb->aio_context = bdrv_get_aio_context(bs);
 
     ret = glfs_discard_async(s->fd, offset, size, &gluster_finish_aiocb, acb);
     if (ret < 0) {
