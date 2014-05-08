@@ -166,8 +166,8 @@ vcard_reference(VCard *vcard)
 void
 vcard_free(VCard *vcard)
 {
-    VCardApplet *current_applet = NULL;
-    VCardApplet *next_applet = NULL;
+    VCardApplet *current_applet;
+    VCardApplet *next_applet;
 
     if (vcard == NULL) {
         return;

@@ -367,7 +367,7 @@ vcard_7816_status_t
 vcard_emul_login(VCard *card, unsigned char *pin, int pin_len)
 {
     PK11SlotInfo *slot;
-    unsigned char *pin_string = NULL;
+    unsigned char *pin_string;
     int i;
     SECStatus rv;
 
@@ -423,7 +423,7 @@ static VReader *
 vcard_emul_find_vreader_from_slot(PK11SlotInfo *slot)
 {
     VReaderList *reader_list = vreader_get_reader_list();
-    VReaderListEntry *current_entry = NULL;
+    VReaderListEntry *current_entry;
 
     if (reader_list == NULL) {
         return NULL;
@@ -1047,7 +1047,7 @@ void
 vcard_emul_replay_insertion_events(void)
 {
     VReaderListEntry *current_entry;
-    VReaderListEntry *next_entry = NULL;
+    VReaderListEntry *next_entry;
     VReaderList *list = vreader_get_reader_list();
 
     for (current_entry = vreader_list_get_first(list); current_entry;

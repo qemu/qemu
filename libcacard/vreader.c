@@ -339,7 +339,7 @@ void
 vreader_list_delete(VReaderList *list)
 {
     VReaderListEntry *current_entry;
-    VReaderListEntry *next_entry = NULL;
+    VReaderListEntry *next_entry;
     for (current_entry = vreader_list_get_first(list); current_entry;
          current_entry = next_entry) {
         next_entry = vreader_list_get_next(current_entry);
@@ -430,8 +430,8 @@ vreader_list_unlock(void)
 static VReaderList *
 vreader_copy_list(VReaderList *list)
 {
-    VReaderList *new_list = NULL;
-    VReaderListEntry *current_entry = NULL;
+    VReaderList *new_list;
+    VReaderListEntry *current_entry;
 
     new_list = vreader_list_new();
     if (new_list == NULL) {
@@ -463,7 +463,7 @@ VReader *
 vreader_get_reader_by_id(vreader_id_t id)
 {
     VReader *reader = NULL;
-    VReaderListEntry *current_entry = NULL;
+    VReaderListEntry *current_entry;
 
     if (id == (vreader_id_t) -1) {
         return NULL;
@@ -487,7 +487,7 @@ VReader *
 vreader_get_reader_by_name(const char *name)
 {
     VReader *reader = NULL;
-    VReaderListEntry *current_entry = NULL;
+    VReaderListEntry *current_entry;
 
     vreader_list_lock();
     for (current_entry = vreader_list_get_first(vreader_list); current_entry;

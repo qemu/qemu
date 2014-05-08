@@ -131,8 +131,8 @@ static void *
 event_thread(void *arg)
 {
     unsigned char atr[MAX_ATR_LEN];
-    int atr_len = MAX_ATR_LEN;
-    VEvent *event = NULL;
+    int atr_len;
+    VEvent *event;
     unsigned int reader_id;
 
 

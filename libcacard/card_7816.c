@@ -416,7 +416,7 @@ VCARD_RESPONSE_NEW_STATIC_STATUS(VCARD7816_STATUS_ERROR_GENERAL)
 VCardResponse *
 vcard_make_response(vcard_7816_status_t status)
 {
-    VCardResponse *response = NULL;
+    VCardResponse *response;
 
     switch (status) {
     /* known 7816 response codes */
@@ -543,9 +543,8 @@ vcard_make_response(vcard_7816_status_t status)
             return VCARD_RESPONSE_GET_STATIC(
                         VCARD7816_STATUS_EXC_ERROR_MEMORY_FAILURE);
         }
+        return response;
     }
-    assert(response);
-    return response;
 }
 
 /*
