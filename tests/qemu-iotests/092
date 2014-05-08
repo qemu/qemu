@@ -43,6 +43,8 @@ _supported_fmt qcow
 _supported_proto generic
 _supported_os Linux
 
+offset_backing_file_offset=8
+offset_backing_file_size=16
 offset_size=24
 offset_cluster_bits=32
 offset_l2_bits=33
@@ -80,6 +82,15 @@ poke_file "$TEST_IMG" "$offset_size" "\xee\xee\xee\xee\xee\xee\xee\xee"
 { $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 poke_file "$TEST_IMG" "$offset_size" "\x7f\xff\xff\xff\xff\xff\xff\xff"
 { $QEMU_IO -c "write 0 64M" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== Invalid backing file length =="
+_make_test_img 64M
+poke_file "$TEST_IMG" "$offset_backing_file_offset" "\x00\x00\x00\xff"
+poke_file "$TEST_IMG" "$offset_backing_file_size" "\xff\xff\xff\xff"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+poke_file "$TEST_IMG" "$offset_backing_file_size" "\x7f\xff\xff\xff"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done
 echo "*** done"
