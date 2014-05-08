@@ -175,16 +175,16 @@ $(eval save-$2-$1 :=)
 endef
 
 define fix-obj-vars
-$(foreach v,$($1), \
+$(if $2, $(foreach v,$($1), \
 	$(if $($v-cflags), \
-		$(eval $2$v-cflags := $($v-cflags)) \
+		$(eval $2/$v-cflags := $($v-cflags)) \
 		$(eval $v-cflags := )) \
 	$(if $($v-libs), \
-		$(eval $2$v-libs := $($v-libs)) \
+		$(eval $2/$v-libs := $($v-libs)) \
 		$(eval $v-libs := )) \
 	$(if $($v-objs), \
-		$(eval $2$v-objs := $(addprefix $2,$($v-objs))) \
-		$(eval $v-objs := )))
+		$(eval $2/$v-objs := $(addprefix $2/,$($v-objs))) \
+		$(eval $v-objs := ))))
 endef
 
 define unnest-dir
@@ -192,7 +192,7 @@ $(foreach var,$(nested-vars),$(call push-var,$(var),$1/))
 $(eval obj-parent-$1 := $(obj))
 $(eval obj := $(if $(obj),$(obj)/$1,$1))
 $(eval include $(SRC_PATH)/$1/Makefile.objs)
-$(foreach v,$(nested-vars),$(call fix-obj-vars,$v,$(if $(obj),$(obj)/)))
+$(foreach v,$(nested-vars),$(call fix-obj-vars,$v,$(obj)))
 $(eval obj := $(obj-parent-$1))
 $(eval obj-parent-$1 := )
 $(foreach var,$(nested-vars),$(call pop-var,$(var),$1/))
@@ -228,7 +228,7 @@ endef
 define unnest-vars
 $(eval obj := $1)
 $(eval nested-vars := $2)
-$(foreach v,$(nested-vars),$(call fix-obj-vars,$v,$(if $(obj),$(obj)/)))
+$(foreach v,$(nested-vars),$(call fix-obj-vars,$v,$(obj)))
 $(eval old-nested-dirs := )
 $(call unnest-vars-1)
 $(if $1,$(foreach v,$(nested-vars),$(eval \
