@@ -185,7 +185,7 @@ install: all
 ifneq ($(PROGS),)
 	$(INSTALL) -m 755 $(PROGS) "$(DESTDIR)$(bindir)"
 ifneq ($(STRIP),)
-	$(STRIP) $(patsubst %,"$(DESTDIR)$(bindir)/%",$(PROGS))
+	$(STRIP) $(PROGS:%="$(DESTDIR)$(bindir)/%")
 endif
 endif
 ifdef CONFIG_TRACE_SYSTEMTAP

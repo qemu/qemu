@@ -372,17 +372,25 @@ install: all $(if $(BUILD_DOCS),install-doc) install-sysconfig \
 install-datadir install-localstatedir
 	$(INSTALL_DIR) "$(DESTDIR)$(bindir)"
 ifneq ($(TOOLS),)
-	$(INSTALL_PROG) $(STRIP_OPT) $(TOOLS) "$(DESTDIR)$(bindir)"
+	$(INSTALL_PROG) $(TOOLS) "$(DESTDIR)$(bindir)"
+ifneq ($(STRIP),)
+	$(STRIP) $(TOOLS:%="$(DESTDIR)$(bindir)/%")
+endif
 endif
 ifneq ($(CONFIG_MODULES),)
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_moddir)"
-	for s in $(patsubst %.mo,%$(DSOSUF),$(modules-m)); do \
-		$(INSTALL_PROG) $(STRIP_OPT) $$s "$(DESTDIR)$(qemu_moddir)/$$(echo $$s | tr / -)"; \
+	for s in $(modules-m:.mo=$(DSOSUF)); do \
+		t="$(DESTDIR)$(qemu_moddir)/$$(echo $$s | tr / -)"; \
+		$(INSTALL_PROG) $$s "$$t"; \
+		test -z "$(STRIP)" || $(STRIP) "$$t"; \
 	done
 endif
 ifneq ($(HELPERS-y),)
 	$(INSTALL_DIR) "$(DESTDIR)$(libexecdir)"
-	$(INSTALL_PROG) $(STRIP_OPT) $(HELPERS-y) "$(DESTDIR)$(libexecdir)"
+	$(INSTALL_PROG) $(HELPERS-y) "$(DESTDIR)$(libexecdir)"
+ifneq ($(STRIP),)
+	$(STRIP) $(HELPERS-y:%="$(DESTDIR)$(libexecdir)/%")
+endif
 endif
 ifneq ($(BLOBS),)
 	set -e; for x in $(BLOBS); do \
