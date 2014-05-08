@@ -848,25 +848,49 @@ static void quorum_close(BlockDriverState *bs)
     g_free(s->bs);
 }
 
+static void quorum_detach_aio_context(BlockDriverState *bs)
+{
+    BDRVQuorumState *s = bs->opaque;
+    int i;
+
+    for (i = 0; i < s->num_children; i++) {
+        bdrv_detach_aio_context(s->bs[i]);
+    }
+}
+
+static void quorum_attach_aio_context(BlockDriverState *bs,
+                                      AioContext *new_context)
+{
+    BDRVQuorumState *s = bs->opaque;
+    int i;
+
+    for (i = 0; i < s->num_children; i++) {
+        bdrv_attach_aio_context(s->bs[i], new_context);
+    }
+}
+
 static BlockDriver bdrv_quorum = {
-    .format_name        = "quorum",
-    .protocol_name      = "quorum",
+    .format_name                        = "quorum",
+    .protocol_name                      = "quorum",
 
-    .instance_size      = sizeof(BDRVQuorumState),
+    .instance_size                      = sizeof(BDRVQuorumState),
 
-    .bdrv_file_open     = quorum_open,
-    .bdrv_close         = quorum_close,
+    .bdrv_file_open                     = quorum_open,
+    .bdrv_close                         = quorum_close,
 
-    .bdrv_co_flush_to_disk = quorum_co_flush,
+    .bdrv_co_flush_to_disk              = quorum_co_flush,
 
-    .bdrv_getlength     = quorum_getlength,
+    .bdrv_getlength                     = quorum_getlength,
 
-    .bdrv_aio_readv     = quorum_aio_readv,
-    .bdrv_aio_writev    = quorum_aio_writev,
-    .bdrv_invalidate_cache = quorum_invalidate_cache,
+    .bdrv_aio_readv                     = quorum_aio_readv,
+    .bdrv_aio_writev                    = quorum_aio_writev,
+    .bdrv_invalidate_cache              = quorum_invalidate_cache,
 
-    .is_filter           = true,
-    .bdrv_recurse_is_first_non_filter = quorum_recurse_is_first_non_filter,
+    .bdrv_detach_aio_context            = quorum_detach_aio_context,
+    .bdrv_attach_aio_context            = quorum_attach_aio_context,
+
+    .is_filter                          = true,
+    .bdrv_recurse_is_first_non_filter   = quorum_recurse_is_first_non_filter,
 };
 
 static void bdrv_quorum_init(void)
