@@ -481,15 +481,6 @@ void bdrv_op_block_all(BlockDriverState *bs, Error *reason);
 void bdrv_op_unblock_all(BlockDriverState *bs, Error *reason);
 bool bdrv_op_blocker_is_empty(BlockDriverState *bs);
 
-#ifdef CONFIG_LINUX_AIO
-int raw_get_aio_fd(BlockDriverState *bs);
-#else
-static inline int raw_get_aio_fd(BlockDriverState *bs)
-{
-    return -ENOTSUP;
-}
-#endif
-
 enum BlockAcctType {
     BDRV_ACCT_READ,
     BDRV_ACCT_WRITE,

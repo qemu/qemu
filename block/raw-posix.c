@@ -2331,40 +2331,6 @@ static BlockDriver bdrv_host_cdrom = {
 };
 #endif /* __FreeBSD__ */
 
-#ifdef CONFIG_LINUX_AIO
-/**
- * Return the file descriptor for Linux AIO
- *
- * This function is a layering violation and should be removed when it becomes
- * possible to call the block layer outside the global mutex.  It allows the
- * caller to hijack the file descriptor so I/O can be performed outside the
- * block layer.
- */
-int raw_get_aio_fd(BlockDriverState *bs)
-{
-    BDRVRawState *s;
-
-    if (!bs->drv) {
-        return -ENOMEDIUM;
-    }
-
-    if (bs->drv == bdrv_find_format("raw")) {
-        bs = bs->file;
-    }
-
-    /* raw-posix has several protocols so just check for raw_aio_readv */
-    if (bs->drv->bdrv_aio_readv != raw_aio_readv) {
-        return -ENOTSUP;
-    }
-
-    s = bs->opaque;
-    if (!s->use_aio) {
-        return -ENOTSUP;
-    }
-    return s->fd;
-}
-#endif /* CONFIG_LINUX_AIO */
-
 static void bdrv_file_init(void)
 {
     /*
