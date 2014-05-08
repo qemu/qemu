@@ -381,7 +381,7 @@ ifneq ($(CONFIG_MODULES),)
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_moddir)"
 	for s in $(modules-m:.mo=$(DSOSUF)); do \
 		t="$(DESTDIR)$(qemu_moddir)/$$(echo $$s | tr / -)"; \
-		$(INSTALL_PROG) $$s "$$t"; \
+		$(INSTALL_LIB) $$s "$$t"; \
 		test -z "$(STRIP)" || $(STRIP) "$$t"; \
 	done
 endif
