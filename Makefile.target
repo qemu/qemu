@@ -183,7 +183,7 @@ endif
 
 install: all
 ifneq ($(PROGS),)
-	$(INSTALL) -m 755 $(PROGS) "$(DESTDIR)$(bindir)"
+	$(INSTALL_PROG) $(PROGS) "$(DESTDIR)$(bindir)"
 ifneq ($(STRIP),)
 	$(STRIP) $(PROGS:%="$(DESTDIR)$(bindir)/%")
 endif
