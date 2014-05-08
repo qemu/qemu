@@ -1885,17 +1885,6 @@ static bool bdrv_requests_pending(BlockDriverState *bs)
     return false;
 }
 
-static bool bdrv_requests_pending_all(void)
-{
-    BlockDriverState *bs;
-    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-        if (bdrv_requests_pending(bs)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 /*
  * Wait for pending requests to complete across all BlockDriverStates
  *
@@ -1915,12 +1904,20 @@ void bdrv_drain_all(void)
     BlockDriverState *bs;
 
     while (busy) {
-        QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-            bdrv_start_throttled_reqs(bs);
-        }
+        busy = false;
 
-        busy = bdrv_requests_pending_all();
-        busy |= aio_poll(qemu_get_aio_context(), busy);
+        QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+            AioContext *aio_context = bdrv_get_aio_context(bs);
+            bool bs_busy;
+
+            aio_context_acquire(aio_context);
+            bdrv_start_throttled_reqs(bs);
+            bs_busy = bdrv_requests_pending(bs);
+            bs_busy |= aio_poll(aio_context, bs_busy);
+            aio_context_release(aio_context);
+
+            busy |= bs_busy;
+        }
     }
 }
 
