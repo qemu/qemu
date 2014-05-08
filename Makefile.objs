@@ -31,6 +31,8 @@ libcacard-y += libcacard/vcard_emul_nss.o
 libcacard-y += libcacard/vcard_emul_type.o
 libcacard-y += libcacard/card_7816.o
 libcacard-y += libcacard/vcardt.o
+libcacard/vcard_emul_nss.o-cflags := $(NSS_CFLAGS)
+libcacard/vcard_emul_nss.o-libs := $(NSS_LIBS)
 
 ######################################################################
 # Target independent part of system emulation. The long term path is to

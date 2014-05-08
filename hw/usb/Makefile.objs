@@ -24,6 +24,7 @@ ifeq ($(CONFIG_USB_SMARTCARD),y)
 common-obj-y                          += dev-smartcard-reader.o
 common-obj-y                          += ccid-card-passthru.o
 common-obj-$(CONFIG_SMARTCARD_NSS)    += ccid-card-emulated.o
+ccid-card-emulated.o-cflags := -I$(SRC_PATH)/libcacard
 endif
 
 ifeq ($(CONFIG_POSIX),y)
