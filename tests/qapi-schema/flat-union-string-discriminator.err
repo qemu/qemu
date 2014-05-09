@@ -1,1 +1,1 @@
-<stdin>:13: Discriminator 'kind' must be of enumeration type
+tests/qapi-schema/flat-union-string-discriminator.json:13: Discriminator 'kind' must be of enumeration type

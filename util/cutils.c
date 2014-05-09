@@ -24,6 +24,8 @@
 #include "qemu-common.h"
 #include "qemu/host-utils.h"
 #include <math.h>
+#include <limits.h>
+#include <errno.h>
 
 #include "qemu/sockets.h"
 #include "qemu/iov.h"
@@ -457,11 +459,16 @@ int parse_uint_full(const char *s, unsigned long long *value, int base)
 
 int qemu_parse_fd(const char *param)
 {
-    int fd;
-    char *endptr = NULL;
+    long fd;
+    char *endptr;
 
+    errno = 0;
     fd = strtol(param, &endptr, 10);
-    if (*endptr || (fd == 0 && param == endptr)) {
+    if (param == endptr /* no conversion performed */                    ||
+        errno != 0      /* not representable as long; possibly others */ ||
+        *endptr != '\0' /* final string not empty */                     ||
+        fd < 0          /* invalid as file descriptor */                 ||
+        fd > INT_MAX    /* not representable as int */) {
         return -1;
     }
     return fd;

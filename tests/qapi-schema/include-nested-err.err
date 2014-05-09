@@ -1,0 +1,2 @@
+In file included from tests/qapi-schema/include-nested-err.json:1:
+missing-colon.json:1:10: Expected ":"

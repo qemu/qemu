@@ -394,9 +394,10 @@ static uint8_t pci_find_cap_offset(PCIDevice *d, uint8_t cap, uint8_t start)
     return 0;
 }
 
-static int assigned_dev_register_regions(PCIRegion *io_regions,
-                                         unsigned long regions_num,
-                                         AssignedDevice *pci_dev)
+static void assigned_dev_register_regions(PCIRegion *io_regions,
+                                          unsigned long regions_num,
+                                          AssignedDevice *pci_dev,
+                                          Error **errp)
 {
     uint32_t i;
     PCIRegion *cur_region = io_regions;
@@ -425,9 +426,9 @@ static int assigned_dev_register_regions(PCIRegion *io_regions,
 
             if (pci_dev->v_addrs[i].u.r_virtbase == MAP_FAILED) {
                 pci_dev->v_addrs[i].u.r_virtbase = NULL;
-                error_report("%s: Error: Couldn't mmap 0x%" PRIx64 "!",
-                             __func__, cur_region->base_addr);
-                return -1;
+                error_setg_errno(errp, errno, "Couldn't mmap 0x%" PRIx64 "!",
+                                 cur_region->base_addr);
+                return;
             }
 
             pci_dev->v_addrs[i].r_size = cur_region->size;
@@ -496,10 +497,10 @@ static int assigned_dev_register_regions(PCIRegion *io_regions,
     }
 
     /* success */
-    return 0;
 }
 
-static int get_real_id(const char *devpath, const char *idname, uint16_t *val)
+static void get_real_id(const char *devpath, const char *idname, uint16_t *val,
+                        Error **errp)
 {
     FILE *f;
     char name[128];
@@ -508,39 +509,39 @@ static int get_real_id(const char *devpath, const char *idname, uint16_t *val)
     snprintf(name, sizeof(name), "%s%s", devpath, idname);
     f = fopen(name, "r");
     if (f == NULL) {
-        error_report("%s: %s: %m", __func__, name);
-        return -1;
+        error_setg_file_open(errp, errno, name);
+        return;
     }
     if (fscanf(f, "%li\n", &id) == 1) {
         *val = id;
     } else {
-        fclose(f);
-        return -1;
+        error_setg(errp, "Failed to parse contents of '%s'", name);
     }
     fclose(f);
-
-    return 0;
 }
 
-static int get_real_vendor_id(const char *devpath, uint16_t *val)
+static void get_real_vendor_id(const char *devpath, uint16_t *val,
+                               Error **errp)
 {
-    return get_real_id(devpath, "vendor", val);
+    get_real_id(devpath, "vendor", val, errp);
 }
 
-static int get_real_device_id(const char *devpath, uint16_t *val)
+static void get_real_device_id(const char *devpath, uint16_t *val,
+                               Error **errp)
 {
-    return get_real_id(devpath, "device", val);
+    get_real_id(devpath, "device", val, errp);
 }
 
-static int get_real_device(AssignedDevice *pci_dev)
+static void get_real_device(AssignedDevice *pci_dev, Error **errp)
 {
     char dir[128], name[128];
-    int fd, r = 0, v;
+    int fd, r = 0;
     FILE *f;
     uint64_t start, end, size, flags;
     uint16_t id;
     PCIRegion *rp;
     PCIDevRegions *dev = &pci_dev->real_device;
+    Error *local_err = NULL;
 
     dev->region_number = 0;
 
@@ -551,16 +552,19 @@ static int get_real_device(AssignedDevice *pci_dev)
     snprintf(name, sizeof(name), "%sconfig", dir);
 
     if (pci_dev->configfd_name && *pci_dev->configfd_name) {
-        dev->config_fd = monitor_handle_fd_param(cur_mon, pci_dev->configfd_name);
-        if (dev->config_fd < 0) {
-            return 1;
+        dev->config_fd = monitor_handle_fd_param2(cur_mon,
+                                                  pci_dev->configfd_name,
+                                                  &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
         }
     } else {
         dev->config_fd = open(name, O_RDWR);
 
         if (dev->config_fd == -1) {
-            error_report("%s: %s: %m", __func__, name);
-            return 1;
+            error_setg_file_open(errp, errno, name);
+            return;
         }
     }
 again:
@@ -570,7 +574,10 @@ again:
         if (errno == EINTR || errno == EAGAIN) {
             goto again;
         }
-        error_report("%s: read failed, errno = %d", __func__, errno);
+        error_setg_errno(errp, errno, "read(\"%s\")",
+                         (pci_dev->configfd_name && *pci_dev->configfd_name) ?
+                         pci_dev->configfd_name : name);
+        return;
     }
 
     /* Restore or clear multifunction, this is always controlled by qemu */
@@ -590,8 +597,8 @@ again:
 
     f = fopen(name, "r");
     if (f == NULL) {
-        error_report("%s: %s: %m", __func__, name);
-        return 1;
+        error_setg_file_open(errp, errno, name);
+        return;
     }
 
     for (r = 0; r < PCI_ROM_SLOT; r++) {
@@ -634,17 +641,19 @@ again:
     fclose(f);
 
     /* read and fill vendor ID */
-    v = get_real_vendor_id(dir, &id);
-    if (v) {
-        return 1;
+    get_real_vendor_id(dir, &id, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
     }
     pci_dev->dev.config[0] = id & 0xff;
     pci_dev->dev.config[1] = (id & 0xff00) >> 8;
 
     /* read and fill device ID */
-    v = get_real_device_id(dir, &id);
-    if (v) {
-        return 1;
+    get_real_device_id(dir, &id, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
     }
     pci_dev->dev.config[2] = id & 0xff;
     pci_dev->dev.config[3] = (id & 0xff00) >> 8;
@@ -653,7 +662,6 @@ again:
                                  PCI_COMMAND_MASTER | PCI_COMMAND_INTX_DISABLE);
 
     dev->region_number = r;
-    return 0;
 }
 
 static void free_msi_virqs(AssignedDevice *dev)
@@ -726,11 +734,17 @@ static void free_assigned_device(AssignedDevice *dev)
     free_msi_virqs(dev);
 }
 
-static void assign_failed_examine(AssignedDevice *dev)
+/* This function tries to determine the cause of the PCI assignment failure. It
+ * always returns the cause as a dynamically allocated, human readable string.
+ * If the function fails to determine the cause for any internal reason, then
+ * the returned string will state that fact.
+ */
+static char *assign_failed_examine(const AssignedDevice *dev)
 {
     char name[PATH_MAX], dir[PATH_MAX], driver[PATH_MAX] = {}, *ns;
     uint16_t vendor_id, device_id;
     int r;
+    Error *local_err = NULL;
 
     snprintf(dir, sizeof(dir), "/sys/bus/pci/devices/%04x:%02x:%02x.%01x/",
             dev->host.domain, dev->host.bus, dev->host.slot,
@@ -751,13 +765,17 @@ static void assign_failed_examine(AssignedDevice *dev)
 
     ns++;
 
-    if (get_real_vendor_id(dir, &vendor_id) ||
-        get_real_device_id(dir, &device_id)) {
+    if ((get_real_vendor_id(dir, &vendor_id, &local_err), local_err) ||
+        (get_real_device_id(dir, &device_id, &local_err), local_err)) {
+        /* We're already analyzing an assignment error, so we suppress this
+         * one just like the others above.
+         */
+        error_free(local_err);
         goto fail;
     }
 
-    error_printf("*** The driver '%s' is occupying your device "
-        "%04x:%02x:%02x.%x.\n"
+    return g_strdup_printf(
+        "*** The driver '%s' is occupying your device %04x:%02x:%02x.%x.\n"
         "***\n"
         "*** You can try the following commands to free it:\n"
         "***\n"
@@ -773,13 +791,11 @@ static void assign_failed_examine(AssignedDevice *dev)
         ns, dev->host.domain, dev->host.bus, dev->host.slot,
         dev->host.function, vendor_id, device_id);
 
-    return;
-
 fail:
-    error_report("Couldn't find out why.");
+    return g_strdup("Couldn't find out why.");
 }
 
-static int assign_device(AssignedDevice *dev)
+static void assign_device(AssignedDevice *dev, Error **errp)
 {
     uint32_t flags = KVM_DEV_ASSIGN_ENABLE_IOMMU;
     int r;
@@ -787,15 +803,15 @@ static int assign_device(AssignedDevice *dev)
     /* Only pass non-zero PCI segment to capable module */
     if (!kvm_check_extension(kvm_state, KVM_CAP_PCI_SEGMENT) &&
         dev->host.domain) {
-        error_report("Can't assign device inside non-zero PCI segment "
-                     "as this KVM module doesn't support it.");
-        return -ENODEV;
+        error_setg(errp, "Can't assign device inside non-zero PCI segment "
+                   "as this KVM module doesn't support it.");
+        return;
     }
 
     if (!kvm_check_extension(kvm_state, KVM_CAP_IOMMU)) {
-        error_report("No IOMMU found.  Unable to assign device \"%s\"",
-                     dev->dev.qdev.id);
-        return -ENODEV;
+        error_setg(errp, "No IOMMU found.  Unable to assign device \"%s\"",
+                   dev->dev.qdev.id);
+        return;
     }
 
     if (dev->features & ASSIGNED_DEVICE_SHARE_INTX_MASK &&
@@ -805,36 +821,39 @@ static int assign_device(AssignedDevice *dev)
 
     r = kvm_device_pci_assign(kvm_state, &dev->host, flags, &dev->dev_id);
     if (r < 0) {
-        error_report("Failed to assign device \"%s\" : %s",
-                     dev->dev.qdev.id, strerror(-r));
-
         switch (r) {
-        case -EBUSY:
-            assign_failed_examine(dev);
+        case -EBUSY: {
+            char *cause;
+
+            cause = assign_failed_examine(dev);
+            error_setg_errno(errp, -r, "Failed to assign device \"%s\"\n%s",
+                             dev->dev.qdev.id, cause);
+            g_free(cause);
             break;
+        }
         default:
+            error_setg_errno(errp, -r, "Failed to assign device \"%s\"",
+                             dev->dev.qdev.id);
             break;
         }
     }
-    return r;
 }
 
-static bool check_irqchip_in_kernel(void)
+static void verify_irqchip_in_kernel(Error **errp)
 {
     if (kvm_irqchip_in_kernel()) {
-        return true;
+        return;
     }
-    error_report("pci-assign: error: requires KVM with in-kernel irqchip "
-                 "enabled");
-    return false;
+    error_setg(errp, "pci-assign requires KVM with in-kernel irqchip enabled");
 }
 
-static int assign_intx(AssignedDevice *dev)
+static int assign_intx(AssignedDevice *dev, Error **errp)
 {
     AssignedIRQType new_type;
     PCIINTxRoute intx_route;
     bool intx_host_msi;
     int r;
+    Error *local_err = NULL;
 
     /* Interrupt PIN 0 means don't use INTx */
     if (assigned_dev_pci_read_byte(&dev->dev, PCI_INTERRUPT_PIN) == 0) {
@@ -842,7 +861,9 @@ static int assign_intx(AssignedDevice *dev)
         return 0;
     }
 
-    if (!check_irqchip_in_kernel()) {
+    verify_irqchip_in_kernel(&local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return -ENOTSUP;
     }
 
@@ -905,10 +926,11 @@ retry:
             dev->features |= ASSIGNED_DEVICE_PREFER_MSI_MASK;
             goto retry;
         }
-        error_report("Failed to assign irq for \"%s\": %s",
-                     dev->dev.qdev.id, strerror(-r));
-        error_report("Perhaps you are assigning a device "
-                     "that shares an IRQ with another device?");
+        error_setg_errno(errp, -r,
+                         "Failed to assign irq for \"%s\"\n"
+                         "Perhaps you are assigning a device "
+                         "that shares an IRQ with another device?",
+                         dev->dev.qdev.id);
         return r;
     }
 
@@ -934,8 +956,11 @@ static void assigned_dev_update_irq_routing(PCIDevice *dev)
     Error *err = NULL;
     int r;
 
-    r = assign_intx(assigned_dev);
+    r = assign_intx(assigned_dev, &err);
     if (r < 0) {
+        error_report("%s", error_get_pretty(err));
+        error_free(err);
+        err = NULL;
         qdev_unplug(&dev->qdev, &err);
         assert(!err);
     }
@@ -986,7 +1011,13 @@ static void assigned_dev_update_msi(PCIDevice *pci_dev)
         assigned_dev->intx_route.irq = -1;
         assigned_dev->assigned_irq_type = ASSIGNED_IRQ_MSI;
     } else {
-        assign_intx(assigned_dev);
+        Error *local_err = NULL;
+
+        assign_intx(assigned_dev, &local_err);
+        if (local_err) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
+        }
     }
 }
 
@@ -1128,7 +1159,13 @@ static void assigned_dev_update_msix(PCIDevice *pci_dev)
         assigned_dev->intx_route.irq = -1;
         assigned_dev->assigned_irq_type = ASSIGNED_IRQ_MSIX;
     } else {
-        assign_intx(assigned_dev);
+        Error *local_err = NULL;
+
+        assign_intx(assigned_dev, &local_err);
+        if (local_err) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
+        }
     }
 }
 
@@ -1214,11 +1251,12 @@ static void assigned_dev_setup_cap_read(AssignedDevice *dev, uint32_t offset,
     assigned_dev_emulate_config_read(dev, offset + PCI_CAP_LIST_NEXT, 1);
 }
 
-static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
+static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
 {
     AssignedDevice *dev = DO_UPCAST(AssignedDevice, dev, pci_dev);
     PCIRegion *pci_region = dev->real_device.regions;
     int ret, pos;
+    Error *local_err = NULL;
 
     /* Clear initial capabilities pointer and status copied from hw */
     pci_set_byte(pci_dev->config + PCI_CAPABILITY_LIST, 0);
@@ -1230,13 +1268,17 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
      * MSI capability is the 1st capability in capability config */
     pos = pci_find_cap_offset(pci_dev, PCI_CAP_ID_MSI, 0);
     if (pos != 0 && kvm_check_extension(kvm_state, KVM_CAP_ASSIGN_DEV_IRQ)) {
-        if (!check_irqchip_in_kernel()) {
+        verify_irqchip_in_kernel(&local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
             return -ENOTSUP;
         }
         dev->cap.available |= ASSIGNED_DEVICE_CAP_MSI;
         /* Only 32-bit/no-mask currently supported */
-        ret = pci_add_capability(pci_dev, PCI_CAP_ID_MSI, pos, 10);
+        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_MSI, pos, 10,
+                                  &local_err);
         if (ret < 0) {
+            error_propagate(errp, local_err);
             return ret;
         }
         pci_dev->msi_cap = pos;
@@ -1259,12 +1301,16 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         int bar_nr;
         uint32_t msix_table_entry;
 
-        if (!check_irqchip_in_kernel()) {
+        verify_irqchip_in_kernel(&local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
             return -ENOTSUP;
         }
         dev->cap.available |= ASSIGNED_DEVICE_CAP_MSIX;
-        ret = pci_add_capability(pci_dev, PCI_CAP_ID_MSIX, pos, 12);
+        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_MSIX, pos, 12,
+                                  &local_err);
         if (ret < 0) {
+            error_propagate(errp, local_err);
             return ret;
         }
         pci_dev->msix_cap = pos;
@@ -1291,8 +1337,10 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
     if (pos) {
         uint16_t pmc;
 
-        ret = pci_add_capability(pci_dev, PCI_CAP_ID_PM, pos, PCI_PM_SIZEOF);
+        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_PM, pos, PCI_PM_SIZEOF,
+                                  &local_err);
         if (ret < 0) {
+            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1330,8 +1378,8 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
              */
             size = MIN(0x3c, PCI_CONFIG_SPACE_SIZE - pos);
             if (size < 0x34) {
-                error_report("%s: Invalid size PCIe cap-id 0x%x",
-                             __func__, PCI_CAP_ID_EXP);
+                error_setg(errp, "Invalid size PCIe cap-id 0x%x",
+                           PCI_CAP_ID_EXP);
                 return -EINVAL;
             } else if (size != 0x3c) {
                 error_report("WARNING, %s: PCIe cap-id 0x%x has "
@@ -1352,13 +1400,15 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         }
 
         if (size == 0) {
-            error_report("%s: Unsupported PCI express capability version %d",
-                         __func__, version);
+            error_setg(errp, "Unsupported PCI express capability version %d",
+                       version);
             return -EINVAL;
         }
 
-        ret = pci_add_capability(pci_dev, PCI_CAP_ID_EXP, pos, size);
+        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_EXP, pos, size,
+                                  &local_err);
         if (ret < 0) {
+            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1368,8 +1418,8 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         type = (type & PCI_EXP_FLAGS_TYPE) >> 4;
         if (type != PCI_EXP_TYPE_ENDPOINT &&
             type != PCI_EXP_TYPE_LEG_END && type != PCI_EXP_TYPE_RC_END) {
-            error_report("Device assignment only supports endpoint assignment,"
-                         " device type %d", type);
+            error_setg(errp, "Device assignment only supports endpoint "
+                       "assignment, device type %d", type);
             return -EINVAL;
         }
 
@@ -1431,8 +1481,10 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         uint32_t status;
 
         /* Only expose the minimum, 8 byte capability */
-        ret = pci_add_capability(pci_dev, PCI_CAP_ID_PCIX, pos, 8);
+        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_PCIX, pos, 8,
+                                  &local_err);
         if (ret < 0) {
+            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1457,8 +1509,10 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
     pos = pci_find_cap_offset(pci_dev, PCI_CAP_ID_VPD, 0);
     if (pos) {
         /* Direct R/W passthrough */
-        ret = pci_add_capability(pci_dev, PCI_CAP_ID_VPD, pos, 8);
+        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_VPD, pos, 8,
+                                  &local_err);
         if (ret < 0) {
+            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1473,8 +1527,10 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
         pos += PCI_CAP_LIST_NEXT) {
         uint8_t len = pci_get_byte(pci_dev->config + pos + PCI_CAP_FLAGS);
         /* Direct R/W passthrough */
-        ret = pci_add_capability(pci_dev, PCI_CAP_ID_VNDR, pos, len);
+        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_VNDR, pos, len,
+                                  &local_err);
         if (ret < 0) {
+            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1602,20 +1658,19 @@ static void assigned_dev_msix_reset(AssignedDevice *dev)
     }
 }
 
-static int assigned_dev_register_msix_mmio(AssignedDevice *dev)
+static void assigned_dev_register_msix_mmio(AssignedDevice *dev, Error **errp)
 {
     dev->msix_table = mmap(NULL, MSIX_PAGE_SIZE, PROT_READ|PROT_WRITE,
                            MAP_ANONYMOUS|MAP_PRIVATE, 0, 0);
     if (dev->msix_table == MAP_FAILED) {
-        error_report("fail allocate msix_table! %s", strerror(errno));
-        return -EFAULT;
+        error_setg_errno(errp, errno, "failed to allocate msix_table");
+        return;
     }
 
     assigned_dev_msix_reset(dev);
 
     memory_region_init_io(&dev->mmio, OBJECT(dev), &assigned_dev_msix_mmio_ops,
                           dev, "assigned-dev-msix", MSIX_PAGE_SIZE);
-    return 0;
 }
 
 static void assigned_dev_unregister_msix_mmio(AssignedDevice *dev)
@@ -1698,16 +1753,17 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
     AssignedDevice *dev = DO_UPCAST(AssignedDevice, dev, pci_dev);
     uint8_t e_intx;
     int r;
+    Error *local_err = NULL;
 
     if (!kvm_enabled()) {
-        error_report("pci-assign: error: requires KVM support");
-        return -1;
+        error_setg(&local_err, "pci-assign requires KVM support");
+        goto exit_with_error;
     }
 
     if (!dev->host.domain && !dev->host.bus && !dev->host.slot &&
         !dev->host.function) {
-        error_report("pci-assign: error: no host device specified");
-        return -1;
+        error_setg(&local_err, "no host device specified");
+        goto exit_with_error;
     }
 
     /*
@@ -1730,27 +1786,28 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
     memcpy(dev->emulate_config_write, dev->emulate_config_read,
            sizeof(dev->emulate_config_read));
 
-    if (get_real_device(dev)) {
-        error_report("pci-assign: Error: Couldn't get real device (%s)!",
-                     dev->dev.qdev.id);
+    get_real_device(dev, &local_err);
+    if (local_err) {
         goto out;
     }
 
-    if (assigned_device_pci_cap_init(pci_dev) < 0) {
+    if (assigned_device_pci_cap_init(pci_dev, &local_err) < 0) {
         goto out;
     }
 
     /* intercept MSI-X entry page in the MMIO */
     if (dev->cap.available & ASSIGNED_DEVICE_CAP_MSIX) {
-        if (assigned_dev_register_msix_mmio(dev)) {
+        assigned_dev_register_msix_mmio(dev, &local_err);
+        if (local_err) {
             goto out;
         }
     }
 
     /* handle real device's MMIO/PIO BARs */
-    if (assigned_dev_register_regions(dev->real_device.regions,
-                                      dev->real_device.region_number,
-                                      dev)) {
+    assigned_dev_register_regions(dev->real_device.regions,
+                                  dev->real_device.region_number, dev,
+                                  &local_err);
+    if (local_err) {
         goto out;
     }
 
@@ -1761,13 +1818,13 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
     dev->intx_route.irq = -1;
 
     /* assign device to guest */
-    r = assign_device(dev);
-    if (r < 0) {
+    assign_device(dev, &local_err);
+    if (local_err) {
         goto out;
     }
 
     /* assign legacy INTx to the device */
-    r = assign_intx(dev);
+    r = assign_intx(dev, &local_err);
     if (r < 0) {
         goto assigned_out;
     }
@@ -1780,8 +1837,14 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
 
 assigned_out:
     deassign_device(dev);
+
 out:
     free_assigned_device(dev);
+
+exit_with_error:
+    assert(local_err);
+    qerror_report_err(local_err);
+    error_free(local_err);
     return -1;
 }
 

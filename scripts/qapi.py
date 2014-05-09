@@ -11,7 +11,9 @@
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
+import re
 from ordereddict import OrderedDict
+import os
 import sys
 
 builtin_types = [
@@ -35,9 +37,17 @@ builtin_type_qtypes = {
     'uint64':   'QTYPE_QINT',
 }
 
+def error_path(parent):
+    res = ""
+    while parent:
+        res = ("In file included from %s:%d:\n" % (parent['file'],
+                                                   parent['line'])) + res
+        parent = parent['parent']
+    return res
+
 class QAPISchemaError(Exception):
     def __init__(self, schema, msg):
-        self.fp = schema.fp
+        self.input_file = schema.input_file
         self.msg = msg
         self.col = 1
         self.line = schema.line
@@ -46,23 +56,31 @@ class QAPISchemaError(Exception):
                 self.col = (self.col + 7) % 8 + 1
             else:
                 self.col += 1
+        self.info = schema.parent_info
 
     def __str__(self):
-        return "%s:%s:%s: %s" % (self.fp.name, self.line, self.col, self.msg)
+        return error_path(self.info) + \
+            "%s:%d:%d: %s" % (self.input_file, self.line, self.col, self.msg)
 
 class QAPIExprError(Exception):
     def __init__(self, expr_info, msg):
-        self.fp = expr_info['fp']
-        self.line = expr_info['line']
+        self.info = expr_info
         self.msg = msg
 
     def __str__(self):
-        return "%s:%s: %s" % (self.fp.name, self.line, self.msg)
+        return error_path(self.info['parent']) + \
+            "%s:%d: %s" % (self.info['file'], self.info['line'], self.msg)
 
 class QAPISchema:
 
-    def __init__(self, fp):
-        self.fp = fp
+    def __init__(self, fp, input_relname=None, include_hist=[], parent_info=None):
+        input_fname = os.path.abspath(fp.name)
+        if input_relname is None:
+            input_relname = fp.name
+        self.input_dir = os.path.dirname(input_fname)
+        self.input_file = input_relname
+        self.include_hist = include_hist + [(input_relname, input_fname)]
+        self.parent_info = parent_info
         self.src = fp.read()
         if self.src == '' or self.src[-1] != '\n':
             self.src += '\n'
@@ -73,10 +91,33 @@ class QAPISchema:
         self.accept()
 
         while self.tok != None:
-            expr_info = {'fp': fp, 'line': self.line}
-            expr_elem = {'expr': self.get_expr(False),
-                         'info': expr_info}
-            self.exprs.append(expr_elem)
+            expr_info = {'file': input_relname, 'line': self.line, 'parent': self.parent_info}
+            expr = self.get_expr(False)
+            if isinstance(expr, dict) and "include" in expr:
+                if len(expr) != 1:
+                    raise QAPIExprError(expr_info, "Invalid 'include' directive")
+                include = expr["include"]
+                if not isinstance(include, str):
+                    raise QAPIExprError(expr_info,
+                                        'Expected a file name (string), got: %s'
+                                        % include)
+                include_path = os.path.join(self.input_dir, include)
+                if any(include_path == elem[1]
+                       for elem in self.include_hist):
+                    raise QAPIExprError(expr_info, "Inclusion loop for %s"
+                                        % include)
+                try:
+                    fobj = open(include_path, 'r')
+                except IOError as e:
+                    raise QAPIExprError(expr_info,
+                                        '%s: %s' % (e.strerror, include))
+                exprs_include = QAPISchema(fobj, include,
+                                           self.include_hist, expr_info)
+                self.exprs.extend(exprs_include.exprs)
+            else:
+                expr_elem = {'expr': expr,
+                             'info': expr_info}
+                self.exprs.append(expr_elem)
 
     def accept(self):
         while True:
@@ -263,10 +304,10 @@ def check_exprs(schema):
         if expr.has_key('union'):
             check_union(expr, expr_elem['info'])
 
-def parse_schema(fp):
+def parse_schema(input_file):
     try:
-        schema = QAPISchema(fp)
-    except QAPISchemaError, e:
+        schema = QAPISchema(open(input_file, "r"))
+    except (QAPISchemaError, QAPIExprError), e:
         print >>sys.stderr, e
         exit(1)
 

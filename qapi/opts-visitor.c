@@ -472,13 +472,14 @@ opts_type_size(Visitor *v, uint64_t *obj, const char *name, Error **errp)
 
     val = strtosz_suffix(opt->str ? opt->str : "", &endptr,
                          STRTOSZ_DEFSUFFIX_B);
-    if (val != -1 && *endptr == '\0') {
-        *obj = val;
-        processed(ov, name);
+    if (val < 0 || *endptr) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
+                  "a size value representible as a non-negative int64");
         return;
     }
-    error_set(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
-              "a size value representible as a non-negative int64");
+
+    *obj = val;
+    processed(ov, name);
 }
 
 

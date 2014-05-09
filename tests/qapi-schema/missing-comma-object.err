@@ -1,1 +1,1 @@
-<stdin>:2:3: Expected "," or "}"
+tests/qapi-schema/missing-comma-object.json:2:3: Expected "," or "}"

@@ -1,1 +1,1 @@
-<stdin>:13: Discriminator value 'value_wrong' is not found in enum 'TestEnum'
+tests/qapi-schema/flat-union-invalid-branch-key.json:13: Discriminator value 'value_wrong' is not found in enum 'TestEnum'

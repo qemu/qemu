@@ -1,1 +1,1 @@
-<stdin>:7: Flat union 'TestUnion' must have a base field
+tests/qapi-schema/flat-union-no-base.json:7: Flat union 'TestUnion' must have a base field

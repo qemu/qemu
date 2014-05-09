@@ -369,9 +369,10 @@ def gen_command_def_prologue(prefix="", proxy=False):
 
 
 try:
-    opts, args = getopt.gnu_getopt(sys.argv[1:], "chp:o:m",
+    opts, args = getopt.gnu_getopt(sys.argv[1:], "chp:i:o:m",
                                    ["source", "header", "prefix=",
-                                    "output-dir=", "type=", "middle"])
+                                    "input-file=", "output-dir=",
+                                    "type=", "middle"])
 except getopt.GetoptError, err:
     print str(err)
     sys.exit(1)
@@ -389,6 +390,8 @@ do_h = False
 for o, a in opts:
     if o in ("-p", "--prefix"):
         prefix = a
+    elif o in ("-i", "--input-file"):
+        input_file = a
     elif o in ("-o", "--output-dir"):
         output_dir = a + "/"
     elif o in ("-t", "--type"):
@@ -420,7 +423,7 @@ except os.error, e:
     if e.errno != errno.EEXIST:
         raise
 
-exprs = parse_schema(sys.stdin)
+exprs = parse_schema(input_file)
 commands = filter(lambda expr: expr.has_key('command'), exprs)
 commands = filter(lambda expr: not expr.has_key('gen'), commands)
 

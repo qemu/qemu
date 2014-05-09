@@ -145,19 +145,19 @@ void ga_uninstall_vss_provider(void)
 }
 
 /* Call VSS requester and freeze/thaw filesystems and applications */
-void qga_vss_fsfreeze(int *nr_volume, Error **err, bool freeze)
+void qga_vss_fsfreeze(int *nr_volume, Error **errp, bool freeze)
 {
     const char *func_name = freeze ? "requester_freeze" : "requester_thaw";
     QGAVSSRequesterFunc func;
     ErrorSet errset = {
         .error_set = (ErrorSetFunc)error_set_win32,
-        .errp = (void **)err,
+        .errp = (void **)errp,
         .err_class = ERROR_CLASS_GENERIC_ERROR
     };
 
     func = (QGAVSSRequesterFunc)GetProcAddress(provider_lib, func_name);
     if (!func) {
-        error_setg_win32(err, GetLastError(), "failed to load %s from %s",
+        error_setg_win32(errp, GetLastError(), "failed to load %s from %s",
                          func_name, QGA_VSS_DLL);
         return;
     }

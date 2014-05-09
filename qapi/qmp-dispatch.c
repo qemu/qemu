@@ -62,14 +62,14 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
 
 static QObject *do_qmp_dispatch(QObject *request, Error **errp)
 {
+    Error *local_err = NULL;
     const char *command;
     QDict *args, *dict;
     QmpCommand *cmd;
     QObject *ret = NULL;
 
-
     dict = qmp_dispatch_check_obj(request, errp);
-    if (!dict || error_is_set(errp)) {
+    if (!dict) {
         return NULL;
     }
 
@@ -94,13 +94,13 @@ static QObject *do_qmp_dispatch(QObject *request, Error **errp)
 
     switch (cmd->type) {
     case QCT_NORMAL:
-        cmd->fn(args, &ret, errp);
-        if (!error_is_set(errp)) {
-            if (cmd->options & QCO_NO_SUCCESS_RESP) {
-                g_assert(!ret);
-            } else if (!ret) {
-                ret = QOBJECT(qdict_new());
-            }
+        cmd->fn(args, &ret, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+        } else if (cmd->options & QCO_NO_SUCCESS_RESP) {
+            g_assert(!ret);
+        } else if (!ret) {
+            ret = QOBJECT(qdict_new());
         }
         break;
     }
@@ -110,11 +110,11 @@ static QObject *do_qmp_dispatch(QObject *request, Error **errp)
     return ret;
 }
 
-QObject *qmp_build_error_object(Error *errp)
+QObject *qmp_build_error_object(Error *err)
 {
     return qobject_from_jsonf("{ 'class': %s, 'desc': %s }",
-                              ErrorClass_lookup[error_get_class(errp)],
-                              error_get_pretty(errp));
+                              ErrorClass_lookup[error_get_class(err)],
+                              error_get_pretty(err));
 }
 
 QObject *qmp_dispatch(QObject *request)
