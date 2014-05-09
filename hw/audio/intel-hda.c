@@ -245,7 +245,7 @@ static void intel_hda_update_int_sts(IntelHDAState *d)
 
     /* update global status */
     if (sts & d->int_ctl) {
-        sts |= (1 << 31);
+        sts |= (1U << 31);
     }
 
     d->int_sts = sts;
@@ -257,7 +257,7 @@ static void intel_hda_update_irq(IntelHDAState *d)
     int level;
 
     intel_hda_update_int_sts(d);
-    if (d->int_sts & (1 << 31) && d->int_ctl & (1 << 31)) {
+    if (d->int_sts & (1U << 31) && d->int_ctl & (1U << 31)) {
         level = 1;
     } else {
         level = 0;
