@@ -207,6 +207,11 @@ static struct glfs *qemu_gluster_init(GlusterConf *gconf, const char *filename,
                          "volume=%s image=%s transport=%s", gconf->server,
                          gconf->port, gconf->volname, gconf->image,
                          gconf->transport);
+
+        /* glfs_init sometimes doesn't set errno although docs suggest that */
+        if (errno == 0)
+            errno = EINVAL;
+
         goto out;
     }
     return glfs;
@@ -482,7 +487,7 @@ static int qemu_gluster_create(const char *filename,
 
     glfs = qemu_gluster_init(gconf, filename, errp);
     if (!glfs) {
-        ret = -EINVAL;
+        ret = -errno;
         goto out;
     }
 
