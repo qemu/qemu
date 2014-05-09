@@ -43,7 +43,7 @@ unsigned long reserved_va;
 #endif
 
 static const char *interp_prefix = CONFIG_QEMU_INTERP_PREFIX;
-const char *qemu_uname_release = CONFIG_UNAME_RELEASE;
+const char *qemu_uname_release;
 extern char **environ;
 enum BSDType bsd_type;
 
