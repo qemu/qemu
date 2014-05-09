@@ -383,4 +383,24 @@ void kvm_init_irq_routing(KVMState *s);
  *          > 0: irq chip was created
  */
 int kvm_arch_irqchip_create(KVMState *s);
+
+/**
+ * kvm_set_one_reg - set a register value in KVM via KVM_SET_ONE_REG ioctl
+ * @id: The register ID
+ * @source: The pointer to the value to be set. It must point to a variable
+ *          of the correct type/size for the register being accessed.
+ *
+ * Returns: 0 on success, or a negative errno on failure.
+ */
+int kvm_set_one_reg(CPUState *cs, uint64_t id, void *source);
+
+/**
+ * kvm_get_one_reg - get a register value from KVM via KVM_GET_ONE_REG ioctl
+ * @id: The register ID
+ * @target: The pointer where the value is to be stored. It must point to a
+ *          variable of the correct type/size for the register being accessed.
+ *
+ * Returns: 0 on success, or a negative errno on failure.
+ */
+int kvm_get_one_reg(CPUState *cs, uint64_t id, void *target);
 #endif

@@ -2114,3 +2114,31 @@ int kvm_create_device(KVMState *s, uint64_t type, bool test)
 
     return test ? 0 : create_dev.fd;
 }
+
+int kvm_set_one_reg(CPUState *cs, uint64_t id, void *source)
+{
+    struct kvm_one_reg reg;
+    int r;
+
+    reg.id = id;
+    reg.addr = (uintptr_t) source;
+    r = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+    if (r) {
+        trace_kvm_failed_reg_set(id, strerror(r));
+    }
+    return r;
+}
+
+int kvm_get_one_reg(CPUState *cs, uint64_t id, void *target)
+{
+    struct kvm_one_reg reg;
+    int r;
+
+    reg.id = id;
+    reg.addr = (uintptr_t) target;
+    r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (r) {
+        trace_kvm_failed_reg_get(id, strerror(r));
+    }
+    return r;
+}

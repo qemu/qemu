@@ -129,35 +129,6 @@ void kvm_arch_reset_vcpu(CPUState *cpu)
     }
 }
 
-static int kvm_set_one_reg(CPUState *cs, uint64_t id, void *source)
-{
-    struct kvm_one_reg reg;
-    int r;
-
-    reg.id = id;
-    reg.addr = (uint64_t) source;
-    r = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
-    if (r) {
-        trace_kvm_failed_reg_set(id, strerror(errno));
-    }
-    return r;
-}
-
-static int kvm_get_one_reg(CPUState *cs, uint64_t id, void *target)
-{
-    struct kvm_one_reg reg;
-    int r;
-
-    reg.id = id;
-    reg.addr = (uint64_t) target;
-    r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
-    if (r) {
-        trace_kvm_failed_reg_get(id, strerror(errno));
-    }
-    return r;
-}
-
-
 int kvm_arch_put_registers(CPUState *cs, int level)
 {
     S390CPU *cpu = S390_CPU(cs);
