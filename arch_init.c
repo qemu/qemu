@@ -946,7 +946,6 @@ static uint64_t ram_save_pending(QEMUFile *f, void *opaque, uint64_t max_size)
 
 static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
 {
-    int ret, rc = 0;
     unsigned int xh_len;
     int xh_flags;
 
@@ -971,18 +970,13 @@ static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
     qemu_get_buffer(f, xbzrle_decoded_buf, xh_len);
 
     /* decode RLE */
-    ret = xbzrle_decode_buffer(xbzrle_decoded_buf, xh_len, host,
-                               TARGET_PAGE_SIZE);
-    if (ret == -1) {
+    if (xbzrle_decode_buffer(xbzrle_decoded_buf, xh_len, host,
+                             TARGET_PAGE_SIZE) == -1) {
         fprintf(stderr, "Failed to load XBZRLE page - decode error!\n");
-        rc = -1;
-    } else  if (ret > TARGET_PAGE_SIZE) {
-        fprintf(stderr, "Failed to load XBZRLE page - size %d exceeds %d!\n",
-                ret, TARGET_PAGE_SIZE);
-        abort();
+        return -1;
     }
 
-    return rc;
+    return 0;
 }
 
 static inline void *host_from_stream_offset(QEMUFile *f,
