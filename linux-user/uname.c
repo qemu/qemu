@@ -52,9 +52,7 @@ const char *cpu_to_uname_machine(void *cpu_env)
     /* earliest emulated CPU is ARMv5TE; qemu can emulate the 1026, but not its
      * Jazelle support */
     return "armv5te" utsname_suffix;
-#elif defined(TARGET_X86_64)
-    return "x86-64";
-#elif defined(TARGET_I386)
+#elif defined(TARGET_I386) && !defined(TARGET_X86_64)
     /* see arch/x86/kernel/cpu/bugs.c: check_bugs(), 386, 486, 586, 686 */
     CPUState *cpu = ENV_GET_CPU((CPUX86State *)cpu_env);
     int family = object_property_get_int(OBJECT(cpu), "family", NULL);
