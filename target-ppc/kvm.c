@@ -356,6 +356,10 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
     /* Convert to QEMU form */
     memset(&env->sps, 0, sizeof(env->sps));
 
+    /*
+     * XXX This loop should be an entry wide AND of the capabilities that
+     *     the selected CPU has with the capabilities that KVM supports.
+     */
     for (ik = iq = 0; ik < KVM_PPC_PAGE_SIZES_MAX_SZ; ik++) {
         struct ppc_one_seg_page_size *qsps = &env->sps.sps[iq];
         struct kvm_ppc_one_seg_page_size *ksps = &smmu_info.sps[ik];
@@ -382,9 +386,7 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
         }
     }
     env->slb_nr = smmu_info.slb_size;
-    if (smmu_info.flags & KVM_PPC_1T_SEGMENTS) {
-        env->mmu_model |= POWERPC_MMU_1TSEG;
-    } else {
+    if (!(smmu_info.flags & KVM_PPC_1T_SEGMENTS)) {
         env->mmu_model &= ~POWERPC_MMU_1TSEG;
     }
 }
