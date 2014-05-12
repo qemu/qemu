@@ -613,7 +613,9 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     target_long initrd_size = 0;
     target_ulong cur_base = 0;
     int i;
-    unsigned int pci_irq_nrs[4] = {1, 2, 3, 4};
+    /* irq num for pin INTA, INTB, INTC and INTD is 1, 2, 3 and
+     * 4 respectively */
+    unsigned int pci_irq_nrs[PCI_NUM_PINS] = {1, 2, 3, 4};
     qemu_irq **irqs, *mpic;
     DeviceState *dev;
     CPUPPCState *firstenv = NULL;
@@ -715,10 +717,10 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     qdev_prop_set_uint32(dev, "first_slot", params->pci_first_slot);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
-    sysbus_connect_irq(s, 0, mpic[pci_irq_nrs[0]]);
-    sysbus_connect_irq(s, 1, mpic[pci_irq_nrs[1]]);
-    sysbus_connect_irq(s, 2, mpic[pci_irq_nrs[2]]);
-    sysbus_connect_irq(s, 3, mpic[pci_irq_nrs[3]]);
+    for (i = 0; i < PCI_NUM_PINS; i++) {
+        sysbus_connect_irq(s, i, mpic[pci_irq_nrs[i]]);
+    }
+
     memory_region_add_subregion(ccsr_addr_space, MPC8544_PCI_REGS_OFFSET,
                                 sysbus_mmio_get_region(s, 0));
 

@@ -87,7 +87,7 @@ struct PPCE500PCIState {
     struct pci_outbound pob[PPCE500_PCI_NR_POBS];
     struct pci_inbound pib[PPCE500_PCI_NR_PIBS];
     uint32_t gasket_time;
-    qemu_irq irq[4];
+    qemu_irq irq[PCI_NUM_PINS];
     uint32_t first_slot;
     /* mmio maps */
     MemoryRegion container;
@@ -252,26 +252,26 @@ static const MemoryRegionOps e500_pci_reg_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static int mpc85xx_pci_map_irq(PCIDevice *pci_dev, int irq_num)
+static int mpc85xx_pci_map_irq(PCIDevice *pci_dev, int pin)
 {
     int devno = pci_dev->devfn >> 3;
     int ret;
 
-    ret = ppce500_pci_map_irq_slot(devno, irq_num);
+    ret = ppce500_pci_map_irq_slot(devno, pin);
 
     pci_debug("%s: devfn %x irq %d -> %d  devno:%x\n", __func__,
-           pci_dev->devfn, irq_num, ret, devno);
+           pci_dev->devfn, pin, ret, devno);
 
     return ret;
 }
 
-static void mpc85xx_pci_set_irq(void *opaque, int irq_num, int level)
+static void mpc85xx_pci_set_irq(void *opaque, int pin, int level)
 {
     qemu_irq *pic = opaque;
 
-    pci_debug("%s: PCI irq %d, level:%d\n", __func__, irq_num, level);
+    pci_debug("%s: PCI irq %d, level:%d\n", __func__, pin , level);
 
-    qemu_set_irq(pic[irq_num], level);
+    qemu_set_irq(pic[pin], level);
 }
 
 static const VMStateDescription vmstate_pci_outbound = {
