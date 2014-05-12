@@ -300,7 +300,7 @@ int kvm_check_extension(KVMState *s, unsigned int extension);
         };                                                           \
         uint64_t args_tmp[] = { __VA_ARGS__ };                       \
         int i;                                                       \
-        for (i = 0; i < ARRAY_SIZE(args_tmp) &&                      \
+        for (i = 0; i < (int)ARRAY_SIZE(args_tmp) &&                 \
                      i < ARRAY_SIZE(cap.args); i++) {                \
             cap.args[i] = args_tmp[i];                               \
         }                                                            \
@@ -315,7 +315,7 @@ int kvm_check_extension(KVMState *s, unsigned int extension);
         };                                                           \
         uint64_t args_tmp[] = { __VA_ARGS__ };                       \
         int i;                                                       \
-        for (i = 0; i < ARRAY_SIZE(args_tmp) &&                      \
+        for (i = 0; i < (int)ARRAY_SIZE(args_tmp) &&                 \
                      i < ARRAY_SIZE(cap.args); i++) {                \
             cap.args[i] = args_tmp[i];                               \
         }                                                            \
