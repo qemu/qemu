@@ -239,8 +239,9 @@ static void n800_key_event(void *opaque, int keycode)
     int code = s->keymap[keycode & 0x7f];
 
     if (code == -1) {
-        if ((keycode & 0x7f) == RETU_KEYCODE)
+        if ((keycode & 0x7f) == RETU_KEYCODE) {
             retu_key_event(s->retu, !(keycode & 0x80));
+        }
         return;
     }
 
@@ -280,11 +281,14 @@ static void n800_tsc_kbd_setup(struct n800_s *s)
     s->ts.opaque = s->ts.chip->opaque;
     s->ts.txrx = tsc210x_txrx;
 
-    for (i = 0; i < 0x80; i ++)
+    for (i = 0; i < 0x80; i++) {
         s->keymap[i] = -1;
-    for (i = 0; i < 0x10; i ++)
-        if (n800_keys[i] >= 0)
+    }
+    for (i = 0; i < 0x10; i++) {
+        if (n800_keys[i] >= 0) {
             s->keymap[n800_keys[i]] = i;
+        }
+    }
 
     qemu_add_kbd_event_handler(n800_key_event, s);
 
@@ -308,8 +312,9 @@ static void n810_key_event(void *opaque, int keycode)
     int code = s->keymap[keycode & 0x7f];
 
     if (code == -1) {
-        if ((keycode & 0x7f) == RETU_KEYCODE)
+        if ((keycode & 0x7f) == RETU_KEYCODE) {
             retu_key_event(s->retu, !(keycode & 0x80));
+        }
         return;
     }
 
@@ -388,11 +393,14 @@ static void n810_kbd_setup(struct n800_s *s)
     qemu_irq kbd_irq = qdev_get_gpio_in(s->mpu->gpio, N810_KEYBOARD_GPIO);
     int i;
 
-    for (i = 0; i < 0x80; i ++)
+    for (i = 0; i < 0x80; i++) {
         s->keymap[i] = -1;
-    for (i = 0; i < 0x80; i ++)
-        if (n810_keys[i] > 0)
+    }
+    for (i = 0; i < 0x80; i++) {
+        if (n810_keys[i] > 0) {
             s->keymap[n810_keys[i]] = i;
+        }
+    }
 
     qemu_add_kbd_event_handler(n810_key_event, s);
 
@@ -449,17 +457,20 @@ static uint32_t mipid_txrx(void *opaque, uint32_t cmd, int len)
     struct mipid_s *s = (struct mipid_s *) opaque;
     uint8_t ret;
 
-    if (len > 9)
+    if (len > 9) {
         hw_error("%s: FIXME: bad SPI word width %i\n", __FUNCTION__, len);
+    }
 
-    if (s->p >= ARRAY_SIZE(s->resp))
+    if (s->p >= ARRAY_SIZE(s->resp)) {
         ret = 0;
-    else
-        ret = s->resp[s->p ++];
-    if (s->pm --> 0)
+    } else {
+        ret = s->resp[s->p++];
+    }
+    if (s->pm-- > 0) {
         s->param[s->pm] = cmd;
-    else
+    } else {
         s->cmd = cmd;
+    }
 
     switch (s->cmd) {
     case 0x00:	/* NOP */
@@ -560,15 +571,17 @@ static uint32_t mipid_txrx(void *opaque, uint32_t cmd, int len)
         goto bad_cmd;
 
     case 0x25:	/* WRCNTR */
-        if (s->pm < 0)
+        if (s->pm < 0) {
             s->pm = 1;
+        }
         goto bad_cmd;
 
     case 0x26:	/* GAMSET */
-        if (!s->pm)
+        if (!s->pm) {
             s->gamma = ffs(s->param[0] & 0xf) - 1;
-        else if (s->pm < 0)
+        } else if (s->pm < 0) {
             s->pm = 1;
+        }
         break;
 
     case 0x28:	/* DISPOFF */
@@ -591,10 +604,11 @@ static uint32_t mipid_txrx(void *opaque, uint32_t cmd, int len)
         s->te = 0;
         break;
     case 0x35:	/* TEON */
-        if (!s->pm)
+        if (!s->pm) {
             s->te = 1;
-        else if (s->pm < 0)
+        } else if (s->pm < 0) {
             s->pm = 1;
+        }
         break;
 
     case 0x36:	/* MADCTR */
@@ -613,8 +627,9 @@ static uint32_t mipid_txrx(void *opaque, uint32_t cmd, int len)
 
     case 0xb0:	/* CLKINT / DISCTL */
     case 0xb1:	/* CLKEXT */
-        if (s->pm < 0)
+        if (s->pm < 0) {
             s->pm = 2;
+        }
         break;
 
     case 0xb4:	/* FRMSEL */
@@ -635,8 +650,9 @@ static uint32_t mipid_txrx(void *opaque, uint32_t cmd, int len)
         break;
 
     case 0xc2:	/* IFMOD */
-        if (s->pm < 0)
+        if (s->pm < 0) {
             s->pm = 2;
+        }
         break;
 
     case 0xc6:	/* PWRCTL */
@@ -847,21 +863,22 @@ static void n800_setup_nolo_tags(void *sram_base)
     p = sram_base + 0x9000;
 #define ADD_TAG(tag, len)				\
     stw_raw((uint16_t *) p + 0, tag);			\
-    stw_raw((uint16_t *) p + 1, len); p ++;		\
-    stl_raw(p ++, OMAP2_SRAM_BASE | (((void *) v - sram_base) & 0xffff));
+    stw_raw((uint16_t *) p + 1, len); p++;		\
+    stl_raw(p++, OMAP2_SRAM_BASE | (((void *) v - sram_base) & 0xffff));
 
     /* OMAP STI console? Pin out settings? */
     ADD_TAG(0x6e01, 414);
-    for (i = 0; i < ARRAY_SIZE(n800_pinout); i ++)
-        stl_raw(v ++, n800_pinout[i]);
+    for (i = 0; i < ARRAY_SIZE(n800_pinout); i++) {
+        stl_raw(v++, n800_pinout[i]);
+    }
 
     /* Kernel memsize? */
     ADD_TAG(0x6e05, 1);
-    stl_raw(v ++, 2);
+    stl_raw(v++, 2);
 
     /* NOLO serial console */
     ADD_TAG(0x6e02, 4);
-    stl_raw(v ++, XLDR_LL_UART);	/* UART number (1 - 3) */
+    stl_raw(v++, XLDR_LL_UART);		/* UART number (1 - 3) */
 
 #if 0
     /* CBUS settings (Retu/AVilma) */
@@ -876,23 +893,23 @@ static void n800_setup_nolo_tags(void *sram_base)
     ADD_TAG(0x6e0a, 4);
     stw_raw((uint16_t *) v + 0, 111);	/* "Retu" interrupt GPIO */
     stw_raw((uint16_t *) v + 1, 108);	/* "Tahvo" interrupt GPIO */
-    v ++;
+    v++;
 
     /* LCD console? */
     ADD_TAG(0x6e04, 4);
     stw_raw((uint16_t *) v + 0, 30);	/* ??? */
     stw_raw((uint16_t *) v + 1, 24);	/* ??? */
-    v ++;
+    v++;
 
 #if 0
     /* LCD settings */
     ADD_TAG(0x6e06, 2);
-    stw_raw((uint16_t *) (v ++), 15);	/* ??? */
+    stw_raw((uint16_t *) (v++), 15);	/* ??? */
 #endif
 
     /* I^2C (Menelaus) */
     ADD_TAG(0x6e07, 4);
-    stl_raw(v ++, 0x00720000);		/* ??? */
+    stl_raw(v++, 0x00720000);		/* ??? */
 
     /* Unknown */
     ADD_TAG(0x6e0b, 6);
@@ -922,30 +939,30 @@ static void n800_setup_nolo_tags(void *sram_base)
 
     /* Bluetooth */
     ADD_TAG(0x6e0e, 12);
-    stl_raw(v ++, 0x5c623d01);		/* ??? */
-    stl_raw(v ++, 0x00000201);		/* ??? */
-    stl_raw(v ++, 0x00000000);		/* ??? */
+    stl_raw(v++, 0x5c623d01);		/* ??? */
+    stl_raw(v++, 0x00000201);		/* ??? */
+    stl_raw(v++, 0x00000000);		/* ??? */
 
     /* CX3110x WLAN settings */
     ADD_TAG(0x6e0f, 8);
-    stl_raw(v ++, 0x00610025);		/* ??? */
-    stl_raw(v ++, 0xffff0057);		/* ??? */
+    stl_raw(v++, 0x00610025);		/* ??? */
+    stl_raw(v++, 0xffff0057);		/* ??? */
 
     /* MMC host settings */
     ADD_TAG(0x6e10, 12);
-    stl_raw(v ++, 0xffff000f);		/* ??? */
-    stl_raw(v ++, 0xffffffff);		/* ??? */
-    stl_raw(v ++, 0x00000060);		/* ??? */
+    stl_raw(v++, 0xffff000f);		/* ??? */
+    stl_raw(v++, 0xffffffff);		/* ??? */
+    stl_raw(v++, 0x00000060);		/* ??? */
 
     /* OneNAND chip select */
     ADD_TAG(0x6e11, 10);
-    stl_raw(v ++, 0x00000401);		/* ??? */
-    stl_raw(v ++, 0x0002003a);		/* ??? */
-    stl_raw(v ++, 0x00000002);		/* ??? */
+    stl_raw(v++, 0x00000401);		/* ??? */
+    stl_raw(v++, 0x0002003a);		/* ??? */
+    stl_raw(v++, 0x00000002);		/* ??? */
 
     /* TEA5761 sensor settings */
     ADD_TAG(0x6e12, 2);
-    stl_raw(v ++, 93);			/* GPIO num ??? */
+    stl_raw(v++, 93);			/* GPIO num ??? */
 
 #if 0
     /* Unknown tag */
@@ -956,8 +973,8 @@ static void n800_setup_nolo_tags(void *sram_base)
 #endif
 
     /* End of the list */
-    stl_raw(p ++, 0x00000000);
-    stl_raw(p ++, 0x00000000);
+    stl_raw(p++, 0x00000000);
+    stl_raw(p++, 0x00000000);
 }
 
 /* This task is normally performed by the bootloader.  If we're loading
@@ -1032,8 +1049,9 @@ static void n8x0_boot_init(void *opaque)
     s->mpu->cpu->env.GE = 0x5;
 
     /* If the machine has a slided keyboard, open it */
-    if (s->kbd)
+    if (s->kbd) {
         qemu_irq_raise(qdev_get_gpio_in(s->mpu->gpio, N810_SLIDE_GPIO));
+    }
 }
 
 #define OMAP_TAG_NOKIA_BT	0x4e01
@@ -1119,112 +1137,112 @@ static int n8x0_atag_setup(void *p, int model)
 
     w = p;
 
-    stw_raw(w ++, OMAP_TAG_UART);		/* u16 tag */
-    stw_raw(w ++, 4);				/* u16 len */
-    stw_raw(w ++, (1 << 2) | (1 << 1) | (1 << 0)); /* uint enabled_uarts */
-    w ++;
+    stw_raw(w++, OMAP_TAG_UART);		/* u16 tag */
+    stw_raw(w++, 4);				/* u16 len */
+    stw_raw(w++, (1 << 2) | (1 << 1) | (1 << 0)); /* uint enabled_uarts */
+    w++;
 
 #if 0
-    stw_raw(w ++, OMAP_TAG_SERIAL_CONSOLE);	/* u16 tag */
-    stw_raw(w ++, 4);				/* u16 len */
-    stw_raw(w ++, XLDR_LL_UART + 1);		/* u8 console_uart */
-    stw_raw(w ++, 115200);			/* u32 console_speed */
+    stw_raw(w++, OMAP_TAG_SERIAL_CONSOLE);	/* u16 tag */
+    stw_raw(w++, 4);				/* u16 len */
+    stw_raw(w++, XLDR_LL_UART + 1);		/* u8 console_uart */
+    stw_raw(w++, 115200);			/* u32 console_speed */
 #endif
 
-    stw_raw(w ++, OMAP_TAG_LCD);		/* u16 tag */
-    stw_raw(w ++, 36);				/* u16 len */
+    stw_raw(w++, OMAP_TAG_LCD);			/* u16 tag */
+    stw_raw(w++, 36);				/* u16 len */
     strcpy((void *) w, "QEMU LCD panel");	/* char panel_name[16] */
     w += 8;
     strcpy((void *) w, "blizzard");		/* char ctrl_name[16] */
     w += 8;
-    stw_raw(w ++, N810_BLIZZARD_RESET_GPIO);	/* TODO: n800 s16 nreset_gpio */
-    stw_raw(w ++, 24);				/* u8 data_lines */
+    stw_raw(w++, N810_BLIZZARD_RESET_GPIO);	/* TODO: n800 s16 nreset_gpio */
+    stw_raw(w++, 24);				/* u8 data_lines */
 
-    stw_raw(w ++, OMAP_TAG_CBUS);		/* u16 tag */
-    stw_raw(w ++, 8);				/* u16 len */
-    stw_raw(w ++, N8X0_CBUS_CLK_GPIO);		/* s16 clk_gpio */
-    stw_raw(w ++, N8X0_CBUS_DAT_GPIO);		/* s16 dat_gpio */
-    stw_raw(w ++, N8X0_CBUS_SEL_GPIO);		/* s16 sel_gpio */
-    w ++;
+    stw_raw(w++, OMAP_TAG_CBUS);		/* u16 tag */
+    stw_raw(w++, 8);				/* u16 len */
+    stw_raw(w++, N8X0_CBUS_CLK_GPIO);		/* s16 clk_gpio */
+    stw_raw(w++, N8X0_CBUS_DAT_GPIO);		/* s16 dat_gpio */
+    stw_raw(w++, N8X0_CBUS_SEL_GPIO);		/* s16 sel_gpio */
+    w++;
 
-    stw_raw(w ++, OMAP_TAG_EM_ASIC_BB5);	/* u16 tag */
-    stw_raw(w ++, 4);				/* u16 len */
-    stw_raw(w ++, N8X0_RETU_GPIO);		/* s16 retu_irq_gpio */
-    stw_raw(w ++, N8X0_TAHVO_GPIO);		/* s16 tahvo_irq_gpio */
+    stw_raw(w++, OMAP_TAG_EM_ASIC_BB5);		/* u16 tag */
+    stw_raw(w++, 4);				/* u16 len */
+    stw_raw(w++, N8X0_RETU_GPIO);		/* s16 retu_irq_gpio */
+    stw_raw(w++, N8X0_TAHVO_GPIO);		/* s16 tahvo_irq_gpio */
 
     gpiosw = (model == 810) ? n810_gpiosw_info : n800_gpiosw_info;
-    for (; gpiosw->name; gpiosw ++) {
-        stw_raw(w ++, OMAP_TAG_GPIO_SWITCH);	/* u16 tag */
-        stw_raw(w ++, 20);			/* u16 len */
+    for (; gpiosw->name; gpiosw++) {
+        stw_raw(w++, OMAP_TAG_GPIO_SWITCH);	/* u16 tag */
+        stw_raw(w++, 20);			/* u16 len */
         strcpy((void *) w, gpiosw->name);	/* char name[12] */
         w += 6;
-        stw_raw(w ++, gpiosw->line);		/* u16 gpio */
-        stw_raw(w ++, gpiosw->type);
-        stw_raw(w ++, 0);
-        stw_raw(w ++, 0);
+        stw_raw(w++, gpiosw->line);		/* u16 gpio */
+        stw_raw(w++, gpiosw->type);
+        stw_raw(w++, 0);
+        stw_raw(w++, 0);
     }
 
-    stw_raw(w ++, OMAP_TAG_NOKIA_BT);		/* u16 tag */
-    stw_raw(w ++, 12);				/* u16 len */
+    stw_raw(w++, OMAP_TAG_NOKIA_BT);		/* u16 tag */
+    stw_raw(w++, 12);				/* u16 len */
     b = (void *) w;
-    stb_raw(b ++, 0x01);			/* u8 chip_type	(CSR) */
-    stb_raw(b ++, N8X0_BT_WKUP_GPIO);		/* u8 bt_wakeup_gpio */
-    stb_raw(b ++, N8X0_BT_HOST_WKUP_GPIO);	/* u8 host_wakeup_gpio */
-    stb_raw(b ++, N8X0_BT_RESET_GPIO);		/* u8 reset_gpio */
-    stb_raw(b ++, BT_UART + 1);			/* u8 bt_uart */
+    stb_raw(b++, 0x01);				/* u8 chip_type	(CSR) */
+    stb_raw(b++, N8X0_BT_WKUP_GPIO);		/* u8 bt_wakeup_gpio */
+    stb_raw(b++, N8X0_BT_HOST_WKUP_GPIO);	/* u8 host_wakeup_gpio */
+    stb_raw(b++, N8X0_BT_RESET_GPIO);		/* u8 reset_gpio */
+    stb_raw(b++, BT_UART + 1);			/* u8 bt_uart */
     memcpy(b, &n8x0_bd_addr, 6);		/* u8 bd_addr[6] */
     b += 6;
-    stb_raw(b ++, 0x02);			/* u8 bt_sysclk (38.4) */
+    stb_raw(b++, 0x02);				/* u8 bt_sysclk (38.4) */
     w = (void *) b;
 
-    stw_raw(w ++, OMAP_TAG_WLAN_CX3110X);	/* u16 tag */
-    stw_raw(w ++, 8);				/* u16 len */
-    stw_raw(w ++, 0x25);			/* u8 chip_type */
-    stw_raw(w ++, N8X0_WLAN_PWR_GPIO);		/* s16 power_gpio */
-    stw_raw(w ++, N8X0_WLAN_IRQ_GPIO);		/* s16 irq_gpio */
-    stw_raw(w ++, -1);				/* s16 spi_cs_gpio */
+    stw_raw(w++, OMAP_TAG_WLAN_CX3110X);	/* u16 tag */
+    stw_raw(w++, 8);				/* u16 len */
+    stw_raw(w++, 0x25);				/* u8 chip_type */
+    stw_raw(w++, N8X0_WLAN_PWR_GPIO);		/* s16 power_gpio */
+    stw_raw(w++, N8X0_WLAN_IRQ_GPIO);		/* s16 irq_gpio */
+    stw_raw(w++, -1);				/* s16 spi_cs_gpio */
 
-    stw_raw(w ++, OMAP_TAG_MMC);		/* u16 tag */
-    stw_raw(w ++, 16);				/* u16 len */
+    stw_raw(w++, OMAP_TAG_MMC);			/* u16 tag */
+    stw_raw(w++, 16);				/* u16 len */
     if (model == 810) {
-        stw_raw(w ++, 0x23f);			/* unsigned flags */
-        stw_raw(w ++, -1);			/* s16 power_pin */
-        stw_raw(w ++, -1);			/* s16 switch_pin */
-        stw_raw(w ++, -1);			/* s16 wp_pin */
-        stw_raw(w ++, 0x240);			/* unsigned flags */
-        stw_raw(w ++, 0xc000);			/* s16 power_pin */
-        stw_raw(w ++, 0x0248);			/* s16 switch_pin */
-        stw_raw(w ++, 0xc000);			/* s16 wp_pin */
+        stw_raw(w++, 0x23f);			/* unsigned flags */
+        stw_raw(w++, -1);			/* s16 power_pin */
+        stw_raw(w++, -1);			/* s16 switch_pin */
+        stw_raw(w++, -1);			/* s16 wp_pin */
+        stw_raw(w++, 0x240);			/* unsigned flags */
+        stw_raw(w++, 0xc000);			/* s16 power_pin */
+        stw_raw(w++, 0x0248);			/* s16 switch_pin */
+        stw_raw(w++, 0xc000);			/* s16 wp_pin */
     } else {
-        stw_raw(w ++, 0xf);			/* unsigned flags */
-        stw_raw(w ++, -1);			/* s16 power_pin */
-        stw_raw(w ++, -1);			/* s16 switch_pin */
-        stw_raw(w ++, -1);			/* s16 wp_pin */
-        stw_raw(w ++, 0);			/* unsigned flags */
-        stw_raw(w ++, 0);			/* s16 power_pin */
-        stw_raw(w ++, 0);			/* s16 switch_pin */
-        stw_raw(w ++, 0);			/* s16 wp_pin */
+        stw_raw(w++, 0xf);			/* unsigned flags */
+        stw_raw(w++, -1);			/* s16 power_pin */
+        stw_raw(w++, -1);			/* s16 switch_pin */
+        stw_raw(w++, -1);			/* s16 wp_pin */
+        stw_raw(w++, 0);			/* unsigned flags */
+        stw_raw(w++, 0);			/* s16 power_pin */
+        stw_raw(w++, 0);			/* s16 switch_pin */
+        stw_raw(w++, 0);			/* s16 wp_pin */
     }
 
-    stw_raw(w ++, OMAP_TAG_TEA5761);		/* u16 tag */
-    stw_raw(w ++, 4);				/* u16 len */
-    stw_raw(w ++, N8X0_TEA5761_CS_GPIO);	/* u16 enable_gpio */
-    w ++;
+    stw_raw(w++, OMAP_TAG_TEA5761);		/* u16 tag */
+    stw_raw(w++, 4);				/* u16 len */
+    stw_raw(w++, N8X0_TEA5761_CS_GPIO);		/* u16 enable_gpio */
+    w++;
 
     partition = (model == 810) ? n810_part_info : n800_part_info;
-    for (; partition->name; partition ++) {
-        stw_raw(w ++, OMAP_TAG_PARTITION);	/* u16 tag */
-        stw_raw(w ++, 28);			/* u16 len */
+    for (; partition->name; partition++) {
+        stw_raw(w++, OMAP_TAG_PARTITION);	/* u16 tag */
+        stw_raw(w++, 28);			/* u16 len */
         strcpy((void *) w, partition->name);	/* char name[16] */
         l = (void *) (w + 8);
-        stl_raw(l ++, partition->size);		/* unsigned int size */
-        stl_raw(l ++, partition->offset);	/* unsigned int offset */
-        stl_raw(l ++, partition->mask);		/* unsigned int mask_flags */
+        stl_raw(l++, partition->size);		/* unsigned int size */
+        stl_raw(l++, partition->offset);	/* unsigned int offset */
+        stl_raw(l++, partition->mask);		/* unsigned int mask_flags */
         w = (void *) l;
     }
 
-    stw_raw(w ++, OMAP_TAG_BOOT_REASON);	/* u16 tag */
-    stw_raw(w ++, 12);				/* u16 len */
+    stw_raw(w++, OMAP_TAG_BOOT_REASON);		/* u16 tag */
+    stw_raw(w++, 12);				/* u16 len */
 #if 0
     strcpy((void *) w, "por");			/* char reason_str[12] */
     strcpy((void *) w, "charger");		/* char reason_str[12] */
@@ -1242,15 +1260,15 @@ static int n8x0_atag_setup(void *p, int model)
     w += 6;
 
     tag = (model == 810) ? "RX-44" : "RX-34";
-    stw_raw(w ++, OMAP_TAG_VERSION_STR);	/* u16 tag */
-    stw_raw(w ++, 24);				/* u16 len */
+    stw_raw(w++, OMAP_TAG_VERSION_STR);		/* u16 tag */
+    stw_raw(w++, 24);				/* u16 len */
     strcpy((void *) w, "product");		/* char component[12] */
     w += 6;
     strcpy((void *) w, tag);			/* char version[12] */
     w += 6;
 
-    stw_raw(w ++, OMAP_TAG_VERSION_STR);	/* u16 tag */
-    stw_raw(w ++, 24);				/* u16 len */
+    stw_raw(w++, OMAP_TAG_VERSION_STR);		/* u16 tag */
+    stw_raw(w++, 24);				/* u16 len */
     strcpy((void *) w, "hw-build");		/* char component[12] */
     w += 6;
     strcpy((void *) w, "QEMU ");
@@ -1258,8 +1276,8 @@ static int n8x0_atag_setup(void *p, int model)
     w += 6;
 
     tag = (model == 810) ? "1.1.10-qemu" : "1.1.6-qemu";
-    stw_raw(w ++, OMAP_TAG_VERSION_STR);	/* u16 tag */
-    stw_raw(w ++, 24);				/* u16 len */
+    stw_raw(w++, OMAP_TAG_VERSION_STR);		/* u16 tag */
+    stw_raw(w++, 24);				/* u16 len */
     strcpy((void *) w, "nolo");			/* char component[12] */
     w += 6;
     strcpy((void *) w, tag);			/* char version[12] */
@@ -1315,9 +1333,9 @@ static void n8x0_init(MachineState *machine,
     n8x0_gpio_setup(s);
     n8x0_nand_setup(s);
     n8x0_i2c_setup(s);
-    if (model == 800)
+    if (model == 800) {
         n800_tsc_kbd_setup(s);
-    else if (model == 810) {
+    } else if (model == 810) {
         n810_tsc_setup(s);
         n810_kbd_setup(s);
     }
