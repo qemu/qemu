@@ -139,6 +139,9 @@ static int spapr_tce_table_realize(DeviceState *dev)
 
     QLIST_INSERT_HEAD(&spapr_tce_tables, tcet, list);
 
+    vmstate_register(DEVICE(tcet), tcet->liobn, &vmstate_spapr_tce_table,
+                     tcet);
+
     return 0;
 }
 
@@ -322,7 +325,6 @@ int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
 static void spapr_tce_table_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    dc->vmsd = &vmstate_spapr_tce_table;
     dc->init = spapr_tce_table_realize;
     dc->reset = spapr_tce_reset;
 
