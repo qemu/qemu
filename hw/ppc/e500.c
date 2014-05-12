@@ -715,6 +715,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     /* PCI */
     dev = qdev_create(NULL, "e500-pcihost");
     qdev_prop_set_uint32(dev, "first_slot", params->pci_first_slot);
+    qdev_prop_set_uint32(dev, "first_pin_irq", pci_irq_nrs[0]);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     for (i = 0; i < PCI_NUM_PINS; i++) {

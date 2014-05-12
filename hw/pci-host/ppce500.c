@@ -88,7 +88,9 @@ struct PPCE500PCIState {
     struct pci_inbound pib[PPCE500_PCI_NR_PIBS];
     uint32_t gasket_time;
     qemu_irq irq[PCI_NUM_PINS];
+    uint32_t irq_num[PCI_NUM_PINS];
     uint32_t first_slot;
+    uint32_t first_pin_irq;
     /* mmio maps */
     MemoryRegion container;
     MemoryRegion iomem;
@@ -267,11 +269,24 @@ static int mpc85xx_pci_map_irq(PCIDevice *pci_dev, int pin)
 
 static void mpc85xx_pci_set_irq(void *opaque, int pin, int level)
 {
-    qemu_irq *pic = opaque;
+    PPCE500PCIState *s = opaque;
+    qemu_irq *pic = s->irq;
 
     pci_debug("%s: PCI irq %d, level:%d\n", __func__, pin , level);
 
     qemu_set_irq(pic[pin], level);
+}
+
+static PCIINTxRoute e500_route_intx_pin_to_irq(void *opaque, int pin)
+{
+    PCIINTxRoute route;
+    PPCE500PCIState *s = opaque;
+
+    route.mode = PCI_INTX_ENABLED;
+    route.irq = s->irq_num[pin];
+
+    pci_debug("%s: PCI irq-pin = %d, irq_num= %d\n", __func__, pin, route.irq);
+    return route;
 }
 
 static const VMStateDescription vmstate_pci_outbound = {
@@ -349,10 +364,14 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->irq[i]);
     }
 
+    for (i = 0; i < PCI_NUM_PINS; i++) {
+        s->irq_num[i] = s->first_pin_irq + i;
+    }
+
     memory_region_init(&s->pio, OBJECT(s), "pci-pio", PCIE500_PCI_IOLEN);
 
     b = pci_register_bus(DEVICE(dev), NULL, mpc85xx_pci_set_irq,
-                         mpc85xx_pci_map_irq, s->irq, address_space_mem,
+                         mpc85xx_pci_map_irq, s, address_space_mem,
                          &s->pio, PCI_DEVFN(s->first_slot, 0), 4, TYPE_PCI_BUS);
     h->bus = b;
 
@@ -370,6 +389,7 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
     memory_region_add_subregion(&s->container, PCIE500_REG_BASE, &s->iomem);
     sysbus_init_mmio(dev, &s->container);
     sysbus_init_mmio(dev, &s->pio);
+    pci_bus_set_route_irq_fn(b, e500_route_intx_pin_to_irq);
 
     return 0;
 }
@@ -400,6 +420,7 @@ static const TypeInfo e500_host_bridge_info = {
 
 static Property pcihost_properties[] = {
     DEFINE_PROP_UINT32("first_slot", PPCE500PCIState, first_slot, 0x11),
+    DEFINE_PROP_UINT32("first_pin_irq", PPCE500PCIState, first_pin_irq, 0x1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
