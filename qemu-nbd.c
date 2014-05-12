@@ -294,7 +294,7 @@ static void *nbd_client_thread(void *arg)
     fd = open(device, O_RDWR);
     if (fd < 0) {
         /* Linux-only, we can use %m in printf.  */
-        fprintf(stderr, "Failed to open %s: %m", device);
+        fprintf(stderr, "Failed to open %s: %m\n", device);
         goto out_socket;
     }
 
