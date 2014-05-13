@@ -59,7 +59,6 @@ typedef struct {
     uint32_t mtxd;
     uint32_t mrxd;
     uint32_t np;
-    int tx_frame_len;
     int tx_fifo_len;
     uint8_t tx_fifo[2048];
     /* Real hardware has a 2k fifo, which works out to be at most 31 packets.
@@ -80,6 +79,62 @@ typedef struct {
 static void stellaris_enet_update(stellaris_enet_state *s)
 {
     qemu_set_irq(s->irq, (s->ris & s->im) != 0);
+}
+
+/* Return the data length of the packet currently being assembled
+ * in the TX fifo.
+ */
+static inline int stellaris_txpacket_datalen(stellaris_enet_state *s)
+{
+    return s->tx_fifo[0] | (s->tx_fifo[1] << 8);
+}
+
+/* Return true if the packet currently in the TX FIFO is complete,
+* ie the FIFO holds enough bytes for the data length, ethernet header,
+* payload and optionally CRC.
+*/
+static inline bool stellaris_txpacket_complete(stellaris_enet_state *s)
+{
+    int framelen = stellaris_txpacket_datalen(s);
+    framelen += 16;
+    if (!(s->tctl & SE_TCTL_CRC)) {
+        framelen += 4;
+    }
+    /* Cover the corner case of a 2032 byte payload with auto-CRC disabled:
+     * this requires more bytes than will fit in the FIFO. It's not totally
+     * clear how the h/w handles this, but if using threshold-based TX
+     * it will definitely try to transmit something.
+     */
+    framelen = MIN(framelen, ARRAY_SIZE(s->tx_fifo));
+    return s->tx_fifo_len >= framelen;
+}
+
+/* Send the packet currently in the TX FIFO */
+static void stellaris_enet_send(stellaris_enet_state *s)
+{
+    int framelen = stellaris_txpacket_datalen(s);
+
+    /* Ethernet header is in the FIFO but not in the datacount.
+     * We don't implement explicit CRC, so just ignore any
+     * CRC value in the FIFO.
+     */
+    framelen += 14;
+    if ((s->tctl & SE_TCTL_PADEN) && framelen < 60) {
+        memset(&s->tx_fifo[framelen + 2], 0, 60 - framelen);
+        framelen = 60;
+    }
+    /* This MIN will have no effect unless the FIFO data is corrupt
+     * (eg bad data from an incoming migration); otherwise the check
+     * on the datalen at the start of writing the data into the FIFO
+     * will have caught this. Silently write a corrupt half-packet,
+     * which is what the hardware does in FIFO underrun situations.
+     */
+    framelen = MIN(framelen, ARRAY_SIZE(s->tx_fifo) - 2);
+    qemu_send_packet(qemu_get_queue(s->nic), s->tx_fifo + 2, framelen);
+    s->tx_fifo_len = 0;
+    s->ris |= SE_INT_TXEMP;
+    stellaris_enet_update(s);
+    DPRINTF("Done TX\n");
 }
 
 /* TODO: Implement MAC address filtering.  */
@@ -215,8 +270,9 @@ static void stellaris_enet_write(void *opaque, hwaddr offset,
         DPRINTF("IRQ ack %02x/%02x\n", value, s->ris);
         stellaris_enet_update(s);
         /* Clearing TXER also resets the TX fifo.  */
-        if (value & SE_INT_TXER)
-            s->tx_frame_len = -1;
+        if (value & SE_INT_TXER) {
+            s->tx_fifo_len = 0;
+        }
         break;
     case 0x04: /* IM */
         DPRINTF("IRQ mask %02x/%02x\n", value, s->ris);
@@ -235,45 +291,26 @@ static void stellaris_enet_write(void *opaque, hwaddr offset,
         s->tctl = value;
         break;
     case 0x10: /* DATA */
-        if (s->tx_frame_len == -1) {
-            s->tx_frame_len = value & 0xffff;
-            if (s->tx_frame_len > 2032) {
-                DPRINTF("TX frame too long (%d)\n", s->tx_frame_len);
-                s->tx_frame_len = 0;
+        if (s->tx_fifo_len == 0) {
+            /* The first word is special, it contains the data length */
+            int framelen = value & 0xffff;
+            if (framelen > 2032) {
+                DPRINTF("TX frame too long (%d)\n", framelen);
                 s->ris |= SE_INT_TXER;
                 stellaris_enet_update(s);
-            } else {
-                DPRINTF("Start TX frame len=%d\n", s->tx_frame_len);
-                /* The value written does not include the ethernet header.  */
-                s->tx_frame_len += 14;
-                if ((s->tctl & SE_TCTL_CRC) == 0)
-                    s->tx_frame_len += 4;
-                s->tx_fifo_len = 0;
-                s->tx_fifo[s->tx_fifo_len++] = value >> 16;
-                s->tx_fifo[s->tx_fifo_len++] = value >> 24;
+                break;
             }
-        } else {
-            if (s->tx_fifo_len + 4 <= ARRAY_SIZE(s->tx_fifo)) {
-                s->tx_fifo[s->tx_fifo_len++] = value;
-                s->tx_fifo[s->tx_fifo_len++] = value >> 8;
-                s->tx_fifo[s->tx_fifo_len++] = value >> 16;
-                s->tx_fifo[s->tx_fifo_len++] = value >> 24;
-            }
-            if (s->tx_fifo_len >= s->tx_frame_len) {
-                /* We don't implement explicit CRC, so just chop it off.  */
-                if ((s->tctl & SE_TCTL_CRC) == 0)
-                    s->tx_frame_len -= 4;
-                if ((s->tctl & SE_TCTL_PADEN) && s->tx_frame_len < 60) {
-                    memset(&s->tx_fifo[s->tx_frame_len], 0, 60 - s->tx_frame_len);
-                    s->tx_frame_len = 60;
-                }
-                qemu_send_packet(qemu_get_queue(s->nic), s->tx_fifo,
-                                 s->tx_frame_len);
-                s->tx_frame_len = -1;
-                s->ris |= SE_INT_TXEMP;
-                stellaris_enet_update(s);
-                DPRINTF("Done TX\n");
-            }
+        }
+
+        if (s->tx_fifo_len + 4 <= ARRAY_SIZE(s->tx_fifo)) {
+            s->tx_fifo[s->tx_fifo_len++] = value;
+            s->tx_fifo[s->tx_fifo_len++] = value >> 8;
+            s->tx_fifo[s->tx_fifo_len++] = value >> 16;
+            s->tx_fifo[s->tx_fifo_len++] = value >> 24;
+        }
+
+        if (stellaris_txpacket_complete(s)) {
+            stellaris_enet_send(s);
         }
         break;
     case 0x14: /* IA0 */
@@ -326,7 +363,7 @@ static void stellaris_enet_reset(stellaris_enet_state *s)
     s->im = SE_INT_PHY | SE_INT_MD | SE_INT_RXER | SE_INT_FOV | SE_INT_TXEMP
             | SE_INT_TXER | SE_INT_RX;
     s->thr = 0x3f;
-    s->tx_frame_len = -1;
+    s->tx_fifo_len = 0;
 }
 
 static void stellaris_enet_save(QEMUFile *f, void *opaque)
@@ -344,7 +381,6 @@ static void stellaris_enet_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, s->mtxd);
     qemu_put_be32(f, s->mrxd);
     qemu_put_be32(f, s->np);
-    qemu_put_be32(f, s->tx_frame_len);
     qemu_put_be32(f, s->tx_fifo_len);
     qemu_put_buffer(f, s->tx_fifo, sizeof(s->tx_fifo));
     for (i = 0; i < 31; i++) {
@@ -375,7 +411,6 @@ static int stellaris_enet_load(QEMUFile *f, void *opaque, int version_id)
     s->mtxd = qemu_get_be32(f);
     s->mrxd = qemu_get_be32(f);
     s->np = qemu_get_be32(f);
-    s->tx_frame_len = qemu_get_be32(f);
     s->tx_fifo_len = qemu_get_be32(f);
     qemu_get_buffer(f, s->tx_fifo, sizeof(s->tx_fifo));
     for (i = 0; i < 31; i++) {
