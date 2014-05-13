@@ -949,6 +949,7 @@ route:
         ERROR(errp, "result not equal to event_addr_resolved %s",
                 rdma_event_str(cm_event->event));
         perror("rdma_resolve_addr");
+        rdma_ack_cm_event(cm_event);
         ret = -EINVAL;
         goto err_resolve_get_addr;
     }
