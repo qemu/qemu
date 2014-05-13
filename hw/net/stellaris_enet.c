@@ -109,6 +109,15 @@ static inline bool stellaris_txpacket_complete(stellaris_enet_state *s)
     return s->tx_fifo_len >= framelen;
 }
 
+/* Return true if the TX FIFO threshold is enabled and the FIFO
+ * has filled enough to reach it.
+ */
+static inline bool stellaris_tx_thr_reached(stellaris_enet_state *s)
+{
+    return (s->thr < 0x3f &&
+            (s->tx_fifo_len >= 4 * (s->thr * 8 + 1)));
+}
+
 /* Send the packet currently in the TX FIFO */
 static void stellaris_enet_send(stellaris_enet_state *s)
 {
@@ -309,7 +318,7 @@ static void stellaris_enet_write(void *opaque, hwaddr offset,
             s->tx_fifo[s->tx_fifo_len++] = value >> 24;
         }
 
-        if (stellaris_txpacket_complete(s)) {
+        if (stellaris_tx_thr_reached(s) && stellaris_txpacket_complete(s)) {
             stellaris_enet_send(s);
         }
         break;
@@ -338,9 +347,13 @@ static void stellaris_enet_write(void *opaque, hwaddr offset,
     case 0x2c: /* MTXD */
         s->mtxd = value & 0xff;
         break;
+    case 0x38: /* TR */
+        if (value & 1) {
+            stellaris_enet_send(s);
+        }
+        break;
     case 0x30: /* MRXD */
     case 0x34: /* NP */
-    case 0x38: /* TR */
         /* Ignored.  */
     case 0x3c: /* Undocuented: Timestamp? */
         /* Ignored.  */
