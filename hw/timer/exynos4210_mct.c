@@ -818,14 +818,14 @@ static void exynos4210_ltick_recalc_count(struct tick_timer *s)
          */
 
         if (s->last_tcnto) {
-            to_count = s->last_tcnto * s->last_icnto;
+            to_count = (uint64_t)s->last_tcnto * s->last_icnto;
         } else {
             to_count = s->last_icnto;
         }
     } else {
         /* distance is passed, recalculate with tcnto * icnto */
         if (s->icntb) {
-            s->distance = s->tcntb * s->icntb;
+            s->distance = (uint64_t)s->tcntb * s->icntb;
         } else {
             s->distance = s->tcntb;
         }
