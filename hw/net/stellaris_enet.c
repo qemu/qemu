@@ -161,7 +161,7 @@ static ssize_t stellaris_enet_receive(NetClientState *nc, const uint8_t *buf, si
         return -1;
     }
 
-    DPRINTF("Received packet len=%d\n", size);
+    DPRINTF("Received packet len=%zu\n", size);
     n = s->next_packet + s->np;
     if (n >= 31)
         n -= 31;
@@ -276,7 +276,7 @@ static void stellaris_enet_write(void *opaque, hwaddr offset,
     switch (offset) {
     case 0x00: /* IACK */
         s->ris &= ~value;
-        DPRINTF("IRQ ack %02x/%02x\n", value, s->ris);
+        DPRINTF("IRQ ack %02" PRIx64 "/%02x\n", value, s->ris);
         stellaris_enet_update(s);
         /* Clearing TXER also resets the TX fifo.  */
         if (value & SE_INT_TXER) {
@@ -284,7 +284,7 @@ static void stellaris_enet_write(void *opaque, hwaddr offset,
         }
         break;
     case 0x04: /* IM */
-        DPRINTF("IRQ mask %02x/%02x\n", value, s->ris);
+        DPRINTF("IRQ mask %02" PRIx64 "/%02x\n", value, s->ris);
         s->im = value;
         stellaris_enet_update(s);
         break;
