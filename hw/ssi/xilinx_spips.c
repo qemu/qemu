@@ -704,7 +704,6 @@ static const VMStateDescription vmstate_xilinx_spips = {
     .name = "xilinx_spips",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
     .post_load = xilinx_spips_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_FIFO8(tx_fifo, XilinxSPIPS),

@@ -76,7 +76,6 @@ static const VMStateDescription vmstate_imx_serial = {
     .name = "imx-serial",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(readbuff, IMXSerialState),
         VMSTATE_UINT32(usr1, IMXSerialState),

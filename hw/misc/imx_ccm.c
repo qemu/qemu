@@ -57,7 +57,6 @@ static const VMStateDescription vmstate_imx_ccm = {
     .name = "imx-ccm",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(ccmr, IMXCCMState),
         VMSTATE_UINT32(pdr0, IMXCCMState),

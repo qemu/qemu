@@ -39,7 +39,6 @@ static const VMStateDescription vmstate_vfp = {
     .name = "cpu/vfp",
     .version_id = 3,
     .minimum_version_id = 3,
-    .minimum_version_id_old = 3,
     .fields = (VMStateField[]) {
         VMSTATE_FLOAT64_ARRAY(env.vfp.regs, ARMCPU, 64),
         /* The xregs array is a little awkward because element 1 (FPSCR)
@@ -72,7 +71,6 @@ static const VMStateDescription vmstate_iwmmxt = {
     .name = "cpu/iwmmxt",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64_ARRAY(env.iwmmxt.regs, ARMCPU, 16),
         VMSTATE_UINT32_ARRAY(env.iwmmxt.cregs, ARMCPU, 16),
@@ -92,7 +90,6 @@ static const VMStateDescription vmstate_m = {
     .name = "cpu/m",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(env.v7m.other_sp, ARMCPU),
         VMSTATE_UINT32(env.v7m.vecbase, ARMCPU),
@@ -116,7 +113,6 @@ static const VMStateDescription vmstate_thumb2ee = {
     .name = "cpu/thumb2ee",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(env.teecr, ARMCPU),
         VMSTATE_UINT32(env.teehbr, ARMCPU),
@@ -224,7 +220,6 @@ const VMStateDescription vmstate_arm_cpu = {
     .name = "cpu",
     .version_id = 17,
     .minimum_version_id = 17,
-    .minimum_version_id_old = 17,
     .pre_save = cpu_pre_save,
     .post_load = cpu_post_load,
     .fields = (VMStateField[]) {
