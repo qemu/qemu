@@ -3594,8 +3594,10 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
                      PCI_BASE_ADDRESS_SPACE_MEMORY|PCI_BASE_ADDRESS_MEM_TYPE_64,
                      &xhci->mem);
 
-    ret = pcie_endpoint_cap_init(dev, 0xa0);
-    assert(ret >= 0);
+    if (pci_bus_is_express(dev->bus)) {
+        ret = pcie_endpoint_cap_init(dev, 0xa0);
+        assert(ret >= 0);
+    }
 
     if (xhci->flags & (1 << XHCI_FLAG_USE_MSI)) {
         msi_init(dev, 0x70, xhci->numintrs, true, false);
