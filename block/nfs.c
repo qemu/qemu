@@ -256,6 +256,10 @@ static int64_t nfs_client_open(NFSClient *client, const char *filename,
         error_setg(errp, "Invalid URL specified");
         goto fail;
     }
+    if (!uri->server) {
+        error_setg(errp, "Invalid URL specified");
+        goto fail;
+    }
     strp = strrchr(uri->path, '/');
     if (strp == NULL) {
         error_setg(errp, "Invalid URL specified");

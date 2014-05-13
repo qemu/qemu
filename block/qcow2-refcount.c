@@ -656,7 +656,9 @@ retry:
 
     /* Make sure that all offsets in the "allocated" range are representable
      * in an int64_t */
-    if (s->free_cluster_index - 1 > (INT64_MAX >> s->cluster_bits)) {
+    if (s->free_cluster_index > 0 &&
+        s->free_cluster_index - 1 > (INT64_MAX >> s->cluster_bits))
+    {
         return -EFBIG;
     }
 

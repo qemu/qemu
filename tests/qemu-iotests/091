@@ -1,0 +1,105 @@
+#!/bin/bash
+#
+# Live migration test
+#
+# Performs a migration from one VM to another via monitor commands
+#
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=jcody@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1    # failure is the default!
+
+MIG_FIFO="${TEST_DIR}/migrate"
+
+_cleanup()
+{
+    rm -f "${MIG_FIFO}"
+    _cleanup_qemu
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+size=1G
+
+_make_test_img $size
+
+mkfifo "${MIG_FIFO}"
+
+echo
+echo === Starting QEMU VM1 ===
+echo
+
+qemu_comm_method="monitor"
+_launch_qemu -drive file="${TEST_IMG}",cache=none,id=disk
+h1=$QEMU_HANDLE
+
+echo
+echo === Starting QEMU VM2 ===
+echo
+_launch_qemu -drive file="${TEST_IMG}",cache=none,id=disk \
+             -incoming "exec: cat '${MIG_FIFO}'"
+h2=$QEMU_HANDLE
+
+echo
+echo === VM 1: Migrate from VM1 to VM2  ===
+echo
+
+silent=yes
+_send_qemu_cmd $h1 'qemu-io disk "write -P 0x22 0 4M"' "(qemu)"
+echo "vm1: qemu-io disk write complete"
+_send_qemu_cmd $h1 "migrate \"exec: cat > '${MIG_FIFO}'\"" "(qemu)"
+echo "vm1: live migration started"
+qemu_cmd_repeat=20 _send_qemu_cmd $h1 "info migrate" "completed"
+echo "vm1: live migration completed"
+
+echo
+echo === VM 2: Post-migration, write to disk, verify running ===
+echo
+
+_send_qemu_cmd $h2 'qemu-io disk "write 4M 1M"' "(qemu)"
+echo "vm2: qemu-io disk write complete"
+qemu_cmd_repeat=20 _send_qemu_cmd $h2 "info status" "running"
+echo "vm2: qemu process running successfully"
+
+echo "vm2: flush io, and quit"
+_send_qemu_cmd $h2 'qemu-io disk flush' "(qemu)"
+_send_qemu_cmd $h2 'quit' ""
+
+echo "Check image pattern"
+${QEMU_IO} -c "read -P 0x22 0 4M" "${TEST_IMG}" | _filter_testdir | _filter_qemu_io
+
+echo "Running 'qemu-img check -r all \$TEST_IMG'"
+"${QEMU_IMG}" check -r all "${TEST_IMG}" 2>&1 | _filter_testdir | _filter_qemu
+
+echo "*** done"
+rm -f $seq.full
+status=0

@@ -35,6 +35,7 @@ _cleanup()
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # get standard environment, filters and checks
+. ./common.env
 . ./common.rc
 . ./common.filter
 . ./common.pattern
@@ -56,22 +57,22 @@ for IMGOPTS in "compat=0.10" "compat=1.1"; do
     echo === Create image with unknown header extension ===
     echo
     _make_test_img 64M
-    ./qcow2.py "$TEST_IMG" add-header-ext 0x12345678 "This is a test header extension"
-    ./qcow2.py "$TEST_IMG" dump-header
+    $PYTHON qcow2.py "$TEST_IMG" add-header-ext 0x12345678 "This is a test header extension"
+    $PYTHON qcow2.py "$TEST_IMG" dump-header
     _check_test_img
 
     echo
     echo === Rewrite header with no backing file ===
     echo
     $QEMU_IMG rebase -u -b "" "$TEST_IMG"
-    ./qcow2.py "$TEST_IMG" dump-header
+    $PYTHON qcow2.py "$TEST_IMG" dump-header
     _check_test_img
 
     echo
     echo === Add a backing file and format ===
     echo
     $QEMU_IMG rebase -u -b "/some/backing/file/path" -F host_device "$TEST_IMG"
-    ./qcow2.py "$TEST_IMG" dump-header
+    $PYTHON qcow2.py "$TEST_IMG" dump-header
 done
 
 # success, all done

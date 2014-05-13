@@ -29,6 +29,7 @@ tmp=/tmp/$$
 status=1	# failure is the default!
 
 # get standard environment, filters and checks
+. ./common.env
 . ./common.rc
 . ./common.filter
 
@@ -81,7 +82,7 @@ EOF
 		nbd_url="nbd:127.0.0.1:$port:exportname=foo"
 	fi
 
-	./nbd-fault-injector.py $extra_args "127.0.0.1:$port" "$TEST_DIR/nbd-fault-injector.conf" 2>&1 >/dev/null &
+	$PYTHON nbd-fault-injector.py $extra_args "127.0.0.1:$port" "$TEST_DIR/nbd-fault-injector.conf" 2>&1 >/dev/null &
 	wait_for_tcp_port "127.0.0.1:$port"
 	$QEMU_IO -c "read 0 512" "$nbd_url" 2>&1 | _filter_qemu_io | filter_nbd
 
