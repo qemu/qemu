@@ -185,12 +185,19 @@ static uint64_t gptm_read(void *opaque, hwaddr offset,
     case 0x44: /* TBPMR */
         return s->match_prescale[1];
     case 0x48: /* TAR */
-        if (s->control == 1)
+        if (s->config == 1) {
             return s->rtc;
+        }
+        qemu_log_mask(LOG_UNIMP,
+                      "GPTM: read of TAR but timer read not supported");
+        return 0;
     case 0x4c: /* TBR */
-        hw_error("TODO: Timer value read\n");
+        qemu_log_mask(LOG_UNIMP,
+                      "GPTM: read of TBR but timer read not supported");
+        return 0;
     default:
-        hw_error("gptm_read: Bad offset 0x%x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "GPTM: read at bad offset 0x%x\n", (int)offset);
         return 0;
     }
 }
