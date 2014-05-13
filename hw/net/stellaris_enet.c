@@ -253,10 +253,12 @@ static void stellaris_enet_write(void *opaque, hwaddr offset,
                 s->tx_fifo[s->tx_fifo_len++] = value >> 24;
             }
         } else {
-            s->tx_fifo[s->tx_fifo_len++] = value;
-            s->tx_fifo[s->tx_fifo_len++] = value >> 8;
-            s->tx_fifo[s->tx_fifo_len++] = value >> 16;
-            s->tx_fifo[s->tx_fifo_len++] = value >> 24;
+            if (s->tx_fifo_len + 4 <= ARRAY_SIZE(s->tx_fifo)) {
+                s->tx_fifo[s->tx_fifo_len++] = value;
+                s->tx_fifo[s->tx_fifo_len++] = value >> 8;
+                s->tx_fifo[s->tx_fifo_len++] = value >> 16;
+                s->tx_fifo[s->tx_fifo_len++] = value >> 24;
+            }
             if (s->tx_fifo_len >= s->tx_frame_len) {
                 /* We don't implement explicit CRC, so just chop it off.  */
                 if ((s->tctl & SE_TCTL_CRC) == 0)
