@@ -45,7 +45,7 @@ LINK = $(call quiet-command,$(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $
 else
 LIBTOOL += $(if $(V),,--quiet)
 %.lo: %.c
-	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC $(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  lt CC $@")
+	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC $(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) $($*.o-cflags) -c -o $@ $<,"  lt CC $@")
 %.lo: %.rc
 	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=RC $(WINDRES) -I. -o $@ $<,"lt RC   $(TARGET_DIR)$@")
 %.lo: %.dtrace
@@ -57,7 +57,7 @@ LINK = $(call quiet-command,\
        $(call expand-objs,$1) \
        $(if $(filter %.lo %.la,$1),$(version-lobj-y),$(version-obj-y)) \
        $(if $(filter %.lo %.la,$1),$(LIBTOOLFLAGS)) \
-       $(call extract-libs,$1) $(LIBS),$(if $(filter %.lo %.la,$1),"lt LINK ", "  LINK  ")"$(TARGET_DIR)$@")
+       $(call extract-libs,$(1:.lo=.o)) $(LIBS),$(if $(filter %.lo %.la,$1),"lt LINK ", "  LINK  ")"$(TARGET_DIR)$@")
 endif
 
 %.asm: %.S
@@ -67,13 +67,13 @@ endif
 	$(call quiet-command,$(AS) $(ASFLAGS) -o $@ $<,"  AS    $(TARGET_DIR)$@")
 
 %.o: %.cc
-	$(call quiet-command,$(CXX) $(QEMU_INCLUDES) $(QEMU_CXXFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CXX   $(TARGET_DIR)$@")
+	$(call quiet-command,$(CXX) $(QEMU_INCLUDES) $(QEMU_CXXFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) $($@-cflags) -c -o $@ $<,"  CXX   $(TARGET_DIR)$@")
 
 %.o: %.cpp
-	$(call quiet-command,$(CXX) $(QEMU_INCLUDES) $(QEMU_CXXFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CXX   $(TARGET_DIR)$@")
+	$(call quiet-command,$(CXX) $(QEMU_INCLUDES) $(QEMU_CXXFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) $($@-cflags) -c -o $@ $<,"  CXX   $(TARGET_DIR)$@")
 
 %.o: %.m
-	$(call quiet-command,$(OBJCC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  OBJC  $(TARGET_DIR)$@")
+	$(call quiet-command,$(OBJCC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) $($@-cflags) -c -o $@ $<,"  OBJC  $(TARGET_DIR)$@")
 
 %.o: %.dtrace
 	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN   $(TARGET_DIR)$@")
@@ -175,16 +175,16 @@ $(eval save-$2-$1 :=)
 endef
 
 define fix-obj-vars
-$(foreach v,$($1), \
+$(if $2, $(foreach v,$($1), \
 	$(if $($v-cflags), \
-		$(eval $2$v-cflags := $($v-cflags)) \
+		$(eval $2/$v-cflags := $($v-cflags)) \
 		$(eval $v-cflags := )) \
 	$(if $($v-libs), \
-		$(eval $2$v-libs := $($v-libs)) \
+		$(eval $2/$v-libs := $($v-libs)) \
 		$(eval $v-libs := )) \
 	$(if $($v-objs), \
-		$(eval $2$v-objs := $(addprefix $2,$($v-objs))) \
-		$(eval $v-objs := )))
+		$(eval $2/$v-objs := $(addprefix $2/,$($v-objs))) \
+		$(eval $v-objs := ))))
 endef
 
 define unnest-dir
@@ -192,7 +192,7 @@ $(foreach var,$(nested-vars),$(call push-var,$(var),$1/))
 $(eval obj-parent-$1 := $(obj))
 $(eval obj := $(if $(obj),$(obj)/$1,$1))
 $(eval include $(SRC_PATH)/$1/Makefile.objs)
-$(foreach v,$(nested-vars),$(call fix-obj-vars,$v,$(if $(obj),$(obj)/)))
+$(foreach v,$(nested-vars),$(call fix-obj-vars,$v,$(obj)))
 $(eval obj := $(obj-parent-$1))
 $(eval obj-parent-$1 := )
 $(foreach var,$(nested-vars),$(call pop-var,$(var),$1/))
@@ -228,6 +228,7 @@ endef
 define unnest-vars
 $(eval obj := $1)
 $(eval nested-vars := $2)
+$(foreach v,$(nested-vars),$(call fix-obj-vars,$v,$(obj)))
 $(eval old-nested-dirs := )
 $(call unnest-vars-1)
 $(if $1,$(foreach v,$(nested-vars),$(eval \

@@ -3470,10 +3470,10 @@ if test "$smartcard_nss" != "no"; then
 #include <pk11pub.h>
 int main(void) { PK11_FreeSlot(0); return 0; }
 EOF
-    smartcard_includes="-I\$(SRC_PATH)/libcacard"
-    libcacard_libs="$($pkg_config --libs nss 2>/dev/null) $glib_libs"
-    libcacard_cflags="$($pkg_config --cflags nss 2>/dev/null) $glib_cflags"
-    test_cflags="$libcacard_cflags"
+    # FIXME: do not include $glib_* in here
+    nss_libs="$($pkg_config --libs nss 2>/dev/null) $glib_libs"
+    nss_cflags="$($pkg_config --cflags nss 2>/dev/null) $glib_cflags"
+    test_cflags="$nss_cflags"
     # The header files in nss < 3.13.3 have a bug which causes them to
     # emit a warning. If we're going to compile QEMU with -Werror, then
     # test that the headers don't have this bug. Otherwise we would pass
@@ -3483,11 +3483,8 @@ EOF
     fi
     if test -n "$libtool" &&
        $pkg_config --atleast-version=3.12.8 nss && \
-      compile_prog "$test_cflags" "$libcacard_libs"; then
+      compile_prog "$test_cflags" "$nss_libs"; then
         smartcard_nss="yes"
-        QEMU_CFLAGS="$QEMU_CFLAGS $libcacard_cflags"
-        QEMU_INCLUDES="$QEMU_INCLUDES $smartcard_includes"
-        libs_softmmu="$libcacard_libs $libs_softmmu"
     else
         if test "$smartcard_nss" = "yes"; then
             feature_not_found "nss"
@@ -4501,8 +4498,8 @@ fi
 
 if test "$smartcard_nss" = "yes" ; then
   echo "CONFIG_SMARTCARD_NSS=y" >> $config_host_mak
-  echo "libcacard_libs=$libcacard_libs" >> $config_host_mak
-  echo "libcacard_cflags=$libcacard_cflags" >> $config_host_mak
+  echo "NSS_LIBS=$nss_libs" >> $config_host_mak
+  echo "NSS_CFLAGS=$nss_cflags" >> $config_host_mak
 fi
 
 if test "$libusb" = "yes" ; then

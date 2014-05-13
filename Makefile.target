@@ -16,19 +16,22 @@ QEMU_CFLAGS+=-I$(SRC_PATH)/include
 ifdef CONFIG_USER_ONLY
 # user emulator name
 QEMU_PROG=qemu-$(TARGET_NAME)
+QEMU_PROG_BUILD = $(QEMU_PROG)
 else
 # system emulator name
+QEMU_PROG=qemu-system-$(TARGET_NAME)$(EXESUF)
 ifneq (,$(findstring -mwindows,$(libs_softmmu)))
 # Terminate program name with a 'w' because the linker builds a windows executable.
 QEMU_PROGW=qemu-system-$(TARGET_NAME)w$(EXESUF)
-endif # windows executable
-QEMU_PROG=qemu-system-$(TARGET_NAME)$(EXESUF)
+$(QEMU_PROG): $(QEMU_PROGW)
+	$(call quiet-command,$(OBJCOPY) --subsystem console $(QEMU_PROGW) $(QEMU_PROG),"  GEN   $(TARGET_DIR)$(QEMU_PROG)")
+QEMU_PROG_BUILD = $(QEMU_PROGW)
+else
+QEMU_PROG_BUILD = $(QEMU_PROG)
+endif
 endif
 
-PROGS=$(QEMU_PROG)
-ifdef QEMU_PROGW
-PROGS+=$(QEMU_PROGW)
-endif
+PROGS=$(QEMU_PROG) $(QEMU_PROGW)
 STPFILES=
 
 config-target.h: config-target.h-timestamp
@@ -140,10 +143,7 @@ endif # CONFIG_SOFTMMU
 %/translate.o: QEMU_CFLAGS += $(TRANSLATE_OPT_CFLAGS)
 
 dummy := $(call unnest-vars,,obj-y)
-
-# we are making another call to unnest-vars with different vars, protect obj-y,
-# it can be overriden in subdir Makefile.objs
-obj-y-save := $(obj-y)
+all-obj-y := $(obj-y)
 
 block-obj-y :=
 common-obj-y :=
@@ -153,27 +153,16 @@ dummy := $(call unnest-vars,.., \
                block-obj-m \
                common-obj-y \
                common-obj-m)
-
-# Now restore obj-y
-obj-y := $(obj-y-save)
-
-all-obj-y = $(obj-y) $(common-obj-y)
+all-obj-y += $(common-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(block-obj-y)
 
 ifndef CONFIG_HAIKU
 LIBS+=-lm
 endif
 
-ifdef QEMU_PROGW
-# The linker builds a windows executable. Make also a console executable.
-$(QEMU_PROGW): $(all-obj-y) ../libqemuutil.a ../libqemustub.a
+# build either PROG or PROGW
+$(QEMU_PROG_BUILD): $(all-obj-y) ../libqemuutil.a ../libqemustub.a
 	$(call LINK,$^)
-$(QEMU_PROG): $(QEMU_PROGW)
-	$(call quiet-command,$(OBJCOPY) --subsystem console $(QEMU_PROGW) $(QEMU_PROG),"  GEN   $(TARGET_DIR)$(QEMU_PROG)")
-else
-$(QEMU_PROG): $(all-obj-y) ../libqemuutil.a ../libqemustub.a
-	$(call LINK,$^)
-endif
 
 gdbstub-xml.c: $(TARGET_XML_FILES) $(SRC_PATH)/scripts/feature_to_c.sh
 	$(call quiet-command,rm -f $@ && $(SHELL) $(SRC_PATH)/scripts/feature_to_c.sh $@ $(TARGET_XML_FILES),"  GEN   $(TARGET_DIR)$@")
@@ -194,9 +183,9 @@ endif
 
 install: all
 ifneq ($(PROGS),)
-	$(INSTALL) -m 755 $(PROGS) "$(DESTDIR)$(bindir)"
+	$(INSTALL_PROG) $(PROGS) "$(DESTDIR)$(bindir)"
 ifneq ($(STRIP),)
-	$(STRIP) $(patsubst %,"$(DESTDIR)$(bindir)/%",$(PROGS))
+	$(STRIP) $(PROGS:%="$(DESTDIR)$(bindir)/%")
 endif
 endif
 ifdef CONFIG_TRACE_SYSTEMTAP

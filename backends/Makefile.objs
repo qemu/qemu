@@ -3,6 +3,6 @@ common-obj-$(CONFIG_POSIX) += rng-random.o
 
 common-obj-y += msmouse.o
 common-obj-$(CONFIG_BRLAPI) += baum.o
-$(obj)/baum.o: QEMU_CFLAGS += $(SDL_CFLAGS) 
+baum.o-cflags := $(SDL_CFLAGS)
 
 common-obj-$(CONFIG_TPM) += tpm.o

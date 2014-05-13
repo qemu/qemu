@@ -17,4 +17,4 @@ common-obj-$(CONFIG_GTK) += gtk.o x_keymap.o
 
 $(obj)/sdl.o $(obj)/sdl_zoom.o $(obj)/sdl2.o: QEMU_CFLAGS += $(SDL_CFLAGS)
 
-$(obj)/gtk.o: QEMU_CFLAGS += $(GTK_CFLAGS) $(VTE_CFLAGS)
+gtk.o-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS)
