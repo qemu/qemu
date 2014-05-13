@@ -265,7 +265,7 @@ static void stellaris_enet_write(void *opaque, hwaddr offset,
                     s->tx_frame_len -= 4;
                 if ((s->tctl & SE_TCTL_PADEN) && s->tx_frame_len < 60) {
                     memset(&s->tx_fifo[s->tx_frame_len], 0, 60 - s->tx_frame_len);
-                    s->tx_fifo_len = 60;
+                    s->tx_frame_len = 60;
                 }
                 qemu_send_packet(qemu_get_queue(s->nic), s->tx_fifo,
                                  s->tx_frame_len);
