@@ -2709,8 +2709,8 @@ static void omap_rtc_write(void *opaque, hwaddr addr,
             s->ti += ti[1];
         } else {
             /* A less accurate version */
-            s->ti -= (s->current_tm.tm_year % 100) * 31536000;
-            s->ti += from_bcd(value) * 31536000;
+            s->ti -= (time_t)(s->current_tm.tm_year % 100) * 31536000;
+            s->ti += (time_t)from_bcd(value) * 31536000;
         }
         return;
 
