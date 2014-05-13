@@ -24,6 +24,8 @@
 #ifndef TCG_TARGET_S390 
 #define TCG_TARGET_S390 1
 
+#define TCG_TARGET_INSN_UNIT_SIZE 2
+
 typedef enum TCGReg {
     TCG_REG_R0 = 0,
     TCG_REG_R1,

@@ -145,7 +145,7 @@ struct TranslationBlock {
 #define CF_COUNT_MASK  0x7fff
 #define CF_LAST_IO     0x8000 /* Last insn may be an IO access.  */
 
-    uint8_t *tc_ptr;    /* pointer to the translated code */
+    void *tc_ptr;    /* pointer to the translated code */
     /* next matching tb for physical address. */
     struct TranslationBlock *phys_hash_next;
     /* first and second physical page containing code. The lower bit
@@ -229,7 +229,7 @@ void ppc_tb_set_jmp_target(unsigned long jmp_addr, unsigned long addr);
 static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
     /* patch the branch destination */
-    *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
+    stl_p((void*)jmp_addr, addr - (jmp_addr + 4));
     /* no need to flush icache explicitly */
 }
 #elif defined(__aarch64__)
