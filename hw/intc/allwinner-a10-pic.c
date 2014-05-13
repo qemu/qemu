@@ -97,6 +97,7 @@ static void aw_a10_pic_write(void *opaque, hwaddr offset, uint64_t value,
     switch (offset) {
     case AW_A10_PIC_BASE_ADDR:
         s->base_addr = value & ~0x3;
+        break;
     case AW_A10_PIC_PROTECT:
         s->protect = value;
         break;
