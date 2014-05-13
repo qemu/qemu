@@ -116,6 +116,8 @@ V_(ImmCmpBranch, 23, 5, SignedBits)                                            \
 V_(ImmLLiteral, 23, 5, SignedBits)                                             \
 V_(ImmException, 20, 5, Bits)                                                  \
 V_(ImmHint, 11, 5, Bits)                                                       \
+V_(ImmBarrierDomain, 11, 10, Bits)                                             \
+V_(ImmBarrierType, 9, 8, Bits)                                                 \
                                                                                \
 /* System (MRS, MSR) */                                                        \
 V_(ImmSystemRegister, 19, 5, Bits)                                             \
@@ -181,7 +183,7 @@ enum Condition {
 inline Condition InvertCondition(Condition cond) {
   // Conditions al and nv behave identically, as "always true". They can't be
   // inverted, because there is no "always false" condition.
-  ASSERT((cond != al) && (cond != nv));
+  VIXL_ASSERT((cond != al) && (cond != nv));
   return static_cast<Condition>(cond ^ 1);
 }
 
@@ -246,6 +248,20 @@ enum SystemHint {
   SEVL  = 5
 };
 
+enum BarrierDomain {
+  OuterShareable = 0,
+  NonShareable   = 1,
+  InnerShareable = 2,
+  FullSystem     = 3
+};
+
+enum BarrierType {
+  BarrierOther  = 0,
+  BarrierReads  = 1,
+  BarrierWrites = 2,
+  BarrierAll    = 3
+};
+
 // System/special register names.
 // This information is not encoded as one field but as the concatenation of
 // multiple fields (Op0<0>, Op1, Crn, Crm, Op2).
@@ -274,7 +290,7 @@ enum SystemRegister {
 //
 // The enumerations can be used like this:
 //
-// ASSERT(instr->Mask(PCRelAddressingFMask) == PCRelAddressingFixed);
+// VIXL_ASSERT(instr->Mask(PCRelAddressingFMask) == PCRelAddressingFixed);
 // switch(instr->Mask(PCRelAddressingMask)) {
 //   case ADR:  Format("adr 'Xd, 'AddrPCRelByte"); break;
 //   case ADRP: Format("adrp 'Xd, 'AddrPCRelPage"); break;
@@ -558,6 +574,15 @@ enum ExceptionOp {
   DCPS1          = ExceptionFixed | 0x00A00001,
   DCPS2          = ExceptionFixed | 0x00A00002,
   DCPS3          = ExceptionFixed | 0x00A00003
+};
+
+enum MemBarrierOp {
+  MemBarrierFixed = 0xD503309F,
+  MemBarrierFMask = 0xFFFFF09F,
+  MemBarrierMask  = 0xFFFFF0FF,
+  DSB             = MemBarrierFixed | 0x00000000,
+  DMB             = MemBarrierFixed | 0x00000020,
+  ISB             = MemBarrierFixed | 0x00000040
 };
 
 // Any load or store.
@@ -927,17 +952,22 @@ enum FPDataProcessing1SourceOp {
   FRINTN   = FRINTN_s,
   FRINTP_s = FPDataProcessing1SourceFixed | 0x00048000,
   FRINTP_d = FPDataProcessing1SourceFixed | FP64 | 0x00048000,
+  FRINTP   = FRINTP_s,
   FRINTM_s = FPDataProcessing1SourceFixed | 0x00050000,
   FRINTM_d = FPDataProcessing1SourceFixed | FP64 | 0x00050000,
+  FRINTM   = FRINTM_s,
   FRINTZ_s = FPDataProcessing1SourceFixed | 0x00058000,
   FRINTZ_d = FPDataProcessing1SourceFixed | FP64 | 0x00058000,
   FRINTZ   = FRINTZ_s,
   FRINTA_s = FPDataProcessing1SourceFixed | 0x00060000,
   FRINTA_d = FPDataProcessing1SourceFixed | FP64 | 0x00060000,
+  FRINTA   = FRINTA_s,
   FRINTX_s = FPDataProcessing1SourceFixed | 0x00070000,
   FRINTX_d = FPDataProcessing1SourceFixed | FP64 | 0x00070000,
+  FRINTX   = FRINTX_s,
   FRINTI_s = FPDataProcessing1SourceFixed | 0x00078000,
-  FRINTI_d = FPDataProcessing1SourceFixed | FP64 | 0x00078000
+  FRINTI_d = FPDataProcessing1SourceFixed | FP64 | 0x00078000,
+  FRINTI   = FRINTI_s
 };
 
 // Floating point data processing 2 source.

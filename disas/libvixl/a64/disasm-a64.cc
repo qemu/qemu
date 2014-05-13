@@ -95,7 +95,7 @@ void Disassembler::VisitAddSubImmediate(Instruction* instr) {
       }
       break;
     }
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -142,7 +142,7 @@ void Disassembler::VisitAddSubShifted(Instruction* instr) {
       }
       break;
     }
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -180,7 +180,7 @@ void Disassembler::VisitAddSubExtended(Instruction* instr) {
       }
       break;
     }
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -215,7 +215,7 @@ void Disassembler::VisitAddSubWithCarry(Instruction* instr) {
       }
       break;
     }
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -258,30 +258,30 @@ void Disassembler::VisitLogicalImmediate(Instruction* instr) {
       }
       break;
     }
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
 
 
 bool Disassembler::IsMovzMovnImm(unsigned reg_size, uint64_t value) {
-  ASSERT((reg_size == kXRegSize) ||
-         ((reg_size == kWRegSize) && (value <= 0xffffffff)));
+  VIXL_ASSERT((reg_size == kXRegSize) ||
+              ((reg_size == kWRegSize) && (value <= 0xffffffff)));
 
   // Test for movz: 16 bits set at positions 0, 16, 32 or 48.
-  if (((value & 0xffffffffffff0000ULL) == 0ULL) ||
-      ((value & 0xffffffff0000ffffULL) == 0ULL) ||
-      ((value & 0xffff0000ffffffffULL) == 0ULL) ||
-      ((value & 0x0000ffffffffffffULL) == 0ULL)) {
+  if (((value & UINT64_C(0xffffffffffff0000)) == 0) ||
+      ((value & UINT64_C(0xffffffff0000ffff)) == 0) ||
+      ((value & UINT64_C(0xffff0000ffffffff)) == 0) ||
+      ((value & UINT64_C(0x0000ffffffffffff)) == 0)) {
     return true;
   }
 
   // Test for movn: NOT(16 bits set at positions 0, 16, 32 or 48).
   if ((reg_size == kXRegSize) &&
-      (((value & 0xffffffffffff0000ULL) == 0xffffffffffff0000ULL) ||
-       ((value & 0xffffffff0000ffffULL) == 0xffffffff0000ffffULL) ||
-       ((value & 0xffff0000ffffffffULL) == 0xffff0000ffffffffULL) ||
-       ((value & 0x0000ffffffffffffULL) == 0x0000ffffffffffffULL))) {
+      (((~value & UINT64_C(0xffffffffffff0000)) == 0) ||
+       ((~value & UINT64_C(0xffffffff0000ffff)) == 0) ||
+       ((~value & UINT64_C(0xffff0000ffffffff)) == 0) ||
+       ((~value & UINT64_C(0x0000ffffffffffff)) == 0))) {
     return true;
   }
   if ((reg_size == kWRegSize) &&
@@ -337,7 +337,7 @@ void Disassembler::VisitLogicalShifted(Instruction* instr) {
       }
       break;
     }
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
 
   Format(instr, mnemonic, form);
@@ -353,7 +353,7 @@ void Disassembler::VisitConditionalCompareRegister(Instruction* instr) {
     case CCMN_x: mnemonic = "ccmn"; break;
     case CCMP_w:
     case CCMP_x: mnemonic = "ccmp"; break;
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -368,7 +368,7 @@ void Disassembler::VisitConditionalCompareImmediate(Instruction* instr) {
     case CCMN_x_imm: mnemonic = "ccmn"; break;
     case CCMP_w_imm:
     case CCMP_x_imm: mnemonic = "ccmp"; break;
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -421,7 +421,7 @@ void Disassembler::VisitConditionalSelect(Instruction* instr) {
       }
       break;
     }
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -520,7 +520,7 @@ void Disassembler::VisitExtract(Instruction* instr) {
       }
       break;
     }
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -538,7 +538,7 @@ void Disassembler::VisitPCRelAddressing(Instruction* instr) {
 void Disassembler::VisitConditionalBranch(Instruction* instr) {
   switch (instr->Mask(ConditionalBranchMask)) {
     case B_cond: Format(instr, "b.'CBrn", "'BImmCond"); break;
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
 }
 
@@ -570,7 +570,7 @@ void Disassembler::VisitUnconditionalBranch(Instruction* instr) {
   switch (instr->Mask(UnconditionalBranchMask)) {
     case B: mnemonic = "b"; break;
     case BL: mnemonic = "bl"; break;
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -591,7 +591,7 @@ void Disassembler::VisitDataProcessing1Source(Instruction* instr) {
     FORMAT(CLS, "cls");
     #undef FORMAT
     case REV32_x: mnemonic = "rev32"; break;
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -690,7 +690,7 @@ void Disassembler::VisitDataProcessing3Source(Instruction* instr) {
       form = form_xxx;
       break;
     }
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -705,7 +705,7 @@ void Disassembler::VisitCompareBranch(Instruction* instr) {
     case CBZ_x: mnemonic = "cbz"; break;
     case CBNZ_w:
     case CBNZ_x: mnemonic = "cbnz"; break;
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -722,7 +722,7 @@ void Disassembler::VisitTestBranch(Instruction* instr) {
   switch (instr->Mask(TestBranchMask)) {
     case TBZ: mnemonic = "tbz"; break;
     case TBNZ: mnemonic = "tbnz"; break;
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -742,7 +742,7 @@ void Disassembler::VisitMoveWideImmediate(Instruction* instr) {
     case MOVZ_x: mnemonic = "movz"; break;
     case MOVK_w:
     case MOVK_x: mnemonic = "movk"; form = "'Rd, 'IMoveLSL"; break;
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -981,7 +981,7 @@ void Disassembler::VisitFPConditionalSelect(Instruction* instr) {
   switch (instr->Mask(FPConditionalSelectMask)) {
     case FCSEL_s:
     case FCSEL_d: mnemonic = "fcsel"; break;
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -1033,7 +1033,7 @@ void Disassembler::VisitFPDataProcessing2Source(Instruction* instr) {
     FORMAT(FMINNM, "fminnm");
     FORMAT(FNMUL, "fnmul");
     #undef FORMAT
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -1052,7 +1052,7 @@ void Disassembler::VisitFPDataProcessing3Source(Instruction* instr) {
     FORMAT(FNMADD, "fnmadd");
     FORMAT(FNMSUB, "fnmsub");
     #undef FORMAT
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -1065,7 +1065,7 @@ void Disassembler::VisitFPImmediate(Instruction* instr) {
   switch (instr->Mask(FPImmediateMask)) {
     case FMOV_s_imm: mnemonic = "fmov"; form = "'Sd, 'IFPSingle"; break;
     case FMOV_d_imm: mnemonic = "fmov"; form = "'Dd, 'IFPDouble"; break;
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -1082,6 +1082,14 @@ void Disassembler::VisitFPIntegerConvert(Instruction* instr) {
     case FMOV_xd: mnemonic = "fmov"; form = form_rf; break;
     case FMOV_sw:
     case FMOV_dx: mnemonic = "fmov"; form = form_fr; break;
+    case FCVTAS_ws:
+    case FCVTAS_xs:
+    case FCVTAS_wd:
+    case FCVTAS_xd: mnemonic = "fcvtas"; form = form_rf; break;
+    case FCVTAU_ws:
+    case FCVTAU_xs:
+    case FCVTAU_wd:
+    case FCVTAU_xd: mnemonic = "fcvtau"; form = form_rf; break;
     case FCVTMS_ws:
     case FCVTMS_xs:
     case FCVTMS_wd:
@@ -1141,7 +1149,7 @@ void Disassembler::VisitFPFixedPointConvert(Instruction* instr) {
     case UCVTF_sx_fixed:
     case UCVTF_dw_fixed:
     case UCVTF_dx_fixed: mnemonic = "ucvtf"; form = form_fr; break;
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
   Format(instr, mnemonic, form);
 }
@@ -1176,10 +1184,28 @@ void Disassembler::VisitSystem(Instruction* instr) {
       }
     }
   } else if (instr->Mask(SystemHintFMask) == SystemHintFixed) {
-    ASSERT(instr->Mask(SystemHintMask) == HINT);
+    VIXL_ASSERT(instr->Mask(SystemHintMask) == HINT);
     switch (instr->ImmHint()) {
       case NOP: {
         mnemonic = "nop";
+        form = NULL;
+        break;
+      }
+    }
+  } else if (instr->Mask(MemBarrierFMask) == MemBarrierFixed) {
+    switch (instr->Mask(MemBarrierMask)) {
+      case DMB: {
+        mnemonic = "dmb";
+        form = "'M";
+        break;
+      }
+      case DSB: {
+        mnemonic = "dsb";
+        form = "'M";
+        break;
+      }
+      case ISB: {
+        mnemonic = "isb";
         form = NULL;
         break;
       }
@@ -1226,7 +1252,7 @@ void Disassembler::ProcessOutput(Instruction* /*instr*/) {
 
 void Disassembler::Format(Instruction* instr, const char* mnemonic,
                           const char* format) {
-  ASSERT(mnemonic != NULL);
+  VIXL_ASSERT(mnemonic != NULL);
   ResetOutput();
   Substitute(instr, mnemonic);
   if (format != NULL) {
@@ -1268,8 +1294,9 @@ int Disassembler::SubstituteField(Instruction* instr, const char* format) {
     case 'A': return SubstitutePCRelAddressField(instr, format);
     case 'B': return SubstituteBranchTargetField(instr, format);
     case 'O': return SubstituteLSRegOffsetField(instr, format);
+    case 'M': return SubstituteBarrierField(instr, format);
     default: {
-      UNREACHABLE();
+      VIXL_UNREACHABLE();
       return 1;
     }
   }
@@ -1294,7 +1321,7 @@ int Disassembler::SubstituteRegisterField(Instruction* instr,
       }
       break;
     }
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
 
   // Increase field length for registers tagged as stack.
@@ -1331,7 +1358,7 @@ int Disassembler::SubstituteRegisterField(Instruction* instr,
 
 int Disassembler::SubstituteImmediateField(Instruction* instr,
                                            const char* format) {
-  ASSERT(format[0] == 'I');
+  VIXL_ASSERT(format[0] == 'I');
 
   switch (format[1]) {
     case 'M': {  // IMoveImm or IMoveLSL.
@@ -1339,10 +1366,10 @@ int Disassembler::SubstituteImmediateField(Instruction* instr,
         uint64_t imm = instr->ImmMoveWide() << (16 * instr->ShiftMoveWide());
         AppendToOutput("#0x%" PRIx64, imm);
       } else {
-        ASSERT(format[5] == 'L');
+        VIXL_ASSERT(format[5] == 'L');
         AppendToOutput("#0x%" PRIx64, instr->ImmMoveWide());
         if (instr->ShiftMoveWide() > 0) {
-          AppendToOutput(", lsl #%" PRId64, 16 * instr->ShiftMoveWide());
+          AppendToOutput(", lsl #%d", 16 * instr->ShiftMoveWide());
         }
       }
       return 8;
@@ -1384,14 +1411,14 @@ int Disassembler::SubstituteImmediateField(Instruction* instr,
       return 6;
     }
     case 'A': {  // IAddSub.
-      ASSERT(instr->ShiftAddSub() <= 1);
+      VIXL_ASSERT(instr->ShiftAddSub() <= 1);
       int64_t imm = instr->ImmAddSub() << (12 * instr->ShiftAddSub());
       AppendToOutput("#0x%" PRIx64 " (%" PRId64 ")", imm, imm);
       return 7;
     }
     case 'F': {  // IFPSingle, IFPDouble or IFPFBits.
       if (format[3] == 'F') {  // IFPFbits.
-        AppendToOutput("#%" PRId64, 64 - instr->FPScale());
+        AppendToOutput("#%d", 64 - instr->FPScale());
         return 8;
       } else {
         AppendToOutput("#0x%" PRIx64 " (%.4f)", instr->ImmFP(),
@@ -1412,27 +1439,27 @@ int Disassembler::SubstituteImmediateField(Instruction* instr,
       return 5;
     }
     case 'P': {  // IP - Conditional compare.
-      AppendToOutput("#%" PRId64, instr->ImmCondCmp());
+      AppendToOutput("#%d", instr->ImmCondCmp());
       return 2;
     }
     case 'B': {  // Bitfields.
       return SubstituteBitfieldImmediateField(instr, format);
     }
     case 'E': {  // IExtract.
-      AppendToOutput("#%" PRId64, instr->ImmS());
+      AppendToOutput("#%d", instr->ImmS());
       return 8;
     }
     case 'S': {  // IS - Test and branch bit.
-      AppendToOutput("#%" PRId64, (instr->ImmTestBranchBit5() << 5) |
-                                  instr->ImmTestBranchBit40());
+      AppendToOutput("#%d", (instr->ImmTestBranchBit5() << 5) |
+                            instr->ImmTestBranchBit40());
       return 2;
     }
     case 'D': {  // IDebug - HLT and BRK instructions.
-      AppendToOutput("#0x%" PRIx64, instr->ImmException());
+      AppendToOutput("#0x%x", instr->ImmException());
       return 6;
     }
     default: {
-      UNIMPLEMENTED();
+      VIXL_UNIMPLEMENTED();
       return 0;
     }
   }
@@ -1441,7 +1468,7 @@ int Disassembler::SubstituteImmediateField(Instruction* instr,
 
 int Disassembler::SubstituteBitfieldImmediateField(Instruction* instr,
                                                    const char* format) {
-  ASSERT((format[0] == 'I') && (format[1] == 'B'));
+  VIXL_ASSERT((format[0] == 'I') && (format[1] == 'B'));
   unsigned r = instr->ImmR();
   unsigned s = instr->ImmS();
 
@@ -1455,19 +1482,19 @@ int Disassembler::SubstituteBitfieldImmediateField(Instruction* instr,
         AppendToOutput("#%d", s + 1);
         return 5;
       } else {
-        ASSERT(format[3] == '-');
+        VIXL_ASSERT(format[3] == '-');
         AppendToOutput("#%d", s - r + 1);
         return 7;
       }
     }
     case 'Z': {  // IBZ-r.
-      ASSERT((format[3] == '-') && (format[4] == 'r'));
+      VIXL_ASSERT((format[3] == '-') && (format[4] == 'r'));
       unsigned reg_size = (instr->SixtyFourBits() == 1) ? kXRegSize : kWRegSize;
       AppendToOutput("#%d", reg_size - r);
       return 5;
     }
     default: {
-      UNREACHABLE();
+      VIXL_UNREACHABLE();
       return 0;
     }
   }
@@ -1476,7 +1503,7 @@ int Disassembler::SubstituteBitfieldImmediateField(Instruction* instr,
 
 int Disassembler::SubstituteLiteralField(Instruction* instr,
                                          const char* format) {
-  ASSERT(strncmp(format, "LValue", 6) == 0);
+  VIXL_ASSERT(strncmp(format, "LValue", 6) == 0);
   USE(format);
 
   switch (instr->Mask(LoadLiteralMask)) {
@@ -1484,7 +1511,7 @@ int Disassembler::SubstituteLiteralField(Instruction* instr,
     case LDR_x_lit:
     case LDR_s_lit:
     case LDR_d_lit: AppendToOutput("(addr %p)", instr->LiteralAddress()); break;
-    default: UNREACHABLE();
+    default: VIXL_UNREACHABLE();
   }
 
   return 6;
@@ -1492,12 +1519,12 @@ int Disassembler::SubstituteLiteralField(Instruction* instr,
 
 
 int Disassembler::SubstituteShiftField(Instruction* instr, const char* format) {
-  ASSERT(format[0] == 'H');
-  ASSERT(instr->ShiftDP() <= 0x3);
+  VIXL_ASSERT(format[0] == 'H');
+  VIXL_ASSERT(instr->ShiftDP() <= 0x3);
 
   switch (format[1]) {
     case 'D': {  // HDP.
-      ASSERT(instr->ShiftDP() != ROR);
+      VIXL_ASSERT(instr->ShiftDP() != ROR);
     }  // Fall through.
     case 'L': {  // HLo.
       if (instr->ImmDPShift() != 0) {
@@ -1508,7 +1535,7 @@ int Disassembler::SubstituteShiftField(Instruction* instr, const char* format) {
       return 3;
     }
     default:
-      UNIMPLEMENTED();
+      VIXL_UNIMPLEMENTED();
       return 0;
   }
 }
@@ -1516,7 +1543,7 @@ int Disassembler::SubstituteShiftField(Instruction* instr, const char* format) {
 
 int Disassembler::SubstituteConditionField(Instruction* instr,
                                            const char* format) {
-  ASSERT(format[0] == 'C');
+  VIXL_ASSERT(format[0] == 'C');
   const char* condition_code[] = { "eq", "ne", "hs", "lo",
                                    "mi", "pl", "vs", "vc",
                                    "hi", "ls", "ge", "lt",
@@ -1538,27 +1565,27 @@ int Disassembler::SubstituteConditionField(Instruction* instr,
 int Disassembler::SubstitutePCRelAddressField(Instruction* instr,
                                               const char* format) {
   USE(format);
-  ASSERT(strncmp(format, "AddrPCRel", 9) == 0);
+  VIXL_ASSERT(strncmp(format, "AddrPCRel", 9) == 0);
 
   int offset = instr->ImmPCRel();
 
   // Only ADR (AddrPCRelByte) is supported.
-  ASSERT(strcmp(format, "AddrPCRelByte") == 0);
+  VIXL_ASSERT(strcmp(format, "AddrPCRelByte") == 0);
 
   char sign = '+';
   if (offset < 0) {
     offset = -offset;
     sign = '-';
   }
-  // TODO: Extend this to support printing the target address.
-  AppendToOutput("#%c0x%x", sign, offset);
+  VIXL_STATIC_ASSERT(sizeof(*instr) == 1);
+  AppendToOutput("#%c0x%x (addr %p)", sign, offset, instr + offset);
   return 13;
 }
 
 
 int Disassembler::SubstituteBranchTargetField(Instruction* instr,
                                               const char* format) {
-  ASSERT(strncmp(format, "BImm", 4) == 0);
+  VIXL_ASSERT(strncmp(format, "BImm", 4) == 0);
 
   int64_t offset = 0;
   switch (format[5]) {
@@ -1570,7 +1597,7 @@ int Disassembler::SubstituteBranchTargetField(Instruction* instr,
     case 'm': offset = instr->ImmCmpBranch(); break;
     // BImmTest - test and branch immediate.
     case 'e': offset = instr->ImmTestBranch(); break;
-    default: UNIMPLEMENTED();
+    default: VIXL_UNIMPLEMENTED();
   }
   offset <<= kInstructionSizeLog2;
   char sign = '+';
@@ -1578,15 +1605,16 @@ int Disassembler::SubstituteBranchTargetField(Instruction* instr,
     offset = -offset;
     sign = '-';
   }
-  AppendToOutput("#%c0x%" PRIx64, sign, offset);
+  VIXL_STATIC_ASSERT(sizeof(*instr) == 1);
+  AppendToOutput("#%c0x%" PRIx64 " (addr %p)", sign, offset, instr + offset);
   return 8;
 }
 
 
 int Disassembler::SubstituteExtendField(Instruction* instr,
                                         const char* format) {
-  ASSERT(strncmp(format, "Ext", 3) == 0);
-  ASSERT(instr->ExtendMode() <= 7);
+  VIXL_ASSERT(strncmp(format, "Ext", 3) == 0);
+  VIXL_ASSERT(instr->ExtendMode() <= 7);
   USE(format);
 
   const char* extend_mode[] = { "uxtb", "uxth", "uxtw", "uxtx",
@@ -1598,12 +1626,12 @@ int Disassembler::SubstituteExtendField(Instruction* instr,
       (((instr->ExtendMode() == UXTW) && (instr->SixtyFourBits() == 0)) ||
        (instr->ExtendMode() == UXTX))) {
     if (instr->ImmExtendShift() > 0) {
-      AppendToOutput(", lsl #%" PRId64, instr->ImmExtendShift());
+      AppendToOutput(", lsl #%d", instr->ImmExtendShift());
     }
   } else {
     AppendToOutput(", %s", extend_mode[instr->ExtendMode()]);
     if (instr->ImmExtendShift() > 0) {
-      AppendToOutput(" #%" PRId64, instr->ImmExtendShift());
+      AppendToOutput(" #%d", instr->ImmExtendShift());
     }
   }
   return 3;
@@ -1612,7 +1640,7 @@ int Disassembler::SubstituteExtendField(Instruction* instr,
 
 int Disassembler::SubstituteLSRegOffsetField(Instruction* instr,
                                              const char* format) {
-  ASSERT(strncmp(format, "Offsetreg", 9) == 0);
+  VIXL_ASSERT(strncmp(format, "Offsetreg", 9) == 0);
   const char* extend_mode[] = { "undefined", "undefined", "uxtw", "lsl",
                                 "undefined", "undefined", "sxtw", "sxtx" };
   USE(format);
@@ -1632,7 +1660,7 @@ int Disassembler::SubstituteLSRegOffsetField(Instruction* instr,
   if (!((ext == UXTX) && (shift == 0))) {
     AppendToOutput(", %s", extend_mode[ext]);
     if (shift != 0) {
-      AppendToOutput(" #%" PRId64, instr->SizeLS());
+      AppendToOutput(" #%d", instr->SizeLS());
     }
   }
   return 9;
@@ -1641,7 +1669,7 @@ int Disassembler::SubstituteLSRegOffsetField(Instruction* instr,
 
 int Disassembler::SubstitutePrefetchField(Instruction* instr,
                                           const char* format) {
-  ASSERT(format[0] == 'P');
+  VIXL_ASSERT(format[0] == 'P');
   USE(format);
 
   int prefetch_mode = instr->PrefetchMode();
@@ -1654,6 +1682,23 @@ int Disassembler::SubstitutePrefetchField(Instruction* instr,
   return 6;
 }
 
+int Disassembler::SubstituteBarrierField(Instruction* instr,
+                                         const char* format) {
+  VIXL_ASSERT(format[0] == 'M');
+  USE(format);
+
+  static const char* options[4][4] = {
+    { "sy (0b0000)", "oshld", "oshst", "osh" },
+    { "sy (0b0100)", "nshld", "nshst", "nsh" },
+    { "sy (0b1000)", "ishld", "ishst", "ish" },
+    { "sy (0b1100)", "ld", "st", "sy" }
+  };
+  int domain = instr->ImmBarrierDomain();
+  int type = instr->ImmBarrierType();
+
+  AppendToOutput("%s", options[domain][type]);
+  return 1;
+}
 
 void Disassembler::ResetOutput() {
   buffer_pos_ = 0;
