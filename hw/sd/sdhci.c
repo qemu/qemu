@@ -1184,8 +1184,8 @@ static void sdhci_uninitfn(Object *obj)
     timer_free(s->insert_timer);
     timer_del(s->transfer_timer);
     timer_free(s->transfer_timer);
-    qemu_free_irqs(&s->eject_cb);
-    qemu_free_irqs(&s->ro_cb);
+    qemu_free_irq(s->eject_cb);
+    qemu_free_irq(s->ro_cb);
 
     if (s->fifo_buffer) {
         g_free(s->fifo_buffer);
