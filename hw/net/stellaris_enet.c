@@ -67,8 +67,7 @@ typedef struct {
         uint8_t data[2048];
         int len;
     } rx[31];
-    uint8_t *rx_fifo;
-    int rx_fifo_len;
+    int rx_fifo_offset;
     int next_packet;
     NICState *nic;
     NICConf conf;
@@ -216,21 +215,21 @@ static uint64_t stellaris_enet_read(void *opaque, hwaddr offset,
     case 0x0c: /* TCTL */
         return s->tctl;
     case 0x10: /* DATA */
-        if (s->rx_fifo_len == 0) {
-            if (s->np == 0) {
-                BADF("RX underflow\n");
-                return 0;
-            }
-            s->rx_fifo_len = s->rx[s->next_packet].len;
-            s->rx_fifo = s->rx[s->next_packet].data;
-            DPRINTF("RX FIFO start packet len=%d\n", s->rx_fifo_len);
+    {
+        uint8_t *rx_fifo;
+
+        if (s->np == 0) {
+            BADF("RX underflow\n");
+            return 0;
         }
-        val = s->rx_fifo[0] | (s->rx_fifo[1] << 8) | (s->rx_fifo[2] << 16)
-              | (s->rx_fifo[3] << 24);
-        s->rx_fifo += 4;
-        s->rx_fifo_len -= 4;
-        if (s->rx_fifo_len <= 0) {
-            s->rx_fifo_len = 0;
+
+        rx_fifo = s->rx[s->next_packet].data + s->rx_fifo_offset;
+
+        val = rx_fifo[0] | (rx_fifo[1] << 8) | (rx_fifo[2] << 16)
+              | (rx_fifo[3] << 24);
+        s->rx_fifo_offset += 4;
+        if (s->rx_fifo_offset >= s->rx[s->next_packet].len) {
+            s->rx_fifo_offset = 0;
             s->next_packet++;
             if (s->next_packet >= 31)
                 s->next_packet = 0;
@@ -238,6 +237,7 @@ static uint64_t stellaris_enet_read(void *opaque, hwaddr offset,
             DPRINTF("RX done np=%d\n", s->np);
         }
         return val;
+    }
     case 0x14: /* IA0 */
         return s->conf.macaddr.a[0] | (s->conf.macaddr.a[1] << 8)
             | (s->conf.macaddr.a[2] << 16)
@@ -291,8 +291,8 @@ static void stellaris_enet_write(void *opaque, hwaddr offset,
     case 0x08: /* RCTL */
         s->rctl = value;
         if (value & SE_RCTL_RSTFIFO) {
-            s->rx_fifo_len = 0;
             s->np = 0;
+            s->rx_fifo_offset = 0;
             stellaris_enet_update(s);
         }
         break;
@@ -402,8 +402,7 @@ static void stellaris_enet_save(QEMUFile *f, void *opaque)
 
     }
     qemu_put_be32(f, s->next_packet);
-    qemu_put_be32(f, s->rx_fifo - s->rx[s->next_packet].data);
-    qemu_put_be32(f, s->rx_fifo_len);
+    qemu_put_be32(f, s->rx_fifo_offset);
 }
 
 static int stellaris_enet_load(QEMUFile *f, void *opaque, int version_id)
@@ -432,8 +431,7 @@ static int stellaris_enet_load(QEMUFile *f, void *opaque, int version_id)
 
     }
     s->next_packet = qemu_get_be32(f);
-    s->rx_fifo = s->rx[s->next_packet].data + qemu_get_be32(f);
-    s->rx_fifo_len = qemu_get_be32(f);
+    s->rx_fifo_offset = qemu_get_be32(f);
 
     return 0;
 }
