@@ -70,6 +70,9 @@ AddressSpace address_space_memory;
 MemoryRegion io_mem_rom, io_mem_notdirty;
 static MemoryRegion io_mem_unassigned;
 
+/* RAM is pre-allocated and passed into qemu_ram_alloc_from_ptr */
+#define RAM_PREALLOC   (1 << 0)
+
 #endif
 
 struct CPUTailQ cpus = QTAILQ_HEAD_INITIALIZER(cpus);
@@ -1325,7 +1328,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
     new_block->fd = -1;
     new_block->host = host;
     if (host) {
-        new_block->flags |= RAM_PREALLOC_MASK;
+        new_block->flags |= RAM_PREALLOC;
     }
     return ram_block_add(new_block);
 }
@@ -1364,7 +1367,7 @@ void qemu_ram_free(ram_addr_t addr)
             QTAILQ_REMOVE(&ram_list.blocks, block, next);
             ram_list.mru_block = NULL;
             ram_list.version++;
-            if (block->flags & RAM_PREALLOC_MASK) {
+            if (block->flags & RAM_PREALLOC) {
                 ;
             } else if (xen_enabled()) {
                 xen_invalidate_map_cache_entry(block->host);
@@ -1396,7 +1399,7 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
         offset = addr - block->offset;
         if (offset < block->length) {
             vaddr = block->host + offset;
-            if (block->flags & RAM_PREALLOC_MASK) {
+            if (block->flags & RAM_PREALLOC) {
                 ;
             } else if (xen_enabled()) {
                 abort();
