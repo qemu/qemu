@@ -32,6 +32,7 @@
 #include "qapi/opts-visitor.h"
 #include "qapi/dealloc-visitor.h"
 #include "qapi/qmp/qerror.h"
+#include "hw/boards.h"
 
 QemuOptsList qemu_numa_opts = {
     .name = "numa",
@@ -192,4 +193,12 @@ void set_numa_modes(void)
             }
         }
     }
+}
+
+void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
+                                          const char *name,
+                                          uint64_t ram_size)
+{
+    memory_region_init_ram(mr, owner, name, ram_size);
+    vmstate_register_ram_global(mr);
 }

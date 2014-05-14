@@ -10,6 +10,7 @@
 #include "qemu/notify.h"
 #include "qemu/main-loop.h"
 #include "qemu/bitmap.h"
+#include "qom/object.h"
 
 /* vl.c */
 
