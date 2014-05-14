@@ -1703,7 +1703,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
-            tcg_abort();
+            tcg_out16(s, RIL_BRCL | (S390_CC_ALWAYS << 4));
+            s->tb_jmp_offset[args[0]] = tcg_current_code_size(s);
+            s->code_ptr += 2;
         } else {
             /* load address stored at s->tb_next + args[0] */
             tcg_out_ld_abs(s, TCG_TYPE_PTR, TCG_TMP0, s->tb_next + args[0]);
