@@ -148,9 +148,10 @@ typedef struct node_info {
     DECLARE_BITMAP(node_cpu, MAX_CPUMASK_BITS);
 } NodeInfo;
 extern NodeInfo numa_info[MAX_NODES];
-void numa_add(const char *optarg);
 void set_numa_nodes(void);
 void set_numa_modes(void);
+extern QemuOptsList qemu_numa_opts;
+int numa_init_func(QemuOpts *opts, void *opaque);
 
 #define MAX_OPTION_ROMS 16
 typedef struct QEMUOptionRom {

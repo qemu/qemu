@@ -3097,3 +3097,35 @@
               'btn'     : 'InputBtnEvent',
               'rel'     : 'InputMoveEvent',
               'abs'     : 'InputMoveEvent' } }
+
+##
+# @NumaOptions
+#
+# A discriminated record of NUMA options. (for OptsVisitor)
+#
+# Since 2.1
+##
+{ 'union': 'NumaOptions',
+  'data': {
+    'node': 'NumaNodeOptions' }}
+
+##
+# @NumaNodeOptions
+#
+# Create a guest NUMA node. (for OptsVisitor)
+#
+# @nodeid: #optional NUMA node ID (increase by 1 from 0 if omitted)
+#
+# @cpus: #optional VCPUs belonging to this node (assign VCPUS round-robin
+#         if omitted)
+#
+# @mem: #optional memory size of this node (equally divide total memory among
+#        nodes if omitted)
+#
+# Since: 2.1
+##
+{ 'type': 'NumaNodeOptions',
+  'data': {
+   '*nodeid': 'uint16',
+   '*cpus':   ['uint16'],
+   '*mem':    'size' }}
