@@ -61,11 +61,14 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define CURL_NUM_STATES 8
 #define CURL_NUM_ACB    8
 #define SECTOR_SIZE     512
-#define READ_AHEAD_SIZE (256 * 1024)
+#define READ_AHEAD_DEFAULT (256 * 1024)
 
 #define FIND_RET_NONE   0
 #define FIND_RET_OK     1
 #define FIND_RET_WAIT   2
+
+#define CURL_BLOCK_OPT_URL       "url"
+#define CURL_BLOCK_OPT_READAHEAD "readahead"
 
 struct BDRVCURLState;
 
@@ -411,43 +414,7 @@ static void curl_clean_state(CURLState *s)
 static void curl_parse_filename(const char *filename, QDict *options,
                                 Error **errp)
 {
-
-    #define RA_OPTSTR ":readahead="
-    char *file;
-    char *ra;
-    const char *ra_val;
-    int parse_state = 0;
-
-    file = g_strdup(filename);
-
-    /* Parse a trailing ":readahead=#:" param, if present. */
-    ra = file + strlen(file) - 1;
-    while (ra >= file) {
-        if (parse_state == 0) {
-            if (*ra == ':') {
-                parse_state++;
-            } else {
-                break;
-            }
-        } else if (parse_state == 1) {
-            if (*ra > '9' || *ra < '0') {
-                char *opt_start = ra - strlen(RA_OPTSTR) + 1;
-                if (opt_start > file &&
-                    strncmp(opt_start, RA_OPTSTR, strlen(RA_OPTSTR)) == 0) {
-                    ra_val = ra + 1;
-                    ra -= strlen(RA_OPTSTR) - 1;
-                    *ra = '\0';
-                    qdict_put(options, "readahead", qstring_from_str(ra_val));
-                }
-                break;
-            }
-        }
-        ra--;
-    }
-
-    qdict_put(options, "url", qstring_from_str(file));
-
-    g_free(file);
+    qdict_put(options, CURL_BLOCK_OPT_URL, qstring_from_str(filename));
 }
 
 static QemuOptsList runtime_opts = {
@@ -455,12 +422,12 @@ static QemuOptsList runtime_opts = {
     .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
     .desc = {
         {
-            .name = "url",
+            .name = CURL_BLOCK_OPT_URL,
             .type = QEMU_OPT_STRING,
             .help = "URL to open",
         },
         {
-            .name = "readahead",
+            .name = CURL_BLOCK_OPT_READAHEAD,
             .type = QEMU_OPT_SIZE,
             .help = "Readahead size",
         },
@@ -492,14 +459,15 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
         goto out_noclean;
     }
 
-    s->readahead_size = qemu_opt_get_size(opts, "readahead", READ_AHEAD_SIZE);
+    s->readahead_size = qemu_opt_get_size(opts, CURL_BLOCK_OPT_READAHEAD,
+                                          READ_AHEAD_DEFAULT);
     if ((s->readahead_size & 0x1ff) != 0) {
         error_setg(errp, "HTTP_READAHEAD_SIZE %zd is not a multiple of 512",
                    s->readahead_size);
         goto out_noclean;
     }
 
-    file = qemu_opt_get(opts, "url");
+    file = qemu_opt_get(opts, CURL_BLOCK_OPT_URL);
     if (file == NULL) {
         error_setg(errp, "curl block driver requires an 'url' option");
         goto out_noclean;
