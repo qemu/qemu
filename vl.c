@@ -195,8 +195,7 @@ static QTAILQ_HEAD(, FWBootEntry) fw_boot_order =
     QTAILQ_HEAD_INITIALIZER(fw_boot_order);
 
 int nb_numa_nodes;
-uint64_t node_mem[MAX_NODES];
-unsigned long *node_cpumask[MAX_NODES];
+NodeInfo numa_info[MAX_NODES];
 
 uint8_t qemu_uuid[16];
 bool qemu_uuid_set;
@@ -2959,8 +2958,8 @@ int main(int argc, char **argv, char **envp)
     translation = BIOS_ATA_TRANSLATION_AUTO;
 
     for (i = 0; i < MAX_NODES; i++) {
-        node_mem[i] = 0;
-        node_cpumask[i] = bitmap_new(MAX_CPUMASK_BITS);
+        numa_info[i].node_mem = 0;
+        bitmap_zero(numa_info[i].node_cpu, MAX_CPUMASK_BITS);
     }
 
     nb_numa_nodes = 0;

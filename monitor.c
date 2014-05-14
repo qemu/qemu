@@ -2011,7 +2011,7 @@ static void do_info_numa(Monitor *mon, const QDict *qdict)
         }
         monitor_printf(mon, "\n");
         monitor_printf(mon, "node %d size: %" PRId64 " MB\n", i,
-            node_mem[i] >> 20);
+            numa_info[i].node_mem >> 20);
     }
 }
 

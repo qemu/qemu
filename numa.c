@@ -65,7 +65,7 @@ static void numa_node_parse_cpus(int nodenr, const char *cpus)
         goto error;
     }
 
-    bitmap_set(node_cpumask[nodenr], value, endvalue-value+1);
+    bitmap_set(numa_info[nodenr].node_cpu, value, endvalue-value+1);
     return;
 
 error:
@@ -105,7 +105,7 @@ void numa_add(const char *optarg)
         }
 
         if (get_param_value(option, 128, "mem", optarg) == 0) {
-            node_mem[nodenr] = 0;
+            numa_info[nodenr].node_mem = 0;
         } else {
             int64_t sval;
             sval = strtosz(option, &endptr);
@@ -113,7 +113,7 @@ void numa_add(const char *optarg)
                 fprintf(stderr, "qemu: invalid numa mem size: %s\n", optarg);
                 exit(1);
             }
-            node_mem[nodenr] = sval;
+            numa_info[nodenr].node_mem = sval;
         }
         if (get_param_value(option, 128, "cpus", optarg) != 0) {
             numa_node_parse_cpus(nodenr, option);
@@ -139,7 +139,7 @@ void set_numa_nodes(void)
          * and distribute the available memory equally across all nodes
          */
         for (i = 0; i < nb_numa_nodes; i++) {
-            if (node_mem[i] != 0) {
+            if (numa_info[i].node_mem != 0) {
                 break;
             }
         }
@@ -150,15 +150,16 @@ void set_numa_nodes(void)
              * the final node gets the rest.
              */
             for (i = 0; i < nb_numa_nodes - 1; i++) {
-                node_mem[i] = (ram_size / nb_numa_nodes) & ~((1 << 23UL) - 1);
-                usedmem += node_mem[i];
+                numa_info[i].node_mem = (ram_size / nb_numa_nodes) &
+                                        ~((1 << 23UL) - 1);
+                usedmem += numa_info[i].node_mem;
             }
-            node_mem[i] = ram_size - usedmem;
+            numa_info[i].node_mem = ram_size - usedmem;
         }
 
         numa_total = 0;
         for (i = 0; i < nb_numa_nodes; i++) {
-            numa_total += node_mem[i];
+            numa_total += numa_info[i].node_mem;
         }
         if (numa_total != ram_size) {
             error_report("total memory for NUMA nodes (%" PRIu64 ")"
@@ -168,7 +169,7 @@ void set_numa_nodes(void)
         }
 
         for (i = 0; i < nb_numa_nodes; i++) {
-            if (!bitmap_empty(node_cpumask[i], MAX_CPUMASK_BITS)) {
+            if (!bitmap_empty(numa_info[i].node_cpu, MAX_CPUMASK_BITS)) {
                 break;
             }
         }
@@ -178,7 +179,7 @@ void set_numa_nodes(void)
          */
         if (i == nb_numa_nodes) {
             for (i = 0; i < max_cpus; i++) {
-                set_bit(i, node_cpumask[i % nb_numa_nodes]);
+                set_bit(i, numa_info[i % nb_numa_nodes].node_cpu);
             }
         }
     }
@@ -191,7 +192,7 @@ void set_numa_modes(void)
 
     CPU_FOREACH(cpu) {
         for (i = 0; i < nb_numa_nodes; i++) {
-            if (test_bit(cpu->cpu_index, node_cpumask[i])) {
+            if (test_bit(cpu->cpu_index, numa_info[i].node_cpu)) {
                 cpu->numa_node = i;
             }
         }

@@ -673,8 +673,8 @@ static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
     int i, off;
 
     /* memory node(s) */
-    if (nb_numa_nodes > 1 && node_mem[0] < ram_size) {
-        node0_size = node_mem[0];
+    if (nb_numa_nodes > 1 && numa_info[0].node_mem < ram_size) {
+        node0_size = numa_info[0].node_mem;
     } else {
         node0_size = ram_size;
     }
@@ -712,7 +712,7 @@ static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
         if (mem_start >= ram_size) {
             node_size = 0;
         } else {
-            node_size = node_mem[i];
+            node_size = numa_info[i].node_mem;
             if (node_size > ram_size - mem_start) {
                 node_size = ram_size - mem_start;
             }
@@ -857,7 +857,8 @@ static void spapr_reset_htab(sPAPREnvironment *spapr)
 
     /* Update the RMA size if necessary */
     if (spapr->vrma_adjust) {
-        hwaddr node0_size = (nb_numa_nodes > 1) ? node_mem[0] : ram_size;
+        hwaddr node0_size = (nb_numa_nodes > 1) ?
+            numa_info[0].node_mem : ram_size;
         spapr->rma_size = kvmppc_rma_size(node0_size, spapr->htab_shift);
     }
 }
@@ -1289,7 +1290,7 @@ static void ppc_spapr_init(MachineState *machine)
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     hwaddr rma_alloc_size;
-    hwaddr node0_size = (nb_numa_nodes > 1) ? node_mem[0] : ram_size;
+    hwaddr node0_size = (nb_numa_nodes > 1) ? numa_info[0].node_mem : ram_size;
     uint32_t initrd_base = 0;
     long kernel_size = 0, initrd_size = 0;
     long load_limit, rtas_limit, fw_size;

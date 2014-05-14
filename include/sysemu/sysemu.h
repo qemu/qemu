@@ -9,6 +9,7 @@
 #include "qapi-types.h"
 #include "qemu/notify.h"
 #include "qemu/main-loop.h"
+#include "qemu/bitmap.h"
 
 /* vl.c */
 
@@ -142,8 +143,11 @@ extern QEMUClockType rtc_clock;
 #define MAX_CPUMASK_BITS 255
 
 extern int nb_numa_nodes;
-extern uint64_t node_mem[MAX_NODES];
-extern unsigned long *node_cpumask[MAX_NODES];
+typedef struct node_info {
+    uint64_t node_mem;
+    DECLARE_BITMAP(node_cpu, MAX_CPUMASK_BITS);
+} NodeInfo;
+extern NodeInfo numa_info[MAX_NODES];
 void numa_add(const char *optarg);
 void set_numa_nodes(void);
 void set_numa_modes(void);
