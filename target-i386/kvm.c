@@ -35,6 +35,8 @@
 #include "exec/ioport.h"
 #include <asm/hyperv.h>
 #include "hw/pci/pci.h"
+#include "migration/migration.h"
+#include "qapi/qmp/qerror.h"
 
 //#define DEBUG_KVM
 
@@ -448,6 +450,8 @@ static bool hyperv_enabled(X86CPU *cpu)
             cpu->hyperv_relaxed_timing);
 }
 
+static Error *invtsc_mig_blocker;
+
 #define KVM_MAX_CPUID_ENTRIES  100
 
 int kvm_arch_init_vcpu(CPUState *cs)
@@ -703,6 +707,17 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (c) {
         has_msr_feature_control = !!(c->ecx & CPUID_EXT_VMX) ||
                                   !!(c->ecx & CPUID_EXT_SMX);
+    }
+
+    c = cpuid_find_entry(&cpuid_data.cpuid, 0x80000007, 0);
+    if (c && (c->edx & 1<<8) && invtsc_mig_blocker == NULL) {
+        /* for migration */
+        error_setg(&invtsc_mig_blocker,
+                   "State blocked by non-migratable CPU device"
+                   " (invtsc flag)");
+        migrate_add_blocker(invtsc_mig_blocker);
+        /* for savevm */
+        vmstate_x86_cpu.unmigratable = 1;
     }
 
     cpuid_data.cpuid.padding = 0;
