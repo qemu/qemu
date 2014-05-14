@@ -228,7 +228,16 @@ static void allocate_system_memory_nonnuma(MemoryRegion *mr, Object *owner,
                                            const char *name,
                                            uint64_t ram_size)
 {
-    memory_region_init_ram(mr, owner, name, ram_size);
+    if (mem_path) {
+#ifdef __linux__
+        memory_region_init_ram_from_file(mr, owner, name, ram_size, mem_path);
+#else
+        fprintf(stderr, "-mem-path not supported on this host\n");
+        exit(1);
+#endif
+    } else {
+        memory_region_init_ram(mr, owner, name, ram_size);
+    }
     vmstate_register_ram_global(mr);
 }
 

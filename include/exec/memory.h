@@ -311,6 +311,24 @@ void memory_region_init_ram(MemoryRegion *mr,
                             const char *name,
                             uint64_t size);
 
+#ifdef __linux__
+/**
+ * memory_region_init_ram_from_file:  Initialize RAM memory region with a
+ *                                    mmap-ed backend.
+ *
+ * @mr: the #MemoryRegion to be initialized.
+ * @owner: the object that tracks the region's reference count
+ * @name: the name of the region.
+ * @size: size of the region.
+ * @path: the path in which to allocate the RAM.
+ */
+void memory_region_init_ram_from_file(MemoryRegion *mr,
+                                      struct Object *owner,
+                                      const char *name,
+                                      uint64_t size,
+                                      const char *path);
+#endif
+
 /**
  * memory_region_init_ram_ptr:  Initialize RAM memory region from a
  *                              user-provided pointer.  Accesses into the

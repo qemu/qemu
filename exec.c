@@ -1090,14 +1090,6 @@ error:
     }
     return NULL;
 }
-#else
-static void *file_ram_alloc(RAMBlock *block,
-                            ram_addr_t memory,
-                            const char *path)
-{
-    fprintf(stderr, "-mem-path not supported on this host\n");
-    exit(1);
-}
 #endif
 
 static ram_addr_t find_ram_offset(ram_addr_t size)
@@ -1287,6 +1279,7 @@ static ram_addr_t ram_block_add(RAMBlock *new_block)
     return new_block->offset;
 }
 
+#ifdef __linux__
 ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
                                     const char *mem_path)
 {
@@ -1315,6 +1308,7 @@ ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     new_block->host = file_ram_alloc(new_block, size, mem_path);
     return ram_block_add(new_block);
 }
+#endif
 
 ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                    MemoryRegion *mr)
