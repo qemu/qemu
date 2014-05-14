@@ -37,6 +37,21 @@
 #if LIBCURL_VERSION_NUM >= 0x071000
 /* The multi interface timer callback was introduced in 7.16.0 */
 #define NEED_CURL_TIMER_CALLBACK
+#define HAVE_SOCKET_ACTION
+#endif
+
+#ifndef HAVE_SOCKET_ACTION
+/* If curl_multi_socket_action isn't available, define it statically here in
+ * terms of curl_multi_socket. Note that ev_bitmask will be ignored, which is
+ * less efficient but still safe. */
+static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
+                                            curl_socket_t sockfd,
+                                            int ev_bitmask,
+                                            int *running_handles)
+{
+    return curl_multi_socket(multi_handle, sockfd, running_handles);
+}
+#define curl_multi_socket_action __curl_multi_socket_action
 #endif
 
 #define PROTOCOLS (CURLPROTO_HTTP | CURLPROTO_HTTPS | \
