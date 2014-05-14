@@ -338,6 +338,29 @@ static void test_have_timer(void)
     throttle_destroy(&ts);
 }
 
+static void test_detach_attach(void)
+{
+    /* zero the structure */
+    memset(&ts, 0, sizeof(ts));
+
+    /* init the structure */
+    throttle_init(&ts, ctx, QEMU_CLOCK_VIRTUAL,
+                  read_timer_cb, write_timer_cb, &ts);
+
+    /* timer set by init should return true */
+    g_assert(throttle_have_timer(&ts));
+
+    /* timer should no longer exist after detaching */
+    throttle_detach_aio_context(&ts);
+    g_assert(!throttle_have_timer(&ts));
+
+    /* timer should exist again after attaching */
+    throttle_attach_aio_context(&ts, ctx);
+    g_assert(throttle_have_timer(&ts));
+
+    throttle_destroy(&ts);
+}
+
 static bool do_test_accounting(bool is_ops, /* are we testing bps or ops */
                 int size,                   /* size of the operation to do */
                 double avg,                 /* io limit */
@@ -486,6 +509,7 @@ int main(int argc, char **argv)
     g_test_add_func("/throttle/init",               test_init);
     g_test_add_func("/throttle/destroy",            test_destroy);
     g_test_add_func("/throttle/have_timer",         test_have_timer);
+    g_test_add_func("/throttle/detach_attach",      test_detach_attach);
     g_test_add_func("/throttle/config/enabled",     test_enabled);
     g_test_add_func("/throttle/config/conflicting", test_conflicting_config);
     g_test_add_func("/throttle/config/is_valid",    test_is_valid);
