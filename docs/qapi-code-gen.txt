@@ -230,14 +230,13 @@ node structure that can be used to chain together a list of such types in
 case we want to accept/return a list of this type with a command), and a
 command which takes that type as a parameter and returns the same type:
 
-    mdroth@illuin:~/w/qemu2.git$ cat example-schema.json
+    $ cat example-schema.json
     { 'type': 'UserDefOne',
       'data': { 'integer': 'int', 'string': 'str' } }
 
     { 'command': 'my-command',
       'data':    {'arg1': 'UserDefOne'},
       'returns': 'UserDefOne' }
-    mdroth@illuin:~/w/qemu2.git$
 
 === scripts/qapi-types.py ===
 
@@ -255,9 +254,9 @@ created code.
 
 Example:
 
-    mdroth@illuin:~/w/qemu2.git$ python scripts/qapi-types.py \
-      --output-dir="qapi-generated" --prefix="example-" --input-file=example-schema.json
-    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qapi-types.c
+    $ python scripts/qapi-types.py --output-dir="qapi-generated" \
+    --prefix="example-" --input-file=example-schema.json
+    $ cat qapi-generated/example-qapi-types.c
 [Uninteresting stuff omitted...]
 
     void qapi_free_UserDefOneList(UserDefOneList * obj)
@@ -290,7 +289,7 @@ Example:
         qapi_dealloc_visitor_cleanup(md);
     }
 
-    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qapi-types.h
+    $ cat qapi-generated/example-qapi-types.h
 [Uninteresting stuff omitted...]
 
     #ifndef EXAMPLE_QAPI_TYPES_H
@@ -342,9 +341,9 @@ $(prefix)qapi-visit.h: declarations for previously mentioned visitor
 
 Example:
 
-    mdroth@illuin:~/w/qemu2.git$ python scripts/qapi-visit.py \
-        --output-dir="qapi-generated" --prefix="example-" --input-file=example-schema.json
-    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qapi-visit.c
+    $ python scripts/qapi-visit.py --output-dir="qapi-generated"
+    --prefix="example-" --input-file=example-schema.json
+    $ cat qapi-generated/example-qapi-visit.c
 [Uninteresting stuff omitted...]
 
     static void visit_type_UserDefOne_fields(Visitor *m, UserDefOne ** obj, Error **errp)
@@ -400,7 +399,9 @@ Example:
     out:
         error_propagate(errp, err);
     }
-    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qapi-visit.h
+    $ python scripts/qapi-commands.py --output-dir="qapi-generated" \
+    --prefix="example-" --input-file=example-schema.json
+    $ cat qapi-generated/example-qapi-visit.h
 [Uninteresting stuff omitted...]
 
     #ifndef EXAMPLE_QAPI_VISIT_H
@@ -412,7 +413,6 @@ Example:
     void visit_type_UserDefOneList(Visitor *m, UserDefOneList ** obj, const char *name, Error **errp);
 
     #endif
-    mdroth@illuin:~/w/qemu2.git$
 
 === scripts/qapi-commands.py ===
 
@@ -433,7 +433,7 @@ $(prefix)qmp-commands.h: Function prototypes for the QMP commands
 
 Example:
 
-    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qmp-marshal.c
+    $ cat qapi-generated/example-qmp-marshal.c
 [Uninteresting stuff omitted...]
 
     static void qmp_marshal_output_my_command(UserDefOne * ret_in, QObject **ret_out, Error **errp)
@@ -497,7 +497,7 @@ Example:
     }
 
     qapi_init(qmp_init_marshal);
-    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qmp-commands.h
+    $ cat qapi-generated/example-qmp-commands.h
 [Uninteresting stuff omitted...]
 
     #ifndef EXAMPLE_QMP_COMMANDS_H
@@ -510,4 +510,3 @@ Example:
     UserDefOne * qmp_my_command(UserDefOne * arg1, Error **errp);
 
     #endif
-    mdroth@illuin:~/w/qemu2.git$
