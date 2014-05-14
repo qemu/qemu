@@ -1312,20 +1312,6 @@ static void tcg_exec_all(void)
     exit_request = 0;
 }
 
-void set_numa_modes(void)
-{
-    CPUState *cpu;
-    int i;
-
-    CPU_FOREACH(cpu) {
-        for (i = 0; i < nb_numa_nodes; i++) {
-            if (test_bit(cpu->cpu_index, node_cpumask[i])) {
-                cpu->numa_node = i;
-            }
-        }
-    }
-}
-
 void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg)
 {
     /* XXX: implement xxx_cpu_list for targets that still miss it */

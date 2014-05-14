@@ -144,6 +144,9 @@ extern QEMUClockType rtc_clock;
 extern int nb_numa_nodes;
 extern uint64_t node_mem[MAX_NODES];
 extern unsigned long *node_cpumask[MAX_NODES];
+void numa_add(const char *optarg);
+void set_numa_nodes(void);
+void set_numa_modes(void);
 
 #define MAX_OPTION_ROMS 16
 typedef struct QEMUOptionRom {

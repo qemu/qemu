@@ -297,8 +297,6 @@ CPUArchState *cpu_copy(CPUArchState *env);
 
 /* memory API */
 
-extern ram_addr_t ram_size;
-
 /* RAM is pre-allocated and passed into qemu_ram_alloc_from_ptr */
 #define RAM_PREALLOC_MASK   (1 << 0)
 

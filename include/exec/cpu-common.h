@@ -45,6 +45,8 @@ typedef uintptr_t ram_addr_t;
 #  define RAM_ADDR_FMT "%" PRIxPTR
 #endif
 
+extern ram_addr_t ram_size;
+
 /* memory API */
 
 typedef void CPUWriteMemoryFunc(void *opaque, hwaddr addr, uint32_t value);
