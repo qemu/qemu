@@ -1232,11 +1232,14 @@ static inline uint32_t cpu_compute_eflags(CPUX86State *env)
     return env->eflags | cpu_cc_compute_all(env, CC_OP) | (env->df & DF_MASK);
 }
 
-/* NOTE: CC_OP must be modified manually to CC_OP_EFLAGS */
+/* NOTE: the translator must set DisasContext.cc_op to CC_OP_EFLAGS
+ * after generating a call to a helper that uses this.
+ */
 static inline void cpu_load_eflags(CPUX86State *env, int eflags,
                                    int update_mask)
 {
     CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    CC_OP = CC_OP_EFLAGS;
     env->df = 1 - (2 * ((eflags >> 10) & 1));
     env->eflags = (env->eflags & ~update_mask) |
         (eflags & update_mask) | 0x2;

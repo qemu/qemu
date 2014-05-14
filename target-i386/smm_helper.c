@@ -168,7 +168,6 @@ void do_smm_enter(X86CPU *cpu)
                                       CR0_PG_MASK));
     cpu_x86_update_cr4(env, 0);
     env->dr[7] = 0x00000400;
-    CC_OP = CC_OP_EFLAGS;
 
     cpu_x86_load_seg_cache(env, R_CS, (env->smbase >> 4) & 0xffff, env->smbase,
                            0xffffffff,
@@ -308,7 +307,6 @@ void helper_rsm(CPUX86State *env)
         env->smbase = ldl_phys(cs->as, sm_state + 0x7ef8) & ~0x7fff;
     }
 #endif
-    CC_OP = CC_OP_EFLAGS;
     env->hflags &= ~HF_SMM_MASK;
     cpu_smm_update(env);
 
