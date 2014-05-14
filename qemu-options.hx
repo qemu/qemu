@@ -95,16 +95,22 @@ specifies the maximum number of hotpluggable CPUs.
 ETEXI
 
 DEF("numa", HAS_ARG, QEMU_OPTION_numa,
-    "-numa node[,mem=size][,cpus=cpu[-cpu]][,nodeid=node]\n", QEMU_ARCH_ALL)
+    "-numa node[,mem=size][,cpus=cpu[-cpu]][,nodeid=node]\n"
+    "-numa node[,memdev=id][,cpus=cpu[-cpu]][,nodeid=node]\n", QEMU_ARCH_ALL)
 STEXI
 @item -numa node[,mem=@var{size}][,cpus=@var{cpu[-cpu]}][,nodeid=@var{node}]
+@item -numa node[,memdev=@var{id}][,cpus=@var{cpu[-cpu]}][,nodeid=@var{node}]
 @findex -numa
-Simulate a multi node NUMA system. If @samp{mem}
+Simulate a multi node NUMA system. If @samp{mem}, @samp{memdev}
 and @samp{cpus} are omitted, resources are split equally. Also, note
 that the -@option{numa} option doesn't allocate any of the specified
 resources. That is, it just assigns existing resources to NUMA nodes. This
 means that one still has to use the @option{-m}, @option{-smp} options
-to allocate RAM and VCPUs respectively.
+to allocate RAM and VCPUs respectively, and possibly @option{-object}
+to specify the memory backend for the @samp{memdev} suboption.
+
+@samp{mem} and @samp{memdev} are mutually exclusive.  Furthermore, if one
+node uses @samp{memdev}, all of them have to use it.
 ETEXI
 
 DEF("add-fd", HAS_ARG, QEMU_OPTION_add_fd,

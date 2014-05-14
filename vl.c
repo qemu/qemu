@@ -3952,6 +3952,8 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
+    cpu_exec_init_all();
+
     current_machine = MACHINE(object_new(object_class_get_name(
                           OBJECT_CLASS(machine_class))));
     object_property_add_child(object_get_root(), "machine",
@@ -4288,8 +4290,6 @@ int main(int argc, char **argv, char **envp)
             exit(1);
         }
     }
-
-    cpu_exec_init_all();
 
     blk_mig_init();
     ram_mig_init();

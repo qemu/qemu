@@ -149,6 +149,7 @@ extern int nb_numa_nodes;
 typedef struct node_info {
     uint64_t node_mem;
     DECLARE_BITMAP(node_cpu, MAX_CPUMASK_BITS);
+    struct HostMemoryBackend *node_memdev;
 } NodeInfo;
 extern NodeInfo numa_info[MAX_NODES];
 void set_numa_nodes(void);
