@@ -97,10 +97,14 @@ ETEXI
 DEF("numa", HAS_ARG, QEMU_OPTION_numa,
     "-numa node[,mem=size][,cpus=cpu[-cpu]][,nodeid=node]\n", QEMU_ARCH_ALL)
 STEXI
-@item -numa @var{opts}
+@item -numa node[,mem=@var{size}][,cpus=@var{cpu[-cpu]}][,nodeid=@var{node}]
 @findex -numa
-Simulate a multi node NUMA system. If mem and cpus are omitted, resources
-are split equally.
+Simulate a multi node NUMA system. If @samp{mem}
+and @samp{cpus} are omitted, resources are split equally. Also, note
+that the -@option{numa} option doesn't allocate any of the specified
+resources. That is, it just assigns existing resources to NUMA nodes. This
+means that one still has to use the @option{-m}, @option{-smp} options
+to allocate RAM and VCPUs respectively.
 ETEXI
 
 DEF("add-fd", HAS_ARG, QEMU_OPTION_add_fd,
