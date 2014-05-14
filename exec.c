@@ -1011,13 +1011,6 @@ static long gethugepagesize(const char *path)
     return fs.f_bsize;
 }
 
-static sigjmp_buf sigjump;
-
-static void sigbus_handler(int signal)
-{
-    siglongjmp(sigjump, 1);
-}
-
 static void *file_ram_alloc(RAMBlock *block,
                             ram_addr_t memory,
                             const char *path)
@@ -1082,42 +1075,7 @@ static void *file_ram_alloc(RAMBlock *block,
     }
 
     if (mem_prealloc) {
-        int ret, i;
-        struct sigaction act, oldact;
-        sigset_t set, oldset;
-
-        memset(&act, 0, sizeof(act));
-        act.sa_handler = &sigbus_handler;
-        act.sa_flags = 0;
-
-        ret = sigaction(SIGBUS, &act, &oldact);
-        if (ret) {
-            perror("file_ram_alloc: failed to install signal handler");
-            exit(1);
-        }
-
-        /* unblock SIGBUS */
-        sigemptyset(&set);
-        sigaddset(&set, SIGBUS);
-        pthread_sigmask(SIG_UNBLOCK, &set, &oldset);
-
-        if (sigsetjmp(sigjump, 1)) {
-            fprintf(stderr, "file_ram_alloc: failed to preallocate pages\n");
-            exit(1);
-        }
-
-        /* MAP_POPULATE silently ignores failures */
-        for (i = 0; i < (memory/hpagesize); i++) {
-            memset(area + (hpagesize*i), 0, 1);
-        }
-
-        ret = sigaction(SIGBUS, &oldact, NULL);
-        if (ret) {
-            perror("file_ram_alloc: failed to reinstall signal handler");
-            exit(1);
-        }
-
-        pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+        os_mem_prealloc(fd, area, memory);
     }
 
     block->fd = fd;

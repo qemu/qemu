@@ -251,4 +251,6 @@ void qemu_init_auxval(char **envp);
 
 void qemu_set_tty_echo(int fd, bool echo);
 
+void os_mem_prealloc(int fd, char *area, size_t sz);
+
 #endif
