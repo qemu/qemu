@@ -334,6 +334,7 @@ tpm="no"
 libssh2=""
 vhdx=""
 quorum=""
+numa=""
 
 # parse CC options first
 for opt do
@@ -1118,6 +1119,10 @@ for opt do
   ;;
   --enable-quorum) quorum="yes"
   ;;
+  --disable-numa) numa="no"
+  ;;
+  --enable-numa) numa="yes"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1384,6 +1389,8 @@ Advanced options (experts only):
   --enable-vhdx            enable support for the Microsoft VHDX image format
   --disable-quorum         disable quorum block filter support
   --enable-quorum          enable quorum block filter support
+  --disable-numa           disable libnuma support
+  --enable-numa            enable libnuma support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -3168,6 +3175,26 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
+# libnuma probe
+
+if test "$numa" != "no" ; then
+  cat > $TMPC << EOF
+#include <numa.h>
+int main(void) { return numa_available(); }
+EOF
+
+  if compile_prog "" "-lnuma" ; then
+    numa=yes
+    libs_softmmu="-lnuma $libs_softmmu"
+  else
+    if test "$numa" = "yes" ; then
+      feature_not_found "numa" "install numactl devel"
+    fi
+    numa=no
+  fi
+fi
+
+##########################################
 # signalfd probe
 signalfd="no"
 cat > $TMPC << EOF
@@ -4241,6 +4268,7 @@ echo "vhdx              $vhdx"
 echo "Quorum            $quorum"
 echo "lzo support       $lzo"
 echo "snappy support    $snappy"
+echo "NUMA host support $numa"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -5208,6 +5236,10 @@ fi
 
 if [ "$dtc_internal" = "yes" ]; then
   echo "config-host.h: subdir-dtc" >> $config_host_mak
+fi
+
+if test "$numa" = "yes"; then
+  echo "CONFIG_NUMA=y" >> $config_host_mak
 fi
 
 # build tree in object directory in case the source is not in the current directory
