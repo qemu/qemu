@@ -133,7 +133,7 @@ extern size_t boot_splash_filedata_size;
 extern uint8_t qemu_extra_params_fw[2];
 extern QEMUClockType rtc_clock;
 
-#define MAX_NODES 64
+#define MAX_NODES 128
 
 /* The following shall be true for all CPUs:
  *   cpu->cpu_index < max_cpus <= MAX_CPUMASK_BITS
