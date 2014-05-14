@@ -23,6 +23,7 @@
 
 #include "exec/memory-internal.h"
 #include "exec/ram_addr.h"
+#include "sysemu/sysemu.h"
 
 //#define DEBUG_UNASSIGNED
 
@@ -1029,7 +1030,11 @@ void memory_region_init_ram(MemoryRegion *mr,
     mr->ram = true;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
-    mr->ram_addr = qemu_ram_alloc(size, mr);
+    if (mem_path) {
+        mr->ram_addr = qemu_ram_alloc_from_file(size, mr, mem_path);
+    } else {
+        mr->ram_addr = qemu_ram_alloc(size, mr);
+    }
 }
 
 void memory_region_init_ram_ptr(MemoryRegion *mr,

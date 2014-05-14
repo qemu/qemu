@@ -1262,56 +1262,30 @@ static int memory_try_enable_merging(void *addr, size_t len)
     return qemu_madvise(addr, len, QEMU_MADV_MERGEABLE);
 }
 
-ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
-                                   MemoryRegion *mr)
+static ram_addr_t ram_block_add(RAMBlock *new_block)
 {
-    RAMBlock *block, *new_block;
+    RAMBlock *block;
     ram_addr_t old_ram_size, new_ram_size;
 
     old_ram_size = last_ram_offset() >> TARGET_PAGE_BITS;
 
-    size = TARGET_PAGE_ALIGN(size);
-    new_block = g_malloc0(sizeof(*new_block));
-    new_block->fd = -1;
-
     /* This assumes the iothread lock is taken here too.  */
     qemu_mutex_lock_ramlist();
-    new_block->mr = mr;
-    new_block->offset = find_ram_offset(size);
-    if (host) {
-        new_block->host = host;
-        new_block->flags |= RAM_PREALLOC_MASK;
-    } else if (xen_enabled()) {
-        if (mem_path) {
-            fprintf(stderr, "-mem-path not supported with Xen\n");
-            exit(1);
-        }
-        xen_ram_alloc(new_block->offset, size, mr);
-    } else {
-        if (mem_path) {
-            if (phys_mem_alloc != qemu_anon_ram_alloc) {
-                /*
-                 * file_ram_alloc() needs to allocate just like
-                 * phys_mem_alloc, but we haven't bothered to provide
-                 * a hook there.
-                 */
-                fprintf(stderr,
-                        "-mem-path not supported with this accelerator\n");
-                exit(1);
-            }
-            new_block->host = file_ram_alloc(new_block, size, mem_path);
-        }
-        if (!new_block->host) {
-            new_block->host = phys_mem_alloc(size);
+    new_block->offset = find_ram_offset(new_block->length);
+
+    if (!new_block->host) {
+        if (xen_enabled()) {
+            xen_ram_alloc(new_block->offset, new_block->length, new_block->mr);
+        } else {
+            new_block->host = phys_mem_alloc(new_block->length);
             if (!new_block->host) {
                 fprintf(stderr, "Cannot set up guest memory '%s': %s\n",
                         new_block->mr->name, strerror(errno));
                 exit(1);
             }
-            memory_try_enable_merging(new_block->host, size);
+            memory_try_enable_merging(new_block->host, new_block->length);
         }
     }
-    new_block->length = size;
 
     /* Keep the list sorted from biggest to smallest block.  */
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
@@ -1339,16 +1313,63 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                    old_ram_size, new_ram_size);
        }
     }
-    cpu_physical_memory_set_dirty_range(new_block->offset, size);
+    cpu_physical_memory_set_dirty_range(new_block->offset, new_block->length);
 
-    qemu_ram_setup_dump(new_block->host, size);
-    qemu_madvise(new_block->host, size, QEMU_MADV_HUGEPAGE);
-    qemu_madvise(new_block->host, size, QEMU_MADV_DONTFORK);
+    qemu_ram_setup_dump(new_block->host, new_block->length);
+    qemu_madvise(new_block->host, new_block->length, QEMU_MADV_HUGEPAGE);
+    qemu_madvise(new_block->host, new_block->length, QEMU_MADV_DONTFORK);
 
-    if (kvm_enabled())
-        kvm_setup_guest_memory(new_block->host, size);
+    if (kvm_enabled()) {
+        kvm_setup_guest_memory(new_block->host, new_block->length);
+    }
 
     return new_block->offset;
+}
+
+ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
+                                    const char *mem_path)
+{
+    RAMBlock *new_block;
+
+    if (xen_enabled()) {
+        fprintf(stderr, "-mem-path not supported with Xen\n");
+        exit(1);
+    }
+
+    if (phys_mem_alloc != qemu_anon_ram_alloc) {
+        /*
+         * file_ram_alloc() needs to allocate just like
+         * phys_mem_alloc, but we haven't bothered to provide
+         * a hook there.
+         */
+        fprintf(stderr,
+                "-mem-path not supported with this accelerator\n");
+        exit(1);
+    }
+
+    size = TARGET_PAGE_ALIGN(size);
+    new_block = g_malloc0(sizeof(*new_block));
+    new_block->mr = mr;
+    new_block->length = size;
+    new_block->host = file_ram_alloc(new_block, size, mem_path);
+    return ram_block_add(new_block);
+}
+
+ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
+                                   MemoryRegion *mr)
+{
+    RAMBlock *new_block;
+
+    size = TARGET_PAGE_ALIGN(size);
+    new_block = g_malloc0(sizeof(*new_block));
+    new_block->mr = mr;
+    new_block->length = size;
+    new_block->fd = -1;
+    new_block->host = host;
+    if (host) {
+        new_block->flags |= RAM_PREALLOC_MASK;
+    }
+    return ram_block_add(new_block);
 }
 
 ram_addr_t qemu_ram_alloc(ram_addr_t size, MemoryRegion *mr)
