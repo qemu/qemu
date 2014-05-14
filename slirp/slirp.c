@@ -778,6 +778,11 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
         return 1;
     }
 
+    if (iph->ip_dst.s_addr == 0) {
+        /* 0.0.0.0 can not be a destination address, something went wrong,
+         * avoid making it worse */
+        return 1;
+    }
     if (!arp_table_search(slirp, iph->ip_dst.s_addr, ethaddr)) {
         uint8_t arp_req[ETH_HLEN + sizeof(struct arphdr)];
         struct ethhdr *reh = (struct ethhdr *)arp_req;
