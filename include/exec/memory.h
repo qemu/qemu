@@ -31,6 +31,7 @@
 #include "qemu/queue.h"
 #include "qemu/int128.h"
 #include "qemu/notify.h"
+#include "qapi/error.h"
 
 #define MAX_PHYS_ADDR_SPACE_BITS 62
 #define MAX_PHYS_ADDR            (((hwaddr)1 << MAX_PHYS_ADDR_SPACE_BITS) - 1)
@@ -321,12 +322,14 @@ void memory_region_init_ram(MemoryRegion *mr,
  * @name: the name of the region.
  * @size: size of the region.
  * @path: the path in which to allocate the RAM.
+ * @errp: pointer to Error*, to store an error if it happens.
  */
 void memory_region_init_ram_from_file(MemoryRegion *mr,
                                       struct Object *owner,
                                       const char *name,
                                       uint64_t size,
-                                      const char *path);
+                                      const char *path,
+                                      Error **errp);
 #endif
 
 /**
