@@ -23,6 +23,7 @@
  */
 #include "qemu-common.h"
 #include "block/block_int.h"
+#include "qapi/qmp/qbool.h"
 #include <curl/curl.h>
 
 // #define DEBUG
@@ -69,6 +70,7 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 
 #define CURL_BLOCK_OPT_URL       "url"
 #define CURL_BLOCK_OPT_READAHEAD "readahead"
+#define CURL_BLOCK_OPT_SSLVERIFY "sslverify"
 
 struct BDRVCURLState;
 
@@ -106,6 +108,7 @@ typedef struct BDRVCURLState {
     CURLState states[CURL_NUM_STATES];
     char *url;
     size_t readahead_size;
+    bool sslverify;
     bool accept_range;
 } BDRVCURLState;
 
@@ -372,6 +375,8 @@ static CURLState *curl_init_state(BDRVCURLState *s)
             return NULL;
         }
         curl_easy_setopt(state->curl, CURLOPT_URL, s->url);
+        curl_easy_setopt(state->curl, CURLOPT_SSL_VERIFYPEER,
+                         (long) s->sslverify);
         curl_easy_setopt(state->curl, CURLOPT_TIMEOUT, 5);
         curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION,
                          (void *)curl_read_cb);
@@ -431,6 +436,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_SIZE,
             .help = "Readahead size",
         },
+        {
+            .name = CURL_BLOCK_OPT_SSLVERIFY,
+            .type = QEMU_OPT_BOOL,
+            .help = "Verify SSL certificate"
+        },
         { /* end of list */ }
     },
 };
@@ -466,6 +476,8 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
                    s->readahead_size);
         goto out_noclean;
     }
+
+    s->sslverify = qemu_opt_get_bool(opts, CURL_BLOCK_OPT_SSLVERIFY, true);
 
     file = qemu_opt_get(opts, CURL_BLOCK_OPT_URL);
     if (file == NULL) {
