@@ -1006,8 +1006,7 @@ static VMStateDescription vmstate_sl_nand_info = {
     .name = "sl-nand",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT8(ctl, SLNANDState),
         VMSTATE_STRUCT(ecc, SLNANDState, 0, vmstate_ecc_state, ECCState),
         VMSTATE_END_OF_LIST(),
@@ -1041,9 +1040,8 @@ static VMStateDescription vmstate_spitz_kbd = {
     .name = "spitz-keyboard",
     .version_id = 1,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .post_load = spitz_keyboard_post_load,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT16(sense_state, SpitzKeyboardState),
         VMSTATE_UINT16(strobe_state, SpitzKeyboardState),
         VMSTATE_UNUSED_TEST(is_version_0, 5),
@@ -1076,8 +1074,7 @@ static const VMStateDescription vmstate_corgi_ssp_regs = {
     .name = "corgi-ssp",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_SSI_SLAVE(ssidev, CorgiSSPState),
         VMSTATE_UINT32_ARRAY(enable, CorgiSSPState, 3),
         VMSTATE_END_OF_LIST(),
@@ -1105,8 +1102,7 @@ static const VMStateDescription vmstate_spitz_lcdtg_regs = {
     .name = "spitz-lcdtg",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_SSI_SLAVE(ssidev, SpitzLCDTG),
         VMSTATE_UINT32(bl_intensity, SpitzLCDTG),
         VMSTATE_UINT32(bl_power, SpitzLCDTG),

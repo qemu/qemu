@@ -296,7 +296,6 @@ static VMStateDescription vmstate_pxa2xx_pic_regs = {
     .name = "pxa2xx_pic",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .post_load = pxa2xx_pic_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(int_enabled, PXA2xxPICState, 2),

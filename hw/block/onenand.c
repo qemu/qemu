@@ -169,7 +169,6 @@ static const VMStateDescription vmstate_onenand = {
     .name = "onenand",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .pre_save = onenand_pre_save,
     .post_load = onenand_post_load,
     .fields = (VMStateField[]) {

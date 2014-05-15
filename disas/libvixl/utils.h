@@ -27,7 +27,7 @@
 #ifndef VIXL_UTILS_H
 #define VIXL_UTILS_H
 
-
+#include <math.h>
 #include <string.h>
 #include "globals.h"
 
@@ -35,19 +35,19 @@ namespace vixl {
 
 // Check number width.
 inline bool is_intn(unsigned n, int64_t x) {
-  ASSERT((0 < n) && (n < 64));
-  int64_t limit = 1ULL << (n - 1);
+  VIXL_ASSERT((0 < n) && (n < 64));
+  int64_t limit = INT64_C(1) << (n - 1);
   return (-limit <= x) && (x < limit);
 }
 
 inline bool is_uintn(unsigned n, int64_t x) {
-  ASSERT((0 < n) && (n < 64));
+  VIXL_ASSERT((0 < n) && (n < 64));
   return !(x >> n);
 }
 
 inline unsigned truncate_to_intn(unsigned n, int64_t x) {
-  ASSERT((0 < n) && (n < 64));
-  return (x & ((1ULL << n) - 1));
+  VIXL_ASSERT((0 < n) && (n < 64));
+  return (x & ((INT64_C(1) << n) - 1));
 }
 
 #define INT_1_TO_63_LIST(V)                                                    \
@@ -90,13 +90,67 @@ inline int64_t signed_bitextract_64(int msb, int lsb, int64_t x) {
   return (x << (63 - msb)) >> (lsb + 63 - msb);
 }
 
-// floating point representation
+// Floating point representation.
 uint32_t float_to_rawbits(float value);
 uint64_t double_to_rawbits(double value);
 float rawbits_to_float(uint32_t bits);
 double rawbits_to_double(uint64_t bits);
 
-// Bits counting.
+
+// NaN tests.
+inline bool IsSignallingNaN(double num) {
+  const uint64_t kFP64QuietNaNMask = UINT64_C(0x0008000000000000);
+  uint64_t raw = double_to_rawbits(num);
+  if (isnan(num) && ((raw & kFP64QuietNaNMask) == 0)) {
+    return true;
+  }
+  return false;
+}
+
+
+inline bool IsSignallingNaN(float num) {
+  const uint32_t kFP32QuietNaNMask = 0x00400000;
+  uint32_t raw = float_to_rawbits(num);
+  if (isnan(num) && ((raw & kFP32QuietNaNMask) == 0)) {
+    return true;
+  }
+  return false;
+}
+
+
+template <typename T>
+inline bool IsQuietNaN(T num) {
+  return isnan(num) && !IsSignallingNaN(num);
+}
+
+
+// Convert the NaN in 'num' to a quiet NaN.
+inline double ToQuietNaN(double num) {
+  const uint64_t kFP64QuietNaNMask = UINT64_C(0x0008000000000000);
+  VIXL_ASSERT(isnan(num));
+  return rawbits_to_double(double_to_rawbits(num) | kFP64QuietNaNMask);
+}
+
+
+inline float ToQuietNaN(float num) {
+  const uint32_t kFP32QuietNaNMask = 0x00400000;
+  VIXL_ASSERT(isnan(num));
+  return rawbits_to_float(float_to_rawbits(num) | kFP32QuietNaNMask);
+}
+
+
+// Fused multiply-add.
+inline double FusedMultiplyAdd(double op1, double op2, double a) {
+  return fma(op1, op2, a);
+}
+
+
+inline float FusedMultiplyAdd(float op1, float op2, float a) {
+  return fmaf(op1, op2, a);
+}
+
+
+// Bit counting.
 int CountLeadingZeros(uint64_t value, int width);
 int CountLeadingSignBits(int64_t value, int width);
 int CountTrailingZeros(uint64_t value, int width);
@@ -106,18 +160,28 @@ int CountSetBits(uint64_t value, int width);
 // TODO: rename/refactor to make it specific to instructions.
 template<typename T>
 bool IsWordAligned(T pointer) {
-  ASSERT(sizeof(pointer) == sizeof(intptr_t));   // NOLINT(runtime/sizeof)
+  VIXL_ASSERT(sizeof(pointer) == sizeof(intptr_t));   // NOLINT(runtime/sizeof)
   return (reinterpret_cast<intptr_t>(pointer) & 3) == 0;
 }
 
 // Increment a pointer until it has the specified alignment.
 template<class T>
 T AlignUp(T pointer, size_t alignment) {
-  ASSERT(sizeof(pointer) == sizeof(uintptr_t));
+  VIXL_STATIC_ASSERT(sizeof(pointer) == sizeof(uintptr_t));
   uintptr_t pointer_raw = reinterpret_cast<uintptr_t>(pointer);
   size_t align_step = (alignment - pointer_raw) % alignment;
-  ASSERT((pointer_raw + align_step) % alignment == 0);
+  VIXL_ASSERT((pointer_raw + align_step) % alignment == 0);
   return reinterpret_cast<T>(pointer_raw + align_step);
+}
+
+// Decrement a pointer until it has the specified alignment.
+template<class T>
+T AlignDown(T pointer, size_t alignment) {
+  VIXL_STATIC_ASSERT(sizeof(pointer) == sizeof(uintptr_t));
+  uintptr_t pointer_raw = reinterpret_cast<uintptr_t>(pointer);
+  size_t align_step = pointer_raw % alignment;
+  VIXL_ASSERT((pointer_raw - align_step) % alignment == 0);
+  return reinterpret_cast<T>(pointer_raw - align_step);
 }
 
 

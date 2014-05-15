@@ -185,12 +185,19 @@ static uint64_t gptm_read(void *opaque, hwaddr offset,
     case 0x44: /* TBPMR */
         return s->match_prescale[1];
     case 0x48: /* TAR */
-        if (s->control == 1)
+        if (s->config == 1) {
             return s->rtc;
+        }
+        qemu_log_mask(LOG_UNIMP,
+                      "GPTM: read of TAR but timer read not supported");
+        return 0;
     case 0x4c: /* TBR */
-        hw_error("TODO: Timer value read\n");
+        qemu_log_mask(LOG_UNIMP,
+                      "GPTM: read of TBR but timer read not supported");
+        return 0;
     default:
-        hw_error("gptm_read: Bad offset 0x%x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "GPTM: read at bad offset 0x%x\n", (int)offset);
         return 0;
     }
 }
@@ -286,8 +293,7 @@ static const VMStateDescription vmstate_stellaris_gptm = {
     .name = "stellaris_gptm",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(config, gptm_state),
         VMSTATE_UINT32_ARRAY(mode, gptm_state, 2),
         VMSTATE_UINT32(control, gptm_state),
@@ -643,9 +649,8 @@ static const VMStateDescription vmstate_stellaris_sys = {
     .name = "stellaris_sys",
     .version_id = 2,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = stellaris_sys_post_load,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(pborctl, ssys_state),
         VMSTATE_UINT32(ldopctl, ssys_state),
         VMSTATE_UINT32(int_mask, ssys_state),
@@ -851,8 +856,7 @@ static const VMStateDescription vmstate_stellaris_i2c = {
     .name = "stellaris_i2c",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(msa, stellaris_i2c_state),
         VMSTATE_UINT32(mcs, stellaris_i2c_state),
         VMSTATE_UINT32(mdr, stellaris_i2c_state),
@@ -1121,8 +1125,7 @@ static const VMStateDescription vmstate_stellaris_adc = {
     .name = "stellaris_adc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(actss, stellaris_adc_state),
         VMSTATE_UINT32(ris, stellaris_adc_state),
         VMSTATE_UINT32(im, stellaris_adc_state),

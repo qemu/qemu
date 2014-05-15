@@ -27,8 +27,20 @@
 #ifndef VIXL_GLOBALS_H
 #define VIXL_GLOBALS_H
 
-// Get the standard printf format macros for C99 stdint types.
+// Get standard C99 macros for integer types.
+#ifndef __STDC_CONSTANT_MACROS
+#define __STDC_CONSTANT_MACROS
+#endif
+
+#ifndef __STDC_LIMIT_MACROS
+#define __STDC_LIMIT_MACROS
+#endif
+
+#ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
+#endif
+
+#include <stdint.h>
 #include <inttypes.h>
 
 #include <assert.h>
@@ -45,21 +57,29 @@ typedef uint8_t byte;
 const int KBytes = 1024;
 const int MBytes = 1024 * KBytes;
 
-  #define ABORT() printf("in %s, line %i", __FILE__, __LINE__); abort()
+#define VIXL_ABORT() printf("in %s, line %i", __FILE__, __LINE__); abort()
 #ifdef DEBUG
-  #define ASSERT(condition) assert(condition)
-  #define CHECK(condition) ASSERT(condition)
-  #define UNIMPLEMENTED() printf("UNIMPLEMENTED\t"); ABORT()
-  #define UNREACHABLE() printf("UNREACHABLE\t"); ABORT()
+  #define VIXL_ASSERT(condition) assert(condition)
+  #define VIXL_CHECK(condition) VIXL_ASSERT(condition)
+  #define VIXL_UNIMPLEMENTED() printf("UNIMPLEMENTED\t"); VIXL_ABORT()
+  #define VIXL_UNREACHABLE() printf("UNREACHABLE\t"); VIXL_ABORT()
 #else
-  #define ASSERT(condition) ((void) 0)
-  #define CHECK(condition) assert(condition)
-  #define UNIMPLEMENTED() ((void) 0)
-  #define UNREACHABLE() ((void) 0)
+  #define VIXL_ASSERT(condition) ((void) 0)
+  #define VIXL_CHECK(condition) assert(condition)
+  #define VIXL_UNIMPLEMENTED() ((void) 0)
+  #define VIXL_UNREACHABLE() ((void) 0)
 #endif
+// This is not as powerful as template based assertions, but it is simple.
+// It assumes that the descriptions are unique. If this starts being a problem,
+// we can switch to a different implemention.
+#define VIXL_CONCAT(a, b) a##b
+#define VIXL_STATIC_ASSERT_LINE(line, condition) \
+  typedef char VIXL_CONCAT(STATIC_ASSERT_LINE_, line)[(condition) ? 1 : -1] \
+  __attribute__((unused))
+#define VIXL_STATIC_ASSERT(condition) VIXL_STATIC_ASSERT_LINE(__LINE__, condition) //NOLINT
 
 template <typename T> inline void USE(T) {}
 
-#define ALIGNMENT_EXCEPTION() printf("ALIGNMENT EXCEPTION\t"); ABORT()
+#define VIXL_ALIGNMENT_EXCEPTION() printf("ALIGNMENT EXCEPTION\t"); VIXL_ABORT()
 
 #endif  // VIXL_GLOBALS_H

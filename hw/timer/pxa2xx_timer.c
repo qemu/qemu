@@ -476,7 +476,6 @@ static const VMStateDescription vmstate_pxa2xx_timer0_regs = {
     .name = "pxa2xx_timer0",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(value, PXA2xxTimer0),
         VMSTATE_END_OF_LIST(),
@@ -487,7 +486,6 @@ static const VMStateDescription vmstate_pxa2xx_timer4_regs = {
     .name = "pxa2xx_timer4",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT(tm, PXA2xxTimer4, 1,
                         vmstate_pxa2xx_timer0_regs, PXA2xxTimer0),
@@ -509,7 +507,6 @@ static const VMStateDescription vmstate_pxa2xx_timer_regs = {
     .name = "pxa2xx_timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = pxa25x_timer_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(clock, PXA2xxTimerInfo),

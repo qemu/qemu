@@ -405,7 +405,6 @@ static const VMStateDescription mv88w8618_eth_vmsd = {
     .name = "mv88w8618_eth",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(smir, mv88w8618_eth_state),
         VMSTATE_UINT32(icr, mv88w8618_eth_state),
@@ -642,7 +641,6 @@ static const VMStateDescription musicpal_lcd_vmsd = {
     .name = "musicpal_lcd",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(brightness, musicpal_lcd_state),
         VMSTATE_UINT32(mode, musicpal_lcd_state),
@@ -769,7 +767,6 @@ static const VMStateDescription mv88w8618_pic_vmsd = {
     .name = "mv88w8618_pic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(level, mv88w8618_pic_state),
         VMSTATE_UINT32(enabled, mv88w8618_pic_state),
@@ -940,7 +937,6 @@ static const VMStateDescription mv88w8618_timer_vmsd = {
     .name = "timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_PTIMER(ptimer, mv88w8618_timer_state),
         VMSTATE_UINT32(limit, mv88w8618_timer_state),
@@ -952,7 +948,6 @@ static const VMStateDescription mv88w8618_pit_vmsd = {
     .name = "mv88w8618_pit",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(timer, mv88w8618_pit_state, 4, 1,
                              mv88w8618_timer_vmsd, mv88w8618_timer_state),
@@ -1041,7 +1036,6 @@ static const VMStateDescription mv88w8618_flashcfg_vmsd = {
     .name = "mv88w8618_flashcfg",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(cfgr0, mv88w8618_flashcfg_state),
         VMSTATE_END_OF_LIST()
@@ -1381,7 +1375,6 @@ static const VMStateDescription musicpal_gpio_vmsd = {
     .name = "musicpal_gpio",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(lcd_brightness, musicpal_gpio_state),
         VMSTATE_UINT32(out_state, musicpal_gpio_state),
@@ -1548,7 +1541,6 @@ static const VMStateDescription musicpal_key_vmsd = {
     .name = "musicpal_key",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(kbd_extended, musicpal_key_state),
         VMSTATE_UINT32(pressed_keys, musicpal_key_state),

@@ -126,8 +126,7 @@ const VMStateDescription vmstate_ssi_slave = {
     .name = "SSISlave",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_BOOL(cs, SSISlave),
         VMSTATE_END_OF_LIST()
     }

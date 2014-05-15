@@ -97,6 +97,7 @@ static void aw_a10_pic_write(void *opaque, hwaddr offset, uint64_t value,
     switch (offset) {
     case AW_A10_PIC_BASE_ADDR:
         s->base_addr = value & ~0x3;
+        break;
     case AW_A10_PIC_PROTECT:
         s->protect = value;
         break;
@@ -141,7 +142,6 @@ static const VMStateDescription vmstate_aw_a10_pic = {
     .name = "a10.pic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(vector, AwA10PICState),
         VMSTATE_UINT32(base_addr, AwA10PICState),

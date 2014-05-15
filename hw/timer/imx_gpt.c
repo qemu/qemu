@@ -146,8 +146,7 @@ static const VMStateDescription vmstate_imx_timer_gpt = {
     .name = "imx.gpt",
     .version_id = 3,
     .minimum_version_id = 3,
-    .minimum_version_id_old = 3,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(cr, IMXGPTState),
         VMSTATE_UINT32(pr, IMXGPTState),
         VMSTATE_UINT32(sr, IMXGPTState),

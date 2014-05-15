@@ -443,7 +443,6 @@ static const VMStateDescription vmstate_cadence_timer = {
     .name = "cadence_timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .pre_save = cadence_timer_pre_save,
     .post_load = cadence_timer_post_load,
     .fields = (VMStateField[]) {
@@ -464,7 +463,6 @@ static const VMStateDescription vmstate_cadence_ttc = {
     .name = "cadence_TTC",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(timer, CadenceTTCState, 3, 0,
                             vmstate_cadence_timer,

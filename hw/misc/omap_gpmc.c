@@ -242,6 +242,10 @@ static void fill_prefetch_fifo(struct omap_gpmc_s *s)
     if (bytes > s->prefetch.count) {
         bytes = s->prefetch.count;
     }
+    if (is16bit) {
+        bytes &= ~1;
+    }
+
     s->prefetch.count -= bytes;
     s->prefetch.fifopointer += bytes;
     fptr = 64 - s->prefetch.fifopointer;

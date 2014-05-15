@@ -717,7 +717,6 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         rxbuf_ptr = (void *)buf;
     } else {
         unsigned crc_val;
-        int      crc_offset;
 
         /* The application wants the FCS field, which QEMU does not provide.
          * We must try and caclculate one.
@@ -727,12 +726,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         memset(rxbuf + size, 0, sizeof(rxbuf) - size);
         rxbuf_ptr = rxbuf;
         crc_val = cpu_to_le32(crc32(0, rxbuf, MAX(size, 60)));
-        if (size < 60) {
-            crc_offset = 60;
-        } else {
-            crc_offset = size;
-        }
-        memcpy(rxbuf + crc_offset, &crc_val, sizeof(crc_val));
+        memcpy(rxbuf + size, &crc_val, sizeof(crc_val));
 
         bytes_to_copy += 4;
         size += 4;
@@ -1257,8 +1251,7 @@ static const VMStateDescription vmstate_cadence_gem = {
     .name = "cadence_gem",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, GemState, GEM_MAXREG),
         VMSTATE_UINT16_ARRAY(phy_regs, GemState, 32),
         VMSTATE_UINT8(phy_loop, GemState),

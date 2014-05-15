@@ -77,7 +77,6 @@ static const VMStateDescription vmstate_imx_avic = {
     .name = "imx-avic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(pending, IMXAVICState),
         VMSTATE_UINT64(enabled, IMXAVICState),

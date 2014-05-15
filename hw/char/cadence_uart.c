@@ -504,7 +504,6 @@ static const VMStateDescription vmstate_cadence_uart = {
     .name = "cadence_uart",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
     .post_load = cadence_uart_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(r, UartState, R_MAX),

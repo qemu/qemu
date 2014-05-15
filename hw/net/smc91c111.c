@@ -54,7 +54,7 @@ static const VMStateDescription vmstate_smc91c111 = {
     .name = "smc91c111",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT16(tcr, smc91c111_state),
         VMSTATE_UINT16(rcr, smc91c111_state),
         VMSTATE_UINT16(cr, smc91c111_state),

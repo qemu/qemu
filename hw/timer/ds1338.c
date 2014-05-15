@@ -40,7 +40,6 @@ static const VMStateDescription vmstate_ds1338 = {
     .name = "ds1338",
     .version_id = 2,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_I2C_SLAVE(parent_obj, DS1338State),
         VMSTATE_INT64(offset, DS1338State),
