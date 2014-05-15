@@ -313,6 +313,9 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
     int i, smt = kvmppc_smt_threads();
     unsigned char vec5[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x80};
+    QemuOpts *opts = qemu_opts_find(qemu_find_opts("smp-opts"), NULL);
+    unsigned sockets = opts ? qemu_opt_get_number(opts, "sockets", 0) : 0;
+    uint32_t cpus_per_socket = sockets ? (smp_cpus / sockets) : 1;
 
     fdt = g_malloc0(FDT_MAX_SIZE);
     _FDT((fdt_create(fdt, FDT_MAX_SIZE)));
@@ -469,6 +472,9 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
             _FDT((fdt_property(fdt, "ibm,segment-page-sizes",
                                page_sizes_prop, page_sizes_prop_size)));
         }
+
+        _FDT((fdt_property_cell(fdt, "ibm,chip-id",
+                                cs->cpu_index / cpus_per_socket)));
 
         _FDT((fdt_end_node(fdt)));
     }
