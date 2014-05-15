@@ -135,11 +135,10 @@ static inline void get_ss_esp_from_tss(CPUX86State *env, uint32_t *ss_ptr,
     }
 }
 
-/* XXX: merge with load_seg() */
-static void tss_load_seg(CPUX86State *env, int seg_reg, int selector)
+static void tss_load_seg(CPUX86State *env, int seg_reg, int selector, int cpl)
 {
     uint32_t e1, e2;
-    int rpl, dpl, cpl;
+    int rpl, dpl;
 
     if ((selector & 0xfffc) != 0) {
         if (load_segment(env, &e1, &e2, selector) != 0) {
@@ -150,16 +149,11 @@ static void tss_load_seg(CPUX86State *env, int seg_reg, int selector)
         }
         rpl = selector & 3;
         dpl = (e2 >> DESC_DPL_SHIFT) & 3;
-        cpl = env->hflags & HF_CPL_MASK;
         if (seg_reg == R_CS) {
             if (!(e2 & DESC_CS_MASK)) {
                 raise_exception_err(env, EXCP0A_TSS, selector & 0xfffc);
             }
-            /* XXX: is it correct? */
             if (dpl != rpl) {
-                raise_exception_err(env, EXCP0A_TSS, selector & 0xfffc);
-            }
-            if ((e2 & DESC_C_MASK) && dpl > rpl) {
                 raise_exception_err(env, EXCP0A_TSS, selector & 0xfffc);
             }
         } else if (seg_reg == R_SS) {
@@ -448,12 +442,13 @@ static void switch_tss(CPUX86State *env, int tss_selector,
 
     /* load the segments */
     if (!(new_eflags & VM_MASK)) {
-        tss_load_seg(env, R_CS, new_segs[R_CS]);
-        tss_load_seg(env, R_SS, new_segs[R_SS]);
-        tss_load_seg(env, R_ES, new_segs[R_ES]);
-        tss_load_seg(env, R_DS, new_segs[R_DS]);
-        tss_load_seg(env, R_FS, new_segs[R_FS]);
-        tss_load_seg(env, R_GS, new_segs[R_GS]);
+        int cpl = new_segs[R_CS] & 3;
+        tss_load_seg(env, R_CS, new_segs[R_CS], cpl);
+        tss_load_seg(env, R_SS, new_segs[R_SS], cpl);
+        tss_load_seg(env, R_ES, new_segs[R_ES], cpl);
+        tss_load_seg(env, R_DS, new_segs[R_DS], cpl);
+        tss_load_seg(env, R_FS, new_segs[R_FS], cpl);
+        tss_load_seg(env, R_GS, new_segs[R_GS], cpl);
     }
 
     /* check that env->eip is in the CS segment limits */
