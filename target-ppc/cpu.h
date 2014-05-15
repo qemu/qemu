@@ -2042,9 +2042,6 @@ enum {
     PPC_INTERRUPT_PERFM,          /* Performance monitor interrupt        */
 };
 
-/* CPU should be reset next, restart from scratch afterwards */
-#define CPU_INTERRUPT_RESET       CPU_INTERRUPT_TGT_INT_0
-
 /*****************************************************************************/
 
 static inline target_ulong cpu_read_xer(CPUPPCState *env)

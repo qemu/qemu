@@ -30,6 +30,8 @@
 #include "qemu/config-file.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic.h"
+#include "hw/i386/apic_internal.h"
+#include "hw/i386/apic-msidef.h"
 #include "exec/ioport.h"
 #include <asm/hyperv.h>
 #include "hw/pci/pci.h"
@@ -130,14 +132,13 @@ static const struct kvm_para_features {
     { KVM_CAP_NOP_IO_DELAY, KVM_FEATURE_NOP_IO_DELAY },
     { KVM_CAP_PV_MMU, KVM_FEATURE_MMU_OP },
     { KVM_CAP_ASYNC_PF, KVM_FEATURE_ASYNC_PF },
-    { -1, -1 }
 };
 
 static int get_para_features(KVMState *s)
 {
     int i, features = 0;
 
-    for (i = 0; i < ARRAY_SIZE(para_features) - 1; i++) {
+    for (i = 0; i < ARRAY_SIZE(para_features); i++) {
         if (kvm_check_extension(s, para_features[i].cap)) {
             features |= (1 << para_features[i].feature);
         }
@@ -724,9 +725,8 @@ int kvm_arch_init_vcpu(CPUState *cs)
     return 0;
 }
 
-void kvm_arch_reset_vcpu(CPUState *cs)
+void kvm_arch_reset_vcpu(X86CPU *cpu)
 {
-    X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
 
     env->exception_injected = -1;
@@ -737,6 +737,16 @@ void kvm_arch_reset_vcpu(CPUState *cs)
                                           KVM_MP_STATE_UNINITIALIZED;
     } else {
         env->mp_state = KVM_MP_STATE_RUNNABLE;
+    }
+}
+
+void kvm_arch_do_init_vcpu(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+
+    /* APs get directly into wait-for-SIPI state.  */
+    if (env->mp_state == KVM_MP_STATE_UNINITIALIZED) {
+        env->mp_state = KVM_MP_STATE_INIT_RECEIVED;
     }
 }
 
@@ -2005,14 +2015,15 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
         }
     }
 
-    if (!kvm_irqchip_in_kernel()) {
-        /* Force the VCPU out of its inner loop to process any INIT requests
-         * or pending TPR access reports. */
-        if (cpu->interrupt_request &
-            (CPU_INTERRUPT_INIT | CPU_INTERRUPT_TPR)) {
-            cpu->exit_request = 1;
-        }
+    /* Force the VCPU out of its inner loop to process any INIT requests
+     * or (for userspace APIC, but it is cheap to combine the checks here)
+     * pending TPR access reports.
+     */
+    if (cpu->interrupt_request & (CPU_INTERRUPT_INIT | CPU_INTERRUPT_TPR)) {
+        cpu->exit_request = 1;
+    }
 
+    if (!kvm_irqchip_in_kernel()) {
         /* Try to inject an interrupt if the guest can accept it */
         if (run->ready_for_interrupt_injection &&
             (cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
@@ -2092,6 +2103,11 @@ int kvm_arch_process_async_events(CPUState *cs)
         }
     }
 
+    if (cs->interrupt_request & CPU_INTERRUPT_INIT) {
+        kvm_cpu_synchronize_state(cs);
+        do_cpu_init(cpu);
+    }
+
     if (kvm_irqchip_in_kernel()) {
         return 0;
     }
@@ -2104,10 +2120,6 @@ int kvm_arch_process_async_events(CPUState *cs)
          (env->eflags & IF_MASK)) ||
         (cs->interrupt_request & CPU_INTERRUPT_NMI)) {
         cs->halted = 0;
-    }
-    if (cs->interrupt_request & CPU_INTERRUPT_INIT) {
-        kvm_cpu_synchronize_state(cs);
-        do_cpu_init(cpu);
     }
     if (cs->interrupt_request & CPU_INTERRUPT_SIPI) {
         kvm_cpu_synchronize_state(cs);

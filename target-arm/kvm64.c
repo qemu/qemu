@@ -260,6 +260,6 @@ int kvm_arch_get_registers(CPUState *cs)
     return ret;
 }
 
-void kvm_arch_reset_vcpu(CPUState *cs)
+void kvm_arm_reset_vcpu(ARMCPU *cpu)
 {
 }

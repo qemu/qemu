@@ -409,11 +409,7 @@ static void switch_tss(CPUX86State *env, int tss_selector,
         for (i = 0; i < 6; i++) {
             load_seg_vm(env, i, new_segs[i]);
         }
-        /* in vm86, CPL is always 3 */
-        cpu_x86_set_cpl(env, 3);
     } else {
-        /* CPL is set the RPL of CS */
-        cpu_x86_set_cpl(env, new_segs[R_CS] & 3);
         /* first just selectors as the rest may trigger exceptions */
         for (i = 0; i < 6; i++) {
             cpu_x86_load_seg_cache(env, i, new_segs[i], 0, 0, 0);
@@ -739,6 +735,12 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
         }
     }
 
+    /* interrupt gate clear IF mask */
+    if ((type & 1) == 0) {
+        env->eflags &= ~IF_MASK;
+    }
+    env->eflags &= ~(TF_MASK | VM_MASK | RF_MASK | NT_MASK);
+
     if (new_stack) {
         if (env->eflags & VM_MASK) {
             cpu_x86_load_seg_cache(env, R_ES, 0, 0, 0, 0);
@@ -757,14 +759,7 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
                    get_seg_base(e1, e2),
                    get_seg_limit(e1, e2),
                    e2);
-    cpu_x86_set_cpl(env, dpl);
     env->eip = offset;
-
-    /* interrupt gate clear IF mask */
-    if ((type & 1) == 0) {
-        env->eflags &= ~IF_MASK;
-    }
-    env->eflags &= ~(TF_MASK | VM_MASK | RF_MASK | NT_MASK);
 }
 
 #ifdef TARGET_X86_64
@@ -911,6 +906,12 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
         PUSHQ(esp, error_code);
     }
 
+    /* interrupt gate clear IF mask */
+    if ((type & 1) == 0) {
+        env->eflags &= ~IF_MASK;
+    }
+    env->eflags &= ~(TF_MASK | VM_MASK | RF_MASK | NT_MASK);
+
     if (new_stack) {
         ss = 0 | dpl;
         cpu_x86_load_seg_cache(env, R_SS, ss, 0, 0, 0);
@@ -922,14 +923,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
                    get_seg_base(e1, e2),
                    get_seg_limit(e1, e2),
                    e2);
-    cpu_x86_set_cpl(env, dpl);
     env->eip = offset;
-
-    /* interrupt gate clear IF mask */
-    if ((type & 1) == 0) {
-        env->eflags &= ~IF_MASK;
-    }
-    env->eflags &= ~(TF_MASK | VM_MASK | RF_MASK | NT_MASK);
 }
 #endif
 
@@ -960,7 +954,8 @@ void helper_syscall(CPUX86State *env, int next_eip_addend)
 
         code64 = env->hflags & HF_CS64_MASK;
 
-        cpu_x86_set_cpl(env, 0);
+        env->eflags &= ~env->fmask;
+        cpu_load_eflags(env, env->eflags, 0);
         cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc,
                            0, 0xffffffff,
                                DESC_G_MASK | DESC_P_MASK |
@@ -972,8 +967,6 @@ void helper_syscall(CPUX86State *env, int next_eip_addend)
                                DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
                                DESC_S_MASK |
                                DESC_W_MASK | DESC_A_MASK);
-        env->eflags &= ~env->fmask;
-        cpu_load_eflags(env, env->eflags, 0);
         if (code64) {
             env->eip = env->lstar;
         } else {
@@ -982,7 +975,7 @@ void helper_syscall(CPUX86State *env, int next_eip_addend)
     } else {
         env->regs[R_ECX] = (uint32_t)(env->eip + next_eip_addend);
 
-        cpu_x86_set_cpl(env, 0);
+        env->eflags &= ~(IF_MASK | RF_MASK | VM_MASK);
         cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc,
                            0, 0xffffffff,
                                DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
@@ -993,7 +986,6 @@ void helper_syscall(CPUX86State *env, int next_eip_addend)
                                DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
                                DESC_S_MASK |
                                DESC_W_MASK | DESC_A_MASK);
-        env->eflags &= ~(IF_MASK | RF_MASK | VM_MASK);
         env->eip = (uint32_t)env->star;
     }
 }
@@ -1014,6 +1006,9 @@ void helper_sysret(CPUX86State *env, int dflag)
     }
     selector = (env->star >> 48) & 0xffff;
     if (env->hflags & HF_LMA_MASK) {
+        cpu_load_eflags(env, (uint32_t)(env->regs[11]), TF_MASK | AC_MASK
+                        | ID_MASK | IF_MASK | IOPL_MASK | VM_MASK | RF_MASK |
+                        NT_MASK);
         if (dflag == 2) {
             cpu_x86_load_seg_cache(env, R_CS, (selector + 16) | 3,
                                    0, 0xffffffff,
@@ -1035,11 +1030,8 @@ void helper_sysret(CPUX86State *env, int dflag)
                                DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
                                DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
                                DESC_W_MASK | DESC_A_MASK);
-        cpu_load_eflags(env, (uint32_t)(env->regs[11]), TF_MASK | AC_MASK
-                        | ID_MASK | IF_MASK | IOPL_MASK | VM_MASK | RF_MASK |
-                        NT_MASK);
-        cpu_x86_set_cpl(env, 3);
     } else {
+        env->eflags |= IF_MASK;
         cpu_x86_load_seg_cache(env, R_CS, selector | 3,
                                0, 0xffffffff,
                                DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
@@ -1051,8 +1043,6 @@ void helper_sysret(CPUX86State *env, int dflag)
                                DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
                                DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
                                DESC_W_MASK | DESC_A_MASK);
-        env->eflags |= IF_MASK;
-        cpu_x86_set_cpl(env, 3);
     }
 }
 #endif
@@ -1905,7 +1895,6 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
                        get_seg_base(e1, e2),
                        get_seg_limit(e1, e2),
                        e2);
-        cpu_x86_set_cpl(env, dpl);
         SET_ESP(sp, sp_mask);
         env->eip = offset;
     }
@@ -2134,7 +2123,6 @@ static inline void helper_ret_protected(CPUX86State *env, int shift,
                        get_seg_base(e1, e2),
                        get_seg_limit(e1, e2),
                        e2);
-        cpu_x86_set_cpl(env, rpl);
         sp = new_esp;
 #ifdef TARGET_X86_64
         if (env->hflags & HF_CS64_MASK) {
@@ -2185,7 +2173,6 @@ static inline void helper_ret_protected(CPUX86State *env, int shift,
                     IF_MASK | IOPL_MASK | VM_MASK | NT_MASK | VIF_MASK |
                     VIP_MASK);
     load_seg_vm(env, R_CS, new_cs & 0xffff);
-    cpu_x86_set_cpl(env, 3);
     load_seg_vm(env, R_SS, new_ss & 0xffff);
     load_seg_vm(env, R_ES, new_es & 0xffff);
     load_seg_vm(env, R_DS, new_ds & 0xffff);
@@ -2238,7 +2225,6 @@ void helper_sysenter(CPUX86State *env)
         raise_exception_err(env, EXCP0D_GPF, 0);
     }
     env->eflags &= ~(VM_MASK | IF_MASK | RF_MASK);
-    cpu_x86_set_cpl(env, 0);
 
 #ifdef TARGET_X86_64
     if (env->hflags & HF_LMA_MASK) {
@@ -2274,7 +2260,6 @@ void helper_sysexit(CPUX86State *env, int dflag)
     if (env->sysenter_cs == 0 || cpl != 0) {
         raise_exception_err(env, EXCP0D_GPF, 0);
     }
-    cpu_x86_set_cpl(env, 3);
 #ifdef TARGET_X86_64
     if (dflag == 2) {
         cpu_x86_load_seg_cache(env, R_CS, ((env->sysenter_cs + 32) & 0xfffc) |

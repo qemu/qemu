@@ -510,11 +510,9 @@ int kvm_arch_get_registers(CPUState *cs)
     return 0;
 }
 
-void kvm_arch_reset_vcpu(CPUState *cs)
+void kvm_arm_reset_vcpu(ARMCPU *cpu)
 {
     /* Feed the kernel back its initial register state */
-    ARMCPU *cpu = ARM_CPU(cs);
-
     memmove(cpu->cpreg_values, cpu->cpreg_reset_values,
             cpu->cpreg_array_len * sizeof(cpu->cpreg_values[0]));
 

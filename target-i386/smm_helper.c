@@ -163,6 +163,13 @@ void do_smm_enter(X86CPU *cpu)
     cpu_load_eflags(env, 0, ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C |
                               DF_MASK));
     env->eip = 0x00008000;
+    cpu_x86_update_cr0(env,
+                       env->cr[0] & ~(CR0_PE_MASK | CR0_EM_MASK | CR0_TS_MASK |
+                                      CR0_PG_MASK));
+    cpu_x86_update_cr4(env, 0);
+    env->dr[7] = 0x00000400;
+    CC_OP = CC_OP_EFLAGS;
+
     cpu_x86_load_seg_cache(env, R_CS, (env->smbase >> 4) & 0xffff, env->smbase,
                            0xffffffff, 0);
     cpu_x86_load_seg_cache(env, R_DS, 0, 0, 0xffffffff, 0);
@@ -170,13 +177,6 @@ void do_smm_enter(X86CPU *cpu)
     cpu_x86_load_seg_cache(env, R_SS, 0, 0, 0xffffffff, 0);
     cpu_x86_load_seg_cache(env, R_FS, 0, 0, 0xffffffff, 0);
     cpu_x86_load_seg_cache(env, R_GS, 0, 0, 0xffffffff, 0);
-
-    cpu_x86_update_cr0(env,
-                       env->cr[0] & ~(CR0_PE_MASK | CR0_EM_MASK | CR0_TS_MASK |
-                                      CR0_PG_MASK));
-    cpu_x86_update_cr4(env, 0);
-    env->dr[7] = 0x00000400;
-    CC_OP = CC_OP_EFLAGS;
 }
 
 void helper_rsm(CPUX86State *env)
@@ -190,16 +190,6 @@ void helper_rsm(CPUX86State *env)
     sm_state = env->smbase + 0x8000;
 #ifdef TARGET_X86_64
     cpu_load_efer(env, ldq_phys(cs->as, sm_state + 0x7ed0));
-
-    for (i = 0; i < 6; i++) {
-        offset = 0x7e00 + i * 16;
-        cpu_x86_load_seg_cache(env, i,
-                               lduw_phys(cs->as, sm_state + offset),
-                               ldq_phys(cs->as, sm_state + offset + 8),
-                               ldl_phys(cs->as, sm_state + offset + 4),
-                               (lduw_phys(cs->as, sm_state + offset + 2) &
-                                0xf0ff) << 8);
-    }
 
     env->gdt.base = ldq_phys(cs->as, sm_state + 0x7e68);
     env->gdt.limit = ldl_phys(cs->as, sm_state + 0x7e64);
@@ -237,6 +227,16 @@ void helper_rsm(CPUX86State *env)
     cpu_x86_update_cr4(env, ldl_phys(cs->as, sm_state + 0x7f48));
     cpu_x86_update_cr3(env, ldl_phys(cs->as, sm_state + 0x7f50));
     cpu_x86_update_cr0(env, ldl_phys(cs->as, sm_state + 0x7f58));
+
+    for (i = 0; i < 6; i++) {
+        offset = 0x7e00 + i * 16;
+        cpu_x86_load_seg_cache(env, i,
+                               lduw_phys(cs->as, sm_state + offset),
+                               ldq_phys(cs->as, sm_state + offset + 8),
+                               ldl_phys(cs->as, sm_state + offset + 4),
+                               (lduw_phys(cs->as, sm_state + offset + 2) &
+                                0xf0ff) << 8);
+    }
 
     val = ldl_phys(cs->as, sm_state + 0x7efc); /* revision ID */
     if (val & 0x20000) {

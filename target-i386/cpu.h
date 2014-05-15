@@ -124,9 +124,9 @@
 #define ID_MASK                 0x00200000
 
 /* hidden flags - used internally by qemu to represent additional cpu
-   states. Only the CPL, INHIBIT_IRQ, SMM and SVMI are not
-   redundant. We avoid using the IOPL_MASK, TF_MASK, VM_MASK and AC_MASK
-   bit positions to ease oring with eflags. */
+   states. Only the INHIBIT_IRQ, SMM and SVMI are not redundant. We
+   avoid using the IOPL_MASK, TF_MASK, VM_MASK and AC_MASK bit
+   positions to ease oring with eflags. */
 /* current cpl */
 #define HF_CPL_SHIFT         0
 /* true if soft mmu is being used */
@@ -606,10 +606,11 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
 #define CPU_INTERRUPT_MCE       CPU_INTERRUPT_TGT_EXT_4
 #define CPU_INTERRUPT_VIRQ      CPU_INTERRUPT_TGT_INT_0
-#define CPU_INTERRUPT_INIT      CPU_INTERRUPT_TGT_INT_1
-#define CPU_INTERRUPT_SIPI      CPU_INTERRUPT_TGT_INT_2
-#define CPU_INTERRUPT_TPR       CPU_INTERRUPT_TGT_INT_3
+#define CPU_INTERRUPT_SIPI      CPU_INTERRUPT_TGT_INT_1
+#define CPU_INTERRUPT_TPR       CPU_INTERRUPT_TGT_INT_2
 
+/* Use a clearer name for this.  */
+#define CPU_INTERRUPT_INIT      CPU_INTERRUPT_RESET
 
 typedef enum {
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
@@ -797,6 +798,13 @@ typedef struct CPUX86State {
     target_ulong cr[5]; /* NOTE: cr1 is unused */
     int32_t a20_mask;
 
+    BNDReg bnd_regs[4];
+    BNDCSReg bndcs_regs;
+    uint64_t msr_bndcfgs;
+
+    /* Beginning of state preserved by INIT (dummy marker).  */
+    struct {} start_init_save;
+
     /* FPU state */
     unsigned int fpstt; /* top of stack index */
     uint16_t fpus;
@@ -819,6 +827,8 @@ typedef struct CPUX86State {
     XMMReg xmm_t0;
     MMXReg mmx_t0;
 
+    XMMReg ymmh_regs[CPU_NB_REGS];
+
     /* sysenter registers */
     uint32_t sysenter_cs;
     target_ulong sysenter_esp;
@@ -827,15 +837,6 @@ typedef struct CPUX86State {
     uint64_t star;
 
     uint64_t vm_hsave;
-    uint64_t vm_vmcb;
-    uint64_t tsc_offset;
-    uint64_t intercept;
-    uint16_t intercept_cr_read;
-    uint16_t intercept_cr_write;
-    uint16_t intercept_dr_read;
-    uint16_t intercept_dr_write;
-    uint32_t intercept_exceptions;
-    uint8_t v_tpr;
 
 #ifdef TARGET_X86_64
     target_ulong lstar;
@@ -843,11 +844,6 @@ typedef struct CPUX86State {
     target_ulong fmask;
     target_ulong kernelgsbase;
 #endif
-    uint64_t system_time_msr;
-    uint64_t wall_clock_msr;
-    uint64_t steal_time_msr;
-    uint64_t async_pf_en_msr;
-    uint64_t pv_eoi_en_msr;
 
     uint64_t tsc;
     uint64_t tsc_adjust;
@@ -864,6 +860,19 @@ typedef struct CPUX86State {
     uint64_t msr_fixed_counters[MAX_FIXED_COUNTERS];
     uint64_t msr_gp_counters[MAX_GP_COUNTERS];
     uint64_t msr_gp_evtsel[MAX_GP_COUNTERS];
+
+    uint64_t pat;
+    uint32_t smbase;
+
+    /* End of state preserved by INIT (dummy marker).  */
+    struct {} end_init_save;
+
+    uint64_t system_time_msr;
+    uint64_t wall_clock_msr;
+    uint64_t steal_time_msr;
+    uint64_t async_pf_en_msr;
+    uint64_t pv_eoi_en_msr;
+
     uint64_t msr_hv_hypercall;
     uint64_t msr_hv_guest_os_id;
     uint64_t msr_hv_vapic;
@@ -878,8 +887,17 @@ typedef struct CPUX86State {
         struct CPUBreakpoint *cpu_breakpoint[4];
         struct CPUWatchpoint *cpu_watchpoint[4];
     }; /* break/watchpoints for dr[0..3] */
-    uint32_t smbase;
     int old_exception;  /* exception in flight */
+
+    uint64_t vm_vmcb;
+    uint64_t tsc_offset;
+    uint64_t intercept;
+    uint16_t intercept_cr_read;
+    uint16_t intercept_cr_write;
+    uint16_t intercept_dr_read;
+    uint16_t intercept_dr_write;
+    uint32_t intercept_exceptions;
+    uint8_t v_tpr;
 
     /* KVM states, automatically cleared on reset */
     uint8_t nmi_injected;
@@ -888,7 +906,6 @@ typedef struct CPUX86State {
     CPU_COMMON
 
     /* Fields from here on are preserved across CPU reset. */
-    uint64_t pat;
 
     /* processor features (e.g. for CPUID insn) */
     uint32_t cpuid_level;
@@ -928,12 +945,7 @@ typedef struct CPUX86State {
     uint16_t fpus_vmstate;
     uint16_t fptag_vmstate;
     uint16_t fpregs_format_vmstate;
-
     uint64_t xstate_bv;
-    XMMReg ymmh_regs[CPU_NB_REGS];
-    BNDReg bnd_regs[4];
-    BNDCSReg bndcs_regs;
-    uint64_t msr_bndcfgs;
 
     uint64_t xcr0;
 
@@ -974,6 +986,7 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
     /* update the hidden flags */
     {
         if (seg_reg == R_CS) {
+            int cpl = selector & 3;
 #ifdef TARGET_X86_64
             if ((env->hflags & HF_LMA_MASK) && (flags & DESC_L_MASK)) {
                 /* long mode */
@@ -983,11 +996,19 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
 #endif
             {
                 /* legacy / compatibility case */
+                if (!(env->cr[0] & CR0_PE_MASK))
+                    cpl = 0;
+                else if (env->eflags & VM_MASK)
+                    cpl = 3;
                 new_hflags = (env->segs[R_CS].flags & DESC_B_MASK)
                     >> (DESC_B_SHIFT - HF_CS32_SHIFT);
                 env->hflags = (env->hflags & ~(HF_CS32_MASK | HF_CS64_MASK)) |
                     new_hflags;
             }
+#if HF_CPL_MASK != 3
+#error HF_CPL_MASK is hardcoded
+#endif
+            env->hflags = (env->hflags & ~HF_CPL_MASK) | cpl;
         }
         new_hflags = (env->segs[R_SS].flags & DESC_B_MASK)
             >> (DESC_B_SHIFT - HF_SS32_SHIFT);
@@ -1030,16 +1051,6 @@ static inline void cpu_x86_load_seg_cache_sipi(X86CPU *cpu,
 int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector,
                             target_ulong *base, unsigned int *limit,
                             unsigned int *flags);
-
-/* wrapper, just in case memory mappings must be changed */
-static inline void cpu_x86_set_cpl(CPUX86State *s, int cpl)
-{
-#if HF_CPL_MASK == 3
-    s->hflags = (s->hflags & ~HF_CPL_MASK) | cpl;
-#else
-#error HF_CPL_MASK is hardcoded
-#endif
-}
 
 /* op_helper.c */
 /* used for debug or cpu save/restore */

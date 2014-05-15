@@ -1300,6 +1300,7 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
     if (pos != 0 && kvm_device_msix_supported(kvm_state)) {
         int bar_nr;
         uint32_t msix_table_entry;
+        uint16_t msix_max;
 
         verify_irqchip_in_kernel(&local_err);
         if (local_err) {
@@ -1315,9 +1316,10 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
         }
         pci_dev->msix_cap = pos;
 
-        pci_set_word(pci_dev->config + pos + PCI_MSIX_FLAGS,
-                     pci_get_word(pci_dev->config + pos + PCI_MSIX_FLAGS) &
-                     PCI_MSIX_FLAGS_QSIZE);
+        msix_max = (pci_get_word(pci_dev->config + pos + PCI_MSIX_FLAGS) &
+                    PCI_MSIX_FLAGS_QSIZE) + 1;
+        msix_max = MIN(msix_max, KVM_MAX_MSIX_PER_DEV);
+        pci_set_word(pci_dev->config + pos + PCI_MSIX_FLAGS, msix_max - 1);
 
         /* Only enable and function mask bits are writable */
         pci_set_word(pci_dev->wmask + pos + PCI_MSIX_FLAGS,
@@ -1327,9 +1329,7 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
         bar_nr = msix_table_entry & PCI_MSIX_FLAGS_BIRMASK;
         msix_table_entry &= ~PCI_MSIX_FLAGS_BIRMASK;
         dev->msix_table_addr = pci_region[bar_nr].base_addr + msix_table_entry;
-        dev->msix_max = pci_get_word(pci_dev->config + pos + PCI_MSIX_FLAGS);
-        dev->msix_max &= PCI_MSIX_FLAGS_QSIZE;
-        dev->msix_max += 1;
+        dev->msix_max = msix_max;
     }
 
     /* Minimal PM support, nothing writable, device appears to NAK changes */
@@ -1664,6 +1664,7 @@ static void assigned_dev_register_msix_mmio(AssignedDevice *dev, Error **errp)
                            MAP_ANONYMOUS|MAP_PRIVATE, 0, 0);
     if (dev->msix_table == MAP_FAILED) {
         error_setg_errno(errp, errno, "failed to allocate msix_table");
+        dev->msix_table = NULL;
         return;
     }
 

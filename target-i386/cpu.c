@@ -24,6 +24,7 @@
 #include "cpu.h"
 #include "sysemu/kvm.h"
 #include "sysemu/cpus.h"
+#include "kvm_i386.h"
 #include "topology.h"
 
 #include "qemu/option.h"
@@ -2417,8 +2418,7 @@ static void x86_cpu_reset(CPUState *s)
 
     xcc->parent_reset(s);
 
-
-    memset(env, 0, offsetof(CPUX86State, pat));
+    memset(env, 0, offsetof(CPUX86State, cpuid_level));
 
     tlb_flush(s, 1);
 
@@ -2484,8 +2484,7 @@ static void x86_cpu_reset(CPUState *s)
     cpu_breakpoint_remove_all(s, BP_CPU);
     cpu_watchpoint_remove_all(s, BP_CPU);
 
-    env->tsc_adjust = 0;
-    env->tsc = 0;
+    env->xcr0 = 1;
 
 #if !defined(CONFIG_USER_ONLY)
     /* We hard-wire the BSP to the first CPU. */
@@ -2494,6 +2493,10 @@ static void x86_cpu_reset(CPUState *s)
     }
 
     s->halted = !cpu_is_bsp(cpu);
+
+    if (kvm_enabled()) {
+        kvm_arch_reset_vcpu(cpu);
+    }
 #endif
 }
 
