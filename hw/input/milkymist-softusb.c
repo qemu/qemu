@@ -295,8 +295,7 @@ static const VMStateDescription vmstate_milkymist_softusb = {
     .name = "milkymist-softusb",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, MilkymistSoftUsbState, R_MAX),
         VMSTATE_HID_KEYBOARD_DEVICE(hid_kbd, MilkymistSoftUsbState),
         VMSTATE_HID_POINTER_DEVICE(hid_mouse, MilkymistSoftUsbState),

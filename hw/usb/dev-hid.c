@@ -622,7 +622,7 @@ static const VMStateDescription vmstate_usb_ptr = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = usb_ptr_post_load,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_USB_DEVICE(dev, USBHIDState),
         VMSTATE_HID_POINTER_DEVICE(hid, USBHIDState),
         VMSTATE_END_OF_LIST()
@@ -633,7 +633,7 @@ static const VMStateDescription vmstate_usb_kbd = {
     .name = "usb-kbd",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_USB_DEVICE(dev, USBHIDState),
         VMSTATE_HID_KEYBOARD_DEVICE(hid, USBHIDState),
         VMSTATE_END_OF_LIST()

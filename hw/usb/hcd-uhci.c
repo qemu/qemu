@@ -422,8 +422,7 @@ static const VMStateDescription vmstate_uhci_port = {
     .name = "uhci port",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT16(ctrl, UHCIPort),
         VMSTATE_END_OF_LIST()
     }
@@ -444,9 +443,8 @@ static const VMStateDescription vmstate_uhci = {
     .name = "uhci",
     .version_id = 3,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = uhci_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, UHCIState),
         VMSTATE_UINT8_EQUAL(num_ports_vmstate, UHCIState),
         VMSTATE_STRUCT_ARRAY(ports, UHCIState, NB_PORTS, 1,

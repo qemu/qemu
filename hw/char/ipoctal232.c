@@ -124,8 +124,7 @@ static const VMStateDescription vmstate_scc2698_channel = {
     .name = "scc2698_channel",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_BOOL(rx_enabled, SCC2698Channel),
         VMSTATE_UINT8_ARRAY(mr, SCC2698Channel, 2),
         VMSTATE_UINT8(mr_idx, SCC2698Channel),
@@ -141,8 +140,7 @@ static const VMStateDescription vmstate_scc2698_block = {
     .name = "scc2698_block",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT8(imr, SCC2698Block),
         VMSTATE_UINT8(isr, SCC2698Block),
         VMSTATE_END_OF_LIST()
@@ -153,8 +151,7 @@ static const VMStateDescription vmstate_ipoctal = {
     .name = "ipoctal232",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_IPACK_DEVICE(parent_obj, IPOctalState),
         VMSTATE_STRUCT_ARRAY(ch, IPOctalState, N_CHANNELS, 1,
                              vmstate_scc2698_channel, SCC2698Channel),

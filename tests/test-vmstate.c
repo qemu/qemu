@@ -65,8 +65,7 @@ static const VMStateDescription vmstate_simple = {
     .name = "test",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(a, TestStruct),
         VMSTATE_UINT32(b, TestStruct),
         VMSTATE_UINT32(c, TestStruct),
@@ -131,8 +130,7 @@ static const VMStateDescription vmstate_versioned = {
     .name = "test",
     .version_id = 2,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(a, TestStruct),
         VMSTATE_UINT32_V(b, TestStruct, 2), /* Versioned field in the middle, so
                                              * we catch bugs more easily.
@@ -207,8 +205,7 @@ static const VMStateDescription vmstate_skipping = {
     .name = "test",
     .version_id = 2,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(a, TestStruct),
         VMSTATE_UINT32(b, TestStruct),
         VMSTATE_UINT32_TEST(c, TestStruct, test_skip),

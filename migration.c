@@ -662,8 +662,13 @@ static void *migration_thread(void *opaque)
     qemu_mutex_lock_iothread();
     if (s->state == MIG_STATE_COMPLETED) {
         int64_t end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+        uint64_t transferred_bytes = qemu_ftell(s->file);
         s->total_time = end_time - s->total_time;
         s->downtime = end_time - start_time;
+        if (s->total_time) {
+            s->mbps = (((double) transferred_bytes * 8.0) /
+                       ((double) s->total_time)) / 1000;
+        }
         runstate_set(RUN_STATE_POSTMIGRATE);
     } else {
         if (old_vm_running) {

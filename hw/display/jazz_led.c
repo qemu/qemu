@@ -250,7 +250,6 @@ static const VMStateDescription vmstate_jazz_led = {
     .name = "jazz-led",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .post_load = jazz_led_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(segments, LedState),

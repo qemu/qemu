@@ -653,7 +653,6 @@ static const VMStateDescription vmstate_m25p80 = {
     .name = "xilinx_spi",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .pre_save = m25p80_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(state, Flash),

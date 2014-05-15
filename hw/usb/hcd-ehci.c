@@ -2492,7 +2492,7 @@ const VMStateDescription vmstate_ehci = {
     .minimum_version_id  = 1,
     .pre_save    = usb_ehci_pre_save,
     .post_load   = usb_ehci_post_load,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         /* mmio registers */
         VMSTATE_UINT32(usbcmd, EHCIState),
         VMSTATE_UINT32(usbsts, EHCIState),

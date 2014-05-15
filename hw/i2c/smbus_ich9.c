@@ -48,7 +48,6 @@ static const VMStateDescription vmstate_ich9_smbus = {
     .name = "ich9_smb",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, struct ICH9SMBState),
         VMSTATE_END_OF_LIST()

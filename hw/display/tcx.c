@@ -416,9 +416,8 @@ static const VMStateDescription vmstate_tcx = {
     .name ="tcx",
     .version_id = 4,
     .minimum_version_id = 4,
-    .minimum_version_id_old = 4,
     .post_load = vmstate_tcx_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT16(height, TCXState),
         VMSTATE_UINT16(width, TCXState),
         VMSTATE_UINT16(depth, TCXState),

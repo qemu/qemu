@@ -24,7 +24,6 @@ static const VMStateDescription vmstate_env = {
     .name = "env",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(gpr, CPUOpenRISCState, 32),
         VMSTATE_UINT32(sr, CPUOpenRISCState),
@@ -43,7 +42,6 @@ const VMStateDescription vmstate_openrisc_cpu = {
     .name = "cpu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_CPU(),
         VMSTATE_STRUCT(env, OpenRISCCPU, 1, vmstate_env, CPUOpenRISCState),
