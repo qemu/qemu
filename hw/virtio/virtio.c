@@ -430,7 +430,7 @@ void virtqueue_map_sg(struct iovec *sg, hwaddr *addr,
     unsigned int i;
     hwaddr len;
 
-    if (num_sg >= VIRTQUEUE_MAX_SIZE) {
+    if (num_sg > VIRTQUEUE_MAX_SIZE) {
         error_report("virtio: map attempt out of bounds: %zd > %d",
                      num_sg, VIRTQUEUE_MAX_SIZE);
         exit(1);
