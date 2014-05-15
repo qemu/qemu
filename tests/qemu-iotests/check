@@ -34,13 +34,6 @@ timestamp=${TIMESTAMP:=false}
 # generic initialization
 iam=check
 
-# we need common.env
-if ! . ./common.env
-then
-    echo "$iam: failed to source common.env"
-    exit 1
-fi
-
 # we need common.config
 if ! . ./common.config
 then
@@ -222,16 +215,9 @@ do
 
         start=`_wallclock`
         $timestamp && echo -n "        ["`date "+%T"`"]"
-
-        if [ "$(head -n 1 $seq)" == "#!/usr/bin/env python" ]; then
-            run_command="$PYTHON $seq"
-        else
-            [ ! -x $seq ] && chmod u+x $seq # ensure we can run it
-            run_command="./$seq"
-        fi
-
+        [ ! -x $seq ] && chmod u+x $seq # ensure we can run it
         MALLOC_PERTURB_=${MALLOC_PERTURB_:-$(($RANDOM % 255 + 1))} \
-                $run_command >$tmp.out 2>&1
+                ./$seq >$tmp.out 2>&1
         sts=$?
         $timestamp && _timestamp
         stop=`_wallclock`

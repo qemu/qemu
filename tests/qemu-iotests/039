@@ -38,7 +38,6 @@ _cleanup()
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # get standard environment, filters and checks
-. ./common.env
 . ./common.rc
 . ./common.filter
 
@@ -59,7 +58,7 @@ _make_test_img $size
 $QEMU_IO -c "write -P 0x5a 0 512" "$TEST_IMG" | _filter_qemu_io
 
 # The dirty bit must not be set
-$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 _check_test_img
 
 echo
@@ -74,7 +73,7 @@ $QEMU_IO -c "write -P 0x5a 0 512" -c "abort" "$TEST_IMG" | _filter_qemu_io
 ulimit -c "$old_ulimit"
 
 # The dirty bit must be set
-$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 _check_test_img
 
 echo
@@ -83,7 +82,7 @@ echo "== Read-only access must still work =="
 $QEMU_IO -r -c "read -P 0x5a 0 512" "$TEST_IMG" | _filter_qemu_io
 
 # The dirty bit must be set
-$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 
 echo
 echo "== Repairing the image file must succeed =="
@@ -91,7 +90,7 @@ echo "== Repairing the image file must succeed =="
 _check_test_img -r all
 
 # The dirty bit must not be set
-$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 
 echo
 echo "== Data should still be accessible after repair =="
@@ -110,12 +109,12 @@ $QEMU_IO -c "write -P 0x5a 0 512" -c "abort" "$TEST_IMG" | _filter_qemu_io
 ulimit -c "$old_ulimit"
 
 # The dirty bit must be set
-$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 
 $QEMU_IO -c "write 0 512" "$TEST_IMG" | _filter_qemu_io
 
 # The dirty bit must not be set
-$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 
 echo
 echo "== Creating an image file with lazy_refcounts=off =="
@@ -129,7 +128,7 @@ $QEMU_IO -c "write -P 0x5a 0 512" -c "abort" "$TEST_IMG" | _filter_qemu_io
 ulimit -c "$old_ulimit"
 
 # The dirty bit must not be set since lazy_refcounts=off
-$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 _check_test_img
 
 echo
@@ -145,8 +144,8 @@ $QEMU_IO -c "write 0 512" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG commit "$TEST_IMG"
 
 # The dirty bit must not be set
-$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
-$PYTHON qcow2.py "$TEST_IMG".base dump-header | grep incompatible_features
+./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+./qcow2.py "$TEST_IMG".base dump-header | grep incompatible_features
 
 _check_test_img
 TEST_IMG="$TEST_IMG".base _check_test_img

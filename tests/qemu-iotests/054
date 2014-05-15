@@ -35,7 +35,6 @@ _cleanup()
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # get standard environment, filters and checks
-. ./common.env
 . ./common.rc
 . ./common.filter
 
@@ -50,7 +49,7 @@ _make_test_img $((1024*1024))T
 echo
 echo "creating too large image (1 EB) using qcow2.py"
 _make_test_img 4G
-$PYTHON qcow2.py "$TEST_IMG" set-header size $((1024 ** 6))
+./qcow2.py "$TEST_IMG" set-header size $((1024 ** 6))
 _check_test_img
 
 # success, all done
