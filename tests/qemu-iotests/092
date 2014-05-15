@@ -44,6 +44,7 @@ _supported_proto generic
 _supported_os Linux
 
 offset_cluster_bits=32
+offset_l2_bits=33
 
 echo
 echo "== Invalid cluster size =="
@@ -55,6 +56,20 @@ poke_file "$TEST_IMG" "$offset_cluster_bits" "\x1f"
 poke_file "$TEST_IMG" "$offset_cluster_bits" "\x08"
 { $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 poke_file "$TEST_IMG" "$offset_cluster_bits" "\x11"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== Invalid L2 table size =="
+_make_test_img 64M
+poke_file "$TEST_IMG" "$offset_l2_bits" "\xff"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+poke_file "$TEST_IMG" "$offset_l2_bits" "\x05"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+poke_file "$TEST_IMG" "$offset_l2_bits" "\x0e"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+# 1 << 0x1b = 2^31 / L2_CACHE_SIZE
+poke_file "$TEST_IMG" "$offset_l2_bits" "\x1b"
 { $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done
