@@ -523,7 +523,10 @@ static void virtio_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
     struct virtio_blk_config blkcfg;
 
     memcpy(&blkcfg, config, sizeof(blkcfg));
+
+    aio_context_acquire(bdrv_get_aio_context(s->bs));
     bdrv_set_enable_write_cache(s->bs, blkcfg.wce != 0);
+    aio_context_release(bdrv_get_aio_context(s->bs));
 }
 
 static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
@@ -582,7 +585,10 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
      * s->bs would erroneously be placed in writethrough mode.
      */
     if (!(features & (1 << VIRTIO_BLK_F_CONFIG_WCE))) {
-        bdrv_set_enable_write_cache(s->bs, !!(features & (1 << VIRTIO_BLK_F_WCE)));
+        aio_context_acquire(bdrv_get_aio_context(s->bs));
+        bdrv_set_enable_write_cache(s->bs,
+                                    !!(features & (1 << VIRTIO_BLK_F_WCE)));
+        aio_context_release(bdrv_get_aio_context(s->bs));
     }
 }
 

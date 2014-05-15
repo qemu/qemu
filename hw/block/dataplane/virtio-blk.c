@@ -336,12 +336,6 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
         return;
     }
 
-    if (blk->config_wce) {
-        error_setg(errp, "device is incompatible with x-data-plane, "
-                         "use config-wce=off");
-        return;
-    }
-
     /* If dataplane is (re-)enabled while the guest is running there could be
      * block jobs that can conflict.
      */
