@@ -88,8 +88,10 @@ static inline void load_seg_cache_raw_dt(SegmentCache *sc, uint32_t e1,
 static inline void load_seg_vm(CPUX86State *env, int seg, int selector)
 {
     selector &= 0xffff;
-    cpu_x86_load_seg_cache(env, seg, selector,
-                           (selector << 4), 0xffff, 0);
+
+    cpu_x86_load_seg_cache(env, seg, selector, (selector << 4), 0xffff,
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
+                           DESC_A_MASK | (3 << DESC_DPL_SHIFT));
 }
 
 static inline void get_ss_esp_from_tss(CPUX86State *env, uint32_t *ss_ptr,
@@ -2465,9 +2467,12 @@ void helper_verw(CPUX86State *env, target_ulong selector1)
 void cpu_x86_load_seg(CPUX86State *env, int seg_reg, int selector)
 {
     if (!(env->cr[0] & CR0_PE_MASK) || (env->eflags & VM_MASK)) {
+        int dpl = (env->eflags & VM_MASK) ? 3 : 0;
         selector &= 0xffff;
         cpu_x86_load_seg_cache(env, seg_reg, selector,
-                               (selector << 4), 0xffff, 0);
+                               (selector << 4), 0xffff,
+                               DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
+                               DESC_A_MASK | (dpl << DESC_DPL_SHIFT));
     } else {
         helper_load_seg(env, seg_reg, selector);
     }

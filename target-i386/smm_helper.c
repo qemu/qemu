@@ -171,12 +171,24 @@ void do_smm_enter(X86CPU *cpu)
     CC_OP = CC_OP_EFLAGS;
 
     cpu_x86_load_seg_cache(env, R_CS, (env->smbase >> 4) & 0xffff, env->smbase,
-                           0xffffffff, 0);
-    cpu_x86_load_seg_cache(env, R_DS, 0, 0, 0xffffffff, 0);
-    cpu_x86_load_seg_cache(env, R_ES, 0, 0, 0xffffffff, 0);
-    cpu_x86_load_seg_cache(env, R_SS, 0, 0, 0xffffffff, 0);
-    cpu_x86_load_seg_cache(env, R_FS, 0, 0, 0xffffffff, 0);
-    cpu_x86_load_seg_cache(env, R_GS, 0, 0, 0xffffffff, 0);
+                           0xffffffff,
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
+                           DESC_A_MASK);
+    cpu_x86_load_seg_cache(env, R_DS, 0, 0, 0xffffffff,
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
+                           DESC_A_MASK);
+    cpu_x86_load_seg_cache(env, R_ES, 0, 0, 0xffffffff,
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
+                           DESC_A_MASK);
+    cpu_x86_load_seg_cache(env, R_SS, 0, 0, 0xffffffff,
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
+                           DESC_A_MASK);
+    cpu_x86_load_seg_cache(env, R_FS, 0, 0, 0xffffffff,
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
+                           DESC_A_MASK);
+    cpu_x86_load_seg_cache(env, R_GS, 0, 0, 0xffffffff,
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
+                           DESC_A_MASK);
 }
 
 void helper_rsm(CPUX86State *env)
