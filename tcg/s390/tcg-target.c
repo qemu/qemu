@@ -983,8 +983,8 @@ static void tgen_andi(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
         int msb, lsb;
         if ((val & 0x8000000000000001ull) == 0x8000000000000001ull) {
             /* Achieve wraparound by swapping msb and lsb.  */
-            msb = 63 - ctz64(~val);
-            lsb = clz64(~val) + 1;
+            msb = 64 - ctz64(~val);
+            lsb = clz64(~val) - 1;
         } else {
             msb = clz64(val);
             lsb = 63 - ctz64(val);
