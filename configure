@@ -1137,11 +1137,11 @@ case "$cpu" in
            CPU_CFLAGS="-m64 -mcpu=ultrasparc"
            ;;
     s390)
-           CPU_CFLAGS="-m31 -march=z990"
+           CPU_CFLAGS="-m31"
            LDFLAGS="-m31 $LDFLAGS"
            ;;
     s390x)
-           CPU_CFLAGS="-m64 -march=z990"
+           CPU_CFLAGS="-m64"
            LDFLAGS="-m64 $LDFLAGS"
            ;;
     i386)
