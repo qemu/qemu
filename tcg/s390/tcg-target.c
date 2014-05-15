@@ -2344,8 +2344,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 }
 
 typedef struct {
-    DebugFrameCIE cie;
-    DebugFrameFDEHeader fde;
+    DebugFrameHeader h;
     uint8_t fde_def_cfa[4];
     uint8_t fde_reg_ofs[18];
 } DebugFrame;
@@ -2355,16 +2354,16 @@ QEMU_BUILD_BUG_ON(FRAME_SIZE >= (1 << 14));
 
 #define ELF_HOST_MACHINE  EM_S390
 
-static DebugFrame debug_frame = {
-    .cie.len = sizeof(DebugFrameCIE)-4, /* length after .len member */
-    .cie.id = -1,
-    .cie.version = 1,
-    .cie.code_align = 1,
-    .cie.data_align = 8,                /* sleb128 8 */
-    .cie.return_column = TCG_REG_R14,
+static const DebugFrame debug_frame = {
+    .h.cie.len = sizeof(DebugFrameCIE)-4, /* length after .len member */
+    .h.cie.id = -1,
+    .h.cie.version = 1,
+    .h.cie.code_align = 1,
+    .h.cie.data_align = 8,                /* sleb128 8 */
+    .h.cie.return_column = TCG_REG_R14,
 
     /* Total FDE size does not include the "len" member.  */
-    .fde.len = sizeof(DebugFrame) - offsetof(DebugFrame, fde.cie_offset),
+    .h.fde.len = sizeof(DebugFrame) - offsetof(DebugFrame, h.fde.cie_offset),
 
     .fde_def_cfa = {
         12, TCG_REG_CALL_STACK,         /* DW_CFA_def_cfa %r15, ... */
@@ -2386,8 +2385,5 @@ static DebugFrame debug_frame = {
 
 void tcg_register_jit(void *buf, size_t buf_size)
 {
-    debug_frame.fde.func_start = (uintptr_t)buf;
-    debug_frame.fde.func_len = buf_size;
-
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
