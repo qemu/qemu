@@ -566,6 +566,13 @@ int bdrv_debug_resume(BlockDriverState *bs, const char *tag);
 bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag);
 
 /**
+ * bdrv_get_aio_context:
+ *
+ * Returns: the currently bound #AioContext
+ */
+AioContext *bdrv_get_aio_context(BlockDriverState *bs);
+
+/**
  * bdrv_set_aio_context:
  *
  * Changes the #AioContext used for fd handlers, timers, and BHs by this

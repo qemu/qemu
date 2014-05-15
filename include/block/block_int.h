@@ -405,13 +405,6 @@ void bdrv_add_before_write_notifier(BlockDriverState *bs,
                                     NotifierWithReturn *notifier);
 
 /**
- * bdrv_get_aio_context:
- *
- * Returns: the currently bound #AioContext
- */
-AioContext *bdrv_get_aio_context(BlockDriverState *bs);
-
-/**
  * bdrv_detach_aio_context:
  *
  * May be called from .bdrv_detach_aio_context() to detach children from the
