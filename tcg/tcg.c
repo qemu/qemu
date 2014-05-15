@@ -86,8 +86,14 @@ typedef struct QEMU_PACKED {
     uintptr_t func_len;
 } DebugFrameFDEHeader;
 
+typedef struct QEMU_PACKED {
+    DebugFrameCIE cie;
+    DebugFrameFDEHeader fde;
+} DebugFrameHeader;
+
 static void tcg_register_jit_int(void *buf, size_t size,
-                                 void *debug_frame, size_t debug_frame_size)
+                                 const void *debug_frame,
+                                 size_t debug_frame_size)
     __attribute__((unused));
 
 /* Forward declarations for functions declared and used in tcg-target.c. */
@@ -2777,7 +2783,8 @@ static int find_string(const char *strtab, const char *str)
 }
 
 static void tcg_register_jit_int(void *buf_ptr, size_t buf_size,
-                                 void *debug_frame, size_t debug_frame_size)
+                                 const void *debug_frame,
+                                 size_t debug_frame_size)
 {
     struct __attribute__((packed)) DebugInfo {
         uint32_t  len;
@@ -2915,10 +2922,10 @@ static void tcg_register_jit_int(void *buf_ptr, size_t buf_size,
 
     uintptr_t buf = (uintptr_t)buf_ptr;
     size_t img_size = sizeof(struct ElfImage) + debug_frame_size;
+    DebugFrameHeader *dfh;
 
     img = g_malloc(img_size);
     *img = img_template;
-    memcpy(img + 1, debug_frame, debug_frame_size);
 
     img->phdr.p_vaddr = buf;
     img->phdr.p_paddr = buf;
@@ -2945,6 +2952,11 @@ static void tcg_register_jit_int(void *buf_ptr, size_t buf_size,
     img->di.cu_high_pc = buf + buf_size;
     img->di.fn_low_pc = buf;
     img->di.fn_high_pc = buf + buf_size;
+
+    dfh = (DebugFrameHeader *)(img + 1);
+    memcpy(dfh, debug_frame, debug_frame_size);
+    dfh->fde.func_start = buf;
+    dfh->fde.func_len = buf_size;
 
 #ifdef DEBUG_JIT
     /* Enable this block to be able to debug the ELF image file creation.
@@ -2973,7 +2985,8 @@ static void tcg_register_jit_int(void *buf_ptr, size_t buf_size,
    and implement the internal function we declared earlier.  */
 
 static void tcg_register_jit_int(void *buf, size_t size,
-                                 void *debug_frame, size_t debug_frame_size)
+                                 const void *debug_frame,
+                                 size_t debug_frame_size)
 {
 }
 
