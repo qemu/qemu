@@ -48,7 +48,7 @@ The QAPI schema definitions can be modularized using the 'include' directive:
  { 'include': 'path/to/file.json'}
 
 The directive is evaluated recursively, and include paths are relative to the
-file using the directive.
+file using the directive. Multiple includes of the same file are safe.
 
 
 === Complex types ===
