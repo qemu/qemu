@@ -2937,7 +2937,7 @@ block migration status.
 The main json-object contains the following:
 
 - "status": migration status (json-string)
-     - Possible values: "active", "completed", "failed", "cancelled"
+     - Possible values: "setup", "active", "completed", "failed", "cancelled"
 - "total-time": total amount of ms since migration started.  If
                 migration has ended, it returns the total migration
                 time (json-int)
