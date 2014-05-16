@@ -1391,8 +1391,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_propagate(errp, local_err);
         ret = -EINVAL;
         goto out;
     }
@@ -1415,18 +1414,14 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     if (ret < 0) {
         goto out;
     }
-    s->fd = get_sheep_fd(s, &local_err);
+    s->fd = get_sheep_fd(s, errp);
     if (s->fd < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         ret = s->fd;
         goto out;
     }
 
-    ret = find_vdi_name(s, vdi, snapid, tag, &vid, true, &local_err);
+    ret = find_vdi_name(s, vdi, snapid, tag, &vid, true, errp);
     if (ret) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         goto out;
     }
 
@@ -1445,10 +1440,8 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
         s->is_snapshot = true;
     }
 
-    fd = connect_to_sdog(s, &local_err);
+    fd = connect_to_sdog(s, errp);
     if (fd < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         ret = fd;
         goto out;
     }
@@ -1651,7 +1644,6 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
     char tag[SD_MAX_VDI_TAG_LEN];
     uint32_t snapid;
     bool prealloc = false;
-    Error *local_err = NULL;
 
     s = g_malloc0(sizeof(BDRVSheepdogState));
 
@@ -1676,8 +1668,8 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
             } else if (!strcmp(options->value.s, "full")) {
                 prealloc = true;
             } else {
-                error_report("Invalid preallocation mode: '%s'",
-                             options->value.s);
+                error_setg(errp, "Invalid preallocation mode: '%s'",
+                           options->value.s);
                 ret = -EINVAL;
                 goto out;
             }
@@ -1693,7 +1685,7 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
     }
 
     if (s->inode.vdi_size > SD_MAX_VDI_SIZE) {
-        error_report("too big image size");
+        error_setg(errp, "too big image size");
         ret = -EINVAL;
         goto out;
     }
@@ -1706,24 +1698,22 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
         /* Currently, only Sheepdog backing image is supported. */
         drv = bdrv_find_protocol(backing_file, true);
         if (!drv || strcmp(drv->protocol_name, "sheepdog") != 0) {
-            error_report("backing_file must be a sheepdog image");
+            error_setg(errp, "backing_file must be a sheepdog image");
             ret = -EINVAL;
             goto out;
         }
 
         bs = NULL;
         ret = bdrv_open(&bs, backing_file, NULL, NULL, BDRV_O_PROTOCOL, NULL,
-                        &local_err);
+                        errp);
         if (ret < 0) {
-            qerror_report_err(local_err);
-            error_free(local_err);
             goto out;
         }
 
         base = bs->opaque;
 
         if (!is_snapshot(&base->inode)) {
-            error_report("cannot clone from a non snapshot vdi");
+            error_setg(errp, "cannot clone from a non snapshot vdi");
             bdrv_unref(bs);
             ret = -EINVAL;
             goto out;
@@ -1732,19 +1722,13 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
         bdrv_unref(bs);
     }
 
-    ret = do_sd_create(s, &vid, 0, &local_err);
+    ret = do_sd_create(s, &vid, 0, errp);
     if (ret) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         goto out;
     }
 
     if (prealloc) {
-        ret = sd_prealloc(filename, &local_err);
-        if (ret < 0) {
-            qerror_report_err(local_err);
-            error_free(local_err);
-        }
+        ret = sd_prealloc(filename, errp);
     }
 out:
     g_free(s);
