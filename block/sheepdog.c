@@ -668,7 +668,7 @@ static void coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
                            enum AIOCBState aiocb_type);
 static void coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req);
 static int reload_inode(BDRVSheepdogState *s, uint32_t snapid, const char *tag);
-static int get_sheep_fd(BDRVSheepdogState *s);
+static int get_sheep_fd(BDRVSheepdogState *s, Error **errp);
 static void co_write_request(void *opaque);
 
 static AIOReq *find_pending_req(BDRVSheepdogState *s, uint64_t oid)
@@ -705,6 +705,7 @@ static void coroutine_fn send_pending_req(BDRVSheepdogState *s, uint64_t oid)
 
 static coroutine_fn void reconnect_to_sdog(void *opaque)
 {
+    Error *local_err = NULL;
     BDRVSheepdogState *s = opaque;
     AIOReq *aio_req, *next;
 
@@ -719,9 +720,11 @@ static coroutine_fn void reconnect_to_sdog(void *opaque)
 
     /* Try to reconnect the sheepdog server every one second. */
     while (s->fd < 0) {
-        s->fd = get_sheep_fd(s);
+        s->fd = get_sheep_fd(s, &local_err);
         if (s->fd < 0) {
             DPRINTF("Wait for connection to be established\n");
+            qerror_report_err(local_err);
+            error_free(local_err);
             co_aio_sleep_ns(bdrv_get_aio_context(s->bs), QEMU_CLOCK_REALTIME,
                             1000000000ULL);
         }
@@ -910,15 +913,12 @@ static void co_write_request(void *opaque)
  * We cannot use this descriptor for other operations because
  * the block driver may be on waiting response from the server.
  */
-static int get_sheep_fd(BDRVSheepdogState *s)
+static int get_sheep_fd(BDRVSheepdogState *s, Error **errp)
 {
-    Error *local_err = NULL;
     int fd;
 
-    fd = connect_to_sdog(s, &local_err);
+    fd = connect_to_sdog(s, errp);
     if (fd < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         return fd;
     }
 
@@ -1415,8 +1415,10 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     if (ret < 0) {
         goto out;
     }
-    s->fd = get_sheep_fd(s);
+    s->fd = get_sheep_fd(s, &local_err);
     if (s->fd < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         ret = s->fd;
         goto out;
     }
