@@ -1537,21 +1537,18 @@ static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot)
     return 0;
 }
 
-static int sd_prealloc(const char *filename)
+static int sd_prealloc(const char *filename, Error **errp)
 {
     BlockDriverState *bs = NULL;
     uint32_t idx, max_idx;
     int64_t vdi_size;
     void *buf = g_malloc0(SD_DATA_OBJ_SIZE);
-    Error *local_err = NULL;
     int ret;
 
     ret = bdrv_open(&bs, filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
-                    NULL, &local_err);
+                    NULL, errp);
     if (ret < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        goto out;
+        goto out_with_err_set;
     }
 
     vdi_size = bdrv_getlength(bs);
@@ -1575,7 +1572,12 @@ static int sd_prealloc(const char *filename)
             goto out;
         }
     }
+
 out:
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Can't pre-allocate");
+    }
+out_with_err_set:
     if (bs) {
         bdrv_unref(bs);
     }
@@ -1734,7 +1736,11 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
         goto out;
     }
 
-    ret = sd_prealloc(filename);
+    ret = sd_prealloc(filename, &local_err);
+    if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+    }
 out:
     g_free(s);
     return ret;
