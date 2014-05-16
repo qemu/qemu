@@ -121,10 +121,9 @@ session_error_report(BDRVSSHState *s, const char *fs, ...)
         char *ssh_err;
         int ssh_err_code;
 
-        libssh2_session_last_error((s)->session, &ssh_err, NULL, 0);
         /* This is not an errno.  See <libssh2.h>. */
-        ssh_err_code = libssh2_session_last_errno((s)->session);
-
+        ssh_err_code = libssh2_session_last_error(s->session,
+                                                  &ssh_err, NULL, 0);
         error_printf(": %s (libssh2 error code: %d)", ssh_err, ssh_err_code);
     }
 
@@ -145,9 +144,9 @@ sftp_error_report(BDRVSSHState *s, const char *fs, ...)
         int ssh_err_code;
         unsigned long sftp_err_code;
 
-        libssh2_session_last_error((s)->session, &ssh_err, NULL, 0);
         /* This is not an errno.  See <libssh2.h>. */
-        ssh_err_code = libssh2_session_last_errno((s)->session);
+        ssh_err_code = libssh2_session_last_error(s->session,
+                                                  &ssh_err, NULL, 0);
         /* See <libssh2_sftp.h>. */
         sftp_err_code = libssh2_sftp_last_error((s)->sftp);
 
