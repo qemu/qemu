@@ -131,29 +131,34 @@ session_error_setg(Error **errp, BDRVSSHState *s, const char *fs, ...)
     g_free(msg);
 }
 
-/* Wrappers around error_report which make sure to dump as much
- * information from libssh2 as possible.
- */
-static void GCC_FMT_ATTR(2, 3)
-session_error_report(BDRVSSHState *s, const char *fs, ...)
+static void GCC_FMT_ATTR(3, 4)
+sftp_error_setg(Error **errp, BDRVSSHState *s, const char *fs, ...)
 {
     va_list args;
+    char *msg;
 
     va_start(args, fs);
-    error_vprintf(fs, args);
+    msg = g_strdup_vprintf(fs, args);
+    va_end(args);
 
-    if ((s)->session) {
+    if (s->sftp) {
         char *ssh_err;
         int ssh_err_code;
+        unsigned long sftp_err_code;
 
         /* This is not an errno.  See <libssh2.h>. */
         ssh_err_code = libssh2_session_last_error(s->session,
                                                   &ssh_err, NULL, 0);
-        error_printf(": %s (libssh2 error code: %d)", ssh_err, ssh_err_code);
-    }
+        /* See <libssh2_sftp.h>. */
+        sftp_err_code = libssh2_sftp_last_error((s)->sftp);
 
-    va_end(args);
-    error_printf("\n");
+        error_setg(errp,
+                   "%s: %s (libssh2 error code: %d, sftp error code: %lu)",
+                   msg, ssh_err, ssh_err_code, sftp_err_code);
+    } else {
+        error_setg(errp, "%s", msg);
+    }
+    g_free(msg);
 }
 
 static void GCC_FMT_ATTR(2, 3)
@@ -594,14 +599,14 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
             path, ssh_flags, creat_mode);
     s->sftp_handle = libssh2_sftp_open(s->sftp, path, ssh_flags, creat_mode);
     if (!s->sftp_handle) {
-        session_error_report(s, "failed to open remote file '%s'", path);
+        session_error_setg(errp, s, "failed to open remote file '%s'", path);
         ret = -EINVAL;
         goto err;
     }
 
     r = libssh2_sftp_fstat(s->sftp_handle, &s->attrs);
     if (r < 0) {
-        sftp_error_report(s, "failed to read file attributes");
+        sftp_error_setg(errp, s, "failed to read file attributes");
         return -EINVAL;
     }
 
@@ -639,7 +644,6 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
 static int ssh_file_open(BlockDriverState *bs, QDict *options, int bdrv_flags,
                          Error **errp)
 {
-    Error *local_err = NULL;
     BDRVSSHState *s = bs->opaque;
     int ret;
     int ssh_flags;
@@ -652,10 +656,8 @@ static int ssh_file_open(BlockDriverState *bs, QDict *options, int bdrv_flags,
     }
 
     /* Start up SSH. */
-    ret = connect_to_ssh(s, options, ssh_flags, 0, &local_err);
+    ret = connect_to_ssh(s, options, ssh_flags, 0, errp);
     if (ret < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         goto err;
     }
 
@@ -686,7 +688,6 @@ static int ssh_create(const char *filename, QEMUOptionParameter *options,
                       Error **errp)
 {
     int r, ret;
-    Error *local_err = NULL;
     int64_t total_size = 0;
     QDict *uri_options = NULL;
     BDRVSSHState s;
@@ -705,10 +706,8 @@ static int ssh_create(const char *filename, QEMUOptionParameter *options,
     DPRINTF("total_size=%" PRIi64, total_size);
 
     uri_options = qdict_new();
-    r = parse_uri(filename, uri_options, &local_err);
+    r = parse_uri(filename, uri_options, errp);
     if (r < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         ret = r;
         goto out;
     }
@@ -716,10 +715,8 @@ static int ssh_create(const char *filename, QEMUOptionParameter *options,
     r = connect_to_ssh(&s, uri_options,
                        LIBSSH2_FXF_READ|LIBSSH2_FXF_WRITE|
                        LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC,
-                       0644, &local_err);
+                       0644, errp);
     if (r < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         ret = r;
         goto out;
     }
@@ -728,7 +725,7 @@ static int ssh_create(const char *filename, QEMUOptionParameter *options,
         libssh2_sftp_seek64(s.sftp_handle, total_size-1);
         r2 = libssh2_sftp_write(s.sftp_handle, c, 1);
         if (r2 < 0) {
-            sftp_error_report(&s, "truncate failed");
+            sftp_error_setg(errp, &s, "truncate failed");
             ret = -EINVAL;
             goto out;
         }
