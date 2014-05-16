@@ -831,7 +831,8 @@ static inline off_t cluster2sector(BDRVVVFATState* s, uint32_t cluster_num)
 }
 
 static int init_directories(BDRVVVFATState* s,
-                            const char *dirname, int heads, int secs)
+                            const char *dirname, int heads, int secs,
+                            Error **errp)
 {
     bootsector_t* bootsector;
     mapping_t* mapping;
@@ -892,8 +893,8 @@ static int init_directories(BDRVVVFATState* s,
         if (mapping->mode & MODE_DIRECTORY) {
 	    mapping->begin = cluster;
 	    if(read_directory(s, i)) {
-		fprintf(stderr, "Could not read directory %s\n",
-			mapping->path);
+                error_setg(errp, "Could not read directory %s",
+                           mapping->path);
 		return -1;
 	    }
 	    mapping = array_get(&(s->mapping), i);
@@ -919,9 +920,10 @@ static int init_directories(BDRVVVFATState* s,
 	cluster = mapping->end;
 
 	if(cluster > s->cluster_count) {
-	    fprintf(stderr,"Directory does not fit in FAT%d (capacity %.2f MB)\n",
-		    s->fat_type, s->sector_count / 2000.0);
-	    return -EINVAL;
+            error_setg(errp,
+                       "Directory does not fit in FAT%d (capacity %.2f MB)",
+                       s->fat_type, s->sector_count / 2000.0);
+            return -1;
 	}
 
 	/* fix fat for entry */
@@ -1169,7 +1171,7 @@ DLOG(if (stderr == NULL) {
 
     bs->total_sectors = cyls * heads * secs;
 
-    if (init_directories(s, dirname, heads, secs)) {
+    if (init_directories(s, dirname, heads, secs, errp)) {
         ret = -EIO;
         goto fail;
     }
