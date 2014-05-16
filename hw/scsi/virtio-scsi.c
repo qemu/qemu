@@ -498,7 +498,7 @@ static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
                                    uint32_t event, uint32_t reason)
 {
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
-    VirtIOSCSIReq *req = virtio_scsi_pop_req(s, vs->event_vq);
+    VirtIOSCSIReq *req;
     VirtIOSCSIEvent *evt;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     int in_size;
@@ -507,6 +507,7 @@ static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
         return;
     }
 
+    req = virtio_scsi_pop_req(s, vs->event_vq);
     if (!req) {
         s->events_dropped = true;
         return;
