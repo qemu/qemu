@@ -730,7 +730,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
                                    &error_abort);
     qemu_opts_absorb_qdict(legacy_opts, bs_opts, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
+        error_report("%s", error_get_pretty(local_err));
         error_free(local_err);
         goto fail;
     }
@@ -942,7 +942,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     dinfo = blockdev_init(filename, bs_opts, &local_err);
     if (dinfo == NULL) {
         if (local_err) {
-            qerror_report_err(local_err);
+            error_report("%s", error_get_pretty(local_err));
             error_free(local_err);
         }
         goto fail;
