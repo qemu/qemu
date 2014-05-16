@@ -106,6 +106,31 @@ static void ssh_state_free(BDRVSSHState *s)
     }
 }
 
+static void GCC_FMT_ATTR(3, 4)
+session_error_setg(Error **errp, BDRVSSHState *s, const char *fs, ...)
+{
+    va_list args;
+    char *msg;
+
+    va_start(args, fs);
+    msg = g_strdup_vprintf(fs, args);
+    va_end(args);
+
+    if (s->session) {
+        char *ssh_err;
+        int ssh_err_code;
+
+        /* This is not an errno.  See <libssh2.h>. */
+        ssh_err_code = libssh2_session_last_error(s->session,
+                                                  &ssh_err, NULL, 0);
+        error_setg(errp, "%s: %s (libssh2 error code: %d)",
+                   msg, ssh_err, ssh_err_code);
+    } else {
+        error_setg(errp, "%s", msg);
+    }
+    g_free(msg);
+}
+
 /* Wrappers around error_report which make sure to dump as much
  * information from libssh2 as possible.
  */
@@ -242,7 +267,7 @@ static void ssh_parse_filename(const char *filename, QDict *options,
 }
 
 static int check_host_key_knownhosts(BDRVSSHState *s,
-                                     const char *host, int port)
+                                     const char *host, int port, Error **errp)
 {
     const char *home;
     char *knh_file = NULL;
@@ -256,14 +281,15 @@ static int check_host_key_knownhosts(BDRVSSHState *s,
     hostkey = libssh2_session_hostkey(s->session, &len, &type);
     if (!hostkey) {
         ret = -EINVAL;
-        session_error_report(s, "failed to read remote host key");
+        session_error_setg(errp, s, "failed to read remote host key");
         goto out;
     }
 
     knh = libssh2_knownhost_init(s->session);
     if (!knh) {
         ret = -EINVAL;
-        session_error_report(s, "failed to initialize known hosts support");
+        session_error_setg(errp, s,
+                           "failed to initialize known hosts support");
         goto out;
     }
 
@@ -288,21 +314,23 @@ static int check_host_key_knownhosts(BDRVSSHState *s,
         break;
     case LIBSSH2_KNOWNHOST_CHECK_MISMATCH:
         ret = -EINVAL;
-        session_error_report(s, "host key does not match the one in known_hosts (found key %s)",
-                             found->key);
+        session_error_setg(errp, s,
+                      "host key does not match the one in known_hosts"
+                      " (found key %s)", found->key);
         goto out;
     case LIBSSH2_KNOWNHOST_CHECK_NOTFOUND:
         ret = -EINVAL;
-        session_error_report(s, "no host key was found in known_hosts");
+        session_error_setg(errp, s, "no host key was found in known_hosts");
         goto out;
     case LIBSSH2_KNOWNHOST_CHECK_FAILURE:
         ret = -EINVAL;
-        session_error_report(s, "failure matching the host key with known_hosts");
+        session_error_setg(errp, s,
+                      "failure matching the host key with known_hosts");
         goto out;
     default:
         ret = -EINVAL;
-        session_error_report(s, "unknown error matching the host key with known_hosts (%d)",
-                             r);
+        session_error_setg(errp, s, "unknown error matching the host key"
+                      " with known_hosts (%d)", r);
         goto out;
     }
 
@@ -357,20 +385,20 @@ static int compare_fingerprint(const unsigned char *fingerprint, size_t len,
 
 static int
 check_host_key_hash(BDRVSSHState *s, const char *hash,
-                    int hash_type, size_t fingerprint_len)
+                    int hash_type, size_t fingerprint_len, Error **errp)
 {
     const char *fingerprint;
 
     fingerprint = libssh2_hostkey_hash(s->session, hash_type);
     if (!fingerprint) {
-        session_error_report(s, "failed to read remote host key");
+        session_error_setg(errp, s, "failed to read remote host key");
         return -EINVAL;
     }
 
     if(compare_fingerprint((unsigned char *) fingerprint, fingerprint_len,
                            hash) != 0) {
-        error_report("remote host key does not match host_key_check '%s'",
-                     hash);
+        error_setg(errp, "remote host key does not match host_key_check '%s'",
+                   hash);
         return -EPERM;
     }
 
@@ -378,7 +406,7 @@ check_host_key_hash(BDRVSSHState *s, const char *hash,
 }
 
 static int check_host_key(BDRVSSHState *s, const char *host, int port,
-                          const char *host_key_check)
+                          const char *host_key_check, Error **errp)
 {
     /* host_key_check=no */
     if (strcmp(host_key_check, "no") == 0) {
@@ -388,21 +416,21 @@ static int check_host_key(BDRVSSHState *s, const char *host, int port,
     /* host_key_check=md5:xx:yy:zz:... */
     if (strncmp(host_key_check, "md5:", 4) == 0) {
         return check_host_key_hash(s, &host_key_check[4],
-                                   LIBSSH2_HOSTKEY_HASH_MD5, 16);
+                                   LIBSSH2_HOSTKEY_HASH_MD5, 16, errp);
     }
 
     /* host_key_check=sha1:xx:yy:zz:... */
     if (strncmp(host_key_check, "sha1:", 5) == 0) {
         return check_host_key_hash(s, &host_key_check[5],
-                                   LIBSSH2_HOSTKEY_HASH_SHA1, 20);
+                                   LIBSSH2_HOSTKEY_HASH_SHA1, 20, errp);
     }
 
     /* host_key_check=yes */
     if (strcmp(host_key_check, "yes") == 0) {
-        return check_host_key_knownhosts(s, host, port);
+        return check_host_key_knownhosts(s, host, port, errp);
     }
 
-    error_report("unknown host_key_check setting (%s)", host_key_check);
+    error_setg(errp, "unknown host_key_check setting (%s)", host_key_check);
     return -EINVAL;
 }
 
@@ -541,8 +569,10 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     }
 
     /* Check the remote host's key against known_hosts. */
-    ret = check_host_key(s, host, port, host_key_check);
+    ret = check_host_key(s, host, port, host_key_check, &err);
     if (ret < 0) {
+        qerror_report_err(err);
+        error_free(err);
         goto err;
     }
 
