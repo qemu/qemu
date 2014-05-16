@@ -506,10 +506,9 @@ static int authenticate(BDRVSSHState *s, const char *user, Error **errp)
 }
 
 static int connect_to_ssh(BDRVSSHState *s, QDict *options,
-                          int ssh_flags, int creat_mode)
+                          int ssh_flags, int creat_mode, Error **errp)
 {
     int r, ret;
-    Error *err = NULL;
     const char *host, *user, *path, *host_key_check;
     int port;
 
@@ -528,6 +527,7 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     } else {
         user = g_get_user_name();
         if (!user) {
+            error_setg_errno(errp, errno, "Can't get user name");
             ret = -errno;
             goto err;
         }
@@ -544,11 +544,9 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     s->hostport = g_strdup_printf("%s:%d", host, port);
 
     /* Open the socket and connect. */
-    s->sock = inet_connect(s->hostport, &err);
-    if (err != NULL) {
+    s->sock = inet_connect(s->hostport, errp);
+    if (s->sock < 0) {
         ret = -errno;
-        qerror_report_err(err);
-        error_free(err);
         goto err;
     }
 
@@ -556,7 +554,7 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     s->session = libssh2_session_init();
     if (!s->session) {
         ret = -EINVAL;
-        session_error_report(s, "failed to initialize libssh2 session");
+        session_error_setg(errp, s, "failed to initialize libssh2 session");
         goto err;
     }
 
@@ -567,30 +565,26 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     r = libssh2_session_handshake(s->session, s->sock);
     if (r != 0) {
         ret = -EINVAL;
-        session_error_report(s, "failed to establish SSH session");
+        session_error_setg(errp, s, "failed to establish SSH session");
         goto err;
     }
 
     /* Check the remote host's key against known_hosts. */
-    ret = check_host_key(s, host, port, host_key_check, &err);
+    ret = check_host_key(s, host, port, host_key_check, errp);
     if (ret < 0) {
-        qerror_report_err(err);
-        error_free(err);
         goto err;
     }
 
     /* Authenticate. */
-    ret = authenticate(s, user, &err);
+    ret = authenticate(s, user, errp);
     if (ret < 0) {
-        qerror_report_err(err);
-        error_free(err);
         goto err;
     }
 
     /* Start SFTP. */
     s->sftp = libssh2_sftp_init(s->session);
     if (!s->sftp) {
-        session_error_report(s, "failed to initialize sftp handle");
+        session_error_setg(errp, s, "failed to initialize sftp handle");
         ret = -EINVAL;
         goto err;
     }
@@ -645,6 +639,7 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
 static int ssh_file_open(BlockDriverState *bs, QDict *options, int bdrv_flags,
                          Error **errp)
 {
+    Error *local_err = NULL;
     BDRVSSHState *s = bs->opaque;
     int ret;
     int ssh_flags;
@@ -657,8 +652,10 @@ static int ssh_file_open(BlockDriverState *bs, QDict *options, int bdrv_flags,
     }
 
     /* Start up SSH. */
-    ret = connect_to_ssh(s, options, ssh_flags, 0);
+    ret = connect_to_ssh(s, options, ssh_flags, 0, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         goto err;
     }
 
@@ -718,8 +715,11 @@ static int ssh_create(const char *filename, QEMUOptionParameter *options,
 
     r = connect_to_ssh(&s, uri_options,
                        LIBSSH2_FXF_READ|LIBSSH2_FXF_WRITE|
-                       LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC, 0644);
+                       LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC,
+                       0644, &local_err);
     if (r < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         ret = r;
         goto out;
     }
