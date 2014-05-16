@@ -979,7 +979,7 @@ static int init_directories(BDRVVVFATState* s,
 static BDRVVVFATState *vvv = NULL;
 #endif
 
-static int enable_write_target(BDRVVVFATState *s);
+static int enable_write_target(BDRVVVFATState *s, Error **errp);
 static int is_consistent(BDRVVVFATState *s);
 
 static void vvfat_rebind(BlockDriverState *bs)
@@ -1160,7 +1160,7 @@ DLOG(if (stderr == NULL) {
     s->sector_count = cyls * heads * secs - (s->first_sectors_number - 1);
 
     if (qemu_opt_get_bool(opts, "rw", false)) {
-        ret = enable_write_target(s);
+        ret = enable_write_target(s, errp);
         if (ret < 0) {
             goto fail;
         }
@@ -2904,11 +2904,10 @@ static BlockDriver vvfat_write_target = {
     .bdrv_close         = write_target_close,
 };
 
-static int enable_write_target(BDRVVVFATState *s)
+static int enable_write_target(BDRVVVFATState *s, Error **errp)
 {
     BlockDriver *bdrv_qcow;
     QEMUOptionParameter *options;
-    Error *local_err = NULL;
     int ret;
     int size = sector2cluster(s, s->sector_count);
     s->used_clusters = calloc(size, 1);
@@ -2918,6 +2917,7 @@ static int enable_write_target(BDRVVVFATState *s)
     s->qcow_filename = g_malloc(1024);
     ret = get_tmp_filename(s->qcow_filename, 1024);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "can't create temporary file");
         goto err;
     }
 
@@ -2926,20 +2926,16 @@ static int enable_write_target(BDRVVVFATState *s)
     set_option_parameter_int(options, BLOCK_OPT_SIZE, s->sector_count * 512);
     set_option_parameter(options, BLOCK_OPT_BACKING_FILE, "fat:");
 
-    ret = bdrv_create(bdrv_qcow, s->qcow_filename, options, &local_err);
+    ret = bdrv_create(bdrv_qcow, s->qcow_filename, options, errp);
     if (ret < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         goto err;
     }
 
     s->qcow = NULL;
     ret = bdrv_open(&s->qcow, s->qcow_filename, NULL, NULL,
-            BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH, bdrv_qcow,
-            &local_err);
+                    BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH,
+                    bdrv_qcow, errp);
     if (ret < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         goto err;
     }
 
