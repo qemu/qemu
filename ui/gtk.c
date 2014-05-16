@@ -74,6 +74,12 @@
 #endif
 
 #define MAX_VCS 10
+#define VC_WINDOW_X_MIN  320
+#define VC_WINDOW_Y_MIN  240
+#define VC_TERM_X_MIN     80
+#define VC_TERM_Y_MIN     25
+#define VC_SCALE_MIN    0.25
+#define VC_SCALE_STEP   0.25
 
 #if !defined(CONFIG_VTE)
 # define VTE_CHECK_VERSION(a, b, c) 0
@@ -322,29 +328,63 @@ static void gd_update_caption(GtkDisplayState *s)
     g_free(prefix);
 }
 
+static void gd_update_geometry_hints(VirtualConsole *vc)
+{
+    GtkDisplayState *s = vc->s;
+    GdkWindowHints mask = 0;
+    GdkGeometry geo = {};
+    GtkWidget *geo_widget = NULL;
+    GtkWindow *geo_window;
+
+    if (vc->type == GD_VC_GFX) {
+        if (s->free_scale) {
+            geo.min_width  = surface_width(vc->gfx.ds) * VC_SCALE_MIN;
+            geo.min_height = surface_height(vc->gfx.ds) * VC_SCALE_MIN;
+            mask |= GDK_HINT_MIN_SIZE;
+        } else {
+            geo.min_width  = surface_width(vc->gfx.ds) * vc->gfx.scale_x;
+            geo.min_height = surface_height(vc->gfx.ds) * vc->gfx.scale_y;
+            mask |= GDK_HINT_MIN_SIZE;
+        }
+        geo_widget = vc->gfx.drawing_area;
+        gtk_widget_set_size_request(geo_widget, geo.min_width, geo.min_height);
+
+#if defined(CONFIG_VTE)
+    } else if (vc->type == GD_VC_VTE) {
+        VteTerminal *term = VTE_TERMINAL(vc->vte.terminal);
+        GtkBorder *ib;
+
+        geo.width_inc  = vte_terminal_get_char_width(term);
+        geo.height_inc = vte_terminal_get_char_height(term);
+        mask |= GDK_HINT_RESIZE_INC;
+        geo.base_width  = geo.width_inc;
+        geo.base_height = geo.height_inc;
+        mask |= GDK_HINT_BASE_SIZE;
+        geo.min_width  = geo.width_inc * VC_TERM_X_MIN;
+        geo.min_height = geo.height_inc * VC_TERM_Y_MIN;
+        mask |= GDK_HINT_MIN_SIZE;
+        gtk_widget_style_get(vc->vte.terminal, "inner-border", &ib, NULL);
+        geo.base_width  += ib->left + ib->right;
+        geo.base_height += ib->top + ib->bottom;
+        geo.min_width   += ib->left + ib->right;
+        geo.min_height  += ib->top + ib->bottom;
+        geo_widget = vc->vte.terminal;
+#endif
+    }
+
+    geo_window = GTK_WINDOW(vc->window ? vc->window : s->window);
+    gtk_window_set_geometry_hints(geo_window, geo_widget, &geo, mask);
+}
+
 static void gd_update_windowsize(VirtualConsole *vc)
 {
     GtkDisplayState *s = vc->s;
-    double sx, sy;
 
-    if (vc->type != GD_VC_GFX || s->full_screen) {
-        return;
-    }
+    gd_update_geometry_hints(vc);
 
-    if (s->free_scale) {
-        sx = 1.0;
-        sy = 1.0;
-    } else {
-        sx = vc->gfx.scale_x;
-        sy = vc->gfx.scale_y;
-    }
-    gtk_widget_set_size_request(vc->gfx.drawing_area,
-                                surface_width(vc->gfx.ds) * sx,
-                                surface_height(vc->gfx.ds) * sy);
-    if (vc->window) {
-        gtk_window_resize(GTK_WINDOW(vc->window), 320, 240);
-    } else {
-        gtk_window_resize(GTK_WINDOW(s->window), 320, 240);
+    if (vc->type == GD_VC_GFX && !s->full_screen && !s->free_scale) {
+        gtk_window_resize(GTK_WINDOW(vc->window ? vc->window : s->window),
+                          VC_WINDOW_X_MIN, VC_WINDOW_Y_MIN);
     }
 }
 
@@ -991,7 +1031,7 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
         GClosure *cb = g_cclosure_new_swap(G_CALLBACK(gd_win_grab), vc, NULL);
         gtk_accel_group_connect(ag, GDK_KEY_g, HOTKEY_MODIFIERS, 0, cb);
 
-        fprintf(stderr, "%s: %p\n", __func__, vc);
+        gd_update_geometry_hints(vc);
         gd_update_caption(s);
     }
 }
@@ -1019,9 +1059,7 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
         if (vc->type == GD_VC_GFX) {
             vc->gfx.scale_x = 1.0;
             vc->gfx.scale_y = 1.0;
-            gtk_widget_set_size_request(vc->gfx.drawing_area,
-                                        surface_width(vc->gfx.ds),
-                                        surface_height(vc->gfx.ds));
+            gd_update_windowsize(vc);
             gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
                                            FALSE);
         }
@@ -1038,8 +1076,8 @@ static void gd_menu_zoom_in(GtkMenuItem *item, void *opaque)
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->zoom_fit_item),
                                    FALSE);
 
-    vc->gfx.scale_x += .25;
-    vc->gfx.scale_y += .25;
+    vc->gfx.scale_x += VC_SCALE_STEP;
+    vc->gfx.scale_y += VC_SCALE_STEP;
 
     gd_update_windowsize(vc);
 }
@@ -1052,11 +1090,11 @@ static void gd_menu_zoom_out(GtkMenuItem *item, void *opaque)
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->zoom_fit_item),
                                    FALSE);
 
-    vc->gfx.scale_x -= .25;
-    vc->gfx.scale_y -= .25;
+    vc->gfx.scale_x -= VC_SCALE_STEP;
+    vc->gfx.scale_y -= VC_SCALE_STEP;
 
-    vc->gfx.scale_x = MAX(vc->gfx.scale_x, .25);
-    vc->gfx.scale_y = MAX(vc->gfx.scale_y, .25);
+    vc->gfx.scale_x = MAX(vc->gfx.scale_x, VC_SCALE_MIN);
+    vc->gfx.scale_y = MAX(vc->gfx.scale_y, VC_SCALE_MIN);
 
     gd_update_windowsize(vc);
 }
@@ -1083,9 +1121,9 @@ static void gd_menu_zoom_fit(GtkMenuItem *item, void *opaque)
         s->free_scale = FALSE;
         vc->gfx.scale_x = 1.0;
         vc->gfx.scale_y = 1.0;
-        gd_update_windowsize(vc);
     }
 
+    gd_update_windowsize(vc);
     gd_update_full_redraw(vc);
 }
 
@@ -1279,6 +1317,7 @@ static void gd_change_page(GtkNotebook *nb, gpointer arg1, guint arg2,
     }
     gtk_widget_set_sensitive(s->grab_item, on_vga);
 
+    gd_update_windowsize(vc);
     gd_update_cursor(vc);
 }
 
@@ -1408,7 +1447,8 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
     g_signal_connect(vc->vte.terminal, "commit", G_CALLBACK(gd_vc_in), vc);
 
     vte_terminal_set_scrollback_lines(VTE_TERMINAL(vc->vte.terminal), -1);
-    vte_terminal_set_size(VTE_TERMINAL(vc->vte.terminal), 80, 25);
+    vte_terminal_set_size(VTE_TERMINAL(vc->vte.terminal),
+                          VC_TERM_X_MIN, VC_TERM_Y_MIN);
 
 #if VTE_CHECK_VERSION(0, 28, 0) && GTK_CHECK_VERSION(3, 0, 0)
     vadjustment = gtk_scrollable_get_vadjustment
