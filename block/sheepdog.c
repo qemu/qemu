@@ -1060,19 +1060,16 @@ static int parse_vdiname(BDRVSheepdogState *s, const char *filename,
 
 static int find_vdi_name(BDRVSheepdogState *s, const char *filename,
                          uint32_t snapid, const char *tag, uint32_t *vid,
-                         bool lock)
+                         bool lock, Error **errp)
 {
-    Error *local_err = NULL;
     int ret, fd;
     SheepdogVdiReq hdr;
     SheepdogVdiRsp *rsp = (SheepdogVdiRsp *)&hdr;
     unsigned int wlen, rlen = 0;
     char buf[SD_MAX_VDI_LEN + SD_MAX_VDI_TAG_LEN];
 
-    fd = connect_to_sdog(s, &local_err);
+    fd = connect_to_sdog(s, errp);
     if (fd < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         return fd;
     }
 
@@ -1097,12 +1094,13 @@ static int find_vdi_name(BDRVSheepdogState *s, const char *filename,
 
     ret = do_req(fd, (SheepdogReq *)&hdr, buf, &wlen, &rlen);
     if (ret) {
+        error_setg_errno(errp, -ret, "cannot get vdi info");
         goto out;
     }
 
     if (rsp->result != SD_RES_SUCCESS) {
-        error_report("cannot get vdi info, %s, %s %" PRIu32 " %s",
-                     sd_strerror(rsp->result), filename, snapid, tag);
+        error_setg(errp, "cannot get vdi info, %s, %s %" PRIu32 " %s",
+                   sd_strerror(rsp->result), filename, snapid, tag);
         if (rsp->result == SD_RES_NO_VDI) {
             ret = -ENOENT;
         } else {
@@ -1279,8 +1277,10 @@ static int reload_inode(BDRVSheepdogState *s, uint32_t snapid, const char *tag)
 
     inode = g_malloc(sizeof(s->inode));
 
-    ret = find_vdi_name(s, s->name, snapid, tag, &vid, false);
+    ret = find_vdi_name(s, s->name, snapid, tag, &vid, false, &local_err);
     if (ret) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         goto out;
     }
 
@@ -1423,8 +1423,10 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 
-    ret = find_vdi_name(s, vdi, snapid, tag, &vid, true);
+    ret = find_vdi_name(s, vdi, snapid, tag, &vid, true, &local_err);
     if (ret) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         goto out;
     }
 
