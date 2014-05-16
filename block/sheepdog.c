@@ -1412,6 +1412,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
         ret = parse_vdiname(s, filename, vdi, &snapid, tag);
     }
     if (ret < 0) {
+        error_setg(errp, "Can't parse filename");
         goto out;
     }
     s->fd = get_sheep_fd(s, errp);
@@ -1453,6 +1454,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     closesocket(fd);
 
     if (ret) {
+        error_setg(errp, "Can't read snapshot inode");
         goto out;
     }
 
@@ -1654,6 +1656,7 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
         ret = parse_vdiname(s, filename, s->name, &snapid, tag);
     }
     if (ret < 0) {
+        error_setg(errp, "Can't parse filename");
         goto out;
     }
 
@@ -1677,6 +1680,8 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
             if (options->value.s) {
                 ret = parse_redundancy(s, options->value.s);
                 if (ret < 0) {
+                    error_setg(errp, "Invalid redundancy mode: '%s'",
+                               options->value.s);
                     goto out;
                 }
             }
