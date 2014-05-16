@@ -434,7 +434,7 @@ static int check_host_key(BDRVSSHState *s, const char *host, int port,
     return -EINVAL;
 }
 
-static int authenticate(BDRVSSHState *s, const char *user)
+static int authenticate(BDRVSSHState *s, const char *user, Error **errp)
 {
     int r, ret;
     const char *userauthlist;
@@ -445,7 +445,8 @@ static int authenticate(BDRVSSHState *s, const char *user)
     userauthlist = libssh2_userauth_list(s->session, user, strlen(user));
     if (strstr(userauthlist, "publickey") == NULL) {
         ret = -EPERM;
-        error_report("remote server does not support \"publickey\" authentication");
+        error_setg(errp,
+                "remote server does not support \"publickey\" authentication");
         goto out;
     }
 
@@ -453,17 +454,18 @@ static int authenticate(BDRVSSHState *s, const char *user)
     agent = libssh2_agent_init(s->session);
     if (!agent) {
         ret = -EINVAL;
-        session_error_report(s, "failed to initialize ssh-agent support");
+        session_error_setg(errp, s, "failed to initialize ssh-agent support");
         goto out;
     }
     if (libssh2_agent_connect(agent)) {
         ret = -ECONNREFUSED;
-        session_error_report(s, "failed to connect to ssh-agent");
+        session_error_setg(errp, s, "failed to connect to ssh-agent");
         goto out;
     }
     if (libssh2_agent_list_identities(agent)) {
         ret = -EINVAL;
-        session_error_report(s, "failed requesting identities from ssh-agent");
+        session_error_setg(errp, s,
+                           "failed requesting identities from ssh-agent");
         goto out;
     }
 
@@ -474,7 +476,8 @@ static int authenticate(BDRVSSHState *s, const char *user)
         }
         if (r < 0) {
             ret = -EINVAL;
-            session_error_report(s, "failed to obtain identity from ssh-agent");
+            session_error_setg(errp, s,
+                               "failed to obtain identity from ssh-agent");
             goto out;
         }
         r = libssh2_agent_userauth(agent, user, identity);
@@ -488,8 +491,8 @@ static int authenticate(BDRVSSHState *s, const char *user)
     }
 
     ret = -EPERM;
-    error_report("failed to authenticate using publickey authentication "
-                 "and the identities held by your ssh-agent");
+    error_setg(errp, "failed to authenticate using publickey authentication "
+               "and the identities held by your ssh-agent");
 
  out:
     if (agent != NULL) {
@@ -577,8 +580,10 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     }
 
     /* Authenticate. */
-    ret = authenticate(s, user);
+    ret = authenticate(s, user, &err);
     if (ret < 0) {
+        qerror_report_err(err);
+        error_free(err);
         goto err;
     }
 
