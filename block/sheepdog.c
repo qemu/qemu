@@ -1481,19 +1481,17 @@ out:
     return ret;
 }
 
-static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot)
+static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot,
+                        Error **errp)
 {
-    Error *local_err = NULL;
     SheepdogVdiReq hdr;
     SheepdogVdiRsp *rsp = (SheepdogVdiRsp *)&hdr;
     int fd, ret;
     unsigned int wlen, rlen = 0;
     char buf[SD_MAX_VDI_LEN];
 
-    fd = connect_to_sdog(s, &local_err);
+    fd = connect_to_sdog(s, errp);
     if (fd < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
         return fd;
     }
 
@@ -1522,11 +1520,12 @@ static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot)
     closesocket(fd);
 
     if (ret) {
+        error_setg_errno(errp, -ret, "create failed");
         return ret;
     }
 
     if (rsp->result != SD_RES_SUCCESS) {
-        error_report("%s, %s", sd_strerror(rsp->result), s->inode.name);
+        error_setg(errp, "%s, %s", sd_strerror(rsp->result), s->inode.name);
         return -EIO;
     }
 
@@ -1731,15 +1730,19 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
         bdrv_unref(bs);
     }
 
-    ret = do_sd_create(s, &vid, 0);
-    if (!prealloc || ret) {
+    ret = do_sd_create(s, &vid, 0, &local_err);
+    if (ret) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         goto out;
     }
 
-    ret = sd_prealloc(filename, &local_err);
-    if (ret < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+    if (prealloc) {
+        ret = sd_prealloc(filename, &local_err);
+        if (ret < 0) {
+            qerror_report_err(local_err);
+            error_free(local_err);
+        }
     }
 out:
     g_free(s);
@@ -1928,8 +1931,10 @@ static int sd_create_branch(BDRVSheepdogState *s)
      * false bail out.
      */
     deleted = sd_delete(s);
-    ret = do_sd_create(s, &vid, !deleted);
+    ret = do_sd_create(s, &vid, !deleted, &local_err);
     if (ret) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         goto out;
     }
 
@@ -2197,8 +2202,10 @@ static int sd_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
         goto cleanup;
     }
 
-    ret = do_sd_create(s, &new_vid, 1);
+    ret = do_sd_create(s, &new_vid, 1, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         error_report("failed to create inode for snapshot. %s",
                      strerror(errno));
         goto cleanup;
