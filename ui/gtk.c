@@ -85,6 +85,20 @@
 # define VTE_CHECK_VERSION(a, b, c) 0
 #endif
 
+#if defined(CONFIG_VTE) && !GTK_CHECK_VERSION(3, 0, 0)
+/*
+ * The gtk2 vte terminal widget seriously messes up the window resize
+ * for some reason.  You basically can't make the qemu window smaller
+ * any more because the toplevel window geoemtry hints are overridden.
+ *
+ * Workaround that by hiding all vte widgets, except the one in the
+ * current tab.
+ *
+ * Luckily everything works smooth in gtk3.
+ */
+# define VTE_RESIZE_HACK 1
+#endif
+
 /* Compatibility define to let us build on both Gtk2 and Gtk3 */
 #if GTK_CHECK_VERSION(3, 0, 0)
 static inline void gdk_drawable_get_size(GdkWindow *w, gint *ww, gint *wh)
@@ -1301,10 +1315,21 @@ static void gd_change_page(GtkNotebook *nb, gpointer arg1, guint arg2,
         return;
     }
 
+#ifdef VTE_RESIZE_HACK
+    vc = gd_vc_find_current(s);
+    if (vc && vc->type == GD_VC_VTE) {
+        gtk_widget_hide(vc->vte.terminal);
+    }
+#endif
     vc = gd_vc_find_by_page(s, arg2);
     if (!vc) {
         return;
     }
+#ifdef VTE_RESIZE_HACK
+    if (vc->type == GD_VC_VTE) {
+        gtk_widget_show(vc->vte.terminal);
+    }
+#endif
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(vc->menu_item),
                                    TRUE);
     on_vga = (vc->type == GD_VC_GFX);
@@ -1844,6 +1869,21 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
     gtk_container_add(GTK_CONTAINER(s->window), s->vbox);
 
     gtk_widget_show_all(s->window);
+
+#ifdef VTE_RESIZE_HACK
+    {
+        VirtualConsole *cur = gd_vc_find_current(s);
+        int i;
+
+        for (i = 0; i < s->nb_vcs; i++) {
+            VirtualConsole *vc = &s->vc[i];
+            if (vc && vc->type == GD_VC_VTE && vc != cur) {
+                gtk_widget_hide(vc->vte.terminal);
+            }
+        }
+        gd_update_windowsize(cur);
+    }
+#endif
 
     if (full_screen) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->full_screen_item));
