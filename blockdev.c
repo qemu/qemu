@@ -34,7 +34,6 @@
 #include "hw/block/block.h"
 #include "block/blockjob.h"
 #include "monitor/monitor.h"
-#include "qapi/qmp/qerror.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qapi/qmp/types.h"
@@ -1763,7 +1762,7 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
     bs = bdrv_find(id);
     if (!bs) {
-        qerror_report(QERR_DEVICE_NOT_FOUND, id);
+        error_report("Device '%s' not found", id);
         return -1;
     }
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, &local_err)) {
