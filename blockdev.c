@@ -288,6 +288,25 @@ static int parse_block_error_action(const char *buf, bool is_read, Error **errp)
     }
 }
 
+static inline int parse_enum_option(const char *lookup[], const char *buf,
+                                    int max, int def, Error **errp)
+{
+    int i;
+
+    if (!buf) {
+        return def;
+    }
+
+    for (i = 0; i < max; i++) {
+        if (!strcmp(buf, lookup[i])) {
+            return i;
+        }
+    }
+
+    error_setg(errp, "invalid parameter value: %s", buf);
+    return def;
+}
+
 static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
 {
     if (throttle_conflicting(cfg)) {
