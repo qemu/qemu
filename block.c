@@ -3289,6 +3289,15 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
 
     ret = notifier_with_return_list_notify(&bs->before_write_notifiers, req);
 
+    if (!ret && bs->detect_zeroes != BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF &&
+        !(flags & BDRV_REQ_ZERO_WRITE) && drv->bdrv_co_write_zeroes &&
+        qemu_iovec_is_zero(qiov)) {
+        flags |= BDRV_REQ_ZERO_WRITE;
+        if (bs->detect_zeroes == BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP) {
+            flags |= BDRV_REQ_MAY_UNMAP;
+        }
+    }
+
     if (ret < 0) {
         /* Do nothing, write notifier decided to fail this request */
     } else if (flags & BDRV_REQ_ZERO_WRITE) {

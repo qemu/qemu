@@ -343,6 +343,7 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     QemuOpts *opts;
     const char *id;
     bool has_driver_specific_opts;
+    BlockdevDetectZeroesOptions detect_zeroes;
     BlockDriver *drv = NULL;
 
     /* Check common options by copying from bs_opts to opts, all other options
@@ -471,6 +472,24 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
         }
     }
 
+    detect_zeroes =
+        parse_enum_option(BlockdevDetectZeroesOptions_lookup,
+                          qemu_opt_get(opts, "detect-zeroes"),
+                          BLOCKDEV_DETECT_ZEROES_OPTIONS_MAX,
+                          BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
+                          &error);
+    if (error) {
+        error_propagate(errp, error);
+        goto early_err;
+    }
+
+    if (detect_zeroes == BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP &&
+        !(bdrv_flags & BDRV_O_UNMAP)) {
+        error_setg(errp, "setting detect-zeroes to unmap is not allowed "
+                         "without setting discard operation to unmap");
+        goto early_err;
+    }
+
     /* init */
     dinfo = g_malloc0(sizeof(*dinfo));
     dinfo->id = g_strdup(qemu_opts_id(opts));
@@ -481,6 +500,7 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     }
     dinfo->bdrv->open_flags = snapshot ? BDRV_O_SNAPSHOT : 0;
     dinfo->bdrv->read_only = ro;
+    dinfo->bdrv->detect_zeroes = detect_zeroes;
     dinfo->refcount = 1;
     if (serial != NULL) {
         dinfo->serial = g_strdup(serial);
@@ -2474,6 +2494,10 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "copy-on-read",
             .type = QEMU_OPT_BOOL,
             .help = "copy read data from backing file into image file",
+        },{
+            .name = "detect-zeroes",
+            .type = QEMU_OPT_STRING,
+            .help = "try to optimize zero writes (off, on, unmap)",
         },
         { /* end of list */ }
     },

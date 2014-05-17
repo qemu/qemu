@@ -364,6 +364,7 @@ struct BlockDriverState {
     BlockJob *job;
 
     QDict *options;
+    BlockdevDetectZeroesOptions detect_zeroes;
 };
 
 int get_tmp_filename(char *filename, int size);

@@ -942,6 +942,8 @@
 # @encryption_key_missing: true if the backing device is encrypted but an
 #                          valid encryption key is missing
 #
+# @detect_zeroes: detect and optimize zero writes (Since 2.1)
+#
 # @bps: total throughput limit in bytes per second is specified
 #
 # @bps_rd: read throughput limit in bytes per second is specified
@@ -977,6 +979,7 @@
   'data': { 'file': 'str', '*node-name': 'str', 'ro': 'bool', 'drv': 'str',
             '*backing_file': 'str', 'backing_file_depth': 'int',
             'encrypted': 'bool', 'encryption_key_missing': 'bool',
+            'detect_zeroes': 'BlockdevDetectZeroesOptions',
             'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
             'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
             'image': 'ImageInfo',
@@ -4255,6 +4258,22 @@
   'data': [ 'ignore', 'unmap' ] }
 
 ##
+# @BlockdevDetectZeroesOptions
+#
+# Describes the operation mode for the automatic conversion of plain
+# zero writes by the OS to driver specific optimized zero write commands.
+#
+# @off:      Disabled (default)
+# @on:       Enabled
+# @unmap:    Enabled and even try to unmap blocks if possible. This requires
+#            also that @BlockdevDiscardOptions is set to unmap for this device.
+#
+# Since: 2.1
+##
+{ 'enum': 'BlockdevDetectZeroesOptions',
+  'data': [ 'off', 'on', 'unmap' ] }
+
+##
 # @BlockdevAioOptions
 #
 # Selects the AIO backend to handle I/O requests
@@ -4306,20 +4325,22 @@
 # Options that are available for all block devices, independent of the block
 # driver.
 #
-# @driver:      block driver name
-# @id:          #optional id by which the new block device can be referred to.
-#               This is a required option on the top level of blockdev-add, and
-#               currently not allowed on any other level.
-# @node-name:   #optional the name of a block driver state node (Since 2.0)
-# @discard:     #optional discard-related options (default: ignore)
-# @cache:       #optional cache-related options
-# @aio:         #optional AIO backend (default: threads)
-# @rerror:      #optional how to handle read errors on the device
-#               (default: report)
-# @werror:      #optional how to handle write errors on the device
-#               (default: enospc)
-# @read-only:   #optional whether the block device should be read-only
-#               (default: false)
+# @driver:        block driver name
+# @id:            #optional id by which the new block device can be referred to.
+#                 This is a required option on the top level of blockdev-add, and
+#                 currently not allowed on any other level.
+# @node-name:     #optional the name of a block driver state node (Since 2.0)
+# @discard:       #optional discard-related options (default: ignore)
+# @cache:         #optional cache-related options
+# @aio:           #optional AIO backend (default: threads)
+# @rerror:        #optional how to handle read errors on the device
+#                 (default: report)
+# @werror:        #optional how to handle write errors on the device
+#                 (default: enospc)
+# @read-only:     #optional whether the block device should be read-only
+#                 (default: false)
+# @detect-zeroes: #optional detect and optimize zero writes (Since 2.1)
+#                 (default: off)
 #
 # Since: 1.7
 ##
@@ -4332,7 +4353,8 @@
             '*aio': 'BlockdevAioOptions',
             '*rerror': 'BlockdevOnError',
             '*werror': 'BlockdevOnError',
-            '*read-only': 'bool' } }
+            '*read-only': 'bool',
+            '*detect-zeroes': 'BlockdevDetectZeroesOptions' } }
 
 ##
 # @BlockdevOptionsFile

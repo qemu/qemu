@@ -2032,6 +2032,8 @@ Each json-object contain the following:
          - "iops_rd_max":  read I/O operations max (json-int)
          - "iops_wr_max":  write I/O operations max (json-int)
          - "iops_size": I/O size when limiting by iops (json-int)
+         - "detect_zeroes": detect and optimize zero writing (json-string)
+             - Possible values: "off", "on", "unmap"
          - "image": the detail of the image, it is a json-object containing
             the following:
              - "filename": image file name (json-string)
@@ -2108,6 +2110,7 @@ Example:
                "iops_rd_max": 0,
                "iops_wr_max": 0,
                "iops_size": 0,
+               "detect_zeroes": "on",
                "image":{
                   "filename":"disks/test.qcow2",
                   "format":"qcow2",
