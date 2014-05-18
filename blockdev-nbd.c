@@ -91,6 +91,10 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
     }
+    if (!bdrv_is_inserted(bs)) {
+        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        return;
+    }
 
     if (!has_writable) {
         writable = false;
