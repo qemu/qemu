@@ -1001,6 +1001,7 @@ static void nbd_trip(void *opaque)
     struct nbd_request request;
     struct nbd_reply reply;
     ssize_t ret;
+    uint32_t command;
 
     TRACE("Reading request.");
     if (client->closing) {
@@ -1023,8 +1024,8 @@ static void nbd_trip(void *opaque)
         reply.error = -ret;
         goto error_reply;
     }
-
-    if ((request.from + request.len) > exp->size) {
+    command = request.type & NBD_CMD_MASK_COMMAND;
+    if (command != NBD_CMD_DISC && (request.from + request.len) > exp->size) {
             LOG("From: %" PRIu64 ", Len: %u, Size: %" PRIu64
             ", Offset: %" PRIu64 "\n",
                     request.from, request.len,
@@ -1033,7 +1034,7 @@ static void nbd_trip(void *opaque)
         goto invalid_request;
     }
 
-    switch (request.type & NBD_CMD_MASK_COMMAND) {
+    switch (command) {
     case NBD_CMD_READ:
         TRACE("Request type is READ");
 
