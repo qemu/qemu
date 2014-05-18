@@ -337,6 +337,27 @@ static void pmac_ide_transfer(DBDMA_io *io)
 
     s->io_buffer_size = 0;
     if (s->drive_kind == IDE_CD) {
+
+        /* Handle non-block ATAPI DMA transfers */
+        if (s->lba == -1) {
+            s->io_buffer_size = MIN(io->len, s->packet_transfer_size);
+            bdrv_acct_start(s->bs, &s->acct, s->io_buffer_size,
+                            BDRV_ACCT_READ);
+            MACIO_DPRINTF("non-block ATAPI DMA transfer size: %d\n",
+                          s->io_buffer_size);
+
+            /* Copy ATAPI buffer directly to RAM and finish */
+            cpu_physical_memory_write(io->addr, s->io_buffer,
+                                      s->io_buffer_size);
+            ide_atapi_cmd_ok(s);
+            m->dma_active = false;
+
+            MACIO_DPRINTF("end of non-block ATAPI DMA transfer\n");
+            bdrv_acct_done(s->bs, &s->acct);
+            io->dma_end(io);
+            return;
+        }
+
         bdrv_acct_start(s->bs, &s->acct, io->len, BDRV_ACCT_READ);
         pmac_ide_atapi_transfer_cb(io, 0);
         return;
