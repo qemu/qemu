@@ -1162,28 +1162,39 @@ static void gd_menu_zoom_fit(GtkMenuItem *item, void *opaque)
     gd_update_full_redraw(vc);
 }
 
+#if GTK_CHECK_VERSION(3, 0, 0)
+static void gd_grab_devices(VirtualConsole *vc, bool grab,
+                            GdkInputSource source, GdkEventMask mask,
+                            GdkCursor *cursor)
+{
+    GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
+    GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
+    GList *devs = gdk_device_manager_list_devices(mgr, GDK_DEVICE_TYPE_MASTER);
+    GList *tmp = devs;
+
+    for (tmp = devs; tmp; tmp = tmp->next) {
+        GdkDevice *dev = tmp->data;
+        if (gdk_device_get_source(dev) != source) {
+            continue;
+        }
+        if (grab) {
+            GdkWindow *win = gtk_widget_get_window(vc->gfx.drawing_area);
+            gdk_device_grab(dev, win, GDK_OWNERSHIP_NONE, FALSE,
+                            mask, cursor, GDK_CURRENT_TIME);
+        } else {
+            gdk_device_ungrab(dev, GDK_CURRENT_TIME);
+        }
+    }
+    g_list_free(devs);
+}
+#endif
+
 static void gd_grab_keyboard(VirtualConsole *vc)
 {
 #if GTK_CHECK_VERSION(3, 0, 0)
-    GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
-    GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
-    GList *devices = gdk_device_manager_list_devices(mgr,
-                                                     GDK_DEVICE_TYPE_MASTER);
-    GList *tmp = devices;
-    while (tmp) {
-        GdkDevice *dev = tmp->data;
-        if (gdk_device_get_source(dev) == GDK_SOURCE_KEYBOARD) {
-            gdk_device_grab(dev,
-                            gtk_widget_get_window(vc->gfx.drawing_area),
-                            GDK_OWNERSHIP_NONE,
-                            FALSE,
-                            GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
-                            NULL,
-                            GDK_CURRENT_TIME);
-        }
-        tmp = tmp->next;
-    }
-    g_list_free(devices);
+    gd_grab_devices(vc, true, GDK_SOURCE_KEYBOARD,
+                   GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
+                   NULL);
 #else
     gdk_keyboard_grab(gtk_widget_get_window(vc->gfx.drawing_area),
                       FALSE,
@@ -1203,20 +1214,7 @@ static void gd_ungrab_keyboard(GtkDisplayState *s)
     s->kbd_owner = NULL;
 
 #if GTK_CHECK_VERSION(3, 0, 0)
-    GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
-    GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
-    GList *devices = gdk_device_manager_list_devices(mgr,
-                                                     GDK_DEVICE_TYPE_MASTER);
-    GList *tmp = devices;
-    while (tmp) {
-        GdkDevice *dev = tmp->data;
-        if (gdk_device_get_source(dev) == GDK_SOURCE_KEYBOARD) {
-            gdk_device_ungrab(dev,
-                              GDK_CURRENT_TIME);
-        }
-        tmp = tmp->next;
-    }
-    g_list_free(devices);
+    gd_grab_devices(vc, false, GDK_SOURCE_KEYBOARD, 0, NULL);
 #else
     gdk_keyboard_ungrab(GDK_CURRENT_TIME);
 #endif
@@ -1228,28 +1226,13 @@ static void gd_grab_pointer(VirtualConsole *vc)
     GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
 #if GTK_CHECK_VERSION(3, 0, 0)
     GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
-    GList *devices = gdk_device_manager_list_devices(mgr,
-                                                     GDK_DEVICE_TYPE_MASTER);
-    GList *tmp = devices;
-    while (tmp) {
-        GdkDevice *dev = tmp->data;
-        if (gdk_device_get_source(dev) == GDK_SOURCE_MOUSE) {
-            gdk_device_grab(dev,
-                            gtk_widget_get_window(vc->gfx.drawing_area),
-                            GDK_OWNERSHIP_NONE,
-                            FALSE, /* All events to come to our
-                                      window directly */
-                            GDK_POINTER_MOTION_MASK |
-                            GDK_BUTTON_PRESS_MASK |
-                            GDK_BUTTON_RELEASE_MASK |
-                            GDK_BUTTON_MOTION_MASK |
-                            GDK_SCROLL_MASK,
-                            vc->s->null_cursor,
-                            GDK_CURRENT_TIME);
-        }
-        tmp = tmp->next;
-    }
-    g_list_free(devices);
+    gd_grab_devices(vc, true, GDK_SOURCE_MOUSE,
+                    GDK_POINTER_MOTION_MASK |
+                    GDK_BUTTON_PRESS_MASK |
+                    GDK_BUTTON_RELEASE_MASK |
+                    GDK_BUTTON_MOTION_MASK |
+                    GDK_SCROLL_MASK,
+                    vc->s->null_cursor);
     gdk_device_get_position(gdk_device_manager_get_client_pointer(mgr),
                             NULL, &vc->s->grab_x_root, &vc->s->grab_y_root);
 #else
@@ -1282,18 +1265,7 @@ static void gd_ungrab_pointer(GtkDisplayState *s)
     GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
 #if GTK_CHECK_VERSION(3, 0, 0)
     GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
-    GList *devices = gdk_device_manager_list_devices(mgr,
-                                                     GDK_DEVICE_TYPE_MASTER);
-    GList *tmp = devices;
-    while (tmp) {
-        GdkDevice *dev = tmp->data;
-        if (gdk_device_get_source(dev) == GDK_SOURCE_MOUSE) {
-            gdk_device_ungrab(dev,
-                              GDK_CURRENT_TIME);
-        }
-        tmp = tmp->next;
-    }
-    g_list_free(devices);
+    gd_grab_devices(vc, false, GDK_SOURCE_MOUSE, 0, NULL);
     gdk_device_warp(gdk_device_manager_get_client_pointer(mgr),
                     gtk_widget_get_screen(vc->gfx.drawing_area),
                     vc->s->grab_x_root, vc->s->grab_y_root);
