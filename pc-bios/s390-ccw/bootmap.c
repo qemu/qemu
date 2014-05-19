@@ -74,6 +74,171 @@ static void jump_to_IPL_code(uint64_t address)
 }
 
 /***********************************************************************
+ * IPL an ECKD DASD (CDL or LDL/CMS format)
+ */
+
+static unsigned char _bprs[8*1024]; /* guessed "max" ECKD sector size */
+const int max_bprs_entries = sizeof(_bprs) / sizeof(ExtEckdBlockPtr);
+
+static bool eckd_valid_address(BootMapPointer *p)
+{
+    const uint64_t cylinder = p->eckd.cylinder
+                            + ((p->eckd.head & 0xfff0) << 12);
+    const uint64_t head = p->eckd.head & 0x000f;
+
+    if (head >= virtio_get_heads()
+        ||  p->eckd.sector > virtio_get_sectors()
+        ||  p->eckd.sector <= 0) {
+        return false;
+    }
+
+    if (!virtio_guessed_disk_nature() && cylinder >= virtio_get_cylinders()) {
+        return false;
+    }
+
+    return true;
+}
+
+static block_number_t eckd_block_num(BootMapPointer *p)
+{
+    const uint64_t sectors = virtio_get_sectors();
+    const uint64_t heads = virtio_get_heads();
+    const uint64_t cylinder = p->eckd.cylinder
+                            + ((p->eckd.head & 0xfff0) << 12);
+    const uint64_t head = p->eckd.head & 0x000f;
+    const block_number_t block = sectors * heads * cylinder
+                               + sectors * head
+                               + p->eckd.sector
+                               - 1; /* block nr starts with zero */
+    return block;
+}
+
+static block_number_t load_eckd_segments(block_number_t blk, uint64_t *address)
+{
+    block_number_t block_nr;
+    int j, rc;
+    BootMapPointer *bprs = (void *)_bprs;
+    bool more_data;
+
+    memset(_bprs, FREE_SPACE_FILLER, sizeof(_bprs));
+    read_block(blk, bprs, "BPRS read failed");
+
+    do {
+        more_data = false;
+        for (j = 0;; j++) {
+            block_nr = eckd_block_num((void *)&(bprs[j].xeckd));
+            if (is_null_block_number(block_nr)) { /* end of chunk */
+                break;
+            }
+
+            /* we need the updated blockno for the next indirect entry
+             * in the chain, but don't want to advance address
+             */
+            if (j == (max_bprs_entries - 1)) {
+                break;
+            }
+
+            IPL_assert(block_size_ok(bprs[j].xeckd.bptr.size),
+                       "bad chunk block size");
+            IPL_assert(eckd_valid_address(&bprs[j]), "bad chunk ECKD addr");
+
+            if ((bprs[j].xeckd.bptr.count == 0) && unused_space(&(bprs[j+1]),
+                sizeof(EckdBlockPtr))) {
+                /* This is a "continue" pointer.
+                 * This ptr should be the last one in the current
+                 * script section.
+                 * I.e. the next ptr must point to the unused memory area
+                 */
+                memset(_bprs, FREE_SPACE_FILLER, sizeof(_bprs));
+                read_block(block_nr, bprs, "BPRS continuation read failed");
+                more_data = true;
+                break;
+            }
+
+            /* Load (count+1) blocks of code at (block_nr)
+             * to memory (address).
+             */
+            rc = virtio_read_many(block_nr, (void *)(*address),
+                                  bprs[j].xeckd.bptr.count+1);
+            IPL_assert(rc == 0, "code chunk read failed");
+
+            *address += (bprs[j].xeckd.bptr.count+1) * virtio_get_block_size();
+        }
+    } while (more_data);
+    return block_nr;
+}
+
+static void run_eckd_boot_script(block_number_t mbr_block_nr)
+{
+    int i;
+    block_number_t block_nr;
+    uint64_t address;
+    ScsiMbr *scsi_mbr = (void *)sec;
+    BootMapScript *bms = (void *)sec;
+
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(mbr_block_nr, sec, "Cannot read MBR");
+
+    block_nr = eckd_block_num((void *)&(scsi_mbr->blockptr));
+
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(block_nr, sec, "Cannot read Boot Map Script");
+
+    for (i = 0; bms->entry[i].type == BOOT_SCRIPT_LOAD; i++) {
+        address = bms->entry[i].address.load_address;
+        block_nr = eckd_block_num(&(bms->entry[i].blkptr));
+
+        do {
+            block_nr = load_eckd_segments(block_nr, &address);
+        } while (block_nr != -1);
+    }
+
+    IPL_assert(bms->entry[i].type == BOOT_SCRIPT_EXEC,
+               "Unknown script entry type");
+    jump_to_IPL_code(bms->entry[i].address.load_address); /* no return */
+}
+
+static void ipl_eckd(void)
+{
+    XEckdMbr *mbr;
+    Ipl2 *ipl2 = (void *)sec;
+    IplVolumeLabel *vlbl = (void *)sec;
+    block_number_t block_nr;
+
+    sclp_print("Using ECKD scheme.\n");
+    if (virtio_guessed_disk_nature()) {
+        sclp_print("Using guessed DASD geometry.\n");
+        virtio_assume_eckd();
+    }
+    /* we have just read the block #0 and recognized it as "IPL1" */
+
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(1, ipl2, "Cannot read IPL2 record at block 1");
+    IPL_assert(magic_match(ipl2, IPL2_MAGIC), "No IPL2 record");
+
+    mbr = &ipl2->u.x.mbr;
+    IPL_assert(magic_match(mbr, ZIPL_MAGIC), "No zIPL section in IPL2 record.");
+    IPL_assert(block_size_ok(mbr->blockptr.xeckd.bptr.size),
+               "Bad block size in zIPL section of IPL2 record.");
+    IPL_assert(mbr->dev_type == DEV_TYPE_ECKD,
+               "Non-ECKD device type in zIPL section of IPL2 record.");
+
+    /* save pointer to Boot Script */
+    block_nr = eckd_block_num((void *)&(mbr->blockptr));
+
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(2, vlbl, "Cannot read Volume Label at block 2");
+    IPL_assert(magic_match(vlbl->key, VOL1_MAGIC),
+               "Invalid magic of volume label block");
+    IPL_assert(magic_match(vlbl->f.key, VOL1_MAGIC),
+               "Invalid magic of volser block");
+    print_volser(vlbl->f.volser);
+
+    run_eckd_boot_script(block_nr);
+    /* no return */
+}
+
+/***********************************************************************
  * IPL a SCSI disk
  */
 
@@ -218,6 +383,9 @@ void zipl_load(void)
 
     if (magic_match(mbr->magic, ZIPL_MAGIC)) {
         ipl_scsi(); /* no return */
+    }
+    if (magic_match(mbr->magic, IPL1_MAGIC)) {
+        ipl_eckd(); /* CDL ECKD; no return */
     }
 
     virtio_panic("\n* invalid MBR magic *\n");
