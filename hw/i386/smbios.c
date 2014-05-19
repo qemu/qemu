@@ -67,7 +67,7 @@ static DECLARE_BITMAP(have_fields_bitmap, SMBIOS_MAX_TYPE+1);
 
 static struct {
     const char *vendor, *version, *date;
-    bool have_major_minor;
+    bool have_major_minor, uefi;
     uint8_t major, minor;
 } type0;
 
@@ -134,6 +134,10 @@ static const QemuOptDesc qemu_smbios_type0_opts[] = {
         .name = "release",
         .type = QEMU_OPT_STRING,
         .help = "revision number",
+    },{
+        .name = "uefi",
+        .type = QEMU_OPT_BOOL,
+        .help = "uefi support",
     },
     { /* end of list */ }
 };
@@ -497,13 +501,12 @@ static void smbios_build_type_0_table(void)
 
     t->bios_rom_size = 0; /* hardcoded in SeaBIOS with FIXME comment */
 
-    /* BIOS characteristics not supported */
-    memset(t->bios_characteristics, 0, 8);
-    t->bios_characteristics[0] = 0x08;
-
-    /* Enable targeted content distribution (needed for SVVP, per SeaBIOS) */
+    t->bios_characteristics = cpu_to_le64(0x08); /* Not supported */
     t->bios_characteristics_extension_bytes[0] = 0;
-    t->bios_characteristics_extension_bytes[1] = 4;
+    t->bios_characteristics_extension_bytes[1] = 0x14; /* TCD/SVVP | VM */
+    if (type0.uefi) {
+        t->bios_characteristics_extension_bytes[1] |= 0x08; /* |= UEFI */
+    }
 
     if (type0.have_major_minor) {
         t->system_bios_major_release = type0.major;
@@ -979,6 +982,7 @@ void smbios_entry_add(QemuOpts *opts)
             save_opt(&type0.vendor, opts, "vendor");
             save_opt(&type0.version, opts, "version");
             save_opt(&type0.date, opts, "date");
+            type0.uefi = qemu_opt_get_bool(opts, "uefi", false);
 
             val = qemu_opt_get(opts, "release");
             if (val) {
