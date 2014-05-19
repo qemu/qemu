@@ -10,7 +10,7 @@
 
 #include "s390-ccw.h"
 
-// #define DEBUG_FALLBACK
+/* #define DEBUG_FALLBACK */
 
 #ifdef DEBUG_FALLBACK
 #define dputs(txt) \
@@ -47,13 +47,13 @@ struct mbr {
     struct scsi_blockptr blockptr;
 } __attribute__ ((packed));
 
-#define ZIPL_MAGIC			"zIPL"
+#define ZIPL_MAGIC              "zIPL"
 
-#define ZIPL_COMP_HEADER_IPL		0x00
-#define ZIPL_COMP_HEADER_DUMP		0x01
+#define ZIPL_COMP_HEADER_IPL    0x00
+#define ZIPL_COMP_HEADER_DUMP   0x01
 
-#define ZIPL_COMP_ENTRY_LOAD		0x02
-#define ZIPL_COMP_ENTRY_EXEC		0x01
+#define ZIPL_COMP_ENTRY_LOAD    0x02
+#define ZIPL_COMP_ENTRY_EXEC    0x01
 
 /* Scratch space */
 static uint8_t sec[SECTOR_SIZE] __attribute__((__aligned__(SECTOR_SIZE)));
@@ -107,8 +107,8 @@ static void jump_to_IPL_code(uint64_t address)
 /* Check for ZIPL magic. Returns 0 if not matched. */
 static int zipl_magic(uint8_t *ptr)
 {
-    uint32_t *p = (void*)ptr;
-    uint32_t *z = (void*)ZIPL_MAGIC;
+    uint32_t *p = (void *)ptr;
+    uint32_t *z = (void *)ZIPL_MAGIC;
 
     if (*p != *z) {
         debug_print_int("invalid magic", *p);
@@ -136,7 +136,7 @@ static inline bool unused_space(const void *p, unsigned int size)
 static int zipl_load_segment(struct component_entry *entry)
 {
     const int max_entries = (SECTOR_SIZE / sizeof(struct scsi_blockptr));
-    struct scsi_blockptr *bprs = (void*)sec;
+    struct scsi_blockptr *bprs = (void *)sec;
     const int bprs_size = sizeof(sec);
     uint64_t blockno;
     long address;
@@ -156,16 +156,18 @@ static int zipl_load_segment(struct component_entry *entry)
         }
 
         for (i = 0;; i++) {
-            u64 *cur_desc = (void*)&bprs[i];
+            u64 *cur_desc = (void *)&bprs[i];
 
             blockno = bprs[i].blockno;
-            if (!blockno)
+            if (!blockno) {
                 break;
+            }
 
             /* we need the updated blockno for the next indirect entry in the
                chain, but don't want to advance address */
-            if (i == (max_entries - 1))
+            if (i == (max_entries - 1)) {
                 break;
+            }
 
             if (bprs[i].blockct == 0 && unused_space(&bprs[i + 1],
                 sizeof(struct scsi_blockptr))) {
@@ -178,9 +180,10 @@ static int zipl_load_segment(struct component_entry *entry)
                 break;
             }
             address = virtio_load_direct(cur_desc[0], cur_desc[1], 0,
-                                         (void*)address);
-            if (address == -1)
+                                         (void *)address);
+            if (address == -1) {
                 goto fail;
+            }
         }
     } while (blockno);
 
@@ -220,7 +223,7 @@ static int zipl_run(struct scsi_blockptr *pte)
 
         entry++;
 
-        if ((uint8_t*)(&entry[1]) > (tmp_sec + SECTOR_SIZE)) {
+        if ((uint8_t *)(&entry[1]) > (tmp_sec + SECTOR_SIZE)) {
             goto fail;
         }
     }
@@ -241,7 +244,7 @@ fail:
 
 int zipl_load(void)
 {
-    struct mbr *mbr = (void*)sec;
+    struct mbr *mbr = (void *)sec;
     uint8_t *ns, *ns_end;
     int program_table_entries = 0;
     int pte_len = sizeof(struct scsi_blockptr);
@@ -249,7 +252,7 @@ int zipl_load(void)
     const char *error = "";
 
     /* Grab the MBR */
-    virtio_read(0, (void*)mbr);
+    virtio_read(0, (void *)mbr);
 
     dputs("checking magic\n");
 

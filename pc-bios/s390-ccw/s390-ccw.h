@@ -34,10 +34,10 @@ typedef unsigned long long __u64;
 #define PAGE_SIZE 4096
 
 #ifndef EIO
-#define EIO	1
+#define EIO     1
 #endif
 #ifndef EBUSY
-#define EBUSY	2
+#define EBUSY   2
 #endif
 #ifndef NULL
 #define NULL    0
@@ -57,7 +57,7 @@ void sclp_setup(void);
 
 /* virtio.c */
 unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
-				 ulong subchan_id, void *load_addr);
+                                 ulong subchan_id, void *load_addr);
 bool virtio_is_blk(struct subchannel_id schid);
 void virtio_setup_block(struct subchannel_id schid);
 int virtio_read(ulong sector, void *load_addr);
@@ -88,7 +88,7 @@ static inline void fill_hex(char *out, unsigned char val)
 
 static inline void print_int(const char *desc, u64 addr)
 {
-    unsigned char *addr_c = (unsigned char*)&addr;
+    unsigned char *addr_c = (unsigned char *)&addr;
     char out[] = ": 0xffffffffffffffff\n";
     unsigned int i;
 
@@ -118,16 +118,16 @@ static inline void debug_print_addr(const char *desc, void *p)
  *           Hypercall functions               *
  ***********************************************/
 
-#define KVM_S390_VIRTIO_NOTIFY		0
-#define KVM_S390_VIRTIO_RESET		1
-#define KVM_S390_VIRTIO_SET_STATUS	2
+#define KVM_S390_VIRTIO_NOTIFY          0
+#define KVM_S390_VIRTIO_RESET           1
+#define KVM_S390_VIRTIO_SET_STATUS      2
 #define KVM_S390_VIRTIO_CCW_NOTIFY      3
 
 static inline void yield(void)
 {
-	asm volatile ("diag 0,0,0x44"
-                      : :
-		      : "memory", "cc");
+    asm volatile ("diag 0,0,0x44"
+                  : :
+                  : "memory", "cc");
 }
 
 #define SECTOR_SIZE 512

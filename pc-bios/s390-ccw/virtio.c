@@ -18,22 +18,22 @@ static char chsc_page[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
 static long kvm_hypercall(unsigned long nr, unsigned long param1,
                           unsigned long param2)
 {
-	register ulong r_nr asm("1") = nr;
-	register ulong r_param1 asm("2") = param1;
-	register ulong r_param2 asm("3") = param2;
-	register long retval asm("2");
+    register ulong r_nr asm("1") = nr;
+    register ulong r_param1 asm("2") = param1;
+    register ulong r_param2 asm("3") = param2;
+    register long retval asm("2");
 
-	asm volatile ("diag 2,4,0x500"
-		      : "=d" (retval)
-		      : "d" (r_nr), "0" (r_param1), "r"(r_param2)
-		      : "memory", "cc");
+    asm volatile ("diag 2,4,0x500"
+                  : "=d" (retval)
+                  : "d" (r_nr), "0" (r_param1), "r"(r_param2)
+                  : "memory", "cc");
 
-	return retval;
+    return retval;
 }
 
 static void virtio_notify(struct subchannel_id schid)
 {
-    kvm_hypercall(KVM_S390_VIRTIO_CCW_NOTIFY, *(u32*)&schid, 0);
+    kvm_hypercall(KVM_S390_VIRTIO_CCW_NOTIFY, *(u32 *)&schid, 0);
 }
 
 /***********************************************
@@ -236,7 +236,7 @@ static int virtio_read_many(ulong sector, void *load_addr, int sec_num)
 }
 
 unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
-				 ulong subchan_id, void *load_addr)
+                                 ulong subchan_id, void *load_addr)
 {
     u8 status;
     int sec = rec_list1;
@@ -249,7 +249,7 @@ unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
     }
 
     sclp_print(".");
-    status = virtio_read_many(sec, (void*)addr, sec_num);
+    status = virtio_read_many(sec, (void *)addr, sec_num);
     if (status) {
         virtio_panic("I/O Error");
     }
@@ -274,7 +274,7 @@ void virtio_setup_block(struct subchannel_id schid)
     if (run_ccw(schid, CCW_CMD_READ_VQ_CONF, &config, sizeof(config))) {
         virtio_panic("Could not get block device configuration\n");
     }
-    vring_init(&block, config.num, (void*)(100 * 1024 * 1024),
+    vring_init(&block, config.num, (void *)(100 * 1024 * 1024),
                KVM_S390_VIRTIO_RING_ALIGN);
 
     info.queue = (100ULL * 1024ULL* 1024ULL);

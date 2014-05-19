@@ -66,7 +66,7 @@ struct virtio_dev {
     char *config;
 };
 
-#define KVM_S390_VIRTIO_RING_ALIGN	4096
+#define KVM_S390_VIRTIO_RING_ALIGN  4096
 
 #define VRING_USED_F_NO_NOTIFY  1
 
