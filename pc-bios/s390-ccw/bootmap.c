@@ -9,6 +9,7 @@
  */
 
 #include "s390-ccw.h"
+#include "bootmap.h"
 
 /* #define DEBUG_FALLBACK */
 
@@ -19,41 +20,6 @@
 #define dputs(fmt, ...) \
     do { } while (0)
 #endif
-
-struct scsi_blockptr {
-    uint64_t blockno;
-    uint16_t size;
-    uint16_t blockct;
-    uint8_t reserved[4];
-} __attribute__ ((packed));
-
-struct component_entry {
-    struct scsi_blockptr data;
-    uint8_t pad[7];
-    uint8_t component_type;
-    uint64_t load_address;
-} __attribute((packed));
-
-struct component_header {
-    uint8_t magic[4];
-    uint8_t type;
-    uint8_t reserved[27];
-} __attribute((packed));
-
-struct mbr {
-    uint8_t magic[4];
-    uint32_t version_id;
-    uint8_t reserved[8];
-    struct scsi_blockptr blockptr;
-} __attribute__ ((packed));
-
-#define ZIPL_MAGIC              "zIPL"
-
-#define ZIPL_COMP_HEADER_IPL    0x00
-#define ZIPL_COMP_HEADER_DUMP   0x01
-
-#define ZIPL_COMP_ENTRY_LOAD    0x02
-#define ZIPL_COMP_ENTRY_EXEC    0x01
 
 /* Scratch space */
 static uint8_t sec[SECTOR_SIZE] __attribute__((__aligned__(SECTOR_SIZE)));
@@ -118,8 +84,6 @@ static int zipl_magic(uint8_t *ptr)
     return 1;
 }
 
-#define FREE_SPACE_FILLER '\xAA'
-
 static inline bool unused_space(const void *p, unsigned int size)
 {
     int i;
@@ -133,10 +97,10 @@ static inline bool unused_space(const void *p, unsigned int size)
     return true;
 }
 
-static int zipl_load_segment(struct component_entry *entry)
+static int zipl_load_segment(ComponentEntry *entry)
 {
-    const int max_entries = (SECTOR_SIZE / sizeof(struct scsi_blockptr));
-    struct scsi_blockptr *bprs = (void *)sec;
+    const int max_entries = (SECTOR_SIZE / sizeof(ScsiBlockPtr));
+    ScsiBlockPtr *bprs = (void *)sec;
     const int bprs_size = sizeof(sec);
     uint64_t blockno;
     long address;
@@ -170,7 +134,7 @@ static int zipl_load_segment(struct component_entry *entry)
             }
 
             if (bprs[i].blockct == 0 && unused_space(&bprs[i + 1],
-                sizeof(struct scsi_blockptr))) {
+                sizeof(ScsiBlockPtr))) {
                 /* This is a "continue" pointer.
                  * This ptr is the last one in the current script section.
                  * I.e. the next ptr must point to the unused memory area.
@@ -195,14 +159,14 @@ fail:
 }
 
 /* Run a zipl program */
-static int zipl_run(struct scsi_blockptr *pte)
+static int zipl_run(ScsiBlockPtr *pte)
 {
-    struct component_header *header;
-    struct component_entry *entry;
+    ComponentHeader *header;
+    ComponentEntry *entry;
     uint8_t tmp_sec[SECTOR_SIZE];
 
     virtio_read(pte->blockno, tmp_sec);
-    header = (struct component_header *)tmp_sec;
+    header = (ComponentHeader *)tmp_sec;
 
     if (!zipl_magic(tmp_sec)) {
         goto fail;
@@ -215,7 +179,7 @@ static int zipl_run(struct scsi_blockptr *pte)
     dputs("start loading images\n");
 
     /* Load image(s) into RAM */
-    entry = (struct component_entry *)(&header[1]);
+    entry = (ComponentEntry *)(&header[1]);
     while (entry->component_type == ZIPL_COMP_ENTRY_LOAD) {
         if (zipl_load_segment(entry) < 0) {
             goto fail;
@@ -244,11 +208,11 @@ fail:
 
 int zipl_load(void)
 {
-    struct mbr *mbr = (void *)sec;
+    ScsiMbr *mbr = (void *)sec;
     uint8_t *ns, *ns_end;
     int program_table_entries = 0;
-    int pte_len = sizeof(struct scsi_blockptr);
-    struct scsi_blockptr *prog_table_entry;
+    const int pte_len = sizeof(ScsiBlockPtr);
+    ScsiBlockPtr *prog_table_entry;
     const char *error = "";
 
     /* Grab the MBR */
@@ -276,7 +240,7 @@ int zipl_load(void)
 
     ns_end = sec + SECTOR_SIZE;
     for (ns = (sec + pte_len); (ns + pte_len) < ns_end; ns++) {
-        prog_table_entry = (struct scsi_blockptr *)ns;
+        prog_table_entry = (ScsiBlockPtr *)ns;
         if (!prog_table_entry->blockno) {
             break;
         }
@@ -292,7 +256,7 @@ int zipl_load(void)
 
     /* Run the default entry */
 
-    prog_table_entry = (struct scsi_blockptr *)(sec + pte_len);
+    prog_table_entry = (ScsiBlockPtr *)(sec + pte_len);
 
     return zipl_run(prog_table_entry);
 
