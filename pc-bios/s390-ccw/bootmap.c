@@ -86,25 +86,12 @@ static int zipl_magic(uint8_t *ptr)
     return 1;
 }
 
-static inline bool unused_space(const void *p, unsigned int size)
-{
-    int i;
-    const unsigned char *m = p;
-
-    for (i = 0; i < size; i++) {
-        if (m[i] != FREE_SPACE_FILLER) {
-            return false;
-        }
-    }
-    return true;
-}
-
 static int zipl_load_segment(ComponentEntry *entry)
 {
     const int max_entries = (MAX_SECTOR_SIZE / sizeof(ScsiBlockPtr));
     ScsiBlockPtr *bprs = (void *)sec;
     const int bprs_size = sizeof(sec);
-    uint64_t blockno;
+    block_number_t blockno;
     long address;
     int i;
 

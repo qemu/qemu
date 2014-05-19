@@ -12,6 +12,10 @@
 #define _PC_BIOS_S390_CCW_BOOTMAP_H
 
 #include "s390-ccw.h"
+#include "virtio.h"
+
+typedef uint64_t block_number_t;
+#define NULL_BLOCK_NR 0xffffffffffffffff
 
 #define FREE_SPACE_FILLER '\xAA'
 
@@ -250,5 +254,84 @@ typedef struct IplVolumeLabel {
         } f;
     };
 } __attribute__((packed)) IplVolumeLabel;
+
+/* utility code below */
+
+static inline void IPL_assert(bool term, const char *message)
+{
+    if (!term) {
+        sclp_print("\n! ");
+        sclp_print(message);
+        virtio_panic(" !\n"); /* no return */
+    }
+}
+
+static const unsigned char ebc2asc[256] =
+      /* 0123456789abcdef0123456789abcdef */
+        "................................" /* 1F */
+        "................................" /* 3F */
+        " ...........<(+|&.........!$*);." /* 5F first.chr.here.is.real.space */
+        "-/.........,%_>?.........`:#@'=\""/* 7F */
+        ".abcdefghi.......jklmnopqr......" /* 9F */
+        "..stuvwxyz......................" /* BF */
+        ".ABCDEFGHI.......JKLMNOPQR......" /* DF */
+        "..STUVWXYZ......0123456789......";/* FF */
+
+static inline void ebcdic_to_ascii(const char *src,
+                                   char *dst,
+                                   unsigned int size)
+{
+    unsigned int i;
+    for (i = 0; i < size; i++) {
+        unsigned c = src[i];
+        dst[i] = ebc2asc[c];
+    }
+}
+
+static inline void print_volser(const void *volser)
+{
+    char ascii[8];
+
+    ebcdic_to_ascii((char *)volser, ascii, 6);
+    ascii[6] = '\0';
+    sclp_print("VOLSER=[");
+    sclp_print(ascii);
+    sclp_print("]\n");
+}
+
+static inline bool unused_space(const void *p, size_t size)
+{
+    size_t i;
+    const unsigned char *m = p;
+
+    for (i = 0; i < size; i++) {
+        if (m[i] != FREE_SPACE_FILLER) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static inline bool is_null_block_number(block_number_t x)
+{
+    return x == NULL_BLOCK_NR;
+}
+
+static inline void read_block(block_number_t blockno,
+                              void *buffer,
+                              const char *errmsg)
+{
+    IPL_assert(virtio_read(blockno, buffer) == 0, errmsg);
+}
+
+static inline bool block_size_ok(uint32_t block_size)
+{
+    return block_size == virtio_get_block_size();
+}
+
+static inline bool magic_match(const void *data, const void *magic)
+{
+    return *((uint32_t *)data) == *((uint32_t *)magic);
+}
 
 #endif /* _PC_BIOS_S390_CCW_BOOTMAP_H */
