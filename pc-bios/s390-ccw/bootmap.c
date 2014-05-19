@@ -12,7 +12,9 @@
 #include "bootmap.h"
 #include "virtio.h"
 
+#ifdef DEBUG
 /* #define DEBUG_FALLBACK */
+#endif
 
 #ifdef DEBUG_FALLBACK
 #define dputs(txt) \
@@ -23,8 +25,7 @@
 #endif
 
 /* Scratch space */
-static uint8_t sec[MAX_SECTOR_SIZE]
-__attribute__((__aligned__(MAX_SECTOR_SIZE)));
+static uint8_t sec[MAX_SECTOR_SIZE*4] __attribute__((__aligned__(PAGE_SIZE)));
 
 typedef struct ResetInfo {
     uint32_t ipl_mask;
@@ -72,19 +73,9 @@ static void jump_to_IPL_code(uint64_t address)
     virtio_panic("\n! IPL returns !\n");
 }
 
-/* Check for ZIPL magic. Returns 0 if not matched. */
-static int zipl_magic(uint8_t *ptr)
-{
-    uint32_t *p = (void *)ptr;
-    uint32_t *z = (void *)ZIPL_MAGIC;
-
-    if (*p != *z) {
-        debug_print_int("invalid magic", *p);
-        virtio_panic("invalid magic");
-    }
-
-    return 1;
-}
+/***********************************************************************
+ * IPL a SCSI disk
+ */
 
 static void zipl_load_segment(ComponentEntry *entry)
 {
@@ -92,8 +83,10 @@ static void zipl_load_segment(ComponentEntry *entry)
     ScsiBlockPtr *bprs = (void *)sec;
     const int bprs_size = sizeof(sec);
     block_number_t blockno;
-    long address;
+    uint64_t address;
     int i;
+    char err_msg[] = "zIPL failed to read BPRS at 0xZZZZZZZZZZZZZZZZ";
+    char *blk_no = &err_msg[30]; /* where to print blockno in (those ZZs) */
 
     blockno = entry->data.blockno;
     address = entry->load_address;
@@ -103,11 +96,11 @@ static void zipl_load_segment(ComponentEntry *entry)
 
     do {
         memset(bprs, FREE_SPACE_FILLER, bprs_size);
-        debug_print_int("reading bprs at", blockno);
-        read_block(blockno, bprs, "zipl_load_segment: cannot read block");
+        fill_hex_val(blk_no, &blockno, sizeof(blockno));
+        read_block(blockno, bprs, err_msg);
 
         for (i = 0;; i++) {
-            u64 *cur_desc = (void *)&bprs[i];
+            uint64_t *cur_desc = (void *)&bprs[i];
 
             blockno = bprs[i].blockno;
             if (!blockno) {
@@ -132,7 +125,7 @@ static void zipl_load_segment(ComponentEntry *entry)
             }
             address = virtio_load_direct(cur_desc[0], cur_desc[1], 0,
                                          (void *)address);
-            IPL_assert(address != -1, "zipl_load_segment: wrong IPL address");
+            IPL_assert(address != -1, "zIPL load segment failed");
         }
     } while (blockno);
 }
@@ -144,13 +137,11 @@ static void zipl_run(ScsiBlockPtr *pte)
     ComponentEntry *entry;
     uint8_t tmp_sec[MAX_SECTOR_SIZE];
 
-    virtio_read(pte->blockno, tmp_sec);
+    read_block(pte->blockno, tmp_sec, "Cannot read header");
     header = (ComponentHeader *)tmp_sec;
 
-    IPL_assert(zipl_magic(tmp_sec), "zipl_run: zipl_magic");
-
-    IPL_assert(header->type == ZIPL_COMP_HEADER_IPL,
-               "zipl_run: wrong header type");
+    IPL_assert(magic_match(tmp_sec, ZIPL_MAGIC), "No zIPL magic");
+    IPL_assert(header->type == ZIPL_COMP_HEADER_IPL, "Bad header type");
 
     dputs("start loading images\n");
 
@@ -162,17 +153,16 @@ static void zipl_run(ScsiBlockPtr *pte)
         entry++;
 
         IPL_assert((uint8_t *)(&entry[1]) <= (tmp_sec + MAX_SECTOR_SIZE),
-                   "zipl_run: wrong entry size");
+                   "Wrong entry value");
     }
 
-    IPL_assert(entry->component_type == ZIPL_COMP_ENTRY_EXEC,
-               "zipl_run: no EXEC entry");
+    IPL_assert(entry->component_type == ZIPL_COMP_ENTRY_EXEC, "No EXEC entry");
 
     /* should not return */
     jump_to_IPL_code(entry->load_address);
 }
 
-void zipl_load(void)
+static void ipl_scsi(void)
 {
     ScsiMbr *mbr = (void *)sec;
     uint8_t *ns, *ns_end;
@@ -180,20 +170,16 @@ void zipl_load(void)
     const int pte_len = sizeof(ScsiBlockPtr);
     ScsiBlockPtr *prog_table_entry;
 
-    /* Grab the MBR */
-    read_block(0, mbr, "zipl_load: cannot read block 0");
+    /* The 0-th block (MBR) was already read into sec[] */
 
-    dputs("checking magic\n");
-
-    IPL_assert(zipl_magic(mbr->magic), "zipl_load: zipl_magic 1");
-
+    sclp_print("Using SCSI scheme.\n");
     debug_print_int("program table", mbr->blockptr.blockno);
 
     /* Parse the program table */
     read_block(mbr->blockptr.blockno, sec,
-               "zipl_load: cannot read program table");
+               "Error reading Program Table");
 
-    IPL_assert(zipl_magic(sec), "zipl_load: zipl_magic 2");
+    IPL_assert(magic_match(sec, ZIPL_MAGIC), "No zIPL magic");
 
     ns_end = sec + virtio_get_block_size();
     for (ns = (sec + pte_len); (ns + pte_len) < ns_end; ns++) {
@@ -207,11 +193,32 @@ void zipl_load(void)
 
     debug_print_int("program table entries", program_table_entries);
 
-    IPL_assert(program_table_entries, "zipl_load: no program table");
+    IPL_assert(program_table_entries != 0, "Empty Program Table");
 
     /* Run the default entry */
 
     prog_table_entry = (ScsiBlockPtr *)(sec + pte_len);
 
     zipl_run(prog_table_entry); /* no return */
+}
+
+/***********************************************************************
+ * IPL starts here
+ */
+
+void zipl_load(void)
+{
+    ScsiMbr *mbr = (void *)sec;
+
+    /* Grab the MBR */
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(0, mbr, "Cannot read block 0");
+
+    dputs("checking magic\n");
+
+    if (magic_match(mbr->magic, ZIPL_MAGIC)) {
+        ipl_scsi(); /* no return */
+    }
+
+    virtio_panic("\n* invalid MBR magic *\n");
 }
