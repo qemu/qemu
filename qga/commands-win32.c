@@ -31,7 +31,7 @@
 
 static void acquire_privilege(const char *name, Error **err)
 {
-    HANDLE token;
+    HANDLE token = NULL;
     TOKEN_PRIVILEGES priv;
     Error *local_err = NULL;
 
@@ -57,13 +57,15 @@ static void acquire_privilege(const char *name, Error **err)
             goto out;
         }
 
-        CloseHandle(token);
     } else {
         error_set(&local_err, QERR_QGA_COMMAND_FAILED,
                   "failed to open privilege token");
     }
 
 out:
+    if (token) {
+        CloseHandle(token);
+    }
     if (local_err) {
         error_propagate(err, local_err);
     }
