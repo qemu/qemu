@@ -182,10 +182,10 @@ struct smbios_type_17 {
     uint8_t part_number_str;
     uint8_t attributes;
     uint32_t extended_size;
-    uint32_t configured_clock_speed;
-    uint32_t minimum_voltage;
-    uint32_t maximum_voltage;
-    uint32_t configured_voltage;
+    uint16_t configured_clock_speed;
+    uint16_t minimum_voltage;
+    uint16_t maximum_voltage;
+    uint16_t configured_voltage;
 } QEMU_PACKED;
 
 /* SMBIOS type 19 - Memory Array Mapped Address (v2.7) */

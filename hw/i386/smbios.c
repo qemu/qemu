@@ -683,10 +683,10 @@ static void smbios_build_type_17_table(unsigned instance, ram_addr_t size)
     SMBIOS_TABLE_SET_STR(17, asset_tag_number_str, type17.asset);
     SMBIOS_TABLE_SET_STR(17, part_number_str, type17.part);
     t->attributes = 0; /* Unknown */
-    t->configured_clock_speed = cpu_to_le32(0); /* Unknown */
-    t->minimum_voltage = cpu_to_le32(0); /* Unknown */
-    t->maximum_voltage = cpu_to_le32(0); /* Unknown */
-    t->configured_voltage = cpu_to_le32(0); /* Unknown */
+    t->configured_clock_speed = cpu_to_le16(0); /* Unknown */
+    t->minimum_voltage = cpu_to_le16(0); /* Unknown */
+    t->maximum_voltage = cpu_to_le16(0); /* Unknown */
+    t->configured_voltage = cpu_to_le16(0); /* Unknown */
 
     SMBIOS_BUILD_TABLE_POST;
 }
