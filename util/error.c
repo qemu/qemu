@@ -142,11 +142,6 @@ Error *error_copy(const Error *err)
     return err_new;
 }
 
-bool error_is_set(Error **errp)
-{
-    return (errp && *errp);
-}
-
 ErrorClass error_get_class(const Error *err)
 {
     return err->err_class;
