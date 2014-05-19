@@ -23,7 +23,6 @@ typedef void (*HIDEventFunc)(HIDState *s);
 typedef struct HIDMouseState {
     HIDPointerEvent queue[QUEUE_LENGTH];
     int mouse_grabbed;
-    QEMUPutMouseEntry *eh_entry;
 } HIDMouseState;
 
 typedef struct HIDKeyboardState {

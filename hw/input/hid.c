@@ -105,57 +105,115 @@ void hid_set_next_idle(HIDState *hs)
     }
 }
 
-static void hid_pointer_event_clear(HIDPointerEvent *e, int buttons)
+static void hid_pointer_event(DeviceState *dev, QemuConsole *src,
+                              InputEvent *evt)
 {
-    e->xdx = e->ydy = e->dz = 0;
-    e->buttons_state = buttons;
+    static const int bmap[INPUT_BUTTON_MAX] = {
+        [INPUT_BUTTON_LEFT]   = 0x01,
+        [INPUT_BUTTON_RIGHT]  = 0x02,
+        [INPUT_BUTTON_MIDDLE] = 0x04,
+    };
+    HIDState *hs = (HIDState *)dev;
+    HIDPointerEvent *e;
+
+    assert(hs->n < QUEUE_LENGTH);
+    e = &hs->ptr.queue[(hs->head + hs->n) & QUEUE_MASK];
+
+    switch (evt->kind) {
+    case INPUT_EVENT_KIND_REL:
+        if (evt->rel->axis == INPUT_AXIS_X) {
+            e->xdx += evt->rel->value;
+        } else if (evt->rel->axis == INPUT_AXIS_Y) {
+            e->ydy -= evt->rel->value;
+        }
+        break;
+
+    case INPUT_EVENT_KIND_ABS:
+        if (evt->rel->axis == INPUT_AXIS_X) {
+            e->xdx = evt->rel->value;
+        } else if (evt->rel->axis == INPUT_AXIS_Y) {
+            e->ydy = evt->rel->value;
+        }
+        break;
+
+    case INPUT_EVENT_KIND_BTN:
+        if (evt->btn->down) {
+            e->buttons_state |= bmap[evt->btn->button];
+            if (evt->btn->button == INPUT_BUTTON_WHEEL_UP) {
+                e->dz--;
+            } else if (evt->btn->button == INPUT_BUTTON_WHEEL_DOWN) {
+                e->dz++;
+            }
+        } else {
+            e->buttons_state &= ~bmap[evt->btn->button];
+        }
+        break;
+
+    default:
+        /* keep gcc happy */
+        break;
+    }
+
 }
 
-static void hid_pointer_event_combine(HIDPointerEvent *e, int xyrel,
-                                      int x1, int y1, int z1) {
-    if (xyrel) {
-        e->xdx += x1;
-        e->ydy += y1;
-    } else {
-        e->xdx = x1;
-        e->ydy = y1;
-        /* Windows drivers do not like the 0/0 position and ignore such
-         * events. */
-        if (!(x1 | y1)) {
-            e->xdx = 1;
+static void hid_pointer_sync(DeviceState *dev)
+{
+    HIDState *hs = (HIDState *)dev;
+    HIDPointerEvent *prev, *curr, *next;
+    bool event_compression = false;
+
+    if (hs->n == QUEUE_LENGTH-1) {
+        /*
+         * Queue full.  We are loosing information, but we at least
+         * keep track of most recent button state.
+         */
+        return;
+    }
+
+    prev = &hs->ptr.queue[(hs->head + hs->n - 1) & QUEUE_MASK];
+    curr = &hs->ptr.queue[(hs->head + hs->n) & QUEUE_MASK];
+    next = &hs->ptr.queue[(hs->head + hs->n + 1) & QUEUE_MASK];
+
+    if (hs->n > 0) {
+        /*
+         * No button state change between previous and current event
+         * (and previous wasn't seen by the guest yet), so there is
+         * motion information only and we can combine the two event
+         * into one.
+         */
+        if (curr->buttons_state == prev->buttons_state) {
+            event_compression = true;
         }
     }
-    e->dz += z1;
-}
 
-static void hid_pointer_event(void *opaque,
-                              int x1, int y1, int z1, int buttons_state)
-{
-    HIDState *hs = opaque;
-    unsigned use_slot = (hs->head + hs->n - 1) & QUEUE_MASK;
-    unsigned previous_slot = (use_slot - 1) & QUEUE_MASK;
-
-    /* We combine events where feasible to keep the queue small.  We shouldn't
-     * combine anything with the first event of a particular button state, as
-     * that would change the location of the button state change.  When the
-     * queue is empty, a second event is needed because we don't know if
-     * the first event changed the button state.  */
-    if (hs->n == QUEUE_LENGTH) {
-        /* Queue full.  Discard old button state, combine motion normally.  */
-        hs->ptr.queue[use_slot].buttons_state = buttons_state;
-    } else if (hs->n < 2 ||
-               hs->ptr.queue[use_slot].buttons_state != buttons_state ||
-               hs->ptr.queue[previous_slot].buttons_state !=
-               hs->ptr.queue[use_slot].buttons_state) {
-        /* Cannot or should not combine, so add an empty item to the queue.  */
-        QUEUE_INCR(use_slot);
+    if (event_compression) {
+        /* add current motion to previous, clear current */
+        if (hs->kind == HID_MOUSE) {
+            prev->xdx += curr->xdx;
+            curr->xdx = 0;
+            prev->ydy -= curr->ydy;
+            curr->ydy = 0;
+        } else {
+            prev->xdx = curr->xdx;
+            prev->ydy = curr->ydy;
+        }
+        prev->dz += curr->dz;
+        curr->dz = 0;
+    } else {
+        /* prepate next (clear rel, copy abs + btns) */
+        if (hs->kind == HID_MOUSE) {
+            next->xdx = 0;
+            next->ydy = 0;
+        } else {
+            next->xdx = curr->xdx;
+            next->ydy = curr->ydy;
+        }
+        next->dz = 0;
+        next->buttons_state = curr->buttons_state;
+        /* make current guest visible, notify guest */
         hs->n++;
-        hid_pointer_event_clear(&hs->ptr.queue[use_slot], buttons_state);
+        hs->event(hs);
     }
-    hid_pointer_event_combine(&hs->ptr.queue[use_slot],
-                              hs->kind == HID_MOUSE,
-                              x1, y1, z1);
-    hs->event(hs);
 }
 
 static void hid_keyboard_event(DeviceState *dev, QemuConsole *src,
@@ -254,14 +312,14 @@ static inline int int_clamp(int val, int vmin, int vmax)
 void hid_pointer_activate(HIDState *hs)
 {
     if (!hs->ptr.mouse_grabbed) {
-        qemu_activate_mouse_event_handler(hs->ptr.eh_entry);
+        qemu_input_handler_activate(hs->s);
         hs->ptr.mouse_grabbed = 1;
     }
 }
 
 int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
 {
-    int dx, dy, dz, b, l;
+    int dx, dy, dz, l;
     int index;
     HIDPointerEvent *e;
 
@@ -286,17 +344,6 @@ int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
     dz = int_clamp(e->dz, -127, 127);
     e->dz -= dz;
 
-    b = 0;
-    if (e->buttons_state & MOUSE_EVENT_LBUTTON) {
-        b |= 0x01;
-    }
-    if (e->buttons_state & MOUSE_EVENT_RBUTTON) {
-        b |= 0x02;
-    }
-    if (e->buttons_state & MOUSE_EVENT_MBUTTON) {
-        b |= 0x04;
-    }
-
     if (hs->n &&
         !e->dz &&
         (hs->kind == HID_TABLET || (!e->xdx && !e->ydy))) {
@@ -311,7 +358,7 @@ int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
     switch (hs->kind) {
     case HID_MOUSE:
         if (len > l) {
-            buf[l++] = b;
+            buf[l++] = e->buttons_state;
         }
         if (len > l) {
             buf[l++] = dx;
@@ -326,7 +373,7 @@ int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
 
     case HID_TABLET:
         if (len > l) {
-            buf[l++] = b;
+            buf[l++] = e->buttons_state;
         }
         if (len > l) {
             buf[l++] = dx & 0xff;
@@ -420,15 +467,7 @@ void hid_reset(HIDState *hs)
 
 void hid_free(HIDState *hs)
 {
-    switch (hs->kind) {
-    case HID_KEYBOARD:
-        qemu_input_handler_unregister(hs->s);
-        break;
-    case HID_MOUSE:
-    case HID_TABLET:
-        qemu_remove_mouse_event_handler(hs->ptr.eh_entry);
-        break;
-    }
+    qemu_input_handler_unregister(hs->s);
     hid_del_idle_timer(hs);
 }
 
@@ -436,6 +475,20 @@ static QemuInputHandler hid_keyboard_handler = {
     .name  = "QEMU HID Keyboard",
     .mask  = INPUT_EVENT_MASK_KEY,
     .event = hid_keyboard_event,
+};
+
+static QemuInputHandler hid_mouse_handler = {
+    .name  = "QEMU HID Mouse",
+    .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_REL,
+    .event = hid_pointer_event,
+    .sync  = hid_pointer_sync,
+};
+
+static QemuInputHandler hid_tablet_handler = {
+    .name  = "QEMU HID Tablet",
+    .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_ABS,
+    .event = hid_pointer_event,
+    .sync  = hid_pointer_sync,
 };
 
 void hid_init(HIDState *hs, int kind, HIDEventFunc event)
@@ -448,11 +501,11 @@ void hid_init(HIDState *hs, int kind, HIDEventFunc event)
                                             &hid_keyboard_handler);
         qemu_input_handler_activate(hs->s);
     } else if (hs->kind == HID_MOUSE) {
-        hs->ptr.eh_entry = qemu_add_mouse_event_handler(hid_pointer_event, hs,
-                                                        0, "QEMU HID Mouse");
+        hs->s = qemu_input_handler_register((DeviceState *)hs,
+                                            &hid_mouse_handler);
     } else if (hs->kind == HID_TABLET) {
-        hs->ptr.eh_entry = qemu_add_mouse_event_handler(hid_pointer_event, hs,
-                                                        1, "QEMU HID Tablet");
+        hs->s = qemu_input_handler_register((DeviceState *)hs,
+                                            &hid_tablet_handler);
     }
 }
 
