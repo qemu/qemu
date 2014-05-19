@@ -2458,21 +2458,27 @@ static int scsi_block_initfn(SCSIDevice *dev)
     int rc;
 
     if (!s->qdev.conf.bs) {
-        error_report("scsi-block: drive property not set");
+        error_report("drive property not set");
         return -1;
     }
 
     /* check we are using a driver managing SG_IO (version 3 and after) */
-    if (bdrv_ioctl(s->qdev.conf.bs, SG_GET_VERSION_NUM, &sg_version) < 0 ||
-        sg_version < 30000) {
-        error_report("scsi-block: scsi generic interface too old");
+    rc = bdrv_ioctl(s->qdev.conf.bs, SG_GET_VERSION_NUM, &sg_version);
+    if (rc < 0) {
+        error_report("cannot get SG_IO version number: %s.  "
+                     "Is this a SCSI device?",
+                     strerror(-rc));
+        return -1;
+    }
+    if (sg_version < 30000) {
+        error_report("scsi generic interface too old");
         return -1;
     }
 
     /* get device type from INQUIRY data */
     rc = get_device_type(s);
     if (rc < 0) {
-        error_report("scsi-block: INQUIRY failed");
+        error_report("INQUIRY failed");
         return -1;
     }
 

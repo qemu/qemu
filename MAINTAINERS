@@ -659,6 +659,12 @@ S: Supported
 F: hw/block/nvme*
 F: tests/nvme-test.c
 
+megasas
+M: Hannes Reinecke <hare@suse.de>
+S: Supported
+F: hw/scsi/megasas.c
+F: hw/scsi/mfi.h
+
 Xilinx EDK
 M: Peter Crosthwaite <peter.crosthwaite@xilinx.com>
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
