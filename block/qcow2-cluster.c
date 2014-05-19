@@ -379,7 +379,8 @@ static int coroutine_fn copy_sectors(BlockDriverState *bs,
     BLKDBG_EVENT(bs->file, BLKDBG_COW_READ);
 
     if (!bs->drv) {
-        return -ENOMEDIUM;
+        ret = -ENOMEDIUM;
+        goto out;
     }
 
     /* Call .bdrv_co_readv() directly instead of using the public block-layer
