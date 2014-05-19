@@ -3798,7 +3798,13 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         break;
     }
 
-    if (chr == NULL && !error_is_set(errp)) {
+    /*
+     * Character backend open hasn't been fully converted to the Error
+     * API.  Some opens fail without setting an error.  Set a generic
+     * error then.
+     * TODO full conversion to Error API
+     */
+    if (chr == NULL && errp && !*errp) {
         error_setg(errp, "Failed to create chardev");
     }
     if (chr) {
