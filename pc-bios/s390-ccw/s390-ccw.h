@@ -130,6 +130,6 @@ static inline void yield(void)
                   : "memory", "cc");
 }
 
-#define SECTOR_SIZE 512
+#define MAX_SECTOR_SIZE 4096
 
 #endif /* S390_CCW_H */

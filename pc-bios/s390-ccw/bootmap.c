@@ -10,6 +10,7 @@
 
 #include "s390-ccw.h"
 #include "bootmap.h"
+#include "virtio.h"
 
 /* #define DEBUG_FALLBACK */
 
@@ -22,7 +23,8 @@
 #endif
 
 /* Scratch space */
-static uint8_t sec[SECTOR_SIZE] __attribute__((__aligned__(SECTOR_SIZE)));
+static uint8_t sec[MAX_SECTOR_SIZE]
+__attribute__((__aligned__(MAX_SECTOR_SIZE)));
 
 typedef struct ResetInfo {
     uint32_t ipl_mask;
@@ -99,7 +101,7 @@ static inline bool unused_space(const void *p, unsigned int size)
 
 static int zipl_load_segment(ComponentEntry *entry)
 {
-    const int max_entries = (SECTOR_SIZE / sizeof(ScsiBlockPtr));
+    const int max_entries = (MAX_SECTOR_SIZE / sizeof(ScsiBlockPtr));
     ScsiBlockPtr *bprs = (void *)sec;
     const int bprs_size = sizeof(sec);
     uint64_t blockno;
@@ -163,7 +165,7 @@ static int zipl_run(ScsiBlockPtr *pte)
 {
     ComponentHeader *header;
     ComponentEntry *entry;
-    uint8_t tmp_sec[SECTOR_SIZE];
+    uint8_t tmp_sec[MAX_SECTOR_SIZE];
 
     virtio_read(pte->blockno, tmp_sec);
     header = (ComponentHeader *)tmp_sec;
@@ -187,7 +189,7 @@ static int zipl_run(ScsiBlockPtr *pte)
 
         entry++;
 
-        if ((uint8_t *)(&entry[1]) > (tmp_sec + SECTOR_SIZE)) {
+        if ((uint8_t *)(&entry[1]) > (tmp_sec + MAX_SECTOR_SIZE)) {
             goto fail;
         }
     }
@@ -238,7 +240,7 @@ int zipl_load(void)
         goto fail;
     }
 
-    ns_end = sec + SECTOR_SIZE;
+    ns_end = sec + virtio_get_block_size();
     for (ns = (sec + pte_len); (ns + pte_len) < ns_end; ns++) {
         prog_table_entry = (ScsiBlockPtr *)ns;
         if (!prog_table_entry->blockno) {
