@@ -60,6 +60,8 @@ check-unit-y += tests/test-qdev-global-props$(EXESUF)
 check-unit-y += tests/check-qom-interface$(EXESUF)
 gcov-files-check-qom-interface-y = qom/object.c
 check-unit-$(CONFIG_POSIX) += tests/test-vmstate$(EXESUF)
+check-unit-y += tests/test-qemu-opts$(EXESUF)
+gcov-files-test-qemu-opts-y = qom/test-qemu-opts.c
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -319,6 +321,7 @@ tests/intel-hda-test$(EXESUF): tests/intel-hda-test.o
 tests/ioh3420-test$(EXESUF): tests/ioh3420-test.o
 tests/usb-hcd-ehci-test$(EXESUF): tests/usb-hcd-ehci-test.o
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
+tests/test-qemu-opts$(EXESUF): tests/test-qemu-opts.o libqemuutil.a libqemustub.a
 
 # QTest rules
 
