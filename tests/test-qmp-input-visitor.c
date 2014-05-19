@@ -199,16 +199,24 @@ static void visit_type_TestStruct(Visitor *v, TestStruct **obj,
 
     visit_start_struct(v, (void **)obj, "TestStruct", name, sizeof(TestStruct),
                        &err);
-    if (!err) {
-        visit_type_int(v, &(*obj)->integer, "integer", &err);
-        visit_type_bool(v, &(*obj)->boolean, "boolean", &err);
-        visit_type_str(v, &(*obj)->string, "string", &err);
-
-        /* Always call end_struct if start_struct succeeded.  */
-        error_propagate(errp, err);
-        err = NULL;
-        visit_end_struct(v, &err);
+    if (err) {
+        goto out;
     }
+    visit_type_int(v, &(*obj)->integer, "integer", &err);
+    if (err) {
+        goto out_end;
+    }
+    visit_type_bool(v, &(*obj)->boolean, "boolean", &err);
+    if (err) {
+        goto out_end;
+    }
+    visit_type_str(v, &(*obj)->string, "string", &err);
+
+out_end:
+    error_propagate(errp, err);
+    err = NULL;
+    visit_end_struct(v, &err);
+out:
     error_propagate(errp, err);
 }
 

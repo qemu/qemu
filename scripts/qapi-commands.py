@@ -2,16 +2,19 @@
 # QAPI command marshaller generator
 #
 # Copyright IBM, Corp. 2011
+# Copyright (C) 2014 Red Hat, Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
 #  Michael Roth    <mdroth@linux.vnet.ibm.com>
+#  Markus Armbruster <armbru@redhat.com>
 #
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
 from ordereddict import OrderedDict
 from qapi import *
+import re
 import sys
 import os
 import getopt
@@ -37,6 +40,15 @@ def generate_command_decl(name, args, ret_type):
 ''',
                  ret_type=c_type(ret_type), name=c_fun(name), args=arglist).strip()
 
+def gen_err_check(errvar):
+    if errvar:
+        return mcgen('''
+if (local_err) {
+    goto out;
+}
+''')
+    return ''
+
 def gen_sync_call(name, args, ret_type, indent=0):
     ret = ""
     arglist=""
@@ -49,15 +61,14 @@ def gen_sync_call(name, args, ret_type, indent=0):
         arglist += "%s, " % (c_var(argname))
     push_indent(indent)
     ret = mcgen('''
-%(retval)sqmp_%(name)s(%(args)serrp);
+%(retval)sqmp_%(name)s(%(args)s&local_err);
 
 ''',
                 name=c_fun(name), args=arglist, retval=retval).rstrip()
     if ret_type:
+        ret += "\n" + gen_err_check('local_err')
         ret += "\n" + mcgen(''''
-if (!error_is_set(errp)) {
-    %(marshal_output_call)s
-}
+%(marshal_output_call)s
 ''',
                             marshal_output_call=gen_marshal_output_call(name, ret_type)).rstrip()
     pop_indent(indent)
@@ -67,18 +78,19 @@ if (!error_is_set(errp)) {
 def gen_marshal_output_call(name, ret_type):
     if not ret_type:
         return ""
-    return "qmp_marshal_output_%s(retval, ret, errp);" % c_fun(name)
+    return "qmp_marshal_output_%s(retval, ret, &local_err);" % c_fun(name)
 
-def gen_visitor_input_containers_decl(args):
+def gen_visitor_input_containers_decl(args, obj):
     ret = ""
 
     push_indent()
     if len(args) > 0:
         ret += mcgen('''
-QmpInputVisitor *mi;
+QmpInputVisitor *mi = qmp_input_visitor_new_strict(%(obj)s);
 QapiDeallocVisitor *md;
 Visitor *v;
-''')
+''',
+                     obj=obj)
     pop_indent()
 
     return ret.rstrip()
@@ -106,9 +118,10 @@ bool has_%(argname)s = false;
     pop_indent()
     return ret.rstrip()
 
-def gen_visitor_input_block(args, obj, dealloc=False):
+def gen_visitor_input_block(args, dealloc=False):
     ret = ""
-    errparg = 'errp'
+    errparg = '&local_err'
+    errarg = 'local_err'
 
     if len(args) == 0:
         return ret
@@ -117,44 +130,44 @@ def gen_visitor_input_block(args, obj, dealloc=False):
 
     if dealloc:
         errparg = 'NULL'
+        errarg = None;
         ret += mcgen('''
+qmp_input_visitor_cleanup(mi);
 md = qapi_dealloc_visitor_new();
 v = qapi_dealloc_get_visitor(md);
 ''')
     else:
         ret += mcgen('''
-mi = qmp_input_visitor_new_strict(%(obj)s);
 v = qmp_input_get_visitor(mi);
-''',
-                     obj=obj)
+''')
 
     for argname, argtype, optional, structured in parse_args(args):
         if optional:
             ret += mcgen('''
-visit_start_optional(v, &has_%(c_name)s, "%(name)s", %(errp)s);
-if (has_%(c_name)s) {
+visit_optional(v, &has_%(c_name)s, "%(name)s", %(errp)s);
 ''',
                          c_name=c_var(argname), name=argname, errp=errparg)
+            ret += gen_err_check(errarg)
+            ret += mcgen('''
+if (has_%(c_name)s) {
+''',
+                         c_name=c_var(argname))
             push_indent()
         ret += mcgen('''
 %(visitor)s(v, &%(c_name)s, "%(name)s", %(errp)s);
 ''',
                      c_name=c_var(argname), name=argname, argtype=argtype,
                      visitor=type_visitor(argtype), errp=errparg)
+        ret += gen_err_check(errarg)
         if optional:
             pop_indent()
             ret += mcgen('''
 }
-visit_end_optional(v, %(errp)s);
-''', errp=errparg)
+''')
 
     if dealloc:
         ret += mcgen('''
 qapi_dealloc_visitor_cleanup(md);
-''')
-    else:
-        ret += mcgen('''
-qmp_input_visitor_cleanup(mi);
 ''')
     pop_indent()
     return ret.rstrip()
@@ -166,16 +179,22 @@ def gen_marshal_output(name, args, ret_type, middle_mode):
     ret = mcgen('''
 static void qmp_marshal_output_%(c_name)s(%(c_ret_type)s ret_in, QObject **ret_out, Error **errp)
 {
-    QapiDeallocVisitor *md = qapi_dealloc_visitor_new();
+    Error *local_err = NULL;
     QmpOutputVisitor *mo = qmp_output_visitor_new();
+    QapiDeallocVisitor *md;
     Visitor *v;
 
     v = qmp_output_get_visitor(mo);
-    %(visitor)s(v, &ret_in, "unused", errp);
-    if (!error_is_set(errp)) {
-        *ret_out = qmp_output_get_qobject(mo);
+    %(visitor)s(v, &ret_in, "unused", &local_err);
+    if (local_err) {
+        goto out;
     }
+    *ret_out = qmp_output_get_qobject(mo);
+
+out:
+    error_propagate(errp, local_err);
     qmp_output_visitor_cleanup(mo);
+    md = qapi_dealloc_visitor_new();
     v = qapi_dealloc_get_visitor(md);
     %(visitor)s(v, &ret_in, "unused", NULL);
     qapi_dealloc_visitor_cleanup(md);
@@ -200,13 +219,12 @@ def gen_marshal_input(name, args, ret_type, middle_mode):
     ret = mcgen('''
 %(header)s
 {
+    Error *local_err = NULL;
 ''',
                 header=hdr)
 
     if middle_mode:
         ret += mcgen('''
-    Error *local_err = NULL;
-    Error **errp = &local_err;
     QDict *args = (QDict *)qdict;
 ''')
 
@@ -228,29 +246,32 @@ def gen_marshal_input(name, args, ret_type, middle_mode):
 %(visitor_input_block)s
 
 ''',
-                     visitor_input_containers_decl=gen_visitor_input_containers_decl(args),
+                     visitor_input_containers_decl=gen_visitor_input_containers_decl(args, "QOBJECT(args)"),
                      visitor_input_vars_decl=gen_visitor_input_vars_decl(args),
-                     visitor_input_block=gen_visitor_input_block(args, "QOBJECT(args)"))
+                     visitor_input_block=gen_visitor_input_block(args))
     else:
         ret += mcgen('''
+
     (void)args;
 ''')
 
     ret += mcgen('''
-    if (error_is_set(errp)) {
-        goto out;
-    }
 %(sync_call)s
 ''',
                  sync_call=gen_sync_call(name, args, ret_type, indent=4))
-    ret += mcgen('''
+    if re.search('^ *goto out\\;', ret, re.MULTILINE):
+        ret += mcgen('''
 
 out:
+''')
+    if not middle_mode:
+        ret += mcgen('''
+    error_propagate(errp, local_err);
 ''')
     ret += mcgen('''
 %(visitor_input_block_cleanup)s
 ''',
-                 visitor_input_block_cleanup=gen_visitor_input_block(args, None,
+                 visitor_input_block_cleanup=gen_visitor_input_block(args,
                                                                      dealloc=True))
 
     if middle_mode:

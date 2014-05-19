@@ -4269,6 +4269,55 @@ static const char *next_arg_type(const char *typestr)
     return (p != NULL ? ++p : typestr);
 }
 
+static void add_completion_option(ReadLineState *rs, const char *str,
+                                  const char *option)
+{
+    if (!str || !option) {
+        return;
+    }
+    if (!strncmp(option, str, strlen(str))) {
+        readline_add_completion(rs, option);
+    }
+}
+
+void chardev_add_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    size_t len;
+    ChardevBackendInfoList *list, *start;
+
+    if (nb_args != 2) {
+        return;
+    }
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+
+    start = list = qmp_query_chardev_backends(NULL);
+    while (list) {
+        const char *chr_name = list->value->name;
+
+        if (!strncmp(chr_name, str, len)) {
+            readline_add_completion(rs, chr_name);
+        }
+        list = list->next;
+    }
+    qapi_free_ChardevBackendInfoList(start);
+}
+
+void netdev_add_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    size_t len;
+    int i;
+
+    if (nb_args != 2) {
+        return;
+    }
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    for (i = 0; NetClientOptionsKind_lookup[i]; i++) {
+        add_completion_option(rs, str, NetClientOptionsKind_lookup[i]);
+    }
+}
+
 void device_add_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     GSList *list, *elt;
@@ -4339,6 +4388,29 @@ static void device_del_bus_completion(ReadLineState *rs,  BusState *bus,
     }
 }
 
+void chardev_remove_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    size_t len;
+    ChardevInfoList *list, *start;
+
+    if (nb_args != 2) {
+        return;
+    }
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+
+    start = list = qmp_query_chardev(NULL);
+    while (list) {
+        ChardevInfo *chr = list->value;
+
+        if (!strncmp(chr->label, str, len)) {
+            readline_add_completion(rs, chr->label);
+        }
+        list = list->next;
+    }
+    qapi_free_ChardevInfoList(start);
+}
+
 void device_del_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     size_t len;
@@ -4374,6 +4446,77 @@ void object_del_completion(ReadLineState *rs, int nb_args, const char *str)
         list = list->next;
     }
     qapi_free_ObjectPropertyInfoList(start);
+}
+
+void sendkey_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    int i;
+    char *sep;
+    size_t len;
+
+    if (nb_args != 2) {
+        return;
+    }
+    sep = strrchr(str, '-');
+    if (sep) {
+        str = sep + 1;
+    }
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    for (i = 0; i < Q_KEY_CODE_MAX; i++) {
+        if (!strncmp(str, QKeyCode_lookup[i], len)) {
+            readline_add_completion(rs, QKeyCode_lookup[i]);
+        }
+    }
+}
+
+void set_link_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    if (nb_args == 2) {
+        NetClientState *ncs[255];
+        int count, i;
+        count = qemu_find_net_clients_except(NULL, ncs,
+                                             NET_CLIENT_OPTIONS_KIND_NONE, 255);
+        for (i = 0; i < count; i++) {
+            const char *name = ncs[i]->name;
+            if (!strncmp(str, name, len)) {
+                readline_add_completion(rs, name);
+            }
+        }
+    } else if (nb_args == 3) {
+        add_completion_option(rs, str, "on");
+        add_completion_option(rs, str, "off");
+    }
+}
+
+void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    int len, count, i;
+    NetClientState *ncs[255];
+
+    if (nb_args != 2) {
+        return;
+    }
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    count = qemu_find_net_clients_except(NULL, ncs, NET_CLIENT_OPTIONS_KIND_NIC,
+                                         255);
+    for (i = 0; i < count; i++) {
+        QemuOpts *opts;
+        const char *name = ncs[i]->name;
+        if (strncmp(str, name, len)) {
+            continue;
+        }
+        opts = qemu_opts_find(qemu_find_opts_err("netdev", NULL), name);
+        if (opts) {
+            readline_add_completion(rs, name);
+        }
+    }
 }
 
 static void monitor_find_completion_by_table(Monitor *mon,
@@ -4444,15 +4587,7 @@ static void monitor_find_completion_by_table(Monitor *mon,
             break;
         case 's':
         case 'S':
-            if (!strcmp(cmd->name, "sendkey")) {
-                char *sep = strrchr(str, '-');
-                if (sep)
-                    str = sep + 1;
-                readline_set_completion_index(mon->rs, strlen(str));
-                for (i = 0; i < Q_KEY_CODE_MAX; i++) {
-                    cmd_completion(mon, str, QKeyCode_lookup[i]);
-                }
-            } else if (!strcmp(cmd->name, "help|?")) {
+            if (!strcmp(cmd->name, "help|?")) {
                 monitor_find_completion_by_table(mon, cmd_table,
                                                  &args[1], nb_args - 1);
             }

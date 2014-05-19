@@ -73,13 +73,18 @@ class QAPIExprError(Exception):
 
 class QAPISchema:
 
-    def __init__(self, fp, input_relname=None, include_hist=[], parent_info=None):
+    def __init__(self, fp, input_relname=None, include_hist=[],
+                 previously_included=[], parent_info=None):
+        """ include_hist is a stack used to detect inclusion cycles
+            previously_included is a global state used to avoid multiple
+                                inclusions of the same file"""
         input_fname = os.path.abspath(fp.name)
         if input_relname is None:
             input_relname = fp.name
         self.input_dir = os.path.dirname(input_fname)
         self.input_file = input_relname
         self.include_hist = include_hist + [(input_relname, input_fname)]
+        previously_included.append(input_fname)
         self.parent_info = parent_info
         self.src = fp.read()
         if self.src == '' or self.src[-1] != '\n':
@@ -106,13 +111,16 @@ class QAPISchema:
                        for elem in self.include_hist):
                     raise QAPIExprError(expr_info, "Inclusion loop for %s"
                                         % include)
+                # skip multiple include of the same file
+                if include_path in previously_included:
+                    continue
                 try:
                     fobj = open(include_path, 'r')
                 except IOError as e:
                     raise QAPIExprError(expr_info,
                                         '%s: %s' % (e.strerror, include))
-                exprs_include = QAPISchema(fobj, include,
-                                           self.include_hist, expr_info)
+                exprs_include = QAPISchema(fobj, include, self.include_hist,
+                                           previously_included, expr_info)
                 self.exprs.extend(exprs_include.exprs)
             else:
                 expr_elem = {'expr': expr,

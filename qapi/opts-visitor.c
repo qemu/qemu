@@ -484,8 +484,7 @@ opts_type_size(Visitor *v, uint64_t *obj, const char *name, Error **errp)
 
 
 static void
-opts_start_optional(Visitor *v, bool *present, const char *name,
-                       Error **errp)
+opts_optional(Visitor *v, bool *present, const char *name, Error **errp)
 {
     OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
 
@@ -528,7 +527,7 @@ opts_visitor_new(const QemuOpts *opts)
     /* type_number() is not filled in, but this is not the first visitor to
      * skip some mandatory methods... */
 
-    ov->visitor.start_optional = &opts_start_optional;
+    ov->visitor.optional = &opts_optional;
 
     ov->opts_root = opts;
 
