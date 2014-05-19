@@ -43,11 +43,8 @@
 #define PFN_BUFBITMAP               (CHAR_BIT * BUFSIZE_BITMAP)
 #define BUFSIZE_DATA_CACHE          (TARGET_PAGE_SIZE * 4)
 
-typedef struct ArchDumpInfo {
-    int d_machine;  /* Architecture */
-    int d_endian;   /* ELFDATA2LSB or ELFDATA2MSB */
-    int d_class;    /* ELFCLASS32 or ELFCLASS64 */
-} ArchDumpInfo;
+#include "sysemu/dump-arch.h"
+#include "sysemu/memory_mapping.h"
 
 typedef struct QEMU_PACKED MakedumpfileHeader {
     char signature[16];     /* = "makedumpfile" */
@@ -158,9 +155,37 @@ typedef struct QEMU_PACKED PageDescriptor {
     uint64_t page_flags;            /* page flags */
 } PageDescriptor;
 
-struct GuestPhysBlockList; /* memory_mapping.h */
-int cpu_get_dump_info(ArchDumpInfo *info,
-                      const struct GuestPhysBlockList *guest_phys_blocks);
-ssize_t cpu_get_note_size(int class, int machine, int nr_cpus);
+typedef struct DumpState {
+    GuestPhysBlockList guest_phys_blocks;
+    ArchDumpInfo dump_info;
+    MemoryMappingList list;
+    uint16_t phdr_num;
+    uint32_t sh_info;
+    bool have_section;
+    bool resume;
+    ssize_t note_size;
+    hwaddr memory_offset;
+    int fd;
 
+    GuestPhysBlock *next_block;
+    ram_addr_t start;
+    bool has_filter;
+    int64_t begin;
+    int64_t length;
+
+    uint8_t *note_buf;          /* buffer for notes */
+    size_t note_buf_offset;     /* the writing place in note_buf */
+    uint32_t nr_cpus;           /* number of guest's cpu */
+    uint64_t max_mapnr;         /* the biggest guest's phys-mem's number */
+    size_t len_dump_bitmap;     /* the size of the place used to store
+                                   dump_bitmap in vmcore */
+    off_t offset_dump_bitmap;   /* offset of dump_bitmap part in vmcore */
+    off_t offset_page;          /* offset of page part in vmcore */
+    size_t num_dumpable;        /* number of page that can be dumped */
+    uint32_t flag_compress;     /* indicate the compression format */
+} DumpState;
+
+uint16_t cpu_to_dump16(DumpState *s, uint16_t val);
+uint32_t cpu_to_dump32(DumpState *s, uint32_t val);
+uint64_t cpu_to_dump64(DumpState *s, uint64_t val);
 #endif
