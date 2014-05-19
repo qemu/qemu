@@ -3204,6 +3204,7 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
                                     void (*init)(struct CharDriverState *s),
                                     Error **errp)
 {
+    Error *local_err = NULL;
     CharDriver *cd;
     CharDriverState *chr;
     GSList *i;
@@ -3245,8 +3246,9 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
         chr = NULL;
         backend->kind = cd->kind;
         if (cd->parse) {
-            cd->parse(opts, backend, errp);
-            if (error_is_set(errp)) {
+            cd->parse(opts, backend, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
                 goto qapi_out;
             }
         }
