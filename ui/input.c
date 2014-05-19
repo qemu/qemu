@@ -1,3 +1,4 @@
+#include "hw/qdev.h"
 #include "sysemu/sysemu.h"
 #include "qapi-types.h"
 #include "qmp-commands.h"
@@ -10,6 +11,7 @@ struct QemuInputHandlerState {
     QemuInputHandler  *handler;
     int               id;
     int               events;
+    QemuConsole       *con;
     QTAILQ_ENTRY(QemuInputHandlerState) node;
 };
 static QTAILQ_HEAD(, QemuInputHandlerState) handlers =
@@ -53,12 +55,46 @@ void qemu_input_handler_unregister(QemuInputHandlerState *s)
     qemu_input_check_mode_change();
 }
 
+void qemu_input_handler_bind(QemuInputHandlerState *s,
+                             const char *device_id, int head,
+                             Error **errp)
+{
+    DeviceState *dev;
+    QemuConsole *con;
+
+    dev = qdev_find_recursive(sysbus_get_default(), device_id);
+    if (dev == NULL) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device_id);
+        return;
+    }
+
+    con = qemu_console_lookup_by_device(dev, head);
+    if (con == NULL) {
+        error_setg(errp, "Device %s is not bound to a QemuConsole", device_id);
+        return;
+    }
+
+    s->con = con;
+}
+
 static QemuInputHandlerState*
-qemu_input_find_handler(uint32_t mask)
+qemu_input_find_handler(uint32_t mask, QemuConsole *con)
 {
     QemuInputHandlerState *s;
 
     QTAILQ_FOREACH(s, &handlers, node) {
+        if (s->con == NULL || s->con != con) {
+            continue;
+        }
+        if (mask & s->handler->mask) {
+            return s;
+        }
+    }
+
+    QTAILQ_FOREACH(s, &handlers, node) {
+        if (s->con != NULL) {
+            continue;
+        }
         if (mask & s->handler->mask) {
             return s;
         }
@@ -151,7 +187,7 @@ void qemu_input_event_send(QemuConsole *src, InputEvent *evt)
     }
 
     /* send event */
-    s = qemu_input_find_handler(1 << evt->kind);
+    s = qemu_input_find_handler(1 << evt->kind, src);
     if (!s) {
         return;
     }
@@ -252,7 +288,8 @@ bool qemu_input_is_absolute(void)
 {
     QemuInputHandlerState *s;
 
-    s = qemu_input_find_handler(INPUT_EVENT_MASK_REL | INPUT_EVENT_MASK_ABS);
+    s = qemu_input_find_handler(INPUT_EVENT_MASK_REL | INPUT_EVENT_MASK_ABS,
+                                NULL);
     return (s != NULL) && (s->handler->mask & INPUT_EVENT_MASK_ABS);
 }
 
