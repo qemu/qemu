@@ -47,6 +47,8 @@ typedef struct USBHIDState {
     USBEndpoint *intr;
     HIDState hid;
     uint32_t usb_version;
+    char *display;
+    uint32_t head;
 } USBHIDState;
 
 enum {
@@ -574,6 +576,9 @@ static int usb_hid_initfn(USBDevice *dev, int kind)
     usb_desc_init(dev);
     us->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
     hid_init(&us->hid, kind, usb_hid_changed);
+    if (us->display && us->hid.s) {
+        qemu_input_handler_bind(us->hid.s, us->display, us->head, NULL);
+    }
     return 0;
 }
 
@@ -653,6 +658,8 @@ static void usb_hid_class_initfn(ObjectClass *klass, void *data)
 
 static Property usb_tablet_properties[] = {
         DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
+        DEFINE_PROP_STRING("display", USBHIDState, display),
+        DEFINE_PROP_UINT32("head", USBHIDState, head, 0),
         DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -696,6 +703,11 @@ static const TypeInfo usb_mouse_info = {
     .class_init    = usb_mouse_class_initfn,
 };
 
+static Property usb_keyboard_properties[] = {
+        DEFINE_PROP_STRING("display", USBHIDState, display),
+        DEFINE_PROP_END_OF_LIST(),
+};
+
 static void usb_keyboard_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -706,6 +718,7 @@ static void usb_keyboard_class_initfn(ObjectClass *klass, void *data)
     uc->product_desc   = "QEMU USB Keyboard";
     uc->usb_desc       = &desc_keyboard;
     dc->vmsd = &vmstate_usb_kbd;
+    dc->props = usb_keyboard_properties;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
