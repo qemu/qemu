@@ -80,6 +80,17 @@ static void jump_to_IPL_code(uint64_t address)
 static unsigned char _bprs[8*1024]; /* guessed "max" ECKD sector size */
 const int max_bprs_entries = sizeof(_bprs) / sizeof(ExtEckdBlockPtr);
 
+static inline void verify_boot_info(BootInfo *bip)
+{
+    IPL_assert(magic_match(bip->magic, ZIPL_MAGIC), "No zIPL magic");
+    IPL_assert(bip->version == BOOT_INFO_VERSION, "Wrong zIPL version");
+    IPL_assert(bip->bp_type == BOOT_INFO_BP_TYPE_IPL, "DASD is not for IPL");
+    IPL_assert(bip->dev_type == BOOT_INFO_DEV_TYPE_ECKD, "DASD is not ECKD");
+    IPL_assert(bip->flags == BOOT_INFO_FLAGS_ARCH, "Not for this arch");
+    IPL_assert(block_size_ok(bip->bp.ipl.bm_ptr.eckd.bptr.size),
+               "Bad block size in zIPL section of the 1st record.");
+}
+
 static bool eckd_valid_address(BootMapPointer *p)
 {
     const uint64_t cylinder = p->eckd.cylinder
@@ -198,19 +209,15 @@ static void run_eckd_boot_script(block_number_t mbr_block_nr)
     jump_to_IPL_code(bms->entry[i].address.load_address); /* no return */
 }
 
-static void ipl_eckd(void)
+static void ipl_eckd_cdl(void)
 {
     XEckdMbr *mbr;
     Ipl2 *ipl2 = (void *)sec;
     IplVolumeLabel *vlbl = (void *)sec;
     block_number_t block_nr;
 
-    sclp_print("Using ECKD scheme.\n");
-    if (virtio_guessed_disk_nature()) {
-        sclp_print("Using guessed DASD geometry.\n");
-        virtio_assume_eckd();
-    }
     /* we have just read the block #0 and recognized it as "IPL1" */
+    sclp_print("CDL\n");
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(1, ipl2, "Cannot read IPL2 record at block 1");
@@ -236,6 +243,57 @@ static void ipl_eckd(void)
 
     run_eckd_boot_script(block_nr);
     /* no return */
+}
+
+static void ipl_eckd_ldl(ECKD_IPL_mode_t mode)
+{
+    LDL_VTOC *vlbl = (void *)sec; /* already read, 3rd block */
+    char msg[4] = { '?', '.', '\n', '\0' };
+    block_number_t block_nr;
+    BootInfo *bip;
+
+    sclp_print((mode == ECKD_CMS) ? "CMS" : "LDL");
+    sclp_print(" version ");
+    switch (vlbl->LDL_version) {
+    case LDL1_VERSION:
+        msg[0] = '1';
+        break;
+    case LDL2_VERSION:
+        msg[0] = '2';
+        break;
+    default:
+        msg[0] = vlbl->LDL_version;
+        msg[0] &= 0x0f; /* convert EBCDIC   */
+        msg[0] |= 0x30; /* to ASCII (digit) */
+        msg[1] = '?';
+        break;
+    }
+    sclp_print(msg);
+    print_volser(vlbl->volser);
+
+    /* DO NOT read BootMap pointer (only one, xECKD) at block #2 */
+
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(0, sec, "Cannot read block 0");
+    bip = (void *)(sec + 0x70); /* "boot info" is "eckd mbr" for LDL */
+    verify_boot_info(bip);
+
+    block_nr = eckd_block_num((void *)&(bip->bp.ipl.bm_ptr.eckd.bptr));
+    run_eckd_boot_script(block_nr);
+    /* no return */
+}
+
+static void ipl_eckd(ECKD_IPL_mode_t mode)
+{
+    switch (mode) {
+    case ECKD_CDL:
+        ipl_eckd_cdl(); /* no return */
+    case ECKD_CMS:
+    case ECKD_LDL:
+        ipl_eckd_ldl(mode); /* no return */
+    default:
+        virtio_panic("\n! Unknown ECKD IPL mode !\n");
+    }
 }
 
 /***********************************************************************
@@ -374,6 +432,7 @@ static void ipl_scsi(void)
 void zipl_load(void)
 {
     ScsiMbr *mbr = (void *)sec;
+    LDL_VTOC *vlbl = (void *)sec;
 
     /* Grab the MBR */
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
@@ -384,8 +443,27 @@ void zipl_load(void)
     if (magic_match(mbr->magic, ZIPL_MAGIC)) {
         ipl_scsi(); /* no return */
     }
+
+    /* We have failed to follow the SCSI scheme, so */
+    sclp_print("Using ECKD scheme.\n");
+    if (virtio_guessed_disk_nature()) {
+        sclp_print("Using guessed DASD geometry.\n");
+        virtio_assume_eckd();
+    }
+
     if (magic_match(mbr->magic, IPL1_MAGIC)) {
-        ipl_eckd(); /* CDL ECKD; no return */
+        ipl_eckd(ECKD_CDL); /* no return */
+    }
+
+    /* LDL/CMS? */
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(2, vlbl, "Cannot read block 2");
+
+    if (magic_match(vlbl->magic, CMS1_MAGIC)) {
+        ipl_eckd(ECKD_CMS); /* no return */
+    }
+    if (magic_match(vlbl->magic, LNX1_MAGIC)) {
+        ipl_eckd(ECKD_LDL); /* no return */
     }
 
     virtio_panic("\n* invalid MBR magic *\n");
