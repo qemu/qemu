@@ -27,6 +27,7 @@
 #include "hw/char/escc.h"
 #include "sysemu/char.h"
 #include "ui/console.h"
+#include "ui/input.h"
 #include "trace.h"
 
 /*
@@ -94,6 +95,7 @@ typedef struct ChannelState {
     ChnID chn; // this channel, A (base+4) or B (base+0)
     ChnType type;
     uint8_t rx, tx;
+    QemuInputHandlerState *hs;
 } ChannelState;
 
 #define ESCC(obj) OBJECT_CHECK(ESCCState, (obj), TYPE_ESCC)
@@ -714,70 +716,180 @@ MemoryRegion *escc_init(hwaddr base, qemu_irq irqA, qemu_irq irqB,
     return &d->mmio;
 }
 
-static const uint8_t keycodes[128] = {
-    127, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 43, 53,
-    54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 89, 76, 77, 78,
-    79, 80, 81, 82, 83, 84, 85, 86, 87, 42, 99, 88, 100, 101, 102, 103,
-    104, 105, 106, 107, 108, 109, 110, 47, 19, 121, 119, 5, 6, 8, 10, 12,
-    14, 16, 17, 18, 7, 98, 23, 68, 69, 70, 71, 91, 92, 93, 125, 112,
-    113, 114, 94, 50, 0, 0, 124, 9, 11, 0, 0, 0, 0, 0, 0, 0,
-    90, 0, 46, 22, 13, 111, 52, 20, 96, 24, 28, 74, 27, 123, 44, 66,
-    0, 45, 2, 4, 48, 0, 0, 21, 0, 0, 0, 0, 0, 120, 122, 67,
+static const uint8_t qcode_to_keycode[Q_KEY_CODE_MAX] = {
+    [Q_KEY_CODE_SHIFT]         = 99,
+    [Q_KEY_CODE_SHIFT_R]       = 110,
+    [Q_KEY_CODE_ALT]           = 19,
+    [Q_KEY_CODE_ALT_R]         = 13,
+    [Q_KEY_CODE_ALTGR]         = 13,
+    [Q_KEY_CODE_CTRL]          = 76,
+    [Q_KEY_CODE_CTRL_R]        = 76,
+    [Q_KEY_CODE_ESC]           = 29,
+    [Q_KEY_CODE_1]             = 30,
+    [Q_KEY_CODE_2]             = 31,
+    [Q_KEY_CODE_3]             = 32,
+    [Q_KEY_CODE_4]             = 33,
+    [Q_KEY_CODE_5]             = 34,
+    [Q_KEY_CODE_6]             = 35,
+    [Q_KEY_CODE_7]             = 36,
+    [Q_KEY_CODE_8]             = 37,
+    [Q_KEY_CODE_9]             = 38,
+    [Q_KEY_CODE_0]             = 39,
+    [Q_KEY_CODE_MINUS]         = 40,
+    [Q_KEY_CODE_EQUAL]         = 41,
+    [Q_KEY_CODE_BACKSPACE]     = 43,
+    [Q_KEY_CODE_TAB]           = 53,
+    [Q_KEY_CODE_Q]             = 54,
+    [Q_KEY_CODE_W]             = 55,
+    [Q_KEY_CODE_E]             = 56,
+    [Q_KEY_CODE_R]             = 57,
+    [Q_KEY_CODE_T]             = 58,
+    [Q_KEY_CODE_Y]             = 59,
+    [Q_KEY_CODE_U]             = 60,
+    [Q_KEY_CODE_I]             = 61,
+    [Q_KEY_CODE_O]             = 62,
+    [Q_KEY_CODE_P]             = 63,
+    [Q_KEY_CODE_BRACKET_LEFT]  = 64,
+    [Q_KEY_CODE_BRACKET_RIGHT] = 65,
+    [Q_KEY_CODE_RET]           = 89,
+    [Q_KEY_CODE_A]             = 77,
+    [Q_KEY_CODE_S]             = 78,
+    [Q_KEY_CODE_D]             = 79,
+    [Q_KEY_CODE_F]             = 80,
+    [Q_KEY_CODE_G]             = 81,
+    [Q_KEY_CODE_H]             = 82,
+    [Q_KEY_CODE_J]             = 83,
+    [Q_KEY_CODE_K]             = 84,
+    [Q_KEY_CODE_L]             = 85,
+    [Q_KEY_CODE_SEMICOLON]     = 86,
+    [Q_KEY_CODE_APOSTROPHE]    = 87,
+    [Q_KEY_CODE_GRAVE_ACCENT]  = 42,
+    [Q_KEY_CODE_BACKSLASH]     = 88,
+    [Q_KEY_CODE_Z]             = 100,
+    [Q_KEY_CODE_X]             = 101,
+    [Q_KEY_CODE_C]             = 102,
+    [Q_KEY_CODE_V]             = 103,
+    [Q_KEY_CODE_B]             = 104,
+    [Q_KEY_CODE_N]             = 105,
+    [Q_KEY_CODE_M]             = 106,
+    [Q_KEY_CODE_COMMA]         = 107,
+    [Q_KEY_CODE_DOT]           = 108,
+    [Q_KEY_CODE_SLASH]         = 109,
+    [Q_KEY_CODE_ASTERISK]      = 47,
+    [Q_KEY_CODE_SPC]           = 121,
+    [Q_KEY_CODE_CAPS_LOCK]     = 119,
+    [Q_KEY_CODE_F1]            = 5,
+    [Q_KEY_CODE_F2]            = 6,
+    [Q_KEY_CODE_F3]            = 8,
+    [Q_KEY_CODE_F4]            = 10,
+    [Q_KEY_CODE_F5]            = 12,
+    [Q_KEY_CODE_F6]            = 14,
+    [Q_KEY_CODE_F7]            = 16,
+    [Q_KEY_CODE_F8]            = 17,
+    [Q_KEY_CODE_F9]            = 18,
+    [Q_KEY_CODE_F10]           = 7,
+    [Q_KEY_CODE_NUM_LOCK]      = 98,
+    [Q_KEY_CODE_SCROLL_LOCK]   = 23,
+    [Q_KEY_CODE_KP_DIVIDE]     = 46,
+    [Q_KEY_CODE_KP_MULTIPLY]   = 47,
+    [Q_KEY_CODE_KP_SUBTRACT]   = 71,
+    [Q_KEY_CODE_KP_ADD]        = 125,
+    [Q_KEY_CODE_KP_ENTER]      = 90,
+    [Q_KEY_CODE_KP_DECIMAL]    = 50,
+    [Q_KEY_CODE_KP_0]          = 94,
+    [Q_KEY_CODE_KP_1]          = 112,
+    [Q_KEY_CODE_KP_2]          = 113,
+    [Q_KEY_CODE_KP_3]          = 114,
+    [Q_KEY_CODE_KP_4]          = 91,
+    [Q_KEY_CODE_KP_5]          = 92,
+    [Q_KEY_CODE_KP_6]          = 93,
+    [Q_KEY_CODE_KP_7]          = 68,
+    [Q_KEY_CODE_KP_8]          = 69,
+    [Q_KEY_CODE_KP_9]          = 70,
+    [Q_KEY_CODE_LESS]          = 124,
+    [Q_KEY_CODE_F11]           = 9,
+    [Q_KEY_CODE_F12]           = 11,
+    [Q_KEY_CODE_HOME]          = 52,
+    [Q_KEY_CODE_PGUP]          = 96,
+    [Q_KEY_CODE_PGDN]          = 123,
+    [Q_KEY_CODE_END]           = 74,
+    [Q_KEY_CODE_LEFT]          = 24,
+    [Q_KEY_CODE_UP]            = 20,
+    [Q_KEY_CODE_DOWN]          = 27,
+    [Q_KEY_CODE_RIGHT]         = 28,
+    [Q_KEY_CODE_INSERT]        = 44,
+    [Q_KEY_CODE_DELETE]        = 66,
+    [Q_KEY_CODE_STOP]          = 1,
+    [Q_KEY_CODE_AGAIN]         = 3,
+    [Q_KEY_CODE_PROPS]         = 25,
+    [Q_KEY_CODE_UNDO]          = 26,
+    [Q_KEY_CODE_FRONT]         = 49,
+    [Q_KEY_CODE_COPY]          = 51,
+    [Q_KEY_CODE_OPEN]          = 72,
+    [Q_KEY_CODE_PASTE]         = 73,
+    [Q_KEY_CODE_FIND]          = 95,
+    [Q_KEY_CODE_CUT]           = 97,
+    [Q_KEY_CODE_LF]            = 111,
+    [Q_KEY_CODE_HELP]          = 118,
+    [Q_KEY_CODE_META_L]        = 120,
+    [Q_KEY_CODE_META_R]        = 122,
+    [Q_KEY_CODE_COMPOSE]       = 67,
+    [Q_KEY_CODE_PRINT]         = 22,
+    [Q_KEY_CODE_SYSRQ]         = 21,
 };
 
-static const uint8_t e0_keycodes[128] = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 90, 76, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 109, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 68, 69, 70, 0, 91, 0, 93, 0, 112,
-    113, 114, 94, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    1, 3, 25, 26, 49, 52, 72, 73, 97, 99, 111, 118, 120, 122, 67, 0,
-};
-
-static void sunkbd_event(void *opaque, int ch)
+static void sunkbd_handle_event(DeviceState *dev, QemuConsole *src,
+                                InputEvent *evt)
 {
-    ChannelState *s = opaque;
-    int release = ch & 0x80;
+    ChannelState *s = (ChannelState *)dev;
+    int qcode, keycode;
 
-    trace_escc_sunkbd_event_in(ch);
-    switch (ch) {
-    case 58: // Caps lock press
-        s->caps_lock_mode ^= 1;
-        if (s->caps_lock_mode == 2)
-            return; // Drop second press
-        break;
-    case 69: // Num lock press
-        s->num_lock_mode ^= 1;
-        if (s->num_lock_mode == 2)
-            return; // Drop second press
-        break;
-    case 186: // Caps lock release
-        s->caps_lock_mode ^= 2;
-        if (s->caps_lock_mode == 3)
-            return; // Drop first release
-        break;
-    case 197: // Num lock release
-        s->num_lock_mode ^= 2;
-        if (s->num_lock_mode == 3)
-            return; // Drop first release
-        break;
-    case 0xe0:
-        s->e0_mode = 1;
-        return;
-    default:
-        break;
+    assert(evt->kind == INPUT_EVENT_KIND_KEY);
+    qcode = qemu_input_key_value_to_qcode(evt->key->key);
+    trace_escc_sunkbd_event_in(qcode, QKeyCode_lookup[qcode],
+                               evt->key->down);
+
+    if (qcode == Q_KEY_CODE_CAPS_LOCK) {
+        if (evt->key->down) {
+            s->caps_lock_mode ^= 1;
+            if (s->caps_lock_mode == 2) {
+                return; /* Drop second press */
+            }
+        } else {
+            s->caps_lock_mode ^= 2;
+            if (s->caps_lock_mode == 3) {
+                return; /* Drop first release */
+            }
+        }
     }
-    if (s->e0_mode) {
-        s->e0_mode = 0;
-        ch = e0_keycodes[ch & 0x7f];
-    } else {
-        ch = keycodes[ch & 0x7f];
+
+    if (qcode == Q_KEY_CODE_NUM_LOCK) {
+        if (evt->key->down) {
+            s->num_lock_mode ^= 1;
+            if (s->num_lock_mode == 2) {
+                return; /* Drop second press */
+            }
+        } else {
+            s->num_lock_mode ^= 2;
+            if (s->num_lock_mode == 3) {
+                return; /* Drop first release */
+            }
+        }
     }
-    trace_escc_sunkbd_event_out(ch);
-    put_queue(s, ch | release);
+
+    keycode = qcode_to_keycode[qcode];
+    if (!evt->key->down) {
+        keycode |= 0x80;
+    }
+    trace_escc_sunkbd_event_out(keycode);
+    put_queue(s, keycode);
 }
+
+static QemuInputHandler sunkbd_handler = {
+    .name  = "sun keyboard",
+    .mask  = INPUT_EVENT_MASK_KEY,
+    .event = sunkbd_handle_event,
+};
 
 static void handle_kbd_command(ChannelState *s, int val)
 {
@@ -800,7 +912,7 @@ static void handle_kbd_command(ChannelState *s, int val)
     case 0xf:
         clear_queue(s);
         put_queue(s, 0xfe);
-        put_queue(s, 0); // XXX, layout?
+        put_queue(s, 0x21); /*  en-us layout */
         break;
     default:
         break;
@@ -898,7 +1010,8 @@ static int escc_init1(SysBusDevice *dev)
                                      "QEMU Sun Mouse");
     }
     if (s->chn[1].type == kbd) {
-        qemu_add_kbd_event_handler(sunkbd_event, &s->chn[1]);
+        s->chn[1].hs = qemu_input_handler_register((DeviceState *)(&s->chn[1]),
+                                                   &sunkbd_handler);
     }
 
     return 0;
