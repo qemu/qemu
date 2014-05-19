@@ -86,15 +86,21 @@ static inline void fill_hex(char *out, unsigned char val)
     out[1] = hex[val & 0xf];
 }
 
-static inline void print_int(const char *desc, u64 addr)
+static inline void fill_hex_val(char *out, void *ptr, unsigned size)
 {
-    unsigned char *addr_c = (unsigned char *)&addr;
-    char out[] = ": 0xffffffffffffffff\n";
+    unsigned char *value = ptr;
     unsigned int i;
 
-    for (i = 0; i < sizeof(addr); i++) {
-        fill_hex(&out[4 + (i*2)], addr_c[i]);
+    for (i = 0; i < size; i++) {
+        fill_hex(&out[i*2], value[i]);
     }
+}
+
+static inline void print_int(const char *desc, u64 addr)
+{
+    char out[] = ": 0xffffffffffffffff\n";
+
+    fill_hex_val(&out[4], &addr, sizeof(addr));
 
     sclp_print(desc);
     sclp_print(out);
