@@ -86,7 +86,7 @@ static int zipl_magic(uint8_t *ptr)
     return 1;
 }
 
-static int zipl_load_segment(ComponentEntry *entry)
+static void zipl_load_segment(ComponentEntry *entry)
 {
     const int max_entries = (MAX_SECTOR_SIZE / sizeof(ScsiBlockPtr));
     ScsiBlockPtr *bprs = (void *)sec;
@@ -103,10 +103,8 @@ static int zipl_load_segment(ComponentEntry *entry)
 
     do {
         memset(bprs, FREE_SPACE_FILLER, bprs_size);
-        if (virtio_read(blockno, (uint8_t *)bprs)) {
-            debug_print_int("failed reading bprs at", blockno);
-            goto fail;
-        }
+        debug_print_int("reading bprs at", blockno);
+        read_block(blockno, bprs, "zipl_load_segment: cannot read block");
 
         for (i = 0;; i++) {
             u64 *cur_desc = (void *)&bprs[i];
@@ -134,21 +132,13 @@ static int zipl_load_segment(ComponentEntry *entry)
             }
             address = virtio_load_direct(cur_desc[0], cur_desc[1], 0,
                                          (void *)address);
-            if (address == -1) {
-                goto fail;
-            }
+            IPL_assert(address != -1, "zipl_load_segment: wrong IPL address");
         }
     } while (blockno);
-
-    return 0;
-
-fail:
-    sclp_print("failed loading segment\n");
-    return -1;
 }
 
 /* Run a zipl program */
-static int zipl_run(ScsiBlockPtr *pte)
+static void zipl_run(ScsiBlockPtr *pte)
 {
     ComponentHeader *header;
     ComponentEntry *entry;
@@ -157,75 +147,53 @@ static int zipl_run(ScsiBlockPtr *pte)
     virtio_read(pte->blockno, tmp_sec);
     header = (ComponentHeader *)tmp_sec;
 
-    if (!zipl_magic(tmp_sec)) {
-        goto fail;
-    }
+    IPL_assert(zipl_magic(tmp_sec), "zipl_run: zipl_magic");
 
-    if (header->type != ZIPL_COMP_HEADER_IPL) {
-        goto fail;
-    }
+    IPL_assert(header->type == ZIPL_COMP_HEADER_IPL,
+               "zipl_run: wrong header type");
 
     dputs("start loading images\n");
 
     /* Load image(s) into RAM */
     entry = (ComponentEntry *)(&header[1]);
     while (entry->component_type == ZIPL_COMP_ENTRY_LOAD) {
-        if (zipl_load_segment(entry) < 0) {
-            goto fail;
-        }
+        zipl_load_segment(entry);
 
         entry++;
 
-        if ((uint8_t *)(&entry[1]) > (tmp_sec + MAX_SECTOR_SIZE)) {
-            goto fail;
-        }
+        IPL_assert((uint8_t *)(&entry[1]) <= (tmp_sec + MAX_SECTOR_SIZE),
+                   "zipl_run: wrong entry size");
     }
 
-    if (entry->component_type != ZIPL_COMP_ENTRY_EXEC) {
-        goto fail;
-    }
+    IPL_assert(entry->component_type == ZIPL_COMP_ENTRY_EXEC,
+               "zipl_run: no EXEC entry");
 
     /* should not return */
     jump_to_IPL_code(entry->load_address);
-
-    return 0;
-
-fail:
-    sclp_print("failed running zipl\n");
-    return -1;
 }
 
-int zipl_load(void)
+void zipl_load(void)
 {
     ScsiMbr *mbr = (void *)sec;
     uint8_t *ns, *ns_end;
     int program_table_entries = 0;
     const int pte_len = sizeof(ScsiBlockPtr);
     ScsiBlockPtr *prog_table_entry;
-    const char *error = "";
 
     /* Grab the MBR */
-    virtio_read(0, (void *)mbr);
+    read_block(0, mbr, "zipl_load: cannot read block 0");
 
     dputs("checking magic\n");
 
-    if (!zipl_magic(mbr->magic)) {
-        error = "zipl_magic 1";
-        goto fail;
-    }
+    IPL_assert(zipl_magic(mbr->magic), "zipl_load: zipl_magic 1");
 
     debug_print_int("program table", mbr->blockptr.blockno);
 
     /* Parse the program table */
-    if (virtio_read(mbr->blockptr.blockno, sec)) {
-        error = "virtio_read";
-        goto fail;
-    }
+    read_block(mbr->blockptr.blockno, sec,
+               "zipl_load: cannot read program table");
 
-    if (!zipl_magic(sec)) {
-        error = "zipl_magic 2";
-        goto fail;
-    }
+    IPL_assert(zipl_magic(sec), "zipl_load: zipl_magic 2");
 
     ns_end = sec + virtio_get_block_size();
     for (ns = (sec + pte_len); (ns + pte_len) < ns_end; ns++) {
@@ -239,19 +207,11 @@ int zipl_load(void)
 
     debug_print_int("program table entries", program_table_entries);
 
-    if (!program_table_entries) {
-        goto fail;
-    }
+    IPL_assert(program_table_entries, "zipl_load: no program table");
 
     /* Run the default entry */
 
     prog_table_entry = (ScsiBlockPtr *)(sec + pte_len);
 
-    return zipl_run(prog_table_entry);
-
-fail:
-    sclp_print("failed loading zipl: ");
-    sclp_print(error);
-    sclp_print("\n");
-    return -1;
+    zipl_run(prog_table_entry); /* no return */
 }

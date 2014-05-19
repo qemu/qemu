@@ -64,7 +64,7 @@ int virtio_read(ulong sector, void *load_addr);
 int enable_mss_facility(void);
 
 /* bootmap.c */
-int zipl_load(void);
+void zipl_load(void);
 
 static inline void *memset(void *s, int c, size_t n)
 {
