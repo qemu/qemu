@@ -1000,7 +1000,7 @@ out:
 
 static int write_dump_header(DumpState *s)
 {
-    if (s->dump_info.d_machine == EM_386) {
+    if (s->dump_info.d_class == ELFCLASS32) {
         return create_header32(s);
     } else {
         return create_header64(s);
