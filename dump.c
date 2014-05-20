@@ -1220,35 +1220,24 @@ static void free_data_cache(DataCache *data_cache)
 
 static size_t get_len_buf_out(size_t page_size, uint32_t flag_compress)
 {
-    size_t len_buf_out_zlib, len_buf_out_lzo, len_buf_out_snappy;
-    size_t len_buf_out;
+    switch (flag_compress) {
+    case DUMP_DH_COMPRESSED_ZLIB:
+        return compressBound(page_size);
 
-    /* init buf_out */
-    len_buf_out_zlib = len_buf_out_lzo = len_buf_out_snappy = 0;
-
-    /* buf size for zlib */
-    len_buf_out_zlib = compressBound(page_size);
-
-    /* buf size for lzo */
-#ifdef CONFIG_LZO
-    /*
-     * LZO will expand incompressible data by a little amount. please check the
-     * following URL to see the expansion calculation:
-     * http://www.oberhumer.com/opensource/lzo/lzofaq.php
-     */
-    len_buf_out_lzo = page_size + page_size / 16 + 64 + 3;
-#endif
+    case DUMP_DH_COMPRESSED_LZO:
+        /*
+         * LZO will expand incompressible data by a little amount. Please check
+         * the following URL to see the expansion calculation:
+         * http://www.oberhumer.com/opensource/lzo/lzofaq.php
+         */
+        return page_size + page_size / 16 + 64 + 3;
 
 #ifdef CONFIG_SNAPPY
-    /* buf size for snappy */
-    len_buf_out_snappy = snappy_max_compressed_length(page_size);
+    case DUMP_DH_COMPRESSED_SNAPPY:
+        return snappy_max_compressed_length(page_size);
 #endif
-
-    /* get the biggest that can store all kinds of compressed page */
-    len_buf_out = MAX(len_buf_out_zlib,
-                      MAX(len_buf_out_lzo, len_buf_out_snappy));
-
-    return len_buf_out;
+    }
+    return 0;
 }
 
 /*
@@ -1284,10 +1273,7 @@ static int write_dump_pages(DumpState *s)
 
     /* prepare buffer to store compressed data */
     len_buf_out = get_len_buf_out(TARGET_PAGE_SIZE, s->flag_compress);
-    if (len_buf_out == 0) {
-        dump_error(s, "dump: failed to get length of output buffer.\n");
-        goto out;
-    }
+    assert(len_buf_out != 0);
 
 #ifdef CONFIG_LZO
     wrkmem = g_malloc(LZO1X_1_MEM_COMPRESS);
