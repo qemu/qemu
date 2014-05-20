@@ -292,7 +292,12 @@ static int vdi_check(BlockDriverState *bs, BdrvCheckResult *res,
         return -ENOTSUP;
     }
 
-    bmap = g_malloc(s->header.blocks_in_image * sizeof(uint32_t));
+    bmap = g_try_malloc(s->header.blocks_in_image * sizeof(uint32_t));
+    if (s->header.blocks_in_image && bmap == NULL) {
+        res->check_errors++;
+        return -ENOMEM;
+    }
+
     memset(bmap, 0xff, s->header.blocks_in_image * sizeof(uint32_t));
 
     /* Check block map and value of blocks_allocated. */
@@ -471,7 +476,12 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
 
     bmap_size = header.blocks_in_image * sizeof(uint32_t);
     bmap_size = (bmap_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
-    s->bmap = g_malloc(bmap_size * SECTOR_SIZE);
+    s->bmap = qemu_try_blockalign(bs->file, bmap_size * SECTOR_SIZE);
+    if (s->bmap == NULL) {
+        ret = -ENOMEM;
+        goto fail;
+    }
+
     ret = bdrv_read(bs->file, s->bmap_sector, (uint8_t *)s->bmap, bmap_size);
     if (ret < 0) {
         goto fail_free_bmap;
@@ -486,7 +496,7 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     return 0;
 
  fail_free_bmap:
-    g_free(s->bmap);
+    qemu_vfree(s->bmap);
 
  fail:
     return ret;
@@ -760,7 +770,12 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
     offset += sizeof(header);
 
     if (bmap_size > 0) {
-        bmap = g_malloc0(bmap_size);
+        bmap = g_try_malloc0(bmap_size);
+        if (bmap == NULL) {
+            ret = -ENOMEM;
+            error_setg(errp, "Could not allocate bmap");
+            goto exit;
+        }
         for (i = 0; i < blocks; i++) {
             if (image_type == VDI_TYPE_STATIC) {
                 bmap[i] = i;
@@ -794,7 +809,7 @@ static void vdi_close(BlockDriverState *bs)
 {
     BDRVVdiState *s = bs->opaque;
 
-    g_free(s->bmap);
+    qemu_vfree(s->bmap);
 
     migrate_del_blocker(s->migration_blocker);
     error_free(s->migration_blocker);
