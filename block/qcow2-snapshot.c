@@ -381,7 +381,12 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     sn->l1_table_offset = l1_table_offset;
     sn->l1_size = s->l1_size;
 
-    l1_table = g_malloc(s->l1_size * sizeof(uint64_t));
+    l1_table = g_try_malloc(s->l1_size * sizeof(uint64_t));
+    if (s->l1_size && l1_table == NULL) {
+        ret = -ENOMEM;
+        goto fail;
+    }
+
     for(i = 0; i < s->l1_size; i++) {
         l1_table[i] = cpu_to_be64(s->l1_table[i]);
     }
@@ -499,7 +504,11 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
      * Decrease the refcount referenced by the old one only when the L1
      * table is overwritten.
      */
-    sn_l1_table = g_malloc0(cur_l1_bytes);
+    sn_l1_table = g_try_malloc0(cur_l1_bytes);
+    if (cur_l1_bytes && sn_l1_table == NULL) {
+        ret = -ENOMEM;
+        goto fail;
+    }
 
     ret = bdrv_pread(bs->file, sn->l1_table_offset, sn_l1_table, sn_l1_bytes);
     if (ret < 0) {
@@ -698,17 +707,21 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs,
         return -EFBIG;
     }
     new_l1_bytes = sn->l1_size * sizeof(uint64_t);
-    new_l1_table = g_malloc0(align_offset(new_l1_bytes, 512));
+    new_l1_table = qemu_try_blockalign(bs->file,
+                                       align_offset(new_l1_bytes, 512));
+    if (new_l1_table == NULL) {
+        return -ENOMEM;
+    }
 
     ret = bdrv_pread(bs->file, sn->l1_table_offset, new_l1_table, new_l1_bytes);
     if (ret < 0) {
         error_setg(errp, "Failed to read l1 table for snapshot");
-        g_free(new_l1_table);
+        qemu_vfree(new_l1_table);
         return ret;
     }
 
     /* Switch the L1 table */
-    g_free(s->l1_table);
+    qemu_vfree(s->l1_table);
 
     s->l1_size = sn->l1_size;
     s->l1_table_offset = sn->l1_table_offset;
