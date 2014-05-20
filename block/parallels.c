@@ -105,7 +105,11 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -EFBIG;
         goto fail;
     }
-    s->catalog_bitmap = g_malloc(s->catalog_size * 4);
+    s->catalog_bitmap = g_try_malloc(s->catalog_size * 4);
+    if (s->catalog_size && s->catalog_bitmap == NULL) {
+        ret = -ENOMEM;
+        goto fail;
+    }
 
     ret = bdrv_pread(bs->file, 64, s->catalog_bitmap, s->catalog_size * 4);
     if (ret < 0) {
