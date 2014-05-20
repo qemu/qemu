@@ -558,6 +558,7 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
     int has_error_code, new_stack, shift;
     uint32_t e1, e2, offset, ss = 0, esp, ss_e1 = 0, ss_e2 = 0;
     uint32_t old_eip, sp_mask;
+    int vm86 = env->eflags & VM_MASK;
 
     has_error_code = 0;
     if (!is_int && !is_hw) {
@@ -673,7 +674,7 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
         ssp = get_seg_base(ss_e1, ss_e2);
     } else if ((e2 & DESC_C_MASK) || dpl == cpl) {
         /* to same privilege */
-        if (env->eflags & VM_MASK) {
+        if (vm86) {
             raise_exception_err(env, EXCP0D_GPF, selector & 0xfffc);
         }
         new_stack = 0;
@@ -694,14 +695,14 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
 #if 0
     /* XXX: check that enough room is available */
     push_size = 6 + (new_stack << 2) + (has_error_code << 1);
-    if (env->eflags & VM_MASK) {
+    if (vm86) {
         push_size += 8;
     }
     push_size <<= shift;
 #endif
     if (shift == 1) {
         if (new_stack) {
-            if (env->eflags & VM_MASK) {
+            if (vm86) {
                 PUSHL(ssp, esp, sp_mask, env->segs[R_GS].selector);
                 PUSHL(ssp, esp, sp_mask, env->segs[R_FS].selector);
                 PUSHL(ssp, esp, sp_mask, env->segs[R_DS].selector);
@@ -718,7 +719,7 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
         }
     } else {
         if (new_stack) {
-            if (env->eflags & VM_MASK) {
+            if (vm86) {
                 PUSHW(ssp, esp, sp_mask, env->segs[R_GS].selector);
                 PUSHW(ssp, esp, sp_mask, env->segs[R_FS].selector);
                 PUSHW(ssp, esp, sp_mask, env->segs[R_DS].selector);
@@ -742,7 +743,7 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
     env->eflags &= ~(TF_MASK | VM_MASK | RF_MASK | NT_MASK);
 
     if (new_stack) {
-        if (env->eflags & VM_MASK) {
+        if (vm86) {
             cpu_x86_load_seg_cache(env, R_ES, 0, 0, 0, 0);
             cpu_x86_load_seg_cache(env, R_DS, 0, 0, 0, 0);
             cpu_x86_load_seg_cache(env, R_FS, 0, 0, 0, 0);
