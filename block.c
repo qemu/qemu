@@ -2275,7 +2275,14 @@ int bdrv_commit(BlockDriverState *bs)
     }
 
     total_sectors = length >> BDRV_SECTOR_BITS;
-    buf = g_malloc(COMMIT_BUF_SECTORS * BDRV_SECTOR_SIZE);
+
+    /* qemu_try_blockalign() for bs will choose an alignment that works for
+     * bs->backing_hd as well, so no need to compare the alignment manually. */
+    buf = qemu_try_blockalign(bs, COMMIT_BUF_SECTORS * BDRV_SECTOR_SIZE);
+    if (buf == NULL) {
+        ret = -ENOMEM;
+        goto ro_cleanup;
+    }
 
     for (sector = 0; sector < total_sectors; sector += n) {
         ret = bdrv_is_allocated(bs, sector, COMMIT_BUF_SECTORS, &n);
@@ -2313,7 +2320,7 @@ int bdrv_commit(BlockDriverState *bs)
 
     ret = 0;
 ro_cleanup:
-    g_free(buf);
+    qemu_vfree(buf);
 
     if (ro) {
         /* ignoring error return here */
@@ -2972,7 +2979,12 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
                                    cluster_sector_num, cluster_nb_sectors);
 
     iov.iov_len = cluster_nb_sectors * BDRV_SECTOR_SIZE;
-    iov.iov_base = bounce_buffer = qemu_blockalign(bs, iov.iov_len);
+    iov.iov_base = bounce_buffer = qemu_try_blockalign(bs, iov.iov_len);
+    if (bounce_buffer == NULL) {
+        ret = -ENOMEM;
+        goto err;
+    }
+
     qemu_iovec_init_external(&bounce_qiov, &iov, 1);
 
     ret = drv->bdrv_co_readv(bs, cluster_sector_num, cluster_nb_sectors,
@@ -3256,7 +3268,11 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
             /* Fall back to bounce buffer if write zeroes is unsupported */
             iov.iov_len = num * BDRV_SECTOR_SIZE;
             if (iov.iov_base == NULL) {
-                iov.iov_base = qemu_blockalign(bs, num * BDRV_SECTOR_SIZE);
+                iov.iov_base = qemu_try_blockalign(bs, num * BDRV_SECTOR_SIZE);
+                if (iov.iov_base == NULL) {
+                    ret = -ENOMEM;
+                    goto fail;
+                }
                 memset(iov.iov_base, 0, num * BDRV_SECTOR_SIZE);
             }
             qemu_iovec_init_external(&qiov, &iov, 1);
@@ -3276,6 +3292,7 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
         nb_sectors -= num;
     }
 
+fail:
     qemu_vfree(iov.iov_base);
     return ret;
 }
@@ -4618,8 +4635,9 @@ static void bdrv_aio_bh_cb(void *opaque)
 {
     BlockDriverAIOCBSync *acb = opaque;
 
-    if (!acb->is_write)
+    if (!acb->is_write && acb->ret >= 0) {
         qemu_iovec_from_buf(acb->qiov, 0, acb->bounce, acb->qiov->size);
+    }
     qemu_vfree(acb->bounce);
     acb->common.cb(acb->common.opaque, acb->ret);
     qemu_bh_delete(acb->bh);
@@ -4641,10 +4659,12 @@ static BlockDriverAIOCB *bdrv_aio_rw_vector(BlockDriverState *bs,
     acb = qemu_aio_get(&bdrv_em_aiocb_info, bs, cb, opaque);
     acb->is_write = is_write;
     acb->qiov = qiov;
-    acb->bounce = qemu_blockalign(bs, qiov->size);
+    acb->bounce = qemu_try_blockalign(bs, qiov->size);
     acb->bh = aio_bh_new(bdrv_get_aio_context(bs), bdrv_aio_bh_cb, acb);
 
-    if (is_write) {
+    if (acb->bounce == NULL) {
+        acb->ret = -ENOMEM;
+    } else if (is_write) {
         qemu_iovec_to_buf(acb->qiov, 0, acb->bounce, qiov->size);
         acb->ret = bs->drv->bdrv_write(bs, sector_num, acb->bounce, nb_sectors);
     } else {
