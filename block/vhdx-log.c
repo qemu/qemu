@@ -352,7 +352,12 @@ static int vhdx_log_read_desc(BlockDriverState *bs, BDRVVHDXState *s,
     }
 
     desc_sectors = vhdx_compute_desc_sectors(hdr.descriptor_count);
-    desc_entries = qemu_blockalign(bs, desc_sectors * VHDX_LOG_SECTOR_SIZE);
+    desc_entries = qemu_try_blockalign(bs->file,
+                                       desc_sectors * VHDX_LOG_SECTOR_SIZE);
+    if (desc_entries == NULL) {
+        ret = -ENOMEM;
+        goto exit;
+    }
 
     ret = vhdx_log_read_sectors(bs, log, &sectors_read, desc_entries,
                                 desc_sectors, false);

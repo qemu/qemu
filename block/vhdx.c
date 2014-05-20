@@ -958,7 +958,12 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* s->bat is freed in vhdx_close() */
-    s->bat = qemu_blockalign(bs, s->bat_rt.length);
+    s->bat = qemu_try_blockalign(bs->file, s->bat_rt.length);
+    if (s->bat == NULL) {
+        ret = -ENOMEM;
+        goto fail;
+    }
+
     ret = bdrv_pread(bs->file, s->bat_offset, s->bat, s->bat_rt.length);
     if (ret < 0) {
         goto fail;
@@ -1587,7 +1592,11 @@ static int vhdx_create_bat(BlockDriverState *bs, BDRVVHDXState *s,
                 use_zero_blocks ||
                 bdrv_has_zero_init(bs) == 0) {
         /* for a fixed file, the default BAT entry is not zero */
-        s->bat = g_malloc0(length);
+        s->bat = g_try_malloc0(length);
+        if (length && s->bat != NULL) {
+            ret = -ENOMEM;
+            goto exit;
+        }
         block_state = type == VHDX_TYPE_FIXED ? PAYLOAD_BLOCK_FULLY_PRESENT :
                                                 PAYLOAD_BLOCK_NOT_PRESENT;
         block_state = use_zero_blocks ? PAYLOAD_BLOCK_ZERO : block_state;
