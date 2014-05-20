@@ -190,30 +190,33 @@ static void sdl_switch(DisplayChangeListener *dcl,
     }
 }
 
-static void reset_keys(void)
+static void reset_keys(struct sdl2_state *scon)
 {
+    QemuConsole *con = scon ? scon->dcl.con : NULL;
     int i;
 
     for (i = 0; i < 256; i++) {
         if (modifiers_state[i]) {
             int qcode = sdl2_scancode_to_qcode[i];
-            qemu_input_event_send_key_qcode(NULL, qcode, false);
+            qemu_input_event_send_key_qcode(con, qcode, false);
             modifiers_state[i] = 0;
         }
     }
 }
 
-static void sdl_process_key(SDL_KeyboardEvent *ev)
+static void sdl_process_key(struct sdl2_state *scon,
+                            SDL_KeyboardEvent *ev)
 {
     int qcode = sdl2_scancode_to_qcode[ev->keysym.scancode];
+    QemuConsole *con = scon ? scon->dcl.con : NULL;
 
     switch (ev->keysym.scancode) {
 #if 0
     case SDL_SCANCODE_NUMLOCKCLEAR:
     case SDL_SCANCODE_CAPSLOCK:
         /* SDL does not send the key up event, so we generate it */
-        qemu_input_event_send_key_qcode(NULL, qcode, true);
-        qemu_input_event_send_key_qcode(NULL, qcode, false);
+        qemu_input_event_send_key_qcode(con, qcode, true);
+        qemu_input_event_send_key_qcode(con, qcode, false);
         return;
 #endif
     case SDL_SCANCODE_LCTRL:
@@ -231,7 +234,7 @@ static void sdl_process_key(SDL_KeyboardEvent *ev)
         }
         /* fall though */
     default:
-        qemu_input_event_send_key_qcode(NULL, qcode,
+        qemu_input_event_send_key_qcode(con, qcode,
                                         ev->type == SDL_KEYDOWN);
     }
 }
@@ -506,7 +509,7 @@ static void handle_keydown(SDL_Event *ev)
         }
     }
     if (!gui_keysym) {
-        sdl_process_key(&ev->key);
+        sdl_process_key(scon, &ev->key);
     }
 }
 
@@ -531,13 +534,13 @@ static void handle_keyup(SDL_Event *ev)
             }
             /* SDL does not send back all the modifiers key, so we must
              * correct it. */
-            reset_keys();
+            reset_keys(scon);
             return;
         }
         gui_keysym = 0;
     }
     if (!gui_keysym) {
-        sdl_process_key(&ev->key);
+        sdl_process_key(scon, &ev->key);
     }
 }
 
