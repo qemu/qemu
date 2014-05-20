@@ -94,7 +94,7 @@ static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
         for (j = 0; j < num_ss; ++j) {
             flash_dev = ssi_create_slave(spi, "n25q128");
 
-            cs_line = qdev_get_gpio_in(flash_dev, 0);
+            cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
             sysbus_connect_irq(busdev, i * num_ss + j + 1, cs_line);
         }
     }

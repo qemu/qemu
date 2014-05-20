@@ -196,7 +196,7 @@ petalogix_ml605_init(MachineState *machine)
             qemu_irq cs_line;
 
             dev = ssi_create_slave(spi, "n25q128");
-            cs_line = qdev_get_gpio_in(dev, 0);
+            cs_line = qdev_get_gpio_in_named(dev, SSI_GPIO_CS, 0);
             sysbus_connect_irq(busdev, i+1, cs_line);
         }
     }
