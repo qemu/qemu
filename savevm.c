@@ -42,7 +42,6 @@
 #include "block/snapshot.h"
 #include "block/qapi.h"
 
-#define SELF_ANNOUNCE_ROUNDS 5
 
 #ifndef ETH_P_RARP
 #define ETH_P_RARP 0x8035
