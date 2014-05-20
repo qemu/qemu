@@ -109,7 +109,8 @@ struct MTPObject {
     struct stat  stat;
     MTPObject    *parent;
     MTPObject    **children;
-    int32_t      nchildren;
+    uint32_t     nchildren;
+    bool         have_children;
     QTAILQ_ENTRY(MTPObject) next;
 };
 
@@ -273,7 +274,6 @@ static MTPObject *usb_mtp_object_alloc(MTPState *s, uint32_t handle,
     o->handle = handle;
     o->parent = parent;
     o->name = g_strdup(name);
-    o->nchildren = -1;
     if (parent == NULL) {
         o->path = g_strdup(name);
     } else {
@@ -340,7 +340,11 @@ static void usb_mtp_object_readdir(MTPState *s, MTPObject *o)
     struct dirent *entry;
     DIR *dir;
 
-    o->nchildren = 0;
+    if (o->have_children) {
+        return;
+    }
+    o->have_children = true;
+
     dir = opendir(o->path);
     if (!dir) {
         return;
@@ -789,9 +793,7 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
                                  c->trans, 0, 0, 0);
             return;
         }
-        if (o->nchildren == -1) {
-            usb_mtp_object_readdir(s, o);
-        }
+        usb_mtp_object_readdir(s, o);
         if (c->code == CMD_GET_NUM_OBJECTS) {
             trace_usb_mtp_op_get_num_objects(s->dev.addr, o->handle, o->path);
             nres = 1;
