@@ -702,7 +702,10 @@ static MTPData *usb_mtp_get_partial_object(MTPState *s, MTPControl *c,
     if (offset > o->stat.st_size) {
         offset = o->stat.st_size;
     }
-    lseek(d->fd, offset, SEEK_SET);
+    if (lseek(d->fd, offset, SEEK_SET) < 0) {
+        usb_mtp_data_free(d);
+        return NULL;
+    }
 
     d->length = c->argv[2];
     if (d->length > o->stat.st_size - offset) {
