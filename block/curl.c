@@ -640,7 +640,13 @@ static void curl_readv_bh_cb(void *p)
     state->buf_start = start;
     state->buf_len = acb->end + s->readahead_size;
     end = MIN(start + state->buf_len, s->len) - 1;
-    state->orig_buf = g_malloc(state->buf_len);
+    state->orig_buf = g_try_malloc(state->buf_len);
+    if (state->buf_len && state->orig_buf == NULL) {
+        curl_clean_state(state);
+        acb->common.cb(acb->common.opaque, -ENOMEM);
+        qemu_aio_release(acb);
+        return;
+    }
     state->acb[0] = acb;
 
     snprintf(state->range, 127, "%zd-%zd", start, end);
