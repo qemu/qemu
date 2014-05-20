@@ -46,6 +46,7 @@ enum mtp_code {
 
     /* response codes */
     RES_OK                         = 0x2001,
+    RES_GENERAL_ERROR              = 0x2002,
     RES_SESSION_NOT_OPEN           = 0x2003,
     RES_INVALID_TRANSACTION_ID     = 0x2004,
     RES_OPERATION_NOT_SUPPORTED    = 0x2005,
@@ -828,7 +829,9 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         }
         data_in = usb_mtp_get_object(s, c, o);
         if (NULL == data_in) {
-            fprintf(stderr, "%s: TODO: handle error\n", __func__);
+            usb_mtp_queue_result(s, RES_GENERAL_ERROR,
+                                 c->trans, 0, 0, 0);
+            return;
         }
         break;
     case CMD_GET_PARTIAL_OBJECT:
@@ -845,7 +848,9 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         }
         data_in = usb_mtp_get_partial_object(s, c, o);
         if (NULL == data_in) {
-            fprintf(stderr, "%s: TODO: handle error\n", __func__);
+            usb_mtp_queue_result(s, RES_GENERAL_ERROR,
+                                 c->trans, 0, 0, 0);
+            return;
         }
         nres = 1;
         res0 = data_in->length;
