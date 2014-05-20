@@ -116,7 +116,7 @@ class QAPISchema:
                     continue
                 try:
                     fobj = open(include_path, 'r')
-                except IOError as e:
+                except IOError, e:
                     raise QAPIExprError(expr_info,
                                         '%s: %s' % (e.strerror, include))
                 exprs_include = QAPISchema(fobj, include, self.include_hist,
