@@ -351,6 +351,11 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "pci-serial-4x",\
             .property = "prog_if",\
             .value    = stringify(0),\
+        },\
+        {\
+            .driver   = "virtio-net-pci",\
+            .property = "guest_announce",\
+            .value    = "off",\
         }
 
 #define PC_COMPAT_1_7 \
