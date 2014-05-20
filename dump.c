@@ -1231,13 +1231,6 @@ static size_t get_len_buf_out(size_t page_size, uint32_t flag_compress)
 
     /* buf size for lzo */
 #ifdef CONFIG_LZO
-    if (flag_compress & DUMP_DH_COMPRESSED_LZO) {
-        if (lzo_init() != LZO_E_OK) {
-            /* return 0 to indicate lzo is unavailable */
-            return 0;
-        }
-    }
-
     /*
      * LZO will expand incompressible data by a little amount. please check the
      * following URL to see the expansion calculation:
@@ -1625,6 +1618,12 @@ static int dump_init(DumpState *s, int fd, bool has_format,
             break;
 
         case DUMP_GUEST_MEMORY_FORMAT_KDUMP_LZO:
+#ifdef CONFIG_LZO
+            if (lzo_init() != LZO_E_OK) {
+                error_setg(errp, "failed to initialize the LZO library");
+                goto cleanup;
+            }
+#endif
             s->flag_compress = DUMP_DH_COMPRESSED_LZO;
             break;
 
