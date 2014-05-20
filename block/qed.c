@@ -1240,7 +1240,11 @@ static void qed_aio_write_inplace(QEDAIOCB *acb, uint64_t offset, size_t len)
         struct iovec *iov = acb->qiov->iov;
 
         if (!iov->iov_base) {
-            iov->iov_base = qemu_blockalign(acb->common.bs, iov->iov_len);
+            iov->iov_base = qemu_try_blockalign(acb->common.bs, iov->iov_len);
+            if (iov->iov_base == NULL) {
+                qed_aio_complete(acb, -ENOMEM);
+                return;
+            }
             memset(iov->iov_base, 0, iov->iov_len);
         }
     }
