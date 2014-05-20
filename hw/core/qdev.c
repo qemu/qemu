@@ -312,30 +312,82 @@ BusState *qdev_get_parent_bus(DeviceState *dev)
     return dev->parent_bus;
 }
 
+static NamedGPIOList *qdev_get_named_gpio_list(DeviceState *dev,
+                                               const char *name)
+{
+    NamedGPIOList *ngl;
+
+    QLIST_FOREACH(ngl, &dev->gpios, node) {
+        /* NULL is a valid and matchable name, otherwise do a normal
+         * strcmp match.
+         */
+        if ((!ngl->name && !name) ||
+                (name && ngl->name && strcmp(name, ngl->name) == 0)) {
+            return ngl;
+        }
+    }
+
+    ngl = g_malloc0(sizeof(*ngl));
+    ngl->name = g_strdup(name);
+    QLIST_INSERT_HEAD(&dev->gpios, ngl, node);
+    return ngl;
+}
+
+void qdev_init_gpio_in_named(DeviceState *dev, qemu_irq_handler handler,
+                             const char *name, int n)
+{
+    NamedGPIOList *gpio_list = qdev_get_named_gpio_list(dev, name);
+
+    gpio_list->in = qemu_extend_irqs(gpio_list->in, gpio_list->num_in, handler,
+                                     dev, n);
+    gpio_list->num_in += n;
+}
+
 void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n)
 {
-    dev->gpio_in = qemu_extend_irqs(dev->gpio_in, dev->num_gpio_in, handler,
-                                        dev, n);
-    dev->num_gpio_in += n;
+    qdev_init_gpio_in_named(dev, handler, NULL, n);
+}
+
+void qdev_init_gpio_out_named(DeviceState *dev, qemu_irq *pins,
+                              const char *name, int n)
+{
+    NamedGPIOList *gpio_list = qdev_get_named_gpio_list(dev, name);
+
+    assert(gpio_list->num_out == 0);
+    gpio_list->num_out = n;
+    gpio_list->out = pins;
 }
 
 void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n)
 {
-    assert(dev->num_gpio_out == 0);
-    dev->num_gpio_out = n;
-    dev->gpio_out = pins;
+    qdev_init_gpio_out_named(dev, pins, NULL, n);
+}
+
+qemu_irq qdev_get_gpio_in_named(DeviceState *dev, const char *name, int n)
+{
+    NamedGPIOList *gpio_list = qdev_get_named_gpio_list(dev, name);
+
+    assert(n >= 0 && n < gpio_list->num_in);
+    return gpio_list->in[n];
 }
 
 qemu_irq qdev_get_gpio_in(DeviceState *dev, int n)
 {
-    assert(n >= 0 && n < dev->num_gpio_in);
-    return dev->gpio_in[n];
+    return qdev_get_gpio_in_named(dev, NULL, n);
+}
+
+void qdev_connect_gpio_out_named(DeviceState *dev, const char *name, int n,
+                                 qemu_irq pin)
+{
+    NamedGPIOList *gpio_list = qdev_get_named_gpio_list(dev, name);
+
+    assert(n >= 0 && n < gpio_list->num_out);
+    gpio_list->out[n] = pin;
 }
 
 void qdev_connect_gpio_out(DeviceState * dev, int n, qemu_irq pin)
 {
-    assert(n >= 0 && n < dev->num_gpio_out);
-    dev->gpio_out[n] = pin;
+    qdev_connect_gpio_out_named(dev, NULL, n, pin);
 }
 
 BusState *qdev_get_child_bus(DeviceState *dev, const char *name)
@@ -844,6 +896,7 @@ static void device_initfn(Object *obj)
     object_property_add_link(OBJECT(dev), "parent_bus", TYPE_BUS,
                              (Object **)&dev->parent_bus, NULL, 0,
                              &error_abort);
+    QLIST_INIT(&dev->gpios);
 }
 
 static void device_post_init(Object *obj)
@@ -854,9 +907,21 @@ static void device_post_init(Object *obj)
 /* Unlink device from bus and free the structure.  */
 static void device_finalize(Object *obj)
 {
+    NamedGPIOList *ngl, *next;
+
     DeviceState *dev = DEVICE(obj);
     if (dev->opts) {
         qemu_opts_del(dev->opts);
+    }
+
+    QLIST_FOREACH_SAFE(ngl, &dev->gpios, node, next) {
+        QLIST_REMOVE(ngl, node);
+        qemu_free_irqs(ngl->in);
+        g_free(ngl->name);
+        g_free(ngl);
+        /* ngl->out irqs are owned by the other end and should not be freed
+         * here
+         */
     }
 }
 
