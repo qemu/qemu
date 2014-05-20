@@ -716,8 +716,8 @@ static int write_start_flat_header(int fd)
     int ret = 0;
 
     memset(&mh, 0, sizeof(mh));
-    strncpy(mh.signature, MAKEDUMPFILE_SIGNATURE,
-            strlen(MAKEDUMPFILE_SIGNATURE));
+    memcpy(mh.signature, MAKEDUMPFILE_SIGNATURE,
+           MIN(sizeof mh.signature, sizeof MAKEDUMPFILE_SIGNATURE));
 
     mh.type = cpu_to_be64(TYPE_FLAT_HEADER);
     mh.version = cpu_to_be64(VERSION_FLAT_HEADER);
