@@ -456,7 +456,11 @@ static int vmdk_init_tables(BlockDriverState *bs, VmdkExtent *extent,
 
     /* read the L1 table */
     l1_size = extent->l1_size * sizeof(uint32_t);
-    extent->l1_table = g_malloc(l1_size);
+    extent->l1_table = g_try_malloc(l1_size);
+    if (l1_size && extent->l1_table == NULL) {
+        return -ENOMEM;
+    }
+
     ret = bdrv_pread(extent->file,
                      extent->l1_table_offset,
                      extent->l1_table,
@@ -472,7 +476,11 @@ static int vmdk_init_tables(BlockDriverState *bs, VmdkExtent *extent,
     }
 
     if (extent->l1_backup_table_offset) {
-        extent->l1_backup_table = g_malloc(l1_size);
+        extent->l1_backup_table = g_try_malloc(l1_size);
+        if (l1_size && extent->l1_backup_table == NULL) {
+            ret = -ENOMEM;
+            goto fail_l1;
+        }
         ret = bdrv_pread(extent->file,
                          extent->l1_backup_table_offset,
                          extent->l1_backup_table,
