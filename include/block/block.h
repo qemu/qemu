@@ -455,6 +455,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
 size_t bdrv_opt_mem_align(BlockDriverState *bs);
 void bdrv_set_guest_block_size(BlockDriverState *bs, int align);
 void *qemu_blockalign(BlockDriverState *bs, size_t size);
+void *qemu_try_blockalign(BlockDriverState *bs, size_t size);
 bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov);
 
 struct HBitmapIter;
