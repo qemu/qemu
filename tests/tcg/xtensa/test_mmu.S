@@ -4,16 +4,28 @@ test_suite mmu
 
 .purgem test_init
 
+.macro clean_tlb_way way, page_size, n_entries
+    movi    a2, \way
+    movi    a3, \page_size
+    movi    a4, \n_entries
+    loop    a4, 1f
+    idtlb   a2
+    iitlb   a2
+    add     a2, a2, a3
+1:
+.endm
+
 .macro test_init
-    movi    a2, 0x00000004
-    idtlb   a2
-    movi    a2, 0x00100004
-    idtlb   a2
-    movi    a2, 0x00200004
-    idtlb   a2
-    movi    a2, 0x00300004
-    idtlb   a2
+    clean_tlb_way 0, 0x00001000, 4
+    clean_tlb_way 1, 0x00001000, 4
+    clean_tlb_way 2, 0x00001000, 4
+    clean_tlb_way 3, 0x00001000, 4
+    clean_tlb_way 4, 0x00100000, 4
     movi    a2, 0x00000007
+    idtlb   a2
+    movi    a2, 0x00000008
+    idtlb   a2
+    movi    a2, 0x00000009
     idtlb   a2
 .endm
 
