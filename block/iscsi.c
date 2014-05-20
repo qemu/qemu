@@ -893,7 +893,10 @@ coroutine_fn iscsi_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
     nb_blocks = sector_qemu2lun(nb_sectors, iscsilun);
 
     if (iscsilun->zeroblock == NULL) {
-        iscsilun->zeroblock = g_malloc0(iscsilun->block_size);
+        iscsilun->zeroblock = g_try_malloc0(iscsilun->block_size);
+        if (iscsilun->zeroblock == NULL) {
+            return -ENOMEM;
+        }
     }
 
     iscsi_co_init_iscsitask(iscsilun, &iTask);
