@@ -120,6 +120,8 @@ typedef enum {
 /* BDRV_BLOCK_DATA: data is read from bs->file or another file
  * BDRV_BLOCK_ZERO: sectors read as zero
  * BDRV_BLOCK_OFFSET_VALID: sector stored in bs->file as raw data
+ * BDRV_BLOCK_ALLOCATED: the content of the block is determined by this
+ *                       layer (as opposed to the backing file)
  * BDRV_BLOCK_RAW: used internally to indicate that the request
  *                 was answered by the raw driver and that one
  *                 should look in bs->file directly.
@@ -141,10 +143,11 @@ typedef enum {
  *  f    t        f       not allocated or unknown offset, read as zero
  *  f    f        f       not allocated or unknown offset, read from backing_hd
  */
-#define BDRV_BLOCK_DATA         1
-#define BDRV_BLOCK_ZERO         2
-#define BDRV_BLOCK_OFFSET_VALID 4
-#define BDRV_BLOCK_RAW          8
+#define BDRV_BLOCK_DATA         0x01
+#define BDRV_BLOCK_ZERO         0x02
+#define BDRV_BLOCK_OFFSET_VALID 0x04
+#define BDRV_BLOCK_RAW          0x08
+#define BDRV_BLOCK_ALLOCATED    0x10
 #define BDRV_BLOCK_OFFSET_MASK  BDRV_SECTOR_MASK
 
 typedef enum {

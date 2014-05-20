@@ -47,6 +47,11 @@ _supported_os Linux
 _default_cache_mode "writethrough"
 _supported_cache_modes "writethrough"
 
+_no_dump_exec()
+{
+    (ulimit -c 0; exec "$@")
+}
+
 size=128M
 
 echo
@@ -67,10 +72,7 @@ echo "== Creating a dirty image file =="
 IMGOPTS="compat=1.1,lazy_refcounts=on"
 _make_test_img $size
 
-old_ulimit=$(ulimit -c)
-ulimit -c 0 # do not produce a core dump on abort(3)
-$QEMU_IO -c "write -P 0x5a 0 512" -c "abort" "$TEST_IMG" | _filter_qemu_io
-ulimit -c "$old_ulimit"
+_no_dump_exec $QEMU_IO -c "write -P 0x5a 0 512" -c "abort" "$TEST_IMG" 2>&1 | _filter_qemu_io
 
 # The dirty bit must be set
 ./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
@@ -103,10 +105,7 @@ echo "== Opening a dirty image read/write should repair it =="
 IMGOPTS="compat=1.1,lazy_refcounts=on"
 _make_test_img $size
 
-old_ulimit=$(ulimit -c)
-ulimit -c 0 # do not produce a core dump on abort(3)
-$QEMU_IO -c "write -P 0x5a 0 512" -c "abort" "$TEST_IMG" | _filter_qemu_io
-ulimit -c "$old_ulimit"
+_no_dump_exec $QEMU_IO -c "write -P 0x5a 0 512" -c "abort" "$TEST_IMG" 2>&1 | _filter_qemu_io
 
 # The dirty bit must be set
 ./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
@@ -122,10 +121,7 @@ echo "== Creating an image file with lazy_refcounts=off =="
 IMGOPTS="compat=1.1,lazy_refcounts=off"
 _make_test_img $size
 
-old_ulimit=$(ulimit -c)
-ulimit -c 0 # do not produce a core dump on abort(3)
-$QEMU_IO -c "write -P 0x5a 0 512" -c "abort" "$TEST_IMG" | _filter_qemu_io
-ulimit -c "$old_ulimit"
+_no_dump_exec $QEMU_IO -c "write -P 0x5a 0 512" -c "abort" "$TEST_IMG" 2>&1 | _filter_qemu_io
 
 # The dirty bit must not be set since lazy_refcounts=off
 ./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features

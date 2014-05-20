@@ -23,6 +23,7 @@
  */
 #include "qemu-common.h"
 #include "block/block_int.h"
+#include "qapi/qmp/qbool.h"
 #include <curl/curl.h>
 
 // #define DEBUG
@@ -37,6 +38,21 @@
 #if LIBCURL_VERSION_NUM >= 0x071000
 /* The multi interface timer callback was introduced in 7.16.0 */
 #define NEED_CURL_TIMER_CALLBACK
+#define HAVE_SOCKET_ACTION
+#endif
+
+#ifndef HAVE_SOCKET_ACTION
+/* If curl_multi_socket_action isn't available, define it statically here in
+ * terms of curl_multi_socket. Note that ev_bitmask will be ignored, which is
+ * less efficient but still safe. */
+static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
+                                            curl_socket_t sockfd,
+                                            int ev_bitmask,
+                                            int *running_handles)
+{
+    return curl_multi_socket(multi_handle, sockfd, running_handles);
+}
+#define curl_multi_socket_action __curl_multi_socket_action
 #endif
 
 #define PROTOCOLS (CURLPROTO_HTTP | CURLPROTO_HTTPS | \
@@ -46,11 +62,15 @@
 #define CURL_NUM_STATES 8
 #define CURL_NUM_ACB    8
 #define SECTOR_SIZE     512
-#define READ_AHEAD_SIZE (256 * 1024)
+#define READ_AHEAD_DEFAULT (256 * 1024)
 
 #define FIND_RET_NONE   0
 #define FIND_RET_OK     1
 #define FIND_RET_WAIT   2
+
+#define CURL_BLOCK_OPT_URL       "url"
+#define CURL_BLOCK_OPT_READAHEAD "readahead"
+#define CURL_BLOCK_OPT_SSLVERIFY "sslverify"
 
 struct BDRVCURLState;
 
@@ -88,6 +108,7 @@ typedef struct BDRVCURLState {
     CURLState states[CURL_NUM_STATES];
     char *url;
     size_t readahead_size;
+    bool sslverify;
     bool accept_range;
 } BDRVCURLState;
 
@@ -354,6 +375,8 @@ static CURLState *curl_init_state(BDRVCURLState *s)
             return NULL;
         }
         curl_easy_setopt(state->curl, CURLOPT_URL, s->url);
+        curl_easy_setopt(state->curl, CURLOPT_SSL_VERIFYPEER,
+                         (long) s->sslverify);
         curl_easy_setopt(state->curl, CURLOPT_TIMEOUT, 5);
         curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION,
                          (void *)curl_read_cb);
@@ -396,43 +419,7 @@ static void curl_clean_state(CURLState *s)
 static void curl_parse_filename(const char *filename, QDict *options,
                                 Error **errp)
 {
-
-    #define RA_OPTSTR ":readahead="
-    char *file;
-    char *ra;
-    const char *ra_val;
-    int parse_state = 0;
-
-    file = g_strdup(filename);
-
-    /* Parse a trailing ":readahead=#:" param, if present. */
-    ra = file + strlen(file) - 1;
-    while (ra >= file) {
-        if (parse_state == 0) {
-            if (*ra == ':') {
-                parse_state++;
-            } else {
-                break;
-            }
-        } else if (parse_state == 1) {
-            if (*ra > '9' || *ra < '0') {
-                char *opt_start = ra - strlen(RA_OPTSTR) + 1;
-                if (opt_start > file &&
-                    strncmp(opt_start, RA_OPTSTR, strlen(RA_OPTSTR)) == 0) {
-                    ra_val = ra + 1;
-                    ra -= strlen(RA_OPTSTR) - 1;
-                    *ra = '\0';
-                    qdict_put(options, "readahead", qstring_from_str(ra_val));
-                }
-                break;
-            }
-        }
-        ra--;
-    }
-
-    qdict_put(options, "url", qstring_from_str(file));
-
-    g_free(file);
+    qdict_put(options, CURL_BLOCK_OPT_URL, qstring_from_str(filename));
 }
 
 static QemuOptsList runtime_opts = {
@@ -440,14 +427,19 @@ static QemuOptsList runtime_opts = {
     .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
     .desc = {
         {
-            .name = "url",
+            .name = CURL_BLOCK_OPT_URL,
             .type = QEMU_OPT_STRING,
             .help = "URL to open",
         },
         {
-            .name = "readahead",
+            .name = CURL_BLOCK_OPT_READAHEAD,
             .type = QEMU_OPT_SIZE,
             .help = "Readahead size",
+        },
+        {
+            .name = CURL_BLOCK_OPT_SSLVERIFY,
+            .type = QEMU_OPT_BOOL,
+            .help = "Verify SSL certificate"
         },
         { /* end of list */ }
     },
@@ -477,14 +469,17 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
         goto out_noclean;
     }
 
-    s->readahead_size = qemu_opt_get_size(opts, "readahead", READ_AHEAD_SIZE);
+    s->readahead_size = qemu_opt_get_size(opts, CURL_BLOCK_OPT_READAHEAD,
+                                          READ_AHEAD_DEFAULT);
     if ((s->readahead_size & 0x1ff) != 0) {
         error_setg(errp, "HTTP_READAHEAD_SIZE %zd is not a multiple of 512",
                    s->readahead_size);
         goto out_noclean;
     }
 
-    file = qemu_opt_get(opts, "url");
+    s->sslverify = qemu_opt_get_bool(opts, CURL_BLOCK_OPT_SSLVERIFY, true);
+
+    file = qemu_opt_get(opts, CURL_BLOCK_OPT_URL);
     if (file == NULL) {
         error_setg(errp, "curl block driver requires an 'url' option");
         goto out_noclean;

@@ -48,9 +48,10 @@ typedef struct QCowHeader {
     uint64_t size; /* in bytes */
     uint8_t cluster_bits;
     uint8_t l2_bits;
+    uint16_t padding;
     uint32_t crypt_method;
     uint64_t l1_table_offset;
-} QCowHeader;
+} QEMU_PACKED QCowHeader;
 
 #define L2_CACHE_SIZE 16
 
@@ -60,7 +61,7 @@ typedef struct BDRVQcowState {
     int cluster_sectors;
     int l2_bits;
     int l2_size;
-    int l1_size;
+    unsigned int l1_size;
     uint64_t cluster_offset_mask;
     uint64_t l1_table_offset;
     uint64_t *l1_table;
@@ -96,7 +97,8 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
     BDRVQcowState *s = bs->opaque;
-    int len, i, shift, ret;
+    unsigned int len, i, shift;
+    int ret;
     QCowHeader header;
 
     ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
@@ -127,11 +129,25 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    if (header.size <= 1 || header.cluster_bits < 9) {
-        error_setg(errp, "invalid value in qcow header");
+    if (header.size <= 1) {
+        error_setg(errp, "Image size is too small (must be at least 2 bytes)");
         ret = -EINVAL;
         goto fail;
     }
+    if (header.cluster_bits < 9 || header.cluster_bits > 16) {
+        error_setg(errp, "Cluster size must be between 512 and 64k");
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* l2_bits specifies number of entries; storing a uint64_t in each entry,
+     * so bytes = num_entries << 3. */
+    if (header.l2_bits < 9 - 3 || header.l2_bits > 16 - 3) {
+        error_setg(errp, "L2 table size must be between 512 and 64k");
+        ret = -EINVAL;
+        goto fail;
+    }
+
     if (header.crypt_method > QCOW_CRYPT_AES) {
         error_setg(errp, "invalid encryption method in qcow header");
         ret = -EINVAL;
@@ -151,7 +167,19 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* read the level 1 table */
     shift = s->cluster_bits + s->l2_bits;
-    s->l1_size = (header.size + (1LL << shift) - 1) >> shift;
+    if (header.size > UINT64_MAX - (1LL << shift)) {
+        error_setg(errp, "Image too large");
+        ret = -EINVAL;
+        goto fail;
+    } else {
+        uint64_t l1_size = (header.size + (1LL << shift) - 1) >> shift;
+        if (l1_size > INT_MAX / sizeof(uint64_t)) {
+            error_setg(errp, "Image too large");
+            ret = -EINVAL;
+            goto fail;
+        }
+        s->l1_size = l1_size;
+    }
 
     s->l1_table_offset = header.l1_table_offset;
     s->l1_table = g_malloc(s->l1_size * sizeof(uint64_t));
@@ -175,7 +203,9 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     if (header.backing_file_offset != 0) {
         len = header.backing_file_size;
         if (len > 1023) {
-            len = 1023;
+            error_setg(errp, "Backing file name too long");
+            ret = -EINVAL;
+            goto fail;
         }
         ret = bdrv_pread(bs->file, header.backing_file_offset,
                    bs->backing_file, len);

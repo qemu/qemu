@@ -473,7 +473,14 @@ static void vhdx_parse_header(BlockDriverState *bs, BDRVVHDXState *s,
         } else if (h2_seq > h1_seq) {
             s->curr_header = 1;
         } else {
-            goto fail;
+            /* The Microsoft Disk2VHD tool will create 2 identical
+             * headers, with identical sequence numbers.  If the headers are
+             * identical, don't consider the file corrupt */
+            if (!memcmp(header1, header2, sizeof(VHDXHeader))) {
+                s->curr_header = 0;
+            } else {
+                goto fail;
+            }
         }
     }
 

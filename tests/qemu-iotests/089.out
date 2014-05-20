@@ -1,0 +1,54 @@
+QA output created by 089
+
+=== Testing nested image formats ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864 
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 1024
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 1024
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Pattern verification failed at offset 0, 512 bytes
+read 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Testing blkdebug ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+wrote 512/512 bytes at offset 229376
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read failed: Input/output error
+
+=== Testing qemu-img info output ===
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+disk size: 324K
+cluster_size: 65536
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+
+=== Testing option merging ===
+
+format name: IMGFMT
+cluster size: 64 KiB
+vm state offset: 512 MiB
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+format name: IMGFMT
+cluster size: 64 KiB
+vm state offset: 512 MiB
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+*** done

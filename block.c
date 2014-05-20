@@ -1274,6 +1274,33 @@ out:
     g_free(tmp_filename);
 }
 
+static QDict *parse_json_filename(const char *filename, Error **errp)
+{
+    QObject *options_obj;
+    QDict *options;
+    int ret;
+
+    ret = strstart(filename, "json:", &filename);
+    assert(ret);
+
+    options_obj = qobject_from_json(filename);
+    if (!options_obj) {
+        error_setg(errp, "Could not parse the JSON options");
+        return NULL;
+    }
+
+    if (qobject_type(options_obj) != QTYPE_QDICT) {
+        qobject_decref(options_obj);
+        error_setg(errp, "Invalid JSON object given");
+        return NULL;
+    }
+
+    options = qobject_to_qdict(options_obj);
+    qdict_flatten(options);
+
+    return options;
+}
+
 /*
  * Opens a disk image (raw, qcow2, vmdk, ...)
  *
@@ -1335,6 +1362,20 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     /* NULL means an empty set of options */
     if (options == NULL) {
         options = qdict_new();
+    }
+
+    if (filename && g_str_has_prefix(filename, "json:")) {
+        QDict *json_options = parse_json_filename(filename, &local_err);
+        if (local_err) {
+            ret = -EINVAL;
+            goto fail;
+        }
+
+        /* Options given in the filename have lower priority than options
+         * specified directly */
+        qdict_join(options, json_options, false);
+        QDECREF(json_options);
+        filename = NULL;
     }
 
     bs->options = options;
@@ -3248,6 +3289,15 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
 
     ret = notifier_with_return_list_notify(&bs->before_write_notifiers, req);
 
+    if (!ret && bs->detect_zeroes != BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF &&
+        !(flags & BDRV_REQ_ZERO_WRITE) && drv->bdrv_co_write_zeroes &&
+        qemu_iovec_is_zero(qiov)) {
+        flags |= BDRV_REQ_ZERO_WRITE;
+        if (bs->detect_zeroes == BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP) {
+            flags |= BDRV_REQ_MAY_UNMAP;
+        }
+    }
+
     if (ret < 0) {
         /* Do nothing, write notifier decided to fail this request */
     } else if (flags & BDRV_REQ_ZERO_WRITE) {
@@ -3864,7 +3914,7 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
 
     if (!bs->drv->bdrv_co_get_block_status) {
         *pnum = nb_sectors;
-        ret = BDRV_BLOCK_DATA;
+        ret = BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED;
         if (bs->drv->protocol_name) {
             ret |= BDRV_BLOCK_OFFSET_VALID | (sector_num * BDRV_SECTOR_SIZE);
         }
@@ -3881,6 +3931,10 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
         assert(ret & BDRV_BLOCK_OFFSET_VALID);
         return bdrv_get_block_status(bs->file, ret >> BDRV_SECTOR_BITS,
                                      *pnum, pnum);
+    }
+
+    if (ret & (BDRV_BLOCK_DATA | BDRV_BLOCK_ZERO)) {
+        ret |= BDRV_BLOCK_ALLOCATED;
     }
 
     if (!(ret & BDRV_BLOCK_DATA) && !(ret & BDRV_BLOCK_ZERO)) {
@@ -3959,9 +4013,7 @@ int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num,
     if (ret < 0) {
         return ret;
     }
-    return
-        (ret & BDRV_BLOCK_DATA) ||
-        ((ret & BDRV_BLOCK_ZERO) && !bdrv_has_zero_init(bs));
+    return (ret & BDRV_BLOCK_ALLOCATED);
 }
 
 /*

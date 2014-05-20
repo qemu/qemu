@@ -341,6 +341,11 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
                            info->value->inserted->backing_file_depth);
         }
 
+        if (info->value->inserted->detect_zeroes != BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF) {
+            monitor_printf(mon, "    Detect zeroes:    %s\n",
+                           BlockdevDetectZeroesOptions_lookup[info->value->inserted->detect_zeroes]);
+        }
+
         if (info->value->inserted->bps
             || info->value->inserted->bps_rd
             || info->value->inserted->bps_wr
