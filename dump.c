@@ -711,27 +711,25 @@ static int create_vmcore(DumpState *s)
 
 static int write_start_flat_header(int fd)
 {
-    uint8_t *buf;
-    MakedumpfileHeader mh;
+    MakedumpfileHeader *mh;
     int ret = 0;
 
-    memset(&mh, 0, sizeof(mh));
-    memcpy(mh.signature, MAKEDUMPFILE_SIGNATURE,
-           MIN(sizeof mh.signature, sizeof MAKEDUMPFILE_SIGNATURE));
+    QEMU_BUILD_BUG_ON(sizeof *mh > MAX_SIZE_MDF_HEADER);
+    mh = g_malloc0(MAX_SIZE_MDF_HEADER);
 
-    mh.type = cpu_to_be64(TYPE_FLAT_HEADER);
-    mh.version = cpu_to_be64(VERSION_FLAT_HEADER);
+    memcpy(mh->signature, MAKEDUMPFILE_SIGNATURE,
+           MIN(sizeof mh->signature, sizeof MAKEDUMPFILE_SIGNATURE));
 
-    buf = g_malloc0(MAX_SIZE_MDF_HEADER);
-    memcpy(buf, &mh, sizeof(mh));
+    mh->type = cpu_to_be64(TYPE_FLAT_HEADER);
+    mh->version = cpu_to_be64(VERSION_FLAT_HEADER);
 
     size_t written_size;
-    written_size = qemu_write_full(fd, buf, MAX_SIZE_MDF_HEADER);
+    written_size = qemu_write_full(fd, mh, MAX_SIZE_MDF_HEADER);
     if (written_size != MAX_SIZE_MDF_HEADER) {
         ret = -1;
     }
 
-    g_free(buf);
+    g_free(mh);
     return ret;
 }
 
