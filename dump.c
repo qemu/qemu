@@ -91,7 +91,6 @@ typedef struct DumpState {
     size_t note_buf_offset;     /* the writing place in note_buf */
     uint32_t nr_cpus;           /* number of guest's cpu */
     size_t page_size;           /* guest's page size */
-    uint32_t page_shift;        /* guest's page shift */
     uint64_t max_mapnr;         /* the biggest guest's phys-mem's number */
     size_t len_dump_bitmap;     /* the size of the place used to store
                                    dump_bitmap in vmcore */
@@ -1086,7 +1085,7 @@ static bool get_next_page(GuestPhysBlock **blockptr, uint64_t *pfnptr,
         *blockptr = block;
         assert(block->target_start % s->page_size == 0);
         assert(block->target_end % s->page_size == 0);
-        *pfnptr = paddr_to_pfn(block->target_start, s->page_shift);
+        *pfnptr = paddr_to_pfn(block->target_start);
         if (bufptr) {
             *bufptr = block->host_addr;
         }
@@ -1094,7 +1093,7 @@ static bool get_next_page(GuestPhysBlock **blockptr, uint64_t *pfnptr,
     }
 
     *pfnptr = *pfnptr + 1;
-    addr = pfn_to_paddr(*pfnptr, s->page_shift);
+    addr = pfn_to_paddr(*pfnptr);
 
     if ((addr >= block->target_start) &&
         (addr + s->page_size <= block->target_end)) {
@@ -1108,7 +1107,7 @@ static bool get_next_page(GuestPhysBlock **blockptr, uint64_t *pfnptr,
         }
         assert(block->target_start % s->page_size == 0);
         assert(block->target_end % s->page_size == 0);
-        *pfnptr = paddr_to_pfn(block->target_start, s->page_shift);
+        *pfnptr = paddr_to_pfn(block->target_start);
         buf = block->host_addr;
     }
 
@@ -1534,7 +1533,7 @@ static void get_max_mapnr(DumpState *s)
     GuestPhysBlock *last_block;
 
     last_block = QTAILQ_LAST(&s->guest_phys_blocks.head, GuestPhysBlockHead);
-    s->max_mapnr = paddr_to_pfn(last_block->target_end, s->page_shift);
+    s->max_mapnr = paddr_to_pfn(last_block->target_end);
 }
 
 static int dump_init(DumpState *s, int fd, bool has_format,
@@ -1612,7 +1611,6 @@ static int dump_init(DumpState *s, int fd, bool has_format,
 
     s->nr_cpus = nr_cpus;
     s->page_size = TARGET_PAGE_SIZE;
-    s->page_shift = ffs(s->page_size) - 1;
 
     get_max_mapnr(s);
 

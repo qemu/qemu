@@ -22,10 +22,10 @@
 
 #define ARCH_PFN_OFFSET             (0)
 
-#define paddr_to_pfn(X, page_shift) \
-    (((unsigned long long)(X) >> (page_shift)) - ARCH_PFN_OFFSET)
-#define pfn_to_paddr(X, page_shift) \
-    (((unsigned long long)(X) + ARCH_PFN_OFFSET) << (page_shift))
+#define paddr_to_pfn(X) \
+    (((unsigned long long)(X) >> TARGET_PAGE_BITS) - ARCH_PFN_OFFSET)
+#define pfn_to_paddr(X) \
+    (((unsigned long long)(X) + ARCH_PFN_OFFSET) << TARGET_PAGE_BITS)
 
 /*
  * flag for compressed format
