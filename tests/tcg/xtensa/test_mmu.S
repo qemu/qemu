@@ -520,4 +520,224 @@ test autoload_3_level_pt
     assert_sr exccause, 24
 test_end
 
+test cross_page_insn
+    set_vector kernel, 2f
+
+    movi    a2, 0x04000003 /* PPN */
+    movi    a3, 0x00007000 /* VPN */
+    witlb   a2, a3
+    wdtlb   a2, a3
+    movi    a3, 0x00008000 /* VPN */
+    witlb   a2, a3
+    wdtlb   a2, a3
+
+    movi    a2, 0x00007fff
+    movi    a3, 20f
+    movi    a4, 21f
+    sub     a4, a4, a3
+    loop    a4, 1f
+    l8ui    a5, a3, 0
+    s8i     a5, a2, 0
+    addi    a2, a2, 1
+    addi    a3, a3, 1
+1:
+    movi    a2, 0x00007fff
+    movi    a3, 0x00008000
+    /* DTLB: OK, ITLB: OK */
+    jx      a2
+
+    .begin  no-transform
+20:
+    l32i    a2, a3, 0
+    syscall
+21:
+    .end    no-transform
+
+2:
+    rsr     a2, exccause
+    movi    a3, 1
+    assert  eq, a2, a3
+    rsr     a2, epc1
+    movi    a3, 0x8002
+    assert  eq, a2, a3
+    rsr     a2, excsave1
+    movi    a3, 0x00007fff
+    assert  ne, a2, a3
+
+    reset_ps
+    set_vector kernel, 3f
+
+    movi    a2, 0x0400000c /* PPN */
+    movi    a3, 0x00008000 /* VPN */
+    wdtlb   a2, a3
+    movi    a2, 0x00007fff
+    movi    a3, 0x00008000
+    /* DTLB: FAIL, ITLB: OK */
+    jx      a2
+3:
+    rsr     a2, exccause
+    movi    a3, 28
+    assert  eq, a2, a3
+    rsr     a2, epc1
+    movi    a3, 0x7fff
+    assert  eq, a2, a3
+    rsr     a2, excsave1
+    movi    a3, 0x00007fff
+    assert  eq, a2, a3
+
+    reset_ps
+    set_vector kernel, 4f
+
+    movi    a2, 0x0400000c /* PPN */
+    movi    a3, 0x00008000 /* VPN */
+    witlb   a2, a3
+    movi    a2, 0x04000003 /* PPN */
+    wdtlb   a2, a3
+    movi    a2, 0x00007fff
+    movi    a3, 0x00008000
+    /* DTLB: OK, ITLB: FAIL */
+    jx      a2
+4:
+    rsr     a2, exccause
+    movi    a3, 20
+    assert  eq, a2, a3
+    rsr     a2, epc1
+    movi    a3, 0x7fff
+    assert  eq, a2, a3
+    rsr     a2, excsave1
+    movi    a3, 0x00007fff
+    assert  eq, a2, a3
+
+    reset_ps
+    set_vector kernel, 5f
+
+    movi    a2, 0x0400000c /* PPN */
+    movi    a3, 0x00008000 /* VPN */
+    wdtlb   a2, a3
+    movi    a2, 0x00007fff
+    movi    a3, 0x00008000
+    /* DTLB: FAIL, ITLB: FAIL */
+    jx      a2
+5:
+    rsr     a2, exccause
+    movi    a3, 20
+    assert  eq, a2, a3
+    rsr     a2, epc1
+    movi    a3, 0x7fff
+    assert  eq, a2, a3
+    rsr     a2, excsave1
+    movi    a3, 0x00007fff
+    assert  eq, a2, a3
+test_end
+
+test cross_page_tb
+    set_vector kernel, 2f
+
+    movi    a2, 0x04000003 /* PPN */
+    movi    a3, 0x00007000 /* VPN */
+    witlb   a2, a3
+    wdtlb   a2, a3
+    movi    a3, 0x00008000 /* VPN */
+    witlb   a2, a3
+    wdtlb   a2, a3
+
+    movi    a2, 0x00007ffd
+    movi    a3, 20f
+    movi    a4, 21f
+    sub     a4, a4, a3
+    loop    a4, 1f
+    l8ui    a5, a3, 0
+    s8i     a5, a2, 0
+    addi    a2, a2, 1
+    addi    a3, a3, 1
+1:
+    movi    a2, 0x00007ffd
+    movi    a3, 0x00008000
+    /* DTLB: OK, ITLB: OK */
+    jx      a2
+
+    .begin  no-transform
+20:
+    l32i    a2, a3, 0
+    syscall
+21:
+    .end    no-transform
+
+2:
+    rsr     a2, exccause
+    movi    a3, 1
+    assert  eq, a2, a3
+    rsr     a2, epc1
+    movi    a3, 0x8000
+    assert  eq, a2, a3
+    rsr     a2, excsave1
+    movi    a3, 0x00007ffd
+    assert  ne, a2, a3
+
+    reset_ps
+    set_vector kernel, 3f
+
+    movi    a2, 0x0400000c /* PPN */
+    movi    a3, 0x00008000 /* VPN */
+    wdtlb   a2, a3
+    movi    a2, 0x00007ffd
+    movi    a3, 0x00008000
+    /* DTLB: FAIL, ITLB: OK */
+    jx      a2
+3:
+    rsr     a2, exccause
+    movi    a3, 28
+    assert  eq, a2, a3
+    rsr     a2, epc1
+    movi    a3, 0x7ffd
+    assert  eq, a2, a3
+    rsr     a2, excsave1
+    movi    a3, 0x00007ffd
+    assert  eq, a2, a3
+
+    reset_ps
+    set_vector kernel, 4f
+
+    movi    a2, 0x0400000c /* PPN */
+    movi    a3, 0x00008000 /* VPN */
+    witlb   a2, a3
+    movi    a2, 0x04000003 /* PPN */
+    wdtlb   a2, a3
+    movi    a2, 0x00007ffd
+    movi    a3, 0x00008000
+    /* DTLB: OK, ITLB: FAIL */
+    jx      a2
+4:
+    rsr     a2, exccause
+    movi    a3, 20
+    assert  eq, a2, a3
+    rsr     a2, epc1
+    movi    a3, 0x8000
+    assert  eq, a2, a3
+    rsr     a2, excsave1
+    movi    a3, 0x00007ffd
+    assert  ne, a2, a3
+
+    reset_ps
+    set_vector kernel, 5f
+
+    movi    a2, 0x0400000c /* PPN */
+    movi    a3, 0x00008000 /* VPN */
+    wdtlb   a2, a3
+    movi    a2, 0x00007ffd
+    movi    a3, 0x00008000
+    /* DTLB: FAIL, ITLB: FAIL */
+    jx      a2
+5:
+    rsr     a2, exccause
+    movi    a3, 28
+    assert  eq, a2, a3
+    rsr     a2, epc1
+    movi    a3, 0x7ffd
+    assert  eq, a2, a3
+    rsr     a2, excsave1
+    movi    a3, 0x00007ffd
+    assert  eq, a2, a3
+test_end
+
 test_suite_end
