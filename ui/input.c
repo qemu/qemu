@@ -94,7 +94,7 @@ static void qemu_input_transform_abs_rotate(InputEvent *evt)
 static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
 {
     const char *name;
-    int idx = -1;
+    int qcode, idx = -1;
 
     if (src) {
         idx = qemu_console_get_index(src);
@@ -103,8 +103,10 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
     case INPUT_EVENT_KIND_KEY:
         switch (evt->key->key->kind) {
         case KEY_VALUE_KIND_NUMBER:
+            qcode = qemu_input_key_number_to_qcode(evt->key->key->number);
+            name = QKeyCode_lookup[qcode];
             trace_input_event_key_number(idx, evt->key->key->number,
-                                         evt->key->down);
+                                         name, evt->key->down);
             break;
         case KEY_VALUE_KIND_QCODE:
             name = QKeyCode_lookup[evt->key->key->qcode];
