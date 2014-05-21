@@ -367,7 +367,12 @@ static void coroutine_fn mirror_run(void *opaque)
     }
 
     end = s->common.len >> BDRV_SECTOR_BITS;
-    s->buf = qemu_blockalign(bs, s->buf_size);
+    s->buf = qemu_try_blockalign(bs, s->buf_size);
+    if (s->buf == NULL) {
+        ret = -ENOMEM;
+        goto immediate_exit;
+    }
+
     sectors_per_chunk = s->granularity >> BDRV_SECTOR_BITS;
     mirror_free_init(s);
 
