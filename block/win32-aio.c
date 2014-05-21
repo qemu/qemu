@@ -139,7 +139,10 @@ BlockDriverAIOCB *win32_aio_submit(BlockDriverState *bs,
     waiocb->is_read = (type == QEMU_AIO_READ);
 
     if (qiov->niov > 1) {
-        waiocb->buf = qemu_blockalign(bs, qiov->size);
+        waiocb->buf = qemu_try_blockalign(bs, qiov->size);
+        if (waiocb->buf == NULL) {
+            goto out;
+        }
         if (type & QEMU_AIO_WRITE) {
             iov_to_buf(qiov->iov, qiov->niov, 0, waiocb->buf, qiov->size);
         }
@@ -168,6 +171,7 @@ BlockDriverAIOCB *win32_aio_submit(BlockDriverState *bs,
 
 out_dec_count:
     aio->count--;
+out:
     qemu_aio_release(waiocb);
     return NULL;
 }
