@@ -112,15 +112,15 @@ void trace_backend_init_events(const char *fname)
                 TraceEvent *ev = trace_event_name(line_ptr);
                 if (ev == NULL) {
                     fprintf(stderr,
-                            "error: trace event '%s' does not exist\n", line_ptr);
-                    exit(1);
-                }
-                if (!trace_event_get_state_static(ev)) {
+                            "WARNING: trace event '%s' does not exist\n",
+                            line_ptr);
+                } else if (!trace_event_get_state_static(ev)) {
                     fprintf(stderr,
-                            "error: trace event '%s' is not traceable\n", line_ptr);
-                    exit(1);
+                            "WARNING: trace event '%s' is not traceable\n",
+                            line_ptr);
+                } else {
+                    trace_event_set_state_dynamic(ev, enable);
                 }
-                trace_event_set_state_dynamic(ev, enable);
             }
         }
     }
