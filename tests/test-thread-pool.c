@@ -180,7 +180,7 @@ static void test_cancel(void)
 
     /* Canceling the others will be a blocking operation.  */
     for (i = 0; i < 100; i++) {
-        if (data[i].n != 3) {
+        if (data[i].aiocb && data[i].n != 3) {
             bdrv_aio_cancel(data[i].aiocb);
         }
     }
