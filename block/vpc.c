@@ -269,7 +269,11 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
             goto fail;
         }
 
-        s->pagetable = qemu_blockalign(bs, s->max_table_entries * 4);
+        s->pagetable = qemu_try_blockalign(bs->file, s->max_table_entries * 4);
+        if (s->pagetable == NULL) {
+            ret = -ENOMEM;
+            goto fail;
+        }
 
         s->bat_offset = be64_to_cpu(dyndisk_header->table_offset);
 
