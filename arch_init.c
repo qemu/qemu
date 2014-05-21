@@ -975,12 +975,12 @@ static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
     xh_len = qemu_get_be16(f);
 
     if (xh_flags != ENCODING_FLAG_XBZRLE) {
-        fprintf(stderr, "Failed to load XBZRLE page - wrong compression!\n");
+        error_report("Failed to load XBZRLE page - wrong compression!");
         return -1;
     }
 
     if (xh_len > TARGET_PAGE_SIZE) {
-        fprintf(stderr, "Failed to load XBZRLE page - len overflow!\n");
+        error_report("Failed to load XBZRLE page - len overflow!");
         return -1;
     }
     /* load data and decode */
@@ -989,7 +989,7 @@ static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
     /* decode RLE */
     if (xbzrle_decode_buffer(xbzrle_decoded_buf, xh_len, host,
                              TARGET_PAGE_SIZE) == -1) {
-        fprintf(stderr, "Failed to load XBZRLE page - decode error!\n");
+        error_report("Failed to load XBZRLE page - decode error!");
         return -1;
     }
 
@@ -1006,7 +1006,7 @@ static inline void *host_from_stream_offset(QEMUFile *f,
 
     if (flags & RAM_SAVE_FLAG_CONTINUE) {
         if (!block) {
-            fprintf(stderr, "Ack, bad migration stream!\n");
+            error_report("Ack, bad migration stream!");
             return NULL;
         }
 
@@ -1022,7 +1022,7 @@ static inline void *host_from_stream_offset(QEMUFile *f,
             return memory_region_get_ram_ptr(block->mr) + offset;
     }
 
-    fprintf(stderr, "Can't find block %s!\n", id);
+    error_report("Can't find block %s!", id);
     return NULL;
 }
 
@@ -1075,10 +1075,9 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 QTAILQ_FOREACH(block, &ram_list.blocks, next) {
                     if (!strncmp(id, block->idstr, sizeof(id))) {
                         if (block->length != length) {
-                            fprintf(stderr,
-                                    "Length mismatch: %s: " RAM_ADDR_FMT
-                                    " in != " RAM_ADDR_FMT "\n", id, length,
-                                    block->length);
+                            error_report("Length mismatch: %s: " RAM_ADDR_FMT
+                                         " in != " RAM_ADDR_FMT, id, length,
+                                         block->length);
                             ret =  -EINVAL;
                             goto done;
                         }
@@ -1087,8 +1086,8 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 }
 
                 if (!block) {
-                    fprintf(stderr, "Unknown ramblock \"%s\", cannot "
-                            "accept migration\n", id);
+                    error_report("Unknown ramblock \"%s\", cannot "
+                                 "accept migration", id);
                     ret = -EINVAL;
                     goto done;
                 }
@@ -1243,12 +1242,11 @@ void select_soundhw(const char *optarg)
 
             if (!c->name) {
                 if (l > 80) {
-                    fprintf(stderr,
-                            "Unknown sound card name (too big to show)\n");
+                    error_report("Unknown sound card name (too big to show)");
                 }
                 else {
-                    fprintf(stderr, "Unknown sound card name `%.*s'\n",
-                            (int) l, p);
+                    error_report("Unknown sound card name `%.*s'",
+                                 (int) l, p);
                 }
                 bad_card = 1;
             }
@@ -1271,13 +1269,13 @@ void audio_init(void)
         if (c->enabled) {
             if (c->isa) {
                 if (!isa_bus) {
-                    fprintf(stderr, "ISA bus not available for %s\n", c->name);
+                    error_report("ISA bus not available for %s", c->name);
                     exit(1);
                 }
                 c->init.init_isa(isa_bus);
             } else {
                 if (!pci_bus) {
-                    fprintf(stderr, "PCI bus not available for %s\n", c->name);
+                    error_report("PCI bus not available for %s", c->name);
                     exit(1);
                 }
                 c->init.init_pci(pci_bus);
