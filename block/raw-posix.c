@@ -798,7 +798,11 @@ static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
      * Ok, we have to do it the hard way, copy all segments into
      * a single aligned buffer.
      */
-    buf = qemu_blockalign(aiocb->bs, aiocb->aio_nbytes);
+    buf = qemu_try_blockalign(aiocb->bs, aiocb->aio_nbytes);
+    if (buf == NULL) {
+        return -ENOMEM;
+    }
+
     if (aiocb->aio_type & QEMU_AIO_WRITE) {
         char *p = buf;
         int i;
