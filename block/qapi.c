@@ -40,6 +40,13 @@ BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs)
     info->encrypted              = bs->encrypted;
     info->encryption_key_missing = bdrv_key_required(bs);
 
+    info->cache = g_new(BlockdevCacheInfo, 1);
+    *info->cache = (BlockdevCacheInfo) {
+        .writeback      = bdrv_enable_write_cache(bs),
+        .direct         = !!(bs->open_flags & BDRV_O_NOCACHE),
+        .no_flush       = !!(bs->open_flags & BDRV_O_NO_FLUSH),
+    };
+
     if (bs->node_name[0]) {
         info->has_node_name = true;
         info->node_name = g_strdup(bs->node_name);

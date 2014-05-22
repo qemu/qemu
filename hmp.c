@@ -294,6 +294,7 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
 {
     BlockInfoList *block_list, *info;
     ImageInfo *image_info;
+    BlockDeviceInfo *inserted;
     const char *device = qdict_get_try_str(qdict, "device");
     bool verbose = qdict_get_try_bool(qdict, "verbose", 0);
 
@@ -334,6 +335,13 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
         if (!info->value->has_inserted) {
             continue;
         }
+
+        inserted = info->value->inserted;
+
+        monitor_printf(mon, "    Cache mode:       %s%s%s\n",
+                       inserted->cache->writeback ? "writeback" : "writethrough",
+                       inserted->cache->direct ? ", direct" : "",
+                       inserted->cache->no_flush ? ", ignore flushes" : "");
 
         if (info->value->inserted->has_backing_file) {
             monitor_printf(mon,

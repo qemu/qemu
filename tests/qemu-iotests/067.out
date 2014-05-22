@@ -46,6 +46,11 @@ Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,if=none,id=disk -device virti
                 "encrypted": false,
                 "bps": 0,
                 "bps_rd": 0,
+                "cache": {
+                    "no-flush": false,
+                    "direct": false,
+                    "writeback": true
+                },
                 "file": "TEST_DIR/t.qcow2",
                 "encryption_key_missing": false
             },
@@ -216,6 +221,11 @@ Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,if=none,id=disk
                 "encrypted": false,
                 "bps": 0,
                 "bps_rd": 0,
+                "cache": {
+                    "no-flush": false,
+                    "direct": false,
+                    "writeback": true
+                },
                 "file": "TEST_DIR/t.qcow2",
                 "encryption_key_missing": false
             },
@@ -416,6 +426,11 @@ Testing:
                 "encrypted": false,
                 "bps": 0,
                 "bps_rd": 0,
+                "cache": {
+                    "no-flush": false,
+                    "direct": false,
+                    "writeback": true
+                },
                 "file": "TEST_DIR/t.qcow2",
                 "encryption_key_missing": false
             },
@@ -595,6 +610,11 @@ Testing:
                 "encrypted": false,
                 "bps": 0,
                 "bps_rd": 0,
+                "cache": {
+                    "no-flush": false,
+                    "direct": false,
+                    "writeback": true
+                },
                 "file": "TEST_DIR/t.qcow2",
                 "encryption_key_missing": false
             },
@@ -700,6 +720,11 @@ Testing:
                 "encrypted": false,
                 "bps": 0,
                 "bps_rd": 0,
+                "cache": {
+                    "no-flush": false,
+                    "direct": false,
+                    "writeback": true
+                },
                 "file": "TEST_DIR/t.qcow2",
                 "encryption_key_missing": false
             },

@@ -183,6 +183,22 @@
            '*fragmented-clusters': 'int', '*compressed-clusters': 'int' } }
 
 ##
+# @BlockdevCacheInfo
+#
+# Cache mode information for a block device
+#
+# @writeback:   true if writeback mode is enabled
+# @direct:      true if the host page cache is bypassed (O_DIRECT)
+# @no-flush:    true if flush requests are ignored for the device
+#
+# Since: 2.3
+##
+{ 'type': 'BlockdevCacheInfo',
+  'data': { 'writeback': 'bool',
+            'direct': 'bool',
+            'no-flush': 'bool' } }
+
+##
 # @BlockDeviceInfo:
 #
 # Information about the backing device for a block device.
@@ -239,6 +255,8 @@
 #
 # @iops_size: #optional an I/O size in bytes (Since 1.7)
 #
+# @cache: the cache mode used for the block device (since: 2.3)
+#
 # Since: 0.14.0
 #
 ##
@@ -253,7 +271,7 @@
             '*bps_max': 'int', '*bps_rd_max': 'int',
             '*bps_wr_max': 'int', '*iops_max': 'int',
             '*iops_rd_max': 'int', '*iops_wr_max': 'int',
-            '*iops_size': 'int' } }
+            '*iops_size': 'int', 'cache': 'BlockdevCacheInfo' } }
 
 ##
 # @BlockDeviceIoStatus:
