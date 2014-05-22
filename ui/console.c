@@ -475,6 +475,9 @@ static inline void text_update_xy(QemuConsole *s, int x, int y)
 
 static void invalidate_xy(QemuConsole *s, int x, int y)
 {
+    if (!qemu_console_is_visible(s)) {
+        return;
+    }
     if (s->update_x0 > x * FONT_WIDTH)
         s->update_x0 = x * FONT_WIDTH;
     if (s->update_y0 > y * FONT_HEIGHT)
@@ -490,25 +493,20 @@ static void update_xy(QemuConsole *s, int x, int y)
     TextCell *c;
     int y1, y2;
 
-    if (!qemu_console_is_visible(s)) {
-        return;
-    }
-
     if (s->ds->have_text) {
         text_update_xy(s, x, y);
     }
 
-    if (s->ds->have_gfx) {
-        y1 = (s->y_base + y) % s->total_height;
-        y2 = y1 - s->y_displayed;
-        if (y2 < 0)
-            y2 += s->total_height;
-        if (y2 < s->height) {
-            c = &s->cells[y1 * s->width + x];
-            vga_putcharxy(s, x, y2, c->ch,
-                          &(c->t_attrib));
-            invalidate_xy(s, x, y2);
-        }
+    y1 = (s->y_base + y) % s->total_height;
+    y2 = y1 - s->y_displayed;
+    if (y2 < 0) {
+        y2 += s->total_height;
+    }
+    if (y2 < s->height) {
+        c = &s->cells[y1 * s->width + x];
+        vga_putcharxy(s, x, y2, c->ch,
+                      &(c->t_attrib));
+        invalidate_xy(s, x, y2);
     }
 }
 
@@ -518,33 +516,28 @@ static void console_show_cursor(QemuConsole *s, int show)
     int y, y1;
     int x = s->x;
 
-    if (!qemu_console_is_visible(s)) {
-        return;
-    }
-
     if (s->ds->have_text) {
         s->cursor_invalidate = 1;
     }
 
-    if (s->ds->have_gfx) {
-        if (x >= s->width) {
-            x = s->width - 1;
+    if (x >= s->width) {
+        x = s->width - 1;
+    }
+    y1 = (s->y_base + s->y) % s->total_height;
+    y = y1 - s->y_displayed;
+    if (y < 0) {
+        y += s->total_height;
+    }
+    if (y < s->height) {
+        c = &s->cells[y1 * s->width + x];
+        if (show && s->cursor_visible_phase) {
+            TextAttributes t_attrib = s->t_attrib_default;
+            t_attrib.invers = !(t_attrib.invers); /* invert fg and bg */
+            vga_putcharxy(s, x, y, c->ch, &t_attrib);
+        } else {
+            vga_putcharxy(s, x, y, c->ch, &(c->t_attrib));
         }
-        y1 = (s->y_base + s->y) % s->total_height;
-        y = y1 - s->y_displayed;
-        if (y < 0)
-            y += s->total_height;
-        if (y < s->height) {
-            c = &s->cells[y1 * s->width + x];
-            if (show && s->cursor_visible_phase) {
-                TextAttributes t_attrib = s->t_attrib_default;
-                t_attrib.invers = !(t_attrib.invers); /* invert fg and bg */
-                vga_putcharxy(s, x, y, c->ch, &t_attrib);
-            } else {
-                vga_putcharxy(s, x, y, c->ch, &(c->t_attrib));
-            }
-            invalidate_xy(s, x, y);
-        }
+        invalidate_xy(s, x, y);
     }
 }
 
@@ -554,10 +547,6 @@ static void console_refresh(QemuConsole *s)
     TextCell *c;
     int x, y, y1;
 
-    if (!qemu_console_is_visible(s)) {
-        return;
-    }
-
     if (s->ds->have_text) {
         s->text_x[0] = 0;
         s->text_y[0] = 0;
@@ -566,25 +555,23 @@ static void console_refresh(QemuConsole *s)
         s->cursor_invalidate = 1;
     }
 
-    if (s->ds->have_gfx) {
-        vga_fill_rect(s, 0, 0, surface_width(surface), surface_height(surface),
-                      color_table_rgb[0][COLOR_BLACK]);
-        y1 = s->y_displayed;
-        for (y = 0; y < s->height; y++) {
-            c = s->cells + y1 * s->width;
-            for (x = 0; x < s->width; x++) {
-                vga_putcharxy(s, x, y, c->ch,
-                              &(c->t_attrib));
-                c++;
-            }
-            if (++y1 == s->total_height) {
-                y1 = 0;
-            }
+    vga_fill_rect(s, 0, 0, surface_width(surface), surface_height(surface),
+                  color_table_rgb[0][COLOR_BLACK]);
+    y1 = s->y_displayed;
+    for (y = 0; y < s->height; y++) {
+        c = s->cells + y1 * s->width;
+        for (x = 0; x < s->width; x++) {
+            vga_putcharxy(s, x, y, c->ch,
+                          &(c->t_attrib));
+            c++;
         }
-        console_show_cursor(s, 1);
-        dpy_gfx_update(s, 0, 0,
-                       surface_width(surface), surface_height(surface));
+        if (++y1 == s->total_height) {
+            y1 = 0;
+        }
     }
+    console_show_cursor(s, 1);
+    dpy_gfx_update(s, 0, 0,
+                   surface_width(surface), surface_height(surface));
 }
 
 static void console_scroll(QemuConsole *s, int ydelta)
@@ -640,7 +627,7 @@ static void console_put_lf(QemuConsole *s)
             c->t_attrib = s->t_attrib_default;
             c++;
         }
-        if (qemu_console_is_visible(s) && s->y_displayed == s->y_base) {
+        if (s->y_displayed == s->y_base) {
             if (s->ds->have_text) {
                 s->text_x[0] = 0;
                 s->text_y[0] = 0;
@@ -648,18 +635,16 @@ static void console_put_lf(QemuConsole *s)
                 s->text_y[1] = s->height - 1;
             }
 
-            if (s->ds->have_gfx) {
-                vga_bitblt(s, 0, FONT_HEIGHT, 0, 0,
-                           s->width * FONT_WIDTH,
-                           (s->height - 1) * FONT_HEIGHT);
-                vga_fill_rect(s, 0, (s->height - 1) * FONT_HEIGHT,
-                              s->width * FONT_WIDTH, FONT_HEIGHT,
-                              color_table_rgb[0][s->t_attrib_default.bgcol]);
-                s->update_x0 = 0;
-                s->update_y0 = 0;
-                s->update_x1 = s->width * FONT_WIDTH;
-                s->update_y1 = s->height * FONT_HEIGHT;
-            }
+            vga_bitblt(s, 0, FONT_HEIGHT, 0, 0,
+                       s->width * FONT_WIDTH,
+                       (s->height - 1) * FONT_HEIGHT);
+            vga_fill_rect(s, 0, (s->height - 1) * FONT_HEIGHT,
+                          s->width * FONT_WIDTH, FONT_HEIGHT,
+                          color_table_rgb[0][s->t_attrib_default.bgcol]);
+            s->update_x0 = 0;
+            s->update_y0 = 0;
+            s->update_x1 = s->width * FONT_WIDTH;
+            s->update_y1 = s->height * FONT_HEIGHT;
         }
     }
 }
