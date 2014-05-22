@@ -33,7 +33,6 @@ typedef struct VirtIOBlockReq
     VirtQueueElement elem;
     struct virtio_blk_inhdr *in;
     struct virtio_blk_outhdr *out;
-    struct virtio_scsi_inhdr *scsi;
     QEMUIOVector qiov;
     struct VirtIOBlockReq *next;
     BlockAcctCookie acct;
@@ -125,13 +124,15 @@ static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s)
     return req;
 }
 
-static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
+int virtio_blk_handle_scsi_req(VirtIOBlock *blk,
+                               VirtQueueElement *elem)
 {
-#ifdef __linux__
-    int ret;
-    int i;
-#endif
     int status = VIRTIO_BLK_S_OK;
+    struct virtio_scsi_inhdr *scsi = NULL;
+#ifdef __linux__
+    int i;
+    struct sg_io_hdr hdr;
+#endif
 
     /*
      * We require at least one output segment each for the virtio_blk_outhdr
@@ -140,19 +141,18 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
      * We also at least require the virtio_blk_inhdr, the virtio_scsi_inhdr
      * and the sense buffer pointer in the input segments.
      */
-    if (req->elem.out_num < 2 || req->elem.in_num < 3) {
-        virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
-        g_free(req);
-        return;
+    if (elem->out_num < 2 || elem->in_num < 3) {
+        status = VIRTIO_BLK_S_IOERR;
+        goto fail;
     }
 
     /*
      * The scsi inhdr is placed in the second-to-last input segment, just
      * before the regular inhdr.
      */
-    req->scsi = (void *)req->elem.in_sg[req->elem.in_num - 2].iov_base;
+    scsi = (void *)elem->in_sg[elem->in_num - 2].iov_base;
 
-    if (!req->dev->blk.scsi) {
+    if (!blk->blk.scsi) {
         status = VIRTIO_BLK_S_UNSUPP;
         goto fail;
     }
@@ -160,43 +160,42 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
     /*
      * No support for bidirection commands yet.
      */
-    if (req->elem.out_num > 2 && req->elem.in_num > 3) {
+    if (elem->out_num > 2 && elem->in_num > 3) {
         status = VIRTIO_BLK_S_UNSUPP;
         goto fail;
     }
 
 #ifdef __linux__
-    struct sg_io_hdr hdr;
     memset(&hdr, 0, sizeof(struct sg_io_hdr));
     hdr.interface_id = 'S';
-    hdr.cmd_len = req->elem.out_sg[1].iov_len;
-    hdr.cmdp = req->elem.out_sg[1].iov_base;
+    hdr.cmd_len = elem->out_sg[1].iov_len;
+    hdr.cmdp = elem->out_sg[1].iov_base;
     hdr.dxfer_len = 0;
 
-    if (req->elem.out_num > 2) {
+    if (elem->out_num > 2) {
         /*
          * If there are more than the minimally required 2 output segments
          * there is write payload starting from the third iovec.
          */
         hdr.dxfer_direction = SG_DXFER_TO_DEV;
-        hdr.iovec_count = req->elem.out_num - 2;
+        hdr.iovec_count = elem->out_num - 2;
 
         for (i = 0; i < hdr.iovec_count; i++)
-            hdr.dxfer_len += req->elem.out_sg[i + 2].iov_len;
+            hdr.dxfer_len += elem->out_sg[i + 2].iov_len;
 
-        hdr.dxferp = req->elem.out_sg + 2;
+        hdr.dxferp = elem->out_sg + 2;
 
-    } else if (req->elem.in_num > 3) {
+    } else if (elem->in_num > 3) {
         /*
          * If we have more than 3 input segments the guest wants to actually
          * read data.
          */
         hdr.dxfer_direction = SG_DXFER_FROM_DEV;
-        hdr.iovec_count = req->elem.in_num - 3;
+        hdr.iovec_count = elem->in_num - 3;
         for (i = 0; i < hdr.iovec_count; i++)
-            hdr.dxfer_len += req->elem.in_sg[i].iov_len;
+            hdr.dxfer_len += elem->in_sg[i].iov_len;
 
-        hdr.dxferp = req->elem.in_sg;
+        hdr.dxferp = elem->in_sg;
     } else {
         /*
          * Some SCSI commands don't actually transfer any data.
@@ -204,11 +203,11 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
         hdr.dxfer_direction = SG_DXFER_NONE;
     }
 
-    hdr.sbp = req->elem.in_sg[req->elem.in_num - 3].iov_base;
-    hdr.mx_sb_len = req->elem.in_sg[req->elem.in_num - 3].iov_len;
+    hdr.sbp = elem->in_sg[elem->in_num - 3].iov_base;
+    hdr.mx_sb_len = elem->in_sg[elem->in_num - 3].iov_len;
 
-    ret = bdrv_ioctl(req->dev->bs, SG_IO, &hdr);
-    if (ret) {
+    status = bdrv_ioctl(blk->bs, SG_IO, &hdr);
+    if (status) {
         status = VIRTIO_BLK_S_UNSUPP;
         goto fail;
     }
@@ -224,23 +223,31 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
         hdr.status = CHECK_CONDITION;
     }
 
-    stl_p(&req->scsi->errors,
+    stl_p(&scsi->errors,
           hdr.status | (hdr.msg_status << 8) |
           (hdr.host_status << 16) | (hdr.driver_status << 24));
-    stl_p(&req->scsi->residual, hdr.resid);
-    stl_p(&req->scsi->sense_len, hdr.sb_len_wr);
-    stl_p(&req->scsi->data_len, hdr.dxfer_len);
+    stl_p(&scsi->residual, hdr.resid);
+    stl_p(&scsi->sense_len, hdr.sb_len_wr);
+    stl_p(&scsi->data_len, hdr.dxfer_len);
 
-    virtio_blk_req_complete(req, status);
-    g_free(req);
-    return;
+    return status;
 #else
     abort();
 #endif
 
 fail:
     /* Just put anything nonzero so that the ioctl fails in the guest.  */
-    stl_p(&req->scsi->errors, 255);
+    if (scsi) {
+        stl_p(&scsi->errors, 255);
+    }
+    return status;
+}
+
+static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
+{
+    int status;
+
+    status = virtio_blk_handle_scsi_req(req->dev, &req->elem);
     virtio_blk_req_complete(req, status);
     g_free(req);
 }
