@@ -3204,6 +3204,7 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
                                     void (*init)(struct CharDriverState *s),
                                     Error **errp)
 {
+    Error *local_err = NULL;
     CharDriver *cd;
     CharDriverState *chr;
     GSList *i;
@@ -3245,13 +3246,14 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
         chr = NULL;
         backend->kind = cd->kind;
         if (cd->parse) {
-            cd->parse(opts, backend, errp);
-            if (error_is_set(errp)) {
+            cd->parse(opts, backend, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
                 goto qapi_out;
             }
         }
         ret = qmp_chardev_add(bid ? bid : id, backend, errp);
-        if (error_is_set(errp)) {
+        if (!ret) {
             goto qapi_out;
         }
 
@@ -3263,7 +3265,7 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
             backend->kind = CHARDEV_BACKEND_KIND_MUX;
             backend->mux->chardev = g_strdup(bid);
             ret = qmp_chardev_add(id, backend, errp);
-            if (error_is_set(errp)) {
+            if (!ret) {
                 chr = qemu_chr_find(bid);
                 qemu_chr_delete(chr);
                 chr = NULL;
@@ -3620,18 +3622,18 @@ static int qmp_chardev_open_file_source(char *src, int flags,
 
 static CharDriverState *qmp_chardev_open_file(ChardevFile *file, Error **errp)
 {
-    int flags, in = -1, out = -1;
+    int flags, in = -1, out;
 
     flags = O_WRONLY | O_TRUNC | O_CREAT | O_BINARY;
     out = qmp_chardev_open_file_source(file->out, flags, errp);
-    if (error_is_set(errp)) {
+    if (out < 0) {
         return NULL;
     }
 
     if (file->has_in) {
         flags = O_RDONLY;
         in = qmp_chardev_open_file_source(file->in, flags, errp);
-        if (error_is_set(errp)) {
+        if (in < 0) {
             qemu_close(out);
             return NULL;
         }
@@ -3647,7 +3649,7 @@ static CharDriverState *qmp_chardev_open_serial(ChardevHostdev *serial,
     int fd;
 
     fd = qmp_chardev_open_file_source(serial->device, O_RDWR, errp);
-    if (error_is_set(errp)) {
+    if (fd < 0) {
         return NULL;
     }
     qemu_set_nonblock(fd);
@@ -3665,7 +3667,7 @@ static CharDriverState *qmp_chardev_open_parallel(ChardevHostdev *parallel,
     int fd;
 
     fd = qmp_chardev_open_file_source(parallel->device, O_RDWR, errp);
-    if (error_is_set(errp)) {
+    if (fd < 0) {
         return NULL;
     }
     return qemu_chr_open_pp_fd(fd);
@@ -3692,7 +3694,7 @@ static CharDriverState *qmp_chardev_open_socket(ChardevSocket *sock,
     } else {
         fd = socket_connect(addr, errp, NULL, NULL);
     }
-    if (error_is_set(errp)) {
+    if (fd < 0) {
         return NULL;
     }
     return qemu_chr_open_socket_fd(fd, do_nodelay, is_listen,
@@ -3705,7 +3707,7 @@ static CharDriverState *qmp_chardev_open_udp(ChardevUdp *udp,
     int fd;
 
     fd = socket_dgram(udp->remote, udp->local, errp);
-    if (error_is_set(errp)) {
+    if (fd < 0) {
         return NULL;
     }
     return qemu_chr_open_udp_fd(fd);
@@ -3796,7 +3798,13 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         break;
     }
 
-    if (chr == NULL && !error_is_set(errp)) {
+    /*
+     * Character backend open hasn't been fully converted to the Error
+     * API.  Some opens fail without setting an error.  Set a generic
+     * error then.
+     * TODO full conversion to Error API
+     */
+    if (chr == NULL && errp && !*errp) {
         error_setg(errp, "Failed to create chardev");
     }
     if (chr) {

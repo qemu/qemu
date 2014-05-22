@@ -67,12 +67,6 @@ void error_set_win32(Error **errp, int win32_err, ErrorClass err_class,
  */
 void error_setg_file_open(Error **errp, int os_errno, const char *filename);
 
-/**
- * Returns true if an indirect pointer to an error is pointing to a valid
- * error object.
- */
-bool error_is_set(Error **errp);
-
 /*
  * Get the error class of an error object.
  */
