@@ -1005,12 +1005,14 @@ static void gd_menu_switch_vc(GtkMenuItem *item, void *opaque)
 static void gd_menu_show_tabs(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
+    VirtualConsole *vc = gd_vc_find_current(s);
 
     if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(s->show_tabs_item))) {
         gtk_notebook_set_show_tabs(GTK_NOTEBOOK(s->notebook), TRUE);
     } else {
         gtk_notebook_set_show_tabs(GTK_NOTEBOOK(s->notebook), FALSE);
     }
+    gd_update_windowsize(vc);
 }
 
 static gboolean gd_tab_window_close(GtkWidget *widget, GdkEvent *event,
