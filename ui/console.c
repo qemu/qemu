@@ -143,8 +143,6 @@ struct QemuConsole {
     TextCell *cells;
     int text_x[2], text_y[2], cursor_invalidate;
     int echo;
-    bool cursor_visible_phase;
-    QEMUTimer *cursor_timer;
 
     int update_x0;
     int update_y0;
@@ -177,10 +175,14 @@ static DisplayState *display_state;
 static QemuConsole *active_console;
 static QemuConsole *consoles[MAX_CONSOLES];
 static int nb_consoles = 0;
+static bool cursor_visible_phase;
+static QEMUTimer *cursor_timer;
 
 static void text_console_do_init(CharDriverState *chr, DisplayState *ds);
 static void dpy_refresh(DisplayState *s);
 static DisplayState *get_alloc_displaystate(void);
+static void text_console_update_cursor_timer(void);
+static void text_console_update_cursor(void *opaque);
 
 static void gui_update(void *opaque)
 {
@@ -530,7 +532,7 @@ static void console_show_cursor(QemuConsole *s, int show)
     }
     if (y < s->height) {
         c = &s->cells[y1 * s->width + x];
-        if (show && s->cursor_visible_phase) {
+        if (show && cursor_visible_phase) {
             TextAttributes t_attrib = s->t_attrib_default;
             t_attrib.invers = !(t_attrib.invers); /* invert fg and bg */
             vga_putcharxy(s, x, y, c->ch, &t_attrib);
@@ -989,9 +991,6 @@ void console_select(unsigned int index)
     if (s) {
         DisplayState *ds = s->ds;
 
-        if (active_console && active_console->cursor_timer) {
-            timer_del(active_console->cursor_timer);
-        }
         active_console = s;
         if (ds->have_gfx) {
             QLIST_FOREACH(dcl, &ds->listeners, next) {
@@ -1008,10 +1007,7 @@ void console_select(unsigned int index)
         if (ds->have_text) {
             dpy_text_resize(s, s->width, s->height);
         }
-        if (s->cursor_timer) {
-            timer_mod(s->cursor_timer,
-                   qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + CONSOLE_CURSOR_PERIOD / 2);
-        }
+        text_console_update_cursor(NULL);
     }
 }
 
@@ -1314,6 +1310,7 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
             dcl->ops->dpy_gfx_switch(dcl, dummy);
         }
     }
+    text_console_update_cursor(NULL);
 }
 
 void update_displaychangelistener(DisplayChangeListener *dcl,
@@ -1537,6 +1534,8 @@ static DisplayState *get_alloc_displaystate(void)
 {
     if (!display_state) {
         display_state = g_new0(DisplayState, 1);
+        cursor_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
+                                    text_console_update_cursor, NULL);
     }
     return display_state;
 }
@@ -1696,14 +1695,32 @@ static void text_console_set_echo(CharDriverState *chr, bool echo)
     s->echo = echo;
 }
 
+static void text_console_update_cursor_timer(void)
+{
+    timer_mod(cursor_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME)
+              + CONSOLE_CURSOR_PERIOD / 2);
+}
+
 static void text_console_update_cursor(void *opaque)
 {
-    QemuConsole *s = opaque;
+    QemuConsole *s;
+    int i, count = 0;
 
-    s->cursor_visible_phase = !s->cursor_visible_phase;
-    graphic_hw_invalidate(s);
-    timer_mod(s->cursor_timer,
-                   qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + CONSOLE_CURSOR_PERIOD / 2);
+    cursor_visible_phase = !cursor_visible_phase;
+
+    for (i = 0; i < nb_consoles; i++) {
+        s = consoles[i];
+        if (qemu_console_is_graphic(s) ||
+            !qemu_console_is_visible(s)) {
+            continue;
+        }
+        count++;
+        graphic_hw_invalidate(s);
+    }
+
+    if (count) {
+        text_console_update_cursor_timer();
+    }
 }
 
 static const GraphicHwOps text_console_ops = {
@@ -1738,9 +1755,6 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
         }
         s->surface = qemu_create_displaysurface(g_width, g_height);
     }
-
-    s->cursor_timer =
-        timer_new_ms(QEMU_CLOCK_REALTIME, text_console_update_cursor, s);
 
     s->hw_ops = &text_console_ops;
     s->hw = s;
