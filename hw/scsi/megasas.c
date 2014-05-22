@@ -728,8 +728,8 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
     snprintf(info.package_version, 0x60, "%s-QEMU", QEMU_VERSION);
     memcpy(info.image_component[0].name, "APP", 3);
     memcpy(info.image_component[0].version, MEGASAS_VERSION "-QEMU", 9);
-    memcpy(info.image_component[0].build_date, __DATE__, 11);
-    memcpy(info.image_component[0].build_time, __TIME__, 8);
+    memcpy(info.image_component[0].build_date, "Apr  1 2014", 11);
+    memcpy(info.image_component[0].build_time, "12:34:56", 8);
     info.image_component_count = 1;
     if (pci_dev->has_rom) {
         uint8_t biosver[32];
