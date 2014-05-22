@@ -290,7 +290,8 @@ static void gd_update_cursor(VirtualConsole *vc)
     GtkDisplayState *s = vc->s;
     GdkWindow *window;
 
-    if (vc->type != GD_VC_GFX) {
+    if (vc->type != GD_VC_GFX ||
+        !qemu_console_is_graphic(vc->gfx.dcl.con)) {
         return;
     }
 
@@ -430,7 +431,8 @@ static void gtk_release_modifiers(GtkDisplayState *s)
     VirtualConsole *vc = gd_vc_find_current(s);
     int i, keycode;
 
-    if (vc->type != GD_VC_GFX) {
+    if (vc->type != GD_VC_GFX ||
+        !qemu_console_is_graphic(vc->gfx.dcl.con)) {
         return;
     }
     for (i = 0; i < ARRAY_SIZE(modifier_keycode); i++) {
@@ -458,6 +460,7 @@ static void gd_update(DisplayChangeListener *dcl,
                       int x, int y, int w, int h)
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
+    GdkWindow *win;
     int x1, x2, y1, y2;
     int mx, my;
     int fbw, fbh;
@@ -484,8 +487,11 @@ static void gd_update(DisplayChangeListener *dcl,
     fbw = surface_width(vc->gfx.ds) * vc->gfx.scale_x;
     fbh = surface_height(vc->gfx.ds) * vc->gfx.scale_y;
 
-    gdk_drawable_get_size(gtk_widget_get_window(vc->gfx.drawing_area),
-                          &ww, &wh);
+    win = gtk_widget_get_window(vc->gfx.drawing_area);
+    if (!win) {
+        return;
+    }
+    gdk_drawable_get_size(win, &ww, &wh);
 
     mx = my = 0;
     if (ww > fbw) {
@@ -961,6 +967,23 @@ static int gd_map_keycode(GtkDisplayState *s, GdkDisplay *dpy, int gdk_keycode)
     return qemu_keycode;
 }
 
+static gboolean gd_text_key_down(GtkWidget *widget,
+                                 GdkEventKey *key, void *opaque)
+{
+    VirtualConsole *vc = opaque;
+    QemuConsole *con = vc->gfx.dcl.con;
+
+    if (key->length) {
+        kbd_put_string_console(con, key->string, key->length);
+    } else {
+        int num = gd_map_keycode(vc->s, gtk_widget_get_display(widget),
+                                 key->hardware_keycode);
+        int qcode = qemu_input_key_number_to_qcode(num);
+        kbd_put_qcode_console(con, qcode);
+    }
+    return TRUE;
+}
+
 static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
 {
     VirtualConsole *vc = opaque;
@@ -1102,7 +1125,8 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
     GtkDisplayState *s = opaque;
     VirtualConsole *vc = gd_vc_find_current(s);
 
-    if (vc->type == GD_VC_GFX) {
+    if (vc->type == GD_VC_GFX &&
+        qemu_console_is_graphic(vc->gfx.dcl.con)) {
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
                                        FALSE);
     }
@@ -1115,11 +1139,14 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
                          G_CALLBACK(gd_tab_window_close), vc);
         gtk_widget_show_all(vc->window);
 
-        GtkAccelGroup *ag = gtk_accel_group_new();
-        gtk_window_add_accel_group(GTK_WINDOW(vc->window), ag);
+        if (qemu_console_is_graphic(vc->gfx.dcl.con)) {
+            GtkAccelGroup *ag = gtk_accel_group_new();
+            gtk_window_add_accel_group(GTK_WINDOW(vc->window), ag);
 
-        GClosure *cb = g_cclosure_new_swap(G_CALLBACK(gd_win_grab), vc, NULL);
-        gtk_accel_group_connect(ag, GDK_KEY_g, HOTKEY_MODIFIERS, 0, cb);
+            GClosure *cb = g_cclosure_new_swap(G_CALLBACK(gd_win_grab),
+                                               vc, NULL);
+            gtk_accel_group_connect(ag, GDK_KEY_g, HOTKEY_MODIFIERS, 0, cb);
+        }
 
         gd_update_geometry_hints(vc);
         gd_update_caption(s);
@@ -1136,8 +1163,10 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
         gtk_widget_hide(s->menu_bar);
         if (vc->type == GD_VC_GFX) {
             gtk_widget_set_size_request(vc->gfx.drawing_area, -1, -1);
-            gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
-                                           TRUE);
+            if (qemu_console_is_graphic(vc->gfx.dcl.con)) {
+                gtk_check_menu_item_set_active
+                    (GTK_CHECK_MENU_ITEM(s->grab_item), TRUE);
+            }
         }
         gtk_window_fullscreen(GTK_WINDOW(s->window));
         s->full_screen = TRUE;
@@ -1386,7 +1415,8 @@ static void gd_change_page(GtkNotebook *nb, gpointer arg1, guint arg2,
 #endif
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(vc->menu_item),
                                    TRUE);
-    on_vga = (vc->type == GD_VC_GFX);
+    on_vga = (vc->type == GD_VC_GFX &&
+              qemu_console_is_graphic(vc->gfx.dcl.con));
     if (!on_vga) {
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
                                        FALSE);
@@ -1593,25 +1623,30 @@ static void gd_connect_vc_gfx_signals(VirtualConsole *vc)
     g_signal_connect(vc->gfx.drawing_area, "expose-event",
                      G_CALLBACK(gd_expose_event), vc);
 #endif
-    g_signal_connect(vc->gfx.drawing_area, "event",
-                     G_CALLBACK(gd_event), vc);
-    g_signal_connect(vc->gfx.drawing_area, "button-press-event",
-                     G_CALLBACK(gd_button_event), vc);
-    g_signal_connect(vc->gfx.drawing_area, "button-release-event",
-                     G_CALLBACK(gd_button_event), vc);
-    g_signal_connect(vc->gfx.drawing_area, "scroll-event",
-                     G_CALLBACK(gd_scroll_event), vc);
-    g_signal_connect(vc->gfx.drawing_area, "key-press-event",
-                     G_CALLBACK(gd_key_event), vc);
-    g_signal_connect(vc->gfx.drawing_area, "key-release-event",
-                     G_CALLBACK(gd_key_event), vc);
+    if (qemu_console_is_graphic(vc->gfx.dcl.con)) {
+        g_signal_connect(vc->gfx.drawing_area, "event",
+                         G_CALLBACK(gd_event), vc);
+        g_signal_connect(vc->gfx.drawing_area, "button-press-event",
+                         G_CALLBACK(gd_button_event), vc);
+        g_signal_connect(vc->gfx.drawing_area, "button-release-event",
+                         G_CALLBACK(gd_button_event), vc);
+        g_signal_connect(vc->gfx.drawing_area, "scroll-event",
+                         G_CALLBACK(gd_scroll_event), vc);
+        g_signal_connect(vc->gfx.drawing_area, "key-press-event",
+                         G_CALLBACK(gd_key_event), vc);
+        g_signal_connect(vc->gfx.drawing_area, "key-release-event",
+                         G_CALLBACK(gd_key_event), vc);
 
-    g_signal_connect(vc->gfx.drawing_area, "enter-notify-event",
-                     G_CALLBACK(gd_enter_event), vc);
-    g_signal_connect(vc->gfx.drawing_area, "leave-notify-event",
-                     G_CALLBACK(gd_leave_event), vc);
-    g_signal_connect(vc->gfx.drawing_area, "focus-out-event",
-                     G_CALLBACK(gd_focus_out_event), vc);
+        g_signal_connect(vc->gfx.drawing_area, "enter-notify-event",
+                         G_CALLBACK(gd_enter_event), vc);
+        g_signal_connect(vc->gfx.drawing_area, "leave-notify-event",
+                         G_CALLBACK(gd_leave_event), vc);
+        g_signal_connect(vc->gfx.drawing_area, "focus-out-event",
+                         G_CALLBACK(gd_focus_out_event), vc);
+    } else {
+        g_signal_connect(vc->gfx.drawing_area, "key-press-event",
+                         G_CALLBACK(gd_text_key_down), vc);
+    }
 }
 
 static void gd_connect_signals(GtkDisplayState *s)
@@ -1700,8 +1735,10 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
     obj = object_property_get_link(OBJECT(con), "device", NULL);
     if (obj) {
         vc->label = g_strdup_printf("%s", object_get_typename(obj));
-    } else {
+    } else if (qemu_console_is_graphic(con)) {
         vc->label = g_strdup_printf("VGA");
+    } else {
+        vc->label = g_strdup_printf("vc%d", idx);
     }
 
     vc->s = s;
@@ -1724,13 +1761,13 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
     vc->tab_item = vc->gfx.drawing_area;
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook),
                              vc->tab_item, gtk_label_new(vc->label));
-    gd_connect_vc_gfx_signals(vc);
-
-    group = gd_vc_menu_init(s, vc, idx, group, view_menu);
 
     vc->gfx.dcl.ops = &dcl_ops;
     vc->gfx.dcl.con = con;
     register_displaychangelistener(&vc->gfx.dcl);
+
+    gd_connect_vc_gfx_signals(vc);
+    group = gd_vc_menu_init(s, vc, idx, group, view_menu);
 
     return group;
 }
@@ -1803,7 +1840,7 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s)
     /* gfx */
     for (vc = 0;; vc++) {
         con = qemu_console_lookup_by_index(vc);
-        if (!con || !qemu_console_is_graphic(con)) {
+        if (!con) {
             break;
         }
         group = gd_vc_gfx_init(s, &s->vc[vc], con,
