@@ -166,11 +166,18 @@ static void tcg_opt_gen_mov(TCGContext *s, int op_index, TCGArg *gen_args,
                             TCGOpcode old_op, TCGArg dst, TCGArg src)
 {
     TCGOpcode new_op = op_to_mov(old_op);
+    tcg_target_ulong mask;
 
     s->gen_opc_buf[op_index] = new_op;
 
     reset_temp(dst);
-    temps[dst].mask = temps[src].mask;
+    mask = temps[src].mask;
+    if (TCG_TARGET_REG_BITS > 32 && new_op == INDEX_op_mov_i32) {
+        /* High bits of the destination are now garbage.  */
+        mask |= ~0xffffffffull;
+    }
+    temps[dst].mask = mask;
+
     assert(temps[src].state != TCG_TEMP_CONST);
 
     if (s->temps[src].type == s->temps[dst].type) {
@@ -194,13 +201,20 @@ static void tcg_opt_gen_movi(TCGContext *s, int op_index, TCGArg *gen_args,
                              TCGOpcode old_op, TCGArg dst, TCGArg val)
 {
     TCGOpcode new_op = op_to_movi(old_op);
+    tcg_target_ulong mask;
 
     s->gen_opc_buf[op_index] = new_op;
 
     reset_temp(dst);
     temps[dst].state = TCG_TEMP_CONST;
     temps[dst].val = val;
-    temps[dst].mask = val;
+    mask = val;
+    if (TCG_TARGET_REG_BITS > 32 && new_op == INDEX_op_mov_i32) {
+        /* High bits of the destination are now garbage.  */
+        mask |= ~0xffffffffull;
+    }
+    temps[dst].mask = mask;
+
     gen_args[0] = dst;
     gen_args[1] = val;
 }
@@ -539,7 +553,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
     for (op_index = 0; op_index < nb_ops; op_index++) {
         TCGOpcode op = s->gen_opc_buf[op_index];
         const TCGOpDef *def = &tcg_op_defs[op];
-        tcg_target_ulong mask, affected;
+        tcg_target_ulong mask, partmask, affected;
         int nb_oargs, nb_iargs, nb_args, i;
         TCGArg tmp;
 
@@ -902,13 +916,18 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             break;
         }
 
-        /* 32-bit ops (non 64-bit ops and non load/store ops) generate 32-bit
-           results */
+        /* 32-bit ops (non 64-bit ops and non load/store ops) generate
+           32-bit results.  For the result is zero test below, we can
+           ignore high bits, but for further optimizations we need to
+           record that the high bits contain garbage.  */
+        partmask = mask;
         if (!(def->flags & (TCG_OPF_CALL_CLOBBER | TCG_OPF_64BIT))) {
-            mask &= 0xffffffffu;
+            mask |= ~(tcg_target_ulong)0xffffffffu;
+            partmask &= 0xffffffffu;
+            affected &= 0xffffffffu;
         }
 
-        if (mask == 0) {
+        if (partmask == 0) {
             assert(nb_oargs == 1);
             tcg_opt_gen_movi(s, op_index, gen_args, op, args[0], 0);
             args += nb_args;
