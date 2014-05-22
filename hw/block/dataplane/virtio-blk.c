@@ -204,6 +204,15 @@ static void do_flush_cmd(VirtIOBlockDataPlane *s, VirtQueueElement *elem,
     bdrv_aio_flush(s->blk->conf.bs, complete_flush, req);
 }
 
+static void do_scsi_cmd(VirtIOBlockDataPlane *s, VirtQueueElement *elem,
+                        QEMUIOVector *inhdr)
+{
+    int status;
+
+    status = virtio_blk_handle_scsi_req(VIRTIO_BLK(s->vdev), elem);
+    complete_request_early(s, elem, inhdr, status);
+}
+
 static int process_request(VirtIOBlockDataPlane *s, VirtQueueElement *elem)
 {
     struct iovec *iov = elem->out_sg;
@@ -252,8 +261,7 @@ static int process_request(VirtIOBlockDataPlane *s, VirtQueueElement *elem)
         return 0;
 
     case VIRTIO_BLK_T_SCSI_CMD:
-        /* TODO support SCSI commands */
-        complete_request_early(s, elem, inhdr, VIRTIO_BLK_S_UNSUPP);
+        do_scsi_cmd(s, elem, inhdr);
         return 0;
 
     case VIRTIO_BLK_T_FLUSH:
@@ -327,12 +335,6 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     *dataplane = NULL;
 
     if (!blk->data_plane) {
-        return;
-    }
-
-    if (blk->scsi) {
-        error_setg(errp,
-                   "device is incompatible with x-data-plane, use scsi=off");
         return;
     }
 
