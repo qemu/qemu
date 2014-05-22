@@ -1430,8 +1430,6 @@ static void openpic_reset(DeviceState *d)
     /* Initialise IRQ sources */
     for (i = 0; i < opp->max_irq; i++) {
         opp->src[i].ivpr = opp->ivpr_reset;
-        opp->src[i].idr  = opp->idr_reset;
-
         switch (opp->src[i].type) {
         case IRQ_TYPE_NORMAL:
             opp->src[i].level = !!(opp->ivpr_reset & IVPR_SENSE_MASK);
@@ -1444,6 +1442,8 @@ static void openpic_reset(DeviceState *d)
         case IRQ_TYPE_FSLSPECIAL:
             break;
         }
+
+        write_IRQreg_idr(opp, i, opp->idr_reset);
     }
     /* Initialise IRQ destinations */
     for (i = 0; i < MAX_CPU; i++) {
