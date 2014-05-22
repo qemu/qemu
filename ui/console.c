@@ -1056,13 +1056,11 @@ static void kbd_send_chars(void *opaque)
 }
 
 /* called when an ascii key is pressed */
-void kbd_put_keysym(int keysym)
+void kbd_put_keysym_console(QemuConsole *s, int keysym)
 {
-    QemuConsole *s;
     uint8_t buf[16], *q;
     int c;
 
-    s = active_console;
     if (!s || (s->console_type == GRAPHIC_CONSOLE))
         return;
 
@@ -1109,6 +1107,11 @@ void kbd_put_keysym(int keysym)
         }
         break;
     }
+}
+
+void kbd_put_keysym(int keysym)
+{
+    kbd_put_keysym_console(active_console, keysym);
 }
 
 static void text_console_invalidate(void *opaque)
