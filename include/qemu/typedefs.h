@@ -74,5 +74,6 @@ typedef struct SHPCDevice SHPCDevice;
 typedef struct FWCfgState FWCfgState;
 typedef struct PcGuestInfo PcGuestInfo;
 typedef struct Range Range;
+typedef struct AdapterInfo AdapterInfo;
 
 #endif /* QEMU_TYPEDEFS_H */

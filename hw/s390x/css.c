@@ -16,6 +16,7 @@
 #include "ioinst.h"
 #include "css.h"
 #include "trace.h"
+#include "hw/s390x/s390_flic.h"
 
 typedef struct CrwContainer {
     CRW crw;
@@ -39,6 +40,13 @@ typedef struct CssImage {
     ChpInfo chpids[MAX_CHPID + 1];
 } CssImage;
 
+typedef struct IoAdapter {
+    uint32_t id;
+    uint8_t type;
+    uint8_t isc;
+    QTAILQ_ENTRY(IoAdapter) sibling;
+} IoAdapter;
+
 typedef struct ChannelSubSys {
     QTAILQ_HEAD(, CrwContainer) pending_crws;
     bool do_crw_mchk;
@@ -49,6 +57,7 @@ typedef struct ChannelSubSys {
     uint64_t chnmon_area;
     CssImage *css[MAX_CSSID + 1];
     uint8_t default_cssid;
+    QTAILQ_HEAD(, IoAdapter) io_adapters;
 } ChannelSubSys;
 
 static ChannelSubSys *channel_subsys;
@@ -67,6 +76,46 @@ int css_create_css_image(uint8_t cssid, bool default_image)
         channel_subsys->default_cssid = cssid;
     }
     return 0;
+}
+
+int css_register_io_adapter(uint8_t type, uint8_t isc, bool swap,
+                            bool maskable, uint32_t *id)
+{
+    IoAdapter *adapter;
+    bool found = false;
+    int ret;
+    S390FLICState *fs = s390_get_flic();
+    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
+
+    *id = 0;
+    QTAILQ_FOREACH(adapter, &channel_subsys->io_adapters, sibling) {
+        if ((adapter->type == type) && (adapter->isc == isc)) {
+            *id = adapter->id;
+            found = true;
+            ret = 0;
+            break;
+        }
+        if (adapter->id >= *id) {
+            *id = adapter->id + 1;
+        }
+    }
+    if (found) {
+        goto out;
+    }
+    adapter = g_new0(IoAdapter, 1);
+    ret = fsc->register_io_adapter(fs, *id, isc, swap, maskable);
+    if (ret == 0) {
+        adapter->id = *id;
+        adapter->isc = isc;
+        adapter->type = type;
+        QTAILQ_INSERT_TAIL(&channel_subsys->io_adapters, adapter, sibling);
+    } else {
+        g_free(adapter);
+        fprintf(stderr, "Unexpected error %d when registering adapter %d\n",
+                ret, *id);
+    }
+out:
+    return ret;
 }
 
 uint16_t css_build_subchannel_id(SubchDev *sch)
@@ -1235,6 +1284,7 @@ static void css_init(void)
     channel_subsys->do_crw_mchk = true;
     channel_subsys->crws_lost = false;
     channel_subsys->chnmon_active = false;
+    QTAILQ_INIT(&channel_subsys->io_adapters);
 }
 machine_init(css_init);
 

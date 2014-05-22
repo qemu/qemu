@@ -36,6 +36,7 @@
 #include "sysemu/device_tree.h"
 #include "qapi/qmp/qjson.h"
 #include "monitor/monitor.h"
+#include "exec/gdbstub.h"
 #include "trace.h"
 
 /* #define DEBUG_KVM */
@@ -85,6 +86,14 @@
 #define ICPT_SOFT_INTERCEPT             0x24
 #define ICPT_CPU_STOP                   0x28
 #define ICPT_IO                         0x40
+
+static CPUWatchpoint hw_watchpoint;
+/*
+ * We don't use a list because this structure is also used to transmit the
+ * hardware breakpoints to the kernel.
+ */
+static struct kvm_hw_breakpoint *hw_breakpoints;
+static int nb_hw_breakpoints;
 
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
@@ -320,12 +329,16 @@ static void *legacy_s390_alloc(size_t size)
     return mem == MAP_FAILED ? NULL : mem;
 }
 
+/* DIAG 501 is used for sw breakpoints */
+static const uint8_t diag_501[] = {0x83, 0x24, 0x05, 0x01};
+
 int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 {
-    static const uint8_t diag_501[] = {0x83, 0x24, 0x05, 0x01};
 
-    if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn, 4, 0) ||
-        cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)diag_501, 4, 1)) {
+    if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn,
+                            sizeof(diag_501), 0) ||
+        cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)diag_501,
+                            sizeof(diag_501), 1)) {
         return -EINVAL;
     }
     return 0;
@@ -333,16 +346,63 @@ int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 
 int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 {
-    uint8_t t[4];
-    static const uint8_t diag_501[] = {0x83, 0x24, 0x05, 0x01};
+    uint8_t t[sizeof(diag_501)];
 
-    if (cpu_memory_rw_debug(cs, bp->pc, t, 4, 0)) {
+    if (cpu_memory_rw_debug(cs, bp->pc, t, sizeof(diag_501), 0)) {
         return -EINVAL;
-    } else if (memcmp(t, diag_501, 4)) {
+    } else if (memcmp(t, diag_501, sizeof(diag_501))) {
         return -EINVAL;
-    } else if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn, 1, 1)) {
+    } else if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn,
+                                   sizeof(diag_501), 1)) {
         return -EINVAL;
     }
+
+    return 0;
+}
+
+static struct kvm_hw_breakpoint *find_hw_breakpoint(target_ulong addr,
+                                                    int len, int type)
+{
+    int n;
+
+    for (n = 0; n < nb_hw_breakpoints; n++) {
+        if (hw_breakpoints[n].addr == addr && hw_breakpoints[n].type == type &&
+            (hw_breakpoints[n].len == len || len == -1)) {
+            return &hw_breakpoints[n];
+        }
+    }
+
+    return NULL;
+}
+
+static int insert_hw_breakpoint(target_ulong addr, int len, int type)
+{
+    int size;
+
+    if (find_hw_breakpoint(addr, len, type)) {
+        return -EEXIST;
+    }
+
+    size = (nb_hw_breakpoints + 1) * sizeof(struct kvm_hw_breakpoint);
+
+    if (!hw_breakpoints) {
+        nb_hw_breakpoints = 0;
+        hw_breakpoints = (struct kvm_hw_breakpoint *)g_try_malloc(size);
+    } else {
+        hw_breakpoints =
+            (struct kvm_hw_breakpoint *)g_try_realloc(hw_breakpoints, size);
+    }
+
+    if (!hw_breakpoints) {
+        nb_hw_breakpoints = 0;
+        return -ENOMEM;
+    }
+
+    hw_breakpoints[nb_hw_breakpoints].addr = addr;
+    hw_breakpoints[nb_hw_breakpoints].len = len;
+    hw_breakpoints[nb_hw_breakpoints].type = type;
+
+    nb_hw_breakpoints++;
 
     return 0;
 }
@@ -350,21 +410,76 @@ int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 int kvm_arch_insert_hw_breakpoint(target_ulong addr,
                                   target_ulong len, int type)
 {
-    return -ENOSYS;
+    switch (type) {
+    case GDB_BREAKPOINT_HW:
+        type = KVM_HW_BP;
+        break;
+    case GDB_WATCHPOINT_WRITE:
+        if (len < 1) {
+            return -EINVAL;
+        }
+        type = KVM_HW_WP_WRITE;
+        break;
+    default:
+        return -ENOSYS;
+    }
+    return insert_hw_breakpoint(addr, len, type);
 }
 
 int kvm_arch_remove_hw_breakpoint(target_ulong addr,
                                   target_ulong len, int type)
 {
-    return -ENOSYS;
+    int size;
+    struct kvm_hw_breakpoint *bp = find_hw_breakpoint(addr, len, type);
+
+    if (bp == NULL) {
+        return -ENOENT;
+    }
+
+    nb_hw_breakpoints--;
+    if (nb_hw_breakpoints > 0) {
+        /*
+         * In order to trim the array, move the last element to the position to
+         * be removed - if necessary.
+         */
+        if (bp != &hw_breakpoints[nb_hw_breakpoints]) {
+            *bp = hw_breakpoints[nb_hw_breakpoints];
+        }
+        size = nb_hw_breakpoints * sizeof(struct kvm_hw_breakpoint);
+        hw_breakpoints =
+             (struct kvm_hw_breakpoint *)g_realloc(hw_breakpoints, size);
+    } else {
+        g_free(hw_breakpoints);
+        hw_breakpoints = NULL;
+    }
+
+    return 0;
 }
 
 void kvm_arch_remove_all_hw_breakpoints(void)
 {
+    nb_hw_breakpoints = 0;
+    g_free(hw_breakpoints);
+    hw_breakpoints = NULL;
 }
 
 void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
 {
+    int i;
+
+    if (nb_hw_breakpoints > 0) {
+        dbg->arch.nr_hw_bp = nb_hw_breakpoints;
+        dbg->arch.hw_bp = hw_breakpoints;
+
+        for (i = 0; i < nb_hw_breakpoints; ++i) {
+            hw_breakpoints[i].phys_addr = s390_cpu_get_phys_addr_debug(cpu,
+                                                       hw_breakpoints[i].addr);
+        }
+        dbg->control |= KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_HW_BP;
+    } else {
+        dbg->arch.nr_hw_bp = 0;
+        dbg->arch.hw_bp = NULL;
+    }
 }
 
 void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
@@ -579,6 +694,22 @@ static void kvm_handle_diag_308(S390CPU *cpu, struct kvm_run *run)
     handle_diag_308(&cpu->env, r1, r3);
 }
 
+static int handle_sw_breakpoint(S390CPU *cpu, struct kvm_run *run)
+{
+    CPUS390XState *env = &cpu->env;
+    unsigned long pc;
+
+    cpu_synchronize_state(CPU(cpu));
+
+    pc = env->psw.addr - 4;
+    if (kvm_find_sw_breakpoint(CPU(cpu), pc)) {
+        env->psw.addr = pc;
+        return EXCP_DEBUG;
+    }
+
+    return -ENOENT;
+}
+
 #define DIAG_KVM_CODE_MASK 0x000000000000ffff
 
 static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
@@ -599,7 +730,7 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
         r = handle_hypercall(cpu, run);
         break;
     case DIAG_KVM_BREAKPOINT:
-        sleep(10);
+        r = handle_sw_breakpoint(cpu, run);
         break;
     default:
         DPRINTF("KVM: unknown DIAG: 0x%x\n", func_code);
@@ -701,7 +832,7 @@ out:
     return 0;
 }
 
-static void handle_instruction(S390CPU *cpu, struct kvm_run *run)
+static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
 {
     unsigned int ipa0 = (run->s390_sieic.ipa & 0xff00);
     uint8_t ipa1 = run->s390_sieic.ipa & 0x00ff;
@@ -728,8 +859,11 @@ static void handle_instruction(S390CPU *cpu, struct kvm_run *run)
     }
 
     if (r < 0) {
+        r = 0;
         enter_pgmcheck(cpu, 0x0001);
     }
+
+    return r;
 }
 
 static bool is_special_wait_psw(CPUState *cs)
@@ -749,7 +883,7 @@ static int handle_intercept(S390CPU *cpu)
             (long)cs->kvm_run->psw_addr);
     switch (icpt_code) {
         case ICPT_INSTRUCTION:
-            handle_instruction(cpu, run);
+            r = handle_instruction(cpu, run);
             break;
         case ICPT_WAITPSW:
             /* disabled wait, since enabled wait is handled in kernel */
@@ -830,7 +964,36 @@ static int handle_tsch(S390CPU *cpu)
 
 static int kvm_arch_handle_debug_exit(S390CPU *cpu)
 {
-    return -ENOSYS;
+    CPUState *cs = CPU(cpu);
+    struct kvm_run *run = cs->kvm_run;
+
+    int ret = 0;
+    struct kvm_debug_exit_arch *arch_info = &run->debug.arch;
+
+    switch (arch_info->type) {
+    case KVM_HW_WP_WRITE:
+        if (find_hw_breakpoint(arch_info->addr, -1, arch_info->type)) {
+            cs->watchpoint_hit = &hw_watchpoint;
+            hw_watchpoint.vaddr = arch_info->addr;
+            hw_watchpoint.flags = BP_MEM_WRITE;
+            ret = EXCP_DEBUG;
+        }
+        break;
+    case KVM_HW_BP:
+        if (find_hw_breakpoint(arch_info->addr, -1, arch_info->type)) {
+            ret = EXCP_DEBUG;
+        }
+        break;
+    case KVM_SINGLESTEP:
+        if (cs->singlestep_enabled) {
+            ret = EXCP_DEBUG;
+        }
+        break;
+    default:
+        ret = -ENOSYS;
+    }
+
+    return ret;
 }
 
 int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
@@ -911,6 +1074,16 @@ void kvm_s390_enable_css_support(S390CPU *cpu)
 
 void kvm_arch_init_irq_routing(KVMState *s)
 {
+    /*
+     * Note that while irqchip capabilities generally imply that cpustates
+     * are handled in-kernel, it is not true for s390 (yet); therefore, we
+     * have to override the common code kvm_halt_in_kernel_allowed setting.
+     */
+    if (kvm_check_extension(s, KVM_CAP_IRQ_ROUTING)) {
+        kvm_irqfds_allowed = true;
+        kvm_gsi_routing_allowed = true;
+        kvm_halt_in_kernel_allowed = false;
+    }
 }
 
 int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,

@@ -21,11 +21,76 @@
 #include "hw/sysbus.h"
 #include "qemu/bitops.h"
 #include "hw/virtio/virtio-bus.h"
+#include "hw/s390x/adapter.h"
+#include "hw/s390x/s390_flic.h"
 
 #include "ioinst.h"
 #include "css.h"
 #include "virtio-ccw.h"
 #include "trace.h"
+
+static QTAILQ_HEAD(, IndAddr) indicator_addresses =
+    QTAILQ_HEAD_INITIALIZER(indicator_addresses);
+
+static IndAddr *get_indicator(hwaddr ind_addr, int len)
+{
+    IndAddr *indicator;
+
+    QTAILQ_FOREACH(indicator, &indicator_addresses, sibling) {
+        if (indicator->addr == ind_addr) {
+            indicator->refcnt++;
+            return indicator;
+        }
+    }
+    indicator = g_new0(IndAddr, 1);
+    indicator->addr = ind_addr;
+    indicator->len = len;
+    indicator->refcnt = 1;
+    QTAILQ_INSERT_TAIL(&indicator_addresses, indicator, sibling);
+    return indicator;
+}
+
+static int s390_io_adapter_map(AdapterInfo *adapter, uint64_t map_addr,
+                               bool do_map)
+{
+    S390FLICState *fs = s390_get_flic();
+    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
+
+    return fsc->io_adapter_map(fs, adapter->adapter_id, map_addr, do_map);
+}
+
+static void release_indicator(AdapterInfo *adapter, IndAddr *indicator)
+{
+    assert(indicator->refcnt > 0);
+    indicator->refcnt--;
+    if (indicator->refcnt > 0) {
+        return;
+    }
+    QTAILQ_REMOVE(&indicator_addresses, indicator, sibling);
+    if (indicator->map) {
+        s390_io_adapter_map(adapter, indicator->map, false);
+    }
+    g_free(indicator);
+}
+
+static int map_indicator(AdapterInfo *adapter, IndAddr *indicator)
+{
+    int ret;
+
+    if (indicator->map) {
+        return 0; /* already mapped is not an error */
+    }
+    indicator->map = indicator->addr;
+    ret = s390_io_adapter_map(adapter, indicator->map, true);
+    if ((ret != 0) && (ret != -ENOSYS)) {
+        goto out_err;
+    }
+    return 0;
+
+out_err:
+    indicator->map = 0;
+    return ret;
+}
 
 static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtioCcwDevice *dev);
@@ -445,7 +510,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = -EFAULT;
         } else {
             indicators = ldq_phys(&address_space_memory, ccw.cda);
-            dev->indicators = indicators;
+            dev->indicators = get_indicator(indicators, sizeof(uint64_t));
             sch->curr_status.scsw.count = ccw.count - sizeof(indicators);
             ret = 0;
         }
@@ -465,7 +530,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = -EFAULT;
         } else {
             indicators = ldq_phys(&address_space_memory, ccw.cda);
-            dev->indicators2 = indicators;
+            dev->indicators2 = get_indicator(indicators, sizeof(uint64_t));
             sch->curr_status.scsw.count = ccw.count - sizeof(indicators);
             ret = 0;
         }
@@ -517,13 +582,20 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 ret = -EFAULT;
             } else {
                 len = hw_len;
-                dev->summary_indicator = thinint->summary_indicator;
-                dev->indicators = thinint->device_indicator;
+                dev->summary_indicator =
+                    get_indicator(thinint->summary_indicator, sizeof(uint8_t));
+                dev->indicators = get_indicator(thinint->device_indicator,
+                                                thinint->ind_bit / 8 + 1);
                 dev->thinint_isc = thinint->isc;
-                dev->ind_bit = thinint->ind_bit;
+                dev->routes.adapter.ind_offset = thinint->ind_bit;
+                dev->routes.adapter.summary_offset = 7;
                 cpu_physical_memory_unmap(thinint, hw_len, 0, hw_len);
-                sch->thinint_active = ((dev->indicators != 0) &&
-                                       (dev->summary_indicator != 0));
+                ret = css_register_io_adapter(CSS_IO_ADAPTER_VIRTIO,
+                                              dev->thinint_isc, true, false,
+                                              &dev->routes.adapter.adapter_id);
+                assert(ret == 0);
+                sch->thinint_active = ((dev->indicators != NULL) &&
+                                       (dev->summary_indicator != NULL));
                 sch->curr_status.scsw.count = ccw.count - len;
                 ret = 0;
             }
@@ -554,7 +626,7 @@ static int virtio_ccw_device_init(VirtioCcwDevice *dev, VirtIODevice *vdev)
     sch->driver_data = dev;
     dev->sch = sch;
 
-    dev->indicators = 0;
+    dev->indicators = NULL;
 
     /* Initialize subchannel structure. */
     sch->channel_prog = 0x0;
@@ -693,7 +765,10 @@ static int virtio_ccw_exit(VirtioCcwDevice *dev)
         css_subch_assign(sch->cssid, sch->ssid, sch->schid, sch->devno, NULL);
         g_free(sch);
     }
-    dev->indicators = 0;
+    if (dev->indicators) {
+        release_indicator(&dev->routes.adapter, dev->indicators);
+        dev->indicators = NULL;
+    }
     return 0;
 }
 
@@ -950,17 +1025,19 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
              * ind_bit indicates the start of the indicators in a big
              * endian notation.
              */
-            virtio_set_ind_atomic(sch, dev->indicators +
-                                  (dev->ind_bit + vector) / 8,
-                                  0x80 >> ((dev->ind_bit + vector) % 8));
-            if (!virtio_set_ind_atomic(sch, dev->summary_indicator,
+            uint64_t ind_bit = dev->routes.adapter.ind_offset;
+
+            virtio_set_ind_atomic(sch, dev->indicators->addr +
+                                  (ind_bit + vector) / 8,
+                                  0x80 >> ((ind_bit + vector) % 8));
+            if (!virtio_set_ind_atomic(sch, dev->summary_indicator->addr,
                                        0x01)) {
                 css_adapter_interrupt(dev->thinint_isc);
             }
         } else {
-            indicators = ldq_phys(&address_space_memory, dev->indicators);
+            indicators = ldq_phys(&address_space_memory, dev->indicators->addr);
             indicators |= 1ULL << vector;
-            stq_phys(&address_space_memory, dev->indicators, indicators);
+            stq_phys(&address_space_memory, dev->indicators->addr, indicators);
             css_conditional_io_interrupt(sch);
         }
     } else {
@@ -968,9 +1045,9 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
             return;
         }
         vector = 0;
-        indicators = ldq_phys(&address_space_memory, dev->indicators2);
+        indicators = ldq_phys(&address_space_memory, dev->indicators2->addr);
         indicators |= 1ULL << vector;
-        stq_phys(&address_space_memory, dev->indicators2, indicators);
+        stq_phys(&address_space_memory, dev->indicators2->addr, indicators);
         css_conditional_io_interrupt(sch);
     }
 }
@@ -991,9 +1068,18 @@ static void virtio_ccw_reset(DeviceState *d)
     virtio_ccw_stop_ioeventfd(dev);
     virtio_reset(vdev);
     css_reset_sch(dev->sch);
-    dev->indicators = 0;
-    dev->indicators2 = 0;
-    dev->summary_indicator = 0;
+    if (dev->indicators) {
+        release_indicator(&dev->routes.adapter, dev->indicators);
+        dev->indicators = NULL;
+    }
+    if (dev->indicators2) {
+        release_indicator(&dev->routes.adapter, dev->indicators2);
+        dev->indicators2 = NULL;
+    }
+    if (dev->summary_indicator) {
+        release_indicator(&dev->routes.adapter, dev->summary_indicator);
+        dev->summary_indicator = NULL;
+    }
 }
 
 static void virtio_ccw_vmstate_change(DeviceState *d, bool running)
@@ -1027,6 +1113,79 @@ static int virtio_ccw_set_host_notifier(DeviceState *d, int n, bool assign)
     return virtio_ccw_set_guest2host_notifier(dev, n, assign, false);
 }
 
+static int virtio_ccw_get_mappings(VirtioCcwDevice *dev)
+{
+    int r;
+
+    if (!dev->sch->thinint_active) {
+        return -EINVAL;
+    }
+
+    r = map_indicator(&dev->routes.adapter, dev->summary_indicator);
+    if (r) {
+        return r;
+    }
+    r = map_indicator(&dev->routes.adapter, dev->indicators);
+    if (r) {
+        return r;
+    }
+    dev->routes.adapter.summary_addr = dev->summary_indicator->map;
+    dev->routes.adapter.ind_addr = dev->indicators->map;
+
+    return 0;
+}
+
+static int virtio_ccw_setup_irqroutes(VirtioCcwDevice *dev, int nvqs)
+{
+    int i;
+    VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
+    int ret;
+    S390FLICState *fs = s390_get_flic();
+    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
+
+    ret = virtio_ccw_get_mappings(dev);
+    if (ret) {
+        return ret;
+    }
+    for (i = 0; i < nvqs; i++) {
+        if (!virtio_queue_get_num(vdev, i)) {
+            break;
+        }
+    }
+    dev->routes.num_routes = i;
+    return fsc->add_adapter_routes(fs, &dev->routes);
+}
+
+static void virtio_ccw_release_irqroutes(VirtioCcwDevice *dev, int nvqs)
+{
+    S390FLICState *fs = s390_get_flic();
+    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
+
+    fsc->release_adapter_routes(fs, &dev->routes);
+}
+
+static int virtio_ccw_add_irqfd(VirtioCcwDevice *dev, int n)
+{
+    VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
+    VirtQueue *vq = virtio_get_queue(vdev, n);
+    EventNotifier *notifier = virtio_queue_get_guest_notifier(vq);
+
+    return kvm_irqchip_add_irqfd_notifier(kvm_state, notifier, NULL,
+                                          dev->routes.gsi[n]);
+}
+
+static void virtio_ccw_remove_irqfd(VirtioCcwDevice *dev, int n)
+{
+    VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
+    VirtQueue *vq = virtio_get_queue(vdev, n);
+    EventNotifier *notifier = virtio_queue_get_guest_notifier(vq);
+    int ret;
+
+    ret = kvm_irqchip_remove_irqfd_notifier(kvm_state, notifier,
+                                            dev->routes.gsi[n]);
+    assert(ret == 0);
+}
+
 static int virtio_ccw_set_guest_notifier(VirtioCcwDevice *dev, int n,
                                          bool assign, bool with_irqfd)
 {
@@ -1042,11 +1201,17 @@ static int virtio_ccw_set_guest_notifier(VirtioCcwDevice *dev, int n,
             return r;
         }
         virtio_queue_set_guest_notifier_fd_handler(vq, true, with_irqfd);
-        /* We do not support irqfd for classic I/O interrupts, because the
-         * classic interrupts are intermixed with the subchannel status, that
-         * is queried with test subchannel. We want to use vhost, though.
-         * Lets make sure to have vhost running and wire up the irq fd to
-         * land in qemu (and only the irq fd) in this code.
+        if (with_irqfd) {
+            r = virtio_ccw_add_irqfd(dev, n);
+            if (r) {
+                virtio_queue_set_guest_notifier_fd_handler(vq, false,
+                                                           with_irqfd);
+                return r;
+            }
+        }
+        /*
+         * We do not support individual masking for channel devices, so we
+         * need to manually trigger any guest masking callbacks here.
          */
         if (k->guest_notifier_mask) {
             k->guest_notifier_mask(vdev, n, false);
@@ -1060,6 +1225,9 @@ static int virtio_ccw_set_guest_notifier(VirtioCcwDevice *dev, int n,
         if (k->guest_notifier_mask) {
             k->guest_notifier_mask(vdev, n, true);
         }
+        if (with_irqfd) {
+            virtio_ccw_remove_irqfd(dev, n);
+        }
         virtio_queue_set_guest_notifier_fd_handler(vq, false, with_irqfd);
         event_notifier_cleanup(notifier);
     }
@@ -1071,23 +1239,38 @@ static int virtio_ccw_set_guest_notifiers(DeviceState *d, int nvqs,
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
     VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
+    bool with_irqfd = dev->sch->thinint_active && kvm_irqfds_enabled();
     int r, n;
 
+    if (with_irqfd && assigned) {
+        /* irq routes need to be set up before assigning irqfds */
+        r = virtio_ccw_setup_irqroutes(dev, nvqs);
+        if (r < 0) {
+            goto irqroute_error;
+        }
+    }
     for (n = 0; n < nvqs; n++) {
         if (!virtio_queue_get_num(vdev, n)) {
             break;
         }
-        /* false -> true, as soon as irqfd works */
-        r = virtio_ccw_set_guest_notifier(dev, n, assigned, false);
+        r = virtio_ccw_set_guest_notifier(dev, n, assigned, with_irqfd);
         if (r < 0) {
             goto assign_error;
         }
+    }
+    if (with_irqfd && !assigned) {
+        /* release irq routes after irqfds have been released */
+        virtio_ccw_release_irqroutes(dev, nvqs);
     }
     return 0;
 
 assign_error:
     while (--n >= 0) {
         virtio_ccw_set_guest_notifier(dev, n, !assigned, false);
+    }
+irqroute_error:
+    if (with_irqfd && assigned) {
+        virtio_ccw_release_irqroutes(dev, nvqs);
     }
     return r;
 }

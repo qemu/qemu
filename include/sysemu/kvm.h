@@ -300,7 +300,7 @@ int kvm_check_extension(KVMState *s, unsigned int extension);
         };                                                           \
         uint64_t args_tmp[] = { __VA_ARGS__ };                       \
         int i;                                                       \
-        for (i = 0; i < ARRAY_SIZE(args_tmp) &&                      \
+        for (i = 0; i < (int)ARRAY_SIZE(args_tmp) &&                 \
                      i < ARRAY_SIZE(cap.args); i++) {                \
             cap.args[i] = args_tmp[i];                               \
         }                                                            \
@@ -315,7 +315,7 @@ int kvm_check_extension(KVMState *s, unsigned int extension);
         };                                                           \
         uint64_t args_tmp[] = { __VA_ARGS__ };                       \
         int i;                                                       \
-        for (i = 0; i < ARRAY_SIZE(args_tmp) &&                      \
+        for (i = 0; i < (int)ARRAY_SIZE(args_tmp) &&                 \
                      i < ARRAY_SIZE(cap.args); i++) {                \
             cap.args[i] = args_tmp[i];                               \
         }                                                            \
@@ -362,6 +362,8 @@ static inline void cpu_synchronize_post_init(CPUState *cpu)
 int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg);
 int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg);
 void kvm_irqchip_release_virq(KVMState *s, int virq);
+
+int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter);
 
 int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n,
                                    EventNotifier *rn, int virq);

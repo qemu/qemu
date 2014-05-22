@@ -27,6 +27,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
+#include "hw/s390x/adapter.h"
 #include "exec/gdbstub.h"
 #include "sysemu/kvm.h"
 #include "qemu/bswap.h"
@@ -1236,6 +1237,35 @@ static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int rfd, int virq,
     return kvm_vm_ioctl(s, KVM_IRQFD, &irqfd);
 }
 
+int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter)
+{
+    struct kvm_irq_routing_entry kroute;
+    int virq;
+
+    if (!kvm_gsi_routing_enabled()) {
+        return -ENOSYS;
+    }
+
+    virq = kvm_irqchip_get_virq(s);
+    if (virq < 0) {
+        return virq;
+    }
+
+    kroute.gsi = virq;
+    kroute.type = KVM_IRQ_ROUTING_S390_ADAPTER;
+    kroute.flags = 0;
+    kroute.u.adapter.summary_addr = adapter->summary_addr;
+    kroute.u.adapter.ind_addr = adapter->ind_addr;
+    kroute.u.adapter.summary_offset = adapter->summary_offset;
+    kroute.u.adapter.ind_offset = adapter->ind_offset;
+    kroute.u.adapter.adapter_id = adapter->adapter_id;
+
+    kvm_add_routing_entry(s, &kroute);
+    kvm_irqchip_commit_routes(s);
+
+    return virq;
+}
+
 #else /* !KVM_CAP_IRQ_ROUTING */
 
 void kvm_init_irq_routing(KVMState *s)
@@ -1252,6 +1282,11 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
 }
 
 int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
+{
+    return -ENOSYS;
+}
+
+int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter)
 {
     return -ENOSYS;
 }
@@ -1285,7 +1320,8 @@ static int kvm_irqchip_create(KVMState *s)
     int ret;
 
     if (!qemu_opt_get_bool(qemu_get_machine_opts(), "kernel_irqchip", true) ||
-        !kvm_check_extension(s, KVM_CAP_IRQCHIP)) {
+        (!kvm_check_extension(s, KVM_CAP_IRQCHIP) &&
+         (kvm_vm_enable_cap(s, KVM_CAP_S390_IRQCHIP, 0) < 0))) {
         return 0;
     }
 

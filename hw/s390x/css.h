@@ -98,4 +98,8 @@ void css_generate_sch_crws(uint8_t cssid, uint8_t ssid, uint16_t schid,
                            int hotplugged, int add);
 void css_generate_chp_crws(uint8_t cssid, uint8_t chpid);
 void css_adapter_interrupt(uint8_t isc);
+
+#define CSS_IO_ADAPTER_VIRTIO 1
+int css_register_io_adapter(uint8_t type, uint8_t isc, bool swap,
+                            bool maskable, uint32_t *id);
 #endif
