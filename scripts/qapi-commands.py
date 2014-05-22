@@ -111,7 +111,7 @@ bool has_%(argname)s = false;
                          argname=c_var(argname), argtype=c_type(argtype))
         else:
             ret += mcgen('''
-%(argtype)s %(argname)s;
+%(argtype)s %(argname)s = {0};
 ''',
                          argname=c_var(argname), argtype=c_type(argtype))
 

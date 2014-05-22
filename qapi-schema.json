@@ -691,7 +691,7 @@
 # Information about current migration process.
 #
 # @status: #optional string describing the current migration status.
-#          As of 0.14.0 this can be 'active', 'completed', 'failed' or
+#          As of 0.14.0 this can be 'setup', 'active', 'completed', 'failed' or
 #          'cancelled'. If this field is not returned, no migration process
 #          has been initiated
 #
