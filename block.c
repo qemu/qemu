@@ -335,6 +335,7 @@ void bdrv_register(BlockDriver *bdrv)
 BlockDriverState *bdrv_new(const char *device_name, Error **errp)
 {
     BlockDriverState *bs;
+    int i;
 
     if (bdrv_find(device_name)) {
         error_setg(errp, "Device with id '%s' already exists",
@@ -352,6 +353,9 @@ BlockDriverState *bdrv_new(const char *device_name, Error **errp)
     pstrcpy(bs->device_name, sizeof(bs->device_name), device_name);
     if (device_name[0] != '\0') {
         QTAILQ_INSERT_TAIL(&bdrv_states, bs, device_list);
+    }
+    for (i = 0; i < BLOCK_OP_TYPE_MAX; i++) {
+        QLIST_INIT(&bs->op_blockers[i]);
     }
     bdrv_iostatus_disable(bs);
     notifier_list_init(&bs->close_notifiers);
@@ -1952,6 +1956,8 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
     pstrcpy(bs_dest->device_name, sizeof(bs_dest->device_name),
             bs_src->device_name);
     bs_dest->device_list = bs_src->device_list;
+    memcpy(bs_dest->op_blockers, bs_src->op_blockers,
+           sizeof(bs_dest->op_blockers));
 }
 
 /*
@@ -5323,6 +5329,76 @@ void bdrv_unref(BlockDriverState *bs)
     if (--bs->refcnt == 0) {
         bdrv_delete(bs);
     }
+}
+
+struct BdrvOpBlocker {
+    Error *reason;
+    QLIST_ENTRY(BdrvOpBlocker) list;
+};
+
+bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp)
+{
+    BdrvOpBlocker *blocker;
+    assert((int) op >= 0 && op < BLOCK_OP_TYPE_MAX);
+    if (!QLIST_EMPTY(&bs->op_blockers[op])) {
+        blocker = QLIST_FIRST(&bs->op_blockers[op]);
+        if (errp) {
+            error_setg(errp, "Device '%s' is busy: %s",
+                       bs->device_name, error_get_pretty(blocker->reason));
+        }
+        return true;
+    }
+    return false;
+}
+
+void bdrv_op_block(BlockDriverState *bs, BlockOpType op, Error *reason)
+{
+    BdrvOpBlocker *blocker;
+    assert((int) op >= 0 && op < BLOCK_OP_TYPE_MAX);
+
+    blocker = g_malloc0(sizeof(BdrvOpBlocker));
+    blocker->reason = reason;
+    QLIST_INSERT_HEAD(&bs->op_blockers[op], blocker, list);
+}
+
+void bdrv_op_unblock(BlockDriverState *bs, BlockOpType op, Error *reason)
+{
+    BdrvOpBlocker *blocker, *next;
+    assert((int) op >= 0 && op < BLOCK_OP_TYPE_MAX);
+    QLIST_FOREACH_SAFE(blocker, &bs->op_blockers[op], list, next) {
+        if (blocker->reason == reason) {
+            QLIST_REMOVE(blocker, list);
+            g_free(blocker);
+        }
+    }
+}
+
+void bdrv_op_block_all(BlockDriverState *bs, Error *reason)
+{
+    int i;
+    for (i = 0; i < BLOCK_OP_TYPE_MAX; i++) {
+        bdrv_op_block(bs, i, reason);
+    }
+}
+
+void bdrv_op_unblock_all(BlockDriverState *bs, Error *reason)
+{
+    int i;
+    for (i = 0; i < BLOCK_OP_TYPE_MAX; i++) {
+        bdrv_op_unblock(bs, i, reason);
+    }
+}
+
+bool bdrv_op_blocker_is_empty(BlockDriverState *bs)
+{
+    int i;
+
+    for (i = 0; i < BLOCK_OP_TYPE_MAX; i++) {
+        if (!QLIST_EMPTY(&bs->op_blockers[i])) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void bdrv_set_in_use(BlockDriverState *bs, int in_use)

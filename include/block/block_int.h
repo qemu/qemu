@@ -270,6 +270,8 @@ typedef struct BlockLimits {
     size_t opt_mem_alignment;
 } BlockLimits;
 
+typedef struct BdrvOpBlocker BdrvOpBlocker;
+
 /*
  * Note: the function bdrv_append() copies and swaps contents of
  * BlockDriverStates, so if you add new fields to this struct, please
@@ -359,6 +361,9 @@ struct BlockDriverState {
     int in_use; /* users other than guest access, eg. block migration */
 
     QLIST_HEAD(, BdrvTrackedRequest) tracked_requests;
+
+    /* operation blockers */
+    QLIST_HEAD(, BdrvOpBlocker) op_blockers[BLOCK_OP_TYPE_MAX];
 
     /* long-running background operation */
     BlockJob *job;
