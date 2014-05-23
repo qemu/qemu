@@ -169,17 +169,8 @@ cac_applet_pki_process_apdu(VCard *card, VCardAPDU *apdu,
         }
         size = apdu->a_Lc;
 
-        sign_buffer = realloc(pki_applet->sign_buffer,
-                      pki_applet->sign_buffer_len+size);
-        if (sign_buffer == NULL) {
-            g_free(pki_applet->sign_buffer);
-            pki_applet->sign_buffer = NULL;
-            pki_applet->sign_buffer_len = 0;
-            *response = vcard_make_response(
-                            VCARD7816_STATUS_EXC_ERROR_MEMORY_FAILURE);
-            ret = VCARD_DONE;
-            break;
-        }
+        sign_buffer = g_realloc(pki_applet->sign_buffer,
+                                pki_applet->sign_buffer_len + size);
         memcpy(sign_buffer+pki_applet->sign_buffer_len, apdu->a_body, size);
         size += pki_applet->sign_buffer_len;
         switch (apdu->a_p1) {
