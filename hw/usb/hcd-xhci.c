@@ -2856,7 +2856,7 @@ static void xhci_port_update(XHCIPort *port, int is_detach)
 
 static void xhci_port_reset(XHCIPort *port, bool warm_reset)
 {
-    trace_usb_xhci_port_reset(port->portnr);
+    trace_usb_xhci_port_reset(port->portnr, warm_reset);
 
     if (!xhci_port_have_device(port)) {
         return;
