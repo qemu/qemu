@@ -1182,9 +1182,6 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
     }
     bdrv_set_backing_hd(bs, backing_hd);
 
-    /* Recalculate the BlockLimits with the backing file */
-    bdrv_refresh_limits(bs);
-
 free_exit:
     g_free(backing_filename);
     return ret;
