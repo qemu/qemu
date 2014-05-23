@@ -41,7 +41,7 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
 {
     BlockJob *job;
 
-    if (bs->job || !bdrv_op_blocker_is_empty(bs)) {
+    if (bs->job) {
         error_set(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
         return NULL;
     }
