@@ -7850,6 +7850,7 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
     dc->props = powerpc_servercpu_properties;
     pcc->pvr = CPU_POWERPC_POWER7_BASE;
     pcc->pvr_mask = CPU_POWERPC_POWER7_MASK;
+    pcc->pcr_mask = PCR_COMPAT_2_05 | PCR_COMPAT_2_06;
     pcc->init_proc = init_proc_POWER7;
     pcc->check_pow = check_pow_nocheck;
     pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL | PPC_STRING | PPC_MFTB |
@@ -7910,6 +7911,7 @@ POWERPC_FAMILY(POWER7P)(ObjectClass *oc, void *data)
     dc->props = powerpc_servercpu_properties;
     pcc->pvr = CPU_POWERPC_POWER7P_BASE;
     pcc->pvr_mask = CPU_POWERPC_POWER7P_MASK;
+    pcc->pcr_mask = PCR_COMPAT_2_05 | PCR_COMPAT_2_06;
     pcc->init_proc = init_proc_POWER7;
     pcc->check_pow = check_pow_nocheck;
     pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL | PPC_STRING | PPC_MFTB |
@@ -7982,6 +7984,7 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
     dc->props = powerpc_servercpu_properties;
     pcc->pvr = CPU_POWERPC_POWER8_BASE;
     pcc->pvr_mask = CPU_POWERPC_POWER8_MASK;
+    pcc->pcr_mask = PCR_COMPAT_2_05 | PCR_COMPAT_2_06;
     pcc->init_proc = init_proc_POWER8;
     pcc->check_pow = check_pow_nocheck;
     pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL | PPC_STRING | PPC_MFTB |

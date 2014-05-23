@@ -57,6 +57,7 @@ typedef struct PowerPCCPUClass {
 
     uint32_t pvr;
     uint32_t pvr_mask;
+    uint64_t pcr_mask;
     uint32_t svr;
     uint64_t insns_flags;
     uint64_t insns_flags2;
