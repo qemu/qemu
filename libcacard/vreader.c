@@ -284,11 +284,9 @@ vreader_xfr_bytes(VReader *reader,
         }
     }
     assert(card_status == VCARD_DONE);
-    if (card_status == VCARD_DONE) {
-        int size = MIN(*receive_buf_len, response->b_total_len);
-        memcpy(receive_buf, response->b_data, size);
-        *receive_buf_len = size;
-    }
+    int size = MIN(*receive_buf_len, response->b_total_len);
+    memcpy(receive_buf, response->b_data, size);
+    *receive_buf_len = size;
     vcard_response_delete(response);
     vcard_apdu_delete(apdu);
     vcard_free(card); /* free our reference */
