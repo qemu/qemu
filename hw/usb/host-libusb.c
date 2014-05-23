@@ -147,6 +147,10 @@ static void usb_host_attach_kernel(USBHostDevice *s);
 #define BULK_TIMEOUT         0        /* unlimited */
 #define INTR_TIMEOUT         0        /* unlimited */
 
+#if LIBUSBX_API_VERSION >= 0x01000103
+# define HAVE_STREAMS 1
+#endif
+
 static const char *speed_name[] = {
     [LIBUSB_SPEED_UNKNOWN] = "?",
     [LIBUSB_SPEED_LOW]     = "1.5",
@@ -686,7 +690,7 @@ static void usb_host_speed_compat(USBHostDevice *s)
     struct libusb_config_descriptor *conf;
     const struct libusb_interface_descriptor *intf;
     const struct libusb_endpoint_descriptor *endp;
-#if LIBUSBX_API_VERSION >= 0x01000103
+#ifdef HAVE_STREAMS
     struct libusb_ss_endpoint_companion_descriptor *endp_ss_comp;
 #endif
     bool compat_high = true;
@@ -711,7 +715,7 @@ static void usb_host_speed_compat(USBHostDevice *s)
                         compat_high = false;
                         break;
                     case 0x02: /* BULK */
-#if LIBUSBX_API_VERSION >= 0x01000103
+#ifdef HAVE_STREAMS
                         rc = libusb_get_ss_endpoint_companion_descriptor
                             (ctx, endp, &endp_ss_comp);
                         if (rc == LIBUSB_SUCCESS) {
@@ -761,7 +765,7 @@ static void usb_host_ep_update(USBHostDevice *s)
     struct libusb_config_descriptor *conf;
     const struct libusb_interface_descriptor *intf;
     const struct libusb_endpoint_descriptor *endp;
-#if LIBUSBX_API_VERSION >= 0x01000103
+#ifdef HAVE_STREAMS
     struct libusb_ss_endpoint_companion_descriptor *endp_ss_comp;
 #endif
     uint8_t devep, type;
@@ -809,7 +813,7 @@ static void usb_host_ep_update(USBHostDevice *s)
             usb_ep_set_type(udev, pid, ep, type);
             usb_ep_set_ifnum(udev, pid, ep, i);
             usb_ep_set_halted(udev, pid, ep, 0);
-#if LIBUSBX_API_VERSION >= 0x01000103
+#ifdef HAVE_STREAMS
             if (type == LIBUSB_TRANSFER_TYPE_BULK &&
                     libusb_get_ss_endpoint_companion_descriptor(ctx, endp,
                         &endp_ss_comp) == LIBUSB_SUCCESS) {
@@ -1261,7 +1265,7 @@ static void usb_host_handle_data(USBDevice *udev, USBPacket *p)
         }
         ep = p->ep->nr | (r->in ? USB_DIR_IN : 0);
         if (p->stream) {
-#if LIBUSBX_API_VERSION >= 0x01000103
+#ifdef HAVE_STREAMS
             libusb_fill_bulk_stream_transfer(r->xfer, s->dh, ep, p->stream,
                                              r->buffer, size,
                                              usb_host_req_complete_data, r,
@@ -1342,7 +1346,7 @@ static void usb_host_handle_reset(USBDevice *udev)
 static int usb_host_alloc_streams(USBDevice *udev, USBEndpoint **eps,
                                   int nr_eps, int streams)
 {
-#if LIBUSBX_API_VERSION >= 0x01000103
+#ifdef HAVE_STREAMS
     USBHostDevice *s = USB_HOST_DEVICE(udev);
     unsigned char endpoints[30];
     int i, rc;
@@ -1372,7 +1376,7 @@ static int usb_host_alloc_streams(USBDevice *udev, USBEndpoint **eps,
 static void usb_host_free_streams(USBDevice *udev, USBEndpoint **eps,
                                   int nr_eps)
 {
-#if LIBUSBX_API_VERSION >= 0x01000103
+#ifdef HAVE_STREAMS
     USBHostDevice *s = USB_HOST_DEVICE(udev);
     unsigned char endpoints[30];
     int i;
