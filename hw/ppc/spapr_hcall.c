@@ -752,6 +752,24 @@ out:
     return ret;
 }
 
+static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
+                                                  sPAPREnvironment *spapr,
+                                                  target_ulong opcode,
+                                                  target_ulong *args)
+{
+    target_ulong list = args[0];
+
+    if (!list) {
+        return H_SUCCESS;
+    }
+
+    if (spapr_h_cas_compose_response(args[1], args[2])) {
+        qemu_system_reset_request();
+    }
+
+    return H_SUCCESS;
+}
+
 static spapr_hcall_fn papr_hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
 static spapr_hcall_fn kvmppc_hypercall_table[KVMPPC_HCALL_MAX - KVMPPC_HCALL_BASE + 1];
 
@@ -831,6 +849,9 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(KVMPPC_H_RTAS, h_rtas);
 
     spapr_register_hypercall(H_SET_MODE, h_set_mode);
+
+    /* ibm,client-architecture-support support */
+    spapr_register_hypercall(KVMPPC_H_CAS, h_client_architecture_support);
 }
 
 type_init(hypercall_register_types)

@@ -303,9 +303,15 @@ typedef struct sPAPREnvironment {
 #define KVMPPC_HCALL_BASE       0xf000
 #define KVMPPC_H_RTAS           (KVMPPC_HCALL_BASE + 0x0)
 #define KVMPPC_H_LOGICAL_MEMOP  (KVMPPC_HCALL_BASE + 0x1)
-#define KVMPPC_HCALL_MAX        KVMPPC_H_LOGICAL_MEMOP
+/* Client Architecture support */
+#define KVMPPC_H_CAS            (KVMPPC_HCALL_BASE + 0x2)
+#define KVMPPC_HCALL_MAX        KVMPPC_H_CAS
 
 extern sPAPREnvironment *spapr;
+
+typedef struct sPAPRDeviceTreeUpdateHeader {
+    uint32_t version_id;
+} sPAPRDeviceTreeUpdateHeader;
 
 /*#define DEBUG_SPAPR_HCALLS*/
 
@@ -402,6 +408,7 @@ struct sPAPRTCETable {
 
 void spapr_events_init(sPAPREnvironment *spapr);
 void spapr_events_fdt_skel(void *fdt, uint32_t epow_irq);
+int spapr_h_cas_compose_response(target_ulong addr, target_ulong size);
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
                                    size_t window_size);
 MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet);
