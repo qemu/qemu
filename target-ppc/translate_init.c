@@ -7829,6 +7829,15 @@ static void init_proc_POWER7 (CPUPPCState *env)
     /* Can't find information on what this should be on reset.  This
      * value is the one used by 74xx processors. */
     vscr_init(env, 0x00010000);
+
+    /*
+     * Register PCR to report POWERPC_EXCP_PRIV_REG instead of
+     * POWERPC_EXCP_INVAL_SPR.
+     */
+    spr_register(env, SPR_PCR, "PCR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 0x00000000);
 }
 
 POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
@@ -8907,6 +8916,31 @@ static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
             g_free(env->opcodes[i]);
         }
     }
+}
+
+int ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version)
+{
+    int ret = 0;
+    CPUPPCState *env = &cpu->env;
+
+    cpu->cpu_version = cpu_version;
+
+    switch (cpu_version) {
+    case CPU_POWERPC_LOGICAL_2_05:
+        env->spr[SPR_PCR] = PCR_COMPAT_2_05;
+        break;
+    case CPU_POWERPC_LOGICAL_2_06:
+        env->spr[SPR_PCR] = PCR_COMPAT_2_06;
+        break;
+    case CPU_POWERPC_LOGICAL_2_06_PLUS:
+        env->spr[SPR_PCR] = PCR_COMPAT_2_06;
+        break;
+    default:
+        env->spr[SPR_PCR] = 0;
+        break;
+    }
+
+    return ret;
 }
 
 static gint ppc_cpu_compare_class_pvr(gconstpointer a, gconstpointer b)

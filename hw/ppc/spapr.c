@@ -210,6 +210,14 @@ static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,
     uint32_t gservers_prop[smt_threads * 2];
     int index = ppc_get_vcpu_dt_id(cpu);
 
+    if (cpu->cpu_version) {
+        ret = fdt_setprop(fdt, offset, "cpu-version",
+                          &cpu->cpu_version, sizeof(cpu->cpu_version));
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     /* Build interrupt servers and gservers properties */
     for (i = 0; i < smt_threads; i++) {
         servers_prop[i] = cpu_to_be32(index + i);
@@ -1273,6 +1281,12 @@ static void ppc_spapr_init(MachineState *machine)
         /* Tell KVM that we're in PAPR mode */
         if (kvm_enabled()) {
             kvmppc_set_papr(cpu);
+        }
+
+        if (cpu->max_compat) {
+            if (ppc_set_compat(cpu, cpu->max_compat) < 0) {
+                exit(1);
+            }
         }
 
         xics_cpu_setup(spapr->icp, cpu);

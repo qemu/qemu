@@ -1122,6 +1122,7 @@ void ppc_store_sdr1 (CPUPPCState *env, target_ulong value);
 void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
 void ppc_cpu_list (FILE *f, fprintf_function cpu_fprintf);
+int ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version);
 
 /* Time-base and decrementer management */
 #ifndef NO_CPU_IO_DEFS
@@ -1338,6 +1339,7 @@ static inline int cpu_mmu_index (CPUPPCState *env)
 #define SPR_LPCR              (0x13E)
 #define SPR_BOOKE_DVC2        (0x13F)
 #define SPR_BOOKE_TSR         (0x150)
+#define SPR_PCR               (0x152)
 #define SPR_BOOKE_TCR         (0x154)
 #define SPR_BOOKE_TLB0PS      (0x158)
 #define SPR_BOOKE_TLB1PS      (0x159)
@@ -2059,6 +2061,15 @@ enum {
     PPC_INTERRUPT_CDOORBELL,      /* Critical doorbell interrupt          */
     PPC_INTERRUPT_DOORBELL,       /* Doorbell interrupt                   */
     PPC_INTERRUPT_PERFM,          /* Performance monitor interrupt        */
+};
+
+/* Processor Compatibility mask (PCR) */
+enum {
+    PCR_COMPAT_2_05     = 1ull << (63-62),
+    PCR_COMPAT_2_06     = 1ull << (63-61),
+    PCR_VEC_DIS         = 1ull << (63-0), /* Vec. disable (bit NA since POWER8) */
+    PCR_VSX_DIS         = 1ull << (63-1), /* VSX disable (bit NA since POWER8) */
+    PCR_TM_DIS          = 1ull << (63-2), /* Trans. memory disable (POWER8) */
 };
 
 /*****************************************************************************/
