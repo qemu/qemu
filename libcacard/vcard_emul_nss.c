@@ -1149,7 +1149,7 @@ vcard_emul_options(const char *args)
             char type_str[100];
             VCardEmulType type;
             int count, i;
-            VirtualReaderOptions *vreaderOpt = NULL;
+            VirtualReaderOptions *vreaderOpt;
 
             args = strip(args + 5);
             if (*args != '(') {
@@ -1173,11 +1173,10 @@ vcard_emul_options(const char *args)
 
             if (opts->vreader_count >= reader_count) {
                 reader_count += READER_STEP;
-                vreaderOpt = g_renew(VirtualReaderOptions, opts->vreader,
-                                     reader_count);
+                opts->vreader = g_renew(VirtualReaderOptions, opts->vreader,
+                                        reader_count);
             }
-            opts->vreader = vreaderOpt;
-            vreaderOpt = &vreaderOpt[opts->vreader_count];
+            vreaderOpt = &opts->vreader[opts->vreader_count];
             vreaderOpt->name = g_strndup(name, name_length);
             vreaderOpt->vname = g_strndup(vname, vname_length);
             vreaderOpt->card_type = type;
