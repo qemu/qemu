@@ -502,8 +502,7 @@ do_command(GIOChannel *source,
             if (reader != NULL) {
                 error = vcard_emul_force_card_insert(reader);
                 printf("insert %s, returned %d\n",
-                       reader ? vreader_get_name(reader)
-                       : "invalid reader", error);
+                       vreader_get_name(reader), error);
             } else {
                 printf("no reader by id %u found\n", reader_id);
             }
@@ -515,8 +514,7 @@ do_command(GIOChannel *source,
             if (reader != NULL) {
                 error = vcard_emul_force_card_remove(reader);
                 printf("remove %s, returned %d\n",
-                        reader ? vreader_get_name(reader)
-                        : "invalid reader", error);
+                       vreader_get_name(reader), error);
             } else {
                 printf("no reader by id %u found\n", reader_id);
             }
