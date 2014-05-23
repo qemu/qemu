@@ -595,6 +595,16 @@ enum {
     CPU_POWERPC_PA6T               = 0x00900000,
 };
 
+/* Logical PVR definitions for sPAPR */
+enum {
+    CPU_POWERPC_LOGICAL_2_04       = 0x0F000001,
+    CPU_POWERPC_LOGICAL_2_05       = 0x0F000002,
+    CPU_POWERPC_LOGICAL_2_06       = 0x0F000003,
+    CPU_POWERPC_LOGICAL_2_06_PLUS  = 0x0F100003,
+    CPU_POWERPC_LOGICAL_2_07       = 0x0F000004,
+    CPU_POWERPC_LOGICAL_2_08       = 0x0F000005,
+};
+
 /* System version register (used on MPC 8xxx)                                */
 enum {
     POWERPC_SVR_NONE               = 0x00000000,

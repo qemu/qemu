@@ -28,6 +28,8 @@
 #include "mmu-hash32.h"
 #include "mmu-hash64.h"
 #include "qemu/error-report.h"
+#include "qapi/visitor.h"
+#include "hw/qdev-properties.h"
 
 //#define PPC_DUMP_CPU
 //#define PPC_DEBUG_SPR
@@ -7680,6 +7682,76 @@ POWERPC_FAMILY(POWER5P)(ObjectClass *oc, void *data)
     pcc->l1_icache_size = 0x10000;
 }
 
+static void powerpc_get_compat(Object *obj, Visitor *v,
+                               void *opaque, const char *name, Error **errp)
+{
+    char *value = (char *)"";
+    Property *prop = opaque;
+    uint32_t *max_compat = qdev_get_prop_ptr(DEVICE(obj), prop);
+
+    switch (*max_compat) {
+    case CPU_POWERPC_LOGICAL_2_05:
+        value = (char *)"power6";
+        break;
+    case CPU_POWERPC_LOGICAL_2_06:
+        value = (char *)"power7";
+        break;
+    case CPU_POWERPC_LOGICAL_2_07:
+        value = (char *)"power8";
+        break;
+    case 0:
+        break;
+    default:
+        error_setg(errp, "Internal error: compat is set to %x",
+                   max_compat ? *max_compat : -1);
+        break;
+    }
+
+    visit_type_str(v, &value, name, errp);
+}
+
+static void powerpc_set_compat(Object *obj, Visitor *v,
+                               void *opaque, const char *name, Error **errp)
+{
+    Error *error = NULL;
+    char *value = NULL;
+    Property *prop = opaque;
+    uint32_t *max_compat = qdev_get_prop_ptr(DEVICE(obj), prop);
+
+    visit_type_str(v, &value, name, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+
+    if (strcmp(value, "power6") == 0) {
+        *max_compat = CPU_POWERPC_LOGICAL_2_05;
+    } else if (strcmp(value, "power7") == 0) {
+        *max_compat = CPU_POWERPC_LOGICAL_2_06;
+    } else if (strcmp(value, "power8") == 0) {
+        *max_compat = CPU_POWERPC_LOGICAL_2_07;
+    } else {
+        error_setg(errp, "Invalid compatibility mode \"%s\"", value);
+    }
+
+    g_free(value);
+}
+
+static PropertyInfo powerpc_compat_propinfo = {
+    .name = "str",
+    .legacy_name = "powerpc-server-compat",
+    .get = powerpc_get_compat,
+    .set = powerpc_set_compat,
+};
+
+#define DEFINE_PROP_POWERPC_COMPAT(_n, _s, _f) \
+    DEFINE_PROP(_n, _s, _f, powerpc_compat_propinfo, uint32_t)
+
+static Property powerpc_servercpu_properties[] = {
+    DEFINE_PROP_POWERPC_COMPAT("compat", PowerPCCPU, max_compat),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void init_proc_POWER7 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -7766,6 +7838,7 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
 
     dc->fw_name = "PowerPC,POWER7";
     dc->desc = "POWER7";
+    dc->props = powerpc_servercpu_properties;
     pcc->pvr = CPU_POWERPC_POWER7_BASE;
     pcc->pvr_mask = CPU_POWERPC_POWER7_MASK;
     pcc->init_proc = init_proc_POWER7;
@@ -7825,6 +7898,7 @@ POWERPC_FAMILY(POWER7P)(ObjectClass *oc, void *data)
 
     dc->fw_name = "PowerPC,POWER7+";
     dc->desc = "POWER7+";
+    dc->props = powerpc_servercpu_properties;
     pcc->pvr = CPU_POWERPC_POWER7P_BASE;
     pcc->pvr_mask = CPU_POWERPC_POWER7P_MASK;
     pcc->init_proc = init_proc_POWER7;
@@ -7896,6 +7970,7 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
 
     dc->fw_name = "PowerPC,POWER8";
     dc->desc = "POWER8";
+    dc->props = powerpc_servercpu_properties;
     pcc->pvr = CPU_POWERPC_POWER8_BASE;
     pcc->pvr_mask = CPU_POWERPC_POWER8_MASK;
     pcc->init_proc = init_proc_POWER8;
