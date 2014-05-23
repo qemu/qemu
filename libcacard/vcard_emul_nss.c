@@ -618,11 +618,6 @@ vcard_emul_mirror_card(VReader *vreader)
         cert_count++;
     }
 
-    if (cert_count == 0) {
-        PK11_DestroyGenericObjects(firstObj);
-        return NULL;
-    }
-
     /* allocate the arrays */
     vcard_emul_alloc_arrays(&certs, &cert_len, &keys, cert_count);
 
