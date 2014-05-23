@@ -162,6 +162,25 @@ typedef struct BDRVReopenState {
     void *opaque;
 } BDRVReopenState;
 
+/*
+ * Block operation types
+ */
+typedef enum BlockOpType {
+    BLOCK_OP_TYPE_BACKUP_SOURCE,
+    BLOCK_OP_TYPE_BACKUP_TARGET,
+    BLOCK_OP_TYPE_CHANGE,
+    BLOCK_OP_TYPE_COMMIT,
+    BLOCK_OP_TYPE_DATAPLANE,
+    BLOCK_OP_TYPE_DRIVE_DEL,
+    BLOCK_OP_TYPE_EJECT,
+    BLOCK_OP_TYPE_EXTERNAL_SNAPSHOT,
+    BLOCK_OP_TYPE_INTERNAL_SNAPSHOT,
+    BLOCK_OP_TYPE_INTERNAL_SNAPSHOT_DELETE,
+    BLOCK_OP_TYPE_MIRROR,
+    BLOCK_OP_TYPE_RESIZE,
+    BLOCK_OP_TYPE_STREAM,
+    BLOCK_OP_TYPE_MAX,
+} BlockOpType;
 
 void bdrv_iostatus_enable(BlockDriverState *bs);
 void bdrv_iostatus_reset(BlockDriverState *bs);
