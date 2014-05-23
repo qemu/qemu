@@ -283,7 +283,7 @@ vreader_xfr_bytes(VReader *reader,
                   response->b_sw2, response->b_len, response->b_total_len);
         }
     }
-    assert(card_status == VCARD_DONE);
+    assert(card_status == VCARD_DONE && response);
     int size = MIN(*receive_buf_len, response->b_total_len);
     memcpy(receive_buf, response->b_data, size);
     *receive_buf_len = size;
