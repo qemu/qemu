@@ -34,6 +34,7 @@
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "mmu-hash64.h"
+#include "qom/cpu.h"
 
 #include "hw/boards.h"
 #include "hw/ppc/ppc.h"
@@ -588,7 +589,8 @@ int spapr_h_cas_compose_response(target_ulong addr, target_ulong size)
     _FDT((fdt_open_into(fdt_skel, fdt, size)));
     g_free(fdt_skel);
 
-    /* Place to make changes to the tree */
+    /* Fix skeleton up */
+    _FDT((spapr_fixup_cpu_dt(fdt, spapr)));
 
     /* Pack resulting tree */
     _FDT((fdt_pack(fdt)));

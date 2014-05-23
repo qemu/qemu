@@ -3,6 +3,9 @@
 #include "helper_regs.h"
 #include "hw/ppc/spapr.h"
 #include "mmu-hash64.h"
+#include "cpu-models.h"
+#include "trace.h"
+#include "kvm_ppc.h"
 
 struct SPRSyncState {
     CPUState *cs;
@@ -752,12 +755,115 @@ out:
     return ret;
 }
 
+typedef struct {
+    PowerPCCPU *cpu;
+    uint32_t cpu_version;
+    int ret;
+} SetCompatState;
+
+static void do_set_compat(void *arg)
+{
+    SetCompatState *s = arg;
+
+    cpu_synchronize_state(CPU(s->cpu));
+    s->ret = ppc_set_compat(s->cpu, s->cpu_version);
+}
+
+#define get_compat_level(cpuver) ( \
+    ((cpuver) == CPU_POWERPC_LOGICAL_2_05) ? 2050 : \
+    ((cpuver) == CPU_POWERPC_LOGICAL_2_06) ? 2060 : \
+    ((cpuver) == CPU_POWERPC_LOGICAL_2_06_PLUS) ? 2061 : \
+    ((cpuver) == CPU_POWERPC_LOGICAL_2_07) ? 2070 : 0)
+
 static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
                                                   sPAPREnvironment *spapr,
                                                   target_ulong opcode,
                                                   target_ulong *args)
 {
     target_ulong list = args[0];
+    PowerPCCPUClass *pcc_ = POWERPC_CPU_GET_CLASS(cpu_);
+    CPUState *cs;
+    bool cpu_match = false;
+    unsigned old_cpu_version = cpu_->cpu_version;
+    unsigned compat_lvl = 0, cpu_version = 0;
+    unsigned max_lvl = get_compat_level(cpu_->max_compat);
+    int counter;
+
+    /* Parse PVR list */
+    for (counter = 0; counter < 512; ++counter) {
+        uint32_t pvr, pvr_mask;
+
+        pvr_mask = rtas_ld(list, 0);
+        list += 4;
+        pvr = rtas_ld(list, 0);
+        list += 4;
+
+        trace_spapr_cas_pvr_try(pvr);
+        if (!max_lvl &&
+            ((cpu_->env.spr[SPR_PVR] & pvr_mask) == (pvr & pvr_mask))) {
+            cpu_match = true;
+            cpu_version = 0;
+        } else if (pvr == cpu_->cpu_version) {
+            cpu_match = true;
+            cpu_version = cpu_->cpu_version;
+        } else if (!cpu_match) {
+            /* If it is a logical PVR, try to determine the highest level */
+            unsigned lvl = get_compat_level(pvr);
+            if (lvl) {
+                bool is205 = (pcc_->pcr_mask & PCR_COMPAT_2_05) &&
+                     (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_05));
+                bool is206 = (pcc_->pcr_mask & PCR_COMPAT_2_06) &&
+                    ((lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06)) ||
+                    (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06_PLUS)));
+
+                if (is205 || is206) {
+                    if (!max_lvl) {
+                        /* User did not set the level, choose the highest */
+                        if (compat_lvl <= lvl) {
+                            compat_lvl = lvl;
+                            cpu_version = pvr;
+                        }
+                    } else if (max_lvl >= lvl) {
+                        /* User chose the level, don't set higher than this */
+                        compat_lvl = lvl;
+                        cpu_version = pvr;
+                    }
+                }
+            }
+        }
+        /* Terminator record */
+        if (~pvr_mask & pvr) {
+            break;
+        }
+    }
+
+    /* For the future use: here @list points to the first capability */
+
+    /* Parsing finished */
+    trace_spapr_cas_pvr(cpu_->cpu_version, cpu_match,
+                        cpu_version, pcc_->pcr_mask);
+
+    /* Update CPUs */
+    if (old_cpu_version != cpu_version) {
+        CPU_FOREACH(cs) {
+            SetCompatState s = {
+                .cpu = POWERPC_CPU(cs),
+                .cpu_version = cpu_version,
+                .ret = 0
+            };
+
+            run_on_cpu(cs, do_set_compat, &s);
+
+            if (s.ret < 0) {
+                fprintf(stderr, "Unable to set compatibility mode\n");
+                return H_HARDWARE;
+            }
+        }
+    }
+
+    if (!cpu_version) {
+        return H_SUCCESS;
+    }
 
     if (!list) {
         return H_SUCCESS;
