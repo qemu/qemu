@@ -570,6 +570,7 @@ do_command(GIOChannel *source,
                        "CARD_PRESENT" : "            ",
                        vreader_get_name(reader));
             }
+            vreader_list_delete(list);
         } else if (*string != 0) {
             printf("valid commands:\n");
             printf("insert [reader_id]\n");

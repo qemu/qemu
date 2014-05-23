@@ -433,11 +433,13 @@ vcard_emul_find_vreader_from_slot(PK11SlotInfo *slot)
         VReader *reader = vreader_list_get_reader(current_entry);
         VReaderEmul *reader_emul = vreader_get_private(reader);
         if (reader_emul->slot == slot) {
+            vreader_list_delete(reader_list);
             return reader;
         }
         vreader_free(reader);
     }
 
+    vreader_list_delete(reader_list);
     return NULL;
 }
 
@@ -1059,6 +1061,8 @@ vcard_emul_replay_insertion_events(void)
         next_entry = vreader_list_get_next(current_entry);
         vreader_queue_card_event(vreader);
     }
+
+    vreader_list_delete(list);
 }
 
 /*
