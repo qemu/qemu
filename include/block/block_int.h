@@ -369,6 +369,9 @@ struct BlockDriverState {
 
     QDict *options;
     BlockdevDetectZeroesOptions detect_zeroes;
+
+    /* The error object in use for blocking operations on backing_hd */
+    Error *backing_blocker;
 };
 
 int get_tmp_filename(char *filename, int size);

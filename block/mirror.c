@@ -498,7 +498,7 @@ immediate_exit:
             /* drop the bs loop chain formed by the swap: break the loop then
              * trigger the unref from the top one */
             BlockDriverState *p = s->base->backing_hd;
-            s->base->backing_hd = NULL;
+            bdrv_set_backing_hd(s->base, NULL);
             bdrv_unref(p);
         }
     }
