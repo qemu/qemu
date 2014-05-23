@@ -2652,13 +2652,11 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
     if (ret) {
         goto exit;
     }
-    new_top_bs->backing_hd = base_bs;
-
-    bdrv_refresh_limits(new_top_bs);
+    bdrv_set_backing_hd(new_top_bs, base_bs);
 
     QSIMPLEQ_FOREACH_SAFE(intermediate_state, &states_to_delete, entry, next) {
         /* so that bdrv_close() does not recursively close the chain */
-        intermediate_state->bs->backing_hd = NULL;
+        bdrv_set_backing_hd(intermediate_state->bs, NULL);
         bdrv_unref(intermediate_state->bs);
     }
     ret = 0;

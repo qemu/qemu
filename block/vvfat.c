@@ -2947,7 +2947,7 @@ static int enable_write_target(BDRVVVFATState *s)
     unlink(s->qcow_filename);
 #endif
 
-    s->bs->backing_hd = bdrv_new("", &error_abort);
+    bdrv_set_backing_hd(s->bs, bdrv_new("", &error_abort));
     s->bs->backing_hd->drv = &vvfat_write_target;
     s->bs->backing_hd->opaque = g_malloc(sizeof(void*));
     *(void**)s->bs->backing_hd->opaque = s;

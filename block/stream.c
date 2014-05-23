@@ -60,7 +60,7 @@ static void close_unused_images(BlockDriverState *top, BlockDriverState *base,
     /* Must assign before bdrv_delete() to prevent traversing dangling pointer
      * while we delete backing image instances.
      */
-    top->backing_hd = base;
+    bdrv_set_backing_hd(top, base);
 
     while (intermediate) {
         BlockDriverState *unused;
@@ -72,7 +72,7 @@ static void close_unused_images(BlockDriverState *top, BlockDriverState *base,
 
         unused = intermediate;
         intermediate = intermediate->backing_hd;
-        unused->backing_hd = NULL;
+        bdrv_set_backing_hd(unused, NULL);
         bdrv_unref(unused);
     }
 
