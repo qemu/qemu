@@ -111,6 +111,7 @@ struct USBHostRequest {
     unsigned char                    *buffer;
     unsigned char                    *cbuf;
     unsigned int                     clen;
+    bool                             usb3ep0quirk;
     QTAILQ_ENTRY(USBHostRequest)     next;
 };
 
@@ -346,6 +347,13 @@ static void usb_host_req_complete_ctrl(struct libusb_transfer *xfer)
     r->p->actual_length = xfer->actual_length;
     if (r->in && xfer->actual_length) {
         memcpy(r->cbuf, r->buffer + 8, xfer->actual_length);
+
+        /* Fix up USB-3 ep0 maxpacket size to allow superspeed connected devices
+         * to work redirected to a not superspeed capable hcd */
+        if (r->usb3ep0quirk && xfer->actual_length >= 18 &&
+            r->cbuf[7] == 9) {
+            r->cbuf[7] = 64;
+        }
     }
     trace_usb_host_req_complete(s->bus_num, s->addr, r->p,
                                 r->p->status, r->p->actual_length);
@@ -672,11 +680,17 @@ static void usb_host_iso_data_out(USBHostDevice *s, USBPacket *p)
 
 /* ------------------------------------------------------------------------ */
 
-static bool usb_host_full_speed_compat(USBHostDevice *s)
+static void usb_host_speed_compat(USBHostDevice *s)
 {
+    USBDevice *udev = USB_DEVICE(s);
     struct libusb_config_descriptor *conf;
     const struct libusb_interface_descriptor *intf;
     const struct libusb_endpoint_descriptor *endp;
+#if LIBUSBX_API_VERSION >= 0x01000103
+    struct libusb_ss_endpoint_companion_descriptor *endp_ss_comp;
+#endif
+    bool compat_high = true;
+    bool compat_full = true;
     uint8_t type;
     int rc, c, i, a, e;
 
@@ -693,10 +707,27 @@ static bool usb_host_full_speed_compat(USBHostDevice *s)
                     type = endp->bmAttributes & 0x3;
                     switch (type) {
                     case 0x01: /* ISO */
-                        return false;
+                        compat_full = false;
+                        compat_high = false;
+                        break;
+                    case 0x02: /* BULK */
+#if LIBUSBX_API_VERSION >= 0x01000103
+                        rc = libusb_get_ss_endpoint_companion_descriptor
+                            (ctx, endp, &endp_ss_comp);
+                        if (rc == LIBUSB_SUCCESS) {
+                            libusb_free_ss_endpoint_companion_descriptor
+                                (endp_ss_comp);
+                            compat_full = false;
+                            compat_high = false;
+                        }
+#endif
+                        break;
                     case 0x03: /* INTERRUPT */
                         if (endp->wMaxPacketSize > 64) {
-                            return false;
+                            compat_full = false;
+                        }
+                        if (endp->wMaxPacketSize > 1024) {
+                            compat_high = false;
                         }
                         break;
                     }
@@ -705,7 +736,17 @@ static bool usb_host_full_speed_compat(USBHostDevice *s)
         }
         libusb_free_config_descriptor(conf);
     }
-    return true;
+
+    udev->speedmask = (1 << udev->speed);
+    if (udev->speed == USB_SPEED_SUPER && compat_high) {
+        udev->speedmask |= USB_SPEED_HIGH;
+    }
+    if (udev->speed == USB_SPEED_SUPER && compat_full) {
+        udev->speedmask |= USB_SPEED_FULL;
+    }
+    if (udev->speed == USB_SPEED_HIGH && compat_full) {
+        udev->speedmask |= USB_SPEED_FULL;
+    }
 }
 
 static void usb_host_ep_update(USBHostDevice *s)
@@ -813,10 +854,7 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev)
     usb_host_ep_update(s);
 
     udev->speed     = speed_map[libusb_get_device_speed(dev)];
-    udev->speedmask = (1 << udev->speed);
-    if (udev->speed == USB_SPEED_HIGH && usb_host_full_speed_compat(s)) {
-        udev->speedmask |= USB_SPEED_MASK_FULL;
-    }
+    usb_host_speed_compat(s);
 
     if (s->ddesc.iProduct) {
         libusb_get_string_descriptor_ascii(s->dh, s->ddesc.iProduct,
@@ -1160,6 +1198,14 @@ static void usb_host_handle_control(USBDevice *udev, USBPacket *p,
     memcpy(r->buffer, udev->setup_buf, 8);
     if (!r->in) {
         memcpy(r->buffer + 8, r->cbuf, r->clen);
+    }
+
+    /* Fix up USB-3 ep0 maxpacket size to allow superspeed connected devices
+     * to work redirected to a not superspeed capable hcd */
+    if (udev->speed == USB_SPEED_SUPER &&
+        !((udev->port->speedmask & USB_SPEED_MASK_SUPER)) &&
+        request == 0x8006 && value == 0x100 && index == 0) {
+        r->usb3ep0quirk = true;
     }
 
     libusb_fill_control_transfer(r->xfer, s->dh, r->buffer,
