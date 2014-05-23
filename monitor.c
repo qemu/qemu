@@ -321,7 +321,7 @@ static void monitor_flush_locked(Monitor *mon)
             mon->outbuf = tmp;
         }
         if (mon->out_watch == 0) {
-            mon->out_watch = qemu_chr_fe_add_watch(mon->chr, G_IO_OUT,
+            mon->out_watch = qemu_chr_fe_add_watch(mon->chr, G_IO_OUT|G_IO_HUP,
                                                    monitor_unblocked, mon);
         }
     }

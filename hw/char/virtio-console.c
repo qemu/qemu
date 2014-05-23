@@ -70,7 +70,8 @@ static ssize_t flush_buf(VirtIOSerialPort *port,
         if (!k->is_console) {
             virtio_serial_throttle_port(port, true);
             if (!vcon->watch) {
-                vcon->watch = qemu_chr_fe_add_watch(vcon->chr, G_IO_OUT,
+                vcon->watch = qemu_chr_fe_add_watch(vcon->chr,
+                                                    G_IO_OUT|G_IO_HUP,
                                                     chr_write_unblocked, vcon);
             }
         }
