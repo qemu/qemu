@@ -202,6 +202,32 @@ static XICSState *xics_system_init(int nr_servers, int nr_irqs)
     return icp;
 }
 
+static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,
+                                  int smt_threads)
+{
+    int i, ret = 0;
+    uint32_t servers_prop[smt_threads];
+    uint32_t gservers_prop[smt_threads * 2];
+    int index = ppc_get_vcpu_dt_id(cpu);
+
+    /* Build interrupt servers and gservers properties */
+    for (i = 0; i < smt_threads; i++) {
+        servers_prop[i] = cpu_to_be32(index + i);
+        /* Hack, direct the group queues back to cpu 0 */
+        gservers_prop[i*2] = cpu_to_be32(index + i);
+        gservers_prop[i*2 + 1] = 0;
+    }
+    ret = fdt_setprop(fdt, offset, "ibm,ppc-interrupt-server#s",
+                      servers_prop, sizeof(servers_prop));
+    if (ret < 0) {
+        return ret;
+    }
+    ret = fdt_setprop(fdt, offset, "ibm,ppc-interrupt-gserver#s",
+                      gservers_prop, sizeof(gservers_prop));
+
+    return ret;
+}
+
 static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
 {
     int ret = 0, offset;
@@ -242,6 +268,12 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
 
         ret = fdt_setprop(fdt, offset, "ibm,pft-size",
                           pft_size_prop, sizeof(pft_size_prop));
+        if (ret < 0) {
+            return ret;
+        }
+
+        ret = spapr_fixup_cpu_smt_dt(fdt, offset, POWERPC_CPU(cpu),
+                                     smp_threads);
         if (ret < 0) {
             return ret;
         }
@@ -311,7 +343,7 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     char qemu_hypertas_prop[] = "hcall-memop1";
     uint32_t refpoints[] = {cpu_to_be32(0x4), cpu_to_be32(0x4)};
     uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
-    int i, smt = kvmppc_smt_threads();
+    int smt = kvmppc_smt_threads();
     unsigned char vec5[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x80};
     QemuOpts *opts = qemu_opts_find(qemu_find_opts("smp-opts"), NULL);
     unsigned sockets = opts ? qemu_opt_get_number(opts, "sockets", 0) : 0;
@@ -378,8 +410,6 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
         DeviceClass *dc = DEVICE_GET_CLASS(cs);
         PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
         int index = ppc_get_vcpu_dt_id(cpu);
-        uint32_t servers_prop[smp_threads];
-        uint32_t gservers_prop[smp_threads * 2];
         char *nodename;
         uint32_t segs[] = {cpu_to_be32(28), cpu_to_be32(40),
                            0xffffffff, 0xffffffff};
@@ -427,18 +457,6 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
         _FDT((fdt_property_cell(fdt, "ibm,slb-size", env->slb_nr)));
         _FDT((fdt_property_string(fdt, "status", "okay")));
         _FDT((fdt_property(fdt, "64-bit", NULL, 0)));
-
-        /* Build interrupt servers and gservers properties */
-        for (i = 0; i < smp_threads; i++) {
-            servers_prop[i] = cpu_to_be32(index + i);
-            /* Hack, direct the group queues back to cpu 0 */
-            gservers_prop[i*2] = cpu_to_be32(index + i);
-            gservers_prop[i*2 + 1] = 0;
-        }
-        _FDT((fdt_property(fdt, "ibm,ppc-interrupt-server#s",
-                           servers_prop, sizeof(servers_prop))));
-        _FDT((fdt_property(fdt, "ibm,ppc-interrupt-gserver#s",
-                           gservers_prop, sizeof(gservers_prop))));
 
         if (env->spr_cb[SPR_PURR].oea_read) {
             _FDT((fdt_property(fdt, "ibm,purr", NULL, 0)));
