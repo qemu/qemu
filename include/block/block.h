@@ -472,8 +472,6 @@ void bdrv_disable_copy_on_read(BlockDriverState *bs);
 
 void bdrv_ref(BlockDriverState *bs);
 void bdrv_unref(BlockDriverState *bs);
-void bdrv_set_in_use(BlockDriverState *bs, int in_use);
-int bdrv_in_use(BlockDriverState *bs);
 
 bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp);
 void bdrv_op_block(BlockDriverState *bs, BlockOpType op, Error *reason);

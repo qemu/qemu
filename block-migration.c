@@ -59,6 +59,7 @@ typedef struct BlkMigDevState {
     unsigned long *aio_bitmap;
     int64_t completed_sectors;
     BdrvDirtyBitmap *dirty_bitmap;
+    Error *blocker;
 } BlkMigDevState;
 
 typedef struct BlkMigBlock {
@@ -361,7 +362,8 @@ static void init_blk_migration_it(void *opaque, BlockDriverState *bs)
         bmds->completed_sectors = 0;
         bmds->shared_base = block_mig_state.shared_base;
         alloc_aio_bitmap(bmds);
-        bdrv_set_in_use(bs, 1);
+        error_setg(&bmds->blocker, "block device is in use by migration");
+        bdrv_op_block_all(bs, bmds->blocker);
         bdrv_ref(bs);
 
         block_mig_state.total_sector_sum += sectors;
@@ -599,7 +601,8 @@ static void blk_mig_cleanup(void)
     blk_mig_lock();
     while ((bmds = QSIMPLEQ_FIRST(&block_mig_state.bmds_list)) != NULL) {
         QSIMPLEQ_REMOVE_HEAD(&block_mig_state.bmds_list, entry);
-        bdrv_set_in_use(bmds->bs, 0);
+        bdrv_op_unblock_all(bmds->bs, bmds->blocker);
+        error_free(bmds->blocker);
         bdrv_unref(bmds->bs);
         g_free(bmds->aio_bitmap);
         g_free(bmds);

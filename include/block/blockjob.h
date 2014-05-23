@@ -106,6 +106,9 @@ struct BlockJob {
     /** The completion function that will be called when the job completes.  */
     BlockDriverCompletionFunc *cb;
 
+    /** Block other operations when block job is running */
+    Error *blocker;
+
     /** The opaque value that is passed to the completion function.  */
     void *opaque;
 };

@@ -358,7 +358,6 @@ struct BlockDriverState {
     QTAILQ_ENTRY(BlockDriverState) device_list;
     QLIST_HEAD(, BdrvDirtyBitmap) dirty_bitmaps;
     int refcnt;
-    int in_use; /* users other than guest access, eg. block migration */
 
     QLIST_HEAD(, BdrvTrackedRequest) tracked_requests;
 
