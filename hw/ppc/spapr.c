@@ -293,7 +293,7 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
         }
 
         ret = spapr_fixup_cpu_smt_dt(fdt, offset, cpu,
-                                     smp_threads);
+                                     ppc_get_compat_smt_threads(cpu));
         if (ret < 0) {
             return ret;
         }
