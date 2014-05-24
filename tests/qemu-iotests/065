@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 #
 # Test for additional information emitted by qemu-img info on qcow2
 # images
