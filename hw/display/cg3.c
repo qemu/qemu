@@ -177,7 +177,7 @@ static uint64_t cg3_reg_read(void *opaque, hwaddr addr, unsigned size)
         /* monitor ID 6, board type = 1 (color) */
         val = s->regs[1] | CG3_SR_1152_900_76_B | CG3_SR_ID_COLOR;
         break;
-    case CG3_REG_FBC_CURSTART ... CG3_REG_SIZE:
+    case CG3_REG_FBC_CURSTART ... CG3_REG_SIZE - 1:
         val = s->regs[addr - 0x10];
         break;
     default:
@@ -247,7 +247,7 @@ static void cg3_reg_write(void *opaque, hwaddr addr, uint64_t val,
             qemu_irq_lower(s->irq);
         }
         break;
-    case CG3_REG_FBC_CURSTART ... CG3_REG_SIZE:
+    case CG3_REG_FBC_CURSTART ... CG3_REG_SIZE - 1:
         s->regs[addr - 0x10] = val;
         break;
     default:
