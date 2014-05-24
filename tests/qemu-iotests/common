@@ -25,8 +25,7 @@ _setenvironment()
     export MSGVERB
 }
 
-here=`pwd`
-rm -f $here/$iam.out
+rm -f "$OUTPUT_DIR/$iam.out"
 _setenvironment
 
 check=${check-true}
@@ -59,7 +58,7 @@ do
     if $group
     then
         # arg after -g
-        group_list=`sed -n <group -e 's/$/ /' -e "/^[0-9][0-9][0-9].* $r /"'{
+        group_list=`sed -n <"$source_iotests/group" -e 's/$/ /' -e "/^[0-9][0-9][0-9].* $r /"'{
 s/ .*//p
 }'`
         if [ -z "$group_list" ]
@@ -84,7 +83,7 @@ s/ .*//p
     then
         # arg after -x
         [ ! -s $tmp.list ] && ls [0-9][0-9][0-9] [0-9][0-9][0-9][0-9] >$tmp.list 2>/dev/null
-        group_list=`sed -n <group -e 's/$/ /' -e "/^[0-9][0-9][0-9].* $r /"'{
+        group_list=`sed -n <"$source_iotests/group" -e 's/$/ /' -e "/^[0-9][0-9][0-9].* $r /"'{
 s/ .*//p
 }'`
         if [ -z "$group_list" ]
@@ -366,7 +365,7 @@ testlist options
 BEGIN        { for (t='$start'; t<='$end'; t++) printf "%03d\n",t }' \
         | while read id
         do
-            if grep -s "^$id " group >/dev/null
+            if grep -s "^$id " "$source_iotests/group" >/dev/null
             then
                 # in group file ... OK
                 echo $id >>$tmp.list
@@ -402,7 +401,7 @@ else
         touch $tmp.list
     else
         # no test numbers, do everything from group file
-        sed -n -e '/^[0-9][0-9][0-9]*/s/[         ].*//p' <group >$tmp.list
+        sed -n -e '/^[0-9][0-9][0-9]*/s/[         ].*//p' <"$source_iotests/group" >$tmp.list
     fi
 fi
 
