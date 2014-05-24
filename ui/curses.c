@@ -288,8 +288,8 @@ static void curses_refresh(DisplayChangeListener *dcl)
                 qemu_input_event_send_key_number(NULL, GREY | ALT_CODE, true);
             }
 
-            qemu_input_event_send_key_number(NULL, keycode, true);
-            qemu_input_event_send_key_number(NULL, keycode, false);
+            qemu_input_event_send_key_number(NULL, keycode & KEY_MASK, true);
+            qemu_input_event_send_key_number(NULL, keycode & KEY_MASK, false);
 
             if (keycode & ALTGR) {
                 qemu_input_event_send_key_number(NULL, GREY | ALT_CODE, false);
