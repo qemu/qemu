@@ -530,6 +530,33 @@ static const GraphicHwOps tcx24_ops = {
     .gfx_update = tcx24_update_display,
 };
 
+static void tcx_initfn(Object *obj)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    TCXState *s = TCX(obj);
+
+    memory_region_init_ram(&s->rom, NULL, "tcx.prom", FCODE_MAX_ROM_SIZE);
+    memory_region_set_readonly(&s->rom, true);
+    sysbus_init_mmio(sbd, &s->rom);
+
+    /* DAC */
+    memory_region_init_io(&s->dac, OBJECT(s), &tcx_dac_ops, s,
+                          "tcx.dac", TCX_DAC_NREGS);
+    sysbus_init_mmio(sbd, &s->dac);
+
+    /* TEC (dummy) */
+    memory_region_init_io(&s->tec, OBJECT(s), &dummy_ops, s,
+                          "tcx.tec", TCX_TEC_NREGS);
+    sysbus_init_mmio(sbd, &s->tec);
+
+    /* THC: NetBSD writes here even with 8-bit display: dummy */
+    memory_region_init_io(&s->thc24, OBJECT(s), &dummy_ops, s, "tcx.thc24",
+                          TCX_THC_NREGS_24);
+    sysbus_init_mmio(sbd, &s->thc24);
+
+    return;
+}
+
 static void tcx_realizefn(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
@@ -545,11 +572,7 @@ static void tcx_realizefn(DeviceState *dev, Error **errp)
     vram_base = memory_region_get_ram_ptr(&s->vram_mem);
 
     /* FCode ROM */
-    memory_region_init_ram(&s->rom, NULL, "tcx.prom", FCODE_MAX_ROM_SIZE);
     vmstate_register_ram_global(&s->rom);
-    memory_region_set_readonly(&s->rom, true);
-    sysbus_init_mmio(sbd, &s->rom);
-
     fcode_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, TCX_ROM_FILE);
     if (fcode_filename) {
         ret = load_image_targphys(fcode_filename, s->prom_addr,
@@ -567,20 +590,6 @@ static void tcx_realizefn(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->vram_8bit);
     vram_offset += size;
     vram_base += size;
-
-    /* DAC */
-    memory_region_init_io(&s->dac, OBJECT(s), &tcx_dac_ops, s,
-                          "tcx.dac", TCX_DAC_NREGS);
-    sysbus_init_mmio(sbd, &s->dac);
-
-    /* TEC (dummy) */
-    memory_region_init_io(&s->tec, OBJECT(s), &dummy_ops, s,
-                          "tcx.tec", TCX_TEC_NREGS);
-    sysbus_init_mmio(sbd, &s->tec);
-    /* THC: NetBSD writes here even with 8-bit display: dummy */
-    memory_region_init_io(&s->thc24, OBJECT(s), &dummy_ops, s, "tcx.thc24",
-                          TCX_THC_NREGS_24);
-    sysbus_init_mmio(sbd, &s->thc24);
 
     if (s->depth == 24) {
         /* 24-bit plane */
@@ -637,6 +646,7 @@ static const TypeInfo tcx_info = {
     .name          = TYPE_TCX,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(TCXState),
+    .instance_init = tcx_initfn,
     .class_init    = tcx_class_init,
 };
 
