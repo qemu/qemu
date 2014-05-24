@@ -288,10 +288,16 @@ do
 
         start=`_wallclock`
         $timestamp && echo -n "        ["`date "+%T"`"]"
+
+        if [ "$(head -n 1 "$source_iotests/$seq")" == "#!/usr/bin/env python" ]; then
+            run_command="$PYTHON $seq"
+        else
+            run_command="./$seq"
+        fi
         export OUTPUT_DIR=$PWD
         (cd "$source_iotests";
         MALLOC_PERTURB_=${MALLOC_PERTURB_:-$(($RANDOM % 255 + 1))} \
-                ./$seq >$tmp.out 2>&1)
+                $run_command >$tmp.out 2>&1)
         sts=$?
         $timestamp && _timestamp
         stop=`_wallclock`
