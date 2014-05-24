@@ -530,8 +530,9 @@ static const GraphicHwOps tcx24_ops = {
     .gfx_update = tcx24_update_display,
 };
 
-static int tcx_init1(SysBusDevice *dev)
+static void tcx_realizefn(DeviceState *dev, Error **errp)
 {
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     TCXState *s = TCX(dev);
     ram_addr_t vram_offset = 0;
     int size, ret;
@@ -547,15 +548,14 @@ static int tcx_init1(SysBusDevice *dev)
     memory_region_init_ram(&s->rom, NULL, "tcx.prom", FCODE_MAX_ROM_SIZE);
     vmstate_register_ram_global(&s->rom);
     memory_region_set_readonly(&s->rom, true);
-    sysbus_init_mmio(dev, &s->rom);
+    sysbus_init_mmio(sbd, &s->rom);
 
     fcode_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, TCX_ROM_FILE);
     if (fcode_filename) {
         ret = load_image_targphys(fcode_filename, s->prom_addr,
                                   FCODE_MAX_ROM_SIZE);
         if (ret < 0 || ret > FCODE_MAX_ROM_SIZE) {
-            fprintf(stderr, "tcx: could not load prom '%s'\n", TCX_ROM_FILE);
-            return -1;
+            error_report("tcx: could not load prom '%s'", TCX_ROM_FILE);
         }
     }
 
@@ -564,23 +564,23 @@ static int tcx_init1(SysBusDevice *dev)
     size = s->vram_size;
     memory_region_init_alias(&s->vram_8bit, OBJECT(s), "tcx.vram.8bit",
                              &s->vram_mem, vram_offset, size);
-    sysbus_init_mmio(dev, &s->vram_8bit);
+    sysbus_init_mmio(sbd, &s->vram_8bit);
     vram_offset += size;
     vram_base += size;
 
     /* DAC */
     memory_region_init_io(&s->dac, OBJECT(s), &tcx_dac_ops, s,
                           "tcx.dac", TCX_DAC_NREGS);
-    sysbus_init_mmio(dev, &s->dac);
+    sysbus_init_mmio(sbd, &s->dac);
 
     /* TEC (dummy) */
     memory_region_init_io(&s->tec, OBJECT(s), &dummy_ops, s,
                           "tcx.tec", TCX_TEC_NREGS);
-    sysbus_init_mmio(dev, &s->tec);
+    sysbus_init_mmio(sbd, &s->tec);
     /* THC: NetBSD writes here even with 8-bit display: dummy */
     memory_region_init_io(&s->thc24, OBJECT(s), &dummy_ops, s, "tcx.thc24",
                           TCX_THC_NREGS_24);
-    sysbus_init_mmio(dev, &s->thc24);
+    sysbus_init_mmio(sbd, &s->thc24);
 
     if (s->depth == 24) {
         /* 24-bit plane */
@@ -589,7 +589,7 @@ static int tcx_init1(SysBusDevice *dev)
         s->vram24_offset = vram_offset;
         memory_region_init_alias(&s->vram_24bit, OBJECT(s), "tcx.vram.24bit",
                                  &s->vram_mem, vram_offset, size);
-        sysbus_init_mmio(dev, &s->vram_24bit);
+        sysbus_init_mmio(sbd, &s->vram_24bit);
         vram_offset += size;
         vram_base += size;
 
@@ -599,20 +599,19 @@ static int tcx_init1(SysBusDevice *dev)
         s->cplane_offset = vram_offset;
         memory_region_init_alias(&s->vram_cplane, OBJECT(s), "tcx.vram.cplane",
                                  &s->vram_mem, vram_offset, size);
-        sysbus_init_mmio(dev, &s->vram_cplane);
+        sysbus_init_mmio(sbd, &s->vram_cplane);
 
         s->con = graphic_console_init(DEVICE(dev), 0, &tcx24_ops, s);
     } else {
         /* THC 8 bit (dummy) */
         memory_region_init_io(&s->thc8, OBJECT(s), &dummy_ops, s, "tcx.thc8",
                               TCX_THC_NREGS_8);
-        sysbus_init_mmio(dev, &s->thc8);
+        sysbus_init_mmio(sbd, &s->thc8);
 
         s->con = graphic_console_init(DEVICE(dev), 0, &tcx_ops, s);
     }
 
     qemu_console_resize(s->con, s->width, s->height);
-    return 0;
 }
 
 static Property tcx_properties[] = {
@@ -627,9 +626,8 @@ static Property tcx_properties[] = {
 static void tcx_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = tcx_init1;
+    dc->realize = tcx_realizefn;
     dc->reset = tcx_reset;
     dc->vmsd = &vmstate_tcx;
     dc->props = tcx_properties;
