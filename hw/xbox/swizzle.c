@@ -2,6 +2,7 @@
  * QEMU texture swizzling routines
  *
  * Copyright (c) 2013 espes
+ * Copyright (c) 2007-2010 The Nouveau Project.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -21,89 +22,87 @@
 
 #include <stdint.h>
 #include <string.h>
+#include "qemu/osdep.h"
+
+#include "hw/xbox/swizzle.h"
+
+static unsigned int log2(unsigned int i)
+{
+    unsigned int r = 0;
+    while (i >> ++r);
+    return r;
+}
+
+static unsigned int get_swizzled_offset(
+    unsigned int x, unsigned int y,
+    unsigned int width, unsigned int height,
+    unsigned int bytes_per_pixel)
+{
+    unsigned int k = log2(MIN(width, height));
+
+    unsigned int u = (x & 0x001) << 0 |
+        (x & 0x002) << 1 |
+        (x & 0x004) << 2 |
+        (x & 0x008) << 3 |
+        (x & 0x010) << 4 |
+        (x & 0x020) << 5 |
+        (x & 0x040) << 6 |
+        (x & 0x080) << 7 |
+        (x & 0x100) << 8 |
+        (x & 0x200) << 9 |
+        (x & 0x400) << 10 |
+        (x & 0x800) << 11;
+
+    unsigned int v = (y & 0x001) << 1 |
+        (y & 0x002) << 2 |
+        (y & 0x004) << 3 |
+        (y & 0x008) << 4 |
+        (y & 0x010) << 5 |
+        (y & 0x020) << 6 |
+        (y & 0x040) << 7 |
+        (y & 0x080) << 8 |
+        (y & 0x100) << 9 |
+        (y & 0x200) << 10 |
+        (y & 0x400) << 11 |
+        (y & 0x800) << 12;
+
+    return bytes_per_pixel * (((u | v) & ~(~0 << 2*k)) |
+             (x & (~0 << k)) << k |
+             (y & (~0 << k)) << k);
+}
+
+void swizzle_rect(
+    uint8_t *src_buf,
+    unsigned int width,
+    unsigned int height,
+    uint8_t *dst_buf,
+    unsigned int pitch,
+    unsigned int bytes_per_pixel)
+{
+    int x, y;
+    for (y = 0; y < height; y++) {
+        for (x = 0; x < width; x++) {
+            uint8_t *src = src_buf + (y * pitch + x * bytes_per_pixel);
+            uint8_t *dst = dst_buf + get_swizzled_offset(x, y, width, height, bytes_per_pixel);
+            memcpy(dst, src, bytes_per_pixel);
+        }
+    }
+}
 
 void unswizzle_rect(
     uint8_t *src_buf,
     unsigned int width,
     unsigned int height,
-    unsigned int depth,
     uint8_t *dst_buf,
     unsigned int pitch,
     unsigned int bytes_per_pixel)
 {
-    unsigned int offset_u = 0, offset_v = 0, offset_w = 0;
-    uint32_t mask_u = 0, mask_v = 0, mask_w = 0;
-
-    unsigned int i = 1, j = 1;
-
-    while( (i <= width) || (i <= height) || (i <= depth) ) {
-        if(i < width) {
-            mask_u |= j;
-            j<<=1;
+    int x, y;
+    for (y = 0; y < height; y++) {
+        for (x = 0; x < width; x++) {
+            uint8_t *src = src_buf + get_swizzled_offset(x, y, width, height, bytes_per_pixel);
+            uint8_t *dst = dst_buf + (y * pitch + x * bytes_per_pixel);
+            memcpy(dst, src, bytes_per_pixel);
         }
-        if(i < height) {
-            mask_v |= j;
-            j<<=1;
-        }
-        if(i < depth) {
-            mask_w |= j;
-            j<<=1;
-        }
-        i<<=1;
-    }
-
-    uint32_t start_u = 0;
-    uint32_t start_v = 0;
-    uint32_t start_w = 0;
-    uint32_t mask_max = 0;
-
-    // get the biggest mask
-    if(mask_u > mask_v)
-        mask_max = mask_u;
-    else
-        mask_max = mask_v;
-    if(mask_w > mask_max)
-        mask_max = mask_w;
-
-    for(i = 1; i <= mask_max; i<<=1) {
-        if(i<=mask_u) {
-            if(mask_u & i) start_u |= (offset_u & i);
-            else offset_u <<= 1;
-        }
-
-        if(i <= mask_v) {
-            if(mask_v & i) start_v |= (offset_v & i);
-            else offset_v<<=1;
-        }
-
-        if(i <= mask_w) {
-            if(mask_w & i) start_w |= (offset_w & i);
-            else offset_w <<= 1;
-        }
-    }
-
-    uint32_t w = start_w;
-    unsigned int z;
-    for(z=0; z<depth; z++) {
-        uint32_t v = start_v;
-
-        unsigned int y;
-        for(y=0; y<height; y++) {
-            uint32_t u = start_u;
-
-            unsigned int x;
-            for (x=0; x<width; x++) {
-                memcpy(dst_buf,
-                       src_buf + ( (u|v|w)*bytes_per_pixel ),
-                       bytes_per_pixel);
-                dst_buf += bytes_per_pixel;
-
-                u = (u - mask_u) & mask_u;
-            }
-            dst_buf += pitch - width * bytes_per_pixel;
-
-            v = (v - mask_v) & mask_v;
-        }
-        w = (w - mask_w) & mask_w;
     }
 }

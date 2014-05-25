@@ -467,6 +467,11 @@
 #           define NV097_SET_SURFACE_FORMAT_COLOR_LE_B8                    0x09
 #           define NV097_SET_SURFACE_FORMAT_COLOR_LE_G8B8                  0x0A
 #       define NV097_SET_SURFACE_FORMAT_ZETA                      0x000000F0
+#       define NV097_SET_SURFACE_FORMAT_TYPE                      0x00000F00
+#           define NV097_SET_SURFACE_FORMAT_TYPE_PITCH                     0x1
+#           define NV097_SET_SURFACE_FORMAT_TYPE_SWIZZLE                   0x2
+#       define NV097_SET_SURFACE_FORMAT_WIDTH                     0x00FF0000
+#       define NV097_SET_SURFACE_FORMAT_HEIGHT                    0xFF000000
 #   define NV097_SET_SURFACE_PITCH                            0x0097020C
 #       define NV097_SET_SURFACE_PITCH_COLOR                      0x0000FFFF
 #       define NV097_SET_SURFACE_PITCH_ZETA                       0xFFFF0000
@@ -629,21 +634,21 @@ typedef struct ColorFormatInfo {
 
 static const ColorFormatInfo kelvin_color_format_map[66] = {
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5] =
-        {2, false, GL_RGBA, GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV},
+        {2, false, GL_RGBA, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X1R5G5B5] =
-        {2, false, GL_RGB,  GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV},
+        {2, false, GL_RGB,  GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A4R4G4B4] =
-        {2, false, GL_RGBA, GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4_REV},
+        {2, false, GL_RGBA, GL_BGRA, GL_UNSIGNED_SHORT_4_4_4_4_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R5G6B5] =
-        {2, false, GL_RGB, GL_RGB, GL_UNSIGNED_SHORT_5_6_5_REV},
+        {2, false, GL_RGB, GL_BGR, GL_UNSIGNED_SHORT_5_6_5_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8] =
-        {4, false, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, false, GL_RGBA, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8] =
-        {4, false, GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, false, GL_RGB,  GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
 
     /* TODO: 8-bit palettized textures */
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_I8_A8R8G8B8] =
-        {1, false, GL_LUMINANCE8, GL_LUMINANCE, GL_UNSIGNED_BYTE },
+        {1, false, GL_LUMINANCE8, GL_LUMINANCE, GL_UNSIGNED_BYTE},
 
     [NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5] =
         {4, false, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 0, GL_RGBA},
@@ -653,20 +658,20 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
         {4, false, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 0, GL_RGBA},
 
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R5G6B5] =
-        {2, true, GL_RGB, GL_RGB, GL_UNSIGNED_SHORT_5_6_5_REV},
+        {2, true, GL_RGB, GL_BGR, GL_UNSIGNED_SHORT_5_6_5_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8R8G8B8] =
-        {4, true, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, true, GL_RGBA, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
     /* TODO: how do opengl alpha textures work? */
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8] =
         {2, false, GL_RED,  GL_RED,  GL_UNSIGNED_BYTE},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8] =
-        {4, true, GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, true, GL_RGB,  GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED] =
-        {2, true, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_SHORT},
+        {2, true, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8B8G8R8] =
-        {4, false, GL_RGBA, GL_ABGR_EXT, GL_UNSIGNED_BYTE },
+        {4, false, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8B8G8R8] =
-        {4, true, GL_RGBA, GL_ABGR_EXT, GL_UNSIGNED_BYTE }
+        {4, true, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV}
 };
 
 
@@ -909,8 +914,10 @@ typedef struct PGRAPHState {
 
     hwaddr dma_color, dma_zeta;
     Surface surface_color, surface_zeta;
-    unsigned int surface_x, surface_y;
-    unsigned int surface_width, surface_height;
+    unsigned int surface_log_width, surface_log_height;
+    unsigned int surface_type;
+    unsigned int surface_clip_x, surface_clip_y;
+    unsigned int surface_clip_width, surface_clip_height;
     uint32_t color_mask;
 
     hwaddr dma_a, dma_b;
@@ -1488,7 +1495,7 @@ static void pgraph_bind_textures(NV2AState *d)
                     } else {
                         unsigned int pitch = width * f.bytes_per_pixel;
                         uint8_t *unswizzled = g_malloc(height * pitch);
-                        unswizzle_rect(texture_data, width, height, 1,
+                        unswizzle_rect(texture_data, width, height,
                                        unswizzled, pitch, f.bytes_per_pixel);
 
                         glTexImage2D(gl_target, level, f.gl_internal_format,
@@ -1585,7 +1592,7 @@ static GLuint generate_shaders(ShaderState state)
 
     if (vertex_shader_code_str) {
         GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-        glAttachShader(program, vertex_shader); 
+        glAttachShader(program, vertex_shader);
 
         glShaderSource(vertex_shader, 1, &vertex_shader_code_str, 0);
         glCompileShader(vertex_shader);
@@ -1823,8 +1830,8 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         float zclip_min = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMIN];
 
         /* estimate the viewport by assuming it matches the surface ... */
-        float m11 = 0.5 * pg->surface_width;
-        float m22 = -0.5 * pg->surface_height;
+        float m11 = 0.5 * pg->surface_clip_width;
+        float m22 = -0.5 * pg->surface_clip_height;
         float m33 = zclip_max - zclip_min;
         //float m41 = m11;
         //float m42 = -m22;
@@ -1867,6 +1874,19 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
 
 static void pgraph_update_surface(NV2AState *d, bool upload)
 {
+
+    bool swizzle = (d->pgraph.surface_type
+                        == NV097_SET_SURFACE_FORMAT_TYPE_SWIZZLE);
+
+    unsigned int width, height;
+    if (swizzle) {
+        width = 1 << d->pgraph.surface_log_width;
+        height = 1 << d->pgraph.surface_log_height;
+    } else {
+        width = d->pgraph.surface_clip_width;
+        height = d->pgraph.surface_clip_height;
+    }
+
     if (d->pgraph.surface_color.format != 0 && d->pgraph.color_mask
         && (upload || d->pgraph.surface_color.draw_dirty)) {
 
@@ -1880,7 +1900,7 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
         assert(color_dma.address + d->pgraph.surface_color.offset != 0);
         assert(d->pgraph.surface_color.offset <= color_dma.limit);
         assert(d->pgraph.surface_color.offset
-                + d->pgraph.surface_color.pitch * d->pgraph.surface_height
+                + d->pgraph.surface_color.pitch * height
                     <= color_dma.limit + 1);
 
 
@@ -1893,13 +1913,13 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
         switch (d->pgraph.surface_color.format) {
         case NV097_SET_SURFACE_FORMAT_COLOR_LE_R5G6B5:
             bytes_per_pixel = 2;
-            gl_format = GL_RGB;
+            gl_format = GL_BGR;
             gl_type = GL_UNSIGNED_SHORT_5_6_5_REV;
             break;
         case NV097_SET_SURFACE_FORMAT_COLOR_LE_X8R8G8B8_Z8R8G8B8:
         case NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8:
             bytes_per_pixel = 4;
-            gl_format = GL_RGBA;
+            gl_format = GL_BGRA;
             gl_type = GL_UNSIGNED_INT_8_8_8_8_REV;
             break;
         default:
@@ -1907,13 +1927,18 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
         }
 
         /* TODO */
-        assert(d->pgraph.surface_x == 0 && d->pgraph.surface_y == 0);
+        assert(d->pgraph.surface_clip_x == 0 && d->pgraph.surface_clip_y == 0);
+
+        uint8_t *buf = color_data + d->pgraph.surface_color.offset;
+        if (swizzle) {
+            buf = g_malloc(height * d->pgraph.surface_color.pitch);
+        }
 
         if (upload && memory_region_test_and_clear_dirty(d->vram,
                                                color_dma.address
                                                  + d->pgraph.surface_color.offset,
                                                d->pgraph.surface_color.pitch
-                                                 * d->pgraph.surface_height,
+                                                 * height,
                                                DIRTY_MEMORY_NV2A)) {
             /* surface modified (or moved) by the cpu.
              * copy it into the opengl renderbuffer */
@@ -1921,7 +1946,14 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
 
             assert(d->pgraph.surface_color.pitch % bytes_per_pixel == 0);
 
-            //glDisable(GL_FRAGMENT_PROGRAM_ARB);
+            if (swizzle) {
+                unswizzle_rect(color_data + d->pgraph.surface_color.offset,
+                               width, height,
+                               buf,
+                               d->pgraph.surface_color.pitch,
+                               bytes_per_pixel);
+            }
+
             glUseProgram(0);
 
             int rl, pa;
@@ -1934,25 +1966,25 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
             /* glDrawPixels is crazy deprecated, but there really isn't
              * an easy alternative */
 
-            glWindowPos2i(0, d->pgraph.surface_height);
+            glWindowPos2i(0, height);
             glPixelZoom(1, -1);
-            glDrawPixels(d->pgraph.surface_width,
-                         d->pgraph.surface_height,
+            glDrawPixels(width,
+                         height,
                          gl_format, gl_type,
-                         color_data + d->pgraph.surface_color.offset);
+                         buf);
             assert(glGetError() == GL_NO_ERROR);
 
             glPixelStorei(GL_UNPACK_ROW_LENGTH, rl);
             glPixelStorei(GL_UNPACK_ALIGNMENT, pa);
 
-            uint8_t *out = color_data + d->pgraph.surface_color.offset;
+            uint8_t *out = color_data + d->pgraph.surface_color.offset + 64;
             NV2A_DPRINTF("upload_surface 0x%llx - 0x%llx, "
                           "(0x%llx - 0x%llx, %d %d, %d %d, %d) - %x %x %x %x\n",
                 color_dma.address, color_dma.address + color_dma.limit,
                 color_dma.address + d->pgraph.surface_color.offset,
-                color_dma.address + d->pgraph.surface_color.pitch * d->pgraph.surface_height,
-                d->pgraph.surface_x, d->pgraph.surface_y,
-                d->pgraph.surface_width, d->pgraph.surface_height,
+                color_dma.address + d->pgraph.surface_color.pitch * height,
+                d->pgraph.surface_clip_x, d->pgraph.surface_clip_y,
+                d->pgraph.surface_clip_width, d->pgraph.surface_clip_height,
                 d->pgraph.surface_color.pitch,
                 out[0], out[1], out[2], out[3]);
         }
@@ -1962,31 +1994,42 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
 
             glo_readpixels(gl_format, gl_type,
                            bytes_per_pixel, d->pgraph.surface_color.pitch,
-                           d->pgraph.surface_width, d->pgraph.surface_height,
-                           color_data + d->pgraph.surface_color.offset);
+                           width, height,
+                           buf);
             assert(glGetError() == GL_NO_ERROR);
+
+            if (swizzle) {
+                swizzle_rect(buf,
+                             width, height,
+                             color_data + d->pgraph.surface_color.offset,
+                             d->pgraph.surface_color.pitch,
+                             bytes_per_pixel);
+            }
 
             memory_region_set_client_dirty(d->vram,
                                            color_dma.address
                                                 + d->pgraph.surface_color.offset,
                                            d->pgraph.surface_color.pitch
-                                                * d->pgraph.surface_height,
+                                                * height,
                                            DIRTY_MEMORY_VGA);
 
             d->pgraph.surface_color.draw_dirty = false;
 
-            uint8_t *out = color_data + d->pgraph.surface_color.offset;
+            uint8_t *out = color_data + d->pgraph.surface_color.offset + 64;
             NV2A_DPRINTF("read_surface 0x%llx - 0x%llx, "
                           "(0x%llx - 0x%llx, %d %d, %d %d, %d) - %x %x %x %x\n",
                 color_dma.address, color_dma.address + color_dma.limit,
                 color_dma.address + d->pgraph.surface_color.offset,
-                color_dma.address + d->pgraph.surface_color.pitch * d->pgraph.surface_height,
-                d->pgraph.surface_x, d->pgraph.surface_y,
-                d->pgraph.surface_width, d->pgraph.surface_height,
+                color_dma.address + d->pgraph.surface_color.pitch * d->pgraph.surface_clip_height,
+                d->pgraph.surface_clip_x, d->pgraph.surface_clip_y,
+                d->pgraph.surface_clip_width, d->pgraph.surface_clip_height,
                 d->pgraph.surface_color.pitch,
                 out[0], out[1], out[2], out[3]);
         }
 
+        if (swizzle) {
+            g_free(buf);
+        }
 
     }
 }
@@ -2018,15 +2061,11 @@ static void pgraph_init(PGRAPHState *pg)
                              extensions));
 
     assert(glo_check_extension((const GLubyte *)
-                             "GL_ARB_vertex_program",
-                             extensions));
-
-    assert(glo_check_extension((const GLubyte *)
-                             "GL_ARB_fragment_program",
-                             extensions));
-
-    assert(glo_check_extension((const GLubyte *)
                              "GL_ARB_texture_rectangle",
+                             extensions));
+
+    assert(glo_check_extension((const GLubyte *)
+                             "GL_ARB_vertex_array_bgra",
                              extensions));
 
     GLint max_vertex_attributes;
@@ -2307,17 +2346,17 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_SURFACE_CLIP_HORIZONTAL:
         pgraph_update_surface(d, false);
 
-        pg->surface_x =
+        pg->surface_clip_x =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_HORIZONTAL_X);
-        pg->surface_width =
+        pg->surface_clip_width =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH);
         break;
     case NV097_SET_SURFACE_CLIP_VERTICAL:
         pgraph_update_surface(d, false);
 
-        pg->surface_y =
+        pg->surface_clip_y =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_VERTICAL_Y);
-        pg->surface_height =
+        pg->surface_clip_height =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT);
         break;
     case NV097_SET_SURFACE_FORMAT:
@@ -2327,6 +2366,12 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_COLOR);
         pg->surface_zeta.format =
             GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_ZETA);
+        pg->surface_type =
+            GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_TYPE);
+        pg->surface_log_width =
+            GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_WIDTH);
+        pg->surface_log_height =
+            GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_HEIGHT);
         break;
     case NV097_SET_SURFACE_PITCH:
         pgraph_update_surface(d, false);
@@ -2487,6 +2532,14 @@ static void pgraph_method(NV2AState *d,
 
         switch (vertex_attribute->format) {
         case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D:
+            vertex_attribute->gl_type = GL_UNSIGNED_BYTE;
+            vertex_attribute->gl_normalize = GL_TRUE;
+            vertex_attribute->size = 1;
+            assert(vertex_attribute->count == 4);
+            // http://www.opengl.org/registry/specs/ARB/vertex_array_bgra.txt
+            vertex_attribute->count = GL_BGRA;
+            vertex_attribute->needs_conversion = false;
+            break;
         case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_OGL:
             vertex_attribute->gl_type = GL_UNSIGNED_BYTE;
             vertex_attribute->gl_normalize = GL_TRUE;
@@ -2790,7 +2843,7 @@ static void pgraph_method(NV2AState *d,
                 NV_PGRAPH_CLEARRECTY_YMIN);
         unsigned int ymax = GET_MASK(d->pgraph.regs[NV_PGRAPH_CLEARRECTY],
                 NV_PGRAPH_CLEARRECTY_YMAX);
-        glScissor(xmin, pg->surface_height-ymax, xmax-xmin, ymax-ymin);
+        glScissor(xmin, pg->surface_clip_height-ymax, xmax-xmin, ymax-ymin);
 
         NV2A_DPRINTF("------------------CLEAR 0x%x %d,%d - %d,%d  %x---------------\n",
             parameter, xmin, ymin, xmax, ymax, d->pgraph.regs[NV_PGRAPH_COLORCLEARVALUE]);
