@@ -1,6 +1,7 @@
 /*
  * QEMU Geforce NV2A vertex shader translation
  *
+ * Copyright (c) 2014 Jannik Vogel
  * Copyright (c) 2012 espes
  *
  * Based on:
@@ -32,52 +33,6 @@
 #include "hw/xbox/nv2a_vsh.h"
 
 #define VSH_D3DSCM_CORRECTION 96
-
-#define VSH_TOKEN_SIZE 4
-
-typedef enum {
-    FLD_ILU = 0,
-    FLD_MAC,
-    FLD_CONST,
-    FLD_V,
-    // Input A
-    FLD_A_NEG,
-    FLD_A_SWZ_X,
-    FLD_A_SWZ_Y,
-    FLD_A_SWZ_Z,
-    FLD_A_SWZ_W,
-    FLD_A_R,
-    FLD_A_MUX,
-    // Input B
-    FLD_B_NEG,
-    FLD_B_SWZ_X,
-    FLD_B_SWZ_Y,
-    FLD_B_SWZ_Z,
-    FLD_B_SWZ_W,
-    FLD_B_R,
-    FLD_B_MUX,
-    // Input C
-    FLD_C_NEG,
-    FLD_C_SWZ_X,
-    FLD_C_SWZ_Y,
-    FLD_C_SWZ_Z,
-    FLD_C_SWZ_W,
-    FLD_C_R_HIGH,
-    FLD_C_R_LOW,
-    FLD_C_MUX,
-    // Output
-    FLD_OUT_MAC_MASK,
-    FLD_OUT_R,
-    FLD_OUT_ILU_MASK,
-    FLD_OUT_O_MASK,
-    FLD_OUT_ORB,
-    FLD_OUT_ADDRESS,
-    FLD_OUT_MUX,
-    // Relative addressing
-    FLD_A0X,
-    // Final instruction
-    FLD_FINAL
-} VshFieldName;
 
 
 typedef enum {
@@ -222,7 +177,6 @@ static const VshOpcodeParams mac_opcode_params[] = {
 };
 
 
-
 static const char* mask_str[] = {
             // xyzw xyzw
     "",     // 0000 ____
@@ -240,7 +194,7 @@ static const char* mask_str[] = {
     ".xy",  // 1100 xy__
     ".xyw", // 1101 xy_w
     ".xyz", // 1110 xyz_
-    ""//.xyzw  1111 xyzw
+    ".xyzw" // 1111 xyzw
 };
 
 /* Note: OpenGL seems to be case-sensitive, and requires upper-case opcodes! */
@@ -265,7 +219,7 @@ static const char* ilu_opcode[] = {
     "NOP",
     "MOV",
     "RCP",
-    "RCP", // Was RCC
+    "RCC",
     "RSQ",
     "EXP",
     "LOG",
@@ -284,7 +238,7 @@ static bool ilu_force_scalar[] = {
 };
 
 static const char* out_reg_name[] = {
-    "R12", // "oPos",
+    "oPos",
     "???",
     "???",
     "oD0",
@@ -312,7 +266,8 @@ static int vsh_get_from_token(uint32_t *shader_token,
 {
     return (shader_token[subtoken] >> start_bit) & ~(0xFFFFFFFF << bit_length);
 }
-static uint8_t vsh_get_field(uint32_t *shader_token, VshFieldName field_name)
+
+uint8_t vsh_get_field(uint32_t *shader_token, VshFieldName field_name)
 {
 
     return (uint8_t)(vsh_get_from_token(shader_token,
@@ -327,7 +282,7 @@ static int16_t convert_c_register(const int16_t c_reg)
 {
     int16_t r = ((((c_reg >> 5) & 7) - 3) * 32) + (c_reg & 31);
     r += VSH_D3DSCM_CORRECTION; /* to map -96..95 to 0..191 */
-    return r;
+    return r; //FIXME: = c_reg?!
 }
 
 
@@ -341,7 +296,7 @@ static QString* decode_swizzle(uint32_t *shader_token,
     /* some microcode instructions force a scalar value */
     if (swizzle_field == FLD_C_SWZ_X
         && ilu_force_scalar[vsh_get_field(shader_token, FLD_ILU)]) {
-        x = y = z = w = x = vsh_get_field(shader_token, swizzle_field);
+        x = y = z = w = vsh_get_field(shader_token, swizzle_field);
     } else {
         x = vsh_get_field(shader_token, swizzle_field++);
         y = vsh_get_field(shader_token, swizzle_field++);
@@ -352,21 +307,21 @@ static QString* decode_swizzle(uint32_t *shader_token,
     if (x == SWIZZLE_X && y == SWIZZLE_Y
         && z == SWIZZLE_Z && w == SWIZZLE_W) {
         /* Don't print the swizzle if it's .xyzw */
-        return qstring_from_str("");
+        return qstring_from_str(""); // Will turn ".xyzw" into "."
     /* Don't print duplicates */
     } else if (x == y && y == z && z == w) {
         return qstring_from_str((char[]){'.', swizzle_str[x], '\0'});
-    } else if (x == y && z == w) {
+    } else if (y == z && z == w) {
         return qstring_from_str((char[]){'.',
             swizzle_str[x], swizzle_str[y], '\0'});
-    } /*else if (z == w) {
+    } else if (z == w) {
         return qstring_from_str((char[]){'.',
             swizzle_str[x], swizzle_str[y], swizzle_str[z], '\0'});
-    }*/ else {
+    } else {
         return qstring_from_str((char[]){'.',
                                        swizzle_str[x], swizzle_str[y],
                                        swizzle_str[z], swizzle_str[w],
-                                       '\0'});
+                                       '\0'}); // Normal swizzle mask
     }
 }
 
@@ -400,12 +355,14 @@ static QString* decode_opcode_input(uint32_t *shader_token,
     case PARAM_C:
         reg_num = convert_c_register(vsh_get_field(shader_token, FLD_CONST));
         if (vsh_get_field(shader_token, FLD_A0X) > 0) {
+            //FIXME: does this really require the "correction" doe in convert_c_register?!
             snprintf(tmp, sizeof(tmp), "c[A0+%d]", reg_num);
         } else {
             snprintf(tmp, sizeof(tmp), "c[%d]", reg_num);
         }
         break;
     default:
+        printf("Param: 0x%x\n", param);
         assert(false);
     }
     qstring_append(ret_str, tmp);
@@ -444,16 +401,18 @@ static QString* decode_opcode(uint32_t *shader_token,
 
     if (mask > 0) {
         if (strcmp(opcode, mac_opcode[MAC_ARL]) == 0) {
-            qstring_append(ret, opcode);
+            qstring_append(ret, "  ARL(a0");
             qstring_append(ret, qstring_get_str(inputs));
             qstring_append(ret, ";\n");
         } else {
+            qstring_append(ret, "  ");
             qstring_append(ret, opcode);
-            qstring_append(ret, " R");
+            qstring_append(ret, "(");
+            qstring_append(ret, "R");
             qstring_append_int(ret, reg_num);
             qstring_append(ret, mask_str[mask]);
             qstring_append(ret, qstring_get_str(inputs));
-            qstring_append(ret, ";\n");
+            qstring_append(ret, ");\n");
         }
     }
 
@@ -462,15 +421,17 @@ static QString* decode_opcode(uint32_t *shader_token,
         /* Only if it's not masked away: */
         && vsh_get_field(shader_token, FLD_OUT_O_MASK) != 0) {
 
+        qstring_append(ret, "  ");
         qstring_append(ret, opcode);
+        qstring_append(ret, "(");
+
         if (vsh_get_field(shader_token, FLD_OUT_ORB) == OUTPUT_C) {
             /* TODO : Emulate writeable const registers */
-            qstring_append(ret, " c");
+            qstring_append(ret, "c");
             qstring_append_int(ret,
                 convert_c_register(
                     vsh_get_field(shader_token, FLD_OUT_ADDRESS)));
         } else {
-            qstring_append_chr(ret, ' ');
             qstring_append(ret,
                 out_reg_name[
                     vsh_get_field(shader_token, FLD_OUT_ADDRESS) & 0xF]);
@@ -479,7 +440,7 @@ static QString* decode_opcode(uint32_t *shader_token,
             mask_str[
                 vsh_get_field(shader_token, FLD_OUT_O_MASK)]);
         qstring_append(ret, qstring_get_str(inputs));
-        qstring_append(ret, ";\n");
+        qstring_append(ret, ");\n");
     }
 
     return ret;
@@ -563,141 +524,285 @@ static QString* decode_token(uint32_t *shader_token)
     return ret;
 }
 
-/* Vertex shader header, mapping Xbox1 registers to the ARB syntax (original
- * version by KingOfC). Note about the use of 'conventional' attributes in here:
- * Since we prefer to use only one shader for both immediate and deferred mode
- * rendering, we alias all attributes to conventional inputs as much as possible.
- * Only when there's no conventional attribute available, we use generic
- * attributes. So in the following header, we use conventional attributes first,
- * and generic attributes for the rest of the vertex attribute slots. This makes
- * it possible to support immediate and deferred mode rendering with the same
- * shader, and the use of the OpenGL fixed-function pipeline without a shader.
- */
 static const char* vsh_header =
-    "!!ARBvp1.0\n"
-    "TEMP R0,R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12;\n"
-    "ADDRESS A0;\n"
+    "#version 110\n"
+    "\n"
+    "attribute vec4 v0;\n"
+    "attribute vec4 v1;\n"
+    "attribute vec4 v2;\n"
+    "attribute vec4 v3;\n"
+    "attribute vec4 v4;\n"
+    "attribute vec4 v5;\n"
+    "attribute vec4 v6;\n"
+    "attribute vec4 v7;\n"
+    "attribute vec4 v8;\n"
+    "attribute vec4 v9;\n"
+    "attribute vec4 v10;\n"
+    "attribute vec4 v11;\n"
+    "attribute vec4 v12;\n"
+    "attribute vec4 v13;\n"
+    "attribute vec4 v14;\n"
+    "attribute vec4 v15;\n"
+    "\n"
+    //FIXME: What is a0 initialized as?
+    "int A0 = 0;\n"
+    "\n"
+    //FIXME: I just assumed this is true for all registers?!
+    "vec4 R0 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 R1 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 R2 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 R3 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 R4 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 R5 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 R6 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 R7 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 R8 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 R9 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 R10 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 R11 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 R12 = vec4(0.0,0.0,0.0,1.0);\n"
+    "\n"
+    "#define oPos R12\n" /* oPos is a mirror of R12 */
+    "vec4 oD0 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oD1 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oB0 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oB1 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oPts = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oFog = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oT0 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oT1 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oT2 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oT3 = vec4(0.0,0.0,0.0,1.0);\n"
+    "\n"
+
+    /* All constants in 1 array declaration */
+   "uniform vec4 c[192];\n"
+   "#define viewport_scale c[58]\n"
+   "#define viewport_offset c[59]\n"
+   "uniform vec2 cliprange;\n"
+
+    /* See:
+     * http://msdn.microsoft.com/en-us/library/windows/desktop/bb174703%28v=vs.85%29.aspx
+     * https://www.opengl.org/registry/specs/NV/vertex_program1_1.txt
+     */
+    "/* Converts number of components of rvalue to lvalue */\n"
+    "float _out(float l, vec4 r) { return r.x; }\n"
+    "vec2 _out(vec2 l, vec4 r) { return r.xy; }\n"
+    "vec3 _out(vec3 l, vec4 r) { return r.xyz; }\n"
+    "vec4 _out(vec4 l, vec4 r) { return r.xyzw; }\n"
+    "\n"
+//QQQ #ifdef NICE_CODE
+    "/* Converts the input to vec4, pads with last component */\n"
+    "vec4 _in(float v) { return vec4(v); }\n"
+    "vec4 _in(vec2 v) { return v.xyyy; }\n"
+    "vec4 _in(vec3 v) { return v.xyzz; }\n"
+    "vec4 _in(vec4 v) { return v.xyzw; }\n"
+//#else
+//    "/* Make sure input is always a vec4 */\n"
+//   "#define _in(v) vec4(v)\n"
+//#endif
+    "\n"
+    "#define MOV(dest, src) dest = _out(dest,_MOV(_in(src)))\n"
+    "vec4 _MOV(vec4 src)\n"
+    "{\n"
+    "  return src;\n"
+    "}\n"
+    "\n"
+    "#define MUL(dest, src0, src1) dest = _out(dest,_MUL(_in(src0), _in(src1)))\n"
+    "vec4 _MUL(vec4 src0, vec4 src1)\n" 
+    "{\n"
+    "  return src0 * src1;\n"
+    "}\n"
+    "\n"
+    "#define ADD(dest, src0, src1) dest = _out(dest,_ADD(_in(src0), _in(src1)))\n"
+    "vec4 _ADD(vec4 src0, vec4 src1)\n" 
+    "{\n"
+    "  return src0 + src1;\n"
+    "}\n"
+    "\n"
+    "#define MAD(dest, src0, src1, src2) dest = _out(dest,_MAD(_in(src0), _in(src1), _in(src2)))\n"
+    "vec4 _MAD(vec4 src0, vec4 src1, vec4 src2)\n" 
+    "{\n"
+    "  return src0 * src1 + src2;\n"
+    "}\n"
+    "\n"
+    "#define DP3(dest, src0, src1) dest = _out(dest,_DP3(_in(src0), _in(src1)))\n"
+    "vec4 _DP3(vec4 src0, vec4 src1)\n"
+    "{\n"
+    "  return vec4(dot(src0.xyz, src1.xyz));\n"
+    "}\n"
+    "\n"
+    "#define DPH(dest, src0, src1) dest = _out(dest,_DPH(_in(src0), _in(src1)))\n"
+    "vec4 _DPH(vec4 src0, vec4 src1)\n"
+    "{\n"
+    "  return vec4(dot(vec4(src0.xyz, 1.0), src1));\n"
+    "}\n"
+    "\n"
+    "#define DP4(dest, src0, src1) dest = _out(dest,_DP4(_in(src0), _in(src1)))\n"
+    "vec4 _DP4(vec4 src0, vec4 src1)\n"
+    "{\n"
+    "  return vec4(dot(src0, src1));\n"
+    "}\n"
+    "\n"
+    "#define DST(dest, src0, src1) dest = _out(dest,_DST(_in(src0), _in(src1)))\n"
+    "vec4 _DST(vec4 src0, vec4 src1)\n"
+    "{\n"
+    "  return vec4(1.0,\n"
+    "              src0.y * src1.y,\n"
+    "              src0.z,\n"
+    "              src1.w);\n"
+    "}\n"
+    "\n"
+    "#define MIN(dest, src0, src1) dest = _out(dest,_MIN(_in(src0), _in(src1)))\n"
+    "vec4 _MIN(vec4 src0, vec4 src1)\n"
+    "{\n"
+    "  return min(src0, src1);\n"
+    "}\n"
+    "\n"
+    "#define MAX(dest, src0, src1) dest = _out(dest,_MAX(_in(src0), _in(src1)))\n"
+    "vec4 _MAX(vec4 src0, vec4 src1)\n"
+    "{\n"
+    "  return max(src0, src1);\n"
+    "}\n"
+    "\n"
+    "#define SLT(dest, src0, src1) dest = _out(dest,_SLT(_in(src0), _in(src1)))\n"
+    "vec4 _SLT(vec4 src0, vec4 src1)\n"
+    "{\n"
+    "  return vec4(lessThan(src0, src1));\n"
+    "}\n"
+    "\n"
+    "#define ARL(dest, src) dest = _ARL(_in(src).x)\n"
+    "int _ARL(float src)\n"
+    "{\n"
+    "  return int(src);\n"
+    "}\n"
+    "\n"
+    "#define SGE(dest, src0, src1) dest = _out(dest,_SGE(_in(src0), _in(src1)))\n"
+    "vec4 _SGE(vec4 src0, vec4 src1)\n"
+    "{\n"
+    "  return vec4(greaterThanEqual(src0, src1));\n"
+    "}\n"
+    "\n"
+    "#define RCP(dest, src) dest = _out(dest,_RCP(_in(src).x))\n"
+    "vec4 _RCP(float src)\n"
+    "{\n"
+    "  return vec4(1.0 / src);\n"
+    "}\n"
+    "\n"
+    "#define RCC(dest, src) dest = _out(dest,_RCC(_in(src).x))\n"
+    "vec4 _RCC(float src)\n"
+    "{\n"
+    "  float t = 1.0 / src;\n"
+    "  if (t > 0.0) {\n"
+    "    t = clamp(t, 5.42101e-020, 1.884467e+019);\n"
+    "  } else {\n"
+    "    t = clamp(t, -1.884467e+019, -5.42101e-020);\n"
+    "  }\n"
+    "  return vec4(t);\n"
+    "}\n"
+    "\n"
+    "#define RSQ(dest, src) dest = _out(dest,_RSQ(_in(src).x))\n"
+    "vec4 _RSQ(float src)\n"
+    "{\n"
+    "  return vec4(inversesqrt(src));\n"
+    "}\n"
+    "\n"
+    "#define EXP(dest, src) dest = _out(dest,_EXP(_in(src).x))\n"
+    "vec4 _EXP(float src)\n"
+    "{\n"
+    "  return vec4(exp2(src));\n"
+    "}\n"
+    "\n"
+    "#define LOG(dest, src) dest = _out(dest,_LOG(_in(src).x))\n"
+    "vec4 _LOG(float src)\n"
+    "{\n"
+    "  return vec4(log2(src));\n"
+    "}\n"
+    "\n"
+    "#define LIT(dest, src) dest = _out(dest,_LIT(_in(src)))\n"
+    "vec4 _LIT(vec4 src)\n"
+    "{\n"
+    "  vec4 t = vec4(1.0, 0.0, 0.0, 1.0);\n"
+    "  float power = src.w;\n"
 #if 0
-    "ATTRIB v0 = vertex.position;" // (See "conventional" note above)
-    "ATTRIB v1 = vertex.%s;" // Note : We replace this with "weight" or "attrib[1]" depending GL_ARB_vertex_blend
-    "ATTRIB v2 = vertex.normal;"
-    "ATTRIB v3 = vertex.color.primary;"
-    "ATTRIB v4 = vertex.color.secondary;"
-    "ATTRIB v5 = vertex.fogcoord;"
-    "ATTRIB v6 = vertex.attrib[6];"
-    "ATTRIB v7 = vertex.attrib[7];"
-    "ATTRIB v8 = vertex.texcoord[0];"
-    "ATTRIB v9 = vertex.texcoord[1];"
-    "ATTRIB v10 = vertex.texcoord[2];"
-    "ATTRIB v11 = vertex.texcoord[3];"
-#else
-    "ATTRIB v0 = vertex.attrib[0];\n"
-    "ATTRIB v1 = vertex.attrib[1];\n"
-    "ATTRIB v2 = vertex.attrib[2];\n"
-    "ATTRIB v3 = vertex.attrib[3];\n"
-    "ATTRIB v4 = vertex.attrib[4];\n"
-    "ATTRIB v5 = vertex.attrib[5];\n"
-    "ATTRIB v6 = vertex.attrib[6];\n"
-    "ATTRIB v7 = vertex.attrib[7];\n"
-    "ATTRIB v8 = vertex.attrib[8];\n"
-    "ATTRIB v9 = vertex.attrib[9];\n"
-    "ATTRIB v10 = vertex.attrib[10];\n"
-    "ATTRIB v11 = vertex.attrib[11];\n"
+    //XXX: Limitation for 8.8 fixed point
+    "  power = max(power, -127.9961);\n"
+    "  power = min(power, 127.9961);\n"
 #endif
-    "ATTRIB v12 = vertex.attrib[12];\n"
-    "ATTRIB v13 = vertex.attrib[13];\n"
-    "ATTRIB v14 = vertex.attrib[14];\n"
-    "ATTRIB v15 = vertex.attrib[15];\n"
-    "OUTPUT oPos = result.position;\n"
-    "OUTPUT oD0 = result.color.front.primary;\n"
-    "OUTPUT oD1 = result.color.front.secondary;\n"
-    "OUTPUT oB0 = result.color.back.primary;\n"
-    "OUTPUT oB1 = result.color.back.secondary;\n"
-    "OUTPUT oPts = result.pointsize;\n"
-    "OUTPUT oFog = result.fogcoord;\n"
-    "OUTPUT oT0 = result.texcoord[0];\n"
-    "OUTPUT oT1 = result.texcoord[1];\n"
-    "OUTPUT oT2 = result.texcoord[2];\n"
-    "OUTPUT oT3 = result.texcoord[3];\n"
-
-    /* All constants in 1 array declaration (requires NV_gpu_program4?) */
-    "PARAM c[] = { program.env[0..191] };\n"
-
-    /* w component of outputs are expected to be initialised to 1 */
-    "MOV R12, 0.0;\n"
-    "MOV R12.w, 1.0;\n"
-    "MOV oD0.w, 1.0;\n"
-    "MOV oD1.w, 1.0;\n"
-    "MOV oB0.w, 1.0;\n"
-    "MOV oB1.w, 1.0;\n"
-    "MOV oT0.w, 1.0;\n"
-    "MOV oT1.w, 1.0;\n"
-    "MOV oT2.w, 1.0;\n"
-    "MOV oT3.w, 1.0;\n";
-
+    "  if (src.x > 0.0) {\n"
+    "    t.y = src.x;\n"
+    "    if (src.y > 0.0) {\n"
+    //XXX: Allowed approximation is EXP(power * LOG(src.y))
+    "      t.z = pow(src.y, power);\n"
+    "    }\n"
+    "  }\n"
+    "  return t;\n"
+    "}\n";
 
 QString* vsh_translate(uint16_t version,
                        uint32_t *tokens, unsigned int tokens_length)
 {
-    QString *ret = qstring_from_str(vsh_header);
-    
+    QString *body = qstring_from_str("\n");
+    QString *header = qstring_from_str(vsh_header);
+
+
+    bool has_final = false;
     uint32_t *cur_token = tokens;
+    unsigned int slot;
     while (cur_token-tokens < tokens_length) {
+        slot = (cur_token-tokens) / VSH_TOKEN_SIZE;
         QString *token_str = decode_token(cur_token);
-        qstring_append(ret, qstring_get_str(token_str));
+        qstring_append_fmt(body,
+                           "  /* Slot %d: 0x%08X 0x%08X 0x%08X 0x%08X */",
+                           slot,
+                           cur_token[0],cur_token[1],cur_token[2],cur_token[3]);
+        qstring_append(body, "\n");
+        qstring_append(body, qstring_get_str(token_str));
+        qstring_append(body, "\n");
         QDECREF(token_str);
 
         if (vsh_get_field(cur_token, FLD_FINAL)) {
+            has_final = true;
             break;
         }
         cur_token += VSH_TOKEN_SIZE;
     }
-
-    /* Note : Since we replaced oPos with r12 in the above decoding,
-     * we have to assign oPos at the end; This can be done in two ways;
-     * 1) When the shader is complete (including transformations),
-     *    we could just do a 'MOV oPos, R12;' and be done with it.
-     * 2) In case of D3DFVF_XYZRHW, it seems the NV2A applies the mvp
-     *    (model/view/projection) matrix transformation AFTER executing
-     *    the shader (but OpenGL expects *the*shader* to handle this
-     *    transformation).
-     * Until we can discern these two situations, we apply the matrix 
-     * transformation :
-     * TODO : What should we do about normals, eye-space lighting and all that?
-     */
-    qstring_append(ret,
-/*
-    '# Dxbx addition : Transform the vertex to clip coordinates :'
-    "DP4 R0.x, mvp[0], R12;"
-    "DP4 R0.y, mvp[1], R12;"
-    "DP4 R0.z, mvp[2], R12;"
-    "DP4 R0.w, mvp[3], R12;"
-    "MOV R12, R0;"
-*/
+    assert(has_final);
 
 
+    qstring_append(body,
         /* the shaders leave the result in screen space, while
          * opengl expects it in clip coordinates.
          * Use the magic viewport constants for now,
-         * but they're not necessarily present.
-         * Same idea as above I think, but dono what the mvp stuff is about...
+         * but they're not necessarily present...
         */
-        "# un-screenspace transform\n"
-        "ADD R12, R12, -c[59];\n"
-        "RCP R1.x, c[58].x;\n"
-        "RCP R1.y, c[58].y;\n"
 
-        /* scale_z = view_z == 0 ? 1 : (1 / view_z) */
-        "ABS R1.z, c[58].z;\n"
-        "SGE R1.z, -R1.z, 0;\n"
-        "ADD R1.z, R1.z, c[58].z;\n"
-        "RCP R1.z, R1.z;\n"
+        "  /* Un-screenspace transform */\n"
+        "  oPos.xyz = oPos.xyz - viewport_offset.xyz;\n"
+        "  vec3 tmp = vec3(1.0);\n"
 
-        "MUL R12.xyz, R12, R1;\n"
-        "MOV R12.w, 1.0;\n"
+        /* FIXME: old comment was "scale_z = view_z == 0 ? 1 : (1 / view_z)" */
+        "  if (viewport_scale.x != 0.0) { tmp.x /= viewport_scale.x; }\n"
+        "  if (viewport_scale.y != 0.0) { tmp.y /= viewport_scale.y; }\n"
+        "  if (viewport_scale.z != 0.0) { tmp.z /= viewport_scale.z; }\n"
 
-        /* undo the perspective divide? */
-        //"MUL R12.xyz, R12, R12.w;\n"
+        "  oPos.xyz *= tmp.xyz;\n"
+        "  oPos.w = 1.0;\n" //This breaks 2D? Maybe w is zero?
+        "\n"
+#if 0
+//FIXME: Use surface width / height / zeta max
+      "R12.z /= 16777215.0;\n" // Z[0;1]
+      "R12.z *= (cliprange.y - cliprange.x) / 16777215.0;\n" // Scale so [0;zmax] -> [0;cliprange_size]
+      "R12.z -= cliprange.x / 16777215.0;\n" // Move down so [clipmin_min;clipmin_max]
+      // X = [0;surface_width]; Y = [surface_height;0]; Z = [0;1]; W = ???
+      "R12.xyz = R12.xyz / vec3(640.0,480.0,1.0);\n"
+      // X,Z = [0;1]; Y = [1;0]; W = ???
+      "R12.xyz = R12.xyz * vec3(2.0) - vec3(1.0);\n"
+      "R12.y *= -1.0;\n"
+      "R12.w = 1.0;\n"
+      // X,Y,Z = [-1;+1]; W = 1
+        "\n"
+#endif
 
         /* Z coord [0;1]->[-1;1] mapping, see comment in transform_projection
          * in state.c
@@ -711,9 +816,31 @@ QString* vsh_translate(uint16_t version,
         //"ADD R12.z, R12.z, R12.z;\n"
         //"ADD R12.z, R12.z, -R12.w;\n"
 
-        "# End of shader:\n"
-        "MOV oPos, R12;\n"
-        "END"
+
+        "  /* Set outputs */\n"
+        "  gl_Position = oPos;\n"
+        "  gl_FrontColor = oD0;\n"
+        "  gl_FrontSecondaryColor = oD1;\n"
+        "  gl_BackColor = oB0;\n"
+        "  gl_BackSecondaryColor = oB1;\n"
+        "  gl_PointSize = oPts.x;\n"
+        "  gl_FogFragCoord = oFog.x;\n"
+        "  gl_TexCoord[0] = oT0;\n"
+        "  gl_TexCoord[1] = oT1;\n"
+        "  gl_TexCoord[2] = oT2;\n"
+        "  gl_TexCoord[3] = oT3;\n"
+        "\n"
     );
+
+    QString *ret = qstring_new();
+    qstring_append(ret, qstring_get_str(header));
+    qstring_append(ret,"\n"
+                       "void main(void)\n"
+                       "{\n");
+    qstring_append(ret, qstring_get_str(body));
+    qstring_append(ret,"}\n");
+    QDECREF(header);
+    QDECREF(body);
     return ret;
 }
+
