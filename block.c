@@ -1006,6 +1006,72 @@ free_and_fail:
 }
 
 /*
+ * Fills in default options for opening images and converts the legacy
+ * filename/flags pair to option QDict entries.
+ */
+static int bdrv_fill_options(QDict **options, const char *filename,
+                             Error **errp)
+{
+    const char *drvname;
+    bool parse_filename = false;
+    Error *local_err = NULL;
+    BlockDriver *drv;
+
+    /* Fetch the file name from the options QDict if necessary */
+    if (filename) {
+        if (!qdict_haskey(*options, "filename")) {
+            qdict_put(*options, "filename", qstring_from_str(filename));
+            parse_filename = true;
+        } else {
+            error_setg(errp, "Can't specify 'file' and 'filename' options at "
+                             "the same time");
+            return -EINVAL;
+        }
+    }
+
+    /* Find the right block driver */
+    filename = qdict_get_try_str(*options, "filename");
+    drvname = qdict_get_try_str(*options, "driver");
+
+    if (!drvname) {
+        if (filename) {
+            drv = bdrv_find_protocol(filename, parse_filename);
+            if (!drv) {
+                error_setg(errp, "Unknown protocol");
+                return -EINVAL;
+            }
+
+            drvname = drv->format_name;
+            qdict_put(*options, "driver", qstring_from_str(drvname));
+        } else {
+            error_setg(errp, "Must specify either driver or file");
+            return -EINVAL;
+        }
+    }
+
+    drv = bdrv_find_format(drvname);
+    if (!drv) {
+        error_setg(errp, "Unknown driver '%s'", drvname);
+        return -ENOENT;
+    }
+
+    /* Driver-specific filename parsing */
+    if (drv->bdrv_parse_filename && parse_filename) {
+        drv->bdrv_parse_filename(filename, *options, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return -EINVAL;
+        }
+
+        if (!drv->bdrv_needs_filename) {
+            qdict_del(*options, "filename");
+        }
+    }
+
+    return 0;
+}
+
+/*
  * Opens a file using a protocol (file, host_device, nbd, ...)
  *
  * options is an indirect pointer to a QDict of options to pass to the block
@@ -1020,63 +1086,23 @@ static int bdrv_file_open(BlockDriverState *bs, const char *filename,
 {
     BlockDriver *drv;
     const char *drvname;
-    bool parse_filename = false;
     Error *local_err = NULL;
     int ret;
 
-    /* Fetch the file name from the options QDict if necessary */
-    if (!filename) {
-        filename = qdict_get_try_str(*options, "filename");
-    } else if (filename && !qdict_haskey(*options, "filename")) {
-        qdict_put(*options, "filename", qstring_from_str(filename));
-        parse_filename = true;
-    } else {
-        error_setg(errp, "Can't specify 'file' and 'filename' options at the "
-                   "same time");
-        ret = -EINVAL;
+    ret = bdrv_fill_options(options, filename, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         goto fail;
     }
 
-    /* Find the right block driver */
-    drvname = qdict_get_try_str(*options, "driver");
-    if (drvname) {
-        drv = bdrv_find_format(drvname);
-        if (!drv) {
-            error_setg(errp, "Unknown driver '%s'", drvname);
-        }
-        qdict_del(*options, "driver");
-    } else if (filename) {
-        drv = bdrv_find_protocol(filename, parse_filename);
-        if (!drv) {
-            error_setg(errp, "Unknown protocol");
-        }
-    } else {
-        error_setg(errp, "Must specify either driver or file");
-        drv = NULL;
-    }
+    filename = qdict_get_try_str(*options, "filename");
+    drvname = qdict_get_str(*options, "driver");
 
-    if (!drv) {
-        /* errp has been set already */
-        ret = -ENOENT;
-        goto fail;
-    }
+    drv = bdrv_find_format(drvname);
+    assert(drv);
+    qdict_del(*options, "driver");
 
-    /* Parse the filename and open it */
-    if (drv->bdrv_parse_filename && parse_filename) {
-        drv->bdrv_parse_filename(filename, *options, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            ret = -EINVAL;
-            goto fail;
-        }
-
-        if (!drv->bdrv_needs_filename) {
-            qdict_del(*options, "filename");
-        } else {
-            filename = qdict_get_str(*options, "filename");
-        }
-    }
-
+    /* Open the file */
     if (!drv->bdrv_file_open) {
         ret = bdrv_open(&bs, filename, NULL, *options, flags, drv, &local_err);
         *options = NULL;
