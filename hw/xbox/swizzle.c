@@ -29,7 +29,7 @@
 static unsigned int log2(unsigned int i)
 {
     unsigned int r = 0;
-    while (i >> ++r);
+    while (i >>= 1) r++;
     return r;
 }
 
