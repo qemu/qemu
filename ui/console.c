@@ -30,7 +30,6 @@
 #include "trace.h"
 
 #define DEFAULT_BACKSCROLL 512
-#define MAX_CONSOLES 12
 #define CONSOLE_CURSOR_PERIOD 500
 
 typedef struct TextAttributes {
@@ -173,7 +172,7 @@ struct DisplayState {
 
 static DisplayState *display_state;
 static QemuConsole *active_console;
-static QemuConsole *consoles[MAX_CONSOLES];
+static QemuConsole **consoles;
 static int nb_consoles = 0;
 static bool cursor_visible_phase;
 static QEMUTimer *cursor_timer;
@@ -983,9 +982,6 @@ void console_select(unsigned int index)
     DisplayChangeListener *dcl;
     QemuConsole *s;
 
-    if (index >= MAX_CONSOLES)
-        return;
-
     trace_console_select(index);
     s = qemu_console_lookup_by_index(index);
     if (s) {
@@ -1191,9 +1187,6 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type,
     QemuConsole *s;
     int i;
 
-    if (nb_consoles >= MAX_CONSOLES)
-        return NULL;
-
     obj = object_new(TYPE_QEMU_CONSOLE);
     s = QEMU_CONSOLE(obj);
     s->head = head;
@@ -1211,6 +1204,8 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type,
     }
     s->ds = ds;
     s->console_type = console_type;
+
+    consoles = g_realloc(consoles, sizeof(*consoles) * (nb_consoles+1));
     if (console_type != GRAPHIC_CONSOLE) {
         s->index = nb_consoles;
         consoles[nb_consoles++] = s;
@@ -1634,7 +1629,7 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
 
 QemuConsole *qemu_console_lookup_by_index(unsigned int index)
 {
-    if (index >= MAX_CONSOLES) {
+    if (index >= nb_consoles) {
         return NULL;
     }
     return consoles[index];
