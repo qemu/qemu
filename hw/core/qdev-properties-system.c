@@ -180,7 +180,6 @@ PropertyInfo qdev_prop_chr = {
 static int parse_netdev(DeviceState *dev, const char *str, void **ptr)
 {
     NICPeers *peers_ptr = (NICPeers *)ptr;
-    NICConf *conf = container_of(peers_ptr, NICConf, peers);
     NetClientState **ncs = peers_ptr->ncs;
     NetClientState *peers[MAX_QUEUE_NUM];
     int queues, i = 0;
@@ -219,7 +218,7 @@ static int parse_netdev(DeviceState *dev, const char *str, void **ptr)
         ncs[i]->queue_index = i;
     }
 
-    conf->queues = queues;
+    peers_ptr->queues = queues;
 
     return 0;
 

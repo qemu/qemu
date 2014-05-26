@@ -250,7 +250,7 @@ NICState *qemu_new_nic(NetClientInfo *info,
 {
     NetClientState **peers = conf->peers.ncs;
     NICState *nic;
-    int i, queues = MAX(1, conf->queues);
+    int i, queues = MAX(1, conf->peers.queues);
 
     assert(info->type == NET_CLIENT_OPTIONS_KIND_NIC);
     assert(info->size >= sizeof(NICState));
@@ -363,7 +363,7 @@ void qemu_del_net_client(NetClientState *nc)
 
 void qemu_del_nic(NICState *nic)
 {
-    int i, queues = MAX(nic->conf->queues, 1);
+    int i, queues = MAX(nic->conf->peers.queues, 1);
 
     /* If this is a peer NIC and peer has already been deleted, free it now. */
     if (nic->peer_deleted) {

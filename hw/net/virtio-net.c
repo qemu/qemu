@@ -1542,7 +1542,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 
     virtio_init(vdev, "virtio-net", VIRTIO_ID_NET, n->config_size);
 
-    n->max_queues = MAX(n->nic_conf.queues, 1);
+    n->max_queues = MAX(n->nic_conf.peers.queues, 1);
     n->vqs = g_malloc0(sizeof(VirtIONetQueue) * n->max_queues);
     n->vqs[0].rx_vq = virtio_add_queue(vdev, 256, virtio_net_handle_rx);
     n->curr_queues = 1;
