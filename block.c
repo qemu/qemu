@@ -1009,13 +1009,18 @@ free_and_fail:
  * Fills in default options for opening images and converts the legacy
  * filename/flags pair to option QDict entries.
  */
-static int bdrv_fill_options(QDict **options, const char *filename,
+static int bdrv_fill_options(QDict **options, const char *filename, int flags,
                              Error **errp)
 {
     const char *drvname;
+    bool protocol = flags & BDRV_O_PROTOCOL;
     bool parse_filename = false;
     Error *local_err = NULL;
     BlockDriver *drv;
+
+    if (!protocol) {
+        return 0;
+    }
 
     /* Fetch the file name from the options QDict if necessary */
     if (filename) {
@@ -1081,19 +1086,14 @@ static int bdrv_fill_options(QDict **options, const char *filename,
  * returns. Then, the caller is responsible for freeing it. If it intends to
  * reuse the QDict, QINCREF() should be called beforehand.
  */
-static int bdrv_file_open(BlockDriverState *bs, const char *filename,
-                          QDict **options, int flags, Error **errp)
+static int bdrv_file_open(BlockDriverState *bs, QDict **options, int flags,
+                          Error **errp)
 {
     BlockDriver *drv;
+    const char *filename;
     const char *drvname;
     Error *local_err = NULL;
     int ret;
-
-    ret = bdrv_fill_options(options, filename, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto fail;
-    }
 
     filename = qdict_get_try_str(*options, "filename");
     drvname = qdict_get_str(*options, "driver");
@@ -1436,12 +1436,17 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         filename = NULL;
     }
 
+    ret = bdrv_fill_options(&options, filename, flags, &local_err);
+    if (local_err) {
+        goto fail;
+    }
+
     bs->options = options;
     options = qdict_clone_shallow(options);
 
     if (flags & BDRV_O_PROTOCOL) {
         assert(!drv);
-        ret = bdrv_file_open(bs, filename, &options, flags & ~BDRV_O_PROTOCOL,
+        ret = bdrv_file_open(bs, &options, flags & ~BDRV_O_PROTOCOL,
                              &local_err);
         if (!ret) {
             drv = bs->drv;
