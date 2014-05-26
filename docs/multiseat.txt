@@ -46,29 +46,37 @@ You need a pretty recent linux guest.  systemd with loginctl.  kernel
 fully updated for the new kernel though, i.e. the live iso doesn't cut
 it.
 
-Now we'll have to configure the guest.  Boot and login.  By default
-all devices belong to seat0.  You can use "loginctl seat-status seat0"
-to list them all (and to get the sysfs paths for cut+paste).  Now
-we'll go assign all pci devices connected the pci bridge in slot 12 to
-a new head:
+Now we'll have to configure the guest.  Boot and login.  "lspci -vt"
+should list the pci bridge with the display adapter and usb controller:
 
-loginctl attach seat-qemu \
-	 /sys/devices/pci0000:00/0000:00:12.0/0000:01:02.0/drm/card1
-loginctl attach seat-qemu \
-	 /sys/devices/pci0000:00/0000:00:12.0/0000:01:02.0/graphics/fb1
-loginctl attach seat-qemu \
-	 /sys/devices/pci0000:00/0000:00:12.0/0000:01:0f.0/usb2
+    [root@fedora ~]# lspci -vt
+    -[0000:00]-+-00.0  Intel Corporation 440FX - 82441FX PMC [Natoma]
+               [ ... ]
+               \-12.0-[01]--+-02.0  Device 1234:1111
+                            \-0f.0  NEC Corporation USB 3.0 Host Controller
 
-Use "loginctl seat-status seat-qemu" to check the result.  It isn't
-needed to assign the usb devices to the head individually, assigning a
-usb (root) hub will automatically assign all usb devices connected to
-it too.
+Good.  Now lets tell the system that the pci bridge and all devices
+below it belong to a separate seat by dropping a file into
+/etc/udev/rules.d:
 
-BTW: loginctl writes udev rules to /etc/udev/rules.d to make these
-device assignments permanent, so you need to do this only once.
+    [root@fedora ~]# cat /etc/udev/rules.d/70-qemu-autoseat.rules
+    SUBSYSTEMS=="pci", DEVPATH=="*/0000:00:12.0", TAG+="seat", ENV{ID_AUTOSEAT}="1"
 
-Now simply restart gdm (rebooting will do too), and a login screen
-should show up on the second head.
+Reboot.  System should come up with two seats.  With loginctl you can
+check the configuration:
+
+    [root@fedora ~]# loginctl list-seats
+    SEAT
+    seat0
+    seat-pci-pci-0000_00_12_0
+
+    2 seats listed.
+
+You can use "loginctl seat-status seat-pci-pci-0000_00_12_0" to list
+the devices attached to the seat.
+
+Background info is here:
+  http://www.freedesktop.org/wiki/Software/systemd/multiseat/
 
 Enjoy!
 
