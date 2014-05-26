@@ -2891,7 +2891,8 @@ static int object_set_property(const char *name, const char *value, void *opaque
     StringInputVisitor *siv;
     Error *local_err = NULL;
 
-    if (strcmp(name, "qom-type") == 0 || strcmp(name, "id") == 0) {
+    if (strcmp(name, "qom-type") == 0 || strcmp(name, "id") == 0 ||
+        strcmp(name, "type") == 0) {
         return 0;
     }
 
