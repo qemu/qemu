@@ -4220,6 +4220,13 @@ int main(int argc, char **argv, char **envp)
         exit(0);
     }
 
+    machine_opts = qemu_get_machine_opts();
+    if (qemu_opt_foreach(machine_opts, object_set_property, current_machine,
+                         1) < 0) {
+        object_unref(OBJECT(current_machine));
+        exit(1);
+    }
+
     configure_accelerator(machine_class);
 
     if (qtest_chrdev) {
@@ -4264,6 +4271,7 @@ int main(int argc, char **argv, char **envp)
 
     if (!kernel_cmdline) {
         kernel_cmdline = "";
+        current_machine->kernel_cmdline = (char *)kernel_cmdline;
     }
 
     linux_boot = (kernel_filename != NULL);
@@ -4428,9 +4436,6 @@ int main(int argc, char **argv, char **envp)
 
     current_machine->ram_size = ram_size;
     current_machine->boot_order = boot_order;
-    current_machine->kernel_filename = kernel_filename;
-    current_machine->kernel_cmdline = kernel_cmdline;
-    current_machine->initrd_filename = initrd_filename;
     current_machine->cpu_model = cpu_model;
 
     machine_class->init(current_machine);

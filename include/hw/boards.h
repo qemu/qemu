@@ -114,9 +114,9 @@ struct MachineState {
 
     ram_addr_t ram_size;
     const char *boot_order;
-    const char *kernel_filename;
-    const char *kernel_cmdline;
-    const char *initrd_filename;
+    char *kernel_filename;
+    char *kernel_cmdline;
+    char *initrd_filename;
     const char *cpu_model;
 };
 
