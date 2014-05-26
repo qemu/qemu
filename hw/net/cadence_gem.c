@@ -880,6 +880,8 @@ static void gem_transmit(GemState *s)
 
     /* read current descriptor */
     packet_desc_addr = s->tx_desc_addr;
+
+    DB_PRINT("read descriptor 0x%" HWADDR_PRIx "\n", packet_desc_addr);
     cpu_physical_memory_read(packet_desc_addr,
                              (uint8_t *)&desc[0], sizeof(desc));
     /* Handle all descriptors owned by hardware */
@@ -962,6 +964,7 @@ static void gem_transmit(GemState *s)
         } else {
             packet_desc_addr += 8;
         }
+        DB_PRINT("read descriptor 0x%" HWADDR_PRIx "\n", packet_desc_addr);
         cpu_physical_memory_read(packet_desc_addr,
                                  (uint8_t *)&desc[0], sizeof(desc));
     }
