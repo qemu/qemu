@@ -748,8 +748,14 @@ static void dbdma_reset(void *opaque)
 void* DBDMA_init (MemoryRegion **dbdma_mem)
 {
     DBDMAState *s;
+    int i;
 
     s = g_malloc0(sizeof(DBDMAState));
+
+    for (i = 0; i < DBDMA_CHANNELS; i++) {
+        DBDMA_io *io = &s->channels[i].io;
+        qemu_iovec_init(&io->iov, 1);
+    }
 
     memory_region_init_io(&s->mem, NULL, &dbdma_ops, s, "dbdma", 0x1000);
     *dbdma_mem = &s->mem;
