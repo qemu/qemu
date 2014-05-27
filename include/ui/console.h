@@ -82,6 +82,7 @@ void do_mouse_set(Monitor *mon, const QDict *qdict);
 #define QEMU_KEY_CTRL_PAGEDOWN   0xe407
 
 void kbd_put_keysym_console(QemuConsole *s, int keysym);
+bool kbd_put_qcode_console(QemuConsole *s, int qcode);
 void kbd_put_keysym(int keysym);
 
 /* consoles */

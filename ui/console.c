@@ -1109,6 +1109,30 @@ void kbd_put_keysym_console(QemuConsole *s, int keysym)
     }
 }
 
+static const int qcode_to_keysym[Q_KEY_CODE_MAX] = {
+    [Q_KEY_CODE_UP]     = QEMU_KEY_UP,
+    [Q_KEY_CODE_DOWN]   = QEMU_KEY_DOWN,
+    [Q_KEY_CODE_RIGHT]  = QEMU_KEY_RIGHT,
+    [Q_KEY_CODE_LEFT]   = QEMU_KEY_LEFT,
+    [Q_KEY_CODE_HOME]   = QEMU_KEY_HOME,
+    [Q_KEY_CODE_END]    = QEMU_KEY_END,
+    [Q_KEY_CODE_PGUP]   = QEMU_KEY_PAGEUP,
+    [Q_KEY_CODE_PGDN]   = QEMU_KEY_PAGEDOWN,
+    [Q_KEY_CODE_DELETE] = QEMU_KEY_DELETE,
+};
+
+bool kbd_put_qcode_console(QemuConsole *s, int qcode)
+{
+    int keysym;
+
+    keysym = qcode_to_keysym[qcode];
+    if (keysym == 0) {
+        return false;
+    }
+    kbd_put_keysym_console(s, keysym);
+    return true;
+}
+
 void kbd_put_keysym(int keysym)
 {
     kbd_put_keysym_console(active_console, keysym);
