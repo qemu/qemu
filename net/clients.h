@@ -57,4 +57,7 @@ int net_init_netmap(const NetClientOptions *opts, const char *name,
                     NetClientState *peer);
 #endif
 
+int net_init_vhost_user(const NetClientOptions *opts, const char *name,
+                        NetClientState *peer);
+
 #endif /* QEMU_NET_CLIENTS_H */
