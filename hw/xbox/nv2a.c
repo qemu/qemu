@@ -640,7 +640,7 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A4R4G4B4] =
         {2, false, GL_RGBA, GL_BGRA, GL_UNSIGNED_SHORT_4_4_4_4_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R5G6B5] =
-        {2, false, GL_RGB, GL_BGR, GL_UNSIGNED_SHORT_5_6_5_REV},
+        {2, false, GL_RGB, GL_RGB, GL_UNSIGNED_SHORT_5_6_5},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8] =
         {4, false, GL_RGBA, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8] =
@@ -658,7 +658,7 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
         {4, false, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 0, GL_RGBA},
 
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R5G6B5] =
-        {2, true, GL_RGB, GL_BGR, GL_UNSIGNED_SHORT_5_6_5_REV},
+        {2, true, GL_RGB, GL_RGB, GL_UNSIGNED_SHORT_5_6_5},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8R8G8B8] =
         {4, true, GL_RGBA, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
     /* TODO: how do opengl alpha textures work? */
@@ -1919,8 +1919,8 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
         switch (d->pgraph.surface_color.format) {
         case NV097_SET_SURFACE_FORMAT_COLOR_LE_R5G6B5:
             bytes_per_pixel = 2;
-            gl_format = GL_BGR;
-            gl_type = GL_UNSIGNED_SHORT_5_6_5_REV;
+            gl_format = GL_RGB;
+            gl_type = GL_UNSIGNED_SHORT_5_6_5;
             break;
         case NV097_SET_SURFACE_FORMAT_COLOR_LE_X8R8G8B8_Z8R8G8B8:
         case NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8:
