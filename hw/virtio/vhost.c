@@ -990,6 +990,33 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
     assert(r >= 0);
 }
 
+unsigned vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
+        unsigned features)
+{
+    const int *bit = feature_bits;
+    while (*bit != VHOST_INVALID_FEATURE_BIT) {
+        unsigned bit_mask = (1 << *bit);
+        if (!(hdev->features & bit_mask)) {
+            features &= ~bit_mask;
+        }
+        bit++;
+    }
+    return features;
+}
+
+void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,
+        unsigned features)
+{
+    const int *bit = feature_bits;
+    while (*bit != VHOST_INVALID_FEATURE_BIT) {
+        unsigned bit_mask = (1 << *bit);
+        if (features & bit_mask) {
+            hdev->acked_features |= bit_mask;
+        }
+        bit++;
+    }
+}
+
 /* Host notifiers must be enabled at this point. */
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 {

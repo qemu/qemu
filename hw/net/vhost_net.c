@@ -46,39 +46,41 @@ struct vhost_net {
     NetClientState *nc;
 };
 
+/* Features supported by host kernel. */
+static const int kernel_feature_bits[] = {
+    VIRTIO_F_NOTIFY_ON_EMPTY,
+    VIRTIO_RING_F_INDIRECT_DESC,
+    VIRTIO_RING_F_EVENT_IDX,
+    VIRTIO_NET_F_MRG_RXBUF,
+    VHOST_INVALID_FEATURE_BIT
+};
+
+static const int *vhost_net_get_feature_bits(struct vhost_net *net)
+{
+    const int *feature_bits = 0;
+
+    switch (net->nc->info->type) {
+    case NET_CLIENT_OPTIONS_KIND_TAP:
+        feature_bits = kernel_feature_bits;
+        break;
+    default:
+        error_report("Feature bits not defined for this type: %d",
+                net->nc->info->type);
+        break;
+    }
+
+    return feature_bits;
+}
+
 unsigned vhost_net_get_features(struct vhost_net *net, unsigned features)
 {
-    /* Clear features not supported by host kernel. */
-    if (!(net->dev.features & (1 << VIRTIO_F_NOTIFY_ON_EMPTY))) {
-        features &= ~(1 << VIRTIO_F_NOTIFY_ON_EMPTY);
-    }
-    if (!(net->dev.features & (1 << VIRTIO_RING_F_INDIRECT_DESC))) {
-        features &= ~(1 << VIRTIO_RING_F_INDIRECT_DESC);
-    }
-    if (!(net->dev.features & (1 << VIRTIO_RING_F_EVENT_IDX))) {
-        features &= ~(1 << VIRTIO_RING_F_EVENT_IDX);
-    }
-    if (!(net->dev.features & (1 << VIRTIO_NET_F_MRG_RXBUF))) {
-        features &= ~(1 << VIRTIO_NET_F_MRG_RXBUF);
-    }
-    return features;
+    return vhost_get_features(&net->dev, vhost_net_get_feature_bits(net),
+            features);
 }
 
 void vhost_net_ack_features(struct vhost_net *net, unsigned features)
 {
-    net->dev.acked_features = net->dev.backend_features;
-    if (features & (1 << VIRTIO_F_NOTIFY_ON_EMPTY)) {
-        net->dev.acked_features |= (1 << VIRTIO_F_NOTIFY_ON_EMPTY);
-    }
-    if (features & (1 << VIRTIO_RING_F_INDIRECT_DESC)) {
-        net->dev.acked_features |= (1 << VIRTIO_RING_F_INDIRECT_DESC);
-    }
-    if (features & (1 << VIRTIO_RING_F_EVENT_IDX)) {
-        net->dev.acked_features |= (1 << VIRTIO_RING_F_EVENT_IDX);
-    }
-    if (features & (1 << VIRTIO_NET_F_MRG_RXBUF)) {
-        net->dev.acked_features |= (1 << VIRTIO_NET_F_MRG_RXBUF);
-    }
+    vhost_ack_features(&net->dev, vhost_net_get_feature_bits(net), features);
 }
 
 static int vhost_net_get_fd(NetClientState *backend)

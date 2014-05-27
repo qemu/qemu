@@ -24,6 +24,15 @@
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/virtio-bus.h"
 
+/* Features supported by host kernel. */
+static const int kernel_feature_bits[] = {
+    VIRTIO_F_NOTIFY_ON_EMPTY,
+    VIRTIO_RING_F_INDIRECT_DESC,
+    VIRTIO_RING_F_EVENT_IDX,
+    VIRTIO_SCSI_F_HOTPLUG,
+    VHOST_INVALID_FEATURE_BIT
+};
+
 static int vhost_scsi_set_endpoint(VHostSCSI *s)
 {
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
@@ -141,21 +150,7 @@ static uint32_t vhost_scsi_get_features(VirtIODevice *vdev,
 {
     VHostSCSI *s = VHOST_SCSI(vdev);
 
-    /* Clear features not supported by host kernel. */
-    if (!(s->dev.features & (1 << VIRTIO_F_NOTIFY_ON_EMPTY))) {
-        features &= ~(1 << VIRTIO_F_NOTIFY_ON_EMPTY);
-    }
-    if (!(s->dev.features & (1 << VIRTIO_RING_F_INDIRECT_DESC))) {
-        features &= ~(1 << VIRTIO_RING_F_INDIRECT_DESC);
-    }
-    if (!(s->dev.features & (1 << VIRTIO_RING_F_EVENT_IDX))) {
-        features &= ~(1 << VIRTIO_RING_F_EVENT_IDX);
-    }
-    if (!(s->dev.features & (1 << VIRTIO_SCSI_F_HOTPLUG))) {
-        features &= ~(1 << VIRTIO_SCSI_F_HOTPLUG);
-    }
-
-    return features;
+    return vhost_get_features(&s->dev, kernel_feature_bits, features);
 }
 
 static void vhost_scsi_set_config(VirtIODevice *vdev,
