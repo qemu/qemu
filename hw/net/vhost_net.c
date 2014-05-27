@@ -96,6 +96,7 @@ static int vhost_net_get_fd(NetClientState *backend)
 struct vhost_net *vhost_net_init(VhostNetOptions *options)
 {
     int r;
+    bool backend_kernel = options->backend_type == VHOST_BACKEND_TYPE_KERNEL;
     struct vhost_net *net = g_malloc(sizeof *net);
 
     if (!options->net_backend) {
@@ -103,20 +104,25 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
         goto fail;
     }
 
-    r = vhost_net_get_fd(options->net_backend);
-    if (r < 0) {
-        goto fail;
+    if (backend_kernel) {
+        r = vhost_net_get_fd(options->net_backend);
+        if (r < 0) {
+            goto fail;
+        }
+        net->dev.backend_features = qemu_has_vnet_hdr(options->net_backend)
+            ? 0 : (1 << VHOST_NET_F_VIRTIO_NET_HDR);
+        net->backend = r;
+    } else {
+        net->dev.backend_features = 0;
+        net->backend = -1;
     }
     net->nc = options->net_backend;
-    net->dev.backend_features = qemu_has_vnet_hdr(options->net_backend) ? 0 :
-        (1 << VHOST_NET_F_VIRTIO_NET_HDR);
-    net->backend = r;
 
     net->dev.nvqs = 2;
     net->dev.vqs = net->vqs;
 
     r = vhost_dev_init(&net->dev, options->opaque,
-                       options->force);
+                       options->backend_type, options->force);
     if (r < 0) {
         goto fail;
     }
@@ -124,13 +130,15 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
                                sizeof(struct virtio_net_hdr_mrg_rxbuf))) {
         net->dev.features &= ~(1 << VIRTIO_NET_F_MRG_RXBUF);
     }
-    if (~net->dev.features & net->dev.backend_features) {
-        fprintf(stderr, "vhost lacks feature mask %" PRIu64 " for backend\n",
-                (uint64_t)(~net->dev.features & net->dev.backend_features));
-        vhost_dev_cleanup(&net->dev);
-        goto fail;
+    if (backend_kernel) {
+        if (~net->dev.features & net->dev.backend_features) {
+            fprintf(stderr, "vhost lacks feature mask %" PRIu64
+                   " for backend\n",
+                   (uint64_t)(~net->dev.features & net->dev.backend_features));
+            vhost_dev_cleanup(&net->dev);
+            goto fail;
+        }
     }
-
     /* Set sane init value. Override when guest acks. */
     vhost_net_ack_features(net, 0);
     return net;
@@ -173,23 +181,29 @@ static int vhost_net_start_one(struct vhost_net *net,
         net->nc->info->poll(net->nc, false);
     }
 
-    qemu_set_fd_handler(net->backend, NULL, NULL, NULL);
-    file.fd = net->backend;
-    for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
-        const VhostOps *vhost_ops = net->dev.vhost_ops;
-        r = vhost_ops->vhost_call(&net->dev, VHOST_NET_SET_BACKEND, &file);
-        if (r < 0) {
-            r = -errno;
-            goto fail;
+    if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP) {
+        qemu_set_fd_handler(net->backend, NULL, NULL, NULL);
+        file.fd = net->backend;
+        for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
+            const VhostOps *vhost_ops = net->dev.vhost_ops;
+            r = vhost_ops->vhost_call(&net->dev, VHOST_NET_SET_BACKEND,
+                                      &file);
+            if (r < 0) {
+                r = -errno;
+                goto fail;
+            }
         }
     }
     return 0;
 fail:
     file.fd = -1;
-    while (file.index-- > 0) {
-        const VhostOps *vhost_ops = net->dev.vhost_ops;
-        int r = vhost_ops->vhost_call(&net->dev, VHOST_NET_SET_BACKEND, &file);
-        assert(r >= 0);
+    if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP) {
+        while (file.index-- > 0) {
+            const VhostOps *vhost_ops = net->dev.vhost_ops;
+            int r = vhost_ops->vhost_call(&net->dev, VHOST_NET_SET_BACKEND,
+                                          &file);
+            assert(r >= 0);
+        }
     }
     if (net->nc->info->poll) {
         net->nc->info->poll(net->nc, true);
@@ -210,10 +224,13 @@ static void vhost_net_stop_one(struct vhost_net *net,
         return;
     }
 
-    for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
-        const VhostOps *vhost_ops = net->dev.vhost_ops;
-        int r = vhost_ops->vhost_call(&net->dev, VHOST_NET_SET_BACKEND, &file);
-        assert(r >= 0);
+    if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP) {
+        for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
+            const VhostOps *vhost_ops = net->dev.vhost_ops;
+            int r = vhost_ops->vhost_call(&net->dev, VHOST_NET_SET_BACKEND,
+                                          &file);
+            assert(r >= 0);
+        }
     }
     if (net->nc->info->poll) {
         net->nc->info->poll(net->nc, true);

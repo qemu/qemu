@@ -234,7 +234,7 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
     s->dev.vq_index = 0;
 
     ret = vhost_dev_init(&s->dev, (void *)(uintptr_t)vhostfd,
-                         true);
+                         VHOST_BACKEND_TYPE_KERNEL, true);
     if (ret < 0) {
         error_setg(errp, "vhost-scsi: vhost initialization failed: %s",
                    strerror(-ret));

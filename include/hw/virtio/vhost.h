@@ -31,7 +31,6 @@ typedef unsigned long vhost_log_chunk_t;
 struct vhost_memory;
 struct vhost_dev {
     MemoryListener memory_listener;
-    int control;
     struct vhost_memory *mem;
     int n_mem_sections;
     MemoryRegionSection *mem_sections;
@@ -51,10 +50,11 @@ struct vhost_dev {
     hwaddr mem_changed_start_addr;
     hwaddr mem_changed_end_addr;
     const VhostOps *vhost_ops;
+    void *opaque;
 };
 
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
-                   bool force);
+                   VhostBackendType backend_type, bool force);
 void vhost_dev_cleanup(struct vhost_dev *hdev);
 bool vhost_dev_query(struct vhost_dev *hdev, VirtIODevice *vdev);
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev);
