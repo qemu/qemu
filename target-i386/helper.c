@@ -811,7 +811,6 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     CPUX86State *env = &cpu->env;
     target_ulong pde_addr, pte_addr;
     uint64_t pte;
-    hwaddr paddr;
     uint32_t page_offset;
     int page_size;
 
@@ -829,25 +828,24 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 
             /* test virtual address sign extension */
             sext = (int64_t)addr >> 47;
-            if (sext != 0 && sext != -1)
+            if (sext != 0 && sext != -1) {
                 return -1;
-
+            }
             pml4e_addr = ((env->cr[3] & ~0xfff) + (((addr >> 39) & 0x1ff) << 3)) &
                 env->a20_mask;
             pml4e = ldq_phys(cs->as, pml4e_addr);
-            if (!(pml4e & PG_PRESENT_MASK))
+            if (!(pml4e & PG_PRESENT_MASK)) {
                 return -1;
-
-            pdpe_addr = ((pml4e & ~0xfff & ~(PG_NX_MASK | PG_HI_USER_MASK)) +
+            }
+            pdpe_addr = ((pml4e & PG_ADDRESS_MASK) +
                          (((addr >> 30) & 0x1ff) << 3)) & env->a20_mask;
             pdpe = ldq_phys(cs->as, pdpe_addr);
-            if (!(pdpe & PG_PRESENT_MASK))
+            if (!(pdpe & PG_PRESENT_MASK)) {
                 return -1;
-
+            }
             if (pdpe & PG_PSE_MASK) {
                 page_size = 1024 * 1024 * 1024;
-                pte = pdpe & ~( (page_size - 1) & ~0xfff);
-                pte &= ~(PG_NX_MASK | PG_HI_USER_MASK);
+                pte = pdpe;
                 goto out;
             }
 
@@ -861,7 +859,7 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
                 return -1;
         }
 
-        pde_addr = ((pdpe & ~0xfff & ~(PG_NX_MASK | PG_HI_USER_MASK)) +
+        pde_addr = ((pdpe & PG_ADDRESS_MASK) +
                     (((addr >> 21) & 0x1ff) << 3)) & env->a20_mask;
         pde = ldq_phys(cs->as, pde_addr);
         if (!(pde & PG_PRESENT_MASK)) {
@@ -870,17 +868,17 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
         if (pde & PG_PSE_MASK) {
             /* 2 MB page */
             page_size = 2048 * 1024;
-            pte = pde & ~( (page_size - 1) & ~0xfff); /* align to page_size */
+            pte = pde;
         } else {
             /* 4 KB page */
-            pte_addr = ((pde & ~0xfff & ~(PG_NX_MASK | PG_HI_USER_MASK)) +
+            pte_addr = ((pde & PG_ADDRESS_MASK) +
                         (((addr >> 12) & 0x1ff) << 3)) & env->a20_mask;
             page_size = 4096;
             pte = ldq_phys(cs->as, pte_addr);
         }
-        pte &= ~(PG_NX_MASK | PG_HI_USER_MASK);
-        if (!(pte & PG_PRESENT_MASK))
+        if (!(pte & PG_PRESENT_MASK)) {
             return -1;
+        }
     } else {
         uint32_t pde;
 
@@ -896,8 +894,9 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
             /* page directory entry */
             pte_addr = ((pde & ~0xfff) + ((addr >> 10) & 0xffc)) & env->a20_mask;
             pte = ldl_phys(cs->as, pte_addr);
-            if (!(pte & PG_PRESENT_MASK))
+            if (!(pte & PG_PRESENT_MASK)) {
                 return -1;
+            }
             page_size = 4096;
         }
         pte = pte & env->a20_mask;
@@ -906,9 +905,9 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 #ifdef TARGET_X86_64
 out:
 #endif
+    pte &= PG_ADDRESS_MASK & ~(page_size - 1);
     page_offset = (addr & TARGET_PAGE_MASK) & (page_size - 1);
-    paddr = (pte & TARGET_PAGE_MASK) + page_offset;
-    return paddr;
+    return pte | page_offset;
 }
 
 void hw_breakpoint_insert(CPUX86State *env, int index)
