@@ -18,6 +18,8 @@
 #include "libqtest.h"
 #include "qemu/compiler.h"
 #include "hw/i386/acpi-defs.h"
+#include "hw/i386/smbios.h"
+#include "qemu/bitmap.h"
 
 #define MACHINE_PC "pc"
 #define MACHINE_Q35 "q35"
@@ -46,6 +48,8 @@ typedef struct {
     uint32_t *rsdt_tables_addr;
     int rsdt_tables_nr;
     GArray *tables;
+    uint32_t smbios_ep_addr;
+    struct smbios_entry_point smbios_ep_table;
 } test_data;
 
 #define LOW(x) ((x) & 0xff)
@@ -581,6 +585,124 @@ static void test_acpi_asl(test_data *data)
     free_test_data(&exp_data);
 }
 
+static void test_smbios_ep_address(test_data *data)
+{
+    uint32_t off;
+
+    /* find smbios entry point structure */
+    for (off = 0xf0000; off < 0x100000; off += 0x10) {
+        uint8_t sig[] = "_SM_";
+        int i;
+
+        for (i = 0; i < sizeof sig - 1; ++i) {
+            sig[i] = readb(off + i);
+        }
+
+        if (!memcmp(sig, "_SM_", sizeof sig)) {
+            break;
+        }
+    }
+
+    g_assert_cmphex(off, <, 0x100000);
+    data->smbios_ep_addr = off;
+}
+
+static void test_smbios_ep_table(test_data *data)
+{
+    struct smbios_entry_point *ep_table = &data->smbios_ep_table;
+    uint32_t addr = data->smbios_ep_addr;
+
+    ACPI_READ_ARRAY(ep_table->anchor_string, addr);
+    g_assert(!memcmp(ep_table->anchor_string, "_SM_", 4));
+    ACPI_READ_FIELD(ep_table->checksum, addr);
+    ACPI_READ_FIELD(ep_table->length, addr);
+    ACPI_READ_FIELD(ep_table->smbios_major_version, addr);
+    ACPI_READ_FIELD(ep_table->smbios_minor_version, addr);
+    ACPI_READ_FIELD(ep_table->max_structure_size, addr);
+    ACPI_READ_FIELD(ep_table->entry_point_revision, addr);
+    ACPI_READ_ARRAY(ep_table->formatted_area, addr);
+    ACPI_READ_ARRAY(ep_table->intermediate_anchor_string, addr);
+    g_assert(!memcmp(ep_table->intermediate_anchor_string, "_DMI_", 5));
+    ACPI_READ_FIELD(ep_table->intermediate_checksum, addr);
+    ACPI_READ_FIELD(ep_table->structure_table_length, addr);
+    g_assert_cmpuint(ep_table->structure_table_length, >, 0);
+    ACPI_READ_FIELD(ep_table->structure_table_address, addr);
+    ACPI_READ_FIELD(ep_table->number_of_structures, addr);
+    g_assert_cmpuint(ep_table->number_of_structures, >, 0);
+    ACPI_READ_FIELD(ep_table->smbios_bcd_revision, addr);
+    g_assert(!acpi_checksum((uint8_t *)ep_table, sizeof *ep_table));
+    g_assert(!acpi_checksum((uint8_t *)ep_table + 0x10,
+                            sizeof *ep_table - 0x10));
+}
+
+static inline bool smbios_single_instance(uint8_t type)
+{
+    switch (type) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 16:
+    case 32:
+    case 127:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static void test_smbios_structs(test_data *data)
+{
+    DECLARE_BITMAP(struct_bitmap, SMBIOS_MAX_TYPE+1) = { 0 };
+    struct smbios_entry_point *ep_table = &data->smbios_ep_table;
+    uint32_t addr = ep_table->structure_table_address;
+    int i, len, max_len = 0;
+    uint8_t type, prv, crt;
+    uint8_t required_struct_types[] = {0, 1, 3, 4, 16, 17, 19, 32, 127};
+
+    /* walk the smbios tables */
+    for (i = 0; i < ep_table->number_of_structures; i++) {
+
+        /* grab type and formatted area length from struct header */
+        type = readb(addr);
+        g_assert_cmpuint(type, <=, SMBIOS_MAX_TYPE);
+        len = readb(addr + 1);
+
+        /* single-instance structs must not have been encountered before */
+        if (smbios_single_instance(type)) {
+            g_assert(!test_bit(type, struct_bitmap));
+        }
+        set_bit(type, struct_bitmap);
+
+        /* seek to end of unformatted string area of this struct ("\0\0") */
+        prv = crt = 1;
+        while (prv || crt) {
+            prv = crt;
+            crt = readb(addr + len);
+            len++;
+        }
+
+        /* keep track of max. struct size */
+        if (max_len < len) {
+            max_len = len;
+            g_assert_cmpuint(max_len, <=, ep_table->max_structure_size);
+        }
+
+        /* start of next structure */
+        addr += len;
+    }
+
+    /* total table length and max struct size must match entry point values */
+    g_assert_cmpuint(ep_table->structure_table_length, ==,
+                     addr - ep_table->structure_table_address);
+    g_assert_cmpuint(ep_table->max_structure_size, ==, max_len);
+
+    /* required struct types must all be present */
+    for (i = 0; i < ARRAY_SIZE(required_struct_types); i++) {
+        g_assert(test_bit(required_struct_types[i], struct_bitmap));
+    }
+}
+
 static void test_acpi_one(const char *params, test_data *data)
 {
     char *args;
@@ -632,6 +754,10 @@ static void test_acpi_one(const char *params, test_data *data)
             test_acpi_asl(data);
         }
     }
+
+    test_smbios_ep_address(data);
+    test_smbios_ep_table(data);
+    test_smbios_structs(data);
 
     qtest_quit(global_qtest);
     g_free(args);
