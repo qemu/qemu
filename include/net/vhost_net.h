@@ -6,7 +6,13 @@
 struct vhost_net;
 typedef struct vhost_net VHostNetState;
 
-VHostNetState *vhost_net_init(NetClientState *backend, int devfd, bool force);
+typedef struct VhostNetOptions {
+    NetClientState *net_backend;
+    void *opaque;
+    bool force;
+} VhostNetOptions;
+
+struct vhost_net *vhost_net_init(VhostNetOptions *options);
 
 bool vhost_net_query(VHostNetState *net, VirtIODevice *dev);
 int vhost_net_start(VirtIODevice *dev, NetClientState *ncs, int total_queues);

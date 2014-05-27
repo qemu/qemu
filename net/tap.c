@@ -594,6 +594,7 @@ static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                             int vnet_hdr, int fd)
 {
     TAPState *s;
+    int vhostfd;
 
     s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
     if (!s) {
@@ -624,7 +625,10 @@ static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
 
     if (tap->has_vhost ? tap->vhost :
         vhostfdname || (tap->has_vhostforce && tap->vhostforce)) {
-        int vhostfd;
+        VhostNetOptions options;
+
+        options.net_backend = &s->nc;
+        options.force = tap->has_vhostforce && tap->vhostforce;
 
         if (tap->has_vhostfd || tap->has_vhostfds) {
             vhostfd = monitor_handle_fd_param(cur_mon, vhostfdname);
@@ -632,11 +636,16 @@ static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                 return -1;
             }
         } else {
-            vhostfd = -1;
+            vhostfd = open("/dev/vhost-net", O_RDWR);
+            if (vhostfd < 0) {
+                error_report("tap: open vhost char device failed: %s",
+                           strerror(errno));
+                return -1;
+            }
         }
+        options.opaque = (void *)(uintptr_t)vhostfd;
 
-        s->vhost_net = vhost_net_init(&s->nc, vhostfd,
-                                      tap->has_vhostforce && tap->vhostforce);
+        s->vhost_net = vhost_net_init(&options);
         if (!s->vhost_net) {
             error_report("vhost-net requested but could not be initialized");
             return -1;

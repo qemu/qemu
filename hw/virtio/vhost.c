@@ -808,19 +808,13 @@ static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
     event_notifier_cleanup(&vq->masked_notifier);
 }
 
-int vhost_dev_init(struct vhost_dev *hdev, int devfd, const char *devpath,
+int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    bool force)
 {
     uint64_t features;
     int i, r;
-    if (devfd >= 0) {
-        hdev->control = devfd;
-    } else {
-        hdev->control = open(devpath, O_RDWR);
-        if (hdev->control < 0) {
-            return -errno;
-        }
-    }
+    hdev->control = (uintptr_t) opaque;;
+
     r = ioctl(hdev->control, VHOST_SET_OWNER, NULL);
     if (r < 0) {
         goto fail;

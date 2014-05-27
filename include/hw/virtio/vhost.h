@@ -51,7 +51,7 @@ struct vhost_dev {
     hwaddr mem_changed_end_addr;
 };
 
-int vhost_dev_init(struct vhost_dev *hdev, int devfd, const char *devpath,
+int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    bool force);
 void vhost_dev_cleanup(struct vhost_dev *hdev);
 bool vhost_dev_query(struct vhost_dev *hdev, VirtIODevice *vdev);

@@ -94,32 +94,34 @@ static int vhost_net_get_fd(NetClientState *backend)
     }
 }
 
-struct vhost_net *vhost_net_init(NetClientState *backend, int devfd,
-                                 bool force)
+struct vhost_net *vhost_net_init(VhostNetOptions *options)
 {
     int r;
     struct vhost_net *net = g_malloc(sizeof *net);
-    if (!backend) {
-        fprintf(stderr, "vhost-net requires backend to be setup\n");
+
+    if (!options->net_backend) {
+        fprintf(stderr, "vhost-net requires net backend to be setup\n");
         goto fail;
     }
-    r = vhost_net_get_fd(backend);
+
+    r = vhost_net_get_fd(options->net_backend);
     if (r < 0) {
         goto fail;
     }
-    net->nc = backend;
-    net->dev.backend_features = qemu_has_vnet_hdr(backend) ? 0 :
+    net->nc = options->net_backend;
+    net->dev.backend_features = qemu_has_vnet_hdr(options->net_backend) ? 0 :
         (1 << VHOST_NET_F_VIRTIO_NET_HDR);
     net->backend = r;
 
     net->dev.nvqs = 2;
     net->dev.vqs = net->vqs;
 
-    r = vhost_dev_init(&net->dev, devfd, "/dev/vhost-net", force);
+    r = vhost_dev_init(&net->dev, options->opaque,
+                       options->force);
     if (r < 0) {
         goto fail;
     }
-    if (!qemu_has_vnet_hdr_len(backend,
+    if (!qemu_has_vnet_hdr_len(options->net_backend,
                                sizeof(struct virtio_net_hdr_mrg_rxbuf))) {
         net->dev.features &= ~(1 << VIRTIO_NET_F_MRG_RXBUF);
     }
@@ -311,8 +313,7 @@ VHostNetState *get_vhost_net(NetClientState *nc)
     return vhost_net;
 }
 #else
-struct vhost_net *vhost_net_init(NetClientState *backend, int devfd,
-                                 bool force)
+struct vhost_net *vhost_net_init(VhostNetOptions *options)
 {
     error_report("vhost-net support is not compiled in");
     return NULL;
