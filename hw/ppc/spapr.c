@@ -537,6 +537,9 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     /* RTAS */
     _FDT((fdt_begin_node(fdt, "rtas")));
 
+    if (!kvm_enabled() || kvmppc_spapr_use_multitce()) {
+        add_str(hypertas, "hcall-multi-tce");
+    }
     _FDT((fdt_property(fdt, "ibm,hypertas-functions", hypertas->str,
                        hypertas->len)));
     g_string_free(hypertas, TRUE);

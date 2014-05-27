@@ -62,6 +62,7 @@ static int cap_booke_sregs;
 static int cap_ppc_smt;
 static int cap_ppc_rma;
 static int cap_spapr_tce;
+static int cap_spapr_multitce;
 static int cap_hior;
 static int cap_one_reg;
 static int cap_epr;
@@ -98,6 +99,7 @@ int kvm_arch_init(KVMState *s)
     cap_ppc_smt = kvm_check_extension(s, KVM_CAP_PPC_SMT);
     cap_ppc_rma = kvm_check_extension(s, KVM_CAP_PPC_RMA);
     cap_spapr_tce = kvm_check_extension(s, KVM_CAP_SPAPR_TCE);
+    cap_spapr_multitce = kvm_check_extension(s, KVM_CAP_SPAPR_MULTITCE);
     cap_one_reg = kvm_check_extension(s, KVM_CAP_ONE_REG);
     cap_hior = kvm_check_extension(s, KVM_CAP_PPC_HIOR);
     cap_epr = kvm_check_extension(s, KVM_CAP_PPC_EPR);
@@ -1612,6 +1614,11 @@ uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift)
                1ULL << (best_page_shift + hash_shift - 7));
 }
 #endif
+
+bool kvmppc_spapr_use_multitce(void)
+{
+    return cap_spapr_multitce;
+}
 
 void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd)
 {
