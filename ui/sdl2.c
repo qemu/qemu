@@ -49,6 +49,7 @@ static struct sdl2_state {
     int idx;
     int last_vm_running; /* per console for caption reasons */
     int x, y;
+    int hidden;
 } *sdl2_console;
 
 static SDL_Surface *guest_sprite_surface;
@@ -135,6 +136,9 @@ static void do_sdl_resize(struct sdl2_state *scon, int width, int height,
             flags |= SDL_WINDOW_FULLSCREEN;
         } else {
             flags |= SDL_WINDOW_RESIZABLE;
+        }
+        if (scon->hidden) {
+            flags |= SDL_WINDOW_HIDDEN;
         }
 
         scon->real_window = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED,
@@ -458,7 +462,7 @@ static void toggle_full_screen(struct sdl2_state *scon)
 
 static void handle_keydown(SDL_Event *ev)
 {
-    int mod_state;
+    int mod_state, win;
     struct sdl2_state *scon = get_scon_from_window(ev->key.windowID);
 
     if (alt_grab) {
@@ -473,6 +477,27 @@ static void handle_keydown(SDL_Event *ev)
 
     if (gui_key_modifier_pressed) {
         switch (ev->key.keysym.scancode) {
+        case SDL_SCANCODE_2:
+        case SDL_SCANCODE_3:
+        case SDL_SCANCODE_4:
+        case SDL_SCANCODE_5:
+        case SDL_SCANCODE_6:
+        case SDL_SCANCODE_7:
+        case SDL_SCANCODE_8:
+        case SDL_SCANCODE_9:
+            win = ev->key.keysym.scancode - SDL_SCANCODE_1;
+            if (win < sdl2_num_outputs) {
+                sdl2_console[win].hidden = !sdl2_console[win].hidden;
+                if (sdl2_console[win].real_window) {
+                    if (sdl2_console[win].hidden) {
+                        SDL_HideWindow(sdl2_console[win].real_window);
+                    } else {
+                        SDL_ShowWindow(sdl2_console[win].real_window);
+                    }
+                }
+                gui_keysym = 1;
+            }
+            break;
         case SDL_SCANCODE_F:
             toggle_full_screen(scon);
             gui_keysym = 1;
