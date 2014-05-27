@@ -35,6 +35,9 @@ enum sPAPRTCEAccess {
     SPAPR_TCE_RW = 3,
 };
 
+#define IOMMU_PAGE_SIZE(shift)      (1ULL << (shift))
+#define IOMMU_PAGE_MASK(shift)      (~(IOMMU_PAGE_SIZE(shift) - 1))
+
 static QLIST_HEAD(spapr_tce_tables, sPAPRTCETable) spapr_tce_tables;
 
 static sPAPRTCETable *spapr_tce_find_by_liobn(uint32_t liobn)
@@ -70,12 +73,14 @@ static IOMMUTLBEntry spapr_tce_translate_iommu(MemoryRegion *iommu, hwaddr addr)
 
     if (tcet->bypass) {
         ret.perm = IOMMU_RW;
-    } else if ((addr >> SPAPR_TCE_PAGE_SHIFT) < tcet->nb_table) {
+    } else if ((addr >> tcet->page_shift) < tcet->nb_table) {
         /* Check if we are in bound */
-        tce = tcet->table[addr >> SPAPR_TCE_PAGE_SHIFT];
-        ret.iova = addr & ~SPAPR_TCE_PAGE_MASK;
-        ret.translated_addr = tce & ~SPAPR_TCE_PAGE_MASK;
-        ret.addr_mask = SPAPR_TCE_PAGE_MASK;
+        hwaddr page_mask = IOMMU_PAGE_MASK(tcet->page_shift);
+
+        tce = tcet->table[addr >> tcet->page_shift];
+        ret.iova = addr & page_mask;
+        ret.translated_addr = tce & page_mask;
+        ret.addr_mask = ~page_mask;
         ret.perm = tce;
     }
     trace_spapr_iommu_xlate(tcet->liobn, addr, ret.iova, ret.perm,
@@ -112,7 +117,7 @@ static int spapr_tce_table_realize(DeviceState *dev)
     if (kvm_enabled()) {
         tcet->table = kvmppc_create_spapr_tce(tcet->liobn,
                                               tcet->nb_table <<
-                                              SPAPR_TCE_PAGE_SHIFT,
+                                              tcet->page_shift,
                                               &tcet->fd);
     }
 
@@ -135,6 +140,7 @@ static int spapr_tce_table_realize(DeviceState *dev)
 }
 
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
+                                   uint32_t page_shift,
                                    uint32_t nb_table)
 {
     sPAPRTCETable *tcet;
@@ -151,6 +157,7 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
 
     tcet = SPAPR_TCE_TABLE(object_new(TYPE_SPAPR_TCE_TABLE));
     tcet->liobn = liobn;
+    tcet->page_shift = page_shift;
     tcet->nb_table = nb_table;
 
     object_property_add_child(OBJECT(owner), "tce-table", OBJECT(tcet), NULL);
@@ -196,19 +203,20 @@ static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
                                 target_ulong tce)
 {
     IOMMUTLBEntry entry;
+    hwaddr page_mask = IOMMU_PAGE_MASK(tcet->page_shift);
 
-    if ((ioba >> SPAPR_TCE_PAGE_SHIFT) >= tcet->nb_table) {
+    if ((ioba >> tcet->page_shift) >= tcet->nb_table) {
         hcall_dprintf("spapr_vio_put_tce on out-of-bounds IOBA 0x"
                       TARGET_FMT_lx "\n", ioba);
         return H_PARAMETER;
     }
 
-    tcet->table[ioba >> SPAPR_TCE_PAGE_SHIFT] = tce;
+    tcet->table[ioba >> tcet->page_shift] = tce;
 
     entry.target_as = &address_space_memory,
-    entry.iova = ioba & ~SPAPR_TCE_PAGE_MASK;
-    entry.translated_addr = tce & ~SPAPR_TCE_PAGE_MASK;
-    entry.addr_mask = SPAPR_TCE_PAGE_MASK;
+    entry.iova = ioba & page_mask;
+    entry.translated_addr = tce & page_mask;
+    entry.addr_mask = ~page_mask;
     entry.perm = tce;
     memory_region_notify_iommu(&tcet->iommu, entry);
 
@@ -228,21 +236,25 @@ static target_ulong h_put_tce_indirect(PowerPCCPU *cpu,
     target_ulong ret = H_PARAMETER;
     sPAPRTCETable *tcet = spapr_tce_find_by_liobn(liobn);
     CPUState *cs = CPU(cpu);
+    hwaddr page_mask, page_size;
 
     if (!tcet) {
         return H_PARAMETER;
     }
 
-    if (npages > 512) {
+    if ((npages > 512) || (tce_list & SPAPR_TCE_PAGE_MASK)) {
         return H_PARAMETER;
     }
 
-    ioba &= ~SPAPR_TCE_PAGE_MASK;
-    tce_list &= ~SPAPR_TCE_PAGE_MASK;
+    page_mask = IOMMU_PAGE_MASK(tcet->page_shift);
+    page_size = IOMMU_PAGE_SIZE(tcet->page_shift);
+    ioba &= page_mask;
 
-    for (i = 0; i < npages; ++i, ioba += SPAPR_TCE_PAGE_SIZE) {
-        target_ulong tce = ldq_phys(cs->as, tce_list +
-                                    i * sizeof(target_ulong));
+    for (i = 0; i < npages; ++i, ioba += page_size) {
+        target_ulong off = (tce_list & ~SPAPR_TCE_RW) +
+                                i * sizeof(target_ulong);
+        target_ulong tce = ldq_phys(cs->as, off);
+
         ret = put_tce_emu(tcet, ioba, tce);
         if (ret) {
             break;
@@ -269,6 +281,7 @@ static target_ulong h_stuff_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     target_ulong npages = args[3];
     target_ulong ret = H_PARAMETER;
     sPAPRTCETable *tcet = spapr_tce_find_by_liobn(liobn);
+    hwaddr page_mask, page_size;
 
     if (!tcet) {
         return H_PARAMETER;
@@ -278,9 +291,11 @@ static target_ulong h_stuff_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         return H_PARAMETER;
     }
 
-    ioba &= ~SPAPR_TCE_PAGE_MASK;
+    page_mask = IOMMU_PAGE_MASK(tcet->page_shift);
+    page_size = IOMMU_PAGE_SIZE(tcet->page_shift);
+    ioba &= page_mask;
 
-    for (i = 0; i < npages; ++i, ioba += SPAPR_TCE_PAGE_SIZE) {
+    for (i = 0; i < npages; ++i, ioba += page_size) {
         ret = put_tce_emu(tcet, ioba, tce_value);
         if (ret) {
             break;
@@ -300,9 +315,11 @@ static target_ulong h_put_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     target_ulong ret = H_PARAMETER;
     sPAPRTCETable *tcet = spapr_tce_find_by_liobn(liobn);
 
-    ioba &= ~(SPAPR_TCE_PAGE_SIZE - 1);
-
     if (tcet) {
+        hwaddr page_mask = IOMMU_PAGE_MASK(tcet->page_shift);
+
+        ioba &= page_mask;
+
         ret = put_tce_emu(tcet, ioba, tce);
     }
     trace_spapr_iommu_put(liobn, ioba, tce, ret);
@@ -313,13 +330,13 @@ static target_ulong h_put_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 static target_ulong get_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
                                 target_ulong *tce)
 {
-    if ((ioba >> SPAPR_TCE_PAGE_SHIFT) >= tcet->nb_table) {
+    if ((ioba >> tcet->page_shift) >= tcet->nb_table) {
         hcall_dprintf("spapr_iommu_get_tce on out-of-bounds IOBA 0x"
                       TARGET_FMT_lx "\n", ioba);
         return H_PARAMETER;
     }
 
-    *tce = tcet->table[ioba >> SPAPR_TCE_PAGE_SHIFT];
+    *tce = tcet->table[ioba >> tcet->page_shift];
 
     return H_SUCCESS;
 }
@@ -333,9 +350,11 @@ static target_ulong h_get_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     target_ulong ret = H_PARAMETER;
     sPAPRTCETable *tcet = spapr_tce_find_by_liobn(liobn);
 
-    ioba &= ~(SPAPR_TCE_PAGE_SIZE - 1);
-
     if (tcet) {
+        hwaddr page_mask = IOMMU_PAGE_MASK(tcet->page_shift);
+
+        ioba &= page_mask;
+
         ret = get_tce_emu(tcet, ioba, &tce);
         if (!ret) {
             args[0] = tce;
@@ -384,7 +403,7 @@ int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
     }
 
     return spapr_dma_dt(fdt, node_off, propname,
-                        tcet->liobn, 0, tcet->nb_table << SPAPR_TCE_PAGE_SHIFT);
+                        tcet->liobn, 0, tcet->nb_table << tcet->page_shift);
 }
 
 static void spapr_tce_table_class_init(ObjectClass *klass, void *data)

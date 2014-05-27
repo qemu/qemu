@@ -656,6 +656,7 @@ static void spapr_phb_finish_realize(sPAPRPHBState *sphb, Error **errp)
     sPAPRTCETable *tcet;
 
     tcet = spapr_tce_new_table(DEVICE(sphb), sphb->dma_liobn,
+                               SPAPR_TCE_PAGE_SHIFT,
                                0x40000000 >> SPAPR_TCE_PAGE_SHIFT);
     if (!tcet) {
         error_setg(errp, "Unable to create TCE table for %s",
