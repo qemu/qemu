@@ -4029,11 +4029,14 @@ fi
 if test "$pie" = "no" ; then
   textseg_addr=
   case "$cpu" in
-    arm | hppa | i386 | m68k | ppc | ppc64 | s390* | sparc | sparc64 | x86_64 | x32)
+    arm | i386 | ppc* | s390* | sparc* | x86_64 | x32)
+      # ??? Rationale for choosing this address
       textseg_addr=0x60000000
       ;;
     mips)
-      textseg_addr=0x400000
+      # A 256M aligned address, high in the address space, with enough
+      # room for the code_gen_buffer above it before the stack.
+      textseg_addr=0x60000000
       ;;
   esac
   if [ -n "$textseg_addr" ]; then
