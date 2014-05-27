@@ -263,6 +263,12 @@ static void readline_hist_add(ReadLineState *rs, const char *cmdline)
 void readline_add_completion(ReadLineState *rs, const char *str)
 {
     if (rs->nb_completions < READLINE_MAX_COMPLETIONS) {
+        int i;
+        for (i = 0; i < rs->nb_completions; i++) {
+            if (!strcmp(rs->completions[i], str)) {
+                return;
+            }
+        }
         rs->completions[rs->nb_completions++] = g_strdup(str);
     }
 }
