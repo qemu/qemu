@@ -464,7 +464,7 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
                       env->exception.syndrome);
     }
 
-    env->cp15.esr_el1 = env->exception.syndrome;
+    env->cp15.esr_el[1] = env->exception.syndrome;
     env->cp15.far_el1 = env->exception.vaddress;
 
     switch (cs->exception_index) {
@@ -495,7 +495,7 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
     } else {
         env->banked_spsr[0] = cpsr_read(env);
         if (!env->thumb) {
-            env->cp15.esr_el1 |= 1 << 25;
+            env->cp15.esr_el[1] |= 1 << 25;
         }
         env->elr_el[1] = env->regs[15];
 

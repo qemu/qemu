@@ -1476,7 +1476,7 @@ static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     { .name = "DFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_NO_MIGRATE,
-      .fieldoffset = offsetoflow32(CPUARMState, cp15.esr_el1),
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.esr_el[1]),
       .resetfn = arm_cp_reset_ignore, },
     { .name = "IFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW,
@@ -1484,7 +1484,7 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     { .name = "ESR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .crn = 5, .crm = 2, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW,
-      .fieldoffset = offsetof(CPUARMState, cp15.esr_el1), .resetvalue = 0, },
+      .fieldoffset = offsetof(CPUARMState, cp15.esr_el[1]), .resetvalue = 0, },
     { .name = "TTBR0_EL1", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el1),
@@ -1545,7 +1545,7 @@ static void omap_cachemaint_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static const ARMCPRegInfo omap_cp_reginfo[] = {
     { .name = "DFSR", .cp = 15, .crn = 5, .crm = CP_ANY,
       .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_OVERRIDE,
-      .fieldoffset = offsetoflow32(CPUARMState, cp15.esr_el1),
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.esr_el[1]),
       .resetvalue = 0, },
     { .name = "", .cp = 15, .crn = 15, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_NOP },
@@ -3362,11 +3362,11 @@ void arm_cpu_do_interrupt(CPUState *cs)
         offset = 4;
         break;
     case EXCP_DATA_ABORT:
-        env->cp15.esr_el1 = env->exception.fsr;
+        env->cp15.esr_el[1] = env->exception.fsr;
         env->cp15.far_el1 = deposit64(env->cp15.far_el1, 0, 32,
                                       env->exception.vaddress);
         qemu_log_mask(CPU_LOG_INT, "...with DFSR 0x%x DFAR 0x%x\n",
-                      (uint32_t)env->cp15.esr_el1,
+                      (uint32_t)env->cp15.esr_el[1],
                       (uint32_t)env->exception.vaddress);
         new_mode = ARM_CPU_MODE_ABT;
         addr = 0x10;
