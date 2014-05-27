@@ -634,6 +634,7 @@ enum arm_features {
     ARM_FEATURE_CRC, /* ARMv8 CRC instructions */
     ARM_FEATURE_CBAR_RO, /* has cp15 CBAR and it is read-only */
     ARM_FEATURE_EL2, /* has EL2 Virtualization support */
+    ARM_FEATURE_EL3, /* has EL3 Secure monitor support */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
