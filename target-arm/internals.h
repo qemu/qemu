@@ -75,6 +75,20 @@ static inline void arm_log_exception(int idx)
  */
 #define GTIMER_SCALE 16
 
+/*
+ * For AArch64, map a given EL to an index in the banked_spsr array.
+ */
+static inline unsigned int aarch64_banked_spsr_index(unsigned int el)
+{
+    static const unsigned int map[4] = {
+        [1] = 0, /* EL1.  */
+        [2] = 6, /* EL2.  */
+        [3] = 7, /* EL3.  */
+    };
+    assert(el >= 1 && el <= 3);
+    return map[el];
+}
+
 int bank_number(int mode);
 void switch_mode(CPUARMState *, int);
 void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu);

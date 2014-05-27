@@ -386,7 +386,8 @@ void HELPER(msr_i_pstate)(CPUARMState *env, uint32_t op, uint32_t imm)
 
 void HELPER(exception_return)(CPUARMState *env)
 {
-    uint32_t spsr = env->banked_spsr[0];
+    unsigned int spsr_idx = aarch64_banked_spsr_index(1);
+    uint32_t spsr = env->banked_spsr[spsr_idx];
     int new_el, i;
 
     if (env->pstate & PSTATE_SP) {
