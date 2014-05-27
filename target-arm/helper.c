@@ -681,7 +681,7 @@ static void vbar_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * contexts. (ARMv8 would permit us to do no masking at all, but ARMv7
      * requires the bottom five bits to be RAZ/WI because they're UNK/SBZP.)
      */
-    env->cp15.c12_vbar = value & ~0x1FULL;
+    env->cp15.vbar_el[1] = value & ~0x1FULL;
 }
 
 static uint64_t ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -790,7 +790,7 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     { .name = "VBAR", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 12, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .writefn = vbar_write,
-      .fieldoffset = offsetof(CPUARMState, cp15.c12_vbar),
+      .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[1]),
       .resetvalue = 0 },
     { .name = "SCR", .cp = 15, .crn = 1, .crm = 1, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_scr),
@@ -3403,7 +3403,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
          * and is never in monitor mode this feature is always active.
          * Note: only bits 31:5 are valid.
          */
-        addr += env->cp15.c12_vbar;
+        addr += env->cp15.vbar_el[1];
     }
     switch_mode (env, new_mode);
     env->spsr = cpsr_read(env);

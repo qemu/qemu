@@ -443,7 +443,7 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
-    target_ulong addr = env->cp15.c12_vbar;
+    target_ulong addr = env->cp15.vbar_el[1];
     int i;
 
     if (arm_current_pl(env) == 0) {
