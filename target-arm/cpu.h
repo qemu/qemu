@@ -162,7 +162,7 @@ typedef struct CPUARMState {
     uint32_t condexec_bits; /* IT bits.  cpsr[15:10,26:25].  */
     uint64_t daif; /* exception masks, in the bits they are in in PSTATE */
 
-    uint64_t elr_el1; /* AArch64 ELR_EL1 */
+    uint64_t elr_el[2]; /* AArch64 exception link regs  */
     uint64_t sp_el[2]; /* AArch64 banked stack pointers */
 
     /* System control coprocessor (cp15) */

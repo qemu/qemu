@@ -406,7 +406,7 @@ void HELPER(exception_return)(CPUARMState *env)
             env->regs[i] = env->xregs[i];
         }
 
-        env->regs[15] = env->elr_el1 & ~0x1;
+        env->regs[15] = env->elr_el[1] & ~0x1;
     } else {
         new_el = extract32(spsr, 2, 2);
         if (new_el > 1) {
@@ -424,7 +424,7 @@ void HELPER(exception_return)(CPUARMState *env)
         env->aarch64 = 1;
         pstate_write(env, spsr);
         env->xregs[31] = env->sp_el[new_el];
-        env->pc = env->elr_el1;
+        env->pc = env->elr_el[1];
     }
 
     return;
@@ -438,7 +438,7 @@ illegal_return:
      * no change to exception level, execution state or stack pointer
      */
     env->pstate |= PSTATE_IL;
-    env->pc = env->elr_el1;
+    env->pc = env->elr_el[1];
     spsr &= PSTATE_NZCV | PSTATE_DAIF;
     spsr |= pstate_read(env) & ~(PSTATE_NZCV | PSTATE_DAIF);
     pstate_write(env, spsr);

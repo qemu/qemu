@@ -491,13 +491,13 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
         env->banked_spsr[0] = pstate_read(env);
         env->sp_el[arm_current_pl(env)] = env->xregs[31];
         env->xregs[31] = env->sp_el[1];
-        env->elr_el1 = env->pc;
+        env->elr_el[1] = env->pc;
     } else {
         env->banked_spsr[0] = cpsr_read(env);
         if (!env->thumb) {
             env->cp15.esr_el1 |= 1 << 25;
         }
-        env->elr_el1 = env->regs[15];
+        env->elr_el[1] = env->regs[15];
 
         for (i = 0; i < 15; i++) {
             env->xregs[i] = env->regs[i];
