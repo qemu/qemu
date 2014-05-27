@@ -3108,6 +3108,10 @@ int bank_number(int mode)
         return 4;
     case ARM_CPU_MODE_FIQ:
         return 5;
+    case ARM_CPU_MODE_HYP:
+        return 6;
+    case ARM_CPU_MODE_MON:
+        return 7;
     }
     hw_error("bank number requested for bad CPSR mode value 0x%x\n", mode);
 }

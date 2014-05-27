@@ -143,7 +143,7 @@ typedef struct CPUARMState {
     uint32_t spsr;
 
     /* Banked registers.  */
-    uint64_t banked_spsr[6];
+    uint64_t banked_spsr[8];
     uint32_t banked_r13[6];
     uint32_t banked_r14[6];
 
@@ -563,7 +563,9 @@ enum arm_cpu_mode {
   ARM_CPU_MODE_FIQ = 0x11,
   ARM_CPU_MODE_IRQ = 0x12,
   ARM_CPU_MODE_SVC = 0x13,
+  ARM_CPU_MODE_MON = 0x16,
   ARM_CPU_MODE_ABT = 0x17,
+  ARM_CPU_MODE_HYP = 0x1a,
   ARM_CPU_MODE_UND = 0x1b,
   ARM_CPU_MODE_SYS = 0x1f
 };
