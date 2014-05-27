@@ -1209,9 +1209,10 @@ ETEXI
     {
         .name       = "host_net_add",
         .args_type  = "device:s,opts:s?",
-        .params     = "tap|user|socket|vde|netmap|dump [options]",
+        .params     = "tap|user|socket|vde|netmap|bridge|dump [options]",
         .help       = "add host VLAN client",
         .mhandler.cmd = net_host_device_add,
+        .command_completion = host_net_add_completion,
     },
 
 STEXI

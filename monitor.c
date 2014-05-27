@@ -4594,6 +4594,22 @@ void migrate_set_capability_completion(ReadLineState *rs, int nb_args,
     }
 }
 
+void host_net_add_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    int i;
+    size_t len;
+    if (nb_args != 2) {
+        return;
+    }
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    for (i = 0; host_net_devices[i]; i++) {
+        if (!strncmp(host_net_devices[i], str, len)) {
+            readline_add_completion(rs, host_net_devices[i]);
+        }
+    }
+}
+
 static void monitor_find_completion_by_table(Monitor *mon,
                                              const mon_cmd_t *cmd_table,
                                              char **args,
