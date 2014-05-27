@@ -1080,12 +1080,12 @@ static inline CPUARMState *cpu_init(const char *cpu_model)
 #define cpu_list arm_cpu_list
 
 /* MMU modes definitions */
-#define MMU_MODE0_SUFFIX _kernel
-#define MMU_MODE1_SUFFIX _user
-#define MMU_USER_IDX 1
+#define MMU_MODE0_SUFFIX _user
+#define MMU_MODE1_SUFFIX _kernel
+#define MMU_USER_IDX 0
 static inline int cpu_mmu_index (CPUARMState *env)
 {
-    return arm_current_pl(env) ? 0 : 1;
+    return arm_current_pl(env);
 }
 
 #include "exec/cpu-all.h"

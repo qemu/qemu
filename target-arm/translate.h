@@ -54,11 +54,7 @@ static inline int arm_dc_feature(DisasContext *dc, int feature)
 
 static inline int get_mem_index(DisasContext *s)
 {
-#ifdef CONFIG_USER_ONLY
-    return 1;
-#else
-    return s->user;
-#endif
+    return s->current_pl;
 }
 
 /* target-specific extra values for is_jmp */
