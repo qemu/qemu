@@ -62,7 +62,6 @@ struct sPAPRPHBState {
     uint32_t dma_liobn;
     uint64_t dma_window_start;
     uint64_t dma_window_size;
-    sPAPRTCETable *tcet;
     AddressSpace iommu_as;
     MemoryRegion iommu_root;
 

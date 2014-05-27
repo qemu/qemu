@@ -653,11 +653,13 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
 
 static void spapr_phb_finish_realize(sPAPRPHBState *sphb, Error **errp)
 {
+    sPAPRTCETable *tcet;
+
     sphb->dma_window_start = 0;
     sphb->dma_window_size = 0x40000000;
-    sphb->tcet = spapr_tce_new_table(DEVICE(sphb), sphb->dma_liobn,
-                                     sphb->dma_window_size);
-    if (!sphb->tcet) {
+    tcet = spapr_tce_new_table(DEVICE(sphb), sphb->dma_liobn,
+                               sphb->dma_window_size);
+    if (!tcet) {
         error_setg(errp, "Unable to create TCE table for %s",
                    sphb->dtbusname);
         return ;
@@ -665,16 +667,24 @@ static void spapr_phb_finish_realize(sPAPRPHBState *sphb, Error **errp)
 
     /* Register default 32bit DMA window */
     memory_region_add_subregion(&sphb->iommu_root, 0,
-                                spapr_tce_get_iommu(sphb->tcet));
+                                spapr_tce_get_iommu(tcet));
+}
+
+static int spapr_phb_children_reset(Object *child, void *opaque)
+{
+    DeviceState *dev = (DeviceState *) object_dynamic_cast(child, TYPE_DEVICE);
+
+    if (dev) {
+        device_reset(dev);
+    }
+
+    return 0;
 }
 
 static void spapr_phb_reset(DeviceState *qdev)
 {
-    SysBusDevice *s = SYS_BUS_DEVICE(qdev);
-    sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
-
     /* Reset the IOMMU state */
-    device_reset(DEVICE(sphb->tcet));
+    object_child_foreach(OBJECT(qdev), spapr_phb_children_reset, NULL);
 }
 
 static Property spapr_phb_properties[] = {
@@ -788,6 +798,29 @@ PCIHostState *spapr_create_phb(sPAPREnvironment *spapr, int index)
 #define b_fff(x)        b_x((x), 8, 3)  /* function number */
 #define b_rrrrrrrr(x)   b_x((x), 0, 8)  /* register number */
 
+typedef struct sPAPRTCEDT {
+    void *fdt;
+    int node_off;
+} sPAPRTCEDT;
+
+static int spapr_phb_children_dt(Object *child, void *opaque)
+{
+    sPAPRTCEDT *p = opaque;
+    sPAPRTCETable *tcet;
+
+    tcet = (sPAPRTCETable *) object_dynamic_cast(child, TYPE_SPAPR_TCE_TABLE);
+    if (!tcet) {
+        return 0;
+    }
+
+    spapr_dma_dt(p->fdt, p->node_off, "ibm,dma-window",
+                 tcet->liobn, 0,
+                 tcet->window_size);
+    /* Stop after the first window */
+
+    return 1;
+}
+
 int spapr_populate_pci_dt(sPAPRPHBState *phb,
                           uint32_t xics_phandle,
                           void *fdt)
@@ -867,9 +900,8 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     _FDT(fdt_setprop(fdt, bus_off, "interrupt-map", &interrupt_map,
                      sizeof(interrupt_map)));
 
-    spapr_dma_dt(fdt, bus_off, "ibm,dma-window",
-                 phb->dma_liobn, phb->dma_window_start,
-                 phb->dma_window_size);
+    object_child_foreach(OBJECT(phb), spapr_phb_children_dt,
+                         &((sPAPRTCEDT){ .fdt = fdt, .node_off = bus_off }));
 
     return 0;
 }
