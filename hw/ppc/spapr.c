@@ -346,6 +346,10 @@ static size_t create_page_sizes_prop(CPUPPCState *env, uint32_t *prop,
         }                                                          \
     } while (0)
 
+static void add_str(GString *s, const gchar *s1)
+{
+    g_string_append_len(s, s1, strlen(s1) + 1);
+}
 
 static void *spapr_create_fdt_skel(hwaddr initrd_base,
                                    hwaddr initrd_size,
@@ -359,9 +363,8 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     CPUState *cs;
     uint32_t start_prop = cpu_to_be32(initrd_base);
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
-    char hypertas_prop[] = "hcall-pft\0hcall-term\0hcall-dabr\0hcall-interrupt"
-        "\0hcall-tce\0hcall-vio\0hcall-splpar\0hcall-bulk\0hcall-set-mode";
-    char qemu_hypertas_prop[] = "hcall-memop1";
+    GString *hypertas = g_string_sized_new(256);
+    GString *qemu_hypertas = g_string_sized_new(256);
     uint32_t refpoints[] = {cpu_to_be32(0x4), cpu_to_be32(0x4)};
     uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
     int smt = kvmppc_smt_threads();
@@ -369,6 +372,17 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     QemuOpts *opts = qemu_opts_find(qemu_find_opts("smp-opts"), NULL);
     unsigned sockets = opts ? qemu_opt_get_number(opts, "sockets", 0) : 0;
     uint32_t cpus_per_socket = sockets ? (smp_cpus / sockets) : 1;
+
+    add_str(hypertas, "hcall-pft");
+    add_str(hypertas, "hcall-term");
+    add_str(hypertas, "hcall-dabr");
+    add_str(hypertas, "hcall-interrupt");
+    add_str(hypertas, "hcall-tce");
+    add_str(hypertas, "hcall-vio");
+    add_str(hypertas, "hcall-splpar");
+    add_str(hypertas, "hcall-bulk");
+    add_str(hypertas, "hcall-set-mode");
+    add_str(qemu_hypertas, "hcall-memop1");
 
     fdt = g_malloc0(FDT_MAX_SIZE);
     _FDT((fdt_create(fdt, FDT_MAX_SIZE)));
@@ -523,10 +537,12 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     /* RTAS */
     _FDT((fdt_begin_node(fdt, "rtas")));
 
-    _FDT((fdt_property(fdt, "ibm,hypertas-functions", hypertas_prop,
-                       sizeof(hypertas_prop))));
-    _FDT((fdt_property(fdt, "qemu,hypertas-functions", qemu_hypertas_prop,
-                       sizeof(qemu_hypertas_prop))));
+    _FDT((fdt_property(fdt, "ibm,hypertas-functions", hypertas->str,
+                       hypertas->len)));
+    g_string_free(hypertas, TRUE);
+    _FDT((fdt_property(fdt, "qemu,hypertas-functions", qemu_hypertas->str,
+                       qemu_hypertas->len)));
+    g_string_free(qemu_hypertas, TRUE);
 
     _FDT((fdt_property(fdt, "ibm,associativity-reference-points",
         refpoints, sizeof(refpoints))));
