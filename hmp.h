@@ -107,5 +107,7 @@ void ringbuf_write_completion(ReadLineState *rs, int nb_args, const char *str);
 void ringbuf_read_completion(ReadLineState *rs, int nb_args, const char *str);
 void watchdog_action_completion(ReadLineState *rs, int nb_args,
                                 const char *str);
+void migrate_set_capability_completion(ReadLineState *rs, int nb_args,
+                                       const char *str);
 
 #endif

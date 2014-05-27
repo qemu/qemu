@@ -975,6 +975,7 @@ ETEXI
         .params     = "capability state",
         .help       = "Enable/Disable the usage of a capability for migration",
         .mhandler.cmd = hmp_migrate_set_capability,
+        .command_completion = migrate_set_capability_completion,
     },
 
 STEXI

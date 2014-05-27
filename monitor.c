@@ -4573,6 +4573,27 @@ void watchdog_action_completion(ReadLineState *rs, int nb_args, const char *str)
     add_completion_option(rs, str, "none");
 }
 
+void migrate_set_capability_completion(ReadLineState *rs, int nb_args,
+                                       const char *str)
+{
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    if (nb_args == 2) {
+        int i;
+        for (i = 0; i < MIGRATION_CAPABILITY_MAX; i++) {
+            const char *name = MigrationCapability_lookup[i];
+            if (!strncmp(str, name, len)) {
+                readline_add_completion(rs, name);
+            }
+        }
+    } else if (nb_args == 3) {
+        add_completion_option(rs, str, "on");
+        add_completion_option(rs, str, "off");
+    }
+}
+
 static void monitor_find_completion_by_table(Monitor *mon,
                                              const mon_cmd_t *cmd_table,
                                              char **args,
