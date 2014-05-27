@@ -14,6 +14,8 @@
 
 #include <sys/ioctl.h>
 
+extern const VhostOps user_ops;
+
 static int vhost_kernel_call(struct vhost_dev *dev, unsigned long int request,
                              void *arg)
 {
@@ -56,6 +58,9 @@ int vhost_set_backend_type(struct vhost_dev *dev, VhostBackendType backend_type)
     switch (backend_type) {
     case VHOST_BACKEND_TYPE_KERNEL:
         dev->vhost_ops = &kernel_ops;
+        break;
+    case VHOST_BACKEND_TYPE_USER:
+        dev->vhost_ops = &user_ops;
         break;
     default:
         error_report("Unknown vhost backend type\n");

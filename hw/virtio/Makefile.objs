@@ -5,4 +5,4 @@ common-obj-y += virtio-mmio.o
 common-obj-$(CONFIG_VIRTIO_BLK_DATA_PLANE) += dataplane/
 
 obj-y += virtio.o virtio-balloon.o 
-obj-$(CONFIG_LINUX) += vhost.o vhost-backend.o
+obj-$(CONFIG_LINUX) += vhost.o vhost-backend.o vhost-user.o
