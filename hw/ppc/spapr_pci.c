@@ -656,6 +656,7 @@ static void spapr_phb_finish_realize(sPAPRPHBState *sphb, Error **errp)
     sPAPRTCETable *tcet;
 
     tcet = spapr_tce_new_table(DEVICE(sphb), sphb->dma_liobn,
+                               0,
                                SPAPR_TCE_PAGE_SHIFT,
                                0x40000000 >> SPAPR_TCE_PAGE_SHIFT);
     if (!tcet) {
@@ -813,8 +814,8 @@ static int spapr_phb_children_dt(Object *child, void *opaque)
     }
 
     spapr_dma_dt(p->fdt, p->node_off, "ibm,dma-window",
-                 tcet->liobn, 0,
-                 tcet->nb_table << SPAPR_TCE_PAGE_SHIFT);
+                 tcet->liobn, tcet->bus_offset,
+                 tcet->nb_table << tcet->page_shift);
     /* Stop after the first window */
 
     return 1;

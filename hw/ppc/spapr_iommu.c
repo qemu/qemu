@@ -140,6 +140,7 @@ static int spapr_tce_table_realize(DeviceState *dev)
 }
 
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
+                                   uint64_t bus_offset,
                                    uint32_t page_shift,
                                    uint32_t nb_table)
 {
@@ -157,6 +158,7 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
 
     tcet = SPAPR_TCE_TABLE(object_new(TYPE_SPAPR_TCE_TABLE));
     tcet->liobn = liobn;
+    tcet->bus_offset = bus_offset;
     tcet->page_shift = page_shift;
     tcet->nb_table = nb_table;
 
@@ -204,14 +206,15 @@ static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
 {
     IOMMUTLBEntry entry;
     hwaddr page_mask = IOMMU_PAGE_MASK(tcet->page_shift);
+    unsigned long index = (ioba - tcet->bus_offset) >> tcet->page_shift;
 
-    if ((ioba >> tcet->page_shift) >= tcet->nb_table) {
+    if (index >= tcet->nb_table) {
         hcall_dprintf("spapr_vio_put_tce on out-of-bounds IOBA 0x"
                       TARGET_FMT_lx "\n", ioba);
         return H_PARAMETER;
     }
 
-    tcet->table[ioba >> tcet->page_shift] = tce;
+    tcet->table[index] = tce;
 
     entry.target_as = &address_space_memory,
     entry.iova = ioba & page_mask;
@@ -330,13 +333,15 @@ static target_ulong h_put_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 static target_ulong get_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
                                 target_ulong *tce)
 {
-    if ((ioba >> tcet->page_shift) >= tcet->nb_table) {
+    unsigned long index = (ioba - tcet->bus_offset) >> tcet->page_shift;
+
+    if (index >= tcet->nb_table) {
         hcall_dprintf("spapr_iommu_get_tce on out-of-bounds IOBA 0x"
                       TARGET_FMT_lx "\n", ioba);
         return H_PARAMETER;
     }
 
-    *tce = tcet->table[ioba >> tcet->page_shift];
+    *tce = tcet->table[index];
 
     return H_SUCCESS;
 }
