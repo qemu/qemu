@@ -749,8 +749,10 @@ do_check_protect_pse36:
 
     /* the page can be put in the TLB */
     prot = PAGE_READ;
-    if (!(ptep & PG_NX_MASK))
+    if (!(ptep & PG_NX_MASK) &&
+        !((env->cr[4] & CR4_SMEP_MASK) && (ptep & PG_USER_MASK))) {
         prot |= PAGE_EXEC;
+    }
     if (pte & PG_DIRTY_MASK) {
         /* only set write access if already dirty... otherwise wait
            for dirty access */
