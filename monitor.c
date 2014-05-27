@@ -4610,6 +4610,44 @@ void host_net_add_completion(ReadLineState *rs, int nb_args, const char *str)
     }
 }
 
+void host_net_remove_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    NetClientState *ncs[255];
+    int count, i, len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    if (nb_args == 2) {
+        count = qemu_find_net_clients_except(NULL, ncs,
+                                             NET_CLIENT_OPTIONS_KIND_NONE, 255);
+        for (i = 0; i < count; i++) {
+            int id;
+            char name[16];
+
+            if (net_hub_id_for_client(ncs[i], &id)) {
+                continue;
+            }
+            snprintf(name, sizeof(name), "%d", id);
+            if (!strncmp(str, name, len)) {
+                readline_add_completion(rs, name);
+            }
+        }
+        return;
+    } else if (nb_args == 3) {
+        count = qemu_find_net_clients_except(NULL, ncs,
+                                             NET_CLIENT_OPTIONS_KIND_NIC, 255);
+        for (i = 0; i < count; i++) {
+            const char *name;
+
+            name = ncs[i]->name;
+            if (!strncmp(str, name, len)) {
+                readline_add_completion(rs, name);
+            }
+        }
+        return;
+    }
+}
+
 static void monitor_find_completion_by_table(Monitor *mon,
                                              const mon_cmd_t *cmd_table,
                                              char **args,

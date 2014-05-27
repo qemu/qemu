@@ -1227,6 +1227,7 @@ ETEXI
         .params     = "vlan_id name",
         .help       = "remove host VLAN client",
         .mhandler.cmd = net_host_device_remove,
+        .command_completion = host_net_remove_completion,
     },
 
 STEXI
