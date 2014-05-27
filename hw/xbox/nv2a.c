@@ -1818,16 +1818,17 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         }
     }
 
+
+
+    float zclip_max = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMAX];
+    float zclip_min = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMIN];
+
     if (fixed_function) {
         /* update fixed function composite matrix */
 
         GLint comLoc = glGetUniformLocation(pg->gl_program, "composite");
         assert(comLoc != -1);
         glUniformMatrix4fv(comLoc, 1, GL_FALSE, pg->composite_matrix);
-
-
-        float zclip_max = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMAX];
-        float zclip_min = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMIN];
 
         /* estimate the viewport by assuming it matches the surface ... */
         float m11 = 0.5 * pg->surface_clip_width;
@@ -1866,6 +1867,11 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
             if (loc != -1) {
                 glUniform4fv(loc, 1, (const GLfloat*)constant->data);
             }
+        }
+
+        GLint loc = glGetUniformLocation(pg->gl_program, "clipRange");
+        if (loc != -1) {
+            glUniform2f(loc, zclip_min, zclip_max);
         }
     }
 

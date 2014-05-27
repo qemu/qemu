@@ -577,9 +577,10 @@ static const char* vsh_header =
 
     /* All constants in 1 array declaration */
    "uniform vec4 c[192];\n"
-   "#define viewport_scale c[58]\n"
-   "#define viewport_offset c[59]\n"
-   "uniform vec2 cliprange;\n"
+   "\n"
+   "#define viewportScale c[58]\n"
+   "#define viewportOffset c[59]\n"
+   "uniform vec2 clipRange;\n"
 
     /* See:
      * http://msdn.microsoft.com/en-us/library/windows/desktop/bb174703%28v=vs.85%29.aspx
@@ -778,44 +779,10 @@ QString* vsh_translate(uint16_t version,
         */
 
         "  /* Un-screenspace transform */\n"
-        "  oPos.xyz = oPos.xyz - viewport_offset.xyz;\n"
-        "  vec3 tmp = vec3(1.0);\n"
-
-        /* FIXME: old comment was "scale_z = view_z == 0 ? 1 : (1 / view_z)" */
-        "  if (viewport_scale.x != 0.0) { tmp.x /= viewport_scale.x; }\n"
-        "  if (viewport_scale.y != 0.0) { tmp.y /= viewport_scale.y; }\n"
-        "  if (viewport_scale.z != 0.0) { tmp.z /= viewport_scale.z; }\n"
-
-        "  oPos.xyz *= tmp.xyz;\n"
-        "  oPos.w = 1.0;\n" //This breaks 2D? Maybe w is zero?
-        "\n"
-#if 0
-//FIXME: Use surface width / height / zeta max
-      "R12.z /= 16777215.0;\n" // Z[0;1]
-      "R12.z *= (cliprange.y - cliprange.x) / 16777215.0;\n" // Scale so [0;zmax] -> [0;cliprange_size]
-      "R12.z -= cliprange.x / 16777215.0;\n" // Move down so [clipmin_min;clipmin_max]
-      // X = [0;surface_width]; Y = [surface_height;0]; Z = [0;1]; W = ???
-      "R12.xyz = R12.xyz / vec3(640.0,480.0,1.0);\n"
-      // X,Z = [0;1]; Y = [1;0]; W = ???
-      "R12.xyz = R12.xyz * vec3(2.0) - vec3(1.0);\n"
-      "R12.y *= -1.0;\n"
-      "R12.w = 1.0;\n"
-      // X,Y,Z = [-1;+1]; W = 1
-        "\n"
-#endif
-
-        /* Z coord [0;1]->[-1;1] mapping, see comment in transform_projection
-         * in state.c
-         *
-         * Basically we want (in homogeneous coordinates) z = z * 2 - 1. However,
-         * shaders are run before the homogeneous divide, so we have to take the w
-         * into account: z = ((z / w) * 2 - 1) * w, which is the same as
-         * z = z * 2 - w.
-         */
-        //"# Apply Z coord mapping\n"
-        //"ADD R12.z, R12.z, R12.z;\n"
-        //"ADD R12.z, R12.z, -R12.w;\n"
-
+         "oPos.x = (oPos.x - viewportOffset.x) / viewportScale.x;\n"
+         "oPos.y = (oPos.y - viewportOffset.y) / viewportScale.y;\n"
+         "oPos.z = (oPos.z - 0.5 * (clipRange.x + clipRange.y)) / (0.5 * (clipRange.y - clipRange.x));\n"
+         "oPos.w = sign(oPos.w);\n"
 
         "  /* Set outputs */\n"
         "  gl_Position = oPos;\n"
