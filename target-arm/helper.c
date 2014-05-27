@@ -477,11 +477,35 @@ static const ARMCPRegInfo not_v7_cp_reginfo[] = {
 static void cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
-    if (env->cp15.c1_coproc != value) {
-        env->cp15.c1_coproc = value;
-        /* ??? Is this safe when called from within a TB?  */
-        tb_flush(env);
+    uint32_t mask = 0;
+
+    /* In ARMv8 most bits of CPACR_EL1 are RES0. */
+    if (!arm_feature(env, ARM_FEATURE_V8)) {
+        /* ARMv7 defines bits for unimplemented coprocessors as RAZ/WI.
+         * ASEDIS [31] and D32DIS [30] are both UNK/SBZP without VFP.
+         * TRCDIS [28] is RAZ/WI since we do not implement a trace macrocell.
+         */
+        if (arm_feature(env, ARM_FEATURE_VFP)) {
+            /* VFP coprocessor: cp10 & cp11 [23:20] */
+            mask |= (1 << 31) | (1 << 30) | (0xf << 20);
+
+            if (!arm_feature(env, ARM_FEATURE_NEON)) {
+                /* ASEDIS [31] bit is RAO/WI */
+                value |= (1 << 31);
+            }
+
+            /* VFPv3 and upwards with NEON implement 32 double precision
+             * registers (D0-D31).
+             */
+            if (!arm_feature(env, ARM_FEATURE_NEON) ||
+                    !arm_feature(env, ARM_FEATURE_VFP3)) {
+                /* D32DIS [30] is RAO/WI if D16-31 are not implemented. */
+                value |= (1 << 30);
+            }
+        }
+        value &= mask;
     }
+    env->cp15.c1_coproc = value;
 }
 
 static const ARMCPRegInfo v6_cp_reginfo[] = {
