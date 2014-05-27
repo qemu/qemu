@@ -168,7 +168,10 @@ static int vhost_net_start_one(struct vhost_net *net,
         goto fail_start;
     }
 
-    net->nc->info->poll(net->nc, false);
+    if (net->nc->info->poll) {
+        net->nc->info->poll(net->nc, false);
+    }
+
     qemu_set_fd_handler(net->backend, NULL, NULL, NULL);
     file.fd = net->backend;
     for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
@@ -185,7 +188,9 @@ fail:
         int r = ioctl(net->dev.control, VHOST_NET_SET_BACKEND, &file);
         assert(r >= 0);
     }
-    net->nc->info->poll(net->nc, true);
+    if (net->nc->info->poll) {
+        net->nc->info->poll(net->nc, true);
+    }
     vhost_dev_stop(&net->dev, dev);
 fail_start:
     vhost_dev_disable_notifiers(&net->dev, dev);
@@ -206,7 +211,9 @@ static void vhost_net_stop_one(struct vhost_net *net,
         int r = ioctl(net->dev.control, VHOST_NET_SET_BACKEND, &file);
         assert(r >= 0);
     }
-    net->nc->info->poll(net->nc, true);
+    if (net->nc->info->poll) {
+        net->nc->info->poll(net->nc, true);
+    }
     vhost_dev_stop(&net->dev, dev);
     vhost_dev_disable_notifiers(&net->dev, dev);
 }
