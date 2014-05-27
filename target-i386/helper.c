@@ -549,6 +549,10 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
         goto do_mapping;
     }
 
+    if (!(env->efer & MSR_EFER_NXE)) {
+        rsvd_mask |= PG_NX_MASK;
+    }
+
     if (env->cr[4] & CR4_PAE_MASK) {
         uint64_t pde, pdpe;
         target_ulong pdpe_addr;
@@ -575,9 +579,6 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             if (pml4e & (rsvd_mask | PG_PSE_MASK)) {
                 goto do_fault_rsvd;
             }
-            if (!(env->efer & MSR_EFER_NXE) && (pml4e & PG_NX_MASK)) {
-                goto do_fault_rsvd;
-            }
             if (!(pml4e & PG_ACCESSED_MASK)) {
                 pml4e |= PG_ACCESSED_MASK;
                 stl_phys_notdirty(cs->as, pml4e_addr, pml4e);
@@ -590,9 +591,6 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
                 goto do_fault;
             }
             if (pdpe & rsvd_mask) {
-                goto do_fault_rsvd;
-            }
-            if (!(env->efer & MSR_EFER_NXE) && (pdpe & PG_NX_MASK)) {
                 goto do_fault_rsvd;
             }
             ptep &= pdpe ^ PG_NX_MASK;
@@ -633,9 +631,6 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
         if (pde & rsvd_mask) {
             goto do_fault_rsvd;
         }
-        if (!(env->efer & MSR_EFER_NXE) && (pde & PG_NX_MASK)) {
-            goto do_fault_rsvd;
-        }
         ptep &= pde ^ PG_NX_MASK;
         if (pde & PG_PSE_MASK) {
             /* 2 MB page */
@@ -656,9 +651,6 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             goto do_fault;
         }
         if (pte & rsvd_mask) {
-            goto do_fault_rsvd;
-        }
-        if (!(env->efer & MSR_EFER_NXE) && (pte & PG_NX_MASK)) {
             goto do_fault_rsvd;
         }
         /* combine pde and pte nx, user and rw protections */
