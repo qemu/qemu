@@ -510,14 +510,6 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
 
 #else
 
-/* XXX: This value should match the one returned by CPUID
- * and in exec.c */
-# if defined(TARGET_X86_64)
-# define PHYS_ADDR_MASK 0xfffffff000LL
-# else
-# define PHYS_ADDR_MASK 0xffffff000LL
-# endif
-
 /* return value:
  * -1 = cannot handle fault
  * 0  = nothing more to do
@@ -533,6 +525,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
     int error_code = 0;
     int is_dirty, prot, page_size, is_write, is_user;
     hwaddr paddr;
+    uint64_t rsvd_mask = PG_HI_RSVD_MASK;
     uint32_t page_offset;
     target_ulong vaddr, virt_addr;
 
@@ -580,7 +573,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             if (!(pml4e & PG_PRESENT_MASK)) {
                 goto do_fault;
             }
-            if (pml4e & PG_PSE_MASK) {
+            if (pml4e & (rsvd_mask | PG_PSE_MASK)) {
                 goto do_fault_rsvd;
             }
             if (!(env->efer & MSR_EFER_NXE) && (pml4e & PG_NX_MASK)) {
@@ -591,11 +584,14 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
                 stl_phys_notdirty(cs->as, pml4e_addr, pml4e);
             }
             ptep = pml4e ^ PG_NX_MASK;
-            pdpe_addr = ((pml4e & PHYS_ADDR_MASK) + (((addr >> 30) & 0x1ff) << 3)) &
+            pdpe_addr = ((pml4e & PG_ADDRESS_MASK) + (((addr >> 30) & 0x1ff) << 3)) &
                 env->a20_mask;
             pdpe = ldq_phys(cs->as, pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK)) {
                 goto do_fault;
+            }
+            if (pdpe & rsvd_mask) {
+                goto do_fault_rsvd;
             }
             if (!(env->efer & MSR_EFER_NXE) && (pdpe & PG_NX_MASK)) {
                 goto do_fault_rsvd;
@@ -622,14 +618,21 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             if (!(pdpe & PG_PRESENT_MASK)) {
                 goto do_fault;
             }
+            rsvd_mask |= PG_HI_USER_MASK | PG_NX_MASK;
+            if (pdpe & rsvd_mask) {
+                goto do_fault_rsvd;
+            }
             ptep = PG_NX_MASK | PG_USER_MASK | PG_RW_MASK;
         }
 
-        pde_addr = ((pdpe & PHYS_ADDR_MASK) + (((addr >> 21) & 0x1ff) << 3)) &
+        pde_addr = ((pdpe & PG_ADDRESS_MASK) + (((addr >> 21) & 0x1ff) << 3)) &
             env->a20_mask;
         pde = ldq_phys(cs->as, pde_addr);
         if (!(pde & PG_PRESENT_MASK)) {
             goto do_fault;
+        }
+        if (pde & rsvd_mask) {
+            goto do_fault_rsvd;
         }
         if (!(env->efer & MSR_EFER_NXE) && (pde & PG_NX_MASK)) {
             goto do_fault_rsvd;
@@ -647,11 +650,14 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             pde |= PG_ACCESSED_MASK;
             stl_phys_notdirty(cs->as, pde_addr, pde);
         }
-        pte_addr = ((pde & PHYS_ADDR_MASK) + (((addr >> 12) & 0x1ff) << 3)) &
+        pte_addr = ((pde & PG_ADDRESS_MASK) + (((addr >> 12) & 0x1ff) << 3)) &
             env->a20_mask;
         pte = ldq_phys(cs->as, pte_addr);
         if (!(pte & PG_PRESENT_MASK)) {
             goto do_fault;
+        }
+        if (pte & rsvd_mask) {
+            goto do_fault_rsvd;
         }
         if (!(env->efer & MSR_EFER_NXE) && (pte & PG_NX_MASK)) {
             goto do_fault_rsvd;
@@ -694,9 +700,13 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
         /* combine pde and pte user and rw protections */
         ptep &= pte | PG_NX_MASK;
         page_size = 4096;
+        rsvd_mask = 0;
     }
 
 do_check_protect:
+    if (pte & rsvd_mask) {
+        goto do_fault_rsvd;
+    }
     ptep ^= PG_NX_MASK;
     if ((ptep & PG_NX_MASK) && is_write1 == 2) {
         goto do_fault_protect;

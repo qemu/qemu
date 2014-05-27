@@ -260,6 +260,8 @@
 #define PG_DIRTY_MASK    (1 << PG_DIRTY_BIT)
 #define PG_PSE_MASK      (1 << PG_PSE_BIT)
 #define PG_GLOBAL_MASK   (1 << PG_GLOBAL_BIT)
+#define PG_ADDRESS_MASK  0x000ffffffffff000LL
+#define PG_HI_RSVD_MASK  (PG_ADDRESS_MASK & ~PHYS_ADDR_MASK)
 #define PG_HI_USER_MASK  0x7ff0000000000000LL
 #define PG_NX_MASK       (1LL << PG_NX_BIT)
 
@@ -1136,6 +1138,14 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 #define TARGET_PHYS_ADDR_SPACE_BITS 36
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
+
+/* XXX: This value should match the one returned by CPUID
+ * and in exec.c */
+# if defined(TARGET_X86_64)
+# define PHYS_ADDR_MASK 0xffffffffffLL
+# else
+# define PHYS_ADDR_MASK 0xfffffffffLL
+# endif
 
 static inline CPUX86State *cpu_init(const char *cpu_model)
 {
