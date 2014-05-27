@@ -22,9 +22,7 @@ QEMU_DGFLAGS += -MMD -MP -MT $@ -MF $(*D)/$(*F).d
 # Same as -I$(SRC_PATH) -I., but for the nested source/object directories
 QEMU_INCLUDES += -I$(<D) -I$(@D)
 
-maybe-add = $(filter-out $1, $2) $1
-extract-libs = $(strip $(sort $(foreach o,$1,$($o-libs))) \
-                  $(foreach o,$(call expand-objs,$1),$($o-libs)))
+extract-libs = $(strip $(sort $(foreach o,$1,$($o-libs))))
 expand-objs = $(strip $(sort $(filter %.o,$1)) \
                   $(foreach o,$(filter %.mo,$1),$($o-objs)) \
                   $(filter-out %.o %.mo,$1))
@@ -39,9 +37,8 @@ expand-objs = $(strip $(sort $(filter %.o,$1)) \
 LINKPROG = $(or $(CXX),$(CC))
 
 ifeq ($(LIBTOOL),)
-LINK = $(call quiet-command,$(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
-       $(call expand-objs,$1) $(version-obj-y) \
-       $(call extract-libs,$1) $(LIBS),"  LINK  $(TARGET_DIR)$@")
+LINK = $(call quiet-command, $(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
+       $1 $(version-obj-y) $(call extract-libs,$1) $(LIBS),"  LINK  $(TARGET_DIR)$@")
 else
 LIBTOOL += $(if $(V),,--quiet)
 %.lo: %.c
@@ -53,8 +50,7 @@ LIBTOOL += $(if $(V),,--quiet)
 
 LINK = $(call quiet-command,\
        $(if $(filter %.lo %.la,$1),$(LIBTOOL) --mode=link --tag=CC \
-       )$(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
-       $(call expand-objs,$1) \
+       )$(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $1 \
        $(if $(filter %.lo %.la,$1),$(version-lobj-y),$(version-obj-y)) \
        $(if $(filter %.lo %.la,$1),$(LIBTOOLFLAGS)) \
        $(call extract-libs,$(1:.lo=.o)) $(LIBS),$(if $(filter %.lo %.la,$1),"lt LINK ", "  LINK  ")"$(TARGET_DIR)$@")
@@ -78,9 +74,9 @@ endif
 %.o: %.dtrace
 	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN   $(TARGET_DIR)$@")
 
-DSO_CFLAGS := -fPIC -DBUILD_DSO
+%$(DSOSUF): CFLAGS += -fPIC -DBUILD_DSO
 %$(DSOSUF): LDFLAGS += $(LDFLAGS_SHARED)
-%$(DSOSUF): %.mo libqemustub.a
+%$(DSOSUF):
 	$(call LINK,$^)
 	@# Copy to build root so modules can be loaded when program started without install
 	$(if $(findstring /,$@),$(call quiet-command,cp $@ $(subst /,-,$@), "  CP    $(subst /,-,$@)"))
@@ -161,82 +157,165 @@ clean: clean-timestamp
 # will delete the target of a rule if commands exit with a nonzero exit status
 .DELETE_ON_ERROR:
 
-# magic to descend into other directories
-
-define push-var
-$(eval save-$2-$1 = $(value $1))
-$(eval $1 :=)
+# save-vars
+# Usage: $(call save-vars, vars)
+# Save each variable $v in $vars as save-vars-$v, save their object's
+# variables, then clear $v.
+define save-vars
+    $(foreach v,$1,
+        $(eval save-vars-$v := $(value $v))
+        $(foreach o,$($v),
+            $(foreach k,cflags libs objs,
+                $(if $($o-$k),
+                    $(eval save-vars-$o-$k := $($o-$k))
+                    $(eval $o-$k := ))))
+        $(eval $v := ))
 endef
 
-define pop-var
-$(eval subdir-$2-$1 := $(if $(filter $2,$(save-$2-$1)),$(addprefix $2,$($1))))
-$(eval $1 = $(value save-$2-$1) $$(subdir-$2-$1))
-$(eval save-$2-$1 :=)
+# load-vars
+# Usage: $(call load-vars, vars, add_var)
+# Load the saved value for each variable in @vars, and the per object
+# variables.
+# Append @add_var's current value to the loaded value.
+define load-vars
+    $(eval $2-new-value := $(value $2))
+    $(foreach v,$1,
+        $(eval $v := $(value save-vars-$v))
+        $(foreach o,$($v),
+            $(foreach k,cflags libs objs,
+                $(if $(save-vars-$o-$k),
+                    $(eval $o-$k := $(save-vars-$o-$k))
+                    $(eval save-vars-$o-$k := ))))
+        $(eval save-vars-$v := ))
+    $(eval $2 := $(value $2) $($2-new-value))
 endef
 
-define fix-obj-vars
-$(if $2, $(foreach v,$($1), \
-	$(if $($v-cflags), \
-		$(eval $2/$v-cflags := $($v-cflags)) \
-		$(eval $v-cflags := )) \
-	$(if $($v-libs), \
-		$(eval $2/$v-libs := $($v-libs)) \
-		$(eval $v-libs := )) \
-	$(if $($v-objs), \
-		$(eval $2/$v-objs := $(addprefix $2/,$($v-objs))) \
-		$(eval $v-objs := ))))
+# fix-paths
+# Usage: $(call fix-paths, obj_path, src_path, vars)
+# Add prefix @obj_path to all objects in @vars, and add prefix @src_path to all
+# directories in @vars.
+define fix-paths
+    $(foreach v,$3,
+        $(foreach o,$($v),
+            $(if $($o-libs),
+                $(eval $1$o-libs := $($o-libs)))
+            $(if $($o-cflags),
+                $(eval $1$o-cflags := $($o-cflags)))
+            $(if $($o-objs),
+                $(eval $1$o-objs := $(addprefix $1,$($o-objs)))))
+        $(eval $v := $(addprefix $1,$(filter-out %/,$($v))) \
+                     $(addprefix $2,$(filter %/,$($v)))))
 endef
 
-define unnest-dir
-$(foreach var,$(nested-vars),$(call push-var,$(var),$1/))
-$(eval obj-parent-$1 := $(obj))
-$(eval obj := $(if $(obj),$(obj)/$1,$1))
-$(eval include $(SRC_PATH)/$1/Makefile.objs)
-$(foreach v,$(nested-vars),$(call fix-obj-vars,$v,$(obj)))
-$(eval obj := $(obj-parent-$1))
-$(eval obj-parent-$1 := )
-$(foreach var,$(nested-vars),$(call pop-var,$(var),$1/))
+# unnest-var-recursive
+# Usage: $(call unnest-var-recursive, obj_prefix, vars, var)
+#
+# Unnest @var by including subdir Makefile.objs, while protect others in @vars
+# unchanged.
+#
+# @obj_prefix is the starting point of object path prefix.
+#
+define unnest-var-recursive
+    $(eval dirs := $(sort $(filter %/,$($3))))
+    $(eval $3 := $(filter-out %/,$($3)))
+    $(foreach d,$(dirs:%/=%),
+            $(call save-vars,$2)
+            $(eval obj := $(if $1,$1/)$d)
+            $(eval -include $(SRC_PATH)/$d/Makefile.objs)
+            $(call fix-paths,$(if $1,$1/)$d/,$d/,$2)
+            $(call load-vars,$2,$3)
+            $(call unnest-var-recursive,$1,$2,$3))
 endef
 
-define unnest-vars-1
-$(eval nested-dirs := $(filter-out \
-    $(old-nested-dirs), \
-    $(sort $(foreach var,$(nested-vars), $(filter %/, $($(var)))))))
-$(if $(nested-dirs),
-  $(foreach dir,$(nested-dirs),$(call unnest-dir,$(patsubst %/,%,$(dir))))
-  $(eval old-nested-dirs := $(old-nested-dirs) $(nested-dirs))
-  $(call unnest-vars-1))
-endef
-
-define process-modules
-$(foreach o,$(filter %.o,$($1)),
-	$(eval $(patsubst %.o,%.mo,$o): $o) \
-	$(eval $(patsubst %.o,%.mo,$o)-objs := $o))
-$(foreach o,$(filter-out $(modules-m), $(patsubst %.o,%.mo,$($1))), \
-    $(eval $o-objs += module-common.o)
-    $(eval $o: $($o-objs))
-    $(eval modules-objs-m += $($o-objs))
-    $(eval modules-m += $o)
-    $(eval $o:; $$(call quiet-command,touch $$@,"  GEN   $$(TARGET_DIR)$$@"))
-    $(if $(CONFIG_MODULES),$(eval modules: $(patsubst %.mo,%$(DSOSUF),$o)))) \
-$(eval modules-objs-m := $(sort $(modules-objs-m)))
-$(foreach o,$(modules-objs-m), \
-    $(if $(CONFIG_MODULES),$(eval $o-cflags := $(call maybe-add, $(DSO_CFLAGS), $($o-cflags)))))
-$(eval $(patsubst %-m,%-$(call lnot,$(CONFIG_MODULES)),$1) += $($1))
-endef
-
+# unnest-vars
+# Usage: $(call unnest-vars, obj_prefix, vars)
+#
+# @obj_prefix: object path prefix, can be empty, or '..', etc. Don't include
+# ending '/'.
+#
+# @vars: the list of variable names to unnest.
+#
+# This macro will scan subdirectories's Makefile.objs, include them, to build
+# up each variable listed in @vars.
+#
+# Per object and per module cflags and libs are saved with relative path fixed
+# as well, those variables include -libs, -cflags and -objs. Items in -objs are
+# also fixed to relative path against SRC_PATH plus the prefix @obj_prefix.
+#
+# All nested variables postfixed by -m in names are treated as DSO variables,
+# and will be built as modules, if enabled.
+#
+# A simple example of the unnest:
+#
+#     obj_prefix = ..
+#     vars = hot cold
+#     hot  = fire.o sun.o season/
+#     cold = snow.o water/ season/
+#
+# Unnest through a faked source directory structure:
+#
+#     SRC_PATH
+#        ├── water
+#        │   └── Makefile.objs──────────────────┐
+#        │       │ hot += steam.o               │
+#        │       │ cold += ice.mo               │
+#        │       │ ice.mo-libs := -licemaker    │
+#        │       │ ice.mo-objs := ice1.o ice2.o │
+#        │       └──────────────────────────────┘
+#        │
+#        └── season
+#            └── Makefile.objs──────┐
+#                │ hot += summer.o  │
+#                │ cold += winter.o │
+#                └──────────────────┘
+#
+# In the end, the result will be:
+#
+#     hot  = ../fire.o ../sun.o ../season/summer.o
+#     cold = ../snow.o ../water/ice.mo ../season/winter.o
+#     ../water/ice.mo-libs = -licemaker
+#     ../water/ice.mo-objs = ../water/ice1.o ../water/ice2.o
+#
+# Note that 'hot' didn't include 'season/' in the input, so 'summer.o' is not
+# included.
+#
 define unnest-vars
-$(eval obj := $1)
-$(eval nested-vars := $2)
-$(foreach v,$(nested-vars),$(call fix-obj-vars,$v,$(obj)))
-$(eval old-nested-dirs := )
-$(call unnest-vars-1)
-$(if $1,$(foreach v,$(nested-vars),$(eval \
-	$v := $(addprefix $1/,$($v)))))
-$(foreach var,$(nested-vars),$(eval $(var) := $(filter-out %/, $($(var)))))
-$(shell mkdir -p $(sort $(foreach var,$(nested-vars),$(dir $($(var))))))
-$(foreach var,$(nested-vars), $(eval \
-  -include $(addsuffix *.d, $(sort $(dir $($(var)))))))
-$(foreach v,$(filter %-m,$(nested-vars)), \
-    $(call process-modules,$v))
+    # In the case of target build (i.e. $1 == ..), fix path for top level
+    # Makefile.objs objects
+    $(if $1,$(call fix-paths,$1/,,$2))
+
+    # Descend and include every subdir Makefile.objs
+    $(foreach v, $2, $(call unnest-var-recursive,$1,$2,$v))
+
+    $(foreach v,$(filter %-m,$2),
+        # All .o found in *-m variables are single object modules, create .mo
+        # for them
+        $(foreach o,$(filter %.o,$($v)),
+            $(eval $(o:%.o=%.mo)-objs := $o))
+        # Now unify .o in -m variable to .mo
+        $(eval $v := $($v:%.o=%.mo))
+        $(eval modules-m += $($v))
+
+        # For module build, build shared libraries during "make modules"
+        # For non-module build, add -m to -y
+        $(if $(CONFIG_MODULES),
+             $(eval modules: $($v:%.mo=%$(DSOSUF))),
+             $(eval $(patsubst %-m,%-y,$v) += $(call expand-objs, $($v)))))
+
+    # Post-process all the unnested vars
+    $(foreach v,$2,
+        $(foreach o, $(filter %.mo,$($v)),
+            # Find all the .mo objects in variables and add dependency rules
+            # according to .mo-objs. Report error if not set
+            $(if $($o-objs),
+                $(eval $(o:%.mo=%$(DSOSUF)): module-common.o $($o-objs)),
+                $(error $o added in $v but $o-objs is not set))
+            # Pass the .mo-cflags and .mo-libs along to member objects
+            $(foreach p,$($o-objs),
+                $(if $($o-cflags), $(eval $p-cflags += $($o-cflags)))
+                $(if $($o-libs), $(eval $p-libs += $($o-libs)))))
+        $(shell mkdir -p ./ $(sort $(dir $($v))))
+        # Include all the .d files
+        $(eval -include $(addsuffix *.d, $(sort $(dir $($v)))))
+        $(eval $v := $(filter-out %/,$($v))))
 endef
