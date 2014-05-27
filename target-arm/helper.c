@@ -2114,6 +2114,19 @@ static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static const ARMCPRegInfo v8_el3_cp_reginfo[] = {
+    { .name = "ELR_EL3", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 6, .crn = 4, .crm = 0, .opc2 = 1,
+      .access = PL3_RW,
+      .fieldoffset = offsetof(CPUARMState, elr_el[3]) },
+    { .name = "SPSR_EL3", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 6, .crn = 4, .crm = 0, .opc2 = 0,
+      .access = PL3_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[7]) },
+    REGINFO_SENTINEL
+};
+
 static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
@@ -2367,6 +2380,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
     if (arm_feature(env, ARM_FEATURE_EL2)) {
         define_arm_cp_regs(cpu, v8_el2_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        define_arm_cp_regs(cpu, v8_el3_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_MPU)) {
         /* These are the MPU registers prior to PMSAv6. Any new
