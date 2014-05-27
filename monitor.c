@@ -4559,6 +4559,20 @@ void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str)
     }
 }
 
+void watchdog_action_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    if (nb_args != 2) {
+        return;
+    }
+    readline_set_completion_index(rs, strlen(str));
+    add_completion_option(rs, str, "reset");
+    add_completion_option(rs, str, "shutdown");
+    add_completion_option(rs, str, "poweroff");
+    add_completion_option(rs, str, "pause");
+    add_completion_option(rs, str, "debug");
+    add_completion_option(rs, str, "none");
+}
+
 static void monitor_find_completion_by_table(Monitor *mon,
                                              const mon_cmd_t *cmd_table,
                                              char **args,

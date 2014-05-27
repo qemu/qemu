@@ -1359,6 +1359,7 @@ ETEXI
         .params     = "[reset|shutdown|poweroff|pause|debug|none]",
         .help       = "change watchdog action",
         .mhandler.cmd = do_watchdog_action,
+        .command_completion = watchdog_action_completion,
     },
 
 STEXI
