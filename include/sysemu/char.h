@@ -61,7 +61,7 @@ struct CharDriverState {
     GSource *(*chr_add_watch)(struct CharDriverState *s, GIOCondition cond);
     void (*chr_update_read_handler)(struct CharDriverState *s);
     int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
-    int (*get_msgfd)(struct CharDriverState *s);
+    int (*get_msgfds)(struct CharDriverState *s, int* fds, int num);
     int (*set_msgfds)(struct CharDriverState *s, int *fds, int num);
     int (*chr_add_client)(struct CharDriverState *chr, int fd);
     IOEventHandler *chr_event;
@@ -228,6 +228,19 @@ int qemu_chr_fe_ioctl(CharDriverState *s, int cmd, void *arg);
  *          descriptor.
  */
 int qemu_chr_fe_get_msgfd(CharDriverState *s);
+
+/**
+ * @qemu_chr_fe_get_msgfds:
+ *
+ * For backends capable of fd passing, return the number of file received
+ * descriptors and fills the fds array up to num elements
+ *
+ * Returns: -1 if fd passing isn't supported or there are no pending file
+ *          descriptors.  If file descriptors are returned, subsequent calls to
+ *          this function will return -1 until a client sends a new set of file
+ *          descriptors.
+ */
+int qemu_chr_fe_get_msgfds(CharDriverState *s, int *fds, int num);
 
 /**
  * @qemu_chr_fe_set_msgfds:

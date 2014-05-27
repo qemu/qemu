@@ -204,7 +204,13 @@ void qemu_chr_be_write(CharDriverState *s, uint8_t *buf, int len)
 
 int qemu_chr_fe_get_msgfd(CharDriverState *s)
 {
-    return s->get_msgfd ? s->get_msgfd(s) : -1;
+    int fd;
+    return (qemu_chr_fe_get_msgfds(s, &fd, 1) >= 0) ? fd : -1;
+}
+
+int qemu_chr_fe_get_msgfds(CharDriverState *s, int *fds, int len)
+{
+    return s->get_msgfds ? s->get_msgfds(s, fds, len) : -1;
 }
 
 int qemu_chr_fe_set_msgfds(CharDriverState *s, int *fds, int num)
@@ -2337,7 +2343,8 @@ typedef struct {
     int do_telnetopt;
     int do_nodelay;
     int is_unix;
-    int msgfd;
+    int *read_msgfds;
+    int read_msgfds_num;
     int *write_msgfds;
     int write_msgfds_num;
 } TCPCharDriver;
@@ -2469,12 +2476,20 @@ static void tcp_chr_process_IAC_bytes(CharDriverState *chr,
     *size = j;
 }
 
-static int tcp_get_msgfd(CharDriverState *chr)
+static int tcp_get_msgfds(CharDriverState *chr, int *fds, int num)
 {
     TCPCharDriver *s = chr->opaque;
-    int fd = s->msgfd;
-    s->msgfd = -1;
-    return fd;
+    int to_copy = (s->read_msgfds_num < num) ? s->read_msgfds_num : num;
+
+    if (to_copy) {
+        memcpy(fds, s->read_msgfds, to_copy * sizeof(int));
+
+        g_free(s->read_msgfds);
+        s->read_msgfds = 0;
+        s->read_msgfds_num = 0;
+    }
+
+    return to_copy;
 }
 
 static int tcp_set_msgfds(CharDriverState *chr, int *fds, int num)
@@ -2503,26 +2518,46 @@ static void unix_process_msgfd(CharDriverState *chr, struct msghdr *msg)
     struct cmsghdr *cmsg;
 
     for (cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
-        int fd;
+        int fd_size, i;
 
-        if (cmsg->cmsg_len != CMSG_LEN(sizeof(int)) ||
+        if (cmsg->cmsg_len < CMSG_LEN(sizeof(int)) ||
             cmsg->cmsg_level != SOL_SOCKET ||
-            cmsg->cmsg_type != SCM_RIGHTS)
+            cmsg->cmsg_type != SCM_RIGHTS) {
             continue;
+        }
 
-        fd = *((int *)CMSG_DATA(cmsg));
-        if (fd < 0)
+        fd_size = cmsg->cmsg_len - CMSG_LEN(0);
+
+        if (!fd_size) {
             continue;
+        }
 
-        /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
-        qemu_set_block(fd);
+        /* close and clean read_msgfds */
+        for (i = 0; i < s->read_msgfds_num; i++) {
+            close(s->read_msgfds[i]);
+        }
 
-#ifndef MSG_CMSG_CLOEXEC
-        qemu_set_cloexec(fd);
-#endif
-        if (s->msgfd != -1)
-            close(s->msgfd);
-        s->msgfd = fd;
+        if (s->read_msgfds_num) {
+            g_free(s->read_msgfds);
+        }
+
+        s->read_msgfds_num = fd_size / sizeof(int);
+        s->read_msgfds = g_malloc(fd_size);
+        memcpy(s->read_msgfds, CMSG_DATA(cmsg), fd_size);
+
+        for (i = 0; i < s->read_msgfds_num; i++) {
+            int fd = s->read_msgfds[i];
+            if (fd < 0) {
+                continue;
+            }
+
+            /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
+            qemu_set_block(fd);
+
+    #ifndef MSG_CMSG_CLOEXEC
+            qemu_set_cloexec(fd);
+    #endif
+        }
     }
 }
 
@@ -2746,6 +2781,7 @@ static gboolean tcp_chr_accept(GIOChannel *channel, GIOCondition cond, void *opa
 static void tcp_chr_close(CharDriverState *chr)
 {
     TCPCharDriver *s = chr->opaque;
+    int i;
     if (s->fd >= 0) {
         remove_fd_in_watch(chr);
         if (s->chan) {
@@ -2762,6 +2798,12 @@ static void tcp_chr_close(CharDriverState *chr)
             g_io_channel_unref(s->listen_chan);
         }
         closesocket(s->listen_fd);
+    }
+    if (s->read_msgfds_num) {
+        for (i = 0; i < s->read_msgfds_num; i++) {
+            close(s->read_msgfds[i]);
+        }
+        g_free(s->read_msgfds);
     }
     if (s->write_msgfds_num) {
         g_free(s->write_msgfds);
@@ -2794,7 +2836,8 @@ static CharDriverState *qemu_chr_open_socket_fd(int fd, bool do_nodelay,
     s->connected = 0;
     s->fd = -1;
     s->listen_fd = -1;
-    s->msgfd = -1;
+    s->read_msgfds = 0;
+    s->read_msgfds_num = 0;
     s->write_msgfds = 0;
     s->write_msgfds_num = 0;
 
@@ -2827,7 +2870,7 @@ static CharDriverState *qemu_chr_open_socket_fd(int fd, bool do_nodelay,
     chr->chr_write = tcp_chr_write;
     chr->chr_sync_read = tcp_chr_sync_read;
     chr->chr_close = tcp_chr_close;
-    chr->get_msgfd = tcp_get_msgfd;
+    chr->get_msgfds = tcp_get_msgfds;
     chr->set_msgfds = tcp_set_msgfds;
     chr->chr_add_client = tcp_chr_add_client;
     chr->chr_add_watch = tcp_chr_add_watch;
