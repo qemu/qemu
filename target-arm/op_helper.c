@@ -386,13 +386,13 @@ void HELPER(msr_i_pstate)(CPUARMState *env, uint32_t op, uint32_t imm)
 
 void HELPER(exception_return)(CPUARMState *env)
 {
-    unsigned int spsr_idx = aarch64_banked_spsr_index(1);
+    int cur_el = arm_current_pl(env);
+    unsigned int spsr_idx = aarch64_banked_spsr_index(cur_el);
     uint32_t spsr = env->banked_spsr[spsr_idx];
     int new_el, i;
-    int cur_el = arm_current_pl(env);
 
     if (env->pstate & PSTATE_SP) {
-        env->sp_el[1] = env->xregs[31];
+        env->sp_el[cur_el] = env->xregs[31];
     } else {
         env->sp_el[0] = env->xregs[31];
     }
@@ -400,6 +400,7 @@ void HELPER(exception_return)(CPUARMState *env)
     env->exclusive_addr = -1;
 
     if (spsr & PSTATE_nRW) {
+        /* TODO: We currently assume EL1/2/3 are running in AArch64.  */
         env->aarch64 = 0;
         new_el = 0;
         env->uncached_cpsr = 0x10;
@@ -429,7 +430,7 @@ void HELPER(exception_return)(CPUARMState *env)
         env->aarch64 = 1;
         pstate_write(env, spsr);
         env->xregs[31] = env->sp_el[new_el];
-        env->pc = env->elr_el[1];
+        env->pc = env->elr_el[cur_el];
     }
 
     return;
@@ -443,7 +444,7 @@ illegal_return:
      * no change to exception level, execution state or stack pointer
      */
     env->pstate |= PSTATE_IL;
-    env->pc = env->elr_el[1];
+    env->pc = env->elr_el[cur_el];
     spsr &= PSTATE_NZCV | PSTATE_DAIF;
     spsr |= pstate_read(env) & ~(PSTATE_NZCV | PSTATE_DAIF);
     pstate_write(env, spsr);
