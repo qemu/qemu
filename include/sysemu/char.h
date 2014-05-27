@@ -62,6 +62,7 @@ struct CharDriverState {
     void (*chr_update_read_handler)(struct CharDriverState *s);
     int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
     int (*get_msgfd)(struct CharDriverState *s);
+    int (*set_msgfds)(struct CharDriverState *s, int *fds, int num);
     int (*chr_add_client)(struct CharDriverState *chr, int fd);
     IOEventHandler *chr_event;
     IOCanReadHandler *chr_can_read;
@@ -227,6 +228,19 @@ int qemu_chr_fe_ioctl(CharDriverState *s, int cmd, void *arg);
  *          descriptor.
  */
 int qemu_chr_fe_get_msgfd(CharDriverState *s);
+
+/**
+ * @qemu_chr_fe_set_msgfds:
+ *
+ * For backends capable of fd passing, set an array of fds to be passed with
+ * the next send operation.
+ * A subsequent call to this function before calling a write function will
+ * result in overwriting the fd array with the new value without being send.
+ * Upon writing the message the fd array is freed.
+ *
+ * Returns: -1 if fd passing isn't supported.
+ */
+int qemu_chr_fe_set_msgfds(CharDriverState *s, int *fds, int num);
 
 /**
  * @qemu_chr_fe_claim:

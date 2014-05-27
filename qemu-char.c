@@ -207,6 +207,11 @@ int qemu_chr_fe_get_msgfd(CharDriverState *s)
     return s->get_msgfd ? s->get_msgfd(s) : -1;
 }
 
+int qemu_chr_fe_set_msgfds(CharDriverState *s, int *fds, int num)
+{
+    return s->set_msgfds ? s->set_msgfds(s, fds, num) : -1;
+}
+
 int qemu_chr_add_client(CharDriverState *s, int fd)
 {
     return s->chr_add_client ? s->chr_add_client(s, fd) : -1;
@@ -2333,15 +2338,71 @@ typedef struct {
     int do_nodelay;
     int is_unix;
     int msgfd;
+    int *write_msgfds;
+    int write_msgfds_num;
 } TCPCharDriver;
 
 static gboolean tcp_chr_accept(GIOChannel *chan, GIOCondition cond, void *opaque);
+
+#ifndef _WIN32
+static int unix_send_msgfds(CharDriverState *chr, const uint8_t *buf, int len)
+{
+    TCPCharDriver *s = chr->opaque;
+    struct msghdr msgh;
+    struct iovec iov;
+    int r;
+
+    size_t fd_size = s->write_msgfds_num * sizeof(int);
+    char control[CMSG_SPACE(fd_size)];
+    struct cmsghdr *cmsg;
+
+    memset(&msgh, 0, sizeof(msgh));
+    memset(control, 0, sizeof(control));
+
+    /* set the payload */
+    iov.iov_base = (uint8_t *) buf;
+    iov.iov_len = len;
+
+    msgh.msg_iov = &iov;
+    msgh.msg_iovlen = 1;
+
+    msgh.msg_control = control;
+    msgh.msg_controllen = sizeof(control);
+
+    cmsg = CMSG_FIRSTHDR(&msgh);
+
+    cmsg->cmsg_len = CMSG_LEN(fd_size);
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = SCM_RIGHTS;
+    memcpy(CMSG_DATA(cmsg), s->write_msgfds, fd_size);
+
+    do {
+        r = sendmsg(s->fd, &msgh, 0);
+    } while (r < 0 && errno == EINTR);
+
+    /* free the written msgfds, no matter what */
+    if (s->write_msgfds_num) {
+        g_free(s->write_msgfds);
+        s->write_msgfds = 0;
+        s->write_msgfds_num = 0;
+    }
+
+    return r;
+}
+#endif
 
 static int tcp_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     TCPCharDriver *s = chr->opaque;
     if (s->connected) {
-        return io_channel_send(s->chan, buf, len);
+#ifndef _WIN32
+        if (s->is_unix && s->write_msgfds_num) {
+            return unix_send_msgfds(chr, buf, len);
+        } else
+#endif
+        {
+            return io_channel_send(s->chan, buf, len);
+        }
     } else {
         /* XXX: indicate an error ? */
         return len;
@@ -2414,6 +2475,25 @@ static int tcp_get_msgfd(CharDriverState *chr)
     int fd = s->msgfd;
     s->msgfd = -1;
     return fd;
+}
+
+static int tcp_set_msgfds(CharDriverState *chr, int *fds, int num)
+{
+    TCPCharDriver *s = chr->opaque;
+
+    /* clear old pending fd array */
+    if (s->write_msgfds) {
+        g_free(s->write_msgfds);
+    }
+
+    if (num) {
+        s->write_msgfds = g_malloc(num * sizeof(int));
+        memcpy(s->write_msgfds, fds, num * sizeof(int));
+    }
+
+    s->write_msgfds_num = num;
+
+    return 0;
 }
 
 #ifndef _WIN32
@@ -2683,6 +2763,9 @@ static void tcp_chr_close(CharDriverState *chr)
         }
         closesocket(s->listen_fd);
     }
+    if (s->write_msgfds_num) {
+        g_free(s->write_msgfds);
+    }
     g_free(s);
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
@@ -2712,6 +2795,8 @@ static CharDriverState *qemu_chr_open_socket_fd(int fd, bool do_nodelay,
     s->fd = -1;
     s->listen_fd = -1;
     s->msgfd = -1;
+    s->write_msgfds = 0;
+    s->write_msgfds_num = 0;
 
     chr->filename = g_malloc(256);
     switch (ss.ss_family) {
@@ -2743,6 +2828,7 @@ static CharDriverState *qemu_chr_open_socket_fd(int fd, bool do_nodelay,
     chr->chr_sync_read = tcp_chr_sync_read;
     chr->chr_close = tcp_chr_close;
     chr->get_msgfd = tcp_get_msgfd;
+    chr->set_msgfds = tcp_set_msgfds;
     chr->chr_add_client = tcp_chr_add_client;
     chr->chr_add_watch = tcp_chr_add_watch;
     chr->chr_update_read_handler = tcp_chr_update_read_handler;
