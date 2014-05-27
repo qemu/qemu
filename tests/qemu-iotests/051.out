@@ -38,7 +38,10 @@ Testing: -drive file=TEST_DIR/t.qcow2,format=foo
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=foo: 'foo' invalid format
 
 Testing: -drive file=TEST_DIR/t.qcow2,driver=foo
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=foo: could not open disk image TEST_DIR/t.qcow2: Invalid driver: 'foo'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=foo: could not open disk image TEST_DIR/t.qcow2: Unknown driver 'foo'
+
+Testing: -drive file=TEST_DIR/t.qcow2,driver=raw,format=qcow2
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=raw,format=qcow2: could not open disk image TEST_DIR/t.qcow2: Driver specified twice
 
 
 === Overriding backing file ===

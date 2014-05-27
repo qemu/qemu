@@ -92,6 +92,7 @@ echo
 
 run_qemu -drive file="$TEST_IMG",format=foo
 run_qemu -drive file="$TEST_IMG",driver=foo
+run_qemu -drive file="$TEST_IMG",driver=raw,format=qcow2
 
 echo
 echo === Overriding backing file ===

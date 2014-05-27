@@ -1037,14 +1037,13 @@ static QDict *parse_json_filename(const char *filename, Error **errp)
  * filename/flags pair to option QDict entries.
  */
 static int bdrv_fill_options(QDict **options, const char **pfilename, int flags,
-                             Error **errp)
+                             BlockDriver *drv, Error **errp)
 {
     const char *filename = *pfilename;
     const char *drvname;
     bool protocol = flags & BDRV_O_PROTOCOL;
     bool parse_filename = false;
     Error *local_err = NULL;
-    BlockDriver *drv;
 
     /* Parse json: pseudo-protocol */
     if (filename && g_str_has_prefix(filename, "json:")) {
@@ -1061,12 +1060,8 @@ static int bdrv_fill_options(QDict **options, const char **pfilename, int flags,
         *pfilename = filename = NULL;
     }
 
-    if (!protocol) {
-        return 0;
-    }
-
     /* Fetch the file name from the options QDict if necessary */
-    if (filename) {
+    if (protocol && filename) {
         if (!qdict_haskey(*options, "filename")) {
             qdict_put(*options, "filename", qstring_from_str(filename));
             parse_filename = true;
@@ -1081,30 +1076,41 @@ static int bdrv_fill_options(QDict **options, const char **pfilename, int flags,
     filename = qdict_get_try_str(*options, "filename");
     drvname = qdict_get_try_str(*options, "driver");
 
-    if (!drvname) {
-        if (filename) {
-            drv = bdrv_find_protocol(filename, parse_filename);
-            if (!drv) {
-                error_setg(errp, "Unknown protocol");
+    if (drv) {
+        if (drvname) {
+            error_setg(errp, "Driver specified twice");
+            return -EINVAL;
+        }
+        drvname = drv->format_name;
+        qdict_put(*options, "driver", qstring_from_str(drvname));
+    } else {
+        if (!drvname && protocol) {
+            if (filename) {
+                drv = bdrv_find_protocol(filename, parse_filename);
+                if (!drv) {
+                    error_setg(errp, "Unknown protocol");
+                    return -EINVAL;
+                }
+
+                drvname = drv->format_name;
+                qdict_put(*options, "driver", qstring_from_str(drvname));
+            } else {
+                error_setg(errp, "Must specify either driver or file");
                 return -EINVAL;
             }
-
-            drvname = drv->format_name;
-            qdict_put(*options, "driver", qstring_from_str(drvname));
-        } else {
-            error_setg(errp, "Must specify either driver or file");
-            return -EINVAL;
+        } else if (drvname) {
+            drv = bdrv_find_format(drvname);
+            if (!drv) {
+                error_setg(errp, "Unknown driver '%s'", drvname);
+                return -ENOENT;
+            }
         }
     }
 
-    drv = bdrv_find_format(drvname);
-    if (!drv) {
-        error_setg(errp, "Unknown driver '%s'", drvname);
-        return -ENOENT;
-    }
+    assert(drv || !protocol);
 
     /* Driver-specific filename parsing */
-    if (drv->bdrv_parse_filename && parse_filename) {
+    if (drv && drv->bdrv_parse_filename && parse_filename) {
         drv->bdrv_parse_filename(filename, *options, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
@@ -1438,7 +1444,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         options = qdict_new();
     }
 
-    ret = bdrv_fill_options(&options, &filename, flags, &local_err);
+    ret = bdrv_fill_options(&options, &filename, flags, drv, &local_err);
     if (local_err) {
         goto fail;
     }
@@ -1478,7 +1484,10 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     }
 
     /* Find the right image format driver */
+    drv = NULL;
     drvname = qdict_get_try_str(options, "driver");
+    assert(drvname || !(flags & BDRV_O_PROTOCOL));
+
     if (drvname) {
         drv = bdrv_find_format(drvname);
         qdict_del(options, "driver");
@@ -1487,19 +1496,14 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
             ret = -EINVAL;
             goto fail;
         }
-    }
-
-    if (!drv) {
-        if (file) {
-            ret = find_image_format(file, filename, &drv, &local_err);
-        } else {
-            error_setg(errp, "Must specify either driver or file");
-            ret = -EINVAL;
+    } else if (file) {
+        ret = find_image_format(file, filename, &drv, &local_err);
+        if (ret < 0) {
             goto fail;
         }
-    }
-
-    if (!drv) {
+    } else {
+        error_setg(errp, "Must specify either driver or file");
+        ret = -EINVAL;
         goto fail;
     }
 
