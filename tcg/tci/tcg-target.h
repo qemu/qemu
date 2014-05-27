@@ -118,7 +118,7 @@
 #define TCG_TARGET_HAS_mulu2_i32        1
 #endif /* TCG_TARGET_REG_BITS == 64 */
 
-#define TCG_TARGET_HAS_new_ldst         0
+#define TCG_TARGET_HAS_new_ldst         1
 
 /* Number of registers available.
    For 32 bit hosts, we need more than 8 registers (call arguments). */

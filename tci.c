@@ -116,16 +116,6 @@ static void tci_write_reg(TCGReg index, tcg_target_ulong value)
     tci_reg[index] = value;
 }
 
-static void tci_write_reg8s(TCGReg index, int8_t value)
-{
-    tci_write_reg(index, value);
-}
-
-static void tci_write_reg16s(TCGReg index, int16_t value)
-{
-    tci_write_reg(index, value);
-}
-
 #if TCG_TARGET_REG_BITS == 64
 static void tci_write_reg32s(TCGReg index, int32_t value)
 {
@@ -134,11 +124,6 @@ static void tci_write_reg32s(TCGReg index, int32_t value)
 #endif
 
 static void tci_write_reg8(TCGReg index, uint8_t value)
-{
-    tci_write_reg(index, value);
-}
-
-static void tci_write_reg16(TCGReg index, uint16_t value)
 {
     tci_write_reg(index, value);
 }
@@ -433,6 +418,53 @@ static bool tci_compare64(uint64_t u0, uint64_t u1, TCGCond condition)
     return result;
 }
 
+#ifdef CONFIG_SOFTMMU
+# define mmuidx          tci_read_i(&tb_ptr)
+# define qemu_ld_ub \
+    helper_ret_ldub_mmu(env, taddr, mmuidx, (uintptr_t)tb_ptr)
+# define qemu_ld_leuw \
+    helper_le_lduw_mmu(env, taddr, mmuidx, (uintptr_t)tb_ptr)
+# define qemu_ld_leul \
+    helper_le_ldul_mmu(env, taddr, mmuidx, (uintptr_t)tb_ptr)
+# define qemu_ld_leq \
+    helper_le_ldq_mmu(env, taddr, mmuidx, (uintptr_t)tb_ptr)
+# define qemu_ld_beuw \
+    helper_be_lduw_mmu(env, taddr, mmuidx, (uintptr_t)tb_ptr)
+# define qemu_ld_beul \
+    helper_be_ldul_mmu(env, taddr, mmuidx, (uintptr_t)tb_ptr)
+# define qemu_ld_beq \
+    helper_be_ldq_mmu(env, taddr, mmuidx, (uintptr_t)tb_ptr)
+# define qemu_st_b(X) \
+    helper_ret_stb_mmu(env, taddr, X, mmuidx, (uintptr_t)tb_ptr)
+# define qemu_st_lew(X) \
+    helper_le_stw_mmu(env, taddr, X, mmuidx, (uintptr_t)tb_ptr)
+# define qemu_st_lel(X) \
+    helper_le_stl_mmu(env, taddr, X, mmuidx, (uintptr_t)tb_ptr)
+# define qemu_st_leq(X) \
+    helper_le_stq_mmu(env, taddr, X, mmuidx, (uintptr_t)tb_ptr)
+# define qemu_st_bew(X) \
+    helper_be_stw_mmu(env, taddr, X, mmuidx, (uintptr_t)tb_ptr)
+# define qemu_st_bel(X) \
+    helper_be_stl_mmu(env, taddr, X, mmuidx, (uintptr_t)tb_ptr)
+# define qemu_st_beq(X) \
+    helper_be_stq_mmu(env, taddr, X, mmuidx, (uintptr_t)tb_ptr)
+#else
+# define qemu_ld_ub      ldub_p(g2h(taddr))
+# define qemu_ld_leuw    lduw_le_p(g2h(taddr))
+# define qemu_ld_leul    (uint32_t)ldl_le_p(g2h(taddr))
+# define qemu_ld_leq     ldq_le_p(g2h(taddr))
+# define qemu_ld_beuw    lduw_be_p(g2h(taddr))
+# define qemu_ld_beul    (uint32_t)ldl_be_p(g2h(taddr))
+# define qemu_ld_beq     ldq_be_p(g2h(taddr))
+# define qemu_st_b(X)    stb_p(g2h(taddr), X)
+# define qemu_st_lew(X)  stw_le_p(g2h(taddr), X)
+# define qemu_st_lel(X)  stl_le_p(g2h(taddr), X)
+# define qemu_st_leq(X)  stq_le_p(g2h(taddr), X)
+# define qemu_st_bew(X)  stw_be_p(g2h(taddr), X)
+# define qemu_st_bel(X)  stl_be_p(g2h(taddr), X)
+# define qemu_st_beq(X)  stq_be_p(g2h(taddr), X)
+#endif
+
 /* Interpret pseudo code in tb. */
 uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
 {
@@ -456,9 +488,6 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
         tcg_target_ulong label;
         TCGCond condition;
         target_ulong taddr;
-#ifndef CONFIG_SOFTMMU
-        tcg_target_ulong host_addr;
-#endif
         uint8_t tmp8;
         uint16_t tmp16;
         uint32_t tmp32;
@@ -466,6 +495,7 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
 #if TCG_TARGET_REG_BITS == 32
         uint64_t v64;
 #endif
+        TCGMemOp memop;
 
 #if defined(GETPC)
         tci_tb_ptr = (uintptr_t)tb_ptr;
@@ -1086,145 +1116,145 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             assert(tb_ptr == old_code_ptr + op_size);
             tb_ptr += (int32_t)t0;
             continue;
-        case INDEX_op_qemu_ld8u:
+        case INDEX_op_qemu_ld_i32:
             t0 = *tb_ptr++;
             taddr = tci_read_ulong(&tb_ptr);
-#ifdef CONFIG_SOFTMMU
-            tmp8 = helper_ldb_mmu(env, taddr, tci_read_i(&tb_ptr));
-#else
-            host_addr = (tcg_target_ulong)taddr;
-            tmp8 = *(uint8_t *)(host_addr + GUEST_BASE);
-#endif
-            tci_write_reg8(t0, tmp8);
+            memop = tci_read_i(&tb_ptr);
+            switch (memop) {
+            case MO_UB:
+                tmp32 = qemu_ld_ub;
+                break;
+            case MO_SB:
+                tmp32 = (int8_t)qemu_ld_ub;
+                break;
+            case MO_LEUW:
+                tmp32 = qemu_ld_leuw;
+                break;
+            case MO_LESW:
+                tmp32 = (int16_t)qemu_ld_leuw;
+                break;
+            case MO_LEUL:
+                tmp32 = qemu_ld_leul;
+                break;
+            case MO_BEUW:
+                tmp32 = qemu_ld_beuw;
+                break;
+            case MO_BESW:
+                tmp32 = (int16_t)qemu_ld_beuw;
+                break;
+            case MO_BEUL:
+                tmp32 = qemu_ld_beul;
+                break;
+            default:
+                tcg_abort();
+            }
+            tci_write_reg(t0, tmp32);
             break;
-        case INDEX_op_qemu_ld8s:
+        case INDEX_op_qemu_ld_i64:
             t0 = *tb_ptr++;
+            if (TCG_TARGET_REG_BITS == 32) {
+                t1 = *tb_ptr++;
+            }
             taddr = tci_read_ulong(&tb_ptr);
-#ifdef CONFIG_SOFTMMU
-            tmp8 = helper_ldb_mmu(env, taddr, tci_read_i(&tb_ptr));
-#else
-            host_addr = (tcg_target_ulong)taddr;
-            tmp8 = *(uint8_t *)(host_addr + GUEST_BASE);
-#endif
-            tci_write_reg8s(t0, tmp8);
-            break;
-        case INDEX_op_qemu_ld16u:
-            t0 = *tb_ptr++;
-            taddr = tci_read_ulong(&tb_ptr);
-#ifdef CONFIG_SOFTMMU
-            tmp16 = helper_ldw_mmu(env, taddr, tci_read_i(&tb_ptr));
-#else
-            host_addr = (tcg_target_ulong)taddr;
-            tmp16 = tswap16(*(uint16_t *)(host_addr + GUEST_BASE));
-#endif
-            tci_write_reg16(t0, tmp16);
-            break;
-        case INDEX_op_qemu_ld16s:
-            t0 = *tb_ptr++;
-            taddr = tci_read_ulong(&tb_ptr);
-#ifdef CONFIG_SOFTMMU
-            tmp16 = helper_ldw_mmu(env, taddr, tci_read_i(&tb_ptr));
-#else
-            host_addr = (tcg_target_ulong)taddr;
-            tmp16 = tswap16(*(uint16_t *)(host_addr + GUEST_BASE));
-#endif
-            tci_write_reg16s(t0, tmp16);
-            break;
-#if TCG_TARGET_REG_BITS == 64
-        case INDEX_op_qemu_ld32u:
-            t0 = *tb_ptr++;
-            taddr = tci_read_ulong(&tb_ptr);
-#ifdef CONFIG_SOFTMMU
-            tmp32 = helper_ldl_mmu(env, taddr, tci_read_i(&tb_ptr));
-#else
-            host_addr = (tcg_target_ulong)taddr;
-            tmp32 = tswap32(*(uint32_t *)(host_addr + GUEST_BASE));
-#endif
-            tci_write_reg32(t0, tmp32);
-            break;
-        case INDEX_op_qemu_ld32s:
-            t0 = *tb_ptr++;
-            taddr = tci_read_ulong(&tb_ptr);
-#ifdef CONFIG_SOFTMMU
-            tmp32 = helper_ldl_mmu(env, taddr, tci_read_i(&tb_ptr));
-#else
-            host_addr = (tcg_target_ulong)taddr;
-            tmp32 = tswap32(*(uint32_t *)(host_addr + GUEST_BASE));
-#endif
-            tci_write_reg32s(t0, tmp32);
-            break;
-#endif /* TCG_TARGET_REG_BITS == 64 */
-        case INDEX_op_qemu_ld32:
-            t0 = *tb_ptr++;
-            taddr = tci_read_ulong(&tb_ptr);
-#ifdef CONFIG_SOFTMMU
-            tmp32 = helper_ldl_mmu(env, taddr, tci_read_i(&tb_ptr));
-#else
-            host_addr = (tcg_target_ulong)taddr;
-            tmp32 = tswap32(*(uint32_t *)(host_addr + GUEST_BASE));
-#endif
-            tci_write_reg32(t0, tmp32);
-            break;
-        case INDEX_op_qemu_ld64:
-            t0 = *tb_ptr++;
-#if TCG_TARGET_REG_BITS == 32
-            t1 = *tb_ptr++;
-#endif
-            taddr = tci_read_ulong(&tb_ptr);
-#ifdef CONFIG_SOFTMMU
-            tmp64 = helper_ldq_mmu(env, taddr, tci_read_i(&tb_ptr));
-#else
-            host_addr = (tcg_target_ulong)taddr;
-            tmp64 = tswap64(*(uint64_t *)(host_addr + GUEST_BASE));
-#endif
+            memop = tci_read_i(&tb_ptr);
+            switch (memop) {
+            case MO_UB:
+                tmp64 = qemu_ld_ub;
+                break;
+            case MO_SB:
+                tmp64 = (int8_t)qemu_ld_ub;
+                break;
+            case MO_LEUW:
+                tmp64 = qemu_ld_leuw;
+                break;
+            case MO_LESW:
+                tmp64 = (int16_t)qemu_ld_leuw;
+                break;
+            case MO_LEUL:
+                tmp64 = qemu_ld_leul;
+                break;
+            case MO_LESL:
+                tmp64 = (int32_t)qemu_ld_leul;
+                break;
+            case MO_LEQ:
+                tmp64 = qemu_ld_leq;
+                break;
+            case MO_BEUW:
+                tmp64 = qemu_ld_beuw;
+                break;
+            case MO_BESW:
+                tmp64 = (int16_t)qemu_ld_beuw;
+                break;
+            case MO_BEUL:
+                tmp64 = qemu_ld_beul;
+                break;
+            case MO_BESL:
+                tmp64 = (int32_t)qemu_ld_beul;
+                break;
+            case MO_BEQ:
+                tmp64 = qemu_ld_beq;
+                break;
+            default:
+                tcg_abort();
+            }
             tci_write_reg(t0, tmp64);
-#if TCG_TARGET_REG_BITS == 32
-            tci_write_reg(t1, tmp64 >> 32);
-#endif
+            if (TCG_TARGET_REG_BITS == 32) {
+                tci_write_reg(t1, tmp64 >> 32);
+            }
             break;
-        case INDEX_op_qemu_st8:
-            t0 = tci_read_r8(&tb_ptr);
+        case INDEX_op_qemu_st_i32:
+            t0 = tci_read_r(&tb_ptr);
             taddr = tci_read_ulong(&tb_ptr);
-#ifdef CONFIG_SOFTMMU
-            t2 = tci_read_i(&tb_ptr);
-            helper_stb_mmu(env, taddr, t0, t2);
-#else
-            host_addr = (tcg_target_ulong)taddr;
-            *(uint8_t *)(host_addr + GUEST_BASE) = t0;
-#endif
+            memop = tci_read_i(&tb_ptr);
+            switch (memop) {
+            case MO_UB:
+                qemu_st_b(t0);
+                break;
+            case MO_LEUW:
+                qemu_st_lew(t0);
+                break;
+            case MO_LEUL:
+                qemu_st_lel(t0);
+                break;
+            case MO_BEUW:
+                qemu_st_bew(t0);
+                break;
+            case MO_BEUL:
+                qemu_st_bel(t0);
+                break;
+            default:
+                tcg_abort();
+            }
             break;
-        case INDEX_op_qemu_st16:
-            t0 = tci_read_r16(&tb_ptr);
-            taddr = tci_read_ulong(&tb_ptr);
-#ifdef CONFIG_SOFTMMU
-            t2 = tci_read_i(&tb_ptr);
-            helper_stw_mmu(env, taddr, t0, t2);
-#else
-            host_addr = (tcg_target_ulong)taddr;
-            *(uint16_t *)(host_addr + GUEST_BASE) = tswap16(t0);
-#endif
-            break;
-        case INDEX_op_qemu_st32:
-            t0 = tci_read_r32(&tb_ptr);
-            taddr = tci_read_ulong(&tb_ptr);
-#ifdef CONFIG_SOFTMMU
-            t2 = tci_read_i(&tb_ptr);
-            helper_stl_mmu(env, taddr, t0, t2);
-#else
-            host_addr = (tcg_target_ulong)taddr;
-            *(uint32_t *)(host_addr + GUEST_BASE) = tswap32(t0);
-#endif
-            break;
-        case INDEX_op_qemu_st64:
+        case INDEX_op_qemu_st_i64:
             tmp64 = tci_read_r64(&tb_ptr);
             taddr = tci_read_ulong(&tb_ptr);
-#ifdef CONFIG_SOFTMMU
-            t2 = tci_read_i(&tb_ptr);
-            helper_stq_mmu(env, taddr, tmp64, t2);
-#else
-            host_addr = (tcg_target_ulong)taddr;
-            *(uint64_t *)(host_addr + GUEST_BASE) = tswap64(tmp64);
-#endif
+            memop = tci_read_i(&tb_ptr);
+            switch (memop) {
+            case MO_UB:
+                qemu_st_b(tmp64);
+                break;
+            case MO_LEUW:
+                qemu_st_lew(tmp64);
+                break;
+            case MO_LEUL:
+                qemu_st_lel(tmp64);
+                break;
+            case MO_LEQ:
+                qemu_st_leq(tmp64);
+                break;
+            case MO_BEUW:
+                qemu_st_bew(tmp64);
+                break;
+            case MO_BEUL:
+                qemu_st_bel(tmp64);
+                break;
+            case MO_BEQ:
+                qemu_st_beq(tmp64);
+                break;
+            default:
+                tcg_abort();
+            }
             break;
         default:
             TODO();
