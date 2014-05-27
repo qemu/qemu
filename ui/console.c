@@ -1133,6 +1133,15 @@ bool kbd_put_qcode_console(QemuConsole *s, int qcode)
     return true;
 }
 
+void kbd_put_string_console(QemuConsole *s, const char *str, int len)
+{
+    int i;
+
+    for (i = 0; i < len && str[i]; i++) {
+        kbd_put_keysym_console(s, str[i]);
+    }
+}
+
 void kbd_put_keysym(int keysym)
 {
     kbd_put_keysym_console(active_console, keysym);
