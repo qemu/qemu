@@ -1,7 +1,7 @@
 /*
  * Interface for configuring and controlling the state of tracing events.
  *
- * Copyright (C) 2011-2012 Lluís Vilanova <vilanova@ac.upc.edu>
+ * Copyright (C) 2011-2014 Lluís Vilanova <vilanova@ac.upc.edu>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -61,7 +61,7 @@ static inline void trace_event_set_state_dynamic(TraceEvent *ev, bool state)
 {
     assert(ev != NULL);
     assert(trace_event_get_state_static(ev));
-    return trace_event_set_state_dynamic_backend(ev, state);
+    ev->dstate = state;
 }
 
 #endif  /* TRACE__CONTROL_INTERNAL_H */

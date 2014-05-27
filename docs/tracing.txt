@@ -9,7 +9,7 @@ for debugging, profiling, and observing execution.
 
 1. Build with the 'simple' trace backend:
 
-    ./configure --enable-trace-backend=simple
+    ./configure --enable-trace-backends=simple
     make
 
 2. Create a file with the events you want to trace:
@@ -142,7 +142,7 @@ script.
 The trace backend is chosen at configure time and only one trace backend can
 be built into the binary:
 
-    ./configure --trace-backend=simple
+    ./configure --trace-backends=simple
 
 For a list of supported trace backends, try ./configure --help or see below.
 

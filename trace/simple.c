@@ -368,22 +368,6 @@ void st_flush_trace_buffer(void)
     flush_trace_file(true);
 }
 
-void trace_print_events(FILE *stream, fprintf_function stream_printf)
-{
-    unsigned int i;
-
-    for (i = 0; i < trace_event_count(); i++) {
-        TraceEvent *ev = trace_event_id(i);
-        stream_printf(stream, "%s [Event ID %u] : state %u\n",
-                      trace_event_get_name(ev), i, trace_event_get_state_dynamic(ev));
-    }
-}
-
-void trace_event_set_state_dynamic_backend(TraceEvent *ev, bool state)
-{
-    ev->dstate = state;
-}
-
 /* Helper function to create a thread with signals blocked.  Use glib's
  * portable threads since QEMU abstractions cannot be used due to reentrancy in
  * the tracer.  Also note the signal masking on POSIX hosts so that the thread
@@ -412,7 +396,7 @@ static GThread *trace_thread_create(GThreadFunc fn)
     return thread;
 }
 
-bool trace_backend_init(const char *events, const char *file)
+bool st_init(const char *file)
 {
     GThread *thread;
 
@@ -430,7 +414,6 @@ bool trace_backend_init(const char *events, const char *file)
     }
 
     atexit(st_flush_trace_buffer);
-    trace_backend_init_events(events);
     st_set_trace_file(file);
     return true;
 }

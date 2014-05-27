@@ -66,16 +66,16 @@ matrix:
       compiler: gcc
     # All the trace backends (apart from dtrace)
     - env: TARGETS=i386-softmmu,x86_64-softmmu
-           EXTRA_CONFIG="--enable-trace-backend=stderr"
+           EXTRA_CONFIG="--enable-trace-backends=stderr"
       compiler: gcc
     - env: TARGETS=i386-softmmu,x86_64-softmmu
-           EXTRA_CONFIG="--enable-trace-backend=simple"
+           EXTRA_CONFIG="--enable-trace-backends=simple"
       compiler: gcc
     - env: TARGETS=i386-softmmu,x86_64-softmmu
-           EXTRA_CONFIG="--enable-trace-backend=ftrace"
+           EXTRA_CONFIG="--enable-trace-backends=ftrace"
            TEST_CMD=""
       compiler: gcc
     - env: TARGETS=i386-softmmu,x86_64-softmmu
           EXTRA_PKGS="liblttng-ust-dev liburcu-dev"
-          EXTRA_CONFIG="--enable-trace-backend=ust"
+          EXTRA_CONFIG="--enable-trace-backends=ust"
       compiler: gcc
