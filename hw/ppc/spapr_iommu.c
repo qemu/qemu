@@ -165,7 +165,7 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn, size_t wi
 
     object_property_add_child(OBJECT(owner), "tce-table", OBJECT(tcet), NULL);
 
-    qdev_init_nofail(DEVICE(tcet));
+    object_property_set_bool(OBJECT(tcet), true, "realized", NULL);
 
     return tcet;
 }
