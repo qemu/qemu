@@ -198,7 +198,7 @@ typedef struct CPUARMState {
         uint32_t c9_pmuserenr; /* perf monitor user enable */
         uint32_t c9_pminten; /* perf monitor interrupt enables */
         uint64_t mair_el1;
-        uint64_t vbar_el[3]; /* vector base address register */
+        uint64_t vbar_el[4]; /* vector base address register */
         uint32_t c13_fcse; /* FCSE PID.  */
         uint64_t contextidr_el1; /* Context ID.  */
         uint64_t tpidr_el0; /* User RW Thread register.  */

@@ -2138,6 +2138,11 @@ static const ARMCPRegInfo v8_el3_cp_reginfo[] = {
       .type = ARM_CP_NO_MIGRATE,
       .opc0 = 3, .opc1 = 6, .crn = 4, .crm = 0, .opc2 = 0,
       .access = PL3_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[7]) },
+    { .name = "VBAR_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 12, .crm = 0, .opc2 = 0,
+      .access = PL3_RW, .writefn = vbar_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[3]),
+      .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
