@@ -249,6 +249,7 @@
 #define PG_DIRTY_BIT    6
 #define PG_PSE_BIT      7
 #define PG_GLOBAL_BIT   8
+#define PG_PSE_PAT_BIT  12
 #define PG_NX_BIT       63
 
 #define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
@@ -260,6 +261,7 @@
 #define PG_DIRTY_MASK    (1 << PG_DIRTY_BIT)
 #define PG_PSE_MASK      (1 << PG_PSE_BIT)
 #define PG_GLOBAL_MASK   (1 << PG_GLOBAL_BIT)
+#define PG_PSE_PAT_MASK  (1 << PG_PSE_PAT_BIT)
 #define PG_ADDRESS_MASK  0x000ffffffffff000LL
 #define PG_HI_RSVD_MASK  (PG_ADDRESS_MASK & ~PHYS_ADDR_MASK)
 #define PG_HI_USER_MASK  0x7ff0000000000000LL

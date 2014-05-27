@@ -695,6 +695,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
     }
 
 do_check_protect:
+    rsvd_mask |= (page_size - 1) & PG_ADDRESS_MASK & ~PG_PSE_PAT_MASK;
     if (pte & rsvd_mask) {
         goto do_fault_rsvd;
     }
