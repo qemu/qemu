@@ -9,11 +9,13 @@ sb (r1+0), r2
 check_mem data 0xaa000000
 
 test_name SB_2
+load r1 data
 load r2 0xf0f1f2bb
 sb (r1+1), r2
 check_mem data 0xaabb0000
 
 test_name SB_3
+load r1 data
 load r2 0xf0f1f2cc
 sb (r1+-1), r2
 check_mem data0 0x000000cc
