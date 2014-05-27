@@ -56,6 +56,8 @@ typedef void IOEventHandler(void *opaque, int event);
 struct CharDriverState {
     void (*init)(struct CharDriverState *s);
     int (*chr_write)(struct CharDriverState *s, const uint8_t *buf, int len);
+    int (*chr_sync_read)(struct CharDriverState *s,
+                         const uint8_t *buf, int len);
     GSource *(*chr_add_watch)(struct CharDriverState *s, GIOCondition cond);
     void (*chr_update_read_handler)(struct CharDriverState *s);
     int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
@@ -187,6 +189,18 @@ int qemu_chr_fe_write(CharDriverState *s, const uint8_t *buf, int len);
  * Returns: the number of bytes consumed
  */
 int qemu_chr_fe_write_all(CharDriverState *s, const uint8_t *buf, int len);
+
+/**
+ * @qemu_chr_fe_read_all:
+ *
+ * Read data to a buffer from the back end.
+ *
+ * @buf the data buffer
+ * @len the number of bytes to read
+ *
+ * Returns: the number of bytes read
+ */
+int qemu_chr_fe_read_all(CharDriverState *s, uint8_t *buf, int len);
 
 /**
  * @qemu_chr_fe_ioctl:

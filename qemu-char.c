@@ -84,6 +84,7 @@
 #include "ui/qemu-spice.h"
 
 #define READ_BUF_LEN 4096
+#define READ_RETRIES 10
 
 /***********************************************************/
 /* character device */
@@ -140,6 +141,41 @@ int qemu_chr_fe_write_all(CharDriverState *s, const uint8_t *buf, int len)
         }
 
         offset += res;
+    }
+
+    return offset;
+}
+
+int qemu_chr_fe_read_all(CharDriverState *s, uint8_t *buf, int len)
+{
+    int offset = 0, counter = 10;
+    int res;
+
+    if (!s->chr_sync_read) {
+        return 0;
+    }
+
+    while (offset < len) {
+        do {
+            res = s->chr_sync_read(s, buf + offset, len - offset);
+            if (res == -1 && errno == EAGAIN) {
+                g_usleep(100);
+            }
+        } while (res == -1 && errno == EAGAIN);
+
+        if (res == 0) {
+            break;
+        }
+
+        if (res < 0) {
+            return res;
+        }
+
+        offset += res;
+
+        if (!counter--) {
+            break;
+        }
     }
 
     return offset;
@@ -2454,6 +2490,23 @@ static GSource *tcp_chr_add_watch(CharDriverState *chr, GIOCondition cond)
     return g_io_create_watch(s->chan, cond);
 }
 
+static void tcp_chr_disconnect(CharDriverState *chr)
+{
+    TCPCharDriver *s = chr->opaque;
+
+    s->connected = 0;
+    if (s->listen_chan) {
+        s->listen_tag = g_io_add_watch(s->listen_chan, G_IO_IN,
+                                       tcp_chr_accept, chr);
+    }
+    remove_fd_in_watch(chr);
+    g_io_channel_unref(s->chan);
+    s->chan = NULL;
+    closesocket(s->fd);
+    s->fd = -1;
+    qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
+}
+
 static gboolean tcp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
 {
     CharDriverState *chr = opaque;
@@ -2470,16 +2523,7 @@ static gboolean tcp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
     size = tcp_chr_recv(chr, (void *)buf, len);
     if (size == 0) {
         /* connection closed */
-        s->connected = 0;
-        if (s->listen_chan) {
-            s->listen_tag = g_io_add_watch(s->listen_chan, G_IO_IN, tcp_chr_accept, chr);
-        }
-        remove_fd_in_watch(chr);
-        g_io_channel_unref(s->chan);
-        s->chan = NULL;
-        closesocket(s->fd);
-        s->fd = -1;
-        qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
+        tcp_chr_disconnect(chr);
     } else if (size > 0) {
         if (s->do_telnetopt)
             tcp_chr_process_IAC_bytes(chr, s, buf, &size);
@@ -2488,6 +2532,24 @@ static gboolean tcp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
     }
 
     return TRUE;
+}
+
+static int tcp_chr_sync_read(CharDriverState *chr, const uint8_t *buf, int len)
+{
+    TCPCharDriver *s = chr->opaque;
+    int size;
+
+    if (!s->connected) {
+        return 0;
+    }
+
+    size = tcp_chr_recv(chr, (void *) buf, len);
+    if (size == 0) {
+        /* connection closed */
+        tcp_chr_disconnect(chr);
+    }
+
+    return size;
 }
 
 #ifndef _WIN32
@@ -2678,6 +2740,7 @@ static CharDriverState *qemu_chr_open_socket_fd(int fd, bool do_nodelay,
 
     chr->opaque = s;
     chr->chr_write = tcp_chr_write;
+    chr->chr_sync_read = tcp_chr_sync_read;
     chr->chr_close = tcp_chr_close;
     chr->get_msgfd = tcp_get_msgfd;
     chr->chr_add_client = tcp_chr_add_client;
