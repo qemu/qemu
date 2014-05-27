@@ -135,7 +135,7 @@ static int spapr_tce_table_realize(DeviceState *dev)
     trace_spapr_iommu_new_table(tcet->liobn, tcet, tcet->table, tcet->fd);
 
     memory_region_init_iommu(&tcet->iommu, OBJECT(dev), &spapr_iommu_ops,
-                             "iommu-spapr", UINT64_MAX);
+                             "iommu-spapr", ram_size);
 
     QLIST_INSERT_HEAD(&spapr_tce_tables, tcet, list);
 

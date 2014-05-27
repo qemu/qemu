@@ -64,6 +64,7 @@ struct sPAPRPHBState {
     uint64_t dma_window_size;
     sPAPRTCETable *tcet;
     AddressSpace iommu_as;
+    MemoryRegion iommu_root;
 
     struct spapr_pci_lsi {
         uint32_t irq;

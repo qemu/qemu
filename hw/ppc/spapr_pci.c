@@ -610,6 +610,20 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
                            PCI_DEVFN(0, 0), PCI_NUM_PINS, TYPE_PCI_BUS);
     phb->bus = bus;
 
+    /*
+     * Initialize PHB address space.
+     * By default there will be at least one subregion for default
+     * 32bit DMA window.
+     * Later the guest might want to create another DMA window
+     * which will become another memory subregion.
+     */
+    sprintf(namebuf, "%s.iommu-root", sphb->dtbusname);
+
+    memory_region_init(&sphb->iommu_root, OBJECT(sphb),
+                       namebuf, UINT64_MAX);
+    address_space_init(&sphb->iommu_as, &sphb->iommu_root,
+                       sphb->dtbusname);
+
     pci_setup_iommu(bus, spapr_pci_dma_iommu, sphb);
 
     pci_bus_set_route_irq_fn(bus, spapr_route_intx_pin_to_irq);
@@ -648,8 +662,10 @@ static void spapr_phb_finish_realize(sPAPRPHBState *sphb, Error **errp)
                    sphb->dtbusname);
         return ;
     }
-    address_space_init(&sphb->iommu_as, spapr_tce_get_iommu(sphb->tcet),
-                       sphb->dtbusname);
+
+    /* Register default 32bit DMA window */
+    memory_region_add_subregion(&sphb->iommu_root, 0,
+                                spapr_tce_get_iommu(sphb->tcet));
 }
 
 static void spapr_phb_reset(DeviceState *qdev)
