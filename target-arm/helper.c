@@ -2101,6 +2101,15 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+/* Used to describe the behaviour of EL2 regs when EL2 does not exist.  */
+static const ARMCPRegInfo v8_el3_no_el2_cp_reginfo[] = {
+    { .name = "VBAR_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 12, .crm = 0, .opc2 = 0,
+      .access = PL2_RW,
+      .readfn = arm_cp_read_zero, .writefn = arm_cp_write_ignore },
+    REGINFO_SENTINEL
+};
+
 static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
     { .name = "ELR_EL2", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_NO_MIGRATE,
@@ -2111,6 +2120,11 @@ static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
       .type = ARM_CP_NO_MIGRATE,
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 0, .opc2 = 0,
       .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[6]) },
+    { .name = "VBAR_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 12, .crm = 0, .opc2 = 0,
+      .access = PL2_RW, .writefn = vbar_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[2]),
+      .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -2380,6 +2394,13 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
     if (arm_feature(env, ARM_FEATURE_EL2)) {
         define_arm_cp_regs(cpu, v8_el2_cp_reginfo);
+    } else {
+        /* If EL2 is missing but higher ELs are enabled, we need to
+         * register the no_el2 reginfos.
+         */
+        if (arm_feature(env, ARM_FEATURE_EL3)) {
+            define_arm_cp_regs(cpu, v8_el3_no_el2_cp_reginfo);
+        }
     }
     if (arm_feature(env, ARM_FEATURE_EL3)) {
         define_arm_cp_regs(cpu, v8_el3_cp_reginfo);
