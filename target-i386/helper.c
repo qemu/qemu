@@ -527,7 +527,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
     hwaddr paddr;
     uint64_t rsvd_mask = PG_HI_RSVD_MASK;
     uint32_t page_offset;
-    target_ulong vaddr, virt_addr;
+    target_ulong vaddr;
 
     is_user = mmu_idx == MMU_USER_IDX;
 #if defined(DEBUG_MMU)
@@ -544,7 +544,6 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             pte = (uint32_t)pte;
         }
 #endif
-        virt_addr = addr & TARGET_PAGE_MASK;
         prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         page_size = 4096;
         goto do_mapping;
@@ -748,9 +747,6 @@ do_check_protect:
         }
         stl_phys_notdirty(cs->as, pte_addr, pte);
     }
-    /* align to page_size */
-    pte &= ((PHYS_ADDR_MASK & ~(page_size - 1)) | 0xfff);
-    virt_addr = addr & ~(page_size - 1);
 
     /* the page can be put in the TLB */
     prot = PAGE_READ;
@@ -771,11 +767,14 @@ do_check_protect:
  do_mapping:
     pte = pte & env->a20_mask;
 
+    /* align to page_size */
+    pte &= PG_ADDRESS_MASK & ~(page_size - 1);
+
     /* Even if 4MB pages, we map only one 4KB page in the cache to
        avoid filling it too fast */
-    page_offset = (addr & TARGET_PAGE_MASK) & (page_size - 1);
-    paddr = (pte & TARGET_PAGE_MASK) + page_offset;
-    vaddr = virt_addr + page_offset;
+    vaddr = addr & TARGET_PAGE_MASK;
+    page_offset = vaddr & (page_size - 1);
+    paddr = pte + page_offset;
 
     tlb_set_page(cs, vaddr, paddr, prot, mmu_idx, page_size);
     return 0;
