@@ -70,6 +70,7 @@
 #include "qmp-commands.h"
 #include "hmp.h"
 #include "qemu/thread.h"
+#include "block/qapi.h"
 
 /* for pic/irq_info */
 #if defined(TARGET_SPARC)
@@ -4645,6 +4646,53 @@ void host_net_remove_completion(ReadLineState *rs, int nb_args, const char *str)
             }
         }
         return;
+    }
+}
+
+static void vm_completion(ReadLineState *rs, const char *str)
+{
+    size_t len;
+    BlockDriverState *bs = NULL;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    while ((bs = bdrv_next(bs))) {
+        SnapshotInfoList *snapshots, *snapshot;
+
+        if (!bdrv_can_snapshot(bs)) {
+            continue;
+        }
+        if (bdrv_query_snapshot_info_list(bs, &snapshots, NULL)) {
+            continue;
+        }
+        snapshot = snapshots;
+        while (snapshot) {
+            char *completion = snapshot->value->name;
+            if (!strncmp(str, completion, len)) {
+                readline_add_completion(rs, completion);
+            }
+            completion = snapshot->value->id;
+            if (!strncmp(str, completion, len)) {
+                readline_add_completion(rs, completion);
+            }
+            snapshot = snapshot->next;
+        }
+        qapi_free_SnapshotInfoList(snapshots);
+    }
+
+}
+
+void delvm_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    if (nb_args == 2) {
+        vm_completion(rs, str);
+    }
+}
+
+void loadvm_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    if (nb_args == 2) {
+        vm_completion(rs, str);
     }
 }
 

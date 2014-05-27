@@ -335,6 +335,7 @@ ETEXI
         .params     = "tag|id",
         .help       = "restore a VM snapshot from its tag or id",
         .mhandler.cmd = do_loadvm,
+        .command_completion = loadvm_completion,
     },
 
 STEXI
@@ -350,6 +351,7 @@ ETEXI
         .params     = "tag|id",
         .help       = "delete a VM snapshot from its tag or id",
         .mhandler.cmd = do_delvm,
+        .command_completion = delvm_completion,
     },
 
 STEXI
