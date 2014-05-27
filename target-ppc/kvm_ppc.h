@@ -149,7 +149,7 @@ static inline void *kvmppc_create_spapr_tce(uint32_t liobn,
 }
 
 static inline int kvmppc_remove_spapr_tce(void *table, int pfd,
-                                          uint32_t window_size)
+                                          uint32_t nb_table)
 {
     return -1;
 }

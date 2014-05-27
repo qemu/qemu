@@ -655,10 +655,8 @@ static void spapr_phb_finish_realize(sPAPRPHBState *sphb, Error **errp)
 {
     sPAPRTCETable *tcet;
 
-    sphb->dma_window_start = 0;
-    sphb->dma_window_size = 0x40000000;
     tcet = spapr_tce_new_table(DEVICE(sphb), sphb->dma_liobn,
-                               sphb->dma_window_size);
+                               0x40000000 >> SPAPR_TCE_PAGE_SHIFT);
     if (!tcet) {
         error_setg(errp, "Unable to create TCE table for %s",
                    sphb->dtbusname);
@@ -815,7 +813,7 @@ static int spapr_phb_children_dt(Object *child, void *opaque)
 
     spapr_dma_dt(p->fdt, p->node_off, "ibm,dma-window",
                  tcet->liobn, 0,
-                 tcet->window_size);
+                 tcet->nb_table << SPAPR_TCE_PAGE_SHIFT);
     /* Stop after the first window */
 
     return 1;

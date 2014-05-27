@@ -397,7 +397,6 @@ typedef struct sPAPRTCETable sPAPRTCETable;
 struct sPAPRTCETable {
     DeviceState parent;
     uint32_t liobn;
-    uint32_t window_size;
     uint32_t nb_table;
     uint64_t *table;
     bool bypass;
@@ -410,7 +409,7 @@ void spapr_events_init(sPAPREnvironment *spapr);
 void spapr_events_fdt_skel(void *fdt, uint32_t epow_irq);
 int spapr_h_cas_compose_response(target_ulong addr, target_ulong size);
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
-                                   size_t window_size);
+                                   uint32_t nb_table);
 MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet);
 void spapr_tce_set_bypass(sPAPRTCETable *tcet, bool bypass);
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,

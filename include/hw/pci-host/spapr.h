@@ -60,8 +60,6 @@ struct sPAPRPHBState {
     MemoryRegion memwindow, iowindow;
 
     uint32_t dma_liobn;
-    uint64_t dma_window_start;
-    uint64_t dma_window_size;
     AddressSpace iommu_as;
     MemoryRegion iommu_root;
 

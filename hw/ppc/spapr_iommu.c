@@ -70,7 +70,7 @@ static IOMMUTLBEntry spapr_tce_translate_iommu(MemoryRegion *iommu, hwaddr addr)
 
     if (tcet->bypass) {
         ret.perm = IOMMU_RW;
-    } else if (addr < tcet->window_size) {
+    } else if ((addr >> SPAPR_TCE_PAGE_SHIFT) < tcet->nb_table) {
         /* Check if we are in bound */
         tce = tcet->table[addr >> SPAPR_TCE_PAGE_SHIFT];
         ret.iova = addr & ~SPAPR_TCE_PAGE_MASK;
@@ -84,24 +84,14 @@ static IOMMUTLBEntry spapr_tce_translate_iommu(MemoryRegion *iommu, hwaddr addr)
     return ret;
 }
 
-static int spapr_tce_table_pre_load(void *opaque)
-{
-    sPAPRTCETable *tcet = SPAPR_TCE_TABLE(opaque);
-
-    tcet->nb_table = tcet->window_size >> SPAPR_TCE_PAGE_SHIFT;
-
-    return 0;
-}
-
 static const VMStateDescription vmstate_spapr_tce_table = {
     .name = "spapr_iommu",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .pre_load = spapr_tce_table_pre_load,
-    .fields = (VMStateField[]) {
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .fields      = (VMStateField []) {
         /* Sanity check */
         VMSTATE_UINT32_EQUAL(liobn, sPAPRTCETable),
-        VMSTATE_UINT32_EQUAL(window_size, sPAPRTCETable),
+        VMSTATE_UINT32_EQUAL(nb_table, sPAPRTCETable),
 
         /* IOMMU state */
         VMSTATE_BOOL(bypass, sPAPRTCETable),
@@ -121,16 +111,15 @@ static int spapr_tce_table_realize(DeviceState *dev)
 
     if (kvm_enabled()) {
         tcet->table = kvmppc_create_spapr_tce(tcet->liobn,
-                                              tcet->window_size,
+                                              tcet->nb_table <<
+                                              SPAPR_TCE_PAGE_SHIFT,
                                               &tcet->fd);
     }
 
     if (!tcet->table) {
-        size_t table_size = (tcet->window_size >> SPAPR_TCE_PAGE_SHIFT)
-            * sizeof(uint64_t);
+        size_t table_size = tcet->nb_table * sizeof(uint64_t);
         tcet->table = g_malloc0(table_size);
     }
-    tcet->nb_table = tcet->window_size >> SPAPR_TCE_PAGE_SHIFT;
 
     trace_spapr_iommu_new_table(tcet->liobn, tcet, tcet->table, tcet->fd);
 
@@ -145,7 +134,8 @@ static int spapr_tce_table_realize(DeviceState *dev)
     return 0;
 }
 
-sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn, size_t window_size)
+sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
+                                   uint32_t nb_table)
 {
     sPAPRTCETable *tcet;
 
@@ -155,13 +145,13 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn, size_t wi
         return NULL;
     }
 
-    if (!window_size) {
+    if (!nb_table) {
         return NULL;
     }
 
     tcet = SPAPR_TCE_TABLE(object_new(TYPE_SPAPR_TCE_TABLE));
     tcet->liobn = liobn;
-    tcet->window_size = window_size;
+    tcet->nb_table = nb_table;
 
     object_property_add_child(OBJECT(owner), "tce-table", OBJECT(tcet), NULL);
 
@@ -178,7 +168,7 @@ static void spapr_tce_table_finalize(Object *obj)
 
     if (!kvm_enabled() ||
         (kvmppc_remove_spapr_tce(tcet->table, tcet->fd,
-                                 tcet->window_size) != 0)) {
+                                 tcet->nb_table) != 0)) {
         g_free(tcet->table);
     }
 }
@@ -196,8 +186,7 @@ void spapr_tce_set_bypass(sPAPRTCETable *tcet, bool bypass)
 static void spapr_tce_reset(DeviceState *dev)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
-    size_t table_size = (tcet->window_size >> SPAPR_TCE_PAGE_SHIFT)
-        * sizeof(uint64_t);
+    size_t table_size = tcet->nb_table * sizeof(uint64_t);
 
     tcet->bypass = false;
     memset(tcet->table, 0, table_size);
@@ -208,7 +197,7 @@ static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
 {
     IOMMUTLBEntry entry;
 
-    if (ioba >= tcet->window_size) {
+    if ((ioba >> SPAPR_TCE_PAGE_SHIFT) >= tcet->nb_table) {
         hcall_dprintf("spapr_vio_put_tce on out-of-bounds IOBA 0x"
                       TARGET_FMT_lx "\n", ioba);
         return H_PARAMETER;
@@ -324,7 +313,7 @@ static target_ulong h_put_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 static target_ulong get_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
                                 target_ulong *tce)
 {
-    if (ioba >= tcet->window_size) {
+    if ((ioba >> SPAPR_TCE_PAGE_SHIFT) >= tcet->nb_table) {
         hcall_dprintf("spapr_iommu_get_tce on out-of-bounds IOBA 0x"
                       TARGET_FMT_lx "\n", ioba);
         return H_PARAMETER;
@@ -395,7 +384,7 @@ int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
     }
 
     return spapr_dma_dt(fdt, node_off, propname,
-                        tcet->liobn, 0, tcet->window_size);
+                        tcet->liobn, 0, tcet->nb_table << SPAPR_TCE_PAGE_SHIFT);
 }
 
 static void spapr_tce_table_class_init(ObjectClass *klass, void *data)
