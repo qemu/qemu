@@ -580,6 +580,9 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             if (!(pml4e & PG_PRESENT_MASK)) {
                 goto do_fault;
             }
+            if (pml4e & PG_PSE_MASK) {
+                goto do_fault_rsvd;
+            }
             if (!(env->efer & MSR_EFER_NXE) && (pml4e & PG_NX_MASK)) {
                 goto do_fault_rsvd;
             }
