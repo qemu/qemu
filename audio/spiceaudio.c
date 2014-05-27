@@ -105,7 +105,7 @@ static int rate_get_samples (struct audio_pcm_info *info, SpiceRateCtl *rate)
     bytes = muldiv64 (ticks, info->bytes_per_second, get_ticks_per_sec ());
     samples = (bytes - rate->bytes_sent) >> info->shift;
     if (samples < 0 || samples > 65536) {
-        fprintf (stderr, "Resetting rate control (%" PRId64 " samples)\n", samples);
+        error_report("Resetting rate control (%" PRId64 " samples)", samples);
         rate_start (rate);
         samples = 0;
     }

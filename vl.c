@@ -965,7 +965,7 @@ static int parse_sandbox(QemuOpts *opts, void *opaque)
     return 0;
 }
 
-static void parse_name(QemuOpts *opts)
+static int parse_name(QemuOpts *opts, void *opaque)
 {
     const char *proc_name;
 
@@ -978,6 +978,8 @@ static void parse_name(QemuOpts *opts)
     if (proc_name) {
         os_set_proc_name(proc_name);
     }
+
+    return 0;
 }
 
 bool usb_enabled(bool default_usb)
@@ -3796,7 +3798,6 @@ int main(int argc, char **argv, char **envp)
                 if (!opts) {
                     exit(1);
                 }
-                parse_name(opts);
                 break;
             case QEMU_OPTION_prom_env:
                 if (nb_prom_envs >= MAX_PROM_ENVS) {
@@ -3968,6 +3969,10 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (qemu_opts_foreach(qemu_find_opts("sandbox"), parse_sandbox, NULL, 0)) {
+        exit(1);
+    }
+
+    if (qemu_opts_foreach(qemu_find_opts("name"), parse_name, NULL, 1)) {
         exit(1);
     }
 

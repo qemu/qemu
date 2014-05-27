@@ -131,8 +131,8 @@ static void *
 event_thread(void *arg)
 {
     unsigned char atr[MAX_ATR_LEN];
-    int atr_len = MAX_ATR_LEN;
-    VEvent *event = NULL;
+    int atr_len;
+    VEvent *event;
     unsigned int reader_id;
 
 
@@ -502,8 +502,7 @@ do_command(GIOChannel *source,
             if (reader != NULL) {
                 error = vcard_emul_force_card_insert(reader);
                 printf("insert %s, returned %d\n",
-                       reader ? vreader_get_name(reader)
-                       : "invalid reader", error);
+                       vreader_get_name(reader), error);
             } else {
                 printf("no reader by id %u found\n", reader_id);
             }
@@ -515,8 +514,7 @@ do_command(GIOChannel *source,
             if (reader != NULL) {
                 error = vcard_emul_force_card_remove(reader);
                 printf("remove %s, returned %d\n",
-                        reader ? vreader_get_name(reader)
-                        : "invalid reader", error);
+                       vreader_get_name(reader), error);
             } else {
                 printf("no reader by id %u found\n", reader_id);
             }
@@ -572,6 +570,7 @@ do_command(GIOChannel *source,
                        "CARD_PRESENT" : "            ",
                        vreader_get_name(reader));
             }
+            vreader_list_delete(list);
         } else if (*string != 0) {
             printf("valid commands:\n");
             printf("insert [reader_id]\n");

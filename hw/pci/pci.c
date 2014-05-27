@@ -605,12 +605,12 @@ PCIBus *pci_get_bus_devfn(int *devfnp, PCIBus *root, const char *devaddr)
     int dom, bus;
     unsigned slot;
 
-    assert(!root->parent_dev);
-
     if (!root) {
         fprintf(stderr, "No primary PCI bus\n");
         return NULL;
     }
+
+    assert(!root->parent_dev);
 
     if (!devaddr) {
         *devfnp = -1;

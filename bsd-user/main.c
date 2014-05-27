@@ -378,8 +378,8 @@ void cpu_loop(CPUX86State *env)
 #endif
         default:
             pc = env->segs[R_CS].base + env->eip;
-            fprintf(stderr, "qemu: 0x%08lx: unhandled CPU exception 0x%x - aborting\n",
-                    (long)pc, trapnr);
+            error_report("qemu: 0x%08lx: unhandled CPU exception 0x%x"
+                         " - aborting", (long)pc, trapnr);
             abort();
         }
         process_pending_signals(env);
@@ -752,7 +752,7 @@ int main(int argc, char **argv)
     module_call_init(MODULE_INIT_QOM);
 
     if ((envlist = envlist_create()) == NULL) {
-        (void) fprintf(stderr, "Unable to allocate envlist\n");
+        error_report("Unable to allocate envlist");
         exit(1);
     }
 
@@ -794,7 +794,7 @@ int main(int argc, char **argv)
         } else if (!strcmp(r, "ignore-environment")) {
             envlist_free(envlist);
             if ((envlist = envlist_create()) == NULL) {
-                (void) fprintf(stderr, "Unable to allocate envlist\n");
+                error_report("Unable to allocate envlist");
                 exit(1);
             }
         } else if (!strcmp(r, "U")) {
@@ -816,7 +816,7 @@ int main(int argc, char **argv)
             qemu_host_page_size = atoi(argv[optind++]);
             if (qemu_host_page_size == 0 ||
                 (qemu_host_page_size & (qemu_host_page_size - 1)) != 0) {
-                fprintf(stderr, "page size must be a power of two\n");
+                error_report("page size must be a power of two");
                 exit(1);
             }
         } else if (!strcmp(r, "g")) {
@@ -910,7 +910,7 @@ int main(int argc, char **argv)
        qemu_host_page_size */
     env = cpu_init(cpu_model);
     if (!env) {
-        fprintf(stderr, "Unable to find CPU definition\n");
+        error_report("Unable to find CPU definition");
         exit(1);
     }
     cpu = ENV_GET_CPU(env);
@@ -1012,7 +1012,7 @@ int main(int argc, char **argv)
 #ifndef TARGET_ABI32
     /* enable 64 bit mode if possible */
     if (!(env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM)) {
-        fprintf(stderr, "The selected x86 CPU does not support 64 bit mode\n");
+        error_report("The selected x86 CPU does not support 64 bit mode");
         exit(1);
     }
     env->cr[4] |= CR4_PAE_MASK;

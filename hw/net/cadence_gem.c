@@ -1,5 +1,5 @@
 /*
- * QEMU Xilinx GEM emulation
+ * QEMU Cadence GEM emulation
  *
  * Copyright (c) 2011 Xilinx, Inc.
  *

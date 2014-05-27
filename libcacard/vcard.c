@@ -37,9 +37,8 @@ vcard_buffer_response_new(unsigned char *buffer, int size)
 {
     VCardBufferResponse *new_buffer;
 
-    new_buffer = (VCardBufferResponse *)g_malloc(sizeof(VCardBufferResponse));
-    new_buffer->buffer = (unsigned char *)g_malloc(size);
-    memcpy(new_buffer->buffer, buffer, size);
+    new_buffer = g_new(VCardBufferResponse, 1);
+    new_buffer->buffer = (unsigned char *)g_memdup(buffer, size);
     new_buffer->buffer_len = size;
     new_buffer->current = new_buffer->buffer;
     new_buffer->len = size;
@@ -102,15 +101,11 @@ vcard_new_applet(VCardProcessAPDU applet_process_function,
 {
     VCardApplet *applet;
 
-    applet = (VCardApplet *)g_malloc(sizeof(VCardApplet));
-    applet->next = NULL;
-    applet->applet_private = NULL;
-    applet->applet_private_free = NULL;
+    applet = g_new0(VCardApplet, 1);
     applet->process_apdu = applet_process_function;
     applet->reset_applet = applet_reset_function;
 
-    applet->aid = g_malloc(aid_len);
-    memcpy(applet->aid, aid, aid_len);
+    applet->aid = g_memdup(aid, aid_len);
     applet->aid_len = aid_len;
     return applet;
 }
@@ -149,18 +144,11 @@ VCard *
 vcard_new(VCardEmul *private, VCardEmulFree private_free)
 {
     VCard *new_card;
-    int i;
 
-    new_card = (VCard *)g_malloc(sizeof(VCard));
-    new_card->applet_list = NULL;
-    for (i = 0; i < MAX_CHANNEL; i++) {
-        new_card->current_applet[i] = NULL;
-    }
-    new_card->vcard_buffer_response = NULL;
+    new_card = g_new0(VCard, 1);
     new_card->type = VCARD_VM;
     new_card->vcard_private = private;
     new_card->vcard_private_free = private_free;
-    new_card->vcard_get_atr = NULL;
     new_card->reference_count = 1;
     return new_card;
 }
@@ -178,8 +166,8 @@ vcard_reference(VCard *vcard)
 void
 vcard_free(VCard *vcard)
 {
-    VCardApplet *current_applet = NULL;
-    VCardApplet *next_applet = NULL;
+    VCardApplet *current_applet;
+    VCardApplet *next_applet;
 
     if (vcard == NULL) {
         return;

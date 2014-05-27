@@ -306,7 +306,7 @@ static int nbd_send_negotiate(NBDClient *client)
         [ 8 ..  15]   magic        (NBD_CLIENT_MAGIC)
         [16 ..  23]   size
         [24 ..  25]   server flags (0)
-        [24 ..  27]   export flags
+        [26 ..  27]   export flags
         [28 .. 151]   reserved     (0)
 
        Negotiation header with options, part 1:

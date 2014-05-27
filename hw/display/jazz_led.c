@@ -173,6 +173,7 @@ static void jazz_led_update_display(void *opaque)
             case 16:
                 color_segment = rgb_to_pixel16(0xaa, 0xaa, 0xaa);
                 color_led = rgb_to_pixel16(0x00, 0xff, 0x00);
+                break;
             case 24:
                 color_segment = rgb_to_pixel24(0xaa, 0xaa, 0xaa);
                 color_led = rgb_to_pixel24(0x00, 0xff, 0x00);

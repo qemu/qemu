@@ -27,8 +27,8 @@ static void nbd_accept(void *opaque)
     socklen_t addr_len = sizeof(addr);
 
     int fd = accept(server_fd, (struct sockaddr *)&addr, &addr_len);
-    if (fd >= 0) {
-        nbd_client_new(NULL, fd, nbd_client_put);
+    if (fd >= 0 && !nbd_client_new(NULL, fd, nbd_client_put)) {
+        close(fd);
     }
 }
 
