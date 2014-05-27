@@ -528,6 +528,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
     sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
+    sPAPRPHBClass *info = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(s);
     char *namebuf;
     int i;
     PCIBus *bus;
@@ -609,18 +610,6 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
                            PCI_DEVFN(0, 0), PCI_NUM_PINS, TYPE_PCI_BUS);
     phb->bus = bus;
 
-    sphb->dma_window_start = 0;
-    sphb->dma_window_size = 0x40000000;
-    sphb->tcet = spapr_tce_new_table(dev, sphb->dma_liobn,
-                                     sphb->dma_window_size);
-    if (!sphb->tcet) {
-        error_setg(errp, "Unable to create TCE table for %s",
-                   sphb->dtbusname);
-        return;
-    }
-    address_space_init(&sphb->iommu_as, spapr_tce_get_iommu(sphb->tcet),
-                       sphb->dtbusname);
-
     pci_setup_iommu(bus, spapr_pci_dma_iommu, sphb);
 
     pci_bus_set_route_irq_fn(bus, spapr_route_intx_pin_to_irq);
@@ -639,6 +628,28 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
 
         sphb->lsi_table[i].irq = irq;
     }
+
+    if (!info->finish_realize) {
+        error_setg(errp, "finish_realize not defined");
+        return;
+    }
+
+    info->finish_realize(sphb, errp);
+}
+
+static void spapr_phb_finish_realize(sPAPRPHBState *sphb, Error **errp)
+{
+    sphb->dma_window_start = 0;
+    sphb->dma_window_size = 0x40000000;
+    sphb->tcet = spapr_tce_new_table(DEVICE(sphb), sphb->dma_liobn,
+                                     sphb->dma_window_size);
+    if (!sphb->tcet) {
+        error_setg(errp, "Unable to create TCE table for %s",
+                   sphb->dtbusname);
+        return ;
+    }
+    address_space_init(&sphb->iommu_as, spapr_tce_get_iommu(sphb->tcet),
+                       sphb->dtbusname);
 }
 
 static void spapr_phb_reset(DeviceState *qdev)
@@ -719,6 +730,7 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
 {
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
+    sPAPRPHBClass *spc = SPAPR_PCI_HOST_BRIDGE_CLASS(klass);
 
     hc->root_bus_path = spapr_phb_root_bus_path;
     dc->realize = spapr_phb_realize;
@@ -727,6 +739,7 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_spapr_pci;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->cannot_instantiate_with_device_add_yet = false;
+    spc->finish_realize = spapr_phb_finish_realize;
 }
 
 static const TypeInfo spapr_phb_info = {
@@ -734,6 +747,7 @@ static const TypeInfo spapr_phb_info = {
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(sPAPRPHBState),
     .class_init    = spapr_phb_class_init,
+    .class_size    = sizeof(sPAPRPHBClass),
 };
 
 PCIHostState *spapr_create_phb(sPAPREnvironment *spapr, int index)

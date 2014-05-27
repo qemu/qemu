@@ -34,7 +34,21 @@
 #define SPAPR_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(sPAPRPHBState, (obj), TYPE_SPAPR_PCI_HOST_BRIDGE)
 
-typedef struct sPAPRPHBState {
+#define SPAPR_PCI_HOST_BRIDGE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(sPAPRPHBClass, (klass), TYPE_SPAPR_PCI_HOST_BRIDGE)
+#define SPAPR_PCI_HOST_BRIDGE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(sPAPRPHBClass, (obj), TYPE_SPAPR_PCI_HOST_BRIDGE)
+
+typedef struct sPAPRPHBClass sPAPRPHBClass;
+typedef struct sPAPRPHBState sPAPRPHBState;
+
+struct sPAPRPHBClass {
+    PCIHostBridgeClass parent_class;
+
+    void (*finish_realize)(sPAPRPHBState *sphb, Error **errp);
+};
+
+struct sPAPRPHBState {
     PCIHostState parent_obj;
 
     int32_t index;
@@ -62,7 +76,7 @@ typedef struct sPAPRPHBState {
     } msi_table[SPAPR_MSIX_MAX_DEVS];
 
     QLIST_ENTRY(sPAPRPHBState) list;
-} sPAPRPHBState;
+};
 
 #define SPAPR_PCI_BASE_BUID          0x800000020000000ULL
 
