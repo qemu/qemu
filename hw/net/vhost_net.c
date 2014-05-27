@@ -54,6 +54,38 @@ static const int kernel_feature_bits[] = {
     VHOST_INVALID_FEATURE_BIT
 };
 
+/* Features supported by others. */
+const int user_feature_bits[] = {
+    VIRTIO_F_NOTIFY_ON_EMPTY,
+    VIRTIO_RING_F_INDIRECT_DESC,
+    VIRTIO_RING_F_EVENT_IDX,
+
+    VIRTIO_F_ANY_LAYOUT,
+    VIRTIO_NET_F_CSUM,
+    VIRTIO_NET_F_GUEST_CSUM,
+    VIRTIO_NET_F_GSO,
+    VIRTIO_NET_F_GUEST_TSO4,
+    VIRTIO_NET_F_GUEST_TSO6,
+    VIRTIO_NET_F_GUEST_ECN,
+    VIRTIO_NET_F_GUEST_UFO,
+    VIRTIO_NET_F_HOST_TSO4,
+    VIRTIO_NET_F_HOST_TSO6,
+    VIRTIO_NET_F_HOST_ECN,
+    VIRTIO_NET_F_HOST_UFO,
+    VIRTIO_NET_F_MRG_RXBUF,
+    VIRTIO_NET_F_STATUS,
+    VIRTIO_NET_F_CTRL_VQ,
+    VIRTIO_NET_F_CTRL_RX,
+    VIRTIO_NET_F_CTRL_VLAN,
+    VIRTIO_NET_F_CTRL_RX_EXTRA,
+    VIRTIO_NET_F_CTRL_MAC_ADDR,
+    VIRTIO_NET_F_CTRL_GUEST_OFFLOADS,
+
+    VIRTIO_NET_F_MQ,
+
+    VHOST_INVALID_FEATURE_BIT
+};
+
 static const int *vhost_net_get_feature_bits(struct vhost_net *net)
 {
     const int *feature_bits = 0;
@@ -61,6 +93,9 @@ static const int *vhost_net_get_feature_bits(struct vhost_net *net)
     switch (net->nc->info->type) {
     case NET_CLIENT_OPTIONS_KIND_TAP:
         feature_bits = kernel_feature_bits;
+        break;
+    case NET_CLIENT_OPTIONS_KIND_VHOST_USER:
+        feature_bits = user_feature_bits;
         break;
     default:
         error_report("Feature bits not defined for this type: %d",
