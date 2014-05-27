@@ -163,7 +163,7 @@ typedef struct CPUARMState {
     uint64_t daif; /* exception masks, in the bits they are in in PSTATE */
 
     uint64_t elr_el[2]; /* AArch64 exception link regs  */
-    uint64_t sp_el[2]; /* AArch64 banked stack pointers */
+    uint64_t sp_el[4]; /* AArch64 banked stack pointers */
 
     /* System control coprocessor (cp15) */
     struct {
