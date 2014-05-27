@@ -852,6 +852,7 @@ ETEXI
         .params     = "device data",
         .help       = "Write to a ring buffer character device",
         .mhandler.cmd = hmp_ringbuf_write,
+        .command_completion = ringbuf_write_completion,
     },
 
 STEXI
@@ -868,6 +869,7 @@ ETEXI
         .params     = "device size",
         .help       = "Read from a ring buffer character device",
         .mhandler.cmd = hmp_ringbuf_read,
+        .command_completion = ringbuf_write_completion,
     },
 
 STEXI

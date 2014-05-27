@@ -286,9 +286,8 @@ void qemu_chr_add_handlers(CharDriverState *s,
 void qemu_chr_be_generic_open(CharDriverState *s);
 void qemu_chr_accept_input(CharDriverState *s);
 int qemu_chr_add_client(CharDriverState *s, int fd);
-void qemu_chr_info_print(Monitor *mon, const QObject *ret_data);
-void qemu_chr_info(Monitor *mon, QObject **ret_data);
 CharDriverState *qemu_chr_find(const char *name);
+bool chr_is_ringbuf(const CharDriverState *chr);
 
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
 

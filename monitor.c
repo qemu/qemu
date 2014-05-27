@@ -4412,6 +4412,45 @@ void chardev_remove_completion(ReadLineState *rs, int nb_args, const char *str)
     qapi_free_ChardevInfoList(start);
 }
 
+static void ringbuf_completion(ReadLineState *rs, const char *str)
+{
+    size_t len;
+    ChardevInfoList *list, *start;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+
+    start = list = qmp_query_chardev(NULL);
+    while (list) {
+        ChardevInfo *chr_info = list->value;
+
+        if (!strncmp(chr_info->label, str, len)) {
+            CharDriverState *chr = qemu_chr_find(chr_info->label);
+            if (chr && chr_is_ringbuf(chr)) {
+                readline_add_completion(rs, chr_info->label);
+            }
+        }
+        list = list->next;
+    }
+    qapi_free_ChardevInfoList(start);
+}
+
+void ringbuf_read_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    if (nb_args != 2) {
+        return;
+    }
+    ringbuf_completion(rs, str);
+}
+
+void ringbuf_write_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    if (nb_args != 2) {
+        return;
+    }
+    ringbuf_completion(rs, str);
+}
+
 void device_del_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     size_t len;
