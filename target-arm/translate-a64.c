@@ -1507,6 +1507,10 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         tcg_gen_movi_i64(cpu_reg(s, 30), s->pc);
         break;
     case 4: /* ERET */
+        if (s->current_pl == 0) {
+            unallocated_encoding(s);
+            return;
+        }
         gen_helper_exception_return(cpu_env);
         s->is_jmp = DISAS_JUMP;
         return;
