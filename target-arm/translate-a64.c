@@ -162,15 +162,6 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
     }
 }
 
-static int get_mem_index(DisasContext *s)
-{
-#ifdef CONFIG_USER_ONLY
-    return 1;
-#else
-    return s->user;
-#endif
-}
-
 void gen_a64_set_pc_im(uint64_t val)
 {
     tcg_gen_movi_i64(cpu_pc, val);
