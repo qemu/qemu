@@ -389,6 +389,7 @@ void HELPER(exception_return)(CPUARMState *env)
     unsigned int spsr_idx = aarch64_banked_spsr_index(1);
     uint32_t spsr = env->banked_spsr[spsr_idx];
     int new_el, i;
+    int cur_el = arm_current_pl(env);
 
     if (env->pstate & PSTATE_SP) {
         env->sp_el[1] = env->xregs[31];
@@ -410,8 +411,11 @@ void HELPER(exception_return)(CPUARMState *env)
         env->regs[15] = env->elr_el[1] & ~0x1;
     } else {
         new_el = extract32(spsr, 2, 2);
-        if (new_el > 1) {
-            /* Return to unimplemented EL */
+        if (new_el > cur_el
+            || (new_el == 2 && !arm_feature(env, ARM_FEATURE_EL2))) {
+            /* Disallow return to an EL which is unimplemented or higher
+             * than the current one.
+             */
             goto illegal_return;
         }
         if (extract32(spsr, 1, 1)) {
