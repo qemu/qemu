@@ -233,7 +233,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     }
 
     for (i = 0; i < total_queues; i++) {
-        r = vhost_net_start_one(tap_get_vhost_net(ncs[i].peer), dev, i * 2);
+        r = vhost_net_start_one(get_vhost_net(ncs[i].peer), dev, i * 2);
 
         if (r < 0) {
             goto err;
@@ -250,7 +250,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
 
 err:
     while (--i >= 0) {
-        vhost_net_stop_one(tap_get_vhost_net(ncs[i].peer), dev);
+        vhost_net_stop_one(get_vhost_net(ncs[i].peer), dev);
     }
     return r;
 }
@@ -271,7 +271,7 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
     assert(r >= 0);
 
     for (i = 0; i < total_queues; i++) {
-        vhost_net_stop_one(tap_get_vhost_net(ncs[i].peer), dev);
+        vhost_net_stop_one(get_vhost_net(ncs[i].peer), dev);
     }
 }
 
@@ -290,6 +290,25 @@ void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,
                               int idx, bool mask)
 {
     vhost_virtqueue_mask(&net->dev, dev, idx, mask);
+}
+
+VHostNetState *get_vhost_net(NetClientState *nc)
+{
+    VHostNetState *vhost_net = 0;
+
+    if (!nc) {
+        return 0;
+    }
+
+    switch (nc->info->type) {
+    case NET_CLIENT_OPTIONS_KIND_TAP:
+        vhost_net = tap_get_vhost_net(nc);
+        break;
+    default:
+        break;
+    }
+
+    return vhost_net;
 }
 #else
 struct vhost_net *vhost_net_init(NetClientState *backend, int devfd,
@@ -336,5 +355,10 @@ bool vhost_net_virtqueue_pending(VHostNetState *net, int idx)
 void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,
                               int idx, bool mask)
 {
+}
+
+VHostNetState *get_vhost_net(NetClientState *nc)
+{
+    return 0;
 }
 #endif
