@@ -402,6 +402,7 @@ void object_unparent(Object *obj)
     }
     if (obj->parent) {
         object_property_del_child(obj->parent, obj, NULL);
+        obj->parent = NULL;
     }
     object_unref(obj);
 }
