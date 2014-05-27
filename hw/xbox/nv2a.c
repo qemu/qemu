@@ -839,7 +839,6 @@ typedef struct InlineVertexBufferEntry {
 typedef struct KelvinState {
     hwaddr dma_notifies;
     hwaddr dma_state;
-    hwaddr dma_vertex_a, dma_vertex_b;
     hwaddr dma_semaphore;
     unsigned int semaphore_offset;
 } KelvinState;
@@ -935,6 +934,8 @@ typedef struct PGRAPHState {
     GLuint gl_renderbuffer;
     GraphicsSubchannel subchannel_data[NV2A_NUM_SUBCHANNELS];
 
+
+    hwaddr dma_vertex_a, dma_vertex_b;
 
     GLenum gl_primitive_mode;
 
@@ -1251,7 +1252,6 @@ static GraphicsObject* lookup_graphics_object(PGRAPHState *s,
 
 
 static void pgraph_bind_converted_vertex_attributes(NV2AState *d,
-                                                    KelvinState *kelvin,
                                                     bool inline_data,
                                                     unsigned int num_elements)
 {
@@ -1269,9 +1269,9 @@ static void pgraph_bind_converted_vertex_attributes(NV2AState *d,
             } else {
                 hwaddr dma_len;
                 if (attribute->dma_select) {
-                    data = nv_dma_map(d, kelvin->dma_vertex_b, &dma_len);
+                    data = nv_dma_map(d, pg->dma_vertex_b, &dma_len);
                 } else {
-                    data = nv_dma_map(d, kelvin->dma_vertex_a, &dma_len);
+                    data = nv_dma_map(d, pg->dma_vertex_a, &dma_len);
                 }
 
                 assert(attribute->offset < dma_len);
@@ -1342,7 +1342,7 @@ static unsigned int pgraph_bind_inline_array(PGRAPHState *pg)
     return offset;
 }
 
-static void pgraph_bind_vertex_attributes(NV2AState *d, KelvinState *kelvin)
+static void pgraph_bind_vertex_attributes(NV2AState *d)
 {
     int i;
     PGRAPHState *pg = &d->pgraph;
@@ -1358,9 +1358,9 @@ static void pgraph_bind_vertex_attributes(NV2AState *d, KelvinState *kelvin)
 
                 /* TODO: cache coherence */
                 if (attribute->dma_select) {
-                    vertex_data = nv_dma_map(d, kelvin->dma_vertex_b, &dma_len);
+                    vertex_data = nv_dma_map(d, pg->dma_vertex_b, &dma_len);
                 } else {
-                    vertex_data = nv_dma_map(d, kelvin->dma_vertex_a, &dma_len);
+                    vertex_data = nv_dma_map(d, pg->dma_vertex_a, &dma_len);
                 }
                 assert(attribute->offset < dma_len);
                 vertex_data += attribute->offset;
@@ -2340,10 +2340,10 @@ static void pgraph_method(NV2AState *d,
         pg->dma_zeta = parameter;
         break;
     case NV097_SET_CONTEXT_DMA_VERTEX_A:
-        kelvin->dma_vertex_a = parameter;
+        pg->dma_vertex_a = parameter;
         break;
     case NV097_SET_CONTEXT_DMA_VERTEX_B:
-        kelvin->dma_vertex_b = parameter;
+        pg->dma_vertex_b = parameter;
         break;
     case NV097_SET_CONTEXT_DMA_SEMAPHORE:
         kelvin->dma_semaphore = parameter;
@@ -2639,8 +2639,7 @@ static void pgraph_method(NV2AState *d,
                 
                 NV2A_DPRINTF("draw inline array %d, %d\n", vertex_size, index_count);
 
-                pgraph_bind_converted_vertex_attributes(d,
-                    kelvin, true, index_count);
+                pgraph_bind_converted_vertex_attributes(d, true, index_count);
                 glDrawArrays(pg->gl_primitive_mode,
                              0, index_count);
             } else if (pg->inline_elements_length) {
@@ -2653,8 +2652,7 @@ static void pgraph_method(NV2AState *d,
                     min_element = MIN(pg->inline_elements[i], min_element);
                 }
 
-                pgraph_bind_converted_vertex_attributes(d,
-                    kelvin, false, max_element+1);
+                pgraph_bind_converted_vertex_attributes(d, false, max_element+1);
                 glDrawElements(pg->gl_primitive_mode,
                                pg->inline_elements_length,
                                GL_UNSIGNED_INT,
@@ -2671,7 +2669,7 @@ static void pgraph_method(NV2AState *d,
             pgraph_bind_shaders(pg);
 
             pgraph_bind_textures(d);
-            pgraph_bind_vertex_attributes(d, kelvin);
+            pgraph_bind_vertex_attributes(d);
 
 
 
@@ -2765,8 +2763,7 @@ static void pgraph_method(NV2AState *d,
         unsigned int count = GET_MASK(parameter, NV097_DRAW_ARRAYS_COUNT)+1;
 
 
-        pgraph_bind_converted_vertex_attributes(d, kelvin,
-            false, start + count);
+        pgraph_bind_converted_vertex_attributes(d, false, start + count);
         glDrawArrays(pg->gl_primitive_mode, start, count);
 
         break;
