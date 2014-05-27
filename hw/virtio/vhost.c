@@ -13,7 +13,6 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include <sys/ioctl.h>
 #include "hw/virtio/vhost.h"
 #include "hw/hw.h"
 #include "qemu/atomic.h"
@@ -289,7 +288,7 @@ static inline void vhost_dev_log_resize(struct vhost_dev* dev, uint64_t size)
 
     log = g_malloc0(size * sizeof *log);
     log_base = (uint64_t)(unsigned long)log;
-    r = ioctl(dev->control, VHOST_SET_LOG_BASE, &log_base);
+    r = dev->vhost_ops->vhost_call(dev, VHOST_SET_LOG_BASE, &log_base);
     assert(r >= 0);
     /* Sync only the range covered by the old log */
     if (dev->log_size) {
@@ -456,7 +455,7 @@ static void vhost_commit(MemoryListener *listener)
     }
 
     if (!dev->log_enabled) {
-        r = ioctl(dev->control, VHOST_SET_MEM_TABLE, dev->mem);
+        r = dev->vhost_ops->vhost_call(dev, VHOST_SET_MEM_TABLE, dev->mem);
         assert(r >= 0);
         dev->memory_changed = false;
         return;
@@ -469,7 +468,7 @@ static void vhost_commit(MemoryListener *listener)
     if (dev->log_size < log_size) {
         vhost_dev_log_resize(dev, log_size + VHOST_LOG_BUFFER);
     }
-    r = ioctl(dev->control, VHOST_SET_MEM_TABLE, dev->mem);
+    r = dev->vhost_ops->vhost_call(dev, VHOST_SET_MEM_TABLE, dev->mem);
     assert(r >= 0);
     /* To log less, can only decrease log size after table update. */
     if (dev->log_size > log_size + VHOST_LOG_BUFFER) {
@@ -537,7 +536,7 @@ static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
         .log_guest_addr = vq->used_phys,
         .flags = enable_log ? (1 << VHOST_VRING_F_LOG) : 0,
     };
-    int r = ioctl(dev->control, VHOST_SET_VRING_ADDR, &addr);
+    int r = dev->vhost_ops->vhost_call(dev, VHOST_SET_VRING_ADDR, &addr);
     if (r < 0) {
         return -errno;
     }
@@ -551,7 +550,7 @@ static int vhost_dev_set_features(struct vhost_dev *dev, bool enable_log)
     if (enable_log) {
         features |= 0x1 << VHOST_F_LOG_ALL;
     }
-    r = ioctl(dev->control, VHOST_SET_FEATURES, &features);
+    r = dev->vhost_ops->vhost_call(dev, VHOST_SET_FEATURES, &features);
     return r < 0 ? -errno : 0;
 }
 
@@ -664,13 +663,13 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
     assert(idx >= dev->vq_index && idx < dev->vq_index + dev->nvqs);
 
     vq->num = state.num = virtio_queue_get_num(vdev, idx);
-    r = ioctl(dev->control, VHOST_SET_VRING_NUM, &state);
+    r = dev->vhost_ops->vhost_call(dev, VHOST_SET_VRING_NUM, &state);
     if (r) {
         return -errno;
     }
 
     state.num = virtio_queue_get_last_avail_idx(vdev, idx);
-    r = ioctl(dev->control, VHOST_SET_VRING_BASE, &state);
+    r = dev->vhost_ops->vhost_call(dev, VHOST_SET_VRING_BASE, &state);
     if (r) {
         return -errno;
     }
@@ -712,7 +711,7 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
     }
 
     file.fd = event_notifier_get_fd(virtio_queue_get_host_notifier(vvq));
-    r = ioctl(dev->control, VHOST_SET_VRING_KICK, &file);
+    r = dev->vhost_ops->vhost_call(dev, VHOST_SET_VRING_KICK, &file);
     if (r) {
         r = -errno;
         goto fail_kick;
@@ -750,7 +749,7 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
     };
     int r;
     assert(idx >= dev->vq_index && idx < dev->vq_index + dev->nvqs);
-    r = ioctl(dev->control, VHOST_GET_VRING_BASE, &state);
+    r = dev->vhost_ops->vhost_call(dev, VHOST_GET_VRING_BASE, &state);
     if (r < 0) {
         fprintf(stderr, "vhost VQ %d ring restore failed: %d\n", idx, r);
         fflush(stderr);
@@ -792,7 +791,7 @@ static int vhost_virtqueue_init(struct vhost_dev *dev,
     }
 
     file.fd = event_notifier_get_fd(&vq->masked_notifier);
-    r = ioctl(dev->control, VHOST_SET_VRING_CALL, &file);
+    r = dev->vhost_ops->vhost_call(dev, VHOST_SET_VRING_CALL, &file);
     if (r) {
         r = -errno;
         goto fail_call;
@@ -813,14 +812,17 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
 {
     uint64_t features;
     int i, r;
-    hdev->control = (uintptr_t) opaque;;
 
-    r = ioctl(hdev->control, VHOST_SET_OWNER, NULL);
+    if (hdev->vhost_ops->vhost_backend_init(hdev, opaque) < 0) {
+        return -errno;
+    }
+
+    r = hdev->vhost_ops->vhost_call(hdev, VHOST_SET_OWNER, NULL);
     if (r < 0) {
         goto fail;
     }
 
-    r = ioctl(hdev->control, VHOST_GET_FEATURES, &features);
+    r = hdev->vhost_ops->vhost_call(hdev, VHOST_GET_FEATURES, &features);
     if (r < 0) {
         goto fail;
     }
@@ -865,7 +867,7 @@ fail_vq:
     }
 fail:
     r = -errno;
-    close(hdev->control);
+    hdev->vhost_ops->vhost_backend_cleanup(hdev);
     return r;
 }
 
@@ -878,7 +880,7 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     memory_listener_unregister(&hdev->memory_listener);
     g_free(hdev->mem);
     g_free(hdev->mem_sections);
-    close(hdev->control);
+    hdev->vhost_ops->vhost_backend_cleanup(hdev);
 }
 
 bool vhost_dev_query(struct vhost_dev *hdev, VirtIODevice *vdev)
@@ -980,7 +982,7 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
     } else {
         file.fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vvq));
     }
-    r = ioctl(hdev->control, VHOST_SET_VRING_CALL, &file);
+    r = hdev->vhost_ops->vhost_call(hdev, VHOST_SET_VRING_CALL, &file);
     assert(r >= 0);
 }
 
@@ -1022,7 +1024,7 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
     if (r < 0) {
         goto fail_features;
     }
-    r = ioctl(hdev->control, VHOST_SET_MEM_TABLE, hdev->mem);
+    r = hdev->vhost_ops->vhost_call(hdev, VHOST_SET_MEM_TABLE, hdev->mem);
     if (r < 0) {
         r = -errno;
         goto fail_mem;
@@ -1041,8 +1043,7 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         hdev->log_size = vhost_get_log_size(hdev);
         hdev->log = hdev->log_size ?
             g_malloc0(hdev->log_size * sizeof *hdev->log) : NULL;
-        r = ioctl(hdev->control, VHOST_SET_LOG_BASE,
-                  (uint64_t)(unsigned long)hdev->log);
+        r = hdev->vhost_ops->vhost_call(hdev, VHOST_SET_LOG_BASE, hdev->log);
         if (r < 0) {
             r = -errno;
             goto fail_log;
