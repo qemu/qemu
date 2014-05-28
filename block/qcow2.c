@@ -1306,6 +1306,7 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
     options = qdict_clone_shallow(bs->options);
 
     ret = qcow2_open(bs, options, flags, &local_err);
+    QDECREF(options);
     if (local_err) {
         error_setg(errp, "Could not reopen qcow2 layer: %s",
                    error_get_pretty(local_err));
@@ -1315,8 +1316,6 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
         error_setg_errno(errp, -ret, "Could not reopen qcow2 layer");
         return;
     }
-
-    QDECREF(options);
 
     if (crypt_method) {
         s->crypt_method = crypt_method;
