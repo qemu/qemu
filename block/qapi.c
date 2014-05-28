@@ -475,6 +475,7 @@ static void dump_qobject(fprintf_function func_fprintf, void *f,
         case QTYPE_QERROR: {
             QString *value = qerror_human((QError *)obj);
             func_fprintf(f, "%s", qstring_get_str(value));
+            QDECREF(value);
             break;
         }
         case QTYPE_NONE:
