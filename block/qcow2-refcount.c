@@ -50,19 +50,21 @@ int qcow2_refcount_init(BlockDriverState *bs)
 
     if (s->refcount_table_size > 0) {
         if (s->refcount_table == NULL) {
+            ret = -ENOMEM;
             goto fail;
         }
         BLKDBG_EVENT(bs->file, BLKDBG_REFTABLE_LOAD);
         ret = bdrv_pread(bs->file, s->refcount_table_offset,
                          s->refcount_table, refcount_table_size2);
-        if (ret != refcount_table_size2)
+        if (ret < 0) {
             goto fail;
+        }
         for(i = 0; i < s->refcount_table_size; i++)
             be64_to_cpus(&s->refcount_table[i]);
     }
     return 0;
  fail:
-    return -ENOMEM;
+    return ret;
 }
 
 void qcow2_refcount_close(BlockDriverState *bs)
