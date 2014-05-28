@@ -68,7 +68,7 @@
 #include "keymaps.h"
 #include "sysemu/char.h"
 #include "qom/object.h"
-#ifndef _WIN32
+#ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #include <X11/XKBlib.h>
 #endif
@@ -110,6 +110,13 @@ static inline void gdk_drawable_get_size(GdkWindow *w, gint *ww, gint *wh)
 
 #if !GTK_CHECK_VERSION(2, 20, 0)
 #define gtk_widget_get_realized(widget) GTK_WIDGET_REALIZED(widget)
+#endif
+
+#ifndef GDK_IS_X11_DISPLAY
+#define GDK_IS_X11_DISPLAY(dpy) (dpy == dpy)
+#endif
+#ifndef GDK_IS_WIN32_DISPLAY
+#define GDK_IS_WIN32_DISPLAY(dpy) (dpy == dpy)
 #endif
 
 #ifndef GDK_KEY_0
@@ -877,29 +884,34 @@ static gboolean gd_scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
     return TRUE;
 }
 
-static int gd_map_keycode(GtkDisplayState *s, int gdk_keycode)
+static int gd_map_keycode(GtkDisplayState *s, GdkDisplay *dpy, int gdk_keycode)
 {
     int qemu_keycode;
 
-#ifdef _WIN32
-    qemu_keycode = MapVirtualKey(gdk_keycode, MAPVK_VK_TO_VSC);
-    switch (qemu_keycode) {
-    case 103:   /* alt gr */
-        qemu_keycode = 56 | SCANCODE_GREY;
-        break;
+#ifdef GDK_WINDOWING_WIN32
+    if (GDK_IS_WIN32_DISPLAY(dpy)) {
+        qemu_keycode = MapVirtualKey(gdk_keycode, MAPVK_VK_TO_VSC);
+        switch (qemu_keycode) {
+        case 103:   /* alt gr */
+            qemu_keycode = 56 | SCANCODE_GREY;
+            break;
+        }
+        return qemu_keycode;
     }
-#else
+#endif
 
     if (gdk_keycode < 9) {
         qemu_keycode = 0;
     } else if (gdk_keycode < 97) {
         qemu_keycode = gdk_keycode - 8;
-    } else if (gdk_keycode < 158) {
+#ifdef GDK_WINDOWING_X11
+    } else if (GDK_IS_X11_DISPLAY(dpy) && gdk_keycode < 158) {
         if (s->has_evdev) {
             qemu_keycode = translate_evdev_keycode(gdk_keycode - 97);
         } else {
             qemu_keycode = translate_xfree86_keycode(gdk_keycode - 97);
         }
+#endif
     } else if (gdk_keycode == 208) { /* Hiragana_Katakana */
         qemu_keycode = 0x70;
     } else if (gdk_keycode == 211) { /* backslash */
@@ -907,7 +919,6 @@ static int gd_map_keycode(GtkDisplayState *s, int gdk_keycode)
     } else {
         qemu_keycode = 0;
     }
-#endif
 
     return qemu_keycode;
 }
@@ -920,7 +931,8 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
     int qemu_keycode;
     int i;
 
-    qemu_keycode = gd_map_keycode(s, gdk_keycode);
+    qemu_keycode = gd_map_keycode(s, gtk_widget_get_display(widget),
+                                  gdk_keycode);
 
     trace_gd_key_event(vc->label, gdk_keycode, qemu_keycode,
                        (key->type == GDK_KEY_PRESS) ? "down" : "up");
@@ -1802,23 +1814,25 @@ static void gd_create_menus(GtkDisplayState *s)
 
 static void gd_set_keycode_type(GtkDisplayState *s)
 {
-#ifndef _WIN32
-    char *keycodes = NULL;
+#ifdef GDK_WINDOWING_X11
     GdkDisplay *display = gtk_widget_get_display(s->window);
-    Display *x11_display = gdk_x11_display_get_xdisplay(display);
-    XkbDescPtr desc = XkbGetKeyboard(x11_display, XkbGBN_AllComponentsMask,
-                                     XkbUseCoreKbd);
+    if (GDK_IS_X11_DISPLAY(display)) {
+        Display *x11_display = gdk_x11_display_get_xdisplay(display);
+        XkbDescPtr desc = XkbGetKeyboard(x11_display, XkbGBN_AllComponentsMask,
+                                         XkbUseCoreKbd);
+        char *keycodes = NULL;
 
-    if (desc && desc->names) {
-        keycodes = XGetAtomName(x11_display, desc->names->keycodes);
-    }
-    if (keycodes == NULL) {
-        fprintf(stderr, "could not lookup keycode name\n");
-    } else if (strstart(keycodes, "evdev", NULL)) {
-        s->has_evdev = true;
-    } else if (!strstart(keycodes, "xfree86", NULL)) {
-        fprintf(stderr, "unknown keycodes `%s', please report to "
-                "qemu-devel@nongnu.org\n", keycodes);
+        if (desc && desc->names) {
+            keycodes = XGetAtomName(x11_display, desc->names->keycodes);
+        }
+        if (keycodes == NULL) {
+            fprintf(stderr, "could not lookup keycode name\n");
+        } else if (strstart(keycodes, "evdev", NULL)) {
+            s->has_evdev = true;
+        } else if (!strstart(keycodes, "xfree86", NULL)) {
+            fprintf(stderr, "unknown keycodes `%s', please report to "
+                    "qemu-devel@nongnu.org\n", keycodes);
+        }
     }
 #endif
 }
