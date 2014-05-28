@@ -2886,7 +2886,7 @@ void helper_booke206_tlbilx3(CPUPPCState *env, target_ulong address)
     tlb_flush(CPU(cpu), 1);
 }
 
-void helper_booke206_tlbflush(CPUPPCState *env, uint32_t type)
+void helper_booke206_tlbflush(CPUPPCState *env, target_ulong type)
 {
     int flags = 0;
 

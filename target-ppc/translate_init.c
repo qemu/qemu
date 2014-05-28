@@ -1466,9 +1466,7 @@ static void spr_write_e500_l1csr1(void *opaque, int sprn, int gprn)
 
 static void spr_write_booke206_mmucsr0 (void *opaque, int sprn, int gprn)
 {
-    TCGv_i32 t0 = tcg_const_i32(sprn);
-    gen_helper_booke206_tlbflush(cpu_env, t0);
-    tcg_temp_free_i32(t0);
+    gen_helper_booke206_tlbflush(cpu_env, cpu_gpr[gprn]);
 }
 
 static void spr_write_booke_pid (void *opaque, int sprn, int gprn)
