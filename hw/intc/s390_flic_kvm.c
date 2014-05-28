@@ -170,7 +170,8 @@ static int kvm_s390_register_io_adapter(S390FLICState *fs, uint32_t id,
     };
 
     if (!kvm_check_extension(kvm_state, KVM_CAP_IRQ_ROUTING)) {
-        return -ENOSYS;
+        /* nothing to do */
+        return 0;
     }
 
     r = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
@@ -195,7 +196,8 @@ static int kvm_s390_io_adapter_map(S390FLICState *fs, uint32_t id,
     int r;
 
     if (!kvm_check_extension(kvm_state, KVM_CAP_IRQ_ROUTING)) {
-        return -ENOSYS;
+        /* nothing to do */
+        return 0;
     }
 
     r = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
