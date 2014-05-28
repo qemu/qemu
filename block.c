@@ -1158,6 +1158,7 @@ int bdrv_open_image(BlockDriverState **pbs, const char *filename,
                        bdref_key);
             ret = -EINVAL;
         }
+        QDECREF(image_options);
         goto done;
     }
 
