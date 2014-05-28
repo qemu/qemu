@@ -62,7 +62,8 @@ static int openfile(char *name, int flags, int growable, QDict *opts)
         if (bdrv_open(&qemuio_bs, name, NULL, opts, flags | BDRV_O_PROTOCOL,
                       NULL, &local_err))
         {
-            fprintf(stderr, "%s: can't open device %s: %s\n", progname, name,
+            fprintf(stderr, "%s: can't open%s%s: %s\n", progname,
+                    name ? " device " : "", name ?: "",
                     error_get_pretty(local_err));
             error_free(local_err);
             return 1;
@@ -73,7 +74,8 @@ static int openfile(char *name, int flags, int growable, QDict *opts)
         if (bdrv_open(&qemuio_bs, name, NULL, opts, flags, NULL, &local_err)
             < 0)
         {
-            fprintf(stderr, "%s: can't open device %s: %s\n", progname, name,
+            fprintf(stderr, "%s: can't open%s%s: %s\n", progname,
+                    name ? " device " : "", name ?: "",
                     error_get_pretty(local_err));
             error_free(local_err);
             bdrv_unref(qemuio_bs);
