@@ -8,17 +8,10 @@
 #include "hw/qdev.h"
 #include "qom/object.h"
 
-typedef struct QEMUMachineInitArgs {
-    const MachineClass *machine;
-    ram_addr_t ram_size;
-    const char *boot_order;
-    const char *kernel_filename;
-    const char *kernel_cmdline;
-    const char *initrd_filename;
-    const char *cpu_model;
-} QEMUMachineInitArgs;
 
-typedef void QEMUMachineInitFunc(QEMUMachineInitArgs *args);
+typedef struct MachineState MachineState;
+
+typedef void QEMUMachineInitFunc(MachineState *ms);
 
 typedef void QEMUMachineResetFunc(void);
 
@@ -62,8 +55,6 @@ int qemu_register_machine(QEMUMachine *m);
 #define MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(MachineClass, (klass), TYPE_MACHINE)
 
-typedef struct MachineState MachineState;
-
 MachineClass *find_default_machine(void);
 extern MachineState *current_machine;
 
@@ -80,7 +71,7 @@ struct MachineClass {
     const char *alias;
     const char *desc;
 
-    void (*init)(QEMUMachineInitArgs *args);
+    void (*init)(MachineState *state);
     void (*reset)(void);
     void (*hot_add_cpu)(const int64_t id, Error **errp);
     int (*kvm_type)(const char *arg);
@@ -112,9 +103,6 @@ struct MachineState {
     char *accel;
     bool kernel_irqchip;
     int kvm_shadow_mem;
-    char *kernel;
-    char *initrd;
-    char *append;
     char *dtb;
     char *dumpdtb;
     int phandle_start;
@@ -124,7 +112,12 @@ struct MachineState {
     bool usb;
     char *firmware;
 
-    QEMUMachineInitArgs init_args;
+    ram_addr_t ram_size;
+    const char *boot_order;
+    char *kernel_filename;
+    char *kernel_cmdline;
+    char *initrd_filename;
+    const char *cpu_model;
 };
 
 #endif

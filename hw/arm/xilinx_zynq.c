@@ -94,20 +94,20 @@ static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
         for (j = 0; j < num_ss; ++j) {
             flash_dev = ssi_create_slave(spi, "n25q128");
 
-            cs_line = qdev_get_gpio_in(flash_dev, 0);
+            cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
             sysbus_connect_irq(busdev, i * num_ss + j + 1, cs_line);
         }
     }
 
 }
 
-static void zynq_init(QEMUMachineInitArgs *args)
+static void zynq_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     ObjectClass *cpu_oc;
     ARMCPU *cpu;
     MemoryRegion *address_space_mem = get_system_memory();

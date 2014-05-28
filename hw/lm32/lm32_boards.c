@@ -69,10 +69,10 @@ static void main_cpu_reset(void *opaque)
     env->deba = reset_info->flash_base;
 }
 
-static void lm32_evr_init(QEMUMachineInitArgs *args)
+static void lm32_evr_init(MachineState *machine)
 {
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
     LM32CPU *cpu;
     CPULM32State *env;
     DriveInfo *dinfo;
@@ -162,12 +162,12 @@ static void lm32_evr_init(QEMUMachineInitArgs *args)
     qemu_register_reset(main_cpu_reset, reset_info);
 }
 
-static void lm32_uclinux_init(QEMUMachineInitArgs *args)
+static void lm32_uclinux_init(MachineState *machine)
 {
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     LM32CPU *cpu;
     CPULM32State *env;
     DriveInfo *dinfo;

@@ -887,14 +887,14 @@ static struct arm_boot_info spitz_binfo = {
     .ram_size = 0x04000000,
 };
 
-static void spitz_common_init(QEMUMachineInitArgs *args,
+static void spitz_common_init(MachineState *machine,
                               enum spitz_model_e model, int arm_id)
 {
     PXA2xxState *mpu;
     DeviceState *scp0, *scp1 = NULL;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *rom = g_new(MemoryRegion, 1);
-    const char *cpu_model = args->cpu_model;
+    const char *cpu_model = machine->cpu_model;
 
     if (!cpu_model)
         cpu_model = (model == terrier) ? "pxa270-c5" : "pxa270-c0";
@@ -935,32 +935,32 @@ static void spitz_common_init(QEMUMachineInitArgs *args,
         /* A 4.0 GB microdrive is permanently sitting in CF slot 0.  */
         spitz_microdrive_attach(mpu, 0);
 
-    spitz_binfo.kernel_filename = args->kernel_filename;
-    spitz_binfo.kernel_cmdline = args->kernel_cmdline;
-    spitz_binfo.initrd_filename = args->initrd_filename;
+    spitz_binfo.kernel_filename = machine->kernel_filename;
+    spitz_binfo.kernel_cmdline = machine->kernel_cmdline;
+    spitz_binfo.initrd_filename = machine->initrd_filename;
     spitz_binfo.board_id = arm_id;
     arm_load_kernel(mpu->cpu, &spitz_binfo);
     sl_bootparam_write(SL_PXA_PARAM_BASE);
 }
 
-static void spitz_init(QEMUMachineInitArgs *args)
+static void spitz_init(MachineState *machine)
 {
-    spitz_common_init(args, spitz, 0x2c9);
+    spitz_common_init(machine, spitz, 0x2c9);
 }
 
-static void borzoi_init(QEMUMachineInitArgs *args)
+static void borzoi_init(MachineState *machine)
 {
-    spitz_common_init(args, borzoi, 0x33f);
+    spitz_common_init(machine, borzoi, 0x33f);
 }
 
-static void akita_init(QEMUMachineInitArgs *args)
+static void akita_init(MachineState *machine)
 {
-    spitz_common_init(args, akita, 0x2e8);
+    spitz_common_init(machine, akita, 0x2e8);
 }
 
-static void terrier_init(QEMUMachineInitArgs *args)
+static void terrier_init(MachineState *machine)
 {
-    spitz_common_init(args, terrier, 0x33f);
+    spitz_common_init(machine, terrier, 0x33f);
 }
 
 static QEMUMachine akitapda_machine = {

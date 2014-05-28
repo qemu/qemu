@@ -509,7 +509,7 @@ static pflash_t *ve_pflash_cfi01_register(hwaddr base, const char *name,
 }
 
 static void vexpress_common_init(VEDBoardInfo *daughterboard,
-                                 QEMUMachineInitArgs *args)
+                                 MachineState *machine)
 {
     DeviceState *dev, *sysctl, *pl041;
     qemu_irq pic[64];
@@ -525,7 +525,8 @@ static void vexpress_common_init(VEDBoardInfo *daughterboard,
     const hwaddr *map = daughterboard->motherboard_map;
     int i;
 
-    daughterboard->init(daughterboard, args->ram_size, args->cpu_model, pic);
+    daughterboard->init(daughterboard, machine->ram_size, machine->cpu_model,
+                        pic);
 
     /* Motherboard peripherals: the wiring is the same but the
      * addresses vary between the legacy and A-Series memory maps.
@@ -639,10 +640,10 @@ static void vexpress_common_init(VEDBoardInfo *daughterboard,
                              pic[40 + i]);
     }
 
-    daughterboard->bootinfo.ram_size = args->ram_size;
-    daughterboard->bootinfo.kernel_filename = args->kernel_filename;
-    daughterboard->bootinfo.kernel_cmdline = args->kernel_cmdline;
-    daughterboard->bootinfo.initrd_filename = args->initrd_filename;
+    daughterboard->bootinfo.ram_size = machine->ram_size;
+    daughterboard->bootinfo.kernel_filename = machine->kernel_filename;
+    daughterboard->bootinfo.kernel_cmdline = machine->kernel_cmdline;
+    daughterboard->bootinfo.initrd_filename = machine->initrd_filename;
     daughterboard->bootinfo.nb_cpus = smp_cpus;
     daughterboard->bootinfo.board_id = VEXPRESS_BOARD_ID;
     daughterboard->bootinfo.loader_start = daughterboard->loader_start;
@@ -653,14 +654,14 @@ static void vexpress_common_init(VEDBoardInfo *daughterboard,
     arm_load_kernel(ARM_CPU(first_cpu), &daughterboard->bootinfo);
 }
 
-static void vexpress_a9_init(QEMUMachineInitArgs *args)
+static void vexpress_a9_init(MachineState *machine)
 {
-    vexpress_common_init(&a9_daughterboard, args);
+    vexpress_common_init(&a9_daughterboard, machine);
 }
 
-static void vexpress_a15_init(QEMUMachineInitArgs *args)
+static void vexpress_a15_init(MachineState *machine)
 {
-    vexpress_common_init(&a15_daughterboard, args);
+    vexpress_common_init(&a15_daughterboard, machine);
 }
 
 static QEMUMachine vexpress_a9_machine = {

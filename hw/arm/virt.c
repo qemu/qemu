@@ -383,13 +383,13 @@ static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
     return board->fdt;
 }
 
-static void machvirt_init(QEMUMachineInitArgs *args)
+static void machvirt_init(MachineState *machine)
 {
     qemu_irq pic[NUM_IRQS];
     MemoryRegion *sysmem = get_system_memory();
     int n;
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    const char *cpu_model = args->cpu_model;
+    const char *cpu_model = machine->cpu_model;
     VirtBoardInfo *vbi;
 
     if (!cpu_model) {
@@ -415,7 +415,7 @@ static void machvirt_init(QEMUMachineInitArgs *args)
         exit(1);
     }
 
-    if (args->ram_size > vbi->memmap[VIRT_MEM].size) {
+    if (machine->ram_size > vbi->memmap[VIRT_MEM].size) {
         error_report("mach-virt: cannot model more than 30GB RAM");
         exit(1);
     }
@@ -447,7 +447,7 @@ static void machvirt_init(QEMUMachineInitArgs *args)
     }
     fdt_add_cpu_nodes(vbi);
 
-    memory_region_init_ram(ram, NULL, "mach-virt.ram", args->ram_size);
+    memory_region_init_ram(ram, NULL, "mach-virt.ram", machine->ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(sysmem, vbi->memmap[VIRT_MEM].base, ram);
 
@@ -461,10 +461,10 @@ static void machvirt_init(QEMUMachineInitArgs *args)
      */
     create_virtio_devices(vbi, pic);
 
-    vbi->bootinfo.ram_size = args->ram_size;
-    vbi->bootinfo.kernel_filename = args->kernel_filename;
-    vbi->bootinfo.kernel_cmdline = args->kernel_cmdline;
-    vbi->bootinfo.initrd_filename = args->initrd_filename;
+    vbi->bootinfo.ram_size = machine->ram_size;
+    vbi->bootinfo.kernel_filename = machine->kernel_filename;
+    vbi->bootinfo.kernel_cmdline = machine->kernel_cmdline;
+    vbi->bootinfo.initrd_filename = machine->initrd_filename;
     vbi->bootinfo.nb_cpus = smp_cpus;
     vbi->bootinfo.board_id = -1;
     vbi->bootinfo.loader_start = vbi->memmap[VIRT_MEM].base;

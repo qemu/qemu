@@ -1290,9 +1290,10 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 
             sddev = ssi_create_slave(bus, "ssi-sd");
             ssddev = ssi_create_slave(bus, "ssd0323");
-            gpio_out[GPIO_D][0] = qemu_irq_split(qdev_get_gpio_in(sddev, 0),
-                                                 qdev_get_gpio_in(ssddev, 0));
-            gpio_out[GPIO_C][7] = qdev_get_gpio_in(ssddev, 1);
+            gpio_out[GPIO_D][0] = qemu_irq_split(
+                    qdev_get_gpio_in_named(sddev, SSI_GPIO_CS, 0),
+                    qdev_get_gpio_in_named(ssddev, SSI_GPIO_CS, 0));
+            gpio_out[GPIO_C][7] = qdev_get_gpio_in(ssddev, 0);
 
             /* Make sure the select pin is high.  */
             qemu_irq_raise(gpio_out[GPIO_D][0]);
@@ -1333,17 +1334,17 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 }
 
 /* FIXME: Figure out how to generate these from stellaris_boards.  */
-static void lm3s811evb_init(QEMUMachineInitArgs *args)
+static void lm3s811evb_init(MachineState *machine)
 {
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
     stellaris_init(kernel_filename, cpu_model, &stellaris_boards[0]);
 }
 
-static void lm3s6965evb_init(QEMUMachineInitArgs *args)
+static void lm3s6965evb_init(MachineState *machine)
 {
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
     stellaris_init(kernel_filename, cpu_model, &stellaris_boards[1]);
 }
 

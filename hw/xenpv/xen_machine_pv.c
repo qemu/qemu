@@ -28,11 +28,11 @@
 #include "xen_domainbuild.h"
 #include "sysemu/blockdev.h"
 
-static void xen_init_pv(QEMUMachineInitArgs *args)
+static void xen_init_pv(MachineState *machine)
 {
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     DriveInfo *dinfo;
     int i;
 

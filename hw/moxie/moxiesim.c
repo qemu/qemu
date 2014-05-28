@@ -107,14 +107,14 @@ moxie_intc_create(hwaddr base, qemu_irq irq, int kind_of_intr)
     return dev;
 }
 
-static void moxiesim_init(QEMUMachineInitArgs *args)
+static void moxiesim_init(MachineState *machine)
 {
     MoxieCPU *cpu = NULL;
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     CPUMoxieState *env;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);

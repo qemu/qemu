@@ -507,6 +507,15 @@ static void test_visitor_out_union_anon(TestOutputVisitorData *data,
     qapi_free_UserDefAnonUnion(tmp);
 }
 
+static void test_visitor_out_empty(TestOutputVisitorData *data,
+                                   const void *unused)
+{
+    QObject *arg;
+
+    arg = qmp_output_get_qobject(data->qov);
+    g_assert(!arg);
+}
+
 static void init_native_list(UserDefNativeListUnion *cvalue)
 {
     int i;
@@ -859,6 +868,8 @@ int main(int argc, char **argv)
                             &out_visitor_data, test_visitor_out_union_flat);
     output_visitor_test_add("/visitor/output/union-anon",
                             &out_visitor_data, test_visitor_out_union_anon);
+    output_visitor_test_add("/visitor/output/empty",
+                            &out_visitor_data, test_visitor_out_empty);
     output_visitor_test_add("/visitor/output/native_list/int",
                             &out_visitor_data, test_visitor_out_native_list_int);
     output_visitor_test_add("/visitor/output/native_list/int8",

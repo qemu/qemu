@@ -159,7 +159,7 @@ static void lx60_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
-static void lx_init(const LxBoardDesc *board, QEMUMachineInitArgs *args)
+static void lx_init(const LxBoardDesc *board, MachineState *machine)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     int be = 1;
@@ -172,9 +172,9 @@ static void lx_init(const LxBoardDesc *board, QEMUMachineInitArgs *args)
     MemoryRegion *ram, *rom, *system_io;
     DriveInfo *dinfo;
     pflash_t *flash = NULL;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
     int n;
 
     if (!cpu_model) {
@@ -198,7 +198,7 @@ static void lx_init(const LxBoardDesc *board, QEMUMachineInitArgs *args)
     }
 
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, NULL, "lx60.dram", args->ram_size);
+    memory_region_init_ram(ram, NULL, "lx60.dram", machine->ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(system_memory, 0, ram);
 
@@ -275,7 +275,7 @@ static void lx_init(const LxBoardDesc *board, QEMUMachineInitArgs *args)
     }
 }
 
-static void xtensa_lx60_init(QEMUMachineInitArgs *args)
+static void xtensa_lx60_init(MachineState *machine)
 {
     static const LxBoardDesc lx60_board = {
         .flash_base = 0xf8000000,
@@ -283,10 +283,10 @@ static void xtensa_lx60_init(QEMUMachineInitArgs *args)
         .flash_sector_size = 0x10000,
         .sram_size = 0x20000,
     };
-    lx_init(&lx60_board, args);
+    lx_init(&lx60_board, machine);
 }
 
-static void xtensa_lx200_init(QEMUMachineInitArgs *args)
+static void xtensa_lx200_init(MachineState *machine)
 {
     static const LxBoardDesc lx200_board = {
         .flash_base = 0xf8000000,
@@ -294,10 +294,10 @@ static void xtensa_lx200_init(QEMUMachineInitArgs *args)
         .flash_sector_size = 0x20000,
         .sram_size = 0x2000000,
     };
-    lx_init(&lx200_board, args);
+    lx_init(&lx200_board, machine);
 }
 
-static void xtensa_ml605_init(QEMUMachineInitArgs *args)
+static void xtensa_ml605_init(MachineState *machine)
 {
     static const LxBoardDesc ml605_board = {
         .flash_base = 0xf8000000,
@@ -305,10 +305,10 @@ static void xtensa_ml605_init(QEMUMachineInitArgs *args)
         .flash_sector_size = 0x20000,
         .sram_size = 0x2000000,
     };
-    lx_init(&ml605_board, args);
+    lx_init(&ml605_board, machine);
 }
 
-static void xtensa_kc705_init(QEMUMachineInitArgs *args)
+static void xtensa_kc705_init(MachineState *machine)
 {
     static const LxBoardDesc kc705_board = {
         .flash_base = 0xf0000000,
@@ -316,7 +316,7 @@ static void xtensa_kc705_init(QEMUMachineInitArgs *args)
         .flash_sector_size = 0x20000,
         .sram_size = 0x2000000,
     };
-    lx_init(&kc705_board, args);
+    lx_init(&kc705_board, machine);
 }
 
 static QEMUMachine xtensa_lx60_machine = {

@@ -105,7 +105,7 @@ static struct arm_boot_info mainstone_binfo = {
 };
 
 static void mainstone_common_init(MemoryRegion *address_space_mem,
-                                  QEMUMachineInitArgs *args,
+                                  MachineState *machine,
                                   enum mainstone_model_e model, int arm_id)
 {
     uint32_t sector_len = 256 * 1024;
@@ -116,7 +116,7 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
     int i;
     int be;
     MemoryRegion *rom = g_new(MemoryRegion, 1);
-    const char *cpu_model = args->cpu_model;
+    const char *cpu_model = machine->cpu_model;
 
     if (!cpu_model)
         cpu_model = "pxa270-c5";
@@ -175,16 +175,16 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
     smc91c111_init(&nd_table[0], MST_ETH_PHYS,
                     qdev_get_gpio_in(mst_irq, ETHERNET_IRQ));
 
-    mainstone_binfo.kernel_filename = args->kernel_filename;
-    mainstone_binfo.kernel_cmdline = args->kernel_cmdline;
-    mainstone_binfo.initrd_filename = args->initrd_filename;
+    mainstone_binfo.kernel_filename = machine->kernel_filename;
+    mainstone_binfo.kernel_cmdline = machine->kernel_cmdline;
+    mainstone_binfo.initrd_filename = machine->initrd_filename;
     mainstone_binfo.board_id = arm_id;
     arm_load_kernel(mpu->cpu, &mainstone_binfo);
 }
 
-static void mainstone_init(QEMUMachineInitArgs *args)
+static void mainstone_init(MachineState *machine)
 {
-    mainstone_common_init(get_system_memory(), args, mainstone, 0x196);
+    mainstone_common_init(get_system_memory(), machine, mainstone, 0x196);
 }
 
 static QEMUMachine mainstone2_machine = {

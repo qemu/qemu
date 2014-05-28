@@ -79,9 +79,9 @@ static void machine_cpu_reset(MicroBlazeCPU *cpu)
 }
 
 static void
-petalogix_ml605_init(QEMUMachineInitArgs *args)
+petalogix_ml605_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
+    ram_addr_t ram_size = machine->ram_size;
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev, *dma, *eth0;
     Object *ds, *cs;
@@ -196,13 +196,13 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
             qemu_irq cs_line;
 
             dev = ssi_create_slave(spi, "n25q128");
-            cs_line = qdev_get_gpio_in(dev, 0);
+            cs_line = qdev_get_gpio_in_named(dev, SSI_GPIO_CS, 0);
             sysbus_connect_irq(busdev, i+1, cs_line);
         }
     }
 
     microblaze_load_kernel(cpu, ddr_base, ram_size,
-                           args->initrd_filename,
+                           machine->initrd_filename,
                            BINARY_DEVICE_TREE_FILE,
                            machine_cpu_reset);
 

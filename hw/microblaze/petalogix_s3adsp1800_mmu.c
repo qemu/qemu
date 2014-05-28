@@ -59,10 +59,10 @@ static void machine_cpu_reset(MicroBlazeCPU *cpu)
 }
 
 static void
-petalogix_s3adsp1800_init(QEMUMachineInitArgs *args)
+petalogix_s3adsp1800_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
     DeviceState *dev;
     MicroBlazeCPU *cpu;
     DriveInfo *dinfo;
@@ -128,7 +128,7 @@ petalogix_s3adsp1800_init(QEMUMachineInitArgs *args)
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[ETHLITE_IRQ]);
 
     microblaze_load_kernel(cpu, ddr_base, ram_size,
-                           args->initrd_filename,
+                           machine->initrd_filename,
                            BINARY_DEVICE_TREE_FILE,
                            machine_cpu_reset);
 }

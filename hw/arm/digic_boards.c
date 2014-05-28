@@ -143,7 +143,7 @@ static DigicBoard digic4_board_canon_a1100 = {
     .rom1_def_filename = "canon-a1100-rom1.bin",
 };
 
-static void canon_a1100_init(QEMUMachineInitArgs *args)
+static void canon_a1100_init(MachineState *machine)
 {
     digic4_board_init(&digic4_board_canon_a1100);
 }
