@@ -29,6 +29,9 @@ QemuInputHandlerState *qemu_input_handler_register(DeviceState *dev,
 void qemu_input_handler_activate(QemuInputHandlerState *s);
 void qemu_input_handler_deactivate(QemuInputHandlerState *s);
 void qemu_input_handler_unregister(QemuInputHandlerState *s);
+void qemu_input_handler_bind(QemuInputHandlerState *s,
+                             const char *device_id, int head,
+                             Error **errp);
 void qemu_input_event_send(QemuConsole *src, InputEvent *evt);
 void qemu_input_event_sync(void);
 
@@ -36,6 +39,7 @@ InputEvent *qemu_input_event_new_key(KeyValue *key, bool down);
 void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down);
 void qemu_input_event_send_key_number(QemuConsole *src, int num, bool down);
 void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down);
+int qemu_input_key_number_to_qcode(uint8_t nr);
 int qemu_input_key_value_to_number(const KeyValue *value);
 int qemu_input_key_value_to_qcode(const KeyValue *value);
 int qemu_input_key_value_to_scancode(const KeyValue *value, bool down,

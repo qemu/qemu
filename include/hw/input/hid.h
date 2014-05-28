@@ -2,6 +2,7 @@
 #define QEMU_HID_H
 
 #include "migration/vmstate.h"
+#include "ui/input.h"
 
 #define HID_MOUSE     1
 #define HID_TABLET    2
@@ -22,7 +23,6 @@ typedef void (*HIDEventFunc)(HIDState *s);
 typedef struct HIDMouseState {
     HIDPointerEvent queue[QUEUE_LENGTH];
     int mouse_grabbed;
-    QEMUPutMouseEntry *eh_entry;
 } HIDMouseState;
 
 typedef struct HIDKeyboardState {
@@ -31,7 +31,6 @@ typedef struct HIDKeyboardState {
     uint8_t leds;
     uint8_t key[16];
     int32_t keys;
-    QEMUPutKbdEntry *eh_entry;
 } HIDKeyboardState;
 
 struct HIDState {
@@ -47,6 +46,7 @@ struct HIDState {
     bool idle_pending;
     QEMUTimer *idle_timer;
     HIDEventFunc event;
+    QemuInputHandlerState *s;
 };
 
 void hid_init(HIDState *hs, int kind, HIDEventFunc event);

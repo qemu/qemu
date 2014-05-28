@@ -1047,7 +1047,7 @@ gd_update(int x, int y, int w, int h) "x=%d, y=%d, w=%d, h=%d"
 gd_key_event(int gdk_keycode, int qemu_keycode, const char *action) "translated GDK keycode %d to QEMU keycode %d (%s)"
 
 # ui/input.c
-input_event_key_number(int conidx, int number, bool down) "con %d, key number 0x%x, down %d"
+input_event_key_number(int conidx, int number, const char *qcode, bool down) "con %d, key number 0x%x [%s], down %d"
 input_event_key_qcode(int conidx, const char *qcode, bool down) "con %d, key qcode %s, down %d"
 input_event_btn(int conidx, const char *btn, bool down) "con %d, button %s, down %d"
 input_event_rel(int conidx, const char *axis, int value) "con %d, axis %s, value %d"

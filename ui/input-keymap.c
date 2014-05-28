@@ -13,6 +13,8 @@ static const int qcode_to_number[] = {
     [Q_KEY_CODE_CTRL] = 0x1d,
     [Q_KEY_CODE_CTRL_R] = 0x9d,
 
+    [Q_KEY_CODE_META_L] = 0xdb,
+    [Q_KEY_CODE_META_R] = 0xdc,
     [Q_KEY_CODE_MENU] = 0xdd,
 
     [Q_KEY_CODE_ESC] = 0x01,
@@ -129,7 +131,7 @@ static const int qcode_to_number[] = {
     [Q_KEY_CODE_MAX] = 0,
 };
 
-static int number_to_qcode[0xff];
+static int number_to_qcode[0x100];
 
 int qemu_input_key_value_to_number(const KeyValue *value)
 {
@@ -141,7 +143,7 @@ int qemu_input_key_value_to_number(const KeyValue *value)
     }
 }
 
-int qemu_input_key_value_to_qcode(const KeyValue *value)
+int qemu_input_key_number_to_qcode(uint8_t nr)
 {
     static int first = true;
 
@@ -155,11 +157,16 @@ int qemu_input_key_value_to_qcode(const KeyValue *value)
         }
     }
 
+    return number_to_qcode[nr];
+}
+
+int qemu_input_key_value_to_qcode(const KeyValue *value)
+{
     if (value->kind == KEY_VALUE_KIND_QCODE) {
         return value->qcode;
     } else {
         assert(value->kind == KEY_VALUE_KIND_NUMBER);
-        return number_to_qcode[value->number];
+        return qemu_input_key_number_to_qcode(value->number);
     }
 }
 
