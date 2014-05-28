@@ -287,6 +287,7 @@ static int print_block_option_help(const char *filename, const char *fmt)
         proto_drv = bdrv_find_protocol(filename, true);
         if (!proto_drv) {
             error_report("Unknown protocol '%s'", filename);
+            free_option_parameters(create_options);
             return 1;
         }
         create_options = append_option_parameters(create_options,
