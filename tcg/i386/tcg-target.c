@@ -1407,7 +1407,8 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
         } else {
             retaddr = TCG_REG_RAX;
             tcg_out_movi(s, TCG_TYPE_PTR, retaddr, (uintptr_t)l->raddr);
-            tcg_out_st(s, TCG_TYPE_PTR, retaddr, TCG_REG_ESP, 0);
+            tcg_out_st(s, TCG_TYPE_PTR, retaddr, TCG_REG_ESP,
+                       TCG_TARGET_CALL_STACK_OFFSET);
         }
     }
 
