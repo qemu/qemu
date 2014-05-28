@@ -868,6 +868,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 
     /* Actual block device init: Functionality shared with blockdev-add */
     dinfo = blockdev_init(bs_opts, type, &local_err);
+    bs_opts = NULL;
     if (dinfo == NULL) {
         if (error_is_set(&local_err)) {
             qerror_report_err(local_err);
@@ -904,6 +905,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 
 fail:
     qemu_opts_del(legacy_opts);
+    QDECREF(bs_opts);
     return dinfo;
 }
 
