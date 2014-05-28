@@ -71,7 +71,7 @@ do { printf("APB: " fmt , ## __VA_ARGS__); } while (0)
 #define NO_IRQ_REQUEST (MAX_IVEC + 1)
 
 typedef struct IOMMUState {
-    uint32_t regs[4];
+    uint32_t regs[6];
 } IOMMUState;
 
 #define TYPE_APB "pbm"
@@ -157,10 +157,8 @@ static void apb_config_writel (void *opaque, hwaddr addr,
     case 0x30 ... 0x4f: /* DMA error registers */
         /* XXX: not implemented yet */
         break;
-    case 0x200 ... 0x20b: /* IOMMU */
+    case 0x200 ... 0x217: /* IOMMU */
         is->regs[(addr & 0xf) >> 2] = val;
-        break;
-    case 0x20c ... 0x3ff: /* IOMMU flush */
         break;
     case 0xc00 ... 0xc3f: /* PCI interrupt control */
         if (addr & 4) {
@@ -241,11 +239,8 @@ static uint64_t apb_config_readl (void *opaque,
         val = 0;
         /* XXX: not implemented yet */
         break;
-    case 0x200 ... 0x20b: /* IOMMU */
+    case 0x200 ... 0x217: /* IOMMU */
         val = is->regs[(addr & 0xf) >> 2];
-        break;
-    case 0x20c ... 0x3ff: /* IOMMU flush */
-        val = 0;
         break;
     case 0xc00 ... 0xc3f: /* PCI interrupt control */
         if (addr & 4) {
