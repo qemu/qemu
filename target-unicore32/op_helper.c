@@ -9,7 +9,7 @@
  * later version. See the COPYING file in the top-level directory.
  */
 #include "cpu.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)

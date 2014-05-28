@@ -19,7 +19,7 @@
  */
 
 #include "cpu.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 #include "exception.h"
 
 static inline uint32_t ieee_ex_to_openrisc(OpenRISCCPU *cpu, int fexcp)

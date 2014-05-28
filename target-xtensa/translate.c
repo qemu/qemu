@@ -37,9 +37,8 @@
 #include "qemu/log.h"
 #include "sysemu/sysemu.h"
 
-#include "helper.h"
-#define GEN_HELPER 1
-#include "helper.h"
+#include "exec/helper-proto.h"
+#include "exec/helper-gen.h"
 
 typedef struct DisasContext {
     const XtensaConfig *config;

@@ -19,7 +19,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include "cpu.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "exec/softmmu_exec.h"

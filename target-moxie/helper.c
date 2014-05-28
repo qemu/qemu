@@ -27,7 +27,7 @@
 #include "exec/exec-all.h"
 #include "exec/softmmu_exec.h"
 #include "qemu/host-utils.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 
 #define MMUSUFFIX _mmu
 

@@ -2341,8 +2341,7 @@ static void tcg_target_init(TCGContext *s)
 }
 
 typedef struct {
-    DebugFrameCIE cie;
-    DebugFrameFDEHeader fde;
+    DebugFrameHeader h;
     uint8_t fde_def_cfa[4];
     uint8_t fde_reg_ofs[14];
 } DebugFrame;
@@ -2354,16 +2353,16 @@ QEMU_BUILD_BUG_ON(FRAME_SIZE >= (1 << 14));
     /* Host machine without ELF. */
 #elif TCG_TARGET_REG_BITS == 64
 #define ELF_HOST_MACHINE EM_X86_64
-static DebugFrame debug_frame = {
-    .cie.len = sizeof(DebugFrameCIE)-4, /* length after .len member */
-    .cie.id = -1,
-    .cie.version = 1,
-    .cie.code_align = 1,
-    .cie.data_align = 0x78,             /* sleb128 -8 */
-    .cie.return_column = 16,
+static const DebugFrame debug_frame = {
+    .h.cie.len = sizeof(DebugFrameCIE)-4, /* length after .len member */
+    .h.cie.id = -1,
+    .h.cie.version = 1,
+    .h.cie.code_align = 1,
+    .h.cie.data_align = 0x78,             /* sleb128 -8 */
+    .h.cie.return_column = 16,
 
     /* Total FDE size does not include the "len" member.  */
-    .fde.len = sizeof(DebugFrame) - offsetof(DebugFrame, fde.cie_offset),
+    .h.fde.len = sizeof(DebugFrame) - offsetof(DebugFrame, h.fde.cie_offset),
 
     .fde_def_cfa = {
         12, 7,                          /* DW_CFA_def_cfa %rsp, ... */
@@ -2383,16 +2382,16 @@ static DebugFrame debug_frame = {
 };
 #else
 #define ELF_HOST_MACHINE EM_386
-static DebugFrame debug_frame = {
-    .cie.len = sizeof(DebugFrameCIE)-4, /* length after .len member */
-    .cie.id = -1,
-    .cie.version = 1,
-    .cie.code_align = 1,
-    .cie.data_align = 0x7c,             /* sleb128 -4 */
-    .cie.return_column = 8,
+static const DebugFrame debug_frame = {
+    .h.cie.len = sizeof(DebugFrameCIE)-4, /* length after .len member */
+    .h.cie.id = -1,
+    .h.cie.version = 1,
+    .h.cie.code_align = 1,
+    .h.cie.data_align = 0x7c,             /* sleb128 -4 */
+    .h.cie.return_column = 8,
 
     /* Total FDE size does not include the "len" member.  */
-    .fde.len = sizeof(DebugFrame) - offsetof(DebugFrame, fde.cie_offset),
+    .h.fde.len = sizeof(DebugFrame) - offsetof(DebugFrame, h.fde.cie_offset),
 
     .fde_def_cfa = {
         12, 4,                          /* DW_CFA_def_cfa %esp, ... */
@@ -2413,9 +2412,6 @@ static DebugFrame debug_frame = {
 #if defined(ELF_HOST_MACHINE)
 void tcg_register_jit(void *buf, size_t buf_size)
 {
-    debug_frame.fde.func_start = (uintptr_t)buf;
-    debug_frame.fde.func_len = buf_size;
-
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
 #endif

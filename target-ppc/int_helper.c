@@ -18,7 +18,7 @@
  */
 #include "cpu.h"
 #include "qemu/host-utils.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 
 #include "helper_regs.h"
 /*****************************************************************************/

@@ -19,9 +19,8 @@
 #include "tcg-op.h"
 #include "qemu/log.h"
 
-#include "helper.h"
-#define GEN_HELPER 1
-#include "helper.h"
+#include "exec/helper-proto.h"
+#include "exec/helper-gen.h"
 
 /* internal defines */
 typedef struct DisasContext {

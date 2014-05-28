@@ -38,9 +38,8 @@
 static TCGv_ptr cpu_env;
 
 #include "exec/gen-icount.h"
-#include "helper.h"
-#define GEN_HELPER 1
-#include "helper.h"
+#include "exec/helper-proto.h"
+#include "exec/helper-gen.h"
 
 
 /* Information that (most) every instruction needs to manipulate.  */

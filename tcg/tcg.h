@@ -54,8 +54,6 @@ typedef uint64_t tcg_target_ulong;
 #error unsupported
 #endif
 
-#include "tcg-runtime.h"
-
 #if TCG_TARGET_NB_REGS <= 32
 typedef uint32_t TCGRegSet;
 #elif TCG_TARGET_NB_REGS <= 64
@@ -725,8 +723,8 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs);
 #define tcg_temp_free_ptr(T) tcg_temp_free_i64(TCGV_PTR_TO_NAT(T))
 #endif
 
-void tcg_gen_callN(TCGContext *s, void *func, unsigned int flags,
-                   int sizemask, TCGArg ret, int nargs, TCGArg *args);
+void tcg_gen_callN(TCGContext *s, void *func,
+                   TCGArg ret, int nargs, TCGArg *args);
 
 void tcg_gen_shifti_i64(TCGv_i64 ret, TCGv_i64 arg1,
                         int c, int right, int arith);

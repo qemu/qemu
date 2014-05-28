@@ -86,8 +86,14 @@ typedef struct QEMU_PACKED {
     uintptr_t func_len;
 } DebugFrameFDEHeader;
 
+typedef struct QEMU_PACKED {
+    DebugFrameCIE cie;
+    DebugFrameFDEHeader fde;
+} DebugFrameHeader;
+
 static void tcg_register_jit_int(void *buf, size_t size,
-                                 void *debug_frame, size_t debug_frame_size)
+                                 const void *debug_frame,
+                                 size_t debug_frame_size)
     __attribute__((unused));
 
 /* Forward declarations for functions declared and used in tcg-target.c. */
@@ -307,32 +313,17 @@ void tcg_pool_reset(TCGContext *s)
     s->pool_current = NULL;
 }
 
-#include "helper.h"
-
 typedef struct TCGHelperInfo {
     void *func;
     const char *name;
+    unsigned flags;
+    unsigned sizemask;
 } TCGHelperInfo;
 
+#include "exec/helper-proto.h"
+
 static const TCGHelperInfo all_helpers[] = {
-#define GEN_HELPER 2
-#include "helper.h"
-
-    /* Include tcg-runtime.c functions.  */
-    { tcg_helper_div_i32, "div_i32" },
-    { tcg_helper_rem_i32, "rem_i32" },
-    { tcg_helper_divu_i32, "divu_i32" },
-    { tcg_helper_remu_i32, "remu_i32" },
-
-    { tcg_helper_shl_i64, "shl_i64" },
-    { tcg_helper_shr_i64, "shr_i64" },
-    { tcg_helper_sar_i64, "sar_i64" },
-    { tcg_helper_div_i64, "div_i64" },
-    { tcg_helper_rem_i64, "rem_i64" },
-    { tcg_helper_divu_i64, "divu_i64" },
-    { tcg_helper_remu_i64, "remu_i64" },
-    { tcg_helper_mulsh_i64, "mulsh_i64" },
-    { tcg_helper_muluh_i64, "muluh_i64" },
+#include "exec/helper-tcg.h"
 };
 
 void tcg_context_init(TCGContext *s)
@@ -373,7 +364,7 @@ void tcg_context_init(TCGContext *s)
 
     for (i = 0; i < ARRAY_SIZE(all_helpers); ++i) {
         g_hash_table_insert(helper_table, (gpointer)all_helpers[i].func,
-                            (gpointer)all_helpers[i].name);
+                            (gpointer)&all_helpers[i]);
     }
 
     tcg_target_init(s);
@@ -706,13 +697,17 @@ int tcg_check_temp_count(void)
 /* Note: we convert the 64 bit args to 32 bit and do some alignment
    and endian swap. Maybe it would be better to do the alignment
    and endian swap in tcg_reg_alloc_call(). */
-void tcg_gen_callN(TCGContext *s, void *func, unsigned int flags,
-                   int sizemask, TCGArg ret, int nargs, TCGArg *args)
+void tcg_gen_callN(TCGContext *s, void *func, TCGArg ret,
+                   int nargs, TCGArg *args)
 {
-    int i;
-    int real_args;
-    int nb_rets;
+    int i, real_args, nb_rets;
+    unsigned sizemask, flags;
     TCGArg *nparam;
+    TCGHelperInfo *info;
+
+    info = g_hash_table_lookup(s->helpers, (gpointer)func);
+    flags = info->flags;
+    sizemask = info->sizemask;
 
 #if defined(__sparc__) && !defined(__arch64__) \
     && !defined(CONFIG_TCG_INTERPRETER)
@@ -798,9 +793,8 @@ void tcg_gen_callN(TCGContext *s, void *func, unsigned int flags,
     }
     real_args = 0;
     for (i = 0; i < nargs; i++) {
-#if TCG_TARGET_REG_BITS < 64
         int is_64bit = sizemask & (1 << (i+1)*2);
-        if (is_64bit) {
+        if (TCG_TARGET_REG_BITS < 64 && is_64bit) {
 #ifdef TCG_TARGET_CALL_ALIGN_ARGS
             /* some targets want aligned 64 bit args */
             if (real_args & 1) {
@@ -828,7 +822,6 @@ void tcg_gen_callN(TCGContext *s, void *func, unsigned int flags,
             real_args += 2;
             continue;
         }
-#endif /* TCG_TARGET_REG_BITS < 64 */
 
         *s->gen_opparam_ptr++ = args[i];
         real_args++;
@@ -1166,7 +1159,10 @@ static inline const char *tcg_find_helper(TCGContext *s, uintptr_t val)
 {
     const char *ret = NULL;
     if (s->helpers) {
-        ret = g_hash_table_lookup(s->helpers, (gpointer)val);
+        TCGHelperInfo *info = g_hash_table_lookup(s->helpers, (gpointer)val);
+        if (info) {
+            ret = info->name;
+        }
     }
     return ret;
 }
@@ -2787,7 +2783,8 @@ static int find_string(const char *strtab, const char *str)
 }
 
 static void tcg_register_jit_int(void *buf_ptr, size_t buf_size,
-                                 void *debug_frame, size_t debug_frame_size)
+                                 const void *debug_frame,
+                                 size_t debug_frame_size)
 {
     struct __attribute__((packed)) DebugInfo {
         uint32_t  len;
@@ -2925,10 +2922,10 @@ static void tcg_register_jit_int(void *buf_ptr, size_t buf_size,
 
     uintptr_t buf = (uintptr_t)buf_ptr;
     size_t img_size = sizeof(struct ElfImage) + debug_frame_size;
+    DebugFrameHeader *dfh;
 
     img = g_malloc(img_size);
     *img = img_template;
-    memcpy(img + 1, debug_frame, debug_frame_size);
 
     img->phdr.p_vaddr = buf;
     img->phdr.p_paddr = buf;
@@ -2955,6 +2952,11 @@ static void tcg_register_jit_int(void *buf_ptr, size_t buf_size,
     img->di.cu_high_pc = buf + buf_size;
     img->di.fn_low_pc = buf;
     img->di.fn_high_pc = buf + buf_size;
+
+    dfh = (DebugFrameHeader *)(img + 1);
+    memcpy(dfh, debug_frame, debug_frame_size);
+    dfh->fde.func_start = buf;
+    dfh->fde.func_len = buf_size;
 
 #ifdef DEBUG_JIT
     /* Enable this block to be able to debug the ELF image file creation.
@@ -2983,7 +2985,8 @@ static void tcg_register_jit_int(void *buf_ptr, size_t buf_size,
    and implement the internal function we declared earlier.  */
 
 static void tcg_register_jit_int(void *buf, size_t size,
-                                 void *debug_frame, size_t debug_frame_size)
+                                 const void *debug_frame,
+                                 size_t debug_frame_size)
 {
 }
 

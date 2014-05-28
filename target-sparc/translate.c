@@ -26,11 +26,10 @@
 
 #include "cpu.h"
 #include "disas/disas.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 #include "tcg-op.h"
 
-#define GEN_HELPER 1
-#include "helper.h"
+#include "exec/helper-gen.h"
 
 #define DEBUG_DISAS
 

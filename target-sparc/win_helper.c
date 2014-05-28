@@ -18,7 +18,7 @@
  */
 
 #include "cpu.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 #include "trace.h"
 
 static inline void memcpy32(target_ulong *dst, const target_ulong *src)

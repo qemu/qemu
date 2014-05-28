@@ -9,7 +9,7 @@
  * See the COPYING file in the top-level directory.
  */
 #include "cpu.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 
 /*
  * The convention used for UniCore-F64 instructions:

@@ -24,9 +24,8 @@
 #include "disas/disas.h"
 #include "tcg-op.h"
 
-#include "helper.h"
-#define GEN_HELPER 1
-#include "helper.h"
+#include "exec/helper-proto.h"
+#include "exec/helper-gen.h"
 
 typedef struct DisasContext {
     struct TranslationBlock *tb;

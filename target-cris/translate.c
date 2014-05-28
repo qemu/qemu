@@ -26,12 +26,11 @@
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 #include "mmu.h"
 #include "crisv32-decode.h"
 
-#define GEN_HELPER 1
-#include "helper.h"
+#include "exec/helper-gen.h"
 
 #define DISAS_CRIS 0
 #if DISAS_CRIS

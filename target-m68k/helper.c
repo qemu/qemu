@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "exec/gdbstub.h"
 
-#include "helper.h"
+#include "exec/helper-proto.h"
 
 #define SIGNBIT (1u << 31)
 

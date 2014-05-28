@@ -31,9 +31,8 @@
 
 #include "exec/gen-icount.h"
 
-#include "helper.h"
-#define GEN_HELPER 1
-#include "helper.h"
+#include "exec/helper-proto.h"
+#include "exec/helper-gen.h"
 
 static TCGv_i64 cpu_X[32];
 static TCGv_i64 cpu_pc;

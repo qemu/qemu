@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "exec/memory.h"
 #include "qemu/host-utils.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 #include <string.h>
 #include "sysemu/kvm.h"
 #include "qemu/timer.h"

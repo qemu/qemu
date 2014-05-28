@@ -1,5 +1,3 @@
-#include "exec/def-helper.h"
-
 DEF_HELPER_FLAGS_1(clz, TCG_CALL_NO_RWG_SE, i32, i32)
 DEF_HELPER_FLAGS_1(sxtb16, TCG_CALL_NO_RWG_SE, i32, i32)
 DEF_HELPER_FLAGS_1(uxtb16, TCG_CALL_NO_RWG_SE, i32, i32)
@@ -521,5 +519,3 @@ DEF_HELPER_2(dc_zva, void, env, i64)
 #ifdef TARGET_AARCH64
 #include "helper-a64.h"
 #endif
-
-#include "exec/def-helper.h"
