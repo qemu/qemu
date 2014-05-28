@@ -2149,6 +2149,7 @@ static int sd_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     strncpy(s->inode.tag, sn_info->name, sizeof(s->inode.tag));
     /* we don't need to update entire object */
     datalen = SD_INODE_SIZE - sizeof(s->inode.data_vdi_id);
+    inode = g_malloc(datalen);
 
     /* refresh inode. */
     fd = connect_to_sdog(s);
@@ -2171,8 +2172,6 @@ static int sd_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
         goto cleanup;
     }
 
-    inode = (SheepdogInode *)g_malloc(datalen);
-
     ret = read_object(fd, (char *)inode, vid_to_vdi_oid(new_vid),
                       s->inode.nr_copies, datalen, 0, s->cache_flags);
 
@@ -2186,6 +2185,7 @@ static int sd_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
             s->inode.name, s->inode.snap_id, s->inode.vdi_id);
 
 cleanup:
+    g_free(inode);
     closesocket(fd);
     return ret;
 }
