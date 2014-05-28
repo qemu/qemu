@@ -14,10 +14,30 @@ struct QemuInputHandlerState {
     QemuConsole       *con;
     QTAILQ_ENTRY(QemuInputHandlerState) node;
 };
+
+typedef struct QemuInputEventQueue QemuInputEventQueue;
+struct QemuInputEventQueue {
+    enum {
+        QEMU_INPUT_QUEUE_DELAY = 1,
+        QEMU_INPUT_QUEUE_EVENT,
+        QEMU_INPUT_QUEUE_SYNC,
+    } type;
+    QEMUTimer *timer;
+    uint32_t delay_ms;
+    QemuConsole *src;
+    InputEvent *evt;
+    QTAILQ_ENTRY(QemuInputEventQueue) node;
+};
+
 static QTAILQ_HEAD(, QemuInputHandlerState) handlers =
     QTAILQ_HEAD_INITIALIZER(handlers);
 static NotifierList mouse_mode_notifiers =
     NOTIFIER_LIST_INITIALIZER(mouse_mode_notifiers);
+
+static QTAILQ_HEAD(QemuInputEventQueueHead, QemuInputEventQueue) kbd_queue =
+    QTAILQ_HEAD_INITIALIZER(kbd_queue);
+static QEMUTimer *kbd_timer;
+static uint32_t kbd_default_delay_ms = 10;
 
 QemuInputHandlerState *qemu_input_handler_register(DeviceState *dev,
                                                    QemuInputHandler *handler)
@@ -171,6 +191,73 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
     }
 }
 
+static void qemu_input_queue_process(void *opaque)
+{
+    struct QemuInputEventQueueHead *queue = opaque;
+    QemuInputEventQueue *item;
+
+    g_assert(!QTAILQ_EMPTY(queue));
+    item = QTAILQ_FIRST(queue);
+    g_assert(item->type == QEMU_INPUT_QUEUE_DELAY);
+    QTAILQ_REMOVE(queue, item, node);
+    g_free(item);
+
+    while (!QTAILQ_EMPTY(queue)) {
+        item = QTAILQ_FIRST(queue);
+        switch (item->type) {
+        case QEMU_INPUT_QUEUE_DELAY:
+            timer_mod(item->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL)
+                      + item->delay_ms);
+            return;
+        case QEMU_INPUT_QUEUE_EVENT:
+            qemu_input_event_send(item->src, item->evt);
+            qapi_free_InputEvent(item->evt);
+            break;
+        case QEMU_INPUT_QUEUE_SYNC:
+            qemu_input_event_sync();
+            break;
+        }
+        QTAILQ_REMOVE(queue, item, node);
+        g_free(item);
+    }
+}
+
+static void qemu_input_queue_delay(struct QemuInputEventQueueHead *queue,
+                                   QEMUTimer *timer, uint32_t delay_ms)
+{
+    QemuInputEventQueue *item = g_new0(QemuInputEventQueue, 1);
+    bool start_timer = QTAILQ_EMPTY(queue);
+
+    item->type = QEMU_INPUT_QUEUE_DELAY;
+    item->delay_ms = delay_ms;
+    item->timer = timer;
+    QTAILQ_INSERT_TAIL(queue, item, node);
+
+    if (start_timer) {
+        timer_mod(item->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL)
+                  + item->delay_ms);
+    }
+}
+
+static void qemu_input_queue_event(struct QemuInputEventQueueHead *queue,
+                                   QemuConsole *src, InputEvent *evt)
+{
+    QemuInputEventQueue *item = g_new0(QemuInputEventQueue, 1);
+
+    item->type = QEMU_INPUT_QUEUE_EVENT;
+    item->src = src;
+    item->evt = evt;
+    QTAILQ_INSERT_TAIL(queue, item, node);
+}
+
+static void qemu_input_queue_sync(struct QemuInputEventQueueHead *queue)
+{
+    QemuInputEventQueue *item = g_new0(QemuInputEventQueue, 1);
+
+    item->type = QEMU_INPUT_QUEUE_SYNC;
+    QTAILQ_INSERT_TAIL(queue, item, node);
+}
+
 void qemu_input_event_send(QemuConsole *src, InputEvent *evt)
 {
     QemuInputHandlerState *s;
@@ -230,9 +317,14 @@ void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down)
 {
     InputEvent *evt;
     evt = qemu_input_event_new_key(key, down);
-    qemu_input_event_send(src, evt);
-    qemu_input_event_sync();
-    qapi_free_InputEvent(evt);
+    if (QTAILQ_EMPTY(&kbd_queue)) {
+        qemu_input_event_send(src, evt);
+        qemu_input_event_sync();
+        qapi_free_InputEvent(evt);
+    } else {
+        qemu_input_queue_event(&kbd_queue, src, evt);
+        qemu_input_queue_sync(&kbd_queue);
+    }
 }
 
 void qemu_input_event_send_key_number(QemuConsole *src, int num, bool down)
@@ -249,6 +341,16 @@ void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down)
     key->kind = KEY_VALUE_KIND_QCODE;
     key->qcode = q;
     qemu_input_event_send_key(src, key, down);
+}
+
+void qemu_input_event_send_key_delay(uint32_t delay_ms)
+{
+    if (!kbd_timer) {
+        kbd_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, qemu_input_queue_process,
+                                 &kbd_queue);
+    }
+    qemu_input_queue_delay(&kbd_queue, kbd_timer,
+                           delay_ms ? delay_ms : kbd_default_delay_ms);
 }
 
 InputEvent *qemu_input_event_new_btn(InputButton btn, bool down)
