@@ -332,7 +332,7 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     opts = qemu_opts_create(&qemu_common_drive_opts, id, 1, &error);
     if (error) {
         error_propagate(errp, error);
-        return NULL;
+        goto err_no_opts;
     }
 
     qemu_opts_absorb_qdict(opts, bs_opts, &error);
@@ -527,8 +527,9 @@ err:
     QTAILQ_REMOVE(&drives, dinfo, next);
     g_free(dinfo);
 early_err:
-    QDECREF(bs_opts);
     qemu_opts_del(opts);
+err_no_opts:
+    QDECREF(bs_opts);
     return NULL;
 }
 
