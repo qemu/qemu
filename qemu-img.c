@@ -1455,7 +1455,7 @@ static int img_convert(int argc, char **argv)
     ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
-        return -1;
+        goto out;
     }
 
     out_bs = bdrv_new_open("target", out_filename, out_fmt, flags, true, quiet);
