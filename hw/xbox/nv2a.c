@@ -284,6 +284,52 @@
 #define NV_PGRAPH_SHADERPROG                             0x0000199C
 #define NV_PGRAPH_SPECFOGFACTOR0                         0x000019AC
 #define NV_PGRAPH_SPECFOGFACTOR1                         0x000019B0
+#define NV_PGRAPH_TEXADDRESS0                            0x000019BC
+#define NV_PGRAPH_TEXADDRESS1                            0x000019C0
+#define NV_PGRAPH_TEXADDRESS2                            0x000019C4
+#define NV_PGRAPH_TEXADDRESS3                            0x000019C8
+#define NV_PGRAPH_TEXCTL0_0                              0x000019CC
+#   define NV_PGRAPH_TEXCTL0_0_ENABLE                           (1 << 30)
+#   define NV_PGRAPH_TEXCTL0_0_MIN_LOD_CLAMP                    0x3FFC0000
+#   define NV_PGRAPH_TEXCTL0_0_MAX_LOD_CLAMP                    0x0003FFC0
+#define NV_PGRAPH_TEXCTL0_1                              0x000019D0
+#define NV_PGRAPH_TEXCTL0_2                              0x000019D4
+#define NV_PGRAPH_TEXCTL0_3                              0x000019D8
+#define NV_PGRAPH_TEXCTL1_0                              0x000019DC
+#   define NV_PGRAPH_TEXCTL1_0_IMAGE_PITCH                      0xFFFF0000
+#define NV_PGRAPH_TEXCTL1_1                              0x000019E0
+#define NV_PGRAPH_TEXCTL1_2                              0x000019E4
+#define NV_PGRAPH_TEXCTL1_3                              0x000019E8
+#define NV_PGRAPH_TEXCTL2_0                              0x000019EC
+#define NV_PGRAPH_TEXCTL2_1                              0x000019F0
+#define NV_PGRAPH_TEXFILTER0                             0x000019F4
+#   define NV_PGRAPH_TEXFILTER0_MIPMAP_LOD_BIAS                 0x00001FFF
+#   define NV_PGRAPH_TEXFILTER0_MIN                             0x003F0000
+#   define NV_PGRAPH_TEXFILTER0_MAG                             0x0F000000
+#define NV_PGRAPH_TEXFILTER1                             0x000019F8
+#define NV_PGRAPH_TEXFILTER2                             0x000019FC
+#define NV_PGRAPH_TEXFILTER3                             0x00001A00
+#define NV_PGRAPH_TEXFMT0                                0x00001A04
+#   define NV_PGRAPH_TEXFMT0_CONTEXT_DMA                        (1 << 1)
+#   define NV_PGRAPH_TEXFMT0_DIMENSIONALITY                     0x000000C0
+#   define NV_PGRAPH_TEXFMT0_COLOR                              0x00007F00
+#   define NV_PGRAPH_TEXFMT0_MIPMAP_LEVELS                      0x000F0000
+#   define NV_PGRAPH_TEXFMT0_BASE_SIZE_U                        0x00F00000
+#   define NV_PGRAPH_TEXFMT0_BASE_SIZE_V                        0x0F000000
+#   define NV_PGRAPH_TEXFMT0_BASE_SIZE_P                        0xF0000000
+#define NV_PGRAPH_TEXFMT1                                0x00001A08
+#define NV_PGRAPH_TEXFMT2                                0x00001A0C
+#define NV_PGRAPH_TEXFMT3                                0x00001A10
+#define NV_PGRAPH_TEXIMAGERECT0                          0x00001A14
+#   define NV_PGRAPH_TEXIMAGERECT0_WIDTH                        0x1FFF0000
+#   define NV_PGRAPH_TEXIMAGERECT0_HEIGHT                       0x00001FFF
+#define NV_PGRAPH_TEXIMAGERECT1                          0x00001A18
+#define NV_PGRAPH_TEXIMAGERECT2                          0x00001A1C
+#define NV_PGRAPH_TEXIMAGERECT3                          0x00001A20
+#define NV_PGRAPH_TEXOFFSET0                             0x00001A24
+#define NV_PGRAPH_TEXOFFSET1                             0x00001A28
+#define NV_PGRAPH_TEXOFFSET2                             0x00001A2C
+#define NV_PGRAPH_TEXOFFSET3                             0x00401A30
 #define NV_PGRAPH_ZSTENCILCLEARVALUE                     0x00001A88
 #define NV_PGRAPH_ZCLIPMAX                               0x00001ABC
 #define NV_PGRAPH_ZCLIPMIN                               0x00001A90
@@ -776,32 +822,6 @@ typedef struct VertexShaderConstant {
     uint32 data[4];
 } VertexShaderConstant;
 
-typedef struct Texture {
-    bool dirty;
-    bool enabled;
-
-    unsigned int dimensionality;
-    unsigned int color_format;
-    unsigned int levels;
-    unsigned int log_width, log_height;
-
-    unsigned int rect_width, rect_height;
-
-    unsigned int min_mipmap_level, max_mipmap_level;
-    unsigned int pitch;
-
-    unsigned int lod_bias;
-    unsigned int min_filter, mag_filter;
-
-    bool dma_select;
-    hwaddr offset;
-
-    GLuint gl_texture;
-    /* once bound as GL_TEXTURE_RECTANGLE_ARB, it seems textures
-     * can't be rebound as GL_TEXTURE_*D... */
-    GLuint gl_texture_rect;
-} Texture;
-
 typedef struct ShaderState {
     /* fragment shader - register combiner stuff */
     uint32_t combiner_control;
@@ -920,7 +940,9 @@ typedef struct PGRAPHState {
     uint32_t color_mask;
 
     hwaddr dma_a, dma_b;
-    Texture textures[NV2A_MAX_TEXTURES];
+    bool texture_dirty[NV2A_MAX_TEXTURES];
+    GLuint gl_textures_rect[NV2A_MAX_TEXTURES];
+    GLuint gl_textures[NV2A_MAX_TEXTURES];
 
     bool shaders_dirty;
     GHashTable *shader_cache;
@@ -1384,141 +1406,180 @@ static void pgraph_bind_vertex_attributes(NV2AState *d)
 static void pgraph_bind_textures(NV2AState *d)
 {
     int i;
+    PGRAPHState *pg = &d->pgraph;
 
     for (i=0; i<NV2A_MAX_TEXTURES; i++) {
-        Texture *texture = &d->pgraph.textures[i];
 
-        if (texture->dimensionality != 2) continue;
-        
+        uint32_t ctl_0 = pg->regs[NV_PGRAPH_TEXCTL0_0 + i*4];
+        uint32_t ctl_1 = pg->regs[NV_PGRAPH_TEXCTL1_0 + i*4];
+        uint32_t fmt = pg->regs[NV_PGRAPH_TEXFMT0 + i*4];
+        uint32_t filter = pg->regs[NV_PGRAPH_TEXFILTER0 + i*4];
+
+        bool enabled = GET_MASK(ctl_0, NV_PGRAPH_TEXCTL0_0_ENABLE);
+        unsigned int min_mipmap_level =
+            GET_MASK(ctl_0, NV_PGRAPH_TEXCTL0_0_MIN_LOD_CLAMP);
+        unsigned int max_mipmap_level =
+            GET_MASK(ctl_0, NV_PGRAPH_TEXCTL0_0_MAX_LOD_CLAMP);
+
+        unsigned int pitch =
+            GET_MASK(ctl_1, NV_PGRAPH_TEXCTL1_0_IMAGE_PITCH);
+
+        unsigned int dma_select =
+            GET_MASK(fmt, NV_PGRAPH_TEXFMT0_CONTEXT_DMA);
+        unsigned int dimensionality =
+            GET_MASK(fmt, NV_PGRAPH_TEXFMT0_DIMENSIONALITY);
+        unsigned int color_format = GET_MASK(fmt, NV_PGRAPH_TEXFMT0_COLOR);
+        unsigned int levels = GET_MASK(fmt, NV_PGRAPH_TEXFMT0_MIPMAP_LEVELS);
+        unsigned int log_width = GET_MASK(fmt, NV_PGRAPH_TEXFMT0_BASE_SIZE_U);
+        unsigned int log_height = GET_MASK(fmt, NV_PGRAPH_TEXFMT0_BASE_SIZE_V);
+
+        unsigned int rect_width =
+            GET_MASK(pg->regs[NV_PGRAPH_TEXIMAGERECT0 + i*4],
+                     NV_PGRAPH_TEXIMAGERECT0_WIDTH);
+        unsigned int rect_height =
+            GET_MASK(pg->regs[NV_PGRAPH_TEXIMAGERECT0 + i*4],
+                     NV_PGRAPH_TEXIMAGERECT0_HEIGHT);
+
+        unsigned int lod_bias =
+            GET_MASK(filter, NV_PGRAPH_TEXFILTER0_MIPMAP_LOD_BIAS);
+        unsigned int min_filter = GET_MASK(filter, NV_PGRAPH_TEXFILTER0_MIN);
+        unsigned int mag_filter = GET_MASK(filter, NV_PGRAPH_TEXFILTER0_MAG);
+
+        unsigned int offset = pg->regs[NV_PGRAPH_TEXOFFSET0 + i*4];
+
+        if (dimensionality != 2) continue;
+
         glActiveTexture(GL_TEXTURE0_ARB + i);
-        if (texture->enabled) {
-            
-            assert(texture->color_format
-                    < sizeof(kelvin_color_format_map)/sizeof(ColorFormatInfo));
-
-            ColorFormatInfo f = kelvin_color_format_map[texture->color_format];
-            assert(f.bytes_per_pixel != 0);
-
-            GLenum gl_target;
-            GLuint gl_texture;
-            unsigned int width, height;
-            if (f.linear) {
-                /* linear textures use unnormalised texcoords.
-                 * GL_TEXTURE_RECTANGLE_ARB conveniently also does, but
-                 * does not allow repeat and mirror wrap modes.
-                 *  (or mipmapping, but xbox d3d says 'Non swizzled and non
-                 *   compressed textures cannot be mip mapped.')
-                 * Not sure if that'll be an issue. */
-                gl_target = GL_TEXTURE_RECTANGLE_ARB;
-                gl_texture = texture->gl_texture_rect;
-                
-                width = texture->rect_width;
-                height = texture->rect_height;
-            } else {
-                gl_target = GL_TEXTURE_2D;
-                gl_texture = texture->gl_texture;
-
-                width = 1 << texture->log_width;
-                height = 1 << texture->log_height;
-            }
-
-            glBindTexture(gl_target, gl_texture);
-
-            if (!texture->dirty) continue;
-
-            glTexParameteri(gl_target, GL_TEXTURE_MIN_FILTER,
-                kelvin_texture_min_filter_map[texture->min_filter]);
-            glTexParameteri(gl_target, GL_TEXTURE_MAG_FILTER,
-                kelvin_texture_mag_filter_map[texture->mag_filter]);
-
-            /* load texture data*/
-
-            hwaddr dma_len;
-            uint8_t *texture_data;
-            if (texture->dma_select) {
-                texture_data = nv_dma_map(d, d->pgraph.dma_b, &dma_len);
-            } else {
-                texture_data = nv_dma_map(d, d->pgraph.dma_a, &dma_len);
-            }
-            assert(texture->offset < dma_len);
-            texture_data += texture->offset;
-
-            NV2A_DPRINTF(" texture %d is format 0x%x, (%d, %d; %d),"
-                            " filter %x %x, levels %d-%d %d bias %d\n",
-                         i, texture->color_format,
-                         width, height, texture->pitch,
-                         texture->min_filter, texture->mag_filter,
-                         texture->min_mipmap_level, texture->max_mipmap_level, texture->levels,
-                         texture->lod_bias);
-
-            if (f.linear) {
-                /* Can't handle retarded strides */
-                assert(texture->pitch % f.bytes_per_pixel == 0);
-                glPixelStorei(GL_UNPACK_ROW_LENGTH,
-                              texture->pitch / f.bytes_per_pixel);
-
-                glTexImage2D(gl_target, 0, f.gl_internal_format,
-                             width, height, 0,
-                             f.gl_format, f.gl_type,
-                             texture_data);
-
-                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-            } else {
-                unsigned int levels = texture->levels;
-                if (texture->max_mipmap_level < levels) {
-                    levels = texture->max_mipmap_level;
-                }
-
-                glTexParameteri(gl_target, GL_TEXTURE_BASE_LEVEL,
-                    texture->min_mipmap_level);
-                glTexParameteri(gl_target, GL_TEXTURE_MAX_LEVEL,
-                    levels-1);
-
-
-                int level;
-                for (level = 0; level < levels; level++) {
-                    if (f.gl_format == 0) { /* retarded way of indicating compressed */
-                        unsigned int block_size;
-                        if (f.gl_internal_format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) {
-                            block_size = 8;
-                        } else {
-                            block_size = 16;
-                        }
-
-                        if (width < 4) width = 4;
-                        if (height < 4) height = 4;
-
-                        glCompressedTexImage2D(gl_target, level, f.gl_internal_format,
-                                               width, height, 0,
-                                               width/4 * height/4 * block_size,
-                                               texture_data);
-                    } else {
-                        unsigned int pitch = width * f.bytes_per_pixel;
-                        uint8_t *unswizzled = g_malloc(height * pitch);
-                        unswizzle_rect(texture_data, width, height,
-                                       unswizzled, pitch, f.bytes_per_pixel);
-
-                        glTexImage2D(gl_target, level, f.gl_internal_format,
-                                     width, height, 0,
-                                     f.gl_format, f.gl_type,
-                                     unswizzled);
-
-                        g_free(unswizzled);
-                    }
-
-                    texture_data += width * height * f.bytes_per_pixel;
-                    width /= 2;
-                    height /= 2;
-                }
-
-            }
-
-            texture->dirty = false;
-        } else {
+        if (!enabled) {
             glBindTexture(GL_TEXTURE_2D, 0);
             glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
+            continue;
         }
 
+
+        NV2A_DPRINTF(" texture %d is format 0x%x, (r %d, %d or %d, %d; %d),"
+                        " filter %x %x, levels %d-%d %d bias %d\n",
+                     i, color_format,
+                     rect_width, rect_height,
+                     1 << log_width, 1 << log_height,
+                     pitch,
+                     min_filter, mag_filter,
+                     min_mipmap_level, max_mipmap_level, levels,
+                     lod_bias);
+
+        assert(color_format
+                < sizeof(kelvin_color_format_map)/sizeof(ColorFormatInfo));
+        ColorFormatInfo f = kelvin_color_format_map[color_format];
+        assert(f.bytes_per_pixel != 0);
+
+        GLenum gl_target;
+        GLuint gl_texture;
+        unsigned int width, height;
+        if (f.linear) {
+            /* linear textures use unnormalised texcoords.
+             * GL_TEXTURE_RECTANGLE_ARB conveniently also does, but
+             * does not allow repeat and mirror wrap modes.
+             *  (or mipmapping, but xbox d3d says 'Non swizzled and non
+             *   compressed textures cannot be mip mapped.')
+             * Not sure if that'll be an issue. */
+            gl_target = GL_TEXTURE_RECTANGLE_ARB;
+            gl_texture = pg->gl_textures_rect[i];
+            
+            width = rect_width;
+            height = rect_height;
+        } else {
+            gl_target = GL_TEXTURE_2D;
+            gl_texture = pg->gl_textures[i];
+
+            width = 1 << log_width;
+            height = 1 << log_height;
+        }
+
+        glBindTexture(gl_target, gl_texture);
+
+        if (!pg->texture_dirty[i]) continue;
+
+        glTexParameteri(gl_target, GL_TEXTURE_MIN_FILTER,
+            kelvin_texture_min_filter_map[min_filter]);
+        glTexParameteri(gl_target, GL_TEXTURE_MAG_FILTER,
+            kelvin_texture_mag_filter_map[mag_filter]);
+
+        /* load texture data*/
+
+        hwaddr dma_len;
+        uint8_t *texture_data;
+        if (dma_select) {
+            texture_data = nv_dma_map(d, pg->dma_b, &dma_len);
+        } else {
+            texture_data = nv_dma_map(d, pg->dma_a, &dma_len);
+        }
+        assert(offset < dma_len);
+        texture_data += offset;
+
+        NV2A_DPRINTF(" - 0x%tx\n", texture_data - d->vram_ptr);
+
+        if (f.linear) {
+            /* Can't handle retarded strides */
+            assert(pitch % f.bytes_per_pixel == 0);
+            glPixelStorei(GL_UNPACK_ROW_LENGTH,
+                          pitch / f.bytes_per_pixel);
+
+            glTexImage2D(gl_target, 0, f.gl_internal_format,
+                         width, height, 0,
+                         f.gl_format, f.gl_type,
+                         texture_data);
+
+            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        } else {
+            if (max_mipmap_level < levels) {
+                levels = max_mipmap_level;
+            }
+
+            glTexParameteri(gl_target, GL_TEXTURE_BASE_LEVEL,
+                min_mipmap_level);
+            glTexParameteri(gl_target, GL_TEXTURE_MAX_LEVEL,
+                levels-1);
+
+
+            int level;
+            for (level = 0; level < levels; level++) {
+                if (f.gl_format == 0) { /* retarded way of indicating compressed */
+                    unsigned int block_size;
+                    if (f.gl_internal_format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) {
+                        block_size = 8;
+                    } else {
+                        block_size = 16;
+                    }
+
+                    if (width < 4) width = 4;
+                    if (height < 4) height = 4;
+
+                    glCompressedTexImage2D(gl_target, level, f.gl_internal_format,
+                                           width, height, 0,
+                                           width/4 * height/4 * block_size,
+                                           texture_data);
+                } else {
+                    unsigned int pitch = width * f.bytes_per_pixel;
+                    uint8_t *unswizzled = g_malloc(height * pitch);
+                    unswizzle_rect(texture_data, width, height,
+                                   unswizzled, pitch, f.bytes_per_pixel);
+
+                    glTexImage2D(gl_target, level, f.gl_internal_format,
+                                 width, height, 0,
+                                 f.gl_format, f.gl_type,
+                                 unswizzled);
+
+                    g_free(unswizzled);
+                }
+
+                texture_data += width * height * f.bytes_per_pixel;
+                width /= 2;
+                height /= 2;
+            }
+
+        }
+
+        pg->texture_dirty[i] = false;
     }
 }
 
@@ -1765,9 +1826,13 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
 
         for (i = 0; i < 4; i++) {
             state.rect_tex[i] = false;
-            if (pg->textures[i].enabled
-                && kelvin_color_format_map[
-                        pg->textures[i].color_format].linear) {
+            bool enabled = GET_MASK(pg->regs[NV_PGRAPH_TEXCTL0_0 + i*4],
+                                    NV_PGRAPH_TEXCTL0_0_ENABLE);
+            unsigned int color_format =
+                GET_MASK(pg->regs[NV_PGRAPH_TEXFMT0 + i*4],
+                         NV_PGRAPH_TEXFMT0_COLOR);
+
+            if (enabled && kelvin_color_format_map[color_format].linear) {
                 state.rect_tex[i] = true;
             }
         }
@@ -2100,9 +2165,8 @@ static void pgraph_init(PGRAPHState *pg)
 
     /* generate textures */
     for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
-        Texture *texture = &pg->textures[i];
-        glGenTextures(1, &texture->gl_texture);
-        glGenTextures(1, &texture->gl_texture_rect);
+        glGenTextures(1, &pg->gl_textures[i]);
+        glGenTextures(1, &pg->gl_textures_rect[i]);
     }
 
     pg->shader_cache = g_hash_table_new(shader_hash, shader_equal);
@@ -2127,9 +2191,8 @@ static void pgraph_destroy(PGRAPHState *pg)
     glDeleteFramebuffersEXT(1, &pg->gl_framebuffer);
 
     for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
-        Texture *texture = &pg->textures[i];
-        glDeleteTextures(1, &texture->gl_texture);
-        glDeleteTextures(1, &texture->gl_texture_rect);
+        glDeleteTextures(1, &pg->gl_textures[i]);
+        glDeleteTextures(1, &pg->gl_textures_rect[i]);
     }
 
     glo_set_current(NULL);
@@ -2254,6 +2317,9 @@ static void pgraph_method(NV2AState *d,
                               &dest_dma_len);
             assert(context_surfaces->dest_offset < dest_dma_len);
             dest += context_surfaces->dest_offset;
+
+            NV2A_DPRINTF("  - 0x%tx -> 0x%tx\n", source - d->vram_ptr,
+                                                 dest - d->vram_ptr);
 
             int y;
             for (y=0; y<image_blit->height; y++) {
@@ -2683,67 +2749,54 @@ static void pgraph_method(NV2AState *d,
         break;
     CASE_4(NV097_SET_TEXTURE_OFFSET, 64):
         slot = (class_method - NV097_SET_TEXTURE_OFFSET) / 64;
-        pg->textures[slot].offset = parameter;
-        pg->textures[slot].dirty = true;
+        pg->regs[NV_PGRAPH_TEXOFFSET0 + slot * 4] = parameter;
+        pg->texture_dirty[slot] = true;
         break;
-    CASE_4(NV097_SET_TEXTURE_FORMAT, 64):
+    CASE_4(NV097_SET_TEXTURE_FORMAT, 64): {
         slot = (class_method - NV097_SET_TEXTURE_FORMAT) / 64;
         
-        pg->textures[slot].dma_select =
+        bool dma_select =
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA) == 2;
-        pg->textures[slot].dimensionality =
+        unsigned int dimensionality =
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY);
-        pg->textures[slot].color_format = 
+        unsigned int color_format =
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_COLOR);
-        pg->textures[slot].levels =
+        unsigned int levels =
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_MIPMAP_LEVELS);
-        pg->textures[slot].log_width =
+        unsigned int log_width =
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_BASE_SIZE_U);
-        pg->textures[slot].log_height =
+        unsigned int log_height =
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_BASE_SIZE_V);
 
-        pg->textures[slot].dirty = true;
+        uint32_t *reg = &pg->regs[NV_PGRAPH_TEXFMT0 + slot * 4];
+        SET_MASK(*reg, NV_PGRAPH_TEXFMT0_CONTEXT_DMA, dma_select);
+        SET_MASK(*reg, NV_PGRAPH_TEXFMT0_DIMENSIONALITY, dimensionality);
+        SET_MASK(*reg, NV_PGRAPH_TEXFMT0_COLOR, color_format);
+        SET_MASK(*reg, NV_PGRAPH_TEXFMT0_MIPMAP_LEVELS, levels);
+        SET_MASK(*reg, NV_PGRAPH_TEXFMT0_BASE_SIZE_U, log_width);
+        SET_MASK(*reg, NV_PGRAPH_TEXFMT0_BASE_SIZE_V, log_height);
+
+        pg->texture_dirty[slot] = true;
         pg->shaders_dirty = true;
         break;
+    }
     CASE_4(NV097_SET_TEXTURE_CONTROL0, 64):
         slot = (class_method - NV097_SET_TEXTURE_CONTROL0) / 64;
-        
-        pg->textures[slot].enabled =
-            parameter & NV097_SET_TEXTURE_CONTROL0_ENABLE;
-        pg->textures[slot].min_mipmap_level =
-            GET_MASK(parameter, NV097_SET_TEXTURE_CONTROL0_MIN_LOD_CLAMP);
-        pg->textures[slot].max_mipmap_level =
-            GET_MASK(parameter, NV097_SET_TEXTURE_CONTROL0_MAX_LOD_CLAMP);
-
+        pg->regs[NV_PGRAPH_TEXCTL0_0 + slot*4] = parameter;
         pg->shaders_dirty = true;
         break;
     CASE_4(NV097_SET_TEXTURE_CONTROL1, 64):
         slot = (class_method - NV097_SET_TEXTURE_CONTROL1) / 64;
-
-        pg->textures[slot].pitch =
-            GET_MASK(parameter, NV097_SET_TEXTURE_CONTROL1_IMAGE_PITCH);
-
+        pg->regs[NV_PGRAPH_TEXCTL1_0 + slot*4] = parameter;
         break;
     CASE_4(NV097_SET_TEXTURE_FILTER, 64):
         slot = (class_method - NV097_SET_TEXTURE_FILTER) / 64;
-
-        pg->textures[slot].lod_bias =
-            GET_MASK(parameter, NV097_SET_TEXTURE_FILTER_MIPMAP_LOD_BIAS);
-        pg->textures[slot].min_filter =
-            GET_MASK(parameter, NV097_SET_TEXTURE_FILTER_MIN);
-        pg->textures[slot].mag_filter =
-            GET_MASK(parameter, NV097_SET_TEXTURE_FILTER_MAG);
-
+        pg->regs[NV_PGRAPH_TEXFILTER0 + slot * 4] = parameter;
         break;
     CASE_4(NV097_SET_TEXTURE_IMAGE_RECT, 64):
         slot = (class_method - NV097_SET_TEXTURE_IMAGE_RECT) / 64;
-        
-        pg->textures[slot].rect_width = 
-            GET_MASK(parameter, NV097_SET_TEXTURE_IMAGE_RECT_WIDTH);
-        pg->textures[slot].rect_height =
-            GET_MASK(parameter, NV097_SET_TEXTURE_IMAGE_RECT_HEIGHT);
-        
-        pg->textures[slot].dirty = true;
+        pg->regs[NV_PGRAPH_TEXIMAGERECT0 + slot * 4] = parameter;
+        pg->texture_dirty[slot] = true;
         break;
 
     case NV097_ARRAY_ELEMENT16:
