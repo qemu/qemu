@@ -26,7 +26,7 @@
 
 #include "hw/xbox/swizzle.h"
 
-static unsigned int log2(unsigned int i)
+static unsigned int log2i(unsigned int i)
 {
     unsigned int r = 0;
     while (i >>= 1) r++;
@@ -38,7 +38,7 @@ static unsigned int get_swizzled_offset(
     unsigned int width, unsigned int height,
     unsigned int bytes_per_pixel)
 {
-    unsigned int k = log2(MIN(width, height));
+    unsigned int k = log2i(MIN(width, height));
 
     unsigned int u = (x & 0x001) << 0 |
         (x & 0x002) << 1 |

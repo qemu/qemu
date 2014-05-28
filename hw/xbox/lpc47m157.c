@@ -75,7 +75,8 @@ static void update_devices(LPC47M157State *s)
     ISADevice *isadev = ISA_DEVICE(s);
     
     /* init serial devices */
-    for (int i=0; i<2; i++) {
+    int i;
+    for (i=0; i<2; i++) {
         uint8_t *dev = s->device_regs[DEVICE_SERIAL_PORT_1 + i];
         if (dev[CONFIG_DEVICE_ACTIVATE] && !s->serial[i].active) {
             
@@ -182,7 +183,8 @@ static void lpc47m157_realize(DeviceState *dev, Error **errp)
     isa_register_ioport(isa, &s->io, iobase);
 
     /* init serial cores */
-    for (int i=0; i<2; i++) {
+    int i;
+    for (i=0; i<2; i++) {
         CharDriverState *chr = serial_hds[i];
         if (chr == NULL) {
             char name[5];
