@@ -107,8 +107,7 @@ echo
 echo "=== Testing qemu-img info output ==="
 echo
 
-$QEMU_IMG info "json:{\"driver\":\"qcow2\",\"file.filename\":\"$TEST_IMG\"}" \
-    | _filter_testdir | _filter_imgfmt
+TEST_IMG="json:{\"driver\":\"qcow2\",\"file.filename\":\"$TEST_IMG\"}" _img_info
 
 
 echo

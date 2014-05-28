@@ -34,7 +34,6 @@
 #include "hw/block/block.h"
 #include "block/blockjob.h"
 #include "monitor/monitor.h"
-#include "qapi/qmp/qerror.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qapi/qmp/types.h"
@@ -730,7 +729,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
                                    &error_abort);
     qemu_opts_absorb_qdict(legacy_opts, bs_opts, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
+        error_report("%s", error_get_pretty(local_err));
         error_free(local_err);
         goto fail;
     }
@@ -942,7 +941,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     dinfo = blockdev_init(filename, bs_opts, &local_err);
     if (dinfo == NULL) {
         if (local_err) {
-            qerror_report_err(local_err);
+            error_report("%s", error_get_pretty(local_err));
             error_free(local_err);
         }
         goto fail;
@@ -1334,8 +1333,8 @@ static void external_snapshot_prepare(BlkTransactionState *common,
         return;
     }
 
-    if (bdrv_in_use(state->old_bs)) {
-        error_set(errp, QERR_DEVICE_IN_USE, device);
+    if (bdrv_op_is_blocked(state->old_bs,
+                           BLOCK_OP_TYPE_EXTERNAL_SNAPSHOT, errp)) {
         return;
     }
 
@@ -1557,8 +1556,7 @@ exit:
 
 static void eject_device(BlockDriverState *bs, int force, Error **errp)
 {
-    if (bdrv_in_use(bs)) {
-        error_set(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_EJECT, errp)) {
         return;
     }
     if (!bdrv_dev_has_removable_media(bs)) {
@@ -1760,14 +1758,16 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");
     BlockDriverState *bs;
+    Error *local_err = NULL;
 
     bs = bdrv_find(id);
     if (!bs) {
-        qerror_report(QERR_DEVICE_NOT_FOUND, id);
+        error_report("Device '%s' not found", id);
         return -1;
     }
-    if (bdrv_in_use(bs)) {
-        qerror_report(QERR_DEVICE_IN_USE, id);
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, &local_err)) {
+        error_report("%s", error_get_pretty(local_err));
+        error_free(local_err);
         return -1;
     }
 
@@ -1888,6 +1888,10 @@ void qmp_block_stream(const char *device, bool has_base,
         return;
     }
 
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_STREAM, errp)) {
+        return;
+    }
+
     if (base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (base_bs == NULL) {
@@ -1929,6 +1933,10 @@ void qmp_block_commit(const char *device,
     bs = bdrv_find(device);
     if (!bs) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT, errp)) {
         return;
     }
 
@@ -2023,8 +2031,7 @@ void qmp_drive_backup(const char *device, const char *target,
         }
     }
 
-    if (bdrv_in_use(bs)) {
-        error_set(errp, QERR_DEVICE_IN_USE, device);
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp)) {
         return;
     }
 
@@ -2157,8 +2164,7 @@ void qmp_drive_mirror(const char *device, const char *target,
         }
     }
 
-    if (bdrv_in_use(bs)) {
-        error_set(errp, QERR_DEVICE_IN_USE, device);
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_MIRROR, errp)) {
         return;
     }
 

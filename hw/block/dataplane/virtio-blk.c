@@ -70,6 +70,9 @@ struct VirtIOBlockDataPlane {
                                              queue */
 
     unsigned int num_reqs;
+
+    /* Operation blocker on BDS */
+    Error *blocker;
 };
 
 /* Raise an interrupt to signal guest, if necessary */
@@ -350,6 +353,7 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
 {
     VirtIOBlockDataPlane *s;
     int fd;
+    Error *local_err = NULL;
 
     *dataplane = NULL;
 
@@ -372,9 +376,10 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     /* If dataplane is (re-)enabled while the guest is running there could be
      * block jobs that can conflict.
      */
-    if (bdrv_in_use(blk->conf.bs)) {
-        error_setg(errp,
-                   "cannot start dataplane thread while device is in use");
+    if (bdrv_op_is_blocked(blk->conf.bs, BLOCK_OP_TYPE_DATAPLANE, &local_err)) {
+        error_report("cannot start dataplane thread: %s",
+                      error_get_pretty(local_err));
+        error_free(local_err);
         return;
     }
 
@@ -406,8 +411,8 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     }
     s->ctx = iothread_get_aio_context(s->iothread);
 
-    /* Prevent block operations that conflict with data plane thread */
-    bdrv_set_in_use(blk->conf.bs, 1);
+    error_setg(&s->blocker, "block device is in use by data plane");
+    bdrv_op_block_all(blk->conf.bs, s->blocker);
 
     *dataplane = s;
 }
@@ -420,7 +425,8 @@ void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
     }
 
     virtio_blk_data_plane_stop(s);
-    bdrv_set_in_use(s->blk->conf.bs, 0);
+    bdrv_op_unblock_all(s->blk->conf.bs, s->blocker);
+    error_free(s->blocker);
     object_unref(OBJECT(s->iothread));
     g_free(s);
 }

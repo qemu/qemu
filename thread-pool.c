@@ -224,6 +224,7 @@ static void thread_pool_cancel(BlockDriverAIOCB *acb)
         pool->pending_cancellations--;
     }
     qemu_mutex_unlock(&pool->lock);
+    event_notifier_ready(&pool->notifier);
 }
 
 static const AIOCBInfo thread_pool_aiocb_info = {

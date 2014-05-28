@@ -47,6 +47,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
+_default_cache_mode "none"
+_supported_cache_modes "writethrough" "none" "writeback"
 
 size=1G
 
@@ -59,13 +61,13 @@ echo === Starting QEMU VM1 ===
 echo
 
 qemu_comm_method="monitor"
-_launch_qemu -drive file="${TEST_IMG}",cache=none,id=disk
+_launch_qemu -drive file="${TEST_IMG}",cache=${CACHEMODE},id=disk
 h1=$QEMU_HANDLE
 
 echo
 echo === Starting QEMU VM2 ===
 echo
-_launch_qemu -drive file="${TEST_IMG}",cache=none,id=disk \
+_launch_qemu -drive file="${TEST_IMG}",cache=${CACHEMODE},id=disk \
              -incoming "exec: cat '${MIG_FIFO}'"
 h2=$QEMU_HANDLE
 

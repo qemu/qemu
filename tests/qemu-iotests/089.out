@@ -31,11 +31,7 @@ read failed: Input/output error
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 64M (67108864 bytes)
-disk size: 324K
 cluster_size: 65536
-Format specific information:
-    compat: 1.1
-    lazy refcounts: false
 
 === Testing option merging ===
 

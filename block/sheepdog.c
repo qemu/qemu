@@ -526,17 +526,16 @@ static SheepdogAIOCB *sd_aio_setup(BlockDriverState *bs, QEMUIOVector *qiov,
     return acb;
 }
 
-static int connect_to_sdog(BDRVSheepdogState *s)
+static int connect_to_sdog(BDRVSheepdogState *s, Error **errp)
 {
     int fd;
-    Error *err = NULL;
 
     if (s->is_unix) {
-        fd = unix_connect(s->host_spec, &err);
+        fd = unix_connect(s->host_spec, errp);
     } else {
-        fd = inet_connect(s->host_spec, &err);
+        fd = inet_connect(s->host_spec, errp);
 
-        if (err == NULL) {
+        if (fd >= 0) {
             int ret = socket_set_nodelay(fd);
             if (ret < 0) {
                 error_report("%s", strerror(errno));
@@ -544,10 +543,7 @@ static int connect_to_sdog(BDRVSheepdogState *s)
         }
     }
 
-    if (err != NULL) {
-        qerror_report_err(err);
-        error_free(err);
-    } else {
+    if (fd >= 0) {
         qemu_set_nonblock(fd);
     }
 
@@ -672,7 +668,7 @@ static void coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
                            enum AIOCBState aiocb_type);
 static void coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req);
 static int reload_inode(BDRVSheepdogState *s, uint32_t snapid, const char *tag);
-static int get_sheep_fd(BDRVSheepdogState *s);
+static int get_sheep_fd(BDRVSheepdogState *s, Error **errp);
 static void co_write_request(void *opaque);
 
 static AIOReq *find_pending_req(BDRVSheepdogState *s, uint64_t oid)
@@ -709,6 +705,7 @@ static void coroutine_fn send_pending_req(BDRVSheepdogState *s, uint64_t oid)
 
 static coroutine_fn void reconnect_to_sdog(void *opaque)
 {
+    Error *local_err = NULL;
     BDRVSheepdogState *s = opaque;
     AIOReq *aio_req, *next;
 
@@ -723,9 +720,11 @@ static coroutine_fn void reconnect_to_sdog(void *opaque)
 
     /* Try to reconnect the sheepdog server every one second. */
     while (s->fd < 0) {
-        s->fd = get_sheep_fd(s);
+        s->fd = get_sheep_fd(s, &local_err);
         if (s->fd < 0) {
             DPRINTF("Wait for connection to be established\n");
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
             co_aio_sleep_ns(bdrv_get_aio_context(s->bs), QEMU_CLOCK_REALTIME,
                             1000000000ULL);
         }
@@ -914,11 +913,11 @@ static void co_write_request(void *opaque)
  * We cannot use this descriptor for other operations because
  * the block driver may be on waiting response from the server.
  */
-static int get_sheep_fd(BDRVSheepdogState *s)
+static int get_sheep_fd(BDRVSheepdogState *s, Error **errp)
 {
     int fd;
 
-    fd = connect_to_sdog(s);
+    fd = connect_to_sdog(s, errp);
     if (fd < 0) {
         return fd;
     }
@@ -1061,7 +1060,7 @@ static int parse_vdiname(BDRVSheepdogState *s, const char *filename,
 
 static int find_vdi_name(BDRVSheepdogState *s, const char *filename,
                          uint32_t snapid, const char *tag, uint32_t *vid,
-                         bool lock)
+                         bool lock, Error **errp)
 {
     int ret, fd;
     SheepdogVdiReq hdr;
@@ -1069,7 +1068,7 @@ static int find_vdi_name(BDRVSheepdogState *s, const char *filename,
     unsigned int wlen, rlen = 0;
     char buf[SD_MAX_VDI_LEN + SD_MAX_VDI_TAG_LEN];
 
-    fd = connect_to_sdog(s);
+    fd = connect_to_sdog(s, errp);
     if (fd < 0) {
         return fd;
     }
@@ -1095,12 +1094,13 @@ static int find_vdi_name(BDRVSheepdogState *s, const char *filename,
 
     ret = do_req(fd, (SheepdogReq *)&hdr, buf, &wlen, &rlen);
     if (ret) {
+        error_setg_errno(errp, -ret, "cannot get vdi info");
         goto out;
     }
 
     if (rsp->result != SD_RES_SUCCESS) {
-        error_report("cannot get vdi info, %s, %s %" PRIu32 " %s",
-                     sd_strerror(rsp->result), filename, snapid, tag);
+        error_setg(errp, "cannot get vdi info, %s, %s %" PRIu32 " %s",
+                   sd_strerror(rsp->result), filename, snapid, tag);
         if (rsp->result == SD_RES_NO_VDI) {
             ret = -ENOENT;
         } else {
@@ -1263,19 +1263,24 @@ static int write_object(int fd, char *buf, uint64_t oid, uint8_t copies,
 /* update inode with the latest state */
 static int reload_inode(BDRVSheepdogState *s, uint32_t snapid, const char *tag)
 {
+    Error *local_err = NULL;
     SheepdogInode *inode;
     int ret = 0, fd;
     uint32_t vid = 0;
 
-    fd = connect_to_sdog(s);
+    fd = connect_to_sdog(s, &local_err);
     if (fd < 0) {
+        error_report("%s", error_get_pretty(local_err));;
+        error_free(local_err);
         return -EIO;
     }
 
     inode = g_malloc(sizeof(s->inode));
 
-    ret = find_vdi_name(s, s->name, snapid, tag, &vid, false);
+    ret = find_vdi_name(s, s->name, snapid, tag, &vid, false, &local_err);
     if (ret) {
+        error_report("%s", error_get_pretty(local_err));;
+        error_free(local_err);
         goto out;
     }
 
@@ -1386,8 +1391,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_propagate(errp, local_err);
         ret = -EINVAL;
         goto out;
     }
@@ -1408,15 +1412,16 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
         ret = parse_vdiname(s, filename, vdi, &snapid, tag);
     }
     if (ret < 0) {
+        error_setg(errp, "Can't parse filename");
         goto out;
     }
-    s->fd = get_sheep_fd(s);
+    s->fd = get_sheep_fd(s, errp);
     if (s->fd < 0) {
         ret = s->fd;
         goto out;
     }
 
-    ret = find_vdi_name(s, vdi, snapid, tag, &vid, true);
+    ret = find_vdi_name(s, vdi, snapid, tag, &vid, true, errp);
     if (ret) {
         goto out;
     }
@@ -1436,7 +1441,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
         s->is_snapshot = true;
     }
 
-    fd = connect_to_sdog(s);
+    fd = connect_to_sdog(s, errp);
     if (fd < 0) {
         ret = fd;
         goto out;
@@ -1449,6 +1454,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     closesocket(fd);
 
     if (ret) {
+        error_setg(errp, "Can't read snapshot inode");
         goto out;
     }
 
@@ -1472,7 +1478,8 @@ out:
     return ret;
 }
 
-static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot)
+static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot,
+                        Error **errp)
 {
     SheepdogVdiReq hdr;
     SheepdogVdiRsp *rsp = (SheepdogVdiRsp *)&hdr;
@@ -1480,7 +1487,7 @@ static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot)
     unsigned int wlen, rlen = 0;
     char buf[SD_MAX_VDI_LEN];
 
-    fd = connect_to_sdog(s);
+    fd = connect_to_sdog(s, errp);
     if (fd < 0) {
         return fd;
     }
@@ -1510,11 +1517,12 @@ static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot)
     closesocket(fd);
 
     if (ret) {
+        error_setg_errno(errp, -ret, "create failed");
         return ret;
     }
 
     if (rsp->result != SD_RES_SUCCESS) {
-        error_report("%s, %s", sd_strerror(rsp->result), s->inode.name);
+        error_setg(errp, "%s, %s", sd_strerror(rsp->result), s->inode.name);
         return -EIO;
     }
 
@@ -1525,21 +1533,18 @@ static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot)
     return 0;
 }
 
-static int sd_prealloc(const char *filename)
+static int sd_prealloc(const char *filename, Error **errp)
 {
     BlockDriverState *bs = NULL;
     uint32_t idx, max_idx;
     int64_t vdi_size;
     void *buf = g_malloc0(SD_DATA_OBJ_SIZE);
-    Error *local_err = NULL;
     int ret;
 
     ret = bdrv_open(&bs, filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
-                    NULL, &local_err);
+                    NULL, errp);
     if (ret < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        goto out;
+        goto out_with_err_set;
     }
 
     vdi_size = bdrv_getlength(bs);
@@ -1563,7 +1568,12 @@ static int sd_prealloc(const char *filename)
             goto out;
         }
     }
+
 out:
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Can't pre-allocate");
+    }
+out_with_err_set:
     if (bs) {
         bdrv_unref(bs);
     }
@@ -1636,7 +1646,6 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
     char tag[SD_MAX_VDI_TAG_LEN];
     uint32_t snapid;
     bool prealloc = false;
-    Error *local_err = NULL;
 
     s = g_malloc0(sizeof(BDRVSheepdogState));
 
@@ -1647,6 +1656,7 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
         ret = parse_vdiname(s, filename, s->name, &snapid, tag);
     }
     if (ret < 0) {
+        error_setg(errp, "Can't parse filename");
         goto out;
     }
 
@@ -1661,8 +1671,8 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
             } else if (!strcmp(options->value.s, "full")) {
                 prealloc = true;
             } else {
-                error_report("Invalid preallocation mode: '%s'",
-                             options->value.s);
+                error_setg(errp, "Invalid preallocation mode: '%s'",
+                           options->value.s);
                 ret = -EINVAL;
                 goto out;
             }
@@ -1670,6 +1680,8 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
             if (options->value.s) {
                 ret = parse_redundancy(s, options->value.s);
                 if (ret < 0) {
+                    error_setg(errp, "Invalid redundancy mode: '%s'",
+                               options->value.s);
                     goto out;
                 }
             }
@@ -1678,7 +1690,7 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
     }
 
     if (s->inode.vdi_size > SD_MAX_VDI_SIZE) {
-        error_report("too big image size");
+        error_setg(errp, "too big image size");
         ret = -EINVAL;
         goto out;
     }
@@ -1691,24 +1703,22 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
         /* Currently, only Sheepdog backing image is supported. */
         drv = bdrv_find_protocol(backing_file, true);
         if (!drv || strcmp(drv->protocol_name, "sheepdog") != 0) {
-            error_report("backing_file must be a sheepdog image");
+            error_setg(errp, "backing_file must be a sheepdog image");
             ret = -EINVAL;
             goto out;
         }
 
         bs = NULL;
         ret = bdrv_open(&bs, backing_file, NULL, NULL, BDRV_O_PROTOCOL, NULL,
-                        &local_err);
+                        errp);
         if (ret < 0) {
-            qerror_report_err(local_err);
-            error_free(local_err);
             goto out;
         }
 
         base = bs->opaque;
 
         if (!is_snapshot(&base->inode)) {
-            error_report("cannot clone from a non snapshot vdi");
+            error_setg(errp, "cannot clone from a non snapshot vdi");
             bdrv_unref(bs);
             ret = -EINVAL;
             goto out;
@@ -1717,12 +1727,14 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
         bdrv_unref(bs);
     }
 
-    ret = do_sd_create(s, &vid, 0);
-    if (!prealloc || ret) {
+    ret = do_sd_create(s, &vid, 0, errp);
+    if (ret) {
         goto out;
     }
 
-    ret = sd_prealloc(filename);
+    if (prealloc) {
+        ret = sd_prealloc(filename, errp);
+    }
 out:
     g_free(s);
     return ret;
@@ -1730,6 +1742,7 @@ out:
 
 static void sd_close(BlockDriverState *bs)
 {
+    Error *local_err = NULL;
     BDRVSheepdogState *s = bs->opaque;
     SheepdogVdiReq hdr;
     SheepdogVdiRsp *rsp = (SheepdogVdiRsp *)&hdr;
@@ -1738,8 +1751,10 @@ static void sd_close(BlockDriverState *bs)
 
     DPRINTF("%s\n", s->name);
 
-    fd = connect_to_sdog(s);
+    fd = connect_to_sdog(s, &local_err);
     if (fd < 0) {
+        error_report("%s", error_get_pretty(local_err));;
+        error_free(local_err);
         return;
     }
 
@@ -1774,6 +1789,7 @@ static int64_t sd_getlength(BlockDriverState *bs)
 
 static int sd_truncate(BlockDriverState *bs, int64_t offset)
 {
+    Error *local_err = NULL;
     BDRVSheepdogState *s = bs->opaque;
     int ret, fd;
     unsigned int datalen;
@@ -1786,8 +1802,10 @@ static int sd_truncate(BlockDriverState *bs, int64_t offset)
         return -EINVAL;
     }
 
-    fd = connect_to_sdog(s);
+    fd = connect_to_sdog(s, &local_err);
     if (fd < 0) {
+        error_report("%s", error_get_pretty(local_err));;
+        error_free(local_err);
         return fd;
     }
 
@@ -1846,6 +1864,7 @@ static void coroutine_fn sd_write_done(SheepdogAIOCB *acb)
 /* Delete current working VDI on the snapshot chain */
 static bool sd_delete(BDRVSheepdogState *s)
 {
+    Error *local_err = NULL;
     unsigned int wlen = SD_MAX_VDI_LEN, rlen = 0;
     SheepdogVdiReq hdr = {
         .opcode = SD_OP_DEL_VDI,
@@ -1856,8 +1875,10 @@ static bool sd_delete(BDRVSheepdogState *s)
     SheepdogVdiRsp *rsp = (SheepdogVdiRsp *)&hdr;
     int fd, ret;
 
-    fd = connect_to_sdog(s);
+    fd = connect_to_sdog(s, &local_err);
     if (fd < 0) {
+        error_report("%s", error_get_pretty(local_err));;
+        error_free(local_err);
         return false;
     }
 
@@ -1885,6 +1906,7 @@ static bool sd_delete(BDRVSheepdogState *s)
  */
 static int sd_create_branch(BDRVSheepdogState *s)
 {
+    Error *local_err = NULL;
     int ret, fd;
     uint32_t vid;
     char *buf;
@@ -1900,15 +1922,19 @@ static int sd_create_branch(BDRVSheepdogState *s)
      * false bail out.
      */
     deleted = sd_delete(s);
-    ret = do_sd_create(s, &vid, !deleted);
+    ret = do_sd_create(s, &vid, !deleted, &local_err);
     if (ret) {
+        error_report("%s", error_get_pretty(local_err));;
+        error_free(local_err);
         goto out;
     }
 
     DPRINTF("%" PRIx32 " is created.\n", vid);
 
-    fd = connect_to_sdog(s);
+    fd = connect_to_sdog(s, &local_err);
     if (fd < 0) {
+        error_report("%s", error_get_pretty(local_err));;
+        error_free(local_err);
         ret = fd;
         goto out;
     }
@@ -2122,6 +2148,7 @@ static int coroutine_fn sd_co_flush_to_disk(BlockDriverState *bs)
 
 static int sd_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
 {
+    Error *local_err = NULL;
     BDRVSheepdogState *s = bs->opaque;
     int ret, fd;
     uint32_t new_vid;
@@ -2151,8 +2178,10 @@ static int sd_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     datalen = SD_INODE_SIZE - sizeof(s->inode.data_vdi_id);
 
     /* refresh inode. */
-    fd = connect_to_sdog(s);
+    fd = connect_to_sdog(s, &local_err);
     if (fd < 0) {
+        error_report("%s", error_get_pretty(local_err));;
+        error_free(local_err);
         ret = fd;
         goto cleanup;
     }
@@ -2164,8 +2193,10 @@ static int sd_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
         goto cleanup;
     }
 
-    ret = do_sd_create(s, &new_vid, 1);
+    ret = do_sd_create(s, &new_vid, 1, &local_err);
     if (ret < 0) {
+        error_report("%s", error_get_pretty(local_err));;
+        error_free(local_err);
         error_report("failed to create inode for snapshot. %s",
                      strerror(errno));
         goto cleanup;
@@ -2249,6 +2280,7 @@ static int sd_snapshot_delete(BlockDriverState *bs,
 
 static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
 {
+    Error *local_err = NULL;
     BDRVSheepdogState *s = bs->opaque;
     SheepdogReq req;
     int fd, nr = 1024, ret, max = BITS_TO_LONGS(SD_NR_VDIS) * sizeof(long);
@@ -2263,8 +2295,10 @@ static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
 
     vdi_inuse = g_malloc(max);
 
-    fd = connect_to_sdog(s);
+    fd = connect_to_sdog(s, &local_err);
     if (fd < 0) {
+        error_report("%s", error_get_pretty(local_err));;
+        error_free(local_err);
         ret = fd;
         goto out;
     }
@@ -2290,8 +2324,10 @@ static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
     hval = fnv_64a_buf(s->name, strlen(s->name), FNV1A_64_INIT);
     start_nr = hval & (SD_NR_VDIS - 1);
 
-    fd = connect_to_sdog(s);
+    fd = connect_to_sdog(s, &local_err);
     if (fd < 0) {
+        error_report("%s", error_get_pretty(local_err));;
+        error_free(local_err);
         ret = fd;
         goto out;
     }
@@ -2341,6 +2377,7 @@ out:
 static int do_load_save_vmstate(BDRVSheepdogState *s, uint8_t *data,
                                 int64_t pos, int size, int load)
 {
+    Error *local_err = NULL;
     bool create;
     int fd, ret = 0, remaining = size;
     unsigned int data_len;
@@ -2349,8 +2386,10 @@ static int do_load_save_vmstate(BDRVSheepdogState *s, uint8_t *data,
     uint32_t vdi_index;
     uint32_t vdi_id = load ? s->inode.parent_vdi_id : s->inode.vdi_id;
 
-    fd = connect_to_sdog(s);
+    fd = connect_to_sdog(s, &local_err);
     if (fd < 0) {
+        error_report("%s", error_get_pretty(local_err));;
+        error_free(local_err);
         return fd;
     }
 

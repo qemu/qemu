@@ -162,6 +162,25 @@ typedef struct BDRVReopenState {
     void *opaque;
 } BDRVReopenState;
 
+/*
+ * Block operation types
+ */
+typedef enum BlockOpType {
+    BLOCK_OP_TYPE_BACKUP_SOURCE,
+    BLOCK_OP_TYPE_BACKUP_TARGET,
+    BLOCK_OP_TYPE_CHANGE,
+    BLOCK_OP_TYPE_COMMIT,
+    BLOCK_OP_TYPE_DATAPLANE,
+    BLOCK_OP_TYPE_DRIVE_DEL,
+    BLOCK_OP_TYPE_EJECT,
+    BLOCK_OP_TYPE_EXTERNAL_SNAPSHOT,
+    BLOCK_OP_TYPE_INTERNAL_SNAPSHOT,
+    BLOCK_OP_TYPE_INTERNAL_SNAPSHOT_DELETE,
+    BLOCK_OP_TYPE_MIRROR,
+    BLOCK_OP_TYPE_RESIZE,
+    BLOCK_OP_TYPE_STREAM,
+    BLOCK_OP_TYPE_MAX,
+} BlockOpType;
 
 void bdrv_iostatus_enable(BlockDriverState *bs);
 void bdrv_iostatus_reset(BlockDriverState *bs);
@@ -197,6 +216,7 @@ int bdrv_parse_discard_flags(const char *mode, int *flags);
 int bdrv_open_image(BlockDriverState **pbs, const char *filename,
                     QDict *options, const char *bdref_key, int flags,
                     bool allow_none, Error **errp);
+void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd);
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp);
 void bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp);
 int bdrv_open(BlockDriverState **pbs, const char *filename,
@@ -453,8 +473,13 @@ void bdrv_disable_copy_on_read(BlockDriverState *bs);
 
 void bdrv_ref(BlockDriverState *bs);
 void bdrv_unref(BlockDriverState *bs);
-void bdrv_set_in_use(BlockDriverState *bs, int in_use);
-int bdrv_in_use(BlockDriverState *bs);
+
+bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp);
+void bdrv_op_block(BlockDriverState *bs, BlockOpType op, Error *reason);
+void bdrv_op_unblock(BlockDriverState *bs, BlockOpType op, Error *reason);
+void bdrv_op_block_all(BlockDriverState *bs, Error *reason);
+void bdrv_op_unblock_all(BlockDriverState *bs, Error *reason);
+bool bdrv_op_blocker_is_empty(BlockDriverState *bs);
 
 #ifdef CONFIG_LINUX_AIO
 int raw_get_aio_fd(BlockDriverState *bs);

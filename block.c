@@ -335,6 +335,7 @@ void bdrv_register(BlockDriver *bdrv)
 BlockDriverState *bdrv_new(const char *device_name, Error **errp)
 {
     BlockDriverState *bs;
+    int i;
 
     if (bdrv_find(device_name)) {
         error_setg(errp, "Device with id '%s' already exists",
@@ -352,6 +353,9 @@ BlockDriverState *bdrv_new(const char *device_name, Error **errp)
     pstrcpy(bs->device_name, sizeof(bs->device_name), device_name);
     if (device_name[0] != '\0') {
         QTAILQ_INSERT_TAIL(&bdrv_states, bs, device_list);
+    }
+    for (i = 0; i < BLOCK_OP_TYPE_MAX; i++) {
+        QLIST_INIT(&bs->op_blockers[i]);
     }
     bdrv_iostatus_disable(bs);
     notifier_list_init(&bs->close_notifiers);
@@ -1090,6 +1094,37 @@ fail:
     return ret;
 }
 
+void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
+{
+
+    if (bs->backing_hd) {
+        assert(bs->backing_blocker);
+        bdrv_op_unblock_all(bs->backing_hd, bs->backing_blocker);
+    } else if (backing_hd) {
+        error_setg(&bs->backing_blocker,
+                   "device is used as backing hd of '%s'",
+                   bs->device_name);
+    }
+
+    bs->backing_hd = backing_hd;
+    if (!backing_hd) {
+        error_free(bs->backing_blocker);
+        bs->backing_blocker = NULL;
+        goto out;
+    }
+    bs->open_flags &= ~BDRV_O_NO_BACKING;
+    pstrcpy(bs->backing_file, sizeof(bs->backing_file), backing_hd->filename);
+    pstrcpy(bs->backing_format, sizeof(bs->backing_format),
+            backing_hd->drv ? backing_hd->drv->format_name : "");
+
+    bdrv_op_block_all(bs->backing_hd, bs->backing_blocker);
+    /* Otherwise we won't be able to commit due to check in bdrv_commit */
+    bdrv_op_unblock(bs->backing_hd, BLOCK_OP_TYPE_COMMIT,
+                    bs->backing_blocker);
+out:
+    bdrv_refresh_limits(bs);
+}
+
 /*
  * Opens the backing file for a BlockDriverState if not yet open
  *
@@ -1103,6 +1138,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
     char *backing_filename = g_malloc0(PATH_MAX);
     int ret = 0;
     BlockDriver *back_drv = NULL;
+    BlockDriverState *backing_hd;
     Error *local_err = NULL;
 
     if (bs->backing_hd != NULL) {
@@ -1125,30 +1161,26 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         bdrv_get_full_backing_filename(bs, backing_filename, PATH_MAX);
     }
 
+    backing_hd = bdrv_new("", errp);
+
     if (bs->backing_format[0] != '\0') {
         back_drv = bdrv_find_format(bs->backing_format);
     }
 
     assert(bs->backing_hd == NULL);
-    ret = bdrv_open(&bs->backing_hd,
+    ret = bdrv_open(&backing_hd,
                     *backing_filename ? backing_filename : NULL, NULL, options,
                     bdrv_backing_flags(bs->open_flags), back_drv, &local_err);
     if (ret < 0) {
-        bs->backing_hd = NULL;
+        bdrv_unref(backing_hd);
+        backing_hd = NULL;
         bs->open_flags |= BDRV_O_NO_BACKING;
         error_setg(errp, "Could not open backing file: %s",
                    error_get_pretty(local_err));
         error_free(local_err);
         goto free_exit;
     }
-
-    if (bs->backing_hd->file) {
-        pstrcpy(bs->backing_file, sizeof(bs->backing_file),
-                bs->backing_hd->file->filename);
-    }
-
-    /* Recalculate the BlockLimits with the backing file */
-    bdrv_refresh_limits(bs);
+    bdrv_set_backing_hd(bs, backing_hd);
 
 free_exit:
     g_free(backing_filename);
@@ -1784,8 +1816,9 @@ void bdrv_close(BlockDriverState *bs)
 
     if (bs->drv) {
         if (bs->backing_hd) {
-            bdrv_unref(bs->backing_hd);
-            bs->backing_hd = NULL;
+            BlockDriverState *backing_hd = bs->backing_hd;
+            bdrv_set_backing_hd(bs, NULL);
+            bdrv_unref(backing_hd);
         }
         bs->drv->bdrv_close(bs);
         g_free(bs->opaque);
@@ -1945,13 +1978,14 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
     bs_dest->refcnt             = bs_src->refcnt;
 
     /* job */
-    bs_dest->in_use             = bs_src->in_use;
     bs_dest->job                = bs_src->job;
 
     /* keep the same entry in bdrv_states */
     pstrcpy(bs_dest->device_name, sizeof(bs_dest->device_name),
             bs_src->device_name);
     bs_dest->device_list = bs_src->device_list;
+    memcpy(bs_dest->op_blockers, bs_src->op_blockers,
+           sizeof(bs_dest->op_blockers));
 }
 
 /*
@@ -1986,7 +2020,6 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     assert(QLIST_EMPTY(&bs_new->dirty_bitmaps));
     assert(bs_new->job == NULL);
     assert(bs_new->dev == NULL);
-    assert(bs_new->in_use == 0);
     assert(bs_new->io_limits_enabled == false);
     assert(!throttle_have_timer(&bs_new->throttle_state));
 
@@ -2005,7 +2038,6 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     /* Check a few fields that should remain attached to the device */
     assert(bs_new->dev == NULL);
     assert(bs_new->job == NULL);
-    assert(bs_new->in_use == 0);
     assert(bs_new->io_limits_enabled == false);
     assert(!throttle_have_timer(&bs_new->throttle_state));
 
@@ -2038,19 +2070,14 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
 
     /* The contents of 'tmp' will become bs_top, as we are
      * swapping bs_new and bs_top contents. */
-    bs_top->backing_hd = bs_new;
-    bs_top->open_flags &= ~BDRV_O_NO_BACKING;
-    pstrcpy(bs_top->backing_file, sizeof(bs_top->backing_file),
-            bs_new->filename);
-    pstrcpy(bs_top->backing_format, sizeof(bs_top->backing_format),
-            bs_new->drv ? bs_new->drv->format_name : "");
+    bdrv_set_backing_hd(bs_top, bs_new);
 }
 
 static void bdrv_delete(BlockDriverState *bs)
 {
     assert(!bs->dev);
     assert(!bs->job);
-    assert(!bs->in_use);
+    assert(bdrv_op_blocker_is_empty(bs));
     assert(!bs->refcnt);
     assert(QLIST_EMPTY(&bs->dirty_bitmaps));
 
@@ -2232,7 +2259,8 @@ int bdrv_commit(BlockDriverState *bs)
         return -ENOTSUP;
     }
 
-    if (bdrv_in_use(bs) || bdrv_in_use(bs->backing_hd)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT, NULL) ||
+        bdrv_op_is_blocked(bs->backing_hd, BLOCK_OP_TYPE_COMMIT, NULL)) {
         return -EBUSY;
     }
 
@@ -2636,13 +2664,11 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
     if (ret) {
         goto exit;
     }
-    new_top_bs->backing_hd = base_bs;
-
-    bdrv_refresh_limits(new_top_bs);
+    bdrv_set_backing_hd(new_top_bs, base_bs);
 
     QSIMPLEQ_FOREACH_SAFE(intermediate_state, &states_to_delete, entry, next) {
         /* so that bdrv_close() does not recursively close the chain */
-        intermediate_state->bs->backing_hd = NULL;
+        bdrv_set_backing_hd(intermediate_state->bs, NULL);
         bdrv_unref(intermediate_state->bs);
     }
     ret = 0;
@@ -3494,8 +3520,9 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
         return -ENOTSUP;
     if (bs->read_only)
         return -EACCES;
-    if (bdrv_in_use(bs))
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_RESIZE, NULL)) {
         return -EBUSY;
+    }
     ret = drv->bdrv_truncate(bs, offset);
     if (ret == 0) {
         ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
@@ -5325,15 +5352,74 @@ void bdrv_unref(BlockDriverState *bs)
     }
 }
 
-void bdrv_set_in_use(BlockDriverState *bs, int in_use)
+struct BdrvOpBlocker {
+    Error *reason;
+    QLIST_ENTRY(BdrvOpBlocker) list;
+};
+
+bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp)
 {
-    assert(bs->in_use != in_use);
-    bs->in_use = in_use;
+    BdrvOpBlocker *blocker;
+    assert((int) op >= 0 && op < BLOCK_OP_TYPE_MAX);
+    if (!QLIST_EMPTY(&bs->op_blockers[op])) {
+        blocker = QLIST_FIRST(&bs->op_blockers[op]);
+        if (errp) {
+            error_setg(errp, "Device '%s' is busy: %s",
+                       bs->device_name, error_get_pretty(blocker->reason));
+        }
+        return true;
+    }
+    return false;
 }
 
-int bdrv_in_use(BlockDriverState *bs)
+void bdrv_op_block(BlockDriverState *bs, BlockOpType op, Error *reason)
 {
-    return bs->in_use;
+    BdrvOpBlocker *blocker;
+    assert((int) op >= 0 && op < BLOCK_OP_TYPE_MAX);
+
+    blocker = g_malloc0(sizeof(BdrvOpBlocker));
+    blocker->reason = reason;
+    QLIST_INSERT_HEAD(&bs->op_blockers[op], blocker, list);
+}
+
+void bdrv_op_unblock(BlockDriverState *bs, BlockOpType op, Error *reason)
+{
+    BdrvOpBlocker *blocker, *next;
+    assert((int) op >= 0 && op < BLOCK_OP_TYPE_MAX);
+    QLIST_FOREACH_SAFE(blocker, &bs->op_blockers[op], list, next) {
+        if (blocker->reason == reason) {
+            QLIST_REMOVE(blocker, list);
+            g_free(blocker);
+        }
+    }
+}
+
+void bdrv_op_block_all(BlockDriverState *bs, Error *reason)
+{
+    int i;
+    for (i = 0; i < BLOCK_OP_TYPE_MAX; i++) {
+        bdrv_op_block(bs, i, reason);
+    }
+}
+
+void bdrv_op_unblock_all(BlockDriverState *bs, Error *reason)
+{
+    int i;
+    for (i = 0; i < BLOCK_OP_TYPE_MAX; i++) {
+        bdrv_op_unblock(bs, i, reason);
+    }
+}
+
+bool bdrv_op_blocker_is_empty(BlockDriverState *bs)
+{
+    int i;
+
+    for (i = 0; i < BLOCK_OP_TYPE_MAX; i++) {
+        if (!QLIST_EMPTY(&bs->op_blockers[i])) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void bdrv_iostatus_enable(BlockDriverState *bs)
