@@ -80,11 +80,48 @@ do { printf("IOMMU: " fmt , ## __VA_ARGS__); } while (0)
 #define MAX_IVEC 0x40
 #define NO_IRQ_REQUEST (MAX_IVEC + 1)
 
+#define IOMMU_PAGE_SIZE_8K      (1ULL << 13)
+#define IOMMU_PAGE_MASK_8K      (~(IOMMU_PAGE_SIZE_8K - 1))
+#define IOMMU_PAGE_SIZE_64K     (1ULL << 16)
+#define IOMMU_PAGE_MASK_64K     (~(IOMMU_PAGE_SIZE_64K - 1))
+
 #define IOMMU_NREGS             3
+
 #define IOMMU_CTRL              0x0
+#define IOMMU_CTRL_TBW_SIZE     (1ULL << 2)
+#define IOMMU_CTRL_MMU_EN       (1ULL)
+
+#define IOMMU_CTRL_TSB_SHIFT    16
+
 #define IOMMU_BASE              0x8
 
+#define IOMMU_TTE_DATA_V        (1ULL << 63)
+#define IOMMU_TTE_DATA_SIZE     (1ULL << 61)
+#define IOMMU_TTE_DATA_W        (1ULL << 1)
+
+#define IOMMU_TTE_PHYS_MASK_8K  0x1ffffffe000
+#define IOMMU_TTE_PHYS_MASK_64K 0x1ffffff8000
+
+#define IOMMU_TSB_8K_OFFSET_MASK_8M    0x00000000007fe000ULL
+#define IOMMU_TSB_8K_OFFSET_MASK_16M   0x0000000000ffe000ULL
+#define IOMMU_TSB_8K_OFFSET_MASK_32M   0x0000000001ffe000ULL
+#define IOMMU_TSB_8K_OFFSET_MASK_64M   0x0000000003ffe000ULL
+#define IOMMU_TSB_8K_OFFSET_MASK_128M  0x0000000007ffe000ULL
+#define IOMMU_TSB_8K_OFFSET_MASK_256M  0x000000000fffe000ULL
+#define IOMMU_TSB_8K_OFFSET_MASK_512M  0x000000001fffe000ULL
+#define IOMMU_TSB_8K_OFFSET_MASK_1G    0x000000003fffe000ULL
+
+#define IOMMU_TSB_64K_OFFSET_MASK_64M  0x0000000003ff0000ULL
+#define IOMMU_TSB_64K_OFFSET_MASK_128M 0x0000000007ff0000ULL
+#define IOMMU_TSB_64K_OFFSET_MASK_256M 0x000000000fff0000ULL
+#define IOMMU_TSB_64K_OFFSET_MASK_512M 0x000000001fff0000ULL
+#define IOMMU_TSB_64K_OFFSET_MASK_1G   0x000000003fff0000ULL
+#define IOMMU_TSB_64K_OFFSET_MASK_2G   0x000000007fff0000ULL
+
 typedef struct IOMMUState {
+    AddressSpace iommu_as;
+    MemoryRegion iommu;
+
     uint64_t regs[IOMMU_NREGS];
 } IOMMUState;
 
@@ -158,6 +195,129 @@ static inline void pbm_clear_request(APBState *s, unsigned int irq_num)
     qemu_set_irq(s->ivec_irqs[irq_num], 0);
     s->irq_request = NO_IRQ_REQUEST;
 }
+
+static AddressSpace *pbm_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
+{
+    IOMMUState *is = opaque;
+
+    return &is->iommu_as;
+}
+
+static IOMMUTLBEntry pbm_translate_iommu(MemoryRegion *iommu, hwaddr addr)
+{
+    IOMMUState *is = container_of(iommu, IOMMUState, iommu);
+    hwaddr baseaddr, offset;
+    uint64_t tte;
+    uint32_t tsbsize;
+    IOMMUTLBEntry ret = {
+        .target_as = &address_space_memory,
+        .iova = 0,
+        .translated_addr = 0,
+        .addr_mask = ~(hwaddr)0,
+        .perm = IOMMU_NONE,
+    };
+
+    if (!(is->regs[IOMMU_CTRL >> 3] & IOMMU_CTRL_MMU_EN)) {
+        /* IOMMU disabled, passthrough using standard 8K page */
+        ret.iova = addr & IOMMU_PAGE_MASK_8K;
+        ret.translated_addr = addr;
+        ret.addr_mask = IOMMU_PAGE_MASK_8K;
+        ret.perm = IOMMU_RW;
+
+        return ret;
+    }
+
+    baseaddr = is->regs[IOMMU_BASE >> 3];
+    tsbsize = (is->regs[IOMMU_CTRL >> 3] >> IOMMU_CTRL_TSB_SHIFT) & 0x7;
+
+    if (is->regs[IOMMU_CTRL >> 3] & IOMMU_CTRL_TBW_SIZE) {
+        /* 64K */
+        switch (tsbsize) {
+        case 0:
+            offset = (addr & IOMMU_TSB_64K_OFFSET_MASK_64M) >> 13;
+            break;
+        case 1:
+            offset = (addr & IOMMU_TSB_64K_OFFSET_MASK_128M) >> 13;
+            break;
+        case 2:
+            offset = (addr & IOMMU_TSB_64K_OFFSET_MASK_256M) >> 13;
+            break;
+        case 3:
+            offset = (addr & IOMMU_TSB_64K_OFFSET_MASK_512M) >> 13;
+            break;
+        case 4:
+            offset = (addr & IOMMU_TSB_64K_OFFSET_MASK_1G) >> 13;
+            break;
+        case 5:
+            offset = (addr & IOMMU_TSB_64K_OFFSET_MASK_2G) >> 13;
+            break;
+        default:
+            /* Not implemented, error */
+            return ret;
+        }
+    } else {
+        /* 8K */
+        switch (tsbsize) {
+        case 0:
+            offset = (addr & IOMMU_TSB_8K_OFFSET_MASK_8M) >> 10;
+            break;
+        case 1:
+            offset = (addr & IOMMU_TSB_8K_OFFSET_MASK_16M) >> 10;
+            break;
+        case 2:
+            offset = (addr & IOMMU_TSB_8K_OFFSET_MASK_32M) >> 10;
+            break;
+        case 3:
+            offset = (addr & IOMMU_TSB_8K_OFFSET_MASK_64M) >> 10;
+            break;
+        case 4:
+            offset = (addr & IOMMU_TSB_8K_OFFSET_MASK_128M) >> 10;
+            break;
+        case 5:
+            offset = (addr & IOMMU_TSB_8K_OFFSET_MASK_256M) >> 10;
+            break;
+        case 6:
+            offset = (addr & IOMMU_TSB_8K_OFFSET_MASK_512M) >> 10;
+            break;
+        case 7:
+            offset = (addr & IOMMU_TSB_8K_OFFSET_MASK_1G) >> 10;
+            break;
+        }
+    }
+
+    tte = ldq_be_phys(&address_space_memory, baseaddr + offset);
+
+    if (!(tte & IOMMU_TTE_DATA_V)) {
+        /* Invalid mapping */
+        return ret;
+    }
+
+    if (tte & IOMMU_TTE_DATA_W) {
+        /* Writeable */
+        ret.perm = IOMMU_RW;
+    } else {
+        ret.perm = IOMMU_RO;
+    }
+
+    /* Extract phys */
+    if (tte & IOMMU_TTE_DATA_SIZE) {
+        /* 64K */
+        ret.iova = addr & IOMMU_PAGE_MASK_64K;
+        ret.translated_addr = tte & IOMMU_TTE_PHYS_MASK_64K;
+        ret.addr_mask = (IOMMU_PAGE_SIZE_64K - 1);
+    } else {
+        /* 8K */
+        ret.iova = addr & IOMMU_PAGE_MASK_8K;
+        ret.translated_addr = tte & IOMMU_TTE_PHYS_MASK_8K;
+        ret.addr_mask = (IOMMU_PAGE_SIZE_8K - 1);
+    }
+
+    return ret;
+}
+
+static MemoryRegionIOMMUOps pbm_iommu_ops = {
+    .translate = pbm_translate_iommu,
+};
 
 static void iommu_config_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
@@ -522,6 +682,11 @@ PCIBus *pci_apb_init(hwaddr special_base,
     /* APB IOMMU */
     is = &d->iommu;
     memset(is, 0, sizeof(IOMMUState));
+
+    memory_region_init_iommu(&is->iommu, OBJECT(dev), &pbm_iommu_ops,
+                             "iommu-apb", UINT64_MAX);
+    address_space_init(&is->iommu_as, &is->iommu, "pbm-as");
+    pci_setup_iommu(phb->bus, pbm_pci_dma_iommu, is);
 
     /* APB secondary busses */
     pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 0), true,
