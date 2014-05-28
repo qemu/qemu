@@ -143,7 +143,7 @@ typedef struct CPUARMState {
     uint32_t spsr;
 
     /* Banked registers.  */
-    uint64_t banked_spsr[6];
+    uint64_t banked_spsr[8];
     uint32_t banked_r13[6];
     uint32_t banked_r14[6];
 
@@ -162,8 +162,8 @@ typedef struct CPUARMState {
     uint32_t condexec_bits; /* IT bits.  cpsr[15:10,26:25].  */
     uint64_t daif; /* exception masks, in the bits they are in in PSTATE */
 
-    uint64_t elr_el1; /* AArch64 ELR_EL1 */
-    uint64_t sp_el[2]; /* AArch64 banked stack pointers */
+    uint64_t elr_el[4]; /* AArch64 exception link regs  */
+    uint64_t sp_el[4]; /* AArch64 banked stack pointers */
 
     /* System control coprocessor (cp15) */
     struct {
@@ -185,7 +185,7 @@ typedef struct CPUARMState {
         uint32_t pmsav5_data_ap; /* PMSAv5 MPU data access permissions */
         uint32_t pmsav5_insn_ap; /* PMSAv5 MPU insn access permissions */
         uint32_t ifsr_el2; /* Fault status registers.  */
-        uint64_t esr_el1;
+        uint64_t esr_el[2];
         uint32_t c6_region[8]; /* MPU base/size registers.  */
         uint64_t far_el1; /* Fault address registers.  */
         uint64_t par_el1;  /* Translation result. */
@@ -198,7 +198,7 @@ typedef struct CPUARMState {
         uint32_t c9_pmuserenr; /* perf monitor user enable */
         uint32_t c9_pminten; /* perf monitor interrupt enables */
         uint64_t mair_el1;
-        uint64_t c12_vbar; /* vector base address register */
+        uint64_t vbar_el[4]; /* vector base address register */
         uint32_t c13_fcse; /* FCSE PID.  */
         uint64_t contextidr_el1; /* Context ID.  */
         uint64_t tpidr_el0; /* User RW Thread register.  */
@@ -563,7 +563,9 @@ enum arm_cpu_mode {
   ARM_CPU_MODE_FIQ = 0x11,
   ARM_CPU_MODE_IRQ = 0x12,
   ARM_CPU_MODE_SVC = 0x13,
+  ARM_CPU_MODE_MON = 0x16,
   ARM_CPU_MODE_ABT = 0x17,
+  ARM_CPU_MODE_HYP = 0x1a,
   ARM_CPU_MODE_UND = 0x1b,
   ARM_CPU_MODE_SYS = 0x1f
 };
@@ -631,6 +633,8 @@ enum arm_features {
     ARM_FEATURE_CBAR, /* has cp15 CBAR */
     ARM_FEATURE_CRC, /* ARMv8 CRC instructions */
     ARM_FEATURE_CBAR_RO, /* has cp15 CBAR and it is read-only */
+    ARM_FEATURE_EL2, /* has EL2 Virtualization support */
+    ARM_FEATURE_EL3, /* has EL3 Secure monitor support */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
@@ -1080,12 +1084,12 @@ static inline CPUARMState *cpu_init(const char *cpu_model)
 #define cpu_list arm_cpu_list
 
 /* MMU modes definitions */
-#define MMU_MODE0_SUFFIX _kernel
-#define MMU_MODE1_SUFFIX _user
-#define MMU_USER_IDX 1
+#define MMU_MODE0_SUFFIX _user
+#define MMU_MODE1_SUFFIX _kernel
+#define MMU_USER_IDX 0
 static inline int cpu_mmu_index (CPUARMState *env)
 {
-    return arm_current_pl(env) ? 0 : 1;
+    return arm_current_pl(env);
 }
 
 #include "exec/cpu-all.h"

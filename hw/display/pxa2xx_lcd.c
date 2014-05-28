@@ -620,17 +620,6 @@ static void pxa2xx_palette_parse(PXA2xxLCDState *s, int ch, int bpp)
             src += 2;
             break;
         case 1: /* 16 bpp plus transparency */
-            alpha = *(uint16_t *) src & (1 << 24);
-            if (s->control[0] & LCCR0_CMS)
-                r = g = b = *(uint16_t *) src & 0xff;
-            else {
-                r = (*(uint16_t *) src & 0xf800) >> 8;
-                g = (*(uint16_t *) src & 0x07e0) >> 3;
-                b = (*(uint16_t *) src & 0x001f) << 3;
-            }
-            src += 2;
-            break;
-        case 2: /* 18 bpp plus transparency */
             alpha = *(uint32_t *) src & (1 << 24);
             if (s->control[0] & LCCR0_CMS)
                 r = g = b = *(uint32_t *) src & 0xff;
@@ -638,6 +627,17 @@ static void pxa2xx_palette_parse(PXA2xxLCDState *s, int ch, int bpp)
                 r = (*(uint32_t *) src & 0xf80000) >> 16;
                 g = (*(uint32_t *) src & 0x00fc00) >> 8;
                 b = (*(uint32_t *) src & 0x0000f8);
+            }
+            src += 4;
+            break;
+        case 2: /* 18 bpp plus transparency */
+            alpha = *(uint32_t *) src & (1 << 24);
+            if (s->control[0] & LCCR0_CMS)
+                r = g = b = *(uint32_t *) src & 0xff;
+            else {
+                r = (*(uint32_t *) src & 0xfc0000) >> 16;
+                g = (*(uint32_t *) src & 0x00fc00) >> 8;
+                b = (*(uint32_t *) src & 0x0000fc);
             }
             src += 4;
             break;

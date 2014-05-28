@@ -218,8 +218,8 @@ static int cpu_post_load(void *opaque, int version_id)
 
 const VMStateDescription vmstate_arm_cpu = {
     .name = "cpu",
-    .version_id = 17,
-    .minimum_version_id = 17,
+    .version_id = 20,
+    .minimum_version_id = 20,
     .pre_save = cpu_pre_save,
     .post_load = cpu_post_load,
     .fields = (VMStateField[]) {
@@ -233,13 +233,13 @@ const VMStateDescription vmstate_arm_cpu = {
             .offset = 0,
         },
         VMSTATE_UINT32(env.spsr, ARMCPU),
-        VMSTATE_UINT64_ARRAY(env.banked_spsr, ARMCPU, 6),
+        VMSTATE_UINT64_ARRAY(env.banked_spsr, ARMCPU, 8),
         VMSTATE_UINT32_ARRAY(env.banked_r13, ARMCPU, 6),
         VMSTATE_UINT32_ARRAY(env.banked_r14, ARMCPU, 6),
         VMSTATE_UINT32_ARRAY(env.usr_regs, ARMCPU, 5),
         VMSTATE_UINT32_ARRAY(env.fiq_regs, ARMCPU, 5),
-        VMSTATE_UINT64(env.elr_el1, ARMCPU),
-        VMSTATE_UINT64_ARRAY(env.sp_el, ARMCPU, 2),
+        VMSTATE_UINT64_ARRAY(env.elr_el, ARMCPU, 4),
+        VMSTATE_UINT64_ARRAY(env.sp_el, ARMCPU, 4),
         /* The length-check must come before the arrays to avoid
          * incoming data possibly overflowing the array.
          */

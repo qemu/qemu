@@ -477,11 +477,35 @@ static const ARMCPRegInfo not_v7_cp_reginfo[] = {
 static void cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
-    if (env->cp15.c1_coproc != value) {
-        env->cp15.c1_coproc = value;
-        /* ??? Is this safe when called from within a TB?  */
-        tb_flush(env);
+    uint32_t mask = 0;
+
+    /* In ARMv8 most bits of CPACR_EL1 are RES0. */
+    if (!arm_feature(env, ARM_FEATURE_V8)) {
+        /* ARMv7 defines bits for unimplemented coprocessors as RAZ/WI.
+         * ASEDIS [31] and D32DIS [30] are both UNK/SBZP without VFP.
+         * TRCDIS [28] is RAZ/WI since we do not implement a trace macrocell.
+         */
+        if (arm_feature(env, ARM_FEATURE_VFP)) {
+            /* VFP coprocessor: cp10 & cp11 [23:20] */
+            mask |= (1 << 31) | (1 << 30) | (0xf << 20);
+
+            if (!arm_feature(env, ARM_FEATURE_NEON)) {
+                /* ASEDIS [31] bit is RAO/WI */
+                value |= (1 << 31);
+            }
+
+            /* VFPv3 and upwards with NEON implement 32 double precision
+             * registers (D0-D31).
+             */
+            if (!arm_feature(env, ARM_FEATURE_NEON) ||
+                    !arm_feature(env, ARM_FEATURE_VFP3)) {
+                /* D32DIS [30] is RAO/WI if D16-31 are not implemented. */
+                value |= (1 << 30);
+            }
+        }
+        value &= mask;
     }
+    env->cp15.c1_coproc = value;
 }
 
 static const ARMCPRegInfo v6_cp_reginfo[] = {
@@ -657,7 +681,7 @@ static void vbar_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * contexts. (ARMv8 would permit us to do no masking at all, but ARMv7
      * requires the bottom five bits to be RAZ/WI because they're UNK/SBZP.)
      */
-    env->cp15.c12_vbar = value & ~0x1FULL;
+    raw_write(env, ri, value & ~0x1FULL);
 }
 
 static uint64_t ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -766,7 +790,7 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     { .name = "VBAR", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 12, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .writefn = vbar_write,
-      .fieldoffset = offsetof(CPUARMState, cp15.c12_vbar),
+      .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[1]),
       .resetvalue = 0 },
     { .name = "SCR", .cp = 15, .crn = 1, .crm = 1, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_scr),
@@ -1452,7 +1476,7 @@ static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     { .name = "DFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_NO_MIGRATE,
-      .fieldoffset = offsetoflow32(CPUARMState, cp15.esr_el1),
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.esr_el[1]),
       .resetfn = arm_cp_reset_ignore, },
     { .name = "IFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW,
@@ -1460,7 +1484,7 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     { .name = "ESR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .crn = 5, .crm = 2, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW,
-      .fieldoffset = offsetof(CPUARMState, cp15.esr_el1), .resetvalue = 0, },
+      .fieldoffset = offsetof(CPUARMState, cp15.esr_el[1]), .resetvalue = 0, },
     { .name = "TTBR0_EL1", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el1),
@@ -1521,7 +1545,7 @@ static void omap_cachemaint_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static const ARMCPRegInfo omap_cp_reginfo[] = {
     { .name = "DFSR", .cp = 15, .crn = 5, .crm = CP_ANY,
       .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_OVERRIDE,
-      .fieldoffset = offsetoflow32(CPUARMState, cp15.esr_el1),
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.esr_el[1]),
       .resetvalue = 0, },
     { .name = "", .cp = 15, .crn = 15, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_NOP },
@@ -2055,7 +2079,8 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "ELR_EL1", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_NO_MIGRATE,
       .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 0, .opc2 = 1,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, elr_el1) },
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, elr_el[1]) },
     { .name = "SPSR_EL1", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_NO_MIGRATE,
       .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 0, .opc2 = 0,
@@ -2073,6 +2098,51 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 2, .opc2 = 0,
       .type = ARM_CP_NO_MIGRATE,
       .access = PL1_RW, .readfn = spsel_read, .writefn = spsel_write },
+    REGINFO_SENTINEL
+};
+
+/* Used to describe the behaviour of EL2 regs when EL2 does not exist.  */
+static const ARMCPRegInfo v8_el3_no_el2_cp_reginfo[] = {
+    { .name = "VBAR_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 12, .crm = 0, .opc2 = 0,
+      .access = PL2_RW,
+      .readfn = arm_cp_read_zero, .writefn = arm_cp_write_ignore },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
+    { .name = "ELR_EL2", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 0, .opc2 = 1,
+      .access = PL2_RW,
+      .fieldoffset = offsetof(CPUARMState, elr_el[2]) },
+    { .name = "SPSR_EL2", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 0, .opc2 = 0,
+      .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[6]) },
+    { .name = "VBAR_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 12, .crm = 0, .opc2 = 0,
+      .access = PL2_RW, .writefn = vbar_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[2]),
+      .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo v8_el3_cp_reginfo[] = {
+    { .name = "ELR_EL3", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 6, .crn = 4, .crm = 0, .opc2 = 1,
+      .access = PL3_RW,
+      .fieldoffset = offsetof(CPUARMState, elr_el[3]) },
+    { .name = "SPSR_EL3", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 6, .crn = 4, .crm = 0, .opc2 = 0,
+      .access = PL3_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[7]) },
+    { .name = "VBAR_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 12, .crm = 0, .opc2 = 0,
+      .access = PL3_RW, .writefn = vbar_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[3]),
+      .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -2326,6 +2396,19 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_arm_cp_regs(cpu, v8_idregs);
         define_arm_cp_regs(cpu, v8_cp_reginfo);
         define_aarch64_debug_regs(cpu);
+    }
+    if (arm_feature(env, ARM_FEATURE_EL2)) {
+        define_arm_cp_regs(cpu, v8_el2_cp_reginfo);
+    } else {
+        /* If EL2 is missing but higher ELs are enabled, we need to
+         * register the no_el2 reginfos.
+         */
+        if (arm_feature(env, ARM_FEATURE_EL3)) {
+            define_arm_cp_regs(cpu, v8_el3_no_el2_cp_reginfo);
+        }
+    }
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        define_arm_cp_regs(cpu, v8_el3_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_MPU)) {
         /* These are the MPU registers prior to PMSAv6. Any new
@@ -3083,6 +3166,10 @@ int bank_number(int mode)
         return 4;
     case ARM_CPU_MODE_FIQ:
         return 5;
+    case ARM_CPU_MODE_HYP:
+        return 6;
+    case ARM_CPU_MODE_MON:
+        return 7;
     }
     hw_error("bank number requested for bad CPSR mode value 0x%x\n", mode);
 }
@@ -3337,11 +3424,11 @@ void arm_cpu_do_interrupt(CPUState *cs)
         offset = 4;
         break;
     case EXCP_DATA_ABORT:
-        env->cp15.esr_el1 = env->exception.fsr;
+        env->cp15.esr_el[1] = env->exception.fsr;
         env->cp15.far_el1 = deposit64(env->cp15.far_el1, 0, 32,
                                       env->exception.vaddress);
         qemu_log_mask(CPU_LOG_INT, "...with DFSR 0x%x DFAR 0x%x\n",
-                      (uint32_t)env->cp15.esr_el1,
+                      (uint32_t)env->cp15.esr_el[1],
                       (uint32_t)env->exception.vaddress);
         new_mode = ARM_CPU_MODE_ABT;
         addr = 0x10;
@@ -3378,7 +3465,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
          * and is never in monitor mode this feature is always active.
          * Note: only bits 31:5 are valid.
          */
-        addr += env->cp15.c12_vbar;
+        addr += env->cp15.vbar_el[1];
     }
     switch_mode (env, new_mode);
     env->spsr = cpsr_read(env);

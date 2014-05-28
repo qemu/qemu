@@ -75,6 +75,20 @@ static inline void arm_log_exception(int idx)
  */
 #define GTIMER_SCALE 16
 
+/*
+ * For AArch64, map a given EL to an index in the banked_spsr array.
+ */
+static inline unsigned int aarch64_banked_spsr_index(unsigned int el)
+{
+    static const unsigned int map[4] = {
+        [1] = 0, /* EL1.  */
+        [2] = 6, /* EL2.  */
+        [3] = 7, /* EL3.  */
+    };
+    assert(el >= 1 && el <= 3);
+    return map[el];
+}
+
 int bank_number(int mode);
 void switch_mode(CPUARMState *, int);
 void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu);
@@ -93,6 +107,7 @@ int arm_rmode_to_sf(int rmode);
 
 static inline void update_spsel(CPUARMState *env, uint32_t imm)
 {
+    unsigned int cur_el = arm_current_pl(env);
     /* Update PSTATE SPSel bit; this requires us to update the
      * working stack pointer in xregs[31].
      */
@@ -101,17 +116,17 @@ static inline void update_spsel(CPUARMState *env, uint32_t imm)
     }
     env->pstate = deposit32(env->pstate, 0, 1, imm);
 
-    /* EL0 has no access rights to update SPSel, and this code
-     * assumes we are updating SP for EL1 while running as EL1.
+    /* We rely on illegal updates to SPsel from EL0 to get trapped
+     * at translation time.
      */
-    assert(arm_current_pl(env) == 1);
+    assert(cur_el >= 1 && cur_el <= 3);
     if (env->pstate & PSTATE_SP) {
         /* Switch from using SP_EL0 to using SP_ELx */
         env->sp_el[0] = env->xregs[31];
-        env->xregs[31] = env->sp_el[1];
+        env->xregs[31] = env->sp_el[cur_el];
     } else {
         /* Switch from SP_EL0 to SP_ELx */
-        env->sp_el[1] = env->xregs[31];
+        env->sp_el[cur_el] = env->xregs[31];
         env->xregs[31] = env->sp_el[0];
     }
 }

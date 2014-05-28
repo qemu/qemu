@@ -243,8 +243,8 @@ S: Maintained
 F: hw/*/exynos*
 
 Calxeda Highbank
-M: Mark Langsdorf <mark.langsdorf@calxeda.com>
-S: Supported
+M: Rob Herring <robh@kernel.org>
+S: Maintained
 F: hw/arm/highbank.c
 F: hw/net/xgmac.c
 

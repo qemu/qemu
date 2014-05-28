@@ -52,6 +52,11 @@ static inline int arm_dc_feature(DisasContext *dc, int feature)
     return (dc->features & (1ULL << feature)) != 0;
 }
 
+static inline int get_mem_index(DisasContext *s)
+{
+    return s->current_pl;
+}
+
 /* target-specific extra values for is_jmp */
 /* These instructions trap after executing, so the A32/T32 decoder must
  * defer them until after the conditional execution state has been updated.
