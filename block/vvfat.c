@@ -1866,7 +1866,7 @@ static int check_directory_consistency(BDRVVVFATState *s,
 
 	if (s->used_clusters[cluster_num] & USED_ANY) {
 	    fprintf(stderr, "cluster %d used more than once\n", (int)cluster_num);
-	    return 0;
+            goto fail;
 	}
 	s->used_clusters[cluster_num] = USED_DIRECTORY;
 
