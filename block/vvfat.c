@@ -2929,6 +2929,7 @@ static int enable_write_target(BDRVVVFATState *s, Error **errp)
     set_option_parameter(options, BLOCK_OPT_BACKING_FILE, "fat:");
 
     ret = bdrv_create(bdrv_qcow, s->qcow_filename, options, errp);
+    free_option_parameters(options);
     if (ret < 0) {
         goto err;
     }
