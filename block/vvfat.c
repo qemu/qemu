@@ -787,7 +787,9 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 	    s->current_mapping->path=buffer;
 	    s->current_mapping->read_only =
 		(st.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH)) == 0;
-	}
+        } else {
+            g_free(buffer);
+        }
     }
     closedir(dir);
 
