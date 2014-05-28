@@ -70,6 +70,10 @@ do { printf("APB: " fmt , ## __VA_ARGS__); } while (0)
 #define MAX_IVEC 0x40
 #define NO_IRQ_REQUEST (MAX_IVEC + 1)
 
+typedef struct IOMMUState {
+    uint32_t regs[4];
+} IOMMUState;
+
 #define TYPE_APB "pbm"
 
 #define APB_DEVICE(obj) \
@@ -83,7 +87,7 @@ typedef struct APBState {
     MemoryRegion pci_mmio;
     MemoryRegion pci_ioport;
     uint64_t pci_irq_in;
-    uint32_t iommu[4];
+    IOMMUState iommu;
     uint32_t pci_control[16];
     uint32_t pci_irq_map[8];
     uint32_t obio_irq_map[32];
@@ -145,6 +149,7 @@ static void apb_config_writel (void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     APBState *s = opaque;
+    IOMMUState *is = &s->iommu;
 
     APB_DPRINTF("%s: addr " TARGET_FMT_plx " val %" PRIx64 "\n", __func__, addr, val);
 
@@ -153,7 +158,7 @@ static void apb_config_writel (void *opaque, hwaddr addr,
         /* XXX: not implemented yet */
         break;
     case 0x200 ... 0x20b: /* IOMMU */
-        s->iommu[(addr & 0xf) >> 2] = val;
+        is->regs[(addr & 0xf) >> 2] = val;
         break;
     case 0x20c ... 0x3ff: /* IOMMU flush */
         break;
@@ -228,6 +233,7 @@ static uint64_t apb_config_readl (void *opaque,
                                   hwaddr addr, unsigned size)
 {
     APBState *s = opaque;
+    IOMMUState *is = &s->iommu;
     uint32_t val;
 
     switch (addr & 0xffff) {
@@ -236,7 +242,7 @@ static uint64_t apb_config_readl (void *opaque,
         /* XXX: not implemented yet */
         break;
     case 0x200 ... 0x20b: /* IOMMU */
-        val = s->iommu[(addr & 0xf) >> 2];
+        val = is->regs[(addr & 0xf) >> 2];
         break;
     case 0x20c ... 0x3ff: /* IOMMU flush */
         val = 0;
@@ -390,6 +396,7 @@ PCIBus *pci_apb_init(hwaddr special_base,
     SysBusDevice *s;
     PCIHostState *phb;
     APBState *d;
+    IOMMUState *is;
     PCIDevice *pci_dev;
     PCIBridge *br;
 
@@ -419,6 +426,10 @@ PCIBus *pci_apb_init(hwaddr special_base,
     d->ivec_irqs = ivec_irqs;
 
     pci_create_simple(phb->bus, 0, "pbm-pci");
+
+    /* APB IOMMU */
+    is = &d->iommu;
+    memset(is, 0, sizeof(IOMMUState));
 
     /* APB secondary busses */
     pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 0), true,
