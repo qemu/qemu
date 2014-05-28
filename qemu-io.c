@@ -118,6 +118,7 @@ static const cmdinfo_t open_cmd = {
 
 static QemuOptsList empty_opts = {
     .name = "drive",
+    .merge_lists = true,
     .head = QTAILQ_HEAD_INITIALIZER(empty_opts.head),
     .desc = {
         /* no elements => accept any params */
@@ -132,7 +133,7 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
     int growable = 0;
     int c;
     QemuOpts *qopts;
-    QDict *opts = NULL;
+    QDict *opts;
 
     while ((c = getopt(argc, argv, "snrgo:")) != EOF) {
         switch (c) {
@@ -149,15 +150,14 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
             growable = 1;
             break;
         case 'o':
-            qopts = qemu_opts_parse(&empty_opts, optarg, 0);
-            if (qopts == NULL) {
+            if (!qemu_opts_parse(&empty_opts, optarg, 0)) {
                 printf("could not parse option list -- %s\n", optarg);
+                qemu_opts_reset(&empty_opts);
                 return 0;
             }
-            opts = qemu_opts_to_qdict(qopts, opts);
-            qemu_opts_del(qopts);
             break;
         default:
+            qemu_opts_reset(&empty_opts);
             return qemuio_command_usage(&open_cmd);
         }
     }
@@ -165,6 +165,10 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
     if (!readonly) {
         flags |= BDRV_O_RDWR;
     }
+
+    qopts = qemu_opts_find(&empty_opts, NULL);
+    opts = qopts ? qemu_opts_to_qdict(qopts, NULL) : NULL;
+    qemu_opts_reset(&empty_opts);
 
     if (optind == argc - 1) {
         return openfile(argv[optind], flags, growable, opts);
