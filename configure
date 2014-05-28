@@ -3,6 +3,11 @@
 # qemu configure script (c) 2003 Fabrice Bellard
 #
 
+# Unset some variables known to interfere with behavior of common tools,
+# just as autoconf does.
+CLICOLOR_FORCE= GREP_OPTIONS=
+unset CLICOLOR_FORCE GREP_OPTIONS
+
 # Temporary directory used for files created while
 # configure runs. Since it is in the build directory
 # we can safely blow away any previous version of it
