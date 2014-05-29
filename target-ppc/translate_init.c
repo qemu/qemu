@@ -9315,6 +9315,9 @@ static void ppc_cpu_reset(CPUState *s)
     msr |= (target_ulong)1 << MSR_VR; /* Allow altivec usage */
     msr |= (target_ulong)1 << MSR_SPE; /* Allow SPE usage */
     msr |= (target_ulong)1 << MSR_PR;
+#if !defined(TARGET_WORDS_BIGENDIAN)
+    msr |= (target_ulong)1 << MSR_LE; /* Little-endian user mode */
+#endif
 #endif
 
 #if defined(TARGET_PPC64)

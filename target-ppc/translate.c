@@ -196,6 +196,7 @@ typedef struct DisasContext {
     int access_type;
     /* Translation flags */
     int le_mode;
+    TCGMemOp default_tcg_memop_mask;
 #if defined(TARGET_PPC64)
     int sf_mode;
     int has_cfar;
@@ -209,6 +210,16 @@ typedef struct DisasContext {
     uint64_t insns_flags;
     uint64_t insns_flags2;
 } DisasContext;
+
+/* Return true iff byteswap is needed in a scalar memop */
+static inline bool need_byteswap(const DisasContext *ctx)
+{
+#if defined(TARGET_WORDS_BIGENDIAN)
+     return ctx->le_mode;
+#else
+     return !ctx->le_mode;
+#endif
+}
 
 /* True when active word size < size of target_long.  */
 #ifdef TARGET_PPC64
@@ -2660,29 +2671,20 @@ static inline void gen_qemu_ld8s(DisasContext *ctx, TCGv arg1, TCGv arg2)
 
 static inline void gen_qemu_ld16u(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
-    tcg_gen_qemu_ld16u(arg1, arg2, ctx->mem_idx);
-    if (unlikely(ctx->le_mode)) {
-        tcg_gen_bswap16_tl(arg1, arg1);
-    }
+    TCGMemOp op = MO_UW | ctx->default_tcg_memop_mask;
+    tcg_gen_qemu_ld_tl(arg1, arg2, ctx->mem_idx, op);
 }
 
 static inline void gen_qemu_ld16s(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
-    if (unlikely(ctx->le_mode)) {
-        tcg_gen_qemu_ld16u(arg1, arg2, ctx->mem_idx);
-        tcg_gen_bswap16_tl(arg1, arg1);
-        tcg_gen_ext16s_tl(arg1, arg1);
-    } else {
-        tcg_gen_qemu_ld16s(arg1, arg2, ctx->mem_idx);
-    }
+    TCGMemOp op = MO_SW | ctx->default_tcg_memop_mask;
+    tcg_gen_qemu_ld_tl(arg1, arg2, ctx->mem_idx, op);
 }
 
 static inline void gen_qemu_ld32u(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
-    tcg_gen_qemu_ld32u(arg1, arg2, ctx->mem_idx);
-    if (unlikely(ctx->le_mode)) {
-        tcg_gen_bswap32_tl(arg1, arg1);
-    }
+    TCGMemOp op = MO_UL | ctx->default_tcg_memop_mask;
+    tcg_gen_qemu_ld_tl(arg1, arg2, ctx->mem_idx, op);
 }
 
 static void gen_qemu_ld32u_i64(DisasContext *ctx, TCGv_i64 val, TCGv addr)
@@ -2695,12 +2697,8 @@ static void gen_qemu_ld32u_i64(DisasContext *ctx, TCGv_i64 val, TCGv addr)
 
 static inline void gen_qemu_ld32s(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
-    if (unlikely(ctx->le_mode)) {
-        tcg_gen_qemu_ld32u(arg1, arg2, ctx->mem_idx);
-        tcg_gen_bswap32_tl(arg1, arg1);
-        tcg_gen_ext32s_tl(arg1, arg1);
-    } else
-        tcg_gen_qemu_ld32s(arg1, arg2, ctx->mem_idx);
+    TCGMemOp op = MO_SL | ctx->default_tcg_memop_mask;
+    tcg_gen_qemu_ld_tl(arg1, arg2, ctx->mem_idx, op);
 }
 
 static void gen_qemu_ld32s_i64(DisasContext *ctx, TCGv_i64 val, TCGv addr)
@@ -2713,10 +2711,8 @@ static void gen_qemu_ld32s_i64(DisasContext *ctx, TCGv_i64 val, TCGv addr)
 
 static inline void gen_qemu_ld64(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
 {
-    tcg_gen_qemu_ld64(arg1, arg2, ctx->mem_idx);
-    if (unlikely(ctx->le_mode)) {
-        tcg_gen_bswap64_i64(arg1, arg1);
-    }
+    TCGMemOp op = MO_Q | ctx->default_tcg_memop_mask;
+    tcg_gen_qemu_ld_i64(arg1, arg2, ctx->mem_idx, op);
 }
 
 static inline void gen_qemu_st8(DisasContext *ctx, TCGv arg1, TCGv arg2)
@@ -2726,28 +2722,14 @@ static inline void gen_qemu_st8(DisasContext *ctx, TCGv arg1, TCGv arg2)
 
 static inline void gen_qemu_st16(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
-    if (unlikely(ctx->le_mode)) {
-        TCGv t0 = tcg_temp_new();
-        tcg_gen_ext16u_tl(t0, arg1);
-        tcg_gen_bswap16_tl(t0, t0);
-        tcg_gen_qemu_st16(t0, arg2, ctx->mem_idx);
-        tcg_temp_free(t0);
-    } else {
-        tcg_gen_qemu_st16(arg1, arg2, ctx->mem_idx);
-    }
+    TCGMemOp op = MO_UW | ctx->default_tcg_memop_mask;
+    tcg_gen_qemu_st_tl(arg1, arg2, ctx->mem_idx, op);
 }
 
 static inline void gen_qemu_st32(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
-    if (unlikely(ctx->le_mode)) {
-        TCGv t0 = tcg_temp_new();
-        tcg_gen_ext32u_tl(t0, arg1);
-        tcg_gen_bswap32_tl(t0, t0);
-        tcg_gen_qemu_st32(t0, arg2, ctx->mem_idx);
-        tcg_temp_free(t0);
-    } else {
-        tcg_gen_qemu_st32(arg1, arg2, ctx->mem_idx);
-    }
+    TCGMemOp op = MO_UL | ctx->default_tcg_memop_mask;
+    tcg_gen_qemu_st_tl(arg1, arg2, ctx->mem_idx, op);
 }
 
 static void gen_qemu_st32_i64(DisasContext *ctx, TCGv_i64 val, TCGv addr)
@@ -2760,13 +2742,8 @@ static void gen_qemu_st32_i64(DisasContext *ctx, TCGv_i64 val, TCGv addr)
 
 static inline void gen_qemu_st64(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
 {
-    if (unlikely(ctx->le_mode)) {
-        TCGv_i64 t0 = tcg_temp_new_i64();
-        tcg_gen_bswap64_i64(t0, arg1);
-        tcg_gen_qemu_st64(t0, arg2, ctx->mem_idx);
-        tcg_temp_free_i64(t0);
-    } else
-        tcg_gen_qemu_st64(arg1, arg2, ctx->mem_idx);
+    TCGMemOp op = MO_Q | ctx->default_tcg_memop_mask;
+    tcg_gen_qemu_st_i64(arg1, arg2, ctx->mem_idx, op);
 }
 
 #define GEN_LD(name, ldop, opc, type)                                         \
@@ -2910,6 +2887,8 @@ static void gen_lq(DisasContext *ctx)
     EA = tcg_temp_new();
     gen_addr_imm_index(ctx, EA, 0x0F);
 
+    /* We only need to swap high and low halves. gen_qemu_ld64 does necessary
+       64-bit byteswap already. */
     if (unlikely(ctx->le_mode)) {
         gen_qemu_ld64(ctx, cpu_gpr[rd+1], EA);
         gen_addr_add(ctx, EA, EA, 8);
@@ -3028,6 +3007,8 @@ static void gen_std(DisasContext *ctx)
         EA = tcg_temp_new();
         gen_addr_imm_index(ctx, EA, 0x03);
 
+        /* We only need to swap high and low halves. gen_qemu_st64 does
+           necessary 64-bit byteswap already. */
         if (unlikely(ctx->le_mode)) {
             gen_qemu_st64(ctx, cpu_gpr[rs+1], EA);
             gen_addr_add(ctx, EA, EA, 8);
@@ -3057,23 +3038,20 @@ static void gen_std(DisasContext *ctx)
 }
 #endif
 /***                Integer load and store with byte reverse               ***/
+
 /* lhbrx */
 static inline void gen_qemu_ld16ur(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
-    tcg_gen_qemu_ld16u(arg1, arg2, ctx->mem_idx);
-    if (likely(!ctx->le_mode)) {
-        tcg_gen_bswap16_tl(arg1, arg1);
-    }
+    TCGMemOp op = MO_UW | (ctx->default_tcg_memop_mask ^ MO_BSWAP);
+    tcg_gen_qemu_ld_tl(arg1, arg2, ctx->mem_idx, op);
 }
 GEN_LDX(lhbr, ld16ur, 0x16, 0x18, PPC_INTEGER);
 
 /* lwbrx */
 static inline void gen_qemu_ld32ur(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
-    tcg_gen_qemu_ld32u(arg1, arg2, ctx->mem_idx);
-    if (likely(!ctx->le_mode)) {
-        tcg_gen_bswap32_tl(arg1, arg1);
-    }
+    TCGMemOp op = MO_UL | (ctx->default_tcg_memop_mask ^ MO_BSWAP);
+    tcg_gen_qemu_ld_tl(arg1, arg2, ctx->mem_idx, op);
 }
 GEN_LDX(lwbr, ld32ur, 0x16, 0x10, PPC_INTEGER);
 
@@ -3081,10 +3059,8 @@ GEN_LDX(lwbr, ld32ur, 0x16, 0x10, PPC_INTEGER);
 /* ldbrx */
 static inline void gen_qemu_ld64ur(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
-    tcg_gen_qemu_ld64(arg1, arg2, ctx->mem_idx);
-    if (likely(!ctx->le_mode)) {
-        tcg_gen_bswap64_tl(arg1, arg1);
-    }
+    TCGMemOp op = MO_Q | (ctx->default_tcg_memop_mask ^ MO_BSWAP);
+    tcg_gen_qemu_ld_i64(arg1, arg2, ctx->mem_idx, op);
 }
 GEN_LDX_E(ldbr, ld64ur, 0x14, 0x10, PPC_NONE, PPC2_DBRX);
 #endif  /* TARGET_PPC64 */
@@ -3092,30 +3068,16 @@ GEN_LDX_E(ldbr, ld64ur, 0x14, 0x10, PPC_NONE, PPC2_DBRX);
 /* sthbrx */
 static inline void gen_qemu_st16r(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
-    if (likely(!ctx->le_mode)) {
-        TCGv t0 = tcg_temp_new();
-        tcg_gen_ext16u_tl(t0, arg1);
-        tcg_gen_bswap16_tl(t0, t0);
-        tcg_gen_qemu_st16(t0, arg2, ctx->mem_idx);
-        tcg_temp_free(t0);
-    } else {
-        tcg_gen_qemu_st16(arg1, arg2, ctx->mem_idx);
-    }
+    TCGMemOp op = MO_UW | (ctx->default_tcg_memop_mask ^ MO_BSWAP);
+    tcg_gen_qemu_st_tl(arg1, arg2, ctx->mem_idx, op);
 }
 GEN_STX(sthbr, st16r, 0x16, 0x1C, PPC_INTEGER);
 
 /* stwbrx */
 static inline void gen_qemu_st32r(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
-    if (likely(!ctx->le_mode)) {
-        TCGv t0 = tcg_temp_new();
-        tcg_gen_ext32u_tl(t0, arg1);
-        tcg_gen_bswap32_tl(t0, t0);
-        tcg_gen_qemu_st32(t0, arg2, ctx->mem_idx);
-        tcg_temp_free(t0);
-    } else {
-        tcg_gen_qemu_st32(arg1, arg2, ctx->mem_idx);
-    }
+    TCGMemOp op = MO_UL | (ctx->default_tcg_memop_mask ^ MO_BSWAP);
+    tcg_gen_qemu_st_tl(arg1, arg2, ctx->mem_idx, op);
 }
 GEN_STX(stwbr, st32r, 0x16, 0x14, PPC_INTEGER);
 
@@ -3123,14 +3085,8 @@ GEN_STX(stwbr, st32r, 0x16, 0x14, PPC_INTEGER);
 /* stdbrx */
 static inline void gen_qemu_st64r(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
-    if (likely(!ctx->le_mode)) {
-        TCGv t0 = tcg_temp_new();
-        tcg_gen_bswap64_tl(t0, arg1);
-        tcg_gen_qemu_st64(t0, arg2, ctx->mem_idx);
-        tcg_temp_free(t0);
-    } else {
-        tcg_gen_qemu_st64(arg1, arg2, ctx->mem_idx);
-    }
+    TCGMemOp op = MO_Q | (ctx->default_tcg_memop_mask ^ MO_BSWAP);
+    tcg_gen_qemu_st_i64(arg1, arg2, ctx->mem_idx, op);
 }
 GEN_STX_E(stdbr, st64r, 0x14, 0x14, PPC_NONE, PPC2_DBRX);
 #endif  /* TARGET_PPC64 */
@@ -3550,7 +3506,9 @@ static void gen_lfdp(DisasContext *ctx)
     }
     gen_set_access_type(ctx, ACCESS_FLOAT);
     EA = tcg_temp_new();
-    gen_addr_imm_index(ctx, EA, 0);                                           \
+    gen_addr_imm_index(ctx, EA, 0);
+    /* We only need to swap high and low halves. gen_qemu_ld64 does necessary
+       64-bit byteswap already. */
     if (unlikely(ctx->le_mode)) {
         gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
         tcg_gen_addi_tl(EA, EA, 8);
@@ -3574,6 +3532,8 @@ static void gen_lfdpx(DisasContext *ctx)
     gen_set_access_type(ctx, ACCESS_FLOAT);
     EA = tcg_temp_new();
     gen_addr_reg_index(ctx, EA);
+    /* We only need to swap high and low halves. gen_qemu_ld64 does necessary
+       64-bit byteswap already. */
     if (unlikely(ctx->le_mode)) {
         gen_qemu_ld64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
         tcg_gen_addi_tl(EA, EA, 8);
@@ -3722,7 +3682,9 @@ static void gen_stfdp(DisasContext *ctx)
     }
     gen_set_access_type(ctx, ACCESS_FLOAT);
     EA = tcg_temp_new();
-    gen_addr_imm_index(ctx, EA, 0);                                           \
+    gen_addr_imm_index(ctx, EA, 0);
+    /* We only need to swap high and low halves. gen_qemu_st64 does necessary
+       64-bit byteswap already. */
     if (unlikely(ctx->le_mode)) {
         gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
         tcg_gen_addi_tl(EA, EA, 8);
@@ -3746,6 +3708,8 @@ static void gen_stfdpx(DisasContext *ctx)
     gen_set_access_type(ctx, ACCESS_FLOAT);
     EA = tcg_temp_new();
     gen_addr_reg_index(ctx, EA);
+    /* We only need to swap high and low halves. gen_qemu_st64 does necessary
+       64-bit byteswap already. */
     if (unlikely(ctx->le_mode)) {
         gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
         tcg_gen_addi_tl(EA, EA, 8);
@@ -6716,6 +6680,8 @@ static void glue(gen_, name)(DisasContext *ctx)                                 
     EA = tcg_temp_new();                                                      \
     gen_addr_reg_index(ctx, EA);                                              \
     tcg_gen_andi_tl(EA, EA, ~0xf);                                            \
+    /* We only need to swap high and low halves. gen_qemu_ld64 does necessary \
+       64-bit byteswap already. */                                            \
     if (ctx->le_mode) {                                                       \
         gen_qemu_ld64(ctx, cpu_avrl[rD(ctx->opcode)], EA);                    \
         tcg_gen_addi_tl(EA, EA, 8);                                           \
@@ -6740,6 +6706,8 @@ static void gen_st##name(DisasContext *ctx)                                   \
     EA = tcg_temp_new();                                                      \
     gen_addr_reg_index(ctx, EA);                                              \
     tcg_gen_andi_tl(EA, EA, ~0xf);                                            \
+    /* We only need to swap high and low halves. gen_qemu_st64 does necessary \
+       64-bit byteswap already. */                                            \
     if (ctx->le_mode) {                                                       \
         gen_qemu_st64(ctx, cpu_avrl[rD(ctx->opcode)], EA);                    \
         tcg_gen_addi_tl(EA, EA, 8);                                           \
@@ -11742,6 +11710,7 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
     ctx.insns_flags2 = env->insns_flags2;
     ctx.access_type = -1;
     ctx.le_mode = env->hflags & (1 << MSR_LE) ? 1 : 0;
+    ctx.default_tcg_memop_mask = ctx.le_mode ? MO_LE : MO_BE;
 #if defined(TARGET_PPC64)
     ctx.sf_mode = msr_is_64bit(env, env->msr);
     ctx.has_cfar = !!(env->flags & POWERPC_FLAG_CFAR);
@@ -11807,7 +11776,7 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
                   ctx.nip, ctx.mem_idx, (int)msr_ir);
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
-        if (unlikely(ctx.le_mode)) {
+        if (unlikely(need_byteswap(&ctx))) {
             ctx.opcode = bswap32(cpu_ldl_code(env, ctx.nip));
         } else {
             ctx.opcode = cpu_ldl_code(env, ctx.nip);

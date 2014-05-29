@@ -1484,7 +1484,7 @@ static int do_store_exclusive(CPUPPCState *env)
 {
     target_ulong addr;
     target_ulong page_addr;
-    target_ulong val, val2 __attribute__((unused));
+    target_ulong val, val2 __attribute__((unused)) = 0;
     int flags;
     int segv = 0;
 
@@ -1527,6 +1527,12 @@ static int do_store_exclusive(CPUPPCState *env)
                 case 8: segv = put_user_u64(val, addr); break;
                 case 16: {
                     if (val2 == env->reserve_val2) {
+                        if (msr_le) {
+                            val2 = val;
+                            val = env->gpr[reg+1];
+                        } else {
+                            val2 = env->gpr[reg+1];
+                        }
                         segv = put_user_u64(val, addr);
                         if (!segv) {
                             segv = put_user_u64(val2, addr + 8);
