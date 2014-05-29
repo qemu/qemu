@@ -204,6 +204,13 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     return size;
 }
 
+static void xilinx_ethlite_reset(DeviceState *dev)
+{
+    struct xlx_ethlite *s = XILINX_ETHLITE(dev);
+
+    s->rxbuf = 0;
+}
+
 static void eth_cleanup(NetClientState *nc)
 {
     struct xlx_ethlite *s = qemu_get_nic_opaque(nc);
@@ -225,7 +232,6 @@ static int xilinx_ethlite_init(SysBusDevice *sbd)
     struct xlx_ethlite *s = XILINX_ETHLITE(dev);
 
     sysbus_init_irq(sbd, &s->irq);
-    s->rxbuf = 0;
 
     memory_region_init_io(&s->mmio, OBJECT(s), &eth_ops, s,
                           "xlnx.xps-ethernetlite", R_MAX * 4);
@@ -251,6 +257,7 @@ static void xilinx_ethlite_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = xilinx_ethlite_init;
+    dc->reset = xilinx_ethlite_reset;
     dc->props = xilinx_ethlite_properties;
 }
 
