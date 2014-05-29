@@ -329,7 +329,7 @@
 #define NV_PGRAPH_TEXOFFSET0                             0x00001A24
 #define NV_PGRAPH_TEXOFFSET1                             0x00001A28
 #define NV_PGRAPH_TEXOFFSET2                             0x00001A2C
-#define NV_PGRAPH_TEXOFFSET3                             0x00401A30
+#define NV_PGRAPH_TEXOFFSET3                             0x00001A30
 #define NV_PGRAPH_ZSTENCILCLEARVALUE                     0x00001A88
 #define NV_PGRAPH_ZCLIPMAX                               0x00001ABC
 #define NV_PGRAPH_ZCLIPMIN                               0x00001A90
