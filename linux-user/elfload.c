@@ -1425,10 +1425,11 @@ static void zero_bss(abi_ulong elf_bss, abi_ulong last_bss, int prot)
             perror("cannot mmap brk");
             exit(-1);
         }
+    }
 
-        /* Since we didn't use target_mmap, make sure to record
-           the validity of the pages with qemu.  */
-        page_set_flags(elf_bss & TARGET_PAGE_MASK, last_bss, prot|PAGE_VALID);
+    /* Ensure that the bss page(s) are valid */
+    if ((page_get_flags(last_bss-1) & prot) != prot) {
+        page_set_flags(elf_bss & TARGET_PAGE_MASK, last_bss, prot | PAGE_VALID);
     }
 
     if (host_start < host_map_start) {
