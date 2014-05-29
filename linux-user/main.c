@@ -1497,7 +1497,7 @@ static int do_store_exclusive(CPUPPCState *env)
         segv = 1;
     } else {
         int reg = env->reserve_info & 0x1f;
-        int size = (env->reserve_info >> 5) & 0xf;
+        int size = env->reserve_info >> 5;
         int stored = 0;
 
         if (addr == env->reserve_addr) {
