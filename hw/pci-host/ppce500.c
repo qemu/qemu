@@ -323,7 +323,7 @@ static const VMStateDescription vmstate_ppce500_pci = {
         VMSTATE_STRUCT_ARRAY(pob, PPCE500PCIState, PPCE500_PCI_NR_POBS, 1,
                              vmstate_pci_outbound, struct pci_outbound),
         VMSTATE_STRUCT_ARRAY(pib, PPCE500PCIState, PPCE500_PCI_NR_PIBS, 1,
-                             vmstate_pci_outbound, struct pci_inbound),
+                             vmstate_pci_inbound, struct pci_inbound),
         VMSTATE_UINT32(gasket_time, PPCE500PCIState),
         VMSTATE_END_OF_LIST()
     }
