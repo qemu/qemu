@@ -561,6 +561,11 @@ typedef struct {
 #define SHF_ALPHA_GPREL		0x10000000
 
 
+/* PowerPC specific definitions.  */
+
+/* Processor specific flags for the ELF header e_flags field.  */
+#define EF_PPC64_ABI           0x3
+
 /* PowerPC relocations defined by the ABIs */
 #define R_PPC_NONE		0
 #define R_PPC_ADDR32		1	/* 32bit absolute address */
