@@ -778,11 +778,18 @@ QString* vsh_translate(uint16_t version,
          * but they're not necessarily present...
         */
 
-        "  /* Un-screenspace transform */\n"
+         "  /* Un-screenspace transform */\n"
          "oPos.x = (oPos.x - viewportOffset.x) / viewportScale.x;\n"
          "oPos.y = (oPos.y - viewportOffset.y) / viewportScale.y;\n"
          "oPos.z = (oPos.z - 0.5 * (clipRange.x + clipRange.y)) / (0.5 * (clipRange.y - clipRange.x));\n"
-         "oPos.w = sign(oPos.w);\n"
+
+         "if (oPos.w <= 0.0) {\n"
+            /* undo the perspective divide in the case where the point would be
+             * clipped so opengl can clip it correctly */
+         "  oPos.xyz *= oPos.w;\n"
+         "} else {\n"
+         "  oPos.w = 1.0;\n"
+        "}\n"
 
         "  /* Set outputs */\n"
         "  gl_Position = oPos;\n"
