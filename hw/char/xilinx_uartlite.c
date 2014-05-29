@@ -87,6 +87,11 @@ static void uart_update_status(XilinxUARTLite *s)
     s->regs[R_STATUS] = r;
 }
 
+static void xilinx_uartlite_reset(DeviceState *dev)
+{
+    uart_update_status(XILINX_UARTLITE(dev));
+}
+
 static uint64_t
 uart_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -202,7 +207,6 @@ static int xilinx_uartlite_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    uart_update_status(s);
     memory_region_init_io(&s->mmio, OBJECT(s), &uart_ops, s,
                           "xlnx.xps-uartlite", R_MAX * 4);
     sysbus_init_mmio(dev, &s->mmio);
@@ -216,8 +220,10 @@ static int xilinx_uartlite_init(SysBusDevice *dev)
 static void xilinx_uartlite_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     sdc->init = xilinx_uartlite_init;
+    dc->reset = xilinx_uartlite_reset;
 }
 
 static const TypeInfo xilinx_uartlite_info = {
