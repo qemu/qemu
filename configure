@@ -4946,6 +4946,12 @@ case "$target_name" in
     TARGET_ABI_DIR=ppc
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
   ;;
+  ppc64le)
+    TARGET_ARCH=ppc64
+    TARGET_BASE_ARCH=ppc
+    TARGET_ABI_DIR=ppc
+    gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
+  ;;
   ppc64abi32)
     TARGET_ARCH=ppc64
     TARGET_BASE_ARCH=ppc
