@@ -121,6 +121,12 @@ void s390_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
         }
     }
 
+    for (i = 0; i < 32; i++) {
+        cpu_fprintf(f, "V%02d=%016" PRIx64 "%016" PRIx64, i,
+                    env->vregs[i][0].ll, env->vregs[i][1].ll);
+        cpu_fprintf(f, (i % 2) ? " " : "\n");
+    }
+
 #ifndef CONFIG_USER_ONLY
     for (i = 0; i < 16; i++) {
         cpu_fprintf(f, "C%02d=%016" PRIx64, i, env->cregs[i]);
