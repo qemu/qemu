@@ -339,16 +339,6 @@ target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
 int spapr_allocate_irq(int hint, bool lsi);
 int spapr_allocate_irq_block(int num, bool lsi, bool msi);
 
-static inline int spapr_allocate_msi(int hint)
-{
-    return spapr_allocate_irq(hint, false);
-}
-
-static inline int spapr_allocate_lsi(int hint)
-{
-    return spapr_allocate_irq(hint, true);
-}
-
 /* RTAS return codes */
 #define RTAS_OUT_SUCCESS            0
 #define RTAS_OUT_NO_ERRORS_FOUND    1

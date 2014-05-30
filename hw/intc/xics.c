@@ -687,6 +687,94 @@ void xics_set_irq_type(XICSState *icp, int irq, bool lsi)
     ics_set_irq_type(ics, irq - ics->offset, lsi);
 }
 
+#define ICS_IRQ_FREE(ics, srcno)   \
+    (!((ics)->irqs[(srcno)].flags & (XICS_FLAGS_IRQ_MASK)))
+
+static int ics_find_free_block(ICSState *ics, int num, int alignnum)
+{
+    int first, i;
+
+    for (first = 0; first < ics->nr_irqs; first += alignnum) {
+        if (num > (ics->nr_irqs - first)) {
+            return -1;
+        }
+        for (i = first; i < first + num; ++i) {
+            if (!ICS_IRQ_FREE(ics, i)) {
+                break;
+            }
+        }
+        if (i == (first + num)) {
+            return first;
+        }
+    }
+
+    return -1;
+}
+
+int xics_alloc(XICSState *icp, int src, int irq_hint, bool lsi)
+{
+    ICSState *ics = &icp->ics[src];
+    int irq;
+
+    if (irq_hint) {
+        assert(src == xics_find_source(icp, irq_hint));
+        if (!ICS_IRQ_FREE(ics, irq_hint - ics->offset)) {
+            trace_xics_alloc_failed_hint(src, irq_hint);
+            return -1;
+        }
+        irq = irq_hint;
+    } else {
+        irq = ics_find_free_block(ics, 1, 1);
+        if (irq < 0) {
+            trace_xics_alloc_failed_no_left(src);
+            return -1;
+        }
+        irq += ics->offset;
+    }
+
+    ics_set_irq_type(ics, irq - ics->offset, lsi);
+    trace_xics_alloc(src, irq);
+
+    return irq;
+}
+
+/*
+ * Allocate block of consequtive IRQs, returns a number of the first.
+ * If align==true, aligns the first IRQ number to num.
+ */
+int xics_alloc_block(XICSState *icp, int src, int num, bool lsi, bool align)
+{
+    int i, first = -1;
+    ICSState *ics = &icp->ics[src];
+
+    assert(src == 0);
+    /*
+     * MSIMesage::data is used for storing VIRQ so
+     * it has to be aligned to num to support multiple
+     * MSI vectors. MSI-X is not affected by this.
+     * The hint is used for the first IRQ, the rest should
+     * be allocated continuously.
+     */
+    if (align) {
+        assert((num == 1) || (num == 2) || (num == 4) ||
+               (num == 8) || (num == 16) || (num == 32));
+        first = ics_find_free_block(ics, num, num);
+    } else {
+        first = ics_find_free_block(ics, num, 1);
+    }
+
+    if (first >= 0) {
+        for (i = first; i < first + num; ++i) {
+            ics_set_irq_type(ics, i, lsi);
+        }
+    }
+    first += ics->offset;
+
+    trace_xics_alloc_block(src, first, num, lsi, align);
+
+    return first;
+}
+
 /*
  * Guest interfaces
  */

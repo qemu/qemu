@@ -449,7 +449,7 @@ static int spapr_vio_busdev_init(DeviceState *qdev)
         dev->qdev.id = id;
     }
 
-    dev->irq = spapr_allocate_msi(dev->irq);
+    dev->irq = xics_alloc(spapr->icp, 0, dev->irq, false);
     if (!dev->irq) {
         return -1;
     }
