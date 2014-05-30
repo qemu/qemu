@@ -3452,9 +3452,9 @@ EOF
 if compile_prog "" "" ; then
   :
 # we need pthread for static linking. use previous pthread test result
-elif compile_prog "" "-lrt $pthread_lib" ; then
-  LIBS="-lrt $LIBS"
-  libs_qga="-lrt $libs_qga"
+elif compile_prog "" "$pthread_lib -lrt" ; then
+  LIBS="$LIBS -lrt"
+  libs_qga="$libs_qga -lrt"
 fi
 
 if test "$darwin" != "yes" -a "$mingw32" != "yes" -a "$solaris" != yes -a \
