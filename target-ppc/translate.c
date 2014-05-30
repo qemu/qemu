@@ -27,6 +27,9 @@
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
+#include "trace-tcg.h"
+
+
 #define CPU_SINGLE_STEP 0x1
 #define CPU_BRANCH_STEP 0x2
 #define GDBSTUB_SINGLE_STEP 0x4

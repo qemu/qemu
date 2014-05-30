@@ -41,6 +41,9 @@
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
+#include "trace-tcg.h"
+
+
 typedef struct DisasContext {
     const XtensaConfig *config;
     TranslationBlock *tb;

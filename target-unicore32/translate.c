@@ -23,6 +23,9 @@
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
+#include "trace-tcg.h"
+
+
 /* internal defines */
 typedef struct DisasContext {
     target_ulong pc;

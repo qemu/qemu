@@ -30,6 +30,9 @@
 #include "exec/helper-gen.h"
 #include "sysemu/kvm.h"
 
+#include "trace-tcg.h"
+
+
 #define MIPS_DEBUG_DISAS 0
 //#define MIPS_DEBUG_SIGN_EXTENSIONS
 

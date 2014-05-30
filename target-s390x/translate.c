@@ -42,6 +42,8 @@ static TCGv_ptr cpu_env;
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
+#include "trace-tcg.h"
+
 
 /* Information that (most) every instruction needs to manipulate.  */
 typedef struct DisasContext DisasContext;

@@ -32,6 +32,9 @@
 
 #include "exec/helper-gen.h"
 
+#include "trace-tcg.h"
+
+
 #define DEBUG_DISAS
 
 #define DYNAMIC_PC  1 /* dynamic pc value */
