@@ -26,6 +26,7 @@
 #include "config-host.h"
 
 #include <poll.h>
+#include <math.h>
 #include <arpa/inet.h>
 #include "qemu-common.h"
 #include "qemu/config-file.h"
@@ -75,6 +76,7 @@ typedef struct IscsiTask {
     Coroutine *co;
     QEMUBH *bh;
     IscsiLun *iscsilun;
+    QEMUTimer retry_timer;
 } IscsiTask;
 
 typedef struct IscsiAIOCB {
@@ -86,7 +88,6 @@ typedef struct IscsiAIOCB {
     uint8_t *buf;
     int status;
     int canceled;
-    int retries;
     int64_t sector_num;
     int nb_sectors;
 #ifdef __linux__
@@ -96,7 +97,8 @@ typedef struct IscsiAIOCB {
 
 #define NOP_INTERVAL 5000
 #define MAX_NOP_FAILURES 3
-#define ISCSI_CMD_RETRIES 5
+#define ISCSI_CMD_RETRIES ARRAY_SIZE(iscsi_retry_times)
+static const unsigned iscsi_retry_times[] = {8, 32, 128, 512, 2048};
 
 /* this threshhold is a trade-off knob to choose between
  * the potential additional overhead of an extra GET_LBA_STATUS request
@@ -146,6 +148,19 @@ static void iscsi_co_generic_bh_cb(void *opaque)
     qemu_coroutine_enter(iTask->co, NULL);
 }
 
+static void iscsi_retry_timer_expired(void *opaque)
+{
+    struct IscsiTask *iTask = opaque;
+    if (iTask->co) {
+        qemu_coroutine_enter(iTask->co, NULL);
+    }
+}
+
+static inline unsigned exp_random(double mean)
+{
+    return -mean * log((double)rand() / RAND_MAX);
+}
+
 static void
 iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
                         void *command_data, void *opaque)
@@ -158,14 +173,30 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
     iTask->do_retry = 0;
     iTask->task = task;
 
-    if (iTask->retries-- > 0 && status == SCSI_STATUS_CHECK_CONDITION
-        && task->sense.key == SCSI_SENSE_UNIT_ATTENTION) {
-        error_report("iSCSI CheckCondition: %s", iscsi_get_error(iscsi));
-        iTask->do_retry = 1;
-        goto out;
-    }
-
     if (status != SCSI_STATUS_GOOD) {
+        if (iTask->retries++ < ISCSI_CMD_RETRIES) {
+            if (status == SCSI_STATUS_CHECK_CONDITION
+                && task->sense.key == SCSI_SENSE_UNIT_ATTENTION) {
+                error_report("iSCSI CheckCondition: %s",
+                             iscsi_get_error(iscsi));
+                iTask->do_retry = 1;
+                goto out;
+            }
+            if (status == SCSI_STATUS_BUSY) {
+                unsigned retry_time =
+                    exp_random(iscsi_retry_times[iTask->retries - 1]);
+                error_report("iSCSI Busy (retry #%u in %u ms): %s",
+                             iTask->retries, retry_time,
+                             iscsi_get_error(iscsi));
+                aio_timer_init(iTask->iscsilun->aio_context,
+                               &iTask->retry_timer, QEMU_CLOCK_REALTIME,
+                               SCALE_MS, iscsi_retry_timer_expired, iTask);
+                timer_mod(&iTask->retry_timer,
+                          qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + retry_time);
+                iTask->do_retry = 1;
+                return;
+            }
+        }
         error_report("iSCSI Failure: %s", iscsi_get_error(iscsi));
     }
 
@@ -180,9 +211,9 @@ out:
 static void iscsi_co_init_iscsitask(IscsiLun *iscsilun, struct IscsiTask *iTask)
 {
     *iTask = (struct IscsiTask) {
-        .co             = qemu_coroutine_self(),
-        .retries        = ISCSI_CMD_RETRIES,
-        .iscsilun       = iscsilun,
+        .co         = qemu_coroutine_self(),
+        .retries    = ISCSI_CMD_RETRIES,
+        .iscsilun   = iscsilun,
     };
 }
 
