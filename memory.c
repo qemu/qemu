@@ -1722,12 +1722,19 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
 
 void address_space_destroy(AddressSpace *as)
 {
+    MemoryListener *listener;
+
     /* Flush out anything from MemoryListeners listening in on this */
     memory_region_transaction_begin();
     as->root = NULL;
     memory_region_transaction_commit();
     QTAILQ_REMOVE(&address_spaces, as, address_spaces_link);
     address_space_destroy_dispatch(as);
+
+    QTAILQ_FOREACH(listener, &memory_listeners, link) {
+        assert(listener->address_space_filter != as);
+    }
+
     flatview_unref(as->current_map);
     g_free(as->name);
     g_free(as->ioeventfds);
