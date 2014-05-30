@@ -58,6 +58,7 @@ endif
 GENERATED_SOURCES += trace/generated-tracers.c
 
 GENERATED_HEADERS += trace/generated-helpers.h
+GENERATED_SOURCES += trace/generated-helpers.c
 
 ifeq ($(findstring ust,$(TRACE_BACKENDS)),ust)
 GENERATED_HEADERS += trace/generated-ust-provider.h

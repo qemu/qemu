@@ -107,6 +107,18 @@ $(obj)/generated-helpers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/conf
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
 	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
+$(obj)/generated-helpers.c: $(obj)/generated-helpers.c-timestamp
+$(obj)/generated-helpers.c-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+	$(call quiet-command,$(TRACETOOL) \
+		--format=tcg-helper-c \
+		--backend=$(TRACE_BACKENDS) \
+		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
+	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
+
+$(obj)/generated-helpers.o: $(obj)/generated-helpers.c
+
+target-obj-y += generated-helpers.o
+
 
 ######################################################################
 # Backend code
