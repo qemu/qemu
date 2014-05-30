@@ -227,6 +227,7 @@ class Event(object):
                                           fmt)
 
     QEMU_TRACE               = "trace_%(name)s"
+    QEMU_TRACE_TCG           = QEMU_TRACE + "_tcg"
 
     def api(self, fmt=None):
         if fmt is None:
