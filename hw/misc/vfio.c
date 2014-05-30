@@ -139,13 +139,8 @@ typedef struct VFIOAddressSpace {
     QLIST_ENTRY(VFIOAddressSpace) list;
 } VFIOAddressSpace;
 
-static VFIOAddressSpace vfio_address_space_memory;
-
-static void vfio_address_space_init(VFIOAddressSpace *space, AddressSpace *as)
-{
-    space->as = as;
-    QLIST_INIT(&space->containers);
-}
+static QLIST_HEAD(, VFIOAddressSpace) vfio_address_spaces =
+    QLIST_HEAD_INITIALIZER(vfio_address_spaces);
 
 struct VFIOGroup;
 
@@ -3433,13 +3428,41 @@ static void vfio_kvm_device_del_group(VFIOGroup *group)
 #endif
 }
 
+static VFIOAddressSpace *vfio_get_address_space(AddressSpace *as)
+{
+    VFIOAddressSpace *space;
+
+    QLIST_FOREACH(space, &vfio_address_spaces, list) {
+        if (space->as == as) {
+            return space;
+        }
+    }
+
+    /* No suitable VFIOAddressSpace, create a new one */
+    space = g_malloc0(sizeof(*space));
+    space->as = as;
+    QLIST_INIT(&space->containers);
+
+    QLIST_INSERT_HEAD(&vfio_address_spaces, space, list);
+
+    return space;
+}
+
+static void vfio_put_address_space(VFIOAddressSpace *space)
+{
+    if (QLIST_EMPTY(&space->containers)) {
+        QLIST_REMOVE(space, list);
+        g_free(space);
+    }
+}
+
 static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
 {
     VFIOContainer *container;
     int ret, fd;
     VFIOAddressSpace *space;
 
-    space = &vfio_address_space_memory;
+    space = vfio_get_address_space(as);
 
     QLIST_FOREACH(container, &space->containers, next) {
         if (!ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
@@ -3452,7 +3475,8 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
     fd = qemu_open("/dev/vfio/vfio", O_RDWR);
     if (fd < 0) {
         error_report("vfio: failed to open /dev/vfio/vfio: %m");
-        return -errno;
+        ret = -errno;
+        goto put_space_exit;
     }
 
     ret = ioctl(fd, VFIO_GET_API_VERSION);
@@ -3519,6 +3543,9 @@ free_container_exit:
 close_fd_exit:
     close(fd);
 
+put_space_exit:
+    vfio_put_address_space(space);
+
     return ret;
 }
 
@@ -3535,6 +3562,8 @@ static void vfio_disconnect_container(VFIOGroup *group)
     group->container = NULL;
 
     if (QLIST_EMPTY(&container->group_list)) {
+        VFIOAddressSpace *space = container->space;
+
         if (container->iommu_data.release) {
             container->iommu_data.release(container);
         }
@@ -3542,6 +3571,8 @@ static void vfio_disconnect_container(VFIOGroup *group)
         DPRINTF("vfio_disconnect_container: close container->fd\n");
         close(container->fd);
         g_free(container);
+
+        vfio_put_address_space(space);
     }
 }
 
@@ -3940,12 +3971,7 @@ static int vfio_initfn(PCIDevice *pdev)
     DPRINTF("%s(%04x:%02x:%02x.%x) group %d\n", __func__, vdev->host.domain,
             vdev->host.bus, vdev->host.slot, vdev->host.function, groupid);
 
-    if (pci_device_iommu_address_space(pdev) != &address_space_memory) {
-        error_report("vfio: DMA address space must be system memory");
-        return -EINVAL;
-    }
-
-    group = vfio_get_group(groupid, &address_space_memory);
+    group = vfio_get_group(groupid, pci_device_iommu_address_space(pdev));
     if (!group) {
         error_report("vfio: failed to get group %d", groupid);
         return -ENOENT;
@@ -4159,7 +4185,6 @@ static const TypeInfo vfio_pci_dev_info = {
 
 static void register_vfio_pci_dev_type(void)
 {
-    vfio_address_space_init(&vfio_address_space_memory, &address_space_memory);
     type_register_static(&vfio_pci_dev_info);
 }
 
