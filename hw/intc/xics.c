@@ -775,6 +775,33 @@ int xics_alloc_block(XICSState *icp, int src, int num, bool lsi, bool align)
     return first;
 }
 
+static void ics_free(ICSState *ics, int srcno, int num)
+{
+    int i;
+
+    for (i = srcno; i < srcno + num; ++i) {
+        if (ICS_IRQ_FREE(ics, i)) {
+            trace_xics_ics_free_warn(ics - ics->icp->ics, i + ics->offset);
+        }
+        memset(&ics->irqs[i], 0, sizeof(ICSIRQState));
+    }
+}
+
+void xics_free(XICSState *icp, int irq, int num)
+{
+    int src = xics_find_source(icp, irq);
+
+    if (src >= 0) {
+        ICSState *ics = &icp->ics[src];
+
+        /* FIXME: implement multiple sources */
+        assert(src == 0);
+
+        trace_xics_ics_free(ics - icp->ics, irq, num);
+        ics_free(ics, irq - ics->offset, num);
+    }
+}
+
 /*
  * Guest interfaces
  */
