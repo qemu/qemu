@@ -891,7 +891,7 @@ static const VMStateDescription vmstate_spapr = {
     .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(next_irq, sPAPREnvironment),
+        VMSTATE_UNUSED(4), /* used to be @next_irq */
 
         /* RTC offset */
         VMSTATE_UINT64(rtc_offset, sPAPREnvironment),
@@ -1295,7 +1295,6 @@ static void ppc_spapr_init(MachineState *machine)
     /* Set up Interrupt Controller before we create the VCPUs */
     spapr->icp = xics_system_init(smp_cpus * kvmppc_smt_threads() / smp_threads,
                                   XICS_IRQS);
-    spapr->next_irq = XICS_IRQ_BASE;
 
     /* init CPUs */
     if (cpu_model == NULL) {
