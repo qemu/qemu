@@ -437,7 +437,7 @@ static void ics_set_irq(void *opaque, int srcno, int val)
 {
     ICSState *ics = (ICSState *)opaque;
 
-    if (ics->islsi[srcno]) {
+    if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI) {
         set_irq_lsi(ics, srcno, val);
     } else {
         set_irq_msi(ics, srcno, val);
@@ -474,7 +474,7 @@ static void ics_write_xive(ICSState *ics, int nr, int server,
 
     trace_xics_ics_write_xive(nr, srcno, server, priority);
 
-    if (ics->islsi[srcno]) {
+    if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI) {
         write_xive_lsi(ics, srcno);
     } else {
         write_xive_msi(ics, srcno);
@@ -496,7 +496,7 @@ static void ics_resend(ICSState *ics)
 
     for (i = 0; i < ics->nr_irqs; i++) {
         /* FIXME: filter by server#? */
-        if (ics->islsi[i]) {
+        if (ics->irqs[i].flags & XICS_FLAGS_IRQ_LSI) {
             resend_lsi(ics, i);
         } else {
             resend_msi(ics, i);
@@ -511,7 +511,7 @@ static void ics_eoi(ICSState *ics, int nr)
 
     trace_xics_ics_eoi(nr);
 
-    if (ics->islsi[srcno]) {
+    if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI) {
         irq->status &= ~XICS_STATUS_SENT;
     }
 }
@@ -563,13 +563,14 @@ static int ics_dispatch_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_ics_irq = {
     .name = "ics/irq",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(server, ICSIRQState),
         VMSTATE_UINT8(priority, ICSIRQState),
         VMSTATE_UINT8(saved_priority, ICSIRQState),
         VMSTATE_UINT8(status, ICSIRQState),
+        VMSTATE_UINT8(flags, ICSIRQState),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -606,7 +607,6 @@ static void ics_realize(DeviceState *dev, Error **errp)
         return;
     }
     ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
-    ics->islsi = g_malloc0(ics->nr_irqs * sizeof(bool));
     ics->qirqs = qemu_allocate_irqs(ics_set_irq, ics, ics->nr_irqs);
 }
 
@@ -643,11 +643,21 @@ qemu_irq xics_get_qirq(XICSState *icp, int irq)
     return icp->ics->qirqs[irq - icp->ics->offset];
 }
 
+static void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
+{
+    assert(!(ics->irqs[srcno].flags & XICS_FLAGS_IRQ_MASK));
+
+    ics->irqs[srcno].flags |=
+        lsi ? XICS_FLAGS_IRQ_LSI : XICS_FLAGS_IRQ_MSI;
+}
+
 void xics_set_irq_type(XICSState *icp, int irq, bool lsi)
 {
-    assert(ics_valid_irq(icp->ics, irq));
+    ICSState *ics = icp->ics;
 
-    icp->ics->islsi[irq - icp->ics->offset] = lsi;
+    assert(ics_valid_irq(ics, irq));
+
+    ics_set_irq_type(ics, irq - ics->offset, lsi);
 }
 
 /*

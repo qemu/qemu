@@ -220,7 +220,7 @@ static int ics_set_kvm_state(ICSState *ics, int version_id)
             state |= KVM_XICS_MASKED;
         }
 
-        if (ics->islsi[i]) {
+        if (ics->irqs[i].flags & XICS_FLAGS_IRQ_LSI) {
             state |= KVM_XICS_LEVEL_SENSITIVE;
             if (irq->status & XICS_STATUS_ASSERTED) {
                 state |= KVM_XICS_PENDING;
@@ -249,7 +249,7 @@ static void ics_kvm_set_irq(void *opaque, int srcno, int val)
     int rc;
 
     args.irq = srcno + ics->offset;
-    if (!ics->islsi[srcno]) {
+    if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_MSI) {
         if (!val) {
             return;
         }
@@ -286,7 +286,6 @@ static void ics_kvm_realize(DeviceState *dev, Error **errp)
         return;
     }
     ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
-    ics->islsi = g_malloc0(ics->nr_irqs * sizeof(bool));
     ics->qirqs = qemu_allocate_irqs(ics_kvm_set_irq, ics, ics->nr_irqs);
 }
 
