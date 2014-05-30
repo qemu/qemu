@@ -15,6 +15,7 @@ __email__      = "stefanha@linux.vnet.ibm.com"
 
 import re
 import sys
+import weakref
 
 import tracetool.format
 import tracetool.backend
@@ -108,6 +109,18 @@ class Arguments:
         """List of argument types."""
         return [ type_ for type_, _ in self._args ]
 
+    def transform(self, *trans):
+        """Return a new Arguments instance with transformed types.
+
+        The types in the resulting Arguments instance are transformed according
+        to tracetool.transform.transform_type.
+        """
+        res = []
+        for type_, name in self._args:
+            res.append((tracetool.transform.transform_type(type_, *trans),
+                        name))
+        return Arguments(res)
+
 
 class Event(object):
     """Event description.
@@ -128,7 +141,7 @@ class Event(object):
 
     _VALID_PROPS = set(["disable"])
 
-    def __init__(self, name, props, fmt, args):
+    def __init__(self, name, props, fmt, args, orig=None):
         """
         Parameters
         ----------
@@ -140,11 +153,18 @@ class Event(object):
             Event printing format.
         args : Arguments
             Event arguments.
+        orig : Event or None
+            Original Event before transformation.
         """
         self.name = name
         self.properties = props
         self.fmt = fmt
         self.args = args
+
+        if orig is None:
+            self.original = weakref.ref(self)
+        else:
+            self.original = orig
 
         unknown_props = set(self.properties) - self._VALID_PROPS
         if len(unknown_props) > 0:
@@ -189,6 +209,14 @@ class Event(object):
         if fmt is None:
             fmt = Event.QEMU_TRACE
         return fmt % {"name": self.name}
+
+    def transform(self, *trans):
+        """Return a new Event with transformed Arguments."""
+        return Event(self.name,
+                     list(self.properties),
+                     self.fmt,
+                     self.args.transform(*trans),
+                     self)
 
 
 def _read_events(fobj):
