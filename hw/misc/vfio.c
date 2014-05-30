@@ -1668,6 +1668,149 @@ static void vfio_probe_ati_bar4_window_quirk(VFIODevice *vdev, int nr)
             vdev->host.function);
 }
 
+#define PCI_VENDOR_ID_REALTEK 0x10ec
+
+/*
+ * RTL8168 devices have a backdoor that can access the MSI-X table.  At BAR2
+ * offset 0x70 there is a dword data register, offset 0x74 is a dword address
+ * register.  According to the Linux r8169 driver, the MSI-X table is addressed
+ * when the "type" portion of the address register is set to 0x1.  This appears
+ * to be bits 16:30.  Bit 31 is both a write indicator and some sort of
+ * "address latched" indicator.  Bits 12:15 are a mask field, which we can
+ * ignore because the MSI-X table should always be accessed as a dword (full
+ * mask).  Bits 0:11 is offset within the type.
+ *
+ * Example trace:
+ *
+ * Read from MSI-X table offset 0
+ * vfio: vfio_bar_write(0000:05:00.0:BAR2+0x74, 0x1f000, 4) // store read addr
+ * vfio: vfio_bar_read(0000:05:00.0:BAR2+0x74, 4) = 0x8001f000 // latch
+ * vfio: vfio_bar_read(0000:05:00.0:BAR2+0x70, 4) = 0xfee00398 // read data
+ *
+ * Write 0xfee00000 to MSI-X table offset 0
+ * vfio: vfio_bar_write(0000:05:00.0:BAR2+0x70, 0xfee00000, 4) // write data
+ * vfio: vfio_bar_write(0000:05:00.0:BAR2+0x74, 0x8001f000, 4) // do write
+ * vfio: vfio_bar_read(0000:05:00.0:BAR2+0x74, 4) = 0x1f000 // complete
+ */
+
+static uint64_t vfio_rtl8168_window_quirk_read(void *opaque,
+                                               hwaddr addr, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+
+    switch (addr) {
+    case 4: /* address */
+        if (quirk->data.flags) {
+            DPRINTF("%s fake read(%04x:%02x:%02x.%d)\n",
+                    memory_region_name(&quirk->mem), vdev->host.domain,
+                    vdev->host.bus, vdev->host.slot, vdev->host.function);
+
+            return quirk->data.address_match ^ 0x10000000U;
+        }
+        break;
+    case 0: /* data */
+        if (quirk->data.flags) {
+            uint64_t val;
+
+            DPRINTF("%s MSI-X table read(%04x:%02x:%02x.%d)\n",
+                    memory_region_name(&quirk->mem), vdev->host.domain,
+                    vdev->host.bus, vdev->host.slot, vdev->host.function);
+
+            if (!(vdev->pdev.cap_present & QEMU_PCI_CAP_MSIX)) {
+                return 0;
+            }
+
+            io_mem_read(&vdev->pdev.msix_table_mmio,
+                        (hwaddr)(quirk->data.address_match & 0xfff),
+                        &val, size);
+            return val;
+        }
+    }
+
+    DPRINTF("%s direct read(%04x:%02x:%02x.%d)\n",
+            memory_region_name(&quirk->mem), vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function);
+
+    return vfio_bar_read(&vdev->bars[quirk->data.bar], addr + 0x70, size);
+}
+
+static void vfio_rtl8168_window_quirk_write(void *opaque, hwaddr addr,
+                                            uint64_t data, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+
+    switch (addr) {
+    case 4: /* address */
+        if ((data & 0x7fff0000) == 0x10000) {
+            if (data & 0x10000000U &&
+                vdev->pdev.cap_present & QEMU_PCI_CAP_MSIX) {
+
+                DPRINTF("%s MSI-X table write(%04x:%02x:%02x.%d)\n",
+                        memory_region_name(&quirk->mem), vdev->host.domain,
+                        vdev->host.bus, vdev->host.slot, vdev->host.function);
+
+                io_mem_write(&vdev->pdev.msix_table_mmio,
+                             (hwaddr)(quirk->data.address_match & 0xfff),
+                             data, size);
+            }
+
+            quirk->data.flags = 1;
+            quirk->data.address_match = data;
+
+            return;
+        }
+        quirk->data.flags = 0;
+        break;
+    case 0: /* data */
+        quirk->data.address_mask = data;
+        break;
+    }
+
+    DPRINTF("%s direct write(%04x:%02x:%02x.%d)\n",
+            memory_region_name(&quirk->mem), vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function);
+
+    vfio_bar_write(&vdev->bars[quirk->data.bar], addr + 0x70, data, size);
+}
+
+static const MemoryRegionOps vfio_rtl8168_window_quirk = {
+    .read = vfio_rtl8168_window_quirk_read,
+    .write = vfio_rtl8168_window_quirk_write,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+        .unaligned = false,
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void vfio_probe_rtl8168_bar2_window_quirk(VFIODevice *vdev, int nr)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    VFIOQuirk *quirk;
+
+    if (pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_REALTEK ||
+        pci_get_word(pdev->config + PCI_DEVICE_ID) != 0x8168 || nr != 2) {
+        return;
+    }
+
+    quirk = g_malloc0(sizeof(*quirk));
+    quirk->vdev = vdev;
+    quirk->data.bar = nr;
+
+    memory_region_init_io(&quirk->mem, OBJECT(vdev), &vfio_rtl8168_window_quirk,
+                          quirk, "vfio-rtl8168-window-quirk", 8);
+    memory_region_add_subregion_overlap(&vdev->bars[nr].mem,
+                                        0x70, &quirk->mem, 1);
+
+    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
+
+    DPRINTF("Enabled RTL8168 BAR2 window quirk for device %04x:%02x:%02x.%x\n",
+            vdev->host.domain, vdev->host.bus, vdev->host.slot,
+            vdev->host.function);
+}
 /*
  * Trap the BAR2 MMIO window to config space as well.
  */
@@ -2071,6 +2214,7 @@ static void vfio_bar_quirk_setup(VFIODevice *vdev, int nr)
     vfio_probe_nvidia_bar5_window_quirk(vdev, nr);
     vfio_probe_nvidia_bar0_88000_quirk(vdev, nr);
     vfio_probe_nvidia_bar0_1800_quirk(vdev, nr);
+    vfio_probe_rtl8168_bar2_window_quirk(vdev, nr);
 }
 
 static void vfio_bar_quirk_teardown(VFIODevice *vdev, int nr)
