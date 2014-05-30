@@ -2392,6 +2392,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
     VFIOContainer *container = container_of(listener, VFIOContainer,
                                             iommu_data.type1.listener);
     hwaddr iova, end;
+    Int128 llend;
     void *vaddr;
     int ret;
 
@@ -2412,13 +2413,15 @@ static void vfio_listener_region_add(MemoryListener *listener,
     }
 
     iova = TARGET_PAGE_ALIGN(section->offset_within_address_space);
-    end = (section->offset_within_address_space + int128_get64(section->size)) &
-          TARGET_PAGE_MASK;
+    llend = int128_make64(section->offset_within_address_space);
+    llend = int128_add(llend, section->size);
+    llend = int128_and(llend, int128_exts64(TARGET_PAGE_MASK));
 
-    if (iova >= end) {
+    if (int128_ge(int128_make64(iova), llend)) {
         return;
     }
 
+    end = int128_get64(llend);
     vaddr = memory_region_get_ram_ptr(section->mr) +
             section->offset_within_region +
             (iova - section->offset_within_address_space);
