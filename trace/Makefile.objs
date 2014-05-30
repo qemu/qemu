@@ -128,6 +128,15 @@ $(obj)/generated-helpers.o: $(obj)/generated-helpers.c
 target-obj-y += generated-helpers.o
 
 
+$(obj)/generated-tcg-tracers.h: $(obj)/generated-tcg-tracers.h-timestamp
+$(obj)/generated-tcg-tracers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+	$(call quiet-command,$(TRACETOOL) \
+		--format=tcg-h \
+		--backend=$(TRACE_BACKENDS) \
+		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
+	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
+
+
 ######################################################################
 # Backend code
 

@@ -14,6 +14,7 @@
 /trace/generated-helpers-wrappers.h
 /trace/generated-helpers.h
 /trace/generated-helpers.c
+/trace/generated-tcg-tracers.h
 /trace/generated-ust-provider.h
 /trace/generated-ust.c
 /libcacard/trace/generated-tracers.c
