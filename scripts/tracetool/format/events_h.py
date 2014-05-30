@@ -40,6 +40,11 @@ def generate(events, backend):
             enabled = 0
         else:
             enabled = 1
+        if "tcg-trans" in e.properties:
+            # a single define for the two "sub-events"
+            out('#define TRACE_%(name)s_ENABLED %(enabled)d',
+                name=e.original.original.name.upper(),
+                enabled=enabled)
         out('#define TRACE_%s_ENABLED %d' % (e.name.upper(), enabled))
 
     out('#include "trace/event-internal.h"',

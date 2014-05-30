@@ -19,6 +19,7 @@ import weakref
 
 import tracetool.format
 import tracetool.backend
+import tracetool.transform
 
 
 def error_write(*lines):
@@ -137,9 +138,14 @@ class Event(object):
         The event arguments.
     """
 
-    _CRE = re.compile("((?P<props>.*)\s+)?(?P<name>[^(\s]+)\((?P<args>[^)]*)\)\s*(?P<fmt>\".*)?")
+    _CRE = re.compile("((?P<props>.*)\s+)?"
+                      "(?P<name>[^(\s]+)"
+                      "\((?P<args>[^)]*)\)"
+                      "\s*"
+                      "(?:(?:(?P<fmt_trans>\".+),)?\s*(?P<fmt>\".+))?"
+                      "\s*")
 
-    _VALID_PROPS = set(["disable"])
+    _VALID_PROPS = set(["disable", "tcg", "tcg-trans", "tcg-exec"])
 
     def __init__(self, name, props, fmt, args, orig=None):
         """
@@ -149,8 +155,8 @@ class Event(object):
             Event name.
         props : list of str
             Property names.
-        fmt : str
-            Event printing format.
+        fmt : str, list of str
+            Event printing format (or formats).
         args : Arguments
             Event arguments.
         orig : Event or None
@@ -170,6 +176,7 @@ class Event(object):
         if len(unknown_props) > 0:
             raise ValueError("Unknown properties: %s"
                              % ", ".join(unknown_props))
+        assert isinstance(self.fmt, str) or len(self.fmt) == 2
 
     def copy(self):
         """Create a new copy."""
@@ -192,16 +199,32 @@ class Event(object):
         name = groups["name"]
         props = groups["props"].split()
         fmt = groups["fmt"]
+        fmt_trans = groups["fmt_trans"]
+        if len(fmt_trans) > 0:
+            fmt = [fmt_trans, fmt]
         args = Arguments.build(groups["args"])
+
+        if "tcg-trans" in props:
+            raise ValueError("Invalid property 'tcg-trans'")
+        if "tcg-exec" in props:
+            raise ValueError("Invalid property 'tcg-exec'")
+        if "tcg" not in props and not isinstance(fmt, str):
+            raise ValueError("Only events with 'tcg' property can have two formats")
+        if "tcg" in props and isinstance(fmt, str):
+            raise ValueError("Events with 'tcg' property must have two formats")
 
         return Event(name, props, fmt, args)
 
     def __repr__(self):
         """Evaluable string representation for this object."""
+        if isinstance(self.fmt, str):
+            fmt = self.fmt
+        else:
+            fmt = "%s, %s" % (self.fmt[0], self.fmt[1])
         return "Event('%s %s(%s) %s')" % (" ".join(self.properties),
                                           self.name,
                                           self.args,
-                                          self.fmt)
+                                          fmt)
 
     QEMU_TRACE               = "trace_%(name)s"
 
@@ -299,5 +322,36 @@ def generate(fevents, format, backends,
     tracetool.backend.dtrace.PROBEPREFIX = probe_prefix
 
     events = _read_events(fevents)
+
+    # transform TCG-enabled events
+    new_events = []
+    for event in events:
+        if "tcg" not in event.properties:
+            new_events.append(event)
+        else:
+            event_trans = event.copy()
+            event_trans.name += "_trans"
+            event_trans.properties += ["tcg-trans"]
+            event_trans.fmt = event.fmt[0]
+            args_trans = []
+            for atrans, aorig in zip(
+                    event_trans.transform(tracetool.transform.TCG_2_HOST).args,
+                    event.args):
+                if atrans == aorig:
+                    args_trans.append(atrans)
+            event_trans.args = Arguments(args_trans)
+            event_trans = event_trans.copy()
+
+            event_exec = event.copy()
+            event_exec.name += "_exec"
+            event_exec.properties += ["tcg-exec"]
+            event_exec.fmt = event.fmt[1]
+            event_exec = event_exec.transform(tracetool.transform.TCG_2_HOST)
+
+            new_event = [event_trans, event_exec]
+            event.event_trans, event.event_exec = new_event
+
+            new_events.extend(new_event)
+    events = new_events
 
     tracetool.format.generate(events, format, backend)
