@@ -98,6 +98,9 @@ typedef struct SPAPRMachine SPAPRMachine;
 struct SPAPRMachine {
     /*< private >*/
     MachineState parent_obj;
+
+    /*< public >*/
+    char *kvm_type;
 };
 
 
@@ -1614,6 +1617,27 @@ static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,
     return NULL;
 }
 
+static char *spapr_get_kvm_type(Object *obj, Error **errp)
+{
+    SPAPRMachine *sm = SPAPR_MACHINE(obj);
+
+    return g_strdup(sm->kvm_type);
+}
+
+static void spapr_set_kvm_type(Object *obj, const char *value, Error **errp)
+{
+    SPAPRMachine *sm = SPAPR_MACHINE(obj);
+
+    g_free(sm->kvm_type);
+    sm->kvm_type = g_strdup(value);
+}
+
+static void spapr_machine_initfn(Object *obj)
+{
+    object_property_add_str(obj, "kvm-type",
+                            spapr_get_kvm_type, spapr_set_kvm_type, NULL);
+}
+
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1637,6 +1661,7 @@ static const TypeInfo spapr_machine_info = {
     .name          = TYPE_SPAPR_MACHINE,
     .parent        = TYPE_MACHINE,
     .instance_size = sizeof(SPAPRMachine),
+    .instance_init = spapr_machine_initfn,
     .class_init    = spapr_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_FW_PATH_PROVIDER },
