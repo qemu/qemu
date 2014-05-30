@@ -520,11 +520,18 @@ static void ics_reset(DeviceState *dev)
 {
     ICSState *ics = ICS(dev);
     int i;
+    uint8_t flags[ics->nr_irqs];
+
+    for (i = 0; i < ics->nr_irqs; i++) {
+        flags[i] = ics->irqs[i].flags;
+    }
 
     memset(ics->irqs, 0, sizeof(ICSIRQState) * ics->nr_irqs);
+
     for (i = 0; i < ics->nr_irqs; i++) {
         ics->irqs[i].priority = 0xff;
         ics->irqs[i].saved_priority = 0xff;
+        ics->irqs[i].flags = flags[i];
     }
 }
 
