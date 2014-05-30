@@ -86,7 +86,20 @@
 
 #define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
 
+
+typedef struct SPAPRMachine SPAPRMachine;
 #define TYPE_SPAPR_MACHINE      "spapr-machine"
+#define SPAPR_MACHINE(obj) \
+    OBJECT_CHECK(SPAPRMachine, (obj), TYPE_SPAPR_MACHINE)
+
+/**
+ * SPAPRMachine:
+ */
+struct SPAPRMachine {
+    /*< private >*/
+    MachineState parent_obj;
+};
+
 
 sPAPREnvironment *spapr;
 
@@ -1623,6 +1636,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
 static const TypeInfo spapr_machine_info = {
     .name          = TYPE_SPAPR_MACHINE,
     .parent        = TYPE_MACHINE,
+    .instance_size = sizeof(SPAPRMachine),
     .class_init    = spapr_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_FW_PATH_PROVIDER },
