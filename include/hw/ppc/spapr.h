@@ -27,7 +27,6 @@ typedef struct sPAPREnvironment {
     long rtas_size;
     void *fdt_skel;
     target_ulong entry_point;
-    uint32_t next_irq;
     uint64_t rtc_offset;
     struct PPCTimebase tb;
     bool has_graphics;
