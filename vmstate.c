@@ -43,11 +43,18 @@ static int vmstate_size(void *opaque, VMStateField *field)
     return size;
 }
 
-static void *vmstate_base_addr(void *opaque, VMStateField *field)
+static void *vmstate_base_addr(void *opaque, VMStateField *field, bool alloc)
 {
     void *base_addr = opaque + field->offset;
 
     if (field->flags & VMS_POINTER) {
+        if (alloc && (field->flags & VMS_ALLOC)) {
+            int n_elems = vmstate_n_elems(opaque, field);
+            if (n_elems) {
+                gsize size = n_elems * field->size;
+                *((void **)base_addr + field->start) = g_malloc(size);
+            }
+        }
         base_addr = *(void **)base_addr + field->start;
     }
 
@@ -81,7 +88,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
              field->field_exists(opaque, version_id)) ||
             (!field->field_exists &&
              field->version_id <= version_id)) {
-            void *base_addr = vmstate_base_addr(opaque, field);
+            void *base_addr = vmstate_base_addr(opaque, field, true);
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
 
@@ -135,7 +142,7 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
     while (field->name) {
         if (!field->field_exists ||
             field->field_exists(opaque, vmsd->version_id)) {
-            void *base_addr = vmstate_base_addr(opaque, field);
+            void *base_addr = vmstate_base_addr(opaque, field, false);
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
 
