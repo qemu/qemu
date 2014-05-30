@@ -36,6 +36,7 @@
     | dh_sizemask(t5, 5) },
 
 #include "helper.h"
+#include "trace/generated-helpers.h"
 #include "tcg-runtime.h"
 
 #undef DEF_HELPER_FLAGS_0
