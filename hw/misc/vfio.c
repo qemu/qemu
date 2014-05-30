@@ -133,6 +133,20 @@ enum {
     VFIO_INT_MSIX = 3,
 };
 
+typedef struct VFIOAddressSpace {
+    AddressSpace *as;
+    QLIST_HEAD(, VFIOContainer) containers;
+    QLIST_ENTRY(VFIOAddressSpace) list;
+} VFIOAddressSpace;
+
+static VFIOAddressSpace vfio_address_space_memory;
+
+static void vfio_address_space_init(VFIOAddressSpace *space, AddressSpace *as)
+{
+    space->as = as;
+    QLIST_INIT(&space->containers);
+}
+
 struct VFIOGroup;
 
 typedef struct VFIOType1 {
@@ -142,6 +156,7 @@ typedef struct VFIOType1 {
 } VFIOType1;
 
 typedef struct VFIOContainer {
+    VFIOAddressSpace *space;
     int fd; /* /dev/vfio/vfio, empowered by the attached groups */
     struct {
         /* enable abstraction to support various iommu backends */
@@ -233,9 +248,6 @@ static const VFIORomBlacklistEntry romblacklist[] = {
 };
 
 #define MSIX_CAP_LENGTH 12
-
-static QLIST_HEAD(, VFIOContainer)
-    container_list = QLIST_HEAD_INITIALIZER(container_list);
 
 static QLIST_HEAD(, VFIOGroup)
     group_list = QLIST_HEAD_INITIALIZER(group_list);
@@ -3421,16 +3433,15 @@ static void vfio_kvm_device_del_group(VFIOGroup *group)
 #endif
 }
 
-static int vfio_connect_container(VFIOGroup *group)
+static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
 {
     VFIOContainer *container;
     int ret, fd;
+    VFIOAddressSpace *space;
 
-    if (group->container) {
-        return 0;
-    }
+    space = &vfio_address_space_memory;
 
-    QLIST_FOREACH(container, &container_list, next) {
+    QLIST_FOREACH(container, &space->containers, next) {
         if (!ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
             group->container = container;
             QLIST_INSERT_HEAD(&container->group_list, group, container_next);
@@ -3453,6 +3464,7 @@ static int vfio_connect_container(VFIOGroup *group)
     }
 
     container = g_malloc0(sizeof(*container));
+    container->space = space;
     container->fd = fd;
 
     if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU)) {
@@ -3491,7 +3503,7 @@ static int vfio_connect_container(VFIOGroup *group)
     }
 
     QLIST_INIT(&container->group_list);
-    QLIST_INSERT_HEAD(&container_list, container, next);
+    QLIST_INSERT_HEAD(&space->containers, container, next);
 
     group->container = container;
     QLIST_INSERT_HEAD(&container->group_list, group, container_next);
@@ -3533,7 +3545,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
     }
 }
 
-static VFIOGroup *vfio_get_group(int groupid)
+static VFIOGroup *vfio_get_group(int groupid, AddressSpace *as)
 {
     VFIOGroup *group;
     char path[32];
@@ -3541,7 +3553,14 @@ static VFIOGroup *vfio_get_group(int groupid)
 
     QLIST_FOREACH(group, &group_list, next) {
         if (group->groupid == groupid) {
-            return group;
+            /* Found it.  Now is it already in the right context? */
+            if (group->container->space->as == as) {
+                return group;
+            } else {
+                error_report("vfio: group %d used in multiple address spaces",
+                             group->groupid);
+                return NULL;
+            }
         }
     }
 
@@ -3569,7 +3588,7 @@ static VFIOGroup *vfio_get_group(int groupid)
     group->groupid = groupid;
     QLIST_INIT(&group->device_list);
 
-    if (vfio_connect_container(group)) {
+    if (vfio_connect_container(group, as)) {
         error_report("vfio: failed to setup container for group %d", groupid);
         goto close_fd_exit;
     }
@@ -3921,7 +3940,12 @@ static int vfio_initfn(PCIDevice *pdev)
     DPRINTF("%s(%04x:%02x:%02x.%x) group %d\n", __func__, vdev->host.domain,
             vdev->host.bus, vdev->host.slot, vdev->host.function, groupid);
 
-    group = vfio_get_group(groupid);
+    if (pci_device_iommu_address_space(pdev) != &address_space_memory) {
+        error_report("vfio: DMA address space must be system memory");
+        return -EINVAL;
+    }
+
+    group = vfio_get_group(groupid, &address_space_memory);
     if (!group) {
         error_report("vfio: failed to get group %d", groupid);
         return -ENOENT;
@@ -4135,6 +4159,7 @@ static const TypeInfo vfio_pci_dev_info = {
 
 static void register_vfio_pci_dev_type(void)
 {
+    vfio_address_space_init(&vfio_address_space_memory, &address_space_memory);
     type_register_static(&vfio_pci_dev_info);
 }
 
