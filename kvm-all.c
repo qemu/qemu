@@ -1374,7 +1374,7 @@ int kvm_init(MachineClass *mc)
 
     ret = kvm_ioctl(s, KVM_GET_API_VERSION, 0);
     if (ret < KVM_API_VERSION) {
-        if (ret > 0) {
+        if (ret >= 0) {
             ret = -EINVAL;
         }
         fprintf(stderr, "kvm version too old\n");
@@ -1425,6 +1425,7 @@ int kvm_init(MachineClass *mc)
     if (mc->kvm_type) {
         type = mc->kvm_type(kvm_type);
     } else if (kvm_type) {
+        ret = -EINVAL;
         fprintf(stderr, "Invalid argument kvm-type=%s\n", kvm_type);
         goto err;
     }
@@ -1525,6 +1526,7 @@ int kvm_init(MachineClass *mc)
     return 0;
 
 err:
+    assert(ret < 0);
     if (s->vmfd >= 0) {
         close(s->vmfd);
     }
