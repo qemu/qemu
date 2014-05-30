@@ -633,14 +633,32 @@ static const TypeInfo ics_info = {
 /*
  * Exported functions
  */
+static int xics_find_source(XICSState *icp, int irq)
+{
+    int sources = 1;
+    int src;
+
+    /* FIXME: implement multiple sources */
+    for (src = 0; src < sources; ++src) {
+        ICSState *ics = &icp->ics[src];
+        if (ics_valid_irq(ics, irq)) {
+            return src;
+        }
+    }
+
+    return -1;
+}
 
 qemu_irq xics_get_qirq(XICSState *icp, int irq)
 {
-    if (!ics_valid_irq(icp->ics, irq)) {
-        return NULL;
+    int src = xics_find_source(icp, irq);
+
+    if (src >= 0) {
+        ICSState *ics = &icp->ics[src];
+        return ics->qirqs[irq - ics->offset];
     }
 
-    return icp->ics->qirqs[irq - icp->ics->offset];
+    return NULL;
 }
 
 static void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
@@ -653,10 +671,12 @@ static void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
 
 void xics_set_irq_type(XICSState *icp, int irq, bool lsi)
 {
-    ICSState *ics = icp->ics;
+    int src = xics_find_source(icp, irq);
+    ICSState *ics;
 
-    assert(ics_valid_irq(ics, irq));
+    assert(src >= 0);
 
+    ics = &icp->ics[src];
     ics_set_irq_type(ics, irq - ics->offset, lsi);
 }
 
