@@ -99,6 +99,14 @@ endif
 ##################################################
 # Translation level
 
+$(obj)/generated-helpers-wrappers.h: $(obj)/generated-helpers-wrappers.h-timestamp
+$(obj)/generated-helpers-wrappers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+	$(call quiet-command,$(TRACETOOL) \
+		--format=tcg-helper-wrapper-h \
+		--backend=$(TRACE_BACKENDS) \
+		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
+	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
+
 $(obj)/generated-helpers.h: $(obj)/generated-helpers.h-timestamp
 $(obj)/generated-helpers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
