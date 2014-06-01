@@ -351,6 +351,12 @@ static void readline_completion(ReadLineState *rs)
     }
 }
 
+static void readline_clear_screen(ReadLineState *rs)
+{
+    rs->printf_func(rs->opaque, "\033[2J\033[1;1H");
+    readline_show_prompt(rs);
+}
+
 /* return true if command handled */
 void readline_handle_byte(ReadLineState *rs, int ch)
 {
@@ -368,6 +374,9 @@ void readline_handle_byte(ReadLineState *rs, int ch)
             break;
         case 9:
             readline_completion(rs);
+            break;
+        case 12:
+            readline_clear_screen(rs);
             break;
         case 10:
         case 13:
