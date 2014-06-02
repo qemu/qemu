@@ -9,7 +9,8 @@ obj-y += acpi-build.o
 obj-y += bios-linker-loader.o
 hw/i386/acpi-build.o: hw/i386/acpi-build.c hw/i386/acpi-dsdt.hex \
 	hw/i386/ssdt-proc.hex hw/i386/ssdt-pcihp.hex hw/i386/ssdt-misc.hex \
-	hw/i386/acpi-dsdt.hex hw/i386/q35-acpi-dsdt.hex
+	hw/i386/acpi-dsdt.hex hw/i386/q35-acpi-dsdt.hex \
+	hw/i386/q35-acpi-dsdt.hex hw/i386/ssdt-mem.hex
 
 iasl-option=$(shell if test -z "`$(1) $(2) 2>&1 > /dev/null`" \
     ; then echo "$(2)"; else echo "$(3)"; fi ;)

@@ -37,6 +37,7 @@
 #include "bios-linker-loader.h"
 #include "hw/loader.h"
 #include "hw/isa/isa.h"
+#include "hw/acpi/memory_hotplug.h"
 
 /* Supported chipsets: */
 #include "hw/acpi/piix4.h"
@@ -667,6 +668,14 @@ static inline char acpi_get_hex(uint32_t val)
 #define ACPI_PCIQXL_SIZEOF (*ssdt_pciqxl_end - *ssdt_pciqxl_start)
 #define ACPI_PCIQXL_AML (ssdp_pcihp_aml + *ssdt_pciqxl_start)
 
+#include "hw/i386/ssdt-mem.hex"
+
+/* 0x5B 0x82 DeviceOp PkgLength NameString DimmID */
+#define ACPI_MEM_OFFSET_HEX (*ssdt_mem_name - *ssdt_mem_start + 2)
+#define ACPI_MEM_OFFSET_ID (*ssdt_mem_id - *ssdt_mem_start + 7)
+#define ACPI_MEM_SIZEOF (*ssdt_mem_end - *ssdt_mem_start)
+#define ACPI_MEM_AML (ssdm_mem_aml + *ssdt_mem_start)
+
 #define ACPI_SSDT_SIGNATURE 0x54445353 /* SSDT */
 #define ACPI_SSDT_HEADER_LENGTH 36
 
@@ -1003,6 +1012,8 @@ build_ssdt(GArray *table_data, GArray *linker,
            AcpiCpuInfo *cpu, AcpiPmInfo *pm, AcpiMiscInfo *misc,
            PcPciInfo *pci, PcGuestInfo *guest_info)
 {
+    MachineState *machine = MACHINE(qdev_get_machine());
+    uint32_t nr_mem = machine->ram_slots;
     unsigned acpi_cpus = guest_info->apic_id_limit;
     int ssdt_start = table_data->len;
     uint8_t *ssdt_ptr;
@@ -1030,6 +1041,9 @@ build_ssdt(GArray *table_data, GArray *linker,
 
     ACPI_BUILD_SET_LE(ssdt_ptr, sizeof(ssdp_misc_aml),
                       ssdt_isa_pest[0], 16, misc->pvpanic_port);
+
+    ACPI_BUILD_SET_LE(ssdt_ptr, sizeof(ssdp_misc_aml),
+                      ssdt_mctrl_nr_slots[0], 32, nr_mem);
 
     {
         GArray *sb_scope = build_alloc_array();
@@ -1082,6 +1096,27 @@ build_ssdt(GArray *table_data, GArray *linker,
             build_package(package, op, 2);
             build_append_array(sb_scope, package);
             build_free_array(package);
+        }
+
+        if (nr_mem) {
+            assert(nr_mem <= ACPI_MAX_RAM_SLOTS);
+            /* build memory devices */
+            for (i = 0; i < nr_mem; i++) {
+                char id[3];
+                uint8_t *mem = acpi_data_push(sb_scope, ACPI_MEM_SIZEOF);
+
+                snprintf(id, sizeof(id), "%02X", i);
+                memcpy(mem, ACPI_MEM_AML, ACPI_MEM_SIZEOF);
+                memcpy(mem + ACPI_MEM_OFFSET_HEX, id, 2);
+                memcpy(mem + ACPI_MEM_OFFSET_ID, id, 2);
+            }
+
+            /* build Method(MEMORY_SLOT_NOTIFY_METHOD, 2) {
+             *     If (LEqual(Arg0, 0x00)) {Notify(MP00, Arg1)} ...
+             */
+            build_append_notify_method(sb_scope,
+                                       stringify(MEMORY_SLOT_NOTIFY_METHOD),
+                                       "MP%0.02X", nr_mem);
         }
 
         {
