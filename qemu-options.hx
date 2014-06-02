@@ -210,17 +210,20 @@ use is discouraged as it may be removed from future versions.
 ETEXI
 
 DEF("m", HAS_ARG, QEMU_OPTION_m,
-    "-m [size=]megs\n"
+    "-m[emory] [size=]megs[,slots=n,maxmem=size]\n"
     "                configure guest RAM\n"
     "                size: initial amount of guest memory (default: "
-    stringify(DEFAULT_RAM_SIZE) "MiB)\n",
+    stringify(DEFAULT_RAM_SIZE) "MiB)\n"
+    "                slots: number of hotplug slots (default: none)\n"
+    "                maxmem: maximum amount of guest memory (default: none)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -m [size=]@var{megs}
 @findex -m
 Set virtual RAM size to @var{megs} megabytes. Default is 128 MiB.  Optionally,
 a suffix of ``M'' or ``G'' can be used to signify a value in megabytes or
-gigabytes respectively.
+gigabytes respectively. Optional pair @var{slots}, @var{maxmem} could be used
+to set amount of hotluggable memory slots and possible maximum amount of memory.
 ETEXI
 
 DEF("mem-path", HAS_ARG, QEMU_OPTION_mempath,
