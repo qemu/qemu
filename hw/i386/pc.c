@@ -1549,6 +1549,7 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
                          DeviceState *dev, Error **errp)
 {
     int slot;
+    HotplugHandlerClass *hhc;
     Error *local_err = NULL;
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
     MachineState *machine = MACHINE(hotplug_dev);
@@ -1591,9 +1592,18 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
     }
     trace_mhp_pc_dimm_assigned_slot(slot);
 
+    if (!pcms->acpi_dev) {
+        error_setg(&local_err,
+                   "memory hotplug is not enabled: missing acpi device");
+        goto out;
+    }
+
     memory_region_add_subregion(&pcms->hotplug_memory,
                                 addr - pcms->hotplug_memory_base, mr);
     vmstate_register_ram(mr, dev);
+
+    hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
+    hhc->plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
 out:
     error_propagate(errp, local_err);
 }
