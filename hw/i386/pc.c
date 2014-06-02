@@ -1226,7 +1226,8 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
     }
 
     /* initialize hotplug memory address space */
-    if (ram_size < machine->maxram_size) {
+    if (guest_info->has_reserved_memory &&
+        (ram_size < machine->maxram_size)) {
         ram_addr_t hotplug_mem_size =
             machine->maxram_size - ram_size;
 
@@ -1265,6 +1266,12 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
 
     fw_cfg = bochs_bios_init();
     rom_set_fw(fw_cfg);
+
+    if (guest_info->has_reserved_memory && pcms->hotplug_memory_base) {
+        uint64_t *val = g_malloc(sizeof(*val));
+        *val = cpu_to_le64(ROUND_UP(pcms->hotplug_memory_base, 0x1ULL << 30));
+        fw_cfg_add_file(fw_cfg, "etc/reserved-memory-end", val, sizeof(*val));
+    }
 
     if (linux_boot) {
         load_linux(fw_cfg, kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);

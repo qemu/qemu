@@ -77,6 +77,7 @@ struct PcGuestInfo {
     uint64_t *node_cpu;
     FWCfgState *fw_cfg;
     bool has_acpi_build;
+    bool has_reserved_memory;
 };
 
 /* parallel.c */

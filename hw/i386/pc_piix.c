@@ -67,6 +67,7 @@ static bool smbios_legacy_mode;
  * pages in the host.
  */
 static bool gigabyte_align = true;
+static bool has_reserved_memory = true;
 
 /* PC hardware initialisation */
 static void pc_init1(MachineState *machine,
@@ -143,6 +144,7 @@ static void pc_init1(MachineState *machine,
 
     guest_info->has_pci_info = has_pci_info;
     guest_info->isapc_ram_fw = !pci_enabled;
+    guest_info->has_reserved_memory = has_reserved_memory;
 
     if (smbios_defaults) {
         MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -267,6 +269,7 @@ static void pc_init_pci(MachineState *machine)
 static void pc_compat_2_0(MachineState *machine)
 {
     smbios_legacy_mode = true;
+    has_reserved_memory = false;
 }
 
 static void pc_compat_1_7(MachineState *machine)

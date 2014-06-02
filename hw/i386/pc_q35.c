@@ -57,6 +57,7 @@ static bool smbios_legacy_mode;
  * pages in the host.
  */
 static bool gigabyte_align = true;
+static bool has_reserved_memory = true;
 
 /* PC hardware initialisation */
 static void pc_q35_init(MachineState *machine)
@@ -130,6 +131,7 @@ static void pc_q35_init(MachineState *machine)
     guest_info->has_pci_info = has_pci_info;
     guest_info->isapc_ram_fw = false;
     guest_info->has_acpi_build = has_acpi_build;
+    guest_info->has_reserved_memory = has_reserved_memory;
 
     if (smbios_defaults) {
         MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -245,6 +247,7 @@ static void pc_q35_init(MachineState *machine)
 static void pc_compat_2_0(MachineState *machine)
 {
     smbios_legacy_mode = true;
+    has_reserved_memory = false;
 }
 
 static void pc_compat_1_7(MachineState *machine)
