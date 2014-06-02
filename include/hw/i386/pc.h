@@ -31,9 +31,17 @@ struct PCMachineState {
     MemoryRegion hotplug_memory;
 };
 
+/**
+ * PCMachineClass:
+ * @get_hotplug_handler: pointer to parent class callback @get_hotplug_handler
+ */
 struct PCMachineClass {
     /*< private >*/
     MachineClass parent_class;
+
+    /*< public >*/
+    HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
+                                           DeviceState *dev);
 };
 
 typedef struct PCMachineState PCMachineState;
