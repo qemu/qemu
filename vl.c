@@ -3965,6 +3965,8 @@ int main(int argc, char **argv, char **envp)
     }
     loc_set_none();
 
+    os_daemonize();
+
     if (qemu_init_main_loop()) {
         fprintf(stderr, "qemu_init_main_loop failed\n");
         exit(1);
@@ -4205,8 +4207,6 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 #endif
-
-    os_daemonize();
 
     if (pid_file && qemu_create_pidfile(pid_file) != 0) {
         os_pidfile_error();
