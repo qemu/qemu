@@ -23,6 +23,52 @@
 #include "qapi/visitor.h"
 #include "qemu/range.h"
 
+static int pc_dimm_slot2bitmap(Object *obj, void *opaque)
+{
+    unsigned long *bitmap = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_PC_DIMM)) {
+        DeviceState *dev = DEVICE(obj);
+        if (dev->realized) { /* count only realized DIMMs */
+            PCDIMMDevice *d = PC_DIMM(obj);
+            set_bit(d->slot, bitmap);
+        }
+    }
+
+    object_child_foreach(obj, pc_dimm_slot2bitmap, opaque);
+    return 0;
+}
+
+int pc_dimm_get_free_slot(const int *hint, int max_slots, Error **errp)
+{
+    unsigned long *bitmap = bitmap_new(max_slots);
+    int slot = 0;
+
+    object_child_foreach(qdev_get_machine(), pc_dimm_slot2bitmap, bitmap);
+
+    /* check if requested slot is not occupied */
+    if (hint) {
+        if (*hint >= max_slots) {
+            error_setg(errp, "invalid slot# %d, should be less than %d",
+                       *hint, max_slots);
+        } else if (!test_bit(*hint, bitmap)) {
+            slot = *hint;
+        } else {
+            error_setg(errp, "slot %d is busy", *hint);
+        }
+        goto out;
+    }
+
+    /* search for free slot */
+    slot = find_first_zero_bit(bitmap, max_slots);
+    if (slot == max_slots) {
+        error_setg(errp, "no free slots available");
+    }
+out:
+    g_free(bitmap);
+    return slot;
+}
+
 static gint pc_dimm_addr_sort(gconstpointer a, gconstpointer b)
 {
     PCDIMMDevice *x = PC_DIMM(a);
