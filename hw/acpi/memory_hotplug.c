@@ -2,6 +2,7 @@
 #include "hw/acpi/pc-hotplug.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/boards.h"
+#include "trace.h"
 
 static uint64_t acpi_memory_hotplug_read(void *opaque, hwaddr addr,
                                          unsigned int size)
@@ -12,6 +13,7 @@ static uint64_t acpi_memory_hotplug_read(void *opaque, hwaddr addr,
     Object *o;
 
     if (mem_st->selector >= mem_st->dev_count) {
+        trace_mhp_acpi_invalid_slot_selected(mem_st->selector);
         return 0;
     }
 
@@ -20,22 +22,28 @@ static uint64_t acpi_memory_hotplug_read(void *opaque, hwaddr addr,
     switch (addr) {
     case 0x0: /* Lo part of phys address where DIMM is mapped */
         val = o ? object_property_get_int(o, PC_DIMM_ADDR_PROP, NULL) : 0;
+        trace_mhp_acpi_read_addr_lo(mem_st->selector, val);
         break;
     case 0x4: /* Hi part of phys address where DIMM is mapped */
         val = o ? object_property_get_int(o, PC_DIMM_ADDR_PROP, NULL) >> 32 : 0;
+        trace_mhp_acpi_read_addr_hi(mem_st->selector, val);
         break;
     case 0x8: /* Lo part of DIMM size */
         val = o ? object_property_get_int(o, PC_DIMM_SIZE_PROP, NULL) : 0;
+        trace_mhp_acpi_read_size_lo(mem_st->selector, val);
         break;
     case 0xc: /* Hi part of DIMM size */
         val = o ? object_property_get_int(o, PC_DIMM_SIZE_PROP, NULL) >> 32 : 0;
+        trace_mhp_acpi_read_size_hi(mem_st->selector, val);
         break;
     case 0x10: /* node proximity for _PXM method */
         val = o ? object_property_get_int(o, PC_DIMM_NODE_PROP, NULL) : 0;
+        trace_mhp_acpi_read_pxm(mem_st->selector, val);
         break;
     case 0x14: /* pack and return is_* fields */
         val |= mdev->is_enabled   ? 1 : 0;
         val |= mdev->is_inserting ? 2 : 0;
+        trace_mhp_acpi_read_flags(mem_st->selector, val);
         break;
     default:
         val = ~0;
@@ -56,6 +64,7 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
 
     if (addr) {
         if (mem_st->selector >= mem_st->dev_count) {
+            trace_mhp_acpi_invalid_slot_selected(mem_st->selector);
             return;
         }
     }
@@ -63,6 +72,7 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
     switch (addr) {
     case 0x0: /* DIMM slot selector */
         mem_st->selector = data;
+        trace_mhp_acpi_write_slot(mem_st->selector);
         break;
     case 0x4: /* _OST event  */
         mdev = &mem_st->devs[mem_st->selector];
@@ -72,10 +82,12 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
             /* TODO: handle device remove OST event */
         }
         mdev->ost_event = data;
+        trace_mhp_acpi_write_ost_ev(mem_st->selector, mdev->ost_event);
         break;
     case 0x8: /* _OST status */
         mdev = &mem_st->devs[mem_st->selector];
         mdev->ost_status = data;
+        trace_mhp_acpi_write_ost_status(mem_st->selector, mdev->ost_status);
         /* TODO: report async error */
         /* TODO: implement memory removal on guest signal */
         break;
@@ -83,6 +95,7 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
         mdev = &mem_st->devs[mem_st->selector];
         if (data & 2) { /* clear insert event */
             mdev->is_inserting  = false;
+            trace_mhp_acpi_clear_insert_evt(mem_st->selector);
         }
         break;
     }
