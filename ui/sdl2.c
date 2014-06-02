@@ -49,6 +49,7 @@ static struct sdl2_state {
     int idx;
     int last_vm_running; /* per console for caption reasons */
     int x, y;
+    int hidden;
 } *sdl2_console;
 
 static SDL_Surface *guest_sprite_surface;
@@ -136,6 +137,9 @@ static void do_sdl_resize(struct sdl2_state *scon, int width, int height,
         } else {
             flags |= SDL_WINDOW_RESIZABLE;
         }
+        if (scon->hidden) {
+            flags |= SDL_WINDOW_HIDDEN;
+        }
 
         scon->real_window = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED,
                                              SDL_WINDOWPOS_UNDEFINED,
@@ -209,6 +213,23 @@ static void sdl_process_key(struct sdl2_state *scon,
 {
     int qcode = sdl2_scancode_to_qcode[ev->keysym.scancode];
     QemuConsole *con = scon ? scon->dcl.con : NULL;
+
+    if (!qemu_console_is_graphic(con)) {
+        if (ev->type == SDL_KEYDOWN) {
+            switch (ev->keysym.scancode) {
+            case SDL_SCANCODE_RETURN:
+                kbd_put_keysym_console(con, '\n');
+                break;
+            case SDL_SCANCODE_BACKSPACE:
+                kbd_put_keysym_console(con, QEMU_KEY_BACKSPACE);
+                break;
+            default:
+                kbd_put_qcode_console(con, qcode);
+                break;
+            }
+        }
+        return;
+    }
 
     switch (ev->keysym.scancode) {
 #if 0
@@ -305,6 +326,11 @@ static void sdl_show_cursor(void)
 
 static void sdl_grab_start(struct sdl2_state *scon)
 {
+    QemuConsole *con = scon ? scon->dcl.con : NULL;
+
+    if (!con || !qemu_console_is_graphic(con)) {
+        return;
+    }
     /*
      * If the application is not active, do not try to enter grab state. This
      * prevents 'SDL_WM_GrabInput(SDL_GRAB_ON)' from blocking all the
@@ -458,7 +484,7 @@ static void toggle_full_screen(struct sdl2_state *scon)
 
 static void handle_keydown(SDL_Event *ev)
 {
-    int mod_state;
+    int mod_state, win;
     struct sdl2_state *scon = get_scon_from_window(ev->key.windowID);
 
     if (alt_grab) {
@@ -473,6 +499,27 @@ static void handle_keydown(SDL_Event *ev)
 
     if (gui_key_modifier_pressed) {
         switch (ev->key.keysym.scancode) {
+        case SDL_SCANCODE_2:
+        case SDL_SCANCODE_3:
+        case SDL_SCANCODE_4:
+        case SDL_SCANCODE_5:
+        case SDL_SCANCODE_6:
+        case SDL_SCANCODE_7:
+        case SDL_SCANCODE_8:
+        case SDL_SCANCODE_9:
+            win = ev->key.keysym.scancode - SDL_SCANCODE_1;
+            if (win < sdl2_num_outputs) {
+                sdl2_console[win].hidden = !sdl2_console[win].hidden;
+                if (sdl2_console[win].real_window) {
+                    if (sdl2_console[win].hidden) {
+                        SDL_HideWindow(sdl2_console[win].real_window);
+                    } else {
+                        SDL_ShowWindow(sdl2_console[win].real_window);
+                    }
+                }
+                gui_keysym = 1;
+            }
+            break;
         case SDL_SCANCODE_F:
             toggle_full_screen(scon);
             gui_keysym = 1;
@@ -542,6 +589,17 @@ static void handle_keyup(SDL_Event *ev)
     if (!gui_keysym) {
         sdl_process_key(scon, &ev->key);
     }
+}
+
+static void handle_textinput(SDL_Event *ev)
+{
+    struct sdl2_state *scon = get_scon_from_window(ev->key.windowID);
+    QemuConsole *con = scon ? scon->dcl.con : NULL;
+
+    if (qemu_console_is_graphic(con)) {
+        return;
+    }
+    kbd_put_string_console(con, ev->text.text, strlen(ev->text.text));
 }
 
 static void handle_mousemotion(SDL_Event *ev)
@@ -680,6 +738,9 @@ static void sdl_refresh(DisplayChangeListener *dcl)
         case SDL_KEYUP:
             handle_keyup(ev);
             break;
+        case SDL_TEXTINPUT:
+            handle_textinput(ev);
+            break;
         case SDL_QUIT:
             if (!no_quit) {
                 no_shutdown = 0;
@@ -808,7 +869,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
 
     for (i = 0;; i++) {
         QemuConsole *con = qemu_console_lookup_by_index(i);
-        if (!con || !qemu_console_is_graphic(con)) {
+        if (!con) {
             break;
         }
     }
@@ -816,6 +877,9 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     sdl2_console = g_new0(struct sdl2_state, sdl2_num_outputs);
     for (i = 0; i < sdl2_num_outputs; i++) {
         QemuConsole *con = qemu_console_lookup_by_index(i);
+        if (!qemu_console_is_graphic(con)) {
+            sdl2_console[i].hidden = true;
+        }
         sdl2_console[i].dcl.ops = &dcl_ops;
         sdl2_console[i].dcl.con = con;
         register_displaychangelistener(&sdl2_console[i].dcl);
