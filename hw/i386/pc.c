@@ -1225,6 +1225,16 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
         e820_add_entry(0x100000000ULL, above_4g_mem_size, E820_RAM);
     }
 
+    if (!guest_info->has_reserved_memory &&
+        (machine->ram_slots ||
+         (machine->maxram_size > ram_size))) {
+        MachineClass *mc = MACHINE_GET_CLASS(machine);
+
+        error_report("\"-memory 'slots|maxmem'\" is not supported by: %s",
+                     mc->name);
+        exit(EXIT_FAILURE);
+    }
+
     /* initialize hotplug memory address space */
     if (guest_info->has_reserved_memory &&
         (ram_size < machine->maxram_size)) {
