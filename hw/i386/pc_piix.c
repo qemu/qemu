@@ -843,25 +843,25 @@ static QEMUMachine xenfv_machine = {
 
 static void pc_machine_init(void)
 {
-    qemu_register_machine(&pc_i440fx_machine_v2_1);
-    qemu_register_machine(&pc_i440fx_machine_v2_0);
-    qemu_register_machine(&pc_i440fx_machine_v1_7);
-    qemu_register_machine(&pc_i440fx_machine_v1_6);
-    qemu_register_machine(&pc_i440fx_machine_v1_5);
-    qemu_register_machine(&pc_i440fx_machine_v1_4);
-    qemu_register_machine(&pc_machine_v1_3);
-    qemu_register_machine(&pc_machine_v1_2);
-    qemu_register_machine(&pc_machine_v1_1);
-    qemu_register_machine(&pc_machine_v1_0);
-    qemu_register_machine(&pc_machine_v0_15);
-    qemu_register_machine(&pc_machine_v0_14);
-    qemu_register_machine(&pc_machine_v0_13);
-    qemu_register_machine(&pc_machine_v0_12);
-    qemu_register_machine(&pc_machine_v0_11);
-    qemu_register_machine(&pc_machine_v0_10);
-    qemu_register_machine(&isapc_machine);
+    qemu_register_pc_machine(&pc_i440fx_machine_v2_1);
+    qemu_register_pc_machine(&pc_i440fx_machine_v2_0);
+    qemu_register_pc_machine(&pc_i440fx_machine_v1_7);
+    qemu_register_pc_machine(&pc_i440fx_machine_v1_6);
+    qemu_register_pc_machine(&pc_i440fx_machine_v1_5);
+    qemu_register_pc_machine(&pc_i440fx_machine_v1_4);
+    qemu_register_pc_machine(&pc_machine_v1_3);
+    qemu_register_pc_machine(&pc_machine_v1_2);
+    qemu_register_pc_machine(&pc_machine_v1_1);
+    qemu_register_pc_machine(&pc_machine_v1_0);
+    qemu_register_pc_machine(&pc_machine_v0_15);
+    qemu_register_pc_machine(&pc_machine_v0_14);
+    qemu_register_pc_machine(&pc_machine_v0_13);
+    qemu_register_pc_machine(&pc_machine_v0_12);
+    qemu_register_pc_machine(&pc_machine_v0_11);
+    qemu_register_pc_machine(&pc_machine_v0_10);
+    qemu_register_pc_machine(&isapc_machine);
 #ifdef CONFIG_XEN
-    qemu_register_machine(&xenfv_machine);
+    qemu_register_pc_machine(&xenfv_machine);
 #endif
 }
 

@@ -384,12 +384,12 @@ static QEMUMachine pc_q35_machine_v1_4 = {
 
 static void pc_q35_machine_init(void)
 {
-    qemu_register_machine(&pc_q35_machine_v2_1);
-    qemu_register_machine(&pc_q35_machine_v2_0);
-    qemu_register_machine(&pc_q35_machine_v1_7);
-    qemu_register_machine(&pc_q35_machine_v1_6);
-    qemu_register_machine(&pc_q35_machine_v1_5);
-    qemu_register_machine(&pc_q35_machine_v1_4);
+    qemu_register_pc_machine(&pc_q35_machine_v2_1);
+    qemu_register_pc_machine(&pc_q35_machine_v2_0);
+    qemu_register_pc_machine(&pc_q35_machine_v1_7);
+    qemu_register_pc_machine(&pc_q35_machine_v1_6);
+    qemu_register_pc_machine(&pc_q35_machine_v1_5);
+    qemu_register_pc_machine(&pc_q35_machine_v1_4);
 }
 
 machine_init(pc_q35_machine_init);

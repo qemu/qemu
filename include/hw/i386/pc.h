@@ -12,8 +12,32 @@
 #include "qemu/bitmap.h"
 #include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"
+#include "hw/boards.h"
 
 #define HPET_INTCAP "hpet-intcap"
+
+struct PCMachineState {
+    /*< private >*/
+    MachineState parent_obj;
+};
+
+struct PCMachineClass {
+    /*< private >*/
+    MachineClass parent_class;
+};
+
+typedef struct PCMachineState PCMachineState;
+typedef struct PCMachineClass PCMachineClass;
+
+#define TYPE_PC_MACHINE "generic-pc-machine"
+#define PC_MACHINE(obj) \
+    OBJECT_CHECK(PCMachineState, (obj), TYPE_PC_MACHINE)
+#define PC_MACHINE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(PCMachineClass, (obj), TYPE_PC_MACHINE)
+#define PC_MACHINE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(PCMachineClass, (klass), TYPE_PC_MACHINE)
+
+void qemu_register_pc_machine(QEMUMachine *m);
 
 /* PC-style peripherals (also used by other machines).  */
 
