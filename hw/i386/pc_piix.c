@@ -74,6 +74,7 @@ static void pc_init1(MachineState *machine,
                      int pci_enabled,
                      int kvmclock_enabled)
 {
+    PCMachineState *pc_machine = PC_MACHINE(machine);
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *system_io = get_system_io();
     int i;
@@ -246,14 +247,23 @@ static void pc_init1(MachineState *machine,
     }
 
     if (pci_enabled && acpi_enabled) {
+        DeviceState *piix4_pm;
         I2CBus *smbus;
 
         smi_irq = qemu_allocate_irqs(pc_acpi_smi_interrupt, first_cpu, 1);
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
                               gsi[9], *smi_irq,
-                              kvm_enabled(), fw_cfg);
+                              kvm_enabled(), fw_cfg, &piix4_pm);
         smbus_eeprom_init(smbus, 8, NULL, 0);
+
+        object_property_add_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
+                                 TYPE_HOTPLUG_HANDLER,
+                                 (Object **)&pc_machine->acpi_dev,
+                                 object_property_allow_set_link,
+                                 OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
+        object_property_set_link(OBJECT(machine), OBJECT(piix4_pm),
+                                 PC_MACHINE_ACPI_DEVICE_PROP, &error_abort);
     }
 
     if (pci_enabled) {

@@ -21,6 +21,7 @@
  * @hotplug_memory_base: address in guest RAM address space where hotplug memory
  * address space begins.
  * @hotplug_memory: hotplug memory addess space container
+ * @acpi_dev: link to ACPI PM device that performs ACPI hotplug handling
  */
 struct PCMachineState {
     /*< private >*/
@@ -29,7 +30,11 @@ struct PCMachineState {
     /* <public> */
     ram_addr_t hotplug_memory_base;
     MemoryRegion hotplug_memory;
+
+    HotplugHandler *acpi_dev;
 };
+
+#define PC_MACHINE_ACPI_DEVICE_PROP "acpi-device"
 
 /**
  * PCMachineClass:
@@ -210,7 +215,8 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name);
 
 I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                       qemu_irq sci_irq, qemu_irq smi_irq,
-                      int kvm_enabled, FWCfgState *fw_cfg);
+                      int kvm_enabled, FWCfgState *fw_cfg,
+                      DeviceState **piix4_pm);
 void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
 
 /* hpet.c */

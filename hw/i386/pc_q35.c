@@ -62,6 +62,7 @@ static bool has_reserved_memory = true;
 /* PC hardware initialisation */
 static void pc_q35_init(MachineState *machine)
 {
+    PCMachineState *pc_machine = PC_MACHINE(machine);
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
     Q35PCIHost *q35_host;
     PCIHostState *phb;
@@ -178,6 +179,15 @@ static void pc_q35_init(MachineState *machine)
     lpc = pci_create_simple_multifunction(host_bus, PCI_DEVFN(ICH9_LPC_DEV,
                                           ICH9_LPC_FUNC), true,
                                           TYPE_ICH9_LPC_DEVICE);
+
+    object_property_add_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
+                             TYPE_HOTPLUG_HANDLER,
+                             (Object **)&pc_machine->acpi_dev,
+                             object_property_allow_set_link,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
+    object_property_set_link(OBJECT(machine), OBJECT(lpc),
+                             PC_MACHINE_ACPI_DEVICE_PROP, &error_abort);
+
     ich9_lpc = ICH9_LPC_DEVICE(lpc);
     ich9_lpc->pic = gsi;
     ich9_lpc->ioapic = gsi_state->ioapic_irq;

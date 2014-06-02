@@ -483,13 +483,17 @@ Object *piix4_pm_find(void)
 
 I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                       qemu_irq sci_irq, qemu_irq smi_irq,
-                      int kvm_enabled, FWCfgState *fw_cfg)
+                      int kvm_enabled, FWCfgState *fw_cfg,
+                      DeviceState **piix4_pm)
 {
     DeviceState *dev;
     PIIX4PMState *s;
 
     dev = DEVICE(pci_create(bus, devfn, TYPE_PIIX4_PM));
     qdev_prop_set_uint32(dev, "smb_io_base", smb_io_base);
+    if (piix4_pm) {
+        *piix4_pm = dev;
+    }
 
     s = PIIX4_PM(dev);
     s->irq = sci_irq;
