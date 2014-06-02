@@ -248,6 +248,23 @@ static bool vmstate_test_no_use_acpi_pci_hotplug(void *opaque, int version_id)
     return !s->use_acpi_pci_hotplug;
 }
 
+static bool vmstate_test_use_memhp(void *opaque)
+{
+    PIIX4PMState *s = opaque;
+    return s->acpi_memory_hotplug.is_enabled;
+}
+
+static const VMStateDescription vmstate_memhp_state = {
+    .name = "piix4_pm/memhp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_MEMORY_HOTPLUG(acpi_memory_hotplug, PIIX4PMState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 /* qemu-kvm 1.2 uses version 3 but advertised as 2
  * To support incoming qemu-kvm 1.2 migration, change version_id
  * and minimum_version_id to 2 below (which breaks migration from
@@ -278,6 +295,13 @@ static const VMStateDescription vmstate_acpi = {
             struct AcpiPciHpPciStatus),
         VMSTATE_PCI_HOTPLUG(acpi_pci_hotplug, PIIX4PMState,
                             vmstate_test_use_acpi_pci_hotplug),
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection[]) {
+        {
+            .vmsd = &vmstate_memhp_state,
+            .needed = vmstate_test_use_memhp,
+        },
         VMSTATE_END_OF_LIST()
     }
 };

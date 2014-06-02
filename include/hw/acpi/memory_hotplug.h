@@ -3,6 +3,7 @@
 
 #include "hw/qdev-core.h"
 #include "hw/acpi/acpi.h"
+#include "migration/vmstate.h"
 
 #define ACPI_MEMORY_HOTPLUG_STATUS 8
 
@@ -27,4 +28,10 @@ void acpi_memory_hotplug_init(MemoryRegion *as, Object *owner,
 
 void acpi_memory_plug_cb(ACPIREGS *ar, qemu_irq irq, MemHotplugState *mem_st,
                          DeviceState *dev, Error **errp);
+
+extern const VMStateDescription vmstate_memory_hotplug;
+#define VMSTATE_MEMORY_HOTPLUG(memhp, state) \
+    VMSTATE_STRUCT(memhp, state, 1, \
+                   vmstate_memory_hotplug, MemHotplugState)
+
 #endif
