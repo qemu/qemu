@@ -34,6 +34,7 @@
 #include "exec/address-spaces.h"
 
 #include "hw/i386/ich9.h"
+#include "hw/mem/pc-dimm.h"
 
 //#define DEBUG
 
@@ -223,6 +224,11 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
                         &pm->gpe_cpu, ICH9_CPU_HOTPLUG_IO_BASE);
     pm->cpu_added_notifier.notify = ich9_cpu_added_req;
     qemu_register_cpu_added_notifier(&pm->cpu_added_notifier);
+
+    if (pm->acpi_memory_hotplug.is_enabled) {
+        acpi_memory_hotplug_init(pci_address_space_io(lpc_pci), OBJECT(lpc_pci),
+                                 &pm->acpi_memory_hotplug);
+    }
 }
 
 static void ich9_pm_get_gpe0_blk(Object *obj, Visitor *v,
@@ -235,9 +241,25 @@ static void ich9_pm_get_gpe0_blk(Object *obj, Visitor *v,
     visit_type_uint32(v, &value, name, errp);
 }
 
+static bool ich9_pm_get_memory_hotplug_support(Object *obj, Error **errp)
+{
+    ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
+
+    return s->pm.acpi_memory_hotplug.is_enabled;
+}
+
+static void ich9_pm_set_memory_hotplug_support(Object *obj, bool value,
+                                               Error **errp)
+{
+    ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
+
+    s->pm.acpi_memory_hotplug.is_enabled = value;
+}
+
 void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm, Error **errp)
 {
     static const uint32_t gpe0_len = ICH9_PMIO_GPE0_LEN;
+    pm->acpi_memory_hotplug.is_enabled = true;
 
     object_property_add_uint32_ptr(obj, ACPI_PM_PROP_PM_IO_BASE,
                                    &pm->pm_io_base, errp);
@@ -246,4 +268,20 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm, Error **errp)
                         NULL, NULL, pm, NULL);
     object_property_add_uint32_ptr(obj, ACPI_PM_PROP_GPE0_BLK_LEN,
                                    &gpe0_len, errp);
+    object_property_add_bool(obj, "memory-hotplug-support",
+                             ich9_pm_get_memory_hotplug_support,
+                             ich9_pm_set_memory_hotplug_support,
+                             NULL);
+}
+
+void ich9_pm_device_plug_cb(ICH9LPCPMRegs *pm, DeviceState *dev, Error **errp)
+{
+    if (pm->acpi_memory_hotplug.is_enabled &&
+        object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+        acpi_memory_plug_cb(&pm->acpi_regs, pm->irq, &pm->acpi_memory_hotplug,
+                            dev, errp);
+    } else {
+        error_setg(errp, "acpi: device plug request for not supported device"
+                   " type: %s", object_get_typename(OBJECT(dev)));
+    }
 }

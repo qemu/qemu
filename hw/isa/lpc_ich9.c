@@ -599,6 +599,19 @@ static int ich9_lpc_init(PCIDevice *d)
     return 0;
 }
 
+static void ich9_device_plug_cb(HotplugHandler *hotplug_dev,
+                                DeviceState *dev, Error **errp)
+{
+    ICH9LPCState *lpc = ICH9_LPC_DEVICE(hotplug_dev);
+
+    ich9_pm_device_plug_cb(&lpc->pm, dev, errp);
+}
+
+static void ich9_device_unplug_cb(HotplugHandler *hotplug_dev,
+                                  DeviceState *dev, Error **errp)
+{
+}
+
 static bool ich9_rst_cnt_needed(void *opaque)
 {
     ICH9LPCState *lpc = opaque;
@@ -642,6 +655,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->reset = ich9_lpc_reset;
@@ -658,6 +672,8 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
      * pc_q35_init()
      */
     dc->cannot_instantiate_with_device_add_yet = true;
+    hc->plug = ich9_device_plug_cb;
+    hc->unplug = ich9_device_unplug_cb;
 }
 
 static const TypeInfo ich9_lpc_info = {
@@ -666,6 +682,10 @@ static const TypeInfo ich9_lpc_info = {
     .instance_size = sizeof(struct ICH9LPCState),
     .instance_init = ich9_lpc_initfn,
     .class_init  = ich9_lpc_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
 };
 
 static void ich9_lpc_register(void)
