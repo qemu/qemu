@@ -183,7 +183,7 @@ int loader_exec(const char * filename, char ** argv, char ** envp,
                 && bprm.buf[3] == 'F') {
             retval = load_elf_binary(&bprm,regs,infop);
         } else {
-            error_report("Unknown binary format");
+            fprintf(stderr, "Unknown binary format\n");
             return -1;
         }
     }
