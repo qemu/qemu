@@ -70,8 +70,6 @@ static int debugflags = DBGBIT(TXERR) | DBGBIT(GENERAL);
 /*
  * HW models:
  *  E1000_DEV_ID_82540EM works with Windows, Linux, and OS X <= 10.8
- *  E1000_DEV_ID_82573L OK with windoze and Linux 2.6.22,
- *	appears to perform better than 82540EM, but breaks with Linux 2.6.18
  *  E1000_DEV_ID_82544GC_COPPER appears to work; not well tested
  *  E1000_DEV_ID_82545EM_COPPER works with Linux and OS X >= 10.6
  *  Others never tested
@@ -144,7 +142,6 @@ typedef struct E1000State_st {
 typedef struct E1000BaseClass {
     PCIDeviceClass parent_class;
     uint16_t phy_id2;
-    bool is_8257xx;
 } E1000BaseClass;
 
 #define TYPE_E1000_BASE "e1000-base"
@@ -271,14 +268,8 @@ static void
 set_interrupt_cause(E1000State *s, int index, uint32_t val)
 {
     PCIDevice *d = PCI_DEVICE(s);
-    E1000BaseClass *edc = E1000_DEVICE_GET_CLASS(d);
     uint32_t pending_ints;
     uint32_t mit_delay;
-
-    if (val && edc->is_8257xx) {
-        /* hack only for 8257xx models */
-        val |= E1000_ICR_INT_ASSERTED;
-    }
 
     s->mac_reg[ICR] = val;
 
@@ -1581,7 +1572,6 @@ typedef struct E1000Info {
     uint16_t   device_id;
     uint8_t    revision;
     uint16_t   phy_id2;
-    bool       is_8257xx;
 } E1000Info;
 
 static void e1000_class_init(ObjectClass *klass, void *data)
@@ -1598,7 +1588,6 @@ static void e1000_class_init(ObjectClass *klass, void *data)
     k->device_id = info->device_id;
     k->revision = info->revision;
     e->phy_id2 = info->phy_id2;
-    e->is_8257xx = info->is_8257xx;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "Intel Gigabit Ethernet";
@@ -1633,13 +1622,6 @@ static const E1000Info e1000_devices[] = {
         .device_id = E1000_DEV_ID_82545EM_COPPER,
         .revision  = 0x03,
         .phy_id2   = E1000_PHY_ID2_8254xx_DEFAULT,
-    },
-    {
-        .name      = "e1000-82573l",
-        .device_id = E1000_DEV_ID_82573L,
-        .revision  = 0x03,
-        .phy_id2   = E1000_PHY_ID2_82573x,
-        .is_8257xx = true,
     },
 };
 

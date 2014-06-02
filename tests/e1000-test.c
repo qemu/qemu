@@ -33,7 +33,6 @@ static const char *models[] = {
     "e1000-82540em",
     "e1000-82544gc",
     "e1000-82545em",
-    "e1000-82573l",
 };
 
 int main(int argc, char **argv)
