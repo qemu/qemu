@@ -1558,6 +1558,15 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
         goto out;
     }
 
+    addr = pc_dimm_get_free_addr(pcms->hotplug_memory_base,
+                                 memory_region_size(&pcms->hotplug_memory),
+                                 !addr ? NULL : &addr,
+                                 memory_region_size(mr), &local_err);
+    if (local_err) {
+        goto out;
+    }
+    object_property_set_int(OBJECT(dev), addr, PC_DIMM_ADDR_PROP, &local_err);
+
     memory_region_add_subregion(&pcms->hotplug_memory,
                                 addr - pcms->hotplug_memory_base, mr);
     vmstate_register_ram(mr, dev);

@@ -70,4 +70,8 @@ typedef struct PCDIMMDeviceClass {
     MemoryRegion *(*get_memory_region)(PCDIMMDevice *dimm);
 } PCDIMMDeviceClass;
 
+uint64_t pc_dimm_get_free_addr(uint64_t address_space_start,
+                               uint64_t address_space_size,
+                               uint64_t *hint, uint64_t size,
+                               Error **errp);
 #endif
