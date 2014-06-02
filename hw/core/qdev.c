@@ -878,6 +878,20 @@ static bool device_get_hotpluggable(Object *obj, Error **errp)
                                 dev->parent_bus->allow_hotplug);
 }
 
+static bool device_get_hotplugged(Object *obj, Error **err)
+{
+    DeviceState *dev = DEVICE(obj);
+
+    return dev->hotplugged;
+}
+
+static void device_set_hotplugged(Object *obj, bool value, Error **err)
+{
+    DeviceState *dev = DEVICE(obj);
+
+    dev->hotplugged = value;
+}
+
 static void device_initfn(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -896,6 +910,9 @@ static void device_initfn(Object *obj)
                              device_get_realized, device_set_realized, NULL);
     object_property_add_bool(obj, "hotpluggable",
                              device_get_hotpluggable, NULL, NULL);
+    object_property_add_bool(obj, "hotplugged",
+                             device_get_hotplugged, device_set_hotplugged,
+                             &error_abort);
 
     class = object_get_class(OBJECT(dev));
     do {
