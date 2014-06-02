@@ -14,7 +14,7 @@
 #ifdef CONFIG_TRACE_FTRACE
 #include "trace/ftrace.h"
 #endif
-
+#include "qemu/error-report.h"
 
 TraceEvent *trace_event_name(const char *name)
 {
@@ -100,18 +100,24 @@ void trace_print_events(FILE *stream, fprintf_function stream_printf)
 
 static void trace_init_events(const char *fname)
 {
+    Location loc;
+    FILE *fp;
+    char line_buf[1024];
+    size_t line_idx = 0;
+
     if (fname == NULL) {
         return;
     }
 
-    FILE *fp = fopen(fname, "r");
+    loc_push_none(&loc);
+    loc_set_file(fname, 0);
+    fp = fopen(fname, "r");
     if (!fp) {
-        fprintf(stderr, "error: could not open trace events file '%s': %s\n",
-                fname, strerror(errno));
+        error_report("%s", strerror(errno));
         exit(1);
     }
-    char line_buf[1024];
     while (fgets(line_buf, sizeof(line_buf), fp)) {
+        loc_set_file(fname, ++line_idx);
         size_t len = strlen(line_buf);
         if (len > 1) {              /* skip empty lines */
             line_buf[len - 1] = '\0';
@@ -130,13 +136,11 @@ static void trace_init_events(const char *fname)
             } else {
                 TraceEvent *ev = trace_event_name(line_ptr);
                 if (ev == NULL) {
-                    fprintf(stderr,
-                            "WARNING: trace event '%s' does not exist\n",
-                            line_ptr);
+                    error_report("WARNING: trace event '%s' does not exist",
+                                 line_ptr);
                 } else if (!trace_event_get_state_static(ev)) {
-                    fprintf(stderr,
-                            "WARNING: trace event '%s' is not traceable\n",
-                            line_ptr);
+                    error_report("WARNING: trace event '%s' is not traceable\n",
+                                 line_ptr);
                 } else {
                     trace_event_set_state_dynamic(ev, enable);
                 }
@@ -144,10 +148,11 @@ static void trace_init_events(const char *fname)
         }
     }
     if (fclose(fp) != 0) {
-        fprintf(stderr, "error: closing file '%s': %s\n",
-                fname, strerror(errno));
+        loc_set_file(fname, 0);
+        error_report("%s", strerror(errno));
         exit(1);
     }
+    loc_pop(&loc);
 }
 
 bool trace_init_backends(const char *events, const char *file)
