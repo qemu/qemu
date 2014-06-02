@@ -848,6 +848,14 @@ void memory_region_set_alias_offset(MemoryRegion *mr,
 bool memory_region_present(MemoryRegion *container, hwaddr addr);
 
 /**
+ * memory_region_is_mapped: returns true if #MemoryRegion is mapped
+ * into any address space.
+ *
+ * @mr: a #MemoryRegion which should be checked if it's mapped
+ */
+bool memory_region_is_mapped(MemoryRegion *mr);
+
+/**
  * memory_region_find: translate an address/size relative to a
  * MemoryRegion into a #MemoryRegionSection.
  *

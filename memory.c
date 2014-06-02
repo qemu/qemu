@@ -493,7 +493,7 @@ static AddressSpace *memory_region_to_address_space(MemoryRegion *mr)
             return as;
         }
     }
-    abort();
+    return NULL;
 }
 
 /* Render a memory region into the global view.  Ranges in @view obscure
@@ -1593,6 +1593,11 @@ bool memory_region_present(MemoryRegion *container, hwaddr addr)
     return true;
 }
 
+bool memory_region_is_mapped(MemoryRegion *mr)
+{
+    return mr->container ? true : false;
+}
+
 MemoryRegionSection memory_region_find(MemoryRegion *mr,
                                        hwaddr addr, uint64_t size)
 {
@@ -1610,6 +1615,9 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
     }
 
     as = memory_region_to_address_space(root);
+    if (!as) {
+        return ret;
+    }
     range = addrrange_make(int128_make64(addr), int128_make64(size));
 
     view = address_space_get_flatview(as);
