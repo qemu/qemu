@@ -33,6 +33,8 @@
 #include "hw/acpi/pcihp.h"
 #include "hw/acpi/cpu_hotplug.h"
 #include "hw/hotplug.h"
+#include "hw/mem/pc-dimm.h"
+#include "hw/acpi/memory_hotplug.h"
 
 //#define DEBUG
 
@@ -81,6 +83,8 @@ typedef struct PIIX4PMState {
 
     AcpiCpuHotplug gpe_cpu;
     Notifier cpu_added_notifier;
+
+    MemHotplugState acpi_memory_hotplug;
 } PIIX4PMState;
 
 #define TYPE_PIIX4_PM "PIIX4_PM"
@@ -313,7 +317,10 @@ static void piix4_device_plug_cb(HotplugHandler *hotplug_dev,
 {
     PIIX4PMState *s = PIIX4_PM(hotplug_dev);
 
-    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+    if (s->acpi_memory_hotplug.is_enabled &&
+        object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+        acpi_memory_plug_cb(&s->ar, s->irq, &s->acpi_memory_hotplug, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         acpi_pcihp_device_plug_cb(&s->ar, s->irq, &s->acpi_pci_hotplug, dev,
                                   errp);
     } else {
@@ -531,6 +538,10 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                         PIIX4_CPU_HOTPLUG_IO_BASE);
     s->cpu_added_notifier.notify = piix4_cpu_added_req;
     qemu_register_cpu_added_notifier(&s->cpu_added_notifier);
+
+    if (s->acpi_memory_hotplug.is_enabled) {
+        acpi_memory_hotplug_init(parent, OBJECT(s), &s->acpi_memory_hotplug);
+    }
 }
 
 static Property piix4_pm_properties[] = {
@@ -540,6 +551,8 @@ static Property piix4_pm_properties[] = {
     DEFINE_PROP_UINT8(ACPI_PM_PROP_S4_VAL, PIIX4PMState, s4_val, 2),
     DEFINE_PROP_BOOL("acpi-pci-hotplug-with-bridge-support", PIIX4PMState,
                      use_acpi_pci_hotplug, true),
+    DEFINE_PROP_BOOL("memory-hotplug-support", PIIX4PMState,
+                     acpi_memory_hotplug.is_enabled, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

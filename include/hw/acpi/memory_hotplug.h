@@ -15,6 +15,7 @@ typedef struct MemStatus {
 } MemStatus;
 
 typedef struct MemHotplugState {
+    bool is_enabled; /* true if memory hotplug is supported */
     MemoryRegion io;
     uint32_t selector;
     uint32_t dev_count;

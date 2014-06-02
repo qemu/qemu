@@ -311,10 +311,16 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
 #define PC_COMPAT_2_0 \
         {\
+            .driver   = "PIIX4_PM",\
+            .property = "memory-hotplug-support",\
+            .value    = "off",\
+        },\
+        {\
             .driver   = "apic",\
             .property = "version",\
             .value    = stringify(0x11),\
-        },{\
+        },\
+        {\
             .driver   = "nec-usb-xhci",\
             .property = "superspeed-ports-first",\
             .value    = "off",\
