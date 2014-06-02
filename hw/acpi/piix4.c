@@ -308,19 +308,32 @@ static void piix4_pm_powerdown_req(Notifier *n, void *opaque)
     acpi_pm1_evt_power_down(&s->ar);
 }
 
-static void piix4_pci_device_plug_cb(HotplugHandler *hotplug_dev,
-                                     DeviceState *dev, Error **errp)
+static void piix4_device_plug_cb(HotplugHandler *hotplug_dev,
+                                 DeviceState *dev, Error **errp)
 {
     PIIX4PMState *s = PIIX4_PM(hotplug_dev);
-    acpi_pcihp_device_plug_cb(&s->ar, s->irq, &s->acpi_pci_hotplug, dev, errp);
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        acpi_pcihp_device_plug_cb(&s->ar, s->irq, &s->acpi_pci_hotplug, dev,
+                                  errp);
+    } else {
+        error_setg(errp, "acpi: device plug request for not supported device"
+                   " type: %s", object_get_typename(OBJECT(dev)));
+    }
 }
 
-static void piix4_pci_device_unplug_cb(HotplugHandler *hotplug_dev,
-                                       DeviceState *dev, Error **errp)
+static void piix4_device_unplug_cb(HotplugHandler *hotplug_dev,
+                                   DeviceState *dev, Error **errp)
 {
     PIIX4PMState *s = PIIX4_PM(hotplug_dev);
-    acpi_pcihp_device_unplug_cb(&s->ar, s->irq, &s->acpi_pci_hotplug, dev,
-                                errp);
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        acpi_pcihp_device_unplug_cb(&s->ar, s->irq, &s->acpi_pci_hotplug, dev,
+                                    errp);
+    } else {
+        error_setg(errp, "acpi: device unplug request for not supported device"
+                   " type: %s", object_get_typename(OBJECT(dev)));
+    }
 }
 
 static void piix4_update_bus_hotplug(PCIBus *pci_bus, void *opaque)
@@ -551,8 +564,8 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
      */
     dc->cannot_instantiate_with_device_add_yet = true;
     dc->hotpluggable = false;
-    hc->plug = piix4_pci_device_plug_cb;
-    hc->unplug = piix4_pci_device_unplug_cb;
+    hc->plug = piix4_device_plug_cb;
+    hc->unplug = piix4_device_unplug_cb;
 }
 
 static const TypeInfo piix4_pm_info = {
