@@ -306,7 +306,7 @@ DefinitionBlock (
         }
     }
 
-#include "hw/acpi/cpu_hotplug_defs.h"
+#include "hw/acpi/pc-hotplug.h"
 #define CPU_STATUS_BASE PIIX4_CPU_HOTPLUG_IO_BASE
 #include "acpi-dsdt-cpu-hotplug.dsl"
 

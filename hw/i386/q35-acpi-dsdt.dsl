@@ -402,7 +402,7 @@ DefinitionBlock (
         define_gsi_link(GSIH, 0, 0x17)
     }
 
-#include "hw/acpi/cpu_hotplug_defs.h"
+#include "hw/acpi/pc-hotplug.h"
 #define CPU_STATUS_BASE ICH9_CPU_HOTPLUG_IO_BASE
 #include "acpi-dsdt-cpu-hotplug.dsl"
 

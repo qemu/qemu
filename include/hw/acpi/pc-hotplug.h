@@ -1,7 +1,7 @@
 /*
  * QEMU ACPI hotplug utilities shared defines
  *
- * Copyright (C) 2013 Red Hat Inc
+ * Copyright (C) 2014 Red Hat Inc
  *
  * Authors:
  *   Igor Mammedov <imammedo@redhat.com>
@@ -9,8 +9,8 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
-#ifndef ACPI_HOTPLUG_DEFS_H
-#define ACPI_HOTPLUG_DEFS_H
+#ifndef PC_HOTPLUG_H
+#define PC_HOTPLUG_H
 
 /*
  * ONLY DEFINEs are permited in this file since it's shared
