@@ -26,6 +26,7 @@
 
 #include "vnc.h"
 #include "vnc-jobs.h"
+#include "trace.h"
 #include "sysemu/sysemu.h"
 #include "qemu/sockets.h"
 #include "qemu/timer.h"
@@ -1597,6 +1598,10 @@ static void kbd_leds(void *opaque, int ledstate)
     int caps, num, scr;
     bool has_changed = (ledstate != current_led_state(vs));
 
+    trace_vnc_key_guest_leds((ledstate & QEMU_CAPS_LOCK_LED),
+                             (ledstate & QEMU_NUM_LOCK_LED),
+                             (ledstate & QEMU_SCROLL_LOCK_LED));
+
     caps = ledstate & QEMU_CAPS_LOCK_LED ? 1 : 0;
     num  = ledstate & QEMU_NUM_LOCK_LED  ? 1 : 0;
     scr  = ledstate & QEMU_SCROLL_LOCK_LED ? 1 : 0;
@@ -1659,11 +1664,13 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         */
         if (keysym_is_numlock(vs->vd->kbd_layout, sym & 0xFFFF)) {
             if (!vs->modifiers_state[0x45]) {
+                trace_vnc_key_sync_numlock(true);
                 vs->modifiers_state[0x45] = 1;
                 press_key(vs, 0xff7f);
             }
         } else {
             if (vs->modifiers_state[0x45]) {
+                trace_vnc_key_sync_numlock(false);
                 vs->modifiers_state[0x45] = 0;
                 press_key(vs, 0xff7f);
             }
@@ -1682,11 +1689,13 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         int capslock = !!(vs->modifiers_state[0x3a]);
         if (capslock) {
             if (uppercase == shift) {
+                trace_vnc_key_sync_capslock(false);
                 vs->modifiers_state[0x3a] = 0;
                 press_key(vs, 0xffe5);
             }
         } else {
             if (uppercase != shift) {
+                trace_vnc_key_sync_capslock(true);
                 vs->modifiers_state[0x3a] = 1;
                 press_key(vs, 0xffe5);
             }
@@ -1819,6 +1828,11 @@ static void vnc_release_modifiers(VncState *vs)
     }
 }
 
+static const char *code2name(int keycode)
+{
+    return QKeyCode_lookup[qemu_input_key_number_to_qcode(keycode)];
+}
+
 static void key_event(VncState *vs, int down, uint32_t sym)
 {
     int keycode;
@@ -1829,6 +1843,7 @@ static void key_event(VncState *vs, int down, uint32_t sym)
     }
 
     keycode = keysym2scancode(vs->vd->kbd_layout, lsym & 0xFFFF) & SCANCODE_KEYMASK;
+    trace_vnc_key_event_map(down, sym, keycode, code2name(keycode));
     do_key_event(vs, down, keycode, sym);
 }
 
@@ -1836,10 +1851,12 @@ static void ext_key_event(VncState *vs, int down,
                           uint32_t sym, uint16_t keycode)
 {
     /* if the user specifies a keyboard layout, always use it */
-    if (keyboard_layout)
+    if (keyboard_layout) {
         key_event(vs, down, sym);
-    else
+    } else {
+        trace_vnc_key_event_ext(down, sym, keycode, code2name(keycode));
         do_key_event(vs, down, keycode, sym);
+    }
 }
 
 static void framebuffer_update_request(VncState *vs, int incremental,
@@ -2929,10 +2946,12 @@ void vnc_display_init(DisplayState *ds)
     QTAILQ_INIT(&vs->clients);
     vs->expires = TIME_MAX;
 
-    if (keyboard_layout)
+    if (keyboard_layout) {
+        trace_vnc_key_map_init(keyboard_layout);
         vs->kbd_layout = init_keyboard_layout(name2keysym, keyboard_layout);
-    else
+    } else {
         vs->kbd_layout = init_keyboard_layout(name2keysym, "en-us");
+    }
 
     if (!vs->kbd_layout)
         exit(1);
@@ -2976,26 +2995,6 @@ static void vnc_display_close(DisplayState *ds)
 #endif
 }
 
-static int vnc_display_disable_login(DisplayState *ds)
-{
-    VncDisplay *vs = vnc_display;
-
-    if (!vs) {
-        return -1;
-    }
-
-    if (vs->password) {
-        g_free(vs->password);
-    }
-
-    vs->password = NULL;
-    if (vs->auth == VNC_AUTH_NONE) {
-        vs->auth = VNC_AUTH_VNC;
-    }
-
-    return 0;
-}
-
 int vnc_display_password(DisplayState *ds, const char *password)
 {
     VncDisplay *vs = vnc_display;
@@ -3003,20 +3002,18 @@ int vnc_display_password(DisplayState *ds, const char *password)
     if (!vs) {
         return -EINVAL;
     }
-
-    if (!password) {
-        /* This is not the intention of this interface but err on the side
-           of being safe */
-        return vnc_display_disable_login(ds);
+    if (vs->auth == VNC_AUTH_NONE) {
+        error_printf_unless_qmp("If you want use passwords please enable "
+                                "password auth using '-vnc ${dpy},password'.");
+        return -EINVAL;
     }
 
     if (vs->password) {
         g_free(vs->password);
         vs->password = NULL;
     }
-    vs->password = g_strdup(password);
-    if (vs->auth == VNC_AUTH_NONE) {
-        vs->auth = VNC_AUTH_VNC;
+    if (password) {
+        vs->password = g_strdup(password);
     }
 
     return 0;

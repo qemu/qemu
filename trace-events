@@ -1047,6 +1047,14 @@ gd_update(const char *tab, int x, int y, int w, int h) "tab=%s, x=%d, y=%d, w=%d
 gd_key_event(const char *tab, int gdk_keycode, int qemu_keycode, const char *action) "tab=%s, translated GDK keycode %d to QEMU keycode %d (%s)"
 gd_grab(const char *tab, const char *device, bool on) "tab=%s, %s %d"
 
+# ui/vnc.c
+vnc_key_guest_leds(bool caps, bool num, bool scroll) "caps %d, num %d, scroll %d"
+vnc_key_map_init(const char *layout) "%s"
+vnc_key_event_ext(bool down, int sym, int keycode, const char *name) "down %d, sym 0x%x, keycode 0x%x [%s]"
+vnc_key_event_map(bool down, int sym, int keycode, const char *name) "down %d, sym 0x%x -> keycode 0x%x [%s]"
+vnc_key_sync_numlock(bool on) "%d"
+vnc_key_sync_capslock(bool on) "%d"
+
 # ui/input.c
 input_event_key_number(int conidx, int number, const char *qcode, bool down) "con %d, key number 0x%x [%s], down %d"
 input_event_key_qcode(int conidx, const char *qcode, bool down) "con %d, key qcode %s, down %d"
