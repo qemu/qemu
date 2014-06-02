@@ -1580,10 +1580,7 @@ DisplayState *init_displaystate(void)
     gchar *name;
     int i;
 
-    if (!display_state) {
-        display_state = g_new0(DisplayState, 1);
-    }
-
+    get_alloc_displaystate();
     for (i = 0; i < nb_consoles; i++) {
         if (consoles[i]->console_type != GRAPHIC_CONSOLE &&
             consoles[i]->ds == NULL) {
