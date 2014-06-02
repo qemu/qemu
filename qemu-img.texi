@@ -126,6 +126,29 @@ wrong fix or hiding corruption that has already occurred.
 Only the formats @code{qcow2}, @code{qed} and @code{vdi} support
 consistency checks.
 
+In case the image does not have any inconsistencies, check exits with @code{0}.
+Other exit codes indicate the kind of inconsistency found or if another error
+occurred. The following table summarizes all exit codes of the check subcommand:
+
+@table @option
+
+@item 0
+Check completed, the image is (now) consistent
+@item 1
+Check not completed because of internal errors
+@item 2
+Check completed, image is corrupted
+@item 3
+Check completed, image has leaked clusters, but is not corrupted
+@item 63
+Checks are not supported by the image format
+
+@end table
+
+If @code{-r} is specified, exit codes representing the image state refer to the
+state after (the attempt at) repairing it. That is, a successful @code{-r all}
+will yield the exit code 0, independently of the image state before.
+
 @item create [-f @var{fmt}] [-o @var{options}] @var{filename} [@var{size}]
 
 Create the new disk image @var{filename} of size @var{size} and format
