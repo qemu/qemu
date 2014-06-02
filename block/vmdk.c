@@ -1534,7 +1534,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     int ret, i;
     BlockDriverState *bs = NULL;
     VMDK4Header header;
-    Error *local_err;
+    Error *local_err = NULL;
     uint32_t tmp, magic, grains, gd_sectors, gt_size, gt_count;
     uint32_t *gd_buf = NULL;
     int gd_buf_size;
@@ -1700,7 +1700,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
 {
     int idx = 0;
     BlockDriverState *new_bs = NULL;
-    Error *local_err;
+    Error *local_err = NULL;
     char *desc = NULL;
     int64_t total_size = 0, filesize;
     const char *adapter_type = NULL;
@@ -1881,7 +1881,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
     } else {
         ret = bdrv_create_file(filename, options, &local_err);
         if (ret < 0) {
-            error_setg_errno(errp, -ret, "Could not create image file");
+            error_propagate(errp, local_err);
             goto exit;
         }
     }
@@ -1889,7 +1889,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
     ret = bdrv_open(&new_bs, filename, NULL, NULL,
                     BDRV_O_RDWR | BDRV_O_PROTOCOL, NULL, &local_err);
     if (ret < 0) {
-        error_setg_errno(errp, -ret, "Could not write description");
+        error_propagate(errp, local_err);
         goto exit;
     }
     ret = bdrv_pwrite(new_bs, desc_offset, desc, desc_len);

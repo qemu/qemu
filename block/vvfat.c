@@ -787,7 +787,9 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 	    s->current_mapping->path=buffer;
 	    s->current_mapping->read_only =
 		(st.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH)) == 0;
-	}
+        } else {
+            g_free(buffer);
+        }
     }
     closedir(dir);
 
@@ -1866,7 +1868,7 @@ static int check_directory_consistency(BDRVVVFATState *s,
 
 	if (s->used_clusters[cluster_num] & USED_ANY) {
 	    fprintf(stderr, "cluster %d used more than once\n", (int)cluster_num);
-	    return 0;
+            goto fail;
 	}
 	s->used_clusters[cluster_num] = USED_DIRECTORY;
 
@@ -2929,6 +2931,7 @@ static int enable_write_target(BDRVVVFATState *s, Error **errp)
     set_option_parameter(options, BLOCK_OPT_BACKING_FILE, "fat:");
 
     ret = bdrv_create(bdrv_qcow, s->qcow_filename, options, errp);
+    free_option_parameters(options);
     if (ret < 0) {
         goto err;
     }

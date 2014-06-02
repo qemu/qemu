@@ -287,6 +287,7 @@ static int print_block_option_help(const char *filename, const char *fmt)
         proto_drv = bdrv_find_protocol(filename, true);
         if (!proto_drv) {
             error_report("Unknown protocol '%s'", filename);
+            free_option_parameters(create_options);
             return 1;
         }
         create_options = append_option_parameters(create_options,
@@ -662,9 +663,7 @@ static int img_check(int argc, char **argv)
     ret = collect_image_check(bs, check, filename, fmt, fix);
 
     if (ret == -ENOTSUP) {
-        if (output_format == OFORMAT_HUMAN) {
-            error_report("This image format does not support checks");
-        }
+        error_report("This image format does not support checks");
         ret = 63;
         goto fail;
     }
@@ -1454,7 +1453,7 @@ static int img_convert(int argc, char **argv)
     ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
-        return -1;
+        goto out;
     }
 
     out_bs = bdrv_new_open("target", out_filename, out_fmt, flags, true, quiet);
