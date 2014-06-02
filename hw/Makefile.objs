@@ -29,6 +29,7 @@ devices-dirs-$(CONFIG_SOFTMMU) += usb/
 devices-dirs-$(CONFIG_VIRTIO) += virtio/
 devices-dirs-$(CONFIG_SOFTMMU) += watchdog/
 devices-dirs-$(CONFIG_SOFTMMU) += xen/
+devices-dirs-$(CONFIG_MEM_HOTPLUG) += mem/
 devices-dirs-y += core/
 common-obj-y += $(devices-dirs-y)
 obj-y += $(devices-dirs-y)
