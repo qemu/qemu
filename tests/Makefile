@@ -154,6 +154,8 @@ gcov-files-i386-y += hw/pci-bridge/ioh3420.c
 check-qtest-i386-y += tests/usb-hcd-ehci-test$(EXESUF)
 gcov-files-i386-y += hw/usb/hcd-ehci.c
 gcov-files-i386-y += hw/usb/hcd-uhci.c
+gcov-files-i386-y += hw/usb/dev-hid.c
+gcov-files-i386-y += hw/usb/dev-storage.c
 check-qtest-x86_64-y = $(check-qtest-i386-y)
 gcov-files-i386-y += i386-softmmu/hw/timer/mc146818rtc.c
 gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y))
@@ -319,7 +321,7 @@ tests/ac97-test$(EXESUF): tests/ac97-test.o
 tests/es1370-test$(EXESUF): tests/es1370-test.o
 tests/intel-hda-test$(EXESUF): tests/intel-hda-test.o
 tests/ioh3420-test$(EXESUF): tests/ioh3420-test.o
-tests/usb-hcd-ehci-test$(EXESUF): tests/usb-hcd-ehci-test.o
+tests/usb-hcd-ehci-test$(EXESUF): tests/usb-hcd-ehci-test.o $(libqos-pc-obj-y)
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
 tests/test-qemu-opts$(EXESUF): tests/test-qemu-opts.o libqemuutil.a libqemustub.a
 

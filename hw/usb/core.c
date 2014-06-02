@@ -28,6 +28,26 @@
 #include "qemu/iov.h"
 #include "trace.h"
 
+void usb_pick_speed(USBPort *port)
+{
+    static const int speeds[] = {
+        USB_SPEED_SUPER,
+        USB_SPEED_HIGH,
+        USB_SPEED_FULL,
+        USB_SPEED_LOW,
+    };
+    USBDevice *udev = port->dev;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(speeds); i++) {
+        if ((udev->speedmask & (1 << speeds[i])) &&
+            (port->speedmask & (1 << speeds[i]))) {
+            udev->speed = speeds[i];
+            return;
+        }
+    }
+}
+
 void usb_attach(USBPort *port)
 {
     USBDevice *dev = port->dev;
@@ -35,6 +55,7 @@ void usb_attach(USBPort *port)
     assert(dev != NULL);
     assert(dev->attached);
     assert(dev->state == USB_STATE_NOTATTACHED);
+    usb_pick_speed(port);
     port->ops->attach(port);
     dev->state = USB_STATE_ATTACHED;
     usb_device_handle_attach(dev);

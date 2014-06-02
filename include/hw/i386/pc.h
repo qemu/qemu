@@ -271,6 +271,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "apic",\
             .property = "version",\
             .value    = stringify(0x11),\
+        },{\
+            .driver   = "nec-usb-xhci",\
+            .property = "superspeed-ports-first",\
+            .value    = "off",\
         }
 
 #define PC_COMPAT_1_7 \
