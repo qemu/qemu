@@ -1230,6 +1230,12 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
         ram_addr_t hotplug_mem_size =
             machine->maxram_size - ram_size;
 
+        if (machine->ram_slots > ACPI_MAX_RAM_SLOTS) {
+            error_report("unsupported amount of memory slots: %"PRIu64,
+                         machine->ram_slots);
+            exit(EXIT_FAILURE);
+        }
+
         pcms->hotplug_memory_base =
             ROUND_UP(0x100000000ULL + above_4g_mem_size, 1ULL << 30);
 
