@@ -1199,6 +1199,10 @@ build_srat(GArray *table_data, GArray *linker,
     uint64_t curnode;
     int srat_start, numa_start, slots;
     uint64_t mem_len, mem_base, next_base;
+    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+    ram_addr_t hotplugabble_address_space_size =
+        object_property_get_int(OBJECT(pcms), PC_MACHINE_MEMHP_REGION_SIZE,
+                                NULL);
 
     srat_start = table_data->len;
 
@@ -1261,6 +1265,19 @@ build_srat(GArray *table_data, GArray *linker,
     for (; slots < guest_info->numa_nodes + 2; slots++) {
         numamem = acpi_data_push(table_data, sizeof *numamem);
         acpi_build_srat_memory(numamem, 0, 0, 0, MEM_AFFINITY_NOFLAGS);
+    }
+
+    /*
+     * Entry is required for Windows to enable memory hotplug in OS.
+     * Memory devices may override proximity set by this entry,
+     * providing _PXM method if necessary.
+     */
+    if (hotplugabble_address_space_size) {
+        numamem = acpi_data_push(table_data, sizeof *numamem);
+        acpi_build_srat_memory(numamem, pcms->hotplug_memory_base,
+                               hotplugabble_address_space_size, 0,
+                               MEM_AFFINITY_HOTPLUGGABLE |
+                               MEM_AFFINITY_ENABLED);
     }
 
     build_header(linker, table_data,
