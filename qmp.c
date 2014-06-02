@@ -565,13 +565,18 @@ void object_add(const char *type, const char *id, const QDict *qdict,
         }
     }
 
-    user_creatable_complete(obj, &local_err);
+    object_property_add_child(container_get(object_get_root(), "/objects"),
+                              id, obj, &local_err);
     if (local_err) {
         goto out;
     }
 
-    object_property_add_child(container_get(object_get_root(), "/objects"),
-                              id, obj, &local_err);
+    user_creatable_complete(obj, &local_err);
+    if (local_err) {
+        object_property_del(container_get(object_get_root(), "/objects"),
+                            id, &error_abort);
+        goto out;
+    }
 out:
     if (local_err) {
         error_propagate(errp, local_err);

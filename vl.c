@@ -2935,14 +2935,15 @@ static int object_create(QemuOpts *opts, void *opaque)
         goto out;
     }
 
-    user_creatable_complete(obj, &local_err);
-    if (local_err) {
-        goto out;
-    }
-
     object_property_add_child(container_get(object_get_root(), "/objects"),
                               id, obj, &local_err);
 
+    user_creatable_complete(obj, &local_err);
+    if (local_err) {
+        object_property_del(container_get(object_get_root(), "/objects"),
+                            id, &error_abort);
+        goto out;
+    }
 out:
     object_unref(obj);
     if (local_err) {
