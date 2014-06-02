@@ -60,6 +60,7 @@
 #include "acpi-build.h"
 #include "hw/mem/pc-dimm.h"
 #include "trace.h"
+#include "qapi/visitor.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -1629,6 +1630,23 @@ static HotplugHandler *pc_get_hotpug_handler(MachineState *machine,
         pcmc->get_hotplug_handler(machine, dev) : NULL;
 }
 
+static void
+pc_machine_get_hotplug_memory_region_size(Object *obj, Visitor *v, void *opaque,
+                                          const char *name, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    int64_t value = memory_region_size(&pcms->hotplug_memory);
+
+    visit_type_int(v, &value, name, errp);
+}
+
+static void pc_machine_initfn(Object *obj)
+{
+    object_property_add(obj, PC_MACHINE_MEMHP_REGION_SIZE, "int",
+                        pc_machine_get_hotplug_memory_region_size,
+                        NULL, NULL, NULL, NULL);
+}
+
 static void pc_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1645,6 +1663,7 @@ static const TypeInfo pc_machine_info = {
     .parent = TYPE_MACHINE,
     .abstract = true,
     .instance_size = sizeof(PCMachineState),
+    .instance_init = pc_machine_initfn,
     .class_size = sizeof(PCMachineClass),
     .class_init = pc_machine_class_init,
     .interfaces = (InterfaceInfo[]) {

@@ -35,6 +35,7 @@ struct PCMachineState {
 };
 
 #define PC_MACHINE_ACPI_DEVICE_PROP "acpi-device"
+#define PC_MACHINE_MEMHP_REGION_SIZE "hotplug-memory-region-size"
 
 /**
  * PCMachineClass:
