@@ -1197,6 +1197,9 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
     MemoryRegion *ram, *option_rom_mr;
     MemoryRegion *ram_below_4g, *ram_above_4g;
     FWCfgState *fw_cfg;
+    ram_addr_t ram_size = below_4g_mem_size + above_4g_mem_size;
+    MachineState *machine = MACHINE(qdev_get_machine());
+    PCMachineState *pcms = PC_MACHINE(machine);
 
     linux_boot = (kernel_filename != NULL);
 
@@ -1205,8 +1208,7 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
      * with older qemus that used qemu_ram_alloc().
      */
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, NULL, "pc.ram",
-                           below_4g_mem_size + above_4g_mem_size);
+    memory_region_init_ram(ram, NULL, "pc.ram", ram_size);
     vmstate_register_ram_global(ram);
     *ram_memory = ram;
     ram_below_4g = g_malloc(sizeof(*ram_below_4g));
@@ -1223,6 +1225,26 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
         e820_add_entry(0x100000000ULL, above_4g_mem_size, E820_RAM);
     }
 
+    /* initialize hotplug memory address space */
+    if (ram_size < machine->maxram_size) {
+        ram_addr_t hotplug_mem_size =
+            machine->maxram_size - ram_size;
+
+        pcms->hotplug_memory_base =
+            ROUND_UP(0x100000000ULL + above_4g_mem_size, 1ULL << 30);
+
+        if ((pcms->hotplug_memory_base + hotplug_mem_size) <
+            hotplug_mem_size) {
+            error_report("unsupported amount of maximum memory: " RAM_ADDR_FMT,
+                         machine->maxram_size);
+            exit(EXIT_FAILURE);
+        }
+
+        memory_region_init(&pcms->hotplug_memory, OBJECT(pcms),
+                           "hotplug-memory", hotplug_mem_size);
+        memory_region_add_subregion(system_memory, pcms->hotplug_memory_base,
+                                    &pcms->hotplug_memory);
+    }
 
     /* Initialize PC system firmware */
     pc_system_firmware_init(rom_memory, guest_info->isapc_ram_fw);

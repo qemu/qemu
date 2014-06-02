@@ -16,9 +16,19 @@
 
 #define HPET_INTCAP "hpet-intcap"
 
+/**
+ * PCMachineState:
+ * @hotplug_memory_base: address in guest RAM address space where hotplug memory
+ * address space begins.
+ * @hotplug_memory: hotplug memory addess space container
+ */
 struct PCMachineState {
     /*< private >*/
     MachineState parent_obj;
+
+    /* <public> */
+    ram_addr_t hotplug_memory_base;
+    MemoryRegion hotplug_memory;
 };
 
 struct PCMachineClass {
