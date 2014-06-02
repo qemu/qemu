@@ -739,7 +739,6 @@ static void migration_end(void)
     XBZRLE_cache_lock();
     if (XBZRLE.cache) {
         cache_fini(XBZRLE.cache);
-        g_free(XBZRLE.cache);
         g_free(XBZRLE.encoded_buf);
         g_free(XBZRLE.current_buf);
         XBZRLE.cache = NULL;
