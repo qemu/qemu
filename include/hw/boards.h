@@ -61,6 +61,11 @@ extern MachineState *current_machine;
 /**
  * MachineClass:
  * @qemu_machine: #QEMUMachine
+ * @get_hotplug_handler: this function is called during bus-less
+ *    device hotplug. If defined it returns pointer to an instance
+ *    of HotplugHandler object, which handles hotplug operation
+ *    for a given @dev. It may return NULL if @dev doesn't require
+ *    any actions to be performed by hotplug handler.
  */
 struct MachineClass {
     /*< private >*/
@@ -90,6 +95,9 @@ struct MachineClass {
     const char *default_boot_order;
     GlobalProperty *compat_props;
     const char *hw_version;
+
+    HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
+                                           DeviceState *dev);
 };
 
 /**

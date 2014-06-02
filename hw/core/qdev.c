@@ -34,6 +34,7 @@
 #include "qapi/qmp/qjson.h"
 #include "monitor/monitor.h"
 #include "hw/hotplug.h"
+#include "hw/boards.h"
 
 int qdev_hotplug = 0;
 static bool qdev_hot_added = false;
@@ -813,6 +814,18 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             local_err == NULL) {
             hotplug_handler_plug(dev->parent_bus->hotplug_handler,
                                  dev, &local_err);
+        } else if (local_err == NULL &&
+                   object_dynamic_cast(qdev_get_machine(), TYPE_MACHINE)) {
+            HotplugHandler *hotplug_ctrl;
+            MachineState *machine = MACHINE(qdev_get_machine());
+            MachineClass *mc = MACHINE_GET_CLASS(machine);
+
+            if (mc->get_hotplug_handler) {
+                hotplug_ctrl = mc->get_hotplug_handler(machine, dev);
+                if (hotplug_ctrl) {
+                    hotplug_handler_plug(hotplug_ctrl, dev, &local_err);
+                }
+            }
         }
 
         if (qdev_get_vmsd(dev) && local_err == NULL) {
