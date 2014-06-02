@@ -1285,6 +1285,10 @@ mhp_acpi_write_ost_ev(uint32_t slot, uint32_t ev) "slot[0x%"PRIx32"] OST EVENT: 
 mhp_acpi_write_ost_status(uint32_t slot, uint32_t st) "slot[0x%"PRIx32"] OST STATUS: 0x%"PRIx32
 mhp_acpi_clear_insert_evt(uint32_t slot) "slot[0x%"PRIx32"] clear insert event"
 
+#hw/i386/pc.c
+mhp_pc_dimm_assigned_slot(int slot) "0x%d"
+mhp_pc_dimm_assigned_address(uint64_t addr) "0x%"PRIx64
+
 # target-s390x/kvm.c
 kvm_enable_cmma(int rc) "CMMA: enabling with result code %d"
 kvm_clear_cmma(int rc) "CMMA: clearing with result code %d"
