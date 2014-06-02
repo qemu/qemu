@@ -6,16 +6,20 @@ host side
 ---------
 
 First you must compile qemu with a user interface supporting
-multihead/multiseat and input event routing.  Right now this list is
-pretty short: sdl2.
+multihead/multiseat and input event routing.  Right now this
+list includes sdl2 and gtk (both 2+3):
 
   ./configure --enable-sdl --with-sdlabi=2.0
+
+or
+
+  ./configure --enable-gtk
 
 
 Next put together the qemu command line:
 
 qemu	-enable-kvm -usb $memory $disk $whatever \
-	-display sdl \
+	-display [ sdl | gtk ] \
 	-vga std \
 	-device usb-tablet
 
@@ -36,6 +40,12 @@ usb mouse, both connected to the xhci and linked to the display.
 The "display=video2" sets up the input routing.  Any input coming from
 the window which belongs to the video.2 display adapter will be routed
 to these input devices.
+
+The sdl2 ui will start up with two windows, one for each display
+device.  The gtk ui will start with a single window and each display
+in a separate tab.  You can either simply switch tabs to switch heads,
+or use the "View / Detach tab" menu item to move one of the displays
+to its own window so you can see both display devices side-by-side.
 
 
 guest side
