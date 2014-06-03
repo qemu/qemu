@@ -1776,10 +1776,12 @@ static subpage_t *subpage_init(AddressSpace *as, hwaddr base)
     return mmio;
 }
 
-static uint16_t dummy_section(PhysPageMap *map, MemoryRegion *mr)
+static uint16_t dummy_section(PhysPageMap *map, AddressSpace *as,
+                              MemoryRegion *mr)
 {
+    assert(as);
     MemoryRegionSection section = {
-        .address_space = &address_space_memory,
+        .address_space = as,
         .mr = mr,
         .offset_within_address_space = 0,
         .offset_within_region = 0,
@@ -1811,13 +1813,13 @@ static void mem_begin(MemoryListener *listener)
     AddressSpaceDispatch *d = g_new0(AddressSpaceDispatch, 1);
     uint16_t n;
 
-    n = dummy_section(&d->map, &io_mem_unassigned);
+    n = dummy_section(&d->map, as, &io_mem_unassigned);
     assert(n == PHYS_SECTION_UNASSIGNED);
-    n = dummy_section(&d->map, &io_mem_notdirty);
+    n = dummy_section(&d->map, as, &io_mem_notdirty);
     assert(n == PHYS_SECTION_NOTDIRTY);
-    n = dummy_section(&d->map, &io_mem_rom);
+    n = dummy_section(&d->map, as, &io_mem_rom);
     assert(n == PHYS_SECTION_ROM);
-    n = dummy_section(&d->map, &io_mem_watch);
+    n = dummy_section(&d->map, as, &io_mem_watch);
     assert(n == PHYS_SECTION_WATCH);
 
     d->phys_map  = (PhysPageEntry) { .ptr = PHYS_MAP_NODE_NIL, .skip = 1 };
