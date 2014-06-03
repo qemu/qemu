@@ -1135,21 +1135,14 @@ static int bdrv_fill_options(QDict **options, const char **pfilename, int flags,
  * returns. Then, the caller is responsible for freeing it. If it intends to
  * reuse the QDict, QINCREF() should be called beforehand.
  */
-static int bdrv_file_open(BlockDriverState *bs, QDict **options, int flags,
-                          Error **errp)
+static int bdrv_file_open(BlockDriverState *bs, BlockDriver *drv,
+                          QDict **options, int flags, Error **errp)
 {
-    BlockDriver *drv;
     const char *filename;
-    const char *drvname;
     Error *local_err = NULL;
     int ret;
 
     filename = qdict_get_try_str(*options, "filename");
-    drvname = qdict_get_str(*options, "driver");
-
-    drv = bdrv_find_format(drvname);
-    assert(drv);
-    qdict_del(*options, "driver");
 
     /* Open the file */
     if (!drv->bdrv_file_open) {
@@ -1452,35 +1445,23 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     bs->options = options;
     options = qdict_clone_shallow(options);
 
-    if (flags & BDRV_O_PROTOCOL) {
-        assert(!drv);
-        ret = bdrv_file_open(bs, &options, flags & ~BDRV_O_PROTOCOL,
-                             &local_err);
-        if (!ret) {
-            drv = bs->drv;
-            goto done;
-        } else if (bs->drv) {
-            goto close_and_fail;
-        } else {
+    /* Open image file without format layer */
+    if ((flags & BDRV_O_PROTOCOL) == 0) {
+        if (flags & BDRV_O_RDWR) {
+            flags |= BDRV_O_ALLOW_RDWR;
+        }
+        if (flags & BDRV_O_SNAPSHOT) {
+            snapshot_flags = bdrv_temp_snapshot_flags(flags);
+            flags = bdrv_backing_flags(flags);
+        }
+
+        assert(file == NULL);
+        ret = bdrv_open_image(&file, filename, options, "file",
+                              bdrv_inherited_flags(flags),
+                              true, &local_err);
+        if (ret < 0) {
             goto fail;
         }
-    }
-
-    /* Open image file without format layer */
-    if (flags & BDRV_O_RDWR) {
-        flags |= BDRV_O_ALLOW_RDWR;
-    }
-    if (flags & BDRV_O_SNAPSHOT) {
-        snapshot_flags = bdrv_temp_snapshot_flags(flags);
-        flags = bdrv_backing_flags(flags);
-    }
-
-    assert(file == NULL);
-    ret = bdrv_open_image(&file, filename, options, "file",
-                          bdrv_inherited_flags(flags),
-                          true, &local_err);
-    if (ret < 0) {
-        goto fail;
     }
 
     /* Find the right image format driver */
@@ -1492,7 +1473,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         drv = bdrv_find_format(drvname);
         qdict_del(options, "driver");
         if (!drv) {
-            error_setg(errp, "Invalid driver: '%s'", drvname);
+            error_setg(errp, "Unknown driver: '%s'", drvname);
             ret = -EINVAL;
             goto fail;
         }
@@ -1508,6 +1489,18 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     }
 
     /* Open the image */
+    if (flags & BDRV_O_PROTOCOL) {
+        ret = bdrv_file_open(bs, drv, &options, flags & ~BDRV_O_PROTOCOL,
+                             &local_err);
+        if (!ret) {
+            goto done;
+        } else if (bs->drv) {
+            goto close_and_fail;
+        } else {
+            goto fail;
+        }
+    }
+
     ret = bdrv_open_common(bs, file, options, flags, drv, &local_err);
     if (ret < 0) {
         goto fail;
