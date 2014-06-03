@@ -99,19 +99,6 @@ static const char *special_regnames[] =
     "sr16", "sr17", "sr18"
 };
 
-/* Sign extend at translation time.  */
-static inline int sign_extend(unsigned int val, unsigned int width)
-{
-        int sval;
-
-        /* LSL.  */
-        val <<= 31 - width;
-        sval = val;
-        /* ASR.  */
-        sval >>= 31 - width;
-        return sval;
-}
-
 static inline void t_sync_flags(DisasContext *dc)
 {
     /* Synch the tb dependent flags between translator and runtime.  */
