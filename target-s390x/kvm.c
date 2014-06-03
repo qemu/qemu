@@ -109,6 +109,7 @@
 #define ICPT_WAITPSW                    0x1c
 #define ICPT_SOFT_INTERCEPT             0x24
 #define ICPT_CPU_STOP                   0x28
+#define ICPT_OPEREXC                    0x2c
 #define ICPT_IO                         0x40
 
 #define NR_LOCAL_IRQS 32
@@ -665,16 +666,37 @@ static void *legacy_s390_alloc(size_t size, uint64_t *align)
     return mem == MAP_FAILED ? NULL : mem;
 }
 
-/* DIAG 501 is used for sw breakpoints */
-static const uint8_t diag_501[] = {0x83, 0x24, 0x05, 0x01};
+static uint8_t const *sw_bp_inst;
+static uint8_t sw_bp_ilen;
+
+static void determine_sw_breakpoint_instr(void)
+{
+        /* DIAG 501 is used for sw breakpoints with old kernels */
+        static const uint8_t diag_501[] = {0x83, 0x24, 0x05, 0x01};
+        /* Instruction 0x0000 is used for sw breakpoints with recent kernels */
+        static const uint8_t instr_0x0000[] = {0x00, 0x00};
+
+        if (sw_bp_inst) {
+            return;
+        }
+        if (kvm_vm_enable_cap(kvm_state, KVM_CAP_S390_USER_INSTR0, 0)) {
+            sw_bp_inst = diag_501;
+            sw_bp_ilen = sizeof(diag_501);
+            DPRINTF("KVM: will use 4-byte sw breakpoints.\n");
+        } else {
+            sw_bp_inst = instr_0x0000;
+            sw_bp_ilen = sizeof(instr_0x0000);
+            DPRINTF("KVM: will use 2-byte sw breakpoints.\n");
+        }
+}
 
 int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 {
+    determine_sw_breakpoint_instr();
 
     if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn,
-                            sizeof(diag_501), 0) ||
-        cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)diag_501,
-                            sizeof(diag_501), 1)) {
+                            sw_bp_ilen, 0) ||
+        cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)sw_bp_inst, sw_bp_ilen, 1)) {
         return -EINVAL;
     }
     return 0;
@@ -682,14 +704,14 @@ int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 
 int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 {
-    uint8_t t[sizeof(diag_501)];
+    uint8_t t[MAX_ILEN];
 
-    if (cpu_memory_rw_debug(cs, bp->pc, t, sizeof(diag_501), 0)) {
+    if (cpu_memory_rw_debug(cs, bp->pc, t, sw_bp_ilen, 0)) {
         return -EINVAL;
-    } else if (memcmp(t, diag_501, sizeof(diag_501))) {
+    } else if (memcmp(t, sw_bp_inst, sw_bp_ilen)) {
         return -EINVAL;
     } else if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn,
-                                   sizeof(diag_501), 1)) {
+                                   sw_bp_ilen, 1)) {
         return -EINVAL;
     }
 
@@ -1310,7 +1332,7 @@ static int handle_sw_breakpoint(S390CPU *cpu, struct kvm_run *run)
 
     cpu_synchronize_state(CPU(cpu));
 
-    pc = env->psw.addr - 4;
+    pc = env->psw.addr - sw_bp_ilen;
     if (kvm_find_sw_breakpoint(CPU(cpu), pc)) {
         env->psw.addr = pc;
         return EXCP_DEBUG;
@@ -1863,6 +1885,14 @@ static int handle_intercept(S390CPU *cpu)
             }
             cpu->env.sigp_order = 0;
             r = EXCP_HALTED;
+            break;
+        case ICPT_OPEREXC:
+            /* currently only instr 0x0000 after enabled via capability */
+            r = handle_sw_breakpoint(cpu, run);
+            if (r == -ENOENT) {
+                enter_pgmcheck(cpu, PGM_OPERATION);
+                r = 0;
+            }
             break;
         case ICPT_SOFT_INTERCEPT:
             fprintf(stderr, "KVM unimplemented icpt SOFT\n");
