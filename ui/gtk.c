@@ -877,22 +877,18 @@ static gboolean gd_scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
     return TRUE;
 }
 
-static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
+static int gd_map_keycode(GtkDisplayState *s, int gdk_keycode)
 {
-    VirtualConsole *vc = opaque;
-    GtkDisplayState *s = vc->s;
-    int gdk_keycode = key->hardware_keycode;
-    int i;
+    int qemu_keycode;
 
 #ifdef _WIN32
-    UINT qemu_keycode = MapVirtualKey(gdk_keycode, MAPVK_VK_TO_VSC);
+    qemu_keycode = MapVirtualKey(gdk_keycode, MAPVK_VK_TO_VSC);
     switch (qemu_keycode) {
     case 103:   /* alt gr */
         qemu_keycode = 56 | SCANCODE_GREY;
         break;
     }
 #else
-    int qemu_keycode;
 
     if (gdk_keycode < 9) {
         qemu_keycode = 0;
@@ -912,6 +908,19 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
         qemu_keycode = 0;
     }
 #endif
+
+    return qemu_keycode;
+}
+
+static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
+{
+    VirtualConsole *vc = opaque;
+    GtkDisplayState *s = vc->s;
+    int gdk_keycode = key->hardware_keycode;
+    int qemu_keycode;
+    int i;
+
+    qemu_keycode = gd_map_keycode(s, gdk_keycode);
 
     trace_gd_key_event(vc->label, gdk_keycode, qemu_keycode,
                        (key->type == GDK_KEY_PRESS) ? "down" : "up");
