@@ -131,6 +131,48 @@ static int cpu_write_fp_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
     }
 }
 
+/* the values represent the positions in s390-vx.xml */
+#define S390_V0L_REGNUM 0
+#define S390_V15L_REGNUM 15
+#define S390_V16_REGNUM 16
+#define S390_V31_REGNUM 31
+/* total number of registers in s390-vx.xml */
+#define S390_NUM_VREGS 32
+
+static int cpu_read_vreg(CPUS390XState *env, uint8_t *mem_buf, int n)
+{
+    int ret;
+
+    switch (n) {
+    case S390_V0L_REGNUM ... S390_V15L_REGNUM:
+        ret = gdb_get_reg64(mem_buf, env->vregs[n][1].ll);
+        break;
+    case S390_V16_REGNUM ... S390_V31_REGNUM:
+        ret = gdb_get_reg64(mem_buf, env->vregs[n][0].ll);
+        ret += gdb_get_reg64(mem_buf + 8, env->vregs[n][1].ll);
+        break;
+    default:
+        ret = 0;
+    }
+
+    return ret;
+}
+
+static int cpu_write_vreg(CPUS390XState *env, uint8_t *mem_buf, int n)
+{
+    switch (n) {
+    case S390_V0L_REGNUM ... S390_V15L_REGNUM:
+        env->vregs[n][1].ll = ldtul_p(mem_buf + 8);
+        return 8;
+    case S390_V16_REGNUM ... S390_V31_REGNUM:
+        env->vregs[n][0].ll = ldtul_p(mem_buf);
+        env->vregs[n][1].ll = ldtul_p(mem_buf + 8);
+        return 16;
+    default:
+        return 0;
+    }
+}
+
 void s390_cpu_gdb_init(CPUState *cs)
 {
     gdb_register_coprocessor(cs, cpu_read_ac_reg,
@@ -140,4 +182,8 @@ void s390_cpu_gdb_init(CPUState *cs)
     gdb_register_coprocessor(cs, cpu_read_fp_reg,
                              cpu_write_fp_reg,
                              S390_NUM_FP_REGS, "s390-fpr.xml", 0);
+
+    gdb_register_coprocessor(cs, cpu_read_vreg,
+                             cpu_write_vreg,
+                             S390_NUM_VREGS, "s390-vx.xml", 0);
 }
