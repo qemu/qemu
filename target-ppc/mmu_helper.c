@@ -903,6 +903,11 @@ static int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
     target_ulong mask;
     uint32_t tlb_pid;
 
+    if (!msr_cm) {
+        /* In 32bit mode we can only address 32bit EAs */
+        address = (uint32_t)address;
+    }
+
     /* Check valid flag */
     if (!(tlb->mas1 & MAS1_VALID)) {
         return -1;
