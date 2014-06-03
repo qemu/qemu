@@ -17,6 +17,7 @@
 #include "qemu/host-utils.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
+#include "sysemu/cpus.h"
 #include "hw/sysbus.h"
 #include "hw/kvm/clock.h"
 
@@ -65,6 +66,7 @@ static uint64_t kvmclock_current_nsec(KVMClockState *s)
 
     cpu_physical_memory_read(kvmclock_struct_pa, &time, sizeof(time));
 
+    assert(time.tsc_timestamp <= migration_tsc);
     delta = migration_tsc - time.tsc_timestamp;
     if (time.tsc_shift < 0) {
         delta >>= -time.tsc_shift;
@@ -123,6 +125,8 @@ static void kvmclock_vm_state_change(void *opaque, int running,
         if (s->clock_valid) {
             return;
         }
+
+        cpu_synchronize_all_states();
         ret = kvm_vm_ioctl(kvm_state, KVM_GET_CLOCK, &data);
         if (ret < 0) {
             fprintf(stderr, "KVM_GET_CLOCK failed: %s\n", strerror(ret));
