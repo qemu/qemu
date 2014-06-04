@@ -1125,44 +1125,6 @@ static int bdrv_fill_options(QDict **options, const char **pfilename, int flags,
     return 0;
 }
 
-/*
- * Opens a file using a protocol (file, host_device, nbd, ...)
- *
- * options is an indirect pointer to a QDict of options to pass to the block
- * drivers, or pointer to NULL for an empty set of options. If this function
- * takes ownership of the QDict reference, it will set *options to NULL;
- * otherwise, it will contain unused/unrecognized options after this function
- * returns. Then, the caller is responsible for freeing it. If it intends to
- * reuse the QDict, QINCREF() should be called beforehand.
- */
-static int bdrv_file_open(BlockDriverState *bs, BlockDriver *drv,
-                          QDict **options, int flags, Error **errp)
-{
-    const char *filename;
-    Error *local_err = NULL;
-    int ret;
-
-    filename = qdict_get_try_str(*options, "filename");
-
-    /* Open the file */
-    if (!drv->bdrv_file_open) {
-        ret = bdrv_open(&bs, filename, NULL, *options, flags, drv, &local_err);
-        *options = NULL;
-    } else {
-        ret = bdrv_open_common(bs, NULL, *options, flags, drv, &local_err);
-    }
-    if (ret < 0) {
-        error_propagate(errp, local_err);
-        goto fail;
-    }
-
-    bs->growable = 1;
-    return 0;
-
-fail:
-    return ret;
-}
-
 void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
 {
 
@@ -1490,9 +1452,18 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
 
     /* Open the image */
     if (flags & BDRV_O_PROTOCOL) {
-        ret = bdrv_file_open(bs, drv, &options, flags & ~BDRV_O_PROTOCOL,
-                             &local_err);
+        if (!drv->bdrv_file_open) {
+            const char *filename;
+            filename = qdict_get_try_str(options, "filename");
+            ret = bdrv_open(&bs, filename, NULL, options,
+                            flags & ~BDRV_O_PROTOCOL, drv, &local_err);
+            options = NULL;
+        } else {
+            ret = bdrv_open_common(bs, NULL, options,
+                                   flags & ~BDRV_O_PROTOCOL, drv, &local_err);
+        }
         if (!ret) {
+            bs->growable = 1;
             goto done;
         } else if (bs->drv) {
             goto close_and_fail;
