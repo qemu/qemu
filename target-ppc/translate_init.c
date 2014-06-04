@@ -953,72 +953,72 @@ static void gen_spr_7xx (CPUPPCState *env)
                  0x00000000);
     /* Performance monitors */
     /* XXX : not implemented */
-    spr_register(env, SPR_MMCR0, "MMCR0",
+    spr_register(env, SPR_7XX_MMCR0, "MMCR0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_MMCR1, "MMCR1",
+    spr_register(env, SPR_7XX_MMCR1, "MMCR1",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC1, "PMC1",
+    spr_register(env, SPR_7XX_PMC1, "PMC1",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC2, "PMC2",
+    spr_register(env, SPR_7XX_PMC2, "PMC2",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC3, "PMC3",
+    spr_register(env, SPR_7XX_PMC3, "PMC3",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC4, "PMC4",
+    spr_register(env, SPR_7XX_PMC4, "PMC4",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_SIAR, "SIAR",
+    spr_register(env, SPR_7XX_SIAR, "SIAR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UMMCR0, "UMMCR0",
+    spr_register(env, SPR_7XX_UMMCR0, "UMMCR0",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UMMCR1, "UMMCR1",
+    spr_register(env, SPR_7XX_UMMCR1, "UMMCR1",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC1, "UPMC1",
+    spr_register(env, SPR_7XX_UPMC1, "UPMC1",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC2, "UPMC2",
+    spr_register(env, SPR_7XX_UPMC2, "UPMC2",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC3, "UPMC3",
+    spr_register(env, SPR_7XX_UPMC3, "UPMC3",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC4, "UPMC4",
+    spr_register(env, SPR_7XX_UPMC4, "UPMC4",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_USIAR, "USIAR",
+    spr_register(env, SPR_7XX_USIAR, "USIAR",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
@@ -1119,22 +1119,22 @@ static void gen_spr_604 (CPUPPCState *env)
                      KVM_REG_PPC_DABR, 0x00000000);
     /* Performance counters */
     /* XXX : not implemented */
-    spr_register(env, SPR_MMCR0, "MMCR0",
+    spr_register(env, SPR_7XX_MMCR0, "MMCR0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC1, "PMC1",
+    spr_register(env, SPR_7XX_PMC1, "PMC1",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC2, "PMC2",
+    spr_register(env, SPR_7XX_PMC2, "PMC2",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_SIAR, "SIAR",
+    spr_register(env, SPR_7XX_SIAR, "SIAR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
@@ -1354,12 +1354,12 @@ static void gen_spr_74xx (CPUPPCState *env)
                  &spr_read_generic, &spr_write_pir,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_MMCR2, "MMCR2",
+    spr_register(env, SPR_74XX_MMCR2, "MMCR2",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UMMCR2, "UMMCR2",
+    spr_register(env, SPR_74XX_UMMCR2, "UMMCR2",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
@@ -5436,17 +5436,17 @@ static void init_proc_604E (CPUPPCState *env)
     gen_spr_ne_601(env);
     gen_spr_604(env);
     /* XXX : not implemented */
-    spr_register(env, SPR_MMCR1, "MMCR1",
+    spr_register(env, SPR_7XX_MMCR1, "MMCR1",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC3, "PMC3",
+    spr_register(env, SPR_7XX_PMC3, "PMC3",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC4, "PMC4",
+    spr_register(env, SPR_7XX_PMC4, "PMC4",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
@@ -6475,22 +6475,22 @@ static void init_proc_7440 (CPUPPCState *env)
                  0x00000000);
     /* PMC */
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC5, "PMC5",
+    spr_register(env, SPR_7XX_PMC5, "PMC5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC5, "UPMC5",
+    spr_register(env, SPR_7XX_UPMC5, "UPMC5",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC6, "PMC6",
+    spr_register(env, SPR_7XX_PMC6, "PMC6",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC6, "UPMC6",
+    spr_register(env, SPR_7XX_UPMC6, "UPMC6",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
@@ -6608,22 +6608,22 @@ static void init_proc_7450 (CPUPPCState *env)
                  0x00000000);
     /* PMC */
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC5, "PMC5",
+    spr_register(env, SPR_7XX_PMC5, "PMC5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC5, "UPMC5",
+    spr_register(env, SPR_7XX_UPMC5, "UPMC5",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC6, "PMC6",
+    spr_register(env, SPR_7XX_PMC6, "PMC6",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC6, "UPMC6",
+    spr_register(env, SPR_7XX_UPMC6, "UPMC6",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
@@ -6710,22 +6710,22 @@ static void init_proc_7445 (CPUPPCState *env)
                  0x00000000);
     /* PMC */
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC5, "PMC5",
+    spr_register(env, SPR_7XX_PMC5, "PMC5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC5, "UPMC5",
+    spr_register(env, SPR_7XX_UPMC5, "UPMC5",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC6, "PMC6",
+    spr_register(env, SPR_7XX_PMC6, "PMC6",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC6, "UPMC6",
+    spr_register(env, SPR_7XX_UPMC6, "UPMC6",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
@@ -6848,22 +6848,22 @@ static void init_proc_7455 (CPUPPCState *env)
                  0x00000000);
     /* PMC */
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC5, "PMC5",
+    spr_register(env, SPR_7XX_PMC5, "PMC5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC5, "UPMC5",
+    spr_register(env, SPR_7XX_UPMC5, "UPMC5",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC6, "PMC6",
+    spr_register(env, SPR_7XX_PMC6, "PMC6",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC6, "UPMC6",
+    spr_register(env, SPR_7XX_UPMC6, "UPMC6",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
@@ -7010,22 +7010,22 @@ static void init_proc_7457 (CPUPPCState *env)
                  0x00000000);
     /* PMC */
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC5, "PMC5",
+    spr_register(env, SPR_7XX_PMC5, "PMC5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC5, "UPMC5",
+    spr_register(env, SPR_7XX_UPMC5, "UPMC5",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC6, "PMC6",
+    spr_register(env, SPR_7XX_PMC6, "PMC6",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC6, "UPMC6",
+    spr_register(env, SPR_7XX_UPMC6, "UPMC6",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
@@ -7147,22 +7147,22 @@ static void init_proc_e600 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC5, "PMC5",
+    spr_register(env, SPR_7XX_PMC5, "PMC5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC5, "UPMC5",
+    spr_register(env, SPR_7XX_UPMC5, "UPMC5",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_PMC6, "PMC6",
+    spr_register(env, SPR_7XX_PMC6, "PMC6",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_UPMC6, "UPMC6",
+    spr_register(env, SPR_7XX_UPMC6, "UPMC6",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
@@ -7783,11 +7783,11 @@ static void init_proc_POWER7 (CPUPPCState *env)
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_MMCRA, 0x00000000);
-    spr_register_kvm(env, SPR_PMC5, "SPR_PMC5",
+    spr_register_kvm(env, SPR_7XX_PMC5, "SPR_7XX_PMC5",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_PMC5, 0x00000000);
-    spr_register_kvm(env, SPR_PMC6, "SPR_PMC6",
+    spr_register_kvm(env, SPR_7XX_PMC6, "SPR_7XX_PMC6",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_PMC6, 0x00000000);
