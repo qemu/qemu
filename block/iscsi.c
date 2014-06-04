@@ -369,17 +369,6 @@ static int coroutine_fn iscsi_co_writev(BlockDriverState *bs,
 
     lba = sector_qemu2lun(sector_num, iscsilun);
     num_sectors = sector_qemu2lun(nb_sectors, iscsilun);
-#if !defined(LIBISCSI_FEATURE_IOVECTOR)
-    /* if the iovec only contains one buffer we can pass it directly */
-    if (iov->niov == 1) {
-        data = iov->iov[0].iov_base;
-    } else {
-        size_t size = MIN(nb_sectors * BDRV_SECTOR_SIZE, iov->size);
-        buf = g_malloc(size);
-        qemu_iovec_to_buf(iov, 0, buf, size);
-        data = buf;
-    }
-#endif
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
     if (iscsilun->use_16_for_rw) {
@@ -397,10 +386,8 @@ retry:
         g_free(buf);
         return -ENOMEM;
     }
-#if defined(LIBISCSI_FEATURE_IOVECTOR)
     scsi_task_set_iov_out(iTask.task, (struct scsi_iovec *) iov->iov,
                           iov->niov);
-#endif
     while (!iTask.complete) {
         iscsi_set_events(iscsilun);
         qemu_coroutine_yield();
@@ -428,7 +415,6 @@ retry:
 }
 
 
-#if defined(LIBISCSI_FEATURE_IOVECTOR)
 static bool iscsi_allocationmap_is_allocated(IscsiLun *iscsilun,
                                              int64_t sector_num, int nb_sectors)
 {
@@ -538,9 +524,6 @@ out:
     return ret;
 }
 
-#endif /* LIBISCSI_FEATURE_IOVECTOR */
-
-
 static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
                                        int64_t sector_num, int nb_sectors,
                                        QEMUIOVector *iov)
@@ -549,15 +532,11 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
     struct IscsiTask iTask;
     uint64_t lba;
     uint32_t num_sectors;
-#if !defined(LIBISCSI_FEATURE_IOVECTOR)
-    int i;
-#endif
 
     if (!is_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
         return -EINVAL;
     }
 
-#if defined(LIBISCSI_FEATURE_IOVECTOR)
     if (iscsilun->lbprz && nb_sectors >= ISCSI_CHECKALLOC_THRES &&
         !iscsi_allocationmap_is_allocated(iscsilun, sector_num, nb_sectors)) {
         int64_t ret;
@@ -571,7 +550,6 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
             return 0;
         }
     }
-#endif
 
     lba = sector_qemu2lun(sector_num, iscsilun);
     num_sectors = sector_qemu2lun(nb_sectors, iscsilun);
@@ -587,23 +565,13 @@ retry:
         iTask.task = iscsi_read10_task(iscsilun->iscsi, iscsilun->lun, lba,
                                        num_sectors * iscsilun->block_size,
                                        iscsilun->block_size,
-#if !defined(CONFIG_LIBISCSI_1_4) /* API change from 1.4.0 to 1.5.0 */
                                        0, 0, 0, 0, 0,
-#endif
                                        iscsi_co_generic_cb, &iTask);
     }
     if (iTask.task == NULL) {
         return -ENOMEM;
     }
-#if defined(LIBISCSI_FEATURE_IOVECTOR)
     scsi_task_set_iov_in(iTask.task, (struct scsi_iovec *) iov->iov, iov->niov);
-#else
-    for (i = 0; i < iov->niov; i++) {
-        scsi_task_add_data_in_buffer(iTask.task,
-                                     iov->iov[i].iov_len,
-                                     iov->iov[i].iov_base);
-    }
-#endif
 
     while (!iTask.complete) {
         iscsi_set_events(iscsilun);
@@ -758,18 +726,9 @@ static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
             data.data = acb->ioh->dxferp;
             data.size = acb->ioh->dxfer_len;
         } else {
-#if defined(LIBISCSI_FEATURE_IOVECTOR)
             scsi_task_set_iov_out(acb->task,
                                  (struct scsi_iovec *) acb->ioh->dxferp,
                                  acb->ioh->iovec_count);
-#else
-            struct iovec *iov = (struct iovec *)acb->ioh->dxferp;
-
-            acb->buf = g_malloc(acb->ioh->dxfer_len);
-            data.data = acb->buf;
-            data.size = iov_to_buf(iov, acb->ioh->iovec_count, 0,
-                                   acb->buf, acb->ioh->dxfer_len);
-#endif
         }
     }
 
@@ -789,20 +748,9 @@ static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
                                          acb->ioh->dxfer_len,
                                          acb->ioh->dxferp);
         } else {
-#if defined(LIBISCSI_FEATURE_IOVECTOR)
             scsi_task_set_iov_in(acb->task,
                                  (struct scsi_iovec *) acb->ioh->dxferp,
                                  acb->ioh->iovec_count);
-#else
-            int i;
-            for (i = 0; i < acb->ioh->iovec_count; i++) {
-                struct iovec *iov = (struct iovec *)acb->ioh->dxferp;
-
-                scsi_task_add_data_in_buffer(acb->task,
-                    iov[i].iov_len,
-                    iov[i].iov_base);
-            }
-#endif
         }
     }
 
@@ -810,7 +758,6 @@ static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
 
     return &acb->common;
 }
-
 
 static void ioctl_cb(void *opaque, int status)
 {
@@ -916,8 +863,6 @@ retry:
     return 0;
 }
 
-#if defined(SCSI_SENSE_ASCQ_CAPACITY_DATA_HAS_CHANGED)
-
 static int
 coroutine_fn iscsi_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
                                    int nb_sectors, BdrvRequestFlags flags)
@@ -1011,8 +956,6 @@ retry:
 
     return 0;
 }
-
-#endif /* SCSI_SENSE_ASCQ_CAPACITY_DATA_HAS_CHANGED */
 
 static void parse_chap(struct iscsi_context *iscsi, const char *target,
                        Error **errp)
@@ -1123,7 +1066,6 @@ static char *parse_initiator_name(const char *target)
     return iscsi_name;
 }
 
-#if defined(LIBISCSI_FEATURE_NOP_COUNTER)
 static void iscsi_nop_timed_event(void *opaque)
 {
     IscsiLun *iscsilun = opaque;
@@ -1141,7 +1083,6 @@ static void iscsi_nop_timed_event(void *opaque)
     timer_mod(iscsilun->nop_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + NOP_INTERVAL);
     iscsi_set_events(iscsilun);
 }
-#endif
 
 static void iscsi_readcapacity_sync(IscsiLun *iscsilun, Error **errp)
 {
@@ -1280,14 +1221,12 @@ static void iscsi_attach_aio_context(BlockDriverState *bs,
     iscsilun->aio_context = new_context;
     iscsi_set_events(iscsilun);
 
-#if defined(LIBISCSI_FEATURE_NOP_COUNTER)
     /* Set up a timer for sending out iSCSI NOPs */
     iscsilun->nop_timer = aio_timer_new(iscsilun->aio_context,
                                         QEMU_CLOCK_REALTIME, SCALE_MS,
                                         iscsi_nop_timed_event, iscsilun);
     timer_mod(iscsilun->nop_timer,
               qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + NOP_INTERVAL);
-#endif
 }
 
 /*
@@ -1479,13 +1418,11 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         iscsilun->bl.opt_unmap_gran * iscsilun->block_size <= 16 * 1024 * 1024) {
         iscsilun->cluster_sectors = (iscsilun->bl.opt_unmap_gran *
                                      iscsilun->block_size) >> BDRV_SECTOR_BITS;
-#if defined(LIBISCSI_FEATURE_IOVECTOR)
         if (iscsilun->lbprz && !(bs->open_flags & BDRV_O_NOCACHE)) {
             iscsilun->allocationmap =
                 bitmap_new(DIV_ROUND_UP(bs->total_sectors,
                                         iscsilun->cluster_sectors));
         }
-#endif
     }
 
 out:
@@ -1670,13 +1607,9 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_truncate   = iscsi_truncate,
     .bdrv_refresh_limits = iscsi_refresh_limits,
 
-#if defined(LIBISCSI_FEATURE_IOVECTOR)
     .bdrv_co_get_block_status = iscsi_co_get_block_status,
-#endif
     .bdrv_co_discard      = iscsi_co_discard,
-#if defined(SCSI_SENSE_ASCQ_CAPACITY_DATA_HAS_CHANGED)
     .bdrv_co_write_zeroes = iscsi_co_write_zeroes,
-#endif
     .bdrv_co_readv         = iscsi_co_readv,
     .bdrv_co_writev        = iscsi_co_writev,
     .bdrv_co_flush_to_disk = iscsi_co_flush,
