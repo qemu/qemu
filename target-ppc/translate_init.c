@@ -7275,36 +7275,34 @@ static int check_pow_970 (CPUPPCState *env)
     return 0;
 }
 
-static void init_proc_970 (CPUPPCState *env)
+static void gen_spr_970_hid(CPUPPCState *env)
 {
-    gen_spr_ne_601(env);
-    gen_spr_7xx(env);
-    /* Time base */
-    gen_tbl(env);
     /* Hardware implementation registers */
     /* XXX : not implemented */
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_clear,
                  0x60000000);
-    /* XXX : not implemented */
     spr_register(env, SPR_HID1, "HID1",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
-    /* XXX : not implemented */
     spr_register(env, SPR_970_HID5, "HID5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  POWERPC970_HID5_INIT);
-    /* Memory management */
-    /* XXX: not correct */
-    gen_low_BATs(env);
+}
+
+static void gen_spr_970_hior(CPUPPCState *env)
+{
     spr_register(env, SPR_HIOR, "SPR_HIOR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_hior, &spr_write_hior,
                  0x00000000);
+}
 
+static void gen_spr_book3s_common(CPUPPCState *env)
+{
     spr_register(env, SPR_CTRL, "SPR_CTRL",
                  SPR_NOACCESS, SPR_NOACCESS,
                  SPR_NOACCESS, &spr_write_generic,
@@ -7313,10 +7311,34 @@ static void init_proc_970 (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
+}
+
+static void gen_spr_book3s_altivec(CPUPPCState *env)
+{
+    if (!(env->insns_flags & PPC_ALTIVEC)) {
+        return;
+    }
+
     spr_register(env, SPR_VRSAVE, "SPR_VRSAVE",
                  &spr_read_generic, &spr_write_generic,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+
+    /* Can't find information on what this should be on reset.  This
+     * value is the one used by 74xx processors. */
+    vscr_init(env, 0x00010000);
+}
+
+static void init_proc_970 (CPUPPCState *env)
+{
+    gen_spr_ne_601(env);
+    gen_spr_7xx(env);
+    gen_tbl(env);
+    gen_spr_book3s_altivec(env);
+    gen_spr_970_hid(env);
+    gen_spr_970_hior(env);
+    gen_low_BATs(env);
+    gen_spr_book3s_common(env);
 #if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 64;
 #endif
@@ -7325,9 +7347,6 @@ static void init_proc_970 (CPUPPCState *env)
     env->icache_line_size = 128;
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
-    /* Can't find information on what this should be on reset.  This
-     * value is the one used by 74xx processors. */
-    vscr_init(env, 0x00010000);
 }
 
 POWERPC_FAMILY(970)(ObjectClass *oc, void *data)
