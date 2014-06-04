@@ -1954,6 +1954,24 @@ static int usb_ohci_initfn_pci(PCIDevice *dev)
     return 0;
 }
 
+static void usb_ohci_exit(PCIDevice *dev)
+{
+    OHCIPCIState *ohci = PCI_OHCI(dev);
+    OHCIState *s = &ohci->state;
+
+    ohci_bus_stop(s);
+
+    if (s->async_td) {
+        usb_cancel_packet(&s->usb_packet);
+        s->async_td = 0;
+    }
+    ohci_stop_endpoints(s);
+
+    if (!ohci->masterbus) {
+        usb_bus_release(&s->bus);
+    }
+}
+
 #define TYPE_SYSBUS_OHCI "sysbus-ohci"
 #define SYSBUS_OHCI(obj) OBJECT_CHECK(OHCISysBusState, (obj), TYPE_SYSBUS_OHCI)
 
@@ -2091,6 +2109,7 @@ static void ohci_pci_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = usb_ohci_initfn_pci;
+    k->exit = usb_ohci_exit;
     k->vendor_id = PCI_VENDOR_ID_APPLE;
     k->device_id = PCI_DEVICE_ID_APPLE_IPID_USB;
     k->class_id = PCI_CLASS_SERIAL_USB;
