@@ -53,6 +53,15 @@ ide0-hd0: TEST_DIR/t.qcow2 (qcow2)
     Backing file:     TEST_DIR/t.qcow2.orig (chain depth: 1)
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
+Testing: -drive file=TEST_DIR/t.qcow2,driver=raw,backing.file.filename=TEST_DIR/t.qcow2.orig
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=raw,backing.file.filename=TEST_DIR/t.qcow2.orig: could not open disk image TEST_DIR/t.qcow2: Driver doesn't support backing files
+
+Testing: -drive file=TEST_DIR/t.qcow2,file.backing.driver=file,file.backing.filename=TEST_DIR/t.qcow2.orig
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.backing.driver=file,file.backing.filename=TEST_DIR/t.qcow2.orig: could not open disk image TEST_DIR/t.qcow2: Driver doesn't support backing files
+
+Testing: -drive file=TEST_DIR/t.qcow2,file.backing.driver=qcow2,file.backing.file.filename=TEST_DIR/t.qcow2.orig
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.backing.driver=qcow2,file.backing.file.filename=TEST_DIR/t.qcow2.orig: could not open disk image TEST_DIR/t.qcow2: Driver doesn't support backing files
+
 
 === Enable and disable lazy refcounting on the command line, plus some invalid values ===
 

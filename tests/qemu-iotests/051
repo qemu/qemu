@@ -100,6 +100,11 @@ echo
 
 echo "info block" | run_qemu -drive file="$TEST_IMG",driver=qcow2,backing.file.filename="$TEST_IMG.orig" -nodefaults
 
+# Drivers that don't support backing files
+run_qemu -drive file="$TEST_IMG",driver=raw,backing.file.filename="$TEST_IMG.orig"
+run_qemu -drive file="$TEST_IMG",file.backing.driver=file,file.backing.filename="$TEST_IMG.orig"
+run_qemu -drive file="$TEST_IMG",file.backing.driver=qcow2,file.backing.file.filename="$TEST_IMG.orig"
+
 echo
 echo === Enable and disable lazy refcounting on the command line, plus some invalid values ===
 echo

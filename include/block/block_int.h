@@ -100,6 +100,9 @@ struct BlockDriver {
      */
     bool bdrv_needs_filename;
 
+    /* Set if a driver can support backing files */
+    bool supports_backing;
+
     /* For handling image reopen for split or non-split files */
     int (*bdrv_reopen_prepare)(BDRVReopenState *reopen_state,
                                BlockReopenQueue *queue, Error **errp);

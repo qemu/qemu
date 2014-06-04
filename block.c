@@ -1192,6 +1192,13 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         bdrv_get_full_backing_filename(bs, backing_filename, PATH_MAX);
     }
 
+    if (!bs->drv || !bs->drv->supports_backing) {
+        ret = -EINVAL;
+        error_setg(errp, "Driver doesn't support backing files");
+        QDECREF(options);
+        goto free_exit;
+    }
+
     backing_hd = bdrv_new("", errp);
 
     if (bs->backing_format[0] != '\0') {
