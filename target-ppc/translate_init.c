@@ -7273,6 +7273,11 @@ POWERPC_FAMILY(e600)(ObjectClass *oc, void *data)
 #define POWERPC970_HID5_INIT 0x00000000
 #endif
 
+enum BOOK3S_CPU_TYPE {
+    BOOK3S_CPU_970,
+    BOOK3S_CPU_POWER5PLUS,
+};
+
 static int check_pow_970 (CPUPPCState *env)
 {
     if (env->spr[SPR_HID0] & (HID0_DEEPNAP | HID0_DOZE | HID0_NAP)) {
@@ -7492,7 +7497,16 @@ static void gen_spr_power5p_ear(CPUPPCState *env)
                  0x00000000);
 }
 
-static void init_proc_970 (CPUPPCState *env)
+static void gen_spr_power5p_lpar(CPUPPCState *env)
+{
+    /* Logical partitionning */
+    spr_register_kvm(env, SPR_LPCR, "LPCR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_LPCR, 0x00000000);
+}
+
+static void init_proc_book3s_64(CPUPPCState *env, int version)
 {
     gen_spr_ne_601(env);
     gen_tbl(env);
@@ -7507,9 +7521,13 @@ static void init_proc_970 (CPUPPCState *env)
     gen_spr_book3s_common(env);
     gen_spr_970_pmu_sup(env);
     gen_spr_970_pmu_user(env);
-    gen_spr_970_lpar(env);
 
-    gen_spr_power5p_ear(env);
+    if (version >= BOOK3S_CPU_POWER5PLUS) {
+        gen_spr_power5p_lpar(env);
+        gen_spr_power5p_ear(env);
+    } else {
+        gen_spr_970_lpar(env);
+    }
 
     gen_spr_970_dbg(env);
 #if !defined(CONFIG_USER_ONLY)
@@ -7520,6 +7538,11 @@ static void init_proc_970 (CPUPPCState *env)
     env->icache_line_size = 128;
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
+}
+
+static void init_proc_970(CPUPPCState *env)
+{
+    init_proc_book3s_64(env, BOOK3S_CPU_970);
 }
 
 POWERPC_FAMILY(970)(ObjectClass *oc, void *data)
@@ -7578,61 +7601,7 @@ static int check_pow_970FX (CPUPPCState *env)
 
 static void init_proc_power5plus(CPUPPCState *env)
 {
-    gen_spr_ne_601(env);
-    gen_spr_7xx(env);
-    /* Time base */
-    gen_tbl(env);
-    /* Hardware implementation registers */
-    /* XXX : not implemented */
-    spr_register(env, SPR_HID0, "HID0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_clear,
-                 0x60000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_HID1, "HID1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_970_HID5, "HID5",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 POWERPC970_HID5_INIT);
-    /* Memory management */
-    /* XXX: not correct */
-    gen_low_BATs(env);
-    spr_register(env, SPR_HIOR, "SPR_HIOR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_hior, &spr_write_hior,
-                 0x00000000);
-    spr_register(env, SPR_CTRL, "SPR_CTRL",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 SPR_NOACCESS, &spr_write_generic,
-                 0x00000000);
-    spr_register(env, SPR_UCTRL, "SPR_UCTRL",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000);
-    spr_register(env, SPR_VRSAVE, "SPR_VRSAVE",
-                 &spr_read_generic, &spr_write_generic,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* Logical partitionning */
-    spr_register_kvm(env, SPR_LPCR, "LPCR",
-                     SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
-                     KVM_REG_PPC_LPCR, 0x00000000);
-#if !defined(CONFIG_USER_ONLY)
-    env->slb_nr = 64;
-#endif
-    init_excp_970(env);
-    env->dcache_line_size = 128;
-    env->icache_line_size = 128;
-    /* Allocate hardware IRQ controller */
-    ppc970_irq_init(env);
-    /* Can't find information on what this should be on reset.  This
-     * value is the one used by 74xx processors. */
-    vscr_init(env, 0x00010000);
+    init_proc_book3s_64(env, BOOK3S_CPU_POWER5PLUS);
 }
 
 POWERPC_FAMILY(POWER5P)(ObjectClass *oc, void *data)
