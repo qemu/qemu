@@ -532,7 +532,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         memcpy(signature, "KVMKVMKVM\0\0\0", 12);
         c = &cpuid_data.entries[cpuid_i++];
         c->function = KVM_CPUID_SIGNATURE | kvm_base;
-        c->eax = 0;
+        c->eax = KVM_CPUID_FEATURES | kvm_base;
         c->ebx = signature[0];
         c->ecx = signature[1];
         c->edx = signature[2];
