@@ -316,6 +316,7 @@ struct EHCIState {
     uint32_t async_stepdown;
     uint32_t periodic_sched_active;
     bool int_req_by_async;
+    VMChangeStateEntry *vmstate;
 };
 
 extern const VMStateDescription vmstate_ehci;
