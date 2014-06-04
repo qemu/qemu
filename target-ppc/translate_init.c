@@ -7308,6 +7308,16 @@ static void gen_spr_970_hior(CPUPPCState *env)
                  0x00000000);
 }
 
+static void gen_spr_970_lpar(CPUPPCState *env)
+{
+    /* Logical partitionning */
+    /* PPC970: HID4 is effectively the LPCR */
+    spr_register(env, SPR_970_HID4, "HID4",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+}
+
 static void gen_spr_book3s_common(CPUPPCState *env)
 {
     spr_register(env, SPR_CTRL, "SPR_CTRL",
@@ -7497,6 +7507,7 @@ static void init_proc_970 (CPUPPCState *env)
     gen_spr_book3s_common(env);
     gen_spr_970_pmu_sup(env);
     gen_spr_970_pmu_user(env);
+    gen_spr_970_lpar(env);
 
     gen_spr_power5p_ear(env);
 
