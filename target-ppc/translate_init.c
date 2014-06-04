@@ -7712,7 +7712,7 @@ static void init_proc_POWER7 (CPUPPCState *env)
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_DSCR, 0x00000000);
-    spr_register_kvm(env, SPR_MMCRA, "SPR_MMCRA",
+    spr_register_kvm(env, SPR_POWER_MMCRA, "SPR_MMCRA",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_MMCRA, 0x00000000);
