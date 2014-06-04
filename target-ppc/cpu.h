@@ -908,10 +908,8 @@ struct CPUPPCState {
      */
     /* general purpose registers */
     target_ulong gpr[32];
-#if !defined(TARGET_PPC64)
     /* Storage for GPR MSB, used by the SPE extension */
     target_ulong gprh[32];
-#endif
     /* LR */
     target_ulong lr;
     /* CTR */
@@ -1164,7 +1162,6 @@ static inline uint64_t ppc_dump_gpr(CPUPPCState *env, int gprn)
     uint64_t gprv;
 
     gprv = env->gpr[gprn];
-#if !defined(TARGET_PPC64)
     if (env->flags & POWERPC_FLAG_SPE) {
         /* If the CPU implements the SPE extension, we have to get the
          * high bits of the GPR from the gprh storage area
@@ -1172,7 +1169,6 @@ static inline uint64_t ppc_dump_gpr(CPUPPCState *env, int gprn)
         gprv &= 0xFFFFFFFFULL;
         gprv |= (uint64_t)env->gprh[gprn] << 32;
     }
-#endif
 
     return gprv;
 }
