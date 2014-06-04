@@ -7282,6 +7282,21 @@ enum BOOK3S_CPU_TYPE {
     BOOK3S_CPU_POWER8
 };
 
+static void gen_fscr_facility_check(void *opaque, int facility_sprn, int bit,
+                                    int sprn, int cause)
+{
+    TCGv_i32 t1 = tcg_const_i32(bit);
+    TCGv_i32 t2 = tcg_const_i32(sprn);
+    TCGv_i32 t3 = tcg_const_i32(cause);
+
+    gen_update_current_nip(opaque);
+    gen_helper_fscr_facility_check(cpu_env, t1, t2, t3);
+
+    tcg_temp_free_i32(t3);
+    tcg_temp_free_i32(t2);
+    tcg_temp_free_i32(t1);
+}
+
 static int check_pow_970 (CPUPPCState *env)
 {
     if (env->spr[SPR_HID0] & (HID0_DEEPNAP | HID0_DOZE | HID0_NAP)) {
@@ -7579,20 +7594,37 @@ static void gen_spr_power6_common(CPUPPCState *env)
                  0x00000000);
 }
 
+static void spr_read_tar(void *opaque, int gprn, int sprn)
+{
+    gen_fscr_facility_check(opaque, SPR_FSCR, FSCR_TAR, sprn, FSCR_IC_TAR);
+    spr_read_generic(opaque, gprn, sprn);
+}
+
+static void spr_write_tar(void *opaque, int sprn, int gprn)
+{
+    gen_fscr_facility_check(opaque, SPR_FSCR, FSCR_TAR, sprn, FSCR_IC_TAR);
+    spr_write_generic(opaque, sprn, gprn);
+}
+
 static void gen_spr_power8_tce_address_control(CPUPPCState *env)
 {
     spr_register(env, SPR_TAR, "TAR",
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_tar, &spr_write_tar,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
 }
 
 static void gen_spr_power8_fscr(CPUPPCState *env)
 {
+#if defined(CONFIG_USER_ONLY)
+    target_ulong initval = 1ULL << FSCR_TAR;
+#else
+    target_ulong initval = 0;
+#endif
     spr_register_kvm(env, SPR_FSCR, "FSCR",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
-                     KVM_REG_PPC_FSCR, 0x00000000);
+                     KVM_REG_PPC_FSCR, initval);
 }
 
 static void init_proc_book3s_64(CPUPPCState *env, int version)
