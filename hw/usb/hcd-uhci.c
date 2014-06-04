@@ -1256,6 +1256,27 @@ static int usb_uhci_vt82c686b_initfn(PCIDevice *dev)
     return usb_uhci_common_initfn(dev);
 }
 
+static void usb_uhci_exit(PCIDevice *dev)
+{
+    UHCIState *s = DO_UPCAST(UHCIState, dev, dev);
+
+    if (s->frame_timer) {
+        timer_del(s->frame_timer);
+        timer_free(s->frame_timer);
+        s->frame_timer = NULL;
+    }
+
+    if (s->bh) {
+        qemu_bh_delete(s->bh);
+    }
+
+    uhci_async_cancel_all(s);
+
+    if (!s->masterbus) {
+        usb_bus_release(&s->bus);
+    }
+}
+
 static Property uhci_properties[] = {
     DEFINE_PROP_STRING("masterbus", UHCIState, masterbus),
     DEFINE_PROP_UINT32("firstport", UHCIState, firstport, 0),
@@ -1272,6 +1293,7 @@ static void uhci_class_init(ObjectClass *klass, void *data)
     UHCIInfo *info = data;
 
     k->init = info->initfn ? info->initfn : usb_uhci_common_initfn;
+    k->exit = info->unplug ? usb_uhci_exit : NULL;
     k->vendor_id = info->vendor_id;
     k->device_id = info->device_id;
     k->revision  = info->revision;
