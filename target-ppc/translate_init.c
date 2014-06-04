@@ -7530,6 +7530,14 @@ static void gen_spr_book3s_purr(CPUPPCState *env)
 #endif
 }
 
+static void gen_spr_power8_tce_address_control(CPUPPCState *env)
+{
+    spr_register(env, SPR_TAR, "TAR",
+                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+}
+
 static void init_proc_book3s_64(CPUPPCState *env, int version)
 {
     gen_spr_ne_601(env);
@@ -7940,11 +7948,7 @@ static void init_proc_POWER8(CPUPPCState *env)
     /* inherit P7 */
     init_proc_POWER7(env);
 
-    /* P8 supports the TAR */
-    spr_register(env, SPR_TAR, "TAR",
-                 &spr_read_generic, &spr_write_generic,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
+    gen_spr_power8_tce_address_control(env);
 }
 
 POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
