@@ -7411,10 +7411,21 @@ static void gen_spr_book3s_altivec(CPUPPCState *env)
 
 static void gen_spr_book3s_dbg(CPUPPCState *env)
 {
+    /*
+     * TODO: different specs define different scopes for these,
+     * will have to address this:
+     * 970: super/write and super/read
+     * powerisa 2.03..2.04: hypv/write and super/read.
+     * powerisa 2.05 and newer: hypv/write and hypv/read.
+     */
     spr_register_kvm(env, SPR_DABR, "DABR",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_DABR, 0x00000000);
+    spr_register_kvm(env, SPR_DABRX, "DABRX",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_DABRX, 0x00000000);
 }
 
 static void gen_spr_970_dbg(CPUPPCState *env)
@@ -7793,7 +7804,6 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
     gen_spr_book3s_altivec(env);
     gen_spr_book3s_pmu_sup(env);
     gen_spr_book3s_pmu_user(env);
-    gen_spr_book3s_dbg(env);
     gen_spr_book3s_common(env);
 
     switch (version) {
@@ -7836,6 +7846,9 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
         gen_spr_power8_pmu_sup(env);
         gen_spr_power8_pmu_user(env);
         gen_spr_power8_tm(env);
+    }
+    if (version < BOOK3S_CPU_POWER8) {
+        gen_spr_book3s_dbg(env);
     }
 #if !defined(CONFIG_USER_ONLY)
     switch (version) {
