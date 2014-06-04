@@ -467,6 +467,8 @@ struct ppc_slb_t {
 #define MSR_LE   0  /* Little-endian mode                           1 hflags */
 
 #define LPCR_ILE (1 << (63-38))
+#define LPCR_AIL_SHIFT (63-40)      /* Alternate interrupt location */
+#define LPCR_AIL (3 << LPCR_AIL_SHIFT)
 
 #define msr_sf   ((env->msr >> MSR_SF)   & 1)
 #define msr_isf  ((env->msr >> MSR_ISF)  & 1)
@@ -2010,7 +2012,7 @@ enum {
                         PPC2_DIVE_ISA206 | PPC2_ATOMIC_ISA206 | \
                         PPC2_FP_CVT_ISA206 | PPC2_FP_TST_ISA206 | \
                         PPC2_BCTAR_ISA207 | PPC2_LSQ_ISA207 | \
-                        PPC2_ALTIVEC_207)
+                        PPC2_ALTIVEC_207 | PPC2_ISA207S)
 };
 
 /*****************************************************************************/
