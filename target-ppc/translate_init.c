@@ -7530,6 +7530,42 @@ static void gen_spr_book3s_purr(CPUPPCState *env)
 #endif
 }
 
+static void gen_spr_power6_dbg(CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    spr_register(env, SPR_CFAR, "SPR_CFAR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_cfar, &spr_write_cfar,
+                 0x00000000);
+#endif
+}
+
+static void gen_spr_power5p_common(CPUPPCState *env)
+{
+    spr_register(env, SPR_PPR, "PPR",
+                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+}
+
+static void gen_spr_power6_common(CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    spr_register_kvm(env, SPR_DSCR, "SPR_DSCR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_DSCR, 0x00000000);
+#endif
+    /*
+     * Register PCR to report POWERPC_EXCP_PRIV_REG instead of
+     * POWERPC_EXCP_INVAL_SPR.
+     */
+    spr_register(env, SPR_PCR, "PCR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 0x00000000);
+}
+
 static void gen_spr_power8_tce_address_control(CPUPPCState *env)
 {
     spr_register(env, SPR_TAR, "TAR",
@@ -7752,14 +7788,6 @@ static void init_proc_POWER7 (CPUPPCState *env)
     /* Time base */
     gen_tbl(env);
 #if !defined(CONFIG_USER_ONLY)
-    spr_register(env, SPR_CFAR, "SPR_CFAR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_cfar, &spr_write_cfar,
-                 0x00000000);
-    spr_register_kvm(env, SPR_DSCR, "SPR_DSCR",
-                     SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
-                     KVM_REG_PPC_DSCR, 0x00000000);
     spr_register_kvm(env, SPR_POWER_MMCRA, "SPR_MMCRA",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
@@ -7775,21 +7803,12 @@ static void init_proc_POWER7 (CPUPPCState *env)
 #endif /* !CONFIG_USER_ONLY */
     gen_spr_book3s_ids(env);
     gen_spr_book3s_purr(env);
+    gen_spr_book3s_common(env);
+    gen_spr_power5p_common(env);
+    gen_spr_power6_common(env);
+    gen_spr_power6_dbg(env);
     gen_spr_amr(env);
-    /* XXX : not implemented */
-    spr_register(env, SPR_CTRL, "SPR_CTRLT",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 SPR_NOACCESS, &spr_write_generic,
-                 0x80800000);
-    spr_register(env, SPR_UCTRL, "SPR_CTRLF",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x80800000);
     spr_register(env, SPR_VRSAVE, "SPR_VRSAVE",
-                 &spr_read_generic, &spr_write_generic,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    spr_register(env, SPR_PPR, "PPR",
                  &spr_read_generic, &spr_write_generic,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
@@ -7810,15 +7829,6 @@ static void init_proc_POWER7 (CPUPPCState *env)
     /* Can't find information on what this should be on reset.  This
      * value is the one used by 74xx processors. */
     vscr_init(env, 0x00010000);
-
-    /*
-     * Register PCR to report POWERPC_EXCP_PRIV_REG instead of
-     * POWERPC_EXCP_INVAL_SPR.
-     */
-    spr_register(env, SPR_PCR, "PCR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 0x00000000);
 }
 
 POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
