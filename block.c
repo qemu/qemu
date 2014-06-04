@@ -831,7 +831,7 @@ static int bdrv_open_flags(BlockDriverState *bs, int flags)
      * Clear flags that are internal to the block layer before opening the
      * image.
      */
-    open_flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+    open_flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_PROTOCOL);
 
     /*
      * Snapshots should be writable.
@@ -928,6 +928,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     bs->zero_beyond_eof = true;
     open_flags = bdrv_open_flags(bs, flags);
     bs->read_only = !(open_flags & BDRV_O_RDWR);
+    bs->growable = !!(flags & BDRV_O_PROTOCOL);
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv, bs->read_only)) {
         error_setg(errp,
@@ -1466,19 +1467,6 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     }
 
     /* Open the image */
-    if (flags & BDRV_O_PROTOCOL) {
-        ret = bdrv_open_common(bs, NULL, options,
-                               flags & ~BDRV_O_PROTOCOL, drv, &local_err);
-        if (!ret) {
-            bs->growable = 1;
-            goto done;
-        } else if (bs->drv) {
-            goto close_and_fail;
-        } else {
-            goto fail;
-        }
-    }
-
     ret = bdrv_open_common(bs, file, options, flags, drv, &local_err);
     if (ret < 0) {
         goto fail;
@@ -1510,8 +1498,6 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         }
     }
 
-
-done:
     /* Check if any unknown options were used */
     if (options && (qdict_size(options) != 0)) {
         const QDictEntry *entry = qdict_first(options);
