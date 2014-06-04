@@ -7785,6 +7785,7 @@ static void init_proc_POWER7 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
     gen_spr_7xx(env);
+    gen_spr_book3s_altivec(env);
     /* Time base */
     gen_tbl(env);
 #if !defined(CONFIG_USER_ONLY)
@@ -7808,10 +7809,6 @@ static void init_proc_POWER7 (CPUPPCState *env)
     gen_spr_power6_common(env);
     gen_spr_power6_dbg(env);
     gen_spr_amr(env);
-    spr_register(env, SPR_VRSAVE, "SPR_VRSAVE",
-                 &spr_read_generic, &spr_write_generic,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
     /* Logical partitionning */
     spr_register_kvm(env, SPR_LPCR, "LPCR",
                      SPR_NOACCESS, SPR_NOACCESS,
@@ -7826,9 +7823,6 @@ static void init_proc_POWER7 (CPUPPCState *env)
 
     /* Allocate hardware IRQ controller */
     ppcPOWER7_irq_init(env);
-    /* Can't find information on what this should be on reset.  This
-     * value is the one used by 74xx processors. */
-    vscr_init(env, 0x00010000);
 }
 
 POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
