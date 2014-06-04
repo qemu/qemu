@@ -87,6 +87,13 @@ void usb_bus_new(USBBus *bus, size_t bus_size,
     QTAILQ_INSERT_TAIL(&busses, bus, next);
 }
 
+void usb_bus_release(USBBus *bus)
+{
+    assert(next_usb_bus > 0);
+
+    QTAILQ_REMOVE(&busses, bus, next);
+}
+
 USBBus *usb_bus_find(int busnr)
 {
     USBBus *bus;
