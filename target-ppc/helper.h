@@ -577,6 +577,7 @@ DEF_HELPER_3(store_dcr, void, env, tl, tl)
 
 DEF_HELPER_2(load_dump_spr, void, env, i32)
 DEF_HELPER_2(store_dump_spr, void, env, i32)
+DEF_HELPER_4(fscr_facility_check, void, env, i32, i32, i32)
 DEF_HELPER_1(load_tbl, tl, env)
 DEF_HELPER_1(load_tbu, tl, env)
 DEF_HELPER_1(load_atbl, tl, env)

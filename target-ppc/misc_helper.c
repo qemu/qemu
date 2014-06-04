@@ -34,6 +34,33 @@ void helper_store_dump_spr(CPUPPCState *env, uint32_t sprn)
     qemu_log("Write SPR %d %03x <= " TARGET_FMT_lx "\n", sprn, sprn,
              env->spr[sprn]);
 }
+
+#ifdef TARGET_PPC64
+static void raise_fu_exception(CPUPPCState *env, uint32_t bit,
+                               uint32_t sprn, uint32_t cause)
+{
+    qemu_log("Facility SPR %d is unavailable (SPR FSCR:%d)\n", sprn, bit);
+
+    env->spr[SPR_FSCR] &= ~((target_ulong)FSCR_IC_MASK << FSCR_IC_POS);
+    cause &= FSCR_IC_MASK;
+    env->spr[SPR_FSCR] |= (target_ulong)cause << FSCR_IC_POS;
+
+    helper_raise_exception_err(env, POWERPC_EXCP_FU, 0);
+}
+#endif
+
+void helper_fscr_facility_check(CPUPPCState *env, uint32_t bit,
+                                uint32_t sprn, uint32_t cause)
+{
+#ifdef TARGET_PPC64
+    if (env->spr[SPR_FSCR] & (1ULL << bit)) {
+        /* Facility is enabled, continue */
+        return;
+    }
+    raise_fu_exception(env, bit, sprn, cause);
+#endif
+}
+
 #if !defined(CONFIG_USER_ONLY)
 
 void helper_store_sdr1(CPUPPCState *env, target_ulong val)

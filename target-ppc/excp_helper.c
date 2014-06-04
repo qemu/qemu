@@ -399,6 +399,11 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             new_msr |= (target_ulong)MSR_HVB;
         }
         goto store_current;
+    case POWERPC_EXCP_FU:         /* Facility unavailable exception          */
+        if (lpes1 == 0) {
+            new_msr |= (target_ulong)MSR_HVB;
+        }
+        goto store_current;
     case POWERPC_EXCP_PIT:       /* Programmable interval timer interrupt    */
         LOG_EXCP("PIT exception\n");
         goto store_next;

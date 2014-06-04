@@ -284,6 +284,13 @@ static inline void gen_update_nip(DisasContext *ctx, target_ulong nip)
     tcg_gen_movi_tl(cpu_nip, nip);
 }
 
+void gen_update_current_nip(void *opaque)
+{
+    DisasContext *ctx = opaque;
+
+    tcg_gen_movi_tl(cpu_nip, ctx->nip);
+}
+
 static inline void gen_exception_err(DisasContext *ctx, uint32_t excp, uint32_t error)
 {
     TCGv_i32 t0, t1;

@@ -238,6 +238,7 @@ enum {
     POWERPC_EXCP_DTLBE    = 93, /* Data TLB error                            */
     /* VSX Unavailable (Power ISA 2.06 and later)                            */
     POWERPC_EXCP_VSXU     = 94, /* VSX Unavailable                           */
+    POWERPC_EXCP_FU       = 95, /* Facility Unavailable                      */
     /* EOL                                                                   */
     POWERPC_EXCP_NB       = 96,
     /* QEMU exceptions: used internally during code translation              */
@@ -515,6 +516,19 @@ struct ppc_slb_t {
 #define msr_hv  (0)
 #endif
 #endif
+
+/* Facility Status and Control (FSCR) bits */
+#define FSCR_EBB        (63 - 56) /* Event-Based Branch Facility */
+#define FSCR_TAR        (63 - 55) /* Target Address Register */
+/* Interrupt cause mask and position in FSCR. HFSCR has the same format */
+#define FSCR_IC_MASK    (0xFFULL)
+#define FSCR_IC_POS     (63 - 7)
+#define FSCR_IC_DSCR_SPR3   2
+#define FSCR_IC_PMU         3
+#define FSCR_IC_BHRB        4
+#define FSCR_IC_TM          5
+#define FSCR_IC_EBB         7
+#define FSCR_IC_TAR         8
 
 /* Exception state register bits definition                                  */
 #define ESR_PIL   (1 << (63 - 36)) /* Illegal Instruction                    */
@@ -1102,6 +1116,7 @@ do {                                            \
 /*****************************************************************************/
 PowerPCCPU *cpu_ppc_init(const char *cpu_model);
 void ppc_translate_init(void);
+void gen_update_current_nip(void *opaque);
 int cpu_ppc_exec (CPUPPCState *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
@@ -1268,6 +1283,7 @@ static inline int cpu_mmu_index (CPUPPCState *env)
 #define SPR_CTRL              (0x098)
 #define SPR_MPC_CMPE          (0x098)
 #define SPR_MPC_CMPF          (0x099)
+#define SPR_FSCR              (0x099)
 #define SPR_MPC_CMPG          (0x09A)
 #define SPR_MPC_CMPH          (0x09B)
 #define SPR_MPC_LCTRL1        (0x09C)

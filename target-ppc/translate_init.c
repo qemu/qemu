@@ -3080,6 +3080,7 @@ static void init_excp_POWER7 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
     env->excp_vectors[POWERPC_EXCP_VPU]      = 0x00000F20;
     env->excp_vectors[POWERPC_EXCP_VSXU]     = 0x00000F40;
+    env->excp_vectors[POWERPC_EXCP_FU]       = 0x00000F60;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_MAINT]    = 0x00001600;
     env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001700;
@@ -7586,6 +7587,14 @@ static void gen_spr_power8_tce_address_control(CPUPPCState *env)
                  0x00000000);
 }
 
+static void gen_spr_power8_fscr(CPUPPCState *env)
+{
+    spr_register_kvm(env, SPR_FSCR, "FSCR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_FSCR, 0x00000000);
+}
+
 static void init_proc_book3s_64(CPUPPCState *env, int version)
 {
     gen_spr_ne_601(env);
@@ -7631,6 +7640,7 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
     if (version >= BOOK3S_CPU_POWER8) {
         gen_spr_power8_tce_address_control(env);
         gen_spr_power8_ids(env);
+        gen_spr_power8_fscr(env);
     }
 #if !defined(CONFIG_USER_ONLY)
     switch (version) {
