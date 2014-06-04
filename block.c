@@ -1404,6 +1404,26 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         goto fail;
     }
 
+    /* Find the right image format driver */
+    drv = NULL;
+    drvname = qdict_get_try_str(options, "driver");
+    if (drvname) {
+        drv = bdrv_find_format(drvname);
+        qdict_del(options, "driver");
+        if (!drv) {
+            error_setg(errp, "Unknown driver: '%s'", drvname);
+            ret = -EINVAL;
+            goto fail;
+        }
+    }
+
+    assert(drvname || !(flags & BDRV_O_PROTOCOL));
+    if (drv && !drv->bdrv_file_open) {
+        /* If the user explicitly wants a format driver here, we'll need to add
+         * another layer for the protocol in bs->file */
+        flags &= ~BDRV_O_PROTOCOL;
+    }
+
     bs->options = options;
     options = qdict_clone_shallow(options);
 
@@ -1426,25 +1446,13 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         }
     }
 
-    /* Find the right image format driver */
-    drv = NULL;
-    drvname = qdict_get_try_str(options, "driver");
-    assert(drvname || !(flags & BDRV_O_PROTOCOL));
-
-    if (drvname) {
-        drv = bdrv_find_format(drvname);
-        qdict_del(options, "driver");
-        if (!drv) {
-            error_setg(errp, "Unknown driver: '%s'", drvname);
-            ret = -EINVAL;
-            goto fail;
-        }
-    } else if (file) {
+    /* Image format probing */
+    if (!drv && file) {
         ret = find_image_format(file, filename, &drv, &local_err);
         if (ret < 0) {
             goto fail;
         }
-    } else {
+    } else if (!drv) {
         error_setg(errp, "Must specify either driver or file");
         ret = -EINVAL;
         goto fail;
@@ -1452,16 +1460,8 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
 
     /* Open the image */
     if (flags & BDRV_O_PROTOCOL) {
-        if (!drv->bdrv_file_open) {
-            const char *filename;
-            filename = qdict_get_try_str(options, "filename");
-            ret = bdrv_open(&bs, filename, NULL, options,
-                            flags & ~BDRV_O_PROTOCOL, drv, &local_err);
-            options = NULL;
-        } else {
-            ret = bdrv_open_common(bs, NULL, options,
-                                   flags & ~BDRV_O_PROTOCOL, drv, &local_err);
-        }
+        ret = bdrv_open_common(bs, NULL, options,
+                               flags & ~BDRV_O_PROTOCOL, drv, &local_err);
         if (!ret) {
             bs->growable = 1;
             goto done;
