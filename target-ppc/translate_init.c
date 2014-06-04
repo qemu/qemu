@@ -7268,8 +7268,9 @@ POWERPC_FAMILY(e600)(ObjectClass *oc, void *data)
 
 static int check_pow_970 (CPUPPCState *env)
 {
-    if (env->spr[SPR_HID0] & 0x00600000)
+    if (env->spr[SPR_HID0] & (HID0_DEEPNAP | HID0_DOZE | HID0_NAP)) {
         return 1;
+    }
 
     return 0;
 }
@@ -7303,8 +7304,21 @@ static void init_proc_970 (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_hior, &spr_write_hior,
                  0x00000000);
+
+    spr_register(env, SPR_CTRL, "SPR_CTRL",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 SPR_NOACCESS, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_UCTRL, "SPR_UCTRL",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_VRSAVE, "SPR_VRSAVE",
+                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
 #if !defined(CONFIG_USER_ONLY)
-    env->slb_nr = 32;
+    env->slb_nr = 64;
 #endif
     init_excp_970(env);
     env->dcache_line_size = 128;
@@ -7334,7 +7348,6 @@ POWERPC_FAMILY(970)(ObjectClass *oc, void *data)
                        PPC_64B | PPC_ALTIVEC |
                        PPC_SEGMENT_64B | PPC_SLBI;
     pcc->msr_mask = (1ull << MSR_SF) |
-                    (1ull << MSR_SHV) |
                     (1ull << MSR_VR) |
                     (1ull << MSR_POW) |
                     (1ull << MSR_EE) |
@@ -7369,209 +7382,6 @@ static int check_pow_970FX (CPUPPCState *env)
         return 1;
 
     return 0;
-}
-
-static void init_proc_970FX (CPUPPCState *env)
-{
-    gen_spr_ne_601(env);
-    gen_spr_7xx(env);
-    /* Time base */
-    gen_tbl(env);
-    /* Hardware implementation registers */
-    /* XXX : not implemented */
-    spr_register(env, SPR_HID0, "HID0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_clear,
-                 0x60000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_HID1, "HID1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_970_HID5, "HID5",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 POWERPC970_HID5_INIT);
-    /* Memory management */
-    /* XXX: not correct */
-    gen_low_BATs(env);
-    spr_register(env, SPR_HIOR, "SPR_HIOR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_hior, &spr_write_hior,
-                 0x00000000);
-    spr_register(env, SPR_CTRL, "SPR_CTRL",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 SPR_NOACCESS, &spr_write_generic,
-                 0x00000000);
-    spr_register(env, SPR_UCTRL, "SPR_UCTRL",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000);
-    spr_register(env, SPR_VRSAVE, "SPR_VRSAVE",
-                 &spr_read_generic, &spr_write_generic,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-#if !defined(CONFIG_USER_ONLY)
-    env->slb_nr = 64;
-#endif
-    init_excp_970(env);
-    env->dcache_line_size = 128;
-    env->icache_line_size = 128;
-    /* Allocate hardware IRQ controller */
-    ppc970_irq_init(env);
-    /* Can't find information on what this should be on reset.  This
-     * value is the one used by 74xx processors. */
-    vscr_init(env, 0x00010000);
-}
-
-POWERPC_FAMILY(970FX)(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    dc->desc = "PowerPC 970FX (aka G5)";
-    pcc->init_proc = init_proc_970FX;
-    pcc->check_pow = check_pow_970FX;
-    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
-                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
-                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
-                       PPC_FLOAT_STFIWX |
-                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
-                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
-                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
-                       PPC_64B | PPC_ALTIVEC |
-                       PPC_SEGMENT_64B | PPC_SLBI;
-    pcc->msr_mask = (1ull << MSR_SF) |
-                    (1ull << MSR_VR) |
-                    (1ull << MSR_POW) |
-                    (1ull << MSR_EE) |
-                    (1ull << MSR_PR) |
-                    (1ull << MSR_FP) |
-                    (1ull << MSR_ME) |
-                    (1ull << MSR_FE0) |
-                    (1ull << MSR_SE) |
-                    (1ull << MSR_DE) |
-                    (1ull << MSR_FE1) |
-                    (1ull << MSR_IR) |
-                    (1ull << MSR_DR) |
-                    (1ull << MSR_PMM) |
-                    (1ull << MSR_RI);
-    pcc->mmu_model = POWERPC_MMU_64B;
-#if defined(CONFIG_SOFTMMU)
-    pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
-#endif
-    pcc->excp_model = POWERPC_EXCP_970;
-    pcc->bus_model = PPC_FLAGS_INPUT_970;
-    pcc->bfd_mach = bfd_mach_ppc64;
-    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
-                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
-                 POWERPC_FLAG_BUS_CLK;
-    pcc->l1_dcache_size = 0x8000;
-    pcc->l1_icache_size = 0x10000;
-}
-
-static int check_pow_970MP (CPUPPCState *env)
-{
-    if (env->spr[SPR_HID0] & 0x01C00000)
-        return 1;
-
-    return 0;
-}
-
-static void init_proc_970MP (CPUPPCState *env)
-{
-    gen_spr_ne_601(env);
-    gen_spr_7xx(env);
-    /* Time base */
-    gen_tbl(env);
-    /* Hardware implementation registers */
-    /* XXX : not implemented */
-    spr_register(env, SPR_HID0, "HID0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_clear,
-                 0x60000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_HID1, "HID1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_970_HID5, "HID5",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 POWERPC970_HID5_INIT);
-    /* XXX : not implemented */
-    /* Memory management */
-    /* XXX: not correct */
-    gen_low_BATs(env);
-    spr_register(env, SPR_HIOR, "SPR_HIOR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_hior, &spr_write_hior,
-                 0x00000000);
-    /* Logical partitionning */
-    spr_register_kvm(env, SPR_LPCR, "LPCR",
-                     SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
-                     KVM_REG_PPC_LPCR, 0x00000000);
-#if !defined(CONFIG_USER_ONLY)
-    env->slb_nr = 32;
-#endif
-    init_excp_970(env);
-    env->dcache_line_size = 128;
-    env->icache_line_size = 128;
-    /* Allocate hardware IRQ controller */
-    ppc970_irq_init(env);
-    /* Can't find information on what this should be on reset.  This
-     * value is the one used by 74xx processors. */
-    vscr_init(env, 0x00010000);
-}
-
-POWERPC_FAMILY(970MP)(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    dc->desc = "PowerPC 970 MP";
-    pcc->init_proc = init_proc_970MP;
-    pcc->check_pow = check_pow_970MP;
-    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
-                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
-                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
-                       PPC_FLOAT_STFIWX |
-                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
-                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
-                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
-                       PPC_64B | PPC_ALTIVEC |
-                       PPC_SEGMENT_64B | PPC_SLBI;
-    pcc->msr_mask = (1ull << MSR_SF) |
-                    (1ull << MSR_SHV) |
-                    (1ull << MSR_VR) |
-                    (1ull << MSR_POW) |
-                    (1ull << MSR_EE) |
-                    (1ull << MSR_PR) |
-                    (1ull << MSR_FP) |
-                    (1ull << MSR_ME) |
-                    (1ull << MSR_FE0) |
-                    (1ull << MSR_SE) |
-                    (1ull << MSR_DE) |
-                    (1ull << MSR_FE1) |
-                    (1ull << MSR_IR) |
-                    (1ull << MSR_DR) |
-                    (1ull << MSR_PMM) |
-                    (1ull << MSR_RI);
-    pcc->mmu_model = POWERPC_MMU_64B;
-#if defined(CONFIG_SOFTMMU)
-    pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
-#endif
-    pcc->excp_model = POWERPC_EXCP_970;
-    pcc->bus_model = PPC_FLAGS_INPUT_970;
-    pcc->bfd_mach = bfd_mach_ppc64;
-    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
-                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
-                 POWERPC_FLAG_BUS_CLK;
-    pcc->l1_dcache_size = 0x8000;
-    pcc->l1_icache_size = 0x10000;
 }
 
 static void init_proc_power5plus(CPUPPCState *env)

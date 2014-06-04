@@ -1727,6 +1727,11 @@ static inline int cpu_mmu_index (CPUPPCState *env)
 #define   L1CSR1_ICFI		0x00000002	/* Instruction Cache Flash Invalidate */
 #define   L1CSR1_ICE		0x00000001	/* Instruction Cache Enable */
 
+/* HID0 bits */
+#define HID0_DEEPNAP        (1 << 24)
+#define HID0_DOZE           (1 << 23)
+#define HID0_NAP            (1 << 22)
+
 /*****************************************************************************/
 /* PowerPC Instructions types definitions                                    */
 enum {

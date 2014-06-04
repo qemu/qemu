@@ -1142,19 +1142,19 @@
                 "POWER8 v1.0")
     POWERPC_DEF("970",           CPU_POWERPC_970,                    970,
                 "PowerPC 970")
-    POWERPC_DEF("970fx_v1.0",    CPU_POWERPC_970FX_v10,              970FX,
+    POWERPC_DEF("970fx_v1.0",    CPU_POWERPC_970FX_v10,              970,
                 "PowerPC 970FX v1.0 (G5)")
-    POWERPC_DEF("970fx_v2.0",    CPU_POWERPC_970FX_v20,              970FX,
+    POWERPC_DEF("970fx_v2.0",    CPU_POWERPC_970FX_v20,              970,
                 "PowerPC 970FX v2.0 (G5)")
-    POWERPC_DEF("970fx_v2.1",    CPU_POWERPC_970FX_v21,              970FX,
+    POWERPC_DEF("970fx_v2.1",    CPU_POWERPC_970FX_v21,              970,
                 "PowerPC 970FX v2.1 (G5)")
-    POWERPC_DEF("970fx_v3.0",    CPU_POWERPC_970FX_v30,              970FX,
+    POWERPC_DEF("970fx_v3.0",    CPU_POWERPC_970FX_v30,              970,
                 "PowerPC 970FX v3.0 (G5)")
-    POWERPC_DEF("970fx_v3.1",    CPU_POWERPC_970FX_v31,              970FX,
+    POWERPC_DEF("970fx_v3.1",    CPU_POWERPC_970FX_v31,              970,
                 "PowerPC 970FX v3.1 (G5)")
-    POWERPC_DEF("970mp_v1.0",    CPU_POWERPC_970MP_v10,              970MP,
+    POWERPC_DEF("970mp_v1.0",    CPU_POWERPC_970MP_v10,              970,
                 "PowerPC 970MP v1.0")
-    POWERPC_DEF("970mp_v1.1",    CPU_POWERPC_970MP_v11,              970MP,
+    POWERPC_DEF("970mp_v1.1",    CPU_POWERPC_970MP_v11,              970,
                 "PowerPC 970MP v1.1")
 #if defined(TODO)
     POWERPC_DEF("Cell",          CPU_POWERPC_CELL,                   970,
