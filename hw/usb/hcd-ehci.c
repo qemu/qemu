@@ -2473,6 +2473,8 @@ void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
 
 void usb_ehci_unrealize(EHCIState *s, DeviceState *dev, Error **errp)
 {
+    trace_usb_ehci_unrealize();
+
     if (s->frame_timer) {
         timer_del(s->frame_timer);
         timer_free(s->frame_timer);

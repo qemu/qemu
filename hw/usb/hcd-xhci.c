@@ -3649,6 +3649,8 @@ static void usb_xhci_exit(PCIDevice *dev)
     int i;
     XHCIState *xhci = XHCI(dev);
 
+    trace_usb_xhci_exit();
+
     for (i = 0; i < xhci->numslots; i++) {
         xhci_disable_slot(xhci, i + 1);
     }
