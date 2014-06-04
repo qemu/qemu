@@ -65,6 +65,7 @@ typedef struct IscsiLun {
     unsigned char *zeroblock;
     unsigned long *allocationmap;
     int cluster_sectors;
+    bool use_16_for_rw;
 } IscsiLun;
 
 typedef struct IscsiTask {
@@ -381,10 +382,17 @@ static int coroutine_fn iscsi_co_writev(BlockDriverState *bs,
 #endif
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
-    iTask.task = iscsi_write16_task(iscsilun->iscsi, iscsilun->lun, lba,
-                                    data, num_sectors * iscsilun->block_size,
-                                    iscsilun->block_size, 0, 0, 0, 0, 0,
-                                    iscsi_co_generic_cb, &iTask);
+    if (iscsilun->use_16_for_rw) {
+        iTask.task = iscsi_write16_task(iscsilun->iscsi, iscsilun->lun, lba,
+                                        data, num_sectors * iscsilun->block_size,
+                                        iscsilun->block_size, 0, 0, 0, 0, 0,
+                                        iscsi_co_generic_cb, &iTask);
+    } else {
+        iTask.task = iscsi_write10_task(iscsilun->iscsi, iscsilun->lun, lba,
+                                        data, num_sectors * iscsilun->block_size,
+                                        iscsilun->block_size, 0, 0, 0, 0, 0,
+                                        iscsi_co_generic_cb, &iTask);
+    }
     if (iTask.task == NULL) {
         g_free(buf);
         return -ENOMEM;
@@ -570,14 +578,12 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
 
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
-    switch (iscsilun->type) {
-    case TYPE_DISK:
+    if (iscsilun->use_16_for_rw) {
         iTask.task = iscsi_read16_task(iscsilun->iscsi, iscsilun->lun, lba,
                                        num_sectors * iscsilun->block_size,
                                        iscsilun->block_size, 0, 0, 0, 0, 0,
                                        iscsi_co_generic_cb, &iTask);
-        break;
-    default:
+    } else {
         iTask.task = iscsi_read10_task(iscsilun->iscsi, iscsilun->lun, lba,
                                        num_sectors * iscsilun->block_size,
                                        iscsilun->block_size,
@@ -585,7 +591,6 @@ retry:
                                        0, 0, 0, 0, 0,
 #endif
                                        iscsi_co_generic_cb, &iTask);
-        break;
     }
     if (iTask.task == NULL) {
         return -ENOMEM;
@@ -921,19 +926,27 @@ coroutine_fn iscsi_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
     struct IscsiTask iTask;
     uint64_t lba;
     uint32_t nb_blocks;
+    bool use_16_for_ws = iscsilun->use_16_for_rw;
 
     if (!is_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
         return -EINVAL;
     }
 
-    if ((flags & BDRV_REQ_MAY_UNMAP) && !iscsilun->lbp.lbpws) {
-        /* WRITE SAME with UNMAP is not supported by the target,
-         * fall back and try WRITE SAME without UNMAP */
-        flags &= ~BDRV_REQ_MAY_UNMAP;
+    if (flags & BDRV_REQ_MAY_UNMAP) {
+        if (!use_16_for_ws && !iscsilun->lbp.lbpws10) {
+            /* WRITESAME10 with UNMAP is unsupported try WRITESAME16 */
+            use_16_for_ws = true;
+        }
+        if (use_16_for_ws && !iscsilun->lbp.lbpws) {
+            /* WRITESAME16 with UNMAP is not supported by the target,
+             * fall back and try WRITESAME10/16 without UNMAP */
+            flags &= ~BDRV_REQ_MAY_UNMAP;
+            use_16_for_ws = iscsilun->use_16_for_rw;
+        }
     }
 
     if (!(flags & BDRV_REQ_MAY_UNMAP) && !iscsilun->has_write_same) {
-        /* WRITE SAME without UNMAP is not supported by the target */
+        /* WRITESAME without UNMAP is not supported by the target */
         return -ENOTSUP;
     }
 
@@ -946,10 +959,18 @@ coroutine_fn iscsi_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
 
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
-    if (iscsi_writesame16_task(iscsilun->iscsi, iscsilun->lun, lba,
-                               iscsilun->zeroblock, iscsilun->block_size,
-                               nb_blocks, 0, !!(flags & BDRV_REQ_MAY_UNMAP),
-                               0, 0, iscsi_co_generic_cb, &iTask) == NULL) {
+    if (use_16_for_ws) {
+        iTask.task = iscsi_writesame16_task(iscsilun->iscsi, iscsilun->lun, lba,
+                                            iscsilun->zeroblock, iscsilun->block_size,
+                                            nb_blocks, 0, !!(flags & BDRV_REQ_MAY_UNMAP),
+                                            0, 0, iscsi_co_generic_cb, &iTask);
+    } else {
+        iTask.task = iscsi_writesame10_task(iscsilun->iscsi, iscsilun->lun, lba,
+                                            iscsilun->zeroblock, iscsilun->block_size,
+                                            nb_blocks, 0, !!(flags & BDRV_REQ_MAY_UNMAP),
+                                            0, 0, iscsi_co_generic_cb, &iTask);
+    }
+    if (iTask.task == NULL) {
         return -ENOMEM;
     }
 
@@ -1147,6 +1168,7 @@ static void iscsi_readcapacity_sync(IscsiLun *iscsilun, Error **errp)
                     iscsilun->num_blocks = rc16->returned_lba + 1;
                     iscsilun->lbpme = rc16->lbpme;
                     iscsilun->lbprz = rc16->lbprz;
+                    iscsilun->use_16_for_rw = (rc16->returned_lba > 0xffffffff);
                 }
             }
             break;
