@@ -69,6 +69,7 @@ static int cap_epr;
 static int cap_ppc_watchdog;
 static int cap_papr;
 static int cap_htab_fd;
+static int cap_fixup_hcalls;
 
 /* XXX We have a race condition where we actually have a level triggered
  *     interrupt, but the infrastructure can't expose that yet, so the guest
@@ -107,6 +108,7 @@ int kvm_arch_init(KVMState *s)
     /* Note: we don't set cap_papr here, because this capability is
      * only activated after this by kvmppc_set_papr() */
     cap_htab_fd = kvm_check_extension(s, KVM_CAP_PPC_HTAB_FD);
+    cap_fixup_hcalls = kvm_check_extension(s, KVM_CAP_PPC_FIXUP_HCALL);
 
     if (!cap_interrupt_level) {
         fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
@@ -1778,6 +1780,11 @@ bool kvmppc_has_cap_epr(void)
 bool kvmppc_has_cap_htab_fd(void)
 {
     return cap_htab_fd;
+}
+
+bool kvmppc_has_cap_fixup_hcalls(void)
+{
+    return cap_fixup_hcalls;
 }
 
 static PowerPCCPUClass *ppc_cpu_get_family_class(PowerPCCPUClass *pcc)

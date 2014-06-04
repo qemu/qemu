@@ -50,6 +50,7 @@ void kvmppc_hash64_free_pteg(uint64_t token);
 
 void kvmppc_hash64_write_pte(CPUPPCState *env, target_ulong pte_index,
                              target_ulong pte0, target_ulong pte1);
+bool kvmppc_has_cap_fixup_hcalls(void);
 
 #else
 
@@ -219,6 +220,11 @@ static inline void kvmppc_hash64_free_pteg(uint64_t token)
 static inline void kvmppc_hash64_write_pte(CPUPPCState *env,
                                            target_ulong pte_index,
                                            target_ulong pte0, target_ulong pte1)
+{
+    abort();
+}
+
+static inline bool kvmppc_has_cap_fixup_hcalls(void)
 {
     abort();
 }
