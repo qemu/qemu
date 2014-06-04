@@ -7518,6 +7518,15 @@ static void gen_spr_book3s_ids(CPUPPCState *env)
                  0x00000000);
 }
 
+static void gen_spr_power8_ids(CPUPPCState *env)
+{
+    /* Thread identification */
+    spr_register(env, SPR_TIR, "TIR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
+                 0x00000000);
+}
+
 static void gen_spr_book3s_purr(CPUPPCState *env)
 {
 #if !defined(CONFIG_USER_ONLY)
@@ -7621,6 +7630,7 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
     }
     if (version >= BOOK3S_CPU_POWER8) {
         gen_spr_power8_tce_address_control(env);
+        gen_spr_power8_ids(env);
     }
 #if !defined(CONFIG_USER_ONLY)
     switch (version) {
