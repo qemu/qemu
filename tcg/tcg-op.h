@@ -2718,7 +2718,7 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_gen_bswap16_tl tcg_gen_bswap16_i32
 #define tcg_gen_bswap32_tl tcg_gen_bswap32_i32
 #define tcg_gen_concat_tl_i64 tcg_gen_concat_i32_i64
-#define tcg_gen_extr_tl_i64 tcg_gen_extr_i32_i64
+#define tcg_gen_extr_i64_tl tcg_gen_extr_i64_i32
 #define tcg_gen_andc_tl tcg_gen_andc_i32
 #define tcg_gen_eqv_tl tcg_gen_eqv_i32
 #define tcg_gen_nand_tl tcg_gen_nand_i32
