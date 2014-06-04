@@ -629,6 +629,7 @@ static int block_save_setup(QEMUFile *f, void *opaque)
             block_mig_state.submitted, block_mig_state.transferred);
 
     qemu_mutex_lock_iothread();
+    init_blk_migration(f);
 
     /* start track dirty blocks */
     ret = set_dirty_tracking();
@@ -637,8 +638,6 @@ static int block_save_setup(QEMUFile *f, void *opaque)
         qemu_mutex_unlock_iothread();
         return ret;
     }
-
-    init_blk_migration(f);
 
     qemu_mutex_unlock_iothread();
 
