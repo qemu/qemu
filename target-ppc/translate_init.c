@@ -7507,6 +7507,26 @@ static void gen_spr_970_pmu_user(CPUPPCState *env)
                  0x00000000);
 }
 
+static void gen_spr_power8_pmu_sup(CPUPPCState *env)
+{
+    spr_register_kvm(env, SPR_POWER_MMCR2, "MMCR2",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_MMCR2, 0x00000000);
+    spr_register_kvm(env, SPR_POWER_MMCRS, "MMCRS",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_MMCRS, 0x00000000);
+}
+
+static void gen_spr_power8_pmu_user(CPUPPCState *env)
+{
+    spr_register(env, SPR_POWER_UMMCR2, "UMMCR2",
+                 &spr_read_ureg, SPR_NOACCESS,
+                 &spr_read_ureg, &spr_write_ureg,
+                 0x00000000);
+}
+
 static void gen_spr_power5p_ear(CPUPPCState *env)
 {
     /* External access control */
@@ -7673,6 +7693,8 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
         gen_spr_power8_tce_address_control(env);
         gen_spr_power8_ids(env);
         gen_spr_power8_fscr(env);
+        gen_spr_power8_pmu_sup(env);
+        gen_spr_power8_pmu_user(env);
     }
 #if !defined(CONFIG_USER_ONLY)
     switch (version) {
