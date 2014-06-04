@@ -865,6 +865,25 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
 
 #ifdef TARGET_PPC64
+        if (msr_ts) {
+            for (i = 0; i < ARRAY_SIZE(env->tm_gpr); i++) {
+                kvm_set_one_reg(cs, KVM_REG_PPC_TM_GPR(i), &env->tm_gpr[i]);
+            }
+            for (i = 0; i < ARRAY_SIZE(env->tm_vsr); i++) {
+                kvm_set_one_reg(cs, KVM_REG_PPC_TM_VSR(i), &env->tm_vsr[i]);
+            }
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_CR, &env->tm_cr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_LR, &env->tm_lr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_CTR, &env->tm_ctr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_FPSCR, &env->tm_fpscr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_AMR, &env->tm_amr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_PPR, &env->tm_ppr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_VRSAVE, &env->tm_vrsave);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_VSCR, &env->tm_vscr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_DSCR, &env->tm_dscr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_TAR, &env->tm_tar);
+        }
+
         if (cap_papr) {
             if (kvm_put_vpa(cs) < 0) {
                 DPRINTF("Warning: Unable to set VPA information to KVM\n");
@@ -1091,6 +1110,25 @@ int kvm_arch_get_registers(CPUState *cs)
         }
 
 #ifdef TARGET_PPC64
+        if (msr_ts) {
+            for (i = 0; i < ARRAY_SIZE(env->tm_gpr); i++) {
+                kvm_get_one_reg(cs, KVM_REG_PPC_TM_GPR(i), &env->tm_gpr[i]);
+            }
+            for (i = 0; i < ARRAY_SIZE(env->tm_vsr); i++) {
+                kvm_get_one_reg(cs, KVM_REG_PPC_TM_VSR(i), &env->tm_vsr[i]);
+            }
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_CR, &env->tm_cr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_LR, &env->tm_lr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_CTR, &env->tm_ctr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_FPSCR, &env->tm_fpscr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_AMR, &env->tm_amr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_PPR, &env->tm_ppr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_VRSAVE, &env->tm_vrsave);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_VSCR, &env->tm_vscr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_DSCR, &env->tm_dscr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_TAR, &env->tm_tar);
+        }
+
         if (cap_papr) {
             if (kvm_get_vpa(cs) < 0) {
                 DPRINTF("Warning: Unable to get VPA information from KVM\n");

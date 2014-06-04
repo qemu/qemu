@@ -1099,6 +1099,20 @@ struct CPUPPCState {
      */
     uint8_t fit_period[4];
     uint8_t wdt_period[4];
+
+    /* Transactional memory state */
+    target_ulong tm_gpr[32];
+    ppc_avr_t tm_vsr[64];
+    uint64_t tm_cr;
+    uint64_t tm_lr;
+    uint64_t tm_ctr;
+    uint64_t tm_fpscr;
+    uint64_t tm_amr;
+    uint64_t tm_ppr;
+    uint64_t tm_vrsave;
+    uint32_t tm_vscr;
+    uint64_t tm_dscr;
+    uint64_t tm_tar;
 };
 
 #define SET_FIT_PERIOD(a_, b_, c_, d_)          \

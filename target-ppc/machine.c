@@ -249,6 +249,38 @@ static const VMStateDescription vmstate_vsx = {
     },
 };
 
+#ifdef TARGET_PPC64
+/* Transactional memory state */
+static bool tm_needed(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
+    return msr_ts;
+}
+
+static const VMStateDescription vmstate_tm = {
+    .name = "cpu/tm",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINTTL_ARRAY(env.tm_gpr, PowerPCCPU, 32),
+        VMSTATE_AVR_ARRAY(env.tm_vsr, PowerPCCPU, 64),
+        VMSTATE_UINT64(env.tm_cr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_lr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_ctr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_fpscr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_amr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_ppr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_vrsave, PowerPCCPU),
+        VMSTATE_UINT32(env.tm_vscr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_dscr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_tar, PowerPCCPU),
+        VMSTATE_END_OF_LIST()
+    },
+};
+#endif
+
 static bool sr_needed(void *opaque)
 {
 #ifdef TARGET_PPC64
@@ -510,6 +542,9 @@ const VMStateDescription vmstate_ppc_cpu = {
             .needed = sr_needed,
         } , {
 #ifdef TARGET_PPC64
+            .vmsd = &vmstate_tm,
+            .needed = tm_needed,
+        } , {
             .vmsd = &vmstate_slb,
             .needed = slb_needed,
         } , {
