@@ -7506,6 +7506,30 @@ static void gen_spr_power5p_lpar(CPUPPCState *env)
                      KVM_REG_PPC_LPCR, 0x00000000);
 }
 
+static void gen_spr_book3s_ids(CPUPPCState *env)
+{
+    /* Processor identification */
+    spr_register(env, SPR_PIR, "PIR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_pir,
+                 0x00000000);
+}
+
+static void gen_spr_book3s_purr(CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    /* PURR & SPURR: Hack - treat these as aliases for the TB for now */
+    spr_register_kvm(env, SPR_PURR,   "PURR",
+                     &spr_read_purr, SPR_NOACCESS,
+                     &spr_read_purr, SPR_NOACCESS,
+                     KVM_REG_PPC_PURR, 0x00000000);
+    spr_register_kvm(env, SPR_SPURR,   "SPURR",
+                     &spr_read_purr, SPR_NOACCESS,
+                     &spr_read_purr, SPR_NOACCESS,
+                     KVM_REG_PPC_SPURR, 0x00000000);
+#endif
+}
+
 static void init_proc_book3s_64(CPUPPCState *env, int version)
 {
     gen_spr_ne_601(env);
@@ -7719,21 +7743,7 @@ static void init_proc_POWER7 (CPUPPCState *env)
     gen_spr_7xx(env);
     /* Time base */
     gen_tbl(env);
-    /* Processor identification */
-    spr_register(env, SPR_PIR, "PIR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_pir,
-                 0x00000000);
 #if !defined(CONFIG_USER_ONLY)
-    /* PURR & SPURR: Hack - treat these as aliases for the TB for now */
-    spr_register_kvm(env, SPR_PURR,   "PURR",
-                     &spr_read_purr, SPR_NOACCESS,
-                     &spr_read_purr, SPR_NOACCESS,
-                     KVM_REG_PPC_PURR, 0x00000000);
-    spr_register_kvm(env, SPR_SPURR,   "SPURR",
-                     &spr_read_purr, SPR_NOACCESS,
-                     &spr_read_purr, SPR_NOACCESS,
-                     KVM_REG_PPC_SPURR, 0x00000000);
     spr_register(env, SPR_CFAR, "SPR_CFAR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_cfar, &spr_write_cfar,
@@ -7755,6 +7765,8 @@ static void init_proc_POWER7 (CPUPPCState *env)
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_PMC6, 0x00000000);
 #endif /* !CONFIG_USER_ONLY */
+    gen_spr_book3s_ids(env);
+    gen_spr_book3s_purr(env);
     gen_spr_amr(env);
     /* XXX : not implemented */
     spr_register(env, SPR_CTRL, "SPR_CTRLT",
