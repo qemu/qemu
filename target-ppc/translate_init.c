@@ -7591,14 +7591,6 @@ POWERPC_FAMILY(970)(ObjectClass *oc, void *data)
     pcc->l1_icache_size = 0x10000;
 }
 
-static int check_pow_970FX (CPUPPCState *env)
-{
-    if (env->spr[SPR_HID0] & 0x00600000)
-        return 1;
-
-    return 0;
-}
-
 static void init_proc_power5plus(CPUPPCState *env)
 {
     init_proc_book3s_64(env, BOOK3S_CPU_POWER5PLUS);
@@ -7612,7 +7604,7 @@ POWERPC_FAMILY(POWER5P)(ObjectClass *oc, void *data)
     dc->fw_name = "PowerPC,POWER5";
     dc->desc = "POWER5+";
     pcc->init_proc = init_proc_power5plus;
-    pcc->check_pow = check_pow_970FX;
+    pcc->check_pow = check_pow_970;
     pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
                        PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
                        PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
