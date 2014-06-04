@@ -7717,6 +7717,62 @@ static void gen_spr_power8_tm(CPUPPCState *env)
                  0x00000000);
 }
 
+static void spr_read_ebb(void *opaque, int gprn, int sprn)
+{
+    gen_fscr_facility_check(opaque, SPR_FSCR, FSCR_EBB, sprn, FSCR_IC_EBB);
+    spr_read_generic(opaque, gprn, sprn);
+}
+
+static void spr_write_ebb(void *opaque, int sprn, int gprn)
+{
+    gen_fscr_facility_check(opaque, SPR_FSCR, FSCR_EBB, sprn, FSCR_IC_EBB);
+    spr_write_generic(opaque, sprn, gprn);
+}
+
+static void spr_read_ebb_upper32(void *opaque, int gprn, int sprn)
+{
+    gen_fscr_facility_check(opaque, SPR_FSCR, FSCR_EBB, sprn, FSCR_IC_EBB);
+    spr_read_prev_upper32(opaque, gprn, sprn);
+}
+
+static void spr_write_ebb_upper32(void *opaque, int sprn, int gprn)
+{
+    gen_fscr_facility_check(opaque, SPR_FSCR, FSCR_EBB, sprn, FSCR_IC_EBB);
+    spr_write_prev_upper32(opaque, sprn, gprn);
+}
+
+static void gen_spr_power8_ebb(CPUPPCState *env)
+{
+    spr_register(env, SPR_BESCRS, "BESCRS",
+                 &spr_read_ebb, &spr_write_ebb,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BESCRSU, "BESCRSU",
+                 &spr_read_ebb_upper32, &spr_write_ebb_upper32,
+                 &spr_read_prev_upper32, &spr_write_prev_upper32,
+                 0x00000000);
+    spr_register(env, SPR_BESCRR, "BESCRR",
+                 &spr_read_ebb, &spr_write_ebb,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BESCRRU, "BESCRRU",
+                 &spr_read_ebb_upper32, &spr_write_ebb_upper32,
+                 &spr_read_prev_upper32, &spr_write_prev_upper32,
+                 0x00000000);
+    spr_register_kvm(env, SPR_EBBHR, "EBBHR",
+                     &spr_read_ebb, &spr_write_ebb,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_EBBHR, 0x00000000);
+    spr_register_kvm(env, SPR_EBBRR, "EBBRR",
+                     &spr_read_ebb, &spr_write_ebb,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_EBBRR, 0x00000000);
+    spr_register_kvm(env, SPR_BESCR, "BESCR",
+                     &spr_read_ebb, &spr_write_ebb,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_BESCR, 0x00000000);
+}
+
 static void gen_spr_power8_fscr(CPUPPCState *env)
 {
 #if defined(CONFIG_USER_ONLY)
@@ -7775,6 +7831,7 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
     if (version >= BOOK3S_CPU_POWER8) {
         gen_spr_power8_tce_address_control(env);
         gen_spr_power8_ids(env);
+        gen_spr_power8_ebb(env);
         gen_spr_power8_fscr(env);
         gen_spr_power8_pmu_sup(env);
         gen_spr_power8_pmu_user(env);
