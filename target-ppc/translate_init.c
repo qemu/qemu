@@ -7297,6 +7297,45 @@ static void gen_fscr_facility_check(void *opaque, int facility_sprn, int bit,
     tcg_temp_free_i32(t1);
 }
 
+static void gen_msr_facility_check(void *opaque, int facility_sprn, int bit,
+                                   int sprn, int cause)
+{
+    TCGv_i32 t1 = tcg_const_i32(bit);
+    TCGv_i32 t2 = tcg_const_i32(sprn);
+    TCGv_i32 t3 = tcg_const_i32(cause);
+
+    gen_update_current_nip(opaque);
+    gen_helper_msr_facility_check(cpu_env, t1, t2, t3);
+
+    tcg_temp_free_i32(t3);
+    tcg_temp_free_i32(t2);
+    tcg_temp_free_i32(t1);
+}
+
+static void spr_read_prev_upper32(void *opaque, int gprn, int sprn)
+{
+    TCGv spr_up = tcg_temp_new();
+    TCGv spr = tcg_temp_new();
+
+    gen_load_spr(spr, sprn - 1);
+    tcg_gen_shri_tl(spr_up, spr, 32);
+    tcg_gen_ext32u_tl(cpu_gpr[gprn], spr_up);
+
+    tcg_temp_free(spr);
+    tcg_temp_free(spr_up);
+}
+
+static void spr_write_prev_upper32(void *opaque, int sprn, int gprn)
+{
+    TCGv spr = tcg_temp_new();
+
+    gen_load_spr(spr, sprn - 1);
+    tcg_gen_deposit_tl(spr, spr, cpu_gpr[gprn], 32, 32);
+    gen_store_spr(sprn - 1, spr);
+
+    tcg_temp_free(spr);
+}
+
 static int check_pow_970 (CPUPPCState *env)
 {
     if (env->spr[SPR_HID0] & (HID0_DEEPNAP | HID0_DOZE | HID0_NAP)) {
@@ -7634,6 +7673,50 @@ static void gen_spr_power8_tce_address_control(CPUPPCState *env)
                  0x00000000);
 }
 
+static void spr_read_tm(void *opaque, int gprn, int sprn)
+{
+    gen_msr_facility_check(opaque, SPR_FSCR, MSR_TM, sprn, FSCR_IC_TM);
+    spr_read_generic(opaque, gprn, sprn);
+}
+
+static void spr_write_tm(void *opaque, int sprn, int gprn)
+{
+    gen_msr_facility_check(opaque, SPR_FSCR, MSR_TM, sprn, FSCR_IC_TM);
+    spr_write_generic(opaque, sprn, gprn);
+}
+
+static void spr_read_tm_upper32(void *opaque, int gprn, int sprn)
+{
+    gen_msr_facility_check(opaque, SPR_FSCR, MSR_TM, sprn, FSCR_IC_TM);
+    spr_read_prev_upper32(opaque, gprn, sprn);
+}
+
+static void spr_write_tm_upper32(void *opaque, int sprn, int gprn)
+{
+    gen_msr_facility_check(opaque, SPR_FSCR, MSR_TM, sprn, FSCR_IC_TM);
+    spr_write_prev_upper32(opaque, sprn, gprn);
+}
+
+static void gen_spr_power8_tm(CPUPPCState *env)
+{
+    spr_register_kvm(env, SPR_TFHAR, "TFHAR",
+                     &spr_read_tm, &spr_write_tm,
+                     &spr_read_tm, &spr_write_tm,
+                     KVM_REG_PPC_TFHAR, 0x00000000);
+    spr_register_kvm(env, SPR_TFIAR, "TFIAR",
+                     &spr_read_tm, &spr_write_tm,
+                     &spr_read_tm, &spr_write_tm,
+                     KVM_REG_PPC_TFIAR, 0x00000000);
+    spr_register_kvm(env, SPR_TEXASR, "TEXASR",
+                     &spr_read_tm, &spr_write_tm,
+                     &spr_read_tm, &spr_write_tm,
+                     KVM_REG_PPC_TEXASR, 0x00000000);
+    spr_register(env, SPR_TEXASRU, "TEXASRU",
+                 &spr_read_tm_upper32, &spr_write_tm_upper32,
+                 &spr_read_tm_upper32, &spr_write_tm_upper32,
+                 0x00000000);
+}
+
 static void gen_spr_power8_fscr(CPUPPCState *env)
 {
 #if defined(CONFIG_USER_ONLY)
@@ -7695,6 +7778,7 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
         gen_spr_power8_fscr(env);
         gen_spr_power8_pmu_sup(env);
         gen_spr_power8_pmu_user(env);
+        gen_spr_power8_tm(env);
     }
 #if !defined(CONFIG_USER_ONLY)
     switch (version) {
@@ -8066,6 +8150,7 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
                         PPC2_LSQ_ISA207 | PPC2_ALTIVEC_207 |
                         PPC2_ISA205 | PPC2_ISA207S;
     pcc->msr_mask = (1ull << MSR_SF) |
+                    (1ull << MSR_TM) |
                     (1ull << MSR_VR) |
                     (1ull << MSR_VSX) |
                     (1ull << MSR_EE) |
@@ -9378,6 +9463,9 @@ static void ppc_cpu_reset(CPUState *s)
     msr |= (target_ulong)1 << MSR_VSX; /* Allow VSX usage */
     msr |= (target_ulong)1 << MSR_SPE; /* Allow SPE usage */
     msr |= (target_ulong)1 << MSR_PR;
+#if defined(TARGET_PPC64)
+    msr |= (target_ulong)1 << MSR_TM; /* Transactional memory */
+#endif
 #if !defined(TARGET_WORDS_BIGENDIAN)
     msr |= (target_ulong)1 << MSR_LE; /* Little-endian user mode */
 #endif

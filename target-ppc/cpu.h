@@ -427,6 +427,9 @@ struct ppc_slb_t {
 #define MSR_TAG  62 /* Tag-active mode (POWERx ?)                            */
 #define MSR_ISF  61 /* Sixty-four-bit interrupt mode on 630                  */
 #define MSR_SHV  60 /* hypervisor state                               hflags */
+#define MSR_TS0  34 /* Transactional state, 2 bits (Book3s)                  */
+#define MSR_TS1  33
+#define MSR_TM   32 /* Transactional Memory Available (Book3s)               */
 #define MSR_CM   31 /* Computation mode for BookE                     hflags */
 #define MSR_ICM  30 /* Interrupt computation mode for BookE                  */
 #define MSR_THV  29 /* hypervisor state for 32 bits PowerPC           hflags */
@@ -503,6 +506,9 @@ struct ppc_slb_t {
 #define msr_pmm  ((env->msr >> MSR_PMM)  & 1)
 #define msr_ri   ((env->msr >> MSR_RI)   & 1)
 #define msr_le   ((env->msr >> MSR_LE)   & 1)
+#define msr_ts   ((env->msr >> MSR_TS1)  & 3)
+#define msr_tm   ((env->msr >> MSR_TM)   & 1)
+
 /* Hypervisor bit is more specific */
 #if defined(TARGET_PPC64)
 #define MSR_HVB (1ULL << MSR_SHV)
@@ -1271,6 +1277,10 @@ static inline int cpu_mmu_index (CPUPPCState *env)
 #define SPR_MPC_EIE           (0x050)
 #define SPR_MPC_EID           (0x051)
 #define SPR_MPC_NRI           (0x052)
+#define SPR_TFHAR             (0x080)
+#define SPR_TFIAR             (0x081)
+#define SPR_TEXASR            (0x082)
+#define SPR_TEXASRU           (0x083)
 #define SPR_UCTRL             (0x088)
 #define SPR_MPC_CMPA          (0x090)
 #define SPR_MPC_CMPB          (0x091)

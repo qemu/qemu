@@ -61,6 +61,18 @@ void helper_fscr_facility_check(CPUPPCState *env, uint32_t bit,
 #endif
 }
 
+void helper_msr_facility_check(CPUPPCState *env, uint32_t bit,
+                               uint32_t sprn, uint32_t cause)
+{
+#ifdef TARGET_PPC64
+    if (env->msr & (1ULL << bit)) {
+        /* Facility is enabled, continue */
+        return;
+    }
+    raise_fu_exception(env, bit, sprn, cause);
+#endif
+}
+
 #if !defined(CONFIG_USER_ONLY)
 
 void helper_store_sdr1(CPUPPCState *env, target_ulong val)
