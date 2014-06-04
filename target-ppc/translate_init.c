@@ -7784,27 +7784,14 @@ static Property powerpc_servercpu_properties[] = {
 static void init_proc_POWER7 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
-    gen_spr_7xx(env);
     gen_spr_book3s_altivec(env);
     /* Time base */
     gen_tbl(env);
-#if !defined(CONFIG_USER_ONLY)
-    spr_register_kvm(env, SPR_POWER_MMCRA, "SPR_MMCRA",
-                     SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
-                     KVM_REG_PPC_MMCRA, 0x00000000);
-    spr_register_kvm(env, SPR_7XX_PMC5, "SPR_7XX_PMC5",
-                     SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
-                     KVM_REG_PPC_PMC5, 0x00000000);
-    spr_register_kvm(env, SPR_7XX_PMC6, "SPR_7XX_PMC6",
-                     SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
-                     KVM_REG_PPC_PMC6, 0x00000000);
-#endif /* !CONFIG_USER_ONLY */
     gen_spr_book3s_ids(env);
     gen_spr_book3s_purr(env);
     gen_spr_book3s_common(env);
+    gen_spr_book3s_pmu_sup(env);
+    gen_spr_book3s_pmu_user(env);
     gen_spr_power5p_common(env);
     gen_spr_power5p_lpar(env);
     gen_spr_power6_common(env);
