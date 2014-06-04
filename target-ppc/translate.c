@@ -3879,7 +3879,7 @@ static inline void gen_bcond(DisasContext *ctx, int type)
         gen_update_nip(ctx, ctx->nip);
         tcg_gen_exit_tb(0);
     }
-    if (type == BCOND_LR || type == BCOND_CTR) {
+    if (type == BCOND_LR || type == BCOND_CTR || type == BCOND_TAR) {
         tcg_temp_free(target);
     }
 }
