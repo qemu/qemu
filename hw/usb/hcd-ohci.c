@@ -1371,8 +1371,10 @@ static int ohci_bus_start(OHCIState *ohci)
 /* Stop sending SOF tokens on the bus */
 static void ohci_bus_stop(OHCIState *ohci)
 {
-    if (ohci->eof_timer)
+    if (ohci->eof_timer) {
         timer_del(ohci->eof_timer);
+        timer_free(ohci->eof_timer);
+    }
     ohci->eof_timer = NULL;
 }
 
