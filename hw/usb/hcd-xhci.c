@@ -3644,6 +3644,41 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
     return 0;
 }
 
+static void usb_xhci_exit(PCIDevice *dev)
+{
+    int i;
+    XHCIState *xhci = XHCI(dev);
+
+    for (i = 0; i < xhci->numslots; i++) {
+        xhci_disable_slot(xhci, i + 1);
+    }
+
+    if (xhci->mfwrap_timer) {
+        timer_del(xhci->mfwrap_timer);
+        timer_free(xhci->mfwrap_timer);
+        xhci->mfwrap_timer = NULL;
+    }
+
+    memory_region_del_subregion(&xhci->mem, &xhci->mem_cap);
+    memory_region_del_subregion(&xhci->mem, &xhci->mem_oper);
+    memory_region_del_subregion(&xhci->mem, &xhci->mem_runtime);
+    memory_region_del_subregion(&xhci->mem, &xhci->mem_doorbell);
+
+    for (i = 0; i < xhci->numports; i++) {
+        XHCIPort *port = &xhci->ports[i];
+        memory_region_del_subregion(&xhci->mem, &port->mem);
+    }
+
+    /* destroy msix memory region */
+    if (dev->msix_table && dev->msix_pba
+        && dev->msix_entry_used) {
+        memory_region_del_subregion(&xhci->mem, &dev->msix_table_mmio);
+        memory_region_del_subregion(&xhci->mem, &dev->msix_pba_mmio);
+    }
+
+    usb_bus_release(&xhci->bus);
+}
+
 static int usb_xhci_post_load(void *opaque, int version_id)
 {
     XHCIState *xhci = opaque;
@@ -3836,6 +3871,7 @@ static void xhci_class_init(ObjectClass *klass, void *data)
     dc->hotpluggable   = false;
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
     k->init         = usb_xhci_initfn;
+    k->exit         = usb_xhci_exit;
     k->vendor_id    = PCI_VENDOR_ID_NEC;
     k->device_id    = PCI_DEVICE_ID_NEC_UPD720200;
     k->class_id     = PCI_CLASS_SERIAL_USB;
