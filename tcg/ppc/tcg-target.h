@@ -100,8 +100,6 @@ typedef enum {
 #define TCG_TARGET_HAS_muluh_i32        0
 #define TCG_TARGET_HAS_mulsh_i32        0
 
-#define TCG_TARGET_HAS_new_ldst         1
-
 #define TCG_AREG0 TCG_REG_R27
 
 #define tcg_qemu_tb_exec(env, tb_ptr) \

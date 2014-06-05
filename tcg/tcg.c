@@ -941,97 +941,26 @@ static inline TCGMemOp tcg_canonicalize_memop(TCGMemOp op, bool is64, bool st)
     return op;
 }
 
-static const TCGOpcode old_ld_opc[8] = {
-    [MO_UB] = INDEX_op_qemu_ld8u,
-    [MO_SB] = INDEX_op_qemu_ld8s,
-    [MO_UW] = INDEX_op_qemu_ld16u,
-    [MO_SW] = INDEX_op_qemu_ld16s,
-#if TCG_TARGET_REG_BITS == 32
-    [MO_UL] = INDEX_op_qemu_ld32,
-    [MO_SL] = INDEX_op_qemu_ld32,
-#else
-    [MO_UL] = INDEX_op_qemu_ld32u,
-    [MO_SL] = INDEX_op_qemu_ld32s,
-#endif
-    [MO_Q]  = INDEX_op_qemu_ld64,
-};
-
-static const TCGOpcode old_st_opc[4] = {
-    [MO_UB] = INDEX_op_qemu_st8,
-    [MO_UW] = INDEX_op_qemu_st16,
-    [MO_UL] = INDEX_op_qemu_st32,
-    [MO_Q]  = INDEX_op_qemu_st64,
-};
-
 void tcg_gen_qemu_ld_i32(TCGv_i32 val, TCGv addr, TCGArg idx, TCGMemOp memop)
 {
     memop = tcg_canonicalize_memop(memop, 0, 0);
 
-    if (TCG_TARGET_HAS_new_ldst) {
-        *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_ld_i32;
-        tcg_add_param_i32(val);
-        tcg_add_param_tl(addr);
-        *tcg_ctx.gen_opparam_ptr++ = memop;
-        *tcg_ctx.gen_opparam_ptr++ = idx;
-        return;
-    }
-
-    /* The old opcodes only support target-endian memory operations.  */
-    assert((memop & MO_BSWAP) == MO_TE || (memop & MO_SIZE) == MO_8);
-    assert(old_ld_opc[memop & MO_SSIZE] != 0);
-
-    if (TCG_TARGET_REG_BITS == 32) {
-        *tcg_ctx.gen_opc_ptr++ = old_ld_opc[memop & MO_SSIZE];
-        tcg_add_param_i32(val);
-        tcg_add_param_tl(addr);
-        *tcg_ctx.gen_opparam_ptr++ = idx;
-    } else {
-        TCGv_i64 val64 = tcg_temp_new_i64();
-
-        *tcg_ctx.gen_opc_ptr++ = old_ld_opc[memop & MO_SSIZE];
-        tcg_add_param_i64(val64);
-        tcg_add_param_tl(addr);
-        *tcg_ctx.gen_opparam_ptr++ = idx;
-
-        tcg_gen_trunc_i64_i32(val, val64);
-        tcg_temp_free_i64(val64);
-    }
+    *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_ld_i32;
+    tcg_add_param_i32(val);
+    tcg_add_param_tl(addr);
+    *tcg_ctx.gen_opparam_ptr++ = memop;
+    *tcg_ctx.gen_opparam_ptr++ = idx;
 }
 
 void tcg_gen_qemu_st_i32(TCGv_i32 val, TCGv addr, TCGArg idx, TCGMemOp memop)
 {
     memop = tcg_canonicalize_memop(memop, 0, 1);
 
-    if (TCG_TARGET_HAS_new_ldst) {
-        *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_st_i32;
-        tcg_add_param_i32(val);
-        tcg_add_param_tl(addr);
-        *tcg_ctx.gen_opparam_ptr++ = memop;
-        *tcg_ctx.gen_opparam_ptr++ = idx;
-        return;
-    }
-
-    /* The old opcodes only support target-endian memory operations.  */
-    assert((memop & MO_BSWAP) == MO_TE || (memop & MO_SIZE) == MO_8);
-    assert(old_st_opc[memop & MO_SIZE] != 0);
-
-    if (TCG_TARGET_REG_BITS == 32) {
-        *tcg_ctx.gen_opc_ptr++ = old_st_opc[memop & MO_SIZE];
-        tcg_add_param_i32(val);
-        tcg_add_param_tl(addr);
-        *tcg_ctx.gen_opparam_ptr++ = idx;
-    } else {
-        TCGv_i64 val64 = tcg_temp_new_i64();
-
-        tcg_gen_extu_i32_i64(val64, val);
-
-        *tcg_ctx.gen_opc_ptr++ = old_st_opc[memop & MO_SIZE];
-        tcg_add_param_i64(val64);
-        tcg_add_param_tl(addr);
-        *tcg_ctx.gen_opparam_ptr++ = idx;
-
-        tcg_temp_free_i64(val64);
-    }
+    *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_st_i32;
+    tcg_add_param_i32(val);
+    tcg_add_param_tl(addr);
+    *tcg_ctx.gen_opparam_ptr++ = memop;
+    *tcg_ctx.gen_opparam_ptr++ = idx;
 }
 
 void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
@@ -1050,22 +979,10 @@ void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
     }
 #endif
 
-    if (TCG_TARGET_HAS_new_ldst) {
-        *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_ld_i64;
-        tcg_add_param_i64(val);
-        tcg_add_param_tl(addr);
-        *tcg_ctx.gen_opparam_ptr++ = memop;
-        *tcg_ctx.gen_opparam_ptr++ = idx;
-        return;
-    }
-
-    /* The old opcodes only support target-endian memory operations.  */
-    assert((memop & MO_BSWAP) == MO_TE || (memop & MO_SIZE) == MO_8);
-    assert(old_ld_opc[memop & MO_SSIZE] != 0);
-
-    *tcg_ctx.gen_opc_ptr++ = old_ld_opc[memop & MO_SSIZE];
+    *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_ld_i64;
     tcg_add_param_i64(val);
     tcg_add_param_tl(addr);
+    *tcg_ctx.gen_opparam_ptr++ = memop;
     *tcg_ctx.gen_opparam_ptr++ = idx;
 }
 
@@ -1080,22 +997,10 @@ void tcg_gen_qemu_st_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
     }
 #endif
 
-    if (TCG_TARGET_HAS_new_ldst) {
-        *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_st_i64;
-        tcg_add_param_i64(val);
-        tcg_add_param_tl(addr);
-        *tcg_ctx.gen_opparam_ptr++ = memop;
-        *tcg_ctx.gen_opparam_ptr++ = idx;
-        return;
-    }
-
-    /* The old opcodes only support target-endian memory operations.  */
-    assert((memop & MO_BSWAP) == MO_TE || (memop & MO_SIZE) == MO_8);
-    assert(old_st_opc[memop & MO_SIZE] != 0);
-
-    *tcg_ctx.gen_opc_ptr++ = old_st_opc[memop & MO_SIZE];
+    *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_st_i64;
     tcg_add_param_i64(val);
     tcg_add_param_tl(addr);
+    *tcg_ctx.gen_opparam_ptr++ = memop;
     *tcg_ctx.gen_opparam_ptr++ = idx;
 }
 

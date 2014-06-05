@@ -889,17 +889,12 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             break;
 
         CASE_OP_32_64(ld8u):
-        case INDEX_op_qemu_ld8u:
             mask = 0xff;
             break;
         CASE_OP_32_64(ld16u):
-        case INDEX_op_qemu_ld16u:
             mask = 0xffff;
             break;
         case INDEX_op_ld32u_i64:
-#if TCG_TARGET_REG_BITS == 64
-        case INDEX_op_qemu_ld32u:
-#endif
             mask = 0xffffffffu;
             break;
 
