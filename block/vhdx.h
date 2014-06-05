@@ -23,6 +23,7 @@
 #define GiB            (MiB * 1024)
 #define TiB ((uint64_t) GiB * 1024)
 
+#define DEFAULT_LOG_SIZE 1048576 /* 1MiB */
 /* Structures and fields present in the VHDX file */
 
 /* The header section has the following blocks,
