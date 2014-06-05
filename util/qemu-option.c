@@ -567,6 +567,14 @@ static QemuOpt *qemu_opt_find(QemuOpts *opts, const char *name)
     return NULL;
 }
 
+static void qemu_opt_del(QemuOpt *opt)
+{
+    QTAILQ_REMOVE(&opt->opts->head, opt, next);
+    g_free(opt->name);
+    g_free(opt->str);
+    g_free(opt);
+}
+
 const char *qemu_opt_get(QemuOpts *opts, const char *name)
 {
     QemuOpt *opt = qemu_opt_find(opts, name);
@@ -659,14 +667,6 @@ static void qemu_opt_parse(QemuOpt *opt, Error **errp)
     default:
         abort();
     }
-}
-
-static void qemu_opt_del(QemuOpt *opt)
-{
-    QTAILQ_REMOVE(&opt->opts->head, opt, next);
-    g_free(opt->name);
-    g_free(opt->str);
-    g_free(opt);
 }
 
 static bool opts_accepts_any(const QemuOpts *opts)
