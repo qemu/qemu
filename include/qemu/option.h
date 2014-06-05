@@ -176,5 +176,10 @@ void qemu_opts_print_help(QemuOptsList *list);
 void qemu_opts_free(QemuOptsList *list);
 QEMUOptionParameter *opts_to_params(QemuOpts *opts);
 QemuOptsList *params_to_opts(QEMUOptionParameter *list);
+/* FIXME: will remove QEMUOptionParameter after all drivers switch to QemuOpts.
+ */
+QemuOptsList *qemu_opts_append(QemuOptsList *dst,
+                               QemuOptsList *list,
+                               QEMUOptionParameter *param);
 
 #endif

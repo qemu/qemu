@@ -1499,3 +1499,70 @@ void qemu_opts_free(QemuOptsList *list)
 
     g_free(list);
 }
+
+/* Realloc dst option list and append options either from an option list (list)
+ * or a QEMUOptionParameter (param) to it. dst could be NULL or a malloced list.
+ * FIXME: will remove QEMUOptionParameter after all drivers switch to QemuOpts.
+ */
+QemuOptsList *qemu_opts_append(QemuOptsList *dst,
+                               QemuOptsList *list,
+                               QEMUOptionParameter *param)
+{
+    size_t num_opts, num_dst_opts;
+    QemuOptDesc *desc;
+    bool need_init = false;
+
+    assert(!(list && param));
+    if (!param && !list) {
+        return dst;
+    }
+
+    if (param) {
+        list = params_to_opts(param);
+    }
+
+    /* If dst is NULL, after realloc, some area of dst should be initialized
+     * before adding options to it.
+     */
+    if (!dst) {
+        need_init = true;
+    }
+
+    num_opts = count_opts_list(dst);
+    num_dst_opts = num_opts;
+    num_opts += count_opts_list(list);
+    dst = g_realloc(dst, sizeof(QemuOptsList) +
+                    (num_opts + 1) * sizeof(QemuOptDesc));
+    if (need_init) {
+        dst->name = NULL;
+        dst->implied_opt_name = NULL;
+        QTAILQ_INIT(&dst->head);
+        dst->allocated = true;
+        dst->merge_lists = false;
+    }
+    dst->desc[num_dst_opts].name = NULL;
+
+    /* (const char *) members of result dst are malloced, need free. */
+    assert(dst->allocated);
+    /* append list->desc to dst->desc */
+    if (list) {
+        desc = list->desc;
+        while (desc && desc->name) {
+            if (find_desc_by_name(dst->desc, desc->name) == NULL) {
+                dst->desc[num_dst_opts].name = g_strdup(desc->name);
+                dst->desc[num_dst_opts].type = desc->type;
+                dst->desc[num_dst_opts].help = g_strdup(desc->help);
+                dst->desc[num_dst_opts].def_value_str =
+                                         g_strdup(desc->def_value_str);
+                num_dst_opts++;
+                dst->desc[num_dst_opts].name = NULL;
+            }
+            desc++;
+        }
+    }
+
+    if (param) {
+        qemu_opts_free(list);
+    }
+    return dst;
+}
