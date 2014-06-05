@@ -62,7 +62,7 @@ Data:
 - "action": action that has been taken, it's one of the following (json-string):
     "ignore": error has been ignored
     "report": error has been reported to the device
-    "stop": error caused VM to be stopped
+    "stop": the VM is going to stop because of the error
 
 Example:
 
