@@ -664,8 +664,8 @@ static void qemu_opt_parse(QemuOpt *opt, Error **errp)
 static void qemu_opt_del(QemuOpt *opt)
 {
     QTAILQ_REMOVE(&opt->opts->head, opt, next);
-    g_free((/* !const */ char*)opt->name);
-    g_free((/* !const */ char*)opt->str);
+    g_free(opt->name);
+    g_free(opt->str);
     g_free(opt);
 }
 
