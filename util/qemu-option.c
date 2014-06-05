@@ -1077,26 +1077,13 @@ static size_t count_opts_list(QemuOptsList *list)
 
 void qemu_opts_free(QemuOptsList *list)
 {
-    /* List members point to new malloced space and need to be freed.
-     * FIXME:
-     * Introduced for QEMUOptionParamter->QemuOpts conversion.
-     * Will remove after all drivers switch to QemuOpts.
-     */
-    if (list && list->allocated) {
-        QemuOptDesc *desc = list->desc;
-        while (desc && desc->name) {
-            g_free((char *)desc->name);
-            g_free((char *)desc->help);
-            g_free((char *)desc->def_value_str);
-            desc++;
-        }
-    }
-
     g_free(list);
 }
 
 /* Realloc dst option list and append options from an option list (list)
  * to it. dst could be NULL or a malloced list.
+ * The lifetime of dst must be shorter than the input list because the
+ * QemuOptDesc->name, ->help, and ->def_value_str strings are shared.
  */
 QemuOptsList *qemu_opts_append(QemuOptsList *dst,
                                QemuOptsList *list)
@@ -1125,24 +1112,16 @@ QemuOptsList *qemu_opts_append(QemuOptsList *dst,
         dst->name = NULL;
         dst->implied_opt_name = NULL;
         QTAILQ_INIT(&dst->head);
-        dst->allocated = true;
         dst->merge_lists = false;
     }
     dst->desc[num_dst_opts].name = NULL;
 
-    /* (const char *) members of result dst are malloced, need free. */
-    assert(dst->allocated);
     /* append list->desc to dst->desc */
     if (list) {
         desc = list->desc;
         while (desc && desc->name) {
             if (find_desc_by_name(dst->desc, desc->name) == NULL) {
-                dst->desc[num_dst_opts].name = g_strdup(desc->name);
-                dst->desc[num_dst_opts].type = desc->type;
-                dst->desc[num_dst_opts].help = g_strdup(desc->help);
-                dst->desc[num_dst_opts].def_value_str =
-                                         g_strdup(desc->def_value_str);
-                num_dst_opts++;
+                dst->desc[num_dst_opts++] = *desc;
                 dst->desc[num_dst_opts].name = NULL;
             }
             desc++;

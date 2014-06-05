@@ -63,12 +63,6 @@ typedef struct QemuOptDesc {
 } QemuOptDesc;
 
 struct QemuOptsList {
-    /* FIXME: Temp used for QEMUOptionParamter->QemuOpts conversion to
-     * indicate the need to free memory. Will remove after all drivers
-     * switch to QemuOpts.
-     */
-    bool allocated;
-
     const char *name;
     const char *implied_opt_name;
     bool merge_lists;  /* Merge multiple uses of option into a single list? */
