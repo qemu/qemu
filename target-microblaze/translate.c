@@ -23,6 +23,7 @@
 #include "tcg-op.h"
 #include "exec/helper-proto.h"
 #include "microblaze-decode.h"
+#include "exec/cpu_ldst.h"
 #include "exec/helper-gen.h"
 
 #define SIM_COMPAT 0

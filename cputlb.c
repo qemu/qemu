@@ -22,11 +22,13 @@
 #include "exec/exec-all.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
+#include "exec/cpu_ldst.h"
 
 #include "exec/cputlb.h"
 
 #include "exec/memory-internal.h"
 #include "exec/ram_addr.h"
+#include "tcg/tcg.h"
 
 //#define DEBUG_TLB
 //#define DEBUG_TLB_CHECK
@@ -330,21 +332,36 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
     return qemu_ram_addr_from_host_nofail(p);
 }
 
+#define MMUSUFFIX _mmu
+
+#define SHIFT 0
+#include "softmmu_template.h"
+
+#define SHIFT 1
+#include "softmmu_template.h"
+
+#define SHIFT 2
+#include "softmmu_template.h"
+
+#define SHIFT 3
+#include "softmmu_template.h"
+#undef MMUSUFFIX
+
 #define MMUSUFFIX _cmmu
-#undef GETPC
-#define GETPC() ((uintptr_t)0)
+#undef GETPC_ADJ
+#define GETPC_ADJ 0
+#undef GETRA
+#define GETRA() ((uintptr_t)0)
 #define SOFTMMU_CODE_ACCESS
 
 #define SHIFT 0
-#include "exec/softmmu_template.h"
+#include "softmmu_template.h"
 
 #define SHIFT 1
-#include "exec/softmmu_template.h"
+#include "softmmu_template.h"
 
 #define SHIFT 2
-#include "exec/softmmu_template.h"
+#include "softmmu_template.h"
 
 #define SHIFT 3
-#include "exec/softmmu_template.h"
-
-#undef env
+#include "softmmu_template.h"

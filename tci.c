@@ -26,6 +26,7 @@
 
 #include "qemu-common.h"
 #include "exec/exec-all.h"           /* MAX_OPC_PARAM_IARGS */
+#include "exec/cpu_ldst.h"
 #include "tcg-op.h"
 
 /* Marker for missing code. */

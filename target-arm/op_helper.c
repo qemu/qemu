@@ -19,6 +19,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "internals.h"
+#include "exec/cpu_ldst.h"
 
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)
@@ -55,22 +56,6 @@ uint32_t HELPER(neon_tbl)(CPUARMState *env, uint32_t ireg, uint32_t def,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-
-#include "exec/softmmu_exec.h"
-
-#define MMUSUFFIX _mmu
-
-#define SHIFT 0
-#include "exec/softmmu_template.h"
-
-#define SHIFT 1
-#include "exec/softmmu_template.h"
-
-#define SHIFT 2
-#include "exec/softmmu_template.h"
-
-#define SHIFT 3
-#include "exec/softmmu_template.h"
 
 /* try to fill the TLB and return an exception if error. If retaddr is
  * NULL, it means that the function was called in C code (i.e. not

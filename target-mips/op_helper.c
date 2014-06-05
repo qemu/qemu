@@ -19,12 +19,8 @@
 #include <stdlib.h>
 #include "cpu.h"
 #include "qemu/host-utils.h"
-
 #include "exec/helper-proto.h"
-
-#if !defined(CONFIG_USER_ONLY)
-#include "exec/softmmu_exec.h"
-#endif /* !defined(CONFIG_USER_ONLY) */
+#include "exec/cpu_ldst.h"
 
 #ifndef CONFIG_USER_ONLY
 static inline void cpu_mips_tlb_flush (CPUMIPSState *env, int flush_global);
@@ -2128,28 +2124,12 @@ void helper_wait(CPUMIPSState *env)
 
 #if !defined(CONFIG_USER_ONLY)
 
-static void QEMU_NORETURN do_unaligned_access(CPUMIPSState *env,
-                                              target_ulong addr, int is_write,
-                                              int is_user, uintptr_t retaddr);
-
-#define MMUSUFFIX _mmu
-#define ALIGNED_ONLY
-
-#define SHIFT 0
-#include "exec/softmmu_template.h"
-
-#define SHIFT 1
-#include "exec/softmmu_template.h"
-
-#define SHIFT 2
-#include "exec/softmmu_template.h"
-
-#define SHIFT 3
-#include "exec/softmmu_template.h"
-
-static void do_unaligned_access(CPUMIPSState *env, target_ulong addr,
-                                int is_write, int is_user, uintptr_t retaddr)
+void mips_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                  int is_write, int is_user, uintptr_t retaddr)
 {
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
+
     env->CP0_BadVAddr = addr;
     do_raise_exception(env, (is_write == 1) ? EXCP_AdES : EXCP_AdEL, retaddr);
 }

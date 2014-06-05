@@ -22,6 +22,7 @@
 #include "disas/disas.h"
 #include "tcg-op.h"
 #include "qemu/host-utils.h"
+#include "exec/cpu_ldst.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"

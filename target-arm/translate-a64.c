@@ -25,6 +25,7 @@
 #include "cpu.h"
 #include "tcg-op.h"
 #include "qemu/log.h"
+#include "arm_ldst.h"
 #include "translate.h"
 #include "internals.h"
 #include "qemu/host-utils.h"
