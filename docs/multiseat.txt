@@ -6,16 +6,20 @@ host side
 ---------
 
 First you must compile qemu with a user interface supporting
-multihead/multiseat and input event routing.  Right now this list is
-pretty short: sdl2.
+multihead/multiseat and input event routing.  Right now this
+list includes sdl2 and gtk (both 2+3):
 
   ./configure --enable-sdl --with-sdlabi=2.0
+
+or
+
+  ./configure --enable-gtk
 
 
 Next put together the qemu command line:
 
 qemu	-enable-kvm -usb $memory $disk $whatever \
-	-display sdl \
+	-display [ sdl | gtk ] \
 	-vga std \
 	-device usb-tablet
 
@@ -37,6 +41,20 @@ The "display=video2" sets up the input routing.  Any input coming from
 the window which belongs to the video.2 display adapter will be routed
 to these input devices.
 
+The sdl2 ui will start up with two windows, one for each display
+device.  The gtk ui will start with a single window and each display
+in a separate tab.  You can either simply switch tabs to switch heads,
+or use the "View / Detach tab" menu item to move one of the displays
+to its own window so you can see both display devices side-by-side.
+
+Note on spice: Spice handles multihead just fine.  But it can't do
+multiseat.  For tablet events the event source is sent to the spice
+agent.  But qemu can't figure it, so it can't do input routing.
+Fixing this needs a new or extended input interface between
+libspice-server and qemu.  For keyboard events it is even worse:  The
+event source isn't included in the spice protocol, so the wire
+protocol must be extended to support this.
+
 
 guest side
 ----------
@@ -46,29 +64,37 @@ You need a pretty recent linux guest.  systemd with loginctl.  kernel
 fully updated for the new kernel though, i.e. the live iso doesn't cut
 it.
 
-Now we'll have to configure the guest.  Boot and login.  By default
-all devices belong to seat0.  You can use "loginctl seat-status seat0"
-to list them all (and to get the sysfs paths for cut+paste).  Now
-we'll go assign all pci devices connected the pci bridge in slot 12 to
-a new head:
+Now we'll have to configure the guest.  Boot and login.  "lspci -vt"
+should list the pci bridge with the display adapter and usb controller:
 
-loginctl attach seat-qemu \
-	 /sys/devices/pci0000:00/0000:00:12.0/0000:01:02.0/drm/card1
-loginctl attach seat-qemu \
-	 /sys/devices/pci0000:00/0000:00:12.0/0000:01:02.0/graphics/fb1
-loginctl attach seat-qemu \
-	 /sys/devices/pci0000:00/0000:00:12.0/0000:01:0f.0/usb2
+    [root@fedora ~]# lspci -vt
+    -[0000:00]-+-00.0  Intel Corporation 440FX - 82441FX PMC [Natoma]
+               [ ... ]
+               \-12.0-[01]--+-02.0  Device 1234:1111
+                            \-0f.0  NEC Corporation USB 3.0 Host Controller
 
-Use "loginctl seat-status seat-qemu" to check the result.  It isn't
-needed to assign the usb devices to the head individually, assigning a
-usb (root) hub will automatically assign all usb devices connected to
-it too.
+Good.  Now lets tell the system that the pci bridge and all devices
+below it belong to a separate seat by dropping a file into
+/etc/udev/rules.d:
 
-BTW: loginctl writes udev rules to /etc/udev/rules.d to make these
-device assignments permanent, so you need to do this only once.
+    [root@fedora ~]# cat /etc/udev/rules.d/70-qemu-autoseat.rules
+    SUBSYSTEMS=="pci", DEVPATH=="*/0000:00:12.0", TAG+="seat", ENV{ID_AUTOSEAT}="1"
 
-Now simply restart gdm (rebooting will do too), and a login screen
-should show up on the second head.
+Reboot.  System should come up with two seats.  With loginctl you can
+check the configuration:
+
+    [root@fedora ~]# loginctl list-seats
+    SEAT
+    seat0
+    seat-pci-pci-0000_00_12_0
+
+    2 seats listed.
+
+You can use "loginctl seat-status seat-pci-pci-0000_00_12_0" to list
+the devices attached to the seat.
+
+Background info is here:
+  http://www.freedesktop.org/wiki/Software/systemd/multiseat/
 
 Enjoy!
 
