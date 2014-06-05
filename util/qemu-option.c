@@ -1011,6 +1011,10 @@ void qemu_opts_del(QemuOpts *opts)
 {
     QemuOpt *opt;
 
+    if (opts == NULL) {
+        return;
+    }
+
     for (;;) {
         opt = QTAILQ_FIRST(&opts->head);
         if (opt == NULL)
