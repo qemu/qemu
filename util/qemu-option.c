@@ -553,6 +553,19 @@ void print_option_help(QEMUOptionParameter *list)
     }
 }
 
+void qemu_opts_print_help(QemuOptsList *list)
+{
+    QemuOptDesc *desc;
+
+    assert(list);
+    desc = list->desc;
+    printf("Supported options:\n");
+    while (desc && desc->name) {
+        printf("%-16s %s\n", desc->name,
+               desc->help ? desc->help : "No description available");
+        desc++;
+    }
+}
 /* ------------------------------------------------------------------ */
 
 static QemuOpt *qemu_opt_find(QemuOpts *opts, const char *name)

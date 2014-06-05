@@ -166,5 +166,6 @@ typedef int (*qemu_opts_loopfunc)(QemuOpts *opts, void *opaque);
 void qemu_opts_print(QemuOpts *opts);
 int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func, void *opaque,
                       int abort_on_failure);
+void qemu_opts_print_help(QemuOptsList *list);
 
 #endif
