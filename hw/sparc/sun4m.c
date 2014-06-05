@@ -543,14 +543,14 @@ static void tcx_init(hwaddr addr, int vram_size, int width,
     s = SYS_BUS_DEVICE(dev);
     /* FCode ROM */
     sysbus_mmio_map(s, 0, addr);
-    /* 8-bit plane */
-    sysbus_mmio_map(s, 1, addr + 0x00800000ULL);
     /* DAC */
-    sysbus_mmio_map(s, 2, addr + 0x00200000ULL);
+    sysbus_mmio_map(s, 1, addr + 0x00200000ULL);
     /* TEC (dummy) */
-    sysbus_mmio_map(s, 3, addr + 0x00700000ULL);
+    sysbus_mmio_map(s, 2, addr + 0x00700000ULL);
     /* THC 24 bit: NetBSD writes here even with 8-bit display: dummy */
-    sysbus_mmio_map(s, 4, addr + 0x00301000ULL);
+    sysbus_mmio_map(s, 3, addr + 0x00301000ULL);
+    /* 8-bit plane */
+    sysbus_mmio_map(s, 4, addr + 0x00800000ULL);
     if (depth == 24) {
         /* 24-bit plane */
         sysbus_mmio_map(s, 5, addr + 0x02000000ULL);
