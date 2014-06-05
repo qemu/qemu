@@ -1605,7 +1605,7 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_needs_filename = true,
     .bdrv_file_open  = iscsi_open,
     .bdrv_close      = iscsi_close,
-    .bdrv_create2    = iscsi_create,
+    .bdrv_create     = iscsi_create,
     .create_opts     = &iscsi_create_opts,
     .bdrv_reopen_prepare  = iscsi_reopen_prepare,
 

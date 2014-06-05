@@ -1793,7 +1793,7 @@ static int vhdx_create(const char *filename, QemuOpts *opts, Error **errp)
     block_size = block_size > VHDX_BLOCK_SIZE_MAX ? VHDX_BLOCK_SIZE_MAX :
                                                     block_size;
 
-    ret = bdrv_create_file(filename, NULL, opts, &local_err);
+    ret = bdrv_create_file(filename, opts, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto exit;
@@ -1922,7 +1922,7 @@ static BlockDriver bdrv_vhdx = {
     .bdrv_reopen_prepare    = vhdx_reopen_prepare,
     .bdrv_co_readv          = vhdx_co_readv,
     .bdrv_co_writev         = vhdx_co_writev,
-    .bdrv_create2           = vhdx_create,
+    .bdrv_create            = vhdx_create,
     .bdrv_get_info          = vhdx_get_info,
     .bdrv_check             = vhdx_check,
 

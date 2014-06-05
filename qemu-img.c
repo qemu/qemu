@@ -280,8 +280,7 @@ static int print_block_option_help(const char *filename, const char *fmt)
         return 1;
     }
 
-    create_opts = qemu_opts_append(create_opts, drv->create_opts,
-                                   drv->create_options);
+    create_opts = qemu_opts_append(create_opts, drv->create_opts);
     if (filename) {
         proto_drv = bdrv_find_protocol(filename, true);
         if (!proto_drv) {
@@ -289,8 +288,7 @@ static int print_block_option_help(const char *filename, const char *fmt)
             qemu_opts_free(create_opts);
             return 1;
         }
-        create_opts = qemu_opts_append(create_opts, proto_drv->create_opts,
-                                       proto_drv->create_options);
+        create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
     }
 
     qemu_opts_print_help(create_opts);
@@ -1381,10 +1379,8 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
-    create_opts = qemu_opts_append(create_opts, drv->create_opts,
-                                   drv->create_options);
-    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts,
-                                   proto_drv->create_options);
+    create_opts = qemu_opts_append(create_opts, drv->create_opts);
+    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
 
     opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
     if (options && qemu_opts_do_parse(opts, options, NULL)) {
@@ -1437,7 +1433,7 @@ static int img_convert(int argc, char **argv)
 
     if (!skip_create) {
         /* Create the new image */
-        ret = bdrv_create(drv, out_filename, NULL, opts, &local_err);
+        ret = bdrv_create(drv, out_filename, opts, &local_err);
         if (ret < 0) {
             error_report("%s: error while converting %s: %s",
                          out_filename, out_fmt, error_get_pretty(local_err));
@@ -2766,8 +2762,7 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
-    create_opts = qemu_opts_append(create_opts, bs->drv->create_opts,
-                                   bs->drv->create_options);
+    create_opts = qemu_opts_append(create_opts, bs->drv->create_opts);
     opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
     if (options && qemu_opts_do_parse(opts, options, NULL)) {
         error_report("Invalid options for file format '%s'", fmt);
@@ -2775,7 +2770,7 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
-    ret = bdrv_amend_options(bs, NULL, opts);
+    ret = bdrv_amend_options(bs, opts);
     if (ret < 0) {
         error_report("Error while amending options: %s", strerror(-ret));
         goto out;

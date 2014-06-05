@@ -457,7 +457,7 @@ static BlockDriver bdrv_nfs = {
 
     .bdrv_file_open                 = nfs_file_open,
     .bdrv_close                     = nfs_file_close,
-    .bdrv_create2                   = nfs_file_create,
+    .bdrv_create                    = nfs_file_create,
 
     .bdrv_co_readv                  = nfs_co_readv,
     .bdrv_co_writev                 = nfs_co_writev,

@@ -329,13 +329,6 @@ void bdrv_register(BlockDriver *bdrv)
         }
     }
 
-    if (bdrv->bdrv_create) {
-        assert(!bdrv->bdrv_create2 && !bdrv->create_opts);
-        assert(!bdrv->bdrv_amend_options2);
-    } else if (bdrv->bdrv_create2) {
-        assert(!bdrv->bdrv_create && !bdrv->create_options);
-        assert(!bdrv->bdrv_amend_options);
-    }
     QLIST_INSERT_HEAD(&bdrv_drivers, bdrv, list);
 }
 
@@ -431,7 +424,6 @@ BlockDriver *bdrv_find_whitelisted_format(const char *format_name,
 typedef struct CreateCo {
     BlockDriver *drv;
     char *filename;
-    QEMUOptionParameter *options;
     QemuOpts *opts;
     int ret;
     Error *err;
@@ -444,28 +436,8 @@ static void coroutine_fn bdrv_create_co_entry(void *opaque)
 
     CreateCo *cco = opaque;
     assert(cco->drv);
-    assert(!(cco->options && cco->opts));
 
-    if (cco->drv->bdrv_create2) {
-        QemuOptsList *opts_list = NULL;
-        if (cco->options) {
-            opts_list = params_to_opts(cco->options);
-            cco->opts = qemu_opts_create(opts_list, NULL, 0, &error_abort);
-        }
-        ret = cco->drv->bdrv_create2(cco->filename, cco->opts, &local_err);
-        if (cco->options) {
-            qemu_opts_del(cco->opts);
-            qemu_opts_free(opts_list);
-        }
-    } else {
-        if (cco->opts) {
-            cco->options = opts_to_params(cco->opts);
-        }
-        ret = cco->drv->bdrv_create(cco->filename, cco->options, &local_err);
-        if (cco->opts) {
-            free_option_parameters(cco->options);
-        }
-    }
+    ret = cco->drv->bdrv_create(cco->filename, cco->opts, &local_err);
     if (local_err) {
         error_propagate(&cco->err, local_err);
     }
@@ -473,7 +445,6 @@ static void coroutine_fn bdrv_create_co_entry(void *opaque)
 }
 
 int bdrv_create(BlockDriver *drv, const char* filename,
-                QEMUOptionParameter *options,
                 QemuOpts *opts, Error **errp)
 {
     int ret;
@@ -482,13 +453,12 @@ int bdrv_create(BlockDriver *drv, const char* filename,
     CreateCo cco = {
         .drv = drv,
         .filename = g_strdup(filename),
-        .options = options,
         .opts = opts,
         .ret = NOT_DONE,
         .err = NULL,
     };
 
-    if (!drv->bdrv_create && !drv->bdrv_create2) {
+    if (!drv->bdrv_create) {
         error_setg(errp, "Driver '%s' does not support image creation", drv->format_name);
         ret = -ENOTSUP;
         goto out;
@@ -519,8 +489,7 @@ out:
     return ret;
 }
 
-int bdrv_create_file(const char* filename, QEMUOptionParameter *options,
-                     QemuOpts *opts, Error **errp)
+int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp)
 {
     BlockDriver *drv;
     Error *local_err = NULL;
@@ -532,7 +501,7 @@ int bdrv_create_file(const char* filename, QEMUOptionParameter *options,
         return -ENOENT;
     }
 
-    ret = bdrv_create(drv, filename, options, opts, &local_err);
+    ret = bdrv_create(drv, filename, opts, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
     }
@@ -1277,7 +1246,6 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     char *tmp_filename = g_malloc0(PATH_MAX + 1);
     int64_t total_size;
     BlockDriver *bdrv_qcow2;
-    QemuOptsList *create_opts = NULL;
     QemuOpts *opts = NULL;
     QDict *snapshot_options;
     BlockDriverState *bs_snapshot;
@@ -1303,20 +1271,11 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     }
 
     bdrv_qcow2 = bdrv_find_format("qcow2");
-
-    assert(!(bdrv_qcow2->create_options && bdrv_qcow2->create_opts));
-    if (bdrv_qcow2->create_options) {
-        create_opts = params_to_opts(bdrv_qcow2->create_options);
-    } else {
-        create_opts = bdrv_qcow2->create_opts;
-    }
-    opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+    opts = qemu_opts_create(bdrv_qcow2->create_opts, NULL, 0,
+                            &error_abort);
     qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_size);
-    ret = bdrv_create(bdrv_qcow2, tmp_filename, NULL, opts, &local_err);
+    ret = bdrv_create(bdrv_qcow2, tmp_filename, opts, &local_err);
     qemu_opts_del(opts);
-    if (bdrv_qcow2->create_options) {
-        qemu_opts_free(create_opts);
-    }
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not create temporary overlay "
                          "'%s': %s", tmp_filename,
@@ -5579,10 +5538,8 @@ void bdrv_img_create(const char *filename, const char *fmt,
         return;
     }
 
-    create_opts = qemu_opts_append(create_opts, drv->create_opts,
-                                   drv->create_options);
-    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts,
-                                   proto_drv->create_options);
+    create_opts = qemu_opts_append(create_opts, drv->create_opts);
+    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
 
     /* Create parameter list with default values */
     opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
@@ -5675,7 +5632,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
         puts("");
     }
 
-    ret = bdrv_create(drv, filename, NULL, opts, &local_err);
+    ret = bdrv_create(drv, filename, opts, &local_err);
 
     if (ret == -EFBIG) {
         /* This is generally a better message than whatever the driver would
@@ -5769,36 +5726,12 @@ void bdrv_add_before_write_notifier(BlockDriverState *bs,
     notifier_with_return_list_add(&bs->before_write_notifiers, notifier);
 }
 
-int bdrv_amend_options(BlockDriverState *bs, QEMUOptionParameter *options,
-                       QemuOpts *opts)
+int bdrv_amend_options(BlockDriverState *bs, QemuOpts *opts)
 {
-    int ret;
-    assert(!(options && opts));
-
-    if (!bs->drv->bdrv_amend_options && !bs->drv->bdrv_amend_options2) {
+    if (!bs->drv->bdrv_amend_options) {
         return -ENOTSUP;
     }
-    if (bs->drv->bdrv_amend_options2) {
-        QemuOptsList *opts_list = NULL;
-        if (options) {
-            opts_list = params_to_opts(options);
-            opts = qemu_opts_create(opts_list, NULL, 0, &error_abort);
-        }
-        ret = bs->drv->bdrv_amend_options2(bs, opts);
-        if (options) {
-            qemu_opts_del(opts);
-            qemu_opts_free(opts_list);
-        }
-    } else {
-        if (opts) {
-            options = opts_to_params(opts);
-        }
-        ret = bs->drv->bdrv_amend_options(bs, options);
-        if (opts) {
-            free_option_parameters(options);
-        }
-    }
-    return ret;
+    return bs->drv->bdrv_amend_options(bs, opts);
 }
 
 /* This function will be called by the bdrv_recurse_is_first_non_filter method

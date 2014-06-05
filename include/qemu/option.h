@@ -31,25 +31,6 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 
-enum QEMUOptionParType {
-    OPT_FLAG,
-    OPT_NUMBER,
-    OPT_SIZE,
-    OPT_STRING,
-};
-
-typedef struct QEMUOptionParameter {
-    const char *name;
-    enum QEMUOptionParType type;
-    union {
-        uint64_t n;
-        char* s;
-    } value;
-    const char *help;
-    bool assigned;
-} QEMUOptionParameter;
-
-
 const char *get_opt_name(char *buf, int buf_size, const char *p, char delim);
 const char *get_opt_value(char *buf, int buf_size, const char *p);
 int get_next_param_value(char *buf, int buf_size,
@@ -58,31 +39,10 @@ int get_param_value(char *buf, int buf_size,
                     const char *tag, const char *str);
 
 
-/*
- * The following functions take a parameter list as input. This is a pointer to
- * the first element of a QEMUOptionParameter array which is terminated by an
- * entry with entry->name == NULL.
- */
-
-QEMUOptionParameter *get_option_parameter(QEMUOptionParameter *list,
-    const char *name);
-int set_option_parameter(QEMUOptionParameter *list, const char *name,
-    const char *value);
-int set_option_parameter_int(QEMUOptionParameter *list, const char *name,
-    uint64_t value);
-QEMUOptionParameter *append_option_parameters(QEMUOptionParameter *dest,
-    QEMUOptionParameter *list);
-QEMUOptionParameter *parse_option_parameters(const char *param,
-    QEMUOptionParameter *list, QEMUOptionParameter *dest);
 void parse_option_size(const char *name, const char *value,
                        uint64_t *ret, Error **errp);
-void free_option_parameters(QEMUOptionParameter *list);
-void print_option_parameters(QEMUOptionParameter *list);
-void print_option_help(QEMUOptionParameter *list);
 bool has_help_option(const char *param);
 bool is_valid_option_list(const char *param);
-
-/* ------------------------------------------------------------------ */
 
 typedef struct QemuOpt QemuOpt;
 typedef struct QemuOpts QemuOpts;
@@ -175,12 +135,6 @@ int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func, void *opaque,
                       int abort_on_failure);
 void qemu_opts_print_help(QemuOptsList *list);
 void qemu_opts_free(QemuOptsList *list);
-QEMUOptionParameter *opts_to_params(QemuOpts *opts);
-QemuOptsList *params_to_opts(QEMUOptionParameter *list);
-/* FIXME: will remove QEMUOptionParameter after all drivers switch to QemuOpts.
- */
-QemuOptsList *qemu_opts_append(QemuOptsList *dst,
-                               QemuOptsList *list,
-                               QEMUOptionParameter *param);
+QemuOptsList *qemu_opts_append(QemuOptsList *dst, QemuOptsList *list);
 
 #endif

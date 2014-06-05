@@ -116,10 +116,7 @@ struct BlockDriver {
                       const uint8_t *buf, int nb_sectors);
     void (*bdrv_close)(BlockDriverState *bs);
     void (*bdrv_rebind)(BlockDriverState *bs);
-    int (*bdrv_create)(const char *filename, QEMUOptionParameter *options,
-                       Error **errp);
-    /* FIXME: will remove the duplicate and rename back to bdrv_create later */
-    int (*bdrv_create2)(const char *filename, QemuOpts *opts, Error **errp);
+    int (*bdrv_create)(const char *filename, QemuOpts *opts, Error **errp);
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);
     int (*bdrv_make_empty)(BlockDriverState *bs);
     /* aio */
@@ -218,12 +215,6 @@ struct BlockDriver {
         BlockDriverCompletionFunc *cb, void *opaque);
 
     /* List of options for creating images, terminated by name == NULL */
-    QEMUOptionParameter *create_options;
-    /* FIXME: will replace create_options.
-     * These two fields are mutually exclusive. At most one is non-NULL.
-     * create_options should only be set with bdrv_create, and create_opts
-     * should only be set with bdrv_create2.
-     */
     QemuOptsList *create_opts;
 
     /*
@@ -233,12 +224,7 @@ struct BlockDriver {
     int (*bdrv_check)(BlockDriverState* bs, BdrvCheckResult *result,
         BdrvCheckMode fix);
 
-    int (*bdrv_amend_options)(BlockDriverState *bs,
-        QEMUOptionParameter *options);
-    /* FIXME: will remove the duplicate and rename back to
-     * bdrv_amend_options later
-     */
-    int (*bdrv_amend_options2)(BlockDriverState *bs, QemuOpts *opts);
+    int (*bdrv_amend_options)(BlockDriverState *bs, QemuOpts *opts);
 
     void (*bdrv_debug_event)(BlockDriverState *bs, BlkDebugEvent event);
 

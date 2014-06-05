@@ -1493,7 +1493,7 @@ static BlockDriver bdrv_file = {
     .bdrv_reopen_commit = raw_reopen_commit,
     .bdrv_reopen_abort = raw_reopen_abort,
     .bdrv_close = raw_close,
-    .bdrv_create2 = raw_create,
+    .bdrv_create = raw_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = raw_co_get_block_status,
     .bdrv_co_write_zeroes = raw_co_write_zeroes,
@@ -1893,7 +1893,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_reopen_prepare = raw_reopen_prepare,
     .bdrv_reopen_commit  = raw_reopen_commit,
     .bdrv_reopen_abort   = raw_reopen_abort,
-    .bdrv_create2        = hdev_create,
+    .bdrv_create         = hdev_create,
     .create_opts         = &raw_create_opts,
     .bdrv_co_write_zeroes = hdev_co_write_zeroes,
 
@@ -2040,7 +2040,7 @@ static BlockDriver bdrv_host_floppy = {
     .bdrv_reopen_prepare = raw_reopen_prepare,
     .bdrv_reopen_commit  = raw_reopen_commit,
     .bdrv_reopen_abort   = raw_reopen_abort,
-    .bdrv_create2        = hdev_create,
+    .bdrv_create         = hdev_create,
     .create_opts         = &raw_create_opts,
 
     .bdrv_aio_readv     = raw_aio_readv,
@@ -2168,7 +2168,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_reopen_prepare = raw_reopen_prepare,
     .bdrv_reopen_commit  = raw_reopen_commit,
     .bdrv_reopen_abort   = raw_reopen_abort,
-    .bdrv_create2        = hdev_create,
+    .bdrv_create         = hdev_create,
     .create_opts         = &raw_create_opts,
 
     .bdrv_aio_readv     = raw_aio_readv,
@@ -2302,7 +2302,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_reopen_prepare = raw_reopen_prepare,
     .bdrv_reopen_commit  = raw_reopen_commit,
     .bdrv_reopen_abort   = raw_reopen_abort,
-    .bdrv_create2        = hdev_create,
+    .bdrv_create        = hdev_create,
     .create_opts        = &raw_create_opts,
 
     .bdrv_aio_readv     = raw_aio_readv,

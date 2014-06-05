@@ -586,7 +586,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
     int ret = 0;
     BlockDriverState *bs;
 
-    ret = bdrv_create_file(filename, NULL, NULL, &local_err);
+    ret = bdrv_create_file(filename, NULL, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return ret;
@@ -1658,7 +1658,7 @@ static BlockDriver bdrv_qed = {
     .bdrv_open                = bdrv_qed_open,
     .bdrv_close               = bdrv_qed_close,
     .bdrv_reopen_prepare      = bdrv_qed_reopen_prepare,
-    .bdrv_create2             = bdrv_qed_create,
+    .bdrv_create              = bdrv_qed_create,
     .bdrv_has_zero_init       = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = bdrv_qed_co_get_block_status,
     .bdrv_aio_readv           = bdrv_qed_aio_readv,

@@ -1539,7 +1539,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     uint32_t *gd_buf = NULL;
     int gd_buf_size;
 
-    ret = bdrv_create_file(filename, NULL, NULL, &local_err);
+    ret = bdrv_create_file(filename, NULL, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto exit;
@@ -1873,7 +1873,7 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
     if (!split && !flat) {
         desc_offset = 0x200;
     } else {
-        ret = bdrv_create_file(filename, NULL, opts, &local_err);
+        ret = bdrv_create_file(filename, opts, &local_err);
         if (ret < 0) {
             error_propagate(errp, local_err);
             goto exit;
@@ -2169,7 +2169,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_write_compressed        = vmdk_write_compressed,
     .bdrv_co_write_zeroes         = vmdk_co_write_zeroes,
     .bdrv_close                   = vmdk_close,
-    .bdrv_create2                 = vmdk_create,
+    .bdrv_create                  = vmdk_create,
     .bdrv_co_flush_to_disk        = vmdk_co_flush,
     .bdrv_co_get_block_status     = vmdk_co_get_block_status,
     .bdrv_get_allocated_file_size = vmdk_get_allocated_file_size,

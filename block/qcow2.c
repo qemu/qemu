@@ -1627,7 +1627,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_create_file(filename, NULL, opts, &local_err);
+    ret = bdrv_create_file(filename, opts, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return ret;
@@ -2393,7 +2393,7 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_open          = qcow2_open,
     .bdrv_close         = qcow2_close,
     .bdrv_reopen_prepare  = qcow2_reopen_prepare,
-    .bdrv_create2       = qcow2_create,
+    .bdrv_create        = qcow2_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = qcow2_co_get_block_status,
     .bdrv_set_key       = qcow2_set_key,
@@ -2425,7 +2425,7 @@ static BlockDriver bdrv_qcow2 = {
 
     .create_opts         = &qcow2_create_opts,
     .bdrv_check          = qcow2_check,
-    .bdrv_amend_options2 = qcow2_amend_options,
+    .bdrv_amend_options  = qcow2_amend_options,
 };
 
 static void bdrv_qcow2_init(void)

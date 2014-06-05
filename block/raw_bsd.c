@@ -148,7 +148,7 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
     Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_create_file(filename, NULL, opts, &local_err);
+    ret = bdrv_create_file(filename, opts, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
     }
@@ -180,7 +180,7 @@ static BlockDriver bdrv_raw = {
     .bdrv_reopen_prepare  = &raw_reopen_prepare,
     .bdrv_open            = &raw_open,
     .bdrv_close           = &raw_close,
-    .bdrv_create2         = &raw_create,
+    .bdrv_create          = &raw_create,
     .bdrv_co_readv        = &raw_co_readv,
     .bdrv_co_writev       = &raw_co_writev,
     .bdrv_co_write_zeroes = &raw_co_write_zeroes,

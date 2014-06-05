@@ -123,22 +123,6 @@ int get_param_value(char *buf, int buf_size,
     return get_next_param_value(buf, buf_size, tag, &str);
 }
 
-/*
- * Searches an option list for an option with the given name
- */
-QEMUOptionParameter *get_option_parameter(QEMUOptionParameter *list,
-    const char *name)
-{
-    while (list && list->name) {
-        if (!strcmp(list->name, name)) {
-            return list;
-        }
-        list++;
-    }
-
-    return NULL;
-}
-
 static void parse_option_bool(const char *name, const char *value, bool *ret,
                               Error **errp)
 {
@@ -226,244 +210,6 @@ void parse_option_size(const char *name, const char *value,
     }
 }
 
-/*
- * Sets the value of a parameter in a given option list. The parsing of the
- * value depends on the type of option:
- *
- * OPT_FLAG (uses value.n):
- *      If no value is given, the flag is set to 1.
- *      Otherwise the value must be "on" (set to 1) or "off" (set to 0)
- *
- * OPT_STRING (uses value.s):
- *      value is strdup()ed and assigned as option value
- *
- * OPT_SIZE (uses value.n):
- *      The value is converted to an integer. Suffixes for kilobytes etc. are
- *      allowed (powers of 1024).
- *
- * Returns 0 on succes, -1 in error cases
- */
-int set_option_parameter(QEMUOptionParameter *list, const char *name,
-    const char *value)
-{
-    bool flag;
-    Error *local_err = NULL;
-
-    // Find a matching parameter
-    list = get_option_parameter(list, name);
-    if (list == NULL) {
-        fprintf(stderr, "Unknown option '%s'\n", name);
-        return -1;
-    }
-
-    // Process parameter
-    switch (list->type) {
-    case OPT_FLAG:
-        parse_option_bool(name, value, &flag, &local_err);
-        if (!local_err) {
-            list->value.n = flag;
-        }
-        break;
-
-    case OPT_STRING:
-        if (value != NULL) {
-            list->value.s = g_strdup(value);
-        } else {
-            fprintf(stderr, "Option '%s' needs a parameter\n", name);
-            return -1;
-        }
-        break;
-
-    case OPT_SIZE:
-        parse_option_size(name, value, &list->value.n, &local_err);
-        break;
-
-    default:
-        fprintf(stderr, "Bug: Option '%s' has an unknown type\n", name);
-        return -1;
-    }
-
-    if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
-    }
-
-    list->assigned = true;
-
-    return 0;
-}
-
-/*
- * Sets the given parameter to an integer instead of a string.
- * This function cannot be used to set string options.
- *
- * Returns 0 on success, -1 in error cases
- */
-int set_option_parameter_int(QEMUOptionParameter *list, const char *name,
-    uint64_t value)
-{
-    // Find a matching parameter
-    list = get_option_parameter(list, name);
-    if (list == NULL) {
-        fprintf(stderr, "Unknown option '%s'\n", name);
-        return -1;
-    }
-
-    // Process parameter
-    switch (list->type) {
-    case OPT_FLAG:
-    case OPT_NUMBER:
-    case OPT_SIZE:
-        list->value.n = value;
-        break;
-
-    default:
-        return -1;
-    }
-
-    list->assigned = true;
-
-    return 0;
-}
-
-/*
- * Frees a option list. If it contains strings, the strings are freed as well.
- */
-void free_option_parameters(QEMUOptionParameter *list)
-{
-    QEMUOptionParameter *cur = list;
-
-    while (cur && cur->name) {
-        if (cur->type == OPT_STRING) {
-            g_free(cur->value.s);
-        }
-        cur++;
-    }
-
-    g_free(list);
-}
-
-/*
- * Count valid options in list
- */
-static size_t count_option_parameters(QEMUOptionParameter *list)
-{
-    size_t num_options = 0;
-
-    while (list && list->name) {
-        num_options++;
-        list++;
-    }
-
-    return num_options;
-}
-
-/*
- * Append an option list (list) to an option list (dest).
- *
- * If dest is NULL, a new copy of list is created.
- *
- * Returns a pointer to the first element of dest (or the newly allocated copy)
- */
-QEMUOptionParameter *append_option_parameters(QEMUOptionParameter *dest,
-    QEMUOptionParameter *list)
-{
-    size_t num_options, num_dest_options;
-
-    num_options = count_option_parameters(dest);
-    num_dest_options = num_options;
-
-    num_options += count_option_parameters(list);
-
-    dest = g_realloc(dest, (num_options + 1) * sizeof(QEMUOptionParameter));
-    dest[num_dest_options].name = NULL;
-
-    while (list && list->name) {
-        if (get_option_parameter(dest, list->name) == NULL) {
-            dest[num_dest_options++] = *list;
-            dest[num_dest_options].name = NULL;
-        }
-        list++;
-    }
-
-    return dest;
-}
-
-/*
- * Parses a parameter string (param) into an option list (dest).
- *
- * list is the template option list. If dest is NULL, a new copy of list is
- * created. If list is NULL, this function fails.
- *
- * A parameter string consists of one or more parameters, separated by commas.
- * Each parameter consists of its name and possibly of a value. In the latter
- * case, the value is delimited by an = character. To specify a value which
- * contains commas, double each comma so it won't be recognized as the end of
- * the parameter.
- *
- * For more details of the parsing see above.
- *
- * Returns a pointer to the first element of dest (or the newly allocated copy)
- * or NULL in error cases
- */
-QEMUOptionParameter *parse_option_parameters(const char *param,
-    QEMUOptionParameter *list, QEMUOptionParameter *dest)
-{
-    QEMUOptionParameter *allocated = NULL;
-    char name[256];
-    char value[256];
-    char *param_delim, *value_delim;
-    char next_delim;
-    int i;
-
-    if (list == NULL) {
-        return NULL;
-    }
-
-    if (dest == NULL) {
-        dest = allocated = append_option_parameters(NULL, list);
-    }
-
-    for (i = 0; dest[i].name; i++) {
-        dest[i].assigned = false;
-    }
-
-    while (*param) {
-
-        // Find parameter name and value in the string
-        param_delim = strchr(param, ',');
-        value_delim = strchr(param, '=');
-
-        if (value_delim && (value_delim < param_delim || !param_delim)) {
-            next_delim = '=';
-        } else {
-            next_delim = ',';
-            value_delim = NULL;
-        }
-
-        param = get_opt_name(name, sizeof(name), param, next_delim);
-        if (value_delim) {
-            param = get_opt_value(value, sizeof(value), param + 1);
-        }
-        if (*param != '\0') {
-            param++;
-        }
-
-        // Set the parameter
-        if (set_option_parameter(dest, name, value_delim ? value : NULL)) {
-            goto fail;
-        }
-    }
-
-    return dest;
-
-fail:
-    // Only free the list if it was newly allocated
-    free_option_parameters(allocated);
-    return NULL;
-}
-
 bool has_help_option(const char *param)
 {
     size_t buflen = strlen(param) + 1;
@@ -511,46 +257,6 @@ bool is_valid_option_list(const char *param)
 out:
     free(buf);
     return result;
-}
-
-/*
- * Prints all options of a list that have a value to stdout
- */
-void print_option_parameters(QEMUOptionParameter *list)
-{
-    while (list && list->name) {
-        switch (list->type) {
-            case OPT_STRING:
-                 if (list->value.s != NULL) {
-                     printf("%s='%s' ", list->name, list->value.s);
-                 }
-                break;
-            case OPT_FLAG:
-                printf("%s=%s ", list->name, list->value.n ? "on" : "off");
-                break;
-            case OPT_SIZE:
-            case OPT_NUMBER:
-                printf("%s=%" PRId64 " ", list->name, list->value.n);
-                break;
-            default:
-                printf("%s=(unknown type) ", list->name);
-                break;
-        }
-        list++;
-    }
-}
-
-/*
- * Prints an overview of all available options
- */
-void print_option_help(QEMUOptionParameter *list)
-{
-    printf("Supported options:\n");
-    while (list && list->name) {
-        printf("%-16s %s\n", list->name,
-            list->help ? list->help : "No description available");
-        list++;
-    }
 }
 
 void qemu_opts_print_help(QemuOptsList *list)
@@ -1369,121 +1075,6 @@ static size_t count_opts_list(QemuOptsList *list)
     return num_opts;
 }
 
-/* Convert QEMUOptionParameter to QemuOpts
- * FIXME: this function will be removed after all drivers
- * switch to QemuOpts
- */
-QemuOptsList *params_to_opts(QEMUOptionParameter *list)
-{
-    QemuOptsList *opts = NULL;
-    size_t num_opts, i = 0;
-
-    if (!list) {
-        return NULL;
-    }
-
-    num_opts = count_option_parameters(list);
-    opts = g_malloc0(sizeof(QemuOptsList) +
-                     (num_opts + 1) * sizeof(QemuOptDesc));
-    QTAILQ_INIT(&opts->head);
-    /* (const char *) members will point to malloced space and need to free */
-    opts->allocated = true;
-
-    while (list && list->name) {
-        opts->desc[i].name = g_strdup(list->name);
-        opts->desc[i].help = g_strdup(list->help);
-        switch (list->type) {
-        case OPT_FLAG:
-            opts->desc[i].type = QEMU_OPT_BOOL;
-            opts->desc[i].def_value_str =
-                g_strdup(list->value.n ? "on" : "off");
-            break;
-
-        case OPT_NUMBER:
-            opts->desc[i].type = QEMU_OPT_NUMBER;
-            if (list->value.n) {
-                opts->desc[i].def_value_str =
-                    g_strdup_printf("%" PRIu64, list->value.n);
-            }
-            break;
-
-        case OPT_SIZE:
-            opts->desc[i].type = QEMU_OPT_SIZE;
-            if (list->value.n) {
-                opts->desc[i].def_value_str =
-                    g_strdup_printf("%" PRIu64, list->value.n);
-            }
-            break;
-
-        case OPT_STRING:
-            opts->desc[i].type = QEMU_OPT_STRING;
-            opts->desc[i].def_value_str = g_strdup(list->value.s);
-            break;
-        }
-
-        i++;
-        list++;
-    }
-
-    return opts;
-}
-
-/* convert QemuOpts to QEMUOptionParameter
- * Note: result QEMUOptionParameter has shorter lifetime than
- * input QemuOpts.
- * FIXME: this function will be removed after all drivers
- * switch to QemuOpts
- */
-QEMUOptionParameter *opts_to_params(QemuOpts *opts)
-{
-    QEMUOptionParameter *dest = NULL;
-    QemuOptDesc *desc;
-    size_t num_opts, i = 0;
-    const char *tmp;
-
-    if (!opts || !opts->list || !opts->list->desc) {
-        return NULL;
-    }
-    assert(!opts_accepts_any(opts));
-
-    num_opts = count_opts_list(opts->list);
-    dest = g_malloc0((num_opts + 1) * sizeof(QEMUOptionParameter));
-
-    desc = opts->list->desc;
-    while (desc && desc->name) {
-        dest[i].name = desc->name;
-        dest[i].help = desc->help;
-        dest[i].assigned = qemu_opt_find(opts, desc->name) ? true : false;
-        switch (desc->type) {
-        case QEMU_OPT_STRING:
-            dest[i].type = OPT_STRING;
-            tmp = qemu_opt_get(opts, desc->name);
-            dest[i].value.s = g_strdup(tmp);
-            break;
-
-        case QEMU_OPT_BOOL:
-            dest[i].type = OPT_FLAG;
-            dest[i].value.n = qemu_opt_get_bool(opts, desc->name, 0) ? 1 : 0;
-            break;
-
-        case QEMU_OPT_NUMBER:
-            dest[i].type = OPT_NUMBER;
-            dest[i].value.n = qemu_opt_get_number(opts, desc->name, 0);
-            break;
-
-        case QEMU_OPT_SIZE:
-            dest[i].type = OPT_SIZE;
-            dest[i].value.n = qemu_opt_get_size(opts, desc->name, 0);
-            break;
-        }
-
-        i++;
-        desc++;
-    }
-
-    return dest;
-}
-
 void qemu_opts_free(QemuOptsList *list)
 {
     /* List members point to new malloced space and need to be freed.
@@ -1504,25 +1095,18 @@ void qemu_opts_free(QemuOptsList *list)
     g_free(list);
 }
 
-/* Realloc dst option list and append options either from an option list (list)
- * or a QEMUOptionParameter (param) to it. dst could be NULL or a malloced list.
- * FIXME: will remove QEMUOptionParameter after all drivers switch to QemuOpts.
+/* Realloc dst option list and append options from an option list (list)
+ * to it. dst could be NULL or a malloced list.
  */
 QemuOptsList *qemu_opts_append(QemuOptsList *dst,
-                               QemuOptsList *list,
-                               QEMUOptionParameter *param)
+                               QemuOptsList *list)
 {
     size_t num_opts, num_dst_opts;
     QemuOptDesc *desc;
     bool need_init = false;
 
-    assert(!(list && param));
-    if (!param && !list) {
+    if (!list) {
         return dst;
-    }
-
-    if (param) {
-        list = params_to_opts(param);
     }
 
     /* If dst is NULL, after realloc, some area of dst should be initialized
@@ -1565,8 +1149,5 @@ QemuOptsList *qemu_opts_append(QemuOptsList *dst,
         }
     }
 
-    if (param) {
-        qemu_opts_free(list);
-    }
     return dst;
 }
