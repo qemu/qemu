@@ -304,6 +304,25 @@ typedef void (ObjectPropertyAccessor)(Object *obj,
                                       Error **errp);
 
 /**
+ * ObjectPropertyResolve:
+ * @obj: the object that owns the property
+ * @opaque: the opaque registered with the property
+ * @part: the name of the property
+ *
+ * Resolves the #Object corresponding to property @part.
+ *
+ * The returned object can also be used as a starting point
+ * to resolve a relative path starting with "@part".
+ *
+ * Returns: If @path is the path that led to @obj, the function
+ * returns the #Object corresponding to "@path/@part".
+ * If "@path/@part" is not a valid object path, it returns #NULL.
+ */
+typedef Object *(ObjectPropertyResolve)(Object *obj,
+                                        void *opaque,
+                                        const char *part);
+
+/**
  * ObjectPropertyRelease:
  * @obj: the object that owns the property
  * @name: the name of the property
@@ -321,6 +340,7 @@ typedef struct ObjectProperty
     gchar *type;
     ObjectPropertyAccessor *get;
     ObjectPropertyAccessor *set;
+    ObjectPropertyResolve *resolve;
     ObjectPropertyRelease *release;
     void *opaque;
 
@@ -787,12 +807,16 @@ void object_unref(Object *obj);
  *   destruction.  This may be NULL.
  * @opaque: an opaque pointer to pass to the callbacks for the property
  * @errp: returns an error if this function fails
+ *
+ * Returns: The #ObjectProperty; this can be used to set the @resolve
+ * callback for child and link properties.
  */
-void object_property_add(Object *obj, const char *name, const char *type,
-                         ObjectPropertyAccessor *get,
-                         ObjectPropertyAccessor *set,
-                         ObjectPropertyRelease *release,
-                         void *opaque, Error **errp);
+ObjectProperty *object_property_add(Object *obj, const char *name,
+                                    const char *type,
+                                    ObjectPropertyAccessor *get,
+                                    ObjectPropertyAccessor *set,
+                                    ObjectPropertyRelease *release,
+                                    void *opaque, Error **errp);
 
 void object_property_del(Object *obj, const char *name, Error **errp);
 
