@@ -130,6 +130,7 @@ char *qemu_opt_get_del(QemuOpts *opts, const char *name);
  * Returns: true if @opts includes 'help' or equivalent.
  */
 bool qemu_opt_has_help_opt(QemuOpts *opts);
+QemuOpt *qemu_opt_find(QemuOpts *opts, const char *name);
 bool qemu_opt_get_bool(QemuOpts *opts, const char *name, bool defval);
 uint64_t qemu_opt_get_number(QemuOpts *opts, const char *name, uint64_t defval);
 uint64_t qemu_opt_get_size(QemuOpts *opts, const char *name, uint64_t defval);

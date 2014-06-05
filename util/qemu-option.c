@@ -568,7 +568,7 @@ void qemu_opts_print_help(QemuOptsList *list)
 }
 /* ------------------------------------------------------------------ */
 
-static QemuOpt *qemu_opt_find(QemuOpts *opts, const char *name)
+QemuOpt *qemu_opt_find(QemuOpts *opts, const char *name)
 {
     QemuOpt *opt;
 
