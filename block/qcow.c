@@ -693,35 +693,29 @@ static void qcow_close(BlockDriverState *bs)
     error_free(s->migration_blocker);
 }
 
-static int qcow_create(const char *filename, QEMUOptionParameter *options,
-                       Error **errp)
+static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     int header_size, backing_filename_len, l1_size, shift, i;
     QCowHeader header;
     uint8_t *tmp;
     int64_t total_size = 0;
-    const char *backing_file = NULL;
+    char *backing_file = NULL;
     int flags = 0;
     Error *local_err = NULL;
     int ret;
     BlockDriverState *qcow_bs;
 
     /* Read out options */
-    while (options && options->name) {
-        if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
-            total_size = options->value.n / 512;
-        } else if (!strcmp(options->name, BLOCK_OPT_BACKING_FILE)) {
-            backing_file = options->value.s;
-        } else if (!strcmp(options->name, BLOCK_OPT_ENCRYPT)) {
-            flags |= options->value.n ? BLOCK_FLAG_ENCRYPT : 0;
-        }
-        options++;
+    total_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0) / 512;
+    backing_file = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
+    if (qemu_opt_get_bool_del(opts, BLOCK_OPT_ENCRYPT, false)) {
+        flags |= BLOCK_FLAG_ENCRYPT;
     }
 
-    ret = bdrv_create_file(filename, options, NULL, &local_err);
+    ret = bdrv_create_file(filename, NULL, opts, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
-        return ret;
+        goto cleanup;
     }
 
     qcow_bs = NULL;
@@ -729,7 +723,7 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options,
                     BDRV_O_RDWR | BDRV_O_PROTOCOL, NULL, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
-        return ret;
+        goto cleanup;
     }
 
     ret = bdrv_truncate(qcow_bs, 0);
@@ -800,6 +794,8 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options,
     ret = 0;
 exit:
     bdrv_unref(qcow_bs);
+cleanup:
+    g_free(backing_file);
     return ret;
 }
 
@@ -912,24 +908,28 @@ static int qcow_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return 0;
 }
 
-
-static QEMUOptionParameter qcow_create_options[] = {
-    {
-        .name = BLOCK_OPT_SIZE,
-        .type = OPT_SIZE,
-        .help = "Virtual disk size"
-    },
-    {
-        .name = BLOCK_OPT_BACKING_FILE,
-        .type = OPT_STRING,
-        .help = "File name of a base image"
-    },
-    {
-        .name = BLOCK_OPT_ENCRYPT,
-        .type = OPT_FLAG,
-        .help = "Encrypt the image"
-    },
-    { NULL }
+static QemuOptsList qcow_create_opts = {
+    .name = "qcow-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(qcow_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
+        {
+            .name = BLOCK_OPT_BACKING_FILE,
+            .type = QEMU_OPT_STRING,
+            .help = "File name of a base image"
+        },
+        {
+            .name = BLOCK_OPT_ENCRYPT,
+            .type = QEMU_OPT_BOOL,
+            .help = "Encrypt the image",
+            .def_value_str = "off"
+        },
+        { /* end of list */ }
+    }
 };
 
 static BlockDriver bdrv_qcow = {
@@ -938,8 +938,8 @@ static BlockDriver bdrv_qcow = {
     .bdrv_probe		= qcow_probe,
     .bdrv_open		= qcow_open,
     .bdrv_close		= qcow_close,
-    .bdrv_reopen_prepare = qcow_reopen_prepare,
-    .bdrv_create	= qcow_create,
+    .bdrv_reopen_prepare    = qcow_reopen_prepare,
+    .bdrv_create2           = qcow_create,
     .bdrv_has_zero_init     = bdrv_has_zero_init_1,
 
     .bdrv_co_readv          = qcow_co_readv,
@@ -951,7 +951,7 @@ static BlockDriver bdrv_qcow = {
     .bdrv_write_compressed  = qcow_write_compressed,
     .bdrv_get_info          = qcow_get_info,
 
-    .create_options = qcow_create_options,
+    .create_opts            = &qcow_create_opts,
 };
 
 static void bdrv_qcow_init(void)
