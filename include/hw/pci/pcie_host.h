@@ -49,7 +49,6 @@ struct PCIExpressHost {
     MemoryRegion mmio;
 };
 
-int pcie_host_init(PCIExpressHost *e);
 void pcie_host_mmcfg_unmap(PCIExpressHost *e);
 void pcie_host_mmcfg_map(PCIExpressHost *e, hwaddr addr, uint32_t size);
 void pcie_host_mmcfg_update(PCIExpressHost *e,

@@ -955,6 +955,23 @@ void qdev_prop_register_global_list(GlobalProperty *props)
     }
 }
 
+int qdev_prop_check_global(void)
+{
+    GlobalProperty *prop;
+    int ret = 0;
+
+    QTAILQ_FOREACH(prop, &global_props, next) {
+        if (!prop->not_used) {
+            continue;
+        }
+        ret = 1;
+        error_report("Warning: \"-global %s.%s=%s\" not used",
+                     prop->driver, prop->property, prop->value);
+
+    }
+    return ret;
+}
+
 void qdev_prop_set_globals_for_type(DeviceState *dev, const char *typename,
                                     Error **errp)
 {
@@ -966,6 +983,7 @@ void qdev_prop_set_globals_for_type(DeviceState *dev, const char *typename,
         if (strcmp(typename, prop->driver) != 0) {
             continue;
         }
+        prop->not_used = false;
         object_property_parse(OBJECT(dev), prop->value, prop->property, &err);
         if (err != NULL) {
             error_propagate(errp, err);

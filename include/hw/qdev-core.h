@@ -239,10 +239,18 @@ struct PropertyInfo {
     ObjectPropertyRelease *release;
 };
 
+/**
+ * GlobalProperty:
+ * @not_used: Track use of a global property.  Defaults to false in all C99
+ * struct initializations.
+ *
+ * This prevents reports of .compat_props when they are not used.
+ */
 typedef struct GlobalProperty {
     const char *driver;
     const char *property;
     const char *value;
+    bool not_used;
     QTAILQ_ENTRY(GlobalProperty) next;
 } GlobalProperty;
 
