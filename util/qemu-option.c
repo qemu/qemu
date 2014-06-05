@@ -895,17 +895,15 @@ void qemu_opts_del(QemuOpts *opts)
     g_free(opts);
 }
 
-int qemu_opts_print(QemuOpts *opts, void *dummy)
+void qemu_opts_print(QemuOpts *opts)
 {
     QemuOpt *opt;
 
-    fprintf(stderr, "%s: %s:", opts->list->name,
-            opts->id ? opts->id : "<noid>");
+    printf("%s: %s:", opts->list->name,
+           opts->id ? opts->id : "<noid>");
     QTAILQ_FOREACH(opt, &opts->head, next) {
-        fprintf(stderr, " %s=\"%s\"", opt->name, opt->str);
+        printf(" %s=\"%s\"", opt->name, opt->str);
     }
-    fprintf(stderr, "\n");
-    return 0;
 }
 
 static int opts_do_parse(QemuOpts *opts, const char *params,
