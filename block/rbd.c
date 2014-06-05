@@ -685,13 +685,16 @@ static BlockDriverAIOCB *rbd_start_aio(BlockDriverState *bs,
     }
 
     if (r < 0) {
-        goto failed;
+        goto failed_completion;
     }
 
     return &acb->common;
 
+failed_completion:
+    rbd_aio_release(c);
 failed:
     g_free(rcb);
+    qemu_vfree(acb->bounce);
     qemu_aio_release(acb);
     return NULL;
 }
