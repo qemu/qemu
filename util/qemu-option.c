@@ -1346,3 +1346,156 @@ int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func, void *opaque,
     loc_pop(&loc);
     return rc;
 }
+
+static size_t count_opts_list(QemuOptsList *list)
+{
+    QemuOptDesc *desc = NULL;
+    size_t num_opts = 0;
+
+    if (!list) {
+        return 0;
+    }
+
+    desc = list->desc;
+    while (desc && desc->name) {
+        num_opts++;
+        desc++;
+    }
+
+    return num_opts;
+}
+
+/* Convert QEMUOptionParameter to QemuOpts
+ * FIXME: this function will be removed after all drivers
+ * switch to QemuOpts
+ */
+QemuOptsList *params_to_opts(QEMUOptionParameter *list)
+{
+    QemuOptsList *opts = NULL;
+    size_t num_opts, i = 0;
+
+    if (!list) {
+        return NULL;
+    }
+
+    num_opts = count_option_parameters(list);
+    opts = g_malloc0(sizeof(QemuOptsList) +
+                     (num_opts + 1) * sizeof(QemuOptDesc));
+    QTAILQ_INIT(&opts->head);
+    /* (const char *) members will point to malloced space and need to free */
+    opts->allocated = true;
+
+    while (list && list->name) {
+        opts->desc[i].name = g_strdup(list->name);
+        opts->desc[i].help = g_strdup(list->help);
+        switch (list->type) {
+        case OPT_FLAG:
+            opts->desc[i].type = QEMU_OPT_BOOL;
+            opts->desc[i].def_value_str =
+                g_strdup(list->value.n ? "on" : "off");
+            break;
+
+        case OPT_NUMBER:
+            opts->desc[i].type = QEMU_OPT_NUMBER;
+            if (list->value.n) {
+                opts->desc[i].def_value_str =
+                    g_strdup_printf("%" PRIu64, list->value.n);
+            }
+            break;
+
+        case OPT_SIZE:
+            opts->desc[i].type = QEMU_OPT_SIZE;
+            if (list->value.n) {
+                opts->desc[i].def_value_str =
+                    g_strdup_printf("%" PRIu64, list->value.n);
+            }
+            break;
+
+        case OPT_STRING:
+            opts->desc[i].type = QEMU_OPT_STRING;
+            opts->desc[i].def_value_str = g_strdup(list->value.s);
+            break;
+        }
+
+        i++;
+        list++;
+    }
+
+    return opts;
+}
+
+/* convert QemuOpts to QEMUOptionParameter
+ * Note: result QEMUOptionParameter has shorter lifetime than
+ * input QemuOpts.
+ * FIXME: this function will be removed after all drivers
+ * switch to QemuOpts
+ */
+QEMUOptionParameter *opts_to_params(QemuOpts *opts)
+{
+    QEMUOptionParameter *dest = NULL;
+    QemuOptDesc *desc;
+    size_t num_opts, i = 0;
+    const char *tmp;
+
+    if (!opts || !opts->list || !opts->list->desc) {
+        return NULL;
+    }
+    assert(!opts_accepts_any(opts));
+
+    num_opts = count_opts_list(opts->list);
+    dest = g_malloc0((num_opts + 1) * sizeof(QEMUOptionParameter));
+
+    desc = opts->list->desc;
+    while (desc && desc->name) {
+        dest[i].name = desc->name;
+        dest[i].help = desc->help;
+        dest[i].assigned = qemu_opt_find(opts, desc->name) ? true : false;
+        switch (desc->type) {
+        case QEMU_OPT_STRING:
+            dest[i].type = OPT_STRING;
+            tmp = qemu_opt_get(opts, desc->name);
+            dest[i].value.s = g_strdup(tmp);
+            break;
+
+        case QEMU_OPT_BOOL:
+            dest[i].type = OPT_FLAG;
+            dest[i].value.n = qemu_opt_get_bool(opts, desc->name, 0) ? 1 : 0;
+            break;
+
+        case QEMU_OPT_NUMBER:
+            dest[i].type = OPT_NUMBER;
+            dest[i].value.n = qemu_opt_get_number(opts, desc->name, 0);
+            break;
+
+        case QEMU_OPT_SIZE:
+            dest[i].type = OPT_SIZE;
+            dest[i].value.n = qemu_opt_get_size(opts, desc->name, 0);
+            break;
+        }
+
+        i++;
+        desc++;
+    }
+
+    return dest;
+}
+
+void qemu_opts_free(QemuOptsList *list)
+{
+    /* List members point to new malloced space and need to be freed.
+     * FIXME:
+     * Introduced for QEMUOptionParamter->QemuOpts conversion.
+     * Will remove after all drivers switch to QemuOpts.
+     */
+    if (list && list->allocated) {
+        QemuOptDesc *desc = list->desc;
+        while (desc && desc->name) {
+            g_free((char *)desc->name);
+            g_free((char *)desc->help);
+            g_free((char *)desc->def_value_str);
+            desc++;
+        }
+    }
+
+    g_free(list);
+}
