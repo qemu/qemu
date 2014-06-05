@@ -352,8 +352,8 @@ class TracepointProvider(object):
         return ret
 
 class Stats:
-    def __init__(self, provider, fields = None):
-        self.provider = provider
+    def __init__(self, providers, fields = None):
+        self.providers = providers
         self.fields_filter = fields
         self._update()
     def _update(self):
@@ -362,22 +362,25 @@ class Stats:
             if not self.fields_filter:
                 return True
             return re.match(self.fields_filter, key) is not None
-        self.values = dict([(key, None)
-                            for key in provider.fields()
-                            if wanted(key)])
-        self.provider.select(self.values.keys())
+        self.values = dict()
+        for d in providers:
+            provider_fields = [key for key in d.fields() if wanted(key)]
+            for key in provider_fields:
+                self.values[key] = None
+            d.select(provider_fields)
     def set_fields_filter(self, fields_filter):
         self.fields_filter = fields_filter
         self._update()
     def get(self):
-        new = self.provider.read()
-        for key in self.provider.fields():
-            oldval = self.values.get(key, (0, 0))
-            newval = new[key]
-            newdelta = None
-            if oldval is not None:
-                newdelta = newval - oldval[0]
-            self.values[key] = (newval, newdelta)
+        for d in providers:
+            new = d.read()
+            for key in d.fields():
+                oldval = self.values.get(key, (0, 0))
+                newval = new[key]
+                newdelta = None
+                if oldval is not None:
+                    newdelta = newval - oldval[0]
+                self.values[key] = (newval, newdelta)
         return self.values
 
 if not os.access('/sys/kernel/debug', os.F_OK):
@@ -487,6 +490,18 @@ options.add_option('-l', '--log',
                    dest = 'log',
                    help = 'run in logging mode (like vmstat)',
                    )
+options.add_option('-t', '--tracepoints',
+                   action = 'store_true',
+                   default = False,
+                   dest = 'tracepoints',
+                   help = 'retrieve statistics from tracepoints',
+                   )
+options.add_option('-d', '--debugfs',
+                   action = 'store_true',
+                   default = False,
+                   dest = 'debugfs',
+                   help = 'retrieve statistics from debugfs',
+                   )
 options.add_option('-f', '--fields',
                    action = 'store',
                    default = None,
@@ -495,12 +510,19 @@ options.add_option('-f', '--fields',
                    )
 (options, args) = options.parse_args(sys.argv)
 
-try:
-    provider = TracepointProvider()
-except:
-    provider = DebugfsProvider()
+providers = []
+if options.tracepoints:
+    providers.append(TracepointProvider())
+if options.debugfs:
+    providers.append(DebugfsProvider())
 
-stats = Stats(provider, fields = options.fields)
+if len(providers) == 0:
+    try:
+        providers = [TracepointProvider()]
+    except:
+        providers = [DebugfsProvider()]
+
+stats = Stats(providers, fields = options.fields)
 
 if options.log:
     log(stats)

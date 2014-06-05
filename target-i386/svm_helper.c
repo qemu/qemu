@@ -260,7 +260,6 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
                                   env->vm_vmcb + offsetof(struct vmcb,
                                                           save.rflags)),
                     ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
-    CC_OP = CC_OP_EFLAGS;
 
     svm_load_seg_cache(env, env->vm_vmcb + offsetof(struct vmcb, save.es),
                        R_ES);
@@ -702,7 +701,6 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
                                                            save.rflags)),
                     ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK |
                       VM_MASK));
-    CC_OP = CC_OP_EFLAGS;
 
     svm_load_seg_cache(env, env->vm_hsave + offsetof(struct vmcb, save.es),
                        R_ES);

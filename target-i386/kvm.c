@@ -528,23 +528,25 @@ int kvm_arch_init_vcpu(CPUState *cs)
         has_msr_hv_hypercall = true;
     }
 
-    memcpy(signature, "KVMKVMKVM\0\0\0", 12);
-    c = &cpuid_data.entries[cpuid_i++];
-    c->function = KVM_CPUID_SIGNATURE | kvm_base;
-    c->eax = 0;
-    c->ebx = signature[0];
-    c->ecx = signature[1];
-    c->edx = signature[2];
+    if (cpu->expose_kvm) {
+        memcpy(signature, "KVMKVMKVM\0\0\0", 12);
+        c = &cpuid_data.entries[cpuid_i++];
+        c->function = KVM_CPUID_SIGNATURE | kvm_base;
+        c->eax = KVM_CPUID_FEATURES | kvm_base;
+        c->ebx = signature[0];
+        c->ecx = signature[1];
+        c->edx = signature[2];
 
-    c = &cpuid_data.entries[cpuid_i++];
-    c->function = KVM_CPUID_FEATURES | kvm_base;
-    c->eax = env->features[FEAT_KVM];
+        c = &cpuid_data.entries[cpuid_i++];
+        c->function = KVM_CPUID_FEATURES | kvm_base;
+        c->eax = env->features[FEAT_KVM];
 
-    has_msr_async_pf_en = c->eax & (1 << KVM_FEATURE_ASYNC_PF);
+        has_msr_async_pf_en = c->eax & (1 << KVM_FEATURE_ASYNC_PF);
 
-    has_msr_pv_eoi_en = c->eax & (1 << KVM_FEATURE_PV_EOI);
+        has_msr_pv_eoi_en = c->eax & (1 << KVM_FEATURE_PV_EOI);
 
-    has_msr_kvm_steal_time = c->eax & (1 << KVM_FEATURE_STEAL_TIME);
+        has_msr_kvm_steal_time = c->eax & (1 << KVM_FEATURE_STEAL_TIME);
+    }
 
     cpu_x86_cpuid(env, 0, 0, &limit, &unused, &unused, &unused);
 
@@ -1430,7 +1432,7 @@ static int kvm_get_sregs(X86CPU *cpu)
        HF_OSFXSR_MASK | HF_LMA_MASK | HF_CS32_MASK | \
        HF_SS32_MASK | HF_CS64_MASK | HF_ADDSEG_MASK)
 
-    hflags = (env->segs[R_CS].flags >> DESC_DPL_SHIFT) & HF_CPL_MASK;
+    hflags = (env->segs[R_SS].flags >> DESC_DPL_SHIFT) & HF_CPL_MASK;
     hflags |= (env->cr[0] & CR0_PE_MASK) << (HF_PE_SHIFT - CR0_PE_SHIFT);
     hflags |= (env->cr[0] << (HF_MP_SHIFT - CR0_MP_SHIFT)) &
                 (HF_MP_MASK | HF_EM_MASK | HF_TS_MASK);

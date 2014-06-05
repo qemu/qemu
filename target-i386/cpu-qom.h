@@ -87,6 +87,7 @@ typedef struct X86CPU {
     bool hyperv_time;
     bool check_cpuid;
     bool enforce_cpuid;
+    bool expose_kvm;
 
     /* if true the CPUID code directly forward host cache leaves to the guest */
     bool cache_info_passthrough;

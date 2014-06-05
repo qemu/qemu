@@ -986,7 +986,6 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
     /* update the hidden flags */
     {
         if (seg_reg == R_CS) {
-            int cpl = selector & 3;
 #ifdef TARGET_X86_64
             if ((env->hflags & HF_LMA_MASK) && (flags & DESC_L_MASK)) {
                 /* long mode */
@@ -996,15 +995,14 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
 #endif
             {
                 /* legacy / compatibility case */
-                if (!(env->cr[0] & CR0_PE_MASK))
-                    cpl = 0;
-                else if (env->eflags & VM_MASK)
-                    cpl = 3;
                 new_hflags = (env->segs[R_CS].flags & DESC_B_MASK)
                     >> (DESC_B_SHIFT - HF_CS32_SHIFT);
                 env->hflags = (env->hflags & ~(HF_CS32_MASK | HF_CS64_MASK)) |
                     new_hflags;
             }
+        }
+        if (seg_reg == R_SS) {
+            int cpl = (flags >> DESC_DPL_SHIFT) & 3;
 #if HF_CPL_MASK != 3
 #error HF_CPL_MASK is hardcoded
 #endif
@@ -1234,11 +1232,14 @@ static inline uint32_t cpu_compute_eflags(CPUX86State *env)
     return env->eflags | cpu_cc_compute_all(env, CC_OP) | (env->df & DF_MASK);
 }
 
-/* NOTE: CC_OP must be modified manually to CC_OP_EFLAGS */
+/* NOTE: the translator must set DisasContext.cc_op to CC_OP_EFLAGS
+ * after generating a call to a helper that uses this.
+ */
 static inline void cpu_load_eflags(CPUX86State *env, int eflags,
                                    int update_mask)
 {
     CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    CC_OP = CC_OP_EFLAGS;
     env->df = 1 - (2 * ((eflags >> 10) & 1));
     env->eflags = (env->eflags & ~update_mask) |
         (eflags & update_mask) | 0x2;
