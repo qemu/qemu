@@ -99,6 +99,7 @@ typedef struct QemuOptDesc {
     const char *name;
     enum QemuOptType type;
     const char *help;
+    const char *def_value_str;
 } QemuOptDesc;
 
 struct QemuOptsList {
