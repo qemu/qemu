@@ -391,8 +391,7 @@ static int nfs_file_open(BlockDriverState *bs, QDict *options, int flags,
     return 0;
 }
 
-static int nfs_file_create(const char *url, QEMUOptionParameter *options,
-                           Error **errp)
+static int nfs_file_create(const char *url, QemuOpts *opts, Error **errp)
 {
     int ret = 0;
     int64_t total_size = 0;
@@ -401,12 +400,7 @@ static int nfs_file_create(const char *url, QEMUOptionParameter *options,
     client->aio_context = qemu_get_aio_context();
 
     /* Read out options */
-    while (options && options->name) {
-        if (!strcmp(options->name, "size")) {
-            total_size = options->value.n;
-        }
-        options++;
-    }
+    total_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
 
     ret = nfs_client_open(client, url, O_CREAT, errp);
     if (ret < 0) {
@@ -463,7 +457,7 @@ static BlockDriver bdrv_nfs = {
 
     .bdrv_file_open                 = nfs_file_open,
     .bdrv_close                     = nfs_file_close,
-    .bdrv_create                    = nfs_file_create,
+    .bdrv_create2                   = nfs_file_create,
 
     .bdrv_co_readv                  = nfs_co_readv,
     .bdrv_co_writev                 = nfs_co_writev,
