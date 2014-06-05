@@ -111,6 +111,7 @@ struct QemuOptsList {
 };
 
 const char *qemu_opt_get(QemuOpts *opts, const char *name);
+char *qemu_opt_get_del(QemuOpts *opts, const char *name);
 /**
  * qemu_opt_has_help_opt:
  * @opts: options to search for a help request
@@ -126,6 +127,11 @@ bool qemu_opt_has_help_opt(QemuOpts *opts);
 bool qemu_opt_get_bool(QemuOpts *opts, const char *name, bool defval);
 uint64_t qemu_opt_get_number(QemuOpts *opts, const char *name, uint64_t defval);
 uint64_t qemu_opt_get_size(QemuOpts *opts, const char *name, uint64_t defval);
+bool qemu_opt_get_bool_del(QemuOpts *opts, const char *name, bool defval);
+uint64_t qemu_opt_get_number_del(QemuOpts *opts, const char *name,
+                                 uint64_t defval);
+uint64_t qemu_opt_get_size_del(QemuOpts *opts, const char *name,
+                               uint64_t defval);
 int qemu_opt_unset(QemuOpts *opts, const char *name);
 int qemu_opt_set(QemuOpts *opts, const char *name, const char *value);
 void qemu_opt_set_err(QemuOpts *opts, const char *name, const char *value,

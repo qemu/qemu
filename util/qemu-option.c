@@ -575,6 +575,20 @@ static void qemu_opt_del(QemuOpt *opt)
     g_free(opt);
 }
 
+/* qemu_opt_set allows many settings for the same option.
+ * This function deletes all settings for an option.
+ */
+static void qemu_opt_del_all(QemuOpts *opts, const char *name)
+{
+    QemuOpt *opt, *next_opt;
+
+    QTAILQ_FOREACH_SAFE(opt, &opts->head, next, next_opt) {
+        if (!strcmp(opt->name, name)) {
+            qemu_opt_del(opt);
+        }
+    }
+}
+
 const char *qemu_opt_get(QemuOpts *opts, const char *name)
 {
     QemuOpt *opt = qemu_opt_find(opts, name);
@@ -586,6 +600,34 @@ const char *qemu_opt_get(QemuOpts *opts, const char *name)
         }
     }
     return opt ? opt->str : NULL;
+}
+
+/* Get a known option (or its default) and remove it from the list
+ * all in one action. Return a malloced string of the option value.
+ * Result must be freed by caller with g_free().
+ */
+char *qemu_opt_get_del(QemuOpts *opts, const char *name)
+{
+    QemuOpt *opt;
+    const QemuOptDesc *desc;
+    char *str = NULL;
+
+    if (opts == NULL) {
+        return NULL;
+    }
+
+    opt = qemu_opt_find(opts, name);
+    if (!opt) {
+        desc = find_desc_by_name(opts->list->desc, name);
+        if (desc && desc->def_value_str) {
+            str = g_strdup(desc->def_value_str);
+        }
+        return str;
+    }
+    str = opt->str;
+    opt->str = NULL;
+    qemu_opt_del_all(opts, name);
+    return str;
 }
 
 bool qemu_opt_has_help_opt(QemuOpts *opts)
@@ -600,50 +642,99 @@ bool qemu_opt_has_help_opt(QemuOpts *opts)
     return false;
 }
 
-bool qemu_opt_get_bool(QemuOpts *opts, const char *name, bool defval)
+static bool qemu_opt_get_bool_helper(QemuOpts *opts, const char *name,
+                                     bool defval, bool del)
 {
     QemuOpt *opt = qemu_opt_find(opts, name);
+    bool ret = defval;
 
     if (opt == NULL) {
         const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
         if (desc && desc->def_value_str) {
-            parse_option_bool(name, desc->def_value_str, &defval, &error_abort);
+            parse_option_bool(name, desc->def_value_str, &ret, &error_abort);
         }
-        return defval;
+        return ret;
     }
     assert(opt->desc && opt->desc->type == QEMU_OPT_BOOL);
-    return opt->value.boolean;
+    ret = opt->value.boolean;
+    if (del) {
+        qemu_opt_del_all(opts, name);
+    }
+    return ret;
+}
+
+bool qemu_opt_get_bool(QemuOpts *opts, const char *name, bool defval)
+{
+    return qemu_opt_get_bool_helper(opts, name, defval, false);
+}
+
+bool qemu_opt_get_bool_del(QemuOpts *opts, const char *name, bool defval)
+{
+    return qemu_opt_get_bool_helper(opts, name, defval, true);
+}
+
+static uint64_t qemu_opt_get_number_helper(QemuOpts *opts, const char *name,
+                                           uint64_t defval, bool del)
+{
+    QemuOpt *opt = qemu_opt_find(opts, name);
+    uint64_t ret = defval;
+
+    if (opt == NULL) {
+        const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
+        if (desc && desc->def_value_str) {
+            parse_option_number(name, desc->def_value_str, &ret, &error_abort);
+        }
+        return ret;
+    }
+    assert(opt->desc && opt->desc->type == QEMU_OPT_NUMBER);
+    ret = opt->value.uint;
+    if (del) {
+        qemu_opt_del_all(opts, name);
+    }
+    return ret;
 }
 
 uint64_t qemu_opt_get_number(QemuOpts *opts, const char *name, uint64_t defval)
 {
+    return qemu_opt_get_number_helper(opts, name, defval, false);
+}
+
+uint64_t qemu_opt_get_number_del(QemuOpts *opts, const char *name,
+                                 uint64_t defval)
+{
+    return qemu_opt_get_number_helper(opts, name, defval, true);
+}
+
+static uint64_t qemu_opt_get_size_helper(QemuOpts *opts, const char *name,
+                                         uint64_t defval, bool del)
+{
     QemuOpt *opt = qemu_opt_find(opts, name);
+    uint64_t ret = defval;
 
     if (opt == NULL) {
         const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
         if (desc && desc->def_value_str) {
-            parse_option_number(name, desc->def_value_str, &defval,
-                                &error_abort);
+            parse_option_size(name, desc->def_value_str, &ret, &error_abort);
         }
-        return defval;
+        return ret;
     }
-    assert(opt->desc && opt->desc->type == QEMU_OPT_NUMBER);
-    return opt->value.uint;
+    assert(opt->desc && opt->desc->type == QEMU_OPT_SIZE);
+    ret = opt->value.uint;
+    if (del) {
+        qemu_opt_del_all(opts, name);
+    }
+    return ret;
 }
 
 uint64_t qemu_opt_get_size(QemuOpts *opts, const char *name, uint64_t defval)
 {
-    QemuOpt *opt = qemu_opt_find(opts, name);
+    return qemu_opt_get_size_helper(opts, name, defval, false);
+}
 
-    if (opt == NULL) {
-        const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
-        if (desc && desc->def_value_str) {
-            parse_option_size(name, desc->def_value_str, &defval, &error_abort);
-        }
-        return defval;
-    }
-    assert(opt->desc && opt->desc->type == QEMU_OPT_SIZE);
-    return opt->value.uint;
+uint64_t qemu_opt_get_size_del(QemuOpts *opts, const char *name,
+                               uint64_t defval)
+{
+    return qemu_opt_get_size_helper(opts, name, defval, true);
 }
 
 static void qemu_opt_parse(QemuOpt *opt, Error **errp)
