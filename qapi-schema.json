@@ -2,32 +2,8 @@
 #
 # QAPI Schema
 
-##
-# @ErrorClass
-#
-# QEMU error classes
-#
-# @GenericError: this is used for errors that don't require a specific error
-#                class. This should be the default case for most errors
-#
-# @CommandNotFound: the requested command has not been found
-#
-# @DeviceEncrypted: the requested operation can't be fulfilled because the
-#                   selected device is encrypted
-#
-# @DeviceNotActive: a device has failed to be become active
-#
-# @DeviceNotFound: the requested device has not been found
-#
-# @KVMMissingCap: the requested operation can't be fulfilled because a
-#                 required KVM capability is missing
-#
-# Since: 1.2
-##
-{ 'enum': 'ErrorClass',
-  'data': [ 'GenericError', 'CommandNotFound', 'DeviceEncrypted',
-            'DeviceNotActive', 'DeviceNotFound', 'KVMMissingCap' ] }
-
+# QAPI common definitions
+{ 'include': 'qapi/common.json' }
 
 ##
 # LostTickPolicy:
@@ -132,43 +108,6 @@
 # Since 0.14.0
 ##
 { 'command': 'query-name', 'returns': 'NameInfo' }
-
-##
-# @VersionInfo:
-#
-# A description of QEMU's version.
-#
-# @qemu.major:  The major version of QEMU
-#
-# @qemu.minor:  The minor version of QEMU
-#
-# @qemu.micro:  The micro version of QEMU.  By current convention, a micro
-#               version of 50 signifies a development branch.  A micro version
-#               greater than or equal to 90 signifies a release candidate for
-#               the next minor version.  A micro version of less than 50
-#               signifies a stable release.
-#
-# @package:     QEMU will always set this field to an empty string.  Downstream
-#               versions of QEMU should set this to a non-empty string.  The
-#               exact format depends on the downstream however it highly
-#               recommended that a unique name is used.
-#
-# Since: 0.14.0
-##
-{ 'type': 'VersionInfo',
-  'data': {'qemu': {'major': 'int', 'minor': 'int', 'micro': 'int'},
-           'package': 'str'} }
-
-##
-# @query-version:
-#
-# Returns the current version of QEMU.
-#
-# Returns:  A @VersionInfo object describing the current version of QEMU.
-#
-# Since: 0.14.0
-##
-{ 'command': 'query-version', 'returns': 'VersionInfo' }
 
 ##
 # @KvmInfo:
@@ -582,28 +521,6 @@
 { 'command': 'ringbuf-read',
   'data': {'device': 'str', 'size': 'int', '*format': 'DataFormat'},
   'returns': 'str' }
-
-##
-# @CommandInfo:
-#
-# Information about a QMP command
-#
-# @name: The command name
-#
-# Since: 0.14.0
-##
-{ 'type': 'CommandInfo', 'data': {'name': 'str'} }
-
-##
-# @query-commands:
-#
-# Return a list of supported QMP commands by this server
-#
-# Returns: A list of @CommandInfo for all supported commands
-#
-# Since: 0.14.0
-##
-{ 'command': 'query-commands', 'returns': ['CommandInfo'] }
 
 ##
 # @EventInfo:
