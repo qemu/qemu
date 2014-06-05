@@ -145,7 +145,7 @@ static int raw_create(const char *filename, QEMUOptionParameter *options,
     Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_create_file(filename, options, &local_err);
+    ret = bdrv_create_file(filename, options, NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
     }

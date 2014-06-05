@@ -1803,7 +1803,7 @@ static int vhdx_create(const char *filename, QEMUOptionParameter *options,
     block_size = block_size > VHDX_BLOCK_SIZE_MAX ? VHDX_BLOCK_SIZE_MAX :
                                                     block_size;
 
-    ret = bdrv_create_file(filename, options, &local_err);
+    ret = bdrv_create_file(filename, options, NULL, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto exit;

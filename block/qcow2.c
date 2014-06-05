@@ -1626,7 +1626,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_create_file(filename, options, &local_err);
+    ret = bdrv_create_file(filename, options, NULL, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return ret;

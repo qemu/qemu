@@ -1539,7 +1539,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     uint32_t *gd_buf = NULL;
     int gd_buf_size;
 
-    ret = bdrv_create_file(filename, NULL, &local_err);
+    ret = bdrv_create_file(filename, NULL, NULL, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto exit;
@@ -1879,7 +1879,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
     if (!split && !flat) {
         desc_offset = 0x200;
     } else {
-        ret = bdrv_create_file(filename, options, &local_err);
+        ret = bdrv_create_file(filename, options, NULL, &local_err);
         if (ret < 0) {
             error_propagate(errp, local_err);
             goto exit;

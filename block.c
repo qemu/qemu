@@ -329,6 +329,13 @@ void bdrv_register(BlockDriver *bdrv)
         }
     }
 
+    if (bdrv->bdrv_create) {
+        assert(!bdrv->bdrv_create2 && !bdrv->create_opts);
+        assert(!bdrv->bdrv_amend_options2);
+    } else if (bdrv->bdrv_create2) {
+        assert(!bdrv->bdrv_create && !bdrv->create_options);
+        assert(!bdrv->bdrv_amend_options);
+    }
     QLIST_INSERT_HEAD(&bdrv_drivers, bdrv, list);
 }
 
@@ -425,6 +432,7 @@ typedef struct CreateCo {
     BlockDriver *drv;
     char *filename;
     QEMUOptionParameter *options;
+    QemuOpts *opts;
     int ret;
     Error *err;
 } CreateCo;
@@ -436,8 +444,28 @@ static void coroutine_fn bdrv_create_co_entry(void *opaque)
 
     CreateCo *cco = opaque;
     assert(cco->drv);
+    assert(!(cco->options && cco->opts));
 
-    ret = cco->drv->bdrv_create(cco->filename, cco->options, &local_err);
+    if (cco->drv->bdrv_create2) {
+        QemuOptsList *opts_list = NULL;
+        if (cco->options) {
+            opts_list = params_to_opts(cco->options);
+            cco->opts = qemu_opts_create(opts_list, NULL, 0, &error_abort);
+        }
+        ret = cco->drv->bdrv_create2(cco->filename, cco->opts, &local_err);
+        if (cco->options) {
+            qemu_opts_del(cco->opts);
+            qemu_opts_free(opts_list);
+        }
+    } else {
+        if (cco->opts) {
+            cco->options = opts_to_params(cco->opts);
+        }
+        ret = cco->drv->bdrv_create(cco->filename, cco->options, &local_err);
+        if (cco->opts) {
+            free_option_parameters(cco->options);
+        }
+    }
     if (local_err) {
         error_propagate(&cco->err, local_err);
     }
@@ -445,7 +473,8 @@ static void coroutine_fn bdrv_create_co_entry(void *opaque)
 }
 
 int bdrv_create(BlockDriver *drv, const char* filename,
-    QEMUOptionParameter *options, Error **errp)
+                QEMUOptionParameter *options,
+                QemuOpts *opts, Error **errp)
 {
     int ret;
 
@@ -454,11 +483,12 @@ int bdrv_create(BlockDriver *drv, const char* filename,
         .drv = drv,
         .filename = g_strdup(filename),
         .options = options,
+        .opts = opts,
         .ret = NOT_DONE,
         .err = NULL,
     };
 
-    if (!drv->bdrv_create) {
+    if (!drv->bdrv_create && !drv->bdrv_create2) {
         error_setg(errp, "Driver '%s' does not support image creation", drv->format_name);
         ret = -ENOTSUP;
         goto out;
@@ -490,7 +520,7 @@ out:
 }
 
 int bdrv_create_file(const char* filename, QEMUOptionParameter *options,
-                     Error **errp)
+                     QemuOpts *opts, Error **errp)
 {
     BlockDriver *drv;
     Error *local_err = NULL;
@@ -502,7 +532,7 @@ int bdrv_create_file(const char* filename, QEMUOptionParameter *options,
         return -ENOENT;
     }
 
-    ret = bdrv_create(drv, filename, options, &local_err);
+    ret = bdrv_create(drv, filename, options, opts, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
     }
@@ -1247,7 +1277,8 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     char *tmp_filename = g_malloc0(PATH_MAX + 1);
     int64_t total_size;
     BlockDriver *bdrv_qcow2;
-    QEMUOptionParameter *create_options;
+    QemuOptsList *create_opts = NULL;
+    QemuOpts *opts = NULL;
     QDict *snapshot_options;
     BlockDriverState *bs_snapshot;
     Error *local_err;
@@ -1272,13 +1303,20 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     }
 
     bdrv_qcow2 = bdrv_find_format("qcow2");
-    create_options = parse_option_parameters("", bdrv_qcow2->create_options,
-                                             NULL);
 
-    set_option_parameter_int(create_options, BLOCK_OPT_SIZE, total_size);
-
-    ret = bdrv_create(bdrv_qcow2, tmp_filename, create_options, &local_err);
-    free_option_parameters(create_options);
+    assert(!(bdrv_qcow2->create_options && bdrv_qcow2->create_opts));
+    if (bdrv_qcow2->create_options) {
+        create_opts = params_to_opts(bdrv_qcow2->create_options);
+    } else {
+        create_opts = bdrv_qcow2->create_opts;
+    }
+    opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_size);
+    ret = bdrv_create(bdrv_qcow2, tmp_filename, NULL, opts, &local_err);
+    qemu_opts_del(opts);
+    if (bdrv_qcow2->create_options) {
+        qemu_opts_free(create_opts);
+    }
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not create temporary overlay "
                          "'%s': %s", tmp_filename,
@@ -5519,8 +5557,10 @@ void bdrv_img_create(const char *filename, const char *fmt,
                      char *options, uint64_t img_size, int flags,
                      Error **errp, bool quiet)
 {
-    QEMUOptionParameter *param = NULL, *create_options = NULL;
-    QEMUOptionParameter *backing_fmt, *backing_file, *size;
+    QemuOptsList *create_opts = NULL;
+    QemuOpts *opts = NULL;
+    const char *backing_fmt, *backing_file;
+    int64_t size;
     BlockDriver *drv, *proto_drv;
     BlockDriver *backing_drv = NULL;
     Error *local_err = NULL;
@@ -5539,28 +5579,25 @@ void bdrv_img_create(const char *filename, const char *fmt,
         return;
     }
 
-    create_options = append_option_parameters(create_options,
-                                              drv->create_options);
-    create_options = append_option_parameters(create_options,
-                                              proto_drv->create_options);
+    create_opts = qemu_opts_append(create_opts, drv->create_opts,
+                                   drv->create_options);
+    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts,
+                                   proto_drv->create_options);
 
     /* Create parameter list with default values */
-    param = parse_option_parameters("", create_options, param);
-
-    set_option_parameter_int(param, BLOCK_OPT_SIZE, img_size);
+    opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, img_size);
 
     /* Parse -o options */
     if (options) {
-        param = parse_option_parameters(options, create_options, param);
-        if (param == NULL) {
-            error_setg(errp, "Invalid options for file format '%s'.", fmt);
+        if (qemu_opts_do_parse(opts, options, NULL) != 0) {
+            error_setg(errp, "Invalid options for file format '%s'", fmt);
             goto out;
         }
     }
 
     if (base_filename) {
-        if (set_option_parameter(param, BLOCK_OPT_BACKING_FILE,
-                                 base_filename)) {
+        if (qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, base_filename)) {
             error_setg(errp, "Backing file not supported for file format '%s'",
                        fmt);
             goto out;
@@ -5568,37 +5605,37 @@ void bdrv_img_create(const char *filename, const char *fmt,
     }
 
     if (base_fmt) {
-        if (set_option_parameter(param, BLOCK_OPT_BACKING_FMT, base_fmt)) {
+        if (qemu_opt_set(opts, BLOCK_OPT_BACKING_FMT, base_fmt)) {
             error_setg(errp, "Backing file format not supported for file "
                              "format '%s'", fmt);
             goto out;
         }
     }
 
-    backing_file = get_option_parameter(param, BLOCK_OPT_BACKING_FILE);
-    if (backing_file && backing_file->value.s) {
-        if (!strcmp(filename, backing_file->value.s)) {
+    backing_file = qemu_opt_get(opts, BLOCK_OPT_BACKING_FILE);
+    if (backing_file) {
+        if (!strcmp(filename, backing_file)) {
             error_setg(errp, "Error: Trying to create an image with the "
                              "same filename as the backing file");
             goto out;
         }
     }
 
-    backing_fmt = get_option_parameter(param, BLOCK_OPT_BACKING_FMT);
-    if (backing_fmt && backing_fmt->value.s) {
-        backing_drv = bdrv_find_format(backing_fmt->value.s);
+    backing_fmt = qemu_opt_get(opts, BLOCK_OPT_BACKING_FMT);
+    if (backing_fmt) {
+        backing_drv = bdrv_find_format(backing_fmt);
         if (!backing_drv) {
             error_setg(errp, "Unknown backing file format '%s'",
-                       backing_fmt->value.s);
+                       backing_fmt);
             goto out;
         }
     }
 
     // The size for the image must always be specified, with one exception:
     // If we are using a backing file, we can obtain the size from there
-    size = get_option_parameter(param, BLOCK_OPT_SIZE);
-    if (size && size->value.n == -1) {
-        if (backing_file && backing_file->value.s) {
+    size = qemu_opt_get_size(opts, BLOCK_OPT_SIZE, 0);
+    if (size == -1) {
+        if (backing_file) {
             BlockDriverState *bs;
             uint64_t size;
             char buf[32];
@@ -5609,11 +5646,11 @@ void bdrv_img_create(const char *filename, const char *fmt,
                 flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
             bs = NULL;
-            ret = bdrv_open(&bs, backing_file->value.s, NULL, NULL, back_flags,
+            ret = bdrv_open(&bs, backing_file, NULL, NULL, back_flags,
                             backing_drv, &local_err);
             if (ret < 0) {
                 error_setg_errno(errp, -ret, "Could not open '%s': %s",
-                                 backing_file->value.s,
+                                 backing_file,
                                  error_get_pretty(local_err));
                 error_free(local_err);
                 local_err = NULL;
@@ -5623,7 +5660,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
             size *= 512;
 
             snprintf(buf, sizeof(buf), "%" PRId64, size);
-            set_option_parameter(param, BLOCK_OPT_SIZE, buf);
+            qemu_opt_set_number(opts, BLOCK_OPT_SIZE, size);
 
             bdrv_unref(bs);
         } else {
@@ -5634,16 +5671,18 @@ void bdrv_img_create(const char *filename, const char *fmt,
 
     if (!quiet) {
         printf("Formatting '%s', fmt=%s ", filename, fmt);
-        print_option_parameters(param);
+        qemu_opts_print(opts);
         puts("");
     }
-    ret = bdrv_create(drv, filename, param, &local_err);
+
+    ret = bdrv_create(drv, filename, NULL, opts, &local_err);
+
     if (ret == -EFBIG) {
         /* This is generally a better message than whatever the driver would
          * deliver (especially because of the cluster_size_hint), since that
          * is most probably not much different from "image too large". */
         const char *cluster_size_hint = "";
-        if (get_option_parameter(create_options, BLOCK_OPT_CLUSTER_SIZE)) {
+        if (qemu_opt_get_size(opts, BLOCK_OPT_CLUSTER_SIZE, 0)) {
             cluster_size_hint = " (try using a larger cluster size)";
         }
         error_setg(errp, "The image size is too large for file format '%s'"
@@ -5653,9 +5692,8 @@ void bdrv_img_create(const char *filename, const char *fmt,
     }
 
 out:
-    free_option_parameters(create_options);
-    free_option_parameters(param);
-
+    qemu_opts_del(opts);
+    qemu_opts_free(create_opts);
     if (local_err) {
         error_propagate(errp, local_err);
     }
@@ -5731,12 +5769,36 @@ void bdrv_add_before_write_notifier(BlockDriverState *bs,
     notifier_with_return_list_add(&bs->before_write_notifiers, notifier);
 }
 
-int bdrv_amend_options(BlockDriverState *bs, QEMUOptionParameter *options)
+int bdrv_amend_options(BlockDriverState *bs, QEMUOptionParameter *options,
+                       QemuOpts *opts)
 {
-    if (bs->drv->bdrv_amend_options == NULL) {
+    int ret;
+    assert(!(options && opts));
+
+    if (!bs->drv->bdrv_amend_options && !bs->drv->bdrv_amend_options2) {
         return -ENOTSUP;
     }
-    return bs->drv->bdrv_amend_options(bs, options);
+    if (bs->drv->bdrv_amend_options2) {
+        QemuOptsList *opts_list = NULL;
+        if (options) {
+            opts_list = params_to_opts(options);
+            opts = qemu_opts_create(opts_list, NULL, 0, &error_abort);
+        }
+        ret = bs->drv->bdrv_amend_options2(bs, opts);
+        if (options) {
+            qemu_opts_del(opts);
+            qemu_opts_free(opts_list);
+        }
+    } else {
+        if (opts) {
+            options = opts_to_params(opts);
+        }
+        ret = bs->drv->bdrv_amend_options(bs, options);
+        if (opts) {
+            free_option_parameters(options);
+        }
+    }
+    return ret;
 }
 
 /* This function will be called by the bdrv_recurse_is_first_non_filter method

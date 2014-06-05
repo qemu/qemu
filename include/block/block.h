@@ -204,9 +204,9 @@ BlockDriver *bdrv_find_format(const char *format_name);
 BlockDriver *bdrv_find_whitelisted_format(const char *format_name,
                                           bool readonly);
 int bdrv_create(BlockDriver *drv, const char* filename,
-    QEMUOptionParameter *options, Error **errp);
+    QEMUOptionParameter *options, QemuOpts *opts, Error **errp);
 int bdrv_create_file(const char* filename, QEMUOptionParameter *options,
-                     Error **errp);
+                     QemuOpts *opts, Error **errp);
 BlockDriverState *bdrv_new(const char *device_name, Error **errp);
 void bdrv_make_anon(BlockDriverState *bs);
 void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old);
@@ -312,7 +312,8 @@ typedef enum {
 
 int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix);
 
-int bdrv_amend_options(BlockDriverState *bs_new, QEMUOptionParameter *options);
+int bdrv_amend_options(BlockDriverState *bs_new, QEMUOptionParameter *options,
+                       QemuOpts *opts);
 
 /* external snapshots */
 bool bdrv_recurse_is_first_non_filter(BlockDriverState *bs,

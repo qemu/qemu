@@ -281,7 +281,7 @@ Lazy refcounts only supported with compatibility level 1.1 and above (use compat
 qemu-img: Error while amending options: Invalid argument
 Unknown compatibility level 0.42.
 qemu-img: Error while amending options: Invalid argument
-Unknown option 'foo'
+qemu-img: Invalid parameter 'foo'
 qemu-img: Invalid options for file format 'qcow2'
 Changing the cluster size is not supported.
 qemu-img: Error while amending options: Operation not supported

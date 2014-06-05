@@ -120,7 +120,7 @@ qemu-img: kilobytes, megabytes, gigabytes, terabytes, petabytes and exabytes.
 
 qemu-img create -f qcow2 -o size=foobar TEST_DIR/t.qcow2
 qemu-img: Parameter 'size' expects a size
-qemu-img: TEST_DIR/t.qcow2: Invalid options for file format 'qcow2'.
+qemu-img: TEST_DIR/t.qcow2: Invalid options for file format 'qcow2'
 
 == Check correct interpretation of suffixes for cluster size ==
 
