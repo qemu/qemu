@@ -1530,8 +1530,7 @@ static int iscsi_truncate(BlockDriverState *bs, int64_t offset)
     return 0;
 }
 
-static int iscsi_create(const char *filename, QEMUOptionParameter *options,
-                        Error **errp)
+static int iscsi_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     int ret = 0;
     int64_t total_size = 0;
@@ -1542,13 +1541,8 @@ static int iscsi_create(const char *filename, QEMUOptionParameter *options,
     bs = bdrv_new("", &error_abort);
 
     /* Read out options */
-    while (options && options->name) {
-        if (!strcmp(options->name, "size")) {
-            total_size = options->value.n / BDRV_SECTOR_SIZE;
-        }
-        options++;
-    }
-
+    total_size =
+        qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0) / BDRV_SECTOR_SIZE;
     bs->opaque = g_malloc0(sizeof(struct IscsiLun));
     iscsilun = bs->opaque;
 
@@ -1590,13 +1584,17 @@ static int iscsi_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return 0;
 }
 
-static QEMUOptionParameter iscsi_create_options[] = {
-    {
-        .name = BLOCK_OPT_SIZE,
-        .type = OPT_SIZE,
-        .help = "Virtual disk size"
-    },
-    { NULL }
+static QemuOptsList iscsi_create_opts = {
+    .name = "iscsi-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(iscsi_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
+        { /* end of list */ }
+    }
 };
 
 static BlockDriver bdrv_iscsi = {
@@ -1607,8 +1605,8 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_needs_filename = true,
     .bdrv_file_open  = iscsi_open,
     .bdrv_close      = iscsi_close,
-    .bdrv_create     = iscsi_create,
-    .create_options  = iscsi_create_options,
+    .bdrv_create2    = iscsi_create,
+    .create_opts     = &iscsi_create_opts,
     .bdrv_reopen_prepare  = iscsi_reopen_prepare,
 
     .bdrv_getlength  = iscsi_getlength,
