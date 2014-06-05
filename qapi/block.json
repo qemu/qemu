@@ -1,0 +1,7 @@
+# -*- Mode: Python -*-
+#
+# QAPI block definitions (vm related)
+
+# QAPI block core definitions
+{ 'include': 'block-core.json' }
+

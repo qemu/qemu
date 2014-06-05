@@ -5,6 +5,9 @@
 # QAPI common definitions
 { 'include': 'qapi/common.json' }
 
+# QAPI block definitions
+{ 'include': 'qapi/block.json' }
+
 ##
 # LostTickPolicy:
 #
