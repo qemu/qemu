@@ -2015,7 +2015,7 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
     case VERIFY_10:
     case VERIFY_12:
     case VERIFY_16:
-        DPRINTF("Verify (bytchk %lu)\n", (r->req.buf[1] >> 1) & 3);
+        DPRINTF("Verify (bytchk %d)\n", (req->cmd.buf[1] >> 1) & 3);
         if (req->cmd.buf[1] & 6) {
             goto illegal_request;
         }
