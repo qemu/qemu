@@ -82,6 +82,10 @@ static CommandLineParameterInfoList *query_option_descs(const QemuOptDesc *desc)
             info->has_help = true;
             info->help = g_strdup(desc[i].help);
         }
+        if (desc[i].def_value_str) {
+            info->has_q_default = true;
+            info->q_default = g_strdup(desc[i].def_value_str);
+        }
 
         entry = g_malloc0(sizeof(*entry));
         entry->value = info;

@@ -2855,12 +2855,15 @@
 #
 # @help: #optional human readable text string, not suitable for parsing.
 #
+# @default: #optional default value string (since 2.1)
+#
 # Since 1.5
 ##
 { 'type': 'CommandLineParameterInfo',
   'data': { 'name': 'str',
             'type': 'CommandLineParameterType',
-            '*help': 'str' } }
+            '*help': 'str',
+            '*default': 'str' } }
 
 ##
 # @CommandLineOptionInfo:
