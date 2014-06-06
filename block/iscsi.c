@@ -1434,9 +1434,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
 
 out:
     qemu_opts_del(opts);
-    if (initiator_name != NULL) {
-        g_free(initiator_name);
-    }
+    g_free(initiator_name);
     if (iscsi_url != NULL) {
         iscsi_destroy_url(iscsi_url);
     }

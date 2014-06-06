@@ -440,10 +440,8 @@ static void curl_detach_aio_context(BlockDriverState *bs)
             curl_easy_cleanup(s->states[i].curl);
             s->states[i].curl = NULL;
         }
-        if (s->states[i].orig_buf) {
-            g_free(s->states[i].orig_buf);
-            s->states[i].orig_buf = NULL;
-        }
+        g_free(s->states[i].orig_buf);
+        s->states[i].orig_buf = NULL;
     }
     if (s->multi) {
         curl_multi_cleanup(s->multi);
@@ -638,8 +636,7 @@ static void curl_readv_bh_cb(void *p)
     acb->end = (acb->nb_sectors * SECTOR_SIZE);
 
     state->buf_off = 0;
-    if (state->orig_buf)
-        g_free(state->orig_buf);
+    g_free(state->orig_buf);
     state->buf_start = start;
     state->buf_len = acb->end + s->readahead_size;
     end = MIN(start + state->buf_len, s->len) - 1;

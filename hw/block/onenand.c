@@ -335,9 +335,7 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
                                     dp, 1) < 0;
             }
         }
-        if (dp) {
-            g_free(dp);
-        }
+        g_free(dp);
     }
     return result;
 }
