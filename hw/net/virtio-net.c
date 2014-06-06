@@ -1509,14 +1509,10 @@ void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
      */
     assert(type != NULL);
 
-    if (n->netclient_name) {
-        g_free(n->netclient_name);
-        n->netclient_name = NULL;
-    }
-    if (n->netclient_type) {
-        g_free(n->netclient_type);
-        n->netclient_type = NULL;
-    }
+    g_free(n->netclient_name);
+    n->netclient_name = NULL;
+    g_free(n->netclient_type);
+    n->netclient_type = NULL;
 
     if (name != NULL) {
         n->netclient_name = g_strdup(name);
@@ -1616,14 +1612,10 @@ static void virtio_net_device_unrealize(DeviceState *dev, Error **errp)
 
     unregister_savevm(dev, "virtio-net", n);
 
-    if (n->netclient_name) {
-        g_free(n->netclient_name);
-        n->netclient_name = NULL;
-    }
-    if (n->netclient_type) {
-        g_free(n->netclient_type);
-        n->netclient_type = NULL;
-    }
+    g_free(n->netclient_name);
+    n->netclient_name = NULL;
+    g_free(n->netclient_type);
+    n->netclient_type = NULL;
 
     g_free(n->mac_table.macs);
     g_free(n->vlans);

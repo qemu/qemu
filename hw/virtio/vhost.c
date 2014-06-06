@@ -295,9 +295,7 @@ static inline void vhost_dev_log_resize(struct vhost_dev* dev, uint64_t size)
     if (dev->log_size) {
         vhost_log_sync_range(dev, 0, dev->log_size * VHOST_LOG_CHUNK - 1);
     }
-    if (dev->log) {
-        g_free(dev->log);
-    }
+    g_free(dev->log);
     dev->log = log;
     dev->log_size = size;
 }
@@ -601,9 +599,7 @@ static int vhost_migration_log(MemoryListener *listener, int enable)
         if (r < 0) {
             return r;
         }
-        if (dev->log) {
-            g_free(dev->log);
-        }
+        g_free(dev->log);
         dev->log = NULL;
         dev->log_size = 0;
     } else {

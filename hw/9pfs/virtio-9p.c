@@ -299,9 +299,7 @@ static int v9fs_xattr_fid_clunk(V9fsPDU *pdu, V9fsFidState *fidp)
 free_out:
     v9fs_string_free(&fidp->fs.xattr.name);
 free_value:
-    if (fidp->fs.xattr.value) {
-        g_free(fidp->fs.xattr.value);
-    }
+    g_free(fidp->fs.xattr.value);
     return retval;
 }
 
