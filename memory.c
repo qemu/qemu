@@ -1423,18 +1423,15 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     memory_region_transaction_commit();
 }
 
-static void memory_region_add_subregion_common(MemoryRegion *mr,
-                                               hwaddr offset,
-                                               MemoryRegion *subregion)
+static void memory_region_update_parent_subregions(MemoryRegion *subregion)
 {
+    hwaddr offset = subregion->addr;
+    MemoryRegion *mr = subregion->parent;
     MemoryRegion *other;
 
     memory_region_transaction_begin();
 
-    assert(!subregion->parent);
     memory_region_ref(subregion);
-    subregion->parent = mr;
-    subregion->addr = offset;
     QTAILQ_FOREACH(other, &mr->subregions, subregions_link) {
         if (subregion->may_overlap || other->may_overlap) {
             continue;
@@ -1468,6 +1465,15 @@ done:
     memory_region_transaction_commit();
 }
 
+static void memory_region_add_subregion_common(MemoryRegion *mr,
+                                               hwaddr offset,
+                                               MemoryRegion *subregion)
+{
+    assert(!subregion->parent);
+    subregion->parent = mr;
+    subregion->addr = offset;
+    memory_region_update_parent_subregions(subregion);
+}
 
 void memory_region_add_subregion(MemoryRegion *mr,
                                  hwaddr offset,
