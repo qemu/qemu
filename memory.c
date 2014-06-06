@@ -971,6 +971,15 @@ static bool memory_region_get_may_overlap(Object *obj, Error **errp)
     return mr->may_overlap;
 }
 
+static void memory_region_get_size(Object *obj, Visitor *v, void *opaque,
+                                   const char *name, Error **errp)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+    uint64_t value = memory_region_size(mr);
+
+    visit_type_uint64(v, &value, name, errp);
+}
+
 static void memory_region_initfn(Object *obj)
 {
     MemoryRegion *mr = MEMORY_REGION(obj);
@@ -1002,6 +1011,10 @@ static void memory_region_initfn(Object *obj)
                              memory_region_get_may_overlap,
                              NULL, /* memory_region_set_may_overlap */
                              &error_abort);
+    object_property_add(OBJECT(mr), "size", "uint64",
+                        memory_region_get_size,
+                        NULL, /* memory_region_set_size, */
+                        NULL, NULL, &error_abort);
 }
 
 static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
