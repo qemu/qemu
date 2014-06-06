@@ -1517,21 +1517,27 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled)
     memory_region_transaction_commit();
 }
 
-void memory_region_set_address(MemoryRegion *mr, hwaddr addr)
+static void memory_region_readd_subregion(MemoryRegion *mr)
 {
     MemoryRegion *parent = mr->parent;
 
-    if (addr == mr->addr || !parent) {
-        mr->addr = addr;
-        return;
+    if (parent) {
+        memory_region_transaction_begin();
+        memory_region_ref(mr);
+        memory_region_del_subregion(parent, mr);
+        mr->parent = parent;
+        memory_region_update_parent_subregions(mr);
+        memory_region_unref(mr);
+        memory_region_transaction_commit();
     }
+}
 
-    memory_region_transaction_begin();
-    memory_region_ref(mr);
-    memory_region_del_subregion(parent, mr);
-    memory_region_add_subregion_common(parent, addr, mr);
-    memory_region_unref(mr);
-    memory_region_transaction_commit();
+void memory_region_set_address(MemoryRegion *mr, hwaddr addr)
+{
+    if (addr != mr->addr) {
+        mr->addr = addr;
+        memory_region_readd_subregion(mr);
+    }
 }
 
 void memory_region_set_alias_offset(MemoryRegion *mr, hwaddr offset)
