@@ -1688,8 +1688,8 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
 
                 numvalue = strtoul(val, &err, 0);
                 if (!*val || *err) {
-                    error_setg(&local_err, "bad numerical value %s", val);
-                    goto out;
+                    error_setg(errp, "bad numerical value %s", val);
+                    return;
                 }
                 if (numvalue < 0x80000000) {
                     error_report("xlevel value shall always be >= 0x80000000"
@@ -1706,8 +1706,8 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
                 tsc_freq = strtosz_suffix_unit(val, &err,
                                                STRTOSZ_DEFSUFFIX_B, 1000);
                 if (tsc_freq < 0 || *err) {
-                    error_setg(&local_err, "bad numerical value %s", val);
-                    goto out;
+                    error_setg(errp, "bad numerical value %s", val);
+                    return;
                 }
                 snprintf(num, sizeof(num), "%" PRId64, tsc_freq);
                 object_property_parse(OBJECT(cpu), num, "tsc-frequency",
@@ -1718,8 +1718,8 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
                 char num[32];
                 numvalue = strtoul(val, &err, 0);
                 if (!*val || *err) {
-                    error_setg(&local_err, "bad numerical value %s", val);
-                    goto out;
+                    error_setg(errp, "bad numerical value %s", val);
+                    return;
                 }
                 if (numvalue < min) {
                     error_report("hv-spinlocks value shall always be >= 0x%x"
@@ -1738,7 +1738,7 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
         }
         if (local_err) {
             error_propagate(errp, local_err);
-            goto out;
+            return;
         }
         featurestr = strtok(NULL, ",");
     }
@@ -1758,9 +1758,6 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
     env->features[FEAT_KVM] &= ~minus_features[FEAT_KVM];
     env->features[FEAT_SVM] &= ~minus_features[FEAT_SVM];
     env->features[FEAT_7_0_EBX] &= ~minus_features[FEAT_7_0_EBX];
-
-out:
-    return;
 }
 
 /* generate a composite string into buf of all cpuid names in featureset
