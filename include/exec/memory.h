@@ -157,7 +157,7 @@ struct MemoryRegion {
     bool flush_coalesced_mmio;
     MemoryRegion *alias;
     hwaddr alias_offset;
-    int priority;
+    int32_t priority;
     bool may_overlap;
     QTAILQ_HEAD(subregions, MemoryRegion) subregions;
     QTAILQ_ENTRY(MemoryRegion) subregions_link;

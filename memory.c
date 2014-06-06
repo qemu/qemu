@@ -955,6 +955,22 @@ static Object *memory_region_resolve_container(Object *obj, void *opaque,
     return OBJECT(mr->container);
 }
 
+static void memory_region_get_priority(Object *obj, Visitor *v, void *opaque,
+                                       const char *name, Error **errp)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+    int32_t value = mr->priority;
+
+    visit_type_int32(v, &value, name, errp);
+}
+
+static bool memory_region_get_may_overlap(Object *obj, Error **errp)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+
+    return mr->may_overlap;
+}
+
 static void memory_region_initfn(Object *obj)
 {
     MemoryRegion *mr = MEMORY_REGION(obj);
@@ -978,6 +994,14 @@ static void memory_region_initfn(Object *obj)
                         memory_region_get_addr,
                         NULL, /* memory_region_set_addr */
                         NULL, NULL, &error_abort);
+    object_property_add(OBJECT(mr), "priority", "uint32",
+                        memory_region_get_priority,
+                        NULL, /* memory_region_set_priority */
+                        NULL, NULL, &error_abort);
+    object_property_add_bool(OBJECT(mr), "may-overlap",
+                             memory_region_get_may_overlap,
+                             NULL, /* memory_region_set_may_overlap */
+                             &error_abort);
 }
 
 static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
