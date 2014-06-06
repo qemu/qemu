@@ -691,7 +691,7 @@ static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
     qemu_opt_set(opts, "if", "none");
 
     /* create host drive */
-    dinfo = drive_init(opts, 0);
+    dinfo = drive_new(opts, 0);
     if (!dinfo) {
         qemu_opts_del(opts);
         return NULL;

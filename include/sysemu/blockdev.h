@@ -37,7 +37,7 @@ struct DriveInfo {
     int bus;
     int unit;
     int auto_del;               /* see blockdev_mark_auto_del() */
-    bool enable_auto_del; /* Only for legacy drive_init() */
+    bool enable_auto_del;       /* Only for legacy drive_new() */
     int media_cd;
     int cyls, heads, secs, trans;
     QemuOpts *opts;
@@ -57,7 +57,7 @@ DriveInfo *drive_get_by_blockdev(BlockDriverState *bs);
 QemuOpts *drive_def(const char *optstr);
 QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
                     const char *optstr);
-DriveInfo *drive_init(QemuOpts *arg, BlockInterfaceType block_default_type);
+DriveInfo *drive_new(QemuOpts *arg, BlockInterfaceType block_default_type);
 
 /* device-hotplug */
 

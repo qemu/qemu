@@ -213,7 +213,7 @@ static void bdrv_format_print(void *opaque, const char *name)
     error_printf(" %s", name);
 }
 
-static void drive_uninit(DriveInfo *dinfo)
+static void drive_del(DriveInfo *dinfo)
 {
     if (dinfo->opts) {
         qemu_opts_del(dinfo->opts);
@@ -230,7 +230,7 @@ void drive_put_ref(DriveInfo *dinfo)
 {
     assert(dinfo->refcount);
     if (--dinfo->refcount == 0) {
-        drive_uninit(dinfo);
+        drive_del(dinfo);
     }
 }
 
@@ -656,7 +656,7 @@ QemuOptsList qemu_legacy_drive_opts = {
     },
 };
 
-DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
+DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 {
     const char *value;
     DriveInfo *dinfo = NULL;
@@ -1801,7 +1801,7 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
         bdrv_set_on_error(bs, BLOCKDEV_ON_ERROR_REPORT,
                           BLOCKDEV_ON_ERROR_REPORT);
     } else {
-        drive_uninit(drive_get_by_blockdev(bs));
+        drive_del(drive_get_by_blockdev(bs));
     }
 
     return 0;
@@ -2344,9 +2344,9 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
         goto fail;
     }
 
-    /* TODO Sort it out in raw-posix and drive_init: Reject aio=native with
+    /* TODO Sort it out in raw-posix and drive_new(): Reject aio=native with
      * cache.direct=false instead of silently switching to aio=threads, except
-     * if called from drive_init.
+     * when called from drive_new().
      *
      * For now, simply forbidding the combination for all drivers will do. */
     if (options->has_aio && options->aio == BLOCKDEV_AIO_OPTIONS_NATIVE) {
@@ -2378,7 +2378,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
     }
 
     if (bdrv_key_required(dinfo->bdrv)) {
-        drive_uninit(dinfo);
+        drive_del(dinfo);
         error_setg(errp, "blockdev-add doesn't support encrypted devices");
         goto fail;
     }
