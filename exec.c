@@ -883,7 +883,7 @@ static void phys_section_destroy(MemoryRegion *mr)
 
     if (mr->subpage) {
         subpage_t *subpage = container_of(mr, subpage_t, iomem);
-        memory_region_destroy(&subpage->iomem);
+        object_unref(OBJECT(&subpage->iomem));
         g_free(subpage);
     }
 }
@@ -1768,7 +1768,7 @@ static subpage_t *subpage_init(AddressSpace *as, hwaddr base)
     mmio->as = as;
     mmio->base = base;
     memory_region_init_io(&mmio->iomem, NULL, &subpage_ops, mmio,
-                          "subpage", TARGET_PAGE_SIZE);
+                          NULL, TARGET_PAGE_SIZE);
     mmio->iomem.subpage = true;
 #if defined(DEBUG_SUBPAGE)
     printf("%s: %p base " TARGET_FMT_plx " len %08x\n", __func__,

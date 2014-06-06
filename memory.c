@@ -842,40 +842,94 @@ static void memory_region_destructor_rom_device(MemoryRegion *mr)
     qemu_ram_free(mr->ram_addr & TARGET_PAGE_MASK);
 }
 
+static bool memory_region_need_escape(char c)
+{
+    return c == '/' || c == '[' || c == '\\' || c == ']';
+}
+
+static char *memory_region_escape_name(const char *name)
+{
+    const char *p;
+    char *escaped, *q;
+    uint8_t c;
+    size_t bytes = 0;
+
+    for (p = name; *p; p++) {
+        bytes += memory_region_need_escape(*p) ? 4 : 1;
+    }
+    if (bytes == p - name) {
+       return g_memdup(name, bytes + 1);
+    }
+
+    escaped = g_malloc(bytes + 1);
+    for (p = name, q = escaped; *p; p++) {
+        c = *p;
+        if (unlikely(memory_region_need_escape(c))) {
+            *q++ = '\\';
+            *q++ = 'x';
+            *q++ = "0123456789abcdef"[c >> 4];
+            c = "0123456789abcdef"[c & 15];
+        }
+        *q++ = c;
+    }
+    *q = 0;
+    return escaped;
+}
+
+static void object_property_add_child_array(Object *owner,
+                                            const char *name,
+                                            Object *child)
+{
+    int i;
+    char *base_name = memory_region_escape_name(name);
+
+    for (i = 0; ; i++) {
+        char *full_name = g_strdup_printf("%s[%d]", base_name, i);
+        Error *local_err = NULL;
+
+        object_property_add_child(owner, full_name, child, &local_err);
+        g_free(full_name);
+        if (!local_err) {
+            break;
+        }
+
+        error_free(local_err);
+    }
+
+    g_free(base_name);
+}
+        
+
 void memory_region_init(MemoryRegion *mr,
                         Object *owner,
                         const char *name,
                         uint64_t size)
 {
-    mr->ops = &unassigned_mem_ops;
-    mr->opaque = NULL;
+    object_initialize(mr, sizeof(*mr), TYPE_MEMORY_REGION);
+
     mr->owner = owner ? owner : qdev_get_machine();
-    mr->iommu_ops = NULL;
-    mr->container = NULL;
     mr->size = int128_make64(size);
     if (size == UINT64_MAX) {
         mr->size = int128_2_64();
     }
-    mr->addr = 0;
-    mr->subpage = false;
-    mr->enabled = true;
-    mr->terminates = false;
-    mr->ram = false;
-    mr->romd_mode = true;
-    mr->readonly = false;
-    mr->rom_device = false;
-    mr->destructor = memory_region_destructor_none;
-    mr->priority = 0;
-    mr->may_overlap = false;
-    mr->alias = NULL;
-    QTAILQ_INIT(&mr->subregions);
-    memset(&mr->subregions_link, 0, sizeof mr->subregions_link);
-    QTAILQ_INIT(&mr->coalesced);
     mr->name = g_strdup(name);
-    mr->dirty_log_mask = 0;
-    mr->ioeventfd_nb = 0;
-    mr->ioeventfds = NULL;
-    mr->flush_coalesced_mmio = false;
+
+    if (name) {
+        object_property_add_child_array(mr->owner, name, OBJECT(mr));
+        object_unref(OBJECT(mr));
+    }
+}
+
+static void memory_region_initfn(Object *obj)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+
+    mr->ops = &unassigned_mem_ops;
+    mr->enabled = true;
+    mr->romd_mode = true;
+    mr->destructor = memory_region_destructor_none;
+    QTAILQ_INIT(&mr->subregions);
+    QTAILQ_INIT(&mr->coalesced);
 }
 
 static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
@@ -1113,8 +1167,10 @@ void memory_region_init_reservation(MemoryRegion *mr,
     memory_region_init_io(mr, owner, &unassigned_mem_ops, mr, name, size);
 }
 
-void memory_region_destroy(MemoryRegion *mr)
+static void memory_region_finalize(Object *obj)
 {
+    MemoryRegion *mr = MEMORY_REGION(obj);
+
     assert(QTAILQ_EMPTY(&mr->subregions));
     assert(memory_region_transaction_depth == 0);
     mr->destructor(mr);
@@ -1122,6 +1178,12 @@ void memory_region_destroy(MemoryRegion *mr)
     g_free((char *)mr->name);
     g_free(mr->ioeventfds);
 }
+
+void memory_region_destroy(MemoryRegion *mr)
+{
+    object_unparent(OBJECT(mr));
+}
+
 
 Object *memory_region_owner(MemoryRegion *mr)
 {
@@ -1132,6 +1194,8 @@ void memory_region_ref(MemoryRegion *mr)
 {
     if (mr && mr->owner) {
         object_ref(mr->owner);
+    } else {
+        object_ref(OBJECT(mr));
     }
 }
 
@@ -1139,6 +1203,8 @@ void memory_region_unref(MemoryRegion *mr)
 {
     if (mr && mr->owner) {
         object_unref(mr->owner);
+    } else {
+        object_unref(OBJECT(mr));
     }
 }
 
@@ -1946,3 +2012,18 @@ void mtree_info(fprintf_function mon_printf, void *f)
         g_free(ml);
     }
 }
+
+static const TypeInfo memory_region_info = {
+    .parent             = TYPE_OBJECT,
+    .name               = TYPE_MEMORY_REGION,
+    .instance_size      = sizeof(MemoryRegion),
+    .instance_init      = memory_region_initfn,
+    .instance_finalize  = memory_region_finalize,
+};
+
+static void memory_register_types(void)
+{
+    type_register_static(&memory_region_info);
+}
+
+type_init(memory_register_types)
