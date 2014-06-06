@@ -275,9 +275,7 @@ static void Adlib_fini (AdlibState *s)
     }
 #endif
 
-    if (s->mixbuf) {
-        g_free (s->mixbuf);
-    }
+    g_free(s->mixbuf);
 
     s->active = 0;
     s->enabled = 0;
