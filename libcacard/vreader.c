@@ -343,8 +343,6 @@ vreader_list_delete(VReaderList *list)
         next_entry = vreader_list_get_next(current_entry);
         vreader_list_entry_delete(current_entry);
     }
-    list->head = NULL;
-    list->tail = NULL;
     g_free(list);
 }
 

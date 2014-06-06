@@ -117,10 +117,8 @@ vcard_delete_applet(VCardApplet *applet)
     }
     if (applet->applet_private_free) {
         applet->applet_private_free(applet->applet_private);
-        applet->applet_private = NULL;
     }
     g_free(applet->aid);
-    applet->aid = NULL;
     g_free(applet);
 }
 
@@ -174,8 +172,6 @@ vcard_free(VCard *vcard)
     }
     if (vcard->vcard_private_free) {
         (*vcard->vcard_private_free)(vcard->vcard_private);
-        vcard->vcard_private_free = 0;
-        vcard->vcard_private = 0;
     }
     for (current_applet = vcard->applet_list; current_applet;
                                         current_applet = next_applet) {
