@@ -239,7 +239,6 @@ static void vdi_header_to_le(VdiHeader *header)
     cpu_to_le32s(&header->block_extra);
     cpu_to_le32s(&header->blocks_in_image);
     cpu_to_le32s(&header->blocks_allocated);
-    cpu_to_le32s(&header->blocks_allocated);
     uuid_convert(header->uuid_image);
     uuid_convert(header->uuid_last_snap);
     uuid_convert(header->uuid_link);
