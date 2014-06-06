@@ -16,6 +16,7 @@
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "exec/ioport.h"
+#include "qapi/visitor.h"
 #include "qemu/bitops.h"
 #include "qom/object.h"
 #include "trace.h"
@@ -922,9 +923,42 @@ void memory_region_init(MemoryRegion *mr,
     }
 }
 
+static void memory_region_get_addr(Object *obj, Visitor *v, void *opaque,
+                                   const char *name, Error **errp)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+    uint64_t value = mr->addr;
+
+    visit_type_uint64(v, &value, name, errp);
+}
+
+static void memory_region_get_container(Object *obj, Visitor *v, void *opaque,
+                                        const char *name, Error **errp)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+    gchar *path = (gchar *)"";
+
+    if (mr->container) {
+        path = object_get_canonical_path(OBJECT(mr->container));
+    }
+    visit_type_str(v, &path, name, errp);
+    if (mr->container) {
+        g_free(path);
+    }
+}
+
+static Object *memory_region_resolve_container(Object *obj, void *opaque,
+                                               const char *part)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+
+    return OBJECT(mr->container);
+}
+
 static void memory_region_initfn(Object *obj)
 {
     MemoryRegion *mr = MEMORY_REGION(obj);
+    ObjectProperty *op;
 
     mr->ops = &unassigned_mem_ops;
     mr->enabled = true;
@@ -932,6 +966,18 @@ static void memory_region_initfn(Object *obj)
     mr->destructor = memory_region_destructor_none;
     QTAILQ_INIT(&mr->subregions);
     QTAILQ_INIT(&mr->coalesced);
+
+    op = object_property_add(OBJECT(mr), "container",
+                             "link<" TYPE_MEMORY_REGION ">",
+                             memory_region_get_container,
+                             NULL, /* memory_region_set_container */
+                             NULL, NULL, &error_abort);
+    op->resolve = memory_region_resolve_container;
+
+    object_property_add(OBJECT(mr), "addr", "uint64",
+                        memory_region_get_addr,
+                        NULL, /* memory_region_set_addr */
+                        NULL, NULL, &error_abort);
 }
 
 static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
