@@ -200,6 +200,8 @@ typedef struct SheepdogInode {
     uint32_t data_vdi_id[MAX_DATA_OBJS];
 } SheepdogInode;
 
+#define SD_INODE_HEADER_SIZE offsetof(SheepdogInode, data_vdi_id)
+
 /*
  * 64 bit FNV-1a non-zero initial basis
  */
@@ -1287,7 +1289,7 @@ static int reload_inode(BDRVSheepdogState *s, uint32_t snapid, const char *tag)
         return -EIO;
     }
 
-    inode = g_malloc(sizeof(s->inode));
+    inode = g_malloc(SD_INODE_HEADER_SIZE);
 
     ret = find_vdi_name(s, s->name, snapid, tag, &vid, false, &local_err);
     if (ret) {
@@ -1297,13 +1299,14 @@ static int reload_inode(BDRVSheepdogState *s, uint32_t snapid, const char *tag)
     }
 
     ret = read_object(fd, s->aio_context, (char *)inode, vid_to_vdi_oid(vid),
-                      s->inode.nr_copies, sizeof(*inode), 0, s->cache_flags);
+                      s->inode.nr_copies, SD_INODE_HEADER_SIZE, 0,
+                      s->cache_flags);
     if (ret < 0) {
         goto out;
     }
 
     if (inode->vdi_id != s->inode.vdi_id) {
-        memcpy(&s->inode, inode, sizeof(s->inode));
+        memcpy(&s->inode, inode, SD_INODE_HEADER_SIZE);
     }
 
 out:
