@@ -155,9 +155,7 @@ vreader_free(VReader *reader)
     if (reader->card) {
         vcard_free(reader->card);
     }
-    if (reader->name) {
-        g_free(reader->name);
-    }
+    g_free(reader->name);
     if (reader->reader_private_free) {
         reader->reader_private_free(reader->reader_private);
     }

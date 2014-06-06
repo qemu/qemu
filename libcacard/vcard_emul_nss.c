@@ -471,9 +471,7 @@ vreader_emul_delete(VReaderEmul *vreader_emul)
     if (vreader_emul->slot) {
         PK11_FreeSlot(vreader_emul->slot);
     }
-    if (vreader_emul->type_params) {
-        g_free(vreader_emul->type_params);
-    }
+    g_free(vreader_emul->type_params);
     g_free(vreader_emul);
 }
 

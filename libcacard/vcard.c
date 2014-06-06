@@ -51,9 +51,7 @@ vcard_buffer_response_delete(VCardBufferResponse *buffer_response)
     if (buffer_response == NULL) {
         return;
     }
-    if (buffer_response->buffer) {
-        g_free(buffer_response->buffer);
-    }
+    g_free(buffer_response->buffer);
     g_free(buffer_response);
 }
 
@@ -121,10 +119,8 @@ vcard_delete_applet(VCardApplet *applet)
         applet->applet_private_free(applet->applet_private);
         applet->applet_private = NULL;
     }
-    if (applet->aid) {
-        g_free(applet->aid);
-        applet->aid = NULL;
-    }
+    g_free(applet->aid);
+    applet->aid = NULL;
     g_free(applet);
 }
 
