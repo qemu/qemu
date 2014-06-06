@@ -329,7 +329,6 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
                                 Error **errp)
 {
     const char *buf;
-    const char *serial;
     int ro = 0;
     int bdrv_flags = 0;
     int on_read_error, on_write_error;
@@ -370,8 +369,6 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     snapshot = qemu_opt_get_bool(opts, "snapshot", 0);
     ro = qemu_opt_get_bool(opts, "read-only", 0);
     copy_on_read = qemu_opt_get_bool(opts, "copy-on-read", false);
-
-    serial = qemu_opt_get(opts, "serial");
 
     if ((buf = qemu_opt_get(opts, "discard")) != NULL) {
         if (bdrv_parse_discard_flags(buf, &bdrv_flags) != 0) {
@@ -501,9 +498,6 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     dinfo->bdrv->read_only = ro;
     dinfo->bdrv->detect_zeroes = detect_zeroes;
     dinfo->refcount = 1;
-    if (serial != NULL) {
-        dinfo->serial = g_strdup(serial);
-    }
     QTAILQ_INSERT_TAIL(&drives, dinfo, next);
 
     bdrv_set_on_error(dinfo->bdrv, on_read_error, on_write_error);
@@ -630,6 +624,10 @@ QemuOptsList qemu_legacy_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "pci address (virtio only)",
         },{
+            .name = "serial",
+            .type = QEMU_OPT_STRING,
+            .help = "disk serial number",
+        },{
             .name = "file",
             .type = QEMU_OPT_STRING,
             .help = "file name",
@@ -672,6 +670,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     const char *werror, *rerror;
     bool read_only = false;
     bool copy_on_read;
+    const char *serial;
     const char *filename;
     Error *local_err = NULL;
 
@@ -875,6 +874,9 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         goto fail;
     }
 
+    /* Serial number */
+    serial = qemu_opt_get(legacy_opts, "serial");
+
     /* no id supplied -> create one */
     if (qemu_opts_id(all_opts) == NULL) {
         char *new_id;
@@ -964,6 +966,8 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
     dinfo->devaddr = devaddr;
+
+    dinfo->serial = g_strdup(serial);
 
     switch(type) {
     case IF_IDE:
@@ -2437,10 +2441,6 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "format",
             .type = QEMU_OPT_STRING,
             .help = "disk format (raw, qcow2, ...)",
-        },{
-            .name = "serial",
-            .type = QEMU_OPT_STRING,
-            .help = "disk serial number",
         },{
             .name = "rerror",
             .type = QEMU_OPT_STRING,
