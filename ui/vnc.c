@@ -3009,10 +3009,7 @@ int vnc_display_password(DisplayState *ds, const char *password)
     }
 
     g_free(vs->password);
-    vs->password = NULL;
-    if (password) {
-        vs->password = g_strdup(password);
-    }
+    vs->password = g_strdup(password);
 
     return 0;
 }
