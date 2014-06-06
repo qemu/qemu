@@ -938,7 +938,7 @@ void kvm_init_irq_routing(KVMState *s)
 {
     int gsi_count, i;
 
-    gsi_count = kvm_check_extension(s, KVM_CAP_IRQ_ROUTING);
+    gsi_count = kvm_check_extension(s, KVM_CAP_IRQ_ROUTING) - 1;
     if (gsi_count > 0) {
         unsigned int gsi_bits, i;
 
