@@ -106,7 +106,7 @@ void blockdev_auto_del(BlockDriverState *bs)
     DriveInfo *dinfo = drive_get_by_blockdev(bs);
 
     if (dinfo && dinfo->auto_del) {
-        drive_put_ref(dinfo);
+        drive_del(dinfo);
     }
 }
 
@@ -213,7 +213,7 @@ static void bdrv_format_print(void *opaque, const char *name)
     error_printf(" %s", name);
 }
 
-static void drive_del(DriveInfo *dinfo)
+void drive_del(DriveInfo *dinfo)
 {
     if (dinfo->opts) {
         qemu_opts_del(dinfo->opts);
@@ -224,19 +224,6 @@ static void drive_del(DriveInfo *dinfo)
     QTAILQ_REMOVE(&drives, dinfo, next);
     g_free(dinfo->serial);
     g_free(dinfo);
-}
-
-void drive_put_ref(DriveInfo *dinfo)
-{
-    assert(dinfo->refcount);
-    if (--dinfo->refcount == 0) {
-        drive_del(dinfo);
-    }
-}
-
-void drive_get_ref(DriveInfo *dinfo)
-{
-    dinfo->refcount++;
 }
 
 typedef struct {
@@ -497,7 +484,6 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     dinfo->bdrv->open_flags = snapshot ? BDRV_O_SNAPSHOT : 0;
     dinfo->bdrv->read_only = ro;
     dinfo->bdrv->detect_zeroes = detect_zeroes;
-    dinfo->refcount = 1;
     QTAILQ_INSERT_TAIL(&drives, dinfo, next);
 
     bdrv_set_on_error(dinfo->bdrv, on_read_error, on_write_error);

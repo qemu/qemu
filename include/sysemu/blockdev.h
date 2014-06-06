@@ -43,21 +43,19 @@ struct DriveInfo {
     QemuOpts *opts;
     char *serial;
     QTAILQ_ENTRY(DriveInfo) next;
-    int refcount;
 };
 
 DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
 DriveInfo *drive_get_by_index(BlockInterfaceType type, int index);
 int drive_get_max_bus(BlockInterfaceType type);
 DriveInfo *drive_get_next(BlockInterfaceType type);
-void drive_get_ref(DriveInfo *dinfo);
-void drive_put_ref(DriveInfo *dinfo);
 DriveInfo *drive_get_by_blockdev(BlockDriverState *bs);
 
 QemuOpts *drive_def(const char *optstr);
 QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
                     const char *optstr);
 DriveInfo *drive_new(QemuOpts *arg, BlockInterfaceType block_default_type);
+void drive_del(DriveInfo *dinfo);
 
 /* device-hotplug */
 

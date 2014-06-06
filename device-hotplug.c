@@ -76,6 +76,6 @@ void drive_hot_add(Monitor *mon, const QDict *qdict)
 
 err:
     if (dinfo) {
-        drive_put_ref(dinfo);
+        drive_del(dinfo);
     }
 }
