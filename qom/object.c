@@ -711,11 +711,17 @@ GSList *object_class_get_list(const char *implements_type,
 
 void object_ref(Object *obj)
 {
+    if (!obj) {
+        return;
+    }
      atomic_inc(&obj->ref);
 }
 
 void object_unref(Object *obj)
 {
+    if (!obj) {
+        return;
+    }
     g_assert(obj->ref > 0);
 
     /* parent always holds a reference to its children */
@@ -1160,13 +1166,9 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
         return;
     }
 
-    if (new_target) {
-        object_ref(new_target);
-    }
+    object_ref(new_target);
     *child = new_target;
-    if (old_target != NULL) {
-        object_unref(old_target);
-    }
+    object_unref(old_target);
 }
 
 static Object *object_resolve_link_property(Object *parent, void *opaque, const gchar *part)
