@@ -160,24 +160,9 @@ static int preg_sizes[] = {
 };
 
 #define t_gen_mov_TN_env(tn, member) \
- _t_gen_mov_TN_env((tn), offsetof(CPUCRISState, member))
+    tcg_gen_ld_tl(tn, cpu_env, offsetof(CPUCRISState, member))
 #define t_gen_mov_env_TN(member, tn) \
- _t_gen_mov_env_TN(offsetof(CPUCRISState, member), (tn))
-
-static inline void _t_gen_mov_TN_env(TCGv tn, int offset)
-{
-    if (offset > sizeof(CPUCRISState)) {
-        fprintf(stderr, "wrong load from env from off=%d\n", offset);
-    }
-    tcg_gen_ld_tl(tn, cpu_env, offset);
-}
-static inline void _t_gen_mov_env_TN(int offset, TCGv tn)
-{
-    if (offset > sizeof(CPUCRISState)) {
-        fprintf(stderr, "wrong store to env at off=%d\n", offset);
-    }
-    tcg_gen_st_tl(tn, cpu_env, offset);
-}
+    tcg_gen_st_tl(tn, cpu_env, offsetof(CPUCRISState, member))
 
 static inline void t_gen_mov_TN_preg(TCGv tn, int r)
 {
