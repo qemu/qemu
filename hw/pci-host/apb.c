@@ -99,8 +99,8 @@ do { printf("IOMMU: " fmt , ## __VA_ARGS__); } while (0)
 #define IOMMU_TTE_DATA_SIZE     (1ULL << 61)
 #define IOMMU_TTE_DATA_W        (1ULL << 1)
 
-#define IOMMU_TTE_PHYS_MASK_8K  0x1ffffffe000
-#define IOMMU_TTE_PHYS_MASK_64K 0x1ffffff8000
+#define IOMMU_TTE_PHYS_MASK_8K  0x1ffffffe000ULL
+#define IOMMU_TTE_PHYS_MASK_64K 0x1ffffff8000ULL
 
 #define IOMMU_TSB_8K_OFFSET_MASK_8M    0x00000000007fe000ULL
 #define IOMMU_TSB_8K_OFFSET_MASK_16M   0x0000000000ffe000ULL
