@@ -89,8 +89,7 @@ const VMStateDescription vmstate_ipack_device = {
     .name = "ipack_device",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_INT32(slot, IPackDevice),
         VMSTATE_END_OF_LIST()
     }

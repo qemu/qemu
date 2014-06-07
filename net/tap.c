@@ -190,7 +190,7 @@ static void tap_send(void *opaque)
     TAPState *s = opaque;
     int size;
 
-    do {
+    while (qemu_can_send_packet(&s->nc)) {
         uint8_t *buf = s->buf;
 
         size = tap_read_packet(s->fd, s->buf, sizeof(s->buf));
@@ -206,8 +206,11 @@ static void tap_send(void *opaque)
         size = qemu_send_packet_async(&s->nc, buf, size, tap_send_completed);
         if (size == 0) {
             tap_read_poll(s, false);
+            break;
+        } else if (size < 0) {
+            break;
         }
-    } while (size > 0 && qemu_can_send_packet(&s->nc));
+    }
 }
 
 static bool tap_has_ufo(NetClientState *nc)
@@ -364,11 +367,8 @@ static int launch_script(const char *setup_script, const char *ifname, int fd)
     if (pid == 0) {
         int open_max = sysconf(_SC_OPEN_MAX), i;
 
-        for (i = 0; i < open_max; i++) {
-            if (i != STDIN_FILENO &&
-                i != STDOUT_FILENO &&
-                i != STDERR_FILENO &&
-                i != fd) {
+        for (i = 3; i < open_max; i++) {
+            if (i != fd) {
                 close(i);
             }
         }
@@ -449,11 +449,8 @@ static int net_bridge_run_helper(const char *helper, const char *bridge)
         char br_buf[6+IFNAMSIZ] = {0};
         char helper_cmd[PATH_MAX + sizeof(fd_buf) + sizeof(br_buf) + 15];
 
-        for (i = 0; i < open_max; i++) {
-            if (i != STDIN_FILENO &&
-                i != STDOUT_FILENO &&
-                i != STDERR_FILENO &&
-                i != sv[1]) {
+        for (i = 3; i < open_max; i++) {
+            if (i != sv[1]) {
                 close(i);
             }
         }

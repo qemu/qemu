@@ -34,9 +34,7 @@ namespace vixl {
 // Currently we assume running the simulator implies running on x86 hardware.
 inline void HostBreakpoint() { asm("int3"); }
 #else
-inline void HostBreakpoint() {
-  // TODO: Implement HostBreakpoint on a64.
-}
+inline void HostBreakpoint() { asm("brk"); }
 #endif
 }  // namespace vixl
 

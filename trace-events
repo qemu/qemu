@@ -82,7 +82,7 @@ mirror_start(void *bs, void *s, void *co, void *opaque) "bs %p s %p co %p opaque
 mirror_restart_iter(void *s, int64_t cnt) "s %p dirty count %"PRId64
 mirror_before_flush(void *s) "s %p"
 mirror_before_drain(void *s, int64_t cnt) "s %p dirty count %"PRId64
-mirror_before_sleep(void *s, int64_t cnt, int synced) "s %p dirty count %"PRId64" synced %d"
+mirror_before_sleep(void *s, int64_t cnt, int synced, uint64_t delay_ns) "s %p dirty count %"PRId64" synced %d delay %"PRIu64"ns"
 mirror_one_iteration(void *s, int64_t sector_num, int nb_sectors) "s %p sector_num %"PRId64" nb_sectors %d"
 mirror_iteration_done(void *s, int64_t sector_num, int nb_sectors, int ret) "s %p sector_num %"PRId64" nb_sectors %d ret %d"
 mirror_yield(void *s, int64_t cnt, int buf_free_count, int in_flight) "s %p dirty count %"PRId64" free buffers %d in_flight %d"
@@ -433,6 +433,30 @@ usb_uas_tmf_abort_task(int addr, uint16_t tag, uint16_t task_tag) "dev %d, tag 0
 usb_uas_tmf_logical_unit_reset(int addr, uint16_t tag, int lun) "dev %d, tag 0x%x, lun %d"
 usb_uas_tmf_unsupported(int addr, uint16_t tag, uint32_t function) "dev %d, tag 0x%x, function 0x%x"
 
+# hw/usb/dev-mtp.c
+usb_mtp_reset(int addr) "dev %d"
+usb_mtp_command(int dev, uint16_t code, uint32_t trans, uint32_t arg0, uint32_t arg1, uint32_t arg2, uint32_t arg3, uint32_t arg4) "dev %d, code 0x%x, trans 0x%x, args 0x%x, 0x%x, 0x%x, 0x%x, 0x%x"
+usb_mtp_success(int dev, uint32_t trans, uint32_t arg0, uint32_t arg1) "dev %d, trans 0x%x, args 0x%x, 0x%x"
+usb_mtp_error(int dev, uint16_t code, uint32_t trans, uint32_t arg0, uint32_t arg1) "dev %d, code 0x%x, trans 0x%x, args 0x%x, 0x%x"
+usb_mtp_data_in(int dev, uint32_t trans, uint32_t len) "dev %d, trans 0x%x, len %d"
+usb_mtp_data_out(int dev, uint32_t trans, uint32_t len) "dev %d, trans 0x%x, len %d"
+usb_mtp_xfer(int dev, uint32_t ep, uint32_t dlen, uint32_t plen) "dev %d, ep %d, %d/%d"
+usb_mtp_nak(int dev, uint32_t ep) "dev %d, ep %d"
+usb_mtp_stall(int dev, const char *reason) "dev %d, reason: %s"
+usb_mtp_op_get_device_info(int dev) "dev %d"
+usb_mtp_op_open_session(int dev) "dev %d"
+usb_mtp_op_close_session(int dev) "dev %d"
+usb_mtp_op_get_storage_ids(int dev) "dev %d"
+usb_mtp_op_get_storage_info(int dev) "dev %d"
+usb_mtp_op_get_num_objects(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
+usb_mtp_op_get_object_handles(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
+usb_mtp_op_get_object_info(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
+usb_mtp_op_get_object(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
+usb_mtp_op_get_partial_object(int dev, uint32_t handle, const char *path, uint32_t offset, uint32_t length) "dev %d, handle 0x%x, path %s, off %d, len %d"
+usb_mtp_op_unknown(int dev, uint32_t code) "dev %d, command code 0x%x"
+usb_mtp_object_alloc(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
+usb_mtp_object_free(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
+
 # hw/usb/host-libusb.c
 usb_host_open_started(int bus, int addr) "dev %d:%d"
 usb_host_open_success(int bus, int addr) "dev %d:%d"
@@ -486,6 +510,7 @@ runstate_set(int new_state) "new state %d"
 g_malloc(size_t size, void *ptr) "size %zu ptr %p"
 g_realloc(void *ptr, size_t size, void *newptr) "ptr %p size %zu newptr %p"
 g_free(void *ptr) "ptr %p"
+system_wakeup_request(int reason) "reason=%d"
 
 # block/qcow2.c
 qcow2_writev_start_req(void *co, int64_t sector, int nb_sectors) "co %p sector %" PRIx64 " nb_sectors %d"
@@ -602,9 +627,6 @@ lm32_uart_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
 lm32_uart_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
 lm32_uart_irq_state(int level) "irq state %d"
 
-# hw/misc/lm32_sys.c
-lm32_sys_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-
 # hw/scsi/megasas.c
 megasas_init_firmware(uint64_t pa) "pa %" PRIx64 " "
 megasas_init_queue(uint64_t queue_pa, int queue_len, uint64_t head, uint64_t tail, uint32_t flags) "queue at %" PRIx64 " len %d head %" PRIx64 " tail %" PRIx64 " flags %x"
@@ -663,17 +685,21 @@ megasas_dcmd_ld_get_list(int cmd, int num, int max) "scmd %d: DCMD LD get list: 
 megasas_dcmd_ld_get_info(int cmd, int ld_id) "scmd %d: DCMD LD get info for dev %d"
 megasas_dcmd_pd_get_info(int cmd, int pd_id) "scmd %d: DCMD PD get info for dev %d"
 megasas_dcmd_pd_list_query(int cmd, int flags) "scmd %d: DCMD PD list query flags %x"
+megasas_dcmd_ld_list_query(int cmd, int flags) "scmd %d: DCMD LD list query flags %x"
 megasas_dcmd_unsupported(int cmd, unsigned long size) "scmd %d: set properties len %ld"
 megasas_abort_frame(int cmd, int abort_cmd) "scmd %d: aborting frame %x"
 megasas_abort_no_cmd(int cmd, uint64_t context) "scmd %d: no active command for frame context %" PRIx64 ""
 megasas_abort_invalid_context(int cmd, uint64_t context, int abort_cmd) "scmd %d: invalid frame context %" PRIx64 " for abort frame %x"
 megasas_reset(void) "Reset"
-megasas_init(int sges, int cmds, const char *intr, const char *mode) "Using %d sges, %d cmds, %s, %s mode"
+megasas_init(int sges, int cmds, const char *mode) "Using %d sges, %d cmds, %s mode"
 megasas_msix_raise(int vector) "vector %d"
+megasas_msi_raise(int vector) "vector %d"
 megasas_irq_lower(void) "INTx"
 megasas_irq_raise(void) "INTx"
 megasas_intr_enabled(void) "Interrupts enabled"
 megasas_intr_disabled(void) "Interrupts disabled"
+megasas_msix_enabled(int vector) "vector %d"
+megasas_msi_enabled(int vector) "vector %d"
 megasas_mmio_readl(unsigned long addr, uint32_t val) "addr 0x%lx: 0x%x"
 megasas_mmio_invalid_readl(unsigned long addr) "addr 0x%lx"
 megasas_mmio_writel(uint32_t addr, uint32_t val) "addr 0x%x: 0x%x"
@@ -841,8 +867,8 @@ escc_mem_writeb_data(char channel, uint32_t val) "Write channel %c, ch %d"
 escc_mem_readb_ctrl(char channel, uint32_t reg, uint8_t val) "Read channel %c, reg[%d] = %2.2x"
 escc_mem_readb_data(char channel, uint32_t ret) "Read channel %c, ch %d"
 escc_serial_receive_byte(char channel, int ch) "channel %c put ch %d"
-escc_sunkbd_event_in(int ch) "Untranslated keycode %2.2x"
-escc_sunkbd_event_out(int ch) "Translated keycode %2.2x"
+escc_sunkbd_event_in(int ch, const char *name, int down) "QKeyCode 0x%2.2x [%s], down %d"
+escc_sunkbd_event_out(int ch) "Translated keycode 0x%2.2x"
 escc_kbd_command(int val) "Command %d"
 escc_sunmouse_event(int dx, int dy, int buttons_state) "dx=%d dy=%d buttons=%01x"
 
@@ -1020,12 +1046,13 @@ displaychangelistener_unregister(void *dcl, const char *name) "%p [ %s ]"
 ppm_save(const char *filename, void *display_surface) "%s surface=%p"
 
 # ui/gtk.c
-gd_switch(int width, int height) "width=%d, height=%d"
-gd_update(int x, int y, int w, int h) "x=%d, y=%d, w=%d, h=%d"
-gd_key_event(int gdk_keycode, int qemu_keycode, const char *action) "translated GDK keycode %d to QEMU keycode %d (%s)"
+gd_switch(const char *tab, int width, int height) "tab=%s, width=%d, height=%d"
+gd_update(const char *tab, int x, int y, int w, int h) "tab=%s, x=%d, y=%d, w=%d, h=%d"
+gd_key_event(const char *tab, int gdk_keycode, int qemu_keycode, const char *action) "tab=%s, translated GDK keycode %d to QEMU keycode %d (%s)"
+gd_grab(const char *tab, const char *device, bool on) "tab=%s, %s %d"
 
 # ui/input.c
-input_event_key_number(int conidx, int number, bool down) "con %d, key number 0x%d, down %d"
+input_event_key_number(int conidx, int number, const char *qcode, bool down) "con %d, key number 0x%x [%s], down %d"
 input_event_key_qcode(int conidx, const char *qcode, bool down) "con %d, key qcode %s, down %d"
 input_event_btn(int conidx, const char *btn, bool down) "con %d, button %s, down %d"
 input_event_rel(int conidx, const char *axis, int value) "con %d, axis %s, value %d"
@@ -1043,8 +1070,19 @@ vmware_scratch_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
 vmware_setmode(uint32_t w, uint32_t h, uint32_t bpp) "%dx%d @ %d bpp"
 
 # savevm.c
-savevm_section_start(void) ""
-savevm_section_end(unsigned int section_id) "section_id %u"
+savevm_section_start(const char *id, unsigned int section_id) "%s, section_id %u"
+savevm_section_end(const char *id, unsigned int section_id) "%s, section_id %u"
+savevm_state_begin(void) ""
+savevm_state_iterate(void) ""
+savevm_state_complete(void) ""
+savevm_state_cancel(void) ""
+vmstate_save(const char *idstr, const char *vmsd_name) "%s, %s"
+vmstate_load(const char *idstr, const char *vmsd_name) "%s, %s"
+vmstate_load_field_error(const char *field, int ret) "field \"%s\" load failed, ret = %d"
+qemu_announce_self_iter(const char *mac) "%s"
+
+# qemu-file.c
+qemu_file_fclose(void) ""
 
 # arch_init.c
 migration_bitmap_sync_start(void) ""
@@ -1184,6 +1222,11 @@ flic_reset_failed(int err) "flic: reset failed %d"
 
 # migration.c
 migrate_set_state(int new_state) "new state %d"
+migrate_fd_cleanup(void) ""
+migrate_fd_error(void) ""
+migrate_fd_cancel(void) ""
+migrate_pending(uint64_t size, uint64_t max) "pending size %" PRIu64 " max %" PRIu64
+migrate_transferred(uint64_t tranferred, uint64_t time_spent, double bandwidth, uint64_t size) "transferred %" PRIu64 " time_spent %" PRIu64 " bandwidth %g max_size %" PRId64
 
 # kvm-all.c
 kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"
@@ -1193,6 +1236,8 @@ kvm_run_exit(int cpu_index, uint32_t reason) "cpu_index %d, reason %d"
 kvm_device_ioctl(int fd, int type, void *arg) "dev fd %d, type 0x%x, arg %p"
 kvm_failed_spr_set(int str, const char *msg) "Warning: Unable to set SPR %d to KVM: %s"
 kvm_failed_spr_get(int str, const char *msg) "Warning: Unable to retrieve SPR %d from KVM: %s"
+kvm_failed_reg_get(uint64_t id, const char *msg) "Warning: Unable to retrieve ONEREG %" PRIu64 " from KVM: %s"
+kvm_failed_reg_set(uint64_t id, const char *msg) "Warning: Unable to set ONEREG %" PRIu64 " to KVM: %s"
 
 # memory.c
 memory_region_ops_read(void *mr, uint64_t addr, uint64_t value, unsigned size) "mr %p addr %#"PRIx64" value %#"PRIx64" size %u"

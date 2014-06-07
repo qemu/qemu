@@ -21,11 +21,6 @@ block-obj-y += coroutine-$(CONFIG_COROUTINE_BACKEND).o
 
 block-obj-m = block/
 
-ifeq ($(CONFIG_VIRTIO)$(CONFIG_VIRTFS)$(CONFIG_PCI),yyy)
-# Lots of the fsdev/9pcode is pulled in by vl.c via qemu_fsdev_add.
-# only pull in the actual virtio-9p device if we also enabled virtio.
-CONFIG_REALLY_VIRTFS=y
-endif
 
 ######################################################################
 # smartcard
@@ -36,6 +31,8 @@ libcacard-y += libcacard/vcard_emul_nss.o
 libcacard-y += libcacard/vcard_emul_type.o
 libcacard-y += libcacard/card_7816.o
 libcacard-y += libcacard/vcardt.o
+libcacard/vcard_emul_nss.o-cflags := $(NSS_CFLAGS)
+libcacard/vcard_emul_nss.o-libs := $(NSS_LIBS)
 
 ######################################################################
 # Target independent part of system emulation. The long term path is to
@@ -44,6 +41,7 @@ libcacard-y += libcacard/vcardt.o
 
 ifeq ($(CONFIG_SOFTMMU),y)
 common-obj-y = blockdev.o blockdev-nbd.o block/
+common-obj-y += iothread.o
 common-obj-y += net/
 common-obj-y += qdev-monitor.o device-hotplug.o
 common-obj-$(CONFIG_WIN32) += os-win32.o
@@ -68,9 +66,11 @@ common-obj-y += hw/
 
 common-obj-y += ui/
 common-obj-y += bt-host.o bt-vhci.o
+bt-host.o-cflags := $(BLUEZ_CFLAGS)
 
 common-obj-y += dma-helpers.o
 common-obj-y += vl.o
+vl.o-cflags := $(GPROF_CFLAGS) $(SDL_CFLAGS)
 common-obj-y += tpm.o
 
 common-obj-$(CONFIG_SLIRP) += slirp/

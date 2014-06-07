@@ -288,7 +288,7 @@ INLINE flag extractFloat32Sign( float32 a )
 | If `a' is denormal and we are in flush-to-zero mode then set the
 | input-denormal exception and return zero. Otherwise just return the value.
 *----------------------------------------------------------------------------*/
-static float32 float32_squash_input_denormal(float32 a STATUS_PARAM)
+float32 float32_squash_input_denormal(float32 a STATUS_PARAM)
 {
     if (STATUS(flush_inputs_to_zero)) {
         if (extractFloat32Exp(a) == 0 && extractFloat32Frac(a) != 0) {
@@ -473,7 +473,7 @@ INLINE flag extractFloat64Sign( float64 a )
 | If `a' is denormal and we are in flush-to-zero mode then set the
 | input-denormal exception and return zero. Otherwise just return the value.
 *----------------------------------------------------------------------------*/
-static float64 float64_squash_input_denormal(float64 a STATUS_PARAM)
+float64 float64_squash_input_denormal(float64 a STATUS_PARAM)
 {
     if (STATUS(flush_inputs_to_zero)) {
         if (extractFloat64Exp(a) == 0 && extractFloat64Frac(a) != 0) {
@@ -1624,6 +1624,26 @@ uint64 float32_to_uint64(float32 a STATUS_PARAM)
     aSig64 <<= 40;
     shift64ExtraRightJamming(aSig64, 0, shiftCount, &aSig64, &aSigExtra);
     return roundAndPackUint64(aSign, aSig64, aSigExtra STATUS_VAR);
+}
+
+/*----------------------------------------------------------------------------
+| Returns the result of converting the single-precision floating-point value
+| `a' to the 64-bit unsigned integer format.  The conversion is
+| performed according to the IEC/IEEE Standard for Binary Floating-Point
+| Arithmetic, except that the conversion is always rounded toward zero.  If
+| `a' is a NaN, the largest unsigned integer is returned.  Otherwise, if the
+| conversion overflows, the largest unsigned integer is returned.  If the
+| 'a' is negative, the result is rounded and zero is returned; values that do
+| not round to zero will raise the inexact flag.
+*----------------------------------------------------------------------------*/
+
+uint64 float32_to_uint64_round_to_zero(float32 a STATUS_PARAM)
+{
+    signed char current_rounding_mode = STATUS(float_rounding_mode);
+    set_float_rounding_mode(float_round_to_zero STATUS_VAR);
+    int64_t v = float32_to_uint64(a STATUS_VAR);
+    set_float_rounding_mode(current_rounding_mode STATUS_VAR);
+    return v;
 }
 
 /*----------------------------------------------------------------------------

@@ -50,6 +50,7 @@ BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs)
     }
 
     info->backing_file_depth = bdrv_get_backing_file_depth(bs);
+    info->detect_zeroes = bs->detect_zeroes;
 
     if (bs->io_limits_enabled) {
         ThrottleConfig cfg;
@@ -532,12 +533,11 @@ static void dump_qdict(fprintf_function func_fprintf, void *f, int indentation,
 void bdrv_image_info_specific_dump(fprintf_function func_fprintf, void *f,
                                    ImageInfoSpecific *info_spec)
 {
-    Error *local_err = NULL;
     QmpOutputVisitor *ov = qmp_output_visitor_new();
     QObject *obj, *data;
 
     visit_type_ImageInfoSpecific(qmp_output_get_visitor(ov), &info_spec, NULL,
-                                 &local_err);
+                                 &error_abort);
     obj = qmp_output_get_qobject(ov);
     assert(qobject_type(obj) == QTYPE_QDICT);
     data = qdict_get(qobject_to_qdict(obj), "data");

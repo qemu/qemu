@@ -195,9 +195,9 @@ static int vscsi_send_iu(VSCSIState *s, vscsi_req *req,
     req->crq.s.IU_data_ptr = req->iu.srp.rsp.tag; /* right byte order */
 
     if (rc == 0) {
-        req->crq.s.status = 0x99; /* Just needs to be non-zero */
+        req->crq.s.status = VIOSRP_OK;
     } else {
-        req->crq.s.status = 0x00;
+        req->crq.s.status = VIOSRP_ADAPTER_FAIL;
     }
 
     rc1 = spapr_vio_send_crq(&s->vdev, req->crq.raw);
@@ -690,7 +690,7 @@ static void vscsi_inquiry_no_target(VSCSIState *s, vscsi_req *req)
     int rc, len, alen;
 
     /* We dont do EVPD. Also check that page_code is 0 */
-    if ((cdb[1] & 0x01) || (cdb[1] & 0x01) || cdb[2] != 0) {
+    if ((cdb[1] & 0x01) || cdb[2] != 0) {
         /* Send INVALID FIELD IN CDB */
         vscsi_makeup_sense(s, req, ILLEGAL_REQUEST, 0x24, 0);
         vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);

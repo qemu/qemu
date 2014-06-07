@@ -12,10 +12,7 @@
 
 #include "qemu-common.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qjson.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi-types.h"
-#include "qapi/qmp/qerror.h"
+#include "qemu/error-report.h"
 
 struct Error
 {
@@ -145,11 +142,6 @@ Error *error_copy(const Error *err)
     return err_new;
 }
 
-bool error_is_set(Error **errp)
-{
-    return (errp && *errp);
-}
-
 ErrorClass error_get_class(const Error *err)
 {
     return err->err_class;
@@ -168,13 +160,13 @@ void error_free(Error *err)
     }
 }
 
-void error_propagate(Error **dst_err, Error *local_err)
+void error_propagate(Error **dst_errp, Error *local_err)
 {
-    if (local_err && dst_err == &error_abort) {
+    if (local_err && dst_errp == &error_abort) {
         error_report("%s", error_get_pretty(local_err));
         abort();
-    } else if (dst_err && !*dst_err) {
-        *dst_err = local_err;
+    } else if (dst_errp && !*dst_errp) {
+        *dst_errp = local_err;
     } else if (local_err) {
         error_free(local_err);
     }

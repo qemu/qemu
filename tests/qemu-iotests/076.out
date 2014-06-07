@@ -1,0 +1,18 @@
+QA output created by 076
+
+== Read from a valid (enough) image ==
+read 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Negative catalog size ==
+qemu-io: can't open device TEST_DIR/fake.parallels: Catalog too large
+no file open, try 'help open'
+
+== Overflow in catalog allocation ==
+qemu-io: can't open device TEST_DIR/fake.parallels: Catalog too large
+no file open, try 'help open'
+
+== Zero sectors per track ==
+qemu-io: can't open device TEST_DIR/fake.parallels: Invalid image: Zero sectors per track
+no file open, try 'help open'
+*** done

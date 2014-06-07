@@ -22,6 +22,7 @@ extern PropertyInfo qdev_prop_bios_chs_trans;
 extern PropertyInfo qdev_prop_drive;
 extern PropertyInfo qdev_prop_netdev;
 extern PropertyInfo qdev_prop_vlan;
+extern PropertyInfo qdev_prop_iothread;
 extern PropertyInfo qdev_prop_pci_devfn;
 extern PropertyInfo qdev_prop_blocksize;
 extern PropertyInfo qdev_prop_pci_host_devaddr;
@@ -142,6 +143,8 @@ extern PropertyInfo qdev_prop_arraylen;
     DEFINE_PROP(_n, _s, _f, qdev_prop_vlan, NICPeers)
 #define DEFINE_PROP_DRIVE(_n, _s, _f) \
     DEFINE_PROP(_n, _s, _f, qdev_prop_drive, BlockDriverState *)
+#define DEFINE_PROP_IOTHREAD(_n, _s, _f)             \
+    DEFINE_PROP(_n, _s, _f, qdev_prop_iothread, IOThread *)
 #define DEFINE_PROP_MACADDR(_n, _s, _f)         \
     DEFINE_PROP(_n, _s, _f, qdev_prop_macaddr, MACAddr)
 #define DEFINE_PROP_LOSTTICKPOLICY(_n, _s, _f, _d) \
@@ -201,4 +204,15 @@ void qdev_property_add_static(DeviceState *dev, Property *prop, Error **errp);
  */
 void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
                                  Error **errp);
+
+/**
+ * qdev_prop_allow_set_link_before_realize:
+ *
+ * Set the #Error object if an attempt is made to set the link after realize.
+ * This function should be used as the check() argument to
+ * object_property_add_link().
+ */
+void qdev_prop_allow_set_link_before_realize(Object *obj, const char *name,
+                                             Object *val, Error **errp);
+
 #endif

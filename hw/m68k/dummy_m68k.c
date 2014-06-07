@@ -16,11 +16,11 @@
 
 /* Board init.  */
 
-static void dummy_m68k_init(QEMUMachineInitArgs *args)
+static void dummy_m68k_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
     CPUM68KState *env;
     MemoryRegion *address_space_mem =  get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);

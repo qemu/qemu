@@ -17,35 +17,55 @@
 #include "block/coroutine.h"
 #include "virtio-9p-coth.h"
 
+static ssize_t __readlink(V9fsState *s, V9fsPath *path, V9fsString *buf)
+{
+    ssize_t len, maxlen = PATH_MAX;
+
+    buf->data = g_malloc(PATH_MAX);
+    for(;;) {
+        len = s->ops->readlink(&s->ctx, path, buf->data, maxlen);
+        if (len < 0) {
+            g_free(buf->data);
+            buf->data = NULL;
+            buf->size = 0;
+            break;
+        } else if (len == maxlen) {
+            /*
+             * We dodn't have space to put the NULL or we have more
+             * to read. Increase the size and try again
+             */
+            maxlen *= 2;
+            g_free(buf->data);
+            buf->data = g_malloc(maxlen);
+            continue;
+        }
+        /*
+         * Null terminate the readlink output
+         */
+        buf->data[len] = '\0';
+        buf->size = len;
+        break;
+    }
+    return len;
+}
+
 int v9fs_co_readlink(V9fsPDU *pdu, V9fsPath *path, V9fsString *buf)
 {
     int err;
-    ssize_t len;
     V9fsState *s = pdu->s;
 
     if (v9fs_request_cancelled(pdu)) {
         return -EINTR;
     }
-    buf->data = g_malloc(PATH_MAX);
     v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
-            len = s->ops->readlink(&s->ctx, path,
-                                   buf->data, PATH_MAX - 1);
-            if (len > -1) {
-                buf->size = len;
-                buf->data[len] = 0;
-                err = 0;
-            } else {
+            err = __readlink(s, path, buf);
+            if (err < 0) {
                 err = -errno;
             }
         });
     v9fs_path_unlock(s);
-    if (err) {
-        g_free(buf->data);
-        buf->data = NULL;
-        buf->size = 0;
-    }
     return err;
 }
 

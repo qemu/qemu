@@ -43,6 +43,17 @@ static void nbd_recv_coroutines_enter_all(NbdClientSession *s)
     }
 }
 
+static void nbd_teardown_connection(NbdClientSession *client)
+{
+    /* finish any pending coroutines */
+    shutdown(client->sock, 2);
+    nbd_recv_coroutines_enter_all(client);
+
+    qemu_aio_set_fd_handler(client->sock, NULL, NULL, NULL);
+    closesocket(client->sock);
+    client->sock = -1;
+}
+
 static void nbd_reply_ready(void *opaque)
 {
     NbdClientSession *s = opaque;
@@ -78,7 +89,7 @@ static void nbd_reply_ready(void *opaque)
     }
 
 fail:
-    nbd_recv_coroutines_enter_all(s);
+    nbd_teardown_connection(s);
 }
 
 static void nbd_restart_write(void *opaque)
@@ -324,7 +335,7 @@ int nbd_client_session_co_discard(NbdClientSession *client, int64_t sector_num,
 
 }
 
-static void nbd_teardown_connection(NbdClientSession *client)
+void nbd_client_session_close(NbdClientSession *client)
 {
     struct nbd_request request = {
         .type = NBD_CMD_DISC,
@@ -332,22 +343,14 @@ static void nbd_teardown_connection(NbdClientSession *client)
         .len = 0
     };
 
-    nbd_send_request(client->sock, &request);
-
-    /* finish any pending coroutines */
-    shutdown(client->sock, 2);
-    nbd_recv_coroutines_enter_all(client);
-
-    qemu_aio_set_fd_handler(client->sock, NULL, NULL, NULL);
-    closesocket(client->sock);
-    client->sock = -1;
-}
-
-void nbd_client_session_close(NbdClientSession *client)
-{
     if (!client->bs) {
         return;
     }
+    if (client->sock == -1) {
+        return;
+    }
+
+    nbd_send_request(client->sock, &request);
 
     nbd_teardown_connection(client);
     client->bs = NULL;

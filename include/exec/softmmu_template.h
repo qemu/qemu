@@ -126,12 +126,12 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
     MemoryRegion *mr = iotlb_to_region(cpu->as, physaddr);
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
-    env->mem_io_pc = retaddr;
-    if (mr != &io_mem_rom && mr != &io_mem_notdirty && !can_do_io(env)) {
-        cpu_io_recompile(env, retaddr);
+    cpu->mem_io_pc = retaddr;
+    if (mr != &io_mem_rom && mr != &io_mem_notdirty && !cpu_can_do_io(cpu)) {
+        cpu_io_recompile(cpu, retaddr);
     }
 
-    env->mem_io_vaddr = addr;
+    cpu->mem_io_vaddr = addr;
     io_mem_read(mr, physaddr, &val, 1 << SHIFT);
     return val;
 }
@@ -158,7 +158,7 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
             do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
         }
 #endif
-        tlb_fill(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+        tlb_fill(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
         tlb_addr = env->tlb_table[mmu_idx][index].ADDR_READ;
     }
 
@@ -240,7 +240,7 @@ WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
             do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
         }
 #endif
-        tlb_fill(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+        tlb_fill(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
         tlb_addr = env->tlb_table[mmu_idx][index].ADDR_READ;
     }
 
@@ -333,12 +333,12 @@ static inline void glue(io_write, SUFFIX)(CPUArchState *env,
     MemoryRegion *mr = iotlb_to_region(cpu->as, physaddr);
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
-    if (mr != &io_mem_rom && mr != &io_mem_notdirty && !can_do_io(env)) {
-        cpu_io_recompile(env, retaddr);
+    if (mr != &io_mem_rom && mr != &io_mem_notdirty && !cpu_can_do_io(cpu)) {
+        cpu_io_recompile(cpu, retaddr);
     }
 
-    env->mem_io_vaddr = addr;
-    env->mem_io_pc = retaddr;
+    cpu->mem_io_vaddr = addr;
+    cpu->mem_io_pc = retaddr;
     io_mem_write(mr, physaddr, val, 1 << SHIFT);
 }
 
@@ -360,7 +360,7 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
             do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
         }
 #endif
-        tlb_fill(env, addr, 1, mmu_idx, retaddr);
+        tlb_fill(ENV_GET_CPU(env), addr, 1, mmu_idx, retaddr);
         tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
     }
 
@@ -436,7 +436,7 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
             do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
         }
 #endif
-        tlb_fill(env, addr, 1, mmu_idx, retaddr);
+        tlb_fill(ENV_GET_CPU(env), addr, 1, mmu_idx, retaddr);
         tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
     }
 

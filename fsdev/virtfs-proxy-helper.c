@@ -595,7 +595,7 @@ static int do_readlink(struct iovec *iovec, struct iovec *out_iovec)
     }
     buffer = g_malloc(size);
     v9fs_string_init(&target);
-    retval = readlink(path.data, buffer, size);
+    retval = readlink(path.data, buffer, size - 1);
     if (retval > 0) {
         buffer[retval] = '\0';
         v9fs_string_sprintf(&target, "%s", buffer);
@@ -760,6 +760,7 @@ static int proxy_socket(const char *path, uid_t uid, gid_t gid)
         return -1;
     }
 
+    size = sizeof(qemu);
     client = accept(sock, (struct sockaddr *)&qemu, &size);
     if (client < 0) {
         do_perror("accept");

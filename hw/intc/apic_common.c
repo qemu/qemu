@@ -117,7 +117,12 @@ void apic_report_irq_delivered(int delivered)
 
 void apic_reset_irq_delivered(void)
 {
-    trace_apic_reset_irq_delivered(apic_irq_delivered);
+    /* Copy this into a local variable to encourage gcc to emit a plain
+     * register for a sys/sdt.h marker.  For details on this workaround, see:
+     * https://sourceware.org/bugzilla/show_bug.cgi?id=13296
+     */
+    volatile int a_i_d = apic_irq_delivered;
+    trace_apic_reset_irq_delivered(a_i_d);
 
     apic_irq_delivered = 0;
 }
@@ -195,7 +200,7 @@ void apic_init_reset(DeviceState *dev)
     s->initial_count = 0;
     s->initial_count_load_time = 0;
     s->next_time = 0;
-    s->wait_for_sipi = 1;
+    s->wait_for_sipi = !cpu_is_bsp(s->cpu);
 
     if (s->timer) {
         timer_del(s->timer);
@@ -375,6 +380,7 @@ static const VMStateDescription vmstate_apic_common = {
 
 static Property apic_properties_common[] = {
     DEFINE_PROP_UINT8("id", APICCommonState, id, -1),
+    DEFINE_PROP_UINT8("version", APICCommonState, version, 0x14),
     DEFINE_PROP_BIT("vapic", APICCommonState, vapic_control, VAPIC_ENABLE_BIT,
                     true),
     DEFINE_PROP_END_OF_LIST(),

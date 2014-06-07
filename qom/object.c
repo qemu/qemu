@@ -768,7 +768,7 @@ ObjectProperty *object_property_find(Object *obj, const char *name,
         }
     }
 
-    error_set(errp, QERR_PROPERTY_NOT_FOUND, "", name);
+    error_setg(errp, "Property '.%s' not found", name);
     return NULL;
 }
 
@@ -1023,10 +1023,23 @@ out:
     g_free(type);
 }
 
+void object_property_allow_set_link(Object *obj, const char *name,
+                                    Object *val, Error **errp)
+{
+    /* Allow the link to be set, always */
+}
+
+typedef struct {
+    Object **child;
+    void (*check)(Object *, const char *, Object *, Error **);
+    ObjectPropertyLinkFlags flags;
+} LinkProperty;
+
 static void object_get_link_property(Object *obj, Visitor *v, void *opaque,
                                      const char *name, Error **errp)
 {
-    Object **child = opaque;
+    LinkProperty *lprop = opaque;
+    Object **child = lprop->child;
     gchar *path;
 
     if (*child) {
@@ -1039,102 +1052,167 @@ static void object_get_link_property(Object *obj, Visitor *v, void *opaque,
     }
 }
 
+/*
+ * object_resolve_link:
+ *
+ * Lookup an object and ensure its type matches the link property type.  This
+ * is similar to object_resolve_path() except type verification against the
+ * link property is performed.
+ *
+ * Returns: The matched object or NULL on path lookup failures.
+ */
+static Object *object_resolve_link(Object *obj, const char *name,
+                                   const char *path, Error **errp)
+{
+    const char *type;
+    gchar *target_type;
+    bool ambiguous = false;
+    Object *target;
+
+    /* Go from link<FOO> to FOO.  */
+    type = object_property_get_type(obj, name, NULL);
+    target_type = g_strndup(&type[5], strlen(type) - 6);
+    target = object_resolve_path_type(path, target_type, &ambiguous);
+
+    if (ambiguous) {
+        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
+                  "Path '%s' does not uniquely identify an object", path);
+    } else if (!target) {
+        target = object_resolve_path(path, &ambiguous);
+        if (target || ambiguous) {
+            error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, target_type);
+        } else {
+            error_set(errp, QERR_DEVICE_NOT_FOUND, path);
+        }
+        target = NULL;
+    }
+    g_free(target_type);
+
+    return target;
+}
+
 static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
                                      const char *name, Error **errp)
 {
-    Object **child = opaque;
-    Object *old_target;
-    bool ambiguous = false;
-    const char *type;
-    char *path;
-    gchar *target_type;
+    Error *local_err = NULL;
+    LinkProperty *prop = opaque;
+    Object **child = prop->child;
+    Object *old_target = *child;
+    Object *new_target = NULL;
+    char *path = NULL;
 
-    type = object_property_get_type(obj, name, NULL);
+    visit_type_str(v, &path, name, &local_err);
 
-    visit_type_str(v, &path, name, errp);
-
-    old_target = *child;
-    *child = NULL;
-
-    if (strcmp(path, "") != 0) {
-        Object *target;
-
-        /* Go from link<FOO> to FOO.  */
-        target_type = g_strndup(&type[5], strlen(type) - 6);
-        target = object_resolve_path_type(path, target_type, &ambiguous);
-
-        if (ambiguous) {
-            error_set(errp, QERR_AMBIGUOUS_PATH, path);
-        } else if (target) {
-            object_ref(target);
-            *child = target;
-        } else {
-            target = object_resolve_path(path, &ambiguous);
-            if (target || ambiguous) {
-                error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, target_type);
-            } else {
-                error_set(errp, QERR_DEVICE_NOT_FOUND, path);
-            }
-        }
-        g_free(target_type);
+    if (!local_err && strcmp(path, "") != 0) {
+        new_target = object_resolve_link(obj, name, path, &local_err);
     }
 
     g_free(path);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
+    prop->check(obj, name, new_target, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (new_target) {
+        object_ref(new_target);
+    }
+    *child = new_target;
     if (old_target != NULL) {
         object_unref(old_target);
     }
 }
 
+static void object_release_link_property(Object *obj, const char *name,
+                                         void *opaque)
+{
+    LinkProperty *prop = opaque;
+
+    if ((prop->flags & OBJ_PROP_LINK_UNREF_ON_RELEASE) && *prop->child) {
+        object_unref(*prop->child);
+    }
+    g_free(prop);
+}
+
 void object_property_add_link(Object *obj, const char *name,
                               const char *type, Object **child,
+                              void (*check)(Object *, const char *,
+                                            Object *, Error **),
+                              ObjectPropertyLinkFlags flags,
                               Error **errp)
 {
+    Error *local_err = NULL;
+    LinkProperty *prop = g_malloc(sizeof(*prop));
     gchar *full_type;
+
+    prop->child = child;
+    prop->check = check;
+    prop->flags = flags;
 
     full_type = g_strdup_printf("link<%s>", type);
 
     object_property_add(obj, name, full_type,
                         object_get_link_property,
-                        object_set_link_property,
-                        NULL, child, errp);
+                        check ? object_set_link_property : NULL,
+                        object_release_link_property,
+                        prop,
+                        &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(prop);
+    }
 
     g_free(full_type);
+}
+
+gchar *object_get_canonical_path_component(Object *obj)
+{
+    ObjectProperty *prop = NULL;
+
+    g_assert(obj);
+    g_assert(obj->parent != NULL);
+
+    QTAILQ_FOREACH(prop, &obj->parent->properties, node) {
+        if (!object_property_is_child(prop)) {
+            continue;
+        }
+
+        if (prop->opaque == obj) {
+            return g_strdup(prop->name);
+        }
+    }
+
+    /* obj had a parent but was not a child, should never happen */
+    g_assert_not_reached();
+    return NULL;
 }
 
 gchar *object_get_canonical_path(Object *obj)
 {
     Object *root = object_get_root();
-    char *newpath = NULL, *path = NULL;
+    char *newpath, *path = NULL;
 
     while (obj != root) {
-        ObjectProperty *prop = NULL;
+        char *component = object_get_canonical_path_component(obj);
 
-        g_assert(obj->parent != NULL);
-
-        QTAILQ_FOREACH(prop, &obj->parent->properties, node) {
-            if (!object_property_is_child(prop)) {
-                continue;
-            }
-
-            if (prop->opaque == obj) {
-                if (path) {
-                    newpath = g_strdup_printf("%s/%s", prop->name, path);
-                    g_free(path);
-                    path = newpath;
-                } else {
-                    path = g_strdup(prop->name);
-                }
-                break;
-            }
+        if (path) {
+            newpath = g_strdup_printf("%s/%s", component, path);
+            g_free(component);
+            g_free(path);
+            path = newpath;
+        } else {
+            path = component;
         }
-
-        g_assert(prop != NULL);
 
         obj = obj->parent;
     }
 
-    newpath = g_strdup_printf("/%s", path);
+    newpath = g_strdup_printf("/%s", path ? path : "");
     g_free(path);
 
     return newpath;
@@ -1148,7 +1226,8 @@ Object *object_resolve_path_component(Object *parent, const gchar *part)
     }
 
     if (object_property_is_link(prop)) {
-        return *(Object **)prop->opaque;
+        LinkProperty *lprop = prop->opaque;
+        return *lprop->child;
     } else if (object_property_is_child(prop)) {
         return prop->opaque;
     } else {
@@ -1293,6 +1372,7 @@ void object_property_add_str(Object *obj, const char *name,
                            void (*set)(Object *, const char *, Error **),
                            Error **errp)
 {
+    Error *local_err = NULL;
     StringProperty *prop = g_malloc0(sizeof(*prop));
 
     prop->get = get;
@@ -1302,7 +1382,11 @@ void object_property_add_str(Object *obj, const char *name,
                         get ? property_get_str : NULL,
                         set ? property_set_str : NULL,
                         property_release_str,
-                        prop, errp);
+                        prop, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(prop);
+    }
 }
 
 typedef struct BoolProperty
@@ -1349,6 +1433,7 @@ void object_property_add_bool(Object *obj, const char *name,
                               void (*set)(Object *, bool, Error **),
                               Error **errp)
 {
+    Error *local_err = NULL;
     BoolProperty *prop = g_malloc0(sizeof(*prop));
 
     prop->get = get;
@@ -1358,7 +1443,11 @@ void object_property_add_bool(Object *obj, const char *name,
                         get ? property_get_bool : NULL,
                         set ? property_set_bool : NULL,
                         property_release_bool,
-                        prop, errp);
+                        prop, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(prop);
+    }
 }
 
 static char *qdev_get_type(Object *obj, Error **errp)

@@ -10,7 +10,6 @@
 
 #include "hw/irq.h"
 #include "qemu-common.h"
-#include "sysemu/qemumachine.h"
 
 /* xen-machine.c */
 enum xen_mode {
@@ -37,7 +36,7 @@ void xen_cmos_set_s3_resume(void *opaque, int irq, int level);
 
 qemu_irq *xen_interrupt_controller_init(void);
 
-int xen_init(QEMUMachine *machine);
+int xen_init(MachineClass *mc);
 int xen_hvm_init(MemoryRegion **ram_memory);
 void xenstore_store_pv_console_info(int i, struct CharDriverState *chr);
 

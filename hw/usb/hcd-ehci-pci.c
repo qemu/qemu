@@ -108,7 +108,7 @@ static const VMStateDescription vmstate_ehci_pci = {
     .name        = "ehci",
     .version_id  = 2,
     .minimum_version_id  = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(pcidev, EHCIPCIState),
         VMSTATE_STRUCT(ehci, EHCIPCIState, 2, vmstate_ehci, EHCIState),
         VMSTATE_END_OF_LIST()

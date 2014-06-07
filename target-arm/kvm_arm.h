@@ -67,6 +67,14 @@ bool write_list_to_kvmstate(ARMCPU *cpu);
  */
 bool write_kvmstate_to_list(ARMCPU *cpu);
 
+/**
+ * kvm_arm_reset_vcpu:
+ * @cpu: ARMCPU
+ *
+ * Called at reset time to kernel registers to their initial values.
+ */
+void kvm_arm_reset_vcpu(ARMCPU *cpu);
+
 #ifdef CONFIG_KVM
 /**
  * kvm_arm_create_scratch_host_vcpu:

@@ -30,6 +30,8 @@ typedef struct MemoryListener MemoryListener;
 
 typedef struct MemoryMappingList MemoryMappingList;
 
+typedef struct QEMUMachine QEMUMachine;
+typedef struct MachineClass MachineClass;
 typedef struct NICInfo NICInfo;
 typedef struct HCIInfo HCIInfo;
 typedef struct AudioState AudioState;
@@ -72,5 +74,6 @@ typedef struct SHPCDevice SHPCDevice;
 typedef struct FWCfgState FWCfgState;
 typedef struct PcGuestInfo PcGuestInfo;
 typedef struct Range Range;
+typedef struct AdapterInfo AdapterInfo;
 
 #endif /* QEMU_TYPEDEFS_H */

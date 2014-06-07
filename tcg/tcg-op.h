@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 #include "tcg.h"
+#include "exec/helper-proto.h"
+#include "exec/helper-gen.h"
 
 int gen_new_label(void);
 
@@ -379,57 +381,6 @@ static inline void tcg_gen_movi_i32(TCGv_i32 ret, int32_t arg)
     tcg_gen_op2i_i32(INDEX_op_movi_i32, ret, arg);
 }
 
-/* A version of dh_sizemask from def-helper.h that doesn't rely on
-   preprocessor magic.  */
-static inline int tcg_gen_sizemask(int n, int is_64bit, int is_signed)
-{
-    return (is_64bit << n*2) | (is_signed << (n*2 + 1));
-}
-
-/* helper calls */
-static inline void tcg_gen_helperN(void *func, int flags, int sizemask,
-                                   TCGArg ret, int nargs, TCGArg *args)
-{
-    TCGv_ptr fn;
-    fn = tcg_const_ptr(func);
-    tcg_gen_callN(&tcg_ctx, fn, flags, sizemask, ret,
-                  nargs, args);
-    tcg_temp_free_ptr(fn);
-}
-
-/* Note: Both tcg_gen_helper32() and tcg_gen_helper64() are currently
-   reserved for helpers in tcg-runtime.c. These helpers all do not read
-   globals and do not have side effects, hence the call to tcg_gen_callN()
-   with TCG_CALL_NO_READ_GLOBALS | TCG_CALL_NO_SIDE_EFFECTS. This may need
-   to be adjusted if these functions start to be used with other helpers. */
-static inline void tcg_gen_helper32(void *func, int sizemask, TCGv_i32 ret,
-                                    TCGv_i32 a, TCGv_i32 b)
-{
-    TCGv_ptr fn;
-    TCGArg args[2];
-    fn = tcg_const_ptr(func);
-    args[0] = GET_TCGV_I32(a);
-    args[1] = GET_TCGV_I32(b);
-    tcg_gen_callN(&tcg_ctx, fn,
-                  TCG_CALL_NO_READ_GLOBALS | TCG_CALL_NO_SIDE_EFFECTS,
-                  sizemask, GET_TCGV_I32(ret), 2, args);
-    tcg_temp_free_ptr(fn);
-}
-
-static inline void tcg_gen_helper64(void *func, int sizemask, TCGv_i64 ret,
-                                    TCGv_i64 a, TCGv_i64 b)
-{
-    TCGv_ptr fn;
-    TCGArg args[2];
-    fn = tcg_const_ptr(func);
-    args[0] = GET_TCGV_I64(a);
-    args[1] = GET_TCGV_I64(b);
-    tcg_gen_callN(&tcg_ctx, fn,
-                  TCG_CALL_NO_READ_GLOBALS | TCG_CALL_NO_SIDE_EFFECTS,
-                  sizemask, GET_TCGV_I64(ret), 2, args);
-    tcg_temp_free_ptr(fn);
-}
-
 /* 32 bit ops */
 
 static inline void tcg_gen_ld8u_i32(TCGv_i32 ret, TCGv_ptr arg2, tcg_target_long offset)
@@ -717,12 +668,7 @@ static inline void tcg_gen_div_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
         tcg_gen_op5_i32(INDEX_op_div2_i32, ret, t0, arg1, t0, arg2);
         tcg_temp_free_i32(t0);
     } else {
-        int sizemask = 0;
-        /* Return value and both arguments are 32-bit and signed.  */
-        sizemask |= tcg_gen_sizemask(0, 0, 1);
-        sizemask |= tcg_gen_sizemask(1, 0, 1);
-        sizemask |= tcg_gen_sizemask(2, 0, 1);
-        tcg_gen_helper32(tcg_helper_div_i32, sizemask, ret, arg1, arg2);
+        gen_helper_div_i32(ret, arg1, arg2);
     }
 }
 
@@ -742,12 +688,7 @@ static inline void tcg_gen_rem_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
         tcg_gen_op5_i32(INDEX_op_div2_i32, t0, ret, arg1, t0, arg2);
         tcg_temp_free_i32(t0);
     } else {
-        int sizemask = 0;
-        /* Return value and both arguments are 32-bit and signed.  */
-        sizemask |= tcg_gen_sizemask(0, 0, 1);
-        sizemask |= tcg_gen_sizemask(1, 0, 1);
-        sizemask |= tcg_gen_sizemask(2, 0, 1);
-        tcg_gen_helper32(tcg_helper_rem_i32, sizemask, ret, arg1, arg2);
+        gen_helper_rem_i32(ret, arg1, arg2);
     }
 }
 
@@ -761,12 +702,7 @@ static inline void tcg_gen_divu_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
         tcg_gen_op5_i32(INDEX_op_divu2_i32, ret, t0, arg1, t0, arg2);
         tcg_temp_free_i32(t0);
     } else {
-        int sizemask = 0;
-        /* Return value and both arguments are 32-bit and unsigned.  */
-        sizemask |= tcg_gen_sizemask(0, 0, 0);
-        sizemask |= tcg_gen_sizemask(1, 0, 0);
-        sizemask |= tcg_gen_sizemask(2, 0, 0);
-        tcg_gen_helper32(tcg_helper_divu_i32, sizemask, ret, arg1, arg2);
+        gen_helper_divu_i32(ret, arg1, arg2);
     }
 }
 
@@ -786,12 +722,7 @@ static inline void tcg_gen_remu_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
         tcg_gen_op5_i32(INDEX_op_divu2_i32, t0, ret, arg1, t0, arg2);
         tcg_temp_free_i32(t0);
     } else {
-        int sizemask = 0;
-        /* Return value and both arguments are 32-bit and unsigned.  */
-        sizemask |= tcg_gen_sizemask(0, 0, 0);
-        sizemask |= tcg_gen_sizemask(1, 0, 0);
-        sizemask |= tcg_gen_sizemask(2, 0, 0);
-        tcg_gen_helper32(tcg_helper_remu_i32, sizemask, ret, arg1, arg2);
+        gen_helper_remu_i32(ret, arg1, arg2);
     }
 }
 
@@ -858,7 +789,7 @@ static inline void tcg_gen_ld_i64(TCGv_i64 ret, TCGv_ptr arg2,
 {
     /* since arg2 and ret have different types, they cannot be the
        same temporary */
-#ifdef TCG_TARGET_WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
     tcg_gen_ld_i32(TCGV_HIGH(ret), arg2, offset);
     tcg_gen_ld_i32(TCGV_LOW(ret), arg2, offset + 4);
 #else
@@ -888,7 +819,7 @@ static inline void tcg_gen_st32_i64(TCGv_i64 arg1, TCGv_ptr arg2,
 static inline void tcg_gen_st_i64(TCGv_i64 arg1, TCGv_ptr arg2,
                                   tcg_target_long offset)
 {
-#ifdef TCG_TARGET_WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
     tcg_gen_st_i32(TCGV_HIGH(arg1), arg2, offset);
     tcg_gen_st_i32(TCGV_LOW(arg1), arg2, offset + 4);
 #else
@@ -955,13 +886,7 @@ static inline void tcg_gen_xori_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
    specific code (x86) */
 static inline void tcg_gen_shl_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
-    int sizemask = 0;
-    /* Return value and both arguments are 64-bit and signed.  */
-    sizemask |= tcg_gen_sizemask(0, 1, 1);
-    sizemask |= tcg_gen_sizemask(1, 1, 1);
-    sizemask |= tcg_gen_sizemask(2, 1, 1);
-
-    tcg_gen_helper64(tcg_helper_shl_i64, sizemask, ret, arg1, arg2);
+    gen_helper_shl_i64(ret, arg1, arg2);
 }
 
 static inline void tcg_gen_shli_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
@@ -971,13 +896,7 @@ static inline void tcg_gen_shli_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
 
 static inline void tcg_gen_shr_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
-    int sizemask = 0;
-    /* Return value and both arguments are 64-bit and signed.  */
-    sizemask |= tcg_gen_sizemask(0, 1, 1);
-    sizemask |= tcg_gen_sizemask(1, 1, 1);
-    sizemask |= tcg_gen_sizemask(2, 1, 1);
-
-    tcg_gen_helper64(tcg_helper_shr_i64, sizemask, ret, arg1, arg2);
+    gen_helper_shr_i64(ret, arg1, arg2);
 }
 
 static inline void tcg_gen_shri_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
@@ -987,13 +906,7 @@ static inline void tcg_gen_shri_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
 
 static inline void tcg_gen_sar_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
-    int sizemask = 0;
-    /* Return value and both arguments are 64-bit and signed.  */
-    sizemask |= tcg_gen_sizemask(0, 1, 1);
-    sizemask |= tcg_gen_sizemask(1, 1, 1);
-    sizemask |= tcg_gen_sizemask(2, 1, 1);
-
-    tcg_gen_helper64(tcg_helper_sar_i64, sizemask, ret, arg1, arg2);
+    gen_helper_sar_i64(ret, arg1, arg2);
 }
 
 static inline void tcg_gen_sari_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
@@ -1061,46 +974,22 @@ static inline void tcg_gen_mul_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 
 static inline void tcg_gen_div_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
-    int sizemask = 0;
-    /* Return value and both arguments are 64-bit and signed.  */
-    sizemask |= tcg_gen_sizemask(0, 1, 1);
-    sizemask |= tcg_gen_sizemask(1, 1, 1);
-    sizemask |= tcg_gen_sizemask(2, 1, 1);
-
-    tcg_gen_helper64(tcg_helper_div_i64, sizemask, ret, arg1, arg2);
+    gen_helper_div_i64(ret, arg1, arg2);
 }
 
 static inline void tcg_gen_rem_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
-    int sizemask = 0;
-    /* Return value and both arguments are 64-bit and signed.  */
-    sizemask |= tcg_gen_sizemask(0, 1, 1);
-    sizemask |= tcg_gen_sizemask(1, 1, 1);
-    sizemask |= tcg_gen_sizemask(2, 1, 1);
-
-    tcg_gen_helper64(tcg_helper_rem_i64, sizemask, ret, arg1, arg2);
+    gen_helper_rem_i64(ret, arg1, arg2);
 }
 
 static inline void tcg_gen_divu_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
-    int sizemask = 0;
-    /* Return value and both arguments are 64-bit and unsigned.  */
-    sizemask |= tcg_gen_sizemask(0, 1, 0);
-    sizemask |= tcg_gen_sizemask(1, 1, 0);
-    sizemask |= tcg_gen_sizemask(2, 1, 0);
-
-    tcg_gen_helper64(tcg_helper_divu_i64, sizemask, ret, arg1, arg2);
+    gen_helper_divu_i64(ret, arg1, arg2);
 }
 
 static inline void tcg_gen_remu_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
-    int sizemask = 0;
-    /* Return value and both arguments are 64-bit and unsigned.  */
-    sizemask |= tcg_gen_sizemask(0, 1, 0);
-    sizemask |= tcg_gen_sizemask(1, 1, 0);
-    sizemask |= tcg_gen_sizemask(2, 1, 0);
-
-    tcg_gen_helper64(tcg_helper_remu_i64, sizemask, ret, arg1, arg2);
+    gen_helper_remu_i64(ret, arg1, arg2);
 }
 
 #else
@@ -1367,12 +1256,7 @@ static inline void tcg_gen_div_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
         tcg_gen_op5_i64(INDEX_op_div2_i64, ret, t0, arg1, t0, arg2);
         tcg_temp_free_i64(t0);
     } else {
-        int sizemask = 0;
-        /* Return value and both arguments are 64-bit and signed.  */
-        sizemask |= tcg_gen_sizemask(0, 1, 1);
-        sizemask |= tcg_gen_sizemask(1, 1, 1);
-        sizemask |= tcg_gen_sizemask(2, 1, 1);
-        tcg_gen_helper64(tcg_helper_div_i64, sizemask, ret, arg1, arg2);
+        gen_helper_div_i64(ret, arg1, arg2);
     }
 }
 
@@ -1392,12 +1276,7 @@ static inline void tcg_gen_rem_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
         tcg_gen_op5_i64(INDEX_op_div2_i64, t0, ret, arg1, t0, arg2);
         tcg_temp_free_i64(t0);
     } else {
-        int sizemask = 0;
-        /* Return value and both arguments are 64-bit and signed.  */
-        sizemask |= tcg_gen_sizemask(0, 1, 1);
-        sizemask |= tcg_gen_sizemask(1, 1, 1);
-        sizemask |= tcg_gen_sizemask(2, 1, 1);
-        tcg_gen_helper64(tcg_helper_rem_i64, sizemask, ret, arg1, arg2);
+        gen_helper_rem_i64(ret, arg1, arg2);
     }
 }
 
@@ -1411,12 +1290,7 @@ static inline void tcg_gen_divu_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
         tcg_gen_op5_i64(INDEX_op_divu2_i64, ret, t0, arg1, t0, arg2);
         tcg_temp_free_i64(t0);
     } else {
-        int sizemask = 0;
-        /* Return value and both arguments are 64-bit and unsigned.  */
-        sizemask |= tcg_gen_sizemask(0, 1, 0);
-        sizemask |= tcg_gen_sizemask(1, 1, 0);
-        sizemask |= tcg_gen_sizemask(2, 1, 0);
-        tcg_gen_helper64(tcg_helper_divu_i64, sizemask, ret, arg1, arg2);
+        gen_helper_divu_i64(ret, arg1, arg2);
     }
 }
 
@@ -1436,12 +1310,7 @@ static inline void tcg_gen_remu_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
         tcg_gen_op5_i64(INDEX_op_divu2_i64, t0, ret, arg1, t0, arg2);
         tcg_temp_free_i64(t0);
     } else {
-        int sizemask = 0;
-        /* Return value and both arguments are 64-bit and unsigned.  */
-        sizemask |= tcg_gen_sizemask(0, 1, 0);
-        sizemask |= tcg_gen_sizemask(1, 1, 0);
-        sizemask |= tcg_gen_sizemask(2, 1, 0);
-        tcg_gen_helper64(tcg_helper_remu_i64, sizemask, ret, arg1, arg2);
+        gen_helper_remu_i64(ret, arg1, arg2);
     }
 }
 #endif /* TCG_TARGET_REG_BITS == 32 */
@@ -1624,9 +1493,20 @@ static inline void tcg_gen_ext32u_i64(TCGv_i64 ret, TCGv_i64 arg)
     tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
 }
 
-static inline void tcg_gen_trunc_i64_i32(TCGv_i32 ret, TCGv_i64 arg)
+static inline void tcg_gen_trunc_shr_i64_i32(TCGv_i32 ret, TCGv_i64 arg,
+                                             unsigned int count)
 {
-    tcg_gen_mov_i32(ret, TCGV_LOW(arg));
+    tcg_debug_assert(count < 64);
+    if (count >= 32) {
+        tcg_gen_shri_i32(ret, TCGV_HIGH(arg), count - 32);
+    } else if (count == 0) {
+        tcg_gen_mov_i32(ret, TCGV_LOW(arg));
+    } else {
+        TCGv_i64 t = tcg_temp_new_i64();
+        tcg_gen_shri_i64(t, arg, count);
+        tcg_gen_mov_i32(ret, TCGV_LOW(t));
+        tcg_temp_free_i64(t);
+    }
 }
 
 static inline void tcg_gen_extu_i32_i64(TCGv_i64 ret, TCGv_i32 arg)
@@ -1727,11 +1607,21 @@ static inline void tcg_gen_ext32u_i64(TCGv_i64 ret, TCGv_i64 arg)
     }
 }
 
-/* Note: we assume the target supports move between 32 and 64 bit
-   registers.  This will probably break MIPS64 targets.  */
-static inline void tcg_gen_trunc_i64_i32(TCGv_i32 ret, TCGv_i64 arg)
+static inline void tcg_gen_trunc_shr_i64_i32(TCGv_i32 ret, TCGv_i64 arg,
+                                             unsigned int count)
 {
-    tcg_gen_mov_i32(ret, MAKE_TCGV_I32(GET_TCGV_I64(arg)));
+    tcg_debug_assert(count < 64);
+    if (TCG_TARGET_HAS_trunc_shr_i32) {
+        tcg_gen_op3i_i32(INDEX_op_trunc_shr_i32, ret,
+                         MAKE_TCGV_I32(GET_TCGV_I64(arg)), count);
+    } else if (count == 0) {
+        tcg_gen_mov_i32(ret, MAKE_TCGV_I32(GET_TCGV_I64(arg)));
+    } else {
+        TCGv_i64 t = tcg_temp_new_i64();
+        tcg_gen_shri_i64(t, arg, count);
+        tcg_gen_mov_i32(ret, MAKE_TCGV_I32(GET_TCGV_I64(t)));
+        tcg_temp_free_i64(t);
+    }
 }
 
 /* Note: we assume the target supports move between 32 and 64 bit
@@ -2275,18 +2165,15 @@ static inline void tcg_gen_concat32_i64(TCGv_i64 dest, TCGv_i64 low,
     tcg_gen_deposit_i64(dest, low, high, 32, 32);
 }
 
+static inline void tcg_gen_trunc_i64_i32(TCGv_i32 ret, TCGv_i64 arg)
+{
+    tcg_gen_trunc_shr_i64_i32(ret, arg, 0);
+}
+
 static inline void tcg_gen_extr_i64_i32(TCGv_i32 lo, TCGv_i32 hi, TCGv_i64 arg)
 {
-#if TCG_TARGET_REG_BITS == 32
-    tcg_gen_mov_i32(lo, TCGV_LOW(arg));
-    tcg_gen_mov_i32(hi, TCGV_HIGH(arg));
-#else
-    TCGv_i64 t0 = tcg_temp_new_i64();
-    tcg_gen_trunc_i64_i32(lo, arg);
-    tcg_gen_shri_i64(t0, arg, 32);
-    tcg_gen_trunc_i64_i32(hi, t0);
-    tcg_temp_free_i64(t0);
-#endif
+    tcg_gen_trunc_shr_i64_i32(lo, arg, 0);
+    tcg_gen_trunc_shr_i64_i32(hi, arg, 32);
 }
 
 static inline void tcg_gen_extr32_i64(TCGv_i64 lo, TCGv_i64 hi, TCGv_i64 arg)
@@ -2437,14 +2324,12 @@ static inline void tcg_gen_muls2_i32(TCGv_i32 rl, TCGv_i32 rh,
         tcg_gen_op3_i32(INDEX_op_mulsh_i32, rh, arg1, arg2);
         tcg_gen_mov_i32(rl, t);
         tcg_temp_free_i32(t);
-    } else if (TCG_TARGET_REG_BITS == 32 && TCG_TARGET_HAS_mulu2_i32) {
+    } else if (TCG_TARGET_REG_BITS == 32) {
         TCGv_i32 t0 = tcg_temp_new_i32();
         TCGv_i32 t1 = tcg_temp_new_i32();
         TCGv_i32 t2 = tcg_temp_new_i32();
         TCGv_i32 t3 = tcg_temp_new_i32();
-        tcg_gen_op4_i32(INDEX_op_mulu2_i32, t0, t1, arg1, arg2);
-        /* Allow the optimizer room to replace mulu2 with two moves.  */
-        tcg_gen_op0(INDEX_op_nop);
+        tcg_gen_mulu2_i32(t0, t1, arg1, arg2);
         /* Adjust for negative inputs.  */
         tcg_gen_sari_i32(t2, arg1, 31);
         tcg_gen_sari_i32(t3, arg2, 31);
@@ -2522,35 +2407,10 @@ static inline void tcg_gen_mulu2_i64(TCGv_i64 rl, TCGv_i64 rh,
         tcg_gen_op3_i64(INDEX_op_muluh_i64, rh, arg1, arg2);
         tcg_gen_mov_i64(rl, t);
         tcg_temp_free_i64(t);
-    } else if (TCG_TARGET_HAS_mulu2_i64) {
-        TCGv_i64 t0 = tcg_temp_new_i64();
-        TCGv_i64 t1 = tcg_temp_new_i64();
-        TCGv_i64 t2 = tcg_temp_new_i64();
-        TCGv_i64 t3 = tcg_temp_new_i64();
-        tcg_gen_op4_i64(INDEX_op_mulu2_i64, t0, t1, arg1, arg2);
-        /* Allow the optimizer room to replace mulu2 with two moves.  */
-        tcg_gen_op0(INDEX_op_nop);
-        /* Adjust for negative inputs.  */
-        tcg_gen_sari_i64(t2, arg1, 63);
-        tcg_gen_sari_i64(t3, arg2, 63);
-        tcg_gen_and_i64(t2, t2, arg2);
-        tcg_gen_and_i64(t3, t3, arg1);
-        tcg_gen_sub_i64(rh, t1, t2);
-        tcg_gen_sub_i64(rh, rh, t3);
-        tcg_gen_mov_i64(rl, t0);
-        tcg_temp_free_i64(t0);
-        tcg_temp_free_i64(t1);
-        tcg_temp_free_i64(t2);
-        tcg_temp_free_i64(t3);
     } else {
         TCGv_i64 t0 = tcg_temp_new_i64();
-        int sizemask = 0;
-        /* Return value and both arguments are 64-bit and unsigned.  */
-        sizemask |= tcg_gen_sizemask(0, 1, 0);
-        sizemask |= tcg_gen_sizemask(1, 1, 0);
-        sizemask |= tcg_gen_sizemask(2, 1, 0);
         tcg_gen_mul_i64(t0, arg1, arg2);
-        tcg_gen_helper64(tcg_helper_muluh_i64, sizemask, rh, arg1, arg2);
+        gen_helper_muluh_i64(rh, arg1, arg2);
         tcg_gen_mov_i64(rl, t0);
         tcg_temp_free_i64(t0);
     }
@@ -2569,15 +2429,28 @@ static inline void tcg_gen_muls2_i64(TCGv_i64 rl, TCGv_i64 rh,
         tcg_gen_op3_i64(INDEX_op_mulsh_i64, rh, arg1, arg2);
         tcg_gen_mov_i64(rl, t);
         tcg_temp_free_i64(t);
+    } else if (TCG_TARGET_HAS_mulu2_i64 || TCG_TARGET_HAS_muluh_i64) {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        TCGv_i64 t2 = tcg_temp_new_i64();
+        TCGv_i64 t3 = tcg_temp_new_i64();
+        tcg_gen_mulu2_i64(t0, t1, arg1, arg2);
+        /* Adjust for negative inputs.  */
+        tcg_gen_sari_i64(t2, arg1, 63);
+        tcg_gen_sari_i64(t3, arg2, 63);
+        tcg_gen_and_i64(t2, t2, arg2);
+        tcg_gen_and_i64(t3, t3, arg1);
+        tcg_gen_sub_i64(rh, t1, t2);
+        tcg_gen_sub_i64(rh, rh, t3);
+        tcg_gen_mov_i64(rl, t0);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+        tcg_temp_free_i64(t2);
+        tcg_temp_free_i64(t3);
     } else {
         TCGv_i64 t0 = tcg_temp_new_i64();
-        int sizemask = 0;
-        /* Return value and both arguments are 64-bit and signed.  */
-        sizemask |= tcg_gen_sizemask(0, 1, 1);
-        sizemask |= tcg_gen_sizemask(1, 1, 1);
-        sizemask |= tcg_gen_sizemask(2, 1, 1);
         tcg_gen_mul_i64(t0, arg1, arg2);
-        tcg_gen_helper64(tcg_helper_mulsh_i64, sizemask, rh, arg1, arg2);
+        gen_helper_mulsh_i64(rh, arg1, arg2);
         tcg_gen_mov_i64(rl, t0);
         tcg_temp_free_i64(t0);
     }
@@ -2865,7 +2738,7 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_gen_muls2_tl tcg_gen_muls2_i32
 #endif
 
-#if TCG_TARGET_REG_BITS == 32
+#if UINTPTR_MAX == UINT32_MAX
 # define tcg_gen_ld_ptr(R, A, O) \
     tcg_gen_ld_i32(TCGV_PTR_TO_NAT(R), (A), (O))
 # define tcg_gen_discard_ptr(A) \
@@ -2887,4 +2760,4 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
     tcg_gen_addi_i64(TCGV_PTR_TO_NAT(R), TCGV_PTR_TO_NAT(A), (B))
 # define tcg_gen_ext_i32_ptr(R, A) \
     tcg_gen_ext_i32_i64(TCGV_PTR_TO_NAT(R), (A))
-#endif /* TCG_TARGET_REG_BITS == 32 */
+#endif /* UINTPTR_MAX == UINT32_MAX */

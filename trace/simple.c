@@ -28,7 +28,7 @@
 #define HEADER_MAGIC 0xf2b177cb0aa429b4ULL
 
 /** Trace file version number, bump if format changes */
-#define HEADER_VERSION 2
+#define HEADER_VERSION 3
 
 /** Records were dropped event ID */
 #define DROPPED_EVENT_ID (~(uint64_t)0 - 1)
@@ -413,15 +413,6 @@ static GThread *trace_thread_create(GThreadFunc fn)
 bool trace_backend_init(const char *events, const char *file)
 {
     GThread *thread;
-
-    if (!g_thread_supported()) {
-#if !GLIB_CHECK_VERSION(2, 31, 0)
-        g_thread_init(NULL);
-#else
-        fprintf(stderr, "glib threading failed to initialize.\n");
-        exit(1);
-#endif
-    }
 
 #if !GLIB_CHECK_VERSION(2, 31, 0)
     trace_available_cond = g_cond_new();

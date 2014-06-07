@@ -18,7 +18,6 @@
 #include "config-host.h"
 #include "qemu/queue.h"
 #include "qom/cpu.h"
-#include "sysemu/qemumachine.h"
 
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
@@ -153,7 +152,7 @@ extern KVMState *kvm_state;
 
 /* external API */
 
-int kvm_init(QEMUMachine *machine);
+int kvm_init(MachineClass *mc);
 
 int kvm_has_sync_mmu(void);
 int kvm_has_vcpu_events(void);
@@ -246,8 +245,6 @@ int kvm_arch_init_vcpu(CPUState *cpu);
 /* Returns VCPU ID to be used on KVM_CREATE_VCPU ioctl() */
 unsigned long kvm_arch_vcpu_id(CPUState *cpu);
 
-void kvm_arch_reset_vcpu(CPUState *cpu);
-
 int kvm_arch_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
 int kvm_arch_on_sigbus(int code, void *addr);
 
@@ -295,6 +292,36 @@ bool kvm_arch_stop_on_emulation_error(CPUState *cpu);
 
 int kvm_check_extension(KVMState *s, unsigned int extension);
 
+#define kvm_vm_enable_cap(s, capability, cap_flags, ...)             \
+    ({                                                               \
+        struct kvm_enable_cap cap = {                                \
+            .cap = capability,                                       \
+            .flags = cap_flags,                                      \
+        };                                                           \
+        uint64_t args_tmp[] = { __VA_ARGS__ };                       \
+        int i;                                                       \
+        for (i = 0; i < (int)ARRAY_SIZE(args_tmp) &&                 \
+                     i < ARRAY_SIZE(cap.args); i++) {                \
+            cap.args[i] = args_tmp[i];                               \
+        }                                                            \
+        kvm_vm_ioctl(s, KVM_ENABLE_CAP, &cap);                       \
+    })
+
+#define kvm_vcpu_enable_cap(cpu, capability, cap_flags, ...)         \
+    ({                                                               \
+        struct kvm_enable_cap cap = {                                \
+            .cap = capability,                                       \
+            .flags = cap_flags,                                      \
+        };                                                           \
+        uint64_t args_tmp[] = { __VA_ARGS__ };                       \
+        int i;                                                       \
+        for (i = 0; i < (int)ARRAY_SIZE(args_tmp) &&                 \
+                     i < ARRAY_SIZE(cap.args); i++) {                \
+            cap.args[i] = args_tmp[i];                               \
+        }                                                            \
+        kvm_vcpu_ioctl(cpu, KVM_ENABLE_CAP, &cap);                   \
+    })
+
 uint32_t kvm_arch_get_supported_cpuid(KVMState *env, uint32_t function,
                                       uint32_t index, int reg);
 
@@ -336,6 +363,8 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg);
 int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg);
 void kvm_irqchip_release_virq(KVMState *s, int virq);
 
+int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter);
+
 int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n,
                                    EventNotifier *rn, int virq);
 int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n, int virq);
@@ -354,4 +383,24 @@ void kvm_init_irq_routing(KVMState *s);
  *          > 0: irq chip was created
  */
 int kvm_arch_irqchip_create(KVMState *s);
+
+/**
+ * kvm_set_one_reg - set a register value in KVM via KVM_SET_ONE_REG ioctl
+ * @id: The register ID
+ * @source: The pointer to the value to be set. It must point to a variable
+ *          of the correct type/size for the register being accessed.
+ *
+ * Returns: 0 on success, or a negative errno on failure.
+ */
+int kvm_set_one_reg(CPUState *cs, uint64_t id, void *source);
+
+/**
+ * kvm_get_one_reg - get a register value from KVM via KVM_GET_ONE_REG ioctl
+ * @id: The register ID
+ * @target: The pointer where the value is to be stored. It must point to a
+ *          variable of the correct type/size for the register being accessed.
+ *
+ * Returns: 0 on success, or a negative errno on failure.
+ */
+int kvm_get_one_reg(CPUState *cs, uint64_t id, void *target);
 #endif

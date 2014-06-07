@@ -101,11 +101,11 @@ static void leon3_set_pil_in(void *opaque, uint32_t pil_in)
     }
 }
 
-static void leon3_generic_hw_init(QEMUMachineInitArgs *args)
+static void leon3_generic_hw_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
     SPARCCPU *cpu;
     CPUSPARCState   *env;
     MemoryRegion *address_space_mem = get_system_memory();

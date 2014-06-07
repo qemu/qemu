@@ -150,6 +150,7 @@ _filter_win32()
 _filter_qemu_io()
 {
     _filter_win32 | sed -e "s/[0-9]* ops\; [0-9/:. sec]* ([0-9/.inf]* [EPTGMKiBbytes]*\/sec and [0-9/.inf]* ops\/sec)/X ops\; XX:XX:XX.X (XXX YYY\/sec and XXX ops\/sec)/" \
+        -e "s/: line [0-9][0-9]*:  *[0-9][0-9]*\( Aborted\)/:\1/" \
         -e "s/qemu-io> //g"
 }
 

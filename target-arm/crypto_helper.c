@@ -13,7 +13,7 @@
 
 #include "cpu.h"
 #include "exec/exec-all.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 
 union AES_STATE {
     uint8_t    bytes[16];

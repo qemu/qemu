@@ -104,6 +104,13 @@ truncate -s 10M $TEST_IMG
 _img_info
 
 echo
+echo "=== Converting to streamOptimized from image with small cluster size==="
+TEST_IMG="$TEST_IMG.qcow2" IMGFMT=qcow2 IMGOPTS="cluster_size=4096" _make_test_img 1G
+$QEMU_IO -c "write -P 0xa 0 512" "$TEST_IMG.qcow2" | _filter_qemu_io
+$QEMU_IO -c "write -P 0xb 10240 512" "$TEST_IMG.qcow2" | _filter_qemu_io
+$QEMU_IMG convert -f qcow2 -O vmdk -o subformat=streamOptimized "$TEST_IMG.qcow2" "$TEST_IMG" 2>&1
+
+echo
 echo "=== Testing version 3 ==="
 _use_sample_img iotest-version3.vmdk.bz2
 _img_info

@@ -148,7 +148,7 @@ typedef void (*vgic_translate_fn)(GICState *s, int irq, int cpu,
                                   uint32_t *field, bool to_kernel);
 
 /* synthetic translate function used for clear/set registers to completely
- * clear a setting using a clear-register before setting the remaing bits
+ * clear a setting using a clear-register before setting the remaining bits
  * using a set-register */
 static void translate_clear(GICState *s, int irq, int cpu,
                             uint32_t *field, bool to_kernel)
@@ -517,10 +517,12 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
     GICState *s = KVM_ARM_GIC(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     KVMARMGICClass *kgc = KVM_ARM_GIC_GET_CLASS(s);
+    Error *local_err = NULL;
     int ret;
 
-    kgc->parent_realize(dev, errp);
-    if (error_is_set(errp)) {
+    kgc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 

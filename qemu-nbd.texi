@@ -15,7 +15,7 @@ Export QEMU disk image using NBD protocol.
 @item @var{filename}
  is a disk image filename
 @item -p, --port=@var{port}
-  port to listen on (default @samp{1024})
+  port to listen on (default @samp{10809})
 @item -o, --offset=@var{offset}
   offset into the image
 @item -b, --bind=@var{iface}

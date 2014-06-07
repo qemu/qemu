@@ -54,8 +54,6 @@ typedef uint64_t tcg_target_ulong;
 #error unsupported
 #endif
 
-#include "tcg-runtime.h"
-
 #if TCG_TARGET_NB_REGS <= 32
 typedef uint32_t TCGRegSet;
 #elif TCG_TARGET_NB_REGS <= 64
@@ -66,6 +64,7 @@ typedef uint64_t TCGRegSet;
 
 #if TCG_TARGET_REG_BITS == 32
 /* Turn some undef macros into false macros.  */
+#define TCG_TARGET_HAS_trunc_shr_i32    0
 #define TCG_TARGET_HAS_div_i64          0
 #define TCG_TARGET_HAS_rem_i64          0
 #define TCG_TARGET_HAS_div2_i64         0
@@ -97,7 +96,6 @@ typedef uint64_t TCGRegSet;
 /* Turn some undef macros into true macros.  */
 #define TCG_TARGET_HAS_add2_i32         1
 #define TCG_TARGET_HAS_sub2_i32         1
-#define TCG_TARGET_HAS_mulu2_i32        1
 #endif
 
 #ifndef TCG_TARGET_deposit_i32_valid
@@ -121,6 +119,13 @@ typedef uint64_t TCGRegSet;
 #define TCG_TARGET_HAS_rem_i64          0
 #endif
 
+/* For 32-bit targets, some sort of unsigned widening multiply is required.  */
+#if TCG_TARGET_REG_BITS == 32 \
+    && !(defined(TCG_TARGET_HAS_mulu2_i32) \
+         || defined(TCG_TARGET_HAS_muluh_i32))
+# error "Missing unsigned widening multiply"
+#endif
+
 typedef enum TCGOpcode {
 #define DEF(name, oargs, iargs, cargs, flags) INDEX_op_ ## name,
 #include "tcg-opc.h"
@@ -139,10 +144,25 @@ typedef enum TCGOpcode {
 #define tcg_regset_andnot(d, a, b) (d) = (a) & ~(b)
 #define tcg_regset_not(d, a) (d) = ~(a)
 
+#ifndef TCG_TARGET_INSN_UNIT_SIZE
+# error "Missing TCG_TARGET_INSN_UNIT_SIZE"
+#elif TCG_TARGET_INSN_UNIT_SIZE == 1
+typedef uint8_t tcg_insn_unit;
+#elif TCG_TARGET_INSN_UNIT_SIZE == 2
+typedef uint16_t tcg_insn_unit;
+#elif TCG_TARGET_INSN_UNIT_SIZE == 4
+typedef uint32_t tcg_insn_unit;
+#elif TCG_TARGET_INSN_UNIT_SIZE == 8
+typedef uint64_t tcg_insn_unit;
+#else
+/* The port better have done this.  */
+#endif
+
+
 typedef struct TCGRelocation {
     struct TCGRelocation *next;
     int type;
-    uint8_t *ptr;
+    tcg_insn_unit *ptr;
     intptr_t addend;
 } TCGRelocation; 
 
@@ -150,6 +170,7 @@ typedef struct TCGLabel {
     int has_value;
     union {
         uintptr_t value;
+        tcg_insn_unit *value_ptr;
         TCGRelocation *first_reloc;
     } u;
 } TCGLabel;
@@ -457,7 +478,7 @@ struct TCGContext {
     int nb_temps;
 
     /* goto_tb support */
-    uint8_t *code_buf;
+    tcg_insn_unit *code_buf;
     uintptr_t *tb_next;
     uint16_t *tb_next_offset;
     uint16_t *tb_jmp_offset; /* != NULL if USE_DIRECT_JUMP */
@@ -478,7 +499,7 @@ struct TCGContext {
     intptr_t frame_end;
     int frame_reg;
 
-    uint8_t *code_ptr;
+    tcg_insn_unit *code_ptr;
     TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */
     TCGTempSet free_temps[TCG_TYPE_COUNT * 2];
 
@@ -517,14 +538,17 @@ struct TCGContext {
     uint16_t gen_opc_icount[OPC_BUF_SIZE];
     uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 
-    /* Code generation */
+    /* Code generation.  Note that we specifically do not use tcg_insn_unit
+       here, because there's too much arithmetic throughout that relies
+       on addition and subtraction working on bytes.  Rely on the GCC
+       extension that allows arithmetic on void*.  */
     int code_gen_max_blocks;
-    uint8_t *code_gen_prologue;
-    uint8_t *code_gen_buffer;
+    void *code_gen_prologue;
+    void *code_gen_buffer;
     size_t code_gen_buffer_size;
     /* threshold to flush the translated code buffer */
     size_t code_gen_buffer_max_size;
-    uint8_t *code_gen_ptr;
+    void *code_gen_ptr;
 
     TBContext tb_ctx;
 
@@ -559,8 +583,9 @@ void tcg_context_init(TCGContext *s);
 void tcg_prologue_init(TCGContext *s);
 void tcg_func_start(TCGContext *s);
 
-int tcg_gen_code(TCGContext *s, uint8_t *gen_code_buf);
-int tcg_gen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset);
+int tcg_gen_code(TCGContext *s, tcg_insn_unit *gen_code_buf);
+int tcg_gen_code_search_pc(TCGContext *s, tcg_insn_unit *gen_code_buf,
+                           long offset);
 
 void tcg_set_frame(TCGContext *s, int reg, intptr_t start, intptr_t size);
 
@@ -698,8 +723,8 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs);
 #define tcg_temp_free_ptr(T) tcg_temp_free_i64(TCGV_PTR_TO_NAT(T))
 #endif
 
-void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
-                   int sizemask, TCGArg ret, int nargs, TCGArg *args);
+void tcg_gen_callN(TCGContext *s, void *func,
+                   TCGArg ret, int nargs, TCGArg *args);
 
 void tcg_gen_shifti_i64(TCGv_i64 ret, TCGv_i64 arg1,
                         int c, int right, int arith);
@@ -715,6 +740,51 @@ TCGv_i32 tcg_const_i32(int32_t val);
 TCGv_i64 tcg_const_i64(int64_t val);
 TCGv_i32 tcg_const_local_i32(int32_t val);
 TCGv_i64 tcg_const_local_i64(int64_t val);
+
+/**
+ * tcg_ptr_byte_diff
+ * @a, @b: addresses to be differenced
+ *
+ * There are many places within the TCG backends where we need a byte
+ * difference between two pointers.  While this can be accomplished
+ * with local casting, it's easy to get wrong -- especially if one is
+ * concerned with the signedness of the result.
+ *
+ * This version relies on GCC's void pointer arithmetic to get the
+ * correct result.
+ */
+
+static inline ptrdiff_t tcg_ptr_byte_diff(void *a, void *b)
+{
+    return a - b;
+}
+
+/**
+ * tcg_pcrel_diff
+ * @s: the tcg context
+ * @target: address of the target
+ *
+ * Produce a pc-relative difference, from the current code_ptr
+ * to the destination address.
+ */
+
+static inline ptrdiff_t tcg_pcrel_diff(TCGContext *s, void *target)
+{
+    return tcg_ptr_byte_diff(target, s->code_ptr);
+}
+
+/**
+ * tcg_current_code_size
+ * @s: the tcg context
+ *
+ * Compute the current code size within the translation block.
+ * This is used to fill in qemu's data structures for goto_tb.
+ */
+
+static inline size_t tcg_current_code_size(TCGContext *s)
+{
+    return tcg_ptr_byte_diff(s->code_ptr, s->code_buf);
+}
 
 /**
  * tcg_qemu_tb_exec:

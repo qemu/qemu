@@ -21,6 +21,18 @@ void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
     }
 }
 
+void qdev_prop_allow_set_link_before_realize(Object *obj, const char *name,
+                                             Object *val, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+
+    if (dev->realized) {
+        error_setg(errp, "Attempt to set link property '%s' on device '%s' "
+                   "(type '%s') after it was realized",
+                   name, dev->id, object_get_typename(obj));
+    }
+}
+
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop)
 {
     void *ptr = dev;
@@ -575,8 +587,9 @@ static void set_blocksize(Object *obj, Visitor *v, void *opaque,
 
     /* We rely on power-of-2 blocksizes for bitmasks */
     if ((value & (value - 1)) != 0) {
-        error_set(errp, QERR_PROPERTY_VALUE_NOT_POWER_OF_2,
-                  dev->id?:"", name, (int64_t)value);
+        error_setg(errp,
+                  "Property %s.%s doesn't take value '%" PRId64 "', it's not a power of 2",
+                  dev->id ?: "", name, (int64_t)value);
         return;
     }
 
@@ -738,6 +751,7 @@ static void set_prop_arraylen(Object *obj, Visitor *v, void *opaque,
     Property *prop = opaque;
     uint32_t *alenptr = qdev_get_prop_ptr(dev, prop);
     void **arrayptr = (void *)dev + prop->arrayoffset;
+    Error *local_err = NULL;
     void *eltptr;
     const char *arrayname;
     int i;
@@ -751,8 +765,9 @@ static void set_prop_arraylen(Object *obj, Visitor *v, void *opaque,
                    name);
         return;
     }
-    visit_type_uint32(v, alenptr, name, errp);
-    if (error_is_set(errp)) {
+    visit_type_uint32(v, alenptr, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
     if (!*alenptr) {
@@ -789,8 +804,9 @@ static void set_prop_arraylen(Object *obj, Visitor *v, void *opaque,
                             arrayprop->prop.info->get,
                             arrayprop->prop.info->set,
                             array_element_release,
-                            arrayprop, errp);
-        if (error_is_set(errp)) {
+                            arrayprop, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
             return;
         }
     }
@@ -841,7 +857,7 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
 {
     switch (ret) {
     case -EEXIST:
-        error_set(errp, QERR_PROPERTY_VALUE_IN_USE,
+        error_setg(errp, "Property '%s.%s' can't take value '%s', it's in use",
                   object_get_typename(OBJECT(dev)), prop->name, value);
         break;
     default:
@@ -850,7 +866,7 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
                   object_get_typename(OBJECT(dev)), prop->name, value);
         break;
     case -ENOENT:
-        error_set(errp, QERR_PROPERTY_VALUE_NOT_FOUND,
+        error_setg(errp, "Property '%s.%s' can't find value '%s'",
                   object_get_typename(OBJECT(dev)), prop->name, value);
         break;
     case 0:

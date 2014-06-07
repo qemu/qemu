@@ -219,12 +219,12 @@ static struct QEMU_PACKED
     char kernel_cmdline[256];
 } boot_params;
 
-static void r2d_init(QEMUMachineInitArgs *args)
+static void r2d_init(MachineState *machine)
 {
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     SuperHCPU *cpu;
     CPUSH4State *env;
     ResetData *reset_info;

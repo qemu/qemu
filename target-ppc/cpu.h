@@ -334,6 +334,7 @@ struct ppc_spr_t {
     void (*hea_write)(void *opaque, int spr_num, int gpr_num);
 #endif
     const char *name;
+    target_ulong default_value;
 #ifdef CONFIG_KVM
     /* We (ab)use the fact that all the SPRs will have ids for the
      * ONE_REG interface will have KVM_REG_PPC to use 0 as meaning,
@@ -1111,8 +1112,8 @@ int cpu_ppc_signal_handler (int host_signum, void *pinfo,
                             void *puc);
 void ppc_hw_interrupt (CPUPPCState *env);
 #if defined(CONFIG_USER_ONLY)
-int cpu_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
-                         int mmu_idx);
+int ppc_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
+                             int mmu_idx);
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
@@ -1132,6 +1133,7 @@ uint64_t cpu_ppc_load_atbl (CPUPPCState *env);
 uint32_t cpu_ppc_load_atbu (CPUPPCState *env);
 void cpu_ppc_store_atbl (CPUPPCState *env, uint32_t value);
 void cpu_ppc_store_atbu (CPUPPCState *env, uint32_t value);
+bool ppc_decr_clear_on_delivery(CPUPPCState *env);
 uint32_t cpu_ppc_load_decr (CPUPPCState *env);
 void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
 uint32_t cpu_ppc_load_hdecr (CPUPPCState *env);
@@ -1900,6 +1902,8 @@ enum {
     PPC2_LSQ_ISA207    = 0x0000000000002000ULL,
     /* ISA 2.07 Altivec                                                      */
     PPC2_ALTIVEC_207   = 0x0000000000004000ULL,
+    /* PowerISA 2.07 Book3s specification                                    */
+    PPC2_ISA207S       = 0x0000000000008000ULL,
 
 #define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_VSX | PPC2_PRCNTL | PPC2_DBRX | \
                         PPC2_ISA205 | PPC2_VSX207 | PPC2_PERM_ISA206 | \
@@ -2038,9 +2042,6 @@ enum {
     PPC_INTERRUPT_PERFM,          /* Performance monitor interrupt        */
 };
 
-/* CPU should be reset next, restart from scratch afterwards */
-#define CPU_INTERRUPT_RESET       CPU_INTERRUPT_TGT_INT_0
-
 /*****************************************************************************/
 
 static inline target_ulong cpu_read_xer(CPUPPCState *env)
@@ -2100,7 +2101,7 @@ static inline int booke206_tlbm_to_tlbn(CPUPPCState *env, ppcmas_tlb_t *tlbm)
         }
     }
 
-    cpu_abort(env, "Unknown TLBe: %d\n", id);
+    cpu_abort(CPU(ppc_env_get_cpu(env)), "Unknown TLBe: %d\n", id);
     return 0;
 }
 
@@ -2170,14 +2171,6 @@ static inline bool msr_is_64bit(CPUPPCState *env, target_ulong msr)
 }
 
 extern void (*cpu_ppc_hypercall)(PowerPCCPU *);
-
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    PowerPCCPU *ppc_cpu = POWERPC_CPU(cpu);
-    CPUPPCState *env = &ppc_cpu->env;
-
-    return msr_ee && (cpu->interrupt_request & CPU_INTERRUPT_HARD);
-}
 
 #include "exec/exec-all.h"
 

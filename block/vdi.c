@@ -31,7 +31,7 @@
  * Allocation of blocks could be optimized (less writes to block map and
  * header).
  *
- * Read and write of adjacents blocks could be done in one operation
+ * Read and write of adjacent blocks could be done in one operation
  * (current code uses one operation per block (1 MiB).
  *
  * The code is not thread safe (missing locks for changes in header and
@@ -119,6 +119,11 @@ typedef unsigned char uuid_t[16];
 #define VDI_DISCARDED   0xfffffffeU
 
 #define VDI_IS_ALLOCATED(X) ((X) < VDI_DISCARDED)
+
+/* max blocks in image is (0xffffffff / 4) */
+#define VDI_BLOCKS_IN_IMAGE_MAX  0x3fffffff
+#define VDI_DISK_SIZE_MAX        ((uint64_t)VDI_BLOCKS_IN_IMAGE_MAX * \
+                                  (uint64_t)DEFAULT_CLUSTER_SIZE)
 
 #if !defined(CONFIG_UUID)
 static inline void uuid_generate(uuid_t out)
@@ -385,6 +390,14 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     vdi_header_print(&header);
 #endif
 
+    if (header.disk_size > VDI_DISK_SIZE_MAX) {
+        error_setg(errp, "Unsupported VDI image size (size is 0x%" PRIx64
+                          ", max supported is 0x%" PRIx64 ")",
+                          header.disk_size, VDI_DISK_SIZE_MAX);
+        ret = -ENOTSUP;
+        goto fail;
+    }
+
     if (header.disk_size % SECTOR_SIZE != 0) {
         /* 'VBoxManage convertfromraw' can create images with odd disk sizes.
            We accept them but round the disk size to the next multiple of
@@ -395,34 +408,35 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (header.signature != VDI_SIGNATURE) {
-        error_setg(errp, "Image not in VDI format (bad signature %08x)", header.signature);
+        error_setg(errp, "Image not in VDI format (bad signature %08" PRIx32
+                   ")", header.signature);
         ret = -EINVAL;
         goto fail;
     } else if (header.version != VDI_VERSION_1_1) {
-        error_setg(errp, "unsupported VDI image (version %u.%u)",
-                   header.version >> 16, header.version & 0xffff);
+        error_setg(errp, "unsupported VDI image (version %" PRIu32 ".%" PRIu32
+                   ")", header.version >> 16, header.version & 0xffff);
         ret = -ENOTSUP;
         goto fail;
     } else if (header.offset_bmap % SECTOR_SIZE != 0) {
         /* We only support block maps which start on a sector boundary. */
         error_setg(errp, "unsupported VDI image (unaligned block map offset "
-                   "0x%x)", header.offset_bmap);
+                   "0x%" PRIx32 ")", header.offset_bmap);
         ret = -ENOTSUP;
         goto fail;
     } else if (header.offset_data % SECTOR_SIZE != 0) {
         /* We only support data blocks which start on a sector boundary. */
-        error_setg(errp, "unsupported VDI image (unaligned data offset 0x%x)",
-                   header.offset_data);
+        error_setg(errp, "unsupported VDI image (unaligned data offset 0x%"
+                   PRIx32 ")", header.offset_data);
         ret = -ENOTSUP;
         goto fail;
     } else if (header.sector_size != SECTOR_SIZE) {
-        error_setg(errp, "unsupported VDI image (sector size %u is not %u)",
-                   header.sector_size, SECTOR_SIZE);
+        error_setg(errp, "unsupported VDI image (sector size %" PRIu32
+                   " is not %u)", header.sector_size, SECTOR_SIZE);
         ret = -ENOTSUP;
         goto fail;
-    } else if (header.block_size != 1 * MiB) {
-        error_setg(errp, "unsupported VDI image (sector size %u is not %u)",
-                   header.block_size, 1 * MiB);
+    } else if (header.block_size != DEFAULT_CLUSTER_SIZE) {
+        error_setg(errp, "unsupported VDI image (block size %" PRIu32
+                   " is not %u)", header.block_size, DEFAULT_CLUSTER_SIZE);
         ret = -ENOTSUP;
         goto fail;
     } else if (header.disk_size >
@@ -439,6 +453,12 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     } else if (!uuid_is_null(header.uuid_parent)) {
         error_setg(errp, "unsupported VDI image (non-NULL parent UUID)");
+        ret = -ENOTSUP;
+        goto fail;
+    } else if (header.blocks_in_image > VDI_BLOCKS_IN_IMAGE_MAX) {
+        error_setg(errp, "unsupported VDI image "
+                         "(too many blocks %u, max is %u)",
+                          header.blocks_in_image, VDI_BLOCKS_IN_IMAGE_MAX);
         ret = -ENOTSUP;
         goto fail;
     }
@@ -689,11 +709,20 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options,
         options++;
     }
 
+    if (bytes > VDI_DISK_SIZE_MAX) {
+        result = -ENOTSUP;
+        error_setg(errp, "Unsupported VDI image size (size is 0x%" PRIx64
+                          ", max supported is 0x%" PRIx64 ")",
+                          bytes, VDI_DISK_SIZE_MAX);
+        goto exit;
+    }
+
     fd = qemu_open(filename,
                    O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE,
                    0644);
     if (fd < 0) {
-        return -errno;
+        result = -errno;
+        goto exit;
     }
 
     /* We need enough blocks to store the given disk size,
@@ -727,6 +756,7 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options,
     vdi_header_to_le(&header);
     if (write(fd, &header, sizeof(header)) < 0) {
         result = -errno;
+        goto close_and_exit;
     }
 
     if (bmap_size > 0) {
@@ -740,6 +770,8 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options,
         }
         if (write(fd, bmap, bmap_size) < 0) {
             result = -errno;
+            g_free(bmap);
+            goto close_and_exit;
         }
         g_free(bmap);
     }
@@ -747,13 +779,16 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options,
     if (image_type == VDI_TYPE_STATIC) {
         if (ftruncate(fd, sizeof(header) + bmap_size + blocks * block_size)) {
             result = -errno;
+            goto close_and_exit;
         }
     }
 
-    if (close(fd) < 0) {
+close_and_exit:
+    if ((close(fd) < 0) && !result) {
         result = -errno;
     }
 
+exit:
     return result;
 }
 

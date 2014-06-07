@@ -72,6 +72,13 @@ echo "=== Verify open image read-only succeeds after log replay ==="
 $QEMU_IO -r -c "read -pP 0xa5 0 18M" "$TEST_IMG" 2>&1 | _filter_testdir \
                                                       | _filter_qemu_io
 
+_cleanup_test_img
+_use_sample_img test-disk2vhd.vhdx.bz2
+
+echo
+echo "=== Verify image created by Disk2VHD can be opened ==="
+$QEMU_IMG info "$TEST_IMG" 2>&1 | _filter_testdir | _filter_qemu
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

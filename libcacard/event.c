@@ -17,7 +17,7 @@ vevent_new(VEventType type, VReader *reader, VCard *card)
 {
     VEvent *new_vevent;
 
-    new_vevent = (VEvent *)g_malloc(sizeof(VEvent));
+    new_vevent = g_new(VEvent, 1);
     new_vevent->next = NULL;
     new_vevent->type = type;
     new_vevent->reader = vreader_reference(reader);

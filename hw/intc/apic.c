@@ -98,8 +98,8 @@ static void apic_sync_vapic(APICCommonState *s, int sync_type)
         return;
     }
     if (sync_type & SYNC_FROM_VAPIC) {
-        cpu_physical_memory_rw(s->vapic_paddr, (void *)&vapic_state,
-                               sizeof(vapic_state), 0);
+        cpu_physical_memory_read(s->vapic_paddr, &vapic_state,
+                                 sizeof(vapic_state));
         s->tpr = vapic_state.tpr;
     }
     if (sync_type & (SYNC_TO_VAPIC | SYNC_ISR_IRR_TO_VAPIC)) {
@@ -201,12 +201,12 @@ static void apic_external_nmi(APICCommonState *s)
 
 #define foreach_apic(apic, deliver_bitmask, code) \
 {\
-    int __i, __j, __mask;\
+    int __i, __j;\
     for(__i = 0; __i < MAX_APIC_WORDS; __i++) {\
-        __mask = deliver_bitmask[__i];\
+        uint32_t __mask = deliver_bitmask[__i];\
         if (__mask) {\
             for(__j = 0; __j < 32; __j++) {\
-                if (__mask & (1 << __j)) {\
+                if (__mask & (1U << __j)) {\
                     apic = local_apics[__i * 32 + __j];\
                     if (apic) {\
                         code;\
@@ -675,7 +675,7 @@ static uint32_t apic_mem_readl(void *opaque, hwaddr addr)
         val = s->id << 24;
         break;
     case 0x03: /* version */
-        val = 0x11 | ((APIC_LVT_NB - 1) << 16); /* version 0x11 */
+        val = s->version | ((APIC_LVT_NB - 1) << 16);
         break;
     case 0x08:
         apic_sync_vapic(s, SYNC_FROM_VAPIC);

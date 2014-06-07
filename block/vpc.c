@@ -45,6 +45,8 @@ enum vhd_type {
 // Seconds since Jan 1, 2000 0:00:00 (UTC)
 #define VHD_TIMESTAMP_BASE 946684800
 
+#define VHD_MAX_SECTORS       (65535LL * 255 * 255)
+
 // always big-endian
 typedef struct vhd_footer {
     char        creator[8]; // "conectix"
@@ -164,6 +166,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     VHDDynDiskHeader *dyndisk_header;
     uint8_t buf[HEADER_SIZE];
     uint32_t checksum;
+    uint64_t computed_size;
     int disk_type = VHD_DYNAMIC;
     int ret;
 
@@ -222,7 +225,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Allow a maximum disk size of approximately 2 TB */
-    if (bs->total_sectors >= 65535LL * 255 * 255) {
+    if (bs->total_sectors >= VHD_MAX_SECTORS) {
         ret = -EFBIG;
         goto fail;
     }
@@ -242,10 +245,31 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
         }
 
         s->block_size = be32_to_cpu(dyndisk_header->block_size);
+        if (!is_power_of_2(s->block_size) || s->block_size < BDRV_SECTOR_SIZE) {
+            error_setg(errp, "Invalid block size %" PRIu32, s->block_size);
+            ret = -EINVAL;
+            goto fail;
+        }
         s->bitmap_size = ((s->block_size / (8 * 512)) + 511) & ~511;
 
         s->max_table_entries = be32_to_cpu(dyndisk_header->max_table_entries);
-        s->pagetable = g_malloc(s->max_table_entries * 4);
+
+        if ((bs->total_sectors * 512) / s->block_size > 0xffffffffU) {
+            ret = -EINVAL;
+            goto fail;
+        }
+        if (s->max_table_entries > (VHD_MAX_SECTORS * 512) / s->block_size) {
+            ret = -EINVAL;
+            goto fail;
+        }
+
+        computed_size = (uint64_t) s->max_table_entries * s->block_size;
+        if (computed_size < bs->total_sectors * 512) {
+            ret = -EINVAL;
+            goto fail;
+        }
+
+        s->pagetable = qemu_blockalign(bs, s->max_table_entries * 4);
 
         s->bat_offset = be64_to_cpu(dyndisk_header->table_offset);
 
@@ -298,7 +322,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     return 0;
 
 fail:
-    g_free(s->pagetable);
+    qemu_vfree(s->pagetable);
 #ifdef CACHE
     g_free(s->pageentry_u8);
 #endif
@@ -833,7 +857,7 @@ static int vpc_has_zero_init(BlockDriverState *bs)
 static void vpc_close(BlockDriverState *bs)
 {
     BDRVVPCState *s = bs->opaque;
-    g_free(s->pagetable);
+    qemu_vfree(s->pagetable);
 #ifdef CACHE
     g_free(s->pageentry_u8);
 #endif

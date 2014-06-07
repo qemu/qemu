@@ -1,0 +1,1 @@
+tests/qapi-schema/include-self-cycle.json:1: Inclusion loop for include-self-cycle.json

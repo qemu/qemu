@@ -53,6 +53,7 @@
 #include "qemu/bitmap.h"
 #include "qemu/config-file.h"
 #include "hw/acpi/acpi.h"
+#include "hw/acpi/cpu_hotplug.h"
 #include "hw/cpu/icc_bus.h"
 #include "hw/boards.h"
 #include "hw/pci/pci_host.h"
@@ -470,11 +471,12 @@ static void port92_write(void *opaque, hwaddr addr, uint64_t val,
                          unsigned size)
 {
     Port92State *s = opaque;
+    int oldval = s->outport;
 
     DPRINTF("port92: write 0x%02x\n", val);
     s->outport = val;
     qemu_set_irq(*s->a20_out, (val >> 1) & 1);
-    if (val & 1) {
+    if ((val & 1) && !(oldval & 1)) {
         qemu_system_reset_request();
     }
 }
@@ -611,6 +613,21 @@ int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
     return e820_entries;
 }
 
+int e820_get_num_entries(void)
+{
+    return e820_entries;
+}
+
+bool e820_get_entry(int idx, uint32_t type, uint64_t *address, uint64_t *length)
+{
+    if (idx < e820_entries && e820_table[idx].type == cpu_to_le32(type)) {
+        *address = le64_to_cpu(e820_table[idx].address);
+        *length = le64_to_cpu(e820_table[idx].length);
+        return true;
+    }
+    return false;
+}
+
 /* Calculates the limit to CPU APIC ID values
  *
  * This function returns the limit for the APIC ID value, so that all
@@ -626,8 +643,8 @@ static unsigned int pc_apic_id_limit(unsigned int max_cpus)
 static FWCfgState *bochs_bios_init(void)
 {
     FWCfgState *fw_cfg;
-    uint8_t *smbios_table;
-    size_t smbios_len;
+    uint8_t *smbios_tables, *smbios_anchor;
+    size_t smbios_tables_len, smbios_anchor_len;
     uint64_t *numa_fw_cfg;
     int i, j;
     unsigned int apic_id_limit = pc_apic_id_limit(max_cpus);
@@ -654,10 +671,21 @@ static FWCfgState *bochs_bios_init(void)
                      acpi_tables, acpi_tables_len);
     fw_cfg_add_i32(fw_cfg, FW_CFG_IRQ0_OVERRIDE, kvm_allows_irq0_override());
 
-    smbios_table = smbios_get_table(&smbios_len);
-    if (smbios_table)
+    smbios_tables = smbios_get_table_legacy(&smbios_tables_len);
+    if (smbios_tables) {
         fw_cfg_add_bytes(fw_cfg, FW_CFG_SMBIOS_ENTRIES,
-                         smbios_table, smbios_len);
+                         smbios_tables, smbios_tables_len);
+    }
+
+    smbios_get_tables(&smbios_tables, &smbios_tables_len,
+                      &smbios_anchor, &smbios_anchor_len);
+    if (smbios_anchor) {
+        fw_cfg_add_file(fw_cfg, "etc/smbios/smbios-tables",
+                        smbios_tables, smbios_tables_len);
+        fw_cfg_add_file(fw_cfg, "etc/smbios/smbios-anchor",
+                        smbios_anchor, smbios_anchor_len);
+    }
+
     fw_cfg_add_bytes(fw_cfg, FW_CFG_E820_TABLE,
                      &e820_reserve, sizeof(e820_reserve));
     fw_cfg_add_file(fw_cfg, "etc/e820", e820_table,
@@ -974,6 +1002,13 @@ void pc_hot_add_cpu(const int64_t id, Error **errp)
         return;
     }
 
+    if (apic_id >= ACPI_CPU_HOTPLUG_ID_LIMIT) {
+        error_setg(errp, "Unable to add CPU: %" PRIi64
+                   ", resulting APIC ID (%" PRIi64 ") is too large",
+                   id, apic_id);
+        return;
+    }
+
     icc_bridge = DEVICE(object_resolve_path_type("icc-bridge",
                                                  TYPE_ICC_BRIDGE, NULL));
     pc_new_cpu(current_cpu_model, apic_id, icc_bridge, errp);
@@ -984,6 +1019,7 @@ void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
     int i;
     X86CPU *cpu = NULL;
     Error *error = NULL;
+    unsigned long apic_id_limit;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -994,6 +1030,13 @@ void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
 #endif
     }
     current_cpu_model = cpu_model;
+
+    apic_id_limit = pc_apic_id_limit(max_cpus);
+    if (apic_id_limit > ACPI_CPU_HOTPLUG_ID_LIMIT) {
+        error_report("max_cpus is too large. APIC ID of last CPU is %lu",
+                     apic_id_limit - 1);
+        exit(1);
+    }
 
     for (i = 0; i < smp_cpus; i++) {
         cpu = pc_new_cpu(cpu_model, x86_cpu_apic_id_from_index(i),
@@ -1011,6 +1054,9 @@ void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
         sysbus_mmio_map_overlap(SYS_BUS_DEVICE(icc_bridge), 0,
                                 APIC_DEFAULT_ADDRESS, 0x1000);
     }
+
+    /* tell smbios about cpuid version and features */
+    smbios_set_cpuid(cpu->env.cpuid_version, cpu->env.features[FEAT_1_EDX]);
 }
 
 /* pci-info ROM file. Little endian format */

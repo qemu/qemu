@@ -251,6 +251,17 @@ static void raw_parse_flags(int flags, int *access_flags, DWORD *overlapped)
     }
 }
 
+static void raw_parse_filename(const char *filename, QDict *options,
+                               Error **errp)
+{
+    /* The filename does not have to be prefixed by the protocol name, since
+     * "file" is the default protocol; therefore, the return value of this
+     * function call can be ignored. */
+    strstart(filename, "file:", &filename);
+
+    qdict_put_obj(options, "filename", QOBJECT(qstring_from_str(filename)));
+}
+
 static QemuOptsList raw_runtime_opts = {
     .name = "raw",
     .head = QTAILQ_HEAD_INITIALIZER(raw_runtime_opts.head),
@@ -379,6 +390,9 @@ static void raw_close(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     CloseHandle(s->hfile);
+    if (bs->open_flags & BDRV_O_TEMPORARY) {
+        unlink(bs->filename);
+    }
 }
 
 static int raw_truncate(BlockDriverState *bs, int64_t offset)
@@ -470,6 +484,8 @@ static int raw_create(const char *filename, QEMUOptionParameter *options,
     int fd;
     int64_t total_size = 0;
 
+    strstart(filename, "file:", &filename);
+
     /* Read out options */
     while (options && options->name) {
         if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
@@ -504,6 +520,7 @@ static BlockDriver bdrv_file = {
     .protocol_name	= "file",
     .instance_size	= sizeof(BDRVRawState),
     .bdrv_needs_filename = true,
+    .bdrv_parse_filename = raw_parse_filename,
     .bdrv_file_open	= raw_open,
     .bdrv_close		= raw_close,
     .bdrv_create	= raw_create,
@@ -579,6 +596,15 @@ static int hdev_probe_device(const char *filename)
     return 0;
 }
 
+static void hdev_parse_filename(const char *filename, QDict *options,
+                                Error **errp)
+{
+    /* The prefix is optional, just as for "file". */
+    strstart(filename, "host_device:", &filename);
+
+    qdict_put_obj(options, "filename", QOBJECT(qstring_from_str(filename)));
+}
+
 static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
@@ -649,6 +675,7 @@ static BlockDriver bdrv_host_device = {
     .protocol_name	= "host_device",
     .instance_size	= sizeof(BDRVRawState),
     .bdrv_needs_filename = true,
+    .bdrv_parse_filename = hdev_parse_filename,
     .bdrv_probe_device	= hdev_probe_device,
     .bdrv_file_open	= hdev_open,
     .bdrv_close		= raw_close,

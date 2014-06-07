@@ -272,8 +272,7 @@ static const VMStateDescription vmstate_ssd0303 = {
     .name = "ssd0303_oled",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_INT32(row, ssd0303_state),
         VMSTATE_INT32(col, ssd0303_state),
         VMSTATE_INT32(start_line, ssd0303_state),

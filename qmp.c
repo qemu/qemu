@@ -41,7 +41,7 @@ NameInfo *qmp_query_name(Error **errp)
     return info;
 }
 
-VersionInfo *qmp_query_version(Error **err)
+VersionInfo *qmp_query_version(Error **errp)
 {
     VersionInfo *info = g_malloc0(sizeof(*info));
     const char *version = QEMU_VERSION;
@@ -82,7 +82,7 @@ UuidInfo *qmp_query_uuid(Error **errp)
     return info;
 }
 
-void qmp_quit(Error **err)
+void qmp_quit(Error **errp)
 {
     no_shutdown = 0;
     qemu_system_shutdown_request();
@@ -114,8 +114,11 @@ void qmp_cpu(int64_t index, Error **errp)
 
 void qmp_cpu_add(int64_t id, Error **errp)
 {
-    if (current_machine->hot_add_cpu) {
-        current_machine->hot_add_cpu(id, errp);
+    MachineClass *mc;
+
+    mc = MACHINE_GET_CLASS(current_machine);
+    if (mc->hot_add_cpu) {
+        mc->hot_add_cpu(id, errp);
     } else {
         error_setg(errp, "Not supported");
     }
@@ -143,37 +146,27 @@ SpiceInfo *qmp_query_spice(Error **errp)
 };
 #endif
 
-static void iostatus_bdrv_it(void *opaque, BlockDriverState *bs)
-{
-    bdrv_iostatus_reset(bs);
-}
-
-static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs)
-{
-    Error **err = opaque;
-
-    if (!error_is_set(err) && bdrv_key_required(bs)) {
-        error_set(err, QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs),
-                  bdrv_get_encrypted_filename(bs));
-    }
-}
-
 void qmp_cont(Error **errp)
 {
-    Error *local_err = NULL;
+    BlockDriverState *bs;
 
     if (runstate_needs_reset()) {
-        error_set(errp, QERR_RESET_REQUIRED);
+        error_setg(errp, "Resetting the Virtual Machine is required");
         return;
     } else if (runstate_check(RUN_STATE_SUSPENDED)) {
         return;
     }
 
-    bdrv_iterate(iostatus_bdrv_it, NULL);
-    bdrv_iterate(encrypted_bdrv_it, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
+    for (bs = bdrv_next(NULL); bs; bs = bdrv_next(bs)) {
+        bdrv_iostatus_reset(bs);
+    }
+    for (bs = bdrv_next(NULL); bs; bs = bdrv_next(bs)) {
+        if (bdrv_key_required(bs)) {
+            error_set(errp, QERR_DEVICE_ENCRYPTED,
+                      bdrv_get_device_name(bs),
+                      bdrv_get_encrypted_filename(bs));
+            return;
+        }
     }
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
@@ -197,7 +190,11 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
 
     obj = object_resolve_path(path, &ambiguous);
     if (obj == NULL) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, path);
+        if (ambiguous) {
+            error_setg(errp, "Path '%s' is ambiguous", path);
+        } else {
+            error_set(errp, QERR_DEVICE_NOT_FOUND, path);
+        }
         return NULL;
     }
 
@@ -398,12 +395,12 @@ static void qmp_change_vnc(const char *target, bool has_arg, const char *arg,
 #endif /* !CONFIG_VNC */
 
 void qmp_change(const char *device, const char *target,
-                bool has_arg, const char *arg, Error **err)
+                bool has_arg, const char *arg, Error **errp)
 {
     if (strcmp(device, "vnc") == 0) {
-        qmp_change_vnc(target, has_arg, arg, err);
+        qmp_change_vnc(target, has_arg, arg, errp);
     } else {
-        qmp_change_blockdev(device, target, arg, err);
+        qmp_change_blockdev(device, target, arg, errp);
     }
 }
 
@@ -537,11 +534,24 @@ void object_add(const char *type, const char *id, const QDict *qdict,
                 Visitor *v, Error **errp)
 {
     Object *obj;
+    ObjectClass *klass;
     const QDictEntry *e;
     Error *local_err = NULL;
 
-    if (!object_class_by_name(type)) {
+    klass = object_class_by_name(type);
+    if (!klass) {
         error_setg(errp, "invalid class name");
+        return;
+    }
+
+    if (!object_class_dynamic_cast(klass, TYPE_USER_CREATABLE)) {
+        error_setg(errp, "object type '%s' isn't supported by object-add",
+                   type);
+        return;
+    }
+
+    if (object_class_is_abstract(klass)) {
+        error_setg(errp, "object type '%s' is abstract", type);
         return;
     }
 
@@ -553,12 +563,6 @@ void object_add(const char *type, const char *id, const QDict *qdict,
                 goto out;
             }
         }
-    }
-
-    if (!object_dynamic_cast(obj, TYPE_USER_CREATABLE)) {
-        error_setg(&local_err, "object type '%s' isn't supported by object-add",
-                   type);
-        goto out;
     }
 
     user_creatable_complete(obj, &local_err);

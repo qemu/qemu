@@ -272,7 +272,7 @@ static struct rtas_call {
     spapr_rtas_fn fn;
 } rtas_table[TOKEN_MAX];
 
-struct rtas_call *rtas_next = rtas_table;
+static struct rtas_call *rtas_next = rtas_table;
 
 target_ulong spapr_rtas_call(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                              uint32_t token, uint32_t nargs, target_ulong args,

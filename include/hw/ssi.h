@@ -23,6 +23,8 @@ typedef struct SSISlave SSISlave;
 #define SSI_SLAVE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(SSISlaveClass, (obj), TYPE_SSI_SLAVE)
 
+#define SSI_GPIO_CS "ssi-gpio-cs"
+
 typedef enum {
     SSI_CS_NONE = 0,
     SSI_CS_LOW,
@@ -56,13 +58,12 @@ typedef struct SSISlaveClass {
 } SSISlaveClass;
 
 struct SSISlave {
-    DeviceState qdev;
+    DeviceState parent_obj;
 
     /* Chip select state */
     bool cs;
 };
 
-#define SSI_SLAVE_FROM_QDEV(dev) DO_UPCAST(SSISlave, qdev, dev)
 #define FROM_SSI_SLAVE(type, dev) DO_UPCAST(type, ssidev, dev)
 
 extern const VMStateDescription vmstate_ssi_slave;

@@ -718,7 +718,6 @@ static void pcnet_s_reset(PCNetState *s)
     s->csr[94]  = 0x0000;
     s->csr[100] = 0x0200;
     s->csr[103] = 0x0105;
-    s->csr[103] = 0x0105;
     s->csr[112] = 0x0000;
     s->csr[114] = 0x0000;
     s->csr[122] = 0x0000;

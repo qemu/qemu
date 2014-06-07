@@ -34,15 +34,15 @@
 /* Timer Control Register */
 
 #define TCR_WP_SHIFT  30        /* Watchdog Timer Period */
-#define TCR_WP_MASK   (0x3 << TCR_WP_SHIFT)
+#define TCR_WP_MASK   (0x3U << TCR_WP_SHIFT)
 #define TCR_WRC_SHIFT 28        /* Watchdog Timer Reset Control */
-#define TCR_WRC_MASK  (0x3 << TCR_WRC_SHIFT)
-#define TCR_WIE       (1 << 27) /* Watchdog Timer Interrupt Enable */
-#define TCR_DIE       (1 << 26) /* Decrementer Interrupt Enable */
+#define TCR_WRC_MASK  (0x3U << TCR_WRC_SHIFT)
+#define TCR_WIE       (1U << 27) /* Watchdog Timer Interrupt Enable */
+#define TCR_DIE       (1U << 26) /* Decrementer Interrupt Enable */
 #define TCR_FP_SHIFT  24        /* Fixed-Interval Timer Period */
-#define TCR_FP_MASK   (0x3 << TCR_FP_SHIFT)
-#define TCR_FIE       (1 << 23) /* Fixed-Interval Timer Interrupt Enable */
-#define TCR_ARE       (1 << 22) /* Auto-Reload Enable */
+#define TCR_FP_MASK   (0x3U << TCR_FP_SHIFT)
+#define TCR_FIE       (1U << 23) /* Fixed-Interval Timer Interrupt Enable */
+#define TCR_ARE       (1U << 22) /* Auto-Reload Enable */
 
 /* Timer Control Register (e500 specific fields) */
 
@@ -53,12 +53,12 @@
 
 /* Timer Status Register  */
 
-#define TSR_FIS       (1 << 26) /* Fixed-Interval Timer Interrupt Status */
-#define TSR_DIS       (1 << 27) /* Decrementer Interrupt Status */
+#define TSR_FIS       (1U << 26) /* Fixed-Interval Timer Interrupt Status */
+#define TSR_DIS       (1U << 27) /* Decrementer Interrupt Status */
 #define TSR_WRS_SHIFT 28        /* Watchdog Timer Reset Status */
-#define TSR_WRS_MASK  (0x3 << TSR_WRS_SHIFT)
-#define TSR_WIS       (1 << 30) /* Watchdog Timer Interrupt Status */
-#define TSR_ENW       (1 << 31) /* Enable Next Watchdog Timer */
+#define TSR_WRS_MASK  (0x3U << TSR_WRS_SHIFT)
+#define TSR_WIS       (1U << 30) /* Watchdog Timer Interrupt Status */
+#define TSR_ENW       (1U << 31) /* Enable Next Watchdog Timer */
 
 typedef struct booke_timer_t booke_timer_t;
 struct booke_timer_t {

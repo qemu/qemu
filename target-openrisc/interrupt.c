@@ -27,9 +27,9 @@
 
 void openrisc_cpu_do_interrupt(CPUState *cs)
 {
+#ifndef CONFIG_USER_ONLY
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
     CPUOpenRISCState *env = &cpu->env;
-#ifndef CONFIG_USER_ONLY
 
     env->epcr = env->pc;
     if (env->flags & D_FLAG) {
@@ -37,13 +37,13 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
         env->sr |= SR_DSX;
         env->epcr -= 4;
     }
-    if (env->exception_index == EXCP_SYSCALL) {
+    if (cs->exception_index == EXCP_SYSCALL) {
         env->epcr += 4;
     }
 
     /* For machine-state changed between user-mode and supervisor mode,
        we need flush TLB when we enter&exit EXCP.  */
-    tlb_flush(env, 1);
+    tlb_flush(cs, 1);
 
     env->esr = env->sr;
     env->sr &= ~SR_DME;
@@ -54,12 +54,12 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
     env->tlb->cpu_openrisc_map_address_data = &cpu_openrisc_get_phys_nommu;
     env->tlb->cpu_openrisc_map_address_code = &cpu_openrisc_get_phys_nommu;
 
-    if (env->exception_index > 0 && env->exception_index < EXCP_NR) {
-        env->pc = (env->exception_index << 8);
+    if (cs->exception_index > 0 && cs->exception_index < EXCP_NR) {
+        env->pc = (cs->exception_index << 8);
     } else {
-        cpu_abort(env, "Unhandled exception 0x%x\n", env->exception_index);
+        cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
     }
 #endif
 
-    env->exception_index = -1;
+    cs->exception_index = -1;
 }

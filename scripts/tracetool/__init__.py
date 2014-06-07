@@ -6,7 +6,7 @@ Machinery for generating tracing-related intermediate files.
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -51,6 +51,10 @@ class Arguments:
             List of (type, name) tuples.
         """
         self._args = args
+
+    def copy(self):
+        """Create a new copy."""
+        return Arguments(list(self._args))
 
     @staticmethod
     def build(arg_str):
@@ -144,7 +148,13 @@ class Event(object):
 
         unknown_props = set(self.properties) - self._VALID_PROPS
         if len(unknown_props) > 0:
-            raise ValueError("Unknown properties: %s" % ", ".join(unknown_props))
+            raise ValueError("Unknown properties: %s"
+                             % ", ".join(unknown_props))
+
+    def copy(self):
+        """Create a new copy."""
+        return Event(self.name, list(self.properties), self.fmt,
+                     self.args.copy(), self)
 
     @staticmethod
     def build(line_str):
@@ -173,6 +183,14 @@ class Event(object):
                                           self.args,
                                           self.fmt)
 
+    QEMU_TRACE               = "trace_%(name)s"
+
+    def api(self, fmt=None):
+        if fmt is None:
+            fmt = Event.QEMU_TRACE
+        return fmt % {"name": self.name}
+
+
 def _read_events(fobj):
     res = []
     for line in fobj:
@@ -189,7 +207,7 @@ class TracetoolError (Exception):
     pass
 
 
-def try_import(mod_name, attr_name = None, attr_default = None):
+def try_import(mod_name, attr_name=None, attr_default=None):
     """Try to import a module and get an attribute from it.
 
     Parameters
@@ -216,7 +234,7 @@ def try_import(mod_name, attr_name = None, attr_default = None):
 
 
 def generate(fevents, format, backend,
-             binary = None, probe_prefix = None):
+             binary=None, probe_prefix=None):
     """Generate the output for the given (format, backend) pair.
 
     Parameters
@@ -238,20 +256,17 @@ def generate(fevents, format, backend,
     format = str(format)
     if len(format) is 0:
         raise TracetoolError("format not set")
-    mformat = format.replace("-", "_")
-    if not tracetool.format.exists(mformat):
+    if not tracetool.format.exists(format):
         raise TracetoolError("unknown format: %s" % format)
+    format = format.replace("-", "_")
 
     backend = str(backend)
     if len(backend) is 0:
         raise TracetoolError("backend not set")
-    mbackend = backend.replace("-", "_")
-    if not tracetool.backend.exists(mbackend):
+    if not tracetool.backend.exists(backend):
         raise TracetoolError("unknown backend: %s" % backend)
-
-    if not tracetool.backend.compatible(mbackend, mformat):
-        raise TracetoolError("backend '%s' not compatible with format '%s'" %
-                             (backend, format))
+    backend = backend.replace("-", "_")
+    backend = tracetool.backend.Wrapper(backend, format)
 
     import tracetool.backend.dtrace
     tracetool.backend.dtrace.BINARY = binary
@@ -259,16 +274,4 @@ def generate(fevents, format, backend,
 
     events = _read_events(fevents)
 
-    if backend == "nop":
-        ( e.properies.add("disable") for e in events )
-
-    tracetool.format.generate_begin(mformat, events)
-    tracetool.backend.generate("nop", format,
-                               [ e
-                                 for e in events
-                                 if "disable" in e.properties ])
-    tracetool.backend.generate(backend, format,
-                               [ e
-                                 for e in events
-                                 if "disable" not in e.properties ])
-    tracetool.format.generate_end(mformat, events)
+    tracetool.format.generate(events, format, backend)

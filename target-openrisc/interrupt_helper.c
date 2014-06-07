@@ -19,7 +19,7 @@
  */
 
 #include "cpu.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 
 void HELPER(rfe)(CPUOpenRISCState *env)
 {
@@ -51,7 +51,7 @@ void HELPER(rfe)(CPUOpenRISCState *env)
     }
 
     if (need_flush_tlb) {
-        tlb_flush(&cpu->env, 1);
+        tlb_flush(cs, 1);
     }
 #endif
     cs->interrupt_request |= CPU_INTERRUPT_EXITTB;

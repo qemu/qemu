@@ -130,18 +130,6 @@ int qemu_main(int argc, char **argv, char **envp);
 void qemu_get_timedate(struct tm *tm, int offset);
 int qemu_timedate_diff(struct tm *tm);
 
-#if !GLIB_CHECK_VERSION(2, 20, 0)
-/*
- * Glib before 2.20.0 doesn't implement g_poll, so wrap it to compile properly
- * on older systems.
- */
-static inline gint g_poll(GPollFD *fds, guint nfds, gint timeout)
-{
-    GMainContext *ctx = g_main_context_default();
-    return g_main_context_get_poll_func(ctx)(fds, nfds, timeout);
-}
-#endif
-
 /**
  * is_help_option:
  * @s: string to test
@@ -317,6 +305,7 @@ void qemu_iovec_concat(QEMUIOVector *dst,
 void qemu_iovec_concat_iov(QEMUIOVector *dst,
                            struct iovec *src_iov, unsigned int src_cnt,
                            size_t soffset, size_t sbytes);
+bool qemu_iovec_is_zero(QEMUIOVector *qiov);
 void qemu_iovec_destroy(QEMUIOVector *qiov);
 void qemu_iovec_reset(QEMUIOVector *qiov);
 size_t qemu_iovec_to_buf(QEMUIOVector *qiov, size_t offset,
@@ -458,5 +447,7 @@ size_t buffer_find_nonzero_offset(const void *buf, size_t len);
  * helper to parse debug environment variables
  */
 int parse_debug_env(const char *name, int max, int initial);
+
+const char *qemu_ether_ntoa(const MACAddr *mac);
 
 #endif

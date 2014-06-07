@@ -173,7 +173,7 @@ static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
         return 10000;
     case 0xd00: /* CPUID Base.  */
         cpu = ARM_CPU(current_cpu);
-        return cpu->env.cp15.c0_cpuid;
+        return cpu->midr;
     case 0xd04: /* Interrupt Control State.  */
         /* VECTACTIVE */
         val = s->gic.running_irq[0];
@@ -443,8 +443,7 @@ static const VMStateDescription vmstate_nvic = {
     .name = "armv7m_nvic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(systick.control, nvic_state),
         VMSTATE_UINT32(systick.reload, nvic_state),
         VMSTATE_INT64(systick.tick, nvic_state),
@@ -474,14 +473,16 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
 {
     nvic_state *s = NVIC(dev);
     NVICClass *nc = NVIC_GET_CLASS(s);
+    Error *local_err = NULL;
 
     /* The NVIC always has only one CPU */
     s->gic.num_cpu = 1;
     /* Tell the common code we're an NVIC */
     s->gic.revision = 0xffffffff;
     s->num_irq = s->gic.num_irq;
-    nc->parent_realize(dev, errp);
-    if (error_is_set(errp)) {
+    nc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
     gic_init_irqs_and_distributor(&s->gic, s->num_irq);

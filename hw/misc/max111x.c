@@ -13,7 +13,8 @@
 #include "hw/ssi.h"
 
 typedef struct {
-    SSISlave ssidev;
+    SSISlave parent_obj;
+
     qemu_irq interrupt;
     uint8_t tb1, rb2, rb3;
     int cycle;
@@ -21,6 +22,14 @@ typedef struct {
     uint8_t input[8];
     int inputs, com;
 } MAX111xState;
+
+#define TYPE_MAX_111X "max111x"
+
+#define MAX_111X(obj) \
+    OBJECT_CHECK(MAX111xState, (obj), TYPE_MAX_111X)
+
+#define TYPE_MAX_1110 "max1110"
+#define TYPE_MAX_1111 "max1111"
 
 /* Control-byte bitfields */
 #define CB_PD0		(1 << 0)
@@ -92,7 +101,7 @@ static void max111x_write(MAX111xState *s, uint32_t value)
 
 static uint32_t max111x_transfer(SSISlave *dev, uint32_t value)
 {
-    MAX111xState *s = FROM_SSI_SLAVE(MAX111xState, dev);
+    MAX111xState *s = MAX_111X(dev);
     max111x_write(s, value);
     return max111x_read(s);
 }
@@ -101,9 +110,8 @@ static const VMStateDescription vmstate_max111x = {
     .name = "max111x",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
-        VMSTATE_SSI_SLAVE(ssidev, MAX111xState),
+    .fields = (VMStateField[]) {
+        VMSTATE_SSI_SLAVE(parent_obj, MAX111xState),
         VMSTATE_UINT8(tb1, MAX111xState),
         VMSTATE_UINT8(rb2, MAX111xState),
         VMSTATE_UINT8(rb3, MAX111xState),
@@ -115,11 +123,12 @@ static const VMStateDescription vmstate_max111x = {
     }
 };
 
-static int max111x_init(SSISlave *dev, int inputs)
+static int max111x_init(SSISlave *d, int inputs)
 {
-    MAX111xState *s = FROM_SSI_SLAVE(MAX111xState, dev);
+    DeviceState *dev = DEVICE(d);
+    MAX111xState *s = MAX_111X(dev);
 
-    qdev_init_gpio_out(&dev->qdev, &s->interrupt, 1);
+    qdev_init_gpio_out(dev, &s->interrupt, 1);
 
     s->inputs = inputs;
     /* TODO: add a user interface for setting these */
@@ -133,7 +142,7 @@ static int max111x_init(SSISlave *dev, int inputs)
     s->input[7] = 0x80;
     s->com = 0;
 
-    vmstate_register(&dev->qdev, -1, &vmstate_max111x, s);
+    vmstate_register(dev, -1, &vmstate_max111x, s);
     return 0;
 }
 
@@ -149,23 +158,36 @@ static int max1111_init(SSISlave *dev)
 
 void max111x_set_input(DeviceState *dev, int line, uint8_t value)
 {
-    MAX111xState *s = FROM_SSI_SLAVE(MAX111xState, SSI_SLAVE_FROM_QDEV(dev));
+    MAX111xState *s = MAX_111X(dev);
     assert(line >= 0 && line < s->inputs);
     s->input[line] = value;
 }
+
+static void max111x_class_init(ObjectClass *klass, void *data)
+{
+    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+
+    k->transfer = max111x_transfer;
+}
+
+static const TypeInfo max111x_info = {
+    .name          = TYPE_MAX_111X,
+    .parent        = TYPE_SSI_SLAVE,
+    .instance_size = sizeof(MAX111xState),
+    .class_init    = max111x_class_init,
+    .abstract      = true,
+};
 
 static void max1110_class_init(ObjectClass *klass, void *data)
 {
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
 
     k->init = max1110_init;
-    k->transfer = max111x_transfer;
 }
 
 static const TypeInfo max1110_info = {
-    .name          = "max1110",
-    .parent        = TYPE_SSI_SLAVE,
-    .instance_size = sizeof(MAX111xState),
+    .name          = TYPE_MAX_1110,
+    .parent        = TYPE_MAX_111X,
     .class_init    = max1110_class_init,
 };
 
@@ -174,18 +196,17 @@ static void max1111_class_init(ObjectClass *klass, void *data)
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
 
     k->init = max1111_init;
-    k->transfer = max111x_transfer;
 }
 
 static const TypeInfo max1111_info = {
-    .name          = "max1111",
-    .parent        = TYPE_SSI_SLAVE,
-    .instance_size = sizeof(MAX111xState),
+    .name          = TYPE_MAX_1111,
+    .parent        = TYPE_MAX_111X,
     .class_init    = max1111_class_init,
 };
 
 static void max111x_register_types(void)
 {
+    type_register_static(&max111x_info);
     type_register_static(&max1110_info);
     type_register_static(&max1111_info);
 }

@@ -112,6 +112,9 @@ nfs_co_generic_cb(int ret, struct nfs_context *nfs, void *data,
     if (task->ret == 0 && task->st) {
         memcpy(task->st, data, sizeof(struct stat));
     }
+    if (task->ret < 0) {
+        error_report("NFS Error: %s", nfs_get_error(nfs));
+    }
     if (task->co) {
         task->bh = qemu_bh_new(nfs_co_generic_bh_cb, task);
         qemu_bh_schedule(task->bh);
@@ -253,6 +256,10 @@ static int64_t nfs_client_open(NFSClient *client, const char *filename,
         error_setg(errp, "Invalid URL specified");
         goto fail;
     }
+    if (!uri->server) {
+        error_setg(errp, "Invalid URL specified");
+        goto fail;
+    }
     strp = strrchr(uri->path, '/');
     if (strp == NULL) {
         error_setg(errp, "Invalid URL specified");
@@ -340,7 +347,7 @@ static int nfs_file_open(BlockDriverState *bs, QDict *options, int flags,
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return -EINVAL;
     }

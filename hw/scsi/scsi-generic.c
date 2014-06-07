@@ -394,6 +394,7 @@ static void scsi_destroy(SCSIDevice *s)
 
 static int scsi_generic_initfn(SCSIDevice *s)
 {
+    int rc;
     int sg_version;
     struct sg_scsi_id scsiid;
 
@@ -412,8 +413,11 @@ static int scsi_generic_initfn(SCSIDevice *s)
     }
 
     /* check we are using a driver managing SG_IO (version 3 and after */
-    if (bdrv_ioctl(s->conf.bs, SG_GET_VERSION_NUM, &sg_version) < 0) {
-        error_report("scsi generic interface not supported");
+    rc = bdrv_ioctl(s->conf.bs, SG_GET_VERSION_NUM, &sg_version);
+    if (rc < 0) {
+        error_report("cannot get SG_IO version number: %s.  "
+                     "Is this a SCSI device?",
+                     strerror(-rc));
         return -1;
     }
     if (sg_version < 30000) {

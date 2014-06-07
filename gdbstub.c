@@ -635,7 +635,6 @@ static const int xlat_gdb_type[] = {
 static int gdb_breakpoint_insert(target_ulong addr, target_ulong len, int type)
 {
     CPUState *cpu;
-    CPUArchState *env;
     int err = 0;
 
     if (kvm_enabled()) {
@@ -646,10 +645,10 @@ static int gdb_breakpoint_insert(target_ulong addr, target_ulong len, int type)
     case GDB_BREAKPOINT_SW:
     case GDB_BREAKPOINT_HW:
         CPU_FOREACH(cpu) {
-            env = cpu->env_ptr;
-            err = cpu_breakpoint_insert(env, addr, BP_GDB, NULL);
-            if (err)
+            err = cpu_breakpoint_insert(cpu, addr, BP_GDB, NULL);
+            if (err) {
                 break;
+            }
         }
         return err;
 #ifndef CONFIG_USER_ONLY
@@ -657,8 +656,7 @@ static int gdb_breakpoint_insert(target_ulong addr, target_ulong len, int type)
     case GDB_WATCHPOINT_READ:
     case GDB_WATCHPOINT_ACCESS:
         CPU_FOREACH(cpu) {
-            env = cpu->env_ptr;
-            err = cpu_watchpoint_insert(env, addr, len, xlat_gdb_type[type],
+            err = cpu_watchpoint_insert(cpu, addr, len, xlat_gdb_type[type],
                                         NULL);
             if (err)
                 break;
@@ -673,7 +671,6 @@ static int gdb_breakpoint_insert(target_ulong addr, target_ulong len, int type)
 static int gdb_breakpoint_remove(target_ulong addr, target_ulong len, int type)
 {
     CPUState *cpu;
-    CPUArchState *env;
     int err = 0;
 
     if (kvm_enabled()) {
@@ -684,10 +681,10 @@ static int gdb_breakpoint_remove(target_ulong addr, target_ulong len, int type)
     case GDB_BREAKPOINT_SW:
     case GDB_BREAKPOINT_HW:
         CPU_FOREACH(cpu) {
-            env = cpu->env_ptr;
-            err = cpu_breakpoint_remove(env, addr, BP_GDB);
-            if (err)
+            err = cpu_breakpoint_remove(cpu, addr, BP_GDB);
+            if (err) {
                 break;
+            }
         }
         return err;
 #ifndef CONFIG_USER_ONLY
@@ -695,8 +692,7 @@ static int gdb_breakpoint_remove(target_ulong addr, target_ulong len, int type)
     case GDB_WATCHPOINT_READ:
     case GDB_WATCHPOINT_ACCESS:
         CPU_FOREACH(cpu) {
-            env = cpu->env_ptr;
-            err = cpu_watchpoint_remove(env, addr, len, xlat_gdb_type[type]);
+            err = cpu_watchpoint_remove(cpu, addr, len, xlat_gdb_type[type]);
             if (err)
                 break;
         }
@@ -710,7 +706,6 @@ static int gdb_breakpoint_remove(target_ulong addr, target_ulong len, int type)
 static void gdb_breakpoint_remove_all(void)
 {
     CPUState *cpu;
-    CPUArchState *env;
 
     if (kvm_enabled()) {
         kvm_remove_all_breakpoints(gdbserver_state->c_cpu);
@@ -718,10 +713,9 @@ static void gdb_breakpoint_remove_all(void)
     }
 
     CPU_FOREACH(cpu) {
-        env = cpu->env_ptr;
-        cpu_breakpoint_remove_all(env, BP_GDB);
+        cpu_breakpoint_remove_all(cpu, BP_GDB);
 #ifndef CONFIG_USER_ONLY
-        cpu_watchpoint_remove_all(env, BP_GDB);
+        cpu_watchpoint_remove_all(cpu, BP_GDB);
 #endif
     }
 }
@@ -1086,8 +1080,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         }
 #ifdef CONFIG_USER_ONLY
         else if (strncmp(p, "Offsets", 7) == 0) {
-            CPUArchState *env = s->c_cpu->env_ptr;
-            TaskState *ts = env->opaque;
+            TaskState *ts = s->c_cpu->opaque;
 
             snprintf(buf, sizeof(buf),
                      "Text=" TARGET_ABI_FMT_lx ";Data=" TARGET_ABI_FMT_lx
@@ -1205,8 +1198,8 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
     }
     switch (state) {
     case RUN_STATE_DEBUG:
-        if (env->watchpoint_hit) {
-            switch (env->watchpoint_hit->flags & BP_MEM_ACCESS) {
+        if (cpu->watchpoint_hit) {
+            switch (cpu->watchpoint_hit->flags & BP_MEM_ACCESS) {
             case BP_MEM_READ:
                 type = "r";
                 break;
@@ -1220,8 +1213,8 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
             snprintf(buf, sizeof(buf),
                      "T%02xthread:%02x;%swatch:" TARGET_FMT_lx ";",
                      GDB_SIGNAL_TRAP, cpu_index(cpu), type,
-                     env->watchpoint_hit->vaddr);
-            env->watchpoint_hit = NULL;
+                     (target_ulong)cpu->watchpoint_hit->vaddr);
+            cpu->watchpoint_hit = NULL;
             goto send_packet;
         }
         tb_flush(env);
@@ -1594,13 +1587,16 @@ int gdbserver_start(int port)
 /* Disable gdb stub for child processes.  */
 void gdbserver_fork(CPUArchState *env)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     GDBState *s = gdbserver_state;
-    if (gdbserver_fd < 0 || s->fd < 0)
-      return;
+
+    if (gdbserver_fd < 0 || s->fd < 0) {
+        return;
+    }
     close(s->fd);
     s->fd = -1;
-    cpu_breakpoint_remove_all(env, BP_GDB);
-    cpu_watchpoint_remove_all(env, BP_GDB);
+    cpu_breakpoint_remove_all(cpu, BP_GDB);
+    cpu_watchpoint_remove_all(cpu, BP_GDB);
 }
 #else
 static int gdb_chr_can_receive(void *opaque)

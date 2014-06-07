@@ -25,6 +25,7 @@
 #include "hw/loader.h"
 #include "trace.h"
 #include "ui/console.h"
+#include "ui/vnc.h"
 #include "hw/pci/pci.h"
 
 #undef VERBOSE
@@ -218,7 +219,7 @@ enum {
 
 /* These values can probably be changed arbitrarily.  */
 #define SVGA_SCRATCH_SIZE               0x8000
-#define SVGA_MAX_WIDTH                  2360
+#define SVGA_MAX_WIDTH                  ROUND_UP(2360, VNC_DIRTY_PIXELS_PER_BIT)
 #define SVGA_MAX_HEIGHT                 1770
 
 #ifdef VERBOSE
@@ -1206,7 +1207,7 @@ static void vmsvga_init(DeviceState *dev, struct vmsvga_state_s *s,
     vmstate_register_ram_global(&s->fifo_ram);
     s->fifo_ptr = memory_region_get_ram_ptr(&s->fifo_ram);
 
-    vga_common_init(&s->vga, OBJECT(dev));
+    vga_common_init(&s->vga, OBJECT(dev), true);
     vga_init(&s->vga, OBJECT(dev), address_space, io, true);
     vmstate_register(NULL, 0, &vmstate_vga_common, &s->vga);
     s->new_depth = 32;

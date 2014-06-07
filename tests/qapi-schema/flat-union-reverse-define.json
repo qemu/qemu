@@ -1,0 +1,17 @@
+{ 'union': 'TestUnion',
+  'base': 'TestBase',
+  'discriminator': 'enum1',
+  'data': { 'value1': 'TestTypeA',
+            'value2': 'TestTypeB' } }
+
+{ 'type': 'TestBase',
+  'data': { 'enum1': 'TestEnum' } }
+
+{ 'enum': 'TestEnum',
+  'data': [ 'value1', 'value2' ] }
+
+{ 'type': 'TestTypeA',
+  'data': { 'string': 'str' } }
+
+{ 'type': 'TestTypeB',
+  'data': { 'integer': 'int' } }

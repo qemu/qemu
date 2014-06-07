@@ -171,6 +171,10 @@ static void vga_update_memory_access(VGACommonState *s)
     MemoryRegion *region, *old_region = s->chain4_alias;
     hwaddr base, offset, size;
 
+    if (s->legacy_address_space == NULL) {
+        return;
+    }
+
     s->chain4_alias = NULL;
 
     if ((s->sr[VGA_SEQ_PLANE_WRITE] & VGA_SR02_ALL_PLANES) ==
@@ -2255,7 +2259,7 @@ static const GraphicHwOps vga_ops = {
     .text_update = vga_update_text,
 };
 
-void vga_common_init(VGACommonState *s, Object *obj)
+void vga_common_init(VGACommonState *s, Object *obj, bool global_vmstate)
 {
     int i, j, v, b;
 
@@ -2292,7 +2296,7 @@ void vga_common_init(VGACommonState *s, Object *obj)
 
     s->is_vbe_vmstate = 1;
     memory_region_init_ram(&s->vram, obj, "vga.vram", s->vram_size);
-    vmstate_register_ram_global(&s->vram);
+    vmstate_register_ram(&s->vram, global_vmstate ? NULL : DEVICE(obj));
     xen_register_framebuffer(&s->vram);
     s->vram_ptr = memory_region_get_ram_ptr(&s->vram);
     s->get_bpp = vga_get_bpp;
@@ -2355,8 +2359,6 @@ void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
 {
     MemoryRegion *vga_io_memory;
     const MemoryRegionPortio *vga_ports, *vbe_ports;
-    PortioList *vga_port_list = g_new(PortioList, 1);
-    PortioList *vbe_port_list = g_new(PortioList, 1);
 
     qemu_register_reset(vga_reset, s);
 
@@ -2371,13 +2373,13 @@ void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
                                         1);
     memory_region_set_coalescing(vga_io_memory);
     if (init_vga_ports) {
-        portio_list_init(vga_port_list, obj, vga_ports, s, "vga");
-        portio_list_set_flush_coalesced(vga_port_list);
-        portio_list_add(vga_port_list, address_space_io, 0x3b0);
+        portio_list_init(&s->vga_port_list, obj, vga_ports, s, "vga");
+        portio_list_set_flush_coalesced(&s->vga_port_list);
+        portio_list_add(&s->vga_port_list, address_space_io, 0x3b0);
     }
     if (vbe_ports) {
-        portio_list_init(vbe_port_list, obj, vbe_ports, s, "vbe");
-        portio_list_add(vbe_port_list, address_space_io, 0x1ce);
+        portio_list_init(&s->vbe_port_list, obj, vbe_ports, s, "vbe");
+        portio_list_add(&s->vbe_port_list, address_space_io, 0x1ce);
     }
 }
 

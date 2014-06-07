@@ -71,8 +71,9 @@ static void update_irq(struct xlx_pic *p)
 
     /* Update the vector register.  */
     for (i = 0; i < 32; i++) {
-        if (p->regs[R_IPR] & (1 << i))
+        if (p->regs[R_IPR] & (1U << i)) {
             break;
+        }
     }
     if (i == 32)
         i = ~0;
@@ -119,6 +120,9 @@ pic_write(void *opaque, hwaddr addr,
             break;
         case R_CIE:
             p->regs[R_IER] &= ~value; /* Atomic clear ie.  */
+            break;
+        case R_MER:
+            p->regs[R_MER] = value & 0x3;
             break;
         case R_ISR:
             if ((p->regs[R_MER] & 2)) {

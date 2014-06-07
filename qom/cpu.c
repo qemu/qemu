@@ -1,7 +1,7 @@
 /*
  * QEMU CPU model
  *
- * Copyright (c) 2012 SUSE LINUX Products GmbH
+ * Copyright (c) 2012-2014 SUSE LINUX Products GmbH
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,6 +23,7 @@
 #include "sysemu/kvm.h"
 #include "qemu/notify.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 
 bool cpu_exists(int64_t id)
@@ -37,6 +38,46 @@ bool cpu_exists(int64_t id)
         }
     }
     return false;
+}
+
+CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
+{
+    char *str, *name, *featurestr;
+    CPUState *cpu;
+    ObjectClass *oc;
+    CPUClass *cc;
+    Error *err = NULL;
+
+    str = g_strdup(cpu_model);
+    name = strtok(str, ",");
+
+    oc = cpu_class_by_name(typename, name);
+    if (oc == NULL) {
+        g_free(str);
+        return NULL;
+    }
+
+    cpu = CPU(object_new(object_class_get_name(oc)));
+    cc = CPU_GET_CLASS(cpu);
+
+    featurestr = strtok(NULL, ",");
+    cc->parse_features(cpu, featurestr, &err);
+    g_free(str);
+    if (err != NULL) {
+        goto out;
+    }
+
+    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
+
+out:
+    if (err != NULL) {
+        error_report("%s", error_get_pretty(err));
+        error_free(err);
+        object_unref(OBJECT(cpu));
+        return NULL;
+    }
+
+    return cpu;
 }
 
 bool cpu_paging_enabled(const CPUState *cpu)
@@ -195,10 +236,20 @@ static void cpu_common_reset(CPUState *cpu)
         log_cpu_state(cpu, cc->reset_dump_flags);
     }
 
-    cpu->exit_request = 0;
     cpu->interrupt_request = 0;
     cpu->current_tb = NULL;
     cpu->halted = 0;
+    cpu->mem_io_pc = 0;
+    cpu->mem_io_vaddr = 0;
+    cpu->icount_extra = 0;
+    cpu->icount_decr.u32 = 0;
+    cpu->can_do_io = 0;
+    memset(cpu->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
+}
+
+static bool cpu_common_has_work(CPUState *cs)
+{
+    return false;
 }
 
 ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model)
@@ -211,6 +262,34 @@ ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model)
 static ObjectClass *cpu_common_class_by_name(const char *cpu_model)
 {
     return NULL;
+}
+
+static void cpu_common_parse_features(CPUState *cpu, char *features,
+                                      Error **errp)
+{
+    char *featurestr; /* Single "key=value" string being parsed */
+    char *val;
+    Error *err = NULL;
+
+    featurestr = features ? strtok(features, ",") : NULL;
+
+    while (featurestr) {
+        val = strchr(featurestr, '=');
+        if (val) {
+            *val = 0;
+            val++;
+            object_property_parse(OBJECT(cpu), val, featurestr, &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
+        } else {
+            error_setg(errp, "Expected key=value format, found %s.",
+                       featurestr);
+            return;
+        }
+        featurestr = strtok(NULL, ",");
+    }
 }
 
 static void cpu_common_realizefn(DeviceState *dev, Error **errp)
@@ -243,8 +322,10 @@ static void cpu_class_init(ObjectClass *klass, void *data)
     CPUClass *k = CPU_CLASS(klass);
 
     k->class_by_name = cpu_common_class_by_name;
+    k->parse_features = cpu_common_parse_features;
     k->reset = cpu_common_reset;
     k->get_arch_id = cpu_common_get_arch_id;
+    k->has_work = cpu_common_has_work;
     k->get_paging_enabled = cpu_common_get_paging_enabled;
     k->get_memory_mapping = cpu_common_get_memory_mapping;
     k->write_elf32_qemunote = cpu_common_write_elf32_qemunote;

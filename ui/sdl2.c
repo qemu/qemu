@@ -190,30 +190,33 @@ static void sdl_switch(DisplayChangeListener *dcl,
     }
 }
 
-static void reset_keys(void)
+static void reset_keys(struct sdl2_state *scon)
 {
+    QemuConsole *con = scon ? scon->dcl.con : NULL;
     int i;
 
     for (i = 0; i < 256; i++) {
         if (modifiers_state[i]) {
             int qcode = sdl2_scancode_to_qcode[i];
-            qemu_input_event_send_key_qcode(NULL, qcode, false);
+            qemu_input_event_send_key_qcode(con, qcode, false);
             modifiers_state[i] = 0;
         }
     }
 }
 
-static void sdl_process_key(SDL_KeyboardEvent *ev)
+static void sdl_process_key(struct sdl2_state *scon,
+                            SDL_KeyboardEvent *ev)
 {
     int qcode = sdl2_scancode_to_qcode[ev->keysym.scancode];
+    QemuConsole *con = scon ? scon->dcl.con : NULL;
 
     switch (ev->keysym.scancode) {
 #if 0
     case SDL_SCANCODE_NUMLOCKCLEAR:
     case SDL_SCANCODE_CAPSLOCK:
         /* SDL does not send the key up event, so we generate it */
-        qemu_input_event_send_key_qcode(NULL, qcode, true);
-        qemu_input_event_send_key_qcode(NULL, qcode, false);
+        qemu_input_event_send_key_qcode(con, qcode, true);
+        qemu_input_event_send_key_qcode(con, qcode, false);
         return;
 #endif
     case SDL_SCANCODE_LCTRL:
@@ -231,7 +234,7 @@ static void sdl_process_key(SDL_KeyboardEvent *ev)
         }
         /* fall though */
     default:
-        qemu_input_event_send_key_qcode(NULL, qcode,
+        qemu_input_event_send_key_qcode(con, qcode,
                                         ev->type == SDL_KEYDOWN);
     }
 }
@@ -278,7 +281,7 @@ static void sdl_hide_cursor(void)
         SDL_ShowCursor(1);
         SDL_SetCursor(sdl_cursor_hidden);
     } else {
-        SDL_ShowCursor(0);
+        SDL_SetRelativeMouseMode(SDL_TRUE);
     }
 }
 
@@ -289,6 +292,7 @@ static void sdl_show_cursor(void)
     }
 
     if (!qemu_input_is_absolute()) {
+        SDL_SetRelativeMouseMode(SDL_FALSE);
         SDL_ShowCursor(1);
         if (guest_cursor &&
             (gui_grab || qemu_input_is_absolute() || absolute_enabled)) {
@@ -358,16 +362,12 @@ static void sdl_mouse_mode_change(Notifier *notify, void *data)
 }
 
 static void sdl_send_mouse_event(struct sdl2_state *scon, int dx, int dy,
-                                 int dz, int x, int y, int state)
+                                 int x, int y, int state)
 {
     static uint32_t bmap[INPUT_BUTTON_MAX] = {
         [INPUT_BUTTON_LEFT]       = SDL_BUTTON(SDL_BUTTON_LEFT),
         [INPUT_BUTTON_MIDDLE]     = SDL_BUTTON(SDL_BUTTON_MIDDLE),
         [INPUT_BUTTON_RIGHT]      = SDL_BUTTON(SDL_BUTTON_RIGHT),
-#if 0
-        [INPUT_BUTTON_WHEEL_UP]   = SDL_BUTTON(SDL_BUTTON_WHEELUP),
-        [INPUT_BUTTON_WHEEL_DOWN] = SDL_BUTTON(SDL_BUTTON_WHEELDOWN),
-#endif
     };
     static uint32_t prev_state;
 
@@ -403,13 +403,17 @@ static void sdl_send_mouse_event(struct sdl2_state *scon, int dx, int dy,
         }
         qemu_input_queue_abs(scon->dcl.con, INPUT_AXIS_X, off_x + x, max_w);
         qemu_input_queue_abs(scon->dcl.con, INPUT_AXIS_Y, off_y + y, max_h);
-    } else if (guest_cursor) {
-        x -= guest_x;
-        y -= guest_y;
-        guest_x += x;
-        guest_y += y;
-        qemu_input_queue_rel(scon->dcl.con, INPUT_AXIS_X, x);
-        qemu_input_queue_rel(scon->dcl.con, INPUT_AXIS_Y, y);
+    } else {
+        if (guest_cursor) {
+            x -= guest_x;
+            y -= guest_y;
+            guest_x += x;
+            guest_y += y;
+            dx = x;
+            dy = y;
+        }
+        qemu_input_queue_rel(scon->dcl.con, INPUT_AXIS_X, dx);
+        qemu_input_queue_rel(scon->dcl.con, INPUT_AXIS_Y, dy);
     }
     qemu_input_event_sync();
 }
@@ -505,7 +509,7 @@ static void handle_keydown(SDL_Event *ev)
         }
     }
     if (!gui_keysym) {
-        sdl_process_key(&ev->key);
+        sdl_process_key(scon, &ev->key);
     }
 }
 
@@ -530,13 +534,13 @@ static void handle_keyup(SDL_Event *ev)
             }
             /* SDL does not send back all the modifiers key, so we must
              * correct it. */
-            reset_keys();
+            reset_keys(scon);
             return;
         }
         gui_keysym = 0;
     }
     if (!gui_keysym) {
-        sdl_process_key(&ev->key);
+        sdl_process_key(scon, &ev->key);
     }
 }
 
@@ -561,7 +565,7 @@ static void handle_mousemotion(SDL_Event *ev)
         }
     }
     if (gui_grab || qemu_input_is_absolute() || absolute_enabled) {
-        sdl_send_mouse_event(scon, ev->motion.xrel, ev->motion.yrel, 0,
+        sdl_send_mouse_event(scon, ev->motion.xrel, ev->motion.yrel,
                              ev->motion.x, ev->motion.y, ev->motion.state);
     }
 }
@@ -571,7 +575,6 @@ static void handle_mousebutton(SDL_Event *ev)
     int buttonstate = SDL_GetMouseState(NULL, NULL);
     SDL_MouseButtonEvent *bev;
     struct sdl2_state *scon = get_scon_from_window(ev->key.windowID);
-    int dz;
 
     bev = &ev->button;
     if (!gui_grab && !qemu_input_is_absolute()) {
@@ -580,23 +583,33 @@ static void handle_mousebutton(SDL_Event *ev)
             sdl_grab_start(scon);
         }
     } else {
-        dz = 0;
         if (ev->type == SDL_MOUSEBUTTONDOWN) {
             buttonstate |= SDL_BUTTON(bev->button);
         } else {
             buttonstate &= ~SDL_BUTTON(bev->button);
         }
-#ifdef SDL_BUTTON_WHEELUP
-        if (bev->button == SDL_BUTTON_WHEELUP &&
-            ev->type == SDL_MOUSEBUTTONDOWN) {
-            dz = -1;
-        } else if (bev->button == SDL_BUTTON_WHEELDOWN &&
-                   ev->type == SDL_MOUSEBUTTONDOWN) {
-            dz = 1;
-        }
-#endif
-        sdl_send_mouse_event(scon, 0, 0, dz, bev->x, bev->y, buttonstate);
+        sdl_send_mouse_event(scon, 0, 0, bev->x, bev->y, buttonstate);
     }
+}
+
+static void handle_mousewheel(SDL_Event *ev)
+{
+    struct sdl2_state *scon = get_scon_from_window(ev->key.windowID);
+    SDL_MouseWheelEvent *wev = &ev->wheel;
+    InputButton btn;
+
+    if (wev->y > 0) {
+        btn = INPUT_BUTTON_WHEEL_UP;
+    } else if (wev->y < 0) {
+        btn = INPUT_BUTTON_WHEEL_DOWN;
+    } else {
+        return;
+    }
+
+    qemu_input_queue_btn(scon->dcl.con, btn, true);
+    qemu_input_event_sync();
+    qemu_input_queue_btn(scon->dcl.con, btn, false);
+    qemu_input_event_sync();
 }
 
 static void handle_windowevent(DisplayChangeListener *dcl, SDL_Event *ev)
@@ -607,6 +620,13 @@ static void handle_windowevent(DisplayChangeListener *dcl, SDL_Event *ev)
     switch (ev->window.event) {
     case SDL_WINDOWEVENT_RESIZED:
         sdl_scale(scon, ev->window.data1, ev->window.data2);
+        {
+            QemuUIInfo info;
+            memset(&info, 0, sizeof(info));
+            info.width = ev->window.data1;
+            info.height = ev->window.data2;
+            dpy_set_ui_info(scon->dcl.con, &info);
+        }
         graphic_hw_invalidate(scon->dcl.con);
         graphic_hw_update(scon->dcl.con);
         break;
@@ -672,6 +692,9 @@ static void sdl_refresh(DisplayChangeListener *dcl)
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
             handle_mousebutton(ev);
+            break;
+        case SDL_MOUSEWHEEL:
+            handle_mousewheel(ev);
             break;
         case SDL_WINDOWEVENT:
             handle_windowevent(dcl, ev);

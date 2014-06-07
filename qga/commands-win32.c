@@ -29,15 +29,11 @@
                        (365 * (1970 - 1601) +       \
                         (1970 - 1601) / 4 - 3))
 
-static void acquire_privilege(const char *name, Error **err)
+static void acquire_privilege(const char *name, Error **errp)
 {
     HANDLE token;
     TOKEN_PRIVILEGES priv;
     Error *local_err = NULL;
-
-    if (error_is_set(err)) {
-        return;
-    }
 
     if (OpenProcessToken(GetCurrentProcess(),
         TOKEN_ADJUST_PRIVILEGES|TOKEN_QUERY, &token))
@@ -65,27 +61,26 @@ static void acquire_privilege(const char *name, Error **err)
 
 out:
     if (local_err) {
-        error_propagate(err, local_err);
+        error_propagate(errp, local_err);
     }
 }
 
-static void execute_async(DWORD WINAPI (*func)(LPVOID), LPVOID opaque, Error **err)
+static void execute_async(DWORD WINAPI (*func)(LPVOID), LPVOID opaque,
+                          Error **errp)
 {
     Error *local_err = NULL;
 
-    if (error_is_set(err)) {
-        return;
-    }
     HANDLE thread = CreateThread(NULL, 0, func, opaque, 0, NULL);
     if (!thread) {
         error_set(&local_err, QERR_QGA_COMMAND_FAILED,
                   "failed to dispatch asynchronous command");
-        error_propagate(err, local_err);
+        error_propagate(errp, local_err);
     }
 }
 
-void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
+void qmp_guest_shutdown(bool has_mode, const char *mode, Error **errp)
 {
+    Error *local_err = NULL;
     UINT shutdown_flag = EWX_FORCE;
 
     slog("guest-shutdown called, mode: %s", mode);
@@ -97,68 +92,71 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
     } else if (strcmp(mode, "reboot") == 0) {
         shutdown_flag |= EWX_REBOOT;
     } else {
-        error_set(err, QERR_INVALID_PARAMETER_VALUE, "mode",
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "mode",
                   "halt|powerdown|reboot");
         return;
     }
 
     /* Request a shutdown privilege, but try to shut down the system
        anyway. */
-    acquire_privilege(SE_SHUTDOWN_NAME, err);
-    if (error_is_set(err)) {
+    acquire_privilege(SE_SHUTDOWN_NAME, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
     if (!ExitWindowsEx(shutdown_flag, SHTDN_REASON_FLAG_PLANNED)) {
         slog("guest-shutdown failed: %lu", GetLastError());
-        error_set(err, QERR_UNDEFINED_ERROR);
+        error_set(errp, QERR_UNDEFINED_ERROR);
     }
 }
 
-int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode, Error **err)
+int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode,
+                            Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
     return 0;
 }
 
-void qmp_guest_file_close(int64_t handle, Error **err)
+void qmp_guest_file_close(int64_t handle, Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
 }
 
 GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
-                                   int64_t count, Error **err)
+                                   int64_t count, Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
     return 0;
 }
 
 GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
-                                     bool has_count, int64_t count, Error **err)
+                                     bool has_count, int64_t count,
+                                     Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
     return 0;
 }
 
 GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
-                                   int64_t whence, Error **err)
+                                   int64_t whence, Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
     return 0;
 }
 
-void qmp_guest_file_flush(int64_t handle, Error **err)
+void qmp_guest_file_flush(int64_t handle, Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
 }
 
 /*
  * Return status of freeze/thaw
  */
-GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
+GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
 {
     if (!vss_initialized()) {
-        error_set(err, QERR_UNSUPPORTED);
+        error_set(errp, QERR_UNSUPPORTED);
         return 0;
     }
 
@@ -173,13 +171,13 @@ GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
  * Freeze local file systems using Volume Shadow-copy Service.
  * The frozen state is limited for up to 10 seconds by VSS.
  */
-int64_t qmp_guest_fsfreeze_freeze(Error **err)
+int64_t qmp_guest_fsfreeze_freeze(Error **errp)
 {
     int i;
     Error *local_err = NULL;
 
     if (!vss_initialized()) {
-        error_set(err, QERR_UNSUPPORTED);
+        error_set(errp, QERR_UNSUPPORTED);
         return 0;
     }
 
@@ -188,14 +186,16 @@ int64_t qmp_guest_fsfreeze_freeze(Error **err)
     /* cannot risk guest agent blocking itself on a write in this state */
     ga_set_frozen(ga_state);
 
-    qga_vss_fsfreeze(&i, err, true);
-    if (error_is_set(err)) {
+    qga_vss_fsfreeze(&i, &local_err, true);
+    if (local_err) {
+        error_propagate(errp, local_err);
         goto error;
     }
 
     return i;
 
 error:
+    local_err = NULL;
     qmp_guest_fsfreeze_thaw(&local_err);
     if (local_err) {
         g_debug("cleanup thaw: %s", error_get_pretty(local_err));
@@ -207,16 +207,16 @@ error:
 /*
  * Thaw local file systems using Volume Shadow-copy Service.
  */
-int64_t qmp_guest_fsfreeze_thaw(Error **err)
+int64_t qmp_guest_fsfreeze_thaw(Error **errp)
 {
     int i;
 
     if (!vss_initialized()) {
-        error_set(err, QERR_UNSUPPORTED);
+        error_set(errp, QERR_UNSUPPORTED);
         return 0;
     }
 
-    qga_vss_fsfreeze(&i, err, false);
+    qga_vss_fsfreeze(&i, errp, false);
 
     ga_unset_frozen(ga_state);
     return i;
@@ -246,9 +246,9 @@ static void guest_fsfreeze_cleanup(void)
  * Walk list of mounted file systems in the guest, and discard unused
  * areas.
  */
-void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
+void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
 }
 
 typedef enum {
@@ -256,14 +256,11 @@ typedef enum {
     GUEST_SUSPEND_MODE_RAM
 } GuestSuspendMode;
 
-static void check_suspend_mode(GuestSuspendMode mode, Error **err)
+static void check_suspend_mode(GuestSuspendMode mode, Error **errp)
 {
     SYSTEM_POWER_CAPABILITIES sys_pwr_caps;
     Error *local_err = NULL;
 
-    if (error_is_set(err)) {
-        return;
-    }
     ZeroMemory(&sys_pwr_caps, sizeof(sys_pwr_caps));
     if (!GetPwrCapabilities(&sys_pwr_caps)) {
         error_set(&local_err, QERR_QGA_COMMAND_FAILED,
@@ -291,7 +288,7 @@ static void check_suspend_mode(GuestSuspendMode mode, Error **err)
 
 out:
     if (local_err) {
-        error_propagate(err, local_err);
+        error_propagate(errp, local_err);
     }
 }
 
@@ -308,42 +305,46 @@ static DWORD WINAPI do_suspend(LPVOID opaque)
     return ret;
 }
 
-void qmp_guest_suspend_disk(Error **err)
+void qmp_guest_suspend_disk(Error **errp)
 {
+    Error *local_err = NULL;
     GuestSuspendMode *mode = g_malloc(sizeof(GuestSuspendMode));
 
     *mode = GUEST_SUSPEND_MODE_DISK;
-    check_suspend_mode(*mode, err);
-    acquire_privilege(SE_SHUTDOWN_NAME, err);
-    execute_async(do_suspend, mode, err);
+    check_suspend_mode(*mode, &local_err);
+    acquire_privilege(SE_SHUTDOWN_NAME, &local_err);
+    execute_async(do_suspend, mode, &local_err);
 
-    if (error_is_set(err)) {
+    if (local_err) {
+        error_propagate(errp, local_err);
         g_free(mode);
     }
 }
 
-void qmp_guest_suspend_ram(Error **err)
+void qmp_guest_suspend_ram(Error **errp)
 {
+    Error *local_err = NULL;
     GuestSuspendMode *mode = g_malloc(sizeof(GuestSuspendMode));
 
     *mode = GUEST_SUSPEND_MODE_RAM;
-    check_suspend_mode(*mode, err);
-    acquire_privilege(SE_SHUTDOWN_NAME, err);
-    execute_async(do_suspend, mode, err);
+    check_suspend_mode(*mode, &local_err);
+    acquire_privilege(SE_SHUTDOWN_NAME, &local_err);
+    execute_async(do_suspend, mode, &local_err);
 
-    if (error_is_set(err)) {
+    if (local_err) {
+        error_propagate(errp, local_err);
         g_free(mode);
     }
 }
 
-void qmp_guest_suspend_hybrid(Error **err)
+void qmp_guest_suspend_hybrid(Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
 }
 
-GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **err)
+GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
@@ -372,6 +373,7 @@ int64_t qmp_guest_get_time(Error **errp)
 
 void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 {
+    Error *local_err = NULL;
     SYSTEMTIME ts;
     FILETIME tf;
     LONGLONG time;
@@ -403,8 +405,9 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
         }
     }
 
-    acquire_privilege(SE_SYSTEMTIME_NAME, errp);
-    if (error_is_set(errp)) {
+    acquire_privilege(SE_SYSTEMTIME_NAME, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 

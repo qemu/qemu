@@ -39,7 +39,6 @@ static const VMStateDescription vmstate_vfp = {
     .name = "cpu/vfp",
     .version_id = 3,
     .minimum_version_id = 3,
-    .minimum_version_id_old = 3,
     .fields = (VMStateField[]) {
         VMSTATE_FLOAT64_ARRAY(env.vfp.regs, ARMCPU, 64),
         /* The xregs array is a little awkward because element 1 (FPSCR)
@@ -72,7 +71,6 @@ static const VMStateDescription vmstate_iwmmxt = {
     .name = "cpu/iwmmxt",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64_ARRAY(env.iwmmxt.regs, ARMCPU, 16),
         VMSTATE_UINT32_ARRAY(env.iwmmxt.cregs, ARMCPU, 16),
@@ -88,11 +86,10 @@ static bool m_needed(void *opaque)
     return arm_feature(env, ARM_FEATURE_M);
 }
 
-const VMStateDescription vmstate_m = {
+static const VMStateDescription vmstate_m = {
     .name = "cpu/m",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(env.v7m.other_sp, ARMCPU),
         VMSTATE_UINT32(env.v7m.vecbase, ARMCPU),
@@ -116,7 +113,6 @@ static const VMStateDescription vmstate_thumb2ee = {
     .name = "cpu/thumb2ee",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(env.teecr, ARMCPU),
         VMSTATE_UINT32(env.teehbr, ARMCPU),
@@ -222,9 +218,8 @@ static int cpu_post_load(void *opaque, int version_id)
 
 const VMStateDescription vmstate_arm_cpu = {
     .name = "cpu",
-    .version_id = 14,
-    .minimum_version_id = 14,
-    .minimum_version_id_old = 14,
+    .version_id = 20,
+    .minimum_version_id = 20,
     .pre_save = cpu_pre_save,
     .post_load = cpu_post_load,
     .fields = (VMStateField[]) {
@@ -238,15 +233,17 @@ const VMStateDescription vmstate_arm_cpu = {
             .offset = 0,
         },
         VMSTATE_UINT32(env.spsr, ARMCPU),
-        VMSTATE_UINT32_ARRAY(env.banked_spsr, ARMCPU, 6),
+        VMSTATE_UINT64_ARRAY(env.banked_spsr, ARMCPU, 8),
         VMSTATE_UINT32_ARRAY(env.banked_r13, ARMCPU, 6),
         VMSTATE_UINT32_ARRAY(env.banked_r14, ARMCPU, 6),
         VMSTATE_UINT32_ARRAY(env.usr_regs, ARMCPU, 5),
         VMSTATE_UINT32_ARRAY(env.fiq_regs, ARMCPU, 5),
+        VMSTATE_UINT64_ARRAY(env.elr_el, ARMCPU, 4),
+        VMSTATE_UINT64_ARRAY(env.sp_el, ARMCPU, 4),
         /* The length-check must come before the arrays to avoid
          * incoming data possibly overflowing the array.
          */
-        VMSTATE_INT32_LE(cpreg_vmstate_array_len, ARMCPU),
+        VMSTATE_INT32_POSITIVE_LE(cpreg_vmstate_array_len, ARMCPU),
         VMSTATE_VARRAY_INT32(cpreg_vmstate_indexes, ARMCPU,
                              cpreg_vmstate_array_len,
                              0, vmstate_info_uint64, uint64_t),
@@ -257,6 +254,9 @@ const VMStateDescription vmstate_arm_cpu = {
         VMSTATE_UINT64(env.exclusive_val, ARMCPU),
         VMSTATE_UINT64(env.exclusive_high, ARMCPU),
         VMSTATE_UINT64(env.features, ARMCPU),
+        VMSTATE_UINT32(env.exception.syndrome, ARMCPU),
+        VMSTATE_UINT32(env.exception.fsr, ARMCPU),
+        VMSTATE_UINT64(env.exception.vaddress, ARMCPU),
         VMSTATE_TIMER(gt_timer[GTIMER_PHYS], ARMCPU),
         VMSTATE_TIMER(gt_timer[GTIMER_VIRT], ARMCPU),
         VMSTATE_END_OF_LIST()

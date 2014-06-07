@@ -52,6 +52,9 @@
 #define VMXNET3_DEVICE_VERSION    0x1
 #define VMXNET3_DEVICE_REVISION   0x1
 
+/* Number of interrupt vectors for non-MSIx modes */
+#define VMXNET3_MAX_NMSIX_INTRS   (1)
+
 /* Macros for rings descriptors access */
 #define VMXNET3_READ_TX_QUEUE_DESCR8(dpa, field) \
     (vmw_shmem_ld8(dpa + offsetof(struct Vmxnet3_TxQueueDesc, field)))
@@ -1305,6 +1308,51 @@ static bool vmxnet3_verify_intx(VMXNET3State *s, int intx)
            (pci_get_byte(s->parent_obj.config + PCI_INTERRUPT_PIN) - 1));
 }
 
+static void vmxnet3_validate_interrupt_idx(bool is_msix, int idx)
+{
+    int max_ints = is_msix ? VMXNET3_MAX_INTRS : VMXNET3_MAX_NMSIX_INTRS;
+    if (idx >= max_ints) {
+        hw_error("Bad interrupt index: %d\n", idx);
+    }
+}
+
+static void vmxnet3_validate_interrupts(VMXNET3State *s)
+{
+    int i;
+
+    VMW_CFPRN("Verifying event interrupt index (%d)", s->event_int_idx);
+    vmxnet3_validate_interrupt_idx(s->msix_used, s->event_int_idx);
+
+    for (i = 0; i < s->txq_num; i++) {
+        int idx = s->txq_descr[i].intr_idx;
+        VMW_CFPRN("Verifying TX queue %d interrupt index (%d)", i, idx);
+        vmxnet3_validate_interrupt_idx(s->msix_used, idx);
+    }
+
+    for (i = 0; i < s->rxq_num; i++) {
+        int idx = s->rxq_descr[i].intr_idx;
+        VMW_CFPRN("Verifying RX queue %d interrupt index (%d)", i, idx);
+        vmxnet3_validate_interrupt_idx(s->msix_used, idx);
+    }
+}
+
+static void vmxnet3_validate_queues(VMXNET3State *s)
+{
+    /*
+    * txq_num and rxq_num are total number of queues
+    * configured by guest. These numbers must not
+    * exceed corresponding maximal values.
+    */
+
+    if (s->txq_num > VMXNET3_DEVICE_MAX_TX_QUEUES) {
+        hw_error("Bad TX queues number: %d\n", s->txq_num);
+    }
+
+    if (s->rxq_num > VMXNET3_DEVICE_MAX_RX_QUEUES) {
+        hw_error("Bad RX queues number: %d\n", s->rxq_num);
+    }
+}
+
 static void vmxnet3_activate_device(VMXNET3State *s)
 {
     int i;
@@ -1351,7 +1399,7 @@ static void vmxnet3_activate_device(VMXNET3State *s)
         VMXNET3_READ_DRV_SHARED8(s->drv_shmem, devRead.misc.numRxQueues);
 
     VMW_CFPRN("Number of TX/RX queues %u/%u", s->txq_num, s->rxq_num);
-    assert(s->txq_num <= VMXNET3_DEVICE_MAX_TX_QUEUES);
+    vmxnet3_validate_queues(s);
 
     qdescr_table_pa =
         VMXNET3_READ_DRV_SHARED64(s->drv_shmem, devRead.misc.queueDescPA);
@@ -1446,6 +1494,8 @@ static void vmxnet3_activate_device(VMXNET3State *s)
         memset(&s->rxq_descr[i].rxq_stats, 0,
                sizeof(s->rxq_descr[i].rxq_stats));
     }
+
+    vmxnet3_validate_interrupts(s);
 
     /* Make sure everything is in place before device activation */
     smp_wmb();
@@ -2005,7 +2055,6 @@ vmxnet3_cleanup_msix(VMXNET3State *s)
     }
 }
 
-#define VMXNET3_MSI_NUM_VECTORS   (1)
 #define VMXNET3_MSI_OFFSET        (0x50)
 #define VMXNET3_USE_64BIT         (true)
 #define VMXNET3_PER_VECTOR_MASK   (false)
@@ -2016,7 +2065,7 @@ vmxnet3_init_msi(VMXNET3State *s)
     PCIDevice *d = PCI_DEVICE(s);
     int res;
 
-    res = msi_init(d, VMXNET3_MSI_OFFSET, VMXNET3_MSI_NUM_VECTORS,
+    res = msi_init(d, VMXNET3_MSI_OFFSET, VMXNET3_MAX_NMSIX_INTRS,
                    VMXNET3_USE_64BIT, VMXNET3_PER_VECTOR_MASK);
     if (0 > res) {
         VMW_WRPRN("Failed to initialize MSI, error %d", res);
@@ -2256,7 +2305,7 @@ static void vmxnet3_put_txq_descr(QEMUFile *f, void *pv, size_t size)
     vmxnet3_put_tx_stats_to_file(f, &r->txq_stats);
 }
 
-const VMStateInfo txq_descr_info = {
+static const VMStateInfo txq_descr_info = {
     .name = "txq_descr",
     .get = vmxnet3_get_txq_descr,
     .put = vmxnet3_put_txq_descr
@@ -2342,10 +2391,13 @@ static int vmxnet3_post_load(void *opaque, int version_id)
         }
     }
 
+    vmxnet3_validate_queues(s);
+    vmxnet3_validate_interrupts(s);
+
     return 0;
 }
 
-const VMStateInfo rxq_descr_info = {
+static const VMStateInfo rxq_descr_info = {
     .name = "rxq_descr",
     .get = vmxnet3_get_rxq_descr,
     .put = vmxnet3_put_rxq_descr
@@ -2371,7 +2423,7 @@ static void vmxnet3_put_int_state(QEMUFile *f, void *pv, size_t size)
     qemu_put_byte(f, r->is_asserted);
 }
 
-const VMStateInfo int_state_info = {
+static const VMStateInfo int_state_info = {
     .name = "int_state",
     .get = vmxnet3_get_int_state,
     .put = vmxnet3_put_int_state

@@ -1,0 +1,3 @@
+In file included from tests/qapi-schema/include-cycle.json:1:
+In file included from include-cycle-b.json:1:
+include-cycle-c.json:1: Inclusion loop for include-cycle.json

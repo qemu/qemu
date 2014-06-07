@@ -131,7 +131,9 @@ static void qapi_dealloc_end_list(Visitor *v, Error **errp)
 static void qapi_dealloc_type_str(Visitor *v, char **obj, const char *name,
                                   Error **errp)
 {
-    g_free(*obj);
+    if (obj) {
+        g_free(*obj);
+    }
 }
 
 static void qapi_dealloc_type_int(Visitor *v, int64_t *obj, const char *name,

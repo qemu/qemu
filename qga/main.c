@@ -910,6 +910,7 @@ int64_t ga_get_fd_handle(GAState *s, Error **errp)
 
     if (!write_persistent_state(&s->pstate, s->pstate_filepath)) {
         error_setg(errp, "failed to commit persistent state to disk");
+        return -1;
     }
 
     return handle;
@@ -1110,7 +1111,7 @@ int main(int argc, char **argv)
 
     if (ga_is_frozen(s)) {
         if (daemonize) {
-            /* delay opening/locking of pidfile till filesystem are unfrozen */
+            /* delay opening/locking of pidfile till filesystems are unfrozen */
             s->deferred_options.pid_filepath = pid_filepath;
             become_daemon(NULL);
         }

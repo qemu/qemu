@@ -62,5 +62,6 @@ struct target_revectored_struct {
 #else
 #define UNAME_MACHINE "ppc"
 #endif
+#define UNAME_MINIMUM_RELEASE "2.6.32"
 
 #define TARGET_CLONE_BACKWARDS

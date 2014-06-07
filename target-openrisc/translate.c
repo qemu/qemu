@@ -27,9 +27,8 @@
 #include "config.h"
 #include "qemu/bitops.h"
 
-#include "helper.h"
-#define GEN_HELPER 1
-#include "helper.h"
+#include "exec/helper-proto.h"
+#include "exec/helper-gen.h"
 
 #define OPENRISC_DISAS
 
@@ -1619,10 +1618,11 @@ static void disas_openrisc_insn(DisasContext *dc, OpenRISCCPU *cpu)
 
 static void check_breakpoint(OpenRISCCPU *cpu, DisasContext *dc)
 {
+    CPUState *cs = CPU(cpu);
     CPUBreakpoint *bp;
 
-    if (unlikely(!QTAILQ_EMPTY(&cpu->env.breakpoints))) {
-        QTAILQ_FOREACH(bp, &cpu->env.breakpoints, entry) {
+    if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
+        QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
             if (bp->pc == dc->pc) {
                 tcg_gen_movi_tl(cpu_pc, dc->pc);
                 gen_exception(dc, EXCP_DEBUG);

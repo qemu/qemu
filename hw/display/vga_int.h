@@ -124,6 +124,8 @@ typedef struct VGACommonState {
     void (*get_resolution)(struct VGACommonState *s,
                         int *pwidth,
                         int *pheight);
+    PortioList vga_port_list;
+    PortioList vbe_port_list;
     /* bochs vbe state */
     uint16_t vbe_index;
     uint16_t vbe_regs[VBE_DISPI_INDEX_NB];
@@ -177,7 +179,7 @@ static inline int c6_to_8(int v)
     return (v << 2) | (b << 1) | b;
 }
 
-void vga_common_init(VGACommonState *s, Object *obj);
+void vga_common_init(VGACommonState *s, Object *obj, bool global_vmstate);
 void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
               MemoryRegion *address_space_io, bool init_vga_ports);
 MemoryRegion *vga_init_io(VGACommonState *s, Object *obj,

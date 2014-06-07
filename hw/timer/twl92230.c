@@ -772,8 +772,7 @@ static const VMStateDescription vmstate_menelaus_tm = {
     .name = "menelaus_tm",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT16_HACK(tm_sec, struct tm),
         VMSTATE_UINT16_HACK(tm_min, struct tm),
         VMSTATE_UINT16_HACK(tm_hour, struct tm),
@@ -811,10 +810,9 @@ static const VMStateDescription vmstate_menelaus = {
     .name = "menelaus",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .pre_save = menelaus_pre_save,
     .post_load = menelaus_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_INT32(firstbyte, MenelausState),
         VMSTATE_UINT8(reg, MenelausState),
         VMSTATE_UINT8_ARRAY(vcore, MenelausState, 5),

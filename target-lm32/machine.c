@@ -5,8 +5,7 @@ static const VMStateDescription vmstate_env = {
     .name = "env",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, CPULM32State, 32),
         VMSTATE_UINT32(pc, CPULM32State),
         VMSTATE_UINT32(ie, CPULM32State),
@@ -26,8 +25,7 @@ const VMStateDescription vmstate_lm32_cpu = {
     .name = "cpu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_STRUCT(env, LM32CPU, 1, vmstate_env, CPULM32State),
         VMSTATE_END_OF_LIST()
     }

@@ -89,8 +89,7 @@ static int prepare_binprm(struct linux_binprm *bprm)
 abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
                               abi_ulong stringp, int push_ptr)
 {
-    CPUArchState *env = thread_cpu->env_ptr;
-    TaskState *ts = (TaskState *)env->opaque;
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
     int n = sizeof(abi_ulong);
     abi_ulong envp;
     abi_ulong argv;

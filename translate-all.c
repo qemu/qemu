@@ -143,7 +143,7 @@ void cpu_gen_init(void)
 int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 {
     TCGContext *s = &tcg_ctx;
-    uint8_t *gen_code_buf;
+    tcg_insn_unit *gen_code_buf;
     int gen_code_size;
 #ifdef CONFIG_PROFILER
     int64_t ti;
@@ -186,8 +186,8 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
-        qemu_log("OUT: [size=%d]\n", *gen_code_size_ptr);
-        log_disas(tb->tc_ptr, *gen_code_size_ptr);
+        qemu_log("OUT: [size=%d]\n", gen_code_size);
+        log_disas(tb->tc_ptr, gen_code_size);
         qemu_log("\n");
         qemu_log_flush();
     }
@@ -197,9 +197,10 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr
 
 /* The cpu state corresponding to 'searched_pc' is restored.
  */
-static int cpu_restore_state_from_tb(TranslationBlock *tb, CPUArchState *env,
+static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
                                      uintptr_t searched_pc)
 {
+    CPUArchState *env = cpu->env_ptr;
     TCGContext *s = &tcg_ctx;
     int j;
     uintptr_t tc_ptr;
@@ -216,9 +217,9 @@ static int cpu_restore_state_from_tb(TranslationBlock *tb, CPUArchState *env,
 
     if (use_icount) {
         /* Reset the cycle counter to the start of the block.  */
-        env->icount_decr.u16.low += tb->icount;
+        cpu->icount_decr.u16.low += tb->icount;
         /* Clear the IO flag.  */
-        env->can_do_io = 0;
+        cpu->can_do_io = 0;
     }
 
     /* find opc index corresponding to search_pc */
@@ -234,14 +235,15 @@ static int cpu_restore_state_from_tb(TranslationBlock *tb, CPUArchState *env,
     s->tb_jmp_offset = NULL;
     s->tb_next = tb->tb_next;
 #endif
-    j = tcg_gen_code_search_pc(s, (uint8_t *)tc_ptr, searched_pc - tc_ptr);
+    j = tcg_gen_code_search_pc(s, (tcg_insn_unit *)tc_ptr,
+                               searched_pc - tc_ptr);
     if (j < 0)
         return -1;
     /* now find start of instruction before */
     while (s->gen_opc_instr_start[j] == 0) {
         j--;
     }
-    env->icount_decr.u16.low -= s->gen_opc_icount[j];
+    cpu->icount_decr.u16.low -= s->gen_opc_icount[j];
 
     restore_state_to_opc(env, tb, j);
 
@@ -252,13 +254,13 @@ static int cpu_restore_state_from_tb(TranslationBlock *tb, CPUArchState *env,
     return 0;
 }
 
-bool cpu_restore_state(CPUArchState *env, uintptr_t retaddr)
+bool cpu_restore_state(CPUState *cpu, uintptr_t retaddr)
 {
     TranslationBlock *tb;
 
     tb = tb_find_pc(retaddr);
     if (tb) {
-        cpu_restore_state_from_tb(tb, env, retaddr);
+        cpu_restore_state_from_tb(cpu, tb, retaddr);
         return true;
     }
     return false;
@@ -473,6 +475,10 @@ static inline PageDesc *page_find(tb_page_addr_t index)
 #elif defined(__s390x__)
   /* We have a +- 4GB range on the branches; leave some slop.  */
 # define MAX_CODE_GEN_BUFFER_SIZE  (3ul * 1024 * 1024 * 1024)
+#elif defined(__mips__)
+  /* We have a 256MB branch region, but leave room to make sure the
+     main executable is also within that region.  */
+# define MAX_CODE_GEN_BUFFER_SIZE  (128ul * 1024 * 1024)
 #else
 # define MAX_CODE_GEN_BUFFER_SIZE  ((size_t)-1)
 #endif
@@ -507,14 +513,47 @@ static inline size_t size_code_gen_buffer(size_t tb_size)
     return tb_size;
 }
 
+#ifdef __mips__
+/* In order to use J and JAL within the code_gen_buffer, we require
+   that the buffer not cross a 256MB boundary.  */
+static inline bool cross_256mb(void *addr, size_t size)
+{
+    return ((uintptr_t)addr ^ ((uintptr_t)addr + size)) & 0xf0000000;
+}
+
+/* We weren't able to allocate a buffer without crossing that boundary,
+   so make do with the larger portion of the buffer that doesn't cross.
+   Returns the new base of the buffer, and adjusts code_gen_buffer_size.  */
+static inline void *split_cross_256mb(void *buf1, size_t size1)
+{
+    void *buf2 = (void *)(((uintptr_t)buf1 + size1) & 0xf0000000);
+    size_t size2 = buf1 + size1 - buf2;
+
+    size1 = buf2 - buf1;
+    if (size1 < size2) {
+        size1 = size2;
+        buf1 = buf2;
+    }
+
+    tcg_ctx.code_gen_buffer_size = size1;
+    return buf1;
+}
+#endif
+
 #ifdef USE_STATIC_CODE_GEN_BUFFER
 static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE]
     __attribute__((aligned(CODE_GEN_ALIGN)));
 
 static inline void *alloc_code_gen_buffer(void)
 {
-    map_exec(static_code_gen_buffer, tcg_ctx.code_gen_buffer_size);
-    return static_code_gen_buffer;
+    void *buf = static_code_gen_buffer;
+#ifdef __mips__
+    if (cross_256mb(buf, tcg_ctx.code_gen_buffer_size)) {
+        buf = split_cross_256mb(buf, tcg_ctx.code_gen_buffer_size);
+    }
+#endif
+    map_exec(buf, tcg_ctx.code_gen_buffer_size);
+    return buf;
 }
 #elif defined(USE_MMAP)
 static inline void *alloc_code_gen_buffer(void)
@@ -543,20 +582,76 @@ static inline void *alloc_code_gen_buffer(void)
     start = 0x40000000ul;
 # elif defined(__s390x__)
     start = 0x90000000ul;
+# elif defined(__mips__)
+    /* ??? We ought to more explicitly manage layout for softmmu too.  */
+#  ifdef CONFIG_USER_ONLY
+    start = 0x68000000ul;
+#  elif _MIPS_SIM == _ABI64
+    start = 0x128000000ul;
+#  else
+    start = 0x08000000ul;
+#  endif
 # endif
 
     buf = mmap((void *)start, tcg_ctx.code_gen_buffer_size,
                PROT_WRITE | PROT_READ | PROT_EXEC, flags, -1, 0);
-    return buf == MAP_FAILED ? NULL : buf;
+    if (buf == MAP_FAILED) {
+        return NULL;
+    }
+
+#ifdef __mips__
+    if (cross_256mb(buf, tcg_ctx.code_gen_buffer_size)) {
+        /* Try again, with the original still mapped, to avoid re-aquiring
+           that 256mb crossing.  This time don't specify an address.  */
+        size_t size2, size1 = tcg_ctx.code_gen_buffer_size;
+        void *buf2 = mmap(NULL, size1, PROT_WRITE | PROT_READ | PROT_EXEC,
+                          flags, -1, 0);
+        if (buf2 != MAP_FAILED) {
+            if (!cross_256mb(buf2, size1)) {
+                /* Success!  Use the new buffer.  */
+                munmap(buf, size1);
+                return buf2;
+            }
+            /* Failure.  Work with what we had.  */
+            munmap(buf2, size1);
+        }
+
+        /* Split the original buffer.  Free the smaller half.  */
+        buf2 = split_cross_256mb(buf, size1);
+        size2 = tcg_ctx.code_gen_buffer_size;
+        munmap(buf + (buf == buf2 ? size2 : 0), size1 - size2);
+        return buf2;
+    }
+#endif
+
+    return buf;
 }
 #else
 static inline void *alloc_code_gen_buffer(void)
 {
     void *buf = g_malloc(tcg_ctx.code_gen_buffer_size);
 
-    if (buf) {
-        map_exec(buf, tcg_ctx.code_gen_buffer_size);
+    if (buf == NULL) {
+        return NULL;
     }
+
+#ifdef __mips__
+    if (cross_256mb(buf, tcg_ctx.code_gen_buffer_size)) {
+        void *buf2 = g_malloc(tcg_ctx.code_gen_buffer_size);
+        if (buf2 != NULL && !cross_256mb(buf2, size1)) {
+            /* Success!  Use the new buffer.  */
+            free(buf);
+            buf = buf2;
+        } else {
+            /* Failure.  Work with what we had.  Since this is malloc
+               and not mmap, we can't free the other half.  */
+            free(buf2);
+            buf = split_cross_256mb(buf, tcg_ctx.code_gen_buffer_size);
+        }
+    }
+#endif
+
+    map_exec(buf, tcg_ctx.code_gen_buffer_size);
     return buf;
 }
 #endif /* USE_STATIC_CODE_GEN_BUFFER, USE_MMAP */
@@ -687,7 +782,7 @@ static void page_flush_tb(void)
 /* XXX: tb_flush is currently not thread safe */
 void tb_flush(CPUArchState *env1)
 {
-    CPUState *cpu;
+    CPUState *cpu = ENV_GET_CPU(env1);
 
 #if defined(DEBUG_FLUSH)
     printf("qemu: flush code_size=%ld nb_tbs=%d avg_tb_size=%ld\n",
@@ -698,14 +793,12 @@ void tb_flush(CPUArchState *env1)
 #endif
     if ((unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer)
         > tcg_ctx.code_gen_buffer_size) {
-        cpu_abort(env1, "Internal error: code buffer overflow\n");
+        cpu_abort(cpu, "Internal error: code buffer overflow\n");
     }
     tcg_ctx.tb_ctx.nb_tbs = 0;
 
     CPU_FOREACH(cpu) {
-        CPUArchState *env = cpu->env_ptr;
-
-        memset(env->tb_jmp_cache, 0, sizeof(env->tb_jmp_cache));
+        memset(cpu->tb_jmp_cache, 0, sizeof(cpu->tb_jmp_cache));
     }
 
     memset(tcg_ctx.tb_ctx.tb_phys_hash, 0, sizeof(tcg_ctx.tb_ctx.tb_phys_hash));
@@ -856,10 +949,8 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     /* remove the TB from the hash list */
     h = tb_jmp_cache_hash_func(tb->pc);
     CPU_FOREACH(cpu) {
-        CPUArchState *env = cpu->env_ptr;
-
-        if (env->tb_jmp_cache[h] == tb) {
-            env->tb_jmp_cache[h] = NULL;
+        if (cpu->tb_jmp_cache[h] == tb) {
+            cpu->tb_jmp_cache[h] = NULL;
         }
     }
 
@@ -941,12 +1032,12 @@ static void build_page_bitmap(PageDesc *p)
     }
 }
 
-TranslationBlock *tb_gen_code(CPUArchState *env,
+TranslationBlock *tb_gen_code(CPUState *cpu,
                               target_ulong pc, target_ulong cs_base,
                               int flags, int cflags)
 {
+    CPUArchState *env = cpu->env_ptr;
     TranslationBlock *tb;
-    uint8_t *tc_ptr;
     tb_page_addr_t phys_pc, phys_page2;
     target_ulong virt_page2;
     int code_gen_size;
@@ -961,8 +1052,7 @@ TranslationBlock *tb_gen_code(CPUArchState *env,
         /* Don't forget to invalidate previous TB info.  */
         tcg_ctx.tb_ctx.tb_invalidated_flag = 1;
     }
-    tc_ptr = tcg_ctx.code_gen_ptr;
-    tb->tc_ptr = tc_ptr;
+    tb->tc_ptr = tcg_ctx.code_gen_ptr;
     tb->cs_base = cs_base;
     tb->flags = flags;
     tb->cflags = cflags;
@@ -1017,7 +1107,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
 {
     TranslationBlock *tb, *tb_next, *saved_tb;
     CPUState *cpu = current_cpu;
-#if defined(TARGET_HAS_PRECISE_SMC) || !defined(CONFIG_USER_ONLY)
+#if defined(TARGET_HAS_PRECISE_SMC)
     CPUArchState *env = NULL;
 #endif
     tb_page_addr_t tb_start, tb_end;
@@ -1042,7 +1132,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
         /* build code bitmap */
         build_page_bitmap(p);
     }
-#if defined(TARGET_HAS_PRECISE_SMC) || !defined(CONFIG_USER_ONLY)
+#if defined(TARGET_HAS_PRECISE_SMC)
     if (cpu != NULL) {
         env = cpu->env_ptr;
     }
@@ -1071,9 +1161,9 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
             if (current_tb_not_found) {
                 current_tb_not_found = 0;
                 current_tb = NULL;
-                if (env->mem_io_pc) {
+                if (cpu->mem_io_pc) {
                     /* now we have a real cpu fault */
-                    current_tb = tb_find_pc(env->mem_io_pc);
+                    current_tb = tb_find_pc(cpu->mem_io_pc);
                 }
             }
             if (current_tb == tb &&
@@ -1085,7 +1175,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                 restore the CPU state */
 
                 current_tb_modified = 1;
-                cpu_restore_state_from_tb(current_tb, env, env->mem_io_pc);
+                cpu_restore_state_from_tb(cpu, current_tb, cpu->mem_io_pc);
                 cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
                                      &current_flags);
             }
@@ -1112,7 +1202,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
     if (!p->first_tb) {
         invalidate_page_bitmap(p);
         if (is_cpu_write_access) {
-            tlb_unprotect_code_phys(env, start, env->mem_io_vaddr);
+            tlb_unprotect_code_phys(cpu, start, cpu->mem_io_vaddr);
         }
     }
 #endif
@@ -1122,8 +1212,8 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
            modifying the memory. It will ensure that it cannot modify
            itself */
         cpu->current_tb = NULL;
-        tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
-        cpu_resume_from_signal(env, NULL);
+        tb_gen_code(cpu, current_pc, current_cs_base, current_flags, 1);
+        cpu_resume_from_signal(cpu, NULL);
     }
 #endif
 }
@@ -1204,7 +1294,7 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
                    restore the CPU state */
 
             current_tb_modified = 1;
-            cpu_restore_state_from_tb(current_tb, env, pc);
+            cpu_restore_state_from_tb(cpu, current_tb, pc);
             cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
                                  &current_flags);
         }
@@ -1219,11 +1309,11 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
            modifying the memory. It will ensure that it cannot modify
            itself */
         cpu->current_tb = NULL;
-        tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
+        tb_gen_code(cpu, current_pc, current_cs_base, current_flags, 1);
         if (locked) {
             mmap_unlock();
         }
-        cpu_resume_from_signal(env, puc);
+        cpu_resume_from_signal(cpu, puc);
     }
 #endif
 }
@@ -1382,16 +1472,16 @@ void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr)
 }
 #endif /* TARGET_HAS_ICE && !defined(CONFIG_USER_ONLY) */
 
-void tb_check_watchpoint(CPUArchState *env)
+void tb_check_watchpoint(CPUState *cpu)
 {
     TranslationBlock *tb;
 
-    tb = tb_find_pc(env->mem_io_pc);
+    tb = tb_find_pc(cpu->mem_io_pc);
     if (!tb) {
-        cpu_abort(env, "check_watchpoint: could not find TB for pc=%p",
-                  (void *)env->mem_io_pc);
+        cpu_abort(cpu, "check_watchpoint: could not find TB for pc=%p",
+                  (void *)cpu->mem_io_pc);
     }
-    cpu_restore_state_from_tb(tb, env, env->mem_io_pc);
+    cpu_restore_state_from_tb(cpu, tb, cpu->mem_io_pc);
     tb_phys_invalidate(tb, -1);
 }
 
@@ -1399,7 +1489,6 @@ void tb_check_watchpoint(CPUArchState *env)
 /* mask must never be zero, except for A20 change call */
 static void tcg_handle_interrupt(CPUState *cpu, int mask)
 {
-    CPUArchState *env = cpu->env_ptr;
     int old_mask;
 
     old_mask = cpu->interrupt_request;
@@ -1415,10 +1504,10 @@ static void tcg_handle_interrupt(CPUState *cpu, int mask)
     }
 
     if (use_icount) {
-        env->icount_decr.u16.high = 0xffff;
-        if (!can_do_io(env)
+        cpu->icount_decr.u16.high = 0xffff;
+        if (!cpu_can_do_io(cpu)
             && (mask & ~old_mask) != 0) {
-            cpu_abort(env, "Raised interrupt while not in I/O function");
+            cpu_abort(cpu, "Raised interrupt while not in I/O function");
         }
     } else {
         cpu->tcg_exit_req = 1;
@@ -1429,8 +1518,11 @@ CPUInterruptHandler cpu_interrupt_handler = tcg_handle_interrupt;
 
 /* in deterministic execution mode, instructions doing device I/Os
    must be at the end of the TB */
-void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
+void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
 {
+#if defined(TARGET_MIPS) || defined(TARGET_SH4)
+    CPUArchState *env = cpu->env_ptr;
+#endif
     TranslationBlock *tb;
     uint32_t n, cflags;
     target_ulong pc, cs_base;
@@ -1438,14 +1530,14 @@ void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
 
     tb = tb_find_pc(retaddr);
     if (!tb) {
-        cpu_abort(env, "cpu_io_recompile: could not find TB for pc=%p",
+        cpu_abort(cpu, "cpu_io_recompile: could not find TB for pc=%p",
                   (void *)retaddr);
     }
-    n = env->icount_decr.u16.low + tb->icount;
-    cpu_restore_state_from_tb(tb, env, retaddr);
+    n = cpu->icount_decr.u16.low + tb->icount;
+    cpu_restore_state_from_tb(cpu, tb, retaddr);
     /* Calculate how many instructions had been executed before the fault
        occurred.  */
-    n = n - env->icount_decr.u16.low;
+    n = n - cpu->icount_decr.u16.low;
     /* Generate a new TB ending on the I/O insn.  */
     n++;
     /* On MIPS and SH, delay slot instructions can only be restarted if
@@ -1455,20 +1547,20 @@ void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
 #if defined(TARGET_MIPS)
     if ((env->hflags & MIPS_HFLAG_BMASK) != 0 && n > 1) {
         env->active_tc.PC -= 4;
-        env->icount_decr.u16.low++;
+        cpu->icount_decr.u16.low++;
         env->hflags &= ~MIPS_HFLAG_BMASK;
     }
 #elif defined(TARGET_SH4)
     if ((env->flags & ((DELAY_SLOT | DELAY_SLOT_CONDITIONAL))) != 0
             && n > 1) {
         env->pc -= 2;
-        env->icount_decr.u16.low++;
+        cpu->icount_decr.u16.low++;
         env->flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
     }
 #endif
     /* This should never happen.  */
     if (n > CF_COUNT_MASK) {
-        cpu_abort(env, "TB too big during recompile");
+        cpu_abort(cpu, "TB too big during recompile");
     }
 
     cflags = n | CF_LAST_IO;
@@ -1478,27 +1570,27 @@ void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
     tb_phys_invalidate(tb, -1);
     /* FIXME: In theory this could raise an exception.  In practice
        we have already translated the block once so it's probably ok.  */
-    tb_gen_code(env, pc, cs_base, flags, cflags);
+    tb_gen_code(cpu, pc, cs_base, flags, cflags);
     /* TODO: If env->pc != tb->pc (i.e. the faulting instruction was not
        the first in the TB) then we end up generating a whole new TB and
        repeating the fault, which is horribly inefficient.
        Better would be to execute just this insn uncached, or generate a
        second new TB.  */
-    cpu_resume_from_signal(env, NULL);
+    cpu_resume_from_signal(cpu, NULL);
 }
 
-void tb_flush_jmp_cache(CPUArchState *env, target_ulong addr)
+void tb_flush_jmp_cache(CPUState *cpu, target_ulong addr)
 {
     unsigned int i;
 
     /* Discard jump cache entries for any tb which might potentially
        overlap the flushed page.  */
     i = tb_jmp_cache_hash_page(addr - TARGET_PAGE_SIZE);
-    memset(&env->tb_jmp_cache[i], 0,
+    memset(&cpu->tb_jmp_cache[i], 0,
            TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
 
     i = tb_jmp_cache_hash_page(addr);
-    memset(&env->tb_jmp_cache[i], 0,
+    memset(&cpu->tb_jmp_cache[i], 0,
            TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
 }
 
@@ -1785,7 +1877,6 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
                     return -1;
                 }
             }
-            return 0;
         }
     }
     return 0;

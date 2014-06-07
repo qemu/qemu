@@ -19,6 +19,7 @@
 #include "qemu/queue.h"
 #include "qemu/event_notifier.h"
 #include "qemu/thread.h"
+#include "qemu/rfifolock.h"
 #include "qemu/timer.h"
 
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
@@ -46,6 +47,9 @@ typedef void IOHandler(void *opaque);
 
 struct AioContext {
     GSource source;
+
+    /* Protects all fields from multi-threaded access */
+    RFifoLock lock;
 
     /* The list of registered AIO handlers */
     QLIST_HEAD(, AioHandler) aio_handlers;
@@ -103,6 +107,20 @@ void aio_context_ref(AioContext *ctx);
  * Drop a reference to an AioContext.
  */
 void aio_context_unref(AioContext *ctx);
+
+/* Take ownership of the AioContext.  If the AioContext will be shared between
+ * threads, a thread must have ownership when calling aio_poll().
+ *
+ * Note that multiple threads calling aio_poll() means timers, BHs, and
+ * callbacks may be invoked from a different thread than they were registered
+ * from.  Therefore, code must use AioContext acquire/release or use
+ * fine-grained synchronization to protect shared state if other threads will
+ * be accessing it simultaneously.
+ */
+void aio_context_acquire(AioContext *ctx);
+
+/* Relinquish ownership of the AioContext. */
+void aio_context_release(AioContext *ctx);
 
 /**
  * aio_bh_new: Allocate a new bottom half structure.

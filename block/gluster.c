@@ -3,21 +3,12 @@
  *
  * Copyright (C) 2012 Bharata B Rao <bharata@linux.vnet.ibm.com>
  *
- * Pipe handling mechanism in AIO implementation is derived from
- * block/rbd.c. Hence,
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
  *
- * Copyright (C) 2010-2011 Christian Brunner <chb@muc.de>,
- *                         Josh Durgin <josh.durgin@dreamhost.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
- *
- * Contributions after 2012-01-13 are licensed under the terms of the
- * GNU GPL, version 2 or (at your option) any later version.
  */
 #include <glusterfs/api/glfs.h>
 #include "block/block_int.h"
-#include "qemu/sockets.h"
 #include "qemu/uri.h"
 
 typedef struct GlusterAIOCB {
@@ -31,9 +22,6 @@ typedef struct BDRVGlusterState {
     struct glfs *glfs;
     struct glfs_fd *fd;
 } BDRVGlusterState;
-
-#define GLUSTER_FD_READ  0
-#define GLUSTER_FD_WRITE 1
 
 typedef struct GlusterConf {
     char *server;
@@ -92,7 +80,7 @@ static int parse_volume_options(GlusterConf *gconf, char *path)
  * 'server' specifies the server where the volume file specification for
  * the given volume resides. This can be either hostname, ipv4 address
  * or ipv6 address. ipv6 address needs to be within square brackets [ ].
- * If transport type is 'unix', then 'server' field should not be specifed.
+ * If transport type is 'unix', then 'server' field should not be specified.
  * The 'socket' field needs to be populated with the path to unix domain
  * socket.
  *
@@ -219,6 +207,11 @@ static struct glfs *qemu_gluster_init(GlusterConf *gconf, const char *filename,
                          "volume=%s image=%s transport=%s", gconf->server,
                          gconf->port, gconf->volname, gconf->image,
                          gconf->transport);
+
+        /* glfs_init sometimes doesn't set errno although docs suggest that */
+        if (errno == 0)
+            errno = EINVAL;
+
         goto out;
     }
     return glfs;
@@ -494,7 +487,7 @@ static int qemu_gluster_create(const char *filename,
 
     glfs = qemu_gluster_init(gconf, filename, errp);
     if (!glfs) {
-        ret = -EINVAL;
+        ret = -errno;
         goto out;
     }
 

@@ -23,6 +23,7 @@
 #include "virtio-blk.h"
 #include "block/aio.h"
 #include "hw/virtio/virtio-bus.h"
+#include "qom/object_interfaces.h"
 
 enum {
     SEG_MAX = 126,                  /* maximum number of I/O segments */
@@ -44,8 +45,6 @@ struct VirtIOBlockDataPlane {
     bool started;
     bool starting;
     bool stopping;
-    QEMUBH *start_bh;
-    QemuThread thread;
 
     VirtIOBlkConf *blk;
     int fd;                         /* image file descriptor */
@@ -59,16 +58,21 @@ struct VirtIOBlockDataPlane {
      * (because you don't own the file descriptor or handle; you just
      * use it).
      */
+    IOThread *iothread;
+    IOThread internal_iothread_obj;
     AioContext *ctx;
     EventNotifier io_notifier;      /* Linux AIO completion */
     EventNotifier host_notifier;    /* doorbell */
 
     IOQueue ioqueue;                /* Linux AIO queue (should really be per
-                                       dataplane thread) */
+                                       IOThread) */
     VirtIOBlockRequest requests[REQ_MAX]; /* pool of requests, managed by the
                                              queue */
 
     unsigned int num_reqs;
+
+    /* Operation blocker on BDS */
+    Error *blocker;
 };
 
 /* Raise an interrupt to signal guest, if necessary */
@@ -342,32 +346,14 @@ static void handle_io(EventNotifier *e)
     }
 }
 
-static void *data_plane_thread(void *opaque)
-{
-    VirtIOBlockDataPlane *s = opaque;
-
-    while (!s->stopping || s->num_reqs > 0) {
-        aio_poll(s->ctx, true);
-    }
-    return NULL;
-}
-
-static void start_data_plane_bh(void *opaque)
-{
-    VirtIOBlockDataPlane *s = opaque;
-
-    qemu_bh_delete(s->start_bh);
-    s->start_bh = NULL;
-    qemu_thread_create(&s->thread, data_plane_thread,
-                       s, QEMU_THREAD_JOINABLE);
-}
-
+/* Context: QEMU global mutex held */
 void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
                                   VirtIOBlockDataPlane **dataplane,
                                   Error **errp)
 {
     VirtIOBlockDataPlane *s;
     int fd;
+    Error *local_err = NULL;
 
     *dataplane = NULL;
 
@@ -390,9 +376,10 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     /* If dataplane is (re-)enabled while the guest is running there could be
      * block jobs that can conflict.
      */
-    if (bdrv_in_use(blk->conf.bs)) {
-        error_setg(errp,
-                   "cannot start dataplane thread while device is in use");
+    if (bdrv_op_is_blocked(blk->conf.bs, BLOCK_OP_TYPE_DATAPLANE, &local_err)) {
+        error_report("cannot start dataplane thread: %s",
+                      error_get_pretty(local_err));
+        error_free(local_err);
         return;
     }
 
@@ -408,12 +395,29 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     s->fd = fd;
     s->blk = blk;
 
-    /* Prevent block operations that conflict with data plane thread */
-    bdrv_set_in_use(blk->conf.bs, 1);
+    if (blk->iothread) {
+        s->iothread = blk->iothread;
+        object_ref(OBJECT(s->iothread));
+    } else {
+        /* Create per-device IOThread if none specified.  This is for
+         * x-data-plane option compatibility.  If x-data-plane is removed we
+         * can drop this.
+         */
+        object_initialize(&s->internal_iothread_obj,
+                          sizeof(s->internal_iothread_obj),
+                          TYPE_IOTHREAD);
+        user_creatable_complete(OBJECT(&s->internal_iothread_obj), &error_abort);
+        s->iothread = &s->internal_iothread_obj;
+    }
+    s->ctx = iothread_get_aio_context(s->iothread);
+
+    error_setg(&s->blocker, "block device is in use by data plane");
+    bdrv_op_block_all(blk->conf.bs, s->blocker);
 
     *dataplane = s;
 }
 
+/* Context: QEMU global mutex held */
 void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
 {
     if (!s) {
@@ -421,10 +425,13 @@ void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
     }
 
     virtio_blk_data_plane_stop(s);
-    bdrv_set_in_use(s->blk->conf.bs, 0);
+    bdrv_op_unblock_all(s->blk->conf.bs, s->blocker);
+    error_free(s->blocker);
+    object_unref(OBJECT(s->iothread));
     g_free(s);
 }
 
+/* Context: QEMU global mutex held */
 void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s->vdev)));
@@ -448,8 +455,6 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
         return;
     }
 
-    s->ctx = aio_context_new();
-
     /* Set up guest notifier (irq) */
     if (k->set_guest_notifiers(qbus->parent, 1, true) != 0) {
         fprintf(stderr, "virtio-blk failed to set guest notifier, "
@@ -464,7 +469,6 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
         exit(1);
     }
     s->host_notifier = *virtio_queue_get_host_notifier(vq);
-    aio_set_event_notifier(s->ctx, &s->host_notifier, handle_notify);
 
     /* Set up ioqueue */
     ioq_init(&s->ioqueue, s->fd, REQ_MAX);
@@ -472,7 +476,6 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
         ioq_put_iocb(&s->ioqueue, &s->requests[i].iocb);
     }
     s->io_notifier = *ioq_get_notifier(&s->ioqueue);
-    aio_set_event_notifier(s->ctx, &s->io_notifier, handle_io);
 
     s->starting = false;
     s->started = true;
@@ -481,11 +484,14 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
     /* Kick right away to begin processing requests already in vring */
     event_notifier_set(virtio_queue_get_host_notifier(vq));
 
-    /* Spawn thread in BH so it inherits iothread cpusets */
-    s->start_bh = qemu_bh_new(start_data_plane_bh, s);
-    qemu_bh_schedule(s->start_bh);
+    /* Get this show started by hooking up our callbacks */
+    aio_context_acquire(s->ctx);
+    aio_set_event_notifier(s->ctx, &s->host_notifier, handle_notify);
+    aio_set_event_notifier(s->ctx, &s->io_notifier, handle_io);
+    aio_context_release(s->ctx);
 }
 
+/* Context: QEMU global mutex held */
 void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s->vdev)));
@@ -496,27 +502,32 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
     s->stopping = true;
     trace_virtio_blk_data_plane_stop(s);
 
-    /* Stop thread or cancel pending thread creation BH */
-    if (s->start_bh) {
-        qemu_bh_delete(s->start_bh);
-        s->start_bh = NULL;
-    } else {
-        aio_notify(s->ctx);
-        qemu_thread_join(&s->thread);
+    aio_context_acquire(s->ctx);
+
+    /* Stop notifications for new requests from guest */
+    aio_set_event_notifier(s->ctx, &s->host_notifier, NULL);
+
+    /* Complete pending requests */
+    while (s->num_reqs > 0) {
+        aio_poll(s->ctx, true);
     }
 
+    /* Stop ioq callbacks (there are no pending requests left) */
     aio_set_event_notifier(s->ctx, &s->io_notifier, NULL);
+
+    aio_context_release(s->ctx);
+
+    /* Sync vring state back to virtqueue so that non-dataplane request
+     * processing can continue when we disable the host notifier below.
+     */
+    vring_teardown(&s->vring, s->vdev, 0);
+
     ioq_cleanup(&s->ioqueue);
-
-    aio_set_event_notifier(s->ctx, &s->host_notifier, NULL);
     k->set_host_notifier(qbus->parent, 0, false);
-
-    aio_context_unref(s->ctx);
 
     /* Clean up guest notifier (irq) */
     k->set_guest_notifiers(qbus->parent, 1, false);
 
-    vring_teardown(&s->vring, s->vdev, 0);
     s->started = false;
     s->stopping = false;
 }

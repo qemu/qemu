@@ -65,13 +65,13 @@ def read_trace_file(edict, fobj):
        header[0] != header_event_id or \
        header[1] != header_magic:
         raise ValueError('Not a valid trace file!')
-    if header[2] != 0 and \
-       header[2] != 2:
-        raise ValueError('Unknown version of tracelog format!')
 
     log_version = header[2]
-    if log_version == 0:
-        raise ValueError('Older log format, not supported with this QEMU release!')
+    if log_version not in [0, 2, 3]:
+        raise ValueError('Unknown version of tracelog format!')
+    if log_version != 3:
+        raise ValueError('Log format %d not supported with this QEMU release!'
+                         % log_version)
 
     while True:
         rec = read_record(edict, fobj)
@@ -109,14 +109,10 @@ def process(events, log, analyzer):
     if isinstance(log, str):
         log = open(log, 'rb')
 
-    enabled_events = []
     dropped_event = Event.build("Dropped_Event(uint64_t num_events_dropped)")
     edict = {dropped_event_id: dropped_event}
 
-    for e in events:
-        if 'disable' not in e.properties:
-            enabled_events.append(e)
-    for num, event in enumerate(enabled_events):
+    for num, event in enumerate(events):
         edict[num] = event
 
     def build_fn(analyzer, event):

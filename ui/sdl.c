@@ -455,13 +455,17 @@ static void sdl_send_mouse_event(int dx, int dy, int x, int y, int state)
                              real_screen->w);
         qemu_input_queue_abs(dcl->con, INPUT_AXIS_Y, y,
                              real_screen->h);
-    } else if (guest_cursor) {
-        x -= guest_x;
-        y -= guest_y;
-        guest_x += x;
-        guest_y += y;
-        qemu_input_queue_rel(dcl->con, INPUT_AXIS_X, x);
-        qemu_input_queue_rel(dcl->con, INPUT_AXIS_Y, y);
+    } else {
+        if (guest_cursor) {
+            x -= guest_x;
+            y -= guest_y;
+            guest_x += x;
+            guest_y += y;
+            dx = x;
+            dy = y;
+        }
+        qemu_input_queue_rel(dcl->con, INPUT_AXIS_X, dx);
+        qemu_input_queue_rel(dcl->con, INPUT_AXIS_Y, dy);
     }
     qemu_input_event_sync();
 }

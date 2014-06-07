@@ -263,8 +263,7 @@ static const VMStateDescription vmstate_dma = {
     .name ="sparc32_dma",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(dmaregs, DMAState, DMA_REGS),
         VMSTATE_END_OF_LIST()
     }

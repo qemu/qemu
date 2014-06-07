@@ -46,5 +46,55 @@ DefinitionBlock ("ssdt-pcihp.aml", "SSDT", 0x01, "BXPC", "BXSSDTPCIHP", 0x1)
             }
         }
 
+        ACPI_EXTRACT_DEVICE_START ssdt_pcinohp_start
+        ACPI_EXTRACT_DEVICE_END ssdt_pcinohp_end
+        ACPI_EXTRACT_DEVICE_STRING ssdt_pcinohp_name
+
+        // Extract the offsets of the device name, address dword and the slot
+        // name byte - we fill them in for each device.
+        Device(SBB) {
+            ACPI_EXTRACT_NAME_DWORD_CONST ssdt_pcinohp_adr
+            Name(_ADR, 0xAA0000)
+        }
+
+        ACPI_EXTRACT_DEVICE_START ssdt_pcivga_start
+        ACPI_EXTRACT_DEVICE_END ssdt_pcivga_end
+        ACPI_EXTRACT_DEVICE_STRING ssdt_pcivga_name
+
+        // Extract the offsets of the device name, address dword and the slot
+        // name byte - we fill them in for each device.
+        Device(SCC) {
+            ACPI_EXTRACT_NAME_DWORD_CONST ssdt_pcivga_adr
+            Name(_ADR, 0xAA0000)
+            Method(_S1D, 0, NotSerialized) {
+                Return (0x00)
+            }
+            Method(_S2D, 0, NotSerialized) {
+                Return (0x00)
+            }
+            Method(_S3D, 0, NotSerialized) {
+                Return (0x00)
+            }
+        }
+
+        ACPI_EXTRACT_DEVICE_START ssdt_pciqxl_start
+        ACPI_EXTRACT_DEVICE_END ssdt_pciqxl_end
+        ACPI_EXTRACT_DEVICE_STRING ssdt_pciqxl_name
+
+        // Extract the offsets of the device name, address dword and the slot
+        // name byte - we fill them in for each device.
+        Device(SDD) {
+            ACPI_EXTRACT_NAME_DWORD_CONST ssdt_pciqxl_adr
+            Name(_ADR, 0xAA0000)
+            Method(_S1D, 0, NotSerialized) {
+                Return (0x00)
+            }
+            Method(_S2D, 0, NotSerialized) {
+                Return (0x00)
+            }
+            Method(_S3D, 0, NotSerialized) {
+                Return (0x03)           // QXL
+            }
+        }
     }
 }

@@ -146,6 +146,9 @@ typedef struct BDRVRawState {
     bool has_discard:1;
     bool has_write_zeroes:1;
     bool discard_zeroes:1;
+#ifdef CONFIG_FIEMAP
+    bool skip_fiemap;
+#endif
 } BDRVRawState;
 
 typedef struct BDRVRawReopenState {
@@ -336,6 +339,17 @@ error:
 }
 #endif
 
+static void raw_parse_filename(const char *filename, QDict *options,
+                               Error **errp)
+{
+    /* The filename does not have to be prefixed by the protocol name, since
+     * "file" is the default protocol; therefore, the return value of this
+     * function call can be ignored. */
+    strstart(filename, "file:", &filename);
+
+    qdict_put_obj(options, "filename", QOBJECT(qstring_from_str(filename)));
+}
+
 static QemuOptsList raw_runtime_opts = {
     .name = "raw",
     .head = QTAILQ_HEAD_INITIALIZER(raw_runtime_opts.head),
@@ -355,7 +369,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     BDRVRawState *s = bs->opaque;
     QemuOpts *opts;
     Error *local_err = NULL;
-    const char *filename;
+    const char *filename = NULL;
     int fd, ret;
     struct stat st;
 
@@ -435,6 +449,9 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 
     ret = 0;
 fail:
+    if (filename && (bdrv_flags & BDRV_O_TEMPORARY)) {
+        unlink(filename);
+    }
     qemu_opts_del(opts);
     return ret;
 }
@@ -1230,6 +1247,8 @@ static int raw_create(const char *filename, QEMUOptionParameter *options,
     int result = 0;
     int64_t total_size = 0;
 
+    strstart(filename, "file:", &filename);
+
     /* Read out options */
     while (options && options->name) {
         if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
@@ -1256,6 +1275,83 @@ static int raw_create(const char *filename, QEMUOptionParameter *options,
     return result;
 }
 
+static int64_t try_fiemap(BlockDriverState *bs, off_t start, off_t *data,
+                          off_t *hole, int nb_sectors, int *pnum)
+{
+#ifdef CONFIG_FIEMAP
+    BDRVRawState *s = bs->opaque;
+    int64_t ret = BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
+    struct {
+        struct fiemap fm;
+        struct fiemap_extent fe;
+    } f;
+
+    if (s->skip_fiemap) {
+        return -ENOTSUP;
+    }
+
+    f.fm.fm_start = start;
+    f.fm.fm_length = (int64_t)nb_sectors * BDRV_SECTOR_SIZE;
+    f.fm.fm_flags = 0;
+    f.fm.fm_extent_count = 1;
+    f.fm.fm_reserved = 0;
+    if (ioctl(s->fd, FS_IOC_FIEMAP, &f) == -1) {
+        s->skip_fiemap = true;
+        return -errno;
+    }
+
+    if (f.fm.fm_mapped_extents == 0) {
+        /* No extents found, data is beyond f.fm.fm_start + f.fm.fm_length.
+         * f.fm.fm_start + f.fm.fm_length must be clamped to the file size!
+         */
+        off_t length = lseek(s->fd, 0, SEEK_END);
+        *hole = f.fm.fm_start;
+        *data = MIN(f.fm.fm_start + f.fm.fm_length, length);
+    } else {
+        *data = f.fe.fe_logical;
+        *hole = f.fe.fe_logical + f.fe.fe_length;
+        if (f.fe.fe_flags & FIEMAP_EXTENT_UNWRITTEN) {
+            ret |= BDRV_BLOCK_ZERO;
+        }
+    }
+
+    return ret;
+#else
+    return -ENOTSUP;
+#endif
+}
+
+static int64_t try_seek_hole(BlockDriverState *bs, off_t start, off_t *data,
+                             off_t *hole, int *pnum)
+{
+#if defined SEEK_HOLE && defined SEEK_DATA
+    BDRVRawState *s = bs->opaque;
+
+    *hole = lseek(s->fd, start, SEEK_HOLE);
+    if (*hole == -1) {
+        /* -ENXIO indicates that sector_num was past the end of the file.
+         * There is a virtual hole there.  */
+        assert(errno != -ENXIO);
+
+        return -errno;
+    }
+
+    if (*hole > start) {
+        *data = start;
+    } else {
+        /* On a hole.  We need another syscall to find its end.  */
+        *data = lseek(s->fd, start, SEEK_DATA);
+        if (*data == -1) {
+            *data = lseek(s->fd, 0, SEEK_END);
+        }
+    }
+
+    return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
+#else
+    return -ENOTSUP;
+#endif
+}
+
 /*
  * Returns true iff the specified sector is present in the disk image. Drivers
  * not implementing the functionality are assumed to not support backing files,
@@ -1272,10 +1368,10 @@ static int raw_create(const char *filename, QEMUOptionParameter *options,
  * beyond the end of the disk image it will be clamped.
  */
 static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
-                                            int64_t sector_num,
-                                            int nb_sectors, int *pnum)
+                                                    int64_t sector_num,
+                                                    int nb_sectors, int *pnum)
 {
-    off_t start, data, hole;
+    off_t start, data = 0, hole = 0;
     int64_t ret;
 
     ret = fd_open(bs);
@@ -1284,70 +1380,17 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
     }
 
     start = sector_num * BDRV_SECTOR_SIZE;
-    ret = BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
 
-#ifdef CONFIG_FIEMAP
-
-    BDRVRawState *s = bs->opaque;
-    struct {
-        struct fiemap fm;
-        struct fiemap_extent fe;
-    } f;
-
-    f.fm.fm_start = start;
-    f.fm.fm_length = (int64_t)nb_sectors * BDRV_SECTOR_SIZE;
-    f.fm.fm_flags = 0;
-    f.fm.fm_extent_count = 1;
-    f.fm.fm_reserved = 0;
-    if (ioctl(s->fd, FS_IOC_FIEMAP, &f) == -1) {
-        /* Assume everything is allocated.  */
-        *pnum = nb_sectors;
-        return ret;
-    }
-
-    if (f.fm.fm_mapped_extents == 0) {
-        /* No extents found, data is beyond f.fm.fm_start + f.fm.fm_length.
-         * f.fm.fm_start + f.fm.fm_length must be clamped to the file size!
-         */
-        off_t length = lseek(s->fd, 0, SEEK_END);
-        hole = f.fm.fm_start;
-        data = MIN(f.fm.fm_start + f.fm.fm_length, length);
-    } else {
-        data = f.fe.fe_logical;
-        hole = f.fe.fe_logical + f.fe.fe_length;
-        if (f.fe.fe_flags & FIEMAP_EXTENT_UNWRITTEN) {
-            ret |= BDRV_BLOCK_ZERO;
+    ret = try_fiemap(bs, start, &data, &hole, nb_sectors, pnum);
+    if (ret < 0) {
+        ret = try_seek_hole(bs, start, &data, &hole, pnum);
+        if (ret < 0) {
+            /* Assume everything is allocated. */
+            data = 0;
+            hole = start + nb_sectors * BDRV_SECTOR_SIZE;
+            ret = BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
         }
     }
-
-#elif defined SEEK_HOLE && defined SEEK_DATA
-
-    BDRVRawState *s = bs->opaque;
-
-    hole = lseek(s->fd, start, SEEK_HOLE);
-    if (hole == -1) {
-        /* -ENXIO indicates that sector_num was past the end of the file.
-         * There is a virtual hole there.  */
-        assert(errno != -ENXIO);
-
-        /* Most likely EINVAL.  Assume everything is allocated.  */
-        *pnum = nb_sectors;
-        return ret;
-    }
-
-    if (hole > start) {
-        data = start;
-    } else {
-        /* On a hole.  We need another syscall to find its end.  */
-        data = lseek(s->fd, start, SEEK_DATA);
-        if (data == -1) {
-            data = lseek(s->fd, 0, SEEK_END);
-        }
-    }
-#else
-    data = 0;
-    hole = start + nb_sectors * BDRV_SECTOR_SIZE;
-#endif
 
     if (data <= start) {
         /* On a data extent, compute sectors to the end of the extent.  */
@@ -1412,6 +1455,7 @@ static BlockDriver bdrv_file = {
     .instance_size = sizeof(BDRVRawState),
     .bdrv_needs_filename = true,
     .bdrv_probe = NULL, /* no probe for protocols */
+    .bdrv_parse_filename = raw_parse_filename,
     .bdrv_file_open = raw_open,
     .bdrv_reopen_prepare = raw_reopen_prepare,
     .bdrv_reopen_commit = raw_reopen_commit,
@@ -1545,6 +1589,15 @@ static int check_hdev_writable(BDRVRawState *s)
     }
 #endif /* defined(BLKROGET) */
     return 0;
+}
+
+static void hdev_parse_filename(const char *filename, QDict *options,
+                                Error **errp)
+{
+    /* The prefix is optional, just as for "file". */
+    strstart(filename, "host_device:", &filename);
+
+    qdict_put_obj(options, "filename", QOBJECT(qstring_from_str(filename)));
 }
 
 static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
@@ -1753,6 +1806,18 @@ static int hdev_create(const char *filename, QEMUOptionParameter *options,
     int ret = 0;
     struct stat stat_buf;
     int64_t total_size = 0;
+    bool has_prefix;
+
+    /* This function is used by all three protocol block drivers and therefore
+     * any of these three prefixes may be given.
+     * The return value has to be stored somewhere, otherwise this is an error
+     * due to -Werror=unused-value. */
+    has_prefix =
+        strstart(filename, "host_device:", &filename) ||
+        strstart(filename, "host_cdrom:" , &filename) ||
+        strstart(filename, "host_floppy:", &filename);
+
+    (void)has_prefix;
 
     /* Read out options */
     while (options && options->name) {
@@ -1791,6 +1856,7 @@ static BlockDriver bdrv_host_device = {
     .instance_size      = sizeof(BDRVRawState),
     .bdrv_needs_filename = true,
     .bdrv_probe_device  = hdev_probe_device,
+    .bdrv_parse_filename = hdev_parse_filename,
     .bdrv_file_open     = hdev_open,
     .bdrv_close         = raw_close,
     .bdrv_reopen_prepare = raw_reopen_prepare,
@@ -1820,6 +1886,15 @@ static BlockDriver bdrv_host_device = {
 };
 
 #ifdef __linux__
+static void floppy_parse_filename(const char *filename, QDict *options,
+                                  Error **errp)
+{
+    /* The prefix is optional, just as for "file". */
+    strstart(filename, "host_floppy:", &filename);
+
+    qdict_put_obj(options, "filename", QOBJECT(qstring_from_str(filename)));
+}
+
 static int floppy_open(BlockDriverState *bs, QDict *options, int flags,
                        Error **errp)
 {
@@ -1925,6 +2000,7 @@ static BlockDriver bdrv_host_floppy = {
     .instance_size      = sizeof(BDRVRawState),
     .bdrv_needs_filename = true,
     .bdrv_probe_device	= floppy_probe_device,
+    .bdrv_parse_filename = floppy_parse_filename,
     .bdrv_file_open     = floppy_open,
     .bdrv_close         = raw_close,
     .bdrv_reopen_prepare = raw_reopen_prepare,
@@ -1949,7 +2025,20 @@ static BlockDriver bdrv_host_floppy = {
     .bdrv_media_changed = floppy_media_changed,
     .bdrv_eject         = floppy_eject,
 };
+#endif
 
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+static void cdrom_parse_filename(const char *filename, QDict *options,
+                                 Error **errp)
+{
+    /* The prefix is optional, just as for "file". */
+    strstart(filename, "host_cdrom:", &filename);
+
+    qdict_put_obj(options, "filename", QOBJECT(qstring_from_str(filename)));
+}
+#endif
+
+#ifdef __linux__
 static int cdrom_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
@@ -2036,6 +2125,7 @@ static BlockDriver bdrv_host_cdrom = {
     .instance_size      = sizeof(BDRVRawState),
     .bdrv_needs_filename = true,
     .bdrv_probe_device	= cdrom_probe_device,
+    .bdrv_parse_filename = cdrom_parse_filename,
     .bdrv_file_open     = cdrom_open,
     .bdrv_close         = raw_close,
     .bdrv_reopen_prepare = raw_reopen_prepare,
@@ -2166,6 +2256,7 @@ static BlockDriver bdrv_host_cdrom = {
     .instance_size      = sizeof(BDRVRawState),
     .bdrv_needs_filename = true,
     .bdrv_probe_device	= cdrom_probe_device,
+    .bdrv_parse_filename = cdrom_parse_filename,
     .bdrv_file_open     = cdrom_open,
     .bdrv_close         = raw_close,
     .bdrv_reopen_prepare = raw_reopen_prepare,

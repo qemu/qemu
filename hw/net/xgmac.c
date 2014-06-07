@@ -152,11 +152,11 @@ typedef struct XgmacState {
     uint32_t regs[R_MAX];
 } XgmacState;
 
-const VMStateDescription vmstate_rxtx_stats = {
+static const VMStateDescription vmstate_rxtx_stats = {
     .name = "xgmac_stats",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT64(rx_bytes, RxTxStats),
         VMSTATE_UINT64(tx_bytes, RxTxStats),
         VMSTATE_UINT64(rx, RxTxStats),

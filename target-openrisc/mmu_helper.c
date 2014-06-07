@@ -36,20 +36,20 @@
 #define SHIFT 3
 #include "exec/softmmu_template.h"
 
-void tlb_fill(CPUOpenRISCState *env, target_ulong addr, int is_write,
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write,
               int mmu_idx, uintptr_t retaddr)
 {
     int ret;
 
-    ret = cpu_openrisc_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = openrisc_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
 
     if (ret) {
         if (retaddr) {
             /* now we have a real cpu fault.  */
-            cpu_restore_state(env, retaddr);
+            cpu_restore_state(cs, retaddr);
         }
         /* Raise Exception.  */
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 #endif

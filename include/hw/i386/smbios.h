@@ -15,14 +15,39 @@
 
 #include "qemu/option.h"
 
+#define SMBIOS_MAX_TYPE 127
+
 void smbios_entry_add(QemuOpts *opts);
-void smbios_set_type1_defaults(const char *manufacturer,
-                               const char *product, const char *version);
-uint8_t *smbios_get_table(size_t *length);
+void smbios_set_cpuid(uint32_t version, uint32_t features);
+void smbios_set_defaults(const char *manufacturer, const char *product,
+                         const char *version, bool legacy_mode);
+uint8_t *smbios_get_table_legacy(size_t *length);
+void smbios_get_tables(uint8_t **tables, size_t *tables_len,
+                       uint8_t **anchor, size_t *anchor_len);
 
 /*
  * SMBIOS spec defined tables
  */
+
+/* SMBIOS entry point (anchor).
+ * BIOS must place this at a 16-bit-aligned address between 0xf0000 and 0xfffff.
+ */
+struct smbios_entry_point {
+    uint8_t anchor_string[4];
+    uint8_t checksum;
+    uint8_t length;
+    uint8_t smbios_major_version;
+    uint8_t smbios_minor_version;
+    uint16_t max_structure_size;
+    uint8_t entry_point_revision;
+    uint8_t formatted_area[5];
+    uint8_t intermediate_anchor_string[5];
+    uint8_t intermediate_checksum;
+    uint16_t structure_table_length;
+    uint32_t structure_table_address;
+    uint16_t number_of_structures;
+    uint8_t smbios_bcd_revision;
+} QEMU_PACKED;
 
 /* This goes at the beginning of every SMBIOS structure. */
 struct smbios_structure_header {
@@ -60,7 +85,23 @@ struct smbios_type_1 {
     uint8_t family_str;
 } QEMU_PACKED;
 
-/* SMBIOS type 3 - System Enclosure (v2.3) */
+/* SMBIOS type 2 - Base Board */
+struct smbios_type_2 {
+    struct smbios_structure_header header;
+    uint8_t manufacturer_str;
+    uint8_t product_str;
+    uint8_t version_str;
+    uint8_t serial_number_str;
+    uint8_t asset_tag_number_str;
+    uint8_t feature_flags;
+    uint8_t location_str;
+    uint16_t chassis_handle;
+    uint8_t board_type;
+    uint8_t contained_element_count;
+    /* contained elements follow */
+} QEMU_PACKED;
+
+/* SMBIOS type 3 - System Enclosure (v2.7) */
 struct smbios_type_3 {
     struct smbios_structure_header header;
     uint8_t manufacturer_str;
@@ -76,10 +117,11 @@ struct smbios_type_3 {
     uint8_t height;
     uint8_t number_of_power_cords;
     uint8_t contained_element_count;
-    // contained elements follow
+    uint8_t sku_number_str;
+    /* contained elements follow */
 } QEMU_PACKED;
 
-/* SMBIOS type 4 - Processor Information (v2.0) */
+/* SMBIOS type 4 - Processor Information (v2.6) */
 struct smbios_type_4 {
     struct smbios_structure_header header;
     uint8_t socket_designation_str;
@@ -97,11 +139,17 @@ struct smbios_type_4 {
     uint16_t l1_cache_handle;
     uint16_t l2_cache_handle;
     uint16_t l3_cache_handle;
+    uint8_t serial_number_str;
+    uint8_t asset_tag_number_str;
+    uint8_t part_number_str;
+    uint8_t core_count;
+    uint8_t core_enabled;
+    uint8_t thread_count;
+    uint16_t processor_characteristics;
+    uint16_t processor_family2;
 } QEMU_PACKED;
 
-/* SMBIOS type 16 - Physical Memory Array
- *   Associated with one type 17 (Memory Device).
- */
+/* SMBIOS type 16 - Physical Memory Array (v2.7) */
 struct smbios_type_16 {
     struct smbios_structure_header header;
     uint8_t location;
@@ -110,10 +158,10 @@ struct smbios_type_16 {
     uint32_t maximum_capacity;
     uint16_t memory_error_information_handle;
     uint16_t number_of_memory_devices;
+    uint64_t extended_maximum_capacity;
 } QEMU_PACKED;
-/* SMBIOS type 17 - Memory Device
- *   Associated with one type 19
- */
+
+/* SMBIOS type 17 - Memory Device (v2.8) */
 struct smbios_type_17 {
     struct smbios_structure_header header;
     uint16_t physical_memory_array_handle;
@@ -127,27 +175,28 @@ struct smbios_type_17 {
     uint8_t bank_locator_str;
     uint8_t memory_type;
     uint16_t type_detail;
+    uint16_t speed;
+    uint8_t manufacturer_str;
+    uint8_t serial_number_str;
+    uint8_t asset_tag_number_str;
+    uint8_t part_number_str;
+    uint8_t attributes;
+    uint32_t extended_size;
+    uint32_t configured_clock_speed;
+    uint32_t minimum_voltage;
+    uint32_t maximum_voltage;
+    uint32_t configured_voltage;
 } QEMU_PACKED;
 
-/* SMBIOS type 19 - Memory Array Mapped Address */
+/* SMBIOS type 19 - Memory Array Mapped Address (v2.7) */
 struct smbios_type_19 {
     struct smbios_structure_header header;
     uint32_t starting_address;
     uint32_t ending_address;
     uint16_t memory_array_handle;
     uint8_t partition_width;
-} QEMU_PACKED;
-
-/* SMBIOS type 20 - Memory Device Mapped Address */
-struct smbios_type_20 {
-    struct smbios_structure_header header;
-    uint32_t starting_address;
-    uint32_t ending_address;
-    uint16_t memory_device_handle;
-    uint16_t memory_array_mapped_address_handle;
-    uint8_t partition_row_position;
-    uint8_t interleave_position;
-    uint8_t interleaved_data_depth;
+    uint64_t extended_starting_address;
+    uint64_t extended_ending_address;
 } QEMU_PACKED;
 
 /* SMBIOS type 32 - System Boot Information */

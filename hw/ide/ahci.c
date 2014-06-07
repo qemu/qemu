@@ -118,11 +118,12 @@ static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
 static void ahci_irq_raise(AHCIState *s, AHCIDevice *dev)
 {
     AHCIPCIState *d = container_of(s, AHCIPCIState, ahci);
-    PCIDevice *pci_dev = PCI_DEVICE(d);
+    PCIDevice *pci_dev =
+        (PCIDevice *)object_dynamic_cast(OBJECT(d), TYPE_PCI_DEVICE);
 
     DPRINTF(0, "raise irq\n");
 
-    if (msi_enabled(pci_dev)) {
+    if (pci_dev && msi_enabled(pci_dev)) {
         msi_notify(pci_dev, 0);
     } else {
         qemu_irq_raise(s->irq);
@@ -132,10 +133,12 @@ static void ahci_irq_raise(AHCIState *s, AHCIDevice *dev)
 static void ahci_irq_lower(AHCIState *s, AHCIDevice *dev)
 {
     AHCIPCIState *d = container_of(s, AHCIPCIState, ahci);
+    PCIDevice *pci_dev =
+        (PCIDevice *)object_dynamic_cast(OBJECT(d), TYPE_PCI_DEVICE);
 
     DPRINTF(0, "lower irq\n");
 
-    if (!msi_enabled(PCI_DEVICE(d))) {
+    if (!pci_dev || !msi_enabled(pci_dev)) {
         qemu_irq_lower(s->irq);
     }
 }
@@ -435,9 +438,9 @@ static void check_cmd(AHCIState *s, int port)
 
     if ((pr->cmd & PORT_CMD_START) && pr->cmd_issue) {
         for (slot = 0; (slot < 32) && pr->cmd_issue; slot++) {
-            if ((pr->cmd_issue & (1 << slot)) &&
+            if ((pr->cmd_issue & (1U << slot)) &&
                 !handle_cmd(s, port, slot)) {
-                pr->cmd_issue &= ~(1 << slot);
+                pr->cmd_issue &= ~(1U << slot);
             }
         }
     }
@@ -1290,7 +1293,7 @@ const VMStateDescription vmstate_ahci = {
         VMSTATE_UINT32(control_regs.impl, AHCIState),
         VMSTATE_UINT32(control_regs.version, AHCIState),
         VMSTATE_UINT32(idp_index, AHCIState),
-        VMSTATE_INT32(ports, AHCIState),
+        VMSTATE_INT32_EQUAL(ports, AHCIState),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -1311,7 +1314,7 @@ static const VMStateDescription vmstate_sysbus_ahci = {
     .name = "sysbus-ahci",
     .unmigratable = 1, /* Still buggy under I/O load */
     .fields = (VMStateField []) {
-        VMSTATE_AHCI(ahci, AHCIPCIState),
+        VMSTATE_AHCI(ahci, SysbusAHCIState),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -1328,7 +1331,7 @@ static void sysbus_ahci_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     SysbusAHCIState *s = SYSBUS_AHCI(dev);
 
-    ahci_init(&s->ahci, dev, NULL, s->num_ports);
+    ahci_init(&s->ahci, dev, &address_space_memory, s->num_ports);
 
     sysbus_init_mmio(sbd, &s->ahci.mem);
     sysbus_init_irq(sbd, &s->ahci.irq);

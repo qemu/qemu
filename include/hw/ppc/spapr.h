@@ -153,8 +153,13 @@ typedef struct sPAPREnvironment {
 #define H_PP1             (1ULL<<(63-62))
 #define H_PP2             (1ULL<<(63-63))
 
-/* H_SET_MODE flags */
-#define H_SET_MODE_ENDIAN        4
+/* Values for 2nd argument to H_SET_MODE */
+#define H_SET_MODE_RESOURCE_SET_CIABR           1
+#define H_SET_MODE_RESOURCE_SET_DAWR            2
+#define H_SET_MODE_RESOURCE_ADDR_TRANS_MODE     3
+#define H_SET_MODE_RESOURCE_LE                  4
+
+/* Flags for H_SET_MODE_RESOURCE_LE */
 #define H_SET_MODE_ENDIAN_BIG    0
 #define H_SET_MODE_ENDIAN_LITTLE 1
 

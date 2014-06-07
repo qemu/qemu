@@ -1,14 +1,10 @@
 /* Test path override code */
-#define _GNU_SOURCE
 #include "config-host.h"
-#include "iov.c"
-#include "cutils.c"
-#include "path.c"
-#include "trace.c"
-#ifdef CONFIG_TRACE_SIMPLE
-#include "../trace/simple.c"
-#endif
-
+#include "util/cutils.c"
+#include "util/hexdump.c"
+#include "util/iov.c"
+#include "util/path.c"
+#include "util/qemu-timer-common.c"
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <fcntl.h>

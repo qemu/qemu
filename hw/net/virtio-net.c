@@ -222,13 +222,33 @@ static char *mac_strdup_printf(const uint8_t *mac)
                             mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
+static intList *get_vlan_table(VirtIONet *n)
+{
+    intList *list, *entry;
+    int i, j;
+
+    list = NULL;
+    for (i = 0; i < MAX_VLAN >> 5; i++) {
+        for (j = 0; n->vlans[i] && j <= 0x1f; j++) {
+            if (n->vlans[i] & (1U << j)) {
+                entry = g_malloc0(sizeof(*entry));
+                entry->value = (i << 5) + j;
+                entry->next = list;
+                list = entry;
+            }
+        }
+    }
+
+    return list;
+}
+
 static RxFilterInfo *virtio_net_query_rxfilter(NetClientState *nc)
 {
     VirtIONet *n = qemu_get_nic_opaque(nc);
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
     RxFilterInfo *info;
     strList *str_list, *entry;
-    intList *int_list, *int_entry;
-    int i, j;
+    int i;
 
     info = g_malloc0(sizeof(*info));
     info->name = g_strdup(nc->name);
@@ -273,19 +293,15 @@ static RxFilterInfo *virtio_net_query_rxfilter(NetClientState *nc)
         str_list = entry;
     }
     info->multicast_table = str_list;
+    info->vlan_table = get_vlan_table(n);
 
-    int_list = NULL;
-    for (i = 0; i < MAX_VLAN >> 5; i++) {
-        for (j = 0; n->vlans[i] && j < 0x1f; j++) {
-            if (n->vlans[i] & (1U << j)) {
-                int_entry = g_malloc0(sizeof(*int_entry));
-                int_entry->value = (i << 5) + j;
-                int_entry->next = int_list;
-                int_list = int_entry;
-            }
-        }
+    if (!((1 << VIRTIO_NET_F_CTRL_VLAN) & vdev->guest_features)) {
+        info->vlan = RX_STATE_ALL;
+    } else if (!info->vlan_table) {
+        info->vlan = RX_STATE_NONE;
+    } else {
+        info->vlan = RX_STATE_NORMAL;
     }
-    info->vlan_table = int_list;
 
     /* enable event notification after query */
     nc->rxfilter_notify_enabled = 1;
@@ -397,12 +413,15 @@ static int peer_detach(VirtIONet *n, int index)
 static void virtio_net_set_queues(VirtIONet *n)
 {
     int i;
+    int r;
 
     for (i = 0; i < n->max_queues; i++) {
         if (i < n->curr_queues) {
-            assert(!peer_attach(n, i));
+            r = peer_attach(n, i);
+            assert(!r);
         } else {
-            assert(!peer_detach(n, i));
+            r = peer_detach(n, i);
+            assert(!r);
         }
     }
 }
@@ -510,6 +529,12 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
             continue;
         }
         vhost_net_ack_features(tap_get_vhost_net(nc->peer), features);
+    }
+
+    if ((1 << VIRTIO_NET_F_CTRL_VLAN) & features) {
+        memset(n->vlans, 0, MAX_VLAN >> 3);
+    } else {
+        memset(n->vlans, 0xff, MAX_VLAN >> 3);
     }
 }
 
@@ -652,7 +677,7 @@ static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
         goto error;
     }
 
-    if (in_use + mac_data.entries <= MAC_TABLE_ENTRIES) {
+    if (mac_data.entries <= MAC_TABLE_ENTRIES - in_use) {
         s = iov_to_buf(iov, iov_cnt, 0, &macs[in_use * ETH_ALEN],
                        mac_data.entries * ETH_ALEN);
         if (s != mac_data.entries * ETH_ALEN) {
@@ -1337,10 +1362,17 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         if (n->mac_table.in_use <= MAC_TABLE_ENTRIES) {
             qemu_get_buffer(f, n->mac_table.macs,
                             n->mac_table.in_use * ETH_ALEN);
-        } else if (n->mac_table.in_use) {
-            uint8_t *buf = g_malloc0(n->mac_table.in_use);
-            qemu_get_buffer(f, buf, n->mac_table.in_use * ETH_ALEN);
-            g_free(buf);
+        } else {
+            int64_t i;
+
+            /* Overflow detected - can happen if source has a larger MAC table.
+             * We simply set overflow flag so there's no need to maintain the
+             * table of addresses, discard them all.
+             * Note: 64 bit math to avoid integer overflow.
+             */
+            for (i = 0; i < (int64_t)n->mac_table.in_use * ETH_ALEN; ++i) {
+                qemu_get_byte(f);
+            }
             n->mac_table.multi_overflow = n->mac_table.uni_overflow = 1;
             n->mac_table.in_use = 0;
         }
@@ -1382,6 +1414,11 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         }
 
         n->curr_queues = qemu_get_be16(f);
+        if (n->curr_queues > n->max_queues) {
+            error_report("virtio-net: curr_queues %x > max_queues %x",
+                         n->curr_queues, n->max_queues);
+            return -1;
+        }
         for (i = 1; i < n->curr_queues; i++) {
             n->vqs[i].tx_waiting = qemu_get_be32(f);
         }

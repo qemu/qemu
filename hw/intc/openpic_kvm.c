@@ -118,6 +118,11 @@ static void kvm_openpic_region_add(MemoryListener *listener,
         abort();
     }
 
+    /* Ignore events on regions that are not us */
+    if (section->mr != &opp->mem) {
+        return;
+    }
+
     reg_base = section->offset_within_address_space;
 
     attr.group = KVM_DEV_MPIC_GRP_MISC;
@@ -139,6 +144,11 @@ static void kvm_openpic_region_del(MemoryListener *listener,
     struct kvm_device_attr attr;
     uint64_t reg_base = 0;
     int ret;
+
+    /* Ignore events on regions that are not us */
+    if (section->mr != &opp->mem) {
+        return;
+    }
 
     attr.group = KVM_DEV_MPIC_GRP_MISC;
     attr.attr = KVM_DEV_MPIC_BASE_ADDR;
@@ -200,7 +210,7 @@ static void kvm_openpic_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_in(dev, kvm_openpic_set_irq, OPENPIC_MAX_IRQ);
 
     opp->mem_listener.region_add = kvm_openpic_region_add;
-    opp->mem_listener.region_add = kvm_openpic_region_del;
+    opp->mem_listener.region_del = kvm_openpic_region_del;
     memory_listener_register(&opp->mem_listener, &address_space_memory);
 
     /* indicate pic capabilities */
@@ -224,13 +234,9 @@ static void kvm_openpic_realize(DeviceState *dev, Error **errp)
 int kvm_openpic_connect_vcpu(DeviceState *d, CPUState *cs)
 {
     KVMOpenPICState *opp = KVM_OPENPIC(d);
-    struct kvm_enable_cap encap = {};
 
-    encap.cap = KVM_CAP_IRQ_MPIC;
-    encap.args[0] = opp->fd;
-    encap.args[1] = kvm_arch_vcpu_id(cs);
-
-    return kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &encap);
+    return kvm_vcpu_enable_cap(cs, KVM_CAP_IRQ_MPIC, 0, opp->fd,
+                               kvm_arch_vcpu_id(cs));
 }
 
 static Property kvm_openpic_properties[] = {

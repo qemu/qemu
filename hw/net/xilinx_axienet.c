@@ -98,7 +98,7 @@ static unsigned int tdk_read(struct PHY *phy, unsigned int req)
             r |= 1;
             break;
         case 17:
-            /* Marvel PHY on many xilinx boards.  */
+            /* Marvell PHY on many xilinx boards.  */
             r = 0x8000; /* 1000Mb  */
             break;
         case 18:
@@ -142,6 +142,9 @@ tdk_write(struct PHY *phy, unsigned int req, unsigned int data)
             phy->regs[regnum] = data;
             break;
     }
+
+    /* Unconditionally clear regs[BMCR][BMCR_RESET] */
+    phy->regs[0] &= ~0x8000;
 }
 
 static void
@@ -942,18 +945,24 @@ static void xilinx_enet_realize(DeviceState *dev, Error **errp)
     XilinxAXIEnetStreamSlave *ds = XILINX_AXI_ENET_DATA_STREAM(&s->rx_data_dev);
     XilinxAXIEnetStreamSlave *cs = XILINX_AXI_ENET_CONTROL_STREAM(
                                                             &s->rx_control_dev);
-    Error *local_errp = NULL;
+    Error *local_err = NULL;
 
     object_property_add_link(OBJECT(ds), "enet", "xlnx.axi-ethernet",
-                             (Object **) &ds->enet, &local_errp);
+                             (Object **) &ds->enet,
+                             object_property_allow_set_link,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &local_err);
     object_property_add_link(OBJECT(cs), "enet", "xlnx.axi-ethernet",
-                             (Object **) &cs->enet, &local_errp);
-    if (local_errp) {
+                             (Object **) &cs->enet,
+                             object_property_allow_set_link,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &local_err);
+    if (local_err) {
         goto xilinx_enet_realize_fail;
     }
-    object_property_set_link(OBJECT(ds), OBJECT(s), "enet", &local_errp);
-    object_property_set_link(OBJECT(cs), OBJECT(s), "enet", &local_errp);
-    if (local_errp) {
+    object_property_set_link(OBJECT(ds), OBJECT(s), "enet", &local_err);
+    object_property_set_link(OBJECT(cs), OBJECT(s), "enet", &local_err);
+    if (local_err) {
         goto xilinx_enet_realize_fail;
     }
 
@@ -972,7 +981,7 @@ static void xilinx_enet_realize(DeviceState *dev, Error **errp)
 
 xilinx_enet_realize_fail:
     if (!*errp) {
-        *errp = local_errp;
+        *errp = local_err;
     }
 }
 
@@ -982,10 +991,16 @@ static void xilinx_enet_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     object_property_add_link(obj, "axistream-connected", TYPE_STREAM_SLAVE,
-                             (Object **) &s->tx_data_dev, &error_abort);
+                             (Object **) &s->tx_data_dev,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &error_abort);
     object_property_add_link(obj, "axistream-control-connected",
                              TYPE_STREAM_SLAVE,
-                             (Object **) &s->tx_control_dev, &error_abort);
+                             (Object **) &s->tx_control_dev,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &error_abort);
 
     object_initialize(&s->rx_data_dev, sizeof(s->rx_data_dev),
                       TYPE_XILINX_AXI_ENET_DATA_STREAM);

@@ -8,10 +8,12 @@ lh r3, (r1+0)
 check_r3 0x7e7f
 
 test_name LH_2
+load r1 data
 lh r3, (r1+2)
 check_r3 0x7071
 
 test_name LH_3
+load r1 data
 lh r3, (r1+-2)
 check_r3 0x7c7d
 
@@ -21,10 +23,12 @@ lh r3, (r1+0)
 check_r3 0xfffffeff
 
 test_name LH_5
+load r1 data_msb
 lh r3, (r1+2)
 check_r3 0xfffff0f1
 
 test_name LH_6
+load r1 data_msb
 lh r3, (r1+-2)
 check_r3 0xfffffcfd
 

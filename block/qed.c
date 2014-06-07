@@ -650,19 +650,21 @@ static int bdrv_qed_create(const char *filename, QEMUOptionParameter *options,
     }
 
     if (!qed_is_cluster_size_valid(cluster_size)) {
-        fprintf(stderr, "QED cluster size must be within range [%u, %u] and power of 2\n",
-                QED_MIN_CLUSTER_SIZE, QED_MAX_CLUSTER_SIZE);
+        error_setg(errp, "QED cluster size must be within range [%u, %u] "
+                         "and power of 2",
+                   QED_MIN_CLUSTER_SIZE, QED_MAX_CLUSTER_SIZE);
         return -EINVAL;
     }
     if (!qed_is_table_size_valid(table_size)) {
-        fprintf(stderr, "QED table size must be within range [%u, %u] and power of 2\n",
-                QED_MIN_TABLE_SIZE, QED_MAX_TABLE_SIZE);
+        error_setg(errp, "QED table size must be within range [%u, %u] "
+                         "and power of 2",
+                   QED_MIN_TABLE_SIZE, QED_MAX_TABLE_SIZE);
         return -EINVAL;
     }
     if (!qed_is_image_size_valid(image_size, cluster_size, table_size)) {
-        fprintf(stderr, "QED image size must be a non-zero multiple of "
-                        "cluster size and less than %" PRIu64 " bytes\n",
-                qed_max_image_size(cluster_size, table_size));
+        error_setg(errp, "QED image size must be a non-zero multiple of "
+                         "cluster size and less than %" PRIu64 " bytes",
+                   qed_max_image_size(cluster_size, table_size));
         return -EINVAL;
     }
 
@@ -1558,13 +1560,31 @@ static int bdrv_qed_change_backing_file(BlockDriverState *bs,
     return ret;
 }
 
-static void bdrv_qed_invalidate_cache(BlockDriverState *bs)
+static void bdrv_qed_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     BDRVQEDState *s = bs->opaque;
+    Error *local_err = NULL;
+    int ret;
 
     bdrv_qed_close(bs);
+
+    bdrv_invalidate_cache(bs->file, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     memset(s, 0, sizeof(BDRVQEDState));
-    bdrv_qed_open(bs, NULL, bs->open_flags, NULL);
+    ret = bdrv_qed_open(bs, NULL, bs->open_flags, &local_err);
+    if (local_err) {
+        error_setg(errp, "Could not reopen qed layer: %s",
+                   error_get_pretty(local_err));
+        error_free(local_err);
+        return;
+    } else if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not reopen qed layer");
+        return;
+    }
 }
 
 static int bdrv_qed_check(BlockDriverState *bs, BdrvCheckResult *result,

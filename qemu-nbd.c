@@ -223,7 +223,7 @@ static int tcp_socket_incoming(const char *address, uint16_t port)
     int fd = inet_listen(address_and_port, NULL, 0, SOCK_STREAM, 0, &local_err);
 
     if (local_err != NULL) {
-        qerror_report_err(local_err);
+        error_report("%s", error_get_pretty(local_err));
         error_free(local_err);
     }
     return fd;
@@ -235,7 +235,7 @@ static int unix_socket_incoming(const char *path)
     int fd = unix_listen(path, NULL, 0, &local_err);
 
     if (local_err != NULL) {
-        qerror_report_err(local_err);
+        error_report("%s", error_get_pretty(local_err));
         error_free(local_err);
     }
     return fd;
@@ -247,7 +247,7 @@ static int unix_socket_outgoing(const char *path)
     int fd = unix_connect(path, &local_err);
 
     if (local_err != NULL) {
-        qerror_report_err(local_err);
+        error_report("%s", error_get_pretty(local_err));
         error_free(local_err);
     }
     return fd;
@@ -288,19 +288,19 @@ static void *nbd_client_thread(void *arg)
     ret = nbd_receive_negotiate(sock, NULL, &nbdflags,
                                 &size, &blocksize);
     if (ret < 0) {
-        goto out;
+        goto out_socket;
     }
 
     fd = open(device, O_RDWR);
     if (fd < 0) {
         /* Linux-only, we can use %m in printf.  */
-        fprintf(stderr, "Failed to open %s: %m", device);
-        goto out;
+        fprintf(stderr, "Failed to open %s: %m\n", device);
+        goto out_socket;
     }
 
     ret = nbd_init(fd, sock, nbdflags, size, blocksize);
     if (ret < 0) {
-        goto out;
+        goto out_fd;
     }
 
     /* update partition table */
@@ -316,12 +316,16 @@ static void *nbd_client_thread(void *arg)
 
     ret = nbd_client(fd);
     if (ret) {
-        goto out;
+        goto out_fd;
     }
     close(fd);
     kill(getpid(), SIGTERM);
     return (void *) EXIT_SUCCESS;
 
+out_fd:
+    close(fd);
+out_socket:
+    closesocket(sock);
 out:
     kill(getpid(), SIGTERM);
     return (void *) EXIT_FAILURE;
@@ -355,13 +359,20 @@ static void nbd_accept(void *opaque)
     socklen_t addr_len = sizeof(addr);
 
     int fd = accept(server_fd, (struct sockaddr *)&addr, &addr_len);
+    if (fd < 0) {
+        perror("accept");
+        return;
+    }
+
     if (state >= TERMINATE) {
         close(fd);
         return;
     }
 
-    if (fd >= 0 && nbd_client_new(exp, fd, nbd_client_closed)) {
+    if (nbd_client_new(exp, fd, nbd_client_closed)) {
         nb_fds++;
+    } else {
+        close(fd);
     }
 }
 
@@ -648,7 +659,8 @@ int main(int argc, char **argv)
         drv = NULL;
     }
 
-    bs = bdrv_new("hda");
+    bs = bdrv_new("hda", &error_abort);
+
     srcpath = argv[optind];
     ret = bdrv_open(&bs, srcpath, NULL, NULL, flags, drv, &local_err);
     if (ret < 0) {

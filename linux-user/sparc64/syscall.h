@@ -8,6 +8,7 @@ struct target_pt_regs {
 };
 
 #define UNAME_MACHINE "sun4u"
+#define UNAME_MINIMUM_RELEASE "2.6.32"
 
 /* SPARC kernels don't define this in their Kconfig, but they have the
  * same ABI as if they did, implemented by sparc-specific code which fishes

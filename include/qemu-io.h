@@ -38,6 +38,8 @@ typedef struct cmdinfo {
     helpfunc_t  help;
 } cmdinfo_t;
 
+extern bool qemuio_misalign;
+
 bool qemuio_command(BlockDriverState *bs, const char *cmd);
 
 void qemuio_add_command(const cmdinfo_t *ci);

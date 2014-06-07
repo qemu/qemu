@@ -175,7 +175,7 @@ static void nbd_parse_filename(const char *filename, QDict *options,
         InetSocketAddress *addr = NULL;
 
         addr = inet_parse(host_spec, errp);
-        if (error_is_set(errp)) {
+        if (!addr) {
             goto out;
         }
 

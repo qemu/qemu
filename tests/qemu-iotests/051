@@ -78,6 +78,15 @@ run_qemu -drive file="$TEST_IMG",format=qcow2,unknown_opt=1234
 run_qemu -drive file="$TEST_IMG",format=qcow2,unknown_opt=foo
 
 echo
+echo === Unknown protocol option ===
+echo
+
+run_qemu -drive file="$TEST_IMG",format=qcow2,file.unknown_opt=
+run_qemu -drive file="$TEST_IMG",format=qcow2,file.unknown_opt=on
+run_qemu -drive file="$TEST_IMG",format=qcow2,file.unknown_opt=1234
+run_qemu -drive file="$TEST_IMG",format=qcow2,file.unknown_opt=foo
+
+echo
 echo === Invalid format ===
 echo
 
@@ -195,6 +204,10 @@ run_qemu -hda foo:bar
 run_qemu -drive file=foo:bar
 run_qemu -drive file.filename=foo:bar
 
+run_qemu -hda "file:$TEST_IMG"
+run_qemu -drive file="file:$TEST_IMG"
+run_qemu -drive file.filename="file:$TEST_IMG"
+
 echo
 echo === Snapshot mode ===
 echo
@@ -205,12 +218,24 @@ echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG" 
 echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG",snapshot=on | _filter_qemu_io
 echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file.filename="$TEST_IMG",driver=qcow2,snapshot=on | _filter_qemu_io
 echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file.filename="$TEST_IMG",driver=qcow2 -snapshot | _filter_qemu_io
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="file:$TEST_IMG" -snapshot | _filter_qemu_io
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="file:$TEST_IMG",snapshot=on | _filter_qemu_io
+
+# Opening a read-only file r/w with snapshot=on
+chmod u-w "$TEST_IMG"
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG" -snapshot | _filter_qemu_io
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG",snapshot=on | _filter_qemu_io
+chmod u+w "$TEST_IMG"
 
 $QEMU_IO -c "read -P 0x11 0 4k" "$TEST_IMG" | _filter_qemu_io
 
 echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG",snapshot=off | _filter_qemu_io
 
 $QEMU_IO -c "read -P 0x22 0 4k" "$TEST_IMG" | _filter_qemu_io
+
+echo -e 'qemu-io ide0-hd0 "write -P 0x33 0 4k"\ncommit ide0-hd0' | run_qemu -drive file="$TEST_IMG",snapshot=on | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0x33 0 4k" "$TEST_IMG" | _filter_qemu_io
 
 # success, all done
 echo "*** done"

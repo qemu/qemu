@@ -1,0 +1,1 @@
+tests/qapi-schema/flat-union-invalid-discriminator.json:13: Discriminator 'enum_wrong' is not a member of base type 'TestBase'

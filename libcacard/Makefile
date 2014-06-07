@@ -25,7 +25,6 @@ vscclient$(EXESUF): libcacard/vscclient.o libcacard.la
 
 libcacard.la: LDFLAGS += -rpath $(libdir) -no-undefined \
 	-export-syms $(SRC_PATH)/libcacard/libcacard.syms
-libcacard.la: LIBS = $(libcacard_libs)
 libcacard.la: $(libcacard-lobj-y)
 	$(call LINK,$^)
 

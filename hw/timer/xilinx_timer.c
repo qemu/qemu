@@ -169,7 +169,7 @@ timer_write(void *opaque, hwaddr addr,
             if (value & TCSR_TINT)
                 value &= ~TCSR_TINT;
 
-            xt->regs[addr] = value;
+            xt->regs[addr] = value & 0x7ff;
             if (value & TCSR_ENT)
                 timer_enable(xt);
             break;

@@ -46,9 +46,9 @@ int tlb_flush_count;
  * entries from the TLB at any time, so flushing more entries than
  * required is only an efficiency issue, not a correctness issue.
  */
-void tlb_flush(CPUArchState *env, int flush_global)
+void tlb_flush(CPUState *cpu, int flush_global)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUArchState *env = cpu->env_ptr;
 
 #if defined(DEBUG_TLB)
     printf("tlb_flush:\n");
@@ -58,7 +58,7 @@ void tlb_flush(CPUArchState *env, int flush_global)
     cpu->current_tb = NULL;
 
     memset(env->tlb_table, -1, sizeof(env->tlb_table));
-    memset(env->tb_jmp_cache, 0, sizeof(env->tb_jmp_cache));
+    memset(cpu->tb_jmp_cache, 0, sizeof(cpu->tb_jmp_cache));
 
     env->tlb_flush_addr = -1;
     env->tlb_flush_mask = 0;
@@ -77,9 +77,9 @@ static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
     }
 }
 
-void tlb_flush_page(CPUArchState *env, target_ulong addr)
+void tlb_flush_page(CPUState *cpu, target_ulong addr)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUArchState *env = cpu->env_ptr;
     int i;
     int mmu_idx;
 
@@ -93,7 +93,7 @@ void tlb_flush_page(CPUArchState *env, target_ulong addr)
                TARGET_FMT_lx "/" TARGET_FMT_lx ")\n",
                env->tlb_flush_addr, env->tlb_flush_mask);
 #endif
-        tlb_flush(env, 1);
+        tlb_flush(cpu, 1);
         return;
     }
     /* must reset current TB so that interrupts cannot modify the
@@ -106,7 +106,7 @@ void tlb_flush_page(CPUArchState *env, target_ulong addr)
         tlb_flush_entry(&env->tlb_table[mmu_idx][i], addr);
     }
 
-    tb_flush_jmp_cache(env, addr);
+    tb_flush_jmp_cache(cpu, addr);
 }
 
 /* update the TLBs so that writes to code in the virtual page 'addr'
@@ -119,7 +119,7 @@ void tlb_protect_code(ram_addr_t ram_addr)
 
 /* update the TLB so that writes in physical page 'phys_addr' are no longer
    tested for self modifying code */
-void tlb_unprotect_code_phys(CPUArchState *env, ram_addr_t ram_addr,
+void tlb_unprotect_code_phys(CPUState *cpu, ram_addr_t ram_addr,
                              target_ulong vaddr)
 {
     cpu_physical_memory_set_dirty_flag(ram_addr, DIRTY_MEMORY_CODE);
@@ -221,10 +221,11 @@ static void tlb_add_large_page(CPUArchState *env, target_ulong vaddr,
 /* Add a new TLB entry. At most one entry for a given virtual address
    is permitted. Only a single TARGET_PAGE_SIZE region is mapped, the
    supplied size is only used by tlb_flush_page.  */
-void tlb_set_page(CPUArchState *env, target_ulong vaddr,
+void tlb_set_page(CPUState *cpu, target_ulong vaddr,
                   hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size)
 {
+    CPUArchState *env = cpu->env_ptr;
     MemoryRegionSection *section;
     unsigned int index;
     target_ulong address;
@@ -232,7 +233,6 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
     uintptr_t addend;
     CPUTLBEntry *te;
     hwaddr iotlb, xlat, sz;
-    CPUState *cpu = ENV_GET_CPU(env);
 
     assert(size >= TARGET_PAGE_SIZE);
     if (size != TARGET_PAGE_SIZE) {
@@ -261,7 +261,7 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
     }
 
     code_address = address;
-    iotlb = memory_region_section_get_iotlb(env, section, vaddr, paddr, xlat,
+    iotlb = memory_region_section_get_iotlb(cpu, section, vaddr, paddr, xlat,
                                             prot, &address);
 
     index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -322,7 +322,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
         if (cc->do_unassigned_access) {
             cc->do_unassigned_access(cpu, addr, false, true, 0, 4);
         } else {
-            cpu_abort(env1, "Trying to execute code outside RAM or ROM at 0x"
+            cpu_abort(cpu, "Trying to execute code outside RAM or ROM at 0x"
                       TARGET_FMT_lx "\n", addr);
         }
     }

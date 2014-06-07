@@ -66,7 +66,7 @@ uint32_t bootloader_100[] = {
 
 static struct arm_boot_info raspi_binfo;
 
-static void raspi_init(QEMUMachineInitArgs *args)
+static void raspi_init(MachineState *args)
 {
     ARMCPU *cpu;
     MemoryRegion *sysmem = get_system_memory();

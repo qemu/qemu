@@ -13,6 +13,6 @@ typedef struct PPCE500Params {
     int mpic_version;
 } PPCE500Params;
 
-void ppce500_init(QEMUMachineInitArgs *args, PPCE500Params *params);
+void ppce500_init(MachineState *machine, PPCE500Params *params);
 
 #endif

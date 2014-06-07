@@ -143,12 +143,12 @@ static void dma_bdrv_cb(void *opaque, int ret)
 
     dbs->acb = NULL;
     dbs->sector_num += dbs->iov.size / 512;
-    dma_bdrv_unmap(dbs);
 
     if (dbs->sg_cur_index == dbs->sg->nsg || ret < 0) {
         dma_complete(dbs, ret);
         return;
     }
+    dma_bdrv_unmap(dbs);
 
     while (dbs->sg_cur_index < dbs->sg->nsg) {
         cur_addr = dbs->sg->sg[dbs->sg_cur_index].base + dbs->sg_cur_byte;
@@ -213,6 +213,7 @@ BlockDriverAIOCB *dma_bdrv_io(
     dbs->sg_cur_index = 0;
     dbs->sg_cur_byte = 0;
     dbs->dir = dir;
+    dbs->in_cancel = false;
     dbs->io_func = io_func;
     dbs->bh = NULL;
     qemu_iovec_init(&dbs->iov, sg->nsg);

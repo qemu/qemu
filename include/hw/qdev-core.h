@@ -36,6 +36,8 @@ typedef int (*qdev_event)(DeviceState *dev);
 typedef void (*qdev_resetfn)(DeviceState *dev);
 typedef void (*DeviceRealize)(DeviceState *dev, Error **errp);
 typedef void (*DeviceUnrealize)(DeviceState *dev, Error **errp);
+typedef void (*BusRealize)(BusState *bus, Error **errp);
+typedef void (*BusUnrealize)(BusState *bus, Error **errp);
 
 struct VMStateDescription;
 
@@ -129,6 +131,17 @@ typedef struct DeviceClass {
     const char *bus_type;
 } DeviceClass;
 
+typedef struct NamedGPIOList NamedGPIOList;
+
+struct NamedGPIOList {
+    char *name;
+    qemu_irq *in;
+    int num_in;
+    qemu_irq *out;
+    int num_out;
+    QLIST_ENTRY(NamedGPIOList) node;
+};
+
 /**
  * DeviceState:
  * @realized: Indicates whether the device has been fully constructed.
@@ -146,10 +159,7 @@ struct DeviceState {
     QemuOpts *opts;
     int hotplugged;
     BusState *parent_bus;
-    int num_gpio_out;
-    qemu_irq *gpio_out;
-    int num_gpio_in;
-    qemu_irq *gpio_in;
+    QLIST_HEAD(, NamedGPIOList) gpios;
     QLIST_HEAD(, BusState) child_bus;
     int num_child_bus;
     int instance_id_alias;
@@ -174,6 +184,9 @@ struct BusClass {
      */
     char *(*get_fw_dev_path)(DeviceState *dev);
     void (*reset)(BusState *bus);
+    BusRealize realize;
+    BusUnrealize unrealize;
+
     /* maximum devices allowed on the bus, 0: no limit. */
     int max_dev;
     /* number of automatically allocated bus ids (e.g. ide.0) */
@@ -199,6 +212,7 @@ struct BusState {
     int allow_hotplug;
     HotplugHandler *hotplug_handler;
     int max_index;
+    bool realized;
     QTAILQ_HEAD(ChildrenHead, BusChild) children;
     QLIST_ENTRY(BusState) sibling;
 };
@@ -246,7 +260,11 @@ void qdev_machine_creation_done(void);
 bool qdev_machine_modified(void);
 
 qemu_irq qdev_get_gpio_in(DeviceState *dev, int n);
+qemu_irq qdev_get_gpio_in_named(DeviceState *dev, const char *name, int n);
+
 void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq pin);
+void qdev_connect_gpio_out_named(DeviceState *dev, const char *name, int n,
+                                 qemu_irq pin);
 
 BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 
@@ -256,6 +274,10 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 /* GPIO inputs also double as IRQ sinks.  */
 void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n);
 void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n);
+void qdev_init_gpio_in_named(DeviceState *dev, qemu_irq_handler handler,
+                             const char *name, int n);
+void qdev_init_gpio_out_named(DeviceState *dev, qemu_irq *pins,
+                              const char *name, int n);
 
 BusState *qdev_get_parent_bus(DeviceState *dev);
 

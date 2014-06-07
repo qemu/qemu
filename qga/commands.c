@@ -40,7 +40,7 @@ int64_t qmp_guest_sync(int64_t id, Error **errp)
     return id;
 }
 
-void qmp_guest_ping(Error **err)
+void qmp_guest_ping(Error **errp)
 {
     slog("guest-ping called");
 }
@@ -62,7 +62,7 @@ static void qmp_command_info(QmpCommand *cmd, void *opaque)
     info->supported_commands = cmd_info_list;
 }
 
-struct GuestAgentInfo *qmp_guest_info(Error **err)
+struct GuestAgentInfo *qmp_guest_info(Error **errp)
 {
     GuestAgentInfo *info = g_malloc0(sizeof(GuestAgentInfo));
 

@@ -32,10 +32,8 @@ int aarch64_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
     switch (n) {
     case 31:
         return gdb_get_reg64(mem_buf, env->xregs[31]);
-        break;
     case 32:
         return gdb_get_reg64(mem_buf, env->pc);
-        break;
     case 33:
         return gdb_get_reg32(mem_buf, pstate_read(env));
     }

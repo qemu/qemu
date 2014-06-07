@@ -15,7 +15,7 @@
 #include "hw/ssi.h"
 
 struct SSIBus {
-    BusState qbus;
+    BusState parent_obj;
 };
 
 #define TYPE_SSI_BUS "SSI"
@@ -60,7 +60,7 @@ static int ssi_slave_init(DeviceState *dev)
 
     if (ssc->transfer_raw == ssi_transfer_raw_default &&
             ssc->cs_polarity != SSI_CS_NONE) {
-        qdev_init_gpio_in(&s->qdev, ssi_cs_default, 1);
+        qdev_init_gpio_in_named(dev, ssi_cs_default, SSI_GPIO_CS, 1);
     }
 
     return ssc->init(s);
@@ -88,7 +88,7 @@ static const TypeInfo ssi_slave_info = {
 
 DeviceState *ssi_create_slave_no_init(SSIBus *bus, const char *name)
 {
-    return qdev_create(&bus->qbus, name);
+    return qdev_create(BUS(bus), name);
 }
 
 DeviceState *ssi_create_slave(SSIBus *bus, const char *name)
@@ -108,11 +108,12 @@ SSIBus *ssi_create_bus(DeviceState *parent, const char *name)
 
 uint32_t ssi_transfer(SSIBus *bus, uint32_t val)
 {
+    BusState *b = BUS(bus);
     BusChild *kid;
     SSISlaveClass *ssc;
     uint32_t r = 0;
 
-    QTAILQ_FOREACH(kid, &bus->qbus.children, sibling) {
+    QTAILQ_FOREACH(kid, &b->children, sibling) {
         SSISlave *slave = SSI_SLAVE(kid->child);
         ssc = SSI_SLAVE_GET_CLASS(slave);
         r |= ssc->transfer_raw(slave, val);
@@ -125,8 +126,7 @@ const VMStateDescription vmstate_ssi_slave = {
     .name = "SSISlave",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_BOOL(cs, SSISlave),
         VMSTATE_END_OF_LIST()
     }
@@ -155,8 +155,8 @@ static int ssi_auto_connect_slave(Object *child, void *opaque)
         return 0;
     }
 
-    cs_line = qdev_get_gpio_in(DEVICE(dev), 0);
-    qdev_set_parent_bus(DEVICE(dev), &arg->bus->qbus);
+    cs_line = qdev_get_gpio_in_named(DEVICE(dev), SSI_GPIO_CS, 0);
+    qdev_set_parent_bus(DEVICE(dev), BUS(arg->bus));
     **arg->cs_linep = cs_line;
     (*arg->cs_linep)++;
     return 0;

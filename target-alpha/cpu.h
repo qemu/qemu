@@ -446,9 +446,8 @@ int cpu_alpha_exec(CPUAlphaState *s);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_alpha_signal_handler(int host_signum, void *pinfo,
                              void *puc);
-int cpu_alpha_handle_mmu_fault (CPUAlphaState *env, uint64_t address, int rw,
-                                int mmu_idx);
-#define cpu_handle_mmu_fault cpu_alpha_handle_mmu_fault
+int alpha_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
+                               int mmu_idx);
 void do_restore_state(CPUAlphaState *, uintptr_t retaddr);
 void QEMU_NORETURN dynamic_excp(CPUAlphaState *, uintptr_t, int, int);
 void QEMU_NORETURN arith_excp(CPUAlphaState *, uintptr_t, int, uint64_t);
@@ -496,21 +495,6 @@ static inline void cpu_get_tb_cpu_state(CPUAlphaState *env, target_ulong *pc,
     flags |= env->amask << TB_FLAGS_AMASK_SHIFT;
 
     *pflags = flags;
-}
-
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    /* Here we are checking to see if the CPU should wake up from HALT.
-       We will have gotten into this state only for WTINT from PALmode.  */
-    /* ??? I'm not sure how the IPL state works with WTINT to keep a CPU
-       asleep even if (some) interrupts have been asserted.  For now,
-       assume that if a CPU really wants to stay asleep, it will mask
-       interrupts at the chipset level, which will prevent these bits
-       from being set in the first place.  */
-    return cpu->interrupt_request & (CPU_INTERRUPT_HARD
-                                     | CPU_INTERRUPT_TIMER
-                                     | CPU_INTERRUPT_SMP
-                                     | CPU_INTERRUPT_MCHK);
 }
 
 #include "exec/exec-all.h"

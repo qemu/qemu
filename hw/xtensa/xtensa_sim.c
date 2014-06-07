@@ -46,14 +46,14 @@ static void sim_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
-static void xtensa_sim_init(QEMUMachineInitArgs *args)
+static void xtensa_sim_init(MachineState *machine)
 {
     XtensaCPU *cpu = NULL;
     CPUXtensaState *env = NULL;
     MemoryRegion *ram, *rom;
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
     int n;
 
     if (!cpu_model) {

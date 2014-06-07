@@ -164,7 +164,6 @@ static VMStateDescription vmstate_zipit_lcd_state = {
     .name = "zipit-lcd",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
     .fields = (VMStateField[]) {
         VMSTATE_SSI_SLAVE(ssidev, ZipitLCD),
         VMSTATE_INT32(selected, ZipitLCD),
@@ -275,7 +274,6 @@ static VMStateDescription vmstate_aer915_state = {
     .name = "aer915",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(len, AER915State),
         VMSTATE_BUFFER(buf, AER915State),
@@ -302,12 +300,12 @@ static const TypeInfo aer915_info = {
     .class_init    = aer915_class_init,
 };
 
-static void z2_init(QEMUMachineInitArgs *args)
+static void z2_init(MachineState *machine)
 {
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     MemoryRegion *address_space_mem = get_system_memory();
     uint32_t sector_len = 0x10000;
     PXA2xxState *mpu;

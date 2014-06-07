@@ -5,7 +5,7 @@
 
 hwaddr get_pteg_offset32(CPUPPCState *env, hwaddr hash);
 hwaddr ppc_hash32_get_phys_page_debug(CPUPPCState *env, target_ulong addr);
-int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
+int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, target_ulong address, int rw,
                                 int mmu_idx);
 
 /*
@@ -68,7 +68,8 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
 static inline target_ulong ppc_hash32_load_hpte0(CPUPPCState *env,
                                                  hwaddr pte_offset)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
+
     assert(!env->external_htab); /* Not supported on 32-bit for now */
     return ldl_phys(cs->as, env->htab_base + pte_offset);
 }
@@ -76,7 +77,8 @@ static inline target_ulong ppc_hash32_load_hpte0(CPUPPCState *env,
 static inline target_ulong ppc_hash32_load_hpte1(CPUPPCState *env,
                                                  hwaddr pte_offset)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
+
     assert(!env->external_htab); /* Not supported on 32-bit for now */
     return ldl_phys(cs->as, env->htab_base + pte_offset + HASH_PTE_SIZE_32/2);
 }
@@ -84,7 +86,8 @@ static inline target_ulong ppc_hash32_load_hpte1(CPUPPCState *env,
 static inline void ppc_hash32_store_hpte0(CPUPPCState *env,
                                           hwaddr pte_offset, target_ulong pte0)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
+
     assert(!env->external_htab); /* Not supported on 32-bit for now */
     stl_phys(cs->as, env->htab_base + pte_offset, pte0);
 }
@@ -92,7 +95,8 @@ static inline void ppc_hash32_store_hpte0(CPUPPCState *env,
 static inline void ppc_hash32_store_hpte1(CPUPPCState *env,
                                           hwaddr pte_offset, target_ulong pte1)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
+
     assert(!env->external_htab); /* Not supported on 32-bit for now */
     stl_phys(cs->as, env->htab_base + pte_offset + HASH_PTE_SIZE_32/2, pte1);
 }

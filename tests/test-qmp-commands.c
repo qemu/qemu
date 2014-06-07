@@ -141,7 +141,7 @@ static void test_dispatch_cmd_io(void)
 
     ret3 = qobject_to_qint(test_qmp_dispatch(req));
     assert(qint_get_int(ret3) == 66);
-    QDECREF(ret);
+    QDECREF(ret3);
 
     QDECREF(req);
 }

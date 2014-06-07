@@ -1,0 +1,76 @@
+
+multiseat howto (with some multihead coverage)
+==============================================
+
+host side
+---------
+
+First you must compile qemu with a user interface supporting
+multihead/multiseat and input event routing.  Right now this list is
+pretty short: sdl2.
+
+  ./configure --enable-sdl --with-sdlabi=2.0
+
+
+Next put together the qemu command line:
+
+qemu	-enable-kvm -usb $memory $disk $whatever \
+	-display sdl \
+	-vga std \
+	-device usb-tablet
+
+That is it for the first head, which will use the standard vga, the
+standard ps/2 keyboard (implicitly there) and the usb-tablet.  Now the
+additional switches for the second head:
+
+	-device pci-bridge,addr=12.0,chassis_nr=2,id=head.2 \
+	-device secondary-vga,bus=head.2,addr=02.0,id=video.2 \
+	-device nec-usb-xhci,bus=head.2,addr=0f.0,id=usb.2 \
+	-device usb-kbd,bus=usb.2.0,port=1,display=video.2 \
+	-device usb-tablet,bus=usb.2.0,port=2,display=video.2
+
+This places a pci bridge in slot 12, connects a display adapter and
+xhci (usb) controller to the bridge.  Then it adds a usb keyboard and
+usb mouse, both connected to the xhci and linked to the display.
+
+The "display=video2" sets up the input routing.  Any input coming from
+the window which belongs to the video.2 display adapter will be routed
+to these input devices.
+
+
+guest side
+----------
+
+You need a pretty recent linux guest.  systemd with loginctl.  kernel
+3.14+ with CONFIG_DRM_BOCHS enabled.  Fedora 20 will do.  Must be
+fully updated for the new kernel though, i.e. the live iso doesn't cut
+it.
+
+Now we'll have to configure the guest.  Boot and login.  By default
+all devices belong to seat0.  You can use "loginctl seat-status seat0"
+to list them all (and to get the sysfs paths for cut+paste).  Now
+we'll go assign all pci devices connected the pci bridge in slot 12 to
+a new head:
+
+loginctl attach seat-qemu \
+	 /sys/devices/pci0000:00/0000:00:12.0/0000:01:02.0/drm/card1
+loginctl attach seat-qemu \
+	 /sys/devices/pci0000:00/0000:00:12.0/0000:01:02.0/graphics/fb1
+loginctl attach seat-qemu \
+	 /sys/devices/pci0000:00/0000:00:12.0/0000:01:0f.0/usb2
+
+Use "loginctl seat-status seat-qemu" to check the result.  It isn't
+needed to assign the usb devices to the head individually, assigning a
+usb (root) hub will automatically assign all usb devices connected to
+it too.
+
+BTW: loginctl writes udev rules to /etc/udev/rules.d to make these
+device assignments permanent, so you need to do this only once.
+
+Now simply restart gdm (rebooting will do too), and a login screen
+should show up on the second head.
+
+Enjoy!
+
+--
+Gerd Hoffmann <kraxel@redhat.com>

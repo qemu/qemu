@@ -75,10 +75,13 @@ static void errmsg_dialog(DWORD err, const char *text, const char *opt = "")
 
 #define chk(status) _chk(hr, status, "Failed to " #status, out)
 
+#if !defined(__MINGW64_VERSION_MAJOR) || !defined(__MINGW64_VERSION_MINOR) || \
+    __MINGW64_VERSION_MAJOR * 100 + __MINGW64_VERSION_MINOR < 301
 void __stdcall _com_issue_error(HRESULT hr)
 {
     errmsg(hr, "Unexpected error in COM");
 }
+#endif
 
 template<class T>
 HRESULT put_Value(ICatalogObject *pObj, LPCWSTR name, T val)

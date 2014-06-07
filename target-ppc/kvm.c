@@ -151,7 +151,6 @@ static int kvm_booke206_tlb_init(PowerPCCPU *cpu)
     CPUState *cs = CPU(cpu);
     struct kvm_book3e_206_tlb_params params = {};
     struct kvm_config_tlb cfg = {};
-    struct kvm_enable_cap encap = {};
     unsigned int entries = 0;
     int ret, i;
 
@@ -178,10 +177,7 @@ static int kvm_booke206_tlb_init(PowerPCCPU *cpu)
     cfg.params = (uintptr_t)&params;
     cfg.mmu_type = KVM_MMU_FSL_BOOKE_NOHV;
 
-    encap.cap = KVM_CAP_SW_TLB;
-    encap.args[0] = (uintptr_t)&cfg;
-
-    ret = kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &encap);
+    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_SW_TLB, 0, (uintptr_t)&cfg);
     if (ret < 0) {
         fprintf(stderr, "%s: couldn't enable KVM_CAP_SW_TLB: %s\n",
                 __func__, strerror(-ret));
@@ -432,10 +428,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     return ret;
-}
-
-void kvm_arch_reset_vcpu(CPUState *cpu)
-{
 }
 
 static void kvm_sw_tlb_put(PowerPCCPU *cpu)
@@ -1178,7 +1170,7 @@ static int kvmppc_handle_halt(PowerPCCPU *cpu)
 
     if (!(cs->interrupt_request & CPU_INTERRUPT_HARD) && (msr_ee)) {
         cs->halted = 1;
-        env->exception_index = EXCP_HLT;
+        cs->exception_index = EXCP_HLT;
     }
 
     return 0;
@@ -1292,7 +1284,6 @@ int kvmppc_set_tcr(PowerPCCPU *cpu)
 int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
-    struct kvm_enable_cap encap = {};
     int ret;
 
     if (!kvm_enabled()) {
@@ -1304,8 +1295,7 @@ int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu)
         return -1;
     }
 
-    encap.cap = KVM_CAP_PPC_BOOKE_WATCHDOG;
-    ret = kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &encap);
+    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_BOOKE_WATCHDOG, 0);
     if (ret < 0) {
         fprintf(stderr, "%s: couldn't enable KVM_CAP_PPC_BOOKE_WATCHDOG: %s\n",
                 __func__, strerror(-ret));
@@ -1504,16 +1494,12 @@ int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len)
 
 void kvmppc_set_papr(PowerPCCPU *cpu)
 {
-    CPUPPCState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
-    struct kvm_enable_cap cap = {};
     int ret;
 
-    cap.cap = KVM_CAP_PPC_PAPR;
-    ret = kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &cap);
-
+    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_PAPR, 0);
     if (ret) {
-        cpu_abort(env, "This KVM version does not support PAPR\n");
+        cpu_abort(cs, "This KVM version does not support PAPR\n");
     }
 
     /* Update the capability flag so we sync the right information
@@ -1523,17 +1509,12 @@ void kvmppc_set_papr(PowerPCCPU *cpu)
 
 void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
 {
-    CPUPPCState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
-    struct kvm_enable_cap cap = {};
     int ret;
 
-    cap.cap = KVM_CAP_PPC_EPR;
-    cap.args[0] = mpic_proxy;
-    ret = kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &cap);
-
+    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_EPR, 0, mpic_proxy);
     if (ret && mpic_proxy) {
-        cpu_abort(env, "This KVM version does not support EPR\n");
+        cpu_abort(cs, "This KVM version does not support EPR\n");
     }
 }
 

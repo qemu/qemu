@@ -148,8 +148,7 @@ static const VMStateDescription vmstate_pxa2xx_pm = {
     .name = "pxa2xx_pm",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(pm_regs, PXA2xxState, 0x40),
         VMSTATE_END_OF_LIST()
     }
@@ -215,8 +214,7 @@ static const VMStateDescription vmstate_pxa2xx_cm = {
     .name = "pxa2xx_cm",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(cm_regs, PXA2xxState, 4),
         VMSTATE_UINT32(clkcfg, PXA2xxState),
         VMSTATE_UINT32(pmnc, PXA2xxState),
@@ -259,7 +257,7 @@ static void pxa2xx_pwrmode_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     case 1:
         /* Idle */
-        if (!(s->cm_regs[CCCR >> 2] & (1 << 31))) { /* CPDIS */
+        if (!(s->cm_regs[CCCR >> 2] & (1U << 31))) { /* CPDIS */
             cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_HALT);
             break;
         }
@@ -440,8 +438,7 @@ static const VMStateDescription vmstate_pxa2xx_mm = {
     .name = "pxa2xx_mm",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(mm_regs, PXA2xxState, 0x1a),
         VMSTATE_END_OF_LIST()
     }
@@ -496,7 +493,7 @@ typedef struct {
 #define SSCR0_SSE	(1 << 7)
 #define SSCR0_RIM	(1 << 22)
 #define SSCR0_TIM	(1 << 23)
-#define SSCR0_MOD	(1 << 31)
+#define SSCR0_MOD       (1U << 31)
 #define SSCR0_DSS(x)	(((((x) >> 16) & 0x10) | ((x) & 0xf)) + 1)
 #define SSCR1_RIE	(1 << 0)
 #define SSCR1_TIE	(1 << 1)
@@ -732,7 +729,7 @@ static void pxa2xx_ssp_save(QEMUFile *f, void *opaque)
 static int pxa2xx_ssp_load(QEMUFile *f, void *opaque, int version_id)
 {
     PXA2xxSSPState *s = (PXA2xxSSPState *) opaque;
-    int i;
+    int i, v;
 
     s->enable = qemu_get_be32(f);
 
@@ -746,7 +743,11 @@ static int pxa2xx_ssp_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_8s(f, &s->ssrsa);
     qemu_get_8s(f, &s->ssacd);
 
-    s->rx_level = qemu_get_byte(f);
+    v = qemu_get_byte(f);
+    if (v < 0 || v > ARRAY_SIZE(s->rx_fifo)) {
+        return -EINVAL;
+    }
+    s->rx_level = v;
     s->rx_start = 0;
     for (i = 0; i < s->rx_level; i ++)
         s->rx_fifo[i] = qemu_get_byte(f);
@@ -1006,7 +1007,7 @@ static void pxa2xx_rtc_write(void *opaque, hwaddr addr,
 
     switch (addr) {
     case RTTR:
-        if (!(s->rttr & (1 << 31))) {
+        if (!(s->rttr & (1U << 31))) {
             pxa2xx_rtc_hzupdate(s);
             s->rttr = value;
             pxa2xx_rtc_alarm_update(s, s->rtsr);
@@ -1168,7 +1169,6 @@ static const VMStateDescription vmstate_pxa2xx_rtc_regs = {
     .name = "pxa2xx_rtc",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .pre_save = pxa2xx_rtc_pre_save,
     .post_load = pxa2xx_rtc_post_load,
     .fields = (VMStateField[]) {
@@ -1432,8 +1432,7 @@ static const VMStateDescription vmstate_pxa2xx_i2c_slave = {
     .name = "pxa2xx_i2c_slave",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_I2C_SLAVE(parent_obj, PXA2xxI2CSlaveState),
         VMSTATE_END_OF_LIST()
     }
@@ -1443,8 +1442,7 @@ static const VMStateDescription vmstate_pxa2xx_i2c = {
     .name = "pxa2xx_i2c",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT16(control, PXA2xxI2CState),
         VMSTATE_UINT16(status, PXA2xxI2CState),
         VMSTATE_UINT8(ibmr, PXA2xxI2CState),
@@ -1701,8 +1699,7 @@ static const VMStateDescription vmstate_pxa2xx_i2s = {
     .name = "pxa2xx_i2s",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(control, PXA2xxI2SState, 2),
         VMSTATE_UINT32(status, PXA2xxI2SState),
         VMSTATE_UINT32(mask, PXA2xxI2SState),

@@ -720,6 +720,9 @@ static void usb_host_ep_update(USBHostDevice *s)
     struct libusb_config_descriptor *conf;
     const struct libusb_interface_descriptor *intf;
     const struct libusb_endpoint_descriptor *endp;
+#if LIBUSBX_API_VERSION >= 0x01000103
+    struct libusb_ss_endpoint_companion_descriptor *endp_ss_comp;
+#endif
     uint8_t devep, type;
     int pid, ep;
     int rc, i, e;
@@ -765,6 +768,15 @@ static void usb_host_ep_update(USBHostDevice *s)
             usb_ep_set_type(udev, pid, ep, type);
             usb_ep_set_ifnum(udev, pid, ep, i);
             usb_ep_set_halted(udev, pid, ep, 0);
+#if LIBUSBX_API_VERSION >= 0x01000103
+            if (type == LIBUSB_TRANSFER_TYPE_BULK &&
+                    libusb_get_ss_endpoint_companion_descriptor(ctx, endp,
+                        &endp_ss_comp) == LIBUSB_SUCCESS) {
+                usb_ep_set_max_streams(udev, pid, ep,
+                                       endp_ss_comp->bmAttributes);
+                libusb_free_ss_endpoint_companion_descriptor(endp_ss_comp);
+            }
+#endif
         }
     }
 
@@ -1202,10 +1214,23 @@ static void usb_host_handle_data(USBDevice *udev, USBPacket *p)
             usb_packet_copy(p, r->buffer, size);
         }
         ep = p->ep->nr | (r->in ? USB_DIR_IN : 0);
-        libusb_fill_bulk_transfer(r->xfer, s->dh, ep,
-                                  r->buffer, size,
-                                  usb_host_req_complete_data, r,
-                                  BULK_TIMEOUT);
+        if (p->stream) {
+#if LIBUSBX_API_VERSION >= 0x01000103
+            libusb_fill_bulk_stream_transfer(r->xfer, s->dh, ep, p->stream,
+                                             r->buffer, size,
+                                             usb_host_req_complete_data, r,
+                                             BULK_TIMEOUT);
+#else
+            usb_host_req_free(r);
+            p->status = USB_RET_STALL;
+            return;
+#endif
+        } else {
+            libusb_fill_bulk_transfer(r->xfer, s->dh, ep,
+                                      r->buffer, size,
+                                      usb_host_req_complete_data, r,
+                                      BULK_TIMEOUT);
+        }
         break;
     case USB_ENDPOINT_XFER_INT:
         r = usb_host_req_alloc(s, p, p->pid == USB_TOKEN_IN, p->iov.size);
@@ -1266,6 +1291,54 @@ static void usb_host_handle_reset(USBDevice *udev)
     if (rc != 0) {
         usb_host_nodev(s);
     }
+}
+
+static int usb_host_alloc_streams(USBDevice *udev, USBEndpoint **eps,
+                                  int nr_eps, int streams)
+{
+#if LIBUSBX_API_VERSION >= 0x01000103
+    USBHostDevice *s = USB_HOST_DEVICE(udev);
+    unsigned char endpoints[30];
+    int i, rc;
+
+    for (i = 0; i < nr_eps; i++) {
+        endpoints[i] = eps[i]->nr;
+        if (eps[i]->pid == USB_TOKEN_IN) {
+            endpoints[i] |= 0x80;
+        }
+    }
+    rc = libusb_alloc_streams(s->dh, streams, endpoints, nr_eps);
+    if (rc < 0) {
+        usb_host_libusb_error("libusb_alloc_streams", rc);
+    } else if (rc != streams) {
+        fprintf(stderr,
+            "libusb_alloc_streams: got less streams then requested %d < %d\n",
+            rc, streams);
+    }
+
+    return (rc == streams) ? 0 : -1;
+#else
+    fprintf(stderr, "libusb_alloc_streams: error not implemented\n");
+    return -1;
+#endif
+}
+
+static void usb_host_free_streams(USBDevice *udev, USBEndpoint **eps,
+                                  int nr_eps)
+{
+#if LIBUSBX_API_VERSION >= 0x01000103
+    USBHostDevice *s = USB_HOST_DEVICE(udev);
+    unsigned char endpoints[30];
+    int i;
+
+    for (i = 0; i < nr_eps; i++) {
+        endpoints[i] = eps[i]->nr;
+        if (eps[i]->pid == USB_TOKEN_IN) {
+            endpoints[i] |= 0x80;
+        }
+    }
+    libusb_free_streams(s->dh, endpoints, nr_eps);
+#endif
 }
 
 /*
@@ -1349,6 +1422,8 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
     uc->handle_reset   = usb_host_handle_reset;
     uc->handle_destroy = usb_host_handle_destroy;
     uc->flush_ep_queue = usb_host_flush_ep_queue;
+    uc->alloc_streams  = usb_host_alloc_streams;
+    uc->free_streams   = usb_host_free_streams;
     dc->vmsd = &vmstate_usb_host;
     dc->props = usb_host_dev_properties;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);

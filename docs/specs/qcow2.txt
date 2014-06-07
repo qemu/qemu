@@ -107,8 +107,9 @@ in the description of a field.
 
          96 -  99:  refcount_order
                     Describes the width of a reference count block entry (width
-                    in bits = 1 << refcount_order). For version 2 images, the
-                    order is always assumed to be 4 (i.e. the width is 16 bits).
+                    in bits: refcount_bits = 1 << refcount_order). For version 2
+                    images, the order is always assumed to be 4
+                    (i.e. refcount_bits = 16).
 
         100 - 103:  header_length
                     Length of the header structure in bytes. For version 2

@@ -211,7 +211,7 @@ static void main_cpu_reset(void *opaque)
     }
 }
 
-uint8_t eeprom_spd[0x80] = {
+static const uint8_t eeprom_spd[0x80] = {
     0x80,0x08,0x07,0x0d,0x09,0x02,0x40,0x00,0x04,0x70,
     0x70,0x00,0x82,0x10,0x00,0x01,0x0e,0x04,0x0c,0x01,
     0x02,0x20,0x80,0x75,0x70,0x00,0x00,0x50,0x3c,0x50,
@@ -259,13 +259,13 @@ static void cpu_request_exit(void *opaque, int irq, int level)
     }
 }
 
-static void mips_fulong2e_init(QEMUMachineInitArgs *args)
+static void mips_fulong2e_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     char *filename;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);

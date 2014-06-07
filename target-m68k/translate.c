@@ -23,9 +23,8 @@
 #include "tcg-op.h"
 #include "qemu/log.h"
 
-#include "helper.h"
-#define GEN_HELPER 1
-#include "helper.h"
+#include "exec/helper-proto.h"
+#include "exec/helper-gen.h"
 
 //#define DEBUG_DISPATCH 1
 
@@ -43,6 +42,7 @@
 #undef DEFF64
 
 static TCGv_i32 cpu_halted;
+static TCGv_i32 cpu_exception_index;
 
 static TCGv_ptr cpu_env;
 
@@ -81,6 +81,10 @@ void m68k_tcg_init(void)
     cpu_halted = tcg_global_mem_new_i32(TCG_AREG0,
                                         -offsetof(M68kCPU, env) +
                                         offsetof(CPUState, halted), "HALTED");
+    cpu_exception_index = tcg_global_mem_new_i32(TCG_AREG0,
+                                                 -offsetof(M68kCPU, env) +
+                                                 offsetof(CPUState, exception_index),
+                                                 "EXCEPTION");
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 
@@ -108,14 +112,6 @@ void m68k_tcg_init(void)
 
     NULL_QREG = tcg_global_mem_new(TCG_AREG0, -4, "NULL");
     store_dummy = tcg_global_mem_new(TCG_AREG0, -8, "NULL");
-}
-
-static inline void qemu_assert(int cond, const char *msg)
-{
-    if (!cond) {
-        fprintf (stderr, "badness: %s\n", msg);
-        abort();
-    }
 }
 
 /* internal defines */
@@ -199,7 +195,7 @@ static inline TCGv gen_load(DisasContext * s, int opsize, TCGv addr, int sign)
         tcg_gen_qemu_ld32u(tmp, addr, index);
         break;
     default:
-        qemu_assert(0, "bad load size");
+        g_assert_not_reached();
     }
     gen_throws_exception = gen_last_qop;
     return tmp;
@@ -233,7 +229,7 @@ static inline void gen_store(DisasContext *s, int opsize, TCGv addr, TCGv val)
         tcg_gen_qemu_st32(val, addr, index);
         break;
     default:
-        qemu_assert(0, "bad store size");
+        g_assert_not_reached();
     }
     gen_throws_exception = gen_last_qop;
 }
@@ -437,8 +433,7 @@ static inline int opsize_bytes(int opsize)
     case OS_SINGLE: return 4;
     case OS_DOUBLE: return 8;
     default:
-        qemu_assert(0, "bad operand size");
-        return 0;
+        g_assert_not_reached();
     }
     /* Should never happen. */
     return -1;
@@ -467,8 +462,7 @@ static void gen_partset_reg(int opsize, TCGv reg, TCGv val)
         tcg_gen_mov_i32(reg, val);
         break;
     default:
-        qemu_assert(0, "Bad operand size");
-        break;
+        g_assert_not_reached();
     }
 }
 
@@ -497,7 +491,7 @@ static inline TCGv gen_extend(TCGv val, int opsize, int sign)
         tmp = val;
         break;
     default:
-        qemu_assert(0, "Bad operand size");
+        g_assert_not_reached();
     }
     return tmp;
 }
@@ -671,7 +665,7 @@ static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
                 offset = read_im32(env, s);
                 break;
             default:
-                qemu_assert(0, "Bad immediate operand");
+                g_assert_not_reached();
             }
             return tcg_const_i32(offset);
         default:
@@ -890,8 +884,10 @@ static void QEMU_NORETURN disas_undef(CPUM68KState *env,
                                       DisasContext *s, uint16_t insn);
 DISAS_INSN(undef)
 {
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+
     gen_exception(s, s->pc - 2, EXCP_UNSUPPORTED);
-    cpu_abort(env, "Illegal instruction: %04x @ %08x", insn, s->pc - 2);
+    cpu_abort(CPU(cpu), "Illegal instruction: %04x @ %08x", insn, s->pc - 2);
 }
 
 DISAS_INSN(mulw)
@@ -2091,12 +2087,14 @@ DISAS_INSN(wddata)
 
 DISAS_INSN(wdebug)
 {
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+
     if (IS_USER(s)) {
         gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
         return;
     }
     /* TODO: Implement wdebug.  */
-    qemu_assert(0, "WDEBUG not implemented");
+    cpu_abort(CPU(cpu), "WDEBUG not implemented");
 }
 
 DISAS_INSN(trap)
@@ -2472,18 +2470,20 @@ static void QEMU_NORETURN disas_frestore(CPUM68KState *env,
                                          DisasContext *s, uint16_t insn);
 DISAS_INSN(frestore)
 {
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+
     /* TODO: Implement frestore.  */
-    qemu_assert(0, "FRESTORE not implemented");
-    abort();
+    cpu_abort(CPU(cpu), "FRESTORE not implemented");
 }
 
 static void QEMU_NORETURN disas_fsave(CPUM68KState *env,
                                       DisasContext *s, uint16_t insn);
 DISAS_INSN(fsave)
 {
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+
     /* TODO: Implement fsave.  */
-    qemu_assert(0, "FSAVE not implemented");
-    abort();
+    cpu_abort(CPU(cpu), "FSAVE not implemented");
 }
 
 static inline TCGv gen_mac_extract_word(DisasContext *s, TCGv val, int upper)
@@ -3018,8 +3018,8 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
     do {
         pc_offset = dc->pc - pc_start;
         gen_throws_exception = NULL;
-        if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
-            QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
+            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (bp->pc == dc->pc) {
                     gen_exception(dc, dc->pc, EXCP_DEBUG);
                     dc->is_jmp = DISAS_JUMP;

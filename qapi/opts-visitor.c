@@ -472,19 +472,19 @@ opts_type_size(Visitor *v, uint64_t *obj, const char *name, Error **errp)
 
     val = strtosz_suffix(opt->str ? opt->str : "", &endptr,
                          STRTOSZ_DEFSUFFIX_B);
-    if (val != -1 && *endptr == '\0') {
-        *obj = val;
-        processed(ov, name);
+    if (val < 0 || *endptr) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
+                  "a size value representible as a non-negative int64");
         return;
     }
-    error_set(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
-              "a size value representible as a non-negative int64");
+
+    *obj = val;
+    processed(ov, name);
 }
 
 
 static void
-opts_start_optional(Visitor *v, bool *present, const char *name,
-                       Error **errp)
+opts_optional(Visitor *v, bool *present, const char *name, Error **errp)
 {
     OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
 
@@ -527,7 +527,7 @@ opts_visitor_new(const QemuOpts *opts)
     /* type_number() is not filled in, but this is not the first visitor to
      * skip some mandatory methods... */
 
-    ov->visitor.start_optional = &opts_start_optional;
+    ov->visitor.optional = &opts_optional;
 
     ov->opts_root = opts;
 

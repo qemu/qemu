@@ -1165,19 +1165,19 @@ Example:
 
 -> { "execute": "transaction",
      "arguments": { "actions": [
-         { 'type': 'blockdev-snapshot-sync', 'data' : { "device": "ide-hd0",
+         { "type": "blockdev-snapshot-sync", "data" : { "device": "ide-hd0",
                                          "snapshot-file": "/some/place/my-image",
                                          "format": "qcow2" } },
-         { 'type': 'blockdev-snapshot-sync', 'data' : { "node-name": "myfile",
+         { "type": "blockdev-snapshot-sync", "data" : { "node-name": "myfile",
                                          "snapshot-file": "/some/place/my-image2",
                                          "snapshot-node-name": "node3432",
                                          "mode": "existing",
                                          "format": "qcow2" } },
-         { 'type': 'blockdev-snapshot-sync', 'data' : { "device": "ide-hd1",
+         { "type": "blockdev-snapshot-sync", "data" : { "device": "ide-hd1",
                                          "snapshot-file": "/some/place/my-image2",
                                          "mode": "existing",
                                          "format": "qcow2" } },
-         { 'type': 'blockdev-snapshot-internal-sync', 'data' : {
+         { "type": "blockdev-snapshot-internal-sync", "data" : {
                                          "device": "ide-hd2",
                                          "name": "snapshot0" } } ] } }
 <- { "return": {} }
@@ -2032,6 +2032,8 @@ Each json-object contain the following:
          - "iops_rd_max":  read I/O operations max (json-int)
          - "iops_wr_max":  write I/O operations max (json-int)
          - "iops_size": I/O size when limiting by iops (json-int)
+         - "detect_zeroes": detect and optimize zero writing (json-string)
+             - Possible values: "off", "on", "unmap"
          - "image": the detail of the image, it is a json-object containing
             the following:
              - "filename": image file name (json-string)
@@ -2108,6 +2110,7 @@ Example:
                "iops_rd_max": 0,
                "iops_wr_max": 0,
                "iops_size": 0,
+               "detect_zeroes": "on",
                "image":{
                   "filename":"disks/test.qcow2",
                   "format":"qcow2",
@@ -2324,6 +2327,45 @@ EQMP
         .name       = "query-cpus",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_input_query_cpus,
+    },
+
+SQMP
+query-iothreads
+---------------
+
+Returns a list of information about each iothread.
+
+Note this list excludes the QEMU main loop thread, which is not declared
+using the -object iothread command-line option.  It is always the main thread
+of the process.
+
+Return a json-array. Each iothread is represented by a json-object, which contains:
+
+- "id": name of iothread (json-str)
+- "thread-id": ID of the underlying host thread (json-int)
+
+Example:
+
+-> { "execute": "query-iothreads" }
+<- {
+      "return":[
+         {
+            "id":"iothread0",
+            "thread-id":3134
+         },
+         {
+            "id":"iothread1",
+            "thread-id":3135
+         }
+      ]
+   }
+
+EQMP
+
+    {
+        .name       = "query-iothreads",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_iothreads,
     },
 
 SQMP
@@ -2898,7 +2940,7 @@ block migration status.
 The main json-object contains the following:
 
 - "status": migration status (json-string)
-     - Possible values: "active", "completed", "failed", "cancelled"
+     - Possible values: "setup", "active", "completed", "failed", "cancelled"
 - "total-time": total amount of ms since migration started.  If
                 migration has ended, it returns the total migration
                 time (json-int)
@@ -2928,6 +2970,7 @@ The main json-object contains the following:
             pages. This is just normal pages times size of one page,
             but this way upper levels don't need to care about page
             size (json-int)
+         - "dirty-sync-count": times that dirty ram was synchronized (json-int)
 - "disk": only present if "status" is "active" and it is a block migration,
   it is a json-object with the following disk information:
          - "transferred": amount transferred in bytes (json-int)
@@ -2939,6 +2982,7 @@ The main json-object contains the following:
          - "bytes": number of bytes transferred for XBZRLE compressed pages
          - "pages": number of XBZRLE compressed pages
          - "cache-miss": number of XBRZRLE page cache misses
+         - "cache-miss-rate": rate of XBRZRLE page cache misses
          - "overflow": number of times XBZRLE overflows.  This means
            that the XBZRLE encoding was bigger than just sent the
            whole page, and then we sent the whole page instead (as as
@@ -2965,7 +3009,8 @@ Examples:
           "downtime":12345,
           "duplicate":123,
           "normal":123,
-          "normal-bytes":123456
+          "normal-bytes":123456,
+          "dirty-sync-count":15
         }
      }
    }
@@ -2990,7 +3035,8 @@ Examples:
             "expected-downtime":12345,
             "duplicate":123,
             "normal":123,
-            "normal-bytes":123456
+            "normal-bytes":123456,
+            "dirty-sync-count":15
          }
       }
    }
@@ -3010,7 +3056,8 @@ Examples:
             "expected-downtime":12345,
             "duplicate":123,
             "normal":123,
-            "normal-bytes":123456
+            "normal-bytes":123456,
+            "dirty-sync-count":15
          },
          "disk":{
             "total":20971520,
@@ -3036,13 +3083,15 @@ Examples:
             "expected-downtime":12345,
             "duplicate":10,
             "normal":3333,
-            "normal-bytes":3412992
+            "normal-bytes":3412992,
+            "dirty-sync-count":15
          },
          "xbzrle-cache":{
             "cache-size":67108864,
             "bytes":20971520,
             "pages":2444343,
             "cache-miss":2244,
+            "cache-miss-rate":0.123,
             "overflow":34434
          }
       }
@@ -3368,6 +3417,7 @@ Each array entry contains the following:
 - "promiscuous": promiscuous mode is enabled (json-bool)
 - "multicast": multicast receive state (one of 'normal', 'none', 'all')
 - "unicast": unicast receive state  (one of 'normal', 'none', 'all')
+- "vlan": vlan receive state (one of 'normal', 'none', 'all') (Since 2.0)
 - "broadcast-allowed": allow to receive broadcast (json-bool)
 - "multicast-overflow": multicast table is overflowed (json-bool)
 - "unicast-overflow": unicast table is overflowed (json-bool)
@@ -3385,6 +3435,7 @@ Example:
             "name": "vnet0",
             "main-mac": "52:54:00:12:34:56",
             "unicast": "normal",
+            "vlan": "normal",
             "vlan-table": [
                 4,
                 0

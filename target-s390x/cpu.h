@@ -126,6 +126,9 @@ typedef struct CPUS390XState {
     uint64_t pfault_compare;
     uint64_t pfault_select;
 
+    uint64_t gbea;
+    uint64_t pp;
+
     CPU_COMMON
 
     /* reset does memset(0) up to here */
@@ -267,6 +270,9 @@ typedef struct CPUS390XState {
 #define FLAG_MASK_64            (PSW_MASK_64     >> 32)
 #define FLAG_MASK_32            0x00001000
 
+/* Control register 0 bits */
+#define CR0_EDAT                0x0000000000800000ULL
+
 static inline int cpu_mmu_index (CPUS390XState *env)
 {
     if (env->psw.mask & PSW_MASK_PSTATE) {
@@ -320,9 +326,8 @@ int cpu_s390x_exec(CPUS390XState *s);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_s390x_signal_handler(int host_signum, void *pinfo,
                            void *puc);
-int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw,
-                                int mmu_idx);
-#define cpu_handle_mmu_fault cpu_s390x_handle_mmu_fault
+int s390_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
+                              int mmu_idx);
 
 #include "ioinst.h"
 
@@ -354,11 +359,16 @@ void s390x_cpu_timer(void *opaque);
 int s390_virtio_hypercall(CPUS390XState *env);
 
 #ifdef CONFIG_KVM
+void kvm_s390_reset_vcpu(S390CPU *cpu);
 void kvm_s390_interrupt(S390CPU *cpu, int type, uint32_t code);
 void kvm_s390_virtio_irq(S390CPU *cpu, int config_change, uint64_t token);
 void kvm_s390_interrupt_internal(S390CPU *cpu, int type, uint32_t parm,
                                  uint64_t parm64, int vm);
 #else
+static inline void kvm_s390_reset_vcpu(S390CPU *cpu)
+{
+}
+
 static inline void kvm_s390_interrupt(S390CPU *cpu, int type, uint32_t code)
 {
 }
@@ -925,6 +935,7 @@ struct sysib_322 {
 #define _REGION_ENTRY_LENGTH    0x03      /* region third length              */
 
 #define _SEGMENT_ENTRY_ORIGIN   ~0x7ffULL /* segment table origin             */
+#define _SEGMENT_ENTRY_FC       0x400     /* format control                   */
 #define _SEGMENT_ENTRY_RO       0x200     /* page protection bit              */
 #define _SEGMENT_ENTRY_INV      0x20      /* invalid segment table entry      */
 
@@ -1039,15 +1050,6 @@ static inline void cpu_inject_crw_mchk(S390CPU *cpu)
 
     env->pending_int |= INTERRUPT_MCHK;
     cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
-}
-
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    S390CPU *s390_cpu = S390_CPU(cpu);
-    CPUS390XState *env = &s390_cpu->env;
-
-    return (cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
-        (env->psw.mask & PSW_MASK_EXT);
 }
 
 /* fpu_helper.c */

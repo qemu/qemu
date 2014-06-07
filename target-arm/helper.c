@@ -1,6 +1,7 @@
 #include "cpu.h"
+#include "internals.h"
 #include "exec/gdbstub.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"
@@ -9,10 +10,17 @@
 #include <zlib.h> /* For crc32 */
 
 #ifndef CONFIG_USER_ONLY
-static inline int get_phys_addr(CPUARMState *env, uint32_t address,
+#include "exec/softmmu_exec.h"
+
+static inline int get_phys_addr(CPUARMState *env, target_ulong address,
                                 int access_type, int is_user,
                                 hwaddr *phys_ptr, int *prot,
                                 target_ulong *page_size);
+
+/* Definitions for the PMCCNTR and PMCR registers */
+#define PMCRD   0x8
+#define PMCRC   0x4
+#define PMCRE   0x1
 #endif
 
 static int vfp_gdb_get_reg(CPUARMState *env, uint8_t *buf, int reg)
@@ -296,19 +304,34 @@ void init_cpreg_list(ARMCPU *cpu)
     g_list_free(keys);
 }
 
+/* Return true if extended addresses are enabled.
+ * This is always the case if our translation regime is 64 bit,
+ * but depends on TTBCR.EAE for 32 bit.
+ */
+static inline bool extended_addresses_enabled(CPUARMState *env)
+{
+    return arm_el_is_aa64(env, 1)
+        || ((arm_feature(env, ARM_FEATURE_LPAE)
+             && (env->cp15.c2_control & (1U << 31))));
+}
+
 static void dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     env->cp15.c3 = value;
-    tlb_flush(env, 1); /* Flush TLB as domain not tracked in TLB */
+    tlb_flush(CPU(cpu), 1); /* Flush TLB as domain not tracked in TLB */
 }
 
 static void fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     if (env->cp15.c13_fcse != value) {
         /* Unlike real hardware the qemu TLB uses virtual addresses,
          * not modified virtual addresses, so this causes a TLB flush.
          */
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
         env->cp15.c13_fcse = value;
     }
 }
@@ -316,42 +339,53 @@ static void fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 static void contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
 {
-    if (env->cp15.c13_context != value && !arm_feature(env, ARM_FEATURE_MPU)) {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    if (env->cp15.contextidr_el1 != value && !arm_feature(env, ARM_FEATURE_MPU)
+        && !extended_addresses_enabled(env)) {
         /* For VMSA (when not using the LPAE long descriptor page table
          * format) this register includes the ASID, so do a TLB flush.
          * For PMSA it is purely a process ID and no action is needed.
          */
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
     }
-    env->cp15.c13_context = value;
+    env->cp15.contextidr_el1 = value;
 }
 
 static void tlbiall_write(CPUARMState *env, const ARMCPRegInfo *ri,
                           uint64_t value)
 {
     /* Invalidate all (TLBIALL) */
-    tlb_flush(env, 1);
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    tlb_flush(CPU(cpu), 1);
 }
 
 static void tlbimva_write(CPUARMState *env, const ARMCPRegInfo *ri,
                           uint64_t value)
 {
     /* Invalidate single TLB entry by MVA and ASID (TLBIMVA) */
-    tlb_flush_page(env, value & TARGET_PAGE_MASK);
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    tlb_flush_page(CPU(cpu), value & TARGET_PAGE_MASK);
 }
 
 static void tlbiasid_write(CPUARMState *env, const ARMCPRegInfo *ri,
                            uint64_t value)
 {
     /* Invalidate by ASID (TLBIASID) */
-    tlb_flush(env, value == 0);
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    tlb_flush(CPU(cpu), value == 0);
 }
 
 static void tlbimvaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
                            uint64_t value)
 {
     /* Invalidate single entry by MVA, all ASIDs (TLBIMVAA) */
-    tlb_flush_page(env, value & TARGET_PAGE_MASK);
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    tlb_flush_page(CPU(cpu), value & TARGET_PAGE_MASK);
 }
 
 static const ARMCPRegInfo cp_reginfo[] = {
@@ -361,17 +395,26 @@ static const ARMCPRegInfo cp_reginfo[] = {
      */
     { .name = "DBGDIDR", .cp = 14, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "FCSEIDR", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c13_fcse),
+      .resetvalue = 0, .writefn = fcse_write, .raw_writefn = raw_write, },
+    { .name = "CONTEXTIDR", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .crn = 13, .crm = 0, .opc2 = 1,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.contextidr_el1),
+      .resetvalue = 0, .writefn = contextidr_write, .raw_writefn = raw_write, },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo not_v8_cp_reginfo[] = {
+    /* NB: Some of these registers exist in v8 but with more precise
+     * definitions that don't use CP_ANY wildcards (mostly in v8_cp_reginfo[]).
+     */
     /* MMU Domain access control / MPU write buffer control */
     { .name = "DACR", .cp = 15,
       .crn = 3, .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c3),
       .resetvalue = 0, .writefn = dacr_write, .raw_writefn = raw_write, },
-    { .name = "FCSEIDR", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c13_fcse),
-      .resetvalue = 0, .writefn = fcse_write, .raw_writefn = raw_write, },
-    { .name = "CONTEXTIDR", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 1,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c13_context),
-      .resetvalue = 0, .writefn = contextidr_write, .raw_writefn = raw_write, },
     /* ??? This covers not just the impdef TLB lockdown registers but also
      * some v7VMSA registers relating to TEX remap, so it is overly broad.
      */
@@ -434,11 +477,35 @@ static const ARMCPRegInfo not_v7_cp_reginfo[] = {
 static void cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
-    if (env->cp15.c1_coproc != value) {
-        env->cp15.c1_coproc = value;
-        /* ??? Is this safe when called from within a TB?  */
-        tb_flush(env);
+    uint32_t mask = 0;
+
+    /* In ARMv8 most bits of CPACR_EL1 are RES0. */
+    if (!arm_feature(env, ARM_FEATURE_V8)) {
+        /* ARMv7 defines bits for unimplemented coprocessors as RAZ/WI.
+         * ASEDIS [31] and D32DIS [30] are both UNK/SBZP without VFP.
+         * TRCDIS [28] is RAZ/WI since we do not implement a trace macrocell.
+         */
+        if (arm_feature(env, ARM_FEATURE_VFP)) {
+            /* VFP coprocessor: cp10 & cp11 [23:20] */
+            mask |= (1 << 31) | (1 << 30) | (0xf << 20);
+
+            if (!arm_feature(env, ARM_FEATURE_NEON)) {
+                /* ASEDIS [31] bit is RAO/WI */
+                value |= (1 << 31);
+            }
+
+            /* VFPv3 and upwards with NEON implement 32 double precision
+             * registers (D0-D31).
+             */
+            if (!arm_feature(env, ARM_FEATURE_NEON) ||
+                    !arm_feature(env, ARM_FEATURE_VFP3)) {
+                /* D32DIS [30] is RAO/WI if D16-31 are not implemented. */
+                value |= (1 << 30);
+            }
+        }
+        value &= mask;
     }
+    env->cp15.c1_coproc = value;
 }
 
 static const ARMCPRegInfo v6_cp_reginfo[] = {
@@ -453,7 +520,8 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
     { .name = "DMB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 5,
       .access = PL0_W, .type = ARM_CP_NOP },
     { .name = "IFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 2,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c6_insn),
+      .access = PL1_RW,
+      .fieldoffset = offsetofhigh32(CPUARMState, cp15.far_el1),
       .resetvalue = 0, },
     /* Watchpoint Fault Address Register : should actually only be present
      * for 1136, 1176, 11MPCore.
@@ -469,7 +537,7 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
 
 static CPAccessResult pmreg_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    /* Perfomance monitor registers user accessibility is controlled
+    /* Performance monitor registers user accessibility is controlled
      * by PMUSERENR.
      */
     if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
@@ -478,13 +546,84 @@ static CPAccessResult pmreg_access(CPUARMState *env, const ARMCPRegInfo *ri)
     return CP_ACCESS_OK;
 }
 
+#ifndef CONFIG_USER_ONLY
 static void pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                        uint64_t value)
 {
+    /* Don't computer the number of ticks in user mode */
+    uint32_t temp_ticks;
+
+    temp_ticks = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) *
+                  get_ticks_per_sec() / 1000000;
+
+    if (env->cp15.c9_pmcr & PMCRE) {
+        /* If the counter is enabled */
+        if (env->cp15.c9_pmcr & PMCRD) {
+            /* Increment once every 64 processor clock cycles */
+            env->cp15.c15_ccnt = (temp_ticks/64) - env->cp15.c15_ccnt;
+        } else {
+            env->cp15.c15_ccnt = temp_ticks - env->cp15.c15_ccnt;
+        }
+    }
+
+    if (value & PMCRC) {
+        /* The counter has been reset */
+        env->cp15.c15_ccnt = 0;
+    }
+
     /* only the DP, X, D and E bits are writable */
     env->cp15.c9_pmcr &= ~0x39;
     env->cp15.c9_pmcr |= (value & 0x39);
+
+    if (env->cp15.c9_pmcr & PMCRE) {
+        if (env->cp15.c9_pmcr & PMCRD) {
+            /* Increment once every 64 processor clock cycles */
+            temp_ticks /= 64;
+        }
+        env->cp15.c15_ccnt = temp_ticks - env->cp15.c15_ccnt;
+    }
 }
+
+static uint64_t pmccntr_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    uint32_t total_ticks;
+
+    if (!(env->cp15.c9_pmcr & PMCRE)) {
+        /* Counter is disabled, do not change value */
+        return env->cp15.c15_ccnt;
+    }
+
+    total_ticks = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) *
+                  get_ticks_per_sec() / 1000000;
+
+    if (env->cp15.c9_pmcr & PMCRD) {
+        /* Increment once every 64 processor clock cycles */
+        total_ticks /= 64;
+    }
+    return total_ticks - env->cp15.c15_ccnt;
+}
+
+static void pmccntr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
+{
+    uint32_t total_ticks;
+
+    if (!(env->cp15.c9_pmcr & PMCRE)) {
+        /* Counter is disabled, set the absolute value */
+        env->cp15.c15_ccnt = value;
+        return;
+    }
+
+    total_ticks = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) *
+                  get_ticks_per_sec() / 1000000;
+
+    if (env->cp15.c9_pmcr & PMCRD) {
+        /* Increment once every 64 processor clock cycles */
+        total_ticks /= 64;
+    }
+    env->cp15.c15_ccnt = total_ticks - value;
+}
+#endif
 
 static void pmcntenset_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
@@ -542,7 +681,7 @@ static void vbar_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * contexts. (ARMv8 would permit us to do no masking at all, but ARMv7
      * requires the bottom five bits to be RAZ/WI because they're UNK/SBZP.)
      */
-    env->cp15.c12_vbar = value & ~0x1Ful;
+    raw_write(env, ri, value & ~0x1FULL);
 }
 
 static uint64_t ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -555,6 +694,21 @@ static void csselr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                          uint64_t value)
 {
     env->cp15.c0_cssel = value & 0xf;
+}
+
+static uint64_t isr_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    CPUState *cs = ENV_GET_CPU(env);
+    uint64_t ret = 0;
+
+    if (cs->interrupt_request & CPU_INTERRUPT_HARD) {
+        ret |= CPSR_I;
+    }
+    if (cs->interrupt_request & CPU_INTERRUPT_FIQ) {
+        ret |= CPSR_F;
+    }
+    /* External aborts are not possible in QEMU so A bit is always clear */
+    return ret;
 }
 
 static const ARMCPRegInfo v7_cp_reginfo[] = {
@@ -604,10 +758,12 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     { .name = "PMSELR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 5,
       .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0,
       .accessfn = pmreg_access },
-    /* Unimplemented, RAZ/WI. */
+#ifndef CONFIG_USER_ONLY
     { .name = "PMCCNTR", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 0,
-      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .access = PL0_RW, .resetvalue = 0, .type = ARM_CP_IO,
+      .readfn = pmccntr_read, .writefn = pmccntr_write,
       .accessfn = pmreg_access },
+#endif
     { .name = "PMXEVTYPER", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 1,
       .access = PL0_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pmxevtyper),
@@ -634,7 +790,7 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     { .name = "VBAR", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 12, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .writefn = vbar_write,
-      .fieldoffset = offsetof(CPUARMState, cp15.c12_vbar),
+      .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[1]),
       .resetvalue = 0 },
     { .name = "SCR", .cp = 15, .crn = 1, .crm = 1, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_scr),
@@ -649,8 +805,18 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     /* Auxiliary ID register: this actually has an IMPDEF value but for now
      * just RAZ for all cores:
      */
-    { .name = "AIDR", .cp = 15, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 7,
+    { .name = "AIDR", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 1, .crn = 0, .crm = 0, .opc2 = 7,
       .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    /* Auxiliary fault status registers: these also are IMPDEF, and we
+     * choose to RAZ/WI for all cores.
+     */
+    { .name = "AFSR0_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .crn = 5, .crm = 1, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "AFSR1_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .crn = 5, .crm = 1, .opc2 = 1,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     /* MAIR can just read-as-written because we don't implement caches
      * and so don't need to care about memory attributes.
      */
@@ -671,6 +837,9 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .cp = 15, .opc1 = 0, .crn = 10, .crm = 2, .opc2 = 1, .access = PL1_RW,
       .fieldoffset = offsetofhigh32(CPUARMState, cp15.mair_el1),
       .resetfn = arm_cp_reset_ignore },
+    { .name = "ISR_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 1, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_R, .readfn = isr_read },
     REGINFO_SENTINEL
 };
 
@@ -1047,26 +1216,16 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
 static void par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
-        env->cp15.c7_par = value;
+        env->cp15.par_el1 = value;
     } else if (arm_feature(env, ARM_FEATURE_V7)) {
-        env->cp15.c7_par = value & 0xfffff6ff;
+        env->cp15.par_el1 = value & 0xfffff6ff;
     } else {
-        env->cp15.c7_par = value & 0xfffff1ff;
+        env->cp15.par_el1 = value & 0xfffff1ff;
     }
 }
 
 #ifndef CONFIG_USER_ONLY
 /* get_phys_addr() isn't present for user-mode-only targets */
-
-/* Return true if extended addresses are enabled, ie this is an
- * LPAE implementation and we are using the long-descriptor translation
- * table format because the TTBCR EAE bit is set.
- */
-static inline bool extended_addresses_enabled(CPUARMState *env)
-{
-    return arm_feature(env, ARM_FEATURE_LPAE)
-        && (env->cp15.c2_control & (1U << 31));
-}
 
 static CPAccessResult ats_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
@@ -1108,8 +1267,7 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
              * fault.
              */
         }
-        env->cp15.c7_par = par64;
-        env->cp15.c7_par_hi = par64 >> 32;
+        env->cp15.par_el1 = par64;
     } else {
         /* ret is a DFSR/IFSR value for the short descriptor
          * translation table format (with WnR always clear).
@@ -1119,16 +1277,15 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
             /* We do not set any attribute bits in the PAR */
             if (page_size == (1 << 24)
                 && arm_feature(env, ARM_FEATURE_V7)) {
-                env->cp15.c7_par = (phys_addr & 0xff000000) | 1 << 1;
+                env->cp15.par_el1 = (phys_addr & 0xff000000) | 1 << 1;
             } else {
-                env->cp15.c7_par = phys_addr & 0xfffff000;
+                env->cp15.par_el1 = phys_addr & 0xfffff000;
             }
         } else {
-            env->cp15.c7_par = ((ret & (1 << 10)) >> 5) |
+            env->cp15.par_el1 = ((ret & (1 << 10)) >> 5) |
                 ((ret & (1 << 12)) >> 6) |
                 ((ret & 0xf) << 1) | 1;
         }
-        env->cp15.c7_par_hi = 0;
     }
 }
 #endif
@@ -1136,7 +1293,7 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 static const ARMCPRegInfo vapa_cp_reginfo[] = {
     { .name = "PAR", .cp = 15, .crn = 7, .crm = 4, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .resetvalue = 0,
-      .fieldoffset = offsetof(CPUARMState, cp15.c7_par),
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.par_el1),
       .writefn = par_write },
 #ifndef CONFIG_USER_ONLY
     { .name = "ATS", .cp = 15, .crn = 7, .crm = 8, .opc1 = 0, .opc2 = CP_ANY,
@@ -1179,40 +1336,44 @@ static uint32_t extended_mpu_ap_bits(uint32_t val)
 static void pmsav5_data_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                  uint64_t value)
 {
-    env->cp15.c5_data = extended_mpu_ap_bits(value);
+    env->cp15.pmsav5_data_ap = extended_mpu_ap_bits(value);
 }
 
 static uint64_t pmsav5_data_ap_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    return simple_mpu_ap_bits(env->cp15.c5_data);
+    return simple_mpu_ap_bits(env->cp15.pmsav5_data_ap);
 }
 
 static void pmsav5_insn_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                  uint64_t value)
 {
-    env->cp15.c5_insn = extended_mpu_ap_bits(value);
+    env->cp15.pmsav5_insn_ap = extended_mpu_ap_bits(value);
 }
 
 static uint64_t pmsav5_insn_ap_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    return simple_mpu_ap_bits(env->cp15.c5_insn);
+    return simple_mpu_ap_bits(env->cp15.pmsav5_insn_ap);
 }
 
 static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
     { .name = "DATA_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_NO_MIGRATE,
-      .fieldoffset = offsetof(CPUARMState, cp15.c5_data), .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.pmsav5_data_ap),
+      .resetvalue = 0,
       .readfn = pmsav5_data_ap_read, .writefn = pmsav5_data_ap_write, },
     { .name = "INSN_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW, .type = ARM_CP_NO_MIGRATE,
-      .fieldoffset = offsetof(CPUARMState, cp15.c5_insn), .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.pmsav5_insn_ap),
+      .resetvalue = 0,
       .readfn = pmsav5_insn_ap_read, .writefn = pmsav5_insn_ap_write, },
     { .name = "DATA_EXT_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW,
-      .fieldoffset = offsetof(CPUARMState, cp15.c5_data), .resetvalue = 0, },
+      .fieldoffset = offsetof(CPUARMState, cp15.pmsav5_data_ap),
+      .resetvalue = 0, },
     { .name = "INSN_EXT_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 3,
       .access = PL1_RW,
-      .fieldoffset = offsetof(CPUARMState, cp15.c5_insn), .resetvalue = 0, },
+      .fieldoffset = offsetof(CPUARMState, cp15.pmsav5_insn_ap),
+      .resetvalue = 0, },
     { .name = "DCACHE_CFG", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c2_data), .resetvalue = 0, },
@@ -1270,11 +1431,13 @@ static void vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
         /* With LPAE the TTBCR could result in a change of ASID
          * via the TTBCR.A1 bit, so do a TLB flush.
          */
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
     }
     vmsa_ttbcr_raw_write(env, ri, value);
 }
@@ -1289,8 +1452,10 @@ static void vmsa_ttbcr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
 static void vmsa_tcr_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     /* For AArch64 the A1 bit could result in a change of ASID, so TLB flush. */
-    tlb_flush(env, 1);
+    tlb_flush(CPU(cpu), 1);
     env->cp15.c2_control = value;
 }
 
@@ -1301,18 +1466,25 @@ static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * must flush the TLB.
      */
     if (cpreg_field_is_64bit(ri)) {
-        tlb_flush(env, 1);
+        ARMCPU *cpu = arm_env_get_cpu(env);
+
+        tlb_flush(CPU(cpu), 1);
     }
     raw_write(env, ri, value);
 }
 
 static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     { .name = "DFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW,
-      .fieldoffset = offsetof(CPUARMState, cp15.c5_data), .resetvalue = 0, },
+      .access = PL1_RW, .type = ARM_CP_NO_MIGRATE,
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.esr_el[1]),
+      .resetfn = arm_cp_reset_ignore, },
     { .name = "IFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW,
-      .fieldoffset = offsetof(CPUARMState, cp15.c5_insn), .resetvalue = 0, },
+      .fieldoffset = offsetof(CPUARMState, cp15.ifsr_el2), .resetvalue = 0, },
+    { .name = "ESR_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .crn = 5, .crm = 2, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.esr_el[1]), .resetvalue = 0, },
     { .name = "TTBR0_EL1", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el1),
@@ -1330,8 +1502,10 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
       .access = PL1_RW, .type = ARM_CP_NO_MIGRATE, .writefn = vmsa_ttbcr_write,
       .resetfn = arm_cp_reset_ignore, .raw_writefn = vmsa_ttbcr_raw_write,
       .fieldoffset = offsetoflow32(CPUARMState, cp15.c2_control) },
-    { .name = "DFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c6_data),
+    /* 64-bit FAR; this entry also gives us the AArch32 DFAR */
+    { .name = "FAR_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.far_el1),
       .resetvalue = 0, },
     REGINFO_SENTINEL
 };
@@ -1371,7 +1545,8 @@ static void omap_cachemaint_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static const ARMCPRegInfo omap_cp_reginfo[] = {
     { .name = "DFSR", .cp = 15, .crn = 5, .crm = CP_ANY,
       .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_OVERRIDE,
-      .fieldoffset = offsetof(CPUARMState, cp15.c5_data), .resetvalue = 0, },
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.esr_el[1]),
+      .resetvalue = 0, },
     { .name = "", .cp = 15, .crn = 15, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_NOP },
     { .name = "TICONFIG", .cp = 15, .crn = 15, .crm = 1, .opc1 = 0, .opc2 = 0,
@@ -1427,6 +1602,21 @@ static const ARMCPRegInfo xscale_cp_reginfo[] = {
       .cp = 15, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 1, .access = PL1_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c1_xscaleauxcr),
       .resetvalue = 0, },
+    /* XScale specific cache-lockdown: since we have no cache we NOP these
+     * and hope the guest does not really rely on cache behaviour.
+     */
+    { .name = "XSCALE_LOCK_ICACHE_LINE",
+      .cp = 15, .opc1 = 0, .crn = 9, .crm = 1, .opc2 = 0,
+      .access = PL1_W, .type = ARM_CP_NOP },
+    { .name = "XSCALE_UNLOCK_ICACHE",
+      .cp = 15, .opc1 = 0, .crn = 9, .crm = 1, .opc2 = 1,
+      .access = PL1_W, .type = ARM_CP_NOP },
+    { .name = "XSCALE_DCACHE_LOCK",
+      .cp = 15, .opc1 = 0, .crn = 9, .crm = 2, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_NOP },
+    { .name = "XSCALE_UNLOCK_DCACHE",
+      .cp = 15, .opc1 = 0, .crn = 9, .crm = 2, .opc2 = 1,
+      .access = PL1_W, .type = ARM_CP_NOP },
     REGINFO_SENTINEL
 };
 
@@ -1521,24 +1711,6 @@ static const ARMCPRegInfo mpidr_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-static uint64_t par64_read(CPUARMState *env, const ARMCPRegInfo *ri)
-{
-    return ((uint64_t)env->cp15.c7_par_hi << 32) | env->cp15.c7_par;
-}
-
-static void par64_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                        uint64_t value)
-{
-    env->cp15.c7_par_hi = value >> 32;
-    env->cp15.c7_par = value;
-}
-
-static void par64_reset(CPUARMState *env, const ARMCPRegInfo *ri)
-{
-    env->cp15.c7_par_hi = 0;
-    env->cp15.c7_par = 0;
-}
-
 static const ARMCPRegInfo lpae_cp_reginfo[] = {
     /* NOP AMAIR0/1: the override is because these clash with the rather
      * broadly specified TLB_LOCKDOWN entry in the generic cp_reginfo.
@@ -1558,7 +1730,7 @@ static const ARMCPRegInfo lpae_cp_reginfo[] = {
       .access = PL0_R, .type = ARM_CP_CONST|ARM_CP_64BIT, .resetvalue = 0 },
     { .name = "PAR", .cp = 15, .crm = 7, .opc1 = 0,
       .access = PL1_RW, .type = ARM_CP_64BIT,
-      .readfn = par64_read, .writefn = par64_write, .resetfn = par64_reset },
+      .fieldoffset = offsetof(CPUARMState, cp15.par_el1), .resetvalue = 0 },
     { .name = "TTBR0", .cp = 15, .crm = 2, .opc1 = 0,
       .access = PL1_RW, .type = ARM_CP_64BIT | ARM_CP_NO_MIGRATE,
       .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el1),
@@ -1592,6 +1764,20 @@ static void aa64_fpsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     vfp_set_fpsr(env, value);
 }
 
+static CPAccessResult aa64_daif_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    if (arm_current_pl(env) == 0 && !(env->cp15.c1_sys & SCTLR_UMA)) {
+        return CP_ACCESS_TRAP;
+    }
+    return CP_ACCESS_OK;
+}
+
+static void aa64_daif_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    env->daif = value & PSTATE_DAIF;
+}
+
 static CPAccessResult aa64_cacheop_access(CPUARMState *env,
                                           const ARMCPRegInfo *ri)
 {
@@ -1608,24 +1794,71 @@ static void tlbi_aa64_va_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                uint64_t value)
 {
     /* Invalidate by VA (AArch64 version) */
+    ARMCPU *cpu = arm_env_get_cpu(env);
     uint64_t pageaddr = value << 12;
-    tlb_flush_page(env, pageaddr);
+    tlb_flush_page(CPU(cpu), pageaddr);
 }
 
 static void tlbi_aa64_vaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                 uint64_t value)
 {
     /* Invalidate by VA, all ASIDs (AArch64 version) */
+    ARMCPU *cpu = arm_env_get_cpu(env);
     uint64_t pageaddr = value << 12;
-    tlb_flush_page(env, pageaddr);
+    tlb_flush_page(CPU(cpu), pageaddr);
 }
 
 static void tlbi_aa64_asid_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                  uint64_t value)
 {
     /* Invalidate by ASID (AArch64 version) */
+    ARMCPU *cpu = arm_env_get_cpu(env);
     int asid = extract64(value, 48, 16);
-    tlb_flush(env, asid == 0);
+    tlb_flush(CPU(cpu), asid == 0);
+}
+
+static CPAccessResult aa64_zva_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    /* We don't implement EL2, so the only control on DC ZVA is the
+     * bit in the SCTLR which can prohibit access for EL0.
+     */
+    if (arm_current_pl(env) == 0 && !(env->cp15.c1_sys & SCTLR_DZE)) {
+        return CP_ACCESS_TRAP;
+    }
+    return CP_ACCESS_OK;
+}
+
+static uint64_t aa64_dczid_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    int dzp_bit = 1 << 4;
+
+    /* DZP indicates whether DC ZVA access is allowed */
+    if (aa64_zva_access(env, NULL) != CP_ACCESS_OK) {
+        dzp_bit = 0;
+    }
+    return cpu->dcz_blocksize | dzp_bit;
+}
+
+static CPAccessResult sp_el0_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    if (!env->pstate & PSTATE_SP) {
+        /* Access to SP_EL0 is undefined if it's being used as
+         * the stack pointer.
+         */
+        return CP_ACCESS_TRAP_UNCATEGORIZED;
+    }
+    return CP_ACCESS_OK;
+}
+
+static uint64_t spsel_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    return env->pstate & PSTATE_SP;
+}
+
+static void spsel_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t val)
+{
+    update_spsel(env, val);
 }
 
 static const ARMCPRegInfo v8_cp_reginfo[] = {
@@ -1635,19 +1868,30 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "NZCV", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .opc2 = 0, .crn = 4, .crm = 2,
       .access = PL0_RW, .type = ARM_CP_NZCV },
+    { .name = "DAIF", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .opc2 = 1, .crn = 4, .crm = 2,
+      .type = ARM_CP_NO_MIGRATE,
+      .access = PL0_RW, .accessfn = aa64_daif_access,
+      .fieldoffset = offsetof(CPUARMState, daif),
+      .writefn = aa64_daif_write, .resetfn = arm_cp_reset_ignore },
     { .name = "FPCR", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .opc2 = 0, .crn = 4, .crm = 4,
       .access = PL0_RW, .readfn = aa64_fpcr_read, .writefn = aa64_fpcr_write },
     { .name = "FPSR", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .opc2 = 1, .crn = 4, .crm = 4,
       .access = PL0_RW, .readfn = aa64_fpsr_read, .writefn = aa64_fpsr_write },
-    /* Prohibit use of DC ZVA. OPTME: implement DC ZVA and allow its use.
-     * For system mode the DZP bit here will need to be computed, not constant.
-     */
     { .name = "DCZID_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .opc2 = 7, .crn = 0, .crm = 0,
-      .access = PL0_R, .type = ARM_CP_CONST,
-      .resetvalue = 0x10 },
+      .access = PL0_R, .type = ARM_CP_NO_MIGRATE,
+      .readfn = aa64_dczid_read },
+    { .name = "DC_ZVA", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 3, .crn = 7, .crm = 4, .opc2 = 1,
+      .access = PL0_W, .type = ARM_CP_DC_ZVA,
+#ifndef CONFIG_USER_ONLY
+      /* Avoid overhead of an access check that always passes in user-mode */
+      .accessfn = aa64_zva_access,
+#endif
+    },
     { .name = "CURRENTEL", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .opc2 = 2, .crn = 4, .crm = 2,
       .access = PL1_R, .type = ARM_CP_CURRENTEL },
@@ -1688,53 +1932,140 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .access = PL1_W, .type = ARM_CP_NOP },
     /* TLBI operations */
     { .name = "TLBI_VMALLE1IS", .state = ARM_CP_STATE_AA64,
-      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 3, .opc2 = 0,
+      .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 0,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
       .writefn = tlbiall_write },
     { .name = "TLBI_VAE1IS", .state = ARM_CP_STATE_AA64,
-      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 3, .opc2 = 1,
+      .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 1,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
       .writefn = tlbi_aa64_va_write },
     { .name = "TLBI_ASIDE1IS", .state = ARM_CP_STATE_AA64,
-      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 3, .opc2 = 2,
+      .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 2,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
       .writefn = tlbi_aa64_asid_write },
     { .name = "TLBI_VAAE1IS", .state = ARM_CP_STATE_AA64,
-      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 3, .opc2 = 3,
+      .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 3,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
       .writefn = tlbi_aa64_vaa_write },
     { .name = "TLBI_VALE1IS", .state = ARM_CP_STATE_AA64,
-      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 3, .opc2 = 5,
+      .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 5,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
       .writefn = tlbi_aa64_va_write },
     { .name = "TLBI_VAALE1IS", .state = ARM_CP_STATE_AA64,
-      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 3, .opc2 = 7,
+      .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 7,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
       .writefn = tlbi_aa64_vaa_write },
     { .name = "TLBI_VMALLE1", .state = ARM_CP_STATE_AA64,
-      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 7, .opc2 = 0,
+      .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 0,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
       .writefn = tlbiall_write },
     { .name = "TLBI_VAE1", .state = ARM_CP_STATE_AA64,
-      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 7, .opc2 = 1,
+      .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 1,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
       .writefn = tlbi_aa64_va_write },
     { .name = "TLBI_ASIDE1", .state = ARM_CP_STATE_AA64,
-      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 7, .opc2 = 2,
+      .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 2,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
       .writefn = tlbi_aa64_asid_write },
     { .name = "TLBI_VAAE1", .state = ARM_CP_STATE_AA64,
-      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 7, .opc2 = 3,
+      .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 3,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
       .writefn = tlbi_aa64_vaa_write },
     { .name = "TLBI_VALE1", .state = ARM_CP_STATE_AA64,
-      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 7, .opc2 = 5,
+      .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 5,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
       .writefn = tlbi_aa64_va_write },
     { .name = "TLBI_VAALE1", .state = ARM_CP_STATE_AA64,
-      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 7, .opc2 = 7,
+      .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 7,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
       .writefn = tlbi_aa64_vaa_write },
+#ifndef CONFIG_USER_ONLY
+    /* 64 bit address translation operations */
+    { .name = "AT_S1E1R", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 0,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE, .writefn = ats_write },
+    { .name = "AT_S1E1W", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 1,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE, .writefn = ats_write },
+    { .name = "AT_S1E0R", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 2,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE, .writefn = ats_write },
+    { .name = "AT_S1E0W", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 3,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE, .writefn = ats_write },
+#endif
+    /* 32 bit TLB invalidates, Inner Shareable */
+    { .name = "TLBIALLIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiall_write },
+    { .name = "TLBIMVAIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 1,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
+    { .name = "TLBIASIDIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 2,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiasid_write },
+    { .name = "TLBIMVAAIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 3,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimvaa_write },
+    { .name = "TLBIMVALIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 5,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
+    { .name = "TLBIMVAALIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 7,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimvaa_write },
+    /* 32 bit ITLB invalidates */
+    { .name = "ITLBIALL", .cp = 15, .opc1 = 0, .crn = 8, .crm = 5, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiall_write },
+    { .name = "ITLBIMVA", .cp = 15, .opc1 = 0, .crn = 8, .crm = 5, .opc2 = 1,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
+    { .name = "ITLBIASID", .cp = 15, .opc1 = 0, .crn = 8, .crm = 5, .opc2 = 2,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiasid_write },
+    /* 32 bit DTLB invalidates */
+    { .name = "DTLBIALL", .cp = 15, .opc1 = 0, .crn = 8, .crm = 6, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiall_write },
+    { .name = "DTLBIMVA", .cp = 15, .opc1 = 0, .crn = 8, .crm = 6, .opc2 = 1,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
+    { .name = "DTLBIASID", .cp = 15, .opc1 = 0, .crn = 8, .crm = 6, .opc2 = 2,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiasid_write },
+    /* 32 bit TLB invalidates */
+    { .name = "TLBIALL", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiall_write },
+    { .name = "TLBIMVA", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 1,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
+    { .name = "TLBIASID", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 2,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiasid_write },
+    { .name = "TLBIMVAA", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 3,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimvaa_write },
+    { .name = "TLBIMVAL", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 5,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
+    { .name = "TLBIMVAAL", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 7,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimvaa_write },
+    /* 32 bit cache operations */
+    { .name = "ICIALLUIS", .cp = 15, .opc1 = 0, .crn = 7, .crm = 1, .opc2 = 0,
+      .type = ARM_CP_NOP, .access = PL1_W },
+    { .name = "BPIALLUIS", .cp = 15, .opc1 = 0, .crn = 7, .crm = 1, .opc2 = 6,
+      .type = ARM_CP_NOP, .access = PL1_W },
+    { .name = "ICIALLU", .cp = 15, .opc1 = 0, .crn = 7, .crm = 5, .opc2 = 0,
+      .type = ARM_CP_NOP, .access = PL1_W },
+    { .name = "ICIMVAU", .cp = 15, .opc1 = 0, .crn = 7, .crm = 5, .opc2 = 1,
+      .type = ARM_CP_NOP, .access = PL1_W },
+    { .name = "BPIALL", .cp = 15, .opc1 = 0, .crn = 7, .crm = 5, .opc2 = 6,
+      .type = ARM_CP_NOP, .access = PL1_W },
+    { .name = "BPIMVA", .cp = 15, .opc1 = 0, .crn = 7, .crm = 5, .opc2 = 7,
+      .type = ARM_CP_NOP, .access = PL1_W },
+    { .name = "DCIMVAC", .cp = 15, .opc1 = 0, .crn = 7, .crm = 6, .opc2 = 1,
+      .type = ARM_CP_NOP, .access = PL1_W },
+    { .name = "DCISW", .cp = 15, .opc1 = 0, .crn = 7, .crm = 6, .opc2 = 2,
+      .type = ARM_CP_NOP, .access = PL1_W },
+    { .name = "DCCMVAC", .cp = 15, .opc1 = 0, .crn = 7, .crm = 10, .opc2 = 1,
+      .type = ARM_CP_NOP, .access = PL1_W },
+    { .name = "DCCSW", .cp = 15, .opc1 = 0, .crn = 7, .crm = 10, .opc2 = 2,
+      .type = ARM_CP_NOP, .access = PL1_W },
+    { .name = "DCCMVAU", .cp = 15, .opc1 = 0, .crn = 7, .crm = 11, .opc2 = 1,
+      .type = ARM_CP_NOP, .access = PL1_W },
+    { .name = "DCCIMVAC", .cp = 15, .opc1 = 0, .crn = 7, .crm = 14, .opc2 = 1,
+      .type = ARM_CP_NOP, .access = PL1_W },
+    { .name = "DCCISW", .cp = 15, .opc1 = 0, .crn = 7, .crm = 14, .opc2 = 2,
+      .type = ARM_CP_NOP, .access = PL1_W },
+    /* MMU Domain access control / MPU write buffer control */
+    { .name = "DACR", .cp = 15,
+      .opc1 = 0, .crn = 3, .crm = 0, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c3),
+      .resetvalue = 0, .writefn = dacr_write, .raw_writefn = raw_write, },
     /* Dummy implementation of monitor debug system control register:
      * we don't support debug.
      */
@@ -1745,16 +2076,92 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "OSLAR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 2, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 4,
       .access = PL1_W, .type = ARM_CP_NOP },
+    { .name = "ELR_EL1", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 0, .opc2 = 1,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, elr_el[1]) },
+    { .name = "SPSR_EL1", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 0, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[0]) },
+    /* We rely on the access checks not allowing the guest to write to the
+     * state field when SPSel indicates that it's being used as the stack
+     * pointer.
+     */
+    { .name = "SP_EL0", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 1, .opc2 = 0,
+      .access = PL1_RW, .accessfn = sp_el0_access,
+      .type = ARM_CP_NO_MIGRATE,
+      .fieldoffset = offsetof(CPUARMState, sp_el[0]) },
+    { .name = "SPSel", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 2, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE,
+      .access = PL1_RW, .readfn = spsel_read, .writefn = spsel_write },
+    REGINFO_SENTINEL
+};
+
+/* Used to describe the behaviour of EL2 regs when EL2 does not exist.  */
+static const ARMCPRegInfo v8_el3_no_el2_cp_reginfo[] = {
+    { .name = "VBAR_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 12, .crm = 0, .opc2 = 0,
+      .access = PL2_RW,
+      .readfn = arm_cp_read_zero, .writefn = arm_cp_write_ignore },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
+    { .name = "ELR_EL2", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 0, .opc2 = 1,
+      .access = PL2_RW,
+      .fieldoffset = offsetof(CPUARMState, elr_el[2]) },
+    { .name = "SPSR_EL2", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 0, .opc2 = 0,
+      .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[6]) },
+    { .name = "VBAR_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 12, .crm = 0, .opc2 = 0,
+      .access = PL2_RW, .writefn = vbar_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[2]),
+      .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo v8_el3_cp_reginfo[] = {
+    { .name = "ELR_EL3", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 6, .crn = 4, .crm = 0, .opc2 = 1,
+      .access = PL3_RW,
+      .fieldoffset = offsetof(CPUARMState, elr_el[3]) },
+    { .name = "SPSR_EL3", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 6, .crn = 4, .crm = 0, .opc2 = 0,
+      .access = PL3_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[7]) },
+    { .name = "VBAR_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 12, .crm = 0, .opc2 = 0,
+      .access = PL3_RW, .writefn = vbar_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[3]),
+      .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
 static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    if (env->cp15.c1_sys == value) {
+        /* Skip the TLB flush if nothing actually changed; Linux likes
+         * to do a lot of pointless SCTLR writes.
+         */
+        return;
+    }
+
     env->cp15.c1_sys = value;
     /* ??? Lots of these bits are not implemented.  */
     /* This may enable/disable the MMU, so do a TLB flush.  */
-    tlb_flush(env, 1);
+    tlb_flush(CPU(cpu), 1);
 }
 
 static CPAccessResult ctr_el0_access(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -1809,50 +2216,71 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
 
     define_arm_cp_regs(cpu, cp_reginfo);
+    if (!arm_feature(env, ARM_FEATURE_V8)) {
+        /* Must go early as it is full of wildcards that may be
+         * overridden by later definitions.
+         */
+        define_arm_cp_regs(cpu, not_v8_cp_reginfo);
+    }
+
     if (arm_feature(env, ARM_FEATURE_V6)) {
         /* The ID registers all have impdef reset values */
         ARMCPRegInfo v6_idregs[] = {
-            { .name = "ID_PFR0", .cp = 15, .crn = 0, .crm = 1,
-              .opc1 = 0, .opc2 = 0, .access = PL1_R, .type = ARM_CP_CONST,
+            { .name = "ID_PFR0", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 1, .opc2 = 0,
+              .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_pfr0 },
-            { .name = "ID_PFR1", .cp = 15, .crn = 0, .crm = 1,
-              .opc1 = 0, .opc2 = 1, .access = PL1_R, .type = ARM_CP_CONST,
+            { .name = "ID_PFR1", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 1, .opc2 = 1,
+              .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_pfr1 },
-            { .name = "ID_DFR0", .cp = 15, .crn = 0, .crm = 1,
-              .opc1 = 0, .opc2 = 2, .access = PL1_R, .type = ARM_CP_CONST,
+            { .name = "ID_DFR0", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 1, .opc2 = 2,
+              .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_dfr0 },
-            { .name = "ID_AFR0", .cp = 15, .crn = 0, .crm = 1,
-              .opc1 = 0, .opc2 = 3, .access = PL1_R, .type = ARM_CP_CONST,
+            { .name = "ID_AFR0", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 1, .opc2 = 3,
+              .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_afr0 },
-            { .name = "ID_MMFR0", .cp = 15, .crn = 0, .crm = 1,
-              .opc1 = 0, .opc2 = 4, .access = PL1_R, .type = ARM_CP_CONST,
+            { .name = "ID_MMFR0", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 1, .opc2 = 4,
+              .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_mmfr0 },
-            { .name = "ID_MMFR1", .cp = 15, .crn = 0, .crm = 1,
-              .opc1 = 0, .opc2 = 5, .access = PL1_R, .type = ARM_CP_CONST,
+            { .name = "ID_MMFR1", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 1, .opc2 = 5,
+              .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_mmfr1 },
-            { .name = "ID_MMFR2", .cp = 15, .crn = 0, .crm = 1,
-              .opc1 = 0, .opc2 = 6, .access = PL1_R, .type = ARM_CP_CONST,
+            { .name = "ID_MMFR2", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 1, .opc2 = 6,
+              .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_mmfr2 },
-            { .name = "ID_MMFR3", .cp = 15, .crn = 0, .crm = 1,
-              .opc1 = 0, .opc2 = 7, .access = PL1_R, .type = ARM_CP_CONST,
+            { .name = "ID_MMFR3", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 1, .opc2 = 7,
+              .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_mmfr3 },
-            { .name = "ID_ISAR0", .cp = 15, .crn = 0, .crm = 2,
-              .opc1 = 0, .opc2 = 0, .access = PL1_R, .type = ARM_CP_CONST,
+            { .name = "ID_ISAR0", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 2, .opc2 = 0,
+              .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_isar0 },
-            { .name = "ID_ISAR1", .cp = 15, .crn = 0, .crm = 2,
-              .opc1 = 0, .opc2 = 1, .access = PL1_R, .type = ARM_CP_CONST,
+            { .name = "ID_ISAR1", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 2, .opc2 = 1,
+              .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_isar1 },
-            { .name = "ID_ISAR2", .cp = 15, .crn = 0, .crm = 2,
-              .opc1 = 0, .opc2 = 2, .access = PL1_R, .type = ARM_CP_CONST,
+            { .name = "ID_ISAR2", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 2, .opc2 = 2,
+              .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_isar2 },
-            { .name = "ID_ISAR3", .cp = 15, .crn = 0, .crm = 2,
-              .opc1 = 0, .opc2 = 3, .access = PL1_R, .type = ARM_CP_CONST,
+            { .name = "ID_ISAR3", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 2, .opc2 = 3,
+              .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_isar3 },
-            { .name = "ID_ISAR4", .cp = 15, .crn = 0, .crm = 2,
-              .opc1 = 0, .opc2 = 4, .access = PL1_R, .type = ARM_CP_CONST,
+            { .name = "ID_ISAR4", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 2, .opc2 = 4,
+              .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_isar4 },
-            { .name = "ID_ISAR5", .cp = 15, .crn = 0, .crm = 2,
-              .opc1 = 0, .opc2 = 5, .access = PL1_R, .type = ARM_CP_CONST,
+            { .name = "ID_ISAR5", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 2, .opc2 = 5,
+              .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_isar5 },
             /* 6..7 are as yet unallocated and must RAZ */
             { .name = "ID_ISAR6", .cp = 15, .crn = 0, .crm = 2,
@@ -1873,21 +2301,25 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
     if (arm_feature(env, ARM_FEATURE_V7)) {
         /* v7 performance monitor control register: same implementor
-         * field as main ID register, and we implement no event counters.
+         * field as main ID register, and we implement only the cycle
+         * count register.
          */
+#ifndef CONFIG_USER_ONLY
         ARMCPRegInfo pmcr = {
             .name = "PMCR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 0,
             .access = PL0_RW, .resetvalue = cpu->midr & 0xff000000,
+            .type = ARM_CP_IO,
             .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcr),
             .accessfn = pmreg_access, .writefn = pmcr_write,
             .raw_writefn = raw_write,
         };
+        define_one_arm_cp_reg(cpu, &pmcr);
+#endif
         ARMCPRegInfo clidr = {
             .name = "CLIDR", .state = ARM_CP_STATE_BOTH,
             .opc0 = 3, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 1,
             .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->clidr
         };
-        define_one_arm_cp_reg(cpu, &pmcr);
         define_one_arm_cp_reg(cpu, &clidr);
         define_arm_cp_regs(cpu, v7_cp_reginfo);
     } else {
@@ -1907,7 +2339,12 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             { .name = "ID_AA64DFR0_EL1", .state = ARM_CP_STATE_AA64,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 5, .opc2 = 0,
               .access = PL1_R, .type = ARM_CP_CONST,
-              .resetvalue = cpu->id_aa64dfr0 },
+              /* We mask out the PMUVer field, beacuse we don't currently
+               * implement the PMU. Not advertising it prevents the guest
+               * from trying to use it and getting UNDEFs on registers we
+               * don't implement.
+               */
+              .resetvalue = cpu->id_aa64dfr0 & ~0xf00 },
             { .name = "ID_AA64DFR1_EL1", .state = ARM_CP_STATE_AA64,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 5, .opc2 = 1,
               .access = PL1_R, .type = ARM_CP_CONST,
@@ -1936,11 +2373,42 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 7, .opc2 = 1,
               .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_aa64mmfr1 },
+            { .name = "MVFR0_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 3, .opc2 = 0,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->mvfr0 },
+            { .name = "MVFR1_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 3, .opc2 = 1,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->mvfr1 },
+            { .name = "MVFR2_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 3, .opc2 = 2,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->mvfr2 },
             REGINFO_SENTINEL
         };
+        ARMCPRegInfo rvbar = {
+            .name = "RVBAR_EL1", .state = ARM_CP_STATE_AA64,
+            .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 0, .opc2 = 2,
+            .type = ARM_CP_CONST, .access = PL1_R, .resetvalue = cpu->rvbar
+        };
+        define_one_arm_cp_reg(cpu, &rvbar);
         define_arm_cp_regs(cpu, v8_idregs);
         define_arm_cp_regs(cpu, v8_cp_reginfo);
         define_aarch64_debug_regs(cpu);
+    }
+    if (arm_feature(env, ARM_FEATURE_EL2)) {
+        define_arm_cp_regs(cpu, v8_el2_cp_reginfo);
+    } else {
+        /* If EL2 is missing but higher ELs are enabled, we need to
+         * register the no_el2 reginfos.
+         */
+        if (arm_feature(env, ARM_FEATURE_EL3)) {
+            define_arm_cp_regs(cpu, v8_el3_no_el2_cp_reginfo);
+        }
+    }
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        define_arm_cp_regs(cpu, v8_el3_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_MPU)) {
         /* These are the MPU registers prior to PMSAv6. Any new
@@ -1991,8 +2459,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
      * be read-only (ie write causes UNDEF exception).
      */
     {
-        ARMCPRegInfo id_cp_reginfo[] = {
-            /* Note that the MIDR isn't a simple constant register because
+        ARMCPRegInfo id_pre_v8_midr_cp_reginfo[] = {
+            /* Pre-v8 MIDR space.
+             * Note that the MIDR isn't a simple constant register because
              * of the TI925 behaviour where writes to another register can
              * cause the MIDR value to change.
              *
@@ -2006,22 +2475,6 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .writefn = arm_cp_write_ignore, .raw_writefn = raw_write,
               .fieldoffset = offsetof(CPUARMState, cp15.c0_cpuid),
               .type = ARM_CP_OVERRIDE },
-            { .name = "MIDR_EL1", .state = ARM_CP_STATE_AA64,
-              .opc0 = 3, .opc1 = 0, .opc2 = 0, .crn = 0, .crm = 0,
-              .access = PL1_R, .resetvalue = cpu->midr, .type = ARM_CP_CONST },
-            { .name = "CTR",
-              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 1,
-              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->ctr },
-            { .name = "CTR_EL0", .state = ARM_CP_STATE_AA64,
-              .opc0 = 3, .opc1 = 3, .opc2 = 1, .crn = 0, .crm = 0,
-              .access = PL0_R, .accessfn = ctr_el0_access,
-              .type = ARM_CP_CONST, .resetvalue = cpu->ctr },
-            { .name = "TCMTR",
-              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 2,
-              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
-            { .name = "TLBTR",
-              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 3,
-              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
             /* crn = 0 op1 = 0 crm = 3..7 : currently unassigned; we RAZ. */
             { .name = "DUMMY",
               .cp = 15, .crn = 0, .crm = 3, .opc1 = 0, .opc2 = CP_ANY,
@@ -2040,6 +2493,37 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
             REGINFO_SENTINEL
         };
+        ARMCPRegInfo id_v8_midr_cp_reginfo[] = {
+            /* v8 MIDR -- the wildcard isn't necessary, and nor is the
+             * variable-MIDR TI925 behaviour. Instead we have a single
+             * (strictly speaking IMPDEF) alias of the MIDR, REVIDR.
+             */
+            { .name = "MIDR_EL1", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 0, .opc2 = 0,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->midr },
+            { .name = "REVIDR_EL1", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 0, .opc2 = 6,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->midr },
+            REGINFO_SENTINEL
+        };
+        ARMCPRegInfo id_cp_reginfo[] = {
+            /* These are common to v8 and pre-v8 */
+            { .name = "CTR",
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 1,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->ctr },
+            { .name = "CTR_EL0", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 3, .opc2 = 1, .crn = 0, .crm = 0,
+              .access = PL0_R, .accessfn = ctr_el0_access,
+              .type = ARM_CP_CONST, .resetvalue = cpu->ctr },
+            /* TCMTR and TLBTR exist in v8 but have no 64-bit versions */
+            { .name = "TCMTR",
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 2,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "TLBTR",
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 3,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            REGINFO_SENTINEL
+        };
         ARMCPRegInfo crn0_wi_reginfo = {
             .name = "CRN0_WI", .cp = 15, .crn = 0, .crm = CP_ANY,
             .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_W,
@@ -2054,9 +2538,18 @@ void register_cp_regs_for_features(ARMCPU *cpu)
              * UNDEF.
              */
             define_one_arm_cp_reg(cpu, &crn0_wi_reginfo);
+            for (r = id_pre_v8_midr_cp_reginfo;
+                 r->type != ARM_CP_SENTINEL; r++) {
+                r->access = PL1_RW;
+            }
             for (r = id_cp_reginfo; r->type != ARM_CP_SENTINEL; r++) {
                 r->access = PL1_RW;
             }
+        }
+        if (arm_feature(env, ARM_FEATURE_V8)) {
+            define_arm_cp_regs(cpu, id_v8_midr_cp_reginfo);
+        } else {
+            define_arm_cp_regs(cpu, id_pre_v8_midr_cp_reginfo);
         }
         define_arm_cp_regs(cpu, id_cp_reginfo);
     }
@@ -2067,7 +2560,8 @@ void register_cp_regs_for_features(ARMCPU *cpu)
 
     if (arm_feature(env, ARM_FEATURE_AUXCR)) {
         ARMCPRegInfo auxcr = {
-            .name = "AUXCR", .cp = 15, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 1,
+            .name = "ACTLR_EL1", .state = ARM_CP_STATE_BOTH,
+            .opc0 = 3, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 1,
             .access = PL1_RW, .type = ARM_CP_CONST,
             .resetvalue = cpu->reset_auxcr
         };
@@ -2084,12 +2578,39 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
 
     if (arm_feature(env, ARM_FEATURE_CBAR)) {
-        ARMCPRegInfo cbar = {
-            .name = "CBAR", .cp = 15, .crn = 15, .crm = 0, .opc1 = 4, .opc2 = 0,
-            .access = PL1_R|PL3_W, .resetvalue = cpu->reset_cbar,
-            .fieldoffset = offsetof(CPUARMState, cp15.c15_config_base_address)
-        };
-        define_one_arm_cp_reg(cpu, &cbar);
+        if (arm_feature(env, ARM_FEATURE_AARCH64)) {
+            /* 32 bit view is [31:18] 0...0 [43:32]. */
+            uint32_t cbar32 = (extract64(cpu->reset_cbar, 18, 14) << 18)
+                | extract64(cpu->reset_cbar, 32, 12);
+            ARMCPRegInfo cbar_reginfo[] = {
+                { .name = "CBAR",
+                  .type = ARM_CP_CONST,
+                  .cp = 15, .crn = 15, .crm = 0, .opc1 = 4, .opc2 = 0,
+                  .access = PL1_R, .resetvalue = cpu->reset_cbar },
+                { .name = "CBAR_EL1", .state = ARM_CP_STATE_AA64,
+                  .type = ARM_CP_CONST,
+                  .opc0 = 3, .opc1 = 1, .crn = 15, .crm = 3, .opc2 = 0,
+                  .access = PL1_R, .resetvalue = cbar32 },
+                REGINFO_SENTINEL
+            };
+            /* We don't implement a r/w 64 bit CBAR currently */
+            assert(arm_feature(env, ARM_FEATURE_CBAR_RO));
+            define_arm_cp_regs(cpu, cbar_reginfo);
+        } else {
+            ARMCPRegInfo cbar = {
+                .name = "CBAR",
+                .cp = 15, .crn = 15, .crm = 0, .opc1 = 4, .opc2 = 0,
+                .access = PL1_R|PL3_W, .resetvalue = cpu->reset_cbar,
+                .fieldoffset = offsetof(CPUARMState,
+                                        cp15.c15_config_base_address)
+            };
+            if (arm_feature(env, ARM_FEATURE_CBAR_RO)) {
+                cbar.access = PL1_R;
+                cbar.fieldoffset = 0;
+                cbar.type = ARM_CP_CONST;
+            }
+            define_one_arm_cp_reg(cpu, &cbar);
+        }
     }
 
     /* Generic registers whose values depend on the implementation */
@@ -2114,19 +2635,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
 
 ARMCPU *cpu_arm_init(const char *cpu_model)
 {
-    ARMCPU *cpu;
-    ObjectClass *oc;
-
-    oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
-    if (!oc) {
-        return NULL;
-    }
-    cpu = ARM_CPU(object_new(object_class_get_name(oc)));
-
-    /* TODO this should be set centrally, once possible */
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return cpu;
+    return ARM_CPU(cpu_generic_init(TYPE_ARM_CPU, cpu_model));
 }
 
 void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
@@ -2487,7 +2996,7 @@ uint32_t cpsr_read(CPUARMState *env)
         (env->CF << 29) | ((env->VF & 0x80000000) >> 3) | (env->QF << 27)
         | (env->thumb << 5) | ((env->condexec_bits & 3) << 25)
         | ((env->condexec_bits & 0xfc) << 8)
-        | (env->GE << 16) | env->daif;
+        | (env->GE << 16) | (env->daif & CPSR_AIF);
 }
 
 void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
@@ -2589,21 +3098,20 @@ uint32_t HELPER(rbit)(uint32_t x)
 
 void arm_cpu_do_interrupt(CPUState *cs)
 {
+    cs->exception_index = -1;
+}
+
+int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                             int mmu_idx)
+{
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
 
-    env->exception_index = -1;
-}
-
-int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address, int rw,
-                              int mmu_idx)
-{
+    env->exception.vaddress = address;
     if (rw == 2) {
-        env->exception_index = EXCP_PREFETCH_ABORT;
-        env->cp15.c6_insn = address;
+        cs->exception_index = EXCP_PREFETCH_ABORT;
     } else {
-        env->exception_index = EXCP_DATA_ABORT;
-        env->cp15.c6_data = address;
+        cs->exception_index = EXCP_DATA_ABORT;
     }
     return 1;
 }
@@ -2611,30 +3119,39 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address, int rw,
 /* These should probably raise undefined insn exceptions.  */
 void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
 {
-    cpu_abort(env, "v7m_mrs %d\n", reg);
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    cpu_abort(CPU(cpu), "v7m_msr %d\n", reg);
 }
 
 uint32_t QEMU_NORETURN HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
 {
-    cpu_abort(env, "v7m_mrs %d\n", reg);
-    //~ return 0;
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    cpu_abort(CPU(cpu), "v7m_mrs %d\n", reg);
 }
 
 void switch_mode(CPUARMState *env, int mode)
 {
-    if (mode != ARM_CPU_MODE_USR)
-        cpu_abort(env, "Tried to switch out of user mode\n");
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    if (mode != ARM_CPU_MODE_USR) {
+        cpu_abort(CPU(cpu), "Tried to switch out of user mode\n");
+    }
 }
 
 void QEMU_NORETURN HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
 {
-    cpu_abort(env, "banked r13 write\n");
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    cpu_abort(CPU(cpu), "banked r13 write\n");
 }
 
 uint32_t QEMU_NORETURN HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
 {
-    cpu_abort(env, "banked r13 read\n");
-    //~ return 0;
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    cpu_abort(CPU(cpu), "banked r13 read\n");
 }
 
 #else
@@ -2656,6 +3173,10 @@ int bank_number(int mode)
         return 4;
     case ARM_CPU_MODE_FIQ:
         return 5;
+    case ARM_CPU_MODE_HYP:
+        return 6;
+    case ARM_CPU_MODE_MON:
+        return 7;
     }
     hw_error("bank number requested for bad CPSR mode value 0x%x\n", mode);
 }
@@ -2690,15 +3211,17 @@ void switch_mode(CPUARMState *env, int mode)
 
 static void v7m_push(CPUARMState *env, uint32_t val)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
+
     env->regs[13] -= 4;
     stl_phys(cs->as, env->regs[13], val);
 }
 
 static uint32_t v7m_pop(CPUARMState *env)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
     uint32_t val;
+
     val = ldl_phys(cs->as, env->regs[13]);
     env->regs[13] += 4;
     return val;
@@ -2747,37 +3270,6 @@ static void do_v7m_exception_exit(CPUARMState *env)
        pointer.  */
 }
 
-/* Exception names for debug logging; note that not all of these
- * precisely correspond to architectural exceptions.
- */
-static const char * const excnames[] = {
-    [EXCP_UDEF] = "Undefined Instruction",
-    [EXCP_SWI] = "SVC",
-    [EXCP_PREFETCH_ABORT] = "Prefetch Abort",
-    [EXCP_DATA_ABORT] = "Data Abort",
-    [EXCP_IRQ] = "IRQ",
-    [EXCP_FIQ] = "FIQ",
-    [EXCP_BKPT] = "Breakpoint",
-    [EXCP_EXCEPTION_EXIT] = "QEMU v7M exception exit",
-    [EXCP_KERNEL_TRAP] = "QEMU intercept of kernel commpage",
-    [EXCP_STREX] = "QEMU intercept of STREX",
-};
-
-static inline void arm_log_exception(int idx)
-{
-    if (qemu_loglevel_mask(CPU_LOG_INT)) {
-        const char *exc = NULL;
-
-        if (idx >= 0 && idx < ARRAY_SIZE(excnames)) {
-            exc = excnames[idx];
-        }
-        if (!exc) {
-            exc = "unknown";
-        }
-        qemu_log_mask(CPU_LOG_INT, "Taking exception %d [%s]\n", idx, exc);
-    }
-}
-
 void arm_v7m_cpu_do_interrupt(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -2786,7 +3278,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     uint32_t lr;
     uint32_t addr;
 
-    arm_log_exception(env->exception_index);
+    arm_log_exception(cs->exception_index);
 
     lr = 0xfffffff1;
     if (env->v7m.current_sp)
@@ -2798,7 +3290,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
        handle it.  */
     /* TODO: Need to escalate if the current priority is higher than the
        one we're raising.  */
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case EXCP_UDEF:
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
         return;
@@ -2808,6 +3300,9 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
         return;
     case EXCP_PREFETCH_ABORT:
     case EXCP_DATA_ABORT:
+        /* TODO: if we implemented the MPU registers, this is where we
+         * should set the MMFAR, etc from exception.fsr and exception.vaddress.
+         */
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_MEM);
         return;
     case EXCP_BKPT:
@@ -2830,7 +3325,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
         do_v7m_exception_exit(env);
         return;
     default:
-        cpu_abort(env, "Unhandled exception 0x%x\n", env->exception_index);
+        cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
         return; /* Never happens.  Keep compiler happy.  */
     }
 
@@ -2871,10 +3366,10 @@ void arm_cpu_do_interrupt(CPUState *cs)
 
     assert(!IS_M(env));
 
-    arm_log_exception(env->exception_index);
+    arm_log_exception(cs->exception_index);
 
     /* TODO: Vectored interrupt controller.  */
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case EXCP_UDEF:
         new_mode = ARM_CPU_MODE_UND;
         addr = 0x04;
@@ -2922,19 +3417,26 @@ void arm_cpu_do_interrupt(CPUState *cs)
                 return;
             }
         }
-        env->cp15.c5_insn = 2;
+        env->exception.fsr = 2;
         /* Fall through to prefetch abort.  */
     case EXCP_PREFETCH_ABORT:
+        env->cp15.ifsr_el2 = env->exception.fsr;
+        env->cp15.far_el1 = deposit64(env->cp15.far_el1, 32, 32,
+                                      env->exception.vaddress);
         qemu_log_mask(CPU_LOG_INT, "...with IFSR 0x%x IFAR 0x%x\n",
-                      env->cp15.c5_insn, env->cp15.c6_insn);
+                      env->cp15.ifsr_el2, (uint32_t)env->exception.vaddress);
         new_mode = ARM_CPU_MODE_ABT;
         addr = 0x0c;
         mask = CPSR_A | CPSR_I;
         offset = 4;
         break;
     case EXCP_DATA_ABORT:
+        env->cp15.esr_el[1] = env->exception.fsr;
+        env->cp15.far_el1 = deposit64(env->cp15.far_el1, 0, 32,
+                                      env->exception.vaddress);
         qemu_log_mask(CPU_LOG_INT, "...with DFSR 0x%x DFAR 0x%x\n",
-                      env->cp15.c5_data, env->cp15.c6_data);
+                      (uint32_t)env->cp15.esr_el[1],
+                      (uint32_t)env->exception.vaddress);
         new_mode = ARM_CPU_MODE_ABT;
         addr = 0x10;
         mask = CPSR_A | CPSR_I;
@@ -2955,7 +3457,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
         offset = 4;
         break;
     default:
-        cpu_abort(env, "Unhandled exception 0x%x\n", env->exception_index);
+        cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
         return; /* Never happens.  Keep compiler happy.  */
     }
     /* High vectors.  */
@@ -2973,7 +3475,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
          * and is never in monitor mode this feature is always active.
          * Note: only bits 31:5 are valid.
          */
-        addr += env->cp15.c12_vbar;
+        addr += env->cp15.vbar_el[1];
     }
     switch_mode (env, new_mode);
     env->spsr = cpsr_read(env);
@@ -3065,7 +3567,7 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
                             int is_user, hwaddr *phys_ptr,
                             int *prot, target_ulong *page_size)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
     int code;
     uint32_t table;
     uint32_t desc;
@@ -3161,7 +3663,7 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
                             int is_user, hwaddr *phys_ptr,
                             int *prot, target_ulong *page_size)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
     int code;
     uint32_t table;
     uint32_t desc;
@@ -3279,36 +3781,56 @@ typedef enum {
     permission_fault = 3,
 } MMUFaultType;
 
-static int get_phys_addr_lpae(CPUARMState *env, uint32_t address,
+static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
                               int access_type, int is_user,
                               hwaddr *phys_ptr, int *prot,
                               target_ulong *page_size_ptr)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
     /* Read an LPAE long-descriptor translation table. */
     MMUFaultType fault_type = translation_fault;
     uint32_t level = 1;
     uint32_t epd;
-    uint32_t tsz;
+    int32_t tsz;
+    uint32_t tg;
     uint64_t ttbr;
     int ttbr_select;
-    int n;
-    hwaddr descaddr;
+    hwaddr descaddr, descmask;
     uint32_t tableattrs;
     target_ulong page_size;
     uint32_t attrs;
+    int32_t granule_sz = 9;
+    int32_t va_size = 32;
+    int32_t tbi = 0;
+
+    if (arm_el_is_aa64(env, 1)) {
+        va_size = 64;
+        if (extract64(address, 55, 1))
+            tbi = extract64(env->cp15.c2_control, 38, 1);
+        else
+            tbi = extract64(env->cp15.c2_control, 37, 1);
+        tbi *= 8;
+    }
 
     /* Determine whether this address is in the region controlled by
      * TTBR0 or TTBR1 (or if it is in neither region and should fault).
      * This is a Non-secure PL0/1 stage 1 translation, so controlled by
      * TTBCR/TTBR0/TTBR1 in accordance with ARM ARM DDI0406C table B-32:
      */
-    uint32_t t0sz = extract32(env->cp15.c2_control, 0, 3);
-    uint32_t t1sz = extract32(env->cp15.c2_control, 16, 3);
-    if (t0sz && !extract32(address, 32 - t0sz, t0sz)) {
+    uint32_t t0sz = extract32(env->cp15.c2_control, 0, 6);
+    if (arm_el_is_aa64(env, 1)) {
+        t0sz = MIN(t0sz, 39);
+        t0sz = MAX(t0sz, 16);
+    }
+    uint32_t t1sz = extract32(env->cp15.c2_control, 16, 6);
+    if (arm_el_is_aa64(env, 1)) {
+        t1sz = MIN(t1sz, 39);
+        t1sz = MAX(t1sz, 16);
+    }
+    if (t0sz && !extract64(address, va_size - t0sz, t0sz - tbi)) {
         /* there is a ttbr0 region and we are in it (high bits all zero) */
         ttbr_select = 0;
-    } else if (t1sz && !extract32(~address, 32 - t1sz, t1sz)) {
+    } else if (t1sz && !extract64(~address, va_size - t1sz, t1sz - tbi)) {
         /* there is a ttbr1 region and we are in it (high bits all one) */
         ttbr_select = 1;
     } else if (!t0sz) {
@@ -3334,10 +3856,26 @@ static int get_phys_addr_lpae(CPUARMState *env, uint32_t address,
         ttbr = env->cp15.ttbr0_el1;
         epd = extract32(env->cp15.c2_control, 7, 1);
         tsz = t0sz;
+
+        tg = extract32(env->cp15.c2_control, 14, 2);
+        if (tg == 1) { /* 64KB pages */
+            granule_sz = 13;
+        }
+        if (tg == 2) { /* 16KB pages */
+            granule_sz = 11;
+        }
     } else {
         ttbr = env->cp15.ttbr1_el1;
         epd = extract32(env->cp15.c2_control, 23, 1);
         tsz = t1sz;
+
+        tg = extract32(env->cp15.c2_control, 30, 2);
+        if (tg == 3)  { /* 64KB pages */
+            granule_sz = 13;
+        }
+        if (tg == 1) { /* 16KB pages */
+            granule_sz = 11;
+        }
     }
 
     if (epd) {
@@ -3345,34 +3883,37 @@ static int get_phys_addr_lpae(CPUARMState *env, uint32_t address,
         goto do_fault;
     }
 
-    /* If the region is small enough we will skip straight to a 2nd level
-     * lookup. This affects the number of bits of the address used in
-     * combination with the TTBR to find the first descriptor. ('n' here
-     * matches the usage in the ARM ARM sB3.6.6, where bits [39..n] are
-     * from the TTBR, [n-1..3] from the vaddr, and [2..0] always zero).
+    /* The starting level depends on the virtual address size which can be
+     * up to 48-bits and the translation granule size.
      */
-    if (tsz > 1) {
-        level = 2;
-        n = 14 - tsz;
+    if ((va_size - tsz) > (granule_sz * 4 + 3)) {
+        level = 0;
+    } else if ((va_size - tsz) > (granule_sz * 3 + 3)) {
+        level = 1;
     } else {
-        n = 5 - tsz;
+        level = 2;
     }
 
     /* Clear the vaddr bits which aren't part of the within-region address,
      * so that we don't have to special case things when calculating the
      * first descriptor address.
      */
-    address &= (0xffffffffU >> tsz);
+    if (tsz) {
+        address &= (1ULL << (va_size - tsz)) - 1;
+    }
+
+    descmask = (1ULL << (granule_sz + 3)) - 1;
 
     /* Now we can extract the actual base address from the TTBR */
-    descaddr = extract64(ttbr, 0, 40);
-    descaddr &= ~((1ULL << n) - 1);
+    descaddr = extract64(ttbr, 0, 48);
+    descaddr &= ~((1ULL << (va_size - tsz - (granule_sz * (4 - level)))) - 1);
 
     tableattrs = 0;
     for (;;) {
         uint64_t descriptor;
 
-        descaddr |= ((address >> (9 * (4 - level))) & 0xff8);
+        descaddr |= (address >> (granule_sz * (4 - level))) & descmask;
+        descaddr &= ~7ULL;
         descriptor = ldq_phys(cs->as, descaddr);
         if (!(descriptor & 1) ||
             (!(descriptor & 2) && (level == 3))) {
@@ -3395,11 +3936,16 @@ static int get_phys_addr_lpae(CPUARMState *env, uint32_t address,
          * These are basically the same thing, although the number
          * of bits we pull in from the vaddr varies.
          */
-        page_size = (1 << (39 - (9 * level)));
+        page_size = (1 << ((granule_sz * (4 - level)) + 3));
         descaddr |= (address & (page_size - 1));
         /* Extract attributes from the descriptor and merge with table attrs */
-        attrs = extract64(descriptor, 2, 10)
-            | (extract64(descriptor, 52, 12) << 10);
+        if (arm_feature(env, ARM_FEATURE_V8)) {
+            attrs = extract64(descriptor, 2, 10)
+                | (extract64(descriptor, 53, 11) << 10);
+        } else {
+            attrs = extract64(descriptor, 2, 10)
+                | (extract64(descriptor, 52, 12) << 10);
+        }
         attrs |= extract32(tableattrs, 0, 2) << 11; /* XN, PXN */
         attrs |= extract32(tableattrs, 3, 1) << 5; /* APTable[1] => AP[2] */
         /* The sense of AP[1] vs APTable[0] is reversed, as APTable[0] == 1
@@ -3473,9 +4019,9 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
 	return 2;
 
     if (access_type == 2) {
-	mask = env->cp15.c5_insn;
+        mask = env->cp15.pmsav5_insn_ap;
     } else {
-	mask = env->cp15.c5_data;
+        mask = env->cp15.pmsav5_data_ap;
     }
     mask = (mask >> (n * 4)) & 0xf;
     switch (mask) {
@@ -3533,7 +4079,7 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
  * @prot: set to the permissions for the page containing phys_ptr
  * @page_size: set to the size of the page containing phys_ptr
  */
-static inline int get_phys_addr(CPUARMState *env, uint32_t address,
+static inline int get_phys_addr(CPUARMState *env, target_ulong address,
                                 int access_type, int is_user,
                                 hwaddr *phys_ptr, int *prot,
                                 target_ulong *page_size)
@@ -3564,13 +4110,17 @@ static inline int get_phys_addr(CPUARMState *env, uint32_t address,
     }
 }
 
-int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
-                              int access_type, int mmu_idx)
+int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
+                             int access_type, int mmu_idx)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
     hwaddr phys_addr;
     target_ulong page_size;
     int prot;
     int ret, is_user;
+    uint32_t syn;
+    bool same_el = (arm_current_pl(env) != 0);
 
     is_user = mmu_idx == MMU_USER_IDX;
     ret = get_phys_addr(env, address, access_type, is_user, &phys_addr, &prot,
@@ -3578,22 +4128,31 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
     if (ret == 0) {
         /* Map a single [sub]page.  */
         phys_addr &= ~(hwaddr)0x3ff;
-        address &= ~(uint32_t)0x3ff;
-        tlb_set_page (env, address, phys_addr, prot, mmu_idx, page_size);
+        address &= ~(target_ulong)0x3ff;
+        tlb_set_page(cs, address, phys_addr, prot, mmu_idx, page_size);
         return 0;
     }
 
+    /* AArch64 syndrome does not have an LPAE bit */
+    syn = ret & ~(1 << 9);
+
+    /* For insn and data aborts we assume there is no instruction syndrome
+     * information; this is always true for exceptions reported to EL1.
+     */
     if (access_type == 2) {
-        env->cp15.c5_insn = ret;
-        env->cp15.c6_insn = address;
-        env->exception_index = EXCP_PREFETCH_ABORT;
+        syn = syn_insn_abort(same_el, 0, 0, syn);
+        cs->exception_index = EXCP_PREFETCH_ABORT;
     } else {
-        env->cp15.c5_data = ret;
-        if (access_type == 1 && arm_feature(env, ARM_FEATURE_V6))
-            env->cp15.c5_data |= (1 << 11);
-        env->cp15.c6_data = address;
-        env->exception_index = EXCP_DATA_ABORT;
+        syn = syn_data_abort(same_el, 0, 0, 0, access_type == 1, syn);
+        if (access_type == 1 && arm_feature(env, ARM_FEATURE_V6)) {
+            ret |= (1 << 11);
+        }
+        cs->exception_index = EXCP_DATA_ABORT;
     }
+
+    env->exception.syndrome = syn;
+    env->exception.vaddress = address;
+    env->exception.fsr = ret;
     return 1;
 }
 
@@ -3634,6 +4193,8 @@ uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
 
 uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     switch (reg) {
     case 0: /* APSR */
         return xpsr_read(env) & 0xf8000000;
@@ -3664,13 +4225,15 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
         return env->v7m.control;
     default:
         /* ??? For debugging only.  */
-        cpu_abort(env, "Unimplemented system register read (%d)\n", reg);
+        cpu_abort(CPU(cpu), "Unimplemented system register read (%d)\n", reg);
         return 0;
     }
 }
 
 void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     switch (reg) {
     case 0: /* APSR */
         xpsr_write(env, val, 0xf8000000);
@@ -3733,12 +4296,94 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
         break;
     default:
         /* ??? For debugging only.  */
-        cpu_abort(env, "Unimplemented system register write (%d)\n", reg);
+        cpu_abort(CPU(cpu), "Unimplemented system register write (%d)\n", reg);
         return;
     }
 }
 
 #endif
+
+void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
+{
+    /* Implement DC ZVA, which zeroes a fixed-length block of memory.
+     * Note that we do not implement the (architecturally mandated)
+     * alignment fault for attempts to use this on Device memory
+     * (which matches the usual QEMU behaviour of not implementing either
+     * alignment faults or any memory attribute handling).
+     */
+
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    uint64_t blocklen = 4 << cpu->dcz_blocksize;
+    uint64_t vaddr = vaddr_in & ~(blocklen - 1);
+
+#ifndef CONFIG_USER_ONLY
+    {
+        /* Slightly awkwardly, QEMU's TARGET_PAGE_SIZE may be less than
+         * the block size so we might have to do more than one TLB lookup.
+         * We know that in fact for any v8 CPU the page size is at least 4K
+         * and the block size must be 2K or less, but TARGET_PAGE_SIZE is only
+         * 1K as an artefact of legacy v5 subpage support being present in the
+         * same QEMU executable.
+         */
+        int maxidx = DIV_ROUND_UP(blocklen, TARGET_PAGE_SIZE);
+        void *hostaddr[maxidx];
+        int try, i;
+
+        for (try = 0; try < 2; try++) {
+
+            for (i = 0; i < maxidx; i++) {
+                hostaddr[i] = tlb_vaddr_to_host(env,
+                                                vaddr + TARGET_PAGE_SIZE * i,
+                                                1, cpu_mmu_index(env));
+                if (!hostaddr[i]) {
+                    break;
+                }
+            }
+            if (i == maxidx) {
+                /* If it's all in the TLB it's fair game for just writing to;
+                 * we know we don't need to update dirty status, etc.
+                 */
+                for (i = 0; i < maxidx - 1; i++) {
+                    memset(hostaddr[i], 0, TARGET_PAGE_SIZE);
+                }
+                memset(hostaddr[i], 0, blocklen - (i * TARGET_PAGE_SIZE));
+                return;
+            }
+            /* OK, try a store and see if we can populate the tlb. This
+             * might cause an exception if the memory isn't writable,
+             * in which case we will longjmp out of here. We must for
+             * this purpose use the actual register value passed to us
+             * so that we get the fault address right.
+             */
+            helper_ret_stb_mmu(env, vaddr_in, 0, cpu_mmu_index(env), GETRA());
+            /* Now we can populate the other TLB entries, if any */
+            for (i = 0; i < maxidx; i++) {
+                uint64_t va = vaddr + TARGET_PAGE_SIZE * i;
+                if (va != (vaddr_in & TARGET_PAGE_MASK)) {
+                    helper_ret_stb_mmu(env, va, 0, cpu_mmu_index(env), GETRA());
+                }
+            }
+        }
+
+        /* Slow path (probably attempt to do this to an I/O device or
+         * similar, or clearing of a block of code we have translations
+         * cached for). Just do a series of byte writes as the architecture
+         * demands. It's not worth trying to use a cpu_physical_memory_map(),
+         * memset(), unmap() sequence here because:
+         *  + we'd need to account for the blocksize being larger than a page
+         *  + the direct-RAM access case is almost always going to be dealt
+         *    with in the fastpath code above, so there's no speed benefit
+         *  + we would have to deal with the map returning NULL because the
+         *    bounce buffer was in use
+         */
+        for (i = 0; i < blocklen; i++) {
+            helper_ret_stb_mmu(env, vaddr + i, 0, cpu_mmu_index(env), GETRA());
+        }
+    }
+#else
+    memset(g2h(vaddr), 0, blocklen);
+#endif
+}
 
 /* Note that signed overflow is undefined in C.  The following routines are
    careful to use unsigned types where modulo arithmetic is required.
@@ -4418,16 +5063,21 @@ float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUARMState *env)
  * int->float conversions at run-time.  */
 #define float64_256 make_float64(0x4070000000000000LL)
 #define float64_512 make_float64(0x4080000000000000LL)
+#define float32_maxnorm make_float32(0x7f7fffff)
+#define float64_maxnorm make_float64(0x7fefffffffffffffLL)
 
-/* The algorithm that must be used to calculate the estimate
- * is specified by the ARM ARM.
+/* Reciprocal functions
+ *
+ * The algorithm that must be used to calculate the estimate
+ * is specified by the ARM ARM, see FPRecipEstimate()
  */
-static float64 recip_estimate(float64 a, CPUARMState *env)
+
+static float64 recip_estimate(float64 a, float_status *real_fp_status)
 {
     /* These calculations mustn't set any fp exception flags,
      * so we use a local copy of the fp_status.
      */
-    float_status dummy_status = env->vfp.standard_fp_status;
+    float_status dummy_status = *real_fp_status;
     float_status *s = &dummy_status;
     /* q = (int)(a * 512.0) */
     float64 q = float64_mul(float64_512, a, s);
@@ -4448,56 +5098,178 @@ static float64 recip_estimate(float64 a, CPUARMState *env)
     return float64_div(int64_to_float64(q_int, s), float64_256, s);
 }
 
-float32 HELPER(recpe_f32)(float32 a, CPUARMState *env)
+/* Common wrapper to call recip_estimate */
+static float64 call_recip_estimate(float64 num, int off, float_status *fpst)
 {
-    float_status *s = &env->vfp.standard_fp_status;
-    float64 f64;
-    uint32_t val32 = float32_val(a);
+    uint64_t val64 = float64_val(num);
+    uint64_t frac = extract64(val64, 0, 52);
+    int64_t exp = extract64(val64, 52, 11);
+    uint64_t sbit;
+    float64 scaled, estimate;
 
-    int result_exp;
-    int a_exp = (val32  & 0x7f800000) >> 23;
-    int sign = val32 & 0x80000000;
-
-    if (float32_is_any_nan(a)) {
-        if (float32_is_signaling_nan(a)) {
-            float_raise(float_flag_invalid, s);
+    /* Generate the scaled number for the estimate function */
+    if (exp == 0) {
+        if (extract64(frac, 51, 1) == 0) {
+            exp = -1;
+            frac = extract64(frac, 0, 50) << 2;
+        } else {
+            frac = extract64(frac, 0, 51) << 1;
         }
-        return float32_default_nan;
-    } else if (float32_is_infinity(a)) {
-        return float32_set_sign(float32_zero, float32_is_neg(a));
-    } else if (float32_is_zero_or_denormal(a)) {
-        if (!float32_is_zero(a)) {
-            float_raise(float_flag_input_denormal, s);
-        }
-        float_raise(float_flag_divbyzero, s);
-        return float32_set_sign(float32_infinity, float32_is_neg(a));
-    } else if (a_exp >= 253) {
-        float_raise(float_flag_underflow, s);
-        return float32_set_sign(float32_zero, float32_is_neg(a));
     }
 
-    f64 = make_float64((0x3feULL << 52)
-                       | ((int64_t)(val32 & 0x7fffff) << 29));
+    /* scaled = '0' : '01111111110' : fraction<51:44> : Zeros(44); */
+    scaled = make_float64((0x3feULL << 52)
+                          | extract64(frac, 44, 8) << 44);
 
-    result_exp = 253 - a_exp;
+    estimate = recip_estimate(scaled, fpst);
 
-    f64 = recip_estimate(f64, env);
+    /* Build new result */
+    val64 = float64_val(estimate);
+    sbit = 0x8000000000000000ULL & val64;
+    exp = off - exp;
+    frac = extract64(val64, 0, 52);
 
-    val32 = sign
-        | ((result_exp & 0xff) << 23)
-        | ((float64_val(f64) >> 29) & 0x7fffff);
-    return make_float32(val32);
+    if (exp == 0) {
+        frac = 1ULL << 51 | extract64(frac, 1, 51);
+    } else if (exp == -1) {
+        frac = 1ULL << 50 | extract64(frac, 2, 50);
+        exp = 0;
+    }
+
+    return make_float64(sbit | (exp << 52) | frac);
+}
+
+static bool round_to_inf(float_status *fpst, bool sign_bit)
+{
+    switch (fpst->float_rounding_mode) {
+    case float_round_nearest_even: /* Round to Nearest */
+        return true;
+    case float_round_up: /* Round to +Inf */
+        return !sign_bit;
+    case float_round_down: /* Round to -Inf */
+        return sign_bit;
+    case float_round_to_zero: /* Round to Zero */
+        return false;
+    }
+
+    g_assert_not_reached();
+}
+
+float32 HELPER(recpe_f32)(float32 input, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    float32 f32 = float32_squash_input_denormal(input, fpst);
+    uint32_t f32_val = float32_val(f32);
+    uint32_t f32_sbit = 0x80000000ULL & f32_val;
+    int32_t f32_exp = extract32(f32_val, 23, 8);
+    uint32_t f32_frac = extract32(f32_val, 0, 23);
+    float64 f64, r64;
+    uint64_t r64_val;
+    int64_t r64_exp;
+    uint64_t r64_frac;
+
+    if (float32_is_any_nan(f32)) {
+        float32 nan = f32;
+        if (float32_is_signaling_nan(f32)) {
+            float_raise(float_flag_invalid, fpst);
+            nan = float32_maybe_silence_nan(f32);
+        }
+        if (fpst->default_nan_mode) {
+            nan =  float32_default_nan;
+        }
+        return nan;
+    } else if (float32_is_infinity(f32)) {
+        return float32_set_sign(float32_zero, float32_is_neg(f32));
+    } else if (float32_is_zero(f32)) {
+        float_raise(float_flag_divbyzero, fpst);
+        return float32_set_sign(float32_infinity, float32_is_neg(f32));
+    } else if ((f32_val & ~(1ULL << 31)) < (1ULL << 21)) {
+        /* Abs(value) < 2.0^-128 */
+        float_raise(float_flag_overflow | float_flag_inexact, fpst);
+        if (round_to_inf(fpst, f32_sbit)) {
+            return float32_set_sign(float32_infinity, float32_is_neg(f32));
+        } else {
+            return float32_set_sign(float32_maxnorm, float32_is_neg(f32));
+        }
+    } else if (f32_exp >= 253 && fpst->flush_to_zero) {
+        float_raise(float_flag_underflow, fpst);
+        return float32_set_sign(float32_zero, float32_is_neg(f32));
+    }
+
+
+    f64 = make_float64(((int64_t)(f32_exp) << 52) | (int64_t)(f32_frac) << 29);
+    r64 = call_recip_estimate(f64, 253, fpst);
+    r64_val = float64_val(r64);
+    r64_exp = extract64(r64_val, 52, 11);
+    r64_frac = extract64(r64_val, 0, 52);
+
+    /* result = sign : result_exp<7:0> : fraction<51:29>; */
+    return make_float32(f32_sbit |
+                        (r64_exp & 0xff) << 23 |
+                        extract64(r64_frac, 29, 24));
+}
+
+float64 HELPER(recpe_f64)(float64 input, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    float64 f64 = float64_squash_input_denormal(input, fpst);
+    uint64_t f64_val = float64_val(f64);
+    uint64_t f64_sbit = 0x8000000000000000ULL & f64_val;
+    int64_t f64_exp = extract64(f64_val, 52, 11);
+    float64 r64;
+    uint64_t r64_val;
+    int64_t r64_exp;
+    uint64_t r64_frac;
+
+    /* Deal with any special cases */
+    if (float64_is_any_nan(f64)) {
+        float64 nan = f64;
+        if (float64_is_signaling_nan(f64)) {
+            float_raise(float_flag_invalid, fpst);
+            nan = float64_maybe_silence_nan(f64);
+        }
+        if (fpst->default_nan_mode) {
+            nan =  float64_default_nan;
+        }
+        return nan;
+    } else if (float64_is_infinity(f64)) {
+        return float64_set_sign(float64_zero, float64_is_neg(f64));
+    } else if (float64_is_zero(f64)) {
+        float_raise(float_flag_divbyzero, fpst);
+        return float64_set_sign(float64_infinity, float64_is_neg(f64));
+    } else if ((f64_val & ~(1ULL << 63)) < (1ULL << 50)) {
+        /* Abs(value) < 2.0^-1024 */
+        float_raise(float_flag_overflow | float_flag_inexact, fpst);
+        if (round_to_inf(fpst, f64_sbit)) {
+            return float64_set_sign(float64_infinity, float64_is_neg(f64));
+        } else {
+            return float64_set_sign(float64_maxnorm, float64_is_neg(f64));
+        }
+    } else if (f64_exp >= 1023 && fpst->flush_to_zero) {
+        float_raise(float_flag_underflow, fpst);
+        return float64_set_sign(float64_zero, float64_is_neg(f64));
+    }
+
+    r64 = call_recip_estimate(f64, 2045, fpst);
+    r64_val = float64_val(r64);
+    r64_exp = extract64(r64_val, 52, 11);
+    r64_frac = extract64(r64_val, 0, 52);
+
+    /* result = sign : result_exp<10:0> : fraction<51:0> */
+    return make_float64(f64_sbit |
+                        ((r64_exp & 0x7ff) << 52) |
+                        r64_frac);
 }
 
 /* The algorithm that must be used to calculate the estimate
  * is specified by the ARM ARM.
  */
-static float64 recip_sqrt_estimate(float64 a, CPUARMState *env)
+static float64 recip_sqrt_estimate(float64 a, float_status *real_fp_status)
 {
     /* These calculations mustn't set any fp exception flags,
      * so we use a local copy of the fp_status.
      */
-    float_status dummy_status = env->vfp.standard_fp_status;
+    float_status dummy_status = *real_fp_status;
     float_status *s = &dummy_status;
     float64 q;
     int64_t q_int;
@@ -4544,49 +5316,64 @@ static float64 recip_sqrt_estimate(float64 a, CPUARMState *env)
     return float64_div(int64_to_float64(q_int, s), float64_256, s);
 }
 
-float32 HELPER(rsqrte_f32)(float32 a, CPUARMState *env)
+float32 HELPER(rsqrte_f32)(float32 input, void *fpstp)
 {
-    float_status *s = &env->vfp.standard_fp_status;
+    float_status *s = fpstp;
+    float32 f32 = float32_squash_input_denormal(input, s);
+    uint32_t val = float32_val(f32);
+    uint32_t f32_sbit = 0x80000000 & val;
+    int32_t f32_exp = extract32(val, 23, 8);
+    uint32_t f32_frac = extract32(val, 0, 23);
+    uint64_t f64_frac;
+    uint64_t val64;
     int result_exp;
     float64 f64;
-    uint32_t val;
-    uint64_t val64;
 
-    val = float32_val(a);
-
-    if (float32_is_any_nan(a)) {
-        if (float32_is_signaling_nan(a)) {
+    if (float32_is_any_nan(f32)) {
+        float32 nan = f32;
+        if (float32_is_signaling_nan(f32)) {
             float_raise(float_flag_invalid, s);
+            nan = float32_maybe_silence_nan(f32);
         }
-        return float32_default_nan;
-    } else if (float32_is_zero_or_denormal(a)) {
-        if (!float32_is_zero(a)) {
-            float_raise(float_flag_input_denormal, s);
+        if (s->default_nan_mode) {
+            nan =  float32_default_nan;
         }
+        return nan;
+    } else if (float32_is_zero(f32)) {
         float_raise(float_flag_divbyzero, s);
-        return float32_set_sign(float32_infinity, float32_is_neg(a));
-    } else if (float32_is_neg(a)) {
+        return float32_set_sign(float32_infinity, float32_is_neg(f32));
+    } else if (float32_is_neg(f32)) {
         float_raise(float_flag_invalid, s);
         return float32_default_nan;
-    } else if (float32_is_infinity(a)) {
+    } else if (float32_is_infinity(f32)) {
         return float32_zero;
     }
 
-    /* Normalize to a double-precision value between 0.25 and 1.0,
+    /* Scale and normalize to a double-precision value between 0.25 and 1.0,
      * preserving the parity of the exponent.  */
-    if ((val & 0x800000) == 0) {
-        f64 = make_float64(((uint64_t)(val & 0x80000000) << 32)
-                           | (0x3feULL << 52)
-                           | ((uint64_t)(val & 0x7fffff) << 29));
-    } else {
-        f64 = make_float64(((uint64_t)(val & 0x80000000) << 32)
-                           | (0x3fdULL << 52)
-                           | ((uint64_t)(val & 0x7fffff) << 29));
+
+    f64_frac = ((uint64_t) f32_frac) << 29;
+    if (f32_exp == 0) {
+        while (extract64(f64_frac, 51, 1) == 0) {
+            f64_frac = f64_frac << 1;
+            f32_exp = f32_exp-1;
+        }
+        f64_frac = extract64(f64_frac, 0, 51) << 1;
     }
 
-    result_exp = (380 - ((val & 0x7f800000) >> 23)) / 2;
+    if (extract64(f32_exp, 0, 1) == 0) {
+        f64 = make_float64(((uint64_t) f32_sbit) << 32
+                           | (0x3feULL << 52)
+                           | f64_frac);
+    } else {
+        f64 = make_float64(((uint64_t) f32_sbit) << 32
+                           | (0x3fdULL << 52)
+                           | f64_frac);
+    }
 
-    f64 = recip_sqrt_estimate(f64, env);
+    result_exp = (380 - f32_exp) / 2;
+
+    f64 = recip_sqrt_estimate(f64, s);
 
     val64 = float64_val(f64);
 
@@ -4595,8 +5382,72 @@ float32 HELPER(rsqrte_f32)(float32 a, CPUARMState *env)
     return make_float32(val);
 }
 
-uint32_t HELPER(recpe_u32)(uint32_t a, CPUARMState *env)
+float64 HELPER(rsqrte_f64)(float64 input, void *fpstp)
 {
+    float_status *s = fpstp;
+    float64 f64 = float64_squash_input_denormal(input, s);
+    uint64_t val = float64_val(f64);
+    uint64_t f64_sbit = 0x8000000000000000ULL & val;
+    int64_t f64_exp = extract64(val, 52, 11);
+    uint64_t f64_frac = extract64(val, 0, 52);
+    int64_t result_exp;
+    uint64_t result_frac;
+
+    if (float64_is_any_nan(f64)) {
+        float64 nan = f64;
+        if (float64_is_signaling_nan(f64)) {
+            float_raise(float_flag_invalid, s);
+            nan = float64_maybe_silence_nan(f64);
+        }
+        if (s->default_nan_mode) {
+            nan =  float64_default_nan;
+        }
+        return nan;
+    } else if (float64_is_zero(f64)) {
+        float_raise(float_flag_divbyzero, s);
+        return float64_set_sign(float64_infinity, float64_is_neg(f64));
+    } else if (float64_is_neg(f64)) {
+        float_raise(float_flag_invalid, s);
+        return float64_default_nan;
+    } else if (float64_is_infinity(f64)) {
+        return float64_zero;
+    }
+
+    /* Scale and normalize to a double-precision value between 0.25 and 1.0,
+     * preserving the parity of the exponent.  */
+
+    if (f64_exp == 0) {
+        while (extract64(f64_frac, 51, 1) == 0) {
+            f64_frac = f64_frac << 1;
+            f64_exp = f64_exp - 1;
+        }
+        f64_frac = extract64(f64_frac, 0, 51) << 1;
+    }
+
+    if (extract64(f64_exp, 0, 1) == 0) {
+        f64 = make_float64(f64_sbit
+                           | (0x3feULL << 52)
+                           | f64_frac);
+    } else {
+        f64 = make_float64(f64_sbit
+                           | (0x3fdULL << 52)
+                           | f64_frac);
+    }
+
+    result_exp = (3068 - f64_exp) / 2;
+
+    f64 = recip_sqrt_estimate(f64, s);
+
+    result_frac = extract64(float64_val(f64), 0, 52);
+
+    return make_float64(f64_sbit |
+                        ((result_exp & 0x7ff) << 52) |
+                        result_frac);
+}
+
+uint32_t HELPER(recpe_u32)(uint32_t a, void *fpstp)
+{
+    float_status *s = fpstp;
     float64 f64;
 
     if ((a & 0x80000000) == 0) {
@@ -4606,13 +5457,14 @@ uint32_t HELPER(recpe_u32)(uint32_t a, CPUARMState *env)
     f64 = make_float64((0x3feULL << 52)
                        | ((int64_t)(a & 0x7fffffff) << 21));
 
-    f64 = recip_estimate (f64, env);
+    f64 = recip_estimate(f64, s);
 
     return 0x80000000 | ((float64_val(f64) >> 21) & 0x7fffffff);
 }
 
-uint32_t HELPER(rsqrte_u32)(uint32_t a, CPUARMState *env)
+uint32_t HELPER(rsqrte_u32)(uint32_t a, void *fpstp)
 {
+    float_status *fpst = fpstp;
     float64 f64;
 
     if ((a & 0xc0000000) == 0) {
@@ -4627,7 +5479,7 @@ uint32_t HELPER(rsqrte_u32)(uint32_t a, CPUARMState *env)
                            | ((uint64_t)(a & 0x3fffffff) << 22));
     }
 
-    f64 = recip_sqrt_estimate(f64, env);
+    f64 = recip_sqrt_estimate(f64, fpst);
 
     return 0x80000000 | ((float64_val(f64) >> 21) & 0x7fffffff);
 }

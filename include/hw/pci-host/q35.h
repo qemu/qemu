@@ -125,8 +125,8 @@ typedef struct Q35PCIHost {
 #define MCH_HOST_BRIDGE_PAM_RE                 ((uint8_t)0x1)
 #define MCH_HOST_BRIDGE_PAM_MASK               ((uint8_t)0x3)
 
-#define MCH_HOST_BRDIGE_SMRAM                  0x9d
-#define MCH_HOST_BRDIGE_SMRAM_SIZE             1
+#define MCH_HOST_BRIDGE_SMRAM                  0x9d
+#define MCH_HOST_BRIDGE_SMRAM_SIZE             1
 #define MCH_HOST_BRIDGE_SMRAM_DEFAULT          ((uint8_t)0x2)
 #define MCH_HOST_BRIDGE_SMRAM_D_OPEN           ((uint8_t)(1 << 6))
 #define MCH_HOST_BRIDGE_SMRAM_D_CLS            ((uint8_t)(1 << 5))
@@ -140,16 +140,16 @@ typedef struct Q35PCIHost {
 #define MCH_HOST_BRIDGE_UPPER_SYSTEM_BIOS_END  0x100000
 
 #define MCH_HOST_BRIDGE_ESMRAMC                0x9e
-#define MCH_HOST_BRDIGE_ESMRAMC_H_SMRAME       ((uint8_t)(1 << 6))
-#define MCH_HOST_BRDIGE_ESMRAMC_E_SMERR        ((uint8_t)(1 << 5))
-#define MCH_HOST_BRDIGE_ESMRAMC_SM_CACHE       ((uint8_t)(1 << 4))
-#define MCH_HOST_BRDIGE_ESMRAMC_SM_L1          ((uint8_t)(1 << 3))
-#define MCH_HOST_BRDIGE_ESMRAMC_SM_L2          ((uint8_t)(1 << 2))
-#define MCH_HOST_BRDIGE_ESMRAMC_TSEG_SZ_MASK   ((uint8_t)(0x3 << 1))
-#define MCH_HOST_BRDIGE_ESMRAMC_TSEG_SZ_1MB    ((uint8_t)(0x0 << 1))
-#define MCH_HOST_BRDIGE_ESMRAMC_TSEG_SZ_2MB    ((uint8_t)(0x1 << 1))
-#define MCH_HOST_BRDIGE_ESMRAMC_TSEG_SZ_8MB    ((uint8_t)(0x2 << 1))
-#define MCH_HOST_BRDIGE_ESMRAMC_T_EN           ((uint8_t)1)
+#define MCH_HOST_BRIDGE_ESMRAMC_H_SMRAME       ((uint8_t)(1 << 6))
+#define MCH_HOST_BRIDGE_ESMRAMC_E_SMERR        ((uint8_t)(1 << 5))
+#define MCH_HOST_BRIDGE_ESMRAMC_SM_CACHE       ((uint8_t)(1 << 4))
+#define MCH_HOST_BRIDGE_ESMRAMC_SM_L1          ((uint8_t)(1 << 3))
+#define MCH_HOST_BRIDGE_ESMRAMC_SM_L2          ((uint8_t)(1 << 2))
+#define MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_MASK   ((uint8_t)(0x3 << 1))
+#define MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_1MB    ((uint8_t)(0x0 << 1))
+#define MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_2MB    ((uint8_t)(0x1 << 1))
+#define MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_8MB    ((uint8_t)(0x2 << 1))
+#define MCH_HOST_BRIDGE_ESMRAMC_T_EN           ((uint8_t)1)
 
 /* D1:F0 PCIE* port*/
 #define MCH_PCIE_DEV                           1

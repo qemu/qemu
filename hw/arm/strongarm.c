@@ -199,7 +199,6 @@ static VMStateDescription vmstate_strongarm_pic_regs = {
     .name = "strongarm_pic",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .post_load = strongarm_pic_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(pending, StrongARMPICState),
@@ -424,7 +423,6 @@ static const VMStateDescription vmstate_strongarm_rtc_regs = {
     .name = "strongarm-rtc",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .pre_save = strongarm_rtc_pre_save,
     .post_load = strongarm_rtc_post_load,
     .fields = (VMStateField[]) {
@@ -670,7 +668,6 @@ static const VMStateDescription vmstate_strongarm_gpio_regs = {
     .name = "strongarm-gpio",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(ilevel, StrongARMGPIOInfo),
         VMSTATE_UINT32(olevel, StrongARMGPIOInfo),
@@ -842,7 +839,6 @@ static const VMStateDescription vmstate_strongarm_ppc_regs = {
     .name = "strongarm-ppc",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(ilevel, StrongARMPPCInfo),
         VMSTATE_UINT32(olevel, StrongARMPPCInfo),
@@ -1293,7 +1289,6 @@ static const VMStateDescription vmstate_strongarm_uart_regs = {
     .name = "strongarm-uart",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .post_load = strongarm_uart_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(utcr0, StrongARMUARTState),
@@ -1553,7 +1548,6 @@ static const VMStateDescription vmstate_strongarm_ssp_regs = {
     .name = "strongarm-ssp",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .post_load = strongarm_ssp_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT16_ARRAY(sscr, StrongARMSSPState, 2),

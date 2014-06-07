@@ -110,7 +110,7 @@ struct MemoryRegionOps {
         /* If true, unaligned accesses are supported.  Otherwise all accesses
          * are converted to (possibly multiple) naturally aligned accesses.
          */
-         bool unaligned;
+        bool unaligned;
     } impl;
 
     /* If .read and .write are not present, old_mmio may be used for
@@ -836,13 +836,13 @@ void memory_region_set_alias_offset(MemoryRegion *mr,
                                     hwaddr offset);
 
 /**
- * memory_region_present: translate an address/size relative to a
- * MemoryRegion into a #MemoryRegionSection.
+ * memory_region_present: checks if an address relative to a @parent
+ * translates into #MemoryRegion within @parent
  *
  * Answer whether a #MemoryRegion within @parent covers the address
  * @addr.
  *
- * @parent: a MemoryRegion within which @addr is a relative address
+ * @parent: a #MemoryRegion within which @addr is a relative address
  * @addr: the area within @parent to be searched
  */
 bool memory_region_present(MemoryRegion *parent, hwaddr addr);

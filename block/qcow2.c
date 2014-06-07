@@ -124,8 +124,9 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 
         case QCOW2_EXT_MAGIC_BACKING_FORMAT:
             if (ext.len >= sizeof(bs->backing_format)) {
-                error_setg(errp, "ERROR: ext_backing_format: len=%u too large"
-                           " (>=%zu)", ext.len, sizeof(bs->backing_format));
+                error_setg(errp, "ERROR: ext_backing_format: len=%" PRIu32
+                           " too large (>=%zu)", ext.len,
+                           sizeof(bs->backing_format));
                 return 2;
             }
             ret = bdrv_pread(bs->file, offset, bs->backing_format, ext.len);
@@ -269,12 +270,15 @@ static int qcow2_mark_clean(BlockDriverState *bs)
     BDRVQcowState *s = bs->opaque;
 
     if (s->incompatible_features & QCOW2_INCOMPAT_DIRTY) {
-        int ret = bdrv_flush(bs);
+        int ret;
+
+        s->incompatible_features &= ~QCOW2_INCOMPAT_DIRTY;
+
+        ret = bdrv_flush(bs);
         if (ret < 0) {
             return ret;
         }
 
-        s->incompatible_features &= ~QCOW2_INCOMPAT_DIRTY;
         return qcow2_update_header(bs);
     }
     return 0;
@@ -327,6 +331,32 @@ static int qcow2_check(BlockDriverState *bs, BdrvCheckResult *result,
         return qcow2_mark_consistent(bs);
     }
     return ret;
+}
+
+static int validate_table_offset(BlockDriverState *bs, uint64_t offset,
+                                 uint64_t entries, size_t entry_len)
+{
+    BDRVQcowState *s = bs->opaque;
+    uint64_t size;
+
+    /* Use signed INT64_MAX as the maximum even for uint64_t header fields,
+     * because values will be passed to qemu functions taking int64_t. */
+    if (entries > INT64_MAX / entry_len) {
+        return -EINVAL;
+    }
+
+    size = entries * entry_len;
+
+    if (INT64_MAX - size < offset) {
+        return -EINVAL;
+    }
+
+    /* Tables must be cluster aligned */
+    if (offset & (s->cluster_size - 1)) {
+        return -EINVAL;
+    }
+
+    return 0;
 }
 
 static QemuOptsList qcow2_runtime_opts = {
@@ -419,7 +449,8 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
     BDRVQcowState *s = bs->opaque;
-    int len, i, ret = 0;
+    unsigned int len, i;
+    int ret = 0;
     QCowHeader header;
     QemuOpts *opts;
     Error *local_err = NULL;
@@ -453,12 +484,25 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
     if (header.version < 2 || header.version > 3) {
-        report_unsupported(bs, errp, "QCOW version %d", header.version);
+        report_unsupported(bs, errp, "QCOW version %" PRIu32, header.version);
         ret = -ENOTSUP;
         goto fail;
     }
 
     s->qcow_version = header.version;
+
+    /* Initialise cluster size */
+    if (header.cluster_bits < MIN_CLUSTER_BITS ||
+        header.cluster_bits > MAX_CLUSTER_BITS) {
+        error_setg(errp, "Unsupported cluster size: 2^%" PRIu32,
+                   header.cluster_bits);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    s->cluster_bits = header.cluster_bits;
+    s->cluster_size = 1 << s->cluster_bits;
+    s->cluster_sectors = 1 << (s->cluster_bits - 9);
 
     /* Initialise version 3 header fields */
     if (header.version == 2) {
@@ -473,6 +517,18 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         be64_to_cpus(&header.autoclear_features);
         be32_to_cpus(&header.refcount_order);
         be32_to_cpus(&header.header_length);
+
+        if (header.header_length < 104) {
+            error_setg(errp, "qcow2 header too short");
+            ret = -EINVAL;
+            goto fail;
+        }
+    }
+
+    if (header.header_length > s->cluster_size) {
+        error_setg(errp, "qcow2 header exceeds cluster size");
+        ret = -EINVAL;
+        goto fail;
     }
 
     if (header.header_length > sizeof(header)) {
@@ -485,6 +541,12 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
                              "fields");
             goto fail;
         }
+    }
+
+    if (header.backing_file_offset > s->cluster_size) {
+        error_setg(errp, "Invalid backing file offset");
+        ret = -EINVAL;
+        goto fail;
     }
 
     if (header.backing_file_offset) {
@@ -506,6 +568,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
                                    s->incompatible_features &
                                    ~QCOW2_INCOMPAT_MASK);
         ret = -ENOTSUP;
+        g_free(feature_table);
         goto fail;
     }
 
@@ -529,14 +592,8 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
     s->refcount_order = header.refcount_order;
 
-    if (header.cluster_bits < MIN_CLUSTER_BITS ||
-        header.cluster_bits > MAX_CLUSTER_BITS) {
-        error_setg(errp, "Unsupported cluster size: 2^%i", header.cluster_bits);
-        ret = -EINVAL;
-        goto fail;
-    }
     if (header.crypt_method > QCOW_CRYPT_AES) {
-        error_setg(errp, "Unsupported encryption method: %i",
+        error_setg(errp, "Unsupported encryption method: %" PRIu32,
                    header.crypt_method);
         ret = -EINVAL;
         goto fail;
@@ -545,23 +602,52 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     if (s->crypt_method_header) {
         bs->encrypted = 1;
     }
-    s->cluster_bits = header.cluster_bits;
-    s->cluster_size = 1 << s->cluster_bits;
-    s->cluster_sectors = 1 << (s->cluster_bits - 9);
+
     s->l2_bits = s->cluster_bits - 3; /* L2 is always one cluster */
     s->l2_size = 1 << s->l2_bits;
     bs->total_sectors = header.size / 512;
     s->csize_shift = (62 - (s->cluster_bits - 8));
     s->csize_mask = (1 << (s->cluster_bits - 8)) - 1;
     s->cluster_offset_mask = (1LL << s->csize_shift) - 1;
+
     s->refcount_table_offset = header.refcount_table_offset;
     s->refcount_table_size =
         header.refcount_table_clusters << (s->cluster_bits - 3);
 
-    s->snapshots_offset = header.snapshots_offset;
-    s->nb_snapshots = header.nb_snapshots;
+    if (header.refcount_table_clusters > qcow2_max_refcount_clusters(s)) {
+        error_setg(errp, "Reference count table too large");
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    ret = validate_table_offset(bs, s->refcount_table_offset,
+                                s->refcount_table_size, sizeof(uint64_t));
+    if (ret < 0) {
+        error_setg(errp, "Invalid reference count table offset");
+        goto fail;
+    }
+
+    /* Snapshot table offset/length */
+    if (header.nb_snapshots > QCOW_MAX_SNAPSHOTS) {
+        error_setg(errp, "Too many snapshots");
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    ret = validate_table_offset(bs, header.snapshots_offset,
+                                header.nb_snapshots,
+                                sizeof(QCowSnapshotHeader));
+    if (ret < 0) {
+        error_setg(errp, "Invalid snapshot table offset");
+        goto fail;
+    }
 
     /* read the level 1 table */
+    if (header.l1_size > QCOW_MAX_L1_SIZE) {
+        error_setg(errp, "Active L1 table too large");
+        ret = -EFBIG;
+        goto fail;
+    }
     s->l1_size = header.l1_size;
 
     l1_vm_state_index = size_to_l1(s, header.size);
@@ -579,7 +665,16 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -EINVAL;
         goto fail;
     }
+
+    ret = validate_table_offset(bs, header.l1_table_offset,
+                                header.l1_size, sizeof(uint64_t));
+    if (ret < 0) {
+        error_setg(errp, "Invalid L1 table offset");
+        goto fail;
+    }
     s->l1_table_offset = header.l1_table_offset;
+
+
     if (s->l1_size > 0) {
         s->l1_table = g_malloc0(
             align_offset(s->l1_size * sizeof(uint64_t), 512));
@@ -625,8 +720,10 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     /* read the backing file name */
     if (header.backing_file_offset != 0) {
         len = header.backing_file_size;
-        if (len > 1023) {
-            len = 1023;
+        if (len > MIN(1023, s->cluster_size - header.backing_file_offset)) {
+            error_setg(errp, "Backing file name too long");
+            ret = -EINVAL;
+            goto fail;
         }
         ret = bdrv_pread(bs->file, header.backing_file_offset,
                          bs->backing_file, len);
@@ -637,6 +734,10 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         bs->backing_file[len] = '\0';
     }
 
+    /* Internal snapshots */
+    s->snapshots_offset = header.snapshots_offset;
+    s->nb_snapshots = header.nb_snapshots;
+
     ret = qcow2_read_snapshots(bs);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not read snapshots");
@@ -644,7 +745,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Clear unknown autoclear feature bits */
-    if (!bs->read_only && s->autoclear_features != 0) {
+    if (!bs->read_only && !(flags & BDRV_O_INCOMING) && s->autoclear_features) {
         s->autoclear_features = 0;
         ret = qcow2_update_header(bs);
         if (ret < 0) {
@@ -657,7 +758,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     qemu_co_mutex_init(&s->lock);
 
     /* Repair image if dirty */
-    if (!(flags & BDRV_O_CHECK) && !bs->read_only &&
+    if (!(flags & (BDRV_O_CHECK | BDRV_O_INCOMING)) && !bs->read_only &&
         (s->incompatible_features & QCOW2_INCOMPAT_DIRTY)) {
         BdrvCheckResult result = {0};
 
@@ -745,6 +846,9 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     if (s->l2_table_cache) {
         qcow2_cache_destroy(bs, s->l2_table_cache);
     }
+    if (s->refcount_block_cache) {
+        qcow2_cache_destroy(bs, s->refcount_block_cache);
+    }
     g_free(s->cluster_cache);
     qemu_vfree(s->cluster_data);
     return ret;
@@ -801,11 +905,25 @@ static int qcow2_set_key(BlockDriverState *bs, const char *key)
     return 0;
 }
 
-/* We have nothing to do for QCOW2 reopen, stubs just return
- * success */
+/* We have no actual commit/abort logic for qcow2, but we need to write out any
+ * unwritten data if we reopen read-only. */
 static int qcow2_reopen_prepare(BDRVReopenState *state,
                                 BlockReopenQueue *queue, Error **errp)
 {
+    int ret;
+
+    if ((state->flags & BDRV_O_RDWR) == 0) {
+        ret = bdrv_flush(state->bs);
+        if (ret < 0) {
+            return ret;
+        }
+
+        ret = qcow2_mark_clean(state->bs);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     return 0;
 }
 
@@ -1137,10 +1255,12 @@ static void qcow2_close(BlockDriverState *bs)
     /* else pre-write overlap checks in cache_destroy may crash */
     s->l1_table = NULL;
 
-    qcow2_cache_flush(bs, s->l2_table_cache);
-    qcow2_cache_flush(bs, s->refcount_block_cache);
+    if (!(bs->open_flags & BDRV_O_INCOMING)) {
+        qcow2_cache_flush(bs, s->l2_table_cache);
+        qcow2_cache_flush(bs, s->refcount_block_cache);
 
-    qcow2_mark_clean(bs);
+        qcow2_mark_clean(bs);
+    }
 
     qcow2_cache_destroy(bs, s->l2_table_cache);
     qcow2_cache_destroy(bs, s->refcount_block_cache);
@@ -1154,7 +1274,7 @@ static void qcow2_close(BlockDriverState *bs)
     qcow2_free_snapshots(bs);
 }
 
-static void qcow2_invalidate_cache(BlockDriverState *bs)
+static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     BDRVQcowState *s = bs->opaque;
     int flags = s->flags;
@@ -1162,6 +1282,8 @@ static void qcow2_invalidate_cache(BlockDriverState *bs)
     AES_KEY aes_decrypt_key;
     uint32_t crypt_method = 0;
     QDict *options;
+    Error *local_err = NULL;
+    int ret;
 
     /*
      * Backing files are read-only which makes all of their metadata immutable,
@@ -1176,12 +1298,25 @@ static void qcow2_invalidate_cache(BlockDriverState *bs)
 
     qcow2_close(bs);
 
-    options = qdict_new();
-    qdict_put(options, QCOW2_OPT_LAZY_REFCOUNTS,
-              qbool_from_int(s->use_lazy_refcounts));
+    bdrv_invalidate_cache(bs->file, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     memset(s, 0, sizeof(BDRVQcowState));
-    qcow2_open(bs, options, flags, NULL);
+    options = qdict_clone_shallow(bs->options);
+
+    ret = qcow2_open(bs, options, flags, &local_err);
+    if (local_err) {
+        error_setg(errp, "Could not reopen qcow2 layer: %s",
+                   error_get_pretty(local_err));
+        error_free(local_err);
+        return;
+    } else if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not reopen qcow2 layer");
+        return;
+    }
 
     QDECREF(options);
 
@@ -1415,7 +1550,9 @@ static int preallocate(BlockDriverState *bs)
             return ret;
         }
 
-        if (meta != NULL) {
+        while (meta) {
+            QCowL2Meta *next = meta->next;
+
             ret = qcow2_alloc_cluster_link_l2(bs, meta);
             if (ret < 0) {
                 qcow2_free_any_clusters(bs, meta->alloc_offset,
@@ -1426,6 +1563,9 @@ static int preallocate(BlockDriverState *bs)
             /* There are no dependent requests, but we need to remove our
              * request from the list of in-flight requests */
             QLIST_REMOVE(meta, next_in_flight);
+
+            g_free(meta);
+            meta = next;
         }
 
         /* TODO Preallocate data if requested */
@@ -1483,7 +1623,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
      */
     BlockDriverState* bs;
     QCowHeader *header;
-    uint8_t* refcount_table;
+    uint64_t* refcount_table;
     Error *local_err = NULL;
     int ret;
 
@@ -1535,9 +1675,10 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         goto out;
     }
 
-    /* Write an empty refcount table */
-    refcount_table = g_malloc0(cluster_size);
-    ret = bdrv_pwrite(bs, cluster_size, refcount_table, cluster_size);
+    /* Write a refcount table with one refcount block */
+    refcount_table = g_malloc0(2 * cluster_size);
+    refcount_table[0] = cpu_to_be64(2 * cluster_size);
+    ret = bdrv_pwrite(bs, cluster_size, refcount_table, 2 * cluster_size);
     g_free(refcount_table);
 
     if (ret < 0) {
@@ -1562,7 +1703,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         goto out;
     }
 
-    ret = qcow2_alloc_clusters(bs, 2 * cluster_size);
+    ret = qcow2_alloc_clusters(bs, 3 * cluster_size);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not allocate clusters for qcow2 "
                          "header and refcount table");

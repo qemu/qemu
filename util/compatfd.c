@@ -88,7 +88,8 @@ static int qemu_signalfd_compat(const sigset_t *mask)
     memcpy(&info->mask, mask, sizeof(*mask));
     info->fd = fds[1];
 
-    qemu_thread_create(&thread, sigwait_compat, info, QEMU_THREAD_DETACHED);
+    qemu_thread_create(&thread, "signalfd_compat", sigwait_compat, info,
+                       QEMU_THREAD_DETACHED);
 
     return fds[0];
 }

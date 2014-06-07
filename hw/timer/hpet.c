@@ -239,6 +239,18 @@ static int hpet_pre_load(void *opaque)
     return 0;
 }
 
+static bool hpet_validate_num_timers(void *opaque, int version_id)
+{
+    HPETState *s = opaque;
+
+    if (s->num_timers < HPET_MIN_TIMERS) {
+        return false;
+    } else if (s->num_timers > HPET_MAX_TIMERS) {
+        return false;
+    }
+    return true;
+}
+
 static int hpet_post_load(void *opaque, int version_id)
 {
     HPETState *s = opaque;
@@ -307,6 +319,7 @@ static const VMStateDescription vmstate_hpet = {
         VMSTATE_UINT64(isr, HPETState),
         VMSTATE_UINT64(hpet_counter, HPETState),
         VMSTATE_UINT8_V(num_timers, HPETState, 2),
+        VMSTATE_VALIDATE("num_timers in range", hpet_validate_num_timers),
         VMSTATE_STRUCT_VARRAY_UINT8(timer, HPETState, num_timers, 0,
                                     vmstate_hpet_timer, HPETTimer),
         VMSTATE_END_OF_LIST()
@@ -506,7 +519,8 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                 timer->cmp = (uint32_t)timer->cmp;
                 timer->period = (uint32_t)timer->period;
             }
-            if (activating_bit(old_val, new_val, HPET_TN_ENABLE)) {
+            if (activating_bit(old_val, new_val, HPET_TN_ENABLE) &&
+                hpet_enabled(s)) {
                 hpet_set_timer(timer);
             } else if (deactivating_bit(old_val, new_val, HPET_TN_ENABLE)) {
                 hpet_del_timer(timer);

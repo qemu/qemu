@@ -26,16 +26,6 @@
 #include "qmp-commands.h"
 #include "trace.h"
 
-//#define DEBUG_MIGRATION
-
-#ifdef DEBUG_MIGRATION
-#define DPRINTF(fmt, ...) \
-    do { printf("migration: " fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
-
 enum {
     MIG_STATE_ERROR = -1,
     MIG_STATE_NONE,
@@ -101,6 +91,7 @@ void qemu_start_incoming_migration(const char *uri, Error **errp)
 static void process_incoming_migration_co(void *opaque)
 {
     QEMUFile *f = opaque;
+    Error *local_err = NULL;
     int ret;
 
     ret = qemu_loadvm_state(f);
@@ -111,11 +102,15 @@ static void process_incoming_migration_co(void *opaque)
         exit(EXIT_FAILURE);
     }
     qemu_announce_self();
-    DPRINTF("successfully loaded vm state\n");
 
     bdrv_clear_incoming_migration_all();
     /* Make sure all file formats flush their mutable metadata */
-    bdrv_invalidate_cache_all();
+    bdrv_invalidate_cache_all(&local_err);
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        exit(EXIT_FAILURE);
+    }
 
     if (autostart) {
         vm_start();
@@ -179,6 +174,7 @@ static void get_xbzrle_cache_stats(MigrationInfo *info)
         info->xbzrle_cache->bytes = xbzrle_mig_bytes_transferred();
         info->xbzrle_cache->pages = xbzrle_mig_pages_transferred();
         info->xbzrle_cache->cache_miss = xbzrle_mig_pages_cache_miss();
+        info->xbzrle_cache->cache_miss_rate = xbzrle_mig_cache_miss_rate();
         info->xbzrle_cache->overflow = xbzrle_mig_pages_overflow();
     }
 }
@@ -220,6 +216,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->normal_bytes = norm_mig_bytes_transferred();
         info->ram->dirty_pages_rate = s->dirty_pages_rate;
         info->ram->mbps = s->mbps;
+        info->ram->dirty_sync_count = s->dirty_sync_count;
 
         if (blk_mig_active()) {
             info->has_disk = true;
@@ -253,6 +250,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->normal = norm_mig_pages_transferred();
         info->ram->normal_bytes = norm_mig_bytes_transferred();
         info->ram->mbps = s->mbps;
+        info->ram->dirty_sync_count = s->dirty_sync_count;
         break;
     case MIG_STATE_ERROR:
         info->has_status = true;
@@ -300,7 +298,7 @@ static void migrate_fd_cleanup(void *opaque)
     s->cleanup_bh = NULL;
 
     if (s->file) {
-        DPRINTF("closing file\n");
+        trace_migrate_fd_cleanup();
         qemu_mutex_unlock_iothread();
         qemu_thread_join(&s->thread);
         qemu_mutex_lock_iothread();
@@ -323,7 +321,7 @@ static void migrate_fd_cleanup(void *opaque)
 
 void migrate_fd_error(MigrationState *s)
 {
-    DPRINTF("setting error state\n");
+    trace_migrate_fd_error();
     assert(s->file == NULL);
     s->state = MIG_STATE_ERROR;
     trace_migrate_set_state(MIG_STATE_ERROR);
@@ -333,7 +331,7 @@ void migrate_fd_error(MigrationState *s)
 static void migrate_fd_cancel(MigrationState *s)
 {
     int old_state ;
-    DPRINTF("cancelling migration\n");
+    trace_migrate_fd_cancel();
 
     do {
         old_state = s->state;
@@ -421,6 +419,11 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     if (s->state == MIG_STATE_ACTIVE || s->state == MIG_STATE_SETUP ||
         s->state == MIG_STATE_CANCELLING) {
         error_set(errp, QERR_MIGRATION_ACTIVE);
+        return;
+    }
+
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        error_setg(errp, "Guest is waiting for an incoming migration");
         return;
     }
 
@@ -583,29 +586,23 @@ static void *migration_thread(void *opaque)
     int64_t start_time = initial_time;
     bool old_vm_running = false;
 
-    DPRINTF("beginning savevm\n");
     qemu_savevm_state_begin(s->file, &s->params);
 
     s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
     migrate_set_state(s, MIG_STATE_SETUP, MIG_STATE_ACTIVE);
-
-    DPRINTF("setup complete\n");
 
     while (s->state == MIG_STATE_ACTIVE) {
         int64_t current_time;
         uint64_t pending_size;
 
         if (!qemu_file_rate_limit(s->file)) {
-            DPRINTF("iterate\n");
             pending_size = qemu_savevm_state_pending(s->file, max_size);
-            DPRINTF("pending size %" PRIu64 " max %" PRIu64 "\n",
-                    pending_size, max_size);
+            trace_migrate_pending(pending_size, max_size);
             if (pending_size && pending_size >= max_size) {
                 qemu_savevm_state_iterate(s->file);
             } else {
                 int ret;
 
-                DPRINTF("done iterating\n");
                 qemu_mutex_lock_iothread();
                 start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
                 qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
@@ -644,9 +641,8 @@ static void *migration_thread(void *opaque)
             s->mbps = time_spent ? (((double) transferred_bytes * 8.0) /
                     ((double) time_spent / 1000.0)) / 1000.0 / 1000.0 : -1;
 
-            DPRINTF("transferred %" PRIu64 " time_spent %" PRIu64
-                    " bandwidth %g max_size %" PRId64 "\n",
-                    transferred_bytes, time_spent, bandwidth, max_size);
+            trace_migrate_transferred(transferred_bytes, time_spent,
+                                      bandwidth, max_size);
             /* if we haven't sent anything, we don't want to recalculate
                10000 is a small enough number for our purposes */
             if (s->dirty_bytes_rate && transferred_bytes > 10000) {
@@ -666,8 +662,13 @@ static void *migration_thread(void *opaque)
     qemu_mutex_lock_iothread();
     if (s->state == MIG_STATE_COMPLETED) {
         int64_t end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+        uint64_t transferred_bytes = qemu_ftell(s->file);
         s->total_time = end_time - s->total_time;
         s->downtime = end_time - start_time;
+        if (s->total_time) {
+            s->mbps = (((double) transferred_bytes * 8.0) /
+                       ((double) s->total_time)) / 1000;
+        }
         runstate_set(RUN_STATE_POSTMIGRATE);
     } else {
         if (old_vm_running) {
@@ -695,6 +696,6 @@ void migrate_fd_connect(MigrationState *s)
     /* Notify before starting migration thread */
     notifier_list_notify(&migration_state_notifiers, s);
 
-    qemu_thread_create(&s->thread, migration_thread, s,
+    qemu_thread_create(&s->thread, "migration", migration_thread, s,
                        QEMU_THREAD_JOINABLE);
 }

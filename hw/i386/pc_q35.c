@@ -50,7 +50,8 @@
 
 static bool has_pci_info;
 static bool has_acpi_build = true;
-static bool smbios_type1_defaults = true;
+static bool smbios_defaults = true;
+static bool smbios_legacy_mode;
 /* Make sure that guest addresses aligned at 1Gbyte boundaries get mapped to
  * host addresses aligned at 1Gbyte boundaries.  This way we can use 1GByte
  * pages in the host.
@@ -58,7 +59,7 @@ static bool smbios_type1_defaults = true;
 static bool gigabyte_align = true;
 
 /* PC hardware initialisation */
-static void pc_q35_init(QEMUMachineInitArgs *args)
+static void pc_q35_init(MachineState *machine)
 {
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
     Q35PCIHost *q35_host;
@@ -92,7 +93,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     object_property_add_child(qdev_get_machine(), "icc-bridge",
                               OBJECT(icc_bridge), NULL);
 
-    pc_cpus_init(args->cpu_model, icc_bridge);
+    pc_cpus_init(machine->cpu_model, icc_bridge);
     pc_acpi_init("q35-acpi-dsdt.aml");
 
     kvmclock_create();
@@ -106,13 +107,13 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
      * For old machine types, use whatever split we used historically to avoid
      * breaking migration.
      */
-    if (args->ram_size >= 0xb0000000) {
+    if (machine->ram_size >= 0xb0000000) {
         ram_addr_t lowmem = gigabyte_align ? 0x80000000 : 0xb0000000;
-        above_4g_mem_size = args->ram_size - lowmem;
+        above_4g_mem_size = machine->ram_size - lowmem;
         below_4g_mem_size = lowmem;
     } else {
         above_4g_mem_size = 0;
-        below_4g_mem_size = args->ram_size;
+        below_4g_mem_size = machine->ram_size;
     }
 
     /* pci enabled */
@@ -130,17 +131,18 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     guest_info->isapc_ram_fw = false;
     guest_info->has_acpi_build = has_acpi_build;
 
-    if (smbios_type1_defaults) {
+    if (smbios_defaults) {
+        MachineClass *mc = MACHINE_GET_CLASS(machine);
         /* These values are guest ABI, do not change */
-        smbios_set_type1_defaults("QEMU", "Standard PC (Q35 + ICH9, 2009)",
-                                  args->machine->name);
+        smbios_set_defaults("QEMU", "Standard PC (Q35 + ICH9, 2009)",
+                            mc->name, smbios_legacy_mode);
     }
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
         pc_memory_init(get_system_memory(),
-                       args->kernel_filename, args->kernel_cmdline,
-                       args->initrd_filename,
+                       machine->kernel_filename, machine->kernel_cmdline,
+                       machine->initrd_filename,
                        below_4g_mem_size, above_4g_mem_size,
                        rom_memory, &ram_memory, guest_info);
     }
@@ -229,7 +231,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
                                     0xb100),
                       8, NULL, 0);
 
-    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, args->boot_order,
+    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, machine->boot_order,
                  floppy, idebus[0], idebus[1], rtc_state);
 
     /* the rest devices to which pci devfn is automatically assigned */
@@ -240,54 +242,68 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     }
 }
 
-static void pc_compat_1_7(QEMUMachineInitArgs *args)
+static void pc_compat_2_0(MachineState *machine)
 {
-    smbios_type1_defaults = false;
-    gigabyte_align = false;
+    smbios_legacy_mode = true;
 }
 
-static void pc_compat_1_6(QEMUMachineInitArgs *args)
+static void pc_compat_1_7(MachineState *machine)
 {
-    pc_compat_1_7(args);
+    pc_compat_2_0(machine);
+    smbios_defaults = false;
+    gigabyte_align = false;
+    option_rom_has_mr = true;
+    x86_cpu_compat_disable_kvm_features(FEAT_1_ECX, CPUID_EXT_X2APIC);
+}
+
+static void pc_compat_1_6(MachineState *machine)
+{
+    pc_compat_1_7(machine);
     has_pci_info = false;
-    rom_file_in_ram = false;
+    rom_file_has_mr = false;
     has_acpi_build = false;
 }
 
-static void pc_compat_1_5(QEMUMachineInitArgs *args)
+static void pc_compat_1_5(MachineState *machine)
 {
-    pc_compat_1_6(args);
+    pc_compat_1_6(machine);
 }
 
-static void pc_compat_1_4(QEMUMachineInitArgs *args)
+static void pc_compat_1_4(MachineState *machine)
 {
-    pc_compat_1_5(args);
+    pc_compat_1_5(machine);
     x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
     x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
 }
 
-static void pc_q35_init_1_7(QEMUMachineInitArgs *args)
+static void pc_q35_init_2_0(MachineState *machine)
 {
-    pc_compat_1_7(args);
-    pc_q35_init(args);
+    pc_compat_2_0(machine);
+    pc_q35_init(machine);
 }
 
-static void pc_q35_init_1_6(QEMUMachineInitArgs *args)
+static void pc_q35_init_1_7(MachineState *machine)
 {
-    pc_compat_1_6(args);
-    pc_q35_init(args);
+    pc_compat_1_7(machine);
+    pc_q35_init(machine);
 }
 
-static void pc_q35_init_1_5(QEMUMachineInitArgs *args)
+static void pc_q35_init_1_6(MachineState *machine)
 {
-    pc_compat_1_5(args);
-    pc_q35_init(args);
+    pc_compat_1_6(machine);
+    pc_q35_init(machine);
 }
 
-static void pc_q35_init_1_4(QEMUMachineInitArgs *args)
+static void pc_q35_init_1_5(MachineState *machine)
 {
-    pc_compat_1_4(args);
-    pc_q35_init(args);
+    pc_compat_1_5(machine);
+    pc_q35_init(machine);
+}
+
+static void pc_q35_init_1_4(MachineState *machine)
+{
+    pc_compat_1_4(machine);
+    pc_q35_init(machine);
 }
 
 #define PC_Q35_MACHINE_OPTIONS \
@@ -295,15 +311,27 @@ static void pc_q35_init_1_4(QEMUMachineInitArgs *args)
     .desc = "Standard PC (Q35 + ICH9, 2009)", \
     .hot_add_cpu = pc_hot_add_cpu
 
-#define PC_Q35_2_0_MACHINE_OPTIONS                      \
+#define PC_Q35_2_1_MACHINE_OPTIONS                      \
     PC_Q35_MACHINE_OPTIONS,                             \
     .default_machine_opts = "firmware=bios-256k.bin"
+
+static QEMUMachine pc_q35_machine_v2_1 = {
+    PC_Q35_2_1_MACHINE_OPTIONS,
+    .name = "pc-q35-2.1",
+    .alias = "q35",
+    .init = pc_q35_init,
+};
+
+#define PC_Q35_2_0_MACHINE_OPTIONS PC_Q35_2_1_MACHINE_OPTIONS
 
 static QEMUMachine pc_q35_machine_v2_0 = {
     PC_Q35_2_0_MACHINE_OPTIONS,
     .name = "pc-q35-2.0",
-    .alias = "q35",
-    .init = pc_q35_init,
+    .init = pc_q35_init_2_0,
+    .compat_props = (GlobalProperty[]) {
+        PC_Q35_COMPAT_2_0,
+        { /* end of list */ }
+    },
 };
 
 #define PC_Q35_1_7_MACHINE_OPTIONS PC_Q35_MACHINE_OPTIONS
@@ -356,6 +384,7 @@ static QEMUMachine pc_q35_machine_v1_4 = {
 
 static void pc_q35_machine_init(void)
 {
+    qemu_register_machine(&pc_q35_machine_v2_1);
     qemu_register_machine(&pc_q35_machine_v2_0);
     qemu_register_machine(&pc_q35_machine_v1_7);
     qemu_register_machine(&pc_q35_machine_v1_6);

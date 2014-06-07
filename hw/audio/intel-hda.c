@@ -245,7 +245,7 @@ static void intel_hda_update_int_sts(IntelHDAState *d)
 
     /* update global status */
     if (sts & d->int_ctl) {
-        sts |= (1 << 31);
+        sts |= (1U << 31);
     }
 
     d->int_sts = sts;
@@ -257,7 +257,7 @@ static void intel_hda_update_irq(IntelHDAState *d)
     int level;
 
     intel_hda_update_int_sts(d);
-    if (d->int_sts & (1 << 31) && d->int_ctl & (1 << 31)) {
+    if (d->int_sts & (1U << 31) && d->int_ctl & (1U << 31)) {
         level = 1;
     } else {
         level = 0;
@@ -574,7 +574,7 @@ static void intel_hda_set_st_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint3
     if (st->ctl & 0x01) {
         /* reset */
         dprint(d, 1, "st #%d: reset\n", reg->stream);
-        st->ctl = 0;
+        st->ctl = SD_STS_FIFO_READY << 24;
     }
     if ((st->ctl & 0x02) != (old & 0x02)) {
         uint32_t stnr = (st->ctl >> 20) & 0x0f;
@@ -829,6 +829,7 @@ static const struct IntelHDAReg regtab[] = {
         .wclear   = 0x1c000000,                                       \
         .offset   = offsetof(IntelHDAState, st[_i].ctl),              \
         .whandler = intel_hda_set_st_ctl,                             \
+        .reset    = SD_STS_FIFO_READY << 24                           \
     },                                                                \
     [ ST_REG(_i, ICH6_REG_SD_LPIB) ] = {                              \
         .stream   = _i,                                               \

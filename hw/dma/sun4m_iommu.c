@@ -327,8 +327,7 @@ static const VMStateDescription vmstate_iommu = {
     .name ="iommu",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, IOMMUState, IOMMU_NREGS),
         VMSTATE_UINT64(iostart, IOMMUState),
         VMSTATE_END_OF_LIST()

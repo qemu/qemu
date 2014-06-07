@@ -316,9 +316,8 @@ static const VMStateDescription vmstate_milkymist_ac97 = {
     .name = "milkymist-ac97",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = ac97_post_load,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, MilkymistAC97State, R_MAX),
         VMSTATE_END_OF_LIST()
     }

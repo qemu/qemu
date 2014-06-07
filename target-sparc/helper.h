@@ -1,5 +1,3 @@
-#include "exec/def-helper.h"
-
 #ifndef TARGET_SPARC64
 DEF_HELPER_1(rett, void, env)
 DEF_HELPER_2(wrpsr, void, env, tl)
@@ -22,7 +20,6 @@ DEF_HELPER_1(popc, tl, tl)
 DEF_HELPER_4(ldda_asi, void, env, tl, int, int)
 DEF_HELPER_5(ldf_asi, void, env, tl, int, int, int)
 DEF_HELPER_5(stf_asi, void, env, tl, int, int, int)
-DEF_HELPER_5(cas_asi, tl, env, tl, tl, tl, i32)
 DEF_HELPER_5(casx_asi, tl, env, tl, tl, tl, i32)
 DEF_HELPER_2(set_softint, void, env, i64)
 DEF_HELPER_2(clear_softint, void, env, i64)
@@ -30,6 +27,9 @@ DEF_HELPER_2(write_softint, void, env, i64)
 DEF_HELPER_2(tick_set_count, void, ptr, i64)
 DEF_HELPER_1(tick_get_count, i64, ptr)
 DEF_HELPER_2(tick_set_limit, void, ptr, i64)
+#endif
+#if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
+DEF_HELPER_5(cas_asi, tl, env, tl, tl, tl, i32)
 #endif
 DEF_HELPER_3(check_align, void, env, tl, i32)
 DEF_HELPER_1(debug, void, env)
@@ -173,5 +173,3 @@ VIS_CMPHELPER(cmpne)
 #undef VIS_CMPHELPER
 DEF_HELPER_1(compute_psr, void, env)
 DEF_HELPER_1(compute_C_icc, i32, env)
-
-#include "exec/def-helper.h"

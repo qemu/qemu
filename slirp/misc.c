@@ -136,7 +136,7 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 		if ((s = qemu_socket(AF_INET, SOCK_STREAM, 0)) < 0 ||
 		    bind(s, (struct sockaddr *)&addr, addrlen) < 0 ||
 		    listen(s, 1) < 0) {
-			lprint("Error: inet socket: %s\n", strerror(errno));
+			error_report("Error: inet socket: %s", strerror(errno));
 			closesocket(s);
 
 			return 0;
@@ -146,7 +146,7 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 	pid = fork();
 	switch(pid) {
 	 case -1:
-		lprint("Error: fork failed: %s\n", strerror(errno));
+		error_report("Error: fork failed: %s", strerror(errno));
 		close(s);
 		return 0;
 
@@ -241,15 +241,6 @@ strdup(str)
 	return bptr;
 }
 #endif
-
-void lprint(const char *format, ...)
-{
-    va_list args;
-
-    va_start(args, format);
-    monitor_vprintf(default_mon, format, args);
-    va_end(args);
-}
 
 void slirp_connection_info(Slirp *slirp, Monitor *mon)
 {

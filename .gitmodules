@@ -12,7 +12,10 @@
 	url = git://git.qemu.org/ipxe.git
 [submodule "roms/openbios"]
 	path = roms/openbios
-	url = git://git.qemu.org/openbios.git
+	url = git://git.qemu-project.org/openbios.git
+[submodule "roms/openhackware"]
+	path = roms/openhackware
+	url = git://git.qemu-project.org/openhackware.git
 [submodule "roms/qemu-palcode"]
 	path = roms/qemu-palcode
 	url = git://github.com/rth7680/qemu-palcode.git

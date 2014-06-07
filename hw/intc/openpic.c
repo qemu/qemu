@@ -41,6 +41,7 @@
 #include "hw/sysbus.h"
 #include "hw/pci/msi.h"
 #include "qemu/bitops.h"
+#include "qapi/qmp/qerror.h"
 
 //#define DEBUG_OPENPIC
 
@@ -123,7 +124,7 @@ static FslMpicInfo fsl_mpic_42 = {
 #define TCCR_TOG          0x80000000 /* toggles when decrement to zero */
 
 #define IDR_EP_SHIFT      31
-#define IDR_EP_MASK       (1 << IDR_EP_SHIFT)
+#define IDR_EP_MASK       (1U << IDR_EP_SHIFT)
 #define IDR_CI0_SHIFT     30
 #define IDR_CI1_SHIFT     29
 #define IDR_P1_SHIFT      1
@@ -220,17 +221,17 @@ typedef struct IRQSource {
 } IRQSource;
 
 #define IVPR_MASK_SHIFT       31
-#define IVPR_MASK_MASK        (1 << IVPR_MASK_SHIFT)
+#define IVPR_MASK_MASK        (1U << IVPR_MASK_SHIFT)
 #define IVPR_ACTIVITY_SHIFT   30
-#define IVPR_ACTIVITY_MASK    (1 << IVPR_ACTIVITY_SHIFT)
+#define IVPR_ACTIVITY_MASK    (1U << IVPR_ACTIVITY_SHIFT)
 #define IVPR_MODE_SHIFT       29
-#define IVPR_MODE_MASK        (1 << IVPR_MODE_SHIFT)
+#define IVPR_MODE_MASK        (1U << IVPR_MODE_SHIFT)
 #define IVPR_POLARITY_SHIFT   23
-#define IVPR_POLARITY_MASK    (1 << IVPR_POLARITY_SHIFT)
+#define IVPR_POLARITY_MASK    (1U << IVPR_POLARITY_SHIFT)
 #define IVPR_SENSE_SHIFT      22
-#define IVPR_SENSE_MASK       (1 << IVPR_SENSE_SHIFT)
+#define IVPR_SENSE_MASK       (1U << IVPR_SENSE_SHIFT)
 
-#define IVPR_PRIORITY_MASK     (0xF << 16)
+#define IVPR_PRIORITY_MASK     (0xFU << 16)
 #define IVPR_PRIORITY(_ivprr_) ((int)(((_ivprr_) & IVPR_PRIORITY_MASK) >> 16))
 #define IVPR_VECTOR(opp, _ivprr_) ((_ivprr_) & (opp)->vector_mask)
 
@@ -1416,7 +1417,7 @@ static void openpic_load_IRQ_queue(QEMUFile* f, IRQQueue *q)
 static int openpic_load(QEMUFile* f, void *opaque, int version_id)
 {
     OpenPICState *opp = (OpenPICState *)opaque;
-    unsigned int i;
+    unsigned int i, nb_cpus;
 
     if (version_id != 1) {
         return -EINVAL;
@@ -1428,7 +1429,11 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
     qemu_get_be32s(f, &opp->spve);
     qemu_get_be32s(f, &opp->tfrr);
 
-    qemu_get_be32s(f, &opp->nb_cpus);
+    qemu_get_be32s(f, &nb_cpus);
+    if (opp->nb_cpus != nb_cpus) {
+        return -EINVAL;
+    }
+    assert(nb_cpus > 0 && nb_cpus <= MAX_CPU);
 
     for (i = 0; i < opp->nb_cpus; i++) {
         qemu_get_sbe32s(f, &opp->dst[i].ctpr);
@@ -1566,6 +1571,13 @@ static void openpic_realize(DeviceState *dev, Error **errp)
                 OPENPIC_SUMMARY_REG_START, OPENPIC_SUMMARY_REG_SIZE},
         {NULL}
     };
+
+    if (opp->nb_cpus > MAX_CPU) {
+        error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
+                  TYPE_OPENPIC, "nb_cpus", (uint64_t)opp->nb_cpus,
+                  (uint64_t)0, (uint64_t)MAX_CPU);
+        return;
+    }
 
     switch (opp->model) {
     case OPENPIC_MODEL_FSL_MPIC_20:

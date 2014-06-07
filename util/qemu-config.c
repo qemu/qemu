@@ -20,7 +20,7 @@ static QemuOptsList *find_list(QemuOptsList **lists, const char *group,
             break;
     }
     if (lists[i] == NULL) {
-        error_set(errp, QERR_INVALID_OPTION_GROUP, group);
+        error_setg(errp, "There is no option group '%s'", group);
     }
     return lists[i];
 }
@@ -37,6 +37,20 @@ QemuOptsList *qemu_find_opts(const char *group)
     }
 
     return ret;
+}
+
+QemuOpts *qemu_find_opts_singleton(const char *group)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+
+    list = qemu_find_opts(group);
+    assert(list);
+    opts = qemu_opts_find(list, NULL);
+    if (!opts) {
+        opts = qemu_opts_create(list, NULL, 0, &error_abort);
+    }
+    return opts;
 }
 
 static CommandLineParameterInfoList *query_option_descs(const QemuOptDesc *desc)

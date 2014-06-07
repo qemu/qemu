@@ -48,7 +48,6 @@ static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static char *pcibus_get_dev_path(DeviceState *dev);
 static char *pcibus_get_fw_dev_path(DeviceState *dev);
 static void pcibus_reset(BusState *qbus);
-static void pci_bus_finalize(Object *obj);
 
 static Property pci_props[] = {
     DEFINE_PROP_PCI_DEVFN("addr", PCIDevice, devfn, -1),
@@ -61,6 +60,34 @@ static Property pci_props[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
+static const VMStateDescription vmstate_pcibus = {
+    .name = "PCIBUS",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_INT32_EQUAL(nirq, PCIBus),
+        VMSTATE_VARRAY_INT32(irq_count, PCIBus,
+                             nirq, 0, vmstate_info_int32,
+                             int32_t),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void pci_bus_realize(BusState *qbus, Error **errp)
+{
+    PCIBus *bus = PCI_BUS(qbus);
+
+    vmstate_register(NULL, -1, &vmstate_pcibus, bus);
+}
+
+static void pci_bus_unrealize(BusState *qbus, Error **errp)
+{
+    PCIBus *bus = PCI_BUS(qbus);
+
+    vmstate_unregister(NULL, &vmstate_pcibus, bus);
+}
+
 static void pci_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
@@ -68,6 +95,8 @@ static void pci_bus_class_init(ObjectClass *klass, void *data)
     k->print_dev = pcibus_dev_print;
     k->get_dev_path = pcibus_get_dev_path;
     k->get_fw_dev_path = pcibus_get_fw_dev_path;
+    k->realize = pci_bus_realize;
+    k->unrealize = pci_bus_unrealize;
     k->reset = pcibus_reset;
 }
 
@@ -75,7 +104,6 @@ static const TypeInfo pci_bus_info = {
     .name = TYPE_PCI_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(PCIBus),
-    .instance_finalize = pci_bus_finalize,
     .class_init = pci_bus_class_init,
 };
 
@@ -95,17 +123,6 @@ static uint16_t pci_default_sub_device_id = PCI_SUBDEVICE_ID_QEMU;
 
 static QLIST_HEAD(, PCIHostState) pci_host_bridges;
 
-static const VMStateDescription vmstate_pcibus = {
-    .name = "PCIBUS",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
-        VMSTATE_INT32_EQUAL(nirq, PCIBus),
-        VMSTATE_VARRAY_INT32(irq_count, PCIBus, nirq, 0, vmstate_info_int32, int32_t),
-        VMSTATE_END_OF_LIST()
-    }
-};
 static int pci_bar(PCIDevice *d, int reg)
 {
     uint8_t type;
@@ -172,9 +189,9 @@ static void pci_do_device_reset(PCIDevice *dev)
 {
     int r;
 
-    dev->irq_state = 0;
-    pci_update_irq_status(dev);
     pci_device_deassert_intx(dev);
+    assert(dev->irq_state == 0);
+
     /* Clear all writable bits */
     pci_word_test_and_clear_mask(dev->config + PCI_COMMAND,
                                  pci_get_word(dev->wmask + PCI_COMMAND) |
@@ -299,8 +316,6 @@ static void pci_bus_init(PCIBus *bus, DeviceState *parent,
     QLIST_INIT(&bus->child);
 
     pci_host_bus_register(bus, parent);
-
-    vmstate_register(NULL, -1, &vmstate_pcibus, bus);
 }
 
 bool pci_bus_is_express(PCIBus *bus)
@@ -367,12 +382,6 @@ int pci_bus_num(PCIBus *s)
     if (pci_bus_is_root(s))
         return 0;       /* pci host bridge */
     return s->parent_dev->config[PCI_SECONDARY_BUS];
-}
-
-static void pci_bus_finalize(Object *obj)
-{
-    PCIBus *bus = PCI_BUS(obj);
-    vmstate_unregister(NULL, &vmstate_pcibus, bus);
 }
 
 static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
@@ -466,7 +475,7 @@ const VMStateDescription vmstate_pci_device = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_INT32_LE(version_id, PCIDevice),
+        VMSTATE_INT32_POSITIVE_LE(version_id, PCIDevice),
         VMSTATE_BUFFER_UNSAFE_INFO(config, PCIDevice, 0,
                                    vmstate_info_pci_config,
                                    PCI_CONFIG_SPACE_SIZE),
@@ -483,7 +492,7 @@ const VMStateDescription vmstate_pcie_device = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_INT32_LE(version_id, PCIDevice),
+        VMSTATE_INT32_POSITIVE_LE(version_id, PCIDevice),
         VMSTATE_BUFFER_UNSAFE_INFO(config, PCIDevice, 0,
                                    vmstate_info_pci_config,
                                    PCIE_CONFIG_SPACE_SIZE),
@@ -596,12 +605,12 @@ PCIBus *pci_get_bus_devfn(int *devfnp, PCIBus *root, const char *devaddr)
     int dom, bus;
     unsigned slot;
 
-    assert(!root->parent_dev);
-
     if (!root) {
         fprintf(stderr, "No primary PCI bus\n");
         return NULL;
     }
+
+    assert(!root->parent_dev);
 
     if (!devaddr) {
         *devfnp = -1;
@@ -2026,12 +2035,32 @@ static void pci_del_option_rom(PCIDevice *pdev)
 int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
                        uint8_t offset, uint8_t size)
 {
+    int ret;
+    Error *local_err = NULL;
+
+    ret = pci_add_capability2(pdev, cap_id, offset, size, &local_err);
+    if (local_err) {
+        assert(ret < 0);
+        error_report("%s", error_get_pretty(local_err));
+        error_free(local_err);
+    } else {
+        /* success implies a positive offset in config space */
+        assert(ret > 0);
+    }
+    return ret;
+}
+
+int pci_add_capability2(PCIDevice *pdev, uint8_t cap_id,
+                       uint8_t offset, uint8_t size,
+                       Error **errp)
+{
     uint8_t *config;
     int i, overlapping_cap;
 
     if (!offset) {
         offset = pci_find_space(pdev, size);
         if (!offset) {
+            error_setg(errp, "out of PCI config space");
             return -ENOSPC;
         }
     } else {
@@ -2042,12 +2071,12 @@ int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
         for (i = offset; i < offset + size; i++) {
             overlapping_cap = pci_find_capability_at_offset(pdev, i);
             if (overlapping_cap) {
-                fprintf(stderr, "ERROR: %s:%02x:%02x.%x "
-                        "Attempt to add PCI capability %x at offset "
-                        "%x overlaps existing capability %x at offset %x\n",
-                        pci_root_bus_path(pdev), pci_bus_num(pdev->bus),
-                        PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
-                        cap_id, offset, overlapping_cap, i);
+                error_setg(errp, "%s:%02x:%02x.%x "
+                           "Attempt to add PCI capability %x at offset "
+                           "%x overlaps existing capability %x at offset %x",
+                           pci_root_bus_path(pdev), pci_bus_num(pdev->bus),
+                           PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
+                           cap_id, offset, overlapping_cap, i);
                 return -EINVAL;
             }
         }

@@ -63,6 +63,10 @@ extern int daemon(int, int);
 #include <sys/syscall.h>
 #endif
 
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#endif
+
 int qemu_get_thread_id(void)
 {
 #if defined(__linux__)

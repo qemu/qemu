@@ -81,6 +81,7 @@ void do_mouse_set(Monitor *mon, const QDict *qdict);
 #define QEMU_KEY_CTRL_PAGEUP     0xe406
 #define QEMU_KEY_CTRL_PAGEDOWN   0xe407
 
+void kbd_put_keysym_console(QemuConsole *s, int keysym);
 void kbd_put_keysym(int keysym);
 
 /* consoles */
@@ -345,6 +346,6 @@ int index_from_key(const char *key);
 
 /* gtk.c */
 void early_gtk_display_init(void);
-void gtk_display_init(DisplayState *ds, bool full_screen);
+void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover);
 
 #endif

@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "exec/memory.h"
 #include "qemu/host-utils.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 #include <string.h>
 #include "sysemu/kvm.h"
 #include "qemu/timer.h"
@@ -47,46 +47,53 @@
 void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
                                      uintptr_t retaddr)
 {
+    CPUState *cs = CPU(s390_env_get_cpu(env));
     int t;
 
-    env->exception_index = EXCP_PGM;
+    cs->exception_index = EXCP_PGM;
     env->int_pgm_code = excp;
 
     /* Use the (ultimate) callers address to find the insn that trapped.  */
-    cpu_restore_state(env, retaddr);
+    cpu_restore_state(cs, retaddr);
 
     /* Advance past the insn.  */
     t = cpu_ldub_code(env, env->psw.addr);
     env->int_pgm_ilen = t = get_ilen(t);
     env->psw.addr += 2 * t;
 
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 /* Raise an exception statically from a TB.  */
 void HELPER(exception)(CPUS390XState *env, uint32_t excp)
 {
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+
     HELPER_LOG("%s: exception %d\n", __func__, excp);
-    env->exception_index = excp;
-    cpu_loop_exit(env);
+    cs->exception_index = excp;
+    cpu_loop_exit(cs);
 }
 
 #ifndef CONFIG_USER_ONLY
 
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
+
     qemu_log_mask(CPU_LOG_INT, "program interrupt at %#" PRIx64 "\n",
                   env->psw.addr);
 
     if (kvm_enabled()) {
 #ifdef CONFIG_KVM
-        kvm_s390_interrupt(s390_env_get_cpu(env), KVM_S390_PROGRAM_INT, code);
+        kvm_s390_interrupt(cpu, KVM_S390_PROGRAM_INT, code);
 #endif
     } else {
+        CPUState *cs = CPU(cpu);
+
         env->int_pgm_code = code;
         env->int_pgm_ilen = ilen;
-        env->exception_index = EXCP_PGM;
-        cpu_loop_exit(env);
+        cs->exception_index = EXCP_PGM;
+        cpu_loop_exit(cs);
     }
 }
 
@@ -230,11 +237,13 @@ uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
 /* Set Prefix */
 void HELPER(spx)(CPUS390XState *env, uint64_t a1)
 {
+    CPUState *cs = CPU(s390_env_get_cpu(env));
     uint32_t prefix = a1 & 0x7fffe000;
+
     env->psa = prefix;
     qemu_log("prefix: %#x\n", prefix);
-    tlb_flush_page(env, 0);
-    tlb_flush_page(env, TARGET_PAGE_SIZE);
+    tlb_flush_page(cs, 0);
+    tlb_flush_page(cs, TARGET_PAGE_SIZE);
 }
 
 static inline uint64_t clock_value(CPUS390XState *env)
@@ -327,7 +336,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
             ebcdic_put(sysib.model, "QEMU            ", 16);
             ebcdic_put(sysib.sequence, "QEMU            ", 16);
             ebcdic_put(sysib.plant, "QEMU", 4);
-            cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
+            cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
         } else if ((sel1 == 2) && (sel2 == 1)) {
             /* Basic Machine CPU */
             struct sysib_121 sysib;
@@ -337,7 +346,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
             ebcdic_put(sysib.sequence, "QEMUQEMUQEMUQEMU", 16);
             ebcdic_put(sysib.plant, "QEMU", 4);
             stw_p(&sysib.cpu_addr, env->cpu_num);
-            cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
+            cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
         } else if ((sel1 == 2) && (sel2 == 2)) {
             /* Basic Machine CPUs */
             struct sysib_122 sysib;
@@ -349,7 +358,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
             stw_p(&sysib.active_cpus, 1);
             stw_p(&sysib.standby_cpus, 0);
             stw_p(&sysib.reserved_cpus, 0);
-            cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
+            cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
         } else {
             cc = 3;
         }
@@ -366,7 +375,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
                 ebcdic_put(sysib.plant, "QEMU", 4);
                 stw_p(&sysib.cpu_addr, env->cpu_num);
                 stw_p(&sysib.cpu_id, 0);
-                cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
+                cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
             } else if ((sel1 == 2) && (sel2 == 2)) {
                 /* LPAR CPUs */
                 struct sysib_222 sysib;
@@ -383,7 +392,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
                 stl_p(&sysib.caf, 1000);
                 stw_p(&sysib.dedicated_cpus, 0);
                 stw_p(&sysib.shared_cpus, 0);
-                cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
+                cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
             } else {
                 cc = 3;
             }
@@ -405,7 +414,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
                 ebcdic_put(sysib.vm[0].name, "KVMguest", 8);
                 stl_p(&sysib.vm[0].caf, 1000);
                 ebcdic_put(sysib.vm[0].cpi, "KVM/Linux       ", 16);
-                cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
+                cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
             } else {
                 cc = 3;
             }
@@ -449,11 +458,11 @@ uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
 #if !defined(CONFIG_USER_ONLY)
     case SIGP_RESTART:
         qemu_system_reset_request();
-        cpu_loop_exit(env);
+        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
         break;
     case SIGP_STOP:
         qemu_system_shutdown_request();
-        cpu_loop_exit(env);
+        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
         break;
 #endif
     default:

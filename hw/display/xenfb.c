@@ -992,7 +992,7 @@ wait_more:
 
     /* vfb */
     fb = container_of(xfb, struct XenFB, c.xendev);
-    fb->c.con = graphic_console_init(NULL, &xenfb_ops, fb);
+    fb->c.con = graphic_console_init(NULL, 0, &xenfb_ops, fb);
     fb->have_console = 1;
 
     /* vkbd */

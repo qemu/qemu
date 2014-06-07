@@ -147,6 +147,15 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
     qemu_get_be32s(f, &n);
     assert(n < vs->conf.num_queues);
     qemu_get_buffer(f, (unsigned char *)&req->elem, sizeof(req->elem));
+    /* TODO: add a way for SCSIBusInfo's load_request to fail,
+     * and fail migration instead of asserting here.
+     * When we do, we might be able to re-enable NDEBUG below.
+     */
+#ifdef NDEBUG
+#error building with NDEBUG is not supported
+#endif
+    assert(req->elem.in_num <= ARRAY_SIZE(req->elem.in_sg));
+    assert(req->elem.out_num <= ARRAY_SIZE(req->elem.out_sg));
     virtio_scsi_parse_req(s, vs->cmd_vqs[n], req);
 
     scsi_req_ref(sreq);
@@ -304,6 +313,8 @@ static void virtio_scsi_command_complete(SCSIRequest *r, uint32_t status,
                                          size_t resid)
 {
     VirtIOSCSIReq *req = r->hba_private;
+    VirtIOSCSI *s = req->dev;
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
     uint32_t sense_len;
 
     if (r->io_canceled) {
@@ -317,7 +328,7 @@ static void virtio_scsi_command_complete(SCSIRequest *r, uint32_t status,
     } else {
         req->resp.cmd->resid = 0;
         sense_len = scsi_req_get_sense(r, req->resp.cmd->sense,
-                                       VIRTIO_SCSI_SENSE_SIZE);
+                                       vs->sense_size);
         req->resp.cmd->sense_len = tswap32(sense_len);
     }
     virtio_scsi_complete_req(req);
@@ -487,7 +498,7 @@ static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
                                    uint32_t event, uint32_t reason)
 {
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
-    VirtIOSCSIReq *req = virtio_scsi_pop_req(s, vs->event_vq);
+    VirtIOSCSIReq *req;
     VirtIOSCSIEvent *evt;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     int in_size;
@@ -496,6 +507,7 @@ static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
         return;
     }
 
+    req = virtio_scsi_pop_req(s, vs->event_vq);
     if (!req) {
         s->events_dropped = true;
         return;

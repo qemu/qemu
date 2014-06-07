@@ -658,14 +658,15 @@ static void spitz_adc_temp_on(void *opaque, int line, int level)
         max111x_set_input(max1111, MAX1111_BATT_TEMP, 0);
 }
 
-static int corgi_ssp_init(SSISlave *dev)
+static int corgi_ssp_init(SSISlave *d)
 {
-    CorgiSSPState *s = FROM_SSI_SLAVE(CorgiSSPState, dev);
+    DeviceState *dev = DEVICE(d);
+    CorgiSSPState *s = FROM_SSI_SLAVE(CorgiSSPState, d);
 
-    qdev_init_gpio_in(&dev->qdev, corgi_ssp_gpio_cs, 3);
-    s->bus[0] = ssi_create_bus(&dev->qdev, "ssi0");
-    s->bus[1] = ssi_create_bus(&dev->qdev, "ssi1");
-    s->bus[2] = ssi_create_bus(&dev->qdev, "ssi2");
+    qdev_init_gpio_in(dev, corgi_ssp_gpio_cs, 3);
+    s->bus[0] = ssi_create_bus(dev, "ssi0");
+    s->bus[1] = ssi_create_bus(dev, "ssi1");
+    s->bus[2] = ssi_create_bus(dev, "ssi2");
 
     return 0;
 }
@@ -886,14 +887,14 @@ static struct arm_boot_info spitz_binfo = {
     .ram_size = 0x04000000,
 };
 
-static void spitz_common_init(QEMUMachineInitArgs *args,
+static void spitz_common_init(MachineState *machine,
                               enum spitz_model_e model, int arm_id)
 {
     PXA2xxState *mpu;
     DeviceState *scp0, *scp1 = NULL;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *rom = g_new(MemoryRegion, 1);
-    const char *cpu_model = args->cpu_model;
+    const char *cpu_model = machine->cpu_model;
 
     if (!cpu_model)
         cpu_model = (model == terrier) ? "pxa270-c5" : "pxa270-c0";
@@ -934,32 +935,32 @@ static void spitz_common_init(QEMUMachineInitArgs *args,
         /* A 4.0 GB microdrive is permanently sitting in CF slot 0.  */
         spitz_microdrive_attach(mpu, 0);
 
-    spitz_binfo.kernel_filename = args->kernel_filename;
-    spitz_binfo.kernel_cmdline = args->kernel_cmdline;
-    spitz_binfo.initrd_filename = args->initrd_filename;
+    spitz_binfo.kernel_filename = machine->kernel_filename;
+    spitz_binfo.kernel_cmdline = machine->kernel_cmdline;
+    spitz_binfo.initrd_filename = machine->initrd_filename;
     spitz_binfo.board_id = arm_id;
     arm_load_kernel(mpu->cpu, &spitz_binfo);
     sl_bootparam_write(SL_PXA_PARAM_BASE);
 }
 
-static void spitz_init(QEMUMachineInitArgs *args)
+static void spitz_init(MachineState *machine)
 {
-    spitz_common_init(args, spitz, 0x2c9);
+    spitz_common_init(machine, spitz, 0x2c9);
 }
 
-static void borzoi_init(QEMUMachineInitArgs *args)
+static void borzoi_init(MachineState *machine)
 {
-    spitz_common_init(args, borzoi, 0x33f);
+    spitz_common_init(machine, borzoi, 0x33f);
 }
 
-static void akita_init(QEMUMachineInitArgs *args)
+static void akita_init(MachineState *machine)
 {
-    spitz_common_init(args, akita, 0x2e8);
+    spitz_common_init(machine, akita, 0x2e8);
 }
 
-static void terrier_init(QEMUMachineInitArgs *args)
+static void terrier_init(MachineState *machine)
 {
-    spitz_common_init(args, terrier, 0x33f);
+    spitz_common_init(machine, terrier, 0x33f);
 }
 
 static QEMUMachine akitapda_machine = {
@@ -1005,8 +1006,7 @@ static VMStateDescription vmstate_sl_nand_info = {
     .name = "sl-nand",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT8(ctl, SLNANDState),
         VMSTATE_STRUCT(ecc, SLNANDState, 0, vmstate_ecc_state, ECCState),
         VMSTATE_END_OF_LIST(),
@@ -1040,9 +1040,8 @@ static VMStateDescription vmstate_spitz_kbd = {
     .name = "spitz-keyboard",
     .version_id = 1,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .post_load = spitz_keyboard_post_load,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT16(sense_state, SpitzKeyboardState),
         VMSTATE_UINT16(strobe_state, SpitzKeyboardState),
         VMSTATE_UNUSED_TEST(is_version_0, 5),
@@ -1075,8 +1074,7 @@ static const VMStateDescription vmstate_corgi_ssp_regs = {
     .name = "corgi-ssp",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_SSI_SLAVE(ssidev, CorgiSSPState),
         VMSTATE_UINT32_ARRAY(enable, CorgiSSPState, 3),
         VMSTATE_END_OF_LIST(),
@@ -1104,8 +1102,7 @@ static const VMStateDescription vmstate_spitz_lcdtg_regs = {
     .name = "spitz-lcdtg",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_SSI_SLAVE(ssidev, SpitzLCDTG),
         VMSTATE_UINT32(bl_intensity, SpitzLCDTG),
         VMSTATE_UINT32(bl_power, SpitzLCDTG),

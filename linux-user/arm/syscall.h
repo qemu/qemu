@@ -40,5 +40,6 @@ struct target_pt_regs {
 #else
 #define UNAME_MACHINE "armv5tel"
 #endif
+#define UNAME_MINIMUM_RELEASE "2.6.32"
 
 #define TARGET_CLONE_BACKWARDS

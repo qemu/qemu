@@ -140,7 +140,7 @@ static void do_spawn_thread(ThreadPool *pool)
     pool->new_threads--;
     pool->pending_threads++;
 
-    qemu_thread_create(&t, worker_thread, pool, QEMU_THREAD_DETACHED);
+    qemu_thread_create(&t, "worker", worker_thread, pool, QEMU_THREAD_DETACHED);
 }
 
 static void spawn_thread_bh_fn(void *opaque)
@@ -224,6 +224,7 @@ static void thread_pool_cancel(BlockDriverAIOCB *acb)
         pool->pending_cancellations--;
     }
     qemu_mutex_unlock(&pool->lock);
+    event_notifier_ready(&pool->notifier);
 }
 
 static const AIOCBInfo thread_pool_aiocb_info = {

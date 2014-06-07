@@ -98,7 +98,14 @@ static void mirror_iteration_done(MirrorOp *op, int ret)
 
     qemu_iovec_destroy(&op->qiov);
     g_slice_free(MirrorOp, op);
-    qemu_coroutine_enter(s->common.co, NULL);
+
+    /* Enter coroutine when it is not sleeping.  The coroutine sleeps to
+     * rate-limit itself.  The coroutine will eventually resume since there is
+     * a sleep timeout so don't wake it early.
+     */
+    if (s->common.busy) {
+        qemu_coroutine_enter(s->common.co, NULL);
+    }
 }
 
 static void mirror_write_complete(void *opaque, int ret)
@@ -139,11 +146,12 @@ static void mirror_read_complete(void *opaque, int ret)
                     mirror_write_complete, op);
 }
 
-static void coroutine_fn mirror_iteration(MirrorBlockJob *s)
+static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
 {
     BlockDriverState *source = s->common.bs;
     int nb_sectors, sectors_per_chunk, nb_chunks;
     int64_t end, sector_num, next_chunk, next_sector, hbitmap_next_sector;
+    uint64_t delay_ns;
     MirrorOp *op;
 
     s->sector_num = hbitmap_iter_next(&s->hbi);
@@ -231,7 +239,12 @@ static void coroutine_fn mirror_iteration(MirrorBlockJob *s)
         nb_chunks += added_chunks;
         next_sector += added_sectors;
         next_chunk += added_chunks;
-    } while (next_sector < end);
+        if (!s->synced && s->common.speed) {
+            delay_ns = ratelimit_calculate_delay(&s->limit, added_sectors);
+        } else {
+            delay_ns = 0;
+        }
+    } while (delay_ns == 0 && next_sector < end);
 
     /* Allocate a MirrorOp that is used as an AIO callback.  */
     op = g_slice_new(MirrorOp);
@@ -268,6 +281,7 @@ static void coroutine_fn mirror_iteration(MirrorBlockJob *s)
     trace_mirror_one_iteration(s, sector_num, nb_sectors);
     bdrv_aio_readv(source, sector_num, &op->qiov, nb_sectors,
                    mirror_read_complete, op);
+    return delay_ns;
 }
 
 static void mirror_free_init(MirrorBlockJob *s)
@@ -311,11 +325,11 @@ static void coroutine_fn mirror_run(void *opaque)
 
     s->common.len = bdrv_getlength(bs);
     if (s->common.len <= 0) {
-        block_job_completed(&s->common, s->common.len);
-        return;
+        ret = s->common.len;
+        goto immediate_exit;
     }
 
-    length = (bdrv_getlength(bs) + s->granularity - 1) / s->granularity;
+    length = DIV_ROUND_UP(s->common.len, s->granularity);
     s->in_flight_bitmap = bitmap_new(length);
 
     /* If we have no backing file yet in the destination, we cannot let
@@ -325,7 +339,10 @@ static void coroutine_fn mirror_run(void *opaque)
     bdrv_get_backing_filename(s->target, backing_filename,
                               sizeof(backing_filename));
     if (backing_filename[0] && !s->target->backing_hd) {
-        bdrv_get_info(s->target, &bdi);
+        ret = bdrv_get_info(s->target, &bdi);
+        if (ret < 0) {
+            goto immediate_exit;
+        }
         if (s->granularity < bdi.cluster_size) {
             s->buf_size = MAX(s->buf_size, bdi.cluster_size);
             s->cow_bitmap = bitmap_new(length);
@@ -362,7 +379,7 @@ static void coroutine_fn mirror_run(void *opaque)
     bdrv_dirty_iter_init(bs, s->dirty_bitmap, &s->hbi);
     last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     for (;;) {
-        uint64_t delay_ns;
+        uint64_t delay_ns = 0;
         int64_t cnt;
         bool should_complete;
 
@@ -386,8 +403,10 @@ static void coroutine_fn mirror_run(void *opaque)
                 qemu_coroutine_yield();
                 continue;
             } else if (cnt != 0) {
-                mirror_iteration(s);
-                continue;
+                delay_ns = mirror_iteration(s);
+                if (delay_ns == 0) {
+                    continue;
+                }
             }
         }
 
@@ -432,17 +451,10 @@ static void coroutine_fn mirror_run(void *opaque)
         }
 
         ret = 0;
-        trace_mirror_before_sleep(s, cnt, s->synced);
+        trace_mirror_before_sleep(s, cnt, s->synced, delay_ns);
         if (!s->synced) {
             /* Publish progress */
             s->common.offset = (end - cnt) * BDRV_SECTOR_SIZE;
-
-            if (s->common.speed) {
-                delay_ns = ratelimit_calculate_delay(&s->limit, sectors_per_chunk);
-            } else {
-                delay_ns = 0;
-            }
-
             block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, delay_ns);
             if (block_job_is_cancelled(&s->common)) {
                 break;
@@ -486,7 +498,7 @@ immediate_exit:
             /* drop the bs loop chain formed by the swap: break the loop then
              * trigger the unref from the top one */
             BlockDriverState *p = s->base->backing_hd;
-            s->base->backing_hd = NULL;
+            bdrv_set_backing_hd(s->base, NULL);
             bdrv_unref(p);
         }
     }
@@ -520,9 +532,6 @@ static void mirror_complete(BlockJob *job, Error **errp)
 
     ret = bdrv_open_backing_file(s->target, NULL, &local_err);
     if (ret < 0) {
-        char backing_filename[PATH_MAX];
-        bdrv_get_full_backing_filename(s->target, backing_filename,
-                                       sizeof(backing_filename));
         error_propagate(errp, local_err);
         return;
     }
@@ -599,7 +608,10 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
     s->granularity = granularity;
     s->buf_size = MAX(buf_size, granularity);
 
-    s->dirty_bitmap = bdrv_create_dirty_bitmap(bs, granularity);
+    s->dirty_bitmap = bdrv_create_dirty_bitmap(bs, granularity, errp);
+    if (!s->dirty_bitmap) {
+        return;
+    }
     bdrv_set_enable_write_cache(s->target, true);
     bdrv_set_on_error(s->target, on_target_error, on_target_error);
     bdrv_iostatus_enable(s->target);
@@ -671,7 +683,7 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
     mirror_start_job(bs, base, speed, 0, 0,
                      on_error, on_error, cb, opaque, &local_err,
                      &commit_active_job_driver, false, base);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         goto error_restore_flags;
     }

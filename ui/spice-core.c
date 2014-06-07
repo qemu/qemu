@@ -48,6 +48,7 @@ static char *auth_passwd;
 static time_t auth_expires = TIME_MAX;
 static int spice_migration_completed;
 static int spice_display_is_running;
+static int spice_have_target_host;
 int using_spice = 0;
 
 static QemuThread me;
@@ -532,7 +533,7 @@ SpiceInfo *qmp_query_spice(Error **errp)
     info->auth = g_strdup(auth);
 
     info->has_host = true;
-    info->host = g_strdup(addr ? addr : "0.0.0.0");
+    info->host = g_strdup(addr ? addr : "*");
 
     info->has_compiled_version = true;
     major = (SPICE_SERVER_VERSION & 0xff0000) >> 16;
@@ -564,12 +565,18 @@ static void migration_state_notifier(Notifier *notifier, void *data)
 {
     MigrationState *s = data;
 
+    if (!spice_have_target_host) {
+        return;
+    }
+
     if (migration_in_setup(s)) {
         spice_server_migrate_start(spice_server);
     } else if (migration_has_finished(s)) {
         spice_server_migrate_end(spice_server, true);
+        spice_have_target_host = false;
     } else if (migration_has_failed(s)) {
         spice_server_migrate_end(spice_server, false);
+        spice_have_target_host = false;
     }
 }
 
@@ -583,6 +590,7 @@ int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
     spice_migrate.connect_complete.opaque = opaque;
     ret = spice_server_migrate_connect(spice_server, hostname,
                                        port, tls_port, subject);
+    spice_have_target_host = true;
     return ret;
 }
 

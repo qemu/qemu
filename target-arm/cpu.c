@@ -19,6 +19,7 @@
  */
 
 #include "cpu.h"
+#include "internals.h"
 #include "qemu-common.h"
 #include "hw/qdev-properties.h"
 #include "qapi/qmp/qerror.h"
@@ -28,12 +29,19 @@
 #include "hw/arm/arm.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
+#include "kvm_arm.h"
 
 static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 {
     ARMCPU *cpu = ARM_CPU(cs);
 
     cpu->env.regs[15] = value;
+}
+
+static bool arm_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request &
+        (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB);
 }
 
 static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
@@ -76,11 +84,12 @@ static void arm_cpu_reset(CPUState *s)
 
     acc->parent_reset(s);
 
-    memset(env, 0, offsetof(CPUARMState, breakpoints));
+    memset(env, 0, offsetof(CPUARMState, features));
     g_hash_table_foreach(cpu->cp_regs, cp_reg_reset, cpu);
     env->vfp.xregs[ARM_VFP_FPSID] = cpu->reset_fpsid;
     env->vfp.xregs[ARM_VFP_MVFR0] = cpu->mvfr0;
     env->vfp.xregs[ARM_VFP_MVFR1] = cpu->mvfr1;
+    env->vfp.xregs[ARM_VFP_MVFR2] = cpu->mvfr2;
 
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
@@ -93,8 +102,16 @@ static void arm_cpu_reset(CPUState *s)
         env->pstate = PSTATE_MODE_EL0t;
         /* Userspace expects access to CTL_EL0 and the cache ops */
         env->cp15.c1_sys |= SCTLR_UCT | SCTLR_UCI;
+        /* and to the FP/Neon instructions */
+        env->cp15.c1_coproc = deposit64(env->cp15.c1_coproc, 20, 2, 3);
 #else
         env->pstate = PSTATE_MODE_EL1h;
+        env->pc = cpu->rvbar;
+#endif
+    } else {
+#if defined(CONFIG_USER_ONLY)
+        /* Userspace expects access to cp10 and cp11 for FP/Neon */
+        env->cp15.c1_coproc = deposit64(env->cp15.c1_coproc, 20, 4, 0xf);
 #endif
     }
 
@@ -143,12 +160,18 @@ static void arm_cpu_reset(CPUState *s)
                               &env->vfp.fp_status);
     set_float_detect_tininess(float_tininess_before_rounding,
                               &env->vfp.standard_fp_status);
-    tlb_flush(env, 1);
+    tlb_flush(s, 1);
     /* Reset is a state change for some CPUARMState fields which we
      * bake assumptions about into translated code, so we need to
      * tb_flush().
      */
     tb_flush(env);
+
+#ifndef CONFIG_USER_ONLY
+    if (kvm_enabled()) {
+        kvm_arm_reset_vcpu(cpu);
+    }
+#endif
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -246,22 +269,31 @@ static void arm_cpu_initfn(Object *obj)
 }
 
 static Property arm_cpu_reset_cbar_property =
-            DEFINE_PROP_UINT32("reset-cbar", ARMCPU, reset_cbar, 0);
+            DEFINE_PROP_UINT64("reset-cbar", ARMCPU, reset_cbar, 0);
 
 static Property arm_cpu_reset_hivecs_property =
             DEFINE_PROP_BOOL("reset-hivecs", ARMCPU, reset_hivecs, false);
+
+static Property arm_cpu_rvbar_property =
+            DEFINE_PROP_UINT64("rvbar", ARMCPU, rvbar, 0);
 
 static void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
 
-    if (arm_feature(&cpu->env, ARM_FEATURE_CBAR)) {
+    if (arm_feature(&cpu->env, ARM_FEATURE_CBAR) ||
+        arm_feature(&cpu->env, ARM_FEATURE_CBAR_RO)) {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_reset_cbar_property,
                                  &error_abort);
     }
 
     if (!arm_feature(&cpu->env, ARM_FEATURE_M)) {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_reset_hivecs_property,
+                                 &error_abort);
+    }
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_rvbar_property,
                                  &error_abort);
     }
 }
@@ -325,6 +357,9 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         set_feature(env, ARM_FEATURE_V7MP);
         set_feature(env, ARM_FEATURE_PXN);
     }
+    if (arm_feature(env, ARM_FEATURE_CBAR_RO)) {
+        set_feature(env, ARM_FEATURE_CBAR);
+    }
 
     if (cpu->reset_hivecs) {
             cpu->reset_sctlr |= (1 << 13);
@@ -335,8 +370,8 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 
     init_cpreg_list(cpu);
 
-    cpu_reset(cs);
     qemu_init_vcpu(cs);
+    cpu_reset(cs);
 
     acc->parent_realize(dev, errp);
 }
@@ -421,7 +456,7 @@ static void arm1026_initfn(Object *obj)
         ARMCPRegInfo ifar = {
             .name = "IFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 1,
             .access = PL1_RW,
-            .fieldoffset = offsetof(CPUARMState, cp15.c6_insn),
+            .fieldoffset = offsetofhigh32(CPUARMState, cp15.far_el1),
             .resetvalue = 0
         };
         define_one_arm_cp_reg(cpu, &ifar);
@@ -727,7 +762,7 @@ static void cortex_a15_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_ARM_DIV);
     set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
-    set_feature(&cpu->env, ARM_FEATURE_CBAR);
+    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
     set_feature(&cpu->env, ARM_FEATURE_LPAE);
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A15;
     cpu->midr = 0x412fc0f1;
@@ -1013,12 +1048,15 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = arm_cpu_reset;
 
     cc->class_by_name = arm_cpu_class_by_name;
+    cc->has_work = arm_cpu_has_work;
     cc->do_interrupt = arm_cpu_do_interrupt;
     cc->dump_state = arm_cpu_dump_state;
     cc->set_pc = arm_cpu_set_pc;
     cc->gdb_read_register = arm_cpu_gdb_read_register;
     cc->gdb_write_register = arm_cpu_gdb_write_register;
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+    cc->handle_mmu_fault = arm_cpu_handle_mmu_fault;
+#else
     cc->get_phys_page_debug = arm_cpu_get_phys_page_debug;
     cc->vmsd = &vmstate_arm_cpu;
 #endif

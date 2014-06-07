@@ -80,13 +80,13 @@ typedef struct {
     uint32_t bulk_head, bulk_cur;
     uint32_t per_cur;
     uint32_t done;
-    int done_count;
+    int32_t done_count;
 
     /* Frame counter partition */
-    uint32_t fsmps:15;
-    uint32_t fit:1;
-    uint32_t fi:14;
-    uint32_t frt:1;
+    uint16_t fsmps;
+    uint8_t fit;
+    uint16_t fi;
+    uint8_t frt;
     uint16_t frame_number;
     uint16_t padding;
     uint32_t pstart;
@@ -111,7 +111,7 @@ typedef struct {
     USBPacket usb_packet;
     uint8_t usb_buf[8192];
     uint32_t async_td;
-    int async_complete;
+    bool async_complete;
 
 } OHCIState;
 
@@ -234,15 +234,15 @@ struct ohci_iso_td {
 #define OHCI_STATUS_OCR       (1<<3)
 #define OHCI_STATUS_SOC       ((1<<6)|(1<<7))
 
-#define OHCI_INTR_SO          (1<<0) /* Scheduling overrun */
-#define OHCI_INTR_WD          (1<<1) /* HcDoneHead writeback */
-#define OHCI_INTR_SF          (1<<2) /* Start of frame */
-#define OHCI_INTR_RD          (1<<3) /* Resume detect */
-#define OHCI_INTR_UE          (1<<4) /* Unrecoverable error */
-#define OHCI_INTR_FNO         (1<<5) /* Frame number overflow */
-#define OHCI_INTR_RHSC        (1<<6) /* Root hub status change */
-#define OHCI_INTR_OC          (1<<30) /* Ownership change */
-#define OHCI_INTR_MIE         (1<<31) /* Master Interrupt Enable */
+#define OHCI_INTR_SO          (1U<<0) /* Scheduling overrun */
+#define OHCI_INTR_WD          (1U<<1) /* HcDoneHead writeback */
+#define OHCI_INTR_SF          (1U<<2) /* Start of frame */
+#define OHCI_INTR_RD          (1U<<3) /* Resume detect */
+#define OHCI_INTR_UE          (1U<<4) /* Unrecoverable error */
+#define OHCI_INTR_FNO         (1U<<5) /* Frame number overflow */
+#define OHCI_INTR_RHSC        (1U<<6) /* Root hub status change */
+#define OHCI_INTR_OC          (1U<<30) /* Ownership change */
+#define OHCI_INTR_MIE         (1U<<31) /* Master Interrupt Enable */
 
 #define OHCI_HCCA_SIZE        0x100
 #define OHCI_HCCA_MASK        0xffffff00
@@ -253,7 +253,7 @@ struct ohci_iso_td {
 #define OHCI_FMI_FSMPS        0xffff0000
 #define OHCI_FMI_FIT          0x80000000
 
-#define OHCI_FR_RT            (1<<31)
+#define OHCI_FR_RT            (1U<<31)
 
 #define OHCI_LS_THRESH        0x628
 
@@ -265,12 +265,12 @@ struct ohci_iso_td {
 #define OHCI_RHA_NOCP         (1<<12)
 #define OHCI_RHA_POTPGT_MASK  0xff000000
 
-#define OHCI_RHS_LPS          (1<<0)
-#define OHCI_RHS_OCI          (1<<1)
-#define OHCI_RHS_DRWE         (1<<15)
-#define OHCI_RHS_LPSC         (1<<16)
-#define OHCI_RHS_OCIC         (1<<17)
-#define OHCI_RHS_CRWE         (1<<31)
+#define OHCI_RHS_LPS          (1U<<0)
+#define OHCI_RHS_OCI          (1U<<1)
+#define OHCI_RHS_DRWE         (1U<<15)
+#define OHCI_RHS_LPSC         (1U<<16)
+#define OHCI_RHS_OCIC         (1U<<17)
+#define OHCI_RHS_CRWE         (1U<<31)
 
 #define OHCI_PORT_CCS         (1<<0)
 #define OHCI_PORT_PES         (1<<1)
@@ -693,7 +693,7 @@ static void ohci_async_complete_packet(USBPort *port, USBPacket *packet)
 #ifdef DEBUG_PACKET
     DPRINTF("Async packet complete\n");
 #endif
-    ohci->async_complete = 1;
+    ohci->async_complete = true;
     ohci_process_lists(ohci, 1);
 }
 
@@ -1058,7 +1058,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
 #endif
     if (completion) {
         ohci->async_td = 0;
-        ohci->async_complete = 0;
+        ohci->async_complete = false;
     } else {
         if (ohci->async_td) {
             /* ??? The hardware should allow one active packet per
@@ -1984,6 +1984,108 @@ static Property ohci_pci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const VMStateDescription vmstate_ohci_state_port = {
+    .name = "ohci-core/port",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_UINT32(ctrl, OHCIPort),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static bool ohci_eof_timer_needed(void *opaque)
+{
+    OHCIState *ohci = opaque;
+
+    return ohci->eof_timer != NULL;
+}
+
+static int ohci_eof_timer_pre_load(void *opaque)
+{
+    OHCIState *ohci = opaque;
+
+    ohci_bus_start(ohci);
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_ohci_eof_timer = {
+    .name = "ohci-core/eof-timer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .pre_load = ohci_eof_timer_pre_load,
+    .fields = (VMStateField []) {
+        VMSTATE_TIMER(eof_timer, OHCIState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+const VMStateDescription vmstate_ohci_state = {
+    .name = "ohci-core",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT64(sof_time, OHCIState),
+        VMSTATE_UINT32(ctl, OHCIState),
+        VMSTATE_UINT32(status, OHCIState),
+        VMSTATE_UINT32(intr_status, OHCIState),
+        VMSTATE_UINT32(intr, OHCIState),
+        VMSTATE_UINT32(hcca, OHCIState),
+        VMSTATE_UINT32(ctrl_head, OHCIState),
+        VMSTATE_UINT32(ctrl_cur, OHCIState),
+        VMSTATE_UINT32(bulk_head, OHCIState),
+        VMSTATE_UINT32(bulk_cur, OHCIState),
+        VMSTATE_UINT32(per_cur, OHCIState),
+        VMSTATE_UINT32(done, OHCIState),
+        VMSTATE_INT32(done_count, OHCIState),
+        VMSTATE_UINT16(fsmps, OHCIState),
+        VMSTATE_UINT8(fit, OHCIState),
+        VMSTATE_UINT16(fi, OHCIState),
+        VMSTATE_UINT8(frt, OHCIState),
+        VMSTATE_UINT16(frame_number, OHCIState),
+        VMSTATE_UINT16(padding, OHCIState),
+        VMSTATE_UINT32(pstart, OHCIState),
+        VMSTATE_UINT32(lst, OHCIState),
+        VMSTATE_UINT32(rhdesc_a, OHCIState),
+        VMSTATE_UINT32(rhdesc_b, OHCIState),
+        VMSTATE_UINT32(rhstatus, OHCIState),
+        VMSTATE_STRUCT_ARRAY(rhport, OHCIState, OHCI_MAX_PORTS, 0,
+                             vmstate_ohci_state_port, OHCIPort),
+        VMSTATE_UINT32(hstatus, OHCIState),
+        VMSTATE_UINT32(hmask, OHCIState),
+        VMSTATE_UINT32(hreset, OHCIState),
+        VMSTATE_UINT32(htest, OHCIState),
+        VMSTATE_UINT32(old_ctl, OHCIState),
+        VMSTATE_UINT8_ARRAY(usb_buf, OHCIState, 8192),
+        VMSTATE_UINT32(async_td, OHCIState),
+        VMSTATE_BOOL(async_complete, OHCIState),
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection []) {
+        {
+            .vmsd = &vmstate_ohci_eof_timer,
+            .needed = ohci_eof_timer_needed,
+        } , {
+            /* empty */
+        }
+    }
+};
+
+static const VMStateDescription vmstate_ohci = {
+    .name = "ohci",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(parent_obj, OHCIPCIState),
+        VMSTATE_STRUCT(state, OHCIPCIState, 1, vmstate_ohci_state, OHCIState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void ohci_pci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1997,6 +2099,7 @@ static void ohci_pci_class_init(ObjectClass *klass, void *data)
     dc->desc = "Apple USB Controller";
     dc->props = ohci_pci_properties;
     dc->hotpluggable = false;
+    dc->vmsd = &vmstate_ohci;
 }
 
 static const TypeInfo ohci_pci_info = {

@@ -629,8 +629,7 @@ static const VMStateDescription vmstate_tpci200 = {
     .name = "tpci200",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, TPCI200State),
         VMSTATE_BOOL_ARRAY(big_endian, TPCI200State, 3),
         VMSTATE_UINT8_ARRAY(ctrl, TPCI200State, N_MODULES),

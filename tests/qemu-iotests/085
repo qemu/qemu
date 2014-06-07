@@ -1,0 +1,143 @@
+#!/bin/bash
+#
+# Live snapshot tests
+#
+# This tests live snapshots of images on a running QEMU instance, using
+# QMP commands.  Both single disk snapshots, and transactional group
+# snapshots are performed.
+#
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=jcody@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1	# failure is the default!
+
+snapshot_virt0="snapshot-v0.qcow2"
+snapshot_virt1="snapshot-v1.qcow2"
+
+MAX_SNAPSHOTS=10
+
+_cleanup()
+{
+    _cleanup_qemu
+    for i in $(seq 1 ${MAX_SNAPSHOTS})
+    do
+        rm -f "${TEST_DIR}/${i}-${snapshot_virt0}"
+        rm -f "${TEST_DIR}/${i}-${snapshot_virt1}"
+    done
+	_cleanup_test_img
+
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+
+# ${1}: unique identifier for the snapshot filename
+function create_single_snapshot()
+{
+    cmd="{ 'execute': 'blockdev-snapshot-sync',
+                      'arguments': { 'device': 'virtio0',
+                                     'snapshot-file':'"${TEST_DIR}/${1}-${snapshot_virt0}"',
+                                     'format': 'qcow2' } }"
+    _send_qemu_cmd $h "${cmd}" "return"
+}
+
+# ${1}: unique identifier for the snapshot filename
+function create_group_snapshot()
+{
+    cmd="{ 'execute': 'transaction', 'arguments':
+           {'actions': [
+               { 'type': 'blockdev-snapshot-sync', 'data' :
+                   { 'device': 'virtio0',
+                      'snapshot-file': '"${TEST_DIR}/${1}-${snapshot_virt0}"' } },
+               { 'type': 'blockdev-snapshot-sync', 'data' :
+                   { 'device': 'virtio1',
+                       'snapshot-file': '"${TEST_DIR}/${1}-${snapshot_virt1}"' } } ]
+             } }"
+
+    _send_qemu_cmd $h "${cmd}" "return"
+}
+
+size=128M
+
+_make_test_img $size
+mv "${TEST_IMG}" "${TEST_IMG}.orig"
+_make_test_img $size
+
+echo
+echo === Running QEMU ===
+echo
+
+qemu_comm_method="qmp"
+_launch_qemu -drive file="${TEST_IMG}.orig",if=virtio -drive file="${TEST_IMG}",if=virtio
+h=$QEMU_HANDLE
+
+echo
+echo === Sending capabilities ===
+echo
+
+_send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" "return"
+
+echo
+echo === Create a single snapshot on virtio0 ===
+echo
+
+create_single_snapshot 1
+
+
+echo
+echo === Invalid command - missing device and nodename ===
+echo
+
+_send_qemu_cmd $h "{ 'execute': 'blockdev-snapshot-sync',
+                         'arguments': { 'snapshot-file':'"${TEST_DIR}/1-${snapshot_virt0}"',
+                                     'format': 'qcow2' } }" "error"
+
+echo
+echo === Invalid command - missing snapshot-file ===
+echo
+
+_send_qemu_cmd $h "{ 'execute': 'blockdev-snapshot-sync',
+                         'arguments': { 'device': 'virtio0',
+                                     'format': 'qcow2' } }" "error"
+echo
+echo
+echo === Create several transactional group snapshots ===
+echo
+
+for i in $(seq 2 ${MAX_SNAPSHOTS})
+do
+    create_group_snapshot ${i}
+done
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

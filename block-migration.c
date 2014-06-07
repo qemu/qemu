@@ -59,6 +59,7 @@ typedef struct BlkMigDevState {
     unsigned long *aio_bitmap;
     int64_t completed_sectors;
     BdrvDirtyBitmap *dirty_bitmap;
+    Error *blocker;
 } BlkMigDevState;
 
 typedef struct BlkMigBlock {
@@ -310,13 +311,28 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
 
 /* Called with iothread lock taken.  */
 
-static void set_dirty_tracking(void)
+static int set_dirty_tracking(void)
 {
     BlkMigDevState *bmds;
+    int ret;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
-        bmds->dirty_bitmap = bdrv_create_dirty_bitmap(bmds->bs, BLOCK_SIZE);
+        bmds->dirty_bitmap = bdrv_create_dirty_bitmap(bmds->bs, BLOCK_SIZE,
+                                                      NULL);
+        if (!bmds->dirty_bitmap) {
+            ret = -errno;
+            goto fail;
+        }
     }
+    return 0;
+
+fail:
+    QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
+        if (bmds->dirty_bitmap) {
+            bdrv_release_dirty_bitmap(bmds->bs, bmds->dirty_bitmap);
+        }
+    }
+    return ret;
 }
 
 static void unset_dirty_tracking(void)
@@ -346,7 +362,8 @@ static void init_blk_migration_it(void *opaque, BlockDriverState *bs)
         bmds->completed_sectors = 0;
         bmds->shared_base = block_mig_state.shared_base;
         alloc_aio_bitmap(bmds);
-        bdrv_set_in_use(bs, 1);
+        error_setg(&bmds->blocker, "block device is in use by migration");
+        bdrv_op_block_all(bs, bmds->blocker);
         bdrv_ref(bs);
 
         block_mig_state.total_sector_sum += sectors;
@@ -584,7 +601,8 @@ static void blk_mig_cleanup(void)
     blk_mig_lock();
     while ((bmds = QSIMPLEQ_FIRST(&block_mig_state.bmds_list)) != NULL) {
         QSIMPLEQ_REMOVE_HEAD(&block_mig_state.bmds_list, entry);
-        bdrv_set_in_use(bmds->bs, 0);
+        bdrv_op_unblock_all(bmds->bs, bmds->blocker);
+        error_free(bmds->blocker);
         bdrv_unref(bmds->bs);
         g_free(bmds->aio_bitmap);
         g_free(bmds);
@@ -611,10 +629,17 @@ static int block_save_setup(QEMUFile *f, void *opaque)
             block_mig_state.submitted, block_mig_state.transferred);
 
     qemu_mutex_lock_iothread();
-    init_blk_migration(f);
 
     /* start track dirty blocks */
-    set_dirty_tracking();
+    ret = set_dirty_tracking();
+
+    if (ret) {
+        qemu_mutex_unlock_iothread();
+        return ret;
+    }
+
+    init_blk_migration(f);
+
     qemu_mutex_unlock_iothread();
 
     ret = flush_blks(f);

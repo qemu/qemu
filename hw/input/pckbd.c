@@ -281,7 +281,7 @@ static void kbd_write_command(void *opaque, hwaddr addr,
         kbd_update_irq(s);
         break;
     case KBD_CCMD_READ_INPORT:
-        kbd_queue(s, 0x00, 0);
+        kbd_queue(s, 0x80, 0);
         break;
     case KBD_CCMD_READ_OUTPORT:
         kbd_queue(s, s->outport, 0);

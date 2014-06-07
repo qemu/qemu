@@ -83,6 +83,14 @@ void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap);
 QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
 
 /**
+ * qtest_receive:
+ * @s: #QTestState instance to operate on.
+ *
+ * Reads a QMP message from QEMU and returns the response.
+ */
+QDict *qtest_qmp_receive(QTestState *s);
+
+/**
  * qtest_get_irq:
  * @s: #QTestState instance to operate on.
  * @num: Interrupt to observe.
@@ -356,16 +364,7 @@ static inline void qtest_end(void)
  *
  * Sends a QMP message to QEMU and returns the response.
  */
-static inline QDict *qmp(const char *fmt, ...)
-{
-    va_list ap;
-    QDict *response;
-
-    va_start(ap, fmt);
-    response = qtest_qmpv(global_qtest, fmt, ap);
-    va_end(ap);
-    return response;
-}
+QDict *qmp(const char *fmt, ...);
 
 /**
  * qmp_discard_response:
@@ -373,13 +372,16 @@ static inline QDict *qmp(const char *fmt, ...)
  *
  * Sends a QMP message to QEMU and consumes the response.
  */
-static inline void qmp_discard_response(const char *fmt, ...)
-{
-    va_list ap;
+void qmp_discard_response(const char *fmt, ...);
 
-    va_start(ap, fmt);
-    qtest_qmpv_discard_response(global_qtest, fmt, ap);
-    va_end(ap);
+/**
+ * qmp_receive:
+ *
+ * Reads a QMP message from QEMU and returns the response.
+ */
+static inline QDict *qmp_receive(void)
+{
+    return qtest_qmp_receive(global_qtest);
 }
 
 /**

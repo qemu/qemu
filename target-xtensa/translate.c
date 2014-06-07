@@ -37,9 +37,8 @@
 #include "qemu/log.h"
 #include "sysemu/sysemu.h"
 
-#include "helper.h"
-#define GEN_HELPER 1
-#include "helper.h"
+#include "exec/helper-proto.h"
+#include "exec/helper-gen.h"
 
 typedef struct DisasContext {
     const XtensaConfig *config;
@@ -419,7 +418,7 @@ static void gen_jump(DisasContext *dc, TCGv dest)
 static void gen_jumpi(DisasContext *dc, uint32_t dest, int slot)
 {
     TCGv_i32 tmp = tcg_const_i32(dest);
-    if (((dc->pc ^ dest) & TARGET_PAGE_MASK) != 0) {
+    if (((dc->tb->pc ^ dest) & TARGET_PAGE_MASK) != 0) {
         slot = -1;
     }
     gen_jump_slot(dc, tmp, slot);
@@ -447,7 +446,7 @@ static void gen_callw(DisasContext *dc, int callinc, TCGv_i32 dest)
 static void gen_callwi(DisasContext *dc, int callinc, uint32_t dest, int slot)
 {
     TCGv_i32 tmp = tcg_const_i32(dest);
-    if (((dc->pc ^ dest) & TARGET_PAGE_MASK) != 0) {
+    if (((dc->tb->pc ^ dest) & TARGET_PAGE_MASK) != 0) {
         slot = -1;
     }
     gen_callw_slot(dc, callinc, tmp, slot);
@@ -2948,10 +2947,11 @@ invalid_opcode:
 
 static void check_breakpoint(CPUXtensaState *env, DisasContext *dc)
 {
+    CPUState *cs = CPU(xtensa_env_get_cpu(env));
     CPUBreakpoint *bp;
 
-    if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
-        QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+    if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
+        QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
             if (bp->pc == dc->pc) {
                 tcg_gen_movi_i32(cpu_pc, dc->pc);
                 gen_exception(dc, EXCP_DEBUG);

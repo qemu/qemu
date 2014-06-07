@@ -35,7 +35,7 @@ enum sPAPRTCEAccess {
     SPAPR_TCE_RW = 3,
 };
 
-QLIST_HEAD(spapr_tce_tables, sPAPRTCETable) spapr_tce_tables;
+static QLIST_HEAD(spapr_tce_tables, sPAPRTCETable) spapr_tce_tables;
 
 static sPAPRTCETable *spapr_tce_find_by_liobn(uint32_t liobn)
 {

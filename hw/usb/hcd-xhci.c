@@ -621,6 +621,11 @@ static const char *ep_state_name(uint32_t state)
                        ARRAY_SIZE(ep_state_names));
 }
 
+static bool xhci_get_flag(XHCIState *xhci, enum xhci_flags bit)
+{
+    return xhci->flags & (1 << bit);
+}
+
 static uint64_t xhci_mfindex_get(XHCIState *xhci)
 {
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -3435,7 +3440,7 @@ static void xhci_child_detach(USBPort *uport, USBDevice *child)
     USBBus *bus = usb_bus_from_device(child);
     XHCIState *xhci = container_of(bus, XHCIState, bus);
 
-    xhci_detach_slot(xhci, uport);
+    xhci_detach_slot(xhci, child->port);
 }
 
 static USBPortOps xhci_uport_ops = {
@@ -3594,13 +3599,15 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
                      PCI_BASE_ADDRESS_SPACE_MEMORY|PCI_BASE_ADDRESS_MEM_TYPE_64,
                      &xhci->mem);
 
-    ret = pcie_endpoint_cap_init(dev, 0xa0);
-    assert(ret >= 0);
+    if (pci_bus_is_express(dev->bus)) {
+        ret = pcie_endpoint_cap_init(dev, 0xa0);
+        assert(ret >= 0);
+    }
 
-    if (xhci->flags & (1 << XHCI_FLAG_USE_MSI)) {
+    if (xhci_get_flag(xhci, XHCI_FLAG_USE_MSI)) {
         msi_init(dev, 0x70, xhci->numintrs, true, false);
     }
-    if (xhci->flags & (1 << XHCI_FLAG_USE_MSI_X)) {
+    if (xhci_get_flag(xhci, XHCI_FLAG_USE_MSI_X)) {
         msix_init(dev, xhci->numintrs,
                   &xhci->mem, 0, OFF_MSIX_TABLE,
                   &xhci->mem, 0, OFF_MSIX_PBA,

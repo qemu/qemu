@@ -76,10 +76,10 @@ struct BlockDriver {
     const char *format_name;
     int instance_size;
 
-    /* this table of boolean contains authorizations for the block operations */
-    bool authorizations[BS_AUTHORIZATION_COUNT];
-    /* for snapshots complex block filter like Quorum can implement the
-     * following recursive callback instead of BS_IS_A_FILTER.
+    /* set to true if the BlockDriver is a block filter */
+    bool is_filter;
+    /* for snapshots block filter like Quorum can implement the
+     * following recursive callback.
      * It's purpose is to recurse on the filter children while calling
      * bdrv_recurse_is_first_non_filter on them.
      * For a sample implementation look in the future Quorum block filter.
@@ -153,7 +153,7 @@ struct BlockDriver {
     /*
      * Invalidate any cached meta-data.
      */
-    void (*bdrv_invalidate_cache)(BlockDriverState *bs);
+    void (*bdrv_invalidate_cache)(BlockDriverState *bs, Error **errp);
 
     /*
      * Flushes all data that was already written to the OS all the way down to
@@ -271,6 +271,8 @@ typedef struct BlockLimits {
     size_t opt_mem_alignment;
 } BlockLimits;
 
+typedef struct BdrvOpBlocker BdrvOpBlocker;
+
 /*
  * Note: the function bdrv_append() copies and swaps contents of
  * BlockDriverStates, so if you add new fields to this struct, please
@@ -300,7 +302,6 @@ struct BlockDriverState {
     char backing_file[1024]; /* if non zero, the image is a diff of
                                 this file image */
     char backing_format[16]; /* if non-zero and backing_file exists */
-    int is_temporary;
 
     BlockDriverState *backing_hd;
     BlockDriverState *file;
@@ -358,14 +359,20 @@ struct BlockDriverState {
     QTAILQ_ENTRY(BlockDriverState) device_list;
     QLIST_HEAD(, BdrvDirtyBitmap) dirty_bitmaps;
     int refcnt;
-    int in_use; /* users other than guest access, eg. block migration */
 
     QLIST_HEAD(, BdrvTrackedRequest) tracked_requests;
+
+    /* operation blockers */
+    QLIST_HEAD(, BdrvOpBlocker) op_blockers[BLOCK_OP_TYPE_MAX];
 
     /* long-running background operation */
     BlockJob *job;
 
     QDict *options;
+    BlockdevDetectZeroesOptions detect_zeroes;
+
+    /* The error object in use for blocking operations on backing_hd */
+    Error *backing_blocker;
 };
 
 int get_tmp_filename(char *filename, int size);

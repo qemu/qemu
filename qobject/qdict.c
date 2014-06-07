@@ -665,3 +665,35 @@ void qdict_array_split(QDict *src, QList **dst)
         qlist_append_obj(*dst, subqobj ?: QOBJECT(subqdict));
     }
 }
+
+/**
+ * qdict_join(): Absorb the src QDict into the dest QDict, that is, move all
+ * elements from src to dest.
+ *
+ * If an element from src has a key already present in dest, it will not be
+ * moved unless overwrite is true.
+ *
+ * If overwrite is true, the conflicting values in dest will be discarded and
+ * replaced by the corresponding values from src.
+ *
+ * Therefore, with overwrite being true, the src QDict will always be empty when
+ * this function returns. If overwrite is false, the src QDict will be empty
+ * iff there were no conflicts.
+ */
+void qdict_join(QDict *dest, QDict *src, bool overwrite)
+{
+    const QDictEntry *entry, *next;
+
+    entry = qdict_first(src);
+    while (entry) {
+        next = qdict_next(src, entry);
+
+        if (overwrite || !qdict_haskey(dest, entry->key)) {
+            qobject_incref(entry->value);
+            qdict_put_obj(dest, entry->key, entry->value);
+            qdict_del(src, entry->key);
+        }
+
+        entry = next;
+    }
+}

@@ -513,8 +513,7 @@ static const VMStateDescription vmstate_milkymist_pfpu = {
     .name = "milkymist-pfpu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, MilkymistPFPUState, R_MAX),
         VMSTATE_UINT32_ARRAY(gp_regs, MilkymistPFPUState, 128),
         VMSTATE_UINT32_ARRAY(microcode, MilkymistPFPUState, MICROCODE_WORDS),

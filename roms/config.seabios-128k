@@ -1,6 +1,7 @@
 # for qemu machine types 1.7 + older
-# need to turn off features (xhci) to make it fit into 128k
+# need to turn off features (xhci,uas) to make it fit into 128k
 CONFIG_QEMU=y
 CONFIG_ROM_SIZE=128
 CONFIG_XEN=n
 CONFIG_USB_XHCI=n
+CONFIG_USB_UAS=n

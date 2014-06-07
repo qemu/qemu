@@ -1,1 +1,1 @@
-<stdin>:1:11: Missing terminating "'"
+tests/qapi-schema/unclosed-string.json:1:11: Missing terminating "'"
