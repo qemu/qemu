@@ -45,6 +45,15 @@ struct nbd_reply {
 #define NBD_FLAG_ROTATIONAL     (1 << 4)        /* Use elevator algorithm - rotational media */
 #define NBD_FLAG_SEND_TRIM      (1 << 5)        /* Send TRIM (discard) */
 
+/* New-style global flags. */
+#define NBD_FLAG_FIXED_NEWSTYLE     (1 << 0)    /* Fixed newstyle protocol. */
+
+/* New-style client flags. */
+#define NBD_FLAG_C_FIXED_NEWSTYLE   (1 << 0)    /* Fixed newstyle protocol. */
+
+/* Reply types. */
+#define NBD_REP_ERR_UNSUP       ((1 << 31) | 1) /* Unknown option. */
+
 #define NBD_CMD_MASK_COMMAND	0x0000ffff
 #define NBD_CMD_FLAG_FUA	(1 << 16)
 
