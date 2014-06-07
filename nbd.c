@@ -84,6 +84,7 @@
 
 #define NBD_OPT_EXPORT_NAME     (1)
 #define NBD_OPT_ABORT           (2)
+#define NBD_OPT_LIST            (3)
 
 /* Definitions for opaque data types */
 
@@ -249,6 +250,64 @@ static int nbd_send_rep(int csock, uint32_t type, uint32_t opt)
     return 0;
 }
 
+static int nbd_send_rep_list(int csock, NBDExport *exp)
+{
+    uint64_t magic, name_len;
+    uint32_t opt, type, len;
+
+    name_len = strlen(exp->name);
+    magic = cpu_to_be64(NBD_REP_MAGIC);
+    if (write_sync(csock, &magic, sizeof(magic)) != sizeof(magic)) {
+        LOG("write failed (magic)");
+        return -EINVAL;
+     }
+    opt = cpu_to_be32(NBD_OPT_LIST);
+    if (write_sync(csock, &opt, sizeof(opt)) != sizeof(opt)) {
+        LOG("write failed (opt)");
+        return -EINVAL;
+    }
+    type = cpu_to_be32(NBD_REP_SERVER);
+    if (write_sync(csock, &type, sizeof(type)) != sizeof(type)) {
+        LOG("write failed (reply type)");
+        return -EINVAL;
+    }
+    len = cpu_to_be32(name_len + sizeof(len));
+    if (write_sync(csock, &len, sizeof(len)) != sizeof(len)) {
+        LOG("write failed (length)");
+        return -EINVAL;
+    }
+    len = cpu_to_be32(name_len);
+    if (write_sync(csock, &len, sizeof(len)) != sizeof(len)) {
+        LOG("write failed (length)");
+        return -EINVAL;
+    }
+    if (write_sync(csock, exp->name, name_len) != name_len) {
+        LOG("write failed (buffer)");
+        return -EINVAL;
+    }
+    return 0;
+}
+
+static int nbd_handle_list(NBDClient *client, uint32_t length)
+{
+    int csock;
+    NBDExport *exp;
+
+    csock = client->sock;
+    if (length) {
+        return nbd_send_rep(csock, NBD_REP_ERR_INVALID, NBD_OPT_LIST);
+    }
+
+    /* For each export, send a NBD_REP_SERVER reply. */
+    QTAILQ_FOREACH(exp, &exports, next) {
+        if (nbd_send_rep_list(csock, exp)) {
+            return -EINVAL;
+        }
+    }
+    /* Finish with a NBD_REP_ACK. */
+    return nbd_send_rep(csock, NBD_REP_ACK, NBD_OPT_LIST);
+}
+
 static int nbd_handle_export_name(NBDClient *client, uint32_t length)
 {
     int rc = -EINVAL, csock = client->sock;
@@ -330,6 +389,12 @@ static int nbd_receive_options(NBDClient *client)
 
         TRACE("Checking option");
         switch (be32_to_cpu(tmp)) {
+        case NBD_OPT_LIST:
+            if (nbd_handle_list(client, length) < 0) {
+                return 1;
+            }
+            break;
+
         case NBD_OPT_ABORT:
             return -EINVAL;
 
