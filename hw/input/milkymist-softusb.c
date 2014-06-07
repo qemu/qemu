@@ -156,31 +156,6 @@ static inline void softusb_write_dmem(MilkymistSoftUsbState *s,
     memcpy(s->dmem_ptr + offset, buf, len);
 }
 
-static inline void softusb_read_pmem(MilkymistSoftUsbState *s,
-        uint32_t offset, uint8_t *buf, uint32_t len)
-{
-    if (offset + len >= s->pmem_size) {
-        error_report("milkymist_softusb: read pmem out of bounds "
-                "at offset 0x%x, len %d", offset, len);
-        memset(buf, 0, len);
-        return;
-    }
-
-    memcpy(buf, s->pmem_ptr + offset, len);
-}
-
-static inline void softusb_write_pmem(MilkymistSoftUsbState *s,
-        uint32_t offset, uint8_t *buf, uint32_t len)
-{
-    if (offset + len >= s->pmem_size) {
-        error_report("milkymist_softusb: write pmem out of bounds "
-                "at offset 0x%x, len %d", offset, len);
-        return;
-    }
-
-    memcpy(s->pmem_ptr + offset, buf, len);
-}
-
 static void softusb_mouse_changed(MilkymistSoftUsbState *s)
 {
     uint8_t m;
