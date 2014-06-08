@@ -33,6 +33,28 @@ int do_strace;
  * Utility functions
  */
 
+static void print_sysctl(const struct syscallname *name, abi_long arg1,
+        abi_long arg2, abi_long arg3, abi_long arg4, abi_long arg5,
+        abi_long arg6)
+{
+    uint32_t i;
+    int32_t *namep;
+
+    gemu_log("%s({ ", name->name);
+    namep = lock_user(VERIFY_READ, arg1, sizeof(int32_t) * arg2, 1);
+    if (namep) {
+        int32_t *p = namep;
+
+        for (i = 0; i < (uint32_t)arg2; i++) {
+            gemu_log("%d ", tswap32(*p++));
+        }
+        unlock_user(namep, arg1, 0);
+    }
+    gemu_log("}, %u, 0x" TARGET_ABI_FMT_lx ", 0x" TARGET_ABI_FMT_lx ", 0x"
+        TARGET_ABI_FMT_lx ", 0x" TARGET_ABI_FMT_lx ")",
+        (uint32_t)arg2, arg3, arg4, arg5, arg6);
+}
+
 static void print_execve(const struct syscallname *name, abi_long arg1,
         abi_long arg2, abi_long arg3, abi_long arg4, abi_long arg5,
         abi_long arg6)

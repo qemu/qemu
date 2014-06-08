@@ -1,7 +1,24 @@
-{ TARGET_FREEBSD_NR___getcwd, "__getcwd", NULL, NULL, NULL },
+/*
+ *  FreeBSD strace list
+ *
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
 { TARGET_FREEBSD_NR___semctl, "__semctl", NULL, NULL, NULL },
 { TARGET_FREEBSD_NR___syscall, "__syscall", NULL, NULL, NULL },
-{ TARGET_FREEBSD_NR___sysctl, "__sysctl", NULL, NULL, NULL },
+{ TARGET_FREEBSD_NR___sysctl, "__sysctl", NULL, print_sysctl, NULL },
 { TARGET_FREEBSD_NR_accept, "accept", "%s(%d,%#x,%#x)", NULL, NULL },
 { TARGET_FREEBSD_NR_access, "access", "%s(\"%s\",%#o)", NULL, NULL },
 { TARGET_FREEBSD_NR_acct, "acct", NULL, NULL, NULL },
