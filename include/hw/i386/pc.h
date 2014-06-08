@@ -295,7 +295,7 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 #define PC_Q35_COMPAT_2_0 \
         PC_COMPAT_2_0, \
         {\
-            .driver   = "ICH9 LPC",\
+            .driver   = "ICH9-LPC",\
             .property = "memory-hotplug-support",\
             .value    = "off",\
         }
