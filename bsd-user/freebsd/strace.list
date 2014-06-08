@@ -16,6 +16,18 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+{ TARGET_FREEBSD_NR___acl_aclcheck_fd, "__acl_aclcheck_fd", "%s(%d, %d, %#x)", NULL, NULL },
+{ TARGET_FREEBSD_NR___acl_aclcheck_file, "__acl_aclcheck_file", "%s(\"%s\", %d, %#x)", NULL, NULL },
+{ TARGET_FREEBSD_NR___acl_aclcheck_link, "__acl_aclcheck_link", "%s(\"%s\", %d, %#x)", NULL, NULL },
+{ TARGET_FREEBSD_NR___acl_delete_fd, "__acl_delete_fd", "%s(%d, %d)", NULL, NULL },
+{ TARGET_FREEBSD_NR___acl_delete_file, "__acl_delete_file", "%s(\"%s\", %d)", NULL, NULL },
+{ TARGET_FREEBSD_NR___acl_delete_link, "__acl_delete_link", "%s(\"%s\", %d)", NULL, NULL },
+{ TARGET_FREEBSD_NR___acl_get_fd, "__acl_get_fd", "%s(%d, %d, %#x)", NULL, NULL },
+{ TARGET_FREEBSD_NR___acl_get_file, "__acl_get_file", "%s(\"%s\", %d, %#x)", NULL, NULL },
+{ TARGET_FREEBSD_NR___acl_get_link, "__acl_get_link", "%s(\"%s\", %d, %#x)", NULL, NULL },
+{ TARGET_FREEBSD_NR___acl_set_fd, "__acl_set_fd", "%s(%d, %d, %#x)", NULL, NULL },
+{ TARGET_FREEBSD_NR___acl_set_file, "__acl_set_file", "%s(\"%s\", %d, %#x)", NULL, NULL },
+{ TARGET_FREEBSD_NR___acl_set_link, "__acl_set_link", "%s(\"%s\", %d, %#x)", NULL, NULL },
 { TARGET_FREEBSD_NR___semctl, "__semctl", NULL, NULL, NULL },
 { TARGET_FREEBSD_NR___syscall, "__syscall", NULL, NULL, NULL },
 { TARGET_FREEBSD_NR___sysctl, "__sysctl", NULL, print_sysctl, NULL },
