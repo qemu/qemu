@@ -80,7 +80,7 @@
 { TARGET_FREEBSD_NR_getsockopt, "getsockopt", NULL, NULL, NULL },
 { TARGET_FREEBSD_NR_gettimeofday, "gettimeofday", NULL, NULL, NULL },
 { TARGET_FREEBSD_NR_getuid, "getuid", "%s()", NULL, NULL },
-{ TARGET_FREEBSD_NR_ioctl, "ioctl", NULL, NULL, NULL },
+{ TARGET_FREEBSD_NR_ioctl, "ioctl", NULL, print_ioctl, NULL },
 { TARGET_FREEBSD_NR_issetugid, "issetugid", "%s()", NULL, NULL },
 { TARGET_FREEBSD_NR_kevent, "kevent", NULL, NULL, NULL },
 { TARGET_FREEBSD_NR_kill, "kill", NULL, NULL, NULL },
