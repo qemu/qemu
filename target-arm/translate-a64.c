@@ -85,6 +85,7 @@ typedef void NeonGenWidenFn(TCGv_i64, TCGv_i32);
 typedef void NeonGenTwoSingleOPFn(TCGv_i32, TCGv_i32, TCGv_i32, TCGv_ptr);
 typedef void NeonGenTwoDoubleOPFn(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_ptr);
 typedef void NeonGenOneOpFn(TCGv_i64, TCGv_i64);
+typedef void CryptoThreeOpEnvFn(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32);
 
 /* initialize TCG globals.  */
 void a64_translate_init(void)
@@ -10549,7 +10550,55 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
  */
 static void disas_crypto_aes(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int size = extract32(insn, 22, 2);
+    int opcode = extract32(insn, 12, 5);
+    int rn = extract32(insn, 5, 5);
+    int rd = extract32(insn, 0, 5);
+    int decrypt;
+    TCGv_i32 tcg_rd_regno, tcg_rn_regno, tcg_decrypt;
+    CryptoThreeOpEnvFn *genfn;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_V8_AES)
+        || size != 0) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    switch (opcode) {
+    case 0x4: /* AESE */
+        decrypt = 0;
+        genfn = gen_helper_crypto_aese;
+        break;
+    case 0x6: /* AESMC */
+        decrypt = 0;
+        genfn = gen_helper_crypto_aesmc;
+        break;
+    case 0x5: /* AESD */
+        decrypt = 1;
+        genfn = gen_helper_crypto_aese;
+        break;
+    case 0x7: /* AESIMC */
+        decrypt = 1;
+        genfn = gen_helper_crypto_aesmc;
+        break;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+
+    /* Note that we convert the Vx register indexes into the
+     * index within the vfp.regs[] array, so we can share the
+     * helper with the AArch32 instructions.
+     */
+    tcg_rd_regno = tcg_const_i32(rd << 1);
+    tcg_rn_regno = tcg_const_i32(rn << 1);
+    tcg_decrypt = tcg_const_i32(decrypt);
+
+    genfn(cpu_env, tcg_rd_regno, tcg_rn_regno, tcg_decrypt);
+
+    tcg_temp_free_i32(tcg_rd_regno);
+    tcg_temp_free_i32(tcg_rn_regno);
+    tcg_temp_free_i32(tcg_decrypt);
 }
 
 /* C3.6.20 Crypto three-reg SHA
