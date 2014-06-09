@@ -3929,13 +3929,8 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         page_size = (1 << ((granule_sz * (4 - level)) + 3));
         descaddr |= (address & (page_size - 1));
         /* Extract attributes from the descriptor and merge with table attrs */
-        if (arm_feature(env, ARM_FEATURE_V8)) {
-            attrs = extract64(descriptor, 2, 10)
-                | (extract64(descriptor, 53, 11) << 10);
-        } else {
-            attrs = extract64(descriptor, 2, 10)
-                | (extract64(descriptor, 52, 12) << 10);
-        }
+        attrs = extract64(descriptor, 2, 10)
+            | (extract64(descriptor, 52, 12) << 10);
         attrs |= extract32(tableattrs, 0, 2) << 11; /* XN, PXN */
         attrs |= extract32(tableattrs, 3, 1) << 5; /* APTable[1] => AP[2] */
         /* The sense of AP[1] vs APTable[0] is reversed, as APTable[0] == 1
@@ -3961,8 +3956,12 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         goto do_fault;
     }
     *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-    if (attrs & (1 << 12) || (!is_user && (attrs & (1 << 11)))) {
-        /* XN or PXN */
+    if ((arm_feature(env, ARM_FEATURE_V8) && is_user && (attrs & (1 << 12))) ||
+        (!arm_feature(env, ARM_FEATURE_V8) && (attrs & (1 << 12))) ||
+        (!is_user && (attrs & (1 << 11)))) {
+        /* XN/UXN or PXN. Since we only implement EL0/EL1 we unconditionally
+         * treat XN/UXN as UXN for v8.
+         */
         if (access_type == 2) {
             goto do_fault;
         }
