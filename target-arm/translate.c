@@ -5954,10 +5954,11 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                 int src1_wide;
                 int src2_wide;
                 int prewiden;
-                /* undefreq: bit 0 : UNDEF if size != 0
-                 *           bit 1 : UNDEF if size == 0
-                 *           bit 2 : UNDEF if U == 1
-                 * Note that [1:0] set implies 'always UNDEF'
+                /* undefreq: bit 0 : UNDEF if size == 0
+                 *           bit 1 : UNDEF if size == 1
+                 *           bit 2 : UNDEF if size == 2
+                 *           bit 3 : UNDEF if U == 1
+                 * Note that [2:0] set implies 'always UNDEF'
                  */
                 int undefreq;
                 /* prewiden, src1_wide, src2_wide, undefreq */
@@ -5971,13 +5972,13 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     {0, 1, 1, 0}, /* VSUBHN */
                     {0, 0, 0, 0}, /* VABDL */
                     {0, 0, 0, 0}, /* VMLAL */
-                    {0, 0, 0, 6}, /* VQDMLAL */
+                    {0, 0, 0, 9}, /* VQDMLAL */
                     {0, 0, 0, 0}, /* VMLSL */
-                    {0, 0, 0, 6}, /* VQDMLSL */
+                    {0, 0, 0, 9}, /* VQDMLSL */
                     {0, 0, 0, 0}, /* Integer VMULL */
-                    {0, 0, 0, 2}, /* VQDMULL */
-                    {0, 0, 0, 5}, /* Polynomial VMULL */
-                    {0, 0, 0, 3}, /* Reserved: always UNDEF */
+                    {0, 0, 0, 1}, /* VQDMULL */
+                    {0, 0, 0, 15}, /* Polynomial VMULL */
+                    {0, 0, 0, 7}, /* Reserved: always UNDEF */
                 };
 
                 prewiden = neon_3reg_wide[op][0];
@@ -5985,9 +5986,8 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                 src2_wide = neon_3reg_wide[op][2];
                 undefreq = neon_3reg_wide[op][3];
 
-                if (((undefreq & 1) && (size != 0)) ||
-                    ((undefreq & 2) && (size == 0)) ||
-                    ((undefreq & 4) && u)) {
+                if ((undefreq & (1 << size)) ||
+                    ((undefreq & 8) && u)) {
                     return 1;
                 }
                 if ((src1_wide && (rn & 1)) ||
