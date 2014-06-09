@@ -28,6 +28,7 @@
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
+#include "hw/loader.h"
 #include "exec/address-spaces.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/flash.h"
@@ -527,6 +528,18 @@ static void vexpress_common_init(VEDBoardInfo *daughterboard,
 
     daughterboard->init(daughterboard, machine->ram_size, machine->cpu_model,
                         pic);
+
+    /*
+     * If a bios file was provided, attempt to map it into memory
+     */
+    if (bios_name) {
+        const char *fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+        if (!fn || load_image_targphys(fn, map[VE_NORFLASH0],
+                                       VEXPRESS_FLASH_SIZE) < 0) {
+            error_report("Could not load ROM image '%s'", bios_name);
+            exit(1);
+        }
+    }
 
     /* Motherboard peripherals: the wiring is the same but the
      * addresses vary between the legacy and A-Series memory maps.
