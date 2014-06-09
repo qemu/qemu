@@ -319,7 +319,7 @@ static void dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
 
-    env->cp15.c3 = value;
+    raw_write(env, ri, value);
     tlb_flush(CPU(cpu), 1); /* Flush TLB as domain not tracked in TLB */
 }
 
@@ -327,12 +327,12 @@ static void fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
 
-    if (env->cp15.c13_fcse != value) {
+    if (raw_read(env, ri) != value) {
         /* Unlike real hardware the qemu TLB uses virtual addresses,
          * not modified virtual addresses, so this causes a TLB flush.
          */
         tlb_flush(CPU(cpu), 1);
-        env->cp15.c13_fcse = value;
+        raw_write(env, ri, value);
     }
 }
 
@@ -341,7 +341,7 @@ static void contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
 
-    if (env->cp15.contextidr_el1 != value && !arm_feature(env, ARM_FEATURE_MPU)
+    if (raw_read(env, ri) != value && !arm_feature(env, ARM_FEATURE_MPU)
         && !extended_addresses_enabled(env)) {
         /* For VMSA (when not using the LPAE long descriptor page table
          * format) this register includes the ASID, so do a TLB flush.
@@ -349,7 +349,7 @@ static void contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
          */
         tlb_flush(CPU(cpu), 1);
     }
-    env->cp15.contextidr_el1 = value;
+    raw_write(env, ri, value);
 }
 
 static void tlbiall_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -693,7 +693,7 @@ static uint64_t ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 static void csselr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                          uint64_t value)
 {
-    env->cp15.c0_cssel = value & 0xf;
+    raw_write(env, ri, value & 0xf);
 }
 
 static uint64_t isr_read(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -1216,11 +1216,11 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
 static void par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
-        env->cp15.par_el1 = value;
+        raw_write(env, ri, value);
     } else if (arm_feature(env, ARM_FEATURE_V7)) {
-        env->cp15.par_el1 = value & 0xfffff6ff;
+        raw_write(env, ri, value & 0xfffff6ff);
     } else {
-        env->cp15.par_el1 = value & 0xfffff1ff;
+        raw_write(env, ri, value & 0xfffff1ff);
     }
 }
 
@@ -1423,7 +1423,7 @@ static void vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * for long-descriptor tables the TTBCR fields are used differently
      * and the c2_mask and c2_base_mask values are meaningless.
      */
-    env->cp15.c2_control = value;
+    raw_write(env, ri, value);
     env->cp15.c2_mask = ~(((uint32_t)0xffffffffu) >> maskshift);
     env->cp15.c2_base_mask = ~((uint32_t)0x3fffu >> maskshift);
 }
@@ -1445,7 +1445,7 @@ static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void vmsa_ttbcr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     env->cp15.c2_base_mask = 0xffffc000u;
-    env->cp15.c2_control = 0;
+    raw_write(env, ri, 0);
     env->cp15.c2_mask = 0;
 }
 
@@ -1456,7 +1456,7 @@ static void vmsa_tcr_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     /* For AArch64 the A1 bit could result in a change of ASID, so TLB flush. */
     tlb_flush(CPU(cpu), 1);
-    env->cp15.c2_control = value;
+    raw_write(env, ri, value);
 }
 
 static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -2151,14 +2151,14 @@ static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
 
-    if (env->cp15.c1_sys == value) {
+    if (raw_read(env, ri) == value) {
         /* Skip the TLB flush if nothing actually changed; Linux likes
          * to do a lot of pointless SCTLR writes.
          */
         return;
     }
 
-    env->cp15.c1_sys = value;
+    raw_write(env, ri, value);
     /* ??? Lots of these bits are not implemented.  */
     /* This may enable/disable the MMU, so do a TLB flush.  */
     tlb_flush(CPU(cpu), 1);
