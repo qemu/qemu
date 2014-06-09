@@ -10609,7 +10609,64 @@ static void disas_crypto_aes(DisasContext *s, uint32_t insn)
  */
 static void disas_crypto_three_reg_sha(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int size = extract32(insn, 22, 2);
+    int opcode = extract32(insn, 12, 3);
+    int rm = extract32(insn, 16, 5);
+    int rn = extract32(insn, 5, 5);
+    int rd = extract32(insn, 0, 5);
+    CryptoThreeOpEnvFn *genfn;
+    TCGv_i32 tcg_rd_regno, tcg_rn_regno, tcg_rm_regno;
+    int feature = ARM_FEATURE_V8_SHA256;
+
+    if (size != 0) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    switch (opcode) {
+    case 0: /* SHA1C */
+    case 1: /* SHA1P */
+    case 2: /* SHA1M */
+    case 3: /* SHA1SU0 */
+        genfn = NULL;
+        feature = ARM_FEATURE_V8_SHA1;
+        break;
+    case 4: /* SHA256H */
+        genfn = gen_helper_crypto_sha256h;
+        break;
+    case 5: /* SHA256H2 */
+        genfn = gen_helper_crypto_sha256h2;
+        break;
+    case 6: /* SHA256SU1 */
+        genfn = gen_helper_crypto_sha256su1;
+        break;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (!arm_dc_feature(s, feature)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    tcg_rd_regno = tcg_const_i32(rd << 1);
+    tcg_rn_regno = tcg_const_i32(rn << 1);
+    tcg_rm_regno = tcg_const_i32(rm << 1);
+
+    if (genfn) {
+        genfn(cpu_env, tcg_rd_regno, tcg_rn_regno, tcg_rm_regno);
+    } else {
+        TCGv_i32 tcg_opcode = tcg_const_i32(opcode);
+
+        gen_helper_crypto_sha1_3reg(cpu_env, tcg_rd_regno,
+                                    tcg_rn_regno, tcg_rm_regno, tcg_opcode);
+        tcg_temp_free_i32(tcg_opcode);
+    }
+
+    tcg_temp_free_i32(tcg_rd_regno);
+    tcg_temp_free_i32(tcg_rn_regno);
+    tcg_temp_free_i32(tcg_rm_regno);
 }
 
 /* C3.6.21 Crypto two-reg SHA
