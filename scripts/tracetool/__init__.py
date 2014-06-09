@@ -233,9 +233,9 @@ def try_import(mod_name, attr_name=None, attr_default=None):
         return False, None
 
 
-def generate(fevents, format, backend,
+def generate(fevents, format, backends,
              binary=None, probe_prefix=None):
-    """Generate the output for the given (format, backend) pair.
+    """Generate the output for the given (format, backends) pair.
 
     Parameters
     ----------
@@ -243,8 +243,8 @@ def generate(fevents, format, backend,
         Event description file.
     format : str
         Output format name.
-    backend : str
-        Output backend name.
+    backends : list
+        Output backend names.
     binary : str or None
         See tracetool.backend.dtrace.BINARY.
     probe_prefix : str or None
@@ -258,15 +258,13 @@ def generate(fevents, format, backend,
         raise TracetoolError("format not set")
     if not tracetool.format.exists(format):
         raise TracetoolError("unknown format: %s" % format)
-    format = format.replace("-", "_")
 
-    backend = str(backend)
-    if len(backend) is 0:
-        raise TracetoolError("backend not set")
-    if not tracetool.backend.exists(backend):
-        raise TracetoolError("unknown backend: %s" % backend)
-    backend = backend.replace("-", "_")
-    backend = tracetool.backend.Wrapper(backend, format)
+    if len(backends) is 0:
+        raise TracetoolError("no backends specified")
+    for backend in backends:
+        if not tracetool.backend.exists(backend):
+            raise TracetoolError("unknown backend: %s" % backend)
+    backend = tracetool.backend.Wrapper(backends, format)
 
     import tracetool.backend.dtrace
     tracetool.backend.dtrace.BINARY = binary

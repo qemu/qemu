@@ -99,17 +99,18 @@ def exists(name):
 
 
 class Wrapper:
-    def __init__(self, backend, format):
-        self._backend = backend.replace("-", "_")
+    def __init__(self, backends, format):
+        self._backends = [backend.replace("-", "_") for backend in backends]
         self._format = format.replace("-", "_")
-        assert exists(self._backend)
+        assert all(exists(backend) for backend in self._backends)
         assert tracetool.format.exists(self._format)
 
     def _run_function(self, name, *args, **kwargs):
-        func = tracetool.try_import("tracetool.backend." + self._backend,
-                                    name % self._format, None)[1]
-        if func is not None:
-            func(*args, **kwargs)
+        for backend in self._backends:
+            func = tracetool.try_import("tracetool.backend." + backend,
+                                        name % self._format, None)[1]
+            if func is not None:
+                func(*args, **kwargs)
 
     def generate_begin(self, events):
         self._run_function("generate_%s_begin", events)

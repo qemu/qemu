@@ -49,7 +49,7 @@ endif
 $(QEMU_PROG).stp-installed: $(SRC_PATH)/trace-events
 	$(call quiet-command,$(TRACETOOL) \
 		--format=stap \
-		--backend=$(TRACE_BACKEND) \
+		--backends=$(TRACE_BACKENDS) \
 		--binary=$(bindir)/$(QEMU_PROG) \
 		--target-name=$(TARGET_NAME) \
 		--target-type=$(TARGET_TYPE) \
@@ -58,7 +58,7 @@ $(QEMU_PROG).stp-installed: $(SRC_PATH)/trace-events
 $(QEMU_PROG).stp: $(SRC_PATH)/trace-events
 	$(call quiet-command,$(TRACETOOL) \
 		--format=stap \
-		--backend=$(TRACE_BACKEND) \
+		--backends=$(TRACE_BACKENDS) \
 		--binary=$(realpath .)/$(QEMU_PROG) \
 		--target-name=$(TARGET_NAME) \
 		--target-type=$(TARGET_TYPE) \

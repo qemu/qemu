@@ -3,12 +3,12 @@
 ######################################################################
 # Auto-generated event descriptions for LTTng ust code
 
-ifeq ($(TRACE_BACKEND),ust)
+ifeq ($(findstring ust,$(TRACE_BACKENDS)),ust)
 $(obj)/generated-ust-provider.h: $(obj)/generated-ust-provider.h-timestamp
 $(obj)/generated-ust-provider.h-timestamp: $(SRC_PATH)/trace-events
 	$(call quiet-command,$(TRACETOOL) \
 		--format=ust-events-h \
-		--backend=$(TRACE_BACKEND) \
+		--backends=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
 	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
@@ -16,7 +16,7 @@ $(obj)/generated-ust.c: $(obj)/generated-ust.c-timestamp $(BUILD_DIR)/config-hos
 $(obj)/generated-ust.c-timestamp: $(SRC_PATH)/trace-events
 	$(call quiet-command,$(TRACETOOL) \
 		--format=ust-events-c \
-		--backend=$(TRACE_BACKEND) \
+		--backends=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
 	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
@@ -31,7 +31,7 @@ $(obj)/generated-events.h: $(obj)/generated-events.h-timestamp
 $(obj)/generated-events.h-timestamp: $(SRC_PATH)/trace-events
 	$(call quiet-command,$(TRACETOOL) \
 		--format=events-h \
-		--backend=$(TRACE_BACKEND) \
+		--backends=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
 	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
@@ -39,7 +39,7 @@ $(obj)/generated-events.c: $(obj)/generated-events.c-timestamp $(BUILD_DIR)/conf
 $(obj)/generated-events.c-timestamp: $(SRC_PATH)/trace-events
 	$(call quiet-command,$(TRACETOOL) \
 		--format=events-c \
-		--backend=$(TRACE_BACKEND) \
+		--backends=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
 	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
@@ -54,23 +54,21 @@ $(obj)/generated-tracers.h: $(obj)/generated-tracers.h-timestamp
 $(obj)/generated-tracers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--format=h \
-		--backend=$(TRACE_BACKEND) \
+		--backends=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
 
 ######################################################################
 # Auto-generated tracing routines (non-DTrace)
 
-ifneq ($(TRACE_BACKEND),dtrace)
 $(obj)/generated-tracers.c: $(obj)/generated-tracers.c-timestamp
 	@cmp -s $< $@ || cp $< $@
 $(obj)/generated-tracers.c-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--format=c \
-		--backend=$(TRACE_BACKEND) \
+		--backends=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
 
 $(obj)/generated-tracers.o: $(obj)/generated-tracers.c $(obj)/generated-tracers.h
-endif
 
 
 ######################################################################
@@ -79,27 +77,27 @@ endif
 # Normal practice is to name DTrace probe file with a '.d' extension
 # but that gets picked up by QEMU's Makefile as an external dependency
 # rule file. So we use '.dtrace' instead
-ifeq ($(TRACE_BACKEND),dtrace)
-$(obj)/generated-tracers.dtrace: $(obj)/generated-tracers.dtrace-timestamp
-$(obj)/generated-tracers.dtrace-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+ifeq ($(findstring dtrace,$(TRACE_BACKENDS)),dtrace)
+$(obj)/generated-tracers-dtrace.dtrace: $(obj)/generated-tracers-dtrace.dtrace-timestamp
+$(obj)/generated-tracers-dtrace.dtrace-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--format=d \
-		--backend=$(TRACE_BACKEND) \
+		--backends=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
 	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
-$(obj)/generated-tracers-dtrace.h: $(obj)/generated-tracers.dtrace
+$(obj)/generated-tracers-dtrace.h: $(obj)/generated-tracers-dtrace.dtrace
 	$(call quiet-command,dtrace -o $@ -h -s $<, "  GEN   $@")
 
-$(obj)/generated-tracers.o: $(obj)/generated-tracers.dtrace
+$(obj)/generated-tracers-dtrace.o: $(obj)/generated-tracers-dtrace.dtrace
+
+util-obj-y += generated-tracers-dtrace.o
 endif
 
 ######################################################################
 # Backend code
 
-util-obj-$(CONFIG_TRACE_DEFAULT) += default.o
 util-obj-$(CONFIG_TRACE_SIMPLE) += simple.o
-util-obj-$(CONFIG_TRACE_STDERR) += stderr.o
 util-obj-$(CONFIG_TRACE_FTRACE) += ftrace.o
 util-obj-$(CONFIG_TRACE_UST) += generated-ust.o
 util-obj-y += control.o

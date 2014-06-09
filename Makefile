@@ -52,12 +52,12 @@ GENERATED_HEADERS += trace/generated-events.h
 GENERATED_SOURCES += trace/generated-events.c
 
 GENERATED_HEADERS += trace/generated-tracers.h
-ifeq ($(TRACE_BACKEND),dtrace)
+ifeq ($(findstring dtrace,$(TRACE_BACKENDS)),dtrace)
 GENERATED_HEADERS += trace/generated-tracers-dtrace.h
 endif
 GENERATED_SOURCES += trace/generated-tracers.c
 
-ifeq ($(TRACE_BACKEND),ust)
+ifeq ($(findstring ust,$(TRACE_BACKENDS)),ust)
 GENERATED_HEADERS += trace/generated-ust-provider.h
 GENERATED_SOURCES += trace/generated-ust.c
 endif

@@ -182,6 +182,10 @@ path_of() {
     return 1
 }
 
+have_backend () {
+    echo "$trace_backends" | grep "$1" >/dev/null
+}
+
 # default parameters
 source_path=`dirname "$0"`
 cpu=""
@@ -293,7 +297,7 @@ pkgversion=""
 pie=""
 zero_malloc=""
 qom_cast_debug="yes"
-trace_backend="nop"
+trace_backends="nop"
 trace_file="trace"
 spice=""
 rbd=""
@@ -753,7 +757,10 @@ for opt do
   ;;
   --target-list=*) target_list="$optarg"
   ;;
-  --enable-trace-backend=*) trace_backend="$optarg"
+  --enable-trace-backends=*) trace_backends="$optarg"
+  ;;
+  # XXX: backwards compatibility
+  --enable-trace-backend=*) trace_backends="$optarg"
   ;;
   --with-trace-file=*) trace_file="$optarg"
   ;;
@@ -1320,7 +1327,7 @@ Advanced options (experts only):
   --disable-docs           disable documentation build
   --disable-vhost-net      disable vhost-net acceleration support
   --enable-vhost-net       enable vhost-net acceleration support
-  --enable-trace-backend=B Set trace backend
+  --enable-trace-backends=B Set trace backend
                            Available backends: $($python $source_path/scripts/tracetool.py --list-backends)
   --with-trace-file=NAME   Full PATH,NAME of file to store traces
                            Default:trace-<pid>
@@ -3666,15 +3673,15 @@ fi
 ##########################################
 # check if trace backend exists
 
-$python "$source_path/scripts/tracetool.py" "--backend=$trace_backend" --check-backend  > /dev/null 2> /dev/null
+$python "$source_path/scripts/tracetool.py" "--backends=$trace_backends" --check-backends  > /dev/null 2> /dev/null
 if test "$?" -ne 0 ; then
-  error_exit "invalid trace backend" \
-      "Please choose a supported trace backend."
+  error_exit "invalid trace backends" \
+      "Please choose supported trace backends."
 fi
 
 ##########################################
 # For 'ust' backend, test if ust headers are present
-if test "$trace_backend" = "ust"; then
+if have_backend "ust"; then
   cat > $TMPC << EOF
 #include <lttng/tracepoint.h>
 int main(void) { return 0; }
@@ -3700,7 +3707,7 @@ fi
 
 ##########################################
 # For 'dtrace' backend, test if 'dtrace' command is present
-if test "$trace_backend" = "dtrace"; then
+if have_backend "dtrace"; then
   if ! has 'dtrace' ; then
     error_exit "dtrace command is not found in PATH $PATH"
   fi
@@ -4170,7 +4177,7 @@ echo "uuid support      $uuid"
 echo "libcap-ng support $cap_ng"
 echo "vhost-net support $vhost_net"
 echo "vhost-scsi support $vhost_scsi"
-echo "Trace backend     $trace_backend"
+echo "Trace backends    $trace_backends"
 if test "$trace_backend" = "simple"; then
 echo "Trace output file $trace_file-<pid>"
 fi
@@ -4664,43 +4671,35 @@ if test "$tpm" = "yes"; then
   fi
 fi
 
-# use default implementation for tracing backend-specific routines
-trace_default=yes
-echo "TRACE_BACKEND=$trace_backend" >> $config_host_mak
-if test "$trace_backend" = "nop"; then
+echo "TRACE_BACKENDS=$trace_backends" >> $config_host_mak
+if have_backend "nop"; then
   echo "CONFIG_TRACE_NOP=y" >> $config_host_mak
 fi
-if test "$trace_backend" = "simple"; then
+if have_backend "simple"; then
   echo "CONFIG_TRACE_SIMPLE=y" >> $config_host_mak
-  trace_default=no
   # Set the appropriate trace file.
   trace_file="\"$trace_file-\" FMT_pid"
 fi
-if test "$trace_backend" = "stderr"; then
+if have_backend "stderr"; then
   echo "CONFIG_TRACE_STDERR=y" >> $config_host_mak
-  trace_default=no
 fi
-if test "$trace_backend" = "ust"; then
+if have_backend "ust"; then
   echo "CONFIG_TRACE_UST=y" >> $config_host_mak
 fi
-if test "$trace_backend" = "dtrace"; then
+if have_backend "dtrace"; then
   echo "CONFIG_TRACE_DTRACE=y" >> $config_host_mak
   if test "$trace_backend_stap" = "yes" ; then
     echo "CONFIG_TRACE_SYSTEMTAP=y" >> $config_host_mak
   fi
 fi
-if test "$trace_backend" = "ftrace"; then
+if have_backend "ftrace"; then
   if test "$linux" = "yes" ; then
     echo "CONFIG_TRACE_FTRACE=y" >> $config_host_mak
-    trace_default=no
   else
     feature_not_found "ftrace(trace backend)" "ftrace requires Linux"
   fi
 fi
 echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
-if test "$trace_default" = "yes"; then
-  echo "CONFIG_TRACE_DEFAULT=y" >> $config_host_mak
-fi
 
 if test "$rdma" = "yes" ; then
   echo "CONFIG_RDMA=y" >> $config_host_mak
