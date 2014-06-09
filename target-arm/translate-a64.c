@@ -8574,7 +8574,7 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
             return;
         }
         if (size == 3) {
-            if (!arm_dc_feature(s, ARM_FEATURE_V8_AES)) {
+            if (!arm_dc_feature(s, ARM_FEATURE_V8_PMULL)) {
                 unallocated_encoding(s);
                 return;
             }
