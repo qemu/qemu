@@ -67,6 +67,11 @@ typedef struct ThrottleState {
     int64_t previous_leak;    /* timestamp of the last leak done */
     QEMUTimer * timers[2];    /* timers used to do the throttling */
     QEMUClockType clock_type; /* the clock used */
+
+    /* Callbacks */
+    QEMUTimerCB *read_timer_cb;
+    QEMUTimerCB *write_timer_cb;
+    void *timer_opaque;
 } ThrottleState;
 
 /* operations on single leaky buckets */
@@ -82,12 +87,17 @@ bool throttle_compute_timer(ThrottleState *ts,
 
 /* init/destroy cycle */
 void throttle_init(ThrottleState *ts,
+                   AioContext *aio_context,
                    QEMUClockType clock_type,
                    void (read_timer)(void *),
                    void (write_timer)(void *),
                    void *timer_opaque);
 
 void throttle_destroy(ThrottleState *ts);
+
+void throttle_detach_aio_context(ThrottleState *ts);
+
+void throttle_attach_aio_context(ThrottleState *ts, AioContext *new_context);
 
 bool throttle_have_timer(ThrottleState *ts);
 

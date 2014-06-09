@@ -49,6 +49,7 @@
 
 typedef struct IscsiLun {
     struct iscsi_context *iscsi;
+    AioContext *aio_context;
     int lun;
     enum scsi_inquiry_peripheral_device_type type;
     int block_size;
@@ -73,6 +74,7 @@ typedef struct IscsiTask {
     struct scsi_task *task;
     Coroutine *co;
     QEMUBH *bh;
+    IscsiLun *iscsilun;
 } IscsiTask;
 
 typedef struct IscsiAIOCB {
@@ -133,7 +135,7 @@ iscsi_schedule_bh(IscsiAIOCB *acb)
     if (acb->bh) {
         return;
     }
-    acb->bh = qemu_bh_new(iscsi_bh_cb, acb);
+    acb->bh = aio_bh_new(acb->iscsilun->aio_context, iscsi_bh_cb, acb);
     qemu_bh_schedule(acb->bh);
 }
 
@@ -169,7 +171,8 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
 
 out:
     if (iTask->co) {
-        iTask->bh = qemu_bh_new(iscsi_co_generic_bh_cb, iTask);
+        iTask->bh = aio_bh_new(iTask->iscsilun->aio_context,
+                               iscsi_co_generic_bh_cb, iTask);
         qemu_bh_schedule(iTask->bh);
     }
 }
@@ -177,8 +180,9 @@ out:
 static void iscsi_co_init_iscsitask(IscsiLun *iscsilun, struct IscsiTask *iTask)
 {
     *iTask = (struct IscsiTask) {
-        .co         = qemu_coroutine_self(),
-        .retries    = ISCSI_CMD_RETRIES,
+        .co             = qemu_coroutine_self(),
+        .retries        = ISCSI_CMD_RETRIES,
+        .iscsilun       = iscsilun,
     };
 }
 
@@ -209,7 +213,7 @@ iscsi_aio_cancel(BlockDriverAIOCB *blockacb)
                                      iscsi_abort_task_cb, acb);
 
     while (acb->status == -EINPROGRESS) {
-        qemu_aio_wait();
+        aio_poll(iscsilun->aio_context, true);
     }
 }
 
@@ -232,10 +236,11 @@ iscsi_set_events(IscsiLun *iscsilun)
     ev = POLLIN;
     ev |= iscsi_which_events(iscsi);
     if (ev != iscsilun->events) {
-        qemu_aio_set_fd_handler(iscsi_get_fd(iscsi),
-                      iscsi_process_read,
-                      (ev & POLLOUT) ? iscsi_process_write : NULL,
-                      iscsilun);
+        aio_set_fd_handler(iscsilun->aio_context,
+                           iscsi_get_fd(iscsi),
+                           iscsi_process_read,
+                           (ev & POLLOUT) ? iscsi_process_write : NULL,
+                           iscsilun);
 
     }
 
@@ -791,7 +796,7 @@ static int iscsi_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
         iscsi_aio_ioctl(bs, req, buf, ioctl_cb, &status);
 
         while (status == -EINPROGRESS) {
-            qemu_aio_wait();
+            aio_poll(iscsilun->aio_context, true);
         }
 
         return 0;
@@ -1195,6 +1200,40 @@ fail_with_err:
     return NULL;
 }
 
+static void iscsi_detach_aio_context(BlockDriverState *bs)
+{
+    IscsiLun *iscsilun = bs->opaque;
+
+    aio_set_fd_handler(iscsilun->aio_context,
+                       iscsi_get_fd(iscsilun->iscsi),
+                       NULL, NULL, NULL);
+    iscsilun->events = 0;
+
+    if (iscsilun->nop_timer) {
+        timer_del(iscsilun->nop_timer);
+        timer_free(iscsilun->nop_timer);
+        iscsilun->nop_timer = NULL;
+    }
+}
+
+static void iscsi_attach_aio_context(BlockDriverState *bs,
+                                     AioContext *new_context)
+{
+    IscsiLun *iscsilun = bs->opaque;
+
+    iscsilun->aio_context = new_context;
+    iscsi_set_events(iscsilun);
+
+#if defined(LIBISCSI_FEATURE_NOP_COUNTER)
+    /* Set up a timer for sending out iSCSI NOPs */
+    iscsilun->nop_timer = aio_timer_new(iscsilun->aio_context,
+                                        QEMU_CLOCK_REALTIME, SCALE_MS,
+                                        iscsi_nop_timed_event, iscsilun);
+    timer_mod(iscsilun->nop_timer,
+              qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + NOP_INTERVAL);
+#endif
+}
+
 /*
  * We support iscsi url's on the form
  * iscsi://[<username>%<password>@]<host>[:<port>]/<targetname>/<lun>
@@ -1301,6 +1340,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     iscsilun->iscsi = iscsi;
+    iscsilun->aio_context = bdrv_get_aio_context(bs);
     iscsilun->lun   = iscsi_url->lun;
     iscsilun->has_write_same = true;
 
@@ -1374,11 +1414,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     scsi_free_scsi_task(task);
     task = NULL;
 
-#if defined(LIBISCSI_FEATURE_NOP_COUNTER)
-    /* Set up a timer for sending out iSCSI NOPs */
-    iscsilun->nop_timer = timer_new_ms(QEMU_CLOCK_REALTIME, iscsi_nop_timed_event, iscsilun);
-    timer_mod(iscsilun->nop_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + NOP_INTERVAL);
-#endif
+    iscsi_attach_aio_context(bs, iscsilun->aio_context);
 
     /* Guess the internal cluster (page) size of the iscsi target by the means
      * of opt_unmap_gran. Transfer the unmap granularity only if it has a
@@ -1422,11 +1458,7 @@ static void iscsi_close(BlockDriverState *bs)
     IscsiLun *iscsilun = bs->opaque;
     struct iscsi_context *iscsi = iscsilun->iscsi;
 
-    if (iscsilun->nop_timer) {
-        timer_del(iscsilun->nop_timer);
-        timer_free(iscsilun->nop_timer);
-    }
-    qemu_aio_set_fd_handler(iscsi_get_fd(iscsi), NULL, NULL, NULL);
+    iscsi_detach_aio_context(bs);
     iscsi_destroy_context(iscsi);
     g_free(iscsilun->zeroblock);
     g_free(iscsilun->allocationmap);
@@ -1530,10 +1562,7 @@ static int iscsi_create(const char *filename, QEMUOptionParameter *options,
     if (ret != 0) {
         goto out;
     }
-    if (iscsilun->nop_timer) {
-        timer_del(iscsilun->nop_timer);
-        timer_free(iscsilun->nop_timer);
-    }
+    iscsi_detach_aio_context(bs);
     if (iscsilun->type != TYPE_DISK) {
         ret = -ENODEV;
         goto out;
@@ -1604,6 +1633,9 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_ioctl       = iscsi_ioctl,
     .bdrv_aio_ioctl   = iscsi_aio_ioctl,
 #endif
+
+    .bdrv_detach_aio_context = iscsi_detach_aio_context,
+    .bdrv_attach_aio_context = iscsi_attach_aio_context,
 };
 
 static QemuOptsList qemu_iscsi_opts = {

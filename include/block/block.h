@@ -481,15 +481,6 @@ void bdrv_op_block_all(BlockDriverState *bs, Error *reason);
 void bdrv_op_unblock_all(BlockDriverState *bs, Error *reason);
 bool bdrv_op_blocker_is_empty(BlockDriverState *bs);
 
-#ifdef CONFIG_LINUX_AIO
-int raw_get_aio_fd(BlockDriverState *bs);
-#else
-static inline int raw_get_aio_fd(BlockDriverState *bs)
-{
-    return -ENOTSUP;
-}
-#endif
-
 enum BlockAcctType {
     BDRV_ACCT_READ,
     BDRV_ACCT_WRITE,
@@ -573,5 +564,23 @@ int bdrv_debug_breakpoint(BlockDriverState *bs, const char *event,
 int bdrv_debug_remove_breakpoint(BlockDriverState *bs, const char *tag);
 int bdrv_debug_resume(BlockDriverState *bs, const char *tag);
 bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag);
+
+/**
+ * bdrv_get_aio_context:
+ *
+ * Returns: the currently bound #AioContext
+ */
+AioContext *bdrv_get_aio_context(BlockDriverState *bs);
+
+/**
+ * bdrv_set_aio_context:
+ *
+ * Changes the #AioContext used for fd handlers, timers, and BHs by this
+ * BlockDriverState and all its children.
+ *
+ * This function must be called from the old #AioContext or with a lock held so
+ * the old #AioContext is not executing.
+ */
+void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context);
 
 #endif

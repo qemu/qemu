@@ -307,6 +307,29 @@ static void raw_parse_flags(int bdrv_flags, int *open_flags)
     }
 }
 
+static void raw_detach_aio_context(BlockDriverState *bs)
+{
+#ifdef CONFIG_LINUX_AIO
+    BDRVRawState *s = bs->opaque;
+
+    if (s->use_aio) {
+        laio_detach_aio_context(s->aio_ctx, bdrv_get_aio_context(bs));
+    }
+#endif
+}
+
+static void raw_attach_aio_context(BlockDriverState *bs,
+                                   AioContext *new_context)
+{
+#ifdef CONFIG_LINUX_AIO
+    BDRVRawState *s = bs->opaque;
+
+    if (s->use_aio) {
+        laio_attach_aio_context(s->aio_ctx, new_context);
+    }
+#endif
+}
+
 #ifdef CONFIG_LINUX_AIO
 static int raw_set_aio(void **aio_ctx, int *use_aio, int bdrv_flags)
 {
@@ -446,6 +469,8 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         s->is_xfs = true;
     }
 #endif
+
+    raw_attach_aio_context(bs, bdrv_get_aio_context(bs));
 
     ret = 0;
 fail:
@@ -1059,6 +1084,14 @@ static BlockDriverAIOCB *raw_aio_flush(BlockDriverState *bs,
 static void raw_close(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
+
+    raw_detach_aio_context(bs);
+
+#ifdef CONFIG_LINUX_AIO
+    if (s->use_aio) {
+        laio_cleanup(s->aio_ctx);
+    }
+#endif
     if (s->fd >= 0) {
         qemu_close(s->fd);
         s->fd = -1;
@@ -1478,6 +1511,9 @@ static BlockDriver bdrv_file = {
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
 
+    .bdrv_detach_aio_context = raw_detach_aio_context,
+    .bdrv_attach_aio_context = raw_attach_aio_context,
+
     .create_options = raw_create_options,
 };
 
@@ -1878,6 +1914,9 @@ static BlockDriver bdrv_host_device = {
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
 
+    .bdrv_detach_aio_context = raw_detach_aio_context,
+    .bdrv_attach_aio_context = raw_attach_aio_context,
+
     /* generic scsi device */
 #ifdef __linux__
     .bdrv_ioctl         = hdev_ioctl,
@@ -2020,6 +2059,9 @@ static BlockDriver bdrv_host_floppy = {
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
 
+    .bdrv_detach_aio_context = raw_detach_aio_context,
+    .bdrv_attach_aio_context = raw_attach_aio_context,
+
     /* removable device support */
     .bdrv_is_inserted   = floppy_is_inserted,
     .bdrv_media_changed = floppy_media_changed,
@@ -2144,6 +2186,9 @@ static BlockDriver bdrv_host_cdrom = {
     .has_variable_length = true,
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
+
+    .bdrv_detach_aio_context = raw_detach_aio_context,
+    .bdrv_attach_aio_context = raw_attach_aio_context,
 
     /* removable device support */
     .bdrv_is_inserted   = cdrom_is_inserted,
@@ -2276,46 +2321,15 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
 
+    .bdrv_detach_aio_context = raw_detach_aio_context,
+    .bdrv_attach_aio_context = raw_attach_aio_context,
+
     /* removable device support */
     .bdrv_is_inserted   = cdrom_is_inserted,
     .bdrv_eject         = cdrom_eject,
     .bdrv_lock_medium   = cdrom_lock_medium,
 };
 #endif /* __FreeBSD__ */
-
-#ifdef CONFIG_LINUX_AIO
-/**
- * Return the file descriptor for Linux AIO
- *
- * This function is a layering violation and should be removed when it becomes
- * possible to call the block layer outside the global mutex.  It allows the
- * caller to hijack the file descriptor so I/O can be performed outside the
- * block layer.
- */
-int raw_get_aio_fd(BlockDriverState *bs)
-{
-    BDRVRawState *s;
-
-    if (!bs->drv) {
-        return -ENOMEDIUM;
-    }
-
-    if (bs->drv == bdrv_find_format("raw")) {
-        bs = bs->file;
-    }
-
-    /* raw-posix has several protocols so just check for raw_aio_readv */
-    if (bs->drv->bdrv_aio_readv != raw_aio_readv) {
-        return -ENOTSUP;
-    }
-
-    s = bs->opaque;
-    if (!s->use_aio) {
-        return -ENOTSUP;
-    }
-    return s->fd;
-}
-#endif /* CONFIG_LINUX_AIO */
 
 static void bdrv_file_init(void)
 {

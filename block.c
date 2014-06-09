@@ -179,6 +179,7 @@ void bdrv_io_limits_enable(BlockDriverState *bs)
 {
     assert(!bs->io_limits_enabled);
     throttle_init(&bs->throttle_state,
+                  bdrv_get_aio_context(bs),
                   QEMU_CLOCK_VIRTUAL,
                   bdrv_throttle_read_timer_cb,
                   bdrv_throttle_write_timer_cb,
@@ -363,6 +364,7 @@ BlockDriverState *bdrv_new(const char *device_name, Error **errp)
     qemu_co_queue_init(&bs->throttled_reqs[0]);
     qemu_co_queue_init(&bs->throttled_reqs[1]);
     bs->refcnt = 1;
+    bs->aio_context = qemu_get_aio_context();
 
     return bs;
 }
@@ -1856,7 +1858,11 @@ void bdrv_close_all(void)
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(aio_context);
         bdrv_close(bs);
+        aio_context_release(aio_context);
     }
 }
 
@@ -1881,17 +1887,6 @@ static bool bdrv_requests_pending(BlockDriverState *bs)
     return false;
 }
 
-static bool bdrv_requests_pending_all(void)
-{
-    BlockDriverState *bs;
-    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-        if (bdrv_requests_pending(bs)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 /*
  * Wait for pending requests to complete across all BlockDriverStates
  *
@@ -1911,12 +1906,20 @@ void bdrv_drain_all(void)
     BlockDriverState *bs;
 
     while (busy) {
-        QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-            bdrv_start_throttled_reqs(bs);
-        }
+        busy = false;
 
-        busy = bdrv_requests_pending_all();
-        busy |= aio_poll(qemu_get_aio_context(), busy);
+        QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+            AioContext *aio_context = bdrv_get_aio_context(bs);
+            bool bs_busy;
+
+            aio_context_acquire(aio_context);
+            bdrv_start_throttled_reqs(bs);
+            bs_busy = bdrv_requests_pending(bs);
+            bs_busy |= aio_poll(aio_context, bs_busy);
+            aio_context_release(aio_context);
+
+            busy |= bs_busy;
+        }
     }
 }
 
@@ -2352,12 +2355,17 @@ int bdrv_commit_all(void)
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(aio_context);
         if (bs->drv && bs->backing_hd) {
             int ret = bdrv_commit(bs);
             if (ret < 0) {
+                aio_context_release(aio_context);
                 return ret;
             }
         }
+        aio_context_release(aio_context);
     }
     return 0;
 }
@@ -2775,10 +2783,12 @@ static int bdrv_prwv_co(BlockDriverState *bs, int64_t offset,
         /* Fast-path if already in coroutine context */
         bdrv_rw_co_entry(&rwco);
     } else {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
         co = qemu_coroutine_create(bdrv_rw_co_entry);
         qemu_coroutine_enter(co, &rwco);
         while (rwco.ret == NOT_DONE) {
-            qemu_aio_wait();
+            aio_poll(aio_context, true);
         }
     }
     return rwco.ret;
@@ -3831,10 +3841,15 @@ int bdrv_flush_all(void)
     int result = 0;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-        int ret = bdrv_flush(bs);
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+        int ret;
+
+        aio_context_acquire(aio_context);
+        ret = bdrv_flush(bs);
         if (ret < 0 && !result) {
             result = ret;
         }
+        aio_context_release(aio_context);
     }
 
     return result;
@@ -4025,10 +4040,12 @@ int64_t bdrv_get_block_status(BlockDriverState *bs, int64_t sector_num,
         /* Fast-path if already in coroutine context */
         bdrv_get_block_status_co_entry(&data);
     } else {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
         co = qemu_coroutine_create(bdrv_get_block_status_co_entry);
         qemu_coroutine_enter(co, &data);
         while (!data.done) {
-            qemu_aio_wait();
+            aio_poll(aio_context, true);
         }
     }
     return data.ret;
@@ -4621,7 +4638,7 @@ static BlockDriverAIOCB *bdrv_aio_rw_vector(BlockDriverState *bs,
     acb->is_write = is_write;
     acb->qiov = qiov;
     acb->bounce = qemu_blockalign(bs, qiov->size);
-    acb->bh = qemu_bh_new(bdrv_aio_bh_cb, acb);
+    acb->bh = aio_bh_new(bdrv_get_aio_context(bs), bdrv_aio_bh_cb, acb);
 
     if (is_write) {
         qemu_iovec_to_buf(acb->qiov, 0, acb->bounce, qiov->size);
@@ -4660,13 +4677,14 @@ typedef struct BlockDriverAIOCBCoroutine {
 
 static void bdrv_aio_co_cancel_em(BlockDriverAIOCB *blockacb)
 {
+    AioContext *aio_context = bdrv_get_aio_context(blockacb->bs);
     BlockDriverAIOCBCoroutine *acb =
         container_of(blockacb, BlockDriverAIOCBCoroutine, common);
     bool done = false;
 
     acb->done = &done;
     while (!done) {
-        qemu_aio_wait();
+        aio_poll(aio_context, true);
     }
 }
 
@@ -4703,7 +4721,7 @@ static void coroutine_fn bdrv_co_do_rw(void *opaque)
             acb->req.nb_sectors, acb->req.qiov, acb->req.flags);
     }
 
-    acb->bh = qemu_bh_new(bdrv_co_em_bh, acb);
+    acb->bh = aio_bh_new(bdrv_get_aio_context(bs), bdrv_co_em_bh, acb);
     qemu_bh_schedule(acb->bh);
 }
 
@@ -4739,7 +4757,7 @@ static void coroutine_fn bdrv_aio_flush_co_entry(void *opaque)
     BlockDriverState *bs = acb->common.bs;
 
     acb->req.error = bdrv_co_flush(bs);
-    acb->bh = qemu_bh_new(bdrv_co_em_bh, acb);
+    acb->bh = aio_bh_new(bdrv_get_aio_context(bs), bdrv_co_em_bh, acb);
     qemu_bh_schedule(acb->bh);
 }
 
@@ -4766,7 +4784,7 @@ static void coroutine_fn bdrv_aio_discard_co_entry(void *opaque)
     BlockDriverState *bs = acb->common.bs;
 
     acb->req.error = bdrv_co_discard(bs, acb->req.sector, acb->req.nb_sectors);
-    acb->bh = qemu_bh_new(bdrv_co_em_bh, acb);
+    acb->bh = aio_bh_new(bdrv_get_aio_context(bs), bdrv_co_em_bh, acb);
     qemu_bh_schedule(acb->bh);
 }
 
@@ -4977,7 +4995,11 @@ void bdrv_invalidate_cache_all(Error **errp)
     Error *local_err = NULL;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(aio_context);
         bdrv_invalidate_cache(bs, &local_err);
+        aio_context_release(aio_context);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
@@ -4990,7 +5012,11 @@ void bdrv_clear_incoming_migration_all(void)
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(aio_context);
         bs->open_flags = bs->open_flags & ~(BDRV_O_INCOMING);
+        aio_context_release(aio_context);
     }
 }
 
@@ -5006,10 +5032,12 @@ int bdrv_flush(BlockDriverState *bs)
         /* Fast-path if already in coroutine context */
         bdrv_flush_co_entry(&rwco);
     } else {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
         co = qemu_coroutine_create(bdrv_flush_co_entry);
         qemu_coroutine_enter(co, &rwco);
         while (rwco.ret == NOT_DONE) {
-            qemu_aio_wait();
+            aio_poll(aio_context, true);
         }
     }
 
@@ -5119,10 +5147,12 @@ int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
         /* Fast-path if already in coroutine context */
         bdrv_discard_co_entry(&rwco);
     } else {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
         co = qemu_coroutine_create(bdrv_discard_co_entry);
         qemu_coroutine_enter(co, &rwco);
         while (rwco.ret == NOT_DONE) {
-            qemu_aio_wait();
+            aio_poll(aio_context, true);
         }
     }
 
@@ -5633,8 +5663,66 @@ out:
 
 AioContext *bdrv_get_aio_context(BlockDriverState *bs)
 {
-    /* Currently BlockDriverState always uses the main loop AioContext */
-    return qemu_get_aio_context();
+    return bs->aio_context;
+}
+
+void bdrv_detach_aio_context(BlockDriverState *bs)
+{
+    if (!bs->drv) {
+        return;
+    }
+
+    if (bs->io_limits_enabled) {
+        throttle_detach_aio_context(&bs->throttle_state);
+    }
+    if (bs->drv->bdrv_detach_aio_context) {
+        bs->drv->bdrv_detach_aio_context(bs);
+    }
+    if (bs->file) {
+        bdrv_detach_aio_context(bs->file);
+    }
+    if (bs->backing_hd) {
+        bdrv_detach_aio_context(bs->backing_hd);
+    }
+
+    bs->aio_context = NULL;
+}
+
+void bdrv_attach_aio_context(BlockDriverState *bs,
+                             AioContext *new_context)
+{
+    if (!bs->drv) {
+        return;
+    }
+
+    bs->aio_context = new_context;
+
+    if (bs->backing_hd) {
+        bdrv_attach_aio_context(bs->backing_hd, new_context);
+    }
+    if (bs->file) {
+        bdrv_attach_aio_context(bs->file, new_context);
+    }
+    if (bs->drv->bdrv_attach_aio_context) {
+        bs->drv->bdrv_attach_aio_context(bs, new_context);
+    }
+    if (bs->io_limits_enabled) {
+        throttle_attach_aio_context(&bs->throttle_state, new_context);
+    }
+}
+
+void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
+{
+    bdrv_drain_all(); /* ensure there are no in-flight requests */
+
+    bdrv_detach_aio_context(bs);
+
+    /* This function executes in the old AioContext so acquire the new one in
+     * case it runs in a different thread.
+     */
+    aio_context_acquire(new_context);
+    bdrv_attach_aio_context(bs, new_context);
+    aio_context_release(new_context);
 }
 
 void bdrv_add_before_write_notifier(BlockDriverState *bs,

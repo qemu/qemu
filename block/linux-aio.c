@@ -177,6 +177,20 @@ out_free_aiocb:
     return NULL;
 }
 
+void laio_detach_aio_context(void *s_, AioContext *old_context)
+{
+    struct qemu_laio_state *s = s_;
+
+    aio_set_event_notifier(old_context, &s->e, NULL);
+}
+
+void laio_attach_aio_context(void *s_, AioContext *new_context)
+{
+    struct qemu_laio_state *s = s_;
+
+    aio_set_event_notifier(new_context, &s->e, qemu_laio_completion_cb);
+}
+
 void *laio_init(void)
 {
     struct qemu_laio_state *s;
@@ -190,8 +204,6 @@ void *laio_init(void)
         goto out_close_efd;
     }
 
-    qemu_aio_set_event_notifier(&s->e, qemu_laio_completion_cb);
-
     return s;
 
 out_close_efd:
@@ -199,4 +211,12 @@ out_close_efd:
 out_free_state:
     g_free(s);
     return NULL;
+}
+
+void laio_cleanup(void *s_)
+{
+    struct qemu_laio_state *s = s_;
+
+    event_notifier_cleanup(&s->e);
+    g_free(s);
 }

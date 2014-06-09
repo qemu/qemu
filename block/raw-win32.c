@@ -36,8 +36,6 @@
 #define FTYPE_CD     1
 #define FTYPE_HARDDISK 2
 
-static QEMUWin32AIOState *aio;
-
 typedef struct RawWin32AIOData {
     BlockDriverState *bs;
     HANDLE hfile;
@@ -202,6 +200,25 @@ static int set_sparse(int fd)
 				 NULL, 0, NULL, 0, &returned, NULL);
 }
 
+static void raw_detach_aio_context(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+
+    if (s->aio) {
+        win32_aio_detach_aio_context(s->aio, bdrv_get_aio_context(bs));
+    }
+}
+
+static void raw_attach_aio_context(BlockDriverState *bs,
+                                   AioContext *new_context)
+{
+    BDRVRawState *s = bs->opaque;
+
+    if (s->aio) {
+        win32_aio_attach_aio_context(s->aio, new_context);
+    }
+}
+
 static void raw_probe_alignment(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
@@ -300,15 +317,6 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
 
     raw_parse_flags(flags, &access_flags, &overlapped);
 
-    if ((flags & BDRV_O_NATIVE_AIO) && aio == NULL) {
-        aio = win32_aio_init();
-        if (aio == NULL) {
-            error_setg(errp, "Could not initialize AIO");
-            ret = -EINVAL;
-            goto fail;
-        }
-    }
-
     if (filename[0] && filename[1] == ':') {
         snprintf(s->drive_path, sizeof(s->drive_path), "%c:\\", filename[0]);
     } else if (filename[0] == '\\' && filename[1] == '\\') {
@@ -335,13 +343,23 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (flags & BDRV_O_NATIVE_AIO) {
-        ret = win32_aio_attach(aio, s->hfile);
+        s->aio = win32_aio_init();
+        if (s->aio == NULL) {
+            CloseHandle(s->hfile);
+            error_setg(errp, "Could not initialize AIO");
+            ret = -EINVAL;
+            goto fail;
+        }
+
+        ret = win32_aio_attach(s->aio, s->hfile);
         if (ret < 0) {
+            win32_aio_cleanup(s->aio);
             CloseHandle(s->hfile);
             error_setg_errno(errp, -ret, "Could not enable AIO");
             goto fail;
         }
-        s->aio = aio;
+
+        win32_aio_attach_aio_context(s->aio, bdrv_get_aio_context(bs));
     }
 
     raw_probe_alignment(bs);
@@ -389,6 +407,13 @@ static BlockDriverAIOCB *raw_aio_flush(BlockDriverState *bs,
 static void raw_close(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
+
+    if (s->aio) {
+        win32_aio_detach_aio_context(s->aio, bdrv_get_aio_context(bs));
+        win32_aio_cleanup(s->aio);
+        s->aio = NULL;
+    }
+
     CloseHandle(s->hfile);
     if (bs->open_flags & BDRV_O_TEMPORARY) {
         unlink(bs->filename);
@@ -683,6 +708,9 @@ static BlockDriver bdrv_host_device = {
     .bdrv_aio_readv     = raw_aio_readv,
     .bdrv_aio_writev    = raw_aio_writev,
     .bdrv_aio_flush     = raw_aio_flush,
+
+    .bdrv_detach_aio_context = raw_detach_aio_context,
+    .bdrv_attach_aio_context = raw_attach_aio_context,
 
     .bdrv_getlength      = raw_getlength,
     .has_variable_length = true,

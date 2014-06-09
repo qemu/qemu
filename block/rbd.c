@@ -555,7 +555,7 @@ static void qemu_rbd_aio_cancel(BlockDriverAIOCB *blockacb)
     acb->cancelled = 1;
 
     while (acb->status == -EINPROGRESS) {
-        qemu_aio_wait();
+        aio_poll(bdrv_get_aio_context(acb->common.bs), true);
     }
 
     qemu_aio_release(acb);
@@ -588,7 +588,8 @@ static void rbd_finish_aiocb(rbd_completion_t c, RADOSCB *rcb)
     rcb->ret = rbd_aio_get_return_value(c);
     rbd_aio_release(c);
 
-    acb->bh = qemu_bh_new(rbd_finish_bh, rcb);
+    acb->bh = aio_bh_new(bdrv_get_aio_context(acb->common.bs),
+                         rbd_finish_bh, rcb);
     qemu_bh_schedule(acb->bh);
 }
 
@@ -684,13 +685,16 @@ static BlockDriverAIOCB *rbd_start_aio(BlockDriverState *bs,
     }
 
     if (r < 0) {
-        goto failed;
+        goto failed_completion;
     }
 
     return &acb->common;
 
+failed_completion:
+    rbd_aio_release(c);
 failed:
     g_free(rcb);
+    qemu_vfree(acb->bounce);
     qemu_aio_release(acb);
     return NULL;
 }

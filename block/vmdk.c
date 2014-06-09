@@ -2096,6 +2096,27 @@ static int vmdk_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return 0;
 }
 
+static void vmdk_detach_aio_context(BlockDriverState *bs)
+{
+    BDRVVmdkState *s = bs->opaque;
+    int i;
+
+    for (i = 0; i < s->num_extents; i++) {
+        bdrv_detach_aio_context(s->extents[i].file);
+    }
+}
+
+static void vmdk_attach_aio_context(BlockDriverState *bs,
+                                    AioContext *new_context)
+{
+    BDRVVmdkState *s = bs->opaque;
+    int i;
+
+    for (i = 0; i < s->num_extents; i++) {
+        bdrv_attach_aio_context(s->extents[i].file, new_context);
+    }
+}
+
 static QEMUOptionParameter vmdk_create_options[] = {
     {
         .name = BLOCK_OPT_SIZE,
@@ -2153,6 +2174,8 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_get_specific_info       = vmdk_get_specific_info,
     .bdrv_refresh_limits          = vmdk_refresh_limits,
     .bdrv_get_info                = vmdk_get_info,
+    .bdrv_detach_aio_context      = vmdk_detach_aio_context,
+    .bdrv_attach_aio_context      = vmdk_attach_aio_context,
 
     .create_options               = vmdk_create_options,
 };

@@ -21,12 +21,13 @@
 static void qed_aio_cancel(BlockDriverAIOCB *blockacb)
 {
     QEDAIOCB *acb = (QEDAIOCB *)blockacb;
+    AioContext *aio_context = bdrv_get_aio_context(blockacb->bs);
     bool finished = false;
 
     /* Wait for the request to finish */
     acb->finished = &finished;
     while (!finished) {
-        qemu_aio_wait();
+        aio_poll(aio_context, true);
     }
 }
 
@@ -373,6 +374,27 @@ static void bdrv_qed_rebind(BlockDriverState *bs)
     s->bs = bs;
 }
 
+static void bdrv_qed_detach_aio_context(BlockDriverState *bs)
+{
+    BDRVQEDState *s = bs->opaque;
+
+    qed_cancel_need_check_timer(s);
+    timer_free(s->need_check_timer);
+}
+
+static void bdrv_qed_attach_aio_context(BlockDriverState *bs,
+                                        AioContext *new_context)
+{
+    BDRVQEDState *s = bs->opaque;
+
+    s->need_check_timer = aio_timer_new(new_context,
+                                        QEMU_CLOCK_VIRTUAL, SCALE_NS,
+                                        qed_need_check_timer_cb, s);
+    if (s->header.features & QED_F_NEED_CHECK) {
+        qed_start_need_check_timer(s);
+    }
+}
+
 static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
                          Error **errp)
 {
@@ -496,8 +518,7 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
-    s->need_check_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                            qed_need_check_timer_cb, s);
+    bdrv_qed_attach_aio_context(bs, bdrv_get_aio_context(bs));
 
 out:
     if (ret) {
@@ -528,8 +549,7 @@ static void bdrv_qed_close(BlockDriverState *bs)
 {
     BDRVQEDState *s = bs->opaque;
 
-    qed_cancel_need_check_timer(s);
-    timer_free(s->need_check_timer);
+    bdrv_qed_detach_aio_context(bs);
 
     /* Ensure writes reach stable storage */
     bdrv_flush(bs->file);
@@ -919,7 +939,8 @@ static void qed_aio_complete(QEDAIOCB *acb, int ret)
 
     /* Arrange for a bh to invoke the completion function */
     acb->bh_ret = ret;
-    acb->bh = qemu_bh_new(qed_aio_complete_bh, acb);
+    acb->bh = aio_bh_new(bdrv_get_aio_context(acb->common.bs),
+                         qed_aio_complete_bh, acb);
     qemu_bh_schedule(acb->bh);
 
     /* Start next allocating write request waiting behind this one.  Note that
@@ -1644,6 +1665,8 @@ static BlockDriver bdrv_qed = {
     .bdrv_change_backing_file = bdrv_qed_change_backing_file,
     .bdrv_invalidate_cache    = bdrv_qed_invalidate_cache,
     .bdrv_check               = bdrv_qed_check,
+    .bdrv_detach_aio_context  = bdrv_qed_detach_aio_context,
+    .bdrv_attach_aio_context  = bdrv_qed_attach_aio_context,
 };
 
 static void bdrv_qed_init(void)

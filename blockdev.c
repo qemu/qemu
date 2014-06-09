@@ -1703,6 +1703,7 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
 {
     ThrottleConfig cfg;
     BlockDriverState *bs;
+    AioContext *aio_context;
 
     bs = bdrv_find(device);
     if (!bs) {
@@ -1746,6 +1747,9 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
         return;
     }
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
     if (!bs->io_limits_enabled && throttle_enabled(&cfg)) {
         bdrv_io_limits_enable(bs);
     } else if (bs->io_limits_enabled && !throttle_enabled(&cfg)) {
@@ -1755,6 +1759,8 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
     if (bs->io_limits_enabled) {
         bdrv_set_io_limits(bs, &cfg);
     }
+
+    aio_context_release(aio_context);
 }
 
 int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)

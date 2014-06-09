@@ -580,10 +580,11 @@ static int collect_image_check(BlockDriverState *bs,
 /*
  * Checks an image for consistency. Exit codes:
  *
- * 0 - Check completed, image is good
- * 1 - Check not completed because of internal errors
- * 2 - Check completed, image is corrupted
- * 3 - Check completed, image has leaked clusters, but is good otherwise
+ *  0 - Check completed, image is good
+ *  1 - Check not completed because of internal errors
+ *  2 - Check completed, image is corrupted
+ *  3 - Check completed, image has leaked clusters, but is good otherwise
+ * 63 - Checks are not supported by the image format
  */
 static int img_check(int argc, char **argv)
 {
