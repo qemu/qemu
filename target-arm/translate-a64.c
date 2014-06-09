@@ -85,6 +85,8 @@ typedef void NeonGenWidenFn(TCGv_i64, TCGv_i32);
 typedef void NeonGenTwoSingleOPFn(TCGv_i32, TCGv_i32, TCGv_i32, TCGv_ptr);
 typedef void NeonGenTwoDoubleOPFn(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_ptr);
 typedef void NeonGenOneOpFn(TCGv_i64, TCGv_i64);
+typedef void CryptoTwoOpEnvFn(TCGv_ptr, TCGv_i32, TCGv_i32);
+typedef void CryptoThreeOpEnvFn(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32);
 
 /* initialize TCG globals.  */
 void a64_translate_init(void)
@@ -3774,6 +3776,54 @@ static void handle_shift_reg(DisasContext *s,
     tcg_temp_free_i64(tcg_shift);
 }
 
+/* CRC32[BHWX], CRC32C[BHWX] */
+static void handle_crc32(DisasContext *s,
+                         unsigned int sf, unsigned int sz, bool crc32c,
+                         unsigned int rm, unsigned int rn, unsigned int rd)
+{
+    TCGv_i64 tcg_acc, tcg_val;
+    TCGv_i32 tcg_bytes;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_CRC)
+        || (sf == 1 && sz != 3)
+        || (sf == 0 && sz == 3)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (sz == 3) {
+        tcg_val = cpu_reg(s, rm);
+    } else {
+        uint64_t mask;
+        switch (sz) {
+        case 0:
+            mask = 0xFF;
+            break;
+        case 1:
+            mask = 0xFFFF;
+            break;
+        case 2:
+            mask = 0xFFFFFFFF;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        tcg_val = new_tmp_a64(s);
+        tcg_gen_andi_i64(tcg_val, cpu_reg(s, rm), mask);
+    }
+
+    tcg_acc = cpu_reg(s, rn);
+    tcg_bytes = tcg_const_i32(1 << sz);
+
+    if (crc32c) {
+        gen_helper_crc32c_64(cpu_reg(s, rd), tcg_acc, tcg_val, tcg_bytes);
+    } else {
+        gen_helper_crc32_64(cpu_reg(s, rd), tcg_acc, tcg_val, tcg_bytes);
+    }
+
+    tcg_temp_free_i32(tcg_bytes);
+}
+
 /* C3.5.8 Data-processing (2 source)
  *   31   30  29 28             21 20  16 15    10 9    5 4    0
  * +----+---+---+-----------------+------+--------+------+------+
@@ -3821,8 +3871,12 @@ static void disas_data_proc_2src(DisasContext *s, uint32_t insn)
     case 21:
     case 22:
     case 23: /* CRC32 */
-        unsupported_encoding(s, insn);
+    {
+        int sz = extract32(opcode, 0, 2);
+        bool crc32c = extract32(opcode, 2, 1);
+        handle_crc32(s, sf, sz, crc32c, rm, rn, rd);
         break;
+    }
     default:
         unallocated_encoding(s);
         break;
@@ -8574,7 +8628,7 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
             return;
         }
         if (size == 3) {
-            if (!arm_dc_feature(s, ARM_FEATURE_V8_AES)) {
+            if (!arm_dc_feature(s, ARM_FEATURE_V8_PMULL)) {
                 unallocated_encoding(s);
                 return;
             }
@@ -10497,7 +10551,55 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
  */
 static void disas_crypto_aes(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int size = extract32(insn, 22, 2);
+    int opcode = extract32(insn, 12, 5);
+    int rn = extract32(insn, 5, 5);
+    int rd = extract32(insn, 0, 5);
+    int decrypt;
+    TCGv_i32 tcg_rd_regno, tcg_rn_regno, tcg_decrypt;
+    CryptoThreeOpEnvFn *genfn;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_V8_AES)
+        || size != 0) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    switch (opcode) {
+    case 0x4: /* AESE */
+        decrypt = 0;
+        genfn = gen_helper_crypto_aese;
+        break;
+    case 0x6: /* AESMC */
+        decrypt = 0;
+        genfn = gen_helper_crypto_aesmc;
+        break;
+    case 0x5: /* AESD */
+        decrypt = 1;
+        genfn = gen_helper_crypto_aese;
+        break;
+    case 0x7: /* AESIMC */
+        decrypt = 1;
+        genfn = gen_helper_crypto_aesmc;
+        break;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+
+    /* Note that we convert the Vx register indexes into the
+     * index within the vfp.regs[] array, so we can share the
+     * helper with the AArch32 instructions.
+     */
+    tcg_rd_regno = tcg_const_i32(rd << 1);
+    tcg_rn_regno = tcg_const_i32(rn << 1);
+    tcg_decrypt = tcg_const_i32(decrypt);
+
+    genfn(cpu_env, tcg_rd_regno, tcg_rn_regno, tcg_decrypt);
+
+    tcg_temp_free_i32(tcg_rd_regno);
+    tcg_temp_free_i32(tcg_rn_regno);
+    tcg_temp_free_i32(tcg_decrypt);
 }
 
 /* C3.6.20 Crypto three-reg SHA
@@ -10508,7 +10610,64 @@ static void disas_crypto_aes(DisasContext *s, uint32_t insn)
  */
 static void disas_crypto_three_reg_sha(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int size = extract32(insn, 22, 2);
+    int opcode = extract32(insn, 12, 3);
+    int rm = extract32(insn, 16, 5);
+    int rn = extract32(insn, 5, 5);
+    int rd = extract32(insn, 0, 5);
+    CryptoThreeOpEnvFn *genfn;
+    TCGv_i32 tcg_rd_regno, tcg_rn_regno, tcg_rm_regno;
+    int feature = ARM_FEATURE_V8_SHA256;
+
+    if (size != 0) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    switch (opcode) {
+    case 0: /* SHA1C */
+    case 1: /* SHA1P */
+    case 2: /* SHA1M */
+    case 3: /* SHA1SU0 */
+        genfn = NULL;
+        feature = ARM_FEATURE_V8_SHA1;
+        break;
+    case 4: /* SHA256H */
+        genfn = gen_helper_crypto_sha256h;
+        break;
+    case 5: /* SHA256H2 */
+        genfn = gen_helper_crypto_sha256h2;
+        break;
+    case 6: /* SHA256SU1 */
+        genfn = gen_helper_crypto_sha256su1;
+        break;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (!arm_dc_feature(s, feature)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    tcg_rd_regno = tcg_const_i32(rd << 1);
+    tcg_rn_regno = tcg_const_i32(rn << 1);
+    tcg_rm_regno = tcg_const_i32(rm << 1);
+
+    if (genfn) {
+        genfn(cpu_env, tcg_rd_regno, tcg_rn_regno, tcg_rm_regno);
+    } else {
+        TCGv_i32 tcg_opcode = tcg_const_i32(opcode);
+
+        gen_helper_crypto_sha1_3reg(cpu_env, tcg_rd_regno,
+                                    tcg_rn_regno, tcg_rm_regno, tcg_opcode);
+        tcg_temp_free_i32(tcg_opcode);
+    }
+
+    tcg_temp_free_i32(tcg_rd_regno);
+    tcg_temp_free_i32(tcg_rn_regno);
+    tcg_temp_free_i32(tcg_rm_regno);
 }
 
 /* C3.6.21 Crypto two-reg SHA
@@ -10519,7 +10678,49 @@ static void disas_crypto_three_reg_sha(DisasContext *s, uint32_t insn)
  */
 static void disas_crypto_two_reg_sha(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int size = extract32(insn, 22, 2);
+    int opcode = extract32(insn, 12, 5);
+    int rn = extract32(insn, 5, 5);
+    int rd = extract32(insn, 0, 5);
+    CryptoTwoOpEnvFn *genfn;
+    int feature;
+    TCGv_i32 tcg_rd_regno, tcg_rn_regno;
+
+    if (size != 0) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    switch (opcode) {
+    case 0: /* SHA1H */
+        feature = ARM_FEATURE_V8_SHA1;
+        genfn = gen_helper_crypto_sha1h;
+        break;
+    case 1: /* SHA1SU1 */
+        feature = ARM_FEATURE_V8_SHA1;
+        genfn = gen_helper_crypto_sha1su1;
+        break;
+    case 2: /* SHA256SU0 */
+        feature = ARM_FEATURE_V8_SHA256;
+        genfn = gen_helper_crypto_sha256su0;
+        break;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (!arm_dc_feature(s, feature)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    tcg_rd_regno = tcg_const_i32(rd << 1);
+    tcg_rn_regno = tcg_const_i32(rn << 1);
+
+    genfn(cpu_env, tcg_rd_regno, tcg_rn_regno);
+
+    tcg_temp_free_i32(tcg_rd_regno);
+    tcg_temp_free_i32(tcg_rn_regno);
 }
 
 /* C3.6 Data processing - SIMD, inc Crypto

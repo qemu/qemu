@@ -369,15 +369,6 @@ IWMMXT_OP_AVGW(1)
 #undef IWMMXT_OP_AVGW
 #undef AVGW
 
-uint64_t HELPER(iwmmxt_msadb)(uint64_t a, uint64_t b)
-{
-    a =  ((((a >> 0 ) & 0xffff) * ((b >> 0) & 0xffff) +
-           ((a >> 16) & 0xffff) * ((b >> 16) & 0xffff)) & 0xffffffff) |
-         ((((a >> 32) & 0xffff) * ((b >> 32) & 0xffff) +
-           ((a >> 48) & 0xffff) * ((b >> 48) & 0xffff)) << 32);
-    return a;
-}
-
 uint64_t HELPER(iwmmxt_align)(uint64_t a, uint64_t b, uint32_t n)
 {
     a >>= n << 3;

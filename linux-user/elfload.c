@@ -468,6 +468,9 @@ static uint32_t get_elf_hwcap2(void)
     uint32_t hwcaps = 0;
 
     GET_FEATURE(ARM_FEATURE_V8_AES, ARM_HWCAP2_ARM_AES);
+    GET_FEATURE(ARM_FEATURE_V8_PMULL, ARM_HWCAP2_ARM_PMULL);
+    GET_FEATURE(ARM_FEATURE_V8_SHA1, ARM_HWCAP2_ARM_SHA1);
+    GET_FEATURE(ARM_FEATURE_V8_SHA256, ARM_HWCAP2_ARM_SHA2);
     GET_FEATURE(ARM_FEATURE_CRC, ARM_HWCAP2_ARM_CRC32);
     return hwcaps;
 }
@@ -536,7 +539,11 @@ static uint32_t get_elf_hwcap(void)
     /* probe for the extra features */
 #define GET_FEATURE(feat, hwcap) \
     do { if (arm_feature(&cpu->env, feat)) { hwcaps |= hwcap; } } while (0)
-    GET_FEATURE(ARM_FEATURE_V8_AES, ARM_HWCAP_A64_PMULL);
+    GET_FEATURE(ARM_FEATURE_V8_AES, ARM_HWCAP_A64_AES);
+    GET_FEATURE(ARM_FEATURE_V8_PMULL, ARM_HWCAP_A64_PMULL);
+    GET_FEATURE(ARM_FEATURE_V8_SHA1, ARM_HWCAP_A64_SHA1);
+    GET_FEATURE(ARM_FEATURE_V8_SHA256, ARM_HWCAP_A64_SHA2);
+    GET_FEATURE(ARM_FEATURE_CRC, ARM_HWCAP_A64_CRC32);
 #undef GET_FEATURE
 
     return hwcaps;

@@ -24,6 +24,8 @@
 #include "sysemu/sysemu.h"
 #include "qemu/bitops.h"
 #include "internals.h"
+#include "qemu/crc32c.h"
+#include <zlib.h> /* For crc32 */
 
 /* C2.4.7 Multiply and divide */
 /* special cases for 0 and LLONG_MIN are mandated by the standard */
@@ -184,36 +186,6 @@ uint64_t HELPER(simd_tbl)(CPUARMState *env, uint64_t result, uint64_t indices,
         }
     }
     return result;
-}
-
-/* Helper function for 64 bit polynomial multiply case:
- * perform PolynomialMult(op1, op2) and return either the top or
- * bottom half of the 128 bit result.
- */
-uint64_t HELPER(neon_pmull_64_lo)(uint64_t op1, uint64_t op2)
-{
-    int bitnum;
-    uint64_t res = 0;
-
-    for (bitnum = 0; bitnum < 64; bitnum++) {
-        if (op1 & (1ULL << bitnum)) {
-            res ^= op2 << bitnum;
-        }
-    }
-    return res;
-}
-uint64_t HELPER(neon_pmull_64_hi)(uint64_t op1, uint64_t op2)
-{
-    int bitnum;
-    uint64_t res = 0;
-
-    /* bit 0 of op1 can't influence the high 64 bits at all */
-    for (bitnum = 1; bitnum < 64; bitnum++) {
-        if (op1 & (1ULL << bitnum)) {
-            res ^= op2 >> (64 - bitnum);
-        }
-    }
-    return res;
 }
 
 /* 64bit/double versions of the neon float compare functions */
@@ -436,6 +408,34 @@ float32 HELPER(fcvtx_f64_to_f32)(float64 a, CPUARMState *env)
     exflags |= get_float_exception_flags(fpst);
     set_float_exception_flags(exflags, fpst);
     return r;
+}
+
+/* 64-bit versions of the CRC helpers. Note that although the operation
+ * (and the prototypes of crc32c() and crc32() mean that only the bottom
+ * 32 bits of the accumulator and result are used, we pass and return
+ * uint64_t for convenience of the generated code. Unlike the 32-bit
+ * instruction set versions, val may genuinely have 64 bits of data in it.
+ * The upper bytes of val (above the number specified by 'bytes') must have
+ * been zeroed out by the caller.
+ */
+uint64_t HELPER(crc32_64)(uint64_t acc, uint64_t val, uint32_t bytes)
+{
+    uint8_t buf[8];
+
+    stq_le_p(buf, val);
+
+    /* zlib crc32 converts the accumulator and output to one's complement.  */
+    return crc32(acc ^ 0xffffffff, buf, bytes) ^ 0xffffffff;
+}
+
+uint64_t HELPER(crc32c_64)(uint64_t acc, uint64_t val, uint32_t bytes)
+{
+    uint8_t buf[8];
+
+    stq_le_p(buf, val);
+
+    /* Linux crc32c converts the output to one's complement.  */
+    return crc32c(acc, buf, bytes) ^ 0xffffffff;
 }
 
 /* Handle a CPU exception.  */

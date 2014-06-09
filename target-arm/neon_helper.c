@@ -2211,3 +2211,33 @@ void HELPER(neon_zip16)(CPUARMState *env, uint32_t rd, uint32_t rm)
     env->vfp.regs[rm] = make_float64(m0);
     env->vfp.regs[rd] = make_float64(d0);
 }
+
+/* Helper function for 64 bit polynomial multiply case:
+ * perform PolynomialMult(op1, op2) and return either the top or
+ * bottom half of the 128 bit result.
+ */
+uint64_t HELPER(neon_pmull_64_lo)(uint64_t op1, uint64_t op2)
+{
+    int bitnum;
+    uint64_t res = 0;
+
+    for (bitnum = 0; bitnum < 64; bitnum++) {
+        if (op1 & (1ULL << bitnum)) {
+            res ^= op2 << bitnum;
+        }
+    }
+    return res;
+}
+uint64_t HELPER(neon_pmull_64_hi)(uint64_t op1, uint64_t op2)
+{
+    int bitnum;
+    uint64_t res = 0;
+
+    /* bit 0 of op1 can't influence the high 64 bits at all */
+    for (bitnum = 1; bitnum < 64; bitnum++) {
+        if (op1 & (1ULL << bitnum)) {
+            res ^= op2 >> (64 - bitnum);
+        }
+    }
+    return res;
+}
