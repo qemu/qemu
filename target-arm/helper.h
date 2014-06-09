@@ -456,8 +456,6 @@ DEF_HELPER_3(iwmmxt_avgb1, i64, env, i64, i64)
 DEF_HELPER_3(iwmmxt_avgw0, i64, env, i64, i64)
 DEF_HELPER_3(iwmmxt_avgw1, i64, env, i64, i64)
 
-DEF_HELPER_2(iwmmxt_msadb, i64, i64, i64)
-
 DEF_HELPER_3(iwmmxt_align, i64, i64, i64, i32)
 DEF_HELPER_4(iwmmxt_insr, i64, i64, i32, i32, i32)
 

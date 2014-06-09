@@ -1382,8 +1382,6 @@ IWMMXT_OP_ENV(avgb1)
 IWMMXT_OP_ENV(avgw0)
 IWMMXT_OP_ENV(avgw1)
 
-IWMMXT_OP(msadb)
-
 IWMMXT_OP_ENV(packuw)
 IWMMXT_OP_ENV(packul)
 IWMMXT_OP_ENV(packuq)
