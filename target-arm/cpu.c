@@ -319,6 +319,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         set_feature(env, ARM_FEATURE_V8_AES);
         set_feature(env, ARM_FEATURE_V8_SHA1);
         set_feature(env, ARM_FEATURE_V8_SHA256);
+        set_feature(env, ARM_FEATURE_V8_PMULL);
     }
     if (arm_feature(env, ARM_FEATURE_V7)) {
         set_feature(env, ARM_FEATURE_VAPA);

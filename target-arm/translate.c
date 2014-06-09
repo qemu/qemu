@@ -5977,7 +5977,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     {0, 0, 0, 9}, /* VQDMLSL */
                     {0, 0, 0, 0}, /* Integer VMULL */
                     {0, 0, 0, 1}, /* VQDMULL */
-                    {0, 0, 0, 15}, /* Polynomial VMULL */
+                    {0, 0, 0, 0xa}, /* Polynomial VMULL */
                     {0, 0, 0, 7}, /* Reserved: always UNDEF */
                 };
 
@@ -5994,6 +5994,30 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     (src2_wide && (rm & 1)) ||
                     (!src2_wide && (rd & 1))) {
                     return 1;
+                }
+
+                /* Handle VMULL.P64 (Polynomial 64x64 to 128 bit multiply)
+                 * outside the loop below as it only performs a single pass.
+                 */
+                if (op == 14 && size == 2) {
+                    TCGv_i64 tcg_rn, tcg_rm, tcg_rd;
+
+                    if (!arm_feature(env, ARM_FEATURE_V8_PMULL)) {
+                        return 1;
+                    }
+                    tcg_rn = tcg_temp_new_i64();
+                    tcg_rm = tcg_temp_new_i64();
+                    tcg_rd = tcg_temp_new_i64();
+                    neon_load_reg64(tcg_rn, rn);
+                    neon_load_reg64(tcg_rm, rm);
+                    gen_helper_neon_pmull_64_lo(tcg_rd, tcg_rn, tcg_rm);
+                    neon_store_reg64(tcg_rd, rd);
+                    gen_helper_neon_pmull_64_hi(tcg_rd, tcg_rn, tcg_rm);
+                    neon_store_reg64(tcg_rd, rd + 1);
+                    tcg_temp_free_i64(tcg_rn);
+                    tcg_temp_free_i64(tcg_rm);
+                    tcg_temp_free_i64(tcg_rd);
+                    return 0;
                 }
 
                 /* Avoid overlapping operands.  Wide source operands are
