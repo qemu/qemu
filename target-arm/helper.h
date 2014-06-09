@@ -512,6 +512,15 @@ DEF_HELPER_3(neon_qzip32, void, env, i32, i32)
 DEF_HELPER_4(crypto_aese, void, env, i32, i32, i32)
 DEF_HELPER_4(crypto_aesmc, void, env, i32, i32, i32)
 
+DEF_HELPER_5(crypto_sha1_3reg, void, env, i32, i32, i32, i32)
+DEF_HELPER_3(crypto_sha1h, void, env, i32, i32)
+DEF_HELPER_3(crypto_sha1su1, void, env, i32, i32)
+
+DEF_HELPER_4(crypto_sha256h, void, env, i32, i32, i32)
+DEF_HELPER_4(crypto_sha256h2, void, env, i32, i32, i32)
+DEF_HELPER_3(crypto_sha256su0, void, env, i32, i32)
+DEF_HELPER_4(crypto_sha256su1, void, env, i32, i32, i32)
+
 DEF_HELPER_FLAGS_3(crc32, TCG_CALL_NO_RWG_SE, i32, i32, i32, i32)
 DEF_HELPER_FLAGS_3(crc32c, TCG_CALL_NO_RWG_SE, i32, i32, i32, i32)
 DEF_HELPER_2(dc_zva, void, env, i64)

@@ -1,7 +1,7 @@
 /*
  * crypto_helper.c - emulate v8 Crypto Extensions instructions
  *
- * Copyright (C) 2013 Linaro Ltd <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2013 - 2014 Linaro Ltd <ard.biesheuvel@linaro.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -15,9 +15,9 @@
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 
-union AES_STATE {
+union CRYPTO_STATE {
     uint8_t    bytes[16];
-    uint32_t   cols[4];
+    uint32_t   words[4];
     uint64_t   l[2];
 };
 
@@ -99,11 +99,11 @@ void HELPER(crypto_aese)(CPUARMState *env, uint32_t rd, uint32_t rm,
         /* ShiftRows permutation vector for decryption */
         { 0, 13, 10,  7, 4, 1, 14, 11, 8,  5, 2, 15, 12, 9, 6,  3 },
     };
-    union AES_STATE rk = { .l = {
+    union CRYPTO_STATE rk = { .l = {
         float64_val(env->vfp.regs[rm]),
         float64_val(env->vfp.regs[rm + 1])
     } };
-    union AES_STATE st = { .l = {
+    union CRYPTO_STATE st = { .l = {
         float64_val(env->vfp.regs[rd]),
         float64_val(env->vfp.regs[rd + 1])
     } };
@@ -260,7 +260,7 @@ void HELPER(crypto_aesmc)(CPUARMState *env, uint32_t rd, uint32_t rm,
         0x92b479a7, 0x99b970a9, 0x84ae6bbb, 0x8fa362b5,
         0xbe805d9f, 0xb58d5491, 0xa89a4f83, 0xa397468d,
     } };
-    union AES_STATE st = { .l = {
+    union CRYPTO_STATE st = { .l = {
         float64_val(env->vfp.regs[rm]),
         float64_val(env->vfp.regs[rm + 1])
     } };
@@ -269,7 +269,7 @@ void HELPER(crypto_aesmc)(CPUARMState *env, uint32_t rd, uint32_t rm,
     assert(decrypt < 2);
 
     for (i = 0; i < 16; i += 4) {
-        st.cols[i >> 2] = cpu_to_le32(
+        st.words[i >> 2] = cpu_to_le32(
             mc[decrypt][st.bytes[i]] ^
             rol32(mc[decrypt][st.bytes[i + 1]], 8) ^
             rol32(mc[decrypt][st.bytes[i + 2]], 16) ^
@@ -278,4 +278,247 @@ void HELPER(crypto_aesmc)(CPUARMState *env, uint32_t rd, uint32_t rm,
 
     env->vfp.regs[rd] = make_float64(st.l[0]);
     env->vfp.regs[rd + 1] = make_float64(st.l[1]);
+}
+
+/*
+ * SHA-1 logical functions
+ */
+
+static uint32_t cho(uint32_t x, uint32_t y, uint32_t z)
+{
+    return (x & (y ^ z)) ^ z;
+}
+
+static uint32_t par(uint32_t x, uint32_t y, uint32_t z)
+{
+    return x ^ y ^ z;
+}
+
+static uint32_t maj(uint32_t x, uint32_t y, uint32_t z)
+{
+    return (x & y) | ((x | y) & z);
+}
+
+void HELPER(crypto_sha1_3reg)(CPUARMState *env, uint32_t rd, uint32_t rn,
+                              uint32_t rm, uint32_t op)
+{
+    union CRYPTO_STATE d = { .l = {
+        float64_val(env->vfp.regs[rd]),
+        float64_val(env->vfp.regs[rd + 1])
+    } };
+    union CRYPTO_STATE n = { .l = {
+        float64_val(env->vfp.regs[rn]),
+        float64_val(env->vfp.regs[rn + 1])
+    } };
+    union CRYPTO_STATE m = { .l = {
+        float64_val(env->vfp.regs[rm]),
+        float64_val(env->vfp.regs[rm + 1])
+    } };
+
+    if (op == 3) { /* sha1su0 */
+        d.l[0] ^= d.l[1] ^ m.l[0];
+        d.l[1] ^= n.l[0] ^ m.l[1];
+    } else {
+        int i;
+
+        for (i = 0; i < 4; i++) {
+            uint32_t t;
+
+            switch (op) {
+            case 0: /* sha1c */
+                t = cho(d.words[1], d.words[2], d.words[3]);
+                break;
+            case 1: /* sha1p */
+                t = par(d.words[1], d.words[2], d.words[3]);
+                break;
+            case 2: /* sha1m */
+                t = maj(d.words[1], d.words[2], d.words[3]);
+                break;
+            default:
+                g_assert_not_reached();
+            }
+            t += rol32(d.words[0], 5) + n.words[0] + m.words[i];
+
+            n.words[0] = d.words[3];
+            d.words[3] = d.words[2];
+            d.words[2] = ror32(d.words[1], 2);
+            d.words[1] = d.words[0];
+            d.words[0] = t;
+        }
+    }
+    env->vfp.regs[rd] = make_float64(d.l[0]);
+    env->vfp.regs[rd + 1] = make_float64(d.l[1]);
+}
+
+void HELPER(crypto_sha1h)(CPUARMState *env, uint32_t rd, uint32_t rm)
+{
+    union CRYPTO_STATE m = { .l = {
+        float64_val(env->vfp.regs[rm]),
+        float64_val(env->vfp.regs[rm + 1])
+    } };
+
+    m.words[0] = ror32(m.words[0], 2);
+    m.words[1] = m.words[2] = m.words[3] = 0;
+
+    env->vfp.regs[rd] = make_float64(m.l[0]);
+    env->vfp.regs[rd + 1] = make_float64(m.l[1]);
+}
+
+void HELPER(crypto_sha1su1)(CPUARMState *env, uint32_t rd, uint32_t rm)
+{
+    union CRYPTO_STATE d = { .l = {
+        float64_val(env->vfp.regs[rd]),
+        float64_val(env->vfp.regs[rd + 1])
+    } };
+    union CRYPTO_STATE m = { .l = {
+        float64_val(env->vfp.regs[rm]),
+        float64_val(env->vfp.regs[rm + 1])
+    } };
+
+    d.words[0] = rol32(d.words[0] ^ m.words[1], 1);
+    d.words[1] = rol32(d.words[1] ^ m.words[2], 1);
+    d.words[2] = rol32(d.words[2] ^ m.words[3], 1);
+    d.words[3] = rol32(d.words[3] ^ d.words[0], 1);
+
+    env->vfp.regs[rd] = make_float64(d.l[0]);
+    env->vfp.regs[rd + 1] = make_float64(d.l[1]);
+}
+
+/*
+ * The SHA-256 logical functions, according to
+ * http://csrc.nist.gov/groups/STM/cavp/documents/shs/sha256-384-512.pdf
+ */
+
+static uint32_t S0(uint32_t x)
+{
+    return ror32(x, 2) ^ ror32(x, 13) ^ ror32(x, 22);
+}
+
+static uint32_t S1(uint32_t x)
+{
+    return ror32(x, 6) ^ ror32(x, 11) ^ ror32(x, 25);
+}
+
+static uint32_t s0(uint32_t x)
+{
+    return ror32(x, 7) ^ ror32(x, 18) ^ (x >> 3);
+}
+
+static uint32_t s1(uint32_t x)
+{
+    return ror32(x, 17) ^ ror32(x, 19) ^ (x >> 10);
+}
+
+void HELPER(crypto_sha256h)(CPUARMState *env, uint32_t rd, uint32_t rn,
+                            uint32_t rm)
+{
+    union CRYPTO_STATE d = { .l = {
+        float64_val(env->vfp.regs[rd]),
+        float64_val(env->vfp.regs[rd + 1])
+    } };
+    union CRYPTO_STATE n = { .l = {
+        float64_val(env->vfp.regs[rn]),
+        float64_val(env->vfp.regs[rn + 1])
+    } };
+    union CRYPTO_STATE m = { .l = {
+        float64_val(env->vfp.regs[rm]),
+        float64_val(env->vfp.regs[rm + 1])
+    } };
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        uint32_t t = cho(n.words[0], n.words[1], n.words[2]) + n.words[3]
+                     + S1(n.words[0]) + m.words[i];
+
+        n.words[3] = n.words[2];
+        n.words[2] = n.words[1];
+        n.words[1] = n.words[0];
+        n.words[0] = d.words[3] + t;
+
+        t += maj(d.words[0], d.words[1], d.words[2]) + S0(d.words[0]);
+
+        d.words[3] = d.words[2];
+        d.words[2] = d.words[1];
+        d.words[1] = d.words[0];
+        d.words[0] = t;
+    }
+
+    env->vfp.regs[rd] = make_float64(d.l[0]);
+    env->vfp.regs[rd + 1] = make_float64(d.l[1]);
+}
+
+void HELPER(crypto_sha256h2)(CPUARMState *env, uint32_t rd, uint32_t rn,
+                             uint32_t rm)
+{
+    union CRYPTO_STATE d = { .l = {
+        float64_val(env->vfp.regs[rd]),
+        float64_val(env->vfp.regs[rd + 1])
+    } };
+    union CRYPTO_STATE n = { .l = {
+        float64_val(env->vfp.regs[rn]),
+        float64_val(env->vfp.regs[rn + 1])
+    } };
+    union CRYPTO_STATE m = { .l = {
+        float64_val(env->vfp.regs[rm]),
+        float64_val(env->vfp.regs[rm + 1])
+    } };
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        uint32_t t = cho(d.words[0], d.words[1], d.words[2]) + d.words[3]
+                     + S1(d.words[0]) + m.words[i];
+
+        d.words[3] = d.words[2];
+        d.words[2] = d.words[1];
+        d.words[1] = d.words[0];
+        d.words[0] = n.words[3 - i] + t;
+    }
+
+    env->vfp.regs[rd] = make_float64(d.l[0]);
+    env->vfp.regs[rd + 1] = make_float64(d.l[1]);
+}
+
+void HELPER(crypto_sha256su0)(CPUARMState *env, uint32_t rd, uint32_t rm)
+{
+    union CRYPTO_STATE d = { .l = {
+        float64_val(env->vfp.regs[rd]),
+        float64_val(env->vfp.regs[rd + 1])
+    } };
+    union CRYPTO_STATE m = { .l = {
+        float64_val(env->vfp.regs[rm]),
+        float64_val(env->vfp.regs[rm + 1])
+    } };
+
+    d.words[0] += s0(d.words[1]);
+    d.words[1] += s0(d.words[2]);
+    d.words[2] += s0(d.words[3]);
+    d.words[3] += s0(m.words[0]);
+
+    env->vfp.regs[rd] = make_float64(d.l[0]);
+    env->vfp.regs[rd + 1] = make_float64(d.l[1]);
+}
+
+void HELPER(crypto_sha256su1)(CPUARMState *env, uint32_t rd, uint32_t rn,
+                              uint32_t rm)
+{
+    union CRYPTO_STATE d = { .l = {
+        float64_val(env->vfp.regs[rd]),
+        float64_val(env->vfp.regs[rd + 1])
+    } };
+    union CRYPTO_STATE n = { .l = {
+        float64_val(env->vfp.regs[rn]),
+        float64_val(env->vfp.regs[rn + 1])
+    } };
+    union CRYPTO_STATE m = { .l = {
+        float64_val(env->vfp.regs[rm]),
+        float64_val(env->vfp.regs[rm + 1])
+    } };
+
+    d.words[0] += s1(m.words[2]) + n.words[1];
+    d.words[1] += s1(m.words[3]) + n.words[2];
+    d.words[2] += s1(d.words[0]) + n.words[3];
+    d.words[3] += s1(d.words[1]) + m.words[0];
+
+    env->vfp.regs[rd] = make_float64(d.l[0]);
+    env->vfp.regs[rd + 1] = make_float64(d.l[1]);
 }

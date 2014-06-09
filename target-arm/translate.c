@@ -4776,6 +4776,7 @@ static void gen_neon_narrow_op(int op, int u, int size,
 #define NEON_3R_VPMIN 21
 #define NEON_3R_VQDMULH_VQRDMULH 22
 #define NEON_3R_VPADD 23
+#define NEON_3R_SHA 24 /* SHA1C,SHA1P,SHA1M,SHA1SU0,SHA256H{2},SHA256SU1 */
 #define NEON_3R_VFM 25 /* VFMA, VFMS : float fused multiply-add */
 #define NEON_3R_FLOAT_ARITH 26 /* float VADD, VSUB, VPADD, VABD */
 #define NEON_3R_FLOAT_MULTIPLY 27 /* float VMLA, VMLS, VMUL */
@@ -4809,6 +4810,7 @@ static const uint8_t neon_3r_sizes[] = {
     [NEON_3R_VPMIN] = 0x7,
     [NEON_3R_VQDMULH_VQRDMULH] = 0x6,
     [NEON_3R_VPADD] = 0x7,
+    [NEON_3R_SHA] = 0xf, /* size field encodes op type */
     [NEON_3R_VFM] = 0x5, /* size bit 1 encodes op */
     [NEON_3R_FLOAT_ARITH] = 0x5, /* size bit 1 encodes op */
     [NEON_3R_FLOAT_MULTIPLY] = 0x5, /* size bit 1 encodes op */
@@ -4842,6 +4844,7 @@ static const uint8_t neon_3r_sizes[] = {
 #define NEON_2RM_VCEQ0 18
 #define NEON_2RM_VCLE0 19
 #define NEON_2RM_VCLT0 20
+#define NEON_2RM_SHA1H 21
 #define NEON_2RM_VABS 22
 #define NEON_2RM_VNEG 23
 #define NEON_2RM_VCGT0_F 24
@@ -4858,6 +4861,7 @@ static const uint8_t neon_3r_sizes[] = {
 #define NEON_2RM_VMOVN 36 /* Includes VQMOVN, VQMOVUN */
 #define NEON_2RM_VQMOVN 37 /* Includes VQMOVUN */
 #define NEON_2RM_VSHLL 38
+#define NEON_2RM_SHA1SU1 39 /* Includes SHA256SU0 */
 #define NEON_2RM_VRINTN 40
 #define NEON_2RM_VRINTX 41
 #define NEON_2RM_VRINTA 42
@@ -4918,6 +4922,7 @@ static const uint8_t neon_2rm_sizes[] = {
     [NEON_2RM_VCEQ0] = 0x7,
     [NEON_2RM_VCLE0] = 0x7,
     [NEON_2RM_VCLT0] = 0x7,
+    [NEON_2RM_SHA1H] = 0x4,
     [NEON_2RM_VABS] = 0x7,
     [NEON_2RM_VNEG] = 0x7,
     [NEON_2RM_VCGT0_F] = 0x4,
@@ -4934,6 +4939,7 @@ static const uint8_t neon_2rm_sizes[] = {
     [NEON_2RM_VMOVN] = 0x7,
     [NEON_2RM_VQMOVN] = 0x7,
     [NEON_2RM_VSHLL] = 0x7,
+    [NEON_2RM_SHA1SU1] = 0x4,
     [NEON_2RM_VRINTN] = 0x4,
     [NEON_2RM_VRINTX] = 0x4,
     [NEON_2RM_VRINTA] = 0x4,
@@ -5010,6 +5016,49 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
          */
         if (q && ((rd | rn | rm) & 1)) {
             return 1;
+        }
+        /*
+         * The SHA-1/SHA-256 3-register instructions require special treatment
+         * here, as their size field is overloaded as an op type selector, and
+         * they all consume their input in a single pass.
+         */
+        if (op == NEON_3R_SHA) {
+            if (!q) {
+                return 1;
+            }
+            if (!u) { /* SHA-1 */
+                if (!arm_feature(env, ARM_FEATURE_V8_SHA1)) {
+                    return 1;
+                }
+                tmp = tcg_const_i32(rd);
+                tmp2 = tcg_const_i32(rn);
+                tmp3 = tcg_const_i32(rm);
+                tmp4 = tcg_const_i32(size);
+                gen_helper_crypto_sha1_3reg(cpu_env, tmp, tmp2, tmp3, tmp4);
+                tcg_temp_free_i32(tmp4);
+            } else { /* SHA-256 */
+                if (!arm_feature(env, ARM_FEATURE_V8_SHA256) || size == 3) {
+                    return 1;
+                }
+                tmp = tcg_const_i32(rd);
+                tmp2 = tcg_const_i32(rn);
+                tmp3 = tcg_const_i32(rm);
+                switch (size) {
+                case 0:
+                    gen_helper_crypto_sha256h(cpu_env, tmp, tmp2, tmp3);
+                    break;
+                case 1:
+                    gen_helper_crypto_sha256h2(cpu_env, tmp, tmp2, tmp3);
+                    break;
+                case 2:
+                    gen_helper_crypto_sha256su1(cpu_env, tmp, tmp2, tmp3);
+                    break;
+                }
+            }
+            tcg_temp_free_i32(tmp);
+            tcg_temp_free_i32(tmp2);
+            tcg_temp_free_i32(tmp3);
+            return 0;
         }
         if (size == 3 && op != NEON_3R_LOGIC) {
             /* 64-bit element instructions. */
@@ -6485,6 +6534,41 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     tcg_temp_free_i32(tmp);
                     tcg_temp_free_i32(tmp2);
                     tcg_temp_free_i32(tmp3);
+                    break;
+                case NEON_2RM_SHA1H:
+                    if (!arm_feature(env, ARM_FEATURE_V8_SHA1)
+                        || ((rm | rd) & 1)) {
+                        return 1;
+                    }
+                    tmp = tcg_const_i32(rd);
+                    tmp2 = tcg_const_i32(rm);
+
+                    gen_helper_crypto_sha1h(cpu_env, tmp, tmp2);
+
+                    tcg_temp_free_i32(tmp);
+                    tcg_temp_free_i32(tmp2);
+                    break;
+                case NEON_2RM_SHA1SU1:
+                    if ((rm | rd) & 1) {
+                            return 1;
+                    }
+                    /* bit 6 (q): set -> SHA256SU0, cleared -> SHA1SU1 */
+                    if (q) {
+                        if (!arm_feature(env, ARM_FEATURE_V8_SHA256)) {
+                            return 1;
+                        }
+                    } else if (!arm_feature(env, ARM_FEATURE_V8_SHA1)) {
+                        return 1;
+                    }
+                    tmp = tcg_const_i32(rd);
+                    tmp2 = tcg_const_i32(rm);
+                    if (q) {
+                        gen_helper_crypto_sha256su0(cpu_env, tmp, tmp2);
+                    } else {
+                        gen_helper_crypto_sha1su1(cpu_env, tmp, tmp2);
+                    }
+                    tcg_temp_free_i32(tmp);
+                    tcg_temp_free_i32(tmp2);
                     break;
                 default:
                 elementwise:
