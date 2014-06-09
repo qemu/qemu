@@ -1217,7 +1217,6 @@ static void eepro100_write_mdi(EEPRO100State *s)
                 break;
             case 1:            /* Status Register */
                 missing("not writable");
-                data = s->mdimem[reg];
                 break;
             case 2:            /* PHY Identification Register (Word 1) */
             case 3:            /* PHY Identification Register (Word 2) */
@@ -1230,7 +1229,8 @@ static void eepro100_write_mdi(EEPRO100State *s)
             default:
                 missing("not implemented");
             }
-            s->mdimem[reg] = data;
+            s->mdimem[reg] &= eepro100_mdi_mask[reg];
+            s->mdimem[reg] |= data & ~eepro100_mdi_mask[reg];
         } else if (opcode == 2) {
             /* MDI read */
             switch (reg) {
