@@ -1040,16 +1040,16 @@ static void gt_ctl_write(CPUARMState *env, const ARMCPRegInfo *ri,
     int timeridx = ri->crm & 1;
     uint32_t oldval = env->cp15.c14_timer[timeridx].ctl;
 
-    env->cp15.c14_timer[timeridx].ctl = value & 3;
+    env->cp15.c14_timer[timeridx].ctl = deposit64(oldval, 0, 2, value);
     if ((oldval ^ value) & 1) {
         /* Enable toggled */
         gt_recalc_timer(cpu, timeridx);
-    } else if ((oldval & value) & 2) {
+    } else if ((oldval ^ value) & 2) {
         /* IMASK toggled: don't need to recalculate,
          * just set the interrupt line based on ISTATUS
          */
         qemu_set_irq(cpu->gt_timer_outputs[timeridx],
-                     (oldval & 4) && (value & 2));
+                     (oldval & 4) && !(value & 2));
     }
 }
 
