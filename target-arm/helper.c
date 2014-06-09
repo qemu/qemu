@@ -5559,28 +5559,15 @@ int arm_rmode_to_sf(int rmode)
     return rmode;
 }
 
-static void crc_init_buffer(uint8_t *buf, uint32_t val, uint32_t bytes)
-{
-    memset(buf, 0, 4);
-
-    if (bytes == 1) {
-        buf[0] = val & 0xff;
-    } else if (bytes == 2) {
-        buf[0] = val & 0xff;
-        buf[1] = (val >> 8) & 0xff;
-    } else {
-        buf[0] = val & 0xff;
-        buf[1] = (val >> 8) & 0xff;
-        buf[2] = (val >> 16) & 0xff;
-        buf[3] = (val >> 24) & 0xff;
-    }
-}
-
+/* CRC helpers.
+ * The upper bytes of val (above the number specified by 'bytes') must have
+ * been zeroed out by the caller.
+ */
 uint32_t HELPER(crc32)(uint32_t acc, uint32_t val, uint32_t bytes)
 {
     uint8_t buf[4];
 
-    crc_init_buffer(buf, val, bytes);
+    stl_le_p(buf, val);
 
     /* zlib crc32 converts the accumulator and output to one's complement.  */
     return crc32(acc ^ 0xffffffff, buf, bytes) ^ 0xffffffff;
@@ -5590,7 +5577,7 @@ uint32_t HELPER(crc32c)(uint32_t acc, uint32_t val, uint32_t bytes)
 {
     uint8_t buf[4];
 
-    crc_init_buffer(buf, val, bytes);
+    stl_le_p(buf, val);
 
     /* Linux crc32c converts the output to one's complement.  */
     return crc32c(acc, buf, bytes) ^ 0xffffffff;

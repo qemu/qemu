@@ -7806,6 +7806,11 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
 
             tmp = load_reg(s, rn);
             tmp2 = load_reg(s, rm);
+            if (op1 == 0) {
+                tcg_gen_andi_i32(tmp2, tmp2, 0xff);
+            } else if (op1 == 1) {
+                tcg_gen_andi_i32(tmp2, tmp2, 0xffff);
+            }
             tmp3 = tcg_const_i32(1 << op1);
             if (c & 0x2) {
                 gen_helper_crc32c(tmp, tmp, tmp2, tmp3);
@@ -9438,6 +9443,11 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     }
 
                     tmp2 = load_reg(s, rm);
+                    if (sz == 0) {
+                        tcg_gen_andi_i32(tmp2, tmp2, 0xff);
+                    } else if (sz == 1) {
+                        tcg_gen_andi_i32(tmp2, tmp2, 0xffff);
+                    }
                     tmp3 = tcg_const_i32(1 << sz);
                     if (c) {
                         gen_helper_crc32c(tmp, tmp, tmp2, tmp3);
