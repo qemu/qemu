@@ -3774,6 +3774,54 @@ static void handle_shift_reg(DisasContext *s,
     tcg_temp_free_i64(tcg_shift);
 }
 
+/* CRC32[BHWX], CRC32C[BHWX] */
+static void handle_crc32(DisasContext *s,
+                         unsigned int sf, unsigned int sz, bool crc32c,
+                         unsigned int rm, unsigned int rn, unsigned int rd)
+{
+    TCGv_i64 tcg_acc, tcg_val;
+    TCGv_i32 tcg_bytes;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_CRC)
+        || (sf == 1 && sz != 3)
+        || (sf == 0 && sz == 3)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (sz == 3) {
+        tcg_val = cpu_reg(s, rm);
+    } else {
+        uint64_t mask;
+        switch (sz) {
+        case 0:
+            mask = 0xFF;
+            break;
+        case 1:
+            mask = 0xFFFF;
+            break;
+        case 2:
+            mask = 0xFFFFFFFF;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        tcg_val = new_tmp_a64(s);
+        tcg_gen_andi_i64(tcg_val, cpu_reg(s, rm), mask);
+    }
+
+    tcg_acc = cpu_reg(s, rn);
+    tcg_bytes = tcg_const_i32(1 << sz);
+
+    if (crc32c) {
+        gen_helper_crc32c_64(cpu_reg(s, rd), tcg_acc, tcg_val, tcg_bytes);
+    } else {
+        gen_helper_crc32_64(cpu_reg(s, rd), tcg_acc, tcg_val, tcg_bytes);
+    }
+
+    tcg_temp_free_i32(tcg_bytes);
+}
+
 /* C3.5.8 Data-processing (2 source)
  *   31   30  29 28             21 20  16 15    10 9    5 4    0
  * +----+---+---+-----------------+------+--------+------+------+
@@ -3821,8 +3869,12 @@ static void disas_data_proc_2src(DisasContext *s, uint32_t insn)
     case 21:
     case 22:
     case 23: /* CRC32 */
-        unsupported_encoding(s, insn);
+    {
+        int sz = extract32(opcode, 0, 2);
+        bool crc32c = extract32(opcode, 2, 1);
+        handle_crc32(s, sf, sz, crc32c, rm, rn, rd);
         break;
+    }
     default:
         unallocated_encoding(s);
         break;

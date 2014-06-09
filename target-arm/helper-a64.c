@@ -24,6 +24,8 @@
 #include "sysemu/sysemu.h"
 #include "qemu/bitops.h"
 #include "internals.h"
+#include "qemu/crc32c.h"
+#include <zlib.h> /* For crc32 */
 
 /* C2.4.7 Multiply and divide */
 /* special cases for 0 and LLONG_MIN are mandated by the standard */
@@ -406,6 +408,34 @@ float32 HELPER(fcvtx_f64_to_f32)(float64 a, CPUARMState *env)
     exflags |= get_float_exception_flags(fpst);
     set_float_exception_flags(exflags, fpst);
     return r;
+}
+
+/* 64-bit versions of the CRC helpers. Note that although the operation
+ * (and the prototypes of crc32c() and crc32() mean that only the bottom
+ * 32 bits of the accumulator and result are used, we pass and return
+ * uint64_t for convenience of the generated code. Unlike the 32-bit
+ * instruction set versions, val may genuinely have 64 bits of data in it.
+ * The upper bytes of val (above the number specified by 'bytes') must have
+ * been zeroed out by the caller.
+ */
+uint64_t HELPER(crc32_64)(uint64_t acc, uint64_t val, uint32_t bytes)
+{
+    uint8_t buf[8];
+
+    stq_le_p(buf, val);
+
+    /* zlib crc32 converts the accumulator and output to one's complement.  */
+    return crc32(acc ^ 0xffffffff, buf, bytes) ^ 0xffffffff;
+}
+
+uint64_t HELPER(crc32c_64)(uint64_t acc, uint64_t val, uint32_t bytes)
+{
+    uint8_t buf[8];
+
+    stq_le_p(buf, val);
+
+    /* Linux crc32c converts the output to one's complement.  */
+    return crc32c(acc, buf, bytes) ^ 0xffffffff;
 }
 
 /* Handle a CPU exception.  */
