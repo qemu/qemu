@@ -1040,17 +1040,15 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
     ram_addr_t addr;
     int flags, ret = 0;
-    int error;
     static uint64_t seq_iter;
 
     seq_iter++;
 
     if (version_id != 4) {
         ret = -EINVAL;
-        goto done;
     }
 
-    do {
+    while (!ret) {
         addr = qemu_get_be64(f);
 
         flags = addr & ~TARGET_PAGE_MASK;
@@ -1078,7 +1076,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                                          " in != " RAM_ADDR_FMT, id, length,
                                          block->length);
                             ret =  -EINVAL;
-                            goto done;
                         }
                         break;
                     }
@@ -1088,21 +1085,22 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                     error_report("Unknown ramblock \"%s\", cannot "
                                  "accept migration", id);
                     ret = -EINVAL;
-                    goto done;
+                }
+                if (ret) {
+                    break;
                 }
 
                 total_ram_bytes -= length;
             }
-        }
-
-        if (flags & RAM_SAVE_FLAG_COMPRESS) {
+        } else if (flags & RAM_SAVE_FLAG_COMPRESS) {
             void *host;
             uint8_t ch;
 
             host = host_from_stream_offset(f, addr, flags);
             if (!host) {
+                error_report("Illegal RAM offset " RAM_ADDR_FMT, addr);
                 ret = -EINVAL;
-                goto done;
+                break;
             }
 
             ch = qemu_get_byte(f);
@@ -1112,33 +1110,39 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
             host = host_from_stream_offset(f, addr, flags);
             if (!host) {
+                error_report("Illegal RAM offset " RAM_ADDR_FMT, addr);
                 ret = -EINVAL;
-                goto done;
+                break;
             }
 
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
         } else if (flags & RAM_SAVE_FLAG_XBZRLE) {
             void *host = host_from_stream_offset(f, addr, flags);
             if (!host) {
+                error_report("Illegal RAM offset " RAM_ADDR_FMT, addr);
                 ret = -EINVAL;
-                goto done;
+                break;
             }
 
             if (load_xbzrle(f, addr, host) < 0) {
+                error_report("Failed to decompress XBZRLE page at "
+                             RAM_ADDR_FMT, addr);
                 ret = -EINVAL;
-                goto done;
+                break;
             }
         } else if (flags & RAM_SAVE_FLAG_HOOK) {
             ram_control_load_hook(f, flags);
+        } else if (flags & RAM_SAVE_FLAG_EOS) {
+            /* normal exit */
+            break;
+        } else {
+            error_report("Unknown migration flags: %#x", flags);
+            ret = -EINVAL;
+            break;
         }
-        error = qemu_file_get_error(f);
-        if (error) {
-            ret = error;
-            goto done;
-        }
-    } while (!(flags & RAM_SAVE_FLAG_EOS));
+        ret = qemu_file_get_error(f);
+    }
 
-done:
     DPRINTF("Completed load of VM with exit code %d seq iteration "
             "%" PRIu64 "\n", ret, seq_iter);
     return ret;
