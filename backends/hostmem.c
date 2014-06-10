@@ -10,11 +10,20 @@
  * See the COPYING file in the top-level directory.
  */
 #include "sysemu/hostmem.h"
-#include "sysemu/sysemu.h"
 #include "qapi/visitor.h"
+#include "qapi-types.h"
+#include "qapi-visit.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/config-file.h"
 #include "qom/object_interfaces.h"
+
+#ifdef CONFIG_NUMA
+#include <numaif.h>
+QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_DEFAULT != MPOL_DEFAULT);
+QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_PREFERRED != MPOL_PREFERRED);
+QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_BIND != MPOL_BIND);
+QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_INTERLEAVE != MPOL_INTERLEAVE);
+#endif
 
 static void
 host_memory_backend_get_size(Object *obj, Visitor *v, void *opaque,
@@ -51,6 +60,84 @@ host_memory_backend_set_size(Object *obj, Visitor *v, void *opaque,
     backend->size = value;
 out:
     error_propagate(errp, local_err);
+}
+
+static void
+host_memory_backend_get_host_nodes(Object *obj, Visitor *v, void *opaque,
+                                   const char *name, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+    uint16List *host_nodes = NULL;
+    uint16List **node = &host_nodes;
+    unsigned long value;
+
+    value = find_first_bit(backend->host_nodes, MAX_NODES);
+    if (value == MAX_NODES) {
+        return;
+    }
+
+    *node = g_malloc0(sizeof(**node));
+    (*node)->value = value;
+    node = &(*node)->next;
+
+    do {
+        value = find_next_bit(backend->host_nodes, MAX_NODES, value + 1);
+        if (value == MAX_NODES) {
+            break;
+        }
+
+        *node = g_malloc0(sizeof(**node));
+        (*node)->value = value;
+        node = &(*node)->next;
+    } while (true);
+
+    visit_type_uint16List(v, &host_nodes, name, errp);
+}
+
+static void
+host_memory_backend_set_host_nodes(Object *obj, Visitor *v, void *opaque,
+                                   const char *name, Error **errp)
+{
+#ifdef CONFIG_NUMA
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+    uint16List *l = NULL;
+
+    visit_type_uint16List(v, &l, name, errp);
+
+    while (l) {
+        bitmap_set(backend->host_nodes, l->value, 1);
+        l = l->next;
+    }
+#else
+    error_setg(errp, "NUMA node binding are not supported by this QEMU");
+#endif
+}
+
+static void
+host_memory_backend_get_policy(Object *obj, Visitor *v, void *opaque,
+                               const char *name, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+    int policy = backend->policy;
+
+    visit_type_enum(v, &policy, HostMemPolicy_lookup, NULL, name, errp);
+}
+
+static void
+host_memory_backend_set_policy(Object *obj, Visitor *v, void *opaque,
+                               const char *name, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+    int policy;
+
+    visit_type_enum(v, &policy, HostMemPolicy_lookup, NULL, name, errp);
+    backend->policy = policy;
+
+#ifndef CONFIG_NUMA
+    if (policy != HOST_MEM_POLICY_DEFAULT) {
+        error_setg(errp, "NUMA policies are not supported by this QEMU");
+    }
+#endif
 }
 
 static bool host_memory_backend_get_merge(Object *obj, Error **errp)
@@ -162,6 +249,12 @@ static void host_memory_backend_init(Object *obj)
     object_property_add(obj, "size", "int",
                         host_memory_backend_get_size,
                         host_memory_backend_set_size, NULL, NULL, NULL);
+    object_property_add(obj, "host-nodes", "int",
+                        host_memory_backend_get_host_nodes,
+                        host_memory_backend_set_host_nodes, NULL, NULL, NULL);
+    object_property_add(obj, "policy", "str",
+                        host_memory_backend_get_policy,
+                        host_memory_backend_set_policy, NULL, NULL, NULL);
 }
 
 static void host_memory_backend_finalize(Object *obj)
@@ -204,6 +297,47 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
         if (!backend->dump) {
             qemu_madvise(ptr, sz, QEMU_MADV_DONTDUMP);
         }
+#ifdef CONFIG_NUMA
+        unsigned long lastbit = find_last_bit(backend->host_nodes, MAX_NODES);
+        /* lastbit == MAX_NODES means maxnode = 0 */
+        unsigned long maxnode = (lastbit + 1) % (MAX_NODES + 1);
+        /* ensure policy won't be ignored in case memory is preallocated
+         * before mbind(). note: MPOL_MF_STRICT is ignored on hugepages so
+         * this doesn't catch hugepage case. */
+        unsigned flags = MPOL_MF_STRICT;
+
+        /* check for invalid host-nodes and policies and give more verbose
+         * error messages than mbind(). */
+        if (maxnode && backend->policy == MPOL_DEFAULT) {
+            error_setg(errp, "host-nodes must be empty for policy default,"
+                       " or you should explicitly specify a policy other"
+                       " than default");
+            return;
+        } else if (maxnode == 0 && backend->policy != MPOL_DEFAULT) {
+            error_setg(errp, "host-nodes must be set for policy %s",
+                       HostMemPolicy_lookup[backend->policy]);
+            return;
+        }
+
+        /* We can have up to MAX_NODES nodes, but we need to pass maxnode+1
+         * as argument to mbind() due to an old Linux bug (feature?) which
+         * cuts off the last specified node. This means backend->host_nodes
+         * must have MAX_NODES+1 bits available.
+         */
+        assert(sizeof(backend->host_nodes) >=
+               BITS_TO_LONGS(MAX_NODES + 1) * sizeof(unsigned long));
+        assert(maxnode <= MAX_NODES);
+        if (mbind(ptr, sz, backend->policy,
+                  maxnode ? backend->host_nodes : NULL, maxnode + 1, flags)) {
+            error_setg_errno(errp, errno,
+                             "cannot bind memory to host NUMA nodes");
+            return;
+        }
+#endif
+        /* Preallocate memory after the NUMA policy has been instantiated.
+         * This is necessary to guarantee memory is allocated with
+         * specified NUMA policy in place.
+         */
         if (backend->prealloc) {
             os_mem_prealloc(memory_region_get_fd(&backend->mr), ptr, sz);
         }
