@@ -1607,22 +1607,32 @@ void object_property_add_alias(Object *obj, const char *name,
     AliasProperty *prop;
     ObjectProperty *op;
     ObjectProperty *target_prop;
+    gchar *prop_type;
 
     target_prop = object_property_find(target_obj, target_name, errp);
     if (!target_prop) {
         return;
     }
 
+    if (object_property_is_child(target_prop)) {
+        prop_type = g_strdup_printf("link%s",
+                                    target_prop->type + strlen("child"));
+    } else {
+        prop_type = g_strdup(target_prop->type);
+    }
+
     prop = g_malloc(sizeof(*prop));
     prop->target_obj = target_obj;
     prop->target_name = target_name;
 
-    op = object_property_add(obj, name, target_prop->type,
+    op = object_property_add(obj, name, prop_type,
                              property_get_alias,
                              property_set_alias,
                              property_release_alias,
                              prop, errp);
     op->resolve = property_resolve_alias;
+
+    g_free(prop_type);
 }
 
 static void object_instance_init(Object *obj)
