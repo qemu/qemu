@@ -3650,6 +3650,39 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
 
         container->iommu_data.type1.initialized = true;
 
+    } else if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_IOMMU)) {
+        ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
+        if (ret) {
+            error_report("vfio: failed to set group container: %m");
+            ret = -errno;
+            goto free_container_exit;
+        }
+
+        ret = ioctl(fd, VFIO_SET_IOMMU, VFIO_SPAPR_TCE_IOMMU);
+        if (ret) {
+            error_report("vfio: failed to set iommu for container: %m");
+            ret = -errno;
+            goto free_container_exit;
+        }
+
+        /*
+         * The host kernel code implementing VFIO_IOMMU_DISABLE is called
+         * when container fd is closed so we do not call it explicitly
+         * in this file.
+         */
+        ret = ioctl(fd, VFIO_IOMMU_ENABLE);
+        if (ret) {
+            error_report("vfio: failed to enable container: %m");
+            ret = -errno;
+            goto free_container_exit;
+        }
+
+        container->iommu_data.type1.listener = vfio_memory_listener;
+        container->iommu_data.release = vfio_listener_release;
+
+        memory_listener_register(&container->iommu_data.type1.listener,
+                                 container->space->as);
+
     } else {
         error_report("vfio: No available IOMMU models");
         ret = -EINVAL;
@@ -4352,6 +4385,9 @@ int vfio_container_ioctl(AddressSpace *as, int32_t groupid,
 {
     /* We allow only certain ioctls to the container */
     switch (req) {
+    case VFIO_CHECK_EXTENSION:
+    case VFIO_IOMMU_SPAPR_TCE_GET_INFO:
+        break;
     default:
         /* Return an error on unknown requests */
         error_report("vfio: unsupported ioctl %X", req);
