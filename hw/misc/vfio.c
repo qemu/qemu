@@ -39,6 +39,7 @@
 #include "qemu/range.h"
 #include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
+#include "hw/misc/vfio.h"
 
 /* #define DEBUG_VFIO */
 #ifdef DEBUG_VFIO
@@ -4318,3 +4319,44 @@ static void register_vfio_pci_dev_type(void)
 }
 
 type_init(register_vfio_pci_dev_type)
+
+static int vfio_container_do_ioctl(AddressSpace *as, int32_t groupid,
+                                   int req, void *param)
+{
+    VFIOGroup *group;
+    VFIOContainer *container;
+    int ret = -1;
+
+    group = vfio_get_group(groupid, as);
+    if (!group) {
+        error_report("vfio: group %d not registered", groupid);
+        return ret;
+    }
+
+    container = group->container;
+    if (group->container) {
+        ret = ioctl(container->fd, req, param);
+        if (ret < 0) {
+            error_report("vfio: failed to ioctl container: ret=%d, %s",
+                         ret, strerror(errno));
+        }
+    }
+
+    vfio_put_group(group);
+
+    return ret;
+}
+
+int vfio_container_ioctl(AddressSpace *as, int32_t groupid,
+                         int req, void *param)
+{
+    /* We allow only certain ioctls to the container */
+    switch (req) {
+    default:
+        /* Return an error on unknown requests */
+        error_report("vfio: unsupported ioctl %X", req);
+        return -1;
+    }
+
+    return vfio_container_do_ioctl(as, groupid, req, param);
+}
