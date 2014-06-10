@@ -1,7 +1,9 @@
 #include "qemu-common.h"
-#include "sysemu/os-posix.h"
 
+/* Win32 has its own inline stub */
+#ifndef _WIN32
 bool is_daemonized(void)
 {
-    return true;
+    return false;
 }
+#endif
