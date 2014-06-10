@@ -446,6 +446,7 @@ struct sPAPRTCETable {
     uint32_t page_shift;
     uint64_t *table;
     bool bypass;
+    bool vfio_accel;
     int fd;
     MemoryRegion iommu;
     QLIST_ENTRY(sPAPRTCETable) list;
@@ -457,7 +458,8 @@ int spapr_h_cas_compose_response(target_ulong addr, target_ulong size);
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
                                    uint64_t bus_offset,
                                    uint32_t page_shift,
-                                   uint32_t nb_table);
+                                   uint32_t nb_table,
+                                   bool vfio_accel);
 MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet);
 void spapr_tce_set_bypass(sPAPRTCETable *tcet, bool bypass);
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,

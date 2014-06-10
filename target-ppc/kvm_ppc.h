@@ -33,7 +33,8 @@ int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu);
 #ifndef CONFIG_USER_ONLY
 off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem);
 bool kvmppc_spapr_use_multitce(void);
-void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd);
+void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd,
+                              bool vfio_accel);
 int kvmppc_remove_spapr_tce(void *table, int pfd, uint32_t window_size);
 int kvmppc_reset_htab(int shift_hint);
 uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift);
@@ -144,7 +145,8 @@ static inline bool kvmppc_spapr_use_multitce(void)
 }
 
 static inline void *kvmppc_create_spapr_tce(uint32_t liobn,
-                                            uint32_t window_size, int *fd)
+                                            uint32_t window_size, int *fd,
+                                            bool vfio_accel)
 {
     return NULL;
 }

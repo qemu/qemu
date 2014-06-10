@@ -460,7 +460,7 @@ static int spapr_vio_busdev_init(DeviceState *qdev)
                                         0,
                                         SPAPR_TCE_PAGE_SHIFT,
                                         pc->rtce_window_size >>
-                                        SPAPR_TCE_PAGE_SHIFT);
+                                        SPAPR_TCE_PAGE_SHIFT, false);
         address_space_init(&dev->as, spapr_tce_get_iommu(dev->tcet), qdev->id);
     }
 
