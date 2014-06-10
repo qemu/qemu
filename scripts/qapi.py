@@ -470,8 +470,10 @@ def find_enum(name):
 def is_enum(name):
     return find_enum(name) != None
 
-def c_type(name):
+def c_type(name, is_param=False):
     if name == 'str':
+        if is_param:
+            return 'const char *'
         return 'char *'
     elif name == 'int':
         return 'int64_t'

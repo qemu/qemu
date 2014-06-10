@@ -29,9 +29,7 @@ def type_visitor(name):
 def generate_command_decl(name, args, ret_type):
     arglist=""
     for argname, argtype, optional, structured in parse_args(args):
-        argtype = c_type(argtype)
-        if argtype == "char *":
-            argtype = "const char *"
+        argtype = c_type(argtype, is_param=True)
         if optional:
             arglist += "bool has_%s, " % c_var(argname)
         arglist += "%s %s, " % (argtype, c_var(argname))
