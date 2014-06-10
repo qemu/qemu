@@ -95,14 +95,27 @@ static void virtio_scsi_bad_req(void)
     exit(1);
 }
 
-static void qemu_sgl_concat(VirtIOSCSIReq *req, struct iovec *sg,
-                                   hwaddr *addr, int num)
+static size_t qemu_sgl_concat(VirtIOSCSIReq *req, struct iovec *iov,
+                              hwaddr *addr, int num, size_t skip)
 {
     QEMUSGList *qsgl = &req->qsgl;
+    size_t copied = 0;
 
-    while (num--) {
-        qemu_sglist_add(qsgl, *(addr++), (sg++)->iov_len);
+    while (num) {
+        if (skip >= iov->iov_len) {
+            skip -= iov->iov_len;
+        } else {
+            qemu_sglist_add(qsgl, *addr + skip, iov->iov_len - skip);
+            copied += iov->iov_len - skip;
+            skip = 0;
+        }
+        iov++;
+        addr++;
+        num--;
     }
+
+    assert(skip == 0);
+    return copied;
 }
 
 static int virtio_scsi_parse_req(VirtIOSCSIReq *req,
@@ -127,11 +140,11 @@ static int virtio_scsi_parse_req(VirtIOSCSIReq *req,
     if (req->elem.out_num > 1) {
         qemu_sgl_concat(req, &req->elem.out_sg[1],
                         &req->elem.out_addr[1],
-                        req->elem.out_num - 1);
+                        req->elem.out_num - 1, 0);
     } else {
         qemu_sgl_concat(req, &req->elem.in_sg[1],
                         &req->elem.in_addr[1],
-                        req->elem.in_num - 1);
+                        req->elem.in_num - 1, 0);
     }
 
     return 0;
