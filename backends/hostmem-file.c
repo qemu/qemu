@@ -28,6 +28,8 @@ typedef struct HostMemoryBackendFile HostMemoryBackendFile;
 
 struct HostMemoryBackendFile {
     HostMemoryBackend parent_obj;
+
+    bool share;
     char *mem_path;
 };
 
@@ -51,7 +53,7 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         backend->force_prealloc = mem_prealloc;
         memory_region_init_ram_from_file(&backend->mr, OBJECT(backend),
                                  object_get_canonical_path(OBJECT(backend)),
-                                 backend->size,
+                                 backend->size, fb->share,
                                  fb->mem_path, errp);
     }
 #endif
@@ -87,9 +89,31 @@ static void set_mem_path(Object *o, const char *str, Error **errp)
     fb->mem_path = g_strdup(str);
 }
 
+static bool file_memory_backend_get_share(Object *o, Error **errp)
+{
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
+
+    return fb->share;
+}
+
+static void file_memory_backend_set_share(Object *o, bool value, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(o);
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
+
+    if (memory_region_size(&backend->mr)) {
+        error_setg(errp, "cannot change property value");
+        return;
+    }
+    fb->share = value;
+}
+
 static void
 file_backend_instance_init(Object *o)
 {
+    object_property_add_bool(o, "share",
+                        file_memory_backend_get_share,
+                        file_memory_backend_set_share, NULL);
     object_property_add_str(o, "mem-path", get_mem_path,
                             set_mem_path, NULL);
 }

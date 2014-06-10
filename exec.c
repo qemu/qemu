@@ -73,6 +73,9 @@ static MemoryRegion io_mem_unassigned;
 /* RAM is pre-allocated and passed into qemu_ram_alloc_from_ptr */
 #define RAM_PREALLOC   (1 << 0)
 
+/* RAM is mmap-ed with MAP_SHARED */
+#define RAM_SHARED     (1 << 1)
+
 #endif
 
 struct CPUTailQ cpus = QTAILQ_HEAD_INITIALIZER(cpus);
@@ -1074,7 +1077,9 @@ static void *file_ram_alloc(RAMBlock *block,
         perror("ftruncate");
     }
 
-    area = mmap(0, memory, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+    area = mmap(0, memory, PROT_READ | PROT_WRITE,
+                (block->flags & RAM_SHARED ? MAP_SHARED : MAP_PRIVATE),
+                fd, 0);
     if (area == MAP_FAILED) {
         error_setg_errno(errp, errno,
                          "unable to map backing store for hugepages");
@@ -1286,7 +1291,7 @@ static ram_addr_t ram_block_add(RAMBlock *new_block)
 
 #ifdef __linux__
 ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
-                                    const char *mem_path,
+                                    bool share, const char *mem_path,
                                     Error **errp)
 {
     RAMBlock *new_block;
@@ -1311,6 +1316,7 @@ ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     new_block = g_malloc0(sizeof(*new_block));
     new_block->mr = mr;
     new_block->length = size;
+    new_block->flags = share ? RAM_SHARED : 0;
     new_block->host = file_ram_alloc(new_block, size,
                                      mem_path, errp);
     if (!new_block->host) {
@@ -1413,12 +1419,8 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
                 flags = MAP_FIXED;
                 munmap(vaddr, length);
                 if (block->fd >= 0) {
-#ifdef MAP_POPULATE
-                    flags |= mem_prealloc ? MAP_POPULATE | MAP_SHARED :
-                        MAP_PRIVATE;
-#else
-                    flags |= MAP_PRIVATE;
-#endif
+                    flags |= (block->flags & RAM_SHARED ?
+                              MAP_SHARED : MAP_PRIVATE);
                     area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
                                 flags, block->fd, offset);
                 } else {

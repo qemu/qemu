@@ -321,6 +321,7 @@ void memory_region_init_ram(MemoryRegion *mr,
  * @owner: the object that tracks the region's reference count
  * @name: the name of the region.
  * @size: size of the region.
+ * @share: %true if memory must be mmaped with the MAP_SHARED flag
  * @path: the path in which to allocate the RAM.
  * @errp: pointer to Error*, to store an error if it happens.
  */
@@ -328,6 +329,7 @@ void memory_region_init_ram_from_file(MemoryRegion *mr,
                                       struct Object *owner,
                                       const char *name,
                                       uint64_t size,
+                                      bool share,
                                       const char *path,
                                       Error **errp);
 #endif
