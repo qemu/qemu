@@ -442,6 +442,9 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     if (boot_device) {
         _FDT((fdt_property_string(fdt, "qemu,boot-device", boot_device)));
     }
+    if (boot_menu) {
+        _FDT((fdt_property_cell(fdt, "qemu,boot-menu", boot_menu)));
+    }
     _FDT((fdt_property_cell(fdt, "qemu,graphic-width", graphic_width)));
     _FDT((fdt_property_cell(fdt, "qemu,graphic-height", graphic_height)));
     _FDT((fdt_property_cell(fdt, "qemu,graphic-depth", graphic_depth)));
