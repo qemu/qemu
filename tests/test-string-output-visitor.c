@@ -44,7 +44,7 @@ static void visitor_output_teardown(TestOutputVisitorData *data,
 static void test_visitor_out_int(TestOutputVisitorData *data,
                                  const void *unused)
 {
-    int64_t value = -42;
+    int64_t value = 42;
     Error *err = NULL;
     char *str;
 
@@ -53,8 +53,40 @@ static void test_visitor_out_int(TestOutputVisitorData *data,
 
     str = string_output_get_string(data->sov);
     g_assert(str != NULL);
-    g_assert_cmpstr(str, ==, "-42");
+    g_assert_cmpstr(str, ==, "42");
     g_free(str);
+}
+
+static void test_visitor_out_intList(TestOutputVisitorData *data,
+                                     const void *unused)
+{
+    int64_t value[] = {0, 1, 9, 10, 16, 15, 14,
+        3, 4, 5, 6, 11, 12, 13, 21, 22, INT64_MAX - 1, INT64_MAX};
+    intList *list = NULL, **tmp = &list;
+    int i;
+    Error *errp = NULL;
+    char *str;
+
+    for (i = 0; i < sizeof(value) / sizeof(value[0]); i++) {
+        *tmp = g_malloc0(sizeof(**tmp));
+        (*tmp)->value = value[i];
+        tmp = &(*tmp)->next;
+    }
+
+    visit_type_intList(data->ov, &list, NULL, &errp);
+    g_assert(errp == NULL);
+
+    str = string_output_get_string(data->sov);
+    g_assert(str != NULL);
+    g_assert_cmpstr(str, ==,
+        "0-1,3-6,9-16,21-22,9223372036854775806-9223372036854775807");
+    g_free(str);
+    while (list) {
+        intList *tmp2;
+        tmp2 = list->next;
+        g_free(list);
+        list = tmp2;
+    }
 }
 
 static void test_visitor_out_bool(TestOutputVisitorData *data,
@@ -182,6 +214,8 @@ int main(int argc, char **argv)
                             &out_visitor_data, test_visitor_out_enum);
     output_visitor_test_add("/string-visitor/output/enum-errors",
                             &out_visitor_data, test_visitor_out_enum_errors);
+    output_visitor_test_add("/string-visitor/output/intList",
+                            &out_visitor_data, test_visitor_out_intList);
 
     g_test_run();
 
