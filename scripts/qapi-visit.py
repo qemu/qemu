@@ -77,7 +77,7 @@ static void visit_type_%(full_name)s_field_%(c_name)s(Visitor *m, %(name)s **obj
 
     ret += mcgen('''
 
-static void visit_type_%(full_name)s_fields(Visitor *m, %(name)s ** obj, Error **errp)
+static void visit_type_%(full_name)s_fields(Visitor *m, %(name)s **obj, Error **errp)
 {
     Error *err = NULL;
 ''',
@@ -186,7 +186,7 @@ def generate_visit_struct(expr):
 
     ret += mcgen('''
 
-void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **errp)
+void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **errp)
 {
 ''',
                 name=name)
@@ -201,7 +201,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
 def generate_visit_list(name, members):
     return mcgen('''
 
-void visit_type_%(name)sList(Visitor *m, %(name)sList ** obj, const char *name, Error **errp)
+void visit_type_%(name)sList(Visitor *m, %(name)sList **obj, const char *name, Error **errp)
 {
     Error *err = NULL;
     GenericList *i, **prev;
@@ -230,7 +230,7 @@ out:
 def generate_visit_enum(name, members):
     return mcgen('''
 
-void visit_type_%(name)s(Visitor *m, %(name)s * obj, const char *name, Error **errp)
+void visit_type_%(name)s(Visitor *m, %(name)s *obj, const char *name, Error **errp)
 {
     visit_type_enum(m, (int *)obj, %(name)s_lookup, "%(name)s", name, errp);
 }
@@ -240,7 +240,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s * obj, const char *name, Error **e
 def generate_visit_anon_union(name, members):
     ret = mcgen('''
 
-void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **errp)
+void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **errp)
 {
     Error *err = NULL;
 
@@ -327,7 +327,7 @@ def generate_visit_union(expr):
 
     ret += mcgen('''
 
-void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **errp)
+void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **errp)
 {
     Error *err = NULL;
 
@@ -399,13 +399,13 @@ def generate_declaration(name, members, genlist=True, builtin_type=False):
     if not builtin_type:
         ret += mcgen('''
 
-void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **errp);
+void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **errp);
 ''',
                     name=name)
 
     if genlist:
         ret += mcgen('''
-void visit_type_%(name)sList(Visitor *m, %(name)sList ** obj, const char *name, Error **errp);
+void visit_type_%(name)sList(Visitor *m, %(name)sList **obj, const char *name, Error **errp);
 ''',
                  name=name)
 
@@ -415,7 +415,7 @@ def generate_enum_declaration(name, members, genlist=True):
     ret = ""
     if genlist:
         ret += mcgen('''
-void visit_type_%(name)sList(Visitor *m, %(name)sList ** obj, const char *name, Error **errp);
+void visit_type_%(name)sList(Visitor *m, %(name)sList **obj, const char *name, Error **errp);
 ''',
                      name=name)
 
@@ -424,7 +424,7 @@ void visit_type_%(name)sList(Visitor *m, %(name)sList ** obj, const char *name, 
 def generate_decl_enum(name, members, genlist=True):
     return mcgen('''
 
-void visit_type_%(name)s(Visitor *m, %(name)s * obj, const char *name, Error **errp);
+void visit_type_%(name)s(Visitor *m, %(name)s *obj, const char *name, Error **errp);
 ''',
                 name=name)
 
