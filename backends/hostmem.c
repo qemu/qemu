@@ -75,11 +75,31 @@ host_memory_backend_get_memory(HostMemoryBackend *backend, Error **errp)
     return memory_region_size(&backend->mr) ? &backend->mr : NULL;
 }
 
+static void
+host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(uc);
+    HostMemoryBackendClass *bc = MEMORY_BACKEND_GET_CLASS(uc);
+
+    if (bc->alloc) {
+        bc->alloc(backend, errp);
+    }
+}
+
+static void
+host_memory_backend_class_init(ObjectClass *oc, void *data)
+{
+    UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
+
+    ucc->complete = host_memory_backend_memory_complete;
+}
+
 static const TypeInfo host_memory_backend_info = {
     .name = TYPE_MEMORY_BACKEND,
     .parent = TYPE_OBJECT,
     .abstract = true,
     .class_size = sizeof(HostMemoryBackendClass),
+    .class_init = host_memory_backend_class_init,
     .instance_size = sizeof(HostMemoryBackend),
     .instance_init = host_memory_backend_init,
     .instance_finalize = host_memory_backend_finalize,

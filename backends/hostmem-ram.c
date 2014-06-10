@@ -16,9 +16,8 @@
 
 
 static void
-ram_backend_memory_init(UserCreatable *uc, Error **errp)
+ram_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
 {
-    HostMemoryBackend *backend = MEMORY_BACKEND(uc);
     char *path;
 
     if (!backend->size) {
@@ -35,9 +34,9 @@ ram_backend_memory_init(UserCreatable *uc, Error **errp)
 static void
 ram_backend_class_init(ObjectClass *oc, void *data)
 {
-    UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
+    HostMemoryBackendClass *bc = MEMORY_BACKEND_CLASS(oc);
 
-    ucc->complete = ram_backend_memory_init;
+    bc->alloc = ram_backend_memory_alloc;
 }
 
 static const TypeInfo ram_backend_info = {

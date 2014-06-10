@@ -34,6 +34,8 @@ typedef struct HostMemoryBackendClass HostMemoryBackendClass;
  */
 struct HostMemoryBackendClass {
     ObjectClass parent_class;
+
+    void (*alloc)(HostMemoryBackend *backend, Error **errp);
 };
 
 /**
