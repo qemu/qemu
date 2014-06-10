@@ -22,7 +22,6 @@ extern PropertyInfo qdev_prop_bios_chs_trans;
 extern PropertyInfo qdev_prop_drive;
 extern PropertyInfo qdev_prop_netdev;
 extern PropertyInfo qdev_prop_vlan;
-extern PropertyInfo qdev_prop_iothread;
 extern PropertyInfo qdev_prop_pci_devfn;
 extern PropertyInfo qdev_prop_blocksize;
 extern PropertyInfo qdev_prop_pci_host_devaddr;
@@ -143,8 +142,6 @@ extern PropertyInfo qdev_prop_arraylen;
     DEFINE_PROP(_n, _s, _f, qdev_prop_vlan, NICPeers)
 #define DEFINE_PROP_DRIVE(_n, _s, _f) \
     DEFINE_PROP(_n, _s, _f, qdev_prop_drive, BlockDriverState *)
-#define DEFINE_PROP_IOTHREAD(_n, _s, _f)             \
-    DEFINE_PROP(_n, _s, _f, qdev_prop_iothread, IOThread *)
 #define DEFINE_PROP_MACADDR(_n, _s, _f)         \
     DEFINE_PROP(_n, _s, _f, qdev_prop_macaddr, MACAddr)
 #define DEFINE_PROP_LOSTTICKPOLICY(_n, _s, _f, _d) \
