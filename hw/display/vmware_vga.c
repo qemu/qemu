@@ -863,7 +863,7 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
         break;
 
     case SVGA_REG_CURSOR_Y:
-        ret = s->cursor.x;
+        ret = s->cursor.y;
         break;
 
     case SVGA_REG_CURSOR_ON:

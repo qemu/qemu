@@ -311,11 +311,6 @@ static inline void IRQ_resetbit(IRQQueue *q, int n_IRQ)
     clear_bit(n_IRQ, q->queue);
 }
 
-static inline int IRQ_testbit(IRQQueue *q, int n_IRQ)
-{
-    return test_bit(n_IRQ, q->queue);
-}
-
 static void IRQ_check(OpenPICState *opp, IRQQueue *q)
 {
     int irq = -1;

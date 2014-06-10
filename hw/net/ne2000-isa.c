@@ -98,6 +98,7 @@ static void isa_ne2000_class_initfn(ObjectClass *klass, void *data)
 
     dc->realize = isa_ne2000_realizefn;
     dc->props = ne2000_isa_properties;
+    dc->vmsd = &vmstate_isa_ne2000;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 

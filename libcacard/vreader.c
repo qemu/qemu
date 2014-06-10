@@ -155,9 +155,7 @@ vreader_free(VReader *reader)
     if (reader->card) {
         vcard_free(reader->card);
     }
-    if (reader->name) {
-        g_free(reader->name);
-    }
+    g_free(reader->name);
     if (reader->reader_private_free) {
         reader->reader_private_free(reader->reader_private);
     }
@@ -345,8 +343,6 @@ vreader_list_delete(VReaderList *list)
         next_entry = vreader_list_get_next(current_entry);
         vreader_list_entry_delete(current_entry);
     }
-    list->head = NULL;
-    list->tail = NULL;
     g_free(list);
 }
 

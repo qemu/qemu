@@ -745,11 +745,6 @@ void smbios_set_cpuid(uint32_t version, uint32_t features)
         field = value;                                                    \
     }
 
-#define G_FREE_UNLESS_NULL(ptr)                                           \
-    if (ptr != NULL) {                                                    \
-        g_free(ptr);                                                      \
-    }
-
 void smbios_set_defaults(const char *manufacturer, const char *product,
                          const char *version, bool legacy_mode)
 {
@@ -758,7 +753,7 @@ void smbios_set_defaults(const char *manufacturer, const char *product,
 
     /* drop unwanted version of command-line file blob(s) */
     if (smbios_legacy) {
-        G_FREE_UNLESS_NULL(smbios_tables);
+        g_free(smbios_tables);
         /* in legacy mode, also complain if fields were given for types > 1 */
         if (find_next_bit(have_fields_bitmap,
                           SMBIOS_MAX_TYPE+1, 2) < SMBIOS_MAX_TYPE+1) {
@@ -767,7 +762,7 @@ void smbios_set_defaults(const char *manufacturer, const char *product,
             exit(1);
         }
     } else {
-        G_FREE_UNLESS_NULL(smbios_entries);
+        g_free(smbios_entries);
     }
 
     SMBIOS_SET_DEFAULT(type1.manufacturer, manufacturer);

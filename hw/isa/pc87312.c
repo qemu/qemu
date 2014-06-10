@@ -86,11 +86,6 @@ static inline uint32_t get_parallel_irq(PC87312State *s)
     }
 }
 
-static inline bool is_parallel_epp(PC87312State *s)
-{
-    return s->regs[REG_PTR] & PTR_EPP_MODE;
-}
-
 
 /* UARTs */
 
