@@ -84,14 +84,13 @@
 #define VIRTIO_SCSI_EVT_RESET_RESCAN           1
 #define VIRTIO_SCSI_EVT_RESET_REMOVED          2
 
-/* SCSI command request, followed by data-out */
+/* SCSI command request, followed by CDB and data-out */
 typedef struct {
     uint8_t lun[8];              /* Logical Unit Number */
     uint64_t tag;                /* Command identifier */
     uint8_t task_attr;           /* Task attribute */
     uint8_t prio;
     uint8_t crn;
-    uint8_t cdb[];
 } QEMU_PACKED VirtIOSCSICmdReq;
 
 /* Response, followed by sense data and data-in */
@@ -101,7 +100,6 @@ typedef struct {
     uint16_t status_qualifier;   /* Status qualifier */
     uint8_t status;              /* Command completion status */
     uint8_t response;            /* Response values */
-    uint8_t sense[];
 } QEMU_PACKED VirtIOSCSICmdResp;
 
 /* Task Management Request */

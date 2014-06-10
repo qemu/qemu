@@ -27,20 +27,26 @@ typedef struct VirtIOSCSIReq {
     QEMUSGList qsgl;
     SCSIRequest *sreq;
     size_t resp_size;
+    enum SCSIXferMode mode;
+    QEMUIOVector resp_iov;
     union {
-        char                  *buf;
-        VirtIOSCSICmdResp     *cmd;
-        VirtIOSCSICtrlTMFResp *tmf;
-        VirtIOSCSICtrlANResp  *an;
-        VirtIOSCSIEvent       *event;
+        VirtIOSCSICmdResp     cmd;
+        VirtIOSCSICtrlTMFResp tmf;
+        VirtIOSCSICtrlANResp  an;
+        VirtIOSCSIEvent       event;
     } resp;
     union {
-        char                  *buf;
-        VirtIOSCSICmdReq      *cmd;
-        VirtIOSCSICtrlTMFReq  *tmf;
-        VirtIOSCSICtrlANReq   *an;
+        struct {
+            VirtIOSCSICmdReq  cmd;
+            uint8_t           cdb[];
+        } QEMU_PACKED;
+        VirtIOSCSICtrlTMFReq  tmf;
+        VirtIOSCSICtrlANReq   an;
     } req;
 } VirtIOSCSIReq;
+
+QEMU_BUILD_BUG_ON(offsetof(VirtIOSCSIReq, req.cdb) !=
+                  offsetof(VirtIOSCSIReq, req.cmd) + sizeof(VirtIOSCSICmdReq));
 
 static inline int virtio_scsi_get_lun(uint8_t *lun)
 {
@@ -61,17 +67,21 @@ static inline SCSIDevice *virtio_scsi_device_find(VirtIOSCSI *s, uint8_t *lun)
 static VirtIOSCSIReq *virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq)
 {
     VirtIOSCSIReq *req;
-    req = g_malloc(sizeof(*req));
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
+
+    req = g_malloc0(sizeof(*req) + vs->cdb_size);
 
     req->vq = vq;
     req->dev = s;
     req->sreq = NULL;
     qemu_sglist_init(&req->qsgl, DEVICE(s), 8, &address_space_memory);
+    qemu_iovec_init(&req->resp_iov, 1);
     return req;
 }
 
 static void virtio_scsi_free_req(VirtIOSCSIReq *req)
 {
+    qemu_iovec_destroy(&req->resp_iov);
     qemu_sglist_destroy(&req->qsgl);
     g_free(req);
 }
@@ -81,7 +91,9 @@ static void virtio_scsi_complete_req(VirtIOSCSIReq *req)
     VirtIOSCSI *s = req->dev;
     VirtQueue *vq = req->vq;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
-    virtqueue_push(vq, &req->elem, req->qsgl.size + req->elem.in_sg[0].iov_len);
+
+    qemu_iovec_from_buf(&req->resp_iov, 0, &req->resp, req->resp_size);
+    virtqueue_push(vq, &req->elem, req->qsgl.size + req->resp_iov.size);
     if (req->sreq) {
         req->sreq->hba_private = NULL;
         scsi_req_unref(req->sreq);
@@ -122,31 +134,35 @@ static size_t qemu_sgl_concat(VirtIOSCSIReq *req, struct iovec *iov,
 static int virtio_scsi_parse_req(VirtIOSCSIReq *req,
                                  unsigned req_size, unsigned resp_size)
 {
-    if (req->elem.in_num == 0) {
+    size_t in_size, out_size;
+
+    if (iov_to_buf(req->elem.out_sg, req->elem.out_num, 0,
+                   &req->req, req_size) < req_size) {
         return -EINVAL;
     }
 
-    if (req->elem.out_sg[0].iov_len < req_size) {
+    if (qemu_iovec_concat_iov(&req->resp_iov,
+                              req->elem.in_sg, req->elem.in_num, 0,
+                              resp_size) < resp_size) {
         return -EINVAL;
     }
-    if (req->elem.out_num) {
-        req->req.buf = req->elem.out_sg[0].iov_base;
-    }
-
-    if (req->elem.in_sg[0].iov_len < resp_size) {
-        return -EINVAL;
-    }
-    req->resp.buf = req->elem.in_sg[0].iov_base;
     req->resp_size = resp_size;
 
-    if (req->elem.out_num > 1) {
-        qemu_sgl_concat(req, &req->elem.out_sg[1],
-                        &req->elem.out_addr[1],
-                        req->elem.out_num - 1, 0);
-    } else {
-        qemu_sgl_concat(req, &req->elem.in_sg[1],
-                        &req->elem.in_addr[1],
-                        req->elem.in_num - 1, 0);
+    out_size = qemu_sgl_concat(req, req->elem.out_sg,
+                               &req->elem.out_addr[0], req->elem.out_num,
+                               req_size);
+    in_size = qemu_sgl_concat(req, req->elem.in_sg,
+                              &req->elem.in_addr[0], req->elem.in_num,
+                              resp_size);
+
+    if (out_size && in_size) {
+        return -ENOTSUP;
+    }
+
+    if (out_size) {
+        req->mode = SCSI_XFER_TO_DEV;
+    } else if (in_size) {
+        req->mode = SCSI_XFER_FROM_DEV;
     }
 
     return 0;
@@ -204,37 +220,34 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
     scsi_req_ref(sreq);
     req->sreq = sreq;
     if (req->sreq->cmd.mode != SCSI_XFER_NONE) {
-        int req_mode =
-            (req->elem.in_num > 1 ? SCSI_XFER_FROM_DEV : SCSI_XFER_TO_DEV);
-
-        assert(req->sreq->cmd.mode == req_mode);
+        assert(req->sreq->cmd.mode == req->mode);
     }
     return req;
 }
 
 static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
 {
-    SCSIDevice *d = virtio_scsi_device_find(s, req->req.tmf->lun);
+    SCSIDevice *d = virtio_scsi_device_find(s, req->req.tmf.lun);
     SCSIRequest *r, *next;
     BusChild *kid;
     int target;
 
     /* Here VIRTIO_SCSI_S_OK means "FUNCTION COMPLETE".  */
-    req->resp.tmf->response = VIRTIO_SCSI_S_OK;
+    req->resp.tmf.response = VIRTIO_SCSI_S_OK;
 
-    tswap32s(&req->req.tmf->subtype);
-    switch (req->req.tmf->subtype) {
+    tswap32s(&req->req.tmf.subtype);
+    switch (req->req.tmf.subtype) {
     case VIRTIO_SCSI_T_TMF_ABORT_TASK:
     case VIRTIO_SCSI_T_TMF_QUERY_TASK:
         if (!d) {
             goto fail;
         }
-        if (d->lun != virtio_scsi_get_lun(req->req.tmf->lun)) {
+        if (d->lun != virtio_scsi_get_lun(req->req.tmf.lun)) {
             goto incorrect_lun;
         }
         QTAILQ_FOREACH_SAFE(r, &d->requests, next, next) {
             VirtIOSCSIReq *cmd_req = r->hba_private;
-            if (cmd_req && cmd_req->req.cmd->tag == req->req.tmf->tag) {
+            if (cmd_req && cmd_req->req.cmd.tag == req->req.tmf.tag) {
                 break;
             }
         }
@@ -244,11 +257,11 @@ static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
              * check for it in the loop above.
              */
             assert(r->hba_private);
-            if (req->req.tmf->subtype == VIRTIO_SCSI_T_TMF_QUERY_TASK) {
+            if (req->req.tmf.subtype == VIRTIO_SCSI_T_TMF_QUERY_TASK) {
                 /* "If the specified command is present in the task set, then
                  * return a service response set to FUNCTION SUCCEEDED".
                  */
-                req->resp.tmf->response = VIRTIO_SCSI_S_FUNCTION_SUCCEEDED;
+                req->resp.tmf.response = VIRTIO_SCSI_S_FUNCTION_SUCCEEDED;
             } else {
                 scsi_req_cancel(r);
             }
@@ -259,7 +272,7 @@ static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
         if (!d) {
             goto fail;
         }
-        if (d->lun != virtio_scsi_get_lun(req->req.tmf->lun)) {
+        if (d->lun != virtio_scsi_get_lun(req->req.tmf.lun)) {
             goto incorrect_lun;
         }
         s->resetting++;
@@ -273,16 +286,16 @@ static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
         if (!d) {
             goto fail;
         }
-        if (d->lun != virtio_scsi_get_lun(req->req.tmf->lun)) {
+        if (d->lun != virtio_scsi_get_lun(req->req.tmf.lun)) {
             goto incorrect_lun;
         }
         QTAILQ_FOREACH_SAFE(r, &d->requests, next, next) {
             if (r->hba_private) {
-                if (req->req.tmf->subtype == VIRTIO_SCSI_T_TMF_QUERY_TASK_SET) {
+                if (req->req.tmf.subtype == VIRTIO_SCSI_T_TMF_QUERY_TASK_SET) {
                     /* "If there is any command present in the task set, then
                      * return a service response set to FUNCTION SUCCEEDED".
                      */
-                    req->resp.tmf->response = VIRTIO_SCSI_S_FUNCTION_SUCCEEDED;
+                    req->resp.tmf.response = VIRTIO_SCSI_S_FUNCTION_SUCCEEDED;
                     break;
                 } else {
                     scsi_req_cancel(r);
@@ -292,7 +305,7 @@ static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
         break;
 
     case VIRTIO_SCSI_T_TMF_I_T_NEXUS_RESET:
-        target = req->req.tmf->lun[1];
+        target = req->req.tmf.lun[1];
         s->resetting++;
         QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
              d = DO_UPCAST(SCSIDevice, qdev, kid->child);
@@ -305,18 +318,18 @@ static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
 
     case VIRTIO_SCSI_T_TMF_CLEAR_ACA:
     default:
-        req->resp.tmf->response = VIRTIO_SCSI_S_FUNCTION_REJECTED;
+        req->resp.tmf.response = VIRTIO_SCSI_S_FUNCTION_REJECTED;
         break;
     }
 
     return;
 
 incorrect_lun:
-    req->resp.tmf->response = VIRTIO_SCSI_S_INCORRECT_LUN;
+    req->resp.tmf.response = VIRTIO_SCSI_S_INCORRECT_LUN;
     return;
 
 fail:
-    req->resp.tmf->response = VIRTIO_SCSI_S_BAD_TARGET;
+    req->resp.tmf.response = VIRTIO_SCSI_S_BAD_TARGET;
 }
 
 static void virtio_scsi_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
@@ -333,8 +346,8 @@ static void virtio_scsi_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
             continue;
         }
 
-        tswap32s(&req->req.tmf->type);
-        if (req->req.tmf->type == VIRTIO_SCSI_T_TMF) {
+        tswap32s(&req->req.tmf.type);
+        if (req->req.tmf.type == VIRTIO_SCSI_T_TMF) {
             if (virtio_scsi_parse_req(req, sizeof(VirtIOSCSICtrlTMFReq),
                                       sizeof(VirtIOSCSICtrlTMFResp)) < 0) {
                 virtio_scsi_bad_req();
@@ -342,14 +355,14 @@ static void virtio_scsi_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
                 virtio_scsi_do_tmf(s, req);
             }
 
-        } else if (req->req.tmf->type == VIRTIO_SCSI_T_AN_QUERY ||
-                   req->req.tmf->type == VIRTIO_SCSI_T_AN_SUBSCRIBE) {
+        } else if (req->req.tmf.type == VIRTIO_SCSI_T_AN_QUERY ||
+                   req->req.tmf.type == VIRTIO_SCSI_T_AN_SUBSCRIBE) {
             if (virtio_scsi_parse_req(req, sizeof(VirtIOSCSICtrlANReq),
                                       sizeof(VirtIOSCSICtrlANResp)) < 0) {
                 virtio_scsi_bad_req();
             } else {
-                req->resp.an->event_actual = 0;
-                req->resp.an->response = VIRTIO_SCSI_S_OK;
+                req->resp.an.event_actual = 0;
+                req->resp.an.response = VIRTIO_SCSI_S_OK;
             }
         }
         virtio_scsi_complete_req(req);
@@ -358,6 +371,10 @@ static void virtio_scsi_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
 static void virtio_scsi_complete_cmd_req(VirtIOSCSIReq *req)
 {
+    /* Sense data is not in req->resp and is copied separately
+     * in virtio_scsi_command_complete.
+     */
+    req->resp_size = sizeof(VirtIOSCSICmdResp);
     virtio_scsi_complete_req(req);
 }
 
@@ -372,16 +389,17 @@ static void virtio_scsi_command_complete(SCSIRequest *r, uint32_t status,
         return;
     }
 
-    req->resp.cmd->response = VIRTIO_SCSI_S_OK;
-    req->resp.cmd->status = status;
-    if (req->resp.cmd->status == GOOD) {
-        req->resp.cmd->resid = tswap32(resid);
+    req->resp.cmd.response = VIRTIO_SCSI_S_OK;
+    req->resp.cmd.status = status;
+    if (req->resp.cmd.status == GOOD) {
+        req->resp.cmd.resid = tswap32(resid);
     } else {
-        req->resp.cmd->resid = 0;
+        req->resp.cmd.resid = 0;
         sense_len = scsi_req_get_sense(r, sense, sizeof(sense));
-        sense_len = MIN(sense_len, req->resp_size - sizeof(req->resp.cmd));
-        memcpy(req->resp.cmd->sense, sense, sense_len);
-        req->resp.cmd->sense_len = tswap32(sense_len);
+        sense_len = MIN(sense_len, req->resp_iov.size - sizeof(req->resp.cmd));
+        qemu_iovec_from_buf(&req->resp_iov, sizeof(req->resp.cmd),
+                            &req->resp, sense_len);
+        req->resp.cmd.sense_len = tswap32(sense_len);
     }
     virtio_scsi_complete_cmd_req(req);
 }
@@ -401,16 +419,16 @@ static void virtio_scsi_request_cancelled(SCSIRequest *r)
         return;
     }
     if (req->dev->resetting) {
-        req->resp.cmd->response = VIRTIO_SCSI_S_RESET;
+        req->resp.cmd.response = VIRTIO_SCSI_S_RESET;
     } else {
-        req->resp.cmd->response = VIRTIO_SCSI_S_ABORTED;
+        req->resp.cmd.response = VIRTIO_SCSI_S_ABORTED;
     }
     virtio_scsi_complete_cmd_req(req);
 }
 
 static void virtio_scsi_fail_cmd_req(VirtIOSCSIReq *req)
 {
-    req->resp.cmd->response = VIRTIO_SCSI_S_FAILURE;
+    req->resp.cmd.response = VIRTIO_SCSI_S_FAILURE;
     virtio_scsi_complete_cmd_req(req);
 }
 
@@ -426,37 +444,34 @@ static void virtio_scsi_handle_cmd(VirtIODevice *vdev, VirtQueue *vq)
     while ((req = virtio_scsi_pop_req(s, vq))) {
         SCSIDevice *d;
         int rc;
-        if (req->elem.out_num > 1 && req->elem.in_num > 1) {
-            virtio_scsi_fail_cmd_req(req);
-            continue;
-        }
 
         rc = virtio_scsi_parse_req(req, sizeof(VirtIOSCSICmdReq) + vs->cdb_size,
                                    sizeof(VirtIOSCSICmdResp) + vs->sense_size);
         if (rc < 0) {
-            virtio_scsi_bad_req();
+            if (rc == -ENOTSUP) {
+                virtio_scsi_fail_cmd_req(req);
+            } else {
+                virtio_scsi_bad_req();
+            }
+            continue;
         }
 
-        d = virtio_scsi_device_find(s, req->req.cmd->lun);
+        d = virtio_scsi_device_find(s, req->req.cmd.lun);
         if (!d) {
-            req->resp.cmd->response = VIRTIO_SCSI_S_BAD_TARGET;
+            req->resp.cmd.response = VIRTIO_SCSI_S_BAD_TARGET;
             virtio_scsi_complete_cmd_req(req);
             continue;
         }
-        req->sreq = scsi_req_new(d, req->req.cmd->tag,
-                                 virtio_scsi_get_lun(req->req.cmd->lun),
-                                 req->req.cmd->cdb, req);
+        req->sreq = scsi_req_new(d, req->req.cmd.tag,
+                                 virtio_scsi_get_lun(req->req.cmd.lun),
+                                 req->req.cdb, req);
 
-        if (req->sreq->cmd.mode != SCSI_XFER_NONE) {
-            int req_mode =
-                (req->elem.in_num > 1 ? SCSI_XFER_FROM_DEV : SCSI_XFER_TO_DEV);
-
-            if (req->sreq->cmd.mode != req_mode ||
-                req->sreq->cmd.xfer > req->qsgl.size) {
-                req->resp.cmd->response = VIRTIO_SCSI_S_OVERRUN;
-                virtio_scsi_complete_cmd_req(req);
-                continue;
-            }
+        if (req->sreq->cmd.mode != SCSI_XFER_NONE
+            && (req->sreq->cmd.mode != req->mode ||
+                req->sreq->cmd.xfer > req->qsgl.size)) {
+            req->resp.cmd.response = VIRTIO_SCSI_S_OVERRUN;
+            virtio_scsi_complete_cmd_req(req);
+            continue;
         }
 
         n = scsi_req_enqueue(req->sreq);
@@ -560,7 +575,7 @@ static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
         return;
     }
 
-    if (req->elem.out_num || req->elem.in_num != 1) {
+    if (req->elem.out_num) {
         virtio_scsi_bad_req();
     }
 
@@ -569,12 +584,12 @@ static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
         s->events_dropped = false;
     }
 
-    in_size = req->elem.in_sg[0].iov_len;
+    in_size = iov_size(req->elem.in_sg, req->elem.in_num);
     if (in_size < sizeof(VirtIOSCSIEvent)) {
         virtio_scsi_bad_req();
     }
 
-    evt = req->resp.event;
+    evt = &req->resp.event;
     memset(evt, 0, sizeof(VirtIOSCSIEvent));
     evt->event = event;
     evt->reason = reason;
