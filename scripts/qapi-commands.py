@@ -102,7 +102,7 @@ def gen_visitor_input_vars_decl(args):
 bool has_%(argname)s = false;
 ''',
                          argname=c_var(argname))
-        if c_type(argtype).endswith("*"):
+        if is_c_ptr(argtype):
             ret += mcgen('''
 %(argtype)s %(argname)s = NULL;
 ''',
@@ -227,7 +227,7 @@ def gen_marshal_input(name, args, ret_type, middle_mode):
 ''')
 
     if ret_type:
-        if c_type(ret_type).endswith("*"):
+        if is_c_ptr(ret_type):
             retval = "    %s retval = NULL;" % c_type(ret_type)
         else:
             retval = "    %s retval;" % c_type(ret_type)

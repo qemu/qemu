@@ -470,11 +470,17 @@ def find_enum(name):
 def is_enum(name):
     return find_enum(name) != None
 
+eatspace = '\033EATSPACE.'
+
+# A special suffix is added in c_type() for pointer types, and it's
+# stripped in mcgen(). So please notice this when you check the return
+# value of c_type() outside mcgen().
 def c_type(name, is_param=False):
     if name == 'str':
         if is_param:
-            return 'const char *'
-        return 'char *'
+            return 'const char *' + eatspace
+        return 'char *' + eatspace
+
     elif name == 'int':
         return 'int64_t'
     elif (name == 'int8' or name == 'int16' or name == 'int32' or
@@ -488,15 +494,19 @@ def c_type(name, is_param=False):
     elif name == 'number':
         return 'double'
     elif type(name) == list:
-        return '%s *' % c_list_type(name[0])
+        return '%s *%s' % (c_list_type(name[0]), eatspace)
     elif is_enum(name):
         return name
     elif name == None or len(name) == 0:
         return 'void'
     elif name == name.upper():
-        return '%sEvent *' % camel_case(name)
+        return '%sEvent *%s' % (camel_case(name), eatspace)
     else:
-        return '%s *' % name
+        return '%s *%s' % (name, eatspace)
+
+def is_c_ptr(name):
+    suffix = "*" + eatspace
+    return c_type(name).endswith(suffix)
 
 def genindent(count):
     ret = ""
@@ -521,7 +531,8 @@ def cgen(code, **kwds):
     return '\n'.join(lines) % kwds + '\n'
 
 def mcgen(code, **kwds):
-    return cgen('\n'.join(code.split('\n')[1:-1]), **kwds)
+    raw = cgen('\n'.join(code.split('\n')[1:-1]), **kwds)
+    return re.sub(re.escape(eatspace) + ' *', '', raw)
 
 def basename(filename):
     return filename.split("/")[-1]
