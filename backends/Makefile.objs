@@ -8,3 +8,4 @@ baum.o-cflags := $(SDL_CFLAGS)
 common-obj-$(CONFIG_TPM) += tpm.o
 
 common-obj-y += hostmem.o hostmem-ram.o
+common-obj-$(CONFIG_LINUX) += hostmem-file.o
