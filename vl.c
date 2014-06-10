@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 
 #include "ui/qemu-spice.h"
 #include "qapi/string-input-visitor.h"
-#include "qom/object_interfaces.h"
+#include "qapi/opts-visitor.h"
 
 #define DEFAULT_RAM_SIZE 128
 
@@ -2822,44 +2822,51 @@ static int object_set_property(const char *name, const char *value, void *opaque
 
 static int object_create(QemuOpts *opts, void *opaque)
 {
-    const char *type = qemu_opt_get(opts, "qom-type");
-    const char *id = qemu_opts_id(opts);
-    Error *local_err = NULL;
-    Object *obj;
+    Error *err = NULL;
+    char *type = NULL;
+    char *id = NULL;
+    void *dummy = NULL;
+    OptsVisitor *ov;
+    QDict *pdict;
 
-    g_assert(type != NULL);
+    ov = opts_visitor_new(opts);
+    pdict = qemu_opts_to_qdict(opts, NULL);
 
-    if (id == NULL) {
-        qerror_report(QERR_MISSING_PARAMETER, "id");
-        return -1;
-    }
-
-    obj = object_new(type);
-    if (qemu_opt_foreach(opts, object_set_property, obj, 1) < 0) {
-        object_unref(obj);
-        return -1;
-    }
-
-    if (!object_dynamic_cast(obj, TYPE_USER_CREATABLE)) {
-        error_setg(&local_err, "object '%s' isn't supported by -object",
-                   id);
+    visit_start_struct(opts_get_visitor(ov), &dummy, NULL, NULL, 0, &err);
+    if (err) {
         goto out;
     }
 
-    object_property_add_child(container_get(object_get_root(), "/objects"),
-                              id, obj, &local_err);
-
-    user_creatable_complete(obj, &local_err);
-    if (local_err) {
-        object_property_del(container_get(object_get_root(), "/objects"),
-                            id, &error_abort);
+    qdict_del(pdict, "qom-type");
+    visit_type_str(opts_get_visitor(ov), &type, "qom-type", &err);
+    if (err) {
         goto out;
     }
+
+    qdict_del(pdict, "id");
+    visit_type_str(opts_get_visitor(ov), &id, "id", &err);
+    if (err) {
+        goto out;
+    }
+
+    object_add(type, id, pdict, opts_get_visitor(ov), &err);
+    if (err) {
+        goto out;
+    }
+    visit_end_struct(opts_get_visitor(ov), &err);
+    if (err) {
+        qmp_object_del(id, NULL);
+    }
+
 out:
-    object_unref(obj);
-    if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+    opts_visitor_cleanup(ov);
+
+    QDECREF(pdict);
+    g_free(id);
+    g_free(type);
+    g_free(dummy);
+    if (err) {
+        qerror_report_err(err);
         return -1;
     }
     return 0;
