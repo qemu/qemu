@@ -17,8 +17,8 @@
 #include "qom/object_interfaces.h"
 
 static void
-hostmemory_backend_get_size(Object *obj, Visitor *v, void *opaque,
-                            const char *name, Error **errp)
+host_memory_backend_get_size(Object *obj, Visitor *v, void *opaque,
+                             const char *name, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
     uint64_t value = backend->size;
@@ -27,8 +27,8 @@ hostmemory_backend_get_size(Object *obj, Visitor *v, void *opaque,
 }
 
 static void
-hostmemory_backend_set_size(Object *obj, Visitor *v, void *opaque,
-                            const char *name, Error **errp)
+host_memory_backend_set_size(Object *obj, Visitor *v, void *opaque,
+                             const char *name, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
     Error *local_err = NULL;
@@ -53,14 +53,14 @@ out:
     error_propagate(errp, local_err);
 }
 
-static void hostmemory_backend_init(Object *obj)
+static void host_memory_backend_init(Object *obj)
 {
     object_property_add(obj, "size", "int",
-                        hostmemory_backend_get_size,
-                        hostmemory_backend_set_size, NULL, NULL, NULL);
+                        host_memory_backend_get_size,
+                        host_memory_backend_set_size, NULL, NULL, NULL);
 }
 
-static void hostmemory_backend_finalize(Object *obj)
+static void host_memory_backend_finalize(Object *obj)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
 
@@ -75,14 +75,14 @@ host_memory_backend_get_memory(HostMemoryBackend *backend, Error **errp)
     return memory_region_size(&backend->mr) ? &backend->mr : NULL;
 }
 
-static const TypeInfo hostmemory_backend_info = {
+static const TypeInfo host_memory_backend_info = {
     .name = TYPE_MEMORY_BACKEND,
     .parent = TYPE_OBJECT,
     .abstract = true,
     .class_size = sizeof(HostMemoryBackendClass),
     .instance_size = sizeof(HostMemoryBackend),
-    .instance_init = hostmemory_backend_init,
-    .instance_finalize = hostmemory_backend_finalize,
+    .instance_init = host_memory_backend_init,
+    .instance_finalize = host_memory_backend_finalize,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
@@ -91,7 +91,7 @@ static const TypeInfo hostmemory_backend_info = {
 
 static void register_types(void)
 {
-    type_register_static(&hostmemory_backend_info);
+    type_register_static(&host_memory_backend_info);
 }
 
 type_init(register_types);
