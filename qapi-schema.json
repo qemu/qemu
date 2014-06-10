@@ -2069,6 +2069,22 @@
     '*devname':    'str' } }
 
 ##
+# @NetdevVhostUserOptions
+#
+# Vhost-user network backend
+#
+# @chardev: name of a unix socket chardev
+#
+# @vhostforce: #optional vhost on for non-MSIX virtio guests (default: false).
+#
+# Since 2.1
+##
+{ 'type': 'NetdevVhostUserOptions',
+  'data': {
+    'chardev':        'str',
+    '*vhostforce':    'bool' } }
+
+##
 # @NetClientOptions
 #
 # A discriminated record of network device traits.
@@ -2086,7 +2102,8 @@
     'dump':     'NetdevDumpOptions',
     'bridge':   'NetdevBridgeOptions',
     'hubport':  'NetdevHubPortOptions',
-    'netmap':   'NetdevNetmapOptions' } }
+    'netmap':   'NetdevNetmapOptions',
+    'vhost-user': 'NetdevVhostUserOptions' } }
 
 ##
 # @NetLegacy

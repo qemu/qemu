@@ -4515,6 +4515,9 @@ fi
 if test "$vhost_scsi" = "yes" ; then
   echo "CONFIG_VHOST_SCSI=y" >> $config_host_mak
 fi
+if test "$vhost_net" = "yes" ; then
+  echo "CONFIG_VHOST_NET_USED=y" >> $config_host_mak
+fi
 if test "$blobs" = "yes" ; then
   echo "INSTALL_BLOBS=yes" >> $config_host_mak
 fi

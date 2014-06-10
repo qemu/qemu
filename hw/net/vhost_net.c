@@ -15,6 +15,7 @@
 
 #include "net/net.h"
 #include "net/tap.h"
+#include "net/vhost-user.h"
 
 #include "hw/virtio/virtio-net.h"
 #include "net/vhost_net.h"
@@ -359,6 +360,9 @@ VHostNetState *get_vhost_net(NetClientState *nc)
     switch (nc->info->type) {
     case NET_CLIENT_OPTIONS_KIND_TAP:
         vhost_net = tap_get_vhost_net(nc);
+        break;
+    case NET_CLIENT_OPTIONS_KIND_VHOST_USER:
+        vhost_net = vhost_user_get_vhost_net(nc);
         break;
     default:
         break;

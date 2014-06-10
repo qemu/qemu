@@ -12,6 +12,7 @@
 #include "net/vhost_net.h"
 #include "net/vhost-user.h"
 #include "sysemu/char.h"
+#include "qemu/config-file.h"
 #include "qemu/error-report.h"
 
 typedef struct VhostUserState {
@@ -21,9 +22,16 @@ typedef struct VhostUserState {
     VHostNetState *vhost_net;
 } VhostUserState;
 
+typedef struct VhostUserChardevProps {
+    bool is_socket;
+    bool is_unix;
+    bool is_server;
+} VhostUserChardevProps;
+
 VHostNetState *vhost_user_get_vhost_net(NetClientState *nc)
 {
     VhostUserState *s = DO_UPCAST(VhostUserState, nc, nc);
+    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
     return s->vhost_net;
 }
 
@@ -82,7 +90,7 @@ static bool vhost_user_has_ufo(NetClientState *nc)
 }
 
 static NetClientInfo net_vhost_user_info = {
-        .type = 0,
+        .type = NET_CLIENT_OPTIONS_KIND_VHOST_USER,
         .size = sizeof(VhostUserState),
         .cleanup = vhost_user_cleanup,
         .has_vnet_hdr = vhost_user_has_vnet_hdr,
@@ -148,8 +156,103 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
     return 0;
 }
 
-int net_init_vhost_user(const NetClientOptions *opts, const char *name,
-                   NetClientState *peer)
+static int net_vhost_chardev_opts(const char *name, const char *value,
+                                  void *opaque)
 {
-    return net_vhost_user_init(peer, "vhost_user", 0, 0, 0);
+    VhostUserChardevProps *props = opaque;
+
+    if (strcmp(name, "backend") == 0 && strcmp(value, "socket") == 0) {
+        props->is_socket = true;
+    } else if (strcmp(name, "path") == 0) {
+        props->is_unix = true;
+    } else if (strcmp(name, "server") == 0) {
+        props->is_server = true;
+    } else {
+        error_report("vhost-user does not support a chardev"
+                     " with the following option:\n %s = %s",
+                     name, value);
+        return -1;
+    }
+    return 0;
+}
+
+static CharDriverState *net_vhost_parse_chardev(const NetdevVhostUserOptions *opts)
+{
+    CharDriverState *chr = qemu_chr_find(opts->chardev);
+    VhostUserChardevProps props;
+
+    if (chr == NULL) {
+        error_report("chardev \"%s\" not found", opts->chardev);
+        return NULL;
+    }
+
+    /* inspect chardev opts */
+    memset(&props, 0, sizeof(props));
+    if (qemu_opt_foreach(chr->opts, net_vhost_chardev_opts, &props, true) != 0) {
+        return NULL;
+    }
+
+    if (!props.is_socket || !props.is_unix) {
+        error_report("chardev \"%s\" is not a unix socket",
+                     opts->chardev);
+        return NULL;
+    }
+
+    qemu_chr_fe_claim_no_fail(chr);
+
+    return chr;
+}
+
+static int net_vhost_check_net(QemuOpts *opts, void *opaque)
+{
+    const char *name = opaque;
+    const char *driver, *netdev;
+    const char virtio_name[] = "virtio-net-";
+
+    driver = qemu_opt_get(opts, "driver");
+    netdev = qemu_opt_get(opts, "netdev");
+
+    if (!driver || !netdev) {
+        return 0;
+    }
+
+    if (strcmp(netdev, name) == 0 &&
+        strncmp(driver, virtio_name, strlen(virtio_name)) != 0) {
+        error_report("vhost-user requires frontend driver virtio-net-*");
+        return -1;
+    }
+
+    return 0;
+}
+
+int net_init_vhost_user(const NetClientOptions *opts, const char *name,
+                        NetClientState *peer)
+{
+    const NetdevVhostUserOptions *vhost_user_opts;
+    CharDriverState *chr;
+    bool vhostforce;
+
+    assert(opts->kind == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
+    vhost_user_opts = opts->vhost_user;
+
+    chr = net_vhost_parse_chardev(vhost_user_opts);
+    if (!chr) {
+        error_report("No suitable chardev found");
+        return -1;
+    }
+
+    /* verify net frontend */
+    if (qemu_opts_foreach(qemu_find_opts("device"), net_vhost_check_net,
+                          (char *)name, true) == -1) {
+        return -1;
+    }
+
+    /* vhostforce for non-MSIX */
+    if (vhost_user_opts->has_vhostforce) {
+        vhostforce = vhost_user_opts->vhostforce;
+    } else {
+        vhostforce = false;
+    }
+
+    return net_vhost_user_init(peer, "vhost_user", name, chr, vhostforce);
 }
