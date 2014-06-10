@@ -357,30 +357,23 @@ void s390x_tod_timer(void *opaque);
 void s390x_cpu_timer(void *opaque);
 
 int s390_virtio_hypercall(CPUS390XState *env);
+void s390_virtio_irq(int config_change, uint64_t token);
 
 #ifdef CONFIG_KVM
 void kvm_s390_reset_vcpu(S390CPU *cpu);
-void kvm_s390_interrupt(S390CPU *cpu, int type, uint32_t code);
-void kvm_s390_virtio_irq(S390CPU *cpu, int config_change, uint64_t token);
-void kvm_s390_interrupt_internal(S390CPU *cpu, int type, uint32_t parm,
-                                 uint64_t parm64, int vm);
+void kvm_s390_virtio_irq(int config_change, uint64_t token);
+void kvm_s390_service_interrupt(uint32_t parm);
+void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq);
+void kvm_s390_floating_interrupt(struct kvm_s390_irq *irq);
+int kvm_s390_inject_flic(struct kvm_s390_irq *irq);
 #else
 static inline void kvm_s390_reset_vcpu(S390CPU *cpu)
 {
 }
-
-static inline void kvm_s390_interrupt(S390CPU *cpu, int type, uint32_t code)
+static inline void kvm_s390_virtio_irq(int config_change, uint64_t token)
 {
 }
-
-static inline void kvm_s390_virtio_irq(S390CPU *cpu, int config_change,
-                                       uint64_t token)
-{
-}
-
-static inline void kvm_s390_interrupt_internal(S390CPU *cpu, int type,
-                                               uint32_t parm, uint64_t parm64,
-                                               int vm)
+static inline void kvm_s390_service_interrupt(uint32_t parm)
 {
 }
 #endif
@@ -1066,23 +1059,23 @@ void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
                                      uintptr_t retaddr);
 
 #ifdef CONFIG_KVM
-void kvm_s390_io_interrupt(S390CPU *cpu, uint16_t subchannel_id,
+void kvm_s390_io_interrupt(uint16_t subchannel_id,
                            uint16_t subchannel_nr, uint32_t io_int_parm,
                            uint32_t io_int_word);
-void kvm_s390_crw_mchk(S390CPU *cpu);
+void kvm_s390_crw_mchk(void);
 void kvm_s390_enable_css_support(S390CPU *cpu);
 int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
                                     int vq, bool assign);
 int kvm_s390_cpu_restart(S390CPU *cpu);
+void kvm_s390_clear_cmma_callback(void *opaque);
 #else
-static inline void kvm_s390_io_interrupt(S390CPU *cpu,
-                                        uint16_t subchannel_id,
+static inline void kvm_s390_io_interrupt(uint16_t subchannel_id,
                                         uint16_t subchannel_nr,
                                         uint32_t io_int_parm,
                                         uint32_t io_int_word)
 {
 }
-static inline void kvm_s390_crw_mchk(S390CPU *cpu)
+static inline void kvm_s390_crw_mchk(void)
 {
 }
 static inline void kvm_s390_enable_css_support(S390CPU *cpu)
@@ -1098,7 +1091,18 @@ static inline int kvm_s390_cpu_restart(S390CPU *cpu)
 {
     return -ENOSYS;
 }
+static inline void kvm_s390_clear_cmma_callback(void *opaque)
+{
+}
 #endif
+
+static inline void cmma_reset(S390CPU *cpu)
+{
+    if (kvm_enabled()) {
+        CPUState *cs = CPU(cpu);
+        kvm_s390_clear_cmma_callback(cs->kvm_state);
+    }
+}
 
 static inline int s390_cpu_restart(S390CPU *cpu)
 {
@@ -1108,29 +1112,9 @@ static inline int s390_cpu_restart(S390CPU *cpu)
     return -ENOSYS;
 }
 
-static inline void s390_io_interrupt(S390CPU *cpu,
-                                     uint16_t subchannel_id,
-                                     uint16_t subchannel_nr,
-                                     uint32_t io_int_parm,
-                                     uint32_t io_int_word)
-{
-    if (kvm_enabled()) {
-        kvm_s390_io_interrupt(cpu, subchannel_id, subchannel_nr, io_int_parm,
-                              io_int_word);
-    } else {
-        cpu_inject_io(cpu, subchannel_id, subchannel_nr, io_int_parm,
-                      io_int_word);
-    }
-}
-
-static inline void s390_crw_mchk(S390CPU *cpu)
-{
-    if (kvm_enabled()) {
-        kvm_s390_crw_mchk(cpu);
-    } else {
-        cpu_inject_crw_mchk(cpu);
-    }
-}
+void s390_io_interrupt(uint16_t subchannel_id, uint16_t subchannel_nr,
+                       uint32_t io_int_parm, uint32_t io_int_word);
+void s390_crw_mchk(void);
 
 static inline int s390_assign_subch_ioeventfd(EventNotifier *notifier,
                                               uint32_t sch_id, int vq,

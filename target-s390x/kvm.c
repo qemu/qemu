@@ -32,6 +32,7 @@
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
+#include "hw/hw.h"
 #include "cpu.h"
 #include "sysemu/device_tree.h"
 #include "qapi/qmp/qjson.h"
@@ -82,6 +83,8 @@
 #define DIAG_KVM_BREAKPOINT             0x501
 
 #define ICPT_INSTRUCTION                0x04
+#define ICPT_PROGRAM                    0x08
+#define ICPT_EXT_INT                    0x14
 #define ICPT_WAITPSW                    0x1c
 #define ICPT_SOFT_INTERCEPT             0x24
 #define ICPT_CPU_STOP                   0x28
@@ -104,10 +107,67 @@ static int cap_async_pf;
 
 static void *legacy_s390_alloc(size_t size);
 
+static int kvm_s390_check_clear_cmma(KVMState *s)
+{
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MEM_CTRL,
+        .attr = KVM_S390_VM_MEM_CLR_CMMA,
+    };
+
+    return kvm_vm_ioctl(s, KVM_HAS_DEVICE_ATTR, &attr);
+}
+
+static int kvm_s390_check_enable_cmma(KVMState *s)
+{
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MEM_CTRL,
+        .attr = KVM_S390_VM_MEM_ENABLE_CMMA,
+    };
+
+    return kvm_vm_ioctl(s, KVM_HAS_DEVICE_ATTR, &attr);
+}
+
+void kvm_s390_clear_cmma_callback(void *opaque)
+{
+    int rc;
+    KVMState *s = opaque;
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MEM_CTRL,
+        .attr = KVM_S390_VM_MEM_CLR_CMMA,
+    };
+
+    rc = kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
+    trace_kvm_clear_cmma(rc);
+}
+
+static void kvm_s390_enable_cmma(KVMState *s)
+{
+    int rc;
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MEM_CTRL,
+        .attr = KVM_S390_VM_MEM_ENABLE_CMMA,
+    };
+
+    if (kvm_s390_check_enable_cmma(s) || kvm_s390_check_clear_cmma(s)) {
+        return;
+    }
+
+    rc = kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
+    if (!rc) {
+        qemu_register_reset(kvm_s390_clear_cmma_callback, s);
+    }
+    trace_kvm_enable_cmma(rc);
+}
+
 int kvm_arch_init(KVMState *s)
 {
     cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
     cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
+
+    if (kvm_check_extension(s, KVM_CAP_VM_ATTRIBUTES)) {
+        kvm_s390_enable_cmma(s);
+    }
+
     if (!kvm_check_extension(s, KVM_CAP_S390_GMAP)
         || !kvm_check_extension(s, KVM_CAP_S390_COW)) {
         phys_mem_set_alloc(legacy_s390_alloc);
@@ -495,47 +555,138 @@ int kvm_arch_process_async_events(CPUState *cs)
     return cs->halted;
 }
 
-void kvm_s390_interrupt_internal(S390CPU *cpu, int type, uint32_t parm,
-                                 uint64_t parm64, int vm)
+static int s390_kvm_irq_to_interrupt(struct kvm_s390_irq *irq,
+                                     struct kvm_s390_interrupt *interrupt)
 {
+    int r = 0;
+
+    interrupt->type = irq->type;
+    switch (irq->type) {
+    case KVM_S390_INT_VIRTIO:
+        interrupt->parm = irq->u.ext.ext_params;
+        /* fall through */
+    case KVM_S390_INT_PFAULT_INIT:
+    case KVM_S390_INT_PFAULT_DONE:
+        interrupt->parm64 = irq->u.ext.ext_params2;
+        break;
+    case KVM_S390_PROGRAM_INT:
+        interrupt->parm = irq->u.pgm.code;
+        break;
+    case KVM_S390_SIGP_SET_PREFIX:
+        interrupt->parm = irq->u.prefix.address;
+        break;
+    case KVM_S390_INT_SERVICE:
+        interrupt->parm = irq->u.ext.ext_params;
+        break;
+    case KVM_S390_MCHK:
+        interrupt->parm = irq->u.mchk.cr14;
+        interrupt->parm64 = irq->u.mchk.mcic;
+        break;
+    case KVM_S390_INT_EXTERNAL_CALL:
+        interrupt->parm = irq->u.extcall.code;
+        break;
+    case KVM_S390_INT_EMERGENCY:
+        interrupt->parm = irq->u.emerg.code;
+        break;
+    case KVM_S390_SIGP_STOP:
+    case KVM_S390_RESTART:
+        break; /* These types have no parameters */
+    case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
+        interrupt->parm = irq->u.io.subchannel_id << 16;
+        interrupt->parm |= irq->u.io.subchannel_nr;
+        interrupt->parm64 = (uint64_t)irq->u.io.io_int_parm << 32;
+        interrupt->parm64 |= irq->u.io.io_int_word;
+        break;
+    default:
+        r = -EINVAL;
+        break;
+    }
+    return r;
+}
+
+void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq)
+{
+    struct kvm_s390_interrupt kvmint = {};
     CPUState *cs = CPU(cpu);
-    struct kvm_s390_interrupt kvmint;
     int r;
 
-    if (!cs->kvm_state) {
-        return;
+    r = s390_kvm_irq_to_interrupt(irq, &kvmint);
+    if (r < 0) {
+        fprintf(stderr, "%s called with bogus interrupt\n", __func__);
+        exit(1);
     }
 
-    kvmint.type = type;
-    kvmint.parm = parm;
-    kvmint.parm64 = parm64;
-
-    if (vm) {
-        r = kvm_vm_ioctl(cs->kvm_state, KVM_S390_INTERRUPT, &kvmint);
-    } else {
-        r = kvm_vcpu_ioctl(cs, KVM_S390_INTERRUPT, &kvmint);
-    }
-
+    r = kvm_vcpu_ioctl(cs, KVM_S390_INTERRUPT, &kvmint);
     if (r < 0) {
         fprintf(stderr, "KVM failed to inject interrupt\n");
         exit(1);
     }
 }
 
-void kvm_s390_virtio_irq(S390CPU *cpu, int config_change, uint64_t token)
+static void __kvm_s390_floating_interrupt(struct kvm_s390_irq *irq)
 {
-    kvm_s390_interrupt_internal(cpu, KVM_S390_INT_VIRTIO, config_change,
-                                token, 1);
+    struct kvm_s390_interrupt kvmint = {};
+    int r;
+
+    r = s390_kvm_irq_to_interrupt(irq, &kvmint);
+    if (r < 0) {
+        fprintf(stderr, "%s called with bogus interrupt\n", __func__);
+        exit(1);
+    }
+
+    r = kvm_vm_ioctl(kvm_state, KVM_S390_INTERRUPT, &kvmint);
+    if (r < 0) {
+        fprintf(stderr, "KVM failed to inject interrupt\n");
+        exit(1);
+    }
 }
 
-void kvm_s390_interrupt(S390CPU *cpu, int type, uint32_t code)
+void kvm_s390_floating_interrupt(struct kvm_s390_irq *irq)
 {
-    kvm_s390_interrupt_internal(cpu, type, code, 0, 0);
+    static bool use_flic = true;
+    int r;
+
+    if (use_flic) {
+        r = kvm_s390_inject_flic(irq);
+        if (r == -ENOSYS) {
+            use_flic = false;
+        }
+        if (!r) {
+            return;
+        }
+    }
+    __kvm_s390_floating_interrupt(irq);
+}
+
+void kvm_s390_virtio_irq(int config_change, uint64_t token)
+{
+    struct kvm_s390_irq irq = {
+        .type = KVM_S390_INT_VIRTIO,
+        .u.ext.ext_params = config_change,
+        .u.ext.ext_params2 = token,
+    };
+
+    kvm_s390_floating_interrupt(&irq);
+}
+
+void kvm_s390_service_interrupt(uint32_t parm)
+{
+    struct kvm_s390_irq irq = {
+        .type = KVM_S390_INT_SERVICE,
+        .u.ext.ext_params = parm,
+    };
+
+    kvm_s390_floating_interrupt(&irq);
 }
 
 static void enter_pgmcheck(S390CPU *cpu, uint16_t code)
 {
-    kvm_s390_interrupt(cpu, KVM_S390_PROGRAM_INT, code);
+    struct kvm_s390_irq irq = {
+        .type = KVM_S390_PROGRAM_INT,
+        .u.pgm.code = code,
+    };
+
+    kvm_s390_vcpu_interrupt(cpu, &irq);
 }
 
 static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
@@ -751,7 +902,11 @@ static int kvm_s390_cpu_start(S390CPU *cpu)
 
 int kvm_s390_cpu_restart(S390CPU *cpu)
 {
-    kvm_s390_interrupt(cpu, KVM_S390_RESTART, 0);
+    struct kvm_s390_irq irq = {
+        .type = KVM_S390_RESTART,
+    };
+
+    kvm_s390_vcpu_interrupt(cpu, &irq);
     s390_add_running_cpu(cpu);
     qemu_cpu_kick(CPU(cpu));
     DPRINTF("DONE: KVM cpu restart: %p\n", &cpu->env);
@@ -872,6 +1027,28 @@ static bool is_special_wait_psw(CPUState *cs)
     return cs->kvm_run->psw_addr == 0xfffUL;
 }
 
+static void guest_panicked(void)
+{
+    QObject *data;
+
+    data = qobject_from_jsonf("{ 'action': %s }", "pause");
+    monitor_protocol_event(QEVENT_GUEST_PANICKED, data);
+    qobject_decref(data);
+
+    vm_stop(RUN_STATE_GUEST_PANICKED);
+}
+
+static void unmanageable_intercept(S390CPU *cpu, const char *str, int pswoffset)
+{
+    CPUState *cs = CPU(cpu);
+
+    error_report("Unmanageable %s! CPU%i new PSW: 0x%016lx:%016lx",
+                 str, cs->cpu_index, ldq_phys(cs->as, cpu->env.psa + pswoffset),
+                 ldq_phys(cs->as, cpu->env.psa + pswoffset + 8));
+    s390_del_running_cpu(cpu);
+    guest_panicked();
+}
+
 static int handle_intercept(S390CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -885,18 +1062,23 @@ static int handle_intercept(S390CPU *cpu)
         case ICPT_INSTRUCTION:
             r = handle_instruction(cpu, run);
             break;
+        case ICPT_PROGRAM:
+            unmanageable_intercept(cpu, "program interrupt",
+                                   offsetof(LowCore, program_new_psw));
+            r = EXCP_HALTED;
+            break;
+        case ICPT_EXT_INT:
+            unmanageable_intercept(cpu, "external interrupt",
+                                   offsetof(LowCore, external_new_psw));
+            r = EXCP_HALTED;
+            break;
         case ICPT_WAITPSW:
             /* disabled wait, since enabled wait is handled in kernel */
             if (s390_del_running_cpu(cpu) == 0) {
                 if (is_special_wait_psw(cs)) {
                     qemu_system_shutdown_request();
                 } else {
-                    QObject *data;
-
-                    data = qobject_from_jsonf("{ 'action': %s }", "pause");
-                    monitor_protocol_event(QEVENT_GUEST_PANICKED, data);
-                    qobject_decref(data);
-                    vm_stop(RUN_STATE_GUEST_PANICKED);
+                    guest_panicked();
                 }
             }
             r = EXCP_HALTED;
@@ -944,18 +1126,10 @@ static int handle_tsch(S390CPU *cpu)
          * If an I/O interrupt had been dequeued, we have to reinject it.
          */
         if (run->s390_tsch.dequeued) {
-            uint16_t subchannel_id = run->s390_tsch.subchannel_id;
-            uint16_t subchannel_nr = run->s390_tsch.subchannel_nr;
-            uint32_t io_int_parm = run->s390_tsch.io_int_parm;
-            uint32_t io_int_word = run->s390_tsch.io_int_word;
-            uint32_t type = ((subchannel_id & 0xff00) << 24) |
-                ((subchannel_id & 0x00060) << 22) | (subchannel_nr << 16);
-
-            kvm_s390_interrupt_internal(cpu, type,
-                                        ((uint32_t)subchannel_id << 16)
-                                        | subchannel_nr,
-                                        ((uint64_t)io_int_parm << 32)
-                                        | io_int_word, 1);
+            kvm_s390_io_interrupt(run->s390_tsch.subchannel_id,
+                                  run->s390_tsch.subchannel_nr,
+                                  run->s390_tsch.io_int_parm,
+                                  run->s390_tsch.io_int_word);
         }
         ret = 0;
     }
@@ -1040,27 +1214,34 @@ int kvm_arch_on_sigbus(int code, void *addr)
     return 1;
 }
 
-void kvm_s390_io_interrupt(S390CPU *cpu, uint16_t subchannel_id,
+void kvm_s390_io_interrupt(uint16_t subchannel_id,
                            uint16_t subchannel_nr, uint32_t io_int_parm,
                            uint32_t io_int_word)
 {
-    uint32_t type;
+    struct kvm_s390_irq irq = {
+        .u.io.subchannel_id = subchannel_id,
+        .u.io.subchannel_nr = subchannel_nr,
+        .u.io.io_int_parm = io_int_parm,
+        .u.io.io_int_word = io_int_word,
+    };
 
     if (io_int_word & IO_INT_WORD_AI) {
-        type = KVM_S390_INT_IO(1, 0, 0, 0);
+        irq.type = KVM_S390_INT_IO(1, 0, 0, 0);
     } else {
-        type = ((subchannel_id & 0xff00) << 24) |
+        irq.type = ((subchannel_id & 0xff00) << 24) |
             ((subchannel_id & 0x00060) << 22) | (subchannel_nr << 16);
     }
-    kvm_s390_interrupt_internal(cpu, type,
-                                ((uint32_t)subchannel_id << 16) | subchannel_nr,
-                                ((uint64_t)io_int_parm << 32) | io_int_word, 1);
+    kvm_s390_floating_interrupt(&irq);
 }
 
-void kvm_s390_crw_mchk(S390CPU *cpu)
+void kvm_s390_crw_mchk(void)
 {
-    kvm_s390_interrupt_internal(cpu, KVM_S390_MCHK, 1 << 28,
-                                0x00400f1d40330000, 1);
+    struct kvm_s390_irq irq = {
+        .type = KVM_S390_MCHK,
+        .u.mchk.cr14 = 1 << 28,
+        .u.mchk.mcic = 0x00400f1d40330000,
+    };
+    kvm_s390_floating_interrupt(&irq);
 }
 
 void kvm_s390_enable_css_support(S390CPU *cpu)
