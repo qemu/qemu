@@ -53,8 +53,73 @@ out:
     error_propagate(errp, local_err);
 }
 
+static bool host_memory_backend_get_merge(Object *obj, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+
+    return backend->merge;
+}
+
+static void host_memory_backend_set_merge(Object *obj, bool value, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+
+    if (!memory_region_size(&backend->mr)) {
+        backend->merge = value;
+        return;
+    }
+
+    if (value != backend->merge) {
+        void *ptr = memory_region_get_ram_ptr(&backend->mr);
+        uint64_t sz = memory_region_size(&backend->mr);
+
+        qemu_madvise(ptr, sz,
+                     value ? QEMU_MADV_MERGEABLE : QEMU_MADV_UNMERGEABLE);
+        backend->merge = value;
+    }
+}
+
+static bool host_memory_backend_get_dump(Object *obj, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+
+    return backend->dump;
+}
+
+static void host_memory_backend_set_dump(Object *obj, bool value, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+
+    if (!memory_region_size(&backend->mr)) {
+        backend->dump = value;
+        return;
+    }
+
+    if (value != backend->dump) {
+        void *ptr = memory_region_get_ram_ptr(&backend->mr);
+        uint64_t sz = memory_region_size(&backend->mr);
+
+        qemu_madvise(ptr, sz,
+                     value ? QEMU_MADV_DODUMP : QEMU_MADV_DONTDUMP);
+        backend->dump = value;
+    }
+}
+
 static void host_memory_backend_init(Object *obj)
 {
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+
+    backend->merge = qemu_opt_get_bool(qemu_get_machine_opts(),
+                                       "mem-merge", true);
+    backend->dump = qemu_opt_get_bool(qemu_get_machine_opts(),
+                                      "dump-guest-core", true);
+
+    object_property_add_bool(obj, "merge",
+                        host_memory_backend_get_merge,
+                        host_memory_backend_set_merge, NULL);
+    object_property_add_bool(obj, "dump",
+                        host_memory_backend_get_dump,
+                        host_memory_backend_set_dump, NULL);
     object_property_add(obj, "size", "int",
                         host_memory_backend_get_size,
                         host_memory_backend_set_size, NULL, NULL, NULL);
@@ -80,9 +145,26 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(uc);
     HostMemoryBackendClass *bc = MEMORY_BACKEND_GET_CLASS(uc);
+    Error *local_err = NULL;
+    void *ptr;
+    uint64_t sz;
 
     if (bc->alloc) {
-        bc->alloc(backend, errp);
+        bc->alloc(backend, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+
+        ptr = memory_region_get_ram_ptr(&backend->mr);
+        sz = memory_region_size(&backend->mr);
+
+        if (backend->merge) {
+            qemu_madvise(ptr, sz, QEMU_MADV_MERGEABLE);
+        }
+        if (!backend->dump) {
+            qemu_madvise(ptr, sz, QEMU_MADV_DONTDUMP);
+        }
     }
 }
 
