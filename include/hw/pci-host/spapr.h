@@ -30,9 +30,13 @@
 #define SPAPR_MSIX_MAX_DEVS 32
 
 #define TYPE_SPAPR_PCI_HOST_BRIDGE "spapr-pci-host-bridge"
+#define TYPE_SPAPR_PCI_VFIO_HOST_BRIDGE "spapr-pci-vfio-host-bridge"
 
 #define SPAPR_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(sPAPRPHBState, (obj), TYPE_SPAPR_PCI_HOST_BRIDGE)
+
+#define SPAPR_PCI_VFIO_HOST_BRIDGE(obj) \
+    OBJECT_CHECK(sPAPRPHBVFIOState, (obj), TYPE_SPAPR_PCI_VFIO_HOST_BRIDGE)
 
 #define SPAPR_PCI_HOST_BRIDGE_CLASS(klass) \
      OBJECT_CLASS_CHECK(sPAPRPHBClass, (klass), TYPE_SPAPR_PCI_HOST_BRIDGE)
@@ -41,6 +45,7 @@
 
 typedef struct sPAPRPHBClass sPAPRPHBClass;
 typedef struct sPAPRPHBState sPAPRPHBState;
+typedef struct sPAPRPHBVFIOState sPAPRPHBVFIOState;
 
 struct sPAPRPHBClass {
     PCIHostBridgeClass parent_class;
@@ -74,6 +79,12 @@ struct sPAPRPHBState {
     } msi_table[SPAPR_MSIX_MAX_DEVS];
 
     QLIST_ENTRY(sPAPRPHBState) list;
+};
+
+struct sPAPRPHBVFIOState {
+    sPAPRPHBState phb;
+
+    int32_t iommugroupid;
 };
 
 #define SPAPR_PCI_BASE_BUID          0x800000020000000ULL
