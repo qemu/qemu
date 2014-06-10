@@ -315,9 +315,9 @@ void qemu_iovec_init_external(QEMUIOVector *qiov, struct iovec *iov, int niov);
 void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len);
 void qemu_iovec_concat(QEMUIOVector *dst,
                        QEMUIOVector *src, size_t soffset, size_t sbytes);
-void qemu_iovec_concat_iov(QEMUIOVector *dst,
-                           struct iovec *src_iov, unsigned int src_cnt,
-                           size_t soffset, size_t sbytes);
+size_t qemu_iovec_concat_iov(QEMUIOVector *dst,
+                             struct iovec *src_iov, unsigned int src_cnt,
+                             size_t soffset, size_t sbytes);
 bool qemu_iovec_is_zero(QEMUIOVector *qiov);
 void qemu_iovec_destroy(QEMUIOVector *qiov);
 void qemu_iovec_reset(QEMUIOVector *qiov);
