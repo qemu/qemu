@@ -207,6 +207,7 @@ static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
     /* Here VIRTIO_SCSI_S_OK means "FUNCTION COMPLETE".  */
     req->resp.tmf->response = VIRTIO_SCSI_S_OK;
 
+    tswap32s(&req->req.tmf->subtype);
     switch (req->req.tmf->subtype) {
     case VIRTIO_SCSI_T_TMF_ABORT_TASK:
     case VIRTIO_SCSI_T_TMF_QUERY_TASK:
@@ -314,8 +315,11 @@ static void virtio_scsi_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         if (iov_to_buf(req->elem.out_sg, req->elem.out_num, 0,
                        &type, sizeof(type)) < sizeof(type)) {
             virtio_scsi_bad_req();
+            continue;
+        }
 
-        } else if (req->req.tmf->type == VIRTIO_SCSI_T_TMF) {
+        tswap32s(&req->req.tmf->type);
+        if (req->req.tmf->type == VIRTIO_SCSI_T_TMF) {
             if (virtio_scsi_parse_req(req, sizeof(VirtIOSCSICtrlTMFReq),
                                       sizeof(VirtIOSCSICtrlTMFResp)) < 0) {
                 virtio_scsi_bad_req();
