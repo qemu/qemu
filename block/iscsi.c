@@ -144,6 +144,7 @@ iscsi_schedule_bh(IscsiAIOCB *acb)
 static void iscsi_co_generic_bh_cb(void *opaque)
 {
     struct IscsiTask *iTask = opaque;
+    iTask->complete = 1;
     qemu_bh_delete(iTask->bh);
     qemu_coroutine_enter(iTask->co, NULL);
 }
@@ -151,6 +152,7 @@ static void iscsi_co_generic_bh_cb(void *opaque)
 static void iscsi_retry_timer_expired(void *opaque)
 {
     struct IscsiTask *iTask = opaque;
+    iTask->complete = 1;
     if (iTask->co) {
         qemu_coroutine_enter(iTask->co, NULL);
     }
@@ -168,7 +170,6 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
     struct IscsiTask *iTask = opaque;
     struct scsi_task *task = command_data;
 
-    iTask->complete = 1;
     iTask->status = status;
     iTask->do_retry = 0;
     iTask->task = task;
@@ -205,6 +206,8 @@ out:
         iTask->bh = aio_bh_new(iTask->iscsilun->aio_context,
                                iscsi_co_generic_bh_cb, iTask);
         qemu_bh_schedule(iTask->bh);
+    } else {
+        iTask->complete = 1;
     }
 }
 
