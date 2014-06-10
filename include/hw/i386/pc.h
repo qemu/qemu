@@ -3,6 +3,7 @@
 
 #include "qemu-common.h"
 #include "exec/memory.h"
+#include "hw/boards.h"
 #include "hw/isa/isa.h"
 #include "hw/block/fdc.h"
 #include "net/net.h"
@@ -183,10 +184,8 @@ PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
 void pc_pci_as_mapping_init(Object *owner, MemoryRegion *system_memory,
                             MemoryRegion *pci_address_space);
 
-FWCfgState *pc_memory_init(MemoryRegion *system_memory,
-                           const char *kernel_filename,
-                           const char *kernel_cmdline,
-                           const char *initrd_filename,
+FWCfgState *pc_memory_init(MachineState *machine,
+                           MemoryRegion *system_memory,
                            ram_addr_t below_4g_mem_size,
                            ram_addr_t above_4g_mem_size,
                            MemoryRegion *rom_memory,

@@ -1190,10 +1190,8 @@ void pc_acpi_init(const char *default_dsdt)
     }
 }
 
-FWCfgState *pc_memory_init(MemoryRegion *system_memory,
-                           const char *kernel_filename,
-                           const char *kernel_cmdline,
-                           const char *initrd_filename,
+FWCfgState *pc_memory_init(MachineState *machine,
+                           MemoryRegion *system_memory,
                            ram_addr_t below_4g_mem_size,
                            ram_addr_t above_4g_mem_size,
                            MemoryRegion *rom_memory,
@@ -1204,18 +1202,19 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
     MemoryRegion *ram, *option_rom_mr;
     MemoryRegion *ram_below_4g, *ram_above_4g;
     FWCfgState *fw_cfg;
-    ram_addr_t ram_size = below_4g_mem_size + above_4g_mem_size;
-    MachineState *machine = MACHINE(qdev_get_machine());
     PCMachineState *pcms = PC_MACHINE(machine);
 
-    linux_boot = (kernel_filename != NULL);
+    assert(machine->ram_size == below_4g_mem_size + above_4g_mem_size);
+
+    linux_boot = (machine->kernel_filename != NULL);
 
     /* Allocate RAM.  We allocate it as a single memory region and use
      * aliases to address portions of it, mostly for backwards compatibility
      * with older qemus that used qemu_ram_alloc().
      */
     ram = g_malloc(sizeof(*ram));
-    memory_region_allocate_system_memory(ram, NULL, "pc.ram", ram_size);
+    memory_region_allocate_system_memory(ram, NULL, "pc.ram",
+                                         machine->ram_size);
     *ram_memory = ram;
     ram_below_4g = g_malloc(sizeof(*ram_below_4g));
     memory_region_init_alias(ram_below_4g, NULL, "ram-below-4g", ram,
@@ -1233,7 +1232,7 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
 
     if (!guest_info->has_reserved_memory &&
         (machine->ram_slots ||
-         (machine->maxram_size > ram_size))) {
+         (machine->maxram_size > machine->ram_size))) {
         MachineClass *mc = MACHINE_GET_CLASS(machine);
 
         error_report("\"-memory 'slots|maxmem'\" is not supported by: %s",
@@ -1243,9 +1242,9 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
 
     /* initialize hotplug memory address space */
     if (guest_info->has_reserved_memory &&
-        (ram_size < machine->maxram_size)) {
+        (machine->ram_size < machine->maxram_size)) {
         ram_addr_t hotplug_mem_size =
-            machine->maxram_size - ram_size;
+            machine->maxram_size - machine->ram_size;
 
         if (machine->ram_slots > ACPI_MAX_RAM_SLOTS) {
             error_report("unsupported amount of memory slots: %"PRIu64,
@@ -1290,7 +1289,8 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
     }
 
     if (linux_boot) {
-        load_linux(fw_cfg, kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
+        load_linux(fw_cfg, machine->kernel_filename, machine->initrd_filename,
+                   machine->kernel_cmdline, below_4g_mem_size);
     }
 
     for (i = 0; i < nb_option_roms; i++) {
