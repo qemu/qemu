@@ -1271,6 +1271,17 @@ void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
     cpu_physical_memory_reset_dirty(mr->ram_addr + addr, size, client);
 }
 
+int memory_region_get_fd(MemoryRegion *mr)
+{
+    if (mr->alias) {
+        return memory_region_get_fd(mr->alias);
+    }
+
+    assert(mr->terminates);
+
+    return qemu_get_ram_fd(mr->ram_addr & TARGET_PAGE_MASK);
+}
+
 void *memory_region_get_ram_ptr(MemoryRegion *mr)
 {
     if (mr->alias) {

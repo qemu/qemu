@@ -9,7 +9,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+#include "qemu-common.h"
 #include "sysemu/hostmem.h"
+#include "sysemu/sysemu.h"
 #include "qom/object_interfaces.h"
 
 /* hostmem-file.c */
@@ -46,6 +48,7 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
     error_setg(errp, "-mem-path not supported on this host");
 #else
     if (!memory_region_size(&backend->mr)) {
+        backend->force_prealloc = mem_prealloc;
         memory_region_init_ram_from_file(&backend->mr, OBJECT(backend),
                                  object_get_canonical_path(OBJECT(backend)),
                                  backend->size,

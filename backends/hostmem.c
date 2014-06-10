@@ -105,6 +105,41 @@ static void host_memory_backend_set_dump(Object *obj, bool value, Error **errp)
     }
 }
 
+static bool host_memory_backend_get_prealloc(Object *obj, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+
+    return backend->prealloc || backend->force_prealloc;
+}
+
+static void host_memory_backend_set_prealloc(Object *obj, bool value,
+                                             Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+
+    if (backend->force_prealloc) {
+        if (value) {
+            error_setg(errp,
+                       "remove -mem-prealloc to use the prealloc property");
+            return;
+        }
+    }
+
+    if (!memory_region_size(&backend->mr)) {
+        backend->prealloc = value;
+        return;
+    }
+
+    if (value && !backend->prealloc) {
+        int fd = memory_region_get_fd(&backend->mr);
+        void *ptr = memory_region_get_ram_ptr(&backend->mr);
+        uint64_t sz = memory_region_size(&backend->mr);
+
+        os_mem_prealloc(fd, ptr, sz);
+        backend->prealloc = true;
+    }
+}
+
 static void host_memory_backend_init(Object *obj)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
@@ -113,6 +148,7 @@ static void host_memory_backend_init(Object *obj)
                                        "mem-merge", true);
     backend->dump = qemu_opt_get_bool(qemu_get_machine_opts(),
                                       "dump-guest-core", true);
+    backend->prealloc = mem_prealloc;
 
     object_property_add_bool(obj, "merge",
                         host_memory_backend_get_merge,
@@ -120,6 +156,9 @@ static void host_memory_backend_init(Object *obj)
     object_property_add_bool(obj, "dump",
                         host_memory_backend_get_dump,
                         host_memory_backend_set_dump, NULL);
+    object_property_add_bool(obj, "prealloc",
+                        host_memory_backend_get_prealloc,
+                        host_memory_backend_set_prealloc, NULL);
     object_property_add(obj, "size", "int",
                         host_memory_backend_get_size,
                         host_memory_backend_set_size, NULL, NULL, NULL);
@@ -164,6 +203,9 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
         }
         if (!backend->dump) {
             qemu_madvise(ptr, sz, QEMU_MADV_DONTDUMP);
+        }
+        if (backend->prealloc) {
+            os_mem_prealloc(memory_region_get_fd(&backend->mr), ptr, sz);
         }
     }
 }

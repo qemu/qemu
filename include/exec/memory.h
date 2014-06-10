@@ -534,6 +534,16 @@ bool memory_region_is_logging(MemoryRegion *mr);
 bool memory_region_is_rom(MemoryRegion *mr);
 
 /**
+ * memory_region_get_fd: Get a file descriptor backing a RAM memory region.
+ *
+ * Returns a file descriptor backing a file-based RAM memory region,
+ * or -1 if the region is not a file-based RAM memory region.
+ *
+ * @mr: the RAM or alias memory region being queried.
+ */
+int memory_region_get_fd(MemoryRegion *mr);
+
+/**
  * memory_region_get_ram_ptr: Get a pointer into a RAM memory region.
  *
  * Returns a host pointer to a RAM memory region (created with
