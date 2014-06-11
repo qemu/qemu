@@ -17,6 +17,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/block/block.h"
 #include "sysemu/iothread.h"
+#include "block/block.h"
 
 #define TYPE_VIRTIO_BLK "virtio-blk-device"
 #define VIRTIO_BLK(obj) \
@@ -132,6 +133,16 @@ typedef struct VirtIOBlock {
     struct VirtIOBlockDataPlane *dataplane;
 #endif
 } VirtIOBlock;
+
+typedef struct VirtIOBlockReq {
+    VirtIOBlock *dev;
+    VirtQueueElement elem;
+    struct virtio_blk_inhdr *in;
+    struct virtio_blk_outhdr *out;
+    QEMUIOVector qiov;
+    struct VirtIOBlockReq *next;
+    BlockAcctCookie acct;
+} VirtIOBlockReq;
 
 #define DEFINE_VIRTIO_BLK_FEATURES(_state, _field) \
         DEFINE_VIRTIO_COMMON_FEATURES(_state, _field)

@@ -27,17 +27,6 @@
 #endif
 #include "hw/virtio/virtio-bus.h"
 
-typedef struct VirtIOBlockReq
-{
-    VirtIOBlock *dev;
-    VirtQueueElement elem;
-    struct virtio_blk_inhdr *in;
-    struct virtio_blk_outhdr *out;
-    QEMUIOVector qiov;
-    struct VirtIOBlockReq *next;
-    BlockAcctCookie acct;
-} VirtIOBlockReq;
-
 static void virtio_blk_req_complete(VirtIOBlockReq *req, int status)
 {
     VirtIOBlock *s = req->dev;
