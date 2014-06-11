@@ -152,6 +152,8 @@ struct ICSIRQState {
     uint8_t status;
 };
 
+#define XICS_IRQS               1024
+
 qemu_irq xics_get_qirq(XICSState *icp, int irq);
 void xics_set_irq_type(XICSState *icp, int irq, bool lsi);
 
