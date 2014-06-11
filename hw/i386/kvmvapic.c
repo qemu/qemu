@@ -584,7 +584,7 @@ static int vapic_map_rom_writable(VAPICROMState *s)
 
     if (s->rom_mapped_writable) {
         memory_region_del_subregion(as, &s->rom);
-        memory_region_destroy(&s->rom);
+        object_unparent(OBJECT(&s->rom));
     }
 
     /* grab RAM memory region (region @rom_paddr may still be pc.rom) */

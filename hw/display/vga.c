@@ -176,7 +176,7 @@ static void vga_update_memory_access(VGACommonState *s)
 
     if (s->has_chain4_alias) {
         memory_region_del_subregion(s->legacy_address_space, &s->chain4_alias);
-        memory_region_destroy(&s->chain4_alias);
+        object_unparent(OBJECT(&s->chain4_alias));
         s->has_chain4_alias = false;
         s->plane_updated = 0xf;
     }

@@ -154,7 +154,7 @@ void portio_list_destroy(PortioList *piolist)
 
     for (i = 0; i < piolist->nr; ++i) {
         mrpio = container_of(piolist->regions[i], MemoryRegionPortioList, mr);
-        memory_region_destroy(&mrpio->mr);
+        object_unparent(OBJECT(&mrpio->mr));
         g_free(mrpio);
     }
     g_free(piolist->regions);
