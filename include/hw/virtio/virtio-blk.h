@@ -136,7 +136,7 @@ typedef struct VirtIOBlock {
 
 typedef struct VirtIOBlockReq {
     VirtIOBlock *dev;
-    VirtQueueElement elem;
+    VirtQueueElement *elem;
     struct virtio_blk_inhdr *in;
     struct virtio_blk_outhdr *out;
     QEMUIOVector qiov;
