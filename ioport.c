@@ -149,6 +149,14 @@ void portio_list_set_flush_coalesced(PortioList *piolist)
 
 void portio_list_destroy(PortioList *piolist)
 {
+    MemoryRegionPortioList *mrpio;
+    unsigned i;
+
+    for (i = 0; i < piolist->nr; ++i) {
+        mrpio = container_of(piolist->regions[i], MemoryRegionPortioList, mr);
+        memory_region_destroy(&mrpio->mr);
+        g_free(mrpio);
+    }
     g_free(piolist->regions);
 }
 
@@ -291,8 +299,5 @@ void portio_list_del(PortioList *piolist)
     for (i = 0; i < piolist->nr; ++i) {
         mrpio = container_of(piolist->regions[i], MemoryRegionPortioList, mr);
         memory_region_del_subregion(piolist->address_space, &mrpio->mr);
-        memory_region_destroy(&mrpio->mr);
-        g_free(mrpio);
-        piolist->regions[i] = NULL;
     }
 }
