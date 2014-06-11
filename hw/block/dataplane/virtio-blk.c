@@ -76,9 +76,7 @@ static void complete_rdwr(void *opaque, int ret)
     trace_virtio_blk_data_plane_complete_request(req->dev->dataplane,
                                                  req->elem->index, ret);
 
-    qemu_iovec_from_buf(req->inhdr, 0, &hdr, sizeof(hdr));
-    qemu_iovec_destroy(req->inhdr);
-    g_slice_free(QEMUIOVector, req->inhdr);
+    stb_p(&req->in->status, hdr.status);
 
     /* According to the virtio specification len should be the number of bytes
      * written to, but for virtio-blk it seems to be the number of bytes
@@ -90,24 +88,20 @@ static void complete_rdwr(void *opaque, int ret)
 }
 
 static void complete_request_early(VirtIOBlockDataPlane *s, VirtQueueElement *elem,
-                                   QEMUIOVector *inhdr, unsigned char status)
+                                   struct virtio_blk_inhdr *inhdr,
+                                   unsigned char status)
 {
-    struct virtio_blk_inhdr hdr = {
-        .status = status,
-    };
+    stb_p(&inhdr->status, status);
 
-    qemu_iovec_from_buf(inhdr, 0, &hdr, sizeof(hdr));
-    qemu_iovec_destroy(inhdr);
-    g_slice_free(QEMUIOVector, inhdr);
-
-    vring_push(&s->vring, elem, sizeof(hdr));
+    vring_push(&s->vring, elem, sizeof(*inhdr));
     notify_guest(s);
 }
 
 /* Get disk serial number */
 static void do_get_id_cmd(VirtIOBlockDataPlane *s,
                           struct iovec *iov, unsigned int iov_cnt,
-                          VirtQueueElement *elem, QEMUIOVector *inhdr)
+                          VirtQueueElement *elem,
+                          struct virtio_blk_inhdr *inhdr)
 {
     char id[VIRTIO_BLK_ID_BYTES];
 
@@ -120,7 +114,7 @@ static void do_get_id_cmd(VirtIOBlockDataPlane *s,
 static void do_rdwr_cmd(VirtIOBlockDataPlane *s, bool read,
                         struct iovec *iov, unsigned iov_cnt,
                         int64_t sector_num, VirtQueueElement *elem,
-                        QEMUIOVector *inhdr)
+                        struct virtio_blk_inhdr *inhdr)
 {
     VirtIOBlock *dev = VIRTIO_BLK(s->vdev);
     VirtIOBlockReq *req = g_slice_new0(VirtIOBlockReq);
@@ -129,8 +123,8 @@ static void do_rdwr_cmd(VirtIOBlockDataPlane *s, bool read,
 
     /* Fill in virtio block metadata needed for completion */
     req->elem = elem;
-    req->inhdr = inhdr;
     req->dev = dev;
+    req->in = inhdr;
     qemu_iovec_init_external(&req->qiov, iov, iov_cnt);
 
     qiov = &req->qiov;
@@ -157,24 +151,24 @@ static void complete_flush(void *opaque, int ret)
         status = VIRTIO_BLK_S_IOERR;
     }
 
-    complete_request_early(req->dev->dataplane, req->elem, req->inhdr, status);
+    complete_request_early(req->dev->dataplane, req->elem, req->in, status);
     g_slice_free(VirtIOBlockReq, req);
 }
 
 static void do_flush_cmd(VirtIOBlockDataPlane *s, VirtQueueElement *elem,
-                         QEMUIOVector *inhdr)
+                         struct virtio_blk_inhdr *inhdr)
 {
     VirtIOBlock *dev = VIRTIO_BLK(s->vdev);
     VirtIOBlockReq *req = g_slice_new0(VirtIOBlockReq);
     req->dev = dev;
     req->elem = elem;
-    req->inhdr = inhdr;
+    req->in = inhdr;
 
     bdrv_aio_flush(s->blk->conf.bs, complete_flush, req);
 }
 
 static void do_scsi_cmd(VirtIOBlockDataPlane *s, VirtQueueElement *elem,
-                        QEMUIOVector *inhdr)
+                        struct virtio_blk_inhdr *inhdr)
 {
     int status;
 
@@ -189,8 +183,7 @@ static int process_request(VirtIOBlockDataPlane *s, VirtQueueElement *elem)
     unsigned out_num = elem->out_num;
     unsigned in_num = elem->in_num;
     struct virtio_blk_outhdr outhdr;
-    QEMUIOVector *inhdr;
-    size_t in_size;
+    struct virtio_blk_inhdr *inhdr;
 
     /* Copy in outhdr */
     if (unlikely(iov_to_buf(iov, out_num, 0, &outhdr,
@@ -200,17 +193,16 @@ static int process_request(VirtIOBlockDataPlane *s, VirtQueueElement *elem)
     }
     iov_discard_front(&iov, &out_num, sizeof(outhdr));
 
-    /* Grab inhdr for later */
-    in_size = iov_size(in_iov, in_num);
-    if (in_size < sizeof(struct virtio_blk_inhdr)) {
-        error_report("virtio_blk request inhdr too short");
+    /* We are likely safe with the iov_len check, because inhdr is only 1 byte,
+     * but checking here in case the header gets bigger in the future. */
+    if (in_num < 1 || in_iov[in_num - 1].iov_len < sizeof(*inhdr)) {
+        error_report("virtio-blk request inhdr too short");
         return -EFAULT;
     }
-    inhdr = g_slice_new(QEMUIOVector);
-    qemu_iovec_init(inhdr, 1);
-    qemu_iovec_concat_iov(inhdr, in_iov, in_num,
-            in_size - sizeof(struct virtio_blk_inhdr),
-            sizeof(struct virtio_blk_inhdr));
+
+    /* Grab inhdr for later */
+    inhdr = (void *)in_iov[in_num - 1].iov_base
+            + in_iov[in_num - 1].iov_len - sizeof(*inhdr);
     iov_discard_back(in_iov, &in_num, sizeof(struct virtio_blk_inhdr));
 
     /* TODO Linux sets the barrier bit even when not advertised! */
@@ -243,8 +235,6 @@ static int process_request(VirtIOBlockDataPlane *s, VirtQueueElement *elem)
 
     default:
         error_report("virtio-blk unsupported request type %#x", outhdr.type);
-        qemu_iovec_destroy(inhdr);
-        g_slice_free(QEMUIOVector, inhdr);
         return -EFAULT;
     }
 }
