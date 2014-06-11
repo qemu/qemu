@@ -142,6 +142,10 @@ typedef struct VirtIOBlockReq {
     QEMUIOVector qiov;
     struct VirtIOBlockReq *next;
     BlockAcctCookie acct;
+
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+    QEMUIOVector *inhdr;            /* iovecs for virtio_blk_inhdr */
+#endif
 } VirtIOBlockReq;
 
 #define DEFINE_VIRTIO_BLK_FEATURES(_state, _field) \

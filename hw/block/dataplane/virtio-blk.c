@@ -24,13 +24,6 @@
 #include "hw/virtio/virtio-bus.h"
 #include "qom/object_interfaces.h"
 
-typedef struct {
-    VirtIOBlockDataPlane *s;
-    QEMUIOVector *inhdr;            /* iovecs for virtio_blk_inhdr */
-    VirtQueueElement *elem;         /* saved data from the virtqueue */
-    QEMUIOVector qiov;              /* original request iovecs */
-} VirtIOBlockRequest;
-
 struct VirtIOBlockDataPlane {
     bool started;
     bool starting;
@@ -68,7 +61,7 @@ static void notify_guest(VirtIOBlockDataPlane *s)
 
 static void complete_rdwr(void *opaque, int ret)
 {
-    VirtIOBlockRequest *req = opaque;
+    VirtIOBlockReq *req = opaque;
     struct virtio_blk_inhdr hdr;
     int len;
 
@@ -80,7 +73,8 @@ static void complete_rdwr(void *opaque, int ret)
         len = 0;
     }
 
-    trace_virtio_blk_data_plane_complete_request(req->s, req->elem->index, ret);
+    trace_virtio_blk_data_plane_complete_request(req->dev->dataplane,
+                                                 req->elem->index, ret);
 
     qemu_iovec_from_buf(req->inhdr, 0, &hdr, sizeof(hdr));
     qemu_iovec_destroy(req->inhdr);
@@ -90,9 +84,9 @@ static void complete_rdwr(void *opaque, int ret)
      * written to, but for virtio-blk it seems to be the number of bytes
      * transferred plus the status bytes.
      */
-    vring_push(&req->s->vring, req->elem, len + sizeof(hdr));
-    notify_guest(req->s);
-    g_slice_free(VirtIOBlockRequest, req);
+    vring_push(&req->dev->dataplane->vring, req->elem, len + sizeof(hdr));
+    notify_guest(req->dev->dataplane);
+    g_slice_free(VirtIOBlockReq, req);
 }
 
 static void complete_request_early(VirtIOBlockDataPlane *s, VirtQueueElement *elem,
@@ -128,14 +122,15 @@ static void do_rdwr_cmd(VirtIOBlockDataPlane *s, bool read,
                         int64_t sector_num, VirtQueueElement *elem,
                         QEMUIOVector *inhdr)
 {
-    VirtIOBlockRequest *req = g_slice_new0(VirtIOBlockRequest);
+    VirtIOBlock *dev = VIRTIO_BLK(s->vdev);
+    VirtIOBlockReq *req = g_slice_new0(VirtIOBlockReq);
     QEMUIOVector *qiov;
     int nb_sectors;
 
     /* Fill in virtio block metadata needed for completion */
-    req->s = s;
     req->elem = elem;
     req->inhdr = inhdr;
+    req->dev = dev;
     qemu_iovec_init_external(&req->qiov, iov, iov_cnt);
 
     qiov = &req->qiov;
@@ -153,7 +148,7 @@ static void do_rdwr_cmd(VirtIOBlockDataPlane *s, bool read,
 
 static void complete_flush(void *opaque, int ret)
 {
-    VirtIOBlockRequest *req = opaque;
+    VirtIOBlockReq *req = opaque;
     unsigned char status;
 
     if (ret == 0) {
@@ -162,15 +157,16 @@ static void complete_flush(void *opaque, int ret)
         status = VIRTIO_BLK_S_IOERR;
     }
 
-    complete_request_early(req->s, req->elem, req->inhdr, status);
-    g_slice_free(VirtIOBlockRequest, req);
+    complete_request_early(req->dev->dataplane, req->elem, req->inhdr, status);
+    g_slice_free(VirtIOBlockReq, req);
 }
 
 static void do_flush_cmd(VirtIOBlockDataPlane *s, VirtQueueElement *elem,
                          QEMUIOVector *inhdr)
 {
-    VirtIOBlockRequest *req = g_slice_new(VirtIOBlockRequest);
-    req->s = s;
+    VirtIOBlock *dev = VIRTIO_BLK(s->vdev);
+    VirtIOBlockReq *req = g_slice_new0(VirtIOBlockReq);
+    req->dev = dev;
     req->elem = elem;
     req->inhdr = inhdr;
 
