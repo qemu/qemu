@@ -2493,7 +2493,13 @@ static gboolean tcp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
 #ifndef _WIN32
 CharDriverState *qemu_chr_open_eventfd(int eventfd)
 {
-    return qemu_chr_open_fd(eventfd, eventfd);
+    CharDriverState *chr = qemu_chr_open_fd(eventfd, eventfd);
+
+    if (chr) {
+        chr->avail_connections = 1;
+    }
+
+    return chr;
 }
 #endif
 
