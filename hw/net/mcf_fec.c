@@ -443,9 +443,6 @@ static void mcf_fec_cleanup(NetClientState *nc)
 {
     mcf_fec_state *s = qemu_get_nic_opaque(nc);
 
-    memory_region_del_subregion(s->sysmem, &s->iomem);
-    memory_region_destroy(&s->iomem);
-
     g_free(s);
 }
 
