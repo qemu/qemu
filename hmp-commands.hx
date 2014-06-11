@@ -335,6 +335,7 @@ ETEXI
         .params     = "tag|id",
         .help       = "restore a VM snapshot from its tag or id",
         .mhandler.cmd = do_loadvm,
+        .command_completion = loadvm_completion,
     },
 
 STEXI
@@ -350,6 +351,7 @@ ETEXI
         .params     = "tag|id",
         .help       = "delete a VM snapshot from its tag or id",
         .mhandler.cmd = do_delvm,
+        .command_completion = delvm_completion,
     },
 
 STEXI
@@ -852,6 +854,7 @@ ETEXI
         .params     = "device data",
         .help       = "Write to a ring buffer character device",
         .mhandler.cmd = hmp_ringbuf_write,
+        .command_completion = ringbuf_write_completion,
     },
 
 STEXI
@@ -868,6 +871,7 @@ ETEXI
         .params     = "device size",
         .help       = "Read from a ring buffer character device",
         .mhandler.cmd = hmp_ringbuf_read,
+        .command_completion = ringbuf_write_completion,
     },
 
 STEXI
@@ -973,6 +977,7 @@ ETEXI
         .params     = "capability state",
         .help       = "Enable/Disable the usage of a capability for migration",
         .mhandler.cmd = hmp_migrate_set_capability,
+        .command_completion = migrate_set_capability_completion,
     },
 
 STEXI
@@ -1206,9 +1211,10 @@ ETEXI
     {
         .name       = "host_net_add",
         .args_type  = "device:s,opts:s?",
-        .params     = "tap|user|socket|vde|netmap|dump [options]",
+        .params     = "tap|user|socket|vde|netmap|bridge|dump [options]",
         .help       = "add host VLAN client",
         .mhandler.cmd = net_host_device_add,
+        .command_completion = host_net_add_completion,
     },
 
 STEXI
@@ -1223,6 +1229,7 @@ ETEXI
         .params     = "vlan_id name",
         .help       = "remove host VLAN client",
         .mhandler.cmd = net_host_device_remove,
+        .command_completion = host_net_remove_completion,
     },
 
 STEXI
@@ -1357,6 +1364,7 @@ ETEXI
         .params     = "[reset|shutdown|poweroff|pause|debug|none]",
         .help       = "change watchdog action",
         .mhandler.cmd = do_watchdog_action,
+        .command_completion = watchdog_action_completion,
     },
 
 STEXI

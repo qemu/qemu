@@ -177,6 +177,7 @@ struct NICInfo {
 extern int nb_nics;
 extern NICInfo nd_table[MAX_NICS];
 extern int default_net;
+extern const char *host_net_devices[];
 
 /* from net.c */
 extern const char *legacy_tftp_prefix;

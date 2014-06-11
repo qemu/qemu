@@ -49,6 +49,22 @@
 
 static QTAILQ_HEAD(, NetClientState) net_clients;
 
+const char *host_net_devices[] = {
+    "tap",
+    "socket",
+    "dump",
+#ifdef CONFIG_NET_BRIDGE
+    "bridge",
+#endif
+#ifdef CONFIG_SLIRP
+    "user",
+#endif
+#ifdef CONFIG_VDE
+    "vde",
+#endif
+    NULL,
+};
+
 int default_net = 1;
 
 /***********************************************************/
@@ -897,21 +913,11 @@ int net_client_init(QemuOpts *opts, int is_netdev, Error **errp)
 static int net_host_check_device(const char *device)
 {
     int i;
-    const char *valid_param_list[] = { "tap", "socket", "dump"
-#ifdef CONFIG_NET_BRIDGE
-                                       , "bridge"
-#endif
-#ifdef CONFIG_SLIRP
-                                       ,"user"
-#endif
-#ifdef CONFIG_VDE
-                                       ,"vde"
-#endif
-    };
-    for (i = 0; i < ARRAY_SIZE(valid_param_list); i++) {
-        if (!strncmp(valid_param_list[i], device,
-                     strlen(valid_param_list[i])))
+    for (i = 0; host_net_devices[i]; i++) {
+        if (!strncmp(host_net_devices[i], device,
+                     strlen(host_net_devices[i]))) {
             return 1;
+        }
     }
 
     return 0;

@@ -70,6 +70,7 @@
 #include "qmp-commands.h"
 #include "hmp.h"
 #include "qemu/thread.h"
+#include "block/qapi.h"
 
 /* for pic/irq_info */
 #if defined(TARGET_SPARC)
@@ -4412,6 +4413,45 @@ void chardev_remove_completion(ReadLineState *rs, int nb_args, const char *str)
     qapi_free_ChardevInfoList(start);
 }
 
+static void ringbuf_completion(ReadLineState *rs, const char *str)
+{
+    size_t len;
+    ChardevInfoList *list, *start;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+
+    start = list = qmp_query_chardev(NULL);
+    while (list) {
+        ChardevInfo *chr_info = list->value;
+
+        if (!strncmp(chr_info->label, str, len)) {
+            CharDriverState *chr = qemu_chr_find(chr_info->label);
+            if (chr && chr_is_ringbuf(chr)) {
+                readline_add_completion(rs, chr_info->label);
+            }
+        }
+        list = list->next;
+    }
+    qapi_free_ChardevInfoList(start);
+}
+
+void ringbuf_read_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    if (nb_args != 2) {
+        return;
+    }
+    ringbuf_completion(rs, str);
+}
+
+void ringbuf_write_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    if (nb_args != 2) {
+        return;
+    }
+    ringbuf_completion(rs, str);
+}
+
 void device_del_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     size_t len;
@@ -4517,6 +4557,142 @@ void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str)
         if (opts) {
             readline_add_completion(rs, name);
         }
+    }
+}
+
+void watchdog_action_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    if (nb_args != 2) {
+        return;
+    }
+    readline_set_completion_index(rs, strlen(str));
+    add_completion_option(rs, str, "reset");
+    add_completion_option(rs, str, "shutdown");
+    add_completion_option(rs, str, "poweroff");
+    add_completion_option(rs, str, "pause");
+    add_completion_option(rs, str, "debug");
+    add_completion_option(rs, str, "none");
+}
+
+void migrate_set_capability_completion(ReadLineState *rs, int nb_args,
+                                       const char *str)
+{
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    if (nb_args == 2) {
+        int i;
+        for (i = 0; i < MIGRATION_CAPABILITY_MAX; i++) {
+            const char *name = MigrationCapability_lookup[i];
+            if (!strncmp(str, name, len)) {
+                readline_add_completion(rs, name);
+            }
+        }
+    } else if (nb_args == 3) {
+        add_completion_option(rs, str, "on");
+        add_completion_option(rs, str, "off");
+    }
+}
+
+void host_net_add_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    int i;
+    size_t len;
+    if (nb_args != 2) {
+        return;
+    }
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    for (i = 0; host_net_devices[i]; i++) {
+        if (!strncmp(host_net_devices[i], str, len)) {
+            readline_add_completion(rs, host_net_devices[i]);
+        }
+    }
+}
+
+void host_net_remove_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    NetClientState *ncs[255];
+    int count, i, len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    if (nb_args == 2) {
+        count = qemu_find_net_clients_except(NULL, ncs,
+                                             NET_CLIENT_OPTIONS_KIND_NONE, 255);
+        for (i = 0; i < count; i++) {
+            int id;
+            char name[16];
+
+            if (net_hub_id_for_client(ncs[i], &id)) {
+                continue;
+            }
+            snprintf(name, sizeof(name), "%d", id);
+            if (!strncmp(str, name, len)) {
+                readline_add_completion(rs, name);
+            }
+        }
+        return;
+    } else if (nb_args == 3) {
+        count = qemu_find_net_clients_except(NULL, ncs,
+                                             NET_CLIENT_OPTIONS_KIND_NIC, 255);
+        for (i = 0; i < count; i++) {
+            const char *name;
+
+            name = ncs[i]->name;
+            if (!strncmp(str, name, len)) {
+                readline_add_completion(rs, name);
+            }
+        }
+        return;
+    }
+}
+
+static void vm_completion(ReadLineState *rs, const char *str)
+{
+    size_t len;
+    BlockDriverState *bs = NULL;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    while ((bs = bdrv_next(bs))) {
+        SnapshotInfoList *snapshots, *snapshot;
+
+        if (!bdrv_can_snapshot(bs)) {
+            continue;
+        }
+        if (bdrv_query_snapshot_info_list(bs, &snapshots, NULL)) {
+            continue;
+        }
+        snapshot = snapshots;
+        while (snapshot) {
+            char *completion = snapshot->value->name;
+            if (!strncmp(str, completion, len)) {
+                readline_add_completion(rs, completion);
+            }
+            completion = snapshot->value->id;
+            if (!strncmp(str, completion, len)) {
+                readline_add_completion(rs, completion);
+            }
+            snapshot = snapshot->next;
+        }
+        qapi_free_SnapshotInfoList(snapshots);
+    }
+
+}
+
+void delvm_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    if (nb_args == 2) {
+        vm_completion(rs, str);
+    }
+}
+
+void loadvm_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    if (nb_args == 2) {
+        vm_completion(rs, str);
     }
 }
 

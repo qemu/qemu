@@ -2849,7 +2849,7 @@ fail:
     return NULL;
 }
 
-static bool chr_is_ringbuf(const CharDriverState *chr)
+bool chr_is_ringbuf(const CharDriverState *chr)
 {
     return chr->chr_write == ringbuf_chr_write;
 }
