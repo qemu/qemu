@@ -573,27 +573,19 @@ static void bus_set_realized(Object *obj, bool value, Error **errp)
     if (value && !bus->realized) {
         if (bc->realize) {
             bc->realize(bus, &local_err);
-
-            if (local_err != NULL) {
-                goto error;
-            }
-
         }
     } else if (!value && bus->realized) {
         if (bc->unrealize) {
             bc->unrealize(bus, &local_err);
-
-            if (local_err != NULL) {
-                goto error;
-            }
         }
     }
 
-    bus->realized = value;
-    return;
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
-error:
-    error_propagate(errp, local_err);
+    bus->realized = value;
 }
 
 void qbus_create_inplace(void *bus, size_t size, const char *typename,
