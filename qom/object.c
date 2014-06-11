@@ -418,8 +418,8 @@ static void object_finalize(void *data)
     Object *obj = data;
     TypeImpl *ti = obj->class->type;
 
-    object_deinit(obj, ti);
     object_property_del_all(obj);
+    object_deinit(obj, ti);
 
     g_assert(obj->ref == 0);
     if (obj->free) {
