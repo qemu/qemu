@@ -29,8 +29,6 @@ typedef struct {
     QEMUIOVector *inhdr;            /* iovecs for virtio_blk_inhdr */
     VirtQueueElement *elem;         /* saved data from the virtqueue */
     QEMUIOVector qiov;              /* original request iovecs */
-    struct iovec bounce_iov;        /* used if guest buffers are unaligned */
-    QEMUIOVector bounce_qiov;       /* bounce buffer iovecs */
     bool read;                      /* read or write? */
 } VirtIOBlockRequest;
 
@@ -84,14 +82,6 @@ static void complete_rdwr(void *opaque, int ret)
     }
 
     trace_virtio_blk_data_plane_complete_request(req->s, req->elem->index, ret);
-
-    if (req->read && req->bounce_iov.iov_base) {
-        qemu_iovec_from_buf(&req->qiov, 0, req->bounce_iov.iov_base, len);
-    }
-
-    if (req->bounce_iov.iov_base) {
-        qemu_vfree(req->bounce_iov.iov_base);
-    }
 
     qemu_iovec_from_buf(req->inhdr, 0, &hdr, sizeof(hdr));
     qemu_iovec_destroy(req->inhdr);
@@ -151,21 +141,6 @@ static void do_rdwr_cmd(VirtIOBlockDataPlane *s, bool read,
     qemu_iovec_init_external(&req->qiov, iov, iov_cnt);
 
     qiov = &req->qiov;
-
-    if (!bdrv_qiov_is_aligned(s->blk->conf.bs, qiov)) {
-        void *bounce_buffer = qemu_blockalign(s->blk->conf.bs, qiov->size);
-
-        /* Populate bounce buffer with data for writes */
-        if (!read) {
-            qemu_iovec_to_buf(qiov, 0, bounce_buffer, qiov->size);
-        }
-
-        /* Redirect I/O to aligned bounce buffer */
-        req->bounce_iov.iov_base = bounce_buffer;
-        req->bounce_iov.iov_len = qiov->size;
-        qemu_iovec_init_external(&req->bounce_qiov, &req->bounce_iov, 1);
-        qiov = &req->bounce_qiov;
-    }
 
     nb_sectors = qiov->size / BDRV_SECTOR_SIZE;
 
