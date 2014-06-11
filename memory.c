@@ -905,9 +905,11 @@ void memory_region_init(MemoryRegion *mr,
                         const char *name,
                         uint64_t size)
 {
-    object_initialize(mr, sizeof(*mr), TYPE_MEMORY_REGION);
+    if (!owner) {
+        owner = qdev_get_machine();
+    }
 
-    mr->owner = owner ? owner : qdev_get_machine();
+    object_initialize(mr, sizeof(*mr), TYPE_MEMORY_REGION);
     mr->size = int128_make64(size);
     if (size == UINT64_MAX) {
         mr->size = int128_2_64();
@@ -915,7 +917,7 @@ void memory_region_init(MemoryRegion *mr,
     mr->name = g_strdup(name);
 
     if (name) {
-        object_property_add_child_array(mr->owner, name, OBJECT(mr));
+        object_property_add_child_array(owner, name, OBJECT(mr));
         object_unref(OBJECT(mr));
     }
 }
@@ -1187,24 +1189,37 @@ void memory_region_destroy(MemoryRegion *mr)
 
 Object *memory_region_owner(MemoryRegion *mr)
 {
-    return mr->owner;
+    Object *obj = OBJECT(mr);
+    return obj->parent;
 }
 
 void memory_region_ref(MemoryRegion *mr)
 {
-    if (mr && mr->owner) {
-        object_ref(mr->owner);
+    /* MMIO callbacks most likely will access data that belongs
+     * to the owner, hence the need to ref/unref the owner whenever
+     * the memory region is in use.
+     *
+     * The memory region is a child of its owner.  As long as the
+     * owner doesn't call unparent itself on the memory region,
+     * ref-ing the owner will also keep the memory region alive.
+     * Memory regions without an owner are supposed to never go away,
+     * but we still ref/unref them for debugging purposes.
+     */
+    Object *obj = OBJECT(mr);
+    if (obj && obj->parent) {
+        object_ref(obj->parent);
     } else {
-        object_ref(OBJECT(mr));
+        object_ref(obj);
     }
 }
 
 void memory_region_unref(MemoryRegion *mr)
 {
-    if (mr && mr->owner) {
-        object_unref(mr->owner);
+    Object *obj = OBJECT(mr);
+    if (obj && obj->parent) {
+        object_unref(obj->parent);
     } else {
-        object_unref(OBJECT(mr));
+        object_unref(obj);
     }
 }
 

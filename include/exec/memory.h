@@ -141,7 +141,6 @@ struct MemoryRegion {
     const MemoryRegionOps *ops;
     const MemoryRegionIOMMUOps *iommu_ops;
     void *opaque;
-    struct Object *owner;
     MemoryRegion *container;
     Int128 size;
     hwaddr addr;
