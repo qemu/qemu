@@ -345,17 +345,13 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req,
     MultiReqBuffer *mrb)
 {
     uint32_t type;
+    struct iovec *in_iov = req->elem->in_sg;
     struct iovec *iov = req->elem->out_sg;
+    unsigned in_num = req->elem->in_num;
     unsigned out_num = req->elem->out_num;
 
     if (req->elem->out_num < 1 || req->elem->in_num < 1) {
         error_report("virtio-blk missing headers");
-        exit(1);
-    }
-
-    if (req->elem->out_sg[0].iov_len < sizeof(req->out) ||
-        req->elem->in_sg[req->elem->in_num - 1].iov_len < sizeof(*req->in)) {
-        error_report("virtio-blk header not in correct element");
         exit(1);
     }
 
@@ -364,8 +360,19 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req,
         error_report("virtio-blk request outhdr too short");
         exit(1);
     }
+
     iov_discard_front(&iov, &out_num, sizeof(req->out));
-    req->in = (void *)req->elem->in_sg[req->elem->in_num - 1].iov_base;
+
+    if (in_num < 1 ||
+        in_iov[in_num - 1].iov_len < sizeof(struct virtio_blk_inhdr)) {
+        error_report("virtio-blk request inhdr too short");
+        exit(1);
+    }
+
+    req->in = (void *)in_iov[in_num - 1].iov_base
+              + in_iov[in_num - 1].iov_len
+              - sizeof(struct virtio_blk_inhdr);
+    iov_discard_back(in_iov, &in_num, sizeof(struct virtio_blk_inhdr));
 
     type = ldl_p(&req->out.type);
 
