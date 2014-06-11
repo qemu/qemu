@@ -29,7 +29,6 @@ typedef struct {
     QEMUIOVector *inhdr;            /* iovecs for virtio_blk_inhdr */
     VirtQueueElement *elem;         /* saved data from the virtqueue */
     QEMUIOVector qiov;              /* original request iovecs */
-    bool read;                      /* read or write? */
 } VirtIOBlockRequest;
 
 struct VirtIOBlockDataPlane {
@@ -137,7 +136,6 @@ static void do_rdwr_cmd(VirtIOBlockDataPlane *s, bool read,
     req->s = s;
     req->elem = elem;
     req->inhdr = inhdr;
-    req->read = read;
     qemu_iovec_init_external(&req->qiov, iov, iov_cnt);
 
     qiov = &req->qiov;
