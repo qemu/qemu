@@ -568,14 +568,25 @@ static void bus_set_realized(Object *obj, bool value, Error **errp)
 {
     BusState *bus = BUS(obj);
     BusClass *bc = BUS_GET_CLASS(bus);
+    BusChild *kid;
     Error *local_err = NULL;
 
     if (value && !bus->realized) {
         if (bc->realize) {
             bc->realize(bus, &local_err);
         }
+
+        /* TODO: recursive realization */
     } else if (!value && bus->realized) {
-        if (bc->unrealize) {
+        QTAILQ_FOREACH(kid, &bus->children, sibling) {
+            DeviceState *dev = kid->child;
+            object_property_set_bool(OBJECT(dev), false, "realized",
+                                     &local_err);
+            if (local_err != NULL) {
+                break;
+            }
+        }
+        if (bc->unrealize && local_err == NULL) {
             bc->unrealize(bus, &local_err);
         }
     }
