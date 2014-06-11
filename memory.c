@@ -485,8 +485,8 @@ static AddressSpace *memory_region_to_address_space(MemoryRegion *mr)
 {
     AddressSpace *as;
 
-    while (mr->parent) {
-        mr = mr->parent;
+    while (mr->container) {
+        mr = mr->container;
     }
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
         if (mr == as->root) {
@@ -850,7 +850,7 @@ void memory_region_init(MemoryRegion *mr,
     mr->opaque = NULL;
     mr->owner = owner;
     mr->iommu_ops = NULL;
-    mr->parent = NULL;
+    mr->container = NULL;
     mr->size = int128_make64(size);
     if (size == UINT64_MAX) {
         mr->size = int128_2_64();
@@ -1423,10 +1423,10 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     memory_region_transaction_commit();
 }
 
-static void memory_region_update_parent_subregions(MemoryRegion *subregion)
+static void memory_region_update_container_subregions(MemoryRegion *subregion)
 {
     hwaddr offset = subregion->addr;
-    MemoryRegion *mr = subregion->parent;
+    MemoryRegion *mr = subregion->container;
     MemoryRegion *other;
 
     memory_region_transaction_begin();
@@ -1469,10 +1469,10 @@ static void memory_region_add_subregion_common(MemoryRegion *mr,
                                                hwaddr offset,
                                                MemoryRegion *subregion)
 {
-    assert(!subregion->parent);
-    subregion->parent = mr;
+    assert(!subregion->container);
+    subregion->container = mr;
     subregion->addr = offset;
-    memory_region_update_parent_subregions(subregion);
+    memory_region_update_container_subregions(subregion);
 }
 
 void memory_region_add_subregion(MemoryRegion *mr,
@@ -1498,8 +1498,8 @@ void memory_region_del_subregion(MemoryRegion *mr,
                                  MemoryRegion *subregion)
 {
     memory_region_transaction_begin();
-    assert(subregion->parent == mr);
-    subregion->parent = NULL;
+    assert(subregion->container == mr);
+    subregion->container = NULL;
     QTAILQ_REMOVE(&mr->subregions, subregion, subregions_link);
     memory_region_unref(subregion);
     memory_region_update_pending |= mr->enabled && subregion->enabled;
@@ -1519,14 +1519,14 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled)
 
 static void memory_region_readd_subregion(MemoryRegion *mr)
 {
-    MemoryRegion *parent = mr->parent;
+    MemoryRegion *container = mr->container;
 
-    if (parent) {
+    if (container) {
         memory_region_transaction_begin();
         memory_region_ref(mr);
-        memory_region_del_subregion(parent, mr);
-        mr->parent = parent;
-        memory_region_update_parent_subregions(mr);
+        memory_region_del_subregion(container, mr);
+        mr->container = container;
+        memory_region_update_container_subregions(mr);
         memory_region_unref(mr);
         memory_region_transaction_commit();
     }
@@ -1578,10 +1578,10 @@ static FlatRange *flatview_lookup(FlatView *view, AddrRange addr)
                    sizeof(FlatRange), cmp_flatrange_addr);
 }
 
-bool memory_region_present(MemoryRegion *parent, hwaddr addr)
+bool memory_region_present(MemoryRegion *container, hwaddr addr)
 {
-    MemoryRegion *mr = memory_region_find(parent, addr, 1).mr;
-    if (!mr || (mr == parent)) {
+    MemoryRegion *mr = memory_region_find(container, addr, 1).mr;
+    if (!mr || (mr == container)) {
         return false;
     }
     memory_region_unref(mr);
@@ -1599,8 +1599,8 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
     FlatRange *fr;
 
     addr += mr->addr;
-    for (root = mr; root->parent; ) {
-        root = root->parent;
+    for (root = mr; root->container; ) {
+        root = root->container;
         addr += root->addr;
     }
 
