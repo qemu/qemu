@@ -3,6 +3,11 @@
 # qemu configure script (c) 2003 Fabrice Bellard
 #
 
+# Unset some variables known to interfere with behavior of common tools,
+# just as autoconf does.
+CLICOLOR_FORCE= GREP_OPTIONS=
+unset CLICOLOR_FORCE GREP_OPTIONS
+
 # Temporary directory used for files created while
 # configure runs. Since it is in the build directory
 # we can safely blow away any previous version of it
@@ -3452,9 +3457,9 @@ EOF
 if compile_prog "" "" ; then
   :
 # we need pthread for static linking. use previous pthread test result
-elif compile_prog "" "-lrt $pthread_lib" ; then
-  LIBS="-lrt $LIBS"
-  libs_qga="-lrt $libs_qga"
+elif compile_prog "" "$pthread_lib -lrt" ; then
+  LIBS="$LIBS -lrt"
+  libs_qga="$libs_qga -lrt"
 fi
 
 if test "$darwin" != "yes" -a "$mingw32" != "yes" -a "$solaris" != yes -a \

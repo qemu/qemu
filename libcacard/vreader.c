@@ -9,10 +9,8 @@
 #undef G_LOG_DOMAIN
 #endif
 #define G_LOG_DOMAIN "libcacard"
-#include <glib.h>
 
 #include "qemu-common.h"
-#include "qemu/thread.h"
 
 #include "vcard.h"
 #include "vcard_emul.h"
@@ -28,7 +26,7 @@ struct VReaderStruct {
     VCard *card;
     char *name;
     vreader_id_t id;
-    QemuMutex lock;
+    CompatGMutex lock;
     VReaderEmul  *reader_private;
     VReaderEmulFree reader_private_free;
 };
@@ -97,13 +95,13 @@ apdu_ins_to_string(int ins)
 static inline void
 vreader_lock(VReader *reader)
 {
-    qemu_mutex_lock(&reader->lock);
+    g_mutex_lock(&reader->lock);
 }
 
 static inline void
 vreader_unlock(VReader *reader)
 {
-    qemu_mutex_unlock(&reader->lock);
+    g_mutex_unlock(&reader->lock);
 }
 
 /*
@@ -116,7 +114,7 @@ vreader_new(const char *name, VReaderEmul *private,
     VReader *reader;
 
     reader = g_new(VReader, 1);
-    qemu_mutex_init(&reader->lock);
+    g_mutex_init(&reader->lock);
     reader->reference_count = 1;
     reader->name = g_strdup(name);
     reader->card = NULL;
@@ -152,6 +150,7 @@ vreader_free(VReader *reader)
         return;
     }
     vreader_unlock(reader);
+    g_mutex_clear(&reader->lock);
     if (reader->card) {
         vcard_free(reader->card);
     }
@@ -402,25 +401,24 @@ vreader_dequeue(VReaderList *list, VReaderListEntry *entry)
 }
 
 static VReaderList *vreader_list;
-static QemuMutex vreader_list_mutex;
+static CompatGMutex vreader_list_mutex;
 
 static void
 vreader_list_init(void)
 {
     vreader_list = vreader_list_new();
-    qemu_mutex_init(&vreader_list_mutex);
 }
 
 static void
 vreader_list_lock(void)
 {
-    qemu_mutex_lock(&vreader_list_mutex);
+    g_mutex_lock(&vreader_list_mutex);
 }
 
 static void
 vreader_list_unlock(void)
 {
-    qemu_mutex_unlock(&vreader_list_mutex);
+    g_mutex_unlock(&vreader_list_mutex);
 }
 
 static VReaderList *
