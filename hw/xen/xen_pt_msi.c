@@ -593,7 +593,6 @@ int xen_pt_msix_init(XenPCIPassthroughState *s, uint32_t base)
     return 0;
 
 error_out:
-    memory_region_destroy(&msix->mmio);
     g_free(s->msix);
     s->msix = NULL;
     return rc;
@@ -616,7 +615,6 @@ void xen_pt_msix_delete(XenPCIPassthroughState *s)
     }
 
     memory_region_del_subregion(&s->bar[msix->bar_index], &msix->mmio);
-    memory_region_destroy(&msix->mmio);
 
     g_free(s->msix);
     s->msix = NULL;

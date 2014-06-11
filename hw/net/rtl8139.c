@@ -3462,8 +3462,6 @@ static void pci_rtl8139_uninit(PCIDevice *dev)
 {
     RTL8139State *s = RTL8139(dev);
 
-    memory_region_destroy(&s->bar_io);
-    memory_region_destroy(&s->bar_mem);
     if (s->cplus_txbuffer) {
         g_free(s->cplus_txbuffer);
         s->cplus_txbuffer = NULL;

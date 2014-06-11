@@ -430,15 +430,6 @@ void memory_region_init_iommu(MemoryRegion *mr,
                               uint64_t size);
 
 /**
- * memory_region_destroy: Destroy a memory region and reclaim all resources.
- *
- * @mr: the region to be destroyed.  May not currently be a subregion
- *      (see memory_region_add_subregion()) or referenced in an alias
- *      (see memory_region_init_alias()).
- */
-void memory_region_destroy(MemoryRegion *mr);
-
-/**
  * memory_region_owner: get a memory region's owner.
  *
  * @mr: the memory region being queried.

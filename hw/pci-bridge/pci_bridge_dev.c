@@ -81,7 +81,6 @@ msi_error:
 slotid_error:
     shpc_cleanup(dev, &bridge_dev->bar);
 shpc_error:
-    memory_region_destroy(&bridge_dev->bar);
     pci_bridge_exitfn(dev);
 bridge_error:
     return err;
@@ -95,7 +94,6 @@ static void pci_bridge_dev_exitfn(PCIDevice *dev)
     }
     slotid_cap_cleanup(dev);
     shpc_cleanup(dev, &bridge_dev->bar);
-    memory_region_destroy(&bridge_dev->bar);
     pci_bridge_exitfn(dev);
 }
 

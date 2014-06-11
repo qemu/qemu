@@ -2129,9 +2129,6 @@ static void megasas_scsi_uninit(PCIDevice *d)
     if (megasas_use_msi(s)) {
         msi_uninit(d);
     }
-    memory_region_destroy(&s->mmio_io);
-    memory_region_destroy(&s->port_io);
-    memory_region_destroy(&s->queue_io);
 }
 
 static const struct SCSIBusInfo megasas_scsi_info = {

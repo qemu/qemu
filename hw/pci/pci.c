@@ -799,7 +799,6 @@ static void do_pci_unregister_device(PCIDevice *pci_dev)
     pci_config_free(pci_dev);
 
     address_space_destroy(&pci_dev->bus_master_as);
-    memory_region_destroy(&pci_dev->bus_master_enable_region);
 }
 
 /* -1 for devfn means auto assign */
@@ -1996,7 +1995,6 @@ static void pci_del_option_rom(PCIDevice *pdev)
         return;
 
     vmstate_unregister_ram(&pdev->rom, &pdev->qdev);
-    memory_region_destroy(&pdev->rom);
     pdev->has_rom = false;
 }
 

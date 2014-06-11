@@ -1264,11 +1264,6 @@ static void memory_region_finalize(Object *obj)
     g_free(mr->ioeventfds);
 }
 
-void memory_region_destroy(MemoryRegion *mr)
-{
-}
-
-
 Object *memory_region_owner(MemoryRegion *mr)
 {
     Object *obj = OBJECT(mr);

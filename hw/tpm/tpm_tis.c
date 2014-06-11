@@ -901,7 +901,6 @@ static void tpm_tis_uninitfn(Object *obj)
     TPMState *s = TPM(obj);
 
     memory_region_del_subregion(get_system_memory(), &s->mmio);
-    memory_region_destroy(&s->mmio);
 }
 
 static void tpm_tis_class_init(ObjectClass *klass, void *data)

@@ -310,13 +310,8 @@ static void pci_cmd646_ide_exitfn(PCIDevice *dev)
 
     for (i = 0; i < 2; ++i) {
         memory_region_del_subregion(&d->bmdma_bar, &d->bmdma[i].extra_io);
-        memory_region_destroy(&d->bmdma[i].extra_io);
         memory_region_del_subregion(&d->bmdma_bar, &d->bmdma[i].addr_ioport);
-        memory_region_destroy(&d->bmdma[i].addr_ioport);
-        memory_region_destroy(&d->cmd646_bar[i].cmd);
-        memory_region_destroy(&d->cmd646_bar[i].data);
     }
-    memory_region_destroy(&d->bmdma_bar);
 }
 
 void pci_cmd646_ide_init(PCIBus *bus, DriveInfo **hd_table,

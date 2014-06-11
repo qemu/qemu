@@ -617,7 +617,6 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
         ret = bdrv_read(pfl->bs, 0, pfl->storage, chip_len >> 9);
         if (ret < 0) {
             vmstate_unregister_ram(&pfl->orig_mem, DEVICE(pfl));
-            memory_region_destroy(&pfl->orig_mem);
             error_setg(errp, "failed to read the initial flash content");
             return;
         }
