@@ -23,6 +23,7 @@
 
 #define QUORUM_OPT_VOTE_THRESHOLD "vote-threshold"
 #define QUORUM_OPT_BLKVERIFY      "blkverify"
+#define QUORUM_OPT_REWRITE        "rewrite-corrupted"
 
 /* This union holds a vote hash value */
 typedef union QuorumVoteValue {
@@ -70,6 +71,9 @@ typedef struct BDRVQuorumState {
                             * It is useful to debug other block drivers by
                             * comparing them with a reference one.
                             */
+    bool rewrite_corrupted;/* true if the driver must rewrite-on-read corrupted
+                            * block if Quorum is reached.
+                            */
 } BDRVQuorumState;
 
 typedef struct QuorumAIOCB QuorumAIOCB;
@@ -105,13 +109,17 @@ struct QuorumAIOCB {
     int count;                  /* number of completed AIOCB */
     int success_count;          /* number of successfully completed AIOCB */
 
+    int rewrite_count;          /* number of replica to rewrite: count down to
+                                 * zero once writes are fired
+                                 */
+
     QuorumVotes votes;
 
     bool is_read;
     int vote_ret;
 };
 
-static void quorum_vote(QuorumAIOCB *acb);
+static bool quorum_vote(QuorumAIOCB *acb);
 
 static void quorum_aio_cancel(BlockDriverAIOCB *blockacb)
 {
@@ -183,6 +191,7 @@ static QuorumAIOCB *quorum_aio_get(BDRVQuorumState *s,
     acb->qcrs = g_new0(QuorumChildRequest, s->num_children);
     acb->count = 0;
     acb->success_count = 0;
+    acb->rewrite_count = 0;
     acb->votes.compare = quorum_sha256_compare;
     QLIST_INIT(&acb->votes.vote_list);
     acb->is_read = false;
@@ -232,11 +241,27 @@ static bool quorum_has_too_much_io_failed(QuorumAIOCB *acb)
     return false;
 }
 
+static void quorum_rewrite_aio_cb(void *opaque, int ret)
+{
+    QuorumAIOCB *acb = opaque;
+
+    /* one less rewrite to do */
+    acb->rewrite_count--;
+
+    /* wait until all rewrite callbacks have completed */
+    if (acb->rewrite_count) {
+        return;
+    }
+
+    quorum_aio_finalize(acb);
+}
+
 static void quorum_aio_cb(void *opaque, int ret)
 {
     QuorumChildRequest *sacb = opaque;
     QuorumAIOCB *acb = sacb->parent;
     BDRVQuorumState *s = acb->common.bs->opaque;
+    bool rewrite = false;
 
     sacb->ret = ret;
     acb->count++;
@@ -253,12 +278,15 @@ static void quorum_aio_cb(void *opaque, int ret)
 
     /* Do the vote on read */
     if (acb->is_read) {
-        quorum_vote(acb);
+        rewrite = quorum_vote(acb);
     } else {
         quorum_has_too_much_io_failed(acb);
     }
 
-    quorum_aio_finalize(acb);
+    /* if no rewrite is done the code will finish right away */
+    if (!rewrite) {
+        quorum_aio_finalize(acb);
+    }
 }
 
 static void quorum_report_bad_versions(BDRVQuorumState *s,
@@ -276,6 +304,43 @@ static void quorum_report_bad_versions(BDRVQuorumState *s,
             quorum_report_bad(acb, s->bs[item->index]->node_name, 0);
         }
     }
+}
+
+static bool quorum_rewrite_bad_versions(BDRVQuorumState *s, QuorumAIOCB *acb,
+                                        QuorumVoteValue *value)
+{
+    QuorumVoteVersion *version;
+    QuorumVoteItem *item;
+    int count = 0;
+
+    /* first count the number of bad versions: done first to avoid concurrency
+     * issues.
+     */
+    QLIST_FOREACH(version, &acb->votes.vote_list, next) {
+        if (acb->votes.compare(&version->value, value)) {
+            continue;
+        }
+        QLIST_FOREACH(item, &version->items, next) {
+            count++;
+        }
+    }
+
+    /* quorum_rewrite_aio_cb will count down this to zero */
+    acb->rewrite_count = count;
+
+    /* now fire the correcting rewrites */
+    QLIST_FOREACH(version, &acb->votes.vote_list, next) {
+        if (acb->votes.compare(&version->value, value)) {
+            continue;
+        }
+        QLIST_FOREACH(item, &version->items, next) {
+            bdrv_aio_writev(s->bs[item->index], acb->sector_num, acb->qiov,
+                            acb->nb_sectors, quorum_rewrite_aio_cb, acb);
+        }
+    }
+
+    /* return true if any rewrite is done else false */
+    return count;
 }
 
 static void quorum_copy_qiov(QEMUIOVector *dest, QEMUIOVector *source)
@@ -468,16 +533,17 @@ static int quorum_vote_error(QuorumAIOCB *acb)
     return ret;
 }
 
-static void quorum_vote(QuorumAIOCB *acb)
+static bool quorum_vote(QuorumAIOCB *acb)
 {
     bool quorum = true;
+    bool rewrite = false;
     int i, j, ret;
     QuorumVoteValue hash;
     BDRVQuorumState *s = acb->common.bs->opaque;
     QuorumVoteVersion *winner;
 
     if (quorum_has_too_much_io_failed(acb)) {
-        return;
+        return false;
     }
 
     /* get the index of the first successful read */
@@ -505,7 +571,7 @@ static void quorum_vote(QuorumAIOCB *acb)
     /* Every successful read agrees */
     if (quorum) {
         quorum_copy_qiov(acb->qiov, &acb->qcrs[i].qiov);
-        return;
+        return false;
     }
 
     /* compute hashes for each successful read, also store indexes */
@@ -538,9 +604,15 @@ static void quorum_vote(QuorumAIOCB *acb)
     /* some versions are bad print them */
     quorum_report_bad_versions(s, acb, &winner->value);
 
+    /* corruption correction is enabled */
+    if (s->rewrite_corrupted) {
+        rewrite = quorum_rewrite_bad_versions(s, acb, &winner->value);
+    }
+
 free_exit:
     /* free lists */
     quorum_free_vote_list(&acb->votes);
+    return rewrite;
 }
 
 static BlockDriverAIOCB *quorum_aio_readv(BlockDriverState *bs,
@@ -705,6 +777,11 @@ static QemuOptsList quorum_runtime_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "Trigger block verify mode if set",
         },
+        {
+            .name = QUORUM_OPT_REWRITE,
+            .type = QEMU_OPT_BOOL,
+            .help = "Rewrite corrupted block on read quorum",
+        },
         { /* end of list */ }
     },
 };
@@ -764,6 +841,14 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     } else if (qemu_opt_get_bool(opts, QUORUM_OPT_BLKVERIFY, false)) {
         fprintf(stderr, "blkverify mode is set by setting blkverify=on "
                 "and using two files with vote_threshold=2\n");
+    }
+
+    s->rewrite_corrupted = qemu_opt_get_bool(opts, QUORUM_OPT_REWRITE, false);
+    if (s->rewrite_corrupted && s->is_blkverify) {
+        error_setg(&local_err,
+                   "rewrite-corrupted=on cannot be used with blkverify=on");
+        ret = -EINVAL;
+        goto exit;
     }
 
     /* allocate the children BlockDriverState array */
