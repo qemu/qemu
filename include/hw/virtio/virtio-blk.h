@@ -138,7 +138,7 @@ typedef struct VirtIOBlockReq {
     VirtIOBlock *dev;
     VirtQueueElement *elem;
     struct virtio_blk_inhdr *in;
-    struct virtio_blk_outhdr *out;
+    struct virtio_blk_outhdr out;
     QEMUIOVector qiov;
     struct VirtIOBlockReq *next;
     BlockAcctCookie acct;

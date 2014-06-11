@@ -12,6 +12,7 @@
  */
 
 #include "qemu-common.h"
+#include "qemu/iov.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/block/block.h"
@@ -81,7 +82,7 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
     trace_virtio_blk_rw_complete(req, ret);
 
     if (ret) {
-        bool is_read = !(ldl_p(&req->out->type) & VIRTIO_BLK_T_OUT);
+        bool is_read = !(ldl_p(&req->out.type) & VIRTIO_BLK_T_OUT);
         if (virtio_blk_handle_rw_error(req, -ret, is_read))
             return;
     }
@@ -287,7 +288,7 @@ static void virtio_blk_handle_write(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     BlockRequest *blkreq;
     uint64_t sector;
 
-    sector = ldq_p(&req->out->sector);
+    sector = ldq_p(&req->out.sector);
 
     bdrv_acct_start(req->dev->bs, &req->acct, req->qiov.size, BDRV_ACCT_WRITE);
 
@@ -321,7 +322,7 @@ static void virtio_blk_handle_read(VirtIOBlockReq *req)
 {
     uint64_t sector;
 
-    sector = ldq_p(&req->out->sector);
+    sector = ldq_p(&req->out.sector);
 
     bdrv_acct_start(req->dev->bs, &req->acct, req->qiov.size, BDRV_ACCT_READ);
 
@@ -344,22 +345,29 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req,
     MultiReqBuffer *mrb)
 {
     uint32_t type;
+    struct iovec *iov = req->elem->out_sg;
+    unsigned out_num = req->elem->out_num;
 
     if (req->elem->out_num < 1 || req->elem->in_num < 1) {
         error_report("virtio-blk missing headers");
         exit(1);
     }
 
-    if (req->elem->out_sg[0].iov_len < sizeof(*req->out) ||
+    if (req->elem->out_sg[0].iov_len < sizeof(req->out) ||
         req->elem->in_sg[req->elem->in_num - 1].iov_len < sizeof(*req->in)) {
         error_report("virtio-blk header not in correct element");
         exit(1);
     }
 
-    req->out = (void *)req->elem->out_sg[0].iov_base;
+    if (unlikely(iov_to_buf(iov, out_num, 0, &req->out,
+                            sizeof(req->out)) != sizeof(req->out))) {
+        error_report("virtio-blk request outhdr too short");
+        exit(1);
+    }
+    iov_discard_front(&iov, &out_num, sizeof(req->out));
     req->in = (void *)req->elem->in_sg[req->elem->in_num - 1].iov_base;
 
-    type = ldl_p(&req->out->type);
+    type = ldl_p(&req->out.type);
 
     if (type & VIRTIO_BLK_T_FLUSH) {
         virtio_blk_handle_flush(req, mrb);
