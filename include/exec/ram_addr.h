@@ -117,7 +117,7 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
             if (bitmap[i] != 0) {
                 c = leul_to_cpu(bitmap[i]);
                 do {
-                    j = ffsl(c) - 1;
+                    j = ctzl(c);
                     c &= ~(1ul << j);
                     page_number = (i * HOST_LONG_BITS + j) * hpratio;
                     addr = page_number * TARGET_PAGE_SIZE;

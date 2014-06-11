@@ -41,7 +41,6 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
 
     for (;from < to; ++from) {
         vhost_log_chunk_t log;
-        int bit;
         /* We first check with non-atomic: much cheaper,
          * and we expect non-dirty to be the common case. */
         if (!*from) {
@@ -51,12 +50,11 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
         /* Data must be read atomically. We don't really need barrier semantics
          * but it's easier to use atomic_* than roll our own. */
         log = atomic_xchg(from, 0);
-        while ((bit = sizeof(log) > sizeof(int) ?
-                ffsll(log) : ffs(log))) {
+        while (log) {
+            int bit = ctzl(log);
             hwaddr page_addr;
             hwaddr section_offset;
             hwaddr mr_offset;
-            bit -= 1;
             page_addr = addr + bit * VHOST_LOG_PAGE;
             section_offset = page_addr - section->offset_within_address_space;
             mr_offset = section_offset + section->offset_within_region;

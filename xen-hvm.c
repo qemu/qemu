@@ -511,7 +511,7 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
     for (i = 0; i < ARRAY_SIZE(bitmap); i++) {
         unsigned long map = bitmap[i];
         while (map != 0) {
-            j = ffsl(map) - 1;
+            j = ctzl(map);
             map &= ~(1ul << j);
             memory_region_set_dirty(framebuffer,
                                     (i * width + j) * TARGET_PAGE_SIZE,

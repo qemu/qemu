@@ -546,6 +546,9 @@ fi
 
 # OS specific
 
+# host *BSD for user mode
+HOST_VARIANT_DIR=""
+
 case $targetos in
 CYGWIN*)
   mingw32="yes"
@@ -571,12 +574,14 @@ FreeBSD)
   # needed for kinfo_getvmmap(3) in libutil.h
   LIBS="-lutil $LIBS"
   netmap=""  # enable netmap autodetect
+  HOST_VARIANT_DIR="freebsd"
 ;;
 DragonFly)
   bsd="yes"
   make="${MAKE-gmake}"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd pa"
+  HOST_VARIANT_DIR="dragonfly"
 ;;
 NetBSD)
   bsd="yes"
@@ -584,12 +589,14 @@ NetBSD)
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd"
   oss_lib="-lossaudio"
+  HOST_VARIANT_DIR="netbsd"
 ;;
 OpenBSD)
   bsd="yes"
   make="${MAKE-gmake}"
   audio_drv_list="sdl"
   audio_possible_drivers="sdl esd"
+  HOST_VARIANT_DIR="openbsd"
 ;;
 Darwin)
   bsd="yes"
@@ -607,6 +614,7 @@ Darwin)
   # Disable attempts to use ObjectiveC features in os/object.h since they
   # won't work when we're compiling with gcc as a C compiler.
   QEMU_CFLAGS="-DOS_OBJECT_USE_OBJC=0 $QEMU_CFLAGS"
+  HOST_VARIANT_DIR="darwin"
 ;;
 SunOS)
   solaris="yes"
@@ -4986,6 +4994,9 @@ if [ "$TARGET_ABI_DIR" = "" ]; then
   TARGET_ABI_DIR=$TARGET_ARCH
 fi
 echo "TARGET_ABI_DIR=$TARGET_ABI_DIR" >> $config_target_mak
+if [ "$HOST_VARIANT_DIR" != "" ]; then
+    echo "HOST_VARIANT_DIR=$HOST_VARIANT_DIR" >> $config_target_mak
+fi
 case "$target_name" in
   i386|x86_64)
     if test "$xen" = "yes" -a "$target_softmmu" = "yes" ; then
