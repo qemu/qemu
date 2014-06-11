@@ -168,15 +168,18 @@ static uint8_t expand4to8[16];
 
 static void vga_update_memory_access(VGACommonState *s)
 {
-    MemoryRegion *region, *old_region = s->chain4_alias;
     hwaddr base, offset, size;
 
     if (s->legacy_address_space == NULL) {
         return;
     }
 
-    s->chain4_alias = NULL;
-
+    if (s->has_chain4_alias) {
+        memory_region_del_subregion(s->legacy_address_space, &s->chain4_alias);
+        memory_region_destroy(&s->chain4_alias);
+        s->has_chain4_alias = false;
+        s->plane_updated = 0xf;
+    }
     if ((s->sr[VGA_SEQ_PLANE_WRITE] & VGA_SR02_ALL_PLANES) ==
         VGA_SR02_ALL_PLANES && s->sr[VGA_SEQ_MEMORY_MODE] & VGA_SR04_CHN_4M) {
         offset = 0;
@@ -201,18 +204,11 @@ static void vga_update_memory_access(VGACommonState *s)
             break;
         }
         base += isa_mem_base;
-        region = g_malloc(sizeof(*region));
-        memory_region_init_alias(region, memory_region_owner(&s->vram),
+        memory_region_init_alias(&s->chain4_alias, memory_region_owner(&s->vram),
                                  "vga.chain4", &s->vram, offset, size);
         memory_region_add_subregion_overlap(s->legacy_address_space, base,
-                                            region, 2);
-        s->chain4_alias = region;
-    }
-    if (old_region) {
-        memory_region_del_subregion(s->legacy_address_space, old_region);
-        memory_region_destroy(old_region);
-        g_free(old_region);
-        s->plane_updated = 0xf;
+                                            &s->chain4_alias, 2);
+        s->has_chain4_alias = true;
     }
 }
 
@@ -1321,7 +1317,7 @@ static void vga_draw_text(VGACommonState *s, int full_update)
         s->font_offsets[1] = offset;
         full_update = 1;
     }
-    if (s->plane_updated & (1 << 2) || s->chain4_alias) {
+    if (s->plane_updated & (1 << 2) || s->has_chain4_alias) {
         /* if the plane 2 was modified since the last display, it
            indicates the font may have been modified */
         s->plane_updated = 0;
