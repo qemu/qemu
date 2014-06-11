@@ -849,7 +849,7 @@ void memory_region_init(MemoryRegion *mr,
 {
     mr->ops = &unassigned_mem_ops;
     mr->opaque = NULL;
-    mr->owner = owner;
+    mr->owner = owner ? owner : qdev_get_machine();
     mr->iommu_ops = NULL;
     mr->container = NULL;
     mr->size = int128_make64(size);
