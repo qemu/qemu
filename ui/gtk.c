@@ -68,7 +68,7 @@
 #include "keymaps.h"
 #include "sysemu/char.h"
 #include "qom/object.h"
-#ifndef _WIN32
+#ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #include <X11/XKBlib.h>
 #endif
@@ -110,6 +110,13 @@ static inline void gdk_drawable_get_size(GdkWindow *w, gint *ww, gint *wh)
 
 #if !GTK_CHECK_VERSION(2, 20, 0)
 #define gtk_widget_get_realized(widget) GTK_WIDGET_REALIZED(widget)
+#endif
+
+#ifndef GDK_IS_X11_DISPLAY
+#define GDK_IS_X11_DISPLAY(dpy) (dpy == dpy)
+#endif
+#ifndef GDK_IS_WIN32_DISPLAY
+#define GDK_IS_WIN32_DISPLAY(dpy) (dpy == dpy)
 #endif
 
 #ifndef GDK_KEY_0
@@ -877,33 +884,34 @@ static gboolean gd_scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
     return TRUE;
 }
 
-static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
+static int gd_map_keycode(GtkDisplayState *s, GdkDisplay *dpy, int gdk_keycode)
 {
-    VirtualConsole *vc = opaque;
-    GtkDisplayState *s = vc->s;
-    int gdk_keycode = key->hardware_keycode;
-    int i;
-
-#ifdef _WIN32
-    UINT qemu_keycode = MapVirtualKey(gdk_keycode, MAPVK_VK_TO_VSC);
-    switch (qemu_keycode) {
-    case 103:   /* alt gr */
-        qemu_keycode = 56 | SCANCODE_GREY;
-        break;
-    }
-#else
     int qemu_keycode;
+
+#ifdef GDK_WINDOWING_WIN32
+    if (GDK_IS_WIN32_DISPLAY(dpy)) {
+        qemu_keycode = MapVirtualKey(gdk_keycode, MAPVK_VK_TO_VSC);
+        switch (qemu_keycode) {
+        case 103:   /* alt gr */
+            qemu_keycode = 56 | SCANCODE_GREY;
+            break;
+        }
+        return qemu_keycode;
+    }
+#endif
 
     if (gdk_keycode < 9) {
         qemu_keycode = 0;
     } else if (gdk_keycode < 97) {
         qemu_keycode = gdk_keycode - 8;
-    } else if (gdk_keycode < 158) {
+#ifdef GDK_WINDOWING_X11
+    } else if (GDK_IS_X11_DISPLAY(dpy) && gdk_keycode < 158) {
         if (s->has_evdev) {
             qemu_keycode = translate_evdev_keycode(gdk_keycode - 97);
         } else {
             qemu_keycode = translate_xfree86_keycode(gdk_keycode - 97);
         }
+#endif
     } else if (gdk_keycode == 208) { /* Hiragana_Katakana */
         qemu_keycode = 0x70;
     } else if (gdk_keycode == 211) { /* backslash */
@@ -911,7 +919,20 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
     } else {
         qemu_keycode = 0;
     }
-#endif
+
+    return qemu_keycode;
+}
+
+static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
+{
+    VirtualConsole *vc = opaque;
+    GtkDisplayState *s = vc->s;
+    int gdk_keycode = key->hardware_keycode;
+    int qemu_keycode;
+    int i;
+
+    qemu_keycode = gd_map_keycode(s, gtk_widget_get_display(widget),
+                                  gdk_keycode);
 
     trace_gd_key_event(vc->label, gdk_keycode, qemu_keycode,
                        (key->type == GDK_KEY_PRESS) ? "down" : "up");
@@ -984,12 +1005,14 @@ static void gd_menu_switch_vc(GtkMenuItem *item, void *opaque)
 static void gd_menu_show_tabs(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
+    VirtualConsole *vc = gd_vc_find_current(s);
 
     if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(s->show_tabs_item))) {
         gtk_notebook_set_show_tabs(GTK_NOTEBOOK(s->notebook), TRUE);
     } else {
         gtk_notebook_set_show_tabs(GTK_NOTEBOOK(s->notebook), FALSE);
     }
+    gd_update_windowsize(vc);
 }
 
 static gboolean gd_tab_window_close(GtkWidget *widget, GdkEvent *event,
@@ -1141,28 +1164,39 @@ static void gd_menu_zoom_fit(GtkMenuItem *item, void *opaque)
     gd_update_full_redraw(vc);
 }
 
+#if GTK_CHECK_VERSION(3, 0, 0)
+static void gd_grab_devices(VirtualConsole *vc, bool grab,
+                            GdkInputSource source, GdkEventMask mask,
+                            GdkCursor *cursor)
+{
+    GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
+    GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
+    GList *devs = gdk_device_manager_list_devices(mgr, GDK_DEVICE_TYPE_MASTER);
+    GList *tmp = devs;
+
+    for (tmp = devs; tmp; tmp = tmp->next) {
+        GdkDevice *dev = tmp->data;
+        if (gdk_device_get_source(dev) != source) {
+            continue;
+        }
+        if (grab) {
+            GdkWindow *win = gtk_widget_get_window(vc->gfx.drawing_area);
+            gdk_device_grab(dev, win, GDK_OWNERSHIP_NONE, FALSE,
+                            mask, cursor, GDK_CURRENT_TIME);
+        } else {
+            gdk_device_ungrab(dev, GDK_CURRENT_TIME);
+        }
+    }
+    g_list_free(devs);
+}
+#endif
+
 static void gd_grab_keyboard(VirtualConsole *vc)
 {
 #if GTK_CHECK_VERSION(3, 0, 0)
-    GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
-    GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
-    GList *devices = gdk_device_manager_list_devices(mgr,
-                                                     GDK_DEVICE_TYPE_MASTER);
-    GList *tmp = devices;
-    while (tmp) {
-        GdkDevice *dev = tmp->data;
-        if (gdk_device_get_source(dev) == GDK_SOURCE_KEYBOARD) {
-            gdk_device_grab(dev,
-                            gtk_widget_get_window(vc->gfx.drawing_area),
-                            GDK_OWNERSHIP_NONE,
-                            FALSE,
-                            GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
-                            NULL,
-                            GDK_CURRENT_TIME);
-        }
-        tmp = tmp->next;
-    }
-    g_list_free(devices);
+    gd_grab_devices(vc, true, GDK_SOURCE_KEYBOARD,
+                   GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
+                   NULL);
 #else
     gdk_keyboard_grab(gtk_widget_get_window(vc->gfx.drawing_area),
                       FALSE,
@@ -1182,20 +1216,7 @@ static void gd_ungrab_keyboard(GtkDisplayState *s)
     s->kbd_owner = NULL;
 
 #if GTK_CHECK_VERSION(3, 0, 0)
-    GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
-    GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
-    GList *devices = gdk_device_manager_list_devices(mgr,
-                                                     GDK_DEVICE_TYPE_MASTER);
-    GList *tmp = devices;
-    while (tmp) {
-        GdkDevice *dev = tmp->data;
-        if (gdk_device_get_source(dev) == GDK_SOURCE_KEYBOARD) {
-            gdk_device_ungrab(dev,
-                              GDK_CURRENT_TIME);
-        }
-        tmp = tmp->next;
-    }
-    g_list_free(devices);
+    gd_grab_devices(vc, false, GDK_SOURCE_KEYBOARD, 0, NULL);
 #else
     gdk_keyboard_ungrab(GDK_CURRENT_TIME);
 #endif
@@ -1207,28 +1228,13 @@ static void gd_grab_pointer(VirtualConsole *vc)
     GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
 #if GTK_CHECK_VERSION(3, 0, 0)
     GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
-    GList *devices = gdk_device_manager_list_devices(mgr,
-                                                     GDK_DEVICE_TYPE_MASTER);
-    GList *tmp = devices;
-    while (tmp) {
-        GdkDevice *dev = tmp->data;
-        if (gdk_device_get_source(dev) == GDK_SOURCE_MOUSE) {
-            gdk_device_grab(dev,
-                            gtk_widget_get_window(vc->gfx.drawing_area),
-                            GDK_OWNERSHIP_NONE,
-                            FALSE, /* All events to come to our
-                                      window directly */
-                            GDK_POINTER_MOTION_MASK |
-                            GDK_BUTTON_PRESS_MASK |
-                            GDK_BUTTON_RELEASE_MASK |
-                            GDK_BUTTON_MOTION_MASK |
-                            GDK_SCROLL_MASK,
-                            vc->s->null_cursor,
-                            GDK_CURRENT_TIME);
-        }
-        tmp = tmp->next;
-    }
-    g_list_free(devices);
+    gd_grab_devices(vc, true, GDK_SOURCE_MOUSE,
+                    GDK_POINTER_MOTION_MASK |
+                    GDK_BUTTON_PRESS_MASK |
+                    GDK_BUTTON_RELEASE_MASK |
+                    GDK_BUTTON_MOTION_MASK |
+                    GDK_SCROLL_MASK,
+                    vc->s->null_cursor);
     gdk_device_get_position(gdk_device_manager_get_client_pointer(mgr),
                             NULL, &vc->s->grab_x_root, &vc->s->grab_y_root);
 #else
@@ -1261,18 +1267,7 @@ static void gd_ungrab_pointer(GtkDisplayState *s)
     GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
 #if GTK_CHECK_VERSION(3, 0, 0)
     GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
-    GList *devices = gdk_device_manager_list_devices(mgr,
-                                                     GDK_DEVICE_TYPE_MASTER);
-    GList *tmp = devices;
-    while (tmp) {
-        GdkDevice *dev = tmp->data;
-        if (gdk_device_get_source(dev) == GDK_SOURCE_MOUSE) {
-            gdk_device_ungrab(dev,
-                              GDK_CURRENT_TIME);
-        }
-        tmp = tmp->next;
-    }
-    g_list_free(devices);
+    gd_grab_devices(vc, false, GDK_SOURCE_MOUSE, 0, NULL);
     gdk_device_warp(gdk_device_manager_get_client_pointer(mgr),
                     gtk_widget_get_screen(vc->gfx.drawing_area),
                     vc->s->grab_x_root, vc->s->grab_y_root);
@@ -1793,23 +1788,25 @@ static void gd_create_menus(GtkDisplayState *s)
 
 static void gd_set_keycode_type(GtkDisplayState *s)
 {
-#ifndef _WIN32
-    char *keycodes = NULL;
+#ifdef GDK_WINDOWING_X11
     GdkDisplay *display = gtk_widget_get_display(s->window);
-    Display *x11_display = gdk_x11_display_get_xdisplay(display);
-    XkbDescPtr desc = XkbGetKeyboard(x11_display, XkbGBN_AllComponentsMask,
-                                     XkbUseCoreKbd);
+    if (GDK_IS_X11_DISPLAY(display)) {
+        Display *x11_display = gdk_x11_display_get_xdisplay(display);
+        XkbDescPtr desc = XkbGetKeyboard(x11_display, XkbGBN_AllComponentsMask,
+                                         XkbUseCoreKbd);
+        char *keycodes = NULL;
 
-    if (desc && desc->names) {
-        keycodes = XGetAtomName(x11_display, desc->names->keycodes);
-    }
-    if (keycodes == NULL) {
-        fprintf(stderr, "could not lookup keycode name\n");
-    } else if (strstart(keycodes, "evdev", NULL)) {
-        s->has_evdev = true;
-    } else if (!strstart(keycodes, "xfree86", NULL)) {
-        fprintf(stderr, "unknown keycodes `%s', please report to "
-                "qemu-devel@nongnu.org\n", keycodes);
+        if (desc && desc->names) {
+            keycodes = XGetAtomName(x11_display, desc->names->keycodes);
+        }
+        if (keycodes == NULL) {
+            fprintf(stderr, "could not lookup keycode name\n");
+        } else if (strstart(keycodes, "evdev", NULL)) {
+            s->has_evdev = true;
+        } else if (!strstart(keycodes, "xfree86", NULL)) {
+            fprintf(stderr, "unknown keycodes `%s', please report to "
+                    "qemu-devel@nongnu.org\n", keycodes);
+        }
     }
 #endif
 }

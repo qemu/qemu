@@ -2006,6 +2006,7 @@ fi
 
 if test "$gtk" != "no"; then
     gtkpackage="gtk+-$gtkabi"
+    gtkx11package="gtk+-x11-$gtkabi"
     if test "$gtkabi" = "3.0" ; then
       gtkversion="3.0.0"
     else
@@ -2014,6 +2015,9 @@ if test "$gtk" != "no"; then
     if $pkg_config --exists "$gtkpackage >= $gtkversion"; then
         gtk_cflags=`$pkg_config --cflags $gtkpackage`
         gtk_libs=`$pkg_config --libs $gtkpackage`
+        if $pkg_config --exists "$gtkx11package >= $gtkversion"; then
+            gtk_libs="$gtk_libs -lX11"
+        fi
         libs_softmmu="$gtk_libs $libs_softmmu"
         gtk="yes"
     elif test "$gtk" = "yes"; then
