@@ -2027,7 +2027,8 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
                 (long)r->req.cmd.xfer);
         break;
     default:
-        DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
+        DPRINTF("Unknown SCSI command (%2.2x=%s)\n", buf[0],
+                scsi_command_name(buf[0]));
         scsi_check_condition(r, SENSE_CODE(INVALID_OPCODE));
         return 0;
     }
