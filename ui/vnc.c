@@ -935,6 +935,9 @@ static int vnc_update_client(VncState *vs, int has_dirty, bool sync)
         }
 
         vnc_job_push(job);
+        if (sync) {
+            vnc_jobs_join(vs);
+        }
         vs->force_update = 0;
         return n;
     }
