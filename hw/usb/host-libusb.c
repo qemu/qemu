@@ -952,6 +952,19 @@ static int usb_host_initfn(USBDevice *udev)
 {
     USBHostDevice *s = USB_HOST_DEVICE(udev);
 
+    if (s->match.vendor_id > 0xffff) {
+        error_report("vendorid out of range");
+        return -1;
+    }
+    if (s->match.product_id > 0xffff) {
+        error_report("productid out of range");
+        return -1;
+    }
+    if (s->match.addr > 127) {
+        error_report("hostaddr out of range");
+        return -1;
+    }
+
     loglevel = s->loglevel;
     udev->flags |= (1 << USB_DEV_FLAG_IS_HOST);
     udev->auto_attach = 0;
