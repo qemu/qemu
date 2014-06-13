@@ -69,6 +69,7 @@ QXLCookie *qxl_cookie_new(int type, uint64_t io);
 
 typedef struct SimpleSpiceDisplay SimpleSpiceDisplay;
 typedef struct SimpleSpiceUpdate SimpleSpiceUpdate;
+typedef struct SimpleSpiceCursor SimpleSpiceCursor;
 
 struct SimpleSpiceDisplay {
     DisplaySurface *ds;
@@ -92,6 +93,13 @@ struct SimpleSpiceDisplay {
      */
     QemuMutex lock;
     QTAILQ_HEAD(, SimpleSpiceUpdate) updates;
+
+    /* cursor (without qxl): displaychangelistener -> spice server */
+    SimpleSpiceCursor *ptr_define;
+    SimpleSpiceCursor *ptr_move;
+    uint16_t ptr_x, ptr_y;
+
+    /* cursor (with qxl): qxl local renderer -> displaychangelistener */
     QEMUCursor *cursor;
     int mouse_x, mouse_y;
 };
@@ -102,6 +110,12 @@ struct SimpleSpiceUpdate {
     QXLCommandExt ext;
     uint8_t *bitmap;
     QTAILQ_ENTRY(SimpleSpiceUpdate) next;
+};
+
+struct SimpleSpiceCursor {
+    QXLCursorCmd cmd;
+    QXLCommandExt ext;
+    QXLCursor cursor;
 };
 
 int qemu_spice_rect_is_empty(const QXLRect* r);

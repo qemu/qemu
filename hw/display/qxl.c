@@ -710,7 +710,11 @@ static void interface_release_resource(QXLInstance *sin,
 
     if (ext.group_id == MEMSLOT_GROUP_HOST) {
         /* host group -> vga mode update request */
-        qemu_spice_destroy_update(&qxl->ssd, (void *)(intptr_t)ext.info->id);
+        QXLCommandExt *cmdext = (void *)(ext.info->id);
+        SimpleSpiceUpdate *update;
+        g_assert(cmdext->cmd.type == QXL_CMD_DRAW);
+        update = container_of(cmdext, SimpleSpiceUpdate, ext);
+        qemu_spice_destroy_update(&qxl->ssd, update);
         return;
     }
 
