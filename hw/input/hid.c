@@ -164,7 +164,7 @@ static void hid_pointer_sync(DeviceState *dev)
 
     if (hs->n == QUEUE_LENGTH-1) {
         /*
-         * Queue full.  We are loosing information, but we at least
+         * Queue full.  We are losing information, but we at least
          * keep track of most recent button state.
          */
         return;

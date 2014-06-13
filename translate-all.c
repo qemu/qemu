@@ -594,7 +594,7 @@ static inline void *alloc_code_gen_buffer(void)
 
 #ifdef __mips__
     if (cross_256mb(buf, tcg_ctx.code_gen_buffer_size)) {
-        /* Try again, with the original still mapped, to avoid re-aquiring
+        /* Try again, with the original still mapped, to avoid re-acquiring
            that 256mb crossing.  This time don't specify an address.  */
         size_t size2, size1 = tcg_ctx.code_gen_buffer_size;
         void *buf2 = mmap(NULL, size1, PROT_WRITE | PROT_READ | PROT_EXEC,

@@ -101,7 +101,7 @@ typedef struct IscsiAIOCB {
 #define ISCSI_CMD_RETRIES ARRAY_SIZE(iscsi_retry_times)
 static const unsigned iscsi_retry_times[] = {8, 32, 128, 512, 2048};
 
-/* this threshhold is a trade-off knob to choose between
+/* this threshold is a trade-off knob to choose between
  * the potential additional overhead of an extra GET_LBA_STATUS request
  * vs. unnecessarily reading a lot of zero sectors over the wire.
  * If a read request is greater or equal than ISCSI_CHECKALLOC_THRES
