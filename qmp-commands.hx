@@ -3571,7 +3571,7 @@ Example:
                           "format":"qcow2",
                           "virtual-size":2048000
                       }
-                   } } ] }
+                   } } ] }
 
 EQMP
 
