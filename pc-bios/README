@@ -41,3 +41,8 @@
 
 - The sources for the Alpha palcode image is available from:
   git://github.com/rth7680/qemu-palcode.git
+
+- The u-boot binary for e500 comes from the upstream denx u-boot project where
+  it was compiled using the qemu-ppce500 target.
+  A git mirror is available at: git://git.qemu-project.org/u-boot.git
+  The hash used to compile the current version is: 2072e72

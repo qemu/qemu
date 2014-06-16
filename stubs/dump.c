@@ -12,7 +12,7 @@
  */
 
 #include "qemu-common.h"
-#include "sysemu/dump.h"
+#include "sysemu/dump-arch.h"
 #include "qapi/qmp/qerror.h"
 #include "qmp-commands.h"
 

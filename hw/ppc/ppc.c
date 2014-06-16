@@ -29,9 +29,11 @@
 #include "sysemu/cpus.h"
 #include "hw/timer/m48t59.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "hw/loader.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
+#include "trace.h"
 
 //#define PPC_DEBUG_IRQ
 //#define PPC_DEBUG_TB
@@ -48,6 +50,8 @@
 #else
 #  define LOG_TB(...) do { } while (0)
 #endif
+
+#define NSEC_PER_SEC    1000000000LL
 
 static void cpu_ppc_tb_stop (CPUPPCState *env);
 static void cpu_ppc_tb_start (CPUPPCState *env);
@@ -828,6 +832,81 @@ static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
     _cpu_ppc_store_hdecr(cpu, 0xFFFFFFFF, 0xFFFFFFFF);
     cpu_ppc_store_purr(cpu, 0x0000000000000000ULL);
 }
+
+static void timebase_pre_save(void *opaque)
+{
+    PPCTimebase *tb = opaque;
+    uint64_t ticks = cpu_get_real_ticks();
+    PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
+
+    if (!first_ppc_cpu->env.tb_env) {
+        error_report("No timebase object");
+        return;
+    }
+
+    tb->time_of_the_day_ns = get_clock_realtime();
+    /*
+     * tb_offset is only expected to be changed by migration so
+     * there is no need to update it from KVM here
+     */
+    tb->guest_timebase = ticks + first_ppc_cpu->env.tb_env->tb_offset;
+}
+
+static int timebase_post_load(void *opaque, int version_id)
+{
+    PPCTimebase *tb_remote = opaque;
+    CPUState *cpu;
+    PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
+    int64_t tb_off_adj, tb_off, ns_diff;
+    int64_t migration_duration_ns, migration_duration_tb, guest_tb, host_ns;
+    unsigned long freq;
+
+    if (!first_ppc_cpu->env.tb_env) {
+        error_report("No timebase object");
+        return -1;
+    }
+
+    freq = first_ppc_cpu->env.tb_env->tb_freq;
+    /*
+     * Calculate timebase on the destination side of migration.
+     * The destination timebase must be not less than the source timebase.
+     * We try to adjust timebase by downtime if host clocks are not
+     * too much out of sync (1 second for now).
+     */
+    host_ns = get_clock_realtime();
+    ns_diff = MAX(0, host_ns - tb_remote->time_of_the_day_ns);
+    migration_duration_ns = MIN(NSEC_PER_SEC, ns_diff);
+    migration_duration_tb = muldiv64(migration_duration_ns, freq, NSEC_PER_SEC);
+    guest_tb = tb_remote->guest_timebase + MIN(0, migration_duration_tb);
+
+    tb_off_adj = guest_tb - cpu_get_real_ticks();
+
+    tb_off = first_ppc_cpu->env.tb_env->tb_offset;
+    trace_ppc_tb_adjust(tb_off, tb_off_adj, tb_off_adj - tb_off,
+                        (tb_off_adj - tb_off) / freq);
+
+    /* Set new offset to all CPUs */
+    CPU_FOREACH(cpu) {
+        PowerPCCPU *pcpu = POWERPC_CPU(cpu);
+        pcpu->env.tb_env->tb_offset = tb_off_adj;
+    }
+
+    return 0;
+}
+
+const VMStateDescription vmstate_ppc_timebase = {
+    .name = "timebase",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .pre_save = timebase_pre_save,
+    .post_load = timebase_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(guest_timebase, PPCTimebase),
+        VMSTATE_INT64(time_of_the_day_ns, PPCTimebase),
+        VMSTATE_END_OF_LIST()
+    },
+};
 
 /* Set up (once) timebase frequency (in Hz) */
 clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)

@@ -191,7 +191,8 @@ static int print_insn_od_target(bfd_vma pc, disassemble_info *info)
    values:
     i386 - 1 means 16 bit code, 2 means 64 bit code
     arm  - bit 0 = thumb, bit 1 = reverse endian, bit 2 = A64
-    ppc  - nonzero means little endian
+    ppc  - bits 0:15 specify (optionally) the machine instruction set;
+           bit 16 indicates little endian.
     other targets - unused
  */
 void target_disas(FILE *out, CPUArchState *env, target_ulong code,
@@ -251,11 +252,11 @@ void target_disas(FILE *out, CPUArchState *env, target_ulong code,
     s.info.mach = bfd_mach_sparc_v9b;
 #endif
 #elif defined(TARGET_PPC)
-    if (flags >> 16) {
+    if ((flags >> 16) & 1) {
         s.info.endian = BFD_ENDIAN_LITTLE;
     }
     if (flags & 0xFFFF) {
-        /* If we have a precise definitions of the instructions set, use it */
+        /* If we have a precise definition of the instruction set, use it. */
         s.info.mach = flags & 0xFFFF;
     } else {
 #ifdef TARGET_PPC64
@@ -444,6 +445,8 @@ monitor_fprintf(FILE *stream, const char *fmt, ...)
     return 0;
 }
 
+/* Disassembler for the monitor.
+   See target_disas for a description of flags. */
 void monitor_disas(Monitor *mon, CPUArchState *env,
                    target_ulong pc, int nb_insn, int is_physical, int flags)
 {
@@ -484,11 +487,19 @@ void monitor_disas(Monitor *mon, CPUArchState *env,
     s.info.mach = bfd_mach_sparc_v9b;
 #endif
 #elif defined(TARGET_PPC)
+    if (flags & 0xFFFF) {
+        /* If we have a precise definition of the instruction set, use it. */
+        s.info.mach = flags & 0xFFFF;
+    } else {
 #ifdef TARGET_PPC64
-    s.info.mach = bfd_mach_ppc64;
+        s.info.mach = bfd_mach_ppc64;
 #else
-    s.info.mach = bfd_mach_ppc;
+        s.info.mach = bfd_mach_ppc;
 #endif
+    }
+    if ((flags >> 16) & 1) {
+        s.info.endian = BFD_ENDIAN_LITTLE;
+    }
     print_insn = print_insn_ppc;
 #elif defined(TARGET_M68K)
     print_insn = print_insn_m68k;

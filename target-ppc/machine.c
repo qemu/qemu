@@ -160,6 +160,11 @@ static int cpu_post_load(void *opaque, int version_id)
     CPUPPCState *env = &cpu->env;
     int i;
 
+    /*
+     * We always ignore the source PVR. The user or management
+     * software has to take care of running QEMU in a compatible mode.
+     */
+    env->spr[SPR_PVR] = env->spr_cb[SPR_PVR].default_value;
     env->lr = env->spr[SPR_LR];
     env->ctr = env->spr[SPR_CTR];
     env->xer = env->spr[SPR_XER];
@@ -243,6 +248,38 @@ static const VMStateDescription vmstate_vsx = {
         VMSTATE_END_OF_LIST()
     },
 };
+
+#ifdef TARGET_PPC64
+/* Transactional memory state */
+static bool tm_needed(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
+    return msr_ts;
+}
+
+static const VMStateDescription vmstate_tm = {
+    .name = "cpu/tm",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINTTL_ARRAY(env.tm_gpr, PowerPCCPU, 32),
+        VMSTATE_AVR_ARRAY(env.tm_vsr, PowerPCCPU, 64),
+        VMSTATE_UINT64(env.tm_cr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_lr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_ctr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_fpscr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_amr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_ppr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_vrsave, PowerPCCPU),
+        VMSTATE_UINT32(env.tm_vscr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_dscr, PowerPCCPU),
+        VMSTATE_UINT64(env.tm_tar, PowerPCCPU),
+        VMSTATE_END_OF_LIST()
+    },
+};
+#endif
 
 static bool sr_needed(void *opaque)
 {
@@ -459,8 +496,7 @@ const VMStateDescription vmstate_ppc_cpu = {
     .pre_save = cpu_pre_save,
     .post_load = cpu_post_load,
     .fields = (VMStateField[]) {
-        /* Verify we haven't changed the pvr */
-        VMSTATE_UINTTL_EQUAL(env.spr[SPR_PVR], PowerPCCPU),
+        VMSTATE_UNUSED(sizeof(target_ulong)), /* was _EQUAL(env.spr[SPR_PVR]) */
 
         /* User mode architected state */
         VMSTATE_UINTTL_ARRAY(env.gpr, PowerPCCPU, 32),
@@ -506,6 +542,9 @@ const VMStateDescription vmstate_ppc_cpu = {
             .needed = sr_needed,
         } , {
 #ifdef TARGET_PPC64
+            .vmsd = &vmstate_tm,
+            .needed = tm_needed,
+        } , {
             .vmsd = &vmstate_slb,
             .needed = slb_needed,
         } , {

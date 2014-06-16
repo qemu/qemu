@@ -159,7 +159,7 @@ static void ievent_set(eTSEC    *etsec,
 
     if ((flags & IEVENT_RXB && etsec->regs[IMASK].value & IMASK_RXBEN)
         || (flags & IEVENT_RXF && etsec->regs[IMASK].value & IMASK_RXFEN)) {
-        qemu_irq_pulse(etsec->rx_irq);
+        qemu_irq_raise(etsec->rx_irq);
         RING_DEBUG("%s Raise Rx IRQ\n", __func__);
     }
 }

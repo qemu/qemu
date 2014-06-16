@@ -903,6 +903,11 @@ static int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
     target_ulong mask;
     uint32_t tlb_pid;
 
+    if (!msr_cm) {
+        /* In 32bit mode we can only address 32bit EAs */
+        address = (uint32_t)address;
+    }
+
     /* Check valid flag */
     if (!(tlb->mas1 & MAS1_VALID)) {
         return -1;
@@ -2886,7 +2891,7 @@ void helper_booke206_tlbilx3(CPUPPCState *env, target_ulong address)
     tlb_flush(CPU(cpu), 1);
 }
 
-void helper_booke206_tlbflush(CPUPPCState *env, uint32_t type)
+void helper_booke206_tlbflush(CPUPPCState *env, target_ulong type)
 {
     int flags = 0;
 

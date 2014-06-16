@@ -57,6 +57,7 @@ typedef struct PowerPCCPUClass {
 
     uint32_t pvr;
     uint32_t pvr_mask;
+    uint64_t pcr_mask;
     uint32_t svr;
     uint64_t insns_flags;
     uint64_t insns_flags2;
@@ -76,12 +77,15 @@ typedef struct PowerPCCPUClass {
     int (*handle_mmu_fault)(PowerPCCPU *cpu, target_ulong eaddr, int rwx,
                             int mmu_idx);
 #endif
+    bool (*interrupts_big_endian)(PowerPCCPU *cpu);
 } PowerPCCPUClass;
 
 /**
  * PowerPCCPU:
  * @env: #CPUPPCState
  * @cpu_dt_id: CPU index used in the device tree. KVM uses this index too
+ * @max_compat: Maximal supported logical PVR from the command line
+ * @cpu_version: Current logical PVR, zero if in "raw" mode
  *
  * A PowerPC CPU.
  */
@@ -92,6 +96,8 @@ struct PowerPCCPU {
 
     CPUPPCState env;
     int cpu_dt_id;
+    uint32_t max_compat;
+    uint32_t cpu_version;
 };
 
 static inline PowerPCCPU *ppc_env_get_cpu(CPUPPCState *env)
@@ -120,6 +126,22 @@ int ppc64_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
                                int cpuid, void *opaque);
 #ifndef CONFIG_USER_ONLY
 extern const struct VMStateDescription vmstate_ppc_cpu;
+
+typedef struct PPCTimebase {
+    uint64_t guest_timebase;
+    int64_t time_of_the_day_ns;
+} PPCTimebase;
+
+extern const struct VMStateDescription vmstate_ppc_timebase;
+
+#define VMSTATE_PPC_TIMEBASE_V(_field, _state, _version) {            \
+    .name       = (stringify(_field)),                                \
+    .version_id = (_version),                                         \
+    .size       = sizeof(PPCTimebase),                                \
+    .vmsd       = &vmstate_ppc_timebase,                              \
+    .flags      = VMS_STRUCT,                                         \
+    .offset     = vmstate_offset_value(_state, _field, PPCTimebase),  \
+}
 #endif
 
 #endif

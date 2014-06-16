@@ -1189,11 +1189,24 @@ xics_ics_write_xive(int nr, int srcno, int server, uint8_t priority) "ics_write_
 xics_ics_reject(int nr, int srcno) "reject irq %#x [src %d]"
 xics_ics_eoi(int nr) "ics_eoi: irq %#x"
 
+# hw/ppc/spapr.c
+spapr_cas_failed(unsigned long n) "DT diff buffer is too small: %ld bytes"
+spapr_cas_continue(unsigned long n) "Copy changes to the guest: %ld bytes"
+
+# hw/ppc/spapr_hcall.c
+spapr_cas_pvr_try(uint32_t pvr) "%x"
+spapr_cas_pvr(uint32_t cur_pvr, bool cpu_match, uint32_t new_pvr, uint64_t pcr) "current=%x, cpu_match=%u, new=%x, compat flags=%"PRIx64
+
 # hw/ppc/spapr_iommu.c
 spapr_iommu_put(uint64_t liobn, uint64_t ioba, uint64_t tce, uint64_t ret) "liobn=%"PRIx64" ioba=0x%"PRIx64" tce=0x%"PRIx64" ret=%"PRId64
 spapr_iommu_get(uint64_t liobn, uint64_t ioba, uint64_t ret, uint64_t tce) "liobn=%"PRIx64" ioba=0x%"PRIx64" ret=%"PRId64" tce=0x%"PRIx64
+spapr_iommu_indirect(uint64_t liobn, uint64_t ioba, uint64_t tce, uint64_t iobaN, uint64_t tceN, uint64_t ret) "liobn=%"PRIx64" ioba=0x%"PRIx64" tcelist=0x%"PRIx64" iobaN=0x%"PRIx64" tceN=0x%"PRIx64" ret=%"PRId64
+spapr_iommu_stuff(uint64_t liobn, uint64_t ioba, uint64_t tce_value, uint64_t npages, uint64_t ret) "liobn=%"PRIx64" ioba=0x%"PRIx64" tcevalue=0x%"PRIx64" npages=%"PRId64" ret=%"PRId64
 spapr_iommu_xlate(uint64_t liobn, uint64_t ioba, uint64_t tce, unsigned perm, unsigned pgsize) "liobn=%"PRIx64" 0x%"PRIx64" -> 0x%"PRIx64" perm=%u mask=%x"
 spapr_iommu_new_table(uint64_t liobn, void *tcet, void *table, int fd) "liobn=%"PRIx64" tcet=%p table=%p fd=%d"
+
+# hw/ppc/ppc.c
+ppc_tb_adjust(uint64_t offs1, uint64_t offs2, int64_t diff, int64_t seconds) "adjusted from 0x%"PRIx64" to 0x%"PRIx64", diff %"PRId64" (%"PRId64"s)"
 
 # util/hbitmap.c
 hbitmap_iter_skip_words(const void *hb, void *hbi, uint64_t pos, unsigned long cur) "hb %p hbi %p pos %"PRId64" cur 0x%lx"

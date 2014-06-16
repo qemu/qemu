@@ -3,6 +3,9 @@
 #include "helper_regs.h"
 #include "hw/ppc/spapr.h"
 #include "mmu-hash64.h"
+#include "cpu-models.h"
+#include "trace.h"
+#include "kvm_ppc.h"
 
 struct SPRSyncState {
     CPUState *cs;
@@ -709,47 +712,218 @@ static target_ulong h_logical_dcbf(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_set_mode_resouce_le(PowerPCCPU *cpu,
+                                          target_ulong mflags,
+                                          target_ulong value1,
+                                          target_ulong value2)
+{
+    CPUState *cs;
+
+    if (value1) {
+        return H_P3;
+    }
+    if (value2) {
+        return H_P4;
+    }
+
+    switch (mflags) {
+    case H_SET_MODE_ENDIAN_BIG:
+        CPU_FOREACH(cs) {
+            set_spr(cs, SPR_LPCR, 0, LPCR_ILE);
+        }
+        return H_SUCCESS;
+
+    case H_SET_MODE_ENDIAN_LITTLE:
+        CPU_FOREACH(cs) {
+            set_spr(cs, SPR_LPCR, LPCR_ILE, LPCR_ILE);
+        }
+        return H_SUCCESS;
+    }
+
+    return H_UNSUPPORTED_FLAG;
+}
+
+static target_ulong h_set_mode_resouce_addr_trans_mode(PowerPCCPU *cpu,
+                                                       target_ulong mflags,
+                                                       target_ulong value1,
+                                                       target_ulong value2)
+{
+    CPUState *cs;
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    target_ulong prefix;
+
+    if (!(pcc->insns_flags2 & PPC2_ISA207S)) {
+        return H_P2;
+    }
+    if (value1) {
+        return H_P3;
+    }
+    if (value2) {
+        return H_P4;
+    }
+
+    switch (mflags) {
+    case H_SET_MODE_ADDR_TRANS_NONE:
+        prefix = 0;
+        break;
+    case H_SET_MODE_ADDR_TRANS_0001_8000:
+        prefix = 0x18000;
+        break;
+    case H_SET_MODE_ADDR_TRANS_C000_0000_0000_4000:
+        prefix = 0xC000000000004000;
+        break;
+    default:
+        return H_UNSUPPORTED_FLAG;
+    }
+
+    CPU_FOREACH(cs) {
+        CPUPPCState *env = &POWERPC_CPU(cpu)->env;
+
+        set_spr(cs, SPR_LPCR, mflags << LPCR_AIL_SHIFT, LPCR_AIL);
+        env->excp_prefix = prefix;
+    }
+
+    return H_SUCCESS;
+}
+
 static target_ulong h_set_mode(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                target_ulong opcode, target_ulong *args)
 {
-    CPUState *cs;
-    target_ulong mflags = args[0];
     target_ulong resource = args[1];
-    target_ulong value1 = args[2];
-    target_ulong value2 = args[3];
     target_ulong ret = H_P2;
 
-    if (resource == H_SET_MODE_RESOURCE_LE) {
-        if (value1) {
-            ret = H_P3;
-            goto out;
-        }
-        if (value2) {
-            ret = H_P4;
-            goto out;
-        }
-        switch (mflags) {
-        case H_SET_MODE_ENDIAN_BIG:
-            CPU_FOREACH(cs) {
-                set_spr(cs, SPR_LPCR, 0, LPCR_ILE);
-            }
-            ret = H_SUCCESS;
-            break;
+    switch (resource) {
+    case H_SET_MODE_RESOURCE_LE:
+        ret = h_set_mode_resouce_le(cpu, args[0], args[2], args[3]);
+        break;
+    case H_SET_MODE_RESOURCE_ADDR_TRANS_MODE:
+        ret = h_set_mode_resouce_addr_trans_mode(cpu, args[0],
+                                                 args[2], args[3]);
+        break;
+    }
 
-        case H_SET_MODE_ENDIAN_LITTLE:
-            CPU_FOREACH(cs) {
-                set_spr(cs, SPR_LPCR, LPCR_ILE, LPCR_ILE);
-            }
-            ret = H_SUCCESS;
-            break;
+    return ret;
+}
 
-        default:
-            ret = H_UNSUPPORTED_FLAG;
+typedef struct {
+    PowerPCCPU *cpu;
+    uint32_t cpu_version;
+    int ret;
+} SetCompatState;
+
+static void do_set_compat(void *arg)
+{
+    SetCompatState *s = arg;
+
+    cpu_synchronize_state(CPU(s->cpu));
+    s->ret = ppc_set_compat(s->cpu, s->cpu_version);
+}
+
+#define get_compat_level(cpuver) ( \
+    ((cpuver) == CPU_POWERPC_LOGICAL_2_05) ? 2050 : \
+    ((cpuver) == CPU_POWERPC_LOGICAL_2_06) ? 2060 : \
+    ((cpuver) == CPU_POWERPC_LOGICAL_2_06_PLUS) ? 2061 : \
+    ((cpuver) == CPU_POWERPC_LOGICAL_2_07) ? 2070 : 0)
+
+static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
+                                                  sPAPREnvironment *spapr,
+                                                  target_ulong opcode,
+                                                  target_ulong *args)
+{
+    target_ulong list = args[0];
+    PowerPCCPUClass *pcc_ = POWERPC_CPU_GET_CLASS(cpu_);
+    CPUState *cs;
+    bool cpu_match = false;
+    unsigned old_cpu_version = cpu_->cpu_version;
+    unsigned compat_lvl = 0, cpu_version = 0;
+    unsigned max_lvl = get_compat_level(cpu_->max_compat);
+    int counter;
+
+    /* Parse PVR list */
+    for (counter = 0; counter < 512; ++counter) {
+        uint32_t pvr, pvr_mask;
+
+        pvr_mask = rtas_ld(list, 0);
+        list += 4;
+        pvr = rtas_ld(list, 0);
+        list += 4;
+
+        trace_spapr_cas_pvr_try(pvr);
+        if (!max_lvl &&
+            ((cpu_->env.spr[SPR_PVR] & pvr_mask) == (pvr & pvr_mask))) {
+            cpu_match = true;
+            cpu_version = 0;
+        } else if (pvr == cpu_->cpu_version) {
+            cpu_match = true;
+            cpu_version = cpu_->cpu_version;
+        } else if (!cpu_match) {
+            /* If it is a logical PVR, try to determine the highest level */
+            unsigned lvl = get_compat_level(pvr);
+            if (lvl) {
+                bool is205 = (pcc_->pcr_mask & PCR_COMPAT_2_05) &&
+                     (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_05));
+                bool is206 = (pcc_->pcr_mask & PCR_COMPAT_2_06) &&
+                    ((lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06)) ||
+                    (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06_PLUS)));
+
+                if (is205 || is206) {
+                    if (!max_lvl) {
+                        /* User did not set the level, choose the highest */
+                        if (compat_lvl <= lvl) {
+                            compat_lvl = lvl;
+                            cpu_version = pvr;
+                        }
+                    } else if (max_lvl >= lvl) {
+                        /* User chose the level, don't set higher than this */
+                        compat_lvl = lvl;
+                        cpu_version = pvr;
+                    }
+                }
+            }
+        }
+        /* Terminator record */
+        if (~pvr_mask & pvr) {
+            break;
         }
     }
 
-out:
-    return ret;
+    /* For the future use: here @list points to the first capability */
+
+    /* Parsing finished */
+    trace_spapr_cas_pvr(cpu_->cpu_version, cpu_match,
+                        cpu_version, pcc_->pcr_mask);
+
+    /* Update CPUs */
+    if (old_cpu_version != cpu_version) {
+        CPU_FOREACH(cs) {
+            SetCompatState s = {
+                .cpu = POWERPC_CPU(cs),
+                .cpu_version = cpu_version,
+                .ret = 0
+            };
+
+            run_on_cpu(cs, do_set_compat, &s);
+
+            if (s.ret < 0) {
+                fprintf(stderr, "Unable to set compatibility mode\n");
+                return H_HARDWARE;
+            }
+        }
+    }
+
+    if (!cpu_version) {
+        return H_SUCCESS;
+    }
+
+    if (!list) {
+        return H_SUCCESS;
+    }
+
+    if (spapr_h_cas_compose_response(args[1], args[2])) {
+        qemu_system_reset_request();
+    }
+
+    return H_SUCCESS;
 }
 
 static spapr_hcall_fn papr_hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
@@ -831,6 +1005,9 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(KVMPPC_H_RTAS, h_rtas);
 
     spapr_register_hypercall(H_SET_MODE, h_set_mode);
+
+    /* ibm,client-architecture-support support */
+    spapr_register_hypercall(KVMPPC_H_CAS, h_client_architecture_support);
 }
 
 type_init(hypercall_register_types)

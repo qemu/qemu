@@ -280,7 +280,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     unsigned int req_num = rtas_ld(args, 4); /* 0 == remove all */
     unsigned int seq_num = rtas_ld(args, 5);
     unsigned int ret_intr_type;
-    int ndev, irq;
+    int ndev, irq, max_irqs = 0;
     sPAPRPHBState *phb = NULL;
     PCIDevice *pdev = NULL;
 
@@ -332,6 +332,23 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         return;
     }
     trace_spapr_pci_msi("Configuring MSI", ndev, config_addr);
+
+    /* Check if the device supports as many IRQs as requested */
+    if (ret_intr_type == RTAS_TYPE_MSI) {
+        max_irqs = msi_nr_vectors_allocated(pdev);
+    } else if (ret_intr_type == RTAS_TYPE_MSIX) {
+        max_irqs = pdev->msix_entries_nr;
+    }
+    if (!max_irqs) {
+        error_report("Requested interrupt type %d is not enabled for device#%d",
+                     ret_intr_type, ndev);
+        rtas_st(rets, 0, -1); /* Hardware error */
+        return;
+    }
+    /* Correct the number if the guest asked for too many */
+    if (req_num > max_irqs) {
+        req_num = max_irqs;
+    }
 
     /* Check if there is an old config and MSI number has not changed */
     if (phb->msi_table[ndev].nvec && (req_num != phb->msi_table[ndev].nvec)) {
@@ -511,6 +528,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
     sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
+    sPAPRPHBClass *info = SPAPR_PCI_HOST_BRIDGE_GET_CLASS(s);
     char *namebuf;
     int i;
     PCIBus *bus;
@@ -575,23 +593,14 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(), sphb->mem_win_addr,
                                 &sphb->memwindow);
 
-    /* On ppc, we only have MMIO no specific IO space from the CPU
-     * perspective.  In theory we ought to be able to embed the PCI IO
-     * memory region direction in the system memory space.  However,
-     * if any of the IO BAR subregions use the old_portio mechanism,
-     * that won't be processed properly unless accessed from the
-     * system io address space.  This hack to bounce things via
-     * system_io works around the problem until all the users of
-     * old_portion are updated */
+    /* Initialize IO regions */
     sprintf(namebuf, "%s.io", sphb->dtbusname);
     memory_region_init(&sphb->iospace, OBJECT(sphb),
                        namebuf, SPAPR_PCI_IO_WIN_SIZE);
-    /* FIXME: fix to support multiple PHBs */
-    memory_region_add_subregion(get_system_io(), 0, &sphb->iospace);
 
     sprintf(namebuf, "%s.io-alias", sphb->dtbusname);
     memory_region_init_alias(&sphb->iowindow, OBJECT(sphb), namebuf,
-                             get_system_io(), 0, SPAPR_PCI_IO_WIN_SIZE);
+                             &sphb->iospace, 0, SPAPR_PCI_IO_WIN_SIZE);
     memory_region_add_subregion(get_system_memory(), sphb->io_win_addr,
                                 &sphb->iowindow);
 
@@ -601,16 +610,18 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
                            PCI_DEVFN(0, 0), PCI_NUM_PINS, TYPE_PCI_BUS);
     phb->bus = bus;
 
-    sphb->dma_window_start = 0;
-    sphb->dma_window_size = 0x40000000;
-    sphb->tcet = spapr_tce_new_table(dev, sphb->dma_liobn,
-                                     sphb->dma_window_size);
-    if (!sphb->tcet) {
-        error_setg(errp, "Unable to create TCE table for %s",
-                   sphb->dtbusname);
-        return;
-    }
-    address_space_init(&sphb->iommu_as, spapr_tce_get_iommu(sphb->tcet),
+    /*
+     * Initialize PHB address space.
+     * By default there will be at least one subregion for default
+     * 32bit DMA window.
+     * Later the guest might want to create another DMA window
+     * which will become another memory subregion.
+     */
+    sprintf(namebuf, "%s.iommu-root", sphb->dtbusname);
+
+    memory_region_init(&sphb->iommu_root, OBJECT(sphb),
+                       namebuf, UINT64_MAX);
+    address_space_init(&sphb->iommu_as, &sphb->iommu_root,
                        sphb->dtbusname);
 
     pci_setup_iommu(bus, spapr_pci_dma_iommu, sphb);
@@ -631,15 +642,49 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
 
         sphb->lsi_table[i].irq = irq;
     }
+
+    if (!info->finish_realize) {
+        error_setg(errp, "finish_realize not defined");
+        return;
+    }
+
+    info->finish_realize(sphb, errp);
+}
+
+static void spapr_phb_finish_realize(sPAPRPHBState *sphb, Error **errp)
+{
+    sPAPRTCETable *tcet;
+
+    tcet = spapr_tce_new_table(DEVICE(sphb), sphb->dma_liobn,
+                               0,
+                               SPAPR_TCE_PAGE_SHIFT,
+                               0x40000000 >> SPAPR_TCE_PAGE_SHIFT);
+    if (!tcet) {
+        error_setg(errp, "Unable to create TCE table for %s",
+                   sphb->dtbusname);
+        return ;
+    }
+
+    /* Register default 32bit DMA window */
+    memory_region_add_subregion(&sphb->iommu_root, 0,
+                                spapr_tce_get_iommu(tcet));
+}
+
+static int spapr_phb_children_reset(Object *child, void *opaque)
+{
+    DeviceState *dev = (DeviceState *) object_dynamic_cast(child, TYPE_DEVICE);
+
+    if (dev) {
+        device_reset(dev);
+    }
+
+    return 0;
 }
 
 static void spapr_phb_reset(DeviceState *qdev)
 {
-    SysBusDevice *s = SYS_BUS_DEVICE(qdev);
-    sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
-
     /* Reset the IOMMU state */
-    device_reset(DEVICE(sphb->tcet));
+    object_child_foreach(OBJECT(qdev), spapr_phb_children_reset, NULL);
 }
 
 static Property spapr_phb_properties[] = {
@@ -711,6 +756,7 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
 {
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
+    sPAPRPHBClass *spc = SPAPR_PCI_HOST_BRIDGE_CLASS(klass);
 
     hc->root_bus_path = spapr_phb_root_bus_path;
     dc->realize = spapr_phb_realize;
@@ -719,6 +765,7 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_spapr_pci;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->cannot_instantiate_with_device_add_yet = false;
+    spc->finish_realize = spapr_phb_finish_realize;
 }
 
 static const TypeInfo spapr_phb_info = {
@@ -726,6 +773,7 @@ static const TypeInfo spapr_phb_info = {
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(sPAPRPHBState),
     .class_init    = spapr_phb_class_init,
+    .class_size    = sizeof(sPAPRPHBClass),
 };
 
 PCIHostState *spapr_create_phb(sPAPREnvironment *spapr, int index)
@@ -749,6 +797,29 @@ PCIHostState *spapr_create_phb(sPAPREnvironment *spapr, int index)
 #define b_ddddd(x)      b_x((x), 11, 5) /* device number */
 #define b_fff(x)        b_x((x), 8, 3)  /* function number */
 #define b_rrrrrrrr(x)   b_x((x), 0, 8)  /* register number */
+
+typedef struct sPAPRTCEDT {
+    void *fdt;
+    int node_off;
+} sPAPRTCEDT;
+
+static int spapr_phb_children_dt(Object *child, void *opaque)
+{
+    sPAPRTCEDT *p = opaque;
+    sPAPRTCETable *tcet;
+
+    tcet = (sPAPRTCETable *) object_dynamic_cast(child, TYPE_SPAPR_TCE_TABLE);
+    if (!tcet) {
+        return 0;
+    }
+
+    spapr_dma_dt(p->fdt, p->node_off, "ibm,dma-window",
+                 tcet->liobn, tcet->bus_offset,
+                 tcet->nb_table << tcet->page_shift);
+    /* Stop after the first window */
+
+    return 1;
+}
 
 int spapr_populate_pci_dt(sPAPRPHBState *phb,
                           uint32_t xics_phandle,
@@ -805,6 +876,7 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     _FDT(fdt_setprop(fdt, bus_off, "ranges", &ranges, sizeof(ranges)));
     _FDT(fdt_setprop(fdt, bus_off, "reg", &bus_reg, sizeof(bus_reg)));
     _FDT(fdt_setprop_cell(fdt, bus_off, "ibm,pci-config-space-type", 0x1));
+    _FDT(fdt_setprop_cell(fdt, bus_off, "ibm,pe-total-#msi", XICS_IRQS));
 
     /* Build the interrupt-map, this must matches what is done
      * in pci_spapr_map_irq
@@ -829,9 +901,8 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     _FDT(fdt_setprop(fdt, bus_off, "interrupt-map", &interrupt_map,
                      sizeof(interrupt_map)));
 
-    spapr_dma_dt(fdt, bus_off, "ibm,dma-window",
-                 phb->dma_liobn, phb->dma_window_start,
-                 phb->dma_window_size);
+    object_child_foreach(OBJECT(phb), spapr_phb_children_dt,
+                         &((sPAPRTCEDT){ .fdt = fdt, .node_off = bus_off }));
 
     return 0;
 }

@@ -92,6 +92,8 @@ enum {
 #define FW_CFG_PPC_IS_KVM       (FW_CFG_ARCH_LOCAL + 0x05)
 #define FW_CFG_PPC_KVM_HC       (FW_CFG_ARCH_LOCAL + 0x06)
 #define FW_CFG_PPC_KVM_PID      (FW_CFG_ARCH_LOCAL + 0x07)
+/* OpenBIOS has FW_CFG_PPC_NVRAM_ADDR as +0x08 */
+#define FW_CFG_PPC_BUSFREQ      (FW_CFG_ARCH_LOCAL + 0x09)
 
 #define PPC_SERIAL_MM_BAUDBASE 399193
 

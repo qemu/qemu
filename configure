@@ -4955,6 +4955,12 @@ case "$target_name" in
     TARGET_ABI_DIR=ppc
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
   ;;
+  ppc64le)
+    TARGET_ARCH=ppc64
+    TARGET_BASE_ARCH=ppc
+    TARGET_ABI_DIR=ppc
+    gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
+  ;;
   ppc64abi32)
     TARGET_ARCH=ppc64
     TARGET_BASE_ARCH=ppc
@@ -5222,6 +5228,7 @@ for bios_file in \
     $source_path/pc-bios/*.dtb \
     $source_path/pc-bios/*.img \
     $source_path/pc-bios/openbios-* \
+    $source_path/pc-bios/u-boot.* \
     $source_path/pc-bios/palcode-*
 do
     FILES="$FILES pc-bios/`basename $bios_file`"

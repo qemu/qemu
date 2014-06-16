@@ -85,6 +85,12 @@ obj-y += disas.o
 obj-$(call notempty,$(TARGET_XML_FILES)) += gdbstub-xml.o
 obj-$(call lnot,$(CONFIG_KVM)) += kvm-stub.o
 
+obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/decContext.o
+obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/decNumber.o
+obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/dpd/decimal32.o
+obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/dpd/decimal64.o
+obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/dpd/decimal128.o
+
 #########################################################
 # Linux user emulator target
 
