@@ -34,4 +34,5 @@ extern const VMStateDescription vmstate_memory_hotplug;
     VMSTATE_STRUCT(memhp, state, 1, \
                    vmstate_memory_hotplug, MemHotplugState)
 
+void acpi_memory_ospm_status(MemHotplugState *mem_st, ACPIOSTInfoList ***list);
 #endif

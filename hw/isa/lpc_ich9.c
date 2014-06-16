@@ -658,6 +658,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->reset = ich9_lpc_reset;
@@ -676,6 +677,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
     dc->cannot_instantiate_with_device_add_yet = true;
     hc->plug = ich9_device_plug_cb;
     hc->unplug = ich9_device_unplug_cb;
+    adevc->ospm_status = ich9_pm_ospm_status;
 }
 
 static const TypeInfo ich9_lpc_info = {
@@ -686,6 +688,7 @@ static const TypeInfo ich9_lpc_info = {
     .class_init  = ich9_lpc_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
+        { TYPE_ACPI_DEVICE_IF },
         { }
     }
 };

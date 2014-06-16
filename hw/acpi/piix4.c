@@ -35,6 +35,7 @@
 #include "hw/hotplug.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/acpi/memory_hotplug.h"
+#include "hw/acpi/acpi_dev_interface.h"
 
 //#define DEBUG
 
@@ -572,6 +573,13 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
     }
 }
 
+static void piix4_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list)
+{
+    PIIX4PMState *s = PIIX4_PM(adev);
+
+    acpi_memory_ospm_status(&s->acpi_memory_hotplug, list);
+}
+
 static Property piix4_pm_properties[] = {
     DEFINE_PROP_UINT32("smb_io_base", PIIX4PMState, smb_io_base, 0),
     DEFINE_PROP_UINT8(ACPI_PM_PROP_S3_DISABLED, PIIX4PMState, disable_s3, 0),
@@ -589,6 +597,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_CLASS(klass);
 
     k->init = piix4_pm_initfn;
     k->config_write = pm_write_config;
@@ -607,6 +616,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     dc->hotpluggable = false;
     hc->plug = piix4_device_plug_cb;
     hc->unplug = piix4_device_unplug_cb;
+    adevc->ospm_status = piix4_ospm_status;
 }
 
 static const TypeInfo piix4_pm_info = {
@@ -616,6 +626,7 @@ static const TypeInfo piix4_pm_info = {
     .class_init    = piix4_pm_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
+        { TYPE_ACPI_DEVICE_IF },
         { }
     }
 };

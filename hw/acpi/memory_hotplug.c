@@ -4,6 +4,37 @@
 #include "hw/boards.h"
 #include "trace.h"
 
+static ACPIOSTInfo *acpi_memory_device_status(int slot, MemStatus *mdev)
+{
+    ACPIOSTInfo *info = g_new0(ACPIOSTInfo, 1);
+
+    info->slot_type = ACPI_SLOT_TYPE_DIMM;
+    info->slot = g_strdup_printf("%d", slot);
+    info->source = mdev->ost_event;
+    info->status = mdev->ost_status;
+    if (mdev->dimm) {
+        DeviceState *dev = DEVICE(mdev->dimm);
+        if (dev->id) {
+            info->device = g_strdup(dev->id);
+            info->has_device = true;
+        }
+    }
+    return info;
+}
+
+void acpi_memory_ospm_status(MemHotplugState *mem_st, ACPIOSTInfoList ***list)
+{
+    int i;
+
+    for (i = 0; i < mem_st->dev_count; i++) {
+        ACPIOSTInfoList *elem = g_new0(ACPIOSTInfoList, 1);
+        elem->value = acpi_memory_device_status(i, &mem_st->devs[i]);
+        elem->next = NULL;
+        **list = elem;
+        *list = &elem->next;
+    }
+}
+
 static uint64_t acpi_memory_hotplug_read(void *opaque, hwaddr addr,
                                          unsigned int size)
 {

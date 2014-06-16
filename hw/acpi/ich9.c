@@ -309,3 +309,10 @@ void ich9_pm_device_plug_cb(ICH9LPCPMRegs *pm, DeviceState *dev, Error **errp)
                    " type: %s", object_get_typename(OBJECT(dev)));
     }
 }
+
+void ich9_pm_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list)
+{
+    ICH9LPCState *s = ICH9_LPC_DEVICE(adev);
+
+    acpi_memory_ospm_status(&s->pm.acpi_memory_hotplug, list);
+}
