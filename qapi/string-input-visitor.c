@@ -32,6 +32,11 @@ struct StringInputVisitor
     const char *string;
 };
 
+static void free_range(void *range, void *dummy)
+{
+    g_free(range);
+}
+
 static void parse_str(StringInputVisitor *siv, Error **errp)
 {
     char *str = (char *) siv->string;
@@ -108,8 +113,9 @@ static void parse_str(StringInputVisitor *siv, Error **errp)
 
     return;
 error:
-    g_list_free_full(siv->ranges, g_free);
-    assert(siv->ranges == NULL);
+    g_list_foreach(siv->ranges, free_range, NULL);
+    g_list_free(siv->ranges);
+    siv->ranges = NULL;
 }
 
 static void
@@ -314,7 +320,8 @@ Visitor *string_input_get_visitor(StringInputVisitor *v)
 
 void string_input_visitor_cleanup(StringInputVisitor *v)
 {
-    g_list_free_full(v->ranges, g_free);
+    g_list_foreach(v->ranges, free_range, NULL);
+    g_list_free(v->ranges);
     g_free(v);
 }
 
