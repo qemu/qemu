@@ -345,8 +345,7 @@ void net_slirp_hostfwd_remove(Monitor *mon, const QDict *qdict)
 
     host_port = atoi(p);
 
-    err = slirp_remove_hostfwd(QTAILQ_FIRST(&slirp_stacks)->slirp, is_udp,
-                               host_addr, host_port);
+    err = slirp_remove_hostfwd(s->slirp, is_udp, host_addr, host_port);
 
     monitor_printf(mon, "host forwarding rule for %s %s\n", src_str,
                    err ? "not found" : "removed");
