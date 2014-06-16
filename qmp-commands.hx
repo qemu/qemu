@@ -3574,3 +3574,41 @@ Example:
                    } } ] }
 
 EQMP
+
+    {
+        .name       = "query-memdev",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_memdev,
+    },
+
+SQMP
+query-memdev
+------------
+
+Show memory devices information.
+
+
+Example (1):
+
+-> { "execute": "query-memdev" }
+<- { "return": [
+       {
+         "size": 536870912,
+         "merge": false,
+         "dump": true,
+         "prealloc": false,
+         "host-nodes": [0, 1],
+         "policy": "bind"
+       },
+       {
+         "size": 536870912,
+         "merge": false,
+         "dump": true,
+         "prealloc": true,
+         "host-nodes": [2, 3],
+         "policy": "preferred"
+       }
+     ]
+   }
+
+EQMP
