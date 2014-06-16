@@ -22,7 +22,7 @@ QEMU_DGFLAGS += -MMD -MP -MT $@ -MF $(*D)/$(*F).d
 # Same as -I$(SRC_PATH) -I., but for the nested source/object directories
 QEMU_INCLUDES += -I$(<D) -I$(@D)
 
-extract-libs = $(strip $(sort $(foreach o,$1,$($o-libs))))
+extract-libs = $(strip $(foreach o,$1,$($o-libs)))
 expand-objs = $(strip $(sort $(filter %.o,$1)) \
                   $(foreach o,$(filter %.mo,$1),$($o-objs)) \
                   $(filter-out %.o %.mo,$1))
