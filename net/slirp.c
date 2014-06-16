@@ -282,6 +282,7 @@ static SlirpState *slirp_lookup(Monitor *mon, const char *vlan,
         NetClientState *nc;
         nc = net_hub_find_client_by_name(strtol(vlan, NULL, 0), stack);
         if (!nc) {
+            monitor_printf(mon, "unrecognized (vlan-id, stackname) pair\n");
             return NULL;
         }
         if (strcmp(nc->model, "user")) {
