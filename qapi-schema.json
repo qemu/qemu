@@ -3194,3 +3194,54 @@
 # Since: 2.1
 ##
 { 'command': 'query-memdev', 'returns': ['Memdev'] }
+# @PCDIMMDeviceInfo:
+#
+# PCDIMMDevice state information
+#
+# @id: #optional device's ID
+#
+# @addr: physical address, where device is mapped
+#
+# @size: size of memory that the device provides
+#
+# @slot: slot number at which device is plugged in
+#
+# @node: NUMA node number where device is plugged in
+#
+# @memdev: memory backend linked with device
+#
+# @hotplugged: true if device was hotplugged
+#
+# @hotpluggable: true if device if could be added/removed while machine is running
+#
+# Since: 2.1
+##
+{ 'type': 'PCDIMMDeviceInfo',
+  'data': { '*id': 'str',
+            'addr': 'int',
+            'size': 'int',
+            'slot': 'int',
+            'node': 'int',
+            'memdev': 'str',
+            'hotplugged': 'bool',
+            'hotpluggable': 'bool'
+          }
+}
+
+##
+# @MemoryDeviceInfo:
+#
+# Union containing information about a memory device
+#
+# Since: 2.1
+##
+{ 'union': 'MemoryDeviceInfo', 'data': {'dimm': 'PCDIMMDeviceInfo'} }
+
+##
+# @query-memory-devices
+#
+# Lists available memory devices and their state
+#
+# Since: 2.1
+##
+{ 'command': 'query-memory-devices', 'returns': ['MemoryDeviceInfo'] }

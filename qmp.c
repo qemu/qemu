@@ -28,6 +28,7 @@
 #include "qapi/qmp-input-visitor.h"
 #include "hw/boards.h"
 #include "qom/object_interfaces.h"
+#include "hw/mem/pc-dimm.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -627,4 +628,14 @@ void qmp_object_del(const char *id, Error **errp)
         return;
     }
     object_unparent(obj);
+}
+
+MemoryDeviceInfoList *qmp_query_memory_devices(Error **errp)
+{
+    MemoryDeviceInfoList *head = NULL;
+    MemoryDeviceInfoList **prev = &head;
+
+    qmp_pc_dimm_device_list(qdev_get_machine(), &prev);
+
+    return head;
 }

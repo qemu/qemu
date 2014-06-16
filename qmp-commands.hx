@@ -3612,3 +3612,30 @@ Example (1):
    }
 
 EQMP
+
+    {
+        .name       = "query-memory-devices",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_memory_devices,
+    },
+
+SQMP
+@query-memory-devices
+--------------------
+
+Return a list of memory devices.
+
+Example:
+-> { "execute": "query-memory-devices" }
+<- { "return": [ { "data":
+                      { "addr": 5368709120,
+                        "hotpluggable": true,
+                        "hotplugged": true,
+                        "id": "d1",
+                        "memdev": "/objects/memX",
+                        "node": 0,
+                        "size": 1073741824,
+                        "slot": 0},
+                   "type": "dimm"
+                 } ] }
+EQMP

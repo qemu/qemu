@@ -37,3 +37,4 @@ stub-obj-y += vmstate.o
 stub-obj-$(CONFIG_WIN32) += fd-register.o
 stub-obj-y += cpus.o
 stub-obj-y += kvm.o
+stub-obj-y += qmp_pc_dimm_device_list.o
