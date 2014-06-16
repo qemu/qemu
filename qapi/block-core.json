@@ -765,6 +765,9 @@
 # @format: #optional the format of the new destination, default is to
 #          probe if @mode is 'existing', else the format of the source
 #
+# @node-name: #optional the new block driver state node name in the graph
+#             (Since 2.1)
+#
 # @mode: #optional whether and how QEMU should create a new image, default is
 #        'absolute-paths'.
 #
@@ -797,6 +800,7 @@
 ##
 { 'command': 'drive-mirror',
   'data': { 'device': 'str', 'target': 'str', '*format': 'str',
+            '*node-name': 'str',
             'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
             '*speed': 'int', '*granularity': 'uint32',
             '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',

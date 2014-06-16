@@ -1293,6 +1293,7 @@ EQMP
     {
         .name       = "drive-mirror",
         .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?,"
+                      "node-name:s?,"
                       "on-source-error:s?,on-target-error:s?,"
                       "granularity:i?,buf-size:i?",
         .mhandler.cmd_new = qmp_marshal_input_drive_mirror,
@@ -1314,6 +1315,8 @@ Arguments:
 - "device": device name to operate on (json-string)
 - "target": name of new image file (json-string)
 - "format": format of new image (json-string, optional)
+- "node-name": the name of the new block driver state in the node graph
+               (json-string, optional)
 - "mode": how an image file should be created into the target
   file/device (NewImageMode, optional, default 'absolute-paths')
 - "speed": maximum speed of the streaming job, in bytes per second

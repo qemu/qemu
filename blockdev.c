@@ -2099,6 +2099,7 @@ BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
 
 void qmp_drive_mirror(const char *device, const char *target,
                       bool has_format, const char *format,
+                      bool has_node_name, const char *node_name,
                       enum MirrorSyncMode sync,
                       bool has_mode, enum NewImageMode mode,
                       bool has_speed, int64_t speed,
@@ -2112,6 +2113,7 @@ void qmp_drive_mirror(const char *device, const char *target,
     BlockDriverState *source, *target_bs;
     BlockDriver *drv = NULL;
     Error *local_err = NULL;
+    QDict *options = NULL;
     int flags;
     int64_t size;
     int ret;
@@ -2213,12 +2215,17 @@ void qmp_drive_mirror(const char *device, const char *target,
         return;
     }
 
+    if (has_node_name) {
+        options = qdict_new();
+        qdict_put(options, "node-name", qstring_from_str(node_name));
+    }
+
     /* Mirroring takes care of copy-on-write using the source's backing
      * file.
      */
     target_bs = NULL;
-    ret = bdrv_open(&target_bs, target, NULL, NULL, flags | BDRV_O_NO_BACKING,
-                    drv, &local_err);
+    ret = bdrv_open(&target_bs, target, NULL, options,
+                    flags | BDRV_O_NO_BACKING, drv, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return;
