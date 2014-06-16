@@ -3,6 +3,10 @@
 #include "hw/mem/pc-dimm.h"
 #include "hw/boards.h"
 #include "trace.h"
+#include "qapi-visit.h"
+#include "monitor/monitor.h"
+#include "qapi/dealloc-visitor.h"
+#include "qapi/qmp-output-visitor.h"
 
 static ACPIOSTInfo *acpi_memory_device_status(int slot, MemStatus *mdev)
 {
@@ -33,6 +37,29 @@ void acpi_memory_ospm_status(MemHotplugState *mem_st, ACPIOSTInfoList ***list)
         **list = elem;
         *list = &elem->next;
     }
+}
+
+static void acpi_memory_ost_mon_event(const MemHotplugState *mem_st)
+{
+    Visitor *v;
+    QObject *out_info;
+    QapiDeallocVisitor *md;
+    QmpOutputVisitor *mo = qmp_output_visitor_new();
+    MemStatus *mdev = &mem_st->devs[mem_st->selector];
+    ACPIOSTInfo *info = acpi_memory_device_status(mem_st->selector, mdev);
+
+    v = qmp_output_get_visitor(mo);
+    visit_type_ACPIOSTInfo(v, &info, "unused", NULL);
+
+    out_info = qmp_output_get_qobject(mo);
+    monitor_protocol_event(QEVENT_ACPI_OST, out_info);
+    qobject_decref(out_info);
+
+    qmp_output_visitor_cleanup(mo);
+    md = qapi_dealloc_visitor_new();
+    v = qapi_dealloc_get_visitor(md);
+    visit_type_ACPIOSTInfo(v, &info, "unused", NULL);
+    qapi_dealloc_visitor_cleanup(md);
 }
 
 static uint64_t acpi_memory_hotplug_read(void *opaque, hwaddr addr,
@@ -119,8 +146,8 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
         mdev = &mem_st->devs[mem_st->selector];
         mdev->ost_status = data;
         trace_mhp_acpi_write_ost_status(mem_st->selector, mdev->ost_status);
-        /* TODO: report async error */
         /* TODO: implement memory removal on guest signal */
+        acpi_memory_ost_mon_event(mem_st);
         break;
     case 0x14:
         mdev = &mem_st->devs[mem_st->selector];
