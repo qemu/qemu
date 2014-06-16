@@ -3276,3 +3276,13 @@
               'slot-type': 'ACPISlotType',
               'source': 'int',
               'status': 'int' } }
+
+##
+# @query-acpi-ospm-status
+#
+# Lists ACPI OSPM status of ACPI device objects,
+# which might be reported via _OST method
+#
+# Since: 2.1
+##
+{ 'command': 'query-acpi-ospm-status', 'returns': ['ACPIOSTInfo'] }

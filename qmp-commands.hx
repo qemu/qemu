@@ -3639,3 +3639,25 @@ Example:
                    "type": "dimm"
                  } ] }
 EQMP
+
+    {
+        .name       = "query-acpi-ospm-status",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_acpi_ospm_status,
+    },
+
+SQMP
+@query-acpi-ospm-status
+--------------------
+
+Return list of ACPIOSTInfo for devices that support status reporting
+via ACPI _OST method.
+
+Example:
+-> { "execute": "query-acpi-ospm-status" }
+<- { "return": [ { "device": "d1", "slot": "0", "slot-type": "DIMM", "source": 1, "status": 0},
+                 { "slot": "1", "slot-type": "DIMM", "source": 0, "status": 0},
+                 { "slot": "2", "slot-type": "DIMM", "source": 0, "status": 0},
+                 { "slot": "3", "slot-type": "DIMM", "source": 0, "status": 0}
+   ]}
+EQMP

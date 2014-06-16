@@ -29,6 +29,7 @@
 #include "hw/boards.h"
 #include "qom/object_interfaces.h"
 #include "hw/mem/pc-dimm.h"
+#include "hw/acpi/acpi_dev_interface.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -636,6 +637,25 @@ MemoryDeviceInfoList *qmp_query_memory_devices(Error **errp)
     MemoryDeviceInfoList **prev = &head;
 
     qmp_pc_dimm_device_list(qdev_get_machine(), &prev);
+
+    return head;
+}
+
+ACPIOSTInfoList *qmp_query_acpi_ospm_status(Error **errp)
+{
+    bool ambig;
+    ACPIOSTInfoList *head = NULL;
+    ACPIOSTInfoList **prev = &head;
+    Object *obj = object_resolve_path_type("", TYPE_ACPI_DEVICE_IF, &ambig);
+
+    if (obj) {
+        AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(obj);
+        AcpiDeviceIf *adev = ACPI_DEVICE_IF(obj);
+
+        adevc->ospm_status(adev, &prev);
+    } else {
+        error_setg(errp, "command is not supported, missing ACPI device");
+    }
 
     return head;
 }
