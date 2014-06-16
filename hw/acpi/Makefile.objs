@@ -1,2 +1,3 @@
 common-obj-$(CONFIG_ACPI) += core.o piix4.o ich9.o pcihp.o cpu_hotplug.o
 common-obj-$(CONFIG_ACPI) += memory_hotplug.o
+common-obj-$(CONFIG_ACPI) += acpi_interface.o

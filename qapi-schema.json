@@ -3245,3 +3245,34 @@
 # Since: 2.1
 ##
 { 'command': 'query-memory-devices', 'returns': ['MemoryDeviceInfo'] }
+
+## @ACPISlotType
+#
+# @DIMM: memory slot
+#
+{ 'enum': 'ACPISlotType', 'data': [ 'DIMM' ] }
+
+## @ACPIOSTInfo
+#
+# OSPM Status Indication for a device
+# For description of possible values of @source and @status fields
+# see "_OST (OSPM Status Indication)" chapter of ACPI5.0 spec.
+#
+# @device: #optional device ID associated with slot
+#
+# @slot: slot ID, unique per slot of a given @slot-type
+#
+# @slot-type: type of the slot
+#
+# @source: an integer containing the source event
+#
+# @status: an integer containing the status code
+#
+# Since: 2.1
+##
+{ 'type': 'ACPIOSTInfo',
+  'data'  : { '*device': 'str',
+              'slot': 'str',
+              'slot-type': 'ACPISlotType',
+              'source': 'int',
+              'status': 'int' } }
