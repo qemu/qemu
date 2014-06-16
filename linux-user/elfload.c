@@ -736,6 +736,14 @@ enum {
 
     QEMU_PPC_FEATURE_TRUE_LE = 0x00000002,
     QEMU_PPC_FEATURE_PPC_LE = 0x00000001,
+
+    /* Feature definitions in AT_HWCAP2.  */
+    QEMU_PPC_FEATURE2_ARCH_2_07 = 0x80000000, /* ISA 2.07 */
+    QEMU_PPC_FEATURE2_HAS_HTM = 0x40000000, /* Hardware Transactional Memory */
+    QEMU_PPC_FEATURE2_HAS_DSCR = 0x20000000, /* Data Stream Control Register */
+    QEMU_PPC_FEATURE2_HAS_EBB = 0x10000000, /* Event Base Branching */
+    QEMU_PPC_FEATURE2_HAS_ISEL = 0x08000000, /* Integer Select */
+    QEMU_PPC_FEATURE2_HAS_TAR = 0x04000000, /* Target Address Register */
 };
 
 #define ELF_HWCAP get_elf_hwcap()
@@ -764,6 +772,29 @@ static uint32_t get_elf_hwcap(void)
     GET_FEATURE2((PPC2_PERM_ISA206 | PPC2_DIVE_ISA206 | PPC2_ATOMIC_ISA206 |
                   PPC2_FP_CVT_ISA206 | PPC2_FP_TST_ISA206),
                   QEMU_PPC_FEATURE_ARCH_2_06);
+#undef GET_FEATURE
+#undef GET_FEATURE2
+
+    return features;
+}
+
+#define ELF_HWCAP2 get_elf_hwcap2()
+
+static uint32_t get_elf_hwcap2(void)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(thread_cpu);
+    uint32_t features = 0;
+
+#define GET_FEATURE(flag, feature)                                      \
+    do { if (cpu->env.insns_flags & flag) { features |= feature; } } while (0)
+#define GET_FEATURE2(flag, feature)                                      \
+    do { if (cpu->env.insns_flags2 & flag) { features |= feature; } } while (0)
+
+    GET_FEATURE(PPC_ISEL, QEMU_PPC_FEATURE2_HAS_ISEL);
+    GET_FEATURE2(PPC2_BCTAR_ISA207, QEMU_PPC_FEATURE2_HAS_TAR);
+    GET_FEATURE2((PPC2_BCTAR_ISA207 | PPC2_LSQ_ISA207 | PPC2_ALTIVEC_207 |
+                  PPC2_ISA207S), QEMU_PPC_FEATURE2_ARCH_2_07);
+
 #undef GET_FEATURE
 #undef GET_FEATURE2
 
