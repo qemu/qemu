@@ -774,8 +774,9 @@ static uint32_t get_elf_hwcap(void)
 #define DLINFO_ARCH_ITEMS       5
 #define ARCH_DLINFO                                     \
     do {                                                \
-        NEW_AUX_ENT(AT_DCACHEBSIZE, 0x20);              \
-        NEW_AUX_ENT(AT_ICACHEBSIZE, 0x20);              \
+        PowerPCCPU *cpu = POWERPC_CPU(thread_cpu);              \
+        NEW_AUX_ENT(AT_DCACHEBSIZE, cpu->env.dcache_line_size); \
+        NEW_AUX_ENT(AT_ICACHEBSIZE, cpu->env.icache_line_size); \
         NEW_AUX_ENT(AT_UCACHEBSIZE, 0);                 \
         /*                                              \
          * Now handle glibc compatibility.              \
