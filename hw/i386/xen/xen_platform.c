@@ -375,9 +375,8 @@ static const VMStateDescription vmstate_xen_platform = {
     .name = "platform",
     .version_id = 4,
     .minimum_version_id = 4,
-    .minimum_version_id_old = 4,
     .post_load = xen_platform_post_load,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, PCIXenPlatformState),
         VMSTATE_UINT8(flags, PCIXenPlatformState),
         VMSTATE_END_OF_LIST()

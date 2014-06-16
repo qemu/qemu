@@ -720,9 +720,8 @@ static const VMStateDescription vmstate_rtc = {
     .name = "mc146818rtc",
     .version_id = 3,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = rtc_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_BUFFER(cmos_data, RTCState),
         VMSTATE_UINT8(cmos_index, RTCState),
         VMSTATE_UNUSED(7*4),

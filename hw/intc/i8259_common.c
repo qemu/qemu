@@ -98,7 +98,6 @@ static const VMStateDescription vmstate_pic_common = {
     .name = "i8259",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .pre_save = pic_dispatch_pre_save,
     .post_load = pic_dispatch_post_load,
     .fields = (VMStateField[]) {

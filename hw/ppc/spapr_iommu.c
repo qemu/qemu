@@ -97,9 +97,8 @@ static const VMStateDescription vmstate_spapr_tce_table = {
     .name = "spapr_iommu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .pre_load = spapr_tce_table_pre_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         /* Sanity check */
         VMSTATE_UINT32_EQUAL(liobn, sPAPRTCETable),
         VMSTATE_UINT32_EQUAL(window_size, sPAPRTCETable),

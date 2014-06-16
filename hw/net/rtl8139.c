@@ -1358,8 +1358,7 @@ static const VMStateDescription vmstate_tally_counters = {
     .name = "tally_counters",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT64(TxOk, RTL8139TallyCounters),
         VMSTATE_UINT64(RxOk, RTL8139TallyCounters),
         VMSTATE_UINT64(TxERR, RTL8139TallyCounters),
@@ -3271,8 +3270,7 @@ static const VMStateDescription vmstate_rtl8139_hotplug_ready ={
     .name = "rtl8139/hotplug_ready",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_END_OF_LIST()
     }
 };
@@ -3293,10 +3291,9 @@ static const VMStateDescription vmstate_rtl8139 = {
     .name = "rtl8139",
     .version_id = 4,
     .minimum_version_id = 3,
-    .minimum_version_id_old = 3,
     .post_load = rtl8139_post_load,
     .pre_save  = rtl8139_pre_save,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, RTL8139State),
         VMSTATE_PARTIAL_BUFFER(phys, RTL8139State, 6),
         VMSTATE_BUFFER(mult, RTL8139State),
