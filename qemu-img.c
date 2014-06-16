@@ -271,7 +271,7 @@ static int read_password(char *buf, int buf_size)
 static int print_block_option_help(const char *filename, const char *fmt)
 {
     BlockDriver *drv, *proto_drv;
-    QEMUOptionParameter *create_options = NULL;
+    QemuOptsList *create_opts = NULL;
 
     /* Find driver and parse its options */
     drv = bdrv_find_format(fmt);
@@ -280,22 +280,19 @@ static int print_block_option_help(const char *filename, const char *fmt)
         return 1;
     }
 
-    create_options = append_option_parameters(create_options,
-                                              drv->create_options);
-
+    create_opts = qemu_opts_append(create_opts, drv->create_opts);
     if (filename) {
         proto_drv = bdrv_find_protocol(filename, true);
         if (!proto_drv) {
             error_report("Unknown protocol '%s'", filename);
-            free_option_parameters(create_options);
+            qemu_opts_free(create_opts);
             return 1;
         }
-        create_options = append_option_parameters(create_options,
-                                                  proto_drv->create_options);
+        create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
     }
 
-    print_option_help(create_options);
-    free_option_parameters(create_options);
+    qemu_opts_print_help(create_opts);
+    qemu_opts_free(create_opts);
     return 0;
 }
 
@@ -349,19 +346,19 @@ fail:
     return NULL;
 }
 
-static int add_old_style_options(const char *fmt, QEMUOptionParameter *list,
+static int add_old_style_options(const char *fmt, QemuOpts *opts,
                                  const char *base_filename,
                                  const char *base_fmt)
 {
     if (base_filename) {
-        if (set_option_parameter(list, BLOCK_OPT_BACKING_FILE, base_filename)) {
+        if (qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, base_filename)) {
             error_report("Backing file not supported for file format '%s'",
                          fmt);
             return -1;
         }
     }
     if (base_fmt) {
-        if (set_option_parameter(list, BLOCK_OPT_BACKING_FMT, base_fmt)) {
+        if (qemu_opt_set(opts, BLOCK_OPT_BACKING_FMT, base_fmt)) {
             error_report("Backing file format not supported for file "
                          "format '%s'", fmt);
             return -1;
@@ -1191,8 +1188,9 @@ static int img_convert(int argc, char **argv)
     size_t bufsectors = IO_BUF_SIZE / BDRV_SECTOR_SIZE;
     const uint8_t *buf1;
     BlockDriverInfo bdi;
-    QEMUOptionParameter *param = NULL, *create_options = NULL;
-    QEMUOptionParameter *out_baseimg_param;
+    QemuOpts *opts = NULL;
+    QemuOptsList *create_opts = NULL;
+    const char *out_baseimg_param;
     char *options = NULL;
     const char *snapshot_name = NULL;
     int min_sparse = 8; /* Need at least 4k of zeros for sparse detection */
@@ -1381,40 +1379,34 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
-    create_options = append_option_parameters(create_options,
-                                              drv->create_options);
-    create_options = append_option_parameters(create_options,
-                                              proto_drv->create_options);
+    create_opts = qemu_opts_append(create_opts, drv->create_opts);
+    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
 
-    if (options) {
-        param = parse_option_parameters(options, create_options, param);
-        if (param == NULL) {
-            error_report("Invalid options for file format '%s'.", out_fmt);
-            ret = -1;
-            goto out;
-        }
-    } else {
-        param = parse_option_parameters("", create_options, param);
+    opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+    if (options && qemu_opts_do_parse(opts, options, NULL)) {
+        error_report("Invalid options for file format '%s'", out_fmt);
+        ret = -1;
+        goto out;
     }
 
-    set_option_parameter_int(param, BLOCK_OPT_SIZE, total_sectors * 512);
-    ret = add_old_style_options(out_fmt, param, out_baseimg, NULL);
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_sectors * 512);
+    ret = add_old_style_options(out_fmt, opts, out_baseimg, NULL);
     if (ret < 0) {
         goto out;
     }
 
     /* Get backing file name if -o backing_file was used */
-    out_baseimg_param = get_option_parameter(param, BLOCK_OPT_BACKING_FILE);
+    out_baseimg_param = qemu_opt_get(opts, BLOCK_OPT_BACKING_FILE);
     if (out_baseimg_param) {
-        out_baseimg = out_baseimg_param->value.s;
+        out_baseimg = out_baseimg_param;
     }
 
     /* Check if compression is supported */
     if (compress) {
-        QEMUOptionParameter *encryption =
-            get_option_parameter(param, BLOCK_OPT_ENCRYPT);
-        QEMUOptionParameter *preallocation =
-            get_option_parameter(param, BLOCK_OPT_PREALLOC);
+        bool encryption =
+            qemu_opt_get_bool(opts, BLOCK_OPT_ENCRYPT, false);
+        const char *preallocation =
+            qemu_opt_get(opts, BLOCK_OPT_PREALLOC);
 
         if (!drv->bdrv_write_compressed) {
             error_report("Compression not supported for this file format");
@@ -1422,15 +1414,15 @@ static int img_convert(int argc, char **argv)
             goto out;
         }
 
-        if (encryption && encryption->value.n) {
+        if (encryption) {
             error_report("Compression and encryption not supported at "
                          "the same time");
             ret = -1;
             goto out;
         }
 
-        if (preallocation && preallocation->value.s
-            && strcmp(preallocation->value.s, "off"))
+        if (preallocation
+            && strcmp(preallocation, "off"))
         {
             error_report("Compression and preallocation not supported at "
                          "the same time");
@@ -1441,7 +1433,7 @@ static int img_convert(int argc, char **argv)
 
     if (!skip_create) {
         /* Create the new image */
-        ret = bdrv_create(drv, out_filename, param, &local_err);
+        ret = bdrv_create(drv, out_filename, opts, &local_err);
         if (ret < 0) {
             error_report("%s: error while converting %s: %s",
                          out_filename, out_fmt, error_get_pretty(local_err));
@@ -1706,8 +1698,8 @@ out:
         qemu_progress_print(100, 0);
     }
     qemu_progress_end();
-    free_option_parameters(create_options);
-    free_option_parameters(param);
+    qemu_opts_del(opts);
+    qemu_opts_free(create_opts);
     qemu_vfree(buf);
     if (sn_opts) {
         qemu_opts_del(sn_opts);
@@ -2698,7 +2690,8 @@ static int img_amend(int argc, char **argv)
 {
     int c, ret = 0;
     char *options = NULL;
-    QEMUOptionParameter *create_options = NULL, *options_param = NULL;
+    QemuOptsList *create_opts = NULL;
+    QemuOpts *opts = NULL;
     const char *fmt = NULL, *filename;
     bool quiet = false;
     BlockDriverState *bs = NULL;
@@ -2769,17 +2762,15 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
-    create_options = append_option_parameters(create_options,
-            bs->drv->create_options);
-    options_param = parse_option_parameters(options, create_options,
-            options_param);
-    if (options_param == NULL) {
+    create_opts = qemu_opts_append(create_opts, bs->drv->create_opts);
+    opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+    if (options && qemu_opts_do_parse(opts, options, NULL)) {
         error_report("Invalid options for file format '%s'", fmt);
         ret = -1;
         goto out;
     }
 
-    ret = bdrv_amend_options(bs, options_param);
+    ret = bdrv_amend_options(bs, opts);
     if (ret < 0) {
         error_report("Error while amending options: %s", strerror(-ret));
         goto out;
@@ -2789,8 +2780,8 @@ out:
     if (bs) {
         bdrv_unref(bs);
     }
-    free_option_parameters(create_options);
-    free_option_parameters(options_param);
+    qemu_opts_del(opts);
+    qemu_opts_free(create_opts);
     g_free(options);
 
     if (ret) {

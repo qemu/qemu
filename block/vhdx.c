@@ -1723,8 +1723,7 @@ exit:
  *    .---- ~ ----------- ~ ------------ ~ ---------------- ~ -----------.
  *   1MB
  */
-static int vhdx_create(const char *filename, QEMUOptionParameter *options,
-                       Error **errp)
+static int vhdx_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     int ret = 0;
     uint64_t image_size = (uint64_t) 2 * GiB;
@@ -1737,24 +1736,15 @@ static int vhdx_create(const char *filename, QEMUOptionParameter *options,
     gunichar2 *creator = NULL;
     glong creator_items;
     BlockDriverState *bs;
-    const char *type = NULL;
+    char *type = NULL;
     VHDXImageType image_type;
     Error *local_err = NULL;
 
-    while (options && options->name) {
-        if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
-            image_size = options->value.n;
-        } else if (!strcmp(options->name, VHDX_BLOCK_OPT_LOG_SIZE)) {
-            log_size = options->value.n;
-        } else if (!strcmp(options->name, VHDX_BLOCK_OPT_BLOCK_SIZE)) {
-            block_size = options->value.n;
-        } else if (!strcmp(options->name, BLOCK_OPT_SUBFMT)) {
-            type = options->value.s;
-        } else if (!strcmp(options->name, VHDX_BLOCK_OPT_ZERO)) {
-            use_zero_blocks = options->value.n != 0;
-        }
-        options++;
-    }
+    image_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    log_size = qemu_opt_get_size_del(opts, VHDX_BLOCK_OPT_LOG_SIZE, 0);
+    block_size = qemu_opt_get_size_del(opts, VHDX_BLOCK_OPT_BLOCK_SIZE, 0);
+    type = qemu_opt_get_del(opts, BLOCK_OPT_SUBFMT);
+    use_zero_blocks = qemu_opt_get_bool_del(opts, VHDX_BLOCK_OPT_ZERO, false);
 
     if (image_size > VHDX_MAX_IMAGE_SIZE) {
         error_setg_errno(errp, EINVAL, "Image size too large; max of 64TB");
@@ -1763,7 +1753,7 @@ static int vhdx_create(const char *filename, QEMUOptionParameter *options,
     }
 
     if (type == NULL) {
-        type = "dynamic";
+        type = g_strdup("dynamic");
     }
 
     if (!strcmp(type, "dynamic")) {
@@ -1803,7 +1793,7 @@ static int vhdx_create(const char *filename, QEMUOptionParameter *options,
     block_size = block_size > VHDX_BLOCK_SIZE_MAX ? VHDX_BLOCK_SIZE_MAX :
                                                     block_size;
 
-    ret = bdrv_create_file(filename, options, &local_err);
+    ret = bdrv_create_file(filename, opts, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto exit;
@@ -1863,6 +1853,7 @@ static int vhdx_create(const char *filename, QEMUOptionParameter *options,
 delete_and_exit:
     bdrv_unref(bs);
 exit:
+    g_free(type);
     g_free(creator);
     return ret;
 }
@@ -1885,37 +1876,41 @@ static int vhdx_check(BlockDriverState *bs, BdrvCheckResult *result,
     return 0;
 }
 
-static QEMUOptionParameter vhdx_create_options[] = {
-    {
-        .name = BLOCK_OPT_SIZE,
-        .type = OPT_SIZE,
-        .help = "Virtual disk size; max of 64TB."
-    },
-    {
-        .name = VHDX_BLOCK_OPT_LOG_SIZE,
-        .type = OPT_SIZE,
-        .value.n = 1 * MiB,
-        .help = "Log size; min 1MB."
-    },
-    {
-        .name = VHDX_BLOCK_OPT_BLOCK_SIZE,
-        .type = OPT_SIZE,
-        .value.n = 0,
-        .help = "Block Size; min 1MB, max 256MB. " \
-                "0 means auto-calculate based on image size."
-    },
-    {
-        .name = BLOCK_OPT_SUBFMT,
-        .type = OPT_STRING,
-        .help = "VHDX format type, can be either 'dynamic' or 'fixed'. "\
-                "Default is 'dynamic'."
-    },
-    {
-        .name = VHDX_BLOCK_OPT_ZERO,
-        .type = OPT_FLAG,
-        .help = "Force use of payload blocks of type 'ZERO'.  Non-standard."
-    },
-    { NULL }
+static QemuOptsList vhdx_create_opts = {
+    .name = "vhdx-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(vhdx_create_opts.head),
+    .desc = {
+        {
+           .name = BLOCK_OPT_SIZE,
+           .type = QEMU_OPT_SIZE,
+           .help = "Virtual disk size; max of 64TB."
+       },
+       {
+           .name = VHDX_BLOCK_OPT_LOG_SIZE,
+           .type = QEMU_OPT_SIZE,
+           .def_value_str = stringify(DEFAULT_LOG_SIZE),
+           .help = "Log size; min 1MB."
+       },
+       {
+           .name = VHDX_BLOCK_OPT_BLOCK_SIZE,
+           .type = QEMU_OPT_SIZE,
+           .def_value_str = stringify(0),
+           .help = "Block Size; min 1MB, max 256MB. " \
+                   "0 means auto-calculate based on image size."
+       },
+       {
+           .name = BLOCK_OPT_SUBFMT,
+           .type = QEMU_OPT_STRING,
+           .help = "VHDX format type, can be either 'dynamic' or 'fixed'. "\
+                   "Default is 'dynamic'."
+       },
+       {
+           .name = VHDX_BLOCK_OPT_ZERO,
+           .type = QEMU_OPT_BOOL,
+           .help = "Force use of payload blocks of type 'ZERO'.  Non-standard."
+       },
+       { NULL }
+    }
 };
 
 static BlockDriver bdrv_vhdx = {
@@ -1931,7 +1926,7 @@ static BlockDriver bdrv_vhdx = {
     .bdrv_get_info          = vhdx_get_info,
     .bdrv_check             = vhdx_check,
 
-    .create_options         = vhdx_create_options,
+    .create_opts            = &vhdx_create_opts,
 };
 
 static void bdrv_vhdx_init(void)

@@ -672,8 +672,7 @@ static int vdi_co_write(BlockDriverState *bs,
     return ret;
 }
 
-static int vdi_create(const char *filename, QEMUOptionParameter *options,
-                      Error **errp)
+static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     int fd;
     int result = 0;
@@ -688,25 +687,18 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options,
     logout("\n");
 
     /* Read out options. */
-    while (options && options->name) {
-        if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
-            bytes = options->value.n;
+    bytes = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
 #if defined(CONFIG_VDI_BLOCK_SIZE)
-        } else if (!strcmp(options->name, BLOCK_OPT_CLUSTER_SIZE)) {
-            if (options->value.n) {
-                /* TODO: Additional checks (SECTOR_SIZE * 2^n, ...). */
-                block_size = options->value.n;
-            }
+    /* TODO: Additional checks (SECTOR_SIZE * 2^n, ...). */
+    block_size = qemu_opt_get_size_del(opts,
+                                       BLOCK_OPT_CLUSTER_SIZE,
+                                       DEFAULT_CLUSTER_SIZE);
 #endif
 #if defined(CONFIG_VDI_STATIC_IMAGE)
-        } else if (!strcmp(options->name, BLOCK_OPT_STATIC)) {
-            if (options->value.n) {
-                image_type = VDI_TYPE_STATIC;
-            }
-#endif
-        }
-        options++;
+    if (qemu_opt_get_bool_del(opts, BLOCK_OPT_STATIC, false)) {
+        image_type = VDI_TYPE_STATIC;
     }
+#endif
 
     if (bytes > VDI_DISK_SIZE_MAX) {
         result = -ENOTSUP;
@@ -801,29 +793,34 @@ static void vdi_close(BlockDriverState *bs)
     error_free(s->migration_blocker);
 }
 
-static QEMUOptionParameter vdi_create_options[] = {
-    {
-        .name = BLOCK_OPT_SIZE,
-        .type = OPT_SIZE,
-        .help = "Virtual disk size"
-    },
+static QemuOptsList vdi_create_opts = {
+    .name = "vdi-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(vdi_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
 #if defined(CONFIG_VDI_BLOCK_SIZE)
-    {
-        .name = BLOCK_OPT_CLUSTER_SIZE,
-        .type = OPT_SIZE,
-        .help = "VDI cluster (block) size",
-        .value = { .n = DEFAULT_CLUSTER_SIZE },
-    },
+        {
+            .name = BLOCK_OPT_CLUSTER_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "VDI cluster (block) size",
+            .def_value_str = stringify(DEFAULT_CLUSTER_SIZE)
+        },
 #endif
 #if defined(CONFIG_VDI_STATIC_IMAGE)
-    {
-        .name = BLOCK_OPT_STATIC,
-        .type = OPT_FLAG,
-        .help = "VDI static (pre-allocated) image"
-    },
+        {
+            .name = BLOCK_OPT_STATIC,
+            .type = QEMU_OPT_BOOL,
+            .help = "VDI static (pre-allocated) image",
+            .def_value_str = "off"
+        },
 #endif
-    /* TODO: An additional option to set UUID values might be useful. */
-    { NULL }
+        /* TODO: An additional option to set UUID values might be useful. */
+        { /* end of list */ }
+    }
 };
 
 static BlockDriver bdrv_vdi = {
@@ -845,7 +842,7 @@ static BlockDriver bdrv_vdi = {
 
     .bdrv_get_info = vdi_get_info,
 
-    .create_options = vdi_create_options,
+    .create_opts = &vdi_create_opts,
     .bdrv_check = vdi_check,
 };
 

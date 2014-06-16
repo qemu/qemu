@@ -478,13 +478,14 @@ static inline int qemu_gluster_zerofill(struct glfs_fd *fd, int64_t offset,
 #endif
 
 static int qemu_gluster_create(const char *filename,
-        QEMUOptionParameter *options, Error **errp)
+                               QemuOpts *opts, Error **errp)
 {
     struct glfs *glfs;
     struct glfs_fd *fd;
     int ret = 0;
     int prealloc = 0;
     int64_t total_size = 0;
+    char *tmp = NULL;
     GlusterConf *gconf = g_malloc0(sizeof(GlusterConf));
 
     glfs = qemu_gluster_init(gconf, filename, errp);
@@ -493,24 +494,21 @@ static int qemu_gluster_create(const char *filename,
         goto out;
     }
 
-    while (options && options->name) {
-        if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
-            total_size = options->value.n / BDRV_SECTOR_SIZE;
-        } else if (!strcmp(options->name, BLOCK_OPT_PREALLOC)) {
-            if (!options->value.s || !strcmp(options->value.s, "off")) {
-                prealloc = 0;
-            } else if (!strcmp(options->value.s, "full") &&
-                    gluster_supports_zerofill()) {
-                prealloc = 1;
-            } else {
-                error_setg(errp, "Invalid preallocation mode: '%s'"
-                    " or GlusterFS doesn't support zerofill API",
-                           options->value.s);
-                ret = -EINVAL;
-                goto out;
-            }
-        }
-        options++;
+    total_size =
+        qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0) / BDRV_SECTOR_SIZE;
+
+    tmp = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
+    if (!tmp || !strcmp(tmp, "off")) {
+        prealloc = 0;
+    } else if (!strcmp(tmp, "full") &&
+               gluster_supports_zerofill()) {
+        prealloc = 1;
+    } else {
+        error_setg(errp, "Invalid preallocation mode: '%s'"
+            " or GlusterFS doesn't support zerofill API",
+            tmp);
+        ret = -EINVAL;
+        goto out;
     }
 
     fd = glfs_creat(glfs, gconf->image,
@@ -532,6 +530,7 @@ static int qemu_gluster_create(const char *filename,
         }
     }
 out:
+    g_free(tmp);
     qemu_gluster_gconf_free(gconf);
     if (glfs) {
         glfs_fini(glfs);
@@ -698,18 +697,22 @@ static int qemu_gluster_has_zero_init(BlockDriverState *bs)
     return 0;
 }
 
-static QEMUOptionParameter qemu_gluster_create_options[] = {
-    {
-        .name = BLOCK_OPT_SIZE,
-        .type = OPT_SIZE,
-        .help = "Virtual disk size"
-    },
-    {
-        .name = BLOCK_OPT_PREALLOC,
-        .type = OPT_STRING,
-        .help = "Preallocation mode (allowed values: off, full)"
-    },
-    { NULL }
+static QemuOptsList qemu_gluster_create_opts = {
+    .name = "qemu-gluster-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_gluster_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
+        {
+            .name = BLOCK_OPT_PREALLOC,
+            .type = QEMU_OPT_STRING,
+            .help = "Preallocation mode (allowed values: off, full)"
+        },
+        { /* end of list */ }
+    }
 };
 
 static BlockDriver bdrv_gluster = {
@@ -736,7 +739,7 @@ static BlockDriver bdrv_gluster = {
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
     .bdrv_co_write_zeroes         = qemu_gluster_co_write_zeroes,
 #endif
-    .create_options               = qemu_gluster_create_options,
+    .create_opts                  = &qemu_gluster_create_opts,
 };
 
 static BlockDriver bdrv_gluster_tcp = {
@@ -763,7 +766,7 @@ static BlockDriver bdrv_gluster_tcp = {
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
     .bdrv_co_write_zeroes         = qemu_gluster_co_write_zeroes,
 #endif
-    .create_options               = qemu_gluster_create_options,
+    .create_opts                  = &qemu_gluster_create_opts,
 };
 
 static BlockDriver bdrv_gluster_unix = {
@@ -790,7 +793,7 @@ static BlockDriver bdrv_gluster_unix = {
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
     .bdrv_co_write_zeroes         = qemu_gluster_co_write_zeroes,
 #endif
-    .create_options               = qemu_gluster_create_options,
+    .create_opts                  = &qemu_gluster_create_opts,
 };
 
 static BlockDriver bdrv_gluster_rdma = {
@@ -817,7 +820,7 @@ static BlockDriver bdrv_gluster_rdma = {
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
     .bdrv_co_write_zeroes         = qemu_gluster_co_write_zeroes,
 #endif
-    .create_options               = qemu_gluster_create_options,
+    .create_opts                  = &qemu_gluster_create_opts,
 };
 
 static void bdrv_gluster_init(void)

@@ -1670,12 +1670,13 @@ static int parse_redundancy(BDRVSheepdogState *s, const char *opt)
     return 0;
 }
 
-static int sd_create(const char *filename, QEMUOptionParameter *options,
+static int sd_create(const char *filename, QemuOpts *opts,
                      Error **errp)
 {
     int ret = 0;
     uint32_t vid = 0;
     char *backing_file = NULL;
+    char *buf = NULL;
     BDRVSheepdogState *s;
     char tag[SD_MAX_VDI_TAG_LEN];
     uint32_t snapid;
@@ -1694,33 +1695,27 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
         goto out;
     }
 
-    while (options && options->name) {
-        if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
-            s->inode.vdi_size = options->value.n;
-        } else if (!strcmp(options->name, BLOCK_OPT_BACKING_FILE)) {
-            backing_file = options->value.s;
-        } else if (!strcmp(options->name, BLOCK_OPT_PREALLOC)) {
-            if (!options->value.s || !strcmp(options->value.s, "off")) {
-                prealloc = false;
-            } else if (!strcmp(options->value.s, "full")) {
-                prealloc = true;
-            } else {
-                error_setg(errp, "Invalid preallocation mode: '%s'",
-                           options->value.s);
-                ret = -EINVAL;
-                goto out;
-            }
-        } else if (!strcmp(options->name, BLOCK_OPT_REDUNDANCY)) {
-            if (options->value.s) {
-                ret = parse_redundancy(s, options->value.s);
-                if (ret < 0) {
-                    error_setg(errp, "Invalid redundancy mode: '%s'",
-                               options->value.s);
-                    goto out;
-                }
-            }
+    s->inode.vdi_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    backing_file = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
+    buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
+    if (!buf || !strcmp(buf, "off")) {
+        prealloc = false;
+    } else if (!strcmp(buf, "full")) {
+        prealloc = true;
+    } else {
+        error_setg(errp, "Invalid preallocation mode: '%s'", buf);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    g_free(buf);
+    buf = qemu_opt_get_del(opts, BLOCK_OPT_REDUNDANCY);
+    if (buf) {
+        ret = parse_redundancy(s, buf);
+        if (ret < 0) {
+            error_setg(errp, "Invalid redundancy mode: '%s'", buf);
+            goto out;
         }
-        options++;
     }
 
     if (s->inode.vdi_size > SD_MAX_VDI_SIZE) {
@@ -1770,6 +1765,8 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
         ret = sd_prealloc(filename, errp);
     }
 out:
+    g_free(backing_file);
+    g_free(buf);
     g_free(s);
     return ret;
 }
@@ -2571,28 +2568,32 @@ static int64_t sd_get_allocated_file_size(BlockDriverState *bs)
     return size;
 }
 
-static QEMUOptionParameter sd_create_options[] = {
-    {
-        .name = BLOCK_OPT_SIZE,
-        .type = OPT_SIZE,
-        .help = "Virtual disk size"
-    },
-    {
-        .name = BLOCK_OPT_BACKING_FILE,
-        .type = OPT_STRING,
-        .help = "File name of a base image"
-    },
-    {
-        .name = BLOCK_OPT_PREALLOC,
-        .type = OPT_STRING,
-        .help = "Preallocation mode (allowed values: off, full)"
-    },
-    {
-        .name = BLOCK_OPT_REDUNDANCY,
-        .type = OPT_STRING,
-        .help = "Redundancy of the image"
-    },
-    { NULL }
+static QemuOptsList sd_create_opts = {
+    .name = "sheepdog-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(sd_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
+        {
+            .name = BLOCK_OPT_BACKING_FILE,
+            .type = QEMU_OPT_STRING,
+            .help = "File name of a base image"
+        },
+        {
+            .name = BLOCK_OPT_PREALLOC,
+            .type = QEMU_OPT_STRING,
+            .help = "Preallocation mode (allowed values: off, full)"
+        },
+        {
+            .name = BLOCK_OPT_REDUNDANCY,
+            .type = QEMU_OPT_STRING,
+            .help = "Redundancy of the image"
+        },
+        { /* end of list */ }
+    }
 };
 
 static BlockDriver bdrv_sheepdog = {
@@ -2625,7 +2626,7 @@ static BlockDriver bdrv_sheepdog = {
     .bdrv_detach_aio_context = sd_detach_aio_context,
     .bdrv_attach_aio_context = sd_attach_aio_context,
 
-    .create_options = sd_create_options,
+    .create_opts    = &sd_create_opts,
 };
 
 static BlockDriver bdrv_sheepdog_tcp = {
@@ -2658,7 +2659,7 @@ static BlockDriver bdrv_sheepdog_tcp = {
     .bdrv_detach_aio_context = sd_detach_aio_context,
     .bdrv_attach_aio_context = sd_attach_aio_context,
 
-    .create_options = sd_create_options,
+    .create_opts    = &sd_create_opts,
 };
 
 static BlockDriver bdrv_sheepdog_unix = {
@@ -2691,7 +2692,7 @@ static BlockDriver bdrv_sheepdog_unix = {
     .bdrv_detach_aio_context = sd_detach_aio_context,
     .bdrv_attach_aio_context = sd_attach_aio_context,
 
-    .create_options = sd_create_options,
+    .create_opts    = &sd_create_opts,
 };
 
 static void bdrv_sheepdog_init(void)

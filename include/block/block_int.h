@@ -116,8 +116,7 @@ struct BlockDriver {
                       const uint8_t *buf, int nb_sectors);
     void (*bdrv_close)(BlockDriverState *bs);
     void (*bdrv_rebind)(BlockDriverState *bs);
-    int (*bdrv_create)(const char *filename, QEMUOptionParameter *options,
-                       Error **errp);
+    int (*bdrv_create)(const char *filename, QemuOpts *opts, Error **errp);
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);
     int (*bdrv_make_empty)(BlockDriverState *bs);
     /* aio */
@@ -216,8 +215,7 @@ struct BlockDriver {
         BlockDriverCompletionFunc *cb, void *opaque);
 
     /* List of options for creating images, terminated by name == NULL */
-    QEMUOptionParameter *create_options;
-
+    QemuOptsList *create_opts;
 
     /*
      * Returns 0 for completed check, -errno for internal errors.
@@ -226,8 +224,7 @@ struct BlockDriver {
     int (*bdrv_check)(BlockDriverState* bs, BdrvCheckResult *result,
         BdrvCheckMode fix);
 
-    int (*bdrv_amend_options)(BlockDriverState *bs,
-        QEMUOptionParameter *options);
+    int (*bdrv_amend_options)(BlockDriverState *bs, QemuOpts *opts);
 
     void (*bdrv_debug_event)(BlockDriverState *bs, BlkDebugEvent event);
 

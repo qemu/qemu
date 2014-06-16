@@ -95,6 +95,7 @@ static void nfs_co_init_task(NFSClient *client, NFSRPC *task)
 static void nfs_co_generic_bh_cb(void *opaque)
 {
     NFSRPC *task = opaque;
+    task->complete = 1;
     qemu_bh_delete(task->bh);
     qemu_coroutine_enter(task->co, NULL);
 }
@@ -104,7 +105,6 @@ nfs_co_generic_cb(int ret, struct nfs_context *nfs, void *data,
                   void *private_data)
 {
     NFSRPC *task = private_data;
-    task->complete = 1;
     task->ret = ret;
     if (task->ret > 0 && task->iov) {
         if (task->ret <= task->iov->size) {
@@ -123,6 +123,8 @@ nfs_co_generic_cb(int ret, struct nfs_context *nfs, void *data,
         task->bh = aio_bh_new(task->client->aio_context,
                               nfs_co_generic_bh_cb, task);
         qemu_bh_schedule(task->bh);
+    } else {
+        task->complete = 1;
     }
 }
 
@@ -389,8 +391,7 @@ static int nfs_file_open(BlockDriverState *bs, QDict *options, int flags,
     return 0;
 }
 
-static int nfs_file_create(const char *url, QEMUOptionParameter *options,
-                           Error **errp)
+static int nfs_file_create(const char *url, QemuOpts *opts, Error **errp)
 {
     int ret = 0;
     int64_t total_size = 0;
@@ -399,12 +400,7 @@ static int nfs_file_create(const char *url, QEMUOptionParameter *options,
     client->aio_context = qemu_get_aio_context();
 
     /* Read out options */
-    while (options && options->name) {
-        if (!strcmp(options->name, "size")) {
-            total_size = options->value.n;
-        }
-        options++;
-    }
+    total_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
 
     ret = nfs_client_open(client, url, O_CREAT, errp);
     if (ret < 0) {

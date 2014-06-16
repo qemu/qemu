@@ -2898,6 +2898,8 @@ Each array entry contains the following:
               or 'size')
     - "help": human readable description of the parameter
               (json-string, optional)
+    - "default": default value string for the parameter
+                 (json-string, optional)
 
 Example:
 

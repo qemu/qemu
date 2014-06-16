@@ -311,8 +311,8 @@ libusb=""
 usb_redir=""
 glx=""
 zlib="yes"
-lzo="no"
-snappy="no"
+lzo=""
+snappy=""
 guest_agent=""
 guest_agent_with_vss="no"
 vss_win32_sdk=""
@@ -333,7 +333,7 @@ vte=""
 tpm="no"
 libssh2=""
 vhdx=""
-quorum="no"
+quorum=""
 
 # parse CC options first
 for opt do
@@ -1050,7 +1050,11 @@ for opt do
   ;;
   --disable-zlib-test) zlib="no"
   ;;
+  --disable-lzo) lzo="no"
+  ;;
   --enable-lzo) lzo="yes"
+  ;;
+  --disable-snappy) snappy="no"
   ;;
   --enable-snappy) snappy="yes"
   ;;
@@ -1749,13 +1753,14 @@ if test "$lzo" != "no" ; then
 int main(void) { lzo_version(); return 0; }
 EOF
     if compile_prog "" "-llzo2" ; then
-        :
+        libs_softmmu="$libs_softmmu -llzo2"
+        lzo="yes"
     else
-        error_exit "lzo check failed" \
-            "Make sure to have the lzo libs and headers installed."
+        if test "$lzo" = "yes"; then
+            feature_not_found "liblzo2" "Install liblzo2 devel"
+        fi
+        lzo="no"
     fi
-
-    libs_softmmu="$libs_softmmu -llzo2"
 fi
 
 ##########################################
@@ -1767,13 +1772,14 @@ if test "$snappy" != "no" ; then
 int main(void) { snappy_max_compressed_length(4096); return 0; }
 EOF
     if compile_prog "" "-lsnappy" ; then
-        :
+        libs_softmmu="$libs_softmmu -lsnappy"
+        snappy="yes"
     else
-        error_exit "snappy check failed" \
-            "Make sure to have the snappy libs and headers installed."
+        if test "$snappy" = "yes"; then
+            feature_not_found "libsnappy" "Install libsnappy devel"
+        fi
+        snappy="no"
     fi
-
-    libs_softmmu="$libs_softmmu -lsnappy"
 fi
 
 ##########################################
@@ -2219,9 +2225,12 @@ if compile_prog "$quorum_tls_cflags" "$quorum_tls_libs" ; then
   libs_softmmu="$quorum_tls_libs $libs_softmmu"
   libs_tools="$quorum_tls_libs $libs_softmmu"
   QEMU_CFLAGS="$QEMU_CFLAGS $quorum_tls_cflags"
+  quorum="yes"
 else
-  echo "gnutls > 2.10.0 required to compile Quorum"
-  exit 1
+  if test "$quorum" = "yes"; then
+    feature_not_found "gnutls" "gnutls > 2.10.0 required to compile Quorum"
+  fi
+  quorum="no"
 fi
 fi
 

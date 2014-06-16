@@ -184,7 +184,7 @@ int pci_piix3_xen_ide_unplug(DeviceState *dev)
             }
             bdrv_close(di->bdrv);
             pci_ide->bus[di->bus].ifs[di->unit].bs = NULL;
-            drive_put_ref(di);
+            drive_del(di);
         }
     }
     qdev_reset_all(DEVICE(dev));

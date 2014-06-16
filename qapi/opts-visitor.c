@@ -143,8 +143,8 @@ opts_start_struct(Visitor *v, void **obj, const char *kind,
     if (ov->opts_root->id != NULL) {
         ov->fake_id_opt = g_malloc0(sizeof *ov->fake_id_opt);
 
-        ov->fake_id_opt->name = "id";
-        ov->fake_id_opt->str = ov->opts_root->id;
+        ov->fake_id_opt->name = g_strdup("id");
+        ov->fake_id_opt->str = g_strdup(ov->opts_root->id);
         opts_visitor_insert(ov->unprocessed_opts, ov->fake_id_opt);
     }
 }
@@ -177,7 +177,11 @@ opts_end_struct(Visitor *v, Error **errp)
     }
     g_hash_table_destroy(ov->unprocessed_opts);
     ov->unprocessed_opts = NULL;
-    g_free(ov->fake_id_opt);
+    if (ov->fake_id_opt) {
+        g_free(ov->fake_id_opt->name);
+        g_free(ov->fake_id_opt->str);
+        g_free(ov->fake_id_opt);
+    }
     ov->fake_id_opt = NULL;
 }
 

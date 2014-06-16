@@ -45,5 +45,5 @@ wrote 10485760/10485760 bytes at offset 0
 10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 == checking that quorum is broken ==
-qemu-io: can't open device (null): Could not read image for determining its format: Input/output error
+qemu-io: can't open: Could not read image for determining its format: Input/output error
 *** done
