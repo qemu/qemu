@@ -238,7 +238,7 @@ static void allocate_system_memory_nonnuma(MemoryRegion *mr, Object *owner,
         /* Legacy behavior: if allocation failed, fall back to
          * regular RAM allocation.
          */
-        if (!memory_region_size(mr)) {
+        if (err) {
             qerror_report_err(err);
             error_free(err);
             memory_region_init_ram(mr, owner, name, ram_size);
