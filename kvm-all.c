@@ -99,6 +99,7 @@ struct KVMState
      * they're not.  Linux, glibc and *BSD all treat ioctl numbers as
      * unsigned, and treating them as signed here can break things */
     unsigned irq_set_ioctl;
+    unsigned int sigmask_len;
 #ifdef KVM_CAP_IRQ_ROUTING
     struct kvm_irq_routing *irq_routes;
     int nr_allocated_irq_routes;
@@ -1397,6 +1398,8 @@ int kvm_init(MachineClass *mc)
     assert(TARGET_PAGE_SIZE <= getpagesize());
     page_size_init();
 
+    s->sigmask_len = 8;
+
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     QTAILQ_INIT(&s->kvm_sw_breakpoints);
 #endif
@@ -1573,6 +1576,11 @@ err:
     g_free(s);
 
     return ret;
+}
+
+void kvm_set_sigmask_len(KVMState *s, unsigned int sigmask_len)
+{
+    s->sigmask_len = sigmask_len;
 }
 
 static void kvm_handle_io(uint16_t port, void *data, int direction, int size,
@@ -2095,6 +2103,7 @@ void kvm_remove_all_breakpoints(CPUState *cpu)
 
 int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset)
 {
+    KVMState *s = kvm_state;
     struct kvm_signal_mask *sigmask;
     int r;
 
@@ -2104,7 +2113,7 @@ int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset)
 
     sigmask = g_malloc(sizeof(*sigmask) + sizeof(*sigset));
 
-    sigmask->len = 8;
+    sigmask->len = s->sigmask_len;
     memcpy(sigmask->sigset, sigset, sizeof(*sigset));
     r = kvm_vcpu_ioctl(cpu, KVM_SET_SIGNAL_MASK, sigmask);
     g_free(sigmask);
