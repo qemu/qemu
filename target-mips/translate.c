@@ -16043,6 +16043,8 @@ void cpu_state_reset(CPUMIPSState *env)
     /* Count register increments in debug mode, EJTAG version 1 */
     env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
 
+    cpu_mips_store_count(env, 1);
+
     if (env->CP0_Config3 & (1 << CP0C3_MT)) {
         int i;
 

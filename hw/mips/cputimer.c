@@ -85,7 +85,12 @@ uint32_t cpu_mips_get_count (CPUMIPSState *env)
 
 void cpu_mips_store_count (CPUMIPSState *env, uint32_t count)
 {
-    if (env->CP0_Cause & (1 << CP0Ca_DC))
+    /*
+     * This gets called from cpu_state_reset(), potentially before timer init.
+     * So env->timer may be NULL, which is also the case with KVM enabled so
+     * treat timer as disabled in that case.
+     */
+    if (env->CP0_Cause & (1 << CP0Ca_DC) || !env->timer)
         env->CP0_Count = count;
     else {
         /* Store new count register */
@@ -142,6 +147,4 @@ static void mips_timer_cb (void *opaque)
 void cpu_mips_clock_init (CPUMIPSState *env)
 {
     env->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &mips_timer_cb, env);
-    env->CP0_Compare = 0;
-    cpu_mips_store_count(env, 1);
 }
