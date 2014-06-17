@@ -169,26 +169,39 @@ userspace_exit_reasons = {
     23: 'EPR',
 }
 
-vendor_exit_reasons = {
+x86_exit_reasons = {
     'vmx': vmx_exit_reasons,
     'svm': svm_exit_reasons,
 }
 
-syscall_numbers = {
-    'IBM/S390': 331,
-}
-
-sc_perf_evt_open = 298
-
+sc_perf_evt_open = None
 exit_reasons = None
 
-for line in file('/proc/cpuinfo').readlines():
-    if line.startswith('flags') or line.startswith('vendor_id'):
-        for flag in line.split():
-            if flag in vendor_exit_reasons:
-                exit_reasons = vendor_exit_reasons[flag]
-            if flag in syscall_numbers:
-                sc_perf_evt_open = syscall_numbers[flag]
+def x86_init(flag):
+    globals().update({
+        'sc_perf_evt_open' : 298,
+        'exit_reasons' : x86_exit_reasons[flag],
+    })
+
+def s390_init():
+    globals().update({
+        'sc_perf_evt_open' : 331
+    })
+
+def detect_platform():
+    for line in file('/proc/cpuinfo').readlines():
+        if line.startswith('flags'):
+            for flag in line.split():
+                if flag in x86_exit_reasons:
+                    x86_init(flag)
+                    return
+        elif line.startswith('vendor_id'):
+            for flag in line.split():
+                if flag == 'IBM/S390':
+                    s390_init()
+                    return
+
+detect_platform()
 
 def invert(d):
     return dict((x[1], x[0]) for x in d.iteritems())
