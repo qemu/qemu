@@ -117,6 +117,7 @@ struct VirtIOBlkConf
 
 struct VirtIOBlockDataPlane;
 
+struct VirtIOBlockReq;
 typedef struct VirtIOBlock {
     VirtIODevice parent_obj;
     BlockDriverState *bs;
@@ -128,6 +129,8 @@ typedef struct VirtIOBlock {
     unsigned short sector_mask;
     bool original_wce;
     VMChangeStateEntry *change;
+    /* Function to push to vq and notify guest */
+    void (*complete_request)(struct VirtIOBlockReq *req, unsigned char status);
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
     Notifier migration_state_notifier;
     struct VirtIOBlockDataPlane *dataplane;
