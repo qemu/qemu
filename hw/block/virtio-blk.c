@@ -469,7 +469,8 @@ static void virtio_blk_dma_restart_cb(void *opaque, int running,
     }
 
     if (!s->bh) {
-        s->bh = qemu_bh_new(virtio_blk_dma_restart_bh, s);
+        s->bh = aio_bh_new(bdrv_get_aio_context(s->blk.conf.bs),
+                           virtio_blk_dma_restart_bh, s);
         qemu_bh_schedule(s->bh);
     }
 }
