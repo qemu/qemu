@@ -4123,8 +4123,9 @@ static void gen_mcrxr(DisasContext *ctx)
     tcg_gen_trunc_tl_i32(t0, cpu_so);
     tcg_gen_trunc_tl_i32(t1, cpu_ov);
     tcg_gen_trunc_tl_i32(dst, cpu_ca);
-    tcg_gen_shri_i32(t0, t0, 2);
-    tcg_gen_shri_i32(t1, t1, 1);
+    tcg_gen_shli_i32(t0, t0, 3);
+    tcg_gen_shli_i32(t1, t1, 2);
+    tcg_gen_shli_i32(dst, dst, 1);
     tcg_gen_or_i32(dst, dst, t0);
     tcg_gen_or_i32(dst, dst, t1);
     tcg_temp_free_i32(t0);
