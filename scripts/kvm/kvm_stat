@@ -177,6 +177,12 @@ x86_exit_reasons = {
 sc_perf_evt_open = None
 exit_reasons = None
 
+ioctl_numbers = {
+    'SET_FILTER' : 0x40082406,
+    'ENABLE'     : 0x00002400,
+    'DISABLE'    : 0x00002401,
+}
+
 def x86_init(flag):
     globals().update({
         'sc_perf_evt_open' : 298,
@@ -301,14 +307,14 @@ class Event(object):
             raise Exception('perf_event_open failed')
         if filter:
             import fcntl
-            fcntl.ioctl(fd, 0x40082406, filter)
+            fcntl.ioctl(fd, ioctl_numbers['SET_FILTER'], filter)
         self.fd = fd
     def enable(self):
         import fcntl
-        fcntl.ioctl(self.fd, 0x00002400, 0)
+        fcntl.ioctl(self.fd, ioctl_numbers['ENABLE'], 0)
     def disable(self):
         import fcntl
-        fcntl.ioctl(self.fd, 0x00002401, 0)
+        fcntl.ioctl(self.fd, ioctl_numbers['DISABLE'], 0)
 
 class TracepointProvider(object):
     def __init__(self):
