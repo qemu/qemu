@@ -1856,7 +1856,7 @@ static abi_long do_socket(int domain, int type, int protocol)
     }
 
     if (domain == PF_NETLINK)
-        return -EAFNOSUPPORT; /* do not NETLINK socket connections possible */
+        return -TARGET_EAFNOSUPPORT;
     ret = get_errno(socket(domain, type, protocol));
     if (ret >= 0) {
         ret = sock_flags_fixup(ret, target_type);
@@ -7438,6 +7438,22 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             ret = get_errno(sys_sched_getaffinity(arg1, mask_size, mask));
 
             if (!is_error(ret)) {
+                if (ret > arg2) {
+                    /* More data returned than the caller's buffer will fit.
+                     * This only happens if sizeof(abi_long) < sizeof(long)
+                     * and the caller passed us a buffer holding an odd number
+                     * of abi_longs. If the host kernel is actually using the
+                     * extra 4 bytes then fail EINVAL; otherwise we can just
+                     * ignore them and only copy the interesting part.
+                     */
+                    int numcpus = sysconf(_SC_NPROCESSORS_CONF);
+                    if (numcpus > arg2 * 8) {
+                        ret = -TARGET_EINVAL;
+                        break;
+                    }
+                    ret = arg2;
+                }
+
                 if (copy_to_user(arg3, mask, ret)) {
                     goto efault;
                 }
