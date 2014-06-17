@@ -1756,6 +1756,7 @@ static int sd_create(const char *filename, QemuOpts *opts,
         bdrv_unref(bs);
     }
 
+    s->aio_context = qemu_get_aio_context();
     ret = do_sd_create(s, &vid, 0, errp);
     if (ret) {
         goto out;
