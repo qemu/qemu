@@ -1221,7 +1221,7 @@ static int cpu_x86_fill_model_id(char *str)
 static X86CPUDefinition host_cpudef;
 
 static Property host_x86_cpu_properties[] = {
-    DEFINE_PROP_BOOL("migratable", X86CPU, migratable, false),
+    DEFINE_PROP_BOOL("migratable", X86CPU, migratable, true),
     DEFINE_PROP_END_OF_LIST()
 };
 
