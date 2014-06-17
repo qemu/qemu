@@ -12,7 +12,7 @@
 # the COPYING file in the top-level directory.
 
 import curses
-import sys, os, time, optparse
+import sys, os, time, optparse, ctypes
 
 class DebugfsProvider(object):
     def __init__(self):
@@ -194,7 +194,21 @@ def s390_init():
         'sc_perf_evt_open' : 331
     })
 
+def ppc_init():
+    globals().update({
+        'sc_perf_evt_open' : 319,
+        'ioctl_numbers' : {
+            'SET_FILTER' : 0x80002406 | (ctypes.sizeof(ctypes.c_char_p) << 16),
+            'ENABLE'     : 0x20002400,
+            'DISABLE'    : 0x20002401,
+        }
+    })
+
 def detect_platform():
+    if os.uname()[4].startswith('ppc'):
+        ppc_init()
+        return
+
     for line in file('/proc/cpuinfo').readlines():
         if line.startswith('flags'):
             for flag in line.split():
@@ -217,7 +231,7 @@ filters['kvm_userspace_exit'] = ('reason', invert(userspace_exit_reasons))
 if exit_reasons:
     filters['kvm_exit'] = ('exit_reason', invert(exit_reasons))
 
-import ctypes, struct, array
+import struct, array
 
 libc = ctypes.CDLL('libc.so.6')
 syscall = libc.syscall
