@@ -118,7 +118,13 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
     qemu_log("user mode %d h %08x\n", user_mode, env->hflags);
 #endif
 
-    if (address <= (int32_t)0x7FFFFFFFUL) {
+#define USEG_LIMIT      0x7FFFFFFFUL
+#define KSEG0_BASE      0x80000000UL
+#define KSEG1_BASE      0xA0000000UL
+#define KSEG2_BASE      0xC0000000UL
+#define KSEG3_BASE      0xE0000000UL
+
+    if (address <= USEG_LIMIT) {
         /* useg */
         if (env->CP0_Status & (1 << CP0St_ERL)) {
             *physical = address & 0xFFFFFFFF;
@@ -160,23 +166,23 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
             ret = TLBRET_BADADDR;
         }
 #endif
-    } else if (address < (int32_t)0xA0000000UL) {
+    } else if (address < (int32_t)KSEG1_BASE) {
         /* kseg0 */
         if (kernel_mode) {
-            *physical = address - (int32_t)0x80000000UL;
+            *physical = address - (int32_t)KSEG0_BASE;
             *prot = PAGE_READ | PAGE_WRITE;
         } else {
             ret = TLBRET_BADADDR;
         }
-    } else if (address < (int32_t)0xC0000000UL) {
+    } else if (address < (int32_t)KSEG2_BASE) {
         /* kseg1 */
         if (kernel_mode) {
-            *physical = address - (int32_t)0xA0000000UL;
+            *physical = address - (int32_t)KSEG1_BASE;
             *prot = PAGE_READ | PAGE_WRITE;
         } else {
             ret = TLBRET_BADADDR;
         }
-    } else if (address < (int32_t)0xE0000000UL) {
+    } else if (address < (int32_t)KSEG3_BASE) {
         /* sseg (kseg2) */
         if (supervisor_mode || kernel_mode) {
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
