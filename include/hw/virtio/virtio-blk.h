@@ -137,6 +137,11 @@ typedef struct VirtIOBlock {
 #endif
 } VirtIOBlock;
 
+typedef struct MultiReqBuffer {
+    BlockRequest        blkreq[32];
+    unsigned int        num_writes;
+} MultiReqBuffer;
+
 typedef struct VirtIOBlockReq {
     VirtIOBlock *dev;
     VirtQueueElement *elem;
@@ -171,5 +176,9 @@ void virtio_blk_set_conf(DeviceState *dev, VirtIOBlkConf *blk);
 
 int virtio_blk_handle_scsi_req(VirtIOBlock *blk,
                                VirtQueueElement *elem);
+
+void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb);
+
+void virtio_submit_multiwrite(BlockDriverState *bs, MultiReqBuffer *mrb);
 
 #endif

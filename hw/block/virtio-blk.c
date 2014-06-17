@@ -253,12 +253,7 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
     virtio_blk_free_request(req);
 }
 
-typedef struct MultiReqBuffer {
-    BlockRequest        blkreq[32];
-    unsigned int        num_writes;
-} MultiReqBuffer;
-
-static void virtio_submit_multiwrite(BlockDriverState *bs, MultiReqBuffer *mrb)
+void virtio_submit_multiwrite(BlockDriverState *bs, MultiReqBuffer *mrb)
 {
     int i, ret;
 
@@ -347,8 +342,7 @@ static void virtio_blk_handle_read(VirtIOBlockReq *req)
                    virtio_blk_rw_complete, req);
 }
 
-static void virtio_blk_handle_request(VirtIOBlockReq *req,
-    MultiReqBuffer *mrb)
+void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 {
     uint32_t type;
     struct iovec *in_iov = req->elem->in_sg;
