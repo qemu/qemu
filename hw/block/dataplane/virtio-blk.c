@@ -61,7 +61,7 @@ static void notify_guest(VirtIOBlockDataPlane *s)
     event_notifier_set(s->guest_notifier);
 }
 
-static void complete_request_early(VirtIOBlockReq *req, unsigned char status)
+static void complete_request_vring(VirtIOBlockReq *req, unsigned char status)
 {
     stb_p(&req->in->status, status);
 
@@ -169,7 +169,7 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
 
     *dataplane = s;
     s->saved_complete_request = vblk->complete_request;
-    vblk->complete_request = complete_request_early;
+    vblk->complete_request = complete_request_vring;
 }
 
 /* Context: QEMU global mutex held */
