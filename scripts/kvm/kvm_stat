@@ -311,18 +311,30 @@ class TracepointProvider(object):
         self.select(fields)
     def fields(self):
         return self._fields
+
+    def _online_cpus(self):
+        l = []
+        pattern = r'cpu([0-9]+)'
+        basedir = '/sys/devices/system/cpu'
+        for entry in os.listdir(basedir):
+            match = re.match(pattern, entry)
+            if not match:
+                continue
+            path = os.path.join(basedir, entry, 'online')
+            if os.path.exists(path) and open(path).read().strip() != '1':
+                continue
+            l.append(int(match.group(1)))
+        return l
+
     def _setup(self, _fields):
         self._fields = _fields
-        cpure = r'cpu([0-9]+)'
-        self.cpus = [int(re.match(cpure, x).group(1))
-                     for x in os.listdir('/sys/devices/system/cpu')
-                     if re.match(cpure, x)]
+        cpus = self._online_cpus()
         import resource
-        nfiles = len(self.cpus) * 1000
+        nfiles = len(cpus) * 1000
         resource.setrlimit(resource.RLIMIT_NOFILE, (nfiles, nfiles))
         events = []
         self.group_leaders = []
-        for cpu in self.cpus:
+        for cpu in cpus:
             group = Group(cpu)
             for name in _fields:
                 tracepoint = name
