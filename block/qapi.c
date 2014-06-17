@@ -293,7 +293,7 @@ void bdrv_query_info(BlockDriverState *bs,
     qapi_free_BlockInfo(info);
 }
 
-BlockStats *bdrv_query_stats(const BlockDriverState *bs)
+static BlockStats *bdrv_query_stats(const BlockDriverState *bs)
 {
     BlockStats *s;
 
