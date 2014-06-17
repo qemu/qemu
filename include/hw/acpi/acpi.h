@@ -27,8 +27,7 @@
 #include "hw/irq.h"
 
 /*
- * current device naming scheme supports
- * only upto 256 memory devices
+ * current device naming scheme supports up to 256 memory devices
  */
 #define ACPI_MAX_RAM_SLOTS 256
 
