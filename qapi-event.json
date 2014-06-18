@@ -47,3 +47,13 @@
 # Since: 0.12.0
 ##
 { 'event': 'RESUME' }
+
+##
+# @SUSPEND
+#
+# Emitted when guest enters a hardware suspension state, for example, S3 state,
+# which is sometimes called standby state
+#
+# Since: 1.1
+##
+{ 'event': 'SUSPEND' }

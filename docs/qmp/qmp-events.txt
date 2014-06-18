@@ -352,18 +352,6 @@ Example:
                       "channel-id": 0, "tls": true}
 }}
 
-SUSPEND
--------
-
-Emitted when guest enters S3 state.
-
-Data: None.
-
-Example:
-
-{ "event": "SUSPEND",
-     "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
-
 SUSPEND_DISK
 ------------
 
