@@ -98,7 +98,7 @@ static void format_string(StringOutputVisitor *sov, Range *r, bool next,
 {
     if (r->end - r->begin > 1) {
         if (human) {
-            g_string_append_printf(sov->string, "%" PRIx64 "-%" PRIx64,
+            g_string_append_printf(sov->string, "0x%" PRIx64 "-%" PRIx64,
                                    r->begin, r->end - 1);
 
         } else {
@@ -107,7 +107,7 @@ static void format_string(StringOutputVisitor *sov, Range *r, bool next,
         }
     } else {
         if (human) {
-            g_string_append_printf(sov->string, "%" PRIx64, r->begin);
+            g_string_append_printf(sov->string, "0x%" PRIx64, r->begin);
         } else {
             g_string_append_printf(sov->string, "%" PRId64, r->begin);
         }
@@ -186,7 +186,7 @@ static void print_type_int(Visitor *v, int64_t *obj, const char *name,
         g_string_append(sov->string, " (");
         while (l) {
             Range *r = l->data;
-            format_string(sov, r, l->next != NULL, false);
+            format_string(sov, r, l->next != NULL, true);
             l = l->next;
         }
         g_string_append(sov->string, ")");
