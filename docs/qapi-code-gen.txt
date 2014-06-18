@@ -215,6 +215,24 @@ An example command is:
    'data': { 'arg1': 'str', '*arg2': 'str' },
    'returns': 'str' }
 
+=== Events ===
+
+Events are defined with the keyword 'event'.  When 'data' is also specified,
+additional info will be carried on.  Finally there will be C API generated
+in qapi-event.h; when called by QEMU code, a message with timestamp will
+be emitted on the wire.  If timestamp is -1, it means failure to retrieve host
+time.
+
+An example event is:
+
+{ 'event': 'EVENT_C',
+  'data': { '*a': 'int', 'b': 'str' } }
+
+Resulting in this JSON object:
+
+{ "event": "EVENT_C",
+  "data": { "b": "test string" },
+  "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
 
 == Code generation ==
 

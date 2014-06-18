@@ -248,6 +248,16 @@ def discriminator_find_enum_define(expr):
 
     return find_enum(discriminator_type)
 
+def check_event(expr, expr_info):
+    params = expr.get('data')
+    if params:
+        for argname, argentry, optional, structured in parse_args(params):
+            if structured:
+                raise QAPIExprError(expr_info,
+                                    "Nested structure define in event is not "
+                                    "supported now, event '%s', argname '%s'"
+                                    % (expr['event'], argname))
+
 def check_union(expr, expr_info):
     name = expr['union']
     base = expr.get('base')
@@ -311,6 +321,8 @@ def check_exprs(schema):
         expr = expr_elem['expr']
         if expr.has_key('union'):
             check_union(expr, expr_elem['info'])
+        if expr.has_key('event'):
+            check_event(expr, expr_elem['info'])
 
 def parse_schema(input_file):
     try:
