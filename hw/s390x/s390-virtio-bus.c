@@ -167,7 +167,6 @@ static int s390_virtio_blk_init(VirtIOS390Device *s390_dev)
 {
     VirtIOBlkS390 *dev = VIRTIO_BLK_S390(s390_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
-    virtio_blk_set_conf(vdev, &(dev->blk));
     qdev_set_parent_bus(vdev, BUS(&s390_dev->bus));
     if (qdev_init(vdev) < 0) {
         return -1;
@@ -180,6 +179,7 @@ static void s390_virtio_blk_instance_init(Object *obj)
     VirtIOBlkS390 *dev = VIRTIO_BLK_S390(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_BLK);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 
 static int s390_virtio_serial_init(VirtIOS390Device *s390_dev)
@@ -513,18 +513,11 @@ static const TypeInfo s390_virtio_net = {
     .class_init    = s390_virtio_net_class_init,
 };
 
-static Property s390_virtio_blk_properties[] = {
-    DEFINE_VIRTIO_BLK_PROPERTIES(VirtIOBlkS390, blk),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void s390_virtio_blk_class_init(ObjectClass *klass, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     VirtIOS390DeviceClass *k = VIRTIO_S390_DEVICE_CLASS(klass);
 
     k->init = s390_virtio_blk_init;
-    dc->props = s390_virtio_blk_properties;
 }
 
 static const TypeInfo s390_virtio_blk = {
