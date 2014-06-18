@@ -1410,3 +1410,19 @@
 ##
 { 'command': 'blockdev-add', 'data': { 'options': 'BlockdevOptions' } }
 
+
+##
+# @BlockErrorAction
+#
+# An enumeration of action that has been taken when a DISK I/O occurs
+#
+# @ignore: error has been ignored
+#
+# @report: error has been reported to the device
+#
+# @stop: error caused VM to be stopped
+#
+# Since: 2.1
+##
+{ 'enum': 'BlockErrorAction',
+  'data': [ 'ignore', 'report', 'stop' ] }

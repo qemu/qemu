@@ -630,21 +630,59 @@
 { 'command': 'query-iothreads', 'returns': ['IOThreadInfo'] }
 
 ##
+# @NetworkAddressFamily
+#
+# The network address family
+#
+# @ipv4: IPV4 family
+#
+# @ipv6: IPV6 family
+#
+# @unix: unix socket
+#
+# @unknown: otherwise
+#
+# Since: 2.1
+##
+{ 'enum': 'NetworkAddressFamily',
+  'data': [ 'ipv4', 'ipv6', 'unix', 'unknown' ] }
+
+##
+# @VncBasicInfo
+#
+# The basic information for vnc network connection
+#
+# @host: IP address
+#
+# @service: The service name of vnc port. This may depend on the host system's
+#           service database so symbolic names should not be relied on.
+#
+# @family: address family
+#
+# Since: 2.1
+##
+{ 'type': 'VncBasicInfo',
+  'data': { 'host': 'str',
+            'service': 'str',
+            'family': 'NetworkAddressFamily' } }
+
+##
+# @VncServerInfo
+#
+# The network connection information for server
+#
+# @auth: #optional, authentication method
+#
+# Since: 2.1
+##
+{ 'type': 'VncServerInfo',
+  'base': 'VncBasicInfo',
+  'data': { '*auth': 'str' } }
+
+##
 # @VncClientInfo:
 #
 # Information about a connected VNC client.
-#
-# @host: The host name of the client.  QEMU tries to resolve this to a DNS name
-#        when possible.
-#
-# @family: 'ipv6' if the client is connected via IPv6 and TCP
-#          'ipv4' if the client is connected via IPv4 and TCP
-#          'unix' if the client is connected via a unix domain socket
-#          'unknown' otherwise
-#
-# @service: The service name of the client's port.  This may depends on the
-#           host system's service database so symbolic names should not be
-#           relied on.
 #
 # @x509_dname: #optional If x509 authentication is in use, the Distinguished
 #              Name of the client.
@@ -655,8 +693,8 @@
 # Since: 0.14.0
 ##
 { 'type': 'VncClientInfo',
-  'data': {'host': 'str', 'family': 'str', 'service': 'str',
-           '*x509_dname': 'str', '*sasl_username': 'str'} }
+  'base': 'VncBasicInfo',
+  'data': { '*x509_dname'   : 'str', '*sasl_username': 'str' } }
 
 ##
 # @VncInfo:
@@ -695,7 +733,8 @@
 # Since: 0.14.0
 ##
 { 'type': 'VncInfo',
-  'data': {'enabled': 'bool', '*host': 'str', '*family': 'str',
+  'data': {'enabled': 'bool', '*host': 'str',
+           '*family': 'NetworkAddressFamily',
            '*service': 'str', '*auth': 'str', '*clients': ['VncClientInfo']} }
 
 ##
@@ -710,19 +749,40 @@
 { 'command': 'query-vnc', 'returns': 'VncInfo' }
 
 ##
+# @SpiceBasicInfo
+#
+# The basic information for SPICE network connection
+#
+# @host: IP address
+#
+# @port: port number
+#
+# @family: address family
+#
+# Since: 2.1
+##
+{ 'type': 'SpiceBasicInfo',
+  'data': { 'host': 'str',
+            'port': 'str',
+            'family': 'NetworkAddressFamily' } }
+
+##
+# @SpiceServerInfo
+#
+# Information about a SPICE server
+#
+# @auth: #optional, authentication method
+#
+# Since: 2.1
+##
+{ 'type': 'SpiceServerInfo',
+  'base': 'SpiceBasicInfo',
+  'data': { '*auth': 'str' } }
+
+##
 # @SpiceChannel
 #
 # Information about a SPICE client channel.
-#
-# @host: The host name of the client.  QEMU tries to resolve this to a DNS name
-#        when possible.
-#
-# @family: 'ipv6' if the client is connected via IPv6 and TCP
-#          'ipv4' if the client is connected via IPv4 and TCP
-#          'unix' if the client is connected via a unix domain socket
-#          'unknown' otherwise
-#
-# @port: The client's port number.
 #
 # @connection-id: SPICE connection id number.  All channels with the same id
 #                 belong to the same SPICE session.
@@ -740,8 +800,8 @@
 # Since: 0.14.0
 ##
 { 'type': 'SpiceChannel',
-  'data': {'host': 'str', 'family': 'str', 'port': 'str',
-           'connection-id': 'int', 'channel-type': 'int', 'channel-id': 'int',
+  'base': 'SpiceBasicInfo',
+  'data': {'connection-id': 'int', 'channel-type': 'int', 'channel-id': 'int',
            'tls': 'bool'} }
 
 ##

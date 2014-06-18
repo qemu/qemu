@@ -391,15 +391,16 @@ static SpiceChannelList *qmp_query_spice_channels(void)
 
         chan = g_malloc0(sizeof(*chan));
         chan->value = g_malloc0(sizeof(*chan->value));
+        chan->value->base = g_malloc0(sizeof(*chan->value->base));
 
         paddr = (struct sockaddr *)&item->info->paddr_ext;
         plen = item->info->plen_ext;
         getnameinfo(paddr, plen,
                     host, sizeof(host), port, sizeof(port),
                     NI_NUMERICHOST | NI_NUMERICSERV);
-        chan->value->host = g_strdup(host);
-        chan->value->port = g_strdup(port);
-        chan->value->family = g_strdup(inet_strfamily(paddr->sa_family));
+        chan->value->base->host = g_strdup(host);
+        chan->value->base->port = g_strdup(port);
+        chan->value->base->family = inet_netfamily(paddr->sa_family);
 
         chan->value->connection_id = item->info->connection_id;
         chan->value->channel_type = item->info->type;

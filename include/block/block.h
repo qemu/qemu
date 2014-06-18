@@ -150,10 +150,6 @@ typedef enum {
 #define BDRV_BLOCK_ALLOCATED    0x10
 #define BDRV_BLOCK_OFFSET_MASK  BDRV_SECTOR_MASK
 
-typedef enum {
-    BDRV_ACTION_REPORT, BDRV_ACTION_IGNORE, BDRV_ACTION_STOP
-} BlockErrorAction;
-
 typedef QSIMPLEQ_HEAD(BlockReopenQueue, BlockReopenQueueEntry) BlockReopenQueue;
 
 typedef struct BDRVReopenState {

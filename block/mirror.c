@@ -118,7 +118,7 @@ static void mirror_write_complete(void *opaque, int ret)
 
         bdrv_set_dirty(source, op->sector_num, op->nb_sectors);
         action = mirror_error_action(s, false, -ret);
-        if (action == BDRV_ACTION_REPORT && s->ret >= 0) {
+        if (action == BLOCK_ERROR_ACTION_REPORT && s->ret >= 0) {
             s->ret = ret;
         }
     }
@@ -135,7 +135,7 @@ static void mirror_read_complete(void *opaque, int ret)
 
         bdrv_set_dirty(source, op->sector_num, op->nb_sectors);
         action = mirror_error_action(s, true, -ret);
-        if (action == BDRV_ACTION_REPORT && s->ret >= 0) {
+        if (action == BLOCK_ERROR_ACTION_REPORT && s->ret >= 0) {
             s->ret = ret;
         }
 
@@ -415,7 +415,8 @@ static void coroutine_fn mirror_run(void *opaque)
             trace_mirror_before_flush(s);
             ret = bdrv_flush(s->target);
             if (ret < 0) {
-                if (mirror_error_action(s, false, -ret) == BDRV_ACTION_REPORT) {
+                if (mirror_error_action(s, false, -ret) ==
+                    BLOCK_ERROR_ACTION_REPORT) {
                     goto immediate_exit;
                 }
             } else {

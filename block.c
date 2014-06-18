@@ -2140,13 +2140,13 @@ void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
     const char *action_str;
 
     switch (action) {
-    case BDRV_ACTION_REPORT:
+    case BLOCK_ERROR_ACTION_REPORT:
         action_str = "report";
         break;
-    case BDRV_ACTION_IGNORE:
+    case BLOCK_ERROR_ACTION_IGNORE:
         action_str = "ignore";
         break;
-    case BDRV_ACTION_STOP:
+    case BLOCK_ERROR_ACTION_STOP:
         action_str = "stop";
         break;
     default:
@@ -3606,13 +3606,14 @@ BlockErrorAction bdrv_get_error_action(BlockDriverState *bs, bool is_read, int e
 
     switch (on_err) {
     case BLOCKDEV_ON_ERROR_ENOSPC:
-        return (error == ENOSPC) ? BDRV_ACTION_STOP : BDRV_ACTION_REPORT;
+        return (error == ENOSPC) ?
+               BLOCK_ERROR_ACTION_STOP : BLOCK_ERROR_ACTION_REPORT;
     case BLOCKDEV_ON_ERROR_STOP:
-        return BDRV_ACTION_STOP;
+        return BLOCK_ERROR_ACTION_STOP;
     case BLOCKDEV_ON_ERROR_REPORT:
-        return BDRV_ACTION_REPORT;
+        return BLOCK_ERROR_ACTION_REPORT;
     case BLOCKDEV_ON_ERROR_IGNORE:
-        return BDRV_ACTION_IGNORE;
+        return BLOCK_ERROR_ACTION_IGNORE;
     default:
         abort();
     }
@@ -3627,7 +3628,7 @@ void bdrv_error_action(BlockDriverState *bs, BlockErrorAction action,
 {
     assert(error >= 0);
 
-    if (action == BDRV_ACTION_STOP) {
+    if (action == BLOCK_ERROR_ACTION_STOP) {
         /* First set the iostatus, so that "info block" returns an iostatus
          * that matches the events raised so far (an additional error iostatus
          * is fine, but not a lost one).

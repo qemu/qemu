@@ -321,9 +321,10 @@ static VncClientInfo *qmp_query_vnc_client(const VncState *client)
     }
 
     info = g_malloc0(sizeof(*info));
-    info->host = g_strdup(host);
-    info->service = g_strdup(serv);
-    info->family = g_strdup(inet_strfamily(sa.ss_family));
+    info->base = g_malloc0(sizeof(*info->base));
+    info->base->host = g_strdup(host);
+    info->base->service = g_strdup(serv);
+    info->base->family = inet_netfamily(sa.ss_family);
 
 #ifdef CONFIG_VNC_TLS
     if (client->tls.session && client->tls.dname) {
@@ -398,7 +399,7 @@ VncInfo *qmp_query_vnc(Error **errp)
         info->service = g_strdup(serv);
 
         info->has_family = true;
-        info->family = g_strdup(inet_strfamily(sa.ss_family));
+        info->family = inet_netfamily(sa.ss_family);
 
         info->has_auth = true;
         info->auth = g_strdup(vnc_auth_name(vnc_display));
