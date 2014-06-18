@@ -347,7 +347,7 @@ void qtest_clock_warp(int64_t dest)
     assert(qtest_enabled());
     while (clock < dest) {
         int64_t deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
-        int64_t warp = MIN(dest - clock, deadline);
+        int64_t warp = qemu_soonest_timeout(dest - clock, deadline);
         seqlock_write_lock(&timers_state.vm_clock_seqlock);
         qemu_icount_bias += warp;
         seqlock_write_unlock(&timers_state.vm_clock_seqlock);

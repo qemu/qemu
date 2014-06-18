@@ -54,6 +54,7 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length);
 /* This should not be used by devices.  */
 MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr);
 void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev);
+void qemu_ram_unset_idstr(ram_addr_t addr);
 
 void cpu_physical_memory_rw(hwaddr addr, uint8_t *buf,
                             int len, int is_write);

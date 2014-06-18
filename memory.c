@@ -28,6 +28,7 @@
 
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
+static bool ioeventfd_update_pending;
 static bool global_dirty_log = false;
 
 /* flat_view_mutex is taken around reading as->current_map; the critical
@@ -484,8 +485,8 @@ static AddressSpace *memory_region_to_address_space(MemoryRegion *mr)
 {
     AddressSpace *as;
 
-    while (mr->parent) {
-        mr = mr->parent;
+    while (mr->container) {
+        mr = mr->container;
     }
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
         if (mr == as->root) {
@@ -786,22 +787,34 @@ void memory_region_transaction_begin(void)
     ++memory_region_transaction_depth;
 }
 
+static void memory_region_clear_pending(void)
+{
+    memory_region_update_pending = false;
+    ioeventfd_update_pending = false;
+}
+
 void memory_region_transaction_commit(void)
 {
     AddressSpace *as;
 
     assert(memory_region_transaction_depth);
     --memory_region_transaction_depth;
-    if (!memory_region_transaction_depth && memory_region_update_pending) {
-        memory_region_update_pending = false;
-        MEMORY_LISTENER_CALL_GLOBAL(begin, Forward);
+    if (!memory_region_transaction_depth) {
+        if (memory_region_update_pending) {
+            MEMORY_LISTENER_CALL_GLOBAL(begin, Forward);
 
-        QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-            address_space_update_topology(as);
+            QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
+                address_space_update_topology(as);
+            }
+
+            MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
+        } else if (ioeventfd_update_pending) {
+            QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
+                address_space_update_ioeventfds(as);
+            }
         }
-
-        MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
-    }
+        memory_region_clear_pending();
+   }
 }
 
 static void memory_region_destructor_none(MemoryRegion *mr)
@@ -837,7 +850,7 @@ void memory_region_init(MemoryRegion *mr,
     mr->opaque = NULL;
     mr->owner = owner;
     mr->iommu_ops = NULL;
-    mr->parent = NULL;
+    mr->container = NULL;
     mr->size = int128_make64(size);
     if (size == UINT64_MAX) {
         mr->size = int128_2_64();
@@ -1319,6 +1332,7 @@ void memory_region_add_coalescing(MemoryRegion *mr,
 void memory_region_clear_coalescing(MemoryRegion *mr)
 {
     CoalescedMemoryRange *cmr;
+    bool updated = false;
 
     qemu_flush_coalesced_mmio_buffer();
     mr->flush_coalesced_mmio = false;
@@ -1327,8 +1341,12 @@ void memory_region_clear_coalescing(MemoryRegion *mr)
         cmr = QTAILQ_FIRST(&mr->coalesced);
         QTAILQ_REMOVE(&mr->coalesced, cmr, link);
         g_free(cmr);
+        updated = true;
     }
-    memory_region_update_coalesced_range(mr);
+
+    if (updated) {
+        memory_region_update_coalesced_range(mr);
+    }
 }
 
 void memory_region_set_flush_coalesced(MemoryRegion *mr)
@@ -1373,7 +1391,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
     memmove(&mr->ioeventfds[i+1], &mr->ioeventfds[i],
             sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb-1 - i));
     mr->ioeventfds[i] = mrfd;
-    memory_region_update_pending |= mr->enabled;
+    ioeventfd_update_pending |= mr->enabled;
     memory_region_transaction_commit();
 }
 
@@ -1406,22 +1424,19 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     --mr->ioeventfd_nb;
     mr->ioeventfds = g_realloc(mr->ioeventfds,
                                   sizeof(*mr->ioeventfds)*mr->ioeventfd_nb + 1);
-    memory_region_update_pending |= mr->enabled;
+    ioeventfd_update_pending |= mr->enabled;
     memory_region_transaction_commit();
 }
 
-static void memory_region_add_subregion_common(MemoryRegion *mr,
-                                               hwaddr offset,
-                                               MemoryRegion *subregion)
+static void memory_region_update_container_subregions(MemoryRegion *subregion)
 {
+    hwaddr offset = subregion->addr;
+    MemoryRegion *mr = subregion->container;
     MemoryRegion *other;
 
     memory_region_transaction_begin();
 
-    assert(!subregion->parent);
     memory_region_ref(subregion);
-    subregion->parent = mr;
-    subregion->addr = offset;
     QTAILQ_FOREACH(other, &mr->subregions, subregions_link) {
         if (subregion->may_overlap || other->may_overlap) {
             continue;
@@ -1455,6 +1470,15 @@ done:
     memory_region_transaction_commit();
 }
 
+static void memory_region_add_subregion_common(MemoryRegion *mr,
+                                               hwaddr offset,
+                                               MemoryRegion *subregion)
+{
+    assert(!subregion->container);
+    subregion->container = mr;
+    subregion->addr = offset;
+    memory_region_update_container_subregions(subregion);
+}
 
 void memory_region_add_subregion(MemoryRegion *mr,
                                  hwaddr offset,
@@ -1479,8 +1503,8 @@ void memory_region_del_subregion(MemoryRegion *mr,
                                  MemoryRegion *subregion)
 {
     memory_region_transaction_begin();
-    assert(subregion->parent == mr);
-    subregion->parent = NULL;
+    assert(subregion->container == mr);
+    subregion->container = NULL;
     QTAILQ_REMOVE(&mr->subregions, subregion, subregions_link);
     memory_region_unref(subregion);
     memory_region_update_pending |= mr->enabled && subregion->enabled;
@@ -1498,27 +1522,27 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled)
     memory_region_transaction_commit();
 }
 
+static void memory_region_readd_subregion(MemoryRegion *mr)
+{
+    MemoryRegion *container = mr->container;
+
+    if (container) {
+        memory_region_transaction_begin();
+        memory_region_ref(mr);
+        memory_region_del_subregion(container, mr);
+        mr->container = container;
+        memory_region_update_container_subregions(mr);
+        memory_region_unref(mr);
+        memory_region_transaction_commit();
+    }
+}
+
 void memory_region_set_address(MemoryRegion *mr, hwaddr addr)
 {
-    MemoryRegion *parent = mr->parent;
-    int priority = mr->priority;
-    bool may_overlap = mr->may_overlap;
-
-    if (addr == mr->addr || !parent) {
+    if (addr != mr->addr) {
         mr->addr = addr;
-        return;
+        memory_region_readd_subregion(mr);
     }
-
-    memory_region_transaction_begin();
-    memory_region_ref(mr);
-    memory_region_del_subregion(parent, mr);
-    if (may_overlap) {
-        memory_region_add_subregion_overlap(parent, addr, mr, priority);
-    } else {
-        memory_region_add_subregion(parent, addr, mr);
-    }
-    memory_region_unref(mr);
-    memory_region_transaction_commit();
 }
 
 void memory_region_set_alias_offset(MemoryRegion *mr, hwaddr offset)
@@ -1559,10 +1583,10 @@ static FlatRange *flatview_lookup(FlatView *view, AddrRange addr)
                    sizeof(FlatRange), cmp_flatrange_addr);
 }
 
-bool memory_region_present(MemoryRegion *parent, hwaddr addr)
+bool memory_region_present(MemoryRegion *container, hwaddr addr)
 {
-    MemoryRegion *mr = memory_region_find(parent, addr, 1).mr;
-    if (!mr || (mr == parent)) {
+    MemoryRegion *mr = memory_region_find(container, addr, 1).mr;
+    if (!mr || (mr == container)) {
         return false;
     }
     memory_region_unref(mr);
@@ -1580,8 +1604,8 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
     FlatRange *fr;
 
     addr += mr->addr;
-    for (root = mr; root->parent; ) {
-        root = root->parent;
+    for (root = mr; root->container; ) {
+        root = root->container;
         addr += root->addr;
     }
 

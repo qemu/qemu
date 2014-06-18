@@ -1201,17 +1201,24 @@ static void qemu_ram_setup_dump(void *addr, ram_addr_t size)
     }
 }
 
-void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
+static RAMBlock *find_ram_block(ram_addr_t addr)
 {
-    RAMBlock *new_block, *block;
+    RAMBlock *block;
 
-    new_block = NULL;
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         if (block->offset == addr) {
-            new_block = block;
-            break;
+            return block;
         }
     }
+
+    return NULL;
+}
+
+void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
+{
+    RAMBlock *new_block = find_ram_block(addr);
+    RAMBlock *block;
+
     assert(new_block);
     assert(!new_block->idstr[0]);
 
@@ -1234,6 +1241,15 @@ void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
         }
     }
     qemu_mutex_unlock_ramlist();
+}
+
+void qemu_ram_unset_idstr(ram_addr_t addr)
+{
+    RAMBlock *block = find_ram_block(addr);
+
+    if (block) {
+        memset(block->idstr, 0, sizeof(block->idstr));
+    }
 }
 
 static int memory_try_enable_merging(void *addr, size_t len)
@@ -1760,10 +1776,12 @@ static subpage_t *subpage_init(AddressSpace *as, hwaddr base)
     return mmio;
 }
 
-static uint16_t dummy_section(PhysPageMap *map, MemoryRegion *mr)
+static uint16_t dummy_section(PhysPageMap *map, AddressSpace *as,
+                              MemoryRegion *mr)
 {
+    assert(as);
     MemoryRegionSection section = {
-        .address_space = &address_space_memory,
+        .address_space = as,
         .mr = mr,
         .offset_within_address_space = 0,
         .offset_within_region = 0,
@@ -1795,13 +1813,13 @@ static void mem_begin(MemoryListener *listener)
     AddressSpaceDispatch *d = g_new0(AddressSpaceDispatch, 1);
     uint16_t n;
 
-    n = dummy_section(&d->map, &io_mem_unassigned);
+    n = dummy_section(&d->map, as, &io_mem_unassigned);
     assert(n == PHYS_SECTION_UNASSIGNED);
-    n = dummy_section(&d->map, &io_mem_notdirty);
+    n = dummy_section(&d->map, as, &io_mem_notdirty);
     assert(n == PHYS_SECTION_NOTDIRTY);
-    n = dummy_section(&d->map, &io_mem_rom);
+    n = dummy_section(&d->map, as, &io_mem_rom);
     assert(n == PHYS_SECTION_ROM);
-    n = dummy_section(&d->map, &io_mem_watch);
+    n = dummy_section(&d->map, as, &io_mem_watch);
     assert(n == PHYS_SECTION_WATCH);
 
     d->phys_map  = (PhysPageEntry) { .ptr = PHYS_MAP_NODE_NIL, .skip = 1 };

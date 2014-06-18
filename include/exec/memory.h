@@ -135,7 +135,7 @@ struct MemoryRegion {
     const MemoryRegionIOMMUOps *iommu_ops;
     void *opaque;
     struct Object *owner;
-    MemoryRegion *parent;
+    MemoryRegion *container;
     Int128 size;
     hwaddr addr;
     void (*destructor)(MemoryRegion *mr);
@@ -815,11 +815,11 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled);
 /*
  * memory_region_set_address: dynamically update the address of a region
  *
- * Dynamically updates the address of a region, relative to its parent.
+ * Dynamically updates the address of a region, relative to its container.
  * May be used on regions are currently part of a memory hierarchy.
  *
  * @mr: the region to be updated
- * @addr: new address, relative to parent region
+ * @addr: new address, relative to container region
  */
 void memory_region_set_address(MemoryRegion *mr, hwaddr addr);
 
@@ -836,16 +836,16 @@ void memory_region_set_alias_offset(MemoryRegion *mr,
                                     hwaddr offset);
 
 /**
- * memory_region_present: checks if an address relative to a @parent
- * translates into #MemoryRegion within @parent
+ * memory_region_present: checks if an address relative to a @container
+ * translates into #MemoryRegion within @container
  *
- * Answer whether a #MemoryRegion within @parent covers the address
+ * Answer whether a #MemoryRegion within @container covers the address
  * @addr.
  *
- * @parent: a #MemoryRegion within which @addr is a relative address
- * @addr: the area within @parent to be searched
+ * @container: a #MemoryRegion within which @addr is a relative address
+ * @addr: the area within @container to be searched
  */
-bool memory_region_present(MemoryRegion *parent, hwaddr addr);
+bool memory_region_present(MemoryRegion *container, hwaddr addr);
 
 /**
  * memory_region_find: translate an address/size relative to a
@@ -866,7 +866,7 @@ bool memory_region_present(MemoryRegion *parent, hwaddr addr);
  * Similarly, the .@offset_within_address_space is relative to the
  * address space that contains both regions, the passed and the
  * returned one.  However, in the special case where the @mr argument
- * has no parent (and thus is the root of the address space), the
+ * has no container (and thus is the root of the address space), the
  * following will hold:
  *    .@offset_within_address_space >= @addr
  *    .@offset_within_address_space + .@size <= @addr + @size
