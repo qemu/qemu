@@ -48,11 +48,10 @@ static void parse_str(StringInputVisitor *siv, Error **errp)
         return;
     }
 
-    errno = 0;
     do {
+        errno = 0;
         start = strtoll(str, &endptr, 0);
-        if (errno == 0 && endptr > str && INT64_MIN <= start &&
-            start <= INT64_MAX) {
+        if (errno == 0 && endptr > str) {
             if (*endptr == '\0') {
                 cur = g_malloc0(sizeof(*cur));
                 cur->begin = start;
@@ -63,9 +62,9 @@ static void parse_str(StringInputVisitor *siv, Error **errp)
                 str = NULL;
             } else if (*endptr == '-') {
                 str = endptr + 1;
+                errno = 0;
                 end = strtoll(str, &endptr, 0);
-                if (errno == 0 && endptr > str &&
-                    INT64_MIN <= end && end <= INT64_MAX && start <= end &&
+                if (errno == 0 && endptr > str && start <= end &&
                     (start > INT64_MAX - 65536 ||
                      end < start + 65536)) {
                     if (*endptr == '\0') {
