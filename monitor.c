@@ -71,6 +71,8 @@
 #include "hmp.h"
 #include "qemu/thread.h"
 #include "block/qapi.h"
+#include "qapi/qmp-event.h"
+#include "qapi-event.h"
 
 /* for pic/irq_info */
 #if defined(TARGET_SPARC)
@@ -186,6 +188,14 @@ typedef struct MonitorEventState {
     QEMUTimer *timer;   /* Timer for handling delayed events */
     QObject *data;      /* Event pending delayed dispatch */
 } MonitorEventState;
+
+typedef struct MonitorQAPIEventState {
+    QAPIEvent event;    /* Event being tracked */
+    int64_t rate;       /* Minimum time (in ns) between two events */
+    int64_t last;       /* QEMU_CLOCK_REALTIME value at last emission */
+    QEMUTimer *timer;   /* Timer for handling delayed events */
+    QObject *data;      /* Event pending delayed dispatch */
+} MonitorQAPIEventState;
 
 struct Monitor {
     CharDriverState *chr;
@@ -492,6 +502,121 @@ static const char *monitor_event_names[] = {
 QEMU_BUILD_BUG_ON(ARRAY_SIZE(monitor_event_names) != QEVENT_MAX)
 
 static MonitorEventState monitor_event_state[QEVENT_MAX];
+static MonitorQAPIEventState monitor_qapi_event_state[QAPI_EVENT_MAX];
+
+/*
+ * Emits the event to every monitor instance, @event is only used for trace
+ */
+static void monitor_qapi_event_emit(QAPIEvent event, QObject *data)
+{
+    Monitor *mon;
+
+    trace_monitor_protocol_event_emit(event, data);
+    QLIST_FOREACH(mon, &mon_list, entry) {
+        if (monitor_ctrl_mode(mon) && qmp_cmd_mode(mon)) {
+            monitor_json_emitter(mon, data);
+        }
+    }
+}
+
+/*
+ * Queue a new event for emission to Monitor instances,
+ * applying any rate limiting if required.
+ */
+static void
+monitor_qapi_event_queue(QAPIEvent event, QDict *data, Error **errp)
+{
+    MonitorQAPIEventState *evstate;
+    assert(event < QAPI_EVENT_MAX);
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+
+    evstate = &(monitor_qapi_event_state[event]);
+    trace_monitor_protocol_event_queue(event,
+                                       data,
+                                       evstate->rate,
+                                       evstate->last,
+                                       now);
+
+    /* Rate limit of 0 indicates no throttling */
+    if (!evstate->rate) {
+        monitor_qapi_event_emit(event, QOBJECT(data));
+        evstate->last = now;
+    } else {
+        int64_t delta = now - evstate->last;
+        if (evstate->data ||
+            delta < evstate->rate) {
+            /* If there's an existing event pending, replace
+             * it with the new event, otherwise schedule a
+             * timer for delayed emission
+             */
+            if (evstate->data) {
+                qobject_decref(evstate->data);
+            } else {
+                int64_t then = evstate->last + evstate->rate;
+                timer_mod_ns(evstate->timer, then);
+            }
+            evstate->data = QOBJECT(data);
+            qobject_incref(evstate->data);
+        } else {
+            monitor_qapi_event_emit(event, QOBJECT(data));
+            evstate->last = now;
+        }
+    }
+}
+
+/*
+ * The callback invoked by QemuTimer when a delayed
+ * event is ready to be emitted
+ */
+static void monitor_qapi_event_handler(void *opaque)
+{
+    MonitorQAPIEventState *evstate = opaque;
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+
+    trace_monitor_protocol_event_handler(evstate->event,
+                                         evstate->data,
+                                         evstate->last,
+                                         now);
+    if (evstate->data) {
+        monitor_qapi_event_emit(evstate->event, evstate->data);
+        qobject_decref(evstate->data);
+        evstate->data = NULL;
+    }
+    evstate->last = now;
+}
+
+/*
+ * @event: the event ID to be limited
+ * @rate: the rate limit in milliseconds
+ *
+ * Sets a rate limit on a particular event, so no
+ * more than 1 event will be emitted within @rate
+ * milliseconds
+ */
+static void __attribute__((__unused__))
+monitor_qapi_event_throttle(QAPIEvent event, int64_t rate)
+{
+    MonitorQAPIEventState *evstate;
+    assert(event < QAPI_EVENT_MAX);
+
+    evstate = &(monitor_qapi_event_state[event]);
+
+    trace_monitor_protocol_event_throttle(event, rate);
+    evstate->event = event;
+    evstate->rate = rate * SCALE_MS;
+    evstate->last = 0;
+    evstate->data = NULL;
+    evstate->timer = timer_new(QEMU_CLOCK_REALTIME,
+                               SCALE_MS,
+                               monitor_qapi_event_handler,
+                               evstate);
+}
+
+static void monitor_qapi_event_init(void)
+{
+    qmp_event_set_func_emit(monitor_qapi_event_queue);
+}
+
 
 /*
  * Emits the event to every monitor instance
@@ -589,7 +714,7 @@ static void monitor_protocol_event_handler(void *opaque)
  * more than 1 event will be emitted within @rate
  * milliseconds
  */
-static void
+static void __attribute__((__unused__))
 monitor_protocol_event_throttle(MonitorEvent event,
                                 int64_t rate)
 {
@@ -5358,6 +5483,7 @@ void monitor_init(CharDriverState *chr, int flags)
 
     if (is_first_init) {
         monitor_protocol_event_init();
+        monitor_qapi_event_init();
         sortcmdlist();
         is_first_init = 0;
     }
