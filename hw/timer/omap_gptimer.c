@@ -227,7 +227,7 @@ static void omap_gp_timer_clk_update(void *opaque, int line, int on)
 static void omap_gp_timer_clk_setup(struct omap_gp_timer_s *timer)
 {
     omap_clk_adduser(timer->clk,
-                    qemu_allocate_irqs(omap_gp_timer_clk_update, timer, 1)[0]);
+                     qemu_allocate_irq(omap_gp_timer_clk_update, timer, 0));
     timer->rate = omap_clk_getrate(timer->clk);
 }
 
@@ -476,7 +476,7 @@ struct omap_gp_timer_s *omap_gp_timer_init(struct omap_target_agent_s *ta,
     s->clk = fclk;
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, omap_gp_timer_tick, s);
     s->match = timer_new_ns(QEMU_CLOCK_VIRTUAL, omap_gp_timer_match, s);
-    s->in = qemu_allocate_irqs(omap_gp_timer_input, s, 1)[0];
+    s->in = qemu_allocate_irq(omap_gp_timer_input, s, 0);
     omap_gp_timer_reset(s);
     omap_gp_timer_clk_setup(s);
 
