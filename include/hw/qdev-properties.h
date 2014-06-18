@@ -193,6 +193,8 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
  */
 void qdev_property_add_static(DeviceState *dev, Property *prop, Error **errp);
 
+void qdev_alias_all_properties(DeviceState *target, Object *source);
+
 /**
  * @qdev_prop_set_after_realize:
  * @dev: device
