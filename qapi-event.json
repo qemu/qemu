@@ -29,3 +29,12 @@
 # Since: 0.12.0
 ##
 { 'event': 'RESET' }
+
+##
+# @STOP
+#
+# Emitted when the virtual machine is stopped
+#
+# Since: 0.12.0
+##
+{ 'event': 'STOP' }

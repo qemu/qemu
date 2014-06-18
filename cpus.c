@@ -26,6 +26,7 @@
 #include "config-host.h"
 
 #include "monitor/monitor.h"
+#include "qapi/qmp/qerror.h"
 #include "sysemu/sysemu.h"
 #include "exec/gdbstub.h"
 #include "sysemu/dma.h"
@@ -38,6 +39,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/bitmap.h"
 #include "qemu/seqlock.h"
+#include "qapi-event.h"
 
 #ifndef _WIN32
 #include "qemu/compatfd.h"
@@ -530,7 +532,7 @@ static int do_vm_stop(RunState state)
         pause_all_vcpus();
         runstate_set(state);
         vm_state_notify(0, state);
-        monitor_protocol_event(QEVENT_STOP, NULL);
+        qapi_event_send_stop(&error_abort);
     }
 
     bdrv_drain_all();
