@@ -24,9 +24,9 @@
 #include "qemu/config-file.h"
 #include "qemu/queue.h"
 #include "qapi/qmp/types.h"
-#include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/watchdog.h"
+#include "qapi-event.h"
 
 /* Possible values for action parameter. */
 #define WDT_RESET        1	/* Hard reset. */
@@ -101,15 +101,6 @@ int select_watchdog_action(const char *p)
     return 0;
 }
 
-static void watchdog_mon_event(const char *action)
-{
-    QObject *data;
-
-    data = qobject_from_jsonf("{ 'action': %s }", action);
-    monitor_protocol_event(QEVENT_WATCHDOG, data);
-    qobject_decref(data);
-}
-
 /* This actually performs the "action" once a watchdog has expired,
  * ie. reboot, shutdown, exit, etc.
  */
@@ -117,31 +108,31 @@ void watchdog_perform_action(void)
 {
     switch(watchdog_action) {
     case WDT_RESET:             /* same as 'system_reset' in monitor */
-        watchdog_mon_event("reset");
+        qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_RESET, &error_abort);
         qemu_system_reset_request();
         break;
 
     case WDT_SHUTDOWN:          /* same as 'system_powerdown' in monitor */
-        watchdog_mon_event("shutdown");
+        qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_SHUTDOWN, &error_abort);
         qemu_system_powerdown_request();
         break;
 
     case WDT_POWEROFF:          /* same as 'quit' command in monitor */
-        watchdog_mon_event("poweroff");
+        qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_POWEROFF, &error_abort);
         exit(0);
 
     case WDT_PAUSE:             /* same as 'stop' command in monitor */
-        watchdog_mon_event("pause");
+        qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_PAUSE, &error_abort);
         vm_stop(RUN_STATE_WATCHDOG);
         break;
 
     case WDT_DEBUG:
-        watchdog_mon_event("debug");
+        qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_DEBUG, &error_abort);
         fprintf(stderr, "watchdog: timer fired\n");
         break;
 
     case WDT_NONE:
-        watchdog_mon_event("none");
+        qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_NONE, &error_abort);
         break;
     }
 }

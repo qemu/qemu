@@ -91,3 +91,18 @@
 ##
 { 'event': 'RTC_CHANGE',
   'data': { 'offset': 'int' } }
+
+##
+# @WATCHDOG
+#
+# Emitted when the watchdog device's timer is expired
+#
+# @action: action that has been taken
+#
+# Note: If action is "reset", "shutdown", or "pause" the WATCHDOG event is
+# followed respectively by the RESET, SHUTDOWN, or STOP events
+#
+# Since: 0.13.0
+##
+{ 'event': 'WATCHDOG',
+  'data': { 'action': 'WatchdogExpirationAction' } }

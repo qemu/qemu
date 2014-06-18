@@ -3347,4 +3347,28 @@
 ##
 { 'command': 'query-acpi-ospm-status', 'returns': ['ACPIOSTInfo'] }
 
+##
+# @WatchdogExpirationAction
+#
+# An enumeration of the actions taken when the watchdog device's timer is
+# expired
+#
+# @reset: system resets
+#
+# @shutdown: system shutdown, note that it is similar to @powerdown, which
+#            tries to set to system status and notify guest
+#
+# @poweroff: system poweroff, the emulator program exits
+#
+# @pause: system pauses, similar to @stop
+#
+# @debug: system enters debug state
+#
+# @none: nothing is done
+#
+# Since: 2.1
+##
+{ 'enum': 'WatchdogExpirationAction',
+  'data': [ 'reset', 'shutdown', 'poweroff', 'pause', 'debug', 'none' ] }
+
 { 'include': 'qapi-event.json' }

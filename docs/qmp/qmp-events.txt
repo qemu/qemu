@@ -425,22 +425,3 @@ Example:
         "client": { "family": "ipv4", "service": "46089",
                     "host": "127.0.0.1", "sasl_username": "luiz" } },
         "timestamp": { "seconds": 1263475302, "microseconds": 150772 } }
-
-WATCHDOG
---------
-
-Emitted when the watchdog device's timer is expired.
-
-Data:
-
-- "action": Action that has been taken, it's one of the following (json-string):
-            "reset", "shutdown", "poweroff", "pause", "debug", or "none"
-
-Example:
-
-{ "event": "WATCHDOG",
-     "data": { "action": "reset" },
-     "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
-
-Note: If action is "reset", "shutdown", or "pause" the WATCHDOG event is
-followed respectively by the RESET, SHUTDOWN, or STOP events.
