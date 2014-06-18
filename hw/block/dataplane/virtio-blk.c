@@ -127,10 +127,20 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     VirtIOBlockDataPlane *s;
     VirtIOBlock *vblk = VIRTIO_BLK(vdev);
     Error *local_err = NULL;
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
     *dataplane = NULL;
 
     if (!blk->data_plane) {
+        return;
+    }
+
+    /* Don't try if transport does not support notifiers. */
+    if (!k->set_guest_notifiers || !k->set_host_notifier) {
+        error_setg(errp,
+                   "device is incompatible with x-data-plane "
+                   "(transport does not support notifiers)");
         return;
     }
 
