@@ -35,6 +35,7 @@
 #include "qmp-commands.h"
 #include "qemu/osdep.h"
 #include "ui/input.h"
+#include "qapi-event.h"
 
 #define VNC_REFRESH_INTERVAL_BASE GUI_REFRESH_INTERVAL_DEFAULT
 #define VNC_REFRESH_INTERVAL_INC  50
@@ -124,9 +125,10 @@ char *vnc_socket_remote_addr(const char *format, int fd) {
     return addr_to_string(format, &sa, salen);
 }
 
-static int put_addr_qdict(QDict *qdict, struct sockaddr_storage *sa,
-                          socklen_t salen)
+static VncBasicInfo *vnc_basic_info_get(struct sockaddr_storage *sa,
+                                        socklen_t salen)
 {
+    VncBasicInfo *info;
     char host[NI_MAXHOST];
     char serv[NI_MAXSERV];
     int err;
@@ -137,40 +139,40 @@ static int put_addr_qdict(QDict *qdict, struct sockaddr_storage *sa,
                            NI_NUMERICHOST | NI_NUMERICSERV)) != 0) {
         VNC_DEBUG("Cannot resolve address %d: %s\n",
                   err, gai_strerror(err));
-        return -1;
+        return NULL;
     }
 
-    qdict_put(qdict, "host", qstring_from_str(host));
-    qdict_put(qdict, "service", qstring_from_str(serv));
-    qdict_put(qdict, "family",qstring_from_str(inet_strfamily(sa->ss_family)));
-
-    return 0;
+    info = g_malloc0(sizeof(VncBasicInfo));
+    info->host = g_strdup(host);
+    info->service = g_strdup(serv);
+    info->family = inet_netfamily(sa->ss_family);
+    return info;
 }
 
-static int vnc_server_addr_put(QDict *qdict, int fd)
+static VncBasicInfo *vnc_basic_info_get_from_server_addr(int fd)
 {
     struct sockaddr_storage sa;
     socklen_t salen;
 
     salen = sizeof(sa);
     if (getsockname(fd, (struct sockaddr*)&sa, &salen) < 0) {
-        return -1;
+        return NULL;
     }
 
-    return put_addr_qdict(qdict, &sa, salen);
+    return vnc_basic_info_get(&sa, salen);
 }
 
-static int vnc_qdict_remote_addr(QDict *qdict, int fd)
+static VncBasicInfo *vnc_basic_info_get_from_remote_addr(int fd)
 {
     struct sockaddr_storage sa;
     socklen_t salen;
 
     salen = sizeof(sa);
     if (getpeername(fd, (struct sockaddr*)&sa, &salen) < 0) {
-        return -1;
+        return NULL;
     }
 
-    return put_addr_qdict(qdict, &sa, salen);
+    return vnc_basic_info_get(&sa, salen);
 }
 
 static const char *vnc_auth_name(VncDisplay *vd) {
@@ -224,81 +226,82 @@ static const char *vnc_auth_name(VncDisplay *vd) {
     return "unknown";
 }
 
-static int vnc_server_info_put(QDict *qdict)
+static VncServerInfo *vnc_server_info_get(void)
 {
-    if (vnc_server_addr_put(qdict, vnc_display->lsock) < 0) {
-        return -1;
+    VncServerInfo *info;
+    VncBasicInfo *bi = vnc_basic_info_get_from_server_addr(vnc_display->lsock);
+    if (!bi) {
+        return NULL;
     }
 
-    qdict_put(qdict, "auth", qstring_from_str(vnc_auth_name(vnc_display)));
-    return 0;
+    info = g_malloc(sizeof(*info));
+    info->base = bi;
+    info->has_auth = true;
+    info->auth = g_strdup(vnc_auth_name(vnc_display));
+    return info;
 }
 
 static void vnc_client_cache_auth(VncState *client)
 {
-#if defined(CONFIG_VNC_TLS) || defined(CONFIG_VNC_SASL)
-    QDict *qdict;
-#endif
-
     if (!client->info) {
         return;
     }
 
-#if defined(CONFIG_VNC_TLS) || defined(CONFIG_VNC_SASL)
-    qdict = qobject_to_qdict(client->info);
-#endif
-
 #ifdef CONFIG_VNC_TLS
     if (client->tls.session &&
         client->tls.dname) {
-        qdict_put(qdict, "x509_dname", qstring_from_str(client->tls.dname));
+        client->info->has_x509_dname = true;
+        client->info->x509_dname = g_strdup(client->tls.dname);
     }
 #endif
 #ifdef CONFIG_VNC_SASL
     if (client->sasl.conn &&
         client->sasl.username) {
-        qdict_put(qdict, "sasl_username",
-                  qstring_from_str(client->sasl.username));
+        client->info->has_sasl_username = true;
+        client->info->sasl_username = g_strdup(client->sasl.username);
     }
 #endif
 }
 
 static void vnc_client_cache_addr(VncState *client)
 {
-    QDict *qdict;
+    VncBasicInfo *bi = vnc_basic_info_get_from_remote_addr(client->csock);
 
-    qdict = qdict_new();
-    if (vnc_qdict_remote_addr(qdict, client->csock) < 0) {
-        QDECREF(qdict);
-        /* XXX: how to report the error? */
-        return;
+    if (bi) {
+        client->info = g_malloc0(sizeof(*client->info));
+        client->info->base = bi;
     }
-
-    client->info = QOBJECT(qdict);
 }
 
-static void vnc_qmp_event(VncState *vs, MonitorEvent event)
+static void vnc_qmp_event(VncState *vs, QAPIEvent event)
 {
-    QDict *server;
-    QObject *data;
+    VncServerInfo *si;
 
     if (!vs->info) {
         return;
     }
+    g_assert(vs->info->base);
 
-    server = qdict_new();
-    if (vnc_server_info_put(server) < 0) {
-        QDECREF(server);
+    si = vnc_server_info_get();
+    if (!si) {
         return;
     }
 
-    data = qobject_from_jsonf("{ 'client': %p, 'server': %p }",
-                              vs->info, QOBJECT(server));
+    switch (event) {
+    case QAPI_EVENT_VNC_CONNECTED:
+        qapi_event_send_vnc_connected(si, vs->info->base, &error_abort);
+        break;
+    case QAPI_EVENT_VNC_INITIALIZED:
+        qapi_event_send_vnc_initialized(si, vs->info, &error_abort);
+        break;
+    case QAPI_EVENT_VNC_DISCONNECTED:
+        qapi_event_send_vnc_disconnected(si, vs->info, &error_abort);
+        break;
+    default:
+        break;
+    }
 
-    monitor_protocol_event(event, data);
-
-    qobject_incref(vs->info);
-    qobject_decref(data);
+    qapi_free_VncServerInfo(si);
 }
 
 static VncClientInfo *qmp_query_vnc_client(const VncState *client)
@@ -1040,7 +1043,7 @@ void vnc_disconnect_finish(VncState *vs)
     vnc_jobs_join(vs); /* Wait encoding jobs */
 
     vnc_lock_output(vs);
-    vnc_qmp_event(vs, QEVENT_VNC_DISCONNECTED);
+    vnc_qmp_event(vs, QAPI_EVENT_VNC_DISCONNECTED);
 
     buffer_free(&vs->input);
     buffer_free(&vs->output);
@@ -1049,7 +1052,7 @@ void vnc_disconnect_finish(VncState *vs)
     buffer_free(&vs->ws_output);
 #endif /* CONFIG_VNC_WS */
 
-    qobject_decref(vs->info);
+    qapi_free_VncClientInfo(vs->info);
 
     vnc_zlib_clear(vs);
     vnc_tight_clear(vs);
@@ -2324,7 +2327,7 @@ static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
     vnc_flush(vs);
 
     vnc_client_cache_auth(vs);
-    vnc_qmp_event(vs, QEVENT_VNC_INITIALIZED);
+    vnc_qmp_event(vs, QAPI_EVENT_VNC_INITIALIZED);
 
     vnc_read_when(vs, protocol_client_msg, 1);
 
@@ -2847,7 +2850,7 @@ static void vnc_connect(VncDisplay *vd, int csock,
     }
 
     vnc_client_cache_addr(vs);
-    vnc_qmp_event(vs, QEVENT_VNC_CONNECTED);
+    vnc_qmp_event(vs, QAPI_EVENT_VNC_CONNECTED);
     vnc_set_share_mode(vs, VNC_SHARE_MODE_CONNECTING);
 
     vs->vd = vd;

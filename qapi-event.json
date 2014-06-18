@@ -137,3 +137,52 @@
 ##
 { 'event': 'NIC_RX_FILTER_CHANGED',
   'data': { '*name': 'str', 'path': 'str' } }
+
+##
+# @VNC_CONNECTED
+#
+# Emitted when a VNC client establishes a connection
+#
+# @server: server information
+#
+# @client: client information
+#
+# Note: This event is emitted before any authentication takes place, thus
+# the authentication ID is not provided
+#
+# Since: 0.13.0
+##
+{ 'event': 'VNC_CONNECTED',
+  'data': { 'server': 'VncServerInfo',
+            'client': 'VncBasicInfo' } }
+
+##
+# @VNC_INITIALIZED
+#
+# Emitted after authentication takes place (if any) and the VNC session is
+# made active
+#
+# @server: server information
+#
+# @client: client information
+#
+# Since: 0.13.0
+##
+{ 'event': 'VNC_INITIALIZED',
+  'data': { 'server': 'VncServerInfo',
+            'client': 'VncClientInfo' } }
+
+##
+# @VNC_DISCONNECTED
+#
+# Emitted when the connection is closed
+#
+# @server: server information
+#
+# @client: client information
+#
+# Since: 0.13.0
+##
+{ 'event': 'VNC_DISCONNECTED',
+  'data': { 'server': 'VncServerInfo',
+            'client': 'VncClientInfo' } }
