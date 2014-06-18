@@ -27,6 +27,8 @@ check-unit-y += tests/test-string-input-visitor$(EXESUF)
 gcov-files-test-string-input-visitor-y = qapi/string-input-visitor.c
 check-unit-y += tests/test-string-output-visitor$(EXESUF)
 gcov-files-test-string-output-visitor-y = qapi/string-output-visitor.c
+check-unit-y += tests/test-qmp-event$(EXESUF)
+gcov-files-test-qmp-event-y += qapi/qmp-event.c
 check-unit-y += tests/test-opts-visitor$(EXESUF)
 gcov-files-test-opts-visitor-y = qapi/opts-visitor.c
 check-unit-y += tests/test-coroutine$(EXESUF)
@@ -201,7 +203,8 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
         include-nested-err.json include-self-cycle.json include-cycle.json \
         include-repetition.json event-nest-struct.json)
 
-GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h tests/test-qmp-commands.h
+GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h \
+                     tests/test-qmp-commands.h tests/test-qapi-event.h
 
 test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 	tests/check-qlist.o tests/check-qfloat.o tests/check-qjson.o \
@@ -210,9 +213,10 @@ test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 	tests/test-qmp-input-visitor.o tests/test-qmp-input-strict.o \
 	tests/test-qmp-commands.o tests/test-visitor-serialization.o \
 	tests/test-x86-cpuid.o tests/test-mul64.o tests/test-int128.o \
-	tests/test-opts-visitor.o
+	tests/test-opts-visitor.o tests/test-qmp-event.o
 
-test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o
+test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o \
+                  tests/test-qapi-event.o
 
 $(test-obj-y): QEMU_INCLUDES += -Itests
 QEMU_CFLAGS += -I$(SRC_PATH)/tests
@@ -264,9 +268,15 @@ $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-com
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py \
 		$(gen-out-type) -o tests -p "test-" -i $<, \
 		"  GEN   $@")
+tests/test-qapi-event.c tests/test-qapi-event.h :\
+$(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-event.py
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-event.py \
+		$(gen-out-type) -o tests -p "test-" -i $<, \
+		"  GEN   $@")
 
 tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 tests/test-string-input-visitor$(EXESUF): tests/test-string-input-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
+tests/test-qmp-event$(EXESUF): tests/test-qmp-event.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 tests/test-qmp-output-visitor$(EXESUF): tests/test-qmp-output-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 tests/test-qmp-input-visitor$(EXESUF): tests/test-qmp-input-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 tests/test-qmp-input-strict$(EXESUF): tests/test-qmp-input-strict.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
