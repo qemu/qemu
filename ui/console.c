@@ -1224,22 +1224,18 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type,
     return s;
 }
 
-static void qemu_alloc_display(DisplaySurface *surface, int width, int height,
-                               int linesize, PixelFormat pf, int newflags)
+static void qemu_alloc_display(DisplaySurface *surface, int width, int height)
 {
-    surface->pf = pf;
-
     qemu_pixman_image_unref(surface->image);
     surface->image = NULL;
 
-    surface->format = qemu_pixman_get_format(&pf);
-    assert(surface->format != 0);
+    surface->format = PIXMAN_x8r8g8b8;
     surface->image = pixman_image_create_bits(surface->format,
                                               width, height,
-                                              NULL, linesize);
+                                              NULL, width * 4);
     assert(surface->image != NULL);
 
-    surface->flags = newflags | QEMU_ALLOCATED_FLAG;
+    surface->flags = QEMU_ALLOCATED_FLAG;
 #ifdef HOST_WORDS_BIGENDIAN
     surface->flags |= QEMU_BIG_ENDIAN_FLAG;
 #endif
@@ -1248,29 +1244,20 @@ static void qemu_alloc_display(DisplaySurface *surface, int width, int height,
 DisplaySurface *qemu_create_displaysurface(int width, int height)
 {
     DisplaySurface *surface = g_new0(DisplaySurface, 1);
-    int linesize = width * 4;
 
     trace_displaysurface_create(surface, width, height);
-    qemu_alloc_display(surface, width, height, linesize,
-                       qemu_default_pixelformat(32), 0);
+    qemu_alloc_display(surface, width, height);
     return surface;
 }
 
-DisplaySurface *qemu_create_displaysurface_from(int width, int height, int bpp,
-                                                int linesize, uint8_t *data,
-                                                bool byteswap)
+DisplaySurface *qemu_create_displaysurface_from(int width, int height,
+                                                pixman_format_code_t format,
+                                                int linesize, uint8_t *data)
 {
     DisplaySurface *surface = g_new0(DisplaySurface, 1);
 
-    trace_displaysurface_create_from(surface, width, height, bpp, byteswap);
-    if (byteswap) {
-        surface->pf = qemu_different_endianness_pixelformat(bpp);
-    } else {
-        surface->pf = qemu_default_pixelformat(bpp);
-    }
-
-    surface->format = qemu_pixman_get_format(&surface->pf);
-    assert(surface->format != 0);
+    trace_displaysurface_create_from(surface, width, height, format);
+    surface->format = format;
     surface->image = pixman_image_create_bits(surface->format,
                                               width, height,
                                               (void *)data, linesize);

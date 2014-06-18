@@ -116,13 +116,14 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
                qxl->guest_primary.bytes_pp,
                qxl->guest_primary.bits_pp);
         if (qxl->guest_primary.qxl_stride > 0) {
+            pixman_format_code_t format =
+                qemu_default_pixman_format(qxl->guest_primary.bits_pp, true);
             surface = qemu_create_displaysurface_from
                 (qxl->guest_primary.surface.width,
                  qxl->guest_primary.surface.height,
-                 qxl->guest_primary.bits_pp,
+                 format,
                  qxl->guest_primary.abs_stride,
-                 qxl->guest_primary.data,
-                 false);
+                 qxl->guest_primary.data);
         } else {
             surface = qemu_create_displaysurface
                 (qxl->guest_primary.surface.width,

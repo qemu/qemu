@@ -1689,9 +1689,11 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         height != s->last_height ||
         s->last_depth != depth) {
         if (depth == 32 || (depth == 16 && !byteswap)) {
+            pixman_format_code_t format =
+                qemu_default_pixman_format(depth, !byteswap);
             surface = qemu_create_displaysurface_from(disp_width,
-                    height, depth, s->line_offset,
-                    s->vram_ptr + (s->start_addr * 4), byteswap);
+                    height, format, s->line_offset,
+                    s->vram_ptr + (s->start_addr * 4));
             dpy_gfx_replace_surface(s->con, surface);
         } else {
             qemu_console_resize(s->con, disp_width, height);
@@ -1707,9 +1709,11 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     } else if (is_buffer_shared(surface) &&
                (full_update || surface_data(surface) != s->vram_ptr
                 + (s->start_addr * 4))) {
+        pixman_format_code_t format =
+            qemu_default_pixman_format(depth, !byteswap);
         surface = qemu_create_displaysurface_from(disp_width,
-                height, depth, s->line_offset,
-                s->vram_ptr + (s->start_addr * 4), byteswap);
+                height, format, s->line_offset,
+                s->vram_ptr + (s->start_addr * 4));
         dpy_gfx_replace_surface(s->con, surface);
     }
 

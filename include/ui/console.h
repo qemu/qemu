@@ -119,8 +119,6 @@ struct DisplaySurface {
     pixman_format_code_t format;
     pixman_image_t *image;
     uint8_t flags;
-
-    struct PixelFormat pf;
 };
 
 typedef struct QemuUIInfo {
@@ -188,9 +186,9 @@ struct DisplayChangeListener {
 };
 
 DisplayState *init_displaystate(void);
-DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
-                                                int linesize, uint8_t *data,
-                                                bool byteswap);
+DisplaySurface *qemu_create_displaysurface_from(int width, int height,
+                                                pixman_format_code_t format,
+                                                int linesize, uint8_t *data);
 PixelFormat qemu_different_endianness_pixelformat(int bpp);
 PixelFormat qemu_default_pixelformat(int bpp);
 
@@ -199,10 +197,12 @@ void qemu_free_displaysurface(DisplaySurface *surface);
 
 static inline int is_surface_bgr(DisplaySurface *surface)
 {
-    if (surface->pf.bits_per_pixel == 32 && surface->pf.rshift == 0)
+    if (PIXMAN_FORMAT_BPP(surface->format) == 32 &&
+        PIXMAN_FORMAT_TYPE(surface->format) == PIXMAN_TYPE_ABGR) {
         return 1;
-    else
+    } else {
         return 0;
+    }
 }
 
 static inline int is_buffer_shared(DisplaySurface *surface)
