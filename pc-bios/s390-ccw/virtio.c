@@ -240,7 +240,7 @@ unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
 {
     u8 status;
     int sec = rec_list1;
-    int sec_num = (((rec_list2 >> 32)+ 1) & 0xffff);
+    int sec_num = ((rec_list2 >> 32) & 0xffff) + 1;
     int sec_len = rec_list2 >> 48;
     ulong addr = (ulong)load_addr;
 
