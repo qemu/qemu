@@ -305,7 +305,9 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
                                       uint64_t size)
 {
     int i;
-    for (i = 0; i < dev->nvqs; ++i) {
+    int r = 0;
+
+    for (i = 0; !r && i < dev->nvqs; ++i) {
         struct vhost_virtqueue *vq = dev->vqs + i;
         hwaddr l;
         void *p;
@@ -317,15 +319,15 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
         p = cpu_physical_memory_map(vq->ring_phys, &l, 1);
         if (!p || l != vq->ring_size) {
             fprintf(stderr, "Unable to map ring buffer for ring %d\n", i);
-            return -ENOMEM;
+            r = -ENOMEM;
         }
         if (p != vq->ring) {
             fprintf(stderr, "Ring buffer relocated for ring %d\n", i);
-            return -EBUSY;
+            r = -EBUSY;
         }
         cpu_physical_memory_unmap(p, l, 0, 0);
     }
-    return 0;
+    return r;
 }
 
 static struct vhost_memory_region *vhost_dev_find_reg(struct vhost_dev *dev,
