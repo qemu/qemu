@@ -352,20 +352,6 @@ Example:
                       "channel-id": 0, "tls": true}
 }}
 
-SUSPEND_DISK
-------------
-
-Emitted when the guest makes a request to enter S4 state.
-
-Data: None.
-
-Example:
-
-{ "event": "SUSPEND_DISK",
-     "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
-
-Note: QEMU shuts down when entering S4 state.
-
 VNC_CONNECTED
 -------------
 

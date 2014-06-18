@@ -57,3 +57,15 @@
 # Since: 1.1
 ##
 { 'event': 'SUSPEND' }
+
+##
+# @SUSPEND_DISK
+#
+# Emitted when guest enters a hardware suspension state with data saved on
+# disk, for example, S4 state, which is sometimes called hibernate state
+#
+# Note: QEMU shuts down (similar to event @SHUTDOWN) when entering this state
+#
+# Since: 1.2
+##
+{ 'event': 'SUSPEND_DISK' }
