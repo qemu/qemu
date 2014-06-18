@@ -78,3 +78,16 @@
 # Since: 1.1
 ##
 { 'event': 'WAKEUP' }
+
+##
+# @RTC_CHANGE
+#
+# Emitted when the guest changes the RTC time.
+#
+# @offset: offset between base RTC clock (as specified by -rtc base), and
+#          new RTC clock value
+#
+# Since: 0.13.0
+##
+{ 'event': 'RTC_CHANGE',
+  'data': { 'offset': 'int' } }

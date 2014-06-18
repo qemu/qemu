@@ -614,6 +614,9 @@ monitor_qapi_event_throttle(QAPIEvent event, int64_t rate)
 
 static void monitor_qapi_event_init(void)
 {
+    /* Limit guest-triggerable events to 1 per second */
+    monitor_qapi_event_throttle(QAPI_EVENT_RTC_CHANGE, 1000);
+
     qmp_event_set_func_emit(monitor_qapi_event_queue);
 }
 
@@ -740,7 +743,6 @@ monitor_protocol_event_throttle(MonitorEvent event,
 static void monitor_protocol_event_init(void)
 {
     /* Limit RTC & BALLOON events to 1 per second */
-    monitor_protocol_event_throttle(QEVENT_RTC_CHANGE, 1000);
     monitor_protocol_event_throttle(QEVENT_BALLOON_CHANGE, 1000);
     monitor_protocol_event_throttle(QEVENT_WATCHDOG, 1000);
     /* limit the rate of quorum events to avoid hammering the management */

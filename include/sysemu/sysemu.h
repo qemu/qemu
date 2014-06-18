@@ -202,8 +202,6 @@ void do_usb_add(Monitor *mon, const QDict *qdict);
 void do_usb_del(Monitor *mon, const QDict *qdict);
 void usb_info(Monitor *mon, const QDict *qdict);
 
-void rtc_change_mon_event(struct tm *tm);
-
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
                           const char *suffix);
 char *get_boot_devices_list(size_t *size, bool ignore_suffixes);

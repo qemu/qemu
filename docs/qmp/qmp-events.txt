@@ -274,22 +274,6 @@ Example:
      "data": { "node-name": "1.raw", "sector-num": 345435, "sector-count": 5 },
      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
 
-RTC_CHANGE
-----------
-
-Emitted when the guest changes the RTC time.
-
-Data:
-
-- "offset": Offset between base RTC clock (as specified by -rtc base), and
-new RTC clock value (json-number)
-
-Example:
-
-{ "event": "RTC_CHANGE",
-    "data": { "offset": 78 },
-    "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
-
 SPICE_CONNECTED, SPICE_DISCONNECTED
 -----------------------------------
 

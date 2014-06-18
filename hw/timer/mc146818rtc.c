@@ -26,6 +26,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/timer/mc146818rtc.h"
 #include "qapi/visitor.h"
+#include "qapi-event.h"
 
 #ifdef TARGET_I386
 #include "hw/i386/apic.h"
@@ -530,7 +531,7 @@ static void rtc_set_time(RTCState *s)
     s->base_rtc = mktimegm(&tm);
     s->last_update = qemu_clock_get_ns(rtc_clock);
 
-    rtc_change_mon_event(&tm);
+    qapi_event_send_rtc_change(qemu_timedate_diff(&tm), &error_abort);
 }
 
 static void rtc_set_cmos(RTCState *s, const struct tm *tm)

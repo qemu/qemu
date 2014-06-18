@@ -32,6 +32,7 @@
 
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
+#include "qapi-event.h"
 
 #include <libfdt.h>
 
@@ -93,7 +94,7 @@ static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     tm.tm_sec = rtas_ld(args, 5);
 
     /* Just generate a monitor event for the change */
-    rtc_change_mon_event(&tm);
+    qapi_event_send_rtc_change(qemu_timedate_diff(&tm), &error_abort);
     spapr->rtc_offset = qemu_timedate_diff(&tm);
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
