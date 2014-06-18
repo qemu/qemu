@@ -50,31 +50,6 @@ Example:
         "size": 65536 },
     "timestamp": { "seconds": 1378126126, "microseconds": 966463 } }
 
-BLOCK_IO_ERROR
---------------
-
-Emitted when a disk I/O error occurs.
-
-Data:
-
-- "device": device name (json-string)
-- "operation": I/O operation (json-string, "read" or "write")
-- "action": action that has been taken, it's one of the following (json-string):
-    "ignore": error has been ignored
-    "report": error has been reported to the device
-    "stop": the VM is going to stop because of the error
-
-Example:
-
-{ "event": "BLOCK_IO_ERROR",
-    "data": { "device": "ide0-hd1",
-              "operation": "write",
-              "action": "stop" },
-    "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
-
-Note: If action is "stop", a STOP event will eventually follow the
-BLOCK_IO_ERROR event.
-
 BLOCK_JOB_CANCELLED
 -------------------
 
@@ -127,28 +102,6 @@ Example:
                "len": 10737418240, "offset": 10737418240,
                "speed": 0 },
      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
-
-BLOCK_JOB_ERROR
----------------
-
-Emitted when a block job encounters an error.
-
-Data:
-
-- "device": device name (json-string)
-- "operation": I/O operation (json-string, "read" or "write")
-- "action": action that has been taken, it's one of the following (json-string):
-    "ignore": error has been ignored, the job may fail later
-    "report": error will be reported and the job canceled
-    "stop": error caused job to be paused
-
-Example:
-
-{ "event": "BLOCK_JOB_ERROR",
-    "data": { "device": "ide0-hd1",
-              "operation": "write",
-              "action": "stop" },
-    "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 
 BLOCK_JOB_READY
 ---------------

@@ -1426,3 +1426,42 @@
 ##
 { 'enum': 'BlockErrorAction',
   'data': [ 'ignore', 'report', 'stop' ] }
+
+
+##
+# @BLOCK_IO_ERROR
+#
+# Emitted when a disk I/O error occurs
+#
+# @device: device name
+#
+# @operation: I/O operation
+#
+# @action: action that has been taken
+#
+# Note: If action is "stop", a STOP event will eventually follow the
+# BLOCK_IO_ERROR event
+#
+# Since: 0.13.0
+##
+{ 'event': 'BLOCK_IO_ERROR',
+  'data': { 'device': 'str', 'operation': 'IoOperationType',
+            'action': 'BlockErrorAction' } }
+
+##
+# @BLOCK_JOB_ERROR
+#
+# Emitted when a block job encounters an error
+#
+# @device: device name
+#
+# @operation: I/O operation
+#
+# @action: action that has been taken
+#
+# Since: 1.3
+##
+{ 'event': 'BLOCK_JOB_ERROR',
+  'data': { 'device'   : 'str',
+            'operation': 'IoOperationType',
+            'action'   : 'BlockdevOnError' } }

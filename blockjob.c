@@ -34,6 +34,7 @@
 #include "block/coroutine.h"
 #include "qmp-commands.h"
 #include "qemu/timer.h"
+#include "qapi-event.h"
 
 void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
                        int64_t speed, BlockDriverCompletionFunc *cb,
@@ -277,7 +278,10 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
     default:
         abort();
     }
-    bdrv_emit_qmp_error_event(job->bs, QEVENT_BLOCK_JOB_ERROR, action, is_read);
+    qapi_event_send_block_job_error(bdrv_get_device_name(bs),
+                                    is_read ? IO_OPERATION_TYPE_READ :
+                                    IO_OPERATION_TYPE_WRITE,
+                                    action, &error_abort);
     if (action == BLOCK_ERROR_ACTION_STOP) {
         block_job_pause(job);
         block_job_iostatus_set_err(job, error);

@@ -3371,4 +3371,18 @@
 { 'enum': 'WatchdogExpirationAction',
   'data': [ 'reset', 'shutdown', 'poweroff', 'pause', 'debug', 'none' ] }
 
+##
+# @IoOperationType
+#
+# An enumeration of the I/O operation types
+#
+# @read: read operation
+#
+# @write: write operation
+#
+# Since: 2.1
+##
+{ 'enum': 'IoOperationType',
+  'data': [ 'read', 'write' ] }
+
 { 'include': 'qapi-event.json' }
