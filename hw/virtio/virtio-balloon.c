@@ -24,6 +24,7 @@
 #include "sysemu/kvm.h"
 #include "exec/address-spaces.h"
 #include "qapi/visitor.h"
+#include "qapi-event.h"
 
 #if defined(__linux__)
 #include <sys/mman.h>
@@ -289,8 +290,9 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
     memcpy(&config, config_data, sizeof(struct virtio_balloon_config));
     dev->actual = le32_to_cpu(config.actual);
     if (dev->actual != oldactual) {
-        qemu_balloon_changed(ram_size -
-                       ((ram_addr_t) dev->actual << VIRTIO_BALLOON_PFN_SHIFT));
+        qapi_event_send_balloon_change(ram_size -
+                        ((ram_addr_t) dev->actual << VIRTIO_BALLOON_PFN_SHIFT),
+                        &error_abort);
     }
 }
 

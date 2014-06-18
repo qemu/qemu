@@ -253,3 +253,16 @@
 ##
 { 'event': 'ACPI_DEVICE_OST',
      'data': { 'info': 'ACPIOSTInfo' } }
+
+##
+# @BALLOON_CHANGE
+#
+# Emitted when the guest changes the actual BALLOON level. This value is
+# equivalent to the @actual field return by the 'query-balloon' command
+#
+# @actual: actual level of the guest memory balloon in bytes
+#
+# Since: 1.2
+##
+{ 'event': 'BALLOON_CHANGE',
+  'data': { 'actual': 'int' } }

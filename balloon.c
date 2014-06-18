@@ -81,19 +81,6 @@ static int qemu_balloon_status(BalloonInfo *info)
     return 1;
 }
 
-void qemu_balloon_changed(int64_t actual)
-{
-    QObject *data;
-
-    data = qobject_from_jsonf("{ 'actual': %" PRId64 " }",
-                              actual);
-
-    monitor_protocol_event(QEVENT_BALLOON_CHANGE, data);
-
-    qobject_decref(data);
-}
-
-
 BalloonInfo *qmp_query_balloon(Error **errp)
 {
     BalloonInfo *info;
