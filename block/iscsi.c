@@ -359,8 +359,6 @@ static int coroutine_fn iscsi_co_writev(BlockDriverState *bs,
     struct IscsiTask iTask;
     uint64_t lba;
     uint32_t num_sectors;
-    uint8_t *data = NULL;
-    uint8_t *buf = NULL;
 
     if (!is_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
         return -EINVAL;
@@ -372,17 +370,16 @@ static int coroutine_fn iscsi_co_writev(BlockDriverState *bs,
 retry:
     if (iscsilun->use_16_for_rw) {
         iTask.task = iscsi_write16_task(iscsilun->iscsi, iscsilun->lun, lba,
-                                        data, num_sectors * iscsilun->block_size,
+                                        NULL, num_sectors * iscsilun->block_size,
                                         iscsilun->block_size, 0, 0, 0, 0, 0,
                                         iscsi_co_generic_cb, &iTask);
     } else {
         iTask.task = iscsi_write10_task(iscsilun->iscsi, iscsilun->lun, lba,
-                                        data, num_sectors * iscsilun->block_size,
+                                        NULL, num_sectors * iscsilun->block_size,
                                         iscsilun->block_size, 0, 0, 0, 0, 0,
                                         iscsi_co_generic_cb, &iTask);
     }
     if (iTask.task == NULL) {
-        g_free(buf);
         return -ENOMEM;
     }
     scsi_task_set_iov_out(iTask.task, (struct scsi_iovec *) iov->iov,
@@ -401,8 +398,6 @@ retry:
         iTask.complete = 0;
         goto retry;
     }
-
-    g_free(buf);
 
     if (iTask.status != SCSI_STATUS_GOOD) {
         return -EIO;
