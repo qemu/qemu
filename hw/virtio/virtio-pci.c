@@ -1066,9 +1066,6 @@ static Property virtio_blk_pci_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
-#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
-    DEFINE_PROP_BIT("x-data-plane", VirtIOBlkPCI, blk.data_plane, 0, false),
-#endif
     DEFINE_VIRTIO_BLK_FEATURES(VirtIOPCIProxy, host_features),
     DEFINE_VIRTIO_BLK_PROPERTIES(VirtIOBlkPCI, blk),
     DEFINE_PROP_END_OF_LIST(),

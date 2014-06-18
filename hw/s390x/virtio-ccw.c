@@ -1403,9 +1403,6 @@ static Property virtio_ccw_blk_properties[] = {
     DEFINE_VIRTIO_BLK_PROPERTIES(VirtIOBlkCcw, blk),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
-#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
-    DEFINE_PROP_BIT("x-data-plane", VirtIOBlkCcw, blk.data_plane, 0, false),
-#endif
     DEFINE_PROP_END_OF_LIST(),
 };
 
