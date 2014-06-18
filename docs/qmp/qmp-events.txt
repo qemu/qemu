@@ -314,21 +314,6 @@ Example:
     "data": { "offset": 78 },
     "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
 
-SHUTDOWN
---------
-
-Emitted when the Virtual Machine is powered down.
-
-Data: None.
-
-Example:
-
-{ "event": "SHUTDOWN",
-    "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
-
-Note: If the command-line option "-no-shutdown" has been specified, a STOP
-event will eventually follow the SHUTDOWN event.
-
 SPICE_CONNECTED, SPICE_DISCONNECTED
 -----------------------------------
 
