@@ -1902,124 +1902,15 @@ DisplayState *qemu_console_displaystate(QemuConsole *console)
 
 PixelFormat qemu_different_endianness_pixelformat(int bpp)
 {
-    PixelFormat pf;
-
-    memset(&pf, 0x00, sizeof(PixelFormat));
-
-    pf.bits_per_pixel = bpp;
-    pf.bytes_per_pixel = DIV_ROUND_UP(bpp, 8);
-    pf.depth = bpp == 32 ? 24 : bpp;
-
-    switch (bpp) {
-        case 24:
-            pf.rmask = 0x000000FF;
-            pf.gmask = 0x0000FF00;
-            pf.bmask = 0x00FF0000;
-            pf.rmax = 255;
-            pf.gmax = 255;
-            pf.bmax = 255;
-            pf.rshift = 0;
-            pf.gshift = 8;
-            pf.bshift = 16;
-            pf.rbits = 8;
-            pf.gbits = 8;
-            pf.bbits = 8;
-            break;
-        case 32:
-            pf.rmask = 0x0000FF00;
-            pf.gmask = 0x00FF0000;
-            pf.bmask = 0xFF000000;
-            pf.amask = 0x00000000;
-            pf.amax = 255;
-            pf.rmax = 255;
-            pf.gmax = 255;
-            pf.bmax = 255;
-            pf.ashift = 0;
-            pf.rshift = 8;
-            pf.gshift = 16;
-            pf.bshift = 24;
-            pf.rbits = 8;
-            pf.gbits = 8;
-            pf.bbits = 8;
-            pf.abits = 8;
-            break;
-        default:
-            break;
-    }
+    pixman_format_code_t fmt = qemu_default_pixman_format(bpp, false);
+    PixelFormat pf = qemu_pixelformat_from_pixman(fmt);
     return pf;
 }
 
 PixelFormat qemu_default_pixelformat(int bpp)
 {
-    PixelFormat pf;
-
-    memset(&pf, 0x00, sizeof(PixelFormat));
-
-    pf.bits_per_pixel = bpp;
-    pf.bytes_per_pixel = DIV_ROUND_UP(bpp, 8);
-    pf.depth = bpp == 32 ? 24 : bpp;
-
-    switch (bpp) {
-        case 15:
-            pf.bits_per_pixel = 16;
-            pf.rmask = 0x00007c00;
-            pf.gmask = 0x000003E0;
-            pf.bmask = 0x0000001F;
-            pf.rmax = 31;
-            pf.gmax = 31;
-            pf.bmax = 31;
-            pf.rshift = 10;
-            pf.gshift = 5;
-            pf.bshift = 0;
-            pf.rbits = 5;
-            pf.gbits = 5;
-            pf.bbits = 5;
-            break;
-        case 16:
-            pf.rmask = 0x0000F800;
-            pf.gmask = 0x000007E0;
-            pf.bmask = 0x0000001F;
-            pf.rmax = 31;
-            pf.gmax = 63;
-            pf.bmax = 31;
-            pf.rshift = 11;
-            pf.gshift = 5;
-            pf.bshift = 0;
-            pf.rbits = 5;
-            pf.gbits = 6;
-            pf.bbits = 5;
-            break;
-        case 24:
-            pf.rmask = 0x00FF0000;
-            pf.gmask = 0x0000FF00;
-            pf.bmask = 0x000000FF;
-            pf.rmax = 255;
-            pf.gmax = 255;
-            pf.bmax = 255;
-            pf.rshift = 16;
-            pf.gshift = 8;
-            pf.bshift = 0;
-            pf.rbits = 8;
-            pf.gbits = 8;
-            pf.bbits = 8;
-            break;
-        case 32:
-            pf.rmask = 0x00FF0000;
-            pf.gmask = 0x0000FF00;
-            pf.bmask = 0x000000FF;
-            pf.rmax = 255;
-            pf.gmax = 255;
-            pf.bmax = 255;
-            pf.rshift = 16;
-            pf.gshift = 8;
-            pf.bshift = 0;
-            pf.rbits = 8;
-            pf.gbits = 8;
-            pf.bbits = 8;
-            break;
-        default:
-            break;
-    }
+    pixman_format_code_t fmt = qemu_default_pixman_format(bpp, true);
+    PixelFormat pf = qemu_pixelformat_from_pixman(fmt);
     return pf;
 }
 
