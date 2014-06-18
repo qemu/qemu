@@ -54,6 +54,7 @@ typedef struct {
 typedef void IOEventHandler(void *opaque, int event);
 
 struct CharDriverState {
+    QemuMutex chr_write_lock;
     void (*init)(struct CharDriverState *s);
     int (*chr_write)(struct CharDriverState *s, const uint8_t *buf, int len);
     int (*chr_sync_read)(struct CharDriverState *s,
@@ -164,6 +165,7 @@ void qemu_chr_fe_event(CharDriverState *s, int event);
  * @qemu_chr_fe_printf:
  *
  * Write to a character backend using a printf style interface.
+ * This function is thread-safe.
  *
  * @fmt see #printf
  */
@@ -176,8 +178,9 @@ int qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
 /**
  * @qemu_chr_fe_write:
  *
- * Write data to a character backend from the front end.  This function will
- * send data from the front end to the back end.
+ * Write data to a character backend from the front end.  This function
+ * will send data from the front end to the back end.  This function
+ * is thread-safe.
  *
  * @buf the data
  * @len the number of bytes to send
@@ -192,7 +195,7 @@ int qemu_chr_fe_write(CharDriverState *s, const uint8_t *buf, int len);
  * Write data to a character backend from the front end.  This function will
  * send data from the front end to the back end.  Unlike @qemu_chr_fe_write,
  * this function will block if the back end cannot consume all of the data
- * attempted to be written.
+ * attempted to be written.  This function is thread-safe.
  *
  * @buf the data
  * @len the number of bytes to send
@@ -216,7 +219,7 @@ int qemu_chr_fe_read_all(CharDriverState *s, uint8_t *buf, int len);
 /**
  * @qemu_chr_fe_ioctl:
  *
- * Issue a device specific ioctl to a backend.
+ * Issue a device specific ioctl to a backend.  This function is thread-safe.
  *
  * @cmd see CHR_IOCTL_*
  * @arg the data associated with @cmd
