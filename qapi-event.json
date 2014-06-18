@@ -106,3 +106,19 @@
 ##
 { 'event': 'WATCHDOG',
   'data': { 'action': 'WatchdogExpirationAction' } }
+
+##
+# @DEVICE_DELETED
+#
+# Emitted whenever the device removal completion is acknowledged by the guest.
+# At this point, it's safe to reuse the specified device ID. Device removal can
+# be initiated by the guest or by HMP/QMP commands.
+#
+# @device: #optional, device name
+#
+# @path: device path
+#
+# Since: 1.5
+##
+{ 'event': 'DEVICE_DELETED',
+  'data': { '*device': 'str', 'path': 'str' } }

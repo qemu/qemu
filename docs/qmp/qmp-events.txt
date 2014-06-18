@@ -168,24 +168,6 @@ Example:
 Note: The "ready to complete" status is always reset by a BLOCK_JOB_ERROR
 event.
 
-DEVICE_DELETED
---------------
-
-Emitted whenever the device removal completion is acknowledged
-by the guest.
-At this point, it's safe to reuse the specified device ID.
-Device removal can be initiated by the guest or by HMP/QMP commands.
-
-Data:
-
-- "device": device name (json-string, optional)
-- "path": device path (json-string)
-
-{ "event": "DEVICE_DELETED",
-  "data": { "device": "virtio-net-pci-0",
-            "path": "/machine/peripheral/virtio-net-pci-0" },
-  "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
-
 DEVICE_TRAY_MOVED
 -----------------
 
