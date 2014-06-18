@@ -28,28 +28,6 @@ Example:
     "data": { "actual": 944766976 },
     "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
 
-BLOCK_IMAGE_CORRUPTED
----------------------
-
-Emitted when a disk image is being marked corrupt.
-
-Data:
-
-- "device": Device name (json-string)
-- "msg":    Informative message (e.g., reason for the corruption) (json-string)
-- "offset": If the corruption resulted from an image access, this is the access
-            offset into the image (json-int)
-- "size":   If the corruption resulted from an image access, this is the access
-            size (json-int)
-
-Example:
-
-{ "event": "BLOCK_IMAGE_CORRUPTED",
-    "data": { "device": "ide0-hd0",
-        "msg": "Prevented active L1 table overwrite", "offset": 196608,
-        "size": 65536 },
-    "timestamp": { "seconds": 1378126126, "microseconds": 966463 } }
-
 BLOCK_JOB_CANCELLED
 -------------------
 
