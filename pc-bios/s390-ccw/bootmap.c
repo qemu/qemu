@@ -118,10 +118,26 @@ static int zipl_magic(uint8_t *ptr)
     return 1;
 }
 
+#define FREE_SPACE_FILLER '\xAA'
+
+static inline bool unused_space(const void *p, unsigned int size)
+{
+    int i;
+    const unsigned char *m = p;
+
+    for (i = 0; i < size; i++) {
+        if (m[i] != FREE_SPACE_FILLER) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static int zipl_load_segment(struct component_entry *entry)
 {
     const int max_entries = (SECTOR_SIZE / sizeof(struct scsi_blockptr));
     struct scsi_blockptr *bprs = (void*)sec;
+    const int bprs_size = sizeof(sec);
     uint64_t blockno;
     long address;
     int i;
@@ -133,6 +149,7 @@ static int zipl_load_segment(struct component_entry *entry)
     debug_print_int("addr", address);
 
     do {
+        memset(bprs, FREE_SPACE_FILLER, bprs_size);
         if (virtio_read(blockno, (uint8_t *)bprs)) {
             debug_print_int("failed reading bprs at", blockno);
             goto fail;
@@ -150,6 +167,16 @@ static int zipl_load_segment(struct component_entry *entry)
             if (i == (max_entries - 1))
                 break;
 
+            if (bprs[i].blockct == 0 && unused_space(&bprs[i + 1],
+                sizeof(struct scsi_blockptr))) {
+                /* This is a "continue" pointer.
+                 * This ptr is the last one in the current script section.
+                 * I.e. the next ptr must point to the unused memory area.
+                 * The blockno is not zero, so the upper loop must continue
+                 * reading next section of BPRS.
+                 */
+                break;
+            }
             address = virtio_load_direct(cur_desc[0], cur_desc[1], 0,
                                          (void*)address);
             if (address == -1)
