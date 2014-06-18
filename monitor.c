@@ -217,6 +217,9 @@ struct Monitor {
 /* QMP checker flags */
 #define QMP_ACCEPT_UNKNOWNS 1
 
+/* Protects mon_list, monitor_event_state.  */
+static QemuMutex monitor_lock;
+
 static QLIST_HEAD(mon_list, Monitor) mon_list;
 static QLIST_HEAD(mon_fdsets, MonFdset) mon_fdsets;
 static int mon_refcount;
@@ -465,6 +468,7 @@ static MonitorQAPIEventState monitor_qapi_event_state[QAPI_EVENT_MAX];
 
 /*
  * Emits the event to every monitor instance, @event is only used for trace
+ * Called with monitor_lock held.
  */
 static void monitor_qapi_event_emit(QAPIEvent event, QObject *data)
 {
@@ -497,6 +501,7 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *data, Error **errp)
                                        now);
 
     /* Rate limit of 0 indicates no throttling */
+    qemu_mutex_lock(&monitor_lock);
     if (!evstate->rate) {
         monitor_qapi_event_emit(event, QOBJECT(data));
         evstate->last = now;
@@ -521,6 +526,7 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *data, Error **errp)
             evstate->last = now;
         }
     }
+    qemu_mutex_unlock(&monitor_lock);
 }
 
 /*
@@ -536,12 +542,14 @@ static void monitor_qapi_event_handler(void *opaque)
                                          evstate->data,
                                          evstate->last,
                                          now);
+    qemu_mutex_lock(&monitor_lock);
     if (evstate->data) {
         monitor_qapi_event_emit(evstate->event, evstate->data);
         qobject_decref(evstate->data);
         evstate->data = NULL;
     }
     evstate->last = now;
+    qemu_mutex_unlock(&monitor_lock);
 }
 
 /*
@@ -5292,6 +5300,11 @@ static void monitor_readline_flush(void *opaque)
     monitor_flush(opaque);
 }
 
+static void __attribute__((constructor)) monitor_lock_init(void)
+{
+    qemu_mutex_init(&monitor_lock);
+}
+
 void monitor_init(CharDriverState *chr, int flags)
 {
     static int is_first_init = 1;
@@ -5329,7 +5342,10 @@ void monitor_init(CharDriverState *chr, int flags)
                               monitor_event, mon);
     }
 
+    qemu_mutex_lock(&monitor_lock);
     QLIST_INSERT_HEAD(&mon_list, mon, entry);
+    qemu_mutex_unlock(&monitor_lock);
+
     if (!default_mon || (flags & MONITOR_IS_DEFAULT))
         default_mon = mon;
 }
