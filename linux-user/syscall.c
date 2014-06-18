@@ -8702,7 +8702,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_set_thread_area
     case TARGET_NR_set_thread_area:
 #if defined(TARGET_MIPS)
-      ((CPUMIPSState *) cpu_env)->tls_value = arg1;
+      ((CPUMIPSState *) cpu_env)->active_tc.CP0_UserLocal = arg1;
       ret = 0;
       break;
 #elif defined(TARGET_CRIS)

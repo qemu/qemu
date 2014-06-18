@@ -1297,7 +1297,19 @@ void helper_mtc0_srsconf4(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_hwrena(CPUMIPSState *env, target_ulong arg1)
 {
-    env->CP0_HWREna = arg1 & 0x0000000F;
+    uint32_t mask = 0x0000000F;
+
+    if (env->CP0_Config3 & (1 << CP0C3_ULRI)) {
+        mask |= (1 << 29);
+
+        if (arg1 & (1 << 29)) {
+            env->hflags |= MIPS_HFLAG_HWRENA_ULR;
+        } else {
+            env->hflags &= ~MIPS_HFLAG_HWRENA_ULR;
+        }
+    }
+
+    env->CP0_HWREna = arg1 & mask;
 }
 
 void helper_mtc0_count(CPUMIPSState *env, target_ulong arg1)

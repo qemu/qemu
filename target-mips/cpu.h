@@ -168,6 +168,7 @@ struct TCState {
     target_ulong CP0_TCSchedule;
     target_ulong CP0_TCScheFBack;
     int32_t CP0_Debug_tcstatus;
+    target_ulong CP0_UserLocal;
 };
 
 typedef struct CPUMIPSState CPUMIPSState;
@@ -362,6 +363,7 @@ struct CPUMIPSState {
     int32_t CP0_Config3;
 #define CP0C3_M    31
 #define CP0C3_ISA_ON_EXC 16
+#define CP0C3_ULRI 13
 #define CP0C3_DSPP 10
 #define CP0C3_LPA  7
 #define CP0C3_VEIC 6
@@ -470,6 +472,8 @@ struct CPUMIPSState {
     /* MIPS DSP resources access. */
 #define MIPS_HFLAG_DSP   0x40000  /* Enable access to MIPS DSP resources. */
 #define MIPS_HFLAG_DSPR2 0x80000  /* Enable access to MIPS DSPR2 resources. */
+    /* Extra flag about HWREna register. */
+#define MIPS_HFLAG_HWRENA_ULR 0x100000 /* ULR bit from HWREna is set. */
     target_ulong btarget;        /* Jump / branch target               */
     target_ulong bcond;          /* Branch condition (if needed)       */
 
@@ -478,8 +482,6 @@ struct CPUMIPSState {
     uint32_t CP0_Status_rw_bitmask; /* Read/write bits in CP0_Status */
     uint32_t CP0_TCStatus_rw_bitmask; /* Read/write bits in CP0_TCStatus */
     int insn_flags; /* Supported instruction set */
-
-    target_ulong tls_value; /* For usermode emulation */
 
     CPU_COMMON
 
@@ -523,7 +525,7 @@ void mips_cpu_list (FILE *f, fprintf_function cpu_fprintf);
 extern void cpu_wrdsp(uint32_t rs, uint32_t mask_num, CPUMIPSState *env);
 extern uint32_t cpu_rddsp(uint32_t mask_num, CPUMIPSState *env);
 
-#define CPU_SAVE_VERSION 3
+#define CPU_SAVE_VERSION 4
 
 /* MMU modes definitions. We carefully match the indices with our
    hflags layout. */
@@ -682,7 +684,8 @@ static inline void cpu_get_tb_cpu_state(CPUMIPSState *env, target_ulong *pc,
 {
     *pc = env->active_tc.PC;
     *cs_base = 0;
-    *flags = env->hflags & (MIPS_HFLAG_TMASK | MIPS_HFLAG_BMASK);
+    *flags = env->hflags & (MIPS_HFLAG_TMASK | MIPS_HFLAG_BMASK |
+                            MIPS_HFLAG_HWRENA_ULR);
 }
 
 static inline int mips_vpe_active(CPUMIPSState *env)

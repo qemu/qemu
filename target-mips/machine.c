@@ -25,6 +25,7 @@ static void save_tc(QEMUFile *f, TCState *tc)
     qemu_put_betls(f, &tc->CP0_TCSchedule);
     qemu_put_betls(f, &tc->CP0_TCScheFBack);
     qemu_put_sbe32s(f, &tc->CP0_Debug_tcstatus);
+    qemu_put_betls(f, &tc->CP0_UserLocal);
 }
 
 static void save_fpu(QEMUFile *f, CPUMIPSFPUContext *fpu)
@@ -151,7 +152,7 @@ void cpu_save(QEMUFile *f, void *opaque)
         save_fpu(f, &env->fpus[i]);
 }
 
-static void load_tc(QEMUFile *f, TCState *tc)
+static void load_tc(QEMUFile *f, TCState *tc, int version_id)
 {
     int i;
 
@@ -173,6 +174,9 @@ static void load_tc(QEMUFile *f, TCState *tc)
     qemu_get_betls(f, &tc->CP0_TCSchedule);
     qemu_get_betls(f, &tc->CP0_TCScheFBack);
     qemu_get_sbe32s(f, &tc->CP0_Debug_tcstatus);
+    if (version_id >= 4) {
+        qemu_get_betls(f, &tc->CP0_UserLocal);
+    }
 }
 
 static void load_fpu(QEMUFile *f, CPUMIPSFPUContext *fpu)
@@ -194,11 +198,12 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     MIPSCPU *cpu = mips_env_get_cpu(env);
     int i;
 
-    if (version_id != 3)
+    if (version_id < 3) {
         return -EINVAL;
+    }
 
     /* Load active TC */
-    load_tc(f, &env->active_tc);
+    load_tc(f, &env->active_tc, version_id);
 
     /* Load active FPU */
     load_fpu(f, &env->active_fpu);
@@ -298,8 +303,9 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_sbe32s(f, &env->CP0_DESAVE);
 
     /* Load inactive TC state */
-    for (i = 0; i < MIPS_SHADOW_SET_MAX; i++)
-        load_tc(f, &env->tcs[i]);
+    for (i = 0; i < MIPS_SHADOW_SET_MAX; i++) {
+        load_tc(f, &env->tcs[i], version_id);
+    }
     for (i = 0; i < MIPS_FPU_MAX; i++)
         load_fpu(f, &env->fpus[i]);
 
