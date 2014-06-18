@@ -17,6 +17,7 @@
 #include <gnutls/crypto.h>
 #include "block/block_int.h"
 #include "qapi/qmp/qjson.h"
+#include "qapi-event.h"
 
 #define HASH_LENGTH 32
 
@@ -198,32 +199,22 @@ static QuorumAIOCB *quorum_aio_get(BDRVQuorumState *s,
 
 static void quorum_report_bad(QuorumAIOCB *acb, char *node_name, int ret)
 {
-    QObject *data;
-    assert(node_name);
-    data = qobject_from_jsonf("{ 'node-name': %s"
-                              ", 'sector-num': %" PRId64
-                              ", 'sectors-count': %d }",
-                              node_name, acb->sector_num, acb->nb_sectors);
+    const char *msg = NULL;
     if (ret < 0) {
-        QDict *dict = qobject_to_qdict(data);
-        qdict_put(dict, "error", qstring_from_str(strerror(-ret)));
+        msg = strerror(-ret);
     }
-    monitor_protocol_event(QEVENT_QUORUM_REPORT_BAD, data);
-    qobject_decref(data);
+    qapi_event_send_quorum_report_bad(!!msg, msg, node_name,
+                                      acb->sector_num, acb->nb_sectors, &error_abort);
 }
 
 static void quorum_report_failure(QuorumAIOCB *acb)
 {
-    QObject *data;
     const char *reference = acb->common.bs->device_name[0] ?
                             acb->common.bs->device_name :
                             acb->common.bs->node_name;
-    data = qobject_from_jsonf("{ 'reference': %s"
-                              ", 'sector-num': %" PRId64
-                              ", 'sectors-count': %d }",
-                              reference, acb->sector_num, acb->nb_sectors);
-    monitor_protocol_event(QEVENT_QUORUM_FAILURE, data);
-    qobject_decref(data);
+
+    qapi_event_send_quorum_failure(reference, acb->sector_num,
+                                   acb->nb_sectors, &error_abort);
 }
 
 static int quorum_vote_error(QuorumAIOCB *acb);

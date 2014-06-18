@@ -278,3 +278,41 @@
 ##
 { 'event': 'GUEST_PANICKED',
   'data': { 'action': 'GuestPanicAction' } }
+
+##
+# @QUORUM_FAILURE
+#
+# Emitted by the Quorum block driver if it fails to establish a quorum
+#
+# @reference: device name if defined else node name
+#
+# @sector-num: number of the first sector of the failed read operation
+#
+# @sector-count: failed read operation sector count
+#
+# Since: 2.0
+##
+{ 'event': 'QUORUM_FAILURE',
+  'data': { 'reference': 'str', 'sector-num': 'int', 'sector-count': 'int' } }
+
+##
+# @QUORUM_REPORT_BAD
+#
+# Emitted to report a corruption of a Quorum file
+#
+# @error: #optional, error message. Only present on failure. This field
+#         contains a human-readable error message. There are no semantics other
+#         than that the block layer reported an error and clients should not
+#         try to interpret the error string.
+#
+# @node-name: the graph node name of the block driver state
+#
+# @sector-num: number of the first sector of the failed read operation
+#
+# @sector-count: failed read operation sector count
+#
+# Since: 2.0
+##
+{ 'event': 'QUORUM_REPORT_BAD',
+  'data': { '*error': 'str', 'node-name': 'str',
+            'sector-num': 'int', 'sector-count': 'int' } }

@@ -617,6 +617,9 @@ static void monitor_qapi_event_init(void)
     monitor_qapi_event_throttle(QAPI_EVENT_RTC_CHANGE, 1000);
     monitor_qapi_event_throttle(QAPI_EVENT_WATCHDOG, 1000);
     monitor_qapi_event_throttle(QAPI_EVENT_BALLOON_CHANGE, 1000);
+    /* limit the rate of quorum events to avoid hammering the management */
+    monitor_qapi_event_throttle(QAPI_EVENT_QUORUM_REPORT_BAD, 1000);
+    monitor_qapi_event_throttle(QAPI_EVENT_QUORUM_FAILURE, 1000);
 
     qmp_event_set_func_emit(monitor_qapi_event_queue);
 }
@@ -743,9 +746,6 @@ monitor_protocol_event_throttle(MonitorEvent event,
  * and initialize state */
 static void monitor_protocol_event_init(void)
 {
-    /* limit the rate of quorum events to avoid hammering the management */
-    monitor_protocol_event_throttle(QEVENT_QUORUM_REPORT_BAD, 1000);
-    monitor_protocol_event_throttle(QEVENT_QUORUM_FAILURE, 1000);
 }
 
 /**
