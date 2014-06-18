@@ -66,7 +66,7 @@ static void ipack_device_unrealize(DeviceState *dev, Error **errp)
         return;
     }
 
-    qemu_free_irqs(idev->irq);
+    qemu_free_irqs(idev->irq, 2);
 }
 
 static Property ipack_device_props[] = {

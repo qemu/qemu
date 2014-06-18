@@ -152,7 +152,7 @@ static void multi_serial_pci_exit(PCIDevice *dev)
         g_free(pci->name[i]);
     }
     memory_region_destroy(&pci->iobar);
-    qemu_free_irqs(pci->irqs);
+    qemu_free_irqs(pci->irqs, pci->ports);
 }
 
 static const VMStateDescription vmstate_pci_serial = {

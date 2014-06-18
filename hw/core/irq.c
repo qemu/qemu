@@ -42,23 +42,14 @@ qemu_irq *qemu_extend_irqs(qemu_irq *old, int n_old, qemu_irq_handler handler,
                            void *opaque, int n)
 {
     qemu_irq *s;
-    struct IRQState *p;
     int i;
 
     if (!old) {
         n_old = 0;
     }
     s = old ? g_renew(qemu_irq, old, n + n_old) : g_new(qemu_irq, n);
-    p = old ? g_renew(struct IRQState, s[0], n + n_old) :
-                g_new(struct IRQState, n);
-    for (i = 0; i < n + n_old; i++) {
-        if (i >= n_old) {
-            p->handler = handler;
-            p->opaque = opaque;
-            p->n = i;
-        }
-        s[i] = p;
-        p++;
+    for (i = n_old; i < n + n_old; i++) {
+        s[i] = qemu_allocate_irq(handler, opaque, i);
     }
     return s;
 }
@@ -80,9 +71,12 @@ qemu_irq qemu_allocate_irq(qemu_irq_handler handler, void *opaque, int n)
     return irq;
 }
 
-void qemu_free_irqs(qemu_irq *s)
+void qemu_free_irqs(qemu_irq *s, int n)
 {
-    g_free(s[0]);
+    int i;
+    for (i = 0; i < n; i++) {
+        qemu_free_irq(s[i]);
+    }
     g_free(s);
 }
 
