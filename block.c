@@ -35,6 +35,7 @@
 #include "block/qapi.h"
 #include "qmp-commands.h"
 #include "qemu/timer.h"
+#include "qapi-event.h"
 
 #ifdef CONFIG_BSD
 #include <sys/types.h>
@@ -2162,17 +2163,6 @@ void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
     qobject_decref(data);
 }
 
-static void bdrv_emit_qmp_eject_event(BlockDriverState *bs, bool ejected)
-{
-    QObject *data;
-
-    data = qobject_from_jsonf("{ 'device': %s, 'tray-open': %i }",
-                              bdrv_get_device_name(bs), ejected);
-    monitor_protocol_event(QEVENT_DEVICE_TRAY_MOVED, data);
-
-    qobject_decref(data);
-}
-
 static void bdrv_dev_change_media_cb(BlockDriverState *bs, bool load)
 {
     if (bs->dev_ops && bs->dev_ops->change_media_cb) {
@@ -2180,11 +2170,13 @@ static void bdrv_dev_change_media_cb(BlockDriverState *bs, bool load)
         bs->dev_ops->change_media_cb(bs->dev_opaque, load);
         if (tray_was_closed) {
             /* tray open */
-            bdrv_emit_qmp_eject_event(bs, true);
+            qapi_event_send_device_tray_moved(bdrv_get_device_name(bs),
+                                              true, &error_abort);
         }
         if (load) {
             /* tray close */
-            bdrv_emit_qmp_eject_event(bs, false);
+            qapi_event_send_device_tray_moved(bdrv_get_device_name(bs),
+                                              false, &error_abort);
         }
     }
 }
@@ -5217,7 +5209,8 @@ void bdrv_eject(BlockDriverState *bs, bool eject_flag)
     }
 
     if (bs->device_name[0] != '\0') {
-        bdrv_emit_qmp_eject_event(bs, eject_flag);
+        qapi_event_send_device_tray_moved(bdrv_get_device_name(bs),
+                                          eject_flag, &error_abort);
     }
 }
 
