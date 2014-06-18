@@ -1550,6 +1550,57 @@ void object_property_add_uint64_ptr(Object *obj, const char *name,
                         NULL, NULL, (void *)v, errp);
 }
 
+typedef struct {
+    Object *target_obj;
+    const char *target_name;
+} AliasProperty;
+
+static void property_get_alias(Object *obj, struct Visitor *v, void *opaque,
+                               const char *name, Error **errp)
+{
+    AliasProperty *prop = opaque;
+
+    object_property_get(prop->target_obj, v, prop->target_name, errp);
+}
+
+static void property_set_alias(Object *obj, struct Visitor *v, void *opaque,
+                               const char *name, Error **errp)
+{
+    AliasProperty *prop = opaque;
+
+    object_property_set(prop->target_obj, v, prop->target_name, errp);
+}
+
+static void property_release_alias(Object *obj, const char *name, void *opaque)
+{
+    AliasProperty *prop = opaque;
+
+    g_free(prop);
+}
+
+void object_property_add_alias(Object *obj, const char *name,
+                               Object *target_obj, const char *target_name,
+                               Error **errp)
+{
+    AliasProperty *prop;
+    ObjectProperty *target_prop;
+
+    target_prop = object_property_find(target_obj, target_name, errp);
+    if (!target_prop) {
+        return;
+    }
+
+    prop = g_malloc(sizeof(*prop));
+    prop->target_obj = target_obj;
+    prop->target_name = target_name;
+
+    object_property_add(obj, name, target_prop->type,
+                        property_get_alias,
+                        property_set_alias,
+                        property_release_alias,
+                        prop, errp);
+}
+
 static void object_instance_init(Object *obj)
 {
     object_property_add_str(obj, "type", qdev_get_type, NULL, NULL);

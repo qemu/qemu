@@ -1231,6 +1231,26 @@ void object_property_add_uint64_ptr(Object *obj, const char *name,
                                     const uint64_t *v, Error **Errp);
 
 /**
+ * object_property_add_alias:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @target_obj: the object to forward property access to
+ * @target_name: the name of the property on the forwarded object
+ * @errp: if an error occurs, a pointer to an area to store the error
+ *
+ * Add an alias for a property on an object.  This function will add a property
+ * of the same type as the forwarded property.
+ *
+ * The caller must ensure that <code>@target_obj</code> stays alive as long as
+ * this property exists.  In the case of a child object or an alias on the same
+ * object this will be the case.  For aliases to other objects the caller is
+ * responsible for taking a reference.
+ */
+void object_property_add_alias(Object *obj, const char *name,
+                               Object *target_obj, const char *target_name,
+                               Error **errp);
+
+/**
  * object_child_foreach:
  * @obj: the object whose children will be navigated
  * @fn: the iterator function to be called
