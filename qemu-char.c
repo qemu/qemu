@@ -325,7 +325,7 @@ static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
     MuxDriver *d = chr->opaque;
     int ret;
     if (!d->timestamps) {
-        ret = d->drv->chr_write(d->drv, buf, len);
+        ret = qemu_chr_fe_write(d->drv, buf, len);
     } else {
         int i;
 
@@ -347,10 +347,10 @@ static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
                          (secs / 60) % 60,
                          secs % 60,
                          (int)(ti % 1000));
-                d->drv->chr_write(d->drv, (uint8_t *)buf1, strlen(buf1));
+                qemu_chr_fe_write(d->drv, (uint8_t *)buf1, strlen(buf1));
                 d->linestart = 0;
             }
-            ret += d->drv->chr_write(d->drv, buf+i, 1);
+            ret += qemu_chr_fe_write(d->drv, buf+i, 1);
             if (buf[i] == '\n') {
                 d->linestart = 1;
             }
@@ -385,13 +385,13 @@ static void mux_print_help(CharDriverState *chr)
                  "\n\rEscape-Char set to Ascii: 0x%02x\n\r\n\r",
                  term_escape_char);
     }
-    chr->chr_write(chr, (uint8_t *)cbuf, strlen(cbuf));
+    qemu_chr_fe_write(chr, (uint8_t *)cbuf, strlen(cbuf));
     for (i = 0; mux_help[i] != NULL; i++) {
         for (j=0; mux_help[i][j] != '\0'; j++) {
             if (mux_help[i][j] == '%')
-                chr->chr_write(chr, (uint8_t *)ebuf, strlen(ebuf));
+                qemu_chr_fe_write(chr, (uint8_t *)ebuf, strlen(ebuf));
             else
-                chr->chr_write(chr, (uint8_t *)&mux_help[i][j], 1);
+                qemu_chr_fe_write(chr, (uint8_t *)&mux_help[i][j], 1);
         }
     }
 }
@@ -416,7 +416,7 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
         case 'x':
             {
                  const char *term =  "QEMU: Terminated\n\r";
-                 chr->chr_write(chr,(uint8_t *)term,strlen(term));
+                 qemu_chr_fe_write(chr, (uint8_t *)term, strlen(term));
                  exit(0);
                  break;
             }
