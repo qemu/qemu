@@ -274,18 +274,6 @@ Example:
      "data": { "node-name": "1.raw", "sector-num": 345435, "sector-count": 5 },
      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
 
-RESUME
-------
-
-Emitted when the Virtual Machine resumes execution.
-
-Data: None.
-
-Example:
-
-{ "event": "RESUME",
-    "timestamp": { "seconds": 1271770767, "microseconds": 582542 } }
-
 RTC_CHANGE
 ----------
 

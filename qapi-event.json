@@ -38,3 +38,12 @@
 # Since: 0.12.0
 ##
 { 'event': 'STOP' }
+
+##
+# @RESUME
+#
+# Emitted when the virtual machine resumes execution
+#
+# Since: 0.12.0
+##
+{ 'event': 'RESUME' }

@@ -736,7 +736,7 @@ void vm_start(void)
      * the STOP event.
      */
     if (runstate_is_running()) {
-        monitor_protocol_event(QEVENT_STOP, NULL);
+        qapi_event_send_stop(&error_abort);
     } else {
         cpu_enable_ticks();
         runstate_set(RUN_STATE_RUNNING);
@@ -744,7 +744,7 @@ void vm_start(void)
         resume_all_vcpus();
     }
 
-    monitor_protocol_event(QEVENT_RESUME, NULL);
+    qapi_event_send_resume(&error_abort);
 }
 
 
