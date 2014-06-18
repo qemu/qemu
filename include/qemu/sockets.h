@@ -61,7 +61,6 @@ int inet_nonblocking_connect(const char *str,
                              void *opaque, Error **errp);
 
 int inet_dgram_opts(QemuOpts *opts, Error **errp);
-const char *inet_strfamily(int family);
 NetworkAddressFamily inet_netfamily(int family);
 
 int unix_listen_opts(QemuOpts *opts, Error **errp);

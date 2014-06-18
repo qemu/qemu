@@ -92,16 +92,6 @@ static void inet_setport(struct addrinfo *e, int port)
     }
 }
 
-const char *inet_strfamily(int family)
-{
-    switch (family) {
-    case PF_INET6: return "ipv6";
-    case PF_INET:  return "ipv4";
-    case PF_UNIX:  return "unix";
-    }
-    return "unknown";
-}
-
 NetworkAddressFamily inet_netfamily(int family)
 {
     switch (family) {

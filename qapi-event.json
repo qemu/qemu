@@ -186,3 +186,58 @@
 { 'event': 'VNC_DISCONNECTED',
   'data': { 'server': 'VncServerInfo',
             'client': 'VncClientInfo' } }
+
+##
+# @SPICE_CONNECTED
+#
+# Emitted when a SPICE client establishes a connection
+#
+# @server: server information
+#
+# @client: client information
+#
+# Since: 0.14.0
+##
+{ 'event': 'SPICE_CONNECTED',
+  'data': { 'server': 'SpiceBasicInfo',
+            'client': 'SpiceBasicInfo' } }
+
+##
+# @SPICE_INITIALIZED
+#
+# Emitted after initial handshake and authentication takes place (if any)
+# and the SPICE channel is up and running
+#
+# @server: server information
+#
+# @client: client information
+#
+# Since: 0.14.0
+##
+{ 'event': 'SPICE_INITIALIZED',
+  'data': { 'server': 'SpiceServerInfo',
+            'client': 'SpiceChannel' } }
+
+##
+# @SPICE_DISCONNECTED
+#
+# Emitted when the SPICE connection is closed
+#
+# @server: server information
+#
+# @client: client information
+#
+# Since: 0.14.0
+##
+{ 'event': 'SPICE_DISCONNECTED',
+  'data': { 'server': 'SpiceBasicInfo',
+            'client': 'SpiceBasicInfo' } }
+
+##
+# @SPICE_MIGRATE_COMPLETED
+#
+# Emitted when SPICE migration has completed
+#
+# Since: 1.3
+##
+{ 'event': 'SPICE_MIGRATE_COMPLETED' }
