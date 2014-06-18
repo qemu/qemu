@@ -310,8 +310,13 @@ static void qemu_opt_del_all(QemuOpts *opts, const char *name)
 
 const char *qemu_opt_get(QemuOpts *opts, const char *name)
 {
-    QemuOpt *opt = qemu_opt_find(opts, name);
+    QemuOpt *opt;
 
+    if (opts == NULL) {
+        return NULL;
+    }
+
+    opt = qemu_opt_find(opts, name);
     if (!opt) {
         const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
         if (desc && desc->def_value_str) {
@@ -364,9 +369,14 @@ bool qemu_opt_has_help_opt(QemuOpts *opts)
 static bool qemu_opt_get_bool_helper(QemuOpts *opts, const char *name,
                                      bool defval, bool del)
 {
-    QemuOpt *opt = qemu_opt_find(opts, name);
+    QemuOpt *opt;
     bool ret = defval;
 
+    if (opts == NULL) {
+        return ret;
+    }
+
+    opt = qemu_opt_find(opts, name);
     if (opt == NULL) {
         const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
         if (desc && desc->def_value_str) {
@@ -395,9 +405,14 @@ bool qemu_opt_get_bool_del(QemuOpts *opts, const char *name, bool defval)
 static uint64_t qemu_opt_get_number_helper(QemuOpts *opts, const char *name,
                                            uint64_t defval, bool del)
 {
-    QemuOpt *opt = qemu_opt_find(opts, name);
+    QemuOpt *opt;
     uint64_t ret = defval;
 
+    if (opts == NULL) {
+        return ret;
+    }
+
+    opt = qemu_opt_find(opts, name);
     if (opt == NULL) {
         const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
         if (desc && desc->def_value_str) {
@@ -427,9 +442,14 @@ uint64_t qemu_opt_get_number_del(QemuOpts *opts, const char *name,
 static uint64_t qemu_opt_get_size_helper(QemuOpts *opts, const char *name,
                                          uint64_t defval, bool del)
 {
-    QemuOpt *opt = qemu_opt_find(opts, name);
+    QemuOpt *opt;
     uint64_t ret = defval;
 
+    if (opts == NULL) {
+        return ret;
+    }
+
+    opt = qemu_opt_find(opts, name);
     if (opt == NULL) {
         const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
         if (desc && desc->def_value_str) {
