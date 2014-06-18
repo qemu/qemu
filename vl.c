@@ -1987,7 +1987,7 @@ static bool main_loop_should_exit(void)
         notifier_list_notify(&wakeup_notifiers, &wakeup_reason);
         wakeup_reason = QEMU_WAKEUP_REASON_NONE;
         resume_all_vcpus();
-        monitor_protocol_event(QEVENT_WAKEUP, NULL);
+        qapi_event_send_wakeup(&error_abort);
     }
     if (qemu_powerdown_requested()) {
         qemu_system_powerdown();

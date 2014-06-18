@@ -69,3 +69,12 @@
 # Since: 1.2
 ##
 { 'event': 'SUSPEND_DISK' }
+
+##
+# @WAKEUP
+#
+# Emitted when the guest has woken up from suspend state and is running
+#
+# Since: 1.1
+##
+{ 'event': 'WAKEUP' }

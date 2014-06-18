@@ -442,18 +442,6 @@ Example:
                     "host": "127.0.0.1", "sasl_username": "luiz" } },
         "timestamp": { "seconds": 1263475302, "microseconds": 150772 } }
 
-WAKEUP
-------
-
-Emitted when the guest has woken up from S3 and is running.
-
-Data: None.
-
-Example:
-
-{ "event": "WAKEUP",
-     "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
-
 WATCHDOG
 --------
 
