@@ -156,21 +156,19 @@ typedef struct VirtIOBlockReq {
         DEFINE_VIRTIO_COMMON_FEATURES(_state, _field)
 
 #ifdef __linux__
-#define DEFINE_VIRTIO_BLK_PROPERTIES(_state, _field)                          \
-        DEFINE_BLOCK_PROPERTIES(_state, _field.conf),                         \
-        DEFINE_BLOCK_CHS_PROPERTIES(_state, _field.conf),                     \
-        DEFINE_PROP_STRING("serial", _state, _field.serial),                  \
-        DEFINE_PROP_BIT("config-wce", _state, _field.config_wce, 0, true),    \
-        DEFINE_PROP_BIT("scsi", _state, _field.scsi, 0, true),                \
-        DEFINE_PROP_IOTHREAD("x-iothread", _state, _field.iothread)
+#define DEFINE_VIRTIO_BLK_PROPERTIES_LINUX(_state, _field) \
+        DEFINE_PROP_BIT("scsi", _state, _field.scsi, 0, true),
 #else
+#define DEFINE_VIRTIO_BLK_PROPERTIES_LINUX(_state, _field)
+#endif
+
 #define DEFINE_VIRTIO_BLK_PROPERTIES(_state, _field)                          \
+        DEFINE_VIRTIO_BLK_PROPERTIES_LINUX(_state, _field)                    \
         DEFINE_BLOCK_PROPERTIES(_state, _field.conf),                         \
         DEFINE_BLOCK_CHS_PROPERTIES(_state, _field.conf),                     \
         DEFINE_PROP_STRING("serial", _state, _field.serial),                  \
         DEFINE_PROP_BIT("config-wce", _state, _field.config_wce, 0, true),    \
         DEFINE_PROP_IOTHREAD("x-iothread", _state, _field.iothread)
-#endif /* __linux__ */
 
 void virtio_blk_set_conf(DeviceState *dev, VirtIOBlkConf *blk);
 
