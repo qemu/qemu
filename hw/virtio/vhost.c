@@ -20,6 +20,7 @@
 #include <linux/vhost.h>
 #include "exec/address-spaces.h"
 #include "hw/virtio/virtio-bus.h"
+#include "migration/migration.h"
 
 static void vhost_dev_sync_region(struct vhost_dev *dev,
                                   MemoryRegionSection *section,
@@ -854,6 +855,12 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         .eventfd_del = vhost_eventfd_del,
         .priority = 10
     };
+    hdev->migration_blocker = NULL;
+    if (!(hdev->features & (0x1 << VHOST_F_LOG_ALL))) {
+        error_setg(&hdev->migration_blocker,
+                   "Migration disabled: vhost lacks VHOST_F_LOG_ALL feature.");
+        migrate_add_blocker(hdev->migration_blocker);
+    }
     hdev->mem = g_malloc0(offsetof(struct vhost_memory, regions));
     hdev->n_mem_sections = 0;
     hdev->mem_sections = NULL;
@@ -882,6 +889,10 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
         vhost_virtqueue_cleanup(hdev->vqs + i);
     }
     memory_listener_unregister(&hdev->memory_listener);
+    if (hdev->migration_blocker) {
+        migrate_del_blocker(hdev->migration_blocker);
+        error_free(hdev->migration_blocker);
+    }
     g_free(hdev->mem);
     g_free(hdev->mem_sections);
     hdev->vhost_ops->vhost_backend_cleanup(hdev);
