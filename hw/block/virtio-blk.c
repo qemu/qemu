@@ -677,12 +677,6 @@ static const BlockDevOps virtio_block_ops = {
     .resize_cb = virtio_blk_resize,
 };
 
-void virtio_blk_set_conf(DeviceState *dev, VirtIOBlkConf *blk)
-{
-    VirtIOBlock *s = VIRTIO_BLK(dev);
-    memcpy(&(s->blk), blk, sizeof(struct VirtIOBlkConf));
-}
-
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
 /* Disable dataplane thread during live migration since it does not
  * update the dirty memory bitmap yet.
