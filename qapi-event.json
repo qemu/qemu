@@ -266,3 +266,15 @@
 ##
 { 'event': 'BALLOON_CHANGE',
   'data': { 'actual': 'int' } }
+
+##
+# @GUEST_PANICKED
+#
+# Emitted when guest OS panic is detected
+#
+# @action: action that has been taken, currently always "pause"
+#
+# Since: 1.5
+##
+{ 'event': 'GUEST_PANICKED',
+  'data': { 'action': 'GuestPanicAction' } }

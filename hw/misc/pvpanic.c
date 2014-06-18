@@ -14,12 +14,12 @@
 
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qjson.h"
-#include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"
 
 #include "hw/nvram/fw_cfg.h"
 #include "hw/i386/pc.h"
+#include "qapi-event.h"
 
 /* The bit of supported pv event */
 #define PVPANIC_F_PANICKED      0
@@ -31,15 +31,6 @@
 #define ISA_PVPANIC_DEVICE(obj)    \
     OBJECT_CHECK(PVPanicState, (obj), TYPE_ISA_PVPANIC_DEVICE)
 
-static void panicked_mon_event(const char *action)
-{
-    QObject *data;
-
-    data = qobject_from_jsonf("{ 'action': %s }", action);
-    monitor_protocol_event(QEVENT_GUEST_PANICKED, data);
-    qobject_decref(data);
-}
-
 static void handle_event(int event)
 {
     static bool logged;
@@ -50,7 +41,7 @@ static void handle_event(int event)
     }
 
     if (event & PVPANIC_PANICKED) {
-        panicked_mon_event("pause");
+        qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE, &error_abort);
         vm_stop(RUN_STATE_GUEST_PANICKED);
         return;
     }

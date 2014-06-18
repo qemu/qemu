@@ -3385,4 +3385,16 @@
 { 'enum': 'IoOperationType',
   'data': [ 'read', 'write' ] }
 
+##
+# @GuestPanicAction
+#
+# An enumeration of the actions taken when guest OS panic is detected
+#
+# @pause: system pauses
+#
+# Since: 2.1
+##
+{ 'enum': 'GuestPanicAction',
+  'data': [ 'pause' ] }
+
 { 'include': 'qapi-event.json' }

@@ -39,6 +39,7 @@
 #include "monitor/monitor.h"
 #include "exec/gdbstub.h"
 #include "trace.h"
+#include "qapi-event.h"
 
 /* #define DEBUG_KVM */
 
@@ -1029,12 +1030,8 @@ static bool is_special_wait_psw(CPUState *cs)
 
 static void guest_panicked(void)
 {
-    QObject *data;
-
-    data = qobject_from_jsonf("{ 'action': %s }", "pause");
-    monitor_protocol_event(QEVENT_GUEST_PANICKED, data);
-    qobject_decref(data);
-
+    qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE,
+                                   &error_abort);
     vm_stop(RUN_STATE_GUEST_PANICKED);
 }
 

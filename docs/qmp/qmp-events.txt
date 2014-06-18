@@ -1,20 +1,6 @@
                    QEMU Machine Protocol Events
                    ============================
 
-GUEST_PANICKED
---------------
-
-Emitted when guest OS panic is detected.
-
-Data:
-
-- "action": Action that has been taken (json-string, currently always "pause").
-
-Example:
-
-{ "event": "GUEST_PANICKED",
-     "data": { "action": "pause" } }
-
 QUORUM_FAILURE
 --------------
 
