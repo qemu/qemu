@@ -363,7 +363,7 @@ static void z2_init(MachineState *machine)
     wm8750_data_req_set(wm, mpu->i2s->data_req, mpu->i2s);
 
     qdev_connect_gpio_out(mpu->gpio, Z2_GPIO_LCD_CS,
-        qemu_allocate_irqs(z2_lcd_cs, z2_lcd, 1)[0]);
+                          qemu_allocate_irq(z2_lcd_cs, z2_lcd, 0));
 
     z2_binfo.kernel_filename = kernel_filename;
     z2_binfo.kernel_cmdline = kernel_cmdline;

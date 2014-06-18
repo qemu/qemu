@@ -195,7 +195,7 @@ static void pxa2xx_pcmcia_initfn(Object *obj)
     memory_region_add_subregion(&s->container_mem, 0x0c000000,
                                 &s->common_iomem);
 
-    s->slot.irq = qemu_allocate_irqs(pxa2xx_pcmcia_set_irq, s, 1)[0];
+    s->slot.irq = qemu_allocate_irq(pxa2xx_pcmcia_set_irq, s, 0);
 
     object_property_add_link(obj, "card", TYPE_PCMCIA_CARD,
                              (Object **)&s->card,
