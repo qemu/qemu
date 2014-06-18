@@ -23,8 +23,13 @@
  */
 #include "qemu-common.h"
 #include "hw/irq.h"
+#include "qom/object.h"
+
+#define IRQ(obj) OBJECT_CHECK(struct IRQState, (obj), TYPE_IRQ)
 
 struct IRQState {
+    Object parent_obj;
+
     qemu_irq_handler handler;
     void *opaque;
     int n;
@@ -63,7 +68,7 @@ qemu_irq qemu_allocate_irq(qemu_irq_handler handler, void *opaque, int n)
 {
     struct IRQState *irq;
 
-    irq = g_new(struct IRQState, 1);
+    irq = IRQ(object_new(TYPE_IRQ));
     irq->handler = handler;
     irq->opaque = opaque;
     irq->n = n;
@@ -82,7 +87,7 @@ void qemu_free_irqs(qemu_irq *s, int n)
 
 void qemu_free_irq(qemu_irq irq)
 {
-    g_free(irq);
+    object_unref(OBJECT(irq));
 }
 
 static void qemu_notirq(void *opaque, int line, int level)
@@ -144,3 +149,16 @@ void qemu_irq_intercept_out(qemu_irq **gpio_out, qemu_irq_handler handler, int n
     qemu_irq *old_irqs = *gpio_out;
     *gpio_out = qemu_allocate_irqs(handler, old_irqs, n);
 }
+
+static const TypeInfo irq_type_info = {
+   .name = TYPE_IRQ,
+   .parent = TYPE_OBJECT,
+   .instance_size = sizeof(struct IRQState),
+};
+
+static void irq_register_types(void)
+{
+    type_register_static(&irq_type_info);
+}
+
+type_init(irq_register_types)
