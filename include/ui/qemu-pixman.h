@@ -34,6 +34,7 @@
 /* -------------------------------------------------------------------- */
 
 PixelFormat qemu_pixelformat_from_pixman(pixman_format_code_t format);
+pixman_format_code_t qemu_default_pixman_format(int bpp, bool native_endian);
 int qemu_pixman_get_type(int rshift, int gshift, int bshift);
 pixman_format_code_t qemu_pixman_get_format(PixelFormat *pf);
 
