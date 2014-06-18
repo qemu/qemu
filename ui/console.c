@@ -1821,7 +1821,7 @@ static CharDriverState *text_console_init(ChardevVC *vc)
     unsigned width = 0;
     unsigned height = 0;
 
-    chr = g_malloc0(sizeof(CharDriverState));
+    chr = qemu_chr_alloc();
 
     if (vc->has_width) {
         width = vc->width;

@@ -89,6 +89,15 @@ struct CharDriverState {
 };
 
 /**
+ * @qemu_chr_alloc:
+ *
+ * Allocate and initialize a new CharDriverState.
+ *
+ * Returns: a newly allocated CharDriverState.
+ */
+CharDriverState *qemu_chr_alloc(void);
+
+/**
  * @qemu_chr_new_from_opts:
  *
  * Create a new character backend from a QemuOpts list.

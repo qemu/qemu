@@ -574,7 +574,7 @@ CharDriverState *chr_baum_init(void)
     int tty;
 
     baum = g_malloc0(sizeof(BaumDriverState));
-    baum->chr = chr = g_malloc0(sizeof(CharDriverState));
+    baum->chr = chr = qemu_chr_alloc();
 
     chr->opaque = baum;
     chr->chr_write = baum_write;
