@@ -427,7 +427,7 @@ static void coroutine_fn mirror_run(void *opaque)
                  */
                 s->common.offset = end * BDRV_SECTOR_SIZE;
                 if (!s->synced) {
-                    block_job_ready(&s->common);
+                    block_job_event_ready(&s->common);
                     s->synced = true;
                 }
 

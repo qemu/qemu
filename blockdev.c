@@ -1847,23 +1847,21 @@ void qmp_block_resize(bool has_device, const char *device,
 static void block_job_cb(void *opaque, int ret)
 {
     BlockDriverState *bs = opaque;
-    QObject *obj;
+    const char *msg = NULL;
 
     trace_block_job_cb(bs, bs->job, ret);
 
     assert(bs->job);
-    obj = qobject_from_block_job(bs->job);
+
     if (ret < 0) {
-        QDict *dict = qobject_to_qdict(obj);
-        qdict_put(dict, "error", qstring_from_str(strerror(-ret)));
+        msg = strerror(-ret);
     }
 
     if (block_job_is_cancelled(bs->job)) {
-        monitor_protocol_event(QEVENT_BLOCK_JOB_CANCELLED, obj);
+        block_job_event_cancelled(bs->job);
     } else {
-        monitor_protocol_event(QEVENT_BLOCK_JOB_COMPLETED, obj);
+        block_job_event_completed(bs->job, msg);
     }
-    qobject_decref(obj);
 
     bdrv_put_ref_bh_schedule(bs);
 }

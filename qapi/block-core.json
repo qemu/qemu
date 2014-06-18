@@ -1473,6 +1473,62 @@
             'action': 'BlockErrorAction' } }
 
 ##
+# @BLOCK_JOB_COMPLETED
+#
+# Emitted when a block job has completed
+#
+# @type: job type
+#
+# @device: device name
+#
+# @len: maximum progress value
+#
+# @offset: current progress value. On success this is equal to len.
+#          On failure this is less than len
+#
+# @speed: rate limit, bytes per second
+#
+# @error: #optional, error message. Only present on failure. This field
+#         contains a human-readable error message. There are no semantics
+#         other than that streaming has failed and clients should not try to
+#         interpret the error string
+#
+# Since: 1.1
+##
+{ 'event': 'BLOCK_JOB_COMPLETED',
+  'data': { 'type'  : 'BlockJobType',
+            'device': 'str',
+            'len'   : 'int',
+            'offset': 'int',
+            'speed' : 'int',
+            '*error': 'str' } }
+
+##
+# @BLOCK_JOB_CANCELLED
+#
+# Emitted when a block job has been cancelled
+#
+# @type: job type
+#
+# @device: device name
+#
+# @len: maximum progress value
+#
+# @offset: current progress value. On success this is equal to len.
+#          On failure this is less than len
+#
+# @speed: rate limit, bytes per second
+#
+# Since: 1.1
+##
+{ 'event': 'BLOCK_JOB_CANCELLED',
+  'data': { 'type'  : 'BlockJobType',
+            'device': 'str',
+            'len'   : 'int',
+            'offset': 'int',
+            'speed' : 'int' } }
+
+##
 # @BLOCK_JOB_ERROR
 #
 # Emitted when a block job encounters an error
@@ -1489,3 +1545,18 @@
   'data': { 'device'   : 'str',
             'operation': 'IoOperationType',
             'action'   : 'BlockdevOnError' } }
+
+##
+# @BLOCK_JOB_READY
+#
+# Emitted when a block job is ready to complete
+#
+# @device: device name
+#
+# Note: The "ready to complete" status is always reset by a @BLOCK_JOB_ERROR
+# event
+#
+# Since: 1.3
+##
+{ 'event': 'BLOCK_JOB_READY',
+  'data': { 'device': 'str' } }

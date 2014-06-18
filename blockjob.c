@@ -26,7 +26,6 @@
 #include "config-host.h"
 #include "qemu-common.h"
 #include "trace.h"
-#include "monitor/monitor.h"
 #include "block/block.h"
 #include "block/blockjob.h"
 #include "block/block_int.h"
@@ -233,26 +232,31 @@ static void block_job_iostatus_set_err(BlockJob *job, int error)
     }
 }
 
-
-QObject *qobject_from_block_job(BlockJob *job)
+void block_job_event_cancelled(BlockJob *job)
 {
-    return qobject_from_jsonf("{ 'type': %s,"
-                              "'device': %s,"
-                              "'len': %" PRId64 ","
-                              "'offset': %" PRId64 ","
-                              "'speed': %" PRId64 " }",
-                              BlockJobType_lookup[job->driver->job_type],
-                              bdrv_get_device_name(job->bs),
-                              job->len,
-                              job->offset,
-                              job->speed);
+    qapi_event_send_block_job_cancelled(job->driver->job_type,
+                                        bdrv_get_device_name(job->bs),
+                                        job->len,
+                                        job->offset,
+                                        job->speed,
+                                        &error_abort);
 }
 
-void block_job_ready(BlockJob *job)
+void block_job_event_completed(BlockJob *job, const char *msg)
 {
-    QObject *data = qobject_from_block_job(job);
-    monitor_protocol_event(QEVENT_BLOCK_JOB_READY, data);
-    qobject_decref(data);
+    qapi_event_send_block_job_completed(job->driver->job_type,
+                                        bdrv_get_device_name(job->bs),
+                                        job->len,
+                                        job->offset,
+                                        job->speed,
+                                        !!msg,
+                                        msg,
+                                        &error_abort);
+}
+
+void block_job_event_ready(BlockJob *job)
+{
+    qapi_event_send_block_job_ready(bdrv_get_device_name(job->bs), &error_abort);
 }
 
 BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
