@@ -69,14 +69,12 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
 {
     int64_t value[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 20};
     int16List *res = NULL, *tmp;
-    Error *errp = NULL;
     Visitor *v;
     int i = 0;
 
     v = visitor_input_test_init(data, "1,2,0,2-4,20,5-9,1-8");
 
-    visit_type_int16List(v, &res, NULL, &errp);
-    g_assert(errp == NULL);
+    visit_type_int16List(v, &res, NULL, &error_abort);
     tmp = res;
     while (i < sizeof(value) / sizeof(value[0])) {
         g_assert(tmp);
