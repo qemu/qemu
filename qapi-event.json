@@ -10,3 +10,13 @@
 # Since: 0.12.0
 ##
 { 'event': 'SHUTDOWN' }
+
+##
+# @POWERDOWN
+#
+# Emitted when the virtual machine is powered down through the power control
+# system, such as via ACPI.
+#
+# Since: 0.12.0
+##
+{ 'event': 'POWERDOWN' }

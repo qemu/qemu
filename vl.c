@@ -1932,7 +1932,7 @@ void qemu_system_shutdown_request(void)
 
 static void qemu_system_powerdown(void)
 {
-    monitor_protocol_event(QEVENT_POWERDOWN, NULL);
+    qapi_event_send_powerdown(&error_abort);
     notifier_list_notify(&powerdown_notifiers, NULL);
 }
 
