@@ -785,7 +785,17 @@ static void virtio_blk_device_unrealize(DeviceState *dev, Error **errp)
 }
 
 static Property virtio_blk_properties[] = {
-    DEFINE_VIRTIO_BLK_PROPERTIES(VirtIOBlock, blk),
+    DEFINE_BLOCK_PROPERTIES(VirtIOBlock, blk.conf),
+    DEFINE_BLOCK_CHS_PROPERTIES(VirtIOBlock, blk.conf),
+    DEFINE_PROP_STRING("serial", VirtIOBlock, blk.serial),
+    DEFINE_PROP_BIT("config-wce", VirtIOBlock, blk.config_wce, 0, true),
+    DEFINE_PROP_IOTHREAD("x-iothread", VirtIOBlock, blk.iothread),
+#ifdef __linux__
+    DEFINE_PROP_BIT("scsi", VirtIOBlock, blk.scsi, 0, true),
+#endif
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+    DEFINE_PROP_BIT("x-data-plane", VirtIOBlock, blk.data_plane, 0, false),
+#endif
     DEFINE_PROP_END_OF_LIST(),
 };
 

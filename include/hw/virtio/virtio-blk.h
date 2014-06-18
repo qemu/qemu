@@ -155,29 +155,6 @@ typedef struct VirtIOBlockReq {
 #define DEFINE_VIRTIO_BLK_FEATURES(_state, _field) \
         DEFINE_VIRTIO_COMMON_FEATURES(_state, _field)
 
-#ifdef __linux__
-#define DEFINE_VIRTIO_BLK_PROPERTIES_LINUX(_state, _field) \
-        DEFINE_PROP_BIT("scsi", _state, _field.scsi, 0, true),
-#else
-#define DEFINE_VIRTIO_BLK_PROPERTIES_LINUX(_state, _field)
-#endif
-
-#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
-#define DEFINE_VIRTIO_BLK_PROPERTIES_DATA_PLANE(_state, _field) \
-    DEFINE_PROP_BIT("x-data-plane", _state, _field.data_plane, 0, false),
-#else
-#define DEFINE_VIRTIO_BLK_PROPERTIES_DATA_PLANE(_state, _field)
-#endif
-
-#define DEFINE_VIRTIO_BLK_PROPERTIES(_state, _field)                          \
-        DEFINE_VIRTIO_BLK_PROPERTIES_LINUX(_state, _field)                    \
-        DEFINE_VIRTIO_BLK_PROPERTIES_DATA_PLANE(_state, _field)               \
-        DEFINE_BLOCK_PROPERTIES(_state, _field.conf),                         \
-        DEFINE_BLOCK_CHS_PROPERTIES(_state, _field.conf),                     \
-        DEFINE_PROP_STRING("serial", _state, _field.serial),                  \
-        DEFINE_PROP_BIT("config-wce", _state, _field.config_wce, 0, true),    \
-        DEFINE_PROP_IOTHREAD("x-iothread", _state, _field.iothread)
-
 int virtio_blk_handle_scsi_req(VirtIOBlock *blk,
                                VirtQueueElement *elem);
 
