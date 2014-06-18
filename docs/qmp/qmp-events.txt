@@ -42,23 +42,6 @@ Example:
 { "event": "GUEST_PANICKED",
      "data": { "action": "pause" } }
 
-NIC_RX_FILTER_CHANGED
----------------------
-
-The event is emitted once until the query command is executed,
-the first event will always be emitted.
-
-Data:
-
-- "name": net client name (json-string)
-- "path": device path (json-string)
-
-{ "event": "NIC_RX_FILTER_CHANGED",
-  "data": { "name": "vnet0",
-            "path": "/machine/peripheral/vnet0/virtio-backend" },
-  "timestamp": { "seconds": 1368697518, "microseconds": 326866 } }
-}
-
 QUORUM_FAILURE
 --------------
 

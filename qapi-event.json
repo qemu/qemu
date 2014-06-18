@@ -122,3 +122,18 @@
 ##
 { 'event': 'DEVICE_DELETED',
   'data': { '*device': 'str', 'path': 'str' } }
+
+##
+# @NIC_RX_FILTER_CHANGED
+#
+# Emitted once until the 'query-rx-filter' command is executed, the first event
+# will always be emitted
+#
+# @name: #optional, net client name
+#
+# @path: device path
+#
+# Since: 1.6
+##
+{ 'event': 'NIC_RX_FILTER_CHANGED',
+  'data': { '*name': 'str', 'path': 'str' } }
