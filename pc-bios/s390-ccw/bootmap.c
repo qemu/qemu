@@ -58,6 +58,52 @@ struct mbr {
 /* Scratch space */
 static uint8_t sec[SECTOR_SIZE] __attribute__((__aligned__(SECTOR_SIZE)));
 
+typedef struct ResetInfo {
+    uint32_t ipl_mask;
+    uint32_t ipl_addr;
+    uint32_t ipl_continue;
+} ResetInfo;
+
+ResetInfo save;
+
+static void jump_to_IPL_2(void)
+{
+    ResetInfo *current = 0;
+
+    void (*ipl)(void) = (void *) (uint64_t) current->ipl_continue;
+    debug_print_addr("set IPL addr to", ipl);
+
+    /* Ensure the guest output starts fresh */
+    sclp_print("\n");
+
+    *current = save;
+    ipl(); /* should not return */
+}
+
+static void jump_to_IPL_code(uint64_t address)
+{
+    /*
+     * The IPL PSW is at address 0. We also must not overwrite the
+     * content of non-BIOS memory after we loaded the guest, so we
+     * save the original content and restore it in jump_to_IPL_2.
+     */
+    ResetInfo *current = 0;
+
+    save = *current;
+    current->ipl_addr = (uint32_t) (uint64_t) &jump_to_IPL_2;
+    current->ipl_continue = address & 0x7fffffff;
+
+    /*
+     * HACK ALERT.
+     * We use the load normal reset to keep r15 unchanged. jump_to_IPL_2
+     * can then use r15 as its stack pointer.
+     */
+    asm volatile("lghi 1,1\n\t"
+                 "diag 1,1,0x308\n\t"
+                 : : : "1", "memory");
+    virtio_panic("\n! IPL returns !\n");
+}
+
 /* Check for ZIPL magic. Returns 0 if not matched. */
 static int zipl_magic(uint8_t *ptr)
 {
@@ -123,7 +169,6 @@ static int zipl_run(struct scsi_blockptr *pte)
 {
     struct component_header *header;
     struct component_entry *entry;
-    void (*ipl)(void);
     uint8_t tmp_sec[SECTOR_SIZE];
 
     virtio_read(pte->blockno, tmp_sec);
@@ -157,14 +202,8 @@ static int zipl_run(struct scsi_blockptr *pte)
         goto fail;
     }
 
-    /* Ensure the guest output starts fresh */
-    sclp_print("\n");
-
-    /* And run the OS! */
-    ipl = (void*)(entry->load_address & 0x7fffffff);
-    debug_print_addr("set IPL addr to", ipl);
     /* should not return */
-    ipl();
+    jump_to_IPL_code(entry->load_address);
 
     return 0;
 
