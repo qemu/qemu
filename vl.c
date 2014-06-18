@@ -1848,7 +1848,7 @@ void qemu_system_reset(bool report)
         qemu_devices_reset();
     }
     if (report) {
-        monitor_protocol_event(QEVENT_RESET, NULL);
+        qapi_event_send_reset(&error_abort);
     }
     cpu_synchronize_all_post_reset();
 }

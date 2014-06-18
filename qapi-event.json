@@ -20,3 +20,12 @@
 # Since: 0.12.0
 ##
 { 'event': 'POWERDOWN' }
+
+##
+# @RESET
+#
+# Emitted when the virtual machine is reset
+#
+# Since: 0.12.0
+##
+{ 'event': 'RESET' }
