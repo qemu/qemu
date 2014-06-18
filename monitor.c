@@ -191,13 +191,18 @@ typedef struct MonitorQAPIEventState {
 
 struct Monitor {
     CharDriverState *chr;
-    int mux_out;
     int reset_seen;
     int flags;
     int suspend_cnt;
     bool skip_flush;
+
+    QemuMutex out_lock;
     QString *outbuf;
-    guint watch;
+    guint out_watch;
+
+    /* Read under either BQL or out_lock, written with BQL+out_lock.  */
+    int mux_out;
+
     ReadLineState *rs;
     MonitorControl *mc;
     CPUState *mon_cpu;
@@ -270,17 +275,22 @@ int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
     }
 }
 
+static void monitor_flush_locked(Monitor *mon);
+
 static gboolean monitor_unblocked(GIOChannel *chan, GIOCondition cond,
                                   void *opaque)
 {
     Monitor *mon = opaque;
 
-    mon->watch = 0;
-    monitor_flush(mon);
+    qemu_mutex_lock(&mon->out_lock);
+    mon->out_watch = 0;
+    monitor_flush_locked(mon);
+    qemu_mutex_unlock(&mon->out_lock);
     return FALSE;
 }
 
-void monitor_flush(Monitor *mon)
+/* Called with mon->out_lock held.  */
+static void monitor_flush_locked(Monitor *mon)
 {
     int rc;
     size_t len;
@@ -307,11 +317,18 @@ void monitor_flush(Monitor *mon)
             QDECREF(mon->outbuf);
             mon->outbuf = tmp;
         }
-        if (mon->watch == 0) {
-            mon->watch = qemu_chr_fe_add_watch(mon->chr, G_IO_OUT,
-                                               monitor_unblocked, mon);
+        if (mon->out_watch == 0) {
+            mon->out_watch = qemu_chr_fe_add_watch(mon->chr, G_IO_OUT,
+                                                   monitor_unblocked, mon);
         }
     }
+}
+
+void monitor_flush(Monitor *mon)
+{
+    qemu_mutex_lock(&mon->out_lock);
+    monitor_flush_locked(mon);
+    qemu_mutex_unlock(&mon->out_lock);
 }
 
 /* flush at every end of line */
@@ -319,6 +336,7 @@ static void monitor_puts(Monitor *mon, const char *str)
 {
     char c;
 
+    qemu_mutex_lock(&mon->out_lock);
     for(;;) {
         c = *str++;
         if (c == '\0')
@@ -328,9 +346,10 @@ static void monitor_puts(Monitor *mon, const char *str)
         }
         qstring_append_chr(mon->outbuf, c);
         if (c == '\n') {
-            monitor_flush(mon);
+            monitor_flush_locked(mon);
         }
     }
+    qemu_mutex_unlock(&mon->out_lock);
 }
 
 void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
@@ -581,6 +600,7 @@ static void handle_user_command(Monitor *mon, const char *cmdline);
 static void monitor_data_init(Monitor *mon)
 {
     memset(mon, 0, sizeof(Monitor));
+    qemu_mutex_init(&mon->out_lock);
     mon->outbuf = qstring_new();
     /* Use *mon_cmds by default. */
     mon->cmd_table = mon_cmds;
@@ -589,6 +609,7 @@ static void monitor_data_init(Monitor *mon)
 static void monitor_data_destroy(Monitor *mon)
 {
     QDECREF(mon->outbuf);
+    qemu_mutex_destroy(&mon->out_lock);
 }
 
 char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
@@ -616,11 +637,13 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
     handle_user_command(&hmp, command_line);
     cur_mon = old_mon;
 
+    qemu_mutex_lock(&hmp.out_lock);
     if (qstring_get_length(hmp.outbuf) > 0) {
         output = g_strdup(qstring_get_str(hmp.outbuf));
     } else {
         output = g_strdup("");
     }
+    qemu_mutex_unlock(&hmp.out_lock);
 
 out:
     monitor_data_destroy(&hmp);
@@ -5180,7 +5203,9 @@ static void monitor_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_MUX_IN:
+        qemu_mutex_lock(&mon->out_lock);
         mon->mux_out = 0;
+        qemu_mutex_unlock(&mon->out_lock);
         if (mon->reset_seen) {
             readline_restart(mon->rs);
             monitor_resume(mon);
@@ -5200,7 +5225,9 @@ static void monitor_event(void *opaque, int event)
         } else {
             mon->suspend_cnt++;
         }
+        qemu_mutex_lock(&mon->out_lock);
         mon->mux_out = 1;
+        qemu_mutex_unlock(&mon->out_lock);
         break;
 
     case CHR_EVENT_OPENED:
