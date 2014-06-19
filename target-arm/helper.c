@@ -312,7 +312,7 @@ static inline bool extended_addresses_enabled(CPUARMState *env)
 {
     return arm_el_is_aa64(env, 1)
         || ((arm_feature(env, ARM_FEATURE_LPAE)
-             && (env->cp15.c2_control & (1U << 31))));
+             && (env->cp15.c2_control & TTBCR_EAE)));
 }
 
 static void dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
@@ -1413,11 +1413,22 @@ static void vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     int maskshift = extract32(value, 0, 3);
 
-    if (arm_feature(env, ARM_FEATURE_LPAE) && (value & (1 << 31))) {
-        value &= ~((7 << 19) | (3 << 14) | (0xf << 3));
-    } else {
-        value &= 7;
+    if (!arm_feature(env, ARM_FEATURE_V8)) {
+        if (arm_feature(env, ARM_FEATURE_LPAE) && (value & TTBCR_EAE)) {
+            /* Pre ARMv8 bits [21:19], [15:14] and [6:3] are UNK/SBZP when
+             * using Long-desciptor translation table format */
+            value &= ~((7 << 19) | (3 << 14) | (0xf << 3));
+        } else if (arm_feature(env, ARM_FEATURE_EL3)) {
+            /* In an implementation that includes the Security Extensions
+             * TTBCR has additional fields PD0 [4] and PD1 [5] for
+             * Short-descriptor translation table format.
+             */
+            value &= TTBCR_PD1 | TTBCR_PD0 | TTBCR_N;
+        } else {
+            value &= TTBCR_N;
+        }
     }
+
     /* Note that we always calculate c2_mask and c2_base_mask, but
      * they are only used for short-descriptor tables (ie if EAE is 0);
      * for long-descriptor tables the TTBCR fields are used differently
@@ -3540,17 +3551,24 @@ static inline int check_ap(CPUARMState *env, int ap, int domain_prot,
   }
 }
 
-static uint32_t get_level1_table_address(CPUARMState *env, uint32_t address)
+static bool get_level1_table_address(CPUARMState *env, uint32_t *table,
+                                         uint32_t address)
 {
-    uint32_t table;
-
-    if (address & env->cp15.c2_mask)
-        table = env->cp15.ttbr1_el1 & 0xffffc000;
-    else
-        table = env->cp15.ttbr0_el1 & env->cp15.c2_base_mask;
-
-    table |= (address >> 18) & 0x3ffc;
-    return table;
+    if (address & env->cp15.c2_mask) {
+        if ((env->cp15.c2_control & TTBCR_PD1)) {
+            /* Translation table walk disabled for TTBR1 */
+            return false;
+        }
+        *table = env->cp15.ttbr1_el1 & 0xffffc000;
+    } else {
+        if ((env->cp15.c2_control & TTBCR_PD0)) {
+            /* Translation table walk disabled for TTBR0 */
+            return false;
+        }
+        *table = env->cp15.ttbr0_el1 & env->cp15.c2_base_mask;
+    }
+    *table |= (address >> 18) & 0x3ffc;
+    return true;
 }
 
 static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
@@ -3563,13 +3581,17 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
     uint32_t desc;
     int type;
     int ap;
-    int domain;
+    int domain = 0;
     int domain_prot;
     hwaddr phys_addr;
 
     /* Pagetable walk.  */
     /* Lookup l1 descriptor.  */
-    table = get_level1_table_address(env, address);
+    if (!get_level1_table_address(env, &table, address)) {
+        /* Section translation fault if page walk is disabled by PD0 or PD1 */
+        code = 5;
+        goto do_fault;
+    }
     desc = ldl_phys(cs->as, table);
     type = (desc & 3);
     domain = (desc >> 5) & 0x0f;
@@ -3667,7 +3689,11 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
 
     /* Pagetable walk.  */
     /* Lookup l1 descriptor.  */
-    table = get_level1_table_address(env, address);
+    if (!get_level1_table_address(env, &table, address)) {
+        /* Section translation fault if page walk is disabled by PD0 or PD1 */
+        code = 5;
+        goto do_fault;
+    }
     desc = ldl_phys(cs->as, table);
     type = (desc & 3);
     if (type == 0 || (type == 3 && !arm_feature(env, ARM_FEATURE_PXN))) {
