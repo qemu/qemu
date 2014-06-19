@@ -196,6 +196,10 @@ static void vhost_scsi_set_status(VirtIODevice *vdev, uint8_t val)
     }
 }
 
+static void vhost_dummy_handle_output(VirtIODevice *vdev, VirtQueue *vq)
+{
+}
+
 static void vhost_scsi_realize(DeviceState *dev, Error **errp)
 {
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(dev);
@@ -217,7 +221,9 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    virtio_scsi_common_realize(dev, &err);
+    virtio_scsi_common_realize(dev, &err, vhost_dummy_handle_output,
+                               vhost_dummy_handle_output,
+                               vhost_dummy_handle_output);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
