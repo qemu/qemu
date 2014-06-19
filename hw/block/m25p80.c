@@ -288,18 +288,20 @@ static void bdrv_sync_complete(void *opaque, int ret)
 
 static void flash_sync_page(Flash *s, int page)
 {
-    if (s->bdrv) {
-        int bdrv_sector, nb_sectors;
-        QEMUIOVector iov;
+    int bdrv_sector, nb_sectors;
+    QEMUIOVector iov;
 
-        bdrv_sector = (page * s->pi->page_size) / BDRV_SECTOR_SIZE;
-        nb_sectors = DIV_ROUND_UP(s->pi->page_size, BDRV_SECTOR_SIZE);
-        qemu_iovec_init(&iov, 1);
-        qemu_iovec_add(&iov, s->storage + bdrv_sector * BDRV_SECTOR_SIZE,
-                                                nb_sectors * BDRV_SECTOR_SIZE);
-        bdrv_aio_writev(s->bdrv, bdrv_sector, &iov, nb_sectors,
-                                                bdrv_sync_complete, NULL);
+    if (!s->bdrv) {
+        return;
     }
+
+    bdrv_sector = (page * s->pi->page_size) / BDRV_SECTOR_SIZE;
+    nb_sectors = DIV_ROUND_UP(s->pi->page_size, BDRV_SECTOR_SIZE);
+    qemu_iovec_init(&iov, 1);
+    qemu_iovec_add(&iov, s->storage + bdrv_sector * BDRV_SECTOR_SIZE,
+                   nb_sectors * BDRV_SECTOR_SIZE);
+    bdrv_aio_writev(s->bdrv, bdrv_sector, &iov, nb_sectors, bdrv_sync_complete,
+                    NULL);
 }
 
 static inline void flash_sync_area(Flash *s, int64_t off, int64_t len)
