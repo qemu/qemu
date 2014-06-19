@@ -102,6 +102,9 @@ typedef struct ARMCPU {
      */
     uint32_t kvm_target;
 
+    /* KVM init features for this CPU */
+    uint32_t kvm_init_features[7];
+
     /* The instance init functions for implementation-specific subclasses
      * set these fields to specify the implementation-dependent values of
      * various constant registers and reset values of non-constant

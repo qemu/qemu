@@ -166,7 +166,6 @@ static int compare_u64(const void *a, const void *b)
 
 int kvm_arch_init_vcpu(CPUState *cs)
 {
-    struct kvm_vcpu_init init;
     int i, ret, arraylen;
     uint64_t v;
     struct kvm_one_reg r;
@@ -179,15 +178,18 @@ int kvm_arch_init_vcpu(CPUState *cs)
         return -EINVAL;
     }
 
-    init.target = cpu->kvm_target;
-    memset(init.features, 0, sizeof(init.features));
+    /* Determine init features for this CPU */
+    memset(cpu->kvm_init_features, 0, sizeof(cpu->kvm_init_features));
     if (cpu->start_powered_off) {
-        init.features[0] = 1 << KVM_ARM_VCPU_POWER_OFF;
+        cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_POWER_OFF;
     }
-    ret = kvm_vcpu_ioctl(cs, KVM_ARM_VCPU_INIT, &init);
+
+    /* Do KVM_ARM_VCPU_INIT ioctl */
+    ret = kvm_arm_vcpu_init(cs);
     if (ret) {
         return ret;
     }
+
     /* Query the kernel to make sure it supports 32 VFP
      * registers: QEMU's "cortex-a15" CPU is always a
      * VFP-D32 core. The simplest way to do this is just
