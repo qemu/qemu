@@ -1,5 +1,6 @@
 stub-obj-y += arch-query-cpu-def.o
 stub-obj-y += bdrv-commit-all.o
+stub-obj-y += chr-baum-init.o
 stub-obj-y += chr-msmouse.o
 stub-obj-y += clock-warp.o
 stub-obj-y += cpu-get-clock.o
@@ -24,6 +25,7 @@ stub-obj-y += mon-set-error.o
 stub-obj-y += monitor-init.o
 stub-obj-y += notify-event.o
 stub-obj-y += pci-drive-hot-add.o
+stub-obj-$(CONFIG_SPICE) += qemu-chr-open-spice.o
 stub-obj-y += qtest.o
 stub-obj-y += reset.o
 stub-obj-y += runstate-check.o
