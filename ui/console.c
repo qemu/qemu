@@ -28,6 +28,7 @@
 #include "qmp-commands.h"
 #include "sysemu/char.h"
 #include "trace.h"
+#include "exec/memory.h"
 
 #define DEFAULT_BACKSCROLL 512
 #define CONSOLE_CURSOR_PERIOD 500
@@ -1266,6 +1267,42 @@ DisplaySurface *qemu_create_displaysurface_from(int width, int height,
 #ifdef HOST_WORDS_BIGENDIAN
     surface->flags = QEMU_BIG_ENDIAN_FLAG;
 #endif
+
+    return surface;
+}
+
+static void qemu_unmap_displaysurface_guestmem(pixman_image_t *image,
+                                               void *unused)
+{
+    void *data = pixman_image_get_data(image);
+    uint32_t size = pixman_image_get_stride(image) *
+        pixman_image_get_height(image);
+    cpu_physical_memory_unmap(data, size, 0, 0);
+}
+
+DisplaySurface *qemu_create_displaysurface_guestmem(int width, int height,
+                                                    pixman_format_code_t format,
+                                                    int linesize, uint64_t addr)
+{
+    DisplaySurface *surface;
+    hwaddr size;
+    void *data;
+
+    if (linesize == 0) {
+        linesize = width * PIXMAN_FORMAT_BPP(format) / 8;
+    }
+
+    size = linesize * height;
+    data = cpu_physical_memory_map(addr, &size, 0);
+    if (size != linesize * height) {
+        cpu_physical_memory_unmap(data, size, 0, 0);
+        return NULL;
+    }
+
+    surface = qemu_create_displaysurface_from
+        (width, height, format, linesize, data);
+    pixman_image_set_destroy_function
+        (surface->image, qemu_unmap_displaysurface_guestmem, NULL);
 
     return surface;
 }
