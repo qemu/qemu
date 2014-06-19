@@ -285,9 +285,9 @@ static void spitz_keyboard_keydown(SpitzKeyboardState *s, int keycode)
     spitz_keyboard_sense_update(s);
 }
 
-#define MOD_SHIFT   (1 << 7)
-#define MOD_CTRL    (1 << 8)
-#define MOD_FN      (1 << 9)
+#define SPITZ_MOD_SHIFT   (1 << 7)
+#define SPITZ_MOD_CTRL    (1 << 8)
+#define SPITZ_MOD_FN      (1 << 9)
 
 #define QUEUE_KEY(c)	s->fifo[(s->fifopos + s->fifolen ++) & 0xf] = c
 
@@ -324,21 +324,26 @@ static void spitz_keyboard_handler(void *opaque, int keycode)
     }
 
     code = s->pre_map[mapcode = ((s->modifiers & 3) ?
-            (keycode | MOD_SHIFT) :
-            (keycode & ~MOD_SHIFT))];
+            (keycode | SPITZ_MOD_SHIFT) :
+            (keycode & ~SPITZ_MOD_SHIFT))];
 
     if (code != mapcode) {
 #if 0
-        if ((code & MOD_SHIFT) && !(s->modifiers & 1))
+        if ((code & SPITZ_MOD_SHIFT) && !(s->modifiers & 1)) {
             QUEUE_KEY(0x2a | (keycode & 0x80));
-        if ((code & MOD_CTRL ) && !(s->modifiers & 4))
+        }
+        if ((code & SPITZ_MOD_CTRL) && !(s->modifiers & 4)) {
             QUEUE_KEY(0x1d | (keycode & 0x80));
-        if ((code & MOD_FN   ) && !(s->modifiers & 8))
+        }
+        if ((code & SPITZ_MOD_FN) && !(s->modifiers & 8)) {
             QUEUE_KEY(0x38 | (keycode & 0x80));
-        if ((code & MOD_FN   ) && (s->modifiers & 1))
+        }
+        if ((code & SPITZ_MOD_FN) && (s->modifiers & 1)) {
             QUEUE_KEY(0x2a | (~keycode & 0x80));
-        if ((code & MOD_FN   ) && (s->modifiers & 2))
+        }
+        if ((code & SPITZ_MOD_FN) && (s->modifiers & 2)) {
             QUEUE_KEY(0x36 | (~keycode & 0x80));
+        }
 #else
         if (keycode & 0x80) {
             if ((s->imodifiers & 1   ) && !(s->modifiers & 1))
@@ -353,24 +358,27 @@ static void spitz_keyboard_handler(void *opaque, int keycode)
                 QUEUE_KEY(0x36);
             s->imodifiers = 0;
         } else {
-            if ((code & MOD_SHIFT) && !((s->modifiers | s->imodifiers) & 1)) {
+            if ((code & SPITZ_MOD_SHIFT) &&
+                !((s->modifiers | s->imodifiers) & 1)) {
                 QUEUE_KEY(0x2a);
                 s->imodifiers |= 1;
             }
-            if ((code & MOD_CTRL ) && !((s->modifiers | s->imodifiers) & 4)) {
+            if ((code & SPITZ_MOD_CTRL) &&
+                !((s->modifiers | s->imodifiers) & 4)) {
                 QUEUE_KEY(0x1d);
                 s->imodifiers |= 4;
             }
-            if ((code & MOD_FN   ) && !((s->modifiers | s->imodifiers) & 8)) {
+            if ((code & SPITZ_MOD_FN) &&
+                !((s->modifiers | s->imodifiers) & 8)) {
                 QUEUE_KEY(0x38);
                 s->imodifiers |= 8;
             }
-            if ((code & MOD_FN   ) && (s->modifiers & 1) &&
+            if ((code & SPITZ_MOD_FN) && (s->modifiers & 1) &&
                             !(s->imodifiers & 0x10)) {
                 QUEUE_KEY(0x2a | 0x80);
                 s->imodifiers |= 0x10;
             }
-            if ((code & MOD_FN   ) && (s->modifiers & 2) &&
+            if ((code & SPITZ_MOD_FN) && (s->modifiers & 2) &&
                             !(s->imodifiers & 0x20)) {
                 QUEUE_KEY(0x36 | 0x80);
                 s->imodifiers |= 0x20;
@@ -402,38 +410,38 @@ static void spitz_keyboard_pre_map(SpitzKeyboardState *s)
     int i;
     for (i = 0; i < 0x100; i ++)
         s->pre_map[i] = i;
-    s->pre_map[0x02 | MOD_SHIFT	] = 0x02 | MOD_SHIFT;	/* exclam */
-    s->pre_map[0x28 | MOD_SHIFT	] = 0x03 | MOD_SHIFT;	/* quotedbl */
-    s->pre_map[0x04 | MOD_SHIFT	] = 0x04 | MOD_SHIFT;	/* numbersign */
-    s->pre_map[0x05 | MOD_SHIFT	] = 0x05 | MOD_SHIFT;	/* dollar */
-    s->pre_map[0x06 | MOD_SHIFT	] = 0x06 | MOD_SHIFT;	/* percent */
-    s->pre_map[0x08 | MOD_SHIFT	] = 0x07 | MOD_SHIFT;	/* ampersand */
-    s->pre_map[0x28		] = 0x08 | MOD_SHIFT;	/* apostrophe */
-    s->pre_map[0x0a | MOD_SHIFT	] = 0x09 | MOD_SHIFT;	/* parenleft */
-    s->pre_map[0x0b | MOD_SHIFT	] = 0x0a | MOD_SHIFT;	/* parenright */
-    s->pre_map[0x29 | MOD_SHIFT	] = 0x0b | MOD_SHIFT;	/* asciitilde */
-    s->pre_map[0x03 | MOD_SHIFT	] = 0x0c | MOD_SHIFT;	/* at */
-    s->pre_map[0xd3		] = 0x0e | MOD_FN;	/* Delete */
-    s->pre_map[0x3a		] = 0x0f | MOD_FN;	/* Caps_Lock */
-    s->pre_map[0x07 | MOD_SHIFT	] = 0x11 | MOD_FN;	/* asciicircum */
-    s->pre_map[0x0d		] = 0x12 | MOD_FN;	/* equal */
-    s->pre_map[0x0d | MOD_SHIFT	] = 0x13 | MOD_FN;	/* plus */
-    s->pre_map[0x1a		] = 0x14 | MOD_FN;	/* bracketleft */
-    s->pre_map[0x1b		] = 0x15 | MOD_FN;	/* bracketright */
-    s->pre_map[0x1a | MOD_SHIFT	] = 0x16 | MOD_FN;	/* braceleft */
-    s->pre_map[0x1b | MOD_SHIFT	] = 0x17 | MOD_FN;	/* braceright */
-    s->pre_map[0x27		] = 0x22 | MOD_FN;	/* semicolon */
-    s->pre_map[0x27 | MOD_SHIFT	] = 0x23 | MOD_FN;	/* colon */
-    s->pre_map[0x09 | MOD_SHIFT	] = 0x24 | MOD_FN;	/* asterisk */
-    s->pre_map[0x2b		] = 0x25 | MOD_FN;	/* backslash */
-    s->pre_map[0x2b | MOD_SHIFT	] = 0x26 | MOD_FN;	/* bar */
-    s->pre_map[0x0c | MOD_SHIFT	] = 0x30 | MOD_FN;	/* underscore */
-    s->pre_map[0x33 | MOD_SHIFT	] = 0x33 | MOD_FN;	/* less */
-    s->pre_map[0x35		] = 0x33 | MOD_SHIFT;	/* slash */
-    s->pre_map[0x34 | MOD_SHIFT	] = 0x34 | MOD_FN;	/* greater */
-    s->pre_map[0x35 | MOD_SHIFT	] = 0x34 | MOD_SHIFT;	/* question */
-    s->pre_map[0x49		] = 0x48 | MOD_FN;	/* Page_Up */
-    s->pre_map[0x51		] = 0x50 | MOD_FN;	/* Page_Down */
+    s->pre_map[0x02 | SPITZ_MOD_SHIFT] = 0x02 | SPITZ_MOD_SHIFT; /* exclam */
+    s->pre_map[0x28 | SPITZ_MOD_SHIFT] = 0x03 | SPITZ_MOD_SHIFT; /* quotedbl */
+    s->pre_map[0x04 | SPITZ_MOD_SHIFT] = 0x04 | SPITZ_MOD_SHIFT; /* # */
+    s->pre_map[0x05 | SPITZ_MOD_SHIFT] = 0x05 | SPITZ_MOD_SHIFT; /* dollar */
+    s->pre_map[0x06 | SPITZ_MOD_SHIFT] = 0x06 | SPITZ_MOD_SHIFT; /* percent */
+    s->pre_map[0x08 | SPITZ_MOD_SHIFT] = 0x07 | SPITZ_MOD_SHIFT; /* ampersand */
+    s->pre_map[0x28]                   = 0x08 | SPITZ_MOD_SHIFT; /* ' */
+    s->pre_map[0x0a | SPITZ_MOD_SHIFT] = 0x09 | SPITZ_MOD_SHIFT; /* ( */
+    s->pre_map[0x0b | SPITZ_MOD_SHIFT] = 0x0a | SPITZ_MOD_SHIFT; /* ) */
+    s->pre_map[0x29 | SPITZ_MOD_SHIFT] = 0x0b | SPITZ_MOD_SHIFT; /* tilde */
+    s->pre_map[0x03 | SPITZ_MOD_SHIFT] = 0x0c | SPITZ_MOD_SHIFT; /* at */
+    s->pre_map[0xd3]                   = 0x0e | SPITZ_MOD_FN;    /* Delete */
+    s->pre_map[0x3a]                   = 0x0f | SPITZ_MOD_FN;    /* Caps_Lock */
+    s->pre_map[0x07 | SPITZ_MOD_SHIFT] = 0x11 | SPITZ_MOD_FN;    /* ^ */
+    s->pre_map[0x0d]                   = 0x12 | SPITZ_MOD_FN;    /* equal */
+    s->pre_map[0x0d | SPITZ_MOD_SHIFT] = 0x13 | SPITZ_MOD_FN;    /* plus */
+    s->pre_map[0x1a]                   = 0x14 | SPITZ_MOD_FN;    /* [ */
+    s->pre_map[0x1b]                   = 0x15 | SPITZ_MOD_FN;    /* ] */
+    s->pre_map[0x1a | SPITZ_MOD_SHIFT] = 0x16 | SPITZ_MOD_FN;    /* { */
+    s->pre_map[0x1b | SPITZ_MOD_SHIFT] = 0x17 | SPITZ_MOD_FN;    /* } */
+    s->pre_map[0x27]                   = 0x22 | SPITZ_MOD_FN;    /* semicolon */
+    s->pre_map[0x27 | SPITZ_MOD_SHIFT] = 0x23 | SPITZ_MOD_FN;    /* colon */
+    s->pre_map[0x09 | SPITZ_MOD_SHIFT] = 0x24 | SPITZ_MOD_FN;    /* asterisk */
+    s->pre_map[0x2b]                   = 0x25 | SPITZ_MOD_FN;    /* backslash */
+    s->pre_map[0x2b | SPITZ_MOD_SHIFT] = 0x26 | SPITZ_MOD_FN;    /* bar */
+    s->pre_map[0x0c | SPITZ_MOD_SHIFT] = 0x30 | SPITZ_MOD_FN;    /* _ */
+    s->pre_map[0x33 | SPITZ_MOD_SHIFT] = 0x33 | SPITZ_MOD_FN;    /* less */
+    s->pre_map[0x35]                   = 0x33 | SPITZ_MOD_SHIFT; /* slash */
+    s->pre_map[0x34 | SPITZ_MOD_SHIFT] = 0x34 | SPITZ_MOD_FN;    /* greater */
+    s->pre_map[0x35 | SPITZ_MOD_SHIFT] = 0x34 | SPITZ_MOD_SHIFT; /* question */
+    s->pre_map[0x49]                   = 0x48 | SPITZ_MOD_FN;    /* Page_Up */
+    s->pre_map[0x51]                   = 0x50 | SPITZ_MOD_FN;    /* Page_Down */
 
     s->modifiers = 0;
     s->imodifiers = 0;
@@ -441,9 +449,9 @@ static void spitz_keyboard_pre_map(SpitzKeyboardState *s)
     s->fifolen = 0;
 }
 
-#undef MOD_SHIFT
-#undef MOD_CTRL
-#undef MOD_FN
+#undef SPITZ_MOD_SHIFT
+#undef SPITZ_MOD_CTRL
+#undef SPITZ_MOD_FN
 
 static int spitz_keyboard_post_load(void *opaque, int version_id)
 {
