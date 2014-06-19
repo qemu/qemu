@@ -848,6 +848,14 @@ receive_filter(E1000State *s, const uint8_t *buf, int size)
     return 0;
 }
 
+static bool
+have_autoneg(E1000State *s)
+{
+    return (s->compat_flags & E1000_FLAG_AUTONEG) &&
+           (s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN) &&
+           (s->phy_reg[PHY_CTRL] & MII_CR_RESTART_AUTO_NEG);
+}
+
 static void
 e1000_set_link_status(NetClientState *nc)
 {
@@ -857,9 +865,7 @@ e1000_set_link_status(NetClientState *nc)
     if (nc->link_down) {
         e1000_link_down(s);
     } else {
-        if (s->compat_flags & E1000_FLAG_AUTONEG &&
-            s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN &&
-            s->phy_reg[PHY_CTRL] & MII_CR_RESTART_AUTO_NEG &&
+        if (have_autoneg(s) &&
             !(s->phy_reg[PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
             /* emulate auto-negotiation if supported */
             timer_mod(s->autoneg_timer,
@@ -1297,11 +1303,8 @@ static void e1000_pre_save(void *opaque)
      * complete auto-negotiation immediately. This allows us to look
      * at MII_SR_AUTONEG_COMPLETE to infer link status on load.
      */
-    if (nc->link_down &&
-        s->compat_flags & E1000_FLAG_AUTONEG &&
-        s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN &&
-        s->phy_reg[PHY_CTRL] & MII_CR_RESTART_AUTO_NEG) {
-         s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
+    if (nc->link_down && have_autoneg(s)) {
+        s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
     }
 }
 
@@ -1323,12 +1326,11 @@ static int e1000_post_load(void *opaque, int version_id)
      * Alternatively, restart link negotiation if it was in progress. */
     nc->link_down = (s->mac_reg[STATUS] & E1000_STATUS_LU) == 0;
 
-    if (s->compat_flags & E1000_FLAG_AUTONEG &&
-        s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN &&
-        s->phy_reg[PHY_CTRL] & MII_CR_RESTART_AUTO_NEG &&
+    if (have_autoneg(s) &&
         !(s->phy_reg[PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
         nc->link_down = false;
-        timer_mod(s->autoneg_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
+        timer_mod(s->autoneg_timer,
+                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
     }
 
     return 0;
