@@ -269,6 +269,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         return;
     }
 
+    g_mutex_lock(data_mutex);
     memcpy(p, buf, VHOST_USER_HDR_SIZE);
 
     if (msg.size) {
@@ -302,7 +303,6 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
 
         /* signal the test that it can continue */
         g_cond_signal(data_cond);
-        g_mutex_unlock(data_mutex);
         break;
 
     case VHOST_USER_SET_VRING_KICK:
@@ -319,6 +319,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     default:
         break;
     }
+    g_mutex_unlock(data_mutex);
 }
 
 static const char *init_hugepagefs(void)
@@ -385,7 +386,6 @@ int main(int argc, char **argv)
     /* run the main loop thread so the chardev may operate */
     data_mutex = _mutex_new();
     data_cond = _cond_new();
-    g_mutex_lock(data_mutex);
     _thread_new(NULL, thread_function, NULL);
 
     qemu_cmd = g_strdup_printf(QEMU_CMD, hugefs, socket_path);
