@@ -213,6 +213,7 @@ e1000_autoneg_timer(void *opaque)
         s->phy_reg[PHY_LP_ABILITY] |= MII_LPAR_LPACK;
         s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
         DBGOUT(PHY, "Auto negotiation is completed\n");
+        set_ics(s, 0, E1000_ICS_LSC); /* signal link status change to guest */
     }
 }
 
