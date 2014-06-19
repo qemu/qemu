@@ -180,10 +180,23 @@ static void create_fdt(VirtBoardInfo *vbi)
                                 "clk24mhz");
     qemu_fdt_setprop_cell(fdt, "/apb-pclk", "phandle", vbi->clock_phandle);
 
+}
+
+static void fdt_add_psci_node(const VirtBoardInfo *vbi)
+{
+    void *fdt = vbi->fdt;
+    ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(0));
+
     /* No PSCI for TCG yet */
     if (kvm_enabled()) {
         qemu_fdt_add_subnode(fdt, "/psci");
-        qemu_fdt_setprop_string(fdt, "/psci", "compatible", "arm,psci");
+        if (armcpu->psci_version == 2) {
+            const char comp[] = "arm,psci-0.2\0arm,psci";
+            qemu_fdt_setprop(fdt, "/psci", "compatible", comp, sizeof(comp));
+        } else {
+            qemu_fdt_setprop_string(fdt, "/psci", "compatible", "arm,psci");
+        }
+
         qemu_fdt_setprop_string(fdt, "/psci", "method", "hvc");
         qemu_fdt_setprop_cell(fdt, "/psci", "cpu_suspend",
                                   PSCI_FN_CPU_SUSPEND);
@@ -446,6 +459,7 @@ static void machvirt_init(MachineState *machine)
         object_property_set_bool(cpuobj, true, "realized", NULL);
     }
     fdt_add_cpu_nodes(vbi);
+    fdt_add_psci_node(vbi);
 
     memory_region_init_ram(ram, NULL, "mach-virt.ram", machine->ram_size);
     vmstate_register_ram_global(ram);
