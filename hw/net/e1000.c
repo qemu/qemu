@@ -204,19 +204,6 @@ set_phy_ctrl(E1000State *s, int index, uint16_t val)
     }
 }
 
-static void
-e1000_autoneg_timer(void *opaque)
-{
-    E1000State *s = opaque;
-    if (!qemu_get_queue(s->nic)->link_down) {
-        e1000_link_up(s);
-        s->phy_reg[PHY_LP_ABILITY] |= MII_LPAR_LPACK;
-        s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
-        DBGOUT(PHY, "Auto negotiation is completed\n");
-        set_ics(s, 0, E1000_ICS_LSC); /* signal link status change to guest */
-    }
-}
-
 static void (*phyreg_writeops[])(E1000State *, int, uint16_t) = {
     [PHY_CTRL] = set_phy_ctrl,
 };
@@ -346,6 +333,19 @@ set_ics(E1000State *s, int index, uint32_t val)
     DBGOUT(INTERRUPT, "set_ics %x, ICR %x, IMR %x\n", val, s->mac_reg[ICR],
         s->mac_reg[IMS]);
     set_interrupt_cause(s, 0, val | s->mac_reg[ICR]);
+}
+
+static void
+e1000_autoneg_timer(void *opaque)
+{
+    E1000State *s = opaque;
+    if (!qemu_get_queue(s->nic)->link_down) {
+        e1000_link_up(s);
+        s->phy_reg[PHY_LP_ABILITY] |= MII_LPAR_LPACK;
+        s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
+        DBGOUT(PHY, "Auto negotiation is completed\n");
+        set_ics(s, 0, E1000_ICS_LSC); /* signal link status change to guest */
+    }
 }
 
 static int
