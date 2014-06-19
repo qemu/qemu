@@ -3952,7 +3952,7 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
          * These are basically the same thing, although the number
          * of bits we pull in from the vaddr varies.
          */
-        page_size = (1 << ((granule_sz * (4 - level)) + 3));
+        page_size = (1ULL << ((granule_sz * (4 - level)) + 3));
         descaddr |= (address & (page_size - 1));
         /* Extract attributes from the descriptor and merge with table attrs */
         attrs = extract64(descriptor, 2, 10)
