@@ -748,8 +748,17 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     pflash_t *pfl = CFI_PFLASH01(dev);
     uint64_t total_len;
     int ret;
+    uint64_t blocks_per_device, device_len;
+    int num_devices;
 
     total_len = pfl->sector_len * pfl->nb_blocs;
+
+    /* These are only used to expose the parameters of each device
+     * in the cfi_table[].
+     */
+    num_devices = pfl->device_width ? (pfl->bank_width / pfl->device_width) : 1;
+    blocks_per_device = pfl->nb_blocs / num_devices;
+    device_len = pfl->sector_len * blocks_per_device;
 
     /* XXX: to be fixed */
 #if 0
@@ -838,7 +847,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     /* Max timeout for chip erase */
     pfl->cfi_table[0x26] = 0x00;
     /* Device size */
-    pfl->cfi_table[0x27] = ctz32(total_len); // + 1;
+    pfl->cfi_table[0x27] = ctz32(device_len); /* + 1; */
     /* Flash device interface (8 & 16 bits) */
     pfl->cfi_table[0x28] = 0x02;
     pfl->cfi_table[0x29] = 0x00;
@@ -854,8 +863,8 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     /* Number of erase block regions (uniform) */
     pfl->cfi_table[0x2C] = 0x01;
     /* Erase block region 1 */
-    pfl->cfi_table[0x2D] = pfl->nb_blocs - 1;
-    pfl->cfi_table[0x2E] = (pfl->nb_blocs - 1) >> 8;
+    pfl->cfi_table[0x2D] = blocks_per_device - 1;
+    pfl->cfi_table[0x2E] = (blocks_per_device - 1) >> 8;
     pfl->cfi_table[0x2F] = pfl->sector_len >> 8;
     pfl->cfi_table[0x30] = pfl->sector_len >> 16;
 
@@ -882,6 +891,11 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
 
 static Property pflash_cfi01_properties[] = {
     DEFINE_PROP_DRIVE("drive", struct pflash_t, bs),
+    /* num-blocks is the number of blocks actually visible to the guest,
+     * ie the total size of the device divided by the sector length.
+     * If we're emulating flash devices wired in parallel the actual
+     * number of blocks per indvidual device will differ.
+     */
     DEFINE_PROP_UINT32("num-blocks", struct pflash_t, nb_blocs, 0),
     DEFINE_PROP_UINT64("sector-length", struct pflash_t, sector_len, 0),
     /* width here is the overall width of this QEMU device in bytes.
