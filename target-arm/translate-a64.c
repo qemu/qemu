@@ -6539,7 +6539,7 @@ static void handle_simd_shift_fpint_conv(DisasContext *s, bool is_scalar,
     tcg_shift = tcg_const_i32(fracbits);
 
     if (is_double) {
-        int maxpass = is_scalar ? 1 : is_q ? 2 : 1;
+        int maxpass = is_scalar ? 1 : 2;
 
         for (pass = 0; pass < maxpass; pass++) {
             TCGv_i64 tcg_op = tcg_temp_new_i64();
