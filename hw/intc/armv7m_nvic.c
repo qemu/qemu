@@ -211,7 +211,7 @@ static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
         cpu = ARM_CPU(current_cpu);
         return cpu->env.v7m.vecbase;
     case 0xd0c: /* Application Interrupt/Reset Control.  */
-        return 0xfa05000;
+        return 0xfa050000;
     case 0xd10: /* System Control.  */
         /* TODO: Implement SLEEPONEXIT.  */
         return 0;
@@ -345,6 +345,9 @@ static void nvic_writel(nvic_state *s, uint32_t offset, uint32_t value)
             }
             if (value & 5) {
                 qemu_log_mask(LOG_UNIMP, "AIRCR system reset unimplemented\n");
+            }
+            if (value & 0x700) {
+                qemu_log_mask(LOG_UNIMP, "PRIGROUP unimplemented\n");
             }
         }
         break;
