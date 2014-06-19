@@ -94,6 +94,12 @@ typedef struct ARMCPU {
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;
 
+    /* PSCI version for this CPU
+     * Bits[31:16] = Major Version
+     * Bits[15:0] = Minor Version
+     */
+    uint32_t psci_version;
+
     /* Should CPU start in PSCI powered-off state? */
     bool start_powered_off;
 
