@@ -176,6 +176,7 @@ e1000_link_down(E1000State *s)
     s->mac_reg[STATUS] &= ~E1000_STATUS_LU;
     s->phy_reg[PHY_STATUS] &= ~MII_SR_LINK_STATUS;
     s->phy_reg[PHY_STATUS] &= ~MII_SR_AUTONEG_COMPLETE;
+    s->phy_reg[PHY_LP_ABILITY] &= ~MII_LPAR_LPACK;
 }
 
 static void
@@ -209,6 +210,7 @@ e1000_autoneg_timer(void *opaque)
     E1000State *s = opaque;
     if (!qemu_get_queue(s->nic)->link_down) {
         e1000_link_up(s);
+        s->phy_reg[PHY_LP_ABILITY] |= MII_LPAR_LPACK;
         s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
         DBGOUT(PHY, "Auto negotiation is completed\n");
     }
@@ -227,7 +229,8 @@ static const char phy_regcap[0x20] = {
     [PHY_CTRL] = PHY_RW,	[PHY_1000T_CTRL] = PHY_RW,
     [PHY_LP_ABILITY] = PHY_R,	[PHY_1000T_STATUS] = PHY_R,
     [PHY_AUTONEG_ADV] = PHY_RW,	[M88E1000_RX_ERR_CNTR] = PHY_R,
-    [PHY_ID2] = PHY_R,		[M88E1000_PHY_SPEC_STATUS] = PHY_R
+    [PHY_ID2] = PHY_R,		[M88E1000_PHY_SPEC_STATUS] = PHY_R,
+    [PHY_AUTONEG_EXP] = PHY_R,
 };
 
 /* PHY_ID2 documented in 8254x_GBe_SDM.pdf, pp. 250 */
