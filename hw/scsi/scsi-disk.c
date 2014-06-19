@@ -2015,7 +2015,7 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
     case VERIFY_10:
     case VERIFY_12:
     case VERIFY_16:
-        DPRINTF("Verify (bytchk %lu)\n", (r->req.buf[1] >> 1) & 3);
+        DPRINTF("Verify (bytchk %d)\n", (req->cmd.buf[1] >> 1) & 3);
         if (req->cmd.buf[1] & 6) {
             goto illegal_request;
         }
@@ -2027,7 +2027,8 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
                 (long)r->req.cmd.xfer);
         break;
     default:
-        DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
+        DPRINTF("Unknown SCSI command (%2.2x=%s)\n", buf[0],
+                scsi_command_name(buf[0]));
         scsi_check_condition(r, SENSE_CODE(INVALID_OPCODE));
         return 0;
     }
@@ -2526,7 +2527,7 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
 	 * ones (such as WRITE SAME or EXTENDED COPY, etc.).  So, without
 	 * O_DIRECT everything must go through SG_IO.
          */
-        if (bdrv_get_flags(s->qdev.conf.bs) & BDRV_O_NOCACHE) {
+        if (!(bdrv_get_flags(s->qdev.conf.bs) & BDRV_O_NOCACHE)) {
             break;
         }
 

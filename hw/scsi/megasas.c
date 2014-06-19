@@ -294,6 +294,7 @@ static void megasas_unmap_sgl(MegasasCmd *cmd)
 static int megasas_build_sense(MegasasCmd *cmd, uint8_t *sense_ptr,
     uint8_t sense_len)
 {
+    PCIDevice *pcid = PCI_DEVICE(cmd->state);
     uint32_t pa_hi = 0, pa_lo;
     hwaddr pa;
 
@@ -306,7 +307,7 @@ static int megasas_build_sense(MegasasCmd *cmd, uint8_t *sense_ptr,
             pa_hi = le32_to_cpu(cmd->frame->pass.sense_addr_hi);
         }
         pa = ((uint64_t) pa_hi << 32) | pa_lo;
-        cpu_physical_memory_write(pa, sense_ptr, sense_len);
+        pci_dma_write(pcid, pa, sense_ptr, sense_len);
         cmd->frame->header.sense_len = sense_len;
     }
     return sense_len;
@@ -472,6 +473,7 @@ static MegasasCmd *megasas_next_frame(MegasasState *s,
 static MegasasCmd *megasas_enqueue_frame(MegasasState *s,
     hwaddr frame, uint64_t context, int count)
 {
+    PCIDevice *pcid = PCI_DEVICE(s);
     MegasasCmd *cmd = NULL;
     int frame_size = MFI_FRAME_SIZE * 16;
     hwaddr frame_size_p = frame_size;
@@ -484,11 +486,11 @@ static MegasasCmd *megasas_enqueue_frame(MegasasState *s,
     if (!cmd->pa) {
         cmd->pa = frame;
         /* Map all possible frames */
-        cmd->frame = cpu_physical_memory_map(frame, &frame_size_p, 0);
+        cmd->frame = pci_dma_map(pcid, frame, &frame_size_p, 0);
         if (frame_size_p != frame_size) {
             trace_megasas_qf_map_failed(cmd->index, (unsigned long)frame);
             if (cmd->frame) {
-                cpu_physical_memory_unmap(cmd->frame, frame_size_p, 0, 0);
+                pci_dma_unmap(pcid, cmd->frame, frame_size_p, 0, 0);
                 cmd->frame = NULL;
                 cmd->pa = 0;
             }
@@ -561,13 +563,14 @@ static void megasas_complete_frame(MegasasState *s, uint64_t context)
 
 static void megasas_reset_frames(MegasasState *s)
 {
+    PCIDevice *pcid = PCI_DEVICE(s);
     int i;
     MegasasCmd *cmd;
 
     for (i = 0; i < s->fw_cmds; i++) {
         cmd = &s->frames[i];
         if (cmd->pa) {
-            cpu_physical_memory_unmap(cmd->frame, cmd->pa_size, 0, 0);
+            pci_dma_unmap(pcid, cmd->frame, cmd->pa_size, 0, 0);
             cmd->frame = NULL;
             cmd->pa = 0;
         }
@@ -584,6 +587,7 @@ static void megasas_abort_command(MegasasCmd *cmd)
 
 static int megasas_init_firmware(MegasasState *s, MegasasCmd *cmd)
 {
+    PCIDevice *pcid = PCI_DEVICE(s);
     uint32_t pa_hi, pa_lo;
     hwaddr iq_pa, initq_size;
     struct mfi_init_qinfo *initq;
@@ -595,7 +599,7 @@ static int megasas_init_firmware(MegasasState *s, MegasasCmd *cmd)
     iq_pa = (((uint64_t) pa_hi << 32) | pa_lo);
     trace_megasas_init_firmware((uint64_t)iq_pa);
     initq_size = sizeof(*initq);
-    initq = cpu_physical_memory_map(iq_pa, &initq_size, 0);
+    initq = pci_dma_map(pcid, iq_pa, &initq_size, 0);
     if (!initq || initq_size != sizeof(*initq)) {
         trace_megasas_initq_map_failed(cmd->index);
         s->event_count++;
@@ -631,7 +635,7 @@ static int megasas_init_firmware(MegasasState *s, MegasasCmd *cmd)
     s->fw_state = MFI_FWSTATE_OPERATIONAL;
 out:
     if (initq) {
-        cpu_physical_memory_unmap(initq, initq_size, 0, 0);
+        pci_dma_unmap(pcid, initq, initq_size, 0, 0);
     }
     return ret;
 }

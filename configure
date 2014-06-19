@@ -3405,43 +3405,17 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
-# Do we have libiscsi
-# We check for iscsi_write16_sync() to make sure we have a
-# at least version 1.4.0 of libiscsi.
+# Do we have libiscsi >= 1.9.0
 if test "$libiscsi" != "no" ; then
-  cat > $TMPC << EOF
-#include <stdio.h>
-#include <iscsi/iscsi.h>
-int main(void) { iscsi_write16_sync(NULL,0,0,NULL,0,0,0,0,0,0,0); return 0; }
-EOF
-  if $pkg_config --atleast-version=1.7.0 libiscsi; then
+  if $pkg_config --atleast-version=1.9.0 libiscsi; then
     libiscsi="yes"
     libiscsi_cflags=$($pkg_config --cflags libiscsi)
     libiscsi_libs=$($pkg_config --libs libiscsi)
-  elif compile_prog "" "-liscsi" ; then
-    libiscsi="yes"
-    libiscsi_libs="-liscsi"
   else
     if test "$libiscsi" = "yes" ; then
-      feature_not_found "libiscsi" "Install libiscsi devel"
+      feature_not_found "libiscsi" "Install libiscsi >= 1.9.0"
     fi
     libiscsi="no"
-  fi
-fi
-
-# We also need to know the API version because there was an
-# API change from 1.4.0 to 1.5.0.
-if test "$libiscsi" = "yes"; then
-  cat >$TMPC <<EOF
-#include <iscsi/iscsi.h>
-int main(void)
-{
-  iscsi_read10_task(0, 0, 0, 0, 0, 0, 0);
-  return 0;
-}
-EOF
-  if compile_prog "" "-liscsi"; then
-    libiscsi_version="1.4.0"
   fi
 fi
 
@@ -4218,11 +4192,7 @@ echo "nss used          $smartcard_nss"
 echo "libusb            $libusb"
 echo "usb net redir     $usb_redir"
 echo "GLX support       $glx"
-if test "$libiscsi_version" = "1.4.0"; then
-echo "libiscsi support  $libiscsi (1.4.0)"
-else
 echo "libiscsi support  $libiscsi"
-fi
 echo "libnfs support    $libnfs"
 echo "build guest agent $guest_agent"
 echo "QGA VSS support   $guest_agent_with_vss"
@@ -4579,9 +4549,6 @@ fi
 
 if test "$libiscsi" = "yes" ; then
   echo "CONFIG_LIBISCSI=m" >> $config_host_mak
-  if test "$libiscsi_version" = "1.4.0"; then
-    echo "CONFIG_LIBISCSI_1_4=y" >> $config_host_mak
-  fi
   echo "LIBISCSI_CFLAGS=$libiscsi_cflags" >> $config_host_mak
   echo "LIBISCSI_LIBS=$libiscsi_libs" >> $config_host_mak
 fi
