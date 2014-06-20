@@ -534,7 +534,7 @@ static void interface_release_resource(QXLInstance *sin,
     QXLCommandExt *ext;
 
     dprint(2, "%s/%d:\n", __func__, ssd->qxl.id);
-    ext = (void *)(rext.info->id);
+    ext = (void *)(intptr_t)(rext.info->id);
     switch (ext->cmd.type) {
     case QXL_CMD_DRAW:
         update = container_of(ext, SimpleSpiceUpdate, ext);

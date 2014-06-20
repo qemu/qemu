@@ -710,7 +710,7 @@ static void interface_release_resource(QXLInstance *sin,
 
     if (ext.group_id == MEMSLOT_GROUP_HOST) {
         /* host group -> vga mode update request */
-        QXLCommandExt *cmdext = (void *)(ext.info->id);
+        QXLCommandExt *cmdext = (void *)(intptr_t)(ext.info->id);
         SimpleSpiceUpdate *update;
         g_assert(cmdext->cmd.type == QXL_CMD_DRAW);
         update = container_of(cmdext, SimpleSpiceUpdate, ext);
