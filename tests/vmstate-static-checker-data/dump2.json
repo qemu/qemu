@@ -909,7 +909,7 @@
                 "field": "kbd.keycodes",
                 "version_id": 0,
                 "field_exists": false,
-                "size": 4
+                "size": 2
               },
               {
                 "field": "head",
