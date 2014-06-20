@@ -836,19 +836,6 @@
                           "size": 1
                         }
                       ]
-                    },
-                    {
-                      "name": "fdrive/media_rate",
-                      "version_id": 1,
-                      "minimum_version_id": 1,
-                      "Fields": [
-                        {
-                          "field": "media_rate",
-                          "version_id": 0,
-                          "field_exists": false,
-                          "size": 1
-                        }
-                      ]
                     }
                   ]
                 }
