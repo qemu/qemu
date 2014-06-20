@@ -2,7 +2,7 @@
   "vmschkmachine": {
     "Name": "pc-i440fx-2.2"
   },
-  "fw_cfg": {
+  "fw_cfg2": {
     "Name": "fw_cfg",
     "version_id": 2,
     "minimum_version_id": 1,
