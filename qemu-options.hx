@@ -95,12 +95,22 @@ specifies the maximum number of hotpluggable CPUs.
 ETEXI
 
 DEF("numa", HAS_ARG, QEMU_OPTION_numa,
-    "-numa node[,mem=size][,cpus=cpu[-cpu]][,nodeid=node]\n", QEMU_ARCH_ALL)
+    "-numa node[,mem=size][,cpus=cpu[-cpu]][,nodeid=node]\n"
+    "-numa node[,memdev=id][,cpus=cpu[-cpu]][,nodeid=node]\n", QEMU_ARCH_ALL)
 STEXI
-@item -numa @var{opts}
+@item -numa node[,mem=@var{size}][,cpus=@var{cpu[-cpu]}][,nodeid=@var{node}]
+@item -numa node[,memdev=@var{id}][,cpus=@var{cpu[-cpu]}][,nodeid=@var{node}]
 @findex -numa
-Simulate a multi node NUMA system. If mem and cpus are omitted, resources
-are split equally.
+Simulate a multi node NUMA system. If @samp{mem}, @samp{memdev}
+and @samp{cpus} are omitted, resources are split equally. Also, note
+that the -@option{numa} option doesn't allocate any of the specified
+resources. That is, it just assigns existing resources to NUMA nodes. This
+means that one still has to use the @option{-m}, @option{-smp} options
+to allocate RAM and VCPUs respectively, and possibly @option{-object}
+to specify the memory backend for the @samp{memdev} suboption.
+
+@samp{mem} and @samp{memdev} are mutually exclusive.  Furthermore, if one
+node uses @samp{memdev}, all of them have to use it.
 ETEXI
 
 DEF("add-fd", HAS_ARG, QEMU_OPTION_add_fd,
@@ -210,17 +220,20 @@ use is discouraged as it may be removed from future versions.
 ETEXI
 
 DEF("m", HAS_ARG, QEMU_OPTION_m,
-    "-m [size=]megs\n"
+    "-m[emory] [size=]megs[,slots=n,maxmem=size]\n"
     "                configure guest RAM\n"
     "                size: initial amount of guest memory (default: "
-    stringify(DEFAULT_RAM_SIZE) "MiB)\n",
+    stringify(DEFAULT_RAM_SIZE) "MiB)\n"
+    "                slots: number of hotplug slots (default: none)\n"
+    "                maxmem: maximum amount of guest memory (default: none)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -m [size=]@var{megs}
 @findex -m
 Set virtual RAM size to @var{megs} megabytes. Default is 128 MiB.  Optionally,
 a suffix of ``M'' or ``G'' can be used to signify a value in megabytes or
-gigabytes respectively.
+gigabytes respectively. Optional pair @var{slots}, @var{maxmem} could be used
+to set amount of hotluggable memory slots and possible maximum amount of memory.
 ETEXI
 
 DEF("mem-path", HAS_ARG, QEMU_OPTION_mempath,
@@ -1457,6 +1470,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
 #ifdef CONFIG_NETMAP
     "netmap|"
 #endif
+    "vhost-user|"
     "socket|"
     "hubport],id=str[,option][,option][,...]\n", QEMU_ARCH_ALL)
 STEXI
@@ -1787,6 +1801,23 @@ Create a hub port on QEMU "vlan" @var{hubid}.
 The hubport netdev lets you connect a NIC to a QEMU "vlan" instead of a single
 netdev.  @code{-net} and @code{-device} with parameter @option{vlan} create the
 required hub automatically.
+
+@item -netdev vhost-user,chardev=@var{id}[,vhostforce=on|off]
+
+Establish a vhost-user netdev, backed by a chardev @var{id}. The chardev should
+be a unix domain socket backed one. The vhost-user uses a specifically defined
+protocol to pass vhost ioctl replacement messages to an application on the other
+end of the socket. On non-MSIX guests, the feature can be forced with
+@var{vhostforce}.
+
+Example:
+@example
+qemu -m 512 -object memory-backend-file,id=mem,size=512M,mem-path=/hugetlbfs,share=on \
+     -numa node,memdev=mem \
+     -chardev socket,path=/path/to/socket \
+     -netdev type=vhost-user,id=net0,chardev=chr0 \
+     -device virtio-net-pci,netdev=net0
+@end example
 
 @item -net dump[,vlan=@var{n}][,file=@var{file}][,len=@var{len}]
 Dump network traffic on VLAN @var{n} to file @var{file} (@file{qemu-vlan0.pcap} by default).

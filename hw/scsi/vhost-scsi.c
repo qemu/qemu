@@ -24,15 +24,25 @@
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/virtio-bus.h"
 
+/* Features supported by host kernel. */
+static const int kernel_feature_bits[] = {
+    VIRTIO_F_NOTIFY_ON_EMPTY,
+    VIRTIO_RING_F_INDIRECT_DESC,
+    VIRTIO_RING_F_EVENT_IDX,
+    VIRTIO_SCSI_F_HOTPLUG,
+    VHOST_INVALID_FEATURE_BIT
+};
+
 static int vhost_scsi_set_endpoint(VHostSCSI *s)
 {
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
+    const VhostOps *vhost_ops = s->dev.vhost_ops;
     struct vhost_scsi_target backend;
     int ret;
 
     memset(&backend, 0, sizeof(backend));
     pstrcpy(backend.vhost_wwpn, sizeof(backend.vhost_wwpn), vs->conf.wwpn);
-    ret = ioctl(s->dev.control, VHOST_SCSI_SET_ENDPOINT, &backend);
+    ret = vhost_ops->vhost_call(&s->dev, VHOST_SCSI_SET_ENDPOINT, &backend);
     if (ret < 0) {
         return -errno;
     }
@@ -43,10 +53,11 @@ static void vhost_scsi_clear_endpoint(VHostSCSI *s)
 {
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
     struct vhost_scsi_target backend;
+    const VhostOps *vhost_ops = s->dev.vhost_ops;
 
     memset(&backend, 0, sizeof(backend));
     pstrcpy(backend.vhost_wwpn, sizeof(backend.vhost_wwpn), vs->conf.wwpn);
-    ioctl(s->dev.control, VHOST_SCSI_CLEAR_ENDPOINT, &backend);
+    vhost_ops->vhost_call(&s->dev, VHOST_SCSI_CLEAR_ENDPOINT, &backend);
 }
 
 static int vhost_scsi_start(VHostSCSI *s)
@@ -55,13 +66,15 @@ static int vhost_scsi_start(VHostSCSI *s)
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VhostOps *vhost_ops = s->dev.vhost_ops;
 
     if (!k->set_guest_notifiers) {
         error_report("binding does not support guest notifiers");
         return -ENOSYS;
     }
 
-    ret = ioctl(s->dev.control, VHOST_SCSI_GET_ABI_VERSION, &abi_version);
+    ret = vhost_ops->vhost_call(&s->dev,
+                                VHOST_SCSI_GET_ABI_VERSION, &abi_version);
     if (ret < 0) {
         return -errno;
     }
@@ -141,21 +154,7 @@ static uint32_t vhost_scsi_get_features(VirtIODevice *vdev,
 {
     VHostSCSI *s = VHOST_SCSI(vdev);
 
-    /* Clear features not supported by host kernel. */
-    if (!(s->dev.features & (1 << VIRTIO_F_NOTIFY_ON_EMPTY))) {
-        features &= ~(1 << VIRTIO_F_NOTIFY_ON_EMPTY);
-    }
-    if (!(s->dev.features & (1 << VIRTIO_RING_F_INDIRECT_DESC))) {
-        features &= ~(1 << VIRTIO_RING_F_INDIRECT_DESC);
-    }
-    if (!(s->dev.features & (1 << VIRTIO_RING_F_EVENT_IDX))) {
-        features &= ~(1 << VIRTIO_RING_F_EVENT_IDX);
-    }
-    if (!(s->dev.features & (1 << VIRTIO_SCSI_F_HOTPLUG))) {
-        features &= ~(1 << VIRTIO_SCSI_F_HOTPLUG);
-    }
-
-    return features;
+    return vhost_get_features(&s->dev, kernel_feature_bits, features);
 }
 
 static void vhost_scsi_set_config(VirtIODevice *vdev,
@@ -219,6 +218,13 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
             error_setg(errp, "vhost-scsi: unable to parse vhostfd");
             return;
         }
+    } else {
+        vhostfd = open("/dev/vhost-scsi", O_RDWR);
+        if (vhostfd < 0) {
+            error_setg(errp, "vhost-scsi: open vhost char device failed: %s",
+                       strerror(errno));
+            return;
+        }
     }
 
     virtio_scsi_common_realize(dev, &err, vhost_dummy_handle_output,
@@ -233,7 +239,8 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
     s->dev.vqs = g_new(struct vhost_virtqueue, s->dev.nvqs);
     s->dev.vq_index = 0;
 
-    ret = vhost_dev_init(&s->dev, vhostfd, "/dev/vhost-scsi", true);
+    ret = vhost_dev_init(&s->dev, (void *)(uintptr_t)vhostfd,
+                         VHOST_BACKEND_TYPE_KERNEL, true);
     if (ret < 0) {
         error_setg(errp, "vhost-scsi: vhost initialization failed: %s",
                    strerror(-ret));

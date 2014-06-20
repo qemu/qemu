@@ -487,6 +487,7 @@ static const char *monitor_event_names[] = {
     [QEVENT_BLOCK_IMAGE_CORRUPTED] = "BLOCK_IMAGE_CORRUPTED",
     [QEVENT_QUORUM_FAILURE] = "QUORUM_FAILURE",
     [QEVENT_QUORUM_REPORT_BAD] = "QUORUM_REPORT_BAD",
+    [QEVENT_ACPI_OST] = "ACPI_DEVICE_OST",
 };
 QEMU_BUILD_BUG_ON(ARRAY_SIZE(monitor_event_names) != QEVENT_MAX)
 
@@ -2011,7 +2012,7 @@ static void do_info_numa(Monitor *mon, const QDict *qdict)
         }
         monitor_printf(mon, "\n");
         monitor_printf(mon, "node %d size: %" PRId64 " MB\n", i,
-            node_mem[i] >> 20);
+            numa_info[i].node_mem >> 20);
     }
 }
 
@@ -2962,6 +2963,13 @@ static mon_cmd_t info_cmds[] = {
         .params     = "",
         .help       = "show the TPM device",
         .mhandler.cmd = hmp_info_tpm,
+    },
+    {
+        .name       = "memdev",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show the memory device",
+        .mhandler.cmd = hmp_info_memdev,
     },
     {
         .name       = NULL,

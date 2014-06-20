@@ -2069,6 +2069,22 @@
     '*devname':    'str' } }
 
 ##
+# @NetdevVhostUserOptions
+#
+# Vhost-user network backend
+#
+# @chardev: name of a unix socket chardev
+#
+# @vhostforce: #optional vhost on for non-MSIX virtio guests (default: false).
+#
+# Since 2.1
+##
+{ 'type': 'NetdevVhostUserOptions',
+  'data': {
+    'chardev':        'str',
+    '*vhostforce':    'bool' } }
+
+##
 # @NetClientOptions
 #
 # A discriminated record of network device traits.
@@ -2086,7 +2102,8 @@
     'dump':     'NetdevDumpOptions',
     'bridge':   'NetdevBridgeOptions',
     'hubport':  'NetdevHubPortOptions',
-    'netmap':   'NetdevNetmapOptions' } }
+    'netmap':   'NetdevNetmapOptions',
+    'vhost-user': 'NetdevVhostUserOptions' } }
 
 ##
 # @NetLegacy
@@ -3080,3 +3097,192 @@
               'btn'     : 'InputBtnEvent',
               'rel'     : 'InputMoveEvent',
               'abs'     : 'InputMoveEvent' } }
+
+##
+# @NumaOptions
+#
+# A discriminated record of NUMA options. (for OptsVisitor)
+#
+# Since 2.1
+##
+{ 'union': 'NumaOptions',
+  'data': {
+    'node': 'NumaNodeOptions' }}
+
+##
+# @NumaNodeOptions
+#
+# Create a guest NUMA node. (for OptsVisitor)
+#
+# @nodeid: #optional NUMA node ID (increase by 1 from 0 if omitted)
+#
+# @cpus: #optional VCPUs belonging to this node (assign VCPUS round-robin
+#         if omitted)
+#
+# @mem: #optional memory size of this node; mutually exclusive with @memdev.
+#       Equally divide total memory among nodes if both @mem and @memdev are
+#       omitted.
+#
+# @memdev: #optional memory backend object.  If specified for one node,
+#          it must be specified for all nodes.
+#
+# Since: 2.1
+##
+{ 'type': 'NumaNodeOptions',
+  'data': {
+   '*nodeid': 'uint16',
+   '*cpus':   ['uint16'],
+   '*mem':    'size',
+   '*memdev': 'str' }}
+
+##
+# @HostMemPolicy
+#
+# Host memory policy types
+#
+# @default: restore default policy, remove any nondefault policy
+#
+# @preferred: set the preferred host nodes for allocation
+#
+# @bind: a strict policy that restricts memory allocation to the
+#        host nodes specified
+#
+# @interleave: memory allocations are interleaved across the set
+#              of host nodes specified
+#
+# Since 2.1
+##
+{ 'enum': 'HostMemPolicy',
+  'data': [ 'default', 'preferred', 'bind', 'interleave' ] }
+
+##
+# @Memdev:
+#
+# Information of memory device
+#
+# @size: memory device size
+#
+# @merge: enables or disables memory merge support
+#
+# @dump: includes memory device's memory in a core dump or not
+#
+# @prealloc: enables or disables memory preallocation
+#
+# @host-nodes: host nodes for its memory policy
+#
+# @policy: memory policy of memory device
+#
+# Since: 2.1
+##
+
+{ 'type': 'Memdev',
+  'data': {
+    'size':       'size',
+    'merge':      'bool',
+    'dump':       'bool',
+    'prealloc':   'bool',
+    'host-nodes': ['uint16'],
+    'policy':     'HostMemPolicy' }}
+
+##
+# @query-memdev:
+#
+# Returns information for all memory devices.
+#
+# Returns: a list of @Memdev.
+#
+# Since: 2.1
+##
+{ 'command': 'query-memdev', 'returns': ['Memdev'] }
+# @PCDIMMDeviceInfo:
+#
+# PCDIMMDevice state information
+#
+# @id: #optional device's ID
+#
+# @addr: physical address, where device is mapped
+#
+# @size: size of memory that the device provides
+#
+# @slot: slot number at which device is plugged in
+#
+# @node: NUMA node number where device is plugged in
+#
+# @memdev: memory backend linked with device
+#
+# @hotplugged: true if device was hotplugged
+#
+# @hotpluggable: true if device if could be added/removed while machine is running
+#
+# Since: 2.1
+##
+{ 'type': 'PCDIMMDeviceInfo',
+  'data': { '*id': 'str',
+            'addr': 'int',
+            'size': 'int',
+            'slot': 'int',
+            'node': 'int',
+            'memdev': 'str',
+            'hotplugged': 'bool',
+            'hotpluggable': 'bool'
+          }
+}
+
+##
+# @MemoryDeviceInfo:
+#
+# Union containing information about a memory device
+#
+# Since: 2.1
+##
+{ 'union': 'MemoryDeviceInfo', 'data': {'dimm': 'PCDIMMDeviceInfo'} }
+
+##
+# @query-memory-devices
+#
+# Lists available memory devices and their state
+#
+# Since: 2.1
+##
+{ 'command': 'query-memory-devices', 'returns': ['MemoryDeviceInfo'] }
+
+## @ACPISlotType
+#
+# @DIMM: memory slot
+#
+{ 'enum': 'ACPISlotType', 'data': [ 'DIMM' ] }
+
+## @ACPIOSTInfo
+#
+# OSPM Status Indication for a device
+# For description of possible values of @source and @status fields
+# see "_OST (OSPM Status Indication)" chapter of ACPI5.0 spec.
+#
+# @device: #optional device ID associated with slot
+#
+# @slot: slot ID, unique per slot of a given @slot-type
+#
+# @slot-type: type of the slot
+#
+# @source: an integer containing the source event
+#
+# @status: an integer containing the status code
+#
+# Since: 2.1
+##
+{ 'type': 'ACPIOSTInfo',
+  'data'  : { '*device': 'str',
+              'slot': 'str',
+              'slot-type': 'ACPISlotType',
+              'source': 'int',
+              'status': 'int' } }
+
+##
+# @query-acpi-ospm-status
+#
+# Lists ACPI OSPM status of ACPI device objects,
+# which might be reported via _OST method
+#
+# Since: 2.1
+##
+{ 'command': 'query-acpi-ospm-status', 'returns': ['ACPIOSTInfo'] }

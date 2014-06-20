@@ -28,6 +28,8 @@
 #include "qapi/qmp-input-visitor.h"
 #include "hw/boards.h"
 #include "qom/object_interfaces.h"
+#include "hw/mem/pc-dimm.h"
+#include "hw/acpi/acpi_dev_interface.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -540,7 +542,7 @@ void object_add(const char *type, const char *id, const QDict *qdict,
 
     klass = object_class_by_name(type);
     if (!klass) {
-        error_setg(errp, "invalid class name");
+        error_setg(errp, "invalid object type: %s", type);
         return;
     }
 
@@ -565,13 +567,18 @@ void object_add(const char *type, const char *id, const QDict *qdict,
         }
     }
 
-    user_creatable_complete(obj, &local_err);
+    object_property_add_child(container_get(object_get_root(), "/objects"),
+                              id, obj, &local_err);
     if (local_err) {
         goto out;
     }
 
-    object_property_add_child(container_get(object_get_root(), "/objects"),
-                              id, obj, &local_err);
+    user_creatable_complete(obj, &local_err);
+    if (local_err) {
+        object_property_del(container_get(object_get_root(), "/objects"),
+                            id, &error_abort);
+        goto out;
+    }
 out:
     if (local_err) {
         error_propagate(errp, local_err);
@@ -622,4 +629,33 @@ void qmp_object_del(const char *id, Error **errp)
         return;
     }
     object_unparent(obj);
+}
+
+MemoryDeviceInfoList *qmp_query_memory_devices(Error **errp)
+{
+    MemoryDeviceInfoList *head = NULL;
+    MemoryDeviceInfoList **prev = &head;
+
+    qmp_pc_dimm_device_list(qdev_get_machine(), &prev);
+
+    return head;
+}
+
+ACPIOSTInfoList *qmp_query_acpi_ospm_status(Error **errp)
+{
+    bool ambig;
+    ACPIOSTInfoList *head = NULL;
+    ACPIOSTInfoList **prev = &head;
+    Object *obj = object_resolve_path_type("", TYPE_ACPI_DEVICE_IF, &ambig);
+
+    if (obj) {
+        AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(obj);
+        AcpiDeviceIf *adev = ACPI_DEVICE_IF(obj);
+
+        adevc->ospm_status(adev, &prev);
+    } else {
+        error_setg(errp, "command is not supported, missing ACPI device");
+    }
+
+    return head;
 }

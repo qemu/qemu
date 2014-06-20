@@ -563,7 +563,14 @@ static void ich9_lpc_add_properties(ICH9LPCState *lpc)
     ich9_pm_add_properties(OBJECT(lpc), &lpc->pm, NULL);
 }
 
-static int ich9_lpc_initfn(PCIDevice *d)
+static void ich9_lpc_initfn(Object *obj)
+{
+    ICH9LPCState *lpc = ICH9_LPC_DEVICE(obj);
+
+    ich9_lpc_add_properties(lpc);
+}
+
+static int ich9_lpc_init(PCIDevice *d)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(d);
     ISABus *isa_bus;
@@ -589,10 +596,22 @@ static int ich9_lpc_initfn(PCIDevice *d)
     memory_region_add_subregion_overlap(pci_address_space_io(d),
                                         ICH9_RST_CNT_IOPORT, &lpc->rst_cnt_mem,
                                         1);
-
-    ich9_lpc_add_properties(lpc);
-
     return 0;
+}
+
+static void ich9_device_plug_cb(HotplugHandler *hotplug_dev,
+                                DeviceState *dev, Error **errp)
+{
+    ICH9LPCState *lpc = ICH9_LPC_DEVICE(hotplug_dev);
+
+    ich9_pm_device_plug_cb(&lpc->pm, dev, errp);
+}
+
+static void ich9_device_unplug_cb(HotplugHandler *hotplug_dev,
+                                  DeviceState *dev, Error **errp)
+{
+    error_setg(errp, "acpi: device unplug request for not supported device"
+               " type: %s", object_get_typename(OBJECT(dev)));
 }
 
 static bool ich9_rst_cnt_needed(void *opaque)
@@ -638,10 +657,12 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->reset = ich9_lpc_reset;
-    k->init = ich9_lpc_initfn;
+    k->init = ich9_lpc_init;
     dc->vmsd = &vmstate_ich9_lpc;
     k->config_write = ich9_lpc_config_write;
     dc->desc = "ICH9 LPC bridge";
@@ -654,13 +675,22 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
      * pc_q35_init()
      */
     dc->cannot_instantiate_with_device_add_yet = true;
+    hc->plug = ich9_device_plug_cb;
+    hc->unplug = ich9_device_unplug_cb;
+    adevc->ospm_status = ich9_pm_ospm_status;
 }
 
 static const TypeInfo ich9_lpc_info = {
     .name       = TYPE_ICH9_LPC_DEVICE,
     .parent     = TYPE_PCI_DEVICE,
     .instance_size = sizeof(struct ICH9LPCState),
+    .instance_init = ich9_lpc_initfn,
     .class_init  = ich9_lpc_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { TYPE_ACPI_DEVICE_IF },
+        { }
+    }
 };
 
 static void ich9_lpc_register(void)

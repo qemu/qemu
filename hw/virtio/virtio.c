@@ -1164,14 +1164,8 @@ EventNotifier *virtio_queue_get_host_notifier(VirtQueue *vq)
 
 void virtio_device_set_child_bus_name(VirtIODevice *vdev, char *bus_name)
 {
-    if (vdev->bus_name) {
-        g_free(vdev->bus_name);
-        vdev->bus_name = NULL;
-    }
-
-    if (bus_name) {
-        vdev->bus_name = g_strdup(bus_name);
-    }
+    g_free(vdev->bus_name);
+    vdev->bus_name = g_strdup(bus_name);
 }
 
 static void virtio_device_realize(DeviceState *dev, Error **errp)
@@ -1206,10 +1200,8 @@ static void virtio_device_unrealize(DeviceState *dev, Error **errp)
         }
     }
 
-    if (vdev->bus_name) {
-        g_free(vdev->bus_name);
-        vdev->bus_name = NULL;
-    }
+    g_free(vdev->bus_name);
+    vdev->bus_name = NULL;
 }
 
 static void virtio_device_class_init(ObjectClass *klass, void *data)

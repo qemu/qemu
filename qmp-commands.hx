@@ -3571,6 +3571,93 @@ Example:
                           "format":"qcow2",
                           "virtual-size":2048000
                       }
-                   } } ] }
+                   } } ] }
 
+EQMP
+
+    {
+        .name       = "query-memdev",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_memdev,
+    },
+
+SQMP
+query-memdev
+------------
+
+Show memory devices information.
+
+
+Example (1):
+
+-> { "execute": "query-memdev" }
+<- { "return": [
+       {
+         "size": 536870912,
+         "merge": false,
+         "dump": true,
+         "prealloc": false,
+         "host-nodes": [0, 1],
+         "policy": "bind"
+       },
+       {
+         "size": 536870912,
+         "merge": false,
+         "dump": true,
+         "prealloc": true,
+         "host-nodes": [2, 3],
+         "policy": "preferred"
+       }
+     ]
+   }
+
+EQMP
+
+    {
+        .name       = "query-memory-devices",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_memory_devices,
+    },
+
+SQMP
+@query-memory-devices
+--------------------
+
+Return a list of memory devices.
+
+Example:
+-> { "execute": "query-memory-devices" }
+<- { "return": [ { "data":
+                      { "addr": 5368709120,
+                        "hotpluggable": true,
+                        "hotplugged": true,
+                        "id": "d1",
+                        "memdev": "/objects/memX",
+                        "node": 0,
+                        "size": 1073741824,
+                        "slot": 0},
+                   "type": "dimm"
+                 } ] }
+EQMP
+
+    {
+        .name       = "query-acpi-ospm-status",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_acpi_ospm_status,
+    },
+
+SQMP
+@query-acpi-ospm-status
+--------------------
+
+Return list of ACPIOSTInfo for devices that support status reporting
+via ACPI _OST method.
+
+Example:
+-> { "execute": "query-acpi-ospm-status" }
+<- { "return": [ { "device": "d1", "slot": "0", "slot-type": "DIMM", "source": 1, "status": 0},
+                 { "slot": "1", "slot-type": "DIMM", "source": 0, "status": 0},
+                 { "slot": "2", "slot-type": "DIMM", "source": 0, "status": 0},
+                 { "slot": "3", "slot-type": "DIMM", "source": 0, "status": 0}
+   ]}
 EQMP

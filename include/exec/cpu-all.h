@@ -297,11 +297,6 @@ CPUArchState *cpu_copy(CPUArchState *env);
 
 /* memory API */
 
-extern ram_addr_t ram_size;
-
-/* RAM is pre-allocated and passed into qemu_ram_alloc_from_ptr */
-#define RAM_PREALLOC_MASK   (1 << 0)
-
 typedef struct RAMBlock {
     struct MemoryRegion *mr;
     uint8_t *host;
@@ -326,9 +321,6 @@ typedef struct RAMList {
     uint32_t version;
 } RAMList;
 extern RAMList ram_list;
-
-extern const char *mem_path;
-extern int mem_prealloc;
 
 /* Flags stored in the low bits of the TLB virtual address.  These are
    defined so that fast path ram access is all zeros.  */

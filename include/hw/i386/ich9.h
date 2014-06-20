@@ -24,7 +24,7 @@ I2CBus *ich9_smb_init(PCIBus *bus, int devfn, uint32_t smb_io_base);
 
 #define ICH9_CC_SIZE                            (16 * 1024)     /* 16KB */
 
-#define TYPE_ICH9_LPC_DEVICE "ICH9 LPC"
+#define TYPE_ICH9_LPC_DEVICE "ICH9-LPC"
 #define ICH9_LPC_DEVICE(obj) \
      OBJECT_CHECK(ICH9LPCState, (obj), TYPE_ICH9_LPC_DEVICE)
 

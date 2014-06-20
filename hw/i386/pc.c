@@ -58,6 +58,9 @@
 #include "hw/boards.h"
 #include "hw/pci/pci_host.h"
 #include "acpi-build.h"
+#include "hw/mem/pc-dimm.h"
+#include "trace.h"
+#include "qapi/visitor.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -701,14 +704,14 @@ static FWCfgState *bochs_bios_init(void)
         unsigned int apic_id = x86_cpu_apic_id_from_index(i);
         assert(apic_id < apic_id_limit);
         for (j = 0; j < nb_numa_nodes; j++) {
-            if (test_bit(i, node_cpumask[j])) {
+            if (test_bit(i, numa_info[j].node_cpu)) {
                 numa_fw_cfg[apic_id + 1] = cpu_to_le64(j);
                 break;
             }
         }
     }
     for (i = 0; i < nb_numa_nodes; i++) {
-        numa_fw_cfg[apic_id_limit + 1 + i] = cpu_to_le64(node_mem[i]);
+        numa_fw_cfg[apic_id_limit + 1 + i] = cpu_to_le64(numa_info[i].node_mem);
     }
     fw_cfg_add_bytes(fw_cfg, FW_CFG_NUMA, numa_fw_cfg,
                      (1 + apic_id_limit + nb_numa_nodes) *
@@ -1119,8 +1122,12 @@ PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
     guest_info->apic_id_limit = pc_apic_id_limit(max_cpus);
     guest_info->apic_xrupt_override = kvm_allows_irq0_override();
     guest_info->numa_nodes = nb_numa_nodes;
-    guest_info->node_mem = g_memdup(node_mem, guest_info->numa_nodes *
+    guest_info->node_mem = g_malloc0(guest_info->numa_nodes *
                                     sizeof *guest_info->node_mem);
+    for (i = 0; i < nb_numa_nodes; i++) {
+        guest_info->node_mem[i] = numa_info[i].node_mem;
+    }
+
     guest_info->node_cpu = g_malloc0(guest_info->apic_id_limit *
                                      sizeof *guest_info->node_cpu);
 
@@ -1128,7 +1135,7 @@ PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
         unsigned int apic_id = x86_cpu_apic_id_from_index(i);
         assert(apic_id < guest_info->apic_id_limit);
         for (j = 0; j < nb_numa_nodes; j++) {
-            if (test_bit(i, node_cpumask[j])) {
+            if (test_bit(i, numa_info[j].node_cpu)) {
                 guest_info->node_cpu[apic_id] = j;
                 break;
             }
@@ -1183,10 +1190,8 @@ void pc_acpi_init(const char *default_dsdt)
     }
 }
 
-FWCfgState *pc_memory_init(MemoryRegion *system_memory,
-                           const char *kernel_filename,
-                           const char *kernel_cmdline,
-                           const char *initrd_filename,
+FWCfgState *pc_memory_init(MachineState *machine,
+                           MemoryRegion *system_memory,
                            ram_addr_t below_4g_mem_size,
                            ram_addr_t above_4g_mem_size,
                            MemoryRegion *rom_memory,
@@ -1197,17 +1202,19 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
     MemoryRegion *ram, *option_rom_mr;
     MemoryRegion *ram_below_4g, *ram_above_4g;
     FWCfgState *fw_cfg;
+    PCMachineState *pcms = PC_MACHINE(machine);
 
-    linux_boot = (kernel_filename != NULL);
+    assert(machine->ram_size == below_4g_mem_size + above_4g_mem_size);
+
+    linux_boot = (machine->kernel_filename != NULL);
 
     /* Allocate RAM.  We allocate it as a single memory region and use
      * aliases to address portions of it, mostly for backwards compatibility
      * with older qemus that used qemu_ram_alloc().
      */
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, NULL, "pc.ram",
-                           below_4g_mem_size + above_4g_mem_size);
-    vmstate_register_ram_global(ram);
+    memory_region_allocate_system_memory(ram, NULL, "pc.ram",
+                                         machine->ram_size);
     *ram_memory = ram;
     ram_below_4g = g_malloc(sizeof(*ram_below_4g));
     memory_region_init_alias(ram_below_4g, NULL, "ram-below-4g", ram,
@@ -1223,6 +1230,43 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
         e820_add_entry(0x100000000ULL, above_4g_mem_size, E820_RAM);
     }
 
+    if (!guest_info->has_reserved_memory &&
+        (machine->ram_slots ||
+         (machine->maxram_size > machine->ram_size))) {
+        MachineClass *mc = MACHINE_GET_CLASS(machine);
+
+        error_report("\"-memory 'slots|maxmem'\" is not supported by: %s",
+                     mc->name);
+        exit(EXIT_FAILURE);
+    }
+
+    /* initialize hotplug memory address space */
+    if (guest_info->has_reserved_memory &&
+        (machine->ram_size < machine->maxram_size)) {
+        ram_addr_t hotplug_mem_size =
+            machine->maxram_size - machine->ram_size;
+
+        if (machine->ram_slots > ACPI_MAX_RAM_SLOTS) {
+            error_report("unsupported amount of memory slots: %"PRIu64,
+                         machine->ram_slots);
+            exit(EXIT_FAILURE);
+        }
+
+        pcms->hotplug_memory_base =
+            ROUND_UP(0x100000000ULL + above_4g_mem_size, 1ULL << 30);
+
+        if ((pcms->hotplug_memory_base + hotplug_mem_size) <
+            hotplug_mem_size) {
+            error_report("unsupported amount of maximum memory: " RAM_ADDR_FMT,
+                         machine->maxram_size);
+            exit(EXIT_FAILURE);
+        }
+
+        memory_region_init(&pcms->hotplug_memory, OBJECT(pcms),
+                           "hotplug-memory", hotplug_mem_size);
+        memory_region_add_subregion(system_memory, pcms->hotplug_memory_base,
+                                    &pcms->hotplug_memory);
+    }
 
     /* Initialize PC system firmware */
     pc_system_firmware_init(rom_memory, guest_info->isapc_ram_fw);
@@ -1238,8 +1282,15 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
     fw_cfg = bochs_bios_init();
     rom_set_fw(fw_cfg);
 
+    if (guest_info->has_reserved_memory && pcms->hotplug_memory_base) {
+        uint64_t *val = g_malloc(sizeof(*val));
+        *val = cpu_to_le64(ROUND_UP(pcms->hotplug_memory_base, 0x1ULL << 30));
+        fw_cfg_add_file(fw_cfg, "etc/reserved-memory-end", val, sizeof(*val));
+    }
+
     if (linux_boot) {
-        load_linux(fw_cfg, kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
+        load_linux(fw_cfg, machine->kernel_filename, machine->initrd_filename,
+                   machine->kernel_cmdline, below_4g_mem_size);
     }
 
     for (i = 0; i < nb_option_roms; i++) {
@@ -1455,3 +1506,178 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
         gsi_state->ioapic_irq[i] = qdev_get_gpio_in(dev, i);
     }
 }
+
+static void pc_generic_machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    QEMUMachine *qm = data;
+
+    mc->name = qm->name;
+    mc->alias = qm->alias;
+    mc->desc = qm->desc;
+    mc->init = qm->init;
+    mc->reset = qm->reset;
+    mc->hot_add_cpu = qm->hot_add_cpu;
+    mc->kvm_type = qm->kvm_type;
+    mc->block_default_type = qm->block_default_type;
+    mc->max_cpus = qm->max_cpus;
+    mc->no_serial = qm->no_serial;
+    mc->no_parallel = qm->no_parallel;
+    mc->use_virtcon = qm->use_virtcon;
+    mc->use_sclp = qm->use_sclp;
+    mc->no_floppy = qm->no_floppy;
+    mc->no_cdrom = qm->no_cdrom;
+    mc->no_sdcard = qm->no_sdcard;
+    mc->is_default = qm->is_default;
+    mc->default_machine_opts = qm->default_machine_opts;
+    mc->default_boot_order = qm->default_boot_order;
+    mc->compat_props = qm->compat_props;
+    mc->hw_version = qm->hw_version;
+}
+
+void qemu_register_pc_machine(QEMUMachine *m)
+{
+    char *name = g_strconcat(m->name, TYPE_MACHINE_SUFFIX, NULL);
+    TypeInfo ti = {
+        .name       = name,
+        .parent     = TYPE_PC_MACHINE,
+        .class_init = pc_generic_machine_class_init,
+        .class_data = (void *)m,
+    };
+
+    type_register(&ti);
+    g_free(name);
+}
+
+static void pc_dimm_plug(HotplugHandler *hotplug_dev,
+                         DeviceState *dev, Error **errp)
+{
+    int slot;
+    HotplugHandlerClass *hhc;
+    Error *local_err = NULL;
+    PCMachineState *pcms = PC_MACHINE(hotplug_dev);
+    MachineState *machine = MACHINE(hotplug_dev);
+    PCDIMMDevice *dimm = PC_DIMM(dev);
+    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    MemoryRegion *mr = ddc->get_memory_region(dimm);
+    uint64_t addr = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP,
+                                            &local_err);
+    if (local_err) {
+        goto out;
+    }
+
+    addr = pc_dimm_get_free_addr(pcms->hotplug_memory_base,
+                                 memory_region_size(&pcms->hotplug_memory),
+                                 !addr ? NULL : &addr,
+                                 memory_region_size(mr), &local_err);
+    if (local_err) {
+        goto out;
+    }
+
+    object_property_set_int(OBJECT(dev), addr, PC_DIMM_ADDR_PROP, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    trace_mhp_pc_dimm_assigned_address(addr);
+
+    slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP, &local_err);
+    if (local_err) {
+        goto out;
+    }
+
+    slot = pc_dimm_get_free_slot(slot == PC_DIMM_UNASSIGNED_SLOT ? NULL : &slot,
+                                 machine->ram_slots, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    object_property_set_int(OBJECT(dev), slot, PC_DIMM_SLOT_PROP, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    trace_mhp_pc_dimm_assigned_slot(slot);
+
+    if (!pcms->acpi_dev) {
+        error_setg(&local_err,
+                   "memory hotplug is not enabled: missing acpi device");
+        goto out;
+    }
+
+    memory_region_add_subregion(&pcms->hotplug_memory,
+                                addr - pcms->hotplug_memory_base, mr);
+    vmstate_register_ram(mr, dev);
+
+    hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
+    hhc->plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
+out:
+    error_propagate(errp, local_err);
+}
+
+static void pc_machine_device_plug_cb(HotplugHandler *hotplug_dev,
+                                      DeviceState *dev, Error **errp)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+        pc_dimm_plug(hotplug_dev, dev, errp);
+    }
+}
+
+static HotplugHandler *pc_get_hotpug_handler(MachineState *machine,
+                                             DeviceState *dev)
+{
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(machine);
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+        return HOTPLUG_HANDLER(machine);
+    }
+
+    return pcmc->get_hotplug_handler ?
+        pcmc->get_hotplug_handler(machine, dev) : NULL;
+}
+
+static void
+pc_machine_get_hotplug_memory_region_size(Object *obj, Visitor *v, void *opaque,
+                                          const char *name, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    int64_t value = memory_region_size(&pcms->hotplug_memory);
+
+    visit_type_int(v, &value, name, errp);
+}
+
+static void pc_machine_initfn(Object *obj)
+{
+    object_property_add(obj, PC_MACHINE_MEMHP_REGION_SIZE, "int",
+                        pc_machine_get_hotplug_memory_region_size,
+                        NULL, NULL, NULL, NULL);
+}
+
+static void pc_machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(oc);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
+
+    pcmc->get_hotplug_handler = mc->get_hotplug_handler;
+    mc->get_hotplug_handler = pc_get_hotpug_handler;
+    hc->plug = pc_machine_device_plug_cb;
+}
+
+static const TypeInfo pc_machine_info = {
+    .name = TYPE_PC_MACHINE,
+    .parent = TYPE_MACHINE,
+    .abstract = true,
+    .instance_size = sizeof(PCMachineState),
+    .instance_init = pc_machine_initfn,
+    .class_size = sizeof(PCMachineClass),
+    .class_init = pc_machine_class_init,
+    .interfaces = (InterfaceInfo[]) {
+         { TYPE_HOTPLUG_HANDLER },
+         { }
+    },
+};
+
+static void pc_machine_register_types(void)
+{
+    type_register_static(&pc_machine_info);
+}
+
+type_init(pc_machine_register_types)

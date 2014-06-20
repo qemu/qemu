@@ -43,9 +43,13 @@ struct QEMUMachine {
     const char *hw_version;
 };
 
-#define TYPE_MACHINE_SUFFIX "-machine"
+void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
+                                          const char *name,
+                                          uint64_t ram_size);
+
 int qemu_register_machine(QEMUMachine *m);
 
+#define TYPE_MACHINE_SUFFIX "-machine"
 #define TYPE_MACHINE "machine"
 #undef MACHINE  /* BSD defines it and QEMU does not use it */
 #define MACHINE(obj) \
@@ -61,6 +65,11 @@ extern MachineState *current_machine;
 /**
  * MachineClass:
  * @qemu_machine: #QEMUMachine
+ * @get_hotplug_handler: this function is called during bus-less
+ *    device hotplug. If defined it returns pointer to an instance
+ *    of HotplugHandler object, which handles hotplug operation
+ *    for a given @dev. It may return NULL if @dev doesn't require
+ *    any actions to be performed by hotplug handler.
  */
 struct MachineClass {
     /*< private >*/
@@ -90,6 +99,9 @@ struct MachineClass {
     const char *default_boot_order;
     GlobalProperty *compat_props;
     const char *hw_version;
+
+    HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
+                                           DeviceState *dev);
 };
 
 /**
@@ -113,6 +125,8 @@ struct MachineState {
     char *firmware;
 
     ram_addr_t ram_size;
+    ram_addr_t maxram_size;
+    uint64_t   ram_slots;
     const char *boot_order;
     char *kernel_filename;
     char *kernel_cmdline;

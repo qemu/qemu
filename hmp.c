@@ -22,6 +22,8 @@
 #include "qemu/sockets.h"
 #include "monitor/monitor.h"
 #include "qapi/opts-visitor.h"
+#include "qapi/string-output-visitor.h"
+#include "qapi-visit.h"
 #include "ui/console.h"
 #include "block/qapi.h"
 #include "qemu-io.h"
@@ -1675,4 +1677,38 @@ void hmp_object_del(Monitor *mon, const QDict *qdict)
 
     qmp_object_del(id, &err);
     hmp_handle_error(mon, &err);
+}
+
+void hmp_info_memdev(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    MemdevList *memdev_list = qmp_query_memdev(&err);
+    MemdevList *m = memdev_list;
+    StringOutputVisitor *ov;
+    int i = 0;
+
+
+    while (m) {
+        ov = string_output_visitor_new(false);
+        visit_type_uint16List(string_output_get_visitor(ov),
+                              &m->value->host_nodes, NULL, NULL);
+        monitor_printf(mon, "memory device %d\n", i);
+        monitor_printf(mon, "  size:  %" PRId64 "\n", m->value->size);
+        monitor_printf(mon, "  merge: %s\n",
+                       m->value->merge ? "true" : "false");
+        monitor_printf(mon, "  dump: %s\n",
+                       m->value->dump ? "true" : "false");
+        monitor_printf(mon, "  prealloc: %s\n",
+                       m->value->prealloc ? "true" : "false");
+        monitor_printf(mon, "  policy: %s\n",
+                       HostMemPolicy_lookup[m->value->policy]);
+        monitor_printf(mon, "  host nodes: %s\n",
+                       string_output_get_string(ov));
+
+        string_output_visitor_cleanup(ov);
+        m = m->next;
+        i++;
+    }
+
+    monitor_printf(mon, "\n");
 }

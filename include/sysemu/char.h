@@ -56,10 +56,13 @@ typedef void IOEventHandler(void *opaque, int event);
 struct CharDriverState {
     void (*init)(struct CharDriverState *s);
     int (*chr_write)(struct CharDriverState *s, const uint8_t *buf, int len);
+    int (*chr_sync_read)(struct CharDriverState *s,
+                         const uint8_t *buf, int len);
     GSource *(*chr_add_watch)(struct CharDriverState *s, GIOCondition cond);
     void (*chr_update_read_handler)(struct CharDriverState *s);
     int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
-    int (*get_msgfd)(struct CharDriverState *s);
+    int (*get_msgfds)(struct CharDriverState *s, int* fds, int num);
+    int (*set_msgfds)(struct CharDriverState *s, int *fds, int num);
     int (*chr_add_client)(struct CharDriverState *chr, int fd);
     IOEventHandler *chr_event;
     IOCanReadHandler *chr_can_read;
@@ -80,6 +83,7 @@ struct CharDriverState {
     int avail_connections;
     int is_mux;
     guint fd_in_tag;
+    guint fd_hup_tag;
     QemuOpts *opts;
     QTAILQ_ENTRY(CharDriverState) next;
 };
@@ -189,6 +193,18 @@ int qemu_chr_fe_write(CharDriverState *s, const uint8_t *buf, int len);
 int qemu_chr_fe_write_all(CharDriverState *s, const uint8_t *buf, int len);
 
 /**
+ * @qemu_chr_fe_read_all:
+ *
+ * Read data to a buffer from the back end.
+ *
+ * @buf the data buffer
+ * @len the number of bytes to read
+ *
+ * Returns: the number of bytes read
+ */
+int qemu_chr_fe_read_all(CharDriverState *s, uint8_t *buf, int len);
+
+/**
  * @qemu_chr_fe_ioctl:
  *
  * Issue a device specific ioctl to a backend.
@@ -213,6 +229,32 @@ int qemu_chr_fe_ioctl(CharDriverState *s, int cmd, void *arg);
  *          descriptor.
  */
 int qemu_chr_fe_get_msgfd(CharDriverState *s);
+
+/**
+ * @qemu_chr_fe_get_msgfds:
+ *
+ * For backends capable of fd passing, return the number of file received
+ * descriptors and fills the fds array up to num elements
+ *
+ * Returns: -1 if fd passing isn't supported or there are no pending file
+ *          descriptors.  If file descriptors are returned, subsequent calls to
+ *          this function will return -1 until a client sends a new set of file
+ *          descriptors.
+ */
+int qemu_chr_fe_get_msgfds(CharDriverState *s, int *fds, int num);
+
+/**
+ * @qemu_chr_fe_set_msgfds:
+ *
+ * For backends capable of fd passing, set an array of fds to be passed with
+ * the next send operation.
+ * A subsequent call to this function before calling a write function will
+ * result in overwriting the fd array with the new value without being send.
+ * Upon writing the message the fd array is freed.
+ *
+ * Returns: -1 if fd passing isn't supported.
+ */
+int qemu_chr_fe_set_msgfds(CharDriverState *s, int *fds, int num);
 
 /**
  * @qemu_chr_fe_claim:

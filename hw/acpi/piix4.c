@@ -33,6 +33,9 @@
 #include "hw/acpi/pcihp.h"
 #include "hw/acpi/cpu_hotplug.h"
 #include "hw/hotplug.h"
+#include "hw/mem/pc-dimm.h"
+#include "hw/acpi/memory_hotplug.h"
+#include "hw/acpi/acpi_dev_interface.h"
 
 //#define DEBUG
 
@@ -81,6 +84,8 @@ typedef struct PIIX4PMState {
 
     AcpiCpuHotplug gpe_cpu;
     Notifier cpu_added_notifier;
+
+    MemHotplugState acpi_memory_hotplug;
 } PIIX4PMState;
 
 #define TYPE_PIIX4_PM "PIIX4_PM"
@@ -244,6 +249,23 @@ static bool vmstate_test_no_use_acpi_pci_hotplug(void *opaque, int version_id)
     return !s->use_acpi_pci_hotplug;
 }
 
+static bool vmstate_test_use_memhp(void *opaque)
+{
+    PIIX4PMState *s = opaque;
+    return s->acpi_memory_hotplug.is_enabled;
+}
+
+static const VMStateDescription vmstate_memhp_state = {
+    .name = "piix4_pm/memhp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_MEMORY_HOTPLUG(acpi_memory_hotplug, PIIX4PMState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 /* qemu-kvm 1.2 uses version 3 but advertised as 2
  * To support incoming qemu-kvm 1.2 migration, change version_id
  * and minimum_version_id to 2 below (which breaks migration from
@@ -274,6 +296,13 @@ static const VMStateDescription vmstate_acpi = {
             struct AcpiPciHpPciStatus),
         VMSTATE_PCI_HOTPLUG(acpi_pci_hotplug, PIIX4PMState,
                             vmstate_test_use_acpi_pci_hotplug),
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection[]) {
+        {
+            .vmsd = &vmstate_memhp_state,
+            .needed = vmstate_test_use_memhp,
+        },
         VMSTATE_END_OF_LIST()
     }
 };
@@ -308,19 +337,35 @@ static void piix4_pm_powerdown_req(Notifier *n, void *opaque)
     acpi_pm1_evt_power_down(&s->ar);
 }
 
-static void piix4_pci_device_plug_cb(HotplugHandler *hotplug_dev,
-                                     DeviceState *dev, Error **errp)
+static void piix4_device_plug_cb(HotplugHandler *hotplug_dev,
+                                 DeviceState *dev, Error **errp)
 {
     PIIX4PMState *s = PIIX4_PM(hotplug_dev);
-    acpi_pcihp_device_plug_cb(&s->ar, s->irq, &s->acpi_pci_hotplug, dev, errp);
+
+    if (s->acpi_memory_hotplug.is_enabled &&
+        object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+        acpi_memory_plug_cb(&s->ar, s->irq, &s->acpi_memory_hotplug, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        acpi_pcihp_device_plug_cb(&s->ar, s->irq, &s->acpi_pci_hotplug, dev,
+                                  errp);
+    } else {
+        error_setg(errp, "acpi: device plug request for not supported device"
+                   " type: %s", object_get_typename(OBJECT(dev)));
+    }
 }
 
-static void piix4_pci_device_unplug_cb(HotplugHandler *hotplug_dev,
-                                       DeviceState *dev, Error **errp)
+static void piix4_device_unplug_cb(HotplugHandler *hotplug_dev,
+                                   DeviceState *dev, Error **errp)
 {
     PIIX4PMState *s = PIIX4_PM(hotplug_dev);
-    acpi_pcihp_device_unplug_cb(&s->ar, s->irq, &s->acpi_pci_hotplug, dev,
-                                errp);
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        acpi_pcihp_device_unplug_cb(&s->ar, s->irq, &s->acpi_pci_hotplug, dev,
+                                    errp);
+    } else {
+        error_setg(errp, "acpi: device unplug request for not supported device"
+                   " type: %s", object_get_typename(OBJECT(dev)));
+    }
 }
 
 static void piix4_update_bus_hotplug(PCIBus *pci_bus, void *opaque)
@@ -439,13 +484,17 @@ Object *piix4_pm_find(void)
 
 I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                       qemu_irq sci_irq, qemu_irq smi_irq,
-                      int kvm_enabled, FWCfgState *fw_cfg)
+                      int kvm_enabled, FWCfgState *fw_cfg,
+                      DeviceState **piix4_pm)
 {
     DeviceState *dev;
     PIIX4PMState *s;
 
     dev = DEVICE(pci_create(bus, devfn, TYPE_PIIX4_PM));
     qdev_prop_set_uint32(dev, "smb_io_base", smb_io_base);
+    if (piix4_pm) {
+        *piix4_pm = dev;
+    }
 
     s = PIIX4_PM(dev);
     s->irq = sci_irq;
@@ -518,6 +567,17 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                         PIIX4_CPU_HOTPLUG_IO_BASE);
     s->cpu_added_notifier.notify = piix4_cpu_added_req;
     qemu_register_cpu_added_notifier(&s->cpu_added_notifier);
+
+    if (s->acpi_memory_hotplug.is_enabled) {
+        acpi_memory_hotplug_init(parent, OBJECT(s), &s->acpi_memory_hotplug);
+    }
+}
+
+static void piix4_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list)
+{
+    PIIX4PMState *s = PIIX4_PM(adev);
+
+    acpi_memory_ospm_status(&s->acpi_memory_hotplug, list);
 }
 
 static Property piix4_pm_properties[] = {
@@ -527,6 +587,8 @@ static Property piix4_pm_properties[] = {
     DEFINE_PROP_UINT8(ACPI_PM_PROP_S4_VAL, PIIX4PMState, s4_val, 2),
     DEFINE_PROP_BOOL("acpi-pci-hotplug-with-bridge-support", PIIX4PMState,
                      use_acpi_pci_hotplug, true),
+    DEFINE_PROP_BOOL("memory-hotplug-support", PIIX4PMState,
+                     acpi_memory_hotplug.is_enabled, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -535,6 +597,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_CLASS(klass);
 
     k->init = piix4_pm_initfn;
     k->config_write = pm_write_config;
@@ -551,8 +614,9 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
      */
     dc->cannot_instantiate_with_device_add_yet = true;
     dc->hotpluggable = false;
-    hc->plug = piix4_pci_device_plug_cb;
-    hc->unplug = piix4_pci_device_unplug_cb;
+    hc->plug = piix4_device_plug_cb;
+    hc->unplug = piix4_device_unplug_cb;
+    adevc->ospm_status = piix4_ospm_status;
 }
 
 static const TypeInfo piix4_pm_info = {
@@ -562,6 +626,7 @@ static const TypeInfo piix4_pm_info = {
     .class_init    = piix4_pm_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
+        { TYPE_ACPI_DEVICE_IF },
         { }
     }
 };

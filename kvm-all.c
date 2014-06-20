@@ -113,6 +113,7 @@ KVMState *kvm_state;
 bool kvm_kernel_irqchip;
 bool kvm_async_interrupts_allowed;
 bool kvm_halt_in_kernel_allowed;
+bool kvm_eventfds_allowed;
 bool kvm_irqfds_allowed;
 bool kvm_msi_via_irqfd_allowed;
 bool kvm_gsi_routing_allowed;
@@ -1540,6 +1541,9 @@ int kvm_init(MachineClass *mc)
     kvm_readonly_mem_allowed =
         (kvm_check_extension(s, KVM_CAP_READONLY_MEM) > 0);
 #endif
+
+    kvm_eventfds_allowed =
+        (kvm_check_extension(s, KVM_CAP_IOEVENTFD) > 0);
 
     ret = kvm_arch_init(s);
     if (ret < 0) {

@@ -446,3 +446,22 @@ gint g_poll(GPollFD *fds, guint nfds, gint timeout)
 
     return retval;
 }
+
+size_t getpagesize(void)
+{
+    SYSTEM_INFO system_info;
+
+    GetSystemInfo(&system_info);
+    return system_info.dwPageSize;
+}
+
+void os_mem_prealloc(int fd, char *area, size_t memory)
+{
+    int i;
+    size_t pagesize = getpagesize();
+
+    memory = (memory + pagesize - 1) & -pagesize;
+    for (i = 0; i < memory / pagesize; i++) {
+        memset(area + pagesize * i, 0, 1);
+    }
+}

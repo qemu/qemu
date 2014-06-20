@@ -43,6 +43,7 @@ extern bool kvm_allowed;
 extern bool kvm_kernel_irqchip;
 extern bool kvm_async_interrupts_allowed;
 extern bool kvm_halt_in_kernel_allowed;
+extern bool kvm_eventfds_allowed;
 extern bool kvm_irqfds_allowed;
 extern bool kvm_msi_via_irqfd_allowed;
 extern bool kvm_gsi_routing_allowed;
@@ -81,6 +82,15 @@ extern bool kvm_readonly_mem_allowed;
  * inside of kernel space. This only works if MP state is implemented.
  */
 #define kvm_halt_in_kernel() (kvm_halt_in_kernel_allowed)
+
+/**
+ * kvm_eventfds_enabled:
+ *
+ * Returns: true if we can use eventfds to receive notifications
+ * from a KVM CPU (ie the kernel supports eventds and we are running
+ * with a configuration where it is meaningful to use them).
+ */
+#define kvm_eventfds_enabled() (kvm_eventfds_allowed)
 
 /**
  * kvm_irqfds_enabled:
@@ -128,6 +138,7 @@ extern bool kvm_readonly_mem_allowed;
 #define kvm_irqchip_in_kernel() (false)
 #define kvm_async_interrupts_enabled() (false)
 #define kvm_halt_in_kernel() (false)
+#define kvm_eventfds_enabled() (false)
 #define kvm_irqfds_enabled() (false)
 #define kvm_msi_via_irqfd_enabled() (false)
 #define kvm_gsi_routing_allowed() (false)
