@@ -3252,6 +3252,20 @@ STEXI
 prepend a timestamp to each log message.(default:on)
 ETEXI
 
+DEF("dump-vmstate", HAS_ARG, QEMU_OPTION_dump_vmstate,
+    "-dump-vmstate <file>\n"
+    "                Output vmstate information in JSON format to file.\n"
+    "                Use the scripts/vmstate-static-checker.py file to\n"
+    "                check for possible regressions in migration code\n"
+    "                by comparing two such vmstate dumps.",
+    QEMU_ARCH_ALL)
+STEXI
+@item -dump-vmstate @var{file}
+@findex -dump-vmstate
+Dump json-encoded vmstate information for current machine type to file
+in @var{file}
+ETEXI
+
 HXCOMM This is the last statement. Insert new options before this line!
 STEXI
 @end table

@@ -2935,6 +2935,7 @@ int main(int argc, char **argv, char **envp)
                                         1024 * 1024;
     ram_addr_t maxram_size = default_ram_size;
     uint64_t ram_slots = 0;
+    FILE *vmstate_dump_file = NULL;
 
     atexit(qemu_run_exit_notifiers);
     error_set_progname(argv[0]);
@@ -3944,6 +3945,13 @@ int main(int argc, char **argv, char **envp)
                 }
                 configure_msg(opts);
                 break;
+            case QEMU_OPTION_dump_vmstate:
+                vmstate_dump_file = fopen(optarg, "w");
+                if (vmstate_dump_file == NULL) {
+                    fprintf(stderr, "open %s: %s\n", optarg, strerror(errno));
+                    exit(1);
+                }
+                break;
             default:
                 os_parse_cmd_args(popt->index, optarg);
             }
@@ -4495,6 +4503,11 @@ int main(int argc, char **argv, char **envp)
     }
 
     qdev_prop_check_global();
+    if (vmstate_dump_file) {
+        /* dump and exit */
+        dump_vmstate_json_to_file(vmstate_dump_file);
+        return 0;
+    }
 
     if (incoming) {
         Error *local_err = NULL;
