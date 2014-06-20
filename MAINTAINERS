@@ -176,6 +176,11 @@ M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: target-arm/kvm.c
 
+MIPS
+M: James Hogan <james.hogan@imgtec.com>
+S: Maintained
+F: target-mips/kvm.c
+
 PPC
 M: Alexander Graf <agraf@suse.de>
 S: Maintained

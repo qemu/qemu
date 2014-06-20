@@ -51,6 +51,7 @@
 #include "sysemu/qtest.h"
 #include "qemu/error-report.h"
 #include "hw/empty_slot.h"
+#include "sysemu/kvm.h"
 
 //#define DEBUG_BOARD_INIT
 
@@ -603,29 +604,31 @@ static void network_init(PCIBus *pci_bus)
 */
 
 static void write_bootloader (CPUMIPSState *env, uint8_t *base,
-                              int64_t kernel_entry)
+                              int64_t run_addr, int64_t kernel_entry)
 {
     uint32_t *p;
 
     /* Small bootloader */
     p = (uint32_t *)base;
-    stl_p(p++, 0x0bf00160);                                      /* j 0x1fc00580 */
+
+    stl_p(p++, 0x08000000 |                                      /* j 0x1fc00580 */
+                 ((run_addr + 0x580) & 0x0fffffff) >> 2);
     stl_p(p++, 0x00000000);                                      /* nop */
 
     /* YAMON service vector */
-    stl_p(base + 0x500, 0xbfc00580);      /* start: */
-    stl_p(base + 0x504, 0xbfc0083c);      /* print_count: */
-    stl_p(base + 0x520, 0xbfc00580);      /* start: */
-    stl_p(base + 0x52c, 0xbfc00800);      /* flush_cache: */
-    stl_p(base + 0x534, 0xbfc00808);      /* print: */
-    stl_p(base + 0x538, 0xbfc00800);      /* reg_cpu_isr: */
-    stl_p(base + 0x53c, 0xbfc00800);      /* unred_cpu_isr: */
-    stl_p(base + 0x540, 0xbfc00800);      /* reg_ic_isr: */
-    stl_p(base + 0x544, 0xbfc00800);      /* unred_ic_isr: */
-    stl_p(base + 0x548, 0xbfc00800);      /* reg_esr: */
-    stl_p(base + 0x54c, 0xbfc00800);      /* unreg_esr: */
-    stl_p(base + 0x550, 0xbfc00800);      /* getchar: */
-    stl_p(base + 0x554, 0xbfc00800);      /* syscon_read: */
+    stl_p(base + 0x500, run_addr + 0x0580);      /* start: */
+    stl_p(base + 0x504, run_addr + 0x083c);      /* print_count: */
+    stl_p(base + 0x520, run_addr + 0x0580);      /* start: */
+    stl_p(base + 0x52c, run_addr + 0x0800);      /* flush_cache: */
+    stl_p(base + 0x534, run_addr + 0x0808);      /* print: */
+    stl_p(base + 0x538, run_addr + 0x0800);      /* reg_cpu_isr: */
+    stl_p(base + 0x53c, run_addr + 0x0800);      /* unred_cpu_isr: */
+    stl_p(base + 0x540, run_addr + 0x0800);      /* reg_ic_isr: */
+    stl_p(base + 0x544, run_addr + 0x0800);      /* unred_ic_isr: */
+    stl_p(base + 0x548, run_addr + 0x0800);      /* reg_esr: */
+    stl_p(base + 0x54c, run_addr + 0x0800);      /* unreg_esr: */
+    stl_p(base + 0x550, run_addr + 0x0800);      /* getchar: */
+    stl_p(base + 0x554, run_addr + 0x0800);      /* syscon_read: */
 
 
     /* Second part of the bootloader */
@@ -701,7 +704,7 @@ static void write_bootloader (CPUMIPSState *env, uint8_t *base,
     p = (uint32_t *) (base + 0x800);
     stl_p(p++, 0x03e00008);                                     /* jr ra */
     stl_p(p++, 0x24020000);                                     /* li v0,0 */
-   /* 808 YAMON print */
+    /* 808 YAMON print */
     stl_p(p++, 0x03e06821);                                     /* move t5,ra */
     stl_p(p++, 0x00805821);                                     /* move t3,a0 */
     stl_p(p++, 0x00a05021);                                     /* move t2,a1 */
@@ -774,6 +777,7 @@ static int64_t load_kernel (void)
     uint32_t *prom_buf;
     long prom_size;
     int prom_index = 0;
+    uint64_t (*xlate_to_kseg0) (void *opaque, uint64_t addr);
 
 #ifdef TARGET_WORDS_BIGENDIAN
     big_endian = 1;
@@ -787,6 +791,11 @@ static int64_t load_kernel (void)
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 loaderparams.kernel_filename);
         exit(1);
+    }
+    if (kvm_enabled()) {
+        xlate_to_kseg0 = cpu_mips_kvm_um_phys_to_kseg0;
+    } else {
+        xlate_to_kseg0 = cpu_mips_phys_to_kseg0;
     }
 
     /* load initrd */
@@ -820,7 +829,7 @@ static int64_t load_kernel (void)
     prom_set(prom_buf, prom_index++, "%s", loaderparams.kernel_filename);
     if (initrd_size > 0) {
         prom_set(prom_buf, prom_index++, "rd_start=0x%" PRIx64 " rd_size=%li %s",
-                 cpu_mips_phys_to_kseg0(NULL, initrd_offset), initrd_size,
+                 xlate_to_kseg0(NULL, initrd_offset), initrd_size,
                  loaderparams.kernel_cmdline);
     } else {
         prom_set(prom_buf, prom_index++, "%s", loaderparams.kernel_cmdline);
@@ -829,6 +838,7 @@ static int64_t load_kernel (void)
     prom_set(prom_buf, prom_index++, "memsize");
     prom_set(prom_buf, prom_index++, "%i",
              MIN(loaderparams.ram_size, 256 << 20));
+
     prom_set(prom_buf, prom_index++, "modetty0");
     prom_set(prom_buf, prom_index++, "38400n8r");
     prom_set(prom_buf, prom_index++, NULL);
@@ -863,6 +873,11 @@ static void main_cpu_reset(void *opaque)
     }
 
     malta_mips_config(cpu);
+
+    if (kvm_enabled()) {
+        /* Start running from the bootloader we wrote to end of RAM */
+        env->active_tc.PC = 0x40000000 + loaderparams.ram_size;
+    }
 }
 
 static void cpu_request_exit(void *opaque, int irq, int level)
@@ -878,6 +893,7 @@ static
 void mips_malta_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
+    ram_addr_t ram_low_size;
     const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
@@ -892,7 +908,7 @@ void mips_malta_init(MachineState *machine)
     target_long bios_size = FLASH_SIZE;
     const size_t smbus_eeprom_size = 8 * 256;
     uint8_t *smbus_eeprom_buf = g_malloc0(smbus_eeprom_size);
-    int64_t kernel_entry;
+    int64_t kernel_entry, bootloader_run_addr;
     PCIBus *pci_bus;
     ISABus *isa_bus;
     MIPSCPU *cpu;
@@ -1011,14 +1027,37 @@ void mips_malta_init(MachineState *machine)
     bios = pflash_cfi01_get_memory(fl);
     fl_idx++;
     if (kernel_filename) {
+        ram_low_size = MIN(ram_size, 256 << 20);
+        /* For KVM T&E we reserve 1MB of RAM for running bootloader */
+        if (kvm_enabled()) {
+            ram_low_size -= 0x100000;
+            bootloader_run_addr = 0x40000000 + ram_low_size;
+        } else {
+            bootloader_run_addr = 0xbfc00000;
+        }
+
         /* Write a small bootloader to the flash location. */
-        loaderparams.ram_size = MIN(ram_size, 256 << 20);
+        loaderparams.ram_size = ram_low_size;
         loaderparams.kernel_filename = kernel_filename;
         loaderparams.kernel_cmdline = kernel_cmdline;
         loaderparams.initrd_filename = initrd_filename;
         kernel_entry = load_kernel();
-        write_bootloader(env, memory_region_get_ram_ptr(bios), kernel_entry);
+
+        write_bootloader(env, memory_region_get_ram_ptr(bios),
+                         bootloader_run_addr, kernel_entry);
+        if (kvm_enabled()) {
+            /* Write the bootloader code @ the end of RAM, 1MB reserved */
+            write_bootloader(env, memory_region_get_ram_ptr(ram_low_preio) +
+                                    ram_low_size,
+                             bootloader_run_addr, kernel_entry);
+        }
     } else {
+        /* The flash region isn't executable from a KVM T&E guest */
+        if (kvm_enabled()) {
+            error_report("KVM enabled but no -kernel argument was specified. "
+                         "Booting from flash is not supported with KVM T&E.");
+            exit(1);
+        }
         /* Load firmware from flash. */
         if (!dinfo) {
             /* Load a BIOS image. */

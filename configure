@@ -4828,6 +4828,9 @@ if test "$linux" = "yes" ; then
   aarch64)
     linux_arch=arm64
     ;;
+  mips64)
+    linux_arch=mips
+    ;;
   *)
     # For most CPUs the kernel architecture name and QEMU CPU name match.
     linux_arch="$cpu"
@@ -5026,7 +5029,7 @@ case "$target_name" in
   *)
 esac
 case "$target_name" in
-  aarch64|arm|i386|x86_64|ppcemb|ppc|ppc64|s390x)
+  aarch64|arm|i386|x86_64|ppcemb|ppc|ppc64|s390x|mipsel|mips)
     # Make sure the target and host cpus are compatible
     if test "$kvm" = "yes" -a "$target_softmmu" = "yes" -a \
       \( "$target_name" = "$cpu" -o \
@@ -5034,6 +5037,7 @@ case "$target_name" in
       \( "$target_name" = "ppc64"  -a "$cpu" = "ppc" \) -o \
       \( "$target_name" = "ppc"    -a "$cpu" = "ppc64" \) -o \
       \( "$target_name" = "ppcemb" -a "$cpu" = "ppc64" \) -o \
+      \( "$target_name" = "mipsel" -a "$cpu" = "mips" \) -o \
       \( "$target_name" = "x86_64" -a "$cpu" = "i386"   \) -o \
       \( "$target_name" = "i386"   -a "$cpu" = "x86_64" \) \) ; then
       echo "CONFIG_KVM=y" >> $config_target_mak
