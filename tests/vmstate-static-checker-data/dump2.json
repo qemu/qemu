@@ -844,7 +844,7 @@
           "field": "dev",
           "version_id": 0,
           "field_exists": false,
-          "size": 4352,
+          "size": 5832,
           "Description": {
             "name": "USBDevice",
             "version_id": 1,
@@ -896,58 +896,71 @@
           }
         },
         {
-          "field": "kbd.keycodes",
+          "field": "hid",
           "version_id": 0,
           "field_exists": false,
-          "size": 4
-        },
-        {
-          "field": "head",
-          "version_id": 0,
-          "field_exists": false,
-          "size": 4
-        },
-        {
-          "field": "n",
-          "version_id": 0,
-          "field_exists": false,
-          "size": 4
-        },
-        {
-          "field": "kbd.modifiers",
-          "version_id": 0,
-          "field_exists": false,
-          "size": 2
-        },
-        {
-          "field": "kbd.leds",
-          "version_id": 0,
-          "field_exists": false,
-          "size": 1
-        },
-        {
-          "field": "kbd.key",
-          "version_id": 0,
-          "field_exists": false,
-          "size": 1
-        },
-        {
-          "field": "kbd.keys",
-          "version_id": 0,
-          "field_exists": false,
-          "size": 4
-        },
-        {
-          "field": "protocol",
-          "version_id": 0,
-          "field_exists": false,
-          "size": 4
-        },
-        {
-          "field": "idle",
-          "version_id": 0,
-          "field_exists": false,
-          "size": 1
+          "size": 312,
+          "Description": {
+            "name": "HIDKeyboardDevice",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "kbd.keycodes",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "head",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "n",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "kbd.modifiers",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 2
+              },
+              {
+                "field": "kbd.leds",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "kbd.key",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "kbd.keys",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "protocol",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "idle",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              }
+            ]
+          }
         }
       ]
     }
