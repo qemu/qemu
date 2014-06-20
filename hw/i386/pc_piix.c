@@ -99,21 +99,6 @@ static void pc_init1(MachineState *machine,
     FWCfgState *fw_cfg = NULL;
     PcGuestInfo *guest_info;
 
-    if (xen_enabled() && xen_hvm_init(&ram_memory) != 0) {
-        fprintf(stderr, "xen hardware virtual machine initialisation failed\n");
-        exit(1);
-    }
-
-    icc_bridge = qdev_create(NULL, TYPE_ICC_BRIDGE);
-    object_property_add_child(qdev_get_machine(), "icc-bridge",
-                              OBJECT(icc_bridge), NULL);
-
-    pc_cpus_init(machine->cpu_model, icc_bridge);
-
-    if (kvm_enabled() && kvmclock_enabled) {
-        kvmclock_create();
-    }
-
     /* Check whether RAM fits below 4G (leaving 1/2 GByte for IO memory).
      * If it doesn't, we need to split it in chunks below and above 4G.
      * In any case, try to make sure that guest addresses aligned at
@@ -128,6 +113,22 @@ static void pc_init1(MachineState *machine,
     } else {
         above_4g_mem_size = 0;
         below_4g_mem_size = machine->ram_size;
+    }
+
+    if (xen_enabled() && xen_hvm_init(&below_4g_mem_size, &above_4g_mem_size,
+                                      &ram_memory) != 0) {
+        fprintf(stderr, "xen hardware virtual machine initialisation failed\n");
+        exit(1);
+    }
+
+    icc_bridge = qdev_create(NULL, TYPE_ICC_BRIDGE);
+    object_property_add_child(qdev_get_machine(), "icc-bridge",
+                              OBJECT(icc_bridge), NULL);
+
+    pc_cpus_init(machine->cpu_model, icc_bridge);
+
+    if (kvm_enabled() && kvmclock_enabled) {
+        kvmclock_create();
     }
 
     if (pci_enabled) {

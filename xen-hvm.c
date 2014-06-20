@@ -155,10 +155,11 @@ qemu_irq *xen_interrupt_controller_init(void)
 
 /* Memory Ops */
 
-static void xen_ram_init(ram_addr_t ram_size, MemoryRegion **ram_memory_p)
+static void xen_ram_init(ram_addr_t *below_4g_mem_size,
+                         ram_addr_t *above_4g_mem_size,
+                         ram_addr_t ram_size, MemoryRegion **ram_memory_p)
 {
     MemoryRegion *sysmem = get_system_memory();
-    ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
     ram_addr_t block_len;
 
     block_len = ram_size;
@@ -173,10 +174,11 @@ static void xen_ram_init(ram_addr_t ram_size, MemoryRegion **ram_memory_p)
     vmstate_register_ram_global(&ram_memory);
 
     if (ram_size >= HVM_BELOW_4G_RAM_END) {
-        above_4g_mem_size = ram_size - HVM_BELOW_4G_RAM_END;
-        below_4g_mem_size = HVM_BELOW_4G_RAM_END;
+        *above_4g_mem_size = ram_size - HVM_BELOW_4G_RAM_END;
+        *below_4g_mem_size = HVM_BELOW_4G_RAM_END;
     } else {
-        below_4g_mem_size = ram_size;
+        *above_4g_mem_size = 0;
+        *below_4g_mem_size = ram_size;
     }
 
     memory_region_init_alias(&ram_640k, NULL, "xen.ram.640k",
@@ -189,12 +191,13 @@ static void xen_ram_init(ram_addr_t ram_size, MemoryRegion **ram_memory_p)
      * the Options ROM, so it is registered here as RAM.
      */
     memory_region_init_alias(&ram_lo, NULL, "xen.ram.lo",
-                             &ram_memory, 0xc0000, below_4g_mem_size - 0xc0000);
+                             &ram_memory, 0xc0000,
+                             *below_4g_mem_size - 0xc0000);
     memory_region_add_subregion(sysmem, 0xc0000, &ram_lo);
-    if (above_4g_mem_size > 0) {
+    if (*above_4g_mem_size > 0) {
         memory_region_init_alias(&ram_hi, NULL, "xen.ram.hi",
                                  &ram_memory, 0x100000000ULL,
-                                 above_4g_mem_size);
+                                 *above_4g_mem_size);
         memory_region_add_subregion(sysmem, 0x100000000ULL, &ram_hi);
     }
 }
@@ -958,7 +961,8 @@ static void xen_wakeup_notifier(Notifier *notifier, void *data)
     xc_set_hvm_param(xen_xc, xen_domid, HVM_PARAM_ACPI_S_STATE, 0);
 }
 
-int xen_hvm_init(MemoryRegion **ram_memory)
+int xen_hvm_init(ram_addr_t *below_4g_mem_size, ram_addr_t *above_4g_mem_size,
+                 MemoryRegion **ram_memory)
 {
     int i, rc;
     unsigned long ioreq_pfn;
@@ -1036,7 +1040,7 @@ int xen_hvm_init(MemoryRegion **ram_memory)
 
     /* Init RAM management */
     xen_map_cache_init(xen_phys_offset_to_gaddr, state);
-    xen_ram_init(ram_size, ram_memory);
+    xen_ram_init(below_4g_mem_size, above_4g_mem_size, ram_size, ram_memory);
 
     qemu_add_vm_change_state_handler(xen_hvm_change_state_handler, state);
 

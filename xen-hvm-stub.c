@@ -51,7 +51,8 @@ void xen_modified_memory(ram_addr_t start, ram_addr_t length)
 {
 }
 
-int xen_hvm_init(MemoryRegion **ram_memory)
+int xen_hvm_init(ram_addr_t *below_4g_mem_size, ram_addr_t *above_4g_mem_size,
+                 MemoryRegion **ram_memory)
 {
     return 0;
 }
