@@ -929,6 +929,34 @@ static void nbd_request_put(NBDRequest *req)
     nbd_client_put(client);
 }
 
+static void bs_aio_attached(AioContext *ctx, void *opaque)
+{
+    NBDExport *exp = opaque;
+    NBDClient *client;
+
+    TRACE("Export %s: Attaching clients to AIO context %p\n", exp->name, ctx);
+
+    exp->ctx = ctx;
+
+    QTAILQ_FOREACH(client, &exp->clients, next) {
+        nbd_set_handlers(client);
+    }
+}
+
+static void bs_aio_detach(void *opaque)
+{
+    NBDExport *exp = opaque;
+    NBDClient *client;
+
+    TRACE("Export %s: Detaching clients from AIO context %p\n", exp->name, exp->ctx);
+
+    QTAILQ_FOREACH(client, &exp->clients, next) {
+        nbd_unset_handlers(client);
+    }
+
+    exp->ctx = NULL;
+}
+
 NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
                           off_t size, uint32_t nbdflags,
                           void (*close)(NBDExport *))
@@ -943,6 +971,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
     exp->close = close;
     exp->ctx = bdrv_get_aio_context(bs);
     bdrv_ref(bs);
+    bdrv_add_aio_context_notifier(bs, bs_aio_attached, bs_aio_detach, exp);
     return exp;
 }
 
@@ -990,6 +1019,8 @@ void nbd_export_close(NBDExport *exp)
     nbd_export_set_name(exp, NULL);
     nbd_export_put(exp);
     if (exp->bs) {
+        bdrv_remove_aio_context_notifier(exp->bs, bs_aio_attached,
+                                         bs_aio_detach, exp);
         bdrv_unref(exp->bs);
         exp->bs = NULL;
     }
