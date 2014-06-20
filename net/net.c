@@ -806,6 +806,9 @@ static int (* const net_client_init_fun[NET_CLIENT_OPTIONS_KIND_MAX])(
 #ifdef CONFIG_VHOST_NET_USED
         [NET_CLIENT_OPTIONS_KIND_VHOST_USER] = net_init_vhost_user,
 #endif
+#ifdef CONFIG_LINUX
+        [NET_CLIENT_OPTIONS_KIND_L2TPV3]    = net_init_l2tpv3,
+#endif
 };
 
 
@@ -841,6 +844,9 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
         case NET_CLIENT_OPTIONS_KIND_HUBPORT:
 #ifdef CONFIG_VHOST_NET_USED
         case NET_CLIENT_OPTIONS_KIND_VHOST_USER:
+#endif
+#ifdef CONFIG_LINUX
+        case NET_CLIENT_OPTIONS_KIND_L2TPV3:
 #endif
             break;
 
