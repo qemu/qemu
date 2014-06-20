@@ -558,21 +558,6 @@
           "field_exists": false,
           "size": 4
         }
-      ],
-      "Subsections": [
-        {
-          "name": "PIIX3/rcr",
-          "version_id": 1,
-          "minimum_version_id": 1,
-          "Fields": [
-            {
-              "field": "rcr",
-              "version_id": 0,
-              "field_exists": false,
-              "size": 1
-            }
-          ]
-        }
       ]
     }
   },
