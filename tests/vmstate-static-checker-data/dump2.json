@@ -58,12 +58,6 @@
                 "size": 4
               },
               {
-                "field": "usbsts",
-                "version_id": 0,
-                "field_exists": false,
-                "size": 4
-              },
-              {
                 "field": "usbsts_pending",
                 "version_id": 2,
                 "field_exists": false,
