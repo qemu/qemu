@@ -34,7 +34,7 @@
   },
   "fusbh200-ehci-usb": {
     "Name": "fusbh200-ehci-usb",
-    "version_id": 2,
+    "version_id": 1,
     "minimum_version_id": 1,
     "Description": {
       "name": "ehci-sysbus",
