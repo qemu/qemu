@@ -637,12 +637,6 @@
                 "version_id": 0,
                 "field_exists": false,
                 "size": 256
-              },
-              {
-                "field": "irq_state",
-                "version_id": 2,
-                "field_exists": false,
-                "size": 16
               }
             ]
           }
