@@ -94,6 +94,12 @@ typedef struct ARMCPU {
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;
 
+    /* PSCI version for this CPU
+     * Bits[31:16] = Major Version
+     * Bits[15:0] = Minor Version
+     */
+    uint32_t psci_version;
+
     /* Should CPU start in PSCI powered-off state? */
     bool start_powered_off;
 
@@ -101,6 +107,9 @@ typedef struct ARMCPU {
      * QEMU_KVM_ARM_TARGET_NONE if the kernel doesn't support this CPU type.
      */
     uint32_t kvm_target;
+
+    /* KVM init features for this CPU */
+    uint32_t kvm_init_features[7];
 
     /* The instance init functions for implementation-specific subclasses
      * set these fields to specify the implementation-dependent values of

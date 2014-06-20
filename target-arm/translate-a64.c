@@ -6539,7 +6539,7 @@ static void handle_simd_shift_fpint_conv(DisasContext *s, bool is_scalar,
     tcg_shift = tcg_const_i32(fracbits);
 
     if (is_double) {
-        int maxpass = is_scalar ? 1 : is_q ? 2 : 1;
+        int maxpass = is_scalar ? 1 : 2;
 
         for (pass = 0; pass < maxpass; pass++) {
             TCGv_i64 tcg_op = tcg_temp_new_i64();
@@ -9052,7 +9052,8 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
     }
 
     if (size == 3) {
-        for (pass = 0; pass < (is_q ? 2 : 1); pass++) {
+        assert(is_q);
+        for (pass = 0; pass < 2; pass++) {
             TCGv_i64 tcg_op1 = tcg_temp_new_i64();
             TCGv_i64 tcg_op2 = tcg_temp_new_i64();
             TCGv_i64 tcg_res = tcg_temp_new_i64();

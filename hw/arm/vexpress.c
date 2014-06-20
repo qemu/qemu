@@ -533,7 +533,15 @@ static void vexpress_common_init(VEDBoardInfo *daughterboard,
      * If a bios file was provided, attempt to map it into memory
      */
     if (bios_name) {
-        const char *fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+        const char *fn;
+
+        if (drive_get(IF_PFLASH, 0, 0)) {
+            error_report("The contents of the first flash device may be "
+                         "specified with -bios or with -drive if=pflash... "
+                         "but you cannot use both options at once");
+            exit(1);
+        }
+        fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (!fn || load_image_targphys(fn, map[VE_NORFLASH0],
                                        VEXPRESS_FLASH_SIZE) < 0) {
             error_report("Could not load ROM image '%s'", bios_name);
