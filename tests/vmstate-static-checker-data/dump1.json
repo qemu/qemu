@@ -698,7 +698,7 @@
     "minimum_version_id": 2,
     "Description": {
       "name": "PIIX3",
-      "version_id": 3,
+      "version_id": 1,
       "minimum_version_id": 2,
       "Fields": [
         {
