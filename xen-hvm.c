@@ -161,25 +161,36 @@ static void xen_ram_init(ram_addr_t *below_4g_mem_size,
 {
     MemoryRegion *sysmem = get_system_memory();
     ram_addr_t block_len;
+    uint64_t user_lowmem = object_property_get_int(qdev_get_machine(),
+                                                   PC_MACHINE_MAX_RAM_BELOW_4G,
+                                                   &error_abort);
 
-    block_len = ram_size;
-    if (ram_size >= HVM_BELOW_4G_RAM_END) {
-        /* Xen does not allocate the memory continuously, and keep a hole at
-         * HVM_BELOW_4G_MMIO_START of HVM_BELOW_4G_MMIO_LENGTH
-         */
-        block_len += HVM_BELOW_4G_MMIO_LENGTH;
+    /* Handle the machine opt max-ram-below-4g.  It is basicly doing
+     * min(xen limit, user limit).
+     */
+    if (HVM_BELOW_4G_RAM_END <= user_lowmem) {
+        user_lowmem = HVM_BELOW_4G_RAM_END;
     }
-    memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len);
-    *ram_memory_p = &ram_memory;
-    vmstate_register_ram_global(&ram_memory);
 
-    if (ram_size >= HVM_BELOW_4G_RAM_END) {
-        *above_4g_mem_size = ram_size - HVM_BELOW_4G_RAM_END;
-        *below_4g_mem_size = HVM_BELOW_4G_RAM_END;
+    if (ram_size >= user_lowmem) {
+        *above_4g_mem_size = ram_size - user_lowmem;
+        *below_4g_mem_size = user_lowmem;
     } else {
         *above_4g_mem_size = 0;
         *below_4g_mem_size = ram_size;
     }
+    if (!*above_4g_mem_size) {
+        block_len = ram_size;
+    } else {
+        /*
+         * Xen does not allocate the memory continuously, it keeps a
+         * hole of the size computed above or passed in.
+         */
+        block_len = (1ULL << 32) + *above_4g_mem_size;
+    }
+    memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len);
+    *ram_memory_p = &ram_memory;
+    vmstate_register_ram_global(&ram_memory);
 
     memory_region_init_alias(&ram_640k, NULL, "xen.ram.640k",
                              &ram_memory, 0, 0xa0000);
