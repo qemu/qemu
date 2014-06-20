@@ -1052,6 +1052,12 @@ void mips_malta_init(MachineState *machine)
                              bootloader_run_addr, kernel_entry);
         }
     } else {
+        /* The flash region isn't executable from a KVM T&E guest */
+        if (kvm_enabled()) {
+            error_report("KVM enabled but no -kernel argument was specified. "
+                         "Booting from flash is not supported with KVM T&E.");
+            exit(1);
+        }
         /* Load firmware from flash. */
         if (!dinfo) {
             /* Load a BIOS image. */
