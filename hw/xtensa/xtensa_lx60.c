@@ -42,6 +42,7 @@
 typedef struct LxBoardDesc {
     hwaddr flash_base;
     size_t flash_size;
+    size_t flash_boot_base;
     size_t flash_sector_size;
     size_t sram_size;
 } LxBoardDesc;
@@ -266,9 +267,9 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
             MemoryRegion *flash_io = g_malloc(sizeof(*flash_io));
 
             memory_region_init_alias(flash_io, NULL, "lx60.flash",
-                    flash_mr, 0,
-                    board->flash_size < 0x02000000 ?
-                    board->flash_size : 0x02000000);
+                    flash_mr, board->flash_boot_base,
+                    board->flash_size - board->flash_boot_base < 0x02000000 ?
+                    board->flash_size - board->flash_boot_base : 0x02000000);
             memory_region_add_subregion(system_memory, 0xfe000000,
                     flash_io);
         }
@@ -313,6 +314,7 @@ static void xtensa_kc705_init(MachineState *machine)
     static const LxBoardDesc kc705_board = {
         .flash_base = 0xf0000000,
         .flash_size = 0x08000000,
+        .flash_boot_base = 0x06000000,
         .flash_sector_size = 0x20000,
         .sram_size = 0x2000000,
     };
