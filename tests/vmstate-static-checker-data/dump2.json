@@ -212,32 +212,7 @@
           "field": "pci",
           "version_id": 0,
           "field_exists": false,
-          "size": 1944,
-          "Description": {
-            "name": "PCIDevice",
-            "version_id": 2,
-            "minimum_version_id": 1,
-            "Fields": [
-              {
-                "field": "version_id",
-                "version_id": 0,
-                "field_exists": false,
-                "size": 4
-              },
-              {
-                "field": "config",
-                "version_id": 0,
-                "field_exists": false,
-                "size": 256
-              },
-              {
-                "field": "irq_state",
-                "version_id": 2,
-                "field_exists": false,
-                "size": 16
-              }
-            ]
-          }
+          "size": 1944
         },
         {
           "field": "g_ctl",
