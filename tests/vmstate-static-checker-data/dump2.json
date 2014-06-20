@@ -1,6 +1,6 @@
 {
   "vmschkmachine": {
-    "Name": "pc-i440fx-2.1"
+    "Name": "pc-i440fx-2.2"
   },
   "fw_cfg": {
     "Name": "fw_cfg",
