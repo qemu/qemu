@@ -462,38 +462,7 @@
   "cfi.pflash01": {
     "Name": "cfi.pflash01",
     "version_id": 1,
-    "minimum_version_id": 1,
-    "Description": {
-      "name": "pflash_cfi01",
-      "version_id": 1,
-      "minimum_version_id": 1,
-      "Fields": [
-        {
-          "field": "wcycle",
-          "version_id": 0,
-          "field_exists": false,
-          "size": 1
-        },
-        {
-          "field": "cmd",
-          "version_id": 0,
-          "field_exists": false,
-          "size": 1
-        },
-        {
-          "field": "status",
-          "version_id": 0,
-          "field_exists": false,
-          "size": 1
-        },
-        {
-          "field": "counter",
-          "version_id": 0,
-          "field_exists": false,
-          "size": 8
-        }
-      ]
-    }
+    "minimum_version_id": 1
   },
   "megasas": {
     "Name": "megasas",
