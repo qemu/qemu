@@ -1643,11 +1643,58 @@ pc_machine_get_hotplug_memory_region_size(Object *obj, Visitor *v, void *opaque,
     visit_type_int(v, &value, name, errp);
 }
 
+static void pc_machine_get_max_ram_below_4g(Object *obj, Visitor *v,
+                                         void *opaque, const char *name,
+                                         Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    uint64_t value = pcms->max_ram_below_4g;
+
+    visit_type_size(v, &value, name, errp);
+}
+
+static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
+                                         void *opaque, const char *name,
+                                         Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    Error *error = NULL;
+    uint64_t value;
+
+    visit_type_size(v, &value, name, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+    if (value > (1ULL << 32)) {
+        error_set(&error, ERROR_CLASS_GENERIC_ERROR,
+                  "Machine option 'max-ram-below-4g=%"PRIu64
+                  "' expects size less than or equal to 4G", value);
+        error_propagate(errp, error);
+        return;
+    }
+
+    if (value < (1ULL << 20)) {
+        error_report("Warning: small max_ram_below_4g(%"PRIu64
+                     ") less than 1M.  BIOS may not work..",
+                     value);
+    }
+
+    pcms->max_ram_below_4g = value;
+}
+
 static void pc_machine_initfn(Object *obj)
 {
+    PCMachineState *pcms = PC_MACHINE(obj);
+
     object_property_add(obj, PC_MACHINE_MEMHP_REGION_SIZE, "int",
                         pc_machine_get_hotplug_memory_region_size,
                         NULL, NULL, NULL, NULL);
+    pcms->max_ram_below_4g = 1ULL << 32; /* 4G */
+    object_property_add(obj, PC_MACHINE_MAX_RAM_BELOW_4G, "size",
+                        pc_machine_get_max_ram_below_4g,
+                        pc_machine_set_max_ram_below_4g,
+                        NULL, NULL, NULL);
 }
 
 static void pc_machine_class_init(ObjectClass *oc, void *data)

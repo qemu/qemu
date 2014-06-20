@@ -44,6 +44,7 @@
 #include "hw/ide/ahci.h"
 #include "hw/usb.h"
 #include "hw/cpu/icc_bus.h"
+#include "qemu/error-report.h"
 
 /* ICH9 AHCI has 6 ports */
 #define MAX_SATA_PORTS     6
@@ -85,6 +86,7 @@ static void pc_q35_init(MachineState *machine)
     PCIDevice *ahci;
     DeviceState *icc_bridge;
     PcGuestInfo *guest_info;
+    ram_addr_t lowmem;
 
     /* Check whether RAM fits below 4G (leaving 1/2 GByte for IO memory
      * and 256 Mbytes for PCI Express Enhanced Configuration Access Mapping
@@ -96,7 +98,25 @@ static void pc_q35_init(MachineState *machine)
      * breaking migration.
      */
     if (machine->ram_size >= 0xb0000000) {
-        ram_addr_t lowmem = gigabyte_align ? 0x80000000 : 0xb0000000;
+        lowmem = gigabyte_align ? 0x80000000 : 0xb0000000;
+    } else {
+        lowmem = 0xb0000000;
+    }
+
+    /* Handle the machine opt max-ram-below-4g.  It is basicly doing
+     * min(qemu limit, user limit).
+     */
+    if (lowmem > pc_machine->max_ram_below_4g) {
+        lowmem = pc_machine->max_ram_below_4g;
+        if (machine->ram_size - lowmem > lowmem &&
+            lowmem & ((1ULL << 30) - 1)) {
+            error_report("Warning: Large machine and max_ram_below_4g(%"PRIu64
+                         ") not a multiple of 1G; possible bad performance.",
+                         pc_machine->max_ram_below_4g);
+        }
+    }
+
+    if (machine->ram_size >= lowmem) {
         above_4g_mem_size = machine->ram_size - lowmem;
         below_4g_mem_size = lowmem;
     } else {

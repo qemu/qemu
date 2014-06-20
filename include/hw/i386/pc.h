@@ -33,10 +33,13 @@ struct PCMachineState {
     MemoryRegion hotplug_memory;
 
     HotplugHandler *acpi_dev;
+
+    uint64_t max_ram_below_4g;
 };
 
 #define PC_MACHINE_ACPI_DEVICE_PROP "acpi-device"
 #define PC_MACHINE_MEMHP_REGION_SIZE "hotplug-memory-region-size"
+#define PC_MACHINE_MAX_RAM_BELOW_4G "max-ram-below-4g"
 
 /**
  * PCMachineClass:
