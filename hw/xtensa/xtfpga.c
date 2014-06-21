@@ -180,6 +180,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
     const char *kernel_filename = qemu_opt_get(machine_opts, "kernel");
     const char *kernel_cmdline = qemu_opt_get(machine_opts, "append");
     const char *dtb_filename = qemu_opt_get(machine_opts, "dtb");
+    const char *initrd_filename = qemu_opt_get(machine_opts, "initrd");
     int n;
 
     if (!cpu_model) {
@@ -263,6 +264,9 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
         if (dtb_filename) {
             bp_size += get_tag_size(sizeof(uint32_t));
         }
+        if (initrd_filename) {
+            bp_size += get_tag_size(sizeof(BpMemInfo));
+        }
 
         /* Put kernel bootparameters to the end of that SRAM */
         tagptr = (tagptr - bp_size) & ~0xff;
@@ -288,6 +292,26 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
             cur_tagptr = put_tag(cur_tagptr, BP_TAG_FDT,
                                  sizeof(dtb_addr), &dtb_addr);
             cur_lowmem = QEMU_ALIGN_UP(cur_lowmem + fdt_size, 4096);
+        }
+        if (initrd_filename) {
+            BpMemInfo initrd_location = { 0 };
+            int initrd_size = load_ramdisk(initrd_filename, cur_lowmem,
+                                           lowmem_end - cur_lowmem);
+
+            if (initrd_size < 0) {
+                initrd_size = load_image_targphys(initrd_filename,
+                                                  cur_lowmem,
+                                                  lowmem_end - cur_lowmem);
+            }
+            if (initrd_size < 0) {
+                error_report("could not load initrd '%s'\n", initrd_filename);
+                exit(EXIT_FAILURE);
+            }
+            initrd_location.start = tswap32(cur_lowmem);
+            initrd_location.end = tswap32(cur_lowmem + initrd_size);
+            cur_tagptr = put_tag(cur_tagptr, BP_TAG_INITRD,
+                                 sizeof(initrd_location), &initrd_location);
+            cur_lowmem = QEMU_ALIGN_UP(cur_lowmem + initrd_size, 4096);
         }
         cur_tagptr = put_tag(cur_tagptr, BP_TAG_LAST, 0, NULL);
         env->regs[2] = tagptr;
