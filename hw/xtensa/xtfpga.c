@@ -250,12 +250,12 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
 
             env->regs[2] = tagptr;
 
-            tagptr = put_tag(tagptr, 0x7b0b, 0, NULL);
+            tagptr = put_tag(tagptr, BP_TAG_FIRST, 0, NULL);
             if (cmdline_size > 1) {
-                tagptr = put_tag(tagptr, 0x1001,
+                tagptr = put_tag(tagptr, BP_TAG_COMMAND_LINE,
                         cmdline_size, kernel_cmdline);
             }
-            tagptr = put_tag(tagptr, 0x7e0b, 0, NULL);
+            tagptr = put_tag(tagptr, BP_TAG_LAST, 0, NULL);
         }
         uint64_t elf_entry;
         uint64_t elf_lowaddr;
