@@ -237,26 +237,30 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
 
     /* Use presence of kernel file name as 'boot from SRAM' switch. */
     if (kernel_filename) {
+        size_t bp_size = 2 * get_tag_size(0);
+        uint32_t tagptr = 0xfe000000 + board->sram_size;
+        uint32_t cur_tagptr;
+
         rom = g_malloc(sizeof(*rom));
         memory_region_init_ram(rom, NULL, "lx60.sram", board->sram_size);
         vmstate_register_ram_global(rom);
         memory_region_add_subregion(system_memory, 0xfe000000, rom);
 
-        /* Put kernel bootparameters to the end of that SRAM */
         if (kernel_cmdline) {
-            size_t cmdline_size = strlen(kernel_cmdline) + 1;
-            size_t bp_size = sizeof(BpTag[4]) + cmdline_size;
-            uint32_t tagptr = (0xfe000000 + board->sram_size - bp_size) & ~0xff;
-
-            env->regs[2] = tagptr;
-
-            tagptr = put_tag(tagptr, BP_TAG_FIRST, 0, NULL);
-            if (cmdline_size > 1) {
-                tagptr = put_tag(tagptr, BP_TAG_COMMAND_LINE,
-                        cmdline_size, kernel_cmdline);
-            }
-            tagptr = put_tag(tagptr, BP_TAG_LAST, 0, NULL);
+            bp_size += get_tag_size(strlen(kernel_cmdline) + 1);
         }
+
+        /* Put kernel bootparameters to the end of that SRAM */
+        tagptr = (tagptr - bp_size) & ~0xff;
+        cur_tagptr = put_tag(tagptr, BP_TAG_FIRST, 0, NULL);
+
+        if (kernel_cmdline) {
+            cur_tagptr = put_tag(cur_tagptr, BP_TAG_COMMAND_LINE,
+                                 strlen(kernel_cmdline) + 1, kernel_cmdline);
+        }
+        cur_tagptr = put_tag(cur_tagptr, BP_TAG_LAST, 0, NULL);
+        env->regs[2] = tagptr;
+
         uint64_t elf_entry;
         uint64_t elf_lowaddr;
         int success = load_elf(kernel_filename, translate_phys_addr, cpu,

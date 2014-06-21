@@ -16,6 +16,11 @@ typedef struct BpTag {
     uint16_t size;
 } BpTag;
 
+static inline size_t get_tag_size(size_t data_size)
+{
+    return data_size + sizeof(BpTag) + 4;
+}
+
 static inline ram_addr_t put_tag(ram_addr_t addr, uint16_t tag,
         size_t size, const void *data)
 {
