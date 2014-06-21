@@ -1006,93 +1006,17 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
     }
 }
 
-typedef void vga_draw_glyph8_func(uint8_t *d, int linesize,
-                             const uint8_t *font_ptr, int h,
-                             uint32_t fgcol, uint32_t bgcol);
-typedef void vga_draw_glyph9_func(uint8_t *d, int linesize,
-                                  const uint8_t *font_ptr, int h,
-                                  uint32_t fgcol, uint32_t bgcol, int dup9);
 typedef void vga_draw_line_func(VGACommonState *s1, uint8_t *d,
                                 const uint8_t *s, int width);
 
-#define DEPTH 8
-#include "vga_template.h"
-
-#define DEPTH 15
-#include "vga_template.h"
-
-#define BGR_FORMAT
-#define DEPTH 15
-#include "vga_template.h"
-
-#define DEPTH 16
-#include "vga_template.h"
-
-#define BGR_FORMAT
-#define DEPTH 16
-#include "vga_template.h"
-
 #define DEPTH 32
 #include "vga_template.h"
 
-#define BGR_FORMAT
-#define DEPTH 32
-#include "vga_template.h"
-
-static unsigned int rgb_to_pixel8_dup(unsigned int r, unsigned int g, unsigned b)
-{
-    unsigned int col;
-    col = rgb_to_pixel8(r, g, b);
-    col |= col << 8;
-    col |= col << 16;
-    return col;
-}
-
-static unsigned int rgb_to_pixel15_dup(unsigned int r, unsigned int g, unsigned b)
-{
-    unsigned int col;
-    col = rgb_to_pixel15(r, g, b);
-    col |= col << 16;
-    return col;
-}
-
-static unsigned int rgb_to_pixel15bgr_dup(unsigned int r, unsigned int g,
-                                          unsigned int b)
-{
-    unsigned int col;
-    col = rgb_to_pixel15bgr(r, g, b);
-    col |= col << 16;
-    return col;
-}
-
-static unsigned int rgb_to_pixel16_dup(unsigned int r, unsigned int g, unsigned b)
-{
-    unsigned int col;
-    col = rgb_to_pixel16(r, g, b);
-    col |= col << 16;
-    return col;
-}
-
-static unsigned int rgb_to_pixel16bgr_dup(unsigned int r, unsigned int g,
-                                          unsigned int b)
-{
-    unsigned int col;
-    col = rgb_to_pixel16bgr(r, g, b);
-    col |= col << 16;
-    return col;
-}
 
 static unsigned int rgb_to_pixel32_dup(unsigned int r, unsigned int g, unsigned b)
 {
     unsigned int col;
     col = rgb_to_pixel32(r, g, b);
-    return col;
-}
-
-static unsigned int rgb_to_pixel32bgr_dup(unsigned int r, unsigned int g, unsigned b)
-{
-    unsigned int col;
-    col = rgb_to_pixel32bgr(r, g, b);
     return col;
 }
 
@@ -1202,56 +1126,6 @@ static int update_basic_params(VGACommonState *s)
     return full_update;
 }
 
-#define NB_DEPTHS 7
-
-static inline int get_depth_index(DisplaySurface *s)
-{
-    switch (surface_bits_per_pixel(s)) {
-    default:
-    case 8:
-        return 0;
-    case 15:
-        return 1;
-    case 16:
-        return 2;
-    case 32:
-        if (is_surface_bgr(s)) {
-            return 4;
-        } else {
-            return 3;
-        }
-    }
-}
-
-static vga_draw_glyph8_func * const vga_draw_glyph8_table[NB_DEPTHS] = {
-    vga_draw_glyph8_8,
-    vga_draw_glyph8_16,
-    vga_draw_glyph8_16,
-    vga_draw_glyph8_32,
-    vga_draw_glyph8_32,
-    vga_draw_glyph8_16,
-    vga_draw_glyph8_16,
-};
-
-static vga_draw_glyph8_func * const vga_draw_glyph16_table[NB_DEPTHS] = {
-    vga_draw_glyph16_8,
-    vga_draw_glyph16_16,
-    vga_draw_glyph16_16,
-    vga_draw_glyph16_32,
-    vga_draw_glyph16_32,
-    vga_draw_glyph16_16,
-    vga_draw_glyph16_16,
-};
-
-static vga_draw_glyph9_func * const vga_draw_glyph9_table[NB_DEPTHS] = {
-    vga_draw_glyph9_8,
-    vga_draw_glyph9_16,
-    vga_draw_glyph9_16,
-    vga_draw_glyph9_32,
-    vga_draw_glyph9_32,
-    vga_draw_glyph9_16,
-    vga_draw_glyph9_16,
-};
 
 static const uint8_t cursor_glyph[32 * 4] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -1303,18 +1177,6 @@ static void vga_get_text_resolution(VGACommonState *s, int *pwidth, int *pheight
     *pcheight = cheight;
 }
 
-typedef unsigned int rgb_to_pixel_dup_func(unsigned int r, unsigned int g, unsigned b);
-
-static rgb_to_pixel_dup_func * const rgb_to_pixel_dup_table[NB_DEPTHS] = {
-    rgb_to_pixel8_dup,
-    rgb_to_pixel15_dup,
-    rgb_to_pixel16_dup,
-    rgb_to_pixel32_dup,
-    rgb_to_pixel32bgr_dup,
-    rgb_to_pixel15bgr_dup,
-    rgb_to_pixel16bgr_dup,
-};
-
 /*
  * Text mode update
  * Missing:
@@ -1331,11 +1193,9 @@ static void vga_draw_text(VGACommonState *s, int full_update)
     uint32_t offset, fgcol, bgcol, v, cursor_offset;
     uint8_t *d1, *d, *src, *dest, *cursor_ptr;
     const uint8_t *font_ptr, *font_base[2];
-    int dup9, line_offset, depth_index;
+    int dup9, line_offset;
     uint32_t *palette;
     uint32_t *ch_attr_ptr;
-    vga_draw_glyph8_func *vga_draw_glyph8;
-    vga_draw_glyph9_func *vga_draw_glyph9;
     int64_t now = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
 
     /* compute font data address (in plane 2) */
@@ -1387,8 +1247,7 @@ static void vga_draw_text(VGACommonState *s, int full_update)
         s->last_cw = cw;
         full_update = 1;
     }
-    s->rgb_to_pixel =
-        rgb_to_pixel_dup_table[get_depth_index(surface)];
+    s->rgb_to_pixel = rgb_to_pixel32_dup;
     full_update |= update_palette16(s);
     palette = s->last_palette;
     x_incr = cw * surface_bytes_per_pixel(surface);
@@ -1422,13 +1281,6 @@ static void vga_draw_text(VGACommonState *s, int full_update)
         s->cursor_visible_phase = !s->cursor_visible_phase;
     }
 
-    depth_index = get_depth_index(surface);
-    if (cw == 16)
-        vga_draw_glyph8 = vga_draw_glyph16_table[depth_index];
-    else
-        vga_draw_glyph8 = vga_draw_glyph8_table[depth_index];
-    vga_draw_glyph9 = vga_draw_glyph9_table[depth_index];
-
     dest = surface_data(surface);
     linesize = surface_stride(surface);
     ch_attr_ptr = s->last_ch_attr;
@@ -1458,17 +1310,20 @@ static void vga_draw_text(VGACommonState *s, int full_update)
                 font_ptr += 32 * 4 * ch;
                 bgcol = palette[cattr >> 4];
                 fgcol = palette[cattr & 0x0f];
-                if (cw != 9) {
-                    vga_draw_glyph8(d1, linesize,
-                                    font_ptr, cheight, fgcol, bgcol);
+                if (cw == 16) {
+                    vga_draw_glyph16_32(d1, linesize,
+                                        font_ptr, cheight, fgcol, bgcol);
+                } else if (cw != 9) {
+                    vga_draw_glyph8_32(d1, linesize,
+                                       font_ptr, cheight, fgcol, bgcol);
                 } else {
                     dup9 = 0;
                     if (ch >= 0xb0 && ch <= 0xdf &&
                         (s->ar[VGA_ATC_MODE] & 0x04)) {
                         dup9 = 1;
                     }
-                    vga_draw_glyph9(d1, linesize,
-                                    font_ptr, cheight, fgcol, bgcol, dup9);
+                    vga_draw_glyph9_32(d1, linesize,
+                                       font_ptr, cheight, fgcol, bgcol, dup9);
                 }
                 if (src == cursor_ptr &&
                     !(s->cr[VGA_CRTC_CURSOR_START] & 0x20) &&
@@ -1483,12 +1338,15 @@ static void vga_draw_text(VGACommonState *s, int full_update)
                     if (line_last >= line_start && line_start < cheight) {
                         h = line_last - line_start + 1;
                         d = d1 + linesize * line_start;
-                        if (cw != 9) {
-                            vga_draw_glyph8(d, linesize,
-                                            cursor_glyph, h, fgcol, bgcol);
+                        if (cw == 16) {
+                            vga_draw_glyph16_32(d, linesize,
+                                               cursor_glyph, h, fgcol, bgcol);
+                        } else if (cw != 9) {
+                            vga_draw_glyph8_32(d, linesize,
+                                              cursor_glyph, h, fgcol, bgcol);
                         } else {
-                            vga_draw_glyph9(d, linesize,
-                                            cursor_glyph, h, fgcol, bgcol, 1);
+                            vga_draw_glyph9_32(d, linesize,
+                                              cursor_glyph, h, fgcol, bgcol, 1);
                         }
                     }
                 }
@@ -1525,86 +1383,17 @@ enum {
     VGA_DRAW_LINE_NB,
 };
 
-static vga_draw_line_func * const vga_draw_line_table[NB_DEPTHS * VGA_DRAW_LINE_NB] = {
-    vga_draw_line2_8,
-    vga_draw_line2_16,
-    vga_draw_line2_16,
+static vga_draw_line_func * const vga_draw_line_table[VGA_DRAW_LINE_NB] = {
     vga_draw_line2_32,
-    vga_draw_line2_32,
-    vga_draw_line2_16,
-    vga_draw_line2_16,
-
-    vga_draw_line2d2_8,
-    vga_draw_line2d2_16,
-    vga_draw_line2d2_16,
     vga_draw_line2d2_32,
-    vga_draw_line2d2_32,
-    vga_draw_line2d2_16,
-    vga_draw_line2d2_16,
-
-    vga_draw_line4_8,
-    vga_draw_line4_16,
-    vga_draw_line4_16,
     vga_draw_line4_32,
-    vga_draw_line4_32,
-    vga_draw_line4_16,
-    vga_draw_line4_16,
-
-    vga_draw_line4d2_8,
-    vga_draw_line4d2_16,
-    vga_draw_line4d2_16,
     vga_draw_line4d2_32,
-    vga_draw_line4d2_32,
-    vga_draw_line4d2_16,
-    vga_draw_line4d2_16,
-
-    vga_draw_line8d2_8,
-    vga_draw_line8d2_16,
-    vga_draw_line8d2_16,
     vga_draw_line8d2_32,
-    vga_draw_line8d2_32,
-    vga_draw_line8d2_16,
-    vga_draw_line8d2_16,
-
-    vga_draw_line8_8,
-    vga_draw_line8_16,
-    vga_draw_line8_16,
     vga_draw_line8_32,
-    vga_draw_line8_32,
-    vga_draw_line8_16,
-    vga_draw_line8_16,
-
-    vga_draw_line15_8,
-    vga_draw_line15_15,
-    vga_draw_line15_16,
     vga_draw_line15_32,
-    vga_draw_line15_32bgr,
-    vga_draw_line15_15bgr,
-    vga_draw_line15_16bgr,
-
-    vga_draw_line16_8,
-    vga_draw_line16_15,
-    vga_draw_line16_16,
     vga_draw_line16_32,
-    vga_draw_line16_32bgr,
-    vga_draw_line16_15bgr,
-    vga_draw_line16_16bgr,
-
-    vga_draw_line24_8,
-    vga_draw_line24_15,
-    vga_draw_line24_16,
     vga_draw_line24_32,
-    vga_draw_line24_32bgr,
-    vga_draw_line24_15bgr,
-    vga_draw_line24_16bgr,
-
-    vga_draw_line32_8,
-    vga_draw_line32_15,
-    vga_draw_line32_16,
     vga_draw_line32_32,
-    vga_draw_line32_32bgr,
-    vga_draw_line32_15bgr,
-    vga_draw_line32_16bgr,
 };
 
 static int vga_get_bpp(VGACommonState *s)
@@ -1753,8 +1542,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         dpy_gfx_replace_surface(s->con, surface);
     }
 
-    s->rgb_to_pixel =
-        rgb_to_pixel_dup_table[get_depth_index(surface)];
+    s->rgb_to_pixel = rgb_to_pixel32_dup;
 
     if (shift_control == 0) {
         full_update |= update_palette16(s);
@@ -1803,8 +1591,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
             break;
         }
     }
-    vga_draw_line = vga_draw_line_table[v * NB_DEPTHS +
-                                        get_depth_index(surface)];
+    vga_draw_line = vga_draw_line_table[v];
 
     if (!is_buffer_shared(surface) && s->cursor_invalidate) {
         s->cursor_invalidate(s);
@@ -1902,8 +1689,7 @@ static void vga_draw_blank(VGACommonState *s, int full_update)
     if (s->last_scr_width <= 0 || s->last_scr_height <= 0)
         return;
 
-    s->rgb_to_pixel =
-        rgb_to_pixel_dup_table[get_depth_index(surface)];
+    s->rgb_to_pixel = rgb_to_pixel32_dup;
     if (surface_bits_per_pixel(surface) == 8) {
         val = s->rgb_to_pixel(0, 0, 0);
     } else {
