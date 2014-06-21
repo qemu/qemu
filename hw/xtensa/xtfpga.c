@@ -37,7 +37,7 @@
 #include "hw/block/flash.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/char.h"
-#include "xtensa_bootparam.h"
+#include "bootparam.h"
 
 typedef struct LxBoardDesc {
     hwaddr flash_base;
