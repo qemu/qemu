@@ -1237,9 +1237,6 @@ static void qemu_alloc_display(DisplaySurface *surface, int width, int height)
     assert(surface->image != NULL);
 
     surface->flags = QEMU_ALLOCATED_FLAG;
-#ifdef HOST_WORDS_BIGENDIAN
-    surface->flags |= QEMU_BIG_ENDIAN_FLAG;
-#endif
 }
 
 DisplaySurface *qemu_create_displaysurface(int width, int height)
@@ -1263,10 +1260,6 @@ DisplaySurface *qemu_create_displaysurface_from(int width, int height,
                                               width, height,
                                               (void *)data, linesize);
     assert(surface->image != NULL);
-
-#ifdef HOST_WORDS_BIGENDIAN
-    surface->flags = QEMU_BIG_ENDIAN_FLAG;
-#endif
 
     return surface;
 }

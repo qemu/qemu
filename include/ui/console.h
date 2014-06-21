@@ -102,8 +102,7 @@ struct QemuConsoleClass {
     ObjectClass parent_class;
 };
 
-#define QEMU_BIG_ENDIAN_FLAG    0x01
-#define QEMU_ALLOCATED_FLAG     0x02
+#define QEMU_ALLOCATED_FLAG     0x01
 
 struct PixelFormat {
     uint8_t bits_per_pixel;
