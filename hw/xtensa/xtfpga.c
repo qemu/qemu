@@ -37,6 +37,7 @@
 #include "hw/block/flash.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/char.h"
+#include "qemu/error-report.h"
 #include "bootparam.h"
 
 typedef struct LxBoardDesc {
@@ -185,8 +186,9 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
     for (n = 0; n < smp_cpus; n++) {
         cpu = cpu_xtensa_init(cpu_model);
         if (cpu == NULL) {
-            fprintf(stderr, "Unable to find CPU definition\n");
-            exit(1);
+            error_report("unable to find CPU definition '%s'\n",
+                         cpu_model);
+            exit(EXIT_FAILURE);
         }
         env = &cpu->env;
 
@@ -227,8 +229,8 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
                 board->flash_size / board->flash_sector_size,
                 4, 0x0000, 0x0000, 0x0000, 0x0000, be);
         if (flash == NULL) {
-            fprintf(stderr, "Unable to mount pflash\n");
-            exit(1);
+            error_report("unable to mount pflash\n");
+            exit(EXIT_FAILURE);
         }
     }
 

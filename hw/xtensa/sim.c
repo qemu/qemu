@@ -31,6 +31,7 @@
 #include "elf.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
+#include "qemu/error-report.h"
 
 static uint64_t translate_phys_addr(void *opaque, uint64_t addr)
 {
@@ -63,8 +64,9 @@ static void xtensa_sim_init(MachineState *machine)
     for (n = 0; n < smp_cpus; n++) {
         cpu = cpu_xtensa_init(cpu_model);
         if (cpu == NULL) {
-            fprintf(stderr, "Unable to find CPU definition\n");
-            exit(1);
+            error_report("unable to find CPU definition '%s'\n",
+                         cpu_model);
+            exit(EXIT_FAILURE);
         }
         env = &cpu->env;
 
