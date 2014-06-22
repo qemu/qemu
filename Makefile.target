@@ -190,10 +190,7 @@ endif
 
 install: all
 ifneq ($(PROGS),)
-	$(INSTALL_PROG) $(PROGS) "$(DESTDIR)$(bindir)"
-ifneq ($(STRIP),)
-	$(STRIP) $(PROGS:%="$(DESTDIR)$(bindir)/%")
-endif
+	$(call install-prog,$(PROGS),$(DESTDIR)$(bindir))
 endif
 ifdef CONFIG_TRACE_SYSTEMTAP
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)/../systemtap/tapset"
