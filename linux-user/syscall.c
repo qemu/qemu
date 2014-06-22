@@ -1531,6 +1531,9 @@ set_timeout:
         case TARGET_SO_PASSCRED:
 		optname = SO_PASSCRED;
 		break;
+        case TARGET_SO_PASSSEC:
+                optname = SO_PASSSEC;
+                break;
         case TARGET_SO_TIMESTAMP:
 		optname = SO_TIMESTAMP;
 		break;
