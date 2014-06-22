@@ -761,14 +761,13 @@ void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
                 s->vbe_regs[VBE_DISPI_INDEX_ENABLE] |= VBE_DISPI_ENABLED;
                 vbe_fixup_regs(s);
 
-                /* clear the screen (should be done in BIOS) */
+                /* clear the screen */
                 if (!(val & VBE_DISPI_NOCLEARMEM)) {
                     memset(s->vram_ptr, 0,
                            s->vbe_regs[VBE_DISPI_INDEX_YRES] * s->vbe_line_offset);
                 }
 
-                /* we initialize the VGA graphic mode (should be done
-                   in BIOS) */
+                /* we initialize the VGA graphic mode */
                 /* graphic mode + memory map 1 */
                 s->gr[VGA_GFX_MISC] = (s->gr[VGA_GFX_MISC] & ~0x0c) | 0x04 |
                     VGA_GR06_GRAPHICS_MODE;
@@ -801,7 +800,6 @@ void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
                     (shift_control << 5);
                 s->cr[VGA_CRTC_MAX_SCAN] &= ~0x9f; /* no double scan */
             } else {
-                /* XXX: the bios should do that */
                 s->bank_offset = 0;
             }
             s->dac_8bit = (val & VBE_DISPI_8BIT_DAC) > 0;
