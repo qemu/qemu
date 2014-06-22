@@ -592,6 +592,37 @@ char *target_strerror(int err)
     return strerror(target_to_host_errno(err));
 }
 
+static inline int host_to_target_sock_type(int host_type)
+{
+    int target_type;
+
+    switch (host_type & 0xf /* SOCK_TYPE_MASK */) {
+    case SOCK_DGRAM:
+        target_type = TARGET_SOCK_DGRAM;
+        break;
+    case SOCK_STREAM:
+        target_type = TARGET_SOCK_STREAM;
+        break;
+    default:
+        target_type = host_type & 0xf /* SOCK_TYPE_MASK */;
+        break;
+    }
+
+#if defined(SOCK_CLOEXEC)
+    if (host_type & SOCK_CLOEXEC) {
+        target_type |= TARGET_SOCK_CLOEXEC;
+    }
+#endif
+
+#if defined(SOCK_NONBLOCK)
+    if (host_type & SOCK_NONBLOCK) {
+        target_type |= TARGET_SOCK_NONBLOCK;
+    }
+#endif
+
+    return target_type;
+}
+
 static abi_ulong target_brk;
 static abi_ulong target_original_brk;
 static abi_ulong brk_page;
@@ -1636,6 +1667,9 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
         ret = get_errno(getsockopt(sockfd, level, optname, &val, &lv));
         if (ret < 0)
             return ret;
+        if (optname == SO_TYPE) {
+            val = host_to_target_sock_type(val);
+        }
         if (len > lv)
             len = lv;
         if (len == 4) {
