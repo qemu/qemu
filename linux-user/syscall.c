@@ -1502,9 +1502,15 @@ set_timeout:
         case TARGET_SO_SNDBUF:
 		optname = SO_SNDBUF;
 		break;
+        case TARGET_SO_SNDBUFFORCE:
+                optname = SO_SNDBUFFORCE;
+                break;
         case TARGET_SO_RCVBUF:
 		optname = SO_RCVBUF;
 		break;
+        case TARGET_SO_RCVBUFFORCE:
+                optname = SO_RCVBUFFORCE;
+                break;
         case TARGET_SO_KEEPALIVE:
 		optname = SO_KEEPALIVE;
 		break;
