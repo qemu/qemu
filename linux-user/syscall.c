@@ -5614,29 +5614,60 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
     case TARGET_NR_mount:
-		{
-			/* need to look at the data field */
-			void *p2, *p3;
-			p = lock_user_string(arg1);
-			p2 = lock_user_string(arg2);
-			p3 = lock_user_string(arg3);
-                        if (!p || !p2 || !p3)
-                            ret = -TARGET_EFAULT;
-                        else {
-                            /* FIXME - arg5 should be locked, but it isn't clear how to
-                             * do that since it's not guaranteed to be a NULL-terminated
-                             * string.
-                             */
-                            if ( ! arg5 )
-                                ret = get_errno(mount(p, p2, p3, (unsigned long)arg4, NULL));
-                            else
-                                ret = get_errno(mount(p, p2, p3, (unsigned long)arg4, g2h(arg5)));
-                        }
+        {
+            /* need to look at the data field */
+            void *p2, *p3;
+
+            if (arg1) {
+                p = lock_user_string(arg1);
+                if (!p) {
+                    goto efault;
+                }
+            } else {
+                p = NULL;
+            }
+
+            p2 = lock_user_string(arg2);
+            if (!p2) {
+                if (arg1) {
+                    unlock_user(p, arg1, 0);
+                }
+                goto efault;
+            }
+
+            if (arg3) {
+                p3 = lock_user_string(arg3);
+                if (!p3) {
+                    if (arg1) {
                         unlock_user(p, arg1, 0);
-                        unlock_user(p2, arg2, 0);
-                        unlock_user(p3, arg3, 0);
-			break;
-		}
+                    }
+                    unlock_user(p2, arg2, 0);
+                    goto efault;
+                }
+            } else {
+                p3 = NULL;
+            }
+
+            /* FIXME - arg5 should be locked, but it isn't clear how to
+             * do that since it's not guaranteed to be a NULL-terminated
+             * string.
+             */
+            if (!arg5) {
+                ret = mount(p, p2, p3, (unsigned long)arg4, NULL);
+            } else {
+                ret = mount(p, p2, p3, (unsigned long)arg4, g2h(arg5));
+            }
+            ret = get_errno(ret);
+
+            if (arg1) {
+                unlock_user(p, arg1, 0);
+            }
+            unlock_user(p2, arg2, 0);
+            if (arg3) {
+                unlock_user(p3, arg3, 0);
+            }
+        }
+        break;
 #ifdef TARGET_NR_umount
     case TARGET_NR_umount:
         if (!(p = lock_user_string(arg1)))
