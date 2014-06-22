@@ -831,6 +831,7 @@ struct target_pollfd {
 #define TARGET_KDSKBLED        0x4B65	/* set led flags (not lights) */
 #define TARGET_KDGETLED        0x4B31	/* return current led state */
 #define TARGET_KDSETLED        0x4B32	/* set led state [lights, not flags] */
+#define TARGET_KDSIGACCEPT     0x4B4E
 
 #define TARGET_SIOCATMARK      0x8905
 
