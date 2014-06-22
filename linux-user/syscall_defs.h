@@ -865,6 +865,7 @@ struct target_pollfd {
 #define TARGET_SIOCSIFSLAVE    0x8930
 #define TARGET_SIOCADDMULTI    0x8931          /* Multicast address lists      */
 #define TARGET_SIOCDELMULTI    0x8932
+#define TARGET_SIOCGIFINDEX    0x8933
 
 /* Bridging control calls */
 #define TARGET_SIOCGIFBR       0x8940          /* Bridging support             */
