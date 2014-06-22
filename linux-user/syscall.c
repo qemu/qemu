@@ -6401,11 +6401,15 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     case TARGET_NR_settimeofday:
         {
-            struct timeval tv;
+            struct timeval tv, *ptv = NULL;
             struct timezone tz, *ptz = NULL;
 
-            if (copy_from_user_timeval(&tv, arg1))
-                goto efault;
+            if (arg1) {
+                if (copy_from_user_timeval(&tv, arg1)) {
+                    goto efault;
+                }
+                ptv = &tv;
+            }
 
             if (arg2) {
                 if (copy_from_user_timezone(&tz, arg2)) {
@@ -6414,7 +6418,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 ptz = &tz;
             }
 
-            ret = get_errno(settimeofday(&tv, ptz));
+            ret = get_errno(settimeofday(ptv, ptz));
         }
         break;
 #if defined(TARGET_NR_select)
