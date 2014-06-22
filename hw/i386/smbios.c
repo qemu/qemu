@@ -67,7 +67,7 @@ static DECLARE_BITMAP(have_fields_bitmap, SMBIOS_MAX_TYPE+1);
 
 static struct {
     const char *vendor, *version, *date;
-    bool have_major_minor;
+    bool have_major_minor, uefi;
     uint8_t major, minor;
 } type0;
 
@@ -134,6 +134,10 @@ static const QemuOptDesc qemu_smbios_type0_opts[] = {
         .name = "release",
         .type = QEMU_OPT_STRING,
         .help = "revision number",
+    },{
+        .name = "uefi",
+        .type = QEMU_OPT_BOOL,
+        .help = "uefi support",
     },
     { /* end of list */ }
 };
@@ -444,7 +448,7 @@ static bool smbios_skip_table(uint8_t type, bool required_table)
                                                                           \
         t->header.type = tbl_type;                                        \
         t->header.length = sizeof(*t);                                    \
-        t->header.handle = tbl_handle;                                    \
+        t->header.handle = cpu_to_le16(tbl_handle);                       \
     } while (0)
 
 #define SMBIOS_TABLE_SET_STR(tbl_type, field, value)                      \
@@ -491,19 +495,18 @@ static void smbios_build_type_0_table(void)
     SMBIOS_TABLE_SET_STR(0, vendor_str, type0.vendor);
     SMBIOS_TABLE_SET_STR(0, bios_version_str, type0.version);
 
-    t->bios_starting_address_segment = 0xE800; /* hardcoded in SeaBIOS */
+    t->bios_starting_address_segment = cpu_to_le16(0xE800); /* from SeaBIOS */
 
     SMBIOS_TABLE_SET_STR(0, bios_release_date_str, type0.date);
 
     t->bios_rom_size = 0; /* hardcoded in SeaBIOS with FIXME comment */
 
-    /* BIOS characteristics not supported */
-    memset(t->bios_characteristics, 0, 8);
-    t->bios_characteristics[0] = 0x08;
-
-    /* Enable targeted content distribution (needed for SVVP, per SeaBIOS) */
+    t->bios_characteristics = cpu_to_le64(0x08); /* Not supported */
     t->bios_characteristics_extension_bytes[0] = 0;
-    t->bios_characteristics_extension_bytes[1] = 4;
+    t->bios_characteristics_extension_bytes[1] = 0x14; /* TCD/SVVP | VM */
+    if (type0.uefi) {
+        t->bios_characteristics_extension_bytes[1] |= 0x08; /* |= UEFI */
+    }
 
     if (type0.have_major_minor) {
         t->system_bios_major_release = type0.major;
@@ -551,7 +554,7 @@ static void smbios_build_type_2_table(void)
     SMBIOS_TABLE_SET_STR(2, asset_tag_number_str, type2.asset);
     t->feature_flags = 0x01; /* Motherboard */
     SMBIOS_TABLE_SET_STR(2, location_str, type2.location);
-    t->chassis_handle = 0x300; /* Type 3 (System enclosure) */
+    t->chassis_handle = cpu_to_le16(0x300); /* Type 3 (System enclosure) */
     t->board_type = 0x0A; /* Motherboard */
     t->contained_element_count = 0;
 
@@ -571,7 +574,7 @@ static void smbios_build_type_3_table(void)
     t->power_supply_state = 0x03; /* Safe */
     t->thermal_state = 0x03; /* Safe */
     t->security_status = 0x02; /* Unknown */
-    t->oem_defined = 0;
+    t->oem_defined = cpu_to_le32(0);
     t->height = 0;
     t->number_of_power_cords = 0;
     t->contained_element_count = 0;
@@ -589,26 +592,27 @@ static void smbios_build_type_4_table(unsigned instance)
     snprintf(sock_str, sizeof(sock_str), "%s%2x", type4.sock_pfx, instance);
     SMBIOS_TABLE_SET_STR(4, socket_designation_str, sock_str);
     t->processor_type = 0x03; /* CPU */
+    t->processor_family = 0x01; /* Other */
     SMBIOS_TABLE_SET_STR(4, processor_manufacturer_str, type4.manufacturer);
-    t->processor_id[0] = smbios_cpuid_version;
-    t->processor_id[1] = smbios_cpuid_features;
+    t->processor_id[0] = cpu_to_le32(smbios_cpuid_version);
+    t->processor_id[1] = cpu_to_le32(smbios_cpuid_features);
     SMBIOS_TABLE_SET_STR(4, processor_version_str, type4.version);
     t->voltage = 0;
-    t->external_clock = 0; /* Unknown */
-    t->max_speed = 0; /* Unknown */
-    t->current_speed = 0; /* Unknown */
+    t->external_clock = cpu_to_le16(0); /* Unknown */
+    t->max_speed = cpu_to_le16(0); /* Unknown */
+    t->current_speed = cpu_to_le16(0); /* Unknown */
     t->status = 0x41; /* Socket populated, CPU enabled */
     t->processor_upgrade = 0x01; /* Other */
-    t->l1_cache_handle = 0xFFFF; /* N/A */
-    t->l2_cache_handle = 0xFFFF; /* N/A */
-    t->l3_cache_handle = 0xFFFF; /* N/A */
+    t->l1_cache_handle = cpu_to_le16(0xFFFF); /* N/A */
+    t->l2_cache_handle = cpu_to_le16(0xFFFF); /* N/A */
+    t->l3_cache_handle = cpu_to_le16(0xFFFF); /* N/A */
     SMBIOS_TABLE_SET_STR(4, serial_number_str, type4.serial);
     SMBIOS_TABLE_SET_STR(4, asset_tag_number_str, type4.asset);
     SMBIOS_TABLE_SET_STR(4, part_number_str, type4.part);
     t->core_count = t->core_enabled = smp_cores;
     t->thread_count = smp_threads;
-    t->processor_characteristics = 0x02; /* Unknown */
-    t->processor_family = t->processor_family2 = 0x01; /* Other */
+    t->processor_characteristics = cpu_to_le16(0x02); /* Unknown */
+    t->processor_family2 = cpu_to_le16(0x01); /* Other */
 
     SMBIOS_BUILD_TABLE_POST;
     smbios_type4_count++;
@@ -631,14 +635,14 @@ static void smbios_build_type_16_table(unsigned dimm_cnt)
     t->error_correction = 0x06; /* Multi-bit ECC (for Microsoft, per SeaBIOS) */
     size_kb = QEMU_ALIGN_UP(ram_size, ONE_KB) / ONE_KB;
     if (size_kb < MAX_T16_STD_SZ) {
-        t->maximum_capacity = size_kb;
-        t->extended_maximum_capacity = 0;
+        t->maximum_capacity = cpu_to_le32(size_kb);
+        t->extended_maximum_capacity = cpu_to_le64(0);
     } else {
-        t->maximum_capacity = MAX_T16_STD_SZ;
-        t->extended_maximum_capacity = ram_size;
+        t->maximum_capacity = cpu_to_le32(MAX_T16_STD_SZ);
+        t->extended_maximum_capacity = cpu_to_le64(ram_size);
     }
-    t->memory_error_information_handle = 0xFFFE; /* Not provided */
-    t->number_of_memory_devices = dimm_cnt;
+    t->memory_error_information_handle = cpu_to_le16(0xFFFE); /* Not provided */
+    t->number_of_memory_devices = cpu_to_le16(dimm_cnt);
 
     SMBIOS_BUILD_TABLE_POST;
 }
@@ -653,18 +657,18 @@ static void smbios_build_type_17_table(unsigned instance, ram_addr_t size)
 
     SMBIOS_BUILD_TABLE_PRE(17, 0x1100 + instance, true); /* required */
 
-    t->physical_memory_array_handle = 0x1000; /* Type 16 (Phys. Mem. Array) */
-    t->memory_error_information_handle = 0xFFFE; /* Not provided */
-    t->total_width = 0xFFFF; /* Unknown */
-    t->data_width = 0xFFFF; /* Unknown */
+    t->physical_memory_array_handle = cpu_to_le16(0x1000); /* Type 16 above */
+    t->memory_error_information_handle = cpu_to_le16(0xFFFE); /* Not provided */
+    t->total_width = cpu_to_le16(0xFFFF); /* Unknown */
+    t->data_width = cpu_to_le16(0xFFFF); /* Unknown */
     size_mb = QEMU_ALIGN_UP(size, ONE_MB) / ONE_MB;
     if (size_mb < MAX_T17_STD_SZ) {
-        t->size = size_mb;
-        t->extended_size = 0;
+        t->size = cpu_to_le16(size_mb);
+        t->extended_size = cpu_to_le32(0);
     } else {
         assert(size_mb < MAX_T17_EXT_SZ);
-        t->size = MAX_T17_STD_SZ;
-        t->extended_size = size_mb;
+        t->size = cpu_to_le16(MAX_T17_STD_SZ);
+        t->extended_size = cpu_to_le32(size_mb);
     }
     t->form_factor = 0x09; /* DIMM */
     t->device_set = 0; /* Not in a set */
@@ -672,17 +676,17 @@ static void smbios_build_type_17_table(unsigned instance, ram_addr_t size)
     SMBIOS_TABLE_SET_STR(17, device_locator_str, loc_str);
     SMBIOS_TABLE_SET_STR(17, bank_locator_str, type17.bank);
     t->memory_type = 0x07; /* RAM */
-    t->type_detail = 0x02; /* Other */
-    t->speed = 0; /* Unknown */
+    t->type_detail = cpu_to_le16(0x02); /* Other */
+    t->speed = cpu_to_le16(0); /* Unknown */
     SMBIOS_TABLE_SET_STR(17, manufacturer_str, type17.manufacturer);
     SMBIOS_TABLE_SET_STR(17, serial_number_str, type17.serial);
     SMBIOS_TABLE_SET_STR(17, asset_tag_number_str, type17.asset);
     SMBIOS_TABLE_SET_STR(17, part_number_str, type17.part);
     t->attributes = 0; /* Unknown */
-    t->configured_clock_speed = 0; /* Unknown */
-    t->minimum_voltage = 0; /* Unknown */
-    t->maximum_voltage = 0; /* Unknown */
-    t->configured_voltage = 0; /* Unknown */
+    t->configured_clock_speed = cpu_to_le16(0); /* Unknown */
+    t->minimum_voltage = cpu_to_le16(0); /* Unknown */
+    t->maximum_voltage = cpu_to_le16(0); /* Unknown */
+    t->configured_voltage = cpu_to_le16(0); /* Unknown */
 
     SMBIOS_BUILD_TABLE_POST;
 }
@@ -699,15 +703,16 @@ static void smbios_build_type_19_table(unsigned instance,
     start_kb = start / ONE_KB;
     end_kb = end / ONE_KB;
     if (start_kb < UINT32_MAX && end_kb < UINT32_MAX) {
-        t->starting_address = start_kb;
-        t->ending_address = end_kb;
-        t->extended_starting_address = t->extended_ending_address = 0;
+        t->starting_address = cpu_to_le32(start_kb);
+        t->ending_address = cpu_to_le32(end_kb);
+        t->extended_starting_address =
+            t->extended_ending_address = cpu_to_le64(0);
     } else {
-        t->starting_address = t->ending_address = UINT32_MAX;
-        t->extended_starting_address = start;
-        t->extended_ending_address = end;
+        t->starting_address = t->ending_address = cpu_to_le32(UINT32_MAX);
+        t->extended_starting_address = cpu_to_le64(start);
+        t->extended_ending_address = cpu_to_le64(end);
     }
-    t->memory_array_handle = 0x1000; /* Type 16 (Phys. Mem. Array) */
+    t->memory_array_handle = cpu_to_le16(0x1000); /* Type 16 above */
     t->partition_width = 1; /* One device per row */
 
     SMBIOS_BUILD_TABLE_POST;
@@ -794,14 +799,14 @@ static void smbios_entry_point_setup(void)
     ep.smbios_bcd_revision = 0x28;
 
     /* set during table construction, but BIOS may override: */
-    ep.structure_table_length = smbios_tables_len;
-    ep.max_structure_size = smbios_table_max;
-    ep.number_of_structures = smbios_table_cnt;
+    ep.structure_table_length = cpu_to_le16(smbios_tables_len);
+    ep.max_structure_size = cpu_to_le16(smbios_table_max);
+    ep.number_of_structures = cpu_to_le16(smbios_table_cnt);
 
     /* BIOS must recalculate: */
     ep.checksum = 0;
     ep.intermediate_checksum = 0;
-    ep.structure_table_address = 0; /* where BIOS has copied smbios_tables */
+    ep.structure_table_address = cpu_to_le32(0);
 }
 
 void smbios_get_tables(uint8_t **tables, size_t *tables_len,
@@ -977,6 +982,7 @@ void smbios_entry_add(QemuOpts *opts)
             save_opt(&type0.vendor, opts, "vendor");
             save_opt(&type0.version, opts, "version");
             save_opt(&type0.date, opts, "date");
+            type0.uefi = qemu_opt_get_bool(opts, "uefi", false);
 
             val = qemu_opt_get(opts, "release");
             if (val) {

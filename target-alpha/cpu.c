@@ -292,6 +292,7 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
     cc->handle_mmu_fault = alpha_cpu_handle_mmu_fault;
 #else
     cc->do_unassigned_access = alpha_cpu_unassigned_access;
+    cc->do_unaligned_access = alpha_cpu_do_unaligned_access;
     cc->get_phys_page_debug = alpha_cpu_get_phys_page_debug;
     dc->vmsd = &vmstate_alpha_cpu;
 #endif

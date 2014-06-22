@@ -19,6 +19,7 @@
 
 #include "cpu.h"
 #include "exec/helper-proto.h"
+#include "exec/cpu_ldst.h"
 
 //#define DEBUG_MMU
 //#define DEBUG_MXCC
@@ -63,27 +64,6 @@
 
 #define QT0 (env->qt0)
 #define QT1 (env->qt1)
-
-#if !defined(CONFIG_USER_ONLY)
-static void QEMU_NORETURN do_unaligned_access(CPUSPARCState *env,
-                                              target_ulong addr, int is_write,
-                                              int is_user, uintptr_t retaddr);
-#include "exec/softmmu_exec.h"
-#define MMUSUFFIX _mmu
-#define ALIGNED_ONLY
-
-#define SHIFT 0
-#include "exec/softmmu_template.h"
-
-#define SHIFT 1
-#include "exec/softmmu_template.h"
-
-#define SHIFT 2
-#include "exec/softmmu_template.h"
-
-#define SHIFT 3
-#include "exec/softmmu_template.h"
-#endif
 
 #if defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
 /* Calculates TSB pointer value for fault page size 8k or 64k */
@@ -2425,11 +2405,13 @@ void sparc_cpu_unassigned_access(CPUState *cs, hwaddr addr,
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
-static void QEMU_NORETURN do_unaligned_access(CPUSPARCState *env,
-                                              target_ulong addr, int is_write,
-                                              int is_user, uintptr_t retaddr)
+void QEMU_NORETURN sparc_cpu_do_unaligned_access(CPUState *cs,
+                                                 vaddr addr, int is_write,
+                                                 int is_user, uintptr_t retaddr)
 {
-    SPARCCPU *cpu = sparc_env_get_cpu(env);
+    SPARCCPU *cpu = SPARC_CPU(cs);
+    CPUSPARCState *env = &cpu->env;
+
 #ifdef DEBUG_UNALIGNED
     printf("Unaligned access to 0x" TARGET_FMT_lx " from 0x" TARGET_FMT_lx
            "\n", addr, env->pc);

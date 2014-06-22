@@ -249,6 +249,7 @@
 #define PG_DIRTY_BIT    6
 #define PG_PSE_BIT      7
 #define PG_GLOBAL_BIT   8
+#define PG_PSE_PAT_BIT  12
 #define PG_NX_BIT       63
 
 #define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
@@ -260,6 +261,9 @@
 #define PG_DIRTY_MASK    (1 << PG_DIRTY_BIT)
 #define PG_PSE_MASK      (1 << PG_PSE_BIT)
 #define PG_GLOBAL_MASK   (1 << PG_GLOBAL_BIT)
+#define PG_PSE_PAT_MASK  (1 << PG_PSE_PAT_BIT)
+#define PG_ADDRESS_MASK  0x000ffffffffff000LL
+#define PG_HI_RSVD_MASK  (PG_ADDRESS_MASK & ~PHYS_ADDR_MASK)
 #define PG_HI_USER_MASK  0x7ff0000000000000LL
 #define PG_NX_MASK       (1LL << PG_NX_BIT)
 
@@ -1012,6 +1016,13 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
 #endif
             env->hflags = (env->hflags & ~HF_CPL_MASK) | cpl;
         }
+        if (seg_reg == R_SS) {
+            int cpl = (flags >> DESC_DPL_SHIFT) & 3;
+#if HF_CPL_MASK != 3
+#error HF_CPL_MASK is hardcoded
+#endif
+            env->hflags = (env->hflags & ~HF_CPL_MASK) | cpl;
+        }
         new_hflags = (env->segs[R_SS].flags & DESC_B_MASK)
             >> (DESC_B_SHIFT - HF_SS32_SHIFT);
         if (env->hflags & HF_CS64_MASK) {
@@ -1139,6 +1150,14 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
 
+/* XXX: This value should match the one returned by CPUID
+ * and in exec.c */
+# if defined(TARGET_X86_64)
+# define PHYS_ADDR_MASK 0xffffffffffLL
+# else
+# define PHYS_ADDR_MASK 0xfffffffffLL
+# endif
+
 static inline CPUX86State *cpu_init(const char *cpu_model)
 {
     X86CPU *cpu = cpu_x86_init(cpu_model);
@@ -1155,17 +1174,24 @@ static inline CPUX86State *cpu_init(const char *cpu_model)
 #define cpudef_setup x86_cpudef_setup
 
 /* MMU modes definitions */
-#define MMU_MODE0_SUFFIX _kernel
+#define MMU_MODE0_SUFFIX _ksmap
 #define MMU_MODE1_SUFFIX _user
-#define MMU_MODE2_SUFFIX _ksmap /* Kernel with SMAP override */
-#define MMU_KERNEL_IDX  0
+#define MMU_MODE2_SUFFIX _knosmap /* SMAP disabled or CPL<3 && AC=1 */
+#define MMU_KSMAP_IDX   0
 #define MMU_USER_IDX    1
-#define MMU_KSMAP_IDX   2
-static inline int cpu_mmu_index (CPUX86State *env)
+#define MMU_KNOSMAP_IDX 2
+static inline int cpu_mmu_index(CPUX86State *env)
 {
     return (env->hflags & HF_CPL_MASK) == 3 ? MMU_USER_IDX :
-        ((env->hflags & HF_SMAP_MASK) && (env->eflags & AC_MASK))
-        ? MMU_KSMAP_IDX : MMU_KERNEL_IDX;
+        (!(env->hflags & HF_SMAP_MASK) || (env->eflags & AC_MASK))
+        ? MMU_KNOSMAP_IDX : MMU_KSMAP_IDX;
+}
+
+static inline int cpu_mmu_index_kernel(CPUX86State *env)
+{
+    return !(env->hflags & HF_SMAP_MASK) ? MMU_KNOSMAP_IDX :
+        ((env->hflags & HF_CPL_MASK) < 3 && (env->eflags & AC_MASK))
+        ? MMU_KNOSMAP_IDX : MMU_KSMAP_IDX;
 }
 
 #define CC_DST  (env->cc_dst)
@@ -1236,11 +1262,14 @@ static inline uint32_t cpu_compute_eflags(CPUX86State *env)
     return env->eflags | cpu_cc_compute_all(env, CC_OP) | (env->df & DF_MASK);
 }
 
-/* NOTE: CC_OP must be modified manually to CC_OP_EFLAGS */
+/* NOTE: the translator must set DisasContext.cc_op to CC_OP_EFLAGS
+ * after generating a call to a helper that uses this.
+ */
 static inline void cpu_load_eflags(CPUX86State *env, int eflags,
                                    int update_mask)
 {
     CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    CC_OP = CC_OP_EFLAGS;
     env->df = 1 - (2 * ((eflags >> 10) & 1));
     env->eflags = (env->eflags & ~update_mask) |
         (eflags & update_mask) | 0x2;

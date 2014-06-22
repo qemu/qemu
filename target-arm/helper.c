@@ -7,11 +7,11 @@
 #include "sysemu/sysemu.h"
 #include "qemu/bitops.h"
 #include "qemu/crc32c.h"
+#include "exec/cpu_ldst.h"
+#include "arm_ldst.h"
 #include <zlib.h> /* For crc32 */
 
 #ifndef CONFIG_USER_ONLY
-#include "exec/softmmu_exec.h"
-
 static inline int get_phys_addr(CPUARMState *env, target_ulong address,
                                 int access_type, int is_user,
                                 hwaddr *phys_ptr, int *prot,
@@ -3124,11 +3124,12 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
     cpu_abort(CPU(cpu), "v7m_msr %d\n", reg);
 }
 
-uint32_t QEMU_NORETURN HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
+uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
 
     cpu_abort(CPU(cpu), "v7m_mrs %d\n", reg);
+    return 0;
 }
 
 void switch_mode(CPUARMState *env, int mode)
@@ -3147,11 +3148,12 @@ void QEMU_NORETURN HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint3
     cpu_abort(CPU(cpu), "banked r13 write\n");
 }
 
-uint32_t QEMU_NORETURN HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
+uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
 
     cpu_abort(CPU(cpu), "banked r13 read\n");
+    return 0;
 }
 
 #else

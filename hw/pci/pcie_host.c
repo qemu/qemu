@@ -83,11 +83,11 @@ static const MemoryRegionOps pcie_mmcfg_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-int pcie_host_init(PCIExpressHost *e)
+static void pcie_host_init(Object *obj)
 {
-    e->base_addr = PCIE_BASE_ADDR_UNMAPPED;
+    PCIExpressHost *e = PCIE_HOST_BRIDGE(obj);
 
-    return 0;
+    e->base_addr = PCIE_BASE_ADDR_UNMAPPED;
 }
 
 void pcie_host_mmcfg_unmap(PCIExpressHost *e)
@@ -128,6 +128,7 @@ static const TypeInfo pcie_host_type_info = {
     .parent = TYPE_PCI_HOST_BRIDGE,
     .abstract = true,
     .instance_size = sizeof(PCIExpressHost),
+    .instance_init = pcie_host_init,
 };
 
 static void pcie_host_register_types(void)

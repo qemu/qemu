@@ -909,19 +909,6 @@ void helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
 # define helper_ret_stq_mmu   helper_le_stq_mmu
 #endif
 
-uint8_t helper_ldb_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-uint16_t helper_ldw_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-uint32_t helper_ldl_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-uint64_t helper_ldq_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-
-void helper_stb_mmu(CPUArchState *env, target_ulong addr,
-                    uint8_t val, int mmu_idx);
-void helper_stw_mmu(CPUArchState *env, target_ulong addr,
-                    uint16_t val, int mmu_idx);
-void helper_stl_mmu(CPUArchState *env, target_ulong addr,
-                    uint32_t val, int mmu_idx);
-void helper_stq_mmu(CPUArchState *env, target_ulong addr,
-                    uint64_t val, int mmu_idx);
 #endif /* CONFIG_SOFTMMU */
 
 #endif /* TCG_H */

@@ -227,21 +227,11 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
 #endif
 #endif /* TCG_TARGET_REG_BITS == 64 */
 
-    { INDEX_op_qemu_ld8u, { R, L } },
-    { INDEX_op_qemu_ld8s, { R, L } },
-    { INDEX_op_qemu_ld16u, { R, L } },
-    { INDEX_op_qemu_ld16s, { R, L } },
-    { INDEX_op_qemu_ld32, { R, L } },
-#if TCG_TARGET_REG_BITS == 64
-    { INDEX_op_qemu_ld32u, { R, L } },
-    { INDEX_op_qemu_ld32s, { R, L } },
-#endif
-    { INDEX_op_qemu_ld64, { R64, L } },
+    { INDEX_op_qemu_ld_i32, { R, L } },
+    { INDEX_op_qemu_ld_i64, { R64, L } },
 
-    { INDEX_op_qemu_st8, { R, S } },
-    { INDEX_op_qemu_st16, { R, S } },
-    { INDEX_op_qemu_st32, { R, S } },
-    { INDEX_op_qemu_st64, { R64, S } },
+    { INDEX_op_qemu_st_i32, { R, S } },
+    { INDEX_op_qemu_st_i64, { R64, S } },
 
 #if TCG_TARGET_HAS_ext8s_i32
     { INDEX_op_ext8s_i32, { R, R } },
@@ -767,58 +757,52 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out8(s, args[2]);           /* condition */
         tci_out_label(s, args[3]);
         break;
-    case INDEX_op_qemu_ld8u:
-    case INDEX_op_qemu_ld8s:
-    case INDEX_op_qemu_ld16u:
-    case INDEX_op_qemu_ld16s:
-    case INDEX_op_qemu_ld32:
-#if TCG_TARGET_REG_BITS == 64
-    case INDEX_op_qemu_ld32s:
-    case INDEX_op_qemu_ld32u:
-#endif
+    case INDEX_op_qemu_ld_i32:
         tcg_out_r(s, *args++);
         tcg_out_r(s, *args++);
-#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-        tcg_out_r(s, *args++);
-#endif
+        if (TARGET_LONG_BITS > TCG_TARGET_REG_BITS) {
+            tcg_out_r(s, *args++);
+        }
+        tcg_out_i(s, *args++);
 #ifdef CONFIG_SOFTMMU
         tcg_out_i(s, *args);
 #endif
         break;
-    case INDEX_op_qemu_ld64:
+    case INDEX_op_qemu_ld_i64:
         tcg_out_r(s, *args++);
-#if TCG_TARGET_REG_BITS == 32
+        if (TCG_TARGET_REG_BITS == 32) {
+            tcg_out_r(s, *args++);
+        }
         tcg_out_r(s, *args++);
-#endif
-        tcg_out_r(s, *args++);
-#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-        tcg_out_r(s, *args++);
-#endif
+        if (TARGET_LONG_BITS > TCG_TARGET_REG_BITS) {
+            tcg_out_r(s, *args++);
+        }
+        tcg_out_i(s, *args++);
 #ifdef CONFIG_SOFTMMU
         tcg_out_i(s, *args);
 #endif
         break;
-    case INDEX_op_qemu_st8:
-    case INDEX_op_qemu_st16:
-    case INDEX_op_qemu_st32:
+    case INDEX_op_qemu_st_i32:
         tcg_out_r(s, *args++);
         tcg_out_r(s, *args++);
-#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-        tcg_out_r(s, *args++);
-#endif
+        if (TARGET_LONG_BITS > TCG_TARGET_REG_BITS) {
+            tcg_out_r(s, *args++);
+        }
+        tcg_out_i(s, *args++);
 #ifdef CONFIG_SOFTMMU
         tcg_out_i(s, *args);
 #endif
         break;
-    case INDEX_op_qemu_st64:
+    case INDEX_op_qemu_st_i64:
         tcg_out_r(s, *args++);
-#if TCG_TARGET_REG_BITS == 32
+        if (TCG_TARGET_REG_BITS == 32) {
+            tcg_out_r(s, *args++);
+        }
         tcg_out_r(s, *args++);
-#endif
-        tcg_out_r(s, *args++);
-#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-        tcg_out_r(s, *args++);
-#endif
+        if (TARGET_LONG_BITS > TCG_TARGET_REG_BITS) {
+            tcg_out_r(s, *args++);
+        }
+        tcg_out_i(s, *args++);
 #ifdef CONFIG_SOFTMMU
         tcg_out_i(s, *args);
 #endif

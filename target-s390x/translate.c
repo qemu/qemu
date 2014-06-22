@@ -33,6 +33,7 @@
 #include "tcg-op.h"
 #include "qemu/log.h"
 #include "qemu/host-utils.h"
+#include "exec/cpu_ldst.h"
 
 /* global register indexes */
 static TCGv_ptr cpu_env;

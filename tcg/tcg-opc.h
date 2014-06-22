@@ -185,106 +185,20 @@ DEF(debug_insn_start, 0, 0, 1, TCG_OPF_NOT_PRESENT)
 DEF(exit_tb, 0, 0, 1, TCG_OPF_BB_END)
 DEF(goto_tb, 0, 0, 1, TCG_OPF_BB_END)
 
-#define IMPL_NEW_LDST \
-    (TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS \
-     | IMPL(TCG_TARGET_HAS_new_ldst))
+#define TLADDR_ARGS    (TARGET_LONG_BITS <= TCG_TARGET_REG_BITS ? 1 : 2)
+#define DATA64_ARGS  (TCG_TARGET_REG_BITS == 64 ? 1 : 2)
 
-#if TARGET_LONG_BITS <= TCG_TARGET_REG_BITS
-DEF(qemu_ld_i32, 1, 1, 2, IMPL_NEW_LDST)
-DEF(qemu_st_i32, 0, 2, 2, IMPL_NEW_LDST)
-# if TCG_TARGET_REG_BITS == 64
-DEF(qemu_ld_i64, 1, 1, 2, IMPL_NEW_LDST | TCG_OPF_64BIT)
-DEF(qemu_st_i64, 0, 2, 2, IMPL_NEW_LDST | TCG_OPF_64BIT)
-# else
-DEF(qemu_ld_i64, 2, 1, 2, IMPL_NEW_LDST | TCG_OPF_64BIT)
-DEF(qemu_st_i64, 0, 3, 2, IMPL_NEW_LDST | TCG_OPF_64BIT)
-# endif
-#else
-DEF(qemu_ld_i32, 1, 2, 2, IMPL_NEW_LDST)
-DEF(qemu_st_i32, 0, 3, 2, IMPL_NEW_LDST)
-DEF(qemu_ld_i64, 2, 2, 2, IMPL_NEW_LDST | TCG_OPF_64BIT)
-DEF(qemu_st_i64, 0, 4, 2, IMPL_NEW_LDST | TCG_OPF_64BIT)
-#endif
+DEF(qemu_ld_i32, 1, TLADDR_ARGS, 2,
+    TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_st_i32, 0, TLADDR_ARGS + 1, 2,
+    TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld_i64, DATA64_ARGS, TLADDR_ARGS, 2,
+    TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS | TCG_OPF_64BIT)
+DEF(qemu_st_i64, 0, TLADDR_ARGS + DATA64_ARGS, 2,
+    TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS | TCG_OPF_64BIT)
 
-#undef IMPL_NEW_LDST
-
-#define IMPL_OLD_LDST \
-    (TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS \
-     | IMPL(!TCG_TARGET_HAS_new_ldst))
-
-#if TCG_TARGET_REG_BITS == 32
-#if TARGET_LONG_BITS == 32
-DEF(qemu_ld8u, 1, 1, 1, IMPL_OLD_LDST)
-#else
-DEF(qemu_ld8u, 1, 2, 1, IMPL_OLD_LDST)
-#endif
-#if TARGET_LONG_BITS == 32
-DEF(qemu_ld8s, 1, 1, 1, IMPL_OLD_LDST)
-#else
-DEF(qemu_ld8s, 1, 2, 1, IMPL_OLD_LDST)
-#endif
-#if TARGET_LONG_BITS == 32
-DEF(qemu_ld16u, 1, 1, 1, IMPL_OLD_LDST)
-#else
-DEF(qemu_ld16u, 1, 2, 1, IMPL_OLD_LDST)
-#endif
-#if TARGET_LONG_BITS == 32
-DEF(qemu_ld16s, 1, 1, 1, IMPL_OLD_LDST)
-#else
-DEF(qemu_ld16s, 1, 2, 1, IMPL_OLD_LDST)
-#endif
-#if TARGET_LONG_BITS == 32
-DEF(qemu_ld32, 1, 1, 1, IMPL_OLD_LDST)
-#else
-DEF(qemu_ld32, 1, 2, 1, IMPL_OLD_LDST)
-#endif
-#if TARGET_LONG_BITS == 32
-DEF(qemu_ld64, 2, 1, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-#else
-DEF(qemu_ld64, 2, 2, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-#endif
-
-#if TARGET_LONG_BITS == 32
-DEF(qemu_st8, 0, 2, 1, IMPL_OLD_LDST)
-#else
-DEF(qemu_st8, 0, 3, 1, IMPL_OLD_LDST)
-#endif
-#if TARGET_LONG_BITS == 32
-DEF(qemu_st16, 0, 2, 1, IMPL_OLD_LDST)
-#else
-DEF(qemu_st16, 0, 3, 1, IMPL_OLD_LDST)
-#endif
-#if TARGET_LONG_BITS == 32
-DEF(qemu_st32, 0, 2, 1, IMPL_OLD_LDST)
-#else
-DEF(qemu_st32, 0, 3, 1, IMPL_OLD_LDST)
-#endif
-#if TARGET_LONG_BITS == 32
-DEF(qemu_st64, 0, 3, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-#else
-DEF(qemu_st64, 0, 4, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-#endif
-
-#else /* TCG_TARGET_REG_BITS == 32 */
-
-DEF(qemu_ld8u, 1, 1, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-DEF(qemu_ld8s, 1, 1, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-DEF(qemu_ld16u, 1, 1, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-DEF(qemu_ld16s, 1, 1, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-DEF(qemu_ld32, 1, 1, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-DEF(qemu_ld32u, 1, 1, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-DEF(qemu_ld32s, 1, 1, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-DEF(qemu_ld64, 1, 1, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-
-DEF(qemu_st8, 0, 2, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-DEF(qemu_st16, 0, 2, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-DEF(qemu_st32, 0, 2, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-DEF(qemu_st64, 0, 2, 1, IMPL_OLD_LDST | TCG_OPF_64BIT)
-
-#endif /* TCG_TARGET_REG_BITS != 32 */
-
-#undef IMPL_OLD_LDST
-
+#undef TLADDR_ARGS
+#undef DATA64_ARGS
 #undef IMPL
 #undef IMPL64
 #undef DEF

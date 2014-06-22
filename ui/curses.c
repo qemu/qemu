@@ -277,31 +277,41 @@ static void curses_refresh(DisplayChangeListener *dcl)
              * events, we need to emit both for each key received */
             if (keycode & SHIFT) {
                 qemu_input_event_send_key_number(NULL, SHIFT_CODE, true);
+                qemu_input_event_send_key_delay(0);
             }
             if (keycode & CNTRL) {
                 qemu_input_event_send_key_number(NULL, CNTRL_CODE, true);
+                qemu_input_event_send_key_delay(0);
             }
             if (keycode & ALT) {
                 qemu_input_event_send_key_number(NULL, ALT_CODE, true);
+                qemu_input_event_send_key_delay(0);
             }
             if (keycode & ALTGR) {
                 qemu_input_event_send_key_number(NULL, GREY | ALT_CODE, true);
+                qemu_input_event_send_key_delay(0);
             }
 
             qemu_input_event_send_key_number(NULL, keycode & KEY_MASK, true);
+            qemu_input_event_send_key_delay(0);
             qemu_input_event_send_key_number(NULL, keycode & KEY_MASK, false);
+            qemu_input_event_send_key_delay(0);
 
             if (keycode & ALTGR) {
                 qemu_input_event_send_key_number(NULL, GREY | ALT_CODE, false);
+                qemu_input_event_send_key_delay(0);
             }
             if (keycode & ALT) {
                 qemu_input_event_send_key_number(NULL, ALT_CODE, false);
+                qemu_input_event_send_key_delay(0);
             }
             if (keycode & CNTRL) {
                 qemu_input_event_send_key_number(NULL, CNTRL_CODE, false);
+                qemu_input_event_send_key_delay(0);
             }
             if (keycode & SHIFT) {
                 qemu_input_event_send_key_number(NULL, SHIFT_CODE, false);
+                qemu_input_event_send_key_delay(0);
             }
         } else {
             keysym = curses2qemu[chr];

@@ -64,7 +64,7 @@ struct smbios_type_0 {
     uint16_t bios_starting_address_segment;
     uint8_t bios_release_date_str;
     uint8_t bios_rom_size;
-    uint8_t bios_characteristics[8];
+    uint64_t bios_characteristics;
     uint8_t bios_characteristics_extension_bytes[2];
     uint8_t system_bios_major_release;
     uint8_t system_bios_minor_release;
@@ -182,10 +182,10 @@ struct smbios_type_17 {
     uint8_t part_number_str;
     uint8_t attributes;
     uint32_t extended_size;
-    uint32_t configured_clock_speed;
-    uint32_t minimum_voltage;
-    uint32_t maximum_voltage;
-    uint32_t configured_voltage;
+    uint16_t configured_clock_speed;
+    uint16_t minimum_voltage;
+    uint16_t maximum_voltage;
+    uint16_t configured_voltage;
 } QEMU_PACKED;
 
 /* SMBIOS type 19 - Memory Array Mapped Address (v2.7) */

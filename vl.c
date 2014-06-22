@@ -4582,6 +4582,8 @@ int main(int argc, char **argv)
         }
     }
 
+    qdev_prop_check_global();
+
     if (incoming) {
         Error *local_err = NULL;
         qemu_start_incoming_migration(incoming, &local_err);

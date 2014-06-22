@@ -50,7 +50,7 @@ static void glue(draw_line2_, DEPTH)(void *opaque,
     uint8_t v, r, g, b;
 
     do {
-        v = ldub_raw((void *) s);
+        v = ldub_p((void *) s);
         r = (pal[v & 3] >> 4) & 0xf0;
         g = pal[v & 3] & 0xf0;
         b = (pal[v & 3] << 4) & 0xf0;
@@ -89,7 +89,7 @@ static void glue(draw_line4_, DEPTH)(void *opaque,
     uint8_t v, r, g, b;
 
     do {
-        v = ldub_raw((void *) s);
+        v = ldub_p((void *) s);
         r = (pal[v & 0xf] >> 4) & 0xf0;
         g = pal[v & 0xf] & 0xf0;
         b = (pal[v & 0xf] << 4) & 0xf0;
@@ -116,7 +116,7 @@ static void glue(draw_line8_, DEPTH)(void *opaque,
     uint8_t v, r, g, b;
 
     do {
-        v = ldub_raw((void *) s);
+        v = ldub_p((void *) s);
         r = (pal[v] >> 4) & 0xf0;
         g = pal[v] & 0xf0;
         b = (pal[v] << 4) & 0xf0;
@@ -136,7 +136,7 @@ static void glue(draw_line12_, DEPTH)(void *opaque,
     uint8_t r, g, b;
 
     do {
-        v = lduw_raw((void *) s);
+        v = lduw_p((void *) s);
         r = (v >> 4) & 0xf0;
         g = v & 0xf0;
         b = (v << 4) & 0xf0;
@@ -159,7 +159,7 @@ static void glue(draw_line16_, DEPTH)(void *opaque,
     uint8_t r, g, b;
 
     do {
-        v = lduw_raw((void *) s);
+        v = lduw_p((void *) s);
         r = (v >> 8) & 0xf8;
         g = (v >> 3) & 0xfc;
         b = (v << 3) & 0xf8;

@@ -28,9 +28,9 @@
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
 #endif
+#include "exec/cpu_ldst.h"
 
 #if !defined(CONFIG_USER_ONLY)
-#include "exec/softmmu_exec.h"
 #include "sysemu/cpus.h"
 #include "sysemu/sysemu.h"
 #include "hw/s390x/ebcdic.h"

@@ -425,16 +425,16 @@ static void virtio_scsi_get_config(VirtIODevice *vdev,
     VirtIOSCSIConfig *scsiconf = (VirtIOSCSIConfig *)config;
     VirtIOSCSICommon *s = VIRTIO_SCSI_COMMON(vdev);
 
-    stl_raw(&scsiconf->num_queues, s->conf.num_queues);
-    stl_raw(&scsiconf->seg_max, 128 - 2);
-    stl_raw(&scsiconf->max_sectors, s->conf.max_sectors);
-    stl_raw(&scsiconf->cmd_per_lun, s->conf.cmd_per_lun);
-    stl_raw(&scsiconf->event_info_size, sizeof(VirtIOSCSIEvent));
-    stl_raw(&scsiconf->sense_size, s->sense_size);
-    stl_raw(&scsiconf->cdb_size, s->cdb_size);
-    stw_raw(&scsiconf->max_channel, VIRTIO_SCSI_MAX_CHANNEL);
-    stw_raw(&scsiconf->max_target, VIRTIO_SCSI_MAX_TARGET);
-    stl_raw(&scsiconf->max_lun, VIRTIO_SCSI_MAX_LUN);
+    stl_p(&scsiconf->num_queues, s->conf.num_queues);
+    stl_p(&scsiconf->seg_max, 128 - 2);
+    stl_p(&scsiconf->max_sectors, s->conf.max_sectors);
+    stl_p(&scsiconf->cmd_per_lun, s->conf.cmd_per_lun);
+    stl_p(&scsiconf->event_info_size, sizeof(VirtIOSCSIEvent));
+    stl_p(&scsiconf->sense_size, s->sense_size);
+    stl_p(&scsiconf->cdb_size, s->cdb_size);
+    stw_p(&scsiconf->max_channel, VIRTIO_SCSI_MAX_CHANNEL);
+    stw_p(&scsiconf->max_target, VIRTIO_SCSI_MAX_TARGET);
+    stl_p(&scsiconf->max_lun, VIRTIO_SCSI_MAX_LUN);
 }
 
 static void virtio_scsi_set_config(VirtIODevice *vdev,
@@ -443,14 +443,14 @@ static void virtio_scsi_set_config(VirtIODevice *vdev,
     VirtIOSCSIConfig *scsiconf = (VirtIOSCSIConfig *)config;
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
 
-    if ((uint32_t) ldl_raw(&scsiconf->sense_size) >= 65536 ||
-        (uint32_t) ldl_raw(&scsiconf->cdb_size) >= 256) {
+    if ((uint32_t) ldl_p(&scsiconf->sense_size) >= 65536 ||
+        (uint32_t) ldl_p(&scsiconf->cdb_size) >= 256) {
         error_report("bad data written to virtio-scsi configuration space");
         exit(1);
     }
 
-    vs->sense_size = ldl_raw(&scsiconf->sense_size);
-    vs->cdb_size = ldl_raw(&scsiconf->cdb_size);
+    vs->sense_size = ldl_p(&scsiconf->sense_size);
+    vs->cdb_size = ldl_p(&scsiconf->cdb_size);
 }
 
 static uint32_t virtio_scsi_get_features(VirtIODevice *vdev,

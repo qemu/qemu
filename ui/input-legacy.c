@@ -74,27 +74,6 @@ int index_from_key(const char *key)
     return i;
 }
 
-static KeyValue **keyvalues;
-static int keyvalues_size;
-static QEMUTimer *key_timer;
-
-static void free_keyvalues(void)
-{
-    g_free(keyvalues);
-    keyvalues = NULL;
-    keyvalues_size = 0;
-}
-
-static void release_keys(void *opaque)
-{
-    while (keyvalues_size > 0) {
-        qemu_input_event_send_key(NULL, keyvalues[--keyvalues_size],
-                                  false);
-    }
-
-    free_keyvalues();
-}
-
 static KeyValue *copy_key_value(KeyValue *src)
 {
     KeyValue *dst = g_new(KeyValue, 1);
@@ -107,30 +86,18 @@ void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
 {
     KeyValueList *p;
 
-    if (!key_timer) {
-        key_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, release_keys, NULL);
-    }
-
-    if (keyvalues != NULL) {
-        timer_del(key_timer);
-        release_keys(NULL);
-    }
-
     if (!has_hold_time) {
-        hold_time = 100;
+        hold_time = 0; /* use default */
     }
 
     for (p = keys; p != NULL; p = p->next) {
         qemu_input_event_send_key(NULL, copy_key_value(p->value), true);
-
-        keyvalues = g_realloc(keyvalues, sizeof(KeyValue *) *
-                              (keyvalues_size + 1));
-        keyvalues[keyvalues_size++] = copy_key_value(p->value);
+        qemu_input_event_send_key_delay(hold_time);
     }
-
-    /* delayed key up events */
-    timer_mod(key_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-              muldiv64(get_ticks_per_sec(), hold_time, 1000));
+    for (p = keys; p != NULL; p = p->next) {
+        qemu_input_event_send_key(NULL, copy_key_value(p->value), false);
+        qemu_input_event_send_key_delay(hold_time);
+    }
 }
 
 static void legacy_kbd_event(DeviceState *dev, QemuConsole *src,

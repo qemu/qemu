@@ -6,23 +6,13 @@
 #include "hw/lm32/lm32_pic.h"
 #include "hw/char/lm32_juart.h"
 
-#include "exec/softmmu_exec.h"
+#include "exec/cpu_ldst.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/sysemu.h"
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
-#define MMUSUFFIX _mmu
-#define SHIFT 0
-#include "exec/softmmu_template.h"
-#define SHIFT 1
-#include "exec/softmmu_template.h"
-#define SHIFT 2
-#include "exec/softmmu_template.h"
-#define SHIFT 3
-#include "exec/softmmu_template.h"
-
 void raise_exception(CPULM32State *env, int index)
 {
     CPUState *cs = CPU(lm32_env_get_cpu(env));

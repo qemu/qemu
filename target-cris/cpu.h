@@ -273,7 +273,6 @@ static inline void cpu_get_tb_cpu_state(CPUCRISState *env, target_ulong *pc,
 }
 
 void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf);
-#define cpu_list cris_cpu_list
 
 #include "exec/exec-all.h"
 

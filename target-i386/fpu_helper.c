@@ -22,10 +22,7 @@
 #include "exec/helper-proto.h"
 #include "qemu/aes.h"
 #include "qemu/host-utils.h"
-
-#if !defined(CONFIG_USER_ONLY)
-#include "exec/softmmu_exec.h"
-#endif /* !defined(CONFIG_USER_ONLY) */
+#include "exec/cpu_ldst.h"
 
 #define FPU_RC_MASK         0xc00
 #define FPU_RC_NEAR         0x000

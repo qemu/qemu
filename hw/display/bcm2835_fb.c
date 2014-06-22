@@ -73,21 +73,21 @@ static void draw_line_src16(void *opaque, uint8_t *d, const uint8_t *s,
             s++;
             break;
         case 16:
-            rgb565 = lduw_raw(s);
+            rgb565 = lduw_p(s);
             r = ((rgb565 >> 11) & 0x1f) << 3;
             g = ((rgb565 >>  5) & 0x3f) << 2;
             b = ((rgb565 >>  0) & 0x1f) << 3;
             s += 2;
             break;
         case 24:
-            rgb888 = ldl_raw(s);
+            rgb888 = ldl_p(s);
             r = (rgb888 >> 0) & 0xff;
             g = (rgb888 >> 8) & 0xff;
             b = (rgb888 >> 16) & 0xff;
             s += 3;
             break;
         case 32:
-            rgb888 = ldl_raw(s);
+            rgb888 = ldl_p(s);
             r = (rgb888 >> 0) & 0xff;
             g = (rgb888 >> 8) & 0xff;
             b = (rgb888 >> 16) & 0xff;

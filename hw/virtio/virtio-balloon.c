@@ -112,11 +112,6 @@ static void balloon_stats_get_all(Object *obj, struct Visitor *v,
     VirtIOBalloon *s = opaque;
     int i;
 
-    if (!s->stats_last_update) {
-        error_setg(errp, "guest hasn't updated any stats yet");
-        return;
-    }
-
     visit_start_struct(v, NULL, "guest-stats", name, 0, &err);
     if (err) {
         goto out;
@@ -377,6 +372,8 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
     s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
     s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
     s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
+
+    reset_stats(s);
 
     register_savevm(dev, "virtio-balloon", -1, 1,
                     virtio_balloon_save, virtio_balloon_load, s);

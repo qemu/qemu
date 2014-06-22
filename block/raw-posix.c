@@ -1192,7 +1192,7 @@ again:
         if (size == 0)
 #endif
 #if defined(__APPLE__) && defined(__MACH__)
-        size = LONG_LONG_MAX;
+        size = LLONG_MAX;
 #else
         size = lseek(fd, 0LL, SEEK_END);
 #endif

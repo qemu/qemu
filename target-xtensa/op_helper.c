@@ -28,31 +28,15 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
-#include "exec/softmmu_exec.h"
+#include "exec/cpu_ldst.h"
 #include "exec/address-spaces.h"
+#include "qemu/timer.h"
 
-static void do_unaligned_access(CPUXtensaState *env,
-        target_ulong addr, int is_write, int is_user, uintptr_t retaddr);
-
-#define ALIGNED_ONLY
-#define MMUSUFFIX _mmu
-
-#define SHIFT 0
-#include "exec/softmmu_template.h"
-
-#define SHIFT 1
-#include "exec/softmmu_template.h"
-
-#define SHIFT 2
-#include "exec/softmmu_template.h"
-
-#define SHIFT 3
-#include "exec/softmmu_template.h"
-
-static void do_unaligned_access(CPUXtensaState *env,
-        target_ulong addr, int is_write, int is_user, uintptr_t retaddr)
+void xtensa_cpu_do_unaligned_access(CPUState *cs,
+        vaddr addr, int is_write, int is_user, uintptr_t retaddr)
 {
-    XtensaCPU *cpu = xtensa_env_get_cpu(env);
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+    CPUXtensaState *env = &cpu->env;
 
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_UNALIGNED_EXCEPTION) &&
             !xtensa_option_enabled(env->config, XTENSA_OPTION_HW_ALIGNMENT)) {

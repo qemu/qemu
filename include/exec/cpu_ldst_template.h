@@ -8,7 +8,7 @@
  * 32 and 64 bit cases, also generate floating point functions with
  * the same size.
  *
- * Not used directly but included from softmmu_exec.h and exec-all.h.
+ * Not used directly but included from cpu_ldst.h.
  *
  *  Copyright (c) 2003 Fabrice Bellard
  *
@@ -47,35 +47,18 @@
 #error unsupported data size
 #endif
 
-#if ACCESS_TYPE < (NB_MMU_MODES)
-
-#define CPU_MMU_INDEX ACCESS_TYPE
-#define MMUSUFFIX _mmu
-
-#elif ACCESS_TYPE == (NB_MMU_MODES)
-
-#define CPU_MMU_INDEX (cpu_mmu_index(env))
-#define MMUSUFFIX _mmu
-
-#elif ACCESS_TYPE == (NB_MMU_MODES + 1)
-
-#define CPU_MMU_INDEX (cpu_mmu_index(env))
-#define MMUSUFFIX _cmmu
-
-#else
-#error invalid ACCESS_TYPE
-#endif
-
 #if DATA_SIZE == 8
 #define RES_TYPE uint64_t
 #else
 #define RES_TYPE uint32_t
 #endif
 
-#if ACCESS_TYPE == (NB_MMU_MODES + 1)
+#ifdef SOFTMMU_CODE_ACCESS
 #define ADDR_READ addr_code
+#define MMUSUFFIX _cmmu
 #else
 #define ADDR_READ addr_read
+#define MMUSUFFIX _mmu
 #endif
 
 /* generic load/store macros */
@@ -124,7 +107,7 @@ glue(glue(cpu_lds, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr)
 }
 #endif
 
-#if ACCESS_TYPE != (NB_MMU_MODES + 1)
+#ifndef SOFTMMU_CODE_ACCESS
 
 /* generic store macro */
 
@@ -148,9 +131,7 @@ glue(glue(cpu_st, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr,
     }
 }
 
-#endif /* ACCESS_TYPE != (NB_MMU_MODES + 1) */
 
-#if ACCESS_TYPE != (NB_MMU_MODES + 1)
 
 #if DATA_SIZE == 8
 static inline float64 glue(cpu_ldfq, MEMSUFFIX)(CPUArchState *env,
@@ -200,7 +181,7 @@ static inline void glue(cpu_stfl, MEMSUFFIX)(CPUArchState *env,
 }
 #endif /* DATA_SIZE == 4 */
 
-#endif /* ACCESS_TYPE != (NB_MMU_MODES + 1) */
+#endif /* !SOFTMMU_CODE_ACCESS */
 
 #undef RES_TYPE
 #undef DATA_TYPE
@@ -208,6 +189,5 @@ static inline void glue(cpu_stfl, MEMSUFFIX)(CPUArchState *env,
 #undef SUFFIX
 #undef USUFFIX
 #undef DATA_SIZE
-#undef CPU_MMU_INDEX
 #undef MMUSUFFIX
 #undef ADDR_READ

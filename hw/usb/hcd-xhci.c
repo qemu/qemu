@@ -498,6 +498,7 @@ typedef struct XHCIEvRingSeg {
 enum xhci_flags {
     XHCI_FLAG_USE_MSI = 1,
     XHCI_FLAG_USE_MSI_X,
+    XHCI_FLAG_SS_FIRST,
 };
 
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
@@ -714,10 +715,18 @@ static XHCIPort *xhci_lookup_port(XHCIState *xhci, struct USBPort *uport)
     case USB_SPEED_LOW:
     case USB_SPEED_FULL:
     case USB_SPEED_HIGH:
-        index = uport->index;
+        if (xhci_get_flag(xhci, XHCI_FLAG_SS_FIRST)) {
+            index = uport->index + xhci->numports_3;
+        } else {
+            index = uport->index;
+        }
         break;
     case USB_SPEED_SUPER:
-        index = uport->index + xhci->numports_2;
+        if (xhci_get_flag(xhci, XHCI_FLAG_SS_FIRST)) {
+            index = uport->index;
+        } else {
+            index = uport->index + xhci->numports_2;
+        }
         break;
     default:
         return NULL;
@@ -2856,7 +2865,7 @@ static void xhci_port_update(XHCIPort *port, int is_detach)
 
 static void xhci_port_reset(XHCIPort *port, bool warm_reset)
 {
-    trace_usb_xhci_port_reset(port->portnr);
+    trace_usb_xhci_port_reset(port->portnr, warm_reset);
 
     if (!xhci_port_have_device(port)) {
         return;
@@ -2972,7 +2981,11 @@ static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
         ret = 0x20425355; /* "USB " */
         break;
     case 0x28: /* Supported Protocol:08 */
-        ret = 0x00000001 | (xhci->numports_2<<8);
+        if (xhci_get_flag(xhci, XHCI_FLAG_SS_FIRST)) {
+            ret = (xhci->numports_2<<8) | (xhci->numports_3+1);
+        } else {
+            ret = (xhci->numports_2<<8) | 1;
+        }
         break;
     case 0x2c: /* Supported Protocol:0c */
         ret = 0x00000000; /* reserved */
@@ -2984,7 +2997,11 @@ static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
         ret = 0x20425355; /* "USB " */
         break;
     case 0x38: /* Supported Protocol:08 */
-        ret = 0x00000000 | (xhci->numports_2+1) | (xhci->numports_3<<8);
+        if (xhci_get_flag(xhci, XHCI_FLAG_SS_FIRST)) {
+            ret = (xhci->numports_3<<8) | 1;
+        } else {
+            ret = (xhci->numports_3<<8) | (xhci->numports_2+1);
+        }
         break;
     case 0x3c: /* Supported Protocol:0c */
         ret = 0x00000000; /* reserved */
@@ -3517,8 +3534,13 @@ static void usb_xhci_init(XHCIState *xhci)
     for (i = 0; i < usbports; i++) {
         speedmask = 0;
         if (i < xhci->numports_2) {
-            port = &xhci->ports[i];
-            port->portnr = i + 1;
+            if (xhci_get_flag(xhci, XHCI_FLAG_SS_FIRST)) {
+                port = &xhci->ports[i + xhci->numports_3];
+                port->portnr = i + 1 + xhci->numports_3;
+            } else {
+                port = &xhci->ports[i];
+                port->portnr = i + 1;
+            }
             port->uport = &xhci->uports[i];
             port->speedmask =
                 USB_SPEED_MASK_LOW  |
@@ -3528,8 +3550,13 @@ static void usb_xhci_init(XHCIState *xhci)
             speedmask |= port->speedmask;
         }
         if (i < xhci->numports_3) {
-            port = &xhci->ports[i + xhci->numports_2];
-            port->portnr = i + 1 + xhci->numports_2;
+            if (xhci_get_flag(xhci, XHCI_FLAG_SS_FIRST)) {
+                port = &xhci->ports[i];
+                port->portnr = i + 1;
+            } else {
+                port = &xhci->ports[i + xhci->numports_2];
+                port->portnr = i + 1 + xhci->numports_2;
+            }
             port->uport = &xhci->uports[i];
             port->speedmask = USB_SPEED_MASK_SUPER;
             snprintf(port->name, sizeof(port->name), "usb3 port #%d", i+1);
@@ -3788,6 +3815,8 @@ static const VMStateDescription vmstate_xhci = {
 static Property xhci_properties[] = {
     DEFINE_PROP_BIT("msi",      XHCIState, flags, XHCI_FLAG_USE_MSI, true),
     DEFINE_PROP_BIT("msix",     XHCIState, flags, XHCI_FLAG_USE_MSI_X, true),
+    DEFINE_PROP_BIT("superspeed-ports-first",
+                    XHCIState, flags, XHCI_FLAG_SS_FIRST, true),
     DEFINE_PROP_UINT32("intrs", XHCIState, numintrs, MAXINTRS),
     DEFINE_PROP_UINT32("slots", XHCIState, numslots, MAXSLOTS),
     DEFINE_PROP_UINT32("p2",    XHCIState, numports_2, 4),

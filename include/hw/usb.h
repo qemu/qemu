@@ -458,6 +458,7 @@ void usb_ep_combine_input_packets(USBEndpoint *ep);
 void usb_combined_input_packet_complete(USBDevice *dev, USBPacket *p);
 void usb_combined_packet_cancel(USBDevice *dev, USBPacket *p);
 
+void usb_pick_speed(USBPort *port);
 void usb_attach(USBPort *port);
 void usb_detach(USBPort *port);
 void usb_port_reset(USBPort *port);

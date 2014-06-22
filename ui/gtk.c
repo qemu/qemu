@@ -73,10 +73,6 @@
 #include <X11/XKBlib.h>
 #endif
 
-#if !defined(CONFIG_VTE)
-# define VTE_CHECK_VERSION(a, b, c) 0
-#endif
-
 #define MAX_VCS 10
 #define VC_WINDOW_X_MIN  320
 #define VC_WINDOW_Y_MIN  240
@@ -1425,12 +1421,8 @@ static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     VirtualConsole *vc = chr->opaque;
 
-<<<<<<< HEAD
-    return vc ? write(vc->fd, buf, len) : len;
-=======
     vte_terminal_feed(VTE_TERMINAL(vc->vte.terminal), (const char *)buf, len);
     return len;
->>>>>>> master
 }
 
 static int nb_vcs;
@@ -1450,18 +1442,8 @@ static CharDriverState *gd_vc_handler(ChardevVC *unused)
     return chr;
 }
 
-<<<<<<< HEAD
-void early_gtk_display_init(void)
-{
-    register_vc_handler(gd_vc_handler);
-}
-
-#if defined(CONFIG_VTE)
-static gboolean gd_vc_in(GIOChannel *chan, GIOCondition cond, void *opaque)
-=======
 static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
                          gpointer user_data)
->>>>>>> master
 {
     VirtualConsole *vc = user_data;
 
@@ -1474,26 +1456,10 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
                               CharDriverState *chr, int idx,
                               GSList *group, GtkWidget *view_menu)
 {
-<<<<<<< HEAD
-#if defined(CONFIG_VTE)
-    const char *label;
-    char buffer[32];
-    char path[32];
-#if VTE_CHECK_VERSION(0, 26, 0)
-    VtePty *pty;
-#endif
-    GIOChannel *chan;
-#if defined(CONFIG_VTE)
-    GtkWidget *scrolled_window;
-    GtkAdjustment *vadjustment;
-    int master_fd, slave_fd;
-#endif
-=======
     char buffer[32];
     GtkWidget *box;
     GtkWidget *scrollbar;
     GtkAdjustment *vadjustment;
->>>>>>> master
 
     vc->s = s;
     vc->vte.chr = chr;
@@ -1535,32 +1501,24 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
     g_signal_connect(vadjustment, "changed",
                      G_CALLBACK(gd_vc_adjustment_changed), vc);
 
-<<<<<<< HEAD
-    vc->fd = slave_fd;
-    vc->chr->opaque = vc;
-#if defined(CONFIG_VTE)
-    vc->scrolled_window = scrolled_window;
-=======
-    vc->type = GD_VC_VTE;
-    vc->tab_item = box;
-    gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), vc->tab_item,
-                             gtk_label_new(vc->label));
->>>>>>> master
 
     qemu_chr_be_generic_open(vc->vte.chr);
     if (vc->vte.chr->init) {
         vc->vte.chr->init(vc->vte.chr);
     }
 
-<<<<<<< HEAD
-    gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), scrolled_window, gtk_label_new(label));
-#endif
-    g_signal_connect(vc->menu_item, "activate",
-                     G_CALLBACK(gd_menu_switch_vc), s);
-=======
+    vc->type = GD_VC_VTE;
+    vc->tab_item = box;
+    gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), vc->tab_item,
+                             gtk_label_new(vc->label));
+
+    qemu_chr_be_generic_open(vc->vte.chr);
+    if (vc->vte.chr->init) {
+        vc->vte.chr->init(vc->vte.chr);
+    }
+
     return group;
 }
->>>>>>> master
 
 static void gd_vcs_init(GtkDisplayState *s, GSList *group,
                         GtkWidget *view_menu)
@@ -1572,15 +1530,6 @@ static void gd_vcs_init(GtkDisplayState *s, GSList *group,
         group = gd_vc_vte_init(s, vc, vcs[i], s->nb_vcs, group, view_menu);
         s->nb_vcs++;
     }
-<<<<<<< HEAD
-
-    chan = g_io_channel_unix_new(vc->fd);
-    g_io_add_watch(chan, G_IO_IN, gd_vc_in, vc);
-
-#endif /* CONFIG_GTK */
-    return group;
-=======
->>>>>>> master
 }
 #endif /* CONFIG_VTE */
 
