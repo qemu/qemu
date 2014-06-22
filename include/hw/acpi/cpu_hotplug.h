@@ -13,7 +13,7 @@
 #define ACPI_HOTPLUG_H
 
 #include "hw/acpi/acpi.h"
-#include "hw/acpi/cpu_hotplug_defs.h"
+#include "hw/acpi/pc-hotplug.h"
 
 typedef struct AcpiCpuHotplug {
     MemoryRegion io;

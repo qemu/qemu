@@ -322,6 +322,7 @@ void net_hub_check_clients(void)
             case NET_CLIENT_OPTIONS_KIND_TAP:
             case NET_CLIENT_OPTIONS_KIND_SOCKET:
             case NET_CLIENT_OPTIONS_KIND_VDE:
+            case NET_CLIENT_OPTIONS_KIND_VHOST_USER:
                 has_host_dev = 1;
                 break;
             default:

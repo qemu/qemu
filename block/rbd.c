@@ -289,8 +289,7 @@ static int qemu_rbd_set_conf(rados_t cluster, const char *conf, Error **errp)
     return ret;
 }
 
-static int qemu_rbd_create(const char *filename, QEMUOptionParameter *options,
-                           Error **errp)
+static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
     int64_t bytes = 0;
@@ -315,24 +314,18 @@ static int qemu_rbd_create(const char *filename, QEMUOptionParameter *options,
     }
 
     /* Read out options */
-    while (options && options->name) {
-        if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
-            bytes = options->value.n;
-        } else if (!strcmp(options->name, BLOCK_OPT_CLUSTER_SIZE)) {
-            if (options->value.n) {
-                objsize = options->value.n;
-                if ((objsize - 1) & objsize) {    /* not a power of 2? */
-                    error_setg(errp, "obj size needs to be power of 2");
-                    return -EINVAL;
-                }
-                if (objsize < 4096) {
-                    error_setg(errp, "obj size too small");
-                    return -EINVAL;
-                }
-                obj_order = ffs(objsize) - 1;
-            }
+    bytes = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    objsize = qemu_opt_get_size_del(opts, BLOCK_OPT_CLUSTER_SIZE, 0);
+    if (objsize) {
+        if ((objsize - 1) & objsize) {    /* not a power of 2? */
+            error_setg(errp, "obj size needs to be power of 2");
+            return -EINVAL;
         }
-        options++;
+        if (objsize < 4096) {
+            error_setg(errp, "obj size too small");
+            return -EINVAL;
+        }
+        obj_order = ffs(objsize) - 1;
     }
 
     clientname = qemu_rbd_parse_clientname(conf, clientname_buf);
@@ -555,7 +548,7 @@ static void qemu_rbd_aio_cancel(BlockDriverAIOCB *blockacb)
     acb->cancelled = 1;
 
     while (acb->status == -EINPROGRESS) {
-        qemu_aio_wait();
+        aio_poll(bdrv_get_aio_context(acb->common.bs), true);
     }
 
     qemu_aio_release(acb);
@@ -588,7 +581,8 @@ static void rbd_finish_aiocb(rbd_completion_t c, RADOSCB *rcb)
     rcb->ret = rbd_aio_get_return_value(c);
     rbd_aio_release(c);
 
-    acb->bh = qemu_bh_new(rbd_finish_bh, rcb);
+    acb->bh = aio_bh_new(bdrv_get_aio_context(acb->common.bs),
+                         rbd_finish_bh, rcb);
     qemu_bh_schedule(acb->bh);
 }
 
@@ -684,13 +678,16 @@ static BlockDriverAIOCB *rbd_start_aio(BlockDriverState *bs,
     }
 
     if (r < 0) {
-        goto failed;
+        goto failed_completion;
     }
 
     return &acb->common;
 
+failed_completion:
+    rbd_aio_release(c);
 failed:
     g_free(rcb);
+    qemu_vfree(acb->bounce);
     qemu_aio_release(acb);
     return NULL;
 }
@@ -907,18 +904,22 @@ static BlockDriverAIOCB* qemu_rbd_aio_discard(BlockDriverState *bs,
 }
 #endif
 
-static QEMUOptionParameter qemu_rbd_create_options[] = {
-    {
-     .name = BLOCK_OPT_SIZE,
-     .type = OPT_SIZE,
-     .help = "Virtual disk size"
-    },
-    {
-     .name = BLOCK_OPT_CLUSTER_SIZE,
-     .type = OPT_SIZE,
-     .help = "RBD object size"
-    },
-    {NULL}
+static QemuOptsList qemu_rbd_create_opts = {
+    .name = "rbd-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_rbd_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
+        {
+            .name = BLOCK_OPT_CLUSTER_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "RBD object size"
+        },
+        { /* end of list */ }
+    }
 };
 
 static BlockDriver bdrv_rbd = {
@@ -930,7 +931,7 @@ static BlockDriver bdrv_rbd = {
     .bdrv_create        = qemu_rbd_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_get_info      = qemu_rbd_getinfo,
-    .create_options     = qemu_rbd_create_options,
+    .create_opts        = &qemu_rbd_create_opts,
     .bdrv_getlength     = qemu_rbd_getlength,
     .bdrv_truncate      = qemu_rbd_truncate,
     .protocol_name      = "rbd",

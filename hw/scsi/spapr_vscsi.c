@@ -598,8 +598,7 @@ static const VMStateDescription vmstate_spapr_vscsi_req = {
     .name = "spapr_vscsi_req",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_BUFFER(crq.raw, vscsi_req),
         VMSTATE_BUFFER(iu.srp.reserved, vscsi_req),
         VMSTATE_UINT32(qtag, vscsi_req),
@@ -800,8 +799,9 @@ static int vscsi_queue_cmd(VSCSIState *s, vscsi_req *req)
     req->sreq = scsi_req_new(sdev, req->qtag, lun, srp->cmd.cdb, req);
     n = scsi_req_enqueue(req->sreq);
 
-    DPRINTF("VSCSI: Queued command tag 0x%x CMD 0x%x LUN %d ret: %d\n",
-            req->qtag, srp->cmd.cdb[0], lun, n);
+    DPRINTF("VSCSI: Queued command tag 0x%x CMD 0x%x=%s LUN %d ret: %d\n",
+            req->qtag, srp->cmd.cdb[0], scsi_command_name(srp->cmd.cdb[0]),
+            lun, n);
 
     if (n) {
         /* Transfer direction must be set before preprocessing the
@@ -1260,8 +1260,7 @@ static const VMStateDescription vmstate_spapr_vscsi = {
     .name = "spapr_vscsi",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_SPAPR_VIO(vdev, VSCSIState),
         /* VSCSI state */
         /* ???? */

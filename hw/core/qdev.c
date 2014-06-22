@@ -34,6 +34,7 @@
 #include "qapi/qmp/qjson.h"
 #include "monitor/monitor.h"
 #include "hw/hotplug.h"
+#include "hw/boards.h"
 
 int qdev_hotplug = 0;
 static bool qdev_hot_added = false;
@@ -567,32 +568,35 @@ static void bus_set_realized(Object *obj, bool value, Error **errp)
 {
     BusState *bus = BUS(obj);
     BusClass *bc = BUS_GET_CLASS(bus);
+    BusChild *kid;
     Error *local_err = NULL;
 
     if (value && !bus->realized) {
         if (bc->realize) {
             bc->realize(bus, &local_err);
-
-            if (local_err != NULL) {
-                goto error;
-            }
-
         }
-    } else if (!value && bus->realized) {
-        if (bc->unrealize) {
-            bc->unrealize(bus, &local_err);
 
+        /* TODO: recursive realization */
+    } else if (!value && bus->realized) {
+        QTAILQ_FOREACH(kid, &bus->children, sibling) {
+            DeviceState *dev = kid->child;
+            object_property_set_bool(OBJECT(dev), false, "realized",
+                                     &local_err);
             if (local_err != NULL) {
-                goto error;
+                break;
             }
+        }
+        if (bc->unrealize && local_err == NULL) {
+            bc->unrealize(bus, &local_err);
         }
     }
 
-    bus->realized = value;
-    return;
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
-error:
-    error_propagate(errp, local_err);
+    bus->realized = value;
 }
 
 void qbus_create_inplace(void *bus, size_t size, const char *typename,
@@ -813,6 +817,18 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             local_err == NULL) {
             hotplug_handler_plug(dev->parent_bus->hotplug_handler,
                                  dev, &local_err);
+        } else if (local_err == NULL &&
+                   object_dynamic_cast(qdev_get_machine(), TYPE_MACHINE)) {
+            HotplugHandler *hotplug_ctrl;
+            MachineState *machine = MACHINE(qdev_get_machine());
+            MachineClass *mc = MACHINE_GET_CLASS(machine);
+
+            if (mc->get_hotplug_handler) {
+                hotplug_ctrl = mc->get_hotplug_handler(machine, dev);
+                if (hotplug_ctrl) {
+                    hotplug_handler_plug(hotplug_ctrl, dev, &local_err);
+                }
+            }
         }
 
         if (qdev_get_vmsd(dev) && local_err == NULL) {
@@ -865,6 +881,20 @@ static bool device_get_hotpluggable(Object *obj, Error **errp)
                                 dev->parent_bus->allow_hotplug);
 }
 
+static bool device_get_hotplugged(Object *obj, Error **err)
+{
+    DeviceState *dev = DEVICE(obj);
+
+    return dev->hotplugged;
+}
+
+static void device_set_hotplugged(Object *obj, bool value, Error **err)
+{
+    DeviceState *dev = DEVICE(obj);
+
+    dev->hotplugged = value;
+}
+
 static void device_initfn(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -883,6 +913,9 @@ static void device_initfn(Object *obj)
                              device_get_realized, device_set_realized, NULL);
     object_property_add_bool(obj, "hotpluggable",
                              device_get_hotpluggable, NULL, NULL);
+    object_property_add_bool(obj, "hotplugged",
+                             device_get_hotplugged, device_set_hotplugged,
+                             &error_abort);
 
     class = object_get_class(OBJECT(dev));
     do {

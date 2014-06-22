@@ -30,7 +30,7 @@ static inline void cpu_clone_regs(CPUMIPSState *env, target_ulong newsp)
 
 static inline void cpu_set_tls(CPUMIPSState *env, target_ulong newtls)
 {
-    env->tls_value = newtls;
+    env->active_tc.CP0_UserLocal = newtls;
 }
 
 #endif

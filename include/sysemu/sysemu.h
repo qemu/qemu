@@ -9,6 +9,8 @@
 #include "qapi-types.h"
 #include "qemu/notify.h"
 #include "qemu/main-loop.h"
+#include "qemu/bitmap.h"
+#include "qom/object.h"
 
 /* vl.c */
 
@@ -131,8 +133,10 @@ extern uint8_t *boot_splash_filedata;
 extern size_t boot_splash_filedata_size;
 extern uint8_t qemu_extra_params_fw[2];
 extern QEMUClockType rtc_clock;
+extern const char *mem_path;
+extern int mem_prealloc;
 
-#define MAX_NODES 64
+#define MAX_NODES 128
 
 /* The following shall be true for all CPUs:
  *   cpu->cpu_index < max_cpus <= MAX_CPUMASK_BITS
@@ -142,8 +146,16 @@ extern QEMUClockType rtc_clock;
 #define MAX_CPUMASK_BITS 255
 
 extern int nb_numa_nodes;
-extern uint64_t node_mem[MAX_NODES];
-extern unsigned long *node_cpumask[MAX_NODES];
+typedef struct node_info {
+    uint64_t node_mem;
+    DECLARE_BITMAP(node_cpu, MAX_CPUMASK_BITS);
+    struct HostMemoryBackend *node_memdev;
+} NodeInfo;
+extern NodeInfo numa_info[MAX_NODES];
+void set_numa_nodes(void);
+void set_numa_modes(void);
+extern QemuOptsList qemu_numa_opts;
+int numa_init_func(QemuOpts *opts, void *opaque);
 
 #define MAX_OPTION_ROMS 16
 typedef struct QEMUOptionRom {

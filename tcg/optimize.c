@@ -911,12 +911,11 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             break;
         }
 
-        /* 32-bit ops (non 64-bit ops and non load/store ops) generate
-           32-bit results.  For the result is zero test below, we can
-           ignore high bits, but for further optimizations we need to
-           record that the high bits contain garbage.  */
+        /* 32-bit ops generate 32-bit results.  For the result is zero test
+           below, we can ignore high bits, but for further optimizations we
+           need to record that the high bits contain garbage.  */
         partmask = mask;
-        if (!(def->flags & (TCG_OPF_CALL_CLOBBER | TCG_OPF_64BIT))) {
+        if (!(def->flags & TCG_OPF_64BIT)) {
             mask |= ~(tcg_target_ulong)0xffffffffu;
             partmask &= 0xffffffffu;
             affected &= 0xffffffffu;

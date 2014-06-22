@@ -509,8 +509,7 @@ static const VMStateDescription vmstate_spapr_llan = {
     .name = "spapr_llan",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_SPAPR_VIO(sdev, VIOsPAPRVLANDevice),
         /* LLAN state */
         VMSTATE_BOOL(isopen, VIOsPAPRVLANDevice),

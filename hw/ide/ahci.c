@@ -1225,7 +1225,7 @@ void ahci_reset(AHCIState *s)
 static const VMStateDescription vmstate_ahci_device = {
     .name = "ahci port",
     .version_id = 1,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_IDE_BUS(port, AHCIDevice),
         VMSTATE_UINT32(port_state, AHCIDevice),
         VMSTATE_UINT32(finished, AHCIDevice),
@@ -1284,7 +1284,7 @@ const VMStateDescription vmstate_ahci = {
     .name = "ahci",
     .version_id = 1,
     .post_load = ahci_state_post_load,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_STRUCT_VARRAY_POINTER_INT32(dev, AHCIState, ports,
                                      vmstate_ahci_device, AHCIDevice),
         VMSTATE_UINT32(control_regs.cap, AHCIState),
@@ -1313,7 +1313,7 @@ typedef struct SysbusAHCIState {
 static const VMStateDescription vmstate_sysbus_ahci = {
     .name = "sysbus-ahci",
     .unmigratable = 1, /* Still buggy under I/O load */
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_AHCI(ahci, SysbusAHCIState),
         VMSTATE_END_OF_LIST()
     },

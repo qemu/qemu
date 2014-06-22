@@ -736,10 +736,8 @@ static void oss_fini_in (HWVoiceIn *hw)
 
     oss_anal_close (&oss->fd);
 
-    if (oss->pcm_buf) {
-        g_free (oss->pcm_buf);
-        oss->pcm_buf = NULL;
-    }
+    g_free(oss->pcm_buf);
+    oss->pcm_buf = NULL;
 }
 
 static int oss_run_in (HWVoiceIn *hw)

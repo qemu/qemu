@@ -22,9 +22,13 @@
 #ifndef CONFIG_USER_ONLY
 #include "hw/xen/xen.h"
 
+ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
+                                    bool share, const char *mem_path,
+                                    Error **errp);
 ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                    MemoryRegion *mr);
 ram_addr_t qemu_ram_alloc(ram_addr_t size, MemoryRegion *mr);
+int qemu_get_ram_fd(ram_addr_t addr);
 void *qemu_get_ram_ptr(ram_addr_t addr);
 void qemu_ram_free(ram_addr_t addr);
 void qemu_ram_free_from_ptr(ram_addr_t addr);
@@ -117,7 +121,7 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
             if (bitmap[i] != 0) {
                 c = leul_to_cpu(bitmap[i]);
                 do {
-                    j = ffsl(c) - 1;
+                    j = ctzl(c);
                     c &= ~(1ul << j);
                     page_number = (i * HOST_LONG_BITS + j) * hpratio;
                     addr = page_number * TARGET_PAGE_SIZE;

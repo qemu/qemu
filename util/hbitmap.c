@@ -92,11 +92,6 @@ struct HBitmap {
     unsigned long *levels[HBITMAP_LEVELS];
 };
 
-static inline int popcountl(unsigned long l)
-{
-    return BITS_PER_LONG == 32 ? ctpop32(l) : ctpop64(l);
-}
-
 /* Advance hbi to the next nonzero word and return it.  hbi->pos
  * is updated.  Returns zero if we reach the end of the bitmap.
  */
@@ -200,14 +195,14 @@ static uint64_t hb_count_between(HBitmap *hb, uint64_t start, uint64_t last)
         if (pos >= (end >> BITS_PER_LEVEL)) {
             break;
         }
-        count += popcountl(cur);
+        count += ctpopl(cur);
     }
 
     if (pos == (end >> BITS_PER_LEVEL)) {
         /* Drop bits representing the END-th and subsequent items.  */
         int bit = end & (BITS_PER_LONG - 1);
         cur &= (1UL << bit) - 1;
-        count += popcountl(cur);
+        count += ctpopl(cur);
     }
 
     return count;

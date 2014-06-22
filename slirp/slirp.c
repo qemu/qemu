@@ -37,8 +37,6 @@ static const uint8_t special_ethaddr[ETH_ALEN] = {
     0x52, 0x55, 0x00, 0x00, 0x00, 0x00
 };
 
-static const uint8_t zero_ethaddr[ETH_ALEN] = { 0, 0, 0, 0, 0, 0 };
-
 u_int curtime;
 
 static QTAILQ_HEAD(slirp_instances, Slirp) slirp_instances =
@@ -778,6 +776,11 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
         return 1;
     }
 
+    if (iph->ip_dst.s_addr == 0) {
+        /* 0.0.0.0 can not be a destination address, something went wrong,
+         * avoid making it worse */
+        return 1;
+    }
     if (!arp_table_search(slirp, iph->ip_dst.s_addr, ethaddr)) {
         uint8_t arp_req[ETH_HLEN + sizeof(struct arphdr)];
         struct ethhdr *reh = (struct ethhdr *)arp_req;

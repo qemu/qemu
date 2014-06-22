@@ -59,8 +59,7 @@ static const VMStateDescription vmstate_isa_ne2000 = {
     .name = "ne2000",
     .version_id = 2,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_STRUCT(ne2000, ISANE2000State, 0, vmstate_ne2000, NE2000State),
         VMSTATE_END_OF_LIST()
     }
@@ -98,6 +97,7 @@ static void isa_ne2000_class_initfn(ObjectClass *klass, void *data)
 
     dc->realize = isa_ne2000_realizefn;
     dc->props = ne2000_isa_properties;
+    dc->vmsd = &vmstate_isa_ne2000;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 

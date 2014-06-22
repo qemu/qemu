@@ -555,8 +555,6 @@ enum {
     CPU_POWERPC_POWER6A            = 0x0F000002,
     CPU_POWERPC_POWER7_BASE        = 0x003F0000,
     CPU_POWERPC_POWER7_MASK        = 0xFFFF0000,
-    CPU_POWERPC_POWER7_v20         = 0x003F0200,
-    CPU_POWERPC_POWER7_v21         = 0x003F0201,
     CPU_POWERPC_POWER7_v23         = 0x003F0203,
     CPU_POWERPC_POWER7P_BASE       = 0x004A0000,
     CPU_POWERPC_POWER7P_MASK       = 0xFFFF0000,
@@ -595,6 +593,16 @@ enum {
 #endif
     /* PA Semi core */
     CPU_POWERPC_PA6T               = 0x00900000,
+};
+
+/* Logical PVR definitions for sPAPR */
+enum {
+    CPU_POWERPC_LOGICAL_2_04       = 0x0F000001,
+    CPU_POWERPC_LOGICAL_2_05       = 0x0F000002,
+    CPU_POWERPC_LOGICAL_2_06       = 0x0F000003,
+    CPU_POWERPC_LOGICAL_2_06_PLUS  = 0x0F100003,
+    CPU_POWERPC_LOGICAL_2_07       = 0x0F000004,
+    CPU_POWERPC_LOGICAL_2_08       = 0x0F000005,
 };
 
 /* System version register (used on MPC 8xxx)                                */

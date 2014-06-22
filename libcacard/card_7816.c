@@ -172,16 +172,12 @@ vcard_response_delete(VCardResponse *response)
     switch (response->b_type) {
     case VCARD_MALLOC:
         /* everything was malloc'ed */
-        if (response->b_data) {
-            g_free(response->b_data);
-        }
+        g_free(response->b_data);
         g_free(response);
         break;
     case VCARD_MALLOC_DATA:
         /* only the data buffer was malloc'ed */
-        if (response->b_data) {
-            g_free(response->b_data);
-        }
+        g_free(response->b_data);
         break;
     case VCARD_MALLOC_STRUCT:
         /* only the structure was malloc'ed */
@@ -358,9 +354,7 @@ vcard_apdu_delete(VCardAPDU *apdu)
     if (apdu == NULL) {
         return;
     }
-    if (apdu->a_data) {
-        g_free(apdu->a_data);
-    }
+    g_free(apdu->a_data);
     g_free(apdu);
 }
 

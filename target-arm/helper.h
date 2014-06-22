@@ -456,8 +456,6 @@ DEF_HELPER_3(iwmmxt_avgb1, i64, env, i64, i64)
 DEF_HELPER_3(iwmmxt_avgw0, i64, env, i64, i64)
 DEF_HELPER_3(iwmmxt_avgw1, i64, env, i64, i64)
 
-DEF_HELPER_2(iwmmxt_msadb, i64, i64, i64)
-
 DEF_HELPER_3(iwmmxt_align, i64, i64, i64, i32)
 DEF_HELPER_4(iwmmxt_insr, i64, i64, i32, i32, i32)
 
@@ -512,9 +510,21 @@ DEF_HELPER_3(neon_qzip32, void, env, i32, i32)
 DEF_HELPER_4(crypto_aese, void, env, i32, i32, i32)
 DEF_HELPER_4(crypto_aesmc, void, env, i32, i32, i32)
 
+DEF_HELPER_5(crypto_sha1_3reg, void, env, i32, i32, i32, i32)
+DEF_HELPER_3(crypto_sha1h, void, env, i32, i32)
+DEF_HELPER_3(crypto_sha1su1, void, env, i32, i32)
+
+DEF_HELPER_4(crypto_sha256h, void, env, i32, i32, i32)
+DEF_HELPER_4(crypto_sha256h2, void, env, i32, i32, i32)
+DEF_HELPER_3(crypto_sha256su0, void, env, i32, i32)
+DEF_HELPER_4(crypto_sha256su1, void, env, i32, i32, i32)
+
 DEF_HELPER_FLAGS_3(crc32, TCG_CALL_NO_RWG_SE, i32, i32, i32, i32)
 DEF_HELPER_FLAGS_3(crc32c, TCG_CALL_NO_RWG_SE, i32, i32, i32, i32)
 DEF_HELPER_2(dc_zva, void, env, i64)
+
+DEF_HELPER_FLAGS_2(neon_pmull_64_lo, TCG_CALL_NO_RWG_SE, i64, i64, i64)
+DEF_HELPER_FLAGS_2(neon_pmull_64_hi, TCG_CALL_NO_RWG_SE, i64, i64, i64)
 
 #ifdef TARGET_AARCH64
 #include "helper-a64.h"

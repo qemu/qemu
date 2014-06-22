@@ -815,10 +815,8 @@ static void alsa_fini_out (HWVoiceOut *hw)
     ldebug ("alsa_fini\n");
     alsa_anal_close (&alsa->handle, &alsa->pollhlp);
 
-    if (alsa->pcm_buf) {
-        g_free (alsa->pcm_buf);
-        alsa->pcm_buf = NULL;
-    }
+    g_free(alsa->pcm_buf);
+    alsa->pcm_buf = NULL;
 }
 
 static int alsa_init_out (HWVoiceOut *hw, struct audsettings *as)
@@ -978,10 +976,8 @@ static void alsa_fini_in (HWVoiceIn *hw)
 
     alsa_anal_close (&alsa->handle, &alsa->pollhlp);
 
-    if (alsa->pcm_buf) {
-        g_free (alsa->pcm_buf);
-        alsa->pcm_buf = NULL;
-    }
+    g_free(alsa->pcm_buf);
+    alsa->pcm_buf = NULL;
 }
 
 static int alsa_run_in (HWVoiceIn *hw)

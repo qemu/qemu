@@ -13,6 +13,7 @@
 #include "qom/object.h"
 #include "qemu-common.h"
 #include "qapi/visitor.h"
+#include "qapi-visit.h"
 #include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi/qmp/qerror.h"
@@ -936,6 +937,40 @@ int64_t object_property_get_int(Object *obj, const char *name,
 
     QDECREF(qint);
     return retval;
+}
+
+int object_property_get_enum(Object *obj, const char *name,
+                             const char *strings[], Error **errp)
+{
+    StringOutputVisitor *sov;
+    StringInputVisitor *siv;
+    int ret;
+
+    sov = string_output_visitor_new(false);
+    object_property_get(obj, string_output_get_visitor(sov), name, errp);
+    siv = string_input_visitor_new(string_output_get_string(sov));
+    string_output_visitor_cleanup(sov);
+    visit_type_enum(string_input_get_visitor(siv),
+                    &ret, strings, NULL, name, errp);
+    string_input_visitor_cleanup(siv);
+
+    return ret;
+}
+
+void object_property_get_uint16List(Object *obj, const char *name,
+                                    uint16List **list, Error **errp)
+{
+    StringOutputVisitor *ov;
+    StringInputVisitor *iv;
+
+    ov = string_output_visitor_new(false);
+    object_property_get(obj, string_output_get_visitor(ov),
+                        name, errp);
+    iv = string_input_visitor_new(string_output_get_string(ov));
+    visit_type_uint16List(string_input_get_visitor(iv),
+                          list, NULL, errp);
+    string_output_visitor_cleanup(ov);
+    string_input_visitor_cleanup(iv);
 }
 
 void object_property_parse(Object *obj, const char *string,

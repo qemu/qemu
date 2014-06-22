@@ -148,8 +148,7 @@ static const VMStateDescription vmstate_spapr_vty = {
     .name = "spapr_vty",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_SPAPR_VIO(sdev, VIOsPAPRVTYDevice),
 
         VMSTATE_UINT32(in, VIOsPAPRVTYDevice),

@@ -47,6 +47,7 @@ In ubuntu/debian:
 Configuring and building:
     ./configure --enable-smartcard && make
 
+
 3. Using ccid-card-emulated with hardware
 
 Assuming you have a working smartcard on the host with the current
@@ -54,19 +55,55 @@ user, using NSS, qemu acts as another NSS client using ccid-card-emulated:
 
     qemu -usb -device usb-ccid -device ccid-card-emulated
 
-4. Using ccid-card-emulated with certificates
 
-You must create the certificates. This is a one time process. We use NSS
-certificates:
+4. Using ccid-card-emulated with certificates stored in files
 
-    certutil -d /etc/pki/nssdb -x -t "CT,CT,CT" -S -s "CN=cert1" -n cert1
+You must create the CA and card certificates. This is a one time process.
+We use NSS certificates:
+
+    mkdir fake-smartcard
+    cd fake-smartcard
+    certutil -N -d sql:$PWD
+    certutil -S -d sql:$PWD -s "CN=Fake Smart Card CA" -x -t TC,TC,TC -n fake-smartcard-ca
+    certutil -S -d sql:$PWD -t ,, -s "CN=John Doe" -n id-cert -c fake-smartcard-ca
+    certutil -S -d sql:$PWD -t ,, -s "CN=John Doe (signing)" --nsCertType smime -n signing-cert -c fake-smartcard-ca
+    certutil -S -d sql:$PWD -t ,, -s "CN=John Doe (encryption)" --nsCertType sslClient -n encryption-cert -c fake-smartcard-ca
 
 Note: you must have exactly three certificates.
 
-Assuming the current user can access the certificates (use certutil -L to
-verify), you can use the emulated card type with the certificates backend:
+You can use the emulated card type with the certificates backend:
 
-    qemu -usb -device usb-ccid -device ccid-card-emulated,backend=certificates,cert1=cert1,cert2=cert2,cert3=cert3
+    qemu -usb -device usb-ccid -device ccid-card-emulated,backend=certificates,db=sql:$PWD,cert1=id-cert,cert2=signing-cert,cert3=encryption-cert
+
+To use the certificates in the guest, export the CA certificate:
+
+    certutil -L -r -d sql:$PWD -o fake-smartcard-ca.cer -n fake-smartcard-ca
+
+and import it in the guest:
+
+    certutil -A -d /etc/pki/nssdb -i fake-smartcard-ca.cer -t TC,TC,TC -n fake-smartcard-ca
+
+In a Linux guest you can then use the CoolKey PKCS #11 module to access
+the card:
+
+    certutil -d /etc/pki/nssdb -L -h all
+
+It will prompt you for the PIN (which is the password you assigned to the
+certificate database early on), and then show you all three certificates
+together with the manually imported CA cert:
+
+    Certificate Nickname                        Trust Attributes
+    fake-smartcard-ca                           CT,C,C
+    John Doe:CAC ID Certificate                 u,u,u
+    John Doe:CAC Email Signature Certificate    u,u,u
+    John Doe:CAC Email Encryption Certificate   u,u,u
+
+If this does not happen, CoolKey is not installed or not registered with
+NSS.  Registration can be done from Firefox or the command line:
+
+    modutil -dbdir /etc/pki/nssdb -add "CAC Module" -libfile /usr/lib64/pkcs11/libcoolkeypk11.so
+    modutil -dbdir /etc/pki/nssdb -list
+
 
 5. Using ccid-card-passthru with client side hardware
 
@@ -74,15 +111,23 @@ on the host specify the ccid-card-passthru device with a suitable chardev:
 
     qemu -chardev socket,server,host=0.0.0.0,port=2001,id=ccid,nowait -usb -device usb-ccid -device ccid-card-passthru,chardev=ccid
 
-on the client run vscclient, built when you built the libcacard library:
-    libcacard/vscclient <qemu-host> 2001
+on the client run vscclient, built when you built QEMU:
+
+    vscclient <qemu-host> 2001
+
 
 6. Using ccid-card-passthru with client side certificates
 
-Run qemu as per #5, and run vscclient as follows:
-(Note: vscclient command line interface is in a state of change)
+This case is not particularly useful, but you can use it to debug
+your setup if #4 works but #5 does not.
 
-    libcacard/vscclient -e "db=\"/etc/pki/nssdb\" use_hw=no soft=(,Test,CAC,,cert1,cert2,cert3)" <qemu-host> 2001
+Follow instructions as per #4, except run QEMU and vscclient as follows:
+Run qemu as per #5, and run vscclient from the "fake-smartcard"
+directory as follows:
+
+    qemu -chardev socket,server,host=0.0.0.0,port=2001,id=ccid,nowait -usb -device usb-ccid -device ccid-card-passthru,chardev=ccid
+    vscclient -e "db=\"sql:$PWD\" use_hw=no soft=(,Test,CAC,,id-cert,signing-cert,encryption-cert)" <qemu-host> 2001
+
 
 7. Passthrough protocol scenario
 
@@ -126,10 +171,11 @@ kill/quit         |                          |                |               |
 
 8. libcacard
 
-ccid-card-passthru and vscclient use libcacard as the card emulator.
-libcacard implements a completely virtual CAC (DoD standard for smart cards)
-compliant card and uses NSS to actually retrive certificates and do any
-encryption using the backend (real reader + card or file backed certificates).
+Both ccid-card-emulated and vscclient use libcacard as the card emulator.
+libcacard implements a completely virtual CAC (DoD standard for smart
+cards) compliant card and uses NSS to retrieve certificates and do
+any encryption.  The backend can then be a real reader and card, or
+certificates stored in files.
 
-For documentation of cac_card see README in libcacard subdirectory.
+For documentation of the library see docs/libcacard.txt.
 

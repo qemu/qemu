@@ -39,12 +39,13 @@ struct BlkverifyAIOCB {
 static void blkverify_aio_cancel(BlockDriverAIOCB *blockacb)
 {
     BlkverifyAIOCB *acb = (BlkverifyAIOCB *)blockacb;
+    AioContext *aio_context = bdrv_get_aio_context(blockacb->bs);
     bool finished = false;
 
     /* Wait until request completes, invokes its callback, and frees itself */
     acb->finished = &finished;
     while (!finished) {
-        qemu_aio_wait();
+        aio_poll(aio_context, true);
     }
 }
 
@@ -228,7 +229,8 @@ static void blkverify_aio_cb(void *opaque, int ret)
             acb->verify(acb);
         }
 
-        acb->bh = qemu_bh_new(blkverify_aio_bh, acb);
+        acb->bh = aio_bh_new(bdrv_get_aio_context(acb->common.bs),
+                             blkverify_aio_bh, acb);
         qemu_bh_schedule(acb->bh);
         break;
     }
@@ -302,21 +304,40 @@ static bool blkverify_recurse_is_first_non_filter(BlockDriverState *bs,
     return bdrv_recurse_is_first_non_filter(s->test_file, candidate);
 }
 
+/* Propagate AioContext changes to ->test_file */
+static void blkverify_detach_aio_context(BlockDriverState *bs)
+{
+    BDRVBlkverifyState *s = bs->opaque;
+
+    bdrv_detach_aio_context(s->test_file);
+}
+
+static void blkverify_attach_aio_context(BlockDriverState *bs,
+                                         AioContext *new_context)
+{
+    BDRVBlkverifyState *s = bs->opaque;
+
+    bdrv_attach_aio_context(s->test_file, new_context);
+}
+
 static BlockDriver bdrv_blkverify = {
-    .format_name            = "blkverify",
-    .protocol_name          = "blkverify",
-    .instance_size          = sizeof(BDRVBlkverifyState),
+    .format_name                      = "blkverify",
+    .protocol_name                    = "blkverify",
+    .instance_size                    = sizeof(BDRVBlkverifyState),
 
-    .bdrv_parse_filename    = blkverify_parse_filename,
-    .bdrv_file_open         = blkverify_open,
-    .bdrv_close             = blkverify_close,
-    .bdrv_getlength         = blkverify_getlength,
+    .bdrv_parse_filename              = blkverify_parse_filename,
+    .bdrv_file_open                   = blkverify_open,
+    .bdrv_close                       = blkverify_close,
+    .bdrv_getlength                   = blkverify_getlength,
 
-    .bdrv_aio_readv         = blkverify_aio_readv,
-    .bdrv_aio_writev        = blkverify_aio_writev,
-    .bdrv_aio_flush         = blkverify_aio_flush,
+    .bdrv_aio_readv                   = blkverify_aio_readv,
+    .bdrv_aio_writev                  = blkverify_aio_writev,
+    .bdrv_aio_flush                   = blkverify_aio_flush,
 
-    .is_filter              = true,
+    .bdrv_attach_aio_context          = blkverify_attach_aio_context,
+    .bdrv_detach_aio_context          = blkverify_detach_aio_context,
+
+    .is_filter                        = true,
     .bdrv_recurse_is_first_non_filter = blkverify_recurse_is_first_non_filter,
 };
 

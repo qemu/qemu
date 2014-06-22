@@ -46,6 +46,8 @@
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510
 #define TBFREQ 16600000UL
+#define CLOCKFREQ 266000000UL
+#define BUSFREQ 66000000UL
 
 static int fw_cfg_boot_set(void *opaque, const char *boot_device)
 {
@@ -337,7 +339,8 @@ static void ppc_heathrow_init(MachineState *machine)
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, TBFREQ);
     }
     /* Mac OS X requires a "known good" clock-frequency value; pass it one. */
-    fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_CLOCKFREQ, 266000000);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_CLOCKFREQ, CLOCKFREQ);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_BUSFREQ, BUSFREQ);
 
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }

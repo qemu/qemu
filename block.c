@@ -179,6 +179,7 @@ void bdrv_io_limits_enable(BlockDriverState *bs)
 {
     assert(!bs->io_limits_enabled);
     throttle_init(&bs->throttle_state,
+                  bdrv_get_aio_context(bs),
                   QEMU_CLOCK_VIRTUAL,
                   bdrv_throttle_read_timer_cb,
                   bdrv_throttle_write_timer_cb,
@@ -363,6 +364,7 @@ BlockDriverState *bdrv_new(const char *device_name, Error **errp)
     qemu_co_queue_init(&bs->throttled_reqs[0]);
     qemu_co_queue_init(&bs->throttled_reqs[1]);
     bs->refcnt = 1;
+    bs->aio_context = qemu_get_aio_context();
 
     return bs;
 }
@@ -422,7 +424,7 @@ BlockDriver *bdrv_find_whitelisted_format(const char *format_name,
 typedef struct CreateCo {
     BlockDriver *drv;
     char *filename;
-    QEMUOptionParameter *options;
+    QemuOpts *opts;
     int ret;
     Error *err;
 } CreateCo;
@@ -435,7 +437,7 @@ static void coroutine_fn bdrv_create_co_entry(void *opaque)
     CreateCo *cco = opaque;
     assert(cco->drv);
 
-    ret = cco->drv->bdrv_create(cco->filename, cco->options, &local_err);
+    ret = cco->drv->bdrv_create(cco->filename, cco->opts, &local_err);
     if (local_err) {
         error_propagate(&cco->err, local_err);
     }
@@ -443,7 +445,7 @@ static void coroutine_fn bdrv_create_co_entry(void *opaque)
 }
 
 int bdrv_create(BlockDriver *drv, const char* filename,
-    QEMUOptionParameter *options, Error **errp)
+                QemuOpts *opts, Error **errp)
 {
     int ret;
 
@@ -451,7 +453,7 @@ int bdrv_create(BlockDriver *drv, const char* filename,
     CreateCo cco = {
         .drv = drv,
         .filename = g_strdup(filename),
-        .options = options,
+        .opts = opts,
         .ret = NOT_DONE,
         .err = NULL,
     };
@@ -487,8 +489,7 @@ out:
     return ret;
 }
 
-int bdrv_create_file(const char* filename, QEMUOptionParameter *options,
-                     Error **errp)
+int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp)
 {
     BlockDriver *drv;
     Error *local_err = NULL;
@@ -500,7 +501,7 @@ int bdrv_create_file(const char* filename, QEMUOptionParameter *options,
         return -ENOENT;
     }
 
-    ret = bdrv_create(drv, filename, options, &local_err);
+    ret = bdrv_create(drv, filename, opts, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
     }
@@ -1245,7 +1246,7 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     char *tmp_filename = g_malloc0(PATH_MAX + 1);
     int64_t total_size;
     BlockDriver *bdrv_qcow2;
-    QEMUOptionParameter *create_options;
+    QemuOpts *opts = NULL;
     QDict *snapshot_options;
     BlockDriverState *bs_snapshot;
     Error *local_err;
@@ -1270,13 +1271,11 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     }
 
     bdrv_qcow2 = bdrv_find_format("qcow2");
-    create_options = parse_option_parameters("", bdrv_qcow2->create_options,
-                                             NULL);
-
-    set_option_parameter_int(create_options, BLOCK_OPT_SIZE, total_size);
-
-    ret = bdrv_create(bdrv_qcow2, tmp_filename, create_options, &local_err);
-    free_option_parameters(create_options);
+    opts = qemu_opts_create(bdrv_qcow2->create_opts, NULL, 0,
+                            &error_abort);
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_size);
+    ret = bdrv_create(bdrv_qcow2, tmp_filename, opts, &local_err);
+    qemu_opts_del(opts);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not create temporary overlay "
                          "'%s': %s", tmp_filename,
@@ -1856,7 +1855,11 @@ void bdrv_close_all(void)
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(aio_context);
         bdrv_close(bs);
+        aio_context_release(aio_context);
     }
 }
 
@@ -1881,17 +1884,6 @@ static bool bdrv_requests_pending(BlockDriverState *bs)
     return false;
 }
 
-static bool bdrv_requests_pending_all(void)
-{
-    BlockDriverState *bs;
-    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-        if (bdrv_requests_pending(bs)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 /*
  * Wait for pending requests to complete across all BlockDriverStates
  *
@@ -1911,12 +1903,20 @@ void bdrv_drain_all(void)
     BlockDriverState *bs;
 
     while (busy) {
-        QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-            bdrv_start_throttled_reqs(bs);
-        }
+        busy = false;
 
-        busy = bdrv_requests_pending_all();
-        busy |= aio_poll(qemu_get_aio_context(), busy);
+        QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+            AioContext *aio_context = bdrv_get_aio_context(bs);
+            bool bs_busy;
+
+            aio_context_acquire(aio_context);
+            bdrv_start_throttled_reqs(bs);
+            bs_busy = bdrv_requests_pending(bs);
+            bs_busy |= aio_poll(aio_context, bs_busy);
+            aio_context_release(aio_context);
+
+            busy |= bs_busy;
+        }
     }
 }
 
@@ -2352,12 +2352,17 @@ int bdrv_commit_all(void)
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(aio_context);
         if (bs->drv && bs->backing_hd) {
             int ret = bdrv_commit(bs);
             if (ret < 0) {
+                aio_context_release(aio_context);
                 return ret;
             }
         }
+        aio_context_release(aio_context);
     }
     return 0;
 }
@@ -2775,10 +2780,12 @@ static int bdrv_prwv_co(BlockDriverState *bs, int64_t offset,
         /* Fast-path if already in coroutine context */
         bdrv_rw_co_entry(&rwco);
     } else {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
         co = qemu_coroutine_create(bdrv_rw_co_entry);
         qemu_coroutine_enter(co, &rwco);
         while (rwco.ret == NOT_DONE) {
-            qemu_aio_wait();
+            aio_poll(aio_context, true);
         }
     }
     return rwco.ret;
@@ -3831,10 +3838,15 @@ int bdrv_flush_all(void)
     int result = 0;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-        int ret = bdrv_flush(bs);
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+        int ret;
+
+        aio_context_acquire(aio_context);
+        ret = bdrv_flush(bs);
         if (ret < 0 && !result) {
             result = ret;
         }
+        aio_context_release(aio_context);
     }
 
     return result;
@@ -4025,10 +4037,12 @@ int64_t bdrv_get_block_status(BlockDriverState *bs, int64_t sector_num,
         /* Fast-path if already in coroutine context */
         bdrv_get_block_status_co_entry(&data);
     } else {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
         co = qemu_coroutine_create(bdrv_get_block_status_co_entry);
         qemu_coroutine_enter(co, &data);
         while (!data.done) {
-            qemu_aio_wait();
+            aio_poll(aio_context, true);
         }
     }
     return data.ret;
@@ -4621,7 +4635,7 @@ static BlockDriverAIOCB *bdrv_aio_rw_vector(BlockDriverState *bs,
     acb->is_write = is_write;
     acb->qiov = qiov;
     acb->bounce = qemu_blockalign(bs, qiov->size);
-    acb->bh = qemu_bh_new(bdrv_aio_bh_cb, acb);
+    acb->bh = aio_bh_new(bdrv_get_aio_context(bs), bdrv_aio_bh_cb, acb);
 
     if (is_write) {
         qemu_iovec_to_buf(acb->qiov, 0, acb->bounce, qiov->size);
@@ -4660,13 +4674,14 @@ typedef struct BlockDriverAIOCBCoroutine {
 
 static void bdrv_aio_co_cancel_em(BlockDriverAIOCB *blockacb)
 {
+    AioContext *aio_context = bdrv_get_aio_context(blockacb->bs);
     BlockDriverAIOCBCoroutine *acb =
         container_of(blockacb, BlockDriverAIOCBCoroutine, common);
     bool done = false;
 
     acb->done = &done;
     while (!done) {
-        qemu_aio_wait();
+        aio_poll(aio_context, true);
     }
 }
 
@@ -4703,7 +4718,7 @@ static void coroutine_fn bdrv_co_do_rw(void *opaque)
             acb->req.nb_sectors, acb->req.qiov, acb->req.flags);
     }
 
-    acb->bh = qemu_bh_new(bdrv_co_em_bh, acb);
+    acb->bh = aio_bh_new(bdrv_get_aio_context(bs), bdrv_co_em_bh, acb);
     qemu_bh_schedule(acb->bh);
 }
 
@@ -4739,7 +4754,7 @@ static void coroutine_fn bdrv_aio_flush_co_entry(void *opaque)
     BlockDriverState *bs = acb->common.bs;
 
     acb->req.error = bdrv_co_flush(bs);
-    acb->bh = qemu_bh_new(bdrv_co_em_bh, acb);
+    acb->bh = aio_bh_new(bdrv_get_aio_context(bs), bdrv_co_em_bh, acb);
     qemu_bh_schedule(acb->bh);
 }
 
@@ -4766,7 +4781,7 @@ static void coroutine_fn bdrv_aio_discard_co_entry(void *opaque)
     BlockDriverState *bs = acb->common.bs;
 
     acb->req.error = bdrv_co_discard(bs, acb->req.sector, acb->req.nb_sectors);
-    acb->bh = qemu_bh_new(bdrv_co_em_bh, acb);
+    acb->bh = aio_bh_new(bdrv_get_aio_context(bs), bdrv_co_em_bh, acb);
     qemu_bh_schedule(acb->bh);
 }
 
@@ -4977,7 +4992,11 @@ void bdrv_invalidate_cache_all(Error **errp)
     Error *local_err = NULL;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(aio_context);
         bdrv_invalidate_cache(bs, &local_err);
+        aio_context_release(aio_context);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
@@ -4990,7 +5009,11 @@ void bdrv_clear_incoming_migration_all(void)
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(aio_context);
         bs->open_flags = bs->open_flags & ~(BDRV_O_INCOMING);
+        aio_context_release(aio_context);
     }
 }
 
@@ -5006,10 +5029,12 @@ int bdrv_flush(BlockDriverState *bs)
         /* Fast-path if already in coroutine context */
         bdrv_flush_co_entry(&rwco);
     } else {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
         co = qemu_coroutine_create(bdrv_flush_co_entry);
         qemu_coroutine_enter(co, &rwco);
         while (rwco.ret == NOT_DONE) {
-            qemu_aio_wait();
+            aio_poll(aio_context, true);
         }
     }
 
@@ -5119,10 +5144,12 @@ int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
         /* Fast-path if already in coroutine context */
         bdrv_discard_co_entry(&rwco);
     } else {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
         co = qemu_coroutine_create(bdrv_discard_co_entry);
         qemu_coroutine_enter(co, &rwco);
         while (rwco.ret == NOT_DONE) {
-            qemu_aio_wait();
+            aio_poll(aio_context, true);
         }
     }
 
@@ -5489,8 +5516,10 @@ void bdrv_img_create(const char *filename, const char *fmt,
                      char *options, uint64_t img_size, int flags,
                      Error **errp, bool quiet)
 {
-    QEMUOptionParameter *param = NULL, *create_options = NULL;
-    QEMUOptionParameter *backing_fmt, *backing_file, *size;
+    QemuOptsList *create_opts = NULL;
+    QemuOpts *opts = NULL;
+    const char *backing_fmt, *backing_file;
+    int64_t size;
     BlockDriver *drv, *proto_drv;
     BlockDriver *backing_drv = NULL;
     Error *local_err = NULL;
@@ -5509,28 +5538,23 @@ void bdrv_img_create(const char *filename, const char *fmt,
         return;
     }
 
-    create_options = append_option_parameters(create_options,
-                                              drv->create_options);
-    create_options = append_option_parameters(create_options,
-                                              proto_drv->create_options);
+    create_opts = qemu_opts_append(create_opts, drv->create_opts);
+    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
 
     /* Create parameter list with default values */
-    param = parse_option_parameters("", create_options, param);
-
-    set_option_parameter_int(param, BLOCK_OPT_SIZE, img_size);
+    opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, img_size);
 
     /* Parse -o options */
     if (options) {
-        param = parse_option_parameters(options, create_options, param);
-        if (param == NULL) {
-            error_setg(errp, "Invalid options for file format '%s'.", fmt);
+        if (qemu_opts_do_parse(opts, options, NULL) != 0) {
+            error_setg(errp, "Invalid options for file format '%s'", fmt);
             goto out;
         }
     }
 
     if (base_filename) {
-        if (set_option_parameter(param, BLOCK_OPT_BACKING_FILE,
-                                 base_filename)) {
+        if (qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, base_filename)) {
             error_setg(errp, "Backing file not supported for file format '%s'",
                        fmt);
             goto out;
@@ -5538,37 +5562,37 @@ void bdrv_img_create(const char *filename, const char *fmt,
     }
 
     if (base_fmt) {
-        if (set_option_parameter(param, BLOCK_OPT_BACKING_FMT, base_fmt)) {
+        if (qemu_opt_set(opts, BLOCK_OPT_BACKING_FMT, base_fmt)) {
             error_setg(errp, "Backing file format not supported for file "
                              "format '%s'", fmt);
             goto out;
         }
     }
 
-    backing_file = get_option_parameter(param, BLOCK_OPT_BACKING_FILE);
-    if (backing_file && backing_file->value.s) {
-        if (!strcmp(filename, backing_file->value.s)) {
+    backing_file = qemu_opt_get(opts, BLOCK_OPT_BACKING_FILE);
+    if (backing_file) {
+        if (!strcmp(filename, backing_file)) {
             error_setg(errp, "Error: Trying to create an image with the "
                              "same filename as the backing file");
             goto out;
         }
     }
 
-    backing_fmt = get_option_parameter(param, BLOCK_OPT_BACKING_FMT);
-    if (backing_fmt && backing_fmt->value.s) {
-        backing_drv = bdrv_find_format(backing_fmt->value.s);
+    backing_fmt = qemu_opt_get(opts, BLOCK_OPT_BACKING_FMT);
+    if (backing_fmt) {
+        backing_drv = bdrv_find_format(backing_fmt);
         if (!backing_drv) {
             error_setg(errp, "Unknown backing file format '%s'",
-                       backing_fmt->value.s);
+                       backing_fmt);
             goto out;
         }
     }
 
     // The size for the image must always be specified, with one exception:
     // If we are using a backing file, we can obtain the size from there
-    size = get_option_parameter(param, BLOCK_OPT_SIZE);
-    if (size && size->value.n == -1) {
-        if (backing_file && backing_file->value.s) {
+    size = qemu_opt_get_size(opts, BLOCK_OPT_SIZE, 0);
+    if (size == -1) {
+        if (backing_file) {
             BlockDriverState *bs;
             uint64_t size;
             char buf[32];
@@ -5579,11 +5603,11 @@ void bdrv_img_create(const char *filename, const char *fmt,
                 flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
             bs = NULL;
-            ret = bdrv_open(&bs, backing_file->value.s, NULL, NULL, back_flags,
+            ret = bdrv_open(&bs, backing_file, NULL, NULL, back_flags,
                             backing_drv, &local_err);
             if (ret < 0) {
                 error_setg_errno(errp, -ret, "Could not open '%s': %s",
-                                 backing_file->value.s,
+                                 backing_file,
                                  error_get_pretty(local_err));
                 error_free(local_err);
                 local_err = NULL;
@@ -5593,7 +5617,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
             size *= 512;
 
             snprintf(buf, sizeof(buf), "%" PRId64, size);
-            set_option_parameter(param, BLOCK_OPT_SIZE, buf);
+            qemu_opt_set_number(opts, BLOCK_OPT_SIZE, size);
 
             bdrv_unref(bs);
         } else {
@@ -5604,16 +5628,18 @@ void bdrv_img_create(const char *filename, const char *fmt,
 
     if (!quiet) {
         printf("Formatting '%s', fmt=%s ", filename, fmt);
-        print_option_parameters(param);
+        qemu_opts_print(opts);
         puts("");
     }
-    ret = bdrv_create(drv, filename, param, &local_err);
+
+    ret = bdrv_create(drv, filename, opts, &local_err);
+
     if (ret == -EFBIG) {
         /* This is generally a better message than whatever the driver would
          * deliver (especially because of the cluster_size_hint), since that
          * is most probably not much different from "image too large". */
         const char *cluster_size_hint = "";
-        if (get_option_parameter(create_options, BLOCK_OPT_CLUSTER_SIZE)) {
+        if (qemu_opt_get_size(opts, BLOCK_OPT_CLUSTER_SIZE, 0)) {
             cluster_size_hint = " (try using a larger cluster size)";
         }
         error_setg(errp, "The image size is too large for file format '%s'"
@@ -5623,9 +5649,8 @@ void bdrv_img_create(const char *filename, const char *fmt,
     }
 
 out:
-    free_option_parameters(create_options);
-    free_option_parameters(param);
-
+    qemu_opts_del(opts);
+    qemu_opts_free(create_opts);
     if (local_err) {
         error_propagate(errp, local_err);
     }
@@ -5633,8 +5658,66 @@ out:
 
 AioContext *bdrv_get_aio_context(BlockDriverState *bs)
 {
-    /* Currently BlockDriverState always uses the main loop AioContext */
-    return qemu_get_aio_context();
+    return bs->aio_context;
+}
+
+void bdrv_detach_aio_context(BlockDriverState *bs)
+{
+    if (!bs->drv) {
+        return;
+    }
+
+    if (bs->io_limits_enabled) {
+        throttle_detach_aio_context(&bs->throttle_state);
+    }
+    if (bs->drv->bdrv_detach_aio_context) {
+        bs->drv->bdrv_detach_aio_context(bs);
+    }
+    if (bs->file) {
+        bdrv_detach_aio_context(bs->file);
+    }
+    if (bs->backing_hd) {
+        bdrv_detach_aio_context(bs->backing_hd);
+    }
+
+    bs->aio_context = NULL;
+}
+
+void bdrv_attach_aio_context(BlockDriverState *bs,
+                             AioContext *new_context)
+{
+    if (!bs->drv) {
+        return;
+    }
+
+    bs->aio_context = new_context;
+
+    if (bs->backing_hd) {
+        bdrv_attach_aio_context(bs->backing_hd, new_context);
+    }
+    if (bs->file) {
+        bdrv_attach_aio_context(bs->file, new_context);
+    }
+    if (bs->drv->bdrv_attach_aio_context) {
+        bs->drv->bdrv_attach_aio_context(bs, new_context);
+    }
+    if (bs->io_limits_enabled) {
+        throttle_attach_aio_context(&bs->throttle_state, new_context);
+    }
+}
+
+void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
+{
+    bdrv_drain_all(); /* ensure there are no in-flight requests */
+
+    bdrv_detach_aio_context(bs);
+
+    /* This function executes in the old AioContext so acquire the new one in
+     * case it runs in a different thread.
+     */
+    aio_context_acquire(new_context);
+    bdrv_attach_aio_context(bs, new_context);
+    aio_context_release(new_context);
 }
 
 void bdrv_add_before_write_notifier(BlockDriverState *bs,
@@ -5643,12 +5726,12 @@ void bdrv_add_before_write_notifier(BlockDriverState *bs,
     notifier_with_return_list_add(&bs->before_write_notifiers, notifier);
 }
 
-int bdrv_amend_options(BlockDriverState *bs, QEMUOptionParameter *options)
+int bdrv_amend_options(BlockDriverState *bs, QemuOpts *opts)
 {
-    if (bs->drv->bdrv_amend_options == NULL) {
+    if (!bs->drv->bdrv_amend_options) {
         return -ENOTSUP;
     }
-    return bs->drv->bdrv_amend_options(bs, options);
+    return bs->drv->bdrv_amend_options(bs, opts);
 }
 
 /* This function will be called by the bdrv_recurse_is_first_non_filter method

@@ -117,6 +117,16 @@ static int flic_enqueue_irqs(void *buf, uint64_t len,
     return rc ? -errno : 0;
 }
 
+int kvm_s390_inject_flic(struct kvm_s390_irq *irq)
+{
+    static KVMS390FLICState *flic;
+
+    if (unlikely(!flic)) {
+        flic = KVM_S390_FLIC(s390_get_flic());
+    }
+    return flic_enqueue_irqs(irq, sizeof(*irq), flic);
+}
+
 /**
  * __get_all_irqs - store all pending irqs in buffer
  * @flic: pointer to flic device state
@@ -170,7 +180,8 @@ static int kvm_s390_register_io_adapter(S390FLICState *fs, uint32_t id,
     };
 
     if (!kvm_check_extension(kvm_state, KVM_CAP_IRQ_ROUTING)) {
-        return -ENOSYS;
+        /* nothing to do */
+        return 0;
     }
 
     r = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
@@ -195,7 +206,8 @@ static int kvm_s390_io_adapter_map(S390FLICState *fs, uint32_t id,
     int r;
 
     if (!kvm_check_extension(kvm_state, KVM_CAP_IRQ_ROUTING)) {
-        return -ENOSYS;
+        /* nothing to do */
+        return 0;
     }
 
     r = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);

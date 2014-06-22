@@ -27,6 +27,17 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
 
+int kvm_arm_vcpu_init(CPUState *cs)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    struct kvm_vcpu_init init;
+
+    init.target = cpu->kvm_target;
+    memcpy(init.features, cpu->kvm_init_features, sizeof(init.features));
+
+    return kvm_vcpu_ioctl(cs, KVM_ARM_VCPU_INIT, &init);
+}
+
 bool kvm_arm_create_scratch_host_vcpu(const uint32_t *cpus_to_try,
                                       int *fdarray,
                                       struct kvm_vcpu_init *init)

@@ -22,6 +22,7 @@
 
 #include "qemu/throttle.h"
 #include "qemu/timer.h"
+#include "block/aio.h"
 
 /* This function make a bucket leak
  *
@@ -157,8 +158,18 @@ bool throttle_compute_timer(ThrottleState *ts,
     return false;
 }
 
+/* Add timers to event loop */
+void throttle_attach_aio_context(ThrottleState *ts, AioContext *new_context)
+{
+    ts->timers[0] = aio_timer_new(new_context, ts->clock_type, SCALE_NS,
+                                  ts->read_timer_cb, ts->timer_opaque);
+    ts->timers[1] = aio_timer_new(new_context, ts->clock_type, SCALE_NS,
+                                  ts->write_timer_cb, ts->timer_opaque);
+}
+
 /* To be called first on the ThrottleState */
 void throttle_init(ThrottleState *ts,
+                   AioContext *aio_context,
                    QEMUClockType clock_type,
                    QEMUTimerCB *read_timer_cb,
                    QEMUTimerCB *write_timer_cb,
@@ -167,8 +178,10 @@ void throttle_init(ThrottleState *ts,
     memset(ts, 0, sizeof(ThrottleState));
 
     ts->clock_type = clock_type;
-    ts->timers[0] = timer_new_ns(clock_type, read_timer_cb, timer_opaque);
-    ts->timers[1] = timer_new_ns(clock_type, write_timer_cb, timer_opaque);
+    ts->read_timer_cb = read_timer_cb;
+    ts->write_timer_cb = write_timer_cb;
+    ts->timer_opaque = timer_opaque;
+    throttle_attach_aio_context(ts, aio_context);
 }
 
 /* destroy a timer */
@@ -181,14 +194,20 @@ static void throttle_timer_destroy(QEMUTimer **timer)
     *timer = NULL;
 }
 
-/* To be called last on the ThrottleState */
-void throttle_destroy(ThrottleState *ts)
+/* Remove timers from event loop */
+void throttle_detach_aio_context(ThrottleState *ts)
 {
     int i;
 
     for (i = 0; i < 2; i++) {
         throttle_timer_destroy(&ts->timers[i]);
     }
+}
+
+/* To be called last on the ThrottleState */
+void throttle_destroy(ThrottleState *ts)
+{
+    throttle_detach_aio_context(ts);
 }
 
 /* is any throttling timer configured */

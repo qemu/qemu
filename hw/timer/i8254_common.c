@@ -180,7 +180,6 @@ static const VMStateDescription vmstate_pit_channel = {
     .name = "pit channel",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(count, PITChannelState),
         VMSTATE_UINT16(latched_count, PITChannelState),

@@ -15,6 +15,7 @@
 
 #include "net/net.h"
 #include "net/tap.h"
+#include "net/vhost-user.h"
 
 #include "hw/virtio/virtio-net.h"
 #include "net/vhost_net.h"
@@ -27,7 +28,6 @@
 #include <sys/socket.h>
 #include <linux/kvm.h>
 #include <fcntl.h>
-#include <sys/ioctl.h>
 #include <linux/virtio_ring.h>
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
@@ -46,39 +46,76 @@ struct vhost_net {
     NetClientState *nc;
 };
 
+/* Features supported by host kernel. */
+static const int kernel_feature_bits[] = {
+    VIRTIO_F_NOTIFY_ON_EMPTY,
+    VIRTIO_RING_F_INDIRECT_DESC,
+    VIRTIO_RING_F_EVENT_IDX,
+    VIRTIO_NET_F_MRG_RXBUF,
+    VHOST_INVALID_FEATURE_BIT
+};
+
+/* Features supported by others. */
+const int user_feature_bits[] = {
+    VIRTIO_F_NOTIFY_ON_EMPTY,
+    VIRTIO_RING_F_INDIRECT_DESC,
+    VIRTIO_RING_F_EVENT_IDX,
+
+    VIRTIO_F_ANY_LAYOUT,
+    VIRTIO_NET_F_CSUM,
+    VIRTIO_NET_F_GUEST_CSUM,
+    VIRTIO_NET_F_GSO,
+    VIRTIO_NET_F_GUEST_TSO4,
+    VIRTIO_NET_F_GUEST_TSO6,
+    VIRTIO_NET_F_GUEST_ECN,
+    VIRTIO_NET_F_GUEST_UFO,
+    VIRTIO_NET_F_HOST_TSO4,
+    VIRTIO_NET_F_HOST_TSO6,
+    VIRTIO_NET_F_HOST_ECN,
+    VIRTIO_NET_F_HOST_UFO,
+    VIRTIO_NET_F_MRG_RXBUF,
+    VIRTIO_NET_F_STATUS,
+    VIRTIO_NET_F_CTRL_VQ,
+    VIRTIO_NET_F_CTRL_RX,
+    VIRTIO_NET_F_CTRL_VLAN,
+    VIRTIO_NET_F_CTRL_RX_EXTRA,
+    VIRTIO_NET_F_CTRL_MAC_ADDR,
+    VIRTIO_NET_F_CTRL_GUEST_OFFLOADS,
+
+    VIRTIO_NET_F_MQ,
+
+    VHOST_INVALID_FEATURE_BIT
+};
+
+static const int *vhost_net_get_feature_bits(struct vhost_net *net)
+{
+    const int *feature_bits = 0;
+
+    switch (net->nc->info->type) {
+    case NET_CLIENT_OPTIONS_KIND_TAP:
+        feature_bits = kernel_feature_bits;
+        break;
+    case NET_CLIENT_OPTIONS_KIND_VHOST_USER:
+        feature_bits = user_feature_bits;
+        break;
+    default:
+        error_report("Feature bits not defined for this type: %d",
+                net->nc->info->type);
+        break;
+    }
+
+    return feature_bits;
+}
+
 unsigned vhost_net_get_features(struct vhost_net *net, unsigned features)
 {
-    /* Clear features not supported by host kernel. */
-    if (!(net->dev.features & (1 << VIRTIO_F_NOTIFY_ON_EMPTY))) {
-        features &= ~(1 << VIRTIO_F_NOTIFY_ON_EMPTY);
-    }
-    if (!(net->dev.features & (1 << VIRTIO_RING_F_INDIRECT_DESC))) {
-        features &= ~(1 << VIRTIO_RING_F_INDIRECT_DESC);
-    }
-    if (!(net->dev.features & (1 << VIRTIO_RING_F_EVENT_IDX))) {
-        features &= ~(1 << VIRTIO_RING_F_EVENT_IDX);
-    }
-    if (!(net->dev.features & (1 << VIRTIO_NET_F_MRG_RXBUF))) {
-        features &= ~(1 << VIRTIO_NET_F_MRG_RXBUF);
-    }
-    return features;
+    return vhost_get_features(&net->dev, vhost_net_get_feature_bits(net),
+            features);
 }
 
 void vhost_net_ack_features(struct vhost_net *net, unsigned features)
 {
-    net->dev.acked_features = net->dev.backend_features;
-    if (features & (1 << VIRTIO_F_NOTIFY_ON_EMPTY)) {
-        net->dev.acked_features |= (1 << VIRTIO_F_NOTIFY_ON_EMPTY);
-    }
-    if (features & (1 << VIRTIO_RING_F_INDIRECT_DESC)) {
-        net->dev.acked_features |= (1 << VIRTIO_RING_F_INDIRECT_DESC);
-    }
-    if (features & (1 << VIRTIO_RING_F_EVENT_IDX)) {
-        net->dev.acked_features |= (1 << VIRTIO_RING_F_EVENT_IDX);
-    }
-    if (features & (1 << VIRTIO_NET_F_MRG_RXBUF)) {
-        net->dev.acked_features |= (1 << VIRTIO_NET_F_MRG_RXBUF);
-    }
+    vhost_ack_features(&net->dev, vhost_net_get_feature_bits(net), features);
 }
 
 static int vhost_net_get_fd(NetClientState *backend)
@@ -92,42 +129,52 @@ static int vhost_net_get_fd(NetClientState *backend)
     }
 }
 
-struct vhost_net *vhost_net_init(NetClientState *backend, int devfd,
-                                 bool force)
+struct vhost_net *vhost_net_init(VhostNetOptions *options)
 {
     int r;
+    bool backend_kernel = options->backend_type == VHOST_BACKEND_TYPE_KERNEL;
     struct vhost_net *net = g_malloc(sizeof *net);
-    if (!backend) {
-        fprintf(stderr, "vhost-net requires backend to be setup\n");
+
+    if (!options->net_backend) {
+        fprintf(stderr, "vhost-net requires net backend to be setup\n");
         goto fail;
     }
-    r = vhost_net_get_fd(backend);
-    if (r < 0) {
-        goto fail;
+
+    if (backend_kernel) {
+        r = vhost_net_get_fd(options->net_backend);
+        if (r < 0) {
+            goto fail;
+        }
+        net->dev.backend_features = qemu_has_vnet_hdr(options->net_backend)
+            ? 0 : (1 << VHOST_NET_F_VIRTIO_NET_HDR);
+        net->backend = r;
+    } else {
+        net->dev.backend_features = 0;
+        net->backend = -1;
     }
-    net->nc = backend;
-    net->dev.backend_features = qemu_has_vnet_hdr(backend) ? 0 :
-        (1 << VHOST_NET_F_VIRTIO_NET_HDR);
-    net->backend = r;
+    net->nc = options->net_backend;
 
     net->dev.nvqs = 2;
     net->dev.vqs = net->vqs;
 
-    r = vhost_dev_init(&net->dev, devfd, "/dev/vhost-net", force);
+    r = vhost_dev_init(&net->dev, options->opaque,
+                       options->backend_type, options->force);
     if (r < 0) {
         goto fail;
     }
-    if (!qemu_has_vnet_hdr_len(backend,
+    if (!qemu_has_vnet_hdr_len(options->net_backend,
                                sizeof(struct virtio_net_hdr_mrg_rxbuf))) {
         net->dev.features &= ~(1 << VIRTIO_NET_F_MRG_RXBUF);
     }
-    if (~net->dev.features & net->dev.backend_features) {
-        fprintf(stderr, "vhost lacks feature mask %" PRIu64 " for backend\n",
-                (uint64_t)(~net->dev.features & net->dev.backend_features));
-        vhost_dev_cleanup(&net->dev);
-        goto fail;
+    if (backend_kernel) {
+        if (~net->dev.features & net->dev.backend_features) {
+            fprintf(stderr, "vhost lacks feature mask %" PRIu64
+                   " for backend\n",
+                   (uint64_t)(~net->dev.features & net->dev.backend_features));
+            vhost_dev_cleanup(&net->dev);
+            goto fail;
+        }
     }
-
     /* Set sane init value. Override when guest acks. */
     vhost_net_ack_features(net, 0);
     return net;
@@ -166,24 +213,37 @@ static int vhost_net_start_one(struct vhost_net *net,
         goto fail_start;
     }
 
-    net->nc->info->poll(net->nc, false);
-    qemu_set_fd_handler(net->backend, NULL, NULL, NULL);
-    file.fd = net->backend;
-    for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
-        r = ioctl(net->dev.control, VHOST_NET_SET_BACKEND, &file);
-        if (r < 0) {
-            r = -errno;
-            goto fail;
+    if (net->nc->info->poll) {
+        net->nc->info->poll(net->nc, false);
+    }
+
+    if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP) {
+        qemu_set_fd_handler(net->backend, NULL, NULL, NULL);
+        file.fd = net->backend;
+        for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
+            const VhostOps *vhost_ops = net->dev.vhost_ops;
+            r = vhost_ops->vhost_call(&net->dev, VHOST_NET_SET_BACKEND,
+                                      &file);
+            if (r < 0) {
+                r = -errno;
+                goto fail;
+            }
         }
     }
     return 0;
 fail:
     file.fd = -1;
-    while (file.index-- > 0) {
-        int r = ioctl(net->dev.control, VHOST_NET_SET_BACKEND, &file);
-        assert(r >= 0);
+    if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP) {
+        while (file.index-- > 0) {
+            const VhostOps *vhost_ops = net->dev.vhost_ops;
+            int r = vhost_ops->vhost_call(&net->dev, VHOST_NET_SET_BACKEND,
+                                          &file);
+            assert(r >= 0);
+        }
     }
-    net->nc->info->poll(net->nc, true);
+    if (net->nc->info->poll) {
+        net->nc->info->poll(net->nc, true);
+    }
     vhost_dev_stop(&net->dev, dev);
 fail_start:
     vhost_dev_disable_notifiers(&net->dev, dev);
@@ -200,11 +260,17 @@ static void vhost_net_stop_one(struct vhost_net *net,
         return;
     }
 
-    for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
-        int r = ioctl(net->dev.control, VHOST_NET_SET_BACKEND, &file);
-        assert(r >= 0);
+    if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP) {
+        for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
+            const VhostOps *vhost_ops = net->dev.vhost_ops;
+            int r = vhost_ops->vhost_call(&net->dev, VHOST_NET_SET_BACKEND,
+                                          &file);
+            assert(r >= 0);
+        }
     }
-    net->nc->info->poll(net->nc, true);
+    if (net->nc->info->poll) {
+        net->nc->info->poll(net->nc, true);
+    }
     vhost_dev_stop(&net->dev, dev);
     vhost_dev_disable_notifiers(&net->dev, dev);
 }
@@ -224,7 +290,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     }
 
     for (i = 0; i < total_queues; i++) {
-        r = vhost_net_start_one(tap_get_vhost_net(ncs[i].peer), dev, i * 2);
+        r = vhost_net_start_one(get_vhost_net(ncs[i].peer), dev, i * 2);
 
         if (r < 0) {
             goto err;
@@ -241,7 +307,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
 
 err:
     while (--i >= 0) {
-        vhost_net_stop_one(tap_get_vhost_net(ncs[i].peer), dev);
+        vhost_net_stop_one(get_vhost_net(ncs[i].peer), dev);
     }
     return r;
 }
@@ -262,7 +328,7 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
     assert(r >= 0);
 
     for (i = 0; i < total_queues; i++) {
-        vhost_net_stop_one(tap_get_vhost_net(ncs[i].peer), dev);
+        vhost_net_stop_one(get_vhost_net(ncs[i].peer), dev);
     }
 }
 
@@ -282,9 +348,30 @@ void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,
 {
     vhost_virtqueue_mask(&net->dev, dev, idx, mask);
 }
+
+VHostNetState *get_vhost_net(NetClientState *nc)
+{
+    VHostNetState *vhost_net = 0;
+
+    if (!nc) {
+        return 0;
+    }
+
+    switch (nc->info->type) {
+    case NET_CLIENT_OPTIONS_KIND_TAP:
+        vhost_net = tap_get_vhost_net(nc);
+        break;
+    case NET_CLIENT_OPTIONS_KIND_VHOST_USER:
+        vhost_net = vhost_user_get_vhost_net(nc);
+        break;
+    default:
+        break;
+    }
+
+    return vhost_net;
+}
 #else
-struct vhost_net *vhost_net_init(NetClientState *backend, int devfd,
-                                 bool force)
+struct vhost_net *vhost_net_init(VhostNetOptions *options)
 {
     error_report("vhost-net support is not compiled in");
     return NULL;
@@ -327,5 +414,10 @@ bool vhost_net_virtqueue_pending(VHostNetState *net, int idx)
 void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,
                               int idx, bool mask)
 {
+}
+
+VHostNetState *get_vhost_net(NetClientState *nc)
+{
+    return 0;
 }
 #endif

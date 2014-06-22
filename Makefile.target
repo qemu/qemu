@@ -64,7 +64,7 @@ endif
 $(QEMU_PROG).stp-installed: $(SRC_PATH)/trace-events
 	$(call quiet-command,$(TRACETOOL) \
 		--format=stap \
-		--backend=$(TRACE_BACKEND) \
+		--backends=$(TRACE_BACKENDS) \
 		--binary=$(bindir)/$(QEMU_PROG) \
 		--target-name=$(TARGET_NAME) \
 		--target-type=$(TARGET_TYPE) \
@@ -73,7 +73,7 @@ $(QEMU_PROG).stp-installed: $(SRC_PATH)/trace-events
 $(QEMU_PROG).stp: $(SRC_PATH)/trace-events
 	$(call quiet-command,$(TRACETOOL) \
 		--format=stap \
-		--backend=$(TRACE_BACKEND) \
+		--backends=$(TRACE_BACKENDS) \
 		--binary=$(realpath .)/$(QEMU_PROG) \
 		--target-name=$(TARGET_NAME) \
 		--target-type=$(TARGET_TYPE) \
@@ -100,6 +100,12 @@ obj-y += disas.o
 obj-$(call notempty,$(TARGET_XML_FILES)) += gdbstub-xml.o
 obj-$(call lnot,$(CONFIG_KVM)) += kvm-stub.o
 
+obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/decContext.o
+obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/decNumber.o
+obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/dpd/decimal32.o
+obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/dpd/decimal64.o
+obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/dpd/decimal128.o
+
 #########################################################
 # Linux user emulator target
 
@@ -117,7 +123,8 @@ endif #CONFIG_LINUX_USER
 
 ifdef CONFIG_BSD_USER
 
-QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ABI_DIR)
+QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ABI_DIR) \
+			 -I$(SRC_PATH)/bsd-user/$(HOST_VARIANT_DIR)
 
 obj-y += bsd-user/
 obj-y += gdbstub.o user-exec.o
@@ -127,7 +134,7 @@ endif #CONFIG_BSD_USER
 #########################################################
 # System emulator target
 ifdef CONFIG_SOFTMMU
-obj-y += arch_init.o cpus.o monitor.o gdbstub.o balloon.o ioport.o
+obj-y += arch_init.o cpus.o monitor.o gdbstub.o balloon.o ioport.o numa.o
 obj-y += qtest.o
 obj-y += hw/
 obj-$(CONFIG_FDT) += device_tree.o

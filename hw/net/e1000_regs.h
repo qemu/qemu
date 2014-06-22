@@ -99,6 +99,12 @@
 #define E1000_DEV_ID_ICH8_IFE_G          0x10C5
 #define E1000_DEV_ID_ICH8_IGP_M          0x104D
 
+/* Device Specific Register Defaults */
+#define E1000_PHY_ID2_82541x 0x380
+#define E1000_PHY_ID2_82544x 0xC30
+#define E1000_PHY_ID2_8254xx_DEFAULT 0xC20 /* 82540x, 82545x, and 82546x */
+#define E1000_PHY_ID2_82573x 0xCC0
+
 /* Register Set. (82543, 82544)
  *
  * Registers are defined to be 32 bits and  should be accessed as 32 bit values.

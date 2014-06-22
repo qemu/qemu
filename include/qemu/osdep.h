@@ -116,6 +116,16 @@ void qemu_anon_ram_free(void *ptr, size_t size);
 #else
 #define QEMU_MADV_MERGEABLE QEMU_MADV_INVALID
 #endif
+#ifdef MADV_UNMERGEABLE
+#define QEMU_MADV_UNMERGEABLE MADV_UNMERGEABLE
+#else
+#define QEMU_MADV_UNMERGEABLE QEMU_MADV_INVALID
+#endif
+#ifdef MADV_DODUMP
+#define QEMU_MADV_DODUMP MADV_DODUMP
+#else
+#define QEMU_MADV_DODUMP QEMU_MADV_INVALID
+#endif
 #ifdef MADV_DONTDUMP
 #define QEMU_MADV_DONTDUMP MADV_DONTDUMP
 #else
@@ -133,6 +143,8 @@ void qemu_anon_ram_free(void *ptr, size_t size);
 #define QEMU_MADV_DONTNEED  POSIX_MADV_DONTNEED
 #define QEMU_MADV_DONTFORK  QEMU_MADV_INVALID
 #define QEMU_MADV_MERGEABLE QEMU_MADV_INVALID
+#define QEMU_MADV_UNMERGEABLE QEMU_MADV_INVALID
+#define QEMU_MADV_DODUMP QEMU_MADV_INVALID
 #define QEMU_MADV_DONTDUMP QEMU_MADV_INVALID
 #define QEMU_MADV_HUGEPAGE  QEMU_MADV_INVALID
 
@@ -142,6 +154,8 @@ void qemu_anon_ram_free(void *ptr, size_t size);
 #define QEMU_MADV_DONTNEED  QEMU_MADV_INVALID
 #define QEMU_MADV_DONTFORK  QEMU_MADV_INVALID
 #define QEMU_MADV_MERGEABLE QEMU_MADV_INVALID
+#define QEMU_MADV_UNMERGEABLE QEMU_MADV_INVALID
+#define QEMU_MADV_DODUMP QEMU_MADV_INVALID
 #define QEMU_MADV_DONTDUMP QEMU_MADV_INVALID
 #define QEMU_MADV_HUGEPAGE  QEMU_MADV_INVALID
 
@@ -250,5 +264,7 @@ void qemu_init_auxval(char **envp);
 #endif
 
 void qemu_set_tty_echo(int fd, bool echo);
+
+void os_mem_prealloc(int fd, char *area, size_t sz);
 
 #endif

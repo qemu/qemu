@@ -42,7 +42,6 @@
 #include "block/snapshot.h"
 #include "block/qapi.h"
 
-#define SELF_ANNOUNCE_ROUNDS 5
 
 #ifndef ETH_P_RARP
 #define ETH_P_RARP 0x8035
@@ -98,7 +97,7 @@ static void qemu_announce_self_once(void *opaque)
     if (--count) {
         /* delay 50ms, 150ms, 250ms, ... */
         timer_mod(timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) +
-                       50 + (SELF_ANNOUNCE_ROUNDS - count - 1) * 100);
+                  self_announce_delay(count));
     } else {
             timer_del(timer);
             timer_free(timer);
@@ -1209,7 +1208,7 @@ void vmstate_register_ram(MemoryRegion *mr, DeviceState *dev)
 
 void vmstate_unregister_ram(MemoryRegion *mr, DeviceState *dev)
 {
-    /* Nothing do to while the implementation is in RAMBlock */
+    qemu_ram_unset_idstr(memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK);
 }
 
 void vmstate_register_ram_global(MemoryRegion *mr)

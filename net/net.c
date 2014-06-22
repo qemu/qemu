@@ -49,6 +49,23 @@
 
 static QTAILQ_HEAD(, NetClientState) net_clients;
 
+const char *host_net_devices[] = {
+    "tap",
+    "socket",
+    "dump",
+#ifdef CONFIG_NET_BRIDGE
+    "bridge",
+#endif
+#ifdef CONFIG_SLIRP
+    "user",
+#endif
+#ifdef CONFIG_VDE
+    "vde",
+#endif
+    "vhost-user",
+    NULL,
+};
+
 int default_net = 1;
 
 /***********************************************************/
@@ -786,6 +803,9 @@ static int (* const net_client_init_fun[NET_CLIENT_OPTIONS_KIND_MAX])(
         [NET_CLIENT_OPTIONS_KIND_BRIDGE]    = net_init_bridge,
 #endif
         [NET_CLIENT_OPTIONS_KIND_HUBPORT]   = net_init_hubport,
+#ifdef CONFIG_VHOST_NET_USED
+        [NET_CLIENT_OPTIONS_KIND_VHOST_USER] = net_init_vhost_user,
+#endif
 };
 
 
@@ -819,6 +839,9 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
         case NET_CLIENT_OPTIONS_KIND_BRIDGE:
 #endif
         case NET_CLIENT_OPTIONS_KIND_HUBPORT:
+#ifdef CONFIG_VHOST_NET_USED
+        case NET_CLIENT_OPTIONS_KIND_VHOST_USER:
+#endif
             break;
 
         default:
@@ -897,21 +920,11 @@ int net_client_init(QemuOpts *opts, int is_netdev, Error **errp)
 static int net_host_check_device(const char *device)
 {
     int i;
-    const char *valid_param_list[] = { "tap", "socket", "dump"
-#ifdef CONFIG_NET_BRIDGE
-                                       , "bridge"
-#endif
-#ifdef CONFIG_SLIRP
-                                       ,"user"
-#endif
-#ifdef CONFIG_VDE
-                                       ,"vde"
-#endif
-    };
-    for (i = 0; i < ARRAY_SIZE(valid_param_list); i++) {
-        if (!strncmp(valid_param_list[i], device,
-                     strlen(valid_param_list[i])))
+    for (i = 0; host_net_devices[i]; i++) {
+        if (!strncmp(host_net_devices[i], device,
+                     strlen(host_net_devices[i]))) {
             return 1;
+        }
     }
 
     return 0;

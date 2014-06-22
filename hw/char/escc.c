@@ -660,8 +660,7 @@ static const VMStateDescription vmstate_escc_chn = {
     .name ="escc_chn",
     .version_id = 2,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(vmstate_dummy, ChannelState),
         VMSTATE_UINT32(reg, ChannelState),
         VMSTATE_UINT32(rxint, ChannelState),
@@ -680,8 +679,7 @@ static const VMStateDescription vmstate_escc = {
     .name ="escc",
     .version_id = 2,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(chn, ESCCState, 2, 2, vmstate_escc_chn,
                              ChannelState),
         VMSTATE_END_OF_LIST()

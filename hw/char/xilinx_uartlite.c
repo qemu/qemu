@@ -87,6 +87,11 @@ static void uart_update_status(XilinxUARTLite *s)
     s->regs[R_STATUS] = r;
 }
 
+static void xilinx_uartlite_reset(DeviceState *dev)
+{
+    uart_update_status(XILINX_UARTLITE(dev));
+}
+
 static uint64_t
 uart_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -196,34 +201,39 @@ static void uart_event(void *opaque, int event)
 
 }
 
-static int xilinx_uartlite_init(SysBusDevice *dev)
+static void xilinx_uartlite_realize(DeviceState *dev, Error **errp)
 {
     XilinxUARTLite *s = XILINX_UARTLITE(dev);
-
-    sysbus_init_irq(dev, &s->irq);
-
-    uart_update_status(s);
-    memory_region_init_io(&s->mmio, OBJECT(s), &uart_ops, s,
-                          "xlnx.xps-uartlite", R_MAX * 4);
-    sysbus_init_mmio(dev, &s->mmio);
 
     s->chr = qemu_char_get_next_serial();
     if (s->chr)
         qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
-    return 0;
+}
+
+static void xilinx_uartlite_init(Object *obj)
+{
+    XilinxUARTLite *s = XILINX_UARTLITE(obj);
+
+    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
+
+    memory_region_init_io(&s->mmio, obj, &uart_ops, s,
+                          "xlnx.xps-uartlite", R_MAX * 4);
+    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 }
 
 static void xilinx_uartlite_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
-    sdc->init = xilinx_uartlite_init;
+    dc->reset = xilinx_uartlite_reset;
+    dc->realize = xilinx_uartlite_realize;
 }
 
 static const TypeInfo xilinx_uartlite_info = {
     .name          = TYPE_XILINX_UARTLITE,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XilinxUARTLite),
+    .instance_init = xilinx_uartlite_init,
     .class_init    = xilinx_uartlite_class_init,
 };
 

@@ -752,6 +752,8 @@ extern const VMStateInfo vmstate_info_bitmap;
 #define VMSTATE_END_OF_LIST()                                         \
     {}
 
+#define SELF_ANNOUNCE_ROUNDS 5
+
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id);
 void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
@@ -777,5 +779,13 @@ struct MemoryRegion;
 void vmstate_register_ram(struct MemoryRegion *memory, DeviceState *dev);
 void vmstate_unregister_ram(struct MemoryRegion *memory, DeviceState *dev);
 void vmstate_register_ram_global(struct MemoryRegion *memory);
+
+static inline
+int64_t self_announce_delay(int round)
+{
+    assert(round < SELF_ANNOUNCE_ROUNDS && round > 0);
+    /* delay 50ms, 150ms, 250ms, ... */
+    return 50 + (SELF_ANNOUNCE_ROUNDS - round - 1) * 100;
+}
 
 #endif

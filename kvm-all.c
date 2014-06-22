@@ -99,6 +99,7 @@ struct KVMState
      * they're not.  Linux, glibc and *BSD all treat ioctl numbers as
      * unsigned, and treating them as signed here can break things */
     unsigned irq_set_ioctl;
+    unsigned int sigmask_len;
 #ifdef KVM_CAP_IRQ_ROUTING
     struct kvm_irq_routing *irq_routes;
     int nr_allocated_irq_routes;
@@ -113,6 +114,7 @@ KVMState *kvm_state;
 bool kvm_kernel_irqchip;
 bool kvm_async_interrupts_allowed;
 bool kvm_halt_in_kernel_allowed;
+bool kvm_eventfds_allowed;
 bool kvm_irqfds_allowed;
 bool kvm_msi_via_irqfd_allowed;
 bool kvm_gsi_routing_allowed;
@@ -938,7 +940,7 @@ void kvm_init_irq_routing(KVMState *s)
 {
     int gsi_count, i;
 
-    gsi_count = kvm_check_extension(s, KVM_CAP_IRQ_ROUTING);
+    gsi_count = kvm_check_extension(s, KVM_CAP_IRQ_ROUTING) - 1;
     if (gsi_count > 0) {
         unsigned int gsi_bits, i;
 
@@ -1397,6 +1399,8 @@ int kvm_init(MachineClass *mc)
     assert(TARGET_PAGE_SIZE <= getpagesize());
     page_size_init();
 
+    s->sigmask_len = 8;
+
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     QTAILQ_INIT(&s->kvm_sw_breakpoints);
 #endif
@@ -1541,6 +1545,9 @@ int kvm_init(MachineClass *mc)
         (kvm_check_extension(s, KVM_CAP_READONLY_MEM) > 0);
 #endif
 
+    kvm_eventfds_allowed =
+        (kvm_check_extension(s, KVM_CAP_IOEVENTFD) > 0);
+
     ret = kvm_arch_init(s);
     if (ret < 0) {
         goto err;
@@ -1573,6 +1580,11 @@ err:
     g_free(s);
 
     return ret;
+}
+
+void kvm_set_sigmask_len(KVMState *s, unsigned int sigmask_len)
+{
+    s->sigmask_len = sigmask_len;
 }
 
 static void kvm_handle_io(uint16_t port, void *data, int direction, int size,
@@ -1750,6 +1762,22 @@ int kvm_cpu_exec(CPUState *cpu)
             break;
         case KVM_EXIT_INTERNAL_ERROR:
             ret = kvm_handle_internal_error(cpu, run);
+            break;
+        case KVM_EXIT_SYSTEM_EVENT:
+            switch (run->system_event.type) {
+            case KVM_SYSTEM_EVENT_SHUTDOWN:
+                qemu_system_shutdown_request();
+                ret = EXCP_INTERRUPT;
+                break;
+            case KVM_SYSTEM_EVENT_RESET:
+                qemu_system_reset_request();
+                ret = EXCP_INTERRUPT;
+                break;
+            default:
+                DPRINTF("kvm_arch_handle_exit\n");
+                ret = kvm_arch_handle_exit(cpu, run);
+                break;
+            }
             break;
         default:
             DPRINTF("kvm_arch_handle_exit\n");
@@ -2095,6 +2123,7 @@ void kvm_remove_all_breakpoints(CPUState *cpu)
 
 int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset)
 {
+    KVMState *s = kvm_state;
     struct kvm_signal_mask *sigmask;
     int r;
 
@@ -2104,7 +2133,7 @@ int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset)
 
     sigmask = g_malloc(sizeof(*sigmask) + sizeof(*sigset));
 
-    sigmask->len = 8;
+    sigmask->len = s->sigmask_len;
     memcpy(sigmask->sigset, sigset, sizeof(*sigset));
     r = kvm_vcpu_ioctl(cpu, KVM_SET_SIGNAL_MASK, sigmask);
     g_free(sigmask);

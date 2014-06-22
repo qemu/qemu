@@ -67,12 +67,14 @@ static bool smbios_legacy_mode;
  * pages in the host.
  */
 static bool gigabyte_align = true;
+static bool has_reserved_memory = true;
 
 /* PC hardware initialisation */
 static void pc_init1(MachineState *machine,
                      int pci_enabled,
                      int kvmclock_enabled)
 {
+    PCMachineState *pc_machine = PC_MACHINE(machine);
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *system_io = get_system_io();
     int i;
@@ -143,6 +145,7 @@ static void pc_init1(MachineState *machine,
 
     guest_info->has_pci_info = has_pci_info;
     guest_info->isapc_ram_fw = !pci_enabled;
+    guest_info->has_reserved_memory = has_reserved_memory;
 
     if (smbios_defaults) {
         MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -153,11 +156,9 @@ static void pc_init1(MachineState *machine,
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
-        fw_cfg = pc_memory_init(system_memory,
-                       machine->kernel_filename, machine->kernel_cmdline,
-                       machine->initrd_filename,
-                       below_4g_mem_size, above_4g_mem_size,
-                       rom_memory, &ram_memory, guest_info);
+        fw_cfg = pc_memory_init(machine, system_memory,
+                                below_4g_mem_size, above_4g_mem_size,
+                                rom_memory, &ram_memory, guest_info);
     }
 
     gsi_state = g_malloc0(sizeof(*gsi_state));
@@ -244,14 +245,23 @@ static void pc_init1(MachineState *machine,
     }
 
     if (pci_enabled && acpi_enabled) {
+        DeviceState *piix4_pm;
         I2CBus *smbus;
 
         smi_irq = qemu_allocate_irqs(pc_acpi_smi_interrupt, first_cpu, 1);
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
                               gsi[9], *smi_irq,
-                              kvm_enabled(), fw_cfg);
+                              kvm_enabled(), fw_cfg, &piix4_pm);
         smbus_eeprom_init(smbus, 8, NULL, 0);
+
+        object_property_add_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
+                                 TYPE_HOTPLUG_HANDLER,
+                                 (Object **)&pc_machine->acpi_dev,
+                                 object_property_allow_set_link,
+                                 OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
+        object_property_set_link(OBJECT(machine), OBJECT(piix4_pm),
+                                 PC_MACHINE_ACPI_DEVICE_PROP, &error_abort);
     }
 
     if (pci_enabled) {
@@ -267,6 +277,7 @@ static void pc_init_pci(MachineState *machine)
 static void pc_compat_2_0(MachineState *machine)
 {
     smbios_legacy_mode = true;
+    has_reserved_memory = false;
 }
 
 static void pc_compat_1_7(MachineState *machine)
@@ -843,25 +854,25 @@ static QEMUMachine xenfv_machine = {
 
 static void pc_machine_init(void)
 {
-    qemu_register_machine(&pc_i440fx_machine_v2_1);
-    qemu_register_machine(&pc_i440fx_machine_v2_0);
-    qemu_register_machine(&pc_i440fx_machine_v1_7);
-    qemu_register_machine(&pc_i440fx_machine_v1_6);
-    qemu_register_machine(&pc_i440fx_machine_v1_5);
-    qemu_register_machine(&pc_i440fx_machine_v1_4);
-    qemu_register_machine(&pc_machine_v1_3);
-    qemu_register_machine(&pc_machine_v1_2);
-    qemu_register_machine(&pc_machine_v1_1);
-    qemu_register_machine(&pc_machine_v1_0);
-    qemu_register_machine(&pc_machine_v0_15);
-    qemu_register_machine(&pc_machine_v0_14);
-    qemu_register_machine(&pc_machine_v0_13);
-    qemu_register_machine(&pc_machine_v0_12);
-    qemu_register_machine(&pc_machine_v0_11);
-    qemu_register_machine(&pc_machine_v0_10);
-    qemu_register_machine(&isapc_machine);
+    qemu_register_pc_machine(&pc_i440fx_machine_v2_1);
+    qemu_register_pc_machine(&pc_i440fx_machine_v2_0);
+    qemu_register_pc_machine(&pc_i440fx_machine_v1_7);
+    qemu_register_pc_machine(&pc_i440fx_machine_v1_6);
+    qemu_register_pc_machine(&pc_i440fx_machine_v1_5);
+    qemu_register_pc_machine(&pc_i440fx_machine_v1_4);
+    qemu_register_pc_machine(&pc_machine_v1_3);
+    qemu_register_pc_machine(&pc_machine_v1_2);
+    qemu_register_pc_machine(&pc_machine_v1_1);
+    qemu_register_pc_machine(&pc_machine_v1_0);
+    qemu_register_pc_machine(&pc_machine_v0_15);
+    qemu_register_pc_machine(&pc_machine_v0_14);
+    qemu_register_pc_machine(&pc_machine_v0_13);
+    qemu_register_pc_machine(&pc_machine_v0_12);
+    qemu_register_pc_machine(&pc_machine_v0_11);
+    qemu_register_pc_machine(&pc_machine_v0_10);
+    qemu_register_pc_machine(&isapc_machine);
 #ifdef CONFIG_XEN
-    qemu_register_machine(&xenfv_machine);
+    qemu_register_pc_machine(&xenfv_machine);
 #endif
 }
 

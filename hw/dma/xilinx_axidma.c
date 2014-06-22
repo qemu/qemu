@@ -157,11 +157,6 @@ static inline int stream_running(struct Stream *s)
     return s->regs[R_DMACR] & DMACR_RUNSTOP;
 }
 
-static inline int stream_halted(struct Stream *s)
-{
-    return s->regs[R_DMASR] & DMASR_HALTED;
-}
-
 static inline int stream_idle(struct Stream *s)
 {
     return !!(s->regs[R_DMASR] & DMASR_IDLE);

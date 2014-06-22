@@ -935,6 +935,9 @@ static int vnc_update_client(VncState *vs, int has_dirty, bool sync)
         }
 
         vnc_job_push(job);
+        if (sync) {
+            vnc_jobs_join(vs);
+        }
         vs->force_update = 0;
         return n;
     }
@@ -2972,10 +2975,8 @@ static void vnc_display_close(DisplayState *ds)
 
     if (!vs)
         return;
-    if (vs->display) {
-        g_free(vs->display);
-        vs->display = NULL;
-    }
+    g_free(vs->display);
+    vs->display = NULL;
     if (vs->lsock != -1) {
         qemu_set_fd_handler2(vs->lsock, NULL, NULL, NULL, NULL);
         close(vs->lsock);
@@ -3010,13 +3011,8 @@ int vnc_display_password(DisplayState *ds, const char *password)
         return -EINVAL;
     }
 
-    if (vs->password) {
-        g_free(vs->password);
-        vs->password = NULL;
-    }
-    if (password) {
-        vs->password = g_strdup(password);
-    }
+    g_free(vs->password);
+    vs->password = g_strdup(password);
 
     return 0;
 }

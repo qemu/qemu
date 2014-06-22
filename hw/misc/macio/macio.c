@@ -259,7 +259,7 @@ static uint64_t timer_read(void *opaque, hwaddr addr, unsigned size)
 static const MemoryRegionOps timer_ops = {
     .read = timer_read,
     .write = timer_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static int macio_newworld_initfn(PCIDevice *d)

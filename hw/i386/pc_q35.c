@@ -57,10 +57,12 @@ static bool smbios_legacy_mode;
  * pages in the host.
  */
 static bool gigabyte_align = true;
+static bool has_reserved_memory = true;
 
 /* PC hardware initialisation */
 static void pc_q35_init(MachineState *machine)
 {
+    PCMachineState *pc_machine = PC_MACHINE(machine);
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
     Q35PCIHost *q35_host;
     PCIHostState *phb;
@@ -130,6 +132,7 @@ static void pc_q35_init(MachineState *machine)
     guest_info->has_pci_info = has_pci_info;
     guest_info->isapc_ram_fw = false;
     guest_info->has_acpi_build = has_acpi_build;
+    guest_info->has_reserved_memory = has_reserved_memory;
 
     if (smbios_defaults) {
         MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -140,9 +143,7 @@ static void pc_q35_init(MachineState *machine)
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
-        pc_memory_init(get_system_memory(),
-                       machine->kernel_filename, machine->kernel_cmdline,
-                       machine->initrd_filename,
+        pc_memory_init(machine, get_system_memory(),
                        below_4g_mem_size, above_4g_mem_size,
                        rom_memory, &ram_memory, guest_info);
     }
@@ -176,6 +177,15 @@ static void pc_q35_init(MachineState *machine)
     lpc = pci_create_simple_multifunction(host_bus, PCI_DEVFN(ICH9_LPC_DEV,
                                           ICH9_LPC_FUNC), true,
                                           TYPE_ICH9_LPC_DEVICE);
+
+    object_property_add_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
+                             TYPE_HOTPLUG_HANDLER,
+                             (Object **)&pc_machine->acpi_dev,
+                             object_property_allow_set_link,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
+    object_property_set_link(OBJECT(machine), OBJECT(lpc),
+                             PC_MACHINE_ACPI_DEVICE_PROP, &error_abort);
+
     ich9_lpc = ICH9_LPC_DEVICE(lpc);
     ich9_lpc->pic = gsi;
     ich9_lpc->ioapic = gsi_state->ioapic_irq;
@@ -245,6 +255,7 @@ static void pc_q35_init(MachineState *machine)
 static void pc_compat_2_0(MachineState *machine)
 {
     smbios_legacy_mode = true;
+    has_reserved_memory = false;
 }
 
 static void pc_compat_1_7(MachineState *machine)
@@ -384,12 +395,12 @@ static QEMUMachine pc_q35_machine_v1_4 = {
 
 static void pc_q35_machine_init(void)
 {
-    qemu_register_machine(&pc_q35_machine_v2_1);
-    qemu_register_machine(&pc_q35_machine_v2_0);
-    qemu_register_machine(&pc_q35_machine_v1_7);
-    qemu_register_machine(&pc_q35_machine_v1_6);
-    qemu_register_machine(&pc_q35_machine_v1_5);
-    qemu_register_machine(&pc_q35_machine_v1_4);
+    qemu_register_pc_machine(&pc_q35_machine_v2_1);
+    qemu_register_pc_machine(&pc_q35_machine_v2_0);
+    qemu_register_pc_machine(&pc_q35_machine_v1_7);
+    qemu_register_pc_machine(&pc_q35_machine_v1_6);
+    qemu_register_pc_machine(&pc_q35_machine_v1_5);
+    qemu_register_pc_machine(&pc_q35_machine_v1_4);
 }
 
 machine_init(pc_q35_machine_init);

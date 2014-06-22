@@ -155,4 +155,7 @@ typedef struct VirtIOBlock {
 
 void virtio_blk_set_conf(DeviceState *dev, VirtIOBlkConf *blk);
 
+int virtio_blk_handle_scsi_req(VirtIOBlock *blk,
+                               VirtQueueElement *elem);
+
 #endif

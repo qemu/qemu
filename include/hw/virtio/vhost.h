@@ -2,6 +2,7 @@
 #define VHOST_H
 
 #include "hw/hw.h"
+#include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/virtio.h"
 #include "exec/memory.h"
 
@@ -25,11 +26,11 @@ typedef unsigned long vhost_log_chunk_t;
 #define VHOST_LOG_PAGE 0x1000
 #define VHOST_LOG_BITS (8 * sizeof(vhost_log_chunk_t))
 #define VHOST_LOG_CHUNK (VHOST_LOG_PAGE * VHOST_LOG_BITS)
+#define VHOST_INVALID_FEATURE_BIT   (0xff)
 
 struct vhost_memory;
 struct vhost_dev {
     MemoryListener memory_listener;
-    int control;
     struct vhost_memory *mem;
     int n_mem_sections;
     MemoryRegionSection *mem_sections;
@@ -48,10 +49,12 @@ struct vhost_dev {
     bool memory_changed;
     hwaddr mem_changed_start_addr;
     hwaddr mem_changed_end_addr;
+    const VhostOps *vhost_ops;
+    void *opaque;
 };
 
-int vhost_dev_init(struct vhost_dev *hdev, int devfd, const char *devpath,
-                   bool force);
+int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
+                   VhostBackendType backend_type, bool force);
 void vhost_dev_cleanup(struct vhost_dev *hdev);
 bool vhost_dev_query(struct vhost_dev *hdev, VirtIODevice *vdev);
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev);
@@ -68,4 +71,8 @@ bool vhost_virtqueue_pending(struct vhost_dev *hdev, int n);
  */
 void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
                           bool mask);
+unsigned vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
+        unsigned features);
+void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,
+        unsigned features);
 #endif

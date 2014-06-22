@@ -31,6 +31,7 @@
 #include "qemu/queue.h"
 #include "qemu/int128.h"
 #include "qemu/notify.h"
+#include "qapi/error.h"
 
 #define MAX_PHYS_ADDR_SPACE_BITS 62
 #define MAX_PHYS_ADDR            (((hwaddr)1 << MAX_PHYS_ADDR_SPACE_BITS) - 1)
@@ -135,7 +136,7 @@ struct MemoryRegion {
     const MemoryRegionIOMMUOps *iommu_ops;
     void *opaque;
     struct Object *owner;
-    MemoryRegion *parent;
+    MemoryRegion *container;
     Int128 size;
     hwaddr addr;
     void (*destructor)(MemoryRegion *mr);
@@ -310,6 +311,28 @@ void memory_region_init_ram(MemoryRegion *mr,
                             struct Object *owner,
                             const char *name,
                             uint64_t size);
+
+#ifdef __linux__
+/**
+ * memory_region_init_ram_from_file:  Initialize RAM memory region with a
+ *                                    mmap-ed backend.
+ *
+ * @mr: the #MemoryRegion to be initialized.
+ * @owner: the object that tracks the region's reference count
+ * @name: the name of the region.
+ * @size: size of the region.
+ * @share: %true if memory must be mmaped with the MAP_SHARED flag
+ * @path: the path in which to allocate the RAM.
+ * @errp: pointer to Error*, to store an error if it happens.
+ */
+void memory_region_init_ram_from_file(MemoryRegion *mr,
+                                      struct Object *owner,
+                                      const char *name,
+                                      uint64_t size,
+                                      bool share,
+                                      const char *path,
+                                      Error **errp);
+#endif
 
 /**
  * memory_region_init_ram_ptr:  Initialize RAM memory region from a
@@ -511,6 +534,16 @@ bool memory_region_is_logging(MemoryRegion *mr);
  * @mr: the memory region being queried
  */
 bool memory_region_is_rom(MemoryRegion *mr);
+
+/**
+ * memory_region_get_fd: Get a file descriptor backing a RAM memory region.
+ *
+ * Returns a file descriptor backing a file-based RAM memory region,
+ * or -1 if the region is not a file-based RAM memory region.
+ *
+ * @mr: the RAM or alias memory region being queried.
+ */
+int memory_region_get_fd(MemoryRegion *mr);
 
 /**
  * memory_region_get_ram_ptr: Get a pointer into a RAM memory region.
@@ -815,11 +848,11 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled);
 /*
  * memory_region_set_address: dynamically update the address of a region
  *
- * Dynamically updates the address of a region, relative to its parent.
+ * Dynamically updates the address of a region, relative to its container.
  * May be used on regions are currently part of a memory hierarchy.
  *
  * @mr: the region to be updated
- * @addr: new address, relative to parent region
+ * @addr: new address, relative to container region
  */
 void memory_region_set_address(MemoryRegion *mr, hwaddr addr);
 
@@ -836,16 +869,24 @@ void memory_region_set_alias_offset(MemoryRegion *mr,
                                     hwaddr offset);
 
 /**
- * memory_region_present: checks if an address relative to a @parent
- * translates into #MemoryRegion within @parent
+ * memory_region_present: checks if an address relative to a @container
+ * translates into #MemoryRegion within @container
  *
- * Answer whether a #MemoryRegion within @parent covers the address
+ * Answer whether a #MemoryRegion within @container covers the address
  * @addr.
  *
- * @parent: a #MemoryRegion within which @addr is a relative address
- * @addr: the area within @parent to be searched
+ * @container: a #MemoryRegion within which @addr is a relative address
+ * @addr: the area within @container to be searched
  */
-bool memory_region_present(MemoryRegion *parent, hwaddr addr);
+bool memory_region_present(MemoryRegion *container, hwaddr addr);
+
+/**
+ * memory_region_is_mapped: returns true if #MemoryRegion is mapped
+ * into any address space.
+ *
+ * @mr: a #MemoryRegion which should be checked if it's mapped
+ */
+bool memory_region_is_mapped(MemoryRegion *mr);
 
 /**
  * memory_region_find: translate an address/size relative to a
@@ -866,7 +907,7 @@ bool memory_region_present(MemoryRegion *parent, hwaddr addr);
  * Similarly, the .@offset_within_address_space is relative to the
  * address space that contains both regions, the passed and the
  * returned one.  However, in the special case where the @mr argument
- * has no parent (and thus is the root of the address space), the
+ * has no container (and thus is the root of the address space), the
  * following will hold:
  *    .@offset_within_address_space >= @addr
  *    .@offset_within_address_space + .@size <= @addr + @size

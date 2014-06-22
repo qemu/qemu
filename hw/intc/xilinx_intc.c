@@ -161,18 +161,16 @@ static void irq_handler(void *opaque, int irq, int level)
     update_irq(p);
 }
 
-static int xilinx_intc_init(SysBusDevice *sbd)
+static void xilinx_intc_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    struct xlx_pic *p = XILINX_INTC(dev);
+    struct xlx_pic *p = XILINX_INTC(obj);
 
-    qdev_init_gpio_in(dev, irq_handler, 32);
-    sysbus_init_irq(sbd, &p->parent_irq);
+    qdev_init_gpio_in(DEVICE(obj), irq_handler, 32);
+    sysbus_init_irq(SYS_BUS_DEVICE(obj), &p->parent_irq);
 
-    memory_region_init_io(&p->mmio, OBJECT(p), &pic_ops, p, "xlnx.xps-intc",
+    memory_region_init_io(&p->mmio, obj, &pic_ops, p, "xlnx.xps-intc",
                           R_MAX * 4);
-    sysbus_init_mmio(sbd, &p->mmio);
-    return 0;
+    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &p->mmio);
 }
 
 static Property xilinx_intc_properties[] = {
@@ -183,9 +181,7 @@ static Property xilinx_intc_properties[] = {
 static void xilinx_intc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = xilinx_intc_init;
     dc->props = xilinx_intc_properties;
 }
 
@@ -193,6 +189,7 @@ static const TypeInfo xilinx_intc_info = {
     .name          = TYPE_XILINX_INTC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct xlx_pic),
+    .instance_init = xilinx_intc_init,
     .class_init    = xilinx_intc_class_init,
 };
 

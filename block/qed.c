@@ -21,12 +21,13 @@
 static void qed_aio_cancel(BlockDriverAIOCB *blockacb)
 {
     QEDAIOCB *acb = (QEDAIOCB *)blockacb;
+    AioContext *aio_context = bdrv_get_aio_context(blockacb->bs);
     bool finished = false;
 
     /* Wait for the request to finish */
     acb->finished = &finished;
     while (!finished) {
-        qemu_aio_wait();
+        aio_poll(aio_context, true);
     }
 }
 
@@ -373,6 +374,27 @@ static void bdrv_qed_rebind(BlockDriverState *bs)
     s->bs = bs;
 }
 
+static void bdrv_qed_detach_aio_context(BlockDriverState *bs)
+{
+    BDRVQEDState *s = bs->opaque;
+
+    qed_cancel_need_check_timer(s);
+    timer_free(s->need_check_timer);
+}
+
+static void bdrv_qed_attach_aio_context(BlockDriverState *bs,
+                                        AioContext *new_context)
+{
+    BDRVQEDState *s = bs->opaque;
+
+    s->need_check_timer = aio_timer_new(new_context,
+                                        QEMU_CLOCK_VIRTUAL, SCALE_NS,
+                                        qed_need_check_timer_cb, s);
+    if (s->header.features & QED_F_NEED_CHECK) {
+        qed_start_need_check_timer(s);
+    }
+}
+
 static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
                          Error **errp)
 {
@@ -496,8 +518,7 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
-    s->need_check_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                            qed_need_check_timer_cb, s);
+    bdrv_qed_attach_aio_context(bs, bdrv_get_aio_context(bs));
 
 out:
     if (ret) {
@@ -528,8 +549,7 @@ static void bdrv_qed_close(BlockDriverState *bs)
 {
     BDRVQEDState *s = bs->opaque;
 
-    qed_cancel_need_check_timer(s);
-    timer_free(s->need_check_timer);
+    bdrv_qed_detach_aio_context(bs);
 
     /* Ensure writes reach stable storage */
     bdrv_flush(bs->file);
@@ -621,55 +641,53 @@ out:
     return ret;
 }
 
-static int bdrv_qed_create(const char *filename, QEMUOptionParameter *options,
-                           Error **errp)
+static int bdrv_qed_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     uint64_t image_size = 0;
     uint32_t cluster_size = QED_DEFAULT_CLUSTER_SIZE;
     uint32_t table_size = QED_DEFAULT_TABLE_SIZE;
-    const char *backing_file = NULL;
-    const char *backing_fmt = NULL;
+    char *backing_file = NULL;
+    char *backing_fmt = NULL;
+    int ret;
 
-    while (options && options->name) {
-        if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
-            image_size = options->value.n;
-        } else if (!strcmp(options->name, BLOCK_OPT_BACKING_FILE)) {
-            backing_file = options->value.s;
-        } else if (!strcmp(options->name, BLOCK_OPT_BACKING_FMT)) {
-            backing_fmt = options->value.s;
-        } else if (!strcmp(options->name, BLOCK_OPT_CLUSTER_SIZE)) {
-            if (options->value.n) {
-                cluster_size = options->value.n;
-            }
-        } else if (!strcmp(options->name, BLOCK_OPT_TABLE_SIZE)) {
-            if (options->value.n) {
-                table_size = options->value.n;
-            }
-        }
-        options++;
-    }
+    image_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    backing_file = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
+    backing_fmt = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FMT);
+    cluster_size = qemu_opt_get_size_del(opts,
+                                         BLOCK_OPT_CLUSTER_SIZE,
+                                         QED_DEFAULT_CLUSTER_SIZE);
+    table_size = qemu_opt_get_size_del(opts, BLOCK_OPT_TABLE_SIZE,
+                                       QED_DEFAULT_TABLE_SIZE);
 
     if (!qed_is_cluster_size_valid(cluster_size)) {
         error_setg(errp, "QED cluster size must be within range [%u, %u] "
                          "and power of 2",
                    QED_MIN_CLUSTER_SIZE, QED_MAX_CLUSTER_SIZE);
-        return -EINVAL;
+        ret = -EINVAL;
+        goto finish;
     }
     if (!qed_is_table_size_valid(table_size)) {
         error_setg(errp, "QED table size must be within range [%u, %u] "
                          "and power of 2",
                    QED_MIN_TABLE_SIZE, QED_MAX_TABLE_SIZE);
-        return -EINVAL;
+        ret = -EINVAL;
+        goto finish;
     }
     if (!qed_is_image_size_valid(image_size, cluster_size, table_size)) {
         error_setg(errp, "QED image size must be a non-zero multiple of "
                          "cluster size and less than %" PRIu64 " bytes",
                    qed_max_image_size(cluster_size, table_size));
-        return -EINVAL;
+        ret = -EINVAL;
+        goto finish;
     }
 
-    return qed_create(filename, cluster_size, image_size, table_size,
-                      backing_file, backing_fmt, errp);
+    ret = qed_create(filename, cluster_size, image_size, table_size,
+                     backing_file, backing_fmt, errp);
+
+finish:
+    g_free(backing_file);
+    g_free(backing_fmt);
+    return ret;
 }
 
 typedef struct {
@@ -919,7 +937,8 @@ static void qed_aio_complete(QEDAIOCB *acb, int ret)
 
     /* Arrange for a bh to invoke the completion function */
     acb->bh_ret = ret;
-    acb->bh = qemu_bh_new(qed_aio_complete_bh, acb);
+    acb->bh = aio_bh_new(bdrv_get_aio_context(acb->common.bs),
+                         qed_aio_complete_bh, acb);
     qemu_bh_schedule(acb->bh);
 
     /* Start next allocating write request waiting behind this one.  Note that
@@ -1595,36 +1614,44 @@ static int bdrv_qed_check(BlockDriverState *bs, BdrvCheckResult *result,
     return qed_check(s, result, !!fix);
 }
 
-static QEMUOptionParameter qed_create_options[] = {
-    {
-        .name = BLOCK_OPT_SIZE,
-        .type = OPT_SIZE,
-        .help = "Virtual disk size (in bytes)"
-    }, {
-        .name = BLOCK_OPT_BACKING_FILE,
-        .type = OPT_STRING,
-        .help = "File name of a base image"
-    }, {
-        .name = BLOCK_OPT_BACKING_FMT,
-        .type = OPT_STRING,
-        .help = "Image format of the base image"
-    }, {
-        .name = BLOCK_OPT_CLUSTER_SIZE,
-        .type = OPT_SIZE,
-        .help = "Cluster size (in bytes)",
-        .value = { .n = QED_DEFAULT_CLUSTER_SIZE },
-    }, {
-        .name = BLOCK_OPT_TABLE_SIZE,
-        .type = OPT_SIZE,
-        .help = "L1/L2 table size (in clusters)"
-    },
-    { /* end of list */ }
+static QemuOptsList qed_create_opts = {
+    .name = "qed-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(qed_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
+        {
+            .name = BLOCK_OPT_BACKING_FILE,
+            .type = QEMU_OPT_STRING,
+            .help = "File name of a base image"
+        },
+        {
+            .name = BLOCK_OPT_BACKING_FMT,
+            .type = QEMU_OPT_STRING,
+            .help = "Image format of the base image"
+        },
+        {
+            .name = BLOCK_OPT_CLUSTER_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Cluster size (in bytes)",
+            .def_value_str = stringify(QED_DEFAULT_CLUSTER_SIZE)
+        },
+        {
+            .name = BLOCK_OPT_TABLE_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "L1/L2 table size (in clusters)"
+        },
+        { /* end of list */ }
+    }
 };
 
 static BlockDriver bdrv_qed = {
     .format_name              = "qed",
     .instance_size            = sizeof(BDRVQEDState),
-    .create_options           = qed_create_options,
+    .create_opts              = &qed_create_opts,
 
     .bdrv_probe               = bdrv_qed_probe,
     .bdrv_rebind              = bdrv_qed_rebind,
@@ -1644,6 +1671,8 @@ static BlockDriver bdrv_qed = {
     .bdrv_change_backing_file = bdrv_qed_change_backing_file,
     .bdrv_invalidate_cache    = bdrv_qed_invalidate_cache,
     .bdrv_check               = bdrv_qed_check,
+    .bdrv_detach_aio_context  = bdrv_qed_detach_aio_context,
+    .bdrv_attach_aio_context  = bdrv_qed_attach_aio_context,
 };
 
 static void bdrv_qed_init(void)

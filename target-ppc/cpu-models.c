@@ -671,20 +671,20 @@
     POWERPC_DEF_SVR("MPC8379E", "MPC8379E",
                     CPU_POWERPC_MPC837x,      POWERPC_SVR_8379E,     e300)
     /* e500 family                                                           */
-    POWERPC_DEF("e500_v10",      CPU_POWERPC_e500v1_v10,             e500v1,
-                "PowerPC e500 v1.0 core")
-    POWERPC_DEF("e500_v20",      CPU_POWERPC_e500v1_v20,             e500v1,
-                "PowerPC e500 v2.0 core")
-    POWERPC_DEF("e500v2_v10",    CPU_POWERPC_e500v2_v10,             e500v2,
-                "PowerPC e500v2 v1.0 core")
-    POWERPC_DEF("e500v2_v20",    CPU_POWERPC_e500v2_v20,             e500v2,
-                "PowerPC e500v2 v2.0 core")
-    POWERPC_DEF("e500v2_v21",    CPU_POWERPC_e500v2_v21,             e500v2,
-                "PowerPC e500v2 v2.1 core")
-    POWERPC_DEF("e500v2_v22",    CPU_POWERPC_e500v2_v22,             e500v2,
-                "PowerPC e500v2 v2.2 core")
-    POWERPC_DEF("e500v2_v30",    CPU_POWERPC_e500v2_v30,             e500v2,
-                "PowerPC e500v2 v3.0 core")
+    POWERPC_DEF_SVR("e500_v10", "PowerPC e500 v1.0 core",
+                    CPU_POWERPC_e500v1_v10,   POWERPC_SVR_E500,      e500v1);
+    POWERPC_DEF_SVR("e500_v20", "PowerPC e500 v2.0 core",
+                    CPU_POWERPC_e500v1_v20,   POWERPC_SVR_E500,      e500v1);
+    POWERPC_DEF_SVR("e500v2_v10", "PowerPC e500v2 v1.0 core",
+                    CPU_POWERPC_e500v2_v10,   POWERPC_SVR_E500,      e500v2);
+    POWERPC_DEF_SVR("e500v2_v20", "PowerPC e500v2 v2.0 core",
+                    CPU_POWERPC_e500v2_v20,   POWERPC_SVR_E500,      e500v2);
+    POWERPC_DEF_SVR("e500v2_v21", "PowerPC e500v2 v2.1 core",
+                    CPU_POWERPC_e500v2_v21,   POWERPC_SVR_E500,      e500v2);
+    POWERPC_DEF_SVR("e500v2_v22", "PowerPC e500v2 v2.2 core",
+                    CPU_POWERPC_e500v2_v22,   POWERPC_SVR_E500,      e500v2);
+    POWERPC_DEF_SVR("e500v2_v30", "PowerPC e500v2 v3.0 core",
+                    CPU_POWERPC_e500v2_v30,   POWERPC_SVR_E500,      e500v2);
     POWERPC_DEF_SVR("e500mc", "e500mc",
                     CPU_POWERPC_e500mc,       POWERPC_SVR_E500,      e500mc)
 #ifdef TARGET_PPC64
@@ -1134,10 +1134,6 @@
     POWERPC_DEF("POWER6A",       CPU_POWERPC_POWER6A,                POWER6,
                 "POWER6A")
 #endif
-    POWERPC_DEF("POWER7_v2.0",   CPU_POWERPC_POWER7_v20,             POWER7,
-                "POWER7 v2.0")
-    POWERPC_DEF("POWER7_v2.1",   CPU_POWERPC_POWER7_v21,             POWER7,
-                "POWER7 v2.1")
     POWERPC_DEF("POWER7_v2.3",   CPU_POWERPC_POWER7_v23,             POWER7,
                 "POWER7 v2.3")
     POWERPC_DEF("POWER7+_v2.1",  CPU_POWERPC_POWER7P_v21,            POWER7P,
@@ -1146,19 +1142,19 @@
                 "POWER8 v1.0")
     POWERPC_DEF("970",           CPU_POWERPC_970,                    970,
                 "PowerPC 970")
-    POWERPC_DEF("970fx_v1.0",    CPU_POWERPC_970FX_v10,              970FX,
+    POWERPC_DEF("970fx_v1.0",    CPU_POWERPC_970FX_v10,              970,
                 "PowerPC 970FX v1.0 (G5)")
-    POWERPC_DEF("970fx_v2.0",    CPU_POWERPC_970FX_v20,              970FX,
+    POWERPC_DEF("970fx_v2.0",    CPU_POWERPC_970FX_v20,              970,
                 "PowerPC 970FX v2.0 (G5)")
-    POWERPC_DEF("970fx_v2.1",    CPU_POWERPC_970FX_v21,              970FX,
+    POWERPC_DEF("970fx_v2.1",    CPU_POWERPC_970FX_v21,              970,
                 "PowerPC 970FX v2.1 (G5)")
-    POWERPC_DEF("970fx_v3.0",    CPU_POWERPC_970FX_v30,              970FX,
+    POWERPC_DEF("970fx_v3.0",    CPU_POWERPC_970FX_v30,              970,
                 "PowerPC 970FX v3.0 (G5)")
-    POWERPC_DEF("970fx_v3.1",    CPU_POWERPC_970FX_v31,              970FX,
+    POWERPC_DEF("970fx_v3.1",    CPU_POWERPC_970FX_v31,              970,
                 "PowerPC 970FX v3.1 (G5)")
-    POWERPC_DEF("970mp_v1.0",    CPU_POWERPC_970MP_v10,              970MP,
+    POWERPC_DEF("970mp_v1.0",    CPU_POWERPC_970MP_v10,              970,
                 "PowerPC 970MP v1.0")
-    POWERPC_DEF("970mp_v1.1",    CPU_POWERPC_970MP_v11,              970MP,
+    POWERPC_DEF("970mp_v1.1",    CPU_POWERPC_970MP_v11,              970,
                 "PowerPC 970MP v1.1")
 #if defined(TODO)
     POWERPC_DEF("Cell",          CPU_POWERPC_CELL,                   970,

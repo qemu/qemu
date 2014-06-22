@@ -433,7 +433,7 @@ int main(int argc, char **argv)
             }
             break;
         case 'T':
-            if (!trace_backend_init(optarg, NULL)) {
+            if (!trace_init_backends(optarg, NULL)) {
                 exit(1); /* error message will have been printed */
             }
             break;

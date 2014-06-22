@@ -98,7 +98,7 @@ static void process_incoming_migration_co(void *opaque)
     qemu_fclose(f);
     free_xbzrle_decoded_buf();
     if (ret < 0) {
-        fprintf(stderr, "load of migration failed\n");
+        error_report("load of migration failed: %s", strerror(-ret));
         exit(EXIT_FAILURE);
     }
     qemu_announce_self();
@@ -133,7 +133,7 @@ void process_incoming_migration(QEMUFile *f)
  * the choice of nanoseconds is because it is the maximum resolution that
  * get_clock() can achieve. It is an internal measure. All user-visible
  * units must be in seconds */
-static uint64_t max_downtime = 30000000;
+static uint64_t max_downtime = 300000000;
 
 uint64_t migrate_max_downtime(void)
 {

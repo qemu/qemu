@@ -160,39 +160,9 @@ static int preg_sizes[] = {
 };
 
 #define t_gen_mov_TN_env(tn, member) \
- _t_gen_mov_TN_env((tn), offsetof(CPUCRISState, member))
+    tcg_gen_ld_tl(tn, cpu_env, offsetof(CPUCRISState, member))
 #define t_gen_mov_env_TN(member, tn) \
- _t_gen_mov_env_TN(offsetof(CPUCRISState, member), (tn))
-
-static inline void t_gen_mov_TN_reg(TCGv tn, int r)
-{
-    if (r < 0 || r > 15) {
-        fprintf(stderr, "wrong register read $r%d\n", r);
-    }
-    tcg_gen_mov_tl(tn, cpu_R[r]);
-}
-static inline void t_gen_mov_reg_TN(int r, TCGv tn)
-{
-    if (r < 0 || r > 15) {
-        fprintf(stderr, "wrong register write $r%d\n", r);
-    }
-    tcg_gen_mov_tl(cpu_R[r], tn);
-}
-
-static inline void _t_gen_mov_TN_env(TCGv tn, int offset)
-{
-    if (offset > sizeof(CPUCRISState)) {
-        fprintf(stderr, "wrong load from env from off=%d\n", offset);
-    }
-    tcg_gen_ld_tl(tn, cpu_env, offset);
-}
-static inline void _t_gen_mov_env_TN(int offset, TCGv tn)
-{
-    if (offset > sizeof(CPUCRISState)) {
-        fprintf(stderr, "wrong store to env at off=%d\n", offset);
-    }
-    tcg_gen_st_tl(tn, cpu_env, offset);
-}
+    tcg_gen_st_tl(tn, cpu_env, offsetof(CPUCRISState, member))
 
 static inline void t_gen_mov_TN_preg(TCGv tn, int r)
 {
@@ -1812,7 +1782,7 @@ static int dec_swap_r(CPUCRISState *env, DisasContext *dc)
 
     cris_cc_mask(dc, CC_MASK_NZ);
     t0 = tcg_temp_new();
-    t_gen_mov_TN_reg(t0, dc->op1);
+    tcg_gen_mov_tl(t0, cpu_R[dc->op1]);
     if (dc->op2 & 8) {
         tcg_gen_not_tl(t0, t0);
     }
@@ -2120,7 +2090,7 @@ static int dec_move_rp(CPUCRISState *env, DisasContext *dc)
     t[0] = tcg_temp_new();
     if (dc->op2 == PR_CCS) {
         cris_evaluate_flags(dc);
-        t_gen_mov_TN_reg(t[0], dc->op1);
+        tcg_gen_mov_tl(t[0], cpu_R[dc->op1]);
         if (dc->tb_flags & U_FLAG) {
             t[1] = tcg_temp_new();
             /* User space is not allowed to touch all flags.  */
@@ -2130,7 +2100,7 @@ static int dec_move_rp(CPUCRISState *env, DisasContext *dc)
             tcg_temp_free(t[1]);
         }
     } else {
-        t_gen_mov_TN_reg(t[0], dc->op1);
+        tcg_gen_mov_tl(t[0], cpu_R[dc->op1]);
     }
 
     t_gen_mov_preg_TN(dc, dc->op2, t[0]);

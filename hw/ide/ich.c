@@ -83,7 +83,7 @@ static const VMStateDescription vmstate_ich9_ahci = {
     .name = "ich9_ahci",
     .unmigratable = 1, /* Still buggy under I/O load */
     .version_id = 1,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, AHCIPCIState),
         VMSTATE_AHCI(ahci, AHCIPCIState),
         VMSTATE_END_OF_LIST()

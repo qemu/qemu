@@ -31,6 +31,8 @@
 #include "sysemu/kvm.h"
 #include "qemu/log.h"
 
+#define GCR_RESET        0x80000000
+
 #define KVM_OPENPIC(obj) \
     OBJECT_CHECK(KVMOpenPICState, (obj), TYPE_KVM_OPENPIC)
 
@@ -50,11 +52,6 @@ static void kvm_openpic_set_irq(void *opaque, int n_IRQ, int level)
     kvm_set_irq(kvm_state, n_IRQ, level);
 }
 
-static void kvm_openpic_reset(DeviceState *d)
-{
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented\n", __func__);
-}
-
 static void kvm_openpic_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned size)
 {
@@ -72,6 +69,14 @@ static void kvm_openpic_write(void *opaque, hwaddr addr, uint64_t val,
         qemu_log_mask(LOG_UNIMP, "%s: %s %" PRIx64 "\n", __func__,
                       strerror(errno), attr.attr);
     }
+}
+
+static void kvm_openpic_reset(DeviceState *d)
+{
+    KVMOpenPICState *opp = KVM_OPENPIC(d);
+
+    /* Trigger the GCR.RESET bit to reset the PIC */
+    kvm_openpic_write(opp, 0x1020, GCR_RESET, sizeof(uint32_t));
 }
 
 static uint64_t kvm_openpic_read(void *opaque, hwaddr addr, unsigned size)

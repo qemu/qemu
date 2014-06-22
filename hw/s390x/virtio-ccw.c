@@ -1275,6 +1275,97 @@ irqroute_error:
     return r;
 }
 
+static void virtio_ccw_save_queue(DeviceState *d, int n, QEMUFile *f)
+{
+    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
+    VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
+
+    qemu_put_be16(f, virtio_queue_vector(vdev, n));
+}
+
+static int virtio_ccw_load_queue(DeviceState *d, int n, QEMUFile *f)
+{
+    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
+    VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
+    uint16_t vector;
+
+    qemu_get_be16s(f, &vector);
+    virtio_queue_set_vector(vdev, n , vector);
+
+    return 0;
+}
+
+static void virtio_ccw_save_config(DeviceState *d, QEMUFile *f)
+{
+    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
+    SubchDev *s = dev->sch;
+
+    subch_device_save(s, f);
+    if (dev->indicators != NULL) {
+        qemu_put_be32(f, dev->indicators->len);
+        qemu_put_be64(f, dev->indicators->addr);
+    } else {
+        qemu_put_be32(f, 0);
+        qemu_put_be64(f, 0UL);
+    }
+    if (dev->indicators2 != NULL) {
+        qemu_put_be32(f, dev->indicators2->len);
+        qemu_put_be64(f, dev->indicators2->addr);
+    } else {
+        qemu_put_be32(f, 0);
+        qemu_put_be64(f, 0UL);
+    }
+    if (dev->summary_indicator != NULL) {
+        qemu_put_be32(f, dev->summary_indicator->len);
+        qemu_put_be64(f, dev->summary_indicator->addr);
+    } else {
+        qemu_put_be32(f, 0);
+        qemu_put_be64(f, 0UL);
+    }
+    qemu_put_be64(f, dev->routes.adapter.ind_offset);
+    qemu_put_byte(f, dev->thinint_isc);
+}
+
+static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
+{
+    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
+    SubchDev *s = dev->sch;
+    int len;
+
+    s->driver_data = dev;
+    subch_device_load(s, f);
+    len = qemu_get_be32(f);
+    if (len != 0) {
+        dev->indicators = get_indicator(qemu_get_be64(f), len);
+    } else {
+        qemu_get_be64(f);
+        dev->indicators = NULL;
+    }
+    len = qemu_get_be32(f);
+    if (len != 0) {
+        dev->indicators2 = get_indicator(qemu_get_be64(f), len);
+    } else {
+        qemu_get_be64(f);
+        dev->indicators2 = NULL;
+    }
+    len = qemu_get_be32(f);
+    if (len != 0) {
+        dev->summary_indicator = get_indicator(qemu_get_be64(f), len);
+    } else {
+        qemu_get_be64(f);
+        dev->summary_indicator = NULL;
+    }
+    dev->routes.adapter.ind_offset = qemu_get_be64(f);
+    dev->thinint_isc = qemu_get_byte(f);
+    if (s->thinint_active) {
+        return css_register_io_adapter(CSS_IO_ADAPTER_VIRTIO,
+                                       dev->thinint_isc, true, false,
+                                       &dev->routes.adapter.adapter_id);
+    }
+
+    return 0;
+}
+
 /**************** Virtio-ccw Bus Device Descriptions *******************/
 
 static Property virtio_ccw_net_properties[] = {
@@ -1597,6 +1688,10 @@ static void virtio_ccw_bus_class_init(ObjectClass *klass, void *data)
     k->query_guest_notifiers = virtio_ccw_query_guest_notifiers;
     k->set_host_notifier = virtio_ccw_set_host_notifier;
     k->set_guest_notifiers = virtio_ccw_set_guest_notifiers;
+    k->save_queue = virtio_ccw_save_queue;
+    k->load_queue = virtio_ccw_load_queue;
+    k->save_config = virtio_ccw_save_config;
+    k->load_config = virtio_ccw_load_config;
 }
 
 static const TypeInfo virtio_ccw_bus_info = {

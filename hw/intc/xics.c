@@ -330,10 +330,9 @@ static const VMStateDescription vmstate_icp_server = {
     .name = "icp/server",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .pre_save = icp_dispatch_pre_save,
     .post_load = icp_dispatch_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         /* Sanity check */
         VMSTATE_UINT32(xirr, ICPState),
         VMSTATE_UINT8(pending_priority, ICPState),
@@ -566,8 +565,7 @@ static const VMStateDescription vmstate_ics_irq = {
     .name = "ics/irq",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(server, ICSIRQState),
         VMSTATE_UINT8(priority, ICSIRQState),
         VMSTATE_UINT8(saved_priority, ICSIRQState),
@@ -580,10 +578,9 @@ static const VMStateDescription vmstate_ics = {
     .name = "ics",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .pre_save = ics_dispatch_pre_save,
     .post_load = ics_dispatch_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         /* Sanity check */
         VMSTATE_UINT32_EQUAL(nr_irqs, ICSState),
 

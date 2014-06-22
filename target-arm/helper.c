@@ -312,14 +312,14 @@ static inline bool extended_addresses_enabled(CPUARMState *env)
 {
     return arm_el_is_aa64(env, 1)
         || ((arm_feature(env, ARM_FEATURE_LPAE)
-             && (env->cp15.c2_control & (1U << 31))));
+             && (env->cp15.c2_control & TTBCR_EAE)));
 }
 
 static void dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
 
-    env->cp15.c3 = value;
+    raw_write(env, ri, value);
     tlb_flush(CPU(cpu), 1); /* Flush TLB as domain not tracked in TLB */
 }
 
@@ -327,12 +327,12 @@ static void fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
 
-    if (env->cp15.c13_fcse != value) {
+    if (raw_read(env, ri) != value) {
         /* Unlike real hardware the qemu TLB uses virtual addresses,
          * not modified virtual addresses, so this causes a TLB flush.
          */
         tlb_flush(CPU(cpu), 1);
-        env->cp15.c13_fcse = value;
+        raw_write(env, ri, value);
     }
 }
 
@@ -341,7 +341,7 @@ static void contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
 
-    if (env->cp15.contextidr_el1 != value && !arm_feature(env, ARM_FEATURE_MPU)
+    if (raw_read(env, ri) != value && !arm_feature(env, ARM_FEATURE_MPU)
         && !extended_addresses_enabled(env)) {
         /* For VMSA (when not using the LPAE long descriptor page table
          * format) this register includes the ASID, so do a TLB flush.
@@ -349,7 +349,7 @@ static void contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
          */
         tlb_flush(CPU(cpu), 1);
     }
-    env->cp15.contextidr_el1 = value;
+    raw_write(env, ri, value);
 }
 
 static void tlbiall_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -693,7 +693,7 @@ static uint64_t ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 static void csselr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                          uint64_t value)
 {
-    env->cp15.c0_cssel = value & 0xf;
+    raw_write(env, ri, value & 0xf);
 }
 
 static uint64_t isr_read(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -1040,16 +1040,16 @@ static void gt_ctl_write(CPUARMState *env, const ARMCPRegInfo *ri,
     int timeridx = ri->crm & 1;
     uint32_t oldval = env->cp15.c14_timer[timeridx].ctl;
 
-    env->cp15.c14_timer[timeridx].ctl = value & 3;
+    env->cp15.c14_timer[timeridx].ctl = deposit64(oldval, 0, 2, value);
     if ((oldval ^ value) & 1) {
         /* Enable toggled */
         gt_recalc_timer(cpu, timeridx);
-    } else if ((oldval & value) & 2) {
+    } else if ((oldval ^ value) & 2) {
         /* IMASK toggled: don't need to recalculate,
          * just set the interrupt line based on ISTATUS
          */
         qemu_set_irq(cpu->gt_timer_outputs[timeridx],
-                     (oldval & 4) && (value & 2));
+                     (oldval & 4) && !(value & 2));
     }
 }
 
@@ -1216,11 +1216,11 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
 static void par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
-        env->cp15.par_el1 = value;
+        raw_write(env, ri, value);
     } else if (arm_feature(env, ARM_FEATURE_V7)) {
-        env->cp15.par_el1 = value & 0xfffff6ff;
+        raw_write(env, ri, value & 0xfffff6ff);
     } else {
-        env->cp15.par_el1 = value & 0xfffff1ff;
+        raw_write(env, ri, value & 0xfffff1ff);
     }
 }
 
@@ -1413,17 +1413,28 @@ static void vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     int maskshift = extract32(value, 0, 3);
 
-    if (arm_feature(env, ARM_FEATURE_LPAE) && (value & (1 << 31))) {
-        value &= ~((7 << 19) | (3 << 14) | (0xf << 3));
-    } else {
-        value &= 7;
+    if (!arm_feature(env, ARM_FEATURE_V8)) {
+        if (arm_feature(env, ARM_FEATURE_LPAE) && (value & TTBCR_EAE)) {
+            /* Pre ARMv8 bits [21:19], [15:14] and [6:3] are UNK/SBZP when
+             * using Long-desciptor translation table format */
+            value &= ~((7 << 19) | (3 << 14) | (0xf << 3));
+        } else if (arm_feature(env, ARM_FEATURE_EL3)) {
+            /* In an implementation that includes the Security Extensions
+             * TTBCR has additional fields PD0 [4] and PD1 [5] for
+             * Short-descriptor translation table format.
+             */
+            value &= TTBCR_PD1 | TTBCR_PD0 | TTBCR_N;
+        } else {
+            value &= TTBCR_N;
+        }
     }
+
     /* Note that we always calculate c2_mask and c2_base_mask, but
      * they are only used for short-descriptor tables (ie if EAE is 0);
      * for long-descriptor tables the TTBCR fields are used differently
      * and the c2_mask and c2_base_mask values are meaningless.
      */
-    env->cp15.c2_control = value;
+    raw_write(env, ri, value);
     env->cp15.c2_mask = ~(((uint32_t)0xffffffffu) >> maskshift);
     env->cp15.c2_base_mask = ~((uint32_t)0x3fffu >> maskshift);
 }
@@ -1445,7 +1456,7 @@ static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void vmsa_ttbcr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     env->cp15.c2_base_mask = 0xffffc000u;
-    env->cp15.c2_control = 0;
+    raw_write(env, ri, 0);
     env->cp15.c2_mask = 0;
 }
 
@@ -1456,7 +1467,7 @@ static void vmsa_tcr_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     /* For AArch64 the A1 bit could result in a change of ASID, so TLB flush. */
     tlb_flush(CPU(cpu), 1);
-    env->cp15.c2_control = value;
+    raw_write(env, ri, value);
 }
 
 static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -2151,14 +2162,14 @@ static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
 
-    if (env->cp15.c1_sys == value) {
+    if (raw_read(env, ri) == value) {
         /* Skip the TLB flush if nothing actually changed; Linux likes
          * to do a lot of pointless SCTLR writes.
          */
         return;
     }
 
-    env->cp15.c1_sys = value;
+    raw_write(env, ri, value);
     /* ??? Lots of these bits are not implemented.  */
     /* This may enable/disable the MMU, so do a TLB flush.  */
     tlb_flush(CPU(cpu), 1);
@@ -3552,17 +3563,24 @@ static inline int check_ap(CPUARMState *env, int ap, int domain_prot,
   }
 }
 
-static uint32_t get_level1_table_address(CPUARMState *env, uint32_t address)
+static bool get_level1_table_address(CPUARMState *env, uint32_t *table,
+                                         uint32_t address)
 {
-    uint32_t table;
-
-    if (address & env->cp15.c2_mask)
-        table = env->cp15.ttbr1_el1 & 0xffffc000;
-    else
-        table = env->cp15.ttbr0_el1 & env->cp15.c2_base_mask;
-
-    table |= (address >> 18) & 0x3ffc;
-    return table;
+    if (address & env->cp15.c2_mask) {
+        if ((env->cp15.c2_control & TTBCR_PD1)) {
+            /* Translation table walk disabled for TTBR1 */
+            return false;
+        }
+        *table = env->cp15.ttbr1_el1 & 0xffffc000;
+    } else {
+        if ((env->cp15.c2_control & TTBCR_PD0)) {
+            /* Translation table walk disabled for TTBR0 */
+            return false;
+        }
+        *table = env->cp15.ttbr0_el1 & env->cp15.c2_base_mask;
+    }
+    *table |= (address >> 18) & 0x3ffc;
+    return true;
 }
 
 static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
@@ -3575,13 +3593,17 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
     uint32_t desc;
     int type;
     int ap;
-    int domain;
+    int domain = 0;
     int domain_prot;
     hwaddr phys_addr;
 
     /* Pagetable walk.  */
     /* Lookup l1 descriptor.  */
-    table = get_level1_table_address(env, address);
+    if (!get_level1_table_address(env, &table, address)) {
+        /* Section translation fault if page walk is disabled by PD0 or PD1 */
+        code = 5;
+        goto do_fault;
+    }
     desc = ldl_phys(cs->as, table);
     type = (desc & 3);
     domain = (desc >> 5) & 0x0f;
@@ -3679,7 +3701,11 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
 
     /* Pagetable walk.  */
     /* Lookup l1 descriptor.  */
-    table = get_level1_table_address(env, address);
+    if (!get_level1_table_address(env, &table, address)) {
+        /* Section translation fault if page walk is disabled by PD0 or PD1 */
+        code = 5;
+        goto do_fault;
+    }
     desc = ldl_phys(cs->as, table);
     type = (desc & 3);
     if (type == 0 || (type == 3 && !arm_feature(env, ARM_FEATURE_PXN))) {
@@ -3938,16 +3964,11 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
          * These are basically the same thing, although the number
          * of bits we pull in from the vaddr varies.
          */
-        page_size = (1 << ((granule_sz * (4 - level)) + 3));
+        page_size = (1ULL << ((granule_sz * (4 - level)) + 3));
         descaddr |= (address & (page_size - 1));
         /* Extract attributes from the descriptor and merge with table attrs */
-        if (arm_feature(env, ARM_FEATURE_V8)) {
-            attrs = extract64(descriptor, 2, 10)
-                | (extract64(descriptor, 53, 11) << 10);
-        } else {
-            attrs = extract64(descriptor, 2, 10)
-                | (extract64(descriptor, 52, 12) << 10);
-        }
+        attrs = extract64(descriptor, 2, 10)
+            | (extract64(descriptor, 52, 12) << 10);
         attrs |= extract32(tableattrs, 0, 2) << 11; /* XN, PXN */
         attrs |= extract32(tableattrs, 3, 1) << 5; /* APTable[1] => AP[2] */
         /* The sense of AP[1] vs APTable[0] is reversed, as APTable[0] == 1
@@ -3973,8 +3994,12 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         goto do_fault;
     }
     *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-    if (attrs & (1 << 12) || (!is_user && (attrs & (1 << 11)))) {
-        /* XN or PXN */
+    if ((arm_feature(env, ARM_FEATURE_V8) && is_user && (attrs & (1 << 12))) ||
+        (!arm_feature(env, ARM_FEATURE_V8) && (attrs & (1 << 12))) ||
+        (!is_user && (attrs & (1 << 11)))) {
+        /* XN/UXN or PXN. Since we only implement EL0/EL1 we unconditionally
+         * treat XN/UXN as UXN for v8.
+         */
         if (access_type == 2) {
             goto do_fault;
         }
@@ -5572,28 +5597,15 @@ int arm_rmode_to_sf(int rmode)
     return rmode;
 }
 
-static void crc_init_buffer(uint8_t *buf, uint32_t val, uint32_t bytes)
-{
-    memset(buf, 0, 4);
-
-    if (bytes == 1) {
-        buf[0] = val & 0xff;
-    } else if (bytes == 2) {
-        buf[0] = val & 0xff;
-        buf[1] = (val >> 8) & 0xff;
-    } else {
-        buf[0] = val & 0xff;
-        buf[1] = (val >> 8) & 0xff;
-        buf[2] = (val >> 16) & 0xff;
-        buf[3] = (val >> 24) & 0xff;
-    }
-}
-
+/* CRC helpers.
+ * The upper bytes of val (above the number specified by 'bytes') must have
+ * been zeroed out by the caller.
+ */
 uint32_t HELPER(crc32)(uint32_t acc, uint32_t val, uint32_t bytes)
 {
     uint8_t buf[4];
 
-    crc_init_buffer(buf, val, bytes);
+    stl_le_p(buf, val);
 
     /* zlib crc32 converts the accumulator and output to one's complement.  */
     return crc32(acc ^ 0xffffffff, buf, bytes) ^ 0xffffffff;
@@ -5603,7 +5615,7 @@ uint32_t HELPER(crc32c)(uint32_t acc, uint32_t val, uint32_t bytes)
 {
     uint8_t buf[4];
 
-    crc_init_buffer(buf, val, bytes);
+    stl_le_p(buf, val);
 
     /* Linux crc32c converts the output to one's complement.  */
     return crc32c(acc, buf, bytes) ^ 0xffffffff;

@@ -77,9 +77,8 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUClass *ahcc)
 
 int kvm_arch_init_vcpu(CPUState *cs)
 {
-    ARMCPU *cpu = ARM_CPU(cs);
-    struct kvm_vcpu_init init;
     int ret;
+    ARMCPU *cpu = ARM_CPU(cs);
 
     if (cpu->kvm_target == QEMU_KVM_ARM_TARGET_NONE ||
         !arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
@@ -87,16 +86,25 @@ int kvm_arch_init_vcpu(CPUState *cs)
         return -EINVAL;
     }
 
-    init.target = cpu->kvm_target;
-    memset(init.features, 0, sizeof(init.features));
+    /* Determine init features for this CPU */
+    memset(cpu->kvm_init_features, 0, sizeof(cpu->kvm_init_features));
     if (cpu->start_powered_off) {
-        init.features[0] = 1 << KVM_ARM_VCPU_POWER_OFF;
+        cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_POWER_OFF;
     }
-    ret = kvm_vcpu_ioctl(cs, KVM_ARM_VCPU_INIT, &init);
+    if (kvm_check_extension(cs->kvm_state, KVM_CAP_ARM_PSCI_0_2)) {
+        cpu->psci_version = 2;
+        cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_PSCI_0_2;
+    }
+
+    /* Do KVM_ARM_VCPU_INIT ioctl */
+    ret = kvm_arm_vcpu_init(cs);
+    if (ret) {
+        return ret;
+    }
 
     /* TODO : support for save/restore/reset of system regs via tuple list */
 
-    return ret;
+    return 0;
 }
 
 #define AARCH64_CORE_REG(x)   (KVM_REG_ARM64 | KVM_REG_SIZE_U64 | \
@@ -262,4 +270,8 @@ int kvm_arch_get_registers(CPUState *cs)
 
 void kvm_arm_reset_vcpu(ARMCPU *cpu)
 {
+    /* Re-init VCPU so that all registers are set to
+     * their respective reset values.
+     */
+    kvm_arm_vcpu_init(CPU(cpu));
 }

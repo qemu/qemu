@@ -423,7 +423,6 @@ static QObject *parse_object(JSONParserContext *ctxt, va_list *ap)
     if (!token_is_operator(token, '{')) {
         goto out;
     }
-    token = NULL;
 
     dict = qdict_new();
 
@@ -449,7 +448,6 @@ static QObject *parse_object(JSONParserContext *ctxt, va_list *ap)
                 parse_error(ctxt, token, "expected separator in dict");
                 goto out;
             }
-            token = NULL;
 
             if (parse_pair(ctxt, dict, ap) == -1) {
                 goto out;
@@ -461,10 +459,8 @@ static QObject *parse_object(JSONParserContext *ctxt, va_list *ap)
                 goto out;
             }
         }
-        token = NULL;
     } else {
-        token = parser_context_pop_token(ctxt);
-        token = NULL;
+        (void)parser_context_pop_token(ctxt);
     }
 
     return QOBJECT(dict);
@@ -487,10 +483,8 @@ static QObject *parse_array(JSONParserContext *ctxt, va_list *ap)
     }
 
     if (!token_is_operator(token, '[')) {
-        token = NULL;
         goto out;
     }
-    token = NULL;
 
     list = qlist_new();
 
@@ -523,8 +517,6 @@ static QObject *parse_array(JSONParserContext *ctxt, va_list *ap)
                 goto out;
             }
 
-            token = NULL;
-
             obj = parse_value(ctxt, ap);
             if (obj == NULL) {
                 parse_error(ctxt, token, "expecting value");
@@ -539,11 +531,8 @@ static QObject *parse_array(JSONParserContext *ctxt, va_list *ap)
                 goto out;
             }
         }
-
-        token = NULL;
     } else {
-        token = parser_context_pop_token(ctxt);
-        token = NULL;
+        (void)parser_context_pop_token(ctxt);
     }
 
     return QOBJECT(list);

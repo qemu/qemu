@@ -12,12 +12,10 @@
 
 #ifndef _WIN32
 #include <netdb.h>
+#define closesocket(x) close(x)
 #endif
-#include <glib.h>
 
 #include "qemu-common.h"
-#include "qemu/thread.h"
-#include "qemu/sockets.h"
 
 #include "vscard_common.h"
 
@@ -54,7 +52,7 @@ print_usage(void) {
 
 static GIOChannel *channel_socket;
 static GByteArray *socket_to_send;
-static QemuMutex socket_to_send_lock;
+static CompatGMutex socket_to_send_lock;
 static guint socket_tag;
 
 static void
@@ -103,7 +101,7 @@ send_msg(
 ) {
     VSCMsgHeader mhHeader;
 
-    qemu_mutex_lock(&socket_to_send_lock);
+    g_mutex_lock(&socket_to_send_lock);
 
     if (verbose > 10) {
         printf("sending type=%d id=%u, len =%u (0x%x)\n",
@@ -117,18 +115,18 @@ send_msg(
     g_byte_array_append(socket_to_send, (guint8 *)msg, length);
     g_idle_add(socket_prepare_sending, NULL);
 
-    qemu_mutex_unlock(&socket_to_send_lock);
+    g_mutex_unlock(&socket_to_send_lock);
 
     return 0;
 }
 
 static VReader *pending_reader;
-static QemuMutex pending_reader_lock;
-static QemuCond pending_reader_condition;
+static CompatGMutex pending_reader_lock;
+static CompatGCond pending_reader_condition;
 
 #define MAX_ATR_LEN 40
-static void *
-event_thread(void *arg)
+static gpointer
+event_thread(gpointer arg)
 {
     unsigned char atr[MAX_ATR_LEN];
     int atr_len;
@@ -149,20 +147,20 @@ event_thread(void *arg)
             /* ignore events from readers qemu has rejected */
             /* if qemu is still deciding on this reader, wait to see if need to
              * forward this event */
-            qemu_mutex_lock(&pending_reader_lock);
+            g_mutex_lock(&pending_reader_lock);
             if (!pending_reader || (pending_reader != event->reader)) {
                 /* wasn't for a pending reader, this reader has already been
                  * rejected by qemu */
-                qemu_mutex_unlock(&pending_reader_lock);
+                g_mutex_unlock(&pending_reader_lock);
                 vevent_delete(event);
                 continue;
             }
             /* this reader hasn't been told its status from qemu yet, wait for
              * that status */
             while (pending_reader != NULL) {
-                qemu_cond_wait(&pending_reader_condition, &pending_reader_lock);
+                g_cond_wait(&pending_reader_condition, &pending_reader_lock);
             }
-            qemu_mutex_unlock(&pending_reader_lock);
+            g_mutex_unlock(&pending_reader_lock);
             /* now recheck the id */
             reader_id = vreader_get_id(event->reader);
             if (reader_id == VSCARD_UNDEFINED_READER_ID) {
@@ -178,12 +176,12 @@ event_thread(void *arg)
             /* wait until qemu has responded to our first reader insert
              * before we send a second. That way we won't confuse the responses
              * */
-            qemu_mutex_lock(&pending_reader_lock);
+            g_mutex_lock(&pending_reader_lock);
             while (pending_reader != NULL) {
-                qemu_cond_wait(&pending_reader_condition, &pending_reader_lock);
+                g_cond_wait(&pending_reader_condition, &pending_reader_lock);
             }
             pending_reader = vreader_reference(event->reader);
-            qemu_mutex_unlock(&pending_reader_lock);
+            g_mutex_unlock(&pending_reader_lock);
             reader_name = vreader_get_name(event->reader);
             if (verbose > 10) {
                 printf(" READER INSERT: %s\n", reader_name);
@@ -246,7 +244,6 @@ on_host_init(VSCMsgHeader *mhHeader, VSCMsgInit *incoming)
     int num_capabilities =
         1 + ((mhHeader->length - sizeof(VSCMsgInit)) / sizeof(uint32_t));
     int i;
-    QemuThread thread_id;
 
     incoming->version = ntohl(incoming->version);
     if (incoming->version != VSCARD_VERSION) {
@@ -269,7 +266,7 @@ on_host_init(VSCMsgHeader *mhHeader, VSCMsgInit *incoming)
     send_msg(VSC_ReaderRemove, VSCARD_MINIMAL_READER_ID, NULL, 0);
     /* launch the event_thread. This will trigger reader adds for all the
      * existing readers */
-    qemu_thread_create(&thread_id, "vsc/event", event_thread, NULL, 0);
+    g_thread_new("vsc/event", event_thread, NULL);
     return 0;
 }
 
@@ -379,26 +376,26 @@ do_socket_read(GIOChannel *source,
         case VSC_Error:
             error_msg = (VSCMsgError *) pbSendBuffer;
             if (error_msg->code == VSC_SUCCESS) {
-                qemu_mutex_lock(&pending_reader_lock);
+                g_mutex_lock(&pending_reader_lock);
                 if (pending_reader) {
                     vreader_set_id(pending_reader, mhHeader.reader_id);
                     vreader_free(pending_reader);
                     pending_reader = NULL;
-                    qemu_cond_signal(&pending_reader_condition);
+                    g_cond_signal(&pending_reader_condition);
                 }
-                qemu_mutex_unlock(&pending_reader_lock);
+                g_mutex_unlock(&pending_reader_lock);
                 break;
             }
             printf("warning: qemu refused to add reader\n");
             if (error_msg->code == VSC_CANNOT_ADD_MORE_READERS) {
                 /* clear pending reader, qemu can't handle any more */
-                qemu_mutex_lock(&pending_reader_lock);
+                g_mutex_lock(&pending_reader_lock);
                 if (pending_reader) {
                     pending_reader = NULL;
                     /* make sure the event loop doesn't hang */
-                    qemu_cond_signal(&pending_reader_condition);
+                    g_cond_signal(&pending_reader_condition);
                 }
-                qemu_mutex_unlock(&pending_reader_lock);
+                g_mutex_unlock(&pending_reader_lock);
             }
             break;
         case VSC_Init:
@@ -601,7 +598,7 @@ connect_to_qemu(
     struct addrinfo *server;
     int ret, sock;
 
-    sock = qemu_socket(AF_INET, SOCK_STREAM, 0);
+    sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
         /* Error */
         fprintf(stderr, "Error opening socket!\n");
@@ -654,8 +651,20 @@ main(
     int cert_count = 0;
     int c, sock;
 
-    if (socket_init() != 0)
+#ifdef _WIN32
+    WSADATA Data;
+
+    if (WSAStartup(MAKEWORD(2, 2), &Data) != 0) {
+        c = WSAGetLastError();
+        fprintf(stderr, "WSAStartup: %d\n", c);
         return 1;
+    }
+#endif
+#if !GLIB_CHECK_VERSION(2, 31, 0)
+    if (!g_thread_supported()) {
+         g_thread_init(NULL);
+    }
+#endif
 
     while ((c = getopt(argc, argv, "c:e:pd:")) != -1) {
         switch (c) {
@@ -722,13 +731,8 @@ main(
     }
 
     socket_to_send = g_byte_array_new();
-    qemu_mutex_init(&socket_to_send_lock);
-    qemu_mutex_init(&pending_reader_lock);
-    qemu_cond_init(&pending_reader_condition);
-
     vcard_emul_init(command_line_options);
-
-    loop = g_main_loop_new(NULL, true);
+    loop = g_main_loop_new(NULL, TRUE);
 
     printf("> ");
     fflush(stdout);

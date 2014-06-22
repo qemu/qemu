@@ -15,6 +15,18 @@
 #include "exec/memory.h"
 
 /**
+ * kvm_arm_vcpu_init:
+ * @cs: CPUState
+ *
+ * Initialize (or reinitialize) the VCPU by invoking the
+ * KVM_ARM_VCPU_INIT ioctl with the CPU type and feature
+ * bitmask specified in the CPUState.
+ *
+ * Returns: 0 if success else < 0 error code
+ */
+int kvm_arm_vcpu_init(CPUState *cs);
+
+/**
  * kvm_arm_register_device:
  * @mr: memory region for this device
  * @devid: the KVM device ID

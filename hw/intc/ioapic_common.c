@@ -86,7 +86,6 @@ static const VMStateDescription vmstate_ioapic_common = {
     .name = "ioapic",
     .version_id = 3,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .pre_save = ioapic_dispatch_pre_save,
     .post_load = ioapic_dispatch_post_load,
     .fields = (VMStateField[]) {

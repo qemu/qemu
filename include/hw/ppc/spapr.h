@@ -29,6 +29,7 @@ typedef struct sPAPREnvironment {
     target_ulong entry_point;
     uint32_t next_irq;
     uint64_t rtc_offset;
+    struct PPCTimebase tb;
     bool has_graphics;
 
     uint32_t epow_irq;
@@ -162,6 +163,11 @@ typedef struct sPAPREnvironment {
 /* Flags for H_SET_MODE_RESOURCE_LE */
 #define H_SET_MODE_ENDIAN_BIG    0
 #define H_SET_MODE_ENDIAN_LITTLE 1
+
+/* Flags for H_SET_MODE_RESOURCE_ADDR_TRANS_MODE */
+#define H_SET_MODE_ADDR_TRANS_NONE                  0
+#define H_SET_MODE_ADDR_TRANS_0001_8000             2
+#define H_SET_MODE_ADDR_TRANS_C000_0000_0000_4000   3
 
 /* VASI States */
 #define H_VASI_INVALID    0
@@ -302,9 +308,15 @@ typedef struct sPAPREnvironment {
 #define KVMPPC_HCALL_BASE       0xf000
 #define KVMPPC_H_RTAS           (KVMPPC_HCALL_BASE + 0x0)
 #define KVMPPC_H_LOGICAL_MEMOP  (KVMPPC_HCALL_BASE + 0x1)
-#define KVMPPC_HCALL_MAX        KVMPPC_H_LOGICAL_MEMOP
+/* Client Architecture support */
+#define KVMPPC_H_CAS            (KVMPPC_HCALL_BASE + 0x2)
+#define KVMPPC_HCALL_MAX        KVMPPC_H_CAS
 
 extern sPAPREnvironment *spapr;
+
+typedef struct sPAPRDeviceTreeUpdateHeader {
+    uint32_t version_id;
+} sPAPRDeviceTreeUpdateHeader;
 
 /*#define DEBUG_SPAPR_HCALLS*/
 
@@ -390,8 +402,9 @@ typedef struct sPAPRTCETable sPAPRTCETable;
 struct sPAPRTCETable {
     DeviceState parent;
     uint32_t liobn;
-    uint32_t window_size;
     uint32_t nb_table;
+    uint64_t bus_offset;
+    uint32_t page_shift;
     uint64_t *table;
     bool bypass;
     int fd;
@@ -401,8 +414,11 @@ struct sPAPRTCETable {
 
 void spapr_events_init(sPAPREnvironment *spapr);
 void spapr_events_fdt_skel(void *fdt, uint32_t epow_irq);
+int spapr_h_cas_compose_response(target_ulong addr, target_ulong size);
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
-                                   size_t window_size);
+                                   uint64_t bus_offset,
+                                   uint32_t page_shift,
+                                   uint32_t nb_table);
 MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet);
 void spapr_tce_set_bypass(sPAPRTCETable *tcet, bool bypass);
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,

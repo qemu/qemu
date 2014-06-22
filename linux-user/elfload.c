@@ -462,6 +462,9 @@ static uint32_t get_elf_hwcap2(void)
     uint32_t hwcaps = 0;
 
     GET_FEATURE(ARM_FEATURE_V8_AES, ARM_HWCAP2_ARM_AES);
+    GET_FEATURE(ARM_FEATURE_V8_PMULL, ARM_HWCAP2_ARM_PMULL);
+    GET_FEATURE(ARM_FEATURE_V8_SHA1, ARM_HWCAP2_ARM_SHA1);
+    GET_FEATURE(ARM_FEATURE_V8_SHA256, ARM_HWCAP2_ARM_SHA2);
     GET_FEATURE(ARM_FEATURE_CRC, ARM_HWCAP2_ARM_CRC32);
     return hwcaps;
 }
@@ -530,7 +533,11 @@ static uint32_t get_elf_hwcap(void)
     /* probe for the extra features */
 #define GET_FEATURE(feat, hwcap) \
     do { if (arm_feature(&cpu->env, feat)) { hwcaps |= hwcap; } } while (0)
-    GET_FEATURE(ARM_FEATURE_V8_AES, ARM_HWCAP_A64_PMULL);
+    GET_FEATURE(ARM_FEATURE_V8_AES, ARM_HWCAP_A64_AES);
+    GET_FEATURE(ARM_FEATURE_V8_PMULL, ARM_HWCAP_A64_PMULL);
+    GET_FEATURE(ARM_FEATURE_V8_SHA1, ARM_HWCAP_A64_SHA1);
+    GET_FEATURE(ARM_FEATURE_V8_SHA256, ARM_HWCAP_A64_SHA2);
+    GET_FEATURE(ARM_FEATURE_CRC, ARM_HWCAP_A64_CRC32);
 #undef GET_FEATURE
 
     return hwcaps;
@@ -771,12 +778,18 @@ static uint32_t get_elf_hwcap(void)
         NEW_AUX_ENT(AT_IGNOREPPC, AT_IGNOREPPC);        \
     } while (0)
 
+static inline uint32_t get_ppc64_abi(struct image_info *infop);
+
 static inline void init_thread(struct target_pt_regs *_regs, struct image_info *infop)
 {
     _regs->gpr[1] = infop->start_stack;
 #if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
-    _regs->gpr[2] = ldq_raw(infop->entry + 8) + infop->load_bias;
-    infop->entry = ldq_raw(infop->entry) + infop->load_bias;
+    if (get_ppc64_abi(infop) < 2) {
+        _regs->gpr[2] = ldq_raw(infop->entry + 8) + infop->load_bias;
+        infop->entry = ldq_raw(infop->entry) + infop->load_bias;
+    } else {
+        _regs->gpr[12] = infop->entry;  /* r12 set to global entry address */
+    }
 #endif
     _regs->nip = infop->entry;
 }
@@ -1146,6 +1159,13 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #include "elf.h"
 
+#ifdef TARGET_PPC
+static inline uint32_t get_ppc64_abi(struct image_info *infop)
+{
+  return infop->elf_flags & EF_PPC64_ABI;
+}
+#endif
+
 struct exec
 {
     unsigned int a_info;   /* Use macros N_MAGIC, etc for access */
@@ -1266,7 +1286,6 @@ static bool elf_check_ehdr(struct elfhdr *ehdr)
     return (elf_check_arch(ehdr->e_machine)
             && ehdr->e_ehsize == sizeof(struct elfhdr)
             && ehdr->e_phentsize == sizeof(struct elf_phdr)
-            && ehdr->e_shentsize == sizeof(struct elf_shdr)
             && (ehdr->e_type == ET_EXEC || ehdr->e_type == ET_DYN));
 }
 
@@ -1399,10 +1418,11 @@ static void zero_bss(abi_ulong elf_bss, abi_ulong last_bss, int prot)
             perror("cannot mmap brk");
             exit(-1);
         }
+    }
 
-        /* Since we didn't use target_mmap, make sure to record
-           the validity of the pages with qemu.  */
-        page_set_flags(elf_bss & TARGET_PAGE_MASK, last_bss, prot|PAGE_VALID);
+    /* Ensure that the bss page(s) are valid */
+    if ((page_get_flags(last_bss-1) & prot) != prot) {
+        page_set_flags(elf_bss & TARGET_PAGE_MASK, last_bss, prot | PAGE_VALID);
     }
 
     if (host_start < host_map_start) {
@@ -1525,7 +1545,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     NEW_AUX_ENT(AT_PHDR, (abi_ulong)(info->load_addr + exec->e_phoff));
     NEW_AUX_ENT(AT_PHENT, (abi_ulong)(sizeof (struct elf_phdr)));
     NEW_AUX_ENT(AT_PHNUM, (abi_ulong)(exec->e_phnum));
-    NEW_AUX_ENT(AT_PAGESZ, (abi_ulong)(TARGET_PAGE_SIZE));
+    NEW_AUX_ENT(AT_PAGESZ, (abi_ulong)(MAX(TARGET_PAGE_SIZE, getpagesize())));
     NEW_AUX_ENT(AT_BASE, (abi_ulong)(interp_info ? interp_info->load_addr : 0));
     NEW_AUX_ENT(AT_FLAGS, (abi_ulong)0);
     NEW_AUX_ENT(AT_ENTRY, info->entry);

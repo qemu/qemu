@@ -100,10 +100,8 @@ cac_applet_pki_reset(VCard *card, int channel)
     pki_applet = &(applet_private->u.pki_data);
 
     pki_applet->cert_buffer = NULL;
-    if (pki_applet->sign_buffer) {
-        g_free(pki_applet->sign_buffer);
-        pki_applet->sign_buffer = NULL;
-    }
+    g_free(pki_applet->sign_buffer);
+    pki_applet->sign_buffer = NULL;
     pki_applet->cert_buffer_len = 0;
     pki_applet->sign_buffer_len = 0;
     return VCARD_DONE;
@@ -285,12 +283,8 @@ cac_delete_pki_applet_private(VCardAppletPrivate *applet_private)
         return;
     }
     pki_applet_data = &(applet_private->u.pki_data);
-    if (pki_applet_data->cert != NULL) {
-        g_free(pki_applet_data->cert);
-    }
-    if (pki_applet_data->sign_buffer != NULL) {
-        g_free(pki_applet_data->sign_buffer);
-    }
+    g_free(pki_applet_data->cert);
+    g_free(pki_applet_data->sign_buffer);
     if (pki_applet_data->key != NULL) {
         vcard_emul_delete_key(pki_applet_data->key);
     }
