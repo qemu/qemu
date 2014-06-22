@@ -1011,13 +1011,6 @@ typedef void vga_draw_line_func(VGACommonState *s1, uint8_t *d,
 
 #include "vga_template.h"
 
-static unsigned int rgb_to_pixel32_dup(unsigned int r, unsigned int g, unsigned b)
-{
-    unsigned int col;
-    col = rgb_to_pixel32(r, g, b);
-    return col;
-}
-
 /* return true if the palette was modified */
 static int update_palette16(VGACommonState *s)
 {
@@ -1034,9 +1027,9 @@ static int update_palette16(VGACommonState *s)
             v = ((s->ar[VGA_ATC_COLOR_PAGE] & 0xc) << 4) | (v & 0x3f);
         }
         v = v * 3;
-        col = s->rgb_to_pixel(c6_to_8(s->palette[v]),
-                              c6_to_8(s->palette[v + 1]),
-                              c6_to_8(s->palette[v + 2]));
+        col = rgb_to_pixel32(c6_to_8(s->palette[v]),
+                             c6_to_8(s->palette[v + 1]),
+                             c6_to_8(s->palette[v + 2]));
         if (col != palette[i]) {
             full_update = 1;
             palette[i] = col;
@@ -1056,13 +1049,13 @@ static int update_palette256(VGACommonState *s)
     v = 0;
     for(i = 0; i < 256; i++) {
         if (s->dac_8bit) {
-          col = s->rgb_to_pixel(s->palette[v],
-                                s->palette[v + 1],
-                                s->palette[v + 2]);
+            col = rgb_to_pixel32(s->palette[v],
+                                 s->palette[v + 1],
+                                 s->palette[v + 2]);
         } else {
-          col = s->rgb_to_pixel(c6_to_8(s->palette[v]),
-                                c6_to_8(s->palette[v + 1]),
-                                c6_to_8(s->palette[v + 2]));
+            col = rgb_to_pixel32(c6_to_8(s->palette[v]),
+                                 c6_to_8(s->palette[v + 1]),
+                                 c6_to_8(s->palette[v + 2]));
         }
         if (col != palette[i]) {
             full_update = 1;
@@ -1245,7 +1238,6 @@ static void vga_draw_text(VGACommonState *s, int full_update)
         s->last_cw = cw;
         full_update = 1;
     }
-    s->rgb_to_pixel = rgb_to_pixel32_dup;
     full_update |= update_palette16(s);
     palette = s->last_palette;
     x_incr = cw * surface_bytes_per_pixel(surface);
@@ -1553,8 +1545,6 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         dpy_gfx_replace_surface(s->con, surface);
     }
 
-    s->rgb_to_pixel = rgb_to_pixel32_dup;
-
     if (shift_control == 0) {
         full_update |= update_palette16(s);
         if (s->sr[VGA_SEQ_CLOCK_MODE] & 8) {
@@ -1700,9 +1690,8 @@ static void vga_draw_blank(VGACommonState *s, int full_update)
     if (s->last_scr_width <= 0 || s->last_scr_height <= 0)
         return;
 
-    s->rgb_to_pixel = rgb_to_pixel32_dup;
     if (surface_bits_per_pixel(surface) == 8) {
-        val = s->rgb_to_pixel(0, 0, 0);
+        val = rgb_to_pixel32(0, 0, 0);
     } else {
         val = 0;
     }

@@ -154,8 +154,6 @@ typedef struct VGACommonState {
     bool cursor_visible_phase;
     int64_t cursor_blink_time;
     uint32_t cursor_offset;
-    unsigned int (*rgb_to_pixel)(unsigned int r,
-                                 unsigned int g, unsigned b);
     const GraphicHwOps *hw_ops;
     bool full_update_text;
     bool full_update_gfx;

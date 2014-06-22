@@ -29,6 +29,7 @@
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "ui/console.h"
+#include "ui/pixel_ops.h"
 #include "vga_int.h"
 #include "hw/loader.h"
 
@@ -2212,6 +2213,8 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
     } else {
         src += (s->vga.sr[0x13] & 0x3f) * 256;
         src += (scr_y - s->hw_cursor_y) * 4;
+
+
         poffset = 128;
         content = ((uint32_t *)src)[0] |
             ((uint32_t *)(src + 128))[0];
@@ -2229,12 +2232,12 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
         x2 = s->vga.last_scr_width;
     w = x2 - x1;
     palette = s->cirrus_hidden_palette;
-    color0 = s->vga.rgb_to_pixel(c6_to_8(palette[0x0 * 3]),
-                                 c6_to_8(palette[0x0 * 3 + 1]),
-                                 c6_to_8(palette[0x0 * 3 + 2]));
-    color1 = s->vga.rgb_to_pixel(c6_to_8(palette[0xf * 3]),
-                                 c6_to_8(palette[0xf * 3 + 1]),
-                                 c6_to_8(palette[0xf * 3 + 2]));
+    color0 = rgb_to_pixel32(c6_to_8(palette[0x0 * 3]),
+                            c6_to_8(palette[0x0 * 3 + 1]),
+                            c6_to_8(palette[0x0 * 3 + 2]));
+    color1 = rgb_to_pixel32(c6_to_8(palette[0xf * 3]),
+                            c6_to_8(palette[0xf * 3 + 1]),
+                            c6_to_8(palette[0xf * 3 + 2]));
     bpp = surface_bytes_per_pixel(surface);
     d1 += x1 * bpp;
     switch (surface_bits_per_pixel(surface)) {
