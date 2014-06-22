@@ -165,6 +165,11 @@ struct target_timespec {
     abi_long tv_nsec;
 };
 
+struct target_timezone {
+    abi_int tz_minuteswest;
+    abi_int tz_dsttime;
+};
+
 struct target_itimerval {
     struct target_timeval it_interval;
     struct target_timeval it_value;

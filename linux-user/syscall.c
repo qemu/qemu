@@ -935,6 +935,23 @@ static inline abi_long copy_to_user_timeval(abi_ulong target_tv_addr,
     return 0;
 }
 
+static inline abi_long copy_from_user_timezone(struct timezone *tz,
+                                               abi_ulong target_tz_addr)
+{
+    struct target_timezone *target_tz;
+
+    if (!lock_user_struct(VERIFY_READ, target_tz, target_tz_addr, 1)) {
+        return -TARGET_EFAULT;
+    }
+
+    __get_user(tz->tz_minuteswest, &target_tz->tz_minuteswest);
+    __get_user(tz->tz_dsttime, &target_tz->tz_dsttime);
+
+    unlock_user_struct(target_tz, target_tz_addr, 0);
+
+    return 0;
+}
+
 #if defined(TARGET_NR_mq_open) && defined(__NR_mq_open)
 #include <mqueue.h>
 
@@ -6385,9 +6402,19 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_settimeofday:
         {
             struct timeval tv;
+            struct timezone tz, *ptz = NULL;
+
             if (copy_from_user_timeval(&tv, arg1))
                 goto efault;
-            ret = get_errno(settimeofday(&tv, NULL));
+
+            if (arg2) {
+                if (copy_from_user_timezone(&tz, arg2)) {
+                    goto efault;
+                }
+                ptz = &tz;
+            }
+
+            ret = get_errno(settimeofday(&tv, ptz));
         }
         break;
 #if defined(TARGET_NR_select)
