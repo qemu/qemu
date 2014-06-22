@@ -1652,6 +1652,9 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
         case TARGET_SO_RCVLOWAT:
             optname = SO_RCVLOWAT;
             goto int_case;
+        case TARGET_SO_ACCEPTCONN:
+            optname = SO_ACCEPTCONN;
+            goto int_case;
         default:
             goto int_case;
         }
