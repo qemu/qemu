@@ -58,6 +58,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include <sys/statfs.h>
+#include <sys/timerfd.h>
 #include <utime.h>
 #include <sys/sysinfo.h>
 //#include <sys/user.h>
@@ -9545,6 +9546,50 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         }
         break;
     }
+#endif
+
+#if defined(TARGET_NR_timerfd_create) && defined(CONFIG_TIMERFD)
+    case TARGET_NR_timerfd_create:
+        ret = get_errno(timerfd_create(arg1,
+                target_to_host_bitmask(arg2, fcntl_flags_tbl)));
+        break;
+#endif
+
+#if defined(TARGET_NR_timerfd_gettime) && defined(CONFIG_TIMERFD)
+    case TARGET_NR_timerfd_gettime:
+        {
+            struct itimerspec its_curr;
+
+            ret = get_errno(timerfd_gettime(arg1, &its_curr));
+
+            if (arg2 && host_to_target_itimerspec(arg2, &its_curr)) {
+                goto efault;
+            }
+        }
+        break;
+#endif
+
+#if defined(TARGET_NR_timerfd_settime) && defined(CONFIG_TIMERFD)
+    case TARGET_NR_timerfd_settime:
+        {
+            struct itimerspec its_new, its_old, *p_new;
+
+            if (arg3) {
+                if (target_to_host_itimerspec(&its_new, arg3)) {
+                    goto efault;
+                }
+                p_new = &its_new;
+            } else {
+                p_new = NULL;
+            }
+
+            ret = get_errno(timerfd_settime(arg1, arg2, p_new, &its_old));
+
+            if (arg4 && host_to_target_itimerspec(arg4, &its_old)) {
+                goto efault;
+            }
+        }
+        break;
 #endif
 
     default:
