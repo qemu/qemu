@@ -204,7 +204,7 @@ void qemu_chr_be_write(CharDriverState *s, uint8_t *buf, int len)
 int qemu_chr_fe_get_msgfd(CharDriverState *s)
 {
     int fd;
-    return (qemu_chr_fe_get_msgfds(s, &fd, 1) >= 0) ? fd : -1;
+    return (qemu_chr_fe_get_msgfds(s, &fd, 1) == 1) ? fd : -1;
 }
 
 int qemu_chr_fe_get_msgfds(CharDriverState *s, int *fds, int len)
