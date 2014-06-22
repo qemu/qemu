@@ -2528,7 +2528,7 @@ typedef union target_epoll_data {
 
 struct target_epoll_event {
     uint32_t events;
-#ifdef TARGET_ARM
+#if defined(TARGET_ARM) || defined(TARGET_MIPS) || defined(TARGET_MIPS64)
     uint32_t __pad;
 #endif
     target_epoll_data_t data;
