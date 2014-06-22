@@ -252,6 +252,12 @@ _syscall2(int, capget, struct __user_cap_header_struct *, header,
           struct __user_cap_data_struct *, data);
 _syscall2(int, capset, struct __user_cap_header_struct *, header,
           struct __user_cap_data_struct *, data);
+#if defined(TARGET_NR_ioprio_get) && defined(__NR_ioprio_get)
+_syscall2(int, ioprio_get, int, which, int, who)
+#endif
+#if defined(TARGET_NR_ioprio_set) && defined(__NR_ioprio_set)
+_syscall3(int, ioprio_set, int, which, int, who, int, ioprio)
+#endif
 
 static bitmask_transtbl fcntl_flags_tbl[] = {
   { TARGET_O_ACCMODE,   TARGET_O_WRONLY,    O_ACCMODE,   O_WRONLY,    },
@@ -9589,6 +9595,18 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 goto efault;
             }
         }
+        break;
+#endif
+
+#if defined(TARGET_NR_ioprio_get) && defined(__NR_ioprio_get)
+    case TARGET_NR_ioprio_get:
+        ret = get_errno(ioprio_get(arg1, arg2));
+        break;
+#endif
+
+#if defined(TARGET_NR_ioprio_set) && defined(__NR_ioprio_set)
+    case TARGET_NR_ioprio_set:
+        ret = get_errno(ioprio_set(arg1, arg2, arg3));
         break;
 #endif
 
