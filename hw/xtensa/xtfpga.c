@@ -237,9 +237,14 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
 
     /* Use presence of kernel file name as 'boot from SRAM' switch. */
     if (kernel_filename) {
-        size_t bp_size = 2 * get_tag_size(0);
+        size_t bp_size = 3 * get_tag_size(0); /* first/last and memory tags */
         uint32_t tagptr = 0xfe000000 + board->sram_size;
         uint32_t cur_tagptr;
+        BpMemInfo memory_location = {
+            .type = tswap32(MEMORY_TYPE_CONVENTIONAL),
+            .start = tswap32(0),
+            .end = tswap32(machine->ram_size),
+        };
 
         rom = g_malloc(sizeof(*rom));
         memory_region_init_ram(rom, NULL, "lx60.sram", board->sram_size);
@@ -253,6 +258,8 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
         /* Put kernel bootparameters to the end of that SRAM */
         tagptr = (tagptr - bp_size) & ~0xff;
         cur_tagptr = put_tag(tagptr, BP_TAG_FIRST, 0, NULL);
+        cur_tagptr = put_tag(cur_tagptr, BP_TAG_MEMORY,
+                             sizeof(memory_location), &memory_location);
 
         if (kernel_cmdline) {
             cur_tagptr = put_tag(cur_tagptr, BP_TAG_COMMAND_LINE,

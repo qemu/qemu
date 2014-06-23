@@ -16,6 +16,15 @@ typedef struct BpTag {
     uint16_t size;
 } BpTag;
 
+typedef struct BpMemInfo {
+    uint32_t type;
+    uint32_t start;
+    uint32_t end;
+} BpMemInfo;
+
+#define MEMORY_TYPE_CONVENTIONAL        0x1000
+#define MEMORY_TYPE_NONE                0x2000
+
 static inline size_t get_tag_size(size_t data_size)
 {
     return data_size + sizeof(BpTag) + 4;
