@@ -353,11 +353,9 @@ void pcie_cap_slot_reset(PCIDevice *dev)
                                PCI_EXP_SLTCTL_AIC_OFF);
 
     if (dev->cap_present & QEMU_PCIE_SLTCAP_PCP) {
-        bool populated;
-        uint16_t pic;
-
         /* Downstream ports enforce device number 0. */
-        populated = (pci_bridge_get_sec_bus(PCI_BRIDGE(dev))->devices[0] != NULL);
+        bool populated = pci_bridge_get_sec_bus(PCI_BRIDGE(dev))->devices[0];
+        uint16_t pic;
 
         if (populated) {
             pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTCTL,
@@ -369,7 +367,7 @@ void pcie_cap_slot_reset(PCIDevice *dev)
 
         pic = populated ? PCI_EXP_SLTCTL_PIC_ON : PCI_EXP_SLTCTL_PIC_OFF;
         pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTCTL, pic);
-     }
+    }
 
     pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
                                  PCI_EXP_SLTSTA_EIS |/* on reset,
