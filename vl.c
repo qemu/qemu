@@ -82,7 +82,6 @@ int main(int argc, char **argv)
 #include "qemu/timer.h"
 #include "sysemu/char.h"
 #include "qemu/bitmap.h"
-#include "qemu/cache-utils.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "migration/block.h"
@@ -2973,9 +2972,6 @@ int main(int argc, char **argv, char **envp)
     runstate_init();
 
     rtc_clock = QEMU_CLOCK_HOST;
-
-    qemu_init_auxval(envp);
-    qemu_cache_utils_init();
 
     QLIST_INIT (&vm_change_state_head);
     os_setup_early_signal_handling();
