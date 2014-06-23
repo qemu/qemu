@@ -163,6 +163,8 @@ check-qtest-i386-y += tests/usb-hcd-ehci-test$(EXESUF)
 gcov-files-i386-y += hw/usb/hcd-ehci.c
 gcov-files-i386-y += hw/usb/dev-hid.c
 gcov-files-i386-y += hw/usb/dev-storage.c
+check-qtest-i386-y += tests/usb-hcd-xhci-test$(EXESUF)
+gcov-files-i386-y += hw/usb/hcd-xhci.c
 check-qtest-i386-$(CONFIG_LINUX) += tests/vhost-user-test$(EXESUF)
 check-qtest-x86_64-y = $(check-qtest-i386-y)
 gcov-files-i386-y += i386-softmmu/hw/timer/mc146818rtc.c
@@ -341,6 +343,7 @@ tests/ioh3420-test$(EXESUF): tests/ioh3420-test.o
 tests/usb-hcd-ohci-test$(EXESUF): tests/usb-hcd-ohci-test.o
 tests/usb-hcd-uhci-test$(EXESUF): tests/usb-hcd-uhci-test.o
 tests/usb-hcd-ehci-test$(EXESUF): tests/usb-hcd-ehci-test.o $(libqos-pc-obj-y)
+tests/usb-hcd-xhci-test$(EXESUF): tests/usb-hcd-xhci-test.o
 tests/vhost-user-test$(EXESUF): tests/vhost-user-test.o qemu-char.o qemu-timer.o $(qtest-obj-y)
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
 tests/test-qemu-opts$(EXESUF): tests/test-qemu-opts.o libqemuutil.a libqemustub.a
