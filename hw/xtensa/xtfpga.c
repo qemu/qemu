@@ -37,6 +37,7 @@
 #include "hw/block/flash.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/char.h"
+#include "sysemu/device_tree.h"
 #include "qemu/error-report.h"
 #include "bootparam.h"
 
@@ -178,6 +179,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
     const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = qemu_opt_get(machine_opts, "kernel");
     const char *kernel_cmdline = qemu_opt_get(machine_opts, "append");
+    const char *dtb_filename = qemu_opt_get(machine_opts, "dtb");
     int n;
 
     if (!cpu_model) {
@@ -246,6 +248,9 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
             .start = tswap32(0),
             .end = tswap32(machine->ram_size),
         };
+        uint32_t lowmem_end = machine->ram_size < 0x08000000 ?
+            machine->ram_size : 0x08000000;
+        uint32_t cur_lowmem = QEMU_ALIGN_UP(lowmem_end / 2, 4096);
 
         rom = g_malloc(sizeof(*rom));
         memory_region_init_ram(rom, NULL, "lx60.sram", board->sram_size);
@@ -254,6 +259,9 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
 
         if (kernel_cmdline) {
             bp_size += get_tag_size(strlen(kernel_cmdline) + 1);
+        }
+        if (dtb_filename) {
+            bp_size += get_tag_size(sizeof(uint32_t));
         }
 
         /* Put kernel bootparameters to the end of that SRAM */
@@ -265,6 +273,21 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
         if (kernel_cmdline) {
             cur_tagptr = put_tag(cur_tagptr, BP_TAG_COMMAND_LINE,
                                  strlen(kernel_cmdline) + 1, kernel_cmdline);
+        }
+        if (dtb_filename) {
+            int fdt_size;
+            void *fdt = load_device_tree(dtb_filename, &fdt_size);
+            uint32_t dtb_addr = tswap32(cur_lowmem);
+
+            if (!fdt) {
+                error_report("could not load DTB '%s'\n", dtb_filename);
+                exit(EXIT_FAILURE);
+            }
+
+            cpu_physical_memory_write(cur_lowmem, fdt, fdt_size);
+            cur_tagptr = put_tag(cur_tagptr, BP_TAG_FDT,
+                                 sizeof(dtb_addr), &dtb_addr);
+            cur_lowmem = QEMU_ALIGN_UP(cur_lowmem + fdt_size, 4096);
         }
         cur_tagptr = put_tag(cur_tagptr, BP_TAG_LAST, 0, NULL);
         env->regs[2] = tagptr;
