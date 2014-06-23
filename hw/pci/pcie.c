@@ -294,6 +294,15 @@ void pcie_cap_slot_init(PCIDevice *dev, uint16_t slot)
                                PCI_EXP_SLTCAP_AIP |
                                PCI_EXP_SLTCAP_ABP);
 
+    if (dev->cap_present & QEMU_PCIE_SLTCAP_PCP) {
+        pci_long_test_and_set_mask(dev->config + pos + PCI_EXP_SLTCAP,
+                                   PCI_EXP_SLTCAP_PCP);
+        pci_word_test_and_clear_mask(dev->config + pos + PCI_EXP_SLTCTL,
+                                     PCI_EXP_SLTCTL_PCC);
+        pci_word_test_and_set_mask(dev->wmask + pos + PCI_EXP_SLTCTL,
+                                   PCI_EXP_SLTCTL_PCC);
+    }
+
     pci_word_test_and_clear_mask(dev->config + pos + PCI_EXP_SLTCTL,
                                  PCI_EXP_SLTCTL_PIC |
                                  PCI_EXP_SLTCTL_AIC);
@@ -327,6 +336,10 @@ void pcie_cap_slot_init(PCIDevice *dev, uint16_t slot)
 void pcie_cap_slot_reset(PCIDevice *dev)
 {
     uint8_t *exp_cap = dev->config + dev->exp.exp_cap;
+    uint8_t port_type = pcie_cap_get_type(dev);
+
+    assert(port_type == PCI_EXP_TYPE_DOWNSTREAM ||
+           port_type == PCI_EXP_TYPE_ROOT_PORT);
 
     PCIE_DEV_PRINTF(dev, "reset\n");
 
@@ -339,8 +352,26 @@ void pcie_cap_slot_reset(PCIDevice *dev)
                                  PCI_EXP_SLTCTL_PDCE |
                                  PCI_EXP_SLTCTL_ABPE);
     pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTCTL,
-                               PCI_EXP_SLTCTL_PIC_OFF |
                                PCI_EXP_SLTCTL_AIC_OFF);
+
+    if (dev->cap_present & QEMU_PCIE_SLTCAP_PCP) {
+        bool populated;
+        uint16_t pic;
+
+        /* Downstream ports enforce device number 0. */
+        populated = (pci_bridge_get_sec_bus(PCI_BRIDGE(dev))->devices[0] != NULL);
+
+        if (populated) {
+            pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTCTL,
+                                         PCI_EXP_SLTCTL_PCC);
+        } else {
+            pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTCTL,
+                                       PCI_EXP_SLTCTL_PCC);
+        }
+
+        pic = populated ? PCI_EXP_SLTCTL_PIC_ON : PCI_EXP_SLTCTL_PIC_OFF;
+        pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTCTL, pic);
+     }
 
     pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
                                  PCI_EXP_SLTSTA_EIS |/* on reset,

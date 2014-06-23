@@ -297,8 +297,16 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "ICH9-LPC",\
             .property = "memory-hotplug-support",\
             .value    = "off",\
+        },{\
+            .driver   = "xio3130-downstream",\
+            .property = COMPAT_PROP_PCP,\
+            .value    = "off",\
+        },{\
+            .driver   = "ioh3420",\
+            .property = COMPAT_PROP_PCP,\
+            .value    = "off",\
         }
-
+ 
 #define PC_Q35_COMPAT_1_7 \
         PC_COMPAT_1_7, \
         PC_Q35_COMPAT_2_0, \
