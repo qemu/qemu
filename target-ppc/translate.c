@@ -2662,11 +2662,6 @@ static inline void gen_qemu_ld8u(DisasContext *ctx, TCGv arg1, TCGv arg2)
     tcg_gen_qemu_ld8u(arg1, arg2, ctx->mem_idx);
 }
 
-static inline void gen_qemu_ld8s(DisasContext *ctx, TCGv arg1, TCGv arg2)
-{
-    tcg_gen_qemu_ld8s(arg1, arg2, ctx->mem_idx);
-}
-
 static inline void gen_qemu_ld16u(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
     TCGMemOp op = MO_UW | ctx->default_tcg_memop_mask;
