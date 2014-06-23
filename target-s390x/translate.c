@@ -264,11 +264,6 @@ static inline uint64_t ld_code4(CPUS390XState *env, uint64_t pc)
     return (uint64_t)(uint32_t)cpu_ldl_code(env, pc);
 }
 
-static inline uint64_t ld_code6(CPUS390XState *env, uint64_t pc)
-{
-    return (ld_code2(env, pc) << 32) | ld_code4(env, pc + 2);
-}
-
 static int get_mem_index(DisasContext *s)
 {
     switch (s->tb->flags & FLAG_MASK_ASC) {
