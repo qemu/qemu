@@ -426,7 +426,6 @@ static inline uint32_t SPR(uint32_t opcode)
     return ((sprn >> 5) & 0x1F) | ((sprn & 0x1F) << 5);
 }
 /***                              Get constants                            ***/
-EXTRACT_HELPER(IMM, 12, 8);
 /* 16 bits signed immediate value */
 EXTRACT_SHELPER(SIMM, 0, 16);
 /* 16 bits unsigned immediate value */
@@ -459,8 +458,6 @@ EXTRACT_HELPER(FPFLM, 17, 8);
 EXTRACT_HELPER(FPW, 16, 1);
 
 /***                            Jump target decoding                       ***/
-/* Displacement */
-EXTRACT_SHELPER(d, 0, 16);
 /* Immediate address */
 static inline target_ulong LI(uint32_t opcode)
 {
