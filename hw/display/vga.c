@@ -1508,7 +1508,8 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     if (s->line_offset != s->last_line_offset ||
         disp_width != s->last_width ||
         height != s->last_height ||
-        s->last_depth != depth) {
+        s->last_depth != depth ||
+        s->last_byteswap != byteswap) {
         if (depth == 32 || (depth == 16 && !byteswap)) {
             pixman_format_code_t format =
                 qemu_default_pixman_format(depth, !byteswap);
@@ -1526,6 +1527,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         s->last_height = height;
         s->last_line_offset = s->line_offset;
         s->last_depth = depth;
+        s->last_byteswap = byteswap;
         full_update = 1;
     } else if (is_buffer_shared(surface) &&
                (full_update || surface_data(surface) != s->vram_ptr
@@ -1789,6 +1791,7 @@ void vga_common_reset(VGACommonState *s)
     s->cursor_start = 0;
     s->cursor_end = 0;
     s->cursor_offset = 0;
+    s->big_endian_fb = s->default_endian_fb;
     memset(s->invalidated_y_table, '\0', sizeof(s->invalidated_y_table));
     memset(s->last_palette, '\0', sizeof(s->last_palette));
     memset(s->last_ch_attr, '\0', sizeof(s->last_ch_attr));
@@ -2020,6 +2023,28 @@ static int vga_common_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static bool vga_endian_state_needed(void *opaque)
+{
+    VGACommonState *s = opaque;
+
+    /*
+     * Only send the endian state if it's different from the
+     * default one, thus ensuring backward compatibility for
+     * migration of the common case
+     */
+    return s->default_endian_fb != s->big_endian_fb;
+}
+
+const VMStateDescription vmstate_vga_endian = {
+    .name = "vga.endian",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(big_endian_fb, VGACommonState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_vga_common = {
     .name = "vga",
     .version_id = 2,
@@ -2056,6 +2081,14 @@ const VMStateDescription vmstate_vga_common = {
         VMSTATE_UINT32(vbe_line_offset, VGACommonState),
         VMSTATE_UINT32(vbe_bank_mask, VGACommonState),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection []) {
+        {
+            .vmsd = &vmstate_vga_endian,
+            .needed = vga_endian_state_needed,
+        }, {
+            /* empty */
+        }
     }
 };
 
@@ -2126,14 +2159,14 @@ void vga_common_init(VGACommonState *s, Object *obj, bool global_vmstate)
     }
 
     /*
-     * Set default fb endian based on target, should probably be turned
+     * Set default fb endian based on target, could probably be turned
      * into a device attribute set by the machine/platform to remove
      * all target endian dependencies from this file.
      */
 #ifdef TARGET_WORDS_BIGENDIAN
-    s->big_endian_fb = true;
+    s->default_endian_fb = true;
 #else
-    s->big_endian_fb = false;
+    s->default_endian_fb = false;
 #endif
     vga_dirty_log_start(s);
 }
