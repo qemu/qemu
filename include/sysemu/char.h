@@ -350,4 +350,9 @@ CharDriverState *qemu_chr_open_msmouse(void);
 /* baum.c */
 CharDriverState *chr_baum_init(void);
 
+/* console.c */
+typedef CharDriverState *(VcHandler)(ChardevVC *vc);
+
+void register_vc_handler(VcHandler *handler);
+CharDriverState *vc_init(ChardevVC *vc);
 #endif
