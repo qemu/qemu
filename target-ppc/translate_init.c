@@ -34,6 +34,7 @@
 //#define PPC_DUMP_CPU
 //#define PPC_DEBUG_SPR
 //#define PPC_DUMP_SPR_ACCESSES
+/* #define USE_APPLE_GDB */
 
 /* For user-mode emulation, we don't emulate any IRQ controller */
 #if defined(CONFIG_USER_ONLY)
@@ -9667,6 +9668,13 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 #endif
 
     cc->gdb_num_core_regs = 71;
+
+#ifdef USE_APPLE_GDB
+    cc->gdb_read_register = ppc_cpu_gdb_read_register_apple;
+    cc->gdb_write_register = ppc_cpu_gdb_write_register_apple;
+    cc->gdb_num_core_regs = 71 + 32;
+#endif
+
 #if defined(TARGET_PPC64)
     cc->gdb_core_xml_file = "power64-core.xml";
 #else
