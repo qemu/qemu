@@ -358,6 +358,45 @@ static inline int spapr_allocate_lsi(int hint)
 #define RTAS_OUT_NOT_SUPPORTED      -3
 #define RTAS_OUT_NOT_AUTHORIZED     -9002
 
+/* RTAS tokens */
+#define RTAS_TOKEN_BASE      0x2000
+
+#define RTAS_DISPLAY_CHARACTER                  (RTAS_TOKEN_BASE + 0x00)
+#define RTAS_GET_TIME_OF_DAY                    (RTAS_TOKEN_BASE + 0x01)
+#define RTAS_SET_TIME_OF_DAY                    (RTAS_TOKEN_BASE + 0x02)
+#define RTAS_POWER_OFF                          (RTAS_TOKEN_BASE + 0x03)
+#define RTAS_SYSTEM_REBOOT                      (RTAS_TOKEN_BASE + 0x04)
+#define RTAS_QUERY_CPU_STOPPED_STATE            (RTAS_TOKEN_BASE + 0x05)
+#define RTAS_START_CPU                          (RTAS_TOKEN_BASE + 0x06)
+#define RTAS_STOP_SELF                          (RTAS_TOKEN_BASE + 0x07)
+#define RTAS_IBM_GET_SYSTEM_PARAMETER           (RTAS_TOKEN_BASE + 0x08)
+#define RTAS_IBM_SET_SYSTEM_PARAMETER           (RTAS_TOKEN_BASE + 0x09)
+#define RTAS_IBM_SET_XIVE                       (RTAS_TOKEN_BASE + 0x0A)
+#define RTAS_IBM_GET_XIVE                       (RTAS_TOKEN_BASE + 0x0B)
+#define RTAS_IBM_INT_OFF                        (RTAS_TOKEN_BASE + 0x0C)
+#define RTAS_IBM_INT_ON                         (RTAS_TOKEN_BASE + 0x0D)
+#define RTAS_CHECK_EXCEPTION                    (RTAS_TOKEN_BASE + 0x0E)
+#define RTAS_EVENT_SCAN                         (RTAS_TOKEN_BASE + 0x0F)
+#define RTAS_IBM_SET_TCE_BYPASS                 (RTAS_TOKEN_BASE + 0x10)
+#define RTAS_QUIESCE                            (RTAS_TOKEN_BASE + 0x11)
+#define RTAS_NVRAM_FETCH                        (RTAS_TOKEN_BASE + 0x12)
+#define RTAS_NVRAM_STORE                        (RTAS_TOKEN_BASE + 0x13)
+#define RTAS_READ_PCI_CONFIG                    (RTAS_TOKEN_BASE + 0x14)
+#define RTAS_WRITE_PCI_CONFIG                   (RTAS_TOKEN_BASE + 0x15)
+#define RTAS_IBM_READ_PCI_CONFIG                (RTAS_TOKEN_BASE + 0x16)
+#define RTAS_IBM_WRITE_PCI_CONFIG               (RTAS_TOKEN_BASE + 0x17)
+#define RTAS_IBM_QUERY_INTERRUPT_SOURCE_NUMBER  (RTAS_TOKEN_BASE + 0x18)
+#define RTAS_IBM_CHANGE_MSI                     (RTAS_TOKEN_BASE + 0x19)
+#define RTAS_SET_INDICATOR                      (RTAS_TOKEN_BASE + 0x1A)
+#define RTAS_SET_POWER_LEVEL                    (RTAS_TOKEN_BASE + 0x1B)
+#define RTAS_GET_POWER_LEVEL                    (RTAS_TOKEN_BASE + 0x1C)
+#define RTAS_GET_SENSOR_STATE                   (RTAS_TOKEN_BASE + 0x1D)
+#define RTAS_IBM_CONFIGURE_CONNECTOR            (RTAS_TOKEN_BASE + 0x1E)
+#define RTAS_IBM_OS_TERM                        (RTAS_TOKEN_BASE + 0x1F)
+#define RTAS_IBM_EXTENDED_OS_TERM               (RTAS_TOKEN_BASE + 0x20)
+
+#define RTAS_TOKEN_MAX                          (RTAS_TOKEN_BASE + 0x21)
+
 static inline uint64_t ppc64_phys_to_real(uint64_t addr)
 {
     return addr & ~0xF000000000000000ULL;
@@ -377,7 +416,7 @@ typedef void (*spapr_rtas_fn)(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                               uint32_t token,
                               uint32_t nargs, target_ulong args,
                               uint32_t nret, target_ulong rets);
-int spapr_rtas_register(const char *name, spapr_rtas_fn fn);
+void spapr_rtas_register(int token, const char *name, spapr_rtas_fn fn);
 target_ulong spapr_rtas_call(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                              uint32_t token, uint32_t nargs, target_ulong args,
                              uint32_t nret, target_ulong rets);

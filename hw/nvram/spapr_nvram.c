@@ -153,8 +153,8 @@ static int spapr_nvram_init(VIOsPAPRDevice *dev)
         return -1;
     }
 
-    spapr_rtas_register("nvram-fetch", rtas_nvram_fetch);
-    spapr_rtas_register("nvram-store", rtas_nvram_store);
+    spapr_rtas_register(RTAS_NVRAM_FETCH, "nvram-fetch", rtas_nvram_fetch);
+    spapr_rtas_register(RTAS_NVRAM_STORE, "nvram-store", rtas_nvram_store);
 
     return 0;
 }

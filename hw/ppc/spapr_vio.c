@@ -517,8 +517,9 @@ VIOsPAPRBus *spapr_vio_bus_init(void)
     spapr_register_hypercall(H_ENABLE_CRQ, h_enable_crq);
 
     /* RTAS calls */
-    spapr_rtas_register("ibm,set-tce-bypass", rtas_set_tce_bypass);
-    spapr_rtas_register("quiesce", rtas_quiesce);
+    spapr_rtas_register(RTAS_IBM_SET_TCE_BYPASS, "ibm,set-tce-bypass",
+                        rtas_set_tce_bypass);
+    spapr_rtas_register(RTAS_QUIESCE, "quiesce", rtas_quiesce);
 
     return bus;
 }
