@@ -1,16 +1,6 @@
                    QEMU Machine Protocol Events
                    ============================
 
-ACPI_DEVICE_OST
----------------
-
-Emitted when guest executes ACPI _OST method.
-
- - data: ACPIOSTInfo type as described in qapi-schema.json
-
-{ "event": "ACPI_DEVICE_OST",
-     "data": { "device": "d1", "slot": "0", "slot-type": "DIMM", "source": 1, "status": 0 } }
-
 BALLOON_CHANGE
 --------------
 

@@ -241,3 +241,15 @@
 # Since: 1.3
 ##
 { 'event': 'SPICE_MIGRATE_COMPLETED' }
+
+##
+# @ACPI_DEVICE_OST
+#
+# Emitted when guest executes ACPI _OST method.
+#
+# Since: 2.1
+#
+# @info: ACPIOSTInfo type as described in qapi-schema.json
+##
+{ 'event': 'ACPI_DEVICE_OST',
+     'data': { 'info': 'ACPIOSTInfo' } }
