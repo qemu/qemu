@@ -614,7 +614,7 @@ USB
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
 F: hw/usb/*
-F: tests/usb-hcd-ehci-test.c
+F: tests/usb-*-test.c
 
 VFIO
 M: Alex Williamson <alex.williamson@redhat.com>
