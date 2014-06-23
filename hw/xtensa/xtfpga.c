@@ -174,9 +174,10 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
     MemoryRegion *ram, *rom, *system_io;
     DriveInfo *dinfo;
     pflash_t *flash = NULL;
+    QemuOpts *machine_opts = qemu_get_machine_opts();
     const char *cpu_model = machine->cpu_model;
-    const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *kernel_filename = qemu_opt_get(machine_opts, "kernel");
+    const char *kernel_cmdline = qemu_opt_get(machine_opts, "append");
     int n;
 
     if (!cpu_model) {
