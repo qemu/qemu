@@ -323,6 +323,22 @@ QemuCocoaView *cocoaView;
     return (p.x > -1 && p.x < screen.width && p.y > -1 && p.y < screen.height);
 }
 
+- (void) hideCursor
+{
+    if (!cursor_hide) {
+        return;
+    }
+    [NSCursor hide];
+}
+
+- (void) unhideCursor
+{
+    if (!cursor_hide) {
+        return;
+    }
+    [NSCursor unhide];
+}
+
 - (void) drawRect:(NSRect) rect
 {
     COCOA_DEBUG("QemuCocoaView: drawRect\n");
@@ -735,7 +751,7 @@ QemuCocoaView *cocoaView;
         else
             [normalWindow setTitle:@"QEMU - (Press ctrl + alt to release Mouse)"];
     }
-    [NSCursor hide];
+    [self hideCursor];
     if (!isAbsoluteEnabled) {
         isMouseDeassociated = TRUE;
         CGAssociateMouseAndMouseCursorPosition(FALSE);
@@ -753,7 +769,7 @@ QemuCocoaView *cocoaView;
         else
             [normalWindow setTitle:@"QEMU"];
     }
-    [NSCursor unhide];
+    [self unhideCursor];
     if (isMouseDeassociated) {
         CGAssociateMouseAndMouseCursorPosition(TRUE);
         isMouseDeassociated = FALSE;
