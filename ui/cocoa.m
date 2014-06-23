@@ -404,7 +404,11 @@ QemuCocoaView *cocoaView;
 
     int w = surface_width(surface);
     int h = surface_height(surface);
-    bool isResize = (w != screen.width || h != screen.height);
+    /* cdx == 0 means this is our very first surface, in which case we need
+     * to recalculate the content dimensions even if it happens to be the size
+     * of the initial empty window.
+     */
+    bool isResize = (w != screen.width || h != screen.height || cdx == 0.0);
 
     int oldh = screen.height;
     if (isResize) {
