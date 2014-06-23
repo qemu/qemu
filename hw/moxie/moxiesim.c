@@ -94,19 +94,6 @@ static void main_cpu_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
-static inline DeviceState *
-moxie_intc_create(hwaddr base, qemu_irq irq, int kind_of_intr)
-{
-    DeviceState *dev;
-
-    dev = qdev_create(NULL, "moxie,intc");
-    qdev_prop_set_uint32(dev, "kind-of-intr", kind_of_intr);
-    qdev_init_nofail(dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
-    return dev;
-}
-
 static void moxiesim_init(MachineState *machine)
 {
     MoxieCPU *cpu = NULL;
