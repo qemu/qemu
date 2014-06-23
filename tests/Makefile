@@ -157,9 +157,10 @@ check-qtest-i386-y += tests/ioh3420-test$(EXESUF)
 gcov-files-i386-y += hw/pci-bridge/ioh3420.c
 check-qtest-i386-y += tests/usb-hcd-ohci-test$(EXESUF)
 gcov-files-i386-y += hw/usb/hcd-ohci.c
+check-qtest-i386-y += tests/usb-hcd-uhci-test$(EXESUF)
+gcov-files-i386-y += hw/usb/hcd-uhci.c
 check-qtest-i386-y += tests/usb-hcd-ehci-test$(EXESUF)
 gcov-files-i386-y += hw/usb/hcd-ehci.c
-gcov-files-i386-y += hw/usb/hcd-uhci.c
 gcov-files-i386-y += hw/usb/dev-hid.c
 gcov-files-i386-y += hw/usb/dev-storage.c
 check-qtest-i386-$(CONFIG_LINUX) += tests/vhost-user-test$(EXESUF)
@@ -338,6 +339,7 @@ tests/es1370-test$(EXESUF): tests/es1370-test.o
 tests/intel-hda-test$(EXESUF): tests/intel-hda-test.o
 tests/ioh3420-test$(EXESUF): tests/ioh3420-test.o
 tests/usb-hcd-ohci-test$(EXESUF): tests/usb-hcd-ohci-test.o
+tests/usb-hcd-uhci-test$(EXESUF): tests/usb-hcd-uhci-test.o
 tests/usb-hcd-ehci-test$(EXESUF): tests/usb-hcd-ehci-test.o $(libqos-pc-obj-y)
 tests/vhost-user-test$(EXESUF): tests/vhost-user-test.o qemu-char.o qemu-timer.o $(qtest-obj-y)
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
