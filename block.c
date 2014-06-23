@@ -1278,7 +1278,7 @@ done:
     return ret;
 }
 
-void bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
+int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
 {
     /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
     char *tmp_filename = g_malloc0(PATH_MAX + 1);
@@ -1296,6 +1296,7 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     /* Get the required size from the image */
     total_size = bdrv_getlength(bs);
     if (total_size < 0) {
+        ret = total_size;
         error_setg_errno(errp, -total_size, "Could not get image size");
         goto out;
     }
@@ -1342,6 +1343,7 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
 
 out:
     g_free(tmp_filename);
+    return ret;
 }
 
 /*
@@ -1491,9 +1493,8 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     /* For snapshot=on, create a temporary qcow2 overlay. bs points to the
      * temporary snapshot afterwards. */
     if (snapshot_flags) {
-        bdrv_append_temp_snapshot(bs, snapshot_flags, &local_err);
+        ret = bdrv_append_temp_snapshot(bs, snapshot_flags, &local_err);
         if (local_err) {
-            error_propagate(errp, local_err);
             goto close_and_fail;
         }
     }
