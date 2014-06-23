@@ -290,28 +290,6 @@ static inline uint32_t ucf64_stoi(float32 s)
     return v.i;
 }
 
-static inline float64 ucf64_itod(uint64_t i)
-{
-    union {
-        uint64_t i;
-        float64 d;
-    } v;
-
-    v.i = i;
-    return v.d;
-}
-
-static inline uint64_t ucf64_dtoi(float64 d)
-{
-    union {
-        uint64_t i;
-        float64 d;
-    } v;
-
-    v.d = d;
-    return v.i;
-}
-
 /* Integer to float conversion.  */
 float32 HELPER(ucf64_si2sf)(float32 x, CPUUniCore32State *env)
 {

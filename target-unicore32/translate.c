@@ -576,13 +576,6 @@ static inline TCGv gen_ld32(TCGv addr, int index)
     return tmp;
 }
 
-static inline TCGv_i64 gen_ld64(TCGv addr, int index)
-{
-    TCGv_i64 tmp = tcg_temp_new_i64();
-    tcg_gen_qemu_ld64(tmp, addr, index);
-    return tmp;
-}
-
 static inline void gen_st8(TCGv val, TCGv addr, int index)
 {
     tcg_gen_qemu_st8(val, addr, index);
@@ -599,12 +592,6 @@ static inline void gen_st32(TCGv val, TCGv addr, int index)
 {
     tcg_gen_qemu_st32(val, addr, index);
     dead_tmp(val);
-}
-
-static inline void gen_st64(TCGv_i64 val, TCGv addr, int index)
-{
-    tcg_gen_qemu_st64(val, addr, index);
-    tcg_temp_free_i64(val);
 }
 
 static inline void gen_set_pc_im(uint32_t val)
@@ -1126,21 +1113,6 @@ static inline void gen_jmp(DisasContext *s, uint32_t dest)
         gen_goto_tb(s, 0, dest);
         s->is_jmp = DISAS_TB_JUMP;
     }
-}
-
-static inline void gen_mulxy(TCGv t0, TCGv t1, int x, int y)
-{
-    if (x) {
-        tcg_gen_sari_i32(t0, t0, 16);
-    } else {
-        gen_sxth(t0);
-    }
-    if (y) {
-        tcg_gen_sari_i32(t1, t1, 16);
-    } else {
-        gen_sxth(t1);
-    }
-    tcg_gen_mul_i32(t0, t0, t1);
 }
 
 /* Returns nonzero if access to the PSR is not permitted. Marks t0 as dead. */
