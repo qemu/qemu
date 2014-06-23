@@ -305,6 +305,11 @@ QemuCocoaView *cocoaView;
     return YES;
 }
 
+- (BOOL) screenContainsPoint:(NSPoint) p
+{
+    return (p.x > -1 && p.x < screen.width && p.y > -1 && p.y < screen.height);
+}
+
 - (void) drawRect:(NSRect) rect
 {
     COCOA_DEBUG("QemuCocoaView: drawRect\n");
@@ -607,7 +612,7 @@ QemuCocoaView *cocoaView;
             break;
         case NSMouseMoved:
             if (isAbsoluteEnabled) {
-                if (p.x < 0 || p.x > screen.width || p.y < 0 || p.y > screen.height || ![[self window] isKeyWindow]) {
+                if (![self screenContainsPoint:p] || ![[self window] isKeyWindow]) {
                     if (isTabletEnabled) { // if we leave the window, deactivate the tablet
                         [NSCursor unhide];
                         isTabletEnabled = FALSE;
@@ -657,7 +662,7 @@ QemuCocoaView *cocoaView;
             if (isTabletEnabled) {
                     mouse_event = true;
             } else if (!isMouseGrabbed) {
-                if (p.x > -1 && p.x < screen.width && p.y > -1 && p.y < screen.height) {
+                if ([self screenContainsPoint:p]) {
                     [self grabMouse];
                 } else {
                     [NSApp sendEvent:event];
