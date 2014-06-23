@@ -258,7 +258,8 @@ void pcie_cap_slot_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
                                PCI_EXP_SLTSTA_PDS);
-    pcie_cap_slot_event(PCI_DEVICE(hotplug_dev), PCI_EXP_HP_EV_PDC);
+    pcie_cap_slot_event(PCI_DEVICE(hotplug_dev),
+                        PCI_EXP_HP_EV_PDC | PCI_EXP_HP_EV_ABP);
 }
 
 void pcie_cap_slot_hot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
@@ -268,10 +269,7 @@ void pcie_cap_slot_hot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     pcie_cap_slot_hotplug_common(PCI_DEVICE(hotplug_dev), dev, &exp_cap, errp);
 
-    object_unparent(OBJECT(dev));
-    pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
-                                 PCI_EXP_SLTSTA_PDS);
-    pcie_cap_slot_event(PCI_DEVICE(hotplug_dev), PCI_EXP_HP_EV_PDC);
+    pcie_cap_slot_push_attention_button(PCI_DEVICE(hotplug_dev));
 }
 
 /* pci express slot for pci express root/downstream port
@@ -383,6 +381,11 @@ void pcie_cap_slot_reset(PCIDevice *dev)
     hotplug_event_update_event_status(dev);
 }
 
+static void pcie_unplug_device(PCIBus *bus, PCIDevice *dev, void *opaque)
+{
+    object_unparent(OBJECT(dev));
+}
+
 void pcie_cap_slot_write_config(PCIDevice *dev,
                                 uint32_t addr, uint32_t val, int len)
 {
@@ -405,6 +408,22 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
         PCIE_DEV_PRINTF(dev, "PCI_EXP_SLTCTL_EIC: "
                         "sltsta -> 0x%02"PRIx16"\n",
                         sltsta);
+    }
+
+    /*
+     * If the slot is polulated, power indicator is off and power
+     * controller is off, it is safe to detach the devices.
+     */
+    if ((sltsta & PCI_EXP_SLTSTA_PDS) && (val & PCI_EXP_SLTCTL_PCC) &&
+        ((val & PCI_EXP_SLTCTL_PIC_OFF) == PCI_EXP_SLTCTL_PIC_OFF)) {
+            PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(dev));
+            pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
+                                pcie_unplug_device, NULL);
+
+            pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
+                                         PCI_EXP_SLTSTA_PDS);
+            pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
+                                       PCI_EXP_SLTSTA_PDC);
     }
 
     hotplug_event_notify(dev);
