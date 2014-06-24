@@ -23,6 +23,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi-event.h"
+#include "hw/virtio/virtio-access.h"
 
 #define VIRTIO_NET_VM_VERSION    11
 
@@ -72,8 +73,8 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
     VirtIONet *n = VIRTIO_NET(vdev);
     struct virtio_net_config netcfg;
 
-    stw_p(&netcfg.status, n->status);
-    stw_p(&netcfg.max_virtqueue_pairs, n->max_queues);
+    virtio_stw_p(vdev, &netcfg.status, n->status);
+    virtio_stw_p(vdev, &netcfg.max_virtqueue_pairs, n->max_queues);
     memcpy(netcfg.mac, n->mac, ETH_ALEN);
     memcpy(config, &netcfg, n->config_size);
 }
@@ -604,6 +605,7 @@ static int virtio_net_handle_offloads(VirtIONet *n, uint8_t cmd,
 static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
                                  struct iovec *iov, unsigned int iov_cnt)
 {
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
     struct virtio_net_ctrl_mac mac_data;
     size_t s;
     NetClientState *nc = qemu_get_queue(n->nic);
@@ -632,7 +634,7 @@ static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
 
     s = iov_to_buf(iov, iov_cnt, 0, &mac_data.entries,
                    sizeof(mac_data.entries));
-    mac_data.entries = ldl_p(&mac_data.entries);
+    mac_data.entries = virtio_ldl_p(vdev, &mac_data.entries);
     if (s != sizeof(mac_data.entries)) {
         goto error;
     }
@@ -659,7 +661,7 @@ static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
 
     s = iov_to_buf(iov, iov_cnt, 0, &mac_data.entries,
                    sizeof(mac_data.entries));
-    mac_data.entries = ldl_p(&mac_data.entries);
+    mac_data.entries = virtio_ldl_p(vdev, &mac_data.entries);
     if (s != sizeof(mac_data.entries)) {
         goto error;
     }
@@ -699,12 +701,13 @@ error:
 static int virtio_net_handle_vlan_table(VirtIONet *n, uint8_t cmd,
                                         struct iovec *iov, unsigned int iov_cnt)
 {
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
     uint16_t vid;
     size_t s;
     NetClientState *nc = qemu_get_queue(n->nic);
 
     s = iov_to_buf(iov, iov_cnt, 0, &vid, sizeof(vid));
-    vid = lduw_p(&vid);
+    vid = virtio_lduw_p(vdev, &vid);
     if (s != sizeof(vid)) {
         return VIRTIO_NET_ERR;
     }
@@ -758,7 +761,7 @@ static int virtio_net_handle_mq(VirtIONet *n, uint8_t cmd,
         return VIRTIO_NET_ERR;
     }
 
-    queues = lduw_p(&mq.virtqueue_pairs);
+    queues = virtio_lduw_p(vdev, &mq.virtqueue_pairs);
 
     if (queues < VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MIN ||
         queues > VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MAX ||
@@ -875,12 +878,12 @@ static int virtio_net_has_buffers(VirtIONetQueue *q, int bufsize)
     return 1;
 }
 
-static void virtio_net_hdr_swap(struct virtio_net_hdr *hdr)
+static void virtio_net_hdr_swap(VirtIODevice *vdev, struct virtio_net_hdr *hdr)
 {
-    tswap16s(&hdr->hdr_len);
-    tswap16s(&hdr->gso_size);
-    tswap16s(&hdr->csum_start);
-    tswap16s(&hdr->csum_offset);
+    virtio_tswap16s(vdev, &hdr->hdr_len);
+    virtio_tswap16s(vdev, &hdr->gso_size);
+    virtio_tswap16s(vdev, &hdr->csum_start);
+    virtio_tswap16s(vdev, &hdr->csum_offset);
 }
 
 /* dhclient uses AF_PACKET but doesn't pass auxdata to the kernel so
@@ -918,7 +921,7 @@ static void receive_header(VirtIONet *n, const struct iovec *iov, int iov_cnt,
         void *wbuf = (void *)buf;
         work_around_broken_dhclient(wbuf, wbuf + n->host_hdr_len,
                                     size - n->host_hdr_len);
-        virtio_net_hdr_swap(wbuf);
+        virtio_net_hdr_swap(VIRTIO_DEVICE(n), wbuf);
         iov_from_buf(iov, iov_cnt, 0, buf, sizeof(struct virtio_net_hdr));
     } else {
         struct virtio_net_hdr hdr = {
@@ -1068,7 +1071,7 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
     }
 
     if (mhdr_cnt) {
-        stw_p(&mhdr.num_buffers, i);
+        virtio_stw_p(vdev, &mhdr.num_buffers, i);
         iov_from_buf(mhdr_sg, mhdr_cnt,
                      0,
                      &mhdr.num_buffers, sizeof mhdr.num_buffers);
@@ -1132,7 +1135,7 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
                 error_report("virtio-net header incorrect");
                 exit(1);
             }
-            virtio_net_hdr_swap((void *) out_sg[0].iov_base);
+            virtio_net_hdr_swap(vdev, (void *) out_sg[0].iov_base);
         }
 
         /*
