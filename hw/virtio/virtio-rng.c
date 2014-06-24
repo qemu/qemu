@@ -107,19 +107,20 @@ static void virtio_rng_save(QEMUFile *f, void *opaque)
 
 static int virtio_rng_load(QEMUFile *f, void *opaque, int version_id)
 {
-    VirtIORNG *vrng = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(vrng);
-
     if (version_id != 1) {
         return -EINVAL;
     }
-    virtio_load(vdev, f, version_id);
+    return virtio_load(VIRTIO_DEVICE(opaque), f, version_id);
+}
 
+static int virtio_rng_load_device(VirtIODevice *vdev, QEMUFile *f,
+                                  int version_id)
+{
     /* We may have an element ready but couldn't process it due to a quota
      * limit.  Make sure to try again after live migration when the quota may
      * have been reset.
      */
-    virtio_rng_process(vrng);
+    virtio_rng_process(VIRTIO_RNG(vdev));
 
     return 0;
 }
@@ -219,6 +220,7 @@ static void virtio_rng_class_init(ObjectClass *klass, void *data)
     vdc->realize = virtio_rng_device_realize;
     vdc->unrealize = virtio_rng_device_unrealize;
     vdc->get_features = get_features;
+    vdc->load = virtio_rng_load_device;
 }
 
 static void virtio_rng_initfn(Object *obj)
