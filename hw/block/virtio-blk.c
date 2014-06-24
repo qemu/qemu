@@ -611,12 +611,16 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
 
 static void virtio_blk_save(QEMUFile *f, void *opaque)
 {
-    VirtIOBlock *s = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
-    VirtIOBlockReq *req = s->rq;
+    VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
 
     virtio_save(vdev, f);
+}
     
+static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
+{
+    VirtIOBlock *s = VIRTIO_BLK(vdev);
+    VirtIOBlockReq *req = s->rq;
+
     while (req) {
         qemu_put_sbyte(f, 1);
         qemu_put_buffer(f, (unsigned char *)req->elem,
@@ -630,15 +634,17 @@ static int virtio_blk_load(QEMUFile *f, void *opaque, int version_id)
 {
     VirtIOBlock *s = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
-    int ret;
 
     if (version_id != 2)
         return -EINVAL;
 
-    ret = virtio_load(vdev, f, version_id);
-    if (ret) {
-        return ret;
-    }
+    return virtio_load(vdev, f, version_id);
+}
+
+static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
+                                  int version_id)
+{
+    VirtIOBlock *s = VIRTIO_BLK(vdev);
 
     while (qemu_get_sbyte(f)) {
         VirtIOBlockReq *req = virtio_blk_alloc_request(s);
@@ -799,6 +805,8 @@ static void virtio_blk_class_init(ObjectClass *klass, void *data)
     vdc->get_features = virtio_blk_get_features;
     vdc->set_status = virtio_blk_set_status;
     vdc->reset = virtio_blk_reset;
+    vdc->save = virtio_blk_save_device;
+    vdc->load = virtio_blk_load_device;
 }
 
 static const TypeInfo virtio_device_info = {
