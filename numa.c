@@ -161,7 +161,7 @@ void set_numa_nodes(void)
             nb_numa_nodes = MAX_NODES;
         }
 
-        /* If no memory size if given for any node, assume the default case
+        /* If no memory size is given for any node, assume the default case
          * and distribute the available memory equally across all nodes
          */
         for (i = 0; i < nb_numa_nodes; i++) {
