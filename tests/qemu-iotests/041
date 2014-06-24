@@ -64,7 +64,7 @@ class TestSingleDrive(ImageMirroringTestCase):
     image_len = 1 * 1024 * 1024 # MB
 
     def setUp(self):
-        iotests.create_image(backing_img, TestSingleDrive.image_len)
+        iotests.create_image(backing_img, self.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
@@ -163,7 +163,7 @@ class TestSingleDrive(ImageMirroringTestCase):
         self.assert_no_active_block_jobs()
 
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=%d,size=%d'
-                        % (TestSingleDrive.image_len, TestSingleDrive.image_len), target_img)
+                        % (self.image_len, self.image_len), target_img)
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              buf_size=65536, mode='existing', target=target_img)
         self.assert_qmp(result, 'return', {})
@@ -179,7 +179,7 @@ class TestSingleDrive(ImageMirroringTestCase):
         self.assert_no_active_block_jobs()
 
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=%d,backing_file=%s'
-                        % (TestSingleDrive.image_len, backing_img), target_img)
+                        % (self.image_len, backing_img), target_img)
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              mode='existing', target=target_img)
         self.assert_qmp(result, 'return', {})
@@ -205,6 +205,11 @@ class TestSingleDrive(ImageMirroringTestCase):
         result = self.vm.qmp('drive-mirror', device='nonexistent', sync='full',
                              target=target_img)
         self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+
+class TestSingleDriveZeroLength(TestSingleDrive):
+    image_len = 0
+    test_small_buffer2 = None
+    test_large_cluster = None
 
 class TestMirrorNoBacking(ImageMirroringTestCase):
     image_len = 2 * 1024 * 1024 # MB
