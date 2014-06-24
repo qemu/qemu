@@ -27,6 +27,7 @@
 # include <scsi/sg.h>
 #endif
 #include "hw/virtio/virtio-bus.h"
+#include "hw/virtio/virtio-access.h"
 
 static VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
 {
@@ -88,7 +89,8 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
     trace_virtio_blk_rw_complete(req, ret);
 
     if (ret) {
-        bool is_read = !(ldl_p(&req->out.type) & VIRTIO_BLK_T_OUT);
+        int p = virtio_ldl_p(VIRTIO_DEVICE(req->dev), &req->out.type);
+        bool is_read = !(p & VIRTIO_BLK_T_OUT);
         if (virtio_blk_handle_rw_error(req, -ret, is_read))
             return;
     }
@@ -130,6 +132,8 @@ int virtio_blk_handle_scsi_req(VirtIOBlock *blk,
 {
     int status = VIRTIO_BLK_S_OK;
     struct virtio_scsi_inhdr *scsi = NULL;
+    VirtIODevice *vdev = VIRTIO_DEVICE(blk);
+
 #ifdef __linux__
     int i;
     struct sg_io_hdr hdr;
@@ -224,12 +228,12 @@ int virtio_blk_handle_scsi_req(VirtIOBlock *blk,
         hdr.status = CHECK_CONDITION;
     }
 
-    stl_p(&scsi->errors,
-          hdr.status | (hdr.msg_status << 8) |
-          (hdr.host_status << 16) | (hdr.driver_status << 24));
-    stl_p(&scsi->residual, hdr.resid);
-    stl_p(&scsi->sense_len, hdr.sb_len_wr);
-    stl_p(&scsi->data_len, hdr.dxfer_len);
+    virtio_stl_p(vdev, &scsi->errors,
+                 hdr.status | (hdr.msg_status << 8) |
+                 (hdr.host_status << 16) | (hdr.driver_status << 24));
+    virtio_stl_p(vdev, &scsi->residual, hdr.resid);
+    virtio_stl_p(vdev, &scsi->sense_len, hdr.sb_len_wr);
+    virtio_stl_p(vdev, &scsi->data_len, hdr.dxfer_len);
 
     return status;
 #else
@@ -239,7 +243,7 @@ int virtio_blk_handle_scsi_req(VirtIOBlock *blk,
 fail:
     /* Just put anything nonzero so that the ioctl fails in the guest.  */
     if (scsi) {
-        stl_p(&scsi->errors, 255);
+        virtio_stl_p(vdev, &scsi->errors, 255);
     }
     return status;
 }
@@ -289,7 +293,7 @@ static void virtio_blk_handle_write(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     BlockRequest *blkreq;
     uint64_t sector;
 
-    sector = ldq_p(&req->out.sector);
+    sector = virtio_ldq_p(VIRTIO_DEVICE(req->dev), &req->out.sector);
 
     bdrv_acct_start(req->dev->bs, &req->acct, req->qiov.size, BDRV_ACCT_WRITE);
 
@@ -323,7 +327,7 @@ static void virtio_blk_handle_read(VirtIOBlockReq *req)
 {
     uint64_t sector;
 
-    sector = ldq_p(&req->out.sector);
+    sector = virtio_ldq_p(VIRTIO_DEVICE(req->dev), &req->out.sector);
 
     bdrv_acct_start(req->dev->bs, &req->acct, req->qiov.size, BDRV_ACCT_READ);
 
@@ -374,7 +378,7 @@ void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
               - sizeof(struct virtio_blk_inhdr);
     iov_discard_back(in_iov, &in_num, sizeof(struct virtio_blk_inhdr));
 
-    type = ldl_p(&req->out.type);
+    type = virtio_ldl_p(VIRTIO_DEVICE(req->dev), &req->out.type);
 
     if (type & VIRTIO_BLK_T_FLUSH) {
         virtio_blk_handle_flush(req, mrb);
@@ -504,12 +508,12 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
 
     bdrv_get_geometry(s->bs, &capacity);
     memset(&blkcfg, 0, sizeof(blkcfg));
-    stq_p(&blkcfg.capacity, capacity);
-    stl_p(&blkcfg.seg_max, 128 - 2);
-    stw_p(&blkcfg.cylinders, s->conf->cyls);
-    stl_p(&blkcfg.blk_size, blk_size);
-    stw_p(&blkcfg.min_io_size, s->conf->min_io_size / blk_size);
-    stw_p(&blkcfg.opt_io_size, s->conf->opt_io_size / blk_size);
+    virtio_stq_p(vdev, &blkcfg.capacity, capacity);
+    virtio_stl_p(vdev, &blkcfg.seg_max, 128 - 2);
+    virtio_stw_p(vdev, &blkcfg.cylinders, s->conf->cyls);
+    virtio_stl_p(vdev, &blkcfg.blk_size, blk_size);
+    virtio_stw_p(vdev, &blkcfg.min_io_size, s->conf->min_io_size / blk_size);
+    virtio_stw_p(vdev, &blkcfg.opt_io_size, s->conf->opt_io_size / blk_size);
     blkcfg.heads = s->conf->heads;
     /*
      * We must ensure that the block device capacity is a multiple of
