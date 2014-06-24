@@ -663,6 +663,7 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
     uint32_t max_nr_ports, nr_active_ports, ports_map;
     unsigned int i;
     int ret;
+    uint32_t tmp;
 
     if (version_id > 3) {
         return -EINVAL;
@@ -678,17 +679,12 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
         return 0;
     }
 
-    /* The config space */
-    qemu_get_be16s(f, &s->config.cols);
-    qemu_get_be16s(f, &s->config.rows);
+    /* Unused */
+    qemu_get_be16s(f, (uint16_t *) &tmp);
+    qemu_get_be16s(f, (uint16_t *) &tmp);
+    qemu_get_be32s(f, &tmp);
 
-    qemu_get_be32s(f, &max_nr_ports);
-    tswap32s(&max_nr_ports);
-    if (max_nr_ports > tswap32(s->config.max_nr_ports)) {
-        /* Source could have had more ports than us. Fail migration. */
-        return -EINVAL;
-    }
-
+    max_nr_ports = tswap32(s->config.max_nr_ports);
     for (i = 0; i < (max_nr_ports + 31) / 32; i++) {
         qemu_get_be32s(f, &ports_map);
 
