@@ -324,8 +324,17 @@ static void coroutine_fn mirror_run(void *opaque)
     }
 
     s->common.len = bdrv_getlength(bs);
-    if (s->common.len <= 0) {
+    if (s->common.len < 0) {
         ret = s->common.len;
+        goto immediate_exit;
+    } else if (s->common.len == 0) {
+        /* Report BLOCK_JOB_READY and wait for complete. */
+        block_job_event_ready(&s->common);
+        s->synced = true;
+        while (!block_job_is_cancelled(&s->common) && !s->should_complete) {
+            block_job_yield(&s->common);
+        }
+        s->common.cancelled = false;
         goto immediate_exit;
     }
 
