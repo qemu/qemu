@@ -875,6 +875,14 @@ static int virtio_net_has_buffers(VirtIONetQueue *q, int bufsize)
     return 1;
 }
 
+static void virtio_net_hdr_swap(struct virtio_net_hdr *hdr)
+{
+    tswap16s(&hdr->hdr_len);
+    tswap16s(&hdr->gso_size);
+    tswap16s(&hdr->csum_start);
+    tswap16s(&hdr->csum_offset);
+}
+
 /* dhclient uses AF_PACKET but doesn't pass auxdata to the kernel so
  * it never finds out that the packets don't have valid checksums.  This
  * causes dhclient to get upset.  Fedora's carried a patch for ages to
@@ -910,6 +918,7 @@ static void receive_header(VirtIONet *n, const struct iovec *iov, int iov_cnt,
         void *wbuf = (void *)buf;
         work_around_broken_dhclient(wbuf, wbuf + n->host_hdr_len,
                                     size - n->host_hdr_len);
+        virtio_net_hdr_swap(wbuf);
         iov_from_buf(iov, iov_cnt, 0, buf, sizeof(struct virtio_net_hdr));
     } else {
         struct virtio_net_hdr hdr = {
@@ -1116,6 +1125,14 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
         if (out_num < 1) {
             error_report("virtio-net header not in first element");
             exit(1);
+        }
+
+        if (n->has_vnet_hdr) {
+            if (out_sg[0].iov_len < n->guest_hdr_len) {
+                error_report("virtio-net header incorrect");
+                exit(1);
+            }
+            virtio_net_hdr_swap((void *) out_sg[0].iov_base);
         }
 
         /*
