@@ -35,12 +35,13 @@ test_img = os.path.join(iotests.test_dir, 'test.img')
 class ImageCommitTestCase(iotests.QMPTestCase):
     '''Abstract base class for image commit test cases'''
 
-    def run_commit_test(self, top, base):
+    def run_commit_test(self, top, base, need_ready=False):
         self.assert_no_active_block_jobs()
         result = self.vm.qmp('block-commit', device='drive0', top=top, base=base)
         self.assert_qmp(result, 'return', {})
 
         completed = False
+        ready = False
         while not completed:
             for event in self.vm.get_qmp_events(wait=True):
                 if event['event'] == 'BLOCK_JOB_COMPLETED':
@@ -48,8 +49,11 @@ class ImageCommitTestCase(iotests.QMPTestCase):
                     self.assert_qmp(event, 'data/device', 'drive0')
                     self.assert_qmp(event, 'data/offset', self.image_len)
                     self.assert_qmp(event, 'data/len', self.image_len)
+                    if need_ready:
+                        self.assertTrue(ready, "Expecting BLOCK_JOB_COMPLETED event")
                     completed = True
                 elif event['event'] == 'BLOCK_JOB_READY':
+                    ready = True
                     self.assert_qmp(event, 'data/type', 'commit')
                     self.assert_qmp(event, 'data/device', 'drive0')
                     self.assert_qmp(event, 'data/len', self.image_len)
@@ -63,7 +67,7 @@ class TestSingleDrive(ImageCommitTestCase):
     test_len = 1 * 1024 * 256
 
     def setUp(self):
-        iotests.create_image(backing_img, TestSingleDrive.image_len)
+        iotests.create_image(backing_img, self.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
         qemu_io('-c', 'write -P 0xab 0 524288', backing_img)
@@ -105,7 +109,7 @@ class TestSingleDrive(ImageCommitTestCase):
         self.assert_qmp(result, 'error/desc', 'Base \'badfile\' not found')
 
     def test_top_is_active(self):
-        self.run_commit_test(test_img, backing_img)
+        self.run_commit_test(test_img, backing_img, need_ready=True)
         self.assertEqual(-1, qemu_io('-c', 'read -P 0xab 0 524288', backing_img).find("verification failed"))
         self.assertEqual(-1, qemu_io('-c', 'read -P 0xef 524288 524288', backing_img).find("verification failed"))
 
@@ -238,6 +242,8 @@ class TestSetSpeed(ImageCommitTestCase):
 
         self.cancel_and_wait(resume=True)
 
+class TestActiveZeroLengthImage(TestSingleDrive):
+    image_len = 0
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'])
