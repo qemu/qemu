@@ -45,6 +45,7 @@ struct vhost_dev {
     bool log_enabled;
     vhost_log_chunk_t *log;
     unsigned long long log_size;
+    Error *migration_blocker;
     bool force;
     bool memory_changed;
     hwaddr mem_changed_start_addr;

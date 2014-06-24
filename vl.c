@@ -380,6 +380,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = "kvm-type",
             .type = QEMU_OPT_STRING,
             .help = "Specifies the KVM virtualization mode (HV, PR)",
+        },{
+            .name = PC_MACHINE_MAX_RAM_BELOW_4G,
+            .type = QEMU_OPT_SIZE,
+            .help = "maximum ram below the 4G boundary (32bit boundary)",
         },
         { /* End of list */ }
     },

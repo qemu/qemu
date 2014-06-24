@@ -3158,19 +3158,19 @@
 ##
 # @Memdev:
 #
-# Information of memory device
+# Information about memory backend
 #
-# @size: memory device size
+# @size: memory backend size
 #
 # @merge: enables or disables memory merge support
 #
-# @dump: includes memory device's memory in a core dump or not
+# @dump: includes memory backend's memory in a core dump or not
 #
 # @prealloc: enables or disables memory preallocation
 #
 # @host-nodes: host nodes for its memory policy
 #
-# @policy: memory policy of memory device
+# @policy: memory policy of memory backend
 #
 # Since: 2.1
 ##
@@ -3187,13 +3187,15 @@
 ##
 # @query-memdev:
 #
-# Returns information for all memory devices.
+# Returns information for all memory backends.
 #
 # Returns: a list of @Memdev.
 #
 # Since: 2.1
 ##
 { 'command': 'query-memdev', 'returns': ['Memdev'] }
+
+##
 # @PCDIMMDeviceInfo:
 #
 # PCDIMMDevice state information

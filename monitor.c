@@ -2968,7 +2968,7 @@ static mon_cmd_t info_cmds[] = {
         .name       = "memdev",
         .args_type  = "",
         .params     = "",
-        .help       = "show the memory device",
+        .help       = "show memory backends",
         .mhandler.cmd = hmp_info_memdev,
     },
     {

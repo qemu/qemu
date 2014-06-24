@@ -175,6 +175,8 @@ e1000_link_down(E1000State *s)
 {
     s->mac_reg[STATUS] &= ~E1000_STATUS_LU;
     s->phy_reg[PHY_STATUS] &= ~MII_SR_LINK_STATUS;
+    s->phy_reg[PHY_STATUS] &= ~MII_SR_AUTONEG_COMPLETE;
+    s->phy_reg[PHY_LP_ABILITY] &= ~MII_LPAR_LPACK;
 }
 
 static void
@@ -197,21 +199,9 @@ set_phy_ctrl(E1000State *s, int index, uint16_t val)
     }
     if ((val & MII_CR_AUTO_NEG_EN) && (val & MII_CR_RESTART_AUTO_NEG)) {
         e1000_link_down(s);
-        s->phy_reg[PHY_STATUS] &= ~MII_SR_AUTONEG_COMPLETE;
         DBGOUT(PHY, "Start link auto negotiation\n");
         timer_mod(s->autoneg_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
     }
-}
-
-static void
-e1000_autoneg_timer(void *opaque)
-{
-    E1000State *s = opaque;
-    if (!qemu_get_queue(s->nic)->link_down) {
-        e1000_link_up(s);
-    }
-    s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
-    DBGOUT(PHY, "Auto negotiation is completed\n");
 }
 
 static void (*phyreg_writeops[])(E1000State *, int, uint16_t) = {
@@ -227,7 +217,8 @@ static const char phy_regcap[0x20] = {
     [PHY_CTRL] = PHY_RW,	[PHY_1000T_CTRL] = PHY_RW,
     [PHY_LP_ABILITY] = PHY_R,	[PHY_1000T_STATUS] = PHY_R,
     [PHY_AUTONEG_ADV] = PHY_RW,	[M88E1000_RX_ERR_CNTR] = PHY_R,
-    [PHY_ID2] = PHY_R,		[M88E1000_PHY_SPEC_STATUS] = PHY_R
+    [PHY_ID2] = PHY_R,		[M88E1000_PHY_SPEC_STATUS] = PHY_R,
+    [PHY_AUTONEG_EXP] = PHY_R,
 };
 
 /* PHY_ID2 documented in 8254x_GBe_SDM.pdf, pp. 250 */
@@ -342,6 +333,19 @@ set_ics(E1000State *s, int index, uint32_t val)
     DBGOUT(INTERRUPT, "set_ics %x, ICR %x, IMR %x\n", val, s->mac_reg[ICR],
         s->mac_reg[IMS]);
     set_interrupt_cause(s, 0, val | s->mac_reg[ICR]);
+}
+
+static void
+e1000_autoneg_timer(void *opaque)
+{
+    E1000State *s = opaque;
+    if (!qemu_get_queue(s->nic)->link_down) {
+        e1000_link_up(s);
+        s->phy_reg[PHY_LP_ABILITY] |= MII_LPAR_LPACK;
+        s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
+        DBGOUT(PHY, "Auto negotiation is completed\n");
+        set_ics(s, 0, E1000_ICS_LSC); /* signal link status change to guest */
+    }
 }
 
 static int
@@ -844,6 +848,14 @@ receive_filter(E1000State *s, const uint8_t *buf, int size)
     return 0;
 }
 
+static bool
+have_autoneg(E1000State *s)
+{
+    return (s->compat_flags & E1000_FLAG_AUTONEG) &&
+           (s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN) &&
+           (s->phy_reg[PHY_CTRL] & MII_CR_RESTART_AUTO_NEG);
+}
+
 static void
 e1000_set_link_status(NetClientState *nc)
 {
@@ -853,7 +865,14 @@ e1000_set_link_status(NetClientState *nc)
     if (nc->link_down) {
         e1000_link_down(s);
     } else {
-        e1000_link_up(s);
+        if (have_autoneg(s) &&
+            !(s->phy_reg[PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
+            /* emulate auto-negotiation if supported */
+            timer_mod(s->autoneg_timer,
+                      qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
+        } else {
+            e1000_link_up(s);
+        }
     }
 
     if (s->mac_reg[STATUS] != old_status)
@@ -1279,19 +1298,13 @@ static void e1000_pre_save(void *opaque)
         e1000_mit_timer(s);
     }
 
-    if (!(s->compat_flags & E1000_FLAG_AUTONEG)) {
-        return;
-    }
-
     /*
-     * If link is down and auto-negotiation is ongoing, complete
-     * auto-negotiation immediately.  This allows is to look at
-     * MII_SR_AUTONEG_COMPLETE to infer link status on load.
+     * If link is down and auto-negotiation is supported and ongoing,
+     * complete auto-negotiation immediately. This allows us to look
+     * at MII_SR_AUTONEG_COMPLETE to infer link status on load.
      */
-    if (nc->link_down &&
-        s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN &&
-        s->phy_reg[PHY_CTRL] & MII_CR_RESTART_AUTO_NEG) {
-         s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
+    if (nc->link_down && have_autoneg(s)) {
+        s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
     }
 }
 
@@ -1313,15 +1326,11 @@ static int e1000_post_load(void *opaque, int version_id)
      * Alternatively, restart link negotiation if it was in progress. */
     nc->link_down = (s->mac_reg[STATUS] & E1000_STATUS_LU) == 0;
 
-    if (!(s->compat_flags & E1000_FLAG_AUTONEG)) {
-        return 0;
-    }
-
-    if (s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN &&
-        s->phy_reg[PHY_CTRL] & MII_CR_RESTART_AUTO_NEG &&
+    if (have_autoneg(s) &&
         !(s->phy_reg[PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
         nc->link_down = false;
-        timer_mod(s->autoneg_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
+        timer_mod(s->autoneg_timer,
+                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
     }
 
     return 0;

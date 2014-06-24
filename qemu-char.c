@@ -204,7 +204,7 @@ void qemu_chr_be_write(CharDriverState *s, uint8_t *buf, int len)
 int qemu_chr_fe_get_msgfd(CharDriverState *s)
 {
     int fd;
-    return (qemu_chr_fe_get_msgfds(s, &fd, 1) >= 0) ? fd : -1;
+    return (qemu_chr_fe_get_msgfds(s, &fd, 1) == 1) ? fd : -1;
 }
 
 int qemu_chr_fe_get_msgfds(CharDriverState *s, int *fds, int len)
@@ -2481,7 +2481,14 @@ static int tcp_get_msgfds(CharDriverState *chr, int *fds, int num)
     int to_copy = (s->read_msgfds_num < num) ? s->read_msgfds_num : num;
 
     if (to_copy) {
+        int i;
+
         memcpy(fds, s->read_msgfds, to_copy * sizeof(int));
+
+        /* Close unused fds */
+        for (i = to_copy; i < s->read_msgfds_num; i++) {
+            close(s->read_msgfds[i]);
+        }
 
         g_free(s->read_msgfds);
         s->read_msgfds = 0;

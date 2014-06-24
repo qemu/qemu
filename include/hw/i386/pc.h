@@ -33,10 +33,13 @@ struct PCMachineState {
     MemoryRegion hotplug_memory;
 
     HotplugHandler *acpi_dev;
+
+    uint64_t max_ram_below_4g;
 };
 
 #define PC_MACHINE_ACPI_DEVICE_PROP "acpi-device"
 #define PC_MACHINE_MEMHP_REGION_SIZE "hotplug-memory-region-size"
+#define PC_MACHINE_MAX_RAM_BELOW_4G "max-ram-below-4g"
 
 /**
  * PCMachineClass:
@@ -297,8 +300,16 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "ICH9-LPC",\
             .property = "memory-hotplug-support",\
             .value    = "off",\
+        },{\
+            .driver   = "xio3130-downstream",\
+            .property = COMPAT_PROP_PCP,\
+            .value    = "off",\
+        },{\
+            .driver   = "ioh3420",\
+            .property = COMPAT_PROP_PCP,\
+            .value    = "off",\
         }
-
+ 
 #define PC_Q35_COMPAT_1_7 \
         PC_COMPAT_1_7, \
         PC_Q35_COMPAT_2_0, \

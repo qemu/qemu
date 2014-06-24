@@ -48,6 +48,7 @@
 #include "exec/address-spaces.h"
 #include "hw/acpi/acpi.h"
 #include "cpu.h"
+#include "qemu/error-report.h"
 #ifdef CONFIG_XEN
 #  include <xen/hvm/hvm_info_table.h>
 #endif
@@ -98,8 +99,44 @@ static void pc_init1(MachineState *machine,
     DeviceState *icc_bridge;
     FWCfgState *fw_cfg = NULL;
     PcGuestInfo *guest_info;
+    ram_addr_t lowmem;
 
-    if (xen_enabled() && xen_hvm_init(&ram_memory) != 0) {
+    /* Check whether RAM fits below 4G (leaving 1/2 GByte for IO memory).
+     * If it doesn't, we need to split it in chunks below and above 4G.
+     * In any case, try to make sure that guest addresses aligned at
+     * 1G boundaries get mapped to host addresses aligned at 1G boundaries.
+     * For old machine types, use whatever split we used historically to avoid
+     * breaking migration.
+     */
+    if (machine->ram_size >= 0xe0000000) {
+        lowmem = gigabyte_align ? 0xc0000000 : 0xe0000000;
+    } else {
+        lowmem = 0xe0000000;
+    }
+
+    /* Handle the machine opt max-ram-below-4g.  It is basicly doing
+     * min(qemu limit, user limit).
+     */
+    if (lowmem > pc_machine->max_ram_below_4g) {
+        lowmem = pc_machine->max_ram_below_4g;
+        if (machine->ram_size - lowmem > lowmem &&
+            lowmem & ((1ULL << 30) - 1)) {
+            error_report("Warning: Large machine and max_ram_below_4g(%"PRIu64
+                         ") not a multiple of 1G; possible bad performance.",
+                         pc_machine->max_ram_below_4g);
+        }
+    }
+
+    if (machine->ram_size >= lowmem) {
+        above_4g_mem_size = machine->ram_size - lowmem;
+        below_4g_mem_size = lowmem;
+    } else {
+        above_4g_mem_size = 0;
+        below_4g_mem_size = machine->ram_size;
+    }
+
+    if (xen_enabled() && xen_hvm_init(&below_4g_mem_size, &above_4g_mem_size,
+                                      &ram_memory) != 0) {
         fprintf(stderr, "xen hardware virtual machine initialisation failed\n");
         exit(1);
     }
@@ -112,22 +149,6 @@ static void pc_init1(MachineState *machine,
 
     if (kvm_enabled() && kvmclock_enabled) {
         kvmclock_create();
-    }
-
-    /* Check whether RAM fits below 4G (leaving 1/2 GByte for IO memory).
-     * If it doesn't, we need to split it in chunks below and above 4G.
-     * In any case, try to make sure that guest addresses aligned at
-     * 1G boundaries get mapped to host addresses aligned at 1G boundaries.
-     * For old machine types, use whatever split we used historically to avoid
-     * breaking migration.
-     */
-    if (machine->ram_size >= 0xe0000000) {
-        ram_addr_t lowmem = gigabyte_align ? 0xc0000000 : 0xe0000000;
-        above_4g_mem_size = machine->ram_size - lowmem;
-        below_4g_mem_size = lowmem;
-    } else {
-        above_4g_mem_size = 0;
-        below_4g_mem_size = machine->ram_size;
     }
 
     if (pci_enabled) {
