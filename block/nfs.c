@@ -304,17 +304,23 @@ static int64_t nfs_client_open(NFSClient *client, const char *filename,
 
     qp = query_params_parse(uri->query);
     for (i = 0; i < qp->n; i++) {
+        unsigned long long val;
         if (!qp->p[i].value) {
             error_setg(errp, "Value for NFS parameter expected: %s",
                        qp->p[i].name);
             goto fail;
         }
-        if (!strncmp(qp->p[i].name, "uid", 3)) {
-            nfs_set_uid(client->context, atoi(qp->p[i].value));
-        } else if (!strncmp(qp->p[i].name, "gid", 3)) {
-            nfs_set_gid(client->context, atoi(qp->p[i].value));
-        } else if (!strncmp(qp->p[i].name, "tcp-syncnt", 10)) {
-            nfs_set_tcp_syncnt(client->context, atoi(qp->p[i].value));
+        if (parse_uint_full(qp->p[i].value, &val, 0)) {
+            error_setg(errp, "Illegal value for NFS parameter: %s",
+                       qp->p[i].name);
+            goto fail;
+        }
+        if (!strcmp(qp->p[i].name, "uid")) {
+            nfs_set_uid(client->context, val);
+        } else if (!strcmp(qp->p[i].name, "gid")) {
+            nfs_set_gid(client->context, val);
+        } else if (!strcmp(qp->p[i].name, "tcp-syncnt")) {
+            nfs_set_tcp_syncnt(client->context, val);
         } else {
             error_setg(errp, "Unknown NFS parameter name: %s",
                        qp->p[i].name);
