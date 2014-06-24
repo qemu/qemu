@@ -325,10 +325,12 @@ static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
 
 static void virtio_balloon_save(QEMUFile *f, void *opaque)
 {
-    VirtIOBalloon *s = VIRTIO_BALLOON(opaque);
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    virtio_save(VIRTIO_DEVICE(opaque), f);
+}
 
-    virtio_save(vdev, f);
+static void virtio_balloon_save_device(VirtIODevice *vdev, QEMUFile *f)
+{
+    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
 
     qemu_put_be32(f, s->num_pages);
     qemu_put_be32(f, s->actual);
@@ -336,17 +338,16 @@ static void virtio_balloon_save(QEMUFile *f, void *opaque)
 
 static int virtio_balloon_load(QEMUFile *f, void *opaque, int version_id)
 {
-    VirtIOBalloon *s = VIRTIO_BALLOON(opaque);
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
-    int ret;
-
     if (version_id != 1)
         return -EINVAL;
 
-    ret = virtio_load(vdev, f, version_id);
-    if (ret) {
-        return ret;
-    }
+    return virtio_load(VIRTIO_DEVICE(opaque), f, version_id);
+}
+
+static int virtio_balloon_load_device(VirtIODevice *vdev, QEMUFile *f,
+                                      int version_id)
+{
+    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
 
     s->num_pages = qemu_get_be32(f);
     s->actual = qemu_get_be32(f);
@@ -416,6 +417,8 @@ static void virtio_balloon_class_init(ObjectClass *klass, void *data)
     vdc->get_config = virtio_balloon_get_config;
     vdc->set_config = virtio_balloon_set_config;
     vdc->get_features = virtio_balloon_get_features;
+    vdc->save = virtio_balloon_save_device;
+    vdc->load = virtio_balloon_load_device;
 }
 
 static const TypeInfo virtio_balloon_info = {
