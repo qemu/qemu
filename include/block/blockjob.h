@@ -217,7 +217,7 @@ void block_job_pause(BlockJob *job);
 void block_job_resume(BlockJob *job);
 
 /**
- * block_job_event_cancle:
+ * block_job_event_cancelled:
  * @job: The job whose information is requested.
  *
  * Send a BLOCK_JOB_CANCELLED event for the specified job.

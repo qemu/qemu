@@ -1,8 +1,8 @@
 ##
 # @SHUTDOWN
 #
-# Emitted when the virtual machine has shutdown, possibly indicating that QEMU
-# is about about to exit.
+# Emitted when the virtual machine has shut down, indicating that qemu is
+# about to exit.
 #
 # Note: If the command-line option "-no-shutdown" has been specified, qemu will
 # not exit, and a STOP event will eventually follow the SHUTDOWN event

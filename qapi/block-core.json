@@ -1436,7 +1436,8 @@
 # @device: device name
 #
 # @msg: informative message for human consumption, such as the kind of
-#       corruption being detected
+#       corruption being detected. It should not be parsed by machine as it is
+#       not guaranteed to be stable
 #
 # @offset: #optional, if the corruption resulted from an image access, this is
 #          the access offset into the image

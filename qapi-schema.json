@@ -657,8 +657,9 @@
 #
 # @host: IP address
 #
-# @service: The service name of vnc port. This may depend on the host system's
-#           service database so symbolic names should not be relied on.
+# @service: The service name of the vnc port. This may depend on the host
+#           system's service database so symbolic names should not be relied
+#           on.
 #
 # @family: address family
 #
@@ -697,7 +698,7 @@
 ##
 { 'type': 'VncClientInfo',
   'base': 'VncBasicInfo',
-  'data': { '*x509_dname'   : 'str', '*sasl_username': 'str' } }
+  'data': { '*x509_dname': 'str', '*sasl_username': 'str' } }
 
 ##
 # @VncInfo:

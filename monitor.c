@@ -570,6 +570,7 @@ monitor_qapi_event_throttle(QAPIEvent event, int64_t rate)
 
     trace_monitor_protocol_event_throttle(event, rate);
     evstate->event = event;
+    assert(rate * SCALE_MS <= INT64_MAX);
     evstate->rate = rate * SCALE_MS;
     evstate->last = 0;
     evstate->data = NULL;
@@ -585,7 +586,6 @@ static void monitor_qapi_event_init(void)
     monitor_qapi_event_throttle(QAPI_EVENT_RTC_CHANGE, 1000);
     monitor_qapi_event_throttle(QAPI_EVENT_WATCHDOG, 1000);
     monitor_qapi_event_throttle(QAPI_EVENT_BALLOON_CHANGE, 1000);
-    /* limit the rate of quorum events to avoid hammering the management */
     monitor_qapi_event_throttle(QAPI_EVENT_QUORUM_REPORT_BAD, 1000);
     monitor_qapi_event_throttle(QAPI_EVENT_QUORUM_FAILURE, 1000);
 
