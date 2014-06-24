@@ -514,13 +514,16 @@ static void vser_reset(VirtIODevice *vdev)
 
 static void virtio_serial_save(QEMUFile *f, void *opaque)
 {
-    VirtIOSerial *s = VIRTIO_SERIAL(opaque);
+    /* The virtio device */
+    virtio_save(VIRTIO_DEVICE(opaque), f);
+}
+
+static void virtio_serial_save_device(VirtIODevice *vdev, QEMUFile *f)
+{
+    VirtIOSerial *s = VIRTIO_SERIAL(vdev);
     VirtIOSerialPort *port;
     uint32_t nr_active_ports;
     unsigned int i, max_nr_ports;
-
-    /* The virtio device */
-    virtio_save(VIRTIO_DEVICE(s), f);
 
     /* The config space */
     qemu_put_be16s(f, &s->config.cols);
@@ -659,21 +662,22 @@ static int fetch_active_ports_list(QEMUFile *f, int version_id,
 
 static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
 {
-    VirtIOSerial *s = VIRTIO_SERIAL(opaque);
-    uint32_t max_nr_ports, nr_active_ports, ports_map;
-    unsigned int i;
-    int ret;
-    uint32_t tmp;
-
     if (version_id > 3) {
         return -EINVAL;
     }
 
     /* The virtio device */
-    ret = virtio_load(VIRTIO_DEVICE(s), f, version_id);
-    if (ret) {
-        return ret;
-    }
+    return virtio_load(VIRTIO_DEVICE(opaque), f, version_id);
+}
+
+static int virtio_serial_load_device(VirtIODevice *vdev, QEMUFile *f,
+                                     int version_id)
+{
+    VirtIOSerial *s = VIRTIO_SERIAL(vdev);
+    uint32_t max_nr_ports, nr_active_ports, ports_map;
+    unsigned int i;
+    int ret;
+    uint32_t tmp;
 
     if (version_id < 2) {
         return 0;
@@ -1015,6 +1019,8 @@ static void virtio_serial_class_init(ObjectClass *klass, void *data)
     vdc->get_config = get_config;
     vdc->set_status = set_status;
     vdc->reset = vser_reset;
+    vdc->save = virtio_serial_save_device;
+    vdc->load = virtio_serial_load_device;
 }
 
 static const TypeInfo virtio_device_info = {
