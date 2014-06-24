@@ -26,6 +26,7 @@
 /qapi-generated
 /qapi-types.[ch]
 /qapi-visit.[ch]
+/qapi-event.[ch]
 /qmp-commands.h
 /qmp-marshal.c
 /qemu-doc.html
