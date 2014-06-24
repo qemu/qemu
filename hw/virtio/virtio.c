@@ -843,6 +843,7 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
 {
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
     int i;
 
     if (k->save_config) {
@@ -877,6 +878,10 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
             k->save_queue(qbus->parent, i, f);
         }
     }
+
+    if (vdc->save != NULL) {
+        vdc->save(vdev, f);
+    }
 }
 
 int virtio_set_features(VirtIODevice *vdev, uint32_t val)
@@ -895,7 +900,7 @@ int virtio_set_features(VirtIODevice *vdev, uint32_t val)
     return bad ? -1 : 0;
 }
 
-int virtio_load(VirtIODevice *vdev, QEMUFile *f)
+int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
 {
     int i, ret;
     int32_t config_len;
@@ -904,6 +909,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
     uint32_t supported_features;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
 
     if (k->load_config) {
         ret = k->load_config(qbus->parent, f);
@@ -983,6 +989,11 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
     }
 
     virtio_notify_vector(vdev, VIRTIO_NO_VECTOR);
+
+    if (vdc->load != NULL) {
+        return vdc->load(vdev, f, version_id);
+    }
+
     return 0;
 }
 

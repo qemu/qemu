@@ -1362,7 +1362,7 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
     if (version_id < 2 || version_id > VIRTIO_NET_VM_VERSION)
         return -EINVAL;
 
-    ret = virtio_load(vdev, f);
+    ret = virtio_load(vdev, f, version_id);
     if (ret) {
         return ret;
     }

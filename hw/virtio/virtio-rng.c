@@ -113,7 +113,7 @@ static int virtio_rng_load(QEMUFile *f, void *opaque, int version_id)
     if (version_id != 1) {
         return -EINVAL;
     }
-    virtio_load(vdev, f);
+    virtio_load(vdev, f, version_id);
 
     /* We may have an element ready but couldn't process it due to a quota
      * limit.  Make sure to try again after live migration when the quota may

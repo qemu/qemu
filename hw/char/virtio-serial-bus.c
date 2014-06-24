@@ -670,7 +670,7 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
     }
 
     /* The virtio device */
-    ret = virtio_load(VIRTIO_DEVICE(s), f);
+    ret = virtio_load(VIRTIO_DEVICE(s), f, version_id);
     if (ret) {
         return ret;
     }

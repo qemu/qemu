@@ -150,6 +150,8 @@ typedef struct VirtioDeviceClass {
      * must mask in frontend instead.
      */
     void (*guest_notifier_mask)(VirtIODevice *vdev, int n, bool mask);
+    void (*save)(VirtIODevice *vdev, QEMUFile *f);
+    int (*load)(VirtIODevice *vdev, QEMUFile *f, int version_id);
 } VirtioDeviceClass;
 
 void virtio_init(VirtIODevice *vdev, const char *name,
@@ -184,7 +186,7 @@ void virtio_notify(VirtIODevice *vdev, VirtQueue *vq);
 
 void virtio_save(VirtIODevice *vdev, QEMUFile *f);
 
-int virtio_load(VirtIODevice *vdev, QEMUFile *f);
+int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id);
 
 void virtio_notify_config(VirtIODevice *vdev);
 

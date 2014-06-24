@@ -635,7 +635,7 @@ static int virtio_blk_load(QEMUFile *f, void *opaque, int version_id)
     if (version_id != 2)
         return -EINVAL;
 
-    ret = virtio_load(vdev, f);
+    ret = virtio_load(vdev, f, version_id);
     if (ret) {
         return ret;
     }
