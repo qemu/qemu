@@ -1314,7 +1314,6 @@ static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue)
 
 static void virtio_net_save(QEMUFile *f, void *opaque)
 {
-    int i;
     VirtIONet *n = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
 
@@ -1322,6 +1321,12 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
      * it might keep writing to memory. */
     assert(!n->vhost_started);
     virtio_save(vdev, f);
+}
+
+static void virtio_net_save_device(VirtIODevice *vdev, QEMUFile *f)
+{
+    VirtIONet *n = VIRTIO_NET(vdev);
+    int i;
 
     qemu_put_buffer(f, n->mac, ETH_ALEN);
     qemu_put_be32(f, n->vqs[0].tx_waiting);
@@ -1357,15 +1362,18 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
 {
     VirtIONet *n = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
-    int ret, i, link_down;
 
     if (version_id < 2 || version_id > VIRTIO_NET_VM_VERSION)
         return -EINVAL;
 
-    ret = virtio_load(vdev, f, version_id);
-    if (ret) {
-        return ret;
-    }
+    return virtio_load(vdev, f, version_id);
+}
+
+static int virtio_net_load_device(VirtIODevice *vdev, QEMUFile *f,
+                                  int version_id)
+{
+    VirtIONet *n = VIRTIO_NET(vdev);
+    int i, link_down;
 
     qemu_get_buffer(f, n->mac, ETH_ALEN);
     n->vqs[0].tx_waiting = qemu_get_be32(f);
@@ -1711,6 +1719,8 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     vdc->set_status = virtio_net_set_status;
     vdc->guest_notifier_mask = virtio_net_guest_notifier_mask;
     vdc->guest_notifier_pending = virtio_net_guest_notifier_pending;
+    vdc->load = virtio_net_load_device;
+    vdc->save = virtio_net_save_device;
 }
 
 static const TypeInfo virtio_net_info = {
