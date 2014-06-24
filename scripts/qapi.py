@@ -255,7 +255,7 @@ def check_event(expr, expr_info):
             if structured:
                 raise QAPIExprError(expr_info,
                                     "Nested structure define in event is not "
-                                    "supported now, event '%s', argname '%s'"
+                                    "supported, event '%s', argname '%s'"
                                     % (expr['event'], argname))
 
 def check_union(expr, expr_info):
