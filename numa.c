@@ -172,7 +172,7 @@ void set_numa_nodes(void)
         if (i == nb_numa_nodes) {
             uint64_t usedmem = 0;
 
-            /* On Linux, the each node's border has to be 8MB aligned,
+            /* On Linux, each node's border has to be 8MB aligned,
              * the final node gets the rest.
              */
             for (i = 0; i < nb_numa_nodes - 1; i++) {
