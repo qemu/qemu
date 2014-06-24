@@ -321,6 +321,10 @@ static int64_t nfs_client_open(NFSClient *client, const char *filename,
             nfs_set_gid(client->context, val);
         } else if (!strcmp(qp->p[i].name, "tcp-syncnt")) {
             nfs_set_tcp_syncnt(client->context, val);
+#ifdef LIBNFS_FEATURE_READAHEAD
+        } else if (!strcmp(qp->p[i].name, "readahead")) {
+            nfs_set_readahead(client->context, val);
+#endif
         } else {
             error_setg(errp, "Unknown NFS parameter name: %s",
                        qp->p[i].name);
