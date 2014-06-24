@@ -366,10 +366,9 @@ static size_t fd_getpagesize(int fd)
 
 void os_mem_prealloc(int fd, char *area, size_t memory)
 {
-    int ret, i;
+    int ret;
     struct sigaction act, oldact;
     sigset_t set, oldset;
-    size_t hpagesize = fd_getpagesize(fd);
 
     memset(&act, 0, sizeof(act));
     act.sa_handler = &sigbus_handler;
@@ -389,19 +388,22 @@ void os_mem_prealloc(int fd, char *area, size_t memory)
     if (sigsetjmp(sigjump, 1)) {
         fprintf(stderr, "os_mem_prealloc: failed to preallocate pages\n");
         exit(1);
-    }
+    } else {
+        int i;
+        size_t hpagesize = fd_getpagesize(fd);
 
-    /* MAP_POPULATE silently ignores failures */
-    memory = (memory + hpagesize - 1) & -hpagesize;
-    for (i = 0; i < (memory/hpagesize); i++) {
-        memset(area + (hpagesize*i), 0, 1);
-    }
+        /* MAP_POPULATE silently ignores failures */
+        memory = (memory + hpagesize - 1) & -hpagesize;
+        for (i = 0; i < (memory / hpagesize); i++) {
+            memset(area + (hpagesize * i), 0, 1);
+        }
 
-    ret = sigaction(SIGBUS, &oldact, NULL);
-    if (ret) {
-        perror("os_mem_prealloc: failed to reinstall signal handler");
-        exit(1);
-    }
+        ret = sigaction(SIGBUS, &oldact, NULL);
+        if (ret) {
+            perror("os_mem_prealloc: failed to reinstall signal handler");
+            exit(1);
+        }
 
-    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+        pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+    }
 }
