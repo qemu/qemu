@@ -321,7 +321,7 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         },\
         {\
             .driver   = "pci-serial-2x",\
-            .property = "prof_if",\
+            .property = "prog_if",\
             .value    = stringify(0),\
         },\
         {\
