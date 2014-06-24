@@ -210,6 +210,20 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
     job->busy = true;
 }
 
+void block_job_yield(BlockJob *job)
+{
+    assert(job->busy);
+
+    /* Check cancellation *before* setting busy = false, too!  */
+    if (block_job_is_cancelled(job)) {
+        return;
+    }
+
+    job->busy = false;
+    qemu_coroutine_yield();
+    job->busy = true;
+}
+
 BlockJobInfo *block_job_query(BlockJob *job)
 {
     BlockJobInfo *info = g_new0(BlockJobInfo, 1);
