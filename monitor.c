@@ -5441,3 +5441,10 @@ QemuOptsList qemu_mon_opts = {
         { /* end of list */ }
     },
 };
+
+#ifndef TARGET_I386
+void qmp_rtc_reset_reinjection(Error **errp)
+{
+    error_set(errp, QERR_FEATURE_DISABLED, "rtc-reset-reinjection");
+}
+#endif
