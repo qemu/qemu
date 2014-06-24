@@ -1988,8 +1988,7 @@ static const VMStateDescription vmstate_ohci_state_port = {
     .name = "ohci-core/port",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(ctrl, OHCIPort),
         VMSTATE_END_OF_LIST()
     },
@@ -2015,9 +2014,8 @@ static const VMStateDescription vmstate_ohci_eof_timer = {
     .name = "ohci-core/eof-timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .pre_load = ohci_eof_timer_pre_load,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_TIMER(eof_timer, OHCIState),
         VMSTATE_END_OF_LIST()
     },
@@ -2078,7 +2076,6 @@ static const VMStateDescription vmstate_ohci = {
     .name = "ohci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, OHCIPCIState),
         VMSTATE_STRUCT(state, OHCIPCIState, 1, vmstate_ohci_state, OHCIState),
