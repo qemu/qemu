@@ -104,6 +104,12 @@ typedef struct VirtQueueElement
 #define VIRTIO_DEVICE(obj) \
         OBJECT_CHECK(VirtIODevice, (obj), TYPE_VIRTIO_DEVICE)
 
+enum virtio_device_endian {
+    VIRTIO_DEVICE_ENDIAN_UNKNOWN,
+    VIRTIO_DEVICE_ENDIAN_LITTLE,
+    VIRTIO_DEVICE_ENDIAN_BIG,
+};
+
 struct VirtIODevice
 {
     DeviceState parent_obj;
@@ -121,6 +127,7 @@ struct VirtIODevice
     bool vm_running;
     VMChangeStateEntry *vmstate;
     char *bus_name;
+    uint8_t device_endian;
 };
 
 typedef struct VirtioDeviceClass {
@@ -256,9 +263,9 @@ void virtio_queue_set_host_notifier_fd_handler(VirtQueue *vq, bool assign,
 void virtio_queue_notify_vq(VirtQueue *vq);
 void virtio_irq(VirtQueue *vq);
 
-bool target_words_bigendian(void);
-static inline bool virtio_is_big_endian(void)
+static inline bool virtio_is_big_endian(VirtIODevice *vdev)
 {
-    return target_words_bigendian();
+    assert(vdev->device_endian != VIRTIO_DEVICE_ENDIAN_UNKNOWN);
+    return vdev->device_endian == VIRTIO_DEVICE_ENDIAN_BIG;
 }
 #endif
