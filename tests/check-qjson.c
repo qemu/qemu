@@ -45,6 +45,13 @@ static void escaped_string(void)
         { "\"single byte utf-8 \\u0020\"", "single byte utf-8  ", .skip = 1 },
         { "\"double byte utf-8 \\u00A2\"", "double byte utf-8 \xc2\xa2" },
         { "\"triple byte utf-8 \\u20AC\"", "triple byte utf-8 \xe2\x82\xac" },
+        { "'\\b'", "\b", .skip = 1 },
+        { "'\\f'", "\f", .skip = 1 },
+        { "'\\n'", "\n", .skip = 1 },
+        { "'\\r'", "\r", .skip = 1 },
+        { "'\\t'", "\t", .skip = 1 },
+        { "'\\/'", "/", .skip = 1 },
+        { "'\\\\'", "\\", .skip = 1 },
         {}
     };
 

@@ -1410,3 +1410,153 @@
 ##
 { 'command': 'blockdev-add', 'data': { 'options': 'BlockdevOptions' } }
 
+
+##
+# @BlockErrorAction
+#
+# An enumeration of action that has been taken when a DISK I/O occurs
+#
+# @ignore: error has been ignored
+#
+# @report: error has been reported to the device
+#
+# @stop: error caused VM to be stopped
+#
+# Since: 2.1
+##
+{ 'enum': 'BlockErrorAction',
+  'data': [ 'ignore', 'report', 'stop' ] }
+
+
+##
+# @BLOCK_IMAGE_CORRUPTED
+#
+# Emitted when a disk image is being marked corrupt
+#
+# @device: device name
+#
+# @msg: informative message for human consumption, such as the kind of
+#       corruption being detected
+#
+# @offset: #optional, if the corruption resulted from an image access, this is
+#          the access offset into the image
+#
+# @size: #optional, if the corruption resulted from an image access, this is
+#        the access size
+#
+# Since: 1.7
+##
+{ 'event': 'BLOCK_IMAGE_CORRUPTED',
+  'data': { 'device' : 'str',
+            'msg'    : 'str',
+            '*offset': 'int',
+            '*size'  : 'int' } }
+
+##
+# @BLOCK_IO_ERROR
+#
+# Emitted when a disk I/O error occurs
+#
+# @device: device name
+#
+# @operation: I/O operation
+#
+# @action: action that has been taken
+#
+# Note: If action is "stop", a STOP event will eventually follow the
+# BLOCK_IO_ERROR event
+#
+# Since: 0.13.0
+##
+{ 'event': 'BLOCK_IO_ERROR',
+  'data': { 'device': 'str', 'operation': 'IoOperationType',
+            'action': 'BlockErrorAction' } }
+
+##
+# @BLOCK_JOB_COMPLETED
+#
+# Emitted when a block job has completed
+#
+# @type: job type
+#
+# @device: device name
+#
+# @len: maximum progress value
+#
+# @offset: current progress value. On success this is equal to len.
+#          On failure this is less than len
+#
+# @speed: rate limit, bytes per second
+#
+# @error: #optional, error message. Only present on failure. This field
+#         contains a human-readable error message. There are no semantics
+#         other than that streaming has failed and clients should not try to
+#         interpret the error string
+#
+# Since: 1.1
+##
+{ 'event': 'BLOCK_JOB_COMPLETED',
+  'data': { 'type'  : 'BlockJobType',
+            'device': 'str',
+            'len'   : 'int',
+            'offset': 'int',
+            'speed' : 'int',
+            '*error': 'str' } }
+
+##
+# @BLOCK_JOB_CANCELLED
+#
+# Emitted when a block job has been cancelled
+#
+# @type: job type
+#
+# @device: device name
+#
+# @len: maximum progress value
+#
+# @offset: current progress value. On success this is equal to len.
+#          On failure this is less than len
+#
+# @speed: rate limit, bytes per second
+#
+# Since: 1.1
+##
+{ 'event': 'BLOCK_JOB_CANCELLED',
+  'data': { 'type'  : 'BlockJobType',
+            'device': 'str',
+            'len'   : 'int',
+            'offset': 'int',
+            'speed' : 'int' } }
+
+##
+# @BLOCK_JOB_ERROR
+#
+# Emitted when a block job encounters an error
+#
+# @device: device name
+#
+# @operation: I/O operation
+#
+# @action: action that has been taken
+#
+# Since: 1.3
+##
+{ 'event': 'BLOCK_JOB_ERROR',
+  'data': { 'device'   : 'str',
+            'operation': 'IoOperationType',
+            'action'   : 'BlockdevOnError' } }
+
+##
+# @BLOCK_JOB_READY
+#
+# Emitted when a block job is ready to complete
+#
+# @device: device name
+#
+# Note: The "ready to complete" status is always reset by a @BLOCK_JOB_ERROR
+# event
+#
+# Since: 1.3
+##
+{ 'event': 'BLOCK_JOB_READY',
+  'data': { 'device': 'str' } }

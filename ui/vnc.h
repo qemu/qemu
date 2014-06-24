@@ -31,7 +31,6 @@
 #include "qemu/queue.h"
 #include "qemu/thread.h"
 #include "ui/console.h"
-#include "monitor/monitor.h"
 #include "audio/audio.h"
 #include "qemu/bitmap.h"
 #include <zlib.h>
@@ -40,6 +39,7 @@
 #include "keymaps.h"
 #include "vnc-palette.h"
 #include "vnc-enc-zrle.h"
+#include "qapi-types.h"
 
 // #define _VNC_DEBUG 1
 
@@ -292,7 +292,7 @@ struct VncState
     bool websocket;
 #endif /* CONFIG_VNC_WS */
 
-    QObject *info;
+    VncClientInfo *info;
 
     Buffer output;
     Buffer input;

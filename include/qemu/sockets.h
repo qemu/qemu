@@ -29,6 +29,7 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #include "qemu/option.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi-types.h"
 
 extern QemuOptsList socket_optslist;
 
@@ -60,7 +61,7 @@ int inet_nonblocking_connect(const char *str,
                              void *opaque, Error **errp);
 
 int inet_dgram_opts(QemuOpts *opts, Error **errp);
-const char *inet_strfamily(int family);
+NetworkAddressFamily inet_netfamily(int family);
 
 int unix_listen_opts(QemuOpts *opts, Error **errp);
 int unix_listen(const char *path, char *ostr, int olen, Error **errp);

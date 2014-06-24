@@ -268,7 +268,7 @@ static CharDriverState *chr_open(const char *subtype,
     CharDriverState *chr;
     SpiceCharDriver *s;
 
-    chr = g_malloc0(sizeof(CharDriverState));
+    chr = qemu_chr_alloc();
     s = g_malloc0(sizeof(SpiceCharDriver));
     s->chr = chr;
     s->active = false;

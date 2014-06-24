@@ -19,49 +19,8 @@ extern Monitor *default_mon;
 /* flags for monitor commands */
 #define MONITOR_CMD_ASYNC       0x0001
 
-/* QMP events */
-typedef enum MonitorEvent {
-    QEVENT_SHUTDOWN,
-    QEVENT_RESET,
-    QEVENT_POWERDOWN,
-    QEVENT_STOP,
-    QEVENT_RESUME,
-    QEVENT_VNC_CONNECTED,
-    QEVENT_VNC_INITIALIZED,
-    QEVENT_VNC_DISCONNECTED,
-    QEVENT_BLOCK_IO_ERROR,
-    QEVENT_RTC_CHANGE,
-    QEVENT_WATCHDOG,
-    QEVENT_SPICE_CONNECTED,
-    QEVENT_SPICE_INITIALIZED,
-    QEVENT_SPICE_DISCONNECTED,
-    QEVENT_BLOCK_JOB_COMPLETED,
-    QEVENT_BLOCK_JOB_CANCELLED,
-    QEVENT_BLOCK_JOB_ERROR,
-    QEVENT_BLOCK_JOB_READY,
-    QEVENT_DEVICE_DELETED,
-    QEVENT_DEVICE_TRAY_MOVED,
-    QEVENT_NIC_RX_FILTER_CHANGED,
-    QEVENT_SUSPEND,
-    QEVENT_SUSPEND_DISK,
-    QEVENT_WAKEUP,
-    QEVENT_BALLOON_CHANGE,
-    QEVENT_SPICE_MIGRATE_COMPLETED,
-    QEVENT_GUEST_PANICKED,
-    QEVENT_BLOCK_IMAGE_CORRUPTED,
-    QEVENT_QUORUM_FAILURE,
-    QEVENT_QUORUM_REPORT_BAD,
-    QEVENT_ACPI_OST,
-
-    /* Add to 'monitor_event_names' array in monitor.c when
-     * defining new events here */
-
-    QEVENT_MAX,
-} MonitorEvent;
-
 int monitor_cur_is_qmp(void);
 
-void monitor_protocol_event(MonitorEvent event, QObject *data);
 void monitor_init(CharDriverState *chr, int flags);
 
 int monitor_suspend(Monitor *mon);

@@ -217,12 +217,21 @@ void block_job_pause(BlockJob *job);
 void block_job_resume(BlockJob *job);
 
 /**
- * qobject_from_block_job:
+ * block_job_event_cancle:
  * @job: The job whose information is requested.
  *
- * Return a QDict corresponding to @job's query-block-jobs entry.
+ * Send a BLOCK_JOB_CANCELLED event for the specified job.
  */
-QObject *qobject_from_block_job(BlockJob *job);
+void block_job_event_cancelled(BlockJob *job);
+
+/**
+ * block_job_ready:
+ * @job: The job which is now ready to complete.
+ * @msg: Error message. Only present on failure.
+ *
+ * Send a BLOCK_JOB_COMPLETED event for the specified job.
+ */
+void block_job_event_completed(BlockJob *job, const char *msg);
 
 /**
  * block_job_ready:
@@ -230,7 +239,7 @@ QObject *qobject_from_block_job(BlockJob *job);
  *
  * Send a BLOCK_JOB_READY event for the specified job.
  */
-void block_job_ready(BlockJob *job);
+void block_job_event_ready(BlockJob *job);
 
 /**
  * block_job_is_paused:

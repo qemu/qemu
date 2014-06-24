@@ -425,9 +425,6 @@ void bdrv_attach_aio_context(BlockDriverState *bs,
 #ifdef _WIN32
 int is_windows_drive(const char *filename);
 #endif
-void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
-                               enum MonitorEvent ev,
-                               BlockErrorAction action, bool is_read);
 
 /**
  * stream_start:

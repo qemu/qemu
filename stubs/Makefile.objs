@@ -20,7 +20,6 @@ stub-obj-y += machine-init-done.o
 stub-obj-y += migr-blocker.o
 stub-obj-y += mon-is-qmp.o
 stub-obj-y += mon-printf.o
-stub-obj-y += mon-protocol-event.o
 stub-obj-y += mon-set-error.o
 stub-obj-y += monitor-init.o
 stub-obj-y += notify-event.o

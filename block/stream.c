@@ -159,14 +159,14 @@ wait:
             BlockErrorAction action =
                 block_job_error_action(&s->common, s->common.bs, s->on_error,
                                        true, -ret);
-            if (action == BDRV_ACTION_STOP) {
+            if (action == BLOCK_ERROR_ACTION_STOP) {
                 n = 0;
                 continue;
             }
             if (error == 0) {
                 error = ret;
             }
-            if (action == BDRV_ACTION_REPORT) {
+            if (action == BLOCK_ERROR_ACTION_REPORT) {
                 break;
             }
         }

@@ -164,3 +164,17 @@
 ##
 { 'command': 'nbd-server-stop' }
 
+##
+# @DEVICE_TRAY_MOVED
+#
+# Emitted whenever the tray of a removable device is moved by the guest or by
+# HMP/QMP commands
+#
+# @device: device name
+#
+# @tray-open: true if the tray has been opened or false if it has been closed
+#
+# Since: 1.1
+##
+{ 'event': 'DEVICE_TRAY_MOVED',
+  'data': { 'device': 'str', 'tray-open': 'bool' } }
