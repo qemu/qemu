@@ -8,6 +8,9 @@
 # QAPI block definitions
 { 'include': 'qapi/block.json' }
 
+# QAPI event definitions
+{ 'include': 'qapi/event.json' }
+
 ##
 # LostTickPolicy:
 #
@@ -3398,5 +3401,3 @@
 ##
 { 'enum': 'GuestPanicAction',
   'data': [ 'pause' ] }
-
-{ 'include': 'qapi-event.json' }
