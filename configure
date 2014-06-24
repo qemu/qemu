@@ -330,7 +330,7 @@ virtio_blk_data_plane=""
 gtk=""
 gtkabi=""
 vte=""
-tpm="no"
+tpm="yes"
 libssh2=""
 vhdx=""
 quorum=""
@@ -1105,6 +1105,8 @@ for opt do
   ;;
   --enable-vte) vte="yes"
   ;;
+  --disable-tpm) tpm="no"
+  ;;
   --enable-tpm) tpm="yes"
   ;;
   --disable-libssh2) libssh2="no"
@@ -1382,6 +1384,7 @@ Advanced options (experts only):
   --disable-glusterfs      disable GlusterFS backend
   --enable-gcov            enable test coverage analysis with gcov
   --gcov=GCOV              use specified gcov [$gcov_tool]
+  --disable-tpm            disable TPM support
   --enable-tpm             enable TPM support
   --disable-libssh2        disable ssh block device support
   --enable-libssh2         enable ssh block device support

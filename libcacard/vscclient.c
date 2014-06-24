@@ -11,6 +11,8 @@
  */
 
 #ifndef _WIN32
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <netdb.h>
 #define closesocket(x) close(x)
 #endif

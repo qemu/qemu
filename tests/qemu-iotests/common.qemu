@@ -103,7 +103,7 @@ function _send_qemu_cmd()
         count=${qemu_cmd_repeat}
         use_error="no"
     fi
-    # This array element extraction is done to accomodate pathnames with spaces
+    # This array element extraction is done to accommodate pathnames with spaces
     cmd=${@: 1:${#@}-1}
     shift $(($# - 1))
 

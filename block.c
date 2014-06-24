@@ -5581,7 +5581,6 @@ void bdrv_img_create(const char *filename, const char *fmt,
         if (backing_file) {
             BlockDriverState *bs;
             uint64_t size;
-            char buf[32];
             int back_flags;
 
             /* backing files always opened read-only */
@@ -5602,7 +5601,6 @@ void bdrv_img_create(const char *filename, const char *fmt,
             bdrv_get_geometry(bs, &size);
             size *= 512;
 
-            snprintf(buf, sizeof(buf), "%" PRId64, size);
             qemu_opt_set_number(opts, BLOCK_OPT_SIZE, size);
 
             bdrv_unref(bs);

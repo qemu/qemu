@@ -465,13 +465,6 @@ static void get_config(VirtIODevice *vdev, uint8_t *config_data)
     memcpy(config_data, &vser->config, sizeof(struct virtio_console_config));
 }
 
-static void set_config(VirtIODevice *vdev, const uint8_t *config_data)
-{
-    struct virtio_console_config config;
-
-    memcpy(&config, config_data, sizeof(config));
-}
-
 static void guest_reset(VirtIOSerial *vser)
 {
     VirtIOSerialPort *port;
@@ -1024,7 +1017,6 @@ static void virtio_serial_class_init(ObjectClass *klass, void *data)
     vdc->unrealize = virtio_serial_device_unrealize;
     vdc->get_features = get_features;
     vdc->get_config = get_config;
-    vdc->set_config = set_config;
     vdc->set_status = set_status;
     vdc->reset = vser_reset;
 }

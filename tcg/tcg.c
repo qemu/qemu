@@ -124,19 +124,20 @@ static TCGRegSet tcg_target_available_regs[2];
 static TCGRegSet tcg_target_call_clobber_regs;
 
 #if TCG_TARGET_INSN_UNIT_SIZE == 1
-static inline void tcg_out8(TCGContext *s, uint8_t v)
+static __attribute__((unused)) inline void tcg_out8(TCGContext *s, uint8_t v)
 {
     *s->code_ptr++ = v;
 }
 
-static inline void tcg_patch8(tcg_insn_unit *p, uint8_t v)
+static __attribute__((unused)) inline void tcg_patch8(tcg_insn_unit *p,
+                                                      uint8_t v)
 {
     *p = v;
 }
 #endif
 
 #if TCG_TARGET_INSN_UNIT_SIZE <= 2
-static inline void tcg_out16(TCGContext *s, uint16_t v)
+static __attribute__((unused)) inline void tcg_out16(TCGContext *s, uint16_t v)
 {
     if (TCG_TARGET_INSN_UNIT_SIZE == 2) {
         *s->code_ptr++ = v;
@@ -147,7 +148,8 @@ static inline void tcg_out16(TCGContext *s, uint16_t v)
     }
 }
 
-static inline void tcg_patch16(tcg_insn_unit *p, uint16_t v)
+static __attribute__((unused)) inline void tcg_patch16(tcg_insn_unit *p,
+                                                       uint16_t v)
 {
     if (TCG_TARGET_INSN_UNIT_SIZE == 2) {
         *p = v;
@@ -158,7 +160,7 @@ static inline void tcg_patch16(tcg_insn_unit *p, uint16_t v)
 #endif
 
 #if TCG_TARGET_INSN_UNIT_SIZE <= 4
-static inline void tcg_out32(TCGContext *s, uint32_t v)
+static __attribute__((unused)) inline void tcg_out32(TCGContext *s, uint32_t v)
 {
     if (TCG_TARGET_INSN_UNIT_SIZE == 4) {
         *s->code_ptr++ = v;
@@ -169,7 +171,8 @@ static inline void tcg_out32(TCGContext *s, uint32_t v)
     }
 }
 
-static inline void tcg_patch32(tcg_insn_unit *p, uint32_t v)
+static __attribute__((unused)) inline void tcg_patch32(tcg_insn_unit *p,
+                                                       uint32_t v)
 {
     if (TCG_TARGET_INSN_UNIT_SIZE == 4) {
         *p = v;
@@ -180,7 +183,7 @@ static inline void tcg_patch32(tcg_insn_unit *p, uint32_t v)
 #endif
 
 #if TCG_TARGET_INSN_UNIT_SIZE <= 8
-static inline void tcg_out64(TCGContext *s, uint64_t v)
+static __attribute__((unused)) inline void tcg_out64(TCGContext *s, uint64_t v)
 {
     if (TCG_TARGET_INSN_UNIT_SIZE == 8) {
         *s->code_ptr++ = v;
@@ -191,7 +194,8 @@ static inline void tcg_out64(TCGContext *s, uint64_t v)
     }
 }
 
-static inline void tcg_patch64(tcg_insn_unit *p, uint64_t v)
+static __attribute__((unused)) inline void tcg_patch64(tcg_insn_unit *p,
+                                                       uint64_t v)
 {
     if (TCG_TARGET_INSN_UNIT_SIZE == 8) {
         *p = v;
