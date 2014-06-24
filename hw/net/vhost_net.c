@@ -275,6 +275,19 @@ static void vhost_net_stop_one(struct vhost_net *net,
     vhost_dev_disable_notifiers(&net->dev, dev);
 }
 
+static bool vhost_net_device_endian_ok(VirtIODevice *vdev)
+{
+#ifdef TARGET_IS_BIENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
+    return virtio_is_big_endian(vdev);
+#else
+    return !virtio_is_big_endian(vdev);
+#endif
+#else
+    return true;
+#endif
+}
+
 int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
                     int total_queues)
 {
@@ -282,6 +295,12 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     int r, i = 0;
+
+    if (!vhost_net_device_endian_ok(dev)) {
+        error_report("vhost-net does not support cross-endian");
+        r = -ENOSYS;
+        goto err;
+    }
 
     if (!k->set_guest_notifiers) {
         error_report("binding does not support guest notifiers");
