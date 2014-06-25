@@ -234,6 +234,13 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
     target_ulong ret = RTAS_OUT_SUCCESS;
 
     switch (parameter) {
+    case RTAS_SYSPARM_SPLPAR_CHARACTERISTICS: {
+        char *param_val = g_strdup_printf("MaxEntCap=%d,MaxPlatProcs=%d",
+                                          max_cpus, smp_cpus);
+        rtas_st_buffer(buffer, length, (uint8_t *)param_val, strlen(param_val));
+        g_free(param_val);
+        break;
+    }
     case RTAS_SYSPARM_DIAGNOSTICS_RUN_MODE: {
         uint8_t param_val = DIAGNOSTICS_RUN_MODE_DISABLED;
 
@@ -260,6 +267,7 @@ static void rtas_ibm_set_system_parameter(PowerPCCPU *cpu,
     target_ulong ret = RTAS_OUT_NOT_SUPPORTED;
 
     switch (parameter) {
+    case RTAS_SYSPARM_SPLPAR_CHARACTERISTICS:
     case RTAS_SYSPARM_DIAGNOSTICS_RUN_MODE:
     case RTAS_SYSPARM_UUID:
         ret = RTAS_OUT_NOT_AUTHORIZED;
