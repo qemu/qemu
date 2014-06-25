@@ -346,6 +346,9 @@ static void pc_init_pci_no_kvmclock(QEMUMachineInitArgs *args)
     has_pci_info = false;
     has_acpi_build = false;
     smbios_defaults = false;
+    gigabyte_align = false;
+    option_rom_has_mr = true;
+    rom_file_has_mr = false;
     x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
     enable_compat_apic_id_mode();
     pc_init1(args, 1, 0);
@@ -356,6 +359,9 @@ static void pc_init_isa(QEMUMachineInitArgs *args)
     has_pci_info = false;
     has_acpi_build = false;
     smbios_defaults = false;
+    gigabyte_align = false;
+    option_rom_has_mr = true;
+    rom_file_has_mr = false;
     if (!args->cpu_model) {
         args->cpu_model = "486";
     }
