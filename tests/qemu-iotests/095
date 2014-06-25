@@ -1,0 +1,86 @@
+#!/bin/bash
+#
+# Test for commit of larger active layer
+#
+# This tests live snapshots of images on a running QEMU instance, using
+# QMP commands.  Both single disk snapshots, and transactional group
+# snapshots are performed.
+#
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# creator
+owner=jcody@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_qemu
+    rm  -f "${TEST_IMG}.base" "${TEST_IMG}.snp1"
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+size_smaller=5M
+size_larger=100M
+
+_make_test_img $size_smaller
+mv "${TEST_IMG}" "${TEST_IMG}.base"
+
+_make_test_img -b "${TEST_IMG}.base" $size_larger
+mv "${TEST_IMG}" "${TEST_IMG}.snp1"
+
+_make_test_img -b "${TEST_IMG}.snp1" $size_larger
+
+echo
+echo "=== Base image info before commit and resize ==="
+$QEMU_IMG info "${TEST_IMG}.base" | _filter_testdir
+
+echo
+echo === Running QEMU Live Commit Test ===
+echo
+
+qemu_comm_method="qmp"
+_launch_qemu -drive file="${TEST_IMG}",if=virtio,id=test
+h=$QEMU_HANDLE
+
+_send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" "return"
+
+_send_qemu_cmd $h "{ 'execute': 'block-commit',
+                                 'arguments': { 'device': 'test',
+                                 'top': '"${TEST_IMG}.snp1"' } }" "BLOCK_JOB_COMPLETED"
+
+echo
+echo "=== Base image info after commit and resize ==="
+$QEMU_IMG info "${TEST_IMG}.base" | _filter_testdir
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
