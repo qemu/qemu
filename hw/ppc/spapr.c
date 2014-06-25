@@ -85,23 +85,22 @@
 
 #define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
 
+typedef struct sPAPRMachineState sPAPRMachineState;
 
-typedef struct SPAPRMachine SPAPRMachine;
 #define TYPE_SPAPR_MACHINE      "spapr-machine"
 #define SPAPR_MACHINE(obj) \
-    OBJECT_CHECK(SPAPRMachine, (obj), TYPE_SPAPR_MACHINE)
+    OBJECT_CHECK(sPAPRMachineState, (obj), TYPE_SPAPR_MACHINE)
 
 /**
- * SPAPRMachine:
+ * sPAPRMachineState:
  */
-struct SPAPRMachine {
+struct sPAPRMachineState {
     /*< private >*/
     MachineState parent_obj;
 
     /*< public >*/
     char *kvm_type;
 };
-
 
 sPAPREnvironment *spapr;
 
@@ -1622,14 +1621,14 @@ static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,
 
 static char *spapr_get_kvm_type(Object *obj, Error **errp)
 {
-    SPAPRMachine *sm = SPAPR_MACHINE(obj);
+    sPAPRMachineState *sm = SPAPR_MACHINE(obj);
 
     return g_strdup(sm->kvm_type);
 }
 
 static void spapr_set_kvm_type(Object *obj, const char *value, Error **errp)
 {
-    SPAPRMachine *sm = SPAPR_MACHINE(obj);
+    sPAPRMachineState *sm = SPAPR_MACHINE(obj);
 
     g_free(sm->kvm_type);
     sm->kvm_type = g_strdup(value);
@@ -1663,7 +1662,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
 static const TypeInfo spapr_machine_info = {
     .name          = TYPE_SPAPR_MACHINE,
     .parent        = TYPE_MACHINE,
-    .instance_size = sizeof(SPAPRMachine),
+    .instance_size = sizeof(sPAPRMachineState),
     .instance_init = spapr_machine_initfn,
     .class_init    = spapr_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
