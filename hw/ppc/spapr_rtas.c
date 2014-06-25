@@ -240,6 +240,9 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
         rtas_st_buffer(buffer, length, &param_val, sizeof(param_val));
         break;
     }
+    case RTAS_SYSPARM_UUID:
+        rtas_st_buffer(buffer, length, qemu_uuid, (qemu_uuid_set ? 16 : 0));
+        break;
     default:
         ret = RTAS_OUT_NOT_SUPPORTED;
     }
@@ -258,6 +261,7 @@ static void rtas_ibm_set_system_parameter(PowerPCCPU *cpu,
 
     switch (parameter) {
     case RTAS_SYSPARM_DIAGNOSTICS_RUN_MODE:
+    case RTAS_SYSPARM_UUID:
         ret = RTAS_OUT_NOT_AUTHORIZED;
         break;
     }
