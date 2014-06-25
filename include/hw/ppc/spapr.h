@@ -397,6 +397,17 @@ static inline int spapr_allocate_lsi(int hint)
 
 #define RTAS_TOKEN_MAX                          (RTAS_TOKEN_BASE + 0x21)
 
+/* RTAS ibm,get-system-parameter token values */
+#define RTAS_SYSPARM_DIAGNOSTICS_RUN_MODE        42
+
+/* Possible values for the platform-processor-diagnostics-run-mode parameter
+ * of the RTAS ibm,get-system-parameter call.
+ */
+#define DIAGNOSTICS_RUN_MODE_DISABLED  0
+#define DIAGNOSTICS_RUN_MODE_STAGGERED 1
+#define DIAGNOSTICS_RUN_MODE_IMMEDIATE 2
+#define DIAGNOSTICS_RUN_MODE_PERIODIC  3
+
 static inline uint64_t ppc64_phys_to_real(uint64_t addr)
 {
     return addr & ~0xF000000000000000ULL;

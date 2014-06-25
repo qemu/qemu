@@ -222,8 +222,6 @@ static void rtas_stop_self(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     env->msr = 0;
 }
 
-#define DIAGNOSTICS_RUN_MODE        42
-
 static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           sPAPREnvironment *spapr,
                                           uint32_t token, uint32_t nargs,
@@ -233,15 +231,17 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
     target_ulong parameter = rtas_ld(args, 0);
     target_ulong buffer = rtas_ld(args, 1);
     target_ulong length = rtas_ld(args, 2);
-    target_ulong ret = RTAS_OUT_NOT_SUPPORTED;
+    target_ulong ret = RTAS_OUT_SUCCESS;
 
     switch (parameter) {
-    case DIAGNOSTICS_RUN_MODE:
-        if (length == 1) {
-            rtas_st(buffer, 0, 0);
-            ret = RTAS_OUT_SUCCESS;
-        }
+    case RTAS_SYSPARM_DIAGNOSTICS_RUN_MODE: {
+        uint8_t param_val = DIAGNOSTICS_RUN_MODE_DISABLED;
+
+        rtas_st_buffer(buffer, length, &param_val, sizeof(param_val));
         break;
+    }
+    default:
+        ret = RTAS_OUT_NOT_SUPPORTED;
     }
 
     rtas_st(rets, 0, ret);
@@ -257,7 +257,7 @@ static void rtas_ibm_set_system_parameter(PowerPCCPU *cpu,
     target_ulong ret = RTAS_OUT_NOT_SUPPORTED;
 
     switch (parameter) {
-    case DIAGNOSTICS_RUN_MODE:
+    case RTAS_SYSPARM_DIAGNOSTICS_RUN_MODE:
         ret = RTAS_OUT_NOT_AUTHORIZED;
         break;
     }
