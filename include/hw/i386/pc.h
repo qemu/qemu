@@ -294,43 +294,6 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
 int e820_get_num_entries(void);
 bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
-#define PC_Q35_COMPAT_2_0 \
-        PC_COMPAT_2_0, \
-        {\
-            .driver   = "ICH9-LPC",\
-            .property = "memory-hotplug-support",\
-            .value    = "off",\
-        },{\
-            .driver   = "xio3130-downstream",\
-            .property = COMPAT_PROP_PCP,\
-            .value    = "off",\
-        },{\
-            .driver   = "ioh3420",\
-            .property = COMPAT_PROP_PCP,\
-            .value    = "off",\
-        }
- 
-#define PC_Q35_COMPAT_1_7 \
-        PC_COMPAT_1_7, \
-        PC_Q35_COMPAT_2_0, \
-        {\
-            .driver   = "hpet",\
-            .property = HPET_INTCAP,\
-            .value    = stringify(4),\
-        }
-
-#define PC_Q35_COMPAT_1_6 \
-        PC_COMPAT_1_6, \
-        PC_Q35_COMPAT_1_7
-
-#define PC_Q35_COMPAT_1_5 \
-        PC_COMPAT_1_5, \
-        PC_Q35_COMPAT_1_6
-
-#define PC_Q35_COMPAT_1_4 \
-        PC_COMPAT_1_4, \
-        PC_Q35_COMPAT_1_5
-
 #define PC_COMPAT_2_0 \
         {\
             .driver   = "virtio-scsi-pci",\
@@ -370,6 +333,19 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "virtio-net-pci",\
             .property = "guest_announce",\
             .value    = "off",\
+        },\
+        {\
+            .driver   = "ICH9-LPC",\
+            .property = "memory-hotplug-support",\
+            .value    = "off",\
+        },{\
+            .driver   = "xio3130-downstream",\
+            .property = COMPAT_PROP_PCP,\
+            .value    = "off",\
+        },{\
+            .driver   = "ioh3420",\
+            .property = COMPAT_PROP_PCP,\
+            .value    = "off",\
         }
 
 #define PC_COMPAT_1_7 \
@@ -383,6 +359,11 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "PIIX4_PM",\
             .property = "acpi-pci-hotplug-with-bridge-support",\
             .value    = "off",\
+        },\
+        {\
+            .driver   = "hpet",\
+            .property = HPET_INTCAP,\
+            .value    = stringify(4),\
         }
 
 #define PC_COMPAT_1_6 \
