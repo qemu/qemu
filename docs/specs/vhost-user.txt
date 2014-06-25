@@ -132,7 +132,7 @@ Message types
 
  * VHOST_USER_GET_FEATURES
 
-      Id: 2
+      Id: 1
       Equivalent ioctl: VHOST_GET_FEATURES
       Master payload: N/A
       Slave payload: u64
@@ -141,7 +141,7 @@ Message types
 
  * VHOST_USER_SET_FEATURES
 
-      Id: 3
+      Id: 2
       Ioctl: VHOST_SET_FEATURES
       Master payload: u64
 
@@ -149,7 +149,7 @@ Message types
 
  * VHOST_USER_SET_OWNER
 
-      Id: 4
+      Id: 3
       Equivalent ioctl: VHOST_SET_OWNER
       Master payload: N/A
 
@@ -159,7 +159,7 @@ Message types
 
  * VHOST_USER_RESET_OWNER
 
-      Id: 5
+      Id: 4
       Equivalent ioctl: VHOST_RESET_OWNER
       Master payload: N/A
 
@@ -168,7 +168,7 @@ Message types
 
  * VHOST_USER_SET_MEM_TABLE
 
-      Id: 6
+      Id: 5
       Equivalent ioctl: VHOST_SET_MEM_TABLE
       Master payload: memory regions description
 
@@ -179,7 +179,7 @@ Message types
 
  * VHOST_USER_SET_LOG_BASE
 
-      Id: 7
+      Id: 6
       Equivalent ioctl: VHOST_SET_LOG_BASE
       Master payload: u64
 
@@ -187,7 +187,7 @@ Message types
 
  * VHOST_USER_SET_LOG_FD
 
-      Id: 8
+      Id: 7
       Equivalent ioctl: VHOST_SET_LOG_FD
       Master payload: N/A
 
@@ -195,7 +195,7 @@ Message types
 
  * VHOST_USER_SET_VRING_NUM
 
-      Id: 9
+      Id: 8
       Equivalent ioctl: VHOST_SET_VRING_NUM
       Master payload: vring state description
 
@@ -203,7 +203,7 @@ Message types
 
  * VHOST_USER_SET_VRING_ADDR
 
-      Id: 10
+      Id: 9
       Equivalent ioctl: VHOST_SET_VRING_ADDR
       Master payload: vring address description
       Slave payload: N/A
@@ -212,7 +212,7 @@ Message types
 
  * VHOST_USER_SET_VRING_BASE
 
-      Id: 11
+      Id: 10
       Equivalent ioctl: VHOST_SET_VRING_BASE
       Master payload: vring state description
 
@@ -220,7 +220,7 @@ Message types
 
  * VHOST_USER_GET_VRING_BASE
 
-      Id: 12
+      Id: 11
       Equivalent ioctl: VHOST_USER_GET_VRING_BASE
       Master payload: vring state description
       Slave payload: vring state description
@@ -229,7 +229,7 @@ Message types
 
  * VHOST_USER_SET_VRING_KICK
 
-      Id: 13
+      Id: 12
       Equivalent ioctl: VHOST_SET_VRING_KICK
       Master payload: u64
 
@@ -242,7 +242,7 @@ Message types
 
  * VHOST_USER_SET_VRING_CALL
 
-      Id: 14
+      Id: 13
       Equivalent ioctl: VHOST_SET_VRING_CALL
       Master payload: u64
 
@@ -255,7 +255,7 @@ Message types
 
  * VHOST_USER_SET_VRING_ERR
 
-      Id: 15
+      Id: 14
       Equivalent ioctl: VHOST_SET_VRING_ERR
       Master payload: u64
 
