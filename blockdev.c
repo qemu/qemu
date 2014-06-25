@@ -1819,6 +1819,11 @@ void qmp_block_resize(bool has_device, const char *device,
         return;
     }
 
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_RESIZE, NULL)) {
+        error_set(errp, QERR_DEVICE_IN_USE, device);
+        return;
+    }
+
     /* complete all in-flight operations before resizing the device */
     bdrv_drain_all();
 
