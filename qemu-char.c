@@ -132,7 +132,7 @@ int qemu_chr_fe_write(CharDriverState *s, const uint8_t *buf, int len)
 int qemu_chr_fe_write_all(CharDriverState *s, const uint8_t *buf, int len)
 {
     int offset = 0;
-    int res;
+    int res = 0;
 
     qemu_mutex_lock(&s->chr_write_lock);
     while (offset < len) {
