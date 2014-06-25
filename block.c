@@ -2555,12 +2555,15 @@ typedef struct BlkIntermediateStates {
  *
  * base <- active
  *
+ * If backing_file_str is non-NULL, it will be used when modifying top's
+ * overlay image metadata.
+ *
  * Error conditions:
  *  if active == top, that is considered an error
  *
  */
 int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
-                           BlockDriverState *base)
+                           BlockDriverState *base, const char *backing_file_str)
 {
     BlockDriverState *intermediate;
     BlockDriverState *base_bs = NULL;
@@ -2612,7 +2615,8 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
     }
 
     /* success - we can delete the intermediate states, and link top->base */
-    ret = bdrv_change_backing_file(new_top_bs, base_bs->filename,
+    backing_file_str = backing_file_str ? backing_file_str : base_bs->filename;
+    ret = bdrv_change_backing_file(new_top_bs, backing_file_str,
                                    base_bs->drv ? base_bs->drv->format_name : "");
     if (ret) {
         goto exit;

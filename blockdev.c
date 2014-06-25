@@ -1915,6 +1915,7 @@ void qmp_block_stream(const char *device, bool has_base,
 void qmp_block_commit(const char *device,
                       bool has_base, const char *base,
                       bool has_top, const char *top,
+                      bool has_backing_file, const char *backing_file,
                       bool has_speed, int64_t speed,
                       Error **errp)
 {
@@ -1980,11 +1981,16 @@ void qmp_block_commit(const char *device,
     }
 
     if (top_bs == bs) {
+        if (has_backing_file) {
+            error_setg(errp, "'backing-file' specified,"
+                             " but 'top' is the active layer");
+            return;
+        }
         commit_active_start(bs, base_bs, speed, on_error, block_job_cb,
                             bs, &local_err);
     } else {
         commit_start(bs, base_bs, top_bs, speed, on_error, block_job_cb, bs,
-                    &local_err);
+                     has_backing_file ? backing_file : NULL, &local_err);
     }
     if (local_err != NULL) {
         error_propagate(errp, local_err);

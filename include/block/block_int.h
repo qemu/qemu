@@ -463,13 +463,14 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
  * @on_error: The action to take upon error.
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
+ * @backing_file_str: String to use as the backing file in @top's overlay
  * @errp: Error object.
  *
  */
 void commit_start(BlockDriverState *bs, BlockDriverState *base,
                  BlockDriverState *top, int64_t speed,
                  BlockdevOnError on_error, BlockDriverCompletionFunc *cb,
-                 void *opaque, Error **errp);
+                 void *opaque, const char *backing_file_str, Error **errp);
 /**
  * commit_active_start:
  * @bs: Active block device to be committed.
