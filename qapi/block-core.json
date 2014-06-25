@@ -922,6 +922,21 @@
 #
 # @base:   #optional the common backing file name
 #
+# @backing-file: #optional The backing file string to write into the active
+#                          layer. This filename is not validated.
+#
+#                          If a pathname string is such that it cannot be
+#                          resolved by QEMU, that means that subsequent QMP or
+#                          HMP commands must use node-names for the image in
+#                          question, as filename lookup methods will fail.
+#
+#                          If not specified, QEMU will automatically determine
+#                          the backing file string to use, or error out if there
+#                          is no obvious choice.  Care should be taken when
+#                          specifying the string, to specify a valid filename or
+#                          protocol.
+#                          (Since 2.1)
+#
 # @speed:  #optional the maximum speed, in bytes per second
 #
 # @on-error: #optional the action to take on an error (default report).
@@ -934,8 +949,8 @@
 # Since: 1.1
 ##
 { 'command': 'block-stream',
-  'data': { 'device': 'str', '*base': 'str', '*speed': 'int',
-            '*on-error': 'BlockdevOnError' } }
+  'data': { 'device': 'str', '*base': 'str', '*backing-file': 'str',
+            '*speed': 'int', '*on-error': 'BlockdevOnError' } }
 
 ##
 # @block-job-set-speed:

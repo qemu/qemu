@@ -32,7 +32,7 @@ typedef struct StreamBlockJob {
     RateLimit limit;
     BlockDriverState *base;
     BlockdevOnError on_error;
-    char backing_file_id[1024];
+    char *backing_file_str;
 } StreamBlockJob;
 
 static int coroutine_fn stream_populate(BlockDriverState *bs,
@@ -186,7 +186,7 @@ wait:
     if (!block_job_is_cancelled(&s->common) && sector_num == end && ret == 0) {
         const char *base_id = NULL, *base_fmt = NULL;
         if (base) {
-            base_id = s->backing_file_id;
+            base_id = s->backing_file_str;
             if (base->drv) {
                 base_fmt = base->drv->format_name;
             }
@@ -196,6 +196,7 @@ wait:
     }
 
     qemu_vfree(buf);
+    g_free(s->backing_file_str);
     block_job_completed(&s->common, ret);
 }
 
@@ -217,7 +218,7 @@ static const BlockJobDriver stream_job_driver = {
 };
 
 void stream_start(BlockDriverState *bs, BlockDriverState *base,
-                  const char *base_id, int64_t speed,
+                  const char *backing_file_str, int64_t speed,
                   BlockdevOnError on_error,
                   BlockDriverCompletionFunc *cb,
                   void *opaque, Error **errp)
@@ -237,9 +238,7 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
     }
 
     s->base = base;
-    if (base_id) {
-        pstrcpy(s->backing_file_id, sizeof(s->backing_file_id), base_id);
-    }
+    s->backing_file_str = g_strdup(backing_file_str);
 
     s->on_error = on_error;
     s->common.co = qemu_coroutine_create(stream_run);
