@@ -3774,6 +3774,17 @@ BlockDriverState *bdrv_lookup_bs(const char *device,
     return NULL;
 }
 
+/* If 'base' is in the same chain as 'top', return true. Otherwise,
+ * return false.  If either argument is NULL, return false. */
+bool bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base)
+{
+    while (top && top != base) {
+        top = top->backing_hd;
+    }
+
+    return top != NULL;
+}
+
 BlockDriverState *bdrv_next(BlockDriverState *bs)
 {
     if (!bs) {
