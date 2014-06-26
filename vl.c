@@ -196,6 +196,7 @@ static QTAILQ_HEAD(, FWBootEntry) fw_boot_order =
     QTAILQ_HEAD_INITIALIZER(fw_boot_order);
 
 int nb_numa_nodes;
+int max_numa_nodeid;
 NodeInfo numa_info[MAX_NODES];
 
 uint8_t qemu_uuid[16];
@@ -2984,10 +2985,12 @@ int main(int argc, char **argv, char **envp)
 
     for (i = 0; i < MAX_NODES; i++) {
         numa_info[i].node_mem = 0;
+        numa_info[i].present = false;
         bitmap_zero(numa_info[i].node_cpu, MAX_CPUMASK_BITS);
     }
 
     nb_numa_nodes = 0;
+    max_numa_nodeid = 0;
     nb_nics = 0;
 
     bdrv_init_with_whitelist();

@@ -106,6 +106,8 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
         numa_info[nodenr].node_mem = object_property_get_int(o, "size", NULL);
         numa_info[nodenr].node_memdev = MEMORY_BACKEND(o);
     }
+    numa_info[nodenr].present = true;
+    max_numa_nodeid = MAX(max_numa_nodeid, nodenr + 1);
 }
 
 int numa_init_func(QemuOpts *opts, void *opaque)
