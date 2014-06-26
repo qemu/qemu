@@ -156,6 +156,7 @@ struct DeviceState {
 
     const char *id;
     bool realized;
+    bool pending_deleted_event;
     QemuOpts *opts;
     int hotplugged;
     BusState *parent_bus;
