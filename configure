@@ -3086,7 +3086,8 @@ if test "$glusterfs" != "no" ; then
     fi
   else
     if test "$glusterfs" = "yes" ; then
-      feature_not_found "GlusterFS backend support" "Install glusterfs-api devel"
+      feature_not_found "GlusterFS backend support" \
+          "Install glusterfs-api devel >= 3"
     fi
     glusterfs="no"
   fi
@@ -3531,7 +3532,8 @@ EOF
     spice_server_version=$($pkg_config --modversion spice-server)
   else
     if test "$spice" = "yes" ; then
-      feature_not_found "spice" "Install spice-server and spice-protocol devel"
+      feature_not_found "spice" \
+          "Install spice-server(>=0.12.0) and spice-protocol(>=0.12.3) devel"
     fi
     spice="no"
   fi
@@ -3562,7 +3564,7 @@ EOF
         smartcard_nss="yes"
     else
         if test "$smartcard_nss" = "yes"; then
-            feature_not_found "nss"
+            feature_not_found "nss" "Install nss devel >= 3.12.8"
         fi
         smartcard_nss="no"
     fi
@@ -3578,7 +3580,7 @@ if test "$libusb" != "no" ; then
         libs_softmmu="$libs_softmmu $libusb_libs"
     else
         if test "$libusb" = "yes"; then
-            feature_not_found "libusb" "Install libusb devel"
+            feature_not_found "libusb" "Install libusb devel >= 1.0.13"
         fi
         libusb="no"
     fi
@@ -4003,7 +4005,7 @@ if test "$libnfs" != "no" ; then
     LIBS="$LIBS $libnfs_libs"
   else
     if test "$libnfs" = "yes" ; then
-      feature_not_found "libnfs"
+      feature_not_found "libnfs" "Install libnfs devel >= 1.9.3"
     fi
     libnfs="no"
   fi
