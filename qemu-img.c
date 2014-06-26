@@ -1469,13 +1469,13 @@ static int img_convert(int argc, char **argv)
     buf = qemu_blockalign(out_bs, bufsectors * BDRV_SECTOR_SIZE);
 
     if (skip_create) {
-        int64_t output_length = bdrv_getlength(out_bs);
-        if (output_length < 0) {
+        int64_t output_sectors = bdrv_nb_sectors(out_bs);
+        if (output_sectors < 0) {
             error_report("unable to get output image length: %s\n",
-                         strerror(-output_length));
+                         strerror(-output_sectors));
             ret = -1;
             goto out;
-        } else if (output_length < total_sectors << BDRV_SECTOR_BITS) {
+        } else if (output_sectors < total_sectors) {
             error_report("output file is smaller than input file");
             ret = -1;
             goto out;
