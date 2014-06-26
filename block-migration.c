@@ -186,7 +186,7 @@ static int bmds_aio_inflight(BlkMigDevState *bmds, int64_t sector)
 {
     int64_t chunk = sector / (int64_t)BDRV_SECTORS_PER_DIRTY_CHUNK;
 
-    if ((sector << BDRV_SECTOR_BITS) < bdrv_getlength(bmds->bs)) {
+    if (sector < bdrv_nb_sectors(bmds->bs)) {
         return !!(bmds->aio_bitmap[chunk / (sizeof(unsigned long) * 8)] &
             (1UL << (chunk % (sizeof(unsigned long) * 8))));
     } else {
@@ -223,8 +223,7 @@ static void alloc_aio_bitmap(BlkMigDevState *bmds)
     BlockDriverState *bs = bmds->bs;
     int64_t bitmap_size;
 
-    bitmap_size = (bdrv_getlength(bs) >> BDRV_SECTOR_BITS) +
-            BDRV_SECTORS_PER_DIRTY_CHUNK * 8 - 1;
+    bitmap_size = bdrv_nb_sectors(bs) + BDRV_SECTORS_PER_DIRTY_CHUNK * 8 - 1;
     bitmap_size /= BDRV_SECTORS_PER_DIRTY_CHUNK * 8;
 
     bmds->aio_bitmap = g_malloc0(bitmap_size);
@@ -350,7 +349,7 @@ static void init_blk_migration_it(void *opaque, BlockDriverState *bs)
     int64_t sectors;
 
     if (!bdrv_is_read_only(bs)) {
-        sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
+        sectors = bdrv_nb_sectors(bs);
         if (sectors <= 0) {
             return;
         }
@@ -799,7 +798,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
 
             if (bs != bs_prev) {
                 bs_prev = bs;
-                total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
+                total_sectors = bdrv_nb_sectors(bs);
                 if (total_sectors <= 0) {
                     error_report("Error getting length of block device %s",
                                  device_name);

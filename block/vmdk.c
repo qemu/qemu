@@ -669,8 +669,7 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     if (le32_to_cpu(header.flags) & VMDK4_FLAG_RGD) {
         l1_backup_offset = le64_to_cpu(header.rgd_offset) << 9;
     }
-    if (bdrv_getlength(file) <
-            le64_to_cpu(header.grain_offset) * BDRV_SECTOR_SIZE) {
+    if (bdrv_nb_sectors(file) < le64_to_cpu(header.grain_offset)) {
         error_setg(errp, "File truncated, expecting at least %" PRId64 " bytes",
                    (int64_t)(le64_to_cpu(header.grain_offset)
                              * BDRV_SECTOR_SIZE));
@@ -1999,7 +1998,7 @@ static int vmdk_check(BlockDriverState *bs, BdrvCheckResult *result,
     BDRVVmdkState *s = bs->opaque;
     VmdkExtent *extent = NULL;
     int64_t sector_num = 0;
-    int64_t total_sectors = bdrv_getlength(bs) / BDRV_SECTOR_SIZE;
+    int64_t total_sectors = bdrv_nb_sectors(bs);
     int ret;
     uint64_t cluster_offset;
 
