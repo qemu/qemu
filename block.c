@@ -701,6 +701,7 @@ static int find_image_format(BlockDriverState *bs, const char *filename,
 
 /**
  * Set the current 'total_sectors' value
+ * Return 0 on success, -errno on error.
  */
 static int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
 {
@@ -3536,11 +3537,12 @@ int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
 }
 
 /**
- * Length of a file in bytes. Return < 0 if error or unknown.
+ * Return number of sectors on success, -errno on error.
  */
-int64_t bdrv_getlength(BlockDriverState *bs)
+int64_t bdrv_nb_sectors(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
+
     if (!drv)
         return -ENOMEDIUM;
 
@@ -3550,19 +3552,26 @@ int64_t bdrv_getlength(BlockDriverState *bs)
             return ret;
         }
     }
-    return bs->total_sectors * BDRV_SECTOR_SIZE;
+    return bs->total_sectors;
+}
+
+/**
+ * Return length in bytes on success, -errno on error.
+ * The length is always a multiple of BDRV_SECTOR_SIZE.
+ */
+int64_t bdrv_getlength(BlockDriverState *bs)
+{
+    int64_t ret = bdrv_nb_sectors(bs);
+
+    return ret < 0 ? ret : ret * BDRV_SECTOR_SIZE;
 }
 
 /* return 0 as number of sectors if no device present or error */
 void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr)
 {
-    int64_t length;
-    length = bdrv_getlength(bs);
-    if (length < 0)
-        length = 0;
-    else
-        length = length >> BDRV_SECTOR_BITS;
-    *nb_sectors_ptr = length;
+    int64_t nb_sectors = bdrv_nb_sectors(bs);
+
+    *nb_sectors_ptr = nb_sectors < 0 ? 0 : nb_sectors;
 }
 
 void bdrv_set_on_error(BlockDriverState *bs, BlockdevOnError on_read_error,
