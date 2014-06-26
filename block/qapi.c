@@ -165,19 +165,25 @@ void bdrv_query_image_info(BlockDriverState *bs,
                            ImageInfo **p_info,
                            Error **errp)
 {
-    uint64_t total_sectors;
+    int64_t size;
     const char *backing_filename;
     char backing_filename2[1024];
     BlockDriverInfo bdi;
     int ret;
     Error *err = NULL;
-    ImageInfo *info = g_new0(ImageInfo, 1);
+    ImageInfo *info;
 
-    bdrv_get_geometry(bs, &total_sectors);
+    size = bdrv_getlength(bs);
+    if (size < 0) {
+        error_setg_errno(errp, -size, "Can't get size of device '%s'",
+                         bdrv_get_device_name(bs));
+        return;
+    }
 
+    info = g_new0(ImageInfo, 1);
     info->filename        = g_strdup(bs->filename);
     info->format          = g_strdup(bdrv_get_format_name(bs));
-    info->virtual_size    = total_sectors * 512;
+    info->virtual_size    = size;
     info->actual_size     = bdrv_get_allocated_file_size(bs);
     info->has_actual_size = info->actual_size >= 0;
     if (bdrv_is_encrypted(bs)) {

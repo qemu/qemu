@@ -5595,7 +5595,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
     if (size == -1) {
         if (backing_file) {
             BlockDriverState *bs;
-            uint64_t size;
+            int64_t size;
             int back_flags;
 
             /* backing files always opened read-only */
@@ -5613,8 +5613,13 @@ void bdrv_img_create(const char *filename, const char *fmt,
                 local_err = NULL;
                 goto out;
             }
-            bdrv_get_geometry(bs, &size);
-            size *= 512;
+            size = bdrv_getlength(bs);
+            if (size < 0) {
+                error_setg_errno(errp, -size, "Could not get size of '%s'",
+                                 backing_file);
+                bdrv_unref(bs);
+                goto out;
+            }
 
             qemu_opt_set_number(opts, BLOCK_OPT_SIZE, size);
 

@@ -955,7 +955,6 @@ static int img_compare(int argc, char **argv)
     int64_t sector_num = 0;
     int64_t nb_sectors;
     int c, pnum;
-    uint64_t bs_sectors;
     uint64_t progress_base;
 
     for (;;) {
@@ -1017,10 +1016,20 @@ static int img_compare(int argc, char **argv)
 
     buf1 = qemu_blockalign(bs1, IO_BUF_SIZE);
     buf2 = qemu_blockalign(bs2, IO_BUF_SIZE);
-    bdrv_get_geometry(bs1, &bs_sectors);
-    total_sectors1 = bs_sectors;
-    bdrv_get_geometry(bs2, &bs_sectors);
-    total_sectors2 = bs_sectors;
+    total_sectors1 = bdrv_nb_sectors(bs1);
+    if (total_sectors1 < 0) {
+        error_report("Can't get size of %s: %s",
+                     filename1, strerror(-total_sectors1));
+        ret = 4;
+        goto out;
+    }
+    total_sectors2 = bdrv_nb_sectors(bs2);
+    if (total_sectors2 < 0) {
+        error_report("Can't get size of %s: %s",
+                     filename2, strerror(-total_sectors2));
+        ret = 4;
+        goto out;
+    }
     total_sectors = MIN(total_sectors1, total_sectors2);
     progress_base = MAX(total_sectors1, total_sectors2);
 
@@ -1182,7 +1191,7 @@ static int img_convert(int argc, char **argv)
     BlockDriver *drv, *proto_drv;
     BlockDriverState **bs = NULL, *out_bs = NULL;
     int64_t total_sectors, nb_sectors, sector_num, bs_offset;
-    uint64_t *bs_sectors = NULL;
+    int64_t *bs_sectors = NULL;
     uint8_t * buf = NULL;
     size_t bufsectors = IO_BUF_SIZE / BDRV_SECTOR_SIZE;
     const uint8_t *buf1;
@@ -1324,7 +1333,7 @@ static int img_convert(int argc, char **argv)
     qemu_progress_print(0, 100);
 
     bs = g_new0(BlockDriverState *, bs_n);
-    bs_sectors = g_new(uint64_t, bs_n);
+    bs_sectors = g_new(int64_t, bs_n);
 
     total_sectors = 0;
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
@@ -1338,7 +1347,13 @@ static int img_convert(int argc, char **argv)
             ret = -1;
             goto out;
         }
-        bdrv_get_geometry(bs[bs_i], &bs_sectors[bs_i]);
+        bs_sectors[bs_i] = bdrv_nb_sectors(bs[bs_i]);
+        if (bs_sectors[bs_i] < 0) {
+            error_report("Could not get size of %s: %s",
+                         argv[optind + bs_i], strerror(-bs_sectors[bs_i]));
+            ret = -1;
+            goto out;
+        }
         total_sectors += bs_sectors[bs_i];
     }
 
@@ -2413,9 +2428,9 @@ static int img_rebase(int argc, char **argv)
      * the image is the same as the original one at any time.
      */
     if (!unsafe) {
-        uint64_t num_sectors;
-        uint64_t old_backing_num_sectors;
-        uint64_t new_backing_num_sectors = 0;
+        int64_t num_sectors;
+        int64_t old_backing_num_sectors;
+        int64_t new_backing_num_sectors = 0;
         uint64_t sector;
         int n;
         uint8_t * buf_old;
@@ -2425,10 +2440,31 @@ static int img_rebase(int argc, char **argv)
         buf_old = qemu_blockalign(bs, IO_BUF_SIZE);
         buf_new = qemu_blockalign(bs, IO_BUF_SIZE);
 
-        bdrv_get_geometry(bs, &num_sectors);
-        bdrv_get_geometry(bs_old_backing, &old_backing_num_sectors);
+        num_sectors = bdrv_nb_sectors(bs);
+        if (num_sectors < 0) {
+            error_report("Could not get size of '%s': %s",
+                         filename, strerror(-num_sectors));
+            ret = -1;
+            goto out;
+        }
+        old_backing_num_sectors = bdrv_nb_sectors(bs_old_backing);
+        if (old_backing_num_sectors < 0) {
+            char backing_name[1024];
+
+            bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
+            error_report("Could not get size of '%s': %s",
+                         backing_name, strerror(-old_backing_num_sectors));
+            ret = -1;
+            goto out;
+        }
         if (bs_new_backing) {
-            bdrv_get_geometry(bs_new_backing, &new_backing_num_sectors);
+            new_backing_num_sectors = bdrv_nb_sectors(bs_new_backing);
+            if (new_backing_num_sectors < 0) {
+                error_report("Could not get size of '%s': %s",
+                             out_baseimg, strerror(-new_backing_num_sectors));
+                ret = -1;
+                goto out;
+            }
         }
 
         if (num_sectors != 0) {
