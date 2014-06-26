@@ -3055,15 +3055,14 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
         ret = drv->bdrv_co_readv(bs, sector_num, nb_sectors, qiov);
     } else {
         /* Read zeros after EOF of growable BDSes */
-        int64_t len, total_sectors, max_nb_sectors;
+        int64_t total_sectors, max_nb_sectors;
 
-        len = bdrv_getlength(bs);
-        if (len < 0) {
-            ret = len;
+        total_sectors = bdrv_nb_sectors(bs);
+        if (total_sectors < 0) {
+            ret = total_sectors;
             goto out;
         }
 
-        total_sectors = DIV_ROUND_UP(len, BDRV_SECTOR_SIZE);
         max_nb_sectors = ROUND_UP(MAX(0, total_sectors - sector_num),
                                   align >> BDRV_SECTOR_BITS);
         if (max_nb_sectors > 0) {
