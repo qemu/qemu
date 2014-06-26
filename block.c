@@ -3951,21 +3951,21 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
                                                      int64_t sector_num,
                                                      int nb_sectors, int *pnum)
 {
-    int64_t length;
+    int64_t total_sectors;
     int64_t n;
     int64_t ret, ret2;
 
-    length = bdrv_getlength(bs);
-    if (length < 0) {
-        return length;
+    total_sectors = bdrv_nb_sectors(bs);
+    if (total_sectors < 0) {
+        return total_sectors;
     }
 
-    if (sector_num >= (length >> BDRV_SECTOR_BITS)) {
+    if (sector_num >= total_sectors) {
         *pnum = 0;
         return 0;
     }
 
-    n = bs->total_sectors - sector_num;
+    n = total_sectors - sector_num;
     if (n < nb_sectors) {
         nb_sectors = n;
     }
@@ -4000,8 +4000,8 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
             ret |= BDRV_BLOCK_ZERO;
         } else if (bs->backing_hd) {
             BlockDriverState *bs2 = bs->backing_hd;
-            int64_t length2 = bdrv_getlength(bs2);
-            if (length2 >= 0 && sector_num >= (length2 >> BDRV_SECTOR_BITS)) {
+            int64_t nb_sectors2 = bdrv_nb_sectors(bs2);
+            if (nb_sectors2 >= 0 && sector_num >= nb_sectors2) {
                 ret |= BDRV_BLOCK_ZERO;
             }
         }
