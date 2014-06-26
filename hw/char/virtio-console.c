@@ -14,6 +14,7 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/virtio/virtio-serial.h"
+#include "qapi-event.h"
 
 #define TYPE_VIRTIO_CONSOLE_SERIAL_PORT "virtserialport"
 #define VIRTIO_CONSOLE(obj) \
@@ -81,11 +82,16 @@ static ssize_t flush_buf(VirtIOSerialPort *port,
 static void set_guest_connected(VirtIOSerialPort *port, int guest_connected)
 {
     VirtConsole *vcon = VIRTIO_CONSOLE(port);
+    DeviceState *dev = DEVICE(port);
 
-    if (!vcon->chr) {
-        return;
+    if (vcon->chr) {
+        qemu_chr_fe_set_open(vcon->chr, guest_connected);
     }
-    qemu_chr_fe_set_open(vcon->chr, guest_connected);
+
+    if (dev->id) {
+        qapi_event_send_vserport_change(dev->id, guest_connected,
+                                        &error_abort);
+    }
 }
 
 /* Readiness of the guest to accept data on a port */

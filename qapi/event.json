@@ -316,3 +316,17 @@
 { 'event': 'QUORUM_REPORT_BAD',
   'data': { '*error': 'str', 'node-name': 'str',
             'sector-num': 'int', 'sector-count': 'int' } }
+
+##
+# @VSERPORT_CHANGE
+#
+# Emitted when the guest opens or closes a virtio-serial port.
+#
+# @id: device identifier of the virtio-serial port
+#
+# @open: true if the guest has opened the virtio-serial port
+#
+# Since: 2.1
+##
+{ 'event': 'VSERPORT_CHANGE',
+  'data': { 'id': 'str', 'open': 'bool' } }

@@ -588,6 +588,7 @@ static void monitor_qapi_event_init(void)
     monitor_qapi_event_throttle(QAPI_EVENT_BALLOON_CHANGE, 1000);
     monitor_qapi_event_throttle(QAPI_EVENT_QUORUM_REPORT_BAD, 1000);
     monitor_qapi_event_throttle(QAPI_EVENT_QUORUM_FAILURE, 1000);
+    monitor_qapi_event_throttle(QAPI_EVENT_VSERPORT_CHANGE, 1000);
 
     qmp_event_set_func_emit(monitor_qapi_event_queue);
 }
