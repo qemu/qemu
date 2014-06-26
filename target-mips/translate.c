@@ -28,6 +28,7 @@
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
+#include "sysemu/kvm.h"
 
 #define MIPS_DEBUG_DISAS 0
 //#define MIPS_DEBUG_SIGN_EXTENSIONS
@@ -16076,7 +16077,12 @@ void cpu_state_reset(CPUMIPSState *env)
     env->CP0_Random = env->tlb->nb_tlb - 1;
     env->tlb->tlb_in_use = env->tlb->nb_tlb;
     env->CP0_Wired = 0;
-    env->CP0_EBase = 0x80000000 | (cs->cpu_index & 0x3FF);
+    env->CP0_EBase = (cs->cpu_index & 0x3FF);
+    if (kvm_enabled()) {
+        env->CP0_EBase |= 0x40000000;
+    } else {
+        env->CP0_EBase |= 0x80000000;
+    }
     env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
     /* vectored interrupts not implemented, timer on int 7,
        no performance counters. */
