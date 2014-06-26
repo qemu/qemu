@@ -3705,6 +3705,7 @@ ChardevInfoList *qmp_query_chardev(Error **errp)
         info->value = g_malloc0(sizeof(*info->value));
         info->value->label = g_strdup(chr->label);
         info->value->filename = g_strdup(chr->filename);
+        info->value->frontend_open = chr->fe_open;
 
         info->next = chr_list;
         chr_list = info;
