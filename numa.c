@@ -62,6 +62,11 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
         return;
     }
 
+    if (numa_info[nodenr].present) {
+        error_setg(errp, "Duplicate NUMA nodeid: %" PRIu16, nodenr);
+        return;
+    }
+
     for (cpus = node->cpus; cpus; cpus = cpus->next) {
         if (cpus->value > MAX_CPUMASK_BITS) {
             error_setg(errp, "CPU number %" PRIu16 " is bigger than %d",
