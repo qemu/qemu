@@ -1719,6 +1719,9 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
 # define LINK_AREA_SIZE                (6 * SZR)
 # define LR_OFFSET                     (1 * SZR)
 # define TCG_TARGET_CALL_STACK_OFFSET  (LINK_AREA_SIZE + 8 * SZR)
+#elif defined(TCG_TARGET_CALL_DARWIN)
+# define LINK_AREA_SIZE                (6 * SZR)
+# define LR_OFFSET                     (2 * SZR)
 #elif TCG_TARGET_REG_BITS == 64
 # if defined(_CALL_ELF) && _CALL_ELF == 2
 #  define LINK_AREA_SIZE               (4 * SZR)
@@ -1728,9 +1731,6 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
 # if defined(_CALL_SYSV)
 #  define LINK_AREA_SIZE               (2 * SZR)
 #  define LR_OFFSET                    (1 * SZR)
-# elif defined(TCG_TARGET_CALL_DARWIN)
-#  define LINK_AREA_SIZE               24
-#  define LR_OFFSET                    8
 # endif
 #endif
 #ifndef LR_OFFSET
