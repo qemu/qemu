@@ -1,0 +1,551 @@
+                   QEMU Machine Protocol Events
+                   ============================
+
+ACPI_DEVICE_OST
+---------------
+
+Emitted when guest executes ACPI _OST method.
+
+ - data: ACPIOSTInfo type as described in qapi-schema.json
+
+{ "event": "ACPI_DEVICE_OST",
+     "data": { "device": "d1", "slot": "0", "slot-type": "DIMM", "source": 1, "status": 0 } }
+
+BALLOON_CHANGE
+--------------
+
+Emitted when the guest changes the actual BALLOON level. This
+value is equivalent to the 'actual' field return by the
+'query-balloon' command
+
+Data:
+
+- "actual": actual level of the guest memory balloon in bytes (json-number)
+
+Example:
+
+{ "event": "BALLOON_CHANGE",
+    "data": { "actual": 944766976 },
+    "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
+
+BLOCK_IMAGE_CORRUPTED
+---------------------
+
+Emitted when a disk image is being marked corrupt.
+
+Data:
+
+- "device": Device name (json-string)
+- "msg":    Informative message (e.g., reason for the corruption) (json-string)
+- "offset": If the corruption resulted from an image access, this is the access
+            offset into the image (json-int)
+- "size":   If the corruption resulted from an image access, this is the access
+            size (json-int)
+
+Example:
+
+{ "event": "BLOCK_IMAGE_CORRUPTED",
+    "data": { "device": "ide0-hd0",
+        "msg": "Prevented active L1 table overwrite", "offset": 196608,
+        "size": 65536 },
+    "timestamp": { "seconds": 1378126126, "microseconds": 966463 } }
+
+BLOCK_IO_ERROR
+--------------
+
+Emitted when a disk I/O error occurs.
+
+Data:
+
+- "device": device name (json-string)
+- "operation": I/O operation (json-string, "read" or "write")
+- "action": action that has been taken, it's one of the following (json-string):
+    "ignore": error has been ignored
+    "report": error has been reported to the device
+    "stop": the VM is going to stop because of the error
+
+Example:
+
+{ "event": "BLOCK_IO_ERROR",
+    "data": { "device": "ide0-hd1",
+              "operation": "write",
+              "action": "stop" },
+    "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+
+Note: If action is "stop", a STOP event will eventually follow the
+BLOCK_IO_ERROR event.
+
+BLOCK_JOB_CANCELLED
+-------------------
+
+Emitted when a block job has been cancelled.
+
+Data:
+
+- "type":     Job type (json-string; "stream" for image streaming
+                                     "commit" for block commit)
+- "device":   Device name (json-string)
+- "len":      Maximum progress value (json-int)
+- "offset":   Current progress value (json-int)
+              On success this is equal to len.
+              On failure this is less than len.
+- "speed":    Rate limit, bytes per second (json-int)
+
+Example:
+
+{ "event": "BLOCK_JOB_CANCELLED",
+     "data": { "type": "stream", "device": "virtio-disk0",
+               "len": 10737418240, "offset": 134217728,
+               "speed": 0 },
+     "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+
+BLOCK_JOB_COMPLETED
+-------------------
+
+Emitted when a block job has completed.
+
+Data:
+
+- "type":     Job type (json-string; "stream" for image streaming
+                                     "commit" for block commit)
+- "device":   Device name (json-string)
+- "len":      Maximum progress value (json-int)
+- "offset":   Current progress value (json-int)
+              On success this is equal to len.
+              On failure this is less than len.
+- "speed":    Rate limit, bytes per second (json-int)
+- "error":    Error message (json-string, optional)
+              Only present on failure.  This field contains a human-readable
+              error message.  There are no semantics other than that streaming
+              has failed and clients should not try to interpret the error
+              string.
+
+Example:
+
+{ "event": "BLOCK_JOB_COMPLETED",
+     "data": { "type": "stream", "device": "virtio-disk0",
+               "len": 10737418240, "offset": 10737418240,
+               "speed": 0 },
+     "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+
+BLOCK_JOB_ERROR
+---------------
+
+Emitted when a block job encounters an error.
+
+Data:
+
+- "device": device name (json-string)
+- "operation": I/O operation (json-string, "read" or "write")
+- "action": action that has been taken, it's one of the following (json-string):
+    "ignore": error has been ignored, the job may fail later
+    "report": error will be reported and the job canceled
+    "stop": error caused job to be paused
+
+Example:
+
+{ "event": "BLOCK_JOB_ERROR",
+    "data": { "device": "ide0-hd1",
+              "operation": "write",
+              "action": "stop" },
+    "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+
+BLOCK_JOB_READY
+---------------
+
+Emitted when a block job is ready to complete.
+
+Data:
+
+- "device": device name (json-string)
+
+Example:
+
+{ "event": "BLOCK_JOB_READY",
+    "data": { "device": "ide0-hd1" },
+    "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+
+Note: The "ready to complete" status is always reset by a BLOCK_JOB_ERROR
+event.
+
+DEVICE_DELETED
+--------------
+
+Emitted whenever the device removal completion is acknowledged
+by the guest.
+At this point, it's safe to reuse the specified device ID.
+Device removal can be initiated by the guest or by HMP/QMP commands.
+
+Data:
+
+- "device": device name (json-string, optional)
+- "path": device path (json-string)
+
+{ "event": "DEVICE_DELETED",
+  "data": { "device": "virtio-net-pci-0",
+            "path": "/machine/peripheral/virtio-net-pci-0" },
+  "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+
+DEVICE_TRAY_MOVED
+-----------------
+
+It's emitted whenever the tray of a removable device is moved by the guest
+or by HMP/QMP commands.
+
+Data:
+
+- "device": device name (json-string)
+- "tray-open": true if the tray has been opened or false if it has been closed
+               (json-bool)
+
+{ "event": "DEVICE_TRAY_MOVED",
+  "data": { "device": "ide1-cd0",
+            "tray-open": true
+  },
+  "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+
+GUEST_PANICKED
+--------------
+
+Emitted when guest OS panic is detected.
+
+Data:
+
+- "action": Action that has been taken (json-string, currently always "pause").
+
+Example:
+
+{ "event": "GUEST_PANICKED",
+     "data": { "action": "pause" } }
+
+NIC_RX_FILTER_CHANGED
+---------------------
+
+The event is emitted once until the query command is executed,
+the first event will always be emitted.
+
+Data:
+
+- "name": net client name (json-string)
+- "path": device path (json-string)
+
+{ "event": "NIC_RX_FILTER_CHANGED",
+  "data": { "name": "vnet0",
+            "path": "/machine/peripheral/vnet0/virtio-backend" },
+  "timestamp": { "seconds": 1368697518, "microseconds": 326866 } }
+}
+
+QUORUM_FAILURE
+--------------
+
+Emitted by the Quorum block driver if it fails to establish a quorum.
+
+Data:
+
+- "reference":    device name if defined else node name.
+- "sector-num":   Number of the first sector of the failed read operation.
+- "sector-count": Failed read operation sector count.
+
+Example:
+
+{ "event": "QUORUM_FAILURE",
+     "data": { "reference": "usr1", "sector-num": 345435, "sector-count": 5 },
+     "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+
+QUORUM_REPORT_BAD
+-----------------
+
+Emitted to report a corruption of a Quorum file.
+
+Data:
+
+- "error":        Error message (json-string, optional)
+                  Only present on failure.  This field contains a human-readable
+                  error message.  There are no semantics other than that the
+                  block layer reported an error and clients should not try to
+                  interpret the error string.
+- "node-name":    The graph node name of the block driver state.
+- "sector-num":   Number of the first sector of the failed read operation.
+- "sector-count": Failed read operation sector count.
+
+Example:
+
+{ "event": "QUORUM_REPORT_BAD",
+     "data": { "node-name": "1.raw", "sector-num": 345435, "sector-count": 5 },
+     "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+
+RESET
+-----
+
+Emitted when the Virtual Machine is reseted.
+
+Data: None.
+
+Example:
+
+{ "event": "RESET",
+    "timestamp": { "seconds": 1267041653, "microseconds": 9518 } }
+
+RESUME
+------
+
+Emitted when the Virtual Machine resumes execution.
+
+Data: None.
+
+Example:
+
+{ "event": "RESUME",
+    "timestamp": { "seconds": 1271770767, "microseconds": 582542 } }
+
+RTC_CHANGE
+----------
+
+Emitted when the guest changes the RTC time.
+
+Data:
+
+- "offset": Offset between base RTC clock (as specified by -rtc base), and
+new RTC clock value (json-number)
+
+Example:
+
+{ "event": "RTC_CHANGE",
+    "data": { "offset": 78 },
+    "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
+
+SHUTDOWN
+--------
+
+Emitted when the Virtual Machine is powered down.
+
+Data: None.
+
+Example:
+
+{ "event": "SHUTDOWN",
+    "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
+
+Note: If the command-line option "-no-shutdown" has been specified, a STOP
+event will eventually follow the SHUTDOWN event.
+
+SPICE_CONNECTED, SPICE_DISCONNECTED
+-----------------------------------
+
+Emitted when a SPICE client connects or disconnects.
+
+Data:
+
+- "server": Server information (json-object)
+  - "host": IP address (json-string)
+  - "port": port number (json-string)
+  - "family": address family (json-string, "ipv4" or "ipv6")
+- "client": Client information (json-object)
+  - "host": IP address (json-string)
+  - "port": port number (json-string)
+  - "family": address family (json-string, "ipv4" or "ipv6")
+
+Example:
+
+{ "timestamp": {"seconds": 1290688046, "microseconds": 388707},
+  "event": "SPICE_CONNECTED",
+  "data": {
+    "server": { "port": "5920", "family": "ipv4", "host": "127.0.0.1"},
+    "client": {"port": "52873", "family": "ipv4", "host": "127.0.0.1"}
+}}
+
+SPICE_INITIALIZED
+-----------------
+
+Emitted after initial handshake and authentication takes place (if any)
+and the SPICE channel is up'n'running
+
+Data:
+
+- "server": Server information (json-object)
+  - "host": IP address (json-string)
+  - "port": port number (json-string)
+  - "family": address family (json-string, "ipv4" or "ipv6")
+  - "auth": authentication method (json-string, optional)
+- "client": Client information (json-object)
+  - "host": IP address (json-string)
+  - "port": port number (json-string)
+  - "family": address family (json-string, "ipv4" or "ipv6")
+  - "connection-id": spice connection id.  All channels with the same id
+                     belong to the same spice session (json-int)
+  - "channel-type": channel type.  "1" is the main control channel, filter for
+                    this one if you want track spice sessions only (json-int)
+  - "channel-id": channel id.  Usually "0", might be different needed when
+                  multiple channels of the same type exist, such as multiple
+                  display channels in a multihead setup (json-int)
+  - "tls": whevener the channel is encrypted (json-bool)
+
+Example:
+
+{ "timestamp": {"seconds": 1290688046, "microseconds": 417172},
+  "event": "SPICE_INITIALIZED",
+  "data": {"server": {"auth": "spice", "port": "5921",
+                      "family": "ipv4", "host": "127.0.0.1"},
+           "client": {"port": "49004", "family": "ipv4", "channel-type": 3,
+                      "connection-id": 1804289383, "host": "127.0.0.1",
+                      "channel-id": 0, "tls": true}
+}}
+
+STOP
+----
+
+Emitted when the Virtual Machine is stopped.
+
+Data: None.
+
+Example:
+
+{ "event": "STOP",
+    "timestamp": { "seconds": 1267041730, "microseconds": 281295 } }
+
+SUSPEND
+-------
+
+Emitted when guest enters S3 state.
+
+Data: None.
+
+Example:
+
+{ "event": "SUSPEND",
+     "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
+
+SUSPEND_DISK
+------------
+
+Emitted when the guest makes a request to enter S4 state.
+
+Data: None.
+
+Example:
+
+{ "event": "SUSPEND_DISK",
+     "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
+
+Note: QEMU shuts down when entering S4 state.
+
+VNC_CONNECTED
+-------------
+
+Emitted when a VNC client establishes a connection.
+
+Data:
+
+- "server": Server information (json-object)
+  - "host": IP address (json-string)
+  - "service": port number (json-string)
+  - "family": address family (json-string, "ipv4" or "ipv6")
+  - "auth": authentication method (json-string, optional)
+- "client": Client information (json-object)
+  - "host": IP address (json-string)
+  - "service": port number (json-string)
+  - "family": address family (json-string, "ipv4" or "ipv6")
+
+Example:
+
+{ "event": "VNC_CONNECTED",
+    "data": {
+        "server": { "auth": "sasl", "family": "ipv4",
+                    "service": "5901", "host": "0.0.0.0" },
+        "client": { "family": "ipv4", "service": "58425",
+                    "host": "127.0.0.1" } },
+    "timestamp": { "seconds": 1262976601, "microseconds": 975795 } }
+
+
+Note: This event is emitted before any authentication takes place, thus
+the authentication ID is not provided.
+
+VNC_DISCONNECTED
+----------------
+
+Emitted when the connection is closed.
+
+Data:
+
+- "server": Server information (json-object)
+  - "host": IP address (json-string)
+  - "service": port number (json-string)
+  - "family": address family (json-string, "ipv4" or "ipv6")
+  - "auth": authentication method (json-string, optional)
+- "client": Client information (json-object)
+  - "host": IP address (json-string)
+  - "service": port number (json-string)
+  - "family": address family (json-string, "ipv4" or "ipv6")
+  - "x509_dname": TLS dname (json-string, optional)
+  - "sasl_username": SASL username (json-string, optional)
+
+Example:
+
+{ "event": "VNC_DISCONNECTED",
+    "data": {
+        "server": { "auth": "sasl", "family": "ipv4",
+                    "service": "5901", "host": "0.0.0.0" },
+        "client": { "family": "ipv4", "service": "58425",
+                    "host": "127.0.0.1", "sasl_username": "luiz" } },
+    "timestamp": { "seconds": 1262976601, "microseconds": 975795 } }
+
+VNC_INITIALIZED
+---------------
+
+Emitted after authentication takes place (if any) and the VNC session is
+made active.
+
+Data:
+
+- "server": Server information (json-object)
+  - "host": IP address (json-string)
+  - "service": port number (json-string)
+  - "family": address family (json-string, "ipv4" or "ipv6")
+  - "auth": authentication method (json-string, optional)
+- "client": Client information (json-object)
+  - "host": IP address (json-string)
+  - "service": port number (json-string)
+  - "family": address family (json-string, "ipv4" or "ipv6")
+  - "x509_dname": TLS dname (json-string, optional)
+  - "sasl_username": SASL username (json-string, optional)
+
+Example:
+
+{ "event": "VNC_INITIALIZED",
+    "data": {
+        "server": { "auth": "sasl", "family": "ipv4",
+                    "service": "5901", "host": "0.0.0.0"},
+        "client": { "family": "ipv4", "service": "46089",
+                    "host": "127.0.0.1", "sasl_username": "luiz" } },
+        "timestamp": { "seconds": 1263475302, "microseconds": 150772 } }
+
+WAKEUP
+------
+
+Emitted when the guest has woken up from S3 and is running.
+
+Data: None.
+
+Example:
+
+{ "event": "WAKEUP",
+     "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+
+WATCHDOG
+--------
+
+Emitted when the watchdog device's timer is expired.
+
+Data:
+
+- "action": Action that has been taken, it's one of the following (json-string):
+            "reset", "shutdown", "poweroff", "pause", "debug", or "none"
+
+Example:
+
+{ "event": "WATCHDOG",
+     "data": { "action": "reset" },
+     "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+
+Note: If action is "reset", "shutdown", or "pause" the WATCHDOG event is
+followed respectively by the RESET, SHUTDOWN, or STOP events.
