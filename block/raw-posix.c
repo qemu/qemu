@@ -1133,12 +1133,12 @@ static int64_t raw_getlength(BlockDriverState *bs)
     struct stat st;
 
     if (fstat(fd, &st))
-        return -1;
+        return -errno;
     if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
         struct disklabel dl;
 
         if (ioctl(fd, DIOCGDINFO, &dl))
-            return -1;
+            return -errno;
         return (uint64_t)dl.d_secsize *
             dl.d_partitions[DISKPART(st.st_rdev)].p_size;
     } else
@@ -1152,7 +1152,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
     struct stat st;
 
     if (fstat(fd, &st))
-        return -1;
+        return -errno;
     if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
         struct dkwedge_info dkw;
 
@@ -1162,7 +1162,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
             struct disklabel dl;
 
             if (ioctl(fd, DIOCGDINFO, &dl))
-                return -1;
+                return -errno;
             return (uint64_t)dl.d_secsize *
                 dl.d_partitions[DISKPART(st.st_rdev)].p_size;
         }
@@ -1175,6 +1175,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
     BDRVRawState *s = bs->opaque;
     struct dk_minfo minfo;
     int ret;
+    int64_t size;
 
     ret = fd_open(bs);
     if (ret < 0) {
@@ -1193,7 +1194,11 @@ static int64_t raw_getlength(BlockDriverState *bs)
      * There are reports that lseek on some devices fails, but
      * irc discussion said that contingency on contingency was overkill.
      */
-    return lseek(s->fd, 0, SEEK_END);
+    size = lseek(s->fd, 0, SEEK_END);
+    if (size < 0) {
+        return -errno;
+    }
+    return size;
 }
 #elif defined(CONFIG_BSD)
 static int64_t raw_getlength(BlockDriverState *bs)
@@ -1231,6 +1236,9 @@ again:
         size = LLONG_MAX;
 #else
         size = lseek(fd, 0LL, SEEK_END);
+        if (size < 0) {
+            return -errno;
+        }
 #endif
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
         switch(s->type) {
@@ -1247,6 +1255,9 @@ again:
 #endif
     } else {
         size = lseek(fd, 0, SEEK_END);
+        if (size < 0) {
+            return -errno;
+        }
     }
     return size;
 }
@@ -1255,13 +1266,18 @@ static int64_t raw_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
+    int64_t size;
 
     ret = fd_open(bs);
     if (ret < 0) {
         return ret;
     }
 
-    return lseek(s->fd, 0, SEEK_END);
+    size = lseek(s->fd, 0, SEEK_END);
+    if (size < 0) {
+        return -errno;
+    }
+    return size;
 }
 #endif
 
