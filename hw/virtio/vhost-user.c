@@ -14,6 +14,7 @@
 #include "sysemu/kvm.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
+#include "exec/ram_addr.h"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -47,6 +48,7 @@ typedef struct VhostUserMemoryRegion {
     uint64_t guest_phys_addr;
     uint64_t memory_size;
     uint64_t userspace_addr;
+    uint64_t mmap_offset;
 } VhostUserMemoryRegion;
 
 typedef struct VhostUserMemory {
@@ -183,10 +185,10 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
 {
     VhostUserMsg msg;
     VhostUserRequest msg_request;
-    RAMBlock *block = 0;
     struct vhost_vring_file *file = 0;
     int need_reply = 0;
     int fds[VHOST_MEMORY_MAX_NREGIONS];
+    int i, fd;
     size_t fd_num = 0;
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
@@ -212,14 +214,17 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
         break;
 
     case VHOST_SET_MEM_TABLE:
-        QTAILQ_FOREACH(block, &ram_list.blocks, next)
-        {
-            if (block->fd > 0) {
-                msg.memory.regions[fd_num].userspace_addr =
-                    (uintptr_t) block->host;
-                msg.memory.regions[fd_num].memory_size = block->length;
-                msg.memory.regions[fd_num].guest_phys_addr = block->offset;
-                fds[fd_num++] = block->fd;
+        for (i = 0; i < dev->mem->nregions; ++i) {
+            struct vhost_memory_region *reg = dev->mem->regions + i;
+            fd = qemu_get_ram_fd(reg->guest_phys_addr);
+            if (fd > 0) {
+                msg.memory.regions[fd_num].userspace_addr = reg->userspace_addr;
+                msg.memory.regions[fd_num].memory_size  = reg->memory_size;
+                msg.memory.regions[fd_num].guest_phys_addr = reg->guest_phys_addr;
+                msg.memory.regions[fd_num].mmap_offset = reg->userspace_addr -
+                    (uintptr_t) qemu_get_ram_block_host_ptr(reg->guest_phys_addr);
+                assert(fd_num < VHOST_MEMORY_MAX_NREGIONS);
+                fds[fd_num++] = fd;
             }
         }
 

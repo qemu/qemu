@@ -1456,6 +1456,13 @@ int qemu_get_ram_fd(ram_addr_t addr)
     return block->fd;
 }
 
+void *qemu_get_ram_block_host_ptr(ram_addr_t addr)
+{
+    RAMBlock *block = qemu_get_ram_block(addr);
+
+    return block->host;
+}
+
 /* Return a host pointer to ram allocated with qemu_ram_alloc.
    With the exception of the softmmu code in this file, this should
    only be used for local memory (e.g. video ram) that the device owns,
