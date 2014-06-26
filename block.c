@@ -2828,18 +2828,16 @@ int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num,
  */
 int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags)
 {
-    int64_t target_size;
-    int64_t ret, nb_sectors, sector_num = 0;
+    int64_t target_sectors, ret, nb_sectors, sector_num = 0;
     int n;
 
-    target_size = bdrv_getlength(bs);
-    if (target_size < 0) {
-        return target_size;
+    target_sectors = bdrv_nb_sectors(bs);
+    if (target_sectors < 0) {
+        return target_sectors;
     }
-    target_size /= BDRV_SECTOR_SIZE;
 
     for (;;) {
-        nb_sectors = target_size - sector_num;
+        nb_sectors = target_sectors - sector_num;
         if (nb_sectors <= 0) {
             return 0;
         }
