@@ -160,9 +160,24 @@ error:
 
 void set_numa_nodes(void)
 {
+    int i;
+
+    assert(max_numa_nodeid <= MAX_NODES);
+
+    /* No support for sparse NUMA node IDs yet: */
+    for (i = max_numa_nodeid - 1; i >= 0; i--) {
+        /* Report large node IDs first, to make mistakes easier to spot */
+        if (!numa_info[i].present) {
+            error_report("numa: Node ID missing: %d", i);
+            exit(1);
+        }
+    }
+
+    /* This must be always true if all nodes are present: */
+    assert(nb_numa_nodes == max_numa_nodeid);
+
     if (nb_numa_nodes > 0) {
         uint64_t numa_total;
-        int i;
 
         if (nb_numa_nodes > MAX_NODES) {
             nb_numa_nodes = MAX_NODES;
