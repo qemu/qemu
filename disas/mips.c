@@ -1217,6 +1217,11 @@ const struct mips_opcode mips_builtin_opcodes[] =
    them first.  The assemblers uses a hash table based on the
    instruction name anyhow.  */
 /* name,    args,	match,	    mask,	pinfo,          	membership */
+{"clz",     "U,s",      0x00000050, 0xfc1f07ff, WR_d|RD_s,            0, I32R6},
+{"clo",     "U,s",      0x00000051, 0xfc1f07ff, WR_d|RD_s,            0, I32R6},
+{"dclz",    "U,s",      0x00000052, 0xfc1f07ff, WR_d|RD_s,            0, I64R6},
+{"dclo",    "U,s",      0x00000053, 0xfc1f07ff, WR_d|RD_s,            0, I64R6},
+{"sdbbp",   "B",        0x0000000e, 0xfc00003f, TRAP,                 0, I32R6},
 {"mul",     "d,s,t",    0x00000098, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
 {"muh",     "d,s,t",    0x000000d8, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
 {"mulu",    "d,s,t",    0x00000099, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
