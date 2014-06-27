@@ -270,7 +270,11 @@ void block_job_event_completed(BlockJob *job, const char *msg)
 
 void block_job_event_ready(BlockJob *job)
 {
-    qapi_event_send_block_job_ready(bdrv_get_device_name(job->bs), &error_abort);
+    qapi_event_send_block_job_ready(job->driver->job_type,
+                                    bdrv_get_device_name(job->bs),
+                                    job->len,
+                                    job->offset,
+                                    job->speed, &error_abort);
 }
 
 BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
