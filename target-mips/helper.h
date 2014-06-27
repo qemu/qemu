@@ -202,6 +202,25 @@ DEF_HELPER_2(float_cvtw_d, i32, env, i64)
 DEF_HELPER_3(float_addr_ps, i64, env, i64, i64)
 DEF_HELPER_3(float_mulr_ps, i64, env, i64, i64)
 
+DEF_HELPER_FLAGS_1(float_class_s, TCG_CALL_NO_RWG_SE, i32, i32)
+DEF_HELPER_FLAGS_1(float_class_d, TCG_CALL_NO_RWG_SE, i64, i64)
+
+#define FOP_PROTO(op)                                     \
+DEF_HELPER_4(float_ ## op ## _s, i32, env, i32, i32, i32) \
+DEF_HELPER_4(float_ ## op ## _d, i64, env, i64, i64, i64)
+FOP_PROTO(maddf)
+FOP_PROTO(msubf)
+#undef FOP_PROTO
+
+#define FOP_PROTO(op)                                \
+DEF_HELPER_3(float_ ## op ## _s, i32, env, i32, i32) \
+DEF_HELPER_3(float_ ## op ## _d, i64, env, i64, i64)
+FOP_PROTO(max)
+FOP_PROTO(maxa)
+FOP_PROTO(min)
+FOP_PROTO(mina)
+#undef FOP_PROTO
+
 #define FOP_PROTO(op)                            \
 DEF_HELPER_2(float_ ## op ## l_s, i64, env, i32) \
 DEF_HELPER_2(float_ ## op ## l_d, i64, env, i64) \
@@ -219,6 +238,7 @@ DEF_HELPER_2(float_ ## op ## _d, i64, env, i64)
 FOP_PROTO(sqrt)
 FOP_PROTO(rsqrt)
 FOP_PROTO(recip)
+FOP_PROTO(rint)
 #undef FOP_PROTO
 
 #define FOP_PROTO(op)                       \

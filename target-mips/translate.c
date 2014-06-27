@@ -7647,14 +7647,25 @@ enum fopcode {
     OPC_TRUNC_W_S = FOP(13, FMT_S),
     OPC_CEIL_W_S = FOP(14, FMT_S),
     OPC_FLOOR_W_S = FOP(15, FMT_S),
+    OPC_SEL_S = FOP(16, FMT_S),
     OPC_MOVCF_S = FOP(17, FMT_S),
     OPC_MOVZ_S = FOP(18, FMT_S),
     OPC_MOVN_S = FOP(19, FMT_S),
+    OPC_SELEQZ_S = FOP(20, FMT_S),
     OPC_RECIP_S = FOP(21, FMT_S),
     OPC_RSQRT_S = FOP(22, FMT_S),
+    OPC_SELNEZ_S = FOP(23, FMT_S),
+    OPC_MADDF_S = FOP(24, FMT_S),
+    OPC_MSUBF_S = FOP(25, FMT_S),
+    OPC_RINT_S = FOP(26, FMT_S),
+    OPC_CLASS_S = FOP(27, FMT_S),
+    OPC_MIN_S = FOP(28, FMT_S),
     OPC_RECIP2_S = FOP(28, FMT_S),
+    OPC_MINA_S = FOP(29, FMT_S),
     OPC_RECIP1_S = FOP(29, FMT_S),
+    OPC_MAX_S = FOP(30, FMT_S),
     OPC_RSQRT1_S = FOP(30, FMT_S),
+    OPC_MAXA_S = FOP(31, FMT_S),
     OPC_RSQRT2_S = FOP(31, FMT_S),
     OPC_CVT_D_S = FOP(33, FMT_S),
     OPC_CVT_W_S = FOP(36, FMT_S),
@@ -7693,14 +7704,25 @@ enum fopcode {
     OPC_TRUNC_W_D = FOP(13, FMT_D),
     OPC_CEIL_W_D = FOP(14, FMT_D),
     OPC_FLOOR_W_D = FOP(15, FMT_D),
+    OPC_SEL_D = FOP(16, FMT_D),
     OPC_MOVCF_D = FOP(17, FMT_D),
     OPC_MOVZ_D = FOP(18, FMT_D),
     OPC_MOVN_D = FOP(19, FMT_D),
+    OPC_SELEQZ_D = FOP(20, FMT_D),
     OPC_RECIP_D = FOP(21, FMT_D),
     OPC_RSQRT_D = FOP(22, FMT_D),
+    OPC_SELNEZ_D = FOP(23, FMT_D),
+    OPC_MADDF_D = FOP(24, FMT_D),
+    OPC_MSUBF_D = FOP(25, FMT_D),
+    OPC_RINT_D = FOP(26, FMT_D),
+    OPC_CLASS_D = FOP(27, FMT_D),
+    OPC_MIN_D = FOP(28, FMT_D),
     OPC_RECIP2_D = FOP(28, FMT_D),
+    OPC_MINA_D = FOP(29, FMT_D),
     OPC_RECIP1_D = FOP(29, FMT_D),
+    OPC_MAX_D = FOP(30, FMT_D),
     OPC_RSQRT1_D = FOP(30, FMT_D),
+    OPC_MAXA_D = FOP(31, FMT_D),
     OPC_RSQRT2_D = FOP(31, FMT_D),
     OPC_CVT_S_D = FOP(32, FMT_D),
     OPC_CVT_W_D = FOP(36, FMT_D),
@@ -7956,6 +7978,79 @@ static inline void gen_movcf_ps(DisasContext *ctx, int fs, int fd,
     gen_set_label(l2);
 }
 
+static void gen_sel_s(DisasContext *ctx, enum fopcode op1, int fd, int ft,
+                      int fs)
+{
+    TCGv_i32 t1 = tcg_const_i32(0);
+    TCGv_i32 fp0 = tcg_temp_new_i32();
+    TCGv_i32 fp1 = tcg_temp_new_i32();
+    TCGv_i32 fp2 = tcg_temp_new_i32();
+    gen_load_fpr32(fp0, fd);
+    gen_load_fpr32(fp1, ft);
+    gen_load_fpr32(fp2, fs);
+
+    switch (op1) {
+    case OPC_SEL_S:
+        tcg_gen_andi_i32(fp0, fp0, 1);
+        tcg_gen_movcond_i32(TCG_COND_NE, fp0, fp0, t1, fp1, fp2);
+        break;
+    case OPC_SELEQZ_S:
+        tcg_gen_andi_i32(fp1, fp1, 1);
+        tcg_gen_movcond_i32(TCG_COND_EQ, fp0, fp1, t1, fp2, t1);
+        break;
+    case OPC_SELNEZ_S:
+        tcg_gen_andi_i32(fp1, fp1, 1);
+        tcg_gen_movcond_i32(TCG_COND_NE, fp0, fp1, t1, fp2, t1);
+        break;
+    default:
+        MIPS_INVAL("gen_sel_s");
+        generate_exception (ctx, EXCP_RI);
+        break;
+    }
+
+    gen_store_fpr32(fp0, fd);
+    tcg_temp_free_i32(fp2);
+    tcg_temp_free_i32(fp1);
+    tcg_temp_free_i32(fp0);
+    tcg_temp_free_i32(t1);
+}
+
+static void gen_sel_d(DisasContext *ctx, enum fopcode op1, int fd, int ft,
+                      int fs)
+{
+    TCGv_i64 t1 = tcg_const_i64(0);
+    TCGv_i64 fp0 = tcg_temp_new_i64();
+    TCGv_i64 fp1 = tcg_temp_new_i64();
+    TCGv_i64 fp2 = tcg_temp_new_i64();
+    gen_load_fpr64(ctx, fp0, fd);
+    gen_load_fpr64(ctx, fp1, ft);
+    gen_load_fpr64(ctx, fp2, fs);
+
+    switch (op1) {
+    case OPC_SEL_D:
+        tcg_gen_andi_i64(fp0, fp0, 1);
+        tcg_gen_movcond_i64(TCG_COND_NE, fp0, fp0, t1, fp1, fp2);
+        break;
+    case OPC_SELEQZ_D:
+        tcg_gen_andi_i64(fp1, fp1, 1);
+        tcg_gen_movcond_i64(TCG_COND_EQ, fp0, fp1, t1, fp2, t1);
+        break;
+    case OPC_SELNEZ_D:
+        tcg_gen_andi_i64(fp1, fp1, 1);
+        tcg_gen_movcond_i64(TCG_COND_NE, fp0, fp1, t1, fp2, t1);
+        break;
+    default:
+        MIPS_INVAL("gen_sel_d");
+        generate_exception (ctx, EXCP_RI);
+        break;
+    }
+
+    gen_store_fpr64(ctx, fp0, fd);
+    tcg_temp_free_i64(fp2);
+    tcg_temp_free_i64(fp1);
+    tcg_temp_free_i64(fp0);
+    tcg_temp_free_i64(t1);
+}
 
 static void gen_farith (DisasContext *ctx, enum fopcode op1,
                         int ft, int fs, int fd, int cc)
@@ -8204,6 +8299,21 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         }
         opn = "floor.w.s";
         break;
+    case OPC_SEL_S:
+        check_insn(ctx, ISA_MIPS32R6);
+        gen_sel_s(ctx, op1, fd, ft, fs);
+        opn = "sel.s";
+        break;
+    case OPC_SELEQZ_S:
+        check_insn(ctx, ISA_MIPS32R6);
+        gen_sel_s(ctx, op1, fd, ft, fs);
+        opn = "seleqz.s";
+        break;
+    case OPC_SELNEZ_S:
+        check_insn(ctx, ISA_MIPS32R6);
+        gen_sel_s(ctx, op1, fd, ft, fs);
+        opn = "selnez.s";
+        break;
     case OPC_MOVCF_S:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
         gen_movcf_s(fs, fd, (ft >> 2) & 0x7, ft & 0x1);
@@ -8267,59 +8377,175 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         }
         opn = "rsqrt.s";
         break;
-    case OPC_RECIP2_S:
-        check_cp1_64bitmode(ctx);
+    case OPC_MADDF_S:
+        check_insn(ctx, ISA_MIPS32R6);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
-
+            TCGv_i32 fp2 = tcg_temp_new_i32();
             gen_load_fpr32(fp0, fs);
             gen_load_fpr32(fp1, ft);
-            gen_helper_float_recip2_s(fp0, cpu_env, fp0, fp1);
+            gen_load_fpr32(fp2, fd);
+            gen_helper_float_maddf_s(fp2, cpu_env, fp0, fp1, fp2);
+            gen_store_fpr32(fp2, fd);
+            tcg_temp_free_i32(fp2);
             tcg_temp_free_i32(fp1);
-            gen_store_fpr32(fp0, fd);
             tcg_temp_free_i32(fp0);
+            opn = "maddf.s";
         }
-        opn = "recip2.s";
         break;
-    case OPC_RECIP1_S:
-        check_cp1_64bitmode(ctx);
-        {
-            TCGv_i32 fp0 = tcg_temp_new_i32();
-
-            gen_load_fpr32(fp0, fs);
-            gen_helper_float_recip1_s(fp0, cpu_env, fp0);
-            gen_store_fpr32(fp0, fd);
-            tcg_temp_free_i32(fp0);
-        }
-        opn = "recip1.s";
-        break;
-    case OPC_RSQRT1_S:
-        check_cp1_64bitmode(ctx);
-        {
-            TCGv_i32 fp0 = tcg_temp_new_i32();
-
-            gen_load_fpr32(fp0, fs);
-            gen_helper_float_rsqrt1_s(fp0, cpu_env, fp0);
-            gen_store_fpr32(fp0, fd);
-            tcg_temp_free_i32(fp0);
-        }
-        opn = "rsqrt1.s";
-        break;
-    case OPC_RSQRT2_S:
-        check_cp1_64bitmode(ctx);
+    case OPC_MSUBF_S:
+        check_insn(ctx, ISA_MIPS32R6);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
-
+            TCGv_i32 fp2 = tcg_temp_new_i32();
             gen_load_fpr32(fp0, fs);
             gen_load_fpr32(fp1, ft);
-            gen_helper_float_rsqrt2_s(fp0, cpu_env, fp0, fp1);
+            gen_load_fpr32(fp2, fd);
+            gen_helper_float_msubf_s(fp2, cpu_env, fp0, fp1, fp2);
+            gen_store_fpr32(fp2, fd);
+            tcg_temp_free_i32(fp2);
             tcg_temp_free_i32(fp1);
+            tcg_temp_free_i32(fp0);
+            opn = "msubf.s";
+        }
+        break;
+    case OPC_RINT_S:
+        check_insn(ctx, ISA_MIPS32R6);
+        {
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+            gen_load_fpr32(fp0, fs);
+            gen_helper_float_rint_s(fp0, cpu_env, fp0);
             gen_store_fpr32(fp0, fd);
             tcg_temp_free_i32(fp0);
+            opn = "rint.s";
         }
-        opn = "rsqrt2.s";
+        break;
+    case OPC_CLASS_S:
+        check_insn(ctx, ISA_MIPS32R6);
+        {
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+            gen_load_fpr32(fp0, fs);
+            gen_helper_float_class_s(fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free_i32(fp0);
+            opn = "class.s";
+        }
+        break;
+    case OPC_MIN_S: /* OPC_RECIP2_S */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            /* OPC_MIN_S */
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+            TCGv_i32 fp1 = tcg_temp_new_i32();
+            TCGv_i32 fp2 = tcg_temp_new_i32();
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            gen_helper_float_min_s(fp2, cpu_env, fp0, fp1);
+            gen_store_fpr32(fp2, fd);
+            tcg_temp_free_i32(fp2);
+            tcg_temp_free_i32(fp1);
+            tcg_temp_free_i32(fp0);
+            opn = "min.s";
+        } else {
+            /* OPC_RECIP2_S */
+            check_cp1_64bitmode(ctx);
+            {
+                TCGv_i32 fp0 = tcg_temp_new_i32();
+                TCGv_i32 fp1 = tcg_temp_new_i32();
+
+                gen_load_fpr32(fp0, fs);
+                gen_load_fpr32(fp1, ft);
+                gen_helper_float_recip2_s(fp0, cpu_env, fp0, fp1);
+                tcg_temp_free_i32(fp1);
+                gen_store_fpr32(fp0, fd);
+                tcg_temp_free_i32(fp0);
+            }
+            opn = "recip2.s";
+        }
+        break;
+    case OPC_MINA_S: /* OPC_RECIP1_S */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            /* OPC_MINA_S */
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+            TCGv_i32 fp1 = tcg_temp_new_i32();
+            TCGv_i32 fp2 = tcg_temp_new_i32();
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            gen_helper_float_mina_s(fp2, cpu_env, fp0, fp1);
+            gen_store_fpr32(fp2, fd);
+            tcg_temp_free_i32(fp2);
+            tcg_temp_free_i32(fp1);
+            tcg_temp_free_i32(fp0);
+            opn = "mina.s";
+        } else {
+            /* OPC_RECIP1_S */
+            check_cp1_64bitmode(ctx);
+            {
+                TCGv_i32 fp0 = tcg_temp_new_i32();
+
+                gen_load_fpr32(fp0, fs);
+                gen_helper_float_recip1_s(fp0, cpu_env, fp0);
+                gen_store_fpr32(fp0, fd);
+                tcg_temp_free_i32(fp0);
+            }
+            opn = "recip1.s";
+        }
+        break;
+    case OPC_MAX_S: /* OPC_RSQRT1_S */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            /* OPC_MAX_S */
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+            TCGv_i32 fp1 = tcg_temp_new_i32();
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            gen_helper_float_max_s(fp1, cpu_env, fp0, fp1);
+            gen_store_fpr32(fp1, fd);
+            tcg_temp_free_i32(fp1);
+            tcg_temp_free_i32(fp0);
+            opn = "max.s";
+        } else {
+            /* OPC_RSQRT1_S */
+            check_cp1_64bitmode(ctx);
+            {
+                TCGv_i32 fp0 = tcg_temp_new_i32();
+
+                gen_load_fpr32(fp0, fs);
+                gen_helper_float_rsqrt1_s(fp0, cpu_env, fp0);
+                gen_store_fpr32(fp0, fd);
+                tcg_temp_free_i32(fp0);
+            }
+            opn = "rsqrt1.s";
+        }
+        break;
+    case OPC_MAXA_S: /* OPC_RSQRT2_S */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            /* OPC_MAXA_S */
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+            TCGv_i32 fp1 = tcg_temp_new_i32();
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            gen_helper_float_maxa_s(fp1, cpu_env, fp0, fp1);
+            gen_store_fpr32(fp1, fd);
+            tcg_temp_free_i32(fp1);
+            tcg_temp_free_i32(fp0);
+            opn = "maxa.s";
+        } else {
+            /* OPC_RSQRT2_S */
+            check_cp1_64bitmode(ctx);
+            {
+                TCGv_i32 fp0 = tcg_temp_new_i32();
+                TCGv_i32 fp1 = tcg_temp_new_i32();
+
+                gen_load_fpr32(fp0, fs);
+                gen_load_fpr32(fp1, ft);
+                gen_helper_float_rsqrt2_s(fp0, cpu_env, fp0, fp1);
+                tcg_temp_free_i32(fp1);
+                gen_store_fpr32(fp0, fd);
+                tcg_temp_free_i32(fp0);
+            }
+            opn = "rsqrt2.s";
+        }
         break;
     case OPC_CVT_D_S:
         check_cp1_registers(ctx, fd);
@@ -8618,6 +8844,21 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         }
         opn = "floor.w.d";
         break;
+    case OPC_SEL_D:
+        check_insn(ctx, ISA_MIPS32R6);
+        gen_sel_d(ctx, op1, fd, ft, fs);
+        opn = "sel.d";
+        break;
+    case OPC_SELEQZ_D:
+        check_insn(ctx, ISA_MIPS32R6);
+        gen_sel_d(ctx, op1, fd, ft, fs);
+        opn = "seleqz.d";
+        break;
+    case OPC_SELNEZ_D:
+        check_insn(ctx, ISA_MIPS32R6);
+        gen_sel_d(ctx, op1, fd, ft, fs);
+        opn = "selnez.d";
+        break;
     case OPC_MOVCF_D:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
         gen_movcf_d(ctx, fs, fd, (ft >> 2) & 0x7, ft & 0x1);
@@ -8681,59 +8922,171 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         }
         opn = "rsqrt.d";
         break;
-    case OPC_RECIP2_D:
-        check_cp1_64bitmode(ctx);
+    case OPC_MADDF_D:
+        check_insn(ctx, ISA_MIPS32R6);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             TCGv_i64 fp1 = tcg_temp_new_i64();
-
+            TCGv_i64 fp2 = tcg_temp_new_i64();
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
-            gen_helper_float_recip2_d(fp0, cpu_env, fp0, fp1);
+            gen_load_fpr64(ctx, fp2, fd);
+            gen_helper_float_maddf_d(fp2, cpu_env, fp0, fp1, fp2);
+            gen_store_fpr64(ctx, fp2, fd);
+            tcg_temp_free_i64(fp2);
             tcg_temp_free_i64(fp1);
-            gen_store_fpr64(ctx, fp0, fd);
             tcg_temp_free_i64(fp0);
+            opn = "maddf.d";
         }
-        opn = "recip2.d";
         break;
-    case OPC_RECIP1_D:
-        check_cp1_64bitmode(ctx);
-        {
-            TCGv_i64 fp0 = tcg_temp_new_i64();
-
-            gen_load_fpr64(ctx, fp0, fs);
-            gen_helper_float_recip1_d(fp0, cpu_env, fp0);
-            gen_store_fpr64(ctx, fp0, fd);
-            tcg_temp_free_i64(fp0);
-        }
-        opn = "recip1.d";
-        break;
-    case OPC_RSQRT1_D:
-        check_cp1_64bitmode(ctx);
-        {
-            TCGv_i64 fp0 = tcg_temp_new_i64();
-
-            gen_load_fpr64(ctx, fp0, fs);
-            gen_helper_float_rsqrt1_d(fp0, cpu_env, fp0);
-            gen_store_fpr64(ctx, fp0, fd);
-            tcg_temp_free_i64(fp0);
-        }
-        opn = "rsqrt1.d";
-        break;
-    case OPC_RSQRT2_D:
-        check_cp1_64bitmode(ctx);
+    case OPC_MSUBF_D:
+        check_insn(ctx, ISA_MIPS32R6);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             TCGv_i64 fp1 = tcg_temp_new_i64();
-
+            TCGv_i64 fp2 = tcg_temp_new_i64();
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
-            gen_helper_float_rsqrt2_d(fp0, cpu_env, fp0, fp1);
+            gen_load_fpr64(ctx, fp2, fd);
+            gen_helper_float_msubf_d(fp2, cpu_env, fp0, fp1, fp2);
+            gen_store_fpr64(ctx, fp2, fd);
+            tcg_temp_free_i64(fp2);
             tcg_temp_free_i64(fp1);
+            tcg_temp_free_i64(fp0);
+            opn = "msubf.d";
+        }
+        break;
+    case OPC_RINT_D:
+        check_insn(ctx, ISA_MIPS32R6);
+        {
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_helper_float_rint_d(fp0, cpu_env, fp0);
             gen_store_fpr64(ctx, fp0, fd);
             tcg_temp_free_i64(fp0);
+            opn = "rint.d";
         }
-        opn = "rsqrt2.d";
+        break;
+    case OPC_CLASS_D:
+        check_insn(ctx, ISA_MIPS32R6);
+        {
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_helper_float_class_d(fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free_i64(fp0);
+            opn = "class.d";
+        }
+        break;
+    case OPC_MIN_D: /* OPC_RECIP2_D */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            /* OPC_MIN_D */
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+            TCGv_i64 fp1 = tcg_temp_new_i64();
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            gen_helper_float_min_d(fp1, cpu_env, fp0, fp1);
+            gen_store_fpr64(ctx, fp1, fd);
+            tcg_temp_free_i64(fp1);
+            tcg_temp_free_i64(fp0);
+            opn = "min.d";
+        } else {
+            /* OPC_RECIP2_D */
+            check_cp1_64bitmode(ctx);
+            {
+                TCGv_i64 fp0 = tcg_temp_new_i64();
+                TCGv_i64 fp1 = tcg_temp_new_i64();
+
+                gen_load_fpr64(ctx, fp0, fs);
+                gen_load_fpr64(ctx, fp1, ft);
+                gen_helper_float_recip2_d(fp0, cpu_env, fp0, fp1);
+                tcg_temp_free_i64(fp1);
+                gen_store_fpr64(ctx, fp0, fd);
+                tcg_temp_free_i64(fp0);
+            }
+            opn = "recip2.d";
+        }
+        break;
+    case OPC_MINA_D: /* OPC_RECIP1_D */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            /* OPC_MINA_D */
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+            TCGv_i64 fp1 = tcg_temp_new_i64();
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            gen_helper_float_mina_d(fp1, cpu_env, fp0, fp1);
+            gen_store_fpr64(ctx, fp1, fd);
+            tcg_temp_free_i64(fp1);
+            tcg_temp_free_i64(fp0);
+            opn = "mina.d";
+        } else {
+            /* OPC_RECIP1_D */
+            check_cp1_64bitmode(ctx);
+            {
+                TCGv_i64 fp0 = tcg_temp_new_i64();
+
+                gen_load_fpr64(ctx, fp0, fs);
+                gen_helper_float_recip1_d(fp0, cpu_env, fp0);
+                gen_store_fpr64(ctx, fp0, fd);
+                tcg_temp_free_i64(fp0);
+            }
+            opn = "recip1.d";
+        }
+        break;
+    case OPC_MAX_D: /*  OPC_RSQRT1_D */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            /* OPC_MAX_D */
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+            TCGv_i64 fp1 = tcg_temp_new_i64();
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            gen_helper_float_max_d(fp1, cpu_env, fp0, fp1);
+            gen_store_fpr64(ctx, fp1, fd);
+            tcg_temp_free_i64(fp1);
+            tcg_temp_free_i64(fp0);
+            opn = "max.d";
+        } else {
+            /* OPC_RSQRT1_D */
+            check_cp1_64bitmode(ctx);
+            {
+                TCGv_i64 fp0 = tcg_temp_new_i64();
+
+                gen_load_fpr64(ctx, fp0, fs);
+                gen_helper_float_rsqrt1_d(fp0, cpu_env, fp0);
+                gen_store_fpr64(ctx, fp0, fd);
+                tcg_temp_free_i64(fp0);
+            }
+            opn = "rsqrt1.d";
+        }
+        break;
+    case OPC_MAXA_D: /* OPC_RSQRT2_D */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            /* OPC_MAXA_D */
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+            TCGv_i64 fp1 = tcg_temp_new_i64();
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            gen_helper_float_maxa_d(fp1, cpu_env, fp0, fp1);
+            gen_store_fpr64(ctx, fp1, fd);
+            tcg_temp_free_i64(fp1);
+            tcg_temp_free_i64(fp0);
+            opn = "maxa.d";
+        } else {
+            /* OPC_RSQRT2_D */
+            check_cp1_64bitmode(ctx);
+            {
+                TCGv_i64 fp0 = tcg_temp_new_i64();
+                TCGv_i64 fp1 = tcg_temp_new_i64();
+
+                gen_load_fpr64(ctx, fp0, fs);
+                gen_load_fpr64(ctx, fp1, ft);
+                gen_helper_float_rsqrt2_d(fp0, cpu_env, fp0, fp1);
+                tcg_temp_free_i64(fp1);
+                gen_store_fpr64(ctx, fp0, fd);
+                tcg_temp_free_i64(fp0);
+            }
+            opn = "rsqrt2.d";
+        }
         break;
     case OPC_CMP_F_D:
     case OPC_CMP_UN_D:
