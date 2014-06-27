@@ -1217,6 +1217,22 @@ const struct mips_opcode mips_builtin_opcodes[] =
    them first.  The assemblers uses a hash table based on the
    instruction name anyhow.  */
 /* name,    args,	match,	    mask,	pinfo,          	membership */
+{"mul",     "d,s,t",    0x00000098, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"muh",     "d,s,t",    0x000000d8, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"mulu",    "d,s,t",    0x00000099, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"muhu",    "d,s,t",    0x000000d9, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"div",     "d,s,t",    0x0000009a, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"mod",     "d,s,t",    0x000000da, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"divu",    "d,s,t",    0x0000009b, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"modu",    "d,s,t",    0x000000db, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"dmul",    "d,s,t",    0x0000009c, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
+{"dmuh",    "d,s,t",    0x000000dc, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
+{"dmulu",   "d,s,t",    0x0000009d, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
+{"dmuhu",   "d,s,t",    0x000000dd, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
+{"ddiv",    "d,s,t",    0x0000009e, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
+{"dmod",    "d,s,t",    0x000000de, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
+{"ddivu",   "d,s,t",    0x0000009f, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
+{"dmodu",   "d,s,t",    0x000000df, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
 {"ll",      "t,o(b)",   0x7c000036, 0xfc00007f, LDD|RD_b|WR_t,        0, I32R6},
 {"sc",      "t,o(b)",   0x7c000026, 0xfc00007f, LDD|RD_b|WR_t,        0, I32R6},
 {"lld",     "t,o(b)",   0x7c000037, 0xfc00007f, LDD|RD_b|WR_t,        0, I64R6},

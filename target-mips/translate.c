@@ -157,6 +157,7 @@ enum {
     OPC_DMULTU   = 0x1D | OPC_SPECIAL,
     OPC_DDIV     = 0x1E | OPC_SPECIAL,
     OPC_DDIVU    = 0x1F | OPC_SPECIAL,
+
     /* 2 registers arithmetic / logic */
     OPC_ADD      = 0x20 | OPC_SPECIAL,
     OPC_ADDU     = 0x21 | OPC_SPECIAL,
@@ -210,6 +211,30 @@ enum {
     OPC_SPECIAL29_RESERVED = 0x29 | OPC_SPECIAL,
     OPC_SPECIAL39_RESERVED = 0x39 | OPC_SPECIAL,
     OPC_SPECIAL3D_RESERVED = 0x3D | OPC_SPECIAL,
+};
+
+/* R6 Multiply and Divide instructions have the same Opcode
+   and function field as legacy OPC_MULT[U]/OPC_DIV[U] */
+#define MASK_R6_MULDIV(op)   (MASK_SPECIAL(op) | (op & (0x7ff)))
+
+enum {
+    R6_OPC_MUL   = OPC_MULT  | (2 << 6),
+    R6_OPC_MUH   = OPC_MULT  | (3 << 6),
+    R6_OPC_MULU  = OPC_MULTU | (2 << 6),
+    R6_OPC_MUHU  = OPC_MULTU | (3 << 6),
+    R6_OPC_DIV   = OPC_DIV   | (2 << 6),
+    R6_OPC_MOD   = OPC_DIV   | (3 << 6),
+    R6_OPC_DIVU  = OPC_DIVU  | (2 << 6),
+    R6_OPC_MODU  = OPC_DIVU  | (3 << 6),
+
+    R6_OPC_DMUL   = OPC_DMULT  | (2 << 6),
+    R6_OPC_DMUH   = OPC_DMULT  | (3 << 6),
+    R6_OPC_DMULU  = OPC_DMULTU | (2 << 6),
+    R6_OPC_DMUHU  = OPC_DMULTU | (3 << 6),
+    R6_OPC_DDIV   = OPC_DDIV   | (2 << 6),
+    R6_OPC_DMOD   = OPC_DDIV   | (3 << 6),
+    R6_OPC_DDIVU  = OPC_DDIVU  | (2 << 6),
+    R6_OPC_DMODU  = OPC_DDIVU  | (3 << 6),
 };
 
 /* Multiplication variants of the vr54xx. */
@@ -2689,6 +2714,238 @@ static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
     }
     (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s", opn, regnames[reg]);
+}
+
+static void gen_r6_muldiv(DisasContext *ctx, int opc, int rd, int rs, int rt)
+{
+    const char *opn = "r6 mul/div";
+    TCGv t0, t1;
+
+    if (rd == 0) {
+        /* Treat as NOP. */
+        MIPS_DEBUG("NOP");
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    gen_load_gpr(t0, rs);
+    gen_load_gpr(t1, rt);
+
+    switch (opc) {
+    case R6_OPC_DIV:
+        {
+            TCGv t2 = tcg_temp_new();
+            TCGv t3 = tcg_temp_new();
+            tcg_gen_ext32s_tl(t0, t0);
+            tcg_gen_ext32s_tl(t1, t1);
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t2, t0, INT_MIN);
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t3, t1, -1);
+            tcg_gen_and_tl(t2, t2, t3);
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t3, t1, 0);
+            tcg_gen_or_tl(t2, t2, t3);
+            tcg_gen_movi_tl(t3, 0);
+            tcg_gen_movcond_tl(TCG_COND_NE, t1, t2, t3, t2, t1);
+            tcg_gen_div_tl(cpu_gpr[rd], t0, t1);
+            tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
+            tcg_temp_free(t3);
+            tcg_temp_free(t2);
+        }
+        opn = "div";
+        break;
+    case R6_OPC_MOD:
+        {
+            TCGv t2 = tcg_temp_new();
+            TCGv t3 = tcg_temp_new();
+            tcg_gen_ext32s_tl(t0, t0);
+            tcg_gen_ext32s_tl(t1, t1);
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t2, t0, INT_MIN);
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t3, t1, -1);
+            tcg_gen_and_tl(t2, t2, t3);
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t3, t1, 0);
+            tcg_gen_or_tl(t2, t2, t3);
+            tcg_gen_movi_tl(t3, 0);
+            tcg_gen_movcond_tl(TCG_COND_NE, t1, t2, t3, t2, t1);
+            tcg_gen_rem_tl(cpu_gpr[rd], t0, t1);
+            tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
+            tcg_temp_free(t3);
+            tcg_temp_free(t2);
+        }
+        opn = "mod";
+        break;
+    case R6_OPC_DIVU:
+        {
+            TCGv t2 = tcg_const_tl(0);
+            TCGv t3 = tcg_const_tl(1);
+            tcg_gen_ext32u_tl(t0, t0);
+            tcg_gen_ext32u_tl(t1, t1);
+            tcg_gen_movcond_tl(TCG_COND_EQ, t1, t1, t2, t3, t1);
+            tcg_gen_divu_tl(cpu_gpr[rd], t0, t1);
+            tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
+            tcg_temp_free(t3);
+            tcg_temp_free(t2);
+        }
+        opn = "divu";
+        break;
+    case R6_OPC_MODU:
+        {
+            TCGv t2 = tcg_const_tl(0);
+            TCGv t3 = tcg_const_tl(1);
+            tcg_gen_ext32u_tl(t0, t0);
+            tcg_gen_ext32u_tl(t1, t1);
+            tcg_gen_movcond_tl(TCG_COND_EQ, t1, t1, t2, t3, t1);
+            tcg_gen_remu_tl(cpu_gpr[rd], t0, t1);
+            tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
+            tcg_temp_free(t3);
+            tcg_temp_free(t2);
+        }
+        opn = "modu";
+        break;
+    case R6_OPC_MUL:
+        {
+            TCGv_i32 t2 = tcg_temp_new_i32();
+            TCGv_i32 t3 = tcg_temp_new_i32();
+            tcg_gen_trunc_tl_i32(t2, t0);
+            tcg_gen_trunc_tl_i32(t3, t1);
+            tcg_gen_mul_i32(t2, t2, t3);
+            tcg_gen_ext_i32_tl(cpu_gpr[rd], t2);
+            tcg_temp_free_i32(t2);
+            tcg_temp_free_i32(t3);
+        }
+        opn = "mul";
+        break;
+    case R6_OPC_MUH:
+        {
+            TCGv_i32 t2 = tcg_temp_new_i32();
+            TCGv_i32 t3 = tcg_temp_new_i32();
+            tcg_gen_trunc_tl_i32(t2, t0);
+            tcg_gen_trunc_tl_i32(t3, t1);
+            tcg_gen_muls2_i32(t2, t3, t2, t3);
+            tcg_gen_ext_i32_tl(cpu_gpr[rd], t3);
+            tcg_temp_free_i32(t2);
+            tcg_temp_free_i32(t3);
+        }
+        opn = "muh";
+        break;
+    case R6_OPC_MULU:
+        {
+            TCGv_i32 t2 = tcg_temp_new_i32();
+            TCGv_i32 t3 = tcg_temp_new_i32();
+            tcg_gen_trunc_tl_i32(t2, t0);
+            tcg_gen_trunc_tl_i32(t3, t1);
+            tcg_gen_mul_i32(t2, t2, t3);
+            tcg_gen_ext_i32_tl(cpu_gpr[rd], t2);
+            tcg_temp_free_i32(t2);
+            tcg_temp_free_i32(t3);
+        }
+        opn = "mulu";
+        break;
+    case R6_OPC_MUHU:
+        {
+            TCGv_i32 t2 = tcg_temp_new_i32();
+            TCGv_i32 t3 = tcg_temp_new_i32();
+            tcg_gen_trunc_tl_i32(t2, t0);
+            tcg_gen_trunc_tl_i32(t3, t1);
+            tcg_gen_mulu2_i32(t2, t3, t2, t3);
+            tcg_gen_ext_i32_tl(cpu_gpr[rd], t3);
+            tcg_temp_free_i32(t2);
+            tcg_temp_free_i32(t3);
+        }
+        opn = "muhu";
+        break;
+#if defined(TARGET_MIPS64)
+    case R6_OPC_DDIV:
+        {
+            TCGv t2 = tcg_temp_new();
+            TCGv t3 = tcg_temp_new();
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t2, t0, -1LL << 63);
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t3, t1, -1LL);
+            tcg_gen_and_tl(t2, t2, t3);
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t3, t1, 0);
+            tcg_gen_or_tl(t2, t2, t3);
+            tcg_gen_movi_tl(t3, 0);
+            tcg_gen_movcond_tl(TCG_COND_NE, t1, t2, t3, t2, t1);
+            tcg_gen_div_tl(cpu_gpr[rd], t0, t1);
+            tcg_temp_free(t3);
+            tcg_temp_free(t2);
+        }
+        opn = "ddiv";
+        break;
+    case R6_OPC_DMOD:
+        {
+            TCGv t2 = tcg_temp_new();
+            TCGv t3 = tcg_temp_new();
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t2, t0, -1LL << 63);
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t3, t1, -1LL);
+            tcg_gen_and_tl(t2, t2, t3);
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t3, t1, 0);
+            tcg_gen_or_tl(t2, t2, t3);
+            tcg_gen_movi_tl(t3, 0);
+            tcg_gen_movcond_tl(TCG_COND_NE, t1, t2, t3, t2, t1);
+            tcg_gen_rem_tl(cpu_gpr[rd], t0, t1);
+            tcg_temp_free(t3);
+            tcg_temp_free(t2);
+        }
+        opn = "dmod";
+        break;
+    case R6_OPC_DDIVU:
+        {
+            TCGv t2 = tcg_const_tl(0);
+            TCGv t3 = tcg_const_tl(1);
+            tcg_gen_movcond_tl(TCG_COND_EQ, t1, t1, t2, t3, t1);
+            tcg_gen_divu_i64(cpu_gpr[rd], t0, t1);
+            tcg_temp_free(t3);
+            tcg_temp_free(t2);
+        }
+        opn = "ddivu";
+        break;
+    case R6_OPC_DMODU:
+        {
+            TCGv t2 = tcg_const_tl(0);
+            TCGv t3 = tcg_const_tl(1);
+            tcg_gen_movcond_tl(TCG_COND_EQ, t1, t1, t2, t3, t1);
+            tcg_gen_remu_i64(cpu_gpr[rd], t0, t1);
+            tcg_temp_free(t3);
+            tcg_temp_free(t2);
+        }
+        opn = "dmodu";
+        break;
+    case R6_OPC_DMUL:
+        tcg_gen_mul_i64(cpu_gpr[rd], t0, t1);
+        opn = "dmul";
+        break;
+    case R6_OPC_DMUH:
+        {
+            TCGv t2 = tcg_temp_new();
+            tcg_gen_muls2_i64(t2, cpu_gpr[rd], t0, t1);
+            tcg_temp_free(t2);
+        }
+        opn = "dmuh";
+        break;
+    case R6_OPC_DMULU:
+        tcg_gen_mul_i64(cpu_gpr[rd], t0, t1);
+        opn = "dmulu";
+        break;
+    case R6_OPC_DMUHU:
+        {
+            TCGv t2 = tcg_temp_new();
+            tcg_gen_mulu2_i64(t2, cpu_gpr[rd], t0, t1);
+            tcg_temp_free(t2);
+        }
+        opn = "dmuhu";
+        break;
+#endif
+    default:
+        MIPS_INVAL(opn);
+        generate_exception(ctx, EXCP_RI);
+        goto out;
+    }
+    (void)opn; /* avoid a compiler warning */
+    MIPS_DEBUG("%s %s %s", opn, regnames[rs], regnames[rt]);
+ out:
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
 }
 
 static void gen_muldiv(DisasContext *ctx, uint32_t opc,
@@ -14491,7 +14748,7 @@ static void gen_mipsdsp_accinsn(DisasContext *ctx, uint32_t op1, uint32_t op2,
 static void decode_opc_special_r6(CPUMIPSState *env, DisasContext *ctx)
 {
     int rs, rt, rd;
-    uint32_t op1;
+    uint32_t op1, op2;
 
     rs = (ctx->opcode >> 21) & 0x1f;
     rt = (ctx->opcode >> 16) & 0x1f;
@@ -14499,10 +14756,51 @@ static void decode_opc_special_r6(CPUMIPSState *env, DisasContext *ctx)
 
     op1 = MASK_SPECIAL(ctx->opcode);
     switch (op1) {
+    case OPC_MULT ... OPC_DIVU:
+        op2 = MASK_R6_MULDIV(ctx->opcode);
+        switch (op2) {
+        case R6_OPC_MUL:
+        case R6_OPC_MUH:
+        case R6_OPC_MULU:
+        case R6_OPC_MUHU:
+        case R6_OPC_DIV:
+        case R6_OPC_MOD:
+        case R6_OPC_DIVU:
+        case R6_OPC_MODU:
+            gen_r6_muldiv(ctx, op2, rd, rs, rt);
+            break;
+        default:
+            MIPS_INVAL("special_r6 muldiv");
+            generate_exception(ctx, EXCP_RI);
+            break;
+        }
+        break;
     case OPC_SELEQZ:
     case OPC_SELNEZ:
         gen_cond_move(ctx, op1, rd, rs, rt);
         break;
+#if defined(TARGET_MIPS64)
+    case OPC_DMULT ... OPC_DDIVU:
+        op2 = MASK_R6_MULDIV(ctx->opcode);
+        switch (op2) {
+        case R6_OPC_DMUL:
+        case R6_OPC_DMUH:
+        case R6_OPC_DMULU:
+        case R6_OPC_DMUHU:
+        case R6_OPC_DDIV:
+        case R6_OPC_DMOD:
+        case R6_OPC_DDIVU:
+        case R6_OPC_DMODU:
+            check_mips_64(ctx);
+            gen_r6_muldiv(ctx, op2, rd, rs, rt);
+            break;
+        default:
+            MIPS_INVAL("special_r6 muldiv");
+            generate_exception(ctx, EXCP_RI);
+            break;
+        }
+        break;
+#endif
     default:            /* Invalid */
         MIPS_INVAL("special_r6");
         generate_exception(ctx, EXCP_RI);
@@ -14512,12 +14810,13 @@ static void decode_opc_special_r6(CPUMIPSState *env, DisasContext *ctx)
 
 static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
 {
-    int rs, rt, rd;
+    int rs, rt, rd, sa;
     uint32_t op1;
 
     rs = (ctx->opcode >> 21) & 0x1f;
     rt = (ctx->opcode >> 16) & 0x1f;
     rd = (ctx->opcode >> 11) & 0x1f;
+    sa = (ctx->opcode >> 6) & 0x1f;
 
     op1 = MASK_SPECIAL(ctx->opcode);
     switch (op1) {
@@ -14545,6 +14844,27 @@ static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
             generate_exception_err(ctx, EXCP_CpU, 1);
         }
         break;
+    case OPC_MULT:
+    case OPC_MULTU:
+        if (sa) {
+            check_insn(ctx, INSN_VR54XX);
+            op1 = MASK_MUL_VR54XX(ctx->opcode);
+            gen_mul_vr54xx(ctx, op1, rd, rs, rt);
+        } else {
+            gen_muldiv(ctx, op1, rd & 3, rs, rt);
+        }
+        break;
+    case OPC_DIV:
+    case OPC_DIVU:
+        gen_muldiv(ctx, op1, 0, rs, rt);
+        break;
+#if defined(TARGET_MIPS64)
+    case OPC_DMULT ... OPC_DDIVU:
+        check_insn(ctx, ISA_MIPS3);
+        check_mips_64(ctx);
+        gen_muldiv(ctx, op1, 0, rs, rt);
+        break;
+#endif
     default:            /* Invalid */
         MIPS_INVAL("special_legacy");
         generate_exception(ctx, EXCP_RI);
@@ -14616,20 +14936,6 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
     case OPC_NOR:
     case OPC_XOR:
         gen_logic(ctx, op1, rd, rs, rt);
-        break;
-    case OPC_MULT:
-    case OPC_MULTU:
-        if (sa) {
-            check_insn(ctx, INSN_VR54XX);
-            op1 = MASK_MUL_VR54XX(ctx->opcode);
-            gen_mul_vr54xx(ctx, op1, rd, rs, rt);
-        } else {
-            gen_muldiv(ctx, op1, rd & 3, rs, rt);
-        }
-        break;
-    case OPC_DIV:
-    case OPC_DIVU:
-        gen_muldiv(ctx, op1, 0, rs, rt);
         break;
     case OPC_JR ... OPC_JALR:
         gen_compute_branch(ctx, op1, 4, rs, rd, sa);
@@ -14741,11 +15047,6 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
             generate_exception(ctx, EXCP_RI);
             break;
         }
-        break;
-    case OPC_DMULT ... OPC_DDIVU:
-        check_insn(ctx, ISA_MIPS3);
-        check_mips_64(ctx);
-        gen_muldiv(ctx, op1, 0, rs, rt);
         break;
 #endif
     default:
