@@ -1383,11 +1383,7 @@ static inline void gen_op_addr_add (DisasContext *ctx, TCGv ret, TCGv arg0, TCGv
     tcg_gen_add_tl(ret, arg0, arg1);
 
 #if defined(TARGET_MIPS64)
-    /* For compatibility with 32-bit code, data reference in user mode
-       with Status_UX = 0 should be casted to 32-bit and sign extended.
-       See the MIPS64 PRA manual, section 4.10. */
-    if (((ctx->hflags & MIPS_HFLAG_KSU) == MIPS_HFLAG_UM) &&
-        !(ctx->hflags & MIPS_HFLAG_UX)) {
+    if (ctx->hflags & MIPS_HFLAG_AWRAP) {
         tcg_gen_ext32s_i64(ret, ret);
     }
 #endif

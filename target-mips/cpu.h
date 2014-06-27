@@ -450,7 +450,7 @@ struct CPUMIPSState {
        and RSQRT.D.  */
 #define MIPS_HFLAG_COP1X  0x00080 /* COP1X instructions enabled         */
 #define MIPS_HFLAG_RE     0x00100 /* Reversed endianness                */
-#define MIPS_HFLAG_UX     0x00200 /* 64-bit user mode                   */
+#define MIPS_HFLAG_AWRAP  0x00200 /* 32-bit compatibility address wrapping */
 #define MIPS_HFLAG_M16    0x00400 /* MIPS16 mode flag                   */
 #define MIPS_HFLAG_M16_SHIFT 10
     /* If translation is interrupted between the branch instruction and
@@ -725,7 +725,7 @@ static inline void compute_hflags(CPUMIPSState *env)
 {
     env->hflags &= ~(MIPS_HFLAG_COP1X | MIPS_HFLAG_64 | MIPS_HFLAG_CP0 |
                      MIPS_HFLAG_F64 | MIPS_HFLAG_FPU | MIPS_HFLAG_KSU |
-                     MIPS_HFLAG_UX | MIPS_HFLAG_DSP | MIPS_HFLAG_DSPR2);
+                     MIPS_HFLAG_AWRAP | MIPS_HFLAG_DSP | MIPS_HFLAG_DSPR2);
     if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
         !(env->CP0_Status & (1 << CP0St_ERL)) &&
         !(env->hflags & MIPS_HFLAG_DM)) {
@@ -737,8 +737,18 @@ static inline void compute_hflags(CPUMIPSState *env)
         (env->CP0_Status & (1 << CP0St_UX))) {
         env->hflags |= MIPS_HFLAG_64;
     }
-    if (env->CP0_Status & (1 << CP0St_UX)) {
-        env->hflags |= MIPS_HFLAG_UX;
+
+    if (((env->hflags & MIPS_HFLAG_KSU) == MIPS_HFLAG_UM) &&
+        !(env->CP0_Status & (1 << CP0St_UX))) {
+        env->hflags |= MIPS_HFLAG_AWRAP;
+    } else if (env->insn_flags & ISA_MIPS32R6) {
+        /* Address wrapping for Supervisor and Kernel is specified in R6 */
+        if ((((env->hflags & MIPS_HFLAG_KSU) == MIPS_HFLAG_SM) &&
+             !(env->CP0_Status & (1 << CP0St_SX))) ||
+            (((env->hflags & MIPS_HFLAG_KSU) == MIPS_HFLAG_KM) &&
+             !(env->CP0_Status & (1 << CP0St_KX)))) {
+            env->hflags |= MIPS_HFLAG_AWRAP;
+        }
     }
 #endif
     if ((env->CP0_Status & (1 << CP0St_CU0)) ||
