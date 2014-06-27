@@ -3388,3 +3388,114 @@ FOP_COND_PS(le,  float32_le(fst0, fst1, &env->active_fpu.fp_status),
                  float32_le(fsth0, fsth1, &env->active_fpu.fp_status))
 FOP_COND_PS(ngt, float32_unordered(fst1, fst0, &env->active_fpu.fp_status)    || float32_le(fst0, fst1, &env->active_fpu.fp_status),
                  float32_unordered(fsth1, fsth0, &env->active_fpu.fp_status)  || float32_le(fsth0, fsth1, &env->active_fpu.fp_status))
+
+/* R6 compare operations */
+#define FOP_CONDN_D(op, cond)                                       \
+uint64_t helper_r6_cmp_d_ ## op(CPUMIPSState * env, uint64_t fdt0,  \
+                         uint64_t fdt1)                             \
+{                                                                   \
+    uint64_t c;                                                     \
+    c = cond;                                                       \
+    update_fcr31(env, GETPC());                                     \
+    if (c) {                                                        \
+        return -1;                                                  \
+    } else {                                                        \
+        return 0;                                                   \
+    }                                                               \
+}
+
+/* NOTE: the comma operator will make "cond" to eval to false,
+ * but float64_unordered_quiet() is still called. */
+FOP_CONDN_D(af,  (float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status), 0))
+FOP_CONDN_D(un,  (float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status)))
+FOP_CONDN_D(eq,  (float64_eq_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(ueq, (float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status)
+                  || float64_eq_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(lt,  (float64_lt_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(ult, (float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status)
+                  || float64_lt_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(le,  (float64_le_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(ule, (float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status)
+                  || float64_le_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+/* NOTE: the comma operator will make "cond" to eval to false,
+ * but float64_unordered() is still called. */
+FOP_CONDN_D(saf,  (float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status), 0))
+FOP_CONDN_D(sun,  (float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status)))
+FOP_CONDN_D(seq,  (float64_eq(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(sueq, (float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_eq(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(slt,  (float64_lt(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(sult, (float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_lt(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(sle,  (float64_le(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(sule, (float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_le(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(or,   (float64_le_quiet(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_le_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(une,  (float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_lt_quiet(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_lt_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(ne,   (float64_lt_quiet(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_lt_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(sor,  (float64_le(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_le(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(sune, (float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_lt(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_lt(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(sne,  (float64_lt(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_lt(fdt0, fdt1, &env->active_fpu.fp_status)))
+
+#define FOP_CONDN_S(op, cond)                                       \
+uint32_t helper_r6_cmp_s_ ## op(CPUMIPSState * env, uint32_t fst0,  \
+                         uint32_t fst1)                             \
+{                                                                   \
+    uint64_t c;                                                     \
+    c = cond;                                                       \
+    update_fcr31(env, GETPC());                                     \
+    if (c) {                                                        \
+        return -1;                                                  \
+    } else {                                                        \
+        return 0;                                                   \
+    }                                                               \
+}
+
+/* NOTE: the comma operator will make "cond" to eval to false,
+ * but float32_unordered_quiet() is still called. */
+FOP_CONDN_S(af,   (float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status), 0))
+FOP_CONDN_S(un,   (float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)))
+FOP_CONDN_S(eq,   (float32_eq_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(ueq,  (float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_eq_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(lt,   (float32_lt_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(ult,  (float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(le,   (float32_le_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(ule,  (float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_le_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+/* NOTE: the comma operator will make "cond" to eval to false,
+ * but float32_unordered() is still called. */
+FOP_CONDN_S(saf,  (float32_unordered(fst1, fst0, &env->active_fpu.fp_status), 0))
+FOP_CONDN_S(sun,  (float32_unordered(fst1, fst0, &env->active_fpu.fp_status)))
+FOP_CONDN_S(seq,  (float32_eq(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(sueq, (float32_unordered(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_eq(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(slt,  (float32_lt(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(sult, (float32_unordered(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(sle,  (float32_le(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(sule, (float32_unordered(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_le(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(or,   (float32_le_quiet(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_le_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(une,  (float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt_quiet(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(ne,   (float32_lt_quiet(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(sor,  (float32_le(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_le(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(sune, (float32_unordered(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(sne,  (float32_lt(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt(fst0, fst1, &env->active_fpu.fp_status)))

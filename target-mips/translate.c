@@ -1622,6 +1622,98 @@ FOP_CONDS(abs, 1, s, FMT_S, 32)
 FOP_CONDS(, 0, ps, FMT_PS, 64)
 FOP_CONDS(abs, 1, ps, FMT_PS, 64)
 #undef FOP_CONDS
+
+#define FOP_CONDNS(fmt, ifmt, bits, STORE)                              \
+static inline void gen_r6_cmp_ ## fmt(DisasContext * ctx, int n,        \
+                                      int ft, int fs, int fd)           \
+{                                                                       \
+    TCGv_i ## bits fp0 = tcg_temp_new_i ## bits();                      \
+    TCGv_i ## bits fp1 = tcg_temp_new_i ## bits();                      \
+    switch (ifmt) {                                                     \
+    case FMT_D:                                                         \
+        check_cp1_registers(ctx, fs | ft | fd);                         \
+        break;                                                          \
+    }                                                                   \
+    gen_ldcmp_fpr ## bits(ctx, fp0, fs);                                \
+    gen_ldcmp_fpr ## bits(ctx, fp1, ft);                                \
+    switch (n) {                                                        \
+    case  0:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _af(fp0, cpu_env, fp0, fp1);       \
+        break;                                                          \
+    case  1:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _un(fp0, cpu_env, fp0, fp1);       \
+        break;                                                          \
+    case  2:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _eq(fp0, cpu_env, fp0, fp1);       \
+        break;                                                          \
+    case  3:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _ueq(fp0, cpu_env, fp0, fp1);      \
+        break;                                                          \
+    case  4:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _lt(fp0, cpu_env, fp0, fp1);       \
+        break;                                                          \
+    case  5:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _ult(fp0, cpu_env, fp0, fp1);      \
+        break;                                                          \
+    case  6:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _le(fp0, cpu_env, fp0, fp1);       \
+        break;                                                          \
+    case  7:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _ule(fp0, cpu_env, fp0, fp1);      \
+        break;                                                          \
+    case  8:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _saf(fp0, cpu_env, fp0, fp1);      \
+        break;                                                          \
+    case  9:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _sun(fp0, cpu_env, fp0, fp1);      \
+        break;                                                          \
+    case 10:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _seq(fp0, cpu_env, fp0, fp1);      \
+        break;                                                          \
+    case 11:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _sueq(fp0, cpu_env, fp0, fp1);     \
+        break;                                                          \
+    case 12:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _slt(fp0, cpu_env, fp0, fp1);      \
+        break;                                                          \
+    case 13:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _sult(fp0, cpu_env, fp0, fp1);     \
+        break;                                                          \
+    case 14:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _sle(fp0, cpu_env, fp0, fp1);      \
+        break;                                                          \
+    case 15:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _sule(fp0, cpu_env, fp0, fp1);     \
+        break;                                                          \
+    case 17:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _or(fp0, cpu_env, fp0, fp1);       \
+        break;                                                          \
+    case 18:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _une(fp0, cpu_env, fp0, fp1);      \
+        break;                                                          \
+    case 19:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _ne(fp0, cpu_env, fp0, fp1);       \
+        break;                                                          \
+    case 25:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _sor(fp0, cpu_env, fp0, fp1);      \
+        break;                                                          \
+    case 26:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _sune(fp0, cpu_env, fp0, fp1);     \
+        break;                                                          \
+    case 27:                                                            \
+        gen_helper_r6_cmp_ ## fmt ## _sne(fp0, cpu_env, fp0, fp1);      \
+        break;                                                          \
+    default:                                                            \
+        abort();                                                        \
+    }                                                                   \
+    STORE;                                                              \
+    tcg_temp_free_i ## bits (fp0);                                      \
+    tcg_temp_free_i ## bits (fp1);                                      \
+}
+
+FOP_CONDNS(d, FMT_D, 64, gen_store_fpr64(ctx, fp0, fd))
+FOP_CONDNS(s, FMT_S, 32, gen_store_fpr32(fp0, fd))
+#undef FOP_CONDNS
 #undef gen_ldcmp_fpr32
 #undef gen_ldcmp_fpr64
 
@@ -7792,6 +7884,53 @@ enum fopcode {
     OPC_CMP_NGT_PS = FOP (63, FMT_PS),
 };
 
+enum r6_f_cmp_op {
+    R6_OPC_CMP_AF_S   = FOP(0, FMT_W),
+    R6_OPC_CMP_UN_S   = FOP(1, FMT_W),
+    R6_OPC_CMP_EQ_S   = FOP(2, FMT_W),
+    R6_OPC_CMP_UEQ_S  = FOP(3, FMT_W),
+    R6_OPC_CMP_LT_S   = FOP(4, FMT_W),
+    R6_OPC_CMP_ULT_S  = FOP(5, FMT_W),
+    R6_OPC_CMP_LE_S   = FOP(6, FMT_W),
+    R6_OPC_CMP_ULE_S  = FOP(7, FMT_W),
+    R6_OPC_CMP_SAF_S  = FOP(8, FMT_W),
+    R6_OPC_CMP_SUN_S  = FOP(9, FMT_W),
+    R6_OPC_CMP_SEQ_S  = FOP(10, FMT_W),
+    R6_OPC_CMP_SEUQ_S = FOP(11, FMT_W),
+    R6_OPC_CMP_SLT_S  = FOP(12, FMT_W),
+    R6_OPC_CMP_SULT_S = FOP(13, FMT_W),
+    R6_OPC_CMP_SLE_S  = FOP(14, FMT_W),
+    R6_OPC_CMP_SULE_S = FOP(15, FMT_W),
+    R6_OPC_CMP_OR_S   = FOP(17, FMT_W),
+    R6_OPC_CMP_UNE_S  = FOP(18, FMT_W),
+    R6_OPC_CMP_NE_S   = FOP(19, FMT_W),
+    R6_OPC_CMP_SOR_S  = FOP(25, FMT_W),
+    R6_OPC_CMP_SUNE_S = FOP(26, FMT_W),
+    R6_OPC_CMP_SNE_S  = FOP(27, FMT_W),
+
+    R6_OPC_CMP_AF_D   = FOP(0, FMT_L),
+    R6_OPC_CMP_UN_D   = FOP(1, FMT_L),
+    R6_OPC_CMP_EQ_D   = FOP(2, FMT_L),
+    R6_OPC_CMP_UEQ_D  = FOP(3, FMT_L),
+    R6_OPC_CMP_LT_D   = FOP(4, FMT_L),
+    R6_OPC_CMP_ULT_D  = FOP(5, FMT_L),
+    R6_OPC_CMP_LE_D   = FOP(6, FMT_L),
+    R6_OPC_CMP_ULE_D  = FOP(7, FMT_L),
+    R6_OPC_CMP_SAF_D  = FOP(8, FMT_L),
+    R6_OPC_CMP_SUN_D  = FOP(9, FMT_L),
+    R6_OPC_CMP_SEQ_D  = FOP(10, FMT_L),
+    R6_OPC_CMP_SEUQ_D = FOP(11, FMT_L),
+    R6_OPC_CMP_SLT_D  = FOP(12, FMT_L),
+    R6_OPC_CMP_SULT_D = FOP(13, FMT_L),
+    R6_OPC_CMP_SLE_D  = FOP(14, FMT_L),
+    R6_OPC_CMP_SULE_D = FOP(15, FMT_L),
+    R6_OPC_CMP_OR_D   = FOP(17, FMT_L),
+    R6_OPC_CMP_UNE_D  = FOP(18, FMT_L),
+    R6_OPC_CMP_NE_D   = FOP(19, FMT_L),
+    R6_OPC_CMP_SOR_D  = FOP(25, FMT_L),
+    R6_OPC_CMP_SUNE_D = FOP(26, FMT_L),
+    R6_OPC_CMP_SNE_D  = FOP(27, FMT_L),
+};
 static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
 {
     const char *opn = "cp1 move";
@@ -17069,11 +17208,74 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
                 check_insn_opc_removed(ctx, ISA_MIPS32R6);
             case OPC_S_FMT:
             case OPC_D_FMT:
-            case OPC_W_FMT:
-            case OPC_L_FMT:
                 gen_farith(ctx, ctx->opcode & FOP(0x3f, 0x1f), rt, rd, sa,
                            (imm >> 8) & 0x7);
                 break;
+            case OPC_W_FMT:
+            case OPC_L_FMT:
+            {
+                int r6_op = ctx->opcode & FOP(0x3f, 0x1f);
+                if (ctx->insn_flags & ISA_MIPS32R6) {
+                    switch (r6_op) {
+                    case R6_OPC_CMP_AF_S:
+                    case R6_OPC_CMP_UN_S:
+                    case R6_OPC_CMP_EQ_S:
+                    case R6_OPC_CMP_UEQ_S:
+                    case R6_OPC_CMP_LT_S:
+                    case R6_OPC_CMP_ULT_S:
+                    case R6_OPC_CMP_LE_S:
+                    case R6_OPC_CMP_ULE_S:
+                    case R6_OPC_CMP_SAF_S:
+                    case R6_OPC_CMP_SUN_S:
+                    case R6_OPC_CMP_SEQ_S:
+                    case R6_OPC_CMP_SEUQ_S:
+                    case R6_OPC_CMP_SLT_S:
+                    case R6_OPC_CMP_SULT_S:
+                    case R6_OPC_CMP_SLE_S:
+                    case R6_OPC_CMP_SULE_S:
+                    case R6_OPC_CMP_OR_S:
+                    case R6_OPC_CMP_UNE_S:
+                    case R6_OPC_CMP_NE_S:
+                    case R6_OPC_CMP_SOR_S:
+                    case R6_OPC_CMP_SUNE_S:
+                    case R6_OPC_CMP_SNE_S:
+                        gen_r6_cmp_s(ctx, ctx->opcode & 0x1f, rt, rd, sa);
+                        break;
+                    case R6_OPC_CMP_AF_D:
+                    case R6_OPC_CMP_UN_D:
+                    case R6_OPC_CMP_EQ_D:
+                    case R6_OPC_CMP_UEQ_D:
+                    case R6_OPC_CMP_LT_D:
+                    case R6_OPC_CMP_ULT_D:
+                    case R6_OPC_CMP_LE_D:
+                    case R6_OPC_CMP_ULE_D:
+                    case R6_OPC_CMP_SAF_D:
+                    case R6_OPC_CMP_SUN_D:
+                    case R6_OPC_CMP_SEQ_D:
+                    case R6_OPC_CMP_SEUQ_D:
+                    case R6_OPC_CMP_SLT_D:
+                    case R6_OPC_CMP_SULT_D:
+                    case R6_OPC_CMP_SLE_D:
+                    case R6_OPC_CMP_SULE_D:
+                    case R6_OPC_CMP_OR_D:
+                    case R6_OPC_CMP_UNE_D:
+                    case R6_OPC_CMP_NE_D:
+                    case R6_OPC_CMP_SOR_D:
+                    case R6_OPC_CMP_SUNE_D:
+                    case R6_OPC_CMP_SNE_D:
+                        gen_r6_cmp_d(ctx, ctx->opcode & 0x1f, rt, rd, sa);
+                        break;
+                    default:
+                        gen_farith(ctx, ctx->opcode & FOP(0x3f, 0x1f), rt, rd, sa,
+                                                       (imm >> 8) & 0x7);
+                        break;
+                    }
+                } else {
+                    gen_farith(ctx, ctx->opcode & FOP(0x3f, 0x1f), rt, rd, sa,
+                               (imm >> 8) & 0x7);
+                }
+                break;
+            }
             default:
                 MIPS_INVAL("cp1");
                 generate_exception (ctx, EXCP_RI);

@@ -304,6 +304,33 @@ FOP_PROTO(le)
 FOP_PROTO(ngt)
 #undef FOP_PROTO
 
+#define FOP_PROTO(op) \
+DEF_HELPER_3(r6_cmp_d_ ## op, i64, env, i64, i64) \
+DEF_HELPER_3(r6_cmp_s_ ## op, i32, env, i32, i32)
+FOP_PROTO(af)
+FOP_PROTO(un)
+FOP_PROTO(eq)
+FOP_PROTO(ueq)
+FOP_PROTO(lt)
+FOP_PROTO(ult)
+FOP_PROTO(le)
+FOP_PROTO(ule)
+FOP_PROTO(saf)
+FOP_PROTO(sun)
+FOP_PROTO(seq)
+FOP_PROTO(sueq)
+FOP_PROTO(slt)
+FOP_PROTO(sult)
+FOP_PROTO(sle)
+FOP_PROTO(sule)
+FOP_PROTO(or)
+FOP_PROTO(une)
+FOP_PROTO(ne)
+FOP_PROTO(sor)
+FOP_PROTO(sune)
+FOP_PROTO(sne)
+#undef FOP_PROTO
+
 /* Special functions */
 #ifndef CONFIG_USER_ONLY
 DEF_HELPER_1(tlbwi, void, env)
