@@ -7240,13 +7240,17 @@ int float128_compare_quiet( float128 a, float128 b STATUS_PARAM )
  * minnum() and maxnum correspond to the IEEE 754-2008 minNum()
  * and maxNum() operations. min() and max() are the typical min/max
  * semantics provided by many CPUs which predate that specification.
+ *
+ * minnummag() and maxnummag() functions correspond to minNumMag()
+ * and minNumMag() from the IEEE-754 2008.
  */
 #define MINMAX(s)                                                       \
 static inline float ## s float ## s ## _minmax(float ## s a, float ## s b,     \
-                                        int ismin, int isieee STATUS_PARAM) \
+                                               int ismin, int isieee,   \
+                                               int ismag STATUS_PARAM)  \
 {                                                                       \
     flag aSign, bSign;                                                  \
-    uint ## s ## _t av, bv;                                             \
+    uint ## s ## _t av, bv, aav, abv;                                   \
     a = float ## s ## _squash_input_denormal(a STATUS_VAR);             \
     b = float ## s ## _squash_input_denormal(b STATUS_VAR);             \
     if (float ## s ## _is_any_nan(a) ||                                 \
@@ -7266,6 +7270,17 @@ static inline float ## s float ## s ## _minmax(float ## s a, float ## s b,     \
     bSign = extractFloat ## s ## Sign(b);                               \
     av = float ## s ## _val(a);                                         \
     bv = float ## s ## _val(b);                                         \
+    if (ismag) {                                                        \
+        aav = float ## s ## _abs(av);                                   \
+        abv = float ## s ## _abs(bv);                                   \
+        if (aav != abv) {                                               \
+            if (ismin) {                                                \
+                return (aav < abv) ? a : b;                             \
+            } else {                                                    \
+                return (aav < abv) ? b : a;                             \
+            }                                                           \
+        }                                                               \
+    }                                                                   \
     if (aSign != bSign) {                                               \
         if (ismin) {                                                    \
             return aSign ? a : b;                                       \
@@ -7283,22 +7298,32 @@ static inline float ## s float ## s ## _minmax(float ## s a, float ## s b,     \
                                                                         \
 float ## s float ## s ## _min(float ## s a, float ## s b STATUS_PARAM)  \
 {                                                                       \
-    return float ## s ## _minmax(a, b, 1, 0 STATUS_VAR);                \
+    return float ## s ## _minmax(a, b, 1, 0, 0 STATUS_VAR);             \
 }                                                                       \
                                                                         \
 float ## s float ## s ## _max(float ## s a, float ## s b STATUS_PARAM)  \
 {                                                                       \
-    return float ## s ## _minmax(a, b, 0, 0 STATUS_VAR);                \
+    return float ## s ## _minmax(a, b, 0, 0, 0 STATUS_VAR);             \
 }                                                                       \
                                                                         \
 float ## s float ## s ## _minnum(float ## s a, float ## s b STATUS_PARAM) \
 {                                                                       \
-    return float ## s ## _minmax(a, b, 1, 1 STATUS_VAR);                \
+    return float ## s ## _minmax(a, b, 1, 1, 0 STATUS_VAR);             \
 }                                                                       \
                                                                         \
 float ## s float ## s ## _maxnum(float ## s a, float ## s b STATUS_PARAM) \
 {                                                                       \
-    return float ## s ## _minmax(a, b, 0, 1 STATUS_VAR);                \
+    return float ## s ## _minmax(a, b, 0, 1, 0 STATUS_VAR);             \
+}                                                                       \
+                                                                        \
+float ## s float ## s ## _minnummag(float ## s a, float ## s b STATUS_PARAM) \
+{                                                                       \
+    return float ## s ## _minmax(a, b, 1, 1, 1 STATUS_VAR);             \
+}                                                                       \
+                                                                        \
+float ## s float ## s ## _maxnummag(float ## s a, float ## s b STATUS_PARAM) \
+{                                                                       \
+    return float ## s ## _minmax(a, b, 0, 1, 1 STATUS_VAR);             \
 }
 
 MINMAX(32)
