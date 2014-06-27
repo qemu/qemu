@@ -1250,6 +1250,34 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"dalign",  "d,v,t",    0x7c000224, 0xfc00063f, WR_d|RD_s|RD_t,       0, I64R6},
 {"bitswap", "d,w",      0x7c000020, 0xffe007ff, WR_d|RD_t,            0, I32R6},
 {"dbitswap","d,w",      0x7c000024, 0xffe007ff, WR_d|RD_t,            0, I64R6},
+{"balc",    "+p",       0xe8000000, 0xfc000000, UBD|WR_31,            0, I32R6},
+{"bc",      "+p",       0xc8000000, 0xfc000000, UBD|WR_31,            0, I32R6},
+{"jic",     "t,o",      0xd8000000, 0xffe00000, UBD|RD_t,             0, I32R6},
+{"beqzc",   "s,+p",     0xd8000000, 0xfc000000, CBD|RD_s,             0, I32R6},
+{"jialc",   "t,o",      0xf8000000, 0xffe00000, UBD|RD_t,             0, I32R6},
+{"bnezc",   "s,+p",     0xf8000000, 0xfc000000, CBD|RD_s,             0, I32R6},
+{"beqzalc", "s,t,p",    0x20000000, 0xffe00000, CBD|RD_s|RD_t,        0, I32R6},
+{"bovc",    "s,t,p",    0x20000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"beqc",    "s,t,p",    0x20000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bnezalc", "s,t,p",    0x60000000, 0xffe00000, CBD|RD_s|RD_t,        0, I32R6},
+{"bnvc",    "s,t,p",    0x60000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bnec",    "s,t,p",    0x60000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"blezc",   "s,t,p",    0x58000000, 0xffe00000, CBD|RD_s|RD_t,        0, I32R6},
+{"bgezc",   "s,t,p",    0x58000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bgec",    "s,t,p",    0x58000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bgtzc",   "s,t,p",    0x5c000000, 0xffe00000, CBD|RD_s|RD_t,        0, I32R6},
+{"bltzc",   "s,t,p",    0x5c000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bltc",    "s,t,p",    0x5c000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"blezalc", "s,t,p",    0x18000000, 0xffe00000, CBD|RD_s|RD_t,        0, I32R6},
+{"bgezalc", "s,t,p",    0x18000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bgeuc",   "s,t,p",    0x18000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bgtzalc", "s,t,p",    0x1c000000, 0xffe00000, CBD|RD_s|RD_t,        0, I32R6},
+{"bltzalc", "s,t,p",    0x1c000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bltuc",   "s,t,p",    0x1c000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bc1eqz",  "T,p",      0x45200000, 0xffe00000, CBD|RD_T|FP_S|FP_D,   0, I32R6},
+{"bc1nez",  "T,p",      0x45a00000, 0xffe00000, CBD|RD_T|FP_S|FP_D,   0, I32R6},
+{"bc2eqz",  "E,p",      0x49200000, 0xffe00000, CBD|RD_C2,            0, I32R6},
+{"bc2nez",  "E,p",      0x49a00000, 0xffe00000, CBD|RD_C2,            0, I32R6},
 {"pref",    "k,o(b)",   0xcc000000, 0xfc000000, RD_b,           	0,		I4|I32|G3	},
 {"prefx",   "h,t(b)",	0x4c00000f, 0xfc0007ff, RD_b|RD_t,		0,		I4|I33	},
 {"nop",     "",         0x00000000, 0xffffffff, 0,              	INSN2_ALIAS,	I1      }, /* sll */
@@ -3616,6 +3644,24 @@ print_insn_args (const char *d,
 	      (*info->fprintf_func) (info->stream, "0x%x", msbd + 1);
 	      break;
 
+            case 'o':
+                delta = (l >> OP_SH_DELTA_R6) & OP_MASK_DELTA_R6;
+                if (delta & 0x8000) {
+                    delta |= ~0xffff;
+                }
+                (*info->fprintf_func) (info->stream, "%d", delta);
+                break;
+
+            case 'p':
+                /* Sign extend the displacement with 26 bits.  */
+                delta = (l >> OP_SH_DELTA) & OP_MASK_TARGET;
+                if (delta & 0x2000000) {
+                    delta |= ~0x3FFFFFF;
+                }
+                info->target = (delta << 2) + pc + INSNLEN;
+                (*info->print_address_func) (info->target, info);
+                break;
+
 	    case 't': /* Coprocessor 0 reg name */
 	      (*info->fprintf_func) (info->stream, "%s",
 				     mips_cp0_names[(l >> OP_SH_RT) &
@@ -3767,9 +3813,7 @@ print_insn_args (const char *d,
 
 	case 'j': /* Same as i, but sign-extended.  */
 	case 'o':
-            delta = (opp->membership == I32R6) ?
-                (l >> OP_SH_DELTA_R6) & OP_MASK_DELTA_R6 :
-                (l >> OP_SH_DELTA) & OP_MASK_DELTA;
+            delta = (l >> OP_SH_DELTA) & OP_MASK_DELTA;
 
 	  if (delta & 0x8000)
 	    delta |= ~0xffff;
@@ -4095,6 +4139,23 @@ print_insn_mips (bfd_vma memaddr,
 	      if (! OPCODE_IS_MEMBER (op, mips_isa, mips_processor)
 		  && strcmp (op->name, "jalx"))
 		continue;
+
+              if (strcmp(op->name, "bovc") == 0
+                  || strcmp(op->name, "bnvc") == 0) {
+                  if (((word >> OP_SH_RS) & OP_MASK_RS) <
+                      ((word >> OP_SH_RT) & OP_MASK_RT)) {
+                      continue;
+                  }
+              }
+              if (strcmp(op->name, "bgezc") == 0
+                  || strcmp(op->name, "bltzc") == 0
+                  || strcmp(op->name, "bgezalc") == 0
+                  || strcmp(op->name, "bltzalc") == 0) {
+                  if (((word >> OP_SH_RS) & OP_MASK_RS) !=
+                      ((word >> OP_SH_RT) & OP_MASK_RT)) {
+                      continue;
+                  }
+              }
 
 	      /* Figure out instruction type and branch delay information.  */
 	      if ((op->pinfo & INSN_UNCOND_BRANCH_DELAY) != 0)
