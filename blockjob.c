@@ -300,7 +300,7 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
     default:
         abort();
     }
-    qapi_event_send_block_job_error(bdrv_get_device_name(bs),
+    qapi_event_send_block_job_error(bdrv_get_device_name(job->bs),
                                     is_read ? IO_OPERATION_TYPE_READ :
                                     IO_OPERATION_TYPE_WRITE,
                                     action, &error_abort);

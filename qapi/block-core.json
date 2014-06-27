@@ -1551,7 +1551,7 @@
 { 'event': 'BLOCK_JOB_ERROR',
   'data': { 'device'   : 'str',
             'operation': 'IoOperationType',
-            'action'   : 'BlockdevOnError' } }
+            'action'   : 'BlockErrorAction' } }
 
 ##
 # @BLOCK_JOB_READY
