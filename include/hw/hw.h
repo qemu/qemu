@@ -3,10 +3,11 @@
 #define QEMU_HW_H
 
 
-#if !defined(CONFIG_USER_ONLY) && !defined(NEED_CPU_H)
-#include "exec/cpu-common.h"
+#ifdef CONFIG_USER_ONLY
+#error Cannot include hw/hw.h from user emulation
 #endif
 
+#include "exec/cpu-common.h"
 #include "exec/ioport.h"
 #include "hw/irq.h"
 #include "block/aio.h"

@@ -2,7 +2,7 @@
 #define __OPENPIC_H__
 
 #include "qemu-common.h"
-#include "hw/qdev.h"
+#include "hw/qdev-core.h"
 #include "qom/cpu.h"
 
 #define TYPE_OPENPIC "openpic"
