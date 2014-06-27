@@ -15851,6 +15851,9 @@ static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
         gen_muldiv(ctx, op1, 0, rs, rt);
         break;
 #endif
+    case OPC_JR:
+        gen_compute_branch(ctx, op1, 4, rs, rd, sa);
+        break;
     case OPC_SPIM:
 #ifdef MIPS_STRICT_STANDARD
         MIPS_INVAL("SPIM");
@@ -15933,7 +15936,7 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
     case OPC_XOR:
         gen_logic(ctx, op1, rd, rs, rt);
         break;
-    case OPC_JR ... OPC_JALR:
+    case OPC_JALR:
         gen_compute_branch(ctx, op1, 4, rs, rd, sa);
         break;
     case OPC_TGE ... OPC_TEQ: /* Traps */
@@ -16903,9 +16906,20 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
             check_insn_opc_removed(ctx, ISA_MIPS32R6);
         case OPC_BLTZ:
         case OPC_BGEZ:
+            gen_compute_branch(ctx, op1, 4, rs, -1, imm << 2);
+            break;
         case OPC_BLTZAL:
         case OPC_BGEZAL:
-            gen_compute_branch(ctx, op1, 4, rs, -1, imm << 2);
+            if (ctx->insn_flags & ISA_MIPS32R6) {
+                if (rs == 0) {
+                    /* OPC_NAL, OPC_BAL */
+                    gen_compute_branch(ctx, op1, 4, 0, -1, imm << 2);
+                } else {
+                    generate_exception(ctx, EXCP_RI);
+                }
+            } else {
+                gen_compute_branch(ctx, op1, 4, rs, -1, imm << 2);
+            }
             break;
         case OPC_TGEI ... OPC_TEQI: /* REGIMM traps */
         case OPC_TNEI:
