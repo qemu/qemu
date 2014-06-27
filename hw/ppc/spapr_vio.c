@@ -584,7 +584,7 @@ const VMStateDescription vmstate_spapr_vio = {
         VMSTATE_UINT32_EQUAL(irq, VIOsPAPRDevice),
 
         /* General VIO device state */
-        VMSTATE_UINTTL(signal_state, VIOsPAPRDevice),
+        VMSTATE_UINT64(signal_state, VIOsPAPRDevice),
         VMSTATE_UINT64(crq.qladdr, VIOsPAPRDevice),
         VMSTATE_UINT32(crq.qsize, VIOsPAPRDevice),
         VMSTATE_UINT32(crq.qnext, VIOsPAPRDevice),

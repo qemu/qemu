@@ -106,9 +106,9 @@ typedef struct VIOsPAPRVLANDevice {
     NICConf nicconf;
     NICState *nic;
     bool isopen;
-    target_ulong buf_list;
+    hwaddr buf_list;
     uint32_t add_buf_ptr, use_buf_ptr, rx_bufs;
-    target_ulong rxq_ptr;
+    hwaddr rxq_ptr;
     uint32_t compat_flags;             /* Compatability flags for migration */
     RxBufPool *rx_pool[RX_MAX_POOLS];  /* Receive buffer descriptor pools */
 } VIOsPAPRVLANDevice;
@@ -765,11 +765,11 @@ static const VMStateDescription vmstate_spapr_llan = {
         VMSTATE_SPAPR_VIO(sdev, VIOsPAPRVLANDevice),
         /* LLAN state */
         VMSTATE_BOOL(isopen, VIOsPAPRVLANDevice),
-        VMSTATE_UINTTL(buf_list, VIOsPAPRVLANDevice),
+        VMSTATE_UINT64(buf_list, VIOsPAPRVLANDevice),
         VMSTATE_UINT32(add_buf_ptr, VIOsPAPRVLANDevice),
         VMSTATE_UINT32(use_buf_ptr, VIOsPAPRVLANDevice),
         VMSTATE_UINT32(rx_bufs, VIOsPAPRVLANDevice),
-        VMSTATE_UINTTL(rxq_ptr, VIOsPAPRVLANDevice),
+        VMSTATE_UINT64(rxq_ptr, VIOsPAPRVLANDevice),
 
         VMSTATE_END_OF_LIST()
     },
