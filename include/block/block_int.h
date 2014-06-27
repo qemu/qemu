@@ -489,6 +489,8 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
  * mirror_start:
  * @bs: Block device to operate on.
  * @target: Block device to write to.
+ * @replaces: Block graph node name to replace once the mirror is done. Can
+ *            only be used when full mirroring is selected.
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @granularity: The chosen granularity for the dirty bitmap.
  * @buf_size: The amount of data that can be in flight at one time.
@@ -505,6 +507,7 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
  * @bs will be switched to read from @target.
  */
 void mirror_start(BlockDriverState *bs, BlockDriverState *target,
+                  const char *replaces,
                   int64_t speed, int64_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,

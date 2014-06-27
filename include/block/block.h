@@ -175,6 +175,7 @@ typedef enum BlockOpType {
     BLOCK_OP_TYPE_MIRROR,
     BLOCK_OP_TYPE_RESIZE,
     BLOCK_OP_TYPE_STREAM,
+    BLOCK_OP_TYPE_REPLACE,
     BLOCK_OP_TYPE_MAX,
 } BlockOpType;
 
@@ -313,6 +314,9 @@ int bdrv_amend_options(BlockDriverState *bs_new, QemuOpts *opts);
 bool bdrv_recurse_is_first_non_filter(BlockDriverState *bs,
                                       BlockDriverState *candidate);
 bool bdrv_is_first_non_filter(BlockDriverState *candidate);
+
+/* check if a named node can be replaced when doing drive-mirror */
+BlockDriverState *check_to_replace_node(const char *node_name, Error **errp);
 
 /* async block I/O */
 typedef void BlockDriverDirtyHandler(BlockDriverState *bs, int64_t sector,

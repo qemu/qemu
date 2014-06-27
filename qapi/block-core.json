@@ -768,6 +768,10 @@
 # @node-name: #optional the new block driver state node name in the graph
 #             (Since 2.1)
 #
+# @replaces: #optional with sync=full graph node name to be replaced by the new
+#            image when a whole image copy is done. This can be used to repair
+#            broken Quorum files. (Since 2.1)
+#
 # @mode: #optional whether and how QEMU should create a new image, default is
 #        'absolute-paths'.
 #
@@ -800,7 +804,7 @@
 ##
 { 'command': 'drive-mirror',
   'data': { 'device': 'str', 'target': 'str', '*format': 'str',
-            '*node-name': 'str',
+            '*node-name': 'str', '*replaces': 'str',
             'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
             '*speed': 'int', '*granularity': 'uint32',
             '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',

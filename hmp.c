@@ -933,7 +933,7 @@ void hmp_drive_mirror(Monitor *mon, const QDict *qdict)
     }
 
     qmp_drive_mirror(device, filename, !!format, format,
-                     false, NULL,
+                     false, NULL, false, NULL,
                      full ? MIRROR_SYNC_MODE_FULL : MIRROR_SYNC_MODE_TOP,
                      true, mode, false, 0, false, 0, false, 0,
                      false, 0, false, 0, &err);
