@@ -1219,6 +1219,10 @@ const struct mips_opcode mips_builtin_opcodes[] =
 /* name,    args,	match,	    mask,	pinfo,          	membership */
 {"ll",      "t,o(b)",   0x7c000036, 0xfc00007f, LDD|RD_b|WR_t,        0, I32R6},
 {"sc",      "t,o(b)",   0x7c000026, 0xfc00007f, LDD|RD_b|WR_t,        0, I32R6},
+{"lld",     "t,o(b)",   0x7c000037, 0xfc00007f, LDD|RD_b|WR_t,        0, I64R6},
+{"scd",     "t,o(b)",   0x7c000027, 0xfc00007f, LDD|RD_b|WR_t,        0, I64R6},
+{"pref",    "h,o(b)",   0x7c000035, 0xfc00007f, RD_b,                 0, I32R6},
+{"cache",   "k,o(b)",   0x7c000025, 0xfc00007f, RD_b,                 0, I32R6},
 {"seleqz",  "d,v,t",    0x00000035, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
 {"selnez",  "d,v,t",    0x00000037, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
 {"pref",    "k,o(b)",   0xcc000000, 0xfc000000, RD_b,           	0,		I4|I32|G3	},
