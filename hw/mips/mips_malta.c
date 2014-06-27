@@ -697,12 +697,12 @@ static void write_bootloader (CPUMIPSState *env, uint8_t *base,
     /* Jump to kernel code */
     stl_p(p++, 0x3c1f0000 | ((kernel_entry >> 16) & 0xffff));    /* lui ra, high(kernel_entry) */
     stl_p(p++, 0x37ff0000 | (kernel_entry & 0xffff));            /* ori ra, ra, low(kernel_entry) */
-    stl_p(p++, 0x03e00008);                                      /* jr ra */
+    stl_p(p++, 0x03e00009);                                      /* jalr ra */
     stl_p(p++, 0x00000000);                                      /* nop */
 
     /* YAMON subroutines */
     p = (uint32_t *) (base + 0x800);
-    stl_p(p++, 0x03e00008);                                     /* jr ra */
+    stl_p(p++, 0x03e00009);                                     /* jalr ra */
     stl_p(p++, 0x24020000);                                     /* li v0,0 */
     /* 808 YAMON print */
     stl_p(p++, 0x03e06821);                                     /* move t5,ra */
@@ -716,7 +716,7 @@ static void write_bootloader (CPUMIPSState *env, uint8_t *base,
     stl_p(p++, 0x00000000);                                     /* nop */
     stl_p(p++, 0x08000205);                                     /* j 814 */
     stl_p(p++, 0x00000000);                                     /* nop */
-    stl_p(p++, 0x01a00008);                                     /* jr t5 */
+    stl_p(p++, 0x01a00009);                                     /* jalr t5 */
     stl_p(p++, 0x01602021);                                     /* move a0,t3 */
     /* 0x83c YAMON print_count */
     stl_p(p++, 0x03e06821);                                     /* move t5,ra */
@@ -730,7 +730,7 @@ static void write_bootloader (CPUMIPSState *env, uint8_t *base,
     stl_p(p++, 0x258cffff);                                     /* addiu t4,t4,-1 */
     stl_p(p++, 0x1580fffa);                                     /* bnez t4,84c */
     stl_p(p++, 0x00000000);                                     /* nop */
-    stl_p(p++, 0x01a00008);                                     /* jr t5 */
+    stl_p(p++, 0x01a00009);                                     /* jalr t5 */
     stl_p(p++, 0x01602021);                                     /* move a0,t3 */
     /* 0x870 */
     stl_p(p++, 0x3c08b800);                                     /* lui t0,0xb400 */
@@ -740,7 +740,7 @@ static void write_bootloader (CPUMIPSState *env, uint8_t *base,
     stl_p(p++, 0x31290040);                                     /* andi t1,t1,0x40 */
     stl_p(p++, 0x1120fffc);                                     /* beqz t1,878 <outch+0x8> */
     stl_p(p++, 0x00000000);                                     /* nop */
-    stl_p(p++, 0x03e00008);                                     /* jr ra */
+    stl_p(p++, 0x03e00009);                                     /* jalr ra */
     stl_p(p++, 0xa1040000);                                     /* sb a0,0(t0) */
 
 }
