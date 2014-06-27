@@ -51,7 +51,7 @@
 042 rw auto quick
 043 rw auto backing
 044 rw auto
-045 rw auto
+045 rw auto quick
 046 rw auto aio
 047 rw auto
 048 img auto quick
@@ -71,13 +71,13 @@
 062 rw auto quick
 063 rw auto quick
 064 rw auto quick
-065 rw auto
+065 rw auto quick
 066 rw auto quick
-067 rw auto
-068 rw auto
+067 rw auto quick
+068 rw auto quick
 069 rw auto quick
 070 rw auto quick
-071 rw auto
+071 rw auto quick
 072 rw auto quick
 073 rw auto quick
 074 rw auto quick
@@ -87,16 +87,16 @@
 078 rw auto
 079 rw auto
 080 rw auto
-081 rw auto
+081 rw auto quick
 082 rw auto quick
 083 rw auto
 084 img auto
 085 rw auto
 086 rw auto quick
-087 rw auto
+087 rw auto quick
 088 rw auto
 089 rw auto quick
 090 rw auto quick
-091 rw auto
+091 rw auto quick
 092 rw auto quick
-095 rw auto
+095 rw auto quick
