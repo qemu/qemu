@@ -119,6 +119,8 @@ see <http://www.gnu.org/licenses/>.  */
 #define OP_SH_IMMEDIATE		0
 #define OP_MASK_DELTA		0xffff
 #define OP_SH_DELTA		0
+#define OP_MASK_DELTA_R6        0x1ff
+#define OP_SH_DELTA_R6          7
 #define OP_MASK_FUNCT		0x3f
 #define OP_SH_FUNCT		0
 #define OP_MASK_SPEC		0x3f
@@ -1215,6 +1217,8 @@ const struct mips_opcode mips_builtin_opcodes[] =
    them first.  The assemblers uses a hash table based on the
    instruction name anyhow.  */
 /* name,    args,	match,	    mask,	pinfo,          	membership */
+{"ll",      "t,o(b)",   0x7c000036, 0xfc00007f, LDD|RD_b|WR_t,        0, I32R6},
+{"sc",      "t,o(b)",   0x7c000026, 0xfc00007f, LDD|RD_b|WR_t,        0, I32R6},
 {"seleqz",  "d,v,t",    0x00000035, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
 {"selnez",  "d,v,t",    0x00000037, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
 {"pref",    "k,o(b)",   0xcc000000, 0xfc000000, RD_b,           	0,		I4|I32|G3	},
@@ -3734,7 +3738,10 @@ print_insn_args (const char *d,
 
 	case 'j': /* Same as i, but sign-extended.  */
 	case 'o':
-	  delta = (l >> OP_SH_DELTA) & OP_MASK_DELTA;
+            delta = (opp->membership == I32R6) ?
+                (l >> OP_SH_DELTA_R6) & OP_MASK_DELTA_R6 :
+                (l >> OP_SH_DELTA) & OP_MASK_DELTA;
+
 	  if (delta & 0x8000)
 	    delta |= ~0xffff;
 	  (*info->fprintf_func) (info->stream, "%d",
