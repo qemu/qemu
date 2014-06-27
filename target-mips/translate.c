@@ -75,6 +75,7 @@ enum {
     OPC_BGTZ     = (0x07 << 26),
     OPC_BGTZL    = (0x17 << 26),
     OPC_JALX     = (0x1D << 26),  /* MIPS 16 only */
+    OPC_DAUI     = (0x1D << 26),
     OPC_JALXS    = OPC_JALX | 0x5,
     /* Load and stores */
     OPC_LDL      = (0x1A << 26),
@@ -141,8 +142,25 @@ enum {
     /* Cache and prefetch */
     OPC_CACHE    = (0x2F << 26),
     OPC_PREF     = (0x33 << 26),
-    /* Reserved major opcode */
-    OPC_MAJOR3B_RESERVED = (0x3B << 26),
+    /* PC-relative address computation / loads */
+    OPC_PCREL    = (0x3B << 26),
+};
+
+/* PC-relative address computation / loads  */
+#define MASK_OPC_PCREL_TOP2BITS(op)  (MASK_OP_MAJOR(op) | (op & (3 << 19)))
+#define MASK_OPC_PCREL_TOP5BITS(op)  (MASK_OP_MAJOR(op) | (op & (0x1f << 16)))
+enum {
+    /* Instructions determined by bits 19 and 20 */
+    OPC_ADDIUPC = OPC_PCREL | (0 << 19),
+    R6_OPC_LWPC = OPC_PCREL | (1 << 19),
+    OPC_LWUPC   = OPC_PCREL | (2 << 19),
+
+    /* Instructions determined by bits 16 ... 20 */
+    OPC_AUIPC   = OPC_PCREL | (0x1e << 16),
+    OPC_ALUIPC  = OPC_PCREL | (0x1f << 16),
+
+    /* Other */
+    R6_OPC_LDPC = OPC_PCREL | (6 << 18),
 };
 
 /* MIPS special opcodes */
@@ -231,7 +249,6 @@ enum {
     OPC_SPIM     = 0x0E | OPC_SPECIAL, /* unofficial */
     OPC_SYNC     = 0x0F | OPC_SPECIAL,
 
-    OPC_SPECIAL15_RESERVED = 0x15 | OPC_SPECIAL,
     OPC_SPECIAL28_RESERVED = 0x28 | OPC_SPECIAL,
     OPC_SPECIAL29_RESERVED = 0x29 | OPC_SPECIAL,
     OPC_SPECIAL39_RESERVED = 0x39 | OPC_SPECIAL,
@@ -266,6 +283,9 @@ enum {
     R6_OPC_DCLZ     = 0x12 | OPC_SPECIAL,
     R6_OPC_DCLO     = 0x13 | OPC_SPECIAL,
     R6_OPC_SDBBP    = 0x0e | OPC_SPECIAL,
+
+    OPC_LSA  = 0x05 | OPC_SPECIAL,
+    OPC_DLSA = 0x15 | OPC_SPECIAL,
 };
 
 /* Multiplication variants of the vr54xx. */
@@ -309,6 +329,9 @@ enum {
     OPC_TEQI     = (0x0C << 16) | OPC_REGIMM,
     OPC_TNEI     = (0x0E << 16) | OPC_REGIMM,
     OPC_SYNCI    = (0x1F << 16) | OPC_REGIMM,
+
+    OPC_DAHI     = (0x06 << 16) | OPC_REGIMM,
+    OPC_DATI     = (0x1e << 16) | OPC_REGIMM,
 };
 
 /* Special2 opcodes */
@@ -2162,8 +2185,15 @@ static void gen_logic_imm(DisasContext *ctx, uint32_t opc,
                    regnames[rs], uimm);
         break;
     case OPC_LUI:
-        tcg_gen_movi_tl(cpu_gpr[rt], imm << 16);
-        MIPS_DEBUG("lui %s, " TARGET_FMT_lx, regnames[rt], uimm);
+        if (rs != 0 && (ctx->insn_flags & ISA_MIPS32R6)) {
+            /* OPC_AUI */
+            tcg_gen_addi_tl(cpu_gpr[rt], cpu_gpr[rs], imm << 16);
+            tcg_gen_ext32s_tl(cpu_gpr[rt], cpu_gpr[rt]);
+            MIPS_DEBUG("aui %s, %s, %04x", regnames[rt], regnames[rs], imm);
+        } else {
+            tcg_gen_movi_tl(cpu_gpr[rt], imm << 16);
+            MIPS_DEBUG("lui %s, " TARGET_FMT_lx, regnames[rt], uimm);
+        }
         break;
 
     default:
@@ -2765,6 +2795,77 @@ static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
     }
     (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s", opn, regnames[reg]);
+}
+
+static inline void gen_r6_ld(target_long addr, int reg, int memidx,
+                             TCGMemOp memop)
+{
+    TCGv t0 = tcg_const_tl(addr);
+    tcg_gen_qemu_ld_tl(t0, t0, memidx, memop);
+    gen_store_gpr(t0, reg);
+    tcg_temp_free(t0);
+}
+
+static inline void gen_pcrel(DisasContext *ctx, int rs, int16_t imm)
+{
+    target_long offset;
+    target_long addr;
+
+    switch (MASK_OPC_PCREL_TOP2BITS(ctx->opcode)) {
+    case OPC_ADDIUPC:
+        if (rs != 0) {
+            offset = sextract32(ctx->opcode << 2, 0, 21);
+            addr = addr_add(ctx, ctx->pc, offset);
+            tcg_gen_movi_tl(cpu_gpr[rs], addr);
+        }
+        break;
+    case R6_OPC_LWPC:
+        offset = sextract32(ctx->opcode << 2, 0, 21);
+        addr = addr_add(ctx, ctx->pc, offset);
+        gen_r6_ld(addr, rs, ctx->mem_idx, MO_TESL);
+        break;
+#if defined(TARGET_MIPS64)
+    case OPC_LWUPC:
+        check_mips_64(ctx);
+        offset = sextract32(ctx->opcode << 2, 0, 21);
+        addr = addr_add(ctx, ctx->pc, offset);
+        gen_r6_ld(addr, rs, ctx->mem_idx, MO_TEUL);
+        break;
+#endif
+    default:
+        switch (MASK_OPC_PCREL_TOP5BITS(ctx->opcode)) {
+        case OPC_AUIPC:
+            if (rs != 0) {
+                offset = imm << 16;
+                addr = addr_add(ctx, ctx->pc, offset);
+                tcg_gen_movi_tl(cpu_gpr[rs], addr);
+            }
+            break;
+        case OPC_ALUIPC:
+            if (rs != 0) {
+                offset = imm << 16;
+                addr = ~0xFFFF & addr_add(ctx, ctx->pc, offset);
+                tcg_gen_movi_tl(cpu_gpr[rs], addr);
+            }
+            break;
+#if defined(TARGET_MIPS64)
+        case R6_OPC_LDPC: /* bits 16 and 17 are part of immediate */
+        case R6_OPC_LDPC + (1 << 16):
+        case R6_OPC_LDPC + (2 << 16):
+        case R6_OPC_LDPC + (3 << 16):
+            check_mips_64(ctx);
+            offset = sextract32(ctx->opcode << 3, 0, 21);
+            addr = addr_add(ctx, (ctx->pc & ~0x7), offset);
+            gen_r6_ld(addr, rs, ctx->mem_idx, MO_TEQ);
+            break;
+#endif
+        default:
+            MIPS_INVAL("OPC_PCREL");
+            generate_exception(ctx, EXCP_RI);
+            break;
+        }
+        break;
+    }
 }
 
 static void gen_r6_muldiv(DisasContext *ctx, int opc, int rd, int rs, int rt)
@@ -15097,6 +15198,20 @@ static void decode_opc_special_r6(CPUMIPSState *env, DisasContext *ctx)
 
     op1 = MASK_SPECIAL(ctx->opcode);
     switch (op1) {
+    case OPC_LSA:
+        if (rd != 0) {
+            int imm2 = extract32(ctx->opcode, 6, 3);
+            TCGv t0 = tcg_temp_new();
+            TCGv t1 = tcg_temp_new();
+            gen_load_gpr(t0, rs);
+            gen_load_gpr(t1, rt);
+            tcg_gen_shli_tl(t0, t0, imm2 + 1);
+            tcg_gen_add_tl(t0, t0, t1);
+            tcg_gen_ext32s_tl(cpu_gpr[rd], t0);
+            tcg_temp_free(t1);
+            tcg_temp_free(t0);
+        }
+        break;
     case OPC_MULT ... OPC_DIVU:
         op2 = MASK_R6_MULDIV(ctx->opcode);
         switch (op2) {
@@ -15134,6 +15249,20 @@ static void decode_opc_special_r6(CPUMIPSState *env, DisasContext *ctx)
         generate_exception(ctx, EXCP_DBp);
         break;
 #if defined(TARGET_MIPS64)
+    case OPC_DLSA:
+        check_mips_64(ctx);
+        if (rd != 0) {
+            int imm2 = extract32(ctx->opcode, 6, 3);
+            TCGv t0 = tcg_temp_new();
+            TCGv t1 = tcg_temp_new();
+            gen_load_gpr(t0, rs);
+            gen_load_gpr(t1, rt);
+            tcg_gen_shli_tl(t0, t0, imm2 + 1);
+            tcg_gen_add_tl(cpu_gpr[rd], t0, t1);
+            tcg_temp_free(t1);
+            tcg_temp_free(t0);
+        }
+        break;
     case R6_OPC_DCLO:
     case R6_OPC_DCLZ:
         if (rt == 0 && sa == 1) {
@@ -15319,13 +15448,18 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
     case OPC_TNE:
         gen_trap(ctx, op1, rs, rt, -1);
         break;
-    case OPC_PMON:          /* Pmon entry point, also R4010 selsl */
+    case OPC_LSA: /* OPC_PMON */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            decode_opc_special_r6(env, ctx);
+        } else {
+            /* Pmon entry point, also R4010 selsl */
 #ifdef MIPS_STRICT_STANDARD
-        MIPS_INVAL("PMON / selsl");
-        generate_exception(ctx, EXCP_RI);
+            MIPS_INVAL("PMON / selsl");
+            generate_exception(ctx, EXCP_RI);
 #else
-        gen_helper_0e0i(pmon, sa);
+            gen_helper_0e0i(pmon, sa);
 #endif
+        }
         break;
     case OPC_SYSCALL:
         generate_exception(ctx, EXCP_SYSCALL);
@@ -16297,6 +16431,24 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
             check_dsp(ctx);
             gen_compute_branch(ctx, op1, 4, -1, -2, (int32_t)imm << 2);
             break;
+#if defined(TARGET_MIPS64)
+        case OPC_DAHI:
+            check_insn(ctx, ISA_MIPS32R6);
+            check_mips_64(ctx);
+            if (rs != 0) {
+                tcg_gen_addi_tl(cpu_gpr[rs], cpu_gpr[rs], (int64_t)imm << 32);
+            }
+            MIPS_DEBUG("dahi %s, %04x", regnames[rs], imm);
+            break;
+        case OPC_DATI:
+            check_insn(ctx, ISA_MIPS32R6);
+            check_mips_64(ctx);
+            if (rs != 0) {
+                tcg_gen_addi_tl(cpu_gpr[rs], cpu_gpr[rs], (int64_t)imm << 48);
+            }
+            MIPS_DEBUG("dati %s, %04x", regnames[rs], imm);
+            break;
+#endif
         default:            /* Invalid */
             MIPS_INVAL("regimm");
             generate_exception(ctx, EXCP_RI);
@@ -16409,7 +16561,7 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
          gen_slt_imm(ctx, op, rt, rs, imm);
          break;
     case OPC_ANDI: /* Arithmetic with immediate opcode */
-    case OPC_LUI:
+    case OPC_LUI: /* OPC_AUI */
     case OPC_ORI:
     case OPC_XORI:
          gen_logic_imm(ctx, op, rt, rs, imm);
@@ -16707,14 +16859,37 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
         }
         break;
 #endif
-    case OPC_JALX:
-        check_insn(ctx, ASE_MIPS16 | ASE_MICROMIPS);
-        offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 2;
-        gen_compute_branch(ctx, op, 4, rs, rt, offset);
+    case OPC_DAUI: /* OPC_JALX */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+#if defined(TARGET_MIPS64)
+            /* OPC_DAUI */
+            check_mips_64(ctx);
+            if (rt != 0) {
+                TCGv t0 = tcg_temp_new();
+                gen_load_gpr(t0, rs);
+                tcg_gen_addi_tl(cpu_gpr[rt], t0, imm << 16);
+                tcg_temp_free(t0);
+            }
+            MIPS_DEBUG("daui %s, %s, %04x", regnames[rt], regnames[rs], imm);
+#else
+            generate_exception(ctx, EXCP_RI);
+            MIPS_INVAL("major opcode");
+#endif
+        } else {
+            /* OPC_JALX */
+            check_insn(ctx, ASE_MIPS16 | ASE_MICROMIPS);
+            offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 2;
+            gen_compute_branch(ctx, op, 4, rs, rt, offset);
+        }
         break;
     case OPC_MDMX:
         check_insn(ctx, ASE_MDMX);
         /* MDMX: Not implemented. */
+        break;
+    case OPC_PCREL:
+        check_insn(ctx, ISA_MIPS32R6);
+        gen_pcrel(ctx, rs, imm);
+        break;
     default:            /* Invalid */
         MIPS_INVAL("major opcode");
         generate_exception(ctx, EXCP_RI);

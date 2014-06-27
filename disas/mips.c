@@ -407,6 +407,12 @@ struct mips_opcode
    "+3" UDI immediate bits 6-20
    "+4" UDI immediate bits 6-25
 
+   R6 immediates/displacements :
+   (adding suffix to 'o' to avoid adding new characters)
+   "+o"  9 bits immediate/displacement (shift = 7)
+   "+o1" 18 bits immediate/displacement (shift = 0)
+   "+o2" 19 bits immediate/displacement (shift = 0)
+
    Other:
    "()" parens surrounding optional value
    ","  separates operands
@@ -1217,6 +1223,17 @@ const struct mips_opcode mips_builtin_opcodes[] =
    them first.  The assemblers uses a hash table based on the
    instruction name anyhow.  */
 /* name,    args,	match,	    mask,	pinfo,          	membership */
+{"lwpc",    "s,+o2",    0xec080000, 0xfc180000, WR_d,                 0, I32R6},
+{"lwupc",   "s,+o2",    0xec100000, 0xfc180000, WR_d,                 0, I64R6},
+{"ldpc",    "s,+o1",    0xec180000, 0xfc1c0000, WR_d,                 0, I64R6},
+{"addiupc", "s,+o2",    0xec000000, 0xfc180000, WR_d,                 0, I32R6},
+{"auipc",   "s,u",      0xec1e0000, 0xfc1f0000, WR_d,                 0, I32R6},
+{"aluipc",  "s,u",      0xec1f0000, 0xfc1f0000, WR_d,                 0, I32R6},
+{"daui",    "s,t,u",    0x74000000, 0xfc000000, RD_s|WR_t,            0, I64R6},
+{"dahi",    "s,u",      0x04060000, 0xfc1f0000, RD_s,                 0, I64R6},
+{"dati",    "s,u",      0x041e0000, 0xfc1f0000, RD_s,                 0, I64R6},
+{"lsa",     "d,s,t",    0x00000005, 0xfc00073f, WR_d|RD_s|RD_t,       0, I32R6},
+{"dlsa",    "d,s,t",    0x00000015, 0xfc00073f, WR_d|RD_s|RD_t,       0, I64R6},
 {"clz",     "U,s",      0x00000050, 0xfc1f07ff, WR_d|RD_s,            0, I32R6},
 {"clo",     "U,s",      0x00000051, 0xfc1f07ff, WR_d|RD_s,            0, I32R6},
 {"dclz",    "U,s",      0x00000052, 0xfc1f07ff, WR_d|RD_s,            0, I64R6},
@@ -1822,6 +1839,7 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"lld",	    "t,o(b)",	0xd0000000, 0xfc000000, LDD|RD_b|WR_t,		0,		I3	},
 {"lld",     "t,A(b)",	0,    (int) M_LLD_AB,	INSN_MACRO,		0,		I3	},
 {"lui",     "t,u",	0x3c000000, 0xffe00000,	WR_t,			0,		I1	},
+{"aui",     "s,t,u",    0x3c000000, 0xfc000000, RD_s|WR_t,            0, I32R6},
 {"luxc1",   "D,t(b)",	0x4c000005, 0xfc00f83f, LDD|WR_D|RD_t|RD_b|FP_D, 0,		I5|I33|N55},
 {"lw",      "t,o(b)",	0x8c000000, 0xfc000000,	LDD|RD_b|WR_t,		0,		I1	},
 {"lw",      "t,A(b)",	0,    (int) M_LW_AB,	INSN_MACRO,		0,		I1	},
@@ -3645,10 +3663,28 @@ print_insn_args (const char *d,
 	      break;
 
             case 'o':
-                delta = (l >> OP_SH_DELTA_R6) & OP_MASK_DELTA_R6;
-                if (delta & 0x8000) {
-                    delta |= ~0xffff;
+                switch (*(d+1)) {
+                case '1':
+                    d++;
+                    delta = l & ((1 << 18) - 1);
+                    if (delta & 0x20000) {
+                        delta |= ~0x1ffff;
+                    }
+                    break;
+                case '2':
+                    d++;
+                    delta = l & ((1 << 19) - 1);
+                    if (delta & 0x40000) {
+                        delta |= ~0x3ffff;
+                    }
+                    break;
+                default:
+                    delta = (l >> OP_SH_DELTA_R6) & OP_MASK_DELTA_R6;
+                    if (delta & 0x8000) {
+                        delta |= ~0xffff;
+                    }
                 }
+
                 (*info->fprintf_func) (info->stream, "%d", delta);
                 break;
 
