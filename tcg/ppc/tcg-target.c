@@ -805,7 +805,10 @@ static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
 
     /* For unaligned, or very large offsets, use the indexed form.  */
     if (offset & align || offset != (int32_t)offset) {
-        tcg_debug_assert(rs != base && (!is_store || rs != rt));
+        if (rs == base) {
+            rs = TCG_REG_R0;
+        }
+        tcg_debug_assert(!is_store || rs != rt);
         tcg_out_movi(s, TCG_TYPE_PTR, rs, orig);
         tcg_out32(s, opx | TAB(rt, base, rs));
         return;
