@@ -926,12 +926,18 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
         return -1;
     }
     config_len = qemu_get_be32(f);
-    if (config_len != vdev->config_len) {
-        error_report("Unexpected config length 0x%x. Expected 0x%zx",
-                     config_len, vdev->config_len);
-        return -1;
+
+    /*
+     * There are cases where the incoming config can be bigger or smaller
+     * than what we have; so load what we have space for, and skip
+     * any excess that's in the stream.
+     */
+    qemu_get_buffer(f, vdev->config, MIN(config_len, vdev->config_len));
+
+    while (config_len > vdev->config_len) {
+        qemu_get_byte(f);
+        config_len--;
     }
-    qemu_get_buffer(f, vdev->config, vdev->config_len);
 
     num = qemu_get_be32(f);
 
