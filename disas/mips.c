@@ -1246,6 +1246,10 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"cache",   "k,o(b)",   0x7c000025, 0xfc00007f, RD_b,                 0, I32R6},
 {"seleqz",  "d,v,t",    0x00000035, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
 {"selnez",  "d,v,t",    0x00000037, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"align",   "d,v,t",    0x7c000220, 0xfc00073f, WR_d|RD_s|RD_t,       0, I32R6},
+{"dalign",  "d,v,t",    0x7c000224, 0xfc00063f, WR_d|RD_s|RD_t,       0, I64R6},
+{"bitswap", "d,w",      0x7c000020, 0xffe007ff, WR_d|RD_t,            0, I32R6},
+{"dbitswap","d,w",      0x7c000024, 0xffe007ff, WR_d|RD_t,            0, I64R6},
 {"pref",    "k,o(b)",   0xcc000000, 0xfc000000, RD_b,           	0,		I4|I32|G3	},
 {"prefx",   "h,t(b)",	0x4c00000f, 0xfc0007ff, RD_b|RD_t,		0,		I4|I33	},
 {"nop",     "",         0x00000000, 0xffffffff, 0,              	INSN2_ALIAS,	I1      }, /* sll */

@@ -39,6 +39,11 @@ DEF_HELPER_3(macchiu, tl, env, tl, tl)
 DEF_HELPER_3(msachi, tl, env, tl, tl)
 DEF_HELPER_3(msachiu, tl, env, tl, tl)
 
+DEF_HELPER_FLAGS_1(bitswap, TCG_CALL_NO_RWG_SE, tl, tl)
+#ifdef TARGET_MIPS64
+DEF_HELPER_FLAGS_1(dbitswap, TCG_CALL_NO_RWG_SE, tl, tl)
+#endif
+
 #ifndef CONFIG_USER_ONLY
 /* CP0 helpers */
 DEF_HELPER_1(mfc0_mvpcontrol, tl, env)

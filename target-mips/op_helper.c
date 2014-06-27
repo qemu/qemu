@@ -266,6 +266,29 @@ target_ulong helper_mulshiu(CPUMIPSState *env, target_ulong arg1,
                        (uint64_t)(uint32_t)arg2);
 }
 
+static inline target_ulong bitswap(target_ulong v)
+{
+    v = ((v >> 1) & (target_ulong)0x5555555555555555) |
+              ((v & (target_ulong)0x5555555555555555) << 1);
+    v = ((v >> 2) & (target_ulong)0x3333333333333333) |
+              ((v & (target_ulong)0x3333333333333333) << 2);
+    v = ((v >> 4) & (target_ulong)0x0F0F0F0F0F0F0F0F) |
+              ((v & (target_ulong)0x0F0F0F0F0F0F0F0F) << 4);
+    return v;
+}
+
+#ifdef TARGET_MIPS64
+target_ulong helper_dbitswap(target_ulong rt)
+{
+    return bitswap(rt);
+}
+#endif
+
+target_ulong helper_bitswap(target_ulong rt)
+{
+    return (int32_t)bitswap(rt);
+}
+
 #ifndef CONFIG_USER_ONLY
 
 static inline hwaddr do_translate_address(CPUMIPSState *env,
