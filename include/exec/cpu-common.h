@@ -109,16 +109,6 @@ void stl_be_phys(AddressSpace *as, hwaddr addr, uint32_t val);
 void stq_le_phys(AddressSpace *as, hwaddr addr, uint64_t val);
 void stq_be_phys(AddressSpace *as, hwaddr addr, uint64_t val);
 
-#ifdef NEED_CPU_H
-uint32_t lduw_phys(AddressSpace *as, hwaddr addr);
-uint32_t ldl_phys(AddressSpace *as, hwaddr addr);
-uint64_t ldq_phys(AddressSpace *as, hwaddr addr);
-void stl_phys_notdirty(AddressSpace *as, hwaddr addr, uint32_t val);
-void stw_phys(AddressSpace *as, hwaddr addr, uint32_t val);
-void stl_phys(AddressSpace *as, hwaddr addr, uint32_t val);
-void stq_phys(AddressSpace *as, hwaddr addr, uint64_t val);
-#endif
-
 void cpu_physical_memory_write_rom(AddressSpace *as, hwaddr addr,
                                    const uint8_t *buf, int len);
 void cpu_flush_icache_range(hwaddr start, int len);

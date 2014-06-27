@@ -1292,23 +1292,6 @@ void address_space_stq_le(AddressSpace *as, hwaddr addr, uint64_t val,
 void address_space_stq_be(AddressSpace *as, hwaddr addr, uint64_t val,
                             MemTxAttrs attrs, MemTxResult *result);
 
-#ifdef NEED_CPU_H
-uint32_t address_space_lduw(AddressSpace *as, hwaddr addr,
-                            MemTxAttrs attrs, MemTxResult *result);
-uint32_t address_space_ldl(AddressSpace *as, hwaddr addr,
-                            MemTxAttrs attrs, MemTxResult *result);
-uint64_t address_space_ldq(AddressSpace *as, hwaddr addr,
-                            MemTxAttrs attrs, MemTxResult *result);
-void address_space_stl_notdirty(AddressSpace *as, hwaddr addr, uint32_t val,
-                            MemTxAttrs attrs, MemTxResult *result);
-void address_space_stw(AddressSpace *as, hwaddr addr, uint32_t val,
-                            MemTxAttrs attrs, MemTxResult *result);
-void address_space_stl(AddressSpace *as, hwaddr addr, uint32_t val,
-                            MemTxAttrs attrs, MemTxResult *result);
-void address_space_stq(AddressSpace *as, hwaddr addr, uint64_t val,
-                            MemTxAttrs attrs, MemTxResult *result);
-#endif
-
 /* address_space_translate: translate an address range into an address space
  * into a MemoryRegion and an address range into that section.  Should be
  * called from an RCU critical section, to avoid that the last reference
