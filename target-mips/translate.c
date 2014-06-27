@@ -193,6 +193,9 @@ enum {
     OPC_MOVZ     = 0x0A | OPC_SPECIAL,
     OPC_MOVN     = 0x0B | OPC_SPECIAL,
 
+    OPC_SELEQZ   = 0x35 | OPC_SPECIAL,
+    OPC_SELNEZ   = 0x37 | OPC_SPECIAL,
+
     OPC_MOVCI    = 0x01 | OPC_SPECIAL,
 
     /* Special */
@@ -205,8 +208,6 @@ enum {
     OPC_SPECIAL15_RESERVED = 0x15 | OPC_SPECIAL,
     OPC_SPECIAL28_RESERVED = 0x28 | OPC_SPECIAL,
     OPC_SPECIAL29_RESERVED = 0x29 | OPC_SPECIAL,
-    OPC_SPECIAL35_RESERVED = 0x35 | OPC_SPECIAL,
-    OPC_SPECIAL37_RESERVED = 0x37 | OPC_SPECIAL,
     OPC_SPECIAL39_RESERVED = 0x39 | OPC_SPECIAL,
     OPC_SPECIAL3D_RESERVED = 0x3D | OPC_SPECIAL,
 };
@@ -2411,6 +2412,14 @@ static void gen_cond_move(DisasContext *ctx, uint32_t opc,
     case OPC_MOVZ:
         tcg_gen_movcond_tl(TCG_COND_EQ, cpu_gpr[rd], t0, t1, t2, cpu_gpr[rd]);
         opn = "movz";
+        break;
+    case OPC_SELNEZ:
+        tcg_gen_movcond_tl(TCG_COND_NE, cpu_gpr[rd], t0, t1, t2, t1);
+        opn = "selnez";
+        break;
+    case OPC_SELEQZ:
+        tcg_gen_movcond_tl(TCG_COND_EQ, cpu_gpr[rd], t0, t1, t2, t1);
+        opn = "seleqz";
         break;
     }
     tcg_temp_free(t2);
@@ -14531,6 +14540,11 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
             check_insn_opc_removed(ctx, ISA_MIPS32R6);
             check_insn(ctx, ISA_MIPS4 | ISA_MIPS32 |
                                  INSN_LOONGSON2E | INSN_LOONGSON2F);
+            gen_cond_move(ctx, op1, rd, rs, rt);
+            break;
+        case OPC_SELEQZ:
+        case OPC_SELNEZ:
+            check_insn(ctx, ISA_MIPS32R6);
             gen_cond_move(ctx, op1, rd, rs, rt);
             break;
         case OPC_ADD ... OPC_SUBU:

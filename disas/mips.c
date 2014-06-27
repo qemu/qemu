@@ -521,6 +521,8 @@ struct mips_opcode
 #define INSN_ISA64                0x00000040
 #define INSN_ISA32R2              0x00000080
 #define INSN_ISA64R2              0x00000100
+#define INSN_ISA32R6              0x00000200
+#define INSN_ISA64R6              0x00000400
 
 /* Masks used for MIPS-defined ASEs.  */
 #define INSN_ASE_MASK		  0x0000f000
@@ -585,6 +587,8 @@ struct mips_opcode
 #define       ISA_MIPS32R2    (ISA_MIPS32 | INSN_ISA32R2)
 #define       ISA_MIPS64R2    (ISA_MIPS64 | INSN_ISA32R2 | INSN_ISA64R2)
 
+#define       ISA_MIPS32R6    (ISA_MIPS32R2 | INSN_ISA32R6)
+#define       ISA_MIPS64R6    (ISA_MIPS64R2 | INSN_ISA32R6 | INSN_ISA64R6)
 
 /* CPU defines, use instead of hardcoding processor number. Keep this
    in sync with bfd/archures.c in order for machine selection to work.  */
@@ -1121,6 +1125,8 @@ extern const int bfd_mips16_num_opcodes;
 #define I64     INSN_ISA64
 #define I33	INSN_ISA32R2
 #define I65	INSN_ISA64R2
+#define I32R6   INSN_ISA32R6
+#define I64R6   INSN_ISA64R6
 
 /* MIPS64 MIPS-3D ASE support.  */
 #define I16     INSN_MIPS16
@@ -1209,6 +1215,8 @@ const struct mips_opcode mips_builtin_opcodes[] =
    them first.  The assemblers uses a hash table based on the
    instruction name anyhow.  */
 /* name,    args,	match,	    mask,	pinfo,          	membership */
+{"seleqz",  "d,v,t",    0x00000035, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"selnez",  "d,v,t",    0x00000037, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
 {"pref",    "k,o(b)",   0xcc000000, 0xfc000000, RD_b,           	0,		I4|I32|G3	},
 {"prefx",   "h,t(b)",	0x4c00000f, 0xfc0007ff, RD_b|RD_t,		0,		I4|I33	},
 {"nop",     "",         0x00000000, 0xffffffff, 0,              	INSN2_ALIAS,	I1      }, /* sll */
