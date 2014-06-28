@@ -663,15 +663,24 @@ static TCGv gen_ieee_input(DisasContext *ctx, int reg, int fn11, int is_cmp)
     return val;
 }
 
-static void gen_fp_exc_raise_ignore(int rc, int fn11, int ignore)
+static void gen_fp_exc_raise(int rc, int fn11)
 {
     /* ??? We ought to be able to do something with imprecise exceptions.
        E.g. notice we're still in the trap shadow of something within the
        TB and do not generate the code to signal the exception; end the TB
        when an exception is forced to arrive, either by consumption of a
        register value or TRAPB or EXCB.  */
-    TCGv_i32 ign = tcg_const_i32(ignore);
-    TCGv_i32 reg;
+    TCGv_i32 reg, ign;
+    uint32_t ignore = 0;
+
+    if (!(fn11 & QUAL_U)) {
+        /* Note that QUAL_U == QUAL_V, so ignore either.  */
+        ignore |= FPCR_UNF | FPCR_IOV;
+    }
+    if (!(fn11 & QUAL_I)) {
+        ignore |= FPCR_INE;
+    }
+    ign = tcg_const_i32(ignore);
 
     /* ??? Pass in the regno of the destination so that the helper can
        set EXC_MASK, which contains a bitmask of destination registers
@@ -679,7 +688,6 @@ static void gen_fp_exc_raise_ignore(int rc, int fn11, int ignore)
        does not require this.  We do need it for a guest kernel's entArith,
        or if we were to do something clever with imprecise exceptions.  */
     reg = tcg_const_i32(rc + 32);
-
     if (fn11 & QUAL_S) {
         gen_helper_fp_exc_raise_s(cpu_env, ign, reg);
     } else {
@@ -688,11 +696,6 @@ static void gen_fp_exc_raise_ignore(int rc, int fn11, int ignore)
 
     tcg_temp_free_i32(reg);
     tcg_temp_free_i32(ign);
-}
-
-static inline void gen_fp_exc_raise(int rc, int fn11)
-{
-    gen_fp_exc_raise_ignore(rc, fn11, fn11 & QUAL_I ? 0 : FPCR_INE);
 }
 
 static void gen_cvtlq(TCGv vc, TCGv vb)
@@ -752,7 +755,6 @@ IEEE_ARITH2(cvtts)
 static void gen_cvttq(DisasContext *ctx, int rb, int rc, int fn11)
 {
     TCGv vb, vc;
-    int ignore = 0;
 
     /* No need to set flushzero, since we have an integer output.  */
     vb = gen_ieee_input(ctx, rb, fn11, 0);
@@ -766,20 +768,16 @@ static void gen_cvttq(DisasContext *ctx, int rb, int rc, int fn11)
         break;
     case QUAL_V | QUAL_RM_C:
     case QUAL_S | QUAL_V | QUAL_RM_C:
-        ignore = FPCR_INE;
-        /* FALLTHRU */
     case QUAL_S | QUAL_V | QUAL_I | QUAL_RM_C:
         gen_helper_cvttq_svic(vc, cpu_env, vb);
         break;
     default:
         gen_qual_roundmode(ctx, fn11);
         gen_helper_cvttq(vc, cpu_env, vb);
-        ignore |= (fn11 & QUAL_V ? 0 : FPCR_IOV);
-        ignore |= (fn11 & QUAL_I ? 0 : FPCR_INE);
         break;
     }
 
-    gen_fp_exc_raise_ignore(rc, fn11, ignore);
+    gen_fp_exc_raise(rc, fn11);
 }
 
 static void gen_ieee_intcvt(DisasContext *ctx,

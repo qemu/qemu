@@ -57,18 +57,16 @@ static uint32_t soft_to_fpcr_exc(CPUAlphaState *env)
 static void fp_exc_raise1(CPUAlphaState *env, uintptr_t retaddr,
                           uint32_t exc, uint32_t regno)
 {
-    if (exc) {
-        uint32_t hw_exc = 0;
+    uint32_t hw_exc = 0;
 
-        hw_exc |= CONVERT_BIT(exc, FPCR_INV, EXC_M_INV);
-        hw_exc |= CONVERT_BIT(exc, FPCR_DZE, EXC_M_DZE);
-        hw_exc |= CONVERT_BIT(exc, FPCR_OVF, EXC_M_FOV);
-        hw_exc |= CONVERT_BIT(exc, FPCR_UNF, EXC_M_UNF);
-        hw_exc |= CONVERT_BIT(exc, FPCR_INE, EXC_M_INE);
-        hw_exc |= CONVERT_BIT(exc, FPCR_IOV, EXC_M_IOV);
+    hw_exc |= CONVERT_BIT(exc, FPCR_INV, EXC_M_INV);
+    hw_exc |= CONVERT_BIT(exc, FPCR_DZE, EXC_M_DZE);
+    hw_exc |= CONVERT_BIT(exc, FPCR_OVF, EXC_M_FOV);
+    hw_exc |= CONVERT_BIT(exc, FPCR_UNF, EXC_M_UNF);
+    hw_exc |= CONVERT_BIT(exc, FPCR_INE, EXC_M_INE);
+    hw_exc |= CONVERT_BIT(exc, FPCR_IOV, EXC_M_IOV);
 
-        arith_excp(env, retaddr, hw_exc, 1ull << regno);
-    }
+    arith_excp(env, retaddr, hw_exc, 1ull << regno);
 }
 
 /* Raise exceptions for ieee fp insns without software completion.
@@ -76,8 +74,14 @@ static void fp_exc_raise1(CPUAlphaState *env, uintptr_t retaddr,
    doesn't apply.  */
 void helper_fp_exc_raise(CPUAlphaState *env, uint32_t ignore, uint32_t regno)
 {
-    uint32_t exc = env->error_code & ~ignore;
-    fp_exc_raise1(env, GETPC(), exc, regno);
+    uint32_t exc = env->error_code;
+    if (exc) {
+        env->fpcr |= exc;
+        exc &= ~ignore;
+        if (exc) {
+            fp_exc_raise1(env, GETPC(), exc, regno);
+        }
+    }
 }
 
 /* Raise exceptions for ieee fp insns with software completion.  */
@@ -86,8 +90,11 @@ void helper_fp_exc_raise_s(CPUAlphaState *env, uint32_t ignore, uint32_t regno)
     uint32_t exc = env->error_code & ~ignore;
     if (exc) {
         env->fpcr |= exc;
-        exc &= env->fpcr_exc_enable;
-        fp_exc_raise1(env, GETPC(), exc, regno);
+        exc &= ~ignore;
+        if (exc) {
+            exc &= env->fpcr_exc_enable;
+            fp_exc_raise1(env, GETPC(), exc, regno);
+        }
     }
 }
 
