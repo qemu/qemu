@@ -9551,6 +9551,10 @@ static void ppc_cpu_reset(CPUState *s)
 #endif
 #if !defined(TARGET_WORDS_BIGENDIAN)
     msr |= (target_ulong)1 << MSR_LE; /* Little-endian user mode */
+    if (!((env->msr_mask >> MSR_LE) & 1)) {
+        fprintf(stderr, "Selected CPU does not support little-endian.\n");
+        exit(1);
+    }
 #endif
 #endif
 
