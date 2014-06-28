@@ -427,12 +427,9 @@ uint64_t helper_cvtqs(CPUAlphaState *env, uint64_t a)
 
 /* Implement float64 to uint64 conversion without saturation -- we must
    supply the truncated result.  This behaviour is used by the compiler
-   to get unsigned conversion for free with the same instruction.
+   to get unsigned conversion for free with the same instruction.  */
 
-   The VI flag is set when overflow or inexact exceptions should be raised.  */
-
-static inline uint64_t inline_cvttq(CPUAlphaState *env, uint64_t a,
-                                    int roundmode, int VI)
+static uint64_t do_cvttq(CPUAlphaState *env, uint64_t a, int roundmode)
 {
     uint64_t frac, ret = 0;
     uint32_t exp, sign, exc = 0;
@@ -447,7 +444,7 @@ static inline uint64_t inline_cvttq(CPUAlphaState *env, uint64_t a,
             goto do_underflow;
         }
     } else if (exp == 0x7ff) {
-        exc = (frac ? FPCR_INV : VI ? FPCR_OVF : 0);
+        exc = (frac ? FPCR_INV : FPCR_IOV | FPCR_INE);
     } else {
         /* Restore implicit bit.  */
         frac |= 0x10000000000000ull;
@@ -456,10 +453,11 @@ static inline uint64_t inline_cvttq(CPUAlphaState *env, uint64_t a,
         if (shift >= 0) {
             /* In this case the number is so large that we must shift
                the fraction left.  There is no rounding to do.  */
+            exc = FPCR_IOV | FPCR_INE;
             if (shift < 63) {
                 ret = frac << shift;
-                if (VI && (ret >> shift) != frac) {
-                    exc = FPCR_OVF;
+                if ((ret >> shift) == frac) {
+                    exc = 0;
                 }
             }
         } else {
@@ -482,7 +480,7 @@ static inline uint64_t inline_cvttq(CPUAlphaState *env, uint64_t a,
             }
 
             if (round) {
-                exc = (VI ? FPCR_INE : 0);
+                exc = FPCR_INE;
                 switch (roundmode) {
                 case float_round_nearest_even:
                     if (round == (1ull << 63)) {
@@ -514,17 +512,12 @@ static inline uint64_t inline_cvttq(CPUAlphaState *env, uint64_t a,
 
 uint64_t helper_cvttq(CPUAlphaState *env, uint64_t a)
 {
-    return inline_cvttq(env, a, FP_STATUS.float_rounding_mode, 1);
+    return do_cvttq(env, a, FP_STATUS.float_rounding_mode);
 }
 
 uint64_t helper_cvttq_c(CPUAlphaState *env, uint64_t a)
 {
-    return inline_cvttq(env, a, float_round_to_zero, 0);
-}
-
-uint64_t helper_cvttq_svic(CPUAlphaState *env, uint64_t a)
-{
-    return inline_cvttq(env, a, float_round_to_zero, 1);
+    return do_cvttq(env, a, float_round_to_zero);
 }
 
 uint64_t helper_cvtqt(CPUAlphaState *env, uint64_t a)
