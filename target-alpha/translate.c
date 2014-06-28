@@ -2199,6 +2199,11 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* MT_FPCR */
             va = load_fpr(ctx, ra);
             gen_helper_store_fpcr(cpu_env, va);
+            if (ctx->tb_rm == QUAL_RM_D) {
+                /* Re-do the copy of the rounding mode to fp_status
+                   the next time we use dynamic rounding.  */
+                ctx->tb_rm = -1;
+            }
             break;
         case 0x025:
             /* MF_FPCR */
