@@ -571,6 +571,8 @@ void QEMU_NORETURN dynamic_excp(CPUAlphaState *env, uintptr_t retaddr,
     env->error_code = error;
     if (retaddr) {
         cpu_restore_state(cs, retaddr);
+        /* Floating-point exceptions (our only users) point to the next PC.  */
+        env->pc += 4;
     }
     cpu_loop_exit(cs);
 }
