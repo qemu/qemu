@@ -29,6 +29,8 @@
 #define TARGET_LONG_BITS 64
 #define TARGET_PAGE_BITS 12
 
+#define TARGET_IS_BIENDIAN 1
+
 /* Note that the official physical address space bits is 62-M where M
    is implementation dependent.  I've not looked up M for the set of
    cpus we emulate at the system level.  */
@@ -2012,7 +2014,7 @@ enum {
                         PPC2_DIVE_ISA206 | PPC2_ATOMIC_ISA206 | \
                         PPC2_FP_CVT_ISA206 | PPC2_FP_TST_ISA206 | \
                         PPC2_BCTAR_ISA207 | PPC2_LSQ_ISA207 | \
-                        PPC2_ALTIVEC_207 | PPC2_ISA207S)
+                        PPC2_ALTIVEC_207 | PPC2_ISA207S | PPC2_DFP)
 };
 
 /*****************************************************************************/

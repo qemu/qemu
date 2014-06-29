@@ -45,8 +45,8 @@ endif
 endif
 
 GENERATED_HEADERS = config-host.h qemu-options.def
-GENERATED_HEADERS += qmp-commands.h qapi-types.h qapi-visit.h
-GENERATED_SOURCES += qmp-marshal.c qapi-types.c qapi-visit.c
+GENERATED_HEADERS += qmp-commands.h qapi-types.h qapi-visit.h qapi-event.h
+GENERATED_SOURCES += qmp-marshal.c qapi-types.c qapi-visit.c qapi-event.c
 
 GENERATED_HEADERS += trace/generated-events.h
 GENERATED_SOURCES += trace/generated-events.c
@@ -199,7 +199,7 @@ Makefile: $(version-obj-y) $(version-lobj-y)
 # Build libraries
 
 libqemustub.a: $(stub-obj-y)
-libqemuutil.a: $(util-obj-y) qapi-types.o qapi-visit.o
+libqemuutil.a: $(util-obj-y) qapi-types.o qapi-visit.o qapi-event.o
 
 block-modules = $(foreach o,$(block-obj-m),"$(basename $(subst /,-,$o))",) NULL
 util/module.o-cflags = -D'CONFIG_BLOCK_MODULES=$(block-modules)'
@@ -243,18 +243,27 @@ $(SRC_PATH)/qga/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
 		$(gen-out-type) -o qga/qapi-generated -p "qga-" -i $<, \
 		"  GEN   $@")
 
+qapi-modules = $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/qapi/common.json \
+               $(SRC_PATH)/qapi/block.json $(SRC_PATH)/qapi/block-core.json \
+               $(SRC_PATH)/qapi/event.json
+
 qapi-types.c qapi-types.h :\
-$(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
+$(qapi-modules) $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py \
 		$(gen-out-type) -o "." -b -i $<, \
 		"  GEN   $@")
 qapi-visit.c qapi-visit.h :\
-$(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-visit.py $(qapi-py)
+$(qapi-modules) $(SRC_PATH)/scripts/qapi-visit.py $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py \
 		$(gen-out-type) -o "." -b -i $<, \
 		"  GEN   $@")
+qapi-event.c qapi-event.h :\
+$(qapi-modules) $(SRC_PATH)/scripts/qapi-event.py $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-event.py \
+		$(gen-out-type) -o "." -b -i $<, \
+		"  GEN   $@")
 qmp-commands.h qmp-marshal.c :\
-$(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
+$(qapi-modules) $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py \
 		$(gen-out-type) -o "." -m -i $<, \
 		"  GEN   $@")
@@ -375,12 +384,8 @@ install-tools: tools
 
 install: all $(if $(BUILD_DOCS),install-doc) $(if $(BUILD_TOOLS),install-tools) install-sysconfig \
 install-datadir install-localstatedir
-	$(INSTALL_DIR) "$(DESTDIR)$(bindir)"
 ifneq ($(TOOLS),)
-	$(INSTALL_PROG) $(TOOLS) "$(DESTDIR)$(bindir)"
-ifneq ($(STRIP),)
-	$(STRIP) $(TOOLS:%="$(DESTDIR)$(bindir)/%")
-endif
+	$(call install-prog,$(TOOLS),$(DESTDIR)$(bindir))
 endif
 ifneq ($(CONFIG_MODULES),)
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_moddir)"
@@ -391,11 +396,7 @@ ifneq ($(CONFIG_MODULES),)
 	done
 endif
 ifneq ($(HELPERS-y),)
-	$(INSTALL_DIR) "$(DESTDIR)$(libexecdir)"
-	$(INSTALL_PROG) $(HELPERS-y) "$(DESTDIR)$(libexecdir)"
-ifneq ($(STRIP),)
-	$(STRIP) $(HELPERS-y:%="$(DESTDIR)$(libexecdir)/%")
-endif
+	$(call install-prog,$(HELPERS-y),$(DESTDIR)$(libexecdir))
 endif
 ifneq ($(BLOBS),)
 	set -e; for x in $(BLOBS); do \

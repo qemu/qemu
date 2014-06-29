@@ -27,7 +27,6 @@ typedef struct sPAPREnvironment {
     long rtas_size;
     void *fdt_skel;
     target_ulong entry_point;
-    uint32_t next_irq;
     uint64_t rtc_offset;
     struct PPCTimebase tb;
     bool has_graphics;
@@ -339,16 +338,6 @@ target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
 int spapr_allocate_irq(int hint, bool lsi);
 int spapr_allocate_irq_block(int num, bool lsi, bool msi);
 
-static inline int spapr_allocate_msi(int hint)
-{
-    return spapr_allocate_irq(hint, false);
-}
-
-static inline int spapr_allocate_lsi(int hint)
-{
-    return spapr_allocate_irq(hint, true);
-}
-
 /* RTAS return codes */
 #define RTAS_OUT_SUCCESS            0
 #define RTAS_OUT_NO_ERRORS_FOUND    1
@@ -357,6 +346,58 @@ static inline int spapr_allocate_lsi(int hint)
 #define RTAS_OUT_PARAM_ERROR        -3
 #define RTAS_OUT_NOT_SUPPORTED      -3
 #define RTAS_OUT_NOT_AUTHORIZED     -9002
+
+/* RTAS tokens */
+#define RTAS_TOKEN_BASE      0x2000
+
+#define RTAS_DISPLAY_CHARACTER                  (RTAS_TOKEN_BASE + 0x00)
+#define RTAS_GET_TIME_OF_DAY                    (RTAS_TOKEN_BASE + 0x01)
+#define RTAS_SET_TIME_OF_DAY                    (RTAS_TOKEN_BASE + 0x02)
+#define RTAS_POWER_OFF                          (RTAS_TOKEN_BASE + 0x03)
+#define RTAS_SYSTEM_REBOOT                      (RTAS_TOKEN_BASE + 0x04)
+#define RTAS_QUERY_CPU_STOPPED_STATE            (RTAS_TOKEN_BASE + 0x05)
+#define RTAS_START_CPU                          (RTAS_TOKEN_BASE + 0x06)
+#define RTAS_STOP_SELF                          (RTAS_TOKEN_BASE + 0x07)
+#define RTAS_IBM_GET_SYSTEM_PARAMETER           (RTAS_TOKEN_BASE + 0x08)
+#define RTAS_IBM_SET_SYSTEM_PARAMETER           (RTAS_TOKEN_BASE + 0x09)
+#define RTAS_IBM_SET_XIVE                       (RTAS_TOKEN_BASE + 0x0A)
+#define RTAS_IBM_GET_XIVE                       (RTAS_TOKEN_BASE + 0x0B)
+#define RTAS_IBM_INT_OFF                        (RTAS_TOKEN_BASE + 0x0C)
+#define RTAS_IBM_INT_ON                         (RTAS_TOKEN_BASE + 0x0D)
+#define RTAS_CHECK_EXCEPTION                    (RTAS_TOKEN_BASE + 0x0E)
+#define RTAS_EVENT_SCAN                         (RTAS_TOKEN_BASE + 0x0F)
+#define RTAS_IBM_SET_TCE_BYPASS                 (RTAS_TOKEN_BASE + 0x10)
+#define RTAS_QUIESCE                            (RTAS_TOKEN_BASE + 0x11)
+#define RTAS_NVRAM_FETCH                        (RTAS_TOKEN_BASE + 0x12)
+#define RTAS_NVRAM_STORE                        (RTAS_TOKEN_BASE + 0x13)
+#define RTAS_READ_PCI_CONFIG                    (RTAS_TOKEN_BASE + 0x14)
+#define RTAS_WRITE_PCI_CONFIG                   (RTAS_TOKEN_BASE + 0x15)
+#define RTAS_IBM_READ_PCI_CONFIG                (RTAS_TOKEN_BASE + 0x16)
+#define RTAS_IBM_WRITE_PCI_CONFIG               (RTAS_TOKEN_BASE + 0x17)
+#define RTAS_IBM_QUERY_INTERRUPT_SOURCE_NUMBER  (RTAS_TOKEN_BASE + 0x18)
+#define RTAS_IBM_CHANGE_MSI                     (RTAS_TOKEN_BASE + 0x19)
+#define RTAS_SET_INDICATOR                      (RTAS_TOKEN_BASE + 0x1A)
+#define RTAS_SET_POWER_LEVEL                    (RTAS_TOKEN_BASE + 0x1B)
+#define RTAS_GET_POWER_LEVEL                    (RTAS_TOKEN_BASE + 0x1C)
+#define RTAS_GET_SENSOR_STATE                   (RTAS_TOKEN_BASE + 0x1D)
+#define RTAS_IBM_CONFIGURE_CONNECTOR            (RTAS_TOKEN_BASE + 0x1E)
+#define RTAS_IBM_OS_TERM                        (RTAS_TOKEN_BASE + 0x1F)
+#define RTAS_IBM_EXTENDED_OS_TERM               (RTAS_TOKEN_BASE + 0x20)
+
+#define RTAS_TOKEN_MAX                          (RTAS_TOKEN_BASE + 0x21)
+
+/* RTAS ibm,get-system-parameter token values */
+#define RTAS_SYSPARM_SPLPAR_CHARACTERISTICS      20
+#define RTAS_SYSPARM_DIAGNOSTICS_RUN_MODE        42
+#define RTAS_SYSPARM_UUID                        48
+
+/* Possible values for the platform-processor-diagnostics-run-mode parameter
+ * of the RTAS ibm,get-system-parameter call.
+ */
+#define DIAGNOSTICS_RUN_MODE_DISABLED  0
+#define DIAGNOSTICS_RUN_MODE_STAGGERED 1
+#define DIAGNOSTICS_RUN_MODE_IMMEDIATE 2
+#define DIAGNOSTICS_RUN_MODE_PERIODIC  3
 
 static inline uint64_t ppc64_phys_to_real(uint64_t addr)
 {
@@ -373,11 +414,24 @@ static inline void rtas_st(target_ulong phys, int n, uint32_t val)
     stl_be_phys(&address_space_memory, ppc64_phys_to_real(phys + 4*n), val);
 }
 
+
+static inline void rtas_st_buffer(target_ulong phys, target_ulong phys_len,
+                                  uint8_t *buffer, uint16_t buffer_len)
+{
+    if (phys_len < 2) {
+        return;
+    }
+    stw_be_phys(&address_space_memory,
+                ppc64_phys_to_real(phys), buffer_len);
+    cpu_physical_memory_write(ppc64_phys_to_real(phys + 2),
+                              buffer, MIN(buffer_len, phys_len - 2));
+}
+
 typedef void (*spapr_rtas_fn)(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                               uint32_t token,
                               uint32_t nargs, target_ulong args,
                               uint32_t nret, target_ulong rets);
-int spapr_rtas_register(const char *name, spapr_rtas_fn fn);
+void spapr_rtas_register(int token, const char *name, spapr_rtas_fn fn);
 target_ulong spapr_rtas_call(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                              uint32_t token, uint32_t nargs, target_ulong args,
                              uint32_t nret, target_ulong rets);
@@ -407,6 +461,7 @@ struct sPAPRTCETable {
     uint32_t page_shift;
     uint64_t *table;
     bool bypass;
+    bool vfio_accel;
     int fd;
     MemoryRegion iommu;
     QLIST_ENTRY(sPAPRTCETable) list;
@@ -418,7 +473,8 @@ int spapr_h_cas_compose_response(target_ulong addr, target_ulong size);
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
                                    uint64_t bus_offset,
                                    uint32_t page_shift,
-                                   uint32_t nb_table);
+                                   uint32_t nb_table,
+                                   bool vfio_accel);
 MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet);
 void spapr_tce_set_bypass(sPAPRTCETable *tcet, bool bypass);
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,

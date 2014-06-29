@@ -333,7 +333,7 @@ static void iommu_config_write(void *opaque, hwaddr addr,
             is->regs[IOMMU_CTRL >> 3] &= 0xffffffffULL;
             is->regs[IOMMU_CTRL >> 3] |= val << 32;
         } else {
-            is->regs[IOMMU_CTRL] = val;
+            is->regs[IOMMU_CTRL >> 3] = val;
         }
         break;
     case IOMMU_CTRL + 0x4:
@@ -345,7 +345,7 @@ static void iommu_config_write(void *opaque, hwaddr addr,
             is->regs[IOMMU_BASE >> 3] &= 0xffffffffULL;
             is->regs[IOMMU_BASE >> 3] |= val << 32;
         } else {
-            is->regs[IOMMU_BASE] = val;
+            is->regs[IOMMU_BASE >> 3] = val;
         }
         break;
     case IOMMU_BASE + 0x4:

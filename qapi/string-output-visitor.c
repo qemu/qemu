@@ -98,7 +98,7 @@ static void format_string(StringOutputVisitor *sov, Range *r, bool next,
 {
     if (r->end - r->begin > 1) {
         if (human) {
-            g_string_append_printf(sov->string, "0x%" PRIx64 "-%" PRIx64,
+            g_string_append_printf(sov->string, "0x%" PRIx64 "-0x%" PRIx64,
                                    r->begin, r->end - 1);
 
         } else {

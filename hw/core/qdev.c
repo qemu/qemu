@@ -32,9 +32,9 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
 #include "qapi/qmp/qjson.h"
-#include "monitor/monitor.h"
 #include "hw/hotplug.h"
 #include "hw/boards.h"
+#include "qapi-event.h"
 
 int qdev_hotplug = 0;
 static bool qdev_hot_added = false;
@@ -780,6 +780,27 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
     }
 }
 
+/* @qdev_alias_all_properties - Add alias properties to the source object for
+ * all qdev properties on the target DeviceState.
+ */
+void qdev_alias_all_properties(DeviceState *target, Object *source)
+{
+    ObjectClass *class;
+    Property *prop;
+
+    class = object_get_class(OBJECT(target));
+    do {
+        DeviceClass *dc = DEVICE_CLASS(class);
+
+        for (prop = dc->props; prop && prop->name; prop++) {
+            object_property_add_alias(source, prop->name,
+                                      OBJECT(target), prop->name,
+                                      &error_abort);
+        }
+        class = object_class_get_parent(class);
+    } while (class != object_class_by_name(TYPE_DEVICE));
+}
+
 static bool device_get_realized(Object *obj, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -848,6 +869,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         if (dev->hotplugged && local_err == NULL) {
             device_reset(dev);
         }
+        dev->pending_deleted_event = false;
     } else if (!value && dev->realized) {
         QLIST_FOREACH(bus, &dev->child_bus, sibling) {
             object_property_set_bool(OBJECT(bus), false, "realized",
@@ -862,6 +884,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         if (dc->unrealize && local_err == NULL) {
             dc->unrealize(dev, &local_err);
         }
+        dev->pending_deleted_event = true;
     }
 
     if (local_err != NULL) {
@@ -949,7 +972,7 @@ static void device_finalize(Object *obj)
 
     QLIST_FOREACH_SAFE(ngl, &dev->gpios, node, next) {
         QLIST_REMOVE(ngl, node);
-        qemu_free_irqs(ngl->in);
+        qemu_free_irqs(ngl->in, ngl->num_in);
         g_free(ngl->name);
         g_free(ngl);
         /* ngl->out irqs are owned by the other end and should not be freed
@@ -972,8 +995,6 @@ static void device_unparent(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
     BusState *bus;
-    QObject *event_data;
-    bool have_realized = dev->realized;
 
     if (dev->realized) {
         object_property_set_bool(obj, false, "realized", NULL);
@@ -989,17 +1010,10 @@ static void device_unparent(Object *obj)
     }
 
     /* Only send event if the device had been completely realized */
-    if (have_realized) {
+    if (dev->pending_deleted_event) {
         gchar *path = object_get_canonical_path(OBJECT(dev));
 
-        if (dev->id) {
-            event_data = qobject_from_jsonf("{ 'device': %s, 'path': %s }",
-                                            dev->id, path);
-        } else {
-            event_data = qobject_from_jsonf("{ 'path': %s }", path);
-        }
-        monitor_protocol_event(QEVENT_DEVICE_DELETED, event_data);
-        qobject_decref(event_data);
+        qapi_event_send_device_deleted(!!dev->id, dev->id, path, &error_abort);
         g_free(path);
     }
 }

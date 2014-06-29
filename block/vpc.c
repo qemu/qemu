@@ -29,6 +29,13 @@
 #if defined(CONFIG_UUID)
 #include <uuid/uuid.h>
 #endif
+#ifdef __linux__
+#include <linux/fs.h>
+#include <sys/ioctl.h>
+#ifndef FS_NOCOW_FL
+#define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
+#endif
+#endif
 
 /**************************************************************/
 
@@ -751,6 +758,7 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     int64_t total_size;
     int disk_type;
     int ret = -EIO;
+    bool nocow = false;
 
     /* Read out options */
     total_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
@@ -767,12 +775,28 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     } else {
         disk_type = VHD_DYNAMIC;
     }
+    nocow = qemu_opt_get_bool_del(opts, BLOCK_OPT_NOCOW, false);
 
     /* Create the file */
     fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0644);
     if (fd < 0) {
         ret = -EIO;
         goto out;
+    }
+
+    if (nocow) {
+#ifdef __linux__
+        /* Set NOCOW flag to solve performance issue on fs like btrfs.
+         * This is an optimisation. The FS_IOC_SETFLAGS ioctl return value will
+         * be ignored since any failure of this operation should not block the
+         * left work.
+         */
+        int attr;
+        if (ioctl(fd, FS_IOC_GETFLAGS, &attr) == 0) {
+            attr |= FS_NOCOW_FL;
+            ioctl(fd, FS_IOC_SETFLAGS, &attr);
+        }
+#endif
     }
 
     /*
@@ -883,6 +907,11 @@ static QemuOptsList vpc_create_opts = {
             .help =
                 "Type of virtual hard disk format. Supported formats are "
                 "{dynamic (default) | fixed} "
+        },
+        {
+            .name = BLOCK_OPT_NOCOW,
+            .type = QEMU_OPT_BOOL,
+            .help = "Turn off copy-on-write (valid only on btrfs)"
         },
         { /* end of list */ }
     }

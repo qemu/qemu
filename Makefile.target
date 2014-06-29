@@ -178,10 +178,6 @@ dummy := $(call unnest-vars,.., \
 all-obj-y += $(common-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(block-obj-y)
 
-ifndef CONFIG_HAIKU
-LIBS+=-lm
-endif
-
 # build either PROG or PROGW
 $(QEMU_PROG_BUILD): $(all-obj-y) ../libqemuutil.a ../libqemustub.a
 	$(call LINK,$^)
@@ -205,10 +201,7 @@ endif
 
 install: all
 ifneq ($(PROGS),)
-	$(INSTALL_PROG) $(PROGS) "$(DESTDIR)$(bindir)"
-ifneq ($(STRIP),)
-	$(STRIP) $(PROGS:%="$(DESTDIR)$(bindir)/%")
-endif
+	$(call install-prog,$(PROGS),$(DESTDIR)$(bindir))
 endif
 ifdef CONFIG_TRACE_SYSTEMTAP
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)/../systemtap/tapset"

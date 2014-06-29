@@ -54,6 +54,7 @@
 #define BLOCK_OPT_LAZY_REFCOUNTS    "lazy_refcounts"
 #define BLOCK_OPT_ADAPTER_TYPE      "adapter_type"
 #define BLOCK_OPT_REDUNDANCY        "redundancy"
+#define BLOCK_OPT_NOCOW             "nocow"
 
 typedef struct BdrvTrackedRequest {
     BlockDriverState *bs;
@@ -99,6 +100,9 @@ struct BlockDriver {
      * An example of the last type will be the quorum block driver.
      */
     bool bdrv_needs_filename;
+
+    /* Set if a driver can support backing files */
+    bool supports_backing;
 
     /* For handling image reopen for split or non-split files */
     int (*bdrv_reopen_prepare)(BDRVReopenState *reopen_state,
@@ -426,9 +430,6 @@ void bdrv_attach_aio_context(BlockDriverState *bs,
 #ifdef _WIN32
 int is_windows_drive(const char *filename);
 #endif
-void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
-                               enum MonitorEvent ev,
-                               BlockErrorAction action, bool is_read);
 
 /**
  * stream_start:
@@ -463,13 +464,14 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
  * @on_error: The action to take upon error.
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
+ * @backing_file_str: String to use as the backing file in @top's overlay
  * @errp: Error object.
  *
  */
 void commit_start(BlockDriverState *bs, BlockDriverState *base,
                  BlockDriverState *top, int64_t speed,
                  BlockdevOnError on_error, BlockDriverCompletionFunc *cb,
-                 void *opaque, Error **errp);
+                 void *opaque, const char *backing_file_str, Error **errp);
 /**
  * commit_active_start:
  * @bs: Active block device to be committed.
@@ -490,6 +492,8 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
  * mirror_start:
  * @bs: Block device to operate on.
  * @target: Block device to write to.
+ * @replaces: Block graph node name to replace once the mirror is done. Can
+ *            only be used when full mirroring is selected.
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @granularity: The chosen granularity for the dirty bitmap.
  * @buf_size: The amount of data that can be in flight at one time.
@@ -506,6 +510,7 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
  * @bs will be switched to read from @target.
  */
 void mirror_start(BlockDriverState *bs, BlockDriverState *target,
+                  const char *replaces,
                   int64_t speed, int64_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,

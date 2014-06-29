@@ -310,8 +310,13 @@ static void qemu_opt_del_all(QemuOpts *opts, const char *name)
 
 const char *qemu_opt_get(QemuOpts *opts, const char *name)
 {
-    QemuOpt *opt = qemu_opt_find(opts, name);
+    QemuOpt *opt;
 
+    if (opts == NULL) {
+        return NULL;
+    }
+
+    opt = qemu_opt_find(opts, name);
     if (!opt) {
         const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
         if (desc && desc->def_value_str) {
@@ -364,9 +369,14 @@ bool qemu_opt_has_help_opt(QemuOpts *opts)
 static bool qemu_opt_get_bool_helper(QemuOpts *opts, const char *name,
                                      bool defval, bool del)
 {
-    QemuOpt *opt = qemu_opt_find(opts, name);
+    QemuOpt *opt;
     bool ret = defval;
 
+    if (opts == NULL) {
+        return ret;
+    }
+
+    opt = qemu_opt_find(opts, name);
     if (opt == NULL) {
         const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
         if (desc && desc->def_value_str) {
@@ -395,9 +405,14 @@ bool qemu_opt_get_bool_del(QemuOpts *opts, const char *name, bool defval)
 static uint64_t qemu_opt_get_number_helper(QemuOpts *opts, const char *name,
                                            uint64_t defval, bool del)
 {
-    QemuOpt *opt = qemu_opt_find(opts, name);
+    QemuOpt *opt;
     uint64_t ret = defval;
 
+    if (opts == NULL) {
+        return ret;
+    }
+
+    opt = qemu_opt_find(opts, name);
     if (opt == NULL) {
         const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
         if (desc && desc->def_value_str) {
@@ -427,9 +442,14 @@ uint64_t qemu_opt_get_number_del(QemuOpts *opts, const char *name,
 static uint64_t qemu_opt_get_size_helper(QemuOpts *opts, const char *name,
                                          uint64_t defval, bool del)
 {
-    QemuOpt *opt = qemu_opt_find(opts, name);
+    QemuOpt *opt;
     uint64_t ret = defval;
 
+    if (opts == NULL) {
+        return ret;
+    }
+
+    opt = qemu_opt_find(opts, name);
     if (opt == NULL) {
         const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
         if (desc && desc->def_value_str) {
@@ -1095,6 +1115,7 @@ QemuOptsList *qemu_opts_append(QemuOptsList *dst,
     size_t num_opts, num_dst_opts;
     QemuOptDesc *desc;
     bool need_init = false;
+    bool need_head_update;
 
     if (!list) {
         return dst;
@@ -1105,6 +1126,12 @@ QemuOptsList *qemu_opts_append(QemuOptsList *dst,
      */
     if (!dst) {
         need_init = true;
+        need_head_update = true;
+    } else {
+        /* Moreover, even if dst is not NULL, the realloc may move it to a
+         * different address in which case we may get a stale tail pointer
+         * in dst->head. */
+        need_head_update = QTAILQ_EMPTY(&dst->head);
     }
 
     num_opts = count_opts_list(dst);
@@ -1115,8 +1142,10 @@ QemuOptsList *qemu_opts_append(QemuOptsList *dst,
     if (need_init) {
         dst->name = NULL;
         dst->implied_opt_name = NULL;
-        QTAILQ_INIT(&dst->head);
         dst->merge_lists = false;
+    }
+    if (need_head_update) {
+        QTAILQ_INIT(&dst->head);
     }
     dst->desc[num_dst_opts].name = NULL;
 

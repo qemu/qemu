@@ -293,7 +293,7 @@ void bdrv_query_info(BlockDriverState *bs,
     qapi_free_BlockInfo(info);
 }
 
-BlockStats *bdrv_query_stats(const BlockDriverState *bs)
+static BlockStats *bdrv_query_stats(const BlockDriverState *bs)
 {
     BlockStats *s;
 
@@ -360,7 +360,11 @@ BlockStatsList *qmp_query_blockstats(Error **errp)
 
      while ((bs = bdrv_next(bs))) {
         BlockStatsList *info = g_malloc0(sizeof(*info));
+        AioContext *ctx = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(ctx);
         info->value = bdrv_query_stats(bs);
+        aio_context_release(ctx);
 
         *p_next = info;
         p_next = &info->next;

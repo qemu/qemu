@@ -224,7 +224,7 @@ static void pcie_cap_slot_hotplug_common(PCIDevice *hotplug_dev,
     *exp_cap = hotplug_dev->config + hotplug_dev->exp.exp_cap;
     uint16_t sltsta = pci_get_word(*exp_cap + PCI_EXP_SLTSTA);
 
-    PCIE_DEV_PRINTF(PCI_DEVICE(dev), "hotplug state: %d\n", state);
+    PCIE_DEV_PRINTF(PCI_DEVICE(dev), "hotplug state: 0x%x\n", sltsta);
     if (sltsta & PCI_EXP_SLTSTA_EIS) {
         /* the slot is electromechanically locked.
          * This error is propagated up to qdev and then to HMP/QMP.
@@ -258,7 +258,8 @@ void pcie_cap_slot_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
                                PCI_EXP_SLTSTA_PDS);
-    pcie_cap_slot_event(PCI_DEVICE(hotplug_dev), PCI_EXP_HP_EV_PDC);
+    pcie_cap_slot_event(PCI_DEVICE(hotplug_dev),
+                        PCI_EXP_HP_EV_PDC | PCI_EXP_HP_EV_ABP);
 }
 
 void pcie_cap_slot_hot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
@@ -268,10 +269,7 @@ void pcie_cap_slot_hot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     pcie_cap_slot_hotplug_common(PCI_DEVICE(hotplug_dev), dev, &exp_cap, errp);
 
-    object_unparent(OBJECT(dev));
-    pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
-                                 PCI_EXP_SLTSTA_PDS);
-    pcie_cap_slot_event(PCI_DEVICE(hotplug_dev), PCI_EXP_HP_EV_PDC);
+    pcie_cap_slot_push_attention_button(PCI_DEVICE(hotplug_dev));
 }
 
 /* pci express slot for pci express root/downstream port
@@ -293,6 +291,15 @@ void pcie_cap_slot_init(PCIDevice *dev, uint16_t slot)
                                PCI_EXP_SLTCAP_PIP |
                                PCI_EXP_SLTCAP_AIP |
                                PCI_EXP_SLTCAP_ABP);
+
+    if (dev->cap_present & QEMU_PCIE_SLTCAP_PCP) {
+        pci_long_test_and_set_mask(dev->config + pos + PCI_EXP_SLTCAP,
+                                   PCI_EXP_SLTCAP_PCP);
+        pci_word_test_and_clear_mask(dev->config + pos + PCI_EXP_SLTCTL,
+                                     PCI_EXP_SLTCTL_PCC);
+        pci_word_test_and_set_mask(dev->wmask + pos + PCI_EXP_SLTCTL,
+                                   PCI_EXP_SLTCTL_PCC);
+    }
 
     pci_word_test_and_clear_mask(dev->config + pos + PCI_EXP_SLTCTL,
                                  PCI_EXP_SLTCTL_PIC |
@@ -327,6 +334,10 @@ void pcie_cap_slot_init(PCIDevice *dev, uint16_t slot)
 void pcie_cap_slot_reset(PCIDevice *dev)
 {
     uint8_t *exp_cap = dev->config + dev->exp.exp_cap;
+    uint8_t port_type = pcie_cap_get_type(dev);
+
+    assert(port_type == PCI_EXP_TYPE_DOWNSTREAM ||
+           port_type == PCI_EXP_TYPE_ROOT_PORT);
 
     PCIE_DEV_PRINTF(dev, "reset\n");
 
@@ -339,8 +350,24 @@ void pcie_cap_slot_reset(PCIDevice *dev)
                                  PCI_EXP_SLTCTL_PDCE |
                                  PCI_EXP_SLTCTL_ABPE);
     pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTCTL,
-                               PCI_EXP_SLTCTL_PIC_OFF |
                                PCI_EXP_SLTCTL_AIC_OFF);
+
+    if (dev->cap_present & QEMU_PCIE_SLTCAP_PCP) {
+        /* Downstream ports enforce device number 0. */
+        bool populated = pci_bridge_get_sec_bus(PCI_BRIDGE(dev))->devices[0];
+        uint16_t pic;
+
+        if (populated) {
+            pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTCTL,
+                                         PCI_EXP_SLTCTL_PCC);
+        } else {
+            pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTCTL,
+                                       PCI_EXP_SLTCTL_PCC);
+        }
+
+        pic = populated ? PCI_EXP_SLTCTL_PIC_ON : PCI_EXP_SLTCTL_PIC_OFF;
+        pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTCTL, pic);
+    }
 
     pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
                                  PCI_EXP_SLTSTA_EIS |/* on reset,
@@ -350,6 +377,11 @@ void pcie_cap_slot_reset(PCIDevice *dev)
                                  PCI_EXP_SLTSTA_ABP);
 
     hotplug_event_update_event_status(dev);
+}
+
+static void pcie_unplug_device(PCIBus *bus, PCIDevice *dev, void *opaque)
+{
+    object_unparent(OBJECT(dev));
 }
 
 void pcie_cap_slot_write_config(PCIDevice *dev,
@@ -374,6 +406,22 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
         PCIE_DEV_PRINTF(dev, "PCI_EXP_SLTCTL_EIC: "
                         "sltsta -> 0x%02"PRIx16"\n",
                         sltsta);
+    }
+
+    /*
+     * If the slot is polulated, power indicator is off and power
+     * controller is off, it is safe to detach the devices.
+     */
+    if ((sltsta & PCI_EXP_SLTSTA_PDS) && (val & PCI_EXP_SLTCTL_PCC) &&
+        ((val & PCI_EXP_SLTCTL_PIC_OFF) == PCI_EXP_SLTCTL_PIC_OFF)) {
+            PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(dev));
+            pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
+                                pcie_unplug_device, NULL);
+
+            pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
+                                         PCI_EXP_SLTSTA_PDS);
+            pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
+                                       PCI_EXP_SLTSTA_PDC);
     }
 
     hotplug_event_notify(dev);

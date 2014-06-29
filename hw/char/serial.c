@@ -246,7 +246,7 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
         serial_receive1(s, &s->tsr, 1);
     } else if (qemu_chr_fe_write(s->chr, &s->tsr, 1) != 1) {
         if (s->tsr_retry >= 0 && s->tsr_retry < MAX_XMIT_RETRY &&
-            qemu_chr_fe_add_watch(s->chr, G_IO_OUT, serial_xmit, s) > 0) {
+            qemu_chr_fe_add_watch(s->chr, G_IO_OUT|G_IO_HUP, serial_xmit, s) > 0) {
             s->tsr_retry++;
             return FALSE;
         }

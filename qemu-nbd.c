@@ -372,6 +372,7 @@ static void nbd_accept(void *opaque)
     if (nbd_client_new(exp, fd, nbd_client_closed)) {
         nb_fds++;
     } else {
+        shutdown(fd, 2);
         close(fd);
     }
 }

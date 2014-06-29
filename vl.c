@@ -82,7 +82,6 @@ int main(int argc, char **argv)
 #include "qemu/timer.h"
 #include "sysemu/char.h"
 #include "qemu/bitmap.h"
-#include "qemu/cache-utils.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "migration/block.h"
@@ -117,6 +116,8 @@ int main(int argc, char **argv)
 #include "ui/qemu-spice.h"
 #include "qapi/string-input-visitor.h"
 #include "qapi/opts-visitor.h"
+#include "qom/object_interfaces.h"
+#include "qapi-event.h"
 
 #define DEFAULT_RAM_SIZE 128
 
@@ -195,6 +196,7 @@ static QTAILQ_HEAD(, FWBootEntry) fw_boot_order =
     QTAILQ_HEAD_INITIALIZER(fw_boot_order);
 
 int nb_numa_nodes;
+int max_numa_nodeid;
 NodeInfo numa_info[MAX_NODES];
 
 uint8_t qemu_uuid[16];
@@ -384,6 +386,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = "kvm-type",
             .type = QEMU_OPT_STRING,
             .help = "Specifies the KVM virtualization mode (HV, PR)",
+        },{
+            .name = PC_MACHINE_MAX_RAM_BELOW_4G,
+            .type = QEMU_OPT_SIZE,
+            .help = "maximum ram below the 4G boundary (32bit boundary)",
         },
         { /* End of list */ }
     },
@@ -577,6 +583,10 @@ static int default_driver_check(QemuOpts *opts, void *opaque)
 
 static RunState current_run_state = RUN_STATE_PRELAUNCH;
 
+/* We use RUN_STATE_MAX but any invalid value will do */
+static RunState vmstop_requested = RUN_STATE_MAX;
+static QemuMutex vmstop_lock;
+
 typedef struct {
     RunState from;
     RunState to;
@@ -653,10 +663,11 @@ static void runstate_init(void)
     const RunStateTransition *p;
 
     memset(&runstate_valid_transitions, 0, sizeof(runstate_valid_transitions));
-
     for (p = &runstate_transitions_def[0]; p->from != RUN_STATE_MAX; p++) {
         runstate_valid_transitions[p->from][p->to] = true;
     }
+
+    qemu_mutex_init(&vmstop_lock);
 }
 
 /* This function will abort() on invalid state transitions */
@@ -696,6 +707,54 @@ StatusInfo *qmp_query_status(Error **errp)
     return info;
 }
 
+static bool qemu_vmstop_requested(RunState *r)
+{
+    qemu_mutex_lock(&vmstop_lock);
+    *r = vmstop_requested;
+    vmstop_requested = RUN_STATE_MAX;
+    qemu_mutex_unlock(&vmstop_lock);
+    return *r < RUN_STATE_MAX;
+}
+
+void qemu_system_vmstop_request_prepare(void)
+{
+    qemu_mutex_lock(&vmstop_lock);
+}
+
+void qemu_system_vmstop_request(RunState state)
+{
+    vmstop_requested = state;
+    qemu_mutex_unlock(&vmstop_lock);
+    qemu_notify_event();
+}
+
+void vm_start(void)
+{
+    RunState requested;
+
+    qemu_vmstop_requested(&requested);
+    if (runstate_is_running() && requested == RUN_STATE_MAX) {
+        return;
+    }
+
+    /* Ensure that a STOP/RESUME pair of events is emitted if a
+     * vmstop request was pending.  The BLOCK_IO_ERROR event, for
+     * example, according to documentation is always followed by
+     * the STOP event.
+     */
+    if (runstate_is_running()) {
+        qapi_event_send_stop(&error_abort);
+    } else {
+        cpu_enable_ticks();
+        runstate_set(RUN_STATE_RUNNING);
+        vm_state_notify(1, RUN_STATE_RUNNING);
+        resume_all_vcpus();
+    }
+
+    qapi_event_send_resume(&error_abort);
+}
+
+
 /***********************************************************/
 /* real time host monotonic timer */
 
@@ -734,15 +793,6 @@ int qemu_timedate_diff(struct tm *tm)
         seconds = mktimegm(tm) + rtc_date_offset;
 
     return seconds - time(NULL);
-}
-
-void rtc_change_mon_event(struct tm *tm)
-{
-    QObject *data;
-
-    data = qobject_from_jsonf("{ 'offset': %d }", qemu_timedate_diff(tm));
-    monitor_protocol_event(QEVENT_RTC_CHANGE, data);
-    qobject_decref(data);
 }
 
 static void configure_rtc_date_offset(const char *startdate, int legacy)
@@ -1661,17 +1711,6 @@ void vm_state_notify(int running, RunState state)
     }
 }
 
-void vm_start(void)
-{
-    if (!runstate_is_running()) {
-        cpu_enable_ticks();
-        runstate_set(RUN_STATE_RUNNING);
-        vm_state_notify(1, RUN_STATE_RUNNING);
-        resume_all_vcpus();
-        monitor_protocol_event(QEVENT_RESUME, NULL);
-    }
-}
-
 /* reset/shutdown handler */
 
 typedef struct QEMUResetEntry {
@@ -1696,7 +1735,6 @@ static NotifierList suspend_notifiers =
 static NotifierList wakeup_notifiers =
     NOTIFIER_LIST_INITIALIZER(wakeup_notifiers);
 static uint32_t wakeup_reason_mask = ~(1 << QEMU_WAKEUP_REASON_NONE);
-static RunState vmstop_requested = RUN_STATE_MAX;
 
 int qemu_shutdown_requested_get(void)
 {
@@ -1764,18 +1802,6 @@ static int qemu_debug_requested(void)
     return r;
 }
 
-/* We use RUN_STATE_MAX but any invalid value will do */
-static bool qemu_vmstop_requested(RunState *r)
-{
-    if (vmstop_requested < RUN_STATE_MAX) {
-        *r = vmstop_requested;
-        vmstop_requested = RUN_STATE_MAX;
-        return true;
-    }
-
-    return false;
-}
-
 void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 {
     QEMUResetEntry *re = g_malloc0(sizeof(QEMUResetEntry));
@@ -1820,7 +1846,7 @@ void qemu_system_reset(bool report)
         qemu_devices_reset();
     }
     if (report) {
-        monitor_protocol_event(QEVENT_RESET, NULL);
+        qapi_event_send_reset(&error_abort);
     }
     cpu_synchronize_all_post_reset();
 }
@@ -1841,7 +1867,7 @@ static void qemu_system_suspend(void)
     pause_all_vcpus();
     notifier_list_notify(&suspend_notifiers, NULL);
     runstate_set(RUN_STATE_SUSPENDED);
-    monitor_protocol_event(QEVENT_SUSPEND, NULL);
+    qapi_event_send_suspend(&error_abort);
 }
 
 void qemu_system_suspend_request(void)
@@ -1898,18 +1924,20 @@ void qemu_system_killed(int signal, pid_t pid)
 
 void qemu_system_shutdown_request(void)
 {
+    trace_qemu_system_shutdown_request();
     shutdown_requested = 1;
     qemu_notify_event();
 }
 
 static void qemu_system_powerdown(void)
 {
-    monitor_protocol_event(QEVENT_POWERDOWN, NULL);
+    qapi_event_send_powerdown(&error_abort);
     notifier_list_notify(&powerdown_notifiers, NULL);
 }
 
 void qemu_system_powerdown_request(void)
 {
+    trace_qemu_system_powerdown_request();
     powerdown_requested = 1;
     qemu_notify_event();
 }
@@ -1925,12 +1953,6 @@ void qemu_system_debug_request(void)
     qemu_notify_event();
 }
 
-void qemu_system_vmstop_request(RunState state)
-{
-    vmstop_requested = state;
-    qemu_notify_event();
-}
-
 static bool main_loop_should_exit(void)
 {
     RunState r;
@@ -1942,7 +1964,7 @@ static bool main_loop_should_exit(void)
     }
     if (qemu_shutdown_requested()) {
         qemu_kill_report();
-        monitor_protocol_event(QEVENT_SHUTDOWN, NULL);
+        qapi_event_send_shutdown(&error_abort);
         if (no_shutdown) {
             vm_stop(RUN_STATE_SHUTDOWN);
         } else {
@@ -1965,7 +1987,7 @@ static bool main_loop_should_exit(void)
         notifier_list_notify(&wakeup_notifiers, &wakeup_reason);
         wakeup_reason = QEMU_WAKEUP_REASON_NONE;
         resume_all_vcpus();
-        monitor_protocol_event(QEVENT_WAKEUP, NULL);
+        qapi_event_send_wakeup(&error_abort);
     }
     if (qemu_powerdown_requested()) {
         qemu_system_powerdown();
@@ -2951,6 +2973,7 @@ int main(int argc, char **argv)
                                         1024 * 1024;
     ram_addr_t maxram_size = default_ram_size;
     uint64_t ram_slots = 0;
+    FILE *vmstate_dump_file = NULL;
 
     atexit(qemu_run_exit_notifiers);
     error_set_progname(argv[0]);
@@ -2990,8 +3013,6 @@ int main(int argc, char **argv)
 
     rtc_clock = QEMU_CLOCK_HOST;
 
-    qemu_cache_utils_init();
-
     QLIST_INIT (&vm_change_state_head);
     os_setup_early_signal_handling();
 
@@ -3005,10 +3026,12 @@ int main(int argc, char **argv)
 
     for (i = 0; i < MAX_NODES; i++) {
         numa_info[i].node_mem = 0;
+        numa_info[i].present = false;
         bitmap_zero(numa_info[i].node_cpu, MAX_CPUMASK_BITS);
     }
 
     nb_numa_nodes = 0;
+    max_numa_nodeid = 0;
     nb_nics = 0;
 
     bdrv_init_with_whitelist();
@@ -3962,6 +3985,13 @@ int main(int argc, char **argv)
                 }
                 configure_msg(opts);
                 break;
+            case QEMU_OPTION_dump_vmstate:
+                vmstate_dump_file = fopen(optarg, "w");
+                if (vmstate_dump_file == NULL) {
+                    fprintf(stderr, "open %s: %s\n", optarg, strerror(errno));
+                    exit(1);
+                }
+                break;
             default:
                 os_parse_cmd_args(popt->index, optarg);
             }
@@ -4000,12 +4030,11 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    cpu_exec_init_all();
-
     current_machine = MACHINE(object_new(object_class_get_name(
                           OBJECT_CLASS(machine_class))));
     object_property_add_child(object_get_root(), "machine",
                               OBJECT(current_machine), &error_abort);
+    cpu_exec_init_all();
 
     if (machine_class->hw_version) {
         qemu_set_version(machine_class->hw_version);
@@ -4513,6 +4542,11 @@ int main(int argc, char **argv)
     }
 
     qdev_prop_check_global();
+    if (vmstate_dump_file) {
+        /* dump and exit */
+        dump_vmstate_json_to_file(vmstate_dump_file);
+        return 0;
+    }
 
     if (incoming) {
         Error *local_err = NULL;

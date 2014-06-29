@@ -34,10 +34,10 @@ typedef unsigned long long __u64;
 #define PAGE_SIZE 4096
 
 #ifndef EIO
-#define EIO	1
+#define EIO     1
 #endif
 #ifndef EBUSY
-#define EBUSY	2
+#define EBUSY   2
 #endif
 #ifndef NULL
 #define NULL    0
@@ -57,14 +57,14 @@ void sclp_setup(void);
 
 /* virtio.c */
 unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
-				 ulong subchan_id, void *load_addr);
+                                 ulong subchan_id, void *load_addr);
 bool virtio_is_blk(struct subchannel_id schid);
 void virtio_setup_block(struct subchannel_id schid);
 int virtio_read(ulong sector, void *load_addr);
 int enable_mss_facility(void);
 
 /* bootmap.c */
-int zipl_load(void);
+void zipl_load(void);
 
 static inline void *memset(void *s, int c, size_t n)
 {
@@ -86,15 +86,21 @@ static inline void fill_hex(char *out, unsigned char val)
     out[1] = hex[val & 0xf];
 }
 
-static inline void print_int(const char *desc, u64 addr)
+static inline void fill_hex_val(char *out, void *ptr, unsigned size)
 {
-    unsigned char *addr_c = (unsigned char*)&addr;
-    char out[] = ": 0xffffffffffffffff\n";
+    unsigned char *value = ptr;
     unsigned int i;
 
-    for (i = 0; i < sizeof(addr); i++) {
-        fill_hex(&out[4 + (i*2)], addr_c[i]);
+    for (i = 0; i < size; i++) {
+        fill_hex(&out[i*2], value[i]);
     }
+}
+
+static inline void print_int(const char *desc, u64 addr)
+{
+    char out[] = ": 0xffffffffffffffff\n";
+
+    fill_hex_val(&out[4], &addr, sizeof(addr));
 
     sclp_print(desc);
     sclp_print(out);
@@ -118,18 +124,18 @@ static inline void debug_print_addr(const char *desc, void *p)
  *           Hypercall functions               *
  ***********************************************/
 
-#define KVM_S390_VIRTIO_NOTIFY		0
-#define KVM_S390_VIRTIO_RESET		1
-#define KVM_S390_VIRTIO_SET_STATUS	2
+#define KVM_S390_VIRTIO_NOTIFY          0
+#define KVM_S390_VIRTIO_RESET           1
+#define KVM_S390_VIRTIO_SET_STATUS      2
 #define KVM_S390_VIRTIO_CCW_NOTIFY      3
 
 static inline void yield(void)
 {
-	asm volatile ("diag 0,0,0x44"
-                      : :
-		      : "memory", "cc");
+    asm volatile ("diag 0,0,0x44"
+                  : :
+                  : "memory", "cc");
 }
 
-#define SECTOR_SIZE 512
+#define MAX_SECTOR_SIZE 4096
 
 #endif /* S390_CCW_H */

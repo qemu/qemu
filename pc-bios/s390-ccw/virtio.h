@@ -66,7 +66,7 @@ struct virtio_dev {
     char *config;
 };
 
-#define KVM_S390_VIRTIO_RING_ALIGN	4096
+#define KVM_S390_VIRTIO_RING_ALIGN  4096
 
 #define VRING_USED_F_NO_NOTIFY  1
 
@@ -160,5 +160,53 @@ struct virtio_blk_outhdr {
         /* Sector (ie. 512 byte offset) */
         u64 sector;
 };
+
+typedef struct VirtioBlkConfig {
+    u64 capacity; /* in 512-byte sectors */
+    u32 size_max; /* max segment size (if VIRTIO_BLK_F_SIZE_MAX) */
+    u32 seg_max;  /* max number of segments (if VIRTIO_BLK_F_SEG_MAX) */
+
+    struct virtio_blk_geometry {
+        u16 cylinders;
+        u8 heads;
+        u8 sectors;
+    } geometry; /* (if VIRTIO_BLK_F_GEOMETRY) */
+
+    u32 blk_size; /* block size of device (if VIRTIO_BLK_F_BLK_SIZE) */
+
+    /* the next 4 entries are guarded by VIRTIO_BLK_F_TOPOLOGY  */
+    u8 physical_block_exp; /* exponent for physical block per logical block */
+    u8 alignment_offset;   /* alignment offset in logical blocks */
+    u16 min_io_size;       /* min I/O size without performance penalty
+                              in logical blocks */
+    u32 opt_io_size;       /* optimal sustained I/O size in logical blocks */
+
+    u8 wce; /* writeback mode (if VIRTIO_BLK_F_CONFIG_WCE) */
+} __attribute__((packed)) VirtioBlkConfig;
+
+bool virtio_guessed_disk_nature(void);
+void virtio_assume_scsi(void);
+void virtio_assume_eckd(void);
+
+extern bool virtio_disk_is_scsi(void);
+extern bool virtio_disk_is_eckd(void);
+extern bool virtio_ipl_disk_is_valid(void);
+extern int virtio_get_block_size(void);
+extern uint16_t virtio_get_cylinders(void);
+extern uint8_t virtio_get_heads(void);
+extern uint8_t virtio_get_sectors(void);
+extern int virtio_read_many(ulong sector, void *load_addr, int sec_num);
+
+#define VIRTIO_SECTOR_SIZE 512
+
+static inline ulong virtio_eckd_sector_adjust(ulong sector)
+{
+     return sector * (virtio_get_block_size() / VIRTIO_SECTOR_SIZE);
+}
+
+static inline ulong virtio_sector_adjust(ulong sector)
+{
+    return virtio_disk_is_eckd() ? virtio_eckd_sector_adjust(sector) : sector;
+}
 
 #endif /* VIRTIO_H */

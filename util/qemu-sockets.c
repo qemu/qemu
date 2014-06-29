@@ -92,14 +92,14 @@ static void inet_setport(struct addrinfo *e, int port)
     }
 }
 
-const char *inet_strfamily(int family)
+NetworkAddressFamily inet_netfamily(int family)
 {
     switch (family) {
-    case PF_INET6: return "ipv6";
-    case PF_INET:  return "ipv4";
-    case PF_UNIX:  return "unix";
+    case PF_INET6: return NETWORK_ADDRESS_FAMILY_IPV6;
+    case PF_INET:  return NETWORK_ADDRESS_FAMILY_IPV4;
+    case PF_UNIX:  return NETWORK_ADDRESS_FAMILY_UNIX;
     }
-    return "unknown";
+    return NETWORK_ADDRESS_FAMILY_UNKNOWN;
 }
 
 int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)

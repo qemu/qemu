@@ -106,10 +106,7 @@ static void rng_random_set_filename(Object *obj, const char *filename,
         return;
     }
 
-    if (s->filename) {
-        g_free(s->filename);
-    }
-
+    g_free(s->filename);
     s->filename = g_strdup(filename);
 }
 

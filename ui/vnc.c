@@ -35,6 +35,7 @@
 #include "qmp-commands.h"
 #include "qemu/osdep.h"
 #include "ui/input.h"
+#include "qapi-event.h"
 
 #define VNC_REFRESH_INTERVAL_BASE GUI_REFRESH_INTERVAL_DEFAULT
 #define VNC_REFRESH_INTERVAL_INC  50
@@ -124,9 +125,10 @@ char *vnc_socket_remote_addr(const char *format, int fd) {
     return addr_to_string(format, &sa, salen);
 }
 
-static int put_addr_qdict(QDict *qdict, struct sockaddr_storage *sa,
-                          socklen_t salen)
+static VncBasicInfo *vnc_basic_info_get(struct sockaddr_storage *sa,
+                                        socklen_t salen)
 {
+    VncBasicInfo *info;
     char host[NI_MAXHOST];
     char serv[NI_MAXSERV];
     int err;
@@ -137,40 +139,40 @@ static int put_addr_qdict(QDict *qdict, struct sockaddr_storage *sa,
                            NI_NUMERICHOST | NI_NUMERICSERV)) != 0) {
         VNC_DEBUG("Cannot resolve address %d: %s\n",
                   err, gai_strerror(err));
-        return -1;
+        return NULL;
     }
 
-    qdict_put(qdict, "host", qstring_from_str(host));
-    qdict_put(qdict, "service", qstring_from_str(serv));
-    qdict_put(qdict, "family",qstring_from_str(inet_strfamily(sa->ss_family)));
-
-    return 0;
+    info = g_malloc0(sizeof(VncBasicInfo));
+    info->host = g_strdup(host);
+    info->service = g_strdup(serv);
+    info->family = inet_netfamily(sa->ss_family);
+    return info;
 }
 
-static int vnc_server_addr_put(QDict *qdict, int fd)
+static VncBasicInfo *vnc_basic_info_get_from_server_addr(int fd)
 {
     struct sockaddr_storage sa;
     socklen_t salen;
 
     salen = sizeof(sa);
     if (getsockname(fd, (struct sockaddr*)&sa, &salen) < 0) {
-        return -1;
+        return NULL;
     }
 
-    return put_addr_qdict(qdict, &sa, salen);
+    return vnc_basic_info_get(&sa, salen);
 }
 
-static int vnc_qdict_remote_addr(QDict *qdict, int fd)
+static VncBasicInfo *vnc_basic_info_get_from_remote_addr(int fd)
 {
     struct sockaddr_storage sa;
     socklen_t salen;
 
     salen = sizeof(sa);
     if (getpeername(fd, (struct sockaddr*)&sa, &salen) < 0) {
-        return -1;
+        return NULL;
     }
 
-    return put_addr_qdict(qdict, &sa, salen);
+    return vnc_basic_info_get(&sa, salen);
 }
 
 static const char *vnc_auth_name(VncDisplay *vd) {
@@ -224,81 +226,82 @@ static const char *vnc_auth_name(VncDisplay *vd) {
     return "unknown";
 }
 
-static int vnc_server_info_put(QDict *qdict)
+static VncServerInfo *vnc_server_info_get(void)
 {
-    if (vnc_server_addr_put(qdict, vnc_display->lsock) < 0) {
-        return -1;
+    VncServerInfo *info;
+    VncBasicInfo *bi = vnc_basic_info_get_from_server_addr(vnc_display->lsock);
+    if (!bi) {
+        return NULL;
     }
 
-    qdict_put(qdict, "auth", qstring_from_str(vnc_auth_name(vnc_display)));
-    return 0;
+    info = g_malloc(sizeof(*info));
+    info->base = bi;
+    info->has_auth = true;
+    info->auth = g_strdup(vnc_auth_name(vnc_display));
+    return info;
 }
 
 static void vnc_client_cache_auth(VncState *client)
 {
-#if defined(CONFIG_VNC_TLS) || defined(CONFIG_VNC_SASL)
-    QDict *qdict;
-#endif
-
     if (!client->info) {
         return;
     }
 
-#if defined(CONFIG_VNC_TLS) || defined(CONFIG_VNC_SASL)
-    qdict = qobject_to_qdict(client->info);
-#endif
-
 #ifdef CONFIG_VNC_TLS
     if (client->tls.session &&
         client->tls.dname) {
-        qdict_put(qdict, "x509_dname", qstring_from_str(client->tls.dname));
+        client->info->has_x509_dname = true;
+        client->info->x509_dname = g_strdup(client->tls.dname);
     }
 #endif
 #ifdef CONFIG_VNC_SASL
     if (client->sasl.conn &&
         client->sasl.username) {
-        qdict_put(qdict, "sasl_username",
-                  qstring_from_str(client->sasl.username));
+        client->info->has_sasl_username = true;
+        client->info->sasl_username = g_strdup(client->sasl.username);
     }
 #endif
 }
 
 static void vnc_client_cache_addr(VncState *client)
 {
-    QDict *qdict;
+    VncBasicInfo *bi = vnc_basic_info_get_from_remote_addr(client->csock);
 
-    qdict = qdict_new();
-    if (vnc_qdict_remote_addr(qdict, client->csock) < 0) {
-        QDECREF(qdict);
-        /* XXX: how to report the error? */
-        return;
+    if (bi) {
+        client->info = g_malloc0(sizeof(*client->info));
+        client->info->base = bi;
     }
-
-    client->info = QOBJECT(qdict);
 }
 
-static void vnc_qmp_event(VncState *vs, MonitorEvent event)
+static void vnc_qmp_event(VncState *vs, QAPIEvent event)
 {
-    QDict *server;
-    QObject *data;
+    VncServerInfo *si;
 
     if (!vs->info) {
         return;
     }
+    g_assert(vs->info->base);
 
-    server = qdict_new();
-    if (vnc_server_info_put(server) < 0) {
-        QDECREF(server);
+    si = vnc_server_info_get();
+    if (!si) {
         return;
     }
 
-    data = qobject_from_jsonf("{ 'client': %p, 'server': %p }",
-                              vs->info, QOBJECT(server));
+    switch (event) {
+    case QAPI_EVENT_VNC_CONNECTED:
+        qapi_event_send_vnc_connected(si, vs->info->base, &error_abort);
+        break;
+    case QAPI_EVENT_VNC_INITIALIZED:
+        qapi_event_send_vnc_initialized(si, vs->info, &error_abort);
+        break;
+    case QAPI_EVENT_VNC_DISCONNECTED:
+        qapi_event_send_vnc_disconnected(si, vs->info, &error_abort);
+        break;
+    default:
+        break;
+    }
 
-    monitor_protocol_event(event, data);
-
-    qobject_incref(vs->info);
-    qobject_decref(data);
+    qapi_free_VncServerInfo(si);
 }
 
 static VncClientInfo *qmp_query_vnc_client(const VncState *client)
@@ -321,9 +324,10 @@ static VncClientInfo *qmp_query_vnc_client(const VncState *client)
     }
 
     info = g_malloc0(sizeof(*info));
-    info->host = g_strdup(host);
-    info->service = g_strdup(serv);
-    info->family = g_strdup(inet_strfamily(sa.ss_family));
+    info->base = g_malloc0(sizeof(*info->base));
+    info->base->host = g_strdup(host);
+    info->base->service = g_strdup(serv);
+    info->base->family = inet_netfamily(sa.ss_family);
 
 #ifdef CONFIG_VNC_TLS
     if (client->tls.session && client->tls.dname) {
@@ -398,7 +402,7 @@ VncInfo *qmp_query_vnc(Error **errp)
         info->service = g_strdup(serv);
 
         info->has_family = true;
-        info->family = g_strdup(inet_strfamily(sa.ss_family));
+        info->family = inet_netfamily(sa.ss_family);
 
         info->has_auth = true;
         info->auth = g_strdup(vnc_auth_name(vnc_display));
@@ -428,14 +432,10 @@ static void framebuffer_update_request(VncState *vs, int incremental,
 static void vnc_refresh(DisplayChangeListener *dcl);
 static int vnc_refresh_server_surface(VncDisplay *vd);
 
-static void vnc_dpy_update(DisplayChangeListener *dcl,
-                           int x, int y, int w, int h)
-{
-    VncDisplay *vd = container_of(dcl, VncDisplay, dcl);
-    struct VncSurface *s = &vd->guest;
-    int width = surface_width(vd->ds);
-    int height = surface_height(vd->ds);
-
+static void vnc_set_area_dirty(DECLARE_BITMAP(dirty[VNC_MAX_HEIGHT],
+                               VNC_MAX_WIDTH / VNC_DIRTY_PIXELS_PER_BIT),
+                               int width, int height,
+                               int x, int y, int w, int h) {
     /* this is needed this to ensure we updated all affected
      * blocks if x % VNC_DIRTY_PIXELS_PER_BIT != 0 */
     w += (x % VNC_DIRTY_PIXELS_PER_BIT);
@@ -447,9 +447,20 @@ static void vnc_dpy_update(DisplayChangeListener *dcl,
     h = MIN(y + h, height);
 
     for (; y < h; y++) {
-        bitmap_set(s->dirty[y], x / VNC_DIRTY_PIXELS_PER_BIT,
+        bitmap_set(dirty[y], x / VNC_DIRTY_PIXELS_PER_BIT,
                    DIV_ROUND_UP(w, VNC_DIRTY_PIXELS_PER_BIT));
     }
+}
+
+static void vnc_dpy_update(DisplayChangeListener *dcl,
+                           int x, int y, int w, int h)
+{
+    VncDisplay *vd = container_of(dcl, VncDisplay, dcl);
+    struct VncSurface *s = &vd->guest;
+    int width = pixman_image_get_width(vd->server);
+    int height = pixman_image_get_height(vd->server);
+
+    vnc_set_area_dirty(s->dirty, width, height, x, y, w, h);
 }
 
 void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
@@ -513,17 +524,15 @@ void buffer_advance(Buffer *buf, size_t len)
 
 static void vnc_desktop_resize(VncState *vs)
 {
-    DisplaySurface *ds = vs->vd->ds;
-
     if (vs->csock == -1 || !vnc_has_feature(vs, VNC_FEATURE_RESIZE)) {
         return;
     }
-    if (vs->client_width == surface_width(ds) &&
-        vs->client_height == surface_height(ds)) {
+    if (vs->client_width == pixman_image_get_width(vs->vd->server) &&
+        vs->client_height == pixman_image_get_height(vs->vd->server)) {
         return;
     }
-    vs->client_width = surface_width(ds);
-    vs->client_height = surface_height(ds);
+    vs->client_width = pixman_image_get_width(vs->vd->server);
+    vs->client_height = pixman_image_get_height(vs->vd->server);
     vnc_lock_output(vs);
     vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
     vnc_write_u8(vs, 0);
@@ -567,31 +576,24 @@ void *vnc_server_fb_ptr(VncDisplay *vd, int x, int y)
     ptr += x * VNC_SERVER_FB_BYTES;
     return ptr;
 }
-/* this sets only the visible pixels of a dirty bitmap */
-#define VNC_SET_VISIBLE_PIXELS_DIRTY(bitmap, w, h) {\
-        int y;\
-        memset(bitmap, 0x00, sizeof(bitmap));\
-        for (y = 0; y < h; y++) {\
-            bitmap_set(bitmap[y], 0,\
-                       DIV_ROUND_UP(w, VNC_DIRTY_PIXELS_PER_BIT));\
-        } \
-    }
 
 static void vnc_dpy_switch(DisplayChangeListener *dcl,
                            DisplaySurface *surface)
 {
     VncDisplay *vd = container_of(dcl, VncDisplay, dcl);
     VncState *vs;
+    int width, height;
 
     vnc_abort_display_jobs(vd);
 
     /* server surface */
     qemu_pixman_image_unref(vd->server);
     vd->ds = surface;
+    width = MIN(VNC_MAX_WIDTH, ROUND_UP(surface_width(vd->ds),
+                                        VNC_DIRTY_PIXELS_PER_BIT));
+    height = MIN(VNC_MAX_HEIGHT, surface_height(vd->ds));
     vd->server = pixman_image_create_bits(VNC_SERVER_FB_FORMAT,
-                                          surface_width(vd->ds),
-                                          surface_height(vd->ds),
-                                          NULL, 0);
+                                          width, height, NULL, 0);
 
     /* guest surface */
 #if 0 /* FIXME */
@@ -601,9 +603,9 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
     qemu_pixman_image_unref(vd->guest.fb);
     vd->guest.fb = pixman_image_ref(surface->image);
     vd->guest.format = surface->format;
-    VNC_SET_VISIBLE_PIXELS_DIRTY(vd->guest.dirty,
-                                 surface_width(vd->ds),
-                                 surface_height(vd->ds));
+    memset(vd->guest.dirty, 0x00, sizeof(vd->guest.dirty));
+    vnc_set_area_dirty(vd->guest.dirty, width, height, 0, 0,
+                       width, height);
 
     QTAILQ_FOREACH(vs, &vd->clients, next) {
         vnc_colordepth(vs);
@@ -611,9 +613,9 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
         if (vs->vd->cursor) {
             vnc_cursor_define(vs);
         }
-        VNC_SET_VISIBLE_PIXELS_DIRTY(vs->dirty,
-                                     surface_width(vd->ds),
-                                     surface_height(vd->ds));
+        memset(vs->dirty, 0x00, sizeof(vs->dirty));
+        vnc_set_area_dirty(vs->dirty, width, height, 0, 0,
+                           width, height);
     }
 }
 
@@ -907,8 +909,8 @@ static int vnc_update_client(VncState *vs, int has_dirty, bool sync)
          */
         job = vnc_job_new(vs);
 
-        height = MIN(pixman_image_get_height(vd->server), vs->client_height);
-        width = MIN(pixman_image_get_width(vd->server), vs->client_width);
+        height = pixman_image_get_height(vd->server);
+        width = pixman_image_get_width(vd->server);
 
         y = 0;
         for (;;) {
@@ -1039,7 +1041,7 @@ void vnc_disconnect_finish(VncState *vs)
     vnc_jobs_join(vs); /* Wait encoding jobs */
 
     vnc_lock_output(vs);
-    vnc_qmp_event(vs, QEVENT_VNC_DISCONNECTED);
+    vnc_qmp_event(vs, QAPI_EVENT_VNC_DISCONNECTED);
 
     buffer_free(&vs->input);
     buffer_free(&vs->output);
@@ -1048,7 +1050,7 @@ void vnc_disconnect_finish(VncState *vs)
     buffer_free(&vs->ws_output);
 #endif /* CONFIG_VNC_WS */
 
-    qobject_decref(vs->info);
+    qapi_free_VncClientInfo(vs->info);
 
     vnc_zlib_clear(vs);
     vnc_tight_clear(vs);
@@ -1497,8 +1499,8 @@ static void check_pointer_type_change(Notifier *notifier, void *data)
         vnc_write_u8(vs, 0);
         vnc_write_u16(vs, 1);
         vnc_framebuffer_update(vs, absolute, 0,
-                               surface_width(vs->vd->ds),
-                               surface_height(vs->vd->ds),
+                               pixman_image_get_width(vs->vd->server),
+                               pixman_image_get_height(vs->vd->server),
                                VNC_ENCODING_POINTER_TYPE_CHANGE);
         vnc_unlock_output(vs);
         vnc_flush(vs);
@@ -1516,8 +1518,8 @@ static void pointer_event(VncState *vs, int button_mask, int x, int y)
         [INPUT_BUTTON_WHEEL_DOWN] = 0x10,
     };
     QemuConsole *con = vs->vd->dcl.con;
-    int width = surface_width(vs->vd->ds);
-    int height = surface_height(vs->vd->ds);
+    int width = pixman_image_get_width(vs->vd->server);
+    int height = pixman_image_get_height(vs->vd->server);
 
     if (vs->last_bmask != button_mask) {
         qemu_input_update_buttons(con, bmap, vs->last_bmask, button_mask);
@@ -1865,29 +1867,18 @@ static void ext_key_event(VncState *vs, int down,
 }
 
 static void framebuffer_update_request(VncState *vs, int incremental,
-                                       int x_position, int y_position,
-                                       int w, int h)
+                                       int x, int y, int w, int h)
 {
-    int i;
-    const size_t width = surface_width(vs->vd->ds) / VNC_DIRTY_PIXELS_PER_BIT;
-    const size_t height = surface_height(vs->vd->ds);
-
-    if (y_position > height) {
-        y_position = height;
-    }
-    if (y_position + h >= height) {
-        h = height - y_position;
-    }
+    int width = pixman_image_get_width(vs->vd->server);
+    int height = pixman_image_get_height(vs->vd->server);
 
     vs->need_update = 1;
-    if (!incremental) {
-        vs->force_update = 1;
-        for (i = 0; i < h; i++) {
-            bitmap_set(vs->dirty[y_position + i], 0, width);
-            bitmap_clear(vs->dirty[y_position + i], width,
-                         VNC_DIRTY_BITS - width);
-        }
+
+    if (incremental) {
+        return;
     }
+
+    vnc_set_area_dirty(vs->dirty, width, height, x, y, w, h);
 }
 
 static void send_ext_key_event_ack(VncState *vs)
@@ -1897,8 +1888,8 @@ static void send_ext_key_event_ack(VncState *vs)
     vnc_write_u8(vs, 0);
     vnc_write_u16(vs, 1);
     vnc_framebuffer_update(vs, 0, 0,
-                           surface_width(vs->vd->ds),
-                           surface_height(vs->vd->ds),
+                           pixman_image_get_width(vs->vd->server),
+                           pixman_image_get_height(vs->vd->server),
                            VNC_ENCODING_EXT_KEY_EVENT);
     vnc_unlock_output(vs);
     vnc_flush(vs);
@@ -1911,8 +1902,8 @@ static void send_ext_audio_ack(VncState *vs)
     vnc_write_u8(vs, 0);
     vnc_write_u16(vs, 1);
     vnc_framebuffer_update(vs, 0, 0,
-                           surface_width(vs->vd->ds),
-                           surface_height(vs->vd->ds),
+                           pixman_image_get_width(vs->vd->server),
+                           pixman_image_get_height(vs->vd->server),
                            VNC_ENCODING_AUDIO);
     vnc_unlock_output(vs);
     vnc_flush(vs);
@@ -2090,8 +2081,8 @@ static void vnc_colordepth(VncState *vs)
         vnc_write_u8(vs, 0);
         vnc_write_u16(vs, 1); /* number of rects */
         vnc_framebuffer_update(vs, 0, 0,
-                               surface_width(vs->vd->ds),
-                               surface_height(vs->vd->ds),
+                               pixman_image_get_width(vs->vd->server),
+                               pixman_image_get_height(vs->vd->server),
                                VNC_ENCODING_WMVi);
         pixel_format_message(vs);
         vnc_unlock_output(vs);
@@ -2161,13 +2152,20 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
         pointer_event(vs, read_u8(data, 1), read_u16(data, 2), read_u16(data, 4));
         break;
     case VNC_MSG_CLIENT_CUT_TEXT:
-        if (len == 1)
+        if (len == 1) {
             return 8;
-
+        }
         if (len == 8) {
             uint32_t dlen = read_u32(data, 4);
-            if (dlen > 0)
+            if (dlen > (1 << 20)) {
+                error_report("vnc: client_cut_text msg payload has %u bytes"
+                             " which exceeds our limit of 1MB.", dlen);
+                vnc_client_error(vs);
+                break;
+            }
+            if (dlen > 0) {
                 return 8 + dlen;
+            }
         }
 
         client_cut_text(vs, read_u32(data, 4), data + 8);
@@ -2306,8 +2304,8 @@ static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
     }
     vnc_set_share_mode(vs, mode);
 
-    vs->client_width = surface_width(vs->vd->ds);
-    vs->client_height = surface_height(vs->vd->ds);
+    vs->client_width = pixman_image_get_width(vs->vd->server);
+    vs->client_height = pixman_image_get_height(vs->vd->server);
     vnc_write_u16(vs, vs->client_width);
     vnc_write_u16(vs, vs->client_height);
 
@@ -2323,7 +2321,7 @@ static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
     vnc_flush(vs);
 
     vnc_client_cache_auth(vs);
-    vnc_qmp_event(vs, QEVENT_VNC_INITIALIZED);
+    vnc_qmp_event(vs, QAPI_EVENT_VNC_INITIALIZED);
 
     vnc_read_when(vs, protocol_client_msg, 1);
 
@@ -2674,12 +2672,12 @@ static void vnc_rect_updated(VncDisplay *vd, int x, int y, struct timeval * tv)
 
 static int vnc_refresh_server_surface(VncDisplay *vd)
 {
-    int width = pixman_image_get_width(vd->guest.fb);
-    int height = pixman_image_get_height(vd->guest.fb);
-    int y;
+    int width = MIN(pixman_image_get_width(vd->guest.fb),
+                    pixman_image_get_width(vd->server));
+    int height = MIN(pixman_image_get_height(vd->guest.fb),
+                     pixman_image_get_height(vd->server));
+    int cmp_bytes, server_stride, min_stride, guest_stride, y = 0;
     uint8_t *guest_row0 = NULL, *server_row0;
-    int guest_stride = 0, server_stride;
-    int cmp_bytes;
     VncState *vs;
     int has_dirty = 0;
     pixman_image_t *tmpbuf = NULL;
@@ -2696,10 +2694,10 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
      * Check and copy modified bits from guest to server surface.
      * Update server dirty map.
      */
-    cmp_bytes = VNC_DIRTY_PIXELS_PER_BIT * VNC_SERVER_FB_BYTES;
-    if (cmp_bytes > vnc_server_fb_stride(vd)) {
-        cmp_bytes = vnc_server_fb_stride(vd);
-    }
+    server_row0 = (uint8_t *)pixman_image_get_data(vd->server);
+    server_stride = guest_stride = pixman_image_get_stride(vd->server);
+    cmp_bytes = MIN(VNC_DIRTY_PIXELS_PER_BIT * VNC_SERVER_FB_BYTES,
+                    server_stride);
     if (vd->guest.format != VNC_SERVER_FB_FORMAT) {
         int width = pixman_image_get_width(vd->server);
         tmpbuf = qemu_pixman_linebuf_create(VNC_SERVER_FB_FORMAT, width);
@@ -2707,10 +2705,8 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
         guest_row0 = (uint8_t *)pixman_image_get_data(vd->guest.fb);
         guest_stride = pixman_image_get_stride(vd->guest.fb);
     }
-    server_row0 = (uint8_t *)pixman_image_get_data(vd->server);
-    server_stride = pixman_image_get_stride(vd->server);
+    min_stride = MIN(server_stride, guest_stride);
 
-    y = 0;
     for (;;) {
         int x;
         uint8_t *guest_ptr, *server_ptr;
@@ -2736,13 +2732,17 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
 
         for (; x < DIV_ROUND_UP(width, VNC_DIRTY_PIXELS_PER_BIT);
              x++, guest_ptr += cmp_bytes, server_ptr += cmp_bytes) {
+            int _cmp_bytes = cmp_bytes;
             if (!test_and_clear_bit(x, vd->guest.dirty[y])) {
                 continue;
             }
-            if (memcmp(server_ptr, guest_ptr, cmp_bytes) == 0) {
+            if ((x + 1) * cmp_bytes > min_stride) {
+                _cmp_bytes = min_stride - x * cmp_bytes;
+            }
+            if (memcmp(server_ptr, guest_ptr, _cmp_bytes) == 0) {
                 continue;
             }
-            memcpy(server_ptr, guest_ptr, cmp_bytes);
+            memcpy(server_ptr, guest_ptr, _cmp_bytes);
             if (!vd->non_adaptive) {
                 vnc_rect_updated(vd, x * VNC_DIRTY_PIXELS_PER_BIT,
                                  y, &tv);
@@ -2846,7 +2846,7 @@ static void vnc_connect(VncDisplay *vd, int csock,
     }
 
     vnc_client_cache_addr(vs);
-    vnc_qmp_event(vs, QEVENT_VNC_CONNECTED);
+    vnc_qmp_event(vs, QAPI_EVENT_VNC_CONNECTED);
     vnc_set_share_mode(vs, VNC_SHARE_MODE_CONNECTING);
 
     vs->vd = vd;

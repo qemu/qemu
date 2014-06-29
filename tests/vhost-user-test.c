@@ -8,16 +8,29 @@
  *
  */
 
+#define QEMU_GLIB_COMPAT_H
+#include <glib.h>
+
 #include "libqtest.h"
 #include "qemu/option.h"
 #include "sysemu/char.h"
 #include "sysemu/sysemu.h"
 
-#include <glib.h>
 #include <linux/vhost.h>
 #include <sys/mman.h>
 #include <sys/vfs.h>
 #include <qemu/sockets.h>
+
+/* GLIB version compatibility flags */
+#if GLIB_CHECK_VERSION(2, 28, 0)
+#define HAVE_MONOTONIC_TIME
+#endif
+
+#if GLIB_CHECK_VERSION(2, 32, 0)
+#define HAVE_MUTEX_INIT
+#define HAVE_COND_INIT
+#define HAVE_THREAD_NEW
+#endif
 
 #define QEMU_CMD_ACCEL  " -machine accel=tcg"
 #define QEMU_CMD_MEM    " -m 512 -object memory-backend-file,id=mem,size=512M,"\
@@ -95,8 +108,93 @@ static VhostUserMsg m __attribute__ ((unused));
 
 int fds_num = 0, fds[VHOST_MEMORY_MAX_NREGIONS];
 static VhostUserMemory memory;
-static GMutex data_mutex;
-static GCond data_cond;
+static GMutex *data_mutex;
+static GCond *data_cond;
+
+static gint64 _get_time(void)
+{
+#ifdef HAVE_MONOTONIC_TIME
+    return g_get_monotonic_time();
+#else
+    GTimeVal time;
+    g_get_current_time(&time);
+
+    return time.tv_sec * G_TIME_SPAN_SECOND + time.tv_usec;
+#endif
+}
+
+static GMutex *_mutex_new(void)
+{
+    GMutex *mutex;
+
+#ifdef HAVE_MUTEX_INIT
+    mutex = g_new(GMutex, 1);
+    g_mutex_init(mutex);
+#else
+    mutex = g_mutex_new();
+#endif
+
+    return mutex;
+}
+
+static void _mutex_free(GMutex *mutex)
+{
+#ifdef HAVE_MUTEX_INIT
+    g_mutex_clear(mutex);
+    g_free(mutex);
+#else
+    g_mutex_free(mutex);
+#endif
+}
+
+static GCond *_cond_new(void)
+{
+    GCond *cond;
+
+#ifdef HAVE_COND_INIT
+    cond = g_new(GCond, 1);
+    g_cond_init(cond);
+#else
+    cond = g_cond_new();
+#endif
+
+    return cond;
+}
+
+static gboolean _cond_wait_until(GCond *cond, GMutex *mutex, gint64 end_time)
+{
+    gboolean ret = FALSE;
+#ifdef HAVE_COND_INIT
+    ret = g_cond_wait_until(cond, mutex, end_time);
+#else
+    GTimeVal time = { end_time / G_TIME_SPAN_SECOND,
+                      end_time % G_TIME_SPAN_SECOND };
+    ret = g_cond_timed_wait(cond, mutex, &time);
+#endif
+    return ret;
+}
+
+static void _cond_free(GCond *cond)
+{
+#ifdef HAVE_COND_INIT
+    g_cond_clear(cond);
+    g_free(cond);
+#else
+    g_cond_free(cond);
+#endif
+}
+
+static GThread *_thread_new(const gchar *name, GThreadFunc func, gpointer data)
+{
+    GThread *thread = NULL;
+    GError *error = NULL;
+#ifdef HAVE_THREAD_NEW
+    thread = g_thread_try_new(name, func, data, &error);
+#else
+    thread = g_thread_create(func, data, TRUE, &error);
+#endif
+    return thread;
+}
 
 static void read_guest_mem(void)
 {
@@ -104,11 +202,11 @@ static void read_guest_mem(void)
     gint64 end_time;
     int i, j;
 
-    g_mutex_lock(&data_mutex);
+    g_mutex_lock(data_mutex);
 
-    end_time = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
+    end_time = _get_time() + 5 * G_TIME_SPAN_SECOND;
     while (!fds_num) {
-        if (!g_cond_wait_until(&data_cond, &data_mutex, end_time)) {
+        if (!_cond_wait_until(data_cond, data_mutex, end_time)) {
             /* timeout has passed */
             g_assert(fds_num);
             break;
@@ -143,7 +241,7 @@ static void read_guest_mem(void)
     }
 
     g_assert_cmpint(1, ==, 1);
-    g_mutex_unlock(&data_mutex);
+    g_mutex_unlock(data_mutex);
 }
 
 static void *thread_function(void *data)
@@ -171,6 +269,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         return;
     }
 
+    g_mutex_lock(data_mutex);
     memcpy(p, buf, VHOST_USER_HDR_SIZE);
 
     if (msg.size) {
@@ -203,8 +302,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         fds_num = qemu_chr_fe_get_msgfds(chr, fds, sizeof(fds) / sizeof(int));
 
         /* signal the test that it can continue */
-        g_cond_signal(&data_cond);
-        g_mutex_unlock(&data_mutex);
+        g_cond_signal(data_cond);
         break;
 
     case VHOST_USER_SET_VRING_KICK:
@@ -221,6 +319,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     default:
         break;
     }
+    g_mutex_unlock(data_mutex);
 }
 
 static const char *init_hugepagefs(void)
@@ -285,10 +384,9 @@ int main(int argc, char **argv)
     qemu_chr_add_handlers(chr, chr_can_read, chr_read, NULL, chr);
 
     /* run the main loop thread so the chardev may operate */
-    g_mutex_init(&data_mutex);
-    g_cond_init(&data_cond);
-    g_mutex_lock(&data_mutex);
-    g_thread_new(NULL, thread_function, NULL);
+    data_mutex = _mutex_new();
+    data_cond = _cond_new();
+    _thread_new(NULL, thread_function, NULL);
 
     qemu_cmd = g_strdup_printf(QEMU_CMD, hugefs, socket_path);
     s = qtest_start(qemu_cmd);
@@ -305,8 +403,8 @@ int main(int argc, char **argv)
     /* cleanup */
     unlink(socket_path);
     g_free(socket_path);
-    g_cond_clear(&data_cond);
-    g_mutex_clear(&data_mutex);
+    _cond_free(data_cond);
+    _mutex_free(data_mutex);
 
     return ret;
 }

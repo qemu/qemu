@@ -101,6 +101,13 @@ cc-option = $(if $(shell $(CC) $1 $2 -S -o /dev/null -xc /dev/null \
 VPATH_SUFFIXES = %.c %.h %.S %.cc %.cpp %.m %.mak %.texi %.sh %.rc
 set-vpath = $(if $1,$(foreach PATTERN,$(VPATH_SUFFIXES),$(eval vpath $(PATTERN) $1)))
 
+# install-prog list, dir
+define install-prog
+	$(INSTALL_DIR) "$2"
+	$(INSTALL_PROG) $1 "$2"
+	$(if $(STRIP),$(STRIP) $(foreach T,$1,"$2/$(notdir $T)"),)
+endef
+
 # find-in-path
 # Usage: $(call find-in-path, prog)
 # Looks in the PATH if the argument contains no slash, else only considers one

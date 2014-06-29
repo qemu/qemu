@@ -53,7 +53,7 @@ static void test_properties(const char *path, bool recurse)
 
     g_test_message("Obtaining properties of %s", path);
     response = qmp("{ 'execute': 'qom-list',"
-                   "  'arguments': { 'path': '%s' } }", path);
+                   "  'arguments': { 'path': %s } }", path);
     g_assert(response);
 
     if (!recurse) {
@@ -76,8 +76,8 @@ static void test_properties(const char *path, bool recurse)
             const char *prop = qdict_get_str(tuple, "name");
             g_test_message("Testing property %s.%s", path, prop);
             response = qmp("{ 'execute': 'qom-get',"
-                           "  'arguments': { 'path': '%s',"
-                           "                 'property': '%s' } }",
+                           "  'arguments': { 'path': %s,"
+                           "                 'property': %s } }",
                            path, prop);
             /* qom-get may fail but should not, e.g., segfault. */
             g_assert(response);

@@ -781,7 +781,7 @@ static void tcg_out_brcond2(TCGContext *s, TCGCond cond, TCGReg al, TCGReg ah,
         break;
 
     default:
-        /* Minimize code size by prefering a compare not requiring INV.  */
+        /* Minimize code size by preferring a compare not requiring INV.  */
         if (mips_cmp_map[cond] & MIPS_CMP_INV) {
             cond = tcg_invert_cond(cond);
             b_cond = TCG_COND_EQ;
@@ -810,7 +810,7 @@ static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
         break;
 
     default:
-        /* Minimize code size by prefering a compare not requiring INV.  */
+        /* Minimize code size by preferring a compare not requiring INV.  */
         if (mips_cmp_map[cond] & MIPS_CMP_INV) {
             cond = tcg_invert_cond(cond);
             m_opc = OPC_MOVZ;

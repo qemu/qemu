@@ -42,7 +42,7 @@ void HELPER(ill)(CPULM32State *env)
     fprintf(stderr, "VM paused due to illegal instruction. "
             "Connect a debugger or switch to the monitor console "
             "to find out more.\n");
-    qemu_system_vmstop_request(RUN_STATE_PAUSED);
+    vm_stop(RUN_STATE_PAUSED);
     cs->halted = 1;
     raise_exception(env, EXCP_HALTED);
 #endif

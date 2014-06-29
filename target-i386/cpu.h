@@ -402,6 +402,7 @@ typedef enum FeatureWord {
     FEAT_7_0_EBX,       /* CPUID[EAX=7,ECX=0].EBX */
     FEAT_8000_0001_EDX, /* CPUID[8000_0001].EDX */
     FEAT_8000_0001_ECX, /* CPUID[8000_0001].ECX */
+    FEAT_8000_0007_EDX, /* CPUID[8000_0007].EDX */
     FEAT_C000_0001_EDX, /* CPUID[C000_0001].EDX */
     FEAT_KVM,           /* CPUID[4000_0001].EAX (KVM_CPUID_FEATURES) */
     FEAT_SVM,           /* CPUID[8000_000A].EDX */
@@ -560,6 +561,9 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_EBX_RDSEED   (1U << 18)
 #define CPUID_7_0_EBX_ADX      (1U << 19)
 #define CPUID_7_0_EBX_SMAP     (1U << 20)
+
+/* CPUID[0x80000007].EDX flags: */
+#define CPUID_APM_INVTSC       (1U << 8)
 
 #define CPUID_VENDOR_SZ      12
 

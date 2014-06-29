@@ -68,13 +68,13 @@ poke_file "$TEST_IMG" "$l1_offset" "\x80\x00\x00\x00\x00\x03\x00\x00"
 _check_test_img
 
 # The corrupt bit should not be set anyway
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 
 # Try to write something, thereby forcing the corrupt bit to be set
 $QEMU_IO -c "$OPEN_RW" -c "write -P 0x2a 0 512" | _filter_qemu_io
 
 # The corrupt bit must now be set
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 
 # Try to open the image R/W (which should fail)
 $QEMU_IO -c "$OPEN_RW" -c "read 0 512" 2>&1 | _filter_qemu_io \
@@ -99,19 +99,19 @@ poke_file "$TEST_IMG" "$(($rb_offset+8))" "\x00\x01"
 # Redirect new data cluster onto refcount block
 poke_file "$TEST_IMG" "$l2_offset" "\x80\x00\x00\x00\x00\x02\x00\x00"
 _check_test_img
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 $QEMU_IO -c "$OPEN_RW" -c "write -P 0x2a 0 512" | _filter_qemu_io
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 
 # Try to fix it
 _check_test_img -r all
 
 # The corrupt bit should be cleared
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 
 # Look if it's really really fixed
 $QEMU_IO -c "$OPEN_RW" -c "write -P 0x2a 0 512" | _filter_qemu_io
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 
 echo
 echo "=== Testing cluster data reference into inactive L2 table ==="
@@ -124,13 +124,13 @@ $QEMU_IO -c "$OPEN_RW" -c "write -P 2 0 512" | _filter_qemu_io
 poke_file "$TEST_IMG" "$l2_offset_after_snapshot" \
                       "\x80\x00\x00\x00\x00\x04\x00\x00"
 _check_test_img
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 $QEMU_IO -c "$OPEN_RW" -c "write -P 3 0 512" | _filter_qemu_io
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 _check_test_img -r all
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 $QEMU_IO -c "$OPEN_RW" -c "write -P 4 0 512" | _filter_qemu_io
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 
 # Check data
 $QEMU_IO -c "$OPEN_RO" -c "read -P 4 0 512" | _filter_qemu_io

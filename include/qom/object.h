@@ -304,6 +304,25 @@ typedef void (ObjectPropertyAccessor)(Object *obj,
                                       Error **errp);
 
 /**
+ * ObjectPropertyResolve:
+ * @obj: the object that owns the property
+ * @opaque: the opaque registered with the property
+ * @part: the name of the property
+ *
+ * Resolves the #Object corresponding to property @part.
+ *
+ * The returned object can also be used as a starting point
+ * to resolve a relative path starting with "@part".
+ *
+ * Returns: If @path is the path that led to @obj, the function
+ * returns the #Object corresponding to "@path/@part".
+ * If "@path/@part" is not a valid object path, it returns #NULL.
+ */
+typedef Object *(ObjectPropertyResolve)(Object *obj,
+                                        void *opaque,
+                                        const char *part);
+
+/**
  * ObjectPropertyRelease:
  * @obj: the object that owns the property
  * @name: the name of the property
@@ -321,6 +340,7 @@ typedef struct ObjectProperty
     gchar *type;
     ObjectPropertyAccessor *get;
     ObjectPropertyAccessor *set;
+    ObjectPropertyResolve *resolve;
     ObjectPropertyRelease *release;
     void *opaque;
 
@@ -787,12 +807,16 @@ void object_unref(Object *obj);
  *   destruction.  This may be NULL.
  * @opaque: an opaque pointer to pass to the callbacks for the property
  * @errp: returns an error if this function fails
+ *
+ * Returns: The #ObjectProperty; this can be used to set the @resolve
+ * callback for child and link properties.
  */
-void object_property_add(Object *obj, const char *name, const char *type,
-                         ObjectPropertyAccessor *get,
-                         ObjectPropertyAccessor *set,
-                         ObjectPropertyRelease *release,
-                         void *opaque, Error **errp);
+ObjectProperty *object_property_add(Object *obj, const char *name,
+                                    const char *type,
+                                    ObjectPropertyAccessor *get,
+                                    ObjectPropertyAccessor *set,
+                                    ObjectPropertyRelease *release,
+                                    void *opaque, Error **errp);
 
 void object_property_del(Object *obj, const char *name, Error **errp);
 
@@ -1229,6 +1253,26 @@ void object_property_add_uint32_ptr(Object *obj, const char *name,
  */
 void object_property_add_uint64_ptr(Object *obj, const char *name,
                                     const uint64_t *v, Error **Errp);
+
+/**
+ * object_property_add_alias:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @target_obj: the object to forward property access to
+ * @target_name: the name of the property on the forwarded object
+ * @errp: if an error occurs, a pointer to an area to store the error
+ *
+ * Add an alias for a property on an object.  This function will add a property
+ * of the same type as the forwarded property.
+ *
+ * The caller must ensure that <code>@target_obj</code> stays alive as long as
+ * this property exists.  In the case of a child object or an alias on the same
+ * object this will be the case.  For aliases to other objects the caller is
+ * responsible for taking a reference.
+ */
+void object_property_add_alias(Object *obj, const char *name,
+                               Object *target_obj, const char *target_name,
+                               Error **errp);
 
 /**
  * object_child_foreach:

@@ -37,11 +37,14 @@
 #include "hw/block/flash.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/char.h"
-#include "xtensa_bootparam.h"
+#include "sysemu/device_tree.h"
+#include "qemu/error-report.h"
+#include "bootparam.h"
 
 typedef struct LxBoardDesc {
     hwaddr flash_base;
     size_t flash_size;
+    size_t flash_boot_base;
     size_t flash_sector_size;
     size_t sram_size;
 } LxBoardDesc;
@@ -172,9 +175,12 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
     MemoryRegion *ram, *rom, *system_io;
     DriveInfo *dinfo;
     pflash_t *flash = NULL;
+    QemuOpts *machine_opts = qemu_get_machine_opts();
     const char *cpu_model = machine->cpu_model;
-    const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *kernel_filename = qemu_opt_get(machine_opts, "kernel");
+    const char *kernel_cmdline = qemu_opt_get(machine_opts, "append");
+    const char *dtb_filename = qemu_opt_get(machine_opts, "dtb");
+    const char *initrd_filename = qemu_opt_get(machine_opts, "initrd");
     int n;
 
     if (!cpu_model) {
@@ -184,8 +190,9 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
     for (n = 0; n < smp_cpus; n++) {
         cpu = cpu_xtensa_init(cpu_model);
         if (cpu == NULL) {
-            fprintf(stderr, "Unable to find CPU definition\n");
-            exit(1);
+            error_report("unable to find CPU definition '%s'\n",
+                         cpu_model);
+            exit(EXIT_FAILURE);
         }
         env = &cpu->env;
 
@@ -226,39 +233,117 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
                 board->flash_size / board->flash_sector_size,
                 4, 0x0000, 0x0000, 0x0000, 0x0000, be);
         if (flash == NULL) {
-            fprintf(stderr, "Unable to mount pflash\n");
-            exit(1);
+            error_report("unable to mount pflash\n");
+            exit(EXIT_FAILURE);
         }
     }
 
     /* Use presence of kernel file name as 'boot from SRAM' switch. */
     if (kernel_filename) {
+        uint32_t entry_point = env->pc;
+        size_t bp_size = 3 * get_tag_size(0); /* first/last and memory tags */
+        uint32_t tagptr = 0xfe000000 + board->sram_size;
+        uint32_t cur_tagptr;
+        BpMemInfo memory_location = {
+            .type = tswap32(MEMORY_TYPE_CONVENTIONAL),
+            .start = tswap32(0),
+            .end = tswap32(machine->ram_size),
+        };
+        uint32_t lowmem_end = machine->ram_size < 0x08000000 ?
+            machine->ram_size : 0x08000000;
+        uint32_t cur_lowmem = QEMU_ALIGN_UP(lowmem_end / 2, 4096);
+
         rom = g_malloc(sizeof(*rom));
         memory_region_init_ram(rom, NULL, "lx60.sram", board->sram_size);
         vmstate_register_ram_global(rom);
         memory_region_add_subregion(system_memory, 0xfe000000, rom);
 
-        /* Put kernel bootparameters to the end of that SRAM */
         if (kernel_cmdline) {
-            size_t cmdline_size = strlen(kernel_cmdline) + 1;
-            size_t bp_size = sizeof(BpTag[4]) + cmdline_size;
-            uint32_t tagptr = (0xfe000000 + board->sram_size - bp_size) & ~0xff;
-
-            env->regs[2] = tagptr;
-
-            tagptr = put_tag(tagptr, 0x7b0b, 0, NULL);
-            if (cmdline_size > 1) {
-                tagptr = put_tag(tagptr, 0x1001,
-                        cmdline_size, kernel_cmdline);
-            }
-            tagptr = put_tag(tagptr, 0x7e0b, 0, NULL);
+            bp_size += get_tag_size(strlen(kernel_cmdline) + 1);
         }
+        if (dtb_filename) {
+            bp_size += get_tag_size(sizeof(uint32_t));
+        }
+        if (initrd_filename) {
+            bp_size += get_tag_size(sizeof(BpMemInfo));
+        }
+
+        /* Put kernel bootparameters to the end of that SRAM */
+        tagptr = (tagptr - bp_size) & ~0xff;
+        cur_tagptr = put_tag(tagptr, BP_TAG_FIRST, 0, NULL);
+        cur_tagptr = put_tag(cur_tagptr, BP_TAG_MEMORY,
+                             sizeof(memory_location), &memory_location);
+
+        if (kernel_cmdline) {
+            cur_tagptr = put_tag(cur_tagptr, BP_TAG_COMMAND_LINE,
+                                 strlen(kernel_cmdline) + 1, kernel_cmdline);
+        }
+        if (dtb_filename) {
+            int fdt_size;
+            void *fdt = load_device_tree(dtb_filename, &fdt_size);
+            uint32_t dtb_addr = tswap32(cur_lowmem);
+
+            if (!fdt) {
+                error_report("could not load DTB '%s'\n", dtb_filename);
+                exit(EXIT_FAILURE);
+            }
+
+            cpu_physical_memory_write(cur_lowmem, fdt, fdt_size);
+            cur_tagptr = put_tag(cur_tagptr, BP_TAG_FDT,
+                                 sizeof(dtb_addr), &dtb_addr);
+            cur_lowmem = QEMU_ALIGN_UP(cur_lowmem + fdt_size, 4096);
+        }
+        if (initrd_filename) {
+            BpMemInfo initrd_location = { 0 };
+            int initrd_size = load_ramdisk(initrd_filename, cur_lowmem,
+                                           lowmem_end - cur_lowmem);
+
+            if (initrd_size < 0) {
+                initrd_size = load_image_targphys(initrd_filename,
+                                                  cur_lowmem,
+                                                  lowmem_end - cur_lowmem);
+            }
+            if (initrd_size < 0) {
+                error_report("could not load initrd '%s'\n", initrd_filename);
+                exit(EXIT_FAILURE);
+            }
+            initrd_location.start = tswap32(cur_lowmem);
+            initrd_location.end = tswap32(cur_lowmem + initrd_size);
+            cur_tagptr = put_tag(cur_tagptr, BP_TAG_INITRD,
+                                 sizeof(initrd_location), &initrd_location);
+            cur_lowmem = QEMU_ALIGN_UP(cur_lowmem + initrd_size, 4096);
+        }
+        cur_tagptr = put_tag(cur_tagptr, BP_TAG_LAST, 0, NULL);
+        env->regs[2] = tagptr;
+
         uint64_t elf_entry;
         uint64_t elf_lowaddr;
         int success = load_elf(kernel_filename, translate_phys_addr, cpu,
                 &elf_entry, &elf_lowaddr, NULL, be, ELF_MACHINE, 0);
         if (success > 0) {
-            env->pc = elf_entry;
+            entry_point = elf_entry;
+        } else {
+            hwaddr ep;
+            int is_linux;
+            success = load_uimage(kernel_filename, &ep, NULL, &is_linux);
+            if (success > 0 && is_linux) {
+                entry_point = ep;
+            } else {
+                error_report("could not load kernel '%s'\n",
+                             kernel_filename);
+                exit(EXIT_FAILURE);
+            }
+        }
+        if (entry_point != env->pc) {
+            static const uint8_t jx_a0[] = {
+#ifdef TARGET_WORDS_BIGENDIAN
+                0x0a, 0, 0,
+#else
+                0xa0, 0, 0,
+#endif
+            };
+            env->regs[0] = entry_point;
+            cpu_physical_memory_write(env->pc, jx_a0, sizeof(jx_a0));
         }
     } else {
         if (flash) {
@@ -266,9 +351,9 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
             MemoryRegion *flash_io = g_malloc(sizeof(*flash_io));
 
             memory_region_init_alias(flash_io, NULL, "lx60.flash",
-                    flash_mr, 0,
-                    board->flash_size < 0x02000000 ?
-                    board->flash_size : 0x02000000);
+                    flash_mr, board->flash_boot_base,
+                    board->flash_size - board->flash_boot_base < 0x02000000 ?
+                    board->flash_size - board->flash_boot_base : 0x02000000);
             memory_region_add_subregion(system_memory, 0xfe000000,
                     flash_io);
         }
@@ -313,6 +398,7 @@ static void xtensa_kc705_init(MachineState *machine)
     static const LxBoardDesc kc705_board = {
         .flash_base = 0xf0000000,
         .flash_size = 0x08000000,
+        .flash_boot_base = 0x06000000,
         .flash_sector_size = 0x20000,
         .sram_size = 0x2000000,
     };

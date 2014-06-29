@@ -50,7 +50,6 @@
 
 #include "exec/memory-internal.h"
 #include "exec/ram_addr.h"
-#include "qemu/cache-utils.h"
 
 #include "qemu/range.h"
 
@@ -884,7 +883,7 @@ static void phys_section_destroy(MemoryRegion *mr)
 
     if (mr->subpage) {
         subpage_t *subpage = container_of(mr, subpage_t, iomem);
-        memory_region_destroy(&subpage->iomem);
+        object_unref(OBJECT(&subpage->iomem));
         g_free(subpage);
     }
 }
@@ -1457,6 +1456,13 @@ int qemu_get_ram_fd(ram_addr_t addr)
     return block->fd;
 }
 
+void *qemu_get_ram_block_host_ptr(ram_addr_t addr)
+{
+    RAMBlock *block = qemu_get_ram_block(addr);
+
+    return block->host;
+}
+
 /* Return a host pointer to ram allocated with qemu_ram_alloc.
    With the exception of the softmmu code in this file, this should
    only be used for local memory (e.g. video ram) that the device owns,
@@ -1762,7 +1768,7 @@ static subpage_t *subpage_init(AddressSpace *as, hwaddr base)
     mmio->as = as;
     mmio->base = base;
     memory_region_init_io(&mmio->iomem, NULL, &subpage_ops, mmio,
-                          "subpage", TARGET_PAGE_SIZE);
+                          NULL, TARGET_PAGE_SIZE);
     mmio->iomem.subpage = true;
 #if defined(DEBUG_SUBPAGE)
     printf("%s: %p base " TARGET_FMT_plx " len %08x\n", __func__,
@@ -1795,13 +1801,13 @@ MemoryRegion *iotlb_to_region(AddressSpace *as, hwaddr index)
 
 static void io_mem_init(void)
 {
-    memory_region_init_io(&io_mem_rom, NULL, &unassigned_mem_ops, NULL, "rom", UINT64_MAX);
+    memory_region_init_io(&io_mem_rom, NULL, &unassigned_mem_ops, NULL, NULL, UINT64_MAX);
     memory_region_init_io(&io_mem_unassigned, NULL, &unassigned_mem_ops, NULL,
-                          "unassigned", UINT64_MAX);
+                          NULL, UINT64_MAX);
     memory_region_init_io(&io_mem_notdirty, NULL, &notdirty_mem_ops, NULL,
-                          "notdirty", UINT64_MAX);
+                          NULL, UINT64_MAX);
     memory_region_init_io(&io_mem_watch, NULL, &watch_mem_ops, NULL,
-                          "watch", UINT64_MAX);
+                          NULL, UINT64_MAX);
 }
 
 static void mem_begin(MemoryListener *listener)
@@ -2753,14 +2759,12 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
 }
 #endif
 
-#if !defined(CONFIG_USER_ONLY)
-
 /*
  * A helper function for the _utterly broken_ virtio device model to find out if
  * it's running on a big endian machine. Don't do this at home kids!
  */
-bool virtio_is_big_endian(void);
-bool virtio_is_big_endian(void)
+bool target_words_bigendian(void);
+bool target_words_bigendian(void)
 {
 #if defined(TARGET_WORDS_BIGENDIAN)
     return true;
@@ -2768,8 +2772,6 @@ bool virtio_is_big_endian(void)
     return false;
 #endif
 }
-
-#endif
 
 #ifndef CONFIG_USER_ONLY
 bool cpu_physical_memory_is_io(hwaddr phys_addr)

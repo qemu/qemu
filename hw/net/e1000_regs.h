@@ -384,6 +384,9 @@
 #define MII_SR_100X_FD_CAPS      0x4000	/* 100X  Full Duplex Capable */
 #define MII_SR_100T4_CAPS        0x8000	/* 100T4 Capable */
 
+/* PHY Link Partner Ability Register */
+#define MII_LPAR_LPACK           0x4000 /* Acked by link partner */
+
 /* Interrupt Cause Read */
 #define E1000_ICR_TXDW          0x00000001 /* Transmit desc written back */
 #define E1000_ICR_TXQE          0x00000002 /* Transmit Queue empty */

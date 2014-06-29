@@ -1,0 +1,332 @@
+##
+# @SHUTDOWN
+#
+# Emitted when the virtual machine has shut down, indicating that qemu is
+# about to exit.
+#
+# Note: If the command-line option "-no-shutdown" has been specified, qemu will
+# not exit, and a STOP event will eventually follow the SHUTDOWN event
+#
+# Since: 0.12.0
+##
+{ 'event': 'SHUTDOWN' }
+
+##
+# @POWERDOWN
+#
+# Emitted when the virtual machine is powered down through the power control
+# system, such as via ACPI.
+#
+# Since: 0.12.0
+##
+{ 'event': 'POWERDOWN' }
+
+##
+# @RESET
+#
+# Emitted when the virtual machine is reset
+#
+# Since: 0.12.0
+##
+{ 'event': 'RESET' }
+
+##
+# @STOP
+#
+# Emitted when the virtual machine is stopped
+#
+# Since: 0.12.0
+##
+{ 'event': 'STOP' }
+
+##
+# @RESUME
+#
+# Emitted when the virtual machine resumes execution
+#
+# Since: 0.12.0
+##
+{ 'event': 'RESUME' }
+
+##
+# @SUSPEND
+#
+# Emitted when guest enters a hardware suspension state, for example, S3 state,
+# which is sometimes called standby state
+#
+# Since: 1.1
+##
+{ 'event': 'SUSPEND' }
+
+##
+# @SUSPEND_DISK
+#
+# Emitted when guest enters a hardware suspension state with data saved on
+# disk, for example, S4 state, which is sometimes called hibernate state
+#
+# Note: QEMU shuts down (similar to event @SHUTDOWN) when entering this state
+#
+# Since: 1.2
+##
+{ 'event': 'SUSPEND_DISK' }
+
+##
+# @WAKEUP
+#
+# Emitted when the guest has woken up from suspend state and is running
+#
+# Since: 1.1
+##
+{ 'event': 'WAKEUP' }
+
+##
+# @RTC_CHANGE
+#
+# Emitted when the guest changes the RTC time.
+#
+# @offset: offset between base RTC clock (as specified by -rtc base), and
+#          new RTC clock value
+#
+# Since: 0.13.0
+##
+{ 'event': 'RTC_CHANGE',
+  'data': { 'offset': 'int' } }
+
+##
+# @WATCHDOG
+#
+# Emitted when the watchdog device's timer is expired
+#
+# @action: action that has been taken
+#
+# Note: If action is "reset", "shutdown", or "pause" the WATCHDOG event is
+# followed respectively by the RESET, SHUTDOWN, or STOP events
+#
+# Since: 0.13.0
+##
+{ 'event': 'WATCHDOG',
+  'data': { 'action': 'WatchdogExpirationAction' } }
+
+##
+# @DEVICE_DELETED
+#
+# Emitted whenever the device removal completion is acknowledged by the guest.
+# At this point, it's safe to reuse the specified device ID. Device removal can
+# be initiated by the guest or by HMP/QMP commands.
+#
+# @device: #optional, device name
+#
+# @path: device path
+#
+# Since: 1.5
+##
+{ 'event': 'DEVICE_DELETED',
+  'data': { '*device': 'str', 'path': 'str' } }
+
+##
+# @NIC_RX_FILTER_CHANGED
+#
+# Emitted once until the 'query-rx-filter' command is executed, the first event
+# will always be emitted
+#
+# @name: #optional, net client name
+#
+# @path: device path
+#
+# Since: 1.6
+##
+{ 'event': 'NIC_RX_FILTER_CHANGED',
+  'data': { '*name': 'str', 'path': 'str' } }
+
+##
+# @VNC_CONNECTED
+#
+# Emitted when a VNC client establishes a connection
+#
+# @server: server information
+#
+# @client: client information
+#
+# Note: This event is emitted before any authentication takes place, thus
+# the authentication ID is not provided
+#
+# Since: 0.13.0
+##
+{ 'event': 'VNC_CONNECTED',
+  'data': { 'server': 'VncServerInfo',
+            'client': 'VncBasicInfo' } }
+
+##
+# @VNC_INITIALIZED
+#
+# Emitted after authentication takes place (if any) and the VNC session is
+# made active
+#
+# @server: server information
+#
+# @client: client information
+#
+# Since: 0.13.0
+##
+{ 'event': 'VNC_INITIALIZED',
+  'data': { 'server': 'VncServerInfo',
+            'client': 'VncClientInfo' } }
+
+##
+# @VNC_DISCONNECTED
+#
+# Emitted when the connection is closed
+#
+# @server: server information
+#
+# @client: client information
+#
+# Since: 0.13.0
+##
+{ 'event': 'VNC_DISCONNECTED',
+  'data': { 'server': 'VncServerInfo',
+            'client': 'VncClientInfo' } }
+
+##
+# @SPICE_CONNECTED
+#
+# Emitted when a SPICE client establishes a connection
+#
+# @server: server information
+#
+# @client: client information
+#
+# Since: 0.14.0
+##
+{ 'event': 'SPICE_CONNECTED',
+  'data': { 'server': 'SpiceBasicInfo',
+            'client': 'SpiceBasicInfo' } }
+
+##
+# @SPICE_INITIALIZED
+#
+# Emitted after initial handshake and authentication takes place (if any)
+# and the SPICE channel is up and running
+#
+# @server: server information
+#
+# @client: client information
+#
+# Since: 0.14.0
+##
+{ 'event': 'SPICE_INITIALIZED',
+  'data': { 'server': 'SpiceServerInfo',
+            'client': 'SpiceChannel' } }
+
+##
+# @SPICE_DISCONNECTED
+#
+# Emitted when the SPICE connection is closed
+#
+# @server: server information
+#
+# @client: client information
+#
+# Since: 0.14.0
+##
+{ 'event': 'SPICE_DISCONNECTED',
+  'data': { 'server': 'SpiceBasicInfo',
+            'client': 'SpiceBasicInfo' } }
+
+##
+# @SPICE_MIGRATE_COMPLETED
+#
+# Emitted when SPICE migration has completed
+#
+# Since: 1.3
+##
+{ 'event': 'SPICE_MIGRATE_COMPLETED' }
+
+##
+# @ACPI_DEVICE_OST
+#
+# Emitted when guest executes ACPI _OST method.
+#
+# Since: 2.1
+#
+# @info: ACPIOSTInfo type as described in qapi-schema.json
+##
+{ 'event': 'ACPI_DEVICE_OST',
+     'data': { 'info': 'ACPIOSTInfo' } }
+
+##
+# @BALLOON_CHANGE
+#
+# Emitted when the guest changes the actual BALLOON level. This value is
+# equivalent to the @actual field return by the 'query-balloon' command
+#
+# @actual: actual level of the guest memory balloon in bytes
+#
+# Since: 1.2
+##
+{ 'event': 'BALLOON_CHANGE',
+  'data': { 'actual': 'int' } }
+
+##
+# @GUEST_PANICKED
+#
+# Emitted when guest OS panic is detected
+#
+# @action: action that has been taken, currently always "pause"
+#
+# Since: 1.5
+##
+{ 'event': 'GUEST_PANICKED',
+  'data': { 'action': 'GuestPanicAction' } }
+
+##
+# @QUORUM_FAILURE
+#
+# Emitted by the Quorum block driver if it fails to establish a quorum
+#
+# @reference: device name if defined else node name
+#
+# @sector-num: number of the first sector of the failed read operation
+#
+# @sectors-count: failed read operation sector count
+#
+# Since: 2.0
+##
+{ 'event': 'QUORUM_FAILURE',
+  'data': { 'reference': 'str', 'sector-num': 'int', 'sectors-count': 'int' } }
+
+##
+# @QUORUM_REPORT_BAD
+#
+# Emitted to report a corruption of a Quorum file
+#
+# @error: #optional, error message. Only present on failure. This field
+#         contains a human-readable error message. There are no semantics other
+#         than that the block layer reported an error and clients should not
+#         try to interpret the error string.
+#
+# @node-name: the graph node name of the block driver state
+#
+# @sector-num: number of the first sector of the failed read operation
+#
+# @sectors-count: failed read operation sector count
+#
+# Since: 2.0
+##
+{ 'event': 'QUORUM_REPORT_BAD',
+  'data': { '*error': 'str', 'node-name': 'str',
+            'sector-num': 'int', 'sectors-count': 'int' } }
+
+##
+# @VSERPORT_CHANGE
+#
+# Emitted when the guest opens or closes a virtio-serial port.
+#
+# @id: device identifier of the virtio-serial port
+#
+# @open: true if the guest has opened the virtio-serial port
+#
+# Since: 2.1
+##
+{ 'event': 'VSERPORT_CHANGE',
+  'data': { 'id': 'str', 'open': 'bool' } }

@@ -27,6 +27,7 @@
 #include "block/qcow2.h"
 #include "qemu/range.h"
 #include "qapi/qmp/types.h"
+#include "qapi-event.h"
 
 static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size);
 static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
@@ -1807,7 +1808,6 @@ int qcow2_pre_write_overlap_check(BlockDriverState *bs, int ign, int64_t offset,
     } else if (ret > 0) {
         int metadata_ol_bitnr = ffs(ret) - 1;
         char *message;
-        QObject *data;
 
         assert(metadata_ol_bitnr < QCOW2_OL_MAX_BITNR);
 
@@ -1816,12 +1816,14 @@ int qcow2_pre_write_overlap_check(BlockDriverState *bs, int ign, int64_t offset,
                 metadata_ol_names[metadata_ol_bitnr]);
         message = g_strdup_printf("Prevented %s overwrite",
                 metadata_ol_names[metadata_ol_bitnr]);
-        data = qobject_from_jsonf("{ 'device': %s, 'msg': %s, 'offset': %"
-                PRId64 ", 'size': %" PRId64 " }", bs->device_name, message,
-                offset, size);
-        monitor_protocol_event(QEVENT_BLOCK_IMAGE_CORRUPTED, data);
+        qapi_event_send_block_image_corrupted(bdrv_get_device_name(bs),
+                                              message,
+                                              true,
+                                              offset,
+                                              true,
+                                              size,
+                                              &error_abort);
         g_free(message);
-        qobject_decref(data);
 
         qcow2_mark_corrupt(bs);
         bs->drv = NULL; /* make BDS unusable */

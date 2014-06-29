@@ -15,7 +15,12 @@
  OrderedDict([('command', 'user_def_cmd1'), ('data', OrderedDict([('ud1a', 'UserDefOne')]))]),
  OrderedDict([('command', 'user_def_cmd2'), ('data', OrderedDict([('ud1a', 'UserDefOne'), ('*ud1b', 'UserDefOne')])), ('returns', 'UserDefTwo')]),
  OrderedDict([('command', 'user_def_cmd3'), ('data', OrderedDict([('a', 'int'), ('*b', 'int')])), ('returns', 'int')]),
- OrderedDict([('type', 'UserDefOptions'), ('data', OrderedDict([('*i64', ['int']), ('*u64', ['uint64']), ('*u16', ['uint16']), ('*i64x', 'int'), ('*u64x', 'uint64')]))])]
+ OrderedDict([('type', 'UserDefOptions'), ('data', OrderedDict([('*i64', ['int']), ('*u64', ['uint64']), ('*u16', ['uint16']), ('*i64x', 'int'), ('*u64x', 'uint64')]))]),
+ OrderedDict([('type', 'EventStructOne'), ('data', OrderedDict([('struct1', 'UserDefOne'), ('string', 'str'), ('*enum2', 'EnumOne')]))]),
+ OrderedDict([('event', 'EVENT_A')]),
+ OrderedDict([('event', 'EVENT_B'), ('data', OrderedDict())]),
+ OrderedDict([('event', 'EVENT_C'), ('data', OrderedDict([('*a', 'int'), ('*b', 'UserDefOne'), ('c', 'str')]))]),
+ OrderedDict([('event', 'EVENT_D'), ('data', OrderedDict([('a', 'EventStructOne'), ('b', 'str'), ('*c', 'str'), ('*enum3', 'EnumOne')]))])]
 [{'enum_name': 'EnumOne', 'enum_values': ['value1', 'value2', 'value3']},
  {'enum_name': 'UserDefUnionKind', 'enum_values': None},
  {'enum_name': 'UserDefAnonUnionKind', 'enum_values': None},
@@ -28,4 +33,5 @@
  OrderedDict([('type', 'UserDefA'), ('data', OrderedDict([('boolean', 'bool')]))]),
  OrderedDict([('type', 'UserDefB'), ('data', OrderedDict([('integer', 'int')]))]),
  OrderedDict([('type', 'UserDefUnionBase'), ('data', OrderedDict([('string', 'str'), ('enum1', 'EnumOne')]))]),
- OrderedDict([('type', 'UserDefOptions'), ('data', OrderedDict([('*i64', ['int']), ('*u64', ['uint64']), ('*u16', ['uint16']), ('*i64x', 'int'), ('*u64x', 'uint64')]))])]
+ OrderedDict([('type', 'UserDefOptions'), ('data', OrderedDict([('*i64', ['int']), ('*u64', ['uint64']), ('*u16', ['uint16']), ('*i64x', 'int'), ('*u64x', 'uint64')]))]),
+ OrderedDict([('type', 'EventStructOne'), ('data', OrderedDict([('struct1', 'UserDefOne'), ('string', 'str'), ('*enum2', 'EnumOne')]))])]

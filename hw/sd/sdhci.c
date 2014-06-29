@@ -1168,8 +1168,8 @@ static void sdhci_initfn(Object *obj)
     if (s->card == NULL) {
         exit(1);
     }
-    s->eject_cb = qemu_allocate_irqs(sdhci_insert_eject_cb, s, 1)[0];
-    s->ro_cb = qemu_allocate_irqs(sdhci_card_readonly_cb, s, 1)[0];
+    s->eject_cb = qemu_allocate_irq(sdhci_insert_eject_cb, s, 0);
+    s->ro_cb = qemu_allocate_irq(sdhci_card_readonly_cb, s, 0);
     sd_set_cb(s->card, s->ro_cb, s->eject_cb);
 
     s->insert_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sdhci_raise_insertion_irq, s);
@@ -1184,8 +1184,8 @@ static void sdhci_uninitfn(Object *obj)
     timer_free(s->insert_timer);
     timer_del(s->transfer_timer);
     timer_free(s->transfer_timer);
-    qemu_free_irqs(&s->eject_cb);
-    qemu_free_irqs(&s->ro_cb);
+    qemu_free_irq(s->eject_cb);
+    qemu_free_irq(s->ro_cb);
 
     if (s->fifo_buffer) {
         g_free(s->fifo_buffer);

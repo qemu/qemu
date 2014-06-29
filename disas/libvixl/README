@@ -2,7 +2,7 @@
 The code in this directory is a subset of libvixl:
  https://github.com/armvixl/vixl
 (specifically, it is the set of files needed for disassembly only,
-taken from libvixl 1.1).
+taken from libvixl 1.4).
 Bugfixes should preferably be sent upstream initially.
 
 The disassembler does not currently support the entire A64 instruction

@@ -419,7 +419,7 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     BlockErrorAction action = bdrv_get_error_action(s->qdev.conf.bs, is_read, error);
 
-    if (action == BDRV_ACTION_REPORT) {
+    if (action == BLOCK_ERROR_ACTION_REPORT) {
         switch (error) {
         case ENOMEDIUM:
             scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
@@ -439,10 +439,10 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error)
         }
     }
     bdrv_error_action(s->qdev.conf.bs, action, is_read, error);
-    if (action == BDRV_ACTION_STOP) {
+    if (action == BLOCK_ERROR_ACTION_STOP) {
         scsi_req_retry(&r->req);
     }
-    return action != BDRV_ACTION_IGNORE;
+    return action != BLOCK_ERROR_ACTION_IGNORE;
 }
 
 static void scsi_write_complete(void * opaque, int ret)

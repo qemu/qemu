@@ -229,7 +229,7 @@ int main(int argc, char **argv)
     unsigned long ifargs[4];
 #endif
     int ifindex;
-    int fd, ctlfd, unixfd = -1;
+    int fd = -1, ctlfd = -1, unixfd = -1;
     int use_vnet = 0;
     int mtu;
     const char *bridge = NULL;
@@ -436,7 +436,12 @@ int main(int argc, char **argv)
     /* profit! */
 
 cleanup:
-
+    if (fd >= 0) {
+        close(fd);
+    }
+    if (ctlfd >= 0) {
+        close(ctlfd);
+    }
     while ((acl_rule = QSIMPLEQ_FIRST(&acl_list)) != NULL) {
         QSIMPLEQ_REMOVE_HEAD(&acl_list, entry);
         g_free(acl_rule);

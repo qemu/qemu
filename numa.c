@@ -62,6 +62,11 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
         return;
     }
 
+    if (numa_info[nodenr].present) {
+        error_setg(errp, "Duplicate NUMA nodeid: %" PRIu16, nodenr);
+        return;
+    }
+
     for (cpus = node->cpus; cpus; cpus = cpus->next) {
         if (cpus->value > MAX_CPUMASK_BITS) {
             error_setg(errp, "CPU number %" PRIu16 " is bigger than %d",
@@ -106,6 +111,8 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
         numa_info[nodenr].node_mem = object_property_get_int(o, "size", NULL);
         numa_info[nodenr].node_memdev = MEMORY_BACKEND(o);
     }
+    numa_info[nodenr].present = true;
+    max_numa_nodeid = MAX(max_numa_nodeid, nodenr + 1);
 }
 
 int numa_init_func(QemuOpts *opts, void *opaque)
@@ -153,15 +160,30 @@ error:
 
 void set_numa_nodes(void)
 {
+    int i;
+
+    assert(max_numa_nodeid <= MAX_NODES);
+
+    /* No support for sparse NUMA node IDs yet: */
+    for (i = max_numa_nodeid - 1; i >= 0; i--) {
+        /* Report large node IDs first, to make mistakes easier to spot */
+        if (!numa_info[i].present) {
+            error_report("numa: Node ID missing: %d", i);
+            exit(1);
+        }
+    }
+
+    /* This must be always true if all nodes are present: */
+    assert(nb_numa_nodes == max_numa_nodeid);
+
     if (nb_numa_nodes > 0) {
         uint64_t numa_total;
-        int i;
 
         if (nb_numa_nodes > MAX_NODES) {
             nb_numa_nodes = MAX_NODES;
         }
 
-        /* If no memory size if given for any node, assume the default case
+        /* If no memory size is given for any node, assume the default case
          * and distribute the available memory equally across all nodes
          */
         for (i = 0; i < nb_numa_nodes; i++) {
@@ -172,7 +194,7 @@ void set_numa_nodes(void)
         if (i == nb_numa_nodes) {
             uint64_t usedmem = 0;
 
-            /* On Linux, the each node's border has to be 8MB aligned,
+            /* On Linux, each node's border has to be 8MB aligned,
              * the final node gets the rest.
              */
             for (i = 0; i < nb_numa_nodes - 1; i++) {

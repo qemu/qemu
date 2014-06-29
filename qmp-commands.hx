@@ -979,13 +979,13 @@ EQMP
 
     {
         .name       = "block-stream",
-        .args_type  = "device:B,base:s?,speed:o?,on-error:s?",
+        .args_type  = "device:B,base:s?,speed:o?,backing-file:s?,on-error:s?",
         .mhandler.cmd_new = qmp_marshal_input_block_stream,
     },
 
     {
         .name       = "block-commit",
-        .args_type  = "device:B,base:s?,top:s,speed:o?",
+        .args_type  = "device:B,base:s?,top:s?,backing-file:s?,speed:o?",
         .mhandler.cmd_new = qmp_marshal_input_block_commit,
     },
 
@@ -1003,7 +1003,25 @@ Arguments:
           If not specified, this is the deepest backing image
           (json-string, optional)
 - "top":  The file name of the backing image within the image chain,
-          which contains the topmost data to be committed down.
+          which contains the topmost data to be committed down. If
+          not specified, this is the active layer. (json-string, optional)
+
+- backing-file:     The backing file string to write into the overlay
+                    image of 'top'.  If 'top' is the active layer,
+                    specifying a backing file string is an error. This
+                    filename is not validated.
+
+                    If a pathname string is such that it cannot be
+                    resolved by QEMU, that means that subsequent QMP or
+                    HMP commands must use node-names for the image in
+                    question, as filename lookup methods will fail.
+
+                    If not specified, QEMU will automatically determine
+                    the backing file string to use, or error out if
+                    there is no obvious choice. Care should be taken
+                    when specifying the string, to specify a valid
+                    filename or protocol.
+                    (json-string, optional) (Since 2.1)
 
           If top == base, that is an error.
           If top == active, the job will not be completed by itself,
@@ -1293,6 +1311,7 @@ EQMP
     {
         .name       = "drive-mirror",
         .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?,"
+                      "node-name:s?,replaces:s?,"
                       "on-source-error:s?,on-target-error:s?,"
                       "granularity:i?,buf-size:i?",
         .mhandler.cmd_new = qmp_marshal_input_drive_mirror,
@@ -1314,6 +1333,10 @@ Arguments:
 - "device": device name to operate on (json-string)
 - "target": name of new image file (json-string)
 - "format": format of new image (json-string, optional)
+- "node-name": the name of the new block driver state in the node graph
+               (json-string, optional)
+- "replaces": the block driver node name to replace when finished
+              (json-string, optional)
 - "mode": how an image file should be created into the target
   file/device (NewImageMode, optional, default 'absolute-paths')
 - "speed": maximum speed of the streaming job, in bytes per second
@@ -1343,6 +1366,45 @@ Example:
                                                "sync": "full",
                                                "format": "qcow2" } }
 <- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "change-backing-file",
+        .args_type  = "device:s,image-node-name:s,backing-file:s",
+        .mhandler.cmd_new = qmp_marshal_input_change_backing_file,
+    },
+
+SQMP
+change-backing-file
+-------------------
+Since: 2.1
+
+Change the backing file in the image file metadata.  This does not cause
+QEMU to reopen the image file to reparse the backing filename (it may,
+however, perform a reopen to change permissions from r/o -> r/w -> r/o,
+if needed). The new backing file string is written into the image file
+metadata, and the QEMU internal strings are updated.
+
+Arguments:
+
+- "image-node-name":    The name of the block driver state node of the
+                        image to modify.  The "device" is argument is used to
+                        verify "image-node-name" is in the chain described by
+                        "device".
+                        (json-string, optional)
+
+- "device":             The name of the device.
+                        (json-string)
+
+- "backing-file":       The string to write as the backing file.  This string is
+                        not validated, so care should be taken when specifying
+                        the string or the image chain may not be able to be
+                        reopened again.
+                        (json-string)
+
+Returns: Nothing on success
+         If "device" does not exist or cannot be determined, DeviceNotFound
 
 EQMP
 
@@ -1921,19 +1983,28 @@ Each json-object contain the following:
 
 - "label": device's label (json-string)
 - "filename": device's file (json-string)
+- "frontend-open": open/closed state of the frontend device attached to this
+                   backend (json-bool)
 
 Example:
 
 -> { "execute": "query-chardev" }
 <- {
-      "return":[
+      "return": [
          {
-            "label":"monitor",
-            "filename":"stdio"
+            "label": "charchannel0",
+            "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.agent,server",
+            "frontend-open": false
          },
          {
-            "label":"serial0",
-            "filename":"vc"
+            "label": "charmonitor",
+            "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.monitor,server",
+            "frontend-open": true
+         },
+         {
+            "label": "charserial0",
+            "filename": "pty:/dev/pts/2",
+            "frontend-open": true
          }
       ]
    }
@@ -3660,4 +3731,27 @@ Example:
                  { "slot": "2", "slot-type": "DIMM", "source": 0, "status": 0},
                  { "slot": "3", "slot-type": "DIMM", "source": 0, "status": 0}
    ]}
+EQMP
+
+#if defined TARGET_I386
+    {
+        .name       = "rtc-reset-reinjection",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_rtc_reset_reinjection,
+    },
+#endif
+
+SQMP
+rtc-reset-reinjection
+---------------------
+
+Reset the RTC interrupt reinjection backlog.
+
+Arguments: None.
+
+Example:
+
+-> { "execute": "rtc-reset-reinjection" }
+<- { "return": {} }
+
 EQMP

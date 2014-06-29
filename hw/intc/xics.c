@@ -437,7 +437,7 @@ static void ics_set_irq(void *opaque, int srcno, int val)
 {
     ICSState *ics = (ICSState *)opaque;
 
-    if (ics->islsi[srcno]) {
+    if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI) {
         set_irq_lsi(ics, srcno, val);
     } else {
         set_irq_msi(ics, srcno, val);
@@ -474,7 +474,7 @@ static void ics_write_xive(ICSState *ics, int nr, int server,
 
     trace_xics_ics_write_xive(nr, srcno, server, priority);
 
-    if (ics->islsi[srcno]) {
+    if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI) {
         write_xive_lsi(ics, srcno);
     } else {
         write_xive_msi(ics, srcno);
@@ -496,7 +496,7 @@ static void ics_resend(ICSState *ics)
 
     for (i = 0; i < ics->nr_irqs; i++) {
         /* FIXME: filter by server#? */
-        if (ics->islsi[i]) {
+        if (ics->irqs[i].flags & XICS_FLAGS_IRQ_LSI) {
             resend_lsi(ics, i);
         } else {
             resend_msi(ics, i);
@@ -511,7 +511,7 @@ static void ics_eoi(ICSState *ics, int nr)
 
     trace_xics_ics_eoi(nr);
 
-    if (ics->islsi[srcno]) {
+    if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI) {
         irq->status &= ~XICS_STATUS_SENT;
     }
 }
@@ -520,11 +520,18 @@ static void ics_reset(DeviceState *dev)
 {
     ICSState *ics = ICS(dev);
     int i;
+    uint8_t flags[ics->nr_irqs];
+
+    for (i = 0; i < ics->nr_irqs; i++) {
+        flags[i] = ics->irqs[i].flags;
+    }
 
     memset(ics->irqs, 0, sizeof(ICSIRQState) * ics->nr_irqs);
+
     for (i = 0; i < ics->nr_irqs; i++) {
         ics->irqs[i].priority = 0xff;
         ics->irqs[i].saved_priority = 0xff;
+        ics->irqs[i].flags = flags[i];
     }
 }
 
@@ -563,13 +570,14 @@ static int ics_dispatch_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_ics_irq = {
     .name = "ics/irq",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(server, ICSIRQState),
         VMSTATE_UINT8(priority, ICSIRQState),
         VMSTATE_UINT8(saved_priority, ICSIRQState),
         VMSTATE_UINT8(status, ICSIRQState),
+        VMSTATE_UINT8(flags, ICSIRQState),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -606,7 +614,6 @@ static void ics_realize(DeviceState *dev, Error **errp)
         return;
     }
     ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
-    ics->islsi = g_malloc0(ics->nr_irqs * sizeof(bool));
     ics->qirqs = qemu_allocate_irqs(ics_set_irq, ics, ics->nr_irqs);
 }
 
@@ -633,21 +640,166 @@ static const TypeInfo ics_info = {
 /*
  * Exported functions
  */
+static int xics_find_source(XICSState *icp, int irq)
+{
+    int sources = 1;
+    int src;
+
+    /* FIXME: implement multiple sources */
+    for (src = 0; src < sources; ++src) {
+        ICSState *ics = &icp->ics[src];
+        if (ics_valid_irq(ics, irq)) {
+            return src;
+        }
+    }
+
+    return -1;
+}
 
 qemu_irq xics_get_qirq(XICSState *icp, int irq)
 {
-    if (!ics_valid_irq(icp->ics, irq)) {
-        return NULL;
+    int src = xics_find_source(icp, irq);
+
+    if (src >= 0) {
+        ICSState *ics = &icp->ics[src];
+        return ics->qirqs[irq - ics->offset];
     }
 
-    return icp->ics->qirqs[irq - icp->ics->offset];
+    return NULL;
+}
+
+static void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
+{
+    assert(!(ics->irqs[srcno].flags & XICS_FLAGS_IRQ_MASK));
+
+    ics->irqs[srcno].flags |=
+        lsi ? XICS_FLAGS_IRQ_LSI : XICS_FLAGS_IRQ_MSI;
 }
 
 void xics_set_irq_type(XICSState *icp, int irq, bool lsi)
 {
-    assert(ics_valid_irq(icp->ics, irq));
+    int src = xics_find_source(icp, irq);
+    ICSState *ics;
 
-    icp->ics->islsi[irq - icp->ics->offset] = lsi;
+    assert(src >= 0);
+
+    ics = &icp->ics[src];
+    ics_set_irq_type(ics, irq - ics->offset, lsi);
+}
+
+#define ICS_IRQ_FREE(ics, srcno)   \
+    (!((ics)->irqs[(srcno)].flags & (XICS_FLAGS_IRQ_MASK)))
+
+static int ics_find_free_block(ICSState *ics, int num, int alignnum)
+{
+    int first, i;
+
+    for (first = 0; first < ics->nr_irqs; first += alignnum) {
+        if (num > (ics->nr_irqs - first)) {
+            return -1;
+        }
+        for (i = first; i < first + num; ++i) {
+            if (!ICS_IRQ_FREE(ics, i)) {
+                break;
+            }
+        }
+        if (i == (first + num)) {
+            return first;
+        }
+    }
+
+    return -1;
+}
+
+int xics_alloc(XICSState *icp, int src, int irq_hint, bool lsi)
+{
+    ICSState *ics = &icp->ics[src];
+    int irq;
+
+    if (irq_hint) {
+        assert(src == xics_find_source(icp, irq_hint));
+        if (!ICS_IRQ_FREE(ics, irq_hint - ics->offset)) {
+            trace_xics_alloc_failed_hint(src, irq_hint);
+            return -1;
+        }
+        irq = irq_hint;
+    } else {
+        irq = ics_find_free_block(ics, 1, 1);
+        if (irq < 0) {
+            trace_xics_alloc_failed_no_left(src);
+            return -1;
+        }
+        irq += ics->offset;
+    }
+
+    ics_set_irq_type(ics, irq - ics->offset, lsi);
+    trace_xics_alloc(src, irq);
+
+    return irq;
+}
+
+/*
+ * Allocate block of consequtive IRQs, returns a number of the first.
+ * If align==true, aligns the first IRQ number to num.
+ */
+int xics_alloc_block(XICSState *icp, int src, int num, bool lsi, bool align)
+{
+    int i, first = -1;
+    ICSState *ics = &icp->ics[src];
+
+    assert(src == 0);
+    /*
+     * MSIMesage::data is used for storing VIRQ so
+     * it has to be aligned to num to support multiple
+     * MSI vectors. MSI-X is not affected by this.
+     * The hint is used for the first IRQ, the rest should
+     * be allocated continuously.
+     */
+    if (align) {
+        assert((num == 1) || (num == 2) || (num == 4) ||
+               (num == 8) || (num == 16) || (num == 32));
+        first = ics_find_free_block(ics, num, num);
+    } else {
+        first = ics_find_free_block(ics, num, 1);
+    }
+
+    if (first >= 0) {
+        for (i = first; i < first + num; ++i) {
+            ics_set_irq_type(ics, i, lsi);
+        }
+    }
+    first += ics->offset;
+
+    trace_xics_alloc_block(src, first, num, lsi, align);
+
+    return first;
+}
+
+static void ics_free(ICSState *ics, int srcno, int num)
+{
+    int i;
+
+    for (i = srcno; i < srcno + num; ++i) {
+        if (ICS_IRQ_FREE(ics, i)) {
+            trace_xics_ics_free_warn(ics - ics->icp->ics, i + ics->offset);
+        }
+        memset(&ics->irqs[i], 0, sizeof(ICSIRQState));
+    }
+}
+
+void xics_free(XICSState *icp, int irq, int num)
+{
+    int src = xics_find_source(icp, irq);
+
+    if (src >= 0) {
+        ICSState *ics = &icp->ics[src];
+
+        /* FIXME: implement multiple sources */
+        assert(src == 0);
+
+        trace_xics_ics_free(ics - icp->ics, irq, num);
+        ics_free(ics, irq - ics->offset, num);
+    }
 }
 
 /*
@@ -866,10 +1018,10 @@ static void xics_realize(DeviceState *dev, Error **errp)
     }
 
     /* Registration of global state belongs into realize */
-    spapr_rtas_register("ibm,set-xive", rtas_set_xive);
-    spapr_rtas_register("ibm,get-xive", rtas_get_xive);
-    spapr_rtas_register("ibm,int-off", rtas_int_off);
-    spapr_rtas_register("ibm,int-on", rtas_int_on);
+    spapr_rtas_register(RTAS_IBM_SET_XIVE, "ibm,set-xive", rtas_set_xive);
+    spapr_rtas_register(RTAS_IBM_GET_XIVE, "ibm,get-xive", rtas_get_xive);
+    spapr_rtas_register(RTAS_IBM_INT_OFF, "ibm,int-off", rtas_int_off);
+    spapr_rtas_register(RTAS_IBM_INT_ON, "ibm,int-on", rtas_int_on);
 
     spapr_register_hypercall(H_CPPR, h_cppr);
     spapr_register_hypercall(H_IPI, h_ipi);

@@ -55,7 +55,7 @@ these four paragraphs for those parts of this code that are retained.
 | The result is stored in the location pointed to by `zPtr'.
 *----------------------------------------------------------------------------*/
 
-INLINE void shift32RightJamming(uint32_t a, int_fast16_t count, uint32_t *zPtr)
+static inline void shift32RightJamming(uint32_t a, int_fast16_t count, uint32_t *zPtr)
 {
     uint32_t z;
 
@@ -81,7 +81,7 @@ INLINE void shift32RightJamming(uint32_t a, int_fast16_t count, uint32_t *zPtr)
 | The result is stored in the location pointed to by `zPtr'.
 *----------------------------------------------------------------------------*/
 
-INLINE void shift64RightJamming(uint64_t a, int_fast16_t count, uint64_t *zPtr)
+static inline void shift64RightJamming(uint64_t a, int_fast16_t count, uint64_t *zPtr)
 {
     uint64_t z;
 
@@ -115,7 +115,7 @@ INLINE void shift64RightJamming(uint64_t a, int_fast16_t count, uint64_t *zPtr)
 | described above, and is returned at the location pointed to by `z1Ptr'.)
 *----------------------------------------------------------------------------*/
 
-INLINE void
+static inline void
  shift64ExtraRightJamming(
      uint64_t a0, uint64_t a1, int_fast16_t count, uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
@@ -152,7 +152,7 @@ INLINE void
 | which are stored at the locations pointed to by `z0Ptr' and `z1Ptr'.
 *----------------------------------------------------------------------------*/
 
-INLINE void
+static inline void
  shift128Right(
      uint64_t a0, uint64_t a1, int_fast16_t count, uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
@@ -187,7 +187,7 @@ INLINE void
 | the locations pointed to by `z0Ptr' and `z1Ptr'.
 *----------------------------------------------------------------------------*/
 
-INLINE void
+static inline void
  shift128RightJamming(
      uint64_t a0, uint64_t a1, int_fast16_t count, uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
@@ -238,7 +238,7 @@ INLINE void
 | `z2Ptr'.)
 *----------------------------------------------------------------------------*/
 
-INLINE void
+static inline void
  shift128ExtraRightJamming(
      uint64_t a0,
      uint64_t a1,
@@ -296,7 +296,7 @@ INLINE void
 | pieces which are stored at the locations pointed to by `z0Ptr' and `z1Ptr'.
 *----------------------------------------------------------------------------*/
 
-INLINE void
+static inline void
  shortShift128Left(
      uint64_t a0, uint64_t a1, int_fast16_t count, uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
@@ -315,7 +315,7 @@ INLINE void
 | `z1Ptr', and `z2Ptr'.
 *----------------------------------------------------------------------------*/
 
-INLINE void
+static inline void
  shortShift192Left(
      uint64_t a0,
      uint64_t a1,
@@ -350,7 +350,7 @@ INLINE void
 | are stored at the locations pointed to by `z0Ptr' and `z1Ptr'.
 *----------------------------------------------------------------------------*/
 
-INLINE void
+static inline void
  add128(
      uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1, uint64_t *z0Ptr, uint64_t *z1Ptr )
 {
@@ -370,7 +370,7 @@ INLINE void
 | `z1Ptr', and `z2Ptr'.
 *----------------------------------------------------------------------------*/
 
-INLINE void
+static inline void
  add192(
      uint64_t a0,
      uint64_t a1,
@@ -408,7 +408,7 @@ INLINE void
 | `z1Ptr'.
 *----------------------------------------------------------------------------*/
 
-INLINE void
+static inline void
  sub128(
      uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1, uint64_t *z0Ptr, uint64_t *z1Ptr )
 {
@@ -426,7 +426,7 @@ INLINE void
 | pointed to by `z0Ptr', `z1Ptr', and `z2Ptr'.
 *----------------------------------------------------------------------------*/
 
-INLINE void
+static inline void
  sub192(
      uint64_t a0,
      uint64_t a1,
@@ -462,7 +462,7 @@ INLINE void
 | `z0Ptr' and `z1Ptr'.
 *----------------------------------------------------------------------------*/
 
-INLINE void mul64To128( uint64_t a, uint64_t b, uint64_t *z0Ptr, uint64_t *z1Ptr )
+static inline void mul64To128( uint64_t a, uint64_t b, uint64_t *z0Ptr, uint64_t *z1Ptr )
 {
     uint32_t aHigh, aLow, bHigh, bLow;
     uint64_t z0, zMiddleA, zMiddleB, z1;
@@ -492,7 +492,7 @@ INLINE void mul64To128( uint64_t a, uint64_t b, uint64_t *z0Ptr, uint64_t *z1Ptr
 | `z2Ptr'.
 *----------------------------------------------------------------------------*/
 
-INLINE void
+static inline void
  mul128By64To192(
      uint64_t a0,
      uint64_t a1,
@@ -520,7 +520,7 @@ INLINE void
 | the locations pointed to by `z0Ptr', `z1Ptr', `z2Ptr', and `z3Ptr'.
 *----------------------------------------------------------------------------*/
 
-INLINE void
+static inline void
  mul128To256(
      uint64_t a0,
      uint64_t a1,
@@ -702,7 +702,7 @@ static int8 countLeadingZeros64( uint64_t a )
 | Otherwise, returns 0.
 *----------------------------------------------------------------------------*/
 
-INLINE flag eq128( uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1 )
+static inline flag eq128( uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1 )
 {
 
     return ( a0 == b0 ) && ( a1 == b1 );
@@ -715,7 +715,7 @@ INLINE flag eq128( uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1 )
 | Otherwise, returns 0.
 *----------------------------------------------------------------------------*/
 
-INLINE flag le128( uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1 )
+static inline flag le128( uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1 )
 {
 
     return ( a0 < b0 ) || ( ( a0 == b0 ) && ( a1 <= b1 ) );
@@ -728,7 +728,7 @@ INLINE flag le128( uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1 )
 | returns 0.
 *----------------------------------------------------------------------------*/
 
-INLINE flag lt128( uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1 )
+static inline flag lt128( uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1 )
 {
 
     return ( a0 < b0 ) || ( ( a0 == b0 ) && ( a1 < b1 ) );
@@ -741,7 +741,7 @@ INLINE flag lt128( uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1 )
 | Otherwise, returns 0.
 *----------------------------------------------------------------------------*/
 
-INLINE flag ne128( uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1 )
+static inline flag ne128( uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1 )
 {
 
     return ( a0 != b0 ) || ( a1 != b1 );

@@ -474,6 +474,22 @@ check -r all} is required, which may take some time.
 
 This option can only be enabled if @code{compat=1.1} is specified.
 
+@item nocow
+If this option is set to @code{on}, it will trun off COW of the file. It's only
+valid on btrfs, no effect on other file systems.
+
+Btrfs has low performance when hosting a VM image file, even more when the guest
+on the VM also using btrfs as file system. Turning off COW is a way to mitigate
+this bad performance. Generally there are two ways to turn off COW on btrfs:
+a) Disable it by mounting with nodatacow, then all newly created files will be
+NOCOW. b) For an empty file, add the NOCOW file attribute. That's what this option
+does.
+
+Note: this option is only valid to new or empty files. If there is an existing
+file which is COW and has data blocks already, it couldn't be changed to NOCOW
+by setting @code{nocow=on}. One can issue @code{lsattr filename} to check if
+the NOCOW flag is set or not (Capitabl 'C' is NOCOW flag).
+
 @end table
 
 @item Other

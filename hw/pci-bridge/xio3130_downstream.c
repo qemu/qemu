@@ -147,6 +147,12 @@ PCIESlot *xio3130_downstream_init(PCIBus *bus, int devfn, bool multifunction,
     return PCIE_SLOT(d);
 }
 
+static Property xio3130_downstream_props[] = {
+    DEFINE_PROP_BIT(COMPAT_PROP_PCP, PCIDevice, cap_present,
+                    QEMU_PCIE_SLTCAP_PCP_BITNR, true),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_xio3130_downstream = {
     .name = "xio3130-express-downstream-port",
     .version_id = 1,
@@ -177,6 +183,7 @@ static void xio3130_downstream_class_init(ObjectClass *klass, void *data)
     dc->desc = "TI X3130 Downstream Port of PCI Express Switch";
     dc->reset = xio3130_downstream_reset;
     dc->vmsd = &vmstate_xio3130_downstream;
+    dc->props = xio3130_downstream_props;
 }
 
 static const TypeInfo xio3130_downstream_info = {

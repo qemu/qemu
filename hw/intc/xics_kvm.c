@@ -38,10 +38,6 @@
 typedef struct KVMXICSState {
     XICSState parent_obj;
 
-    uint32_t set_xive_token;
-    uint32_t get_xive_token;
-    uint32_t int_off_token;
-    uint32_t int_on_token;
     int kernel_xics_fd;
 } KVMXICSState;
 
@@ -224,7 +220,7 @@ static int ics_set_kvm_state(ICSState *ics, int version_id)
             state |= KVM_XICS_MASKED;
         }
 
-        if (ics->islsi[i]) {
+        if (ics->irqs[i].flags & XICS_FLAGS_IRQ_LSI) {
             state |= KVM_XICS_LEVEL_SENSITIVE;
             if (irq->status & XICS_STATUS_ASSERTED) {
                 state |= KVM_XICS_PENDING;
@@ -253,7 +249,7 @@ static void ics_kvm_set_irq(void *opaque, int srcno, int val)
     int rc;
 
     args.irq = srcno + ics->offset;
-    if (!ics->islsi[srcno]) {
+    if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_MSI) {
         if (!val) {
             return;
         }
@@ -271,11 +267,18 @@ static void ics_kvm_reset(DeviceState *dev)
 {
     ICSState *ics = ICS(dev);
     int i;
+    uint8_t flags[ics->nr_irqs];
+
+    for (i = 0; i < ics->nr_irqs; i++) {
+        flags[i] = ics->irqs[i].flags;
+    }
 
     memset(ics->irqs, 0, sizeof(ICSIRQState) * ics->nr_irqs);
+
     for (i = 0; i < ics->nr_irqs; i++) {
         ics->irqs[i].priority = 0xff;
         ics->irqs[i].saved_priority = 0xff;
+        ics->irqs[i].flags = flags[i];
     }
 
     ics_set_kvm_state(ics, 1);
@@ -290,7 +293,6 @@ static void ics_kvm_realize(DeviceState *dev, Error **errp)
         return;
     }
     ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
-    ics->islsi = g_malloc0(ics->nr_irqs * sizeof(bool));
     ics->qirqs = qemu_allocate_irqs(ics_kvm_set_irq, ics, ics->nr_irqs);
 }
 
@@ -392,32 +394,30 @@ static void xics_kvm_realize(DeviceState *dev, Error **errp)
         goto fail;
     }
 
-    icpkvm->set_xive_token = spapr_rtas_register("ibm,set-xive", rtas_dummy);
-    icpkvm->get_xive_token = spapr_rtas_register("ibm,get-xive", rtas_dummy);
-    icpkvm->int_off_token = spapr_rtas_register("ibm,int-off", rtas_dummy);
-    icpkvm->int_on_token = spapr_rtas_register("ibm,int-on", rtas_dummy);
+    spapr_rtas_register(RTAS_IBM_SET_XIVE, "ibm,set-xive", rtas_dummy);
+    spapr_rtas_register(RTAS_IBM_GET_XIVE, "ibm,get-xive", rtas_dummy);
+    spapr_rtas_register(RTAS_IBM_INT_OFF, "ibm,int-off", rtas_dummy);
+    spapr_rtas_register(RTAS_IBM_INT_ON, "ibm,int-on", rtas_dummy);
 
-    rc = kvmppc_define_rtas_kernel_token(icpkvm->set_xive_token,
-                                         "ibm,set-xive");
+    rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_SET_XIVE, "ibm,set-xive");
     if (rc < 0) {
         error_setg(errp, "kvmppc_define_rtas_kernel_token: ibm,set-xive");
         goto fail;
     }
 
-    rc = kvmppc_define_rtas_kernel_token(icpkvm->get_xive_token,
-                                         "ibm,get-xive");
+    rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_GET_XIVE, "ibm,get-xive");
     if (rc < 0) {
         error_setg(errp, "kvmppc_define_rtas_kernel_token: ibm,get-xive");
         goto fail;
     }
 
-    rc = kvmppc_define_rtas_kernel_token(icpkvm->int_on_token, "ibm,int-on");
+    rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_INT_ON, "ibm,int-on");
     if (rc < 0) {
         error_setg(errp, "kvmppc_define_rtas_kernel_token: ibm,int-on");
         goto fail;
     }
 
-    rc = kvmppc_define_rtas_kernel_token(icpkvm->int_off_token, "ibm,int-off");
+    rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_INT_OFF, "ibm,int-off");
     if (rc < 0) {
         error_setg(errp, "kvmppc_define_rtas_kernel_token: ibm,int-off");
         goto fail;

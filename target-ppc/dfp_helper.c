@@ -411,9 +411,8 @@ static inline int dfp_get_digit(decNumber *dn, int n)
         return (dn->lsu[unit] / 10) % 10;
     case 2:
         return dn->lsu[unit] / 100;
-    default:
-        assert(0);
     }
+    g_assert_not_reached();
 }
 
 #define DFP_HELPER_TAB(op, dnop, postprocs, size)                              \

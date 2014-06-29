@@ -150,10 +150,6 @@ typedef enum {
 #define BDRV_BLOCK_ALLOCATED    0x10
 #define BDRV_BLOCK_OFFSET_MASK  BDRV_SECTOR_MASK
 
-typedef enum {
-    BDRV_ACTION_REPORT, BDRV_ACTION_IGNORE, BDRV_ACTION_STOP
-} BlockErrorAction;
-
 typedef QSIMPLEQ_HEAD(BlockReopenQueue, BlockReopenQueueEntry) BlockReopenQueue;
 
 typedef struct BDRVReopenState {
@@ -179,6 +175,7 @@ typedef enum BlockOpType {
     BLOCK_OP_TYPE_MIRROR,
     BLOCK_OP_TYPE_RESIZE,
     BLOCK_OP_TYPE_STREAM,
+    BLOCK_OP_TYPE_REPLACE,
     BLOCK_OP_TYPE_MAX,
 } BlockOpType;
 
@@ -217,7 +214,7 @@ int bdrv_open_image(BlockDriverState **pbs, const char *filename,
                     bool allow_none, Error **errp);
 void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd);
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp);
-void bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp);
+int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp);
 int bdrv_open(BlockDriverState **pbs, const char *filename,
               const char *reference, QDict *options, int flags,
               BlockDriver *drv, Error **errp);
@@ -288,7 +285,8 @@ int bdrv_change_backing_file(BlockDriverState *bs,
     const char *backing_file, const char *backing_fmt);
 void bdrv_register(BlockDriver *bdrv);
 int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
-                           BlockDriverState *base);
+                           BlockDriverState *base,
+                           const char *backing_file_str);
 BlockDriverState *bdrv_find_overlay(BlockDriverState *active,
                                     BlockDriverState *bs);
 BlockDriverState *bdrv_find_base(BlockDriverState *bs);
@@ -317,6 +315,9 @@ int bdrv_amend_options(BlockDriverState *bs_new, QemuOpts *opts);
 bool bdrv_recurse_is_first_non_filter(BlockDriverState *bs,
                                       BlockDriverState *candidate);
 bool bdrv_is_first_non_filter(BlockDriverState *candidate);
+
+/* check if a named node can be replaced when doing drive-mirror */
+BlockDriverState *check_to_replace_node(const char *node_name, Error **errp);
 
 /* async block I/O */
 typedef void BlockDriverDirtyHandler(BlockDriverState *bs, int64_t sector,
@@ -403,6 +404,7 @@ BlockDeviceInfoList *bdrv_named_nodes_list(void);
 BlockDriverState *bdrv_lookup_bs(const char *device,
                                  const char *node_name,
                                  Error **errp);
+bool bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base);
 BlockDriverState *bdrv_next(BlockDriverState *bs);
 void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs),
                   void *opaque);

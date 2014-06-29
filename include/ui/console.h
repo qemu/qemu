@@ -310,11 +310,6 @@ void qemu_console_copy(QemuConsole *con, int src_x, int src_y,
 DisplaySurface *qemu_console_surface(QemuConsole *con);
 DisplayState *qemu_console_displaystate(QemuConsole *console);
 
-typedef CharDriverState *(VcHandler)(ChardevVC *vc);
-
-CharDriverState *vc_init(ChardevVC *vc);
-void register_vc_handler(VcHandler *handler);
-
 /* sdl.c */
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);
 

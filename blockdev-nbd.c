@@ -28,6 +28,7 @@ static void nbd_accept(void *opaque)
 
     int fd = accept(server_fd, (struct sockaddr *)&addr, &addr_len);
     if (fd >= 0 && !nbd_client_new(NULL, fd, nbd_client_put)) {
+        shutdown(fd, 2);
         close(fd);
     }
 }
@@ -89,6 +90,10 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
     bs = bdrv_find(device);
     if (!bs) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+    if (!bdrv_is_inserted(bs)) {
+        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         return;
     }
 

@@ -603,7 +603,7 @@ static const VMStateDescription vmstate_msr_hyperv_time = {
     }
 };
 
-const VMStateDescription vmstate_x86_cpu = {
+VMStateDescription vmstate_x86_cpu = {
     .name = "cpu",
     .version_id = 12,
     .minimum_version_id = 3,

@@ -8,6 +8,9 @@
 # QAPI block definitions
 { 'include': 'qapi/block.json' }
 
+# QAPI event definitions
+{ 'include': 'qapi/event.json' }
+
 ##
 # LostTickPolicy:
 #
@@ -211,12 +214,18 @@
 #
 # @filename: the filename of the character device
 #
+# @frontend-open: shows whether the frontend device attached to this backend
+#                 (eg. with the chardev=... option) is in open or closed state
+#                 (since 2.1)
+#
 # Notes: @filename is encoded using the QEMU command line character device
 #        encoding.  See the QEMU man page for details.
 #
 # Since: 0.14.0
 ##
-{ 'type': 'ChardevInfo', 'data': {'label': 'str', 'filename': 'str'} }
+{ 'type': 'ChardevInfo', 'data': {'label': 'str',
+                                  'filename': 'str',
+                                  'frontend-open': 'bool'} }
 
 ##
 # @query-chardev:
@@ -630,21 +639,60 @@
 { 'command': 'query-iothreads', 'returns': ['IOThreadInfo'] }
 
 ##
+# @NetworkAddressFamily
+#
+# The network address family
+#
+# @ipv4: IPV4 family
+#
+# @ipv6: IPV6 family
+#
+# @unix: unix socket
+#
+# @unknown: otherwise
+#
+# Since: 2.1
+##
+{ 'enum': 'NetworkAddressFamily',
+  'data': [ 'ipv4', 'ipv6', 'unix', 'unknown' ] }
+
+##
+# @VncBasicInfo
+#
+# The basic information for vnc network connection
+#
+# @host: IP address
+#
+# @service: The service name of the vnc port. This may depend on the host
+#           system's service database so symbolic names should not be relied
+#           on.
+#
+# @family: address family
+#
+# Since: 2.1
+##
+{ 'type': 'VncBasicInfo',
+  'data': { 'host': 'str',
+            'service': 'str',
+            'family': 'NetworkAddressFamily' } }
+
+##
+# @VncServerInfo
+#
+# The network connection information for server
+#
+# @auth: #optional, authentication method
+#
+# Since: 2.1
+##
+{ 'type': 'VncServerInfo',
+  'base': 'VncBasicInfo',
+  'data': { '*auth': 'str' } }
+
+##
 # @VncClientInfo:
 #
 # Information about a connected VNC client.
-#
-# @host: The host name of the client.  QEMU tries to resolve this to a DNS name
-#        when possible.
-#
-# @family: 'ipv6' if the client is connected via IPv6 and TCP
-#          'ipv4' if the client is connected via IPv4 and TCP
-#          'unix' if the client is connected via a unix domain socket
-#          'unknown' otherwise
-#
-# @service: The service name of the client's port.  This may depends on the
-#           host system's service database so symbolic names should not be
-#           relied on.
 #
 # @x509_dname: #optional If x509 authentication is in use, the Distinguished
 #              Name of the client.
@@ -655,8 +703,8 @@
 # Since: 0.14.0
 ##
 { 'type': 'VncClientInfo',
-  'data': {'host': 'str', 'family': 'str', 'service': 'str',
-           '*x509_dname': 'str', '*sasl_username': 'str'} }
+  'base': 'VncBasicInfo',
+  'data': { '*x509_dname': 'str', '*sasl_username': 'str' } }
 
 ##
 # @VncInfo:
@@ -695,7 +743,8 @@
 # Since: 0.14.0
 ##
 { 'type': 'VncInfo',
-  'data': {'enabled': 'bool', '*host': 'str', '*family': 'str',
+  'data': {'enabled': 'bool', '*host': 'str',
+           '*family': 'NetworkAddressFamily',
            '*service': 'str', '*auth': 'str', '*clients': ['VncClientInfo']} }
 
 ##
@@ -710,19 +759,40 @@
 { 'command': 'query-vnc', 'returns': 'VncInfo' }
 
 ##
+# @SpiceBasicInfo
+#
+# The basic information for SPICE network connection
+#
+# @host: IP address
+#
+# @port: port number
+#
+# @family: address family
+#
+# Since: 2.1
+##
+{ 'type': 'SpiceBasicInfo',
+  'data': { 'host': 'str',
+            'port': 'str',
+            'family': 'NetworkAddressFamily' } }
+
+##
+# @SpiceServerInfo
+#
+# Information about a SPICE server
+#
+# @auth: #optional, authentication method
+#
+# Since: 2.1
+##
+{ 'type': 'SpiceServerInfo',
+  'base': 'SpiceBasicInfo',
+  'data': { '*auth': 'str' } }
+
+##
 # @SpiceChannel
 #
 # Information about a SPICE client channel.
-#
-# @host: The host name of the client.  QEMU tries to resolve this to a DNS name
-#        when possible.
-#
-# @family: 'ipv6' if the client is connected via IPv6 and TCP
-#          'ipv4' if the client is connected via IPv4 and TCP
-#          'unix' if the client is connected via a unix domain socket
-#          'unknown' otherwise
-#
-# @port: The client's port number.
 #
 # @connection-id: SPICE connection id number.  All channels with the same id
 #                 belong to the same SPICE session.
@@ -740,8 +810,8 @@
 # Since: 0.14.0
 ##
 { 'type': 'SpiceChannel',
-  'data': {'host': 'str', 'family': 'str', 'port': 'str',
-           'connection-id': 'int', 'channel-type': 'int', 'channel-id': 'int',
+  'base': 'SpiceBasicInfo',
+  'data': {'connection-id': 'int', 'channel-type': 'int', 'channel-id': 'int',
            'tls': 'bool'} }
 
 ##
@@ -1980,6 +2050,62 @@
     '*udp':       'str' } }
 
 ##
+# @NetdevL2TPv3Options
+#
+# Connect the VLAN to Ethernet over L2TPv3 Static tunnel
+#
+# @src: source address
+#
+# @dst: destination address
+#
+# @srcport: #optional source port - mandatory for udp, optional for ip
+#
+# @dstport: #optional destination port - mandatory for udp, optional for ip
+#
+# @ipv6: #optional - force the use of ipv6
+#
+# @udp: #optional - use the udp version of l2tpv3 encapsulation
+#
+# @cookie64: #optional - use 64 bit coookies
+#
+# @counter: #optional have sequence counter
+#
+# @pincounter: #optional pin sequence counter to zero -
+#              workaround for buggy implementations or
+#              networks with packet reorder
+#
+# @txcookie: #optional 32 or 64 bit transmit cookie
+#
+# @rxcookie: #optional 32 or 64 bit receive cookie
+#
+# @txsession: 32 bit transmit session
+#
+# @rxsession: #optional 32 bit receive session - if not specified
+#             set to the same value as transmit
+#
+# @offset: #optional additional offset - allows the insertion of
+#          additional application-specific data before the packet payload
+#
+# Since 2.1
+##
+{ 'type': 'NetdevL2TPv3Options',
+  'data': {
+    'src':          'str',
+    'dst':          'str',
+    '*srcport':     'str',
+    '*dstport':     'str',
+    '*ipv6':        'bool',
+    '*udp':         'bool',
+    '*cookie64':    'bool',
+    '*counter':     'bool',
+    '*pincounter':  'bool',
+    '*txcookie':    'uint64',
+    '*rxcookie':    'uint64',
+    'txsession':    'uint32',
+    '*rxsession':   'uint32',
+    '*offset':      'uint32' } }
+
+##
 # @NetdevVdeOptions
 #
 # Connect the VLAN to a vde switch running on the host.
@@ -2090,6 +2216,9 @@
 # A discriminated record of network device traits.
 #
 # Since 1.2
+#
+# 'l2tpv3' - since 2.1
+#
 ##
 { 'union': 'NetClientOptions',
   'data': {
@@ -2097,6 +2226,7 @@
     'nic':      'NetLegacyNicOptions',
     'user':     'NetdevUserOptions',
     'tap':      'NetdevTapOptions',
+    'l2tpv3':   'NetdevL2TPv3Options',
     'socket':   'NetdevSocketOptions',
     'vde':      'NetdevVdeOptions',
     'dump':     'NetdevDumpOptions',
@@ -3158,19 +3288,19 @@
 ##
 # @Memdev:
 #
-# Information of memory device
+# Information about memory backend
 #
-# @size: memory device size
+# @size: memory backend size
 #
 # @merge: enables or disables memory merge support
 #
-# @dump: includes memory device's memory in a core dump or not
+# @dump: includes memory backend's memory in a core dump or not
 #
 # @prealloc: enables or disables memory preallocation
 #
 # @host-nodes: host nodes for its memory policy
 #
-# @policy: memory policy of memory device
+# @policy: memory policy of memory backend
 #
 # Since: 2.1
 ##
@@ -3187,13 +3317,15 @@
 ##
 # @query-memdev:
 #
-# Returns information for all memory devices.
+# Returns information for all memory backends.
 #
 # Returns: a list of @Memdev.
 #
 # Since: 2.1
 ##
 { 'command': 'query-memdev', 'returns': ['Memdev'] }
+
+##
 # @PCDIMMDeviceInfo:
 #
 # PCDIMMDevice state information
@@ -3286,3 +3418,65 @@
 # Since: 2.1
 ##
 { 'command': 'query-acpi-ospm-status', 'returns': ['ACPIOSTInfo'] }
+
+##
+# @WatchdogExpirationAction
+#
+# An enumeration of the actions taken when the watchdog device's timer is
+# expired
+#
+# @reset: system resets
+#
+# @shutdown: system shutdown, note that it is similar to @powerdown, which
+#            tries to set to system status and notify guest
+#
+# @poweroff: system poweroff, the emulator program exits
+#
+# @pause: system pauses, similar to @stop
+#
+# @debug: system enters debug state
+#
+# @none: nothing is done
+#
+# Since: 2.1
+##
+{ 'enum': 'WatchdogExpirationAction',
+  'data': [ 'reset', 'shutdown', 'poweroff', 'pause', 'debug', 'none' ] }
+
+##
+# @IoOperationType
+#
+# An enumeration of the I/O operation types
+#
+# @read: read operation
+#
+# @write: write operation
+#
+# Since: 2.1
+##
+{ 'enum': 'IoOperationType',
+  'data': [ 'read', 'write' ] }
+
+##
+# @GuestPanicAction
+#
+# An enumeration of the actions taken when guest OS panic is detected
+#
+# @pause: system pauses
+#
+# Since: 2.1
+##
+{ 'enum': 'GuestPanicAction',
+  'data': [ 'pause' ] }
+
+##
+# @rtc-reset-reinjection
+#
+# This command will reset the RTC interrupt reinjection backlog.
+# Can be used if another mechanism to synchronize guest time
+# is in effect, for example QEMU guest agent's guest-set-time
+# command.
+#
+# Since: 2.1
+##
+{ 'command': 'rtc-reset-reinjection' }

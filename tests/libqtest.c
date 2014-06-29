@@ -30,8 +30,9 @@
 
 #include "qemu/compiler.h"
 #include "qemu/osdep.h"
-#include "qapi/qmp/json-streamer.h"
 #include "qapi/qmp/json-parser.h"
+#include "qapi/qmp/json-streamer.h"
+#include "qapi/qmp/qjson.h"
 
 #define MAX_IRQ 256
 #define SOCKET_TIMEOUT 5
@@ -220,19 +221,15 @@ void qtest_quit(QTestState *s)
     g_free(s);
 }
 
-static void socket_sendf(int fd, const char *fmt, va_list ap)
+static void socket_send(int fd, const char *buf, size_t size)
 {
-    gchar *str;
-    size_t size, offset;
-
-    str = g_strdup_vprintf(fmt, ap);
-    size = strlen(str);
+    size_t offset;
 
     offset = 0;
     while (offset < size) {
         ssize_t len;
 
-        len = write(fd, str + offset, size - offset);
+        len = write(fd, buf + offset, size - offset);
         if (len == -1 && errno == EINTR) {
             continue;
         }
@@ -242,6 +239,15 @@ static void socket_sendf(int fd, const char *fmt, va_list ap)
 
         offset += len;
     }
+}
+
+static void socket_sendf(int fd, const char *fmt, va_list ap)
+{
+    gchar *str = g_strdup_vprintf(fmt, ap);
+    size_t size = strlen(str);
+
+    socket_send(fd, str, size);
+    g_free(str);
 }
 
 static void GCC_FMT_ATTR(2, 3) qtest_sendf(QTestState *s, const char *fmt, ...)
@@ -378,8 +384,29 @@ QDict *qtest_qmp_receive(QTestState *s)
 
 QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
 {
-    /* Send QMP request */
-    socket_sendf(s->qmp_fd, fmt, ap);
+    va_list ap_copy;
+    QObject *qobj;
+
+    /* Going through qobject ensures we escape strings properly.
+     * This seemingly unnecessary copy is required in case va_list
+     * is an array type.
+     */
+    va_copy(ap_copy, ap);
+    qobj = qobject_from_jsonv(fmt, &ap_copy);
+    va_end(ap_copy);
+
+    /* No need to send anything for an empty QObject.  */
+    if (qobj) {
+        QString *qstr = qobject_to_json(qobj);
+        const char *str = qstring_get_str(qstr);
+        size_t size = qstring_get_length(qstr);
+
+        /* Send QMP request */
+        socket_send(s->qmp_fd, str, size);
+
+        QDECREF(qstr);
+        qobject_decref(qobj);
+    }
 
     /* Receive reply */
     return qtest_qmp_receive(s);

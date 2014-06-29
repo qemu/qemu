@@ -56,7 +56,11 @@
             __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__); \
 } while(0)
 
-/* This is all part of the "official" NBD API */
+/* This is all part of the "official" NBD API.
+ *
+ * The most up-to-date documentation is available at:
+ * https://github.com/yoe/nbd/blob/master/doc/proto.txt
+ */
 
 #define NBD_REQUEST_SIZE        (4 + 4 + 8 + 8 + 4)
 #define NBD_REPLY_SIZE          (4 + 4 + 8)
@@ -64,6 +68,7 @@
 #define NBD_REPLY_MAGIC         0x67446698
 #define NBD_OPTS_MAGIC          0x49484156454F5054LL
 #define NBD_CLIENT_MAGIC        0x0000420281861253LL
+#define NBD_REP_MAGIC           0x3e889045565a9LL
 
 #define NBD_SET_SOCK            _IO(0xab, 0)
 #define NBD_SET_BLKSIZE         _IO(0xab, 1)
@@ -77,7 +82,9 @@
 #define NBD_SET_TIMEOUT         _IO(0xab, 9)
 #define NBD_SET_FLAGS           _IO(0xab, 10)
 
-#define NBD_OPT_EXPORT_NAME     (1 << 0)
+#define NBD_OPT_EXPORT_NAME     (1)
+#define NBD_OPT_ABORT           (2)
+#define NBD_OPT_LIST            (3)
 
 /* Definitions for opaque data types */
 
@@ -215,59 +222,101 @@ static ssize_t write_sync(int fd, void *buffer, size_t size)
 
 */
 
-static int nbd_receive_options(NBDClient *client)
+static int nbd_send_rep(int csock, uint32_t type, uint32_t opt)
 {
-    int csock = client->sock;
-    char name[256];
-    uint32_t tmp, length;
     uint64_t magic;
-    int rc;
+    uint32_t len;
+
+    magic = cpu_to_be64(NBD_REP_MAGIC);
+    if (write_sync(csock, &magic, sizeof(magic)) != sizeof(magic)) {
+        LOG("write failed (rep magic)");
+        return -EINVAL;
+    }
+    opt = cpu_to_be32(opt);
+    if (write_sync(csock, &opt, sizeof(opt)) != sizeof(opt)) {
+        LOG("write failed (rep opt)");
+        return -EINVAL;
+    }
+    type = cpu_to_be32(type);
+    if (write_sync(csock, &type, sizeof(type)) != sizeof(type)) {
+        LOG("write failed (rep type)");
+        return -EINVAL;
+    }
+    len = cpu_to_be32(0);
+    if (write_sync(csock, &len, sizeof(len)) != sizeof(len)) {
+        LOG("write failed (rep data length)");
+        return -EINVAL;
+    }
+    return 0;
+}
+
+static int nbd_send_rep_list(int csock, NBDExport *exp)
+{
+    uint64_t magic, name_len;
+    uint32_t opt, type, len;
+
+    name_len = strlen(exp->name);
+    magic = cpu_to_be64(NBD_REP_MAGIC);
+    if (write_sync(csock, &magic, sizeof(magic)) != sizeof(magic)) {
+        LOG("write failed (magic)");
+        return -EINVAL;
+     }
+    opt = cpu_to_be32(NBD_OPT_LIST);
+    if (write_sync(csock, &opt, sizeof(opt)) != sizeof(opt)) {
+        LOG("write failed (opt)");
+        return -EINVAL;
+    }
+    type = cpu_to_be32(NBD_REP_SERVER);
+    if (write_sync(csock, &type, sizeof(type)) != sizeof(type)) {
+        LOG("write failed (reply type)");
+        return -EINVAL;
+    }
+    len = cpu_to_be32(name_len + sizeof(len));
+    if (write_sync(csock, &len, sizeof(len)) != sizeof(len)) {
+        LOG("write failed (length)");
+        return -EINVAL;
+    }
+    len = cpu_to_be32(name_len);
+    if (write_sync(csock, &len, sizeof(len)) != sizeof(len)) {
+        LOG("write failed (length)");
+        return -EINVAL;
+    }
+    if (write_sync(csock, exp->name, name_len) != name_len) {
+        LOG("write failed (buffer)");
+        return -EINVAL;
+    }
+    return 0;
+}
+
+static int nbd_handle_list(NBDClient *client, uint32_t length)
+{
+    int csock;
+    NBDExport *exp;
+
+    csock = client->sock;
+    if (length) {
+        return nbd_send_rep(csock, NBD_REP_ERR_INVALID, NBD_OPT_LIST);
+    }
+
+    /* For each export, send a NBD_REP_SERVER reply. */
+    QTAILQ_FOREACH(exp, &exports, next) {
+        if (nbd_send_rep_list(csock, exp)) {
+            return -EINVAL;
+        }
+    }
+    /* Finish with a NBD_REP_ACK. */
+    return nbd_send_rep(csock, NBD_REP_ACK, NBD_OPT_LIST);
+}
+
+static int nbd_handle_export_name(NBDClient *client, uint32_t length)
+{
+    int rc = -EINVAL, csock = client->sock;
+    char name[256];
 
     /* Client sends:
-        [ 0 ..   3]   reserved (0)
-        [ 4 ..  11]   NBD_OPTS_MAGIC
-        [12 ..  15]   NBD_OPT_EXPORT_NAME
-        [16 ..  19]   length
         [20 ..  xx]   export name (length bytes)
      */
-
-    rc = -EINVAL;
-    if (read_sync(csock, &tmp, sizeof(tmp)) != sizeof(tmp)) {
-        LOG("read failed");
-        goto fail;
-    }
-    TRACE("Checking reserved");
-    if (tmp != 0) {
-        LOG("Bad reserved received");
-        goto fail;
-    }
-
-    if (read_sync(csock, &magic, sizeof(magic)) != sizeof(magic)) {
-        LOG("read failed");
-        goto fail;
-    }
-    TRACE("Checking reserved");
-    if (magic != be64_to_cpu(NBD_OPTS_MAGIC)) {
-        LOG("Bad magic received");
-        goto fail;
-    }
-
-    if (read_sync(csock, &tmp, sizeof(tmp)) != sizeof(tmp)) {
-        LOG("read failed");
-        goto fail;
-    }
-    TRACE("Checking option");
-    if (tmp != be32_to_cpu(NBD_OPT_EXPORT_NAME)) {
-        LOG("Bad option received");
-        goto fail;
-    }
-
-    if (read_sync(csock, &length, sizeof(length)) != sizeof(length)) {
-        LOG("read failed");
-        goto fail;
-    }
     TRACE("Checking length");
-    length = be32_to_cpu(length);
     if (length > 255) {
         LOG("Bad length received");
         goto fail;
@@ -286,11 +335,79 @@ static int nbd_receive_options(NBDClient *client)
 
     QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
     nbd_export_get(client->exp);
-
-    TRACE("Option negotiation succeeded.");
     rc = 0;
 fail:
     return rc;
+}
+
+static int nbd_receive_options(NBDClient *client)
+{
+    while (1) {
+        int csock = client->sock;
+        uint32_t tmp, length;
+        uint64_t magic;
+
+        /* Client sends:
+            [ 0 ..   3]   client flags
+            [ 4 ..  11]   NBD_OPTS_MAGIC
+            [12 ..  15]   NBD option
+            [16 ..  19]   length
+            ...           Rest of request
+        */
+
+        if (read_sync(csock, &tmp, sizeof(tmp)) != sizeof(tmp)) {
+            LOG("read failed");
+            return -EINVAL;
+        }
+        TRACE("Checking client flags");
+        tmp = be32_to_cpu(tmp);
+        if (tmp != 0 && tmp != NBD_FLAG_C_FIXED_NEWSTYLE) {
+            LOG("Bad client flags received");
+            return -EINVAL;
+        }
+
+        if (read_sync(csock, &magic, sizeof(magic)) != sizeof(magic)) {
+            LOG("read failed");
+            return -EINVAL;
+        }
+        TRACE("Checking opts magic");
+        if (magic != be64_to_cpu(NBD_OPTS_MAGIC)) {
+            LOG("Bad magic received");
+            return -EINVAL;
+        }
+
+        if (read_sync(csock, &tmp, sizeof(tmp)) != sizeof(tmp)) {
+            LOG("read failed");
+            return -EINVAL;
+        }
+
+        if (read_sync(csock, &length, sizeof(length)) != sizeof(length)) {
+            LOG("read failed");
+            return -EINVAL;
+        }
+        length = be32_to_cpu(length);
+
+        TRACE("Checking option");
+        switch (be32_to_cpu(tmp)) {
+        case NBD_OPT_LIST:
+            if (nbd_handle_list(client, length) < 0) {
+                return 1;
+            }
+            break;
+
+        case NBD_OPT_ABORT:
+            return -EINVAL;
+
+        case NBD_OPT_EXPORT_NAME:
+            return nbd_handle_export_name(client, length);
+
+        default:
+            tmp = be32_to_cpu(tmp);
+            LOG("Unsupported option 0x%x", tmp);
+            nbd_send_rep(client->sock, NBD_REP_ERR_UNSUP, tmp);
+            return -EINVAL;
+        }
+    }
 }
 
 static int nbd_send_negotiate(NBDClient *client)
@@ -333,6 +450,7 @@ static int nbd_send_negotiate(NBDClient *client)
         cpu_to_be16w((uint16_t*)(buf + 26), client->exp->nbdflags | myflags);
     } else {
         cpu_to_be64w((uint64_t*)(buf + 8), NBD_OPTS_MAGIC);
+        cpu_to_be16w((uint16_t *)(buf + 16), NBD_FLAG_FIXED_NEWSTYLE);
     }
 
     if (client->exp) {
@@ -346,7 +464,7 @@ static int nbd_send_negotiate(NBDClient *client)
             goto fail;
         }
         rc = nbd_receive_options(client);
-        if (rc < 0) {
+        if (rc != 0) {
             LOG("option negotiation failed");
             goto fail;
         }
@@ -1001,6 +1119,7 @@ static void nbd_trip(void *opaque)
     struct nbd_request request;
     struct nbd_reply reply;
     ssize_t ret;
+    uint32_t command;
 
     TRACE("Reading request.");
     if (client->closing) {
@@ -1023,8 +1142,8 @@ static void nbd_trip(void *opaque)
         reply.error = -ret;
         goto error_reply;
     }
-
-    if ((request.from + request.len) > exp->size) {
+    command = request.type & NBD_CMD_MASK_COMMAND;
+    if (command != NBD_CMD_DISC && (request.from + request.len) > exp->size) {
             LOG("From: %" PRIu64 ", Len: %u, Size: %" PRIu64
             ", Offset: %" PRIu64 "\n",
                     request.from, request.len,
@@ -1033,7 +1152,7 @@ static void nbd_trip(void *opaque)
         goto invalid_request;
     }
 
-    switch (request.type & NBD_CMD_MASK_COMMAND) {
+    switch (command) {
     case NBD_CMD_READ:
         TRACE("Request type is READ");
 
@@ -1173,7 +1292,7 @@ NBDClient *nbd_client_new(NBDExport *exp, int csock,
     client->refcount = 1;
     client->exp = exp;
     client->sock = csock;
-    if (nbd_send_negotiate(client) < 0) {
+    if (nbd_send_negotiate(client)) {
         g_free(client);
         return NULL;
     }

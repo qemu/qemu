@@ -53,15 +53,15 @@ IMGOPTS="compat=1.1"
 echo === Create image with unknown autoclear feature bit ===
 echo
 _make_test_img 64M
-./qcow2.py "$TEST_IMG" set-feature-bit autoclear 63
-./qcow2.py "$TEST_IMG" dump-header
+$PYTHON qcow2.py "$TEST_IMG" set-feature-bit autoclear 63
+$PYTHON qcow2.py "$TEST_IMG" dump-header
 
 echo
 echo === Repair image ===
 echo
 _check_test_img -r all
 
-./qcow2.py "$TEST_IMG" dump-header
+$PYTHON qcow2.py "$TEST_IMG" dump-header
 
 # success, all done
 echo "*** done"
