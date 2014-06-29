@@ -480,7 +480,6 @@ struct StrongARMGPIOInfo {
     uint32_t rising;
     uint32_t falling;
     uint32_t status;
-    uint32_t gpsr;
     uint32_t gafr;
 
     uint32_t prev_level;
@@ -544,14 +543,14 @@ static uint64_t strongarm_gpio_read(void *opaque, hwaddr offset,
         return s->dir;
 
     case GPSR:        /* GPIO Pin-Output Set registers */
-        DPRINTF("%s: Read from a write-only register 0x" TARGET_FMT_plx "\n",
-                        __func__, offset);
-        return s->gpsr;    /* Return last written value.  */
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "strongarm GPIO: read from write only register GPSR\n");
+        return 0;
 
     case GPCR:        /* GPIO Pin-Output Clear registers */
-        DPRINTF("%s: Read from a write-only register 0x" TARGET_FMT_plx "\n",
-                        __func__, offset);
-        return 31337;        /* Specified as unpredictable in the docs.  */
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "strongarm GPIO: read from write only register GPCR\n");
+        return 0;
 
     case GRER:        /* GPIO Rising-Edge Detect Enable registers */
         return s->rising;
@@ -590,7 +589,6 @@ static void strongarm_gpio_write(void *opaque, hwaddr offset,
     case GPSR:        /* GPIO Pin-Output Set registers */
         s->olevel |= value;
         strongarm_gpio_handler_update(s);
-        s->gpsr = value;
         break;
 
     case GPCR:        /* GPIO Pin-Output Clear registers */
