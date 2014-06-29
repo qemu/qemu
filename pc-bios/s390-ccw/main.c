@@ -9,6 +9,7 @@
  */
 
 #include "s390-ccw.h"
+#include "virtio.h"
 
 char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 uint64_t boot_value;
@@ -64,6 +65,10 @@ static void virtio_setup(uint64_t dev_info)
     }
 
     virtio_setup_block(blk_schid);
+
+    if (!virtio_ipl_disk_is_valid()) {
+        virtio_panic("No valid hard disk detected.\n");
+    }
 }
 
 int main(void)
@@ -72,8 +77,8 @@ int main(void)
     debug_print_int("boot reg[7] ", boot_value);
     virtio_setup(boot_value);
 
-    if (zipl_load() < 0)
-        sclp_print("Failed to load OS from hard disk\n");
-    disabled_wait();
-    while (1) { }
+    zipl_load(); /* no return */
+
+    virtio_panic("Failed to load OS from hard disk\n");
+    return 0; /* make compiler happy */
 }

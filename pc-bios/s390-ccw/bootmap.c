@@ -9,8 +9,12 @@
  */
 
 #include "s390-ccw.h"
+#include "bootmap.h"
+#include "virtio.h"
 
-// #define DEBUG_FALLBACK
+#ifdef DEBUG
+/* #define DEBUG_FALLBACK */
+#endif
 
 #ifdef DEBUG_FALLBACK
 #define dputs(txt) \
@@ -20,43 +24,8 @@
     do { } while (0)
 #endif
 
-struct scsi_blockptr {
-    uint64_t blockno;
-    uint16_t size;
-    uint16_t blockct;
-    uint8_t reserved[4];
-} __attribute__ ((packed));
-
-struct component_entry {
-    struct scsi_blockptr data;
-    uint8_t pad[7];
-    uint8_t component_type;
-    uint64_t load_address;
-} __attribute((packed));
-
-struct component_header {
-    uint8_t magic[4];
-    uint8_t type;
-    uint8_t reserved[27];
-} __attribute((packed));
-
-struct mbr {
-    uint8_t magic[4];
-    uint32_t version_id;
-    uint8_t reserved[8];
-    struct scsi_blockptr blockptr;
-} __attribute__ ((packed));
-
-#define ZIPL_MAGIC			"zIPL"
-
-#define ZIPL_COMP_HEADER_IPL		0x00
-#define ZIPL_COMP_HEADER_DUMP		0x01
-
-#define ZIPL_COMP_ENTRY_LOAD		0x02
-#define ZIPL_COMP_ENTRY_EXEC		0x01
-
 /* Scratch space */
-static uint8_t sec[SECTOR_SIZE] __attribute__((__aligned__(SECTOR_SIZE)));
+static uint8_t sec[MAX_SECTOR_SIZE*4] __attribute__((__aligned__(PAGE_SIZE)));
 
 typedef struct ResetInfo {
     uint32_t ipl_mask;
@@ -104,43 +73,243 @@ static void jump_to_IPL_code(uint64_t address)
     virtio_panic("\n! IPL returns !\n");
 }
 
-/* Check for ZIPL magic. Returns 0 if not matched. */
-static int zipl_magic(uint8_t *ptr)
+/***********************************************************************
+ * IPL an ECKD DASD (CDL or LDL/CMS format)
+ */
+
+static unsigned char _bprs[8*1024]; /* guessed "max" ECKD sector size */
+const int max_bprs_entries = sizeof(_bprs) / sizeof(ExtEckdBlockPtr);
+
+static inline void verify_boot_info(BootInfo *bip)
 {
-    uint32_t *p = (void*)ptr;
-    uint32_t *z = (void*)ZIPL_MAGIC;
-
-    if (*p != *z) {
-        debug_print_int("invalid magic", *p);
-        virtio_panic("invalid magic");
-    }
-
-    return 1;
+    IPL_assert(magic_match(bip->magic, ZIPL_MAGIC), "No zIPL magic");
+    IPL_assert(bip->version == BOOT_INFO_VERSION, "Wrong zIPL version");
+    IPL_assert(bip->bp_type == BOOT_INFO_BP_TYPE_IPL, "DASD is not for IPL");
+    IPL_assert(bip->dev_type == BOOT_INFO_DEV_TYPE_ECKD, "DASD is not ECKD");
+    IPL_assert(bip->flags == BOOT_INFO_FLAGS_ARCH, "Not for this arch");
+    IPL_assert(block_size_ok(bip->bp.ipl.bm_ptr.eckd.bptr.size),
+               "Bad block size in zIPL section of the 1st record.");
 }
 
-#define FREE_SPACE_FILLER '\xAA'
-
-static inline bool unused_space(const void *p, unsigned int size)
+static bool eckd_valid_address(BootMapPointer *p)
 {
-    int i;
-    const unsigned char *m = p;
+    const uint64_t cylinder = p->eckd.cylinder
+                            + ((p->eckd.head & 0xfff0) << 12);
+    const uint64_t head = p->eckd.head & 0x000f;
 
-    for (i = 0; i < size; i++) {
-        if (m[i] != FREE_SPACE_FILLER) {
-            return false;
-        }
+    if (head >= virtio_get_heads()
+        ||  p->eckd.sector > virtio_get_sectors()
+        ||  p->eckd.sector <= 0) {
+        return false;
     }
+
+    if (!virtio_guessed_disk_nature() && cylinder >= virtio_get_cylinders()) {
+        return false;
+    }
+
     return true;
 }
 
-static int zipl_load_segment(struct component_entry *entry)
+static block_number_t eckd_block_num(BootMapPointer *p)
 {
-    const int max_entries = (SECTOR_SIZE / sizeof(struct scsi_blockptr));
-    struct scsi_blockptr *bprs = (void*)sec;
-    const int bprs_size = sizeof(sec);
-    uint64_t blockno;
-    long address;
+    const uint64_t sectors = virtio_get_sectors();
+    const uint64_t heads = virtio_get_heads();
+    const uint64_t cylinder = p->eckd.cylinder
+                            + ((p->eckd.head & 0xfff0) << 12);
+    const uint64_t head = p->eckd.head & 0x000f;
+    const block_number_t block = sectors * heads * cylinder
+                               + sectors * head
+                               + p->eckd.sector
+                               - 1; /* block nr starts with zero */
+    return block;
+}
+
+static block_number_t load_eckd_segments(block_number_t blk, uint64_t *address)
+{
+    block_number_t block_nr;
+    int j, rc;
+    BootMapPointer *bprs = (void *)_bprs;
+    bool more_data;
+
+    memset(_bprs, FREE_SPACE_FILLER, sizeof(_bprs));
+    read_block(blk, bprs, "BPRS read failed");
+
+    do {
+        more_data = false;
+        for (j = 0;; j++) {
+            block_nr = eckd_block_num((void *)&(bprs[j].xeckd));
+            if (is_null_block_number(block_nr)) { /* end of chunk */
+                break;
+            }
+
+            /* we need the updated blockno for the next indirect entry
+             * in the chain, but don't want to advance address
+             */
+            if (j == (max_bprs_entries - 1)) {
+                break;
+            }
+
+            IPL_assert(block_size_ok(bprs[j].xeckd.bptr.size),
+                       "bad chunk block size");
+            IPL_assert(eckd_valid_address(&bprs[j]), "bad chunk ECKD addr");
+
+            if ((bprs[j].xeckd.bptr.count == 0) && unused_space(&(bprs[j+1]),
+                sizeof(EckdBlockPtr))) {
+                /* This is a "continue" pointer.
+                 * This ptr should be the last one in the current
+                 * script section.
+                 * I.e. the next ptr must point to the unused memory area
+                 */
+                memset(_bprs, FREE_SPACE_FILLER, sizeof(_bprs));
+                read_block(block_nr, bprs, "BPRS continuation read failed");
+                more_data = true;
+                break;
+            }
+
+            /* Load (count+1) blocks of code at (block_nr)
+             * to memory (address).
+             */
+            rc = virtio_read_many(block_nr, (void *)(*address),
+                                  bprs[j].xeckd.bptr.count+1);
+            IPL_assert(rc == 0, "code chunk read failed");
+
+            *address += (bprs[j].xeckd.bptr.count+1) * virtio_get_block_size();
+        }
+    } while (more_data);
+    return block_nr;
+}
+
+static void run_eckd_boot_script(block_number_t mbr_block_nr)
+{
     int i;
+    block_number_t block_nr;
+    uint64_t address;
+    ScsiMbr *scsi_mbr = (void *)sec;
+    BootMapScript *bms = (void *)sec;
+
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(mbr_block_nr, sec, "Cannot read MBR");
+
+    block_nr = eckd_block_num((void *)&(scsi_mbr->blockptr));
+
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(block_nr, sec, "Cannot read Boot Map Script");
+
+    for (i = 0; bms->entry[i].type == BOOT_SCRIPT_LOAD; i++) {
+        address = bms->entry[i].address.load_address;
+        block_nr = eckd_block_num(&(bms->entry[i].blkptr));
+
+        do {
+            block_nr = load_eckd_segments(block_nr, &address);
+        } while (block_nr != -1);
+    }
+
+    IPL_assert(bms->entry[i].type == BOOT_SCRIPT_EXEC,
+               "Unknown script entry type");
+    jump_to_IPL_code(bms->entry[i].address.load_address); /* no return */
+}
+
+static void ipl_eckd_cdl(void)
+{
+    XEckdMbr *mbr;
+    Ipl2 *ipl2 = (void *)sec;
+    IplVolumeLabel *vlbl = (void *)sec;
+    block_number_t block_nr;
+
+    /* we have just read the block #0 and recognized it as "IPL1" */
+    sclp_print("CDL\n");
+
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(1, ipl2, "Cannot read IPL2 record at block 1");
+    IPL_assert(magic_match(ipl2, IPL2_MAGIC), "No IPL2 record");
+
+    mbr = &ipl2->u.x.mbr;
+    IPL_assert(magic_match(mbr, ZIPL_MAGIC), "No zIPL section in IPL2 record.");
+    IPL_assert(block_size_ok(mbr->blockptr.xeckd.bptr.size),
+               "Bad block size in zIPL section of IPL2 record.");
+    IPL_assert(mbr->dev_type == DEV_TYPE_ECKD,
+               "Non-ECKD device type in zIPL section of IPL2 record.");
+
+    /* save pointer to Boot Script */
+    block_nr = eckd_block_num((void *)&(mbr->blockptr));
+
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(2, vlbl, "Cannot read Volume Label at block 2");
+    IPL_assert(magic_match(vlbl->key, VOL1_MAGIC),
+               "Invalid magic of volume label block");
+    IPL_assert(magic_match(vlbl->f.key, VOL1_MAGIC),
+               "Invalid magic of volser block");
+    print_volser(vlbl->f.volser);
+
+    run_eckd_boot_script(block_nr);
+    /* no return */
+}
+
+static void ipl_eckd_ldl(ECKD_IPL_mode_t mode)
+{
+    LDL_VTOC *vlbl = (void *)sec; /* already read, 3rd block */
+    char msg[4] = { '?', '.', '\n', '\0' };
+    block_number_t block_nr;
+    BootInfo *bip;
+
+    sclp_print((mode == ECKD_CMS) ? "CMS" : "LDL");
+    sclp_print(" version ");
+    switch (vlbl->LDL_version) {
+    case LDL1_VERSION:
+        msg[0] = '1';
+        break;
+    case LDL2_VERSION:
+        msg[0] = '2';
+        break;
+    default:
+        msg[0] = vlbl->LDL_version;
+        msg[0] &= 0x0f; /* convert EBCDIC   */
+        msg[0] |= 0x30; /* to ASCII (digit) */
+        msg[1] = '?';
+        break;
+    }
+    sclp_print(msg);
+    print_volser(vlbl->volser);
+
+    /* DO NOT read BootMap pointer (only one, xECKD) at block #2 */
+
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(0, sec, "Cannot read block 0");
+    bip = (void *)(sec + 0x70); /* "boot info" is "eckd mbr" for LDL */
+    verify_boot_info(bip);
+
+    block_nr = eckd_block_num((void *)&(bip->bp.ipl.bm_ptr.eckd.bptr));
+    run_eckd_boot_script(block_nr);
+    /* no return */
+}
+
+static void ipl_eckd(ECKD_IPL_mode_t mode)
+{
+    switch (mode) {
+    case ECKD_CDL:
+        ipl_eckd_cdl(); /* no return */
+    case ECKD_CMS:
+    case ECKD_LDL:
+        ipl_eckd_ldl(mode); /* no return */
+    default:
+        virtio_panic("\n! Unknown ECKD IPL mode !\n");
+    }
+}
+
+/***********************************************************************
+ * IPL a SCSI disk
+ */
+
+static void zipl_load_segment(ComponentEntry *entry)
+{
+    const int max_entries = (MAX_SECTOR_SIZE / sizeof(ScsiBlockPtr));
+    ScsiBlockPtr *bprs = (void *)sec;
+    const int bprs_size = sizeof(sec);
+    block_number_t blockno;
+    uint64_t address;
+    int i;
+    char err_msg[] = "zIPL failed to read BPRS at 0xZZZZZZZZZZZZZZZZ";
+    char *blk_no = &err_msg[30]; /* where to print blockno in (those ZZs) */
 
     blockno = entry->data.blockno;
     address = entry->load_address;
@@ -150,25 +319,25 @@ static int zipl_load_segment(struct component_entry *entry)
 
     do {
         memset(bprs, FREE_SPACE_FILLER, bprs_size);
-        if (virtio_read(blockno, (uint8_t *)bprs)) {
-            debug_print_int("failed reading bprs at", blockno);
-            goto fail;
-        }
+        fill_hex_val(blk_no, &blockno, sizeof(blockno));
+        read_block(blockno, bprs, err_msg);
 
         for (i = 0;; i++) {
-            u64 *cur_desc = (void*)&bprs[i];
+            uint64_t *cur_desc = (void *)&bprs[i];
 
             blockno = bprs[i].blockno;
-            if (!blockno)
+            if (!blockno) {
                 break;
+            }
 
             /* we need the updated blockno for the next indirect entry in the
                chain, but don't want to advance address */
-            if (i == (max_entries - 1))
+            if (i == (max_entries - 1)) {
                 break;
+            }
 
             if (bprs[i].blockct == 0 && unused_space(&bprs[i + 1],
-                sizeof(struct scsi_blockptr))) {
+                sizeof(ScsiBlockPtr))) {
                 /* This is a "continue" pointer.
                  * This ptr is the last one in the current script section.
                  * I.e. the next ptr must point to the unused memory area.
@@ -178,102 +347,66 @@ static int zipl_load_segment(struct component_entry *entry)
                 break;
             }
             address = virtio_load_direct(cur_desc[0], cur_desc[1], 0,
-                                         (void*)address);
-            if (address == -1)
-                goto fail;
+                                         (void *)address);
+            IPL_assert(address != -1, "zIPL load segment failed");
         }
     } while (blockno);
-
-    return 0;
-
-fail:
-    sclp_print("failed loading segment\n");
-    return -1;
 }
 
 /* Run a zipl program */
-static int zipl_run(struct scsi_blockptr *pte)
+static void zipl_run(ScsiBlockPtr *pte)
 {
-    struct component_header *header;
-    struct component_entry *entry;
-    uint8_t tmp_sec[SECTOR_SIZE];
+    ComponentHeader *header;
+    ComponentEntry *entry;
+    uint8_t tmp_sec[MAX_SECTOR_SIZE];
 
-    virtio_read(pte->blockno, tmp_sec);
-    header = (struct component_header *)tmp_sec;
+    read_block(pte->blockno, tmp_sec, "Cannot read header");
+    header = (ComponentHeader *)tmp_sec;
 
-    if (!zipl_magic(tmp_sec)) {
-        goto fail;
-    }
-
-    if (header->type != ZIPL_COMP_HEADER_IPL) {
-        goto fail;
-    }
+    IPL_assert(magic_match(tmp_sec, ZIPL_MAGIC), "No zIPL magic");
+    IPL_assert(header->type == ZIPL_COMP_HEADER_IPL, "Bad header type");
 
     dputs("start loading images\n");
 
     /* Load image(s) into RAM */
-    entry = (struct component_entry *)(&header[1]);
+    entry = (ComponentEntry *)(&header[1]);
     while (entry->component_type == ZIPL_COMP_ENTRY_LOAD) {
-        if (zipl_load_segment(entry) < 0) {
-            goto fail;
-        }
+        zipl_load_segment(entry);
 
         entry++;
 
-        if ((uint8_t*)(&entry[1]) > (tmp_sec + SECTOR_SIZE)) {
-            goto fail;
-        }
+        IPL_assert((uint8_t *)(&entry[1]) <= (tmp_sec + MAX_SECTOR_SIZE),
+                   "Wrong entry value");
     }
 
-    if (entry->component_type != ZIPL_COMP_ENTRY_EXEC) {
-        goto fail;
-    }
+    IPL_assert(entry->component_type == ZIPL_COMP_ENTRY_EXEC, "No EXEC entry");
 
     /* should not return */
     jump_to_IPL_code(entry->load_address);
-
-    return 0;
-
-fail:
-    sclp_print("failed running zipl\n");
-    return -1;
 }
 
-int zipl_load(void)
+static void ipl_scsi(void)
 {
-    struct mbr *mbr = (void*)sec;
+    ScsiMbr *mbr = (void *)sec;
     uint8_t *ns, *ns_end;
     int program_table_entries = 0;
-    int pte_len = sizeof(struct scsi_blockptr);
-    struct scsi_blockptr *prog_table_entry;
-    const char *error = "";
+    const int pte_len = sizeof(ScsiBlockPtr);
+    ScsiBlockPtr *prog_table_entry;
 
-    /* Grab the MBR */
-    virtio_read(0, (void*)mbr);
+    /* The 0-th block (MBR) was already read into sec[] */
 
-    dputs("checking magic\n");
-
-    if (!zipl_magic(mbr->magic)) {
-        error = "zipl_magic 1";
-        goto fail;
-    }
-
+    sclp_print("Using SCSI scheme.\n");
     debug_print_int("program table", mbr->blockptr.blockno);
 
     /* Parse the program table */
-    if (virtio_read(mbr->blockptr.blockno, sec)) {
-        error = "virtio_read";
-        goto fail;
-    }
+    read_block(mbr->blockptr.blockno, sec,
+               "Error reading Program Table");
 
-    if (!zipl_magic(sec)) {
-        error = "zipl_magic 2";
-        goto fail;
-    }
+    IPL_assert(magic_match(sec, ZIPL_MAGIC), "No zIPL magic");
 
-    ns_end = sec + SECTOR_SIZE;
+    ns_end = sec + virtio_get_block_size();
     for (ns = (sec + pte_len); (ns + pte_len) < ns_end; ns++) {
-        prog_table_entry = (struct scsi_blockptr *)ns;
+        prog_table_entry = (ScsiBlockPtr *)ns;
         if (!prog_table_entry->blockno) {
             break;
         }
@@ -283,19 +416,55 @@ int zipl_load(void)
 
     debug_print_int("program table entries", program_table_entries);
 
-    if (!program_table_entries) {
-        goto fail;
-    }
+    IPL_assert(program_table_entries != 0, "Empty Program Table");
 
     /* Run the default entry */
 
-    prog_table_entry = (struct scsi_blockptr *)(sec + pte_len);
+    prog_table_entry = (ScsiBlockPtr *)(sec + pte_len);
 
-    return zipl_run(prog_table_entry);
+    zipl_run(prog_table_entry); /* no return */
+}
 
-fail:
-    sclp_print("failed loading zipl: ");
-    sclp_print(error);
-    sclp_print("\n");
-    return -1;
+/***********************************************************************
+ * IPL starts here
+ */
+
+void zipl_load(void)
+{
+    ScsiMbr *mbr = (void *)sec;
+    LDL_VTOC *vlbl = (void *)sec;
+
+    /* Grab the MBR */
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(0, mbr, "Cannot read block 0");
+
+    dputs("checking magic\n");
+
+    if (magic_match(mbr->magic, ZIPL_MAGIC)) {
+        ipl_scsi(); /* no return */
+    }
+
+    /* We have failed to follow the SCSI scheme, so */
+    sclp_print("Using ECKD scheme.\n");
+    if (virtio_guessed_disk_nature()) {
+        sclp_print("Using guessed DASD geometry.\n");
+        virtio_assume_eckd();
+    }
+
+    if (magic_match(mbr->magic, IPL1_MAGIC)) {
+        ipl_eckd(ECKD_CDL); /* no return */
+    }
+
+    /* LDL/CMS? */
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(2, vlbl, "Cannot read block 2");
+
+    if (magic_match(vlbl->magic, CMS1_MAGIC)) {
+        ipl_eckd(ECKD_CMS); /* no return */
+    }
+    if (magic_match(vlbl->magic, LNX1_MAGIC)) {
+        ipl_eckd(ECKD_LDL); /* no return */
+    }
+
+    virtio_panic("\n* invalid MBR magic *\n");
 }

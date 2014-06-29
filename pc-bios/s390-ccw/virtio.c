@@ -18,22 +18,22 @@ static char chsc_page[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
 static long kvm_hypercall(unsigned long nr, unsigned long param1,
                           unsigned long param2)
 {
-	register ulong r_nr asm("1") = nr;
-	register ulong r_param1 asm("2") = param1;
-	register ulong r_param2 asm("3") = param2;
-	register long retval asm("2");
+    register ulong r_nr asm("1") = nr;
+    register ulong r_param1 asm("2") = param1;
+    register ulong r_param2 asm("3") = param2;
+    register long retval asm("2");
 
-	asm volatile ("diag 2,4,0x500"
-		      : "=d" (retval)
-		      : "d" (r_nr), "0" (r_param1), "r"(r_param2)
-		      : "memory", "cc");
+    asm volatile ("diag 2,4,0x500"
+                  : "=d" (retval)
+                  : "d" (r_nr), "0" (r_param1), "r"(r_param2)
+                  : "memory", "cc");
 
-	return retval;
+    return retval;
 }
 
 static void virtio_notify(struct subchannel_id schid)
 {
-    kvm_hypercall(KVM_S390_VIRTIO_CCW_NOTIFY, *(u32*)&schid, 0);
+    kvm_hypercall(KVM_S390_VIRTIO_CCW_NOTIFY, *(u32 *)&schid, 0);
 }
 
 /***********************************************
@@ -202,7 +202,7 @@ static int vring_wait_reply(struct vring *vr, int timeout)
  *               Virtio block                  *
  ***********************************************/
 
-static int virtio_read_many(ulong sector, void *load_addr, int sec_num)
+int virtio_read_many(ulong sector, void *load_addr, int sec_num)
 {
     struct virtio_blk_outhdr out_hdr;
     u8 status;
@@ -211,12 +211,12 @@ static int virtio_read_many(ulong sector, void *load_addr, int sec_num)
     /* Tell the host we want to read */
     out_hdr.type = VIRTIO_BLK_T_IN;
     out_hdr.ioprio = 99;
-    out_hdr.sector = sector;
+    out_hdr.sector = virtio_sector_adjust(sector);
 
     vring_send_buf(&block, &out_hdr, sizeof(out_hdr), VRING_DESC_F_NEXT);
 
     /* This is where we want to receive data */
-    vring_send_buf(&block, load_addr, SECTOR_SIZE * sec_num,
+    vring_send_buf(&block, load_addr, virtio_get_block_size() * sec_num,
                    VRING_DESC_F_WRITE | VRING_HIDDEN_IS_CHAIN |
                    VRING_DESC_F_NEXT);
 
@@ -236,7 +236,7 @@ static int virtio_read_many(ulong sector, void *load_addr, int sec_num)
 }
 
 unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
-				 ulong subchan_id, void *load_addr)
+                                 ulong subchan_id, void *load_addr)
 {
     u8 status;
     int sec = rec_list1;
@@ -244,16 +244,16 @@ unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
     int sec_len = rec_list2 >> 48;
     ulong addr = (ulong)load_addr;
 
-    if (sec_len != SECTOR_SIZE) {
+    if (sec_len != virtio_get_block_size()) {
         return -1;
     }
 
     sclp_print(".");
-    status = virtio_read_many(sec, (void*)addr, sec_num);
+    status = virtio_read_many(sec, (void *)addr, sec_num);
     if (status) {
         virtio_panic("I/O Error");
     }
-    addr += sec_num * SECTOR_SIZE;
+    addr += sec_num * virtio_get_block_size();
 
     return addr;
 }
@@ -263,18 +263,98 @@ int virtio_read(ulong sector, void *load_addr)
     return virtio_read_many(sector, load_addr, 1);
 }
 
+static VirtioBlkConfig blk_cfg = {};
+static bool guessed_disk_nature;
+
+bool virtio_guessed_disk_nature(void)
+{
+    return guessed_disk_nature;
+}
+
+void virtio_assume_scsi(void)
+{
+    guessed_disk_nature = true;
+    blk_cfg.blk_size = 512;
+}
+
+void virtio_assume_eckd(void)
+{
+    guessed_disk_nature = true;
+    blk_cfg.blk_size = 4096;
+
+    /* this must be here to calculate code segment position */
+    blk_cfg.geometry.heads = 15;
+    blk_cfg.geometry.sectors = 12;
+}
+
+bool virtio_disk_is_scsi(void)
+{
+    if (guessed_disk_nature) {
+        return (blk_cfg.blk_size  == 512);
+    }
+    return (blk_cfg.geometry.heads == 255)
+        && (blk_cfg.geometry.sectors == 63)
+        && (blk_cfg.blk_size  == 512);
+}
+
+bool virtio_disk_is_eckd(void)
+{
+    if (guessed_disk_nature) {
+        return (blk_cfg.blk_size  == 4096);
+    }
+    return (blk_cfg.geometry.heads == 15)
+        && (blk_cfg.geometry.sectors == 12)
+        && (blk_cfg.blk_size  == 4096);
+}
+
+bool virtio_ipl_disk_is_valid(void)
+{
+    return blk_cfg.blk_size && (virtio_disk_is_scsi() || virtio_disk_is_eckd());
+}
+
+int virtio_get_block_size(void)
+{
+    return blk_cfg.blk_size;
+}
+
+uint16_t virtio_get_cylinders(void)
+{
+    return blk_cfg.geometry.cylinders;
+}
+
+uint8_t virtio_get_heads(void)
+{
+    return blk_cfg.geometry.heads;
+}
+
+uint8_t virtio_get_sectors(void)
+{
+    return blk_cfg.geometry.sectors;
+}
+
 void virtio_setup_block(struct subchannel_id schid)
 {
     struct vq_info_block info;
     struct vq_config_block config = {};
 
+    blk_cfg.blk_size = 0; /* mark "illegal" - setup started... */
+
     virtio_reset(schid);
+
+    /*
+     * Skipping CCW_CMD_READ_FEAT. We're not doing anything fancy, and
+     * we'll just stop dead anyway if anything does not work like we
+     * expect it.
+     */
 
     config.index = 0;
     if (run_ccw(schid, CCW_CMD_READ_VQ_CONF, &config, sizeof(config))) {
+        virtio_panic("Could not get block device VQ configuration\n");
+    }
+    if (run_ccw(schid, CCW_CMD_READ_CONF, &blk_cfg, sizeof(blk_cfg))) {
         virtio_panic("Could not get block device configuration\n");
     }
-    vring_init(&block, config.num, (void*)(100 * 1024 * 1024),
+    vring_init(&block, config.num, (void *)(100 * 1024 * 1024),
                KVM_S390_VIRTIO_RING_ALIGN);
 
     info.queue = (100ULL * 1024ULL* 1024ULL);
@@ -285,6 +365,12 @@ void virtio_setup_block(struct subchannel_id schid)
 
     if (!run_ccw(schid, CCW_CMD_SET_VQ, &info, sizeof(info))) {
         virtio_set_status(schid, VIRTIO_CONFIG_S_DRIVER_OK);
+    }
+
+    if (!virtio_ipl_disk_is_valid()) {
+        /* make sure all getters but blocksize return 0 for invalid IPL disk */
+        memset(&blk_cfg, 0, sizeof(blk_cfg));
+        virtio_assume_scsi();
     }
 }
 
