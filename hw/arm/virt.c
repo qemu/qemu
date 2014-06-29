@@ -65,6 +65,7 @@ enum {
     VIRT_GIC_CPU,
     VIRT_UART,
     VIRT_MMIO,
+    VIRT_RTC,
 };
 
 typedef struct MemMapEntry {
@@ -92,6 +93,8 @@ typedef struct VirtBoardInfo {
  * high memory region beyond 4GB).
  * This represents a compromise between how much RAM can be given to
  * a 32 bit VM and leaving space for expansion and in particular for PCI.
+ * Note that devices should generally be placed at multiples of 0x10000,
+ * to accommodate guests using 64K pages.
  */
 static const MemMapEntry a15memmap[] = {
     /* Space up to 0x8000000 is reserved for a boot ROM */
@@ -101,6 +104,7 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_GIC_DIST] = { 0x8000000, 0x10000 },
     [VIRT_GIC_CPU] = { 0x8010000, 0x10000 },
     [VIRT_UART] = { 0x9000000, 0x1000 },
+    [VIRT_RTC] = { 0x90010000, 0x1000 },
     [VIRT_MMIO] = { 0xa000000, 0x200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     /* 0x10000000 .. 0x40000000 reserved for PCI */
@@ -109,6 +113,7 @@ static const MemMapEntry a15memmap[] = {
 
 static const int a15irqmap[] = {
     [VIRT_UART] = 1,
+    [VIRT_RTC] = 2,
     [VIRT_MMIO] = 16, /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
 };
 
@@ -353,6 +358,29 @@ static void create_uart(const VirtBoardInfo *vbi, qemu_irq *pic)
     g_free(nodename);
 }
 
+static void create_rtc(const VirtBoardInfo *vbi, qemu_irq *pic)
+{
+    char *nodename;
+    hwaddr base = vbi->memmap[VIRT_RTC].base;
+    hwaddr size = vbi->memmap[VIRT_RTC].size;
+    int irq = vbi->irqmap[VIRT_RTC];
+    const char compat[] = "arm,pl031\0arm,primecell";
+
+    sysbus_create_simple("pl031", base, pic[irq]);
+
+    nodename = g_strdup_printf("/pl031@%" PRIx64, base);
+    qemu_fdt_add_subnode(vbi->fdt, nodename);
+    qemu_fdt_setprop(vbi->fdt, nodename, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
+                                 2, base, 2, size);
+    qemu_fdt_setprop_cells(vbi->fdt, nodename, "interrupts",
+                           GIC_FDT_IRQ_TYPE_SPI, irq,
+                           GIC_FDT_IRQ_FLAGS_EDGE_LO_HI);
+    qemu_fdt_setprop_cell(vbi->fdt, nodename, "clocks", vbi->clock_phandle);
+    qemu_fdt_setprop_string(vbi->fdt, nodename, "clock-names", "apb_pclk");
+    g_free(nodename);
+}
+
 static void create_virtio_devices(const VirtBoardInfo *vbi, qemu_irq *pic)
 {
     int i;
@@ -468,6 +496,8 @@ static void machvirt_init(MachineState *machine)
     create_gic(vbi, pic);
 
     create_uart(vbi, pic);
+
+    create_rtc(vbi, pic);
 
     /* Create mmio transports, so the user can create virtio backends
      * (which will be automatically plugged in to the transports). If
