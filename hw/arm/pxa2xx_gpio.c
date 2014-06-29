@@ -312,7 +312,6 @@ static const VMStateDescription vmstate_pxa2xx_gpio_regs = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_INT32(lines, PXA2xxGPIOInfo),
         VMSTATE_UINT32_ARRAY(ilevel, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
         VMSTATE_UINT32_ARRAY(olevel, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
         VMSTATE_UINT32_ARRAY(dir, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
@@ -320,6 +319,7 @@ static const VMStateDescription vmstate_pxa2xx_gpio_regs = {
         VMSTATE_UINT32_ARRAY(falling, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
         VMSTATE_UINT32_ARRAY(status, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
         VMSTATE_UINT32_ARRAY(gafr, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS * 2),
+        VMSTATE_UINT32_ARRAY(prev_level, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
         VMSTATE_END_OF_LIST(),
     },
 };
@@ -338,6 +338,7 @@ static void pxa2xx_gpio_class_init(ObjectClass *klass, void *data)
     k->init = pxa2xx_gpio_initfn;
     dc->desc = "PXA2xx GPIO controller";
     dc->props = pxa2xx_gpio_properties;
+    dc->vmsd = &vmstate_pxa2xx_gpio_regs;
 }
 
 static const TypeInfo pxa2xx_gpio_info = {
