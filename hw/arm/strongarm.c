@@ -674,6 +674,7 @@ static const VMStateDescription vmstate_strongarm_gpio_regs = {
         VMSTATE_UINT32(falling, StrongARMGPIOInfo),
         VMSTATE_UINT32(status, StrongARMGPIOInfo),
         VMSTATE_UINT32(gafr, StrongARMGPIOInfo),
+        VMSTATE_UINT32(prev_level, StrongARMGPIOInfo),
         VMSTATE_END_OF_LIST(),
     },
 };
@@ -685,6 +686,7 @@ static void strongarm_gpio_class_init(ObjectClass *klass, void *data)
 
     k->init = strongarm_gpio_initfn;
     dc->desc = "StrongARM GPIO controller";
+    dc->vmsd = &vmstate_strongarm_gpio_regs;
 }
 
 static const TypeInfo strongarm_gpio_info = {
@@ -844,6 +846,7 @@ static const VMStateDescription vmstate_strongarm_ppc_regs = {
         VMSTATE_UINT32(ppar, StrongARMPPCInfo),
         VMSTATE_UINT32(psdr, StrongARMPPCInfo),
         VMSTATE_UINT32(ppfr, StrongARMPPCInfo),
+        VMSTATE_UINT32(prev_level, StrongARMPPCInfo),
         VMSTATE_END_OF_LIST(),
     },
 };
@@ -855,6 +858,7 @@ static void strongarm_ppc_class_init(ObjectClass *klass, void *data)
 
     k->init = strongarm_ppc_init;
     dc->desc = "StrongARM PPC controller";
+    dc->vmsd = &vmstate_strongarm_ppc_regs;
 }
 
 static const TypeInfo strongarm_ppc_info = {
