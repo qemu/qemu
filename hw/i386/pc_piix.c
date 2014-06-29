@@ -392,6 +392,11 @@ static void pc_init_pci_no_kvmclock(MachineState *machine)
     has_pci_info = false;
     has_acpi_build = false;
     smbios_defaults = false;
+    gigabyte_align = false;
+    smbios_legacy_mode = true;
+    has_reserved_memory = false;
+    option_rom_has_mr = true;
+    rom_file_has_mr = false;
     x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
     enable_compat_apic_id_mode();
     pc_init1(machine, 1, 0);
@@ -402,6 +407,11 @@ static void pc_init_isa(MachineState *machine)
     has_pci_info = false;
     has_acpi_build = false;
     smbios_defaults = false;
+    gigabyte_align = false;
+    smbios_legacy_mode = true;
+    has_reserved_memory = false;
+    option_rom_has_mr = true;
+    rom_file_has_mr = false;
     if (!machine->cpu_model) {
         machine->cpu_model = "486";
     }

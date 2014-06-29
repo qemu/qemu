@@ -3468,3 +3468,15 @@
 ##
 { 'enum': 'GuestPanicAction',
   'data': [ 'pause' ] }
+
+##
+# @rtc-reset-reinjection
+#
+# This command will reset the RTC interrupt reinjection backlog.
+# Can be used if another mechanism to synchronize guest time
+# is in effect, for example QEMU guest agent's guest-set-time
+# command.
+#
+# Since: 2.1
+##
+{ 'command': 'rtc-reset-reinjection' }

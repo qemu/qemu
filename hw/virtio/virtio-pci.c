@@ -89,9 +89,6 @@
 /* Flags track per-device state like workarounds for quirks in older guests. */
 #define VIRTIO_PCI_FLAG_BUS_MASTER_BUG  (1 << 0)
 
-/* HACK for virtio to determine if it's running a big endian guest */
-bool virtio_is_big_endian(void);
-
 static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtIOPCIProxy *dev);
 
@@ -409,13 +406,13 @@ static uint64_t virtio_pci_config_read(void *opaque, hwaddr addr,
         break;
     case 2:
         val = virtio_config_readw(vdev, addr);
-        if (virtio_is_big_endian()) {
+        if (virtio_is_big_endian(vdev)) {
             val = bswap16(val);
         }
         break;
     case 4:
         val = virtio_config_readl(vdev, addr);
-        if (virtio_is_big_endian()) {
+        if (virtio_is_big_endian(vdev)) {
             val = bswap32(val);
         }
         break;
@@ -443,13 +440,13 @@ static void virtio_pci_config_write(void *opaque, hwaddr addr,
         virtio_config_writeb(vdev, addr, val);
         break;
     case 2:
-        if (virtio_is_big_endian()) {
+        if (virtio_is_big_endian(vdev)) {
             val = bswap16(val);
         }
         virtio_config_writew(vdev, addr, val);
         break;
     case 4:
-        if (virtio_is_big_endian()) {
+        if (virtio_is_big_endian(vdev)) {
             val = bswap32(val);
         }
         virtio_config_writel(vdev, addr, val);

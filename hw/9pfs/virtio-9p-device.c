@@ -19,6 +19,7 @@
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-xattr.h"
 #include "virtio-9p-coth.h"
+#include "hw/virtio/virtio-access.h"
 
 static uint32_t virtio_9p_get_features(VirtIODevice *vdev, uint32_t features)
 {
@@ -34,7 +35,7 @@ static void virtio_9p_get_config(VirtIODevice *vdev, uint8_t *config)
 
     len = strlen(s->tag);
     cfg = g_malloc0(sizeof(struct virtio_9p_config) + len);
-    stw_p(&cfg->tag_len, len);
+    virtio_stw_p(vdev, &cfg->tag_len, len);
     /* We don't copy the terminating null to config space */
     memcpy(cfg->tag, s->tag, len);
     memcpy(config, cfg, s->config_size);

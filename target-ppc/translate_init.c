@@ -9597,6 +9597,18 @@ static void ppc_cpu_reset(CPUState *s)
     tlb_flush(s, 1);
 }
 
+#ifndef CONFIG_USER_ONLY
+static bool ppc_cpu_is_big_endian(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
+    cpu_synchronize_state(cs);
+
+    return !msr_le;
+}
+#endif
+
 static void ppc_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
@@ -9691,6 +9703,9 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_core_xml_file = "power64-core.xml";
 #else
     cc->gdb_core_xml_file = "power-core.xml";
+#endif
+#ifndef CONFIG_USER_ONLY
+    cc->virtio_is_big_endian = ppc_cpu_is_big_endian;
 #endif
 
     dc->fw_name = "PowerPC,UNKNOWN";

@@ -21,12 +21,25 @@
 typedef struct TestOutputVisitorData {
     StringOutputVisitor *sov;
     Visitor *ov;
+    bool human;
 } TestOutputVisitorData;
 
 static void visitor_output_setup(TestOutputVisitorData *data,
                                  const void *unused)
 {
-    data->sov = string_output_visitor_new(false);
+    data->human = false;
+    data->sov = string_output_visitor_new(data->human);
+    g_assert(data->sov != NULL);
+
+    data->ov = string_output_get_visitor(data->sov);
+    g_assert(data->ov != NULL);
+}
+
+static void visitor_output_setup_human(TestOutputVisitorData *data,
+                                       const void *unused)
+{
+    data->human = true;
+    data->sov = string_output_visitor_new(data->human);
     g_assert(data->sov != NULL);
 
     data->ov = string_output_get_visitor(data->sov);
@@ -53,7 +66,11 @@ static void test_visitor_out_int(TestOutputVisitorData *data,
 
     str = string_output_get_string(data->sov);
     g_assert(str != NULL);
-    g_assert_cmpstr(str, ==, "42");
+    if (data->human) {
+        g_assert_cmpstr(str, ==, "42 (0x2a)");
+    } else {
+        g_assert_cmpstr(str, ==, "42");
+    }
     g_free(str);
 }
 
@@ -78,8 +95,15 @@ static void test_visitor_out_intList(TestOutputVisitorData *data,
 
     str = string_output_get_string(data->sov);
     g_assert(str != NULL);
-    g_assert_cmpstr(str, ==,
-        "0-1,3-6,9-16,21-22,9223372036854775806-9223372036854775807");
+    if (data->human) {
+        g_assert_cmpstr(str, ==,
+            "0-1,3-6,9-16,21-22,9223372036854775806-9223372036854775807 "
+            "(0x0-0x1,0x3-0x6,0x9-0x10,0x15-0x16,"
+            "0x7ffffffffffffffe-0x7fffffffffffffff)");
+    } else {
+        g_assert_cmpstr(str, ==,
+            "0-1,3-6,9-16,21-22,9223372036854775806-9223372036854775807");
+    }
     g_free(str);
     while (list) {
         intList *tmp2;
@@ -125,6 +149,7 @@ static void test_visitor_out_string(TestOutputVisitorData *data,
                                     const void *unused)
 {
     char *string = (char *) "Q E M U";
+    const char *string_human = "\"Q E M U\"";
     Error *err = NULL;
     char *str;
 
@@ -133,7 +158,11 @@ static void test_visitor_out_string(TestOutputVisitorData *data,
 
     str = string_output_get_string(data->sov);
     g_assert(str != NULL);
-    g_assert_cmpstr(str, ==, string);
+    if (data->human) {
+        g_assert_cmpstr(str, ==, string_human);
+    } else {
+        g_assert_cmpstr(str, ==, string);
+    }
     g_free(str);
 }
 
@@ -150,7 +179,11 @@ static void test_visitor_out_no_string(TestOutputVisitorData *data,
 
     str = string_output_get_string(data->sov);
     g_assert(str != NULL);
-    g_assert_cmpstr(str, ==, "");
+    if (data->human) {
+        g_assert_cmpstr(str, ==, "<null>");
+    } else {
+        g_assert_cmpstr(str, ==, "");
+    }
     g_free(str);
 }
 
@@ -162,12 +195,26 @@ static void test_visitor_out_enum(TestOutputVisitorData *data,
     EnumOne i;
 
     for (i = 0; i < ENUM_ONE_MAX; i++) {
+        char *str_human;
+        int len;
+
         visit_type_EnumOne(data->ov, &i, "unused", &err);
         g_assert(!err);
 
+        len = strlen(EnumOne_lookup[i]) + 2;
+        str_human = g_malloc0(len);
+        str_human[0] = '"';
+        strncpy(str_human + 1, EnumOne_lookup[i], strlen(EnumOne_lookup[i]));
+        str_human[len - 1] = '"';
+
         str = string_output_get_string(data->sov);
         g_assert(str != NULL);
-        g_assert_cmpstr(str, ==, EnumOne_lookup[i]);
+        if (data->human) {
+            g_assert_cmpstr(str, ==, str_human);
+        } else {
+            g_assert_cmpstr(str, ==, EnumOne_lookup[i]);
+        }
+        g_free(str_human);
 	g_free(str);
     }
 }
@@ -186,11 +233,15 @@ static void test_visitor_out_enum_errors(TestOutputVisitorData *data,
     }
 }
 
-static void output_visitor_test_add(const char *testpath,
-                                    TestOutputVisitorData *data,
-                                    void (*test_func)(TestOutputVisitorData *data, const void *user_data))
+static void
+output_visitor_test_add(const char *testpath,
+                        TestOutputVisitorData *data,
+                        void (*test_func)(TestOutputVisitorData *data,
+                                          const void *user_data),
+                        bool human)
 {
-    g_test_add(testpath, TestOutputVisitorData, data, visitor_output_setup,
+    g_test_add(testpath, TestOutputVisitorData, data,
+               human ? visitor_output_setup_human : visitor_output_setup,
                test_func, visitor_output_teardown);
 }
 
@@ -201,21 +252,41 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     output_visitor_test_add("/string-visitor/output/int",
-                            &out_visitor_data, test_visitor_out_int);
+                            &out_visitor_data, test_visitor_out_int, false);
+    output_visitor_test_add("/string-visitor/output/int",
+                            &out_visitor_data, test_visitor_out_int, true);
     output_visitor_test_add("/string-visitor/output/bool",
-                            &out_visitor_data, test_visitor_out_bool);
+                            &out_visitor_data, test_visitor_out_bool, false);
+    output_visitor_test_add("/string-visitor/output/bool",
+                            &out_visitor_data, test_visitor_out_bool, true);
     output_visitor_test_add("/string-visitor/output/number",
-                            &out_visitor_data, test_visitor_out_number);
+                            &out_visitor_data, test_visitor_out_number, false);
+    output_visitor_test_add("/string-visitor/output/number",
+                            &out_visitor_data, test_visitor_out_number, true);
     output_visitor_test_add("/string-visitor/output/string",
-                            &out_visitor_data, test_visitor_out_string);
+                            &out_visitor_data, test_visitor_out_string, false);
+    output_visitor_test_add("/string-visitor/output/string",
+                            &out_visitor_data, test_visitor_out_string, true);
     output_visitor_test_add("/string-visitor/output/no-string",
-                            &out_visitor_data, test_visitor_out_no_string);
+                            &out_visitor_data, test_visitor_out_no_string,
+                            false);
+    output_visitor_test_add("/string-visitor/output/no-string",
+                            &out_visitor_data, test_visitor_out_no_string,
+                            true);
     output_visitor_test_add("/string-visitor/output/enum",
-                            &out_visitor_data, test_visitor_out_enum);
+                            &out_visitor_data, test_visitor_out_enum, false);
+    output_visitor_test_add("/string-visitor/output/enum",
+                            &out_visitor_data, test_visitor_out_enum, true);
     output_visitor_test_add("/string-visitor/output/enum-errors",
-                            &out_visitor_data, test_visitor_out_enum_errors);
+                            &out_visitor_data, test_visitor_out_enum_errors,
+                            false);
+    output_visitor_test_add("/string-visitor/output/enum-errors",
+                            &out_visitor_data, test_visitor_out_enum_errors,
+                            true);
     output_visitor_test_add("/string-visitor/output/intList",
-                            &out_visitor_data, test_visitor_out_intList);
+                            &out_visitor_data, test_visitor_out_intList, false);
+    output_visitor_test_add("/string-visitor/output/intList",
+                            &out_visitor_data, test_visitor_out_intList, true);
 
     g_test_run();
 
