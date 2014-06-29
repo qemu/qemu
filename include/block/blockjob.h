@@ -147,6 +147,14 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
 void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns);
 
 /**
+ * block_job_yield:
+ * @job: The job that calls the function.
+ *
+ * Yield the block job coroutine.
+ */
+void block_job_yield(BlockJob *job);
+
+/**
  * block_job_completed:
  * @job: The job being completed.
  * @ret: The status code.

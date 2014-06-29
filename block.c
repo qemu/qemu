@@ -831,7 +831,7 @@ static int bdrv_open_flags(BlockDriverState *bs, int flags)
      * Clear flags that are internal to the block layer before opening the
      * image.
      */
-    open_flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+    open_flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_PROTOCOL);
 
     /*
      * Snapshots should be writable.
@@ -928,6 +928,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     bs->zero_beyond_eof = true;
     open_flags = bdrv_open_flags(bs, flags);
     bs->read_only = !(open_flags & BDRV_O_RDWR);
+    bs->growable = !!(flags & BDRV_O_PROTOCOL);
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv, bs->read_only)) {
         error_setg(errp,
@@ -1005,94 +1006,124 @@ free_and_fail:
     return ret;
 }
 
-/*
- * Opens a file using a protocol (file, host_device, nbd, ...)
- *
- * options is an indirect pointer to a QDict of options to pass to the block
- * drivers, or pointer to NULL for an empty set of options. If this function
- * takes ownership of the QDict reference, it will set *options to NULL;
- * otherwise, it will contain unused/unrecognized options after this function
- * returns. Then, the caller is responsible for freeing it. If it intends to
- * reuse the QDict, QINCREF() should be called beforehand.
- */
-static int bdrv_file_open(BlockDriverState *bs, const char *filename,
-                          QDict **options, int flags, Error **errp)
+static QDict *parse_json_filename(const char *filename, Error **errp)
 {
-    BlockDriver *drv;
-    const char *drvname;
-    bool parse_filename = false;
-    Error *local_err = NULL;
+    QObject *options_obj;
+    QDict *options;
     int ret;
 
+    ret = strstart(filename, "json:", &filename);
+    assert(ret);
+
+    options_obj = qobject_from_json(filename);
+    if (!options_obj) {
+        error_setg(errp, "Could not parse the JSON options");
+        return NULL;
+    }
+
+    if (qobject_type(options_obj) != QTYPE_QDICT) {
+        qobject_decref(options_obj);
+        error_setg(errp, "Invalid JSON object given");
+        return NULL;
+    }
+
+    options = qobject_to_qdict(options_obj);
+    qdict_flatten(options);
+
+    return options;
+}
+
+/*
+ * Fills in default options for opening images and converts the legacy
+ * filename/flags pair to option QDict entries.
+ */
+static int bdrv_fill_options(QDict **options, const char **pfilename, int flags,
+                             BlockDriver *drv, Error **errp)
+{
+    const char *filename = *pfilename;
+    const char *drvname;
+    bool protocol = flags & BDRV_O_PROTOCOL;
+    bool parse_filename = false;
+    Error *local_err = NULL;
+
+    /* Parse json: pseudo-protocol */
+    if (filename && g_str_has_prefix(filename, "json:")) {
+        QDict *json_options = parse_json_filename(filename, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return -EINVAL;
+        }
+
+        /* Options given in the filename have lower priority than options
+         * specified directly */
+        qdict_join(*options, json_options, false);
+        QDECREF(json_options);
+        *pfilename = filename = NULL;
+    }
+
     /* Fetch the file name from the options QDict if necessary */
-    if (!filename) {
-        filename = qdict_get_try_str(*options, "filename");
-    } else if (filename && !qdict_haskey(*options, "filename")) {
-        qdict_put(*options, "filename", qstring_from_str(filename));
-        parse_filename = true;
-    } else {
-        error_setg(errp, "Can't specify 'file' and 'filename' options at the "
-                   "same time");
-        ret = -EINVAL;
-        goto fail;
+    if (protocol && filename) {
+        if (!qdict_haskey(*options, "filename")) {
+            qdict_put(*options, "filename", qstring_from_str(filename));
+            parse_filename = true;
+        } else {
+            error_setg(errp, "Can't specify 'file' and 'filename' options at "
+                             "the same time");
+            return -EINVAL;
+        }
     }
 
     /* Find the right block driver */
+    filename = qdict_get_try_str(*options, "filename");
     drvname = qdict_get_try_str(*options, "driver");
-    if (drvname) {
-        drv = bdrv_find_format(drvname);
-        if (!drv) {
-            error_setg(errp, "Unknown driver '%s'", drvname);
+
+    if (drv) {
+        if (drvname) {
+            error_setg(errp, "Driver specified twice");
+            return -EINVAL;
         }
-        qdict_del(*options, "driver");
-    } else if (filename) {
-        drv = bdrv_find_protocol(filename, parse_filename);
-        if (!drv) {
-            error_setg(errp, "Unknown protocol");
-        }
+        drvname = drv->format_name;
+        qdict_put(*options, "driver", qstring_from_str(drvname));
     } else {
-        error_setg(errp, "Must specify either driver or file");
-        drv = NULL;
+        if (!drvname && protocol) {
+            if (filename) {
+                drv = bdrv_find_protocol(filename, parse_filename);
+                if (!drv) {
+                    error_setg(errp, "Unknown protocol");
+                    return -EINVAL;
+                }
+
+                drvname = drv->format_name;
+                qdict_put(*options, "driver", qstring_from_str(drvname));
+            } else {
+                error_setg(errp, "Must specify either driver or file");
+                return -EINVAL;
+            }
+        } else if (drvname) {
+            drv = bdrv_find_format(drvname);
+            if (!drv) {
+                error_setg(errp, "Unknown driver '%s'", drvname);
+                return -ENOENT;
+            }
+        }
     }
 
-    if (!drv) {
-        /* errp has been set already */
-        ret = -ENOENT;
-        goto fail;
-    }
+    assert(drv || !protocol);
 
-    /* Parse the filename and open it */
-    if (drv->bdrv_parse_filename && parse_filename) {
+    /* Driver-specific filename parsing */
+    if (drv && drv->bdrv_parse_filename && parse_filename) {
         drv->bdrv_parse_filename(filename, *options, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
-            ret = -EINVAL;
-            goto fail;
+            return -EINVAL;
         }
 
         if (!drv->bdrv_needs_filename) {
             qdict_del(*options, "filename");
-        } else {
-            filename = qdict_get_str(*options, "filename");
         }
     }
 
-    if (!drv->bdrv_file_open) {
-        ret = bdrv_open(&bs, filename, NULL, *options, flags, drv, &local_err);
-        *options = NULL;
-    } else {
-        ret = bdrv_open_common(bs, NULL, *options, flags, drv, &local_err);
-    }
-    if (ret < 0) {
-        error_propagate(errp, local_err);
-        goto fail;
-    }
-
-    bs->growable = 1;
     return 0;
-
-fail:
-    return ret;
 }
 
 void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
@@ -1160,6 +1191,13 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         goto free_exit;
     } else {
         bdrv_get_full_backing_filename(bs, backing_filename, PATH_MAX);
+    }
+
+    if (!bs->drv || !bs->drv->supports_backing) {
+        ret = -EINVAL;
+        error_setg(errp, "Driver doesn't support backing files");
+        QDECREF(options);
+        goto free_exit;
     }
 
     backing_hd = bdrv_new("", errp);
@@ -1240,7 +1278,7 @@ done:
     return ret;
 }
 
-void bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
+int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
 {
     /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
     char *tmp_filename = g_malloc0(PATH_MAX + 1);
@@ -1258,6 +1296,7 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     /* Get the required size from the image */
     total_size = bdrv_getlength(bs);
     if (total_size < 0) {
+        ret = total_size;
         error_setg_errno(errp, -total_size, "Could not get image size");
         goto out;
     }
@@ -1304,33 +1343,7 @@ void bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
 
 out:
     g_free(tmp_filename);
-}
-
-static QDict *parse_json_filename(const char *filename, Error **errp)
-{
-    QObject *options_obj;
-    QDict *options;
-    int ret;
-
-    ret = strstart(filename, "json:", &filename);
-    assert(ret);
-
-    options_obj = qobject_from_json(filename);
-    if (!options_obj) {
-        error_setg(errp, "Could not parse the JSON options");
-        return NULL;
-    }
-
-    if (qobject_type(options_obj) != QTYPE_QDICT) {
-        qobject_decref(options_obj);
-        error_setg(errp, "Invalid JSON object given");
-        return NULL;
-    }
-
-    options = qobject_to_qdict(options_obj);
-    qdict_flatten(options);
-
-    return options;
+    return ret;
 }
 
 /*
@@ -1396,77 +1409,62 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         options = qdict_new();
     }
 
-    if (filename && g_str_has_prefix(filename, "json:")) {
-        QDict *json_options = parse_json_filename(filename, &local_err);
-        if (local_err) {
-            ret = -EINVAL;
-            goto fail;
-        }
-
-        /* Options given in the filename have lower priority than options
-         * specified directly */
-        qdict_join(options, json_options, false);
-        QDECREF(json_options);
-        filename = NULL;
-    }
-
-    bs->options = options;
-    options = qdict_clone_shallow(options);
-
-    if (flags & BDRV_O_PROTOCOL) {
-        assert(!drv);
-        ret = bdrv_file_open(bs, filename, &options, flags & ~BDRV_O_PROTOCOL,
-                             &local_err);
-        if (!ret) {
-            drv = bs->drv;
-            goto done;
-        } else if (bs->drv) {
-            goto close_and_fail;
-        } else {
-            goto fail;
-        }
-    }
-
-    /* Open image file without format layer */
-    if (flags & BDRV_O_RDWR) {
-        flags |= BDRV_O_ALLOW_RDWR;
-    }
-    if (flags & BDRV_O_SNAPSHOT) {
-        snapshot_flags = bdrv_temp_snapshot_flags(flags);
-        flags = bdrv_backing_flags(flags);
-    }
-
-    assert(file == NULL);
-    ret = bdrv_open_image(&file, filename, options, "file",
-                          bdrv_inherited_flags(flags),
-                          true, &local_err);
-    if (ret < 0) {
+    ret = bdrv_fill_options(&options, &filename, flags, drv, &local_err);
+    if (local_err) {
         goto fail;
     }
 
     /* Find the right image format driver */
+    drv = NULL;
     drvname = qdict_get_try_str(options, "driver");
     if (drvname) {
         drv = bdrv_find_format(drvname);
         qdict_del(options, "driver");
         if (!drv) {
-            error_setg(errp, "Invalid driver: '%s'", drvname);
+            error_setg(errp, "Unknown driver: '%s'", drvname);
             ret = -EINVAL;
             goto fail;
         }
     }
 
-    if (!drv) {
-        if (file) {
-            ret = find_image_format(file, filename, &drv, &local_err);
-        } else {
-            error_setg(errp, "Must specify either driver or file");
-            ret = -EINVAL;
+    assert(drvname || !(flags & BDRV_O_PROTOCOL));
+    if (drv && !drv->bdrv_file_open) {
+        /* If the user explicitly wants a format driver here, we'll need to add
+         * another layer for the protocol in bs->file */
+        flags &= ~BDRV_O_PROTOCOL;
+    }
+
+    bs->options = options;
+    options = qdict_clone_shallow(options);
+
+    /* Open image file without format layer */
+    if ((flags & BDRV_O_PROTOCOL) == 0) {
+        if (flags & BDRV_O_RDWR) {
+            flags |= BDRV_O_ALLOW_RDWR;
+        }
+        if (flags & BDRV_O_SNAPSHOT) {
+            snapshot_flags = bdrv_temp_snapshot_flags(flags);
+            flags = bdrv_backing_flags(flags);
+        }
+
+        assert(file == NULL);
+        ret = bdrv_open_image(&file, filename, options, "file",
+                              bdrv_inherited_flags(flags),
+                              true, &local_err);
+        if (ret < 0) {
             goto fail;
         }
     }
 
-    if (!drv) {
+    /* Image format probing */
+    if (!drv && file) {
+        ret = find_image_format(file, filename, &drv, &local_err);
+        if (ret < 0) {
+            goto fail;
+        }
+    } else if (!drv) {
+        error_setg(errp, "Must specify either driver or file");
+        ret = -EINVAL;
         goto fail;
     }
 
@@ -1495,15 +1493,12 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     /* For snapshot=on, create a temporary qcow2 overlay. bs points to the
      * temporary snapshot afterwards. */
     if (snapshot_flags) {
-        bdrv_append_temp_snapshot(bs, snapshot_flags, &local_err);
+        ret = bdrv_append_temp_snapshot(bs, snapshot_flags, &local_err);
         if (local_err) {
-            error_propagate(errp, local_err);
             goto close_and_fail;
         }
     }
 
-
-done:
     /* Check if any unknown options were used */
     if (options && (qdict_size(options) != 0)) {
         const QDictEntry *entry = qdict_first(options);
@@ -3489,9 +3484,7 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
         return -ENOTSUP;
     if (bs->read_only)
         return -EACCES;
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_RESIZE, NULL)) {
-        return -EBUSY;
-    }
+
     ret = drv->bdrv_truncate(bs, offset);
     if (ret == 0) {
         ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
@@ -5773,4 +5766,29 @@ bool bdrv_is_first_non_filter(BlockDriverState *candidate)
     }
 
     return false;
+}
+
+BlockDriverState *check_to_replace_node(const char *node_name, Error **errp)
+{
+    BlockDriverState *to_replace_bs = bdrv_find_node(node_name);
+    if (!to_replace_bs) {
+        error_setg(errp, "Node name '%s' not found", node_name);
+        return NULL;
+    }
+
+    if (bdrv_op_is_blocked(to_replace_bs, BLOCK_OP_TYPE_REPLACE, errp)) {
+        return NULL;
+    }
+
+    /* We don't want arbitrary node of the BDS chain to be replaced only the top
+     * most non filter in order to prevent data corruption.
+     * Another benefit is that this tests exclude backing files which are
+     * blocked by the backing blockers.
+     */
+    if (!bdrv_is_first_non_filter(to_replace_bs)) {
+        error_setg(errp, "Only top most non filter can be replaced");
+        return NULL;
+    }
+
+    return to_replace_bs;
 }

@@ -32,6 +32,12 @@ typedef struct MirrorBlockJob {
     RateLimit limit;
     BlockDriverState *target;
     BlockDriverState *base;
+    /* The name of the graph node to replace */
+    char *replaces;
+    /* The BDS to replace */
+    BlockDriverState *to_replace;
+    /* Used to block operations on the drive-mirror-replace target */
+    Error *replace_blocker;
     bool is_none_mode;
     BlockdevOnError on_source_error, on_target_error;
     bool synced;
@@ -324,8 +330,17 @@ static void coroutine_fn mirror_run(void *opaque)
     }
 
     s->common.len = bdrv_getlength(bs);
-    if (s->common.len <= 0) {
+    if (s->common.len < 0) {
         ret = s->common.len;
+        goto immediate_exit;
+    } else if (s->common.len == 0) {
+        /* Report BLOCK_JOB_READY and wait for complete. */
+        block_job_event_ready(&s->common);
+        s->synced = true;
+        while (!block_job_is_cancelled(&s->common) && !s->should_complete) {
+            block_job_yield(&s->common);
+        }
+        s->common.cancelled = false;
         goto immediate_exit;
     }
 
@@ -491,10 +506,14 @@ immediate_exit:
     bdrv_release_dirty_bitmap(bs, s->dirty_bitmap);
     bdrv_iostatus_disable(s->target);
     if (s->should_complete && ret == 0) {
-        if (bdrv_get_flags(s->target) != bdrv_get_flags(s->common.bs)) {
-            bdrv_reopen(s->target, bdrv_get_flags(s->common.bs), NULL);
+        BlockDriverState *to_replace = s->common.bs;
+        if (s->to_replace) {
+            to_replace = s->to_replace;
         }
-        bdrv_swap(s->target, s->common.bs);
+        if (bdrv_get_flags(s->target) != bdrv_get_flags(to_replace)) {
+            bdrv_reopen(s->target, bdrv_get_flags(to_replace), NULL);
+        }
+        bdrv_swap(s->target, to_replace);
         if (s->common.driver->job_type == BLOCK_JOB_TYPE_COMMIT) {
             /* drop the bs loop chain formed by the swap: break the loop then
              * trigger the unref from the top one */
@@ -503,6 +522,12 @@ immediate_exit:
             bdrv_unref(p);
         }
     }
+    if (s->to_replace) {
+        bdrv_op_unblock_all(s->to_replace, s->replace_blocker);
+        error_free(s->replace_blocker);
+        bdrv_unref(s->to_replace);
+    }
+    g_free(s->replaces);
     bdrv_unref(s->target);
     block_job_completed(&s->common, ret);
 }
@@ -541,6 +566,20 @@ static void mirror_complete(BlockJob *job, Error **errp)
         return;
     }
 
+    /* check the target bs is not blocked and block all operations on it */
+    if (s->replaces) {
+        s->to_replace = check_to_replace_node(s->replaces, &local_err);
+        if (!s->to_replace) {
+            error_propagate(errp, local_err);
+            return;
+        }
+
+        error_setg(&s->replace_blocker,
+                   "block device is in use by block-job-complete");
+        bdrv_op_block_all(s->to_replace, s->replace_blocker);
+        bdrv_ref(s->to_replace);
+    }
+
     s->should_complete = true;
     block_job_resume(job);
 }
@@ -563,14 +602,15 @@ static const BlockJobDriver commit_active_job_driver = {
 };
 
 static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
-                            int64_t speed, int64_t granularity,
-                            int64_t buf_size,
-                            BlockdevOnError on_source_error,
-                            BlockdevOnError on_target_error,
-                            BlockDriverCompletionFunc *cb,
-                            void *opaque, Error **errp,
-                            const BlockJobDriver *driver,
-                            bool is_none_mode, BlockDriverState *base)
+                             const char *replaces,
+                             int64_t speed, int64_t granularity,
+                             int64_t buf_size,
+                             BlockdevOnError on_source_error,
+                             BlockdevOnError on_target_error,
+                             BlockDriverCompletionFunc *cb,
+                             void *opaque, Error **errp,
+                             const BlockJobDriver *driver,
+                             bool is_none_mode, BlockDriverState *base)
 {
     MirrorBlockJob *s;
 
@@ -601,6 +641,7 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
         return;
     }
 
+    s->replaces = g_strdup(replaces);
     s->on_source_error = on_source_error;
     s->on_target_error = on_target_error;
     s->target = target;
@@ -622,6 +663,7 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
 }
 
 void mirror_start(BlockDriverState *bs, BlockDriverState *target,
+                  const char *replaces,
                   int64_t speed, int64_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
@@ -633,7 +675,8 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
 
     is_none_mode = mode == MIRROR_SYNC_MODE_NONE;
     base = mode == MIRROR_SYNC_MODE_TOP ? bs->backing_hd : NULL;
-    mirror_start_job(bs, target, speed, granularity, buf_size,
+    mirror_start_job(bs, target, replaces,
+                     speed, granularity, buf_size,
                      on_source_error, on_target_error, cb, opaque, errp,
                      &mirror_job_driver, is_none_mode, base);
 }
@@ -681,7 +724,7 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
     }
 
     bdrv_ref(base);
-    mirror_start_job(bs, base, speed, 0, 0,
+    mirror_start_job(bs, base, NULL, speed, 0, 0,
                      on_error, on_error, cb, opaque, &local_err,
                      &commit_active_job_driver, false, base);
     if (local_err) {

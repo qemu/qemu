@@ -765,6 +765,13 @@
 # @format: #optional the format of the new destination, default is to
 #          probe if @mode is 'existing', else the format of the source
 #
+# @node-name: #optional the new block driver state node name in the graph
+#             (Since 2.1)
+#
+# @replaces: #optional with sync=full graph node name to be replaced by the new
+#            image when a whole image copy is done. This can be used to repair
+#            broken Quorum files. (Since 2.1)
+#
 # @mode: #optional whether and how QEMU should create a new image, default is
 #        'absolute-paths'.
 #
@@ -797,6 +804,7 @@
 ##
 { 'command': 'drive-mirror',
   'data': { 'device': 'str', 'target': 'str', '*format': 'str',
+            '*node-name': 'str', '*replaces': 'str',
             'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
             '*speed': 'int', '*granularity': 'uint32',
             '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
@@ -1329,12 +1337,15 @@
 #
 # @vote-threshold: the vote limit under which a read will fail
 #
+# @rewrite-corrupted: #optional rewrite corrupted data when quorum is reached
+#                     (Since 2.1)
+#
 # Since: 2.0
 ##
 { 'type': 'BlockdevOptionsQuorum',
   'data': { '*blkverify': 'bool',
             'children': [ 'BlockdevRef' ],
-            'vote-threshold': 'int' } }
+            'vote-threshold': 'int', '*rewrite-corrupted': 'bool' } }
 
 ##
 # @BlockdevOptions
@@ -1545,14 +1556,23 @@
 { 'event': 'BLOCK_JOB_ERROR',
   'data': { 'device'   : 'str',
             'operation': 'IoOperationType',
-            'action'   : 'BlockdevOnError' } }
+            'action'   : 'BlockErrorAction' } }
 
 ##
 # @BLOCK_JOB_READY
 #
 # Emitted when a block job is ready to complete
 #
+# @type: job type
+#
 # @device: device name
+#
+# @len: maximum progress value
+#
+# @offset: current progress value. On success this is equal to len.
+#          On failure this is less than len
+#
+# @speed: rate limit, bytes per second
 #
 # Note: The "ready to complete" status is always reset by a @BLOCK_JOB_ERROR
 # event
@@ -1560,4 +1580,8 @@
 # Since: 1.3
 ##
 { 'event': 'BLOCK_JOB_READY',
-  'data': { 'device': 'str' } }
+  'data': { 'type'  : 'BlockJobType',
+            'device': 'str',
+            'len'   : 'int',
+            'offset': 'int',
+            'speed' : 'int' } }

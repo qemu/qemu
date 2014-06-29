@@ -1819,6 +1819,11 @@ void qmp_block_resize(bool has_device, const char *device,
         return;
     }
 
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_RESIZE, NULL)) {
+        error_set(errp, QERR_DEVICE_IN_USE, device);
+        return;
+    }
+
     /* complete all in-flight operations before resizing the device */
     bdrv_drain_all();
 
@@ -2094,6 +2099,8 @@ BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
 
 void qmp_drive_mirror(const char *device, const char *target,
                       bool has_format, const char *format,
+                      bool has_node_name, const char *node_name,
+                      bool has_replaces, const char *replaces,
                       enum MirrorSyncMode sync,
                       bool has_mode, enum NewImageMode mode,
                       bool has_speed, int64_t speed,
@@ -2107,6 +2114,7 @@ void qmp_drive_mirror(const char *device, const char *target,
     BlockDriverState *source, *target_bs;
     BlockDriver *drv = NULL;
     Error *local_err = NULL;
+    QDict *options = NULL;
     int flags;
     int64_t size;
     int ret;
@@ -2180,6 +2188,29 @@ void qmp_drive_mirror(const char *device, const char *target,
         return;
     }
 
+    if (has_replaces) {
+        BlockDriverState *to_replace_bs;
+
+        if (!has_node_name) {
+            error_setg(errp, "a node-name must be provided when replacing a"
+                             " named node of the graph");
+            return;
+        }
+
+        to_replace_bs = check_to_replace_node(replaces, &local_err);
+
+        if (!to_replace_bs) {
+            error_propagate(errp, local_err);
+            return;
+        }
+
+        if (size != bdrv_getlength(to_replace_bs)) {
+            error_setg(errp, "cannot replace image with a mirror image of "
+                             "different size");
+            return;
+        }
+    }
+
     if ((sync == MIRROR_SYNC_MODE_FULL || !source)
         && mode != NEW_IMAGE_MODE_EXISTING)
     {
@@ -2208,18 +2239,28 @@ void qmp_drive_mirror(const char *device, const char *target,
         return;
     }
 
+    if (has_node_name) {
+        options = qdict_new();
+        qdict_put(options, "node-name", qstring_from_str(node_name));
+    }
+
     /* Mirroring takes care of copy-on-write using the source's backing
      * file.
      */
     target_bs = NULL;
-    ret = bdrv_open(&target_bs, target, NULL, NULL, flags | BDRV_O_NO_BACKING,
-                    drv, &local_err);
+    ret = bdrv_open(&target_bs, target, NULL, options,
+                    flags | BDRV_O_NO_BACKING, drv, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return;
     }
 
-    mirror_start(bs, target_bs, speed, granularity, buf_size, sync,
+    /* pass the node name to replace to mirror start since it's loose coupling
+     * and will allow to check whether the node still exist at mirror completion
+     */
+    mirror_start(bs, target_bs,
+                 has_replaces ? replaces : NULL,
+                 speed, granularity, buf_size, sync,
                  on_source_error, on_target_error,
                  block_job_cb, bs, &local_err);
     if (local_err != NULL) {

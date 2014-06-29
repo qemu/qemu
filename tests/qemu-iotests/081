@@ -134,14 +134,27 @@ run_qemu -drive "file=$TEST_DIR/2.raw,format=$IMGFMT,if=none,id=drive2" <<EOF
 EOF
 
 echo
+echo "== using quorum rewrite corrupted mode =="
+
+quorum="$quorum,file.rewrite-corrupted=on"
+
+$QEMU_IO -c "open -o $quorum" -c "read -P 0x32 0 $size" | _filter_qemu_io
+
+echo
+echo "== checking that quorum has corrected the corrupted file =="
+
+$QEMU_IO -c "read -P 0x32 0 $size" "$TEST_DIR/2.raw" | _filter_qemu_io
+
+echo
 echo "== breaking quorum =="
 
 $QEMU_IO -c "write -P 0x41 0 $size" "$TEST_DIR/1.raw" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x42 0 $size" "$TEST_DIR/2.raw" | _filter_qemu_io
+
 echo
 echo "== checking that quorum is broken =="
 
 $QEMU_IO -c "open -o $quorum" -c "read -P 0x32 0 $size" | _filter_qemu_io
-
 
 # success, all done
 echo "*** done"

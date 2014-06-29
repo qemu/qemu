@@ -28,6 +28,12 @@ target_backing_img = os.path.join(iotests.test_dir, 'target-backing.img')
 test_img = os.path.join(iotests.test_dir, 'test.img')
 target_img = os.path.join(iotests.test_dir, 'target.img')
 
+quorum_img1 = os.path.join(iotests.test_dir, 'quorum1.img')
+quorum_img2 = os.path.join(iotests.test_dir, 'quorum2.img')
+quorum_img3 = os.path.join(iotests.test_dir, 'quorum3.img')
+quorum_repair_img = os.path.join(iotests.test_dir, 'quorum_repair.img')
+quorum_snapshot_file = os.path.join(iotests.test_dir, 'quorum_snapshot.img')
+
 class ImageMirroringTestCase(iotests.QMPTestCase):
     '''Abstract base class for image mirroring test cases'''
 
@@ -42,8 +48,8 @@ class ImageMirroringTestCase(iotests.QMPTestCase):
                     ready = True
 
     def wait_ready_and_cancel(self, drive='drive0'):
-        self.wait_ready(drive)
-        event = self.cancel_and_wait()
+        self.wait_ready(drive=drive)
+        event = self.cancel_and_wait(drive=drive)
         self.assertEquals(event['event'], 'BLOCK_JOB_COMPLETED')
         self.assert_qmp(event, 'data/type', 'mirror')
         self.assert_qmp(event, 'data/offset', self.image_len)
@@ -52,19 +58,19 @@ class ImageMirroringTestCase(iotests.QMPTestCase):
     def complete_and_wait(self, drive='drive0', wait_ready=True):
         '''Complete a block job and wait for it to finish'''
         if wait_ready:
-            self.wait_ready()
+            self.wait_ready(drive=drive)
 
         result = self.vm.qmp('block-job-complete', device=drive)
         self.assert_qmp(result, 'return', {})
 
-        event = self.wait_until_completed()
+        event = self.wait_until_completed(drive=drive)
         self.assert_qmp(event, 'data/type', 'mirror')
 
 class TestSingleDrive(ImageMirroringTestCase):
     image_len = 1 * 1024 * 1024 # MB
 
     def setUp(self):
-        iotests.create_image(backing_img, TestSingleDrive.image_len)
+        iotests.create_image(backing_img, self.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
@@ -163,7 +169,7 @@ class TestSingleDrive(ImageMirroringTestCase):
         self.assert_no_active_block_jobs()
 
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=%d,size=%d'
-                        % (TestSingleDrive.image_len, TestSingleDrive.image_len), target_img)
+                        % (self.image_len, self.image_len), target_img)
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              buf_size=65536, mode='existing', target=target_img)
         self.assert_qmp(result, 'return', {})
@@ -179,7 +185,7 @@ class TestSingleDrive(ImageMirroringTestCase):
         self.assert_no_active_block_jobs()
 
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=%d,backing_file=%s'
-                        % (TestSingleDrive.image_len, backing_img), target_img)
+                        % (self.image_len, backing_img), target_img)
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              mode='existing', target=target_img)
         self.assert_qmp(result, 'return', {})
@@ -205,6 +211,11 @@ class TestSingleDrive(ImageMirroringTestCase):
         result = self.vm.qmp('drive-mirror', device='nonexistent', sync='full',
                              target=target_img)
         self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+
+class TestSingleDriveZeroLength(TestSingleDrive):
+    image_len = 0
+    test_small_buffer2 = None
+    test_large_cluster = None
 
 class TestMirrorNoBacking(ImageMirroringTestCase):
     image_len = 2 * 1024 * 1024 # MB
@@ -717,6 +728,188 @@ class TestUnbackedSource(ImageMirroringTestCase):
         self.assert_qmp(result, 'return', {})
         self.complete_and_wait()
         self.assert_no_active_block_jobs()
+
+class TestRepairQuorum(ImageMirroringTestCase):
+    """ This class test quorum file repair using drive-mirror.
+        It's mostly a fork of TestSingleDrive """
+    image_len = 1 * 1024 * 1024 # MB
+    IMAGES = [ quorum_img1, quorum_img2, quorum_img3 ]
+
+    def setUp(self):
+        self.vm = iotests.VM()
+
+        # Add each individual quorum images
+        for i in self.IMAGES:
+            qemu_img('create', '-f', iotests.imgfmt, i,
+                     str(TestSingleDrive.image_len))
+            # Assign a node name to each quorum image in order to manipulate
+            # them
+            opts = "node-name=img%i" % self.IMAGES.index(i)
+            self.vm = self.vm.add_drive(i, opts)
+
+        self.vm.launch()
+
+        #assemble the quorum block device from the individual files
+        args = { "options" : { "driver": "quorum", "id": "quorum0",
+                 "vote-threshold": 2, "children": [ "img0", "img1", "img2" ] } }
+        result = self.vm.qmp("blockdev-add", **args)
+        self.assert_qmp(result, 'return', {})
+
+
+    def tearDown(self):
+        self.vm.shutdown()
+        for i in self.IMAGES + [ quorum_repair_img ]:
+            # Do a try/except because the test may have deleted some images
+            try:
+                os.remove(i)
+            except OSError:
+                pass
+
+    def test_complete(self):
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp('drive-mirror', device='quorum0', sync='full',
+                             node_name="repair0",
+                             replaces="img1",
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'return', {})
+
+        self.complete_and_wait(drive="quorum0")
+        result = self.vm.qmp('query-named-block-nodes')
+        self.assert_qmp(result, 'return[0]/file', quorum_repair_img)
+        # TODO: a better test requiring some QEMU infrastructure will be added
+        #       to check that this file is really driven by quorum
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(quorum_img2, quorum_repair_img),
+                        'target image does not match source after mirroring')
+
+    def test_cancel(self):
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp('drive-mirror', device='quorum0', sync='full',
+                             node_name="repair0",
+                             replaces="img1",
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'return', {})
+
+        self.cancel_and_wait(drive="quorum0", force=True)
+        # here we check that the last registered quorum file has not been
+        # swapped out and unref
+        result = self.vm.qmp('query-named-block-nodes')
+        self.assert_qmp(result, 'return[0]/file', quorum_img3)
+        self.vm.shutdown()
+
+    def test_cancel_after_ready(self):
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp('drive-mirror', device='quorum0', sync='full',
+                             node_name="repair0",
+                             replaces="img1",
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'return', {})
+
+        self.wait_ready_and_cancel(drive="quorum0")
+        result = self.vm.qmp('query-named-block-nodes')
+        # here we check that the last registered quorum file has not been
+        # swapped out and unref
+        self.assert_qmp(result, 'return[0]/file', quorum_img3)
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(quorum_img2, quorum_repair_img),
+                        'target image does not match source after mirroring')
+
+    def test_pause(self):
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp('drive-mirror', device='quorum0', sync='full',
+                             node_name="repair0",
+                             replaces="img1",
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('block-job-pause', device='quorum0')
+        self.assert_qmp(result, 'return', {})
+
+        time.sleep(1)
+        result = self.vm.qmp('query-block-jobs')
+        offset = self.dictpath(result, 'return[0]/offset')
+
+        time.sleep(1)
+        result = self.vm.qmp('query-block-jobs')
+        self.assert_qmp(result, 'return[0]/offset', offset)
+
+        result = self.vm.qmp('block-job-resume', device='quorum0')
+        self.assert_qmp(result, 'return', {})
+
+        self.complete_and_wait(drive="quorum0")
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(quorum_img2, quorum_repair_img),
+                        'target image does not match source after mirroring')
+
+    def test_medium_not_found(self):
+        result = self.vm.qmp('drive-mirror', device='ide1-cd0', sync='full',
+                             node_name='repair0',
+                             replaces='img1',
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+    def test_image_not_found(self):
+        result = self.vm.qmp('drive-mirror', device='quorum0', sync='full',
+                             node_name='repair0',
+                             replaces='img1',
+                             mode='existing',
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+    def test_device_not_found(self):
+        result = self.vm.qmp('drive-mirror', device='nonexistent', sync='full',
+                             node_name='repair0',
+                             replaces='img1',
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+
+    def test_wrong_sync_mode(self):
+        result = self.vm.qmp('drive-mirror', device='quorum0',
+                             node_name='repair0',
+                             replaces='img1',
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+    def test_no_node_name(self):
+        result = self.vm.qmp('drive-mirror', device='quorum0', sync='full',
+                             replaces='img1',
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+    def test_unexistant_replaces(self):
+        result = self.vm.qmp('drive-mirror', device='quorum0', sync='full',
+                             node_name='repair0',
+                             replaces='img77',
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+    def test_after_a_quorum_snapshot(self):
+        result = self.vm.qmp('blockdev-snapshot-sync', node_name='img1',
+                             snapshot_file=quorum_snapshot_file,
+                             snapshot_node_name="snap1");
+
+        result = self.vm.qmp('drive-mirror', device='quorum0', sync='full',
+                             node_name='repair0',
+                             replaces="img1",
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+        result = self.vm.qmp('drive-mirror', device='quorum0', sync='full',
+                             node_name='repair0',
+                             replaces="snap1",
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'return', {})
+
+        self.complete_and_wait(drive="quorum0")
+        result = self.vm.qmp('query-named-block-nodes')
+        self.assert_qmp(result, 'return[0]/file', quorum_repair_img)
+        # TODO: a better test requiring some QEMU infrastructure will be added
+        #       to check that this file is really driven by quorum
+        self.vm.shutdown()
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'])

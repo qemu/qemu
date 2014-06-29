@@ -2180,6 +2180,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_detach_aio_context      = vmdk_detach_aio_context,
     .bdrv_attach_aio_context      = vmdk_attach_aio_context,
 
+    .supports_backing             = true,
     .create_opts                  = &vmdk_create_opts,
 };
 

@@ -34,22 +34,95 @@ timestamp=${TIMESTAMP:=false}
 # generic initialization
 iam=check
 
-# we need common.config
-if ! . ./common.config
-then
-    echo "$iam: failed to source common.config"
+_init_error()
+{
+    echo "$iam: $1" >&2
     exit 1
+}
+
+if [ -L "$0" ]
+then
+    # called from the build tree
+    source_iotests=$(dirname "$(readlink "$0")")
+    if [ -z "$source_iotests" ]
+    then
+        _init_error "failed to obtain source tree name from check symlink"
+    fi
+    source_iotests=$(cd "$source_iotests"; pwd) || _init_error "failed to enter source tree"
+    build_iotests=$PWD
+else
+    # called from the source tree
+    source_iotests=$PWD
+    # this may be an in-tree build (note that in the following code we may not
+    # assume that it truly is and have to test whether the build results
+    # actually exist)
+    build_iotests=$PWD
+fi
+
+build_root="$build_iotests/../.."
+
+if [ -x "$build_iotests/socket_scm_helper" ]
+then
+    export SOCKET_SCM_HELPER="$build_iotests/socket_scm_helper"
+fi
+
+# if ./qemu exists, it should be prioritized and will be chosen by common.config
+if [[ -z "$QEMU_PROG" && ! -x './qemu' ]]
+then
+    arch=$(uname -m 2> /dev/null)
+
+    if [[ -n $arch && -x "$build_root/$arch-softmmu/qemu-system-$arch" ]]
+    then
+        export QEMU_PROG="$build_root/$arch-softmmu/qemu-system-$arch"
+    else
+        pushd "$build_root" > /dev/null
+        for binary in *-softmmu/qemu-system-*
+        do
+            if [ -x "$binary" ]
+            then
+                export QEMU_PROG="$build_root/$binary"
+                break
+            fi
+        done
+        popd > /dev/null
+    fi
+fi
+
+if [[ -z $QEMU_IMG_PROG && -x "$build_root/qemu-img" && ! -x './qemu-img' ]]
+then
+    export QEMU_IMG_PROG="$build_root/qemu-img"
+fi
+
+if [[ -z $QEMU_IO_PROG && -x "$build_root/qemu-io" && ! -x './qemu-io' ]]
+then
+    export QEMU_IO_PROG="$build_root/qemu-io"
+fi
+
+if [[ -z $QEMU_NBD_PROG && -x "$build_root/qemu-nbd" && ! -x './qemu-nbd' ]]
+then
+    export QEMU_NBD_PROG="$build_root/qemu-nbd"
+fi
+
+# we need common.env
+if ! . "$build_iotests/common.env"
+then
+    _init_error "failed to source common.env (make sure the qemu-iotests are run from tests/qemu-iotests in the build tree)"
+fi
+
+# we need common.config
+if ! . "$source_iotests/common.config"
+then
+    _init_error "failed to source common.config"
 fi
 
 # we need common.rc
-if ! . ./common.rc
+if ! . "$source_iotests/common.rc"
 then
-    echo "check: failed to source common.rc"
-    exit 1
+    _init_error "failed to source common.rc"
 fi
 
 # we need common
-. ./common
+. "$source_iotests/common"
 
 #if [ `id -u` -ne 0 ]
 #then
@@ -194,7 +267,7 @@ do
         echo " - expunged"
         rm -f $seq.out.bad
         echo "/^$seq\$/d" >>$tmp.expunged
-    elif [ ! -f $seq ]
+    elif [ ! -f "$source_iotests/$seq" ]
     then
         echo " - no such test?"
         echo "/^$seq\$/d" >>$tmp.expunged
@@ -215,9 +288,16 @@ do
 
         start=`_wallclock`
         $timestamp && echo -n "        ["`date "+%T"`"]"
-        [ ! -x $seq ] && chmod u+x $seq # ensure we can run it
+
+        if [ "$(head -n 1 "$source_iotests/$seq")" == "#!/usr/bin/env python" ]; then
+            run_command="$PYTHON $seq"
+        else
+            run_command="./$seq"
+        fi
+        export OUTPUT_DIR=$PWD
+        (cd "$source_iotests";
         MALLOC_PERTURB_=${MALLOC_PERTURB_:-$(($RANDOM % 255 + 1))} \
-                ./$seq >$tmp.out 2>&1
+                $run_command >$tmp.out 2>&1)
         sts=$?
         $timestamp && _timestamp
         stop=`_wallclock`
@@ -242,17 +322,17 @@ do
                 err=true
             fi
 
-            reference=$seq.out
+            reference="$source_iotests/$seq.out"
             if [ "$CACHEMODE" = "none" ]; then
-                [ -f $seq.out.nocache ] && reference=$seq.out.nocache
+                [ -f "$source_iotests/$seq.out.nocache" ] && reference="$source_iotests/$seq.out.nocache"
             fi
 
-            if [ ! -f $reference ]
+            if [ ! -f "$reference" ]
             then
                 echo " - no qualified output"
                 err=true
             else
-                if diff -w $reference $tmp.out >/dev/null 2>&1
+                if diff -w "$reference" $tmp.out >/dev/null 2>&1
                 then
                     echo ""
                     if $err
@@ -264,7 +344,7 @@ do
                 else
                     echo " - output mismatch (see $seq.out.bad)"
                     mv $tmp.out $seq.out.bad
-                    $diff -w $reference $seq.out.bad
+                    $diff -w "$reference" $seq.out.bad
                     err=true
                 fi
             fi

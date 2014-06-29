@@ -49,7 +49,7 @@ _make_test_img $((1024*1024))T
 echo
 echo "creating too large image (1 EB) using qcow2.py"
 _make_test_img 4G
-./qcow2.py "$TEST_IMG" set-header size $((1024 ** 6))
+$PYTHON qcow2.py "$TEST_IMG" set-header size $((1024 ** 6))
 _check_test_img
 
 # success, all done

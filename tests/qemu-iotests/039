@@ -63,7 +63,7 @@ _make_test_img $size
 $QEMU_IO -c "write -P 0x5a 0 512" "$TEST_IMG" | _filter_qemu_io
 
 # The dirty bit must not be set
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 _check_test_img
 
 echo
@@ -75,7 +75,7 @@ _make_test_img $size
 _no_dump_exec $QEMU_IO -c "write -P 0x5a 0 512" -c "abort" "$TEST_IMG" 2>&1 | _filter_qemu_io
 
 # The dirty bit must be set
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 _check_test_img
 
 echo
@@ -84,7 +84,7 @@ echo "== Read-only access must still work =="
 $QEMU_IO -r -c "read -P 0x5a 0 512" "$TEST_IMG" | _filter_qemu_io
 
 # The dirty bit must be set
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 
 echo
 echo "== Repairing the image file must succeed =="
@@ -92,7 +92,7 @@ echo "== Repairing the image file must succeed =="
 _check_test_img -r all
 
 # The dirty bit must not be set
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 
 echo
 echo "== Data should still be accessible after repair =="
@@ -108,12 +108,12 @@ _make_test_img $size
 _no_dump_exec $QEMU_IO -c "write -P 0x5a 0 512" -c "abort" "$TEST_IMG" 2>&1 | _filter_qemu_io
 
 # The dirty bit must be set
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 
 $QEMU_IO -c "write 0 512" "$TEST_IMG" | _filter_qemu_io
 
 # The dirty bit must not be set
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 
 echo
 echo "== Creating an image file with lazy_refcounts=off =="
@@ -124,7 +124,7 @@ _make_test_img $size
 _no_dump_exec $QEMU_IO -c "write -P 0x5a 0 512" -c "abort" "$TEST_IMG" 2>&1 | _filter_qemu_io
 
 # The dirty bit must not be set since lazy_refcounts=off
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 _check_test_img
 
 echo
@@ -140,8 +140,8 @@ $QEMU_IO -c "write 0 512" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG commit "$TEST_IMG"
 
 # The dirty bit must not be set
-./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
-./qcow2.py "$TEST_IMG".base dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$PYTHON qcow2.py "$TEST_IMG".base dump-header | grep incompatible_features
 
 _check_test_img
 TEST_IMG="$TEST_IMG".base _check_test_img

@@ -210,6 +210,20 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
     job->busy = true;
 }
 
+void block_job_yield(BlockJob *job)
+{
+    assert(job->busy);
+
+    /* Check cancellation *before* setting busy = false, too!  */
+    if (block_job_is_cancelled(job)) {
+        return;
+    }
+
+    job->busy = false;
+    qemu_coroutine_yield();
+    job->busy = true;
+}
+
 BlockJobInfo *block_job_query(BlockJob *job)
 {
     BlockJobInfo *info = g_new0(BlockJobInfo, 1);
@@ -256,7 +270,11 @@ void block_job_event_completed(BlockJob *job, const char *msg)
 
 void block_job_event_ready(BlockJob *job)
 {
-    qapi_event_send_block_job_ready(bdrv_get_device_name(job->bs), &error_abort);
+    qapi_event_send_block_job_ready(job->driver->job_type,
+                                    bdrv_get_device_name(job->bs),
+                                    job->len,
+                                    job->offset,
+                                    job->speed, &error_abort);
 }
 
 BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
@@ -282,7 +300,7 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
     default:
         abort();
     }
-    qapi_event_send_block_job_error(bdrv_get_device_name(bs),
+    qapi_event_send_block_job_error(bdrv_get_device_name(job->bs),
                                     is_read ? IO_OPERATION_TYPE_READ :
                                     IO_OPERATION_TYPE_WRITE,
                                     action, &error_abort);
