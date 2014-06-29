@@ -26,9 +26,8 @@ def _generate_event_api_name(event_name, params):
                 api_name += "bool has_%s,\n" % c_var(argname)
                 api_name += "".ljust(l)
 
-            if argentry == "str":
-                api_name += "const "
-            api_name += "%s %s,\n" % (c_type(argentry), c_var(argname))
+            api_name += "%s %s,\n" % (c_type(argentry, is_param=True),
+                                      c_var(argname))
             api_name += "".ljust(l)
 
     api_name += "Error **errp)"

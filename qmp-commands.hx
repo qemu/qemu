@@ -1921,19 +1921,28 @@ Each json-object contain the following:
 
 - "label": device's label (json-string)
 - "filename": device's file (json-string)
+- "frontend-open": open/closed state of the frontend device attached to this
+                   backend (json-bool)
 
 Example:
 
 -> { "execute": "query-chardev" }
 <- {
-      "return":[
+      "return": [
          {
-            "label":"monitor",
-            "filename":"stdio"
+            "label": "charchannel0",
+            "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.agent,server",
+            "frontend-open": false
          },
          {
-            "label":"serial0",
-            "filename":"vc"
+            "label": "charmonitor",
+            "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.monitor,server",
+            "frontend-open": true
+         },
+         {
+            "label": "charserial0",
+            "filename": "pty:/dev/pts/2",
+            "frontend-open": true
          }
       ]
    }

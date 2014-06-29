@@ -106,7 +106,7 @@ int select_watchdog_action(const char *p)
  */
 void watchdog_perform_action(void)
 {
-    switch(watchdog_action) {
+    switch (watchdog_action) {
     case WDT_RESET:             /* same as 'system_reset' in monitor */
         qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_RESET, &error_abort);
         qemu_system_reset_request();

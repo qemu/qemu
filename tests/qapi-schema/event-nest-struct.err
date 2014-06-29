@@ -1,1 +1,1 @@
-tests/qapi-schema/event-nest-struct.json:1: Nested structure define in event is not supported now, event 'EVENT_A', argname 'a'
+tests/qapi-schema/event-nest-struct.json:1: Nested structure define in event is not supported, event 'EVENT_A', argname 'a'

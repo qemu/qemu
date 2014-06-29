@@ -8,6 +8,9 @@
 # QAPI block definitions
 { 'include': 'qapi/block.json' }
 
+# QAPI event definitions
+{ 'include': 'qapi/event.json' }
+
 ##
 # LostTickPolicy:
 #
@@ -211,12 +214,18 @@
 #
 # @filename: the filename of the character device
 #
+# @frontend-open: shows whether the frontend device attached to this backend
+#                 (eg. with the chardev=... option) is in open or closed state
+#                 (since 2.1)
+#
 # Notes: @filename is encoded using the QEMU command line character device
 #        encoding.  See the QEMU man page for details.
 #
 # Since: 0.14.0
 ##
-{ 'type': 'ChardevInfo', 'data': {'label': 'str', 'filename': 'str'} }
+{ 'type': 'ChardevInfo', 'data': {'label': 'str',
+                                  'filename': 'str',
+                                  'frontend-open': 'bool'} }
 
 ##
 # @query-chardev:
@@ -654,8 +663,9 @@
 #
 # @host: IP address
 #
-# @service: The service name of vnc port. This may depend on the host system's
-#           service database so symbolic names should not be relied on.
+# @service: The service name of the vnc port. This may depend on the host
+#           system's service database so symbolic names should not be relied
+#           on.
 #
 # @family: address family
 #
@@ -694,7 +704,7 @@
 ##
 { 'type': 'VncClientInfo',
   'base': 'VncBasicInfo',
-  'data': { '*x509_dname'   : 'str', '*sasl_username': 'str' } }
+  'data': { '*x509_dname': 'str', '*sasl_username': 'str' } }
 
 ##
 # @VncInfo:
@@ -3458,5 +3468,3 @@
 ##
 { 'enum': 'GuestPanicAction',
   'data': [ 'pause' ] }
-
-{ 'include': 'qapi-event.json' }

@@ -218,10 +218,10 @@ An example command is:
 === Events ===
 
 Events are defined with the keyword 'event'.  When 'data' is also specified,
-additional info will be carried on.  Finally there will be C API generated
-in qapi-event.h; when called by QEMU code, a message with timestamp will
-be emitted on the wire.  If timestamp is -1, it means failure to retrieve host
-time.
+additional info will be included in the event.  Finally there will be C API
+generated in qapi-event.h; when called by QEMU code, a message with timestamp
+will be emitted on the wire.  If timestamp is -1, it means failure to retrieve
+host time.
 
 An example event is:
 
