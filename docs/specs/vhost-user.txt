@@ -85,8 +85,7 @@ Depending on the request type, payload can be:
    Guest address: a 64-bit guest address of the region
    Size: a 64-bit size
    User address: a 64-bit user address
-   mmmap offset: 64-bit offset where region starts in the mapped memory
-
+   mmap offset: 64-bit offset where region starts in the mapped memory
 
 In QEMU the vhost-user message is implemented with the following struct:
 
