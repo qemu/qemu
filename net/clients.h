@@ -47,6 +47,8 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
 int net_init_bridge(const NetClientOptions *opts, const char *name,
                     NetClientState *peer);
 
+int net_init_l2tpv3(const NetClientOptions *opts, const char *name,
+                    NetClientState *peer);
 #ifdef CONFIG_VDE
 int net_init_vde(const NetClientOptions *opts, const char *name,
                  NetClientState *peer);

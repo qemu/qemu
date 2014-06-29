@@ -2040,6 +2040,62 @@
     '*udp':       'str' } }
 
 ##
+# @NetdevL2TPv3Options
+#
+# Connect the VLAN to Ethernet over L2TPv3 Static tunnel
+#
+# @src: source address
+#
+# @dst: destination address
+#
+# @srcport: #optional source port - mandatory for udp, optional for ip
+#
+# @dstport: #optional destination port - mandatory for udp, optional for ip
+#
+# @ipv6: #optional - force the use of ipv6
+#
+# @udp: #optional - use the udp version of l2tpv3 encapsulation
+#
+# @cookie64: #optional - use 64 bit coookies
+#
+# @counter: #optional have sequence counter
+#
+# @pincounter: #optional pin sequence counter to zero -
+#              workaround for buggy implementations or
+#              networks with packet reorder
+#
+# @txcookie: #optional 32 or 64 bit transmit cookie
+#
+# @rxcookie: #optional 32 or 64 bit receive cookie
+#
+# @txsession: 32 bit transmit session
+#
+# @rxsession: #optional 32 bit receive session - if not specified
+#             set to the same value as transmit
+#
+# @offset: #optional additional offset - allows the insertion of
+#          additional application-specific data before the packet payload
+#
+# Since 2.1
+##
+{ 'type': 'NetdevL2TPv3Options',
+  'data': {
+    'src':          'str',
+    'dst':          'str',
+    '*srcport':     'str',
+    '*dstport':     'str',
+    '*ipv6':        'bool',
+    '*udp':         'bool',
+    '*cookie64':    'bool',
+    '*counter':     'bool',
+    '*pincounter':  'bool',
+    '*txcookie':    'uint64',
+    '*rxcookie':    'uint64',
+    'txsession':    'uint32',
+    '*rxsession':   'uint32',
+    '*offset':      'uint32' } }
+
+##
 # @NetdevVdeOptions
 #
 # Connect the VLAN to a vde switch running on the host.
@@ -2150,6 +2206,9 @@
 # A discriminated record of network device traits.
 #
 # Since 1.2
+#
+# 'l2tpv3' - since 2.1
+#
 ##
 { 'union': 'NetClientOptions',
   'data': {
@@ -2157,6 +2216,7 @@
     'nic':      'NetLegacyNicOptions',
     'user':     'NetdevUserOptions',
     'tap':      'NetdevTapOptions',
+    'l2tpv3':   'NetdevL2TPv3Options',
     'socket':   'NetdevSocketOptions',
     'vde':      'NetdevVdeOptions',
     'dump':     'NetdevDumpOptions',

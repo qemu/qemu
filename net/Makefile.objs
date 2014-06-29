@@ -2,6 +2,7 @@ common-obj-y = net.o queue.o checksum.o util.o hub.o
 common-obj-y += socket.o
 common-obj-y += dump.o
 common-obj-y += eth.o
+common-obj-$(CONFIG_LINUX) += l2tpv3.o
 common-obj-$(CONFIG_POSIX) += tap.o vhost-user.o
 common-obj-$(CONFIG_LINUX) += tap-linux.o
 common-obj-$(CONFIG_WIN32) += tap-win32.o

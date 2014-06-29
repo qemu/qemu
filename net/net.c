@@ -250,7 +250,7 @@ NICState *qemu_new_nic(NetClientInfo *info,
 {
     NetClientState **peers = conf->peers.ncs;
     NICState *nic;
-    int i, queues = MAX(1, conf->queues);
+    int i, queues = MAX(1, conf->peers.queues);
 
     assert(info->type == NET_CLIENT_OPTIONS_KIND_NIC);
     assert(info->size >= sizeof(NICState));
@@ -363,7 +363,7 @@ void qemu_del_net_client(NetClientState *nc)
 
 void qemu_del_nic(NICState *nic)
 {
-    int i, queues = MAX(nic->conf->queues, 1);
+    int i, queues = MAX(nic->conf->peers.queues, 1);
 
     /* If this is a peer NIC and peer has already been deleted, free it now. */
     if (nic->peer_deleted) {
@@ -806,6 +806,9 @@ static int (* const net_client_init_fun[NET_CLIENT_OPTIONS_KIND_MAX])(
 #ifdef CONFIG_VHOST_NET_USED
         [NET_CLIENT_OPTIONS_KIND_VHOST_USER] = net_init_vhost_user,
 #endif
+#ifdef CONFIG_LINUX
+        [NET_CLIENT_OPTIONS_KIND_L2TPV3]    = net_init_l2tpv3,
+#endif
 };
 
 
@@ -841,6 +844,9 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
         case NET_CLIENT_OPTIONS_KIND_HUBPORT:
 #ifdef CONFIG_VHOST_NET_USED
         case NET_CLIENT_OPTIONS_KIND_VHOST_USER:
+#endif
+#ifdef CONFIG_LINUX
+        case NET_CLIENT_OPTIONS_KIND_L2TPV3:
 #endif
             break;
 

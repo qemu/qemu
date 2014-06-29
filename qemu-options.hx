@@ -1433,6 +1433,29 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                (default=" DEFAULT_BRIDGE_INTERFACE ") using the program 'helper'\n"
     "                (default=" DEFAULT_BRIDGE_HELPER ")\n"
 #endif
+#ifdef __linux__
+    "-net l2tpv3[,vlan=n][,name=str],src=srcaddr,dst=dstaddr[,srcport=srcport][,dstport=dstport],txsession=txsession[,rxsession=rxsession][,ipv6=on/off][,udp=on/off][,cookie64=on/off][,counter][,pincounter][,txcookie=txcookie][,rxcookie=rxcookie][,offset=offset]\n"
+    "                connect the VLAN to an Ethernet over L2TPv3 pseudowire\n"
+    "                Linux kernel 3.3+ as well as most routers can talk\n"
+    "                L2TPv3. This transport allows to connect a VM to a VM,\n"
+    "                VM to a router and even VM to Host. It is a nearly-universal\n"
+    "                standard (RFC3391). Note - this implementation uses static\n"
+    "                pre-configured tunnels (same as the Linux kernel).\n"
+    "                use 'src=' to specify source address\n"
+    "                use 'dst=' to specify destination address\n"
+    "                use 'udp=on' to specify udp encapsulation\n"
+    "                use 'dstport=' to specify destination udp port\n"
+    "                use 'dstport=' to specify destination udp port\n"
+    "                use 'ipv6=on' to force v6\n"
+    "                L2TPv3 uses cookies to prevent misconfiguration as\n"
+    "                well as a weak security measure\n"
+    "                use 'rxcookie=0x012345678' to specify a rxcookie\n"
+    "                use 'txcookie=0x012345678' to specify a txcookie\n"
+    "                use 'cookie64=on' to set cookie size to 64 bit, otherwise 32\n"
+    "                use 'counter=off' to force a 'cut-down' L2TPv3 with no counter\n"
+    "                use 'pincounter=on' to work around broken counter handling in peer\n"
+    "                use 'offset=X' to add an extra offset between header and data\n"
+#endif
     "-net socket[,vlan=n][,name=str][,fd=h][,listen=[host]:port][,connect=host:port]\n"
     "                connect the vlan 'n' to another VLAN using a socket connection\n"
     "-net socket[,vlan=n][,name=str][,fd=h][,mcast=maddr:port[,localaddr=addr]]\n"
@@ -1776,6 +1799,65 @@ Example (send packets from host's 1.2.3.4):
 qemu-system-i386 linux.img \
                  -net nic,macaddr=52:54:00:12:34:56 \
                  -net socket,mcast=239.192.168.1:1102,localaddr=1.2.3.4
+@end example
+
+@item -netdev l2tpv3,id=@var{id},src=@var{srcaddr},dst=@var{dstaddr}[,srcport=@var{srcport}][,dstport=@var{dstport}],txsession=@var{txsession}[,rxsession=@var{rxsession}][,ipv6][,udp][,cookie64][,counter][,pincounter][,txcookie=@var{txcookie}][,rxcookie=@var{rxcookie}][,offset=@var{offset}]
+@item -net l2tpv3[,vlan=@var{n}][,name=@var{name}],src=@var{srcaddr},dst=@var{dstaddr}[,srcport=@var{srcport}][,dstport=@var{dstport}],txsession=@var{txsession}[,rxsession=@var{rxsession}][,ipv6][,udp][,cookie64][,counter][,pincounter][,txcookie=@var{txcookie}][,rxcookie=@var{rxcookie}][,offset=@var{offset}]
+Connect VLAN @var{n} to L2TPv3 pseudowire. L2TPv3 (RFC3391) is a popular
+protocol to transport Ethernet (and other Layer 2) data frames between
+two systems. It is present in routers, firewalls and the Linux kernel
+(from version 3.3 onwards).
+
+This transport allows a VM to communicate to another VM, router or firewall directly.
+
+@item src=@var{srcaddr}
+    source address (mandatory)
+@item dst=@var{dstaddr}
+    destination address (mandatory)
+@item udp
+    select udp encapsulation (default is ip).
+@item srcport=@var{srcport}
+    source udp port.
+@item dstport=@var{dstport}
+    destination udp port.
+@item ipv6
+    force v6, otherwise defaults to v4.
+@item rxcookie=@var{rxcookie}
+@item txcookie=@var{txcookie}
+    Cookies are a weak form of security in the l2tpv3 specification.
+Their function is mostly to prevent misconfiguration. By default they are 32
+bit.
+@item cookie64
+    Set cookie size to 64 bit instead of the default 32
+@item counter=off
+    Force a 'cut-down' L2TPv3 with no counter as in
+draft-mkonstan-l2tpext-keyed-ipv6-tunnel-00
+@item pincounter=on
+    Work around broken counter handling in peer. This may also help on
+networks which have packet reorder.
+@item offset=@var{offset}
+    Add an extra offset between header and data
+
+For example, to attach a VM running on host 4.3.2.1 via L2TPv3 to the bridge br-lan
+on the remote Linux host 1.2.3.4:
+@example
+# Setup tunnel on linux host using raw ip as encapsulation
+# on 1.2.3.4
+ip l2tp add tunnel remote 4.3.2.1 local 1.2.3.4 tunnel_id 1 peer_tunnel_id 1 \
+    encap udp udp_sport 16384 udp_dport 16384
+ip l2tp add session tunnel_id 1 name vmtunnel0 session_id \
+    0xFFFFFFFF peer_session_id 0xFFFFFFFF
+ifconfig vmtunnel0 mtu 1500
+ifconfig vmtunnel0 up
+brctl addif br-lan vmtunnel0
+
+
+# on 4.3.2.1
+# launch QEMU instance - if your network has reorder or is very lossy add ,pincounter
+
+qemu-system-i386 linux.img -net nic -net l2tpv3,src=4.2.3.1,dst=1.2.3.4,udp,srcport=16384,dstport=16384,rxsession=0xffffffff,txsession=0xffffffff,counter
+
+
 @end example
 
 @item -netdev vde,id=@var{id}[,sock=@var{socketpath}][,port=@var{n}][,group=@var{groupname}][,mode=@var{octalmode}]
