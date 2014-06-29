@@ -27,12 +27,14 @@
 #include "hw/pci/pci_host.h"
 #include "hw/ppc/xics.h"
 
-#define SPAPR_MSIX_MAX_DEVS 32
-
 #define TYPE_SPAPR_PCI_HOST_BRIDGE "spapr-pci-host-bridge"
+#define TYPE_SPAPR_PCI_VFIO_HOST_BRIDGE "spapr-pci-vfio-host-bridge"
 
 #define SPAPR_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(sPAPRPHBState, (obj), TYPE_SPAPR_PCI_HOST_BRIDGE)
+
+#define SPAPR_PCI_VFIO_HOST_BRIDGE(obj) \
+    OBJECT_CHECK(sPAPRPHBVFIOState, (obj), TYPE_SPAPR_PCI_VFIO_HOST_BRIDGE)
 
 #define SPAPR_PCI_HOST_BRIDGE_CLASS(klass) \
      OBJECT_CLASS_CHECK(sPAPRPHBClass, (klass), TYPE_SPAPR_PCI_HOST_BRIDGE)
@@ -41,12 +43,23 @@
 
 typedef struct sPAPRPHBClass sPAPRPHBClass;
 typedef struct sPAPRPHBState sPAPRPHBState;
+typedef struct sPAPRPHBVFIOState sPAPRPHBVFIOState;
 
 struct sPAPRPHBClass {
     PCIHostBridgeClass parent_class;
 
     void (*finish_realize)(sPAPRPHBState *sphb, Error **errp);
 };
+
+typedef struct spapr_pci_msi {
+    uint32_t first_irq;
+    uint32_t num;
+} spapr_pci_msi;
+
+typedef struct spapr_pci_msi_mig {
+    uint32_t key;
+    spapr_pci_msi value;
+} spapr_pci_msi_mig;
 
 struct sPAPRPHBState {
     PCIHostState parent_obj;
@@ -67,13 +80,18 @@ struct sPAPRPHBState {
         uint32_t irq;
     } lsi_table[PCI_NUM_PINS];
 
-    struct spapr_pci_msi {
-        uint32_t config_addr;
-        uint32_t irq;
-        uint32_t nvec;
-    } msi_table[SPAPR_MSIX_MAX_DEVS];
+    GHashTable *msi;
+    /* Temporary cache for migration purposes */
+    int32_t msi_devs_num;
+    spapr_pci_msi_mig *msi_devs;
 
     QLIST_ENTRY(sPAPRPHBState) list;
+};
+
+struct sPAPRPHBVFIOState {
+    sPAPRPHBState phb;
+
+    int32_t iommugroupid;
 };
 
 #define SPAPR_PCI_BASE_BUID          0x800000020000000ULL

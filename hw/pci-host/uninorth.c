@@ -230,7 +230,7 @@ PCIBus *pci_pmac_init(qemu_irq *pic,
     d = UNI_NORTH_PCI_HOST_BRIDGE(dev);
     memory_region_init(&d->pci_mmio, OBJECT(d), "pci-mmio", 0x100000000ULL);
     memory_region_init_alias(&d->pci_hole, OBJECT(d), "pci-hole", &d->pci_mmio,
-                             0x80000000ULL, 0x70000000ULL);
+                             0x80000000ULL, 0x10000000ULL);
     memory_region_add_subregion(address_space_mem, 0x80000000ULL,
                                 &d->pci_hole);
 

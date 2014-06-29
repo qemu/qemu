@@ -373,17 +373,10 @@ static void ppc_core99_init(MachineState *machine)
         machine_arch = ARCH_MAC99;
     }
     /* init basic PC hardware */
-    pci_vga_init(pci_bus);
-
     escc_mem = escc_init(0, pic[0x25], pic[0x24],
                          serial_hds[0], serial_hds[1], ESCC_CLOCK, 4);
     memory_region_init_alias(escc_bar, NULL, "escc-bar",
                              escc_mem, 0, memory_region_size(escc_mem));
-
-    for(i = 0; i < nb_nics; i++)
-        pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
-
-    ide_drive_get(hd, MAX_IDE_BUS);
 
     macio = pci_create(pci_bus, -1, TYPE_NEWWORLD_MACIO);
     dev = DEVICE(macio);
@@ -395,6 +388,8 @@ static void ppc_core99_init(MachineState *machine)
     macio_init(macio, pic_mem, escc_bar);
 
     /* We only emulate 2 out of 3 IDE controllers for now */
+    ide_drive_get(hd, MAX_IDE_BUS);
+
     macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
                                                         "ide[0]"));
     macio_ide_init_drives(macio_ide, hd);
@@ -420,8 +415,15 @@ static void ppc_core99_init(MachineState *machine)
         }
     }
 
-    if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)
+    pci_vga_init(pci_bus);
+
+    if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8) {
         graphic_depth = 15;
+    }
+
+    for (i = 0; i < nb_nics; i++) {
+        pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
+    }
 
     /* The NewWorld NVRAM is not located in the MacIO device */
     dev = qdev_create(NULL, TYPE_MACIO_NVRAM);

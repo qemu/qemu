@@ -426,7 +426,6 @@ static inline uint32_t SPR(uint32_t opcode)
     return ((sprn >> 5) & 0x1F) | ((sprn & 0x1F) << 5);
 }
 /***                              Get constants                            ***/
-EXTRACT_HELPER(IMM, 12, 8);
 /* 16 bits signed immediate value */
 EXTRACT_SHELPER(SIMM, 0, 16);
 /* 16 bits unsigned immediate value */
@@ -459,8 +458,6 @@ EXTRACT_HELPER(FPFLM, 17, 8);
 EXTRACT_HELPER(FPW, 16, 1);
 
 /***                            Jump target decoding                       ***/
-/* Displacement */
-EXTRACT_SHELPER(d, 0, 16);
 /* Immediate address */
 static inline target_ulong LI(uint32_t opcode)
 {
@@ -2665,11 +2662,6 @@ static inline void gen_qemu_ld8u(DisasContext *ctx, TCGv arg1, TCGv arg2)
     tcg_gen_qemu_ld8u(arg1, arg2, ctx->mem_idx);
 }
 
-static inline void gen_qemu_ld8s(DisasContext *ctx, TCGv arg1, TCGv arg2)
-{
-    tcg_gen_qemu_ld8s(arg1, arg2, ctx->mem_idx);
-}
-
 static inline void gen_qemu_ld16u(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
     TCGMemOp op = MO_UW | ctx->default_tcg_memop_mask;
@@ -4123,8 +4115,9 @@ static void gen_mcrxr(DisasContext *ctx)
     tcg_gen_trunc_tl_i32(t0, cpu_so);
     tcg_gen_trunc_tl_i32(t1, cpu_ov);
     tcg_gen_trunc_tl_i32(dst, cpu_ca);
-    tcg_gen_shri_i32(t0, t0, 2);
-    tcg_gen_shri_i32(t1, t1, 1);
+    tcg_gen_shli_i32(t0, t0, 3);
+    tcg_gen_shli_i32(t1, t1, 2);
+    tcg_gen_shli_i32(dst, dst, 1);
     tcg_gen_or_i32(dst, dst, t0);
     tcg_gen_or_i32(dst, dst, t1);
     tcg_temp_free_i32(t0);

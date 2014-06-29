@@ -1138,6 +1138,8 @@
                 "POWER7 v2.3")
     POWERPC_DEF("POWER7+_v2.1",  CPU_POWERPC_POWER7P_v21,            POWER7P,
                 "POWER7+ v2.1")
+    POWERPC_DEF("POWER8E_v1.0",  CPU_POWERPC_POWER8E_v10,            POWER8E,
+                "POWER8E v1.0")
     POWERPC_DEF("POWER8_v1.0",   CPU_POWERPC_POWER8_v10,             POWER8,
                 "POWER8 v1.0")
     POWERPC_DEF("970",           CPU_POWERPC_970,                    970,
@@ -1386,6 +1388,7 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "POWER5gs", "POWER5+" },
     { "POWER7", "POWER7_v2.3" },
     { "POWER7+", "POWER7+_v2.1" },
+    { "POWER8E", "POWER8E_v1.0" },
     { "POWER8", "POWER8_v1.0" },
     { "970fx", "970fx_v3.1" },
     { "970mp", "970mp_v1.1" },

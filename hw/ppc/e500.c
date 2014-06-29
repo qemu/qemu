@@ -316,10 +316,15 @@ static int ppce500_load_device_tree(MachineState *machine,
      * device it finds in the dt as serial output device. And we generate
      * devices in reverse order to the dt.
      */
-    dt_serial_create(fdt, MPC8544_SERIAL1_REGS_OFFSET,
-                     soc, mpic, "serial1", 1, false);
-    dt_serial_create(fdt, MPC8544_SERIAL0_REGS_OFFSET,
-                     soc, mpic, "serial0", 0, true);
+    if (serial_hds[1]) {
+        dt_serial_create(fdt, MPC8544_SERIAL1_REGS_OFFSET,
+                         soc, mpic, "serial1", 1, false);
+    }
+
+    if (serial_hds[0]) {
+        dt_serial_create(fdt, MPC8544_SERIAL0_REGS_OFFSET,
+                         soc, mpic, "serial0", 0, true);
+    }
 
     snprintf(gutil, sizeof(gutil), "%s/global-utilities@%llx", soc,
              MPC8544_UTIL_OFFSET);

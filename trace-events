@@ -1169,12 +1169,13 @@ qxl_render_guest_primary_resized(int32_t width, int32_t height, int32_t stride, 
 qxl_render_update_area_done(void *cookie) "%p"
 
 # hw/ppc/spapr_pci.c
-spapr_pci_msi(const char *msg, uint32_t n, uint32_t ca) "%s (device#%d, cfg=%x)"
+spapr_pci_msi(const char *msg, uint32_t ca) "%s (cfg=%x)"
 spapr_pci_msi_setup(const char *name, unsigned vector, uint64_t addr) "dev\"%s\" vector %u, addr=%"PRIx64
-spapr_pci_rtas_ibm_change_msi(unsigned func, unsigned req) "func %u, requested %u"
+spapr_pci_rtas_ibm_change_msi(unsigned cfg, unsigned func, unsigned req, unsigned first) "cfgaddr %x func %u, requested %u, first irq %u"
 spapr_pci_rtas_ibm_query_interrupt_source_number(unsigned ioa, unsigned intr) "queries for #%u, IRQ%u"
 spapr_pci_msi_write(uint64_t addr, uint64_t data, uint32_t dt_irq) "@%"PRIx64"<=%"PRIx64" IRQ %u"
 spapr_pci_lsi_set(const char *busname, int pin, uint32_t irq) "%s PIN%d IRQ %u"
+spapr_pci_msi_retry(unsigned config_addr, unsigned req_num, unsigned max_irqs) "Guest device at %x asked %u, have only %u"
 
 # hw/intc/xics.c
 xics_icp_check_ipi(int server, uint8_t mfrr) "CPU %d can take IPI mfrr=%#x"
@@ -1188,6 +1189,12 @@ xics_set_irq_lsi(int srcno, int nr) "set_irq_lsi: srcno %d [irq %#x]"
 xics_ics_write_xive(int nr, int srcno, int server, uint8_t priority) "ics_write_xive: irq %#x [src %d] server %#x prio %#x"
 xics_ics_reject(int nr, int srcno) "reject irq %#x [src %d]"
 xics_ics_eoi(int nr) "ics_eoi: irq %#x"
+xics_alloc(int src, int irq) "source#%d, irq %d"
+xics_alloc_failed_hint(int src, int irq) "source#%d, irq %d is already in use"
+xics_alloc_failed_no_left(int src) "source#%d, no irq left"
+xics_alloc_block(int src, int first, int num, bool lsi, int align) "source#%d, first irq %d, %d irqs, lsi=%d, alignnum %d"
+xics_ics_free(int src, int irq, int num) "Source#%d, first irq %d, %d irqs"
+xics_ics_free_warn(int src, int irq) "Source#%d, irq %d is already free"
 
 # hw/ppc/spapr.c
 spapr_cas_failed(unsigned long n) "DT diff buffer is too small: %ld bytes"
