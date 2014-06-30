@@ -4681,6 +4681,9 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     target_ulong frame_addr, newsp;
     int err = 0;
     int signal;
+#if defined(TARGET_PPC64)
+    struct image_info *image = ((TaskState *)thread_cpu->opaque)->info;
+#endif
 
     frame_addr = get_sigframe(ka, env, sizeof(*frame));
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 1))
@@ -4725,11 +4728,18 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     env->gpr[4] = frame_addr + offsetof(struct target_sigframe, sctx);
 
 #if defined(TARGET_PPC64)
-    /* PPC64 function pointers are pointers to OPD entries. */
-    struct target_func_ptr *handler =
-        (struct target_func_ptr *)g2h(ka->_sa_handler);
-    env->nip = tswapl(handler->entry);
-    env->gpr[2] = tswapl(handler->toc);
+    if (get_ppc64_abi(image) < 2) {
+        /* ELFv1 PPC64 function pointers are pointers to OPD entries. */
+        struct target_func_ptr *handler =
+            (struct target_func_ptr *)g2h(ka->_sa_handler);
+        env->nip = tswapl(handler->entry);
+        env->gpr[2] = tswapl(handler->toc);
+    } else {
+        /* ELFv2 PPC64 function pointers are entry points, but R12
+         * must also be set */
+        env->nip = tswapl((target_ulong) ka->_sa_handler);
+        env->gpr[12] = env->nip;
+    }
 #else
     env->nip = (target_ulong) ka->_sa_handler;
 #endif
@@ -4756,6 +4766,9 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     target_ulong rt_sf_addr, newsp = 0;
     int i, err = 0;
     int signal;
+#if defined(TARGET_PPC64)
+    struct image_info *image = ((TaskState *)thread_cpu->opaque)->info;
+#endif
 
     rt_sf_addr = get_sigframe(ka, env, sizeof(*rt_sf));
     if (!lock_user_struct(VERIFY_WRITE, rt_sf, rt_sf_addr, 1))
@@ -4814,11 +4827,18 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     env->gpr[6] = (target_ulong) h2g(rt_sf);
 
 #if defined(TARGET_PPC64)
-    /* PPC64 function pointers are pointers to OPD entries.  */
-    struct target_func_ptr *handler =
-        (struct target_func_ptr *)g2h(ka->_sa_handler);
-    env->nip = tswapl(handler->entry);
-    env->gpr[2] = tswapl(handler->toc);
+    if (get_ppc64_abi(image) < 2) {
+        /* ELFv1 PPC64 function pointers are pointers to OPD entries. */
+        struct target_func_ptr *handler =
+            (struct target_func_ptr *)g2h(ka->_sa_handler);
+        env->nip = tswapl(handler->entry);
+        env->gpr[2] = tswapl(handler->toc);
+    } else {
+        /* ELFv2 PPC64 function pointers are entry points, but R12
+         * must also be set */
+        env->nip = tswapl((target_ulong) ka->_sa_handler);
+        env->gpr[12] = env->nip;
+    }
 #else
     env->nip = (target_ulong) ka->_sa_handler;
 #endif
