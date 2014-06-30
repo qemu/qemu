@@ -35,11 +35,7 @@ test_img = os.path.join(iotests.test_dir, 'test.img')
 class ImageCommitTestCase(iotests.QMPTestCase):
     '''Abstract base class for image commit test cases'''
 
-    def run_commit_test(self, top, base, need_ready=False):
-        self.assert_no_active_block_jobs()
-        result = self.vm.qmp('block-commit', device='drive0', top=top, base=base)
-        self.assert_qmp(result, 'return', {})
-
+    def wait_for_complete(self, need_ready=False):
         completed = False
         ready = False
         while not completed:
@@ -61,6 +57,18 @@ class ImageCommitTestCase(iotests.QMPTestCase):
 
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
+
+    def run_commit_test(self, top, base, need_ready=False):
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('block-commit', device='drive0', top=top, base=base)
+        self.assert_qmp(result, 'return', {})
+        self.wait_for_complete(need_ready)
+
+    def run_default_commit_test(self):
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('block-commit', device='drive0')
+        self.assert_qmp(result, 'return', {})
+        self.wait_for_complete()
 
 class TestSingleDrive(ImageCommitTestCase):
     image_len = 1 * 1024 * 1024
@@ -113,17 +121,17 @@ class TestSingleDrive(ImageCommitTestCase):
         self.assertEqual(-1, qemu_io('-c', 'read -P 0xab 0 524288', backing_img).find("verification failed"))
         self.assertEqual(-1, qemu_io('-c', 'read -P 0xef 524288 524288', backing_img).find("verification failed"))
 
+    def test_top_is_default_active(self):
+        self.run_default_commit_test()
+        self.assertEqual(-1, qemu_io('-c', 'read -P 0xab 0 524288', backing_img).find("verification failed"))
+        self.assertEqual(-1, qemu_io('-c', 'read -P 0xef 524288 524288', backing_img).find("verification failed"))
+
     def test_top_and_base_reversed(self):
         self.assert_no_active_block_jobs()
         result = self.vm.qmp('block-commit', device='drive0', top='%s' % backing_img, base='%s' % mid_img)
         self.assert_qmp(result, 'error/class', 'GenericError')
         self.assert_qmp(result, 'error/desc', 'Base \'%s\' not found' % mid_img)
 
-    def test_top_omitted(self):
-        self.assert_no_active_block_jobs()
-        result = self.vm.qmp('block-commit', device='drive0')
-        self.assert_qmp(result, 'error/class', 'GenericError')
-        self.assert_qmp(result, 'error/desc', "Parameter 'top' is missing")
 
 class TestRelativePaths(ImageCommitTestCase):
     image_len = 1 * 1024 * 1024

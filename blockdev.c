@@ -1913,7 +1913,8 @@ void qmp_block_stream(const char *device, bool has_base,
 }
 
 void qmp_block_commit(const char *device,
-                      bool has_base, const char *base, const char *top,
+                      bool has_base, const char *base,
+                      bool has_top, const char *top,
                       bool has_speed, int64_t speed,
                       Error **errp)
 {
@@ -1932,6 +1933,11 @@ void qmp_block_commit(const char *device,
     /* drain all i/o before commits */
     bdrv_drain_all();
 
+    /* Important Note:
+     *  libvirt relies on the DeviceNotFound error class in order to probe for
+     *  live commit feature versions; for this to work, we must make sure to
+     *  perform the device lookup before any generic errors that may occur in a
+     *  scenario in which all optional arguments are omitted. */
     bs = bdrv_find(device);
     if (!bs) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
@@ -1945,7 +1951,7 @@ void qmp_block_commit(const char *device,
     /* default top_bs is the active layer */
     top_bs = bs;
 
-    if (top) {
+    if (has_top && top) {
         if (strcmp(bs->filename, top) != 0) {
             top_bs = bdrv_find_backing_image(bs, top);
         }
@@ -1964,6 +1970,12 @@ void qmp_block_commit(const char *device,
 
     if (base_bs == NULL) {
         error_set(errp, QERR_BASE_NOT_FOUND, base ? base : "NULL");
+        return;
+    }
+
+    /* Do not allow attempts to commit an image into itself */
+    if (top_bs == base_bs) {
+        error_setg(errp, "cannot commit an image into itself");
         return;
     }
 

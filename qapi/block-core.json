@@ -690,8 +690,9 @@
 # @base:   #optional The file name of the backing image to write data into.
 #                    If not specified, this is the deepest backing image
 #
-# @top:              The file name of the backing image within the image chain,
-#                    which contains the topmost data to be committed down.
+# @top:    #optional The file name of the backing image within the image chain,
+#                    which contains the topmost data to be committed down. If
+#                    not specified, this is the active layer.
 #
 #                    If top == base, that is an error.
 #                    If top == active, the job will not be completed by itself,
@@ -719,7 +720,7 @@
 #
 ##
 { 'command': 'block-commit',
-  'data': { 'device': 'str', '*base': 'str', 'top': 'str',
+  'data': { 'device': 'str', '*base': 'str', '*top': 'str',
             '*speed': 'int' } }
 
 ##
