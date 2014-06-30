@@ -332,7 +332,7 @@ static int cow_create(const char *filename, QemuOpts *opts, Error **errp)
     char *image_filename = NULL;
     Error *local_err = NULL;
     int ret;
-    BlockDriverState *cow_bs;
+    BlockDriverState *cow_bs = NULL;
 
     /* Read out options */
     image_sectors = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0) / 512;
@@ -344,7 +344,6 @@ static int cow_create(const char *filename, QemuOpts *opts, Error **errp)
         goto exit;
     }
 
-    cow_bs = NULL;
     ret = bdrv_open(&cow_bs, filename, NULL, NULL,
                     BDRV_O_RDWR | BDRV_O_PROTOCOL, NULL, &local_err);
     if (ret < 0) {
@@ -383,7 +382,9 @@ static int cow_create(const char *filename, QemuOpts *opts, Error **errp)
 
 exit:
     g_free(image_filename);
-    bdrv_unref(cow_bs);
+    if (cow_bs) {
+        bdrv_unref(cow_bs);
+    }
     return ret;
 }
 
