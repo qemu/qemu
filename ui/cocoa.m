@@ -256,7 +256,7 @@ static int cocoa_keycode_to_qemu(int keycode)
     BOOL isMouseGrabbed;
     BOOL isFullscreen;
     BOOL isAbsoluteEnabled;
-    BOOL isTabletEnabled;
+    BOOL isMouseDeassociated;
 }
 - (void) switchSurface:(DisplaySurface *)surface;
 - (void) grabMouse;
@@ -264,8 +264,21 @@ static int cocoa_keycode_to_qemu(int keycode)
 - (void) toggleFullScreen:(id)sender;
 - (void) handleEvent:(NSEvent *)event;
 - (void) setAbsoluteEnabled:(BOOL)tIsAbsoluteEnabled;
+/* The state surrounding mouse grabbing is potentially confusing.
+ * isAbsoluteEnabled tracks qemu_input_is_absolute() [ie "is the emulated
+ *   pointing device an absolute-position one?"], but is only updated on
+ *   next refresh.
+ * isMouseGrabbed tracks whether GUI events are directed to the guest;
+ *   it controls whether special keys like Cmd get sent to the guest,
+ *   and whether we capture the mouse when in non-absolute mode.
+ * isMouseDeassociated tracks whether we've told MacOSX to disassociate
+ *   the mouse and mouse cursor position by calling
+ *   CGAssociateMouseAndMouseCursorPosition(FALSE)
+ *   (which basically happens if we grab in non-absolute mode).
+ */
 - (BOOL) isMouseGrabbed;
 - (BOOL) isAbsoluteEnabled;
+- (BOOL) isMouseDeassociated;
 - (float) cdx;
 - (float) cdy;
 - (QEMUScreen) gscreen;
@@ -303,6 +316,27 @@ QemuCocoaView *cocoaView;
 - (BOOL) isOpaque
 {
     return YES;
+}
+
+- (BOOL) screenContainsPoint:(NSPoint) p
+{
+    return (p.x > -1 && p.x < screen.width && p.y > -1 && p.y < screen.height);
+}
+
+- (void) hideCursor
+{
+    if (!cursor_hide) {
+        return;
+    }
+    [NSCursor hide];
+}
+
+- (void) unhideCursor
+{
+    if (!cursor_hide) {
+        return;
+    }
+    [NSCursor unhide];
 }
 
 - (void) drawRect:(NSRect) rect
@@ -404,7 +438,11 @@ QemuCocoaView *cocoaView;
 
     int w = surface_width(surface);
     int h = surface_height(surface);
-    bool isResize = (w != screen.width || h != screen.height);
+    /* cdx == 0 means this is our very first surface, in which case we need
+     * to recalculate the content dimensions even if it happens to be the size
+     * of the initial empty window.
+     */
+    bool isResize = (w != screen.width || h != screen.height || cdx == 0.0);
 
     int oldh = screen.height;
     if (isResize) {
@@ -603,15 +641,13 @@ QemuCocoaView *cocoaView;
             break;
         case NSMouseMoved:
             if (isAbsoluteEnabled) {
-                if (p.x < 0 || p.x > screen.width || p.y < 0 || p.y > screen.height || ![[self window] isKeyWindow]) {
-                    if (isTabletEnabled) { // if we leave the window, deactivate the tablet
-                        [NSCursor unhide];
-                        isTabletEnabled = FALSE;
+                if (![self screenContainsPoint:p] || ![[self window] isKeyWindow]) {
+                    if (isMouseGrabbed) {
+                        [self ungrabMouse];
                     }
                 } else {
-                    if (!isTabletEnabled) { // if we enter the window, activate the tablet
-                        [NSCursor hide];
-                        isTabletEnabled = TRUE;
+                    if (!isMouseGrabbed) {
+                        [self grabMouse];
                     }
                 }
             }
@@ -650,16 +686,9 @@ QemuCocoaView *cocoaView;
             mouse_event = true;
             break;
         case NSLeftMouseUp:
-            if (isTabletEnabled) {
-                    mouse_event = true;
-            } else if (!isMouseGrabbed) {
-                if (p.x > -1 && p.x < screen.width && p.y > -1 && p.y < screen.height) {
-                    [self grabMouse];
-                } else {
-                    [NSApp sendEvent:event];
-                }
-            } else {
-                mouse_event = true;
+            mouse_event = true;
+            if (!isMouseGrabbed && [self screenContainsPoint:p]) {
+                [self grabMouse];
             }
             break;
         case NSRightMouseUp:
@@ -669,13 +698,11 @@ QemuCocoaView *cocoaView;
             mouse_event = true;
             break;
         case NSScrollWheel:
-            if (isTabletEnabled || isMouseGrabbed) {
+            if (isMouseGrabbed) {
                 buttons |= ([event deltaY] < 0) ?
                     MOUSE_EVENT_WHEELUP : MOUSE_EVENT_WHEELDN;
-                mouse_event = true;
-            } else {
-                [NSApp sendEvent:event];
             }
+            mouse_event = true;
             break;
         default:
             [NSApp sendEvent:event];
@@ -693,12 +720,20 @@ QemuCocoaView *cocoaView;
             qemu_input_update_buttons(dcl->con, bmap, last_buttons, buttons);
             last_buttons = buttons;
         }
-        if (isTabletEnabled) {
-            qemu_input_queue_abs(dcl->con, INPUT_AXIS_X, p.x, screen.width);
-            qemu_input_queue_abs(dcl->con, INPUT_AXIS_Y, p.y, screen.height);
-        } else if (isMouseGrabbed) {
-            qemu_input_queue_rel(dcl->con, INPUT_AXIS_X, (int)[event deltaX]);
-            qemu_input_queue_rel(dcl->con, INPUT_AXIS_Y, (int)[event deltaY]);
+        if (isMouseGrabbed) {
+            if (isAbsoluteEnabled) {
+                /* Note that the origin for Cocoa mouse coords is bottom left, not top left.
+                 * The check on screenContainsPoint is to avoid sending out of range values for
+                 * clicks in the titlebar.
+                 */
+                if ([self screenContainsPoint:p]) {
+                    qemu_input_queue_abs(dcl->con, INPUT_AXIS_X, p.x, screen.width);
+                    qemu_input_queue_abs(dcl->con, INPUT_AXIS_Y, screen.height - p.y, screen.height);
+                }
+            } else {
+                qemu_input_queue_rel(dcl->con, INPUT_AXIS_X, (int)[event deltaX]);
+                qemu_input_queue_rel(dcl->con, INPUT_AXIS_Y, (int)[event deltaY]);
+            }
         } else {
             [NSApp sendEvent:event];
         }
@@ -716,8 +751,11 @@ QemuCocoaView *cocoaView;
         else
             [normalWindow setTitle:@"QEMU - (Press ctrl + alt to release Mouse)"];
     }
-    [NSCursor hide];
-    CGAssociateMouseAndMouseCursorPosition(FALSE);
+    [self hideCursor];
+    if (!isAbsoluteEnabled) {
+        isMouseDeassociated = TRUE;
+        CGAssociateMouseAndMouseCursorPosition(FALSE);
+    }
     isMouseGrabbed = TRUE; // while isMouseGrabbed = TRUE, QemuCocoaApp sends all events to [cocoaView handleEvent:]
 }
 
@@ -731,14 +769,18 @@ QemuCocoaView *cocoaView;
         else
             [normalWindow setTitle:@"QEMU"];
     }
-    [NSCursor unhide];
-    CGAssociateMouseAndMouseCursorPosition(TRUE);
+    [self unhideCursor];
+    if (isMouseDeassociated) {
+        CGAssociateMouseAndMouseCursorPosition(TRUE);
+        isMouseDeassociated = FALSE;
+    }
     isMouseGrabbed = FALSE;
 }
 
 - (void) setAbsoluteEnabled:(BOOL)tIsAbsoluteEnabled {isAbsoluteEnabled = tIsAbsoluteEnabled;}
 - (BOOL) isMouseGrabbed {return isMouseGrabbed;}
 - (BOOL) isAbsoluteEnabled {return isAbsoluteEnabled;}
+- (BOOL) isMouseDeassociated {return isMouseDeassociated;}
 - (float) cdx {return cdx;}
 - (float) cdy {return cdy;}
 - (QEMUScreen) gscreen {return screen;}
