@@ -382,9 +382,8 @@ int spapr_allocate_irq_block(int num, bool lsi, bool msi);
 #define RTAS_GET_SENSOR_STATE                   (RTAS_TOKEN_BASE + 0x1D)
 #define RTAS_IBM_CONFIGURE_CONNECTOR            (RTAS_TOKEN_BASE + 0x1E)
 #define RTAS_IBM_OS_TERM                        (RTAS_TOKEN_BASE + 0x1F)
-#define RTAS_IBM_EXTENDED_OS_TERM               (RTAS_TOKEN_BASE + 0x20)
 
-#define RTAS_TOKEN_MAX                          (RTAS_TOKEN_BASE + 0x21)
+#define RTAS_TOKEN_MAX                          (RTAS_TOKEN_BASE + 0x20)
 
 /* RTAS ibm,get-system-parameter token values */
 #define RTAS_SYSPARM_SPLPAR_CHARACTERISTICS      20

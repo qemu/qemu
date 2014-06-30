@@ -277,6 +277,19 @@ static void rtas_ibm_set_system_parameter(PowerPCCPU *cpu,
     rtas_st(rets, 0, ret);
 }
 
+static void rtas_ibm_os_term(PowerPCCPU *cpu,
+                            sPAPREnvironment *spapr,
+                            uint32_t token, uint32_t nargs,
+                            target_ulong args,
+                            uint32_t nret, target_ulong rets)
+{
+    target_ulong ret = 0;
+
+    qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE, &error_abort);
+
+    rtas_st(rets, 0, ret);
+}
+
 static struct rtas_call {
     const char *name;
     spapr_rtas_fn fn;
@@ -404,6 +417,8 @@ static void core_rtas_register_types(void)
     spapr_rtas_register(RTAS_IBM_SET_SYSTEM_PARAMETER,
                         "ibm,set-system-parameter",
                         rtas_ibm_set_system_parameter);
+    spapr_rtas_register(RTAS_IBM_OS_TERM, "ibm,os-term",
+                        rtas_ibm_os_term);
 }
 
 type_init(core_rtas_register_types)
