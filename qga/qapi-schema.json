@@ -387,6 +387,23 @@
   'returns': 'int' }
 
 ##
+# @guest-fsfreeze-freeze-list:
+#
+# Sync and freeze specified guest filesystems
+#
+# @mountpoints: #optional an array of mountpoints of filesystems to be frozen.
+#               If omitted, every mounted filesystem is frozen.
+#
+# Returns: Number of file systems currently frozen. On error, all filesystems
+# will be thawed.
+#
+# Since: 2.2
+##
+{ 'command': 'guest-fsfreeze-freeze-list',
+  'data':    { '*mountpoints': ['str'] },
+  'returns': 'int' }
+
+##
 # @guest-fsfreeze-thaw:
 #
 # Unfreeze all frozen guest filesystems

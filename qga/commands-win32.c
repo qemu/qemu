@@ -206,6 +206,15 @@ error:
     return 0;
 }
 
+int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
+                                       strList *mountpoints,
+                                       Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+
+    return 0;
+}
+
 /*
  * Thaw local file systems using Volume Shadow-copy Service.
  */

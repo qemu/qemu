@@ -710,13 +710,21 @@ GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
     return GUEST_FSFREEZE_STATUS_THAWED;
 }
 
+int64_t qmp_guest_fsfreeze_freeze(Error **errp)
+{
+    return qmp_guest_fsfreeze_freeze_list(false, NULL, errp);
+}
+
 /*
  * Walk list of mounted file systems in the guest, and freeze the ones which
  * are real local file systems.
  */
-int64_t qmp_guest_fsfreeze_freeze(Error **errp)
+int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
+                                       strList *mountpoints,
+                                       Error **errp)
 {
     int ret = 0, i = 0;
+    strList *list;
     FsMountList mounts;
     struct FsMount *mount;
     Error *local_err = NULL;
@@ -741,6 +749,19 @@ int64_t qmp_guest_fsfreeze_freeze(Error **errp)
     ga_set_frozen(ga_state);
 
     QTAILQ_FOREACH_REVERSE(mount, &mounts, FsMountList, next) {
+        /* To issue fsfreeze in the reverse order of mounts, check if the
+         * mount is listed in the list here */
+        if (has_mountpoints) {
+            for (list = mountpoints; list; list = list->next) {
+                if (strcmp(list->value, mount->dirname) == 0) {
+                    break;
+                }
+            }
+            if (!list) {
+                continue;
+            }
+        }
+
         fd = qemu_open(mount->dirname, O_RDONLY);
         if (fd == -1) {
             error_setg_errno(errp, errno, "failed to open %s", mount->dirname);
@@ -1468,6 +1489,15 @@ GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
 }
 
 int64_t qmp_guest_fsfreeze_freeze(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+
+    return 0;
+}
+
+int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
+                                       strList *mountpoints,
+                                       Error **errp)
 {
     error_set(errp, QERR_UNSUPPORTED);
 
