@@ -53,6 +53,13 @@
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include "migration/migration.h"
+#ifdef __linux__
+#include <linux/fs.h>
+#include <sys/ioctl.h>
+#ifndef FS_NOCOW_FL
+#define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
+#endif
+#endif
 
 #if defined(CONFIG_UUID)
 #include <uuid/uuid.h>
@@ -683,6 +690,7 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
     VdiHeader header;
     size_t i;
     size_t bmap_size;
+    bool nocow = false;
 
     logout("\n");
 
@@ -699,6 +707,7 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
         image_type = VDI_TYPE_STATIC;
     }
 #endif
+    nocow = qemu_opt_get_bool_del(opts, BLOCK_OPT_NOCOW, false);
 
     if (bytes > VDI_DISK_SIZE_MAX) {
         result = -ENOTSUP;
@@ -714,6 +723,21 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
     if (fd < 0) {
         result = -errno;
         goto exit;
+    }
+
+    if (nocow) {
+#ifdef __linux__
+        /* Set NOCOW flag to solve performance issue on fs like btrfs.
+         * This is an optimisation. The FS_IOC_SETFLAGS ioctl return value will
+         * be ignored since any failure of this operation should not block the
+         * left work.
+         */
+        int attr;
+        if (ioctl(fd, FS_IOC_GETFLAGS, &attr) == 0) {
+            attr |= FS_NOCOW_FL;
+            ioctl(fd, FS_IOC_SETFLAGS, &attr);
+        }
+#endif
     }
 
     /* We need enough blocks to store the given disk size,
@@ -818,6 +842,11 @@ static QemuOptsList vdi_create_opts = {
             .def_value_str = "off"
         },
 #endif
+        {
+            .name = BLOCK_OPT_NOCOW,
+            .type = QEMU_OPT_BOOL,
+            .help = "Turn off copy-on-write (valid only on btrfs)"
+        },
         /* TODO: An additional option to set UUID values might be useful. */
         { /* end of list */ }
     }

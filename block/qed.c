@@ -567,7 +567,7 @@ static void bdrv_qed_close(BlockDriverState *bs)
 static int qed_create(const char *filename, uint32_t cluster_size,
                       uint64_t image_size, uint32_t table_size,
                       const char *backing_file, const char *backing_fmt,
-                      Error **errp)
+                      QemuOpts *opts, Error **errp)
 {
     QEDHeader header = {
         .magic = QED_MAGIC,
@@ -586,7 +586,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
     int ret = 0;
     BlockDriverState *bs;
 
-    ret = bdrv_create_file(filename, NULL, &local_err);
+    ret = bdrv_create_file(filename, opts, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return ret;
@@ -682,7 +682,7 @@ static int bdrv_qed_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     ret = qed_create(filename, cluster_size, image_size, table_size,
-                     backing_file, backing_fmt, errp);
+                     backing_file, backing_fmt, opts, errp);
 
 finish:
     g_free(backing_file);

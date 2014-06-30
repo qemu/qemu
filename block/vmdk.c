@@ -1529,7 +1529,7 @@ static int coroutine_fn vmdk_co_write_zeroes(BlockDriverState *bs,
 
 static int vmdk_create_extent(const char *filename, int64_t filesize,
                               bool flat, bool compress, bool zeroed_grain,
-                              Error **errp)
+                              QemuOpts *opts, Error **errp)
 {
     int ret, i;
     BlockDriverState *bs = NULL;
@@ -1539,7 +1539,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     uint32_t *gd_buf = NULL;
     int gd_buf_size;
 
-    ret = bdrv_create_file(filename, NULL, &local_err);
+    ret = bdrv_create_file(filename, opts, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto exit;
@@ -1845,7 +1845,7 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
                 path, desc_filename);
 
         if (vmdk_create_extent(ext_filename, size,
-                               flat, compress, zeroed_grain, errp)) {
+                               flat, compress, zeroed_grain, opts, errp)) {
             ret = -EINVAL;
             goto exit;
         }

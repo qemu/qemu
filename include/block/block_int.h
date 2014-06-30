@@ -54,6 +54,7 @@
 #define BLOCK_OPT_LAZY_REFCOUNTS    "lazy_refcounts"
 #define BLOCK_OPT_ADAPTER_TYPE      "adapter_type"
 #define BLOCK_OPT_REDUNDANCY        "redundancy"
+#define BLOCK_OPT_NOCOW             "nocow"
 
 typedef struct BdrvTrackedRequest {
     BlockDriverState *bs;
