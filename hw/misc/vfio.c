@@ -4062,7 +4062,7 @@ static void vfio_err_notifier_handler(void *opaque)
                  __func__, vdev->host.domain, vdev->host.bus,
                  vdev->host.slot, vdev->host.function);
 
-    vm_stop(RUN_STATE_IO_ERROR);
+    vm_stop(RUN_STATE_INTERNAL_ERROR);
 }
 
 /*
