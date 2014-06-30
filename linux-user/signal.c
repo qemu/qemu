@@ -4483,6 +4483,15 @@ struct target_rt_sigframe {
 
 #endif
 
+#if defined(TARGET_PPC64)
+
+struct target_func_ptr {
+    target_ulong entry;
+    target_ulong toc;
+};
+
+#endif
+
 /* We use the mc_pad field for the signal return trampoline.  */
 #define tramp mc_pad
 
@@ -4714,7 +4723,17 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     env->gpr[1] = newsp;
     env->gpr[3] = signal;
     env->gpr[4] = frame_addr + offsetof(struct target_sigframe, sctx);
+
+#if defined(TARGET_PPC64)
+    /* PPC64 function pointers are pointers to OPD entries. */
+    struct target_func_ptr *handler =
+        (struct target_func_ptr *)g2h(ka->_sa_handler);
+    env->nip = tswapl(handler->entry);
+    env->gpr[2] = tswapl(handler->toc);
+#else
     env->nip = (target_ulong) ka->_sa_handler;
+#endif
+
     /* Signal handlers are entered in big-endian mode.  */
     env->msr &= ~MSR_LE;
 
@@ -4793,7 +4812,17 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     env->gpr[4] = (target_ulong) h2g(&rt_sf->info);
     env->gpr[5] = (target_ulong) h2g(&rt_sf->uc);
     env->gpr[6] = (target_ulong) h2g(rt_sf);
+
+#if defined(TARGET_PPC64)
+    /* PPC64 function pointers are pointers to OPD entries.  */
+    struct target_func_ptr *handler =
+        (struct target_func_ptr *)g2h(ka->_sa_handler);
+    env->nip = tswapl(handler->entry);
+    env->gpr[2] = tswapl(handler->toc);
+#else
     env->nip = (target_ulong) ka->_sa_handler;
+#endif
+
     /* Signal handlers are entered in big-endian mode.  */
     env->msr &= ~MSR_LE;
 
