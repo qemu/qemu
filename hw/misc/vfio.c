@@ -1082,10 +1082,10 @@ static void vfio_bar_write(void *opaque, hwaddr addr,
         buf.byte = data;
         break;
     case 2:
-        buf.word = cpu_to_le16(data);
+        buf.word = data;
         break;
     case 4:
-        buf.dword = cpu_to_le32(data);
+        buf.dword = data;
         break;
     default:
         hw_error("vfio: unsupported write size, %d bytes", size);
@@ -1142,10 +1142,10 @@ static uint64_t vfio_bar_read(void *opaque,
         data = buf.byte;
         break;
     case 2:
-        data = le16_to_cpu(buf.word);
+        data = buf.word;
         break;
     case 4:
-        data = le32_to_cpu(buf.dword);
+        data = buf.dword;
         break;
     default:
         hw_error("vfio: unsupported read size, %d bytes", size);
@@ -1172,7 +1172,7 @@ static uint64_t vfio_bar_read(void *opaque,
 static const MemoryRegionOps vfio_bar_ops = {
     .read = vfio_bar_read,
     .write = vfio_bar_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void vfio_pci_load_rom(VFIODevice *vdev)
@@ -1234,21 +1234,42 @@ static void vfio_pci_load_rom(VFIODevice *vdev)
 static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
 {
     VFIODevice *vdev = opaque;
-    uint64_t val = ((uint64_t)1 << (size * 8)) - 1;
+    union {
+        uint8_t byte;
+        uint16_t word;
+        uint32_t dword;
+        uint64_t qword;
+    } buf;
+    uint64_t data = 0;
 
     /* Load the ROM lazily when the guest tries to read it */
     if (unlikely(!vdev->rom && !vdev->rom_read_failed)) {
         vfio_pci_load_rom(vdev);
     }
 
-    memcpy(&val, vdev->rom + addr,
+    memcpy(&buf, vdev->rom + addr,
            (addr < vdev->rom_size) ? MIN(size, vdev->rom_size - addr) : 0);
+
+    switch (size) {
+    case 1:
+        data = buf.byte;
+        break;
+    case 2:
+        data = buf.word;
+        break;
+    case 4:
+        data = buf.dword;
+        break;
+    default:
+        hw_error("vfio: unsupported read size, %d bytes", size);
+        break;
+    }
 
     DPRINTF("%s(%04x:%02x:%02x.%x, 0x%"HWADDR_PRIx", 0x%x) = 0x%"PRIx64"\n",
             __func__, vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function, addr, size, val);
+            vdev->host.function, addr, size, data);
 
-    return val;
+    return data;
 }
 
 static void vfio_rom_write(void *opaque, hwaddr addr,
@@ -1259,7 +1280,7 @@ static void vfio_rom_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps vfio_rom_ops = {
     .read = vfio_rom_read,
     .write = vfio_rom_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static bool vfio_blacklist_opt_rom(VFIODevice *vdev)
