@@ -121,6 +121,7 @@ typedef struct VFIOINTx {
 
 typedef struct VFIOMSIVector {
     EventNotifier interrupt; /* eventfd triggered on interrupt */
+    EventNotifier kvm_interrupt; /* eventfd triggered for KVM irqfd bypass */
     struct VFIODevice *vdev; /* back pointer to device */
     MSIMessage msg; /* cache the MSI message so we know when it changes */
     int virq; /* KVM irqchip route for QEMU bypass */
@@ -682,10 +683,11 @@ static int vfio_enable_vectors(VFIODevice *vdev, bool msix)
     for (i = 0; i < vdev->nr_vectors; i++) {
         if (!vdev->msi_vectors[i].use) {
             fds[i] = -1;
-            continue;
+        } else if (vdev->msi_vectors[i].virq >= 0) {
+            fds[i] = event_notifier_get_fd(&vdev->msi_vectors[i].kvm_interrupt);
+        } else {
+            fds[i] = event_notifier_get_fd(&vdev->msi_vectors[i].interrupt);
         }
-
-        fds[i] = event_notifier_get_fd(&vdev->msi_vectors[i].interrupt);
     }
 
     ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
@@ -693,6 +695,52 @@ static int vfio_enable_vectors(VFIODevice *vdev, bool msix)
     g_free(irq_set);
 
     return ret;
+}
+
+static void vfio_add_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage *msg,
+                                  bool msix)
+{
+    int virq;
+
+    if ((msix && !VFIO_ALLOW_KVM_MSIX) ||
+        (!msix && !VFIO_ALLOW_KVM_MSI) || !msg) {
+        return;
+    }
+
+    if (event_notifier_init(&vector->kvm_interrupt, 0)) {
+        return;
+    }
+
+    virq = kvm_irqchip_add_msi_route(kvm_state, *msg);
+    if (virq < 0) {
+        event_notifier_cleanup(&vector->kvm_interrupt);
+        return;
+    }
+
+    if (kvm_irqchip_add_irqfd_notifier(kvm_state, &vector->kvm_interrupt,
+                                       NULL, virq) < 0) {
+        kvm_irqchip_release_virq(kvm_state, virq);
+        event_notifier_cleanup(&vector->kvm_interrupt);
+        return;
+    }
+
+    vector->msg = *msg;
+    vector->virq = virq;
+}
+
+static void vfio_remove_kvm_msi_virq(VFIOMSIVector *vector)
+{
+    kvm_irqchip_remove_irqfd_notifier(kvm_state, &vector->kvm_interrupt,
+                                      vector->virq);
+    kvm_irqchip_release_virq(kvm_state, vector->virq);
+    vector->virq = -1;
+    event_notifier_cleanup(&vector->kvm_interrupt);
+}
+
+static void vfio_update_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage msg)
+{
+    kvm_irqchip_update_msi_route(kvm_state, vector->virq, msg);
+    vector->msg = msg;
 }
 
 static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
@@ -707,30 +755,32 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
             vdev->host.function, nr);
 
     vector = &vdev->msi_vectors[nr];
-    vector->vdev = vdev;
-    vector->use = true;
 
-    msix_vector_use(pdev, nr);
-
-    if (event_notifier_init(&vector->interrupt, 0)) {
-        error_report("vfio: Error: event_notifier_init failed");
+    if (!vector->use) {
+        vector->vdev = vdev;
+        vector->virq = -1;
+        if (event_notifier_init(&vector->interrupt, 0)) {
+            error_report("vfio: Error: event_notifier_init failed");
+        }
+        vector->use = true;
+        msix_vector_use(pdev, nr);
     }
+
+    qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
+                        handler, NULL, vector);
 
     /*
      * Attempt to enable route through KVM irqchip,
      * default to userspace handling if unavailable.
      */
-    vector->virq = msg && VFIO_ALLOW_KVM_MSIX ?
-                   kvm_irqchip_add_msi_route(kvm_state, *msg) : -1;
-    if (vector->virq < 0 ||
-        kvm_irqchip_add_irqfd_notifier(kvm_state, &vector->interrupt,
-                                       NULL, vector->virq) < 0) {
-        if (vector->virq >= 0) {
-            kvm_irqchip_release_virq(kvm_state, vector->virq);
-            vector->virq = -1;
+    if (vector->virq >= 0) {
+        if (!msg) {
+            vfio_remove_kvm_msi_virq(vector);
+        } else {
+            vfio_update_kvm_msi_virq(vector, *msg);
         }
-        qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
-                            handler, NULL, vector);
+    } else {
+        vfio_add_kvm_msi_virq(vector, msg, true);
     }
 
     /*
@@ -761,7 +811,11 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
         irq_set->count = 1;
         pfd = (int32_t *)&irq_set->data;
 
-        *pfd = event_notifier_get_fd(&vector->interrupt);
+        if (vector->virq >= 0) {
+            *pfd = event_notifier_get_fd(&vector->kvm_interrupt);
+        } else {
+            *pfd = event_notifier_get_fd(&vector->interrupt);
+        }
 
         ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
         g_free(irq_set);
@@ -783,50 +837,41 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
 {
     VFIODevice *vdev = DO_UPCAST(VFIODevice, pdev, pdev);
     VFIOMSIVector *vector = &vdev->msi_vectors[nr];
-    int argsz;
-    struct vfio_irq_set *irq_set;
-    int32_t *pfd;
 
     DPRINTF("%s(%04x:%02x:%02x.%x) vector %d released\n", __func__,
             vdev->host.domain, vdev->host.bus, vdev->host.slot,
             vdev->host.function, nr);
 
     /*
-     * XXX What's the right thing to do here?  This turns off the interrupt
-     * completely, but do we really just want to switch the interrupt to
-     * bouncing through userspace and let msix.c drop it?  Not sure.
+     * There are still old guests that mask and unmask vectors on every
+     * interrupt.  If we're using QEMU bypass with a KVM irqfd, leave all of
+     * the KVM setup in place, simply switch VFIO to use the non-bypass
+     * eventfd.  We'll then fire the interrupt through QEMU and the MSI-X
+     * core will mask the interrupt and set pending bits, allowing it to
+     * be re-asserted on unmask.  Nothing to do if already using QEMU mode.
      */
-    msix_vector_unuse(pdev, nr);
+    if (vector->virq >= 0) {
+        int argsz;
+        struct vfio_irq_set *irq_set;
+        int32_t *pfd;
 
-    argsz = sizeof(*irq_set) + sizeof(*pfd);
+        argsz = sizeof(*irq_set) + sizeof(*pfd);
 
-    irq_set = g_malloc0(argsz);
-    irq_set->argsz = argsz;
-    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
-                     VFIO_IRQ_SET_ACTION_TRIGGER;
-    irq_set->index = VFIO_PCI_MSIX_IRQ_INDEX;
-    irq_set->start = nr;
-    irq_set->count = 1;
-    pfd = (int32_t *)&irq_set->data;
+        irq_set = g_malloc0(argsz);
+        irq_set->argsz = argsz;
+        irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
+                         VFIO_IRQ_SET_ACTION_TRIGGER;
+        irq_set->index = VFIO_PCI_MSIX_IRQ_INDEX;
+        irq_set->start = nr;
+        irq_set->count = 1;
+        pfd = (int32_t *)&irq_set->data;
 
-    *pfd = -1;
+        *pfd = event_notifier_get_fd(&vector->interrupt);
 
-    ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
+        ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
 
-    g_free(irq_set);
-
-    if (vector->virq < 0) {
-        qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
-                            NULL, NULL, NULL);
-    } else {
-        kvm_irqchip_remove_irqfd_notifier(kvm_state, &vector->interrupt,
-                                          vector->virq);
-        kvm_irqchip_release_virq(kvm_state, vector->virq);
-        vector->virq = -1;
+        g_free(irq_set);
     }
-
-    event_notifier_cleanup(&vector->interrupt);
-    vector->use = false;
 }
 
 static void vfio_enable_msix(VFIODevice *vdev)
@@ -876,11 +921,15 @@ retry:
         VFIOMSIVector *vector = &vdev->msi_vectors[i];
 
         vector->vdev = vdev;
+        vector->virq = -1;
         vector->use = true;
 
         if (event_notifier_init(&vector->interrupt, 0)) {
             error_report("vfio: Error: event_notifier_init failed");
         }
+
+        qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
+                            vfio_msi_interrupt, NULL, vector);
 
         vector->msg = msi_get_message(&vdev->pdev, i);
 
@@ -888,15 +937,11 @@ retry:
          * Attempt to enable route through KVM irqchip,
          * default to userspace handling if unavailable.
          */
-        vector->virq = VFIO_ALLOW_KVM_MSI ?
-                       kvm_irqchip_add_msi_route(kvm_state, vector->msg) : -1;
-        if (vector->virq < 0 ||
-            kvm_irqchip_add_irqfd_notifier(kvm_state, &vector->interrupt,
-                                           NULL, vector->virq) < 0) {
-            qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
-                                vfio_msi_interrupt, NULL, vector);
-        }
+        vfio_add_kvm_msi_virq(vector, &vector->msg, false);
     }
+
+    /* Set interrupt type prior to possible interrupts */
+    vdev->interrupt = VFIO_INT_MSI;
 
     ret = vfio_enable_vectors(vdev, false);
     if (ret) {
@@ -910,14 +955,10 @@ retry:
         for (i = 0; i < vdev->nr_vectors; i++) {
             VFIOMSIVector *vector = &vdev->msi_vectors[i];
             if (vector->virq >= 0) {
-                kvm_irqchip_remove_irqfd_notifier(kvm_state, &vector->interrupt,
-                                                  vector->virq);
-                kvm_irqchip_release_virq(kvm_state, vector->virq);
-                vector->virq = -1;
-            } else {
-                qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
-                                    NULL, NULL, NULL);
+                vfio_remove_kvm_msi_virq(vector);
             }
+            qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
+                                NULL, NULL, NULL);
             event_notifier_cleanup(&vector->interrupt);
         }
 
@@ -929,10 +970,16 @@ retry:
         }
         vdev->nr_vectors = 0;
 
+        /*
+         * Failing to setup MSI doesn't really fall within any specification.
+         * Let's try leaving interrupts disabled and hope the guest figures
+         * out to fall back to INTx for this device.
+         */
+        error_report("vfio: Error: Failed to enable MSI");
+        vdev->interrupt = VFIO_INT_NONE;
+
         return;
     }
-
-    vdev->interrupt = VFIO_INT_MSI;
 
     DPRINTF("%s(%04x:%02x:%02x.%x) Enabled %d MSI vectors\n", __func__,
             vdev->host.domain, vdev->host.bus, vdev->host.slot,
@@ -941,6 +988,20 @@ retry:
 
 static void vfio_disable_msi_common(VFIODevice *vdev)
 {
+    int i;
+
+    for (i = 0; i < vdev->nr_vectors; i++) {
+        VFIOMSIVector *vector = &vdev->msi_vectors[i];
+        if (vdev->msi_vectors[i].use) {
+            if (vector->virq >= 0) {
+                vfio_remove_kvm_msi_virq(vector);
+            }
+            qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
+                                NULL, NULL, NULL);
+            event_notifier_cleanup(&vector->interrupt);
+        }
+    }
+
     g_free(vdev->msi_vectors);
     vdev->msi_vectors = NULL;
     vdev->nr_vectors = 0;
@@ -962,6 +1023,7 @@ static void vfio_disable_msix(VFIODevice *vdev)
     for (i = 0; i < vdev->nr_vectors; i++) {
         if (vdev->msi_vectors[i].use) {
             vfio_msix_vector_release(&vdev->pdev, i);
+            msix_vector_unuse(&vdev->pdev, i);
         }
     }
 
@@ -977,30 +1039,7 @@ static void vfio_disable_msix(VFIODevice *vdev)
 
 static void vfio_disable_msi(VFIODevice *vdev)
 {
-    int i;
-
     vfio_disable_irqindex(vdev, VFIO_PCI_MSI_IRQ_INDEX);
-
-    for (i = 0; i < vdev->nr_vectors; i++) {
-        VFIOMSIVector *vector = &vdev->msi_vectors[i];
-
-        if (!vector->use) {
-            continue;
-        }
-
-        if (vector->virq >= 0) {
-            kvm_irqchip_remove_irqfd_notifier(kvm_state,
-                                              &vector->interrupt, vector->virq);
-            kvm_irqchip_release_virq(kvm_state, vector->virq);
-            vector->virq = -1;
-        } else {
-            qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
-                                NULL, NULL, NULL);
-        }
-
-        event_notifier_cleanup(&vector->interrupt);
-    }
-
     vfio_disable_msi_common(vdev);
 
     DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
@@ -1020,17 +1059,7 @@ static void vfio_update_msi(VFIODevice *vdev)
         }
 
         msg = msi_get_message(&vdev->pdev, i);
-
-        if (msg.address != vector->msg.address ||
-            msg.data != vector->msg.data) {
-
-            DPRINTF("%s(%04x:%02x:%02x.%x) MSI vector %d changed\n",
-                    __func__, vdev->host.domain, vdev->host.bus,
-                    vdev->host.slot, vdev->host.function, i);
-
-            kvm_irqchip_update_msi_route(kvm_state, vector->virq, msg);
-            vector->msg = msg;
-        }
+        vfio_update_kvm_msi_virq(vector, msg);
     }
 }
 
