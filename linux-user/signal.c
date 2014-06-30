@@ -4751,7 +4751,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     /* Create a stack frame for the caller of the handler.  */
     newsp = rt_sf_addr - (SIGNAL_FRAMESIZE + 16);
-    __put_user(env->gpr[1], (target_ulong *)(uintptr_t) newsp);
+    err |= put_user(env->gpr[1], newsp, target_ulong);
 
     if (err)
         goto sigsegv;
