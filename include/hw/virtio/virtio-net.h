@@ -258,7 +258,6 @@ struct virtio_net_ctrl_mq {
  #define VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET        0
 
 #define DEFINE_VIRTIO_NET_FEATURES(_state, _field) \
-        DEFINE_VIRTIO_COMMON_FEATURES(_state, _field), \
         DEFINE_PROP_BIT("any_layout", _state, _field, VIRTIO_F_ANY_LAYOUT, true), \
         DEFINE_PROP_BIT("csum", _state, _field, VIRTIO_NET_F_CSUM, true), \
         DEFINE_PROP_BIT("guest_csum", _state, _field, VIRTIO_NET_F_GUEST_CSUM, true), \
