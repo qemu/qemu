@@ -4491,8 +4491,7 @@ static target_ulong get_sigframe(struct target_sigaction *ka,
     return newsp;
 }
 
-static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame,
-                          int sigret)
+static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame)
 {
     target_ulong msr = env->msr;
     int i;
@@ -4559,11 +4558,14 @@ static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame,
 
     /* Store MSR.  */
     __put_user(msr, &frame->mc_gregs[TARGET_PT_MSR]);
+}
 
+static void encode_trampoline(int sigret, uint32_t *tramp)
+{
     /* Set up the sigreturn trampoline: li r0,sigret; sc.  */
     if (sigret) {
-        __put_user(0x38000000UL | sigret, &frame->tramp[0]);
-        __put_user(0x44000002UL, &frame->tramp[1]);
+        __put_user(0x38000000 | sigret, &tramp[0]);
+        __put_user(0x44000002, &tramp[1]);
     }
 }
 
@@ -4674,7 +4676,10 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     __put_user(sig, &sc->signal);
 
     /* Save user regs.  */
-    save_user_regs(env, &frame->mctx, TARGET_NR_sigreturn);
+    save_user_regs(env, &frame->mctx);
+
+    /* Construct the trampoline code on the stack. */
+    encode_trampoline(TARGET_NR_sigreturn, (uint32_t *)&frame->mctx.tramp);
 
     /* The kernel checks for the presence of a VDSO here.  We don't
        emulate a vdso, so use a sigreturn system call.  */
@@ -4740,7 +4745,8 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     }
 
     frame = &rt_sf->uc.tuc_mcontext;
-    save_user_regs(env, frame, TARGET_NR_rt_sigreturn);
+    save_user_regs(env, frame);
+    encode_trampoline(TARGET_NR_rt_sigreturn, (uint32_t *)&frame->tramp);
 
     /* The kernel checks for the presence of a VDSO here.  We don't
        emulate a vdso, so use a sigreturn system call.  */
