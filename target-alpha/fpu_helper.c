@@ -55,10 +55,8 @@ static uint32_t soft_to_fpcr_exc(CPUAlphaState *env)
 }
 
 static void fp_exc_raise1(CPUAlphaState *env, uintptr_t retaddr,
-                          uint32_t exc, uint32_t regno)
+                          uint32_t exc, uint32_t regno, uint32_t hw_exc)
 {
-    uint32_t hw_exc = 0;
-
     hw_exc |= CONVERT_BIT(exc, FPCR_INV, EXC_M_INV);
     hw_exc |= CONVERT_BIT(exc, FPCR_DZE, EXC_M_DZE);
     hw_exc |= CONVERT_BIT(exc, FPCR_OVF, EXC_M_FOV);
@@ -79,7 +77,7 @@ void helper_fp_exc_raise(CPUAlphaState *env, uint32_t ignore, uint32_t regno)
         env->fpcr |= exc;
         exc &= ~ignore;
         if (exc) {
-            fp_exc_raise1(env, GETPC(), exc, regno);
+            fp_exc_raise1(env, GETPC(), exc, regno, 0);
         }
     }
 }
@@ -93,7 +91,7 @@ void helper_fp_exc_raise_s(CPUAlphaState *env, uint32_t ignore, uint32_t regno)
         exc &= ~ignore;
         if (exc) {
             exc &= env->fpcr_exc_enable;
-            fp_exc_raise1(env, GETPC(), exc, regno);
+            fp_exc_raise1(env, GETPC(), exc, regno, EXC_M_SWC);
         }
     }
 }
