@@ -152,6 +152,12 @@ void qmp_guest_file_flush(int64_t handle, Error **errp)
     error_set(errp, QERR_UNSUPPORTED);
 }
 
+GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
 /*
  * Return status of freeze/thaw
  */
