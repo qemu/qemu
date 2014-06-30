@@ -446,10 +446,40 @@ int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
     return -1;
 }
 
+/* add unsupported commands to the blacklist */
+GList *ga_command_blacklist_init(GList *blacklist)
+{
+    const char *list_unsupported[] = {
+        "guest-file-open", "guest-file-close", "guest-file-read",
+        "guest-file-write", "guest-file-seek", "guest-file-flush",
+        "guest-suspend-hybrid", "guest-network-get-interfaces",
+        "guest-get-vcpus", "guest-set-vcpus",
+        "guest-fsfreeze-freeze-list", "guest-get-fsinfo",
+        "guest-fstrim", NULL};
+    char **p = (char **)list_unsupported;
+
+    while (*p) {
+        blacklist = g_list_append(blacklist, *p++);
+    }
+
+    if (!vss_init(true)) {
+        const char *list[] = {
+            "guest-get-fsinfo", "guest-fsfreeze-status",
+            "guest-fsfreeze-freeze", "guest-fsfreeze-thaw", NULL};
+        p = (char **)list;
+
+        while (*p) {
+            blacklist = g_list_append(blacklist, *p++);
+        }
+    }
+
+    return blacklist;
+}
+
 /* register init/cleanup routines for stateful command groups */
 void ga_command_state_init(GAState *s, GACommandState *cs)
 {
-    if (vss_init(true)) {
+    if (!vss_initialized()) {
         ga_command_state_add(cs, NULL, guest_fsfreeze_cleanup);
     }
 }

@@ -1955,6 +1955,44 @@ void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 }
 #endif
 
+/* add unsupported commands to the blacklist */
+GList *ga_command_blacklist_init(GList *blacklist)
+{
+#if !defined(__linux__)
+    {
+        const char *list[] = {
+            "guest-suspend-disk", "guest-suspend-ram",
+            "guest-suspend-hybrid", "guest-network-get-interfaces",
+            "guest-get-vcpus", "guest-set-vcpus", NULL};
+        char **p = (char **)list;
+
+        while (*p) {
+            blacklist = g_list_append(blacklist, *p++);
+        }
+    }
+#endif
+
+#if !defined(CONFIG_FSFREEZE)
+    {
+        const char *list[] = {
+            "guest-get-fsinfo", "guest-fsfreeze-status",
+            "guest-fsfreeze-freeze", "guest-fsfreeze-freeze-list",
+            "guest-fsfreeze-thaw", "guest-get-fsinfo", NULL};
+        char **p = (char **)list;
+
+        while (*p) {
+            blacklist = g_list_append(blacklist, *p++);
+        }
+    }
+#endif
+
+#if !defined(CONFIG_FSTRIM)
+    blacklist = g_list_append(blacklist, (char *)"guest-fstrim");
+#endif
+
+    return blacklist;
+}
+
 /* register init/cleanup routines for stateful command groups */
 void ga_command_state_init(GAState *s, GACommandState *cs)
 {
