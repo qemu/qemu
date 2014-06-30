@@ -200,6 +200,7 @@ static void sch_handle_halt_func(SubchDev *sch)
 
     PMCW *p = &sch->curr_status.pmcw;
     SCSW *s = &sch->curr_status.scsw;
+    hwaddr curr_ccw = sch->channel_prog;
     int path;
 
     /* Path management: In our simple css, we always choose the only path. */
@@ -215,6 +216,10 @@ static void sch_handle_halt_func(SubchDev *sch)
         !((s->ctrl & SCSW_ACTL_START_PEND) ||
           (s->ctrl & SCSW_ACTL_SUSP))) {
         s->dstat = SCSW_DSTAT_DEVICE_END;
+    }
+    if ((s->ctrl & (SCSW_ACTL_SUBCH_ACTIVE | SCSW_ACTL_DEVICE_ACTIVE)) ||
+        (s->ctrl & SCSW_ACTL_SUSP)) {
+        s->cpa = curr_ccw + 8;
     }
     s->cstat = 0;
     p->lpum = path;
@@ -398,6 +403,7 @@ static void sch_handle_start_func(SubchDev *sch, ORB *orb)
             s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
                     SCSW_STCTL_STATUS_PEND;
             s->dstat = SCSW_DSTAT_CHANNEL_END | SCSW_DSTAT_DEVICE_END;
+            s->cpa = sch->channel_prog + 8;
             break;
         case -ENOSYS:
             /* unsupported command, generate unit check (command reject) */
@@ -408,6 +414,7 @@ static void sch_handle_start_func(SubchDev *sch, ORB *orb)
             s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
             s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
                     SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
+            s->cpa = sch->channel_prog + 8;
             break;
         case -EFAULT:
             /* memory problem, generate channel data check */
@@ -416,6 +423,7 @@ static void sch_handle_start_func(SubchDev *sch, ORB *orb)
             s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
             s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
                     SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
+            s->cpa = sch->channel_prog + 8;
             break;
         case -EBUSY:
             /* subchannel busy, generate deferred cc 1 */
@@ -436,6 +444,7 @@ static void sch_handle_start_func(SubchDev *sch, ORB *orb)
             s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
             s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
                     SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
+            s->cpa = sch->channel_prog + 8;
             break;
         }
     } while (ret == -EAGAIN);
