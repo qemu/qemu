@@ -301,6 +301,14 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
             exit(1);
         }
 
+        if (memory_region_is_mapped(seg)) {
+            char *path = object_get_canonical_path_component(OBJECT(backend));
+            error_report("memory backend %s is used multiple times. Each "
+                         "-numa option must use a different memdev value.",
+                         path);
+            exit(1);
+        }
+
         memory_region_add_subregion(mr, addr, seg);
         vmstate_register_ram_global(seg);
         addr += size;
