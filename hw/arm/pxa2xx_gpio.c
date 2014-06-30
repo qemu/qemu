@@ -36,7 +36,6 @@ struct PXA2xxGPIOInfo {
     uint32_t rising[PXA2XX_GPIO_BANKS];
     uint32_t falling[PXA2XX_GPIO_BANKS];
     uint32_t status[PXA2XX_GPIO_BANKS];
-    uint32_t gpsr[PXA2XX_GPIO_BANKS];
     uint32_t gafr[PXA2XX_GPIO_BANKS * 2];
 
     uint32_t prev_level[PXA2XX_GPIO_BANKS];
@@ -162,14 +161,14 @@ static uint64_t pxa2xx_gpio_read(void *opaque, hwaddr offset,
         return s->dir[bank];
 
     case GPSR:		/* GPIO Pin-Output Set registers */
-        printf("%s: Read from a write-only register " REG_FMT "\n",
-                        __FUNCTION__, offset);
-        return s->gpsr[bank];	/* Return last written value.  */
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pxa2xx GPIO: read from write only register GPSR\n");
+        return 0;
 
     case GPCR:		/* GPIO Pin-Output Clear registers */
-        printf("%s: Read from a write-only register " REG_FMT "\n",
-                        __FUNCTION__, offset);
-        return 31337;		/* Specified as unpredictable in the docs.  */
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pxa2xx GPIO: read from write only register GPCR\n");
+        return 0;
 
     case GRER:		/* GPIO Rising-Edge Detect Enable registers */
         return s->rising[bank];
@@ -217,7 +216,6 @@ static void pxa2xx_gpio_write(void *opaque, hwaddr offset,
     case GPSR:		/* GPIO Pin-Output Set registers */
         s->olevel[bank] |= value;
         pxa2xx_gpio_handler_update(s);
-        s->gpsr[bank] = value;
         break;
 
     case GPCR:		/* GPIO Pin-Output Clear registers */
@@ -314,7 +312,6 @@ static const VMStateDescription vmstate_pxa2xx_gpio_regs = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_INT32(lines, PXA2xxGPIOInfo),
         VMSTATE_UINT32_ARRAY(ilevel, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
         VMSTATE_UINT32_ARRAY(olevel, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
         VMSTATE_UINT32_ARRAY(dir, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
@@ -322,6 +319,7 @@ static const VMStateDescription vmstate_pxa2xx_gpio_regs = {
         VMSTATE_UINT32_ARRAY(falling, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
         VMSTATE_UINT32_ARRAY(status, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
         VMSTATE_UINT32_ARRAY(gafr, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS * 2),
+        VMSTATE_UINT32_ARRAY(prev_level, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
         VMSTATE_END_OF_LIST(),
     },
 };
@@ -340,6 +338,7 @@ static void pxa2xx_gpio_class_init(ObjectClass *klass, void *data)
     k->init = pxa2xx_gpio_initfn;
     dc->desc = "PXA2xx GPIO controller";
     dc->props = pxa2xx_gpio_properties;
+    dc->vmsd = &vmstate_pxa2xx_gpio_regs;
 }
 
 static const TypeInfo pxa2xx_gpio_info = {

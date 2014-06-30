@@ -1369,7 +1369,7 @@ int Disassembler::SubstituteImmediateField(Instruction* instr,
         VIXL_ASSERT(format[5] == 'L');
         AppendToOutput("#0x%" PRIx64, instr->ImmMoveWide());
         if (instr->ShiftMoveWide() > 0) {
-          AppendToOutput(", lsl #%d", 16 * instr->ShiftMoveWide());
+          AppendToOutput(", lsl #%" PRId64, 16 * instr->ShiftMoveWide());
         }
       }
       return 8;
@@ -1418,7 +1418,7 @@ int Disassembler::SubstituteImmediateField(Instruction* instr,
     }
     case 'F': {  // IFPSingle, IFPDouble or IFPFBits.
       if (format[3] == 'F') {  // IFPFbits.
-        AppendToOutput("#%d", 64 - instr->FPScale());
+        AppendToOutput("#%" PRId64, 64 - instr->FPScale());
         return 8;
       } else {
         AppendToOutput("#0x%" PRIx64 " (%.4f)", instr->ImmFP(),
@@ -1439,23 +1439,23 @@ int Disassembler::SubstituteImmediateField(Instruction* instr,
       return 5;
     }
     case 'P': {  // IP - Conditional compare.
-      AppendToOutput("#%d", instr->ImmCondCmp());
+      AppendToOutput("#%" PRId64, instr->ImmCondCmp());
       return 2;
     }
     case 'B': {  // Bitfields.
       return SubstituteBitfieldImmediateField(instr, format);
     }
     case 'E': {  // IExtract.
-      AppendToOutput("#%d", instr->ImmS());
+      AppendToOutput("#%" PRId64, instr->ImmS());
       return 8;
     }
     case 'S': {  // IS - Test and branch bit.
-      AppendToOutput("#%d", (instr->ImmTestBranchBit5() << 5) |
-                            instr->ImmTestBranchBit40());
+      AppendToOutput("#%" PRId64, (instr->ImmTestBranchBit5() << 5) |
+                                  instr->ImmTestBranchBit40());
       return 2;
     }
     case 'D': {  // IDebug - HLT and BRK instructions.
-      AppendToOutput("#0x%x", instr->ImmException());
+      AppendToOutput("#0x%" PRIx64, instr->ImmException());
       return 6;
     }
     default: {
@@ -1626,12 +1626,12 @@ int Disassembler::SubstituteExtendField(Instruction* instr,
       (((instr->ExtendMode() == UXTW) && (instr->SixtyFourBits() == 0)) ||
        (instr->ExtendMode() == UXTX))) {
     if (instr->ImmExtendShift() > 0) {
-      AppendToOutput(", lsl #%d", instr->ImmExtendShift());
+      AppendToOutput(", lsl #%" PRId64, instr->ImmExtendShift());
     }
   } else {
     AppendToOutput(", %s", extend_mode[instr->ExtendMode()]);
     if (instr->ImmExtendShift() > 0) {
-      AppendToOutput(" #%d", instr->ImmExtendShift());
+      AppendToOutput(" #%" PRId64, instr->ImmExtendShift());
     }
   }
   return 3;
@@ -1660,7 +1660,7 @@ int Disassembler::SubstituteLSRegOffsetField(Instruction* instr,
   if (!((ext == UXTX) && (shift == 0))) {
     AppendToOutput(", %s", extend_mode[ext]);
     if (shift != 0) {
-      AppendToOutput(" #%d", instr->SizeLS());
+      AppendToOutput(" #%" PRId64, instr->SizeLS());
     }
   }
   return 9;
