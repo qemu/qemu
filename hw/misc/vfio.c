@@ -642,9 +642,9 @@ static void vfio_msi_interrupt(void *opaque)
     MSIMessage msg;
 
     if (vdev->interrupt == VFIO_INT_MSIX) {
-        msg = msi_get_message(&vdev->pdev, nr);
-    } else if (vdev->interrupt == VFIO_INT_MSI) {
         msg = msix_get_message(&vdev->pdev, nr);
+    } else if (vdev->interrupt == VFIO_INT_MSI) {
+        msg = msi_get_message(&vdev->pdev, nr);
     } else {
         abort();
     }
