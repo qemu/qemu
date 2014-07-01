@@ -1353,6 +1353,45 @@ Example:
 EQMP
 
     {
+        .name       = "change-backing-file",
+        .args_type  = "device:s,image-node-name:s,backing-file:s",
+        .mhandler.cmd_new = qmp_marshal_input_change_backing_file,
+    },
+
+SQMP
+change-backing-file
+-------------------
+Since: 2.1
+
+Change the backing file in the image file metadata.  This does not cause
+QEMU to reopen the image file to reparse the backing filename (it may,
+however, perform a reopen to change permissions from r/o -> r/w -> r/o,
+if needed). The new backing file string is written into the image file
+metadata, and the QEMU internal strings are updated.
+
+Arguments:
+
+- "image-node-name":    The name of the block driver state node of the
+                        image to modify.  The "device" is argument is used to
+                        verify "image-node-name" is in the chain described by
+                        "device".
+                        (json-string, optional)
+
+- "device":             The name of the device.
+                        (json-string)
+
+- "backing-file":       The string to write as the backing file.  This string is
+                        not validated, so care should be taken when specifying
+                        the string or the image chain may not be able to be
+                        reopened again.
+                        (json-string)
+
+Returns: Nothing on success
+         If "device" does not exist or cannot be determined, DeviceNotFound
+
+EQMP
+
+    {
         .name       = "balloon",
         .args_type  = "value:M",
         .mhandler.cmd_new = qmp_marshal_input_balloon,
