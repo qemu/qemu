@@ -1712,6 +1712,19 @@ else
 fi
 
 ##########################################
+# L2TPV3 probe
+
+cat > $TMPC <<EOF
+#include <sys/socket.h>
+int main(void) { return sizeof(struct mmsghdr); }
+EOF
+if compile_prog "" "" ; then
+  l2tpv3=yes
+else
+  l2tpv3=no
+fi
+
+##########################################
 # pkg-config probe
 
 if ! has "$pkg_config_exe"; then
@@ -4342,6 +4355,9 @@ if test "$vde" = "yes" ; then
 fi
 if test "$netmap" = "yes" ; then
   echo "CONFIG_NETMAP=y" >> $config_host_mak
+fi
+if test "$l2tpv3" = "yes" ; then
+  echo "CONFIG_L2TPV3=y" >> $config_host_mak
 fi
 if test "$cap_ng" = "yes" ; then
   echo "CONFIG_LIBCAP=y" >> $config_host_mak
