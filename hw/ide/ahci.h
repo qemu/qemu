@@ -201,6 +201,8 @@
 
 #define AHCI_COMMAND_TABLE_ACMD            0x40
 
+#define AHCI_PRDT_SIZE_MASK                0x3fffff
+
 #define IDE_FEATURE_DMA                    1
 
 #define READ_FPDMA_QUEUED                  0x60

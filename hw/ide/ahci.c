@@ -639,6 +639,11 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
     }
 }
 
+static int prdt_tbl_entry_size(const AHCI_SG *tbl)
+{
+    return (le32_to_cpu(tbl->flags_size) & AHCI_PRDT_SIZE_MASK) + 1;
+}
+
 static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist, int offset)
 {
     AHCICmdHdr *cmd = ad->cur_cmd;
@@ -681,7 +686,7 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist, int offset)
         sum = 0;
         for (i = 0; i < sglist_alloc_hint; i++) {
             /* flags_size is zero-based */
-            tbl_entry_size = (le32_to_cpu(tbl[i].flags_size) + 1);
+            tbl_entry_size = prdt_tbl_entry_size(&tbl[i]);
             if (offset <= (sum + tbl_entry_size)) {
                 off_idx = i;
                 off_pos = offset - sum;
@@ -700,12 +705,12 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist, int offset)
         qemu_sglist_init(sglist, qbus->parent, (sglist_alloc_hint - off_idx),
                          ad->hba->as);
         qemu_sglist_add(sglist, le64_to_cpu(tbl[off_idx].addr + off_pos),
-                        le32_to_cpu(tbl[off_idx].flags_size) + 1 - off_pos);
+                        prdt_tbl_entry_size(&tbl[off_idx]) - off_pos);
 
         for (i = off_idx + 1; i < sglist_alloc_hint; i++) {
             /* flags_size is zero-based */
             qemu_sglist_add(sglist, le64_to_cpu(tbl[i].addr),
-                            le32_to_cpu(tbl[i].flags_size) + 1);
+                            prdt_tbl_entry_size(&tbl[i]));
         }
     }
 
