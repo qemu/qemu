@@ -65,7 +65,6 @@ enum {
     /* Jump and branches */
     OPC_J        = (0x02 << 26),
     OPC_JAL      = (0x03 << 26),
-    OPC_JALS     = OPC_JAL | 0x5,
     OPC_BEQ      = (0x04 << 26),  /* Unconditional if rs = rt = 0 (B) */
     OPC_BEQL     = (0x14 << 26),
     OPC_BNE      = (0x05 << 26),
@@ -74,9 +73,8 @@ enum {
     OPC_BLEZL    = (0x16 << 26),
     OPC_BGTZ     = (0x07 << 26),
     OPC_BGTZL    = (0x17 << 26),
-    OPC_JALX     = (0x1D << 26),  /* MIPS 16 only */
+    OPC_JALX     = (0x1D << 26),
     OPC_DAUI     = (0x1D << 26),
-    OPC_JALXS    = OPC_JALX | 0x5,
     /* Load and stores */
     OPC_LDL      = (0x1A << 26),
     OPC_LDR      = (0x1B << 26),
@@ -219,8 +217,6 @@ enum {
     /* Jumps */
     OPC_JR       = 0x08 | OPC_SPECIAL, /* Also JR.HB */
     OPC_JALR     = 0x09 | OPC_SPECIAL, /* Also JALR.HB */
-    OPC_JALRC    = OPC_JALR | (0x5 << 6),
-    OPC_JALRS    = 0x10 | OPC_SPECIAL | (0x5 << 6),
     /* Traps */
     OPC_TGE      = 0x30 | OPC_SPECIAL,
     OPC_TGEU     = 0x31 | OPC_SPECIAL,
@@ -317,10 +313,8 @@ enum {
     OPC_BGEZ     = (0x01 << 16) | OPC_REGIMM,
     OPC_BGEZL    = (0x03 << 16) | OPC_REGIMM,
     OPC_BLTZAL   = (0x10 << 16) | OPC_REGIMM,
-    OPC_BLTZALS  = OPC_BLTZAL | 0x5, /* microMIPS */
     OPC_BLTZALL  = (0x12 << 16) | OPC_REGIMM,
     OPC_BGEZAL   = (0x11 << 16) | OPC_REGIMM,
-    OPC_BGEZALS  = OPC_BGEZAL | 0x5, /* microMIPS */
     OPC_BGEZALL  = (0x13 << 16) | OPC_REGIMM,
     OPC_TGEI     = (0x08 << 16) | OPC_REGIMM,
     OPC_TGEIU    = (0x09 << 16) | OPC_REGIMM,
@@ -4137,7 +4131,8 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 /* Branches (before delay slot) */
 static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
                                 int insn_bytes,
-                                int rs, int rt, int32_t offset)
+                                int rs, int rt, int32_t offset,
+                                int delayslot_size)
 {
     target_ulong btgt = -1;
     int blink = 0;
@@ -4169,7 +4164,6 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         break;
     case OPC_BGEZ:
     case OPC_BGEZAL:
-    case OPC_BGEZALS:
     case OPC_BGEZALL:
     case OPC_BGEZL:
     case OPC_BGTZ:
@@ -4178,7 +4172,6 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
     case OPC_BLEZL:
     case OPC_BLTZ:
     case OPC_BLTZAL:
-    case OPC_BLTZALS:
     case OPC_BLTZALL:
     case OPC_BLTZL:
         /* Compare to zero */
@@ -4201,15 +4194,11 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
     case OPC_J:
     case OPC_JAL:
     case OPC_JALX:
-    case OPC_JALS:
-    case OPC_JALXS:
         /* Jump to immediate */
         btgt = ((ctx->pc + insn_bytes) & (int32_t)0xF0000000) | (uint32_t)offset;
         break;
     case OPC_JR:
     case OPC_JALR:
-    case OPC_JALRC:
-    case OPC_JALRS:
         /* Jump to register */
         if (offset != 0 && offset != 16) {
             /* Hint = 0 is JR/JALR, hint 16 is JR.HB/JALR.HB, the
@@ -4238,12 +4227,8 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             ctx->hflags |= MIPS_HFLAG_B;
             MIPS_DEBUG("balways");
             break;
-        case OPC_BGEZALS:
         case OPC_BGEZAL:  /* 0 >= 0          */
         case OPC_BGEZALL: /* 0 >= 0 likely   */
-            ctx->hflags |= (opc == OPC_BGEZALS
-                            ? MIPS_HFLAG_BDS16
-                            : MIPS_HFLAG_BDS32);
             /* Always take and link */
             blink = 31;
             ctx->hflags |= MIPS_HFLAG_B;
@@ -4255,15 +4240,11 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             /* Treat as NOP. */
             MIPS_DEBUG("bnever (NOP)");
             goto out;
-        case OPC_BLTZALS:
         case OPC_BLTZAL:  /* 0 < 0           */
-            ctx->hflags |= (opc == OPC_BLTZALS
-                            ? MIPS_HFLAG_BDS16
-                            : MIPS_HFLAG_BDS32);
             /* Handle as an unconditional branch to get correct delay
                slot checking.  */
             blink = 31;
-            btgt = ctx->pc + (opc == OPC_BLTZALS ? 6 : 8);
+            btgt = ctx->pc + insn_bytes + delayslot_size;
             ctx->hflags |= MIPS_HFLAG_B;
             MIPS_DEBUG("bnever and link");
             break;
@@ -4284,33 +4265,21 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             ctx->hflags |= MIPS_HFLAG_B;
             MIPS_DEBUG("j " TARGET_FMT_lx, btgt);
             break;
-        case OPC_JALXS:
         case OPC_JALX:
             ctx->hflags |= MIPS_HFLAG_BX;
             /* Fallthrough */
-        case OPC_JALS:
         case OPC_JAL:
             blink = 31;
             ctx->hflags |= MIPS_HFLAG_B;
-            ctx->hflags |= ((opc == OPC_JALS || opc == OPC_JALXS)
-                            ? MIPS_HFLAG_BDS16
-                            : MIPS_HFLAG_BDS32);
             MIPS_DEBUG("jal " TARGET_FMT_lx, btgt);
             break;
         case OPC_JR:
             ctx->hflags |= MIPS_HFLAG_BR;
-            if (insn_bytes == 4)
-                ctx->hflags |= MIPS_HFLAG_BDS32;
             MIPS_DEBUG("jr %s", regnames[rs]);
             break;
-        case OPC_JALRS:
         case OPC_JALR:
-        case OPC_JALRC:
             blink = rt;
             ctx->hflags |= MIPS_HFLAG_BR;
-            ctx->hflags |= (opc == OPC_JALRS
-                            ? MIPS_HFLAG_BDS16
-                            : MIPS_HFLAG_BDS32);
             MIPS_DEBUG("jalr %s, %s", regnames[rt], regnames[rs]);
             break;
         default:
@@ -4348,11 +4317,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             tcg_gen_setcondi_tl(TCG_COND_GE, bcond, t0, 0);
             MIPS_DEBUG("bgezl %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto likely;
-        case OPC_BGEZALS:
         case OPC_BGEZAL:
-            ctx->hflags |= (opc == OPC_BGEZALS
-                            ? MIPS_HFLAG_BDS16
-                            : MIPS_HFLAG_BDS32);
             tcg_gen_setcondi_tl(TCG_COND_GE, bcond, t0, 0);
             MIPS_DEBUG("bgezal %s, " TARGET_FMT_lx, regnames[rs], btgt);
             blink = 31;
@@ -4396,11 +4361,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             MIPS_DEBUG("bposge64 " TARGET_FMT_lx, btgt);
             goto not_likely;
 #endif
-        case OPC_BLTZALS:
         case OPC_BLTZAL:
-            ctx->hflags |= (opc == OPC_BLTZALS
-                            ? MIPS_HFLAG_BDS16
-                            : MIPS_HFLAG_BDS32);
             tcg_gen_setcondi_tl(TCG_COND_LT, bcond, t0, 0);
             blink = 31;
             MIPS_DEBUG("bltzal %s, " TARGET_FMT_lx, regnames[rs], btgt);
@@ -4424,12 +4385,19 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
                blink, ctx->hflags, btgt);
 
     ctx->btarget = btgt;
-    if (blink > 0) {
-        int post_delay = insn_bytes;
-        int lowbit = !!(ctx->hflags & MIPS_HFLAG_M16);
 
-        if (opc != OPC_JALRC)
-            post_delay += ((ctx->hflags & MIPS_HFLAG_BDS16) ? 2 : 4);
+    switch (delayslot_size) {
+    case 2:
+        ctx->hflags |= MIPS_HFLAG_BDS16;
+        break;
+    case 4:
+        ctx->hflags |= MIPS_HFLAG_BDS32;
+        break;
+    }
+
+    if (blink > 0) {
+        int post_delay = insn_bytes + delayslot_size;
+        int lowbit = !!(ctx->hflags & MIPS_HFLAG_M16);
 
         tcg_gen_movi_tl(cpu_gpr[blink], ctx->pc + post_delay + lowbit);
     }
@@ -7664,7 +7632,7 @@ static void gen_compute_branch1(DisasContext *ctx, uint32_t op,
     MIPS_DEBUG("%s: cond %02x target " TARGET_FMT_lx, opn,
                ctx->hflags, btarget);
     ctx->btarget = btarget;
-
+    ctx->hflags |= MIPS_HFLAG_BDS32;
  out:
     tcg_temp_free_i32(t0);
 }
@@ -10666,15 +10634,15 @@ static int decode_extended_mips16_opc (CPUMIPSState *env, DisasContext *ctx)
         gen_addiupc(ctx, rx, imm, 0, 1);
         break;
     case M16_OPC_B:
-        gen_compute_branch(ctx, OPC_BEQ, 4, 0, 0, offset << 1);
+        gen_compute_branch(ctx, OPC_BEQ, 4, 0, 0, offset << 1, 0);
         /* No delay slot, so just process as a normal instruction */
         break;
     case M16_OPC_BEQZ:
-        gen_compute_branch(ctx, OPC_BEQ, 4, rx, 0, offset << 1);
+        gen_compute_branch(ctx, OPC_BEQ, 4, rx, 0, offset << 1, 0);
         /* No delay slot, so just process as a normal instruction */
         break;
     case M16_OPC_BNEQZ:
-        gen_compute_branch(ctx, OPC_BNE, 4, rx, 0, offset << 1);
+        gen_compute_branch(ctx, OPC_BNE, 4, rx, 0, offset << 1, 0);
         /* No delay slot, so just process as a normal instruction */
         break;
     case M16_OPC_SHIFT:
@@ -10732,10 +10700,10 @@ static int decode_extended_mips16_opc (CPUMIPSState *env, DisasContext *ctx)
     case M16_OPC_I8:
         switch (funct) {
         case I8_BTEQZ:
-            gen_compute_branch(ctx, OPC_BEQ, 4, 24, 0, offset << 1);
+            gen_compute_branch(ctx, OPC_BEQ, 4, 24, 0, offset << 1, 0);
             break;
         case I8_BTNEZ:
-            gen_compute_branch(ctx, OPC_BNE, 4, 24, 0, offset << 1);
+            gen_compute_branch(ctx, OPC_BNE, 4, 24, 0, offset << 1, 0);
             break;
         case I8_SWRASP:
             gen_st(ctx, OPC_SW, 31, 29, imm);
@@ -10863,7 +10831,7 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx)
     case M16_OPC_B:
         offset = (ctx->opcode & 0x7ff) << 1;
         offset = (int16_t)(offset << 4) >> 4;
-        gen_compute_branch(ctx, OPC_BEQ, 2, 0, 0, offset);
+        gen_compute_branch(ctx, OPC_BEQ, 2, 0, 0, offset, 0);
         /* No delay slot, so just process as a normal instruction */
         break;
     case M16_OPC_JAL:
@@ -10871,16 +10839,18 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx)
         offset = (((ctx->opcode & 0x1f) << 21)
                   | ((ctx->opcode >> 5) & 0x1f) << 16
                   | offset) << 2;
-        op = ((ctx->opcode >> 10) & 0x1) ? OPC_JALXS : OPC_JALS;
-        gen_compute_branch(ctx, op, 4, rx, ry, offset);
+        op = ((ctx->opcode >> 10) & 0x1) ? OPC_JALX : OPC_JAL;
+        gen_compute_branch(ctx, op, 4, rx, ry, offset, 2);
         n_bytes = 4;
         break;
     case M16_OPC_BEQZ:
-        gen_compute_branch(ctx, OPC_BEQ, 2, rx, 0, ((int8_t)ctx->opcode) << 1);
+        gen_compute_branch(ctx, OPC_BEQ, 2, rx, 0,
+                           ((int8_t)ctx->opcode) << 1, 0);
         /* No delay slot, so just process as a normal instruction */
         break;
     case M16_OPC_BNEQZ:
-        gen_compute_branch(ctx, OPC_BNE, 2, rx, 0, ((int8_t)ctx->opcode) << 1);
+        gen_compute_branch(ctx, OPC_BNE, 2, rx, 0,
+                           ((int8_t)ctx->opcode) << 1, 0);
         /* No delay slot, so just process as a normal instruction */
         break;
     case M16_OPC_SHIFT:
@@ -10953,11 +10923,11 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx)
             switch (funct) {
             case I8_BTEQZ:
                 gen_compute_branch(ctx, OPC_BEQ, 2, 24, 0,
-                                   ((int8_t)ctx->opcode) << 1);
+                                   ((int8_t)ctx->opcode) << 1, 0);
                 break;
             case I8_BTNEZ:
                 gen_compute_branch(ctx, OPC_BNE, 2, 24, 0,
-                                   ((int8_t)ctx->opcode) << 1);
+                                   ((int8_t)ctx->opcode) << 1, 0);
                 break;
             case I8_SWRASP:
                 gen_st(ctx, OPC_SW, 31, 29, (ctx->opcode & 0xff) << 2);
@@ -11106,12 +11076,13 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx)
                 int ra = (ctx->opcode >> 5) & 0x1;
 
                 if (link) {
-                    op = nd ? OPC_JALRC : OPC_JALRS;
+                    op = OPC_JALR;
                 } else {
                     op = OPC_JR;
                 }
 
-                gen_compute_branch(ctx, op, 2, ra ? 31 : rx, 31, 0);
+                gen_compute_branch(ctx, op, 2, ra ? 31 : rx, 31, 0,
+                                   (nd ? 0 : 2));
             }
             break;
         case RR_SDBBP:
@@ -11869,7 +11840,6 @@ static void gen_pool16c_insn(DisasContext *ctx)
 {
     int rd = mmreg((ctx->opcode >> 3) & 0x7);
     int rs = mmreg(ctx->opcode & 0x7);
-    int opc;
 
     switch (((ctx->opcode) >> 4) & 0x3f) {
     case NOT16 + 0:
@@ -11925,32 +11895,27 @@ static void gen_pool16c_insn(DisasContext *ctx)
         {
             int reg = ctx->opcode & 0x1f;
 
-            gen_compute_branch(ctx, OPC_JR, 2, reg, 0, 0);
+            gen_compute_branch(ctx, OPC_JR, 2, reg, 0, 0, 4);
         }
         break;
     case JRC16 + 0:
     case JRC16 + 1:
         {
             int reg = ctx->opcode & 0x1f;
-
-            gen_compute_branch(ctx, OPC_JR, 2, reg, 0, 0);
+            gen_compute_branch(ctx, OPC_JR, 2, reg, 0, 0, 0);
             /* Let normal delay slot handling in our caller take us
                to the branch target.  */
         }
         break;
     case JALR16 + 0:
     case JALR16 + 1:
-        opc = OPC_JALR;
-        goto do_jalr;
+        gen_compute_branch(ctx, OPC_JALR, 2, ctx->opcode & 0x1f, 31, 0, 4);
+        ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
+        break;
     case JALR16S + 0:
     case JALR16S + 1:
-        opc = OPC_JALRS;
-    do_jalr:
-        {
-            int reg = ctx->opcode & 0x1f;
-
-            gen_compute_branch(ctx, opc, 2, reg, 31, 0);
-        }
+        gen_compute_branch(ctx, OPC_JALR, 2, ctx->opcode & 0x1f, 31, 0, 2);
+        ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
         break;
     case MFHI16 + 0:
     case MFHI16 + 1:
@@ -11978,8 +11943,7 @@ static void gen_pool16c_insn(DisasContext *ctx)
     case JRADDIUSP + 1:
         {
             int imm = ZIMM(ctx->opcode, 0, 5);
-
-            gen_compute_branch(ctx, OPC_JR, 2, 31, 0, 0);
+            gen_compute_branch(ctx, OPC_JR, 2, 31, 0, 0, 0);
             gen_arith_imm(ctx, OPC_ADDIU, 29, 29, imm << 2);
             /* Let normal delay slot handling in our caller take us
                to the branch target.  */
@@ -12236,11 +12200,13 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
         switch (minor) {
         case JALR:
         case JALR_HB:
-            gen_compute_branch (ctx, OPC_JALR, 4, rs, rt, 0);
+            gen_compute_branch(ctx, OPC_JALR, 4, rs, rt, 0, 4);
+            ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
             break;
         case JALRS:
         case JALRS_HB:
-            gen_compute_branch (ctx, OPC_JALRS, 4, rs, rt, 0);
+            gen_compute_branch(ctx, OPC_JALR, 4, rs, rt, 0, 2);
+            ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
             break;
         default:
             goto pool32axf_invalid;
@@ -13130,30 +13096,32 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
         minor = (ctx->opcode >> 21) & 0x1f;
         switch (minor) {
         case BLTZ:
-            mips32_op = OPC_BLTZ;
-            goto do_branch;
+            gen_compute_branch(ctx, OPC_BLTZ, 4, rs, -1, imm << 1, 4);
+            break;
         case BLTZAL:
-            mips32_op = OPC_BLTZAL;
-            goto do_branch;
+            gen_compute_branch(ctx, OPC_BLTZAL, 4, rs, -1, imm << 1, 4);
+            ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
+            break;
         case BLTZALS:
-            mips32_op = OPC_BLTZALS;
-            goto do_branch;
+            gen_compute_branch(ctx, OPC_BLTZAL, 4, rs, -1, imm << 1, 2);
+            ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
+            break;
         case BGEZ:
-            mips32_op = OPC_BGEZ;
-            goto do_branch;
+            gen_compute_branch(ctx, OPC_BGEZ, 4, rs, -1, imm << 1, 4);
+            break;
         case BGEZAL:
-            mips32_op = OPC_BGEZAL;
-            goto do_branch;
+            gen_compute_branch(ctx, OPC_BGEZAL, 4, rs, -1, imm << 1, 4);
+            ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
+            break;
         case BGEZALS:
-            mips32_op = OPC_BGEZALS;
-            goto do_branch;
+            gen_compute_branch(ctx, OPC_BGEZAL, 4, rs, -1, imm << 1, 2);
+            ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
+            break;
         case BLEZ:
-            mips32_op = OPC_BLEZ;
-            goto do_branch;
+            gen_compute_branch(ctx, OPC_BLEZ, 4, rs, -1, imm << 1, 4);
+            break;
         case BGTZ:
-            mips32_op = OPC_BGTZ;
-        do_branch:
-            gen_compute_branch(ctx, mips32_op, 4, rs, -1, imm << 1);
+            gen_compute_branch(ctx, OPC_BGTZ, 4, rs, -1, imm << 1, 4);
             break;
 
             /* Traps */
@@ -13181,7 +13149,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
         case BNEZC:
         case BEQZC:
             gen_compute_branch(ctx, minor == BNEZC ? OPC_BNE : OPC_BEQ,
-                               4, rs, 0, imm << 1);
+                               4, rs, 0, imm << 1, 0);
             /* Compact branches don't have a delay slot, so just let
                the normal delay slot handling take us to the branch
                target. */
@@ -13322,25 +13290,28 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
         break;
     case JALX32:
         offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 2;
-        gen_compute_branch(ctx, OPC_JALX, 4, rt, rs, offset);
+        gen_compute_branch(ctx, OPC_JALX, 4, rt, rs, offset, 4);
+        ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
         break;
     case JALS32:
         offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 1;
-        gen_compute_branch(ctx, OPC_JALS, 4, rt, rs, offset);
+        gen_compute_branch(ctx, OPC_JAL, 4, rt, rs, offset, 2);
+        ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
         break;
     case BEQ32:
-        gen_compute_branch(ctx, OPC_BEQ, 4, rt, rs, imm << 1);
+        gen_compute_branch(ctx, OPC_BEQ, 4, rt, rs, imm << 1, 4);
         break;
     case BNE32:
-        gen_compute_branch(ctx, OPC_BNE, 4, rt, rs, imm << 1);
+        gen_compute_branch(ctx, OPC_BNE, 4, rt, rs, imm << 1, 4);
         break;
     case J32:
         gen_compute_branch(ctx, OPC_J, 4, rt, rs,
-                           (int32_t)(ctx->opcode & 0x3FFFFFF) << 1);
+                           (int32_t)(ctx->opcode & 0x3FFFFFF) << 1, 4);
         break;
     case JAL32:
         gen_compute_branch(ctx, OPC_JAL, 4, rt, rs,
-                           (int32_t)(ctx->opcode & 0x3FFFFFF) << 1);
+                           (int32_t)(ctx->opcode & 0x3FFFFFF) << 1, 4);
+        ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
         break;
         /* Floating point (COP1) */
     case LWC132:
@@ -13424,84 +13395,41 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx)
 
     op = (ctx->opcode >> 10) & 0x3f;
     /* Enforce properly-sized instructions in a delay slot */
-    if (ctx->hflags & MIPS_HFLAG_BMASK) {
-        int bits = ctx->hflags & MIPS_HFLAG_BMASK_EXT;
-
-        switch (op) {
-        case POOL32A:
-        case POOL32B:
-        case POOL32I:
-        case POOL32C:
-        case ADDI32:
-        case ADDIU32:
-        case ORI32:
-        case XORI32:
-        case SLTI32:
-        case SLTIU32:
-        case ANDI32:
-        case JALX32:
-        case LBU32:
-        case LHU32:
-        case POOL32F:
-        case JALS32:
-        case BEQ32:
-        case BNE32:
-        case J32:
-        case JAL32:
-        case SB32:
-        case SH32:
-        case POOL32S:
-        case ADDIUPC:
-        case SWC132:
-        case SDC132:
-        case SD32:
-        case SW32:
-        case LB32:
-        case LH32:
-        case DADDIU32:
-        case LWC132:
-        case LDC132:
-        case LD32:
-        case LW32:
-            if (bits & MIPS_HFLAG_BDS16) {
+    if (ctx->hflags & MIPS_HFLAG_BDS_STRICT) {
+        switch (op & 0x7) { /* MSB-3..MSB-5 */
+        case 0:
+        /* POOL32A, POOL32B, POOL32I, POOL32C */
+        case 4:
+        /* ADDI32, ADDIU32, ORI32, XORI32, SLTI32, SLTIU32, ANDI32, JALX32 */
+        case 5:
+        /* LBU32, LHU32, POOL32F, JALS32, BEQ32, BNE32, J32, JAL32 */
+        case 6:
+        /* SB32, SH32, ADDIUPC, SWC132, SDC132, SW32 */
+        case 7:
+        /* LB32, LH32, LWC132, LDC132, LW32 */
+            if (ctx->hflags & MIPS_HFLAG_BDS16) {
                 generate_exception(ctx, EXCP_RI);
                 /* Just stop translation; the user is confused.  */
                 ctx->bstate = BS_STOP;
                 return 2;
             }
             break;
-        case POOL16A:
-        case POOL16B:
-        case POOL16C:
-        case LWGP16:
-        case POOL16F:
-        case LBU16:
-        case LHU16:
-        case LWSP16:
-        case LW16:
-        case SB16:
-        case SH16:
-        case SWSP16:
-        case SW16:
-        case MOVE16:
-        case ANDI16:
-        case POOL16D:
-        case POOL16E:
-        case BEQZ16:
-        case BNEZ16:
-        case B16:
-        case LI16:
-            if (bits & MIPS_HFLAG_BDS32) {
+        case 1:
+        /* POOL16A, POOL16B, POOL16C, LWGP16, POOL16F */
+        case 2:
+        /* LBU16, LHU16, LWSP16, LW16, SB16, SH16, SWSP16, SW16 */
+        case 3:
+        /* MOVE16, ANDI16, POOL16D, POOL16E, BEQZ16, BNEZ16, B16, LI16 */
+            if (ctx->hflags & MIPS_HFLAG_BDS32) {
                 generate_exception(ctx, EXCP_RI);
                 /* Just stop translation; the user is confused.  */
                 ctx->bstate = BS_STOP;
                 return 2;
             }
-            break;
-        default:
             break;
         }
     }
+
     switch (op) {
     case POOL16A:
         {
@@ -13682,13 +13610,13 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx)
         break;
     case B16:
         gen_compute_branch(ctx, OPC_BEQ, 2, 0, 0,
-                           SIMM(ctx->opcode, 0, 10) << 1);
+                           SIMM(ctx->opcode, 0, 10) << 1, 4);
         break;
     case BNEZ16:
     case BEQZ16:
         gen_compute_branch(ctx, op == BNEZ16 ? OPC_BNE : OPC_BEQ, 2,
                            mmreg(uMIPS_RD(ctx->opcode)),
-                           0, SIMM(ctx->opcode, 0, 7) << 1);
+                           0, SIMM(ctx->opcode, 0, 7) << 1, 4);
         break;
     case LI16:
         {
@@ -15855,7 +15783,7 @@ static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
         break;
 #endif
     case OPC_JR:
-        gen_compute_branch(ctx, op1, 4, rs, rd, sa);
+        gen_compute_branch(ctx, op1, 4, rs, rd, sa, 4);
         break;
     case OPC_SPIM:
 #ifdef MIPS_STRICT_STANDARD
@@ -15940,7 +15868,7 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
         gen_logic(ctx, op1, rd, rs, rt);
         break;
     case OPC_JALR:
-        gen_compute_branch(ctx, op1, 4, rs, rd, sa);
+        gen_compute_branch(ctx, op1, 4, rs, rd, sa, 4);
         break;
     case OPC_TGE ... OPC_TEQ: /* Traps */
     case OPC_TNE:
@@ -16909,19 +16837,19 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
             check_insn_opc_removed(ctx, ISA_MIPS32R6);
         case OPC_BLTZ:
         case OPC_BGEZ:
-            gen_compute_branch(ctx, op1, 4, rs, -1, imm << 2);
+            gen_compute_branch(ctx, op1, 4, rs, -1, imm << 2, 4);
             break;
         case OPC_BLTZAL:
         case OPC_BGEZAL:
             if (ctx->insn_flags & ISA_MIPS32R6) {
                 if (rs == 0) {
                     /* OPC_NAL, OPC_BAL */
-                    gen_compute_branch(ctx, op1, 4, 0, -1, imm << 2);
+                    gen_compute_branch(ctx, op1, 4, 0, -1, imm << 2, 4);
                 } else {
                     generate_exception(ctx, EXCP_RI);
                 }
             } else {
-                gen_compute_branch(ctx, op1, 4, rs, -1, imm << 2);
+                gen_compute_branch(ctx, op1, 4, rs, -1, imm << 2, 4);
             }
             break;
         case OPC_TGEI ... OPC_TEQI: /* REGIMM traps */
@@ -16940,7 +16868,7 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
         case OPC_BPOSGE64:
 #endif
             check_dsp(ctx);
-            gen_compute_branch(ctx, op1, 4, -1, -2, (int32_t)imm << 2);
+            gen_compute_branch(ctx, op1, 4, -1, -2, (int32_t)imm << 2, 4);
             break;
 #if defined(TARGET_MIPS64)
         case OPC_DAHI:
@@ -17079,7 +17007,7 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
          break;
     case OPC_J ... OPC_JAL: /* Jump */
          offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 2;
-         gen_compute_branch(ctx, op, 4, rs, rt, offset);
+         gen_compute_branch(ctx, op, 4, rs, rt, offset, 4);
          break;
     /* Branch */
     case OPC_BLEZC: /* OPC_BGEZC, OPC_BGEC, OPC_BLEZL */
@@ -17092,7 +17020,7 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
             gen_compute_compact_branch(ctx, op, rs, rt, imm << 2);
         } else {
             /* OPC_BLEZL */
-            gen_compute_branch(ctx, op, 4, rs, rt, imm << 2);
+            gen_compute_branch(ctx, op, 4, rs, rt, imm << 2, 4);
         }
         break;
     case OPC_BGTZC: /* OPC_BLTZC, OPC_BLTC, OPC_BGTZL */
@@ -17105,13 +17033,13 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
             gen_compute_compact_branch(ctx, op, rs, rt, imm << 2);
         } else {
             /* OPC_BGTZL */
-            gen_compute_branch(ctx, op, 4, rs, rt, imm << 2);
+            gen_compute_branch(ctx, op, 4, rs, rt, imm << 2, 4);
         }
         break;
     case OPC_BLEZALC: /* OPC_BGEZALC, OPC_BGEUC, OPC_BLEZ */
         if (rt == 0) {
             /* OPC_BLEZ */
-            gen_compute_branch(ctx, op, 4, rs, rt, imm << 2);
+            gen_compute_branch(ctx, op, 4, rs, rt, imm << 2, 4);
         } else {
             check_insn(ctx, ISA_MIPS32R6);
             /* OPC_BLEZALC, OPC_BGEZALC, OPC_BGEUC */
@@ -17121,7 +17049,7 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
     case OPC_BGTZALC: /* OPC_BLTZALC, OPC_BLTUC, OPC_BGTZ */
         if (rt == 0) {
             /* OPC_BGTZ */
-            gen_compute_branch(ctx, op, 4, rs, rt, imm << 2);
+            gen_compute_branch(ctx, op, 4, rs, rt, imm << 2, 4);
         } else {
             check_insn(ctx, ISA_MIPS32R6);
             /* OPC_BGTZALC, OPC_BLTZALC, OPC_BLTUC */
@@ -17133,7 +17061,7 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
          check_insn_opc_removed(ctx, ISA_MIPS32R6);
     case OPC_BEQ:
     case OPC_BNE:
-         gen_compute_branch(ctx, op, 4, rs, rt, imm << 2);
+         gen_compute_branch(ctx, op, 4, rs, rt, imm << 2, 4);
          break;
     case OPC_LWL: /* Load and stores */
     case OPC_LWR:
@@ -17453,7 +17381,7 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
             /* OPC_JALX */
             check_insn(ctx, ASE_MIPS16 | ASE_MICROMIPS);
             offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 2;
-            gen_compute_branch(ctx, op, 4, rs, rt, offset);
+            gen_compute_branch(ctx, op, 4, rs, rt, offset, 4);
         }
         break;
     case OPC_MDMX:
@@ -17562,6 +17490,12 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
             break;
         }
 
+        if (ctx.hflags & MIPS_HFLAG_BMASK) {
+            if (!(ctx.hflags & (MIPS_HFLAG_BDS16 | MIPS_HFLAG_BDS32))) {
+                is_delay = 1;
+                /* force to generate branch as no delay slot is required */
+            }
+        }
         if (is_delay) {
             gen_branch(&ctx, insn_bytes);
         }
