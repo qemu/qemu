@@ -217,6 +217,11 @@ class TestSingleDriveZeroLength(TestSingleDrive):
     test_small_buffer2 = None
     test_large_cluster = None
 
+class TestSingleDriveUnalignedLength(TestSingleDrive):
+    image_len = 1025 * 1024
+    test_small_buffer2 = None
+    test_large_cluster = None
+
 class TestMirrorNoBacking(ImageMirroringTestCase):
     image_len = 2 * 1024 * 1024 # MB
 
