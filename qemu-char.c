@@ -2673,6 +2673,12 @@ static gboolean tcp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
     uint8_t buf[READ_BUF_LEN];
     int len, size;
 
+    if (cond & G_IO_HUP) {
+        /* connection closed */
+        tcp_chr_disconnect(chr);
+        return TRUE;
+    }
+
     if (!s->connected || s->max_size <= 0) {
         return TRUE;
     }
@@ -2724,25 +2730,6 @@ CharDriverState *qemu_chr_open_eventfd(int eventfd)
 }
 #endif
 
-static gboolean tcp_chr_chan_close(GIOChannel *channel, GIOCondition cond,
-                                   void *opaque)
-{
-    CharDriverState *chr = opaque;
-
-    if (cond != G_IO_HUP) {
-        return FALSE;
-    }
-
-    /* connection closed */
-    tcp_chr_disconnect(chr);
-    if (chr->fd_hup_tag) {
-        g_source_remove(chr->fd_hup_tag);
-        chr->fd_hup_tag = 0;
-    }
-
-    return TRUE;
-}
-
 static void tcp_chr_connect(void *opaque)
 {
     CharDriverState *chr = opaque;
@@ -2752,8 +2739,6 @@ static void tcp_chr_connect(void *opaque)
     if (s->chan) {
         chr->fd_in_tag = io_add_watch_poll(s->chan, tcp_chr_read_poll,
                                            tcp_chr_read, chr);
-        chr->fd_hup_tag = g_io_add_watch(s->chan, G_IO_HUP, tcp_chr_chan_close,
-                                         chr);
     }
     qemu_chr_be_generic_open(chr);
 }
