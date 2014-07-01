@@ -2052,7 +2052,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    s->reset = qemu_allocate_irqs(pxa2xx_reset, s, 1)[0];
+    s->reset = qemu_allocate_irq(pxa2xx_reset, s, 0);
 
     /* SDRAM & Internal Memory Storage */
     memory_region_init_ram(&s->sdram, NULL, "pxa270.sdram", sdram_size);
@@ -2183,7 +2183,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    s->reset = qemu_allocate_irqs(pxa2xx_reset, s, 1)[0];
+    s->reset = qemu_allocate_irq(pxa2xx_reset, s, 0);
 
     /* SDRAM & Internal Memory Storage */
     memory_region_init_ram(&s->sdram, NULL, "pxa255.sdram", sdram_size);

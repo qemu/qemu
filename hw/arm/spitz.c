@@ -752,7 +752,7 @@ static void spitz_i2c_setup(PXA2xxState *cpu)
 
     spitz_wm8750_addr(wm, 0, 0);
     qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_WM,
-                    qemu_allocate_irqs(spitz_wm8750_addr, wm, 1)[0]);
+                          qemu_allocate_irq(spitz_wm8750_addr, wm, 0));
     /* .. and to the sound interface.  */
     cpu->i2s->opaque = wm;
     cpu->i2s->codec_out = wm8750_dac_dat;
@@ -858,7 +858,7 @@ static void spitz_gpio_setup(PXA2xxState *cpu, int slots)
      * wouldn't guarantee that a guest ever exits the loop.
      */
     spitz_hsync = 0;
-    lcd_hsync = qemu_allocate_irqs(spitz_lcd_hsync_handler, cpu, 1)[0];
+    lcd_hsync = qemu_allocate_irq(spitz_lcd_hsync_handler, cpu, 0);
     pxa2xx_gpio_read_notifier(cpu->gpio, lcd_hsync);
     pxa2xx_lcd_vsync_notifier(cpu->lcd, lcd_hsync);
 
