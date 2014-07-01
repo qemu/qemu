@@ -511,6 +511,8 @@ g_malloc(size_t size, void *ptr) "size %zu ptr %p"
 g_realloc(void *ptr, size_t size, void *newptr) "ptr %p size %zu newptr %p"
 g_free(void *ptr) "ptr %p"
 system_wakeup_request(int reason) "reason=%d"
+qemu_system_shutdown_request(void) ""
+qemu_system_powerdown_request(void) ""
 
 # block/qcow2.c
 qcow2_writev_start_req(void *co, int64_t sector, int nb_sectors) "co %p sector %" PRIx64 " nb_sectors %d"
