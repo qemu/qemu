@@ -36,6 +36,8 @@
 #include "exec/address-spaces.h"
 #include "qemu/host-utils.h"
 #include "hw/pci-host/ppce500.h"
+#include "qemu/error-report.h"
+#include "hw/platform-bus.h"
 
 #define EPAPR_MAGIC                (0x45504150)
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
@@ -150,6 +152,72 @@ static void create_dt_mpc8xxx_gpio(void *fdt, const char *soc, const char *mpic)
 
     g_free(node);
     g_free(poweroff);
+}
+
+typedef struct PlatformDevtreeData {
+    void *fdt;
+    const char *mpic;
+    int irq_start;
+    const char *node;
+    PlatformBusDevice *pbus;
+} PlatformDevtreeData;
+
+static int sysbus_device_create_devtree(SysBusDevice *sbdev, void *opaque)
+{
+    PlatformDevtreeData *data = opaque;
+    bool matched = false;
+
+    if (!matched) {
+        error_report("Device %s is not supported by this machine yet.",
+                     qdev_fw_name(DEVICE(sbdev)));
+        exit(1);
+    }
+
+    return 0;
+}
+
+static void platform_bus_create_devtree(PPCE500Params *params, void *fdt,
+                                        const char *mpic)
+{
+    gchar *node = g_strdup_printf("/platform@%"PRIx64, params->platform_bus_base);
+    const char platcomp[] = "qemu,platform\0simple-bus";
+    uint64_t addr = params->platform_bus_base;
+    uint64_t size = params->platform_bus_size;
+    int irq_start = params->platform_bus_first_irq;
+    PlatformBusDevice *pbus;
+    DeviceState *dev;
+
+    /* Create a /platform node that we can put all devices into */
+
+    qemu_fdt_add_subnode(fdt, node);
+    qemu_fdt_setprop(fdt, node, "compatible", platcomp, sizeof(platcomp));
+
+    /* Our platform bus region is less than 32bit big, so 1 cell is enough for
+       address and size */
+    qemu_fdt_setprop_cells(fdt, node, "#size-cells", 1);
+    qemu_fdt_setprop_cells(fdt, node, "#address-cells", 1);
+    qemu_fdt_setprop_cells(fdt, node, "ranges", 0, addr >> 32, addr, size);
+
+    qemu_fdt_setprop_phandle(fdt, node, "interrupt-parent", mpic);
+
+    dev = qdev_find_recursive(sysbus_get_default(), TYPE_PLATFORM_BUS_DEVICE);
+    pbus = PLATFORM_BUS_DEVICE(dev);
+
+    /* We can only create dt nodes for dynamic devices when they're ready */
+    if (pbus->done_gathering) {
+        PlatformDevtreeData data = {
+            .fdt = fdt,
+            .mpic = mpic,
+            .irq_start = irq_start,
+            .node = node,
+            .pbus = pbus,
+        };
+
+        /* Loop through all dynamic sysbus devices and create nodes for them */
+        foreach_dynamic_sysbus_device(sysbus_device_create_devtree, &data);
+    }
+
+    g_free(node);
 }
 
 static int ppce500_load_device_tree(MachineState *machine,
@@ -413,6 +481,10 @@ static int ppce500_load_device_tree(MachineState *machine,
         create_dt_mpc8xxx_gpio(fdt, soc, mpic);
     }
 
+    if (params->has_platform_bus) {
+        platform_bus_create_devtree(params, fdt, mpic);
+    }
+
     params->fixup_devtree(params, fdt);
 
     if (toplevel_compat) {
@@ -441,6 +513,7 @@ typedef struct DeviceTreeParams {
     hwaddr initrd_size;
     hwaddr kernel_base;
     hwaddr kernel_size;
+    Notifier notifier;
 } DeviceTreeParams;
 
 static void ppce500_reset_device_tree(void *opaque)
@@ -449,6 +522,12 @@ static void ppce500_reset_device_tree(void *opaque)
     ppce500_load_device_tree(p->machine, &p->params, p->addr, p->initrd_base,
                              p->initrd_size, p->kernel_base, p->kernel_size,
                              false);
+}
+
+static void ppce500_init_notify(Notifier *notifier, void *data)
+{
+    DeviceTreeParams *p = container_of(notifier, DeviceTreeParams, notifier);
+    ppce500_reset_device_tree(p);
 }
 
 static int ppce500_prep_device_tree(MachineState *machine,
@@ -469,6 +548,8 @@ static int ppce500_prep_device_tree(MachineState *machine,
     p->kernel_size = kernel_size;
 
     qemu_register_reset(ppce500_reset_device_tree, p);
+    p->notifier.notify = ppce500_init_notify;
+    qemu_add_machine_init_done_notifier(&p->notifier);
 
     /* Issue the device tree loader once, so that we get the size of the blob */
     return ppce500_load_device_tree(machine, params, addr, initrd_base,
@@ -823,6 +904,25 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         /* Power Off GPIO at Pin 0 */
         poweroff_irq = qemu_allocate_irq(ppce500_power_off, NULL, 0);
         qdev_connect_gpio_out(dev, 0, poweroff_irq);
+    }
+
+    /* Platform Bus Device */
+    if (params->has_platform_bus) {
+        dev = qdev_create(NULL, TYPE_PLATFORM_BUS_DEVICE);
+        dev->id = TYPE_PLATFORM_BUS_DEVICE;
+        qdev_prop_set_uint32(dev, "num_irqs", params->platform_bus_num_irqs);
+        qdev_prop_set_uint32(dev, "mmio_size", params->platform_bus_size);
+        qdev_init_nofail(dev);
+        s = SYS_BUS_DEVICE(dev);
+
+        for (i = 0; i < params->platform_bus_num_irqs; i++) {
+            int irqn = params->platform_bus_first_irq + i;
+            sysbus_connect_irq(s, i, mpic[irqn]);
+        }
+
+        memory_region_add_subregion(address_space_mem,
+                                    params->platform_bus_base,
+                                    sysbus_mmio_get_region(s, 0));
     }
 
     /* Load kernel. */
