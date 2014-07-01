@@ -285,7 +285,8 @@ int bdrv_change_backing_file(BlockDriverState *bs,
     const char *backing_file, const char *backing_fmt);
 void bdrv_register(BlockDriver *bdrv);
 int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
-                           BlockDriverState *base);
+                           BlockDriverState *base,
+                           const char *backing_file_str);
 BlockDriverState *bdrv_find_overlay(BlockDriverState *active,
                                     BlockDriverState *bs);
 BlockDriverState *bdrv_find_base(BlockDriverState *bs);
@@ -403,6 +404,7 @@ BlockDeviceInfoList *bdrv_named_nodes_list(void);
 BlockDriverState *bdrv_lookup_bs(const char *device,
                                  const char *node_name,
                                  Error **errp);
+bool bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base);
 BlockDriverState *bdrv_next(BlockDriverState *bs);
 void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs),
                   void *opaque);

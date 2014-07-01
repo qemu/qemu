@@ -55,6 +55,9 @@
 #include <linux/cdrom.h>
 #include <linux/fd.h>
 #include <linux/fs.h>
+#ifndef FS_NOCOW_FL
+#define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
+#endif
 #endif
 #ifdef CONFIG_FIEMAP
 #include <linux/fiemap.h>
@@ -1278,12 +1281,14 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
     int fd;
     int result = 0;
     int64_t total_size = 0;
+    bool nocow = false;
 
     strstart(filename, "file:", &filename);
 
     /* Read out options */
     total_size =
         qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0) / BDRV_SECTOR_SIZE;
+    nocow = qemu_opt_get_bool(opts, BLOCK_OPT_NOCOW, false);
 
     fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY,
                    0644);
@@ -1291,6 +1296,21 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
         result = -errno;
         error_setg_errno(errp, -result, "Could not create file");
     } else {
+        if (nocow) {
+#ifdef __linux__
+            /* Set NOCOW flag to solve performance issue on fs like btrfs.
+             * This is an optimisation. The FS_IOC_SETFLAGS ioctl return value
+             * will be ignored since any failure of this operation should not
+             * block the left work.
+             */
+            int attr;
+            if (ioctl(fd, FS_IOC_GETFLAGS, &attr) == 0) {
+                attr |= FS_NOCOW_FL;
+                ioctl(fd, FS_IOC_SETFLAGS, &attr);
+            }
+#endif
+        }
+
         if (ftruncate(fd, total_size * BDRV_SECTOR_SIZE) != 0) {
             result = -errno;
             error_setg_errno(errp, -result, "Could not resize file");
@@ -1476,6 +1496,11 @@ static QemuOptsList raw_create_opts = {
             .name = BLOCK_OPT_SIZE,
             .type = QEMU_OPT_SIZE,
             .help = "Virtual disk size"
+        },
+        {
+            .name = BLOCK_OPT_NOCOW,
+            .type = QEMU_OPT_BOOL,
+            .help = "Turn off copy-on-write (valid only on btrfs)"
         },
         { /* end of list */ }
     }

@@ -37,6 +37,7 @@ typedef struct CommitBlockJob {
     BlockdevOnError on_error;
     int base_flags;
     int orig_overlay_flags;
+    char *backing_file_str;
 } CommitBlockJob;
 
 static int coroutine_fn commit_populate(BlockDriverState *bs,
@@ -141,7 +142,7 @@ wait:
 
     if (!block_job_is_cancelled(&s->common) && sector_num == end) {
         /* success */
-        ret = bdrv_drop_intermediate(active, top, base);
+        ret = bdrv_drop_intermediate(active, top, base, s->backing_file_str);
     }
 
 exit_free_buf:
@@ -158,7 +159,7 @@ exit_restore_reopen:
     if (overlay_bs && s->orig_overlay_flags != bdrv_get_flags(overlay_bs)) {
         bdrv_reopen(overlay_bs, s->orig_overlay_flags, NULL);
     }
-
+    g_free(s->backing_file_str);
     block_job_completed(&s->common, ret);
 }
 
@@ -182,7 +183,7 @@ static const BlockJobDriver commit_job_driver = {
 void commit_start(BlockDriverState *bs, BlockDriverState *base,
                   BlockDriverState *top, int64_t speed,
                   BlockdevOnError on_error, BlockDriverCompletionFunc *cb,
-                  void *opaque, Error **errp)
+                  void *opaque, const char *backing_file_str, Error **errp)
 {
     CommitBlockJob *s;
     BlockReopenQueue *reopen_queue = NULL;
@@ -243,6 +244,8 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
 
     s->base_flags          = orig_base_flags;
     s->orig_overlay_flags  = orig_overlay_flags;
+
+    s->backing_file_str = g_strdup(backing_file_str);
 
     s->on_error = on_error;
     s->common.co = qemu_coroutine_create(commit_run);

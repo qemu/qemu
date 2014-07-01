@@ -288,12 +288,12 @@
 #
 # @sector-num: number of the first sector of the failed read operation
 #
-# @sector-count: failed read operation sector count
+# @sectors-count: failed read operation sector count
 #
 # Since: 2.0
 ##
 { 'event': 'QUORUM_FAILURE',
-  'data': { 'reference': 'str', 'sector-num': 'int', 'sector-count': 'int' } }
+  'data': { 'reference': 'str', 'sector-num': 'int', 'sectors-count': 'int' } }
 
 ##
 # @QUORUM_REPORT_BAD
@@ -309,13 +309,13 @@
 #
 # @sector-num: number of the first sector of the failed read operation
 #
-# @sector-count: failed read operation sector count
+# @sectors-count: failed read operation sector count
 #
 # Since: 2.0
 ##
 { 'event': 'QUORUM_REPORT_BAD',
   'data': { '*error': 'str', 'node-name': 'str',
-            'sector-num': 'int', 'sector-count': 'int' } }
+            'sector-num': 'int', 'sectors-count': 'int' } }
 
 ##
 # @VSERPORT_CHANGE

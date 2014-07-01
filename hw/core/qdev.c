@@ -780,6 +780,27 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
     }
 }
 
+/* @qdev_alias_all_properties - Add alias properties to the source object for
+ * all qdev properties on the target DeviceState.
+ */
+void qdev_alias_all_properties(DeviceState *target, Object *source)
+{
+    ObjectClass *class;
+    Property *prop;
+
+    class = object_get_class(OBJECT(target));
+    do {
+        DeviceClass *dc = DEVICE_CLASS(class);
+
+        for (prop = dc->props; prop && prop->name; prop++) {
+            object_property_add_alias(source, prop->name,
+                                      OBJECT(target), prop->name,
+                                      &error_abort);
+        }
+        class = object_class_get_parent(class);
+    } while (class != object_class_by_name(TYPE_DEVICE));
+}
+
 static bool device_get_realized(Object *obj, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);

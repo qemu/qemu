@@ -979,13 +979,13 @@ EQMP
 
     {
         .name       = "block-stream",
-        .args_type  = "device:B,base:s?,speed:o?,on-error:s?",
+        .args_type  = "device:B,base:s?,speed:o?,backing-file:s?,on-error:s?",
         .mhandler.cmd_new = qmp_marshal_input_block_stream,
     },
 
     {
         .name       = "block-commit",
-        .args_type  = "device:B,base:s?,top:s,speed:o?",
+        .args_type  = "device:B,base:s?,top:s?,backing-file:s?,speed:o?",
         .mhandler.cmd_new = qmp_marshal_input_block_commit,
     },
 
@@ -1003,7 +1003,25 @@ Arguments:
           If not specified, this is the deepest backing image
           (json-string, optional)
 - "top":  The file name of the backing image within the image chain,
-          which contains the topmost data to be committed down.
+          which contains the topmost data to be committed down. If
+          not specified, this is the active layer. (json-string, optional)
+
+- backing-file:     The backing file string to write into the overlay
+                    image of 'top'.  If 'top' is the active layer,
+                    specifying a backing file string is an error. This
+                    filename is not validated.
+
+                    If a pathname string is such that it cannot be
+                    resolved by QEMU, that means that subsequent QMP or
+                    HMP commands must use node-names for the image in
+                    question, as filename lookup methods will fail.
+
+                    If not specified, QEMU will automatically determine
+                    the backing file string to use, or error out if
+                    there is no obvious choice. Care should be taken
+                    when specifying the string, to specify a valid
+                    filename or protocol.
+                    (json-string, optional) (Since 2.1)
 
           If top == base, that is an error.
           If top == active, the job will not be completed by itself,
@@ -1348,6 +1366,45 @@ Example:
                                                "sync": "full",
                                                "format": "qcow2" } }
 <- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "change-backing-file",
+        .args_type  = "device:s,image-node-name:s,backing-file:s",
+        .mhandler.cmd_new = qmp_marshal_input_change_backing_file,
+    },
+
+SQMP
+change-backing-file
+-------------------
+Since: 2.1
+
+Change the backing file in the image file metadata.  This does not cause
+QEMU to reopen the image file to reparse the backing filename (it may,
+however, perform a reopen to change permissions from r/o -> r/w -> r/o,
+if needed). The new backing file string is written into the image file
+metadata, and the QEMU internal strings are updated.
+
+Arguments:
+
+- "image-node-name":    The name of the block driver state node of the
+                        image to modify.  The "device" is argument is used to
+                        verify "image-node-name" is in the chain described by
+                        "device".
+                        (json-string, optional)
+
+- "device":             The name of the device.
+                        (json-string)
+
+- "backing-file":       The string to write as the backing file.  This string is
+                        not validated, so care should be taken when specifying
+                        the string or the image chain may not be able to be
+                        reopened again.
+                        (json-string)
+
+Returns: Nothing on success
+         If "device" does not exist or cannot be determined, DeviceNotFound
 
 EQMP
 

@@ -2508,32 +2508,23 @@ int bdrv_change_backing_file(BlockDriverState *bs,
  *
  * Returns NULL if bs is not found in active's image chain,
  * or if active == bs.
+ *
+ * Returns the bottommost base image if bs == NULL.
  */
 BlockDriverState *bdrv_find_overlay(BlockDriverState *active,
                                     BlockDriverState *bs)
 {
-    BlockDriverState *overlay = NULL;
-    BlockDriverState *intermediate;
-
-    assert(active != NULL);
-    assert(bs != NULL);
-
-    /* if bs is the same as active, then by definition it has no overlay
-     */
-    if (active == bs) {
-        return NULL;
+    while (active && bs != active->backing_hd) {
+        active = active->backing_hd;
     }
 
-    intermediate = active;
-    while (intermediate->backing_hd) {
-        if (intermediate->backing_hd == bs) {
-            overlay = intermediate;
-            break;
-        }
-        intermediate = intermediate->backing_hd;
-    }
+    return active;
+}
 
-    return overlay;
+/* Given a BDS, searches for the base layer. */
+BlockDriverState *bdrv_find_base(BlockDriverState *bs)
+{
+    return bdrv_find_overlay(bs, NULL);
 }
 
 typedef struct BlkIntermediateStates {
@@ -2564,12 +2555,15 @@ typedef struct BlkIntermediateStates {
  *
  * base <- active
  *
+ * If backing_file_str is non-NULL, it will be used when modifying top's
+ * overlay image metadata.
+ *
  * Error conditions:
  *  if active == top, that is considered an error
  *
  */
 int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
-                           BlockDriverState *base)
+                           BlockDriverState *base, const char *backing_file_str)
 {
     BlockDriverState *intermediate;
     BlockDriverState *base_bs = NULL;
@@ -2621,7 +2615,8 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
     }
 
     /* success - we can delete the intermediate states, and link top->base */
-    ret = bdrv_change_backing_file(new_top_bs, base_bs->filename,
+    backing_file_str = backing_file_str ? backing_file_str : base_bs->filename;
+    ret = bdrv_change_backing_file(new_top_bs, backing_file_str,
                                    base_bs->drv ? base_bs->drv->format_name : "");
     if (ret) {
         goto exit;
@@ -3783,6 +3778,17 @@ BlockDriverState *bdrv_lookup_bs(const char *device,
     return NULL;
 }
 
+/* If 'base' is in the same chain as 'top', return true. Otherwise,
+ * return false.  If either argument is NULL, return false. */
+bool bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base)
+{
+    while (top && top != base) {
+        top = top->backing_hd;
+    }
+
+    return top != NULL;
+}
+
 BlockDriverState *bdrv_next(BlockDriverState *bs)
 {
     if (!bs) {
@@ -4324,22 +4330,6 @@ int bdrv_get_backing_file_depth(BlockDriverState *bs)
     }
 
     return 1 + bdrv_get_backing_file_depth(bs->backing_hd);
-}
-
-BlockDriverState *bdrv_find_base(BlockDriverState *bs)
-{
-    BlockDriverState *curr_bs = NULL;
-
-    if (!bs) {
-        return NULL;
-    }
-
-    curr_bs = bs;
-
-    while (curr_bs->backing_hd) {
-        curr_bs = curr_bs->backing_hd;
-    }
-    return curr_bs;
 }
 
 /**************************************************************/

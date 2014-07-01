@@ -131,7 +131,6 @@ struct VHostSCSIPCI {
 struct VirtIOBlkPCI {
     VirtIOPCIProxy parent_obj;
     VirtIOBlock vdev;
-    VirtIOBlkConf blk;
 };
 
 /*

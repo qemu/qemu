@@ -677,12 +677,6 @@ static const BlockDevOps virtio_block_ops = {
     .resize_cb = virtio_blk_resize,
 };
 
-void virtio_blk_set_conf(DeviceState *dev, VirtIOBlkConf *blk)
-{
-    VirtIOBlock *s = VIRTIO_BLK(dev);
-    memcpy(&(s->blk), blk, sizeof(struct VirtIOBlkConf));
-}
-
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
 /* Disable dataplane thread during live migration since it does not
  * update the dirty memory bitmap yet.
@@ -790,8 +784,27 @@ static void virtio_blk_device_unrealize(DeviceState *dev, Error **errp)
     virtio_cleanup(vdev);
 }
 
+static void virtio_blk_instance_init(Object *obj)
+{
+    VirtIOBlock *s = VIRTIO_BLK(obj);
+
+    object_property_add_link(obj, "iothread", TYPE_IOTHREAD,
+                             (Object **)&s->blk.iothread,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE, NULL);
+}
+
 static Property virtio_blk_properties[] = {
-    DEFINE_VIRTIO_BLK_PROPERTIES(VirtIOBlock, blk),
+    DEFINE_BLOCK_PROPERTIES(VirtIOBlock, blk.conf),
+    DEFINE_BLOCK_CHS_PROPERTIES(VirtIOBlock, blk.conf),
+    DEFINE_PROP_STRING("serial", VirtIOBlock, blk.serial),
+    DEFINE_PROP_BIT("config-wce", VirtIOBlock, blk.config_wce, 0, true),
+#ifdef __linux__
+    DEFINE_PROP_BIT("scsi", VirtIOBlock, blk.scsi, 0, true),
+#endif
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+    DEFINE_PROP_BIT("x-data-plane", VirtIOBlock, blk.data_plane, 0, false),
+#endif
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -817,6 +830,7 @@ static const TypeInfo virtio_device_info = {
     .name = TYPE_VIRTIO_BLK,
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOBlock),
+    .instance_init = virtio_blk_instance_init,
     .class_init = virtio_blk_class_init,
 };
 

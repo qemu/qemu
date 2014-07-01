@@ -680,6 +680,32 @@
   'data': 'BlockdevSnapshot' }
 
 ##
+# @change-backing-file
+#
+# Change the backing file in the image file metadata.  This does not
+# cause QEMU to reopen the image file to reparse the backing filename
+# (it may, however, perform a reopen to change permissions from
+# r/o -> r/w -> r/o, if needed). The new backing file string is written
+# into the image file metadata, and the QEMU internal strings are
+# updated.
+#
+# @image-node-name: The name of the block driver state node of the
+#                   image to modify.
+#
+# @device:          The name of the device that owns image-node-name.
+#
+# @backing-file:    The string to write as the backing file.  This
+#                   string is not validated, so care should be taken
+#                   when specifying the string or the image chain may
+#                   not be able to be reopened again.
+#
+# Since: 2.1
+##
+{ 'command': 'change-backing-file',
+  'data': { 'device': 'str', 'image-node-name': 'str',
+            'backing-file': 'str' } }
+
+##
 # @block-commit
 #
 # Live commit of data from overlay image nodes into backing nodes - i.e.,
@@ -690,8 +716,26 @@
 # @base:   #optional The file name of the backing image to write data into.
 #                    If not specified, this is the deepest backing image
 #
-# @top:              The file name of the backing image within the image chain,
-#                    which contains the topmost data to be committed down.
+# @top:    #optional The file name of the backing image within the image chain,
+#                    which contains the topmost data to be committed down. If
+#                    not specified, this is the active layer.
+#
+# @backing-file:  #optional The backing file string to write into the overlay
+#                           image of 'top'.  If 'top' is the active layer,
+#                           specifying a backing file string is an error. This
+#                           filename is not validated.
+#
+#                           If a pathname string is such that it cannot be
+#                           resolved by QEMU, that means that subsequent QMP or
+#                           HMP commands must use node-names for the image in
+#                           question, as filename lookup methods will fail.
+#
+#                           If not specified, QEMU will automatically determine
+#                           the backing file string to use, or error out if
+#                           there is no obvious choice. Care should be taken
+#                           when specifying the string, to specify a valid
+#                           filename or protocol.
+#                           (Since 2.1)
 #
 #                    If top == base, that is an error.
 #                    If top == active, the job will not be completed by itself,
@@ -704,7 +748,6 @@
 #                    truncated.  If you want the base image size to match the
 #                    size of the smaller top, you can safely truncate it
 #                    yourself once the commit operation successfully completes.
-#
 #
 # @speed:  #optional the maximum speed, in bytes per second
 #
@@ -719,8 +762,8 @@
 #
 ##
 { 'command': 'block-commit',
-  'data': { 'device': 'str', '*base': 'str', 'top': 'str',
-            '*speed': 'int' } }
+  'data': { 'device': 'str', '*base': 'str', '*top': 'str',
+            '*backing-file': 'str', '*speed': 'int' } }
 
 ##
 # @drive-backup
@@ -879,6 +922,21 @@
 #
 # @base:   #optional the common backing file name
 #
+# @backing-file: #optional The backing file string to write into the active
+#                          layer. This filename is not validated.
+#
+#                          If a pathname string is such that it cannot be
+#                          resolved by QEMU, that means that subsequent QMP or
+#                          HMP commands must use node-names for the image in
+#                          question, as filename lookup methods will fail.
+#
+#                          If not specified, QEMU will automatically determine
+#                          the backing file string to use, or error out if there
+#                          is no obvious choice.  Care should be taken when
+#                          specifying the string, to specify a valid filename or
+#                          protocol.
+#                          (Since 2.1)
+#
 # @speed:  #optional the maximum speed, in bytes per second
 #
 # @on-error: #optional the action to take on an error (default report).
@@ -891,8 +949,8 @@
 # Since: 1.1
 ##
 { 'command': 'block-stream',
-  'data': { 'device': 'str', '*base': 'str', '*speed': 'int',
-            '*on-error': 'BlockdevOnError' } }
+  'data': { 'device': 'str', '*base': 'str', '*backing-file': 'str',
+            '*speed': 'int', '*on-error': 'BlockdevOnError' } }
 
 ##
 # @block-job-set-speed:
