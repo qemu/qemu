@@ -163,10 +163,6 @@ dummy := $(call unnest-vars,.., \
 all-obj-y += $(common-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(block-obj-y)
 
-ifndef CONFIG_HAIKU
-LIBS+=-lm
-endif
-
 # build either PROG or PROGW
 $(QEMU_PROG_BUILD): $(all-obj-y) ../libqemuutil.a ../libqemustub.a
 	$(call LINK,$^)

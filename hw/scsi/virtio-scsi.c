@@ -565,7 +565,6 @@ static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
     VirtIOSCSIReq *req;
     VirtIOSCSIEvent *evt;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
-    int in_size;
 
     if (!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
         return;
@@ -577,24 +576,19 @@ static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
         return;
     }
 
-    if (req->elem.out_num) {
-        virtio_scsi_bad_req();
-    }
-
     if (s->events_dropped) {
         event |= VIRTIO_SCSI_T_EVENTS_MISSED;
         s->events_dropped = false;
     }
 
-    in_size = iov_size(req->elem.in_sg, req->elem.in_num);
-    if (in_size < sizeof(VirtIOSCSIEvent)) {
+    if (virtio_scsi_parse_req(req, 0, sizeof(VirtIOSCSIEvent))) {
         virtio_scsi_bad_req();
     }
 
     evt = &req->resp.event;
     memset(evt, 0, sizeof(VirtIOSCSIEvent));
-    evt->event = event;
-    evt->reason = reason;
+    evt->event = virtio_tswap32(vdev, event);
+    evt->reason = virtio_tswap32(vdev, reason);
     if (!dev) {
         assert(event == VIRTIO_SCSI_T_EVENTS_MISSED);
     } else {
