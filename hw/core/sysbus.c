@@ -283,13 +283,6 @@ static void sysbus_device_class_init(ObjectClass *klass, void *data)
     DeviceClass *k = DEVICE_CLASS(klass);
     k->init = sysbus_device_init;
     k->bus_type = TYPE_SYSTEM_BUS;
-    /*
-     * device_add plugs devices into suitable bus.  For "real" buses,
-     * that actually connects the device.  For sysbus, the connections
-     * need to be made separately, and device_add can't do that.  The
-     * device would be left unconnected, and could not possibly work.
-     */
-    k->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo sysbus_device_type_info = {

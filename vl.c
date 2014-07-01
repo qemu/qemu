@@ -1441,6 +1441,7 @@ static void machine_class_init(ObjectClass *oc, void *data)
     mc->no_floppy = qm->no_floppy;
     mc->no_cdrom = qm->no_cdrom;
     mc->no_sdcard = qm->no_sdcard;
+    mc->has_dynamic_sysbus = qm->has_dynamic_sysbus;
     mc->is_default = qm->is_default;
     mc->default_machine_opts = qm->default_machine_opts;
     mc->default_boot_order = qm->default_boot_order;
