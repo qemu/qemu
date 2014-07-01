@@ -124,7 +124,7 @@ static void hid_pointer_event(DeviceState *dev, QemuConsole *src,
         if (evt->rel->axis == INPUT_AXIS_X) {
             e->xdx += evt->rel->value;
         } else if (evt->rel->axis == INPUT_AXIS_Y) {
-            e->ydy -= evt->rel->value;
+            e->ydy += evt->rel->value;
         }
         break;
 
@@ -191,7 +191,7 @@ static void hid_pointer_sync(DeviceState *dev)
         if (hs->kind == HID_MOUSE) {
             prev->xdx += curr->xdx;
             curr->xdx = 0;
-            prev->ydy -= curr->ydy;
+            prev->ydy += curr->ydy;
             curr->ydy = 0;
         } else {
             prev->xdx = curr->xdx;
