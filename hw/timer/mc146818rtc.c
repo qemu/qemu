@@ -909,6 +909,9 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
 
     object_property_add(OBJECT(s), "date", "struct tm",
                         rtc_get_date, NULL, NULL, s, NULL);
+
+    object_property_add_alias(qdev_get_machine(), "rtc-time",
+                              OBJECT(s), "date", NULL);
 }
 
 ISADevice *rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
@@ -950,11 +953,17 @@ static void rtc_class_initfn(ObjectClass *klass, void *data)
     dc->cannot_instantiate_with_device_add_yet = true;
 }
 
+static void rtc_finalize(Object *obj)
+{
+    object_property_del(qdev_get_machine(), "rtc", NULL);
+}
+
 static const TypeInfo mc146818rtc_info = {
     .name          = TYPE_MC146818_RTC,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(RTCState),
     .class_init    = rtc_class_initfn,
+    .instance_finalize = rtc_finalize,
 };
 
 static void mc146818rtc_register_types(void)

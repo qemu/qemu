@@ -848,6 +848,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         if (dev->hotplugged && local_err == NULL) {
             device_reset(dev);
         }
+        dev->pending_deleted_event = false;
     } else if (!value && dev->realized) {
         QLIST_FOREACH(bus, &dev->child_bus, sibling) {
             object_property_set_bool(OBJECT(bus), false, "realized",
@@ -862,6 +863,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         if (dc->unrealize && local_err == NULL) {
             dc->unrealize(dev, &local_err);
         }
+        dev->pending_deleted_event = true;
     }
 
     if (local_err != NULL) {
@@ -972,7 +974,6 @@ static void device_unparent(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
     BusState *bus;
-    bool have_realized = dev->realized;
 
     if (dev->realized) {
         object_property_set_bool(obj, false, "realized", NULL);
@@ -988,7 +989,7 @@ static void device_unparent(Object *obj)
     }
 
     /* Only send event if the device had been completely realized */
-    if (have_realized) {
+    if (dev->pending_deleted_event) {
         gchar *path = object_get_canonical_path(OBJECT(dev));
 
         qapi_event_send_device_deleted(!!dev->id, dev->id, path, &error_abort);

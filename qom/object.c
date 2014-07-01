@@ -356,11 +356,6 @@ static inline bool object_property_is_child(ObjectProperty *prop)
     return strstart(prop->type, "child<", NULL);
 }
 
-static inline bool object_property_is_link(ObjectProperty *prop)
-{
-    return strstart(prop->type, "link<", NULL);
-}
-
 static void object_property_del_all(Object *obj)
 {
     while (!QTAILQ_EMPTY(&obj->properties)) {
@@ -716,11 +711,17 @@ GSList *object_class_get_list(const char *implements_type,
 
 void object_ref(Object *obj)
 {
+    if (!obj) {
+        return;
+    }
      atomic_inc(&obj->ref);
 }
 
 void object_unref(Object *obj)
 {
+    if (!obj) {
+        return;
+    }
     g_assert(obj->ref > 0);
 
     /* parent always holds a reference to its children */
@@ -729,11 +730,12 @@ void object_unref(Object *obj)
     }
 }
 
-void object_property_add(Object *obj, const char *name, const char *type,
-                         ObjectPropertyAccessor *get,
-                         ObjectPropertyAccessor *set,
-                         ObjectPropertyRelease *release,
-                         void *opaque, Error **errp)
+ObjectProperty *
+object_property_add(Object *obj, const char *name, const char *type,
+                    ObjectPropertyAccessor *get,
+                    ObjectPropertyAccessor *set,
+                    ObjectPropertyRelease *release,
+                    void *opaque, Error **errp)
 {
     ObjectProperty *prop;
 
@@ -742,7 +744,7 @@ void object_property_add(Object *obj, const char *name, const char *type,
             error_setg(errp, "attempt to add duplicate property '%s'"
                        " to object (type '%s')", name,
                        object_get_typename(obj));
-            return;
+            return NULL;
         }
     }
 
@@ -757,6 +759,7 @@ void object_property_add(Object *obj, const char *name, const char *type,
     prop->opaque = opaque;
 
     QTAILQ_INSERT_TAIL(&obj->properties, prop, node);
+    return prop;
 }
 
 ObjectProperty *object_property_find(Object *obj, const char *name,
@@ -1029,6 +1032,11 @@ static void object_get_child_property(Object *obj, Visitor *v, void *opaque,
     g_free(path);
 }
 
+static Object *object_resolve_child_property(Object *parent, void *opaque, const gchar *part)
+{
+    return opaque;
+}
+
 static void object_finalize_child_property(Object *obj, const char *name,
                                            void *opaque)
 {
@@ -1042,15 +1050,18 @@ void object_property_add_child(Object *obj, const char *name,
 {
     Error *local_err = NULL;
     gchar *type;
+    ObjectProperty *op;
 
     type = g_strdup_printf("child<%s>", object_get_typename(OBJECT(child)));
 
-    object_property_add(obj, name, type, object_get_child_property, NULL,
-                        object_finalize_child_property, child, &local_err);
+    op = object_property_add(obj, name, type, object_get_child_property, NULL,
+                             object_finalize_child_property, child, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto out;
     }
+
+    op->resolve = object_resolve_child_property;
     object_ref(child);
     g_assert(child->parent == NULL);
     child->parent = obj;
@@ -1155,13 +1166,16 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
         return;
     }
 
-    if (new_target) {
-        object_ref(new_target);
-    }
+    object_ref(new_target);
     *child = new_target;
-    if (old_target != NULL) {
-        object_unref(old_target);
-    }
+    object_unref(old_target);
+}
+
+static Object *object_resolve_link_property(Object *parent, void *opaque, const gchar *part)
+{
+    LinkProperty *lprop = opaque;
+
+    return *lprop->child;
 }
 
 static void object_release_link_property(Object *obj, const char *name,
@@ -1185,6 +1199,7 @@ void object_property_add_link(Object *obj, const char *name,
     Error *local_err = NULL;
     LinkProperty *prop = g_malloc(sizeof(*prop));
     gchar *full_type;
+    ObjectProperty *op;
 
     prop->child = child;
     prop->check = check;
@@ -1192,17 +1207,21 @@ void object_property_add_link(Object *obj, const char *name,
 
     full_type = g_strdup_printf("link<%s>", type);
 
-    object_property_add(obj, name, full_type,
-                        object_get_link_property,
-                        check ? object_set_link_property : NULL,
-                        object_release_link_property,
-                        prop,
-                        &local_err);
+    op = object_property_add(obj, name, full_type,
+                             object_get_link_property,
+                             check ? object_set_link_property : NULL,
+                             object_release_link_property,
+                             prop,
+                             &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         g_free(prop);
+        goto out;
     }
 
+    op->resolve = object_resolve_link_property;
+
+out:
     g_free(full_type);
 }
 
@@ -1261,11 +1280,8 @@ Object *object_resolve_path_component(Object *parent, const gchar *part)
         return NULL;
     }
 
-    if (object_property_is_link(prop)) {
-        LinkProperty *lprop = prop->opaque;
-        return *lprop->child;
-    } else if (object_property_is_child(prop)) {
-        return prop->opaque;
+    if (prop->resolve) {
+        return prop->resolve(parent, prop->opaque, part);
     } else {
         return NULL;
     }
@@ -1549,6 +1565,77 @@ void object_property_add_uint64_ptr(Object *obj, const char *name,
 {
     object_property_add(obj, name, "uint64", property_get_uint64_ptr,
                         NULL, NULL, (void *)v, errp);
+}
+
+typedef struct {
+    Object *target_obj;
+    const char *target_name;
+} AliasProperty;
+
+static void property_get_alias(Object *obj, struct Visitor *v, void *opaque,
+                               const char *name, Error **errp)
+{
+    AliasProperty *prop = opaque;
+
+    object_property_get(prop->target_obj, v, prop->target_name, errp);
+}
+
+static void property_set_alias(Object *obj, struct Visitor *v, void *opaque,
+                               const char *name, Error **errp)
+{
+    AliasProperty *prop = opaque;
+
+    object_property_set(prop->target_obj, v, prop->target_name, errp);
+}
+
+static Object *property_resolve_alias(Object *obj, void *opaque,
+                                      const gchar *part)
+{
+    AliasProperty *prop = opaque;
+
+    return object_resolve_path_component(prop->target_obj, prop->target_name);
+}
+
+static void property_release_alias(Object *obj, const char *name, void *opaque)
+{
+    AliasProperty *prop = opaque;
+
+    g_free(prop);
+}
+
+void object_property_add_alias(Object *obj, const char *name,
+                               Object *target_obj, const char *target_name,
+                               Error **errp)
+{
+    AliasProperty *prop;
+    ObjectProperty *op;
+    ObjectProperty *target_prop;
+    gchar *prop_type;
+
+    target_prop = object_property_find(target_obj, target_name, errp);
+    if (!target_prop) {
+        return;
+    }
+
+    if (object_property_is_child(target_prop)) {
+        prop_type = g_strdup_printf("link%s",
+                                    target_prop->type + strlen("child"));
+    } else {
+        prop_type = g_strdup(target_prop->type);
+    }
+
+    prop = g_malloc(sizeof(*prop));
+    prop->target_obj = target_obj;
+    prop->target_name = target_name;
+
+    op = object_property_add(obj, name, prop_type,
+                             property_get_alias,
+                             property_set_alias,
+                             property_release_alias,
+                             prop, errp);
+    op->resolve = property_resolve_alias;
+
+    g_free(prop_type);
 }
 
 static void object_instance_init(Object *obj)

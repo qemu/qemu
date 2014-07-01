@@ -291,7 +291,7 @@ static void test_media_insert(void)
     /* Insert media in drive. DSKCHK should not be reset until a step pulse
      * is sent. */
     qmp_discard_response("{'execute':'change', 'arguments':{"
-                         " 'device':'floppy0', 'target': '%s' }}",
+                         " 'device':'floppy0', 'target': %s }}",
                          test_image);
     qmp_discard_response(""); /* ignore event
                                  (FIXME open -> open transition?!) */
