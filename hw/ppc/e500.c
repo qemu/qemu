@@ -38,6 +38,7 @@
 #include "hw/pci-host/ppce500.h"
 #include "qemu/error-report.h"
 #include "hw/platform-bus.h"
+#include "hw/net/fsl_etsec/etsec.h"
 
 #define EPAPR_MAGIC                (0x45504150)
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
@@ -162,10 +163,52 @@ typedef struct PlatformDevtreeData {
     PlatformBusDevice *pbus;
 } PlatformDevtreeData;
 
+static int create_devtree_etsec(SysBusDevice *sbdev, PlatformDevtreeData *data)
+{
+    eTSEC *etsec = ETSEC_COMMON(sbdev);
+    PlatformBusDevice *pbus = data->pbus;
+    hwaddr mmio0 = platform_bus_get_mmio_addr(pbus, sbdev, 0);
+    int irq0 = platform_bus_get_irqn(pbus, sbdev, 0);
+    int irq1 = platform_bus_get_irqn(pbus, sbdev, 1);
+    int irq2 = platform_bus_get_irqn(pbus, sbdev, 2);
+    gchar *node = g_strdup_printf("/platform/ethernet@%"PRIx64, mmio0);
+    gchar *group = g_strdup_printf("%s/queue-group", node);
+    void *fdt = data->fdt;
+
+    assert((int64_t)mmio0 >= 0);
+    assert(irq0 >= 0);
+    assert(irq1 >= 0);
+    assert(irq2 >= 0);
+
+    qemu_fdt_add_subnode(fdt, node);
+    qemu_fdt_setprop_string(fdt, node, "device_type", "network");
+    qemu_fdt_setprop_string(fdt, node, "compatible", "fsl,etsec2");
+    qemu_fdt_setprop_string(fdt, node, "model", "eTSEC");
+    qemu_fdt_setprop(fdt, node, "local-mac-address", etsec->conf.macaddr.a, 6);
+    qemu_fdt_setprop_cells(fdt, node, "fixed-link", 0, 1, 1000, 0, 0);
+
+    qemu_fdt_add_subnode(fdt, group);
+    qemu_fdt_setprop_cells(fdt, group, "reg", mmio0, 0x1000);
+    qemu_fdt_setprop_cells(fdt, group, "interrupts",
+        data->irq_start + irq0, 0x2,
+        data->irq_start + irq1, 0x2,
+        data->irq_start + irq2, 0x2);
+
+    g_free(node);
+    g_free(group);
+
+    return 0;
+}
+
 static int sysbus_device_create_devtree(SysBusDevice *sbdev, void *opaque)
 {
     PlatformDevtreeData *data = opaque;
     bool matched = false;
+
+    if (object_dynamic_cast(OBJECT(sbdev), TYPE_ETSEC_COMMON)) {
+        create_devtree_etsec(sbdev, data);
+        matched = true;
+    }
 
     if (!matched) {
         error_report("Device %s is not supported by this machine yet.",
