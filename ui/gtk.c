@@ -463,6 +463,8 @@ static void gd_mouse_set(DisplayChangeListener *dcl,
     gdk_device_warp(gdk_device_manager_get_client_pointer(mgr),
                     gtk_widget_get_screen(vc->gfx.drawing_area),
                     x_root, y_root);
+    vc->s->last_x = x;
+    vc->s->last_y = y;
 }
 #else
 static void gd_mouse_set(DisplayChangeListener *dcl,
