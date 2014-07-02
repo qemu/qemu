@@ -741,6 +741,7 @@ void qemu_spice_init(void)
             error_report("spice: failed to enable sasl");
             exit(1);
         }
+        auth = "sasl";
     }
     if (qemu_opt_get_bool(opts, "disable-ticketing", 0)) {
         auth = "none";
@@ -894,6 +895,10 @@ static int qemu_spice_set_ticket(bool fail_if_conn, bool disconnect_if_conn)
 int qemu_spice_set_passwd(const char *passwd,
                           bool fail_if_conn, bool disconnect_if_conn)
 {
+    if (strcmp(auth, "spice") != 0) {
+        return -1;
+    }
+
     g_free(auth_passwd);
     auth_passwd = g_strdup(passwd);
     return qemu_spice_set_ticket(fail_if_conn, disconnect_if_conn);
