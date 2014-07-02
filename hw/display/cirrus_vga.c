@@ -2059,7 +2059,7 @@ static void cirrus_vga_mem_write(void *opaque,
 	}
     } else {
 #ifdef DEBUG_CIRRUS
-        printf("cirrus: mem_writeb " TARGET_FMT_plx " value %02x\n", addr,
+        printf("cirrus: mem_writeb " TARGET_FMT_plx " value 0x%02" PRIu64 "\n", addr,
                mem_value);
 #endif
     }
@@ -2594,7 +2594,7 @@ static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 	break;
     case 0x3c5:
 #ifdef DEBUG_VGA_REG
-	printf("vga: write SR%x = 0x%02x\n", s->sr_index, val);
+	printf("vga: write SR%x = 0x%02" PRIu64 "\n", s->sr_index, val);
 #endif
 	cirrus_vga_write_sr(c, val);
         break;
@@ -2619,7 +2619,7 @@ static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 	break;
     case 0x3cf:
 #ifdef DEBUG_VGA_REG
-	printf("vga: write GR%x = 0x%02x\n", s->gr_index, val);
+	printf("vga: write GR%x = 0x%02" PRIu64 "\n", s->gr_index, val);
 #endif
 	cirrus_vga_write_gr(c, s->gr_index, val);
 	break;
@@ -2630,7 +2630,7 @@ static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val,
     case 0x3b5:
     case 0x3d5:
 #ifdef DEBUG_VGA_REG
-	printf("vga: write CR%x = 0x%02x\n", s->cr_index, val);
+	printf("vga: write CR%x = 0x%02"PRIu64"\n", s->cr_index, val);
 #endif
 	cirrus_vga_write_cr(c, val);
 	break;
