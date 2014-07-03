@@ -444,7 +444,7 @@ static uint64_t do_cvttq(CPUAlphaState *env, uint64_t a, int roundmode)
             goto do_underflow;
         }
     } else if (exp == 0x7ff) {
-        exc = (frac ? FPCR_INV : FPCR_IOV | FPCR_INE);
+        exc = FPCR_INV;
     } else {
         /* Restore implicit bit.  */
         frac |= 0x10000000000000ull;
