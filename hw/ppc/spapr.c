@@ -691,8 +691,18 @@ static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
             mem_start += spapr->rma_size;
             node_size -= spapr->rma_size;
         }
-        spapr_populate_memory_node(fdt, i, mem_start, node_size);
-        mem_start += node_size;
+        for ( ; node_size; ) {
+            hwaddr sizetmp = pow2floor(node_size);
+
+            /* mem_start != 0 here */
+            if (ctzl(mem_start) < ctzl(sizetmp)) {
+                sizetmp = 1ULL << ctzl(mem_start);
+            }
+
+            spapr_populate_memory_node(fdt, i, mem_start, sizetmp);
+            node_size -= sizetmp;
+            mem_start += sizetmp;
+        }
     }
 
     return 0;
