@@ -661,13 +661,8 @@ static void spapr_populate_memory_node(void *fdt, int nodeid, hwaddr start,
 
 static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
 {
-    uint32_t associativity[] = {cpu_to_be32(0x4), cpu_to_be32(0x0),
-                                cpu_to_be32(0x0), cpu_to_be32(0x0),
-                                cpu_to_be32(0x0)};
-    char mem_name[32];
     hwaddr node0_size, mem_start, node_size;
-    uint64_t mem_reg_property[2];
-    int i, off;
+    int i;
 
     /* memory node(s) */
     if (nb_numa_nodes > 1 && numa_info[0].node_mem < ram_size) {
@@ -688,7 +683,6 @@ static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
     /* RAM: Node 1 and beyond */
     mem_start = node0_size;
     for (i = 1; i < nb_numa_nodes; i++) {
-        mem_reg_property[0] = cpu_to_be64(mem_start);
         if (mem_start >= ram_size) {
             node_size = 0;
         } else {
@@ -697,16 +691,7 @@ static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
                 node_size = ram_size - mem_start;
             }
         }
-        mem_reg_property[1] = cpu_to_be64(node_size);
-        associativity[3] = associativity[4] = cpu_to_be32(i);
-        sprintf(mem_name, "memory@" TARGET_FMT_lx, mem_start);
-        off = fdt_add_subnode(fdt, 0, mem_name);
-        _FDT(off);
-        _FDT((fdt_setprop_string(fdt, off, "device_type", "memory")));
-        _FDT((fdt_setprop(fdt, off, "reg", mem_reg_property,
-                          sizeof(mem_reg_property))));
-        _FDT((fdt_setprop(fdt, off, "ibm,associativity", associativity,
-                          sizeof(associativity))));
+        spapr_populate_memory_node(fdt, i, mem_start, node_size);
         mem_start += node_size;
     }
 
