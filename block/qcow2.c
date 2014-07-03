@@ -1020,11 +1020,20 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
                 n1 = qcow2_backing_read1(bs->backing_hd, &hd_qiov,
                     sector_num, cur_nr_sectors);
                 if (n1 > 0) {
+                    QEMUIOVector local_qiov;
+
+                    qemu_iovec_init(&local_qiov, hd_qiov.niov);
+                    qemu_iovec_concat(&local_qiov, &hd_qiov, 0,
+                                      n1 * BDRV_SECTOR_SIZE);
+
                     BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
                     qemu_co_mutex_unlock(&s->lock);
                     ret = bdrv_co_readv(bs->backing_hd, sector_num,
-                                        n1, &hd_qiov);
+                                        n1, &local_qiov);
                     qemu_co_mutex_lock(&s->lock);
+
+                    qemu_iovec_destroy(&local_qiov);
+
                     if (ret < 0) {
                         goto fail;
                     }
