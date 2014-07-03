@@ -653,7 +653,7 @@ static void spapr_populate_memory_node(void *fdt, int nodeid, hwaddr start,
     uint32_t associativity[] = {
         cpu_to_be32(0x4), /* length */
         cpu_to_be32(0x0), cpu_to_be32(0x0),
-        cpu_to_be32(nodeid), cpu_to_be32(nodeid)
+        cpu_to_be32(0x0), cpu_to_be32(nodeid)
     };
     char mem_name[32];
     uint64_t mem_reg_property[2];
