@@ -56,7 +56,7 @@ typedef struct PowerPCCPUClass {
     void (*parent_reset)(CPUState *cpu);
 
     uint32_t pvr;
-    uint32_t pvr_mask;
+    bool (*pvr_match)(struct PowerPCCPUClass *pcc, uint32_t pvr);
     uint64_t pcr_mask;
     uint32_t svr;
     uint64_t insns_flags;
