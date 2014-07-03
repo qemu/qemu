@@ -453,12 +453,12 @@ static uint64_t do_cvttq(CPUAlphaState *env, uint64_t a, int roundmode)
         if (shift >= 0) {
             /* In this case the number is so large that we must shift
                the fraction left.  There is no rounding to do.  */
-            exc = FPCR_IOV | FPCR_INE;
-            if (shift < 63) {
+            if (shift < 64) {
                 ret = frac << shift;
-                if ((ret >> shift) == frac) {
-                    exc = 0;
-                }
+            }
+            /* Check for overflow.  Note the special case of -0x1p63.  */
+            if (shift >= 11 && a != 0xC3E0000000000000ull) {
+                exc = FPCR_IOV | FPCR_INE;
             }
         } else {
             uint64_t round;
