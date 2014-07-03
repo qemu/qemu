@@ -1362,7 +1362,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     uint16_t fn11;
     uint8_t opc, ra, rb, rc, fpfn, fn7, lit;
     bool islit;
-    TCGv va, vb, vc, tmp;
+    TCGv va, vb, vc, tmp, tmp2;
     TCGv_i32 t32;
     ExitStatus ret;
 
@@ -1574,11 +1574,23 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x40:
             /* ADDL/V */
-            gen_helper_addlv(vc, cpu_env, va, vb);
+            tmp = tcg_temp_new();
+            tcg_gen_ext32s_i64(tmp, va);
+            tcg_gen_ext32s_i64(vc, vb);
+            tcg_gen_add_i64(tmp, tmp, vc);
+            tcg_gen_ext32s_i64(vc, tmp);
+            gen_helper_check_overflow(cpu_env, vc, tmp);
+            tcg_temp_free(tmp);
             break;
         case 0x49:
             /* SUBL/V */
-            gen_helper_sublv(vc, cpu_env, va, vb);
+            tmp = tcg_temp_new();
+            tcg_gen_ext32s_i64(tmp, va);
+            tcg_gen_ext32s_i64(vc, vb);
+            tcg_gen_sub_i64(tmp, tmp, vc);
+            tcg_gen_ext32s_i64(vc, tmp);
+            gen_helper_check_overflow(cpu_env, vc, tmp);
+            tcg_temp_free(tmp);
             break;
         case 0x4D:
             /* CMPLT */
@@ -1586,11 +1598,33 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x60:
             /* ADDQ/V */
-            gen_helper_addqv(vc, cpu_env, va, vb);
+            tmp = tcg_temp_new();
+            tmp2 = tcg_temp_new();
+            tcg_gen_eqv_i64(tmp, va, vb);
+            tcg_gen_mov_i64(tmp2, va);
+            tcg_gen_add_i64(vc, va, vb);
+            tcg_gen_xor_i64(tmp2, tmp2, vc);
+            tcg_gen_and_i64(tmp, tmp, tmp2);
+            tcg_gen_shri_i64(tmp, tmp, 63);
+            tcg_gen_movi_i64(tmp2, 0);
+            gen_helper_check_overflow(cpu_env, tmp, tmp2);
+            tcg_temp_free(tmp);
+            tcg_temp_free(tmp2);
             break;
         case 0x69:
             /* SUBQ/V */
-            gen_helper_subqv(vc, cpu_env, va, vb);
+            tmp = tcg_temp_new();
+            tmp2 = tcg_temp_new();
+            tcg_gen_xor_i64(tmp, va, vb);
+            tcg_gen_mov_i64(tmp2, va);
+            tcg_gen_sub_i64(vc, va, vb);
+            tcg_gen_xor_i64(tmp2, tmp2, vc);
+            tcg_gen_and_i64(tmp, tmp, tmp2);
+            tcg_gen_shri_i64(tmp, tmp, 63);
+            tcg_gen_movi_i64(tmp2, 0);
+            gen_helper_check_overflow(cpu_env, tmp, tmp2);
+            tcg_temp_free(tmp);
+            tcg_temp_free(tmp2);
             break;
         case 0x6D:
             /* CMPLE */
@@ -1885,11 +1919,23 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x40:
             /* MULL/V */
-            gen_helper_mullv(vc, cpu_env, va, vb);
+            tmp = tcg_temp_new();
+            tcg_gen_ext32s_i64(tmp, va);
+            tcg_gen_ext32s_i64(vc, vb);
+            tcg_gen_mul_i64(tmp, tmp, vc);
+            tcg_gen_ext32s_i64(vc, tmp);
+            gen_helper_check_overflow(cpu_env, vc, tmp);
+            tcg_temp_free(tmp);
             break;
         case 0x60:
             /* MULQ/V */
-            gen_helper_mulqv(vc, cpu_env, va, vb);
+            tmp = tcg_temp_new();
+            tmp2 = tcg_temp_new();
+            tcg_gen_muls2_i64(vc, tmp, va, vb);
+            tcg_gen_sari_i64(tmp2, vc, 63);
+            gen_helper_check_overflow(cpu_env, tmp, tmp2);
+            tcg_temp_free(tmp);
+            tcg_temp_free(tmp2);
             break;
         default:
             goto invalid_opc;
