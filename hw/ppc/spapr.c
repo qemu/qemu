@@ -661,35 +661,35 @@ static void spapr_populate_memory_node(void *fdt, int nodeid, hwaddr start,
 
 static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
 {
-    hwaddr node0_size, mem_start, node_size;
-    int i;
+    hwaddr mem_start, node_size;
+    int i, nb_nodes = nb_numa_nodes;
+    NodeInfo *nodes = numa_info;
+    NodeInfo ramnode;
 
-    /* memory node(s) */
-    if (nb_numa_nodes > 1 && numa_info[0].node_mem < ram_size) {
-        node0_size = numa_info[0].node_mem;
-    } else {
-        node0_size = ram_size;
+    /* No NUMA nodes, assume there is just one node with whole RAM */
+    if (!nb_numa_nodes) {
+        nb_nodes = 1;
+        ramnode.node_mem = ram_size;
+        nodes = &ramnode;
     }
 
-    /* RMA */
-    spapr_populate_memory_node(fdt, 0, 0, spapr->rma_size);
-
-    /* RAM: Node 0 */
-    if (node0_size > spapr->rma_size) {
-        spapr_populate_memory_node(fdt, 0, spapr->rma_size,
-                                   node0_size - spapr->rma_size);
-    }
-
-    /* RAM: Node 1 and beyond */
-    mem_start = node0_size;
-    for (i = 1; i < nb_numa_nodes; i++) {
+    for (i = 0, mem_start = 0; i < nb_nodes; ++i) {
+        if (!nodes[i].node_mem) {
+            continue;
+        }
         if (mem_start >= ram_size) {
             node_size = 0;
         } else {
-            node_size = numa_info[i].node_mem;
+            node_size = nodes[i].node_mem;
             if (node_size > ram_size - mem_start) {
                 node_size = ram_size - mem_start;
             }
+        }
+        if (!mem_start) {
+            /* ppc_spapr_init() checks for rma_size <= node0_size already */
+            spapr_populate_memory_node(fdt, i, 0, spapr->rma_size);
+            mem_start += spapr->rma_size;
+            node_size -= spapr->rma_size;
         }
         spapr_populate_memory_node(fdt, i, mem_start, node_size);
         mem_start += node_size;
