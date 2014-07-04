@@ -344,7 +344,8 @@ multiboot.bin linuxboot.bin kvmvapic.bin \
 s390-zipl.rom \
 s390-ccw.img \
 spapr-rtas.bin slof.bin \
-palcode-clipper
+palcode-clipper \
+u-boot.e500
 else
 BLOBS=
 endif
