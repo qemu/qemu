@@ -1002,11 +1002,9 @@ static void virtio_pci_device_plugged(DeviceState *d)
 
 static void virtio_pci_device_unplugged(DeviceState *d)
 {
-    PCIDevice *pci_dev = PCI_DEVICE(d);
     VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
 
     virtio_pci_stop_ioeventfd(proxy);
-    msix_uninit_exclusive_bar(pci_dev);
 }
 
 static int virtio_pci_init(PCIDevice *pci_dev)
@@ -1023,6 +1021,8 @@ static int virtio_pci_init(PCIDevice *pci_dev)
 static void virtio_pci_exit(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
+
+    msix_uninit_exclusive_bar(pci_dev);
     memory_region_destroy(&proxy->bar);
 }
 
