@@ -142,6 +142,7 @@ typedef struct QEDAIOCB {
 
     /* Current cluster scatter-gather list */
     QEMUIOVector cur_qiov;
+    QEMUIOVector *backing_qiov;
     uint64_t cur_pos;               /* position on block device, in bytes */
     uint64_t cur_cluster;           /* cluster offset in image file */
     unsigned int cur_nclusters;     /* number of clusters being accessed */
