@@ -1905,6 +1905,7 @@ void bdrv_drain_all(void)
             bool bs_busy;
 
             aio_context_acquire(aio_context);
+            bdrv_flush_io_queue(bs);
             bdrv_start_throttled_reqs(bs);
             bs_busy = bdrv_requests_pending(bs);
             bs_busy |= aio_poll(aio_context, bs_busy);
@@ -5781,4 +5782,34 @@ BlockDriverState *check_to_replace_node(const char *node_name, Error **errp)
     }
 
     return to_replace_bs;
+}
+
+void bdrv_io_plug(BlockDriverState *bs)
+{
+    BlockDriver *drv = bs->drv;
+    if (drv && drv->bdrv_io_plug) {
+        drv->bdrv_io_plug(bs);
+    } else if (bs->file) {
+        bdrv_io_plug(bs->file);
+    }
+}
+
+void bdrv_io_unplug(BlockDriverState *bs)
+{
+    BlockDriver *drv = bs->drv;
+    if (drv && drv->bdrv_io_unplug) {
+        drv->bdrv_io_unplug(bs);
+    } else if (bs->file) {
+        bdrv_io_unplug(bs->file);
+    }
+}
+
+void bdrv_flush_io_queue(BlockDriverState *bs)
+{
+    BlockDriver *drv = bs->drv;
+    if (drv && drv->bdrv_flush_io_queue) {
+        drv->bdrv_flush_io_queue(bs);
+    } else if (bs->file) {
+        bdrv_flush_io_queue(bs->file);
+    }
 }
