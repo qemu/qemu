@@ -2318,6 +2318,10 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* WH64 */
             /* No-op */
             break;
+        case 0xFC00:
+            /* WH64EN */
+            /* No-op */
+            break;
         default:
             goto invalid_opc;
         }
