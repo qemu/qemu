@@ -1461,16 +1461,11 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     int disp_width, multi_scan, multi_run;
     uint8_t *d;
     uint32_t v, addr1, addr;
-    vga_draw_line_func *vga_draw_line;
-#if defined(TARGET_WORDS_BIGENDIAN)
-    static const bool big_endian_fb = true;
+    vga_draw_line_func *vga_draw_line = NULL;
+#ifdef HOST_WORDS_BIGENDIAN
+    bool byteswap = !s->big_endian_fb;
 #else
-    static const bool big_endian_fb = false;
-#endif
-#if defined(HOST_WORDS_BIGENDIAN)
-    static const bool byteswap = !big_endian_fb;
-#else
-    static const bool byteswap = big_endian_fb;
+    bool byteswap = s->big_endian_fb;
 #endif
 
     full_update |= update_basic_params(s);
@@ -1573,19 +1568,19 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
             bits = 8;
             break;
         case 15:
-            v = big_endian_fb ? VGA_DRAW_LINE15_BE : VGA_DRAW_LINE15_LE;
+            v = s->big_endian_fb ? VGA_DRAW_LINE15_BE : VGA_DRAW_LINE15_LE;
             bits = 16;
             break;
         case 16:
-            v = big_endian_fb ? VGA_DRAW_LINE16_BE : VGA_DRAW_LINE16_LE;
+            v = s->big_endian_fb ? VGA_DRAW_LINE16_BE : VGA_DRAW_LINE16_LE;
             bits = 16;
             break;
         case 24:
-            v = big_endian_fb ? VGA_DRAW_LINE24_BE : VGA_DRAW_LINE24_LE;
+            v = s->big_endian_fb ? VGA_DRAW_LINE24_BE : VGA_DRAW_LINE24_LE;
             bits = 24;
             break;
         case 32:
-            v = big_endian_fb ? VGA_DRAW_LINE32_BE : VGA_DRAW_LINE32_LE;
+            v = s->big_endian_fb ? VGA_DRAW_LINE32_BE : VGA_DRAW_LINE32_LE;
             bits = 32;
             break;
         }
@@ -2129,6 +2124,17 @@ void vga_common_init(VGACommonState *s, Object *obj, bool global_vmstate)
         s->update_retrace_info = vga_precise_update_retrace_info;
         break;
     }
+
+    /*
+     * Set default fb endian based on target, should probably be turned
+     * into a device attribute set by the machine/platform to remove
+     * all target endian dependencies from this file.
+     */
+#ifdef TARGET_WORDS_BIGENDIAN
+    s->big_endian_fb = true;
+#else
+    s->big_endian_fb = false;
+#endif
     vga_dirty_log_start(s);
 }
 
