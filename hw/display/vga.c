@@ -1374,10 +1374,14 @@ enum {
     VGA_DRAW_LINE4D2,
     VGA_DRAW_LINE8D2,
     VGA_DRAW_LINE8,
-    VGA_DRAW_LINE15,
-    VGA_DRAW_LINE16,
-    VGA_DRAW_LINE24,
-    VGA_DRAW_LINE32,
+    VGA_DRAW_LINE15_LE,
+    VGA_DRAW_LINE16_LE,
+    VGA_DRAW_LINE24_LE,
+    VGA_DRAW_LINE32_LE,
+    VGA_DRAW_LINE15_BE,
+    VGA_DRAW_LINE16_BE,
+    VGA_DRAW_LINE24_BE,
+    VGA_DRAW_LINE32_BE,
     VGA_DRAW_LINE_NB,
 };
 
@@ -1388,10 +1392,14 @@ static vga_draw_line_func * const vga_draw_line_table[VGA_DRAW_LINE_NB] = {
     vga_draw_line4d2,
     vga_draw_line8d2,
     vga_draw_line8,
-    vga_draw_line15,
-    vga_draw_line16,
-    vga_draw_line24,
-    vga_draw_line32,
+    vga_draw_line15_le,
+    vga_draw_line16_le,
+    vga_draw_line24_le,
+    vga_draw_line32_le,
+    vga_draw_line15_be,
+    vga_draw_line16_be,
+    vga_draw_line24_be,
+    vga_draw_line32_be,
 };
 
 static int vga_get_bpp(VGACommonState *s)
@@ -1464,10 +1472,15 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     uint8_t *d;
     uint32_t v, addr1, addr;
     vga_draw_line_func *vga_draw_line;
-#if defined(HOST_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
-    static const bool byteswap = false;
+#if defined(TARGET_WORDS_BIGENDIAN)
+    static const bool big_endian_fb = true;
 #else
-    static const bool byteswap = true;
+    static const bool big_endian_fb = false;
+#endif
+#if defined(HOST_WORDS_BIGENDIAN)
+    static const bool byteswap = !big_endian_fb;
+#else
+    static const bool byteswap = big_endian_fb;
 #endif
 
     full_update |= update_basic_params(s);
@@ -1572,19 +1585,19 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
             bits = 8;
             break;
         case 15:
-            v = VGA_DRAW_LINE15;
+            v = big_endian_fb ? VGA_DRAW_LINE15_BE : VGA_DRAW_LINE15_LE;
             bits = 16;
             break;
         case 16:
-            v = VGA_DRAW_LINE16;
+            v = big_endian_fb ? VGA_DRAW_LINE16_BE : VGA_DRAW_LINE16_LE;
             bits = 16;
             break;
         case 24:
-            v = VGA_DRAW_LINE24;
+            v = big_endian_fb ? VGA_DRAW_LINE24_BE : VGA_DRAW_LINE24_LE;
             bits = 24;
             break;
         case 32:
-            v = VGA_DRAW_LINE32;
+            v = big_endian_fb ? VGA_DRAW_LINE32_BE : VGA_DRAW_LINE32_LE;
             bits = 32;
             break;
         }

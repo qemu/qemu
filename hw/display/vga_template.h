@@ -278,21 +278,36 @@ static void vga_draw_line8(VGACommonState *s1, uint8_t *d,
     }
 }
 
-
-/* XXX: optimize */
-
 /*
  * 15 bit color
  */
-static void vga_draw_line15(VGACommonState *s1, uint8_t *d,
-                            const uint8_t *s, int width)
+static void vga_draw_line15_le(VGACommonState *s1, uint8_t *d,
+                               const uint8_t *s, int width)
 {
     int w;
     uint32_t v, r, g, b;
 
     w = width;
     do {
-        v = lduw_p((void *)s);
+        v = lduw_le_p((void *)s);
+        r = (v >> 7) & 0xf8;
+        g = (v >> 2) & 0xf8;
+        b = (v << 3) & 0xf8;
+        ((uint32_t *)d)[0] = rgb_to_pixel32(r, g, b);
+        s += 2;
+        d += 4;
+    } while (--w != 0);
+}
+
+static void vga_draw_line15_be(VGACommonState *s1, uint8_t *d,
+                               const uint8_t *s, int width)
+{
+    int w;
+    uint32_t v, r, g, b;
+
+    w = width;
+    do {
+        v = lduw_be_p((void *)s);
         r = (v >> 7) & 0xf8;
         g = (v >> 2) & 0xf8;
         b = (v << 3) & 0xf8;
@@ -305,15 +320,33 @@ static void vga_draw_line15(VGACommonState *s1, uint8_t *d,
 /*
  * 16 bit color
  */
-static void vga_draw_line16(VGACommonState *s1, uint8_t *d,
-                            const uint8_t *s, int width)
+static void vga_draw_line16_le(VGACommonState *s1, uint8_t *d,
+                               const uint8_t *s, int width)
 {
     int w;
     uint32_t v, r, g, b;
 
     w = width;
     do {
-        v = lduw_p((void *)s);
+        v = lduw_le_p((void *)s);
+        r = (v >> 8) & 0xf8;
+        g = (v >> 3) & 0xfc;
+        b = (v << 3) & 0xf8;
+        ((uint32_t *)d)[0] = rgb_to_pixel32(r, g, b);
+        s += 2;
+        d += 4;
+    } while (--w != 0);
+}
+
+static void vga_draw_line16_be(VGACommonState *s1, uint8_t *d,
+                               const uint8_t *s, int width)
+{
+    int w;
+    uint32_t v, r, g, b;
+
+    w = width;
+    do {
+        v = lduw_be_p((void *)s);
         r = (v >> 8) & 0xf8;
         g = (v >> 3) & 0xfc;
         b = (v << 3) & 0xf8;
@@ -326,23 +359,34 @@ static void vga_draw_line16(VGACommonState *s1, uint8_t *d,
 /*
  * 24 bit color
  */
-static void vga_draw_line24(VGACommonState *s1, uint8_t *d,
-                            const uint8_t *s, int width)
+static void vga_draw_line24_le(VGACommonState *s1, uint8_t *d,
+                               const uint8_t *s, int width)
 {
     int w;
     uint32_t r, g, b;
 
     w = width;
     do {
-#if defined(TARGET_WORDS_BIGENDIAN)
-        r = s[0];
-        g = s[1];
-        b = s[2];
-#else
         b = s[0];
         g = s[1];
         r = s[2];
-#endif
+        ((uint32_t *)d)[0] = rgb_to_pixel32(r, g, b);
+        s += 3;
+        d += 4;
+    } while (--w != 0);
+}
+
+static void vga_draw_line24_be(VGACommonState *s1, uint8_t *d,
+                               const uint8_t *s, int width)
+{
+    int w;
+    uint32_t r, g, b;
+
+    w = width;
+    do {
+        r = s[0];
+        g = s[1];
+        b = s[2];
         ((uint32_t *)d)[0] = rgb_to_pixel32(r, g, b);
         s += 3;
         d += 4;
@@ -352,10 +396,10 @@ static void vga_draw_line24(VGACommonState *s1, uint8_t *d,
 /*
  * 32 bit color
  */
-static void vga_draw_line32(VGACommonState *s1, uint8_t *d,
-                            const uint8_t *s, int width)
+static void vga_draw_line32_le(VGACommonState *s1, uint8_t *d,
+                               const uint8_t *s, int width)
 {
-#if defined(HOST_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
+#ifndef HOST_WORDS_BIGENDIAN
     memcpy(d, s, width * 4);
 #else
     int w;
@@ -363,15 +407,30 @@ static void vga_draw_line32(VGACommonState *s1, uint8_t *d,
 
     w = width;
     do {
-#if defined(TARGET_WORDS_BIGENDIAN)
-        r = s[1];
-        g = s[2];
-        b = s[3];
-#else
         b = s[0];
         g = s[1];
         r = s[2];
+        ((uint32_t *)d)[0] = rgb_to_pixel32(r, g, b);
+        s += 4;
+        d += 4;
+    } while (--w != 0);
 #endif
+}
+
+static void vga_draw_line32_be(VGACommonState *s1, uint8_t *d,
+                               const uint8_t *s, int width)
+{
+#ifdef HOST_WORDS_BIGENDIAN
+    memcpy(d, s, width * 4);
+#else
+    int w;
+    uint32_t r, g, b;
+
+    w = width;
+    do {
+        r = s[1];
+        g = s[2];
+        b = s[3];
         ((uint32_t *)d)[0] = rgb_to_pixel32(r, g, b);
         s += 4;
         d += 4;
