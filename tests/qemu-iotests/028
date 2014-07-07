@@ -33,7 +33,8 @@ status=1	# failure is the default!
 
 _cleanup()
 {
-	_cleanup_test_img
+    rm -f "${TEST_IMG}.copy"
+    _cleanup_test_img
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -41,6 +42,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.rc
 . ./common.filter
 . ./common.pattern
+. ./common.qemu
 
 # Any format supporting backing files except vmdk and qcow which do not support
 # smaller backing files.
@@ -98,6 +100,29 @@ _check_test_img
 
 # Rebase it on top of its base image
 $QEMU_IMG rebase -b "$TEST_IMG.base" "$TEST_IMG"
+
+echo
+echo block-backup
+echo
+
+qemu_comm_method="monitor"
+_launch_qemu -drive file="${TEST_IMG}",cache=${CACHEMODE},id=disk
+h=$QEMU_HANDLE
+QEMU_COMM_TIMEOUT=1
+
+_send_qemu_cmd $h "drive_backup disk ${TEST_IMG}.copy" "(qemu)"
+qemu_cmd_repeat=20 _send_qemu_cmd $h "info block-jobs" "No active jobs"
+_send_qemu_cmd $h 'quit' ""
+
+# Base image sectors
+TEST_IMG="${TEST_IMG}.copy" io readv $(( offset )) 512 1024 32
+
+# Image sectors
+TEST_IMG="${TEST_IMG}.copy" io readv $(( offset + 512 )) 512 1024 64
+
+# Zero sectors beyond end of base image
+TEST_IMG="${TEST_IMG}.copy" io_zero readv $(( offset + 32 * 1024 )) 512 1024 32
+
 
 _check_test_img
 
