@@ -827,6 +827,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     }
 
     pci_dev->bus = bus;
+    pci_dev->devfn = devfn;
     dma_as = pci_device_iommu_address_space(pci_dev);
 
     memory_region_init_alias(&pci_dev->bus_master_enable_region,
@@ -836,7 +837,6 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     address_space_init(&pci_dev->bus_master_as, &pci_dev->bus_master_enable_region,
                        name);
 
-    pci_dev->devfn = devfn;
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
     pci_dev->irq_state = 0;
     pci_config_alloc(pci_dev);

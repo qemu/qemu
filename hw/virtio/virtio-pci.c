@@ -914,7 +914,6 @@ static Property virtio_9p_pci_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
     DEFINE_VIRTIO_9P_PROPERTIES(V9fsPCIState, vdev.fsconf),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -1003,11 +1002,9 @@ static void virtio_pci_device_plugged(DeviceState *d)
 
 static void virtio_pci_device_unplugged(DeviceState *d)
 {
-    PCIDevice *pci_dev = PCI_DEVICE(d);
     VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
 
     virtio_pci_stop_ioeventfd(proxy);
-    msix_uninit_exclusive_bar(pci_dev);
 }
 
 static int virtio_pci_init(PCIDevice *pci_dev)
@@ -1024,6 +1021,8 @@ static int virtio_pci_init(PCIDevice *pci_dev)
 static void virtio_pci_exit(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
+
+    msix_uninit_exclusive_bar(pci_dev);
     memory_region_destroy(&proxy->bar);
 }
 
@@ -1037,11 +1036,17 @@ static void virtio_pci_reset(DeviceState *qdev)
     proxy->flags &= ~VIRTIO_PCI_FLAG_BUS_MASTER_BUG;
 }
 
+static Property virtio_pci_properties[] = {
+    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void virtio_pci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
+    dc->props = virtio_pci_properties;
     k->init = virtio_pci_init;
     k->exit = virtio_pci_exit;
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
@@ -1066,7 +1071,6 @@ static Property virtio_blk_pci_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
-    DEFINE_VIRTIO_BLK_FEATURES(VirtIOPCIProxy, host_features),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1191,7 +1195,6 @@ static const TypeInfo virtio_scsi_pci_info = {
 static Property vhost_scsi_pci_properties[] = {
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors,
                        DEV_NVECTORS_UNSPECIFIED),
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
     DEFINE_VHOST_SCSI_PROPERTIES(VHostSCSIPCI, vdev.parent_obj.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -1272,7 +1275,6 @@ static void balloon_pci_stats_set_poll_interval(Object *obj, struct Visitor *v,
 }
 
 static Property virtio_balloon_pci_properties[] = {
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
     DEFINE_PROP_UINT32("class", VirtIOPCIProxy, class_code, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -1375,7 +1377,6 @@ static Property virtio_serial_pci_properties[] = {
                     VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
     DEFINE_PROP_UINT32("class", VirtIOPCIProxy, class_code, 0),
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
     DEFINE_VIRTIO_SERIAL_PROPERTIES(VirtIOSerialPCI, vdev.serial),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -1471,7 +1472,6 @@ static const TypeInfo virtio_net_pci_info = {
 /* virtio-rng-pci */
 
 static Property virtio_rng_pci_properties[] = {
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
     DEFINE_VIRTIO_RNG_PROPERTIES(VirtIORngPCI, vdev.conf),
     DEFINE_PROP_END_OF_LIST(),
 };

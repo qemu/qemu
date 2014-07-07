@@ -152,9 +152,6 @@ typedef struct VirtIOBlockReq {
     BlockAcctCookie acct;
 } VirtIOBlockReq;
 
-#define DEFINE_VIRTIO_BLK_FEATURES(_state, _field) \
-        DEFINE_VIRTIO_COMMON_FEATURES(_state, _field)
-
 int virtio_blk_handle_scsi_req(VirtIOBlock *blk,
                                VirtQueueElement *elem);
 

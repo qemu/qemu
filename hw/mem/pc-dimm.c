@@ -146,7 +146,13 @@ uint64_t pc_dimm_get_free_addr(uint64_t address_space_start,
     uint64_t new_addr, ret = 0;
     uint64_t address_space_end = address_space_start + address_space_size;
 
-    assert(address_space_end > address_space_size);
+    if (!address_space_size) {
+        error_setg(errp, "memory hotplug is not enabled, "
+                         "please add maxmem option");
+        goto out;
+    }
+
+    assert(address_space_end > address_space_start);
     object_child_foreach(qdev_get_machine(), pc_dimm_built_list, &list);
 
     if (hint) {

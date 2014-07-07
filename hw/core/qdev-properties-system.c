@@ -394,7 +394,8 @@ static int qdev_add_one_global(QemuOpts *opts, void *opaque)
     g->driver   = qemu_opt_get(opts, "driver");
     g->property = qemu_opt_get(opts, "property");
     g->value    = qemu_opt_get(opts, "value");
-    oc = object_class_by_name(g->driver);
+    oc = object_class_dynamic_cast(object_class_by_name(g->driver),
+                                   TYPE_DEVICE);
     if (oc) {
         DeviceClass *dc = DEVICE_CLASS(oc);
 

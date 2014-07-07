@@ -957,7 +957,13 @@ static void device_initfn(Object *obj)
 
 static void device_post_init(Object *obj)
 {
-    qdev_prop_set_globals(DEVICE(obj), &error_abort);
+    Error *err = NULL;
+    qdev_prop_set_globals(DEVICE(obj), &err);
+    if (err) {
+        qerror_report_err(err);
+        error_free(err);
+        exit(EXIT_FAILURE);
+    }
 }
 
 /* Unlink device from bus and free the structure.  */
