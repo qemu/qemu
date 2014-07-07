@@ -372,8 +372,8 @@ static void test_primitive_lists(gconstpointer opaque)
     TestArgs *args = (TestArgs *) opaque;
     const SerializeOps *ops = args->ops;
     PrimitiveType *pt = args->test_data;
-    PrimitiveList pl = { .value = { 0 } };
-    PrimitiveList pl_copy = { .value = { 0 } };
+    PrimitiveList pl = { .value = { NULL } };
+    PrimitiveList pl_copy = { .value = { NULL } };
     PrimitiveList *pl_copy_ptr = &pl_copy;
     Error *err = NULL;
     void *serialize_data;
@@ -771,7 +771,7 @@ static void test_nested_struct_list(gconstpointer opaque)
     g_free(args);
 }
 
-PrimitiveType pt_values[] = {
+static PrimitiveType pt_values[] = {
     /* string tests */
     {
         .description = "string_empty",
