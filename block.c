@@ -57,6 +57,8 @@ struct BdrvDirtyBitmap {
 
 #define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
 
+#define COROUTINE_POOL_RESERVATION 64 /* number of coroutines to reserve */
+
 static void bdrv_dev_change_media_cb(BlockDriverState *bs, bool load);
 static BlockDriverAIOCB *bdrv_aio_readv_em(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
@@ -2107,6 +2109,9 @@ int bdrv_attach_dev(BlockDriverState *bs, void *dev)
     }
     bs->dev = dev;
     bdrv_iostatus_reset(bs);
+
+    /* We're expecting I/O from the device so bump up coroutine pool size */
+    qemu_coroutine_adjust_pool_size(COROUTINE_POOL_RESERVATION);
     return 0;
 }
 
@@ -2126,6 +2131,7 @@ void bdrv_detach_dev(BlockDriverState *bs, void *dev)
     bs->dev_ops = NULL;
     bs->dev_opaque = NULL;
     bs->guest_block_size = 512;
+    qemu_coroutine_adjust_pool_size(-COROUTINE_POOL_RESERVATION);
 }
 
 /* TODO change to return DeviceState * when all users are qdevified */
