@@ -84,7 +84,7 @@ pixman_format_code_t qemu_default_pixman_format(int bpp, bool native_endian)
         break;
         }
     }
-    g_assert_not_reached();
+    return 0;
 }
 
 int qemu_pixman_get_type(int rshift, int gshift, int bshift)
