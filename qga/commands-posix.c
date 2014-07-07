@@ -643,7 +643,7 @@ typedef enum {
     FSFREEZE_HOOK_FREEZE,
 } FsfreezeHookArg;
 
-const char *fsfreeze_hook_arg_string[] = {
+static const char *fsfreeze_hook_arg_string[] = {
     "thaw",
     "freeze",
 };
