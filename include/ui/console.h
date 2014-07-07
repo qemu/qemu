@@ -161,6 +161,8 @@ typedef struct DisplayChangeListenerOps {
     void (*dpy_gfx_copy)(DisplayChangeListener *dcl,
                          int src_x, int src_y,
                          int dst_x, int dst_y, int w, int h);
+    bool (*dpy_gfx_check_format)(DisplayChangeListener *dcl,
+                                 pixman_format_code_t format);
 
     void (*dpy_text_cursor)(DisplayChangeListener *dcl,
                             int x, int y);
@@ -235,6 +237,8 @@ void dpy_gfx_update_dirty(QemuConsole *con,
                           MemoryRegion *address_space,
                           uint64_t base,
                           bool invalidate);
+bool dpy_gfx_check_format(QemuConsole *con,
+                          pixman_format_code_t format);
 
 static inline int surface_stride(DisplaySurface *s)
 {
