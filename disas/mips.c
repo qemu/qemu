@@ -2410,6 +2410,8 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"tlbp",    "",         0x42000008, 0xffffffff, INSN_TLB,       	0,		I1   	},
 {"tlbr",    "",         0x42000001, 0xffffffff, INSN_TLB,       	0,		I1   	},
 {"tlbwi",   "",         0x42000002, 0xffffffff, INSN_TLB,       	0,		I1   	},
+{"tlbinv",  "",         0x42000003, 0xffffffff, INSN_TLB,             0, I32  },
+{"tlbinvf", "",         0x42000004, 0xffffffff, INSN_TLB,             0, I32  },
 {"tlbwr",   "",         0x42000006, 0xffffffff, INSN_TLB,       	0,		I1   	},
 {"tlti",    "s,j",	0x040a0000, 0xfc1f0000,	RD_s|TRAP,		0,		I2	},
 {"tlt",     "s,t",	0x00000032, 0xfc00ffff, RD_s|RD_t|TRAP,		0,		I2	},

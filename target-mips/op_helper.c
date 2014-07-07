@@ -1361,10 +1361,14 @@ void helper_mtc0_count(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_entryhi(CPUMIPSState *env, target_ulong arg1)
 {
-    target_ulong old, val;
+    target_ulong old, val, mask;
+    mask = (TARGET_PAGE_MASK << 1) | 0xFF;
+    if (((env->CP0_Config4 >> CP0C4_IE) & 0x3) >= 2) {
+        mask |= 1 << CP0EnHi_EHINV;
+    }
 
     /* 1k pages not implemented */
-    val = arg1 & ((TARGET_PAGE_MASK << 1) | 0xFF);
+    val = arg1 & mask;
 #if defined(TARGET_MIPS64)
     val &= env->SEGMask;
 #endif
@@ -1858,6 +1862,11 @@ static void r4k_fill_tlb(CPUMIPSState *env, int idx)
 
     /* XXX: detect conflicting TLBs and raise a MCHECK exception when needed */
     tlb = &env->tlb->mmu.r4k.tlb[idx];
+    if (env->CP0_EntryHi & (1 << CP0EnHi_EHINV)) {
+        tlb->EHINV = 1;
+        return;
+    }
+    tlb->EHINV = 0;
     tlb->VPN = env->CP0_EntryHi & (TARGET_PAGE_MASK << 1);
 #if defined(TARGET_MIPS64)
     tlb->VPN &= env->SEGMask;
@@ -1877,6 +1886,31 @@ static void r4k_fill_tlb(CPUMIPSState *env, int idx)
     tlb->XI1 = (env->CP0_EntryLo1 >> CP0EnLo_XI) & 1;
     tlb->RI1 = (env->CP0_EntryLo1 >> CP0EnLo_RI) & 1;
     tlb->PFN[1] = (env->CP0_EntryLo1 >> 6) << 12;
+}
+
+void r4k_helper_tlbinv(CPUMIPSState *env)
+{
+    int idx;
+    r4k_tlb_t *tlb;
+    uint8_t ASID = env->CP0_EntryHi & 0xFF;
+
+    for (idx = 0; idx < env->tlb->nb_tlb; idx++) {
+        tlb = &env->tlb->mmu.r4k.tlb[idx];
+        if (!tlb->G && tlb->ASID == ASID) {
+            tlb->EHINV = 1;
+        }
+    }
+    cpu_mips_tlb_flush(env, 1);
+}
+
+void r4k_helper_tlbinvf(CPUMIPSState *env)
+{
+    int idx;
+
+    for (idx = 0; idx < env->tlb->nb_tlb; idx++) {
+        env->tlb->mmu.r4k.tlb[idx].EHINV = 1;
+    }
+    cpu_mips_tlb_flush(env, 1);
 }
 
 void r4k_helper_tlbwi(CPUMIPSState *env)
@@ -1940,7 +1974,7 @@ void r4k_helper_tlbp(CPUMIPSState *env)
         tag &= env->SEGMask;
 #endif
         /* Check ASID, virtual page number & size */
-        if ((tlb->G == 1 || tlb->ASID == ASID) && VPN == tag) {
+        if ((tlb->G == 1 || tlb->ASID == ASID) && VPN == tag && !tlb->EHINV) {
             /* TLB match */
             env->CP0_Index = i;
             break;
@@ -1984,16 +2018,23 @@ void r4k_helper_tlbr(CPUMIPSState *env)
 
     r4k_mips_tlb_flush_extra(env, env->tlb->nb_tlb);
 
-    env->CP0_EntryHi = tlb->VPN | tlb->ASID;
-    env->CP0_PageMask = tlb->PageMask;
-    env->CP0_EntryLo0 = tlb->G | (tlb->V0 << 1) | (tlb->D0 << 2) |
+    if (tlb->EHINV) {
+        env->CP0_EntryHi = 1 << CP0EnHi_EHINV;
+        env->CP0_PageMask = 0;
+        env->CP0_EntryLo0 = 0;
+        env->CP0_EntryLo1 = 0;
+    } else {
+        env->CP0_EntryHi = tlb->VPN | tlb->ASID;
+        env->CP0_PageMask = tlb->PageMask;
+        env->CP0_EntryLo0 = tlb->G | (tlb->V0 << 1) | (tlb->D0 << 2) |
                         ((target_ulong)tlb->RI0 << CP0EnLo_RI) |
                         ((target_ulong)tlb->XI0 << CP0EnLo_XI) |
                         (tlb->C0 << 3) | (tlb->PFN[0] >> 6);
-    env->CP0_EntryLo1 = tlb->G | (tlb->V1 << 1) | (tlb->D1 << 2) |
+        env->CP0_EntryLo1 = tlb->G | (tlb->V1 << 1) | (tlb->D1 << 2) |
                         ((target_ulong)tlb->RI1 << CP0EnLo_RI) |
                         ((target_ulong)tlb->XI1 << CP0EnLo_XI) |
                         (tlb->C1 << 3) | (tlb->PFN[1] >> 6);
+    }
 }
 
 void helper_tlbwi(CPUMIPSState *env)
@@ -2014,6 +2055,16 @@ void helper_tlbp(CPUMIPSState *env)
 void helper_tlbr(CPUMIPSState *env)
 {
     env->tlb->helper_tlbr(env);
+}
+
+void helper_tlbinv(CPUMIPSState *env)
+{
+    env->tlb->helper_tlbinv(env);
+}
+
+void helper_tlbinvf(CPUMIPSState *env)
+{
+    env->tlb->helper_tlbinvf(env);
 }
 
 /* Specials */
