@@ -96,6 +96,8 @@ struct mips_def_t {
     int32_t CP0_SRSConf3;
     int32_t CP0_SRSConf4_rw_bitmask;
     int32_t CP0_SRSConf4;
+    int32_t CP0_PageGrain_rw_bitmask;
+    int32_t CP0_PageGrain;
     int insn_flags;
     enum mips_mmu_types mmu_type;
 };

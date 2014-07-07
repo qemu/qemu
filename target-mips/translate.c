@@ -1171,6 +1171,7 @@ typedef struct DisasContext {
     target_ulong btarget;
     bool ulri;
     int kscrexist;
+    bool rxi;
 } DisasContext;
 
 enum {
@@ -4659,6 +4660,15 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         switch (sel) {
         case 0:
             tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EntryLo0));
+#if defined(TARGET_MIPS64)
+            if (ctx->rxi) {
+                TCGv tmp = tcg_temp_new();
+                tcg_gen_andi_tl(tmp, arg, (3ull << 62));
+                tcg_gen_shri_tl(tmp, tmp, 32);
+                tcg_gen_or_tl(arg, arg, tmp);
+                tcg_temp_free(tmp);
+            }
+#endif
             tcg_gen_ext32s_tl(arg, arg);
             rn = "EntryLo0";
             break;
@@ -4705,6 +4715,15 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         switch (sel) {
         case 0:
             tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EntryLo1));
+#if defined(TARGET_MIPS64)
+            if (ctx->rxi) {
+                TCGv tmp = tcg_temp_new();
+                tcg_gen_andi_tl(tmp, arg, (3ull << 62));
+                tcg_gen_shri_tl(tmp, tmp, 32);
+                tcg_gen_or_tl(arg, arg, tmp);
+                tcg_temp_free(tmp);
+            }
+#endif
             tcg_gen_ext32s_tl(arg, arg);
             rn = "EntryLo1";
             break;
@@ -6480,7 +6499,7 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     case 2:
         switch (sel) {
         case 0:
-            gen_helper_mtc0_entrylo0(cpu_env, arg);
+            gen_helper_dmtc0_entrylo0(cpu_env, arg);
             rn = "EntryLo0";
             break;
         case 1:
@@ -6525,7 +6544,7 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     case 3:
         switch (sel) {
         case 0:
-            gen_helper_mtc0_entrylo1(cpu_env, arg);
+            gen_helper_dmtc0_entrylo1(cpu_env, arg);
             rn = "EntryLo1";
             break;
         default:
@@ -17458,6 +17477,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     ctx.tb = tb;
     ctx.bstate = BS_NONE;
     ctx.kscrexist = (env->CP0_Config4 >> CP0C4_KScrExist) & 0xff;
+    ctx.rxi = (env->CP0_Config3 >> CP0C3_RXI) & 1;
     /* Restore delay slot state from the tb context.  */
     ctx.hflags = (uint32_t)tb->flags; /* FIXME: maybe use 64 bits here? */
     ctx.ulri = env->CP0_Config3 & (1 << CP0C3_ULRI);
@@ -17840,6 +17860,8 @@ void cpu_state_reset(CPUMIPSState *env)
     env->CP0_SRSConf3 = env->cpu_model->CP0_SRSConf3;
     env->CP0_SRSConf4_rw_bitmask = env->cpu_model->CP0_SRSConf4_rw_bitmask;
     env->CP0_SRSConf4 = env->cpu_model->CP0_SRSConf4;
+    env->CP0_PageGrain_rw_bitmask = env->cpu_model->CP0_PageGrain_rw_bitmask;
+    env->CP0_PageGrain = env->cpu_model->CP0_PageGrain;
     env->active_fpu.fcr0 = env->cpu_model->CP1_fcr0;
     env->insn_flags = env->cpu_model->insn_flags;
 
