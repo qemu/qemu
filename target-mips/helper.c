@@ -27,6 +27,8 @@
 #include "sysemu/kvm.h"
 
 enum {
+    TLBRET_XI = -6,
+    TLBRET_RI = -5,
     TLBRET_DIRTY = -4,
     TLBRET_INVALID = -3,
     TLBRET_NOMATCH = -2,
@@ -85,8 +87,15 @@ int r4k_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
             /* TLB match */
             int n = !!(address & mask & ~(mask >> 1));
             /* Check access rights */
-            if (!(n ? tlb->V1 : tlb->V0))
+            if (!(n ? tlb->V1 : tlb->V0)) {
                 return TLBRET_INVALID;
+            }
+            if (rw == MMU_INST_FETCH && (n ? tlb->XI1 : tlb->XI0)) {
+                return TLBRET_XI;
+            }
+            if (rw == MMU_DATA_LOAD && (n ? tlb->RI1 : tlb->RI0)) {
+                return TLBRET_RI;
+            }
             if (rw != MMU_DATA_STORE || (n ? tlb->D1 : tlb->D0)) {
                 *physical = tlb->PFN[n] | (address & (mask >> 1));
                 *prot = PAGE_READ;
