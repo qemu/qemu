@@ -1351,7 +1351,6 @@ static void cirrus_vga_write_sr(CirrusVGAState * s, uint32_t val)
     case 0x0d:			// VCLK 2
     case 0x0e:			// VCLK 3
     case 0x0f:			// DRAM Control
-    case 0x12:			// Graphics Cursor Attribute
     case 0x13:			// Graphics Cursor Pattern Address
     case 0x14:			// Scratch Register 2
     case 0x15:			// Scratch Register 3
@@ -1370,6 +1369,14 @@ static void cirrus_vga_write_sr(CirrusVGAState * s, uint32_t val)
 	       s->vga.sr_index, val);
 #endif
 	break;
+    case 0x12:			// Graphics Cursor Attribute
+	s->vga.sr[0x12] = val;
+        s->vga.force_shadow = !!(val & CIRRUS_CURSOR_SHOW);
+#ifdef DEBUG_CIRRUS
+        printf("cirrus: cursor ctl SR12=%02x (force shadow: %d)\n",
+               val, s->vga.force_shadow);
+#endif
+        break;
     case 0x17:			// Configuration Readback and Extended Control
 	s->vga.sr[s->vga.sr_index] = (s->vga.sr[s->vga.sr_index] & 0x38)
                                    | (val & 0xc7);
