@@ -2942,13 +2942,14 @@ static void vnc_listen_websocket_read(void *opaque)
 #endif /* CONFIG_VNC_WS */
 
 static const DisplayChangeListenerOps dcl_ops = {
-    .dpy_name          = "vnc",
-    .dpy_refresh       = vnc_refresh,
-    .dpy_gfx_copy      = vnc_dpy_copy,
-    .dpy_gfx_update    = vnc_dpy_update,
-    .dpy_gfx_switch    = vnc_dpy_switch,
-    .dpy_mouse_set     = vnc_mouse_set,
-    .dpy_cursor_define = vnc_dpy_cursor_define,
+    .dpy_name             = "vnc",
+    .dpy_refresh          = vnc_refresh,
+    .dpy_gfx_copy         = vnc_dpy_copy,
+    .dpy_gfx_update       = vnc_dpy_update,
+    .dpy_gfx_switch       = vnc_dpy_switch,
+    .dpy_gfx_check_format = qemu_pixman_check_format,
+    .dpy_mouse_set        = vnc_mouse_set,
+    .dpy_cursor_define    = vnc_dpy_cursor_define,
 };
 
 void vnc_display_init(DisplayState *ds)
