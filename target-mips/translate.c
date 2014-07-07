@@ -1170,6 +1170,7 @@ typedef struct DisasContext {
     int bstate;
     target_ulong btarget;
     bool ulri;
+    int kscrexist;
 } DisasContext;
 
 enum {
@@ -4567,6 +4568,15 @@ static inline void gen_mtc0_store64 (TCGv arg, target_ulong off)
     tcg_gen_st_tl(arg, cpu_env, off);
 }
 
+static inline void gen_mfc0_unimplemented(DisasContext *ctx, TCGv arg)
+{
+    if (ctx->insn_flags & ISA_MIPS32R6) {
+        tcg_gen_movi_tl(arg, 0);
+    } else {
+        tcg_gen_movi_tl(arg, ~0);
+    }
+}
+
 static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 {
     const char *rn = "invalid";
@@ -5148,6 +5158,16 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             /* EJTAG support */
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_DESAVE));
             rn = "DESAVE";
+            break;
+        case 2 ... 7:
+            if (ctx->kscrexist & (1 << sel)) {
+                tcg_gen_ld_tl(arg, cpu_env,
+                              offsetof(CPUMIPSState, CP0_KScratch[sel-2]));
+                tcg_gen_ext32s_tl(arg, arg);
+                rn = "KScratch";
+            } else {
+                gen_mfc0_unimplemented(ctx, arg);
+            }
             break;
         default:
             goto die;
@@ -5757,6 +5777,13 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             gen_mtc0_store32(arg, offsetof(CPUMIPSState, CP0_DESAVE));
             rn = "DESAVE";
             break;
+        case 2 ... 7:
+            if (ctx->kscrexist & (1 << sel)) {
+                tcg_gen_st_tl(arg, cpu_env,
+                              offsetof(CPUMIPSState, CP0_KScratch[sel-2]));
+                rn = "KScratch";
+            }
+            break;
         default:
             goto die;
         }
@@ -6343,6 +6370,15 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             /* EJTAG support */
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_DESAVE));
             rn = "DESAVE";
+            break;
+        case 2 ... 7:
+            if (ctx->kscrexist & (1 << sel)) {
+                tcg_gen_ld_tl(arg, cpu_env,
+                              offsetof(CPUMIPSState, CP0_KScratch[sel-2]));
+                rn = "KScratch";
+            } else {
+                gen_mfc0_unimplemented(ctx, arg);
+            }
             break;
         default:
             goto die;
@@ -6942,6 +6978,13 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             /* EJTAG support */
             gen_mtc0_store32(arg, offsetof(CPUMIPSState, CP0_DESAVE));
             rn = "DESAVE";
+            break;
+        case 2 ... 7:
+            if (ctx->kscrexist & (1 << sel)) {
+                tcg_gen_st_tl(arg, cpu_env,
+                              offsetof(CPUMIPSState, CP0_KScratch[sel-2]));
+                rn = "KScratch";
+            }
             break;
         default:
             goto die;
@@ -17414,6 +17457,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     ctx.CP0_Config1 = env->CP0_Config1;
     ctx.tb = tb;
     ctx.bstate = BS_NONE;
+    ctx.kscrexist = (env->CP0_Config4 >> CP0C4_KScrExist) & 0xff;
     /* Restore delay slot state from the tb context.  */
     ctx.hflags = (uint32_t)tb->flags; /* FIXME: maybe use 64 bits here? */
     ctx.ulri = env->CP0_Config3 & (1 << CP0C3_ULRI);

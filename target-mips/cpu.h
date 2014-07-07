@@ -136,6 +136,7 @@ typedef struct mips_def_t mips_def_t;
 #define MIPS_TC_MAX 5
 #define MIPS_FPU_MAX 1
 #define MIPS_DSP_ACC 4
+#define MIPS_KSCRATCH_NUM 6
 
 typedef struct TCState TCState;
 struct TCState {
@@ -229,6 +230,7 @@ struct CPUMIPSState {
     target_ulong CP0_EntryLo0;
     target_ulong CP0_EntryLo1;
     target_ulong CP0_Context;
+    target_ulong CP0_KScratch[MIPS_KSCRATCH_NUM];
     int32_t CP0_PageMask;
     int32_t CP0_PageGrain;
     int32_t CP0_Wired;
@@ -375,6 +377,7 @@ struct CPUMIPSState {
     uint32_t CP0_Config4;
     uint32_t CP0_Config4_rw_bitmask;
 #define CP0C4_M    31
+#define CP0C4_KScrExist 16
     uint32_t CP0_Config5;
     uint32_t CP0_Config5_rw_bitmask;
 #define CP0C5_M          31
