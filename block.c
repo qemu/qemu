@@ -471,7 +471,7 @@ int bdrv_create(BlockDriver *drv, const char* filename,
         co = qemu_coroutine_create(bdrv_create_co_entry);
         qemu_coroutine_enter(co, &cco);
         while (cco.ret == NOT_DONE) {
-            qemu_aio_wait();
+            aio_poll(qemu_get_aio_context(), true);
         }
     }
 
