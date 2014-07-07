@@ -2021,7 +2021,7 @@ static const VMStateDescription vmstate_ohci_eof_timer = {
     },
 };
 
-const VMStateDescription vmstate_ohci_state = {
+static const VMStateDescription vmstate_ohci_state = {
     .name = "ohci-core",
     .version_id = 1,
     .minimum_version_id = 1,
