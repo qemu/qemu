@@ -390,7 +390,7 @@ static int xen_remove_from_physmap(XenIOState *state,
     start_addr >>= TARGET_PAGE_BITS;
     phys_offset >>= TARGET_PAGE_BITS;
     for (i = 0; i < size; i++) {
-        unsigned long idx = start_addr + i;
+        xen_pfn_t idx = start_addr + i;
         xen_pfn_t gpfn = phys_offset + i;
 
         rc = xc_domain_add_to_physmap(xen_xc, xen_domid, XENMAPSPACE_gmfn, idx, gpfn);
