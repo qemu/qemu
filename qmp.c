@@ -433,11 +433,57 @@ ObjectTypeInfoList *qmp_qom_list_types(bool has_implements,
     return ret;
 }
 
+/* Return a DevicePropertyInfo for a qdev property.
+ *
+ * If a qdev property with the given name does not exist, use the given default
+ * type.  If the qdev property info should not be shown, return NULL.
+ *
+ * The caller must free the return value.
+ */
+static DevicePropertyInfo *make_device_property_info(ObjectClass *klass,
+                                                     const char *name,
+                                                     const char *default_type)
+{
+    DevicePropertyInfo *info;
+    Property *prop;
+
+    do {
+        for (prop = DEVICE_CLASS(klass)->props; prop && prop->name; prop++) {
+            if (strcmp(name, prop->name) != 0) {
+                continue;
+            }
+
+            /*
+             * TODO Properties without a parser are just for dirty hacks.
+             * qdev_prop_ptr is the only such PropertyInfo.  It's marked
+             * for removal.  This conditional should be removed along with
+             * it.
+             */
+            if (!prop->info->set) {
+                return NULL;           /* no way to set it, don't show */
+            }
+
+            info = g_malloc0(sizeof(*info));
+            info->name = g_strdup(prop->name);
+            info->type = g_strdup(prop->info->legacy_name ?: prop->info->name);
+            return info;
+        }
+        klass = object_class_get_parent(klass);
+    } while (klass != object_class_by_name(TYPE_DEVICE));
+
+    /* Not a qdev property, use the default type */
+    info = g_malloc0(sizeof(*info));
+    info->name = g_strdup(name);
+    info->type = g_strdup(default_type);
+    return info;
+}
+
 DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
                                                    Error **errp)
 {
     ObjectClass *klass;
-    Property *prop;
+    Object *obj;
+    ObjectProperty *prop;
     DevicePropertyInfoList *prop_list = NULL;
 
     klass = object_class_by_name(typename);
@@ -453,32 +499,39 @@ DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
         return NULL;
     }
 
-    do {
-        for (prop = DEVICE_CLASS(klass)->props; prop && prop->name; prop++) {
-            DevicePropertyInfoList *entry;
-            DevicePropertyInfo *info;
+    obj = object_new(typename);
 
-            /*
-             * TODO Properties without a parser are just for dirty hacks.
-             * qdev_prop_ptr is the only such PropertyInfo.  It's marked
-             * for removal.  This conditional should be removed along with
-             * it.
-             */
-            if (!prop->info->set) {
-                continue;           /* no way to set it, don't show */
-            }
+    QTAILQ_FOREACH(prop, &obj->properties, node) {
+        DevicePropertyInfo *info;
+        DevicePropertyInfoList *entry;
 
-            info = g_malloc0(sizeof(*info));
-            info->name = g_strdup(prop->name);
-            info->type = g_strdup(prop->info->legacy_name ?: prop->info->name);
-
-            entry = g_malloc0(sizeof(*entry));
-            entry->value = info;
-            entry->next = prop_list;
-            prop_list = entry;
+        /* Skip Object and DeviceState properties */
+        if (strcmp(prop->name, "type") == 0 ||
+            strcmp(prop->name, "realized") == 0 ||
+            strcmp(prop->name, "hotpluggable") == 0 ||
+            strcmp(prop->name, "parent_bus") == 0) {
+            continue;
         }
-        klass = object_class_get_parent(klass);
-    } while (klass != object_class_by_name(TYPE_DEVICE));
+
+        /* Skip legacy properties since they are just string versions of
+         * properties that we already list.
+         */
+        if (strstart(prop->name, "legacy-", NULL)) {
+            continue;
+        }
+
+        info = make_device_property_info(klass, prop->name, prop->type);
+        if (!info) {
+            continue;
+        }
+
+        entry = g_malloc0(sizeof(*entry));
+        entry->value = info;
+        entry->next = prop_list;
+        prop_list = entry;
+    }
+
+    object_unref(obj);
 
     return prop_list;
 }

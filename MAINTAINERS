@@ -563,6 +563,7 @@ Devices
 -------
 IDE
 M: Kevin Wolf <kwolf@redhat.com>
+M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Odd Fixes
 F: include/hw/ide.h
 F: hw/ide/

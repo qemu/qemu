@@ -584,4 +584,8 @@ AioContext *bdrv_get_aio_context(BlockDriverState *bs);
  */
 void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context);
 
+void bdrv_io_plug(BlockDriverState *bs);
+void bdrv_io_unplug(BlockDriverState *bs);
+void bdrv_flush_io_queue(BlockDriverState *bs);
+
 #endif

@@ -261,6 +261,11 @@ struct BlockDriver {
     void (*bdrv_attach_aio_context)(BlockDriverState *bs,
                                     AioContext *new_context);
 
+    /* io queue for linux-aio */
+    void (*bdrv_io_plug)(BlockDriverState *bs);
+    void (*bdrv_io_unplug)(BlockDriverState *bs);
+    void (*bdrv_flush_io_queue)(BlockDriverState *bs);
+
     QLIST_ENTRY(BlockDriver) list;
 };
 

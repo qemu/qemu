@@ -84,6 +84,7 @@ static void handle_notify(EventNotifier *e)
     };
 
     event_notifier_test_and_clear(&s->host_notifier);
+    bdrv_io_plug(s->blk->conf.bs);
     for (;;) {
         /* Disable guest->host notifies to avoid unnecessary vmexits */
         vring_disable_notification(s->vdev, &s->vring);
@@ -117,6 +118,7 @@ static void handle_notify(EventNotifier *e)
             break;
         }
     }
+    bdrv_io_unplug(s->blk->conf.bs);
 }
 
 /* Context: QEMU global mutex held */
