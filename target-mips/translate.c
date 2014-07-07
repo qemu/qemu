@@ -1175,6 +1175,8 @@ typedef struct DisasContext {
     int kscrexist;
     bool rxi;
     int ie;
+    bool bi;
+    bool bp;
 } DisasContext;
 
 enum {
@@ -4828,9 +4830,25 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             tcg_gen_ext32s_tl(arg, arg);
             rn = "BadVAddr";
             break;
+        case 1:
+            if (ctx->bi) {
+                gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_BadInstr));
+                rn = "BadInstr";
+            } else {
+                gen_mfc0_unimplemented(ctx, arg);
+            }
+            break;
+        case 2:
+            if (ctx->bp) {
+                gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_BadInstrP));
+                rn = "BadInstrP";
+            } else {
+                gen_mfc0_unimplemented(ctx, arg);
+            }
+            break;
         default:
             goto die;
-       }
+        }
         break;
     case 9:
         switch (sel) {
@@ -5428,8 +5446,22 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         }
         break;
     case 8:
-        /* ignored */
-        rn = "BadVAddr";
+        switch (sel) {
+        case 0:
+            /* ignored */
+            rn = "BadVAddr";
+            break;
+        case 1:
+            /* ignored */
+            rn = "BadInstr";
+            break;
+        case 2:
+            /* ignored */
+            rn = "BadInstrP";
+            break;
+        default:
+            goto die;
+        }
         break;
     case 9:
         switch (sel) {
@@ -6054,6 +6086,22 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_BadVAddr));
             rn = "BadVAddr";
             break;
+        case 1:
+            if (ctx->bi) {
+                gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_BadInstr));
+                rn = "BadInstr";
+            } else {
+                gen_mfc0_unimplemented(ctx, arg);
+            }
+            break;
+        case 2:
+            if (ctx->bp) {
+                gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_BadInstrP));
+                rn = "BadInstrP";
+            } else {
+                gen_mfc0_unimplemented(ctx, arg);
+            }
+            break;
         default:
             goto die;
         }
@@ -6639,8 +6687,22 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         }
         break;
     case 8:
-        /* ignored */
-        rn = "BadVAddr";
+        switch (sel) {
+        case 0:
+            /* ignored */
+            rn = "BadVAddr";
+            break;
+        case 1:
+            /* ignored */
+            rn = "BadInstr";
+            break;
+        case 2:
+            /* ignored */
+            rn = "BadInstrP";
+            break;
+        default:
+            goto die;
+        }
         break;
     case 9:
         switch (sel) {
@@ -16862,7 +16924,7 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
     /* make sure instructions are on a word boundary */
     if (ctx->pc & 0x3) {
         env->CP0_BadVAddr = ctx->pc;
-        generate_exception(ctx, EXCP_AdEL);
+        generate_exception_err(ctx, EXCP_AdEL, EXCP_INST_NOTAVAIL);
         return;
     }
 
@@ -17500,6 +17562,8 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     ctx.kscrexist = (env->CP0_Config4 >> CP0C4_KScrExist) & 0xff;
     ctx.rxi = (env->CP0_Config3 >> CP0C3_RXI) & 1;
     ctx.ie = (env->CP0_Config4 >> CP0C4_IE) & 3;
+    ctx.bi = (env->CP0_Config3 >> CP0C3_BI) & 1;
+    ctx.bp = (env->CP0_Config3 >> CP0C3_BP) & 1;
     /* Restore delay slot state from the tb context.  */
     ctx.hflags = (uint32_t)tb->flags; /* FIXME: maybe use 64 bits here? */
     ctx.ulri = env->CP0_Config3 & (1 << CP0C3_ULRI);
