@@ -247,6 +247,7 @@ struct CPUMIPSState {
     int32_t CP0_PageGrain;
 #define CP0PG_RIE 31
 #define CP0PG_XIE 30
+#define CP0PG_IEC 27
     int32_t CP0_Wired;
     int32_t CP0_SRSConf0_rw_bitmask;
     int32_t CP0_SRSConf0;
@@ -646,8 +647,10 @@ enum {
     EXCP_C2E,
     EXCP_CACHE, /* 32 */
     EXCP_DSPDIS,
+    EXCP_TLBXI,
+    EXCP_TLBRI,
 
-    EXCP_LAST = EXCP_DSPDIS,
+    EXCP_LAST = EXCP_TLBRI,
 };
 /* Dummy exception for conditional stores.  */
 #define EXCP_SC 0x100
