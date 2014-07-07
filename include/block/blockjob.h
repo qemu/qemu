@@ -74,7 +74,7 @@ struct BlockJob {
      * Set to true if the job should cancel itself.  The flag must
      * always be tested just before toggling the busy flag from false
      * to true.  After a job has been cancelled, it should only yield
-     * if #qemu_aio_wait will ("sooner or later") reenter the coroutine.
+     * if #aio_poll will ("sooner or later") reenter the coroutine.
      */
     bool cancelled;
 
@@ -87,7 +87,7 @@ struct BlockJob {
     /**
      * Set to false by the job while it is in a quiescent state, where
      * no I/O is pending and the job has yielded on any condition
-     * that is not detected by #qemu_aio_wait, such as a timer.
+     * that is not detected by #aio_poll, such as a timer.
      */
     bool busy;
 

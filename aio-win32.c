@@ -102,7 +102,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     /*
      * If there are callbacks left that have been queued, we need to call then.
      * Do not call select in this case, because it is possible that the caller
-     * does not need a complete flush (as is the case for qemu_aio_wait loops).
+     * does not need a complete flush (as is the case for aio_poll loops).
      */
     if (aio_bh_poll(ctx)) {
         blocking = false;
@@ -115,7 +115,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     /*
      * Then dispatch any pending callbacks from the GSource.
      *
-     * We have to walk very carefully in case qemu_aio_set_fd_handler is
+     * We have to walk very carefully in case aio_set_fd_handler is
      * called while we're walking.
      */
     node = QLIST_FIRST(&ctx->aio_handlers);
@@ -177,7 +177,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
         blocking = false;
 
         /* we have to walk very carefully in case
-         * qemu_aio_set_fd_handler is called while we're walking */
+         * aio_set_fd_handler is called while we're walking */
         node = QLIST_FIRST(&ctx->aio_handlers);
         while (node) {
             AioHandler *tmp;
