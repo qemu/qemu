@@ -1342,6 +1342,13 @@ static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
 }
 #endif /* !USER_ONLY*/
 
+#define REQUIRE_NO_LIT                          \
+    do {                                        \
+        if (real_islit) {                       \
+            goto invalid_opc;                   \
+        }                                       \
+    } while (0)
+
 #define REQUIRE_TB_FLAG(FLAG)                   \
     do {                                        \
         if ((ctx->tb->flags & (FLAG)) == 0) {   \
@@ -1361,7 +1368,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     int32_t disp21, disp16, disp12 __attribute__((unused));
     uint16_t fn11;
     uint8_t opc, ra, rb, rc, fpfn, fn7, lit;
-    bool islit;
+    bool islit, real_islit;
     TCGv va, vb, vc, tmp, tmp2;
     TCGv_i32 t32;
     ExitStatus ret;
@@ -1371,7 +1378,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     ra = extract32(insn, 21, 5);
     rb = extract32(insn, 16, 5);
     rc = extract32(insn, 0, 5);
-    islit = extract32(insn, 12, 1);
+    real_islit = islit = extract32(insn, 12, 1);
     lit = extract32(insn, 13, 8);
 
     disp21 = sextract32(insn, 0, 21);
@@ -2466,11 +2473,13 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* CTPOP */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
             REQUIRE_REG_31(ra);
+            REQUIRE_NO_LIT;
             gen_helper_ctpop(vc, vb);
             break;
         case 0x31:
             /* PERR */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_NO_LIT;
             va = load_gpr(ctx, ra);
             gen_helper_perr(vc, va, vb);
             break;
@@ -2478,36 +2487,42 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* CTLZ */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
             REQUIRE_REG_31(ra);
+            REQUIRE_NO_LIT;
             gen_helper_ctlz(vc, vb);
             break;
         case 0x33:
             /* CTTZ */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
             REQUIRE_REG_31(ra);
+            REQUIRE_NO_LIT;
             gen_helper_cttz(vc, vb);
             break;
         case 0x34:
             /* UNPKBW */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
             REQUIRE_REG_31(ra);
+            REQUIRE_NO_LIT;
             gen_helper_unpkbw(vc, vb);
             break;
         case 0x35:
             /* UNPKBL */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
             REQUIRE_REG_31(ra);
+            REQUIRE_NO_LIT;
             gen_helper_unpkbl(vc, vb);
             break;
         case 0x36:
             /* PKWB */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
             REQUIRE_REG_31(ra);
+            REQUIRE_NO_LIT;
             gen_helper_pkwb(vc, vb);
             break;
         case 0x37:
             /* PKLB */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
             REQUIRE_REG_31(ra);
+            REQUIRE_NO_LIT;
             gen_helper_pklb(vc, vb);
             break;
         case 0x38:
