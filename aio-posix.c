@@ -175,10 +175,37 @@ static bool aio_dispatch(AioContext *ctx)
 bool aio_poll(AioContext *ctx, bool blocking)
 {
     AioHandler *node;
+    bool was_dispatching;
     int ret;
     bool progress;
 
+    was_dispatching = ctx->dispatching;
     progress = false;
+
+    /* aio_notify can avoid the expensive event_notifier_set if
+     * everything (file descriptors, bottom halves, timers) will
+     * be re-evaluated before the next blocking poll().  This happens
+     * in two cases:
+     *
+     * 1) when aio_poll is called with blocking == false
+     *
+     * 2) when we are called after poll().  If we are called before
+     *    poll(), bottom halves will not be re-evaluated and we need
+     *    aio_notify() if blocking == true.
+     *
+     * The first aio_dispatch() only does something when AioContext is
+     * running as a GSource, and in that case aio_poll is used only
+     * with blocking == false, so this optimization is already quite
+     * effective.  However, the code is ugly and should be restructured
+     * to have a single aio_dispatch() call.  To do this, we need to
+     * reorganize aio_poll into a prepare/poll/dispatch model like
+     * glib's.
+     *
+     * If we're in a nested event loop, ctx->dispatching might be true.
+     * In that case we can restore it just before returning, but we
+     * have to clear it now.
+     */
+    aio_set_dispatching(ctx, !blocking);
 
     /*
      * If there are callbacks left that have been queued, we need to call them.
@@ -190,12 +217,14 @@ bool aio_poll(AioContext *ctx, bool blocking)
         progress = true;
     }
 
+    /* Re-evaluate condition (1) above.  */
+    aio_set_dispatching(ctx, !blocking);
     if (aio_dispatch(ctx)) {
         progress = true;
     }
 
     if (progress && !blocking) {
-        return true;
+        goto out;
     }
 
     ctx->walking_handlers++;
@@ -234,9 +263,12 @@ bool aio_poll(AioContext *ctx, bool blocking)
     }
 
     /* Run dispatch even if there were no readable fds to run timers */
+    aio_set_dispatching(ctx, true);
     if (aio_dispatch(ctx)) {
         progress = true;
     }
 
+out:
+    aio_set_dispatching(ctx, was_dispatching);
     return progress;
 }
