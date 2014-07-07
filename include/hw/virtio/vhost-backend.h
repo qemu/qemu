@@ -32,6 +32,8 @@ typedef struct VhostOps {
     vhost_backend_cleanup vhost_backend_cleanup;
 } VhostOps;
 
+extern const VhostOps user_ops;
+
 int vhost_set_backend_type(struct vhost_dev *dev,
                            VhostBackendType backend_type);
 
