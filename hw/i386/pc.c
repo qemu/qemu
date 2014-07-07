@@ -1190,6 +1190,31 @@ void pc_acpi_init(const char *default_dsdt)
     }
 }
 
+FWCfgState *xen_load_linux(const char *kernel_filename,
+                           const char *kernel_cmdline,
+                           const char *initrd_filename,
+                           ram_addr_t below_4g_mem_size,
+                           PcGuestInfo *guest_info)
+{
+    int i;
+    FWCfgState *fw_cfg;
+
+    assert(kernel_filename != NULL);
+
+    fw_cfg = fw_cfg_init(BIOS_CFG_IOPORT, BIOS_CFG_IOPORT + 1, 0, 0);
+    rom_set_fw(fw_cfg);
+
+    load_linux(fw_cfg, kernel_filename, initrd_filename,
+               kernel_cmdline, below_4g_mem_size);
+    for (i = 0; i < nb_option_roms; i++) {
+        assert(!strcmp(option_rom[i].name, "linuxboot.bin") ||
+               !strcmp(option_rom[i].name, "multiboot.bin"));
+        rom_add_option(option_rom[i].name, option_rom[i].bootindex);
+    }
+    guest_info->fw_cfg = fw_cfg;
+    return fw_cfg;
+}
+
 FWCfgState *pc_memory_init(MachineState *machine,
                            MemoryRegion *system_memory,
                            ram_addr_t below_4g_mem_size,
