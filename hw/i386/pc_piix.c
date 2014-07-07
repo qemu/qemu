@@ -114,7 +114,7 @@ static void pc_init1(MachineState *machine,
         lowmem = 0xe0000000;
     }
 
-    /* Handle the machine opt max-ram-below-4g.  It is basicly doing
+    /* Handle the machine opt max-ram-below-4g.  It is basically doing
      * min(qemu limit, user limit).
      */
     if (lowmem > pc_machine->max_ram_below_4g) {
