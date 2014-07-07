@@ -806,17 +806,16 @@ static void test_source_timer_schedule(void)
     g_usleep(1 * G_USEC_PER_SEC);
     g_assert_cmpint(data.n, ==, 0);
 
-    g_assert(g_main_context_iteration(NULL, false));
+    g_assert(g_main_context_iteration(NULL, true));
     g_assert_cmpint(data.n, ==, 1);
+    expiry += data.ns;
 
-    /* The comment above was not kidding when it said this wakes up itself */
-    do {
-        g_assert(g_main_context_iteration(NULL, true));
-    } while (qemu_clock_get_ns(data.clock_type) <= expiry);
-    g_usleep(1 * G_USEC_PER_SEC);
-    g_main_context_iteration(NULL, false);
+    while (data.n < 2) {
+        g_main_context_iteration(NULL, true);
+    }
 
     g_assert_cmpint(data.n, ==, 2);
+    g_assert(qemu_clock_get_ns(data.clock_type) > expiry);
 
     aio_set_fd_handler(ctx, pipefd[0], NULL, NULL, NULL);
     close(pipefd[0]);
