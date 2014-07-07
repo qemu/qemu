@@ -386,19 +386,10 @@ static void pc_init_pci_1_2(MachineState *machine)
     pc_init_pci(machine);
 }
 
-/* PC init function for pc-0.10 to pc-0.13, and reused by xenfv */
+/* PC init function for pc-0.10 to pc-0.13 */
 static void pc_init_pci_no_kvmclock(MachineState *machine)
 {
-    has_pci_info = false;
-    has_acpi_build = false;
-    smbios_defaults = false;
-    gigabyte_align = false;
-    smbios_legacy_mode = true;
-    has_reserved_memory = false;
-    option_rom_has_mr = true;
-    rom_file_has_mr = false;
-    x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
-    enable_compat_apic_id_mode();
+    pc_compat_1_2(machine);
     pc_init1(machine, 1, 0);
 }
 
