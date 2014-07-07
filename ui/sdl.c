@@ -135,12 +135,13 @@ static void do_sdl_resize(int width, int height, int bpp)
 static void sdl_switch(DisplayChangeListener *dcl,
                        DisplaySurface *new_surface)
 {
-    PixelFormat pf = qemu_pixelformat_from_pixman(new_surface->format);
+    PixelFormat pf;
 
     /* temporary hack: allows to call sdl_switch to handle scaling changes */
     if (new_surface) {
         surface = new_surface;
     }
+    pf = qemu_pixelformat_from_pixman(surface->format);
 
     if (!scaling_active) {
         do_sdl_resize(surface_width(surface), surface_height(surface), 0);
