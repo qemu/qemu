@@ -861,7 +861,7 @@ static bool block_is_active(void *opaque)
     return block_mig_state.blk_enable == 1;
 }
 
-SaveVMHandlers savevm_block_handlers = {
+static SaveVMHandlers savevm_block_handlers = {
     .set_params = block_set_params,
     .save_live_setup = block_save_setup,
     .save_live_iterate = block_save_iterate,
