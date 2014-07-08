@@ -452,7 +452,7 @@ static uint64_t do_cvttq(CPUAlphaState *env, uint64_t a, int roundmode)
     frac = a & 0xfffffffffffffull;
 
     if (exp == 0) {
-        if (unlikely(frac != 0)) {
+        if (unlikely(frac != 0) && !env->fp_status.flush_inputs_to_zero) {
             goto do_underflow;
         }
     } else if (exp == 0x7ff) {
