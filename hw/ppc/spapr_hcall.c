@@ -770,7 +770,7 @@ static target_ulong h_set_mode_resouce_addr_trans_mode(PowerPCCPU *cpu,
         prefix = 0x18000;
         break;
     case H_SET_MODE_ADDR_TRANS_C000_0000_0000_4000:
-        prefix = 0xC000000000004000;
+        prefix = 0xC000000000004000ULL;
         break;
     default:
         return H_UNSUPPORTED_FLAG;
