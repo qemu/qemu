@@ -658,6 +658,13 @@ static TCGv gen_ieee_input(DisasContext *ctx, int reg, int fn11, int is_cmp)
             } else {
                 gen_helper_ieee_input(cpu_env, val);
             }
+        } else {
+#ifndef CONFIG_USER_ONLY
+            /* In system mode, raise exceptions for denormals like real
+               hardware.  In user mode, proceed as if the OS completion
+               handler is handling the denormal as per spec.  */
+            gen_helper_ieee_input_s(cpu_env, val);
+#endif
         }
     }
     return val;

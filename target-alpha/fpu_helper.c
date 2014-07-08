@@ -104,16 +104,14 @@ void helper_ieee_input(CPUAlphaState *env, uint64_t val)
     uint64_t frac = val & 0xfffffffffffffull;
 
     if (exp == 0) {
-        /* Denormals without DNZ set raise an exception.  */
-        if (frac != 0 && !env->fp_status.flush_inputs_to_zero) {
-            arith_excp(env, GETPC(), EXC_M_UNF, 0);
+        /* Denormals without /S raise an exception.  */
+        if (frac != 0) {
+            arith_excp(env, GETPC(), EXC_M_INV, 0);
         }
     } else if (exp == 0x7ff) {
         /* Infinity or NaN.  */
-        /* ??? I'm not sure these exception bit flags are correct.  I do
-           know that the Linux kernel, at least, doesn't rely on them and
-           just emulates the insn to figure out what exception to use.  */
-        arith_excp(env, GETPC(), frac ? EXC_M_INV : EXC_M_FOV, 0);
+        env->fpcr |= FPCR_INV;
+        arith_excp(env, GETPC(), EXC_M_INV, 0);
     }
 }
 
@@ -124,16 +122,30 @@ void helper_ieee_input_cmp(CPUAlphaState *env, uint64_t val)
     uint64_t frac = val & 0xfffffffffffffull;
 
     if (exp == 0) {
-        /* Denormals without DNZ set raise an exception.  */
-        if (frac != 0 && !env->fp_status.flush_inputs_to_zero) {
-            arith_excp(env, GETPC(), EXC_M_UNF, 0);
+        /* Denormals without /S raise an exception.  */
+        if (frac != 0) {
+            arith_excp(env, GETPC(), EXC_M_INV, 0);
         }
     } else if (exp == 0x7ff && frac) {
         /* NaN.  */
+        env->fpcr |= FPCR_INV;
         arith_excp(env, GETPC(), EXC_M_INV, 0);
     }
 }
 
+/* Input handing with software completion.  Trap for denorms, unless DNZ
+   is set.  If we try to support DNOD (which none of the produced hardware
+   did, AFAICS), we'll need to suppress the trap when FPCR.DNOD is set;
+   then the code downstream of that will need to cope with denorms sans
+   flush_input_to_zero.  Most of it should work sanely, but there's
+   nothing to compare with.  */
+void helper_ieee_input_s(CPUAlphaState *env, uint64_t val)
+{
+    if (unlikely(2 * val - 1 < 0x1fffffffffffffull)
+        && !env->fp_status.flush_inputs_to_zero) {
+        arith_excp(env, GETPC(), EXC_M_INV | EXC_M_SWC, 0);
+    }
+}
 
 /* S floating (single) */
 
