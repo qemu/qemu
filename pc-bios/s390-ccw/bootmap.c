@@ -51,6 +51,8 @@ static void jump_to_IPL_2(void)
 
 static void jump_to_IPL_code(uint64_t address)
 {
+    /* store the subsystem information _after_ the bootmap was loaded */
+    write_subsystem_identification();
     /*
      * The IPL PSW is at address 0. We also must not overwrite the
      * content of non-BIOS memory after we loaded the guest, so we
