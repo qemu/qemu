@@ -895,7 +895,7 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     check_update_timer(s);
 
     s->clock_reset_notifier.notify = rtc_notify_clock_reset;
-    qemu_clock_register_reset_notifier(QEMU_CLOCK_REALTIME,
+    qemu_clock_register_reset_notifier(rtc_clock,
                                        &s->clock_reset_notifier);
 
     s->suspend_notifier.notify = rtc_notify_suspend;
