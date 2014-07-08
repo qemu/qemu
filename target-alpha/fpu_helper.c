@@ -539,9 +539,13 @@ uint64_t helper_cvtqt(CPUAlphaState *env, uint64_t a)
     return float64_to_t(fr);
 }
 
-void helper_cvtql_v_input(CPUAlphaState *env, uint64_t val)
+uint64_t helper_cvtql(CPUAlphaState *env, uint64_t val)
 {
+    uint32_t exc = 0;
     if (val != (int32_t)val) {
-        arith_excp(env, GETPC(), EXC_M_IOV, 0);
+        exc = FPCR_IOV | FPCR_INE;
     }
+    env->error_code = exc;
+
+    return ((val & 0xc0000000) << 32) | ((val & 0x3fffffff) << 29);
 }

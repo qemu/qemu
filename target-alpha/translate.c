@@ -720,19 +720,6 @@ static void gen_cvtlq(TCGv vc, TCGv vb)
     tcg_temp_free(tmp);
 }
 
-static void gen_cvtql(TCGv vc, TCGv vb)
-{
-    TCGv tmp = tcg_temp_new();
-
-    tcg_gen_andi_i64(tmp, vb, (int32_t)0xc0000000);
-    tcg_gen_andi_i64(vc, vb, 0x3FFFFFFF);
-    tcg_gen_shli_i64(tmp, tmp, 32);
-    tcg_gen_shli_i64(vc, vc, 29);
-    tcg_gen_or_i64(vc, vc, tmp);
-
-    tcg_temp_free(tmp);
-}
-
 static void gen_ieee_arith2(DisasContext *ctx,
                             void (*helper)(TCGv, TCGv_ptr, TCGv),
                             int rb, int rc, int fn11)
@@ -2254,25 +2241,14 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* FCMOVGT */
             gen_fcmov(ctx, TCG_COND_GT, ra, rb, rc);
             break;
-        case 0x030:
-            /* CVTQL */
+        case 0x030: /* CVTQL */
+        case 0x130: /* CVTQL/V */
+        case 0x530: /* CVTQL/SV */
             REQUIRE_REG_31(ra);
             vc = dest_fpr(ctx, rc);
             vb = load_fpr(ctx, rb);
-            gen_cvtql(vc, vb);
-            break;
-        case 0x130:
-            /* CVTQL/V */
-        case 0x530:
-            /* CVTQL/SV */
-            REQUIRE_REG_31(ra);
-            /* ??? I'm pretty sure there's nothing that /sv needs to do that
-               /v doesn't do.  The only thing I can think is that /sv is a
-               valid instruction merely for completeness in the ISA.  */
-            vc = dest_fpr(ctx, rc);
-            vb = load_fpr(ctx, rb);
-            gen_helper_cvtql_v_input(cpu_env, vb);
-            gen_cvtql(vc, vb);
+            gen_helper_cvtql(vc, cpu_env, vb);
+            gen_fp_exc_raise(rc, fn11);
             break;
         default:
             goto invalid_opc;
