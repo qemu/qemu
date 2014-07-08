@@ -3315,6 +3315,7 @@ int main(int argc, char **argv, char **envp)
                     error_report("ram size too large");
                     exit(EXIT_FAILURE);
                 }
+                maxram_size = ram_size;
 
                 maxmem_str = qemu_opt_get(opts, "maxmem");
                 slots_str = qemu_opt_get(opts, "slots");
