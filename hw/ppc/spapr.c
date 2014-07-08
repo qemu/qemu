@@ -160,8 +160,7 @@ static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,
     int index = ppc_get_vcpu_dt_id(cpu);
 
     if (cpu->cpu_version) {
-        ret = fdt_setprop(fdt, offset, "cpu-version",
-                          &cpu->cpu_version, sizeof(cpu->cpu_version));
+        ret = fdt_setprop_cell(fdt, offset, "cpu-version", cpu->cpu_version);
         if (ret < 0) {
             return ret;
         }

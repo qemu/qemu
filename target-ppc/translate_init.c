@@ -8062,6 +8062,17 @@ static void init_proc_POWER7 (CPUPPCState *env)
     init_proc_book3s_64(env, BOOK3S_CPU_POWER7);
 }
 
+static bool ppc_pvr_match_power7(PowerPCCPUClass *pcc, uint32_t pvr)
+{
+    if ((pvr & CPU_POWERPC_POWER_SERVER_MASK) == CPU_POWERPC_POWER7P_BASE) {
+        return true;
+    }
+    if ((pvr & CPU_POWERPC_POWER_SERVER_MASK) == CPU_POWERPC_POWER7_BASE) {
+        return true;
+    }
+    return false;
+}
+
 POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -8070,69 +8081,7 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
     dc->fw_name = "PowerPC,POWER7";
     dc->desc = "POWER7";
     dc->props = powerpc_servercpu_properties;
-    pcc->pvr = CPU_POWERPC_POWER7_BASE;
-    pcc->pvr_mask = CPU_POWERPC_POWER7_MASK;
-    pcc->pcr_mask = PCR_COMPAT_2_05 | PCR_COMPAT_2_06;
-    pcc->init_proc = init_proc_POWER7;
-    pcc->check_pow = check_pow_nocheck;
-    pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL | PPC_STRING | PPC_MFTB |
-                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
-                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
-                       PPC_FLOAT_FRSQRTES |
-                       PPC_FLOAT_STFIWX |
-                       PPC_FLOAT_EXT |
-                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
-                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
-                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
-                       PPC_64B | PPC_ALTIVEC |
-                       PPC_SEGMENT_64B | PPC_SLBI |
-                       PPC_POPCNTB | PPC_POPCNTWD;
-    pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX | PPC2_ISA205 |
-                        PPC2_PERM_ISA206 | PPC2_DIVE_ISA206 |
-                        PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206 |
-                        PPC2_FP_TST_ISA206;
-    pcc->msr_mask = (1ull << MSR_SF) |
-                    (1ull << MSR_VR) |
-                    (1ull << MSR_VSX) |
-                    (1ull << MSR_EE) |
-                    (1ull << MSR_PR) |
-                    (1ull << MSR_FP) |
-                    (1ull << MSR_ME) |
-                    (1ull << MSR_FE0) |
-                    (1ull << MSR_SE) |
-                    (1ull << MSR_DE) |
-                    (1ull << MSR_FE1) |
-                    (1ull << MSR_IR) |
-                    (1ull << MSR_DR) |
-                    (1ull << MSR_PMM) |
-                    (1ull << MSR_RI) |
-                    (1ull << MSR_LE);
-    pcc->mmu_model = POWERPC_MMU_2_06;
-#if defined(CONFIG_SOFTMMU)
-    pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
-#endif
-    pcc->excp_model = POWERPC_EXCP_POWER7;
-    pcc->bus_model = PPC_FLAGS_INPUT_POWER7;
-    pcc->bfd_mach = bfd_mach_ppc64;
-    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
-                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
-                 POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_CFAR |
-                 POWERPC_FLAG_VSX;
-    pcc->l1_dcache_size = 0x8000;
-    pcc->l1_icache_size = 0x8000;
-    pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
-}
-
-POWERPC_FAMILY(POWER7P)(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    dc->fw_name = "PowerPC,POWER7+";
-    dc->desc = "POWER7+";
-    dc->props = powerpc_servercpu_properties;
-    pcc->pvr = CPU_POWERPC_POWER7P_BASE;
-    pcc->pvr_mask = CPU_POWERPC_POWER7P_MASK;
+    pcc->pvr_match = ppc_pvr_match_power7;
     pcc->pcr_mask = PCR_COMPAT_2_05 | PCR_COMPAT_2_06;
     pcc->init_proc = init_proc_POWER7;
     pcc->check_pow = check_pow_nocheck;
@@ -8189,16 +8138,26 @@ static void init_proc_POWER8(CPUPPCState *env)
     init_proc_book3s_64(env, BOOK3S_CPU_POWER8);
 }
 
-POWERPC_FAMILY(POWER8E)(ObjectClass *oc, void *data)
+static bool ppc_pvr_match_power8(PowerPCCPUClass *pcc, uint32_t pvr)
+{
+    if ((pvr & CPU_POWERPC_POWER_SERVER_MASK) == CPU_POWERPC_POWER8E_BASE) {
+        return true;
+    }
+    if ((pvr & CPU_POWERPC_POWER_SERVER_MASK) == CPU_POWERPC_POWER8_BASE) {
+        return true;
+    }
+    return false;
+}
+
+POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
 
     dc->fw_name = "PowerPC,POWER8";
-    dc->desc = "POWER8E";
+    dc->desc = "POWER8";
     dc->props = powerpc_servercpu_properties;
-    pcc->pvr = CPU_POWERPC_POWER8E_BASE;
-    pcc->pvr_mask = CPU_POWERPC_POWER8E_MASK;
+    pcc->pvr_match = ppc_pvr_match_power8;
     pcc->pcr_mask = PCR_COMPAT_2_05 | PCR_COMPAT_2_06;
     pcc->init_proc = init_proc_POWER8;
     pcc->check_pow = check_pow_nocheck;
@@ -8251,18 +8210,6 @@ POWERPC_FAMILY(POWER8E)(ObjectClass *oc, void *data)
     pcc->l1_dcache_size = 0x8000;
     pcc->l1_icache_size = 0x8000;
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
-}
-
-POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    ppc_POWER8E_cpu_family_class_init(oc, data);
-
-    dc->desc = "POWER8";
-    pcc->pvr = CPU_POWERPC_POWER8_BASE;
-    pcc->pvr_mask = CPU_POWERPC_POWER8_MASK;
 }
 #endif /* defined (TARGET_PPC64) */
 
@@ -9245,7 +9192,6 @@ static gint ppc_cpu_compare_class_pvr_mask(gconstpointer a, gconstpointer b)
     ObjectClass *oc = (ObjectClass *)a;
     uint32_t pvr = *(uint32_t *)b;
     PowerPCCPUClass *pcc = (PowerPCCPUClass *)a;
-    gint ret;
 
     /* -cpu host does a PVR lookup during construction */
     if (unlikely(strcmp(object_class_get_name(oc),
@@ -9257,9 +9203,11 @@ static gint ppc_cpu_compare_class_pvr_mask(gconstpointer a, gconstpointer b)
         return -1;
     }
 
-    ret = (((pcc->pvr & pcc->pvr_mask) == (pvr & pcc->pvr_mask)) ? 0 : -1);
+    if (pcc->pvr_match(pcc, pvr)) {
+        return 0;
+    }
 
-    return ret;
+    return -1;
 }
 
 PowerPCCPUClass *ppc_cpu_class_by_pvr_mask(uint32_t pvr)
@@ -9551,6 +9499,10 @@ static void ppc_cpu_reset(CPUState *s)
 #endif
 #if !defined(TARGET_WORDS_BIGENDIAN)
     msr |= (target_ulong)1 << MSR_LE; /* Little-endian user mode */
+    if (!((env->msr_mask >> MSR_LE) & 1)) {
+        fprintf(stderr, "Selected CPU does not support little-endian.\n");
+        exit(1);
+    }
 #endif
 #endif
 
@@ -9656,6 +9608,11 @@ static void ppc_cpu_initfn(Object *obj)
     }
 }
 
+static bool ppc_pvr_match_default(PowerPCCPUClass *pcc, uint32_t pvr)
+{
+    return pcc->pvr == pvr;
+}
+
 static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
@@ -9663,8 +9620,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     pcc->parent_realize = dc->realize;
-    pcc->pvr = CPU_POWERPC_DEFAULT_MASK;
-    pcc->pvr_mask = CPU_POWERPC_DEFAULT_MASK;
+    pcc->pvr_match = ppc_pvr_match_default;
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_always;
     dc->realize = ppc_cpu_realizefn;
     dc->unrealize = ppc_cpu_unrealizefn;
