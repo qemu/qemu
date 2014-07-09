@@ -214,9 +214,9 @@ bool aio_pending(AioContext *ctx);
 /* Progress in completing AIO work to occur.  This can issue new pending
  * aio as a result of executing I/O completion or bh callbacks.
  *
- * If there is no pending AIO operation or completion (bottom half),
- * return false.  If there are pending AIO operations of bottom halves,
- * return true.
+ * Return whether any progress was made by executing AIO or bottom half
+ * handlers.  If @blocking == true, this should always be true except
+ * if someone called aio_notify.
  *
  * If there are no pending bottom halves, but there are pending AIO
  * operations, it may not be possible to make any progress without
