@@ -53,7 +53,7 @@ void vring_teardown(Vring *vring, VirtIODevice *vdev, int n);
 void vring_disable_notification(VirtIODevice *vdev, Vring *vring);
 bool vring_enable_notification(VirtIODevice *vdev, Vring *vring);
 bool vring_should_notify(VirtIODevice *vdev, Vring *vring);
-int vring_pop(VirtIODevice *vdev, Vring *vring, VirtQueueElement **elem);
+int vring_pop(VirtIODevice *vdev, Vring *vring, VirtQueueElement *elem);
 void vring_push(Vring *vring, VirtQueueElement *elem, int len);
 
 #endif /* VRING_H */

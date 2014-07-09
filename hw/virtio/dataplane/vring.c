@@ -301,13 +301,15 @@ static void vring_unmap_element(VirtQueueElement *elem)
  * Stolen from linux/drivers/vhost/vhost.c.
  */
 int vring_pop(VirtIODevice *vdev, Vring *vring,
-              VirtQueueElement **p_elem)
+              VirtQueueElement *elem)
 {
     struct vring_desc desc;
     unsigned int i, head, found = 0, num = vring->vr.num;
     uint16_t avail_idx, last_avail_idx;
-    VirtQueueElement *elem = NULL;
     int ret;
+
+    /* Initialize elem so it can be safely unmapped */
+    elem->in_num = elem->out_num = 0;
 
     /* If there was a fatal error then refuse operation */
     if (vring->broken) {
@@ -340,10 +342,8 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
      * the index we've seen. */
     head = vring->vr.avail->ring[last_avail_idx % num];
 
-    elem = g_slice_new(VirtQueueElement);
     elem->index = head;
-    elem->in_num = elem->out_num = 0;
-    
+
     /* If their number is silly, that's an error. */
     if (unlikely(head >= num)) {
         error_report("Guest says index %u > %u is available", head, num);
@@ -391,7 +391,6 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
 
     /* On success, increment avail index. */
     vring->last_avail_idx++;
-    *p_elem = elem;
     return head;
 
 out:
@@ -399,11 +398,7 @@ out:
     if (ret == -EFAULT) {
         vring->broken = true;
     }
-    if (elem) {
-        vring_unmap_element(elem);
-        g_slice_free(VirtQueueElement, elem);
-    }
-    *p_elem = NULL;
+    vring_unmap_element(elem);
     return ret;
 }
 

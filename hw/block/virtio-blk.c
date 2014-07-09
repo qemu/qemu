@@ -29,20 +29,18 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 
-static VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
+VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
 {
     VirtIOBlockReq *req = g_slice_new(VirtIOBlockReq);
     req->dev = s;
     req->qiov.size = 0;
     req->next = NULL;
-    req->elem = g_slice_new(VirtQueueElement);
     return req;
 }
 
-static void virtio_blk_free_request(VirtIOBlockReq *req)
+void virtio_blk_free_request(VirtIOBlockReq *req)
 {
     if (req) {
-        g_slice_free(VirtQueueElement, req->elem);
         g_slice_free(VirtIOBlockReq, req);
     }
 }
@@ -56,7 +54,7 @@ static void virtio_blk_complete_request(VirtIOBlockReq *req,
     trace_virtio_blk_req_complete(req, status);
 
     stb_p(&req->in->status, status);
-    virtqueue_push(s->vq, req->elem, req->qiov.size + sizeof(*req->in));
+    virtqueue_push(s->vq, &req->elem, req->qiov.size + sizeof(*req->in));
     virtio_notify(vdev, s->vq);
 }
 
@@ -121,7 +119,7 @@ static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s)
 {
     VirtIOBlockReq *req = virtio_blk_alloc_request(s);
 
-    if (!virtqueue_pop(s->vq, req->elem)) {
+    if (!virtqueue_pop(s->vq, &req->elem)) {
         virtio_blk_free_request(req);
         return NULL;
     }
@@ -254,7 +252,7 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
 {
     int status;
 
-    status = virtio_blk_handle_scsi_req(req->dev, req->elem);
+    status = virtio_blk_handle_scsi_req(req->dev, &req->elem);
     virtio_blk_req_complete(req, status);
     virtio_blk_free_request(req);
 }
@@ -351,12 +349,12 @@ static void virtio_blk_handle_read(VirtIOBlockReq *req)
 void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 {
     uint32_t type;
-    struct iovec *in_iov = req->elem->in_sg;
-    struct iovec *iov = req->elem->out_sg;
-    unsigned in_num = req->elem->in_num;
-    unsigned out_num = req->elem->out_num;
+    struct iovec *in_iov = req->elem.in_sg;
+    struct iovec *iov = req->elem.out_sg;
+    unsigned in_num = req->elem.in_num;
+    unsigned out_num = req->elem.out_num;
 
-    if (req->elem->out_num < 1 || req->elem->in_num < 1) {
+    if (req->elem.out_num < 1 || req->elem.in_num < 1) {
         error_report("virtio-blk missing headers");
         exit(1);
     }
@@ -393,19 +391,19 @@ void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
          * NB: per existing s/n string convention the string is
          * terminated by '\0' only when shorter than buffer.
          */
-        strncpy(req->elem->in_sg[0].iov_base,
+        strncpy(req->elem.in_sg[0].iov_base,
                 s->blk.serial ? s->blk.serial : "",
-                MIN(req->elem->in_sg[0].iov_len, VIRTIO_BLK_ID_BYTES));
+                MIN(req->elem.in_sg[0].iov_len, VIRTIO_BLK_ID_BYTES));
         virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
         virtio_blk_free_request(req);
     } else if (type & VIRTIO_BLK_T_OUT) {
-        qemu_iovec_init_external(&req->qiov, &req->elem->out_sg[1],
-                                 req->elem->out_num - 1);
+        qemu_iovec_init_external(&req->qiov, &req->elem.out_sg[1],
+                                 req->elem.out_num - 1);
         virtio_blk_handle_write(req, mrb);
     } else if (type == VIRTIO_BLK_T_IN || type == VIRTIO_BLK_T_BARRIER) {
         /* VIRTIO_BLK_T_IN is 0, so we can't just & it. */
-        qemu_iovec_init_external(&req->qiov, &req->elem->in_sg[0],
-                                 req->elem->in_num - 1);
+        qemu_iovec_init_external(&req->qiov, &req->elem.in_sg[0],
+                                 req->elem.in_num - 1);
         virtio_blk_handle_read(req);
     } else {
         virtio_blk_req_complete(req, VIRTIO_BLK_S_UNSUPP);
@@ -629,7 +627,7 @@ static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
 
     while (req) {
         qemu_put_sbyte(f, 1);
-        qemu_put_buffer(f, (unsigned char *)req->elem,
+        qemu_put_buffer(f, (unsigned char *)&req->elem,
                         sizeof(VirtQueueElement));
         req = req->next;
     }
@@ -654,15 +652,15 @@ static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
 
     while (qemu_get_sbyte(f)) {
         VirtIOBlockReq *req = virtio_blk_alloc_request(s);
-        qemu_get_buffer(f, (unsigned char *)req->elem,
+        qemu_get_buffer(f, (unsigned char *)&req->elem,
                         sizeof(VirtQueueElement));
         req->next = s->rq;
         s->rq = req;
 
-        virtqueue_map_sg(req->elem->in_sg, req->elem->in_addr,
-            req->elem->in_num, 1);
-        virtqueue_map_sg(req->elem->out_sg, req->elem->out_addr,
-            req->elem->out_num, 0);
+        virtqueue_map_sg(req->elem.in_sg, req->elem.in_addr,
+            req->elem.in_num, 1);
+        virtqueue_map_sg(req->elem.out_sg, req->elem.out_addr,
+            req->elem.out_num, 0);
     }
 
     return 0;
