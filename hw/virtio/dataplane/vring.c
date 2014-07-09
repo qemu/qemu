@@ -272,7 +272,7 @@ static int get_indirect(Vring *vring, VirtQueueElement *elem,
     return 0;
 }
 
-void vring_free_element(VirtQueueElement *elem)
+static void vring_unmap_element(VirtQueueElement *elem)
 {
     int i;
 
@@ -287,8 +287,6 @@ void vring_free_element(VirtQueueElement *elem)
     for (i = 0; i < elem->in_num; i++) {
         vring_unmap(elem->in_sg[i].iov_base, true);
     }
-
-    g_slice_free(VirtQueueElement, elem);
 }
 
 /* This looks in the virtqueue and for the first available buffer, and converts
@@ -402,7 +400,8 @@ out:
         vring->broken = true;
     }
     if (elem) {
-        vring_free_element(elem);
+        vring_unmap_element(elem);
+        g_slice_free(VirtQueueElement, elem);
     }
     *p_elem = NULL;
     return ret;
@@ -418,7 +417,7 @@ void vring_push(Vring *vring, VirtQueueElement *elem, int len)
     unsigned int head = elem->index;
     uint16_t new;
 
-    vring_free_element(elem);
+    vring_unmap_element(elem);
 
     /* Don't touch vring if a fatal error occurred */
     if (vring->broken) {

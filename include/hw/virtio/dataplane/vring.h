@@ -55,6 +55,5 @@ bool vring_enable_notification(VirtIODevice *vdev, Vring *vring);
 bool vring_should_notify(VirtIODevice *vdev, Vring *vring);
 int vring_pop(VirtIODevice *vdev, Vring *vring, VirtQueueElement **elem);
 void vring_push(Vring *vring, VirtQueueElement *elem, int len);
-void vring_free_element(VirtQueueElement *elem);
 
 #endif /* VRING_H */
