@@ -109,9 +109,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
         progress = true;
     }
 
-    /* Run timers */
-    progress |= timerlistgroup_run_timers(&ctx->tlg);
-
     /*
      * Then dispatch any pending callbacks from the GSource.
      *
@@ -144,6 +141,9 @@ bool aio_poll(AioContext *ctx, bool blocking)
             g_free(tmp);
         }
     }
+
+    /* Run timers */
+    progress |= timerlistgroup_run_timers(&ctx->tlg);
 
     if (progress && !blocking) {
         return true;
