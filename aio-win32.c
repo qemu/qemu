@@ -143,7 +143,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
 {
     AioHandler *node;
     HANDLE events[MAXIMUM_WAIT_OBJECTS + 1];
-    bool progress;
+    bool progress, first;
     int count;
     int timeout;
 
@@ -177,6 +177,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     }
 
     ctx->walking_handlers--;
+    first = true;
 
     /* wait until next event */
     while (count > 0) {
@@ -185,6 +186,11 @@ bool aio_poll(AioContext *ctx, bool blocking)
         timeout = blocking
             ? qemu_timeout_ns_to_ms(aio_compute_timeout(ctx)) : 0;
         ret = WaitForMultipleObjects(count, events, FALSE, timeout);
+
+        if (first && aio_bh_poll(ctx)) {
+            progress = true;
+        }
+        first = false;
 
         /* if we have any signaled events, dispatch event */
         if ((DWORD) (ret - WAIT_OBJECT_0) >= count) {

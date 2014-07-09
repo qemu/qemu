@@ -264,6 +264,10 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     /* Run dispatch even if there were no readable fds to run timers */
     aio_set_dispatching(ctx, true);
+    if (aio_bh_poll(ctx)) {
+        progress = true;
+    }
+
     if (aio_dispatch(ctx)) {
         progress = true;
     }
