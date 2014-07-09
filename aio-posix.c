@@ -249,7 +249,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     /* wait until next event */
     ret = qemu_poll_ns((GPollFD *)ctx->pollfds->data,
                          ctx->pollfds->len,
-                         blocking ? timerlistgroup_deadline_ns(&ctx->tlg) : 0);
+                         blocking ? aio_compute_timeout(ctx) : 0);
 
     /* if we have any readable fds, dispatch event */
     if (ret > 0) {

@@ -165,8 +165,8 @@ bool aio_poll(AioContext *ctx, bool blocking)
     while (count > 0) {
         int ret;
 
-        timeout = blocking ?
-            qemu_timeout_ns_to_ms(timerlistgroup_deadline_ns(&ctx->tlg)) : 0;
+        timeout = blocking
+            ? qemu_timeout_ns_to_ms(aio_compute_timeout(ctx)) : 0;
         ret = WaitForMultipleObjects(count, events, FALSE, timeout);
 
         /* if we have any signaled events, dispatch event */

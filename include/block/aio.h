@@ -303,4 +303,12 @@ static inline void aio_timer_init(AioContext *ctx,
     timer_init(ts, ctx->tlg.tl[type], scale, cb, opaque);
 }
 
+/**
+ * aio_compute_timeout:
+ * @ctx: the aio context
+ *
+ * Compute the timeout that a blocking aio_poll should use.
+ */
+int64_t aio_compute_timeout(AioContext *ctx);
+
 #endif
