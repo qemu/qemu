@@ -205,7 +205,14 @@ void qemu_bh_cancel(QEMUBH *bh);
 void qemu_bh_delete(QEMUBH *bh);
 
 /* Return whether there are any pending callbacks from the GSource
- * attached to the AioContext.
+ * attached to the AioContext, before g_poll is invoked.
+ *
+ * This is used internally in the implementation of the GSource.
+ */
+bool aio_prepare(AioContext *ctx);
+
+/* Return whether there are any pending callbacks from the GSource
+ * attached to the AioContext, after g_poll is invoked.
  *
  * This is used internally in the implementation of the GSource.
  */

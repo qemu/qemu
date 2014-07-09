@@ -100,6 +100,11 @@ void aio_set_event_notifier(AioContext *ctx,
                        (IOHandler *)io_read, NULL, notifier);
 }
 
+bool aio_prepare(AioContext *ctx)
+{
+    return false;
+}
+
 bool aio_pending(AioContext *ctx)
 {
     AioHandler *node;

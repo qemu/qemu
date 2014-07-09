@@ -188,6 +188,11 @@ aio_ctx_prepare(GSource *source, gint    *timeout)
 
     /* We assume there is no timeout already supplied */
     *timeout = qemu_timeout_ns_to_ms(aio_compute_timeout(ctx));
+
+    if (aio_prepare(ctx)) {
+        *timeout = 0;
+    }
+
     return *timeout == 0;
 }
 
