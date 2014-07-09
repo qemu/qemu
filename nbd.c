@@ -156,7 +156,7 @@ ssize_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read)
             err = socket_error();
 
             /* recoverable error */
-            if (err == EINTR || (offset > 0 && err == EAGAIN)) {
+            if (err == EINTR || (offset > 0 && (err == EAGAIN || err == EWOULDBLOCK))) {
                 continue;
             }
 
