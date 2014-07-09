@@ -89,29 +89,12 @@ bool aio_pending(AioContext *ctx)
     return false;
 }
 
-bool aio_poll(AioContext *ctx, bool blocking)
+static bool aio_dispatch_handlers(AioContext *ctx, HANDLE event)
 {
     AioHandler *node;
-    HANDLE events[MAXIMUM_WAIT_OBJECTS + 1];
-    bool progress;
-    int count;
-    int timeout;
-
-    progress = false;
+    bool progress = false;
 
     /*
-     * If there are callbacks left that have been queued, we need to call then.
-     * Do not call select in this case, because it is possible that the caller
-     * does not need a complete flush (as is the case for aio_poll loops).
-     */
-    if (aio_bh_poll(ctx)) {
-        blocking = false;
-        progress = true;
-    }
-
-    /*
-     * Then dispatch any pending callbacks from the GSource.
-     *
      * We have to walk very carefully in case aio_set_fd_handler is
      * called while we're walking.
      */
@@ -121,7 +104,9 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
         ctx->walking_handlers++;
 
-        if (node->pfd.revents && node->io_notify) {
+        if (!node->deleted &&
+            (node->pfd.revents || event_notifier_get_handle(node->e) == event) &&
+            node->io_notify) {
             node->pfd.revents = 0;
             node->io_notify(node->e);
 
@@ -142,8 +127,40 @@ bool aio_poll(AioContext *ctx, bool blocking)
         }
     }
 
-    /* Run timers */
+    return progress;
+}
+
+static bool aio_dispatch(AioContext *ctx)
+{
+    bool progress;
+
+    progress = aio_dispatch_handlers(ctx, INVALID_HANDLE_VALUE);
     progress |= timerlistgroup_run_timers(&ctx->tlg);
+    return progress;
+}
+
+bool aio_poll(AioContext *ctx, bool blocking)
+{
+    AioHandler *node;
+    HANDLE events[MAXIMUM_WAIT_OBJECTS + 1];
+    bool progress;
+    int count;
+    int timeout;
+
+    progress = false;
+
+    /*
+     * If there are callbacks left that have been queued, we need to call then.
+     * Do not call select in this case, because it is possible that the caller
+     * does not need a complete flush (as is the case for aio_poll loops).
+     */
+    if (aio_bh_poll(ctx)) {
+        blocking = false;
+        progress = true;
+    }
+
+    /* Dispatch any pending callbacks from the GSource.  */
+    progress |= aio_dispatch(ctx);
 
     if (progress && !blocking) {
         return true;
@@ -176,35 +193,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
         blocking = false;
 
-        /* we have to walk very carefully in case
-         * aio_set_fd_handler is called while we're walking */
-        node = QLIST_FIRST(&ctx->aio_handlers);
-        while (node) {
-            AioHandler *tmp;
-
-            ctx->walking_handlers++;
-
-            if (!node->deleted &&
-                event_notifier_get_handle(node->e) == events[ret - WAIT_OBJECT_0] &&
-                node->io_notify) {
-                node->io_notify(node->e);
-
-                /* aio_notify() does not count as progress */
-                if (node->e != &ctx->notifier) {
-                    progress = true;
-                }
-            }
-
-            tmp = node;
-            node = QLIST_NEXT(node, node);
-
-            ctx->walking_handlers--;
-
-            if (!ctx->walking_handlers && tmp->deleted) {
-                QLIST_REMOVE(tmp, node);
-                g_free(tmp);
-            }
-        }
+        progress |= aio_dispatch_handlers(ctx, events[ret - WAIT_OBJECT_0]);
 
         /* Try again, but only call each handler once.  */
         events[ret - WAIT_OBJECT_0] = events[--count];
