@@ -239,7 +239,6 @@ bool aio_dispatch(AioContext *ctx);
  */
 bool aio_poll(AioContext *ctx, bool blocking);
 
-#ifdef CONFIG_POSIX
 /* Register a file descriptor and associated callbacks.  Behaves very similarly
  * to qemu_set_fd_handler2.  Unlike qemu_set_fd_handler2, these callbacks will
  * be invoked when using aio_poll().
@@ -252,7 +251,6 @@ void aio_set_fd_handler(AioContext *ctx,
                         IOHandler *io_read,
                         IOHandler *io_write,
                         void *opaque);
-#endif
 
 /* Register an event notifier and associated callbacks.  Behaves very similarly
  * to event_notifier_set_handler.  Unlike event_notifier_set_handler, these callbacks

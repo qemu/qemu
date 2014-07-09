@@ -10,7 +10,6 @@ block-obj-$(CONFIG_WIN32) += raw-win32.o win32-aio.o
 block-obj-$(CONFIG_POSIX) += raw-posix.o
 block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
 
-ifeq ($(CONFIG_POSIX),y)
 block-obj-y += nbd.o nbd-client.o sheepdog.o
 block-obj-$(CONFIG_LIBISCSI) += iscsi.o
 block-obj-$(CONFIG_LIBNFS) += nfs.o
@@ -19,7 +18,6 @@ block-obj-$(CONFIG_RBD) += rbd.o
 block-obj-$(CONFIG_GLUSTERFS) += gluster.o
 block-obj-$(CONFIG_ARCHIPELAGO) += archipelago.o
 block-obj-$(CONFIG_LIBSSH2) += ssh.o
-endif
 
 common-obj-y += stream.o
 common-obj-y += commit.o
