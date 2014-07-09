@@ -499,6 +499,18 @@ static void ide_rw_error(IDEState *s) {
     ide_set_irq(s->bus);
 }
 
+static bool ide_sect_range_ok(IDEState *s,
+                              uint64_t sector, uint64_t nb_sectors)
+{
+    uint64_t total_sectors;
+
+    bdrv_get_geometry(s->bs, &total_sectors);
+    if (sector > total_sectors || nb_sectors > total_sectors - sector) {
+        return false;
+    }
+    return true;
+}
+
 static void ide_sector_read_cb(void *opaque, int ret)
 {
     IDEState *s = opaque;
@@ -553,6 +565,11 @@ void ide_sector_read(IDEState *s)
 #if defined(DEBUG_IDE)
     printf("sector=%" PRId64 "\n", sector_num);
 #endif
+
+    if (!ide_sect_range_ok(s, sector_num, n)) {
+        ide_rw_error(s);
+        return;
+    }
 
     s->iov.iov_base = s->io_buffer;
     s->iov.iov_len  = n * BDRV_SECTOR_SIZE;
@@ -671,6 +688,12 @@ void ide_dma_cb(void *opaque, int ret)
            sector_num, n, s->dma_cmd);
 #endif
 
+    if (!ide_sect_range_ok(s, sector_num, n)) {
+        dma_buf_commit(s);
+        ide_dma_error(s);
+        return;
+    }
+
     switch (s->dma_cmd) {
     case IDE_DMA_READ:
         s->bus->dma->aiocb = dma_bdrv_read(s->bs, &s->sg, sector_num,
@@ -788,6 +811,11 @@ void ide_sector_write(IDEState *s)
     n = s->nsector;
     if (n > s->req_nb_sectors) {
         n = s->req_nb_sectors;
+    }
+
+    if (!ide_sect_range_ok(s, sector_num, n)) {
+        ide_rw_error(s);
+        return;
     }
 
     s->iov.iov_base = s->io_buffer;
