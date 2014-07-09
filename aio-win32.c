@@ -130,11 +130,12 @@ static bool aio_dispatch_handlers(AioContext *ctx, HANDLE event)
     return progress;
 }
 
-static bool aio_dispatch(AioContext *ctx)
+bool aio_dispatch(AioContext *ctx)
 {
     bool progress;
 
-    progress = aio_dispatch_handlers(ctx, INVALID_HANDLE_VALUE);
+    progress = aio_bh_poll(ctx);
+    progress |= aio_dispatch_handlers(ctx, INVALID_HANDLE_VALUE);
     progress |= timerlistgroup_run_timers(&ctx->tlg);
     return progress;
 }
@@ -148,23 +149,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
     int timeout;
 
     progress = false;
-
-    /*
-     * If there are callbacks left that have been queued, we need to call then.
-     * Do not call select in this case, because it is possible that the caller
-     * does not need a complete flush (as is the case for aio_poll loops).
-     */
-    if (aio_bh_poll(ctx)) {
-        blocking = false;
-        progress = true;
-    }
-
-    /* Dispatch any pending callbacks from the GSource.  */
-    progress |= aio_dispatch(ctx);
-
-    if (progress && !blocking) {
-        return true;
-    }
 
     ctx->walking_handlers++;
 
@@ -205,14 +189,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
         events[ret - WAIT_OBJECT_0] = events[--count];
     }
 
-    if (blocking) {
-        /* Run the timers a second time. We do this because otherwise aio_wait
-         * will not note progress - and will stop a drain early - if we have
-         * a timer that was not ready to run entering g_poll but is ready
-         * after g_poll. This will only do anything if a timer has expired.
-         */
-        progress |= timerlistgroup_run_timers(&ctx->tlg);
-    }
+    progress |= timerlistgroup_run_timers(&ctx->tlg);
 
     return progress;
 }
