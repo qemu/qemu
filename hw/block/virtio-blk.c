@@ -31,9 +31,11 @@
 
 static VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
 {
-    VirtIOBlockReq *req = g_slice_new0(VirtIOBlockReq);
+    VirtIOBlockReq *req = g_slice_new(VirtIOBlockReq);
     req->dev = s;
-    req->elem = g_slice_new0(VirtQueueElement);
+    req->qiov.size = 0;
+    req->next = NULL;
+    req->elem = g_slice_new(VirtQueueElement);
     return req;
 }
 
