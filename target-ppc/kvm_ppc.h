@@ -19,6 +19,8 @@ uint32_t kvmppc_get_tbfreq(void);
 uint64_t kvmppc_get_clockfreq(void);
 uint32_t kvmppc_get_vmx(void);
 uint32_t kvmppc_get_dfp(void);
+bool kvmppc_get_host_model(char **buf);
+bool kvmppc_get_host_serial(char **buf);
 int kvmppc_get_hasidle(CPUPPCState *env);
 int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len);
 int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level);
@@ -58,6 +60,16 @@ bool kvmppc_has_cap_fixup_hcalls(void);
 static inline uint32_t kvmppc_get_tbfreq(void)
 {
     return 0;
+}
+
+static inline bool kvmppc_get_host_model(char **buf)
+{
+    return false;
+}
+
+static inline bool kvmppc_get_host_serial(char **buf)
+{
+    return false;
 }
 
 static inline uint64_t kvmppc_get_clockfreq(void)
