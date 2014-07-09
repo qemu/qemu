@@ -22,6 +22,10 @@
 #include <qemu/sockets.h>
 
 /* GLIB version compatibility flags */
+#if !GLIB_CHECK_VERSION(2, 26, 0)
+#define G_TIME_SPAN_SECOND              (G_GINT64_CONSTANT(1000000))
+#endif
+
 #if GLIB_CHECK_VERSION(2, 28, 0)
 #define HAVE_MONOTONIC_TIME
 #endif
