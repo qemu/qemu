@@ -68,7 +68,6 @@ static void complete_request_vring(VirtIOBlockReq *req, unsigned char status)
     vring_push(&req->dev->dataplane->vring, req->elem,
                req->qiov.size + sizeof(*req->in));
     notify_guest(req->dev->dataplane);
-    g_slice_free(VirtIOBlockReq, req);
 }
 
 static void handle_notify(EventNotifier *e)
