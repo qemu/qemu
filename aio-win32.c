@@ -144,11 +144,24 @@ bool aio_poll(AioContext *ctx, bool blocking)
 {
     AioHandler *node;
     HANDLE events[MAXIMUM_WAIT_OBJECTS + 1];
-    bool progress, first;
+    bool was_dispatching, progress, first;
     int count;
     int timeout;
 
+    was_dispatching = ctx->dispatching;
     progress = false;
+
+    /* aio_notify can avoid the expensive event_notifier_set if
+     * everything (file descriptors, bottom halves, timers) will
+     * be re-evaluated before the next blocking poll().  This is
+     * already true when aio_poll is called with blocking == false;
+     * if blocking == true, it is only true after poll() returns.
+     *
+     * If we're in a nested event loop, ctx->dispatching might be true.
+     * In that case we can restore it just before returning, but we
+     * have to clear it now.
+     */
+    aio_set_dispatching(ctx, !blocking);
 
     ctx->walking_handlers++;
 
@@ -170,6 +183,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
         timeout = blocking
             ? qemu_timeout_ns_to_ms(aio_compute_timeout(ctx)) : 0;
         ret = WaitForMultipleObjects(count, events, FALSE, timeout);
+        aio_set_dispatching(ctx, true);
 
         if (first && aio_bh_poll(ctx)) {
             progress = true;
@@ -191,5 +205,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     progress |= timerlistgroup_run_timers(&ctx->tlg);
 
+    aio_set_dispatching(ctx, was_dispatching);
     return progress;
 }
