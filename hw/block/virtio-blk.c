@@ -291,10 +291,17 @@ static void virtio_blk_handle_flush(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 static bool virtio_blk_sect_range_ok(VirtIOBlock *dev,
                                      uint64_t sector, size_t size)
 {
+    uint64_t nb_sectors = size >> BDRV_SECTOR_BITS;
+    uint64_t total_sectors;
+
     if (sector & dev->sector_mask) {
         return false;
     }
     if (size % dev->conf->logical_block_size) {
+        return false;
+    }
+    bdrv_get_geometry(dev->bs, &total_sectors);
+    if (sector > total_sectors || nb_sectors > total_sectors - sector) {
         return false;
     }
     return true;
