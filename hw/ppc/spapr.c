@@ -1223,6 +1223,8 @@ static void ppc_spapr_init(MachineState *machine)
     int i;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
+    MemoryRegion *rma_region;
+    void *rma = NULL;
     hwaddr rma_alloc_size;
     hwaddr node0_size = (nb_numa_nodes > 1) ? numa_info[0].node_mem : ram_size;
     uint32_t initrd_base = 0;
@@ -1239,7 +1241,7 @@ static void ppc_spapr_init(MachineState *machine)
     cpu_ppc_hypercall = emulate_spapr_hypercall;
 
     /* Allocate RMA if necessary */
-    rma_alloc_size = kvmppc_alloc_rma("ppc_spapr.rma", sysmem);
+    rma_alloc_size = kvmppc_alloc_rma(&rma);
 
     if (rma_alloc_size == -1) {
         hw_error("qemu: Unable to create RMA\n");
@@ -1340,6 +1342,14 @@ static void ppc_spapr_init(MachineState *machine)
         memory_region_init_ram(ram, NULL, "ppc_spapr.ram", nonrma_size);
         vmstate_register_ram_global(ram);
         memory_region_add_subregion(sysmem, nonrma_base, ram);
+    }
+
+    if (rma_alloc_size && rma) {
+        rma_region = g_new(MemoryRegion, 1);
+        memory_region_init_ram_ptr(rma_region, NULL, "ppc_spapr.rma",
+                                   rma_alloc_size, rma);
+        vmstate_register_ram_global(rma_region);
+        memory_region_add_subregion(sysmem, 0, rma_region);
     }
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
