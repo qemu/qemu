@@ -130,13 +130,13 @@ static void ppc_heathrow_init(MachineState *machine)
         exit(1);
     }
 
-    memory_region_init_ram(ram, NULL, "ppc_heathrow.ram", ram_size);
-    vmstate_register_ram_global(ram);
+    memory_region_allocate_system_memory(ram, NULL, "ppc_heathrow.ram",
+                                         ram_size);
     memory_region_add_subregion(sysmem, 0, ram);
 
     /* allocate and load BIOS */
-    memory_region_init_ram(bios, NULL, "ppc_heathrow.bios", BIOS_SIZE);
-    vmstate_register_ram_global(bios);
+    memory_region_allocate_system_memory(bios, NULL, "ppc_heathrow.bios",
+                                         BIOS_SIZE);
     if (bios_name == NULL)
         bios_name = PROM_FILENAME;
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);

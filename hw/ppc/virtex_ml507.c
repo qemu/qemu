@@ -222,8 +222,7 @@ static void virtex_init(MachineState *machine)
     env = &cpu->env;
     qemu_register_reset(main_cpu_reset, cpu);
 
-    memory_region_init_ram(phys_ram, NULL, "ram", ram_size);
-    vmstate_register_ram_global(phys_ram);
+    memory_region_allocate_system_memory(phys_ram, NULL, "ram", ram_size);
     memory_region_add_subregion(address_space_mem, ram_base, phys_ram);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);

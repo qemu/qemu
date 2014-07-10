@@ -24,6 +24,7 @@
 #include "hw/hw.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc4xx.h"
+#include "hw/boards.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
 
@@ -694,8 +695,8 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
             if (bank_size <= size_left) {
                 char name[32];
                 snprintf(name, sizeof(name), "ppc4xx.sdram%d", i);
-                memory_region_init_ram(&ram_memories[i], NULL, name, bank_size);
-                vmstate_register_ram_global(&ram_memories[i]);
+                memory_region_allocate_system_memory(&ram_memories[i], NULL,
+                                                     name, bank_size);
                 ram_bases[i] = base;
                 ram_sizes[i] = bank_size;
                 base += bank_size;
