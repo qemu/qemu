@@ -792,9 +792,23 @@ static int64_t load_kernel (void)
                 loaderparams.kernel_filename);
         exit(1);
     }
+
+    /* Sanity check where the kernel has been linked */
     if (kvm_enabled()) {
+        if (kernel_entry & 0x80000000ll) {
+            error_report("KVM guest kernels must be linked in useg. "
+                         "Did you forget to enable CONFIG_KVM_GUEST?");
+            exit(1);
+        }
+
         xlate_to_kseg0 = cpu_mips_kvm_um_phys_to_kseg0;
     } else {
+        if (!(kernel_entry & 0x80000000ll)) {
+            error_report("KVM guest kernels aren't supported with TCG. "
+                         "Did you unintentionally enable CONFIG_KVM_GUEST?");
+            exit(1);
+        }
+
         xlate_to_kseg0 = cpu_mips_phys_to_kseg0;
     }
 
@@ -1028,7 +1042,7 @@ void mips_malta_init(MachineState *machine)
     fl_idx++;
     if (kernel_filename) {
         ram_low_size = MIN(ram_size, 256 << 20);
-        /* For KVM T&E we reserve 1MB of RAM for running bootloader */
+        /* For KVM we reserve 1MB of RAM for running bootloader */
         if (kvm_enabled()) {
             ram_low_size -= 0x100000;
             bootloader_run_addr = 0x40000000 + ram_low_size;
@@ -1052,10 +1066,10 @@ void mips_malta_init(MachineState *machine)
                              bootloader_run_addr, kernel_entry);
         }
     } else {
-        /* The flash region isn't executable from a KVM T&E guest */
+        /* The flash region isn't executable from a KVM guest */
         if (kvm_enabled()) {
             error_report("KVM enabled but no -kernel argument was specified. "
-                         "Booting from flash is not supported with KVM T&E.");
+                         "Booting from flash is not supported with KVM.");
             exit(1);
         }
         /* Load firmware from flash. */

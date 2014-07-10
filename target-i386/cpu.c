@@ -241,7 +241,7 @@ static const char *kvm_feature_name[] = {
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
+    "kvmclock-stable-bit", NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
 };
 

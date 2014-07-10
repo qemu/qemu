@@ -122,8 +122,12 @@ void watchdog_perform_action(void)
         exit(0);
 
     case WDT_PAUSE:             /* same as 'stop' command in monitor */
+        /* In a timer callback, when vm_stop calls qemu_clock_enable
+         * you would get a deadlock.  Bypass the problem.
+         */
+        qemu_system_vmstop_request_prepare();
         qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_PAUSE, &error_abort);
-        vm_stop(RUN_STATE_WATCHDOG);
+        qemu_system_vmstop_request(RUN_STATE_WATCHDOG);
         break;
 
     case WDT_DEBUG:
