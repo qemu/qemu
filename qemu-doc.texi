@@ -1205,9 +1205,16 @@ In order to check that the user mode network is working, you can ping
 the address 10.0.2.2 and verify that you got an address in the range
 10.0.2.x from the QEMU virtual DHCP server.
 
-Note that @code{ping} is not supported reliably to the internet as it
-would require root privileges. It means you can only ping the local
-router (10.0.2.2).
+Note that ICMP traffic in general does not work with user mode networking.
+@code{ping}, aka. ICMP echo, to the local router (10.0.2.2) shall work,
+however. If you're using QEMU on Linux >= 3.0, it can use unprivileged ICMP
+ping sockets to allow @code{ping} to the Internet. The host admin has to set
+the ping_group_range in order to grant access to those sockets. To allow ping
+for GID 100 (usually users group):
+
+@example
+echo 100 100 > /proc/sys/net/ipv4/ping_group_range
+@end example
 
 When using the built-in TFTP server, the router is also the TFTP
 server.
