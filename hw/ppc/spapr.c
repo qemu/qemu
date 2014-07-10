@@ -1335,14 +1335,9 @@ static void ppc_spapr_init(MachineState *machine)
 
     /* allocate RAM */
     spapr->ram_limit = ram_size;
-    if (spapr->ram_limit > rma_alloc_size) {
-        ram_addr_t nonrma_base = rma_alloc_size;
-        ram_addr_t nonrma_size = spapr->ram_limit - rma_alloc_size;
-
-        memory_region_init_ram(ram, NULL, "ppc_spapr.ram", nonrma_size);
-        vmstate_register_ram_global(ram);
-        memory_region_add_subregion(sysmem, nonrma_base, ram);
-    }
+    memory_region_allocate_system_memory(ram, NULL, "ppc_spapr.ram",
+                                         spapr->ram_limit);
+    memory_region_add_subregion(sysmem, 0, ram);
 
     if (rma_alloc_size && rma) {
         rma_region = g_new(MemoryRegion, 1);
