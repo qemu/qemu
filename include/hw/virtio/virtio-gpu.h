@@ -56,8 +56,19 @@ struct virtio_gpu_requested_state {
     int x, y;
 };
 
+enum virtio_gpu_conf_flags {
+    VIRTIO_GPU_FLAG_VIRGL_ENABLED = 1,
+    VIRTIO_GPU_FLAG_STATS_ENABLED,
+};
+
+#define virtio_gpu_virgl_enabled(_cfg) \
+    (_cfg.flags & (1 << VIRTIO_GPU_FLAG_VIRGL_ENABLED))
+#define virtio_gpu_stats_enabled(_cfg) \
+    (_cfg.flags & (1 << VIRTIO_GPU_FLAG_STATS_ENABLED))
+
 struct virtio_gpu_conf {
     uint32_t max_outputs;
+    uint32_t flags;
 };
 
 struct virtio_gpu_ctrl_command {
@@ -92,11 +103,13 @@ typedef struct VirtIOGPU {
     int enabled_output_bitmask;
     struct virtio_gpu_config virtio_config;
 
+    bool use_virgl_renderer;
+    bool renderer_inited;
     QEMUTimer *fence_poll;
     QEMUTimer *print_stats;
 
+    uint32_t inflight;
     struct {
-        uint32_t inflight;
         uint32_t max_inflight;
         uint32_t requests;
         uint32_t req_3d;
@@ -138,5 +151,12 @@ int virtio_gpu_create_mapping_iov(struct virtio_gpu_resource_attach_backing *ab,
                                   struct virtio_gpu_ctrl_command *cmd,
                                   struct iovec **iov);
 void virtio_gpu_cleanup_mapping_iov(struct iovec *iov, uint32_t count);
+
+/* virtio-gpu-3d.c */
+void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
+                                  struct virtio_gpu_ctrl_command *cmd);
+void virtio_gpu_virgl_fence_poll(VirtIOGPU *g);
+void virtio_gpu_virgl_reset(VirtIOGPU *g);
+int virtio_gpu_virgl_init(VirtIOGPU *g);
 
 #endif
