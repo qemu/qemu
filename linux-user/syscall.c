@@ -1984,7 +1984,7 @@ static abi_long do_connect(int sockfd, abi_ulong target_addr,
         return -TARGET_EINVAL;
     }
 
-    addr = alloca(addrlen);
+    addr = alloca(addrlen+1);
 
     ret = target_to_host_sockaddr(addr, target_addr, addrlen);
     if (ret)
@@ -2005,7 +2005,7 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
 
     if (msgp->msg_name) {
         msg.msg_namelen = tswap32(msgp->msg_namelen);
-        msg.msg_name = alloca(msg.msg_namelen);
+        msg.msg_name = alloca(msg.msg_namelen+1);
         ret = target_to_host_sockaddr(msg.msg_name, tswapal(msgp->msg_name),
                                 msg.msg_namelen);
         if (ret) {
@@ -2268,7 +2268,7 @@ static abi_long do_sendto(int fd, abi_ulong msg, size_t len, int flags,
     if (!host_msg)
         return -TARGET_EFAULT;
     if (target_addr) {
-        addr = alloca(addrlen);
+        addr = alloca(addrlen+1);
         ret = target_to_host_sockaddr(addr, target_addr, addrlen);
         if (ret) {
             unlock_user(host_msg, msg, 0);
