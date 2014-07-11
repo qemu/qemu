@@ -519,7 +519,7 @@ static const mips_def_t mips_defs[] =
     },
     {
         /* A generic CPU supporting MIPS64 Release 6 ISA.
-           FIXME: It does not support all the MIPS64R6 features yet.
+           FIXME: Support IEEE 754-2008 FP and misaligned memory accesses.
                   Eventually this should be replaced by a real CPU model. */
         .name = "MIPS64R6-generic",
         .CP0_PRid = 0x00010000,
@@ -530,12 +530,19 @@ static const mips_def_t mips_defs[] =
                        (2 << CP0C1_DS) | (4 << CP0C1_DL) | (3 << CP0C1_DA) |
                        (0 << CP0C1_PC) | (1 << CP0C1_WR) | (1 << CP0C1_EP),
         .CP0_Config2 = MIPS_CONFIG2,
-        .CP0_Config3 = MIPS_CONFIG3,
+        .CP0_Config3 = MIPS_CONFIG3 | (1 << CP0C3_RXI) | (1 << CP0C3_BP) |
+                       (1 << CP0C3_BI) | (1 << CP0C3_ULRI) | (1U << CP0C3_M),
+        .CP0_Config4 = MIPS_CONFIG4 | (0xfc << CP0C4_KScrExist) |
+                       (3 << CP0C4_IE) | (1 << CP0C4_M),
+        .CP0_Config5_rw_bitmask = (1 << CP0C5_SBRI),
         .CP0_LLAddr_rw_bitmask = 0,
         .CP0_LLAddr_shift = 0,
         .SYNCI_Step = 32,
         .CCRes = 2,
         .CP0_Status_rw_bitmask = 0x30D8FFFF,
+        .CP0_PageGrain = (1 << CP0PG_IEC) | (1 << CP0PG_XIE) |
+                         (1U << CP0PG_RIE),
+        .CP0_PageGrain_rw_bitmask = 0,
         .CP1_fcr0 = (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
                     (1 << FCR0_D) | (1 << FCR0_S) | (0x00 << FCR0_PRID) |
                     (0x0 << FCR0_REV),
