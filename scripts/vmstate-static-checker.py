@@ -79,6 +79,18 @@ def check_fields_match(name, s_field, d_field):
 
     return False
 
+def get_changed_sec_name(sec):
+    # Section names can change -- see commit 292b1634 for an example.
+    changes = {
+        "ICH9 LPC": "ICH9-LPC",
+    }
+
+    for item in changes:
+        if item == sec:
+            return changes[item]
+        if changes[item] == sec:
+            return item
+    return ""
 
 def exists_in_substruct(fields, item):
     # Some QEMU versions moved a few fields inside a substruct.  This
@@ -314,13 +326,18 @@ def main():
         dest_data = temp
 
     for sec in src_data:
-        if not sec in dest_data:
-            print "Section \"" + sec + "\" does not exist in dest"
-            bump_taint()
-            continue
+        dest_sec = sec
+        if not dest_sec in dest_data:
+            # Either the section name got changed, or the section
+            # doesn't exist in dest.
+            dest_sec = get_changed_sec_name(sec)
+            if not dest_sec in dest_data:
+                print "Section \"" + sec + "\" does not exist in dest"
+                bump_taint()
+                continue
 
         s = src_data[sec]
-        d = dest_data[sec]
+        d = dest_data[dest_sec]
 
         if sec == "vmschkmachine":
             check_machine_type(s, d)
