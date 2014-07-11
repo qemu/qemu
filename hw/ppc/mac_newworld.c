@@ -176,6 +176,7 @@ static void ppc_core99_init(MachineState *machine)
     SysBusDevice *s;
     DeviceState *dev;
     int *token = g_new(int, 1);
+    hwaddr nvram_addr = 0xFFF04000;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -426,11 +427,18 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     /* The NewWorld NVRAM is not located in the MacIO device */
+#ifdef CONFIG_KVM
+    if (kvm_enabled() && getpagesize() > 4096) {
+        /* We can't combine read-write and read-only in a single page, so
+           move the NVRAM out of ROM again for KVM */
+        nvram_addr = 0xFFE00000;
+    }
+#endif
     dev = qdev_create(NULL, TYPE_MACIO_NVRAM);
     qdev_prop_set_uint32(dev, "size", 0x2000);
     qdev_prop_set_uint32(dev, "it_shift", 1);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xFFF04000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, nvram_addr);
     nvr = MACIO_NVRAM(dev);
     pmac_format_nvram_partition(nvr, 0x2000);
     /* No PCI init: the BIOS will do it */
@@ -473,6 +481,7 @@ static void ppc_core99_init(MachineState *machine)
     /* Mac OS X requires a "known good" clock-frequency value; pass it one. */
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_CLOCKFREQ, CLOCKFREQ);
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_BUSFREQ, BUSFREQ);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_NVRAM_ADDR, nvram_addr);
 
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
