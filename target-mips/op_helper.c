@@ -959,14 +959,14 @@ target_ulong helper_dmfc0_watchlo(CPUMIPSState *env, uint32_t sel)
 
 void helper_mtc0_index(CPUMIPSState *env, target_ulong arg1)
 {
-    int num = 1;
-    unsigned int tmp = env->tlb->nb_tlb;
-
-    do {
-        tmp >>= 1;
-        num <<= 1;
-    } while (tmp);
-    env->CP0_Index = (env->CP0_Index & 0x80000000) | (arg1 & (num - 1));
+    uint32_t index_p = env->CP0_Index & 0x80000000;
+    uint32_t tlb_index = arg1 & 0x7fffffff;
+    if (tlb_index < env->tlb->nb_tlb) {
+        if (env->insn_flags & ISA_MIPS32R6) {
+            index_p |= arg1 & 0x80000000;
+        }
+        env->CP0_Index = index_p | tlb_index;
+    }
 }
 
 void helper_mtc0_mvpcontrol(CPUMIPSState *env, target_ulong arg1)
@@ -1294,8 +1294,13 @@ void helper_mtc0_context(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_pagemask(CPUMIPSState *env, target_ulong arg1)
 {
-    /* 1k pages not implemented */
-    env->CP0_PageMask = arg1 & (0x1FFFFFFF & (TARGET_PAGE_MASK << 1));
+    uint64_t mask = arg1 >> (TARGET_PAGE_BITS + 1);
+    if (!(env->insn_flags & ISA_MIPS32R6) || (arg1 == ~0) ||
+        (mask == 0x0000 || mask == 0x0003 || mask == 0x000F ||
+         mask == 0x003F || mask == 0x00FF || mask == 0x03FF ||
+         mask == 0x0FFF || mask == 0x3FFF || mask == 0xFFFF)) {
+        env->CP0_PageMask = arg1 & (0x1FFFFFFF & (TARGET_PAGE_MASK << 1));
+    }
 }
 
 void helper_mtc0_pagegrain(CPUMIPSState *env, target_ulong arg1)
@@ -1309,7 +1314,13 @@ void helper_mtc0_pagegrain(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_wired(CPUMIPSState *env, target_ulong arg1)
 {
-    env->CP0_Wired = arg1 % env->tlb->nb_tlb;
+    if (env->insn_flags & ISA_MIPS32R6) {
+        if (arg1 < env->tlb->nb_tlb) {
+            env->CP0_Wired = arg1;
+        }
+    } else {
+        env->CP0_Wired = arg1 % env->tlb->nb_tlb;
+    }
 }
 
 void helper_mtc0_srsconf0(CPUMIPSState *env, target_ulong arg1)
@@ -1368,11 +1379,21 @@ void helper_mtc0_entryhi(CPUMIPSState *env, target_ulong arg1)
     }
 
     /* 1k pages not implemented */
-    val = arg1 & mask;
 #if defined(TARGET_MIPS64)
-    val &= env->SEGMask;
+    if (env->insn_flags & ISA_MIPS32R6) {
+        int entryhi_r = extract64(arg1, 62, 2);
+        int config0_at = extract32(env->CP0_Config0, 13, 2);
+        bool no_supervisor = (env->CP0_Status_rw_bitmask & 0x8) == 0;
+        if ((entryhi_r == 2) ||
+            (entryhi_r == 1 && (no_supervisor || config0_at == 1))) {
+            /* skip EntryHi.R field if new value is reserved */
+            mask &= ~(0x3ull << 62);
+        }
+    }
+    mask &= env->SEGMask;
 #endif
     old = env->CP0_EntryHi;
+    val = (arg1 & mask) | (old & ~mask);
     env->CP0_EntryHi = val;
     if (env->CP0_Config3 & (1 << CP0C3_MT)) {
         sync_c0_entryhi(env, env->current_tc);
@@ -1401,6 +1422,13 @@ void helper_mtc0_status(CPUMIPSState *env, target_ulong arg1)
     MIPSCPU *cpu = mips_env_get_cpu(env);
     uint32_t val, old;
     uint32_t mask = env->CP0_Status_rw_bitmask;
+
+    if (env->insn_flags & ISA_MIPS32R6) {
+        if (extract32(env->CP0_Status, CP0St_KSU, 2) == 0x3) {
+            mask &= ~(3 << CP0St_KSU);
+        }
+        mask &= ~(0x00180000 & arg1);
+    }
 
     val = arg1 & mask;
     old = env->CP0_Status;
@@ -1456,6 +1484,9 @@ static void mtc0_cause(CPUMIPSState *cpu, target_ulong arg1)
 
     if (cpu->insn_flags & ISA_MIPS32R2) {
         mask |= 1 << CP0Ca_DC;
+    }
+    if (cpu->insn_flags & ISA_MIPS32R6) {
+        mask &= ~((1 << CP0Ca_WP) & arg1);
     }
 
     cpu->CP0_Cause = (cpu->CP0_Cause & ~mask) | (arg1 & mask);
@@ -2391,8 +2422,9 @@ void helper_ctc1(CPUMIPSState *env, target_ulong arg1, uint32_t fs, uint32_t rt)
         }
         break;
     case 25:
-        if (arg1 & 0xffffff00)
+        if ((env->insn_flags & ISA_MIPS32R6) || (arg1 & 0xffffff00)) {
             return;
+        }
         env->active_fpu.fcr31 = (env->active_fpu.fcr31 & 0x017fffff) | ((arg1 & 0xfe) << 24) |
                      ((arg1 & 0x1) << 23);
         break;
@@ -2408,9 +2440,13 @@ void helper_ctc1(CPUMIPSState *env, target_ulong arg1, uint32_t fs, uint32_t rt)
                      ((arg1 & 0x4) << 22);
         break;
     case 31:
-        if (arg1 & 0x007c0000)
-            return;
-        env->active_fpu.fcr31 = arg1;
+        if (env->insn_flags & ISA_MIPS32R6) {
+            uint32_t mask = 0xfefc0000;
+            env->active_fpu.fcr31 = (arg1 & ~mask) |
+                (env->active_fpu.fcr31 & mask);
+        } else if (!(arg1 & 0x007c0000)) {
+            env->active_fpu.fcr31 = arg1;
+        }
         break;
     default:
         return;
