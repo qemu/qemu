@@ -125,7 +125,6 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
                                   Error **errp)
 {
     VirtIOBlockDataPlane *s;
-    VirtIOBlock *vblk = VIRTIO_BLK(vdev);
     Error *local_err = NULL;
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
@@ -178,8 +177,6 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     bdrv_op_block_all(blk->conf.bs, s->blocker);
 
     *dataplane = s;
-    s->saved_complete_request = vblk->complete_request;
-    vblk->complete_request = complete_request_vring;
 }
 
 /* Context: QEMU global mutex held */
@@ -201,6 +198,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s->vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    VirtIOBlock *vblk = VIRTIO_BLK(s->vdev);
     VirtQueue *vq;
 
     if (s->started) {
@@ -233,6 +231,9 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
         exit(1);
     }
     s->host_notifier = *virtio_queue_get_host_notifier(vq);
+
+    s->saved_complete_request = vblk->complete_request;
+    vblk->complete_request = complete_request_vring;
 
     s->starting = false;
     s->started = true;
