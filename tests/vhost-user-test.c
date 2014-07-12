@@ -76,6 +76,7 @@ typedef struct VhostUserMemoryRegion {
     uint64_t guest_phys_addr;
     uint64_t memory_size;
     uint64_t userspace_addr;
+    uint64_t mmap_offset;
 } VhostUserMemoryRegion;
 
 typedef struct VhostUserMemory {
@@ -205,6 +206,7 @@ static void read_guest_mem(void)
     uint32_t *guest_mem;
     gint64 end_time;
     int i, j;
+    size_t size;
 
     g_mutex_lock(data_mutex);
 
@@ -231,8 +233,13 @@ static void read_guest_mem(void)
 
         g_assert_cmpint(memory.regions[i].memory_size, >, 1024);
 
-        guest_mem = mmap(0, memory.regions[i].memory_size,
-        PROT_READ | PROT_WRITE, MAP_SHARED, fds[i], 0);
+        size =  memory.regions[i].memory_size + memory.regions[i].mmap_offset;
+
+        guest_mem = mmap(0, size, PROT_READ | PROT_WRITE,
+                         MAP_SHARED, fds[i], 0);
+
+        g_assert(guest_mem != MAP_FAILED);
+        guest_mem += (memory.regions[i].mmap_offset / sizeof(*guest_mem));
 
         for (j = 0; j < 256; j++) {
             uint32_t a = readl(memory.regions[i].guest_phys_addr + j*4);
