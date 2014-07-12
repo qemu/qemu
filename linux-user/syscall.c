@@ -1497,6 +1497,25 @@ set_timeout:
                 unlock_user_struct(tfprog, optval_addr, 1);
                 return ret;
         }
+	case TARGET_SO_BINDTODEVICE:
+	{
+		char *dev_ifname, *addr_ifname;
+
+		if (optlen > IFNAMSIZ - 1) {
+		    optlen = IFNAMSIZ - 1;
+		}
+		dev_ifname = lock_user(VERIFY_READ, optval_addr, optlen, 1);
+		if (!dev_ifname) {
+		    return -TARGET_EFAULT;
+		}
+		optname = SO_BINDTODEVICE;
+		addr_ifname = alloca(IFNAMSIZ);
+		memcpy(addr_ifname, dev_ifname, optlen);
+		addr_ifname[optlen] = 0;
+		ret = get_errno(setsockopt(sockfd, level, optname, addr_ifname, optlen));
+		unlock_user (dev_ifname, optval_addr, 0);
+		return ret;
+	}
             /* Options with 'int' argument.  */
         case TARGET_SO_DEBUG:
 		optname = SO_DEBUG;
