@@ -243,13 +243,18 @@ static void timer_write(void *opaque, hwaddr addr, uint64_t value,
 static uint64_t timer_read(void *opaque, hwaddr addr, unsigned size)
 {
     uint32_t value = 0;
+    uint64_t systime = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    uint64_t kltime;
+
+    kltime = muldiv64(systime, 4194300, get_ticks_per_sec() * 4);
+    kltime = muldiv64(kltime, 18432000, 1048575);
 
     switch (addr) {
     case 0x38:
-        value = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        value = kltime;
         break;
     case 0x3c:
-        value = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >> 32;
+        value = kltime >> 32;
         break;
     }
 
