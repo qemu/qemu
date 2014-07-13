@@ -177,6 +177,7 @@ static void ppc_core99_init(MachineState *machine)
     DeviceState *dev;
     int *token = g_new(int, 1);
     hwaddr nvram_addr = 0xFFF04000;
+    uint64_t tbfreq;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -373,6 +374,14 @@ static void ppc_core99_init(MachineState *machine)
         pci_bus = pci_pmac_init(pic, get_system_memory(), get_system_io());
         machine_arch = ARCH_MAC99;
     }
+
+    /* Timebase Frequency */
+    if (kvm_enabled()) {
+        tbfreq = kvmppc_get_tbfreq();
+    } else {
+        tbfreq = TBFREQ;
+    }
+
     /* init basic PC hardware */
     escc_mem = escc_init(0, pic[0x25], pic[0x24],
                          serial_hds[0], serial_hds[1], ESCC_CLOCK, 4);
@@ -469,15 +478,13 @@ static void ppc_core99_init(MachineState *machine)
 #ifdef CONFIG_KVM
         uint8_t *hypercall;
 
-        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, kvmppc_get_tbfreq());
         hypercall = g_malloc(16);
         kvmppc_get_hypercall(env, hypercall, 16);
         fw_cfg_add_bytes(fw_cfg, FW_CFG_PPC_KVM_HC, hypercall, 16);
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_KVM_PID, getpid());
 #endif
-    } else {
-        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, TBFREQ);
     }
+    fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, tbfreq);
     /* Mac OS X requires a "known good" clock-frequency value; pass it one. */
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_CLOCKFREQ, CLOCKFREQ);
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_BUSFREQ, BUSFREQ);
