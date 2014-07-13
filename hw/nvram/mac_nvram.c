@@ -66,6 +66,10 @@ static uint64_t macio_nvram_readb(void *opaque, hwaddr addr,
 static const MemoryRegionOps macio_nvram_ops = {
     .read = macio_nvram_readb,
     .write = macio_nvram_writeb,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 1,
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
