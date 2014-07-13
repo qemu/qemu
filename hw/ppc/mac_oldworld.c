@@ -286,6 +286,7 @@ static void ppc_heathrow_init(MachineState *machine)
     qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE-0 DMA */
     qdev_connect_gpio_out(dev, 3, pic[0x0E]); /* IDE-1 */
     qdev_connect_gpio_out(dev, 4, pic[0x03]); /* IDE-1 DMA */
+    qdev_prop_set_uint64(dev, "frequency", tbfreq);
     macio_init(macio, pic_mem, escc_bar);
 
     macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),

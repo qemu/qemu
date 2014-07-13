@@ -42,6 +42,7 @@ typedef struct MacIOState
     void *dbdma;
     MemoryRegion *pic_mem;
     MemoryRegion *escc_mem;
+    uint64_t frequency;
 } MacIOState;
 
 #define OLDWORLD_MACIO(obj) \
@@ -351,12 +352,19 @@ static void macio_newworld_class_init(ObjectClass *oc, void *data)
     pdc->device_id = PCI_DEVICE_ID_APPLE_UNI_N_KEYL;
 }
 
+static Property macio_properties[] = {
+    DEFINE_PROP_UINT64("frequency", MacIOState, frequency, 0),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void macio_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->vendor_id = PCI_VENDOR_ID_APPLE;
     k->class_id = PCI_CLASS_OTHERS << 8;
+    dc->props = macio_properties;
 }
 
 static const TypeInfo macio_oldworld_type_info = {
@@ -403,6 +411,8 @@ void macio_init(PCIDevice *d,
     macio_state->escc_mem = escc_mem;
     /* Note: this code is strongly inspirated from the corresponding code
        in PearPC */
+    qdev_prop_set_uint64(DEVICE(&macio_state->cuda), "frequency",
+                         macio_state->frequency);
 
     qdev_init_nofail(DEVICE(d));
 }

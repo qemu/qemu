@@ -57,6 +57,7 @@ typedef struct CUDATimer {
     uint16_t counter_value;
     int64_t load_time;
     int64_t next_irq_time;
+    uint64_t frequency;
     QEMUTimer *timer;
 } CUDATimer;
 
@@ -97,6 +98,7 @@ typedef struct CUDAState {
     CUDATimer timers[2];
 
     uint32_t tick_offset;
+    uint64_t frequency;
 
     uint8_t last_b;
     uint8_t last_acr;
