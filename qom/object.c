@@ -668,10 +668,10 @@ void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
 int object_child_foreach(Object *obj, int (*fn)(Object *child, void *opaque),
                          void *opaque)
 {
-    ObjectProperty *prop;
+    ObjectProperty *prop, *next;
     int ret = 0;
 
-    QTAILQ_FOREACH(prop, &obj->properties, node) {
+    QTAILQ_FOREACH_SAFE(prop, &obj->properties, node, next) {
         if (object_property_is_child(prop)) {
             ret = fn(prop->opaque, opaque);
             if (ret != 0) {
