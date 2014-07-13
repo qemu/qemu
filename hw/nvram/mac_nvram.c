@@ -39,29 +39,6 @@
 
 #define DEF_SYSTEM_SIZE 0xc10
 
-/* Direct access to NVRAM */
-uint8_t macio_nvram_read(MacIONVRAMState *s, uint32_t addr)
-{
-    uint32_t ret;
-
-    if (addr < s->size) {
-        ret = s->data[addr];
-    } else {
-        ret = -1;
-    }
-    NVR_DPRINTF("read addr %04" PRIx32 " val %" PRIx8 "\n", addr, ret);
-
-    return ret;
-}
-
-void macio_nvram_write(MacIONVRAMState *s, uint32_t addr, uint8_t val)
-{
-    NVR_DPRINTF("write addr %04" PRIx32 " val %" PRIx8 "\n", addr, val);
-    if (addr < s->size) {
-        s->data[addr] = val;
-    }
-}
-
 /* macio style NVRAM device */
 static void macio_nvram_writeb(void *opaque, hwaddr addr,
                                uint64_t value, unsigned size)

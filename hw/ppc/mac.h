@@ -178,6 +178,4 @@ typedef struct MacIONVRAMState {
 } MacIONVRAMState;
 
 void pmac_format_nvram_partition (MacIONVRAMState *nvr, int len);
-uint8_t macio_nvram_read(MacIONVRAMState *s, uint32_t addr);
-void macio_nvram_write(MacIONVRAMState *s, uint32_t addr, uint8_t val);
 #endif /* !defined(__PPC_MAC_H__) */
