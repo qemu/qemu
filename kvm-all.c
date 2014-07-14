@@ -493,6 +493,19 @@ int kvm_check_extension(KVMState *s, unsigned int extension)
     return ret;
 }
 
+int kvm_vm_check_extension(KVMState *s, unsigned int extension)
+{
+    int ret;
+
+    ret = kvm_vm_ioctl(s, KVM_CHECK_EXTENSION, extension);
+    if (ret < 0) {
+        /* VM wide version not implemented, use global one instead */
+        ret = kvm_check_extension(s, extension);
+    }
+
+    return ret;
+}
+
 static int kvm_set_ioeventfd_mmio(int fd, hwaddr addr, uint32_t val,
                                   bool assign, uint32_t size, bool datamatch)
 {
