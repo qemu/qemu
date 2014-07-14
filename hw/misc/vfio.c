@@ -2489,7 +2489,7 @@ static void vfio_iommu_map_notify(Notifier *n, void *data)
         return;
     }
 
-    if (iotlb->perm != IOMMU_NONE) {
+    if ((iotlb->perm & IOMMU_RW) != IOMMU_NONE) {
         vaddr = memory_region_get_ram_ptr(mr) + xlat;
 
         ret = vfio_dma_map(container, iotlb->iova,
