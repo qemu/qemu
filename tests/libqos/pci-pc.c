@@ -41,7 +41,7 @@ static uint8_t qpci_pc_io_readb(QPCIBus *bus, void *addr)
     if (port < 0x10000) {
         value = inb(port);
     } else {
-        memread(port, &value, sizeof(value));
+        value = readb(port);
     }
 
     return value;
@@ -55,7 +55,7 @@ static uint16_t qpci_pc_io_readw(QPCIBus *bus, void *addr)
     if (port < 0x10000) {
         value = inw(port);
     } else {
-        memread(port, &value, sizeof(value));
+        value = readw(port);
     }
 
     return value;
@@ -69,7 +69,7 @@ static uint32_t qpci_pc_io_readl(QPCIBus *bus, void *addr)
     if (port < 0x10000) {
         value = inl(port);
     } else {
-        memread(port, &value, sizeof(value));
+        value = readl(port);
     }
 
     return value;
@@ -82,7 +82,7 @@ static void qpci_pc_io_writeb(QPCIBus *bus, void *addr, uint8_t value)
     if (port < 0x10000) {
         outb(port, value);
     } else {
-        memwrite(port, &value, sizeof(value));
+        writeb(port, value);
     }
 }
 
@@ -93,7 +93,7 @@ static void qpci_pc_io_writew(QPCIBus *bus, void *addr, uint16_t value)
     if (port < 0x10000) {
         outw(port, value);
     } else {
-        memwrite(port, &value, sizeof(value));
+        writew(port, value);
     }
 }
 
@@ -104,7 +104,7 @@ static void qpci_pc_io_writel(QPCIBus *bus, void *addr, uint32_t value)
     if (port < 0x10000) {
         outl(port, value);
     } else {
-        memwrite(port, &value, sizeof(value));
+        writel(port, value);
     }
 }
 
