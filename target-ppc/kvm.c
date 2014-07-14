@@ -1275,6 +1275,75 @@ static int kvmppc_handle_dcr_write(CPUPPCState *env, uint32_t dcrn, uint32_t dat
     return 0;
 }
 
+int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
+{
+    /* Mixed endian case is not handled */
+    uint32_t sc = debug_inst_opcode;
+
+    if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn,
+                            sizeof(sc), 0) ||
+        cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&sc, sizeof(sc), 1)) {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
+{
+    uint32_t sc;
+
+    if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&sc, sizeof(sc), 0) ||
+        sc != debug_inst_opcode ||
+        cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn,
+                            sizeof(sc), 1)) {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+void kvm_arch_update_guest_debug(CPUState *cs, struct kvm_guest_debug *dbg)
+{
+    /* Software Breakpoint updates */
+    if (kvm_sw_breakpoints_active(cs)) {
+        dbg->control |= KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP;
+    }
+}
+
+static int kvm_handle_debug(PowerPCCPU *cpu, struct kvm_run *run)
+{
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+    struct kvm_debug_exit_arch *arch_info = &run->debug.arch;
+    int handle = 0;
+
+    if (kvm_find_sw_breakpoint(cs, arch_info->address)) {
+        handle = 1;
+    } else {
+        /* QEMU is not able to handle debug exception, so inject
+         * program exception to guest;
+         * Yes program exception NOT debug exception !!
+         * For software breakpoint QEMU uses a privileged instruction;
+         * So there cannot be any reason that we are here for guest
+         * set debug exception, only possibility is guest executed a
+         * privileged / illegal instruction and that's why we are
+         * injecting a program interrupt.
+         */
+
+        cpu_synchronize_state(cs);
+        /* env->nip is PC, so increment this by 4 to use
+         * ppc_cpu_do_interrupt(), which set srr0 = env->nip - 4.
+         */
+        env->nip += 4;
+        cs->exception_index = POWERPC_EXCP_PROGRAM;
+        env->error_code = POWERPC_EXCP_INVAL;
+        ppc_cpu_do_interrupt(cs);
+    }
+
+    return handle;
+}
+
 int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -1312,6 +1381,16 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
     case KVM_EXIT_WATCHDOG:
         DPRINTF("handle watchdog expiry\n");
         watchdog_perform_action();
+        ret = 0;
+        break;
+
+    case KVM_EXIT_DEBUG:
+        DPRINTF("handle debug exception\n");
+        if (kvm_handle_debug(cpu, run)) {
+            ret = EXCP_DEBUG;
+            break;
+        }
+        /* re-enter, this exception was guest-internal */
         ret = 0;
         break;
 
@@ -2007,16 +2086,6 @@ void kvm_arch_init_irq_routing(KVMState *s)
 {
 }
 
-int kvm_arch_insert_sw_breakpoint(CPUState *cpu, struct kvm_sw_breakpoint *bp)
-{
-    return -EINVAL;
-}
-
-int kvm_arch_remove_sw_breakpoint(CPUState *cpu, struct kvm_sw_breakpoint *bp)
-{
-    return -EINVAL;
-}
-
 int kvm_arch_insert_hw_breakpoint(target_ulong addr, target_ulong len, int type)
 {
     return -EINVAL;
@@ -2028,10 +2097,6 @@ int kvm_arch_remove_hw_breakpoint(target_ulong addr, target_ulong len, int type)
 }
 
 void kvm_arch_remove_all_hw_breakpoints(void)
-{
-}
-
-void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
 {
 }
 
