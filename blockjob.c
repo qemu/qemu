@@ -187,7 +187,7 @@ int block_job_cancel_sync(BlockJob *job)
     job->opaque = &data;
     block_job_cancel(job);
     while (data.ret == -EINPROGRESS) {
-        qemu_aio_wait();
+        aio_poll(bdrv_get_aio_context(bs), true);
     }
     return (data.cancelled && data.ret == 0) ? -ECANCELED : data.ret;
 }

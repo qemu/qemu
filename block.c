@@ -471,7 +471,7 @@ int bdrv_create(BlockDriver *drv, const char* filename,
         co = qemu_coroutine_create(bdrv_create_co_entry);
         qemu_coroutine_enter(co, &cco);
         while (cco.ret == NOT_DONE) {
-            qemu_aio_wait();
+            aio_poll(qemu_get_aio_context(), true);
         }
     }
 
@@ -3010,6 +3010,7 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
 
     assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
     assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert(!qiov || bytes == qiov->size);
 
     /* Handle Copy on Read and associated serialisation */
     if (flags & BDRV_REQ_COPY_ON_READ) {
@@ -3054,8 +3055,20 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
         max_nb_sectors = ROUND_UP(MAX(0, total_sectors - sector_num),
                                   align >> BDRV_SECTOR_BITS);
         if (max_nb_sectors > 0) {
-            ret = drv->bdrv_co_readv(bs, sector_num,
-                                     MIN(nb_sectors, max_nb_sectors), qiov);
+            QEMUIOVector local_qiov;
+            size_t local_sectors;
+
+            max_nb_sectors = MIN(max_nb_sectors, SIZE_MAX / BDRV_SECTOR_BITS);
+            local_sectors = MIN(max_nb_sectors, nb_sectors);
+
+            qemu_iovec_init(&local_qiov, qiov->niov);
+            qemu_iovec_concat(&local_qiov, qiov, 0,
+                              local_sectors * BDRV_SECTOR_SIZE);
+
+            ret = drv->bdrv_co_readv(bs, sector_num, local_sectors,
+                                     &local_qiov);
+
+            qemu_iovec_destroy(&local_qiov);
         } else {
             ret = 0;
         }
@@ -3267,6 +3280,7 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
 
     assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
     assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert(!qiov || bytes == qiov->size);
 
     waited = wait_serialising_requests(req);
     assert(!waited || !req->serialising);
@@ -4040,7 +4054,7 @@ int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num,
     if (ret < 0) {
         return ret;
     }
-    return (ret & BDRV_BLOCK_ALLOCATED);
+    return !!(ret & BDRV_BLOCK_ALLOCATED);
 }
 
 /*

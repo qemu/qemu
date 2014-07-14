@@ -329,6 +329,7 @@ size_t qemu_iovec_memset(QEMUIOVector *qiov, size_t offset,
                          int fillc, size_t bytes);
 ssize_t qemu_iovec_compare(QEMUIOVector *a, QEMUIOVector *b);
 void qemu_iovec_clone(QEMUIOVector *dest, const QEMUIOVector *src, void *buf);
+void qemu_iovec_discard_back(QEMUIOVector *qiov, size_t bytes);
 
 bool buffer_is_zero(const void *buf, size_t len);
 

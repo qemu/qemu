@@ -1,0 +1,104 @@
+/*
+ * This model describes the interaction between aio_set_dispatching()
+ * and aio_notify().
+ *
+ * Author: Paolo Bonzini <pbonzini@redhat.com>
+ *
+ * This file is in the public domain.  If you really want a license,
+ * the WTFPL will do.
+ *
+ * To simulate it:
+ *     spin -p docs/aio_notify.promela
+ *
+ * To verify it:
+ *     spin -a docs/aio_notify.promela
+ *     gcc -O2 pan.c
+ *     ./a.out -a
+ */
+
+#define MAX   4
+#define LAST  (1 << (MAX - 1))
+#define FINAL ((LAST << 1) - 1)
+
+bool dispatching;
+bool event;
+
+int req, done;
+
+active proctype waiter()
+{
+     int fetch, blocking;
+
+     do
+        :: done != FINAL -> {
+            // Computing "blocking" is separate from execution of the
+            // "bottom half"
+            blocking = (req == 0);
+
+            // This is our "bottom half"
+            atomic { fetch = req; req = 0; }
+            done = done | fetch;
+
+            // Wait for a nudge from the other side
+            do
+                :: event == 1 -> { event = 0; break; }
+                :: !blocking  -> break;
+            od;
+
+            dispatching = 1;
+
+            // If you are simulating this model, you may want to add
+            // something like this here:
+            //
+            //      int foo; foo++; foo++; foo++;
+            //
+            // This only wastes some time and makes it more likely
+            // that the notifier process hits the "fast path".
+
+            dispatching = 0;
+        }
+        :: else -> break;
+    od
+}
+
+active proctype notifier()
+{
+    int next = 1;
+    int sets = 0;
+
+    do
+        :: next <= LAST -> {
+            // generate a request
+            req = req | next;
+            next = next << 1;
+
+            // aio_notify
+            if
+                :: dispatching == 0 -> sets++; event = 1;
+                :: else             -> skip;
+            fi;
+
+            // Test both synchronous and asynchronous delivery
+            if
+                :: 1 -> do
+                            :: req == 0 -> break;
+                        od;
+                :: 1 -> skip;
+            fi;
+        }
+        :: else -> break;
+    od;
+    printf("Skipped %d event_notifier_set\n", MAX - sets);
+}
+
+#define p (done == FINAL)
+
+never  {
+    do
+        :: 1                      // after an arbitrarily long prefix
+        :: p -> break             // p becomes true
+    od;
+    do
+        :: !p -> accept: break    // it then must remains true forever after
+    od
+}

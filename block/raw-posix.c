@@ -790,6 +790,7 @@ static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
             memcpy(p, aiocb->aio_iov[i].iov_base, aiocb->aio_iov[i].iov_len);
             p += aiocb->aio_iov[i].iov_len;
         }
+        assert(p - buf == aiocb->aio_nbytes);
     }
 
     nbytes = handle_aiocb_rw_linear(aiocb, buf);
@@ -804,9 +805,11 @@ static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
                 copy = aiocb->aio_iov[i].iov_len;
             }
             memcpy(aiocb->aio_iov[i].iov_base, p, copy);
+            assert(count >= copy);
             p     += copy;
             count -= copy;
         }
+        assert(count == 0);
     }
     qemu_vfree(buf);
 
@@ -993,12 +996,14 @@ static int paio_submit_co(BlockDriverState *bs, int fd,
     acb->aio_type = type;
     acb->aio_fildes = fd;
 
+    acb->aio_nbytes = nb_sectors * BDRV_SECTOR_SIZE;
+    acb->aio_offset = sector_num * BDRV_SECTOR_SIZE;
+
     if (qiov) {
         acb->aio_iov = qiov->iov;
         acb->aio_niov = qiov->niov;
+        assert(qiov->size == acb->aio_nbytes);
     }
-    acb->aio_nbytes = nb_sectors * 512;
-    acb->aio_offset = sector_num * 512;
 
     trace_paio_submit_co(sector_num, nb_sectors, type);
     pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
@@ -1016,12 +1021,14 @@ static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
     acb->aio_type = type;
     acb->aio_fildes = fd;
 
+    acb->aio_nbytes = nb_sectors * BDRV_SECTOR_SIZE;
+    acb->aio_offset = sector_num * BDRV_SECTOR_SIZE;
+
     if (qiov) {
         acb->aio_iov = qiov->iov;
         acb->aio_niov = qiov->niov;
+        assert(qiov->size == acb->aio_nbytes);
     }
-    acb->aio_nbytes = nb_sectors * 512;
-    acb->aio_offset = sector_num * 512;
 
     trace_paio_submit(acb, opaque, sector_num, nb_sectors, type);
     pool = aio_get_thread_pool(bdrv_get_aio_context(bs));

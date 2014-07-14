@@ -24,14 +24,6 @@ typedef struct {
     bool auto_set;
 } EventNotifierTestData;
 
-/* Wait until there are no more BHs or AIO requests */
-static void wait_for_aio(void)
-{
-    while (aio_poll(ctx, true)) {
-        /* Do nothing */
-    }
-}
-
 /* Wait until event notifier becomes inactive */
 static void wait_until_inactive(EventNotifierTestData *data)
 {
@@ -204,7 +196,9 @@ static void test_bh_schedule10(void)
     g_assert(aio_poll(ctx, true));
     g_assert_cmpint(data.n, ==, 2);
 
-    wait_for_aio();
+    while (data.n < 10) {
+        aio_poll(ctx, true);
+    }
     g_assert_cmpint(data.n, ==, 10);
 
     g_assert(!aio_poll(ctx, false));
@@ -252,7 +246,9 @@ static void test_bh_delete_from_cb(void)
     qemu_bh_schedule(data1.bh);
     g_assert_cmpint(data1.n, ==, 0);
 
-    wait_for_aio();
+    while (data1.n < data1.max) {
+        aio_poll(ctx, true);
+    }
     g_assert_cmpint(data1.n, ==, data1.max);
     g_assert(data1.bh == NULL);
 
@@ -287,7 +283,12 @@ static void test_bh_delete_from_cb_many(void)
     g_assert_cmpint(data4.n, ==, 1);
     g_assert(data1.bh == NULL);
 
-    wait_for_aio();
+    while (data1.n < data1.max ||
+           data2.n < data2.max ||
+           data3.n < data3.max ||
+           data4.n < data4.max) {
+        aio_poll(ctx, true);
+    }
     g_assert_cmpint(data1.n, ==, data1.max);
     g_assert_cmpint(data2.n, ==, data2.max);
     g_assert_cmpint(data3.n, ==, data3.max);
@@ -306,7 +307,7 @@ static void test_bh_flush(void)
     qemu_bh_schedule(data.bh);
     g_assert_cmpint(data.n, ==, 0);
 
-    wait_for_aio();
+    g_assert(aio_poll(ctx, true));
     g_assert_cmpint(data.n, ==, 1);
 
     g_assert(!aio_poll(ctx, false));
@@ -806,17 +807,16 @@ static void test_source_timer_schedule(void)
     g_usleep(1 * G_USEC_PER_SEC);
     g_assert_cmpint(data.n, ==, 0);
 
-    g_assert(g_main_context_iteration(NULL, false));
+    g_assert(g_main_context_iteration(NULL, true));
     g_assert_cmpint(data.n, ==, 1);
+    expiry += data.ns;
 
-    /* The comment above was not kidding when it said this wakes up itself */
-    do {
-        g_assert(g_main_context_iteration(NULL, true));
-    } while (qemu_clock_get_ns(data.clock_type) <= expiry);
-    g_usleep(1 * G_USEC_PER_SEC);
-    g_main_context_iteration(NULL, false);
+    while (data.n < 2) {
+        g_main_context_iteration(NULL, true);
+    }
 
     g_assert_cmpint(data.n, ==, 2);
+    g_assert(qemu_clock_get_ns(data.clock_type) > expiry);
 
     aio_set_fd_handler(ctx, pipefd[0], NULL, NULL, NULL);
     close(pipefd[0]);

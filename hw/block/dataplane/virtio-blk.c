@@ -65,43 +65,41 @@ static void complete_request_vring(VirtIOBlockReq *req, unsigned char status)
 {
     stb_p(&req->in->status, status);
 
-    vring_push(&req->dev->dataplane->vring, req->elem,
+    vring_push(&req->dev->dataplane->vring, &req->elem,
                req->qiov.size + sizeof(*req->in));
     notify_guest(req->dev->dataplane);
-    g_slice_free(VirtIOBlockReq, req);
 }
 
 static void handle_notify(EventNotifier *e)
 {
     VirtIOBlockDataPlane *s = container_of(e, VirtIOBlockDataPlane,
                                            host_notifier);
-
-    VirtQueueElement *elem;
-    VirtIOBlockReq *req;
-    int ret;
-    MultiReqBuffer mrb = {
-        .num_writes = 0,
-    };
+    VirtIOBlock *vblk = VIRTIO_BLK(s->vdev);
 
     event_notifier_test_and_clear(&s->host_notifier);
     bdrv_io_plug(s->blk->conf.bs);
     for (;;) {
+        MultiReqBuffer mrb = {
+            .num_writes = 0,
+        };
+        int ret;
+
         /* Disable guest->host notifies to avoid unnecessary vmexits */
         vring_disable_notification(s->vdev, &s->vring);
 
         for (;;) {
-            ret = vring_pop(s->vdev, &s->vring, &elem);
+            VirtIOBlockReq *req = virtio_blk_alloc_request(vblk);
+
+            ret = vring_pop(s->vdev, &s->vring, &req->elem);
             if (ret < 0) {
-                assert(elem == NULL);
+                virtio_blk_free_request(req);
                 break; /* no more requests */
             }
 
-            trace_virtio_blk_data_plane_process_request(s, elem->out_num,
-                                                        elem->in_num, elem->index);
+            trace_virtio_blk_data_plane_process_request(s, req->elem.out_num,
+                                                        req->elem.in_num,
+                                                        req->elem.index);
 
-            req = g_slice_new(VirtIOBlockReq);
-            req->dev = VIRTIO_BLK(s->vdev);
-            req->elem = elem;
             virtio_blk_handle_request(req, &mrb);
         }
 

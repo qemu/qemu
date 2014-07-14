@@ -170,6 +170,10 @@ static void dma_bdrv_cb(void *opaque, int ret)
         return;
     }
 
+    if (dbs->iov.size & ~BDRV_SECTOR_MASK) {
+        qemu_iovec_discard_back(&dbs->iov, dbs->iov.size & ~BDRV_SECTOR_MASK);
+    }
+
     dbs->acb = dbs->io_func(dbs->bs, dbs->sector_num, &dbs->iov,
                             dbs->iov.size / 512, dma_bdrv_cb, dbs);
     assert(dbs->acb);

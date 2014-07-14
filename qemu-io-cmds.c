@@ -483,7 +483,7 @@ static int do_co_write_zeroes(BlockDriverState *bs, int64_t offset, int count,
     co = qemu_coroutine_create(co_write_zeroes_entry);
     qemu_coroutine_enter(co, &data);
     while (!data.done) {
-        qemu_aio_wait();
+        aio_poll(bdrv_get_aio_context(bs), true);
     }
     if (data.ret < 0) {
         return data.ret;
@@ -2027,7 +2027,7 @@ static const cmdinfo_t resume_cmd = {
 static int wait_break_f(BlockDriverState *bs, int argc, char **argv)
 {
     while (!bdrv_debug_is_suspended(bs, argv[1])) {
-        qemu_aio_wait();
+        aio_poll(bdrv_get_aio_context(bs), true);
     }
 
     return 0;
