@@ -903,6 +903,11 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     return ret;
 }
 
+static void kvm_sync_excp(CPUPPCState *env, int vector, int ivor)
+{
+     env->excp_vectors[vector] = env->spr[ivor] + env->spr[SPR_BOOKE_IVPR];
+}
+
 int kvm_arch_get_registers(CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -985,35 +990,57 @@ int kvm_arch_get_registers(CPUState *cs)
 
         if (sregs.u.e.features & KVM_SREGS_E_IVOR) {
             env->spr[SPR_BOOKE_IVOR0] = sregs.u.e.ivor_low[0];
+            kvm_sync_excp(env, POWERPC_EXCP_CRITICAL,  SPR_BOOKE_IVOR0);
             env->spr[SPR_BOOKE_IVOR1] = sregs.u.e.ivor_low[1];
+            kvm_sync_excp(env, POWERPC_EXCP_MCHECK,  SPR_BOOKE_IVOR1);
             env->spr[SPR_BOOKE_IVOR2] = sregs.u.e.ivor_low[2];
+            kvm_sync_excp(env, POWERPC_EXCP_DSI,  SPR_BOOKE_IVOR2);
             env->spr[SPR_BOOKE_IVOR3] = sregs.u.e.ivor_low[3];
+            kvm_sync_excp(env, POWERPC_EXCP_ISI,  SPR_BOOKE_IVOR3);
             env->spr[SPR_BOOKE_IVOR4] = sregs.u.e.ivor_low[4];
+            kvm_sync_excp(env, POWERPC_EXCP_EXTERNAL,  SPR_BOOKE_IVOR4);
             env->spr[SPR_BOOKE_IVOR5] = sregs.u.e.ivor_low[5];
+            kvm_sync_excp(env, POWERPC_EXCP_ALIGN,  SPR_BOOKE_IVOR5);
             env->spr[SPR_BOOKE_IVOR6] = sregs.u.e.ivor_low[6];
+            kvm_sync_excp(env, POWERPC_EXCP_PROGRAM,  SPR_BOOKE_IVOR6);
             env->spr[SPR_BOOKE_IVOR7] = sregs.u.e.ivor_low[7];
+            kvm_sync_excp(env, POWERPC_EXCP_FPU,  SPR_BOOKE_IVOR7);
             env->spr[SPR_BOOKE_IVOR8] = sregs.u.e.ivor_low[8];
+            kvm_sync_excp(env, POWERPC_EXCP_SYSCALL,  SPR_BOOKE_IVOR8);
             env->spr[SPR_BOOKE_IVOR9] = sregs.u.e.ivor_low[9];
+            kvm_sync_excp(env, POWERPC_EXCP_APU,  SPR_BOOKE_IVOR9);
             env->spr[SPR_BOOKE_IVOR10] = sregs.u.e.ivor_low[10];
+            kvm_sync_excp(env, POWERPC_EXCP_DECR,  SPR_BOOKE_IVOR10);
             env->spr[SPR_BOOKE_IVOR11] = sregs.u.e.ivor_low[11];
+            kvm_sync_excp(env, POWERPC_EXCP_FIT,  SPR_BOOKE_IVOR11);
             env->spr[SPR_BOOKE_IVOR12] = sregs.u.e.ivor_low[12];
+            kvm_sync_excp(env, POWERPC_EXCP_WDT,  SPR_BOOKE_IVOR12);
             env->spr[SPR_BOOKE_IVOR13] = sregs.u.e.ivor_low[13];
+            kvm_sync_excp(env, POWERPC_EXCP_DTLB,  SPR_BOOKE_IVOR13);
             env->spr[SPR_BOOKE_IVOR14] = sregs.u.e.ivor_low[14];
+            kvm_sync_excp(env, POWERPC_EXCP_ITLB,  SPR_BOOKE_IVOR14);
             env->spr[SPR_BOOKE_IVOR15] = sregs.u.e.ivor_low[15];
+            kvm_sync_excp(env, POWERPC_EXCP_DEBUG,  SPR_BOOKE_IVOR15);
 
             if (sregs.u.e.features & KVM_SREGS_E_SPE) {
                 env->spr[SPR_BOOKE_IVOR32] = sregs.u.e.ivor_high[0];
+                kvm_sync_excp(env, POWERPC_EXCP_SPEU,  SPR_BOOKE_IVOR32);
                 env->spr[SPR_BOOKE_IVOR33] = sregs.u.e.ivor_high[1];
+                kvm_sync_excp(env, POWERPC_EXCP_EFPDI,  SPR_BOOKE_IVOR33);
                 env->spr[SPR_BOOKE_IVOR34] = sregs.u.e.ivor_high[2];
+                kvm_sync_excp(env, POWERPC_EXCP_EFPRI,  SPR_BOOKE_IVOR34);
             }
 
             if (sregs.u.e.features & KVM_SREGS_E_PM) {
                 env->spr[SPR_BOOKE_IVOR35] = sregs.u.e.ivor_high[3];
+                kvm_sync_excp(env, POWERPC_EXCP_EPERFM,  SPR_BOOKE_IVOR35);
             }
 
             if (sregs.u.e.features & KVM_SREGS_E_PC) {
                 env->spr[SPR_BOOKE_IVOR36] = sregs.u.e.ivor_high[4];
+                kvm_sync_excp(env, POWERPC_EXCP_DOORI,  SPR_BOOKE_IVOR36);
                 env->spr[SPR_BOOKE_IVOR37] = sregs.u.e.ivor_high[5];
+                kvm_sync_excp(env, POWERPC_EXCP_DOORCI, SPR_BOOKE_IVOR37);
             }
         }
 
