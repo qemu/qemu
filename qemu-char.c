@@ -1089,6 +1089,7 @@ typedef struct {
     /* Protected by the CharDriverState chr_write_lock.  */
     int connected;
     guint timer_tag;
+    guint open_tag;
 } PtyCharDriver;
 
 static void pty_chr_update_read_handler_locked(CharDriverState *chr);
@@ -1101,6 +1102,7 @@ static gboolean pty_chr_timer(gpointer opaque)
 
     qemu_mutex_lock(&chr->chr_write_lock);
     s->timer_tag = 0;
+    s->open_tag = 0;
     if (!s->connected) {
         /* Next poll ... */
         pty_chr_update_read_handler_locked(chr);
@@ -1203,12 +1205,26 @@ static gboolean pty_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
     return TRUE;
 }
 
+static gboolean qemu_chr_be_generic_open_func(gpointer opaque)
+{
+    CharDriverState *chr = opaque;
+    PtyCharDriver *s = chr->opaque;
+
+    s->open_tag = 0;
+    qemu_chr_be_generic_open(chr);
+    return FALSE;
+}
+
 /* Called with chr_write_lock held.  */
 static void pty_chr_state(CharDriverState *chr, int connected)
 {
     PtyCharDriver *s = chr->opaque;
 
     if (!connected) {
+        if (s->open_tag) {
+            g_source_remove(s->open_tag);
+            s->open_tag = 0;
+        }
         remove_fd_in_watch(chr);
         s->connected = 0;
         /* (re-)connect poll interval for idle guests: once per second.
@@ -1221,8 +1237,9 @@ static void pty_chr_state(CharDriverState *chr, int connected)
             s->timer_tag = 0;
         }
         if (!s->connected) {
+            g_assert(s->open_tag == 0);
             s->connected = 1;
-            qemu_chr_be_generic_open(chr);
+            s->open_tag = g_idle_add(qemu_chr_be_generic_open_func, chr);
         }
         if (!chr->fd_in_tag) {
             chr->fd_in_tag = io_add_watch_poll(s->fd, pty_chr_read_poll,
@@ -1236,7 +1253,8 @@ static void pty_chr_close(struct CharDriverState *chr)
     PtyCharDriver *s = chr->opaque;
     int fd;
 
-    remove_fd_in_watch(chr);
+    qemu_mutex_lock(&chr->chr_write_lock);
+    pty_chr_state(chr, 0);
     fd = g_io_channel_unix_get_fd(s->fd);
     g_io_channel_unref(s->fd);
     close(fd);
@@ -1244,6 +1262,7 @@ static void pty_chr_close(struct CharDriverState *chr)
         g_source_remove(s->timer_tag);
         s->timer_tag = 0;
     }
+    qemu_mutex_unlock(&chr->chr_write_lock);
     g_free(s);
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
