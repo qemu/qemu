@@ -38,6 +38,7 @@
 #include "hw/ppc/ppc.h"
 #include "sysemu/watchdog.h"
 #include "trace.h"
+#include "exec/gdbstub.h"
 
 //#define DEBUG_KVM
 
@@ -412,6 +413,38 @@ unsigned long kvm_arch_vcpu_id(CPUState *cpu)
     return ppc_get_vcpu_dt_id(POWERPC_CPU(cpu));
 }
 
+/* e500 supports 2 h/w breakpoint and 2 watchpoint.
+ * book3s supports only 1 watchpoint, so array size
+ * of 4 is sufficient for now.
+ */
+#define MAX_HW_BKPTS 4
+
+static struct HWBreakpoint {
+    target_ulong addr;
+    int type;
+} hw_debug_points[MAX_HW_BKPTS];
+
+static CPUWatchpoint hw_watchpoint;
+
+/* Default there is no breakpoint and watchpoint supported */
+static int max_hw_breakpoint;
+static int max_hw_watchpoint;
+static int nb_hw_breakpoint;
+static int nb_hw_watchpoint;
+
+static void kvmppc_hw_debug_points_init(CPUPPCState *cenv)
+{
+    if (cenv->excp_model == POWERPC_EXCP_BOOKE) {
+        max_hw_breakpoint = 2;
+        max_hw_watchpoint = 2;
+    }
+
+    if ((max_hw_breakpoint + max_hw_watchpoint) > MAX_HW_BKPTS) {
+        fprintf(stderr, "Error initializing h/w breakpoints\n");
+        return;
+    }
+}
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -439,6 +472,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     kvm_get_one_reg(cs, KVM_REG_PPC_DEBUG_INST, &debug_inst_opcode);
+    kvmppc_hw_debug_points_init(cenv);
 
     return ret;
 }
@@ -1303,11 +1337,162 @@ int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
     return 0;
 }
 
+static int find_hw_breakpoint(target_ulong addr, int type)
+{
+    int n;
+
+    assert((nb_hw_breakpoint + nb_hw_watchpoint)
+           <= ARRAY_SIZE(hw_debug_points));
+
+    for (n = 0; n < nb_hw_breakpoint + nb_hw_watchpoint; n++) {
+        if (hw_debug_points[n].addr == addr &&
+             hw_debug_points[n].type == type) {
+            return n;
+        }
+    }
+
+    return -1;
+}
+
+static int find_hw_watchpoint(target_ulong addr, int *flag)
+{
+    int n;
+
+    n = find_hw_breakpoint(addr, GDB_WATCHPOINT_ACCESS);
+    if (n >= 0) {
+        *flag = BP_MEM_ACCESS;
+        return n;
+    }
+
+    n = find_hw_breakpoint(addr, GDB_WATCHPOINT_WRITE);
+    if (n >= 0) {
+        *flag = BP_MEM_WRITE;
+        return n;
+    }
+
+    n = find_hw_breakpoint(addr, GDB_WATCHPOINT_READ);
+    if (n >= 0) {
+        *flag = BP_MEM_READ;
+        return n;
+    }
+
+    return -1;
+}
+
+int kvm_arch_insert_hw_breakpoint(target_ulong addr,
+                                  target_ulong len, int type)
+{
+    if ((nb_hw_breakpoint + nb_hw_watchpoint) >= ARRAY_SIZE(hw_debug_points)) {
+        return -ENOBUFS;
+    }
+
+    hw_debug_points[nb_hw_breakpoint + nb_hw_watchpoint].addr = addr;
+    hw_debug_points[nb_hw_breakpoint + nb_hw_watchpoint].type = type;
+
+    switch (type) {
+    case GDB_BREAKPOINT_HW:
+        if (nb_hw_breakpoint >= max_hw_breakpoint) {
+            return -ENOBUFS;
+        }
+
+        if (find_hw_breakpoint(addr, type) >= 0) {
+            return -EEXIST;
+        }
+
+        nb_hw_breakpoint++;
+        break;
+
+    case GDB_WATCHPOINT_WRITE:
+    case GDB_WATCHPOINT_READ:
+    case GDB_WATCHPOINT_ACCESS:
+        if (nb_hw_watchpoint >= max_hw_watchpoint) {
+            return -ENOBUFS;
+        }
+
+        if (find_hw_breakpoint(addr, type) >= 0) {
+            return -EEXIST;
+        }
+
+        nb_hw_watchpoint++;
+        break;
+
+    default:
+        return -ENOSYS;
+    }
+
+    return 0;
+}
+
+int kvm_arch_remove_hw_breakpoint(target_ulong addr,
+                                  target_ulong len, int type)
+{
+    int n;
+
+    n = find_hw_breakpoint(addr, type);
+    if (n < 0) {
+        return -ENOENT;
+    }
+
+    switch (type) {
+    case GDB_BREAKPOINT_HW:
+        nb_hw_breakpoint--;
+        break;
+
+    case GDB_WATCHPOINT_WRITE:
+    case GDB_WATCHPOINT_READ:
+    case GDB_WATCHPOINT_ACCESS:
+        nb_hw_watchpoint--;
+        break;
+
+    default:
+        return -ENOSYS;
+    }
+    hw_debug_points[n] = hw_debug_points[nb_hw_breakpoint + nb_hw_watchpoint];
+
+    return 0;
+}
+
+void kvm_arch_remove_all_hw_breakpoints(void)
+{
+    nb_hw_breakpoint = nb_hw_watchpoint = 0;
+}
+
 void kvm_arch_update_guest_debug(CPUState *cs, struct kvm_guest_debug *dbg)
 {
+    int n;
+
     /* Software Breakpoint updates */
     if (kvm_sw_breakpoints_active(cs)) {
         dbg->control |= KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP;
+    }
+
+    assert((nb_hw_breakpoint + nb_hw_watchpoint)
+           <= ARRAY_SIZE(hw_debug_points));
+    assert((nb_hw_breakpoint + nb_hw_watchpoint) <= ARRAY_SIZE(dbg->arch.bp));
+
+    if (nb_hw_breakpoint + nb_hw_watchpoint > 0) {
+        dbg->control |= KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_HW_BP;
+        memset(dbg->arch.bp, 0, sizeof(dbg->arch.bp));
+        for (n = 0; n < nb_hw_breakpoint + nb_hw_watchpoint; n++) {
+            switch (hw_debug_points[n].type) {
+            case GDB_BREAKPOINT_HW:
+                dbg->arch.bp[n].type = KVMPPC_DEBUG_BREAKPOINT;
+                break;
+            case GDB_WATCHPOINT_WRITE:
+                dbg->arch.bp[n].type = KVMPPC_DEBUG_WATCH_WRITE;
+                break;
+            case GDB_WATCHPOINT_READ:
+                dbg->arch.bp[n].type = KVMPPC_DEBUG_WATCH_READ;
+                break;
+            case GDB_WATCHPOINT_ACCESS:
+                dbg->arch.bp[n].type = KVMPPC_DEBUG_WATCH_WRITE |
+                                        KVMPPC_DEBUG_WATCH_READ;
+                break;
+            default:
+                cpu_abort(cs, "Unsupported breakpoint type\n");
+            }
+            dbg->arch.bp[n].addr = hw_debug_points[n].addr;
+        }
     }
 }
 
@@ -1317,13 +1502,46 @@ static int kvm_handle_debug(PowerPCCPU *cpu, struct kvm_run *run)
     CPUPPCState *env = &cpu->env;
     struct kvm_debug_exit_arch *arch_info = &run->debug.arch;
     int handle = 0;
+    int n;
+    int flag = 0;
 
-    if (kvm_find_sw_breakpoint(cs, arch_info->address)) {
+    if (cs->singlestep_enabled) {
+        handle = 1;
+    } else if (arch_info->status) {
+        if (nb_hw_breakpoint + nb_hw_watchpoint > 0) {
+            if (arch_info->status & KVMPPC_DEBUG_BREAKPOINT) {
+                n = find_hw_breakpoint(arch_info->address, GDB_BREAKPOINT_HW);
+                if (n >= 0) {
+                    handle = 1;
+                }
+            } else if (arch_info->status & (KVMPPC_DEBUG_WATCH_READ |
+                                            KVMPPC_DEBUG_WATCH_WRITE)) {
+                n = find_hw_watchpoint(arch_info->address,  &flag);
+                if (n >= 0) {
+                    handle = 1;
+                    cs->watchpoint_hit = &hw_watchpoint;
+                    hw_watchpoint.vaddr = hw_debug_points[n].addr;
+                    hw_watchpoint.flags = flag;
+                }
+            }
+        }
+    } else if (kvm_find_sw_breakpoint(cs, arch_info->address)) {
         handle = 1;
     } else {
         /* QEMU is not able to handle debug exception, so inject
          * program exception to guest;
          * Yes program exception NOT debug exception !!
+         * When QEMU is using debug resources then debug exception must
+         * be always set. To achieve this we set MSR_DE and also set
+         * MSRP_DEP so guest cannot change MSR_DE.
+         * When emulating debug resource for guest we want guest
+         * to control MSR_DE (enable/disable debug interrupt on need).
+         * Supporting both configurations are NOT possible.
+         * So the result is that we cannot share debug resources
+         * between QEMU and Guest on BOOKE architecture.
+         * In the current design QEMU gets the priority over guest,
+         * this means that if QEMU is using debug resources then guest
+         * cannot use them;
          * For software breakpoint QEMU uses a privileged instruction;
          * So there cannot be any reason that we are here for guest
          * set debug exception, only possibility is guest executed a
@@ -2083,20 +2301,6 @@ int kvm_arch_on_sigbus(int code, void *addr)
 }
 
 void kvm_arch_init_irq_routing(KVMState *s)
-{
-}
-
-int kvm_arch_insert_hw_breakpoint(target_ulong addr, target_ulong len, int type)
-{
-    return -EINVAL;
-}
-
-int kvm_arch_remove_hw_breakpoint(target_ulong addr, target_ulong len, int type)
-{
-    return -EINVAL;
-}
-
-void kvm_arch_remove_all_hw_breakpoints(void)
 {
 }
 
