@@ -72,6 +72,8 @@ static int cap_papr;
 static int cap_htab_fd;
 static int cap_fixup_hcalls;
 
+static uint32_t debug_inst_opcode;
+
 /* XXX We have a race condition where we actually have a level triggered
  *     interrupt, but the infrastructure can't expose that yet, so the guest
  *     takes but ignores it, goes to sleep and never gets notified that there's
@@ -435,6 +437,8 @@ int kvm_arch_init_vcpu(CPUState *cs)
     default:
         break;
     }
+
+    kvm_get_one_reg(cs, KVM_REG_PPC_DEBUG_INST, &debug_inst_opcode);
 
     return ret;
 }
