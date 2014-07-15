@@ -1140,6 +1140,13 @@ static inline abi_long target_to_host_sockaddr(struct sockaddr *addr,
 
     memcpy(addr, target_saddr, len);
     addr->sa_family = sa_family;
+    if (sa_family == AF_PACKET) {
+	struct target_sockaddr_ll *lladdr;
+
+	lladdr = (struct target_sockaddr_ll *)addr;
+	lladdr->sll_ifindex = tswap32(lladdr->sll_ifindex);
+	lladdr->sll_hatype = tswap16(lladdr->sll_hatype);
+    }
     unlock_user(target_saddr, target_addr, 0);
 
     return 0;
@@ -1497,6 +1504,25 @@ set_timeout:
                 unlock_user_struct(tfprog, optval_addr, 1);
                 return ret;
         }
+	case TARGET_SO_BINDTODEVICE:
+	{
+		char *dev_ifname, *addr_ifname;
+
+		if (optlen > IFNAMSIZ - 1) {
+		    optlen = IFNAMSIZ - 1;
+		}
+		dev_ifname = lock_user(VERIFY_READ, optval_addr, optlen, 1);
+		if (!dev_ifname) {
+		    return -TARGET_EFAULT;
+		}
+		optname = SO_BINDTODEVICE;
+		addr_ifname = alloca(IFNAMSIZ);
+		memcpy(addr_ifname, dev_ifname, optlen);
+		addr_ifname[optlen] = 0;
+		ret = get_errno(setsockopt(sockfd, level, optname, addr_ifname, optlen));
+		unlock_user (dev_ifname, optval_addr, 0);
+		return ret;
+	}
             /* Options with 'int' argument.  */
         case TARGET_SO_DEBUG:
 		optname = SO_DEBUG;
@@ -1958,7 +1984,7 @@ static abi_long do_connect(int sockfd, abi_ulong target_addr,
         return -TARGET_EINVAL;
     }
 
-    addr = alloca(addrlen);
+    addr = alloca(addrlen+1);
 
     ret = target_to_host_sockaddr(addr, target_addr, addrlen);
     if (ret)
@@ -1979,7 +2005,7 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
 
     if (msgp->msg_name) {
         msg.msg_namelen = tswap32(msgp->msg_namelen);
-        msg.msg_name = alloca(msg.msg_namelen);
+        msg.msg_name = alloca(msg.msg_namelen+1);
         ret = target_to_host_sockaddr(msg.msg_name, tswapal(msgp->msg_name),
                                 msg.msg_namelen);
         if (ret) {
@@ -2242,7 +2268,7 @@ static abi_long do_sendto(int fd, abi_ulong msg, size_t len, int flags,
     if (!host_msg)
         return -TARGET_EFAULT;
     if (target_addr) {
-        addr = alloca(addrlen);
+        addr = alloca(addrlen+1);
         ret = target_to_host_sockaddr(addr, target_addr, addrlen);
         if (ret) {
             unlock_user(host_msg, msg, 0);
