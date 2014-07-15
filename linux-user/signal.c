@@ -1305,7 +1305,7 @@ static abi_ulong get_sigframe(struct target_sigaction *ka, CPUARMState *env)
     /*
      * This is the X/Open sanctioned signal stack switching.
      */
-    if ((ka->sa_flags & SA_ONSTACK) && !sas_ss_flags(sp)) {
+    if ((ka->sa_flags & TARGET_SA_ONSTACK) && !sas_ss_flags(sp)) {
         sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
     }
 
@@ -3509,8 +3509,9 @@ static abi_ulong get_sigframe(struct target_sigaction *ka,
 {
     abi_ulong sp = env->regs[1];
 
-    if ((ka->sa_flags & SA_ONSTACK) != 0 && !on_sig_stack(sp))
+    if ((ka->sa_flags & TARGET_SA_ONSTACK) != 0 && !on_sig_stack(sp)) {
         sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
+    }
 
     return ((sp - frame_size) & -8UL);
 }
@@ -3891,7 +3892,7 @@ static inline abi_ulong get_sigframe(struct target_sigaction *ka,
 
     /* redzone */
     /* This is the X/Open sanctioned signal stack switching.  */
-    if ((ka->sa_flags & SA_ONSTACK) != 0 && !onsigstack) {
+    if ((ka->sa_flags & TARGET_SA_ONSTACK) != 0 && !onsigstack) {
         sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
     }
 
