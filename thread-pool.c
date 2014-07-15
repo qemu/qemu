@@ -185,6 +185,12 @@ restart:
             QLIST_REMOVE(elem, all);
             /* Read state before ret.  */
             smp_rmb();
+
+            /* Schedule ourselves in case elem->common.cb() calls aio_poll() to
+             * wait for another request that completed at the same time.
+             */
+            qemu_bh_schedule(pool->completion_bh);
+
             elem->common.cb(elem->common.opaque, elem->ret);
             qemu_aio_release(elem);
             goto restart;
