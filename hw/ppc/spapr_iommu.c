@@ -81,7 +81,7 @@ static IOMMUTLBEntry spapr_tce_translate_iommu(MemoryRegion *iommu, hwaddr addr)
         ret.iova = addr & page_mask;
         ret.translated_addr = tce & page_mask;
         ret.addr_mask = ~page_mask;
-        ret.perm = tce;
+        ret.perm = tce & IOMMU_RW;
     }
     trace_spapr_iommu_xlate(tcet->liobn, addr, ret.iova, ret.perm,
                             ret.addr_mask);
@@ -223,7 +223,7 @@ static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
     entry.iova = ioba & page_mask;
     entry.translated_addr = tce & page_mask;
     entry.addr_mask = ~page_mask;
-    entry.perm = tce;
+    entry.perm = tce & IOMMU_RW;
     memory_region_notify_iommu(&tcet->iommu, entry);
 
     return H_SUCCESS;

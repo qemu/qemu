@@ -1580,13 +1580,11 @@ int kvmppc_smt_threads(void)
 }
 
 #ifdef TARGET_PPC64
-off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
+off_t kvmppc_alloc_rma(void **rma)
 {
-    void *rma;
     off_t size;
     int fd;
     struct kvm_allocate_rma ret;
-    MemoryRegion *rma_region;
 
     /* If cap_ppc_rma == 0, contiguous RMA allocation is not supported
      * if cap_ppc_rma == 1, contiguous RMA allocation is supported, but
@@ -1609,16 +1607,11 @@ off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
 
     size = MIN(ret.rma_size, 256ul << 20);
 
-    rma = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
-    if (rma == MAP_FAILED) {
+    *rma = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    if (*rma == MAP_FAILED) {
         fprintf(stderr, "KVM: Error mapping RMA: %s\n", strerror(errno));
         return -1;
     };
-
-    rma_region = g_new(MemoryRegion, 1);
-    memory_region_init_ram_ptr(rma_region, NULL, name, size, rma);
-    vmstate_register_ram_global(rma_region);
-    memory_region_add_subregion(sysmem, 0, rma_region);
 
     return size;
 }

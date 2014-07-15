@@ -23,6 +23,7 @@
  */
 #include "hw/hw.h"
 #include "hw/ppc/ppc.h"
+#include "hw/boards.h"
 #include "ppc405.h"
 #include "hw/char/serial.h"
 #include "qemu/timer.h"
@@ -973,8 +974,8 @@ static void ppc405_ocm_init(CPUPPCState *env)
 
     ocm = g_malloc0(sizeof(ppc405_ocm_t));
     /* XXX: Size is 4096 or 0x04000000 */
-    memory_region_init_ram(&ocm->isarc_ram, NULL, "ppc405.ocm", 4096);
-    vmstate_register_ram_global(&ocm->isarc_ram);
+    memory_region_allocate_system_memory(&ocm->isarc_ram, NULL, "ppc405.ocm",
+                                         4096);
     memory_region_init_alias(&ocm->dsarc_ram, NULL, "ppc405.dsarc", &ocm->isarc_ram,
                              0, 4096);
     qemu_register_reset(&ocm_reset, ocm);

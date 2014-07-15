@@ -31,7 +31,7 @@ int kvmppc_or_tsr_bits(PowerPCCPU *cpu, uint32_t tsr_bits);
 int kvmppc_set_tcr(PowerPCCPU *cpu);
 int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu);
 #ifndef CONFIG_USER_ONLY
-off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem);
+off_t kvmppc_alloc_rma(void **rma);
 bool kvmppc_spapr_use_multitce(void);
 void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd,
                               bool vfio_accel);
@@ -134,7 +134,7 @@ static inline int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu)
 }
 
 #ifndef CONFIG_USER_ONLY
-static inline off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
+static inline off_t kvmppc_alloc_rma(void **rma)
 {
     return 0;
 }
