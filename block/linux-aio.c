@@ -310,5 +310,10 @@ void laio_cleanup(void *s_)
     struct qemu_laio_state *s = s_;
 
     event_notifier_cleanup(&s->e);
+
+    if (io_destroy(s->ctx) != 0) {
+        fprintf(stderr, "%s: destroy AIO context %p failed\n",
+                        __func__, &s->ctx);
+    }
     g_free(s);
 }
