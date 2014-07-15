@@ -202,18 +202,16 @@ static void module_load(module_init_type type)
         for (i = 0; i < ARRAY_SIZE(dirs); i++) {
             fname = g_strdup_printf("%s/%s%s", dirs[i], *mp, HOST_DSOSUF);
             ret = module_load_file(fname);
+            g_free(fname);
+            fname = NULL;
             /* Try loading until loaded a module file */
             if (!ret) {
                 break;
             }
-            g_free(fname);
-            fname = NULL;
         }
         if (ret == -ENOENT) {
             fprintf(stderr, "Can't find module: %s\n", *mp);
         }
-
-        g_free(fname);
     }
 
     for (i = 0; i < ARRAY_SIZE(dirs); i++) {
