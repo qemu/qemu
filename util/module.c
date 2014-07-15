@@ -209,9 +209,6 @@ static void module_load(module_init_type type)
                 break;
             }
         }
-        if (ret == -ENOENT) {
-            fprintf(stderr, "Can't find module: %s\n", *mp);
-        }
     }
 
     for (i = 0; i < ARRAY_SIZE(dirs); i++) {
