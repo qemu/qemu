@@ -56,6 +56,22 @@ static VirtIOSerialPort *find_port_by_vq(VirtIOSerial *vser, VirtQueue *vq)
     return NULL;
 }
 
+static VirtIOSerialPort *find_port_by_name(char *name)
+{
+    VirtIOSerial *vser;
+
+    QLIST_FOREACH(vser, &vserdevices.devices, next) {
+        VirtIOSerialPort *port;
+
+        QTAILQ_FOREACH(port, &vser->ports, next) {
+            if (!strcmp(port->name, name)) {
+                return port;
+            }
+        }
+    }
+    return NULL;
+}
+
 static bool use_multiport(VirtIOSerial *vser)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(vser);
@@ -852,6 +868,12 @@ static void virtser_port_device_realize(DeviceState *dev, Error **errp)
     if (find_port_by_id(port->vser, port->id)) {
         error_setg(errp, "virtio-serial-bus: A port already exists at id %u",
                    port->id);
+        return;
+    }
+
+    if (find_port_by_name(port->name)) {
+        error_setg(errp, "virtio-serial-bus: A port already exists by name %s",
+                   port->name);
         return;
     }
 
