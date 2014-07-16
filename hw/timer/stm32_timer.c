@@ -22,14 +22,14 @@
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
+#include "hw/arm/stm32.h"
+#include "hw/ptimer.h"
 
 
 /* DEFINITIONS*/
 
 /* See the README file for details on these settings. */
 #define DEBUG_STM32_TIMER
-//#define STM32_TIMER_NO_BAUD_DELAY
-//#define STM32_TIMER_ENABLE_OVERRUN
 
 #ifdef DEBUG_STM32_TIMER
 #define DPRINTF(fmt, ...)                                       \
@@ -55,25 +55,44 @@
 #define TIMER_CCR2_OFFSET  0x38
 #define TIMER_CCR3_OFFSET  0x3c
 #define TIMER_CCR4_OFFSET  0x40
+#define TIMER_BDTR_OFFSET  0x44
 #define TIMER_DCR_OFFSET   0x48
 #define TIMER_DMAR_OFFSET  0x4C
 
-typedef struct {
-    SysBusDevice busdev;
-    MemoryRegion iomem;
-    QEMUTimer   *timer;
-    qemu_irq     irq;
+#define TIMER_CEN          0x1
 
-    /* Needed to preserve the tick_count across migration, even if the
-     * absolute value of the rtc_clock is different on the source and
-     * destination.
-     */
-    uint32_t tick_offset_vmstate;
-    uint32_t tick_offset;
+enum
+{
+	TIMER_UP_COUNT     = 0,
+	TIMER_DOWN_COUNT   = 1,
+	TIMER_CENTER_COUNT = 2
+};
+
+typedef struct {
+
+    /* Inherited */
+    SysBusDevice busdev;
+
+    MemoryRegion  iomem;
+    ptimer_state *timer;
+    qemu_irq      irq;
+
+    /* Properties */
+    stm32_periph_t periph;
+    void *stm32_rcc_prop;
+    void *stm32_gpio_prop;
+    void *stm32_afio_prop;
+
+    Stm32Rcc *stm32_rcc;
+    Stm32Gpio **stm32_gpio;
+    Stm32Afio *stm32_afio;
+
+	int countMode;
+	int itr;
 
 	uint32_t cr1;
-	uint32_t cr2;
-	uint32_t smcr;
+	/* uint32_t cr2; Extended modes not supported */
+	/* uint32_t smcr; Slave mode not supported */
 	uint32_t dier;
 	uint32_t sr;
 	uint32_t egr;
@@ -83,97 +102,132 @@ typedef struct {
 	uint32_t cnt;
 	uint32_t psc;
 	uint32_t apr;
-	uint32_t rcr;
+	/* uint32_t rcr; Repetition count not supported */
 	uint32_t ccr1;
 	uint32_t ccr2;
 	uint32_t ccr3;
 	uint32_t ccr4;
-	uint32_t dcr;
-	uint32_t dmar;
+	/* uint32_t bdtr; Break and deadtime not supported */
+	/* uint32_t dcr;  DMA mode not supported */
+	/* uint32_t dmar; DMA mode not supported */
 
-} stm32_tm_state;
+} Stm32Timer;
 
-static void stm32_update(stm32_tm_state *s)
+static void stm32_timer_update(Stm32Timer *s)
 {
-    qemu_set_irq(s->irq, s->is & s->im);
+    //qemu_set_irq(s->irq, s->is & s->im);
 }
 
-static void stm32_interrupt(void * opaque)
+static void stm32_timer_tick(void *opaque)
 {
-    stm32_tm_state *s = (stm32_tm_state *)opaque;
-
-    s->is = 1;
-    DPRINTF("Alarm raised\n");
-    stm32_update(s);
+    Stm32Timer *s = (Stm32Timer *)opaque;
+    DPRINTF("%sAlarm raised\n", stm32_periph_name(s->periph));
+    s->itr = 1;
+    stm32_timer_update(s);
 }
 
-static uint32_t stm32_get_count(stm32_tm_state *s)
+static uint32_t stm32_timer_get_count(Stm32Timer *s)
 {
-    int64_t now = qemu_get_clock_ns(rtc_clock);
-    return s->tick_offset + now / get_ticks_per_sec();
+	uint64_t cnt = ptimer_get_count(s->timer);
+	if (s->countMode == TIMER_UP_COUNT)
+	{
+		return s->apr - (cnt & 0xfffff);
+	}
+	else
+	{
+		return (cnt & 0xffff);
+	}
 }
 
-static void stm32_set_alarm(stm32_tm_state *s)
+static void stm32_timer_freq(Stm32Timer *s)
 {
-    uint32_t ticks;
-
-    /* The timer wraps around.  This subtraction also wraps in the same way,
-       and gives correct results when alarm < now_ticks.  */
-    ticks = s->mr - stm32_get_count(s);
-    DPRINTF("Alarm set in %ud ticks\n", ticks);
-    if (ticks == 0) {
-        qemu_del_timer(s->timer);
-        stm32_interrupt(s);
-    } else {
-        int64_t now = qemu_get_clock_ns(rtc_clock);
-        qemu_mod_timer(s->timer, now + (int64_t)ticks * get_ticks_per_sec());
-    }
+    uint32_t clk_freq = stm32_rcc_get_periph_freq(s->stm32_rcc, s->periph) / (s->psc + 1);
+	DPRINTF
+	(
+		"%s Update freq = %d / %d = %d\n",
+		stm32_periph_name(s->periph),
+		stm32_rcc_get_periph_freq(s->stm32_rcc, s->periph),
+		(s->psc + 1),
+		clk_freq
+	);
+	ptimer_set_freq(s->timer, clk_freq);
 }
 
-static uint64_t stm32_read(void *opaque, hwaddr offset,
+static void stm32_timer_clk_irq_handler(void *opaque, int n, int level)
+{
+    Stm32Timer *s = (Stm32Timer *)opaque;
+
+    assert(n == 0);
+
+	stm32_timer_freq(s);
+}
+
+static uint64_t stm32_timer_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    stm32_tm_state *s = (stm32_tm_state *)opaque;
+    Stm32Timer *s = (Stm32Timer *)opaque;
 
     switch (offset) {
 	case TIMER_CR1_OFFSET:
+        DPRINTF("%s cr1 = %x\n", stm32_periph_name(s->periph), s->cr1);
 		return s->cr1;
 	case TIMER_CR2_OFFSET:
-		return s->cr2;
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: CR2 not supported");
+		return 0;
 	case TIMER_SMCR_OFFSET:
-		return s->smcr;
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: SMCR not supported");
+		return 0;
 	case TIMER_DIER_OFFSET:
+        DPRINTF("%s dier = %x\n", stm32_periph_name(s->periph), s->dier);
 		return s->dier;
 	case TIMER_SR_OFFSET:
+        DPRINTF("%s sr = %x\n", stm32_periph_name(s->periph), s->sr);
 		return s->sr;
 	case TIMER_EGR_OFFSET:
-		return s->egr;
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: EGR write only");
+		return 0;
 	case TIMER_CCMR1_OFFSET:
+        DPRINTF("%s ccmr1 = %x\n", stm32_periph_name(s->periph), s->ccmr1);
 		return s->ccmr1;
 	case TIMER_CCMR2_OFFSET:
+        DPRINTF("%s ccmr2 = %x\n", stm32_periph_name(s->periph), s->ccmr2);
 		return s->ccmr2;
 	case TIMER_CCER_OFFSET:
+        DPRINTF("%s ccer = %x\n", stm32_periph_name(s->periph), s->ccer);
 		return s->ccer;
 	case TIMER_CNT_OFFSET:
+        DPRINTF("%s cnt = %x\n", stm32_periph_name(s->periph), s->cnt);
 		return s->cnt;
 	case TIMER_PSC_OFFSET:
+        DPRINTF("%s psc = %x\n", stm32_periph_name(s->periph), s->psc);
 		return s->psc;
 	case TIMER_APR_OFFSET:
+        DPRINTF("%s apr = %x\n", stm32_periph_name(s->periph), s->apr);
 		return s->apr;
 	case TIMER_RCR_OFFSET:
-		return s->rcr;
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: RCR not supported");
+		return 0;
 	case TIMER_CCR1_OFFSET:
+        DPRINTF("%s ccr1 = %x\n", stm32_periph_name(s->periph), s->ccr1);
 		return s->ccr1;
 	case TIMER_CCR2_OFFSET:
+        DPRINTF("%s ccr2 = %x\n", stm32_periph_name(s->periph), s->ccr2);
 		return s->ccr2;
 	case TIMER_CCR3_OFFSET:
+        DPRINTF("%s ccr3 = %x\n", stm32_periph_name(s->periph), s->ccr3);
 		return s->ccr3;
 	case TIMER_CCR4_OFFSET:
+        DPRINTF("%s ccr4 = %x\n", stm32_periph_name(s->periph), s->ccr4);
 		return s->ccr4;
+	case TIMER_BDTR_OFFSET:
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: BDTR not supported");
+		return 0;
 	case TIMER_DCR_OFFSET:
-		return s->dcr;
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: DCR not supported");
+		return 0;
 	case TIMER_DMAR_OFFSET:
-		return s->dmar;
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: DMAR not supported");
+		return 0;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "stm32_read: Bad offset 0x%x\n", (int)offset);
@@ -183,133 +237,210 @@ static uint64_t stm32_read(void *opaque, hwaddr offset,
     return 0;
 }
 
-static void stm32_write(void * opaque, hwaddr offset,
+static void stm32_timer_write(void * opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    stm32_tm_state *s = (stm32_tm_state *)opaque;
-
+    Stm32Timer *s = (Stm32Timer *)opaque;
 
     switch (offset) {
-    case RTC_LR:
-        s->tick_offset += value - stm32_get_count(s);
-        stm32_set_alarm(s);
-        break;
-    case RTC_MR:
-        s->mr = value;
-        stm32_set_alarm(s);
-        break;
-    case RTC_IMSC:
-        s->im = value & 1;
-        DPRINTF("Interrupt mask %d\n", s->im);
-        stm32_update(s);
-        break;
-    case RTC_ICR:
-        /* The PL031 documentation (DDI0224B) states that the interrupt is
-           cleared when bit 0 of the written value is set.  However the
-           arm926e documentation (DDI0287B) states that the interrupt is
-           cleared when any value is written.  */
-        DPRINTF("Interrupt cleared");
-        s->is = 0;
-        stm32_update(s);
-        break;
-    case RTC_CR:
-        /* Written value is ignored.  */
-        break;
-
-    case RTC_DR:
-    case RTC_MIS:
-    case RTC_RIS:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "stm32: write to read-only register at offset 0x%x\n",
-                      (int)offset);
-        break;
-
+	case TIMER_CR1_OFFSET:
+		s->cr1 = value & 0x3FF;
+		stm32_timer_update(s);
+        DPRINTF("%s cr1 = %x\n", stm32_periph_name(s->periph), s->cr1);
+		break;
+	case TIMER_CR2_OFFSET:
+	 	/* s->cr2 = value & 0xF8; */
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: CR2 not supported");
+		break;
+	case TIMER_SMCR_OFFSET:
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: SMCR not supported");
+		break;
+	case TIMER_DIER_OFFSET:
+		s->dier = value & 0x5F5F;
+        DPRINTF("%s dier = %x\n", stm32_periph_name(s->periph), s->dier);
+		break;
+	case TIMER_SR_OFFSET:
+		s->sr = value & 0x1E5F;
+        DPRINTF("%s sr = %x\n", stm32_periph_name(s->periph), s->sr);
+		break;
+	case TIMER_EGR_OFFSET:
+		s->egr = value & 0x5F;
+        DPRINTF("%s egr = %x\n", stm32_periph_name(s->periph), s->egr);
+		break;
+	case TIMER_CCMR1_OFFSET:
+		s->ccmr1 = value & 0xffff;
+        DPRINTF("%s ccmr1 = %x\n", stm32_periph_name(s->periph), s->ccmr1);
+		break;
+	case TIMER_CCMR2_OFFSET:
+		s->ccmr2 = value & 0xffff;
+        DPRINTF("%s ccmr2 = %x\n", stm32_periph_name(s->periph), s->ccmr2);
+		break;
+	case TIMER_CCER_OFFSET:
+		s->ccer = value & 0x3333;
+        DPRINTF("%s ccer = %x\n", stm32_periph_name(s->periph), s->ccer);
+		break;
+	case TIMER_CNT_OFFSET:
+		s->cnt = value & 0xffff;
+        DPRINTF("%s cnt = %x\n", stm32_periph_name(s->periph), s->cnt);
+		break;
+	case TIMER_PSC_OFFSET:
+		s->psc = value & 0xffff;
+        DPRINTF("%s psc = %x\n", stm32_periph_name(s->periph), s->psc);
+		stm32_timer_freq(s);
+		break;
+	case TIMER_APR_OFFSET:
+		s->apr = value & 0xffff;
+        DPRINTF("%s apr = %x\n", stm32_periph_name(s->periph), s->apr);
+		break;
+	case TIMER_RCR_OFFSET:
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: RCR not supported");
+		/* s->rcr = value & 0xff; */
+		break;
+	case TIMER_CCR1_OFFSET:
+		s->ccr1 = value & 0xffff;
+        DPRINTF("%s ccr1 = %x\n", stm32_periph_name(s->periph), s->ccr1);
+		break;
+	case TIMER_CCR2_OFFSET:
+		s->ccr2 = value & 0xffff;
+        DPRINTF("%s ccr2 = %x\n", stm32_periph_name(s->periph), s->ccr2);
+		break;
+	case TIMER_CCR3_OFFSET:
+		s->ccr3 = value & 0xffff;
+        DPRINTF("%s ccr3 = %x\n", stm32_periph_name(s->periph), s->ccr3);
+		break;
+	case TIMER_CCR4_OFFSET:
+		s->ccr4 = value & 0xffff;
+        DPRINTF("%s ccr4 = %x\n", stm32_periph_name(s->periph), s->ccr4);
+		break;
+	case TIMER_BDTR_OFFSET:
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: BDTR not supported");
+		break;
+	case TIMER_DCR_OFFSET:
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: DCR not supported");
+		break;
+	case TIMER_DMAR_OFFSET:
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: DMAR not supported");
+		break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "stm32_write: Bad offset 0x%x\n", (int)offset);
+                      "stm32_read: Bad offset 0x%x\n", (int)offset);
         break;
     }
+
 }
 
-static const MemoryRegionOps stm32_ops = {
-    .read = stm32_read,
-    .write = stm32_write,
+static const MemoryRegionOps stm32_timer_ops = {
+    .read = stm32_timer_read,
+    .write = stm32_timer_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int stm32_init(SysBusDevice *dev)
+static int stm32_timer_init(SysBusDevice *dev)
 {
-    stm32_tm_state *s = FROM_SYSBUS(stm32_tm_state, dev);
-    struct tm tm;
+    QEMUBH *bh;
+    qemu_irq *clk_irq;
+    Stm32Timer *s = FROM_SYSBUS(Stm32Timer, dev);
 
-    memory_region_init_io(&s->iomem, &stm32_ops, s, "stm32", 0x1000);
+    s->stm32_rcc = (Stm32Rcc *)s->stm32_rcc_prop;
+    s->stm32_gpio = (Stm32Gpio **)s->stm32_gpio_prop;
+    s->stm32_afio = (Stm32Afio *)s->stm32_afio_prop;
+
+    memory_region_init_io(&s->iomem, &stm32_timer_ops, s, "stm32-timer", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
 
     sysbus_init_irq(dev, &s->irq);
-    qemu_get_timedate(&tm, 0);
-    s->tick_offset = mktimegm(&tm) - qemu_get_clock_ns(rtc_clock) / get_ticks_per_sec();
 
-    s->timer = qemu_new_timer_ns(rtc_clock, stm32_interrupt, s);
+    /* Register handlers to handle updates to the TIM's peripheral clock. */
+    clk_irq = qemu_allocate_irqs(stm32_timer_clk_irq_handler, (void *)s, 1);
+    stm32_rcc_set_periph_clk_irq(s->stm32_rcc, s->periph, clk_irq[0]);
+
+    bh = qemu_bh_new(stm32_timer_tick, s);
+    s->timer = ptimer_init(bh);
+
+	s->cr1   = 0;
+	s->dier  = 0;
+	s->sr    = 0;
+	s->egr   = 0;
+	s->ccmr1 = 0;
+	s->ccmr2 = 0;
+	s->ccer  = 0;
+	s->cnt   = 0;
+	s->psc   = 0;
+	s->apr   = 0;
+	s->ccr1  = 0;
+	s->ccr2  = 0;
+	s->ccr3  = 0;
+	s->ccr4  = 0;
+
     return 0;
 }
 
-static void stm32_pre_save(void *opaque)
+static void stm32_timer_pre_save(void *opaque)
 {
-    stm32_tm_state *s = opaque;
+    Stm32Timer *s = opaque;
 
     /* tick_offset is base_time - rtc_clock base time.  Instead, we want to
      * store the base time relative to the vm_clock for backwards-compatibility.  */
-    int64_t delta = qemu_get_clock_ns(rtc_clock) - qemu_get_clock_ns(vm_clock);
-    s->tick_offset_vmstate = s->tick_offset + delta / get_ticks_per_sec();
+    //int64_t delta = qemu_get_clock_ns(rtc_clock) - qemu_get_clock_ns(vm_clock);
+    //s->tick_offset_vmstate = s->tick_offset + delta / get_ticks_per_sec();
 }
 
-static int stm32_post_load(void *opaque, int version_id)
+static int stm32_timer_post_load(void *opaque, int version_id)
 {
-    stm32_tm_state *s = opaque;
+    Stm32Timer *s = opaque;
 
     int64_t delta = qemu_get_clock_ns(rtc_clock) - qemu_get_clock_ns(vm_clock);
-    s->tick_offset = s->tick_offset_vmstate - delta / get_ticks_per_sec();
-    stm32_set_alarm(s);
+    //s->tick_offset = s->tick_offset_vmstate - delta / get_ticks_per_sec();
+    //stm32_timer_set_alarm(s);
     return 0;
 }
 
+static Property stm32_timer_properties[] = {
+    DEFINE_PROP_PERIPH_T("periph", Stm32Timer, periph, STM32_PERIPH_UNDEFINED),
+    DEFINE_PROP_PTR("stm32_rcc",   Stm32Timer, stm32_rcc_prop),
+    DEFINE_PROP_PTR("stm32_gpio",  Stm32Timer, stm32_gpio_prop),
+    DEFINE_PROP_PTR("stm32_afio",  Stm32Timer, stm32_afio_prop),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_stm32 = {
-    .name = "stm32",
+    .name = "stm32-timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = stm32_pre_save,
-    .post_load = stm32_post_load,
+    .pre_save = stm32_timer_pre_save,
+    .post_load = stm32_timer_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(tick_offset_vmstate, stm32_tm_state),
-        VMSTATE_UINT32(mr, stm32_tm_state),
-        VMSTATE_UINT32(lr, stm32_tm_state),
-        VMSTATE_UINT32(cr, stm32_tm_state),
-        VMSTATE_UINT32(im, stm32_tm_state),
-        VMSTATE_UINT32(is, stm32_tm_state),
+        //VMSTATE_UINT32(tick_offset_vmstate, stm32_timer_tm_state),
+        //VMSTATE_UINT32(mr, Stm32Timer),
+        //VMSTATE_UINT32(lr, Stm32Timer),
+        //VMSTATE_UINT32(cr, Stm32Timer),
+        //VMSTATE_UINT32(im, Stm32Timer),
+        //VMSTATE_UINT32(is, Stm32Timer),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static void stm32_class_init(ObjectClass *klass, void *data)
+static void stm32_timer_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = stm32_init;
+    k->init = stm32_timer_init;
     dc->no_user = 1;
     dc->vmsd = &vmstate_stm32;
+    dc->props = stm32_timer_properties;
 }
 
-static const TypeInfo stm32_info = {
-    .name          = "stm32",
+static const TypeInfo stm32_timer_info = {
+    .name          = "stm32-timer",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(stm32_tm_state),
-    .class_init    = stm32_class_init,
+    .instance_size = sizeof(Stm32Timer),
+    .class_init    = stm32_timer_class_init,
 };
 
-static void stm32_register_types(void)
+static void stm32_timer_register_types(void)
 {
-    type_register_static(&stm32_info);
+    type_register_static(&stm32_timer_info);
 }
 
-type_init(stm32_register_types)
+type_init(stm32_timer_register_types)

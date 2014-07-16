@@ -160,6 +160,7 @@ const char *stm32_periph_name(stm32_periph_t periph);
 #define TIM8_UP_TIM13_IRQn      44     /*!< TIM8 Update Interrupt and TIM13 global Interrupt     */
 #define TIM8_TRG_COM_TIM14_IRQn 45     /*!< TIM8 Trigger and Commutation Interrupt and TIM14 global interrupt */
 #define TIM8_CC_IRQn            46     /*!< TIM8 Capture Compare Interrupt                       */
+#define TIM5_IRQn               50     /*!< TIM5 global Interrupt                                */
 #define TIM6_DAC_IRQn           54     /*!< TIM6 and DAC underrun Interrupt                      */
 #define TIM7_IRQn               55     /*!< TIM7 Interrupt                                       */       
 #define STM32_ETH_WKUP_IRQ 62

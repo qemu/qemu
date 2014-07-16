@@ -39,7 +39,7 @@
             assert((count) <= (array_size));
 
 
-struct Clk {
+struct Stm32Clk {
     const char *name;
 
     bool enabled;
@@ -52,32 +52,32 @@ struct Clk {
     qemu_irq user[CLKTREE_MAX_IRQ]; /* Who to notify on change */
 
     unsigned output_count;
-    struct Clk *output[CLKTREE_MAX_OUTPUT];
+    struct Stm32Clk *output[CLKTREE_MAX_OUTPUT];
 
     unsigned input_count;
     int selected_input;
-    struct Clk *input[CLKTREE_MAX_INPUT];
+    struct Stm32Clk *input[CLKTREE_MAX_INPUT];
 };
 
-static void clktree_recalc_output_freq(Clk clk);
+static void stm32clktree_recalc_output_freq(Stm32Clk clk);
 
 
 
 
 /* HELPER FUNCTIONS */
 
-static Clk clktree_get_input_clk(Clk clk)
+static Stm32Clk stm32clktree_get_input_clk(Stm32Clk clk)
 {
     return clk->input[clk->selected_input + 1];
 }
 
 #ifdef DEBUG_CLKTREE
 
-static void clktree_print_state(Clk clk)
+static void stm32clktree_print_state(Stm32Clk clk)
 {
-    Clk input_clk = clktree_get_input_clk(clk);
+    Stm32Clk input_clk = stm32clktree_get_input_clk(clk);
 
-    printf("CLKTREE: %s Output Change (SrcClk:%s InFreq:%lu OutFreq:%lu Mul:%u Div:%u Enabled:%c)\n",
+    printf("STM32_CLKTREE: %s Output Change (SrcStm32Clk:%s InFreq:%lu OutFreq:%lu Mul:%u Div:%u Enabled:%c)\n",
             clk->name,
             input_clk ? input_clk->name : "None",
             (unsigned long)clk->input_freq,
@@ -88,18 +88,18 @@ static void clktree_print_state(Clk clk)
 }
 #endif
 
-static void clktree_set_input_freq(Clk clk, uint32_t input_freq)
+static void stm32clktree_set_input_freq(Stm32Clk clk, uint32_t input_freq)
 {
     clk->input_freq = input_freq;
 
-    clktree_recalc_output_freq(clk);
+    stm32clktree_recalc_output_freq(clk);
 }
 
 /* Recalculates the output frequency based on the clock's input_freq variable.
  */
-static void clktree_recalc_output_freq(Clk clk) {
+static void stm32clktree_recalc_output_freq(Stm32Clk clk) {
     int i;
-    Clk next_clk, next_clk_input;
+    Stm32Clk next_clk, next_clk_input;
     uint32_t new_output_freq;
 
     /* Get the output frequency, or 0 if the output is disabled. */
@@ -114,7 +114,7 @@ static void clktree_recalc_output_freq(Clk clk) {
        clk->output_freq = new_output_freq;
 
 #ifdef DEBUG_CLKTREE
-        clktree_print_state(clk);
+        stm32clktree_print_state(clk);
 #endif
 
         /* Check the new frequency against the max frequency. */
@@ -139,12 +139,12 @@ static void clktree_recalc_output_freq(Clk clk) {
             /* Only propagate the change if the child has selected the current
              * clock as input.
              */
-            next_clk_input = clktree_get_input_clk(next_clk);
+            next_clk_input = stm32clktree_get_input_clk(next_clk);
             if(next_clk_input == clk) {
                 /* Recursively propagate changes.  The clock tree should not be
                  * too deep, so we shouldn't have to recurse too many times.
                  */
-                clktree_set_input_freq(next_clk, new_output_freq);
+                stm32clktree_set_input_freq(next_clk, new_output_freq);
             }
         }
     }
@@ -152,13 +152,13 @@ static void clktree_recalc_output_freq(Clk clk) {
 
 
 /* Generic create routine used by the public create routines. */
-static Clk clktree_create_generic(
+static Stm32Clk stm32clktree_create_generic(
                     const char *name,
                     uint16_t multiplier,
                     uint16_t divisor,
                     bool enabled)
 {
-    Clk clk = (Clk)g_malloc(sizeof(struct Clk));
+    Stm32Clk clk = (Stm32Clk)g_malloc(sizeof(struct Stm32Clk));
 
     clk->name = name;
 
@@ -191,17 +191,17 @@ static Clk clktree_create_generic(
 
 
 /* PUBLIC FUNCTIONS */
-bool clktree_is_enabled(Clk clk)
+bool stm32clktree_is_enabled(Stm32Clk clk)
 {
     return clk->enabled;
 }
 
-uint32_t clktree_get_output_freq(Clk clk)
+uint32_t stm32clktree_get_output_freq(Stm32Clk clk)
 {
     return clk->output_freq;
 }
 
-void clktree_adduser(Clk clk, qemu_irq user)
+void stm32clktree_adduser(Stm32Clk clk, qemu_irq user)
 {
     CLKTREE_ADD_LINK(
             clk->user,
@@ -211,22 +211,22 @@ void clktree_adduser(Clk clk, qemu_irq user)
 }
 
 
-Clk clktree_create_src_clk(
+Stm32Clk stm32clktree_create_src_clk(
                     const char *name,
                     uint32_t src_freq,
                     bool enabled)
 {
-    Clk clk;
+    Stm32Clk clk;
 
-    clk = clktree_create_generic(name, 1, 1, enabled);
+    clk = stm32clktree_create_generic(name, 1, 1, enabled);
 
-    clktree_set_input_freq(clk, src_freq);
+    stm32clktree_set_input_freq(clk, src_freq);
 
     return clk;
 }
 
 
-Clk clktree_create_clk(
+Stm32Clk stm32clktree_create_clk(
                     const char *name,
                     uint16_t multiplier,
                     uint16_t divisor,
@@ -236,13 +236,13 @@ Clk clktree_create_clk(
                     ...)
 {
     va_list input_clks;
-    Clk clk, input_clk;
+    Stm32Clk clk, input_clk;
 
-    clk = clktree_create_generic(name, multiplier, divisor, enabled);
+    clk = stm32clktree_create_generic(name, multiplier, divisor, enabled);
 
     /* Add the input clock connections. */
     va_start(input_clks, selected_input);
-    while((input_clk = va_arg(input_clks, Clk)) != NULL) {
+    while((input_clk = va_arg(input_clks, Stm32Clk)) != NULL) {
         CLKTREE_ADD_LINK(
                 clk->input,
                 clk->input_count,
@@ -256,30 +256,30 @@ Clk clktree_create_clk(
                 CLKTREE_MAX_OUTPUT);
     }
 
-    clktree_set_selected_input(clk, selected_input);
+    stm32clktree_set_selected_input(clk, selected_input);
 
     return clk;
 }
 
 
-void clktree_set_scale(Clk clk, uint16_t multiplier, uint16_t divisor)
+void stm32clktree_set_scale(Stm32Clk clk, uint16_t multiplier, uint16_t divisor)
 {
     clk->multiplier = multiplier;
     clk->divisor = divisor;
 
-    clktree_recalc_output_freq(clk);
+    stm32clktree_recalc_output_freq(clk);
 }
 
 
-void clktree_set_enabled(Clk clk, bool enabled)
+void stm32clktree_set_enabled(Stm32Clk clk, bool enabled)
 {
     clk->enabled = enabled;
 
-    clktree_recalc_output_freq(clk);
+    stm32clktree_recalc_output_freq(clk);
 }
 
 
-void clktree_set_selected_input(Clk clk, int selected_input)
+void stm32clktree_set_selected_input(Stm32Clk clk, int selected_input)
 {
     uint32_t input_freq;
 
@@ -290,10 +290,10 @@ void clktree_set_selected_input(Clk clk, int selected_input)
     /* Get the input clock frequency.  If there is no input, this should be 0.
      */
     if(selected_input > -1) {
-        input_freq = clktree_get_input_clk(clk)->output_freq;
+        input_freq = stm32clktree_get_input_clk(clk)->output_freq;
     } else {
         input_freq = 0;
     }
 
-    clktree_set_input_freq(clk, input_freq);
+    stm32clktree_set_input_freq(clk, input_freq);
 }
