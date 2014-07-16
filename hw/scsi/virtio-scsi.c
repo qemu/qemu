@@ -406,6 +406,30 @@ static void virtio_scsi_command_complete(SCSIRequest *r, uint32_t status,
     virtio_scsi_complete_cmd_req(req);
 }
 
+static int virtio_scsi_parse_cdb(SCSIDevice *dev, SCSICommand *cmd,
+                                 uint8_t *buf, void *hba_private)
+{
+    VirtIOSCSIReq *req = hba_private;
+
+    if (cmd->len == 0) {
+        cmd->len = MIN(VIRTIO_SCSI_CDB_SIZE, SCSI_CMD_BUF_SIZE);
+        memcpy(cmd->buf, buf, cmd->len);
+    }
+
+    /* Extract the direction and mode directly from the request, for
+     * host device passthrough.
+     */
+    cmd->xfer = req->qsgl.size;
+    if (cmd->xfer == 0) {
+        cmd->mode = SCSI_XFER_NONE;
+    } else if (iov_size(req->elem.in_sg, req->elem.in_num) > req->resp_size) {
+        cmd->mode = SCSI_XFER_FROM_DEV;
+    } else {
+        cmd->mode = SCSI_XFER_TO_DEV;
+    }
+    return 0;
+}
+
 static QEMUSGList *virtio_scsi_get_sg_list(SCSIRequest *r)
 {
     VirtIOSCSIReq *req = r->hba_private;
@@ -658,6 +682,7 @@ static struct SCSIBusInfo virtio_scsi_scsi_info = {
     .change = virtio_scsi_change,
     .hotplug = virtio_scsi_hotplug,
     .hot_unplug = virtio_scsi_hot_unplug,
+    .parse_cdb = virtio_scsi_parse_cdb,
     .get_sg_list = virtio_scsi_get_sg_list,
     .save_request = virtio_scsi_save_request,
     .load_request = virtio_scsi_load_request,
