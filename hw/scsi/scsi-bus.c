@@ -9,7 +9,7 @@
 
 static char *scsibus_get_dev_path(DeviceState *dev);
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
-static int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf);
+static int scsi_req_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf);
 static void scsi_req_dequeue(SCSIRequest *req);
 static uint8_t *scsi_target_alloc_buf(SCSIRequest *req, size_t len);
 static void scsi_target_free_buf(SCSIRequest *req);
@@ -52,6 +52,20 @@ static void scsi_device_destroy(SCSIDevice *s)
     if (sc->destroy) {
         sc->destroy(s);
     }
+}
+
+int scsi_bus_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
+                       void *hba_private)
+{
+    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
+    int rc;
+
+    assert(cmd->len == 0);
+    rc = scsi_req_parse_cdb(dev, cmd, buf);
+    if (bus->info->parse_cdb) {
+        rc = bus->info->parse_cdb(dev, cmd, buf, hba_private);
+    }
+    return rc;
 }
 
 static SCSIRequest *scsi_device_alloc_req(SCSIDevice *s, uint32_t tag, uint32_t lun,
@@ -562,6 +576,7 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
 {
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, d->qdev.parent_bus);
     const SCSIReqOps *ops;
+    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(d);
     SCSIRequest *req;
     SCSICommand cmd = { .len = 0 };
     int ret;
@@ -587,7 +602,12 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
         ops = NULL;
     }
 
-    ret = scsi_req_parse(&cmd, d, buf);
+    if (ops != NULL || !sc->parse_cdb) {
+        ret = scsi_req_parse_cdb(d, &cmd, buf);
+    } else {
+        ret = sc->parse_cdb(d, &cmd, buf, hba_private);
+    }
+
     if (ret != 0) {
         trace_scsi_req_parse_bad(d->id, lun, tag, buf[0]);
         req = scsi_req_alloc(&reqops_invalid_opcode, d, tag, lun, hba_private);
@@ -1190,7 +1210,7 @@ static uint64_t scsi_cmd_lba(SCSICommand *cmd)
     return lba;
 }
 
-static int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
+static int scsi_req_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf)
 {
     int rc;
 
