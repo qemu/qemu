@@ -2501,12 +2501,8 @@ static int scsi_block_initfn(SCSIDevice *dev)
     return scsi_initfn(&s->qdev);
 }
 
-static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
-                                           uint32_t lun, uint8_t *buf,
-                                           void *hba_private)
+static bool scsi_block_is_passthrough(SCSIDiskState *s, uint8_t *buf)
 {
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
-
     switch (buf[0]) {
     case READ_6:
     case READ_10:
@@ -2523,9 +2519,9 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
     case WRITE_VERIFY_12:
     case WRITE_VERIFY_16:
         /* If we are not using O_DIRECT, we might read stale data from the
-	 * host cache if writes were made using other commands than these
-	 * ones (such as WRITE SAME or EXTENDED COPY, etc.).  So, without
-	 * O_DIRECT everything must go through SG_IO.
+         * host cache if writes were made using other commands than these
+         * ones (such as WRITE SAME or EXTENDED COPY, etc.).  So, without
+         * O_DIRECT everything must go through SG_IO.
          */
         if (!(bdrv_get_flags(s->qdev.conf.bs) & BDRV_O_NOCACHE)) {
             break;
@@ -2542,13 +2538,31 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
          * just make scsi-block operate the same as scsi-generic for them.
          */
         if (s->qdev.type != TYPE_ROM) {
-            return scsi_req_alloc(&scsi_disk_dma_reqops, &s->qdev, tag, lun,
-                                  hba_private);
+            return false;
         }
+        break;
+
+    default:
+        break;
     }
 
-    return scsi_req_alloc(&scsi_generic_req_ops, &s->qdev, tag, lun,
-                          hba_private);
+    return true;
+}
+
+
+static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
+                                           uint32_t lun, uint8_t *buf,
+                                           void *hba_private)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
+
+    if (scsi_block_is_passthrough(s, buf)) {
+        return scsi_req_alloc(&scsi_generic_req_ops, &s->qdev, tag, lun,
+                              hba_private);
+    } else {
+        return scsi_req_alloc(&scsi_disk_dma_reqops, &s->qdev, tag, lun,
+                              hba_private);
+    }
 }
 #endif
 
