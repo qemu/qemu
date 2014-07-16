@@ -2564,6 +2564,19 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
                               hba_private);
     }
 }
+
+static int scsi_block_parse_cdb(SCSIDevice *d, SCSICommand *cmd,
+                                  uint8_t *buf, void *hba_private)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
+
+    if (scsi_block_is_passthrough(s, buf)) {
+        return scsi_bus_parse_cdb(&s->qdev, cmd, buf, hba_private);
+    } else {
+        return scsi_req_parse_cdb(&s->qdev, cmd, buf);
+    }
+}
+
 #endif
 
 #define DEFINE_SCSI_DISK_PROPERTIES()                                \
@@ -2672,6 +2685,7 @@ static void scsi_block_class_initfn(ObjectClass *klass, void *data)
     sc->init         = scsi_block_initfn;
     sc->destroy      = scsi_destroy;
     sc->alloc_req    = scsi_block_new_request;
+    sc->parse_cdb    = scsi_block_parse_cdb;
     dc->fw_name = "disk";
     dc->desc = "SCSI block device passthrough";
     dc->reset = scsi_disk_reset;

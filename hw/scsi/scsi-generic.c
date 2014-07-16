@@ -490,6 +490,12 @@ static Property scsi_generic_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static int scsi_generic_parse_cdb(SCSIDevice *dev, SCSICommand *cmd,
+                                  uint8_t *buf, void *hba_private)
+{
+    return scsi_bus_parse_cdb(dev, cmd, buf, hba_private);
+}
+
 static void scsi_generic_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -498,6 +504,7 @@ static void scsi_generic_class_initfn(ObjectClass *klass, void *data)
     sc->init         = scsi_generic_initfn;
     sc->destroy      = scsi_destroy;
     sc->alloc_req    = scsi_new_request;
+    sc->parse_cdb    = scsi_generic_parse_cdb;
     dc->fw_name = "disk";
     dc->desc = "pass through generic scsi device (/dev/sg*)";
     dc->reset = scsi_generic_reset;
