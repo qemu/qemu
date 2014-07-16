@@ -866,13 +866,11 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     return ret;
 }
 
-static int qcow2_refresh_limits(BlockDriverState *bs)
+static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVQcowState *s = bs->opaque;
 
     bs->bl.write_zeroes_alignment = s->cluster_sectors;
-
-    return 0;
 }
 
 static int qcow2_set_key(BlockDriverState *bs, const char *key)

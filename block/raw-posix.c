@@ -615,14 +615,12 @@ static void raw_reopen_abort(BDRVReopenState *state)
     state->opaque = NULL;
 }
 
-static int raw_refresh_limits(BlockDriverState *bs)
+static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
 
     raw_probe_alignment(bs);
     bs->bl.opt_mem_alignment = s->buf_align;
-
-    return 0;
 }
 
 static ssize_t handle_aiocb_ioctl(RawPosixAIOData *aiocb)

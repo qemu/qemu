@@ -508,19 +508,24 @@ int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp)
     return ret;
 }
 
-int bdrv_refresh_limits(BlockDriverState *bs)
+void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BlockDriver *drv = bs->drv;
+    Error *local_err = NULL;
 
     memset(&bs->bl, 0, sizeof(bs->bl));
 
     if (!drv) {
-        return 0;
+        return;
     }
 
     /* Take some limits from the children as a default */
     if (bs->file) {
-        bdrv_refresh_limits(bs->file);
+        bdrv_refresh_limits(bs->file, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
         bs->bl.opt_transfer_length = bs->file->bl.opt_transfer_length;
         bs->bl.opt_mem_alignment = bs->file->bl.opt_mem_alignment;
     } else {
@@ -528,7 +533,11 @@ int bdrv_refresh_limits(BlockDriverState *bs)
     }
 
     if (bs->backing_hd) {
-        bdrv_refresh_limits(bs->backing_hd);
+        bdrv_refresh_limits(bs->backing_hd, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
         bs->bl.opt_transfer_length =
             MAX(bs->bl.opt_transfer_length,
                 bs->backing_hd->bl.opt_transfer_length);
@@ -539,10 +548,8 @@ int bdrv_refresh_limits(BlockDriverState *bs)
 
     /* Then let the driver override it */
     if (drv->bdrv_refresh_limits) {
-        return drv->bdrv_refresh_limits(bs);
+        drv->bdrv_refresh_limits(bs, errp);
     }
-
-    return 0;
 }
 
 /*
@@ -993,7 +1000,13 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
         goto free_and_fail;
     }
 
-    bdrv_refresh_limits(bs);
+    bdrv_refresh_limits(bs, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto free_and_fail;
+    }
+
     assert(bdrv_opt_mem_align(bs) != 0);
     assert((bs->request_alignment != 0) || bs->sg);
     return 0;
@@ -1154,7 +1167,7 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
     bdrv_op_unblock(bs->backing_hd, BLOCK_OP_TYPE_COMMIT,
                     bs->backing_blocker);
 out:
-    bdrv_refresh_limits(bs);
+    bdrv_refresh_limits(bs, NULL);
 }
 
 /*
@@ -1778,7 +1791,7 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state)
                                               BDRV_O_CACHE_WB);
     reopen_state->bs->read_only = !(reopen_state->flags & BDRV_O_RDWR);
 
-    bdrv_refresh_limits(reopen_state->bs);
+    bdrv_refresh_limits(reopen_state->bs, NULL);
 }
 
 /*

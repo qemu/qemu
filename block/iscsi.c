@@ -1450,7 +1450,7 @@ static void iscsi_close(BlockDriverState *bs)
     memset(iscsilun, 0, sizeof(IscsiLun));
 }
 
-static int iscsi_refresh_limits(BlockDriverState *bs)
+static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     IscsiLun *iscsilun = bs->opaque;
 
@@ -1475,7 +1475,6 @@ static int iscsi_refresh_limits(BlockDriverState *bs)
     }
     bs->bl.opt_transfer_length = sector_lun2qemu(iscsilun->bl.opt_xfer_len,
                                                  iscsilun);
-    return 0;
 }
 
 /* Since iscsi_open() ignores bdrv_flags, there is nothing to do here in
