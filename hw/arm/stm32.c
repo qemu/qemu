@@ -263,6 +263,12 @@ void stm32_init(
 		pic[TIM1_CC_IRQn]};
     stm32_create_timer_dev(stm32_container, STM32_TIM1, 1, rcc_dev, gpio_dev, afio_dev, 0x40012C00, tim1_irqs, 5);
 
+    stm32_create_timer_dev(stm32_container, STM32_TIM2, 1, rcc_dev, gpio_dev, afio_dev, 0x40000000, pic[TIM2_IRQn], 1);
+    stm32_create_timer_dev(stm32_container, STM32_TIM3, 1, rcc_dev, gpio_dev, afio_dev, 0x40000400, pic[TIM3_IRQn], 1);
+    stm32_create_timer_dev(stm32_container, STM32_TIM4, 1, rcc_dev, gpio_dev, afio_dev, 0x40000800, pic[TIM4_IRQn], 1);
     stm32_create_timer_dev(stm32_container, STM32_TIM5, 1, rcc_dev, gpio_dev, afio_dev, 0x40000C00, pic[TIM5_IRQn], 1);
+
+
 }
+
 

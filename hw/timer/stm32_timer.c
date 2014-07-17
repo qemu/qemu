@@ -33,7 +33,12 @@
 
 #ifdef DEBUG_STM32_TIMER
 #define DPRINTF(fmt, ...)                                       \
-    do { printf("STM32_TIMER: " fmt , ## __VA_ARGS__); } while (0)
+    do { \
+		int64_t now = qemu_get_clock_ns(vm_clock); \
+		int64_t secs = now / 1000000000; \
+		int64_t frac = (now % 1000000000) / 10000; \
+		printf("STM32_TIMER (%"PRId64".%06"PRId64"): ", secs, frac); \
+		printf(fmt, ## __VA_ARGS__); } while (0)
 #else
 #define DPRINTF(fmt, ...)
 #endif
@@ -64,8 +69,7 @@
 enum
 {
 	TIMER_UP_COUNT     = 0,
-	TIMER_DOWN_COUNT   = 1,
-	TIMER_CENTER_COUNT = 2
+	TIMER_DOWN_COUNT   = 1
 };
 
 typedef struct {
@@ -87,6 +91,7 @@ typedef struct {
     Stm32Gpio **stm32_gpio;
     Stm32Afio *stm32_afio;
 
+	int running;
 	int countMode;
 	int itr;
 
@@ -99,7 +104,7 @@ typedef struct {
 	uint32_t ccmr1;
 	uint32_t ccmr2;
 	uint32_t ccer;
-	uint32_t cnt;
+	/* uint32_t cnt; Handled by ptimer */
 	uint32_t psc;
 	uint32_t apr;
 	/* uint32_t rcr; Repetition count not supported */
@@ -112,32 +117,6 @@ typedef struct {
 	/* uint32_t dmar; DMA mode not supported */
 
 } Stm32Timer;
-
-static void stm32_timer_update(Stm32Timer *s)
-{
-    //qemu_set_irq(s->irq, s->is & s->im);
-}
-
-static void stm32_timer_tick(void *opaque)
-{
-    Stm32Timer *s = (Stm32Timer *)opaque;
-    DPRINTF("%sAlarm raised\n", stm32_periph_name(s->periph));
-    s->itr = 1;
-    stm32_timer_update(s);
-}
-
-static uint32_t stm32_timer_get_count(Stm32Timer *s)
-{
-	uint64_t cnt = ptimer_get_count(s->timer);
-	if (s->countMode == TIMER_UP_COUNT)
-	{
-		return s->apr - (cnt & 0xfffff);
-	}
-	else
-	{
-		return (cnt & 0xffff);
-	}
-}
 
 static void stm32_timer_freq(Stm32Timer *s)
 {
@@ -153,6 +132,31 @@ static void stm32_timer_freq(Stm32Timer *s)
 	ptimer_set_freq(s->timer, clk_freq);
 }
 
+static uint32_t stm32_timer_get_count(Stm32Timer *s)
+{
+	uint64_t cnt = ptimer_get_count(s->timer);
+	if (s->countMode == TIMER_UP_COUNT)
+	{
+		return s->apr - (cnt & 0xfffff);
+	}
+	else
+	{
+		return (cnt & 0xffff);
+	}
+}
+
+static uint32_t stm32_timer_set_count(Stm32Timer *s, uint32_t cnt)
+{
+	if (s->countMode == TIMER_UP_COUNT)
+	{
+		ptimer_set_count(s->timer, s->apr - (cnt & 0xfffff));
+	}
+	else
+	{
+		ptimer_set_count(s->timer, cnt & 0xffff);
+	}
+}
+
 static void stm32_timer_clk_irq_handler(void *opaque, int n, int level)
 {
     Stm32Timer *s = (Stm32Timer *)opaque;
@@ -160,6 +164,72 @@ static void stm32_timer_clk_irq_handler(void *opaque, int n, int level)
     assert(n == 0);
 
 	stm32_timer_freq(s);
+}
+
+static void stm32_timer_update(Stm32Timer *s)
+{
+	stm32_timer_freq(s);
+
+	if (s->cr1 & 0x10) /* dir bit */
+	{
+		s->countMode = TIMER_DOWN_COUNT;
+	}
+	else
+	{
+		s->countMode = TIMER_UP_COUNT;
+	}
+
+	if (s->cr1 & 0x060) /* CMS */
+	{
+		s->countMode = TIMER_UP_COUNT;
+	}
+
+	if (s->cr1 & 0x01) /* timer enable */
+	{
+		ptimer_run(s->timer, !(s->cr1 & 0x04));
+	}
+	else
+	{
+		ptimer_stop(s->timer);
+	}
+}
+
+static void stm32_timer_tick(void *opaque)
+{
+    Stm32Timer *s = (Stm32Timer *)opaque;
+    DPRINTF("%s Alarm raised\n", stm32_periph_name(s->periph));
+    s->itr = 1;
+	s->sr |= 0x1; /* update interrupt flag in status reg */
+
+	if (s->countMode == TIMER_UP_COUNT)
+	{
+		stm32_timer_set_count(s, 0);
+	}
+	else
+	{
+		stm32_timer_set_count(s, s->apr);
+	}
+
+	if (s->cr1 & 0x0300) /* CMS */
+	{
+		if (s->countMode == TIMER_UP_COUNT)
+		{
+			s->countMode = TIMER_DOWN_COUNT;
+		}
+		else
+		{
+			s->countMode = TIMER_UP_COUNT;
+		}
+	}
+
+	if (s->cr1 & 0x04) /* one shot */
+	{
+		s->cr1 &= 0xFFFE;
+	}
+	else
+	{
+		stm32_timer_update(s);
+	}
 }
 
 static uint64_t stm32_timer_read(void *opaque, hwaddr offset,
@@ -196,8 +266,8 @@ static uint64_t stm32_timer_read(void *opaque, hwaddr offset,
         DPRINTF("%s ccer = %x\n", stm32_periph_name(s->periph), s->ccer);
 		return s->ccer;
 	case TIMER_CNT_OFFSET:
-        DPRINTF("%s cnt = %x\n", stm32_periph_name(s->periph), s->cnt);
-		return s->cnt;
+        //DPRINTF("%s cnt = %x\n", stm32_periph_name(s->periph), stm32_timer_get_count(s));
+		return stm32_timer_get_count(s);
 	case TIMER_PSC_OFFSET:
         DPRINTF("%s psc = %x\n", stm32_periph_name(s->periph), s->psc);
 		return s->psc;
@@ -260,11 +330,20 @@ static void stm32_timer_write(void * opaque, hwaddr offset,
         DPRINTF("%s dier = %x\n", stm32_periph_name(s->periph), s->dier);
 		break;
 	case TIMER_SR_OFFSET:
-		s->sr = value & 0x1E5F;
+		s->sr ^= (value ^ 0xFFFF);
+		s->sr &= 0x1eFF;
         DPRINTF("%s sr = %x\n", stm32_periph_name(s->periph), s->sr);
 		break;
 	case TIMER_EGR_OFFSET:
-		s->egr = value & 0x5F;
+		s->egr = value & 0x1E;
+		if (s->egr & 0x40) {
+			/* TG bit */
+			s->sr |= 0x40;
+		}
+		if (s->egr & 0x1) {
+			 /* UG bit - reload count */
+			ptimer_set_limit(s->timer, s->apr, 1);
+		}
         DPRINTF("%s egr = %x\n", stm32_periph_name(s->periph), s->egr);
 		break;
 	case TIMER_CCMR1_OFFSET:
@@ -280,8 +359,8 @@ static void stm32_timer_write(void * opaque, hwaddr offset,
         DPRINTF("%s ccer = %x\n", stm32_periph_name(s->periph), s->ccer);
 		break;
 	case TIMER_CNT_OFFSET:
-		s->cnt = value & 0xffff;
-        DPRINTF("%s cnt = %x\n", stm32_periph_name(s->periph), s->cnt);
+		stm32_timer_set_count(s, value & 0xffff);
+        DPRINTF("%s cnt = %x\n", stm32_periph_name(s->periph), stm32_timer_get_count(s));
 		break;
 	case TIMER_PSC_OFFSET:
 		s->psc = value & 0xffff;
@@ -290,6 +369,7 @@ static void stm32_timer_write(void * opaque, hwaddr offset,
 		break;
 	case TIMER_APR_OFFSET:
 		s->apr = value & 0xffff;
+		ptimer_set_limit(s->timer, s->apr, 1);
         DPRINTF("%s apr = %x\n", stm32_periph_name(s->periph), s->apr);
 		break;
 	case TIMER_RCR_OFFSET:
@@ -364,7 +444,6 @@ static int stm32_timer_init(SysBusDevice *dev)
 	s->ccmr1 = 0;
 	s->ccmr2 = 0;
 	s->ccer  = 0;
-	s->cnt   = 0;
 	s->psc   = 0;
 	s->apr   = 0;
 	s->ccr1  = 0;

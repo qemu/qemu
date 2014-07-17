@@ -150,6 +150,7 @@ const char *stm32_periph_name(stm32_periph_t periph);
 #define TIM1_CC_IRQn      27     /*!< TIM1 Capture Compare Interrupt                       */
 #define TIM2_IRQn         28     /*!< TIM2 global Interrupt                                */
 #define TIM3_IRQn         29     /*!< TIM3 global Interrupt                                */
+#define TIM4_IRQn         30     /*!< TIM4 global Interrupt                                */
 
 #define STM32_EXTI15_10_IRQ 40
 #define STM32_PVD_IRQ 1

@@ -219,7 +219,7 @@ static void stm32_rcc_periph_enable(
                     int periph,
                     uint32_t bit_pos)
 {
-    stm32clktree_set_enabled(s->PERIPHCLK[periph], new_value & BIT(bit_pos));
+    stm32_clktree_set_enabled(s->PERIPHCLK[periph], new_value & BIT(bit_pos));
 }
 
 
@@ -232,9 +232,9 @@ static void stm32_rcc_periph_enable(
 static uint32_t stm32_rcc_RCC_CR_read(Stm32Rcc *s)
 {
     /* Get the status of the clocks. */
-    int pllon_bit = stm32clktree_is_enabled(s->PLLCLK) ? 1 : 0;
-    int hseon_bit = stm32clktree_is_enabled(s->HSECLK) ? 1 : 0;
-    int hsion_bit = stm32clktree_is_enabled(s->HSICLK) ? 1 : 0;
+    int pllon_bit = stm32_clktree_is_enabled(s->PLLCLK) ? 1 : 0;
+    int hseon_bit = stm32_clktree_is_enabled(s->HSECLK) ? 1 : 0;
+    int hsion_bit = stm32_clktree_is_enabled(s->HSICLK) ? 1 : 0;
 
     /* build the register value based on the clock states.  If a clock is on,
      * then its ready bit is always set.
@@ -257,31 +257,31 @@ static void stm32_rcc_RCC_CR_write(Stm32Rcc *s, uint32_t new_value, bool init)
     bool new_pllon, new_hseon, new_hsion;
 
     new_pllon = new_value & BIT(RCC_CR_PLLON_BIT);
-    if((stm32clktree_is_enabled(s->PLLCLK) && !new_pllon) &&
+    if((stm32_clktree_is_enabled(s->PLLCLK) && !new_pllon) &&
        s->RCC_CFGR_SW == SW_PLL_SELECTED) {
         stm32_hw_warn("PLL cannot be disabled while it is selected as the system clock.");
     }
-    stm32clktree_set_enabled(s->PLLCLK, new_pllon);
+    stm32_clktree_set_enabled(s->PLLCLK, new_pllon);
 
     new_hseon = new_value & BIT(RCC_CR_HSEON_BIT);
-    if((stm32clktree_is_enabled(s->HSECLK) && !new_hseon) &&
+    if((stm32_clktree_is_enabled(s->HSECLK) && !new_hseon) &&
        (s->RCC_CFGR_SW == SW_HSE_SELECTED ||
         (s->RCC_CFGR_SW == SW_PLL_SELECTED && s->RCC_CFGR_PLLSRC == PLLSRC_HSE_SELECTED)
        )
       ) {
         stm32_hw_warn("HSE oscillator cannot be disabled while it is driving the system clock.");
     }
-    stm32clktree_set_enabled(s->HSECLK, new_hseon);
+    stm32_clktree_set_enabled(s->HSECLK, new_hseon);
 
     new_hsion = new_value & BIT(RCC_CR_HSION_BIT);
-    if((stm32clktree_is_enabled(s->HSECLK) && !new_hseon) &&
+    if((stm32_clktree_is_enabled(s->HSECLK) && !new_hseon) &&
        (s->RCC_CFGR_SW == SW_HSI_SELECTED ||
         (s->RCC_CFGR_SW == SW_PLL_SELECTED && s->RCC_CFGR_PLLSRC == PLLSRC_HSI_SELECTED)
        )
       ) {
         stm32_hw_warn("HSI oscillator cannot be disabled while it is driving the system clock.");
     }
-    stm32clktree_set_enabled(s->HSICLK, new_hsion);
+    stm32_clktree_set_enabled(s->HSICLK, new_hsion);
 }
 
 
@@ -307,63 +307,63 @@ static void stm32_rcc_RCC_CFGR_write(Stm32Rcc *s, uint32_t new_value, bool init)
                            RCC_CFGR_PLLMUL_START,
                            RCC_CFGR_PLLMUL_LENGTH);
     if(!init) {
-          if(stm32clktree_is_enabled(s->PLLCLK) &&
+          if(stm32_clktree_is_enabled(s->PLLCLK) &&
            (new_PLLMUL != s->RCC_CFGR_PLLMUL)) {
                stm32_hw_warn("Can only change PLLMUL while PLL is disabled");
           }
     }
     assert(new_PLLMUL <= 0xf);
     if(new_PLLMUL == 0xf) {
-        stm32clktree_set_scale(s->PLLCLK, 16, 1);
+        stm32_clktree_set_scale(s->PLLCLK, 16, 1);
     } else {
-        stm32clktree_set_scale(s->PLLCLK, new_PLLMUL + 2, 1);
+        stm32_clktree_set_scale(s->PLLCLK, new_PLLMUL + 2, 1);
     }
     s->RCC_CFGR_PLLMUL = new_PLLMUL;
 
     /* PLLXTPRE */
     new_PLLXTPRE = extract32(new_value, RCC_CFGR_PLLXTPRE_BIT, 1);
     if(!init) {
-        if(stm32clktree_is_enabled(s->PLLCLK) &&
+        if(stm32_clktree_is_enabled(s->PLLCLK) &&
            (new_PLLXTPRE != s->RCC_CFGR_PLLXTPRE)) {
             stm32_hw_warn("Can only change PLLXTPRE while PLL is disabled");
         }
     }
-    stm32clktree_set_selected_input(s->PLLXTPRECLK, new_PLLXTPRE);
+    stm32_clktree_set_selected_input(s->PLLXTPRECLK, new_PLLXTPRE);
     s->RCC_CFGR_PLLXTPRE = new_PLLXTPRE;
 
     /* PLLSRC */
     new_PLLSRC = extract32(new_value, RCC_CFGR_PLLSRC_BIT, 1);
     if(!init) {
-        if(stm32clktree_is_enabled(s->PLLCLK) &&
+        if(stm32_clktree_is_enabled(s->PLLCLK) &&
            (new_PLLSRC != s->RCC_CFGR_PLLSRC)) {
             stm32_hw_warn("Can only change PLLSRC while PLL is disabled");
         }
     }
-    stm32clktree_set_selected_input(s->PLLCLK, new_PLLSRC);
+    stm32_clktree_set_selected_input(s->PLLCLK, new_PLLSRC);
     s->RCC_CFGR_PLLSRC = new_PLLSRC;
 
     /* PPRE2 */
     s->RCC_CFGR_PPRE2 = (new_value & RCC_CFGR_PPRE2_MASK) >> RCC_CFGR_PPRE2_START;
     if(s->RCC_CFGR_PPRE2 < 0x4) {
-        stm32clktree_set_scale(s->PCLK2, 1, 1);
+        stm32_clktree_set_scale(s->PCLK2, 1, 1);
     } else {
-        stm32clktree_set_scale(s->PCLK2, 1, 2 * (s->RCC_CFGR_PPRE2 - 3));
+        stm32_clktree_set_scale(s->PCLK2, 1, 2 * (s->RCC_CFGR_PPRE2 - 3));
     }
 
     /* PPRE1 */
     s->RCC_CFGR_PPRE1 = (new_value & RCC_CFGR_PPRE1_MASK) >> RCC_CFGR_PPRE1_START;
     if(s->RCC_CFGR_PPRE1 < 4) {
-        stm32clktree_set_scale(s->PCLK1, 1, 1);
+        stm32_clktree_set_scale(s->PCLK1, 1, 1);
     } else {
-        stm32clktree_set_scale(s->PCLK1, 1, 2 * (s->RCC_CFGR_PPRE1 - 3));
+        stm32_clktree_set_scale(s->PCLK1, 1, 2 * (s->RCC_CFGR_PPRE1 - 3));
     }
 
     /* HPRE */
     s->RCC_CFGR_HPRE = (new_value & RCC_CFGR_HPRE_MASK) >> RCC_CFGR_HPRE_START;
     if(s->RCC_CFGR_HPRE < 8) {
-        stm32clktree_set_scale(s->HCLK, 1, 1);
+        stm32_clktree_set_scale(s->HCLK, 1, 1);
     } else {
-        stm32clktree_set_scale(s->HCLK, 1, 2 * (s->RCC_CFGR_HPRE - 7));
+        stm32_clktree_set_scale(s->HCLK, 1, 2 * (s->RCC_CFGR_HPRE - 7));
     }
 
     /* SW */
@@ -372,7 +372,7 @@ static void stm32_rcc_RCC_CFGR_write(Stm32Rcc *s, uint32_t new_value, bool init)
         case 0x0:
         case 0x1:
         case 0x2:
-            stm32clktree_set_selected_input(s->SYSCLK, s->RCC_CFGR_SW);
+            stm32_clktree_set_selected_input(s->SYSCLK, s->RCC_CFGR_SW);
             break;
         default:
             hw_error("Invalid input selected for SYSCLK");
@@ -444,7 +444,7 @@ static void stm32_rcc_RCC_APB1ENR_write(Stm32Rcc *s, uint32_t new_value,
 
 static uint32_t stm32_rcc_RCC_BDCR_read(Stm32Rcc *s)
 {
-    int lseon_bit = stm32clktree_is_enabled(s->LSECLK) ? 1 : 0;
+    int lseon_bit = stm32_clktree_is_enabled(s->LSECLK) ? 1 : 0;
 
     return lseon_bit << RCC_BDCR_LSERDY_BIT |
            lseon_bit << RCC_BDCR_LSEON_BIT;
@@ -452,13 +452,13 @@ static uint32_t stm32_rcc_RCC_BDCR_read(Stm32Rcc *s)
 
 static void stm32_rcc_RCC_BDCR_write(Stm32Rcc *s, uint32_t new_value, bool init)
 {
-    stm32clktree_set_enabled(s->LSECLK, new_value & BIT(RCC_BDCR_LSEON_BIT));
+    stm32_clktree_set_enabled(s->LSECLK, new_value & BIT(RCC_BDCR_LSEON_BIT));
 }
 
 /* Works the same way as stm32_rcc_RCC_CR_read */
 static uint32_t stm32_rcc_RCC_CSR_read(Stm32Rcc *s)
 {
-    int lseon_bit = stm32clktree_is_enabled(s->LSICLK) ? 1 : 0;
+    int lseon_bit = stm32_clktree_is_enabled(s->LSICLK) ? 1 : 0;
 
     return lseon_bit << RCC_CSR_LSIRDY_BIT |
            lseon_bit << RCC_CSR_LSION_BIT;
@@ -467,7 +467,7 @@ static uint32_t stm32_rcc_RCC_CSR_read(Stm32Rcc *s)
 /* Works the same way as stm32_rcc_RCC_CR_write */
 static void stm32_rcc_RCC_CSR_write(Stm32Rcc *s, uint32_t new_value, bool init)
 {
-    stm32clktree_set_enabled(s->LSICLK, new_value & BIT(RCC_CSR_LSION_BIT));
+    stm32_clktree_set_enabled(s->LSICLK, new_value & BIT(RCC_CSR_LSION_BIT));
 }
 
 
@@ -605,7 +605,7 @@ static void stm32_rcc_hclk_upd_irq_handler(void *opaque, int n, int level)
 
     uint32_t hclk_freq, ext_ref_freq;
 
-    hclk_freq = stm32clktree_get_output_freq(s->HCLK);
+    hclk_freq = stm32_clktree_get_output_freq(s->HCLK);
 
     /* Only update the scales if the frequency is not zero. */
     if(hclk_freq > 0) {
@@ -642,7 +642,7 @@ void stm32_rcc_check_periph_clk(Stm32Rcc *s, stm32_periph_t periph)
 
     assert(clk != NULL);
 
-    if(!stm32clktree_is_enabled(clk)) {
+    if(!stm32_clktree_is_enabled(clk)) {
         /* I assume writing to a peripheral register while the peripheral clock
          * is disabled is a bug and give a warning to unsuspecting programmers.
          * When I made this mistake on real hardware the write had no effect.
@@ -661,7 +661,7 @@ void stm32_rcc_set_periph_clk_irq(
 
     assert(clk != NULL);
 
-    stm32clktree_adduser(clk, periph_irq);
+    stm32_clktree_adduser(clk, periph_irq);
 }
 
 uint32_t stm32_rcc_get_periph_freq(
@@ -674,7 +674,7 @@ uint32_t stm32_rcc_get_periph_freq(
 
     assert(clk != NULL);
 
-    return stm32clktree_get_output_freq(clk);
+    return stm32_clktree_get_output_freq(clk);
 }
 
 
@@ -709,61 +709,61 @@ static void stm32_rcc_init_clk(Stm32Rcc *s)
      * a disabled oscillator.  Enabling the clock represents
      * turning the clock on.
      */
-    s->HSICLK = stm32clktree_create_src_clk("HSI", HSI_FREQ, false);
-    s->LSICLK = stm32clktree_create_src_clk("LSI", LSI_FREQ, false);
-    s->HSECLK = stm32clktree_create_src_clk("HSE", s->osc_freq, false);
-    s->LSECLK = stm32clktree_create_src_clk("LSE", s->osc32_freq, false);
+    s->HSICLK = stm32_clktree_create_src_clk("HSI", HSI_FREQ, false);
+    s->LSICLK = stm32_clktree_create_src_clk("LSI", LSI_FREQ, false);
+    s->HSECLK = stm32_clktree_create_src_clk("HSE", s->osc_freq, false);
+    s->LSECLK = stm32_clktree_create_src_clk("LSE", s->osc32_freq, false);
 
-    HSI_DIV2 = stm32clktree_create_clk("HSI/2", 1, 2, true, CLKTREE_NO_MAX_FREQ, 0,
+    HSI_DIV2 = stm32_clktree_create_clk("HSI/2", 1, 2, true, CLKTREE_NO_MAX_FREQ, 0,
                         s->HSICLK, NULL);
-    HSE_DIV2 = stm32clktree_create_clk("HSE/2", 1, 2, true, CLKTREE_NO_MAX_FREQ, 0,
+    HSE_DIV2 = stm32_clktree_create_clk("HSE/2", 1, 2, true, CLKTREE_NO_MAX_FREQ, 0,
                         s->HSECLK, NULL);
 
-    s->PLLXTPRECLK = stm32clktree_create_clk("PLLXTPRE", 1, 1, true, CLKTREE_NO_MAX_FREQ, CLKTREE_NO_INPUT,
+    s->PLLXTPRECLK = stm32_clktree_create_clk("PLLXTPRE", 1, 1, true, CLKTREE_NO_MAX_FREQ, CLKTREE_NO_INPUT,
                         s->HSECLK, HSE_DIV2, NULL);
     /* PLLCLK contains both the switch and the multiplier, which are shown as
      * two separate components in the clock tree diagram.
      */
-    s->PLLCLK = stm32clktree_create_clk("PLLCLK", 0, 1, false, 72000000, CLKTREE_NO_INPUT,
+    s->PLLCLK = stm32_clktree_create_clk("PLLCLK", 0, 1, false, 72000000, CLKTREE_NO_INPUT,
                         HSI_DIV2, s->PLLXTPRECLK, NULL);
 
-    s->SYSCLK = stm32clktree_create_clk("SYSCLK", 1, 1, true, 72000000, CLKTREE_NO_INPUT,
+    s->SYSCLK = stm32_clktree_create_clk("SYSCLK", 1, 1, true, 72000000, CLKTREE_NO_INPUT,
                         s->HSICLK, s->HSECLK, s->PLLCLK, NULL);
 
-    s->HCLK = stm32clktree_create_clk("HCLK", 0, 1, true, 72000000, 0,
+    s->HCLK = stm32_clktree_create_clk("HCLK", 0, 1, true, 72000000, 0,
                         s->SYSCLK, NULL);
-    stm32clktree_adduser(s->HCLK, hclk_upd_irq[0]);
+    stm32_clktree_adduser(s->HCLK, hclk_upd_irq[0]);
 
-    s->PCLK1 = stm32clktree_create_clk("PCLK1", 0, 1, true, 36000000, 0,
+    s->PCLK1 = stm32_clktree_create_clk("PCLK1", 0, 1, true, 36000000, 0,
                         s->HCLK, NULL);
-    s->PCLK2 = stm32clktree_create_clk("PCLK2", 0, 1, true, 72000000, 0,
+    s->PCLK2 = stm32_clktree_create_clk("PCLK2", 0, 1, true, 72000000, 0,
                         s->HCLK, NULL);
 
     /* Peripheral clocks */
-    s->PERIPHCLK[STM32_GPIOA] = stm32clktree_create_clk("GPIOA", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
-    s->PERIPHCLK[STM32_GPIOB] = stm32clktree_create_clk("GPIOB", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
-    s->PERIPHCLK[STM32_GPIOC] = stm32clktree_create_clk("GPIOC", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
-    s->PERIPHCLK[STM32_GPIOD] = stm32clktree_create_clk("GPIOD", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
-    s->PERIPHCLK[STM32_GPIOE] = stm32clktree_create_clk("GPIOE", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
-    s->PERIPHCLK[STM32_GPIOF] = stm32clktree_create_clk("GPIOF", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
-    s->PERIPHCLK[STM32_GPIOG] = stm32clktree_create_clk("GPIOG", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
+    s->PERIPHCLK[STM32_GPIOA] = stm32_clktree_create_clk("GPIOA", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
+    s->PERIPHCLK[STM32_GPIOB] = stm32_clktree_create_clk("GPIOB", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
+    s->PERIPHCLK[STM32_GPIOC] = stm32_clktree_create_clk("GPIOC", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
+    s->PERIPHCLK[STM32_GPIOD] = stm32_clktree_create_clk("GPIOD", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
+    s->PERIPHCLK[STM32_GPIOE] = stm32_clktree_create_clk("GPIOE", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
+    s->PERIPHCLK[STM32_GPIOF] = stm32_clktree_create_clk("GPIOF", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
+    s->PERIPHCLK[STM32_GPIOG] = stm32_clktree_create_clk("GPIOG", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
 
-    s->PERIPHCLK[STM32_AFIO_PERIPH] = stm32clktree_create_clk("AFIO", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
+    s->PERIPHCLK[STM32_AFIO_PERIPH] = stm32_clktree_create_clk("AFIO", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
 
-    s->PERIPHCLK[STM32_UART1] = stm32clktree_create_clk("UART1", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
-    s->PERIPHCLK[STM32_UART2] = stm32clktree_create_clk("UART2", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
-    s->PERIPHCLK[STM32_UART3] = stm32clktree_create_clk("UART3", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
-    s->PERIPHCLK[STM32_UART4] = stm32clktree_create_clk("UART4", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
-    s->PERIPHCLK[STM32_UART5] = stm32clktree_create_clk("UART5", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_UART1] = stm32_clktree_create_clk("UART1", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
+    s->PERIPHCLK[STM32_UART2] = stm32_clktree_create_clk("UART2", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_UART3] = stm32_clktree_create_clk("UART3", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_UART4] = stm32_clktree_create_clk("UART4", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_UART5] = stm32_clktree_create_clk("UART5", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
 
-    s->PERIPHCLK[STM32_TIM1] = stm32clktree_create_clk("TIM1", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
-    s->PERIPHCLK[STM32_TIM2] = stm32clktree_create_clk("TIM2", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
-    s->PERIPHCLK[STM32_TIM3] = stm32clktree_create_clk("TIM3", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
-    s->PERIPHCLK[STM32_TIM4] = stm32clktree_create_clk("TIM4", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
-    s->PERIPHCLK[STM32_TIM5] = stm32clktree_create_clk("TIM5", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
-    s->PERIPHCLK[STM32_TIM6] = stm32clktree_create_clk("TIM6", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
-    s->PERIPHCLK[STM32_TIM7] = stm32clktree_create_clk("TIM7", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
-    s->PERIPHCLK[STM32_TIM8] = stm32clktree_create_clk("TIM8", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
+    s->PERIPHCLK[STM32_TIM1] = stm32_clktree_create_clk("TIM1", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
+    s->PERIPHCLK[STM32_TIM2] = stm32_clktree_create_clk("TIM2", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_TIM3] = stm32_clktree_create_clk("TIM3", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_TIM4] = stm32_clktree_create_clk("TIM4", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_TIM5] = stm32_clktree_create_clk("TIM5", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_TIM6] = stm32_clktree_create_clk("TIM6", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_TIM7] = stm32_clktree_create_clk("TIM7", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_TIM8] = stm32_clktree_create_clk("TIM8", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
 }
 
 
