@@ -217,7 +217,9 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
         for (i = 0; i < dev->mem->nregions; ++i) {
             struct vhost_memory_region *reg = dev->mem->regions + i;
             ram_addr_t ram_addr;
-            qemu_ram_addr_from_host((void *)reg->userspace_addr, &ram_addr);
+
+            assert((uintptr_t)reg->userspace_addr == reg->userspace_addr);
+            qemu_ram_addr_from_host((void *)(uintptr_t)reg->userspace_addr, &ram_addr);
             fd = qemu_get_ram_fd(ram_addr);
             if (fd > 0) {
                 msg.memory.regions[fd_num].userspace_addr = reg->userspace_addr;
