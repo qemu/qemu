@@ -797,10 +797,18 @@ static void add_port(VirtIOSerial *vser, uint32_t port_id)
 static void remove_port(VirtIOSerial *vser, uint32_t port_id)
 {
     VirtIOSerialPort *port;
-    unsigned int i;
 
-    i = port_id / 32;
-    vser->ports_map[i] &= ~(1U << (port_id % 32));
+    /*
+     * Don't mark port 0 removed -- we explicitly reserve it for
+     * backward compat with older guests, ensure a virtconsole device
+     * unplug retains the reservation.
+     */
+    if (port_id) {
+        unsigned int i;
+
+        i = port_id / 32;
+        vser->ports_map[i] &= ~(1U << (port_id % 32));
+    }
 
     port = find_port_by_id(vser, port_id);
     /*
