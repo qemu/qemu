@@ -246,7 +246,6 @@ static int read_password(char *buf, int buf_size)
             if (errno == EAGAIN || errno == EINTR) {
                 continue;
             } else {
-                ret = -1;
                 break;
             }
         } else if (ret == 0) {

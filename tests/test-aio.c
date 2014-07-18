@@ -15,7 +15,7 @@
 #include "qemu/timer.h"
 #include "qemu/sockets.h"
 
-AioContext *ctx;
+static AioContext *ctx;
 
 typedef struct {
     EventNotifier e;

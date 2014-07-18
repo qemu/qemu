@@ -29,8 +29,8 @@
 #include "migration/vmstate.h"
 #include "block/coroutine.h"
 
-char temp_file[] = "/tmp/vmst.test.XXXXXX";
-int temp_fd;
+static char temp_file[] = "/tmp/vmst.test.XXXXXX";
+static int temp_fd;
 
 /* Fake yield_until_fd_readable() implementation so we don't have to pull the
  * coroutine code as dependency.

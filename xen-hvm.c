@@ -165,7 +165,7 @@ static void xen_ram_init(ram_addr_t *below_4g_mem_size,
                                                    PC_MACHINE_MAX_RAM_BELOW_4G,
                                                    &error_abort);
 
-    /* Handle the machine opt max-ram-below-4g.  It is basicly doing
+    /* Handle the machine opt max-ram-below-4g.  It is basically doing
      * min(xen limit, user limit).
      */
     if (HVM_BELOW_4G_RAM_END <= user_lowmem) {
