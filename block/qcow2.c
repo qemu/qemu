@@ -210,20 +210,31 @@ static void GCC_FMT_ATTR(3, 4) report_unsupported(BlockDriverState *bs,
 static void report_unsupported_feature(BlockDriverState *bs,
     Error **errp, Qcow2Feature *table, uint64_t mask)
 {
+    char *features = g_strdup("");
+    char *old;
+
     while (table && table->name[0] != '\0') {
         if (table->type == QCOW2_FEAT_TYPE_INCOMPATIBLE) {
-            if (mask & (1 << table->bit)) {
-                report_unsupported(bs, errp, "%.46s", table->name);
-                mask &= ~(1 << table->bit);
+            if (mask & (1ULL << table->bit)) {
+                old = features;
+                features = g_strdup_printf("%s%s%.46s", old, *old ? ", " : "",
+                                           table->name);
+                g_free(old);
+                mask &= ~(1ULL << table->bit);
             }
         }
         table++;
     }
 
     if (mask) {
-        report_unsupported(bs, errp, "Unknown incompatible feature: %" PRIx64,
-                           mask);
+        old = features;
+        features = g_strdup_printf("%s%sUnknown incompatible feature: %" PRIx64,
+                                   old, *old ? ", " : "", mask);
+        g_free(old);
     }
+
+    report_unsupported(bs, errp, "%s", features);
+    g_free(features);
 }
 
 /*
@@ -855,13 +866,11 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     return ret;
 }
 
-static int qcow2_refresh_limits(BlockDriverState *bs)
+static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVQcowState *s = bs->opaque;
 
     bs->bl.write_zeroes_alignment = s->cluster_sectors;
-
-    return 0;
 }
 
 static int qcow2_set_key(BlockDriverState *bs, const char *key)

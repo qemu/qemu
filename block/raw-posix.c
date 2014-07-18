@@ -221,7 +221,7 @@ static int raw_normalize_devicepath(const char **filename)
 }
 #endif
 
-static void raw_probe_alignment(BlockDriverState *bs)
+static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     char *buf;
@@ -240,24 +240,24 @@ static void raw_probe_alignment(BlockDriverState *bs)
     s->buf_align = 0;
 
 #ifdef BLKSSZGET
-    if (ioctl(s->fd, BLKSSZGET, &sector_size) >= 0) {
+    if (ioctl(fd, BLKSSZGET, &sector_size) >= 0) {
         bs->request_alignment = sector_size;
     }
 #endif
 #ifdef DKIOCGETBLOCKSIZE
-    if (ioctl(s->fd, DKIOCGETBLOCKSIZE, &sector_size) >= 0) {
+    if (ioctl(fd, DKIOCGETBLOCKSIZE, &sector_size) >= 0) {
         bs->request_alignment = sector_size;
     }
 #endif
 #ifdef DIOCGSECTORSIZE
-    if (ioctl(s->fd, DIOCGSECTORSIZE, &sector_size) >= 0) {
+    if (ioctl(fd, DIOCGSECTORSIZE, &sector_size) >= 0) {
         bs->request_alignment = sector_size;
     }
 #endif
 #ifdef CONFIG_XFS
     if (s->is_xfs) {
         struct dioattr da;
-        if (xfsctl(NULL, s->fd, XFS_IOC_DIOINFO, &da) >= 0) {
+        if (xfsctl(NULL, fd, XFS_IOC_DIOINFO, &da) >= 0) {
             bs->request_alignment = da.d_miniosz;
             /* The kernel returns wrong information for d_mem */
             /* s->buf_align = da.d_mem; */
@@ -270,7 +270,7 @@ static void raw_probe_alignment(BlockDriverState *bs)
         size_t align;
         buf = qemu_memalign(MAX_BLOCKSIZE, 2 * MAX_BLOCKSIZE);
         for (align = 512; align <= MAX_BLOCKSIZE; align <<= 1) {
-            if (pread(s->fd, buf + align, MAX_BLOCKSIZE, 0) >= 0) {
+            if (pread(fd, buf + align, MAX_BLOCKSIZE, 0) >= 0) {
                 s->buf_align = align;
                 break;
             }
@@ -282,12 +282,17 @@ static void raw_probe_alignment(BlockDriverState *bs)
         size_t align;
         buf = qemu_memalign(s->buf_align, MAX_BLOCKSIZE);
         for (align = 512; align <= MAX_BLOCKSIZE; align <<= 1) {
-            if (pread(s->fd, buf, align, 0) >= 0) {
+            if (pread(fd, buf, align, 0) >= 0) {
                 bs->request_alignment = align;
                 break;
             }
         }
         qemu_vfree(buf);
+    }
+
+    if (!s->buf_align || !bs->request_alignment) {
+        error_setg(errp, "Could not find working O_DIRECT alignment. "
+                         "Try cache.direct=off.");
     }
 }
 
@@ -505,6 +510,7 @@ static int raw_reopen_prepare(BDRVReopenState *state,
     BDRVRawState *s;
     BDRVRawReopenState *raw_s;
     int ret = 0;
+    Error *local_err = NULL;
 
     assert(state != NULL);
     assert(state->bs != NULL);
@@ -577,6 +583,19 @@ static int raw_reopen_prepare(BDRVReopenState *state,
             ret = -1;
         }
     }
+
+    /* Fail already reopen_prepare() if we can't get a working O_DIRECT
+     * alignment with the new fd. */
+    if (raw_s->fd != -1) {
+        raw_probe_alignment(state->bs, raw_s->fd, &local_err);
+        if (local_err) {
+            qemu_close(raw_s->fd);
+            raw_s->fd = -1;
+            error_propagate(errp, local_err);
+            ret = -EINVAL;
+        }
+    }
+
     return ret;
 }
 
@@ -615,14 +634,12 @@ static void raw_reopen_abort(BDRVReopenState *state)
     state->opaque = NULL;
 }
 
-static int raw_refresh_limits(BlockDriverState *bs)
+static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
 
-    raw_probe_alignment(bs);
+    raw_probe_alignment(bs, s->fd, errp);
     bs->bl.opt_mem_alignment = s->buf_align;
-
-    return 0;
 }
 
 static ssize_t handle_aiocb_ioctl(RawPosixAIOData *aiocb)

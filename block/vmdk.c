@@ -938,7 +938,7 @@ fail:
 }
 
 
-static int vmdk_refresh_limits(BlockDriverState *bs)
+static void vmdk_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVVmdkState *s = bs->opaque;
     int i;
@@ -950,8 +950,6 @@ static int vmdk_refresh_limits(BlockDriverState *bs)
                     s->extents[i].cluster_sectors);
         }
     }
-
-    return 0;
 }
 
 static int get_whole_cluster(BlockDriverState *bs,
