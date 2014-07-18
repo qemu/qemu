@@ -10,6 +10,8 @@
 #include <stdarg.h>
 #include "qemu/sockets.h" /* for EINPROGRESS on Windows */
 #include "block/block_int.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qstring.h"
 
 typedef struct {
     BlockDriverState *test_file;
@@ -320,6 +322,32 @@ static void blkverify_attach_aio_context(BlockDriverState *bs,
     bdrv_attach_aio_context(s->test_file, new_context);
 }
 
+static void blkverify_refresh_filename(BlockDriverState *bs)
+{
+    BDRVBlkverifyState *s = bs->opaque;
+
+    /* bs->file has already been refreshed */
+    bdrv_refresh_filename(s->test_file);
+
+    if (bs->file->full_open_options && s->test_file->full_open_options) {
+        QDict *opts = qdict_new();
+        qdict_put_obj(opts, "driver", QOBJECT(qstring_from_str("blkverify")));
+
+        QINCREF(bs->file->full_open_options);
+        qdict_put_obj(opts, "raw", QOBJECT(bs->file->full_open_options));
+        QINCREF(s->test_file->full_open_options);
+        qdict_put_obj(opts, "test", QOBJECT(s->test_file->full_open_options));
+
+        bs->full_open_options = opts;
+    }
+
+    if (bs->file->exact_filename[0] && s->test_file->exact_filename[0]) {
+        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+                 "blkverify:%s:%s",
+                 bs->file->exact_filename, s->test_file->exact_filename);
+    }
+}
+
 static BlockDriver bdrv_blkverify = {
     .format_name                      = "blkverify",
     .protocol_name                    = "blkverify",
@@ -329,6 +357,7 @@ static BlockDriver bdrv_blkverify = {
     .bdrv_file_open                   = blkverify_open,
     .bdrv_close                       = blkverify_close,
     .bdrv_getlength                   = blkverify_getlength,
+    .bdrv_refresh_filename            = blkverify_refresh_filename,
 
     .bdrv_aio_readv                   = blkverify_aio_readv,
     .bdrv_aio_writev                  = blkverify_aio_writev,
