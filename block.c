@@ -964,6 +964,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     } else {
         bs->filename[0] = '\0';
     }
+    pstrcpy(bs->exact_filename, sizeof(bs->exact_filename), bs->filename);
 
     bs->drv = drv;
     bs->opaque = g_malloc0(drv->instance_size);
@@ -1505,6 +1506,8 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         }
     }
 
+    bdrv_refresh_filename(bs);
+
     /* For snapshot=on, create a temporary qcow2 overlay. bs points to the
      * temporary snapshot afterwards. */
     if (snapshot_flags) {
@@ -1845,6 +1848,8 @@ void bdrv_close(BlockDriverState *bs)
         bs->zero_beyond_eof = false;
         QDECREF(bs->options);
         bs->options = NULL;
+        QDECREF(bs->full_open_options);
+        bs->full_open_options = NULL;
 
         if (bs->file != NULL) {
             bdrv_unref(bs->file);
@@ -5892,5 +5897,135 @@ void bdrv_flush_io_queue(BlockDriverState *bs)
         drv->bdrv_flush_io_queue(bs);
     } else if (bs->file) {
         bdrv_flush_io_queue(bs->file);
+    }
+}
+
+static bool append_open_options(QDict *d, BlockDriverState *bs)
+{
+    const QDictEntry *entry;
+    bool found_any = false;
+
+    for (entry = qdict_first(bs->options); entry;
+         entry = qdict_next(bs->options, entry))
+    {
+        /* Only take options for this level and exclude all non-driver-specific
+         * options */
+        if (!strchr(qdict_entry_key(entry), '.') &&
+            strcmp(qdict_entry_key(entry), "node-name"))
+        {
+            qobject_incref(qdict_entry_value(entry));
+            qdict_put_obj(d, qdict_entry_key(entry), qdict_entry_value(entry));
+            found_any = true;
+        }
+    }
+
+    return found_any;
+}
+
+/* Updates the following BDS fields:
+ *  - exact_filename: A filename which may be used for opening a block device
+ *                    which (mostly) equals the given BDS (even without any
+ *                    other options; so reading and writing must return the same
+ *                    results, but caching etc. may be different)
+ *  - full_open_options: Options which, when given when opening a block device
+ *                       (without a filename), result in a BDS (mostly)
+ *                       equalling the given one
+ *  - filename: If exact_filename is set, it is copied here. Otherwise,
+ *              full_open_options is converted to a JSON object, prefixed with
+ *              "json:" (for use through the JSON pseudo protocol) and put here.
+ */
+void bdrv_refresh_filename(BlockDriverState *bs)
+{
+    BlockDriver *drv = bs->drv;
+    QDict *opts;
+
+    if (!drv) {
+        return;
+    }
+
+    /* This BDS's file name will most probably depend on its file's name, so
+     * refresh that first */
+    if (bs->file) {
+        bdrv_refresh_filename(bs->file);
+    }
+
+    if (drv->bdrv_refresh_filename) {
+        /* Obsolete information is of no use here, so drop the old file name
+         * information before refreshing it */
+        bs->exact_filename[0] = '\0';
+        if (bs->full_open_options) {
+            QDECREF(bs->full_open_options);
+            bs->full_open_options = NULL;
+        }
+
+        drv->bdrv_refresh_filename(bs);
+    } else if (bs->file) {
+        /* Try to reconstruct valid information from the underlying file */
+        bool has_open_options;
+
+        bs->exact_filename[0] = '\0';
+        if (bs->full_open_options) {
+            QDECREF(bs->full_open_options);
+            bs->full_open_options = NULL;
+        }
+
+        opts = qdict_new();
+        has_open_options = append_open_options(opts, bs);
+
+        /* If no specific options have been given for this BDS, the filename of
+         * the underlying file should suffice for this one as well */
+        if (bs->file->exact_filename[0] && !has_open_options) {
+            strcpy(bs->exact_filename, bs->file->exact_filename);
+        }
+        /* Reconstructing the full options QDict is simple for most format block
+         * drivers, as long as the full options are known for the underlying
+         * file BDS. The full options QDict of that file BDS should somehow
+         * contain a representation of the filename, therefore the following
+         * suffices without querying the (exact_)filename of this BDS. */
+        if (bs->file->full_open_options) {
+            qdict_put_obj(opts, "driver",
+                          QOBJECT(qstring_from_str(drv->format_name)));
+            QINCREF(bs->file->full_open_options);
+            qdict_put_obj(opts, "file", QOBJECT(bs->file->full_open_options));
+
+            bs->full_open_options = opts;
+        } else {
+            QDECREF(opts);
+        }
+    } else if (!bs->full_open_options && qdict_size(bs->options)) {
+        /* There is no underlying file BDS (at least referenced by BDS.file),
+         * so the full options QDict should be equal to the options given
+         * specifically for this block device when it was opened (plus the
+         * driver specification).
+         * Because those options don't change, there is no need to update
+         * full_open_options when it's already set. */
+
+        opts = qdict_new();
+        append_open_options(opts, bs);
+        qdict_put_obj(opts, "driver",
+                      QOBJECT(qstring_from_str(drv->format_name)));
+
+        if (bs->exact_filename[0]) {
+            /* This may not work for all block protocol drivers (some may
+             * require this filename to be parsed), but we have to find some
+             * default solution here, so just include it. If some block driver
+             * does not support pure options without any filename at all or
+             * needs some special format of the options QDict, it needs to
+             * implement the driver-specific bdrv_refresh_filename() function.
+             */
+            qdict_put_obj(opts, "filename",
+                          QOBJECT(qstring_from_str(bs->exact_filename)));
+        }
+
+        bs->full_open_options = opts;
+    }
+
+    if (bs->exact_filename[0]) {
+        pstrcpy(bs->filename, sizeof(bs->filename), bs->exact_filename);
+    } else if (bs->full_open_options) {
+        QString *json = qobject_to_json(QOBJECT(bs->full_open_options));
+        snprintf(bs->filename, sizeof(bs->filename), "json:%s",
+                 qstring_get_str(json));
+        QDECREF(json);
     }
 }
