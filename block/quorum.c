@@ -16,7 +16,12 @@
 #include <gnutls/gnutls.h>
 #include <gnutls/crypto.h>
 #include "block/block_int.h"
+#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qint.h"
 #include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qstring.h"
 #include "qapi-event.h"
 
 #define HASH_LENGTH 32
@@ -945,6 +950,39 @@ static void quorum_attach_aio_context(BlockDriverState *bs,
     }
 }
 
+static void quorum_refresh_filename(BlockDriverState *bs)
+{
+    BDRVQuorumState *s = bs->opaque;
+    QDict *opts;
+    QList *children;
+    int i;
+
+    for (i = 0; i < s->num_children; i++) {
+        bdrv_refresh_filename(s->bs[i]);
+        if (!s->bs[i]->full_open_options) {
+            return;
+        }
+    }
+
+    children = qlist_new();
+    for (i = 0; i < s->num_children; i++) {
+        QINCREF(s->bs[i]->full_open_options);
+        qlist_append_obj(children, QOBJECT(s->bs[i]->full_open_options));
+    }
+
+    opts = qdict_new();
+    qdict_put_obj(opts, "driver", QOBJECT(qstring_from_str("quorum")));
+    qdict_put_obj(opts, QUORUM_OPT_VOTE_THRESHOLD,
+                  QOBJECT(qint_from_int(s->threshold)));
+    qdict_put_obj(opts, QUORUM_OPT_BLKVERIFY,
+                  QOBJECT(qbool_from_int(s->is_blkverify)));
+    qdict_put_obj(opts, QUORUM_OPT_REWRITE,
+                  QOBJECT(qbool_from_int(s->rewrite_corrupted)));
+    qdict_put_obj(opts, "children", QOBJECT(children));
+
+    bs->full_open_options = opts;
+}
+
 static BlockDriver bdrv_quorum = {
     .format_name                        = "quorum",
     .protocol_name                      = "quorum",
@@ -953,6 +991,7 @@ static BlockDriver bdrv_quorum = {
 
     .bdrv_file_open                     = quorum_open,
     .bdrv_close                         = quorum_close,
+    .bdrv_refresh_filename              = quorum_refresh_filename,
 
     .bdrv_co_flush_to_disk              = quorum_co_flush,
 
