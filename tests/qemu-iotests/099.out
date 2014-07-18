@@ -1,0 +1,20 @@
+QA output created by 099
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072 
+Formatting 'TEST_DIR/t.IMGFMT.compare', fmt=raw size=131072 
+
+=== Testing simple filename for blkverify ===
+
+blkverify:TEST_DIR/t.IMGFMT.compare:TEST_DIR/t.IMGFMT
+
+=== Testing filename reconstruction for blkverify ===
+
+blkverify:TEST_DIR/t.IMGFMT.compare:TEST_DIR/t.IMGFMT
+
+=== Testing JSON filename for blkdebug ===
+
+json:{"driver": "IMGFMT", "file": {"inject-error": [{"immediately": false, "once": false, "state": 0, "sector": -1, "event": "l1_update", "errno": 5}], "image": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}, "driver": "blkdebug"}}
+
+=== Testing indirectly enforced JSON filename ===
+
+json:{"driver": "raw", "file": {"test": {"driver": "IMGFMT", "file": {"inject-error": [{"immediately": false, "once": false, "state": 0, "sector": -1, "event": "l1_update", "errno": 5}], "image": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}, "driver": "blkdebug"}}, "driver": "blkverify", "raw": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.compare"}}}
+*** done

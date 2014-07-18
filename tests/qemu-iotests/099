@@ -1,0 +1,116 @@
+#!/bin/bash
+#
+# Test valid filenames for blkdebug and blkverify representatively for
+# other protocols (such as NBD) when queried
+#
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+# Basically all formats, but "raw" has issues with _filter_imgfmt regarding the
+# raw comparison image for blkverify; also, all images have to support creation
+_supported_fmt cow qcow qcow2 qed vdi vhdx vmdk vpc
+_supported_proto file
+_supported_os Linux
+
+
+function do_run_qemu()
+{
+    $QEMU -nographic -qmp stdio -serial none "$@"
+}
+
+function run_qemu()
+{
+    # Get the "file": "foo" entry ($foo may only contain escaped double quotes,
+    # which is how we can extract it)
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_imgfmt | _filter_qmp \
+        | grep "drv0" \
+        | sed -e 's/^.*"file": "\(\(\\"\|[^"]\)*\)".*$/\1/' -e 's/\\"/"/g'
+}
+
+function test_qemu()
+{
+    run_qemu -drive "if=none,id=drv0,$1" <<EOF
+        { 'execute': 'qmp_capabilities' }
+        { 'execute': 'query-block' }
+        { 'execute': 'quit' }
+EOF
+}
+
+
+
+IMG_SIZE=128K
+
+_make_test_img $IMG_SIZE
+$QEMU_IMG create -f raw "$TEST_IMG.compare" $IMG_SIZE \
+    | _filter_testdir | _filter_imgfmt
+
+echo
+echo '=== Testing simple filename for blkverify ==='
+echo
+
+# This should return simply the filename itself
+test_qemu "file=blkverify:$TEST_IMG.compare:$TEST_IMG"
+
+echo
+echo '=== Testing filename reconstruction for blkverify ==='
+echo
+
+# This should return the same filename as above
+test_qemu "file.driver=blkverify,file.raw.filename=$TEST_IMG.compare,file.test.file.filename=$TEST_IMG"
+
+echo
+echo '=== Testing JSON filename for blkdebug ==='
+echo
+
+# blkdebug cannot create a configuration file, therefore it is unable to
+# generate a plain filename here; thus this should return a JSON filename
+test_qemu "file.driver=blkdebug,file.image.filename=$TEST_IMG,file.inject-error.0.event=l1_update"
+
+echo
+echo '=== Testing indirectly enforced JSON filename ==='
+echo
+
+# Because blkdebug cannot return a plain filename, blkverify is forced to
+# generate a JSON object here as well
+test_qemu "file.driver=blkverify,file.raw.filename=$TEST_IMG.compare,file.test.file.driver=blkdebug,file.test.file.image.filename=$TEST_IMG,file.test.file.inject-error.0.event=l1_update"
+
+
+rm -f "$TEST_IMG.compare"
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
