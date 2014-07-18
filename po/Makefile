@@ -4,6 +4,11 @@
 # Set SRC_PATH for in-tree builds without configuration.
 SRC_PATH=..
 
+# The default target must come before any include statements.
+all:
+
+.PHONY:	all build clean install update
+
 -include ../config-host.mak
 include $(SRC_PATH)/rules.mak
 
@@ -45,5 +50,3 @@ $(PO_PATH)/messages.po: $(SRC_PATH)/ui/gtk.c
 
 $(PO_PATH)/%.po: $(PO_PATH)/messages.po
 	$(call quiet-command, msgmerge -q $@ $< > $@.bak && mv $@.bak $@, "  GEN   $@")
-
-.PHONY: clean all
