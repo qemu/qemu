@@ -26,6 +26,10 @@
 #include "qemu/config-file.h"
 #include "block/block_int.h"
 #include "qemu/module.h"
+#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qint.h"
+#include "qapi/qmp/qstring.h"
 
 typedef struct BDRVBlkdebugState {
     int state;
@@ -706,6 +710,98 @@ static int64_t blkdebug_getlength(BlockDriverState *bs)
     return bdrv_getlength(bs->file);
 }
 
+static void blkdebug_refresh_filename(BlockDriverState *bs)
+{
+    BDRVBlkdebugState *s = bs->opaque;
+    struct BlkdebugRule *rule;
+    QDict *opts;
+    QList *inject_error_list = NULL, *set_state_list = NULL;
+    QList *suspend_list = NULL;
+    int event;
+
+    if (!bs->file->full_open_options) {
+        /* The config file cannot be recreated, so creating a plain filename
+         * is impossible */
+        return;
+    }
+
+    opts = qdict_new();
+    qdict_put_obj(opts, "driver", QOBJECT(qstring_from_str("blkdebug")));
+
+    QINCREF(bs->file->full_open_options);
+    qdict_put_obj(opts, "image", QOBJECT(bs->file->full_open_options));
+
+    for (event = 0; event < BLKDBG_EVENT_MAX; event++) {
+        QLIST_FOREACH(rule, &s->rules[event], next) {
+            if (rule->action == ACTION_INJECT_ERROR) {
+                QDict *inject_error = qdict_new();
+
+                qdict_put_obj(inject_error, "event", QOBJECT(qstring_from_str(
+                              BlkdebugEvent_lookup[rule->event])));
+                qdict_put_obj(inject_error, "state",
+                              QOBJECT(qint_from_int(rule->state)));
+                qdict_put_obj(inject_error, "errno", QOBJECT(qint_from_int(
+                              rule->options.inject.error)));
+                qdict_put_obj(inject_error, "sector", QOBJECT(qint_from_int(
+                              rule->options.inject.sector)));
+                qdict_put_obj(inject_error, "once", QOBJECT(qbool_from_int(
+                              rule->options.inject.once)));
+                qdict_put_obj(inject_error, "immediately",
+                              QOBJECT(qbool_from_int(
+                              rule->options.inject.immediately)));
+
+                if (!inject_error_list) {
+                    inject_error_list = qlist_new();
+                }
+
+                qlist_append_obj(inject_error_list, QOBJECT(inject_error));
+            } else if (rule->action == ACTION_SET_STATE) {
+                QDict *set_state = qdict_new();
+
+                qdict_put_obj(set_state, "event", QOBJECT(qstring_from_str(
+                              BlkdebugEvent_lookup[rule->event])));
+                qdict_put_obj(set_state, "state",
+                              QOBJECT(qint_from_int(rule->state)));
+                qdict_put_obj(set_state, "new_state", QOBJECT(qint_from_int(
+                              rule->options.set_state.new_state)));
+
+                if (!set_state_list) {
+                    set_state_list = qlist_new();
+                }
+
+                qlist_append_obj(set_state_list, QOBJECT(set_state));
+            } else if (rule->action == ACTION_SUSPEND) {
+                QDict *suspend = qdict_new();
+
+                qdict_put_obj(suspend, "event", QOBJECT(qstring_from_str(
+                              BlkdebugEvent_lookup[rule->event])));
+                qdict_put_obj(suspend, "state",
+                              QOBJECT(qint_from_int(rule->state)));
+                qdict_put_obj(suspend, "tag", QOBJECT(qstring_from_str(
+                              rule->options.suspend.tag)));
+
+                if (!suspend_list) {
+                    suspend_list = qlist_new();
+                }
+
+                qlist_append_obj(suspend_list, QOBJECT(suspend));
+            }
+        }
+    }
+
+    if (inject_error_list) {
+        qdict_put_obj(opts, "inject-error", QOBJECT(inject_error_list));
+    }
+    if (set_state_list) {
+        qdict_put_obj(opts, "set-state", QOBJECT(set_state_list));
+    }
+    if (suspend_list) {
+        qdict_put_obj(opts, "suspend", QOBJECT(suspend_list));
+    }
+
+    bs->full_open_options = opts;
+}
+
 static BlockDriver bdrv_blkdebug = {
     .format_name            = "blkdebug",
     .protocol_name          = "blkdebug",
@@ -715,6 +811,7 @@ static BlockDriver bdrv_blkdebug = {
     .bdrv_file_open         = blkdebug_open,
     .bdrv_close             = blkdebug_close,
     .bdrv_getlength         = blkdebug_getlength,
+    .bdrv_refresh_filename  = blkdebug_refresh_filename,
 
     .bdrv_aio_readv         = blkdebug_aio_readv,
     .bdrv_aio_writev        = blkdebug_aio_writev,
