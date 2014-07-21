@@ -239,11 +239,11 @@ static void machine_initfn(Object *obj)
 {
     object_property_add_str(obj, "accel",
                             machine_get_accel, machine_set_accel, NULL);
-    object_property_add_bool(obj, "kernel_irqchip",
+    object_property_add_bool(obj, "kernel-irqchip",
                              machine_get_kernel_irqchip,
                              machine_set_kernel_irqchip,
                              NULL);
-    object_property_add(obj, "kvm_shadow_mem", "int",
+    object_property_add(obj, "kvm-shadow-mem", "int",
                         machine_get_kvm_shadow_mem,
                         machine_set_kvm_shadow_mem,
                         NULL, NULL, NULL);
@@ -257,11 +257,11 @@ static void machine_initfn(Object *obj)
                             machine_get_dtb, machine_set_dtb, NULL);
     object_property_add_str(obj, "dumpdtb",
                             machine_get_dumpdtb, machine_set_dumpdtb, NULL);
-    object_property_add(obj, "phandle_start", "int",
+    object_property_add(obj, "phandle-start", "int",
                         machine_get_phandle_start,
                         machine_set_phandle_start,
                         NULL, NULL, NULL);
-    object_property_add_str(obj, "dt_compatible",
+    object_property_add_str(obj, "dt-compatible",
                             machine_get_dt_compatible,
                             machine_set_dt_compatible,
                             NULL);
