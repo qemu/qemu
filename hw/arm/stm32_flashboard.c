@@ -151,23 +151,23 @@ static void printLedStatus(Stm32Flashboard *s)
 {
     int64_t now = qemu_get_clock_ns(vm_clock);
     int64_t secs = now / 1000000000;
-    int64_t frac = (now % 1000000000) / 10000;
+    int64_t frac = (now % 1000000000);
 
     if (!s->ledDrive1 && !s->ledDrive2)
     {
-        printf("(%"PRId64".%06"PRId64") LED %s\n", secs, frac, "Shutdown");
+        printf("(%"PRId64".%09"PRId64") LED %s\n", secs, frac, "Shutdown");
     }
     else if (s->ledDrive1 && !s->ledDrive2)
     {
-        printf("(%"PRId64".%06"PRId64") LED %s\n", secs, frac, "Low current");
+        printf("(%"PRId64".%09"PRId64") LED %s\n", secs, frac, "Low current");
     }
     else if (!s->ledDrive1 && s->ledDrive2)
     {
-        printf("(%"PRId64".%06"PRId64") LED %s\n", secs, frac, "High current");
+        printf("(%"PRId64".%09"PRId64") LED %s\n", secs, frac, "High current");
     }
     else if (s->ledDrive1 && s->ledDrive2)
     {
-        printf("(%"PRId64".%06"PRId64") LED %s\n", secs, frac, "Low+High current");
+        printf("(%"PRId64".%09"PRId64") LED %s\n", secs, frac, "Low+High current");
     }
 }
 
@@ -217,7 +217,7 @@ static void gpiob_irq_handler(void *opaque, int n, int level)
 {
     int64_t now = qemu_get_clock_ns(vm_clock);
     int64_t secs = now / 1000000000;
-    int64_t frac = (now % 1000000000) / 10000;
+    int64_t frac = (now % 1000000000);
 
     int gpio = (int) opaque;
     const char *name;
@@ -241,10 +241,10 @@ static void gpiob_irq_handler(void *opaque, int n, int level)
      */
     switch (level) {
         case 0:
-            printf("(%"PRId64".%06"PRId64") %s Off\n", secs, frac, name);
+            printf("(%"PRId64".%09"PRId64") %s Off\n", secs, frac, name);
             break;
         case 1:
-            printf("(%"PRId64".%06"PRId64") %s On\n", secs, frac, name);
+            printf("(%"PRId64".%09"PRId64") %s On\n", secs, frac, name);
             break;
     }
 }
@@ -272,8 +272,8 @@ static void stm32_flashboard_key_event(void *opaque, int keycode)
             if(!s->triggered) {
                 int64_t now = qemu_get_clock_ns(vm_clock);
                 int64_t secs = now / 1000000000;
-                int64_t frac = (now % 1000000000) / 10000;
-                printf("(%"PRId64".%06"PRId64") Trigger GPIO 0\n", secs, frac);
+                int64_t frac = (now % 1000000000);
+                printf("(%"PRId64".%09"PRId64") Trigger GPIO 0\n", secs, frac);
                 qemu_irq_raise(s->gpioIRQ);
                 s->triggered = true;
             }
@@ -290,8 +290,8 @@ static void stm32_flashboard_key_event(void *opaque, int keycode)
             if(!s->triggered) {
                 int64_t now = qemu_get_clock_ns(vm_clock);
                 int64_t secs = now / 1000000000;
-                int64_t frac = (now % 1000000000) / 10000;
-                printf("(%"PRId64".%06"PRId64") Trigger OD_IN\n", secs, frac);
+                int64_t frac = (now % 1000000000);
+                printf("(%"PRId64".%09"PRId64") Trigger OD_IN\n", secs, frac);
                 qemu_irq_raise(s->odIRQ);
                 s->triggered = true;
             }
