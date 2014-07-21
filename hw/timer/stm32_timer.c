@@ -145,7 +145,7 @@ static uint32_t stm32_timer_get_count(Stm32Timer *s)
 	}
 }
 
-static uint32_t stm32_timer_set_count(Stm32Timer *s, uint32_t cnt)
+static void stm32_timer_set_count(Stm32Timer *s, uint32_t cnt)
 {
 	if (s->countMode == TIMER_UP_COUNT)
 	{
@@ -468,7 +468,7 @@ static int stm32_timer_post_load(void *opaque, int version_id)
 {
     Stm32Timer *s = opaque;
 
-    int64_t delta = qemu_get_clock_ns(rtc_clock) - qemu_get_clock_ns(vm_clock);
+    //int64_t delta = qemu_get_clock_ns(rtc_clock) - qemu_get_clock_ns(vm_clock);
     //s->tick_offset = s->tick_offset_vmstate - delta / get_ticks_per_sec();
     //stm32_timer_set_alarm(s);
     return 0;
