@@ -71,6 +71,7 @@
  */
 #define FDT_MAX_SIZE            0x40000
 #define RTAS_MAX_SIZE           0x10000
+#define RTAS_MAX_ADDR           0x80000000 /* RTAS must stay below that */
 #define FW_MAX_SIZE             0x400000
 #define FW_FILE_NAME            "slof.bin"
 #define FW_OVERHEAD             0x2800000
@@ -854,15 +855,29 @@ static void spapr_reset_htab(sPAPREnvironment *spapr)
 static void ppc_spapr_reset(void)
 {
     PowerPCCPU *first_ppc_cpu;
+    uint32_t rtas_limit;
 
     /* Reset the hash table & recalc the RMA */
     spapr_reset_htab(spapr);
 
     qemu_devices_reset();
 
+    /*
+     * We place the device tree and RTAS just below either the top of the RMA,
+     * or just below 2GB, whichever is lowere, so that it can be
+     * processed with 32-bit real mode code if necessary
+     */
+    rtas_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR);
+    spapr->rtas_addr = rtas_limit - RTAS_MAX_SIZE;
+    spapr->fdt_addr = spapr->rtas_addr - FDT_MAX_SIZE;
+
     /* Load the fdt */
     spapr_finalize_fdt(spapr, spapr->fdt_addr, spapr->rtas_addr,
                        spapr->rtas_size);
+
+    /* Copy RTAS over */
+    cpu_physical_memory_write(spapr->rtas_addr, spapr->rtas_blob,
+                              spapr->rtas_size);
 
     /* Set up the entry state */
     first_ppc_cpu = POWERPC_CPU(first_cpu);
@@ -1283,7 +1298,7 @@ static void ppc_spapr_init(MachineState *machine)
     hwaddr node0_size = spapr_node0_size();
     uint32_t initrd_base = 0;
     long kernel_size = 0, initrd_size = 0;
-    long load_limit, rtas_limit, fw_size;
+    long load_limit, fw_size;
     bool kernel_le = false;
     char *filename;
 
@@ -1328,13 +1343,8 @@ static void ppc_spapr_init(MachineState *machine)
         exit(1);
     }
 
-    /* We place the device tree and RTAS just below either the top of the RMA,
-     * or just below 2GB, whichever is lowere, so that it can be
-     * processed with 32-bit real mode code if necessary */
-    rtas_limit = MIN(spapr->rma_size, 0x80000000);
-    spapr->rtas_addr = rtas_limit - RTAS_MAX_SIZE;
-    spapr->fdt_addr = spapr->rtas_addr - FDT_MAX_SIZE;
-    load_limit = spapr->fdt_addr - FW_OVERHEAD;
+    /* Setup a load limit for the ramdisk leaving room for SLOF and FDT */
+    load_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FW_OVERHEAD;
 
     /* We aim for a hash table of size 1/128 the size of RAM.  The
      * normal rule of thumb is 1/64 the size of RAM, but that's much
@@ -1402,14 +1412,14 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
-    spapr->rtas_size = load_image_targphys(filename, spapr->rtas_addr,
-                                           rtas_limit - spapr->rtas_addr);
-    if (spapr->rtas_size < 0) {
+    spapr->rtas_size = get_image_size(filename);
+    spapr->rtas_blob = g_malloc(spapr->rtas_size);
+    if (load_image_size(filename, spapr->rtas_blob, spapr->rtas_size) < 0) {
         hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
         exit(1);
     }
     if (spapr->rtas_size > RTAS_MAX_SIZE) {
-        hw_error("RTAS too big ! 0x%lx bytes (max is 0x%x)\n",
+        hw_error("RTAS too big ! 0x%zx bytes (max is 0x%x)\n",
                  spapr->rtas_size, RTAS_MAX_SIZE);
         exit(1);
     }

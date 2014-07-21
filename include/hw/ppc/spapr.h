@@ -24,7 +24,8 @@ typedef struct sPAPREnvironment {
     hwaddr rma_size;
     int vrma_adjust;
     hwaddr fdt_addr, rtas_addr;
-    long rtas_size;
+    ssize_t rtas_size;
+    void *rtas_blob;
     void *fdt_skel;
     target_ulong entry_point;
     uint64_t rtc_offset;
