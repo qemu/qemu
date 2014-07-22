@@ -120,10 +120,10 @@ typedef struct {
 
 static void stm32_timer_freq(Stm32Timer *s)
 {
-    uint32_t clk_freq = stm32_rcc_get_periph_freq(s->stm32_rcc, s->periph) / (s->psc + 1);
+    uint32_t clk_freq = 2*stm32_rcc_get_periph_freq(s->stm32_rcc, s->periph) / (s->psc + 1);
 	DPRINTF
 	(
-		"%s Update freq = %d / %d = %d\n",
+		"%s Update freq = 2 * %d / %d = %d\n",
 		stm32_periph_name(s->periph),
 		stm32_rcc_get_periph_freq(s->stm32_rcc, s->periph),
 		(s->psc + 1),
