@@ -2077,12 +2077,13 @@ void kvm_remove_all_breakpoints(CPUState *cpu)
 {
     struct kvm_sw_breakpoint *bp, *next;
     KVMState *s = cpu->kvm_state;
+    CPUState *tmpcpu;
 
     QTAILQ_FOREACH_SAFE(bp, &s->kvm_sw_breakpoints, entry, next) {
         if (kvm_arch_remove_sw_breakpoint(cpu, bp) != 0) {
             /* Try harder to find a CPU that currently sees the breakpoint. */
-            CPU_FOREACH(cpu) {
-                if (kvm_arch_remove_sw_breakpoint(cpu, bp) == 0) {
+            CPU_FOREACH(tmpcpu) {
+                if (kvm_arch_remove_sw_breakpoint(tmpcpu, bp) == 0) {
                     break;
                 }
             }

@@ -1568,8 +1568,7 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
     default:
         abort();
     }
-    cpu_physical_memory_set_dirty_flag(ram_addr, DIRTY_MEMORY_MIGRATION);
-    cpu_physical_memory_set_dirty_flag(ram_addr, DIRTY_MEMORY_VGA);
+    cpu_physical_memory_set_dirty_range_nocode(ram_addr, size);
     /* we remove the notdirty callback only if the code has been
        flushed */
     if (!cpu_physical_memory_is_clean(ram_addr)) {
@@ -1978,8 +1977,7 @@ static void invalidate_and_set_dirty(hwaddr addr,
         /* invalidate code */
         tb_invalidate_phys_page_range(addr, addr + length, 0);
         /* set dirty bit */
-        cpu_physical_memory_set_dirty_flag(addr, DIRTY_MEMORY_VGA);
-        cpu_physical_memory_set_dirty_flag(addr, DIRTY_MEMORY_MIGRATION);
+        cpu_physical_memory_set_dirty_range_nocode(addr, length);
     }
     xen_modified_memory(addr, length);
 }
@@ -2335,15 +2333,7 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
         mr = qemu_ram_addr_from_host(buffer, &addr1);
         assert(mr != NULL);
         if (is_write) {
-            while (access_len) {
-                unsigned l;
-                l = TARGET_PAGE_SIZE;
-                if (l > access_len)
-                    l = access_len;
-                invalidate_and_set_dirty(addr1, l);
-                addr1 += l;
-                access_len -= l;
-            }
+            invalidate_and_set_dirty(addr1, access_len);
         }
         if (xen_enabled()) {
             xen_invalidate_map_cache_entry(buffer);
@@ -2581,9 +2571,7 @@ void stl_phys_notdirty(AddressSpace *as, hwaddr addr, uint32_t val)
                 /* invalidate code */
                 tb_invalidate_phys_page_range(addr1, addr1 + 4, 0);
                 /* set dirty bit */
-                cpu_physical_memory_set_dirty_flag(addr1,
-                                                   DIRTY_MEMORY_MIGRATION);
-                cpu_physical_memory_set_dirty_flag(addr1, DIRTY_MEMORY_VGA);
+                cpu_physical_memory_set_dirty_range_nocode(addr1, 4);
             }
         }
     }
