@@ -144,6 +144,7 @@ def check_fields(src_fields, dest_fields, desc, sec):
 
     advance_src = True
     advance_dest = True
+    unused_count = 0
 
     while True:
         if advance_src:
@@ -156,9 +157,10 @@ def check_fields(src_fields, dest_fields, desc, sec):
                 s_iter = s_iter_list.pop()
                 continue
         else:
-            # We want to avoid advancing just once -- when entering a
-            # dest substruct, or when exiting one.
-            advance_src = True
+            if unused_count == 0:
+                # We want to avoid advancing just once -- when entering a
+                # dest substruct, or when exiting one.
+                advance_src = True
 
         if advance_dest:
             try:
@@ -177,7 +179,37 @@ def check_fields(src_fields, dest_fields, desc, sec):
                 advance_src = False
                 continue
         else:
-            advance_dest = True
+            if unused_count == 0:
+                advance_dest = True
+
+        if unused_count > 0:
+            if advance_dest == False:
+                unused_count = unused_count - s_item["size"]
+                if unused_count == 0:
+                    advance_dest = True
+                    continue
+                if unused_count < 0:
+                    print "Section \"" + sec + "\",",
+                    print "Description \"" + desc + "\":",
+                    print "unused size mismatch near \"",
+                    print s_item["field"] + "\""
+                    bump_taint()
+                    break
+                continue
+
+            if advance_src == False:
+                unused_count = unused_count - d_item["size"]
+                if unused_count == 0:
+                    advance_src = True
+                    continue
+                if unused_count < 0:
+                    print "Section \"" + sec + "\",",
+                    print "Description \"" + desc + "\":",
+                    print "unused size mismatch near \"",
+                    print d_item["field"] + "\""
+                    bump_taint()
+                    break
+                continue
 
         if not check_fields_match(desc, s_item["field"], d_item["field"]):
             # Some fields were put in substructs, keeping the
@@ -207,6 +239,20 @@ def check_fields(src_fields, dest_fields, desc, sec):
                 s_iter = iter(substruct_fields)
                 advance_dest = False
                 continue
+
+            if s_item["field"] == "unused" or d_item["field"] == "unused":
+                if s_item["size"] == d_item["size"]:
+                    continue
+
+                if d_item["field"] == "unused":
+                    advance_dest = False
+                    unused_count = d_item["size"] - s_item["size"]
+                    continue
+
+                if s_item["field"] == "unused":
+                    advance_src = False
+                    unused_count = s_item["size"] - d_item["size"]
+                    continue
 
             print "Section \"" + sec + "\",",
             print "Description \"" + desc + "\":",
