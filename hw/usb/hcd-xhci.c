@@ -3703,6 +3703,7 @@ static const VMStateDescription vmstate_xhci_event = {
         VMSTATE_UINT32(flags,  XHCIEvent),
         VMSTATE_UINT8(slotid,  XHCIEvent),
         VMSTATE_UINT8(epid,    XHCIEvent),
+        VMSTATE_END_OF_LIST()
     }
 };
 
