@@ -70,8 +70,8 @@ STEXI
 ETEXI
 
 DEF("amend", img_amend,
-    "amend [-q] [-f fmt] -o options filename")
+    "amend [-q] [-f fmt] [-t cache] -o options filename")
 STEXI
-@item amend [-q] [-f @var{fmt}] -o @var{options} @var{filename}
+@item amend [-q] [-f @var{fmt}] [-t @var{cache}] -o @var{options} @var{filename}
 @end table
 ETEXI

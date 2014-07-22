@@ -397,7 +397,7 @@ After using this command to grow a disk image, you must use file system and
 partitioning tools inside the VM to actually begin using the new space on the
 device.
 
-@item amend [-f @var{fmt}] -o @var{options} @var{filename}
+@item amend [-f @var{fmt}] [-t @var{cache}] -o @var{options} @var{filename}
 
 Amends the image format specific @var{options} for the image file
 @var{filename}. Not all file formats support this operation.
