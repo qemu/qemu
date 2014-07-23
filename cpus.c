@@ -102,7 +102,7 @@ static bool all_cpu_threads_idle(void)
 
 /* Protected by TimersState seqlock */
 
-static int64_t vm_clock_warp_start;
+static int64_t vm_clock_warp_start = -1;
 /* Conversion factor from emulated instructions to virtual clock ticks.  */
 static int icount_time_shift;
 /* Arbitrarily pick 1MIPS as the minimum allowable speed.  */
