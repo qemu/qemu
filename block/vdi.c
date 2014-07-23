@@ -350,23 +350,23 @@ static int vdi_make_empty(BlockDriverState *bs)
 static int vdi_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     const VdiHeader *header = (const VdiHeader *)buf;
-    int result = 0;
+    int ret = 0;
 
     logout("\n");
 
     if (buf_size < sizeof(*header)) {
         /* Header too small, no VDI. */
     } else if (le32_to_cpu(header->signature) == VDI_SIGNATURE) {
-        result = 100;
+        ret = 100;
     }
 
-    if (result == 0) {
+    if (ret == 0) {
         logout("no vdi image\n");
     } else {
         logout("%s", header->text);
     }
 
-    return result;
+    return ret;
 }
 
 static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
@@ -674,7 +674,7 @@ static int vdi_co_write(BlockDriverState *bs,
 
 static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
 {
-    int result = 0;
+    int ret = 0;
     uint64_t bytes = 0;
     uint32_t blocks;
     size_t block_size = DEFAULT_CLUSTER_SIZE;
@@ -704,21 +704,21 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
 #endif
 
     if (bytes > VDI_DISK_SIZE_MAX) {
-        result = -ENOTSUP;
+        ret = -ENOTSUP;
         error_setg(errp, "Unsupported VDI image size (size is 0x%" PRIx64
                           ", max supported is 0x%" PRIx64 ")",
                           bytes, VDI_DISK_SIZE_MAX);
         goto exit;
     }
 
-    result = bdrv_create_file(filename, opts, &local_err);
-    if (result < 0) {
+    ret = bdrv_create_file(filename, opts, &local_err);
+    if (ret < 0) {
         error_propagate(errp, local_err);
         goto exit;
     }
-    result = bdrv_open(&bs, filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
-                       NULL, &local_err);
-    if (result < 0) {
+    ret = bdrv_open(&bs, filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
+                    NULL, &local_err);
+    if (ret < 0) {
         error_propagate(errp, local_err);
         goto exit;
     }
@@ -752,8 +752,8 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
     vdi_header_print(&header);
 #endif
     vdi_header_to_le(&header);
-    result = bdrv_pwrite_sync(bs, offset, &header, sizeof(header));
-    if (result < 0) {
+    ret = bdrv_pwrite_sync(bs, offset, &header, sizeof(header));
+    if (ret < 0) {
         error_setg(errp, "Error writing header to %s", filename);
         goto exit;
     }
@@ -768,8 +768,8 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
                 bmap[i] = VDI_UNALLOCATED;
             }
         }
-        result = bdrv_pwrite_sync(bs, offset, bmap, bmap_size);
-        if (result < 0) {
+        ret = bdrv_pwrite_sync(bs, offset, bmap, bmap_size);
+        if (ret < 0) {
             error_setg(errp, "Error writing bmap to %s", filename);
             goto exit;
         }
@@ -777,8 +777,8 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     if (image_type == VDI_TYPE_STATIC) {
-        result = bdrv_truncate(bs, offset + blocks * block_size);
-        if (result < 0) {
+        ret = bdrv_truncate(bs, offset + blocks * block_size);
+        if (ret < 0) {
             error_setg(errp, "Failed to statically allocate %s", filename);
             goto exit;
         }
@@ -787,7 +787,7 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
 exit:
     bdrv_unref(bs);
     g_free(bmap);
-    return result;
+    return ret;
 }
 
 static void vdi_close(BlockDriverState *bs)
