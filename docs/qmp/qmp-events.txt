@@ -579,6 +579,22 @@ Example:
                     "host": "127.0.0.1", "sasl_username": "luiz" } },
         "timestamp": { "seconds": 1263475302, "microseconds": 150772 } }
 
+VSERPORT_CHANGE
+---------------
+
+Emitted when the guest opens or closes a virtio-serial port.
+
+Data:
+
+- "id": device identifier of the virtio-serial port (json-string)
+- "open": true if the guest has opened the virtio-serial port (json-bool)
+
+Example:
+
+{ "event": "VSERPORT_CHANGE",
+    "data": { "id": "channel0", "open": true },
+    "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
+
 WAKEUP
 ------
 
