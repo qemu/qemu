@@ -15,6 +15,11 @@
  * [,file.mport=<mapperd_port>[,file.vport=<vlmcd_port>]
  * [,file.segment=<segment_name>]]
  *
+ * or
+ *
+ * file=archipelago:<volumename>[/mport=<mapperd_port>[:vport=<vlmcd_port>][:
+ * segment=<segment_name>]]
+ *
  * 'archipelago' is the protocol.
  *
  * 'mport' is the port number on which mapperd is listening. This is optional
@@ -32,11 +37,20 @@
  * file.driver=archipelago,file.volume=my_vm_volume
  * file.driver=archipelago,file.volume=my_vm_volume,file.mport=123
  * file.driver=archipelago,file.volume=my_vm_volume,file.mport=123,
- * file.vport=1234
+ *  file.vport=1234
  * file.driver=archipelago,file.volume=my_vm_volume,file.mport=123,
- * file.vport=1234,file.segment=my_segment
+ *  file.vport=1234,file.segment=my_segment
+ *
+ * or
+ *
+ * file=archipelago:my_vm_volume
+ * file=archipelago:my_vm_volume/mport=123
+ * file=archipelago:my_vm_volume/mport=123:vport=1234
+ * file=archipelago:my_vm_volume/mport=123:vport=1234:segment=my_segment
+ *
  */
 
+#include "qemu-common.h"
 #include "block/block_int.h"
 #include "qemu/error-report.h"
 #include "qemu/thread.h"
@@ -307,6 +321,127 @@ static void qemu_archipelago_complete_aio(void *opaque)
         qemu_aio_release(aio_cb);
     }
     g_free(reqdata);
+}
+
+static void xseg_find_port(char *pstr, const char *needle, xport *aport)
+{
+    const char *a;
+    char *endptr = NULL;
+    unsigned long port;
+    if (strstart(pstr, needle, &a)) {
+        if (strlen(a) > 0) {
+            port = strtoul(a, &endptr, 10);
+            if (strlen(endptr)) {
+                *aport = -2;
+                return;
+            }
+            *aport = (xport) port;
+        }
+    }
+}
+
+static void xseg_find_segment(char *pstr, const char *needle,
+                              char **segment_name)
+{
+    const char *a;
+    if (strstart(pstr, needle, &a)) {
+        if (strlen(a) > 0) {
+            *segment_name = g_strdup(a);
+        }
+    }
+}
+
+static void parse_filename_opts(const char *filename, Error **errp,
+                                char **volume, char **segment_name,
+                                xport *mport, xport *vport)
+{
+    const char *start;
+    char *tokens[4], *ds;
+    int idx;
+    xport lmport = NoPort, lvport = NoPort;
+
+    strstart(filename, "archipelago:", &start);
+
+    ds = g_strdup(start);
+    tokens[0] = strtok(ds, "/");
+    tokens[1] = strtok(NULL, ":");
+    tokens[2] = strtok(NULL, ":");
+    tokens[3] = strtok(NULL, "\0");
+
+    if (!strlen(tokens[0])) {
+        error_setg(errp, "volume name must be specified first");
+        g_free(ds);
+        return;
+    }
+
+    for (idx = 1; idx < 4; idx++) {
+        if (tokens[idx] != NULL) {
+            if (strstart(tokens[idx], "mport=", NULL)) {
+                xseg_find_port(tokens[idx], "mport=", &lmport);
+            }
+            if (strstart(tokens[idx], "vport=", NULL)) {
+                xseg_find_port(tokens[idx], "vport=", &lvport);
+            }
+            if (strstart(tokens[idx], "segment=", NULL)) {
+                xseg_find_segment(tokens[idx], "segment=", segment_name);
+            }
+        }
+    }
+
+    if ((lmport == -2) || (lvport == -2)) {
+        error_setg(errp, "mport and/or vport must be set");
+        g_free(ds);
+        return;
+    }
+    *volume = g_strdup(tokens[0]);
+    *mport = lmport;
+    *vport = lvport;
+    g_free(ds);
+}
+
+static void archipelago_parse_filename(const char *filename, QDict *options,
+                                       Error **errp)
+{
+    const char *start;
+    char *volume = NULL, *segment_name = NULL;
+    xport mport = NoPort, vport = NoPort;
+
+    if (qdict_haskey(options, ARCHIPELAGO_OPT_VOLUME)
+            || qdict_haskey(options, ARCHIPELAGO_OPT_SEGMENT)
+            || qdict_haskey(options, ARCHIPELAGO_OPT_MPORT)
+            || qdict_haskey(options, ARCHIPELAGO_OPT_VPORT)) {
+        error_setg(errp, "volume/mport/vport/segment and a file name may not"
+                         " be specified at the same time");
+        return;
+    }
+
+    if (!strstart(filename, "archipelago:", &start)) {
+        error_setg(errp, "File name must start with 'archipelago:'");
+        return;
+    }
+
+    if (!strlen(start) || strstart(start, "/", NULL)) {
+        error_setg(errp, "volume name must be specified");
+        return;
+    }
+
+    parse_filename_opts(filename, errp, &volume, &segment_name, &mport, &vport);
+
+    if (volume) {
+        qdict_put(options, ARCHIPELAGO_OPT_VOLUME, qstring_from_str(volume));
+        g_free(volume);
+    }
+    if (segment_name) {
+        qdict_put(options, ARCHIPELAGO_OPT_SEGMENT,
+                  qstring_from_str(segment_name));
+        g_free(segment_name);
+    }
+    if (mport != NoPort) {
+        qdict_put(options, ARCHIPELAGO_OPT_MPORT, qint_from_int(mport));
+    }
+    if (vport != NoPort) {
+        qdict_put(options, ARCHIPELAGO_OPT_VPORT, qint_from_int(vport));
+    }
 }
 
 static QemuOptsList archipelago_runtime_opts = {
@@ -770,6 +905,7 @@ static BlockDriver bdrv_archipelago = {
     .format_name         = "archipelago",
     .protocol_name       = "archipelago",
     .instance_size       = sizeof(BDRVArchipelagoState),
+    .bdrv_parse_filename = archipelago_parse_filename,
     .bdrv_file_open      = qemu_archipelago_open,
     .bdrv_close          = qemu_archipelago_close,
     .bdrv_getlength      = qemu_archipelago_getlength,
