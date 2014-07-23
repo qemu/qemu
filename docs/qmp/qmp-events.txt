@@ -285,7 +285,7 @@ Example:
 RESET
 -----
 
-Emitted when the Virtual Machine is reseted.
+Emitted when the Virtual Machine is reset.
 
 Data: None.
 
@@ -366,7 +366,7 @@ SPICE_INITIALIZED
 -----------------
 
 Emitted after initial handshake and authentication takes place (if any)
-and the SPICE channel is up'n'running
+and the SPICE channel is up and running
 
 Data:
 
