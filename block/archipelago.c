@@ -592,6 +592,137 @@ err_exit:
     xseg_leave(s->xseg);
 }
 
+static int qemu_archipelago_create_volume(Error **errp, const char *volname,
+                                          char *segment_name,
+                                          uint64_t size, xport mportno,
+                                          xport vportno)
+{
+    int ret, targetlen;
+    struct xseg *xseg = NULL;
+    struct xseg_request *req;
+    struct xseg_request_clone *xclone;
+    struct xseg_port *port;
+    xport srcport = NoPort, sport = NoPort;
+    char *target;
+
+    /* Try default values if none has been set */
+    if (mportno == (xport) -1) {
+        mportno = ARCHIPELAGO_DFL_MPORT;
+    }
+
+    if (vportno == (xport) -1) {
+        vportno = ARCHIPELAGO_DFL_VPORT;
+    }
+
+    if (xseg_initialize()) {
+        error_setg(errp, "Cannot initialize XSEG");
+        return -1;
+    }
+
+    xseg = xseg_join("posix", segment_name,
+                     "posixfd", NULL);
+
+    if (!xseg) {
+        error_setg(errp, "Cannot join XSEG shared memory segment");
+        return -1;
+    }
+
+    port = xseg_bind_dynport(xseg);
+    srcport = port->portno;
+    init_local_signal(xseg, sport, srcport);
+
+    req = xseg_get_request(xseg, srcport, mportno, X_ALLOC);
+    if (!req) {
+        error_setg(errp, "Cannot get XSEG request");
+        return -1;
+    }
+
+    targetlen = strlen(volname);
+    ret = xseg_prep_request(xseg, req, targetlen,
+                            sizeof(struct xseg_request_clone));
+    if (ret < 0) {
+        error_setg(errp, "Cannot prepare XSEG request");
+        goto err_exit;
+    }
+
+    target = xseg_get_target(xseg, req);
+    if (!target) {
+        error_setg(errp, "Cannot get XSEG target.\n");
+        goto err_exit;
+    }
+    memcpy(target, volname, targetlen);
+    xclone = (struct xseg_request_clone *) xseg_get_data(xseg, req);
+    memset(xclone->target, 0 , XSEG_MAX_TARGETLEN);
+    xclone->targetlen = 0;
+    xclone->size = size;
+    req->offset = 0;
+    req->size = req->datalen;
+    req->op = X_CLONE;
+
+    xport p = xseg_submit(xseg, req, srcport, X_ALLOC);
+    if (p == NoPort) {
+        error_setg(errp, "Could not submit XSEG request");
+        goto err_exit;
+    }
+    xseg_signal(xseg, p);
+
+    ret = wait_reply(xseg, srcport, port, req);
+    if (ret < 0) {
+        error_setg(errp, "wait_reply() error.");
+    }
+
+    xseg_put_request(xseg, req, srcport);
+    xseg_quit_local_signal(xseg, srcport);
+    xseg_leave_dynport(xseg, port);
+    xseg_leave(xseg);
+    return ret;
+
+err_exit:
+    xseg_put_request(xseg, req, srcport);
+    xseg_quit_local_signal(xseg, srcport);
+    xseg_leave_dynport(xseg, port);
+    xseg_leave(xseg);
+    return -1;
+}
+
+static int qemu_archipelago_create(const char *filename,
+                                   QemuOpts *options,
+                                   Error **errp)
+{
+    int ret = 0;
+    uint64_t total_size = 0;
+    char *volname = NULL, *segment_name = NULL;
+    const char *start;
+    xport mport = NoPort, vport = NoPort;
+
+    if (!strstart(filename, "archipelago:", &start)) {
+        error_setg(errp, "File name must start with 'archipelago:'");
+        return -1;
+    }
+
+    if (!strlen(start) || strstart(start, "/", NULL)) {
+        error_setg(errp, "volume name must be specified");
+        return -1;
+    }
+
+    parse_filename_opts(filename, errp, &volname, &segment_name, &mport,
+                        &vport);
+    total_size = qemu_opt_get_size_del(options, BLOCK_OPT_SIZE, 0);
+
+    if (segment_name == NULL) {
+        segment_name = g_strdup("archipelago");
+    }
+
+    /* Create an Archipelago volume */
+    ret = qemu_archipelago_create_volume(errp, volname, segment_name,
+                                         total_size, mport,
+                                         vport);
+
+    g_free(volname);
+    g_free(segment_name);
+    return ret;
+}
+
 static void qemu_archipelago_aio_cancel(BlockDriverAIOCB *blockacb)
 {
     ArchipelagoAIOCB *aio_cb = (ArchipelagoAIOCB *) blockacb;
@@ -894,6 +1025,19 @@ static int64_t qemu_archipelago_getlength(BlockDriverState *bs)
     return ret;
 }
 
+static QemuOptsList qemu_archipelago_create_opts = {
+    .name = "archipelago-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_archipelago_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
+        { /* end of list */ }
+    }
+};
+
 static BlockDriverAIOCB *qemu_archipelago_aio_flush(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
@@ -908,11 +1052,13 @@ static BlockDriver bdrv_archipelago = {
     .bdrv_parse_filename = archipelago_parse_filename,
     .bdrv_file_open      = qemu_archipelago_open,
     .bdrv_close          = qemu_archipelago_close,
+    .bdrv_create         = qemu_archipelago_create,
     .bdrv_getlength      = qemu_archipelago_getlength,
     .bdrv_aio_readv      = qemu_archipelago_aio_readv,
     .bdrv_aio_writev     = qemu_archipelago_aio_writev,
     .bdrv_aio_flush      = qemu_archipelago_aio_flush,
     .bdrv_has_zero_init  = bdrv_has_zero_init_1,
+    .create_opts         = &qemu_archipelago_create_opts,
 };
 
 static void bdrv_archipelago_init(void)
