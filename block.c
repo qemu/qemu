@@ -5381,6 +5381,9 @@ void bdrv_ref(BlockDriverState *bs)
  * deleted. */
 void bdrv_unref(BlockDriverState *bs)
 {
+    if (!bs) {
+        return;
+    }
     assert(bs->refcnt > 0);
     if (--bs->refcnt == 0) {
         bdrv_delete(bs);
