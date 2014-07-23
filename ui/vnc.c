@@ -1878,6 +1878,7 @@ static void framebuffer_update_request(VncState *vs, int incremental,
         return;
     }
 
+    vs->force_update = 1;
     vnc_set_area_dirty(vs->dirty, width, height, x, y, w, h);
 }
 
