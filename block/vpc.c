@@ -29,13 +29,6 @@
 #if defined(CONFIG_UUID)
 #include <uuid/uuid.h>
 #endif
-#ifdef __linux__
-#include <linux/fs.h>
-#include <sys/ioctl.h>
-#ifndef FS_NOCOW_FL
-#define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
-#endif
-#endif
 
 /**************************************************************/
 
@@ -656,39 +649,41 @@ static int calculate_geometry(int64_t total_sectors, uint16_t* cyls,
     return 0;
 }
 
-static int create_dynamic_disk(int fd, uint8_t *buf, int64_t total_sectors)
+static int create_dynamic_disk(BlockDriverState *bs, uint8_t *buf,
+                               int64_t total_sectors)
 {
     VHDDynDiskHeader *dyndisk_header =
         (VHDDynDiskHeader *) buf;
     size_t block_size, num_bat_entries;
     int i;
-    int ret = -EIO;
+    int ret;
+    int64_t offset = 0;
 
     // Write the footer (twice: at the beginning and at the end)
     block_size = 0x200000;
     num_bat_entries = (total_sectors + block_size / 512) / (block_size / 512);
 
-    if (write(fd, buf, HEADER_SIZE) != HEADER_SIZE) {
+    ret = bdrv_pwrite_sync(bs, offset, buf, HEADER_SIZE);
+    if (ret) {
         goto fail;
     }
 
-    if (lseek(fd, 1536 + ((num_bat_entries * 4 + 511) & ~511), SEEK_SET) < 0) {
-        goto fail;
-    }
-    if (write(fd, buf, HEADER_SIZE) != HEADER_SIZE) {
+    offset = 1536 + ((num_bat_entries * 4 + 511) & ~511);
+    ret = bdrv_pwrite_sync(bs, offset, buf, HEADER_SIZE);
+    if (ret < 0) {
         goto fail;
     }
 
     // Write the initial BAT
-    if (lseek(fd, 3 * 512, SEEK_SET) < 0) {
-        goto fail;
-    }
+    offset = 3 * 512;
 
     memset(buf, 0xFF, 512);
     for (i = 0; i < (num_bat_entries * 4 + 511) / 512; i++) {
-        if (write(fd, buf, 512) != 512) {
+        ret = bdrv_pwrite_sync(bs, offset, buf, 512);
+        if (ret < 0) {
             goto fail;
         }
+        offset += 512;
     }
 
     // Prepare the Dynamic Disk Header
@@ -709,39 +704,35 @@ static int create_dynamic_disk(int fd, uint8_t *buf, int64_t total_sectors)
     dyndisk_header->checksum = be32_to_cpu(vpc_checksum(buf, 1024));
 
     // Write the header
-    if (lseek(fd, 512, SEEK_SET) < 0) {
-        goto fail;
-    }
+    offset = 512;
 
-    if (write(fd, buf, 1024) != 1024) {
+    ret = bdrv_pwrite_sync(bs, offset, buf, 1024);
+    if (ret < 0) {
         goto fail;
     }
-    ret = 0;
 
  fail:
     return ret;
 }
 
-static int create_fixed_disk(int fd, uint8_t *buf, int64_t total_size)
+static int create_fixed_disk(BlockDriverState *bs, uint8_t *buf,
+                             int64_t total_size)
 {
-    int ret = -EIO;
+    int ret;
 
     /* Add footer to total size */
-    total_size += 512;
-    if (ftruncate(fd, total_size) != 0) {
-        ret = -errno;
-        goto fail;
-    }
-    if (lseek(fd, -512, SEEK_END) < 0) {
-        goto fail;
-    }
-    if (write(fd, buf, HEADER_SIZE) != HEADER_SIZE) {
-        goto fail;
+    total_size += HEADER_SIZE;
+
+    ret = bdrv_truncate(bs, total_size);
+    if (ret < 0) {
+        return ret;
     }
 
-    ret = 0;
+    ret = bdrv_pwrite_sync(bs, total_size - HEADER_SIZE, buf, HEADER_SIZE);
+    if (ret < 0) {
+        return ret;
+    }
 
- fail:
     return ret;
 }
 
@@ -750,7 +741,7 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     uint8_t buf[1024];
     VHDFooter *footer = (VHDFooter *) buf;
     char *disk_type_param;
-    int fd, i;
+    int i;
     uint16_t cyls = 0;
     uint8_t heads = 0;
     uint8_t secs_per_cyl = 0;
@@ -758,7 +749,8 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     int64_t total_size;
     int disk_type;
     int ret = -EIO;
-    bool nocow = false;
+    Error *local_err = NULL;
+    BlockDriverState *bs = NULL;
 
     /* Read out options */
     total_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
@@ -775,28 +767,17 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     } else {
         disk_type = VHD_DYNAMIC;
     }
-    nocow = qemu_opt_get_bool_del(opts, BLOCK_OPT_NOCOW, false);
 
-    /* Create the file */
-    fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0644);
-    if (fd < 0) {
-        ret = -EIO;
+    ret = bdrv_create_file(filename, opts, &local_err);
+    if (ret < 0) {
+        error_propagate(errp, local_err);
         goto out;
     }
-
-    if (nocow) {
-#ifdef __linux__
-        /* Set NOCOW flag to solve performance issue on fs like btrfs.
-         * This is an optimisation. The FS_IOC_SETFLAGS ioctl return value will
-         * be ignored since any failure of this operation should not block the
-         * left work.
-         */
-        int attr;
-        if (ioctl(fd, FS_IOC_GETFLAGS, &attr) == 0) {
-            attr |= FS_NOCOW_FL;
-            ioctl(fd, FS_IOC_SETFLAGS, &attr);
-        }
-#endif
+    ret = bdrv_open(&bs, filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
+                    NULL, &local_err);
+    if (ret < 0) {
+        error_propagate(errp, local_err);
+        goto out;
     }
 
     /*
@@ -810,7 +791,7 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
                                &secs_per_cyl))
         {
             ret = -EFBIG;
-            goto fail;
+            goto out;
         }
     }
 
@@ -856,14 +837,13 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     footer->checksum = be32_to_cpu(vpc_checksum(buf, HEADER_SIZE));
 
     if (disk_type == VHD_DYNAMIC) {
-        ret = create_dynamic_disk(fd, buf, total_sectors);
+        ret = create_dynamic_disk(bs, buf, total_sectors);
     } else {
-        ret = create_fixed_disk(fd, buf, total_size);
+        ret = create_fixed_disk(bs, buf, total_size);
     }
 
-fail:
-    qemu_close(fd);
 out:
+    bdrv_unref(bs);
     g_free(disk_type_param);
     return ret;
 }
