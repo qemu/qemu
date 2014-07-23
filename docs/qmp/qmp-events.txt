@@ -337,10 +337,10 @@ Example:
 Note: If the command-line option "-no-shutdown" has been specified, a STOP
 event will eventually follow the SHUTDOWN event.
 
-SPICE_CONNECTED, SPICE_DISCONNECTED
------------------------------------
+SPICE_CONNECTED
+---------------
 
-Emitted when a SPICE client connects or disconnects.
+Emitted when a SPICE client connects.
 
 Data:
 
@@ -357,6 +357,31 @@ Example:
 
 { "timestamp": {"seconds": 1290688046, "microseconds": 388707},
   "event": "SPICE_CONNECTED",
+  "data": {
+    "server": { "port": "5920", "family": "ipv4", "host": "127.0.0.1"},
+    "client": {"port": "52873", "family": "ipv4", "host": "127.0.0.1"}
+}}
+
+SPICE_DISCONNECTED
+------------------
+
+Emitted when a SPICE client disconnects.
+
+Data:
+
+- "server": Server information (json-object)
+  - "host": IP address (json-string)
+  - "port": port number (json-string)
+  - "family": address family (json-string, "ipv4" or "ipv6")
+- "client": Client information (json-object)
+  - "host": IP address (json-string)
+  - "port": port number (json-string)
+  - "family": address family (json-string, "ipv4" or "ipv6")
+
+Example:
+
+{ "timestamp": {"seconds": 1290688046, "microseconds": 388707},
+  "event": "SPICE_DISCONNECTED",
   "data": {
     "server": { "port": "5920", "family": "ipv4", "host": "127.0.0.1"},
     "client": {"port": "52873", "family": "ipv4", "host": "127.0.0.1"}
