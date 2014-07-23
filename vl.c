@@ -2841,15 +2841,15 @@ static void free_and_trace(gpointer mem)
     free(mem);
 }
 
-static int object_set_property(const char *name, const char *value, void *opaque)
+static int machine_set_property(const char *name, const char *value,
+                                void *opaque)
 {
     Object *obj = OBJECT(opaque);
     StringInputVisitor *siv;
     Error *local_err = NULL;
     char *c, *qom_name;
 
-    if (strcmp(name, "qom-type") == 0 || strcmp(name, "id") == 0 ||
-        strcmp(name, "type") == 0) {
+    if (strcmp(name, "type") == 0) {
         return 0;
     }
 
@@ -4254,7 +4254,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     machine_opts = qemu_get_machine_opts();
-    if (qemu_opt_foreach(machine_opts, object_set_property, current_machine,
+    if (qemu_opt_foreach(machine_opts, machine_set_property, current_machine,
                          1) < 0) {
         object_unref(OBJECT(current_machine));
         exit(1);
