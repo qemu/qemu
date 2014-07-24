@@ -1090,7 +1090,7 @@ static const VMStateDescription vmstate_usb_mtp = {
 };
 
 static Property mtp_properties[] = {
-    DEFINE_PROP_STRING("root", MTPState, root),
+    DEFINE_PROP_STRING("x-root", MTPState, root),
     DEFINE_PROP_STRING("desc", MTPState, desc),
     DEFINE_PROP_END_OF_LIST(),
 };
