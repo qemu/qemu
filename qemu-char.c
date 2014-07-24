@@ -1168,6 +1168,9 @@ static int pty_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 static GSource *pty_chr_add_watch(CharDriverState *chr, GIOCondition cond)
 {
     PtyCharDriver *s = chr->opaque;
+    if (!s->connected) {
+        return NULL;
+    }
     return g_io_create_watch(s->fd, cond);
 }
 
@@ -3664,6 +3667,10 @@ int qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
     }
 
     src = s->chr_add_watch(s, cond);
+    if (!src) {
+        return -EINVAL;
+    }
+
     g_source_set_callback(src, (GSourceFunc)func, user_data, NULL);
     tag = g_source_attach(src, NULL);
     g_source_unref(src);
