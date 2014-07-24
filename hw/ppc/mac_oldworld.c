@@ -346,6 +346,12 @@ static void ppc_heathrow_init(MachineState *machine)
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
 
+static int heathrow_kvm_type(const char *arg)
+{
+    /* Always force PR KVM */
+    return 2;
+}
+
 static QEMUMachine heathrow_machine = {
     .name = "g3beige",
     .desc = "Heathrow based PowerMAC",
@@ -355,6 +361,7 @@ static QEMUMachine heathrow_machine = {
     .is_default = 1,
 #endif
     .default_boot_order = "cd", /* TOFIX "cad" when Mac floppy is implemented */
+    .kvm_type = heathrow_kvm_type,
 };
 
 static void heathrow_machine_init(void)

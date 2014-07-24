@@ -477,12 +477,19 @@ static void ppc_core99_init(MachineState *machine)
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
 
+static int core99_kvm_type(const char *arg)
+{
+    /* Always force PR KVM */
+    return 2;
+}
+
 static QEMUMachine core99_machine = {
     .name = "mac99",
     .desc = "Mac99 based PowerMAC",
     .init = ppc_core99_init,
     .max_cpus = MAX_CPUS,
     .default_boot_order = "cd",
+    .kvm_type = core99_kvm_type,
 };
 
 static void core99_machine_init(void)
