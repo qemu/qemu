@@ -1437,7 +1437,7 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net l2tpv3[,vlan=n][,name=str],src=srcaddr,dst=dstaddr[,srcport=srcport][,dstport=dstport],txsession=txsession[,rxsession=rxsession][,ipv6=on/off][,udp=on/off][,cookie64=on/off][,counter][,pincounter][,txcookie=txcookie][,rxcookie=rxcookie][,offset=offset]\n"
     "                connect the VLAN to an Ethernet over L2TPv3 pseudowire\n"
     "                Linux kernel 3.3+ as well as most routers can talk\n"
-    "                L2TPv3. This transport allows to connect a VM to a VM,\n"
+    "                L2TPv3. This transport allows connecting a VM to a VM,\n"
     "                VM to a router and even VM to Host. It is a nearly-universal\n"
     "                standard (RFC3391). Note - this implementation uses static\n"
     "                pre-configured tunnels (same as the Linux kernel).\n"
