@@ -219,6 +219,23 @@ int64_t cpu_get_clock(void)
     return ti;
 }
 
+/* return the offset between the host clock and virtual CPU clock */
+int64_t cpu_get_clock_offset(void)
+{
+    int64_t ti;
+    unsigned start;
+
+    do {
+        start = seqlock_read_begin(&timers_state.vm_clock_seqlock);
+        ti = timers_state.cpu_clock_offset;
+        if (!timers_state.cpu_ticks_enabled) {
+            ti -= get_clock();
+        }
+    } while (seqlock_read_retry(&timers_state.vm_clock_seqlock, start));
+
+    return -ti;
+}
+
 /* enable cpu_get_ticks()
  * Caller must hold BQL which server as mutex for vm_clock_seqlock.
  */
