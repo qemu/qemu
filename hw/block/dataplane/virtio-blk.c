@@ -28,6 +28,7 @@ struct VirtIOBlockDataPlane {
     bool started;
     bool starting;
     bool stopping;
+    bool disabled;
 
     VirtIOBlkConf *blk;
 
@@ -220,7 +221,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
     VirtQueue *vq;
     int r;
 
-    if (s->started) {
+    if (s->started || s->disabled) {
         return;
     }
 
@@ -274,6 +275,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
     k->set_guest_notifiers(qbus->parent, 1, false);
   fail_guest_notifiers:
     vring_teardown(&s->vring, s->vdev, 0);
+    s->disabled = true;
   fail_vring:
     s->starting = false;
 }
@@ -284,6 +286,13 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s->vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtIOBlock *vblk = VIRTIO_BLK(s->vdev);
+
+
+    /* Better luck next time. */
+    if (s->disabled) {
+        s->disabled = false;
+        return;
+    }
     if (!s->started || s->stopping) {
         return;
     }
