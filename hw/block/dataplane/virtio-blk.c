@@ -218,6 +218,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtIOBlock *vblk = VIRTIO_BLK(s->vdev);
     VirtQueue *vq;
+    int r;
 
     if (s->started) {
         return;
@@ -236,16 +237,18 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
     }
 
     /* Set up guest notifier (irq) */
-    if (k->set_guest_notifiers(qbus->parent, 1, true) != 0) {
-        fprintf(stderr, "virtio-blk failed to set guest notifier, "
-                "ensure -enable-kvm is set\n");
+    r = k->set_guest_notifiers(qbus->parent, 1, true);
+    if (r != 0) {
+        fprintf(stderr, "virtio-blk failed to set guest notifier (%d), "
+                "ensure -enable-kvm is set\n", r);
         exit(1);
     }
     s->guest_notifier = virtio_queue_get_guest_notifier(vq);
 
     /* Set up virtqueue notify */
-    if (k->set_host_notifier(qbus->parent, 0, true) != 0) {
-        fprintf(stderr, "virtio-blk failed to set host notifier\n");
+    r = k->set_host_notifier(qbus->parent, 0, true);
+    if (r != 0) {
+        fprintf(stderr, "virtio-blk failed to set host notifier (%d)\n", r);
         exit(1);
     }
     s->host_notifier = *virtio_queue_get_host_notifier(vq);
