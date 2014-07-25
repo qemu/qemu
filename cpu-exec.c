@@ -29,6 +29,7 @@
 typedef struct SyncClocks {
     int64_t diff_clk;
     int64_t last_cpu_icount;
+    int64_t realtime_clock;
 } SyncClocks;
 
 #if !defined(CONFIG_USER_ONLY)
@@ -37,6 +38,9 @@ typedef struct SyncClocks {
  * oscillate around 0.
  */
 #define VM_CLOCK_ADVANCE 3000000
+#define THRESHOLD_REDUCE 1.5
+#define MAX_DELAY_PRINT_RATE 2000000000LL
+#define MAX_NB_PRINTS 100
 
 static void align_clocks(SyncClocks *sc, const CPUState *cpu)
 {
@@ -68,16 +72,43 @@ static void align_clocks(SyncClocks *sc, const CPUState *cpu)
     }
 }
 
+static void print_delay(const SyncClocks *sc)
+{
+    static float threshold_delay;
+    static int64_t last_realtime_clock;
+    static int nb_prints;
+
+    if (icount_align_option &&
+        sc->realtime_clock - last_realtime_clock >= MAX_DELAY_PRINT_RATE &&
+        nb_prints < MAX_NB_PRINTS) {
+        if ((-sc->diff_clk / (float)1000000000LL > threshold_delay) ||
+            (-sc->diff_clk / (float)1000000000LL <
+             (threshold_delay - THRESHOLD_REDUCE))) {
+            threshold_delay = (-sc->diff_clk / 1000000000LL) + 1;
+            printf("Warning: The guest is now late by %.1f to %.1f seconds\n",
+                   threshold_delay - 1,
+                   threshold_delay);
+            nb_prints++;
+            last_realtime_clock = sc->realtime_clock;
+        }
+    }
+}
+
 static void init_delay_params(SyncClocks *sc,
                               const CPUState *cpu)
 {
     if (!icount_align_option) {
         return;
     }
+    sc->realtime_clock = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     sc->diff_clk = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) -
-                   qemu_clock_get_ns(QEMU_CLOCK_REALTIME) +
+                   sc->realtime_clock +
                    cpu_get_clock_offset();
     sc->last_cpu_icount = cpu->icount_extra + cpu->icount_decr.u16.low;
+
+    /* Print every 2s max if the guest is late. We limit the number
+       of printed messages to NB_PRINT_MAX(currently 100) */
+    print_delay(sc);
 }
 #else
 static void align_clocks(SyncClocks *sc, const CPUState *cpu)
