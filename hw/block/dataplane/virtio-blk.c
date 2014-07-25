@@ -232,8 +232,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
 
     vq = virtio_get_queue(s->vdev, 0);
     if (!vring_setup(&s->vring, s->vdev, 0)) {
-        s->starting = false;
-        return;
+        goto fail_vring;
     }
 
     /* Set up guest notifier (irq) */
@@ -241,7 +240,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
     if (r != 0) {
         fprintf(stderr, "virtio-blk failed to set guest notifier (%d), "
                 "ensure -enable-kvm is set\n", r);
-        exit(1);
+        goto fail_guest_notifiers;
     }
     s->guest_notifier = virtio_queue_get_guest_notifier(vq);
 
@@ -249,7 +248,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
     r = k->set_host_notifier(qbus->parent, 0, true);
     if (r != 0) {
         fprintf(stderr, "virtio-blk failed to set host notifier (%d)\n", r);
-        exit(1);
+        goto fail_host_notifier;
     }
     s->host_notifier = *virtio_queue_get_host_notifier(vq);
 
@@ -269,6 +268,14 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
     aio_context_acquire(s->ctx);
     aio_set_event_notifier(s->ctx, &s->host_notifier, handle_notify);
     aio_context_release(s->ctx);
+    return;
+
+  fail_host_notifier:
+    k->set_guest_notifiers(qbus->parent, 1, false);
+  fail_guest_notifiers:
+    vring_teardown(&s->vring, s->vdev, 0);
+  fail_vring:
+    s->starting = false;
 }
 
 /* Context: QEMU global mutex held */
