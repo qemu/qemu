@@ -473,12 +473,20 @@ static const VMStateDescription vmstate_timers = {
     }
 };
 
-void configure_icount(const char *option)
+void configure_icount(QemuOpts *opts, Error **errp)
 {
+    const char *option;
+
     seqlock_init(&timers_state.vm_clock_seqlock, NULL);
     vmstate_register(NULL, 0, &vmstate_timers, &timers_state);
+    option = qemu_opt_get(opts, "shift");
     if (!option) {
         return;
+    }
+    /* When using -icount shift, the shift option will be
+       misinterpreted as a boolean */
+    if (strcmp(option, "on") == 0 || strcmp(option, "off") == 0) {
+        error_setg(errp, "The shift option must be a number or auto");
     }
 
     icount_warp_timer = timer_new_ns(QEMU_CLOCK_REALTIME,

@@ -41,6 +41,7 @@
 #include <assert.h>
 #include <signal.h>
 #include "glib-compat.h"
+#include "qemu/option.h"
 
 #ifdef _WIN32
 #include "sysemu/os-win32.h"
@@ -105,7 +106,7 @@ static inline char *realpath(const char *path, char *resolved_path)
 #endif
 
 /* icount */
-void configure_icount(const char *option);
+void configure_icount(QemuOpts *opts, Error **errp);
 extern int use_icount;
 
 #include "qemu/osdep.h"

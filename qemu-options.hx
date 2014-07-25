@@ -3011,11 +3011,11 @@ re-inject them.
 ETEXI
 
 DEF("icount", HAS_ARG, QEMU_OPTION_icount, \
-    "-icount [N|auto]\n" \
+    "-icount [shift=N|auto]\n" \
     "                enable virtual instruction counter with 2^N clock ticks per\n" \
     "                instruction\n", QEMU_ARCH_ALL)
 STEXI
-@item -icount [@var{N}|auto]
+@item -icount [shift=@var{N}|auto]
 @findex -icount
 Enable virtual instruction counter.  The virtual cpu will execute one
 instruction every 2^@var{N} ns of virtual time.  If @code{auto} is specified

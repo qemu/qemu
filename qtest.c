@@ -19,6 +19,9 @@
 #include "hw/irq.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/cpus.h"
+#include "qemu/config-file.h"
+#include "qemu/option.h"
+#include "qemu/error-report.h"
 
 #define MAX_IRQ 256
 
@@ -509,10 +512,16 @@ static void qtest_event(void *opaque, int event)
     }
 }
 
+static void configure_qtest_icount(const char *options)
+{
+    QemuOpts *opts  = qemu_opts_parse(qemu_find_opts("icount"), options, 1);
+    configure_icount(opts, &error_abort);
+    qemu_opts_del(opts);
+}
+
 int qtest_init_accel(MachineClass *mc)
 {
-    configure_icount("0");
-
+    configure_qtest_icount("0");
     return 0;
 }
 

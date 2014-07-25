@@ -537,6 +537,20 @@ static QemuOptsList qemu_mem_opts = {
     },
 };
 
+static QemuOptsList qemu_icount_opts = {
+    .name = "icount",
+    .implied_opt_name = "shift",
+    .merge_lists = true,
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_icount_opts.head),
+    .desc = {
+        {
+            .name = "shift",
+            .type = QEMU_OPT_STRING,
+        },
+        { /* end of list */ }
+    },
+};
+
 /**
  * Get machine options
  *
@@ -2908,13 +2922,12 @@ int main(int argc, char **argv, char **envp)
 {
     int i;
     int snapshot, linux_boot;
-    const char *icount_option = NULL;
     const char *initrd_filename;
     const char *kernel_filename, *kernel_cmdline;
     const char *boot_order;
     DisplayState *ds;
     int cyls, heads, secs, translation;
-    QemuOpts *hda_opts = NULL, *opts, *machine_opts;
+    QemuOpts *hda_opts = NULL, *opts, *machine_opts, *icount_opts = NULL;
     QemuOptsList *olist;
     int optind;
     const char *optarg;
@@ -2979,6 +2992,7 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_msg_opts);
     qemu_add_opts(&qemu_name_opts);
     qemu_add_opts(&qemu_numa_opts);
+    qemu_add_opts(&qemu_icount_opts);
 
     runstate_init();
 
@@ -3830,7 +3844,11 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_icount:
-                icount_option = optarg;
+                icount_opts = qemu_opts_parse(qemu_find_opts("icount"),
+                                              optarg, 1);
+                if (!icount_opts) {
+                    exit(1);
+                }
                 break;
             case QEMU_OPTION_incoming:
                 incoming = optarg;
@@ -4306,11 +4324,14 @@ int main(int argc, char **argv, char **envp)
     qemu_spice_init();
 #endif
 
-    if (icount_option && (kvm_enabled() || xen_enabled())) {
-        fprintf(stderr, "-icount is not allowed with kvm or xen\n");
-        exit(1);
+    if (icount_opts) {
+        if (kvm_enabled() || xen_enabled()) {
+            fprintf(stderr, "-icount is not allowed with kvm or xen\n");
+            exit(1);
+        }
+        configure_icount(icount_opts, &error_abort);
+        qemu_opts_del(icount_opts);
     }
-    configure_icount(icount_option);
 
     /* clean up network at qemu process termination */
     atexit(&net_cleanup);
