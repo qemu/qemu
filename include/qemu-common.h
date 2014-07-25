@@ -109,6 +109,10 @@ static inline char *realpath(const char *path, char *resolved_path)
 void configure_icount(QemuOpts *opts, Error **errp);
 extern int use_icount;
 extern int icount_align_option;
+/* drift information for info jit command */
+extern int64_t max_delay;
+extern int64_t max_advance;
+void dump_drift_info(FILE *f, fprintf_function cpu_fprintf);
 
 #include "qemu/osdep.h"
 #include "qemu/bswap.h"

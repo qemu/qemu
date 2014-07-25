@@ -105,6 +105,12 @@ static void init_delay_params(SyncClocks *sc,
                    sc->realtime_clock +
                    cpu_get_clock_offset();
     sc->last_cpu_icount = cpu->icount_extra + cpu->icount_decr.u16.low;
+    if (sc->diff_clk < max_delay) {
+        max_delay = sc->diff_clk;
+    }
+    if (sc->diff_clk > max_advance) {
+        max_advance = sc->diff_clk;
+    }
 
     /* Print every 2s max if the guest is late. We limit the number
        of printed messages to NB_PRINT_MAX(currently 100) */

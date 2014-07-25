@@ -64,6 +64,8 @@
 #endif /* CONFIG_LINUX */
 
 static CPUState *next_cpu;
+int64_t max_delay;
+int64_t max_advance;
 
 bool cpu_is_stopped(CPUState *cpu)
 {
@@ -1551,4 +1553,21 @@ void qmp_inject_nmi(Error **errp)
 #else
     error_set(errp, QERR_UNSUPPORTED);
 #endif
+}
+
+void dump_drift_info(FILE *f, fprintf_function cpu_fprintf)
+{
+    if (!use_icount) {
+        return;
+    }
+
+    cpu_fprintf(f, "Host - Guest clock  %"PRIi64" ms\n",
+                (cpu_get_clock() - cpu_get_icount())/SCALE_MS);
+    if (icount_align_option) {
+        cpu_fprintf(f, "Max guest delay     %"PRIi64" ms\n", -max_delay/SCALE_MS);
+        cpu_fprintf(f, "Max guest advance   %"PRIi64" ms\n", max_advance/SCALE_MS);
+    } else {
+        cpu_fprintf(f, "Max guest delay     NA\n");
+        cpu_fprintf(f, "Max guest advance   NA\n");
+    }
 }

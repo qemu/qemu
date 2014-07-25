@@ -1047,6 +1047,7 @@ static void do_info_registers(Monitor *mon, const QDict *qdict)
 static void do_info_jit(Monitor *mon, const QDict *qdict)
 {
     dump_exec_info((FILE *)mon, monitor_fprintf);
+    dump_drift_info((FILE *)mon, monitor_fprintf);
 }
 
 static void do_info_history(Monitor *mon, const QDict *qdict)
