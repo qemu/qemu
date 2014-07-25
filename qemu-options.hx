@@ -3011,9 +3011,9 @@ re-inject them.
 ETEXI
 
 DEF("icount", HAS_ARG, QEMU_OPTION_icount, \
-    "-icount [shift=N|auto]\n" \
+    "-icount [shift=N|auto][,align=on|off]\n" \
     "                enable virtual instruction counter with 2^N clock ticks per\n" \
-    "                instruction\n", QEMU_ARCH_ALL)
+    "                instruction and enable aligning the host and virtual clocks\n", QEMU_ARCH_ALL)
 STEXI
 @item -icount [shift=@var{N}|auto]
 @findex -icount
@@ -3026,6 +3026,17 @@ Note that while this option can give deterministic behavior, it does not
 provide cycle accurate emulation.  Modern CPUs contain superscalar out of
 order cores with complex cache hierarchies.  The number of instructions
 executed often has little or no correlation with actual performance.
+
+@option{align=on} will activate the delay algorithm which will try to
+to synchronise the host clock and the virtual clock. The goal is to
+have a guest running at the real frequency imposed by the shift option.
+Whenever the guest clock is behind the host clock and if
+@option{align=on} is specified then we print a messsage to the user
+to inform about the delay.
+Currently this option does not work when @option{shift} is @code{auto}.
+Note: The sync algorithm will work for those shift values for which
+the guest clock runs ahead of the host clock. Typically this happens
+when the shift value is high (how high depends on the host machine).
 ETEXI
 
 DEF("watchdog", HAS_ARG, QEMU_OPTION_watchdog, \

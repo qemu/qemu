@@ -183,6 +183,7 @@ uint8_t *boot_splash_filedata;
 size_t boot_splash_filedata_size;
 uint8_t qemu_extra_params_fw[2];
 
+int icount_align_option;
 typedef struct FWBootEntry FWBootEntry;
 
 struct FWBootEntry {
@@ -546,6 +547,9 @@ static QemuOptsList qemu_icount_opts = {
         {
             .name = "shift",
             .type = QEMU_OPT_STRING,
+        }, {
+            .name = "align",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
     },

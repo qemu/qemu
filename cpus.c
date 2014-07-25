@@ -476,25 +476,30 @@ static const VMStateDescription vmstate_timers = {
 void configure_icount(QemuOpts *opts, Error **errp)
 {
     const char *option;
+    char *rem_str = NULL;
 
     seqlock_init(&timers_state.vm_clock_seqlock, NULL);
     vmstate_register(NULL, 0, &vmstate_timers, &timers_state);
     option = qemu_opt_get(opts, "shift");
     if (!option) {
+        if (qemu_opt_get(opts, "align") != NULL) {
+            error_setg(errp, "Please specify shift option when using align");
+        }
         return;
     }
-    /* When using -icount shift, the shift option will be
-       misinterpreted as a boolean */
-    if (strcmp(option, "on") == 0 || strcmp(option, "off") == 0) {
-        error_setg(errp, "The shift option must be a number or auto");
-    }
-
+    icount_align_option = qemu_opt_get_bool(opts, "align", false);
     icount_warp_timer = timer_new_ns(QEMU_CLOCK_REALTIME,
                                           icount_warp_rt, NULL);
     if (strcmp(option, "auto") != 0) {
-        icount_time_shift = strtol(option, NULL, 0);
+        errno = 0;
+        icount_time_shift = strtol(option, &rem_str, 0);
+        if (errno != 0 || *rem_str != '\0' || !strlen(option)) {
+            error_setg(errp, "icount: Invalid shift value");
+        }
         use_icount = 1;
         return;
+    } else if (icount_align_option) {
+        error_setg(errp, "shift=auto and align=on are incompatible");
     }
 
     use_icount = 2;
