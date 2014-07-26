@@ -783,6 +783,7 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
 
     cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
 
+    g_free(bootlist);
     g_free(fdt);
 }
 
