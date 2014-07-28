@@ -74,6 +74,7 @@ typedef struct AcpiMcfgInfo {
 typedef struct AcpiPmInfo {
     bool s3_disabled;
     bool s4_disabled;
+    bool pcihp_bridge_en;
     uint8_t s4_val;
     uint16_t sci_int;
     uint8_t acpi_enable_cmd;
@@ -95,6 +96,7 @@ typedef struct AcpiBuildPciBusHotplugState {
     GArray *device_table;
     GArray *notify_table;
     struct AcpiBuildPciBusHotplugState *parent;
+    bool pcihp_bridge_en;
 } AcpiBuildPciBusHotplugState;
 
 static void acpi_get_dsdt(AcpiMiscInfo *info)
@@ -198,6 +200,9 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
                                            NULL);
     pm->gpe0_blk_len = object_property_get_int(obj, ACPI_PM_PROP_GPE0_BLK_LEN,
                                                NULL);
+    pm->pcihp_bridge_en =
+        object_property_get_bool(obj, "acpi-pci-hotplug-with-bridge-support",
+                                 NULL);
 }
 
 static void acpi_get_misc_info(AcpiMiscInfo *info)
@@ -778,11 +783,13 @@ static void acpi_set_pci_info(void)
 }
 
 static void build_pci_bus_state_init(AcpiBuildPciBusHotplugState *state,
-                                     AcpiBuildPciBusHotplugState *parent)
+                                     AcpiBuildPciBusHotplugState *parent,
+                                     bool pcihp_bridge_en)
 {
     state->parent = parent;
     state->device_table = build_alloc_array();
     state->notify_table = build_alloc_array();
+    state->pcihp_bridge_en = pcihp_bridge_en;
 }
 
 static void build_pci_bus_state_cleanup(AcpiBuildPciBusHotplugState *state)
@@ -796,7 +803,7 @@ static void *build_pci_bus_begin(PCIBus *bus, void *parent_state)
     AcpiBuildPciBusHotplugState *parent = parent_state;
     AcpiBuildPciBusHotplugState *child = g_malloc(sizeof *child);
 
-    build_pci_bus_state_init(child, parent);
+    build_pci_bus_state_init(child, parent, parent->pcihp_bridge_en);
 
     return child;
 }
@@ -816,6 +823,14 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
     QObject *bsel;
     GArray *method;
     bool bus_hotplug_support = false;
+
+    /*
+        skip bridge subtree creation if bridge hotplug is disabled
+        to make it compatible with 1.7 machine type
+    */
+    if (!child->pcihp_bridge_en && bus->parent_dev) {
+        return;
+    }
 
     if (bus->parent_dev) {
         op = 0x82; /* DeviceOp */
@@ -863,7 +878,8 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
         pc = PCI_DEVICE_GET_CLASS(pdev);
         dc = DEVICE_GET_CLASS(pdev);
 
-        if (pc->class_id == PCI_CLASS_BRIDGE_ISA || pc->is_bridge) {
+        if (pc->class_id == PCI_CLASS_BRIDGE_ISA ||
+            (pc->is_bridge && child->pcihp_bridge_en)) {
             set_bit(slot, slot_device_system);
         }
 
@@ -875,7 +891,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
             }
         }
 
-        if (!dc->hotpluggable || pc->is_bridge) {
+        if (!dc->hotpluggable || (pc->is_bridge && child->pcihp_bridge_en)) {
             clear_bit(slot, slot_hotplug_enable);
         }
     }
@@ -1140,7 +1156,7 @@ build_ssdt(GArray *table_data, GArray *linker,
                 bus = PCI_HOST_BRIDGE(pci_host)->bus;
             }
 
-            build_pci_bus_state_init(&hotplug_state, NULL);
+            build_pci_bus_state_init(&hotplug_state, NULL, pm->pcihp_bridge_en);
 
             if (bus) {
                 /* Scan all PCI buses. Generate tables to support hotplug. */
