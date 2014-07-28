@@ -62,6 +62,8 @@
 #define ACPI_BUILD_LEGACY_CPU_AML_SIZE    97
 #define ACPI_BUILD_ALIGN_SIZE             0x1000
 
+#define ACPI_BUILD_TABLE_SIZE             0x10000
+
 typedef struct AcpiCpuInfo {
     DECLARE_BITMAP(found_cpus, ACPI_CPU_HOTPLUG_ID_LIMIT);
 } AcpiCpuInfo;
@@ -1588,7 +1590,13 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
         }
         g_array_set_size(tables->table_data, legacy_table_size);
     } else {
-        acpi_align_size(tables->table_data, ACPI_BUILD_ALIGN_SIZE);
+        if (tables->table_data->len > ACPI_BUILD_TABLE_SIZE) {
+            /* As of QEMU 2.1, this fires with 160 VCPUs and 255 memory slots.  */
+            error_report("ACPI tables are larger than 64k.  Please remove");
+            error_report("CPUs, NUMA nodes, memory slots or PCI bridges.");
+            exit(1);
+        }
+        g_array_set_size(tables->table_data, ACPI_BUILD_TABLE_SIZE);
     }
 
     acpi_align_size(tables->linker, ACPI_BUILD_ALIGN_SIZE);
