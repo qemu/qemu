@@ -61,11 +61,11 @@ static int parallels_probe(const uint8_t *buf, int buf_size, const char *filenam
     const struct parallels_header *ph = (const void *)buf;
 
     if (buf_size < HEADER_SIZE)
-	return 0;
+        return 0;
 
     if (!memcmp(ph->magic, HEADER_MAGIC, 16) &&
-	(le32_to_cpu(ph->version) == HEADER_VERSION))
-	return 100;
+        (le32_to_cpu(ph->version) == HEADER_VERSION))
+        return 100;
 
     return 0;
 }
@@ -119,7 +119,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     for (i = 0; i < s->catalog_size; i++)
-	le32_to_cpus(&s->catalog_bitmap[i]);
+        le32_to_cpus(&s->catalog_bitmap[i]);
 
     qemu_co_mutex_init(&s->lock);
     return 0;
@@ -139,7 +139,7 @@ static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 
     /* not allocated */
     if ((index > s->catalog_size) || (s->catalog_bitmap[index] == 0))
-	return -1;
+        return -1;
     return (uint64_t)(s->catalog_bitmap[index] + offset) * 512;
 }
 
