@@ -21,6 +21,7 @@
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
+#include "sysemu/kvm.h"
 
 #ifndef CONFIG_USER_ONLY
 static inline void cpu_mips_tlb_flush (CPUMIPSState *env, int flush_global);
@@ -2167,6 +2168,16 @@ void mips_cpu_unassigned_access(CPUState *cs, hwaddr addr,
 {
     MIPSCPU *cpu = MIPS_CPU(cs);
     CPUMIPSState *env = &cpu->env;
+
+    /*
+     * Raising an exception with KVM enabled will crash because it won't be from
+     * the main execution loop so the longjmp won't have a matching setjmp.
+     * Until we can trigger a bus error exception through KVM lets just ignore
+     * the access.
+     */
+    if (kvm_enabled()) {
+        return;
+    }
 
     if (is_exec) {
         helper_raise_exception(env, EXCP_IBE);
