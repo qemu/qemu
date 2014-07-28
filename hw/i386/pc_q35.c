@@ -155,6 +155,11 @@ static void pc_q35_init(MachineState *machine)
     guest_info->has_acpi_build = has_acpi_build;
     guest_info->has_reserved_memory = has_reserved_memory;
 
+    /* Migration was not supported in 2.0 for Q35, so do not bother
+     * with this hack (see hw/i386/acpi-build.c).
+     */
+    guest_info->legacy_acpi_table_size = 0;
+
     if (smbios_defaults) {
         MachineClass *mc = MACHINE_GET_CLASS(machine);
         /* These values are guest ABI, do not change */

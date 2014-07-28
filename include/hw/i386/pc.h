@@ -94,6 +94,7 @@ struct PcGuestInfo {
     uint64_t *node_mem;
     uint64_t *node_cpu;
     FWCfgState *fw_cfg;
+    int legacy_acpi_table_size;
     bool has_acpi_build;
     bool has_reserved_memory;
 };
