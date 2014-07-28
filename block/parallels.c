@@ -41,8 +41,10 @@ struct parallels_header {
     uint32_t cylinders;
     uint32_t tracks;
     uint32_t catalog_entries;
-    uint32_t nb_sectors;
-    char padding[24];
+    uint64_t nb_sectors;
+    uint32_t inuse;
+    uint32_t data_off;
+    char padding[12];
 } QEMU_PACKED;
 
 typedef struct BDRVParallelsState {
@@ -90,7 +92,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    bs->total_sectors = le32_to_cpu(ph.nb_sectors);
+    bs->total_sectors = 0xffffffff & le64_to_cpu(ph.nb_sectors);
 
     s->tracks = le32_to_cpu(ph.tracks);
     if (s->tracks == 0) {
