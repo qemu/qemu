@@ -30,6 +30,7 @@
 /**************************************************************/
 
 #define HEADER_MAGIC "WithoutFreeSpace"
+#define HEADER_MAGIC2 "WithouFreSpacExt"
 #define HEADER_VERSION 2
 #define HEADER_SIZE 64
 
@@ -54,6 +55,8 @@ typedef struct BDRVParallelsState {
     unsigned int catalog_size;
 
     unsigned int tracks;
+
+    unsigned int off_multiplier;
 } BDRVParallelsState;
 
 static int parallels_probe(const uint8_t *buf, int buf_size, const char *filename)
@@ -63,7 +66,8 @@ static int parallels_probe(const uint8_t *buf, int buf_size, const char *filenam
     if (buf_size < HEADER_SIZE)
         return 0;
 
-    if (!memcmp(ph->magic, HEADER_MAGIC, 16) &&
+    if ((!memcmp(ph->magic, HEADER_MAGIC, 16) ||
+        !memcmp(ph->magic, HEADER_MAGIC2, 16)) &&
         (le32_to_cpu(ph->version) == HEADER_VERSION))
         return 100;
 
@@ -85,19 +89,29 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
+    bs->total_sectors = le64_to_cpu(ph.nb_sectors);
+
     if (le32_to_cpu(ph.version) != HEADER_VERSION) {
         goto fail_format;
     }
-    if (memcmp(ph.magic, HEADER_MAGIC, 16)) {
+    if (!memcmp(ph.magic, HEADER_MAGIC, 16)) {
+        s->off_multiplier = 1;
+        bs->total_sectors = 0xffffffff & bs->total_sectors;
+    } else if (!memcmp(ph.magic, HEADER_MAGIC2, 16)) {
+        s->off_multiplier = le32_to_cpu(ph.tracks);
+    } else {
         goto fail_format;
     }
-
-    bs->total_sectors = 0xffffffff & le64_to_cpu(ph.nb_sectors);
 
     s->tracks = le32_to_cpu(ph.tracks);
     if (s->tracks == 0) {
         error_setg(errp, "Invalid image: Zero sectors per track");
         ret = -EINVAL;
+        goto fail;
+    }
+    if (s->tracks > INT32_MAX/513) {
+        error_setg(errp, "Invalid image: Too big cluster");
+        ret = -EFBIG;
         goto fail;
     }
 
@@ -143,7 +157,8 @@ static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
     /* not allocated */
     if ((index > s->catalog_size) || (s->catalog_bitmap[index] == 0))
         return -1;
-    return (uint64_t)(s->catalog_bitmap[index] + offset) * 512;
+    return
+        ((uint64_t)s->catalog_bitmap[index] * s->off_multiplier + offset) * 512;
 }
 
 static int parallels_read(BlockDriverState *bs, int64_t sector_num,
