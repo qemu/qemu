@@ -85,11 +85,11 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    if (memcmp(ph.magic, HEADER_MAGIC, 16) ||
-        (le32_to_cpu(ph.version) != HEADER_VERSION)) {
-        error_setg(errp, "Image not in Parallels format");
-        ret = -EINVAL;
-        goto fail;
+    if (le32_to_cpu(ph.version) != HEADER_VERSION) {
+        goto fail_format;
+    }
+    if (memcmp(ph.magic, HEADER_MAGIC, 16)) {
+        goto fail_format;
     }
 
     bs->total_sectors = 0xffffffff & le64_to_cpu(ph.nb_sectors);
@@ -124,6 +124,9 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     qemu_co_mutex_init(&s->lock);
     return 0;
 
+fail_format:
+    error_setg(errp, "Image not in Parallels format");
+    ret = -EINVAL;
 fail:
     g_free(s->catalog_bitmap);
     return ret;
