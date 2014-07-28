@@ -825,9 +825,9 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
     bool bus_hotplug_support = false;
 
     /*
-        skip bridge subtree creation if bridge hotplug is disabled
-        to make it compatible with 1.7 machine type
-    */
+     * Skip bridge subtree creation if bridge hotplug is disabled
+     * to make acpi tables compatible with legacy machine types.
+     */
     if (!child->pcihp_bridge_en && bus->parent_dev) {
         return;
     }
@@ -869,6 +869,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
         PCIDeviceClass *pc;
         PCIDevice *pdev = bus->devices[i];
         int slot = PCI_SLOT(i);
+        bool bridge_in_acpi;
 
         if (!pdev) {
             continue;
@@ -878,8 +879,13 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
         pc = PCI_DEVICE_GET_CLASS(pdev);
         dc = DEVICE_GET_CLASS(pdev);
 
-        if (pc->class_id == PCI_CLASS_BRIDGE_ISA ||
-            (pc->is_bridge && child->pcihp_bridge_en)) {
+        /* When hotplug for bridges is enabled, bridges are
+         * described in ACPI separately (see build_pci_bus_end).
+         * In this case they aren't themselves hot-pluggable.
+         */
+        bridge_in_acpi = pc->is_bridge && child->pcihp_bridge_en;
+
+        if (pc->class_id == PCI_CLASS_BRIDGE_ISA || bridge_in_acpi) {
             set_bit(slot, slot_device_system);
         }
 
@@ -891,7 +897,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
             }
         }
 
-        if (!dc->hotpluggable || (pc->is_bridge && child->pcihp_bridge_en)) {
+        if (!dc->hotpluggable || bridge_in_acpi) {
             clear_bit(slot, slot_hotplug_enable);
         }
     }
