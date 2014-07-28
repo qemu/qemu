@@ -15300,6 +15300,9 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
                     gen_load_gpr(t1, rs);
 
                     gen_helper_dinsv(cpu_gpr[rt], cpu_env, t1, t0);
+
+                    tcg_temp_free(t0);
+                    tcg_temp_free(t1);
                     break;
                 }
             default:            /* Invalid */
