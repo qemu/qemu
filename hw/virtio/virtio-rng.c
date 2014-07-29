@@ -147,6 +147,14 @@ static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* Workaround: Property parsing does not enforce unsigned integers,
+     * So this is a hack to reject such numbers. */
+    if (vrng->conf.max_bytes > INT64_MAX) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "max-bytes",
+                  "a non-negative integer below 2^63");
+        return;
+    }
+
     if (vrng->conf.rng == NULL) {
         vrng->conf.default_backend = RNG_RANDOM(object_new(TYPE_RNG_RANDOM));
 
@@ -171,23 +179,15 @@ static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
                                  "rng", NULL);
     }
 
-    virtio_init(vdev, "virtio-rng", VIRTIO_ID_RNG, 0);
-
     vrng->rng = vrng->conf.rng;
     if (vrng->rng == NULL) {
         error_set(errp, QERR_INVALID_PARAMETER_VALUE, "rng", "a valid object");
         return;
     }
 
-    vrng->vq = virtio_add_queue(vdev, 8, handle_input);
+    virtio_init(vdev, "virtio-rng", VIRTIO_ID_RNG, 0);
 
-    /* Workaround: Property parsing does not enforce unsigned integers,
-     * So this is a hack to reject such numbers. */
-    if (vrng->conf.max_bytes > INT64_MAX) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "max-bytes",
-                  "a non-negative integer below 2^63");
-        return;
-    }
+    vrng->vq = virtio_add_queue(vdev, 8, handle_input);
     vrng->quota_remaining = vrng->conf.max_bytes;
 
     vrng->rate_limit_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
