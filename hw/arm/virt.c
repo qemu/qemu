@@ -104,7 +104,7 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_GIC_DIST] = { 0x8000000, 0x10000 },
     [VIRT_GIC_CPU] = { 0x8010000, 0x10000 },
     [VIRT_UART] = { 0x9000000, 0x1000 },
-    [VIRT_RTC] = { 0x90010000, 0x1000 },
+    [VIRT_RTC] = { 0x9010000, 0x1000 },
     [VIRT_MMIO] = { 0xa000000, 0x200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     /* 0x10000000 .. 0x40000000 reserved for PCI */
