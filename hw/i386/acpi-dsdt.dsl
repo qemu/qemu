@@ -181,57 +181,45 @@ DefinitionBlock (
 
     Scope(\_SB) {
         Scope(PCI0) {
-            Name(_PRT, Package() {
-                /* PCI IRQ routing table, example from ACPI 2.0a specification,
-                   section 6.2.8.1 */
-                /* Note: we provide the same info as the PCI routing
-                   table of the Bochs BIOS */
+            Method (_PRT, 0) {
+                Store(Package(128) {}, Local0)
+                Store(Zero, Local1)
+                While(LLess(Local1, 128)) {
+                    // slot = pin >> 2
+                    Store(ShiftRight(Local1, 2), Local2)
 
-#define prt_slot(nr, lnk0, lnk1, lnk2, lnk3) \
-    Package() { nr##ffff, 0, lnk0, 0 }, \
-    Package() { nr##ffff, 1, lnk1, 0 }, \
-    Package() { nr##ffff, 2, lnk2, 0 }, \
-    Package() { nr##ffff, 3, lnk3, 0 }
+                    // lnk = (slot + pin) & 3
+                    Store(And(Add(Local1, Local2), 3), Local3)
+                    If (LEqual(Local3, 0)) {
+                        Store(Package(4) { Zero, Zero, LNKD, Zero }, Local4)
+                    }
+                    If (LEqual(Local3, 1)) {
+                        // device 1 is the power-management device, needs SCI
+                        If (LEqual(Local1, 4)) {
+                            Store(Package(4) { Zero, Zero, LNKS, Zero }, Local4)
+                        } Else {
+                            Store(Package(4) { Zero, Zero, LNKA, Zero }, Local4)
+                        }
+                    }
+                    If (LEqual(Local3, 2)) {
+                        Store(Package(4) { Zero, Zero, LNKB, Zero }, Local4)
+                    }
+                    If (LEqual(Local3, 3)) {
+                        Store(Package(4) { Zero, Zero, LNKC, Zero }, Local4)
+                    }
 
-#define prt_slot0(nr) prt_slot(nr, LNKD, LNKA, LNKB, LNKC)
-#define prt_slot1(nr) prt_slot(nr, LNKA, LNKB, LNKC, LNKD)
-#define prt_slot2(nr) prt_slot(nr, LNKB, LNKC, LNKD, LNKA)
-#define prt_slot3(nr) prt_slot(nr, LNKC, LNKD, LNKA, LNKB)
+                    // Complete the interrupt routing entry:
+                    //    Package(4) { 0x[slot]FFFF, [pin], [link], 0) }
 
-                prt_slot0(0x0000),
-                /* Device 1 is power mgmt device, and can only use irq 9 */
-                prt_slot(0x0001, LNKS, LNKB, LNKC, LNKD),
-                prt_slot2(0x0002),
-                prt_slot3(0x0003),
-                prt_slot0(0x0004),
-                prt_slot1(0x0005),
-                prt_slot2(0x0006),
-                prt_slot3(0x0007),
-                prt_slot0(0x0008),
-                prt_slot1(0x0009),
-                prt_slot2(0x000a),
-                prt_slot3(0x000b),
-                prt_slot0(0x000c),
-                prt_slot1(0x000d),
-                prt_slot2(0x000e),
-                prt_slot3(0x000f),
-                prt_slot0(0x0010),
-                prt_slot1(0x0011),
-                prt_slot2(0x0012),
-                prt_slot3(0x0013),
-                prt_slot0(0x0014),
-                prt_slot1(0x0015),
-                prt_slot2(0x0016),
-                prt_slot3(0x0017),
-                prt_slot0(0x0018),
-                prt_slot1(0x0019),
-                prt_slot2(0x001a),
-                prt_slot3(0x001b),
-                prt_slot0(0x001c),
-                prt_slot1(0x001d),
-                prt_slot2(0x001e),
-                prt_slot3(0x001f),
-            })
+                    Store(Or(ShiftLeft(Local2, 16), 0xFFFF), Index(Local4, 0))
+                    Store(And(Local1, 3),                    Index(Local4, 1))
+                    Store(Local4,                            Index(Local0, Local1))
+
+                    Increment(Local1)
+                }
+
+                Return(Local0)
+            }
         }
 
         Field(PCI0.ISA.P40C, ByteAcc, NoLock, Preserve) {
