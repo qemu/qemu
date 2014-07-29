@@ -1,13 +1,13 @@
 # Italian translation for QEMU.
 # This file is put in the public domain.
-# Paolo Bonzini <pbonzini@redhat.com>, 2012.
+# Paolo Bonzini <pbonzini@redhat.com>, 2012-2014.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: QEMU 1.4.50\n"
 "Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
-"POT-Creation-Date: 2013-07-05 22:36+0200\n"
-"PO-Revision-Date: 2012-02-27 08:23+0100\n"
+"POT-Creation-Date: 2014-07-29 08:14+0200\n"
+"PO-Revision-Date: 2014-07-29 08:25+0200\n"
 "Last-Translator: Paolo Bonzini <pbonzini@redhat.com>\n"
 "Language-Team: Italian <it@li.org>\n"
 "Language: it\n"
@@ -16,49 +16,66 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 
-#: ui/gtk.c:214
+#: ui/gtk.c:321
 msgid " - Press Ctrl+Alt+G to release grab"
-msgstr ""
+msgstr " - Premere Ctrl+Alt+G per rilasciare l'input"
 
-#: ui/gtk.c:218
+#: ui/gtk.c:325
 msgid " [Paused]"
-msgstr ""
+msgstr " [Pausa]"
 
-#: ui/gtk.c:1318
+#: ui/gtk.c:1601
 msgid "_Pause"
-msgstr ""
+msgstr "_Pausa"
 
-#: ui/gtk.c:1324
+#: ui/gtk.c:1607
 msgid "_Reset"
-msgstr ""
+msgstr "_Reset"
 
-#: ui/gtk.c:1327
+#: ui/gtk.c:1610
 msgid "Power _Down"
-msgstr ""
+msgstr "_Spegni"
 
-#: ui/gtk.c:1381
+#: ui/gtk.c:1616
+msgid "_Quit"
+msgstr "_Esci"
+
+#: ui/gtk.c:1702
+msgid "Zoom _In"
+msgstr "_Aumenta zoom"
+
+#: ui/gtk.c:1709
+msgid "Zoom _Out"
+msgstr "_Riduci zoom"
+
+#: ui/gtk.c:1716
+msgid "Best _Fit"
+msgstr "A_nnulla zoom"
+
+#: ui/gtk.c:1723
 msgid "Zoom To _Fit"
 msgstr "Adatta alla _finestra"
 
-#: ui/gtk.c:1387
+#: ui/gtk.c:1729
 msgid "Grab On _Hover"
 msgstr "Cattura _automatica input"
 
-#: ui/gtk.c:1390
+#: ui/gtk.c:1732
 msgid "_Grab Input"
 msgstr "_Cattura input"
 
-#: ui/gtk.c:1416
+#: ui/gtk.c:1761
 msgid "Show _Tabs"
 msgstr "Mostra _tab"
 
-#: ui/gtk.c:1430
-msgid "_Machine"
-msgstr ""
+#: ui/gtk.c:1764
+msgid "Detach Tab"
+msgstr "_Sposta in una nuova finestra"
 
-#: ui/gtk.c:1435
+#: ui/gtk.c:1778
+msgid "_Machine"
+msgstr "_Macchina virtuale"
+
+#: ui/gtk.c:1783
 msgid "_View"
 msgstr "_Visualizza"
-
-#~ msgid "_File"
-#~ msgstr "_File"
