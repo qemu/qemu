@@ -2968,10 +2968,11 @@ static const DisplayChangeListenerOps dcl_ops = {
     .dpy_cursor_define    = vnc_dpy_cursor_define,
 };
 
-void vnc_display_init(DisplayState *ds)
+void vnc_display_init(const char *id)
 {
     VncDisplay *vs = g_malloc0(sizeof(*vs));
 
+    vs->id = strdup(id);
     QTAILQ_INSERT_TAIL(&vnc_displays, vs, next);
 
     vs->lsock = -1;
@@ -3000,10 +3001,8 @@ void vnc_display_init(DisplayState *ds)
 }
 
 
-static void vnc_display_close(DisplayState *ds)
+static void vnc_display_close(VncDisplay *vs)
 {
-    VncDisplay *vs = vnc_display_find(NULL);
-
     if (!vs)
         return;
     g_free(vs->display);
@@ -3029,9 +3028,9 @@ static void vnc_display_close(DisplayState *ds)
 #endif
 }
 
-int vnc_display_password(DisplayState *ds, const char *password)
+int vnc_display_password(const char *id, const char *password)
 {
-    VncDisplay *vs = vnc_display_find(NULL);
+    VncDisplay *vs = vnc_display_find(id);
 
     if (!vs) {
         return -EINVAL;
@@ -3048,9 +3047,9 @@ int vnc_display_password(DisplayState *ds, const char *password)
     return 0;
 }
 
-int vnc_display_pw_expire(DisplayState *ds, time_t expires)
+int vnc_display_pw_expire(const char *id, time_t expires)
 {
-    VncDisplay *vs = vnc_display_find(NULL);
+    VncDisplay *vs = vnc_display_find(id);
 
     if (!vs) {
         return -EINVAL;
@@ -3060,16 +3059,16 @@ int vnc_display_pw_expire(DisplayState *ds, time_t expires)
     return 0;
 }
 
-char *vnc_display_local_addr(DisplayState *ds)
+char *vnc_display_local_addr(const char *id)
 {
-    VncDisplay *vs = vnc_display_find(NULL);
+    VncDisplay *vs = vnc_display_find(id);
 
     return vnc_socket_local_addr("%s:%s", vs->lsock);
 }
 
-void vnc_display_open(DisplayState *ds, const char *display, Error **errp)
+void vnc_display_open(const char *id, const char *display, Error **errp)
 {
-    VncDisplay *vs = vnc_display_find(NULL);
+    VncDisplay *vs = vnc_display_find(id);
     const char *options;
     int password = 0;
     int reverse = 0;
@@ -3089,7 +3088,7 @@ void vnc_display_open(DisplayState *ds, const char *display, Error **errp)
         error_setg(errp, "VNC display not active");
         return;
     }
-    vnc_display_close(ds);
+    vnc_display_close(vs);
     if (strcmp(display, "none") == 0)
         return;
 
@@ -3382,9 +3381,9 @@ fail:
 #endif /* CONFIG_VNC_WS */
 }
 
-void vnc_display_add_client(DisplayState *ds, int csock, bool skipauth)
+void vnc_display_add_client(const char *id, int csock, bool skipauth)
 {
-    VncDisplay *vs = vnc_display_find(NULL);
+    VncDisplay *vs = vnc_display_find(id);
 
     if (!vs) {
         return;

@@ -4288,8 +4288,9 @@ int main(int argc, char **argv, char **envp)
     /* init remote displays */
     if (vnc_display) {
         Error *local_err = NULL;
-        vnc_display_init(ds);
-        vnc_display_open(ds, vnc_display, &local_err);
+        const char *id = "default";
+        vnc_display_init(id);
+        vnc_display_open(id, vnc_display, &local_err);
         if (local_err != NULL) {
             error_report("Failed to start VNC server on `%s': %s",
                          vnc_display, error_get_pretty(local_err));
@@ -4298,7 +4299,7 @@ int main(int argc, char **argv, char **envp)
         }
 
         if (show_vnc_port) {
-            printf("VNC server running on `%s'\n", vnc_display_local_addr(ds));
+            printf("VNC server running on `%s'\n", vnc_display_local_addr(id));
         }
     }
 #endif
