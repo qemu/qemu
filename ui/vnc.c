@@ -46,7 +46,8 @@ static const struct timeval VNC_REFRESH_LOSSY = { 2, 0 };
 #include "vnc_keysym.h"
 #include "d3des.h"
 
-static VncDisplay *vnc_display; /* needed for info vnc */
+static QTAILQ_HEAD(, VncDisplay) vnc_displays =
+    QTAILQ_HEAD_INITIALIZER(vnc_displays);
 
 static int vnc_cursor_define(VncState *vs);
 static void vnc_release_modifiers(VncState *vs);
@@ -226,10 +227,10 @@ static const char *vnc_auth_name(VncDisplay *vd) {
     return "unknown";
 }
 
-static VncServerInfo *vnc_server_info_get(void)
+static VncServerInfo *vnc_server_info_get(VncDisplay *vd)
 {
     VncServerInfo *info;
-    VncBasicInfo *bi = vnc_basic_info_get_from_server_addr(vnc_display->lsock);
+    VncBasicInfo *bi = vnc_basic_info_get_from_server_addr(vd->lsock);
     if (!bi) {
         return NULL;
     }
@@ -237,7 +238,7 @@ static VncServerInfo *vnc_server_info_get(void)
     info = g_malloc(sizeof(*info));
     info->base = bi;
     info->has_auth = true;
-    info->auth = g_strdup(vnc_auth_name(vnc_display));
+    info->auth = g_strdup(vnc_auth_name(vd));
     return info;
 }
 
@@ -282,7 +283,7 @@ static void vnc_qmp_event(VncState *vs, QAPIEvent event)
     }
     g_assert(vs->info->base);
 
-    si = vnc_server_info_get();
+    si = vnc_server_info_get(vs->vd);
     if (!si) {
         return;
     }
@@ -345,11 +346,27 @@ static VncClientInfo *qmp_query_vnc_client(const VncState *client)
     return info;
 }
 
+static VncDisplay *vnc_display_find(const char *id)
+{
+    VncDisplay *vd;
+
+    if (id == NULL) {
+        return QTAILQ_FIRST(&vnc_displays);
+    }
+    QTAILQ_FOREACH(vd, &vnc_displays, next) {
+        if (strcmp(id, vd->id) == 0) {
+            return vd;
+        }
+    }
+    return NULL;
+}
+
 VncInfo *qmp_query_vnc(Error **errp)
 {
     VncInfo *info = g_malloc0(sizeof(*info));
+    VncDisplay *vd = vnc_display_find(NULL);
 
-    if (vnc_display == NULL || vnc_display->display == NULL) {
+    if (vd == NULL || vd->display == NULL) {
         info->enabled = false;
     } else {
         VncClientInfoList *cur_item = NULL;
@@ -364,7 +381,7 @@ VncInfo *qmp_query_vnc(Error **errp)
         /* for compatibility with the original command */
         info->has_clients = true;
 
-        QTAILQ_FOREACH(client, &vnc_display->clients, next) {
+        QTAILQ_FOREACH(client, &vd->clients, next) {
             VncClientInfoList *cinfo = g_malloc0(sizeof(*info));
             cinfo->value = qmp_query_vnc_client(client);
 
@@ -377,11 +394,11 @@ VncInfo *qmp_query_vnc(Error **errp)
             }
         }
 
-        if (vnc_display->lsock == -1) {
+        if (vd->lsock == -1) {
             return info;
         }
 
-        if (getsockname(vnc_display->lsock, (struct sockaddr *)&sa,
+        if (getsockname(vd->lsock, (struct sockaddr *)&sa,
                         &salen) == -1) {
             error_set(errp, QERR_UNDEFINED_ERROR);
             goto out_error;
@@ -405,7 +422,7 @@ VncInfo *qmp_query_vnc(Error **errp)
         info->family = inet_netfamily(sa.ss_family);
 
         info->has_auth = true;
-        info->auth = g_strdup(vnc_auth_name(vnc_display));
+        info->auth = g_strdup(vnc_auth_name(vd));
     }
 
     return info;
@@ -853,7 +870,7 @@ static int vnc_cursor_define(VncState *vs)
 static void vnc_dpy_cursor_define(DisplayChangeListener *dcl,
                                   QEMUCursor *c)
 {
-    VncDisplay *vd = vnc_display;
+    VncDisplay *vd = container_of(dcl, VncDisplay, dcl);
     VncState *vs;
 
     cursor_put(vd->cursor);
@@ -2818,6 +2835,7 @@ static void vnc_connect(VncDisplay *vd, int csock,
     int i;
 
     vs->csock = csock;
+    vs->vd = vd;
 
     if (skipauth) {
 	vs->auth = VNC_AUTH_NONE;
@@ -2861,8 +2879,6 @@ static void vnc_connect(VncDisplay *vd, int csock,
     vnc_client_cache_addr(vs);
     vnc_qmp_event(vs, QAPI_EVENT_VNC_CONNECTED);
     vnc_set_share_mode(vs, VNC_SHARE_MODE_CONNECTING);
-
-    vs->vd = vd;
 
 #ifdef CONFIG_VNC_WS
     if (!vs->websocket)
@@ -2956,7 +2972,7 @@ void vnc_display_init(DisplayState *ds)
 {
     VncDisplay *vs = g_malloc0(sizeof(*vs));
 
-    vnc_display = vs;
+    QTAILQ_INSERT_TAIL(&vnc_displays, vs, next);
 
     vs->lsock = -1;
 #ifdef CONFIG_VNC_WS
@@ -2986,7 +3002,7 @@ void vnc_display_init(DisplayState *ds)
 
 static void vnc_display_close(DisplayState *ds)
 {
-    VncDisplay *vs = vnc_display;
+    VncDisplay *vs = vnc_display_find(NULL);
 
     if (!vs)
         return;
@@ -3015,7 +3031,7 @@ static void vnc_display_close(DisplayState *ds)
 
 int vnc_display_password(DisplayState *ds, const char *password)
 {
-    VncDisplay *vs = vnc_display;
+    VncDisplay *vs = vnc_display_find(NULL);
 
     if (!vs) {
         return -EINVAL;
@@ -3034,7 +3050,7 @@ int vnc_display_password(DisplayState *ds, const char *password)
 
 int vnc_display_pw_expire(DisplayState *ds, time_t expires)
 {
-    VncDisplay *vs = vnc_display;
+    VncDisplay *vs = vnc_display_find(NULL);
 
     if (!vs) {
         return -EINVAL;
@@ -3046,14 +3062,14 @@ int vnc_display_pw_expire(DisplayState *ds, time_t expires)
 
 char *vnc_display_local_addr(DisplayState *ds)
 {
-    VncDisplay *vs = vnc_display;
-    
+    VncDisplay *vs = vnc_display_find(NULL);
+
     return vnc_socket_local_addr("%s:%s", vs->lsock);
 }
 
 void vnc_display_open(DisplayState *ds, const char *display, Error **errp)
 {
-    VncDisplay *vs = vnc_display;
+    VncDisplay *vs = vnc_display_find(NULL);
     const char *options;
     int password = 0;
     int reverse = 0;
@@ -3069,7 +3085,7 @@ void vnc_display_open(DisplayState *ds, const char *display, Error **errp)
 #endif
     int lock_key_sync = 1;
 
-    if (!vnc_display) {
+    if (!vs) {
         error_setg(errp, "VNC display not active");
         return;
     }
@@ -3368,7 +3384,10 @@ fail:
 
 void vnc_display_add_client(DisplayState *ds, int csock, bool skipauth)
 {
-    VncDisplay *vs = vnc_display;
+    VncDisplay *vs = vnc_display_find(NULL);
 
+    if (!vs) {
+        return;
+    }
     vnc_connect(vs, csock, skipauth, false);
 }

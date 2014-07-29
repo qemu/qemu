@@ -171,6 +171,8 @@ struct VncDisplay
     struct VncSurface guest;   /* guest visible surface (aka ds->surface) */
     pixman_image_t *server;    /* vnc server surface */
 
+    const char *id;
+    QTAILQ_ENTRY(VncDisplay) next;
     char *display;
     char *password;
     time_t expires;
