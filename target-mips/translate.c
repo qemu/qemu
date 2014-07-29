@@ -13190,6 +13190,9 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
             gen_logic_imm(ctx, OPC_LUI, rs, -1, imm);
             break;
         case SYNCI:
+            /* Break the TB to be able to sync copied instructions
+               immediately */
+            ctx->bstate = BS_STOP;
             break;
         case BC2F:
         case BC2T:
@@ -16928,7 +16931,9 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
             break;
         case OPC_SYNCI:
             check_insn(ctx, ISA_MIPS32R2);
-            /* Treat as NOP. */
+            /* Break the TB to be able to sync copied instructions
+               immediately */
+            ctx->bstate = BS_STOP;
             break;
         case OPC_BPOSGE32:    /* MIPS DSP branch */
 #if defined(TARGET_MIPS64)
