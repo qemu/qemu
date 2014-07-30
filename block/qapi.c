@@ -28,6 +28,13 @@
 #include "qapi-visit.h"
 #include "qapi/qmp-output-visitor.h"
 #include "qapi/qmp/types.h"
+#ifdef __linux__
+#include <linux/fs.h>
+#include <sys/ioctl.h>
+#ifndef FS_NOCOW_FL
+#define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
+#endif
+#endif
 
 BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs)
 {
@@ -172,6 +179,9 @@ void bdrv_query_image_info(BlockDriverState *bs,
     int ret;
     Error *err = NULL;
     ImageInfo *info;
+#ifdef __linux__
+    int fd, attr;
+#endif
 
     size = bdrv_getlength(bs);
     if (size < 0) {
@@ -200,6 +210,18 @@ void bdrv_query_image_info(BlockDriverState *bs,
     }
     info->format_specific     = bdrv_get_specific_info(bs);
     info->has_format_specific = info->format_specific != NULL;
+
+#ifdef __linux__
+    /* get NOCOW info */
+    fd = qemu_open(bs->filename, O_RDONLY | O_NONBLOCK);
+    if (fd >= 0) {
+        if (ioctl(fd, FS_IOC_GETFLAGS, &attr) == 0 && (attr & FS_NOCOW_FL)) {
+            info->has_nocow = true;
+            info->nocow = true;
+        }
+        qemu_close(fd);
+    }
+#endif
 
     backing_filename = bs->backing_file;
     if (backing_filename[0] != '\0') {
@@ -630,5 +652,9 @@ void bdrv_image_info_dump(fprintf_function func_fprintf, void *f,
     if (info->has_format_specific) {
         func_fprintf(f, "Format specific information:\n");
         bdrv_image_info_specific_dump(func_fprintf, f, info->format_specific);
+    }
+
+    if (info->has_nocow && info->nocow) {
+        func_fprintf(f, "NOCOW flag: set\n");
     }
 }

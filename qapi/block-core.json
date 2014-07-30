@@ -115,6 +115,8 @@
 # @format-specific: #optional structure supplying additional format-specific
 # information (since 1.7)
 #
+# @nocow: #optional info of whether NOCOW flag is set or not. (since 2.2)
+#
 # Since: 1.3
 #
 ##
@@ -126,7 +128,8 @@
            '*backing-filename': 'str', '*full-backing-filename': 'str',
            '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'],
            '*backing-image': 'ImageInfo',
-           '*format-specific': 'ImageInfoSpecific' } }
+           '*format-specific': 'ImageInfoSpecific',
+           '*nocow': 'bool' } }
 
 ##
 # @ImageCheck:
