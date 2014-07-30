@@ -662,7 +662,7 @@ static QEMUMachine pc_machine_v1_1 = {
             .property = "class",\
             .value    = stringify(PCI_CLASS_MEMORY_RAM),\
         },{\
-            .driver   = "apic",\
+            .driver   = "apic-common",\
             .property = "vapic",\
             .value    = "off",\
         },{\
