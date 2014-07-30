@@ -300,7 +300,10 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
 int e820_get_num_entries(void);
 bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
+#define PC_COMPAT_2_1
+
 #define PC_COMPAT_2_0 \
+        PC_COMPAT_2_1, \
         {\
             .driver   = "virtio-scsi-pci",\
             .property = "any_layout",\
