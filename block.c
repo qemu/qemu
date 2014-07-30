@@ -4553,6 +4553,12 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
             // Add the second request
             qemu_iovec_concat(qiov, reqs[i].qiov, 0, reqs[i].qiov->size);
 
+            // Add tail of first request, if necessary
+            if (qiov->size < reqs[outidx].qiov->size) {
+                qemu_iovec_concat(qiov, reqs[outidx].qiov, qiov->size,
+                                  reqs[outidx].qiov->size - qiov->size);
+            }
+
             reqs[outidx].nb_sectors = qiov->size >> 9;
             reqs[outidx].qiov = qiov;
 
