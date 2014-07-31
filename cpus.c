@@ -429,6 +429,25 @@ void qemu_clock_warp(QEMUClockType type)
     }
 }
 
+static bool icount_state_needed(void *opaque)
+{
+    return use_icount;
+}
+
+/*
+ * This is a subsection for icount migration.
+ */
+static const VMStateDescription icount_vmstate_timers = {
+    .name = "timer/icount",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT64(qemu_icount_bias, TimersState),
+        VMSTATE_INT64(qemu_icount, TimersState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_timers = {
     .name = "timer",
     .version_id = 2,
@@ -438,6 +457,14 @@ static const VMStateDescription vmstate_timers = {
         VMSTATE_INT64(dummy, TimersState),
         VMSTATE_INT64_V(cpu_clock_offset, TimersState, 2),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection[]) {
+        {
+            .vmsd = &icount_vmstate_timers,
+            .needed = icount_state_needed,
+        }, {
+            /* empty */
+        }
     }
 };
 
