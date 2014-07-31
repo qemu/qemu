@@ -146,7 +146,7 @@ static int64_t cpu_get_icount_locked(void)
         }
         icount -= (cpu->icount_decr.u16.low + cpu->icount_extra);
     }
-    return timers_state.qemu_icount_bias + (icount << icount_time_shift);
+    return timers_state.qemu_icount_bias + cpu_icount_to_ns(icount);
 }
 
 int64_t cpu_get_icount(void)
@@ -160,6 +160,11 @@ int64_t cpu_get_icount(void)
     } while (seqlock_read_retry(&timers_state.vm_clock_seqlock, start));
 
     return icount;
+}
+
+int64_t cpu_icount_to_ns(int64_t icount)
+{
+    return icount << icount_time_shift;
 }
 
 /* return the host CPU cycle counter and handle stop/restart */
