@@ -102,16 +102,11 @@ static bool all_cpu_threads_idle(void)
 
 /* Protected by TimersState seqlock */
 
-/* Compensate for varying guest execution speed.  */
-static int64_t qemu_icount_bias;
 static int64_t vm_clock_warp_start;
 /* Conversion factor from emulated instructions to virtual clock ticks.  */
 static int icount_time_shift;
 /* Arbitrarily pick 1MIPS as the minimum allowable speed.  */
 #define MAX_ICOUNT_SHIFT 10
-
-/* Only written by TCG thread */
-static int64_t qemu_icount;
 
 static QEMUTimer *icount_rt_timer;
 static QEMUTimer *icount_vm_timer;
@@ -129,6 +124,11 @@ typedef struct TimersState {
     int64_t cpu_clock_offset;
     int32_t cpu_ticks_enabled;
     int64_t dummy;
+
+    /* Compensate for varying guest execution speed.  */
+    int64_t qemu_icount_bias;
+    /* Only written by TCG thread */
+    int64_t qemu_icount;
 } TimersState;
 
 static TimersState timers_state;
@@ -139,14 +139,14 @@ static int64_t cpu_get_icount_locked(void)
     int64_t icount;
     CPUState *cpu = current_cpu;
 
-    icount = qemu_icount;
+    icount = timers_state.qemu_icount;
     if (cpu) {
         if (!cpu_can_do_io(cpu)) {
             fprintf(stderr, "Bad clock read\n");
         }
         icount -= (cpu->icount_decr.u16.low + cpu->icount_extra);
     }
-    return qemu_icount_bias + (icount << icount_time_shift);
+    return timers_state.qemu_icount_bias + (icount << icount_time_shift);
 }
 
 int64_t cpu_get_icount(void)
@@ -284,7 +284,8 @@ static void icount_adjust(void)
         icount_time_shift++;
     }
     last_delta = delta;
-    qemu_icount_bias = cur_icount - (qemu_icount << icount_time_shift);
+    timers_state.qemu_icount_bias = cur_icount
+                              - (timers_state.qemu_icount << icount_time_shift);
     seqlock_write_unlock(&timers_state.vm_clock_seqlock);
 }
 
@@ -333,7 +334,7 @@ static void icount_warp_rt(void *opaque)
             int64_t delta = cur_time - cur_icount;
             warp_delta = MIN(warp_delta, delta);
         }
-        qemu_icount_bias += warp_delta;
+        timers_state.qemu_icount_bias += warp_delta;
     }
     vm_clock_warp_start = -1;
     seqlock_write_unlock(&timers_state.vm_clock_seqlock);
@@ -351,7 +352,7 @@ void qtest_clock_warp(int64_t dest)
         int64_t deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
         int64_t warp = qemu_soonest_timeout(dest - clock, deadline);
         seqlock_write_lock(&timers_state.vm_clock_seqlock);
-        qemu_icount_bias += warp;
+        timers_state.qemu_icount_bias += warp;
         seqlock_write_unlock(&timers_state.vm_clock_seqlock);
 
         qemu_clock_run_timers(QEMU_CLOCK_VIRTUAL);
@@ -1250,7 +1251,8 @@ static int tcg_cpu_exec(CPUArchState *env)
         int64_t count;
         int64_t deadline;
         int decr;
-        qemu_icount -= (cpu->icount_decr.u16.low + cpu->icount_extra);
+        timers_state.qemu_icount -= (cpu->icount_decr.u16.low
+                                    + cpu->icount_extra);
         cpu->icount_decr.u16.low = 0;
         cpu->icount_extra = 0;
         deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
@@ -1265,7 +1267,7 @@ static int tcg_cpu_exec(CPUArchState *env)
         }
 
         count = qemu_icount_round(deadline);
-        qemu_icount += count;
+        timers_state.qemu_icount += count;
         decr = (count > 0xffff) ? 0xffff : count;
         count -= decr;
         cpu->icount_decr.u16.low = decr;
@@ -1278,7 +1280,8 @@ static int tcg_cpu_exec(CPUArchState *env)
     if (use_icount) {
         /* Fold pending instructions back into the
            instruction counter, and clear the interrupt flag.  */
-        qemu_icount -= (cpu->icount_decr.u16.low + cpu->icount_extra);
+        timers_state.qemu_icount -= (cpu->icount_decr.u16.low
+                        + cpu->icount_extra);
         cpu->icount_decr.u32 = 0;
         cpu->icount_extra = 0;
     }
