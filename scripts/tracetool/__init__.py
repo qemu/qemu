@@ -136,6 +136,8 @@ class Event(object):
         Properties of the event.
     args : Arguments
         The event arguments.
+    arg_fmts : str
+        The format strings for each argument.
     """
 
     _CRE = re.compile("((?P<props>.*)\s+)?"
@@ -144,10 +146,11 @@ class Event(object):
                       "\s*"
                       "(?:(?:(?P<fmt_trans>\".+),)?\s*(?P<fmt>\".+))?"
                       "\s*")
+    _FMT = re.compile("(%\w+|%.*PRI\S+)")
 
     _VALID_PROPS = set(["disable", "tcg", "tcg-trans", "tcg-exec"])
 
-    def __init__(self, name, props, fmt, args, orig=None):
+    def __init__(self, name, props, fmt, args, arg_fmts, orig=None):
         """
         Parameters
         ----------
@@ -159,13 +162,17 @@ class Event(object):
             Event printing format (or formats).
         args : Arguments
             Event arguments.
+        arg_fmts : list of str
+            Format strings for each argument.
         orig : Event or None
             Original Event before transformation.
+
         """
         self.name = name
         self.properties = props
         self.fmt = fmt
         self.args = args
+        self.arg_fmts = arg_fmts
 
         if orig is None:
             self.original = weakref.ref(self)
@@ -203,6 +210,7 @@ class Event(object):
         if len(fmt_trans) > 0:
             fmt = [fmt_trans, fmt]
         args = Arguments.build(groups["args"])
+        arg_fmts = Event._FMT.findall(fmt)
 
         if "tcg-trans" in props:
             raise ValueError("Invalid property 'tcg-trans'")
@@ -213,7 +221,7 @@ class Event(object):
         if "tcg" in props and isinstance(fmt, str):
             raise ValueError("Events with 'tcg' property must have two formats")
 
-        return Event(name, props, fmt, args)
+        return Event(name, props, fmt, args, arg_fmts)
 
     def __repr__(self):
         """Evaluable string representation for this object."""
