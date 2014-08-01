@@ -33,6 +33,7 @@
 #include "qemu-common.h"
 #define NO_CPU_IO_DEFS
 #include "cpu.h"
+#include "trace.h"
 #include "disas/disas.h"
 #include "tcg.h"
 #if defined(CONFIG_USER_ONLY)
@@ -157,6 +158,8 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr
     tcg_func_start(s);
 
     gen_intermediate_code(env, tb);
+
+    trace_translate_block(tb, tb->pc, tb->tc_ptr);
 
     /* generate machine code */
     gen_code_buf = tb->tc_ptr;

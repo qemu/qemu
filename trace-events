@@ -1265,6 +1265,15 @@ kvm_failed_spr_get(int str, const char *msg) "Warning: Unable to retrieve SPR %d
 kvm_failed_reg_get(uint64_t id, const char *msg) "Warning: Unable to retrieve ONEREG %" PRIu64 " from KVM: %s"
 kvm_failed_reg_set(uint64_t id, const char *msg) "Warning: Unable to set ONEREG %" PRIu64 " to KVM: %s"
 
+# TCG related tracing (mostly disabled by default)
+# cpu-exec.c
+disable exec_tb(void *tb, uintptr_t pc) "tb:%p pc=0x%"PRIxPTR
+disable exec_tb_nocache(void *tb, uintptr_t pc) "tb:%p pc=0x%"PRIxPTR
+disable exec_tb_exit(void *next_tb, unsigned int flags) "tb:%p flags=%x"
+
+# translate-all.c
+translate_block(void *tb, uintptr_t pc, uint8_t *tb_code) "tb:%p, pc:0x%"PRIxPTR", tb_code:%p"
+
 # memory.c
 memory_region_ops_read(void *mr, uint64_t addr, uint64_t value, unsigned size) "mr %p addr %#"PRIx64" value %#"PRIx64" size %u"
 memory_region_ops_write(void *mr, uint64_t addr, uint64_t value, unsigned size) "mr %p addr %#"PRIx64" value %#"PRIx64" size %u"
