@@ -4156,8 +4156,8 @@ int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
                         &page_size);
     if (ret == 0) {
         /* Map a single [sub]page.  */
-        phys_addr &= ~(hwaddr)0x3ff;
-        address &= ~(target_ulong)0x3ff;
+        phys_addr &= TARGET_PAGE_MASK;
+        address &= TARGET_PAGE_MASK;
         tlb_set_page(cs, address, phys_addr, prot, mmu_idx, page_size);
         return 0;
     }
