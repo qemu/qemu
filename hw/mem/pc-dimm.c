@@ -253,8 +253,9 @@ static void pc_dimm_realize(DeviceState *dev, Error **errp)
         return;
     }
     if (dimm->node >= nb_numa_nodes) {
-        error_setg(errp, "'" PC_DIMM_NODE_PROP
-                   "' exceeds numa node number: %" PRId32, nb_numa_nodes);
+        error_setg(errp, "'DIMM property " PC_DIMM_NODE_PROP " has value %"
+                   PRIu32 "' which exceeds the number of numa nodes: %d",
+                   dimm->node, nb_numa_nodes);
         return;
     }
 }
