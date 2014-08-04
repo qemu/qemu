@@ -595,7 +595,9 @@ static void ide_async_cmd_done(IDEState *s)
 void ide_set_inactive(IDEState *s)
 {
     s->bus->dma->aiocb = NULL;
-    s->bus->dma->ops->set_inactive(s->bus->dma);
+    if (s->bus->dma->ops->set_inactive) {
+        s->bus->dma->ops->set_inactive(s->bus->dma);
+    }
     ide_async_cmd_done(s);
 }
 
@@ -2226,7 +2228,6 @@ static const IDEDMAOps ide_dma_nop_ops = {
     .rw_buf         = ide_nop_int,
     .set_unit       = ide_nop_int,
     .add_status     = ide_nop_int,
-    .set_inactive   = ide_nop,
     .restart_cb     = ide_nop_restart,
 };
 

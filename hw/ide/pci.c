@@ -160,15 +160,13 @@ static int bmdma_add_status(IDEDMA *dma, int status)
     return 0;
 }
 
-static int bmdma_set_inactive(IDEDMA *dma)
+static void bmdma_set_inactive(IDEDMA *dma)
 {
     BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
 
     bm->status &= ~BM_STATUS_DMAING;
     bm->dma_cb = NULL;
     bm->unit = -1;
-
-    return 0;
 }
 
 static void bmdma_restart_dma(BMDMAState *bm, enum ide_dma_cmd dma_cmd)

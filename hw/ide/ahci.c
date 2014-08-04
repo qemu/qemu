@@ -1116,11 +1116,6 @@ static int ahci_dma_add_status(IDEDMA *dma, int status)
     return 0;
 }
 
-static int ahci_dma_set_inactive(IDEDMA *dma)
-{
-    return 0;
-}
-
 static int ahci_async_cmd_done(IDEDMA *dma)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
@@ -1154,7 +1149,6 @@ static const IDEDMAOps ahci_dma_ops = {
     .rw_buf = ahci_dma_rw_buf,
     .set_unit = ahci_dma_set_unit,
     .add_status = ahci_dma_add_status,
-    .set_inactive = ahci_dma_set_inactive,
     .async_cmd_done = ahci_async_cmd_done,
     .restart_cb = ahci_dma_restart_cb,
 };

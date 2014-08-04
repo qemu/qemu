@@ -433,7 +433,7 @@ struct IDEDMAOps {
     DMAIntFunc *rw_buf;
     DMAIntFunc *set_unit;
     DMAIntFunc *add_status;
-    DMAFunc *set_inactive;
+    DMAVoidFunc *set_inactive;
     DMAFunc *async_cmd_done;
     DMARestartFunc *restart_cb;
     DMAVoidFunc *reset;
