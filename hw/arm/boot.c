@@ -417,8 +417,12 @@ static void do_cpu_reset(void *opaque)
     if (info) {
         if (!info->is_linux) {
             /* Jump to the entry point.  */
-            env->regs[15] = info->entry & 0xfffffffe;
-            env->thumb = info->entry & 1;
+            if (env->aarch64) {
+                env->pc = info->entry;
+            } else {
+                env->regs[15] = info->entry & 0xfffffffe;
+                env->thumb = info->entry & 1;
+            }
         } else {
             if (CPU(cpu) == first_cpu) {
                 if (env->aarch64) {
