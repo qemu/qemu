@@ -236,7 +236,7 @@ static void pc_q35_init(MachineState *machine)
         gsi_state->i8259_irq[i] = i8259[i];
     }
     if (pci_enabled) {
-        ioapic_init_gsi(gsi_state, NULL);
+        ioapic_init_gsi(gsi_state, "q35");
     }
     qdev_init_nofail(icc_bridge);
 
