@@ -167,11 +167,12 @@ QTestState *qtest_init(const char *extra_args)
     if (s->qemu_pid == 0) {
         command = g_strdup_printf("exec %s "
                                   "-qtest unix:%s,nowait "
-                                  "-qtest-log /dev/null "
+                                  "-qtest-log %s "
                                   "-qmp unix:%s,nowait "
                                   "-machine accel=qtest "
                                   "-display none "
                                   "%s", qemu_binary, socket_path,
+                                  getenv("QTEST_LOG") ? "/dev/fd/2" : "/dev/null",
                                   qmp_socket_path,
                                   extra_args ?: "");
         execlp("/bin/sh", "sh", "-c", command, NULL);
@@ -358,6 +359,7 @@ static void qmp_response(JSONMessageParser *parser, QList *tokens)
 QDict *qtest_qmp_receive(QTestState *s)
 {
     QMPResponseParser qmp;
+    bool log = getenv("QTEST_LOG") != NULL;
 
     qmp.response = NULL;
     json_message_parser_init(&qmp.parser, qmp_response);
@@ -375,6 +377,9 @@ QDict *qtest_qmp_receive(QTestState *s)
             exit(1);
         }
 
+        if (log) {
+            len = write(2, &c, 1);
+        }
         json_message_parser_feed(&qmp.parser, &c, 1);
     }
     json_message_parser_destroy(&qmp.parser);
