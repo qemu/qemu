@@ -532,6 +532,7 @@ void ide_bus_reset(IDEBus *bus);
 int64_t ide_get_sector(IDEState *s);
 void ide_set_sector(IDEState *s, int64_t sector_num);
 
+void ide_start_dma(IDEState *s, BlockDriverCompletionFunc *cb);
 void ide_dma_error(IDEState *s);
 
 void ide_atapi_cmd_ok(IDEState *s);

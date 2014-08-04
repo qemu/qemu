@@ -255,8 +255,7 @@ static void ide_atapi_cmd_reply(IDEState *s, int size, int max_size)
     if (s->atapi_dma) {
         bdrv_acct_start(s->bs, &s->acct, size, BDRV_ACCT_READ);
         s->status = READY_STAT | SEEK_STAT | DRQ_STAT;
-        s->bus->dma->ops->start_dma(s->bus->dma, s,
-                                   ide_atapi_cmd_read_dma_cb);
+        ide_start_dma(s, ide_atapi_cmd_read_dma_cb);
     } else {
         s->status = READY_STAT | SEEK_STAT;
         ide_atapi_cmd_reply_end(s);
@@ -375,8 +374,7 @@ static void ide_atapi_cmd_read_dma(IDEState *s, int lba, int nb_sectors,
 
     /* XXX: check if BUSY_STAT should be set */
     s->status = READY_STAT | SEEK_STAT | DRQ_STAT | BUSY_STAT;
-    s->bus->dma->ops->start_dma(s->bus->dma, s,
-                               ide_atapi_cmd_read_dma_cb);
+    ide_start_dma(s, ide_atapi_cmd_read_dma_cb);
 }
 
 static void ide_atapi_cmd_read(IDEState *s, int lba, int nb_sectors,

@@ -745,7 +745,14 @@ static void ide_sector_start_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
         break;
     }
 
-    s->bus->dma->ops->start_dma(s->bus->dma, s, ide_dma_cb);
+    ide_start_dma(s, ide_dma_cb);
+}
+
+void ide_start_dma(IDEState *s, BlockDriverCompletionFunc *cb)
+{
+    if (s->bus->dma->ops->start_dma) {
+        s->bus->dma->ops->start_dma(s->bus->dma, s, cb);
+    }
 }
 
 static void ide_sector_write_timer_cb(void *opaque)
@@ -2204,11 +2211,6 @@ static void ide_init1(IDEBus *bus, int unit)
                                            ide_sector_write_timer_cb, s);
 }
 
-static void ide_nop_start(IDEDMA *dma, IDEState *s,
-                          BlockDriverCompletionFunc *cb)
-{
-}
-
 static int ide_nop_int(IDEDMA *dma, int x)
 {
     return 0;
@@ -2219,7 +2221,6 @@ static void ide_nop_restart(void *opaque, int x, RunState y)
 }
 
 static const IDEDMAOps ide_dma_nop_ops = {
-    .start_dma      = ide_nop_start,
     .prepare_buf    = ide_nop_int,
     .rw_buf         = ide_nop_int,
     .set_unit       = ide_nop_int,
