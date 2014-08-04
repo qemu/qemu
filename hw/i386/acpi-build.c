@@ -1393,7 +1393,7 @@ build_rsdp(GArray *rsdp_table, GArray *linker, unsigned rsdt)
 {
     AcpiRsdpDescriptor *rsdp = acpi_data_push(rsdp_table, sizeof *rsdp);
 
-    bios_linker_loader_alloc(linker, ACPI_BUILD_RSDP_FILE, 1,
+    bios_linker_loader_alloc(linker, ACPI_BUILD_RSDP_FILE, 16,
                              true /* fseg memory */);
 
     memcpy(&rsdp->signature, "RSD PTR ", 8);
