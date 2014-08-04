@@ -1853,7 +1853,7 @@ static uint64_t aa64_dczid_read(CPUARMState *env, const ARMCPRegInfo *ri)
 
 static CPAccessResult sp_el0_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    if (!env->pstate & PSTATE_SP) {
+    if (!(env->pstate & PSTATE_SP)) {
         /* Access to SP_EL0 is undefined if it's being used as
          * the stack pointer.
          */
