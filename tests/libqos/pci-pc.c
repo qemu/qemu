@@ -237,3 +237,10 @@ QPCIBus *qpci_init_pc(void)
 
     return &ret->bus;
 }
+
+void qpci_free_pc(QPCIBus *bus)
+{
+    QPCIBusPC *s = container_of(bus, QPCIBusPC, bus);
+
+    g_free(s);
+}
