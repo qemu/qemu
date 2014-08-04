@@ -33,6 +33,10 @@
 
 #define BMDMA_PAGE_SIZE 4096
 
+#define BM_MIGRATION_COMPAT_STATUS_BITS \
+        (BM_STATUS_DMA_RETRY | BM_STATUS_PIO_RETRY | \
+        BM_STATUS_RETRY_READ | BM_STATUS_RETRY_FLUSH)
+
 static void bmdma_start_dma(IDEDMA *dma, IDEState *s,
                             BlockDriverCompletionFunc *dma_cb)
 {

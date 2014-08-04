@@ -3,6 +3,13 @@
 
 #include <hw/ide/internal.h>
 
+#define BM_STATUS_DMAING 0x01
+#define BM_STATUS_ERROR  0x02
+#define BM_STATUS_INT    0x04
+
+#define BM_CMD_START     0x01
+#define BM_CMD_READ      0x08
+
 typedef struct BMDMAState {
     IDEDMA dma;
     uint8_t cmd;
