@@ -465,13 +465,13 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
     }
 
     env->cp15.esr_el[1] = env->exception.syndrome;
-    env->cp15.far_el1 = env->exception.vaddress;
+    env->cp15.far_el[1] = env->exception.vaddress;
 
     switch (cs->exception_index) {
     case EXCP_PREFETCH_ABORT:
     case EXCP_DATA_ABORT:
         qemu_log_mask(CPU_LOG_INT, "...with FAR 0x%" PRIx64 "\n",
-                      env->cp15.far_el1);
+                      env->cp15.far_el[1]);
         break;
     case EXCP_BKPT:
     case EXCP_UDEF:

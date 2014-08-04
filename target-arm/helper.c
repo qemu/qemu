@@ -521,7 +521,7 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
       .access = PL0_W, .type = ARM_CP_NOP },
     { .name = "IFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW,
-      .fieldoffset = offsetofhigh32(CPUARMState, cp15.far_el1),
+      .fieldoffset = offsetofhigh32(CPUARMState, cp15.far_el[1]),
       .resetvalue = 0, },
     /* Watchpoint Fault Address Register : should actually only be present
      * for 1136, 1176, 11MPCore.
@@ -1516,7 +1516,7 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     /* 64-bit FAR; this entry also gives us the AArch32 DFAR */
     { .name = "FAR_EL1", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.far_el1),
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.far_el[1]),
       .resetvalue = 0, },
     REGINFO_SENTINEL
 };
@@ -3425,8 +3425,8 @@ void arm_cpu_do_interrupt(CPUState *cs)
         /* Fall through to prefetch abort.  */
     case EXCP_PREFETCH_ABORT:
         env->cp15.ifsr_el2 = env->exception.fsr;
-        env->cp15.far_el1 = deposit64(env->cp15.far_el1, 32, 32,
-                                      env->exception.vaddress);
+        env->cp15.far_el[1] = deposit64(env->cp15.far_el[1], 32, 32,
+                                        env->exception.vaddress);
         qemu_log_mask(CPU_LOG_INT, "...with IFSR 0x%x IFAR 0x%x\n",
                       env->cp15.ifsr_el2, (uint32_t)env->exception.vaddress);
         new_mode = ARM_CPU_MODE_ABT;
@@ -3436,8 +3436,8 @@ void arm_cpu_do_interrupt(CPUState *cs)
         break;
     case EXCP_DATA_ABORT:
         env->cp15.esr_el[1] = env->exception.fsr;
-        env->cp15.far_el1 = deposit64(env->cp15.far_el1, 0, 32,
-                                      env->exception.vaddress);
+        env->cp15.far_el[1] = deposit64(env->cp15.far_el[1], 0, 32,
+                                        env->exception.vaddress);
         qemu_log_mask(CPU_LOG_INT, "...with DFSR 0x%x DFAR 0x%x\n",
                       (uint32_t)env->cp15.esr_el[1],
                       (uint32_t)env->exception.vaddress);
