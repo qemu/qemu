@@ -489,8 +489,7 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
 
     if (is_a64(env)) {
         env->banked_spsr[aarch64_banked_spsr_index(1)] = pstate_read(env);
-        env->sp_el[arm_current_pl(env)] = env->xregs[31];
-        env->xregs[31] = env->sp_el[1];
+        aarch64_save_sp(env, arm_current_pl(env));
         env->elr_el[1] = env->pc;
     } else {
         env->banked_spsr[0] = cpsr_read(env);
@@ -508,6 +507,7 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
 
     pstate_write(env, PSTATE_DAIF | PSTATE_MODE_EL1h);
     env->aarch64 = 1;
+    aarch64_restore_sp(env, 1);
 
     env->pc = addr;
     cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
