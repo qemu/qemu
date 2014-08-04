@@ -1147,11 +1147,6 @@ static void ahci_dma_restart_cb(void *opaque, int running, RunState state)
 {
 }
 
-static int ahci_dma_reset(IDEDMA *dma)
-{
-    return 0;
-}
-
 static const IDEDMAOps ahci_dma_ops = {
     .start_dma = ahci_start_dma,
     .start_transfer = ahci_start_transfer,
@@ -1162,7 +1157,6 @@ static const IDEDMAOps ahci_dma_ops = {
     .set_inactive = ahci_dma_set_inactive,
     .async_cmd_done = ahci_async_cmd_done,
     .restart_cb = ahci_dma_restart_cb,
-    .reset = ahci_dma_reset,
 };
 
 void ahci_init(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)

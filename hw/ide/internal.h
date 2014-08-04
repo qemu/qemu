@@ -320,6 +320,7 @@ typedef enum { IDE_HD, IDE_CD, IDE_CFATA } IDEDriveKind;
 typedef void EndTransferFunc(IDEState *);
 
 typedef void DMAStartFunc(IDEDMA *, IDEState *, BlockDriverCompletionFunc *);
+typedef void DMAVoidFunc(IDEDMA *);
 typedef int DMAFunc(IDEDMA *);
 typedef int DMAIntFunc(IDEDMA *, int);
 typedef void DMARestartFunc(void *, int, RunState);
@@ -435,7 +436,7 @@ struct IDEDMAOps {
     DMAFunc *set_inactive;
     DMAFunc *async_cmd_done;
     DMARestartFunc *restart_cb;
-    DMAFunc *reset;
+    DMAVoidFunc *reset;
 };
 
 struct IDEDMA {

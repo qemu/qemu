@@ -247,7 +247,7 @@ static void bmdma_cancel(BMDMAState *bm)
     }
 }
 
-static int bmdma_reset(IDEDMA *dma)
+static void bmdma_reset(IDEDMA *dma)
 {
     BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
 
@@ -264,8 +264,6 @@ static int bmdma_reset(IDEDMA *dma)
     bm->cur_prd_len = 0;
     bm->sector_num = 0;
     bm->nsector = 0;
-
-    return 0;
 }
 
 static int bmdma_start_transfer(IDEDMA *dma)

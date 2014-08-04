@@ -2088,7 +2088,9 @@ void ide_bus_reset(IDEBus *bus)
     }
 
     /* reset dma provider too */
-    bus->dma->ops->reset(bus->dma);
+    if (bus->dma->ops->reset) {
+        bus->dma->ops->reset(bus->dma);
+    }
 }
 
 static bool ide_cd_is_tray_open(void *opaque)
@@ -2226,7 +2228,6 @@ static const IDEDMAOps ide_dma_nop_ops = {
     .add_status     = ide_nop_int,
     .set_inactive   = ide_nop,
     .restart_cb     = ide_nop_restart,
-    .reset          = ide_nop,
 };
 
 static IDEDMA ide_dma_nop = {
