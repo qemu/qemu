@@ -146,7 +146,7 @@ static QPCIDevice *get_pci_device(uint16_t *bmdma_base)
     g_assert(device_id == PCI_DEVICE_ID_INTEL_82371SB_1);
 
     /* Map bmdma BAR */
-    *bmdma_base = (uint16_t)(uintptr_t) qpci_iomap(dev, 4);
+    *bmdma_base = (uint16_t)(uintptr_t) qpci_iomap(dev, 4, NULL);
 
     qpci_device_enable(dev);
 

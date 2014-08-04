@@ -41,7 +41,7 @@ struct QPCIBus
     void (*config_writel)(QPCIBus *bus, int devfn,
                           uint8_t offset, uint32_t value);
 
-    void *(*iomap)(QPCIBus *bus, QPCIDevice *dev, int barno);
+    void *(*iomap)(QPCIBus *bus, QPCIDevice *dev, int barno, uint64_t *sizeptr);
     void (*iounmap)(QPCIBus *bus, void *data);
 };
 
@@ -74,7 +74,7 @@ void qpci_io_writeb(QPCIDevice *dev, void *data, uint8_t value);
 void qpci_io_writew(QPCIDevice *dev, void *data, uint16_t value);
 void qpci_io_writel(QPCIDevice *dev, void *data, uint32_t value);
 
-void *qpci_iomap(QPCIDevice *dev, int barno);
+void *qpci_iomap(QPCIDevice *dev, int barno, uint64_t *sizeptr);
 void qpci_iounmap(QPCIDevice *dev, void *data);
 
 #endif

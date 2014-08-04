@@ -144,7 +144,7 @@ static void qpci_pc_config_writel(QPCIBus *bus, int devfn, uint8_t offset, uint3
     outl(0xcfc, value);
 }
 
-static void *qpci_pc_iomap(QPCIBus *bus, QPCIDevice *dev, int barno)
+static void *qpci_pc_iomap(QPCIBus *bus, QPCIDevice *dev, int barno, uint64_t *sizeptr)
 {
     QPCIBusPC *s = container_of(bus, QPCIBusPC, bus);
     static const int bar_reg_map[] = {
@@ -172,6 +172,9 @@ static void *qpci_pc_iomap(QPCIBus *bus, QPCIDevice *dev, int barno)
     size = (1ULL << ctzl(addr));
     if (size == 0) {
         return NULL;
+    }
+    if (sizeptr) {
+        *sizeptr = size;
     }
 
     if (io_type == PCI_BASE_ADDRESS_SPACE_IO) {
