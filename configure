@@ -326,6 +326,7 @@ seccomp=""
 glusterfs=""
 glusterfs_discard="no"
 glusterfs_zerofill="no"
+archipelago=""
 virtio_blk_data_plane=""
 gtk=""
 gtkabi=""
@@ -1087,6 +1088,10 @@ for opt do
   ;;
   --enable-glusterfs) glusterfs="yes"
   ;;
+  --disable-archipelago) archipelago="no"
+  ;;
+  --enable-archipelago) archipelago="yes"
+  ;;
   --disable-virtio-blk-data-plane) virtio_blk_data_plane="no"
   ;;
   --enable-virtio-blk-data-plane) virtio_blk_data_plane="yes"
@@ -1382,6 +1387,8 @@ Advanced options (experts only):
   --enable-coroutine-pool  enable coroutine freelist (better performance)
   --enable-glusterfs       enable GlusterFS backend
   --disable-glusterfs      disable GlusterFS backend
+  --enable-archipelago     enable Archipelago backend
+  --disable-archipelago    disable Archipelago backend
   --enable-gcov            enable test coverage analysis with gcov
   --gcov=GCOV              use specified gcov [$gcov_tool]
   --disable-tpm            disable TPM support
@@ -3071,6 +3078,33 @@ EOF
   fi
 fi
 
+
+##########################################
+# archipelago probe
+if test "$archipelago" != "no" ; then
+    cat > $TMPC <<EOF
+#include <stdio.h>
+#include <xseg/xseg.h>
+#include <xseg/protocol.h>
+int main(void) {
+    xseg_initialize();
+    return 0;
+}
+EOF
+    archipelago_libs=-lxseg
+    if compile_prog "" "$archipelago_libs"; then
+        archipelago="yes"
+        libs_tools="$archipelago_libs $libs_tools"
+        libs_softmmu="$archipelago_libs $libs_softmmu"
+    else
+      if test "$archipelago" = "yes" ; then
+        feature_not_found "Archipelago backend support" "Install libxseg devel"
+      fi
+      archipelago="no"
+    fi
+fi
+
+
 ##########################################
 # glusterfs probe
 if test "$glusterfs" != "no" ; then
@@ -4252,6 +4286,7 @@ echo "seccomp support   $seccomp"
 echo "coroutine backend $coroutine"
 echo "coroutine pool    $coroutine_pool"
 echo "GlusterFS support $glusterfs"
+echo "Archipelago support $archipelago"
 echo "virtio-blk-data-plane $virtio_blk_data_plane"
 echo "gcov              $gcov_tool"
 echo "gcov enabled      $gcov"
@@ -4688,6 +4723,11 @@ fi
 
 if test "$glusterfs_zerofill" = "yes" ; then
   echo "CONFIG_GLUSTERFS_ZEROFILL=y" >> $config_host_mak
+fi
+
+if test "$archipelago" = "yes" ; then
+  echo "CONFIG_ARCHIPELAGO=m" >> $config_host_mak
+  echo "ARCHIPELAGO_LIBS=$archipelago_libs" >> $config_host_mak
 fi
 
 if test "$libssh2" = "yes" ; then
