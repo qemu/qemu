@@ -120,7 +120,7 @@ DefinitionBlock ("ssdt-misc.aml", "SSDT", 0x01, "BXPC", "BXSSDTSUSP", 0x1)
 
     External(MEMORY_SLOT_NOTIFY_METHOD, MethodObj)
     Scope(\_SB.PCI0) {
-        Device(MEMORY_HOPTLUG_DEVICE) {
+        Device(MEMORY_HOTPLUG_DEVICE) {
             Name(_HID, "PNP0A06")
             Name(_UID, "Memory hotplug resources")
 
