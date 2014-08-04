@@ -264,11 +264,6 @@ static void bmdma_reset(IDEDMA *dma)
     bm->nsector = 0;
 }
 
-static int bmdma_start_transfer(IDEDMA *dma)
-{
-    return 0;
-}
-
 static void bmdma_irq(void *opaque, int n, int level)
 {
     BMDMAState *bm = opaque;
@@ -500,7 +495,6 @@ void pci_ide_create_devs(PCIDevice *dev, DriveInfo **hd_table)
 
 static const struct IDEDMAOps bmdma_ops = {
     .start_dma = bmdma_start_dma,
-    .start_transfer = bmdma_start_transfer,
     .prepare_buf = bmdma_prepare_buf,
     .rw_buf = bmdma_rw_buf,
     .set_unit = bmdma_set_unit,

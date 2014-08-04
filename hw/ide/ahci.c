@@ -991,7 +991,7 @@ out:
 }
 
 /* DMA dev <-> ram */
-static int ahci_start_transfer(IDEDMA *dma)
+static void ahci_start_transfer(IDEDMA *dma)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
     IDEState *s = &ad->port.ifs[0];
@@ -1041,8 +1041,6 @@ out:
         /* done with DMA */
         ahci_trigger_irq(ad->hba, ad, PORT_IRQ_STAT_DSS);
     }
-
-    return 0;
 }
 
 static void ahci_start_dma(IDEDMA *dma, IDEState *s,

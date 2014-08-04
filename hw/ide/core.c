@@ -434,7 +434,9 @@ void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
     if (!(s->status & ERR_STAT)) {
         s->status |= DRQ_STAT;
     }
-    s->bus->dma->ops->start_transfer(s->bus->dma);
+    if (s->bus->dma->ops->start_transfer) {
+        s->bus->dma->ops->start_transfer(s->bus->dma);
+    }
 }
 
 void ide_transfer_stop(IDEState *s)
@@ -2207,11 +2209,6 @@ static void ide_nop_start(IDEDMA *dma, IDEState *s,
 {
 }
 
-static int ide_nop(IDEDMA *dma)
-{
-    return 0;
-}
-
 static int ide_nop_int(IDEDMA *dma, int x)
 {
     return 0;
@@ -2223,7 +2220,6 @@ static void ide_nop_restart(void *opaque, int x, RunState y)
 
 static const IDEDMAOps ide_dma_nop_ops = {
     .start_dma      = ide_nop_start,
-    .start_transfer = ide_nop,
     .prepare_buf    = ide_nop_int,
     .rw_buf         = ide_nop_int,
     .set_unit       = ide_nop_int,
