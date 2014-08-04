@@ -1116,7 +1116,7 @@ static int ahci_dma_add_status(IDEDMA *dma, int status)
     return 0;
 }
 
-static int ahci_async_cmd_done(IDEDMA *dma)
+static void ahci_async_cmd_done(IDEDMA *dma)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
 
@@ -1130,8 +1130,6 @@ static int ahci_async_cmd_done(IDEDMA *dma)
         ad->check_bh = qemu_bh_new(ahci_check_cmd_bh, ad);
         qemu_bh_schedule(ad->check_bh);
     }
-
-    return 0;
 }
 
 static void ahci_irq_set(void *opaque, int n, int level)
