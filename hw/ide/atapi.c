@@ -355,7 +355,6 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 
 eot:
     bdrv_acct_done(s->bs, &s->acct);
-    s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_INT);
     ide_set_inactive(s);
 }
 
