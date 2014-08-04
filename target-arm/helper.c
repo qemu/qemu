@@ -1801,12 +1801,17 @@ static CPAccessResult aa64_cacheop_access(CPUARMState *env,
     return CP_ACCESS_OK;
 }
 
+/* See: D4.7.2 TLB maintenance requirements and the TLB maintenance instructions
+ * Page D4-1736 (DDI0487A.b)
+ */
+
 static void tlbi_aa64_va_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                uint64_t value)
 {
     /* Invalidate by VA (AArch64 version) */
     ARMCPU *cpu = arm_env_get_cpu(env);
-    uint64_t pageaddr = value << 12;
+    uint64_t pageaddr = sextract64(value << 12, 0, 56);
+
     tlb_flush_page(CPU(cpu), pageaddr);
 }
 
@@ -1815,7 +1820,8 @@ static void tlbi_aa64_vaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     /* Invalidate by VA, all ASIDs (AArch64 version) */
     ARMCPU *cpu = arm_env_get_cpu(env);
-    uint64_t pageaddr = value << 12;
+    uint64_t pageaddr = sextract64(value << 12, 0, 56);
+
     tlb_flush_page(CPU(cpu), pageaddr);
 }
 
