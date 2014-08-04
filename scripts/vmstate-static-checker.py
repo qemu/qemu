@@ -42,30 +42,44 @@ def check_fields_match(name, s_field, d_field):
     # Some fields changed names between qemu versions.  This list
     # is used to whitelist such changes in each section / description.
     changed_names = {
+        'apic': ['timer', 'timer_expiry'],
         'e1000': ['dev', 'parent_obj'],
         'ehci': ['dev', 'pcidev'],
         'I440FX': ['dev', 'parent_obj'],
         'ich9_ahci': ['card', 'parent_obj'],
+        'ich9-ahci': ['ahci', 'ich9_ahci'],
+        'ioh3420': ['PCIDevice', 'PCIEDevice'],
         'ioh-3240-express-root-port': ['port.br.dev',
                                        'parent_obj.parent_obj.parent_obj',
                                        'port.br.dev.exp.aer_log',
                                 'parent_obj.parent_obj.parent_obj.exp.aer_log'],
+        'lsiscsi': ['dev', 'parent_obj'],
         'mch': ['d', 'parent_obj'],
         'pci_bridge': ['bridge.dev', 'parent_obj', 'bridge.dev.shpc', 'shpc'],
         'pcnet': ['pci_dev', 'parent_obj'],
         'PIIX3': ['pci_irq_levels', 'pci_irq_levels_vmstate'],
         'piix4_pm': ['dev', 'parent_obj', 'pci0_status',
-                     'acpi_pci_hotplug.acpi_pcihp_pci_status[0x0]'],
+                     'acpi_pci_hotplug.acpi_pcihp_pci_status[0x0]',
+                     'pm1a.sts', 'ar.pm1.evt.sts', 'pm1a.en', 'ar.pm1.evt.en',
+                     'pm1_cnt.cnt', 'ar.pm1.cnt.cnt',
+                     'tmr.timer', 'ar.tmr.timer',
+                     'tmr.overflow_time', 'ar.tmr.overflow_time',
+                     'gpe', 'ar.gpe'],
         'rtl8139': ['dev', 'parent_obj'],
         'qxl': ['num_surfaces', 'ssd.num_surfaces'],
+        'usb-ccid': ['abProtocolDataStructure', 'abProtocolDataStructure.data'],
         'usb-host': ['dev', 'parent_obj'],
         'usb-mouse': ['usb-ptr-queue', 'HIDPointerEventQueue'],
         'usb-tablet': ['usb-ptr-queue', 'HIDPointerEventQueue'],
+        'vmware_vga': ['card', 'parent_obj'],
+        'vmware_vga_internal': ['depth', 'new_depth'],
         'xhci': ['pci_dev', 'parent_obj'],
+        'x3130-upstream': ['PCIDevice', 'PCIEDevice'],
         'xio3130-express-downstream-port': ['port.br.dev',
                                             'parent_obj.parent_obj.parent_obj',
                                             'port.br.dev.exp.aer_log',
                                 'parent_obj.parent_obj.parent_obj.exp.aer_log'],
+        'xio3130-downstream': ['PCIDevice', 'PCIEDevice'],
         'xio3130-express-upstream-port': ['br.dev', 'parent_obj.parent_obj',
                                           'br.dev.exp.aer_log',
                                           'parent_obj.parent_obj.exp.aer_log'],
@@ -130,6 +144,7 @@ def check_fields(src_fields, dest_fields, desc, sec):
 
     advance_src = True
     advance_dest = True
+    unused_count = 0
 
     while True:
         if advance_src:
@@ -142,9 +157,10 @@ def check_fields(src_fields, dest_fields, desc, sec):
                 s_iter = s_iter_list.pop()
                 continue
         else:
-            # We want to avoid advancing just once -- when entering a
-            # dest substruct, or when exiting one.
-            advance_src = True
+            if unused_count == 0:
+                # We want to avoid advancing just once -- when entering a
+                # dest substruct, or when exiting one.
+                advance_src = True
 
         if advance_dest:
             try:
@@ -163,7 +179,37 @@ def check_fields(src_fields, dest_fields, desc, sec):
                 advance_src = False
                 continue
         else:
-            advance_dest = True
+            if unused_count == 0:
+                advance_dest = True
+
+        if unused_count > 0:
+            if advance_dest == False:
+                unused_count = unused_count - s_item["size"]
+                if unused_count == 0:
+                    advance_dest = True
+                    continue
+                if unused_count < 0:
+                    print "Section \"" + sec + "\",",
+                    print "Description \"" + desc + "\":",
+                    print "unused size mismatch near \"",
+                    print s_item["field"] + "\""
+                    bump_taint()
+                    break
+                continue
+
+            if advance_src == False:
+                unused_count = unused_count - d_item["size"]
+                if unused_count == 0:
+                    advance_src = True
+                    continue
+                if unused_count < 0:
+                    print "Section \"" + sec + "\",",
+                    print "Description \"" + desc + "\":",
+                    print "unused size mismatch near \"",
+                    print d_item["field"] + "\""
+                    bump_taint()
+                    break
+                continue
 
         if not check_fields_match(desc, s_item["field"], d_item["field"]):
             # Some fields were put in substructs, keeping the
@@ -193,6 +239,20 @@ def check_fields(src_fields, dest_fields, desc, sec):
                 s_iter = iter(substruct_fields)
                 advance_dest = False
                 continue
+
+            if s_item["field"] == "unused" or d_item["field"] == "unused":
+                if s_item["size"] == d_item["size"]:
+                    continue
+
+                if d_item["field"] == "unused":
+                    advance_dest = False
+                    unused_count = d_item["size"] - s_item["size"]
+                    continue
+
+                if s_item["field"] == "unused":
+                    advance_src = False
+                    unused_count = s_item["size"] - d_item["size"]
+                    continue
 
             print "Section \"" + sec + "\",",
             print "Description \"" + desc + "\":",
