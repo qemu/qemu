@@ -584,7 +584,7 @@ static void ahci_write_fis_sdb(AHCIState *s, int port, uint32_t finished)
     s->dev[port].finished |= finished;
     *(uint32_t*)(sdb_fis + 4) = cpu_to_le32(s->dev[port].finished);
 
-    ahci_trigger_irq(s, &s->dev[port], PORT_IRQ_STAT_SDBS);
+    ahci_trigger_irq(s, &s->dev[port], PORT_IRQ_SDB_FIS);
 }
 
 static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
@@ -629,7 +629,7 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
     }
 
     if (d2h_fis[2] & ERR_STAT) {
-        ahci_trigger_irq(ad->hba, ad, PORT_IRQ_STAT_TFES);
+        ahci_trigger_irq(ad->hba, ad, PORT_IRQ_TF_ERR);
     }
 
     ahci_trigger_irq(ad->hba, ad, PORT_IRQ_D2H_REG_FIS);
@@ -1039,7 +1039,7 @@ out:
 
     if (!(s->status & DRQ_STAT)) {
         /* done with DMA */
-        ahci_trigger_irq(ad->hba, ad, PORT_IRQ_STAT_DSS);
+        ahci_trigger_irq(ad->hba, ad, PORT_IRQ_D2H_REG_FIS);
     }
 }
 

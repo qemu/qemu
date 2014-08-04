@@ -132,27 +132,6 @@
 #define PORT_CMD_ICC_PARTIAL      (0x2 << 28) /* Put i/f in partial state */
 #define PORT_CMD_ICC_SLUMBER      (0x6 << 28) /* Put i/f in slumber state */
 
-#define PORT_IRQ_STAT_DHRS        (1 << 0) /* Device to Host Register FIS */
-#define PORT_IRQ_STAT_PSS         (1 << 1) /* PIO Setup FIS */
-#define PORT_IRQ_STAT_DSS         (1 << 2) /* DMA Setup FIS */
-#define PORT_IRQ_STAT_SDBS        (1 << 3) /* Set Device Bits */
-#define PORT_IRQ_STAT_UFS         (1 << 4) /* Unknown FIS */
-#define PORT_IRQ_STAT_DPS         (1 << 5) /* Descriptor Processed */
-#define PORT_IRQ_STAT_PCS         (1 << 6) /* Port Connect Change Status */
-#define PORT_IRQ_STAT_DMPS        (1 << 7) /* Device Mechanical Presence
-                                              Status */
-#define PORT_IRQ_STAT_PRCS        (1 << 22) /* File Ready Status */
-#define PORT_IRQ_STAT_IPMS        (1 << 23) /* Incorrect Port Multiplier
-                                               Status */
-#define PORT_IRQ_STAT_OFS         (1 << 24) /* Overflow Status */
-#define PORT_IRQ_STAT_INFS        (1 << 26) /* Interface Non-Fatal Error
-                                               Status */
-#define PORT_IRQ_STAT_IFS         (1 << 27) /* Interface Fatal Error */
-#define PORT_IRQ_STAT_HBDS        (1 << 28) /* Host Bus Data Error Status */
-#define PORT_IRQ_STAT_HBFS        (1 << 29) /* Host Bus Fatal Error Status */
-#define PORT_IRQ_STAT_TFES        (1 << 30) /* Task File Error Status */
-#define PORT_IRQ_STAT_CPDS        (1U << 31) /* Code Port Detect Status */
-
 /* ap->flags bits */
 #define AHCI_FLAG_NO_NCQ                  (1 << 24)
 #define AHCI_FLAG_IGN_IRQ_IF_ERR          (1 << 25) /* ignore IRQ_IF_ERR */
