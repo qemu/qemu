@@ -120,6 +120,8 @@ static void ide_test_start(const char *cmdline_fmt, ...)
     qtest_start(cmdline);
     qtest_irq_intercept_in(global_qtest, "ioapic");
     guest_malloc = pc_alloc_init();
+
+    g_free(cmdline);
 }
 
 static void ide_test_quit(void)
