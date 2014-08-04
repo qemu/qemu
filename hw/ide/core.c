@@ -420,6 +420,7 @@ BlockDriverAIOCB *ide_issue_trim(BlockDriverState *bs,
 
 static inline void ide_abort_command(IDEState *s)
 {
+    ide_transfer_stop(s);
     s->status = READY_STAT | ERR_STAT;
     s->error = ABRT_ERR;
 }
@@ -605,9 +606,7 @@ void ide_set_inactive(IDEState *s, bool more)
 
 void ide_dma_error(IDEState *s)
 {
-    ide_transfer_stop(s);
-    s->error = ABRT_ERR;
-    s->status = READY_STAT | ERR_STAT;
+    ide_abort_command(s);
     ide_set_inactive(s, false);
     ide_set_irq(s->bus);
 }
