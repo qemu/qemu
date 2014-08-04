@@ -522,6 +522,25 @@ static BlockDriverAIOCB *blkdebug_aio_writev(BlockDriverState *bs,
     return bdrv_aio_writev(bs->file, sector_num, qiov, nb_sectors, cb, opaque);
 }
 
+static BlockDriverAIOCB *blkdebug_aio_flush(BlockDriverState *bs,
+    BlockDriverCompletionFunc *cb, void *opaque)
+{
+    BDRVBlkdebugState *s = bs->opaque;
+    BlkdebugRule *rule = NULL;
+
+    QSIMPLEQ_FOREACH(rule, &s->active_rules, active_next) {
+        if (rule->options.inject.sector == -1) {
+            break;
+        }
+    }
+
+    if (rule && rule->options.inject.error) {
+        return inject_error(bs, cb, opaque, rule);
+    }
+
+    return bdrv_aio_flush(bs->file, cb, opaque);
+}
+
 
 static void blkdebug_close(BlockDriverState *bs)
 {
@@ -699,6 +718,7 @@ static BlockDriver bdrv_blkdebug = {
 
     .bdrv_aio_readv         = blkdebug_aio_readv,
     .bdrv_aio_writev        = blkdebug_aio_writev,
+    .bdrv_aio_flush         = blkdebug_aio_flush,
 
     .bdrv_debug_event           = blkdebug_debug_event,
     .bdrv_debug_breakpoint      = blkdebug_debug_breakpoint,
