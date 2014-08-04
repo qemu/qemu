@@ -523,8 +523,8 @@ static void ide_sector_read_cb(void *opaque, int ret)
 
     bdrv_acct_done(s->bs, &s->acct);
     if (ret != 0) {
-        if (ide_handle_rw_error(s, -ret, BM_STATUS_PIO_RETRY |
-                                BM_STATUS_RETRY_READ)) {
+        if (ide_handle_rw_error(s, -ret, IDE_RETRY_PIO |
+                                IDE_RETRY_READ)) {
             return;
         }
     }
@@ -614,14 +614,14 @@ void ide_dma_error(IDEState *s)
 
 static int ide_handle_rw_error(IDEState *s, int error, int op)
 {
-    bool is_read = (op & BM_STATUS_RETRY_READ) != 0;
+    bool is_read = (op & IDE_RETRY_READ) != 0;
     BlockErrorAction action = bdrv_get_error_action(s->bs, is_read, error);
 
     if (action == BLOCK_ERROR_ACTION_STOP) {
         s->bus->dma->ops->set_unit(s->bus->dma, s->unit);
         s->bus->error_status = op;
     } else if (action == BLOCK_ERROR_ACTION_REPORT) {
-        if (op & BM_STATUS_DMA_RETRY) {
+        if (op & IDE_RETRY_DMA) {
             dma_buf_commit(s);
             ide_dma_error(s);
         } else {
@@ -640,12 +640,12 @@ void ide_dma_cb(void *opaque, int ret)
     bool stay_active = false;
 
     if (ret < 0) {
-        int op = BM_STATUS_DMA_RETRY;
+        int op = IDE_RETRY_DMA;
 
         if (s->dma_cmd == IDE_DMA_READ)
-            op |= BM_STATUS_RETRY_READ;
+            op |= IDE_RETRY_READ;
         else if (s->dma_cmd == IDE_DMA_TRIM)
-            op |= BM_STATUS_RETRY_TRIM;
+            op |= IDE_RETRY_TRIM;
 
         if (ide_handle_rw_error(s, -ret, op)) {
             return;
@@ -769,7 +769,7 @@ static void ide_sector_write_cb(void *opaque, int ret)
     s->status &= ~BUSY_STAT;
 
     if (ret != 0) {
-        if (ide_handle_rw_error(s, -ret, BM_STATUS_PIO_RETRY)) {
+        if (ide_handle_rw_error(s, -ret, IDE_RETRY_PIO)) {
             return;
         }
     }
@@ -843,7 +843,7 @@ static void ide_flush_cb(void *opaque, int ret)
 
     if (ret < 0) {
         /* XXX: What sector number to set here? */
-        if (ide_handle_rw_error(s, -ret, BM_STATUS_RETRY_FLUSH)) {
+        if (ide_handle_rw_error(s, -ret, IDE_RETRY_FLUSH)) {
             return;
         }
     }
@@ -2338,7 +2338,7 @@ static bool ide_drive_pio_state_needed(void *opaque)
     IDEState *s = opaque;
 
     return ((s->status & DRQ_STAT) != 0)
-        || (s->bus->error_status & BM_STATUS_PIO_RETRY);
+        || (s->bus->error_status & IDE_RETRY_PIO);
 }
 
 static bool ide_tray_state_needed(void *opaque)

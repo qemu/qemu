@@ -34,8 +34,8 @@
 #define BMDMA_PAGE_SIZE 4096
 
 #define BM_MIGRATION_COMPAT_STATUS_BITS \
-        (BM_STATUS_DMA_RETRY | BM_STATUS_PIO_RETRY | \
-        BM_STATUS_RETRY_READ | BM_STATUS_RETRY_FLUSH)
+        (IDE_RETRY_DMA | IDE_RETRY_PIO | \
+        IDE_RETRY_READ | IDE_RETRY_FLUSH)
 
 static void bmdma_start_dma(IDEDMA *dma, IDEState *s,
                             BlockDriverCompletionFunc *dma_cb)
@@ -198,7 +198,7 @@ static void bmdma_restart_bh(void *opaque)
         return;
     }
 
-    is_read = (bus->error_status & BM_STATUS_RETRY_READ) != 0;
+    is_read = (bus->error_status & IDE_RETRY_READ) != 0;
 
     /* The error status must be cleared before resubmitting the request: The
      * request may fail again, and this case can only be distinguished if the
@@ -206,19 +206,19 @@ static void bmdma_restart_bh(void *opaque)
     error_status = bus->error_status;
     bus->error_status = 0;
 
-    if (error_status & BM_STATUS_DMA_RETRY) {
-        if (error_status & BM_STATUS_RETRY_TRIM) {
+    if (error_status & IDE_RETRY_DMA) {
+        if (error_status & IDE_RETRY_TRIM) {
             bmdma_restart_dma(bm, IDE_DMA_TRIM);
         } else {
             bmdma_restart_dma(bm, is_read ? IDE_DMA_READ : IDE_DMA_WRITE);
         }
-    } else if (error_status & BM_STATUS_PIO_RETRY) {
+    } else if (error_status & IDE_RETRY_PIO) {
         if (is_read) {
             ide_sector_read(bmdma_active_if(bm));
         } else {
             ide_sector_write(bmdma_active_if(bm));
         }
-    } else if (error_status & BM_STATUS_RETRY_FLUSH) {
+    } else if (error_status & IDE_RETRY_FLUSH) {
         ide_flush_cache(bmdma_active_if(bm));
     }
 }

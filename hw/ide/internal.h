@@ -484,12 +484,12 @@ struct IDEDevice {
     uint64_t wwn;
 };
 
-/* FIXME These are not status register bits */
-#define BM_STATUS_DMA_RETRY  0x08
-#define BM_STATUS_PIO_RETRY  0x10
-#define BM_STATUS_RETRY_READ  0x20
-#define BM_STATUS_RETRY_FLUSH 0x40
-#define BM_STATUS_RETRY_TRIM 0x80
+/* These are used for the error_status field of IDEBus */
+#define IDE_RETRY_DMA  0x08
+#define IDE_RETRY_PIO  0x10
+#define IDE_RETRY_READ  0x20
+#define IDE_RETRY_FLUSH 0x40
+#define IDE_RETRY_TRIM 0x80
 
 static inline IDEState *idebus_active_if(IDEBus *bus)
 {
