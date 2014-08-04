@@ -67,5 +67,8 @@ QGuestAllocator *pc_alloc_init(void)
     /* Respect PCI hole */
     s->end = MIN(ram_size, 0xE0000000);
 
+    /* clean-up */
+    g_free(fw_cfg);
+
     return &s->alloc;
 }
