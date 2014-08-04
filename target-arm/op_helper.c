@@ -410,7 +410,7 @@ void HELPER(exception_return)(CPUARMState *env)
         }
         env->aarch64 = 1;
         pstate_write(env, spsr);
-        env->xregs[31] = env->sp_el[new_el];
+        aarch64_restore_sp(env, new_el);
         env->pc = env->elr_el[cur_el];
     }
 
