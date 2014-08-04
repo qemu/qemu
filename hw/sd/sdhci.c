@@ -702,7 +702,8 @@ static void sdhci_do_adma(SDHCIState *s)
                         length -= block_size - begin;
                     }
                     dma_memory_read(&address_space_memory, dscr.addr,
-                                    &s->fifo_buffer[begin], s->data_count);
+                                    &s->fifo_buffer[begin],
+                                    s->data_count - begin);
                     dscr.addr += s->data_count - begin;
                     if (s->data_count == block_size) {
                         for (n = 0; n < block_size; n++) {
