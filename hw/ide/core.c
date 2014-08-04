@@ -831,6 +831,8 @@ static void ide_flush_cb(void *opaque, int ret)
 {
     IDEState *s = opaque;
 
+    s->pio_aiocb = NULL;
+
     if (ret < 0) {
         /* XXX: What sector number to set here? */
         if (ide_handle_rw_error(s, -ret, BM_STATUS_RETRY_FLUSH)) {
@@ -853,7 +855,7 @@ void ide_flush_cache(IDEState *s)
 
     s->status |= BUSY_STAT;
     bdrv_acct_start(s->bs, &s->acct, 0, BDRV_ACCT_FLUSH);
-    bdrv_aio_flush(s->bs, ide_flush_cb, s);
+    s->pio_aiocb = bdrv_aio_flush(s->bs, ide_flush_cb, s);
 }
 
 static void ide_cfata_metadata_inquiry(IDEState *s)
