@@ -440,12 +440,20 @@ void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
     }
 }
 
+static void ide_cmd_done(IDEState *s)
+{
+    if (s->bus->dma->ops->cmd_done) {
+        s->bus->dma->ops->cmd_done(s->bus->dma);
+    }
+}
+
 void ide_transfer_stop(IDEState *s)
 {
     s->end_transfer_func = ide_transfer_stop;
     s->data_ptr = s->io_buffer;
     s->data_end = s->io_buffer;
     s->status &= ~DRQ_STAT;
+    ide_cmd_done(s);
 }
 
 int64_t ide_get_sector(IDEState *s)
@@ -588,20 +596,13 @@ static void dma_buf_commit(IDEState *s)
     qemu_sglist_destroy(&s->sg);
 }
 
-static void ide_async_cmd_done(IDEState *s)
-{
-    if (s->bus->dma->ops->async_cmd_done) {
-        s->bus->dma->ops->async_cmd_done(s->bus->dma);
-    }
-}
-
 void ide_set_inactive(IDEState *s, bool more)
 {
     s->bus->dma->aiocb = NULL;
     if (s->bus->dma->ops->set_inactive) {
         s->bus->dma->ops->set_inactive(s->bus->dma, more);
     }
-    ide_async_cmd_done(s);
+    ide_cmd_done(s);
 }
 
 void ide_dma_error(IDEState *s)
@@ -849,7 +850,7 @@ static void ide_flush_cb(void *opaque, int ret)
 
     bdrv_acct_done(s->bs, &s->acct);
     s->status = READY_STAT | SEEK_STAT;
-    ide_async_cmd_done(s);
+    ide_cmd_done(s);
     ide_set_irq(s->bus);
 }
 
@@ -1773,6 +1774,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
             s->status |= SEEK_STAT;
         }
 
+        ide_cmd_done(s);
         ide_set_irq(s->bus);
     }
 }
