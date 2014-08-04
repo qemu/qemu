@@ -195,10 +195,6 @@ static int vhost_net_start_one(struct vhost_net *net,
     struct vhost_vring_file file = { };
     int r;
 
-    if (net->dev.started) {
-        return 0;
-    }
-
     net->dev.nvqs = 2;
     net->dev.vqs = net->vqs;
     net->dev.vq_index = vq_index;
@@ -255,10 +251,6 @@ static void vhost_net_stop_one(struct vhost_net *net,
                                VirtIODevice *dev)
 {
     struct vhost_vring_file file = { .fd = -1 };
-
-    if (!net->dev.started) {
-        return;
-    }
 
     if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP) {
         for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
