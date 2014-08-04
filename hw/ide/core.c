@@ -594,11 +594,11 @@ static void ide_async_cmd_done(IDEState *s)
     }
 }
 
-void ide_set_inactive(IDEState *s)
+void ide_set_inactive(IDEState *s, bool more)
 {
     s->bus->dma->aiocb = NULL;
     if (s->bus->dma->ops->set_inactive) {
-        s->bus->dma->ops->set_inactive(s->bus->dma);
+        s->bus->dma->ops->set_inactive(s->bus->dma, more);
     }
     ide_async_cmd_done(s);
 }
@@ -608,7 +608,7 @@ void ide_dma_error(IDEState *s)
     ide_transfer_stop(s);
     s->error = ABRT_ERR;
     s->status = READY_STAT | ERR_STAT;
-    ide_set_inactive(s);
+    ide_set_inactive(s, false);
     ide_set_irq(s->bus);
 }
 
@@ -719,10 +719,7 @@ eot:
     if (s->dma_cmd == IDE_DMA_READ || s->dma_cmd == IDE_DMA_WRITE) {
         bdrv_acct_done(s->bs, &s->acct);
     }
-    ide_set_inactive(s);
-    if (stay_active) {
-        s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_DMAING);
-    }
+    ide_set_inactive(s, stay_active);
 }
 
 static void ide_sector_start_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
@@ -2224,7 +2221,6 @@ static const IDEDMAOps ide_dma_nop_ops = {
     .prepare_buf    = ide_nop_int,
     .rw_buf         = ide_nop_int,
     .set_unit       = ide_nop_int,
-    .add_status     = ide_nop_int,
     .restart_cb     = ide_nop_restart,
 };
 

@@ -152,21 +152,17 @@ static int bmdma_set_unit(IDEDMA *dma, int unit)
     return 0;
 }
 
-static int bmdma_add_status(IDEDMA *dma, int status)
-{
-    BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
-    bm->status |= status;
-
-    return 0;
-}
-
-static void bmdma_set_inactive(IDEDMA *dma)
+static void bmdma_set_inactive(IDEDMA *dma, bool more)
 {
     BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
 
-    bm->status &= ~BM_STATUS_DMAING;
     bm->dma_cb = NULL;
     bm->unit = -1;
+    if (more) {
+        bm->status |= BM_STATUS_DMAING;
+    } else {
+        bm->status &= ~BM_STATUS_DMAING;
+    }
 }
 
 static void bmdma_restart_dma(BMDMAState *bm, enum ide_dma_cmd dma_cmd)
@@ -241,7 +237,7 @@ static void bmdma_cancel(BMDMAState *bm)
 {
     if (bm->status & BM_STATUS_DMAING) {
         /* cancel DMA request */
-        bmdma_set_inactive(&bm->dma);
+        bmdma_set_inactive(&bm->dma, false);
     }
 }
 
@@ -498,7 +494,6 @@ static const struct IDEDMAOps bmdma_ops = {
     .prepare_buf = bmdma_prepare_buf,
     .rw_buf = bmdma_rw_buf,
     .set_unit = bmdma_set_unit,
-    .add_status = bmdma_add_status,
     .set_inactive = bmdma_set_inactive,
     .restart_cb = bmdma_restart_cb,
     .reset = bmdma_reset,

@@ -322,6 +322,7 @@ typedef void EndTransferFunc(IDEState *);
 typedef void DMAStartFunc(IDEDMA *, IDEState *, BlockDriverCompletionFunc *);
 typedef void DMAVoidFunc(IDEDMA *);
 typedef int DMAIntFunc(IDEDMA *, int);
+typedef void DMAStopFunc(IDEDMA *, bool);
 typedef void DMARestartFunc(void *, int, RunState);
 
 struct unreported_events {
@@ -431,8 +432,7 @@ struct IDEDMAOps {
     DMAIntFunc *prepare_buf;
     DMAIntFunc *rw_buf;
     DMAIntFunc *set_unit;
-    DMAIntFunc *add_status;
-    DMAVoidFunc *set_inactive;
+    DMAStopFunc *set_inactive;
     DMAVoidFunc *async_cmd_done;
     DMARestartFunc *restart_cb;
     DMAVoidFunc *reset;
@@ -565,7 +565,7 @@ void ide_flush_cache(IDEState *s);
 void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
                         EndTransferFunc *end_transfer_func);
 void ide_transfer_stop(IDEState *s);
-void ide_set_inactive(IDEState *s);
+void ide_set_inactive(IDEState *s, bool more);
 BlockDriverAIOCB *ide_issue_trim(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);

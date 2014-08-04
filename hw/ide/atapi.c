@@ -355,7 +355,7 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 
 eot:
     bdrv_acct_done(s->bs, &s->acct);
-    ide_set_inactive(s);
+    ide_set_inactive(s, false);
 }
 
 /* start a CD-CDROM read command with DMA */

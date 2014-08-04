@@ -569,7 +569,6 @@ static const IDEDMAOps dbdma_ops = {
     .prepare_buf    = ide_nop_int,
     .rw_buf         = ide_nop_int,
     .set_unit       = ide_nop_int,
-    .add_status     = ide_nop_int,
     .restart_cb     = ide_nop_restart,
 };
 

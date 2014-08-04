@@ -1102,14 +1102,6 @@ static int ahci_dma_set_unit(IDEDMA *dma, int unit)
     return 0;
 }
 
-static int ahci_dma_add_status(IDEDMA *dma, int status)
-{
-    AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
-    DPRINTF(ad->port_no, "set status: %x\n", status);
-
-    return 0;
-}
-
 static void ahci_async_cmd_done(IDEDMA *dma)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
@@ -1140,7 +1132,6 @@ static const IDEDMAOps ahci_dma_ops = {
     .prepare_buf = ahci_dma_prepare_buf,
     .rw_buf = ahci_dma_rw_buf,
     .set_unit = ahci_dma_set_unit,
-    .add_status = ahci_dma_add_status,
     .async_cmd_done = ahci_async_cmd_done,
     .restart_cb = ahci_dma_restart_cb,
 };
