@@ -71,6 +71,8 @@ typedef uint64_t target_ulong;
 #if !defined(CONFIG_USER_ONLY)
 #define CPU_TLB_BITS 8
 #define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
+/* use a fully associative victim tlb of 8 entries */
+#define CPU_VTLB_SIZE 8
 
 #if HOST_LONG_BITS == 32 && TARGET_LONG_BITS == 32
 #define CPU_TLB_ENTRY_BITS 4
@@ -103,9 +105,12 @@ QEMU_BUILD_BUG_ON(sizeof(CPUTLBEntry) != (1 << CPU_TLB_ENTRY_BITS));
 #define CPU_COMMON_TLB \
     /* The meaning of the MMU modes is defined in the target code. */   \
     CPUTLBEntry tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];                  \
-    hwaddr iotlb[NB_MMU_MODES][CPU_TLB_SIZE];               \
+    CPUTLBEntry tlb_v_table[NB_MMU_MODES][CPU_VTLB_SIZE];               \
+    hwaddr iotlb[NB_MMU_MODES][CPU_TLB_SIZE];                           \
+    hwaddr iotlb_v[NB_MMU_MODES][CPU_VTLB_SIZE];                        \
     target_ulong tlb_flush_addr;                                        \
-    target_ulong tlb_flush_mask;
+    target_ulong tlb_flush_mask;                                        \
+    target_ulong vtlb_index;                                            \
 
 #else
 

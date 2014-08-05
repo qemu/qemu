@@ -60,8 +60,10 @@ void tlb_flush(CPUState *cpu, int flush_global)
     cpu->current_tb = NULL;
 
     memset(env->tlb_table, -1, sizeof(env->tlb_table));
+    memset(env->tlb_v_table, -1, sizeof(env->tlb_v_table));
     memset(cpu->tb_jmp_cache, 0, sizeof(cpu->tb_jmp_cache));
 
+    env->vtlb_index = 0;
     env->tlb_flush_addr = -1;
     env->tlb_flush_mask = 0;
     tlb_flush_count++;
@@ -106,6 +108,14 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr)
     i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
         tlb_flush_entry(&env->tlb_table[mmu_idx][i], addr);
+    }
+
+    /* check whether there are entries that need to be flushed in the vtlb */
+    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+        int k;
+        for (k = 0; k < CPU_VTLB_SIZE; k++) {
+            tlb_flush_entry(&env->tlb_v_table[mmu_idx][k], addr);
+        }
     }
 
     tb_flush_jmp_cache(cpu, addr);
@@ -172,6 +182,11 @@ void cpu_tlb_reset_dirty_all(ram_addr_t start1, ram_addr_t length)
                 tlb_reset_dirty_range(&env->tlb_table[mmu_idx][i],
                                       start1, length);
             }
+
+            for (i = 0; i < CPU_VTLB_SIZE; i++) {
+                tlb_reset_dirty_range(&env->tlb_v_table[mmu_idx][i],
+                                      start1, length);
+            }
         }
     }
 }
@@ -194,6 +209,13 @@ void tlb_set_dirty(CPUArchState *env, target_ulong vaddr)
     i = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
         tlb_set_dirty1(&env->tlb_table[mmu_idx][i], vaddr);
+    }
+
+    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+        int k;
+        for (k = 0; k < CPU_VTLB_SIZE; k++) {
+            tlb_set_dirty1(&env->tlb_v_table[mmu_idx][k], vaddr);
+        }
     }
 }
 
@@ -235,6 +257,7 @@ void tlb_set_page(CPUState *cpu, target_ulong vaddr,
     uintptr_t addend;
     CPUTLBEntry *te;
     hwaddr iotlb, xlat, sz;
+    unsigned vidx = env->vtlb_index++ % CPU_VTLB_SIZE;
 
     assert(size >= TARGET_PAGE_SIZE);
     if (size != TARGET_PAGE_SIZE) {
@@ -267,8 +290,14 @@ void tlb_set_page(CPUState *cpu, target_ulong vaddr,
                                             prot, &address);
 
     index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    env->iotlb[mmu_idx][index] = iotlb - vaddr;
     te = &env->tlb_table[mmu_idx][index];
+
+    /* do not discard the translation in te, evict it into a victim tlb */
+    env->tlb_v_table[mmu_idx][vidx] = *te;
+    env->iotlb_v[mmu_idx][vidx] = env->iotlb[mmu_idx][index];
+
+    /* refill the tlb */
+    env->iotlb[mmu_idx][index] = iotlb - vaddr;
     te->addend = addend - vaddr;
     if (prot & PAGE_READ) {
         te->addr_read = address;
