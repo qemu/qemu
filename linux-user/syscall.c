@@ -5092,10 +5092,8 @@ static int open_self_cmdline(void *cpu_env, int fd)
 
 static int open_self_maps(void *cpu_env, int fd)
 {
-#if defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_UNICORE32)
     CPUState *cpu = ENV_GET_CPU((CPUArchState *)cpu_env);
     TaskState *ts = cpu->opaque;
-#endif
     FILE *fp;
     char *line = NULL;
     size_t len = 0;
@@ -5118,13 +5116,18 @@ static int open_self_maps(void *cpu_env, int fd)
         if ((fields < 10) || (fields > 11)) {
             continue;
         }
-        if (!strncmp(path, "[stack]", 7)) {
-            continue;
-        }
-        if (h2g_valid(min) && h2g_valid(max)) {
+        if (h2g_valid(min)) {
+            int flags = page_get_flags(h2g(min));
+            max = h2g_valid(max - 1) ? max : (uintptr_t)g2h(GUEST_ADDR_MAX);
+            if (page_check_range(h2g(min), max - min, flags) == -1) {
+                continue;
+            }
+            if (h2g(min) == ts->info->stack_limit) {
+                pstrcpy(path, sizeof(path), "      [stack]");
+            }
             dprintf(fd, TARGET_ABI_FMT_lx "-" TARGET_ABI_FMT_lx
                     " %c%c%c%c %08" PRIx64 " %02x:%02x %d %s%s\n",
-                    h2g(min), h2g(max), flag_r, flag_w,
+                    h2g(min), h2g(max - 1) + 1, flag_r, flag_w,
                     flag_x, flag_p, offset, dev_maj, dev_min, inode,
                     path[0] ? "         " : "", path);
         }
@@ -5132,14 +5135,6 @@ static int open_self_maps(void *cpu_env, int fd)
 
     free(line);
     fclose(fp);
-
-#if defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_UNICORE32)
-    dprintf(fd, "%08llx-%08llx rw-p %08llx 00:00 0          [stack]\n",
-                (unsigned long long)ts->info->stack_limit,
-                (unsigned long long)(ts->info->start_stack +
-                                     (TARGET_PAGE_SIZE - 1)) & TARGET_PAGE_MASK,
-                (unsigned long long)0);
-#endif
 
     return 0;
 }
