@@ -9,6 +9,12 @@ STEXI
 @table @option
 ETEXI
 
+DEF("bench", img_bench,
+    "bench [-c count] [-d depth] [-f fmt] [-n] [-q] [-s buffer_size] [-t cache] filename")
+STEXI
+@item bench [-c @var{count}] [-d @var{depth}] [-f @var{fmt}] [-n] [-q] [-s @var{buffer_size}] [-t @var{cache}] @var{filename}
+ETEXI
+
 DEF("check", img_check,
     "check [-q] [--object objectdef] [--image-opts] [-f fmt] [--output=ofmt] [-r [leaks | all]] [-T src_cache] filename")
 STEXI

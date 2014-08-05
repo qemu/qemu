@@ -3459,6 +3459,196 @@ out_no_progress:
     return 0;
 }
 
+typedef struct BenchData {
+    BlockBackend *blk;
+    uint64_t image_size;
+    int bufsize;
+    int nrreq;
+    int n;
+    uint8_t *buf;
+    QEMUIOVector *qiov;
+
+    int in_flight;
+    uint64_t offset;
+} BenchData;
+
+static void bench_cb(void *opaque, int ret)
+{
+    BenchData *b = opaque;
+    BlockAIOCB *acb;
+
+    if (ret < 0) {
+        error_report("Failed request: %s\n", strerror(-ret));
+        exit(EXIT_FAILURE);
+    }
+    if (b->in_flight > 0) {
+        b->n--;
+        b->in_flight--;
+    }
+
+    while (b->n > b->in_flight && b->in_flight < b->nrreq) {
+        acb = blk_aio_preadv(b->blk, b->offset, b->qiov, 0,
+                             bench_cb, b);
+        if (!acb) {
+            error_report("Failed to issue request");
+            exit(EXIT_FAILURE);
+        }
+        b->in_flight++;
+        b->offset += b->bufsize;
+        b->offset %= b->image_size;
+    }
+}
+
+static int img_bench(int argc, char **argv)
+{
+    int c, ret = 0;
+    const char *fmt = NULL, *filename;
+    bool quiet = false;
+    bool image_opts = false;
+    int count = 75000;
+    int depth = 64;
+    size_t bufsize = 4096;
+    int64_t image_size;
+    BlockBackend *blk = NULL;
+    BenchData data = {};
+    int flags = 0;
+    bool writethrough;
+    struct timeval t1, t2;
+    int i;
+
+    for (;;) {
+        static const struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},
+            {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {0, 0, 0, 0}
+        };
+        c = getopt_long(argc, argv, "hc:d:f:nqs:t:", long_options, NULL);
+        if (c == -1) {
+            break;
+        }
+
+        switch (c) {
+        case 'h':
+        case '?':
+            help();
+            break;
+        case 'c':
+        {
+            char *end;
+            errno = 0;
+            count = strtoul(optarg, &end, 0);
+            if (errno || *end || count > INT_MAX) {
+                error_report("Invalid request count specified");
+                return 1;
+            }
+            break;
+        }
+        case 'd':
+        {
+            char *end;
+            errno = 0;
+            depth = strtoul(optarg, &end, 0);
+            if (errno || *end || depth > INT_MAX) {
+                error_report("Invalid queue depth specified");
+                return 1;
+            }
+            break;
+        }
+        case 'f':
+            fmt = optarg;
+            break;
+        case 'n':
+            flags |= BDRV_O_NATIVE_AIO;
+            break;
+        case 'q':
+            quiet = true;
+            break;
+        case 's':
+        {
+            int64_t sval;
+            char *end;
+
+            sval = qemu_strtosz_suffix(optarg, &end, QEMU_STRTOSZ_DEFSUFFIX_B);
+            if (sval < 0 || sval > INT_MAX || *end) {
+                error_report("Invalid buffer size specified");
+                return 1;
+            }
+
+            bufsize = sval;
+            break;
+        }
+        case 't':
+            ret = bdrv_parse_cache_mode(optarg, &flags, &writethrough);
+            if (ret < 0) {
+                error_report("Invalid cache mode");
+                ret = -1;
+                goto out;
+            }
+            break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        }
+    }
+
+    if (optind != argc - 1) {
+        error_exit("Expecting one image file name");
+    }
+    filename = argv[argc - 1];
+
+    blk = img_open(image_opts, filename, fmt, flags, writethrough, quiet);
+    if (!blk) {
+        ret = -1;
+        goto out;
+    }
+
+    image_size = blk_getlength(blk);
+    if (image_size < 0) {
+        ret = image_size;
+        goto out;
+    }
+
+    data = (BenchData) {
+        .blk        = blk,
+        .image_size = image_size,
+        .bufsize    = bufsize,
+        .nrreq      = depth,
+        .n          = count,
+    };
+    printf("Sending %d requests, %d bytes each, %d in parallel\n",
+        data.n, data.bufsize, data.nrreq);
+
+    data.buf = blk_blockalign(blk, data.nrreq * data.bufsize);
+    data.qiov = g_new(QEMUIOVector, data.nrreq);
+    for (i = 0; i < data.nrreq; i++) {
+        qemu_iovec_init(&data.qiov[i], 1);
+        qemu_iovec_add(&data.qiov[i],
+                       data.buf + i * data.bufsize, data.bufsize);
+    }
+
+    gettimeofday(&t1, NULL);
+    bench_cb(&data, 0);
+
+    while (data.n > 0) {
+        main_loop_wait(false);
+    }
+    gettimeofday(&t2, NULL);
+
+    printf("Run completed in %3.3f seconds.\n",
+           (t2.tv_sec - t1.tv_sec)
+           + ((double)(t2.tv_usec - t1.tv_usec) / 1000000));
+
+out:
+    qemu_vfree(data.buf);
+    blk_unref(blk);
+
+    if (ret) {
+        return 1;
+    }
+    return 0;
+}
+
+
 static const img_cmd_t img_cmds[] = {
 #define DEF(option, callback, arg_string)        \
     { option, callback },
