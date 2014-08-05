@@ -120,11 +120,20 @@ typedef struct VFIOINTx {
 } VFIOINTx;
 
 typedef struct VFIOMSIVector {
-    EventNotifier interrupt; /* eventfd triggered on interrupt */
-    EventNotifier kvm_interrupt; /* eventfd triggered for KVM irqfd bypass */
+    /*
+     * Two interrupt paths are configured per vector.  The first, is only used
+     * for interrupts injected via QEMU.  This is typically the non-accel path,
+     * but may also be used when we want QEMU to handle masking and pending
+     * bits.  The KVM path bypasses QEMU and is therefore higher performance,
+     * but requires masking at the device.  virq is used to track the MSI route
+     * through KVM, thus kvm_interrupt is only available when virq is set to a
+     * valid (>= 0) value.
+     */
+    EventNotifier interrupt;
+    EventNotifier kvm_interrupt;
     struct VFIODevice *vdev; /* back pointer to device */
     MSIMessage msg; /* cache the MSI message so we know when it changes */
-    int virq; /* KVM irqchip route for QEMU bypass */
+    int virq;
     bool use;
 } VFIOMSIVector;
 
@@ -681,13 +690,24 @@ static int vfio_enable_vectors(VFIODevice *vdev, bool msix)
     fds = (int32_t *)&irq_set->data;
 
     for (i = 0; i < vdev->nr_vectors; i++) {
-        if (!vdev->msi_vectors[i].use) {
-            fds[i] = -1;
-        } else if (vdev->msi_vectors[i].virq >= 0) {
-            fds[i] = event_notifier_get_fd(&vdev->msi_vectors[i].kvm_interrupt);
-        } else {
-            fds[i] = event_notifier_get_fd(&vdev->msi_vectors[i].interrupt);
+        int fd = -1;
+
+        /*
+         * MSI vs MSI-X - The guest has direct access to MSI mask and pending
+         * bits, therefore we always use the KVM signaling path when setup.
+         * MSI-X mask and pending bits are emulated, so we want to use the
+         * KVM signaling path only when configured and unmasked.
+         */
+        if (vdev->msi_vectors[i].use) {
+            if (vdev->msi_vectors[i].virq < 0 ||
+                (msix && msix_is_masked(&vdev->pdev, i))) {
+                fd = event_notifier_get_fd(&vdev->msi_vectors[i].interrupt);
+            } else {
+                fd = event_notifier_get_fd(&vdev->msi_vectors[i].kvm_interrupt);
+            }
         }
+
+        fds[i] = fd;
     }
 
     ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
