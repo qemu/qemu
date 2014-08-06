@@ -209,6 +209,8 @@ static const int tcg_target_call_oarg_regs[] = {
 #define ARITH_MOVCC (INSN_OP(2) | INSN_OP3(0x2c))
 #define ARITH_MOVR (INSN_OP(2) | INSN_OP3(0x2f))
 
+#define ARITH_ADDXC (INSN_OP(2) | INSN_OP3(0x36) | INSN_OPF(0x11))
+
 #define SHIFT_SLL  (INSN_OP(2) | INSN_OP3(0x25))
 #define SHIFT_SRL  (INSN_OP(2) | INSN_OP3(0x26))
 #define SHIFT_SRA  (INSN_OP(2) | INSN_OP3(0x27))
@@ -261,6 +263,10 @@ static const int tcg_target_call_oarg_regs[] = {
 #define STH_LE     (STHA  | INSN_ASI(ASI_PRIMARY_LITTLE))
 #define STW_LE     (STWA  | INSN_ASI(ASI_PRIMARY_LITTLE))
 #define STX_LE     (STXA  | INSN_ASI(ASI_PRIMARY_LITTLE))
+
+#ifndef use_vis3_instructions
+bool use_vis3_instructions;
+#endif
 
 static inline int check_fit_i64(int64_t val, unsigned int bits)
 {
@@ -748,11 +754,14 @@ static void tcg_out_addsub2_i64(TCGContext *s, TCGReg rl, TCGReg rh,
 
     tcg_out_arithc(s, tmp, al, bl, blconst, is_sub ? ARITH_SUBCC : ARITH_ADDCC);
 
-    /* Note that ADDX/SUBX take the carry-in from %icc, the 32-bit carry,
-       while we want %xcc, the 64-bit carry.  */
-    /* ??? There is a 2011 VIS3 ADDXC insn that does take a 64-bit carry.  */
-
-    if (bh == TCG_REG_G0) {
+    if (use_vis3_instructions && !is_sub) {
+        /* Note that ADDXC doesn't accept immediates.  */
+        if (bhconst && bh != 0) {
+           tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_T2, bh);
+           bh = TCG_REG_T2;
+        }
+        tcg_out_arith(s, rh, ah, bh, ARITH_ADDXC);
+    } else if (bh == TCG_REG_G0) {
 	/* If we have a zero, we can perform the operation in two insns,
            with the arithmetic first, and a conditional move into place.  */
 	if (rh == ah) {
@@ -1517,6 +1526,15 @@ static const TCGTargetOpDef sparc_op_defs[] = {
 
 static void tcg_target_init(TCGContext *s)
 {
+    /* Only probe for the platform and capabilities if we havn't already
+       determined maximum values at compile time.  */
+#ifndef use_vis3_instructions
+    {
+        unsigned long hwcap = qemu_getauxval(AT_HWCAP);
+        use_vis3_instructions = (hwcap & HWCAP_SPARC_VIS3) != 0;
+    }
+#endif
+
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffffffff);
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I64], 0, ALL_64);
 

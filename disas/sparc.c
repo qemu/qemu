@@ -2042,6 +2042,9 @@ IMPDEP ("impdep2", 0x37),
 
 #undef IMPDEP
 
+{ "addxc", F3F(2, 0x36, 0x011), F3F(~2, ~0x36, ~0x011), "1,2,d", 0, v9b },
+{ "addxccc", F3F(2, 0x36, 0x013), F3F(~2, ~0x36, ~0x013), "1,2,d", 0, v9b },
+
 };
 
 static const int sparc_num_opcodes = ((sizeof sparc_opcodes)/(sizeof sparc_opcodes[0]));

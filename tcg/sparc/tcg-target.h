@@ -85,6 +85,12 @@ typedef enum {
 #define TCG_TARGET_EXTEND_ARGS 1
 #endif
 
+#if defined(__VIS__) && __VIS__ >= 0x300
+#define use_vis3_instructions  1
+#else
+extern bool use_vis3_instructions;
+#endif
+
 /* optional instructions */
 #define TCG_TARGET_HAS_div_i32		1
 #define TCG_TARGET_HAS_rem_i32		0
