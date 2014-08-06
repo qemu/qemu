@@ -435,6 +435,11 @@ static int vhdx_log_flush_desc(BlockDriverState *bs, VHDXLogDescriptor *desc,
         /* write 'count' sectors of sector */
         memset(buffer, 0, VHDX_LOG_SECTOR_SIZE);
         count = desc->zero_length / VHDX_LOG_SECTOR_SIZE;
+    } else {
+        error_report("Invalid VHDX log descriptor entry signature 0x%" PRIx32,
+                      desc->signature);
+        ret = -EINVAL;
+        goto exit;
     }
 
     file_offset = desc->file_offset;
