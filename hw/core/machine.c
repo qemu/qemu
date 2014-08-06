@@ -24,6 +24,7 @@ static void machine_set_accel(Object *obj, const char *value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
+    g_free(ms->accel);
     ms->accel = g_strdup(value);
 }
 
@@ -79,6 +80,7 @@ static void machine_set_kernel(Object *obj, const char *value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
+    g_free(ms->kernel_filename);
     ms->kernel_filename = g_strdup(value);
 }
 
@@ -93,6 +95,7 @@ static void machine_set_initrd(Object *obj, const char *value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
+    g_free(ms->initrd_filename);
     ms->initrd_filename = g_strdup(value);
 }
 
@@ -107,6 +110,7 @@ static void machine_set_append(Object *obj, const char *value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
+    g_free(ms->kernel_cmdline);
     ms->kernel_cmdline = g_strdup(value);
 }
 
@@ -121,6 +125,7 @@ static void machine_set_dtb(Object *obj, const char *value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
+    g_free(ms->dtb);
     ms->dtb = g_strdup(value);
 }
 
@@ -135,6 +140,7 @@ static void machine_set_dumpdtb(Object *obj, const char *value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
+    g_free(ms->dumpdtb);
     ms->dumpdtb = g_strdup(value);
 }
 
@@ -176,6 +182,7 @@ static void machine_set_dt_compatible(Object *obj, const char *value, Error **er
 {
     MachineState *ms = MACHINE(obj);
 
+    g_free(ms->dt_compatible);
     ms->dt_compatible = g_strdup(value);
 }
 
@@ -232,6 +239,7 @@ static void machine_set_firmware(Object *obj, const char *value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
+    g_free(ms->firmware);
     ms->firmware = g_strdup(value);
 }
 
