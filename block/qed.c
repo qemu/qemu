@@ -1634,6 +1634,12 @@ static int bdrv_qed_check(BlockDriverState *bs, BdrvCheckResult *result,
     return qed_check(s, result, !!fix);
 }
 
+static BlockDriverAIOCB *bdrv_qed_aio_flush(BlockDriverState *bs,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    return bdrv_aio_flush(bs->file, cb, opaque);
+}
+
 static QemuOptsList qed_create_opts = {
     .name = "qed-create-opts",
     .head = QTAILQ_HEAD_INITIALIZER(qed_create_opts.head),
@@ -1694,6 +1700,7 @@ static BlockDriver bdrv_qed = {
     .bdrv_check               = bdrv_qed_check,
     .bdrv_detach_aio_context  = bdrv_qed_detach_aio_context,
     .bdrv_attach_aio_context  = bdrv_qed_attach_aio_context,
+    .bdrv_aio_flush           = bdrv_qed_aio_flush,
 };
 
 static void bdrv_qed_init(void)
