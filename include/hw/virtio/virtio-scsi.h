@@ -151,6 +151,7 @@ struct VirtIOSCSIConf {
     uint32_t cmd_per_lun;
     char *vhostfd;
     char *wwpn;
+    IOThread *iothread;
 };
 
 typedef struct VirtIOSCSICommon {

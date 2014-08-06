@@ -728,6 +728,16 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
                     virtio_scsi_save, virtio_scsi_load, s);
 }
 
+static void virtio_scsi_instance_init(Object *obj)
+{
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(obj);
+
+    object_property_add_link(obj, "iothread", TYPE_IOTHREAD,
+                             (Object **)&vs->conf.iothread,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
+}
+
 void virtio_scsi_common_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -786,6 +796,7 @@ static const TypeInfo virtio_scsi_info = {
     .name = TYPE_VIRTIO_SCSI,
     .parent = TYPE_VIRTIO_SCSI_COMMON,
     .instance_size = sizeof(VirtIOSCSI),
+    .instance_init = virtio_scsi_instance_init,
     .class_init = virtio_scsi_class_init,
 };
 
