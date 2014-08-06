@@ -561,8 +561,8 @@ static int virtio_scsi_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
-                                   uint32_t event, uint32_t reason)
+void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
+                            uint32_t event, uint32_t reason)
 {
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
     VirtIOSCSIReq *req;

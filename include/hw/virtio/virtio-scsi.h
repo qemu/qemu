@@ -231,5 +231,7 @@ void virtio_scsi_handle_ctrl_req(VirtIOSCSI *s, VirtIOSCSIReq *req);
 void virtio_scsi_handle_cmd_req(VirtIOSCSI *s, VirtIOSCSIReq *req);
 VirtIOSCSIReq *virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq);
 void virtio_scsi_free_req(VirtIOSCSIReq *req);
+void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
+                            uint32_t event, uint32_t reason);
 
 #endif /* _QEMU_VIRTIO_SCSI_H */
