@@ -233,13 +233,30 @@ static const char phy_regcap[0x20] = {
 
 /* PHY_ID2 documented in 8254x_GBe_SDM.pdf, pp. 250 */
 static const uint16_t phy_reg_init[] = {
-    [PHY_CTRL] = 0x1140,
-    [PHY_STATUS] = 0x794d, /* link initially up with not completed autoneg */
-    [PHY_ID1] = 0x141, /* [PHY_ID2] configured per DevId, from e1000_reset() */
-    [PHY_1000T_CTRL] = 0x0e00,			[M88E1000_PHY_SPEC_CTRL] = 0x360,
-    [M88E1000_EXT_PHY_SPEC_CTRL] = 0x0d60,	[PHY_AUTONEG_ADV] = 0xde1,
-    [PHY_LP_ABILITY] = 0x1e0,			[PHY_1000T_STATUS] = 0x3c00,
+    [PHY_CTRL] =   MII_CR_SPEED_SELECT_MSB |
+                   MII_CR_FULL_DUPLEX |
+                   MII_CR_AUTO_NEG_EN,
+
+    [PHY_STATUS] = MII_SR_EXTENDED_CAPS |
+                   MII_SR_LINK_STATUS |   /* link initially up */
+                   MII_SR_AUTONEG_CAPS |
+                   /* MII_SR_AUTONEG_COMPLETE: initially NOT completed */
+                   MII_SR_PREAMBLE_SUPPRESS |
+                   MII_SR_EXTENDED_STATUS |
+                   MII_SR_10T_HD_CAPS |
+                   MII_SR_10T_FD_CAPS |
+                   MII_SR_100X_HD_CAPS |
+                   MII_SR_100X_FD_CAPS,
+
+    [PHY_ID1] = 0x141,
+    /* [PHY_ID2] configured per DevId, from e1000_reset() */
+    [PHY_AUTONEG_ADV] = 0xde1,
+    [PHY_LP_ABILITY] = 0x1e0,
+    [PHY_1000T_CTRL] = 0x0e00,
+    [PHY_1000T_STATUS] = 0x3c00,
+    [M88E1000_PHY_SPEC_CTRL] = 0x360,
     [M88E1000_PHY_SPEC_STATUS] = 0xac00,
+    [M88E1000_EXT_PHY_SPEC_CTRL] = 0x0d60,
 };
 
 static const uint32_t mac_reg_init[] = {
