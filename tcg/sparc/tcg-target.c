@@ -716,6 +716,23 @@ static void tcg_out_setcond_i32(TCGContext *s, TCGCond cond, TCGReg ret,
 static void tcg_out_setcond_i64(TCGContext *s, TCGCond cond, TCGReg ret,
                                 TCGReg c1, int32_t c2, int c2const)
 {
+    if (use_vis3_instructions) {
+        switch (cond) {
+        case TCG_COND_NE:
+            if (c2 != 0) {
+                break;
+            }
+            c2 = c1, c2const = 0, c1 = TCG_REG_G0;
+            /* FALLTHRU */
+        case TCG_COND_LTU:
+            tcg_out_cmp(s, c1, c2, c2const);
+            tcg_out_arith(s, ret, TCG_REG_G0, TCG_REG_G0, ARITH_ADDXC);
+            return;
+        default:
+            break;
+        }
+    }
+
     /* For 64-bit signed comparisons vs zero, we can avoid the compare
        if the input does not overlap the output.  */
     if (c2 == 0 && !is_unsigned_cond(cond) && c1 != ret) {
