@@ -227,6 +227,7 @@ void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
                                 HandleOutput cmd);
 
 void virtio_scsi_common_unrealize(DeviceState *dev, Error **errp);
+void virtio_scsi_handle_ctrl_req(VirtIOSCSI *s, VirtIOSCSIReq *req);
 void virtio_scsi_handle_cmd_req(VirtIOSCSI *s, VirtIOSCSIReq *req);
 
 #endif /* _QEMU_VIRTIO_SCSI_H */
