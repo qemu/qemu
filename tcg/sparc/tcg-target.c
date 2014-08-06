@@ -197,8 +197,8 @@ static const int tcg_target_call_oarg_regs[] = {
 #define ARITH_XOR  (INSN_OP(2) | INSN_OP3(0x03))
 #define ARITH_SUB  (INSN_OP(2) | INSN_OP3(0x04))
 #define ARITH_SUBCC (INSN_OP(2) | INSN_OP3(0x14))
-#define ARITH_ADDX (INSN_OP(2) | INSN_OP3(0x08))
-#define ARITH_SUBX (INSN_OP(2) | INSN_OP3(0x0c))
+#define ARITH_ADDC (INSN_OP(2) | INSN_OP3(0x08))
+#define ARITH_SUBC (INSN_OP(2) | INSN_OP3(0x0c))
 #define ARITH_UMUL (INSN_OP(2) | INSN_OP3(0x0a))
 #define ARITH_SMUL (INSN_OP(2) | INSN_OP3(0x0b))
 #define ARITH_UDIV (INSN_OP(2) | INSN_OP3(0x0e))
@@ -663,7 +663,7 @@ static void tcg_out_movcond_i64(TCGContext *s, TCGCond cond, TCGReg ret,
 static void tcg_out_setcond_i32(TCGContext *s, TCGCond cond, TCGReg ret,
                                 TCGReg c1, int32_t c2, int c2const)
 {
-    /* For 32-bit comparisons, we can play games with ADDX/SUBX.  */
+    /* For 32-bit comparisons, we can play games with ADDC/SUBC.  */
     switch (cond) {
     case TCG_COND_LTU:
     case TCG_COND_GEU:
@@ -707,9 +707,9 @@ static void tcg_out_setcond_i32(TCGContext *s, TCGCond cond, TCGReg ret,
 
     tcg_out_cmp(s, c1, c2, c2const);
     if (cond == TCG_COND_LTU) {
-        tcg_out_arithi(s, ret, TCG_REG_G0, 0, ARITH_ADDX);
+        tcg_out_arithi(s, ret, TCG_REG_G0, 0, ARITH_ADDC);
     } else {
-        tcg_out_arithi(s, ret, TCG_REG_G0, -1, ARITH_SUBX);
+        tcg_out_arithi(s, ret, TCG_REG_G0, -1, ARITH_SUBC);
     }
 }
 
@@ -1340,12 +1340,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_add2_i32:
         tcg_out_addsub2_i32(s, args[0], args[1], args[2], args[3],
                             args[4], const_args[4], args[5], const_args[5],
-                            ARITH_ADDCC, ARITH_ADDX);
+                            ARITH_ADDCC, ARITH_ADDC);
         break;
     case INDEX_op_sub2_i32:
         tcg_out_addsub2_i32(s, args[0], args[1], args[2], args[3],
                             args[4], const_args[4], args[5], const_args[5],
-                            ARITH_SUBCC, ARITH_SUBX);
+                            ARITH_SUBCC, ARITH_SUBC);
         break;
     case INDEX_op_mulu2_i32:
         c = ARITH_UMUL;
