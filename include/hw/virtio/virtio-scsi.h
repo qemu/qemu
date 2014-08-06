@@ -172,6 +172,41 @@ typedef struct {
     bool events_dropped;
 } VirtIOSCSI;
 
+typedef struct VirtIOSCSIReq {
+    VirtIOSCSI *dev;
+    VirtQueue *vq;
+    QEMUSGList qsgl;
+    QEMUIOVector resp_iov;
+
+    /* Note:
+     * - fields before elem are initialized by virtio_scsi_init_req;
+     * - elem is uninitialized at the time of allocation.
+     * - fields after elem are zeroed by virtio_scsi_init_req.
+     * */
+
+    VirtQueueElement elem;
+    SCSIRequest *sreq;
+    size_t resp_size;
+    enum SCSIXferMode mode;
+    union {
+        VirtIOSCSICmdResp     cmd;
+        VirtIOSCSICtrlTMFResp tmf;
+        VirtIOSCSICtrlANResp  an;
+        VirtIOSCSIEvent       event;
+    } resp;
+    union {
+        struct {
+            VirtIOSCSICmdReq  cmd;
+            uint8_t           cdb[];
+        } QEMU_PACKED;
+        VirtIOSCSICtrlTMFReq  tmf;
+        VirtIOSCSICtrlANReq   an;
+    } req;
+} VirtIOSCSIReq;
+
+QEMU_BUILD_BUG_ON(offsetof(VirtIOSCSIReq, req.cdb) !=
+                  offsetof(VirtIOSCSIReq, req.cmd) + sizeof(VirtIOSCSICmdReq));
+
 #define DEFINE_VIRTIO_SCSI_PROPERTIES(_state, _conf_field)                     \
     DEFINE_PROP_UINT32("num_queues", _state, _conf_field.num_queues, 1),       \
     DEFINE_PROP_UINT32("max_sectors", _state, _conf_field.max_sectors, 0xFFFF),\
@@ -192,5 +227,6 @@ void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
                                 HandleOutput cmd);
 
 void virtio_scsi_common_unrealize(DeviceState *dev, Error **errp);
+void virtio_scsi_handle_cmd_req(VirtIOSCSI *s, VirtIOSCSIReq *req);
 
 #endif /* _QEMU_VIRTIO_SCSI_H */

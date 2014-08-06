@@ -21,41 +21,6 @@
 #include <hw/virtio/virtio-bus.h>
 #include "hw/virtio/virtio-access.h"
 
-typedef struct VirtIOSCSIReq {
-    VirtIOSCSI *dev;
-    VirtQueue *vq;
-    QEMUSGList qsgl;
-    QEMUIOVector resp_iov;
-
-    /* Note:
-     * - fields before elem are initialized by virtio_scsi_init_req;
-     * - elem is uninitialized at the time of allocation.
-     * - fields after elem are zeroed by virtio_scsi_init_req.
-     * */
-
-    VirtQueueElement elem;
-    SCSIRequest *sreq;
-    size_t resp_size;
-    enum SCSIXferMode mode;
-    union {
-        VirtIOSCSICmdResp     cmd;
-        VirtIOSCSICtrlTMFResp tmf;
-        VirtIOSCSICtrlANResp  an;
-        VirtIOSCSIEvent       event;
-    } resp;
-    union {
-        struct {
-            VirtIOSCSICmdReq  cmd;
-            uint8_t           cdb[];
-        } QEMU_PACKED;
-        VirtIOSCSICtrlTMFReq  tmf;
-        VirtIOSCSICtrlANReq   an;
-    } req;
-} VirtIOSCSIReq;
-
-QEMU_BUILD_BUG_ON(offsetof(VirtIOSCSIReq, req.cdb) !=
-                  offsetof(VirtIOSCSIReq, req.cmd) + sizeof(VirtIOSCSICmdReq));
-
 static inline int virtio_scsi_get_lun(uint8_t *lun)
 {
     return ((lun[2] << 8) | lun[3]) & 0x3FFF;
@@ -462,52 +427,56 @@ static void virtio_scsi_fail_cmd_req(VirtIOSCSIReq *req)
     virtio_scsi_complete_cmd_req(req);
 }
 
+void virtio_scsi_handle_cmd_req(VirtIOSCSI *s, VirtIOSCSIReq *req)
+{
+    VirtIOSCSICommon *vs = &s->parent_obj;
+    int n;
+    SCSIDevice *d;
+    int rc;
+
+    rc = virtio_scsi_parse_req(req, sizeof(VirtIOSCSICmdReq) + vs->cdb_size,
+                               sizeof(VirtIOSCSICmdResp) + vs->sense_size);
+    if (rc < 0) {
+        if (rc == -ENOTSUP) {
+            virtio_scsi_fail_cmd_req(req);
+        } else {
+            virtio_scsi_bad_req();
+        }
+        return;
+    }
+
+    d = virtio_scsi_device_find(s, req->req.cmd.lun);
+    if (!d) {
+        req->resp.cmd.response = VIRTIO_SCSI_S_BAD_TARGET;
+        virtio_scsi_complete_cmd_req(req);
+        return;
+    }
+    req->sreq = scsi_req_new(d, req->req.cmd.tag,
+                             virtio_scsi_get_lun(req->req.cmd.lun),
+                             req->req.cdb, req);
+
+    if (req->sreq->cmd.mode != SCSI_XFER_NONE
+        && (req->sreq->cmd.mode != req->mode ||
+            req->sreq->cmd.xfer > req->qsgl.size)) {
+        req->resp.cmd.response = VIRTIO_SCSI_S_OVERRUN;
+        virtio_scsi_complete_cmd_req(req);
+        return;
+    }
+
+    n = scsi_req_enqueue(req->sreq);
+    if (n) {
+        scsi_req_continue(req->sreq);
+    }
+}
+
 static void virtio_scsi_handle_cmd(VirtIODevice *vdev, VirtQueue *vq)
 {
     /* use non-QOM casts in the data path */
     VirtIOSCSI *s = (VirtIOSCSI *)vdev;
-    VirtIOSCSICommon *vs = &s->parent_obj;
-
     VirtIOSCSIReq *req;
-    int n;
 
     while ((req = virtio_scsi_pop_req(s, vq))) {
-        SCSIDevice *d;
-        int rc;
-
-        rc = virtio_scsi_parse_req(req, sizeof(VirtIOSCSICmdReq) + vs->cdb_size,
-                                   sizeof(VirtIOSCSICmdResp) + vs->sense_size);
-        if (rc < 0) {
-            if (rc == -ENOTSUP) {
-                virtio_scsi_fail_cmd_req(req);
-            } else {
-                virtio_scsi_bad_req();
-            }
-            continue;
-        }
-
-        d = virtio_scsi_device_find(s, req->req.cmd.lun);
-        if (!d) {
-            req->resp.cmd.response = VIRTIO_SCSI_S_BAD_TARGET;
-            virtio_scsi_complete_cmd_req(req);
-            continue;
-        }
-        req->sreq = scsi_req_new(d, req->req.cmd.tag,
-                                 virtio_scsi_get_lun(req->req.cmd.lun),
-                                 req->req.cdb, req);
-
-        if (req->sreq->cmd.mode != SCSI_XFER_NONE
-            && (req->sreq->cmd.mode != req->mode ||
-                req->sreq->cmd.xfer > req->qsgl.size)) {
-            req->resp.cmd.response = VIRTIO_SCSI_S_OVERRUN;
-            virtio_scsi_complete_cmd_req(req);
-            continue;
-        }
-
-        n = scsi_req_enqueue(req->sreq);
-        if (n) {
-            scsi_req_continue(req->sreq);
-        }
+        virtio_scsi_handle_cmd_req(s, req);
     }
 }
 
