@@ -294,7 +294,6 @@ static int sys_getcwd1(char *buf, size_t size)
   return strlen(buf)+1;
 }
 
-#ifdef TARGET_NR_openat
 static int sys_openat(int dirfd, const char *pathname, int flags, mode_t mode)
 {
   /*
@@ -306,7 +305,6 @@ static int sys_openat(int dirfd, const char *pathname, int flags, mode_t mode)
   }
   return (openat(dirfd, pathname, flags));
 }
-#endif
 
 #ifdef TARGET_NR_utimensat
 #ifdef CONFIG_UTIMENSAT
@@ -5274,7 +5272,7 @@ static int open_net_route(void *cpu_env, int fd)
 }
 #endif
 
-static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
+static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, mode_t mode)
 {
     struct fake_open {
         const char *filename;
@@ -5295,7 +5293,7 @@ static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
 
     if (is_proc_myself(pathname, "exe")) {
         int execfd = qemu_getauxval(AT_EXECFD);
-        return execfd ? execfd : get_errno(open(exec_path, flags, mode));
+        return execfd ? execfd : get_errno(sys_openat(dirfd, exec_path, flags, mode));
     }
 
     for (fake_open = fakes; fake_open->filename; fake_open++) {
@@ -5329,7 +5327,7 @@ static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
         return fd;
     }
 
-    return get_errno(open(path(pathname), flags, mode));
+    return get_errno(sys_openat(dirfd, path(pathname), flags, mode));
 }
 
 /* do_syscall() should always have a single exit point at the end so
@@ -5404,22 +5402,19 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_open:
         if (!(p = lock_user_string(arg1)))
             goto efault;
-        ret = get_errno(do_open(cpu_env, p,
-                                target_to_host_bitmask(arg2, fcntl_flags_tbl),
-                                arg3));
+        ret = get_errno(do_openat(cpu_env, AT_FDCWD, p,
+                                  target_to_host_bitmask(arg2, fcntl_flags_tbl),
+                                  arg3));
         unlock_user(p, arg1, 0);
         break;
-#if defined(TARGET_NR_openat) && defined(__NR_openat)
     case TARGET_NR_openat:
         if (!(p = lock_user_string(arg2)))
             goto efault;
-        ret = get_errno(sys_openat(arg1,
-                                   path(p),
-                                   target_to_host_bitmask(arg3, fcntl_flags_tbl),
-                                   arg4));
+        ret = get_errno(do_openat(cpu_env, arg1, p,
+                                  target_to_host_bitmask(arg3, fcntl_flags_tbl),
+                                  arg4));
         unlock_user(p, arg2, 0);
         break;
-#endif
     case TARGET_NR_close:
         ret = get_errno(close(arg1));
         break;
