@@ -37,7 +37,7 @@ static inline SCSIDevice *virtio_scsi_device_find(VirtIOSCSI *s, uint8_t *lun)
     return scsi_device_find(&s->bus, 0, lun[1], virtio_scsi_get_lun(lun));
 }
 
-static VirtIOSCSIReq *virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq)
+VirtIOSCSIReq *virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq)
 {
     VirtIOSCSIReq *req;
     VirtIOSCSICommon *vs = (VirtIOSCSICommon *)s;
