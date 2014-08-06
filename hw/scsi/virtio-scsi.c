@@ -53,7 +53,7 @@ VirtIOSCSIReq *virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq)
     return req;
 }
 
-static void virtio_scsi_free_req(VirtIOSCSIReq *req)
+void virtio_scsi_free_req(VirtIOSCSIReq *req)
 {
     VirtIOSCSICommon *vs = (VirtIOSCSICommon *)req->dev;
 

@@ -230,5 +230,6 @@ void virtio_scsi_common_unrealize(DeviceState *dev, Error **errp);
 void virtio_scsi_handle_ctrl_req(VirtIOSCSI *s, VirtIOSCSIReq *req);
 void virtio_scsi_handle_cmd_req(VirtIOSCSI *s, VirtIOSCSIReq *req);
 VirtIOSCSIReq *virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq);
+void virtio_scsi_free_req(VirtIOSCSIReq *req);
 
 #endif /* _QEMU_VIRTIO_SCSI_H */
