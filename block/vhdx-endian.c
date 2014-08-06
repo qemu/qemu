@@ -82,8 +82,6 @@ void vhdx_log_desc_le_import(VHDXLogDescriptor *d)
     assert(d != NULL);
 
     le32_to_cpus(&d->signature);
-    le32_to_cpus(&d->trailing_bytes);
-    le64_to_cpus(&d->leading_bytes);
     le64_to_cpus(&d->file_offset);
     le64_to_cpus(&d->sequence_number);
 }
@@ -97,6 +95,15 @@ void vhdx_log_desc_le_export(VHDXLogDescriptor *d)
     cpu_to_le64s(&d->leading_bytes);
     cpu_to_le64s(&d->file_offset);
     cpu_to_le64s(&d->sequence_number);
+}
+
+void vhdx_log_data_le_import(VHDXLogDataSector *d)
+{
+    assert(d != NULL);
+
+    le32_to_cpus(&d->data_signature);
+    le32_to_cpus(&d->sequence_high);
+    le32_to_cpus(&d->sequence_low);
 }
 
 void vhdx_log_data_le_export(VHDXLogDataSector *d)
