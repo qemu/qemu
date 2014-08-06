@@ -186,21 +186,31 @@ e1000_link_up(E1000State *s)
     s->phy_reg[PHY_STATUS] |= MII_SR_LINK_STATUS;
 }
 
+static bool
+have_autoneg(E1000State *s)
+{
+    return (s->compat_flags & E1000_FLAG_AUTONEG) &&
+           (s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN);
+}
+
 static void
 set_phy_ctrl(E1000State *s, int index, uint16_t val)
 {
+    /* bits 0-5 reserved; MII_CR_[RESTART_AUTO_NEG,RESET] are self clearing */
+    s->phy_reg[PHY_CTRL] = val & ~(0x3f |
+                                   MII_CR_RESET |
+                                   MII_CR_RESTART_AUTO_NEG);
+
     /*
      * QEMU 1.3 does not support link auto-negotiation emulation, so if we
      * migrate during auto negotiation, after migration the link will be
      * down.
      */
-    if (!(s->compat_flags & E1000_FLAG_AUTONEG)) {
-        return;
-    }
-    if ((val & MII_CR_AUTO_NEG_EN) && (val & MII_CR_RESTART_AUTO_NEG)) {
+    if (have_autoneg(s) && (val & MII_CR_RESTART_AUTO_NEG)) {
         e1000_link_down(s);
         DBGOUT(PHY, "Start link auto negotiation\n");
-        timer_mod(s->autoneg_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
+        timer_mod(s->autoneg_timer,
+                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
     }
 }
 
@@ -446,8 +456,9 @@ set_mdic(E1000State *s, int index, uint32_t val)
         } else {
             if (addr < NPHYWRITEOPS && phyreg_writeops[addr]) {
                 phyreg_writeops[addr](s, index, data);
+            } else {
+                s->phy_reg[addr] = data;
             }
-            s->phy_reg[addr] = data;
         }
     }
     s->mac_reg[MDIC] = val | E1000_MDIC_READY;
@@ -846,14 +857,6 @@ receive_filter(E1000State *s, const uint8_t *buf, int size)
            s->mac_reg[MTA + (f >> 5)]);
 
     return 0;
-}
-
-static bool
-have_autoneg(E1000State *s)
-{
-    return (s->compat_flags & E1000_FLAG_AUTONEG) &&
-           (s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN) &&
-           (s->phy_reg[PHY_CTRL] & MII_CR_RESTART_AUTO_NEG);
 }
 
 static void
