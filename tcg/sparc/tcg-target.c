@@ -674,9 +674,12 @@ static void tcg_out_setcond_i32(TCGContext *s, TCGCond cond, TCGReg ret,
     case TCG_COND_NE:
         /* For equality, we can transform to inequality vs zero.  */
         if (c2 != 0) {
-            tcg_out_arithc(s, ret, c1, c2, c2const, ARITH_XOR);
+            tcg_out_arithc(s, TCG_REG_T1, c1, c2, c2const, ARITH_XOR);
+            c2 = TCG_REG_T1;
+        } else {
+            c2 = c1;
         }
-        c1 = TCG_REG_G0, c2 = ret, c2const = 0;
+        c1 = TCG_REG_G0, c2const = 0;
         cond = (cond == TCG_COND_EQ ? TCG_COND_GEU : TCG_COND_LTU);
 	break;
 
