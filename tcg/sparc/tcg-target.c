@@ -210,6 +210,7 @@ static const int tcg_target_call_oarg_regs[] = {
 #define ARITH_MOVR (INSN_OP(2) | INSN_OP3(0x2f))
 
 #define ARITH_ADDXC (INSN_OP(2) | INSN_OP3(0x36) | INSN_OPF(0x11))
+#define ARITH_UMULXHI (INSN_OP(2) | INSN_OP3(0x36) | INSN_OPF(0x16))
 
 #define SHIFT_SLL  (INSN_OP(2) | INSN_OP3(0x25))
 #define SHIFT_SRL  (INSN_OP(2) | INSN_OP3(0x26))
@@ -1435,6 +1436,9 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_addsub2_i64(s, args[0], args[1], args[2], args[3], args[4],
                             const_args[4], args[5], const_args[5], true);
         break;
+    case INDEX_op_muluh_i64:
+        tcg_out_arith(s, args[0], args[1], args[2], ARITH_UMULXHI);
+        break;
 
     gen_arith:
         tcg_out_arithc(s, a0, a1, a2, c2, c);
@@ -1535,6 +1539,7 @@ static const TCGTargetOpDef sparc_op_defs[] = {
 
     { INDEX_op_add2_i64, { "R", "R", "RZ", "RZ", "RJ", "RI" } },
     { INDEX_op_sub2_i64, { "R", "R", "RZ", "RZ", "RJ", "RI" } },
+    { INDEX_op_muluh_i64, { "R", "RZ", "RZ" } },
 
     { INDEX_op_qemu_ld_i32, { "r", "A" } },
     { INDEX_op_qemu_ld_i64, { "R", "A" } },
