@@ -1119,6 +1119,17 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
         return 0;
     }
 
+    /* !*host_offset would overwrite the image header and is reserved for "no
+     * host offset preferred". If 0 was a valid host offset, it'd trigger the
+     * following overlap check; do that now to avoid having an invalid value in
+     * *host_offset. */
+    if (!alloc_cluster_offset) {
+        ret = qcow2_pre_write_overlap_check(bs, 0, alloc_cluster_offset,
+                                            nb_clusters * s->cluster_size);
+        assert(ret < 0);
+        goto fail;
+    }
+
     /*
      * Save info needed for meta data update.
      *
