@@ -2,6 +2,7 @@ stub-obj-y += arch-query-cpu-def.o
 stub-obj-y += bdrv-commit-all.o
 stub-obj-y += chr-baum-init.o
 stub-obj-y += chr-msmouse.o
+stub-obj-y += chr-testdev.o
 stub-obj-y += clock-warp.o
 stub-obj-y += cpu-get-clock.o
 stub-obj-y += cpu-get-icount.o

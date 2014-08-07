@@ -2749,7 +2749,7 @@
 #
 # Configuration info for the new chardev backend.
 #
-# Since: 1.4
+# Since: 1.4 (testdev since 2.2)
 ##
 { 'type': 'ChardevDummy', 'data': { } }
 
@@ -2764,6 +2764,7 @@
                                        'mux'    : 'ChardevMux',
                                        'msmouse': 'ChardevDummy',
                                        'braille': 'ChardevDummy',
+                                       'testdev': 'ChardevDummy',
                                        'stdio'  : 'ChardevStdio',
                                        'console': 'ChardevDummy',
                                        'spicevmc' : 'ChardevSpiceChannel',

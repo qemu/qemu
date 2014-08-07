@@ -3256,6 +3256,7 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
         strcmp(filename, "pty")     == 0 ||
         strcmp(filename, "msmouse") == 0 ||
         strcmp(filename, "braille") == 0 ||
+        strcmp(filename, "testdev") == 0 ||
         strcmp(filename, "stdio")   == 0) {
         qemu_opt_set(opts, "backend", filename);
         return opts;
@@ -4057,6 +4058,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         chr = chr_baum_init();
         break;
 #endif
+    case CHARDEV_BACKEND_KIND_TESTDEV:
+        chr = chr_testdev_init();
+        break;
     case CHARDEV_BACKEND_KIND_STDIO:
         chr = qemu_chr_open_stdio(backend->stdio);
         break;
