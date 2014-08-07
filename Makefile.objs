@@ -1,7 +1,7 @@
 #######################################################################
 # Common libraries for tools and emulators
 stub-obj-y = stubs/
-util-obj-y = util/ qobject/ qapi/ trace/
+util-obj-y = util/ qobject/ qapi/ trace/ qapi-types.o qapi-visit.o qapi-event.o
 
 #######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
@@ -12,7 +12,6 @@ block-obj-y += main-loop.o iohandler.o qemu-timer.o
 block-obj-$(CONFIG_POSIX) += aio-posix.o
 block-obj-$(CONFIG_WIN32) += aio-win32.o
 block-obj-y += block/
-block-obj-y += qapi-types.o qapi-visit.o qapi-event.o
 block-obj-y += qemu-io-cmds.o
 
 block-obj-y += qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
@@ -88,11 +87,6 @@ common-obj-y += qmp-marshal.o
 common-obj-y += qmp.o hmp.o
 endif
 
-######################################################################
-# some qapi visitors are used by both system and user emulation:
-
-common-obj-y += qapi-visit.o qapi-types.o
-
 #######################################################################
 # Target-independent parts used in system and user emulation
 common-obj-y += qemu-log.o
@@ -111,5 +105,5 @@ version-lobj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.lo
 
 # FIXME: a few definitions from qapi-types.o/qapi-visit.o are needed
 # by libqemuutil.a.  These should be moved to a separate .json schema.
-qga-obj-y = qga/ qapi-types.o qapi-visit.o
+qga-obj-y = qga/
 qga-vss-dll-obj-y = qga/
