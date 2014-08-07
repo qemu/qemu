@@ -164,6 +164,15 @@ wait_break 0
 write 64k 64k
 resume 0" | $QEMU_IO | _filter_qemu_io
 
+echo
+echo "=== Testing unallocated image header ==="
+echo
+_make_test_img 64M
+# Create L1/L2
+$QEMU_IO -c "$OPEN_RW" -c "write 0 64k" | _filter_qemu_io
+poke_file "$TEST_IMG" "$rb_offset" "\x00\x00"
+$QEMU_IO -c "$OPEN_RW" -c "write 64k 64k" | _filter_qemu_io
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
