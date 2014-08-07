@@ -2209,6 +2209,9 @@ bool bdrv_dev_is_medium_locked(BlockDriverState *bs)
  */
 int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix)
 {
+    if (bs->drv == NULL) {
+        return -ENOMEDIUM;
+    }
     if (bs->drv->bdrv_check == NULL) {
         return -ENOTSUP;
     }
