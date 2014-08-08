@@ -33,6 +33,9 @@
 #include <hw/ide/pci.h>
 
 /* CMD646 specific */
+#define CNTRL		0x51
+#define   CNTRL_EN_CH0	0x04
+#define   CNTRL_EN_CH1	0x08
 #define MRDMODE		0x71
 #define   MRDMODE_INTR_CH0	0x04
 #define   MRDMODE_INTR_CH1	0x08
@@ -269,10 +272,10 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
 
     pci_conf[PCI_CLASS_PROG] = 0x8f;
 
-    pci_conf[0x51] = 0x04; // enable IDE0
+    pci_conf[CNTRL] = CNTRL_EN_CH0; // enable IDE0
     if (d->secondary) {
         /* XXX: if not enabled, really disable the seconday IDE controller */
-        pci_conf[0x51] |= 0x08; /* enable IDE1 */
+        pci_conf[CNTRL] |= CNTRL_EN_CH1; /* enable IDE1 */
     }
 
     setup_cmd646_bar(d, 0);
