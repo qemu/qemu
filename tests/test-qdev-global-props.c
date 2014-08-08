@@ -143,7 +143,7 @@ static const TypeInfo dynamic_prop_type = {
     .class_init = dynamic_class_init,
 };
 
-/* Test setting of static property using global properties */
+/* Test setting of dynamic properties using global properties */
 static void test_dynamic_globalprop(void)
 {
     MyType *mt;
