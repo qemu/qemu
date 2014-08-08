@@ -164,8 +164,8 @@ static void test_dynamic_globalprop_subprocess(void)
 {
     MyType *mt;
     static GlobalProperty props[] = {
-        { TYPE_DYNAMIC_PROPS, "prop1", "101" },
-        { TYPE_DYNAMIC_PROPS, "prop2", "102" },
+        { TYPE_DYNAMIC_PROPS, "prop1", "101", true },
+        { TYPE_DYNAMIC_PROPS, "prop2", "102", true },
         { TYPE_DYNAMIC_PROPS"-bad", "prop3", "103", true },
         {}
     };
@@ -180,6 +180,9 @@ static void test_dynamic_globalprop_subprocess(void)
     g_assert_cmpuint(mt->prop2, ==, 102);
     all_used = qdev_prop_check_global();
     g_assert_cmpuint(all_used, ==, 1);
+    g_assert(!props[0].not_used);
+    g_assert(!props[1].not_used);
+    g_assert(props[2].not_used);
 }
 
 static void test_dynamic_globalprop(void)
