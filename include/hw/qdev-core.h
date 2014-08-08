@@ -242,16 +242,16 @@ struct PropertyInfo {
 
 /**
  * GlobalProperty:
- * @not_used: Track use of a global property.  Defaults to false in all C99
- * struct initializations.
- *
- * This prevents reports of .compat_props when they are not used.
+ * @user_provided: Set to true if property comes from user-provided config
+ * (command-line or config file).
+ * @used: Set to true if property was used when initializing a device.
  */
 typedef struct GlobalProperty {
     const char *driver;
     const char *property;
     const char *value;
-    bool not_used;
+    bool user_provided;
+    bool used;
     QTAILQ_ENTRY(GlobalProperty) next;
 } GlobalProperty;
 
