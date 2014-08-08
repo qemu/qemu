@@ -146,6 +146,22 @@ static void cmd646_update_dma_interrupts(PCIDevice *pd)
     }
 }
 
+static void cmd646_update_udma_interrupts(PCIDevice *pd)
+{
+    /* Sync UDMA interrupt status from DMA interrupt status */
+    if (pd->config[CFR] & CFR_INTR_CH0) {
+        pd->config[MRDMODE] |= MRDMODE_INTR_CH0;
+    } else {
+        pd->config[MRDMODE] &= ~MRDMODE_INTR_CH0;
+    }
+
+    if (pd->config[ARTTIM23] & ARTTIM23_INTR_CH1) {
+        pd->config[MRDMODE] |= MRDMODE_INTR_CH1;
+    } else {
+        pd->config[MRDMODE] &= ~MRDMODE_INTR_CH1;
+    }
+}
+
 static uint64_t bmdma_read(void *opaque, hwaddr addr,
                            unsigned size)
 {
@@ -296,6 +312,10 @@ static void cmd646_pci_config_write(PCIDevice *d, uint32_t addr, uint32_t val,
 
     for (i = addr; i < addr + l; i++) {
         switch (i) {
+        case CFR:
+        case ARTTIM23:
+            cmd646_update_udma_interrupts(d);
+            break;
         case MRDMODE:
             cmd646_update_dma_interrupts(d);
             break;
@@ -322,6 +342,10 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
     }
 
     /* Set write-to-clear interrupt bits */
+    dev->wmask[CFR] = 0x0;
+    dev->w1cmask[CFR] = CFR_INTR_CH0;
+    dev->wmask[ARTTIM23] = 0x0;
+    dev->w1cmask[ARTTIM23] = ARTTIM23_INTR_CH1;
     dev->wmask[MRDMODE] = 0x0;
     dev->w1cmask[MRDMODE] = MRDMODE_INTR_CH0 | MRDMODE_INTR_CH1;
 
