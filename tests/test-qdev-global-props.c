@@ -113,6 +113,9 @@ static void test_static_globalprop(void)
 #define DYNAMIC_TYPE(obj) \
     OBJECT_CHECK(MyType, (obj), TYPE_DYNAMIC_PROPS)
 
+#define TYPE_UNUSED_HOTPLUG   "hotplug-type"
+#define TYPE_UNUSED_NOHOTPLUG "nohotplug-type"
+
 static void prop1_accessor(Object *obj,
                            Visitor *v,
                            void *opaque,
@@ -159,6 +162,45 @@ static const TypeInfo dynamic_prop_type = {
     .class_init = dynamic_class_init,
 };
 
+static void hotplug_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = NULL;
+    dc->hotpluggable = true;
+}
+
+static const TypeInfo hotplug_type = {
+    .name = TYPE_UNUSED_HOTPLUG,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(MyType),
+    .instance_init = dynamic_instance_init,
+    .class_init = hotplug_class_init,
+};
+
+static void nohotplug_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = NULL;
+    dc->hotpluggable = false;
+}
+
+static const TypeInfo nohotplug_type = {
+    .name = TYPE_UNUSED_NOHOTPLUG,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(MyType),
+    .instance_init = dynamic_instance_init,
+    .class_init = nohotplug_class_init,
+};
+
+#define TYPE_NONDEVICE "nondevice-type"
+
+static const TypeInfo nondevice_type = {
+    .name = TYPE_NONDEVICE,
+    .parent = TYPE_OBJECT,
+};
+
 /* Test setting of dynamic properties using global properties */
 static void test_dynamic_globalprop_subprocess(void)
 {
@@ -167,6 +209,10 @@ static void test_dynamic_globalprop_subprocess(void)
         { TYPE_DYNAMIC_PROPS, "prop1", "101", true },
         { TYPE_DYNAMIC_PROPS, "prop2", "102", true },
         { TYPE_DYNAMIC_PROPS"-bad", "prop3", "103", true },
+        /* .not_used=false to emulate what qdev_add_one_global() does: */
+        { TYPE_UNUSED_HOTPLUG, "prop4", "104", false },
+        { TYPE_UNUSED_NOHOTPLUG, "prop5", "105", true },
+        { TYPE_NONDEVICE, "prop6", "106", true },
         {}
     };
     int all_used;
@@ -183,6 +229,9 @@ static void test_dynamic_globalprop_subprocess(void)
     g_assert(!props[0].not_used);
     g_assert(!props[1].not_used);
     g_assert(props[2].not_used);
+    g_assert(!props[3].not_used);
+    g_assert(props[4].not_used);
+    g_assert(props[5].not_used);
 }
 
 static void test_dynamic_globalprop(void)
@@ -192,6 +241,9 @@ static void test_dynamic_globalprop(void)
     g_test_trap_assert_stderr_unmatched("*prop1*");
     g_test_trap_assert_stderr_unmatched("*prop2*");
     g_test_trap_assert_stderr("*Warning: \"-global dynamic-prop-type-bad.prop3=103\" not used\n*");
+    g_test_trap_assert_stderr_unmatched("*prop4*");
+    g_test_trap_assert_stderr("*Warning: \"-global nohotplug-type.prop5=105\" not used\n*");
+    g_test_trap_assert_stderr("*Warning: \"-global nondevice-type.prop6=106\" not used\n*");
     g_test_trap_assert_stdout("");
 }
 
@@ -202,6 +254,9 @@ int main(int argc, char **argv)
     module_call_init(MODULE_INIT_QOM);
     type_register_static(&static_prop_type);
     type_register_static(&dynamic_prop_type);
+    type_register_static(&hotplug_type);
+    type_register_static(&nohotplug_type);
+    type_register_static(&nondevice_type);
 
     g_test_add_func("/qdev/properties/static/default/subprocess",
                     test_static_prop_subprocess);
