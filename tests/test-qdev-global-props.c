@@ -65,7 +65,7 @@ static const TypeInfo static_prop_type = {
 };
 
 /* Test simple static property setting to default value */
-static void test_static_prop(void)
+static void test_static_prop_subprocess(void)
 {
     MyType *mt;
 
@@ -75,8 +75,16 @@ static void test_static_prop(void)
     g_assert_cmpuint(mt->prop1, ==, PROP_DEFAULT);
 }
 
+static void test_static_prop(void)
+{
+    g_test_trap_subprocess("/qdev/properties/static/default/subprocess", 0, 0);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stderr("");
+    g_test_trap_assert_stdout("");
+}
+
 /* Test setting of static property using global properties */
-static void test_static_globalprop(void)
+static void test_static_globalprop_subprocess(void)
 {
     MyType *mt;
     static GlobalProperty props[] = {
@@ -91,6 +99,14 @@ static void test_static_globalprop(void)
 
     g_assert_cmpuint(mt->prop1, ==, 200);
     g_assert_cmpuint(mt->prop2, ==, PROP_DEFAULT);
+}
+
+static void test_static_globalprop(void)
+{
+    g_test_trap_subprocess("/qdev/properties/static/global/subprocess", 0, 0);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stderr("");
+    g_test_trap_assert_stdout("");
 }
 
 #define TYPE_DYNAMIC_PROPS "dynamic-prop-type"
@@ -144,7 +160,7 @@ static const TypeInfo dynamic_prop_type = {
 };
 
 /* Test setting of dynamic properties using global properties */
-static void test_dynamic_globalprop(void)
+static void test_dynamic_globalprop_subprocess(void)
 {
     MyType *mt;
     static GlobalProperty props[] = {
@@ -166,6 +182,16 @@ static void test_dynamic_globalprop(void)
     g_assert_cmpuint(all_used, ==, 1);
 }
 
+static void test_dynamic_globalprop(void)
+{
+    g_test_trap_subprocess("/qdev/properties/dynamic/global/subprocess", 0, 0);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stderr_unmatched("*prop1*");
+    g_test_trap_assert_stderr_unmatched("*prop2*");
+    g_test_trap_assert_stderr("*Warning: \"-global dynamic-prop-type-bad.prop3=103\" not used\n*");
+    g_test_trap_assert_stdout("");
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -174,9 +200,20 @@ int main(int argc, char **argv)
     type_register_static(&static_prop_type);
     type_register_static(&dynamic_prop_type);
 
-    g_test_add_func("/qdev/properties/static/default", test_static_prop);
-    g_test_add_func("/qdev/properties/static/global", test_static_globalprop);
-    g_test_add_func("/qdev/properties/dynamic/global", test_dynamic_globalprop);
+    g_test_add_func("/qdev/properties/static/default/subprocess",
+                    test_static_prop_subprocess);
+    g_test_add_func("/qdev/properties/static/default",
+                    test_static_prop);
+
+    g_test_add_func("/qdev/properties/static/global/subprocess",
+                    test_static_globalprop_subprocess);
+    g_test_add_func("/qdev/properties/static/global",
+                    test_static_globalprop);
+
+    g_test_add_func("/qdev/properties/dynamic/global/subprocess",
+                    test_dynamic_globalprop_subprocess);
+    g_test_add_func("/qdev/properties/dynamic/global",
+                    test_dynamic_globalprop);
 
     g_test_run();
 
