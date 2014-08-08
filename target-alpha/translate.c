@@ -663,18 +663,6 @@ static TCGv gen_ieee_input(DisasContext *ctx, int reg, int fn11, int is_cmp)
     return val;
 }
 
-static void gen_fp_exc_clear(void)
-{
-#if defined(CONFIG_SOFTFLOAT_INLINE)
-    TCGv_i32 zero = tcg_const_i32(0);
-    tcg_gen_st8_i32(zero, cpu_env,
-                    offsetof(CPUAlphaState, fp_status.float_exception_flags));
-    tcg_temp_free_i32(zero);
-#else
-    gen_helper_fp_exc_clear(cpu_env);
-#endif
-}
-
 static void gen_fp_exc_raise_ignore(int rc, int fn11, int ignore)
 {
     /* ??? We ought to be able to do something with imprecise exceptions.
@@ -682,19 +670,8 @@ static void gen_fp_exc_raise_ignore(int rc, int fn11, int ignore)
        TB and do not generate the code to signal the exception; end the TB
        when an exception is forced to arrive, either by consumption of a
        register value or TRAPB or EXCB.  */
-    TCGv_i32 exc = tcg_temp_new_i32();
+    TCGv_i32 ign = tcg_const_i32(ignore);
     TCGv_i32 reg;
-
-#if defined(CONFIG_SOFTFLOAT_INLINE)
-    tcg_gen_ld8u_i32(exc, cpu_env,
-                     offsetof(CPUAlphaState, fp_status.float_exception_flags));
-#else
-    gen_helper_fp_exc_get(exc, cpu_env);
-#endif
-
-    if (ignore) {
-        tcg_gen_andi_i32(exc, exc, ~ignore);
-    }
 
     /* ??? Pass in the regno of the destination so that the helper can
        set EXC_MASK, which contains a bitmask of destination registers
@@ -704,18 +681,18 @@ static void gen_fp_exc_raise_ignore(int rc, int fn11, int ignore)
     reg = tcg_const_i32(rc + 32);
 
     if (fn11 & QUAL_S) {
-        gen_helper_fp_exc_raise_s(cpu_env, exc, reg);
+        gen_helper_fp_exc_raise_s(cpu_env, ign, reg);
     } else {
-        gen_helper_fp_exc_raise(cpu_env, exc, reg);
+        gen_helper_fp_exc_raise(cpu_env, ign, reg);
     }
 
     tcg_temp_free_i32(reg);
-    tcg_temp_free_i32(exc);
+    tcg_temp_free_i32(ign);
 }
 
 static inline void gen_fp_exc_raise(int rc, int fn11)
 {
-    gen_fp_exc_raise_ignore(rc, fn11, fn11 & QUAL_I ? 0 : float_flag_inexact);
+    gen_fp_exc_raise_ignore(rc, fn11, fn11 & QUAL_I ? 0 : FPCR_INE);
 }
 
 static void gen_cvtlq(TCGv vc, TCGv vb)
@@ -754,7 +731,6 @@ static void gen_ieee_arith2(DisasContext *ctx,
 
     gen_qual_roundmode(ctx, fn11);
     gen_qual_flushzero(ctx, fn11);
-    gen_fp_exc_clear();
 
     vb = gen_ieee_input(ctx, rb, fn11, 0);
     helper(dest_fpr(ctx, rc), cpu_env, vb);
@@ -779,7 +755,6 @@ static void gen_cvttq(DisasContext *ctx, int rb, int rc, int fn11)
     int ignore = 0;
 
     /* No need to set flushzero, since we have an integer output.  */
-    gen_fp_exc_clear();
     vb = gen_ieee_input(ctx, rb, fn11, 0);
     vc = dest_fpr(ctx, rc);
 
@@ -791,7 +766,7 @@ static void gen_cvttq(DisasContext *ctx, int rb, int rc, int fn11)
         break;
     case QUAL_V | QUAL_RM_C:
     case QUAL_S | QUAL_V | QUAL_RM_C:
-        ignore = float_flag_inexact;
+        ignore = FPCR_INE;
         /* FALLTHRU */
     case QUAL_S | QUAL_V | QUAL_I | QUAL_RM_C:
         gen_helper_cvttq_svic(vc, cpu_env, vb);
@@ -799,8 +774,8 @@ static void gen_cvttq(DisasContext *ctx, int rb, int rc, int fn11)
     default:
         gen_qual_roundmode(ctx, fn11);
         gen_helper_cvttq(vc, cpu_env, vb);
-        ignore |= (fn11 & QUAL_V ? 0 : float_flag_overflow);
-        ignore |= (fn11 & QUAL_I ? 0 : float_flag_inexact);
+        ignore |= (fn11 & QUAL_V ? 0 : FPCR_IOV);
+        ignore |= (fn11 & QUAL_I ? 0 : FPCR_INE);
         break;
     }
 
@@ -821,7 +796,6 @@ static void gen_ieee_intcvt(DisasContext *ctx,
        is inexact.  Thus we only need to worry about exceptions when
        inexact handling is requested.  */
     if (fn11 & QUAL_I) {
-        gen_fp_exc_clear();
         helper(vc, cpu_env, vb);
         gen_fp_exc_raise(rc, fn11);
     } else {
@@ -864,7 +838,6 @@ static void gen_ieee_arith3(DisasContext *ctx,
 
     gen_qual_roundmode(ctx, fn11);
     gen_qual_flushzero(ctx, fn11);
-    gen_fp_exc_clear();
 
     va = gen_ieee_input(ctx, ra, fn11, 0);
     vb = gen_ieee_input(ctx, rb, fn11, 0);
@@ -894,8 +867,6 @@ static void gen_ieee_compare(DisasContext *ctx,
                              int ra, int rb, int rc, int fn11)
 {
     TCGv va, vb, vc;
-
-    gen_fp_exc_clear();
 
     va = gen_ieee_input(ctx, ra, fn11, 1);
     vb = gen_ieee_input(ctx, rb, fn11, 1);

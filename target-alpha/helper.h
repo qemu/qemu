@@ -87,8 +87,6 @@ DEF_HELPER_FLAGS_2(cvttq_svic, TCG_CALL_NO_RWG, i64, env, i64)
 
 DEF_HELPER_FLAGS_2(setroundmode, TCG_CALL_NO_RWG, void, env, i32)
 DEF_HELPER_FLAGS_2(setflushzero, TCG_CALL_NO_RWG, void, env, i32)
-DEF_HELPER_FLAGS_1(fp_exc_clear, TCG_CALL_NO_RWG, void, env)
-DEF_HELPER_FLAGS_1(fp_exc_get, TCG_CALL_NO_RWG_SE, i32, env)
 DEF_HELPER_FLAGS_3(fp_exc_raise, TCG_CALL_NO_WG, void, env, i32, i32)
 DEF_HELPER_FLAGS_3(fp_exc_raise_s, TCG_CALL_NO_WG, void, env, i32, i32)
 
