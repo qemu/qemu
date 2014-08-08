@@ -33,9 +33,13 @@
 #include <hw/ide/pci.h>
 
 /* CMD646 specific */
+#define CFR		0x50
+#define   CFR_INTR_CH0	0x04
 #define CNTRL		0x51
 #define   CNTRL_EN_CH0	0x04
 #define   CNTRL_EN_CH1	0x08
+#define ARTTIM23	0x57
+#define    ARTTIM23_INTR_CH1	0x10
 #define MRDMODE		0x71
 #define   MRDMODE_INTR_CH0	0x04
 #define   MRDMODE_INTR_CH1	0x08
@@ -126,6 +130,22 @@ static void setup_cmd646_bar(PCIIDEState *d, int bus_num)
                           "cmd646-data", 8);
 }
 
+static void cmd646_update_dma_interrupts(PCIDevice *pd)
+{
+    /* Sync DMA interrupt status from UDMA interrupt status */
+    if (pd->config[MRDMODE] & MRDMODE_INTR_CH0) {
+        pd->config[CFR] |= CFR_INTR_CH0;
+    } else {
+        pd->config[CFR] &= ~CFR_INTR_CH0;
+    }
+
+    if (pd->config[MRDMODE] & MRDMODE_INTR_CH1) {
+        pd->config[ARTTIM23] |= ARTTIM23_INTR_CH1;
+    } else {
+        pd->config[ARTTIM23] &= ~ARTTIM23_INTR_CH1;
+    }
+}
+
 static uint64_t bmdma_read(void *opaque, hwaddr addr,
                            unsigned size)
 {
@@ -184,6 +204,7 @@ static void bmdma_write(void *opaque, hwaddr addr,
     case 1:
         pci_dev->config[MRDMODE] =
             (pci_dev->config[MRDMODE] & ~0x30) | (val & 0x30);
+        cmd646_update_dma_interrupts(pci_dev);
         cmd646_update_irq(bm->pci_dev);
         break;
     case 2:
@@ -249,6 +270,7 @@ static void cmd646_set_irq(void *opaque, int channel, int level)
     } else {
         pd->config[MRDMODE] &= ~irq_mask;
     }
+    cmd646_update_dma_interrupts(pd);
     cmd646_update_irq(d);
 }
 
