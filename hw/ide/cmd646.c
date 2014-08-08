@@ -243,8 +243,6 @@ static void bmdma_setup_bar(PCIIDEState *d)
     }
 }
 
-/* XXX: call it also when the MRDMODE is changed from the PCI config
-   registers */
 static void cmd646_update_irq(PCIDevice *pd)
 {
     int pci_level;
@@ -283,6 +281,30 @@ static void cmd646_reset(void *opaque)
     }
 }
 
+static uint32_t cmd646_pci_config_read(PCIDevice *d,
+                                       uint32_t address, int len)
+{
+    return pci_default_read_config(d, address, len);
+}
+
+static void cmd646_pci_config_write(PCIDevice *d, uint32_t addr, uint32_t val,
+                                    int l)
+{
+    uint32_t i;
+
+    pci_default_write_config(d, addr, val, l);
+
+    for (i = addr; i < addr + l; i++) {
+        switch (i) {
+        case MRDMODE:
+            cmd646_update_dma_interrupts(d);
+            break;
+        }
+    }
+
+    cmd646_update_irq(d);
+}
+
 /* CMD646 PCI IDE controller */
 static int pci_cmd646_ide_initfn(PCIDevice *dev)
 {
@@ -298,6 +320,10 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
         /* XXX: if not enabled, really disable the seconday IDE controller */
         pci_conf[CNTRL] |= CNTRL_EN_CH1; /* enable IDE1 */
     }
+
+    /* Set write-to-clear interrupt bits */
+    dev->wmask[MRDMODE] = 0x0;
+    dev->w1cmask[MRDMODE] = MRDMODE_INTR_CH0 | MRDMODE_INTR_CH1;
 
     setup_cmd646_bar(d, 0);
     setup_cmd646_bar(d, 1);
@@ -371,6 +397,8 @@ static void cmd646_ide_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_CMD_646;
     k->revision = 0x07;
     k->class_id = PCI_CLASS_STORAGE_IDE;
+    k->config_read = cmd646_pci_config_read;
+    k->config_write = cmd646_pci_config_write;
     dc->props = cmd646_ide_properties;
 }
 
