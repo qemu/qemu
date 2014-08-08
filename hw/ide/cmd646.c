@@ -48,7 +48,7 @@
 #define UDIDETCR0	0x73
 #define UDIDETCR1	0x7B
 
-static void cmd646_update_irq(PCIIDEState *d);
+static void cmd646_update_irq(PCIDevice *pd);
 
 static uint64_t cmd646_cmd_read(void *opaque, hwaddr addr,
                                 unsigned size)
@@ -205,7 +205,7 @@ static void bmdma_write(void *opaque, hwaddr addr,
         pci_dev->config[MRDMODE] =
             (pci_dev->config[MRDMODE] & ~0x30) | (val & 0x30);
         cmd646_update_dma_interrupts(pci_dev);
-        cmd646_update_irq(bm->pci_dev);
+        cmd646_update_irq(pci_dev);
         break;
     case 2:
         bm->status = (val & 0x60) | (bm->status & 1) | (bm->status & ~val & 0x06);
@@ -245,9 +245,8 @@ static void bmdma_setup_bar(PCIIDEState *d)
 
 /* XXX: call it also when the MRDMODE is changed from the PCI config
    registers */
-static void cmd646_update_irq(PCIIDEState *d)
+static void cmd646_update_irq(PCIDevice *pd)
 {
-    PCIDevice *pd = PCI_DEVICE(d);
     int pci_level;
 
     pci_level = ((pd->config[MRDMODE] & MRDMODE_INTR_CH0) &&
@@ -271,7 +270,7 @@ static void cmd646_set_irq(void *opaque, int channel, int level)
         pd->config[MRDMODE] &= ~irq_mask;
     }
     cmd646_update_dma_interrupts(pd);
-    cmd646_update_irq(d);
+    cmd646_update_irq(pd);
 }
 
 static void cmd646_reset(void *opaque)
