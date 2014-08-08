@@ -955,7 +955,7 @@ void qdev_prop_register_global_list(GlobalProperty *props)
     }
 }
 
-int qdev_prop_check_global(void)
+int qdev_prop_check_globals(void)
 {
     GlobalProperty *prop;
     int ret = 0;
