@@ -387,6 +387,23 @@
   'returns': 'int' }
 
 ##
+# @guest-fsfreeze-freeze-list:
+#
+# Sync and freeze specified guest filesystems
+#
+# @mountpoints: #optional an array of mountpoints of filesystems to be frozen.
+#               If omitted, every mounted filesystem is frozen.
+#
+# Returns: Number of file systems currently frozen. On error, all filesystems
+# will be thawed.
+#
+# Since: 2.2
+##
+{ 'command': 'guest-fsfreeze-freeze-list',
+  'data':    { '*mountpoints': ['str'] },
+  'returns': 'int' }
+
+##
 # @guest-fsfreeze-thaw:
 #
 # Unfreeze all frozen guest filesystems
@@ -642,3 +659,82 @@
 { 'command': 'guest-set-vcpus',
   'data':    {'vcpus': ['GuestLogicalProcessor'] },
   'returns': 'int' }
+
+##
+# @GuestDiskBusType
+#
+# An enumeration of bus type of disks
+#
+# @ide: IDE disks
+# @fdc: floppy disks
+# @scsi: SCSI disks
+# @virtio: virtio disks
+# @xen: Xen disks
+# @usb: USB disks
+# @uml: UML disks
+# @sata: SATA disks
+# @sd: SD cards
+#
+# Since: 2.2
+##
+{ 'enum': 'GuestDiskBusType',
+  'data': [ 'ide', 'fdc', 'scsi', 'virtio', 'xen', 'usb', 'uml', 'sata',
+            'sd' ] }
+
+##
+# @GuestPCIAddress:
+#
+# @domain: domain id
+# @bus: bus id
+# @slot: slot id
+# @function: function id
+#
+# Since: 2.2
+##
+{ 'type': 'GuestPCIAddress',
+  'data': {'domain': 'int', 'bus': 'int',
+           'slot': 'int', 'function': 'int'} }
+
+##
+# @GuestDiskAddress:
+#
+# @pci-controller: controller's PCI address
+# @type: bus type
+# @bus: bus id
+# @target: target id
+# @unit: unit id
+#
+# Since: 2.2
+##
+{ 'type': 'GuestDiskAddress',
+  'data': {'pci-controller': 'GuestPCIAddress',
+           'bus-type': 'GuestDiskBusType',
+           'bus': 'int', 'target': 'int', 'unit': 'int'} }
+
+##
+# @GuestFilesystemInfo
+#
+# @name: disk name
+# @mountpoint: mount point path
+# @type: file system type string
+# @disk: an array of disk hardware information that the volume lies on,
+#        which may be empty if the disk type is not supported
+#
+# Since: 2.2
+##
+{ 'type': 'GuestFilesystemInfo',
+  'data': {'name': 'str', 'mountpoint': 'str', 'type': 'str',
+           'disk': ['GuestDiskAddress']} }
+
+##
+# @guest-get-fsinfo:
+#
+# Returns: The list of filesystems information mounted in the guest.
+#          The returned mountpoints may be specified to
+#          @guest-fsfreeze-freeze-list.
+#          Network filesystems (such as CIFS and NFS) are not listed.
+#
+# Since: 2.2
+##
+{ 'command': 'guest-get-fsinfo',
+  'returns': ['GuestFilesystemInfo'] }

@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <dirent.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -575,6 +576,7 @@ static void guest_file_init(void)
 typedef struct FsMount {
     char *dirname;
     char *devtype;
+    unsigned int devmajor, devminor;
     QTAILQ_ENTRY(FsMount) next;
 } FsMount;
 
@@ -596,15 +598,40 @@ static void free_fs_mount_list(FsMountList *mounts)
      }
 }
 
+static int dev_major_minor(const char *devpath,
+                           unsigned int *devmajor, unsigned int *devminor)
+{
+    struct stat st;
+
+    *devmajor = 0;
+    *devminor = 0;
+
+    if (stat(devpath, &st) < 0) {
+        slog("failed to stat device file '%s': %s", devpath, strerror(errno));
+        return -1;
+    }
+    if (S_ISDIR(st.st_mode)) {
+        /* It is bind mount */
+        return -2;
+    }
+    if (S_ISBLK(st.st_mode)) {
+        *devmajor = major(st.st_rdev);
+        *devminor = minor(st.st_rdev);
+        return 0;
+    }
+    return -1;
+}
+
 /*
  * Walk the mount table and build a list of local file systems
  */
-static void build_fs_mount_list(FsMountList *mounts, Error **errp)
+static void build_fs_mount_list_from_mtab(FsMountList *mounts, Error **errp)
 {
     struct mntent *ment;
     FsMount *mount;
     char const *mtab = "/proc/self/mounts";
     FILE *fp;
+    unsigned int devmajor, devminor;
 
     fp = setmntent(mtab, "r");
     if (!fp) {
@@ -624,19 +651,422 @@ static void build_fs_mount_list(FsMountList *mounts, Error **errp)
             (strcmp(ment->mnt_type, "cifs") == 0)) {
             continue;
         }
+        if (dev_major_minor(ment->mnt_fsname, &devmajor, &devminor) == -2) {
+            /* Skip bind mounts */
+            continue;
+        }
 
         mount = g_malloc0(sizeof(FsMount));
         mount->dirname = g_strdup(ment->mnt_dir);
         mount->devtype = g_strdup(ment->mnt_type);
+        mount->devmajor = devmajor;
+        mount->devminor = devminor;
 
         QTAILQ_INSERT_TAIL(mounts, mount, next);
     }
 
     endmntent(fp);
 }
+
+static void decode_mntname(char *name, int len)
+{
+    int i, j = 0;
+    for (i = 0; i <= len; i++) {
+        if (name[i] != '\\') {
+            name[j++] = name[i];
+        } else if (name[i + 1] == '\\') {
+            name[j++] = '\\';
+            i++;
+        } else if (name[i + 1] >= '0' && name[i + 1] <= '3' &&
+                   name[i + 2] >= '0' && name[i + 2] <= '7' &&
+                   name[i + 3] >= '0' && name[i + 3] <= '7') {
+            name[j++] = (name[i + 1] - '0') * 64 +
+                        (name[i + 2] - '0') * 8 +
+                        (name[i + 3] - '0');
+            i += 3;
+        } else {
+            name[j++] = name[i];
+        }
+    }
+}
+
+static void build_fs_mount_list(FsMountList *mounts, Error **errp)
+{
+    FsMount *mount;
+    char const *mountinfo = "/proc/self/mountinfo";
+    FILE *fp;
+    char *line = NULL, *dash;
+    size_t n;
+    char check;
+    unsigned int devmajor, devminor;
+    int ret, dir_s, dir_e, type_s, type_e, dev_s, dev_e;
+
+    fp = fopen(mountinfo, "r");
+    if (!fp) {
+        build_fs_mount_list_from_mtab(mounts, errp);
+        return;
+    }
+
+    while (getline(&line, &n, fp) != -1) {
+        ret = sscanf(line, "%*u %*u %u:%u %*s %n%*s%n%c",
+                     &devmajor, &devminor, &dir_s, &dir_e, &check);
+        if (ret < 3) {
+            continue;
+        }
+        dash = strstr(line + dir_e, " - ");
+        if (!dash) {
+            continue;
+        }
+        ret = sscanf(dash, " - %n%*s%n %n%*s%n%c",
+                     &type_s, &type_e, &dev_s, &dev_e, &check);
+        if (ret < 1) {
+            continue;
+        }
+        line[dir_e] = 0;
+        dash[type_e] = 0;
+        dash[dev_e] = 0;
+        decode_mntname(line + dir_s, dir_e - dir_s);
+        decode_mntname(dash + dev_s, dev_e - dev_s);
+        if (devmajor == 0) {
+            /* btrfs reports major number = 0 */
+            if (strcmp("btrfs", dash + type_s) != 0 ||
+                dev_major_minor(dash + dev_s, &devmajor, &devminor) < 0) {
+                continue;
+            }
+        }
+
+        mount = g_malloc0(sizeof(FsMount));
+        mount->dirname = g_strdup(line + dir_s);
+        mount->devtype = g_strdup(dash + type_s);
+        mount->devmajor = devmajor;
+        mount->devminor = devminor;
+
+        QTAILQ_INSERT_TAIL(mounts, mount, next);
+    }
+    free(line);
+
+    fclose(fp);
+}
 #endif
 
 #if defined(CONFIG_FSFREEZE)
+
+static char *get_pci_driver(char const *syspath, int pathlen, Error **errp)
+{
+    char *path;
+    char *dpath;
+    char *driver = NULL;
+    char buf[PATH_MAX];
+    ssize_t len;
+
+    path = g_strndup(syspath, pathlen);
+    dpath = g_strdup_printf("%s/driver", path);
+    len = readlink(dpath, buf, sizeof(buf) - 1);
+    if (len != -1) {
+        buf[len] = 0;
+        driver = g_strdup(basename(buf));
+    }
+    g_free(dpath);
+    g_free(path);
+    return driver;
+}
+
+static int compare_uint(const void *_a, const void *_b)
+{
+    unsigned int a = *(unsigned int *)_a;
+    unsigned int b = *(unsigned int *)_b;
+
+    return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/* Walk the specified sysfs and build a sorted list of host or ata numbers */
+static int build_hosts(char const *syspath, char const *host, bool ata,
+                       unsigned int *hosts, int hosts_max, Error **errp)
+{
+    char *path;
+    DIR *dir;
+    struct dirent *entry;
+    int i = 0;
+
+    path = g_strndup(syspath, host - syspath);
+    dir = opendir(path);
+    if (!dir) {
+        error_setg_errno(errp, errno, "opendir(\"%s\")", path);
+        g_free(path);
+        return -1;
+    }
+
+    while (i < hosts_max) {
+        entry = readdir(dir);
+        if (!entry) {
+            break;
+        }
+        if (ata && sscanf(entry->d_name, "ata%d", hosts + i) == 1) {
+            ++i;
+        } else if (!ata && sscanf(entry->d_name, "host%d", hosts + i) == 1) {
+            ++i;
+        }
+    }
+
+    qsort(hosts, i, sizeof(hosts[0]), compare_uint);
+
+    g_free(path);
+    closedir(dir);
+    return i;
+}
+
+/* Store disk device info specified by @sysfs into @fs */
+static void build_guest_fsinfo_for_real_device(char const *syspath,
+                                               GuestFilesystemInfo *fs,
+                                               Error **errp)
+{
+    unsigned int pci[4], host, hosts[8], tgt[3];
+    int i, nhosts = 0, pcilen;
+    GuestDiskAddress *disk;
+    GuestPCIAddress *pciaddr;
+    GuestDiskAddressList *list = NULL;
+    bool has_ata = false, has_host = false, has_tgt = false;
+    char *p, *q, *driver = NULL;
+
+    p = strstr(syspath, "/devices/pci");
+    if (!p || sscanf(p + 12, "%*x:%*x/%x:%x:%x.%x%n",
+                     pci, pci + 1, pci + 2, pci + 3, &pcilen) < 4) {
+        g_debug("only pci device is supported: sysfs path \"%s\"", syspath);
+        return;
+    }
+
+    driver = get_pci_driver(syspath, (p + 12 + pcilen) - syspath, errp);
+    if (!driver) {
+        goto cleanup;
+    }
+
+    p = strstr(syspath, "/target");
+    if (p && sscanf(p + 7, "%*u:%*u:%*u/%*u:%u:%u:%u",
+                    tgt, tgt + 1, tgt + 2) == 3) {
+        has_tgt = true;
+    }
+
+    p = strstr(syspath, "/ata");
+    if (p) {
+        q = p + 4;
+        has_ata = true;
+    } else {
+        p = strstr(syspath, "/host");
+        q = p + 5;
+    }
+    if (p && sscanf(q, "%u", &host) == 1) {
+        has_host = true;
+        nhosts = build_hosts(syspath, p, has_ata, hosts,
+                             sizeof(hosts) / sizeof(hosts[0]), errp);
+        if (nhosts < 0) {
+            goto cleanup;
+        }
+    }
+
+    pciaddr = g_malloc0(sizeof(*pciaddr));
+    pciaddr->domain = pci[0];
+    pciaddr->bus = pci[1];
+    pciaddr->slot = pci[2];
+    pciaddr->function = pci[3];
+
+    disk = g_malloc0(sizeof(*disk));
+    disk->pci_controller = pciaddr;
+
+    list = g_malloc0(sizeof(*list));
+    list->value = disk;
+
+    if (strcmp(driver, "ata_piix") == 0) {
+        /* a host per ide bus, target*:0:<unit>:0 */
+        if (!has_host || !has_tgt) {
+            g_debug("invalid sysfs path '%s' (driver '%s')", syspath, driver);
+            goto cleanup;
+        }
+        for (i = 0; i < nhosts; i++) {
+            if (host == hosts[i]) {
+                disk->bus_type = GUEST_DISK_BUS_TYPE_IDE;
+                disk->bus = i;
+                disk->unit = tgt[1];
+                break;
+            }
+        }
+        if (i >= nhosts) {
+            g_debug("no host for '%s' (driver '%s')", syspath, driver);
+            goto cleanup;
+        }
+    } else if (strcmp(driver, "sym53c8xx") == 0) {
+        /* scsi(LSI Logic): target*:0:<unit>:0 */
+        if (!has_tgt) {
+            g_debug("invalid sysfs path '%s' (driver '%s')", syspath, driver);
+            goto cleanup;
+        }
+        disk->bus_type = GUEST_DISK_BUS_TYPE_SCSI;
+        disk->unit = tgt[1];
+    } else if (strcmp(driver, "virtio-pci") == 0) {
+        if (has_tgt) {
+            /* virtio-scsi: target*:0:0:<unit> */
+            disk->bus_type = GUEST_DISK_BUS_TYPE_SCSI;
+            disk->unit = tgt[2];
+        } else {
+            /* virtio-blk: 1 disk per 1 device */
+            disk->bus_type = GUEST_DISK_BUS_TYPE_VIRTIO;
+        }
+    } else if (strcmp(driver, "ahci") == 0) {
+        /* ahci: 1 host per 1 unit */
+        if (!has_host || !has_tgt) {
+            g_debug("invalid sysfs path '%s' (driver '%s')", syspath, driver);
+            goto cleanup;
+        }
+        for (i = 0; i < nhosts; i++) {
+            if (host == hosts[i]) {
+                disk->unit = i;
+                disk->bus_type = GUEST_DISK_BUS_TYPE_SATA;
+                break;
+            }
+        }
+        if (i >= nhosts) {
+            g_debug("no host for '%s' (driver '%s')", syspath, driver);
+            goto cleanup;
+        }
+    } else {
+        g_debug("unknown driver '%s' (sysfs path '%s')", driver, syspath);
+        goto cleanup;
+    }
+
+    list->next = fs->disk;
+    fs->disk = list;
+    g_free(driver);
+    return;
+
+cleanup:
+    if (list) {
+        qapi_free_GuestDiskAddressList(list);
+    }
+    g_free(driver);
+}
+
+static void build_guest_fsinfo_for_device(char const *devpath,
+                                          GuestFilesystemInfo *fs,
+                                          Error **errp);
+
+/* Store a list of slave devices of virtual volume specified by @syspath into
+ * @fs */
+static void build_guest_fsinfo_for_virtual_device(char const *syspath,
+                                                  GuestFilesystemInfo *fs,
+                                                  Error **errp)
+{
+    DIR *dir;
+    char *dirpath;
+    struct dirent entry, *result;
+
+    dirpath = g_strdup_printf("%s/slaves", syspath);
+    dir = opendir(dirpath);
+    if (!dir) {
+        error_setg_errno(errp, errno, "opendir(\"%s\")", dirpath);
+        g_free(dirpath);
+        return;
+    }
+    g_free(dirpath);
+
+    for (;;) {
+        if (readdir_r(dir, &entry, &result) != 0) {
+            error_setg_errno(errp, errno, "readdir_r(\"%s\")", dirpath);
+            break;
+        }
+        if (!result) {
+            break;
+        }
+
+        if (entry.d_type == DT_LNK) {
+            g_debug(" slave device '%s'", entry.d_name);
+            dirpath = g_strdup_printf("%s/slaves/%s", syspath, entry.d_name);
+            build_guest_fsinfo_for_device(dirpath, fs, errp);
+            g_free(dirpath);
+
+            if (*errp) {
+                break;
+            }
+        }
+    }
+
+    closedir(dir);
+}
+
+/* Dispatch to functions for virtual/real device */
+static void build_guest_fsinfo_for_device(char const *devpath,
+                                          GuestFilesystemInfo *fs,
+                                          Error **errp)
+{
+    char *syspath = realpath(devpath, NULL);
+
+    if (!syspath) {
+        error_setg_errno(errp, errno, "realpath(\"%s\")", devpath);
+        return;
+    }
+
+    if (!fs->name) {
+        fs->name = g_strdup(basename(syspath));
+    }
+
+    g_debug("  parse sysfs path '%s'", syspath);
+
+    if (strstr(syspath, "/devices/virtual/block/")) {
+        build_guest_fsinfo_for_virtual_device(syspath, fs, errp);
+    } else {
+        build_guest_fsinfo_for_real_device(syspath, fs, errp);
+    }
+
+    free(syspath);
+}
+
+/* Return a list of the disk device(s)' info which @mount lies on */
+static GuestFilesystemInfo *build_guest_fsinfo(struct FsMount *mount,
+                                               Error **errp)
+{
+    GuestFilesystemInfo *fs = g_malloc0(sizeof(*fs));
+    char *devpath = g_strdup_printf("/sys/dev/block/%u:%u",
+                                    mount->devmajor, mount->devminor);
+
+    fs->mountpoint = g_strdup(mount->dirname);
+    fs->type = g_strdup(mount->devtype);
+    build_guest_fsinfo_for_device(devpath, fs, errp);
+
+    g_free(devpath);
+    return fs;
+}
+
+GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
+{
+    FsMountList mounts;
+    struct FsMount *mount;
+    GuestFilesystemInfoList *new, *ret = NULL;
+    Error *local_err = NULL;
+
+    QTAILQ_INIT(&mounts);
+    build_fs_mount_list(&mounts, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+
+    QTAILQ_FOREACH(mount, &mounts, next) {
+        g_debug("Building guest fsinfo for '%s'", mount->dirname);
+
+        new = g_malloc0(sizeof(*ret));
+        new->value = build_guest_fsinfo(mount, &local_err);
+        new->next = ret;
+        ret = new;
+        if (local_err) {
+            error_propagate(errp, local_err);
+            qapi_free_GuestFilesystemInfoList(ret);
+            ret = NULL;
+            break;
+        }
+    }
+
+    free_fs_mount_list(&mounts);
+    return ret;
+}
+
 
 typedef enum {
     FSFREEZE_HOOK_THAW = 0,
@@ -710,13 +1140,21 @@ GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
     return GUEST_FSFREEZE_STATUS_THAWED;
 }
 
+int64_t qmp_guest_fsfreeze_freeze(Error **errp)
+{
+    return qmp_guest_fsfreeze_freeze_list(false, NULL, errp);
+}
+
 /*
  * Walk list of mounted file systems in the guest, and freeze the ones which
  * are real local file systems.
  */
-int64_t qmp_guest_fsfreeze_freeze(Error **errp)
+int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
+                                       strList *mountpoints,
+                                       Error **errp)
 {
     int ret = 0, i = 0;
+    strList *list;
     FsMountList mounts;
     struct FsMount *mount;
     Error *local_err = NULL;
@@ -741,6 +1179,19 @@ int64_t qmp_guest_fsfreeze_freeze(Error **errp)
     ga_set_frozen(ga_state);
 
     QTAILQ_FOREACH_REVERSE(mount, &mounts, FsMountList, next) {
+        /* To issue fsfreeze in the reverse order of mounts, check if the
+         * mount is listed in the list here */
+        if (has_mountpoints) {
+            for (list = mountpoints; list; list = list->next) {
+                if (strcmp(list->value, mount->dirname) == 0) {
+                    break;
+                }
+            }
+            if (!list) {
+                continue;
+            }
+        }
+
         fd = qemu_open(mount->dirname, O_RDONLY);
         if (fd == -1) {
             error_setg_errno(errp, errno, "failed to open %s", mount->dirname);
@@ -1460,6 +1911,12 @@ int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
 
 #if !defined(CONFIG_FSFREEZE)
 
+GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
 GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
 {
     error_set(errp, QERR_UNSUPPORTED);
@@ -1468,6 +1925,15 @@ GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
 }
 
 int64_t qmp_guest_fsfreeze_freeze(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+
+    return 0;
+}
+
+int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
+                                       strList *mountpoints,
+                                       Error **errp)
 {
     error_set(errp, QERR_UNSUPPORTED);
 
@@ -1488,6 +1954,44 @@ void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
     error_set(errp, QERR_UNSUPPORTED);
 }
 #endif
+
+/* add unsupported commands to the blacklist */
+GList *ga_command_blacklist_init(GList *blacklist)
+{
+#if !defined(__linux__)
+    {
+        const char *list[] = {
+            "guest-suspend-disk", "guest-suspend-ram",
+            "guest-suspend-hybrid", "guest-network-get-interfaces",
+            "guest-get-vcpus", "guest-set-vcpus", NULL};
+        char **p = (char **)list;
+
+        while (*p) {
+            blacklist = g_list_append(blacklist, *p++);
+        }
+    }
+#endif
+
+#if !defined(CONFIG_FSFREEZE)
+    {
+        const char *list[] = {
+            "guest-get-fsinfo", "guest-fsfreeze-status",
+            "guest-fsfreeze-freeze", "guest-fsfreeze-freeze-list",
+            "guest-fsfreeze-thaw", "guest-get-fsinfo", NULL};
+        char **p = (char **)list;
+
+        while (*p) {
+            blacklist = g_list_append(blacklist, *p++);
+        }
+    }
+#endif
+
+#if !defined(CONFIG_FSTRIM)
+    blacklist = g_list_append(blacklist, (char *)"guest-fstrim");
+#endif
+
+    return blacklist;
+}
 
 /* register init/cleanup routines for stateful command groups */
 void ga_command_state_init(GAState *s, GACommandState *cs)
