@@ -493,7 +493,7 @@ uint64_t helper_cvtqt(CPUAlphaState *env, uint64_t a)
     return float64_to_t(fr);
 }
 
-void helper_fcvtql_v_input(CPUAlphaState *env, uint64_t val)
+void helper_cvtql_v_input(CPUAlphaState *env, uint64_t val)
 {
     if (val != (int32_t)val) {
         arith_excp(env, GETPC(), EXC_M_IOV, 0);

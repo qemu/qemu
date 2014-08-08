@@ -718,7 +718,7 @@ static inline void gen_fp_exc_raise(int rc, int fn11)
     gen_fp_exc_raise_ignore(rc, fn11, fn11 & QUAL_I ? 0 : float_flag_inexact);
 }
 
-static void gen_fcvtlq(TCGv vc, TCGv vb)
+static void gen_cvtlq(TCGv vc, TCGv vb)
 {
     TCGv tmp = tcg_temp_new();
 
@@ -733,7 +733,7 @@ static void gen_fcvtlq(TCGv vc, TCGv vb)
     tcg_temp_free(tmp);
 }
 
-static void gen_fcvtql(TCGv vc, TCGv vb)
+static void gen_cvtql(TCGv vc, TCGv vb)
 {
     TCGv tmp = tcg_temp_new();
 
@@ -763,8 +763,8 @@ static void gen_ieee_arith2(DisasContext *ctx,
 }
 
 #define IEEE_ARITH2(name)                                       \
-static inline void glue(gen_f, name)(DisasContext *ctx,         \
-                                     int rb, int rc, int fn11)  \
+static inline void glue(gen_, name)(DisasContext *ctx,          \
+                                    int rb, int rc, int fn11)   \
 {                                                               \
     gen_ieee_arith2(ctx, gen_helper_##name, rb, rc, fn11);      \
 }
@@ -773,7 +773,7 @@ IEEE_ARITH2(sqrtt)
 IEEE_ARITH2(cvtst)
 IEEE_ARITH2(cvtts)
 
-static void gen_fcvttq(DisasContext *ctx, int rb, int rc, int fn11)
+static void gen_cvttq(DisasContext *ctx, int rb, int rc, int fn11)
 {
     TCGv vb, vc;
     int ignore = 0;
@@ -830,8 +830,8 @@ static void gen_ieee_intcvt(DisasContext *ctx,
 }
 
 #define IEEE_INTCVT(name)                                       \
-static inline void glue(gen_f, name)(DisasContext *ctx,         \
-                                     int rb, int rc, int fn11)  \
+static inline void glue(gen_, name)(DisasContext *ctx,          \
+                                    int rb, int rc, int fn11)   \
 {                                                               \
     gen_ieee_intcvt(ctx, gen_helper_##name, rb, rc, fn11);      \
 }
@@ -875,8 +875,8 @@ static void gen_ieee_arith3(DisasContext *ctx,
 }
 
 #define IEEE_ARITH3(name)                                               \
-static inline void glue(gen_f, name)(DisasContext *ctx,                 \
-                                     int ra, int rb, int rc, int fn11)  \
+static inline void glue(gen_, name)(DisasContext *ctx,                  \
+                                    int ra, int rb, int rc, int fn11)   \
 {                                                                       \
     gen_ieee_arith3(ctx, gen_helper_##name, ra, rb, rc, fn11);          \
 }
@@ -906,8 +906,8 @@ static void gen_ieee_compare(DisasContext *ctx,
 }
 
 #define IEEE_CMP3(name)                                                 \
-static inline void glue(gen_f, name)(DisasContext *ctx,                 \
-                                     int ra, int rb, int rc, int fn11)  \
+static inline void glue(gen_, name)(DisasContext *ctx,                  \
+                                    int ra, int rb, int rc, int fn11)   \
 {                                                                       \
     gen_ieee_compare(ctx, gen_helper_##name, ra, rb, rc, fn11);         \
 }
@@ -1958,7 +1958,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x0B:
             /* SQRTS */
             REQUIRE_REG_31(ra);
-            gen_fsqrts(ctx, rb, rc, fn11);
+            gen_sqrts(ctx, rb, rc, fn11);
             break;
         case 0x14:
             /* ITOFF */
@@ -1984,7 +1984,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x02B:
             /* SQRTT */
             REQUIRE_REG_31(ra);
-            gen_fsqrtt(ctx, rb, rc, fn11);
+            gen_sqrtt(ctx, rb, rc, fn11);
             break;
         default:
             goto invalid_opc;
@@ -2080,76 +2080,76 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         switch (fpfn) { /* fn11 & 0x3F */
         case 0x00:
             /* ADDS */
-            gen_fadds(ctx, ra, rb, rc, fn11);
+            gen_adds(ctx, ra, rb, rc, fn11);
             break;
         case 0x01:
             /* SUBS */
-            gen_fsubs(ctx, ra, rb, rc, fn11);
+            gen_subs(ctx, ra, rb, rc, fn11);
             break;
         case 0x02:
             /* MULS */
-            gen_fmuls(ctx, ra, rb, rc, fn11);
+            gen_muls(ctx, ra, rb, rc, fn11);
             break;
         case 0x03:
             /* DIVS */
-            gen_fdivs(ctx, ra, rb, rc, fn11);
+            gen_divs(ctx, ra, rb, rc, fn11);
             break;
         case 0x20:
             /* ADDT */
-            gen_faddt(ctx, ra, rb, rc, fn11);
+            gen_addt(ctx, ra, rb, rc, fn11);
             break;
         case 0x21:
             /* SUBT */
-            gen_fsubt(ctx, ra, rb, rc, fn11);
+            gen_subt(ctx, ra, rb, rc, fn11);
             break;
         case 0x22:
             /* MULT */
-            gen_fmult(ctx, ra, rb, rc, fn11);
+            gen_mult(ctx, ra, rb, rc, fn11);
             break;
         case 0x23:
             /* DIVT */
-            gen_fdivt(ctx, ra, rb, rc, fn11);
+            gen_divt(ctx, ra, rb, rc, fn11);
             break;
         case 0x24:
             /* CMPTUN */
-            gen_fcmptun(ctx, ra, rb, rc, fn11);
+            gen_cmptun(ctx, ra, rb, rc, fn11);
             break;
         case 0x25:
             /* CMPTEQ */
-            gen_fcmpteq(ctx, ra, rb, rc, fn11);
+            gen_cmpteq(ctx, ra, rb, rc, fn11);
             break;
         case 0x26:
             /* CMPTLT */
-            gen_fcmptlt(ctx, ra, rb, rc, fn11);
+            gen_cmptlt(ctx, ra, rb, rc, fn11);
             break;
         case 0x27:
             /* CMPTLE */
-            gen_fcmptle(ctx, ra, rb, rc, fn11);
+            gen_cmptle(ctx, ra, rb, rc, fn11);
             break;
         case 0x2C:
             REQUIRE_REG_31(ra);
             if (fn11 == 0x2AC || fn11 == 0x6AC) {
                 /* CVTST */
-                gen_fcvtst(ctx, rb, rc, fn11);
+                gen_cvtst(ctx, rb, rc, fn11);
             } else {
                 /* CVTTS */
-                gen_fcvtts(ctx, rb, rc, fn11);
+                gen_cvtts(ctx, rb, rc, fn11);
             }
             break;
         case 0x2F:
             /* CVTTQ */
             REQUIRE_REG_31(ra);
-            gen_fcvttq(ctx, rb, rc, fn11);
+            gen_cvttq(ctx, rb, rc, fn11);
             break;
         case 0x3C:
             /* CVTQS */
             REQUIRE_REG_31(ra);
-            gen_fcvtqs(ctx, rb, rc, fn11);
+            gen_cvtqs(ctx, rb, rc, fn11);
             break;
         case 0x3E:
             /* CVTQT */
             REQUIRE_REG_31(ra);
-            gen_fcvtqt(ctx, rb, rc, fn11);
+            gen_cvtqt(ctx, rb, rc, fn11);
             break;
         default:
             goto invalid_opc;
@@ -2163,7 +2163,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             REQUIRE_REG_31(ra);
             vc = dest_fpr(ctx, rc);
             vb = load_fpr(ctx, rb);
-            gen_fcvtlq(vc, vb);
+            gen_cvtlq(vc, vb);
             break;
         case 0x020:
             /* CPYS */
@@ -2234,7 +2234,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             REQUIRE_REG_31(ra);
             vc = dest_fpr(ctx, rc);
             vb = load_fpr(ctx, rb);
-            gen_fcvtql(vc, vb);
+            gen_cvtql(vc, vb);
             break;
         case 0x130:
             /* CVTQL/V */
@@ -2246,8 +2246,8 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                valid instruction merely for completeness in the ISA.  */
             vc = dest_fpr(ctx, rc);
             vb = load_fpr(ctx, rb);
-            gen_helper_fcvtql_v_input(cpu_env, vb);
-            gen_fcvtql(vc, vb);
+            gen_helper_cvtql_v_input(cpu_env, vb);
+            gen_cvtql(vc, vb);
             break;
         default:
             goto invalid_opc;
