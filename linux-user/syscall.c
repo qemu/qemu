@@ -4912,6 +4912,32 @@ static inline abi_long host_to_target_itimerspec(abi_ulong target_addr,
     return 0;
 }
 
+static inline abi_long target_to_host_sigevent(struct sigevent *host_sevp,
+                                               abi_ulong target_addr)
+{
+    struct target_sigevent *target_sevp;
+
+    if (!lock_user_struct(VERIFY_READ, target_sevp, target_addr, 1)) {
+        return -TARGET_EFAULT;
+    }
+
+    /* This union is awkward on 64 bit systems because it has a 32 bit
+     * integer and a pointer in it; we follow the conversion approach
+     * used for handling sigval types in signal.c so the guest should get
+     * the correct value back even if we did a 64 bit byteswap and it's
+     * using the 32 bit integer.
+     */
+    host_sevp->sigev_value.sival_ptr =
+        (void *)(uintptr_t)tswapal(target_sevp->sigev_value.sival_ptr);
+    host_sevp->sigev_signo =
+        target_to_host_signal(tswap32(target_sevp->sigev_signo));
+    host_sevp->sigev_notify = tswap32(target_sevp->sigev_notify);
+    host_sevp->_sigev_un._tid = tswap32(target_sevp->_sigev_un._tid);
+
+    unlock_user_struct(target_sevp, target_addr, 1);
+    return 0;
+}
+
 #if defined(TARGET_NR_stat64) || defined(TARGET_NR_newfstatat)
 static inline abi_long host_to_target_stat64(void *cpu_env,
                                              abi_ulong target_addr,
@@ -9403,7 +9429,6 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         /* args: clockid_t clockid, struct sigevent *sevp, timer_t *timerid */
 
         struct sigevent host_sevp = { {0}, }, *phost_sevp = NULL;
-        struct target_sigevent *ptarget_sevp;
         struct target_timer_t *ptarget_timer;
 
         int clkid = arg1;
@@ -9415,14 +9440,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             timer_t *phtimer = g_posix_timers  + timer_index;
 
             if (arg2) {
-                if (!lock_user_struct(VERIFY_READ, ptarget_sevp, arg2, 1)) {
-                    goto efault;
-                }
-
-                host_sevp.sigev_signo = tswap32(ptarget_sevp->sigev_signo);
-                host_sevp.sigev_notify = tswap32(ptarget_sevp->sigev_notify);
-
                 phost_sevp = &host_sevp;
+                ret = target_to_host_sigevent(phost_sevp, arg2);
+                if (ret != 0) {
+                    break;
+                }
             }
 
             ret = get_errno(timer_create(clkid, phost_sevp, phtimer));
