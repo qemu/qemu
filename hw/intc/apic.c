@@ -698,7 +698,7 @@ static uint32_t apic_mem_readl(void *opaque, hwaddr addr)
         val = s->log_dest << 24;
         break;
     case 0x0e:
-        val = s->dest_mode << 28;
+        val = (s->dest_mode << 28) | 0xfffffff;
         break;
     case 0x0f:
         val = s->spurious_vec;
