@@ -19,6 +19,8 @@
 import random
 import struct
 import fuzz
+from math import ceil
+from os import urandom
 
 MAX_IMAGE_SIZE = 10 * (1 << 20)
 # Standard sizes
@@ -102,7 +104,66 @@ class Image(object):
         return (cluster_bits, img_size)
 
     @staticmethod
-    def _header(cluster_bits, img_size, backing_file_name=None):
+    def _get_available_clusters(used, number):
+        """Return a set of indices of not allocated clusters.
+
+        'used' contains indices of currently allocated clusters.
+        All clusters that cannot be allocated between 'used' clusters will have
+        indices appended to the end of 'used'.
+        """
+        append_id = max(used) + 1
+        free = set(range(1, append_id)) - used
+        if len(free) >= number:
+            return set(random.sample(free, number))
+        else:
+            return free | set(range(append_id, append_id + number - len(free)))
+
+    @staticmethod
+    def _get_adjacent_clusters(used, size):
+        """Return an index of the first cluster in the sequence of free ones.
+
+        'used' contains indices of currently allocated clusters. 'size' is the
+        length of the sequence of free clusters.
+        If the sequence of 'size' is not available between 'used' clusters, its
+        first index will be append to the end of 'used'.
+        """
+        def get_cluster_id(lst, length):
+            """Return the first index of the sequence of the specified length
+            or None if the sequence cannot be inserted in the list.
+            """
+            if len(lst) != 0:
+                pairs = []
+                pair = (lst[0], 1)
+                for i in range(1, len(lst)):
+                    if lst[i] == lst[i-1] + 1:
+                        pair = (lst[i], pair[1] + 1)
+                    else:
+                        pairs.append(pair)
+                        pair = (lst[i], 1)
+                pairs.append(pair)
+                random.shuffle(pairs)
+                for x, s in pairs:
+                    if s >= length:
+                        return x - length + 1
+            return None
+
+        append_id = max(used) + 1
+        free = list(set(range(1, append_id)) - used)
+        idx = get_cluster_id(free, size)
+        if idx is None:
+            return append_id
+        else:
+            return idx
+
+    @staticmethod
+    def _alloc_data(img_size, cluster_size):
+        """Return a set of random indices of clusters allocated for guest data.
+        """
+        num_of_cls = img_size/cluster_size
+        return set(random.sample(range(1, num_of_cls + 1),
+                                 random.randint(0, num_of_cls)))
+
+    def create_header(self, cluster_bits, backing_file_name=None):
         """Generate a random valid header."""
         meta_header = [
             ['>4s', 0, "QFI\xfb", 'magic'],
@@ -110,7 +171,7 @@ class Image(object):
             ['>Q', 8, 0, 'backing_file_offset'],
             ['>I', 16, 0, 'backing_file_size'],
             ['>I', 20, cluster_bits, 'cluster_bits'],
-            ['>Q', 24, img_size, 'size'],
+            ['>Q', 24, self.image_size, 'size'],
             ['>I', 32, 0, 'crypt_method'],
             ['>I', 36, 0, 'l1_size'],
             ['>Q', 40, 0, 'l1_table_offset'],
@@ -126,63 +187,59 @@ class Image(object):
             ['>I', 96, 4, 'refcount_order'],
             ['>I', 100, 0, 'header_length']
         ]
-        v_header = FieldsList(meta_header)
+        self.header = FieldsList(meta_header)
 
-        if v_header['version'][0].value == 2:
-            v_header['header_length'][0].value = 72
+        if self.header['version'][0].value == 2:
+            self.header['header_length'][0].value = 72
         else:
-            v_header['incompatible_features'][0].value = random.getrandbits(2)
-            v_header['compatible_features'][0].value = random.getrandbits(1)
-            v_header['header_length'][0].value = 104
+            self.header['incompatible_features'][0].value = \
+                                                        random.getrandbits(2)
+            self.header['compatible_features'][0].value = random.getrandbits(1)
+            self.header['header_length'][0].value = 104
 
-        max_header_len = struct.calcsize(v_header['header_length'][0].fmt) + \
-                         v_header['header_length'][0].offset
+        max_header_len = struct.calcsize(
+            self.header['header_length'][0].fmt) + \
+            self.header['header_length'][0].offset
         end_of_extension_area_len = 2 * UINT32_S
-        free_space = (1 << cluster_bits) - (max_header_len +
-                                            end_of_extension_area_len)
+        free_space = self.cluster_size - max_header_len - \
+                     end_of_extension_area_len
         # If the backing file name specified and there is enough space for it
         # in the first cluster, then it's placed in the very end of the first
         # cluster.
         if (backing_file_name is not None) and \
            (free_space >= len(backing_file_name)):
-            v_header['backing_file_size'][0].value = len(backing_file_name)
-            v_header['backing_file_offset'][0].value = (1 << cluster_bits) - \
-                                                       len(backing_file_name)
+            self.header['backing_file_size'][0].value = len(backing_file_name)
+            self.header['backing_file_offset'][0].value = \
+                                    self.cluster_size - len(backing_file_name)
 
-        return v_header
-
-    @staticmethod
-    def _backing_file_name(header, backing_file_name=None):
+    def set_backing_file_name(self, backing_file_name=None):
         """Add the name of the backing file at the offset specified
         in the header.
         """
         if (backing_file_name is not None) and \
-           (not header['backing_file_offset'][0].value == 0):
+           (not self.header['backing_file_offset'][0].value == 0):
             data_len = len(backing_file_name)
             data_fmt = '>' + str(data_len) + 's'
-            data_field = FieldsList([
-                [data_fmt, header['backing_file_offset'][0].value,
+            self.backing_file_name = FieldsList([
+                [data_fmt, self.header['backing_file_offset'][0].value,
                  backing_file_name, 'bf_name']
             ])
         else:
-            data_field = FieldsList()
+            self.backing_file_name = FieldsList()
 
-        return data_field
-
-    @staticmethod
-    def _backing_file_format(header, backing_file_fmt=None):
+    def set_backing_file_format(self, backing_file_fmt=None):
         """Generate the header extension for the backing file
         format.
         """
-        ext = FieldsList()
-        offset = struct.calcsize(header['header_length'][0].fmt) + \
-                 header['header_length'][0].offset
+        self.backing_file_format = FieldsList()
+        offset = struct.calcsize(self.header['header_length'][0].fmt) + \
+                 self.header['header_length'][0].offset
 
         if backing_file_fmt is not None:
             # Calculation of the free space available in the first cluster
             end_of_extension_area_len = 2 * UINT32_S
-            high_border = (header['backing_file_offset'][0].value or
-                           ((1 << header['cluster_bits'][0].value) - 1)) - \
+            high_border = (self.header['backing_file_offset'][0].value or
+                           (self.cluster_size - 1)) - \
                 end_of_extension_area_len
             free_space = high_border - offset
             ext_size = 2 * UINT32_S + ((len(backing_file_fmt) + 7) & ~7)
@@ -191,19 +248,19 @@ class Image(object):
                 ext_data_len = len(backing_file_fmt)
                 ext_data_fmt = '>' + str(ext_data_len) + 's'
                 ext_padding_len = 7 - (ext_data_len - 1) % 8
-                ext = FieldsList([
+                self.backing_file_format = FieldsList([
                     ['>I', offset, 0xE2792ACA, 'ext_magic'],
                     ['>I', offset + UINT32_S, ext_data_len, 'ext_length'],
                     [ext_data_fmt, offset + UINT32_S * 2, backing_file_fmt,
                      'bf_format']
                 ])
-                offset = ext['bf_format'][0].offset + \
-                         struct.calcsize(ext['bf_format'][0].fmt) + \
-                         ext_padding_len
-        return (ext, offset)
+                offset = self.backing_file_format['bf_format'][0].offset + \
+                         struct.calcsize(self.backing_file_format[
+                             'bf_format'][0].fmt) + ext_padding_len
 
-    @staticmethod
-    def _feature_name_table(header, offset):
+        return offset
+
+    def create_feature_name_table(self, offset):
         """Generate a random header extension for names of features used in
         the image.
         """
@@ -212,8 +269,8 @@ class Image(object):
             return (random.randint(0, 2), random.randint(0, 63))
 
         end_of_extension_area_len = 2 * UINT32_S
-        high_border = (header['backing_file_offset'][0].value or
-                       (1 << header['cluster_bits'][0].value) - 1) - \
+        high_border = (self.header['backing_file_offset'][0].value or
+                       (self.cluster_size - 1)) - \
             end_of_extension_area_len
         free_space = high_border - offset
         # Sum of sizes of 'magic' and 'length' header extension fields
@@ -243,7 +300,7 @@ class Image(object):
                 inner_offset += fnt_entry_size
             # No padding for the extension is necessary, because
             # the extension length is multiple of 8
-            ext = FieldsList([
+            self.feature_name_table = FieldsList([
                 ['>I', offset, 0x6803f857, 'ext_magic'],
                 # One feature table contains 3 fields and takes 48 bytes
                 ['>I', offset + UINT32_S, len(feature_tables) / 3 * 48,
@@ -251,39 +308,101 @@ class Image(object):
             ] + feature_tables)
             offset = inner_offset
         else:
-            ext = FieldsList()
+            self.feature_name_table = FieldsList()
 
-        return (ext, offset)
+        return offset
 
-    @staticmethod
-    def _end_of_extension_area(offset):
+    def set_end_of_extension_area(self, offset):
         """Generate a mandatory header extension marking end of header
         extensions.
         """
-        ext = FieldsList([
+        self.end_of_extension_area = FieldsList([
             ['>I', offset, 0, 'ext_magic'],
             ['>I', offset + UINT32_S, 0, 'ext_length']
         ])
-        return ext
+
+    def create_l_structures(self):
+        """Generate random valid L1 and L2 tables."""
+        def create_l2_entry(host, guest, l2_cluster):
+            """Generate one L2 entry."""
+            offset = l2_cluster * self.cluster_size
+            l2_size = self.cluster_size / UINT64_S
+            entry_offset = offset + UINT64_S * (guest % l2_size)
+            cluster_descriptor = host * self.cluster_size
+            if not self.header['version'][0].value == 2:
+                cluster_descriptor += random.randint(0, 1)
+            # While snapshots are not supported, bit #63 = 1
+            # Compressed clusters are not supported => bit #62 = 0
+            entry_val = (1 << 63) + cluster_descriptor
+            return ['>Q', entry_offset, entry_val, 'l2_entry']
+
+        def create_l1_entry(l2_cluster, l1_offset, guest):
+            """Generate one L1 entry."""
+            l2_size = self.cluster_size / UINT64_S
+            entry_offset = l1_offset + UINT64_S * (guest / l2_size)
+            # While snapshots are not supported bit #63 = 1
+            entry_val = (1 << 63) + l2_cluster * self.cluster_size
+            return ['>Q', entry_offset, entry_val, 'l1_entry']
+
+        if len(self.data_clusters) == 0:
+            # All metadata for an empty guest image needs 4 clusters:
+            # header, rfc table, rfc block, L1 table.
+            # Header takes cluster #0, other clusters ##1-3 can be used
+            l1_offset = random.randint(1, 3) * self.cluster_size
+            l1 = [['>Q', l1_offset, 0, 'l1_entry']]
+            l2 = []
+        else:
+            meta_data = set([0])
+            guest_clusters = random.sample(range(self.image_size /
+                                                 self.cluster_size),
+                                           len(self.data_clusters))
+            # Number of entries in a L1/L2 table
+            l_size = self.cluster_size / UINT64_S
+            # Number of clusters necessary for L1 table
+            l1_size = int(ceil((max(guest_clusters) + 1) / float(l_size**2)))
+            l1_start = self._get_adjacent_clusters(self.data_clusters |
+                                                   meta_data, l1_size)
+            meta_data |= set(range(l1_start, l1_start + l1_size))
+            l1_offset = l1_start * self.cluster_size
+            # Indices of L2 tables
+            l2_ids = []
+            # Host clusters allocated for L2 tables
+            l2_clusters = []
+            # L1 entries
+            l1 = []
+            # L2 entries
+            l2 = []
+            for host, guest in zip(self.data_clusters, guest_clusters):
+                l2_id = guest / l_size
+                if l2_id not in l2_ids:
+                    l2_ids.append(l2_id)
+                    l2_clusters.append(self._get_adjacent_clusters(
+                        self.data_clusters | meta_data | set(l2_clusters),
+                        1))
+                    l1.append(create_l1_entry(l2_clusters[-1], l1_offset,
+                                              guest))
+                l2.append(create_l2_entry(host, guest,
+                                          l2_clusters[l2_ids.index(l2_id)]))
+        self.l2_tables = FieldsList(l2)
+        self.l1_table = FieldsList(l1)
+        self.header['l1_size'][0].value = int(ceil(UINT64_S * self.image_size /
+                                                float(self.cluster_size**2)))
+        self.header['l1_table_offset'][0].value = l1_offset
 
     def __init__(self, backing_file_name=None, backing_file_fmt=None):
         """Create a random valid qcow2 image with the correct inner structure
         and allowable values.
         """
-        # Image size is saved as an attribute for the runner needs
         cluster_bits, self.image_size = self._size_params()
-        # Saved as an attribute, because it's necessary for writing
         self.cluster_size = 1 << cluster_bits
-        self.header = self._header(cluster_bits, self.image_size,
-                                   backing_file_name)
-        self.backing_file_name = self._backing_file_name(self.header,
-                                                         backing_file_name)
-        self.backing_file_format, \
-            offset = self._backing_file_format(self.header,
-                                               backing_file_fmt)
-        self.feature_name_table, \
-            offset = self._feature_name_table(self.header, offset)
-        self.end_of_extension_area = self._end_of_extension_area(offset)
+        self.create_header(cluster_bits, backing_file_name)
+        self.set_backing_file_name(backing_file_name)
+        offset = self.set_backing_file_format(backing_file_fmt)
+        offset = self.create_feature_name_table(offset)
+        self.set_end_of_extension_area(offset)
+        self.data_clusters = self._alloc_data(self.image_size,
+                                              self.cluster_size)
+        self.create_l_structures()
         # Container for entire image
         self.data = FieldsList()
         # Percentage of fields will be fuzzed
@@ -294,7 +413,9 @@ class Image(object):
                      self.backing_file_format,
                      self.feature_name_table,
                      self.end_of_extension_area,
-                     self.backing_file_name])
+                     self.backing_file_name,
+                     self.l1_table,
+                     self.l2_tables])
 
     def _join(self):
         """Join all image structure elements as header, tables, etc in one
@@ -339,9 +460,7 @@ class Image(object):
                                 field.value)
                         except AttributeError:
                             # Some fields can be skipped depending on
-                            # references, e.g. FNT header extension is not
-                            # generated for a feature mask header field
-                            # equal to zero
+                            # their prerequisites
                             pass
 
     def write(self, filename):
@@ -351,6 +470,12 @@ class Image(object):
         for field in self.data:
             image_file.seek(field.offset)
             image_file.write(struct.pack(field.fmt, field.value))
+
+        for cluster in sorted(self.data_clusters):
+            image_file.seek(cluster * self.cluster_size)
+            image_file.write(urandom(self.cluster_size))
+
+        # Align the real image size to the cluster size
         image_file.seek(0, 2)
         size = image_file.tell()
         rounded = (size + self.cluster_size - 1) & ~(self.cluster_size - 1)
