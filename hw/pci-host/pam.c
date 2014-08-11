@@ -6,7 +6,7 @@
  *                    VA Linux Systems Japan K.K.
  * Copyright (c) 2012 Jason Baron <jbaron@redhat.com>
  *
- * Split out from piix_pci.c
+ * Split out from piix.c
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
