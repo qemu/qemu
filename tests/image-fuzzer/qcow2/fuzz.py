@@ -325,3 +325,31 @@ def feature_name(current):
         truncate_string(STRING_V, 46)  # Fuzz padding (field length = 46)
     ]
     return selector(current, constraints, string_validator)
+
+
+def l1_entry(current):
+    """Fuzz an entry of the L1 table."""
+    constraints = UINT64_V
+    # Reserved bits are ignored
+    # Added a possibility when only flags are fuzzed
+    offset = 0x7fffffffffffffff & random.choice([selector(current,
+                                                          constraints),
+                                                 current])
+    is_cow = random.randint(0, 1)
+    return offset + (is_cow << UINT64_M)
+
+
+def l2_entry(current):
+    """Fuzz an entry of an L2 table."""
+    constraints = UINT64_V
+    # Reserved bits are ignored
+    # Add a possibility when only flags are fuzzed
+    offset = 0x3ffffffffffffffe & random.choice([selector(current,
+                                                          constraints),
+                                                 current])
+    is_compressed = random.randint(0, 1)
+    is_cow = random.randint(0, 1)
+    is_zero = random.randint(0, 1)
+    value = offset + (is_cow << UINT64_M) + \
+            (is_compressed << UINT64_M - 1) + is_zero
+    return value
