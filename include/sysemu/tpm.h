@@ -20,4 +20,11 @@ int tpm_config_parse(QemuOptsList *opts_list, const char *optarg);
 int tpm_init(void);
 void tpm_cleanup(void);
 
+#define TYPE_TPM_TIS                "tpm-tis"
+
+static inline bool tpm_find(void)
+{
+    return object_resolve_path_type("", TYPE_TPM_TIS, NULL);
+}
+
 #endif /* QEMU_TPM_H */
