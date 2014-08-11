@@ -56,8 +56,7 @@ static void memory_init(void)
 typedef struct AddrRange AddrRange;
 
 /*
- * Note using signed integers limits us to physical addresses at most
- * 63 bits wide.  They are needed for negative offsetting in aliases
+ * Note that signed integers are needed for negative offsetting in aliases
  * (large MemoryRegion::alias_offset).
  */
 struct AddrRange {
