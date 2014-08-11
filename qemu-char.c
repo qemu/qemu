@@ -975,7 +975,7 @@ static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
     s = g_malloc0(sizeof(FDCharDriver));
     s->fd_in = io_channel_from_fd(fd_in);
     s->fd_out = io_channel_from_fd(fd_out);
-    fcntl(fd_out, F_SETFL, O_NONBLOCK);
+    qemu_set_nonblock(fd_out);
     s->chr = chr;
     chr->opaque = s;
     chr->chr_add_watch = fd_chr_add_watch;
@@ -1062,7 +1062,7 @@ static CharDriverState *qemu_chr_open_stdio(ChardevStdio *opts)
     }
     old_fd0_flags = fcntl(0, F_GETFL);
     tcgetattr (0, &oldtty);
-    fcntl(0, F_SETFL, O_NONBLOCK);
+    qemu_set_nonblock(0);
     atexit(term_exit);
 
     chr = qemu_chr_open_fd(0, 1);
