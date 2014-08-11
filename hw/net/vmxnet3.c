@@ -1009,7 +1009,7 @@ vmxnet3_indicate_packet(VMXNET3State *s)
 
         vmxnet3_dump_rx_descr(&rxd);
 
-        if (0 != ready_rxcd_pa) {
+        if (ready_rxcd_pa != 0) {
             cpu_physical_memory_write(ready_rxcd_pa, &rxcd, sizeof(rxcd));
         }
 
@@ -1020,7 +1020,7 @@ vmxnet3_indicate_packet(VMXNET3State *s)
         rxcd.gen = new_rxcd_gen;
         rxcd.rqID = RXQ_IDX + rx_ridx * s->rxq_num;
 
-        if (0 == bytes_left) {
+        if (bytes_left == 0) {
             vmxnet3_rx_update_descr(s->rx_pkt, &rxcd);
         }
 
@@ -1038,16 +1038,16 @@ vmxnet3_indicate_packet(VMXNET3State *s)
         num_frags++;
     }
 
-    if (0 != ready_rxcd_pa) {
+    if (ready_rxcd_pa != 0) {
         rxcd.eop = 1;
-        rxcd.err = (0 != bytes_left);
+        rxcd.err = (bytes_left != 0);
         cpu_physical_memory_write(ready_rxcd_pa, &rxcd, sizeof(rxcd));
 
         /* Flush RX descriptor changes */
         smp_wmb();
     }
 
-    if (0 != new_rxcd_pa) {
+    if (new_rxcd_pa != 0) {
         vmxnet3_revert_rxc_descr(s, RXQ_IDX);
     }
 
@@ -1190,8 +1190,8 @@ static void vmxnet3_update_mcast_filters(VMXNET3State *s)
     s->mcast_list_len = list_bytes / sizeof(s->mcast_list[0]);
 
     s->mcast_list = g_realloc(s->mcast_list, list_bytes);
-    if (NULL == s->mcast_list) {
-        if (0 == s->mcast_list_len) {
+    if (!s->mcast_list) {
+        if (s->mcast_list_len == 0) {
             VMW_CFPRN("Current multicast list is empty");
         } else {
             VMW_ERPRN("Failed to allocate multicast list of %d elements",
@@ -1667,7 +1667,7 @@ vmxnet3_io_bar1_write(void *opaque,
          * memory address. We save it to temp variable and set the
          * shared address only after we get the high part
          */
-        if (0 == val) {
+        if (val == 0) {
             s->device_active = false;
         }
         s->temp_shared_guest_driver_memory = val;
