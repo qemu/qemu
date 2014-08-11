@@ -1,5 +1,5 @@
 /*
- * QEMU i440FX/PIIX3 PCI Bridge Emulation
+ * QEMU Smram/pam logic implementation
  *
  * Copyright (c) 2006 Fabrice Bellard
  * Copyright (c) 2011 Isaku Yamahata <yamahata at valinux co jp>
