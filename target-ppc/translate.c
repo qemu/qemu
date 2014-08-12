@@ -1617,17 +1617,19 @@ static void gen_rlwimi(DisasContext *ctx)
     me = ME(ctx->opcode);
     sh = SH(ctx->opcode);
     if (likely(sh == 0 && mb == 0 && me == 31)) {
+#if defined(TARGET_PPC64)
+        tcg_gen_mov_i64(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+#else
         tcg_gen_ext32u_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+#endif
     } else {
         target_ulong mask;
         TCGv t1;
         TCGv t0 = tcg_temp_new();
 #if defined(TARGET_PPC64)
-        TCGv_i32 t2 = tcg_temp_new_i32();
-        tcg_gen_trunc_i64_i32(t2, cpu_gpr[rS(ctx->opcode)]);
-        tcg_gen_rotli_i32(t2, t2, sh);
-        tcg_gen_extu_i32_i64(t0, t2);
-        tcg_temp_free_i32(t2);
+        tcg_gen_deposit_i64(t0, cpu_gpr[rS(ctx->opcode)],
+            cpu_gpr[rS(ctx->opcode)], 32, 32);
+        tcg_gen_rotli_i64(t0, t0, sh);
 #else
         tcg_gen_rotli_i32(t0, cpu_gpr[rS(ctx->opcode)], sh);
 #endif
