@@ -2237,6 +2237,7 @@ static void scsi_disk_unit_attention_reported(SCSIDevice *dev)
 static int scsi_initfn(SCSIDevice *dev)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+    Error *err = NULL;
 
     if (!s->qdev.conf.bs) {
         error_report("drive property not set");
@@ -2250,9 +2251,13 @@ static int scsi_initfn(SCSIDevice *dev)
     }
 
     blkconf_serial(&s->qdev.conf, &s->serial);
-    if (dev->type == TYPE_DISK
-        && blkconf_geometry(&dev->conf, NULL, 65535, 255, 255) < 0) {
-        return -1;
+    if (dev->type == TYPE_DISK) {
+        blkconf_geometry(&dev->conf, NULL, 65535, 255, 255, &err);
+        if (err) {
+            error_report("%s", error_get_pretty(err));
+            error_free(err);
+            return -1;
+        }
     }
 
     if (s->qdev.conf.discard_granularity == -1) {

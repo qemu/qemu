@@ -22,8 +22,9 @@ void blkconf_serial(BlockConf *conf, char **serial)
     }
 }
 
-int blkconf_geometry(BlockConf *conf, int *ptrans,
-                     unsigned cyls_max, unsigned heads_max, unsigned secs_max)
+void blkconf_geometry(BlockConf *conf, int *ptrans,
+                      unsigned cyls_max, unsigned heads_max, unsigned secs_max,
+                      Error **errp)
 {
     DriveInfo *dinfo;
 
@@ -46,17 +47,16 @@ int blkconf_geometry(BlockConf *conf, int *ptrans,
     }
     if (conf->cyls || conf->heads || conf->secs) {
         if (conf->cyls < 1 || conf->cyls > cyls_max) {
-            error_report("cyls must be between 1 and %u", cyls_max);
-            return -1;
+            error_setg(errp, "cyls must be between 1 and %u", cyls_max);
+            return;
         }
         if (conf->heads < 1 || conf->heads > heads_max) {
-            error_report("heads must be between 1 and %u", heads_max);
-            return -1;
+            error_setg(errp, "heads must be between 1 and %u", heads_max);
+            return;
         }
         if (conf->secs < 1 || conf->secs > secs_max) {
-            error_report("secs must be between 1 and %u", secs_max);
-            return -1;
+            error_setg(errp, "secs must be between 1 and %u", secs_max);
+            return;
         }
     }
-    return 0;
 }

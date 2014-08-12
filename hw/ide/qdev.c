@@ -151,6 +151,7 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
 {
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
     IDEState *s = bus->ifs + dev->unit;
+    Error *err = NULL;
 
     if (dev->conf.discard_granularity == -1) {
         dev->conf.discard_granularity = 512;
@@ -161,9 +162,13 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     }
 
     blkconf_serial(&dev->conf, &dev->serial);
-    if (kind != IDE_CD
-        && blkconf_geometry(&dev->conf, &dev->chs_trans, 65536, 16, 255) < 0) {
-        return -1;
+    if (kind != IDE_CD) {
+        blkconf_geometry(&dev->conf, &dev->chs_trans, 65536, 16, 255, &err);
+        if (err) {
+            error_report("%s", error_get_pretty(err));
+            error_free(err);
+            return -1;
+        }
     }
 
     if (ide_init_drive(s, dev->conf.bs, kind,

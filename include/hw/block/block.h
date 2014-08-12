@@ -12,6 +12,7 @@
 #define HW_BLOCK_COMMON_H
 
 #include "qemu-common.h"
+#include "qapi/error.h"
 
 /* Configuration */
 
@@ -60,8 +61,9 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
 /* Configuration helpers */
 
 void blkconf_serial(BlockConf *conf, char **serial);
-int blkconf_geometry(BlockConf *conf, int *trans,
-                     unsigned cyls_max, unsigned heads_max, unsigned secs_max);
+void blkconf_geometry(BlockConf *conf, int *trans,
+                      unsigned cyls_max, unsigned heads_max, unsigned secs_max,
+                      Error **errp);
 
 /* Hard disk geometry */
 
