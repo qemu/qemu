@@ -848,7 +848,9 @@ static void ide_flush_cb(void *opaque, int ret)
         }
     }
 
-    bdrv_acct_done(s->bs, &s->acct);
+    if (s->bs) {
+        bdrv_acct_done(s->bs, &s->acct);
+    }
     s->status = READY_STAT | SEEK_STAT;
     ide_cmd_done(s);
     ide_set_irq(s->bus);
