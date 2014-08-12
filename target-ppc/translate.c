@@ -1140,11 +1140,20 @@ static void gen_mullwo(DisasContext *ctx)
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
     TCGv_i32 t1 = tcg_temp_new_i32();
+#if defined(TARGET_PPC64)
+    TCGv_i64 t2 = tcg_temp_new_i64();
+#endif
 
     tcg_gen_trunc_tl_i32(t0, cpu_gpr[rA(ctx->opcode)]);
     tcg_gen_trunc_tl_i32(t1, cpu_gpr[rB(ctx->opcode)]);
     tcg_gen_muls2_i32(t0, t1, t0, t1);
     tcg_gen_ext_i32_tl(cpu_gpr[rD(ctx->opcode)], t0);
+#if defined(TARGET_PPC64)
+    tcg_gen_ext_i32_tl(t2, t1);
+    tcg_gen_deposit_i64(cpu_gpr[rD(ctx->opcode)],
+                        cpu_gpr[rD(ctx->opcode)], t2, 32, 32);
+    tcg_temp_free(t2);
+#endif
 
     tcg_gen_sari_i32(t0, t0, 31);
     tcg_gen_setcond_i32(TCG_COND_NE, t0, t0, t1);
