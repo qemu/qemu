@@ -2652,9 +2652,18 @@ static inline abi_long do_semctl(int semid, int semnum, int cmd,
     switch( cmd ) {
 	case GETVAL:
 	case SETVAL:
-            arg.val = tswap32(target_su.val);
+            /* In 64 bit cross-endian situations, we will erroneously pick up
+             * the wrong half of the union for the "val" element.  To rectify
+             * this, the entire 8-byte structure is byteswapped, followed by
+	     * a swap of the 4 byte val field. In other cases, the data is
+	     * already in proper host byte order. */
+	    if (sizeof(target_su.val) != (sizeof(target_su.buf))) {
+		target_su.buf = tswapal(target_su.buf);
+		arg.val = tswap32(target_su.val);
+	    } else {
+		arg.val = target_su.val;
+	    }
             ret = get_errno(semctl(semid, semnum, cmd, arg));
-            target_su.val = tswap32(arg.val);
             break;
 	case GETALL:
 	case SETALL:
