@@ -3470,6 +3470,23 @@ if compile_prog "" "" ; then
   timerfd=yes
 fi
 
+# check for setns and unshare support
+setns=no
+cat > $TMPC << EOF
+#include <sched.h>
+
+int main(void)
+{
+    int ret;
+    ret = setns(0, 0);
+    ret = unshare(0);
+    return ret;
+}
+EOF
+if compile_prog "" "" ; then
+  setns=yes
+fi
+
 # Check if tools are available to build documentation.
 if test "$docs" != "no" ; then
   if has makeinfo && has pod2man; then
@@ -4540,6 +4557,9 @@ if test "$sendfile" = "yes" ; then
 fi
 if test "$timerfd" = "yes" ; then
   echo "CONFIG_TIMERFD=y" >> $config_host_mak
+fi
+if test "$setns" = "yes" ; then
+  echo "CONFIG_SETNS=y" >> $config_host_mak
 fi
 if test "$inotify" = "yes" ; then
   echo "CONFIG_INOTIFY=y" >> $config_host_mak

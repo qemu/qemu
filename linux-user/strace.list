@@ -1185,6 +1185,9 @@
 #ifdef TARGET_NR_set_mempolicy
 { TARGET_NR_set_mempolicy, "set_mempolicy" , NULL, NULL, NULL },
 #endif
+#ifdef TARGET_NR_setns
+{ TARGET_NR_setns, "setns" , NULL, NULL, NULL },
+#endif
 #ifdef TARGET_NR_setpgid
 { TARGET_NR_setpgid, "setpgid" , NULL, NULL, NULL },
 #endif
