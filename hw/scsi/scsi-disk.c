@@ -2151,7 +2151,7 @@ static void scsi_disk_reset(DeviceState *dev)
     s->tray_open = 0;
 }
 
-static void scsi_destroy(SCSIDevice *dev)
+static void scsi_unrealize(SCSIDevice *dev, Error **errp)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
 
@@ -2234,29 +2234,28 @@ static void scsi_disk_unit_attention_reported(SCSIDevice *dev)
     }
 }
 
-static int scsi_initfn(SCSIDevice *dev)
+static void scsi_realize(SCSIDevice *dev, Error **errp)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
     Error *err = NULL;
 
     if (!s->qdev.conf.bs) {
-        error_report("drive property not set");
-        return -1;
+        error_setg(errp, "drive property not set");
+        return;
     }
 
     if (!(s->features & (1 << SCSI_DISK_F_REMOVABLE)) &&
         !bdrv_is_inserted(s->qdev.conf.bs)) {
-        error_report("Device needs media, but drive is empty");
-        return -1;
+        error_setg(errp, "Device needs media, but drive is empty");
+        return;
     }
 
     blkconf_serial(&s->qdev.conf, &s->serial);
     if (dev->type == TYPE_DISK) {
         blkconf_geometry(&dev->conf, NULL, 65535, 255, 255, &err);
         if (err) {
-            error_report("%s", error_get_pretty(err));
-            error_free(err);
-            return -1;
+            error_propagate(errp, err);
+            return;
         }
     }
 
@@ -2273,8 +2272,8 @@ static int scsi_initfn(SCSIDevice *dev)
     }
 
     if (bdrv_is_sg(s->qdev.conf.bs)) {
-        error_report("unwanted /dev/sg*");
-        return -1;
+        error_setg(errp, "unwanted /dev/sg*");
+        return;
     }
 
     if ((s->features & (1 << SCSI_DISK_F_REMOVABLE)) &&
@@ -2287,10 +2286,9 @@ static int scsi_initfn(SCSIDevice *dev)
 
     bdrv_iostatus_enable(s->qdev.conf.bs);
     add_boot_device_path(s->qdev.conf.bootindex, &dev->qdev, NULL);
-    return 0;
 }
 
-static int scsi_hd_initfn(SCSIDevice *dev)
+static void scsi_hd_realize(SCSIDevice *dev, Error **errp)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
     s->qdev.blocksize = s->qdev.conf.logical_block_size;
@@ -2298,10 +2296,10 @@ static int scsi_hd_initfn(SCSIDevice *dev)
     if (!s->product) {
         s->product = g_strdup("QEMU HARDDISK");
     }
-    return scsi_initfn(&s->qdev);
+    scsi_realize(&s->qdev, errp);
 }
 
-static int scsi_cd_initfn(SCSIDevice *dev)
+static void scsi_cd_realize(SCSIDevice *dev, Error **errp)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
     s->qdev.blocksize = 2048;
@@ -2310,22 +2308,26 @@ static int scsi_cd_initfn(SCSIDevice *dev)
     if (!s->product) {
         s->product = g_strdup("QEMU CD-ROM");
     }
-    return scsi_initfn(&s->qdev);
+    scsi_realize(&s->qdev, errp);
 }
 
-static int scsi_disk_initfn(SCSIDevice *dev)
+static void scsi_disk_realize(SCSIDevice *dev, Error **errp)
 {
     DriveInfo *dinfo;
+    Error *local_err = NULL;
 
     if (!dev->conf.bs) {
-        return scsi_initfn(dev);  /* ... and die there */
+        scsi_realize(dev, &local_err);
+        assert(local_err);
+        error_propagate(errp, local_err);
+        return;
     }
 
     dinfo = drive_get_by_blockdev(dev->conf.bs);
     if (dinfo->media_cd) {
-        return scsi_cd_initfn(dev);
+        scsi_cd_realize(dev, errp);
     } else {
-        return scsi_hd_initfn(dev);
+        scsi_hd_realize(dev, errp);
     }
 }
 
@@ -2457,35 +2459,35 @@ static int get_device_type(SCSIDiskState *s)
     return 0;
 }
 
-static int scsi_block_initfn(SCSIDevice *dev)
+static void scsi_block_realize(SCSIDevice *dev, Error **errp)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
     int sg_version;
     int rc;
 
     if (!s->qdev.conf.bs) {
-        error_report("drive property not set");
-        return -1;
+        error_setg(errp, "drive property not set");
+        return;
     }
 
     /* check we are using a driver managing SG_IO (version 3 and after) */
     rc = bdrv_ioctl(s->qdev.conf.bs, SG_GET_VERSION_NUM, &sg_version);
     if (rc < 0) {
-        error_report("cannot get SG_IO version number: %s.  "
+        error_setg(errp, "cannot get SG_IO version number: %s.  "
                      "Is this a SCSI device?",
                      strerror(-rc));
-        return -1;
+        return;
     }
     if (sg_version < 30000) {
-        error_report("scsi generic interface too old");
-        return -1;
+        error_setg(errp, "scsi generic interface too old");
+        return;
     }
 
     /* get device type from INQUIRY data */
     rc = get_device_type(s);
     if (rc < 0) {
-        error_report("INQUIRY failed");
-        return -1;
+        error_setg(errp, "INQUIRY failed");
+        return;
     }
 
     /* Make a guess for the block size, we'll fix it when the guest sends.
@@ -2503,7 +2505,7 @@ static int scsi_block_initfn(SCSIDevice *dev)
      */
     s->features |= (1 << SCSI_DISK_F_NO_REMOVABLE_DEVOPS);
 
-    return scsi_initfn(&s->qdev);
+    scsi_realize(&s->qdev, errp);
 }
 
 static bool scsi_block_is_passthrough(SCSIDiskState *s, uint8_t *buf)
@@ -2626,8 +2628,8 @@ static void scsi_hd_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
 
-    sc->init         = scsi_hd_initfn;
-    sc->destroy      = scsi_destroy;
+    sc->realize      = scsi_hd_realize;
+    sc->unrealize    = scsi_unrealize;
     sc->alloc_req    = scsi_new_request;
     sc->unit_attention_reported = scsi_disk_unit_attention_reported;
     dc->fw_name = "disk";
@@ -2657,8 +2659,8 @@ static void scsi_cd_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
 
-    sc->init         = scsi_cd_initfn;
-    sc->destroy      = scsi_destroy;
+    sc->realize      = scsi_cd_realize;
+    sc->unrealize    = scsi_unrealize;
     sc->alloc_req    = scsi_new_request;
     sc->unit_attention_reported = scsi_disk_unit_attention_reported;
     dc->fw_name = "disk";
@@ -2687,8 +2689,8 @@ static void scsi_block_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
 
-    sc->init         = scsi_block_initfn;
-    sc->destroy      = scsi_destroy;
+    sc->realize      = scsi_block_realize;
+    sc->unrealize    = scsi_unrealize;
     sc->alloc_req    = scsi_block_new_request;
     sc->parse_cdb    = scsi_block_parse_cdb;
     dc->fw_name = "disk";
@@ -2725,8 +2727,8 @@ static void scsi_disk_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
 
-    sc->init         = scsi_disk_initfn;
-    sc->destroy      = scsi_destroy;
+    sc->realize      = scsi_disk_realize;
+    sc->unrealize    = scsi_unrealize;
     sc->alloc_req    = scsi_new_request;
     sc->unit_attention_reported = scsi_disk_unit_attention_reported;
     dc->fw_name = "disk";
