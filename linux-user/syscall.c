@@ -1803,6 +1803,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
     abi_ulong total_len, max_len;
     int i;
     int err = 0;
+    bool bad_address = false;
 
     if (count == 0) {
         errno = 0;
@@ -1843,9 +1844,20 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
             vec[i].iov_base = 0;
         } else {
             vec[i].iov_base = lock_user(type, base, len, copy);
+            /* If the first buffer pointer is bad, this is a fault.  But
+             * subsequent bad buffers will result in a partial write; this
+             * is realized by filling the vector with null pointers and
+             * zero lengths. */
             if (!vec[i].iov_base) {
-                err = EFAULT;
-                goto fail;
+                if (i == 0) {
+                    err = EFAULT;
+                    goto fail;
+                } else {
+                    bad_address = true;
+                }
+            }
+            if (bad_address) {
+                len = 0;
             }
             if (len > max_len - total_len) {
                 len = max_len - total_len;
