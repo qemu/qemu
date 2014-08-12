@@ -2424,9 +2424,13 @@ struct target_semid_ds
 {
   struct target_ipc_perm sem_perm;
   abi_ulong sem_otime;
+#if !defined(TARGET_PPC64)
   abi_ulong __unused1;
+#endif
   abi_ulong sem_ctime;
+#if !defined(TARGET_PPC64)
   abi_ulong __unused2;
+#endif
   abi_ulong sem_nsems;
   abi_ulong __unused3;
   abi_ulong __unused4;
