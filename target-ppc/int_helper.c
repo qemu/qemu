@@ -248,7 +248,7 @@ target_ulong helper_srad(CPUPPCState *env, target_ulong value,
         if (likely((uint64_t)shift != 0)) {
             shift &= 0x3f;
             ret = (int64_t)value >> shift;
-            if (likely(ret >= 0 || (value & ((1 << shift) - 1)) == 0)) {
+            if (likely(ret >= 0 || (value & ((1ULL << shift) - 1)) == 0)) {
                 env->ca = 0;
             } else {
                 env->ca = 1;
