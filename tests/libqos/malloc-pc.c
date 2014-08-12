@@ -36,7 +36,7 @@ static uint64_t pc_alloc(QGuestAllocator *allocator, size_t size)
 
 
     size += (PAGE_SIZE - 1);
-    size &= PAGE_SIZE;
+    size &= -PAGE_SIZE;
 
     g_assert_cmpint((s->start + size), <=, s->end);
 
