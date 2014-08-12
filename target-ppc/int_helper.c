@@ -32,12 +32,22 @@ uint64_t helper_mulldo(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
     uint64_t tl;
 
     muls64(&tl, (uint64_t *)&th, arg1, arg2);
-    /* If th != 0 && th != -1, then we had an overflow */
-    if (likely((uint64_t)(th + 1) <= 1)) {
+
+    /* th should either contain all 1 bits or all 0 bits and should
+     * match the sign bit of tl; otherwise we have overflowed. */
+
+    if ((int64_t)tl < 0) {
+        if (likely(th == -1LL)) {
+            env->ov = 0;
+        } else {
+            env->so = env->ov = 1;
+        }
+    } else if (likely(th == 0LL)) {
         env->ov = 0;
     } else {
         env->so = env->ov = 1;
     }
+
     return (int64_t)tl;
 }
 #endif
