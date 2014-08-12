@@ -9033,6 +9033,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(clock_nanosleep(arg1, arg2, &ts, arg4 ? &ts : NULL));
         if (arg4)
             host_to_target_timespec(arg4, &ts);
+
+#if defined(TARGET_PPC)
+        /* clock_nanosleep is odd in that it returns positive errno values.
+         * On PPC, CR0 bit 3 should be set in such a situation. */
+        if (ret) {
+            ((CPUPPCState *)cpu_env)->crf[0] |= 1;
+        }
+#endif
         break;
     }
 #endif
