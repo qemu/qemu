@@ -32,7 +32,7 @@ static inline uint64_t guest_alloc(QGuestAllocator *allocator, size_t size)
 
 static inline void guest_free(QGuestAllocator *allocator, uint64_t addr)
 {
-    allocator->alloc(allocator, addr);
+    allocator->free(allocator, addr);
 }
 
 #endif
