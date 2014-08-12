@@ -228,3 +228,4 @@ struct target_pt_regs {
 #define UNAME_MINIMUM_RELEASE "2.6.32"
 
 #define TARGET_CLONE_BACKWARDS
+#define TARGET_MINSIGSTKSZ 2048

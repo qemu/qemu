@@ -16,3 +16,4 @@ struct target_pt_regs {
  * and copy_thread().
  */
 #define TARGET_CLONE_BACKWARDS
+#define TARGET_MINSIGSTKSZ      4096

@@ -8,3 +8,4 @@ struct target_pt_regs {
 #define UNAME_MACHINE "aarch64"
 #define UNAME_MINIMUM_RELEASE "3.8.0"
 #define TARGET_CLONE_BACKWARDS
+#define TARGET_MINSIGSTKSZ       2048

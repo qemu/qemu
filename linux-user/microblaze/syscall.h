@@ -49,5 +49,6 @@ struct target_pt_regs {
 };
 
 #define TARGET_CLONE_BACKWARDS
+#define TARGET_MINSIGSTKSZ      2048
 
 #endif

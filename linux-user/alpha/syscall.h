@@ -252,3 +252,4 @@ struct target_pt_regs {
 #define TARGET_UAC_NOPRINT		1
 #define TARGET_UAC_NOFIX		2
 #define TARGET_UAC_SIGBUS		4
+#define TARGET_MINSIGSTKSZ              4096

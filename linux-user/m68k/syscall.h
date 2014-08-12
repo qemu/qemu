@@ -18,4 +18,6 @@ struct target_pt_regs {
 #define UNAME_MACHINE "m68k"
 #define UNAME_MINIMUM_RELEASE "2.6.32"
 
+#define TARGET_MINSIGSTKSZ 2048
+
 void do_m68k_simcall(CPUM68KState *, int);
