@@ -402,10 +402,14 @@ QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
 
     /* No need to send anything for an empty QObject.  */
     if (qobj) {
+        int log = getenv("QTEST_LOG") != NULL;
         QString *qstr = qobject_to_json(qobj);
         const char *str = qstring_get_str(qstr);
         size_t size = qstring_get_length(qstr);
 
+        if (log) {
+            fprintf(stderr, "%s", str);
+        }
         /* Send QMP request */
         socket_send(s->qmp_fd, str, size);
 
