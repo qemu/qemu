@@ -404,19 +404,19 @@ void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
          * NB: per existing s/n string convention the string is
          * terminated by '\0' only when shorter than buffer.
          */
-        strncpy(req->elem.in_sg[0].iov_base,
-                s->blk.serial ? s->blk.serial : "",
-                MIN(req->elem.in_sg[0].iov_len, VIRTIO_BLK_ID_BYTES));
+        const char *serial = s->blk.serial ? s->blk.serial : "";
+        size_t size = MIN(strlen(serial) + 1,
+                          MIN(iov_size(in_iov, in_num),
+                              VIRTIO_BLK_ID_BYTES));
+        iov_from_buf(in_iov, in_num, 0, serial, size);
         virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
         virtio_blk_free_request(req);
     } else if (type & VIRTIO_BLK_T_OUT) {
-        qemu_iovec_init_external(&req->qiov, &req->elem.out_sg[1],
-                                 req->elem.out_num - 1);
+        qemu_iovec_init_external(&req->qiov, iov, out_num);
         virtio_blk_handle_write(req, mrb);
     } else if (type == VIRTIO_BLK_T_IN || type == VIRTIO_BLK_T_BARRIER) {
         /* VIRTIO_BLK_T_IN is 0, so we can't just & it. */
-        qemu_iovec_init_external(&req->qiov, &req->elem.in_sg[0],
-                                 req->elem.in_num - 1);
+        qemu_iovec_init_external(&req->qiov, in_iov, in_num);
         virtio_blk_handle_read(req);
     } else {
         virtio_blk_req_complete(req, VIRTIO_BLK_S_UNSUPP);
