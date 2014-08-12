@@ -3140,9 +3140,15 @@ static abi_long do_ipc(unsigned int call, int first,
         ret = get_errno(semget(first, second, third));
         break;
 
-    case IPCOP_semctl:
-        ret = do_semctl(first, second, third, (union target_semun)(abi_ulong) ptr);
+    case IPCOP_semctl: {
+        /* The semun argument to semctl is passed by value, so dereference the
+         * ptr argument. */
+        abi_ulong atptr;
+        get_user_ual(atptr, (abi_ulong)ptr);
+        ret = do_semctl(first, second, third,
+                (union target_semun)(abi_ulong) atptr);
         break;
+    }
 
     case IPCOP_msgget:
         ret = get_errno(msgget(first, second));
