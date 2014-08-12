@@ -49,7 +49,6 @@
 /* ICH9 AHCI has 6 ports */
 #define MAX_SATA_PORTS     6
 
-static bool has_pci_info;
 static bool has_acpi_build = true;
 static bool smbios_defaults = true;
 static bool smbios_legacy_mode;
@@ -150,7 +149,6 @@ static void pc_q35_init(MachineState *machine)
     }
 
     guest_info = pc_guest_info_init(below_4g_mem_size, above_4g_mem_size);
-    guest_info->has_pci_info = has_pci_info;
     guest_info->isapc_ram_fw = false;
     guest_info->has_acpi_build = has_acpi_build;
     guest_info->has_reserved_memory = has_reserved_memory;
@@ -296,7 +294,6 @@ static void pc_compat_1_7(MachineState *machine)
 static void pc_compat_1_6(MachineState *machine)
 {
     pc_compat_1_7(machine);
-    has_pci_info = false;
     rom_file_has_mr = false;
     has_acpi_build = false;
 }

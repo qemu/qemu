@@ -85,7 +85,6 @@ typedef struct PcPciInfo {
 #define ACPI_PM_PROP_GPE0_BLK_LEN "gpe0_blk_len"
 
 struct PcGuestInfo {
-    bool has_pci_info;
     bool isapc_ram_fw;
     hwaddr ram_size, ram_size_below_4g;
     unsigned apic_id_limit;

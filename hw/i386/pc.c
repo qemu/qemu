@@ -1066,35 +1066,6 @@ typedef struct PcRomPciInfo {
     uint64_t w64_max;
 } PcRomPciInfo;
 
-static void pc_fw_cfg_guest_info(PcGuestInfo *guest_info)
-{
-    PcRomPciInfo *info;
-    Object *pci_info;
-    bool ambiguous = false;
-
-    if (!guest_info->has_pci_info || !guest_info->fw_cfg) {
-        return;
-    }
-    pci_info = object_resolve_path_type("", TYPE_PCI_HOST_BRIDGE, &ambiguous);
-    g_assert(!ambiguous);
-    if (!pci_info) {
-        return;
-    }
-
-    info = g_malloc(sizeof *info);
-    info->w32_min = cpu_to_le64(object_property_get_int(pci_info,
-                                PCI_HOST_PROP_PCI_HOLE_START, NULL));
-    info->w32_max = cpu_to_le64(object_property_get_int(pci_info,
-                                PCI_HOST_PROP_PCI_HOLE_END, NULL));
-    info->w64_min = cpu_to_le64(object_property_get_int(pci_info,
-                                PCI_HOST_PROP_PCI_HOLE64_START, NULL));
-    info->w64_max = cpu_to_le64(object_property_get_int(pci_info,
-                                PCI_HOST_PROP_PCI_HOLE64_END, NULL));
-    /* Pass PCI hole info to guest via a side channel.
-     * Required so guest PCI enumeration does the right thing. */
-    fw_cfg_add_file(guest_info->fw_cfg, "etc/pci-info", info, sizeof *info);
-}
-
 typedef struct PcGuestInfoState {
     PcGuestInfo info;
     Notifier machine_done;
@@ -1106,7 +1077,6 @@ void pc_guest_info_machine_done(Notifier *notifier, void *data)
     PcGuestInfoState *guest_info_state = container_of(notifier,
                                                       PcGuestInfoState,
                                                       machine_done);
-    pc_fw_cfg_guest_info(&guest_info_state->info);
     acpi_setup(&guest_info_state->info);
 }
 
