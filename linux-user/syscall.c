@@ -7736,6 +7736,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             struct sched_param *target_schp;
             struct sched_param schp;
 
+            if (arg2 == 0) {
+                return -TARGET_EINVAL;
+            }
             if (!lock_user_struct(VERIFY_READ, target_schp, arg2, 1))
                 goto efault;
             schp.sched_priority = tswap32(target_schp->sched_priority);
@@ -7747,6 +7750,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             struct sched_param *target_schp;
             struct sched_param schp;
+
+            if (arg2 == 0) {
+                return -TARGET_EINVAL;
+            }
             ret = get_errno(sched_getparam(arg1, &schp));
             if (!is_error(ret)) {
                 if (!lock_user_struct(VERIFY_WRITE, target_schp, arg2, 0))
@@ -7760,6 +7767,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             struct sched_param *target_schp;
             struct sched_param schp;
+            if (arg3 == 0) {
+                return -TARGET_EINVAL;
+            }
             if (!lock_user_struct(VERIFY_READ, target_schp, arg3, 1))
                 goto efault;
             schp.sched_priority = tswap32(target_schp->sched_priority);
