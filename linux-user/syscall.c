@@ -4968,6 +4968,21 @@ static inline abi_long target_to_host_sigevent(struct sigevent *host_sevp,
     return 0;
 }
 
+#if defined(TARGET_NR_mlockall)
+static inline int target_to_host_mlockall_arg(int arg)
+{
+    int result = 0;
+
+    if (arg & TARGET_MLOCKALL_MCL_CURRENT) {
+        result |= MCL_CURRENT;
+    }
+    if (arg & TARGET_MLOCKALL_MCL_FUTURE) {
+        result |= MCL_FUTURE;
+    }
+    return result;
+}
+#endif
+
 #if defined(TARGET_NR_stat64) || defined(TARGET_NR_newfstatat)
 static inline abi_long host_to_target_stat64(void *cpu_env,
                                              abi_ulong target_addr,
@@ -6820,7 +6835,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_mlockall
     case TARGET_NR_mlockall:
-        ret = get_errno(mlockall(arg1));
+        ret = get_errno(mlockall(target_to_host_mlockall_arg(arg1)));
         break;
 #endif
 #ifdef TARGET_NR_munlockall
