@@ -2879,11 +2879,15 @@ struct target_msgbuf {
 };
 
 static inline abi_long do_msgsnd(int msqid, abi_long msgp,
-                                 unsigned int msgsz, int msgflg)
+                                 ssize_t msgsz, int msgflg)
 {
     struct target_msgbuf *target_mb;
     struct msgbuf *host_mb;
     abi_long ret = 0;
+
+    if (msgsz < 0) {
+        return -TARGET_EINVAL;
+    }
 
     if (!lock_user_struct(VERIFY_READ, target_mb, msgp, 0))
         return -TARGET_EFAULT;
