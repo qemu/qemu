@@ -1944,7 +1944,7 @@ static void gen_srawi(DisasContext *ctx)
     TCGv dst = cpu_gpr[rA(ctx->opcode)];
     TCGv src = cpu_gpr[rS(ctx->opcode)];
     if (sh == 0) {
-        tcg_gen_mov_tl(dst, src);
+        tcg_gen_ext32s_tl(dst, src);
         tcg_gen_movi_tl(cpu_ca, 0);
     } else {
         TCGv t0;
