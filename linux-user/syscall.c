@@ -3130,8 +3130,8 @@ static inline abi_long do_shmdt(abi_ulong shmaddr)
 #ifdef TARGET_NR_ipc
 /* ??? This only works with linear mappings.  */
 /* do_ipc() must return target values and target errnos. */
-static abi_long do_ipc(unsigned int call, int first,
-                       int second, int third,
+static abi_long do_ipc(unsigned int call, abi_long first,
+                       abi_long second, abi_long third,
                        abi_long ptr, abi_long fifth)
 {
     int version;
@@ -3153,9 +3153,9 @@ static abi_long do_ipc(unsigned int call, int first,
         /* The semun argument to semctl is passed by value, so dereference the
          * ptr argument. */
         abi_ulong atptr;
-        get_user_ual(atptr, (abi_ulong)ptr);
+        get_user_ual(atptr, ptr);
         ret = do_semctl(first, second, third,
-                (union target_semun)(abi_ulong) atptr);
+                (union target_semun) atptr);
         break;
     }
 
