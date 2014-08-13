@@ -692,7 +692,8 @@ void ide_dma_cb(void *opaque, int ret)
            sector_num, n, s->dma_cmd);
 #endif
 
-    if (!ide_sect_range_ok(s, sector_num, n)) {
+    if ((s->dma_cmd == IDE_DMA_READ || s->dma_cmd == IDE_DMA_WRITE) &&
+        !ide_sect_range_ok(s, sector_num, n)) {
         dma_buf_commit(s);
         ide_dma_error(s);
         return;
