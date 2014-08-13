@@ -262,7 +262,6 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     unsigned int irq, max_irqs = 0, num = 0;
     sPAPRPHBState *phb = NULL;
     PCIDevice *pdev = NULL;
-    bool msix = false;
     spapr_pci_msi *msi;
     int *config_addr_key;
 
@@ -300,7 +299,12 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         }
 
         xics_free(spapr->icp, msi->first_irq, msi->num);
-        spapr_msi_setmsg(pdev, 0, msix, 0, num);
+        if (msi_present(pdev)) {
+            spapr_msi_setmsg(pdev, 0, false, 0, num);
+        }
+        if (msix_present(pdev)) {
+            spapr_msi_setmsg(pdev, 0, true, 0, num);
+        }
         g_hash_table_remove(phb->msi, &config_addr);
 
         trace_spapr_pci_msi("Released MSIs", config_addr);
