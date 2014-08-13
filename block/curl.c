@@ -63,6 +63,7 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define CURL_NUM_ACB    8
 #define SECTOR_SIZE     512
 #define READ_AHEAD_DEFAULT (256 * 1024)
+#define CURL_TIMEOUT_DEFAULT 5
 
 #define FIND_RET_NONE   0
 #define FIND_RET_OK     1
@@ -71,6 +72,7 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define CURL_BLOCK_OPT_URL       "url"
 #define CURL_BLOCK_OPT_READAHEAD "readahead"
 #define CURL_BLOCK_OPT_SSLVERIFY "sslverify"
+#define CURL_BLOCK_OPT_TIMEOUT "timeout"
 
 struct BDRVCURLState;
 
@@ -109,6 +111,7 @@ typedef struct BDRVCURLState {
     char *url;
     size_t readahead_size;
     bool sslverify;
+    int timeout;
     bool accept_range;
     AioContext *aio_context;
 } BDRVCURLState;
@@ -382,7 +385,7 @@ static CURLState *curl_init_state(BDRVCURLState *s)
         curl_easy_setopt(state->curl, CURLOPT_URL, s->url);
         curl_easy_setopt(state->curl, CURLOPT_SSL_VERIFYPEER,
                          (long) s->sslverify);
-        curl_easy_setopt(state->curl, CURLOPT_TIMEOUT, 5);
+        curl_easy_setopt(state->curl, CURLOPT_TIMEOUT, s->timeout);
         curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION,
                          (void *)curl_read_cb);
         curl_easy_setopt(state->curl, CURLOPT_WRITEDATA, (void *)state);
@@ -489,6 +492,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "Verify SSL certificate"
         },
+        {
+            .name = CURL_BLOCK_OPT_TIMEOUT,
+            .type = QEMU_OPT_NUMBER,
+            .help = "Curl timeout"
+        },
         { /* end of list */ }
     },
 };
@@ -524,6 +532,9 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
                    s->readahead_size);
         goto out_noclean;
     }
+
+    s->timeout = qemu_opt_get_number(opts, CURL_BLOCK_OPT_TIMEOUT,
+                                     CURL_TIMEOUT_DEFAULT);
 
     s->sslverify = qemu_opt_get_bool(opts, CURL_BLOCK_OPT_SSLVERIFY, true);
 
