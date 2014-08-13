@@ -38,4 +38,14 @@ static inline void cpu_set_tls(CPUPPCState *env, target_ulong newtls)
 #endif
 }
 
+#ifndef EF_PPC64_ABI
+#define EF_PPC64_ABI           0x3
+#endif
+
+static inline uint32_t get_ppc64_abi(struct image_info *infop)
+{
+  return infop->elf_flags & EF_PPC64_ABI;
+}
+
+
 #endif

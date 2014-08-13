@@ -824,8 +824,6 @@ static uint32_t get_elf_hwcap2(void)
         NEW_AUX_ENT(AT_IGNOREPPC, AT_IGNOREPPC);        \
     } while (0)
 
-static inline uint32_t get_ppc64_abi(struct image_info *infop);
-
 static inline void init_thread(struct target_pt_regs *_regs, struct image_info *infop)
 {
     _regs->gpr[1] = infop->start_stack;
@@ -1204,13 +1202,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 #endif
 
 #include "elf.h"
-
-#ifdef TARGET_PPC
-static inline uint32_t get_ppc64_abi(struct image_info *infop)
-{
-  return infop->elf_flags & EF_PPC64_ABI;
-}
-#endif
 
 struct exec
 {
