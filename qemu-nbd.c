@@ -18,11 +18,13 @@
 
 #include "qemu-common.h"
 #include "block/block.h"
+#include "block/block_int.h"
 #include "block/nbd.h"
 #include "qemu/main-loop.h"
 #include "qemu/sockets.h"
 #include "qemu/error-report.h"
 #include "block/snapshot.h"
+#include "qapi/util.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -41,6 +43,7 @@
 #define QEMU_NBD_OPT_CACHE   1
 #define QEMU_NBD_OPT_AIO     2
 #define QEMU_NBD_OPT_DISCARD 3
+#define QEMU_NBD_OPT_DETECT_ZEROES 4
 
 static NBDExport *exp;
 static int verbose;
@@ -96,6 +99,8 @@ static void usage(const char *name)
 #ifdef CONFIG_LINUX_AIO
 "      --aio=MODE       set AIO mode (native or threads)\n"
 #endif
+"      --discard=MODE        set discard mode (ignore, unmap)\n"
+"      --detect-zeroes=MODE  set detect-zeroes mode (off, on, discard)\n"
 "\n"
 "Report bugs to <qemu-devel@nongnu.org>\n"
     , name, NBD_DEFAULT_PORT, "DEVICE");
@@ -410,6 +415,7 @@ int main(int argc, char **argv)
         { "aio", 1, NULL, QEMU_NBD_OPT_AIO },
 #endif
         { "discard", 1, NULL, QEMU_NBD_OPT_DISCARD },
+        { "detect-zeroes", 1, NULL, QEMU_NBD_OPT_DETECT_ZEROES },
         { "shared", 1, NULL, 'e' },
         { "format", 1, NULL, 'f' },
         { "persistent", 0, NULL, 't' },
@@ -432,6 +438,7 @@ int main(int argc, char **argv)
     pthread_t client_thread;
     const char *fmt = NULL;
     Error *local_err = NULL;
+    BlockdevDetectZeroesOptions detect_zeroes = BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -481,6 +488,23 @@ int main(int argc, char **argv)
             seen_discard = true;
             if (bdrv_parse_discard_flags(optarg, &flags) == -1) {
                 errx(EXIT_FAILURE, "Invalid discard mode `%s'", optarg);
+            }
+            break;
+        case QEMU_NBD_OPT_DETECT_ZEROES:
+            detect_zeroes =
+                qapi_enum_parse(BlockdevDetectZeroesOptions_lookup,
+                                optarg,
+                                BLOCKDEV_DETECT_ZEROES_OPTIONS_MAX,
+                                BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
+                                &local_err);
+            if (local_err) {
+                errx(EXIT_FAILURE, "Failed to parse detect_zeroes mode: %s", 
+                     error_get_pretty(local_err));
+            }
+            if (detect_zeroes == BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP &&
+                !(flags & BDRV_O_UNMAP)) {
+                errx(EXIT_FAILURE, "setting detect-zeroes to unmap is not allowed "
+                                   "without setting discard operation to unmap"); 
             }
             break;
         case 'b':
@@ -686,6 +710,7 @@ int main(int argc, char **argv)
             error_get_pretty(local_err));
     }
 
+    bs->detect_zeroes = detect_zeroes;
     fd_size = bdrv_getlength(bs);
 
     if (partition != -1) {
