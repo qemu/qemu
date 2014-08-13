@@ -39,6 +39,7 @@
 #include "qapi/qmp/types.h"
 #include "qapi-visit.h"
 #include "qapi/qmp-output-visitor.h"
+#include "qapi/util.h"
 #include "sysemu/sysemu.h"
 #include "block/block_int.h"
 #include "qmp-commands.h"
@@ -274,25 +275,6 @@ static int parse_block_error_action(const char *buf, bool is_read, Error **errp)
     }
 }
 
-static inline int parse_enum_option(const char *lookup[], const char *buf,
-                                    int max, int def, Error **errp)
-{
-    int i;
-
-    if (!buf) {
-        return def;
-    }
-
-    for (i = 0; i < max; i++) {
-        if (!strcmp(buf, lookup[i])) {
-            return i;
-        }
-    }
-
-    error_setg(errp, "invalid parameter value: %s", buf);
-    return def;
-}
-
 static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
 {
     if (throttle_conflicting(cfg)) {
@@ -456,11 +438,11 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     }
 
     detect_zeroes =
-        parse_enum_option(BlockdevDetectZeroesOptions_lookup,
-                          qemu_opt_get(opts, "detect-zeroes"),
-                          BLOCKDEV_DETECT_ZEROES_OPTIONS_MAX,
-                          BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
-                          &error);
+        qapi_enum_parse(BlockdevDetectZeroesOptions_lookup,
+                        qemu_opt_get(opts, "detect-zeroes"),
+                        BLOCKDEV_DETECT_ZEROES_OPTIONS_MAX,
+                        BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
+                        &error);
     if (error) {
         error_propagate(errp, error);
         goto early_err;
