@@ -930,7 +930,7 @@ typedef struct CPUX86State {
     /* MTRRs */
     uint64_t mtrr_fixed[11];
     uint64_t mtrr_deftype;
-    MTRRVar mtrr_var[8];
+    MTRRVar mtrr_var[MSR_MTRRcap_VCNT];
 
     /* For KVM */
     uint32_t mp_state;

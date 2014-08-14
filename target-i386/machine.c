@@ -677,7 +677,7 @@ VMStateDescription vmstate_x86_cpu = {
         /* MTRRs */
         VMSTATE_UINT64_ARRAY_V(env.mtrr_fixed, X86CPU, 11, 8),
         VMSTATE_UINT64_V(env.mtrr_deftype, X86CPU, 8),
-        VMSTATE_MTRR_VARS(env.mtrr_var, X86CPU, 8, 8),
+        VMSTATE_MTRR_VARS(env.mtrr_var, X86CPU, MSR_MTRRcap_VCNT, 8),
         /* KVM-related states */
         VMSTATE_INT32_V(env.interrupt_injected, X86CPU, 9),
         VMSTATE_UINT32_V(env.mp_state, X86CPU, 9),
