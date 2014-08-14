@@ -324,7 +324,11 @@ static int check_shm_size(IVShmemState *s, int fd) {
 
     struct stat buf;
 
-    fstat(fd, &buf);
+    if (fstat(fd, &buf) < 0) {
+        fprintf(stderr, "ivshmem: exiting: fstat on fd %d failed: %s\n",
+                fd, strerror(errno));
+        return -1;
+    }
 
     if (s->ivshmem_size > buf.st_size) {
         fprintf(stderr,
