@@ -2588,6 +2588,16 @@ static void x86_cpu_reset(CPUState *s)
 
     env->xcr0 = 1;
 
+    /*
+     * SDM 11.11.5 requires:
+     *  - IA32_MTRR_DEF_TYPE MSR.E = 0
+     *  - IA32_MTRR_PHYSMASKn.V = 0
+     * All other bits are undefined.  For simplification, zero it all.
+     */
+    env->mtrr_deftype = 0;
+    memset(env->mtrr_var, 0, sizeof(env->mtrr_var));
+    memset(env->mtrr_fixed, 0, sizeof(env->mtrr_fixed));
+
 #if !defined(CONFIG_USER_ONLY)
     /* We hard-wire the BSP to the first CPU. */
     if (s->cpu_index == 0) {
