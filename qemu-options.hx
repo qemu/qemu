@@ -1444,7 +1444,7 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                use 'src=' to specify source address\n"
     "                use 'dst=' to specify destination address\n"
     "                use 'udp=on' to specify udp encapsulation\n"
-    "                use 'dstport=' to specify destination udp port\n"
+    "                use 'srcport=' to specify source udp port\n"
     "                use 'dstport=' to specify destination udp port\n"
     "                use 'ipv6=on' to force v6\n"
     "                L2TPv3 uses cookies to prevent misconfiguration as\n"
