@@ -49,7 +49,6 @@
 /* ICH9 AHCI has 6 ports */
 #define MAX_SATA_PORTS     6
 
-static bool has_pci_info;
 static bool has_acpi_build = true;
 static bool smbios_defaults = true;
 static bool smbios_legacy_mode;
@@ -150,7 +149,6 @@ static void pc_q35_init(MachineState *machine)
     }
 
     guest_info = pc_guest_info_init(below_4g_mem_size, above_4g_mem_size);
-    guest_info->has_pci_info = has_pci_info;
     guest_info->isapc_ram_fw = false;
     guest_info->has_acpi_build = has_acpi_build;
     guest_info->has_reserved_memory = has_reserved_memory;
@@ -296,7 +294,6 @@ static void pc_compat_1_7(MachineState *machine)
 static void pc_compat_1_6(MachineState *machine)
 {
     pc_compat_1_7(machine);
-    has_pci_info = false;
     rom_file_has_mr = false;
     has_acpi_build = false;
 }
@@ -348,15 +345,27 @@ static void pc_q35_init_1_4(MachineState *machine)
     .desc = "Standard PC (Q35 + ICH9, 2009)", \
     .hot_add_cpu = pc_hot_add_cpu
 
-#define PC_Q35_2_1_MACHINE_OPTIONS                      \
+#define PC_Q35_2_2_MACHINE_OPTIONS                      \
     PC_Q35_MACHINE_OPTIONS,                             \
     .default_machine_opts = "firmware=bios-256k.bin"
+
+static QEMUMachine pc_q35_machine_v2_2 = {
+    PC_Q35_2_2_MACHINE_OPTIONS,
+    .name = "pc-q35-2.2",
+    .alias = "q35",
+    .init = pc_q35_init,
+};
+
+#define PC_Q35_2_1_MACHINE_OPTIONS PC_Q35_2_2_MACHINE_OPTIONS
 
 static QEMUMachine pc_q35_machine_v2_1 = {
     PC_Q35_2_1_MACHINE_OPTIONS,
     .name = "pc-q35-2.1",
-    .alias = "q35",
     .init = pc_q35_init,
+    .compat_props = (GlobalProperty[]) {
+        PC_COMPAT_2_1,
+        { /* end of list */ }
+    },
 };
 
 #define PC_Q35_2_0_MACHINE_OPTIONS PC_Q35_2_1_MACHINE_OPTIONS
@@ -421,6 +430,7 @@ static QEMUMachine pc_q35_machine_v1_4 = {
 
 static void pc_q35_machine_init(void)
 {
+    qemu_register_pc_machine(&pc_q35_machine_v2_2);
     qemu_register_pc_machine(&pc_q35_machine_v2_1);
     qemu_register_pc_machine(&pc_q35_machine_v2_0);
     qemu_register_pc_machine(&pc_q35_machine_v1_7);
