@@ -58,8 +58,8 @@ def read_record(edict, fobj):
     rechdr = read_header(fobj, rec_header_fmt)
     return get_record(edict, rechdr, fobj) # return tuple of record elements
 
-def read_trace_file(edict, fobj):
-    """Deserialize trace records from a file, yielding record tuples (event_num, timestamp, pid, arg1, ..., arg6)."""
+def read_trace_header(fobj):
+    """Read and verify trace file header"""
     header = read_header(fobj, log_header_fmt)
     if header is None or \
        header[0] != header_event_id or \
@@ -73,6 +73,8 @@ def read_trace_file(edict, fobj):
         raise ValueError('Log format %d not supported with this QEMU release!'
                          % log_version)
 
+def read_trace_records(edict, fobj):
+    """Deserialize trace records from a file, yielding record tuples (event_num, timestamp, pid, arg1, ..., arg6)."""
     while True:
         rec = read_record(edict, fobj)
         if rec is None:
@@ -102,12 +104,15 @@ class Analyzer(object):
         """Called at the end of the trace."""
         pass
 
-def process(events, log, analyzer):
+def process(events, log, analyzer, read_header=True):
     """Invoke an analyzer on each event in a log."""
     if isinstance(events, str):
         events = _read_events(open(events, 'r'))
     if isinstance(log, str):
         log = open(log, 'rb')
+
+    if read_header:
+        read_trace_header(log)
 
     dropped_event = Event.build("Dropped_Event(uint64_t num_events_dropped)")
     edict = {dropped_event_id: dropped_event}
@@ -137,7 +142,7 @@ def process(events, log, analyzer):
 
     analyzer.begin()
     fn_cache = {}
-    for rec in read_trace_file(edict, log):
+    for rec in read_trace_records(edict, log):
         event_num = rec[0]
         event = edict[event_num]
         if event_num not in fn_cache:
@@ -152,12 +157,17 @@ def run(analyzer):
     advanced scripts will want to call process() instead."""
     import sys
 
-    if len(sys.argv) != 3:
-        sys.stderr.write('usage: %s <trace-events> <trace-file>\n' % sys.argv[0])
+    read_header = True
+    if len(sys.argv) == 4 and sys.argv[1] == '--no-header':
+        read_header = False
+        del sys.argv[1]
+    elif len(sys.argv) != 3:
+        sys.stderr.write('usage: %s [--no-header] <trace-events> ' \
+                         '<trace-file>\n' % sys.argv[0])
         sys.exit(1)
 
     events = _read_events(open(sys.argv[1], 'r'))
-    process(events, sys.argv[2], analyzer)
+    process(events, sys.argv[2], analyzer, read_header=read_header)
 
 if __name__ == '__main__':
     class Formatter(Analyzer):

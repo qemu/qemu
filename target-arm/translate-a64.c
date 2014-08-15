@@ -35,6 +35,8 @@
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
+#include "trace-tcg.h"
+
 static TCGv_i64 cpu_X[32];
 static TCGv_i64 cpu_pc;
 static TCGv_i32 cpu_NF, cpu_ZF, cpu_CF, cpu_VF;

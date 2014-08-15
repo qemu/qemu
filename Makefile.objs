@@ -1,7 +1,7 @@
 #######################################################################
 # Common libraries for tools and emulators
 stub-obj-y = stubs/
-util-obj-y = util/ qobject/ qapi/ trace/ qapi-types.o qapi-visit.o qapi-event.o
+util-obj-y = util/ qobject/ qapi/ qapi-types.o qapi-visit.o qapi-event.o
 
 #######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
@@ -99,6 +99,11 @@ common-obj-y += disas/
 # Resource file for Windows executables
 version-obj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.o
 version-lobj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.lo
+
+######################################################################
+# tracing
+util-obj-y +=  trace/
+target-obj-y += trace/
 
 ######################################################################
 # guest agent

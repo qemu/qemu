@@ -33,6 +33,9 @@
 
 #include "exec/helper-gen.h"
 
+#include "trace-tcg.h"
+
+
 #define DISAS_CRIS 0
 #if DISAS_CRIS
 #  define LOG_DIS(...) qemu_log_mask(CPU_LOG_TB_IN_ASM, ## __VA_ARGS__)

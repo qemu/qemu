@@ -57,6 +57,12 @@ GENERATED_HEADERS += trace/generated-tracers-dtrace.h
 endif
 GENERATED_SOURCES += trace/generated-tracers.c
 
+GENERATED_HEADERS += trace/generated-tcg-tracers.h
+
+GENERATED_HEADERS += trace/generated-helpers-wrappers.h
+GENERATED_HEADERS += trace/generated-helpers.h
+GENERATED_SOURCES += trace/generated-helpers.c
+
 ifeq ($(findstring ust,$(TRACE_BACKENDS)),ust)
 GENERATED_HEADERS += trace/generated-ust-provider.h
 GENERATED_SOURCES += trace/generated-ust.c

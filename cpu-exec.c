@@ -18,6 +18,7 @@
  */
 #include "config.h"
 #include "cpu.h"
+#include "trace.h"
 #include "disas/disas.h"
 #include "tcg.h"
 #include "qemu/atomic.h"
@@ -168,6 +169,9 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, uint8_t *tb_ptr)
 #endif /* DEBUG_DISAS */
 
     next_tb = tcg_qemu_tb_exec(env, tb_ptr);
+    trace_exec_tb_exit((void *) (next_tb & ~TB_EXIT_MASK),
+                       next_tb & TB_EXIT_MASK);
+
     if ((next_tb & TB_EXIT_MASK) > TB_EXIT_IDX1) {
         /* We didn't start executing this TB (eg because the instruction
          * counter hit zero); we must restore the guest PC to the address
@@ -208,6 +212,7 @@ static void cpu_exec_nocache(CPUArchState *env, int max_cycles,
                      max_cycles);
     cpu->current_tb = tb;
     /* execute the generated code */
+    trace_exec_tb_nocache(tb, tb->pc);
     cpu_tb_exec(cpu, tb->tc_ptr);
     cpu->current_tb = NULL;
     tb_phys_invalidate(tb, -1);
@@ -749,6 +754,7 @@ int cpu_exec(CPUArchState *env)
                 cpu->current_tb = tb;
                 barrier();
                 if (likely(!cpu->exit_request)) {
+                    trace_exec_tb(tb, tb->pc);
                     tc_ptr = tb->tc_ptr;
                     /* execute the generated code */
                     next_tb = cpu_tb_exec(cpu, tc_ptr);

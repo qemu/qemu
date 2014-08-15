@@ -49,6 +49,9 @@ util-obj-y += generated-events.o
 ######################################################################
 # Auto-generated tracing routines
 
+##################################################
+# Execution level
+
 $(obj)/generated-tracers.h: $(obj)/generated-tracers.h-timestamp
 	@cmp -s $< $@ || cp $< $@
 $(obj)/generated-tracers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
@@ -57,8 +60,8 @@ $(obj)/generated-tracers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/conf
 		--backends=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
 
-######################################################################
-# Auto-generated tracing routines (non-DTrace)
+##############################
+# non-DTrace
 
 $(obj)/generated-tracers.c: $(obj)/generated-tracers.c-timestamp
 	@cmp -s $< $@ || cp $< $@
@@ -70,9 +73,8 @@ $(obj)/generated-tracers.c-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/conf
 
 $(obj)/generated-tracers.o: $(obj)/generated-tracers.c $(obj)/generated-tracers.h
 
-
-######################################################################
-# Auto-generated DTrace code
+##############################
+# DTrace
 
 # Normal practice is to name DTrace probe file with a '.d' extension
 # but that gets picked up by QEMU's Makefile as an external dependency
@@ -93,6 +95,47 @@ $(obj)/generated-tracers-dtrace.o: $(obj)/generated-tracers-dtrace.dtrace
 
 util-obj-y += generated-tracers-dtrace.o
 endif
+
+##################################################
+# Translation level
+
+$(obj)/generated-helpers-wrappers.h: $(obj)/generated-helpers-wrappers.h-timestamp
+$(obj)/generated-helpers-wrappers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+	$(call quiet-command,$(TRACETOOL) \
+		--format=tcg-helper-wrapper-h \
+		--backend=$(TRACE_BACKENDS) \
+		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
+	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
+
+$(obj)/generated-helpers.h: $(obj)/generated-helpers.h-timestamp
+$(obj)/generated-helpers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+	$(call quiet-command,$(TRACETOOL) \
+		--format=tcg-helper-h \
+		--backend=$(TRACE_BACKENDS) \
+		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
+	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
+
+$(obj)/generated-helpers.c: $(obj)/generated-helpers.c-timestamp
+$(obj)/generated-helpers.c-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+	$(call quiet-command,$(TRACETOOL) \
+		--format=tcg-helper-c \
+		--backend=$(TRACE_BACKENDS) \
+		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
+	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
+
+$(obj)/generated-helpers.o: $(obj)/generated-helpers.c
+
+target-obj-y += generated-helpers.o
+
+
+$(obj)/generated-tcg-tracers.h: $(obj)/generated-tcg-tracers.h-timestamp
+$(obj)/generated-tcg-tracers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+	$(call quiet-command,$(TRACETOOL) \
+		--format=tcg-h \
+		--backend=$(TRACE_BACKENDS) \
+		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
+	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
+
 
 ######################################################################
 # Backend code
