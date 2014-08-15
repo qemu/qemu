@@ -955,7 +955,7 @@ void do_info_roms(Monitor *mon, const QDict *qdict)
         if (rom->mr) {
             monitor_printf(mon, "%s"
                            " size=0x%06zx name=\"%s\"\n",
-                           rom->mr->name,
+                           memory_region_name(rom->mr),
                            rom->romsize,
                            rom->name);
         } else if (!rom->fw_file) {
