@@ -688,7 +688,7 @@ void qmp_device_del(const char *id, Error **errp)
     DeviceState *dev;
 
     dev = qdev_find_recursive(sysbus_get_default(), id);
-    if (NULL == dev) {
+    if (!dev) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, id);
         return;
     }

@@ -1596,7 +1596,7 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
 
     entry = ehci_get_fetch_addr(ehci, async);
     q = ehci_find_queue_by_qh(ehci, entry, async);
-    if (NULL == q) {
+    if (q == NULL) {
         q = ehci_alloc_queue(ehci, entry, async);
     }
 

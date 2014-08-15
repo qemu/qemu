@@ -677,7 +677,7 @@ void qemu_spice_init(void)
 
     if (tls_port) {
         x509_dir = qemu_opt_get(opts, "x509-dir");
-        if (NULL == x509_dir) {
+        if (!x509_dir) {
             x509_dir = ".";
         }
 
@@ -803,7 +803,7 @@ void qemu_spice_init(void)
 
     seamless_migration = qemu_opt_get_bool(opts, "seamless-migration", 0);
     spice_server_set_seamless_migration(spice_server, seamless_migration);
-    if (0 != spice_server_init(spice_server, &core_interface)) {
+    if (spice_server_init(spice_server, &core_interface) != 0) {
         error_report("failed to initialize spice server");
         exit(1);
     };

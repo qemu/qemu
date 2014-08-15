@@ -732,7 +732,7 @@ int unix_connect_opts(QemuOpts *opts, Error **errp,
     ConnectState *connect_state = NULL;
     int sock, rc;
 
-    if (NULL == path) {
+    if (path == NULL) {
         error_setg(errp, "unix connect: no path specified");
         return -1;
     }

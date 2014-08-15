@@ -346,7 +346,7 @@ static void ppc_core99_init(MachineState *machine)
         }
     }
 
-    pic = g_new(qemu_irq, 64);
+    pic = g_new0(qemu_irq, 64);
 
     dev = qdev_create(NULL, TYPE_OPENPIC);
     qdev_prop_set_uint32(dev, "model", OPENPIC_MODEL_RAVEN);
