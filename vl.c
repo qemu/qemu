@@ -2918,6 +2918,7 @@ out:
     g_free(dummy);
     if (err) {
         qerror_report_err(err);
+        error_free(err);
         return -1;
     }
     return 0;
