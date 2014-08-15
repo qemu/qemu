@@ -1044,7 +1044,7 @@ static void *file_ram_alloc(RAMBlock *block,
     }
 
     /* Make name safe to use with mkstemp by replacing '/' with '_'. */
-    sanitized_name = g_strdup(block->mr->name);
+    sanitized_name = g_strdup(memory_region_name(block->mr));
     for (c = sanitized_name; *c != '\0'; c++) {
         if (*c == '/')
             *c = '_';
@@ -1242,7 +1242,7 @@ static ram_addr_t ram_block_add(RAMBlock *new_block)
             new_block->host = phys_mem_alloc(new_block->length);
             if (!new_block->host) {
                 fprintf(stderr, "Cannot set up guest memory '%s': %s\n",
-                        new_block->mr->name, strerror(errno));
+                        memory_region_name(new_block->mr), strerror(errno));
                 exit(1);
             }
             memory_try_enable_merging(new_block->host, new_block->length);
