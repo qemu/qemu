@@ -1716,9 +1716,9 @@ static void x86_set_hv_spinlocks(Object *obj, Visitor *v, void *opaque,
 
     if (value < min || value > max) {
         error_setg(errp, "Property %s.%s doesn't take value %" PRId64
-                  " (minimum: %" PRId64 ", maximum: %" PRId64 ")",
-                  object_get_typename(obj), name ? name : "null",
-                  value, min, max);
+                   " (minimum: %" PRId64 ", maximum: %" PRId64 ")",
+                   object_get_typename(obj), name ? name : "null",
+                   value, min, max);
         return;
     }
     cpu->hyperv_spinlock_attempts = value;
@@ -1808,8 +1808,8 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
                 }
                 if (numvalue < min) {
                     error_report("hv-spinlocks value shall always be >= 0x%x"
-                            ", fixup will be removed in future versions",
-                            min);
+                                 ", fixup will be removed in future versions",
+                                 min);
                     numvalue = min;
                 }
                 snprintf(num, sizeof(num), "%" PRId32, numvalue);

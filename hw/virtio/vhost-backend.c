@@ -14,8 +14,6 @@
 
 #include <sys/ioctl.h>
 
-extern const VhostOps user_ops;
-
 static int vhost_kernel_call(struct vhost_dev *dev, unsigned long int request,
                              void *arg)
 {

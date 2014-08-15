@@ -1072,8 +1072,8 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 QTAILQ_FOREACH(block, &ram_list.blocks, next) {
                     if (!strncmp(id, block->idstr, sizeof(id))) {
                         if (block->length != length) {
-                            error_report("Length mismatch: %s: " RAM_ADDR_FMT
-                                         " in != " RAM_ADDR_FMT, id, length,
+                            error_report("Length mismatch: %s: 0x" RAM_ADDR_FMT
+                                         " in != 0x" RAM_ADDR_FMT, id, length,
                                          block->length);
                             ret =  -EINVAL;
                         }
