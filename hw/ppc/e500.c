@@ -583,7 +583,7 @@ static qemu_irq *ppce500_init_mpic(PPCE500Params *params, MemoryRegion *ccsr,
     SysBusDevice *s;
     int i;
 
-    mpic = g_new(qemu_irq, 256);
+    mpic = g_new0(qemu_irq, 256);
 
     if (kvm_enabled()) {
         QemuOpts *machine_opts = qemu_get_machine_opts();
