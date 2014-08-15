@@ -1000,3 +1000,9 @@ SSH
 M: Richard W.M. Jones <rjones@redhat.com>
 S: Supported
 F: block/ssh.c
+
+ARCHIPELAGO
+M: Chrysostomos Nanakos <cnanakos@grnet.gr>
+M: Chrysostomos Nanakos <chris@include.gr>
+S: Maintained
+F: block/archipelago.c

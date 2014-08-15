@@ -28,6 +28,13 @@
 #include "qapi-visit.h"
 #include "qapi/qmp-output-visitor.h"
 #include "qapi/qmp/types.h"
+#ifdef __linux__
+#include <linux/fs.h>
+#include <sys/ioctl.h>
+#ifndef FS_NOCOW_FL
+#define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
+#endif
+#endif
 
 BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs)
 {
@@ -165,19 +172,28 @@ void bdrv_query_image_info(BlockDriverState *bs,
                            ImageInfo **p_info,
                            Error **errp)
 {
-    uint64_t total_sectors;
+    int64_t size;
     const char *backing_filename;
     char backing_filename2[1024];
     BlockDriverInfo bdi;
     int ret;
     Error *err = NULL;
-    ImageInfo *info = g_new0(ImageInfo, 1);
+    ImageInfo *info;
+#ifdef __linux__
+    int fd, attr;
+#endif
 
-    bdrv_get_geometry(bs, &total_sectors);
+    size = bdrv_getlength(bs);
+    if (size < 0) {
+        error_setg_errno(errp, -size, "Can't get size of device '%s'",
+                         bdrv_get_device_name(bs));
+        return;
+    }
 
+    info = g_new0(ImageInfo, 1);
     info->filename        = g_strdup(bs->filename);
     info->format          = g_strdup(bdrv_get_format_name(bs));
-    info->virtual_size    = total_sectors * 512;
+    info->virtual_size    = size;
     info->actual_size     = bdrv_get_allocated_file_size(bs);
     info->has_actual_size = info->actual_size >= 0;
     if (bdrv_is_encrypted(bs)) {
@@ -194,6 +210,18 @@ void bdrv_query_image_info(BlockDriverState *bs,
     }
     info->format_specific     = bdrv_get_specific_info(bs);
     info->has_format_specific = info->format_specific != NULL;
+
+#ifdef __linux__
+    /* get NOCOW info */
+    fd = qemu_open(bs->filename, O_RDONLY | O_NONBLOCK);
+    if (fd >= 0) {
+        if (ioctl(fd, FS_IOC_GETFLAGS, &attr) == 0 && (attr & FS_NOCOW_FL)) {
+            info->has_nocow = true;
+            info->nocow = true;
+        }
+        qemu_close(fd);
+    }
+#endif
 
     backing_filename = bs->backing_file;
     if (backing_filename[0] != '\0') {
@@ -624,5 +652,9 @@ void bdrv_image_info_dump(fprintf_function func_fprintf, void *f,
     if (info->has_format_specific) {
         func_fprintf(f, "Format specific information:\n");
         bdrv_image_info_specific_dump(func_fprintf, f, info->format_specific);
+    }
+
+    if (info->has_nocow && info->nocow) {
+        func_fprintf(f, "NOCOW flag: set\n");
     }
 }

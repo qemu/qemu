@@ -688,8 +688,13 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
 
 
     if (s->l1_size > 0) {
-        s->l1_table = g_malloc0(
+        s->l1_table = qemu_try_blockalign(bs->file,
             align_offset(s->l1_size * sizeof(uint64_t), 512));
+        if (s->l1_table == NULL) {
+            error_setg(errp, "Could not allocate L1 table");
+            ret = -ENOMEM;
+            goto fail;
+        }
         ret = bdrv_pread(bs->file, s->l1_table_offset, s->l1_table,
                          s->l1_size * sizeof(uint64_t));
         if (ret < 0) {
@@ -704,11 +709,22 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     /* alloc L2 table/refcount block cache */
     s->l2_table_cache = qcow2_cache_create(bs, L2_CACHE_SIZE);
     s->refcount_block_cache = qcow2_cache_create(bs, REFCOUNT_CACHE_SIZE);
+    if (s->l2_table_cache == NULL || s->refcount_block_cache == NULL) {
+        error_setg(errp, "Could not allocate metadata caches");
+        ret = -ENOMEM;
+        goto fail;
+    }
 
     s->cluster_cache = g_malloc(s->cluster_size);
     /* one more sector for decompressed data alignment */
-    s->cluster_data = qemu_blockalign(bs, QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size
-                                  + 512);
+    s->cluster_data = qemu_try_blockalign(bs->file, QCOW_MAX_CRYPT_CLUSTERS
+                                                    * s->cluster_size + 512);
+    if (s->cluster_data == NULL) {
+        error_setg(errp, "Could not allocate temporary cluster buffer");
+        ret = -ENOMEM;
+        goto fail;
+    }
+
     s->cluster_cache_offset = -1;
     s->flags = flags;
 
@@ -852,7 +868,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     cleanup_unknown_header_ext(bs);
     qcow2_free_snapshots(bs);
     qcow2_refcount_close(bs);
-    g_free(s->l1_table);
+    qemu_vfree(s->l1_table);
     /* else pre-write overlap checks in cache_destroy may crash */
     s->l1_table = NULL;
     if (s->l2_table_cache) {
@@ -1082,7 +1098,12 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
                  */
                 if (!cluster_data) {
                     cluster_data =
-                        qemu_blockalign(bs, QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size);
+                        qemu_try_blockalign(bs->file, QCOW_MAX_CRYPT_CLUSTERS
+                                                      * s->cluster_size);
+                    if (cluster_data == NULL) {
+                        ret = -ENOMEM;
+                        goto fail;
+                    }
                 }
 
                 assert(cur_nr_sectors <=
@@ -1182,8 +1203,13 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
 
         if (s->crypt_method) {
             if (!cluster_data) {
-                cluster_data = qemu_blockalign(bs, QCOW_MAX_CRYPT_CLUSTERS *
-                                                 s->cluster_size);
+                cluster_data = qemu_try_blockalign(bs->file,
+                                                   QCOW_MAX_CRYPT_CLUSTERS
+                                                   * s->cluster_size);
+                if (cluster_data == NULL) {
+                    ret = -ENOMEM;
+                    goto fail;
+                }
             }
 
             assert(hd_qiov.size <=
@@ -1270,7 +1296,7 @@ fail:
 static void qcow2_close(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
-    g_free(s->l1_table);
+    qemu_vfree(s->l1_table);
     /* else pre-write overlap checks in cache_destroy may crash */
     s->l1_table = NULL;
 
@@ -1557,7 +1583,7 @@ static int preallocate(BlockDriverState *bs)
     int ret;
     QCowL2Meta *meta;
 
-    nb_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
+    nb_sectors = bdrv_nb_sectors(bs);
     offset = 0;
 
     while (nb_sectors) {
@@ -1947,7 +1973,6 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
         /* align end of file to a sector boundary to ease reading with
            sector based I/Os */
         cluster_offset = bdrv_getlength(bs->file);
-        cluster_offset = (cluster_offset + 511) & ~511;
         bdrv_truncate(bs->file, cluster_offset);
         return 0;
     }

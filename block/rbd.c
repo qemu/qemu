@@ -617,7 +617,7 @@ static BlockDriverAIOCB *rbd_start_aio(BlockDriverState *bs,
                                        RBDAIOCmd cmd)
 {
     RBDAIOCB *acb;
-    RADOSCB *rcb;
+    RADOSCB *rcb = NULL;
     rbd_completion_t c;
     int64_t off, size;
     char *buf;
@@ -631,7 +631,10 @@ static BlockDriverAIOCB *rbd_start_aio(BlockDriverState *bs,
     if (cmd == RBD_AIO_DISCARD || cmd == RBD_AIO_FLUSH) {
         acb->bounce = NULL;
     } else {
-        acb->bounce = qemu_blockalign(bs, qiov->size);
+        acb->bounce = qemu_try_blockalign(bs, qiov->size);
+        if (acb->bounce == NULL) {
+            goto failed;
+        }
     }
     acb->ret = 0;
     acb->error = 0;

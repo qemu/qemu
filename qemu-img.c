@@ -960,7 +960,6 @@ static int img_compare(int argc, char **argv)
     int64_t sector_num = 0;
     int64_t nb_sectors;
     int c, pnum;
-    uint64_t bs_sectors;
     uint64_t progress_base;
 
     for (;;) {
@@ -1022,10 +1021,20 @@ static int img_compare(int argc, char **argv)
 
     buf1 = qemu_blockalign(bs1, IO_BUF_SIZE);
     buf2 = qemu_blockalign(bs2, IO_BUF_SIZE);
-    bdrv_get_geometry(bs1, &bs_sectors);
-    total_sectors1 = bs_sectors;
-    bdrv_get_geometry(bs2, &bs_sectors);
-    total_sectors2 = bs_sectors;
+    total_sectors1 = bdrv_nb_sectors(bs1);
+    if (total_sectors1 < 0) {
+        error_report("Can't get size of %s: %s",
+                     filename1, strerror(-total_sectors1));
+        ret = 4;
+        goto out;
+    }
+    total_sectors2 = bdrv_nb_sectors(bs2);
+    if (total_sectors2 < 0) {
+        error_report("Can't get size of %s: %s",
+                     filename2, strerror(-total_sectors2));
+        ret = 4;
+        goto out;
+    }
     total_sectors = MIN(total_sectors1, total_sectors2);
     progress_base = MAX(total_sectors1, total_sectors2);
 
@@ -1187,7 +1196,7 @@ static int img_convert(int argc, char **argv)
     BlockDriver *drv, *proto_drv;
     BlockDriverState **bs = NULL, *out_bs = NULL;
     int64_t total_sectors, nb_sectors, sector_num, bs_offset;
-    uint64_t bs_sectors;
+    int64_t *bs_sectors = NULL;
     uint8_t * buf = NULL;
     size_t bufsectors = IO_BUF_SIZE / BDRV_SECTOR_SIZE;
     const uint8_t *buf1;
@@ -1328,7 +1337,8 @@ static int img_convert(int argc, char **argv)
 
     qemu_progress_print(0, 100);
 
-    bs = g_malloc0(bs_n * sizeof(BlockDriverState *));
+    bs = g_new0(BlockDriverState *, bs_n);
+    bs_sectors = g_new(int64_t, bs_n);
 
     total_sectors = 0;
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
@@ -1342,8 +1352,14 @@ static int img_convert(int argc, char **argv)
             ret = -1;
             goto out;
         }
-        bdrv_get_geometry(bs[bs_i], &bs_sectors);
-        total_sectors += bs_sectors;
+        bs_sectors[bs_i] = bdrv_nb_sectors(bs[bs_i]);
+        if (bs_sectors[bs_i] < 0) {
+            error_report("Could not get size of %s: %s",
+                         argv[optind + bs_i], strerror(-bs_sectors[bs_i]));
+            ret = -1;
+            goto out;
+        }
+        total_sectors += bs_sectors[bs_i];
     }
 
     if (sn_opts) {
@@ -1461,7 +1477,6 @@ static int img_convert(int argc, char **argv)
 
     bs_i = 0;
     bs_offset = 0;
-    bdrv_get_geometry(bs[0], &bs_sectors);
 
     /* increase bufsectors from the default 4096 (2M) if opt_transfer_length
      * or discard_alignment of the out_bs is greater. Limit to 32768 (16MB)
@@ -1474,13 +1489,13 @@ static int img_convert(int argc, char **argv)
     buf = qemu_blockalign(out_bs, bufsectors * BDRV_SECTOR_SIZE);
 
     if (skip_create) {
-        int64_t output_length = bdrv_getlength(out_bs);
-        if (output_length < 0) {
+        int64_t output_sectors = bdrv_nb_sectors(out_bs);
+        if (output_sectors < 0) {
             error_report("unable to get output image length: %s\n",
-                         strerror(-output_length));
+                         strerror(-output_sectors));
             ret = -1;
             goto out;
-        } else if (output_length < total_sectors << BDRV_SECTOR_BITS) {
+        } else if (output_sectors < total_sectors) {
             error_report("output file is smaller than input file");
             ret = -1;
             goto out;
@@ -1528,19 +1543,19 @@ static int img_convert(int argc, char **argv)
             buf2 = buf;
             while (remainder > 0) {
                 int nlow;
-                while (bs_num == bs_sectors) {
+                while (bs_num == bs_sectors[bs_i]) {
+                    bs_offset += bs_sectors[bs_i];
                     bs_i++;
                     assert (bs_i < bs_n);
-                    bs_offset += bs_sectors;
-                    bdrv_get_geometry(bs[bs_i], &bs_sectors);
                     bs_num = 0;
                     /* printf("changing part: sector_num=%" PRId64 ", "
                        "bs_i=%d, bs_offset=%" PRId64 ", bs_sectors=%" PRId64
-                       "\n", sector_num, bs_i, bs_offset, bs_sectors); */
+                       "\n", sector_num, bs_i, bs_offset, bs_sectors[bs_i]); */
                 }
-                assert (bs_num < bs_sectors);
+                assert (bs_num < bs_sectors[bs_i]);
 
-                nlow = (remainder > bs_sectors - bs_num) ? bs_sectors - bs_num : remainder;
+                nlow = remainder > bs_sectors[bs_i] - bs_num
+                    ? bs_sectors[bs_i] - bs_num : remainder;
 
                 ret = bdrv_read(bs[bs_i], bs_num, buf2, nlow);
                 if (ret < 0) {
@@ -1601,14 +1616,13 @@ restart:
                 break;
             }
 
-            while (sector_num - bs_offset >= bs_sectors) {
+            while (sector_num - bs_offset >= bs_sectors[bs_i]) {
+                bs_offset += bs_sectors[bs_i];
                 bs_i ++;
                 assert (bs_i < bs_n);
-                bs_offset += bs_sectors;
-                bdrv_get_geometry(bs[bs_i], &bs_sectors);
                 /* printf("changing part: sector_num=%" PRId64 ", bs_i=%d, "
                   "bs_offset=%" PRId64 ", bs_sectors=%" PRId64 "\n",
-                   sector_num, bs_i, bs_offset, bs_sectors); */
+                   sector_num, bs_i, bs_offset, bs_sectors[bs_i]); */
             }
 
             if ((out_baseimg || has_zero_init) &&
@@ -1661,7 +1675,7 @@ restart:
                 }
             }
 
-            n = MIN(n, bs_sectors - (sector_num - bs_offset));
+            n = MIN(n, bs_sectors[bs_i] - (sector_num - bs_offset));
 
             sectors_read += n;
             if (count_allocated_sectors) {
@@ -1719,6 +1733,7 @@ out:
         }
         g_free(bs);
     }
+    g_free(bs_sectors);
 fail_getopt:
     g_free(options);
 
@@ -2418,9 +2433,9 @@ static int img_rebase(int argc, char **argv)
      * the image is the same as the original one at any time.
      */
     if (!unsafe) {
-        uint64_t num_sectors;
-        uint64_t old_backing_num_sectors;
-        uint64_t new_backing_num_sectors = 0;
+        int64_t num_sectors;
+        int64_t old_backing_num_sectors;
+        int64_t new_backing_num_sectors = 0;
         uint64_t sector;
         int n;
         uint8_t * buf_old;
@@ -2430,10 +2445,31 @@ static int img_rebase(int argc, char **argv)
         buf_old = qemu_blockalign(bs, IO_BUF_SIZE);
         buf_new = qemu_blockalign(bs, IO_BUF_SIZE);
 
-        bdrv_get_geometry(bs, &num_sectors);
-        bdrv_get_geometry(bs_old_backing, &old_backing_num_sectors);
+        num_sectors = bdrv_nb_sectors(bs);
+        if (num_sectors < 0) {
+            error_report("Could not get size of '%s': %s",
+                         filename, strerror(-num_sectors));
+            ret = -1;
+            goto out;
+        }
+        old_backing_num_sectors = bdrv_nb_sectors(bs_old_backing);
+        if (old_backing_num_sectors < 0) {
+            char backing_name[1024];
+
+            bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
+            error_report("Could not get size of '%s': %s",
+                         backing_name, strerror(-old_backing_num_sectors));
+            ret = -1;
+            goto out;
+        }
         if (bs_new_backing) {
-            bdrv_get_geometry(bs_new_backing, &new_backing_num_sectors);
+            new_backing_num_sectors = bdrv_nb_sectors(bs_new_backing);
+            if (new_backing_num_sectors < 0) {
+                error_report("Could not get size of '%s': %s",
+                             out_baseimg, strerror(-new_backing_num_sectors));
+                ret = -1;
+                goto out;
+            }
         }
 
         if (num_sectors != 0) {

@@ -46,19 +46,25 @@ int qcow2_refcount_init(BlockDriverState *bs)
 
     assert(s->refcount_table_size <= INT_MAX / sizeof(uint64_t));
     refcount_table_size2 = s->refcount_table_size * sizeof(uint64_t);
-    s->refcount_table = g_malloc(refcount_table_size2);
+    s->refcount_table = g_try_malloc(refcount_table_size2);
+
     if (s->refcount_table_size > 0) {
+        if (s->refcount_table == NULL) {
+            ret = -ENOMEM;
+            goto fail;
+        }
         BLKDBG_EVENT(bs->file, BLKDBG_REFTABLE_LOAD);
         ret = bdrv_pread(bs->file, s->refcount_table_offset,
                          s->refcount_table, refcount_table_size2);
-        if (ret != refcount_table_size2)
+        if (ret < 0) {
             goto fail;
+        }
         for(i = 0; i < s->refcount_table_size; i++)
             be64_to_cpus(&s->refcount_table[i]);
     }
     return 0;
  fail:
-    return -ENOMEM;
+    return ret;
 }
 
 void qcow2_refcount_close(BlockDriverState *bs)
@@ -344,8 +350,14 @@ static int alloc_refcount_block(BlockDriverState *bs,
     uint64_t meta_offset = (blocks_used * refcount_block_clusters) *
         s->cluster_size;
     uint64_t table_offset = meta_offset + blocks_clusters * s->cluster_size;
-    uint16_t *new_blocks = g_malloc0(blocks_clusters * s->cluster_size);
-    uint64_t *new_table = g_malloc0(table_size * sizeof(uint64_t));
+    uint64_t *new_table = g_try_malloc0(table_size * sizeof(uint64_t));
+    uint16_t *new_blocks = g_try_malloc0(blocks_clusters * s->cluster_size);
+
+    assert(table_size > 0 && blocks_clusters > 0);
+    if (new_table == NULL || new_blocks == NULL) {
+        ret = -ENOMEM;
+        goto fail_table;
+    }
 
     /* Fill the new refcount table */
     memcpy(new_table, s->refcount_table,
@@ -424,6 +436,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
     return -EAGAIN;
 
 fail_table:
+    g_free(new_blocks);
     g_free(new_table);
 fail_block:
     if (*refcount_block != NULL) {
@@ -847,7 +860,8 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     int64_t l1_table_offset, int l1_size, int addend)
 {
     BDRVQcowState *s = bs->opaque;
-    uint64_t *l1_table, *l2_table, l2_offset, offset, l1_size2, l1_allocated;
+    uint64_t *l1_table, *l2_table, l2_offset, offset, l1_size2;
+    bool l1_allocated = false;
     int64_t old_offset, old_l2_offset;
     int i, j, l1_modified = 0, nb_csectors, refcount;
     int ret;
@@ -862,8 +876,12 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
      * l1_table_offset when it is the current s->l1_table_offset! Be careful
      * when changing this! */
     if (l1_table_offset != s->l1_table_offset) {
-        l1_table = g_malloc0(align_offset(l1_size2, 512));
-        l1_allocated = 1;
+        l1_table = g_try_malloc0(align_offset(l1_size2, 512));
+        if (l1_size2 && l1_table == NULL) {
+            ret = -ENOMEM;
+            goto fail;
+        }
+        l1_allocated = true;
 
         ret = bdrv_pread(bs->file, l1_table_offset, l1_table, l1_size2);
         if (ret < 0) {
@@ -875,7 +893,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     } else {
         assert(l1_size == s->l1_size);
         l1_table = s->l1_table;
-        l1_allocated = 0;
+        l1_allocated = false;
     }
 
     for(i = 0; i < l1_size; i++) {
@@ -1197,7 +1215,11 @@ static int check_refcounts_l1(BlockDriverState *bs,
     if (l1_size2 == 0) {
         l1_table = NULL;
     } else {
-        l1_table = g_malloc(l1_size2);
+        l1_table = g_try_malloc(l1_size2);
+        if (l1_table == NULL) {
+            ret = -ENOMEM;
+            goto fail;
+        }
         if (bdrv_pread(bs->file, l1_table_offset,
                        l1_table, l1_size2) != l1_size2)
             goto fail;
@@ -1501,7 +1523,11 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         return -EFBIG;
     }
 
-    refcount_table = g_malloc0(nb_clusters * sizeof(uint16_t));
+    refcount_table = g_try_malloc0(nb_clusters * sizeof(uint16_t));
+    if (nb_clusters && refcount_table == NULL) {
+        res->check_errors++;
+        return -ENOMEM;
+    }
 
     res->bfi.total_clusters =
         size_to_clusters(s, bs->total_sectors * BDRV_SECTOR_SIZE);
@@ -1753,8 +1779,12 @@ int qcow2_check_metadata_overlap(BlockDriverState *bs, int ign, int64_t offset,
             uint64_t l1_ofs = s->snapshots[i].l1_table_offset;
             uint32_t l1_sz  = s->snapshots[i].l1_size;
             uint64_t l1_sz2 = l1_sz * sizeof(uint64_t);
-            uint64_t *l1 = g_malloc(l1_sz2);
+            uint64_t *l1 = g_try_malloc(l1_sz2);
             int ret;
+
+            if (l1_sz2 && l1 == NULL) {
+                return -ENOMEM;
+            }
 
             ret = bdrv_pread(bs->file, l1_ofs, l1, l1_sz2);
             if (ret < 0) {

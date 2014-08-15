@@ -288,6 +288,29 @@ static void perf_yield(void)
         maxcycles, duration);
 }
 
+static __attribute__((noinline)) void dummy(unsigned *i)
+{
+    (*i)--;
+}
+
+static void perf_baseline(void)
+{
+    unsigned int i, maxcycles;
+    double duration;
+
+    maxcycles = 100000000;
+    i = maxcycles;
+
+    g_test_timer_start();
+    while (i > 0) {
+        dummy(&i);
+    }
+    duration = g_test_timer_elapsed();
+
+    g_test_message("Function call %u iterations: %f s\n",
+        maxcycles, duration);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -301,6 +324,7 @@ int main(int argc, char **argv)
         g_test_add_func("/perf/lifecycle", perf_lifecycle);
         g_test_add_func("/perf/nesting", perf_nesting);
         g_test_add_func("/perf/yield", perf_yield);
+        g_test_add_func("/perf/function-call", perf_baseline);
     }
     return g_test_run();
 }

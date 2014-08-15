@@ -589,6 +589,7 @@ static int blk_send_response_one(struct ioreq *ioreq)
         break;
     default:
         dst = NULL;
+        return 0;
     }
     memcpy(dst, &resp, sizeof(resp));
     blkdev->rings.common.rsp_prod_pvt++;

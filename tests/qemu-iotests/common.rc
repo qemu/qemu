@@ -64,6 +64,8 @@ elif [ "$IMGPROTO" = "ssh" ]; then
 elif [ "$IMGPROTO" = "nfs" ]; then
     TEST_DIR="nfs://127.0.0.1/$TEST_DIR"
     TEST_IMG=$TEST_DIR/t.$IMGFMT
+elif [ "$IMGPROTO" = "archipelago" ]; then
+    TEST_IMG="archipelago:at.$IMGFMT"
 else
     TEST_IMG=$IMGPROTO:$TEST_DIR/t.$IMGFMT
 fi
@@ -163,7 +165,8 @@ _make_test_img()
             -e "s# lazy_refcounts=\\(on\\|off\\)##g" \
             -e "s# block_size=[0-9]\\+##g" \
             -e "s# block_state_zero=\\(on\\|off\\)##g" \
-            -e "s# log_size=[0-9]\\+##g"
+            -e "s# log_size=[0-9]\\+##g" \
+            -e "s/archipelago:a/TEST_DIR\//g"
 
     # Start an NBD server on the image file, which is what we'll be talking to
     if [ $IMGPROTO = "nbd" ]; then
@@ -204,6 +207,10 @@ _cleanup_test_img()
 
         rbd)
             rbd --no-progress rm "$TEST_DIR/t.$IMGFMT" > /dev/null
+            ;;
+
+        archipelago)
+            vlmc remove "at.$IMGFMT" > /dev/null
             ;;
 
         sheepdog)

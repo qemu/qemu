@@ -116,7 +116,12 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
                    "try increasing block size");
         return -EINVAL;
     }
-    s->offsets = g_malloc(offsets_size);
+
+    s->offsets = g_try_malloc(offsets_size);
+    if (s->offsets == NULL) {
+        error_setg(errp, "Could not allocate offsets table");
+        return -ENOMEM;
+    }
 
     ret = bdrv_pread(bs->file, 128 + 4 + 4, s->offsets, offsets_size);
     if (ret < 0) {
@@ -158,8 +163,20 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* initialize zlib engine */
-    s->compressed_block = g_malloc(max_compressed_block_size + 1);
-    s->uncompressed_block = g_malloc(s->block_size);
+    s->compressed_block = g_try_malloc(max_compressed_block_size + 1);
+    if (s->compressed_block == NULL) {
+        error_setg(errp, "Could not allocate compressed_block");
+        ret = -ENOMEM;
+        goto fail;
+    }
+
+    s->uncompressed_block = g_try_malloc(s->block_size);
+    if (s->uncompressed_block == NULL) {
+        error_setg(errp, "Could not allocate uncompressed_block");
+        ret = -ENOMEM;
+        goto fail;
+    }
+
     if (inflateInit(&s->zstream) != Z_OK) {
         ret = -EINVAL;
         goto fail;

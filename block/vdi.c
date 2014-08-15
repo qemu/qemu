@@ -53,13 +53,6 @@
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include "migration/migration.h"
-#ifdef __linux__
-#include <linux/fs.h>
-#include <sys/ioctl.h>
-#ifndef FS_NOCOW_FL
-#define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
-#endif
-#endif
 
 #if defined(CONFIG_UUID)
 #include <uuid/uuid.h>
@@ -299,7 +292,12 @@ static int vdi_check(BlockDriverState *bs, BdrvCheckResult *res,
         return -ENOTSUP;
     }
 
-    bmap = g_malloc(s->header.blocks_in_image * sizeof(uint32_t));
+    bmap = g_try_malloc(s->header.blocks_in_image * sizeof(uint32_t));
+    if (s->header.blocks_in_image && bmap == NULL) {
+        res->check_errors++;
+        return -ENOMEM;
+    }
+
     memset(bmap, 0xff, s->header.blocks_in_image * sizeof(uint32_t));
 
     /* Check block map and value of blocks_allocated. */
@@ -357,23 +355,23 @@ static int vdi_make_empty(BlockDriverState *bs)
 static int vdi_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     const VdiHeader *header = (const VdiHeader *)buf;
-    int result = 0;
+    int ret = 0;
 
     logout("\n");
 
     if (buf_size < sizeof(*header)) {
         /* Header too small, no VDI. */
     } else if (le32_to_cpu(header->signature) == VDI_SIGNATURE) {
-        result = 100;
+        ret = 100;
     }
 
-    if (result == 0) {
+    if (ret == 0) {
         logout("no vdi image\n");
     } else {
         logout("%s", header->text);
     }
 
-    return result;
+    return ret;
 }
 
 static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
@@ -478,7 +476,12 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
 
     bmap_size = header.blocks_in_image * sizeof(uint32_t);
     bmap_size = (bmap_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
-    s->bmap = g_malloc(bmap_size * SECTOR_SIZE);
+    s->bmap = qemu_try_blockalign(bs->file, bmap_size * SECTOR_SIZE);
+    if (s->bmap == NULL) {
+        ret = -ENOMEM;
+        goto fail;
+    }
+
     ret = bdrv_read(bs->file, s->bmap_sector, (uint8_t *)s->bmap, bmap_size);
     if (ret < 0) {
         goto fail_free_bmap;
@@ -493,7 +496,7 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     return 0;
 
  fail_free_bmap:
-    g_free(s->bmap);
+    qemu_vfree(s->bmap);
 
  fail:
     return ret;
@@ -681,8 +684,7 @@ static int vdi_co_write(BlockDriverState *bs,
 
 static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
 {
-    int fd;
-    int result = 0;
+    int ret = 0;
     uint64_t bytes = 0;
     uint32_t blocks;
     size_t block_size = DEFAULT_CLUSTER_SIZE;
@@ -690,7 +692,10 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
     VdiHeader header;
     size_t i;
     size_t bmap_size;
-    bool nocow = false;
+    int64_t offset = 0;
+    Error *local_err = NULL;
+    BlockDriverState *bs = NULL;
+    uint32_t *bmap = NULL;
 
     logout("\n");
 
@@ -707,37 +712,25 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
         image_type = VDI_TYPE_STATIC;
     }
 #endif
-    nocow = qemu_opt_get_bool_del(opts, BLOCK_OPT_NOCOW, false);
 
     if (bytes > VDI_DISK_SIZE_MAX) {
-        result = -ENOTSUP;
+        ret = -ENOTSUP;
         error_setg(errp, "Unsupported VDI image size (size is 0x%" PRIx64
                           ", max supported is 0x%" PRIx64 ")",
                           bytes, VDI_DISK_SIZE_MAX);
         goto exit;
     }
 
-    fd = qemu_open(filename,
-                   O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE,
-                   0644);
-    if (fd < 0) {
-        result = -errno;
+    ret = bdrv_create_file(filename, opts, &local_err);
+    if (ret < 0) {
+        error_propagate(errp, local_err);
         goto exit;
     }
-
-    if (nocow) {
-#ifdef __linux__
-        /* Set NOCOW flag to solve performance issue on fs like btrfs.
-         * This is an optimisation. The FS_IOC_SETFLAGS ioctl return value will
-         * be ignored since any failure of this operation should not block the
-         * left work.
-         */
-        int attr;
-        if (ioctl(fd, FS_IOC_GETFLAGS, &attr) == 0) {
-            attr |= FS_NOCOW_FL;
-            ioctl(fd, FS_IOC_SETFLAGS, &attr);
-        }
-#endif
+    ret = bdrv_open(&bs, filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
+                    NULL, &local_err);
+    if (ret < 0) {
+        error_propagate(errp, local_err);
+        goto exit;
     }
 
     /* We need enough blocks to store the given disk size,
@@ -769,13 +762,20 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
     vdi_header_print(&header);
 #endif
     vdi_header_to_le(&header);
-    if (write(fd, &header, sizeof(header)) < 0) {
-        result = -errno;
-        goto close_and_exit;
+    ret = bdrv_pwrite_sync(bs, offset, &header, sizeof(header));
+    if (ret < 0) {
+        error_setg(errp, "Error writing header to %s", filename);
+        goto exit;
     }
+    offset += sizeof(header);
 
     if (bmap_size > 0) {
-        uint32_t *bmap = g_malloc0(bmap_size);
+        bmap = g_try_malloc0(bmap_size);
+        if (bmap == NULL) {
+            ret = -ENOMEM;
+            error_setg(errp, "Could not allocate bmap");
+            goto exit;
+        }
         for (i = 0; i < blocks; i++) {
             if (image_type == VDI_TYPE_STATIC) {
                 bmap[i] = i;
@@ -783,35 +783,33 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
                 bmap[i] = VDI_UNALLOCATED;
             }
         }
-        if (write(fd, bmap, bmap_size) < 0) {
-            result = -errno;
-            g_free(bmap);
-            goto close_and_exit;
+        ret = bdrv_pwrite_sync(bs, offset, bmap, bmap_size);
+        if (ret < 0) {
+            error_setg(errp, "Error writing bmap to %s", filename);
+            goto exit;
         }
-        g_free(bmap);
+        offset += bmap_size;
     }
 
     if (image_type == VDI_TYPE_STATIC) {
-        if (ftruncate(fd, sizeof(header) + bmap_size + blocks * block_size)) {
-            result = -errno;
-            goto close_and_exit;
+        ret = bdrv_truncate(bs, offset + blocks * block_size);
+        if (ret < 0) {
+            error_setg(errp, "Failed to statically allocate %s", filename);
+            goto exit;
         }
     }
 
-close_and_exit:
-    if ((close(fd) < 0) && !result) {
-        result = -errno;
-    }
-
 exit:
-    return result;
+    bdrv_unref(bs);
+    g_free(bmap);
+    return ret;
 }
 
 static void vdi_close(BlockDriverState *bs)
 {
     BDRVVdiState *s = bs->opaque;
 
-    g_free(s->bmap);
+    qemu_vfree(s->bmap);
 
     migrate_del_blocker(s->migration_blocker);
     error_free(s->migration_blocker);

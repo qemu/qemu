@@ -95,6 +95,7 @@ typedef signed int              int_fast16_t;
 #define qemu_printf printf
 
 int qemu_daemon(int nochdir, int noclose);
+void *qemu_try_memalign(size_t alignment, size_t size);
 void *qemu_memalign(size_t alignment, size_t size);
 void *qemu_anon_ram_alloc(size_t size);
 void qemu_vfree(void *ptr);

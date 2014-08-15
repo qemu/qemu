@@ -152,6 +152,7 @@ check options
     -nbd                test nbd
     -ssh                test ssh
     -nfs                test nfs
+    -archipelago        test archipelago
     -xdiff              graphical mode diff
     -nocache            use O_DIRECT on backing file
     -misalign           misalign memory allocations
@@ -260,6 +261,11 @@ testlist options
 
         -nfs)
             IMGPROTO=nfs
+            xpand=false
+            ;;
+
+        -archipelago)
+            IMGPROTO=archipelago
             xpand=false
             ;;
 

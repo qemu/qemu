@@ -172,7 +172,11 @@ static int coroutine_fn nfs_co_writev(BlockDriverState *bs,
 
     nfs_co_init_task(client, &task);
 
-    buf = g_malloc(nb_sectors * BDRV_SECTOR_SIZE);
+    buf = g_try_malloc(nb_sectors * BDRV_SECTOR_SIZE);
+    if (nb_sectors && buf == NULL) {
+        return -ENOMEM;
+    }
+
     qemu_iovec_to_buf(iov, 0, buf, nb_sectors * BDRV_SECTOR_SIZE);
 
     if (nfs_pwrite_async(client->context, client->fh,

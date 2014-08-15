@@ -19,14 +19,14 @@
 #include "block/coroutine_int.h"
 
 enum {
-    /* Maximum free pool size prevents holding too many freed coroutines */
-    POOL_MAX_SIZE = 64,
+    POOL_DEFAULT_SIZE = 64,
 };
 
 /** Free list to speed up creation */
 static QemuMutex pool_lock;
 static QSLIST_HEAD(, Coroutine) pool = QSLIST_HEAD_INITIALIZER(pool);
 static unsigned int pool_size;
+static unsigned int pool_max_size = POOL_DEFAULT_SIZE;
 
 Coroutine *qemu_coroutine_create(CoroutineEntry *entry)
 {
@@ -55,7 +55,7 @@ static void coroutine_delete(Coroutine *co)
 {
     if (CONFIG_COROUTINE_POOL) {
         qemu_mutex_lock(&pool_lock);
-        if (pool_size < POOL_MAX_SIZE) {
+        if (pool_size < pool_max_size) {
             QSLIST_INSERT_HEAD(&pool, co, pool_next);
             co->caller = NULL;
             pool_size++;
@@ -136,4 +136,24 @@ void coroutine_fn qemu_coroutine_yield(void)
 
     self->caller = NULL;
     coroutine_swap(self, to);
+}
+
+void qemu_coroutine_adjust_pool_size(int n)
+{
+    qemu_mutex_lock(&pool_lock);
+
+    pool_max_size += n;
+
+    /* Callers should never take away more than they added */
+    assert(pool_max_size >= POOL_DEFAULT_SIZE);
+
+    /* Trim oversized pool down to new max */
+    while (pool_size > pool_max_size) {
+        Coroutine *co = QSLIST_FIRST(&pool);
+        QSLIST_REMOVE_HEAD(&pool, pool_next);
+        pool_size--;
+        qemu_coroutine_delete(co);
+    }
+
+    qemu_mutex_unlock(&pool_lock);
 }

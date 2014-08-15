@@ -284,8 +284,15 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* initialize zlib engine */
-    s->compressed_chunk = g_malloc(max_compressed_size + 1);
-    s->uncompressed_chunk = g_malloc(512 * max_sectors_per_chunk);
+    s->compressed_chunk = qemu_try_blockalign(bs->file,
+                                              max_compressed_size + 1);
+    s->uncompressed_chunk = qemu_try_blockalign(bs->file,
+                                                512 * max_sectors_per_chunk);
+    if (s->compressed_chunk == NULL || s->uncompressed_chunk == NULL) {
+        ret = -ENOMEM;
+        goto fail;
+    }
+
     if (inflateInit(&s->zstream) != Z_OK) {
         ret = -EINVAL;
         goto fail;
@@ -302,8 +309,8 @@ fail:
     g_free(s->lengths);
     g_free(s->sectors);
     g_free(s->sectorcounts);
-    g_free(s->compressed_chunk);
-    g_free(s->uncompressed_chunk);
+    qemu_vfree(s->compressed_chunk);
+    qemu_vfree(s->uncompressed_chunk);
     return ret;
 }
 
@@ -426,8 +433,8 @@ static void dmg_close(BlockDriverState *bs)
     g_free(s->lengths);
     g_free(s->sectors);
     g_free(s->sectorcounts);
-    g_free(s->compressed_chunk);
-    g_free(s->uncompressed_chunk);
+    qemu_vfree(s->compressed_chunk);
+    qemu_vfree(s->uncompressed_chunk);
 
     inflateEnd(&s->zstream);
 }
