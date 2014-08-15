@@ -1308,7 +1308,7 @@ uint64_t memory_region_size(MemoryRegion *mr)
     return int128_get64(mr->size);
 }
 
-const char *memory_region_name(MemoryRegion *mr)
+const char *memory_region_name(const MemoryRegion *mr)
 {
     return mr->name;
 }

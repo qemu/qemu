@@ -511,7 +511,7 @@ void memory_region_unregister_iommu_notifier(Notifier *n);
  *
  * @mr: the memory region being queried
  */
-const char *memory_region_name(MemoryRegion *mr);
+const char *memory_region_name(const MemoryRegion *mr);
 
 /**
  * memory_region_is_logging: return whether a memory region is logging writes
