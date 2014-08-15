@@ -2027,8 +2027,8 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    mr->romd_mode ? 'R' : '-',
                    !mr->readonly && !(mr->rom_device && mr->romd_mode) ? 'W'
                                                                        : '-',
-                   mr->name,
-                   mr->alias->name,
+                   memory_region_name(mr),
+                   memory_region_name(mr->alias),
                    mr->alias_offset,
                    mr->alias_offset
                    + (int128_nz(mr->size) ?
@@ -2046,7 +2046,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    mr->romd_mode ? 'R' : '-',
                    !mr->readonly && !(mr->rom_device && mr->romd_mode) ? 'W'
                                                                        : '-',
-                   mr->name);
+                   memory_region_name(mr));
     }
 
     QTAILQ_INIT(&submr_print_queue);
@@ -2095,7 +2095,7 @@ void mtree_info(fprintf_function mon_printf, void *f)
     /* print aliased regions */
     QTAILQ_FOREACH(ml, &ml_head, queue) {
         if (!ml->printed) {
-            mon_printf(f, "%s\n", ml->mr->name);
+            mon_printf(f, "%s\n", memory_region_name(ml->mr));
             mtree_print_mr(mon_printf, f, ml->mr, 0, 0, &ml_head);
         }
     }
