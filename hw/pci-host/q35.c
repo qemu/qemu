@@ -405,12 +405,13 @@ static int mch_init(PCIDevice *d)
     memory_region_add_subregion_overlap(mch->system_memory, 0xa0000,
                                         &mch->smram_region, 1);
     memory_region_set_enabled(&mch->smram_region, false);
-    init_pam(DEVICE(mch), mch->ram_memory, mch->system_memory, mch->pci_address_space,
-             &mch->pam_regions[0], PAM_BIOS_BASE, PAM_BIOS_SIZE);
+    init_pam(DEVICE(mch), mch->ram_memory, mch->system_memory,
+             mch->pci_address_space, &mch->pam_regions[0],
+             PAM_BIOS_BASE, PAM_BIOS_SIZE);
     for (i = 0; i < 12; ++i) {
-        init_pam(DEVICE(mch), mch->ram_memory, mch->system_memory, mch->pci_address_space,
-                 &mch->pam_regions[i+1], PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE,
-                 PAM_EXPAN_SIZE);
+        init_pam(DEVICE(mch), mch->ram_memory, mch->system_memory,
+                 mch->pci_address_space, &mch->pam_regions[i+1],
+                 PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE, PAM_EXPAN_SIZE);
     }
     /* Intel IOMMU (VT-d) */
     if (qemu_opt_get_bool(qemu_get_machine_opts(), "iommu", false)) {

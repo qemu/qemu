@@ -284,10 +284,14 @@ static void machine_initfn(Object *obj)
                              machine_set_dump_guest_core,
                              NULL);
     object_property_add_bool(obj, "mem-merge",
-                             machine_get_mem_merge, machine_set_mem_merge, NULL);
-    object_property_add_bool(obj, "usb", machine_get_usb, machine_set_usb, NULL);
+                             machine_get_mem_merge,
+                             machine_set_mem_merge, NULL);
+    object_property_add_bool(obj, "usb",
+                             machine_get_usb,
+                             machine_set_usb, NULL);
     object_property_add_str(obj, "firmware",
-                            machine_get_firmware, machine_set_firmware, NULL);
+                            machine_get_firmware,
+                            machine_set_firmware, NULL);
     object_property_add_bool(obj, "iommu",
                              machine_get_iommu,
                              machine_set_iommu, NULL);
