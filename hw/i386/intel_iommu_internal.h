@@ -111,6 +111,10 @@
 #define VTD_INTERRUPT_ADDR_FIRST    0xfee00000ULL
 #define VTD_INTERRUPT_ADDR_LAST     0xfeefffffULL
 
+/* The shift of source_id in the key of IOTLB hash table */
+#define VTD_IOTLB_SID_SHIFT         36
+#define VTD_IOTLB_MAX_SIZE          1024    /* Max size of the hash table */
+
 /* IOTLB_REG */
 #define VTD_TLB_GLOBAL_FLUSH        (1ULL << 60) /* Global invalidation */
 #define VTD_TLB_DSI_FLUSH           (2ULL << 60) /* Domain-selective */
@@ -121,6 +125,11 @@
 #define VTD_TLB_PSI_FLUSH_A         (3ULL << 57)
 #define VTD_TLB_FLUSH_GRANU_MASK_A  (3ULL << 57)
 #define VTD_TLB_IVT                 (1ULL << 63)
+#define VTD_TLB_DID(val)            (((val) >> 32) & VTD_DOMAIN_ID_MASK)
+
+/* IVA_REG */
+#define VTD_IVA_ADDR(val)       ((val) & ~0xfffULL & ((1ULL << VTD_MGAW) - 1))
+#define VTD_IVA_AM(val)         ((val) & 0x3fULL)
 
 /* GCMD_REG */
 #define VTD_GCMD_TE                 (1UL << 31)
@@ -176,6 +185,9 @@
 #define VTD_CAP_ND                  (((VTD_DOMAIN_ID_SHIFT - 4) / 2) & 7ULL)
 #define VTD_MGAW                    39  /* Maximum Guest Address Width */
 #define VTD_CAP_MGAW                (((VTD_MGAW - 1) & 0x3fULL) << 16)
+#define VTD_MAMV                    9ULL
+#define VTD_CAP_MAMV                (VTD_MAMV << 48)
+#define VTD_CAP_PSI                 (1ULL << 39)
 
 /* Supported Adjusted Guest Address Widths */
 #define VTD_CAP_SAGAW_SHIFT         8
@@ -293,6 +305,26 @@ typedef struct VTDInvDesc VTDInvDesc;
 #define VTD_INV_DESC_CC_FM(val)         (((val) >> 48) & 3UL)
 #define VTD_INV_DESC_CC_RSVD            0xfffc00000000ffc0ULL
 
+/* Masks for IOTLB Invalidate Descriptor */
+#define VTD_INV_DESC_IOTLB_G            (3ULL << 4)
+#define VTD_INV_DESC_IOTLB_GLOBAL       (1ULL << 4)
+#define VTD_INV_DESC_IOTLB_DOMAIN       (2ULL << 4)
+#define VTD_INV_DESC_IOTLB_PAGE         (3ULL << 4)
+#define VTD_INV_DESC_IOTLB_DID(val)     (((val) >> 16) & VTD_DOMAIN_ID_MASK)
+#define VTD_INV_DESC_IOTLB_ADDR(val)    ((val) & ~0xfffULL & \
+                                         ((1ULL << VTD_MGAW) - 1))
+#define VTD_INV_DESC_IOTLB_AM(val)      ((val) & 0x3fULL)
+#define VTD_INV_DESC_IOTLB_RSVD_LO      0xffffffff0000ff00ULL
+#define VTD_INV_DESC_IOTLB_RSVD_HI      0xf80ULL
+
+/* Information about page-selective IOTLB invalidate */
+struct VTDIOTLBPageInvInfo {
+    uint16_t domain_id;
+    uint64_t gfn;
+    uint8_t mask;
+};
+typedef struct VTDIOTLBPageInvInfo VTDIOTLBPageInvInfo;
+
 /* Pagesize of VTD paging structures, including root and context tables */
 #define VTD_PAGE_SHIFT              12
 #define VTD_PAGE_SIZE               (1ULL << VTD_PAGE_SHIFT)
@@ -330,7 +362,7 @@ typedef struct VTDRootEntry VTDRootEntry;
 #define VTD_CONTEXT_ENTRY_RSVD_LO   (0xff0ULL | ~VTD_HAW_MASK)
 /* hi */
 #define VTD_CONTEXT_ENTRY_AW        7ULL /* Adjusted guest-address-width */
-#define VTD_CONTEXT_ENTRY_DID       (0xffffULL << 8) /* Domain Identifier */
+#define VTD_CONTEXT_ENTRY_DID(val)  (((val) >> 8) & VTD_DOMAIN_ID_MASK)
 #define VTD_CONTEXT_ENTRY_RSVD_HI   0xffffffffff000080ULL
 
 #define VTD_CONTEXT_ENTRY_NR        (VTD_PAGE_SIZE / sizeof(VTDContextEntry))

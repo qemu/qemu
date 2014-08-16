@@ -48,7 +48,7 @@ typedef struct VTDContextEntry VTDContextEntry;
 typedef struct VTDContextCacheEntry VTDContextCacheEntry;
 typedef struct IntelIOMMUState IntelIOMMUState;
 typedef struct VTDAddressSpace VTDAddressSpace;
-
+typedef struct VTDIOTLBEntry VTDIOTLBEntry;
 
 /* Context-Entry */
 struct VTDContextEntry {
@@ -71,6 +71,14 @@ struct VTDAddressSpace {
     MemoryRegion iommu;
     IntelIOMMUState *iommu_state;
     VTDContextCacheEntry context_cache_entry;
+};
+
+struct VTDIOTLBEntry {
+    uint64_t gfn;
+    uint16_t domain_id;
+    uint64_t slpte;
+    bool read_flags;
+    bool write_flags;
 };
 
 /* The iommu (DMAR) device state struct */
@@ -103,6 +111,7 @@ struct IntelIOMMUState {
     uint64_t ecap;                  /* The value of extended capability reg */
 
     uint32_t context_cache_gen;     /* Should be in [1,MAX] */
+    GHashTable *iotlb;              /* IOTLB */
 
     MemoryRegionIOMMUOps iommu_ops;
     VTDAddressSpace **address_spaces[VTD_PCI_BUS_MAX];
