@@ -388,6 +388,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = PC_MACHINE_MAX_RAM_BELOW_4G,
             .type = QEMU_OPT_SIZE,
             .help = "maximum ram below the 4G boundary (32bit boundary)",
+        },{
+            .name = "iommu",
+            .type = QEMU_OPT_BOOL,
+            .help = "Set on/off to enable/disable Intel IOMMU (VT-d)",
         },
         { /* End of list */ }
     },
