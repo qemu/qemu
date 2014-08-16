@@ -154,6 +154,9 @@
 #define VTD_CCMD_DOMAIN_INVL_A      (2ULL << 59)
 #define VTD_CCMD_DEVICE_INVL_A      (3ULL << 59)
 #define VTD_CCMD_CAIG_MASK          (3ULL << 59)
+#define VTD_CCMD_DID(val)           ((val) & VTD_DOMAIN_ID_MASK)
+#define VTD_CCMD_SID(val)           (((val) >> 16) & 0xffffULL)
+#define VTD_CCMD_FM(val)            (((val) >> 32) & 3ULL)
 
 /* RTADDR_REG */
 #define VTD_RTADDR_RTT              (1ULL << 11)
@@ -169,6 +172,7 @@
 #define VTD_CAP_FRO                 (DMAR_FRCD_REG_OFFSET << 20)
 #define VTD_CAP_NFR                 ((DMAR_FRCD_REG_NR - 1) << 40)
 #define VTD_DOMAIN_ID_SHIFT         16  /* 16-bit domain id for 64K domains */
+#define VTD_DOMAIN_ID_MASK          ((1UL << VTD_DOMAIN_ID_SHIFT) - 1)
 #define VTD_CAP_ND                  (((VTD_DOMAIN_ID_SHIFT - 4) / 2) & 7ULL)
 #define VTD_MGAW                    39  /* Maximum Guest Address Width */
 #define VTD_CAP_MGAW                (((VTD_MGAW - 1) & 0x3fULL) << 16)
@@ -255,6 +259,8 @@ typedef enum VTDFaultReason {
     VTD_FR_MAX,                 /* Guard */
 } VTDFaultReason;
 
+#define VTD_CONTEXT_CACHE_GEN_MAX       0xffffffffUL
+
 /* Queued Invalidation Descriptor */
 struct VTDInvDesc {
     uint64_t lo;
@@ -276,6 +282,16 @@ typedef struct VTDInvDesc VTDInvDesc;
 #define VTD_INV_DESC_WAIT_DATA_SHIFT    32
 #define VTD_INV_DESC_WAIT_RSVD_LO       0Xffffff80ULL
 #define VTD_INV_DESC_WAIT_RSVD_HI       3ULL
+
+/* Masks for Context-cache Invalidation Descriptor */
+#define VTD_INV_DESC_CC_G               (3ULL << 4)
+#define VTD_INV_DESC_CC_GLOBAL          (1ULL << 4)
+#define VTD_INV_DESC_CC_DOMAIN          (2ULL << 4)
+#define VTD_INV_DESC_CC_DEVICE          (3ULL << 4)
+#define VTD_INV_DESC_CC_DID(val)        (((val) >> 16) & VTD_DOMAIN_ID_MASK)
+#define VTD_INV_DESC_CC_SID(val)        (((val) >> 32) & 0xffffUL)
+#define VTD_INV_DESC_CC_FM(val)         (((val) >> 48) & 3UL)
+#define VTD_INV_DESC_CC_RSVD            0xfffc00000000ffc0ULL
 
 /* Pagesize of VTD paging structures, including root and context tables */
 #define VTD_PAGE_SHIFT              12
@@ -300,13 +316,6 @@ typedef struct VTDRootEntry VTDRootEntry;
 
 #define VTD_ROOT_ENTRY_NR           (VTD_PAGE_SIZE / sizeof(VTDRootEntry))
 #define VTD_ROOT_ENTRY_RSVD         (0xffeULL | ~VTD_HAW_MASK)
-
-/* Context-Entry */
-struct VTDContextEntry {
-    uint64_t lo;
-    uint64_t hi;
-};
-typedef struct VTDContextEntry VTDContextEntry;
 
 /* Masks for struct VTDContextEntry */
 /* lo */

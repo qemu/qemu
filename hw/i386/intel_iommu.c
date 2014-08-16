@@ -27,6 +27,7 @@
 #ifdef DEBUG_INTEL_IOMMU
 enum {
     DEBUG_GENERAL, DEBUG_CSR, DEBUG_INV, DEBUG_MMU, DEBUG_FLOG,
+    DEBUG_CACHE,
 };
 #define VTD_DBGBIT(x)   (1 << DEBUG_##x)
 static int vtd_dbgflags = VTD_DBGBIT(GENERAL) | VTD_DBGBIT(CSR);
@@ -129,6 +130,33 @@ static uint64_t vtd_set_clear_mask_quad(IntelIOMMUState *s, hwaddr addr,
     uint64_t new_val = (ldq_le_p(&s->csr[addr]) & ~clear) | mask;
     stq_le_p(&s->csr[addr], new_val);
     return new_val;
+}
+
+/* Reset all the gen of VTDAddressSpace to zero and set the gen of
+ * IntelIOMMUState to 1.
+ */
+static void vtd_reset_context_cache(IntelIOMMUState *s)
+{
+    VTDAddressSpace **pvtd_as;
+    VTDAddressSpace *vtd_as;
+    uint32_t bus_it;
+    uint32_t devfn_it;
+
+    VTD_DPRINTF(CACHE, "global context_cache_gen=1");
+    for (bus_it = 0; bus_it < VTD_PCI_BUS_MAX; ++bus_it) {
+        pvtd_as = s->address_spaces[bus_it];
+        if (!pvtd_as) {
+            continue;
+        }
+        for (devfn_it = 0; devfn_it < VTD_PCI_DEVFN_MAX; ++devfn_it) {
+            vtd_as = pvtd_as[devfn_it];
+            if (!vtd_as) {
+                continue;
+            }
+            vtd_as->context_cache_entry.context_cache_gen = 0;
+        }
+    }
+    s->context_cache_gen = 1;
 }
 
 /* Given the reg addr of both the message data and address, generate an
@@ -651,11 +679,13 @@ static inline bool vtd_is_interrupt_addr(hwaddr addr)
  * @is_write: The access is a write operation
  * @entry: IOMMUTLBEntry that contain the addr to be translated and result
  */
-static void vtd_do_iommu_translate(IntelIOMMUState *s, uint8_t bus_num,
+static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, uint8_t bus_num,
                                    uint8_t devfn, hwaddr addr, bool is_write,
                                    IOMMUTLBEntry *entry)
 {
+    IntelIOMMUState *s = vtd_as->iommu_state;
     VTDContextEntry ce;
+    VTDContextCacheEntry *cc_entry = &vtd_as->context_cache_entry;
     uint64_t slpte;
     uint32_t level;
     uint16_t source_id = vtd_make_source_id(bus_num, devfn);
@@ -686,18 +716,35 @@ static void vtd_do_iommu_translate(IntelIOMMUState *s, uint8_t bus_num,
             return;
         }
     }
-
-    ret_fr = vtd_dev_to_context_entry(s, bus_num, devfn, &ce);
-    is_fpd_set = ce.lo & VTD_CONTEXT_ENTRY_FPD;
-    if (ret_fr) {
-        ret_fr = -ret_fr;
-        if (is_fpd_set && vtd_is_qualified_fault(ret_fr)) {
-            VTD_DPRINTF(FLOG, "fault processing is disabled for DMA requests "
-                        "through this context-entry (with FPD Set)");
-        } else {
-            vtd_report_dmar_fault(s, source_id, addr, ret_fr, is_write);
+    /* Try to fetch context-entry from cache first */
+    if (cc_entry->context_cache_gen == s->context_cache_gen) {
+        VTD_DPRINTF(CACHE, "hit context-cache bus %d devfn %d "
+                    "(hi %"PRIx64 " lo %"PRIx64 " gen %"PRIu32 ")",
+                    bus_num, devfn, cc_entry->context_entry.hi,
+                    cc_entry->context_entry.lo, cc_entry->context_cache_gen);
+        ce = cc_entry->context_entry;
+        is_fpd_set = ce.lo & VTD_CONTEXT_ENTRY_FPD;
+    } else {
+        ret_fr = vtd_dev_to_context_entry(s, bus_num, devfn, &ce);
+        is_fpd_set = ce.lo & VTD_CONTEXT_ENTRY_FPD;
+        if (ret_fr) {
+            ret_fr = -ret_fr;
+            if (is_fpd_set && vtd_is_qualified_fault(ret_fr)) {
+                VTD_DPRINTF(FLOG, "fault processing is disabled for DMA "
+                            "requests through this context-entry "
+                            "(with FPD Set)");
+            } else {
+                vtd_report_dmar_fault(s, source_id, addr, ret_fr, is_write);
+            }
+            return;
         }
-        return;
+        /* Update context-cache */
+        VTD_DPRINTF(CACHE, "update context-cache bus %d devfn %d "
+                    "(hi %"PRIx64 " lo %"PRIx64 " gen %"PRIu32 "->%"PRIu32 ")",
+                    bus_num, devfn, ce.hi, ce.lo,
+                    cc_entry->context_cache_gen, s->context_cache_gen);
+        cc_entry->context_entry = ce;
+        cc_entry->context_cache_gen = s->context_cache_gen;
     }
 
     ret_fr = vtd_gpa_to_slpte(&ce, addr, is_write, &slpte, &level,
@@ -729,6 +776,57 @@ static void vtd_root_table_setup(IntelIOMMUState *s)
                 (s->root_extended ? "(extended)" : ""));
 }
 
+static void vtd_context_global_invalidate(IntelIOMMUState *s)
+{
+    s->context_cache_gen++;
+    if (s->context_cache_gen == VTD_CONTEXT_CACHE_GEN_MAX) {
+        vtd_reset_context_cache(s);
+    }
+}
+
+/* Do a context-cache device-selective invalidation.
+ * @func_mask: FM field after shifting
+ */
+static void vtd_context_device_invalidate(IntelIOMMUState *s,
+                                          uint16_t source_id,
+                                          uint16_t func_mask)
+{
+    uint16_t mask;
+    VTDAddressSpace **pvtd_as;
+    VTDAddressSpace *vtd_as;
+    uint16_t devfn;
+    uint16_t devfn_it;
+
+    switch (func_mask & 3) {
+    case 0:
+        mask = 0;   /* No bits in the SID field masked */
+        break;
+    case 1:
+        mask = 4;   /* Mask bit 2 in the SID field */
+        break;
+    case 2:
+        mask = 6;   /* Mask bit 2:1 in the SID field */
+        break;
+    case 3:
+        mask = 7;   /* Mask bit 2:0 in the SID field */
+        break;
+    }
+    VTD_DPRINTF(INV, "device-selective invalidation source 0x%"PRIx16
+                    " mask %"PRIu16, source_id, mask);
+    pvtd_as = s->address_spaces[VTD_SID_TO_BUS(source_id)];
+    if (pvtd_as) {
+        devfn = VTD_SID_TO_DEVFN(source_id);
+        for (devfn_it = 0; devfn_it < VTD_PCI_DEVFN_MAX; ++devfn_it) {
+            vtd_as = pvtd_as[devfn_it];
+            if (vtd_as && ((devfn_it & mask) == (devfn & mask))) {
+                VTD_DPRINTF(INV, "invalidate context-cahce of devfn 0x%"PRIx16,
+                            devfn_it);
+                vtd_as->context_cache_entry.context_cache_gen = 0;
+            }
+        }
+    }
+}
+
 /* Context-cache invalidation
  * Returns the Context Actual Invalidation Granularity.
  * @val: the content of the CCMD_REG
@@ -739,24 +837,23 @@ static uint64_t vtd_context_cache_invalidate(IntelIOMMUState *s, uint64_t val)
     uint64_t type = val & VTD_CCMD_CIRG_MASK;
 
     switch (type) {
-    case VTD_CCMD_GLOBAL_INVL:
-        VTD_DPRINTF(INV, "Global invalidation request");
-        caig = VTD_CCMD_GLOBAL_INVL_A;
-        break;
-
     case VTD_CCMD_DOMAIN_INVL:
-        VTD_DPRINTF(INV, "Domain-selective invalidation request");
-        caig = VTD_CCMD_DOMAIN_INVL_A;
+        VTD_DPRINTF(INV, "domain-selective invalidation domain 0x%"PRIx16,
+                    (uint16_t)VTD_CCMD_DID(val));
+        /* Fall through */
+    case VTD_CCMD_GLOBAL_INVL:
+        VTD_DPRINTF(INV, "global invalidation");
+        caig = VTD_CCMD_GLOBAL_INVL_A;
+        vtd_context_global_invalidate(s);
         break;
 
     case VTD_CCMD_DEVICE_INVL:
-        VTD_DPRINTF(INV, "Domain-selective invalidation request");
         caig = VTD_CCMD_DEVICE_INVL_A;
+        vtd_context_device_invalidate(s, VTD_CCMD_SID(val), VTD_CCMD_FM(val));
         break;
 
     default:
-        VTD_DPRINTF(GENERAL,
-                    "error: wrong context-cache invalidation granularity");
+        VTD_DPRINTF(GENERAL, "error: invalid granularity");
         caig = 0;
     }
     return caig;
@@ -994,6 +1091,38 @@ static bool vtd_process_wait_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
     return true;
 }
 
+static bool vtd_process_context_cache_desc(IntelIOMMUState *s,
+                                           VTDInvDesc *inv_desc)
+{
+    if ((inv_desc->lo & VTD_INV_DESC_CC_RSVD) || inv_desc->hi) {
+        VTD_DPRINTF(GENERAL, "error: non-zero reserved field in Context-cache "
+                    "Invalidate Descriptor");
+        return false;
+    }
+    switch (inv_desc->lo & VTD_INV_DESC_CC_G) {
+    case VTD_INV_DESC_CC_DOMAIN:
+        VTD_DPRINTF(INV, "domain-selective invalidation domain 0x%"PRIx16,
+                    (uint16_t)VTD_INV_DESC_CC_DID(inv_desc->lo));
+        /* Fall through */
+    case VTD_INV_DESC_CC_GLOBAL:
+        VTD_DPRINTF(INV, "global invalidation");
+        vtd_context_global_invalidate(s);
+        break;
+
+    case VTD_INV_DESC_CC_DEVICE:
+        vtd_context_device_invalidate(s, VTD_INV_DESC_CC_SID(inv_desc->lo),
+                                      VTD_INV_DESC_CC_FM(inv_desc->lo));
+        break;
+
+    default:
+        VTD_DPRINTF(GENERAL, "error: invalid granularity in Context-cache "
+                    "Invalidate Descriptor hi 0x%"PRIx64  " lo 0x%"PRIx64,
+                    inv_desc->hi, inv_desc->lo);
+        return false;
+    }
+    return true;
+}
+
 static bool vtd_process_inv_desc(IntelIOMMUState *s)
 {
     VTDInvDesc inv_desc;
@@ -1012,6 +1141,9 @@ static bool vtd_process_inv_desc(IntelIOMMUState *s)
     case VTD_INV_DESC_CC:
         VTD_DPRINTF(INV, "Context-cache Invalidate Descriptor hi 0x%"PRIx64
                     " lo 0x%"PRIx64, inv_desc.hi, inv_desc.lo);
+        if (!vtd_process_context_cache_desc(s, &inv_desc)) {
+            return false;
+        }
         break;
 
     case VTD_INV_DESC_IOTLB:
@@ -1453,8 +1585,6 @@ static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;
-    uint8_t bus_num = vtd_as->bus_num;
-    uint8_t devfn = vtd_as->devfn;
     IOMMUTLBEntry ret = {
         .target_as = &address_space_memory,
         .iova = addr,
@@ -1472,13 +1602,13 @@ static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
         return ret;
     }
 
-    vtd_do_iommu_translate(s, bus_num, devfn, addr, is_write, &ret);
-
+    vtd_do_iommu_translate(vtd_as, vtd_as->bus_num, vtd_as->devfn, addr,
+                           is_write, &ret);
     VTD_DPRINTF(MMU,
                 "bus %"PRIu8 " slot %"PRIu8 " func %"PRIu8 " devfn %"PRIu8
-                " gpa 0x%"PRIx64 " hpa 0x%"PRIx64, bus_num,
-                VTD_PCI_SLOT(devfn), VTD_PCI_FUNC(devfn), devfn, addr,
-                ret.translated_addr);
+                " gpa 0x%"PRIx64 " hpa 0x%"PRIx64, vtd_as->bus_num,
+                VTD_PCI_SLOT(vtd_as->devfn), VTD_PCI_FUNC(vtd_as->devfn),
+                vtd_as->devfn, addr, ret.translated_addr);
     return ret;
 }
 
@@ -1530,6 +1660,8 @@ static void vtd_init(IntelIOMMUState *s)
     s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND | VTD_CAP_MGAW |
              VTD_CAP_SAGAW;
     s->ecap = VTD_ECAP_QI | VTD_ECAP_IRO;
+
+    vtd_reset_context_cache(s);
 
     /* Define registers with default values and bit semantics */
     vtd_define_long(s, DMAR_VER_REG, 0x10UL, 0, 0);

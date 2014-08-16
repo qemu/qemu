@@ -37,13 +37,32 @@
 #define VTD_PCI_DEVFN_MAX           256
 #define VTD_PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
 #define VTD_PCI_FUNC(devfn)         ((devfn) & 0x07)
+#define VTD_SID_TO_BUS(sid)         (((sid) >> 8) && 0xff)
+#define VTD_SID_TO_DEVFN(sid)       ((sid) & 0xff)
 
 #define DMAR_REG_SIZE               0x230
 #define VTD_HOST_ADDRESS_WIDTH      39
 #define VTD_HAW_MASK                ((1ULL << VTD_HOST_ADDRESS_WIDTH) - 1)
 
+typedef struct VTDContextEntry VTDContextEntry;
+typedef struct VTDContextCacheEntry VTDContextCacheEntry;
 typedef struct IntelIOMMUState IntelIOMMUState;
 typedef struct VTDAddressSpace VTDAddressSpace;
+
+
+/* Context-Entry */
+struct VTDContextEntry {
+    uint64_t lo;
+    uint64_t hi;
+};
+
+struct VTDContextCacheEntry {
+    /* The cache entry is obsolete if
+     * context_cache_gen!=IntelIOMMUState.context_cache_gen
+     */
+    uint32_t context_cache_gen;
+    struct VTDContextEntry context_entry;
+};
 
 struct VTDAddressSpace {
     uint8_t bus_num;
@@ -51,6 +70,7 @@ struct VTDAddressSpace {
     AddressSpace as;
     MemoryRegion iommu;
     IntelIOMMUState *iommu_state;
+    VTDContextCacheEntry context_cache_entry;
 };
 
 /* The iommu (DMAR) device state struct */
@@ -81,6 +101,8 @@ struct IntelIOMMUState {
 
     uint64_t cap;                   /* The value of capability reg */
     uint64_t ecap;                  /* The value of extended capability reg */
+
+    uint32_t context_cache_gen;     /* Should be in [1,MAX] */
 
     MemoryRegionIOMMUOps iommu_ops;
     VTDAddressSpace **address_spaces[VTD_PCI_BUS_MAX];
