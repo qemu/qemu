@@ -59,7 +59,8 @@ static sPAPRTCETable *spapr_tce_find_by_liobn(uint32_t liobn)
     return NULL;
 }
 
-static IOMMUTLBEntry spapr_tce_translate_iommu(MemoryRegion *iommu, hwaddr addr)
+static IOMMUTLBEntry spapr_tce_translate_iommu(MemoryRegion *iommu, hwaddr addr,
+                                               bool is_write)
 {
     sPAPRTCETable *tcet = container_of(iommu, sPAPRTCETable, iommu);
     uint64_t tce;
