@@ -2542,8 +2542,10 @@ static int monitor_fdset_dup_fd_find_remove(int dup_fd, bool remove)
                     if (QLIST_EMPTY(&mon_fdset->dup_fds)) {
                         monitor_fdset_cleanup(mon_fdset);
                     }
+                    return -1;
+                } else {
+                    return mon_fdset->id;
                 }
-                return mon_fdset->id;
             }
         }
     }
@@ -2555,9 +2557,9 @@ int monitor_fdset_dup_fd_find(int dup_fd)
     return monitor_fdset_dup_fd_find_remove(dup_fd, false);
 }
 
-int monitor_fdset_dup_fd_remove(int dup_fd)
+void monitor_fdset_dup_fd_remove(int dup_fd)
 {
-    return monitor_fdset_dup_fd_find_remove(dup_fd, true);
+    monitor_fdset_dup_fd_find_remove(dup_fd, true);
 }
 
 int monitor_handle_fd_param(Monitor *mon, const char *fdname)
