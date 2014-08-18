@@ -790,6 +790,11 @@ int main(int argc, char *argv[])
     const char *arch = qtest_get_arch();
     FILE *f = fopen(disk, "w");
     int ret;
+
+    if (!f) {
+        fprintf(stderr, "Couldn't open \"%s\": %s", disk, strerror(errno));
+        return 1;
+    }
     fwrite(boot_sector, 1, sizeof boot_sector, f);
     fclose(f);
 
