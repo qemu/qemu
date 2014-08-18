@@ -89,7 +89,6 @@ petalogix_ml605_init(MachineState *machine)
     SysBusDevice *busdev;
     DriveInfo *dinfo;
     int i;
-    hwaddr ddr_base = MEMORY_BASEADDR;
     MemoryRegion *phys_lmb_bram = g_new(MemoryRegion, 1);
     MemoryRegion *phys_ram = g_new(MemoryRegion, 1);
     qemu_irq irq[32];
@@ -106,7 +105,7 @@ petalogix_ml605_init(MachineState *machine)
 
     memory_region_init_ram(phys_ram, NULL, "petalogix_ml605.ram", ram_size);
     vmstate_register_ram_global(phys_ram);
-    memory_region_add_subregion(address_space_mem, ddr_base, phys_ram);
+    memory_region_add_subregion(address_space_mem, MEMORY_BASEADDR, phys_ram);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     /* 5th parameter 2 means bank-width
@@ -201,7 +200,7 @@ petalogix_ml605_init(MachineState *machine)
         }
     }
 
-    microblaze_load_kernel(cpu, ddr_base, ram_size,
+    microblaze_load_kernel(cpu, MEMORY_BASEADDR, ram_size,
                            machine->initrd_filename,
                            BINARY_DEVICE_TREE_FILE,
                            machine_cpu_reset);
