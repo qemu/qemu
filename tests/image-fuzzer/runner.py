@@ -65,14 +65,35 @@ def run_app(fd, q_args):
     """Start an application with specified arguments and return its exit code
     or kill signal depending on the result of execution.
     """
+
+    class Alarm(Exception):
+        """Exception for signal.alarm events."""
+        pass
+
+    def handler(*arg):
+        """Notify that an alarm event occurred."""
+        raise Alarm
+
+    signal.signal(signal.SIGALRM, handler)
+    signal.alarm(600)
+    term_signal = signal.SIGKILL
     devnull = open('/dev/null', 'r+')
     process = subprocess.Popen(q_args, stdin=devnull,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
-    out, err = process.communicate()
-    fd.write(out)
-    fd.write(err)
-    return process.returncode
+    try:
+        out, err = process.communicate()
+        signal.alarm(0)
+        fd.write(out)
+        fd.write(err)
+        fd.flush()
+        return process.returncode
+
+    except Alarm:
+        os.kill(process.pid, term_signal)
+        fd.write('The command was terminated by timeout.\n')
+        fd.flush()
+        return -term_signal
 
 
 class TestException(Exception):
