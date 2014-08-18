@@ -193,6 +193,7 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
 
     error_setg(&s->blocker, "block device is in use by data plane");
     bdrv_op_block_all(blk->conf.bs, s->blocker);
+    bdrv_op_unblock(blk->conf.bs, BLOCK_OP_TYPE_RESIZE, s->blocker);
 
     *dataplane = s;
 }
