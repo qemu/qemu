@@ -91,6 +91,9 @@
 #define QCOW2_OPT_OVERLAP_SNAPSHOT_TABLE "overlap-check.snapshot-table"
 #define QCOW2_OPT_OVERLAP_INACTIVE_L1 "overlap-check.inactive-l1"
 #define QCOW2_OPT_OVERLAP_INACTIVE_L2 "overlap-check.inactive-l2"
+#define QCOW2_OPT_CACHE_SIZE "cache-size"
+#define QCOW2_OPT_L2_CACHE_SIZE "l2-cache-size"
+#define QCOW2_OPT_REFCOUNT_CACHE_SIZE "refcount-cache-size"
 
 typedef struct QCowHeader {
     uint32_t magic;

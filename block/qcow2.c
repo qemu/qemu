@@ -442,6 +442,22 @@ static QemuOptsList qcow2_runtime_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "Check for unintended writes into an inactive L2 table",
         },
+        {
+            .name = QCOW2_OPT_CACHE_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Maximum combined metadata (L2 tables and refcount blocks) "
+                    "cache size",
+        },
+        {
+            .name = QCOW2_OPT_L2_CACHE_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Maximum L2 table cache size",
+        },
+        {
+            .name = QCOW2_OPT_REFCOUNT_CACHE_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Maximum refcount block cache size",
+        },
         { /* end of list */ }
     },
 };
@@ -456,6 +472,61 @@ static const char *overlap_bool_option_names[QCOW2_OL_MAX_BITNR] = {
     [QCOW2_OL_INACTIVE_L1_BITNR]    = QCOW2_OPT_OVERLAP_INACTIVE_L1,
     [QCOW2_OL_INACTIVE_L2_BITNR]    = QCOW2_OPT_OVERLAP_INACTIVE_L2,
 };
+
+static void read_cache_sizes(QemuOpts *opts, uint64_t *l2_cache_size,
+                             uint64_t *refcount_cache_size, Error **errp)
+{
+    uint64_t combined_cache_size;
+    bool l2_cache_size_set, refcount_cache_size_set, combined_cache_size_set;
+
+    combined_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_CACHE_SIZE);
+    l2_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_L2_CACHE_SIZE);
+    refcount_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_REFCOUNT_CACHE_SIZE);
+
+    combined_cache_size = qemu_opt_get_size(opts, QCOW2_OPT_CACHE_SIZE, 0);
+    *l2_cache_size = qemu_opt_get_size(opts, QCOW2_OPT_L2_CACHE_SIZE, 0);
+    *refcount_cache_size = qemu_opt_get_size(opts,
+                                             QCOW2_OPT_REFCOUNT_CACHE_SIZE, 0);
+
+    if (combined_cache_size_set) {
+        if (l2_cache_size_set && refcount_cache_size_set) {
+            error_setg(errp, QCOW2_OPT_CACHE_SIZE ", " QCOW2_OPT_L2_CACHE_SIZE
+                       " and " QCOW2_OPT_REFCOUNT_CACHE_SIZE " may not be set "
+                       "the same time");
+            return;
+        } else if (*l2_cache_size > combined_cache_size) {
+            error_setg(errp, QCOW2_OPT_L2_CACHE_SIZE " may not exceed "
+                       QCOW2_OPT_CACHE_SIZE);
+            return;
+        } else if (*refcount_cache_size > combined_cache_size) {
+            error_setg(errp, QCOW2_OPT_REFCOUNT_CACHE_SIZE " may not exceed "
+                       QCOW2_OPT_CACHE_SIZE);
+            return;
+        }
+
+        if (l2_cache_size_set) {
+            *refcount_cache_size = combined_cache_size - *l2_cache_size;
+        } else if (refcount_cache_size_set) {
+            *l2_cache_size = combined_cache_size - *refcount_cache_size;
+        } else {
+            *refcount_cache_size = combined_cache_size
+                                 / (DEFAULT_L2_REFCOUNT_SIZE_RATIO + 1);
+            *l2_cache_size = combined_cache_size - *refcount_cache_size;
+        }
+    } else {
+        if (!l2_cache_size_set && !refcount_cache_size_set) {
+            *l2_cache_size = DEFAULT_L2_CACHE_BYTE_SIZE;
+            *refcount_cache_size = *l2_cache_size
+                                 / DEFAULT_L2_REFCOUNT_SIZE_RATIO;
+        } else if (!l2_cache_size_set) {
+            *l2_cache_size = *refcount_cache_size
+                           * DEFAULT_L2_REFCOUNT_SIZE_RATIO;
+        } else if (!refcount_cache_size_set) {
+            *refcount_cache_size = *l2_cache_size
+                                 / DEFAULT_L2_REFCOUNT_SIZE_RATIO;
+        }
+    }
+}
 
 static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
@@ -707,17 +778,43 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
-    /* alloc L2 table/refcount block cache */
-    l2_cache_size = DEFAULT_L2_CACHE_BYTE_SIZE / s->cluster_size;
+    /* get L2 table/refcount block cache size from command line options */
+    opts = qemu_opts_create(&qcow2_runtime_opts, NULL, 0, &error_abort);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    read_cache_sizes(opts, &l2_cache_size, &refcount_cache_size, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    l2_cache_size /= s->cluster_size;
     if (l2_cache_size < MIN_L2_CACHE_SIZE) {
         l2_cache_size = MIN_L2_CACHE_SIZE;
     }
+    if (l2_cache_size > INT_MAX) {
+        error_setg(errp, "L2 cache size too big");
+        ret = -EINVAL;
+        goto fail;
+    }
 
-    refcount_cache_size = l2_cache_size / DEFAULT_L2_REFCOUNT_SIZE_RATIO;
+    refcount_cache_size /= s->cluster_size;
     if (refcount_cache_size < MIN_REFCOUNT_CACHE_SIZE) {
         refcount_cache_size = MIN_REFCOUNT_CACHE_SIZE;
     }
+    if (refcount_cache_size > INT_MAX) {
+        error_setg(errp, "Refcount cache size too big");
+        ret = -EINVAL;
+        goto fail;
+    }
 
+    /* alloc L2 table/refcount block cache */
     s->l2_table_cache = qcow2_cache_create(bs, l2_cache_size);
     s->refcount_block_cache = qcow2_cache_create(bs, refcount_cache_size);
     if (s->l2_table_cache == NULL || s->refcount_block_cache == NULL) {
@@ -809,14 +906,6 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Enable lazy_refcounts according to image and command line options */
-    opts = qemu_opts_create(&qcow2_runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        ret = -EINVAL;
-        goto fail;
-    }
-
     s->use_lazy_refcounts = qemu_opt_get_bool(opts, QCOW2_OPT_LAZY_REFCOUNTS,
         (s->compatible_features & QCOW2_COMPAT_LAZY_REFCOUNTS));
 
