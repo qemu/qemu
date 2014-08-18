@@ -86,7 +86,93 @@
 
 #define RCC_APB2RSTR_OFFSET 0x0c
 
+#define RCC_APB2RSTR_TIM11RST_BIT       21
+#define RCC_APB2RSTR_TIM10RST_BIT       20
+#define RCC_APB2RSTR_TIM9RST_BIT        19
+#define RCC_APB2RSTR_ADC3RST_BIT        15
+#define RCC_APB2RSTR_USART1RST_BIT      14
+#define RCC_APB2RSTR_TIM8RST_BIT        13
+#define RCC_APB2RSTR_SPI1RST_BIT        12
+#define RCC_APB2RSTR_TIM1RST_BIT        11
+#define RCC_APB2RSTR_ADC2RST_BIT        10
+#define RCC_APB2RSTR_ADC1RST_BIT        9
+#define RCC_APB2RSTR_IOPGRST_BIT        8
+#define RCC_APB2RSTR_IOPFRST_BIT        7
+#define RCC_APB2RSTR_IOPERST_BIT        6
+#define RCC_APB2RSTR_IOPDRST_BIT        5
+#define RCC_APB2RSTR_IOPCRST_BIT        4
+#define RCC_APB2RSTR_IOPBRST_BIT        3
+#define RCC_APB2RSTR_IOPARST_BIT        2
+#define RCC_APB2RSTR_AFIORST_BIT        0
+
+#define RCC_APB2RSTR_TIM11RST           (1U << RCC_APB2RSTR_TIM11RST_BIT)
+#define RCC_APB2RSTR_TIM10RST           (1U << RCC_APB2RSTR_TIM10RST_BIT)
+#define RCC_APB2RSTR_TIM9RST            (1U << RCC_APB2RSTR_TIM9RST_BIT)
+#define RCC_APB2RSTR_ADC3RST            (1U << RCC_APB2RSTR_ADC3RST_BIT)
+#define RCC_APB2RSTR_USART1RST          (1U << RCC_APB2RSTR_USART1RST_BIT)
+#define RCC_APB2RSTR_TIM8RST            (1U << RCC_APB2RSTR_TIM8RST_BIT)
+#define RCC_APB2RSTR_SPI1RST            (1U << RCC_APB2RSTR_SPI1RST_BIT)
+#define RCC_APB2RSTR_TIM1RST            (1U << RCC_APB2RSTR_TIM1RST_BIT)
+#define RCC_APB2RSTR_ADC2RST            (1U << RCC_APB2RSTR_ADC2RST_BIT)
+#define RCC_APB2RSTR_ADC1RST            (1U << RCC_APB2RSTR_ADC1RST_BIT)
+#define RCC_APB2RSTR_IOPGRST            (1U << RCC_APB2RSTR_IOPGRST_BIT)
+#define RCC_APB2RSTR_IOPFRST            (1U << RCC_APB2RSTR_IOPFRST_BIT)
+#define RCC_APB2RSTR_IOPERST            (1U << RCC_APB2RSTR_IOPERST_BIT)
+#define RCC_APB2RSTR_IOPDRST            (1U << RCC_APB2RSTR_IOPDRST_BIT)
+#define RCC_APB2RSTR_IOPCRST            (1U << RCC_APB2RSTR_IOPCRST_BIT)
+#define RCC_APB2RSTR_IOPBRST            (1U << RCC_APB2RSTR_IOPBRST_BIT)
+#define RCC_APB2RSTR_IOPARST            (1U << RCC_APB2RSTR_IOPARST_BIT)
+#define RCC_APB2RSTR_AFIORST            (1U << RCC_APB2RSTR_AFIORST_BIT)
+
 #define RCC_APB1RSTR_OFFSET 0x10
+
+#define RCC_APB1RSTR_DACRST_BIT         29
+#define RCC_APB1RSTR_PWRRST_BIT         28
+#define RCC_APB1RSTR_BKPRST_BIT         27
+#define RCC_APB1RSTR_CANRST_BIT         25
+#define RCC_APB1RSTR_USBRST_BIT         23
+#define RCC_APB1RSTR_I2C2RST_BIT        22
+#define RCC_APB1RSTR_I2C1RST_BIT        21
+#define RCC_APB1RSTR_UART5RST_BIT       20
+#define RCC_APB1RSTR_UART4RST_BIT       19
+#define RCC_APB1RSTR_USART3RST_BIT      18
+#define RCC_APB1RSTR_USART2RST_BIT      17
+#define RCC_APB1RSTR_SPI3RST_BIT        15
+#define RCC_APB1RSTR_SPI2RST_BIT        14
+#define RCC_APB1RSTR_WWDRST_BIT         11
+#define RCC_APB1RSTR_TIM14RST_BIT       8
+#define RCC_APB1RSTR_TIM13RST_BIT       7
+#define RCC_APB1RSTR_TIM12RST_BIT       6
+#define RCC_APB1RSTR_TIM7RST_BIT        5
+#define RCC_APB1RSTR_TIM6RST_BIT        4
+#define RCC_APB1RSTR_TIM5RST_BIT        3
+#define RCC_APB1RSTR_TIM4RST_BIT        2
+#define RCC_APB1RSTR_TIM3RST_BIT        1
+#define RCC_APB1RSTR_TIM2RST_BIT        0
+
+#define RCC_APB1RSTR_DACRST             (1U << RCC_APB1RSTR_DACRST_BIT)
+#define RCC_APB1RSTR_PWRRST             (1U << RCC_APB1RSTR_PWRRST_BIT)
+#define RCC_APB1RSTR_BKPRST             (1U << RCC_APB1RSTR_BKPRST_BIT)
+#define RCC_APB1RSTR_CANRST             (1U << RCC_APB1RSTR_CANRST_BIT)
+#define RCC_APB1RSTR_USBRST             (1U << RCC_APB1RSTR_USBRST_BIT)
+#define RCC_APB1RSTR_I2C2RST            (1U << RCC_APB1RSTR_I2C2RST_BIT)
+#define RCC_APB1RSTR_I2C1RST            (1U << RCC_APB1RSTR_I2C1RST_BIT)
+#define RCC_APB1RSTR_UART5RST           (1U << RCC_APB1RSTR_UART5RST_BIT)
+#define RCC_APB1RSTR_UART4RST           (1U << RCC_APB1RSTR_UART4RST_BIT)
+#define RCC_APB1RSTR_USART3RST          (1U << RCC_APB1RSTR_USART3RST_BIT)
+#define RCC_APB1RSTR_USART2RST          (1U << RCC_APB1RSTR_USART2RST_BIT)
+#define RCC_APB1RSTR_SPI3RST            (1U << RCC_APB1RSTR_SPI3RST_BIT)
+#define RCC_APB1RSTR_SPI2RST            (1U << RCC_APB1RSTR_SPI2RST_BIT)
+#define RCC_APB1RSTR_WWDRST             (1U << RCC_APB1RSTR_WWDRST_BIT)
+#define RCC_APB1RSTR_TIM14RST           (1U << RCC_APB1RSTR_TIM14RST_BIT)
+#define RCC_APB1RSTR_TIM13RST           (1U << RCC_APB1RSTR_TIM13RST_BIT)
+#define RCC_APB1RSTR_TIM12RST           (1U << RCC_APB1RSTR_TIM12RST_BIT)
+#define RCC_APB1RSTR_TIM7RST            (1U << RCC_APB1RSTR_TIM7RST_BIT)
+#define RCC_APB1RSTR_TIM6RST            (1U << RCC_APB1RSTR_TIM6RST_BIT)
+#define RCC_APB1RSTR_TIM5RST            (1U << RCC_APB1RSTR_TIM5RST_BIT)
+#define RCC_APB1RSTR_TIM4RST            (1U << RCC_APB1RSTR_TIM4RST_BIT)
+#define RCC_APB1RSTR_TIM3RST            (1U << RCC_APB1RSTR_TIM3RST_BIT)
+#define RCC_APB1RSTR_TIM2RST            (1U << RCC_APB1RSTR_TIM2RST_BIT)
 
 #define RCC_AHBENR_OFFSET 0x14
 
@@ -179,7 +265,9 @@ struct Stm32Rcc {
     /* Register Values */
     uint32_t
         RCC_APB1ENR,
-        RCC_APB2ENR;
+        RCC_APB2ENR,
+        RCC_APB1RSTR,
+        RCC_APB2RSTR;
 
     /* Register Field Values */
     uint32_t
@@ -407,6 +495,22 @@ static void stm32_rcc_RCC_APB2ENR_write(Stm32Rcc *s, uint32_t new_value,
     s->RCC_APB2ENR = new_value & 0x0000fffd;
 }
 
+static void stm32_rcc_RCC_APB2RSTR_write(Stm32Rcc *s, uint32_t new_value,
+                                        bool init)
+{
+    stm32_rcc_periph_enable(s, new_value, init, STM32_UART1, RCC_APB2RSTR_USART1RST_BIT);
+    stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOE, RCC_APB2RSTR_IOPERST_BIT);
+    stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOD, RCC_APB2RSTR_IOPDRST_BIT);
+    stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOC, RCC_APB2RSTR_IOPCRST_BIT);
+    stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOB, RCC_APB2RSTR_IOPBRST_BIT);
+    stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOA, RCC_APB2RSTR_IOPARST_BIT);
+    stm32_rcc_periph_enable(s, new_value, init, STM32_AFIO_PERIPH, RCC_APB2RSTR_AFIORST_BIT);
+    stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOG, RCC_APB2RSTR_IOPGRST_BIT);
+    stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOF, RCC_APB2RSTR_IOPFRST_BIT);
+
+    s->RCC_APB2RSTR = new_value & 0x0000fffd;
+}
+
 /* Write the APB1 peripheral clock enable register
  * Enables/Disables the peripheral clocks based on each bit. */
 static void stm32_rcc_RCC_APB1ENR_write(Stm32Rcc *s, uint32_t new_value,
@@ -422,6 +526,21 @@ static void stm32_rcc_RCC_APB1ENR_write(Stm32Rcc *s, uint32_t new_value,
                             RCC_APB1ENR_USART2EN_BIT);
 
     s->RCC_APB1ENR = new_value & 0x00005e7d;
+}
+
+static void stm32_rcc_RCC_APB1RSTR_write(Stm32Rcc *s, uint32_t new_value,
+                    bool init)
+{
+    stm32_rcc_periph_enable(s, new_value, init, STM32_UART5,
+                            RCC_APB1RSTR_UART5RST_BIT);
+    stm32_rcc_periph_enable(s, new_value, init, STM32_UART4,
+                            RCC_APB1RSTR_UART4RST_BIT);
+    stm32_rcc_periph_enable(s, new_value, init, STM32_UART3,
+                            RCC_APB1RSTR_USART3RST_BIT);
+    stm32_rcc_periph_enable(s, new_value, init, STM32_UART2,
+                            RCC_APB1RSTR_USART2RST_BIT);
+
+    s->RCC_APB1RSTR = new_value & 0x00005e7d;
 }
 
 static uint32_t stm32_rcc_RCC_BDCR_read(Stm32Rcc *s)
@@ -466,7 +585,9 @@ static uint64_t stm32_rcc_readw(void *opaque, hwaddr offset)
         case RCC_CIR_OFFSET:
             return 0;
         case RCC_APB2RSTR_OFFSET:
+            return s->RCC_APB2RSTR;
         case RCC_APB1RSTR_OFFSET:
+            return s->RCC_APB1RSTR;
         case RCC_AHBENR_OFFSET:
             STM32_NOT_IMPL_REG(offset, 4);
             return 0;
@@ -507,7 +628,11 @@ static void stm32_rcc_writew(void *opaque, hwaddr offset,
             /* Allow a write but don't take any action */
             break;
         case RCC_APB2RSTR_OFFSET:
+            stm32_rcc_RCC_APB2RSTR_write(s, value, false);
+            break;
         case RCC_APB1RSTR_OFFSET:
+            stm32_rcc_RCC_APB1RSTR_write(s, value, false);
+            break;
         case RCC_AHBENR_OFFSET:
             STM32_NOT_IMPL_REG(offset, 4);
             break;
