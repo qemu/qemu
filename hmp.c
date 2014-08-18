@@ -1687,6 +1687,7 @@ void hmp_info_memdev(Monitor *mon, const QDict *qdict)
     MemdevList *memdev_list = qmp_query_memdev(&err);
     MemdevList *m = memdev_list;
     StringOutputVisitor *ov;
+    char *str;
     int i = 0;
 
 
@@ -1704,9 +1705,10 @@ void hmp_info_memdev(Monitor *mon, const QDict *qdict)
                        m->value->prealloc ? "true" : "false");
         monitor_printf(mon, "  policy: %s\n",
                        HostMemPolicy_lookup[m->value->policy]);
-        monitor_printf(mon, "  host nodes: %s\n",
-                       string_output_get_string(ov));
+        str = string_output_get_string(ov);
+        monitor_printf(mon, "  host nodes: %s\n", str);
 
+        g_free(str);
         string_output_visitor_cleanup(ov);
         m = m->next;
         i++;
