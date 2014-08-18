@@ -470,6 +470,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     uint64_t l1_vm_state_index;
     const char *opt_overlap_check;
     int overlap_check_template = 0;
+    uint64_t l2_cache_size, refcount_cache_size;
 
     ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
     if (ret < 0) {
@@ -707,8 +708,18 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* alloc L2 table/refcount block cache */
-    s->l2_table_cache = qcow2_cache_create(bs, L2_CACHE_SIZE);
-    s->refcount_block_cache = qcow2_cache_create(bs, REFCOUNT_CACHE_SIZE);
+    l2_cache_size = DEFAULT_L2_CACHE_BYTE_SIZE / s->cluster_size;
+    if (l2_cache_size < MIN_L2_CACHE_SIZE) {
+        l2_cache_size = MIN_L2_CACHE_SIZE;
+    }
+
+    refcount_cache_size = l2_cache_size / DEFAULT_L2_REFCOUNT_SIZE_RATIO;
+    if (refcount_cache_size < MIN_REFCOUNT_CACHE_SIZE) {
+        refcount_cache_size = MIN_REFCOUNT_CACHE_SIZE;
+    }
+
+    s->l2_table_cache = qcow2_cache_create(bs, l2_cache_size);
+    s->refcount_block_cache = qcow2_cache_create(bs, refcount_cache_size);
     if (s->l2_table_cache == NULL || s->refcount_block_cache == NULL) {
         error_setg(errp, "Could not allocate metadata caches");
         ret = -ENOMEM;
