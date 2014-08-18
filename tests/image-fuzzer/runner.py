@@ -25,6 +25,7 @@ import subprocess
 import random
 import shutil
 from itertools import count
+import time
 import getopt
 import StringIO
 import resource
@@ -269,6 +270,7 @@ if __name__ == '__main__':
 
         Optional arguments:
           -h, --help                    display this help and exit
+          -d, --duration=NUMBER         finish tests after NUMBER of seconds
           -c, --command=JSON            run tests for all commands specified in
                                         the JSON array
           -s, --seed=STRING             seed for a test image generation,
@@ -325,10 +327,15 @@ if __name__ == '__main__':
         finally:
             test.finish()
 
+    def should_continue(duration, start_time):
+        """Return True if a new test can be started and False otherwise."""
+        current_time = int(time.time())
+        return (duration is None) or (current_time - start_time < duration)
+
     try:
-        opts, args = getopt.gnu_getopt(sys.argv[1:], 'c:hs:kv',
+        opts, args = getopt.gnu_getopt(sys.argv[1:], 'c:hs:kvd:',
                                        ['command=', 'help', 'seed=', 'config=',
-                                        'keep_passed', 'verbose'])
+                                        'keep_passed', 'verbose', 'duration='])
     except getopt.error, e:
         print >>sys.stderr, \
             "Error: %s\n\nTry 'runner.py --help' for more information" % e
@@ -339,6 +346,8 @@ if __name__ == '__main__':
     log_all = False
     seed = None
     config = None
+    duration = None
+
     for opt, arg in opts:
         if opt in ('-h', '--help'):
             usage()
@@ -357,6 +366,8 @@ if __name__ == '__main__':
             log_all = True
         elif opt in ('-s', '--seed'):
             seed = arg
+        elif opt in ('-d', '--duration'):
+            duration = int(arg)
         elif opt == '--config':
             try:
                 config = json.loads(arg)
@@ -394,9 +405,11 @@ if __name__ == '__main__':
     resource.setrlimit(resource.RLIMIT_CORE, (-1, -1))
     # If a seed is specified, only one test will be executed.
     # Otherwise runner will terminate after a keyboard interruption
-    for test_id in count(1):
+    start_time = int(time.time())
+    test_id = count(1)
+    while should_continue(duration, start_time):
         try:
-            run_test(str(test_id), seed, work_dir, run_log, cleanup,
+            run_test(str(test_id.next()), seed, work_dir, run_log, cleanup,
                      log_all, command, config)
         except (KeyboardInterrupt, SystemExit):
             sys.exit(1)
