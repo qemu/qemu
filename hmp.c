@@ -1715,4 +1715,6 @@ void hmp_info_memdev(Monitor *mon, const QDict *qdict)
     }
 
     monitor_printf(mon, "\n");
+
+    qapi_free_MemdevList(memdev_list);
 }

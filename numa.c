@@ -379,7 +379,7 @@ error:
 MemdevList *qmp_query_memdev(Error **errp)
 {
     Object *obj;
-    MemdevList *list = NULL, *m;
+    MemdevList *list = NULL;
 
     obj = object_resolve_path("/objects", NULL);
     if (obj == NULL) {
@@ -393,11 +393,6 @@ MemdevList *qmp_query_memdev(Error **errp)
     return list;
 
 error:
-    while (list) {
-        m = list;
-        list = list->next;
-        g_free(m->value);
-        g_free(m);
-    }
+    qapi_free_MemdevList(list);
     return NULL;
 }
