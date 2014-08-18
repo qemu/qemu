@@ -337,15 +337,24 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
     }
 
-    /* Floating point */
-    for (i = 0; i < 16; i++) {
-        fpu.fprs[i] = get_freg(env, i)->ll;
-    }
-    fpu.fpc = env->fpc;
+    if (can_sync_regs(cs, KVM_SYNC_VRS)) {
+        for (i = 0; i < 32; i++) {
+            cs->kvm_run->s.regs.vrs[i][0] = env->vregs[i][0].ll;
+            cs->kvm_run->s.regs.vrs[i][1] = env->vregs[i][1].ll;
+        }
+        cs->kvm_run->s.regs.fpc = env->fpc;
+        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_VRS;
+    } else {
+        /* Floating point */
+        for (i = 0; i < 16; i++) {
+            fpu.fprs[i] = get_freg(env, i)->ll;
+        }
+        fpu.fpc = env->fpc;
 
-    r = kvm_vcpu_ioctl(cs, KVM_SET_FPU, &fpu);
-    if (r < 0) {
-        return r;
+        r = kvm_vcpu_ioctl(cs, KVM_SET_FPU, &fpu);
+        if (r < 0) {
+            return r;
+        }
     }
 
     /* Do we need to save more than that? */
@@ -468,15 +477,23 @@ int kvm_arch_get_registers(CPUState *cs)
         }
     }
 
-    /* Floating point */
-    r = kvm_vcpu_ioctl(cs, KVM_GET_FPU, &fpu);
-    if (r < 0) {
-        return r;
+    /* Floating point and vector registers */
+    if (can_sync_regs(cs, KVM_SYNC_VRS)) {
+        for (i = 0; i < 32; i++) {
+            env->vregs[i][0].ll = cs->kvm_run->s.regs.vrs[i][0];
+            env->vregs[i][1].ll = cs->kvm_run->s.regs.vrs[i][1];
+        }
+        env->fpc = cs->kvm_run->s.regs.fpc;
+    } else {
+        r = kvm_vcpu_ioctl(cs, KVM_GET_FPU, &fpu);
+        if (r < 0) {
+            return r;
+        }
+        for (i = 0; i < 16; i++) {
+            get_freg(env, i)->ll = fpu.fprs[i];
+        }
+        env->fpc = fpu.fpc;
     }
-    for (i = 0; i < 16; i++) {
-        get_freg(env, i)->ll = fpu.fprs[i];
-    }
-    env->fpc = fpu.fpc;
 
     /* The prefix */
     if (can_sync_regs(cs, KVM_SYNC_PREFIX)) {

@@ -187,7 +187,7 @@ void s390x_translate_init(void)
     for (i = 0; i < 16; i++) {
         snprintf(cpu_reg_names[i + 16], sizeof(cpu_reg_names[0]), "f%d", i);
         fregs[i] = tcg_global_mem_new(TCG_AREG0,
-                                      offsetof(CPUS390XState, fregs[i].d),
+                                      offsetof(CPUS390XState, vregs[i][0].d),
                                       cpu_reg_names[i + 16]);
     }
 }

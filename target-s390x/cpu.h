@@ -81,7 +81,11 @@ typedef struct MchkQueue {
 
 typedef struct CPUS390XState {
     uint64_t regs[16];     /* GP registers */
-    CPU_DoubleU fregs[16]; /* FP registers */
+    /*
+     * The floating point registers are part of the vector registers.
+     * vregs[0][0] -> vregs[15][0] are 16 floating point registers
+     */
+    CPU_DoubleU vregs[32][2];  /* vector registers */
     uint32_t aregs[16];    /* access registers */
 
     uint32_t fpc;          /* floating-point control register */
@@ -164,7 +168,7 @@ typedef struct CPUS390XState {
 
 static inline CPU_DoubleU *get_freg(CPUS390XState *cs, int nr)
 {
-    return &cs->fregs[nr];
+    return &cs->vregs[nr][0];
 }
 
 #include "cpu-qom.h"
