@@ -33,6 +33,13 @@
 #include <hw/ide/pci.h>
 
 /* CMD646 specific */
+#define CFR		0x50
+#define   CFR_INTR_CH0	0x04
+#define CNTRL		0x51
+#define   CNTRL_EN_CH0	0x04
+#define   CNTRL_EN_CH1	0x08
+#define ARTTIM23	0x57
+#define    ARTTIM23_INTR_CH1	0x10
 #define MRDMODE		0x71
 #define   MRDMODE_INTR_CH0	0x04
 #define   MRDMODE_INTR_CH1	0x08
@@ -41,7 +48,7 @@
 #define UDIDETCR0	0x73
 #define UDIDETCR1	0x7B
 
-static void cmd646_update_irq(PCIIDEState *d);
+static void cmd646_update_irq(PCIDevice *pd);
 
 static uint64_t cmd646_cmd_read(void *opaque, hwaddr addr,
                                 unsigned size)
@@ -123,6 +130,38 @@ static void setup_cmd646_bar(PCIIDEState *d, int bus_num)
                           "cmd646-data", 8);
 }
 
+static void cmd646_update_dma_interrupts(PCIDevice *pd)
+{
+    /* Sync DMA interrupt status from UDMA interrupt status */
+    if (pd->config[MRDMODE] & MRDMODE_INTR_CH0) {
+        pd->config[CFR] |= CFR_INTR_CH0;
+    } else {
+        pd->config[CFR] &= ~CFR_INTR_CH0;
+    }
+
+    if (pd->config[MRDMODE] & MRDMODE_INTR_CH1) {
+        pd->config[ARTTIM23] |= ARTTIM23_INTR_CH1;
+    } else {
+        pd->config[ARTTIM23] &= ~ARTTIM23_INTR_CH1;
+    }
+}
+
+static void cmd646_update_udma_interrupts(PCIDevice *pd)
+{
+    /* Sync UDMA interrupt status from DMA interrupt status */
+    if (pd->config[CFR] & CFR_INTR_CH0) {
+        pd->config[MRDMODE] |= MRDMODE_INTR_CH0;
+    } else {
+        pd->config[MRDMODE] &= ~MRDMODE_INTR_CH0;
+    }
+
+    if (pd->config[ARTTIM23] & ARTTIM23_INTR_CH1) {
+        pd->config[MRDMODE] |= MRDMODE_INTR_CH1;
+    } else {
+        pd->config[MRDMODE] &= ~MRDMODE_INTR_CH1;
+    }
+}
+
 static uint64_t bmdma_read(void *opaque, hwaddr addr,
                            unsigned size)
 {
@@ -181,7 +220,8 @@ static void bmdma_write(void *opaque, hwaddr addr,
     case 1:
         pci_dev->config[MRDMODE] =
             (pci_dev->config[MRDMODE] & ~0x30) | (val & 0x30);
-        cmd646_update_irq(bm->pci_dev);
+        cmd646_update_dma_interrupts(pci_dev);
+        cmd646_update_irq(pci_dev);
         break;
     case 2:
         bm->status = (val & 0x60) | (bm->status & 1) | (bm->status & ~val & 0x06);
@@ -219,11 +259,8 @@ static void bmdma_setup_bar(PCIIDEState *d)
     }
 }
 
-/* XXX: call it also when the MRDMODE is changed from the PCI config
-   registers */
-static void cmd646_update_irq(PCIIDEState *d)
+static void cmd646_update_irq(PCIDevice *pd)
 {
-    PCIDevice *pd = PCI_DEVICE(d);
     int pci_level;
 
     pci_level = ((pd->config[MRDMODE] & MRDMODE_INTR_CH0) &&
@@ -246,7 +283,8 @@ static void cmd646_set_irq(void *opaque, int channel, int level)
     } else {
         pd->config[MRDMODE] &= ~irq_mask;
     }
-    cmd646_update_irq(d);
+    cmd646_update_dma_interrupts(pd);
+    cmd646_update_irq(pd);
 }
 
 static void cmd646_reset(void *opaque)
@@ -259,6 +297,34 @@ static void cmd646_reset(void *opaque)
     }
 }
 
+static uint32_t cmd646_pci_config_read(PCIDevice *d,
+                                       uint32_t address, int len)
+{
+    return pci_default_read_config(d, address, len);
+}
+
+static void cmd646_pci_config_write(PCIDevice *d, uint32_t addr, uint32_t val,
+                                    int l)
+{
+    uint32_t i;
+
+    pci_default_write_config(d, addr, val, l);
+
+    for (i = addr; i < addr + l; i++) {
+        switch (i) {
+        case CFR:
+        case ARTTIM23:
+            cmd646_update_udma_interrupts(d);
+            break;
+        case MRDMODE:
+            cmd646_update_dma_interrupts(d);
+            break;
+        }
+    }
+
+    cmd646_update_irq(d);
+}
+
 /* CMD646 PCI IDE controller */
 static int pci_cmd646_ide_initfn(PCIDevice *dev)
 {
@@ -269,11 +335,19 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
 
     pci_conf[PCI_CLASS_PROG] = 0x8f;
 
-    pci_conf[0x51] = 0x04; // enable IDE0
+    pci_conf[CNTRL] = CNTRL_EN_CH0; // enable IDE0
     if (d->secondary) {
         /* XXX: if not enabled, really disable the seconday IDE controller */
-        pci_conf[0x51] |= 0x08; /* enable IDE1 */
+        pci_conf[CNTRL] |= CNTRL_EN_CH1; /* enable IDE1 */
     }
+
+    /* Set write-to-clear interrupt bits */
+    dev->wmask[CFR] = 0x0;
+    dev->w1cmask[CFR] = CFR_INTR_CH0;
+    dev->wmask[ARTTIM23] = 0x0;
+    dev->w1cmask[ARTTIM23] = ARTTIM23_INTR_CH1;
+    dev->wmask[MRDMODE] = 0x0;
+    dev->w1cmask[MRDMODE] = MRDMODE_INTR_CH0 | MRDMODE_INTR_CH1;
 
     setup_cmd646_bar(d, 0);
     setup_cmd646_bar(d, 1);
@@ -347,6 +421,8 @@ static void cmd646_ide_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_CMD_646;
     k->revision = 0x07;
     k->class_id = PCI_CLASS_STORAGE_IDE;
+    k->config_read = cmd646_pci_config_read;
+    k->config_write = cmd646_pci_config_write;
     dc->props = cmd646_ide_properties;
 }
 

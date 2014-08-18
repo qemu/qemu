@@ -138,9 +138,9 @@ void qpci_io_writel(QPCIDevice *dev, void *data, uint32_t value)
     dev->bus->io_writel(dev->bus, data, value);
 }
 
-void *qpci_iomap(QPCIDevice *dev, int barno)
+void *qpci_iomap(QPCIDevice *dev, int barno, uint64_t *sizeptr)
 {
-    return dev->bus->iomap(dev->bus, dev, barno);
+    return dev->bus->iomap(dev->bus, dev, barno, sizeptr);
 }
 
 void qpci_iounmap(QPCIDevice *dev, void *data)

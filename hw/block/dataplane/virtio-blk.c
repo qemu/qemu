@@ -28,6 +28,7 @@ struct VirtIOBlockDataPlane {
     bool started;
     bool starting;
     bool stopping;
+    bool disabled;
 
     VirtIOBlkConf *blk;
 
@@ -218,8 +219,9 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtIOBlock *vblk = VIRTIO_BLK(s->vdev);
     VirtQueue *vq;
+    int r;
 
-    if (s->started) {
+    if (s->started || s->disabled) {
         return;
     }
 
@@ -231,22 +233,23 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
 
     vq = virtio_get_queue(s->vdev, 0);
     if (!vring_setup(&s->vring, s->vdev, 0)) {
-        s->starting = false;
-        return;
+        goto fail_vring;
     }
 
     /* Set up guest notifier (irq) */
-    if (k->set_guest_notifiers(qbus->parent, 1, true) != 0) {
-        fprintf(stderr, "virtio-blk failed to set guest notifier, "
-                "ensure -enable-kvm is set\n");
-        exit(1);
+    r = k->set_guest_notifiers(qbus->parent, 1, true);
+    if (r != 0) {
+        fprintf(stderr, "virtio-blk failed to set guest notifier (%d), "
+                "ensure -enable-kvm is set\n", r);
+        goto fail_guest_notifiers;
     }
     s->guest_notifier = virtio_queue_get_guest_notifier(vq);
 
     /* Set up virtqueue notify */
-    if (k->set_host_notifier(qbus->parent, 0, true) != 0) {
-        fprintf(stderr, "virtio-blk failed to set host notifier\n");
-        exit(1);
+    r = k->set_host_notifier(qbus->parent, 0, true);
+    if (r != 0) {
+        fprintf(stderr, "virtio-blk failed to set host notifier (%d)\n", r);
+        goto fail_host_notifier;
     }
     s->host_notifier = *virtio_queue_get_host_notifier(vq);
 
@@ -266,6 +269,15 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
     aio_context_acquire(s->ctx);
     aio_set_event_notifier(s->ctx, &s->host_notifier, handle_notify);
     aio_context_release(s->ctx);
+    return;
+
+  fail_host_notifier:
+    k->set_guest_notifiers(qbus->parent, 1, false);
+  fail_guest_notifiers:
+    vring_teardown(&s->vring, s->vdev, 0);
+    s->disabled = true;
+  fail_vring:
+    s->starting = false;
 }
 
 /* Context: QEMU global mutex held */
@@ -274,6 +286,13 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s->vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtIOBlock *vblk = VIRTIO_BLK(s->vdev);
+
+
+    /* Better luck next time. */
+    if (s->disabled) {
+        s->disabled = false;
+        return;
+    }
     if (!s->started || s->stopping) {
         return;
     }

@@ -36,7 +36,7 @@ static uint64_t pc_alloc(QGuestAllocator *allocator, size_t size)
 
 
     size += (PAGE_SIZE - 1);
-    size &= PAGE_SIZE;
+    size &= -PAGE_SIZE;
 
     g_assert_cmpint((s->start + size), <=, s->end);
 
@@ -66,6 +66,9 @@ QGuestAllocator *pc_alloc_init(void)
 
     /* Respect PCI hole */
     s->end = MIN(ram_size, 0xE0000000);
+
+    /* clean-up */
+    g_free(fw_cfg);
 
     return &s->alloc;
 }

@@ -1,0 +1,238 @@
+# Specification for the fuzz testing tool
+#
+# Copyright (C) 2014 Maria Kustova <maria.k@catit.be>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+Image fuzzer
+============
+
+Description
+-----------
+
+The goal of the image fuzzer is to catch crashes of qemu-io/qemu-img
+by providing to them randomly corrupted images.
+Test images are generated from scratch and have valid inner structure with some
+elements, e.g. L1/L2 tables, having random invalid values.
+
+
+Test runner
+-----------
+
+The test runner generates test images, executes tests utilizing generated
+images, indicates their results and collects all test related artifacts (logs,
+core dumps, test images, backing files).
+The test means execution of all available commands under test with the same
+generated test image.
+By default, the test runner generates new tests and executes them until
+keyboard interruption. But if a test seed is specified via the '--seed' runner
+parameter, then only one test with this seed will be executed, after its finish
+the runner will exit.
+
+The runner uses an external image fuzzer to generate test images. An image
+generator should be specified as a mandatory parameter of the test runner.
+Details about interactions between the runner and fuzzers see "Module
+interfaces".
+
+The runner activates generation of core dumps during test executions, but it
+assumes that core dumps will be generated in the current working directory.
+For comprehensive test results, please, set up your test environment
+properly.
+
+Paths to binaries under test (SUTs) qemu-img and qemu-io are retrieved from
+environment variables. If the environment check fails the runner will
+use SUTs installed in system paths.
+qemu-img is required for creation of backing files, so it's mandatory to set
+the related environment variable if it's not installed in the system path.
+For details about environment variables see qemu-iotests/check.
+
+The runner accepts a JSON array of fields expected to be fuzzed via the
+'--config' argument, e.g.
+
+       '[["feature_name_table"], ["header", "l1_table_offset"]]'
+
+Each sublist can have one or two strings defining image structure elements.
+In the latter case a parent element should be placed on the first position,
+and a field name on the second one.
+
+The runner accepts a list of commands under test as a JSON array via
+the '--command' argument. Each command is a list containing a SUT and all its
+arguments, e.g.
+
+       runner.py -c '[["qemu-io", "$test_img", "-c", "write $off $len"]]'
+     /tmp/test ../qcow2
+
+For variable arguments next aliases can be used:
+    - $test_img for a fuzzed img
+    - $off for an offset in the fuzzed image
+    - $len for a data size
+
+Values for last two aliases will be generated based on a size of a virtual
+disk of the generated image.
+In case when no commands are specified the runner will execute commands from
+the default list:
+    - qemu-img check
+    - qemu-img info
+    - qemu-img convert
+    - qemu-io -c read
+    - qemu-io -c write
+    - qemu-io -c aio_read
+    - qemu-io -c aio_write
+    - qemu-io -c flush
+    - qemu-io -c discard
+    - qemu-io -c truncate
+
+
+Qcow2 image generator
+---------------------
+
+The 'qcow2' generator is a Python package providing 'create_image' method as
+a single public API. See details in 'Test runner/image fuzzer' chapter of
+'Module interfaces'.
+
+Qcow2 contains two submodules: fuzz.py and layout.py.
+
+'fuzz.py' contains all fuzzing functions, one per image field. It's assumed
+that after code analysis every field will have own constraints for its value.
+For now only universal potentially dangerous values are used, e.g. type limits
+for integers or unsafe symbols as '%s' for strings. For bitmasks random amount
+of bits are set to ones. All fuzzed values are checked on non-equality to the
+current valid value of the field. In case of equality the value will be
+regenerated.
+
+'layout.py' creates a random valid image, fuzzes a random subset of the image
+fields by 'fuzz.py' module and writes a fuzzed image to the file specified.
+If a fuzzer configuration is specified, then it has the next interpretation:
+
+    1. If a list contains a parent image element only, then some random portion
+    of fields of this element will be fuzzed every test.
+    The same behavior is applied for the entire image if no configuration is
+    used. This case is useful for the test specialization.
+
+    2. If a list contains a parent element and a field name, then a field
+    will be always fuzzed for every test. This case is useful for regression
+    testing.
+
+For now only header fields, header extensions and L1/L2 tables are generated.
+
+Module interfaces
+-----------------
+
+* Test runner/image fuzzer
+
+The runner calls an image generator specifying the path to a test image file,
+path to a backing file and its format and a fuzzer configuration.
+An image generator is expected to provide a
+
+   'create_image(test_img_path, backing_file_path=None,
+                 backing_file_format=None, fuzz_config=None)'
+
+method that creates a test image, writes it to the specified file and returns
+the size of the virtual disk.
+The file should be created if it doesn't exist or overwritten otherwise.
+fuzz_config has a form of a list of lists. Every sublist can have one
+or two elements: first element is a name of a parent image element, second one
+if exists is a name of a field in this element.
+Example,
+        [['header', 'l1_table_offset'],
+         ['header', 'nb_snapshots'],
+         ['feature_name_table']]
+
+Random seed is set by the runner at every test execution for the regression
+purpose, so an image generator is not recommended to modify it internally.
+
+
+Overall fuzzer requirements
+===========================
+
+Input data:
+----------
+
+ - image template (generator)
+ - work directory
+ - action vector (optional)
+ - seed (optional)
+ - SUT and its arguments (optional)
+
+
+Fuzzer requirements:
+-------------------
+
+1.  Should be able to inject random data
+2.  Should be able to select a random value from the manually pregenerated
+    vector (boundary values, e.g. max/min cluster size)
+3.  Image template should describe a general structure invariant for all
+    test images (image format description)
+4.  Image template should be autonomous and other fuzzer parts should not
+    rely on it
+5.  Image template should contain reference rules (not only block+size
+    description)
+6.  Should generate the test image with the correct structure based on an image
+    template
+7.  Should accept a seed as an argument (for regression purpose)
+8.  Should generate a seed if it is not specified as an input parameter.
+9.  The same seed should generate the same image for the same action vector,
+    specified or generated.
+10. Should accept a vector of actions as an argument (for test reproducing and
+    for test case specification, e.g. group of tests for header structure,
+    group of test for snapshots, etc)
+11. Action vector should be randomly generated from the pool of available
+    actions, if it is not specified as an input parameter
+12. Pool of actions should be defined automatically based on an image template
+13. Should accept a SUT and its call parameters as an argument or select them
+    randomly otherwise. As far as it's expected to be rarely changed, the list
+    of all possible test commands can be available in the test runner
+    internally.
+14. Should support an external cancellation of a test run
+15. Seed should be logged (for regression purpose)
+16. All files related to a test result should be collected: a test image,
+    SUT logs, fuzzer logs and crash dumps
+17. Should be compatible with python version 2.4-2.7
+18. Usage of external libraries should be limited as much as possible.
+
+
+Image formats:
+-------------
+
+Main target image format is qcow2, but support of image templates should
+provide an ability to add any other image format.
+
+
+Effectiveness:
+-------------
+
+The fuzzer can be controlled via template, seed and action vector;
+it makes the fuzzer itself invariant to an image format and test logic.
+It should be able to perform rather complex and precise tests, that can be
+specified via an action vector. Otherwise, knowledge about an image structure
+allows the fuzzer to generate the pool of all available areas can be fuzzed
+and randomly select some of them and so compose its own action vector.
+Also complexity of a template defines complexity of the fuzzer, so its
+functionality can be varied from simple model-independent fuzzing to smart
+model-based one.
+
+
+Glossary:
+--------
+
+Action vector is a sequence of structure elements retrieved from an image
+format, each of them will be fuzzed for the test image. It's a subset of
+elements of the action pool. Example: header, refcount table, etc.
+Action pool is all available elements of an image structure that generated
+automatically from an image template.
+Image template is a formal description of an image structure and relations
+between image blocks.
+Test image is an output image of the fuzzer defined by the current seed and
+action vector.

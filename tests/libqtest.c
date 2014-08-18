@@ -167,11 +167,12 @@ QTestState *qtest_init(const char *extra_args)
     if (s->qemu_pid == 0) {
         command = g_strdup_printf("exec %s "
                                   "-qtest unix:%s,nowait "
-                                  "-qtest-log /dev/null "
+                                  "-qtest-log %s "
                                   "-qmp unix:%s,nowait "
                                   "-machine accel=qtest "
                                   "-display none "
                                   "%s", qemu_binary, socket_path,
+                                  getenv("QTEST_LOG") ? "/dev/fd/2" : "/dev/null",
                                   qmp_socket_path,
                                   extra_args ?: "");
         execlp("/bin/sh", "sh", "-c", command, NULL);
@@ -358,6 +359,7 @@ static void qmp_response(JSONMessageParser *parser, QList *tokens)
 QDict *qtest_qmp_receive(QTestState *s)
 {
     QMPResponseParser qmp;
+    bool log = getenv("QTEST_LOG") != NULL;
 
     qmp.response = NULL;
     json_message_parser_init(&qmp.parser, qmp_response);
@@ -375,6 +377,9 @@ QDict *qtest_qmp_receive(QTestState *s)
             exit(1);
         }
 
+        if (log) {
+            len = write(2, &c, 1);
+        }
         json_message_parser_feed(&qmp.parser, &c, 1);
     }
     json_message_parser_destroy(&qmp.parser);
@@ -397,10 +402,14 @@ QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
 
     /* No need to send anything for an empty QObject.  */
     if (qobj) {
+        int log = getenv("QTEST_LOG") != NULL;
         QString *qstr = qobject_to_json(qobj);
         const char *str = qstring_get_str(qstr);
         size_t size = qstring_get_length(qstr);
 
+        if (log) {
+            fprintf(stderr, "%s", str);
+        }
         /* Send QMP request */
         socket_send(s->qmp_fd, str, size);
 
@@ -639,6 +648,7 @@ void qtest_add_func(const char *str, void (*fn))
 {
     gchar *path = g_strdup_printf("/%s/%s", qtest_get_arch(), str);
     g_test_add_func(path, fn);
+    g_free(path);
 }
 
 void qtest_memwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
@@ -649,6 +659,18 @@ void qtest_memwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
     qtest_sendf(s, "write 0x%" PRIx64 " 0x%zx 0x", addr, size);
     for (i = 0; i < size; i++) {
         qtest_sendf(s, "%02x", ptr[i]);
+    }
+    qtest_sendf(s, "\n");
+    qtest_rsp(s, 0);
+}
+
+void qtest_memset(QTestState *s, uint64_t addr, uint8_t pattern, size_t size)
+{
+    size_t i;
+
+    qtest_sendf(s, "write 0x%" PRIx64 " 0x%zx 0x", addr, size);
+    for (i = 0; i < size; i++) {
+        qtest_sendf(s, "%02x", pattern);
     }
     qtest_sendf(s, "\n");
     qtest_rsp(s, 0);

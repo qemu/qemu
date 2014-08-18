@@ -320,8 +320,9 @@ typedef enum { IDE_HD, IDE_CD, IDE_CFATA } IDEDriveKind;
 typedef void EndTransferFunc(IDEState *);
 
 typedef void DMAStartFunc(IDEDMA *, IDEState *, BlockDriverCompletionFunc *);
-typedef int DMAFunc(IDEDMA *);
+typedef void DMAVoidFunc(IDEDMA *);
 typedef int DMAIntFunc(IDEDMA *, int);
+typedef void DMAStopFunc(IDEDMA *, bool);
 typedef void DMARestartFunc(void *, int, RunState);
 
 struct unreported_events {
@@ -427,15 +428,14 @@ struct IDEState {
 
 struct IDEDMAOps {
     DMAStartFunc *start_dma;
-    DMAFunc *start_transfer;
+    DMAVoidFunc *start_transfer;
     DMAIntFunc *prepare_buf;
     DMAIntFunc *rw_buf;
     DMAIntFunc *set_unit;
-    DMAIntFunc *add_status;
-    DMAFunc *set_inactive;
-    DMAFunc *async_cmd_done;
+    DMAStopFunc *set_inactive;
+    DMAVoidFunc *cmd_done;
     DMARestartFunc *restart_cb;
-    DMAFunc *reset;
+    DMAVoidFunc *reset;
 };
 
 struct IDEDMA {
@@ -484,23 +484,12 @@ struct IDEDevice {
     uint64_t wwn;
 };
 
-#define BM_STATUS_DMAING 0x01
-#define BM_STATUS_ERROR  0x02
-#define BM_STATUS_INT    0x04
-
-/* FIXME These are not status register bits */
-#define BM_STATUS_DMA_RETRY  0x08
-#define BM_STATUS_PIO_RETRY  0x10
-#define BM_STATUS_RETRY_READ  0x20
-#define BM_STATUS_RETRY_FLUSH 0x40
-#define BM_STATUS_RETRY_TRIM 0x80
-
-#define BM_MIGRATION_COMPAT_STATUS_BITS \
-        (BM_STATUS_DMA_RETRY | BM_STATUS_PIO_RETRY | \
-        BM_STATUS_RETRY_READ | BM_STATUS_RETRY_FLUSH)
-
-#define BM_CMD_START     0x01
-#define BM_CMD_READ      0x08
+/* These are used for the error_status field of IDEBus */
+#define IDE_RETRY_DMA  0x08
+#define IDE_RETRY_PIO  0x10
+#define IDE_RETRY_READ  0x20
+#define IDE_RETRY_FLUSH 0x40
+#define IDE_RETRY_TRIM 0x80
 
 static inline IDEState *idebus_active_if(IDEBus *bus)
 {
@@ -532,6 +521,7 @@ void ide_bus_reset(IDEBus *bus);
 int64_t ide_get_sector(IDEState *s);
 void ide_set_sector(IDEState *s, int64_t sector_num);
 
+void ide_start_dma(IDEState *s, BlockDriverCompletionFunc *cb);
 void ide_dma_error(IDEState *s);
 
 void ide_atapi_cmd_ok(IDEState *s);
@@ -564,7 +554,7 @@ void ide_flush_cache(IDEState *s);
 void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
                         EndTransferFunc *end_transfer_func);
 void ide_transfer_stop(IDEState *s);
-void ide_set_inactive(IDEState *s);
+void ide_set_inactive(IDEState *s, bool more);
 BlockDriverAIOCB *ide_issue_trim(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);

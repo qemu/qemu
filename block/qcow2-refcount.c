@@ -381,6 +381,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
     ret = bdrv_pwrite_sync(bs->file, meta_offset, new_blocks,
         blocks_clusters * s->cluster_size);
     g_free(new_blocks);
+    new_blocks = NULL;
     if (ret < 0) {
         goto fail_table;
     }

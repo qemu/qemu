@@ -106,6 +106,7 @@ static QPCIBus *pcibus = NULL;
 static QGuestAllocator *guest_malloc;
 
 static char tmp_path[] = "/tmp/qtest.XXXXXX";
+static char debug_path[] = "/tmp/qtest-blkdebug.XXXXXX";
 
 static void ide_test_start(const char *cmdline_fmt, ...)
 {
@@ -119,6 +120,8 @@ static void ide_test_start(const char *cmdline_fmt, ...)
     qtest_start(cmdline);
     qtest_irq_intercept_in(global_qtest, "ioapic");
     guest_malloc = pc_alloc_init();
+
+    g_free(cmdline);
 }
 
 static void ide_test_quit(void)
@@ -145,7 +148,7 @@ static QPCIDevice *get_pci_device(uint16_t *bmdma_base)
     g_assert(device_id == PCI_DEVICE_ID_INTEL_82371SB_1);
 
     /* Map bmdma BAR */
-    *bmdma_base = (uint16_t)(uintptr_t) qpci_iomap(dev, 4);
+    *bmdma_base = (uint16_t)(uintptr_t) qpci_iomap(dev, 4, NULL);
 
     qpci_device_enable(dev);
 
@@ -489,6 +492,91 @@ static void test_flush(void)
     ide_test_quit();
 }
 
+static void prepare_blkdebug_script(const char *debug_fn, const char *event)
+{
+    FILE *debug_file = fopen(debug_fn, "w");
+    int ret;
+
+    fprintf(debug_file, "[inject-error]\n");
+    fprintf(debug_file, "event = \"%s\"\n", event);
+    fprintf(debug_file, "errno = \"5\"\n");
+    fprintf(debug_file, "state = \"1\"\n");
+    fprintf(debug_file, "immediately = \"off\"\n");
+    fprintf(debug_file, "once = \"on\"\n");
+
+    fprintf(debug_file, "[set-state]\n");
+    fprintf(debug_file, "event = \"%s\"\n", event);
+    fprintf(debug_file, "new_state = \"2\"\n");
+    fflush(debug_file);
+    g_assert(!ferror(debug_file));
+
+    ret = fclose(debug_file);
+    g_assert(ret == 0);
+}
+
+static void test_retry_flush(void)
+{
+    uint8_t data;
+    const char *s;
+    QDict *response;
+
+    prepare_blkdebug_script(debug_path, "flush_to_disk");
+
+    ide_test_start(
+        "-vnc none "
+        "-drive file=blkdebug:%s:%s,if=ide,cache=writeback,rerror=stop,werror=stop",
+        debug_path, tmp_path);
+
+    /* FLUSH CACHE command on device 0*/
+    outb(IDE_BASE + reg_device, 0);
+    outb(IDE_BASE + reg_command, CMD_FLUSH_CACHE);
+
+    /* Check status while request is in flight*/
+    data = inb(IDE_BASE + reg_status);
+    assert_bit_set(data, BSY | DRDY);
+    assert_bit_clear(data, DF | ERR | DRQ);
+
+    for (;; response = NULL) {
+        response = qmp_receive();
+        if ((qdict_haskey(response, "event")) &&
+            (strcmp(qdict_get_str(response, "event"), "STOP") == 0)) {
+            QDECREF(response);
+            break;
+        }
+        QDECREF(response);
+    }
+
+    /* Complete the command */
+    s = "{'execute':'cont' }";
+    qmp_discard_response(s);
+
+    /* Check registers */
+    data = inb(IDE_BASE + reg_device);
+    g_assert_cmpint(data & DEV, ==, 0);
+
+    do {
+        data = inb(IDE_BASE + reg_status);
+    } while (data & BSY);
+
+    assert_bit_set(data, DRDY);
+    assert_bit_clear(data, BSY | DF | ERR | DRQ);
+
+    ide_test_quit();
+}
+
+static void test_flush_nodev(void)
+{
+    ide_test_start("");
+
+    /* FLUSH CACHE command on device 0*/
+    outb(IDE_BASE + reg_device, 0);
+    outb(IDE_BASE + reg_command, CMD_FLUSH_CACHE);
+
+    /* Just testing that qemu doesn't crash... */
+
+    ide_test_quit();
+}
+
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
@@ -500,6 +588,11 @@ int main(int argc, char **argv)
         g_test_message("Skipping test for non-x86\n");
         return 0;
     }
+
+    /* Create temporary blkdebug instructions */
+    fd = mkstemp(debug_path);
+    g_assert(fd >= 0);
+    close(fd);
 
     /* Create a temporary raw image */
     fd = mkstemp(tmp_path);
@@ -521,11 +614,15 @@ int main(int argc, char **argv)
     qtest_add_func("/ide/bmdma/teardown", test_bmdma_teardown);
 
     qtest_add_func("/ide/flush", test_flush);
+    qtest_add_func("/ide/flush_nodev", test_flush_nodev);
+
+    qtest_add_func("/ide/retry/flush", test_retry_flush);
 
     ret = g_test_run();
 
     /* Cleanup */
     unlink(tmp_path);
+    unlink(debug_path);
 
     return ret;
 }

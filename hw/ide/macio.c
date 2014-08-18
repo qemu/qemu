@@ -545,11 +545,6 @@ static void macio_ide_reset(DeviceState *dev)
     ide_bus_reset(&d->bus);
 }
 
-static int ide_nop(IDEDMA *dma)
-{
-    return 0;
-}
-
 static int ide_nop_int(IDEDMA *dma, int x)
 {
     return 0;
@@ -571,14 +566,10 @@ static void ide_dbdma_start(IDEDMA *dma, IDEState *s,
 
 static const IDEDMAOps dbdma_ops = {
     .start_dma      = ide_dbdma_start,
-    .start_transfer = ide_nop,
     .prepare_buf    = ide_nop_int,
     .rw_buf         = ide_nop_int,
     .set_unit       = ide_nop_int,
-    .add_status     = ide_nop_int,
-    .set_inactive   = ide_nop,
     .restart_cb     = ide_nop_restart,
-    .reset          = ide_nop,
 };
 
 static void macio_ide_realizefn(DeviceState *dev, Error **errp)
