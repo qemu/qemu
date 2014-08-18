@@ -469,8 +469,9 @@ static void virtio_blk_dma_restart_bh(void *opaque)
     s->rq = NULL;
 
     while (req) {
+        VirtIOBlockReq *next = req->next;
         virtio_blk_handle_request(req, &mrb);
-        req = req->next;
+        req = next;
     }
 
     virtio_submit_multiwrite(s->bs, &mrb);
