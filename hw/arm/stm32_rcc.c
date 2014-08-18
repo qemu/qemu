@@ -754,8 +754,14 @@ void stm32_rcc_check_periph_clk(Stm32Rcc *s, stm32_periph_t periph)
          * is disabled is a bug and give a warning to unsuspecting programmers.
          * When I made this mistake on real hardware the write had no effect.
          */
+#ifndef STM32_ALLOW_PERIPH_ACCESS
         hw_error("Warning: You are attempting to use the %s peripheral while "
                  "its clock is disabled.\n", stm32_periph_name(periph));
+#else
+        stm32_hw_warn("Warning: You are attempting to use the %s peripheral while "
+                 "its clock is disabled.\n", stm32_periph_name(periph));
+
+#endif
     }
 }
 
