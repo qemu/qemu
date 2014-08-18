@@ -318,10 +318,11 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
 static int query_memdev(Object *obj, void *opaque)
 {
     MemdevList **list = opaque;
+    MemdevList *m = NULL;
     Error *err = NULL;
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_BACKEND)) {
-        MemdevList *m = g_malloc0(sizeof(*m));
+        m = g_malloc0(sizeof(*m));
 
         m->value = g_malloc0(sizeof(*m->value));
 
@@ -369,6 +370,9 @@ static int query_memdev(Object *obj, void *opaque)
 
     return 0;
 error:
+    g_free(m->value);
+    g_free(m);
+
     return -1;
 }
 
