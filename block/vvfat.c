@@ -732,7 +732,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 	if(first_cluster == 0 && (is_dotdot || is_dot))
 	    continue;
 
-	buffer=(char*)g_malloc(length);
+	buffer = g_malloc(length);
 	snprintf(buffer,length,"%s/%s",dirname,entry->d_name);
 
 	if(stat(buffer,&st)<0) {
@@ -767,7 +767,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 
 	/* create mapping for this file */
 	if(!is_dot && !is_dotdot && (S_ISDIR(st.st_mode) || st.st_size)) {
-	    s->current_mapping=(mapping_t*)array_get_next(&(s->mapping));
+	    s->current_mapping = array_get_next(&(s->mapping));
 	    s->current_mapping->begin=0;
 	    s->current_mapping->end=st.st_size;
 	    /*
@@ -811,12 +811,12 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
     }
 
      /* reget the mapping, since s->mapping was possibly realloc()ed */
-    mapping = (mapping_t*)array_get(&(s->mapping), mapping_index);
+    mapping = array_get(&(s->mapping), mapping_index);
     first_cluster += (s->directory.next - mapping->info.dir.first_dir_index)
 	* 0x20 / s->cluster_size;
     mapping->end = first_cluster;
 
-    direntry = (direntry_t*)array_get(&(s->directory), mapping->dir_index);
+    direntry = array_get(&(s->directory), mapping->dir_index);
     set_begin_of_direntry(direntry, mapping->begin);
 
     return 0;
