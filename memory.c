@@ -914,6 +914,7 @@ void memory_region_init(MemoryRegion *mr,
     if (size == UINT64_MAX) {
         mr->size = int128_2_64();
     }
+    mr->name = g_strdup(name);
 
     if (name) {
         object_property_add_child_array(owner, name, OBJECT(mr));
@@ -1258,6 +1259,7 @@ static void memory_region_finalize(Object *obj)
     assert(memory_region_transaction_depth == 0);
     mr->destructor(mr);
     memory_region_clear_coalescing(mr);
+    g_free((char *)mr->name);
     g_free(mr->ioeventfds);
 }
 
@@ -1307,7 +1309,7 @@ uint64_t memory_region_size(MemoryRegion *mr)
 
 const char *memory_region_name(const MemoryRegion *mr)
 {
-    return object_get_canonical_path_component(OBJECT(mr));
+    return mr->name;
 }
 
 bool memory_region_is_ram(MemoryRegion *mr)
