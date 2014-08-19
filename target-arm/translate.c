@@ -3908,9 +3908,10 @@ static uint32_t msr_mask(CPUARMState *env, DisasContext *s, int flags, int spsr)
         mask &= ~(CPSR_E | CPSR_GE);
     if (!arm_feature(env, ARM_FEATURE_THUMB2))
         mask &= ~CPSR_IT;
-    /* Mask out execution state bits.  */
-    if (!spsr)
-        mask &= ~CPSR_EXEC;
+    /* Mask out execution state and reserved bits.  */
+    if (!spsr) {
+        mask &= ~(CPSR_EXEC | CPSR_RESERVED);
+    }
     /* Mask out privileged bits.  */
     if (IS_USER(s))
         mask &= CPSR_USER;
@@ -3954,7 +3955,7 @@ static void gen_exception_return(DisasContext *s, TCGv_i32 pc)
     TCGv_i32 tmp;
     store_reg(s, 15, pc);
     tmp = load_cpu_field(spsr);
-    gen_set_cpsr(tmp, 0xffffffff);
+    gen_set_cpsr(tmp, CPSR_ERET_MASK);
     tcg_temp_free_i32(tmp);
     s->is_jmp = DISAS_UPDATE;
 }
@@ -3962,7 +3963,7 @@ static void gen_exception_return(DisasContext *s, TCGv_i32 pc)
 /* Generate a v6 exception return.  Marks both values as dead.  */
 static void gen_rfe(DisasContext *s, TCGv_i32 pc, TCGv_i32 cpsr)
 {
-    gen_set_cpsr(cpsr, 0xffffffff);
+    gen_set_cpsr(cpsr, CPSR_ERET_MASK);
     tcg_temp_free_i32(cpsr);
     store_reg(s, 15, pc);
     s->is_jmp = DISAS_UPDATE;
@@ -8836,7 +8837,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                 if ((insn & (1 << 22)) && !user) {
                     /* Restore CPSR from SPSR.  */
                     tmp = load_cpu_field(spsr);
-                    gen_set_cpsr(tmp, 0xffffffff);
+                    gen_set_cpsr(tmp, CPSR_ERET_MASK);
                     tcg_temp_free_i32(tmp);
                     s->is_jmp = DISAS_UPDATE;
                 }

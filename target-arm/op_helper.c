@@ -258,7 +258,7 @@ void HELPER(exception_with_syndrome)(CPUARMState *env, uint32_t excp,
 
 uint32_t HELPER(cpsr_read)(CPUARMState *env)
 {
-    return cpsr_read(env) & ~CPSR_EXEC;
+    return cpsr_read(env) & ~(CPSR_EXEC | CPSR_RESERVED);
 }
 
 void HELPER(cpsr_write)(CPUARMState *env, uint32_t val, uint32_t mask)

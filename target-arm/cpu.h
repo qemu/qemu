@@ -411,7 +411,13 @@ int arm_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
 #define CPSR_E (1U << 9)
 #define CPSR_IT_2_7 (0xfc00U)
 #define CPSR_GE (0xfU << 16)
-#define CPSR_RESERVED (0xfU << 20)
+#define CPSR_IL (1U << 20)
+/* Note that the RESERVED bits include bit 21, which is PSTATE_SS in
+ * an AArch64 SPSR but RES0 in AArch32 SPSR and CPSR. In QEMU we use
+ * env->uncached_cpsr bit 21 to store PSTATE.SS when executing in AArch32,
+ * where it is live state but not accessible to the AArch32 code.
+ */
+#define CPSR_RESERVED (0x7U << 21)
 #define CPSR_J (1U << 24)
 #define CPSR_IT_0_1 (3U << 25)
 #define CPSR_Q (1U << 27)
@@ -428,7 +434,9 @@ int arm_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
 /* Bits writable in user mode.  */
 #define CPSR_USER (CPSR_NZCV | CPSR_Q | CPSR_GE)
 /* Execution state bits.  MRS read as zero, MSR writes ignored.  */
-#define CPSR_EXEC (CPSR_T | CPSR_IT | CPSR_J)
+#define CPSR_EXEC (CPSR_T | CPSR_IT | CPSR_J | CPSR_IL)
+/* Mask of bits which may be set by exception return copying them from SPSR */
+#define CPSR_ERET_MASK (~CPSR_RESERVED)
 
 #define TTBCR_N      (7U << 0) /* TTBCR.EAE==0 */
 #define TTBCR_T0SZ   (7U << 0) /* TTBCR.EAE==1 */
