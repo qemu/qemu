@@ -72,9 +72,6 @@
 /* Define if you have strerror */
 #define HAVE_STRERROR
 
-/* Define if you have strdup() */
-#define HAVE_STRDUP
-
 /* Define according to how time.h should be included */
 #define TIME_WITH_SYS_TIME 0
 #undef HAVE_SYS_TIME_H

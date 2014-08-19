@@ -54,11 +54,11 @@ int add_exec(struct ex_list **ex_ptr, int do_pty, char *exec,
 	}
 
 	tmp_ptr = *ex_ptr;
-	*ex_ptr = (struct ex_list *)malloc(sizeof(struct ex_list));
+	*ex_ptr = g_new(struct ex_list, 1);
 	(*ex_ptr)->ex_fport = port;
 	(*ex_ptr)->ex_addr = addr;
 	(*ex_ptr)->ex_pty = do_pty;
-	(*ex_ptr)->ex_exec = (do_pty == 3) ? exec : strdup(exec);
+	(*ex_ptr)->ex_exec = (do_pty == 3) ? exec : g_strdup(exec);
 	(*ex_ptr)->ex_next = tmp_ptr;
 	return 0;
 }
@@ -187,7 +187,7 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 			   bptr++;
 			c = *bptr;
 			*bptr++ = (char)0;
-			argv[i++] = strdup(curarg);
+			argv[i++] = g_strdup(curarg);
 		   } while (c);
 
                 argv[i] = NULL;
@@ -225,20 +225,6 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 
 		return 1;
 	}
-}
-#endif
-
-#ifndef HAVE_STRDUP
-char *
-strdup(str)
-	const char *str;
-{
-	char *bptr;
-
-	bptr = (char *)malloc(strlen(str)+1);
-	strcpy(bptr, str);
-
-	return bptr;
 }
 #endif
 
