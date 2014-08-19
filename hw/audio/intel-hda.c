@@ -1156,7 +1156,6 @@ static void intel_hda_exit(PCIDevice *pci)
     IntelHDAState *d = INTEL_HDA(pci);
 
     msi_uninit(&d->pci);
-    memory_region_destroy(&d->mmio);
 }
 
 static int intel_hda_post_load(void *opaque, int version)

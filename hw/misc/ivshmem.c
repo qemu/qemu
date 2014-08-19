@@ -793,11 +793,8 @@ static void pci_ivshmem_uninit(PCIDevice *dev)
         error_free(s->migration_blocker);
     }
 
-    memory_region_destroy(&s->ivshmem_mmio);
     memory_region_del_subregion(&s->bar, &s->ivshmem);
     vmstate_unregister_ram(&s->ivshmem, DEVICE(dev));
-    memory_region_destroy(&s->ivshmem);
-    memory_region_destroy(&s->bar);
     unregister_savevm(DEVICE(dev), "ivshmem", s);
 }
 

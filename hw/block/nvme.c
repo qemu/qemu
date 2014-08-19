@@ -839,7 +839,6 @@ static void nvme_exit(PCIDevice *pci_dev)
     g_free(n->cq);
     g_free(n->sq);
     msix_uninit_exclusive_bar(pci_dev);
-    memory_region_destroy(&n->iomem);
 }
 
 static Property nvme_props[] = {

@@ -9,7 +9,6 @@
 
 static char *scsibus_get_dev_path(DeviceState *dev);
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
-static int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf);
 static void scsi_req_dequeue(SCSIRequest *req);
 static uint8_t *scsi_target_alloc_buf(SCSIRequest *req, size_t len);
 static void scsi_target_free_buf(SCSIRequest *req);
@@ -52,6 +51,20 @@ static void scsi_device_destroy(SCSIDevice *s)
     if (sc->destroy) {
         sc->destroy(s);
     }
+}
+
+int scsi_bus_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
+                       void *hba_private)
+{
+    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
+    int rc;
+
+    assert(cmd->len == 0);
+    rc = scsi_req_parse_cdb(dev, cmd, buf);
+    if (bus->info->parse_cdb) {
+        rc = bus->info->parse_cdb(dev, cmd, buf, hba_private);
+    }
+    return rc;
 }
 
 static SCSIRequest *scsi_device_alloc_req(SCSIDevice *s, uint32_t tag, uint32_t lun,
@@ -561,13 +574,44 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
                           uint8_t *buf, void *hba_private)
 {
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, d->qdev.parent_bus);
+    const SCSIReqOps *ops;
+    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(d);
     SCSIRequest *req;
-    SCSICommand cmd;
+    SCSICommand cmd = { .len = 0 };
+    int ret;
 
-    if (scsi_req_parse(&cmd, d, buf) != 0) {
+    if ((d->unit_attention.key == UNIT_ATTENTION ||
+         bus->unit_attention.key == UNIT_ATTENTION) &&
+        (buf[0] != INQUIRY &&
+         buf[0] != REPORT_LUNS &&
+         buf[0] != GET_CONFIGURATION &&
+         buf[0] != GET_EVENT_STATUS_NOTIFICATION &&
+
+         /*
+          * If we already have a pending unit attention condition,
+          * report this one before triggering another one.
+          */
+         !(buf[0] == REQUEST_SENSE && d->sense_is_ua))) {
+        ops = &reqops_unit_attention;
+    } else if (lun != d->lun ||
+               buf[0] == REPORT_LUNS ||
+               (buf[0] == REQUEST_SENSE && d->sense_len)) {
+        ops = &reqops_target_command;
+    } else {
+        ops = NULL;
+    }
+
+    if (ops != NULL || !sc->parse_cdb) {
+        ret = scsi_req_parse_cdb(d, &cmd, buf);
+    } else {
+        ret = sc->parse_cdb(d, &cmd, buf, hba_private);
+    }
+
+    if (ret != 0) {
         trace_scsi_req_parse_bad(d->id, lun, tag, buf[0]);
         req = scsi_req_alloc(&reqops_invalid_opcode, d, tag, lun, hba_private);
     } else {
+        assert(cmd.len != 0);
         trace_scsi_req_parsed(d->id, lun, tag, buf[0],
                               cmd.mode, cmd.xfer);
         if (cmd.lba != -1) {
@@ -577,25 +621,8 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
 
         if (cmd.xfer > INT32_MAX) {
             req = scsi_req_alloc(&reqops_invalid_field, d, tag, lun, hba_private);
-        } else if ((d->unit_attention.key == UNIT_ATTENTION ||
-                   bus->unit_attention.key == UNIT_ATTENTION) &&
-                  (buf[0] != INQUIRY &&
-                   buf[0] != REPORT_LUNS &&
-                   buf[0] != GET_CONFIGURATION &&
-                   buf[0] != GET_EVENT_STATUS_NOTIFICATION &&
-
-                   /*
-                    * If we already have a pending unit attention condition,
-                    * report this one before triggering another one.
-                    */
-                   !(buf[0] == REQUEST_SENSE && d->sense_is_ua))) {
-            req = scsi_req_alloc(&reqops_unit_attention, d, tag, lun,
-                                 hba_private);
-        } else if (lun != d->lun ||
-                   buf[0] == REPORT_LUNS ||
-                   (buf[0] == REQUEST_SENSE && d->sense_len)) {
-            req = scsi_req_alloc(&reqops_target_command, d, tag, lun,
-                                 hba_private);
+        } else if (ops) {
+            req = scsi_req_alloc(ops, d, tag, lun, hba_private);
         } else {
             req = scsi_device_alloc_req(d, tag, lun, buf, hba_private);
         }
@@ -1182,10 +1209,11 @@ static uint64_t scsi_cmd_lba(SCSICommand *cmd)
     return lba;
 }
 
-static int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
+int scsi_req_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf)
 {
     int rc;
 
+    cmd->lba = -1;
     switch (buf[0] >> 5) {
     case 0:
         cmd->len = 6;

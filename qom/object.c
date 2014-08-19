@@ -387,19 +387,9 @@ static void object_property_del_child(Object *obj, Object *child, Error **errp)
 
 void object_unparent(Object *obj)
 {
-    if (!obj->parent) {
-        return;
-    }
-
-    object_ref(obj);
-    if (obj->class->unparent) {
-        (obj->class->unparent)(obj);
-    }
     if (obj->parent) {
         object_property_del_child(obj->parent, obj, NULL);
-        obj->parent = NULL;
     }
-    object_unref(obj);
 }
 
 static void object_deinit(Object *obj, TypeImpl *type)
@@ -418,8 +408,8 @@ static void object_finalize(void *data)
     Object *obj = data;
     TypeImpl *ti = obj->class->type;
 
-    object_deinit(obj, ti);
     object_property_del_all(obj);
+    object_deinit(obj, ti);
 
     g_assert(obj->ref == 0);
     if (obj->free) {
@@ -1042,6 +1032,10 @@ static void object_finalize_child_property(Object *obj, const char *name,
 {
     Object *child = opaque;
 
+    if (child->class->unparent) {
+        (child->class->unparent)(child);
+    }
+    child->parent = NULL;
     object_unref(child);
 }
 

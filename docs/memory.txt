@@ -74,11 +74,16 @@ Region lifecycle
 ----------------
 
 A region is created by one of the constructor functions (memory_region_init*())
-and destroyed by the destructor (memory_region_destroy()).  In between,
-a region can be added to an address space by using memory_region_add_subregion()
-and removed using memory_region_del_subregion().  Region attributes may be
-changed at any point; they take effect once the region becomes exposed to the
-guest.
+and attached to an object.  It is then destroyed by object_unparent() or simply
+when the parent object dies.
+
+In between, a region can be added to an address space
+by using memory_region_add_subregion() and removed using
+memory_region_del_subregion().  Destroying the region implicitly
+removes the region from the address space.
+
+Region attributes may be changed at any point; they take effect once
+the region becomes exposed to the guest.
 
 Overlapping regions and priority
 --------------------------------

@@ -422,7 +422,7 @@ static void sdram_set_bcr(ppc4xx_sdram_t *sdram,
                                     &sdram->containers[n]);
         memory_region_del_subregion(&sdram->containers[n],
                                     &sdram->ram_memories[n]);
-        memory_region_destroy(&sdram->containers[n]);
+        object_unparent(OBJECT(&sdram->containers[n]));
     }
     *bcrp = bcr & 0xFFDEE001;
     if (enabled && (bcr & 0x00000001)) {

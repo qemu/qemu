@@ -2182,10 +2182,6 @@ static void vmxnet3_pci_uninit(PCIDevice *pci_dev)
     vmxnet3_cleanup_msix(s);
 
     vmxnet3_cleanup_msi(s);
-
-    memory_region_destroy(&s->bar0);
-    memory_region_destroy(&s->bar1);
-    memory_region_destroy(&s->msix_bar);
 }
 
 static void vmxnet3_qdev_reset(DeviceState *dev)

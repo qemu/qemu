@@ -2282,7 +2282,7 @@ static void vfio_vga_quirk_teardown(VFIODevice *vdev)
         while (!QLIST_EMPTY(&vdev->vga.region[i].quirks)) {
             VFIOQuirk *quirk = QLIST_FIRST(&vdev->vga.region[i].quirks);
             memory_region_del_subregion(&vdev->vga.region[i].mem, &quirk->mem);
-            memory_region_destroy(&quirk->mem);
+            object_unparent(OBJECT(&quirk->mem));
             QLIST_REMOVE(quirk, next);
             g_free(quirk);
         }
@@ -2306,7 +2306,7 @@ static void vfio_bar_quirk_teardown(VFIODevice *vdev, int nr)
     while (!QLIST_EMPTY(&bar->quirks)) {
         VFIOQuirk *quirk = QLIST_FIRST(&bar->quirks);
         memory_region_del_subregion(&bar->mem, &quirk->mem);
-        memory_region_destroy(&quirk->mem);
+        object_unparent(OBJECT(&quirk->mem));
         QLIST_REMOVE(quirk, next);
         g_free(quirk);
     }
@@ -2873,15 +2873,11 @@ static void vfio_unmap_bar(VFIODevice *vdev, int nr)
 
     memory_region_del_subregion(&bar->mem, &bar->mmap_mem);
     munmap(bar->mmap, memory_region_size(&bar->mmap_mem));
-    memory_region_destroy(&bar->mmap_mem);
 
     if (vdev->msix && vdev->msix->table_bar == nr) {
         memory_region_del_subregion(&bar->mem, &vdev->msix->mmap_mem);
         munmap(vdev->msix->mmap, memory_region_size(&vdev->msix->mmap_mem));
-        memory_region_destroy(&vdev->msix->mmap_mem);
     }
-
-    memory_region_destroy(&bar->mem);
 }
 
 static int vfio_mmap_bar(VFIODevice *vdev, VFIOBAR *bar,
@@ -3034,9 +3030,6 @@ static void vfio_unmap_bars(VFIODevice *vdev)
     if (vdev->has_vga) {
         vfio_vga_quirk_teardown(vdev);
         pci_unregister_vga(&vdev->pdev);
-        memory_region_destroy(&vdev->vga.region[QEMU_PCI_VGA_MEM].mem);
-        memory_region_destroy(&vdev->vga.region[QEMU_PCI_VGA_IO_LO].mem);
-        memory_region_destroy(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem);
     }
 }
 

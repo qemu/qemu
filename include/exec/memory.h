@@ -162,7 +162,6 @@ struct MemoryRegion {
     QTAILQ_HEAD(subregions, MemoryRegion) subregions;
     QTAILQ_ENTRY(MemoryRegion) subregions_link;
     QTAILQ_HEAD(coalesced_ranges, CoalescedMemoryRange) coalesced;
-    const char *name;
     uint8_t dirty_log_mask;
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
@@ -430,15 +429,6 @@ void memory_region_init_iommu(MemoryRegion *mr,
                               uint64_t size);
 
 /**
- * memory_region_destroy: Destroy a memory region and reclaim all resources.
- *
- * @mr: the region to be destroyed.  May not currently be a subregion
- *      (see memory_region_add_subregion()) or referenced in an alias
- *      (see memory_region_init_alias()).
- */
-void memory_region_destroy(MemoryRegion *mr);
-
-/**
  * memory_region_owner: get a memory region's owner.
  *
  * @mr: the memory region being queried.
@@ -520,7 +510,7 @@ void memory_region_unregister_iommu_notifier(Notifier *n);
  *
  * @mr: the memory region being queried
  */
-const char *memory_region_name(MemoryRegion *mr);
+const char *memory_region_name(const MemoryRegion *mr);
 
 /**
  * memory_region_is_logging: return whether a memory region is logging writes

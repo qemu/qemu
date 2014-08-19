@@ -613,18 +613,6 @@ static int tpci200_initfn(PCIDevice *pci_dev)
     return 0;
 }
 
-static void tpci200_exitfn(PCIDevice *pci_dev)
-{
-    TPCI200State *s = TPCI200(pci_dev);
-
-    memory_region_destroy(&s->mmio);
-    memory_region_destroy(&s->io);
-    memory_region_destroy(&s->las0);
-    memory_region_destroy(&s->las1);
-    memory_region_destroy(&s->las2);
-    memory_region_destroy(&s->las3);
-}
-
 static const VMStateDescription vmstate_tpci200 = {
     .name = "tpci200",
     .version_id = 1,
@@ -645,7 +633,6 @@ static void tpci200_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = tpci200_initfn;
-    k->exit = tpci200_exitfn;
     k->vendor_id = PCI_VENDOR_ID_TEWS;
     k->device_id = PCI_DEVICE_ID_TEWS_TPCI200;
     k->class_id = PCI_CLASS_BRIDGE_OTHER;

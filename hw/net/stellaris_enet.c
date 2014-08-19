@@ -485,13 +485,6 @@ static int stellaris_enet_init(SysBusDevice *sbd)
     return 0;
 }
 
-static void stellaris_enet_unrealize(DeviceState *dev, Error **errp)
-{
-    stellaris_enet_state *s = STELLARIS_ENET(dev);
-
-    memory_region_destroy(&s->mmio);
-}
-
 static Property stellaris_enet_properties[] = {
     DEFINE_NIC_PROPERTIES(stellaris_enet_state, conf),
     DEFINE_PROP_END_OF_LIST(),
@@ -503,7 +496,6 @@ static void stellaris_enet_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = stellaris_enet_init;
-    dc->unrealize = stellaris_enet_unrealize;
     dc->props = stellaris_enet_properties;
     dc->vmsd = &vmstate_stellaris_enet;
 }

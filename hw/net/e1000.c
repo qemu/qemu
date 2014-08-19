@@ -1516,8 +1516,6 @@ pci_e1000_uninit(PCIDevice *dev)
     timer_free(d->autoneg_timer);
     timer_del(d->mit_timer);
     timer_free(d->mit_timer);
-    memory_region_destroy(&d->mmio);
-    memory_region_destroy(&d->io);
     qemu_del_nic(d->nic);
 }
 

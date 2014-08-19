@@ -219,12 +219,6 @@ static void pci_bridge_region_del(PCIBridge *br, PCIBridgeWindows *w)
 
 static void pci_bridge_region_cleanup(PCIBridge *br, PCIBridgeWindows *w)
 {
-    memory_region_destroy(&w->alias_io);
-    memory_region_destroy(&w->alias_mem);
-    memory_region_destroy(&w->alias_pref_mem);
-    memory_region_destroy(&w->alias_vga[QEMU_PCI_VGA_IO_LO]);
-    memory_region_destroy(&w->alias_vga[QEMU_PCI_VGA_IO_HI]);
-    memory_region_destroy(&w->alias_vga[QEMU_PCI_VGA_MEM]);
     g_free(w);
 }
 
@@ -389,8 +383,6 @@ void pci_bridge_exitfn(PCIDevice *pci_dev)
     QLIST_REMOVE(&s->sec_bus, sibling);
     pci_bridge_region_del(s, s->windows);
     pci_bridge_region_cleanup(s, s->windows);
-    memory_region_destroy(&s->address_space_mem);
-    memory_region_destroy(&s->address_space_io);
     /* object_unparent() is called automatically during device deletion */
 }
 

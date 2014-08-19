@@ -697,8 +697,6 @@ static void free_assigned_device(AssignedDevice *dev)
             if (region->u.r_baseport) {
                 memory_region_del_subregion(&region->container,
                                             &region->real_iomem);
-                memory_region_destroy(&region->real_iomem);
-                memory_region_destroy(&region->container);
             }
         } else if (pci_region->type & IORESOURCE_MEM) {
             if (region->u.r_virtbase) {
@@ -712,9 +710,6 @@ static void free_assigned_device(AssignedDevice *dev)
                     memory_region_del_subregion(&region->container,
                                                 &dev->mmio);
                 }
-
-                memory_region_destroy(&region->real_iomem);
-                memory_region_destroy(&region->container);
                 if (munmap(region->u.r_virtbase,
                            (pci_region->size + 0xFFF) & 0xFFFFF000)) {
                     error_report("Failed to unmap assigned device region: %s",
@@ -1680,8 +1675,6 @@ static void assigned_dev_unregister_msix_mmio(AssignedDevice *dev)
         return;
     }
 
-    memory_region_destroy(&dev->mmio);
-
     if (munmap(dev->msix_table, MSIX_PAGE_SIZE) == -1) {
         error_report("error unmapping msix_table! %s", strerror(errno));
     }
@@ -1953,7 +1946,6 @@ static void assigned_dev_load_option_rom(AssignedDevice *dev)
         error_printf("Device option ROM contents are probably invalid "
                      "(check dmesg).\nSkip option ROM probe with rombar=0, "
                      "or load from file with romfile=\n");
-        memory_region_destroy(&dev->dev.rom);
         goto close_rom;
     }
 

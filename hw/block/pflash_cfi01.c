@@ -781,7 +781,6 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
 
         if (ret < 0) {
             vmstate_unregister_ram(&pfl->mem, DEVICE(pfl));
-            memory_region_destroy(&pfl->mem);
             error_setg(errp, "failed to read the initial flash content");
             return;
         }
