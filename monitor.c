@@ -2542,8 +2542,10 @@ static int monitor_fdset_dup_fd_find_remove(int dup_fd, bool remove)
                     if (QLIST_EMPTY(&mon_fdset->dup_fds)) {
                         monitor_fdset_cleanup(mon_fdset);
                     }
+                    return -1;
+                } else {
+                    return mon_fdset->id;
                 }
-                return mon_fdset->id;
             }
         }
     }
@@ -2555,9 +2557,9 @@ int monitor_fdset_dup_fd_find(int dup_fd)
     return monitor_fdset_dup_fd_find_remove(dup_fd, false);
 }
 
-int monitor_fdset_dup_fd_remove(int dup_fd)
+void monitor_fdset_dup_fd_remove(int dup_fd)
 {
-    return monitor_fdset_dup_fd_find_remove(dup_fd, true);
+    monitor_fdset_dup_fd_find_remove(dup_fd, true);
 }
 
 int monitor_handle_fd_param(Monitor *mon, const char *fdname)
@@ -4521,16 +4523,15 @@ void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str)
 
 void watchdog_action_completion(ReadLineState *rs, int nb_args, const char *str)
 {
+    int i;
+
     if (nb_args != 2) {
         return;
     }
     readline_set_completion_index(rs, strlen(str));
-    add_completion_option(rs, str, "reset");
-    add_completion_option(rs, str, "shutdown");
-    add_completion_option(rs, str, "poweroff");
-    add_completion_option(rs, str, "pause");
-    add_completion_option(rs, str, "debug");
-    add_completion_option(rs, str, "none");
+    for (i = 0; WatchdogExpirationAction_lookup[i]; i++) {
+        add_completion_option(rs, str, WatchdogExpirationAction_lookup[i]);
+    }
 }
 
 void migrate_set_capability_completion(ReadLineState *rs, int nb_args,
