@@ -204,10 +204,10 @@ static void fdt_add_psci_node(const VirtBoardInfo *vbi)
 
         qemu_fdt_setprop_string(fdt, "/psci", "method", "hvc");
         qemu_fdt_setprop_cell(fdt, "/psci", "cpu_suspend",
-                                  PSCI_FN_CPU_SUSPEND);
-        qemu_fdt_setprop_cell(fdt, "/psci", "cpu_off", PSCI_FN_CPU_OFF);
-        qemu_fdt_setprop_cell(fdt, "/psci", "cpu_on", PSCI_FN_CPU_ON);
-        qemu_fdt_setprop_cell(fdt, "/psci", "migrate", PSCI_FN_MIGRATE);
+                                  QEMU_PSCI_0_1_FN_CPU_SUSPEND);
+        qemu_fdt_setprop_cell(fdt, "/psci", "cpu_off", QEMU_PSCI_0_1_FN_CPU_OFF);
+        qemu_fdt_setprop_cell(fdt, "/psci", "cpu_on", QEMU_PSCI_0_1_FN_CPU_ON);
+        qemu_fdt_setprop_cell(fdt, "/psci", "migrate", QEMU_PSCI_0_1_FN_MIGRATE);
     }
 }
 
