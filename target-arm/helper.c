@@ -2800,9 +2800,11 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
         /* The AArch32 view of a shared register sees the lower 32 bits
          * of a 64 bit backing field. It is not migratable as the AArch64
          * view handles that. AArch64 also handles reset.
-         * We assume it is a cp15 register.
+         * We assume it is a cp15 register if the .cp field is left unset.
          */
-        r2->cp = 15;
+        if (r2->cp == 0) {
+            r2->cp = 15;
+        }
         r2->type |= ARM_CP_NO_MIGRATE;
         r2->resetfn = arm_cp_reset_ignore;
 #ifdef HOST_WORDS_BIGENDIAN
@@ -2815,8 +2817,11 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
         /* To allow abbreviation of ARMCPRegInfo
          * definitions, we treat cp == 0 as equivalent to
          * the value for "standard guest-visible sysreg".
+         * STATE_BOTH definitions are also always "standard
+         * sysreg" in their AArch64 view (the .cp value may
+         * be non-zero for the benefit of the AArch32 view).
          */
-        if (r->cp == 0) {
+        if (r->cp == 0 || r->state == ARM_CP_STATE_BOTH) {
             r2->cp = CP_REG_ARM64_SYSREG_CP;
         }
         *key = ENCODE_AA64_CP_REG(r2->cp, r2->crn, crm,
