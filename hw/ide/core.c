@@ -230,9 +230,23 @@ static void ide_atapi_identify(IDEState *s)
     }
 
     put_le16(p + 80, 0x1e); /* support up to ATA/ATAPI-4 */
+    if (s->wwn) {
+        put_le16(p + 84, (1 << 8)); /* supports WWN for words 108-111 */
+        put_le16(p + 87, (1 << 8)); /* WWN enabled */
+    }
+
 #ifdef USE_DMA_CDROM
     put_le16(p + 88, 0x3f | (1 << 13)); /* udma5 set and supported */
 #endif
+
+    if (s->wwn) {
+        /* LE 16-bit words 111-108 contain 64-bit World Wide Name */
+        put_le16(p + 108, s->wwn >> 48);
+        put_le16(p + 109, s->wwn >> 32);
+        put_le16(p + 110, s->wwn >> 16);
+        put_le16(p + 111, s->wwn);
+    }
+
     memcpy(s->identify_data, p, sizeof(s->identify_data));
     s->identify_set = 1;
 }
