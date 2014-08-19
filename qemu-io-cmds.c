@@ -115,22 +115,13 @@ static char **breakline(char *input, int *count)
     int c = 0;
     char *p;
     char **rval = g_new0(char *, 1);
-    char **tmp;
 
     while (rval && (p = qemu_strsep(&input, " ")) != NULL) {
         if (!*p) {
             continue;
         }
         c++;
-        tmp = g_renew(char *, rval, (c + 1));
-        if (!tmp) {
-            g_free(rval);
-            rval = NULL;
-            c = 0;
-            break;
-        } else {
-            rval = tmp;
-        }
+        rval = g_renew(char *, rval, (c + 1));
         rval[c - 1] = p;
         rval[c] = NULL;
     }
