@@ -188,16 +188,19 @@ bool vhost_net_query(VHostNetState *net, VirtIODevice *dev)
     return vhost_dev_query(&net->dev, dev);
 }
 
+static void vhost_net_set_vq_index(struct vhost_net *net, int vq_index)
+{
+    net->dev.vq_index = vq_index;
+}
+
 static int vhost_net_start_one(struct vhost_net *net,
-                               VirtIODevice *dev,
-                               int vq_index)
+                               VirtIODevice *dev)
 {
     struct vhost_vring_file file = { };
     int r;
 
     net->dev.nvqs = 2;
     net->dev.vqs = net->vqs;
-    net->dev.vq_index = vq_index;
 
     r = vhost_dev_enable_notifiers(&net->dev, dev);
     if (r < 0) {
@@ -286,7 +289,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
-    int r, i = 0;
+    int r, e, i;
 
     if (!vhost_net_device_endian_ok(dev)) {
         error_report("vhost-net does not support cross-endian");
@@ -301,11 +304,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     }
 
     for (i = 0; i < total_queues; i++) {
-        r = vhost_net_start_one(get_vhost_net(ncs[i].peer), dev, i * 2);
-
-        if (r < 0) {
-            goto err;
-        }
+        vhost_net_set_vq_index(get_vhost_net(ncs[i].peer), i * 2);
     }
 
     r = k->set_guest_notifiers(qbus->parent, total_queues * 2, true);
@@ -314,12 +313,26 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         goto err;
     }
 
+    for (i = 0; i < total_queues; i++) {
+        r = vhost_net_start_one(get_vhost_net(ncs[i].peer), dev);
+
+        if (r < 0) {
+            goto err_start;
+        }
+    }
+
     return 0;
 
-err:
+err_start:
     while (--i >= 0) {
         vhost_net_stop_one(get_vhost_net(ncs[i].peer), dev);
     }
+    e = k->set_guest_notifiers(qbus->parent, total_queues * 2, false);
+    if (e < 0) {
+        fprintf(stderr, "vhost guest notifier cleanup failed: %d\n", e);
+        fflush(stderr);
+    }
+err:
     return r;
 }
 
@@ -331,16 +344,16 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     int i, r;
 
+    for (i = 0; i < total_queues; i++) {
+        vhost_net_stop_one(get_vhost_net(ncs[i].peer), dev);
+    }
+
     r = k->set_guest_notifiers(qbus->parent, total_queues * 2, false);
     if (r < 0) {
         fprintf(stderr, "vhost guest notifier cleanup failed: %d\n", r);
         fflush(stderr);
     }
     assert(r >= 0);
-
-    for (i = 0; i < total_queues; i++) {
-        vhost_net_stop_one(get_vhost_net(ncs[i].peer), dev);
-    }
 }
 
 void vhost_net_cleanup(struct vhost_net *net)
