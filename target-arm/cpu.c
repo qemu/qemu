@@ -715,8 +715,8 @@ static void cortex_a9_initfn(Object *obj)
     cpu->id_isar4 = 0x00111142;
     cpu->dbgdidr = 0x35141000;
     cpu->clidr = (1 << 27) | (1 << 24) | 3;
-    cpu->ccsidr[0] = 0xe00fe015; /* 16k L1 dcache. */
-    cpu->ccsidr[1] = 0x200fe015; /* 16k L1 icache. */
+    cpu->ccsidr[0] = 0xe00fe019; /* 16k L1 dcache. */
+    cpu->ccsidr[1] = 0x200fe019; /* 16k L1 icache. */
     define_arm_cp_regs(cpu, cortexa9_cp_reginfo);
 }
 
