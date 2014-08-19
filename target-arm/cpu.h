@@ -1211,6 +1211,10 @@ static inline bool arm_singlestep_active(CPUARMState *env)
 #define ARM_TBFLAG_AA64_EL_MASK     (0x3 << ARM_TBFLAG_AA64_EL_SHIFT)
 #define ARM_TBFLAG_AA64_FPEN_SHIFT  2
 #define ARM_TBFLAG_AA64_FPEN_MASK   (1 << ARM_TBFLAG_AA64_FPEN_SHIFT)
+#define ARM_TBFLAG_AA64_SS_ACTIVE_SHIFT 3
+#define ARM_TBFLAG_AA64_SS_ACTIVE_MASK (1 << ARM_TBFLAG_AA64_SS_ACTIVE_SHIFT)
+#define ARM_TBFLAG_AA64_PSTATE_SS_SHIFT 4
+#define ARM_TBFLAG_AA64_PSTATE_SS_MASK (1 << ARM_TBFLAG_AA64_PSTATE_SS_SHIFT)
 
 /* some convenience accessor macros */
 #define ARM_TBFLAG_AARCH64_STATE(F) \
@@ -1235,6 +1239,10 @@ static inline bool arm_singlestep_active(CPUARMState *env)
     (((F) & ARM_TBFLAG_AA64_EL_MASK) >> ARM_TBFLAG_AA64_EL_SHIFT)
 #define ARM_TBFLAG_AA64_FPEN(F) \
     (((F) & ARM_TBFLAG_AA64_FPEN_MASK) >> ARM_TBFLAG_AA64_FPEN_SHIFT)
+#define ARM_TBFLAG_AA64_SS_ACTIVE(F) \
+    (((F) & ARM_TBFLAG_AA64_SS_ACTIVE_MASK) >> ARM_TBFLAG_AA64_SS_ACTIVE_SHIFT)
+#define ARM_TBFLAG_AA64_PSTATE_SS(F) \
+    (((F) & ARM_TBFLAG_AA64_PSTATE_SS_MASK) >> ARM_TBFLAG_AA64_PSTATE_SS_SHIFT)
 
 static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
@@ -1247,6 +1255,19 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
             | (arm_current_pl(env) << ARM_TBFLAG_AA64_EL_SHIFT);
         if (fpen == 3 || (fpen == 1 && arm_current_pl(env) != 0)) {
             *flags |= ARM_TBFLAG_AA64_FPEN_MASK;
+        }
+        /* The SS_ACTIVE and PSTATE_SS bits correspond to the state machine
+         * states defined in the ARM ARM for software singlestep:
+         *  SS_ACTIVE   PSTATE.SS   State
+         *     0            x       Inactive (the TB flag for SS is always 0)
+         *     1            0       Active-pending
+         *     1            1       Active-not-pending
+         */
+        if (arm_singlestep_active(env)) {
+            *flags |= ARM_TBFLAG_AA64_SS_ACTIVE_MASK;
+            if (env->pstate & PSTATE_SS) {
+                *flags |= ARM_TBFLAG_AA64_PSTATE_SS_MASK;
+            }
         }
     } else {
         int privmode;

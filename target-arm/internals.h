@@ -290,4 +290,10 @@ static inline uint32_t syn_data_abort(int same_el, int ea, int cm, int s1ptw,
         | (ea << 9) | (cm << 8) | (s1ptw << 7) | (wnr << 6) | fsc;
 }
 
+static inline uint32_t syn_swstep(int same_el, int isv, int ex)
+{
+    return (EC_SOFTWARESTEP << ARM_EL_EC_SHIFT) | (same_el << ARM_EL_EC_SHIFT)
+        | (isv << 24) | (ex << 6) | 0x22;
+}
+
 #endif

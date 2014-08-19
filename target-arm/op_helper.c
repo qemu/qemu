@@ -369,6 +369,11 @@ void HELPER(msr_i_pstate)(CPUARMState *env, uint32_t op, uint32_t imm)
     }
 }
 
+void HELPER(clear_pstate_ss)(CPUARMState *env)
+{
+    env->pstate &= ~PSTATE_SS;
+}
+
 void HELPER(exception_return)(CPUARMState *env)
 {
     int cur_el = arm_current_pl(env);
