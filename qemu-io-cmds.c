@@ -114,7 +114,7 @@ static char **breakline(char *input, int *count)
 {
     int c = 0;
     char *p;
-    char **rval = g_malloc0(sizeof(char *));
+    char **rval = g_new0(char *, 1);
     char **tmp;
 
     while (rval && (p = qemu_strsep(&input, " ")) != NULL) {

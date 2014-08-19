@@ -350,7 +350,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
     uint64_t meta_offset = (blocks_used * refcount_block_clusters) *
         s->cluster_size;
     uint64_t table_offset = meta_offset + blocks_clusters * s->cluster_size;
-    uint64_t *new_table = g_try_malloc0(table_size * sizeof(uint64_t));
+    uint64_t *new_table = g_try_new0(uint64_t, table_size);
     uint16_t *new_blocks = g_try_malloc0(blocks_clusters * s->cluster_size);
 
     assert(table_size > 0 && blocks_clusters > 0);
@@ -1524,7 +1524,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         return -EFBIG;
     }
 
-    refcount_table = g_try_malloc0(nb_clusters * sizeof(uint16_t));
+    refcount_table = g_try_new0(uint16_t, nb_clusters);
     if (nb_clusters && refcount_table == NULL) {
         res->check_errors++;
         return -ENOMEM;
@@ -1605,8 +1605,8 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                         /* increase refcount_table size if necessary */
                         int old_nb_clusters = nb_clusters;
                         nb_clusters = (new_offset >> s->cluster_bits) + 1;
-                        refcount_table = g_realloc(refcount_table,
-                                nb_clusters * sizeof(uint16_t));
+                        refcount_table = g_renew(uint16_t, refcount_table,
+                                                 nb_clusters);
                         memset(&refcount_table[old_nb_clusters], 0, (nb_clusters
                                 - old_nb_clusters) * sizeof(uint16_t));
                     }

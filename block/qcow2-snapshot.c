@@ -58,7 +58,7 @@ int qcow2_read_snapshots(BlockDriverState *bs)
     }
 
     offset = s->snapshots_offset;
-    s->snapshots = g_malloc0(s->nb_snapshots * sizeof(QCowSnapshot));
+    s->snapshots = g_new0(QCowSnapshot, s->nb_snapshots);
 
     for(i = 0; i < s->nb_snapshots; i++) {
         /* Read statically sized part of the snapshot header */
@@ -381,7 +381,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     sn->l1_table_offset = l1_table_offset;
     sn->l1_size = s->l1_size;
 
-    l1_table = g_try_malloc(s->l1_size * sizeof(uint64_t));
+    l1_table = g_try_new(uint64_t, s->l1_size);
     if (s->l1_size && l1_table == NULL) {
         ret = -ENOMEM;
         goto fail;
@@ -417,7 +417,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     }
 
     /* Append the new snapshot to the snapshot list */
-    new_snapshot_list = g_malloc((s->nb_snapshots + 1) * sizeof(QCowSnapshot));
+    new_snapshot_list = g_new(QCowSnapshot, s->nb_snapshots + 1);
     if (s->snapshots) {
         memcpy(new_snapshot_list, s->snapshots,
                s->nb_snapshots * sizeof(QCowSnapshot));
@@ -661,7 +661,7 @@ int qcow2_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
         return s->nb_snapshots;
     }
 
-    sn_tab = g_malloc0(s->nb_snapshots * sizeof(QEMUSnapshotInfo));
+    sn_tab = g_new0(QEMUSnapshotInfo, s->nb_snapshots);
     for(i = 0; i < s->nb_snapshots; i++) {
         sn_info = sn_tab + i;
         sn = s->snapshots + i;

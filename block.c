@@ -351,7 +351,7 @@ BlockDriverState *bdrv_new(const char *device_name, Error **errp)
         return NULL;
     }
 
-    bs = g_malloc0(sizeof(BlockDriverState));
+    bs = g_new0(BlockDriverState, 1);
     QLIST_INIT(&bs->dirty_bitmaps);
     pstrcpy(bs->device_name, sizeof(bs->device_name), device_name);
     if (device_name[0] != '\0') {
@@ -2628,7 +2628,7 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
      * into our deletion queue, until we hit the 'base'
      */
     while (intermediate) {
-        intermediate_state = g_malloc0(sizeof(BlkIntermediateStates));
+        intermediate_state = g_new0(BlkIntermediateStates, 1);
         intermediate_state->bs = intermediate;
         QSIMPLEQ_INSERT_TAIL(&states_to_delete, intermediate_state, entry);
 
@@ -3755,7 +3755,7 @@ void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
             }
 
             if (!found) {
-                formats = g_realloc(formats, (count + 1) * sizeof(char *));
+                formats = g_renew(const char *, formats, count + 1);
                 formats[count++] = drv->format_name;
                 it(opaque, drv->format_name);
             }
@@ -5330,7 +5330,7 @@ BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs, int granularity,
         errno = -bitmap_size;
         return NULL;
     }
-    bitmap = g_malloc0(sizeof(BdrvDirtyBitmap));
+    bitmap = g_new0(BdrvDirtyBitmap, 1);
     bitmap->bitmap = hbitmap_alloc(bitmap_size, ffs(granularity) - 1);
     QLIST_INSERT_HEAD(&bs->dirty_bitmaps, bitmap, list);
     return bitmap;
@@ -5356,8 +5356,8 @@ BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs)
     BlockDirtyInfoList **plist = &list;
 
     QLIST_FOREACH(bm, &bs->dirty_bitmaps, list) {
-        BlockDirtyInfo *info = g_malloc0(sizeof(BlockDirtyInfo));
-        BlockDirtyInfoList *entry = g_malloc0(sizeof(BlockDirtyInfoList));
+        BlockDirtyInfo *info = g_new0(BlockDirtyInfo, 1);
+        BlockDirtyInfoList *entry = g_new0(BlockDirtyInfoList, 1);
         info->count = bdrv_get_dirty_count(bs, bm);
         info->granularity =
             ((int64_t) BDRV_SECTOR_SIZE << hbitmap_granularity(bm->bitmap));
@@ -5451,7 +5451,7 @@ void bdrv_op_block(BlockDriverState *bs, BlockOpType op, Error *reason)
     BdrvOpBlocker *blocker;
     assert((int) op >= 0 && op < BLOCK_OP_TYPE_MAX);
 
-    blocker = g_malloc0(sizeof(BdrvOpBlocker));
+    blocker = g_new0(BdrvOpBlocker, 1);
     blocker->reason = reason;
     QLIST_INSERT_HEAD(&bs->op_blockers[op], blocker, list);
 }

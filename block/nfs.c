@@ -409,7 +409,7 @@ static int nfs_file_create(const char *url, QemuOpts *opts, Error **errp)
 {
     int ret = 0;
     int64_t total_size = 0;
-    NFSClient *client = g_malloc0(sizeof(NFSClient));
+    NFSClient *client = g_new0(NFSClient, 1);
 
     client->aio_context = qemu_get_aio_context();
 

@@ -1532,7 +1532,7 @@ static int iscsi_create(const char *filename, QemuOpts *opts, Error **errp)
     /* Read out options */
     total_size =
         qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0) / BDRV_SECTOR_SIZE;
-    bs->opaque = g_malloc0(sizeof(struct IscsiLun));
+    bs->opaque = g_new0(struct IscsiLun, 1);
     iscsilun = bs->opaque;
 
     bs_options = qdict_new();

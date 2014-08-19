@@ -517,7 +517,7 @@ static int raw_reopen_prepare(BDRVReopenState *state,
 
     s = state->bs->opaque;
 
-    state->opaque = g_malloc0(sizeof(BDRVRawReopenState));
+    state->opaque = g_new0(BDRVRawReopenState, 1);
     raw_s = state->opaque;
 
 #ifdef CONFIG_LINUX_AIO

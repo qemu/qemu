@@ -1381,7 +1381,7 @@ static int vhdx_create_new_headers(BlockDriverState *bs, uint64_t image_size,
     int ret = 0;
     VHDXHeader *hdr = NULL;
 
-    hdr = g_malloc0(sizeof(VHDXHeader));
+    hdr = g_new0(VHDXHeader, 1);
 
     hdr->signature       = VHDX_HEADER_SIGNATURE;
     hdr->sequence_number = g_random_int();
@@ -1654,7 +1654,7 @@ static int vhdx_create_new_region_table(BlockDriverState *bs,
 
     /* Populate enough of the BDRVVHDXState to be able to use the
      * pre-existing BAT calculation, translation, and update functions */
-    s = g_malloc0(sizeof(BDRVVHDXState));
+    s = g_new0(BDRVVHDXState, 1);
 
     s->chunk_ratio = (VHDX_MAX_SECTORS_PER_BLOCK) *
                      (uint64_t) sector_size / (uint64_t) block_size;

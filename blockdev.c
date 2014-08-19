@@ -1094,7 +1094,7 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
         return NULL;
     }
 
-    info = g_malloc0(sizeof(SnapshotInfo));
+    info = g_new0(SnapshotInfo, 1);
     info->id = g_strdup(sn.id_str);
     info->name = g_strdup(sn.name);
     info->date_nsec = sn.date_nsec;

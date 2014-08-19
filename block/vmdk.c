@@ -233,7 +233,7 @@ static void vmdk_free_last_extent(BlockDriverState *bs)
         return;
     }
     s->num_extents--;
-    s->extents = g_realloc(s->extents, s->num_extents * sizeof(VmdkExtent));
+    s->extents = g_renew(VmdkExtent, s->extents, s->num_extents);
 }
 
 static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
@@ -418,8 +418,7 @@ static int vmdk_add_extent(BlockDriverState *bs,
         return length;
     }
 
-    s->extents = g_realloc(s->extents,
-                              (s->num_extents + 1) * sizeof(VmdkExtent));
+    s->extents = g_renew(VmdkExtent, s->extents, s->num_extents + 1);
     extent = &s->extents[s->num_extents];
     s->num_extents++;
 
@@ -497,7 +496,7 @@ static int vmdk_init_tables(BlockDriverState *bs, VmdkExtent *extent,
     }
 
     extent->l2_cache =
-        g_malloc(extent->l2_size * L2_CACHE_SIZE * sizeof(uint32_t));
+        g_new(uint32_t, extent->l2_size * L2_CACHE_SIZE);
     return 0;
  fail_l1b:
     g_free(extent->l1_backup_table);

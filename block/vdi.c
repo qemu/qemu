@@ -292,7 +292,7 @@ static int vdi_check(BlockDriverState *bs, BdrvCheckResult *res,
         return -ENOTSUP;
     }
 
-    bmap = g_try_malloc(s->header.blocks_in_image * sizeof(uint32_t));
+    bmap = g_try_new(uint32_t, s->header.blocks_in_image);
     if (s->header.blocks_in_image && bmap == NULL) {
         res->check_errors++;
         return -ENOMEM;

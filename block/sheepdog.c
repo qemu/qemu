@@ -1682,7 +1682,7 @@ static int sd_create(const char *filename, QemuOpts *opts,
     uint32_t snapid;
     bool prealloc = false;
 
-    s = g_malloc0(sizeof(BDRVSheepdogState));
+    s = g_new0(BDRVSheepdogState, 1);
 
     memset(tag, 0, sizeof(tag));
     if (strstr(filename, "://")) {
@@ -2273,7 +2273,7 @@ static int sd_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     uint32_t snapid = 0;
     int ret = 0;
 
-    old_s = g_malloc(sizeof(BDRVSheepdogState));
+    old_s = g_new(BDRVSheepdogState, 1);
 
     memcpy(old_s, s, sizeof(BDRVSheepdogState));
 

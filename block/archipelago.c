@@ -750,7 +750,7 @@ static int archipelago_submit_request(BDRVArchipelagoState *s,
     char *target;
     void *data = NULL;
     struct xseg_request *req;
-    AIORequestData *reqdata = g_malloc(sizeof(AIORequestData));
+    AIORequestData *reqdata = g_new(AIORequestData, 1);
 
     targetlen = strlen(s->volname);
     req = xseg_get_request(s->xseg, s->srcport, s->vportno, X_ALLOC);
@@ -827,7 +827,7 @@ static int archipelago_aio_segmented_rw(BDRVArchipelagoState *s,
     int i, ret, segments_nr, last_segment_size;
     ArchipelagoSegmentedRequest *segreq;
 
-    segreq = g_malloc(sizeof(ArchipelagoSegmentedRequest));
+    segreq = g_new(ArchipelagoSegmentedRequest, 1);
 
     if (op == ARCHIP_OP_FLUSH) {
         segments_nr = 1;
@@ -960,7 +960,7 @@ static int64_t archipelago_volume_info(BDRVArchipelagoState *s)
     int ret, targetlen;
     struct xseg_request *req;
     struct xseg_reply_info *xinfo;
-    AIORequestData *reqdata = g_malloc(sizeof(AIORequestData));
+    AIORequestData *reqdata = g_new(AIORequestData, 1);
 
     const char *volname = s->volname;
     targetlen = strlen(volname);

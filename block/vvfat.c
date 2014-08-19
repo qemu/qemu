@@ -2950,7 +2950,7 @@ static int enable_write_target(BDRVVVFATState *s, Error **errp)
 
     bdrv_set_backing_hd(s->bs, bdrv_new("", &error_abort));
     s->bs->backing_hd->drv = &vvfat_write_target;
-    s->bs->backing_hd->opaque = g_malloc(sizeof(void*));
+    s->bs->backing_hd->opaque = g_new(void *, 1);
     *(void**)s->bs->backing_hd->opaque = s;
 
     return 0;

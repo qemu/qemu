@@ -356,7 +356,7 @@ static void command_loop(void)
 
 static void add_user_command(char *optarg)
 {
-    cmdline = g_realloc(cmdline, ++ncmdline * sizeof(char *));
+    cmdline = g_renew(char *, cmdline, ++ncmdline);
     cmdline[ncmdline-1] = optarg;
 }
 
