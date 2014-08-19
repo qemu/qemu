@@ -5372,10 +5372,6 @@ for rom in seabios vgabios ; do
     echo "LD=$ld" >> $config_mak
 done
 
-if test "$docs" = "yes" ; then
-  mkdir -p QMP
-fi
-
 # set up qemu-iotests in this build directory
 iotests_common_env="tests/qemu-iotests/common.env"
 iotests_check="tests/qemu-iotests/check"
