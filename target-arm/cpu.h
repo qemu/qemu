@@ -220,6 +220,7 @@ typedef struct CPUARMState {
         uint64_t dbgbcr[16]; /* breakpoint control registers */
         uint64_t dbgwvr[16]; /* watchpoint value registers */
         uint64_t dbgwcr[16]; /* watchpoint control registers */
+        uint64_t mdscr_el1;
         /* If the counter is enabled, this stores the last time the counter
          * was reset. Otherwise it stores the counter value
          */
@@ -1117,6 +1118,66 @@ static inline CPUARMState *cpu_init(const char *cpu_model)
 static inline int cpu_mmu_index (CPUARMState *env)
 {
     return arm_current_pl(env);
+}
+
+/* Return the Exception Level targeted by debug exceptions;
+ * currently always EL1 since we don't implement EL2 or EL3.
+ */
+static inline int arm_debug_target_el(CPUARMState *env)
+{
+    return 1;
+}
+
+static inline bool aa64_generate_debug_exceptions(CPUARMState *env)
+{
+    if (arm_current_pl(env) == arm_debug_target_el(env)) {
+        if ((extract32(env->cp15.mdscr_el1, 13, 1) == 0)
+            || (env->daif & PSTATE_D)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static inline bool aa32_generate_debug_exceptions(CPUARMState *env)
+{
+    if (arm_current_pl(env) == 0 && arm_el_is_aa64(env, 1)) {
+        return aa64_generate_debug_exceptions(env);
+    }
+    return arm_current_pl(env) != 2;
+}
+
+/* Return true if debugging exceptions are currently enabled.
+ * This corresponds to what in ARM ARM pseudocode would be
+ *    if UsingAArch32() then
+ *        return AArch32.GenerateDebugExceptions()
+ *    else
+ *        return AArch64.GenerateDebugExceptions()
+ * We choose to push the if() down into this function for clarity,
+ * since the pseudocode has it at all callsites except for the one in
+ * CheckSoftwareStep(), where it is elided because both branches would
+ * always return the same value.
+ *
+ * Parts of the pseudocode relating to EL2 and EL3 are omitted because we
+ * don't yet implement those exception levels or their associated trap bits.
+ */
+static inline bool arm_generate_debug_exceptions(CPUARMState *env)
+{
+    if (env->aarch64) {
+        return aa64_generate_debug_exceptions(env);
+    } else {
+        return aa32_generate_debug_exceptions(env);
+    }
+}
+
+/* Is single-stepping active? (Note that the "is EL_D AArch64?" check
+ * implicitly means this always returns false in pre-v8 CPUs.)
+ */
+static inline bool arm_singlestep_active(CPUARMState *env)
+{
+    return extract32(env->cp15.mdscr_el1, 0, 1)
+        && arm_el_is_aa64(env, arm_debug_target_el(env))
+        && arm_generate_debug_exceptions(env);
 }
 
 #include "exec/cpu-all.h"
