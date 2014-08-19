@@ -131,7 +131,7 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
         return -EFBIG;
     }
 
-    s->catalog_bitmap = g_try_malloc(s->catalog_size * 4);
+    s->catalog_bitmap = g_try_new(uint32_t, s->catalog_size);
     if (s->catalog_size && s->catalog_bitmap == NULL) {
         error_setg(errp, "Could not allocate memory for catalog");
         return -ENOMEM;

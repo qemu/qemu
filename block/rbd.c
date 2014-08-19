@@ -862,7 +862,7 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
     int max_snaps = RBD_MAX_SNAPS;
 
     do {
-        snaps = g_malloc(sizeof(*snaps) * max_snaps);
+        snaps = g_new(rbd_snap_info_t, max_snaps);
         snap_count = rbd_snap_list(s->image, snaps, &max_snaps);
         if (snap_count <= 0) {
             g_free(snaps);

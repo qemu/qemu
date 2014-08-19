@@ -2357,7 +2357,7 @@ static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
         goto out;
     }
 
-    sn_tab = g_malloc0(nr * sizeof(*sn_tab));
+    sn_tab = g_new0(QEMUSnapshotInfo, nr);
 
     /* calculate a vdi id with hash function */
     hval = fnv_64a_buf(s->name, strlen(s->name), FNV1A_64_INIT);

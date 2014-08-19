@@ -227,8 +227,7 @@ int qed_check(BDRVQEDState *s, BdrvCheckResult *result, bool fix)
     };
     int ret;
 
-    check.used_clusters = g_try_malloc0(((check.nclusters + 31) / 32) *
-                                        sizeof(check.used_clusters[0]));
+    check.used_clusters = g_try_new0(uint32_t, (check.nclusters + 31) / 32);
     if (check.nclusters && check.used_clusters == NULL) {
         return -ENOMEM;
     }

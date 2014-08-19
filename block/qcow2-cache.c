@@ -50,7 +50,7 @@ Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables)
 
     c = g_malloc0(sizeof(*c));
     c->size = num_tables;
-    c->entries = g_malloc0(sizeof(*c->entries) * num_tables);
+    c->entries = g_new0(Qcow2CachedTable, num_tables);
 
     for (i = 0; i < c->size; i++) {
         c->entries[i].table = qemu_try_blockalign(bs->file, s->cluster_size);

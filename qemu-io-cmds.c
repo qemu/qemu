@@ -29,7 +29,7 @@ static int compare_cmdname(const void *a, const void *b)
 
 void qemuio_add_command(const cmdinfo_t *ci)
 {
-    cmdtab = g_realloc(cmdtab, ++ncmds * sizeof(*cmdtab));
+    cmdtab = g_renew(cmdinfo_t, cmdtab, ++ncmds);
     cmdtab[ncmds - 1] = *ci;
     qsort(cmdtab, ncmds, sizeof(*cmdtab), compare_cmdname);
 }
@@ -122,7 +122,7 @@ static char **breakline(char *input, int *count)
             continue;
         }
         c++;
-        tmp = g_realloc(rval, sizeof(*rval) * (c + 1));
+        tmp = g_renew(char *, rval, (c + 1));
         if (!tmp) {
             g_free(rval);
             rval = NULL;
@@ -1264,9 +1264,9 @@ static int multiwrite_f(BlockDriverState *bs, int argc, char **argv)
         }
     }
 
-    reqs = g_malloc0(nr_reqs * sizeof(*reqs));
-    buf = g_malloc0(nr_reqs * sizeof(*buf));
-    qiovs = g_malloc(nr_reqs * sizeof(*qiovs));
+    reqs = g_new0(BlockRequest, nr_reqs);
+    buf = g_new0(char *, nr_reqs);
+    qiovs = g_new(QEMUIOVector, nr_reqs);
 
     for (i = 0; i < nr_reqs && optind < argc; i++) {
         int j;
