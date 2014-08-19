@@ -1456,7 +1456,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
             break;
         }
         /* BRK */
-        gen_exception_insn(s, 0, EXCP_BKPT, syn_aa64_bkpt(imm16));
+        gen_exception_insn(s, 4, EXCP_BKPT, syn_aa64_bkpt(imm16));
         break;
     case 2:
         if (op2_ll != 0) {
