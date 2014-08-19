@@ -2186,12 +2186,6 @@ static CPAccessResult ctr_el0_access(CPUARMState *env, const ARMCPRegInfo *ri)
 }
 
 static const ARMCPRegInfo debug_cp_reginfo[] = {
-    /* DBGDIDR: just RAZ. In particular this means the "debug architecture
-     * version" bits will read as a reserved value, which should cause
-     * Linux to not try to use the debug hardware.
-     */
-    { .name = "DBGDIDR", .cp = 14, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 0,
-      .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
     /* DBGDRAR, DBGDSAR: always RAZ since we don't implement memory mapped
      * debug components. The AArch64 version of DBGDRAR is named MDRAR_EL1;
      * unlike DBGDRAR it is never accessible from EL0.
@@ -2233,14 +2227,32 @@ static void define_debug_regs(ARMCPU *cpu)
      * These are just dummy implementations for now.
      */
     int i;
+    int wrps, brps;
+    ARMCPRegInfo dbgdidr = {
+        .name = "DBGDIDR", .cp = 14, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 0,
+        .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = cpu->dbgdidr,
+    };
 
+    brps = extract32(cpu->dbgdidr, 24, 4);
+    wrps = extract32(cpu->dbgdidr, 28, 4);
+
+    /* The DBGDIDR and ID_AA64DFR0_EL1 define various properties
+     * of the debug registers such as number of breakpoints;
+     * check that if they both exist then they agree.
+     */
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        assert(extract32(cpu->id_aa64dfr0, 12, 4) == brps);
+        assert(extract32(cpu->id_aa64dfr0, 20, 4) == wrps);
+    }
+
+    define_one_arm_cp_reg(cpu, &dbgdidr);
     define_arm_cp_regs(cpu, debug_cp_reginfo);
 
     if (arm_feature(&cpu->env, ARM_FEATURE_LPAE)) {
         define_arm_cp_regs(cpu, debug_lpae_cp_reginfo);
     }
 
-    for (i = 0; i < 16; i++) {
+    for (i = 0; i < brps + 1; i++) {
         ARMCPRegInfo dbgregs[] = {
             { .name = "DBGBVR", .state = ARM_CP_STATE_BOTH,
               .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 4,
@@ -2250,6 +2262,13 @@ static void define_debug_regs(ARMCPU *cpu)
               .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 5,
               .access = PL1_RW,
               .fieldoffset = offsetof(CPUARMState, cp15.dbgbcr[i]) },
+            REGINFO_SENTINEL
+        };
+        define_arm_cp_regs(cpu, dbgregs);
+    }
+
+    for (i = 0; i < wrps + 1; i++) {
+        ARMCPRegInfo dbgregs[] = {
             { .name = "DBGWVR", .state = ARM_CP_STATE_BOTH,
               .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 6,
               .access = PL1_RW,
