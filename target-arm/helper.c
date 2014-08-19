@@ -2193,21 +2193,27 @@ static const ARMCPRegInfo debug_cp_reginfo[] = {
     { .name = "DBGDIDR", .cp = 14, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
     /* DBGDRAR, DBGDSAR: always RAZ since we don't implement memory mapped
-     * debug components
+     * debug components. The AArch64 version of DBGDRAR is named MDRAR_EL1;
+     * unlike DBGDRAR it is never accessible from EL0.
+     * DBGDSAR is deprecated and must RAZ from v8 anyway, so it has no AArch64
+     * accessor.
      */
     { .name = "DBGDRAR", .cp = 14, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "MDRAR_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 2, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 0,
+      .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "DBGDSAR", .cp = 14, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
     /* Dummy implementation of monitor debug system control register:
-     * we don't support debug.
+     * we don't support debug. (The 32-bit alias is DBGDSCRext.)
      */
-    { .name = "MDSCR_EL1", .state = ARM_CP_STATE_AA64,
-      .opc0 = 2, .opc1 = 0, .crn = 0, .crm = 2, .opc2 = 2,
+    { .name = "MDSCR_EL1", .state = ARM_CP_STATE_BOTH,
+      .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = 2, .opc2 = 2,
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     /* We define a dummy WI OSLAR_EL1, because Linux writes to it. */
-    { .name = "OSLAR_EL1", .state = ARM_CP_STATE_AA64,
-      .opc0 = 2, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 4,
+    { .name = "OSLAR_EL1", .state = ARM_CP_STATE_BOTH,
+      .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 4,
       .access = PL1_W, .type = ARM_CP_NOP },
     REGINFO_SENTINEL
 };
@@ -2236,20 +2242,20 @@ static void define_debug_regs(ARMCPU *cpu)
 
     for (i = 0; i < 16; i++) {
         ARMCPRegInfo dbgregs[] = {
-            { .name = "DBGBVR", .state = ARM_CP_STATE_AA64,
-              .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 4,
+            { .name = "DBGBVR", .state = ARM_CP_STATE_BOTH,
+              .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 4,
               .access = PL1_RW,
               .fieldoffset = offsetof(CPUARMState, cp15.dbgbvr[i]) },
-            { .name = "DBGBCR", .state = ARM_CP_STATE_AA64,
-              .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 5,
+            { .name = "DBGBCR", .state = ARM_CP_STATE_BOTH,
+              .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 5,
               .access = PL1_RW,
               .fieldoffset = offsetof(CPUARMState, cp15.dbgbcr[i]) },
-            { .name = "DBGWVR", .state = ARM_CP_STATE_AA64,
-              .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 6,
+            { .name = "DBGWVR", .state = ARM_CP_STATE_BOTH,
+              .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 6,
               .access = PL1_RW,
               .fieldoffset = offsetof(CPUARMState, cp15.dbgwvr[i]) },
-            { .name = "DBGWCR", .state = ARM_CP_STATE_AA64,
-              .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 7,
+            { .name = "DBGWCR", .state = ARM_CP_STATE_BOTH,
+              .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 7,
               .access = PL1_RW,
               .fieldoffset = offsetof(CPUARMState, cp15.dbgwcr[i]) },
                REGINFO_SENTINEL
