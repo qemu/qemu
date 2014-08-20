@@ -538,7 +538,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     unsigned int len, i;
     int ret = 0;
     QCowHeader header;
-    QemuOpts *opts;
+    QemuOpts *opts = NULL;
     Error *local_err = NULL;
     uint64_t ext_end;
     uint64_t l1_vm_state_index;
@@ -935,7 +935,6 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         error_setg(errp, "Unsupported value '%s' for qcow2 option "
                    "'overlap-check'. Allowed are either of the following: "
                    "none, constant, cached, all", opt_overlap_check);
-        qemu_opts_del(opts);
         ret = -EINVAL;
         goto fail;
     }
@@ -950,6 +949,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     qemu_opts_del(opts);
+    opts = NULL;
 
     if (s->use_lazy_refcounts && s->qcow_version < 3) {
         error_setg(errp, "Lazy refcounts require a qcow2 image with at least "
@@ -967,6 +967,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     return ret;
 
  fail:
+    qemu_opts_del(opts);
     g_free(s->unknown_header_fields);
     cleanup_unknown_header_ext(bs);
     qcow2_free_snapshots(bs);
