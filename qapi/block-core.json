@@ -1264,6 +1264,67 @@
   'data': { '*backing': 'BlockdevRef' } }
 
 ##
+# @Qcow2OverlapCheckMode
+#
+# General overlap check modes.
+#
+# @none:        Do not perform any checks
+#
+# @constant:    Perform only checks which can be done in constant time and
+#               without reading anything from disk
+#
+# @cached:      Perform only checks which can be done without reading anything
+#               from disk
+#
+# @all:         Perform all available overlap checks
+#
+# Since: 2.2
+##
+{ 'enum': 'Qcow2OverlapCheckMode',
+  'data': [ 'none', 'constant', 'cached', 'all' ] }
+
+##
+# @Qcow2OverlapCheckFlags
+#
+# Structure of flags for each metadata structure. Setting a field to 'true'
+# makes qemu guard that structure against unintended overwriting. The default
+# value is chosen according to the template given.
+#
+# @template: Specifies a template mode which can be adjusted using the other
+#            flags, defaults to 'cached'
+#
+# Since: 2.2
+##
+{ 'type': 'Qcow2OverlapCheckFlags',
+  'data': { '*template':       'Qcow2OverlapCheckMode',
+            '*main-header':    'bool',
+            '*active-l1':      'bool',
+            '*active-l2':      'bool',
+            '*refcount-table': 'bool',
+            '*refcount-block': 'bool',
+            '*snapshot-table': 'bool',
+            '*inactive-l1':    'bool',
+            '*inactive-l2':    'bool' } }
+
+##
+# @Qcow2OverlapChecks
+#
+# Specifies which metadata structures should be guarded against unintended
+# overwriting.
+#
+# @flags:   set of flags for separate specification of each metadata structure
+#           type
+#
+# @mode:    named mode which chooses a specific set of flags
+#
+# Since: 2.2
+##
+{ 'union': 'Qcow2OverlapChecks',
+  'discriminator': {},
+  'data': { 'flags': 'Qcow2OverlapCheckFlags',
+            'mode':  'Qcow2OverlapCheckMode' } }
+
+##
 # @BlockdevOptionsQcow2
 #
 # Driver specific block device options for qcow2.
@@ -1282,6 +1343,18 @@
 #                         should be issued on other occasions where a cluster
 #                         gets freed
 #
+# @overlap-check:         #optional which overlap checks to perform for writes
+#                         to the image, defaults to 'cached' (since 2.2)
+#
+# @cache-size:            #optional the maximum total size of the L2 table and
+#                         refcount block caches in bytes (since 2.2)
+#
+# @l2-cache-size:         #optional the maximum size of the L2 table cache in
+#                         bytes (since 2.2)
+#
+# @refcount-cache-size:   #optional the maximum size of the refcount block cache
+#                         in bytes (since 2.2)
+#
 # Since: 1.7
 ##
 { 'type': 'BlockdevOptionsQcow2',
@@ -1289,7 +1362,11 @@
   'data': { '*lazy-refcounts': 'bool',
             '*pass-discard-request': 'bool',
             '*pass-discard-snapshot': 'bool',
-            '*pass-discard-other': 'bool' } }
+            '*pass-discard-other': 'bool',
+            '*overlap-check': 'Qcow2OverlapChecks',
+            '*cache-size': 'int',
+            '*l2-cache-size': 'int',
+            '*refcount-cache-size': 'int' } }
 
 
 ##
