@@ -876,30 +876,6 @@ static char *memory_region_escape_name(const char *name)
     return escaped;
 }
 
-static void object_property_add_child_array(Object *owner,
-                                            const char *name,
-                                            Object *child)
-{
-    int i;
-    char *base_name = memory_region_escape_name(name);
-
-    for (i = 0; ; i++) {
-        char *full_name = g_strdup_printf("%s[%d]", base_name, i);
-        Error *local_err = NULL;
-
-        object_property_add_child(owner, full_name, child, &local_err);
-        g_free(full_name);
-        if (!local_err) {
-            break;
-        }
-
-        error_free(local_err);
-    }
-
-    g_free(base_name);
-}
-        
-
 void memory_region_init(MemoryRegion *mr,
                         Object *owner,
                         const char *name,
@@ -917,8 +893,12 @@ void memory_region_init(MemoryRegion *mr,
     mr->name = g_strdup(name);
 
     if (name) {
-        object_property_add_child_array(owner, name, OBJECT(mr));
+        char *escaped_name = memory_region_escape_name(name);
+        char *name_array = g_strdup_printf("%s[*]", escaped_name);
+        object_property_add_child(owner, name_array, OBJECT(mr), &error_abort);
         object_unref(OBJECT(mr));
+        g_free(name_array);
+        g_free(escaped_name);
     }
 }
 
