@@ -406,6 +406,12 @@ static QemuOptsList qcow2_runtime_opts = {
                     "templates (none, constant, cached, all)",
         },
         {
+            .name = QCOW2_OPT_OVERLAP_TEMPLATE,
+            .type = QEMU_OPT_STRING,
+            .help = "Selects which overlap checks to perform from a range of "
+                    "templates (none, constant, cached, all)",
+        },
+        {
             .name = QCOW2_OPT_OVERLAP_MAIN_HEADER,
             .type = QEMU_OPT_BOOL,
             .help = "Check for unintended writes into the main qcow2 header",
@@ -542,7 +548,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     uint64_t ext_end;
     uint64_t l1_vm_state_index;
-    const char *opt_overlap_check;
+    const char *opt_overlap_check, *opt_overlap_check_template;
     int overlap_check_template = 0;
     uint64_t l2_cache_size, refcount_cache_size;
 
@@ -922,7 +928,21 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     s->discard_passthrough[QCOW2_DISCARD_OTHER] =
         qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_OTHER, false);
 
-    opt_overlap_check = qemu_opt_get(opts, "overlap-check") ?: "cached";
+    opt_overlap_check = qemu_opt_get(opts, QCOW2_OPT_OVERLAP);
+    opt_overlap_check_template = qemu_opt_get(opts, QCOW2_OPT_OVERLAP_TEMPLATE);
+    if (opt_overlap_check_template && opt_overlap_check &&
+        strcmp(opt_overlap_check_template, opt_overlap_check))
+    {
+        error_setg(errp, "Conflicting values for qcow2 options '"
+                   QCOW2_OPT_OVERLAP "' ('%s') and '" QCOW2_OPT_OVERLAP_TEMPLATE
+                   "' ('%s')", opt_overlap_check, opt_overlap_check_template);
+        ret = -EINVAL;
+        goto fail;
+    }
+    if (!opt_overlap_check) {
+        opt_overlap_check = opt_overlap_check_template ?: "cached";
+    }
+
     if (!strcmp(opt_overlap_check, "none")) {
         overlap_check_template = 0;
     } else if (!strcmp(opt_overlap_check, "constant")) {

@@ -83,6 +83,7 @@
 #define QCOW2_OPT_DISCARD_SNAPSHOT "pass-discard-snapshot"
 #define QCOW2_OPT_DISCARD_OTHER "pass-discard-other"
 #define QCOW2_OPT_OVERLAP "overlap-check"
+#define QCOW2_OPT_OVERLAP_TEMPLATE "overlap-check.template"
 #define QCOW2_OPT_OVERLAP_MAIN_HEADER "overlap-check.main-header"
 #define QCOW2_OPT_OVERLAP_ACTIVE_L1 "overlap-check.active-l1"
 #define QCOW2_OPT_OVERLAP_ACTIVE_L2 "overlap-check.active-l2"
