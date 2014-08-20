@@ -5275,8 +5275,8 @@ static decNumber * decMultiplyOp(decNumber *res, const decNumber *lhs,
 /* 4. The working precisions for the static buffers are twice the     */
 /*    obvious size to allow for calls from decNumberPower.	      */
 /* ------------------------------------------------------------------ */
-decNumber * decExpOp(decNumber *res, const decNumber *rhs,
-			 decContext *set, uInt *status) {
+static decNumber *decExpOp(decNumber *res, const decNumber *rhs,
+                           decContext *set, uInt *status) {
   uInt ignore=0;		   /* working status */
   Int h;			   /* adjusted exponent for 0.xxxx */
   Int p;			   /* working precision */
@@ -5563,7 +5563,8 @@ decNumber * decExpOp(decNumber *res, const decNumber *rhs,
 /*	     where x is truncated (NB) into the range 10 through 99,  */
 /*	     and then c = k>>2 and e = k&3.			      */
 /* ------------------------------------------------------------------ */
-const uShort LNnn[90]={9016,  8652,  8316,  8008,  7724,  7456,	 7208,
+static const uShort LNnn[90] = {
+  9016,  8652,  8316,  8008,  7724,  7456,  7208,
   6972,	 6748,	6540,  6340,  6148,  5968,  5792,  5628,  5464,	 5312,
   5164,	 5020,	4884,  4748,  4620,  4496,  4376,  4256,  4144,	 4032,
  39233, 38181, 37157, 36157, 35181, 34229, 33297, 32389, 31501, 30629,
@@ -5635,8 +5636,8 @@ const uShort LNnn[90]={9016,  8652,  8316,  8008,  7724,  7456,	 7208,
 /* 5. The static buffers are larger than might be expected to allow   */
 /*    for calls from decNumberPower.				      */
 /* ------------------------------------------------------------------ */
-decNumber * decLnOp(decNumber *res, const decNumber *rhs,
-		    decContext *set, uInt *status) {
+static decNumber *decLnOp(decNumber *res, const decNumber *rhs,
+                          decContext *set, uInt *status) {
   uInt ignore=0;		   /* working status accumulator */
   uInt needbytes;		   /* for space calculations */
   Int residue;			   /* rounding residue */
@@ -6052,9 +6053,9 @@ static decNumber * decQuantizeOp(decNumber *res, const decNumber *lhs,
 /* The emphasis here is on speed for common cases, and avoiding	      */
 /* coefficient comparison if possible.				      */
 /* ------------------------------------------------------------------ */
-decNumber * decCompareOp(decNumber *res, const decNumber *lhs,
-			 const decNumber *rhs, decContext *set,
-			 Flag op, uInt *status) {
+static decNumber *decCompareOp(decNumber *res, const decNumber *lhs,
+                               const decNumber *rhs, decContext *set,
+                               Flag op, uInt *status) {
   #if DECSUBSET
   decNumber *alloclhs=NULL;	   /* non-NULL if rounded lhs allocated */
   decNumber *allocrhs=NULL;	   /* .., rhs */
@@ -6086,11 +6087,11 @@ decNumber * decCompareOp(decNumber *res, const decNumber *lhs,
 
     /* If total ordering then handle differing signs 'up front' */
     if (op==COMPTOTAL) {		/* total ordering */
-      if (decNumberIsNegative(lhs) & !decNumberIsNegative(rhs)) {
+      if (decNumberIsNegative(lhs) && !decNumberIsNegative(rhs)) {
 	result=-1;
 	break;
 	}
-      if (!decNumberIsNegative(lhs) & decNumberIsNegative(rhs)) {
+      if (!decNumberIsNegative(lhs) && decNumberIsNegative(rhs)) {
 	result=+1;
 	break;
 	}
