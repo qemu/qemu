@@ -18,6 +18,8 @@
 #include "css.h"
 #include "virtio-ccw.h"
 
+#define TYPE_S390_CCW_MACHINE               "s390-ccw-machine"
+
 void io_subsystem_reset(void)
 {
     DeviceState *css, *sclp, *flic;
@@ -134,24 +136,33 @@ static void ccw_init(MachineState *machine)
     s390_create_virtio_net(BUS(css_bus), "virtio-net-ccw");
 }
 
-static QEMUMachine ccw_machine = {
-    .name = "s390-ccw-virtio",
-    .alias = "s390-ccw",
-    .desc = "VirtIO-ccw based S390 machine",
-    .init = ccw_init,
-    .block_default_type = IF_VIRTIO,
-    .no_cdrom = 1,
-    .no_floppy = 1,
-    .no_serial = 1,
-    .no_parallel = 1,
-    .no_sdcard = 1,
-    .use_sclp = 1,
-    .max_cpus = 255,
-};
-
-static void ccw_machine_init(void)
+static void ccw_machine_class_init(ObjectClass *oc, void *data)
 {
-    qemu_register_machine(&ccw_machine);
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->name = "s390-ccw-virtio";
+    mc->alias = "s390-ccw";
+    mc->desc = "VirtIO-ccw based S390 machine";
+    mc->init = ccw_init;
+    mc->block_default_type = IF_VIRTIO;
+    mc->no_cdrom = 1;
+    mc->no_floppy = 1;
+    mc->no_serial = 1;
+    mc->no_parallel = 1;
+    mc->no_sdcard = 1;
+    mc->use_sclp = 1,
+    mc->max_cpus = 255;
 }
 
-machine_init(ccw_machine_init)
+static const TypeInfo ccw_machine_info = {
+    .name          = TYPE_S390_CCW_MACHINE,
+    .parent        = TYPE_MACHINE,
+    .class_init    = ccw_machine_class_init,
+};
+
+static void ccw_machine_register_types(void)
+{
+    type_register_static(&ccw_machine_info);
+}
+
+type_init(ccw_machine_register_types)
