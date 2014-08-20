@@ -52,10 +52,6 @@
 
 #define DLOG(a) a
 
-#undef stderr
-#define stderr STDERR
-FILE* stderr = NULL;
-
 static void checkpoint(void);
 
 #ifdef __MINGW32__
@@ -1081,11 +1077,6 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 #ifdef DEBUG
     vvv = s;
 #endif
-
-DLOG(if (stderr == NULL) {
-    stderr = fopen("vvfat.log", "a");
-    setbuf(stderr, NULL);
-})
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
