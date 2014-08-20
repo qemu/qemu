@@ -1669,16 +1669,30 @@ void kvm_cpu_synchronize_state(CPUState *cpu)
     }
 }
 
+static void do_kvm_cpu_synchronize_post_reset(void *arg)
+{
+    CPUState *cpu = arg;
+
+    kvm_arch_put_registers(cpu, KVM_PUT_RESET_STATE);
+    cpu->kvm_vcpu_dirty = false;
+}
+
 void kvm_cpu_synchronize_post_reset(CPUState *cpu)
 {
-    kvm_arch_put_registers(cpu, KVM_PUT_RESET_STATE);
+    run_on_cpu(cpu, do_kvm_cpu_synchronize_post_reset, cpu);
+}
+
+static void do_kvm_cpu_synchronize_post_init(void *arg)
+{
+    CPUState *cpu = arg;
+
+    kvm_arch_put_registers(cpu, KVM_PUT_FULL_STATE);
     cpu->kvm_vcpu_dirty = false;
 }
 
 void kvm_cpu_synchronize_post_init(CPUState *cpu)
 {
-    kvm_arch_put_registers(cpu, KVM_PUT_FULL_STATE);
-    cpu->kvm_vcpu_dirty = false;
+    run_on_cpu(cpu, do_kvm_cpu_synchronize_post_init, cpu);
 }
 
 int kvm_cpu_exec(CPUState *cpu)
