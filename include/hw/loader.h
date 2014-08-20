@@ -15,6 +15,7 @@ int get_image_size(const char *filename);
 int load_image(const char *filename, uint8_t *addr); /* deprecated */
 int load_image_targphys(const char *filename, hwaddr,
                         uint64_t max_sz);
+int load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz);
 
 #define ELF_LOAD_FAILED       -1
 #define ELF_LOAD_NOT_ELF      -2

@@ -205,10 +205,39 @@ static void gen_exception_insn(DisasContext *s, int offset, int excp,
     s->is_jmp = DISAS_EXC;
 }
 
+static void gen_ss_advance(DisasContext *s)
+{
+    /* If the singlestep state is Active-not-pending, advance to
+     * Active-pending.
+     */
+    if (s->ss_active) {
+        s->pstate_ss = 0;
+        gen_helper_clear_pstate_ss(cpu_env);
+    }
+}
+
+static void gen_step_complete_exception(DisasContext *s)
+{
+    /* We just completed step of an insn. Move from Active-not-pending
+     * to Active-pending, and then also take the swstep exception.
+     * This corresponds to making the (IMPDEF) choice to prioritize
+     * swstep exceptions over asynchronous exceptions taken to an exception
+     * level where debug is disabled. This choice has the advantage that
+     * we do not need to maintain internal state corresponding to the
+     * ISV/EX syndrome bits between completion of the step and generation
+     * of the exception, and our syndrome information is always correct.
+     */
+    gen_ss_advance(s);
+    gen_exception(EXCP_UDEF, syn_swstep(s->ss_same_el, 1, s->is_ldex));
+    s->is_jmp = DISAS_EXC;
+}
+
 static inline bool use_goto_tb(DisasContext *s, int n, uint64_t dest)
 {
-    /* No direct tb linking with singlestep or deterministic io */
-    if (s->singlestep_enabled || (s->tb->cflags & CF_LAST_IO)) {
+    /* No direct tb linking with singlestep (either QEMU's or the ARM
+     * debug architecture kind) or deterministic io
+     */
+    if (s->singlestep_enabled || s->ss_active || (s->tb->cflags & CF_LAST_IO)) {
         return false;
     }
 
@@ -232,11 +261,14 @@ static inline void gen_goto_tb(DisasContext *s, int n, uint64_t dest)
         s->is_jmp = DISAS_TB_JUMP;
     } else {
         gen_a64_set_pc_im(dest);
-        if (s->singlestep_enabled) {
+        if (s->ss_active) {
+            gen_step_complete_exception(s);
+        } else if (s->singlestep_enabled) {
             gen_exception_internal(EXCP_DEBUG);
+        } else {
+            tcg_gen_exit_tb(0);
+            s->is_jmp = DISAS_TB_JUMP;
         }
-        tcg_gen_exit_tb(0);
-        s->is_jmp = DISAS_JUMP;
     }
 }
 
@@ -1448,6 +1480,12 @@ static void disas_exc(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             break;
         }
+        /* For SVC, HVC and SMC we advance the single-step state
+         * machine before taking the exception. This is architecturally
+         * mandated, to ensure that single-stepping a system call
+         * instruction works properly.
+         */
+        gen_ss_advance(s);
         gen_exception_insn(s, 0, EXCP_SWI, syn_aa64_svc(imm16));
         break;
     case 1:
@@ -1456,7 +1494,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
             break;
         }
         /* BRK */
-        gen_exception_insn(s, 0, EXCP_BKPT, syn_aa64_bkpt(imm16));
+        gen_exception_insn(s, 4, EXCP_BKPT, syn_aa64_bkpt(imm16));
         break;
     case 2:
         if (op2_ll != 0) {
@@ -1728,6 +1766,7 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
 
     if (is_excl) {
         if (!is_store) {
+            s->is_ldex = true;
             gen_load_exclusive(s, rt, rt2, tcg_addr, size, is_pair);
         } else {
             gen_store_exclusive(s, rs, rt, rt2, tcg_addr, size, is_pair);
@@ -10868,6 +10907,26 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
     dc->current_pl = arm_current_pl(env);
     dc->features = env->features;
 
+    /* Single step state. The code-generation logic here is:
+     *  SS_ACTIVE == 0:
+     *   generate code with no special handling for single-stepping (except
+     *   that anything that can make us go to SS_ACTIVE == 1 must end the TB;
+     *   this happens anyway because those changes are all system register or
+     *   PSTATE writes).
+     *  SS_ACTIVE == 1, PSTATE.SS == 1: (active-not-pending)
+     *   emit code for one insn
+     *   emit code to clear PSTATE.SS
+     *   emit code to generate software step exception for completed step
+     *   end TB (as usual for having generated an exception)
+     *  SS_ACTIVE == 1, PSTATE.SS == 0: (active-pending)
+     *   emit code to generate a software step exception
+     *   end the TB
+     */
+    dc->ss_active = ARM_TBFLAG_AA64_SS_ACTIVE(tb->flags);
+    dc->pstate_ss = ARM_TBFLAG_AA64_PSTATE_SS(tb->flags);
+    dc->is_ldex = false;
+    dc->ss_same_el = (arm_debug_target_el(env) == dc->current_pl);
+
     init_tmp_a64_array(dc);
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
@@ -10916,6 +10975,23 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
             tcg_gen_debug_insn_start(dc->pc);
         }
 
+        if (dc->ss_active && !dc->pstate_ss) {
+            /* Singlestep state is Active-pending.
+             * If we're in this state at the start of a TB then either
+             *  a) we just took an exception to an EL which is being debugged
+             *     and this is the first insn in the exception handler
+             *  b) debug exceptions were masked and we just unmasked them
+             *     without changing EL (eg by clearing PSTATE.D)
+             * In either case we're going to take a swstep exception in the
+             * "did not step an insn" case, and so the syndrome ISV and EX
+             * bits should be zero.
+             */
+            assert(num_insns == 0);
+            gen_exception(EXCP_UDEF, syn_swstep(dc->ss_same_el, 0, 0));
+            dc->is_jmp = DISAS_EXC;
+            break;
+        }
+
         disas_a64_insn(env, dc);
 
         if (tcg_check_temp_count()) {
@@ -10932,6 +11008,7 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
     } while (!dc->is_jmp && tcg_ctx.gen_opc_ptr < gen_opc_end &&
              !cs->singlestep_enabled &&
              !singlestep &&
+             !dc->ss_active &&
              dc->pc < next_page_start &&
              num_insns < max_insns);
 
@@ -10939,7 +11016,8 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
         gen_io_end();
     }
 
-    if (unlikely(cs->singlestep_enabled) && dc->is_jmp != DISAS_EXC) {
+    if (unlikely(cs->singlestep_enabled || dc->ss_active)
+        && dc->is_jmp != DISAS_EXC) {
         /* Note that this means single stepping WFI doesn't halt the CPU.
          * For conditional branch insns this is harmless unreachable code as
          * gen_goto_tb() has already handled emitting the debug exception
@@ -10949,7 +11027,11 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
         if (dc->is_jmp != DISAS_JUMP) {
             gen_a64_set_pc_im(dc->pc);
         }
-        gen_exception_internal(EXCP_DEBUG);
+        if (cs->singlestep_enabled) {
+            gen_exception_internal(EXCP_DEBUG);
+        } else {
+            gen_step_complete_exception(dc);
+        }
     } else {
         switch (dc->is_jmp) {
         case DISAS_NEXT:

@@ -1208,7 +1208,6 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
         0x40024000, 0x40025000, 0x40026000};
     static const int gpio_irq[7] = {0, 1, 2, 3, 4, 30, 31};
 
-    MemoryRegion *address_space_mem = get_system_memory();
     qemu_irq *pic;
     DeviceState *gpio_dev[7];
     qemu_irq gpio_in[7][8];
@@ -1223,7 +1222,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 
     flash_size = ((board->dc0 & 0xffff) + 1) << 1;
     sram_size = (board->dc0 >> 18) + 1;
-    pic = armv7m_init(address_space_mem,
+    pic = armv7m_init(get_system_memory(),
                       flash_size, sram_size, kernel_filename, cpu_model);
 
     if (board->dc1 & (1 << 16)) {

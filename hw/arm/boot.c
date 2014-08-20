@@ -514,6 +514,13 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
         kernel_size = load_uimage(info->kernel_filename, &entry, NULL,
                                   &is_linux);
     }
+    /* On aarch64, it's the bootloader's job to uncompress the kernel. */
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64) && kernel_size < 0) {
+        entry = info->loader_start + kernel_load_offset;
+        kernel_size = load_image_gzipped(info->kernel_filename, entry,
+                                         info->ram_size - kernel_load_offset);
+        is_linux = 1;
+    }
     if (kernel_size < 0) {
         entry = info->loader_start + kernel_load_offset;
         kernel_size = load_image_targphys(info->kernel_filename, entry,

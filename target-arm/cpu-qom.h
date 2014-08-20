@@ -148,6 +148,7 @@ typedef struct ARMCPU {
     uint64_t id_aa64isar1;
     uint64_t id_aa64mmfr0;
     uint64_t id_aa64mmfr1;
+    uint32_t dbgdidr;
     uint32_t clidr;
     /* The elements of this array are the CCSIDR values for each cache,
      * in the order L1DCache, L1ICache, L2DCache, L2ICache, etc.

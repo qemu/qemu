@@ -127,6 +127,7 @@ static void aarch64_a57_initfn(Object *obj)
     cpu->id_aa64dfr0 = 0x10305106;
     cpu->id_aa64isar0 = 0x00010000;
     cpu->id_aa64mmfr0 = 0x00001124;
+    cpu->dbgdidr = 0x3516d000;
     cpu->clidr = 0x0a200023;
     cpu->ccsidr[0] = 0x701fe00a; /* 32KB L1 dcache */
     cpu->ccsidr[1] = 0x201fe012; /* 48KB L1 icache */
