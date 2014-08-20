@@ -280,9 +280,19 @@ static void s390_init(MachineState *machine)
     s390_create_virtio_net((BusState *)s390_bus, "virtio-net-s390");
 }
 
+void s390_nmi(NMIState *n, int cpu_index, Error **errp)
+{
+    CPUState *cs = qemu_get_cpu(cpu_index);
+
+    if (s390_cpu_restart(S390_CPU(cs))) {
+        error_set(errp, QERR_UNSUPPORTED);
+    }
+}
+
 static void s390_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
 
     mc->name = "s390-virtio";
     mc->alias = "s390";
@@ -297,12 +307,17 @@ static void s390_machine_class_init(ObjectClass *oc, void *data)
     mc->no_cdrom = 1;
     mc->no_sdcard = 1;
     mc->is_default = 1;
+    nc->nmi_monitor_handler = s390_nmi;
 }
 
 static const TypeInfo s390_machine_info = {
     .name          = TYPE_S390_MACHINE,
     .parent        = TYPE_MACHINE,
     .class_init    = s390_machine_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_NMI },
+        { }
+    },
 };
 
 static void s390_machine_register_types(void)

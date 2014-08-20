@@ -1537,20 +1537,6 @@ void qmp_inject_nmi(Error **errp)
             apic_deliver_nmi(cpu->apic_state);
         }
     }
-#elif defined(TARGET_S390X)
-    CPUState *cs;
-    S390CPU *cpu;
-
-    CPU_FOREACH(cs) {
-        cpu = S390_CPU(cs);
-        if (cpu->env.cpu_num == monitor_get_cpu_index()) {
-            if (s390_cpu_restart(S390_CPU(cs)) == -1) {
-                error_set(errp, QERR_UNSUPPORTED);
-                return;
-            }
-            break;
-        }
-    }
 #else
     nmi_monitor_handle(monitor_get_cpu_index(), errp);
 #endif

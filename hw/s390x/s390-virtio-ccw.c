@@ -139,6 +139,7 @@ static void ccw_init(MachineState *machine)
 static void ccw_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
 
     mc->name = "s390-ccw-virtio";
     mc->alias = "s390-ccw";
@@ -152,12 +153,17 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     mc->no_sdcard = 1;
     mc->use_sclp = 1,
     mc->max_cpus = 255;
+    nc->nmi_monitor_handler = s390_nmi;
 }
 
 static const TypeInfo ccw_machine_info = {
     .name          = TYPE_S390_CCW_MACHINE,
     .parent        = TYPE_MACHINE,
     .class_init    = ccw_machine_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_NMI },
+        { }
+    },
 };
 
 static void ccw_machine_register_types(void)
