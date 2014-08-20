@@ -477,7 +477,7 @@ SQMP
 inject-nmi
 ----------
 
-Inject an NMI on guest's CPUs.
+Inject an NMI on the default CPU (x86/s390) or all CPUs (ppc64).
 
 Arguments: None.
 
@@ -487,7 +487,6 @@ Example:
 <- { "return": {} }
 
 Note: inject-nmi fails when the guest doesn't support injecting.
-      Currently, only x86 (NMI) and s390x (RESTART) guests do.
 
 EQMP
 
