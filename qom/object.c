@@ -728,6 +728,27 @@ object_property_add(Object *obj, const char *name, const char *type,
                     void *opaque, Error **errp)
 {
     ObjectProperty *prop;
+    size_t name_len = strlen(name);
+
+    if (name_len >= 3 && !memcmp(name + name_len - 3, "[*]", 4)) {
+        int i;
+        ObjectProperty *ret;
+        char *name_no_array = g_strdup(name);
+
+        name_no_array[name_len - 3] = '\0';
+        for (i = 0; ; ++i) {
+            char *full_name = g_strdup_printf("%s[%d]", name_no_array, i);
+
+            ret = object_property_add(obj, full_name, type, get, set,
+                                      release, opaque, NULL);
+            g_free(full_name);
+            if (ret) {
+                break;
+            }
+        }
+        g_free(name_no_array);
+        return ret;
+    }
 
     QTAILQ_FOREACH(prop, &obj->properties, node) {
         if (strcmp(prop->name, name) == 0) {
