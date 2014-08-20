@@ -73,7 +73,12 @@
 #endif
 
 /* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables.  */
-#define ACPI_DATA_SIZE       0x10000
+unsigned acpi_data_size = 0x20000;
+void pc_set_legacy_acpi_data_size(void)
+{
+    acpi_data_size = 0x10000;
+}
+
 #define BIOS_CFG_IOPORT 0x510
 #define FW_CFG_ACPI_TABLES (FW_CFG_ARCH_LOCAL + 0)
 #define FW_CFG_SMBIOS_ENTRIES (FW_CFG_ARCH_LOCAL + 1)
@@ -811,8 +816,9 @@ static void load_linux(FWCfgState *fw_cfg,
         initrd_max = 0x37ffffff;
     }
 
-    if (initrd_max >= max_ram_size-ACPI_DATA_SIZE)
-    	initrd_max = max_ram_size-ACPI_DATA_SIZE-1;
+    if (initrd_max >= max_ram_size - acpi_data_size) {
+        initrd_max = max_ram_size - acpi_data_size - 1;
+    }
 
     fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_ADDR, cmdline_addr);
     fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE, strlen(kernel_cmdline)+1);
