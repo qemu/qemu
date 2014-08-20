@@ -1254,6 +1254,9 @@ void x86_cpu_compat_set_features(const char *cpu_model, FeatureWord w,
     }
 }
 
+static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
+                                                   bool migratable_only);
+
 #ifdef CONFIG_KVM
 
 static int cpu_x86_fill_model_id(char *str)
@@ -1310,26 +1313,23 @@ static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
     dc->props = host_x86_cpu_properties;
 }
 
-static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
-                                                   bool migratable_only);
-
 static void host_x86_cpu_initfn(Object *obj)
 {
     X86CPU *cpu = X86_CPU(obj);
     CPUX86State *env = &cpu->env;
     KVMState *s = kvm_state;
-    FeatureWord w;
 
     assert(kvm_enabled());
+
+    /* We can't fill the features array here because we don't know yet if
+     * "migratable" is true or false.
+     */
+    cpu->host_features = true;
 
     env->cpuid_level = kvm_arch_get_supported_cpuid(s, 0x0, 0, R_EAX);
     env->cpuid_xlevel = kvm_arch_get_supported_cpuid(s, 0x80000000, 0, R_EAX);
     env->cpuid_xlevel2 = kvm_arch_get_supported_cpuid(s, 0xC0000000, 0, R_EAX);
 
-    for (w = 0; w < FEATURE_WORDS; w++) {
-        env->features[w] =
-            x86_cpu_get_supported_feature_word(w, cpu->migratable);
-    }
     object_property_set_bool(OBJECT(cpu), true, "pmu", &error_abort);
 }
 
@@ -1826,6 +1826,13 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
             return;
         }
         featurestr = strtok(NULL, ",");
+    }
+
+    if (cpu->host_features) {
+        for (w = 0; w < FEATURE_WORDS; w++) {
+            env->features[w] =
+                x86_cpu_get_supported_feature_word(w, cpu->migratable);
+        }
     }
 
     for (w = 0; w < FEATURE_WORDS; w++) {
