@@ -176,6 +176,8 @@ void pc_acpi_init(const char *default_dsdt);
 PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
                                 ram_addr_t above_4g_mem_size);
 
+void pc_set_legacy_acpi_data_size(void);
+
 #define PCI_HOST_PROP_PCI_HOLE_START   "pci-hole-start"
 #define PCI_HOST_PROP_PCI_HOLE_END     "pci-hole-end"
 #define PCI_HOST_PROP_PCI_HOLE64_START "pci-hole64-start"
