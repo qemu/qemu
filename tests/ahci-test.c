@@ -252,6 +252,97 @@
 #define AHCI_VERSION_1_2         (0x00010200)
 #define AHCI_VERSION_1_3         (0x00010300)
 
+/*** Structures ***/
+
+/**
+ * Generic FIS structure.
+ */
+typedef struct FIS {
+    uint8_t fis_type;
+    uint8_t flags;
+    char data[0];
+} __attribute__((__packed__)) FIS;
+
+/**
+ * Register device-to-host FIS structure.
+ */
+typedef struct RegD2HFIS {
+    /* DW0 */
+    uint8_t fis_type;
+    uint8_t flags;
+    uint8_t status;
+    uint8_t error;
+    /* DW1 */
+    uint8_t lba_low;
+    uint8_t lba_mid;
+    uint8_t lba_high;
+    uint8_t device;
+    /* DW2 */
+    uint8_t lba3;
+    uint8_t lba4;
+    uint8_t lba5;
+    uint8_t res1;
+    /* DW3 */
+    uint16_t count;
+    uint8_t res2;
+    uint8_t res3;
+    /* DW4 */
+    uint16_t res4;
+    uint16_t res5;
+} __attribute__((__packed__)) RegD2HFIS;
+
+/**
+ * Register host-to-device FIS structure.
+ */
+typedef struct RegH2DFIS {
+    /* DW0 */
+    uint8_t fis_type;
+    uint8_t flags;
+    uint8_t command;
+    uint8_t feature_low;
+    /* DW1 */
+    uint8_t lba_low;
+    uint8_t lba_mid;
+    uint8_t lba_high;
+    uint8_t device;
+    /* DW2 */
+    uint8_t lba3;
+    uint8_t lba4;
+    uint8_t lba5;
+    uint8_t feature_high;
+    /* DW3 */
+    uint16_t count;
+    uint8_t icc;
+    uint8_t control;
+    /* DW4 */
+    uint32_t aux;
+} __attribute__((__packed__)) RegH2DFIS;
+
+/**
+ * Command List entry structure.
+ * The command list contains between 1-32 of these structures.
+ */
+typedef struct AHCICommand {
+    uint8_t b1;
+    uint8_t b2;
+    uint16_t prdtl; /* Phys Region Desc. Table Length */
+    uint32_t prdbc; /* Phys Region Desc. Byte Count */
+    uint32_t ctba;  /* Command Table Descriptor Base Address */
+    uint32_t ctbau; /*                                    '' Upper */
+    uint32_t res[4];
+} __attribute__((__packed__)) AHCICommand;
+
+/**
+ * Physical Region Descriptor; pointed to by the Command List Header,
+ * struct ahci_command.
+ */
+typedef struct PRD {
+    uint32_t dba;  /* Data Base Address */
+    uint32_t dbau; /* Data Base Address Upper */
+    uint32_t res;  /* Reserved */
+    uint32_t dbc;  /* Data Byte Count (0-indexed) & Interrupt Flag (bit 2^31) */
+} PRD;
+
 typedef struct HBACap {
     uint32_t cap;
     uint32_t cap2;
@@ -289,6 +380,10 @@ static uint32_t ahci_fingerprint;
 #define PX_CLR(port, reg, mask)   PX_WREG((port), (reg),                \
                                           PX_RREG((port), (reg)) & ~(mask));
 
+/* For calculating how big the PRD table needs to be: */
+#define CMD_TBL_SIZ(n) ((0x80 + ((n) * sizeof(PRD)) + 0x7F) & ~0x7F)
+
+
 /*** Function Declarations ***/
 static QPCIDevice *get_ahci_device(void);
 static QPCIDevice *start_ahci_device(QPCIDevice *dev, void **hba_base);
@@ -303,6 +398,17 @@ static void ahci_test_msicap(QPCIDevice *ahci, uint8_t offset);
 static void ahci_test_pmcap(QPCIDevice *ahci, uint8_t offset);
 
 /*** Utilities ***/
+
+static void string_bswap16(uint16_t *s, size_t bytes)
+{
+    g_assert_cmphex((bytes & 1), ==, 0);
+    bytes /= 2;
+
+    while (bytes--) {
+        *s = bswap16(*s);
+        s++;
+    }
+}
 
 /**
  * Locate, verify, and return a handle to the AHCI device.
@@ -418,6 +524,7 @@ static void ahci_pci_enable(QPCIDevice *ahci, void **hba_base)
         reg = qpci_config_readb(ahci, 0x92);
         reg |= 0x3F;
         qpci_config_writeb(ahci, 0x92, reg);
+        /* 0...0111111b -- bit significant, ports 0-5 enabled. */
         ASSERT_BIT_SET(qpci_config_readb(ahci, 0x92), 0x3F);
         break;
     }
@@ -1124,6 +1231,186 @@ static void ahci_test_port_spec(QPCIDevice *ahci, void *hba_base,
     }
 }
 
+/**
+ * Utilizing an initialized AHCI HBA, issue an IDENTIFY command to the first
+ * device we see, then read and check the response.
+ */
+static void ahci_test_identify(QPCIDevice *ahci, void *hba_base)
+{
+    RegD2HFIS *d2h = g_malloc0(0x20);
+    RegD2HFIS *pio = g_malloc0(0x20);
+    RegH2DFIS fis;
+    AHCICommand cmd;
+    PRD prd;
+    uint32_t ports, reg, clb, table, fb, data_ptr;
+    uint16_t buff[256];
+    unsigned i;
+    int rc;
+
+    g_assert(ahci != NULL);
+    g_assert(hba_base != NULL);
+
+    /* We need to:
+     * (1) Create a Command Table Buffer and update the Command List Slot #0
+     *     to point to this buffer.
+     * (2) Construct an FIS host-to-device command structure, and write it to
+     *     the top of the command table buffer.
+     * (3) Create a data buffer for the IDENTIFY response to be sent to
+     * (4) Create a Physical Region Descriptor that points to the data buffer,
+     *     and write it to the bottom (offset 0x80) of the command table.
+     * (5) Now, PxCLB points to the command list, command 0 points to
+     *     our table, and our table contains an FIS instruction and a
+     *     PRD that points to our rx buffer.
+     * (6) We inform the HBA via PxCI that there is a command ready in slot #0.
+     */
+
+    /* Pick the first implemented and running port */
+    ports = AHCI_RREG(AHCI_PI);
+    for (i = 0; i < 32; ports >>= 1, ++i) {
+        if (ports == 0) {
+            i = 32;
+        }
+
+        if (!(ports & 0x01)) {
+            continue;
+        }
+
+        reg = PX_RREG(i, AHCI_PX_CMD);
+        if (BITSET(reg, AHCI_PX_CMD_ST)) {
+            break;
+        }
+    }
+    g_assert_cmphex(i, <, 32);
+    g_test_message("Selected port %u for test", i);
+
+    /* Clear out this port's interrupts (ignore the init register d2h fis) */
+    reg = PX_RREG(i, AHCI_PX_IS);
+    PX_WREG(i, AHCI_PX_IS, reg);
+    g_assert_cmphex(PX_RREG(i, AHCI_PX_IS), ==, 0);
+
+    /* Wipe the FIS-Recieve Buffer */
+    fb = PX_RREG(i, AHCI_PX_FB);
+    g_assert_cmphex(fb, !=, 0);
+    qmemset(fb, 0x00, 0x100);
+
+    /* Create a Command Table buffer. 0x80 is the smallest with a PRDTL of 0. */
+    /* We need at least one PRD, so round up to the nearest 0x80 multiple.    */
+    table = guest_alloc(guest_malloc, CMD_TBL_SIZ(1));
+    g_assert(table);
+    ASSERT_BIT_CLEAR(table, 0x7F);
+
+    /* Create a data buffer ... where we will dump the IDENTIFY data to. */
+    data_ptr = guest_alloc(guest_malloc, 512);
+    g_assert(data_ptr);
+
+    /* Grab the Command List Buffer pointer */
+    clb = PX_RREG(i, AHCI_PX_CLB);
+    g_assert(clb);
+
+    /* Copy the existing Command #0 structure from the CLB into local memory,
+     * and build a new command #0. */
+    memread(clb, &cmd, sizeof(cmd));
+    cmd.b1 = 5;    /* reg_h2d_fis is 5 double-words long */
+    cmd.b2 = 0x04; /* clear PxTFD.STS.BSY when done */
+    cmd.prdtl = cpu_to_le16(1); /* One PRD table entry. */
+    cmd.prdbc = 0;
+    cmd.ctba = cpu_to_le32(table);
+    cmd.ctbau = 0;
+
+    /* Construct our PRD, noting that DBC is 0-indexed. */
+    prd.dba = cpu_to_le32(data_ptr);
+    prd.dbau = 0;
+    prd.res = 0;
+    /* 511+1 bytes, request DPS interrupt */
+    prd.dbc = cpu_to_le32(511 | 0x80000000);
+
+    /* Construct our Command FIS, Based on http://wiki.osdev.org/AHCI */
+    memset(&fis, 0x00, sizeof(fis));
+    fis.fis_type = 0x27; /* Register Host-to-Device FIS */
+    fis.command = 0xEC;  /* IDENTIFY */
+    fis.device = 0;
+    fis.flags = 0x80;    /* Indicate this is a command FIS */
+
+    /* We've committed nothing yet, no interrupts should be posted yet. */
+    g_assert_cmphex(PX_RREG(i, AHCI_PX_IS), ==, 0);
+
+    /* Commit the Command FIS to the Command Table */
+    memwrite(table, &fis, sizeof(fis));
+
+    /* Commit the PRD entry to the Command Table */
+    memwrite(table + 0x80, &prd, sizeof(prd));
+
+    /* Commit Command #0, pointing to the Table, to the Command List Buffer. */
+    memwrite(clb, &cmd, sizeof(cmd));
+
+    /* Everything is in place, but we haven't given the go-ahead yet. */
+    g_assert_cmphex(PX_RREG(i, AHCI_PX_IS), ==, 0);
+
+    /* Issue Command #0 via PxCI */
+    PX_WREG(i, AHCI_PX_CI, (1 << 0));
+    while (BITSET(PX_RREG(i, AHCI_PX_TFD), AHCI_PX_TFD_STS_BSY)) {
+        usleep(50);
+    }
+
+    /* Check for expected interrupts */
+    reg = PX_RREG(i, AHCI_PX_IS);
+    ASSERT_BIT_SET(reg, AHCI_PX_IS_DHRS);
+    ASSERT_BIT_SET(reg, AHCI_PX_IS_PSS);
+    /* BUG: we expect AHCI_PX_IS_DPS to be set. */
+    ASSERT_BIT_CLEAR(reg, AHCI_PX_IS_DPS);
+
+    /* Clear expected interrupts and assert all interrupts now cleared. */
+    PX_WREG(i, AHCI_PX_IS, AHCI_PX_IS_DHRS | AHCI_PX_IS_PSS | AHCI_PX_IS_DPS);
+    g_assert_cmphex(PX_RREG(i, AHCI_PX_IS), ==, 0);
+
+    /* Check for errors. */
+    reg = PX_RREG(i, AHCI_PX_SERR);
+    g_assert_cmphex(reg, ==, 0);
+    reg = PX_RREG(i, AHCI_PX_TFD);
+    ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_STS_ERR);
+    ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_ERR);
+
+    /* Investigate CMD #0, assert that we read 512 bytes */
+    memread(clb, &cmd, sizeof(cmd));
+    g_assert_cmphex(512, ==, le32_to_cpu(cmd.prdbc));
+
+    /* Investigate FIS responses */
+    memread(fb + 0x20, pio, 0x20);
+    memread(fb + 0x40, d2h, 0x20);
+    g_assert_cmphex(pio->fis_type, ==, 0x5f);
+    g_assert_cmphex(d2h->fis_type, ==, 0x34);
+    g_assert_cmphex(pio->flags, ==, d2h->flags);
+    g_assert_cmphex(pio->status, ==, d2h->status);
+    g_assert_cmphex(pio->error, ==, d2h->error);
+
+    reg = PX_RREG(i, AHCI_PX_TFD);
+    g_assert_cmphex((reg & AHCI_PX_TFD_ERR), ==, pio->error);
+    g_assert_cmphex((reg & AHCI_PX_TFD_STS), ==, pio->status);
+    /* The PIO Setup FIS contains a "bytes read" field, which is a
+     * 16-bit value. The Physical Region Descriptor Byte Count is
+     * 32-bit, but for small transfers using one PRD, it should match. */
+    g_assert_cmphex(le16_to_cpu(pio->res4), ==, le32_to_cpu(cmd.prdbc));
+
+    /* Last, but not least: Investigate the IDENTIFY response data. */
+    memread(data_ptr, &buff, 512);
+
+    /* Check serial number/version in the buffer */
+    /* NB: IDENTIFY strings are packed in 16bit little endian chunks.
+     * Since we copy byte-for-byte in ahci-test, on both LE and BE, we need to
+     * unchunk this data. By contrast, ide-test copies 2 bytes at a time, and
+     * as a consequence, only needs to unchunk the data on LE machines. */
+    string_bswap16(&buff[10], 20);
+    rc = memcmp(&buff[10], "testdisk            ", 20);
+    g_assert_cmphex(rc, ==, 0);
+
+    string_bswap16(&buff[23], 8);
+    rc = memcmp(&buff[23], "version ", 8);
+    g_assert_cmphex(rc, ==, 0);
+
+    g_free(d2h);
+    g_free(pio);
+}
+
 /******************************************************************************/
 /* Test Interfaces                                                            */
 /******************************************************************************/
@@ -1193,6 +1480,22 @@ static void test_hba_enable(void)
     ahci_shutdown(ahci);
 }
 
+/**
+ * Bring up the device and issue an IDENTIFY command.
+ * Inspect the state of the HBA device and the data returned.
+ */
+static void test_identify(void)
+{
+    QPCIDevice *ahci;
+    void *hba_base;
+
+    ahci = ahci_boot();
+    ahci_pci_enable(ahci, &hba_base);
+    ahci_hba_enable(ahci, hba_base);
+    ahci_test_identify(ahci, hba_base);
+    ahci_shutdown(ahci);
+}
+
 /******************************************************************************/
 
 int main(int argc, char **argv)
@@ -1247,6 +1550,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/pci_enable", test_pci_enable);
     qtest_add_func("/ahci/hba_spec",   test_hba_spec);
     qtest_add_func("/ahci/hba_enable", test_hba_enable);
+    qtest_add_func("/ahci/identify",   test_identify);
 
     ret = g_test_run();
 
