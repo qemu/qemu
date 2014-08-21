@@ -66,6 +66,7 @@ static uint32_t ahci_fingerprint;
 
 /*** Function Declarations ***/
 static QPCIDevice *get_ahci_device(void);
+static QPCIDevice *start_ahci_device(QPCIDevice *dev, void **hba_base);
 static void free_ahci_device(QPCIDevice *dev);
 static void ahci_test_pci_spec(QPCIDevice *ahci);
 static void ahci_test_pci_caps(QPCIDevice *ahci, uint16_t header,
@@ -167,6 +168,44 @@ static void ahci_shutdown(QPCIDevice *ahci)
 {
     free_ahci_device(ahci);
     qtest_shutdown();
+}
+
+/*** Logical Device Initialization ***/
+
+/**
+ * Start the PCI device and sanity-check default operation.
+ */
+static void ahci_pci_enable(QPCIDevice *ahci, void **hba_base)
+{
+    uint8_t reg;
+
+    start_ahci_device(ahci, hba_base);
+
+    switch (ahci_fingerprint) {
+    case AHCI_INTEL_ICH9:
+        /* ICH9 has a register at PCI 0x92 that
+         * acts as a master port enabler mask. */
+        reg = qpci_config_readb(ahci, 0x92);
+        reg |= 0x3F;
+        qpci_config_writeb(ahci, 0x92, reg);
+        ASSERT_BIT_SET(qpci_config_readb(ahci, 0x92), 0x3F);
+        break;
+    }
+
+}
+
+/**
+ * Map BAR5/ABAR, and engage the PCI device.
+ */
+static QPCIDevice *start_ahci_device(QPCIDevice *ahci, void **hba_base)
+{
+    /* Map AHCI's ABAR (BAR5) */
+    *hba_base = qpci_iomap(ahci, 5, NULL);
+
+    /* turns on pci.cmd.iose, pci.cmd.mse and pci.cmd.bme */
+    qpci_device_enable(ahci);
+
+    return ahci;
 }
 
 /*** Specification Adherence Tests ***/
@@ -428,6 +467,19 @@ static void test_pci_spec(void)
     ahci_shutdown(ahci);
 }
 
+/**
+ * Engage the PCI AHCI device and sanity check the response.
+ * Perform additional PCI config space bringup for the HBA.
+ */
+static void test_pci_enable(void)
+{
+    QPCIDevice *ahci;
+    void *hba_base;
+    ahci = ahci_boot();
+    ahci_pci_enable(ahci, &hba_base);
+    ahci_shutdown(ahci);
+}
+
 /******************************************************************************/
 
 int main(int argc, char **argv)
@@ -479,6 +531,7 @@ int main(int argc, char **argv)
     /* Run the tests */
     qtest_add_func("/ahci/sanity",     test_sanity);
     qtest_add_func("/ahci/pci_spec",   test_pci_spec);
+    qtest_add_func("/ahci/pci_enable", test_pci_enable);
 
     ret = g_test_run();
 
