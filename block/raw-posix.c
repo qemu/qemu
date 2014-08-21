@@ -747,6 +747,15 @@ static ssize_t handle_aiocb_rw_linear(RawPosixAIOData *aiocb, char *buf)
         }
         if (len == -1 && errno == EINTR) {
             continue;
+        } else if (len == -1 && errno == EINVAL &&
+                   (aiocb->bs->open_flags & BDRV_O_NOCACHE) &&
+                   !(aiocb->aio_type & QEMU_AIO_WRITE) &&
+                   offset > 0) {
+            /* O_DIRECT pread() may fail with EINVAL when offset is unaligned
+             * after a short read.  Assume that O_DIRECT short reads only occur
+             * at EOF.  Therefore this is a short read, not an I/O error.
+             */
+            break;
         } else if (len == -1) {
             offset = -errno;
             break;
