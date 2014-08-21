@@ -71,6 +71,7 @@
 #include <hw/ide/pci.h>
 #include <hw/ide/ahci.h>
 
+#define ICH9_MSI_CAP_OFFSET     0x80
 #define ICH9_SATA_CAP_OFFSET    0xA8
 
 #define ICH9_IDP_BAR            4
@@ -115,7 +116,6 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
     /* XXX Software should program this register */
     dev->config[0x90]   = 1 << 6; /* Address Map Register - AHCI mode */
 
-    msi_init(dev, 0x50, 1, true, false);
     d->ahci.irq = pci_allocate_irq(dev);
 
     pci_register_bar(dev, ICH9_IDP_BAR, PCI_BASE_ADDRESS_SPACE_IO,
@@ -134,6 +134,11 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
     pci_set_long(sata_cap + SATA_CAP_BAR,
                  (ICH9_IDP_BAR + 0x4) | (ICH9_IDP_INDEX_LOG2 << 4));
     d->ahci.idp_offset = ICH9_IDP_INDEX;
+
+    /* Although the AHCI 1.3 specification states that the first capability
+     * should be PMCAP, the Intel ICH9 data sheet specifies that the ICH9
+     * AHCI device puts the MSI capability first, pointing to 0x80. */
+    msi_init(dev, ICH9_MSI_CAP_OFFSET, 1, true, false);
 
     return 0;
 }
