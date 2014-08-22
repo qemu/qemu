@@ -9615,11 +9615,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     {
         /* args: timer_t timerid, int flags, const struct itimerspec *new_value,
          * struct itimerspec * old_value */
-        arg1 &= 0xffff;
-        if (arg3 == 0 || arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+        target_ulong timerid = arg1;
+
+        if (arg3 == 0 || timerid >= ARRAY_SIZE(g_posix_timers)) {
             ret = -TARGET_EINVAL;
         } else {
-            timer_t htimer = g_posix_timers[arg1];
+            timer_t htimer = g_posix_timers[timerid];
             struct itimerspec hspec_new = {{0},}, hspec_old = {{0},};
 
             target_to_host_itimerspec(&hspec_new, arg3);
@@ -9635,13 +9636,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_timer_gettime:
     {
         /* args: timer_t timerid, struct itimerspec *curr_value */
-        arg1 &= 0xffff;
+        target_ulong timerid = arg1;
+
         if (!arg2) {
             return -TARGET_EFAULT;
-        } else if (arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+        } else if (timerid >= ARRAY_SIZE(g_posix_timers)) {
             ret = -TARGET_EINVAL;
         } else {
-            timer_t htimer = g_posix_timers[arg1];
+            timer_t htimer = g_posix_timers[timerid];
             struct itimerspec hspec;
             ret = get_errno(timer_gettime(htimer, &hspec));
 
@@ -9657,11 +9659,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_timer_getoverrun:
     {
         /* args: timer_t timerid */
-        arg1 &= 0xffff;
-        if (arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+        target_ulong timerid = arg1;
+
+        if (timerid >= ARRAY_SIZE(g_posix_timers)) {
             ret = -TARGET_EINVAL;
         } else {
-            timer_t htimer = g_posix_timers[arg1];
+            timer_t htimer = g_posix_timers[timerid];
             ret = get_errno(timer_getoverrun(htimer));
         }
         break;
@@ -9672,13 +9675,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_timer_delete:
     {
         /* args: timer_t timerid */
-        arg1 &= 0xffff;
-        if (arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+        target_ulong timerid = arg1;
+
+        if (timerid >= ARRAY_SIZE(g_posix_timers)) {
             ret = -TARGET_EINVAL;
         } else {
-            timer_t htimer = g_posix_timers[arg1];
+            timer_t htimer = g_posix_timers[timerid];
             ret = get_errno(timer_delete(htimer));
-            g_posix_timers[arg1] = 0;
+            g_posix_timers[timerid] = 0;
         }
         break;
     }
