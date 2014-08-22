@@ -58,6 +58,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include <sys/statfs.h>
+#include <sys/timerfd.h>
 #include <utime.h>
 #include <sys/sysinfo.h>
 //#include <sys/user.h>
@@ -251,6 +252,12 @@ _syscall2(int, capget, struct __user_cap_header_struct *, header,
           struct __user_cap_data_struct *, data);
 _syscall2(int, capset, struct __user_cap_header_struct *, header,
           struct __user_cap_data_struct *, data);
+#if defined(TARGET_NR_ioprio_get) && defined(__NR_ioprio_get)
+_syscall2(int, ioprio_get, int, which, int, who)
+#endif
+#if defined(TARGET_NR_ioprio_set) && defined(__NR_ioprio_set)
+_syscall3(int, ioprio_set, int, which, int, who, int, ioprio)
+#endif
 
 static bitmask_transtbl fcntl_flags_tbl[] = {
   { TARGET_O_ACCMODE,   TARGET_O_WRONLY,    O_ACCMODE,   O_WRONLY,    },
@@ -294,7 +301,6 @@ static int sys_getcwd1(char *buf, size_t size)
   return strlen(buf)+1;
 }
 
-#ifdef TARGET_NR_openat
 static int sys_openat(int dirfd, const char *pathname, int flags, mode_t mode)
 {
   /*
@@ -306,7 +312,6 @@ static int sys_openat(int dirfd, const char *pathname, int flags, mode_t mode)
   }
   return (openat(dirfd, pathname, flags));
 }
-#endif
 
 #ifdef TARGET_NR_utimensat
 #ifdef CONFIG_UTIMENSAT
@@ -1798,6 +1803,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
     abi_ulong total_len, max_len;
     int i;
     int err = 0;
+    bool bad_address = false;
 
     if (count == 0) {
         errno = 0;
@@ -1838,9 +1844,20 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
             vec[i].iov_base = 0;
         } else {
             vec[i].iov_base = lock_user(type, base, len, copy);
+            /* If the first buffer pointer is bad, this is a fault.  But
+             * subsequent bad buffers will result in a partial write; this
+             * is realized by filling the vector with null pointers and
+             * zero lengths. */
             if (!vec[i].iov_base) {
-                err = EFAULT;
-                goto fail;
+                if (i == 0) {
+                    err = EFAULT;
+                    goto fail;
+                } else {
+                    bad_address = true;
+                }
+            }
+            if (bad_address) {
+                len = 0;
             }
             if (len > max_len - total_len) {
                 len = max_len - total_len;
@@ -2419,9 +2436,13 @@ struct target_semid_ds
 {
   struct target_ipc_perm sem_perm;
   abi_ulong sem_otime;
+#if !defined(TARGET_PPC64)
   abi_ulong __unused1;
+#endif
   abi_ulong sem_ctime;
+#if !defined(TARGET_PPC64)
   abi_ulong __unused2;
+#endif
   abi_ulong sem_nsems;
   abi_ulong __unused3;
   abi_ulong __unused4;
@@ -2643,9 +2664,18 @@ static inline abi_long do_semctl(int semid, int semnum, int cmd,
     switch( cmd ) {
 	case GETVAL:
 	case SETVAL:
-            arg.val = tswap32(target_su.val);
+            /* In 64 bit cross-endian situations, we will erroneously pick up
+             * the wrong half of the union for the "val" element.  To rectify
+             * this, the entire 8-byte structure is byteswapped, followed by
+	     * a swap of the 4 byte val field. In other cases, the data is
+	     * already in proper host byte order. */
+	    if (sizeof(target_su.val) != (sizeof(target_su.buf))) {
+		target_su.buf = tswapal(target_su.buf);
+		arg.val = tswap32(target_su.val);
+	    } else {
+		arg.val = target_su.val;
+	    }
             ret = get_errno(semctl(semid, semnum, cmd, arg));
-            target_su.val = tswap32(arg.val);
             break;
 	case GETALL:
 	case SETALL:
@@ -2861,15 +2891,23 @@ struct target_msgbuf {
 };
 
 static inline abi_long do_msgsnd(int msqid, abi_long msgp,
-                                 unsigned int msgsz, int msgflg)
+                                 ssize_t msgsz, int msgflg)
 {
     struct target_msgbuf *target_mb;
     struct msgbuf *host_mb;
     abi_long ret = 0;
 
+    if (msgsz < 0) {
+        return -TARGET_EINVAL;
+    }
+
     if (!lock_user_struct(VERIFY_READ, target_mb, msgp, 0))
         return -TARGET_EFAULT;
     host_mb = malloc(msgsz+sizeof(long));
+    if (!host_mb) {
+        unlock_user_struct(target_mb, msgp, 0);
+        return -TARGET_ENOMEM;
+    }
     host_mb->mtype = (abi_long) tswapal(target_mb->mtype);
     memcpy(host_mb->mtext, target_mb->mtext, msgsz);
     ret = get_errno(msgsnd(msqid, host_mb, msgsz, msgflg));
@@ -3112,8 +3150,8 @@ static inline abi_long do_shmdt(abi_ulong shmaddr)
 #ifdef TARGET_NR_ipc
 /* ??? This only works with linear mappings.  */
 /* do_ipc() must return target values and target errnos. */
-static abi_long do_ipc(unsigned int call, int first,
-                       int second, int third,
+static abi_long do_ipc(unsigned int call, abi_long first,
+                       abi_long second, abi_long third,
                        abi_long ptr, abi_long fifth)
 {
     int version;
@@ -3131,9 +3169,15 @@ static abi_long do_ipc(unsigned int call, int first,
         ret = get_errno(semget(first, second, third));
         break;
 
-    case IPCOP_semctl:
-        ret = do_semctl(first, second, third, (union target_semun)(abi_ulong) ptr);
+    case IPCOP_semctl: {
+        /* The semun argument to semctl is passed by value, so dereference the
+         * ptr argument. */
+        abi_ulong atptr;
+        get_user_ual(atptr, ptr);
+        ret = do_semctl(first, second, third,
+                (union target_semun) atptr);
         break;
+    }
 
     case IPCOP_msgget:
         ret = get_errno(msgget(first, second));
@@ -4914,6 +4958,47 @@ static inline abi_long host_to_target_itimerspec(abi_ulong target_addr,
     return 0;
 }
 
+static inline abi_long target_to_host_sigevent(struct sigevent *host_sevp,
+                                               abi_ulong target_addr)
+{
+    struct target_sigevent *target_sevp;
+
+    if (!lock_user_struct(VERIFY_READ, target_sevp, target_addr, 1)) {
+        return -TARGET_EFAULT;
+    }
+
+    /* This union is awkward on 64 bit systems because it has a 32 bit
+     * integer and a pointer in it; we follow the conversion approach
+     * used for handling sigval types in signal.c so the guest should get
+     * the correct value back even if we did a 64 bit byteswap and it's
+     * using the 32 bit integer.
+     */
+    host_sevp->sigev_value.sival_ptr =
+        (void *)(uintptr_t)tswapal(target_sevp->sigev_value.sival_ptr);
+    host_sevp->sigev_signo =
+        target_to_host_signal(tswap32(target_sevp->sigev_signo));
+    host_sevp->sigev_notify = tswap32(target_sevp->sigev_notify);
+    host_sevp->_sigev_un._tid = tswap32(target_sevp->_sigev_un._tid);
+
+    unlock_user_struct(target_sevp, target_addr, 1);
+    return 0;
+}
+
+#if defined(TARGET_NR_mlockall)
+static inline int target_to_host_mlockall_arg(int arg)
+{
+    int result = 0;
+
+    if (arg & TARGET_MLOCKALL_MCL_CURRENT) {
+        result |= MCL_CURRENT;
+    }
+    if (arg & TARGET_MLOCKALL_MCL_FUTURE) {
+        result |= MCL_FUTURE;
+    }
+    return result;
+}
+#endif
+
 #if defined(TARGET_NR_stat64) || defined(TARGET_NR_newfstatat)
 static inline abi_long host_to_target_stat64(void *cpu_env,
                                              abi_ulong target_addr,
@@ -5092,10 +5177,8 @@ static int open_self_cmdline(void *cpu_env, int fd)
 
 static int open_self_maps(void *cpu_env, int fd)
 {
-#if defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_UNICORE32)
     CPUState *cpu = ENV_GET_CPU((CPUArchState *)cpu_env);
     TaskState *ts = cpu->opaque;
-#endif
     FILE *fp;
     char *line = NULL;
     size_t len = 0;
@@ -5118,13 +5201,18 @@ static int open_self_maps(void *cpu_env, int fd)
         if ((fields < 10) || (fields > 11)) {
             continue;
         }
-        if (!strncmp(path, "[stack]", 7)) {
-            continue;
-        }
-        if (h2g_valid(min) && h2g_valid(max)) {
+        if (h2g_valid(min)) {
+            int flags = page_get_flags(h2g(min));
+            max = h2g_valid(max - 1) ? max : (uintptr_t)g2h(GUEST_ADDR_MAX);
+            if (page_check_range(h2g(min), max - min, flags) == -1) {
+                continue;
+            }
+            if (h2g(min) == ts->info->stack_limit) {
+                pstrcpy(path, sizeof(path), "      [stack]");
+            }
             dprintf(fd, TARGET_ABI_FMT_lx "-" TARGET_ABI_FMT_lx
                     " %c%c%c%c %08" PRIx64 " %02x:%02x %d %s%s\n",
-                    h2g(min), h2g(max), flag_r, flag_w,
+                    h2g(min), h2g(max - 1) + 1, flag_r, flag_w,
                     flag_x, flag_p, offset, dev_maj, dev_min, inode,
                     path[0] ? "         " : "", path);
         }
@@ -5132,14 +5220,6 @@ static int open_self_maps(void *cpu_env, int fd)
 
     free(line);
     fclose(fp);
-
-#if defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_UNICORE32)
-    dprintf(fd, "%08llx-%08llx rw-p %08llx 00:00 0          [stack]\n",
-                (unsigned long long)ts->info->stack_limit,
-                (unsigned long long)(ts->info->start_stack +
-                                     (TARGET_PAGE_SIZE - 1)) & TARGET_PAGE_MASK,
-                (unsigned long long)0);
-#endif
 
     return 0;
 }
@@ -5279,7 +5359,7 @@ static int open_net_route(void *cpu_env, int fd)
 }
 #endif
 
-static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
+static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, mode_t mode)
 {
     struct fake_open {
         const char *filename;
@@ -5300,7 +5380,7 @@ static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
 
     if (is_proc_myself(pathname, "exe")) {
         int execfd = qemu_getauxval(AT_EXECFD);
-        return execfd ? execfd : get_errno(open(exec_path, flags, mode));
+        return execfd ? execfd : get_errno(sys_openat(dirfd, exec_path, flags, mode));
     }
 
     for (fake_open = fakes; fake_open->filename; fake_open++) {
@@ -5334,7 +5414,7 @@ static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
         return fd;
     }
 
-    return get_errno(open(path(pathname), flags, mode));
+    return get_errno(sys_openat(dirfd, path(pathname), flags, mode));
 }
 
 /* do_syscall() should always have a single exit point at the end so
@@ -5409,22 +5489,19 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_open:
         if (!(p = lock_user_string(arg1)))
             goto efault;
-        ret = get_errno(do_open(cpu_env, p,
-                                target_to_host_bitmask(arg2, fcntl_flags_tbl),
-                                arg3));
+        ret = get_errno(do_openat(cpu_env, AT_FDCWD, p,
+                                  target_to_host_bitmask(arg2, fcntl_flags_tbl),
+                                  arg3));
         unlock_user(p, arg1, 0);
         break;
-#if defined(TARGET_NR_openat) && defined(__NR_openat)
     case TARGET_NR_openat:
         if (!(p = lock_user_string(arg2)))
             goto efault;
-        ret = get_errno(sys_openat(arg1,
-                                   path(p),
-                                   target_to_host_bitmask(arg3, fcntl_flags_tbl),
-                                   arg4));
+        ret = get_errno(do_openat(cpu_env, arg1, p,
+                                  target_to_host_bitmask(arg3, fcntl_flags_tbl),
+                                  arg4));
         unlock_user(p, arg2, 0);
         break;
-#endif
     case TARGET_NR_close:
         ret = get_errno(close(arg1));
         break;
@@ -6620,11 +6697,22 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             p2 = lock_user(VERIFY_WRITE, arg2, arg3, 0);
             if (!p || !p2) {
                 ret = -TARGET_EFAULT;
+            } else if (!arg3) {
+                /* Short circuit this for the magic exe check. */
+                ret = -TARGET_EINVAL;
             } else if (is_proc_myself((const char *)p, "exe")) {
                 char real[PATH_MAX], *temp;
                 temp = realpath(exec_path, real);
-                ret = temp == NULL ? get_errno(-1) : strlen(real) ;
-                snprintf((char *)p2, arg3, "%s", real);
+                /* Return value is # of bytes that we wrote to the buffer. */
+                if (temp == NULL) {
+                    ret = get_errno(-1);
+                } else {
+                    /* Don't worry about sign mismatch as earlier mapping
+                     * logic would have thrown a bad address error. */
+                    ret = MIN(strlen(real), arg3);
+                    /* We cannot NUL terminate the string. */
+                    memcpy(p2, real, ret);
+                }
             } else {
                 ret = get_errno(readlink(path(p), p2, arg3));
             }
@@ -6763,7 +6851,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_mlockall
     case TARGET_NR_mlockall:
-        ret = get_errno(mlockall(arg1));
+        ret = get_errno(mlockall(target_to_host_mlockall_arg(arg1)));
         break;
 #endif
 #ifdef TARGET_NR_munlockall
@@ -7679,6 +7767,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             struct sched_param *target_schp;
             struct sched_param schp;
 
+            if (arg2 == 0) {
+                return -TARGET_EINVAL;
+            }
             if (!lock_user_struct(VERIFY_READ, target_schp, arg2, 1))
                 goto efault;
             schp.sched_priority = tswap32(target_schp->sched_priority);
@@ -7690,6 +7781,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             struct sched_param *target_schp;
             struct sched_param schp;
+
+            if (arg2 == 0) {
+                return -TARGET_EINVAL;
+            }
             ret = get_errno(sched_getparam(arg1, &schp));
             if (!is_error(ret)) {
                 if (!lock_user_struct(VERIFY_WRITE, target_schp, arg2, 0))
@@ -7703,6 +7798,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             struct sched_param *target_schp;
             struct sched_param schp;
+            if (arg3 == 0) {
+                return -TARGET_EINVAL;
+            }
             if (!lock_user_struct(VERIFY_READ, target_schp, arg3, 1))
                 goto efault;
             schp.sched_priority = tswap32(target_schp->sched_priority);
@@ -7727,7 +7825,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             struct timespec ts;
             ret = get_errno(sched_rr_get_interval(arg1, &ts));
             if (!is_error(ret)) {
-                host_to_target_timespec(arg2, &ts);
+                ret = host_to_target_timespec(arg2, &ts);
             }
         }
         break;
@@ -8966,6 +9064,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(clock_nanosleep(arg1, arg2, &ts, arg4 ? &ts : NULL));
         if (arg4)
             host_to_target_timespec(arg4, &ts);
+
+#if defined(TARGET_PPC)
+        /* clock_nanosleep is odd in that it returns positive errno values.
+         * On PPC, CR0 bit 3 should be set in such a situation. */
+        if (ret) {
+            ((CPUPPCState *)cpu_env)->crf[0] |= 1;
+        }
+#endif
         break;
     }
 #endif
@@ -9062,12 +9168,16 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_mq_open) && defined(__NR_mq_open)
     case TARGET_NR_mq_open:
         {
-            struct mq_attr posix_mq_attr;
+            struct mq_attr posix_mq_attr, *attrp;
 
             p = lock_user_string(arg1 - 1);
-            if (arg4 != 0)
+            if (arg4 != 0) {
                 copy_from_user_mq_attr (&posix_mq_attr, arg4);
-            ret = get_errno(mq_open(p, arg2, arg3, &posix_mq_attr));
+                attrp = &posix_mq_attr;
+            } else {
+                attrp = 0;
+            }
+            ret = get_errno(mq_open(p, arg2, arg3, attrp));
             unlock_user (p, arg1, 0);
         }
         break;
@@ -9413,7 +9523,6 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         /* args: clockid_t clockid, struct sigevent *sevp, timer_t *timerid */
 
         struct sigevent host_sevp = { {0}, }, *phost_sevp = NULL;
-        struct target_sigevent *ptarget_sevp;
         struct target_timer_t *ptarget_timer;
 
         int clkid = arg1;
@@ -9425,14 +9534,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             timer_t *phtimer = g_posix_timers  + timer_index;
 
             if (arg2) {
-                if (!lock_user_struct(VERIFY_READ, ptarget_sevp, arg2, 1)) {
-                    goto efault;
-                }
-
-                host_sevp.sigev_signo = tswap32(ptarget_sevp->sigev_signo);
-                host_sevp.sigev_notify = tswap32(ptarget_sevp->sigev_notify);
-
                 phost_sevp = &host_sevp;
+                ret = target_to_host_sigevent(phost_sevp, arg2);
+                if (ret != 0) {
+                    break;
+                }
             }
 
             ret = get_errno(timer_create(clkid, phost_sevp, phtimer));
@@ -9522,6 +9628,73 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         }
         break;
     }
+#endif
+
+#if defined(TARGET_NR_timerfd_create) && defined(CONFIG_TIMERFD)
+    case TARGET_NR_timerfd_create:
+        ret = get_errno(timerfd_create(arg1,
+                target_to_host_bitmask(arg2, fcntl_flags_tbl)));
+        break;
+#endif
+
+#if defined(TARGET_NR_timerfd_gettime) && defined(CONFIG_TIMERFD)
+    case TARGET_NR_timerfd_gettime:
+        {
+            struct itimerspec its_curr;
+
+            ret = get_errno(timerfd_gettime(arg1, &its_curr));
+
+            if (arg2 && host_to_target_itimerspec(arg2, &its_curr)) {
+                goto efault;
+            }
+        }
+        break;
+#endif
+
+#if defined(TARGET_NR_timerfd_settime) && defined(CONFIG_TIMERFD)
+    case TARGET_NR_timerfd_settime:
+        {
+            struct itimerspec its_new, its_old, *p_new;
+
+            if (arg3) {
+                if (target_to_host_itimerspec(&its_new, arg3)) {
+                    goto efault;
+                }
+                p_new = &its_new;
+            } else {
+                p_new = NULL;
+            }
+
+            ret = get_errno(timerfd_settime(arg1, arg2, p_new, &its_old));
+
+            if (arg4 && host_to_target_itimerspec(arg4, &its_old)) {
+                goto efault;
+            }
+        }
+        break;
+#endif
+
+#if defined(TARGET_NR_ioprio_get) && defined(__NR_ioprio_get)
+    case TARGET_NR_ioprio_get:
+        ret = get_errno(ioprio_get(arg1, arg2));
+        break;
+#endif
+
+#if defined(TARGET_NR_ioprio_set) && defined(__NR_ioprio_set)
+    case TARGET_NR_ioprio_set:
+        ret = get_errno(ioprio_set(arg1, arg2, arg3));
+        break;
+#endif
+
+#if defined(TARGET_NR_setns) && defined(CONFIG_SETNS)
+    case TARGET_NR_setns:
+        ret = get_errno(setns(arg1, arg2));
+        break;
+#endif
+#if defined(TARGET_NR_unshare) && defined(CONFIG_SETNS)
+    case TARGET_NR_unshare:
+        ret = get_errno(unshare(arg1));
+        break;
 #endif
 
     default:

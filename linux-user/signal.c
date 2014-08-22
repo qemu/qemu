@@ -617,6 +617,15 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
     {
         struct target_sigaltstack *uss;
         struct target_sigaltstack ss;
+        size_t minstacksize = TARGET_MINSIGSTKSZ;
+
+#if defined(TARGET_PPC64)
+        /* ELF V2 for PPC64 has a 4K minimum stack size for signal handlers */
+        struct image_info *image = ((TaskState *)thread_cpu->opaque)->info;
+        if (get_ppc64_abi(image) > 1) {
+            minstacksize = 4096;
+        }
+#endif
 
 	ret = -TARGET_EFAULT;
         if (!lock_user_struct(VERIFY_READ, uss, uss_addr, 1)) {
@@ -642,8 +651,9 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
             ss.ss_sp = 0;
 	} else {
             ret = -TARGET_ENOMEM;
-            if (ss.ss_size < MINSIGSTKSZ)
+            if (ss.ss_size < minstacksize) {
                 goto out;
+            }
 	}
 
         target_sigaltstack_used.ss_sp = ss.ss_sp;

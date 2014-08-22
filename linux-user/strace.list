@@ -1185,6 +1185,9 @@
 #ifdef TARGET_NR_set_mempolicy
 { TARGET_NR_set_mempolicy, "set_mempolicy" , NULL, NULL, NULL },
 #endif
+#ifdef TARGET_NR_setns
+{ TARGET_NR_setns, "setns" , NULL, NULL, NULL },
+#endif
 #ifdef TARGET_NR_setpgid
 { TARGET_NR_setpgid, "setpgid" , NULL, NULL, NULL },
 #endif
@@ -1403,6 +1406,15 @@
 #endif
 #ifdef TARGET_NR_timer_settime
 { TARGET_NR_timer_settime, "timer_settime" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_timerfd_create
+{ TARGET_NR_timerfd_create, "timerfd_create" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_timerfd_gettime
+{ TARGET_NR_timerfd_gettime, "timerfd_gettime" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_timerfd_settime
+{ TARGET_NR_timerfd_settime, "timerfd_settime" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_times
 { TARGET_NR_times, "times" , NULL, NULL, NULL },
