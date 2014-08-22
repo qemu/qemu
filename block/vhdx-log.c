@@ -923,7 +923,7 @@ static int vhdx_log_write(BlockDriverState *bs, BDRVVHDXState *s,
     buffer = qemu_blockalign(bs, total_length);
     memcpy(buffer, &new_hdr, sizeof(new_hdr));
 
-    new_desc = (VHDXLogDescriptor *) (buffer + sizeof(new_hdr));
+    new_desc = buffer + sizeof(new_hdr);
     data_sector = buffer + (desc_sectors * VHDX_LOG_SECTOR_SIZE);
     data_tmp = data;
 

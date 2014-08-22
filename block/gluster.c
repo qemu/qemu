@@ -291,7 +291,7 @@ static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
     BDRVGlusterState *s = bs->opaque;
     int open_flags = 0;
     int ret = 0;
-    GlusterConf *gconf = g_malloc0(sizeof(GlusterConf));
+    GlusterConf *gconf = g_new0(GlusterConf, 1);
     QemuOpts *opts;
     Error *local_err = NULL;
     const char *filename;
@@ -351,12 +351,12 @@ static int qemu_gluster_reopen_prepare(BDRVReopenState *state,
     assert(state != NULL);
     assert(state->bs != NULL);
 
-    state->opaque = g_malloc0(sizeof(BDRVGlusterReopenState));
+    state->opaque = g_new0(BDRVGlusterReopenState, 1);
     reop_s = state->opaque;
 
     qemu_gluster_parse_flags(state->flags, &open_flags);
 
-    gconf = g_malloc0(sizeof(GlusterConf));
+    gconf = g_new0(GlusterConf, 1);
 
     reop_s->glfs = qemu_gluster_init(gconf, state->bs->filename, errp);
     if (reop_s->glfs == NULL) {
@@ -486,7 +486,7 @@ static int qemu_gluster_create(const char *filename,
     int prealloc = 0;
     int64_t total_size = 0;
     char *tmp = NULL;
-    GlusterConf *gconf = g_malloc0(sizeof(GlusterConf));
+    GlusterConf *gconf = g_new0(GlusterConf, 1);
 
     glfs = qemu_gluster_init(gconf, filename, errp);
     if (!glfs) {

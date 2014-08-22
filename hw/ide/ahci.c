@@ -1203,7 +1203,7 @@ void ahci_init(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)
 
     s->as = as;
     s->ports = ports;
-    s->dev = g_malloc0(sizeof(AHCIDevice) * ports);
+    s->dev = g_new0(AHCIDevice, ports);
     ahci_reg_init(s);
     /* XXX BAR size should be 1k, but that breaks, so bump it to 4k for now */
     memory_region_init_io(&s->mem, OBJECT(qdev), &ahci_mem_ops, s,

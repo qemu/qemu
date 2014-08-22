@@ -108,7 +108,7 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
 
     nbd_export_set_name(exp, device);
 
-    n = g_malloc0(sizeof(NBDCloseNotifier));
+    n = g_new0(NBDCloseNotifier, 1);
     n->n.notify = nbd_close_notifier;
     n->exp = exp;
     bdrv_add_close_notifier(bs, &n->n);

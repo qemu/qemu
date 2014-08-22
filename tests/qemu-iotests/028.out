@@ -468,7 +468,8 @@ No errors were found on the image.
 
 block-backup
 
-Formatting 'TEST_DIR/t.qcow2.copy', fmt=qcow2 size=4294968832 backing_file='TEST_DIR/t.qcow2.base' backing_fmt='qcow2' encryption=off cluster_size=65536 lazy_refcounts=off
+Formatting 'TEST_DIR/t.IMGFMT.copy', fmt=IMGFMT size=4294968832 backing_file='TEST_DIR/t.IMGFMT.base' backing_fmt='IMGFMT'
+(qemu) 
 (qemu) i[K[Din[K[D[Dinf[K[D[D[Dinfo[K[D[D[D[Dinfo [K[D[D[D[D[Dinfo b[K[D[D[D[D[D[Dinfo bl[K[D[D[D[D[D[D[Dinfo blo[K[D[D[D[D[D[D[D[Dinfo bloc[K[D[D[D[D[D[D[D[D[Dinfo block[K[D[D[D[D[D[D[D[D[D[Dinfo block-[K[D[D[D[D[D[D[D[D[D[D[Dinfo block-j[K[D[D[D[D[D[D[D[D[D[D[D[Dinfo block-jo[K[D[D[D[D[D[D[D[D[D[D[D[D[Dinfo block-job[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dinfo block-jobs[K
 Type backup, device disk: Completed 0 of 4294968832 bytes, speed limit 0 bytes/s
 i[K[Din[K[D[Dinf[K[D[D[Dinfo[K[D[D[D[Dinfo [K[D[D[D[D[Dinfo b[K[D[D[D[D[D[Dinfo bl[K[D[D[D[D[D[D[Dinfo blo[K[D[D[D[D[D[D[D[Dinfo bloc[K[D[D[D[D[D[D[D[D[Dinfo block[K[D[D[D[D[D[D[D[D[D[Dinfo block-[K[D[D[D[D[D[D[D[D[D[D[Dinfo block-j[K[D[D[D[D[D[D[D[D[D[D[D[Dinfo block-jo[K[D[D[D[D[D[D[D[D[D[D[D[D[Dinfo block-job[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dinfo block-jobs[K

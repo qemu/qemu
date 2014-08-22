@@ -149,24 +149,7 @@ _make_test_img()
      else
         $QEMU_IMG create -f $IMGFMT $extra_img_options "$img_name" $image_size 2>&1
      fi
-    ) | \
-        sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
-            -e "s#$TEST_DIR#TEST_DIR#g" \
-            -e "s#$IMGFMT#IMGFMT#g" \
-            -e "s# encryption=off##g" \
-            -e "s# cluster_size=[0-9]\\+##g" \
-            -e "s# table_size=[0-9]\\+##g" \
-            -e "s# compat='[^']*'##g" \
-            -e "s# compat6=\\(on\\|off\\)##g" \
-            -e "s# static=\\(on\\|off\\)##g" \
-            -e "s# zeroed_grain=\\(on\\|off\\)##g" \
-            -e "s# subformat='[^']*'##g" \
-            -e "s# adapter_type='[^']*'##g" \
-            -e "s# lazy_refcounts=\\(on\\|off\\)##g" \
-            -e "s# block_size=[0-9]\\+##g" \
-            -e "s# block_state_zero=\\(on\\|off\\)##g" \
-            -e "s# log_size=[0-9]\\+##g" \
-            -e "s/archipelago:a/TEST_DIR\//g"
+    ) | _filter_img_create
 
     # Start an NBD server on the image file, which is what we'll be talking to
     if [ $IMGPROTO = "nbd" ]; then

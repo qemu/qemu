@@ -711,7 +711,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     trace_qcow2_cluster_link_l2(qemu_coroutine_self(), m->nb_clusters);
     assert(m->nb_clusters > 0);
 
-    old_cluster = g_try_malloc(m->nb_clusters * sizeof(uint64_t));
+    old_cluster = g_try_new(uint64_t, m->nb_clusters);
     if (old_cluster == NULL) {
         ret = -ENOMEM;
         goto err;

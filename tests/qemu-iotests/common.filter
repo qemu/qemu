@@ -170,5 +170,27 @@ _filter_qmp()
         -e 's#^{"QMP":.*}$#QMP_VERSION#'
 }
 
+# replace driver-specific options in the "Formatting..." line
+_filter_img_create()
+{
+    sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
+        -e "s#$TEST_DIR#TEST_DIR#g" \
+        -e "s#$IMGFMT#IMGFMT#g" \
+        -e "s# encryption=off##g" \
+        -e "s# cluster_size=[0-9]\\+##g" \
+        -e "s# table_size=[0-9]\\+##g" \
+        -e "s# compat='[^']*'##g" \
+        -e "s# compat6=\\(on\\|off\\)##g" \
+        -e "s# static=\\(on\\|off\\)##g" \
+        -e "s# zeroed_grain=\\(on\\|off\\)##g" \
+        -e "s# subformat='[^']*'##g" \
+        -e "s# adapter_type='[^']*'##g" \
+        -e "s# lazy_refcounts=\\(on\\|off\\)##g" \
+        -e "s# block_size=[0-9]\\+##g" \
+        -e "s# block_state_zero=\\(on\\|off\\)##g" \
+        -e "s# log_size=[0-9]\\+##g" \
+        -e "s/archipelago:a/TEST_DIR\//g"
+}
+
 # make sure this script returns success
 /bin/true

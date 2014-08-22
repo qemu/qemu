@@ -283,7 +283,7 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
         nr_sectors = total_sectors - cur_sector;
     }
 
-    blk = g_malloc(sizeof(BlkMigBlock));
+    blk = g_new(BlkMigBlock, 1);
     blk->buf = g_malloc(BLOCK_SIZE);
     blk->bmds = bmds;
     blk->sector = cur_sector;
@@ -354,7 +354,7 @@ static void init_blk_migration_it(void *opaque, BlockDriverState *bs)
             return;
         }
 
-        bmds = g_malloc0(sizeof(BlkMigDevState));
+        bmds = g_new0(BlkMigDevState, 1);
         bmds->bs = bs;
         bmds->bulk_completed = 0;
         bmds->total_sectors = sectors;
@@ -465,7 +465,7 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
             } else {
                 nr_sectors = BDRV_SECTORS_PER_DIRTY_CHUNK;
             }
-            blk = g_malloc(sizeof(BlkMigBlock));
+            blk = g_new(BlkMigBlock, 1);
             blk->buf = g_malloc(BLOCK_SIZE);
             blk->bmds = bmds;
             blk->sector = sector;

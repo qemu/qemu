@@ -123,6 +123,9 @@ struct BlockDriver {
     int (*bdrv_create)(const char *filename, QemuOpts *opts, Error **errp);
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);
     int (*bdrv_make_empty)(BlockDriverState *bs);
+
+    void (*bdrv_refresh_filename)(BlockDriverState *bs);
+
     /* aio */
     BlockDriverAIOCB *(*bdrv_aio_readv)(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
@@ -322,6 +325,9 @@ struct BlockDriverState {
     char backing_file[1024]; /* if non zero, the image is a diff of
                                 this file image */
     char backing_format[16]; /* if non-zero and backing_file exists */
+
+    QDict *full_open_options;
+    char exact_filename[1024];
 
     BlockDriverState *backing_hd;
     BlockDriverState *file;

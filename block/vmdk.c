@@ -233,7 +233,7 @@ static void vmdk_free_last_extent(BlockDriverState *bs)
         return;
     }
     s->num_extents--;
-    s->extents = g_realloc(s->extents, s->num_extents * sizeof(VmdkExtent));
+    s->extents = g_renew(VmdkExtent, s->extents, s->num_extents);
 }
 
 static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
@@ -397,7 +397,7 @@ static int vmdk_add_extent(BlockDriverState *bs,
 {
     VmdkExtent *extent;
     BDRVVmdkState *s = bs->opaque;
-    int64_t length;
+    int64_t nb_sectors;
 
     if (cluster_sectors > 0x200000) {
         /* 0x200000 * 512Bytes = 1GB for one cluster is unrealistic */
@@ -413,13 +413,12 @@ static int vmdk_add_extent(BlockDriverState *bs,
         return -EFBIG;
     }
 
-    length = bdrv_getlength(file);
-    if (length < 0) {
-        return length;
+    nb_sectors = bdrv_nb_sectors(file);
+    if (nb_sectors < 0) {
+        return nb_sectors;
     }
 
-    s->extents = g_realloc(s->extents,
-                              (s->num_extents + 1) * sizeof(VmdkExtent));
+    s->extents = g_renew(VmdkExtent, s->extents, s->num_extents + 1);
     extent = &s->extents[s->num_extents];
     s->num_extents++;
 
@@ -433,8 +432,7 @@ static int vmdk_add_extent(BlockDriverState *bs,
     extent->l1_entry_sectors = l2_size * cluster_sectors;
     extent->l2_size = l2_size;
     extent->cluster_sectors = flat ? sectors : cluster_sectors;
-    extent->next_cluster_sector =
-        ROUND_UP(DIV_ROUND_UP(length, BDRV_SECTOR_SIZE), cluster_sectors);
+    extent->next_cluster_sector = ROUND_UP(nb_sectors, cluster_sectors);
 
     if (s->num_extents > 1) {
         extent->end_sector = (*(extent - 1)).end_sector + extent->sectors;
@@ -497,7 +495,7 @@ static int vmdk_init_tables(BlockDriverState *bs, VmdkExtent *extent,
     }
 
     extent->l2_cache =
-        g_malloc(extent->l2_size * L2_CACHE_SIZE * sizeof(uint32_t));
+        g_new(uint32_t, extent->l2_size * L2_CACHE_SIZE);
     return 0;
  fail_l1b:
     g_free(extent->l1_backup_table);

@@ -72,6 +72,9 @@ down to the nearest 512 bytes. You may use the common size suffixes like
 specifies the cache mode that should be used with the (destination) file. See
 the documentation of the emulator's @code{-drive cache=...} option for allowed
 values.
+@item -T @var{src_cache}
+in contrast specifies the cache mode that should be used with the source
+file(s).
 @end table
 
 Parameters to snapshot subcommand:
@@ -113,7 +116,7 @@ Skip the creation of the target volume
 Command description:
 
 @table @option
-@item check [-f @var{fmt}] [--output=@var{ofmt}] [-r [leaks | all]] @var{filename}
+@item check [-f @var{fmt}] [--output=@var{ofmt}] [-r [leaks | all]] [-T @var{src_cache}] @var{filename}
 
 Perform a consistency check on the disk image @var{filename}. The command can
 output in the format @var{ofmt} which is either @code{human} or @code{json}.
@@ -172,7 +175,7 @@ the backing file, the backing file will not be truncated.  If you want the
 backing file to match the size of the smaller snapshot, you can safely truncate
 it yourself once the commit operation successfully completes.
 
-@item compare [-f @var{fmt}] [-F @var{fmt}] [-p] [-s] [-q] @var{filename1} @var{filename2}
+@item compare [-f @var{fmt}] [-F @var{fmt}] [-T @var{src_cache}] [-p] [-s] [-q] @var{filename1} @var{filename2}
 
 Check if two images have the same content. You can compare images with
 different format or settings.
@@ -213,7 +216,7 @@ Error on reading data
 
 @end table
 
-@item convert [-c] [-p] [-n] [-f @var{fmt}] [-t @var{cache}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_id_or_name}] [-l @var{snapshot_param}] [-S @var{sparse_size}] @var{filename} [@var{filename2} [...]] @var{output_filename}
+@item convert [-c] [-p] [-n] [-f @var{fmt}] [-t @var{cache}] [-T @var{src_cache}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_id_or_name}] [-l @var{snapshot_param}] [-S @var{sparse_size}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 
 Convert the disk image @var{filename} or a snapshot @var{snapshot_param}(@var{snapshot_id_or_name} is deprecated)
 to disk image @var{output_filename} using format @var{output_fmt}. It can be optionally compressed (@code{-c}
@@ -325,7 +328,7 @@ source code.
 
 List, apply, create or delete snapshots in image @var{filename}.
 
-@item rebase [-f @var{fmt}] [-t @var{cache}] [-p] [-u] -b @var{backing_file} [-F @var{backing_fmt}] @var{filename}
+@item rebase [-f @var{fmt}] [-t @var{cache}] [-T @var{src_cache}] [-p] [-u] -b @var{backing_file} [-F @var{backing_fmt}] @var{filename}
 
 Changes the backing file of an image. Only the formats @code{qcow2} and
 @code{qed} support changing the backing file.
@@ -335,6 +338,9 @@ The backing file is changed to @var{backing_file} and (if the image format of
 @var{backing_fmt}. If @var{backing_file} is specified as ``'' (the empty
 string), then the image is rebased onto no backing file (i.e. it will exist
 independently of any backing file).
+
+@var{cache} specifies the cache mode to be used for @var{filename}, whereas
+@var{src_cache} specifies the cache mode for reading the new backing file.
 
 There are two different modes in which @code{rebase} can operate:
 @table @option
@@ -391,7 +397,7 @@ After using this command to grow a disk image, you must use file system and
 partitioning tools inside the VM to actually begin using the new space on the
 device.
 
-@item amend [-f @var{fmt}] -o @var{options} @var{filename}
+@item amend [-f @var{fmt}] [-t @var{cache}] -o @var{options} @var{filename}
 
 Amends the image format specific @var{options} for the image file
 @var{filename}. Not all file formats support this operation.
