@@ -303,9 +303,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
     SCSIDevice *s = r->req.dev;
     int ret;
 
-    DPRINTF("Command: lun=%d tag=0x%x len %zd data=0x%02x", lun, tag,
-            r->req.cmd.xfer, cmd[0]);
-
 #ifdef DEBUG_SCSI
     {
         int i;
