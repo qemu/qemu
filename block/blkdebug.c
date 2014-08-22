@@ -453,6 +453,10 @@ static void error_callback_bh(void *opaque)
 static void blkdebug_aio_cancel(BlockDriverAIOCB *blockacb)
 {
     BlkdebugAIOCB *acb = container_of(blockacb, BlkdebugAIOCB, common);
+    if (acb->bh) {
+        qemu_bh_delete(acb->bh);
+        acb->bh = NULL;
+    }
     qemu_aio_release(acb);
 }
 
