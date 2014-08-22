@@ -3696,6 +3696,59 @@ out:
     return ret;
 }
 
+static abi_long do_ioctl_blkpg(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
+                               abi_long cmd, abi_long arg)
+{
+    void *argptr;
+    int target_size;
+    const argtype *arg_type = ie->arg_type;
+    const argtype part_arg_type[] = { MK_STRUCT(STRUCT_blkpg_partition) };
+    abi_long ret;
+
+    struct blkpg_ioctl_arg *host_blkpg = (void*)buf_temp;
+    struct blkpg_partition host_part;
+
+    /* Read and convert blkpg */
+    arg_type++;
+    target_size = thunk_type_size(arg_type, 0);
+    argptr = lock_user(VERIFY_READ, arg, target_size, 1);
+    if (!argptr) {
+        ret = -TARGET_EFAULT;
+        goto out;
+    }
+    thunk_convert(buf_temp, argptr, arg_type, THUNK_HOST);
+    unlock_user(argptr, arg, 0);
+
+    switch (host_blkpg->op) {
+    case BLKPG_ADD_PARTITION:
+    case BLKPG_DEL_PARTITION:
+        /* payload is struct blkpg_partition */
+        break;
+    default:
+        /* Unknown opcode */
+        ret = -TARGET_EINVAL;
+        goto out;
+    }
+
+    /* Read and convert blkpg->data */
+    arg = (abi_long)(uintptr_t)host_blkpg->data;
+    target_size = thunk_type_size(part_arg_type, 0);
+    argptr = lock_user(VERIFY_READ, arg, target_size, 1);
+    if (!argptr) {
+        ret = -TARGET_EFAULT;
+        goto out;
+    }
+    thunk_convert(&host_part, argptr, part_arg_type, THUNK_HOST);
+    unlock_user(argptr, arg, 0);
+
+    /* Swizzle the data pointer to our local copy and call! */
+    host_blkpg->data = &host_part;
+    ret = get_errno(ioctl(fd, ie->host_cmd, host_blkpg));
+
+out:
+    return ret;
+}
+
 static abi_long do_ioctl_rt(const IOCTLEntry *ie, uint8_t *buf_temp,
                                 int fd, abi_long cmd, abi_long arg)
 {
