@@ -1512,7 +1512,8 @@ static int iscsi_truncate(BlockDriverState *bs, int64_t offset)
     if (iscsilun->allocationmap != NULL) {
         g_free(iscsilun->allocationmap);
         iscsilun->allocationmap =
-            bitmap_new(DIV_ROUND_UP(bs->total_sectors,
+            bitmap_new(DIV_ROUND_UP(sector_lun2qemu(iscsilun->num_blocks,
+                                                    iscsilun),
                                     iscsilun->cluster_sectors));
     }
 
