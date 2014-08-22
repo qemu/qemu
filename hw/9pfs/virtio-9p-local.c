@@ -397,12 +397,15 @@ static int local_readdir_r(FsContext *ctx, V9fsFidOpenState *fs,
 
 again:
     ret = readdir_r(fs->dir, entry, result);
-    if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
+    if (ctx->export_flags & V9FS_SM_MAPPED) {
+        entry->d_type = DT_UNKNOWN;
+    } else if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         if (!ret && *result != NULL &&
             !strcmp(entry->d_name, VIRTFS_META_DIR)) {
             /* skp the meta data directory */
             goto again;
         }
+        entry->d_type = DT_UNKNOWN;
     }
     return ret;
 }
