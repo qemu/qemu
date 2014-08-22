@@ -5167,6 +5167,7 @@ static int open_self_cmdline(void *cpu_env, int fd)
 
         if (word_skipped) {
             if (write(fd, cp_buf, nb_read) != nb_read) {
+                close(fd_orig);
                 return -1;
             }
         }
