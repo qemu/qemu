@@ -94,10 +94,13 @@ struct pflash_t {
     void *storage;
 };
 
+static int pflash_post_load(void *opaque, int version_id);
+
 static const VMStateDescription vmstate_pflash = {
     .name = "pflash_cfi01",
     .version_id = 1,
     .minimum_version_id = 1,
+    .post_load = pflash_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(wcycle, pflash_t),
         VMSTATE_UINT8(cmd, pflash_t),
@@ -981,4 +984,15 @@ pflash_t *pflash_cfi01_register(hwaddr base,
 MemoryRegion *pflash_cfi01_get_memory(pflash_t *fl)
 {
     return &fl->mem;
+}
+
+static int pflash_post_load(void *opaque, int version_id)
+{
+    pflash_t *pfl = opaque;
+
+    if (!pfl->ro) {
+        DPRINTF("%s: updating bdrv for %s\n", __func__, pfl->name);
+        pflash_update(pfl, 0, pfl->sector_len * pfl->nb_blocs);
+    }
+    return 0;
 }
