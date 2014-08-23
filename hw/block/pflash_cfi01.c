@@ -209,11 +209,11 @@ static uint32_t pflash_devid_query(pflash_t *pfl, hwaddr offset)
     switch (boff & 0xFF) {
     case 0:
         resp = pfl->ident0;
-        DPRINTF("%s: Manufacturer Code %04x\n", __func__, ret);
+        DPRINTF("%s: Manufacturer Code %04x\n", __func__, resp);
         break;
     case 1:
         resp = pfl->ident1;
-        DPRINTF("%s: Device ID Code %04x\n", __func__, ret);
+        DPRINTF("%s: Device ID Code %04x\n", __func__, resp);
         break;
     default:
         DPRINTF("%s: Read Device Information offset=%x\n", __func__,
