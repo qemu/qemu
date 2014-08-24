@@ -630,5 +630,5 @@ void pcie_ari_init(PCIDevice *dev, uint16_t offset, uint16_t nextfn)
 {
     pcie_add_capability(dev, PCI_EXT_CAP_ID_ARI, PCI_ARI_VER,
                         offset, PCI_ARI_SIZEOF);
-    pci_set_long(dev->config + offset + PCI_ARI_CAP, PCI_ARI_CAP_NFN(nextfn));
+    pci_set_long(dev->config + offset + PCI_ARI_CAP, (nextfn & 0xff) << 8);
 }
