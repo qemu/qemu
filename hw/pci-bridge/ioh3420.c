@@ -85,6 +85,7 @@ static void ioh3420_reset(DeviceState *qdev)
     pcie_cap_root_reset(d);
     pcie_cap_deverr_reset(d);
     pcie_cap_slot_reset(d);
+    pcie_cap_arifwd_reset(d);
     pcie_aer_root_reset(d);
     pci_bridge_reset(qdev);
     pci_bridge_disable_base_limit(d);
@@ -119,6 +120,7 @@ static int ioh3420_initfn(PCIDevice *d)
         goto err_msi;
     }
 
+    pcie_cap_arifwd_init(d);
     pcie_cap_deverr_init(d);
     pcie_cap_slot_init(d, s->slot);
     pcie_chassis_create(s->chassis);
