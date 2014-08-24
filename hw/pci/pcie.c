@@ -498,7 +498,7 @@ void pcie_cap_flr_write_config(PCIDevice *dev,
 }
 
 /* Alternative Routing-ID Interpretation (ARI)
- * forwarding support for root and downstream ports 
+ * forwarding support for root and downstream ports
  */
 void pcie_cap_arifwd_init(PCIDevice *dev)
 {
