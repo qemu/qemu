@@ -103,9 +103,10 @@ void pcie_cap_flr_init(PCIDevice *dev);
 void pcie_cap_flr_write_config(PCIDevice *dev,
                            uint32_t addr, uint32_t val, int len);
 
-void pcie_cap_ari_init(PCIDevice *dev);
-void pcie_cap_ari_reset(PCIDevice *dev);
-bool pcie_cap_is_ari_enabled(const PCIDevice *dev);
+/* ARI forwarding capability and control */
+void pcie_cap_arifwd_init(PCIDevice *dev);
+void pcie_cap_arifwd_reset(PCIDevice *dev);
+bool pcie_cap_is_arifwd_enabled(const PCIDevice *dev);
 
 /* PCI express extended capability helper functions */
 uint16_t pcie_find_capability(PCIDevice *dev, uint16_t cap_id);

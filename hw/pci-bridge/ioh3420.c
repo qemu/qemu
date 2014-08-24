@@ -118,6 +118,7 @@ static int ioh3420_initfn(PCIDevice *d)
     if (rc < 0) {
         goto err_msi;
     }
+
     pcie_cap_deverr_init(d);
     pcie_cap_slot_init(d, s->slot);
     pcie_chassis_create(s->chassis);
