@@ -229,7 +229,7 @@ static void kbd_write_command(void *opaque, hwaddr addr,
 {
     KBDState *s = opaque;
 
-    DPRINTF("kbd: write cmd=0x%02x\n", val);
+    DPRINTF("kbd: write cmd=0x%02" PRIx64 "\n", val);
 
     /* Bits 3-0 of the output port P2 of the keyboard controller may be pulsed
      * low for approximately 6 micro seconds. Bits 3-0 of the KBD_CCMD_PULSE
@@ -330,7 +330,7 @@ static void kbd_write_data(void *opaque, hwaddr addr,
 {
     KBDState *s = opaque;
 
-    DPRINTF("kbd: write data=0x%02x\n", val);
+    DPRINTF("kbd: write data=0x%02" PRIx64 "\n", val);
 
     switch(s->write_cmd) {
     case 0:
