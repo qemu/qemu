@@ -231,7 +231,7 @@ static uint64_t pci_read(void *opaque, hwaddr addr, unsigned int size)
     uint32_t val = 0;
     int bsel = s->hotplug_select;
 
-    if (bsel < 0 || bsel > ACPI_PCIHP_MAX_HOTPLUG_BUS) {
+    if (bsel < 0 || bsel >= ACPI_PCIHP_MAX_HOTPLUG_BUS) {
         return 0;
     }
 

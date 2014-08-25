@@ -323,6 +323,7 @@ static void pc_compat_2_0(MachineState *machine)
     legacy_acpi_table_size = 6652;
     smbios_legacy_mode = true;
     has_reserved_memory = false;
+    pc_set_legacy_acpi_data_size();
 }
 
 static void pc_compat_1_7(MachineState *machine)

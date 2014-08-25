@@ -40,6 +40,8 @@
 #include "hw/loader.h"
 #include "hw/isa/isa.h"
 #include "hw/acpi/memory_hotplug.h"
+#include "sysemu/tpm.h"
+#include "hw/acpi/tpm.h"
 
 /* Supported chipsets: */
 #include "hw/acpi/piix4.h"
@@ -88,6 +90,7 @@ typedef struct AcpiPmInfo {
 
 typedef struct AcpiMiscInfo {
     bool has_hpet;
+    bool has_tpm;
     DECLARE_BITMAP(slot_hotplug_enable, PCI_SLOT_MAX);
     const unsigned char *dsdt_code;
     unsigned dsdt_size;
@@ -210,6 +213,7 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
 static void acpi_get_misc_info(AcpiMiscInfo *info)
 {
     info->has_hpet = hpet_find();
+    info->has_tpm = tpm_find();
     info->pvpanic_port = pvpanic_port();
 }
 
@@ -698,6 +702,7 @@ static inline char acpi_get_hex(uint32_t val)
 
 #include "hw/i386/ssdt-misc.hex"
 #include "hw/i386/ssdt-pcihp.hex"
+#include "hw/i386/ssdt-tpm.hex"
 
 static void
 build_append_notify_method(GArray *device, const char *name,
@@ -1201,6 +1206,39 @@ build_hpet(GArray *table_data, GArray *linker)
                  (void *)hpet, "HPET", sizeof(*hpet), 1);
 }
 
+static void
+build_tpm_tcpa(GArray *table_data, GArray *linker)
+{
+    Acpi20Tcpa *tcpa = acpi_data_push(table_data, sizeof *tcpa);
+    /* the log area will come right after the TCPA table */
+    uint64_t log_area_start_address = acpi_data_len(table_data);
+
+    tcpa->platform_class = cpu_to_le16(TPM_TCPA_ACPI_CLASS_CLIENT);
+    tcpa->log_area_minimum_length = cpu_to_le32(TPM_LOG_AREA_MINIMUM_SIZE);
+    tcpa->log_area_start_address = cpu_to_le64(log_area_start_address);
+
+    /* log area start address to be filled by Guest linker */
+    bios_linker_loader_add_pointer(linker, ACPI_BUILD_TABLE_FILE,
+                                   ACPI_BUILD_TABLE_FILE,
+                                   table_data, &tcpa->log_area_start_address,
+                                   sizeof(tcpa->log_area_start_address));
+
+    build_header(linker, table_data,
+                 (void *)tcpa, "TCPA", sizeof(*tcpa), 2);
+
+    /* now only get the log area and with that modify table_data */
+    acpi_data_push(table_data, TPM_LOG_AREA_MINIMUM_SIZE);
+}
+
+static void
+build_tpm_ssdt(GArray *table_data, GArray *linker)
+{
+    void *tpm_ptr;
+
+    tpm_ptr = acpi_data_push(table_data, sizeof(ssdt_tpm_aml));
+    memcpy(tpm_ptr, ssdt_tpm_aml, sizeof(ssdt_tpm_aml));
+}
+
 typedef enum {
     MEM_AFFINITY_NOFLAGS      = 0,
     MEM_AFFINITY_ENABLED      = (1 << 0),
@@ -1530,6 +1568,13 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
     if (misc.has_hpet) {
         acpi_add_table(table_offsets, tables->table_data);
         build_hpet(tables->table_data, tables->linker);
+    }
+    if (misc.has_tpm) {
+        acpi_add_table(table_offsets, tables->table_data);
+        build_tpm_tcpa(tables->table_data, tables->linker);
+
+        acpi_add_table(table_offsets, tables->table_data);
+        build_tpm_ssdt(tables->table_data, tables->linker);
     }
     if (guest_info->numa_nodes) {
         acpi_add_table(table_offsets, tables->table_data);

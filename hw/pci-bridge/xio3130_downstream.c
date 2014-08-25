@@ -50,7 +50,7 @@ static void xio3130_downstream_reset(DeviceState *qdev)
 
     pcie_cap_deverr_reset(d);
     pcie_cap_slot_reset(d);
-    pcie_cap_ari_reset(d);
+    pcie_cap_arifwd_reset(d);
     pci_bridge_reset(qdev);
 }
 
@@ -91,7 +91,7 @@ static int xio3130_downstream_initfn(PCIDevice *d)
     if (rc < 0) {
         goto err_pcie_cap;
     }
-    pcie_cap_ari_init(d);
+    pcie_cap_arifwd_init(d);
     rc = pcie_aer_init(d, XIO3130_AER_OFFSET);
     if (rc < 0) {
         goto err;

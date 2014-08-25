@@ -219,6 +219,12 @@ static void pci_bridge_region_del(PCIBridge *br, PCIBridgeWindows *w)
 
 static void pci_bridge_region_cleanup(PCIBridge *br, PCIBridgeWindows *w)
 {
+    object_unparent(OBJECT(&w->alias_io));
+    object_unparent(OBJECT(&w->alias_mem));
+    object_unparent(OBJECT(&w->alias_pref_mem));
+    object_unparent(OBJECT(&w->alias_vga[QEMU_PCI_VGA_IO_LO]));
+    object_unparent(OBJECT(&w->alias_vga[QEMU_PCI_VGA_IO_HI]));
+    object_unparent(OBJECT(&w->alias_vga[QEMU_PCI_VGA_MEM]));
     g_free(w);
 }
 

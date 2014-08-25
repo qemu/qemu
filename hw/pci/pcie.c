@@ -497,9 +497,10 @@ void pcie_cap_flr_write_config(PCIDevice *dev,
     }
 }
 
-/* Alternative Routing-ID Interpretation (ARI) */
-/* ari forwarding support for down stream port */
-void pcie_cap_ari_init(PCIDevice *dev)
+/* Alternative Routing-ID Interpretation (ARI)
+ * forwarding support for root and downstream ports
+ */
+void pcie_cap_arifwd_init(PCIDevice *dev)
 {
     uint32_t pos = dev->exp.exp_cap;
     pci_long_test_and_set_mask(dev->config + pos + PCI_EXP_DEVCAP2,
@@ -508,13 +509,13 @@ void pcie_cap_ari_init(PCIDevice *dev)
                                PCI_EXP_DEVCTL2_ARI);
 }
 
-void pcie_cap_ari_reset(PCIDevice *dev)
+void pcie_cap_arifwd_reset(PCIDevice *dev)
 {
     uint8_t *devctl2 = dev->config + dev->exp.exp_cap + PCI_EXP_DEVCTL2;
     pci_long_test_and_clear_mask(devctl2, PCI_EXP_DEVCTL2_ARI);
 }
 
-bool pcie_cap_is_ari_enabled(const PCIDevice *dev)
+bool pcie_cap_is_arifwd_enabled(const PCIDevice *dev)
 {
     if (!pci_is_express(dev)) {
         return false;
@@ -630,5 +631,5 @@ void pcie_ari_init(PCIDevice *dev, uint16_t offset, uint16_t nextfn)
 {
     pcie_add_capability(dev, PCI_EXT_CAP_ID_ARI, PCI_ARI_VER,
                         offset, PCI_ARI_SIZEOF);
-    pci_set_long(dev->config + offset + PCI_ARI_CAP, PCI_ARI_CAP_NFN(nextfn));
+    pci_set_long(dev->config + offset + PCI_ARI_CAP, (nextfn & 0xff) << 8);
 }

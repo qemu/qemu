@@ -295,7 +295,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
         /* ensure policy won't be ignored in case memory is preallocated
          * before mbind(). note: MPOL_MF_STRICT is ignored on hugepages so
          * this doesn't catch hugepage case. */
-        unsigned flags = MPOL_MF_STRICT;
+        unsigned flags = MPOL_MF_STRICT | MPOL_MF_MOVE;
 
         /* check for invalid host-nodes and policies and give more verbose
          * error messages than mbind(). */

@@ -85,6 +85,7 @@ static void ioh3420_reset(DeviceState *qdev)
     pcie_cap_root_reset(d);
     pcie_cap_deverr_reset(d);
     pcie_cap_slot_reset(d);
+    pcie_cap_arifwd_reset(d);
     pcie_aer_root_reset(d);
     pci_bridge_reset(qdev);
     pci_bridge_disable_base_limit(d);
@@ -118,6 +119,8 @@ static int ioh3420_initfn(PCIDevice *d)
     if (rc < 0) {
         goto err_msi;
     }
+
+    pcie_cap_arifwd_init(d);
     pcie_cap_deverr_init(d);
     pcie_cap_slot_init(d, s->slot);
     pcie_chassis_create(s->chassis);
@@ -154,30 +157,6 @@ static void ioh3420_exitfn(PCIDevice *d)
     pcie_cap_exit(d);
     msi_uninit(d);
     pci_bridge_exitfn(d);
-}
-
-PCIESlot *ioh3420_init(PCIBus *bus, int devfn, bool multifunction,
-                         const char *bus_name, pci_map_irq_fn map_irq,
-                         uint8_t port, uint8_t chassis, uint16_t slot)
-{
-    PCIDevice *d;
-    PCIBridge *br;
-    DeviceState *qdev;
-
-    d = pci_create_multifunction(bus, devfn, multifunction, "ioh3420");
-    if (!d) {
-        return NULL;
-    }
-    br = PCI_BRIDGE(d);
-
-    qdev = DEVICE(d);
-    pci_bridge_map_irq(br, bus_name, map_irq);
-    qdev_prop_set_uint8(qdev, "port", port);
-    qdev_prop_set_uint8(qdev, "chassis", chassis);
-    qdev_prop_set_uint16(qdev, "slot", slot);
-    qdev_init_nofail(qdev);
-
-    return PCIE_SLOT(d);
 }
 
 static Property ioh3420_props[] = {

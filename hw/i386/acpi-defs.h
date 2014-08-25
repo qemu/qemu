@@ -314,4 +314,15 @@ struct AcpiTableMcfg {
 } QEMU_PACKED;
 typedef struct AcpiTableMcfg AcpiTableMcfg;
 
+/*
+ * TCPA Description Table
+ */
+struct Acpi20Tcpa {
+    ACPI_TABLE_HEADER_DEF                    /* ACPI common table header */
+    uint16_t platform_class;
+    uint32_t log_area_minimum_length;
+    uint64_t log_area_start_address;
+} QEMU_PACKED;
+typedef struct Acpi20Tcpa Acpi20Tcpa;
+
 #endif
