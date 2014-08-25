@@ -1691,6 +1691,12 @@ static void gen_rlwinm(DisasContext *ctx)
         tcg_gen_shri_tl(t0, t0, mb);
         tcg_gen_ext32u_tl(cpu_gpr[rA(ctx->opcode)], t0);
         tcg_temp_free(t0);
+    } else if (likely(mb == 0 && me == 31)) {
+        TCGv_i32 t0 = tcg_temp_new_i32();
+        tcg_gen_trunc_tl_i32(t0, cpu_gpr[rS(ctx->opcode)]);
+        tcg_gen_rotli_i32(t0, t0, sh);
+        tcg_gen_extu_i32_tl(cpu_gpr[rA(ctx->opcode)], t0);
+        tcg_temp_free_i32(t0);
     } else {
         TCGv t0 = tcg_temp_new();
 #if defined(TARGET_PPC64)
