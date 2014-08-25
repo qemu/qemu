@@ -45,8 +45,8 @@ static struct pathelem *new_entry(const char *root,
                                   struct pathelem *parent,
                                   const char *name)
 {
-    struct pathelem *new = malloc(sizeof(*new));
-    new->name = strdup(name);
+    struct pathelem *new = g_malloc(sizeof(*new));
+    new->name = g_strdup(name);
     new->pathname = g_strdup_printf("%s/%s", root, name);
     new->num_entries = 0;
     return new;
@@ -88,7 +88,7 @@ static struct pathelem *add_entry(struct pathelem *root, const char *name,
 
     root->num_entries++;
 
-    root = realloc(root, sizeof(*root)
+    root = g_realloc(root, sizeof(*root)
                    + sizeof(root->entries[0])*root->num_entries);
     e = &root->entries[root->num_entries-1];
 
@@ -161,8 +161,8 @@ void init_paths(const char *prefix)
     base = add_dir_maybe(base);
     if (base->num_entries == 0) {
         g_free(base->pathname);
-        free(base->name);
-        free(base);
+        g_free(base->name);
+        g_free(base);
         base = NULL;
     } else {
         set_parents(base, base);
