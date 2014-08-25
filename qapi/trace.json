@@ -1,0 +1,65 @@
+# -*- mode: python -*-
+#
+# Copyright (C) 2011-2014 Lluís Vilanova <vilanova@ac.upc.edu>
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or later.
+# See the COPYING file in the top-level directory.
+
+
+##
+# @TraceEventState:
+#
+# State of a tracing event.
+#
+# @unavailable: The event is statically disabled.
+#
+# @disabled: The event is dynamically disabled.
+#
+# @enabled: The event is dynamically enabled.
+#
+# Since 2.2
+##
+{ 'enum': 'TraceEventState',
+  'data': ['unavailable', 'disabled', 'enabled'] }
+
+##
+# @TraceEventInfo:
+#
+# Information of a tracing event.
+#
+# @name: Event name.
+# @state: Tracing state.
+#
+# Since 2.2
+##
+{ 'type': 'TraceEventInfo',
+  'data': {'name': 'str', 'state': 'TraceEventState'} }
+
+##
+# @trace-event-get-state:
+#
+# Query the state of events.
+#
+# @name: Event name pattern (case-sensitive glob).
+#
+# Returns: a list of @TraceEventInfo for the matching events
+#
+# Since 2.2
+##
+{ 'command': 'trace-event-get-state',
+  'data': {'name': 'str'},
+  'returns': ['TraceEventInfo'] }
+
+##
+# @trace-event-set-state:
+#
+# Set the dynamic tracing state of events.
+#
+# @name: Event name pattern (case-sensitive glob).
+# @enable: Whether to enable tracing.
+# @ignore-unavailable: #optional Do not match unavailable events with @name.
+#
+# Since 2.2
+##
+{ 'command': 'trace-event-set-state',
+  'data': {'name': 'str', 'enable': 'bool', '*ignore-unavailable': 'bool'} }
