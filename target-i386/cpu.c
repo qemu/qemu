@@ -258,7 +258,7 @@ static const char *svm_feature_name[] = {
 
 static const char *cpuid_7_0_ebx_feature_name[] = {
     "fsgsbase", NULL, NULL, "bmi1", "hle", "avx2", NULL, "smep",
-    "bmi2", "erms", "invpcid", "rtm", NULL, NULL, NULL, NULL,
+    "bmi2", "erms", "invpcid", "rtm", NULL, NULL, "mpx", NULL,
     NULL, NULL, "rdseed", "adx", "smap", NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 };
