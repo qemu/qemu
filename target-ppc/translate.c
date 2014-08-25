@@ -1636,12 +1636,9 @@ static void gen_rlwimi(DisasContext *ctx)
     mb = MB(ctx->opcode);
     me = ME(ctx->opcode);
     sh = SH(ctx->opcode);
-    if (likely(sh == 0 && mb == 0 && me == 31)) {
-#if defined(TARGET_PPC64)
-        tcg_gen_mov_i64(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
-#else
-        tcg_gen_ext32u_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
-#endif
+    if (likely(sh == (31-me) && mb <= me)) {
+        tcg_gen_deposit_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
+                           cpu_gpr[rS(ctx->opcode)], sh, me - mb + 1);
     } else {
         target_ulong mask;
         TCGv t1;
