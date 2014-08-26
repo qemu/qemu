@@ -20,6 +20,7 @@
 
 #include "config.h"
 #include "qemu-common.h"
+#include "qemu/error-report.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/sysemu.h"
 #include "hw/loader.h"
@@ -79,8 +80,8 @@ void *load_device_tree(const char *filename_path, int *sizep)
     *sizep = 0;
     dt_size = get_image_size(filename_path);
     if (dt_size < 0) {
-        printf("Unable to get size of device tree file '%s'\n",
-            filename_path);
+        error_report("Unable to get size of device tree file '%s'",
+                     filename_path);
         goto fail;
     }
 
@@ -92,21 +93,21 @@ void *load_device_tree(const char *filename_path, int *sizep)
 
     dt_file_load_size = load_image(filename_path, fdt);
     if (dt_file_load_size < 0) {
-        printf("Unable to open device tree file '%s'\n",
-               filename_path);
+        error_report("Unable to open device tree file '%s'",
+                     filename_path);
         goto fail;
     }
 
     ret = fdt_open_into(fdt, fdt, dt_size);
     if (ret) {
-        printf("Unable to copy device tree in memory\n");
+        error_report("Unable to copy device tree in memory");
         goto fail;
     }
 
     /* Check sanity of device tree */
     if (fdt_check_header(fdt)) {
-        printf ("Device tree file loaded into memory is invalid: %s\n",
-            filename_path);
+        error_report("Device tree file loaded into memory is invalid: %s",
+                     filename_path);
         goto fail;
     }
     *sizep = dt_size;
