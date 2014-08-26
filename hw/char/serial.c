@@ -815,6 +815,9 @@ static void serial_reset(void *opaque)
     s->thr_ipending = 0;
     s->last_break_enable = 0;
     qemu_irq_lower(s->irq);
+
+    serial_update_msl(s);
+    s->msr &= ~UART_MSR_ANY_DELTA;
 }
 
 void serial_realize_core(SerialState *s, Error **errp)
@@ -945,7 +948,5 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
     memory_region_init_io(&s->io, NULL, &serial_mm_ops[end], s,
                           "serial", 8 << it_shift);
     memory_region_add_subregion(address_space, base, &s->io);
-
-    serial_update_msl(s);
     return s;
 }
