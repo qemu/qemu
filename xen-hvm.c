@@ -71,7 +71,7 @@ static inline ioreq_t *xen_vcpu_ioreq(shared_iopage_t *shared_page, int vcpu)
 typedef struct XenPhysmap {
     hwaddr start_addr;
     ram_addr_t size;
-    char *name;
+    const char *name;
     hwaddr phys_offset;
 
     QLIST_ENTRY(XenPhysmap) list;
@@ -330,7 +330,7 @@ go_physmap:
 
     physmap->start_addr = start_addr;
     physmap->size = size;
-    physmap->name = (char *)mr->name;
+    physmap->name = mr->name;
     physmap->phys_offset = phys_offset;
 
     QLIST_INSERT_HEAD(&state->physmap, physmap, list);
