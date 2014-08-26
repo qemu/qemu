@@ -576,6 +576,93 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
+/*
+ * Sanity check vbe register writes.
+ *
+ * As we don't have a way to signal errors to the guest in the bochs
+ * dispi interface we'll go adjust the registers to the closest valid
+ * value.
+ */
+static void vbe_fixup_regs(VGACommonState *s)
+{
+    uint16_t *r = s->vbe_regs;
+    uint32_t bits, linelength, maxy, offset;
+
+    if (!(r[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED)) {
+        /* vbe is turned off -- nothing to do */
+        return;
+    }
+
+    /* check depth */
+    switch (r[VBE_DISPI_INDEX_BPP]) {
+    case 4:
+    case 8:
+    case 16:
+    case 24:
+    case 32:
+        bits = r[VBE_DISPI_INDEX_BPP];
+        break;
+    case 15:
+        bits = 16;
+        break;
+    default:
+        bits = r[VBE_DISPI_INDEX_BPP] = 8;
+        break;
+    }
+
+    /* check width */
+    r[VBE_DISPI_INDEX_XRES] &= ~7u;
+    if (r[VBE_DISPI_INDEX_XRES] == 0) {
+        r[VBE_DISPI_INDEX_XRES] = 8;
+    }
+    if (r[VBE_DISPI_INDEX_XRES] > VBE_DISPI_MAX_XRES) {
+        r[VBE_DISPI_INDEX_XRES] = VBE_DISPI_MAX_XRES;
+    }
+    r[VBE_DISPI_INDEX_VIRT_WIDTH] &= ~7u;
+    if (r[VBE_DISPI_INDEX_VIRT_WIDTH] > VBE_DISPI_MAX_XRES) {
+        r[VBE_DISPI_INDEX_VIRT_WIDTH] = VBE_DISPI_MAX_XRES;
+    }
+    if (r[VBE_DISPI_INDEX_VIRT_WIDTH] < r[VBE_DISPI_INDEX_XRES]) {
+        r[VBE_DISPI_INDEX_VIRT_WIDTH] = r[VBE_DISPI_INDEX_XRES];
+    }
+
+    /* check height */
+    linelength = r[VBE_DISPI_INDEX_VIRT_WIDTH] * bits / 8;
+    maxy = s->vbe_size / linelength;
+    if (r[VBE_DISPI_INDEX_YRES] == 0) {
+        r[VBE_DISPI_INDEX_YRES] = 1;
+    }
+    if (r[VBE_DISPI_INDEX_YRES] > VBE_DISPI_MAX_YRES) {
+        r[VBE_DISPI_INDEX_YRES] = VBE_DISPI_MAX_YRES;
+    }
+    if (r[VBE_DISPI_INDEX_YRES] > maxy) {
+        r[VBE_DISPI_INDEX_YRES] = maxy;
+    }
+
+    /* check offset */
+    if (r[VBE_DISPI_INDEX_X_OFFSET] > VBE_DISPI_MAX_XRES) {
+        r[VBE_DISPI_INDEX_X_OFFSET] = VBE_DISPI_MAX_XRES;
+    }
+    if (r[VBE_DISPI_INDEX_Y_OFFSET] > VBE_DISPI_MAX_YRES) {
+        r[VBE_DISPI_INDEX_Y_OFFSET] = VBE_DISPI_MAX_YRES;
+    }
+    offset = r[VBE_DISPI_INDEX_X_OFFSET] * bits / 8;
+    offset += r[VBE_DISPI_INDEX_Y_OFFSET] * linelength;
+    if (offset + r[VBE_DISPI_INDEX_YRES] * linelength > s->vbe_size) {
+        r[VBE_DISPI_INDEX_Y_OFFSET] = 0;
+        offset = r[VBE_DISPI_INDEX_X_OFFSET] * bits / 8;
+        if (offset + r[VBE_DISPI_INDEX_YRES] * linelength > s->vbe_size) {
+            r[VBE_DISPI_INDEX_X_OFFSET] = 0;
+            offset = 0;
+        }
+    }
+
+    /* update vga state */
+    r[VBE_DISPI_INDEX_VIRT_HEIGHT] = maxy;
+    s->vbe_line_offset = linelength;
+    s->vbe_start_addr  = offset / 4;
+}
+
 static uint32_t vbe_ioport_read_index(void *opaque, uint32_t addr)
 {
     VGACommonState *s = opaque;
@@ -645,22 +732,13 @@ void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
             }
             break;
         case VBE_DISPI_INDEX_XRES:
-            if ((val <= VBE_DISPI_MAX_XRES) && ((val & 7) == 0)) {
-                s->vbe_regs[s->vbe_index] = val;
-            }
-            break;
         case VBE_DISPI_INDEX_YRES:
-            if (val <= VBE_DISPI_MAX_YRES) {
-                s->vbe_regs[s->vbe_index] = val;
-            }
-            break;
         case VBE_DISPI_INDEX_BPP:
-            if (val == 0)
-                val = 8;
-            if (val == 4 || val == 8 || val == 15 ||
-                val == 16 || val == 24 || val == 32) {
-                s->vbe_regs[s->vbe_index] = val;
-            }
+        case VBE_DISPI_INDEX_VIRT_WIDTH:
+        case VBE_DISPI_INDEX_X_OFFSET:
+        case VBE_DISPI_INDEX_Y_OFFSET:
+            s->vbe_regs[s->vbe_index] = val;
+            vbe_fixup_regs(s);
             break;
         case VBE_DISPI_INDEX_BANK:
             if (s->vbe_regs[VBE_DISPI_INDEX_BPP] == 4) {
@@ -677,19 +755,11 @@ void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
                 !(s->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED)) {
                 int h, shift_control;
 
-                s->vbe_regs[VBE_DISPI_INDEX_VIRT_WIDTH] =
-                    s->vbe_regs[VBE_DISPI_INDEX_XRES];
-                s->vbe_regs[VBE_DISPI_INDEX_VIRT_HEIGHT] =
-                    s->vbe_regs[VBE_DISPI_INDEX_YRES];
+                s->vbe_regs[VBE_DISPI_INDEX_VIRT_WIDTH] = 0;
                 s->vbe_regs[VBE_DISPI_INDEX_X_OFFSET] = 0;
                 s->vbe_regs[VBE_DISPI_INDEX_Y_OFFSET] = 0;
-
-                if (s->vbe_regs[VBE_DISPI_INDEX_BPP] == 4)
-                    s->vbe_line_offset = s->vbe_regs[VBE_DISPI_INDEX_XRES] >> 1;
-                else
-                    s->vbe_line_offset = s->vbe_regs[VBE_DISPI_INDEX_XRES] *
-                        ((s->vbe_regs[VBE_DISPI_INDEX_BPP] + 7) >> 3);
-                s->vbe_start_addr = 0;
+                s->vbe_regs[VBE_DISPI_INDEX_ENABLE] |= VBE_DISPI_ENABLED;
+                vbe_fixup_regs(s);
 
                 /* clear the screen (should be done in BIOS) */
                 if (!(val & VBE_DISPI_NOCLEARMEM)) {
@@ -737,40 +807,6 @@ void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
             s->dac_8bit = (val & VBE_DISPI_8BIT_DAC) > 0;
             s->vbe_regs[s->vbe_index] = val;
             vga_update_memory_access(s);
-            break;
-        case VBE_DISPI_INDEX_VIRT_WIDTH:
-            {
-                int w, h, line_offset;
-
-                if (val < s->vbe_regs[VBE_DISPI_INDEX_XRES])
-                    return;
-                w = val;
-                if (s->vbe_regs[VBE_DISPI_INDEX_BPP] == 4)
-                    line_offset = w >> 1;
-                else
-                    line_offset = w * ((s->vbe_regs[VBE_DISPI_INDEX_BPP] + 7) >> 3);
-                h = s->vbe_size / line_offset;
-                /* XXX: support weird bochs semantics ? */
-                if (h < s->vbe_regs[VBE_DISPI_INDEX_YRES])
-                    return;
-                s->vbe_regs[VBE_DISPI_INDEX_VIRT_WIDTH] = w;
-                s->vbe_regs[VBE_DISPI_INDEX_VIRT_HEIGHT] = h;
-                s->vbe_line_offset = line_offset;
-            }
-            break;
-        case VBE_DISPI_INDEX_X_OFFSET:
-        case VBE_DISPI_INDEX_Y_OFFSET:
-            {
-                int x;
-                s->vbe_regs[s->vbe_index] = val;
-                s->vbe_start_addr = s->vbe_line_offset * s->vbe_regs[VBE_DISPI_INDEX_Y_OFFSET];
-                x = s->vbe_regs[VBE_DISPI_INDEX_X_OFFSET];
-                if (s->vbe_regs[VBE_DISPI_INDEX_BPP] == 4)
-                    s->vbe_start_addr += x >> 1;
-                else
-                    s->vbe_start_addr += x * ((s->vbe_regs[VBE_DISPI_INDEX_BPP] + 7) >> 3);
-                s->vbe_start_addr >>= 2;
-            }
             break;
         default:
             break;
