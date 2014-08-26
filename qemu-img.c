@@ -752,7 +752,7 @@ static int img_commit(int argc, char **argv)
     ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
-        return -1;
+        return 1;
     }
 
     bs = bdrv_new_open("image", filename, fmt, flags, true, quiet);
