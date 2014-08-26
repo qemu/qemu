@@ -2063,6 +2063,7 @@ static int qxl_init_primary(PCIDevice *dev)
 
     qxl->id = 0;
     qxl_init_ramsize(qxl);
+    vga->vbe_size = qxl->vgamem_size;
     vga->vram_size_mb = qxl->vga.vram_size >> 20;
     vga_common_init(vga, OBJECT(dev), true);
     vga_init(vga, OBJECT(dev),
