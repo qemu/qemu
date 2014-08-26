@@ -26,7 +26,7 @@
 #include "qapi/qmp/qbool.h"
 #include <curl/curl.h>
 
-// #define DEBUG
+// #define DEBUG_CURL
 // #define DEBUG_VERBOSE
 
 #ifdef DEBUG_CURL
