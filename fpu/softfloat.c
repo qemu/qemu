@@ -3258,7 +3258,7 @@ static float32 roundAndPackFloat16(flag zSign, int_fast16_t zExp,
     if (zExp > maxexp || (zExp == maxexp && rounding_bumps_exp)) {
         if (ieee) {
             float_raise(float_flag_overflow | float_flag_inexact STATUS_VAR);
-            if (roundingMode == float_round_to_zero) {
+            if (STATUS(float_rounding_mode) == float_round_to_zero) {
                 /*overflow_to_inf is FALSE, return FPMaxNormal (Sign)*/
                 return packFloat16(zSign, 0x1e, 0x3ff);
             } else {
