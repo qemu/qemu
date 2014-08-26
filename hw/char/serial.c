@@ -833,6 +833,7 @@ void serial_realize_core(SerialState *s, Error **errp)
                           serial_event, s);
     fifo8_create(&s->recv_fifo, UART_FIFO_LENGTH);
     fifo8_create(&s->xmit_fifo, UART_FIFO_LENGTH);
+    serial_reset(s);
 }
 
 void serial_exit_core(SerialState *s)
