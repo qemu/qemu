@@ -205,7 +205,7 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
     if (block_job_is_paused(job)) {
         qemu_coroutine_yield();
     } else {
-        co_sleep_ns(type, ns);
+        co_aio_sleep_ns(bdrv_get_aio_context(job->bs), type, ns);
     }
     job->busy = true;
 }
