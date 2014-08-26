@@ -41,6 +41,7 @@
 #include "qapi-visit.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/dealloc-visitor.h"
+#include "sysemu/sysemu.h"
 
 /* Net bridge is currently not supported for W32. */
 #if !defined(_WIN32)
@@ -452,6 +453,12 @@ void qemu_set_vnet_hdr_len(NetClientState *nc, int len)
 
 int qemu_can_send_packet(NetClientState *sender)
 {
+    int vm_running = runstate_is_running();
+
+    if (!vm_running) {
+        return 0;
+    }
+
     if (!sender->peer) {
         return 1;
     }
