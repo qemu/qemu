@@ -2194,9 +2194,13 @@ static void vfio_probe_nvidia_bar0_88000_quirk(VFIODevice *vdev, int nr)
 {
     PCIDevice *pdev = &vdev->pdev;
     VFIOQuirk *quirk;
+    uint16_t vendor, class;
 
-    if (!vdev->has_vga || nr != 0 ||
-        pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_NVIDIA) {
+    vendor = pci_get_word(pdev->config + PCI_VENDOR_ID);
+    class = pci_get_word(pdev->config + PCI_CLASS_DEVICE);
+
+    if (nr != 0 || vendor != PCI_VENDOR_ID_NVIDIA ||
+        class != PCI_CLASS_DISPLAY_VGA) {
         return;
     }
 
