@@ -999,6 +999,9 @@ static int img_compare(int argc, char **argv)
     filename1 = argv[optind++];
     filename2 = argv[optind++];
 
+    /* Initialize before goto out */
+    qemu_progress_init(progress, 2.0);
+
     flags = BDRV_O_FLAGS;
     ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
@@ -1006,9 +1009,6 @@ static int img_compare(int argc, char **argv)
         ret = 2;
         goto out3;
     }
-
-    /* Initialize before goto out */
-    qemu_progress_init(progress, 2.0);
 
     bs1 = bdrv_new_open("image 1", filename1, fmt1, flags, true, quiet);
     if (!bs1) {
