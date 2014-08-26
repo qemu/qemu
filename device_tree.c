@@ -60,13 +60,13 @@ void *create_device_tree(int *sizep)
     }
     ret = fdt_open_into(fdt, fdt, *sizep);
     if (ret) {
-        fprintf(stderr, "Unable to copy device tree in memory\n");
+        error_report("Unable to copy device tree in memory");
         exit(1);
     }
 
     return fdt;
 fail:
-    fprintf(stderr, "%s Couldn't create dt: %s\n", __func__, fdt_strerror(ret));
+    error_report("%s Couldn't create dt: %s", __func__, fdt_strerror(ret));
     exit(1);
 }
 
@@ -124,8 +124,8 @@ static int findnode_nofail(void *fdt, const char *node_path)
 
     offset = fdt_path_offset(fdt, node_path);
     if (offset < 0) {
-        fprintf(stderr, "%s Couldn't find node %s: %s\n", __func__, node_path,
-                fdt_strerror(offset));
+        error_report("%s Couldn't find node %s: %s", __func__, node_path,
+                     fdt_strerror(offset));
         exit(1);
     }
 
@@ -139,8 +139,8 @@ int qemu_fdt_setprop(void *fdt, const char *node_path,
 
     r = fdt_setprop(fdt, findnode_nofail(fdt, node_path), property, val, size);
     if (r < 0) {
-        fprintf(stderr, "%s: Couldn't set %s/%s: %s\n", __func__, node_path,
-                property, fdt_strerror(r));
+        error_report("%s: Couldn't set %s/%s: %s", __func__, node_path,
+                     property, fdt_strerror(r));
         exit(1);
     }
 
@@ -154,8 +154,8 @@ int qemu_fdt_setprop_cell(void *fdt, const char *node_path,
 
     r = fdt_setprop_cell(fdt, findnode_nofail(fdt, node_path), property, val);
     if (r < 0) {
-        fprintf(stderr, "%s: Couldn't set %s/%s = %#08x: %s\n", __func__,
-                node_path, property, val, fdt_strerror(r));
+        error_report("%s: Couldn't set %s/%s = %#08x: %s", __func__,
+                     node_path, property, val, fdt_strerror(r));
         exit(1);
     }
 
@@ -176,8 +176,8 @@ int qemu_fdt_setprop_string(void *fdt, const char *node_path,
 
     r = fdt_setprop_string(fdt, findnode_nofail(fdt, node_path), property, string);
     if (r < 0) {
-        fprintf(stderr, "%s: Couldn't set %s/%s = %s: %s\n", __func__,
-                node_path, property, string, fdt_strerror(r));
+        error_report("%s: Couldn't set %s/%s = %s: %s", __func__,
+                     node_path, property, string, fdt_strerror(r));
         exit(1);
     }
 
@@ -194,8 +194,8 @@ const void *qemu_fdt_getprop(void *fdt, const char *node_path,
     }
     r = fdt_getprop(fdt, findnode_nofail(fdt, node_path), property, lenp);
     if (!r) {
-        fprintf(stderr, "%s: Couldn't get %s/%s: %s\n", __func__,
-                node_path, property, fdt_strerror(*lenp));
+        error_report("%s: Couldn't get %s/%s: %s", __func__,
+                     node_path, property, fdt_strerror(*lenp));
         exit(1);
     }
     return r;
@@ -207,8 +207,8 @@ uint32_t qemu_fdt_getprop_cell(void *fdt, const char *node_path,
     int len;
     const uint32_t *p = qemu_fdt_getprop(fdt, node_path, property, &len);
     if (len != 4) {
-        fprintf(stderr, "%s: %s/%s not 4 bytes long (not a cell?)\n",
-                __func__, node_path, property);
+        error_report("%s: %s/%s not 4 bytes long (not a cell?)",
+                     __func__, node_path, property);
         exit(1);
     }
     return be32_to_cpu(*p);
@@ -220,8 +220,8 @@ uint32_t qemu_fdt_get_phandle(void *fdt, const char *path)
 
     r = fdt_get_phandle(fdt, findnode_nofail(fdt, path));
     if (r == 0) {
-        fprintf(stderr, "%s: Couldn't get phandle for %s: %s\n", __func__,
-                path, fdt_strerror(r));
+        error_report("%s: Couldn't get phandle for %s: %s", __func__,
+                     path, fdt_strerror(r));
         exit(1);
     }
 
@@ -266,8 +266,8 @@ int qemu_fdt_nop_node(void *fdt, const char *node_path)
 
     r = fdt_nop_node(fdt, findnode_nofail(fdt, node_path));
     if (r < 0) {
-        fprintf(stderr, "%s: Couldn't nop node %s: %s\n", __func__, node_path,
-                fdt_strerror(r));
+        error_report("%s: Couldn't nop node %s: %s", __func__, node_path,
+                     fdt_strerror(r));
         exit(1);
     }
 
@@ -295,8 +295,8 @@ int qemu_fdt_add_subnode(void *fdt, const char *name)
 
     retval = fdt_add_subnode(fdt, parent, basename);
     if (retval < 0) {
-        fprintf(stderr, "FDT: Failed to create subnode %s: %s\n", name,
-                fdt_strerror(retval));
+        error_report("FDT: Failed to create subnode %s: %s", name,
+                     fdt_strerror(retval));
         exit(1);
     }
 
