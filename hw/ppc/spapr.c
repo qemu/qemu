@@ -1377,6 +1377,7 @@ static void ppc_spapr_init(MachineState *machine)
     spapr_create_nvram(spapr);
 
     /* Set up PCI */
+    spapr_pci_msi_init(spapr, SPAPR_PCI_MSI_WINDOW);
     spapr_pci_rtas_init();
 
     phb = spapr_create_phb(spapr, 0);

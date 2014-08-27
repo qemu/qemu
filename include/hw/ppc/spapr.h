@@ -13,6 +13,8 @@ struct sPAPRNVRAM;
 typedef struct sPAPREnvironment {
     struct VIOsPAPRBus *vio_bus;
     QLIST_HEAD(, sPAPRPHBState) phbs;
+    hwaddr msi_win_addr;
+    MemoryRegion msiwindow;
     struct sPAPRNVRAM *nvram;
     XICSState *icp;
 
