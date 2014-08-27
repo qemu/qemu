@@ -102,7 +102,8 @@ class Wrapper:
     def __init__(self, backends, format):
         self._backends = [backend.replace("-", "_") for backend in backends]
         self._format = format.replace("-", "_")
-        assert all(exists(backend) for backend in self._backends)
+        for backend in self._backends:
+            assert exists(backend)
         assert tracetool.format.exists(self._format)
 
     def _run_function(self, name, *args, **kwargs):
