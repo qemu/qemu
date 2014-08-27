@@ -792,6 +792,7 @@ static void rtc_reset(void *opaque)
 #ifdef TARGET_I386
     if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
         s->irq_coalesced = 0;
+        s->irq_reinject_on_ack_count = 0;		
     }
 #endif
 }
