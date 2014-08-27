@@ -2179,11 +2179,12 @@ void qmp_drive_mirror(const char *device, const char *target,
     }
 
     if (granularity != 0 && (granularity < 512 || granularity > 1048576 * 64)) {
-        error_set(errp, QERR_INVALID_PARAMETER, device);
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
+                  "a value in range [512B, 64MB]");
         return;
     }
     if (granularity & (granularity - 1)) {
-        error_set(errp, QERR_INVALID_PARAMETER, device);
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "granularity", "power of 2");
         return;
     }
 
