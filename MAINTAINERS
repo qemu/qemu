@@ -684,6 +684,12 @@ S: Maintained
 F: hw/*/xilinx_*
 F: include/hw/xilinx.h
 
+Vmware
+M: Dmitry Fleytman <dmitry@daynix.com>
+S: Maintained
+F: hw/net/vmxnet*
+F: hw/scsi/vmw_pvscsi*
+
 Subsystems
 ----------
 Audio
