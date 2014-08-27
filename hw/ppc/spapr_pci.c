@@ -345,7 +345,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     }
 
     /* Setup MSI/MSIX vectors in the device (via cfgspace or MSIX BAR) */
-    spapr_msi_setmsg(pdev, spapr->msi_win_addr, ret_intr_type == RTAS_TYPE_MSIX,
+    spapr_msi_setmsg(pdev, SPAPR_PCI_MSI_WINDOW, ret_intr_type == RTAS_TYPE_MSIX,
                      irq, req_num);
 
     /* Add MSI device to cache */
@@ -469,34 +469,6 @@ static const MemoryRegionOps spapr_msi_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN
 };
 
-void spapr_pci_msi_init(sPAPREnvironment *spapr, hwaddr addr)
-{
-    uint64_t window_size = 4096;
-
-    /*
-     * As MSI/MSIX interrupts trigger by writing at MSI/MSIX vectors,
-     * we need to allocate some memory to catch those writes coming
-     * from msi_notify()/msix_notify().
-     * As MSIMessage:addr is going to be the same and MSIMessage:data
-     * is going to be a VIRQ number, 4 bytes of the MSI MR will only
-     * be used.
-     *
-     * For KVM we want to ensure that this memory is a full page so that
-     * our memory slot is of page size granularity.
-     */
-#ifdef CONFIG_KVM
-    if (kvm_enabled()) {
-        window_size = getpagesize();
-    }
-#endif
-
-    spapr->msi_win_addr = addr;
-    memory_region_init_io(&spapr->msiwindow, NULL, &spapr_msi_ops, spapr,
-                          "msi", window_size);
-    memory_region_add_subregion(get_system_memory(), spapr->msi_win_addr,
-                                &spapr->msiwindow);
-}
-
 /*
  * PHB PCI device
  */
@@ -516,6 +488,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     char *namebuf;
     int i;
     PCIBus *bus;
+    uint64_t msi_window_size = 4096;
 
     if (sphb->index != -1) {
         hwaddr windows_base;
@@ -607,6 +580,28 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
                        namebuf, UINT64_MAX);
     address_space_init(&sphb->iommu_as, &sphb->iommu_root,
                        sphb->dtbusname);
+
+    /*
+     * As MSI/MSIX interrupts trigger by writing at MSI/MSIX vectors,
+     * we need to allocate some memory to catch those writes coming
+     * from msi_notify()/msix_notify().
+     * As MSIMessage:addr is going to be the same and MSIMessage:data
+     * is going to be a VIRQ number, 4 bytes of the MSI MR will only
+     * be used.
+     *
+     * For KVM we want to ensure that this memory is a full page so that
+     * our memory slot is of page size granularity.
+     */
+#ifdef CONFIG_KVM
+    if (kvm_enabled()) {
+        msi_window_size = getpagesize();
+    }
+#endif
+
+    memory_region_init_io(&sphb->msiwindow, NULL, &spapr_msi_ops, spapr,
+                          "msi", msi_window_size);
+    memory_region_add_subregion(&sphb->iommu_root, SPAPR_PCI_MSI_WINDOW,
+                                &sphb->msiwindow);
 
     pci_setup_iommu(bus, spapr_pci_dma_iommu, sphb);
 
