@@ -158,6 +158,7 @@ static int blkverify_open(BlockDriverState *bs, QDict *options, int flags,
 
     ret = 0;
 fail:
+    qemu_opts_del(opts);
     return ret;
 }
 
