@@ -868,7 +868,7 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
 {
     BDRVQuorumState *s = bs->opaque;
     Error *local_err = NULL;
-    QemuOpts *opts;
+    QemuOpts *opts = NULL;
     bool *opened;
     QDict *sub = NULL;
     QList *list = NULL;
@@ -989,6 +989,7 @@ close_exit:
     g_free(s->bs);
     g_free(opened);
 exit:
+    qemu_opts_del(opts);
     /* propagate error */
     if (local_err) {
         error_propagate(errp, local_err);
