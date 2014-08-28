@@ -1060,6 +1060,9 @@ static inline void cpu_inject_crw_mchk(S390CPU *cpu)
     cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
+/* from s390-virtio-ccw */
+#define MEM_SECTION_SIZE             0x10000000UL
+
 /* fpu_helper.c */
 uint32_t set_cc_nz_f32(float32 v);
 uint32_t set_cc_nz_f64(float64 v);
