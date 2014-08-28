@@ -2286,25 +2286,25 @@ uint32_t helper_bcdadd(ppc_avr_t *r,  ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
         if (sgna == sgnb) {
             result.u8[BCD_DIG_BYTE(0)] = bcd_preferred_sgn(sgna, ps);
             zero = bcd_add_mag(&result, a, b, &invalid, &overflow);
-            cr = (sgna > 0) ? 4 : 8;
+            cr = (sgna > 0) ? 1 << CRF_GT : 1 << CRF_LT;
         } else if (bcd_cmp_mag(a, b) > 0) {
             result.u8[BCD_DIG_BYTE(0)] = bcd_preferred_sgn(sgna, ps);
             zero = bcd_sub_mag(&result, a, b, &invalid, &overflow);
-            cr = (sgna > 0) ? 4 : 8;
+            cr = (sgna > 0) ? 1 << CRF_GT : 1 << CRF_LT;
         } else {
             result.u8[BCD_DIG_BYTE(0)] = bcd_preferred_sgn(sgnb, ps);
             zero = bcd_sub_mag(&result, b, a, &invalid, &overflow);
-            cr = (sgnb > 0) ? 4 : 8;
+            cr = (sgnb > 0) ? 1 << CRF_GT : 1 << CRF_LT;
         }
     }
 
     if (unlikely(invalid)) {
         result.u64[HI_IDX] = result.u64[LO_IDX] = -1;
-        cr = 1;
+        cr = 1 << CRF_SO;
     } else if (overflow) {
-        cr |= 1;
+        cr |= 1 << CRF_SO;
     } else if (zero) {
-        cr = 2;
+        cr = 1 << CRF_EQ;
     }
 
     *r = result;
