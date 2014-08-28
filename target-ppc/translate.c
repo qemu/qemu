@@ -8221,7 +8221,7 @@ static inline TCGv_ptr gen_fprp_ptr(int reg)
 }
 
 #if defined(TARGET_PPC64)
-static void gen_set_cr6_from_fpscr(DisasContext *ctx)
+static void gen_set_cr1_from_fpscr(DisasContext *ctx)
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
     tcg_gen_trunc_tl_i32(tmp, cpu_fpscr);
@@ -8229,7 +8229,7 @@ static void gen_set_cr6_from_fpscr(DisasContext *ctx)
     tcg_temp_free_i32(tmp);
 }
 #else
-static void gen_set_cr6_from_fpscr(DisasContext *ctx)
+static void gen_set_cr1_from_fpscr(DisasContext *ctx)
 {
         tcg_gen_shri_tl(cpu_crf[1], cpu_fpscr, 28);
 }
@@ -8249,7 +8249,7 @@ static void gen_##name(DisasContext *ctx)        \
     rb = gen_fprp_ptr(rB(ctx->opcode));          \
     gen_helper_##name(cpu_env, rd, ra, rb);      \
     if (unlikely(Rc(ctx->opcode) != 0)) {        \
-        gen_set_cr6_from_fpscr(ctx);             \
+        gen_set_cr1_from_fpscr(ctx);             \
     }                                            \
     tcg_temp_free_ptr(rd);                       \
     tcg_temp_free_ptr(ra);                       \
@@ -8307,7 +8307,7 @@ static void gen_##name(DisasContext *ctx)             \
     u32_2 = tcg_const_i32(u32f2(ctx->opcode));        \
     gen_helper_##name(cpu_env, rt, rb, u32_1, u32_2); \
     if (unlikely(Rc(ctx->opcode) != 0)) {             \
-        gen_set_cr6_from_fpscr(ctx);                  \
+        gen_set_cr1_from_fpscr(ctx);                  \
     }                                                 \
     tcg_temp_free_ptr(rt);                            \
     tcg_temp_free_ptr(rb);                            \
@@ -8331,7 +8331,7 @@ static void gen_##name(DisasContext *ctx)        \
     i32 = tcg_const_i32(i32fld(ctx->opcode));    \
     gen_helper_##name(cpu_env, rt, ra, rb, i32); \
     if (unlikely(Rc(ctx->opcode) != 0)) {        \
-        gen_set_cr6_from_fpscr(ctx);             \
+        gen_set_cr1_from_fpscr(ctx);             \
     }                                            \
     tcg_temp_free_ptr(rt);                       \
     tcg_temp_free_ptr(rb);                       \
@@ -8352,7 +8352,7 @@ static void gen_##name(DisasContext *ctx)        \
     rb = gen_fprp_ptr(rB(ctx->opcode));          \
     gen_helper_##name(cpu_env, rt, rb);          \
     if (unlikely(Rc(ctx->opcode) != 0)) {        \
-        gen_set_cr6_from_fpscr(ctx);             \
+        gen_set_cr1_from_fpscr(ctx);             \
     }                                            \
     tcg_temp_free_ptr(rt);                       \
     tcg_temp_free_ptr(rb);                       \
@@ -8373,7 +8373,7 @@ static void gen_##name(DisasContext *ctx)          \
     i32 = tcg_const_i32(i32fld(ctx->opcode));      \
     gen_helper_##name(cpu_env, rt, rs, i32);       \
     if (unlikely(Rc(ctx->opcode) != 0)) {          \
-        gen_set_cr6_from_fpscr(ctx);               \
+        gen_set_cr1_from_fpscr(ctx);               \
     }                                              \
     tcg_temp_free_ptr(rt);                         \
     tcg_temp_free_ptr(rs);                         \
