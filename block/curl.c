@@ -357,7 +357,7 @@ static void curl_multi_timeout_do(void *arg)
 #endif
 }
 
-static CURLState *curl_init_state(BDRVCURLState *s)
+static CURLState *curl_init_state(BlockDriverState *bs, BDRVCURLState *s)
 {
     CURLState *state = NULL;
     int i, j;
@@ -375,7 +375,7 @@ static CURLState *curl_init_state(BDRVCURLState *s)
             break;
         }
         if (!state) {
-            aio_poll(state->s->aio_context, true);
+            aio_poll(bdrv_get_aio_context(bs), true);
         }
     } while(!state);
 
@@ -566,7 +566,7 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     DPRINTF("CURL: Opening %s\n", file);
     s->aio_context = bdrv_get_aio_context(bs);
     s->url = g_strdup(file);
-    state = curl_init_state(s);
+    state = curl_init_state(bs, s);
     if (!state)
         goto out_noclean;
 
@@ -651,7 +651,7 @@ static void curl_readv_bh_cb(void *p)
     }
 
     // No cache found, so let's start a new request
-    state = curl_init_state(s);
+    state = curl_init_state(acb->common.bs, s);
     if (!state) {
         acb->common.cb(acb->common.opaque, -EIO);
         qemu_aio_release(acb);
