@@ -175,7 +175,11 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     S390CPUClass *scc = S390_CPU_GET_CLASS(dev);
 
     qemu_init_vcpu(cs);
+#if !defined(CONFIG_USER_ONLY)
+    run_on_cpu(cs, s390_do_cpu_full_reset, cs);
+#else
     cpu_reset(cs);
+#endif
 
     scc->parent_realize(dev, errp);
 }
