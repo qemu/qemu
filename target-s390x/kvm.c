@@ -916,23 +916,30 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
     return r;
 }
 
-static int kvm_s390_cpu_start(S390CPU *cpu)
+static void sigp_cpu_start(void *arg)
 {
+    CPUState *cs = arg;
+    S390CPU *cpu = S390_CPU(cs);
+
     s390_add_running_cpu(cpu);
-    qemu_cpu_kick(CPU(cpu));
     DPRINTF("DONE: KVM cpu start: %p\n", &cpu->env);
-    return 0;
 }
 
-int kvm_s390_cpu_restart(S390CPU *cpu)
+static void sigp_cpu_restart(void *arg)
 {
+    CPUState *cs = arg;
+    S390CPU *cpu = S390_CPU(cs);
     struct kvm_s390_irq irq = {
         .type = KVM_S390_RESTART,
     };
 
     kvm_s390_vcpu_interrupt(cpu, &irq);
     s390_add_running_cpu(cpu);
-    qemu_cpu_kick(CPU(cpu));
+}
+
+int kvm_s390_cpu_restart(S390CPU *cpu)
+{
+    run_on_cpu(CPU(cpu), sigp_cpu_restart, CPU(cpu));
     DPRINTF("DONE: KVM cpu restart: %p\n", &cpu->env);
     return 0;
 }
@@ -980,10 +987,12 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 
     switch (order_code) {
     case SIGP_START:
-        cc = kvm_s390_cpu_start(target_cpu);
+        run_on_cpu(CPU(target_cpu), sigp_cpu_start, CPU(target_cpu));
+        cc = 0;
         break;
     case SIGP_RESTART:
-        cc = kvm_s390_cpu_restart(target_cpu);
+        run_on_cpu(CPU(target_cpu), sigp_cpu_restart, CPU(target_cpu));
+        cc = 0;
         break;
     case SIGP_SET_ARCH:
         *statusreg &= 0xffffffff00000000UL;
