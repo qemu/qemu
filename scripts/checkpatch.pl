@@ -206,9 +206,13 @@ our $UTF8	= qr {
 	|  \xF4[\x80-\x8F][\x80-\xBF]{2}     # plane 16
 }x;
 
+# There are still some false positives, but this catches most
+# common cases.
 our $typeTypedefs = qr{(?x:
-	(?:__)?(?:u|s|be|le)(?:8|16|32|64)|
-	atomic_t
+        [A-Z][A-Z\d_]*[a-z][A-Za-z\d_]*     # camelcase
+        | [A-Z][A-Z\d_]*AIOCB               # all uppercase
+        | [A-Z][A-Z\d_]*CPU                 # all uppercase
+        | QEMUBH                            # all uppercase
 )};
 
 our $logFunctions = qr{(?x:

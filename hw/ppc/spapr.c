@@ -55,6 +55,7 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "trace.h"
+#include "hw/nmi.h"
 
 #include <libfdt.h>
 
@@ -1576,10 +1577,28 @@ static void spapr_machine_initfn(Object *obj)
                             spapr_get_kvm_type, spapr_set_kvm_type, NULL);
 }
 
+static void ppc_cpu_do_nmi_on_cpu(void *arg)
+{
+    CPUState *cs = arg;
+
+    cpu_synchronize_state(cs);
+    ppc_cpu_do_system_reset(cs);
+}
+
+static void spapr_nmi(NMIState *n, int cpu_index, Error **errp)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        async_run_on_cpu(cs, ppc_cpu_do_nmi_on_cpu, cs);
+    }
+}
+
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
 
     mc->name = "pseries";
     mc->desc = "pSeries Logical Partition (PAPR compliant)";
@@ -1593,6 +1612,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->kvm_type = spapr_kvm_type;
 
     fwc->get_dev_path = spapr_get_fw_dev_path;
+    nc->nmi_monitor_handler = spapr_nmi;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -1603,6 +1623,7 @@ static const TypeInfo spapr_machine_info = {
     .class_init    = spapr_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_FW_PATH_PROVIDER },
+        { TYPE_NMI },
         { }
     },
 };

@@ -257,8 +257,8 @@ static const char *svm_feature_name[] = {
 };
 
 static const char *cpuid_7_0_ebx_feature_name[] = {
-    "fsgsbase", NULL, NULL, "bmi1", "hle", "avx2", NULL, "smep",
-    "bmi2", "erms", "invpcid", "rtm", NULL, NULL, NULL, NULL,
+    "fsgsbase", "tsc_adjust", NULL, "bmi1", "hle", "avx2", NULL, "smep",
+    "bmi2", "erms", "invpcid", "rtm", NULL, NULL, "mpx", NULL,
     NULL, NULL, "rdseed", "adx", "smap", NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 };
@@ -2587,6 +2587,16 @@ static void x86_cpu_reset(CPUState *s)
     cpu_watchpoint_remove_all(s, BP_CPU);
 
     env->xcr0 = 1;
+
+    /*
+     * SDM 11.11.5 requires:
+     *  - IA32_MTRR_DEF_TYPE MSR.E = 0
+     *  - IA32_MTRR_PHYSMASKn.V = 0
+     * All other bits are undefined.  For simplification, zero it all.
+     */
+    env->mtrr_deftype = 0;
+    memset(env->mtrr_var, 0, sizeof(env->mtrr_var));
+    memset(env->mtrr_fixed, 0, sizeof(env->mtrr_fixed));
 
 #if !defined(CONFIG_USER_ONLY)
     /* We hard-wire the BSP to the first CPU. */

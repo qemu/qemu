@@ -615,8 +615,8 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             if (!(pdpe & PG_PRESENT_MASK)) {
                 goto do_fault;
             }
-            rsvd_mask |= PG_HI_USER_MASK | PG_NX_MASK;
-            if (pdpe & rsvd_mask) {
+            rsvd_mask |= PG_HI_USER_MASK;
+            if (pdpe & (rsvd_mask | PG_NX_MASK)) {
                 goto do_fault_rsvd;
             }
             ptep = PG_NX_MASK | PG_USER_MASK | PG_RW_MASK;

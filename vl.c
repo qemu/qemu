@@ -4033,11 +4033,6 @@ int main(int argc, char **argv, char **envp)
         qemu_set_version(machine_class->hw_version);
     }
 
-    if (qemu_opts_foreach(qemu_find_opts("object"),
-                          object_create, NULL, 0) != 0) {
-        exit(1);
-    }
-
     /* Init CPU def lists, based on config
      * - Must be called after all the qemu_read_config_file() calls
      * - Must be called before list_cpus()
@@ -4247,6 +4242,11 @@ int main(int argc, char **argv, char **envp)
     if (qemu_opts_foreach(qemu_find_opts("device"), device_help_func, NULL, 0)
         != 0) {
         exit(0);
+    }
+
+    if (qemu_opts_foreach(qemu_find_opts("object"),
+                          object_create, NULL, 0) != 0) {
+        exit(1);
     }
 
     machine_opts = qemu_get_machine_opts();

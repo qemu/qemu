@@ -12,6 +12,8 @@
 #ifndef HW_S390_VIRTIO_H
 #define HW_S390_VIRTIO_H 1
 
+#include "hw/nmi.h"
+
 #define KVM_S390_VIRTIO_NOTIFY          0
 #define KVM_S390_VIRTIO_RESET           1
 #define KVM_S390_VIRTIO_SET_STATUS      2
@@ -26,4 +28,5 @@ void s390_init_ipl_dev(const char *kernel_filename,
                        const char *initrd_filename,
                        const char *firmware);
 void s390_create_virtio_net(BusState *bus, const char *name);
+void s390_nmi(NMIState *n, int cpu_index, Error **errp);
 #endif

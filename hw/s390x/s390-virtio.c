@@ -51,6 +51,7 @@
 
 #define MAX_BLK_DEVS                    10
 #define ZIPL_FILENAME                   "s390-zipl.rom"
+#define TYPE_S390_MACHINE               "s390-machine"
 
 static VirtIOS390Bus *s390_bus;
 static S390CPU **ipi_states;
@@ -279,25 +280,49 @@ static void s390_init(MachineState *machine)
     s390_create_virtio_net((BusState *)s390_bus, "virtio-net-s390");
 }
 
-static QEMUMachine s390_machine = {
-    .name = "s390-virtio",
-    .alias = "s390",
-    .desc = "VirtIO based S390 machine",
-    .init = s390_init,
-    .block_default_type = IF_VIRTIO,
-    .no_cdrom = 1,
-    .no_floppy = 1,
-    .no_serial = 1,
-    .no_parallel = 1,
-    .no_sdcard = 1,
-    .use_virtcon = 1,
-    .max_cpus = 255,
-    .is_default = 1,
-};
-
-static void s390_machine_init(void)
+void s390_nmi(NMIState *n, int cpu_index, Error **errp)
 {
-    qemu_register_machine(&s390_machine);
+    CPUState *cs = qemu_get_cpu(cpu_index);
+
+    if (s390_cpu_restart(S390_CPU(cs))) {
+        error_set(errp, QERR_UNSUPPORTED);
+    }
 }
 
-machine_init(s390_machine_init);
+static void s390_machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
+
+    mc->name = "s390-virtio";
+    mc->alias = "s390";
+    mc->desc = "VirtIO based S390 machine";
+    mc->init = s390_init;
+    mc->block_default_type = IF_VIRTIO;
+    mc->max_cpus = 255;
+    mc->no_serial = 1;
+    mc->no_parallel = 1;
+    mc->use_virtcon = 1;
+    mc->no_floppy = 1;
+    mc->no_cdrom = 1;
+    mc->no_sdcard = 1;
+    mc->is_default = 1;
+    nc->nmi_monitor_handler = s390_nmi;
+}
+
+static const TypeInfo s390_machine_info = {
+    .name          = TYPE_S390_MACHINE,
+    .parent        = TYPE_MACHINE,
+    .class_init    = s390_machine_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_NMI },
+        { }
+    },
+};
+
+static void s390_machine_register_types(void)
+{
+    type_register_static(&s390_machine_info);
+}
+
+type_init(s390_machine_register_types)
