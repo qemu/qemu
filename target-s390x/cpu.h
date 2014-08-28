@@ -1062,6 +1062,7 @@ static inline void cpu_inject_crw_mchk(S390CPU *cpu)
 
 /* from s390-virtio-ccw */
 #define MEM_SECTION_SIZE             0x10000000UL
+#define MAX_AVAIL_SLOTS              32
 
 /* fpu_helper.c */
 uint32_t set_cc_nz_f32(float32 v);
@@ -1085,6 +1086,7 @@ void kvm_s390_enable_css_support(S390CPU *cpu);
 int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
                                     int vq, bool assign);
 int kvm_s390_cpu_restart(S390CPU *cpu);
+int kvm_s390_get_memslot_count(KVMState *s);
 void kvm_s390_clear_cmma_callback(void *opaque);
 #else
 static inline void kvm_s390_io_interrupt(uint16_t subchannel_id,
@@ -1112,6 +1114,10 @@ static inline int kvm_s390_cpu_restart(S390CPU *cpu)
 static inline void kvm_s390_clear_cmma_callback(void *opaque)
 {
 }
+static inline int kvm_s390_get_memslot_count(KVMState *s)
+{
+  return MAX_AVAIL_SLOTS;
+}
 #endif
 
 static inline void cmma_reset(S390CPU *cpu)
@@ -1128,6 +1134,15 @@ static inline int s390_cpu_restart(S390CPU *cpu)
         return kvm_s390_cpu_restart(cpu);
     }
     return -ENOSYS;
+}
+
+static inline int s390_get_memslot_count(KVMState *s)
+{
+    if (kvm_enabled()) {
+        return kvm_s390_get_memslot_count(s);
+    } else {
+        return MAX_AVAIL_SLOTS;
+    }
 }
 
 void s390_io_interrupt(uint16_t subchannel_id, uint16_t subchannel_nr,
