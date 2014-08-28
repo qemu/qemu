@@ -74,8 +74,8 @@ struct SCSIRequest {
 
 typedef struct SCSIDeviceClass {
     DeviceClass parent_class;
-    int (*init)(SCSIDevice *dev);
-    void (*destroy)(SCSIDevice *s);
+    void (*realize)(SCSIDevice *dev, Error **errp);
+    void (*unrealize)(SCSIDevice *dev, Error **errp);
     int (*parse_cdb)(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
                      void *hba_private);
     SCSIRequest *(*alloc_req)(SCSIDevice *s, uint32_t tag, uint32_t lun,

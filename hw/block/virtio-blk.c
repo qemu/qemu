@@ -729,9 +729,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBlock *s = VIRTIO_BLK(dev);
     VirtIOBlkConf *blk = &(s->blk);
-#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
     Error *err = NULL;
-#endif
     static int virtio_blk_id;
 
     if (!blk->conf.bs) {
@@ -745,8 +743,9 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
 
     blkconf_serial(&blk->conf, &blk->serial);
     s->original_wce = bdrv_enable_write_cache(blk->conf.bs);
-    if (blkconf_geometry(&blk->conf, NULL, 65535, 255, 255) < 0) {
-        error_setg(errp, "Error setting geometry");
+    blkconf_geometry(&blk->conf, NULL, 65535, 255, 255, &err);
+    if (err) {
+        error_propagate(errp, err);
         return;
     }
 

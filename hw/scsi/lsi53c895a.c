@@ -19,6 +19,7 @@
 #include "hw/pci/pci.h"
 #include "hw/scsi/scsi.h"
 #include "sysemu/dma.h"
+#include "qemu/error-report.h"
 
 //#define DEBUG_LSI
 //#define DEBUG_LSI_REG

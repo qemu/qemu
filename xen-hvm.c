@@ -71,7 +71,7 @@ static inline ioreq_t *xen_vcpu_ioreq(shared_iopage_t *shared_page, int vcpu)
 typedef struct XenPhysmap {
     hwaddr start_addr;
     ram_addr_t size;
-    char *name;
+    const char *name;
     hwaddr phys_offset;
 
     QLIST_ENTRY(XenPhysmap) list;
@@ -291,6 +291,7 @@ static int xen_add_to_physmap(XenIOState *state,
     hwaddr pfn, start_gpfn;
     hwaddr phys_offset = memory_region_get_ram_addr(mr);
     char path[80], value[17];
+    const char *mr_name;
 
     if (get_physmapping(state, start_addr, size)) {
         return 0;
@@ -326,11 +327,13 @@ go_physmap:
         }
     }
 
+    mr_name = memory_region_name(mr);
+
     physmap = g_malloc(sizeof (XenPhysmap));
 
     physmap->start_addr = start_addr;
     physmap->size = size;
-    physmap->name = (char *)mr->name;
+    physmap->name = mr_name;
     physmap->phys_offset = phys_offset;
 
     QLIST_INSERT_HEAD(&state->physmap, physmap, list);
@@ -354,11 +357,11 @@ go_physmap:
     if (!xs_write(state->xenstore, 0, path, value, strlen(value))) {
         return -1;
     }
-    if (mr->name) {
+    if (mr_name) {
         snprintf(path, sizeof(path),
                 "/local/domain/0/device-model/%d/physmap/%"PRIx64"/name",
                 xen_domid, (uint64_t)phys_offset);
-        if (!xs_write(state->xenstore, 0, path, mr->name, strlen(mr->name))) {
+        if (!xs_write(state->xenstore, 0, path, mr_name, strlen(mr_name))) {
             return -1;
         }
     }
