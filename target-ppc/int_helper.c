@@ -2556,6 +2556,7 @@ target_ulong helper_dlmzb(CPUPPCState *env, target_ulong high,
         }
         i++;
     }
+    i = 8;
     if (update_Rc) {
         env->crf[0] = 0x2;
     }
