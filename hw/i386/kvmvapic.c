@@ -59,6 +59,7 @@ typedef struct VAPICROMState {
     GuestROMState rom_state;
     size_t rom_size;
     bool rom_mapped_writable;
+    VMChangeStateEntry *vmsentry;
 } VAPICROMState;
 
 #define TYPE_VAPIC "kvmvapic"
@@ -734,10 +735,33 @@ static void do_vapic_enable(void *data)
     vapic_enable(s, cpu);
 }
 
-static int vapic_post_load(void *opaque, int version_id)
+static void kvmvapic_vm_state_change(void *opaque, int running,
+                                     RunState state)
 {
     VAPICROMState *s = opaque;
     uint8_t *zero;
+
+    if (!running) {
+        return;
+    }
+
+    if (s->state == VAPIC_ACTIVE) {
+        if (smp_cpus == 1) {
+            run_on_cpu(first_cpu, do_vapic_enable, s);
+        } else {
+            zero = g_malloc0(s->rom_state.vapic_size);
+            cpu_physical_memory_write(s->vapic_paddr, zero,
+                                      s->rom_state.vapic_size);
+            g_free(zero);
+        }
+    }
+
+    qemu_del_vm_change_state_handler(s->vmsentry);
+}
+
+static int vapic_post_load(void *opaque, int version_id)
+{
+    VAPICROMState *s = opaque;
 
     /*
      * The old implementation of qemu-kvm did not provide the state
@@ -752,17 +776,8 @@ static int vapic_post_load(void *opaque, int version_id)
             return -1;
         }
     }
-    if (s->state == VAPIC_ACTIVE) {
-        if (smp_cpus == 1) {
-            run_on_cpu(first_cpu, do_vapic_enable, s);
-        } else {
-            zero = g_malloc0(s->rom_state.vapic_size);
-            cpu_physical_memory_write(s->vapic_paddr, zero,
-                                      s->rom_state.vapic_size);
-            g_free(zero);
-        }
-    }
 
+    s->vmsentry = qemu_add_vm_change_state_handler(kvmvapic_vm_state_change, s);
     return 0;
 }
 
