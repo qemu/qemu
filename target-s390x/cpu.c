@@ -165,7 +165,7 @@ static void s390_cpu_machine_reset_cb(void *opaque)
 {
     S390CPU *cpu = opaque;
 
-    cpu_reset(CPU(cpu));
+    run_on_cpu(CPU(cpu), s390_do_cpu_full_reset, CPU(cpu));
 }
 #endif
 
