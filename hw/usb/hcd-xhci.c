@@ -1180,7 +1180,7 @@ static int xhci_epmask_to_eps_with_streams(XHCIState *xhci,
     slot = &xhci->slots[slotid - 1];
 
     for (i = 2, j = 0; i <= 31; i++) {
-        if (!(epmask & (1 << i))) {
+        if (!(epmask & (1u << i))) {
             continue;
         }
 
@@ -2465,7 +2465,7 @@ static TRBCCode xhci_configure_slot(XHCIState *xhci, unsigned int slotid,
     res = xhci_alloc_device_streams(xhci, slotid, ictl_ctx[1]);
     if (res != CC_SUCCESS) {
         for (i = 2; i <= 31; i++) {
-            if (ictl_ctx[1] & (1 << i)) {
+            if (ictl_ctx[1] & (1u << i)) {
                 xhci_disable_ep(xhci, slotid, i);
             }
         }
