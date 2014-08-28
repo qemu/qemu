@@ -784,7 +784,7 @@ static void gen_isel(DisasContext *ctx)
     l1 = gen_new_label();
     l2 = gen_new_label();
 
-    mask = 1 << (3 - (bi & 0x03));
+    mask = 0x08 >> (bi & 0x03);
     t0 = tcg_temp_new_i32();
     tcg_gen_andi_i32(t0, cpu_crf[bi >> 2], mask);
     tcg_gen_brcondi_i32(TCG_COND_EQ, t0, 0, l1);
@@ -3889,7 +3889,7 @@ static inline void gen_bcond(DisasContext *ctx, int type)
     if ((bo & 0x10) == 0) {
         /* Test CR */
         uint32_t bi = BI(ctx->opcode);
-        uint32_t mask = 1 << (3 - (bi & 0x03));
+        uint32_t mask = 0x08 >> (bi & 0x03);
         TCGv_i32 temp = tcg_temp_new_i32();
 
         if (bo & 0x8) {
@@ -3971,7 +3971,7 @@ static void glue(gen_, name)(DisasContext *ctx)                                 
     else                                                                      \
         tcg_gen_mov_i32(t1, cpu_crf[crbB(ctx->opcode) >> 2]);                 \
     tcg_op(t0, t0, t1);                                                       \
-    bitmask = 1 << (3 - (crbD(ctx->opcode) & 0x03));                          \
+    bitmask = 0x08 >> (crbD(ctx->opcode) & 0x03);                             \
     tcg_gen_andi_i32(t0, t0, bitmask);                                        \
     tcg_gen_andi_i32(t1, cpu_crf[crbD(ctx->opcode) >> 2], ~bitmask);          \
     tcg_gen_or_i32(cpu_crf[crbD(ctx->opcode) >> 2], t0, t1);                  \
