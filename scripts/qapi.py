@@ -107,10 +107,10 @@ class QAPISchema:
                                         'Expected a file name (string), got: %s'
                                         % include)
                 include_path = os.path.join(self.input_dir, include)
-                if any(include_path == elem[1]
-                       for elem in self.include_hist):
-                    raise QAPIExprError(expr_info, "Inclusion loop for %s"
-                                        % include)
+                for elem in self.include_hist:
+                    if include_path == elem[1]:
+                        raise QAPIExprError(expr_info, "Inclusion loop for %s"
+                                            % include)
                 # skip multiple include of the same file
                 if include_path in previously_included:
                     continue

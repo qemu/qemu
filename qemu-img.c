@@ -32,7 +32,6 @@
 #include "block/block_int.h"
 #include "block/qapi.h"
 #include <getopt.h>
-#include <glib.h>
 
 #define QEMU_IMG_VERSION "qemu-img version " QEMU_VERSION \
                           ", Copyright (c) 2004-2008 Fabrice Bellard\n"
@@ -56,22 +55,9 @@ typedef enum OutputFormat {
 #define BDRV_O_FLAGS BDRV_O_CACHE_WB
 #define BDRV_DEFAULT_CACHE "writeback"
 
-static gint compare_data(gconstpointer a, gconstpointer b, gpointer user)
+static void format_print(void *opaque, const char *name)
 {
-    return g_strcmp0(a, b);
-}
-
-static void print_format(gpointer data, gpointer user)
-{
-    printf(" %s", (char *)data);
-}
-
-static void add_format_to_seq(void *opaque, const char *fmt_name)
-{
-    GSequence *seq = opaque;
-
-    g_sequence_insert_sorted(seq, (gpointer)fmt_name,
-                             compare_data, NULL);
+    printf(" %s", name);
 }
 
 static void QEMU_NORETURN GCC_FMT_ATTR(1, 2) error_exit(const char *fmt, ...)
@@ -157,15 +143,10 @@ static void QEMU_NORETURN help(void)
            "  '-f' first image format\n"
            "  '-F' second image format\n"
            "  '-s' run in Strict mode - fail on different image size or sector allocation\n";
-    GSequence *seq;
 
     printf("%s\nSupported formats:", help_msg);
-    seq = g_sequence_new(NULL);
-    bdrv_iterate_format(add_format_to_seq, seq);
-    g_sequence_foreach(seq, print_format, NULL);
+    bdrv_iterate_format(format_print, NULL);
     printf("\n");
-    g_sequence_free(seq);
-
     exit(EXIT_SUCCESS);
 }
 
