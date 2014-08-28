@@ -183,3 +183,33 @@ void s390_sclp_init(void)
                               OBJECT(dev), NULL);
     qdev_init_nofail(dev);
 }
+
+sclpMemoryHotplugDev *init_sclp_memory_hotplug_dev(void)
+{
+    DeviceState *dev;
+    dev = qdev_create(NULL, TYPE_SCLP_MEMORY_HOTPLUG_DEV);
+    object_property_add_child(qdev_get_machine(),
+                              TYPE_SCLP_MEMORY_HOTPLUG_DEV,
+                              OBJECT(dev), NULL);
+    qdev_init_nofail(dev);
+    return SCLP_MEMORY_HOTPLUG_DEV(object_resolve_path(
+                                   TYPE_SCLP_MEMORY_HOTPLUG_DEV, NULL));
+}
+
+sclpMemoryHotplugDev *get_sclp_memory_hotplug_dev(void)
+{
+    return SCLP_MEMORY_HOTPLUG_DEV(object_resolve_path(
+                                   TYPE_SCLP_MEMORY_HOTPLUG_DEV, NULL));
+}
+
+static TypeInfo sclp_memory_hotplug_dev_info = {
+    .name = TYPE_SCLP_MEMORY_HOTPLUG_DEV,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(sclpMemoryHotplugDev),
+};
+
+static void register_types(void)
+{
+    type_register_static(&sclp_memory_hotplug_dev_info);
+}
+type_init(register_types);
