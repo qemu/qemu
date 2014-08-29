@@ -297,6 +297,7 @@ usb_port_release(int bus, const char *port) "bus %d, port %s"
 
 # hw/usb/hcd-ehci.c
 usb_ehci_reset(void) "=== RESET ==="
+usb_ehci_unrealize(void) "=== UNREALIZE ==="
 usb_ehci_opreg_read(uint32_t addr, const char *str, uint32_t val) "rd mmio %04x [%s] = %x"
 usb_ehci_opreg_write(uint32_t addr, const char *str, uint32_t val) "wr mmio %04x [%s] = %x"
 usb_ehci_opreg_change(uint32_t addr, const char *str, uint32_t new, uint32_t old) "ch mmio %04x [%s] = %x (old: %x)"
@@ -329,6 +330,7 @@ usb_ehci_dma_error(void) ""
 
 # hw/usb/hcd-uhci.c
 usb_uhci_reset(void) "=== RESET ==="
+usb_uhci_exit(void) "=== EXIT ==="
 usb_uhci_schedule_start(void) ""
 usb_uhci_schedule_stop(void) ""
 usb_uhci_frame_start(uint32_t num) "nr %d"
@@ -358,6 +360,7 @@ usb_uhci_td_complete(uint32_t qh, uint32_t td) "qh 0x%x, td 0x%x"
 
 # hw/usb/hcd-xhci.c
 usb_xhci_reset(void) "=== RESET ==="
+usb_xhci_exit(void) "=== EXIT ==="
 usb_xhci_run(void) ""
 usb_xhci_stop(void) ""
 usb_xhci_cap_read(uint32_t off, uint32_t val) "off 0x%04x, ret 0x%08x"

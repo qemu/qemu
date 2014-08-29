@@ -84,6 +84,19 @@ static void usb_ehci_pci_init(Object *obj)
     usb_ehci_init(s, DEVICE(obj));
 }
 
+static void usb_ehci_pci_exit(PCIDevice *dev)
+{
+    EHCIPCIState *i = PCI_EHCI(dev);
+    EHCIState *s = &i->ehci;
+
+    usb_ehci_unrealize(s, DEVICE(dev), NULL);
+
+    if (s->irq) {
+        g_free(s->irq);
+        s->irq = NULL;
+    }
+}
+
 static void usb_ehci_pci_write_config(PCIDevice *dev, uint32_t addr,
                                       uint32_t val, int l)
 {
@@ -121,6 +134,7 @@ static void ehci_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = usb_ehci_pci_initfn;
+    k->exit = usb_ehci_pci_exit;
     k->class_id = PCI_CLASS_SERIAL_USB;
     k->config_write = usb_ehci_pci_write_config;
     dc->hotpluggable = false;
