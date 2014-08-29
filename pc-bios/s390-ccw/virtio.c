@@ -340,11 +340,6 @@ int virtio_get_block_size(void)
     return blk_cfg.blk_size << blk_cfg.physical_block_exp;
 }
 
-uint16_t virtio_get_cylinders(void)
-{
-    return blk_cfg.geometry.cylinders;
-}
-
 uint8_t virtio_get_heads(void)
 {
     return blk_cfg.geometry.heads;
@@ -353,6 +348,12 @@ uint8_t virtio_get_heads(void)
 uint8_t virtio_get_sectors(void)
 {
     return blk_cfg.geometry.sectors;
+}
+
+uint64_t virtio_get_blocks(void)
+{
+    return blk_cfg.capacity /
+           (virtio_get_block_size() / VIRTIO_SECTOR_SIZE);
 }
 
 void virtio_setup_block(struct subchannel_id schid)
