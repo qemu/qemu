@@ -558,7 +558,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         irq = (offset - 0xc00) * 4 + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
-        if (irq < GIC_INTERNAL)
+        if (irq < GIC_NR_SGIS)
             value |= 0xaa;
         for (i = 0; i < 4; i++) {
             if (s->revision == REV_11MPCORE || s->revision == REV_NVIC) {
