@@ -224,7 +224,7 @@ typedef struct CPUARMState {
         /* If the counter is enabled, this stores the last time the counter
          * was reset. Otherwise it stores the counter value
          */
-        uint32_t c15_ccnt;
+        uint64_t c15_ccnt;
     } cp15;
 
     struct {

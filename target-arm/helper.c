@@ -551,11 +551,10 @@ static CPAccessResult pmreg_access(CPUARMState *env, const ARMCPRegInfo *ri)
 static void pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                        uint64_t value)
 {
-    /* Don't computer the number of ticks in user mode */
-    uint32_t temp_ticks;
+    uint64_t temp_ticks;
 
-    temp_ticks = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) *
-                  get_ticks_per_sec() / 1000000;
+    temp_ticks = muldiv64(qemu_clock_get_us(QEMU_CLOCK_VIRTUAL),
+                          get_ticks_per_sec(), 1000000);
 
     if (env->cp15.c9_pmcr & PMCRE) {
         /* If the counter is enabled */
@@ -587,15 +586,15 @@ static void pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
 static uint64_t pmccntr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    uint32_t total_ticks;
+    uint64_t total_ticks;
 
     if (!(env->cp15.c9_pmcr & PMCRE)) {
         /* Counter is disabled, do not change value */
         return env->cp15.c15_ccnt;
     }
 
-    total_ticks = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) *
-                  get_ticks_per_sec() / 1000000;
+    total_ticks = muldiv64(qemu_clock_get_us(QEMU_CLOCK_VIRTUAL),
+                           get_ticks_per_sec(), 1000000);
 
     if (env->cp15.c9_pmcr & PMCRD) {
         /* Increment once every 64 processor clock cycles */
@@ -607,7 +606,7 @@ static uint64_t pmccntr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 static void pmccntr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
-    uint32_t total_ticks;
+    uint64_t total_ticks;
 
     if (!(env->cp15.c9_pmcr & PMCRE)) {
         /* Counter is disabled, set the absolute value */
@@ -615,8 +614,8 @@ static void pmccntr_write(CPUARMState *env, const ARMCPRegInfo *ri,
         return;
     }
 
-    total_ticks = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) *
-                  get_ticks_per_sec() / 1000000;
+    total_ticks = muldiv64(qemu_clock_get_us(QEMU_CLOCK_VIRTUAL),
+                           get_ticks_per_sec(), 1000000);
 
     if (env->cp15.c9_pmcr & PMCRD) {
         /* Increment once every 64 processor clock cycles */
