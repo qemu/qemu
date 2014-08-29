@@ -31,9 +31,13 @@ int s390_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 
     switch (n) {
     case S390_PSWM_REGNUM:
-        cc_op = calc_cc(env, env->cc_op, env->cc_src, env->cc_dst, env->cc_vr);
-        val = deposit64(env->psw.mask, 44, 2, cc_op);
-        return gdb_get_regl(mem_buf, val);
+        if (tcg_enabled()) {
+            cc_op = calc_cc(env, env->cc_op, env->cc_src, env->cc_dst,
+                            env->cc_vr);
+            val = deposit64(env->psw.mask, 44, 2, cc_op);
+            return gdb_get_regl(mem_buf, val);
+        }
+        return gdb_get_regl(mem_buf, env->psw.mask);
     case S390_PSWA_REGNUM:
         return gdb_get_regl(mem_buf, env->psw.addr);
     case S390_R0_REGNUM ... S390_R15_REGNUM:
@@ -62,7 +66,9 @@ int s390_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     switch (n) {
     case S390_PSWM_REGNUM:
         env->psw.mask = tmpl;
-        env->cc_op = extract64(tmpl, 44, 2);
+        if (tcg_enabled()) {
+            env->cc_op = extract64(tmpl, 44, 2);
+        }
         break;
     case S390_PSWA_REGNUM:
         env->psw.addr = tmpl;
