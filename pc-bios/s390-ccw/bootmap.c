@@ -298,6 +298,25 @@ static void ipl_eckd(ECKD_IPL_mode_t mode)
     }
 }
 
+static void print_eckd_msg(void)
+{
+    char msg[] = "Using ECKD scheme (block size *****), ";
+    char *p = &msg[34], *q = &msg[30];
+    int n = virtio_get_block_size();
+
+    /* Fill in the block size and show up the message */
+    if (n > 0 && n <= 99999) {
+        while (n) {
+            *p-- = '0' + (n % 10);
+            n /= 10;
+        }
+        while (p >= q) {
+            *p-- = ' ';
+        }
+    }
+    sclp_print(msg);
+}
+
 /***********************************************************************
  * IPL a SCSI disk
  */
@@ -447,12 +466,11 @@ void zipl_load(void)
     }
 
     /* We have failed to follow the SCSI scheme, so */
-    sclp_print("Using ECKD scheme.\n");
     if (virtio_guessed_disk_nature()) {
         sclp_print("Using guessed DASD geometry.\n");
         virtio_assume_eckd();
     }
-
+    print_eckd_msg();
     if (magic_match(mbr->magic, IPL1_MAGIC)) {
         ipl_eckd(ECKD_CDL); /* no return */
     }
