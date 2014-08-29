@@ -561,10 +561,12 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         if (irq < GIC_INTERNAL)
             value |= 0xaa;
         for (i = 0; i < 4; i++) {
-            if (value & (1 << (i * 2))) {
-                GIC_SET_MODEL(irq + i);
-            } else {
-                GIC_CLEAR_MODEL(irq + i);
+            if (s->revision == REV_11MPCORE || s->revision == REV_NVIC) {
+                if (value & (1 << (i * 2))) {
+                    GIC_SET_MODEL(irq + i);
+                } else {
+                    GIC_CLEAR_MODEL(irq + i);
+                }
             }
             if (value & (2 << (i * 2))) {
                 GIC_SET_EDGE_TRIGGER(irq + i);
