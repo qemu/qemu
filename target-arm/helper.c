@@ -548,6 +548,18 @@ static CPAccessResult pmreg_access(CPUARMState *env, const ARMCPRegInfo *ri)
 }
 
 #ifndef CONFIG_USER_ONLY
+
+static inline bool arm_ccnt_enabled(CPUARMState *env)
+{
+    /* This does not support checking PMCCFILTR_EL0 register */
+
+    if (!(env->cp15.c9_pmcr & PMCRE)) {
+        return false;
+    }
+
+    return true;
+}
+
 static void pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                        uint64_t value)
 {
