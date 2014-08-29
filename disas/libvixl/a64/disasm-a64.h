@@ -85,7 +85,7 @@ class Disassembler: public DecoderVisitor {
   bool IsMovzMovnImm(unsigned reg_size, uint64_t value);
 
   void ResetOutput();
-  void AppendToOutput(const char* string, ...);
+  void AppendToOutput(const char* string, ...) PRINTF_CHECK(2, 3);
 
   char* buffer_;
   uint32_t buffer_pos_;
