@@ -2347,8 +2347,11 @@ static USBPortOps ehci_port_ops = {
     .complete = ehci_async_complete_packet,
 };
 
-static USBBusOps ehci_bus_ops = {
+static USBBusOps ehci_bus_ops_companion = {
     .register_companion = ehci_register_companion,
+    .wakeup_endpoint = ehci_wakeup_endpoint,
+};
+static USBBusOps ehci_bus_ops_standalone = {
     .wakeup_endpoint = ehci_wakeup_endpoint,
 };
 
@@ -2456,7 +2459,8 @@ void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
         return;
     }
 
-    usb_bus_new(&s->bus, sizeof(s->bus), &ehci_bus_ops, dev);
+    usb_bus_new(&s->bus, sizeof(s->bus), s->companion_enable ?
+                &ehci_bus_ops_companion : &ehci_bus_ops_standalone, dev);
     for (i = 0; i < s->portnr; i++) {
         usb_register_port(&s->bus, &s->ports[i], s, i, &ehci_port_ops,
                           USB_SPEED_MASK_HIGH);
