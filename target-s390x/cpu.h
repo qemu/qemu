@@ -566,44 +566,8 @@ void s390_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 #define S390_R13_REGNUM 15
 #define S390_R14_REGNUM 16
 #define S390_R15_REGNUM 17
-/* Access Registers.  */
-#define S390_A0_REGNUM 18
-#define S390_A1_REGNUM 19
-#define S390_A2_REGNUM 20
-#define S390_A3_REGNUM 21
-#define S390_A4_REGNUM 22
-#define S390_A5_REGNUM 23
-#define S390_A6_REGNUM 24
-#define S390_A7_REGNUM 25
-#define S390_A8_REGNUM 26
-#define S390_A9_REGNUM 27
-#define S390_A10_REGNUM 28
-#define S390_A11_REGNUM 29
-#define S390_A12_REGNUM 30
-#define S390_A13_REGNUM 31
-#define S390_A14_REGNUM 32
-#define S390_A15_REGNUM 33
-/* Floating Point Control Word.  */
-#define S390_FPC_REGNUM 34
-/* Floating Point Registers.  */
-#define S390_F0_REGNUM 35
-#define S390_F1_REGNUM 36
-#define S390_F2_REGNUM 37
-#define S390_F3_REGNUM 38
-#define S390_F4_REGNUM 39
-#define S390_F5_REGNUM 40
-#define S390_F6_REGNUM 41
-#define S390_F7_REGNUM 42
-#define S390_F8_REGNUM 43
-#define S390_F9_REGNUM 44
-#define S390_F10_REGNUM 45
-#define S390_F11_REGNUM 46
-#define S390_F12_REGNUM 47
-#define S390_F13_REGNUM 48
-#define S390_F14_REGNUM 49
-#define S390_F15_REGNUM 50
-/* Total.  */
-#define S390_NUM_REGS 51
+/* Total Core Registers. */
+#define S390_NUM_CORE_REGS 18
 
 /* CC optimization */
 
