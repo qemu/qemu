@@ -123,9 +123,10 @@ static void aarch64_a57_initfn(Object *obj)
     cpu->id_isar2 = 0x21232042;
     cpu->id_isar3 = 0x01112131;
     cpu->id_isar4 = 0x00011142;
+    cpu->id_isar5 = 0x00011121;
     cpu->id_aa64pfr0 = 0x00002222;
     cpu->id_aa64dfr0 = 0x10305106;
-    cpu->id_aa64isar0 = 0x00010000;
+    cpu->id_aa64isar0 = 0x00011120;
     cpu->id_aa64mmfr0 = 0x00001124;
     cpu->dbgdidr = 0x3516d000;
     cpu->clidr = 0x0a200023;
