@@ -541,7 +541,7 @@ static QEMUMachine machvirt_a15_machine = {
     .name = "virt",
     .desc = "ARM Virtual Machine",
     .init = machvirt_init,
-    .max_cpus = 4,
+    .max_cpus = 8,
 };
 
 static void machvirt_machine_init(void)
