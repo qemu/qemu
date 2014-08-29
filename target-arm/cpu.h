@@ -1255,7 +1255,14 @@ static inline bool arm_singlestep_active(CPUARMState *env)
 static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
-    int fpen = extract32(env->cp15.c1_coproc, 20, 2);
+    int fpen;
+
+    if (arm_feature(env, ARM_FEATURE_V6)) {
+        fpen = extract32(env->cp15.c1_coproc, 20, 2);
+    } else {
+        /* CPACR doesn't exist before v6, so VFP is always accessible */
+        fpen = 3;
+    }
 
     if (is_a64(env)) {
         *pc = env->pc;
