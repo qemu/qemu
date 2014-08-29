@@ -299,14 +299,35 @@ bool virtio_disk_is_scsi(void)
         && (virtio_get_block_size()  == 512);
 }
 
+/*
+ * Other supported value pairs, if any, would need to be added here.
+ * Note: head count is always 15.
+ */
+static inline u8 virtio_eckd_sectors_for_block_size(int size)
+{
+    switch (size) {
+    case 512:
+        return 49;
+    case 1024:
+        return 33;
+    case 2048:
+        return 21;
+    case 4096:
+        return 12;
+    }
+    return 0;
+}
+
 bool virtio_disk_is_eckd(void)
 {
+    const int block_size = virtio_get_block_size();
+
     if (guessed_disk_nature) {
-        return (virtio_get_block_size()  == 4096);
+        return (block_size  == 4096);
     }
     return (blk_cfg.geometry.heads == 15)
-        && (blk_cfg.geometry.sectors == 12)
-        && (virtio_get_block_size()  == 4096);
+        && (blk_cfg.geometry.sectors ==
+            virtio_eckd_sectors_for_block_size(block_size));
 }
 
 bool virtio_ipl_disk_is_valid(void)
