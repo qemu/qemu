@@ -128,7 +128,7 @@ static void arm_gic_common_reset(DeviceState *dev)
         s->running_priority[i] = 0x100;
         s->cpu_enabled[i] = false;
     }
-    for (i = 0; i < 16; i++) {
+    for (i = 0; i < GIC_NR_SGIS; i++) {
         GIC_SET_ENABLED(i, ALL_CPU_MASK);
         GIC_SET_EDGE_TRIGGER(i);
     }

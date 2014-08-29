@@ -28,6 +28,7 @@
 #define VIXL_A64_ASSEMBLER_A64_H_
 
 #include <list>
+#include <stack>
 
 #include "globals.h"
 #include "utils.h"
@@ -574,34 +575,107 @@ class MemOperand {
 
 class Label {
  public:
-  Label() : is_bound_(false), link_(NULL), target_(NULL) {}
+  Label() : location_(kLocationUnbound) {}
   ~Label() {
     // If the label has been linked to, it needs to be bound to a target.
     VIXL_ASSERT(!IsLinked() || IsBound());
   }
 
-  inline Instruction* link() const { return link_; }
-  inline Instruction* target() const { return target_; }
-
-  inline bool IsBound() const { return is_bound_; }
-  inline bool IsLinked() const { return link_ != NULL; }
-
-  inline void set_link(Instruction* new_link) { link_ = new_link; }
-
-  static const int kEndOfChain = 0;
+  inline bool IsBound() const { return location_ >= 0; }
+  inline bool IsLinked() const { return !links_.empty(); }
 
  private:
-  // Indicates if the label has been bound, ie its location is fixed.
-  bool is_bound_;
-  // Branches instructions branching to this label form a chained list, with
-  // their offset indicating where the next instruction is located.
-  // link_ points to the latest branch instruction generated branching to this
-  // branch.
-  // If link_ is not NULL, the label has been linked to.
-  Instruction* link_;
-  // The label location.
-  Instruction* target_;
+  // The list of linked instructions is stored in a stack-like structure. We
+  // don't use std::stack directly because it's slow for the common case where
+  // only one or two instructions refer to a label, and labels themselves are
+  // short-lived. This class behaves like std::stack, but the first few links
+  // are preallocated (configured by kPreallocatedLinks).
+  //
+  // If more than N links are required, this falls back to std::stack.
+  class LinksStack {
+   public:
+    LinksStack() : size_(0), links_extended_(NULL) {}
+    ~LinksStack() {
+      delete links_extended_;
+    }
 
+    size_t size() const {
+      return size_;
+    }
+
+    bool empty() const {
+      return size_ == 0;
+    }
+
+    void push(ptrdiff_t value) {
+      if (size_ < kPreallocatedLinks) {
+        links_[size_] = value;
+      } else {
+        if (links_extended_ == NULL) {
+          links_extended_ = new std::stack<ptrdiff_t>();
+        }
+        VIXL_ASSERT(size_ == (links_extended_->size() + kPreallocatedLinks));
+        links_extended_->push(value);
+      }
+      size_++;
+    }
+
+    ptrdiff_t top() const {
+      return (size_ <= kPreallocatedLinks) ? links_[size_ - 1]
+                                           : links_extended_->top();
+    }
+
+    void pop() {
+      size_--;
+      if (size_ >= kPreallocatedLinks) {
+        links_extended_->pop();
+        VIXL_ASSERT(size_ == (links_extended_->size() + kPreallocatedLinks));
+      }
+    }
+
+   private:
+    static const size_t kPreallocatedLinks = 4;
+
+    size_t size_;
+    ptrdiff_t links_[kPreallocatedLinks];
+    std::stack<ptrdiff_t> * links_extended_;
+  };
+
+  inline ptrdiff_t location() const { return location_; }
+
+  inline void Bind(ptrdiff_t location) {
+    // Labels can only be bound once.
+    VIXL_ASSERT(!IsBound());
+    location_ = location;
+  }
+
+  inline void AddLink(ptrdiff_t instruction) {
+    // If a label is bound, the assembler already has the information it needs
+    // to write the instruction, so there is no need to add it to links_.
+    VIXL_ASSERT(!IsBound());
+    links_.push(instruction);
+  }
+
+  inline ptrdiff_t GetAndRemoveNextLink() {
+    VIXL_ASSERT(IsLinked());
+    ptrdiff_t link = links_.top();
+    links_.pop();
+    return link;
+  }
+
+  // The offsets of the instructions that have linked to this label.
+  LinksStack links_;
+  // The label location.
+  ptrdiff_t location_;
+
+  static const ptrdiff_t kLocationUnbound = -1;
+
+  // It is not safe to copy labels, so disable the copy constructor by declaring
+  // it private (without an implementation).
+  Label(const Label&);
+
+  // The Assembler class is responsible for binding and linking labels, since
+  // the stored offsets need to be consistent with the Assembler's buffer.
   friend class Assembler;
 };
 
@@ -635,10 +709,49 @@ class Literal {
 };
 
 
+// Control whether or not position-independent code should be emitted.
+enum PositionIndependentCodeOption {
+  // All code generated will be position-independent; all branches and
+  // references to labels generated with the Label class will use PC-relative
+  // addressing.
+  PositionIndependentCode,
+
+  // Allow VIXL to generate code that refers to absolute addresses. With this
+  // option, it will not be possible to copy the code buffer and run it from a
+  // different address; code must be generated in its final location.
+  PositionDependentCode,
+
+  // Allow VIXL to assume that the bottom 12 bits of the address will be
+  // constant, but that the top 48 bits may change. This allows `adrp` to
+  // function in systems which copy code between pages, but otherwise maintain
+  // 4KB page alignment.
+  PageOffsetDependentCode
+};
+
+
+// Control how scaled- and unscaled-offset loads and stores are generated.
+enum LoadStoreScalingOption {
+  // Prefer scaled-immediate-offset instructions, but emit unscaled-offset,
+  // register-offset, pre-index or post-index instructions if necessary.
+  PreferScaledOffset,
+
+  // Prefer unscaled-immediate-offset instructions, but emit scaled-offset,
+  // register-offset, pre-index or post-index instructions if necessary.
+  PreferUnscaledOffset,
+
+  // Require scaled-immediate-offset instructions.
+  RequireScaledOffset,
+
+  // Require unscaled-immediate-offset instructions.
+  RequireUnscaledOffset
+};
+
+
 // Assembler.
 class Assembler {
  public:
-  Assembler(byte* buffer, unsigned buffer_size);
+  Assembler(byte* buffer, unsigned buffer_size,
+            PositionIndependentCodeOption pic = PositionIndependentCode);
 
   // The destructor asserts that one of the following is true:
   //  * The Assembler object has not been used.
@@ -662,12 +775,15 @@ class Assembler {
   // Label.
   // Bind a label to the current PC.
   void bind(Label* label);
-  int UpdateAndGetByteOffsetTo(Label* label);
-  inline int UpdateAndGetInstructionOffsetTo(Label* label) {
-    VIXL_ASSERT(Label::kEndOfChain == 0);
-    return UpdateAndGetByteOffsetTo(label) >> kInstructionSizeLog2;
-  }
 
+  // Return the address of a bound label.
+  template <typename T>
+  inline T GetLabelAddress(const Label * label) {
+    VIXL_ASSERT(label->IsBound());
+    VIXL_STATIC_ASSERT(sizeof(T) >= sizeof(uintptr_t));
+    VIXL_STATIC_ASSERT(sizeof(*buffer_) == 1);
+    return reinterpret_cast<T>(buffer_ + label->location());
+  }
 
   // Instruction set functions.
 
@@ -732,6 +848,12 @@ class Assembler {
 
   // Calculate the address of a PC offset.
   void adr(const Register& rd, int imm21);
+
+  // Calculate the page address of a label.
+  void adrp(const Register& rd, Label* label);
+
+  // Calculate the page address of a PC offset.
+  void adrp(const Register& rd, int imm21);
 
   // Data Processing instructions.
   // Add.
@@ -1112,31 +1234,76 @@ class Assembler {
 
   // Memory instructions.
   // Load integer or FP register.
-  void ldr(const CPURegister& rt, const MemOperand& src);
+  void ldr(const CPURegister& rt, const MemOperand& src,
+           LoadStoreScalingOption option = PreferScaledOffset);
 
   // Store integer or FP register.
-  void str(const CPURegister& rt, const MemOperand& dst);
+  void str(const CPURegister& rt, const MemOperand& dst,
+           LoadStoreScalingOption option = PreferScaledOffset);
 
   // Load word with sign extension.
-  void ldrsw(const Register& rt, const MemOperand& src);
+  void ldrsw(const Register& rt, const MemOperand& src,
+             LoadStoreScalingOption option = PreferScaledOffset);
 
   // Load byte.
-  void ldrb(const Register& rt, const MemOperand& src);
+  void ldrb(const Register& rt, const MemOperand& src,
+            LoadStoreScalingOption option = PreferScaledOffset);
 
   // Store byte.
-  void strb(const Register& rt, const MemOperand& dst);
+  void strb(const Register& rt, const MemOperand& dst,
+            LoadStoreScalingOption option = PreferScaledOffset);
 
   // Load byte with sign extension.
-  void ldrsb(const Register& rt, const MemOperand& src);
+  void ldrsb(const Register& rt, const MemOperand& src,
+             LoadStoreScalingOption option = PreferScaledOffset);
 
   // Load half-word.
-  void ldrh(const Register& rt, const MemOperand& src);
+  void ldrh(const Register& rt, const MemOperand& src,
+            LoadStoreScalingOption option = PreferScaledOffset);
 
   // Store half-word.
-  void strh(const Register& rt, const MemOperand& dst);
+  void strh(const Register& rt, const MemOperand& dst,
+            LoadStoreScalingOption option = PreferScaledOffset);
 
   // Load half-word with sign extension.
-  void ldrsh(const Register& rt, const MemOperand& src);
+  void ldrsh(const Register& rt, const MemOperand& src,
+             LoadStoreScalingOption option = PreferScaledOffset);
+
+  // Load integer or FP register (with unscaled offset).
+  void ldur(const CPURegister& rt, const MemOperand& src,
+            LoadStoreScalingOption option = PreferUnscaledOffset);
+
+  // Store integer or FP register (with unscaled offset).
+  void stur(const CPURegister& rt, const MemOperand& src,
+            LoadStoreScalingOption option = PreferUnscaledOffset);
+
+  // Load word with sign extension.
+  void ldursw(const Register& rt, const MemOperand& src,
+              LoadStoreScalingOption option = PreferUnscaledOffset);
+
+  // Load byte (with unscaled offset).
+  void ldurb(const Register& rt, const MemOperand& src,
+             LoadStoreScalingOption option = PreferUnscaledOffset);
+
+  // Store byte (with unscaled offset).
+  void sturb(const Register& rt, const MemOperand& dst,
+             LoadStoreScalingOption option = PreferUnscaledOffset);
+
+  // Load byte with sign extension (and unscaled offset).
+  void ldursb(const Register& rt, const MemOperand& src,
+              LoadStoreScalingOption option = PreferUnscaledOffset);
+
+  // Load half-word (with unscaled offset).
+  void ldurh(const Register& rt, const MemOperand& src,
+             LoadStoreScalingOption option = PreferUnscaledOffset);
+
+  // Store half-word (with unscaled offset).
+  void sturh(const Register& rt, const MemOperand& dst,
+             LoadStoreScalingOption option = PreferUnscaledOffset);
+
+  // Load half-word with sign extension (and unscaled offset).
+  void ldursh(const Register& rt, const MemOperand& src,
+              LoadStoreScalingOption option = PreferUnscaledOffset);
 
   // Load integer or FP register pair.
   void ldp(const CPURegister& rt, const CPURegister& rt2,
@@ -1165,6 +1332,79 @@ class Assembler {
 
   // Load single precision floating point literal to FP register.
   void ldr(const FPRegister& ft, float imm);
+
+  // Store exclusive byte.
+  void stxrb(const Register& rs, const Register& rt, const MemOperand& dst);
+
+  // Store exclusive half-word.
+  void stxrh(const Register& rs, const Register& rt, const MemOperand& dst);
+
+  // Store exclusive register.
+  void stxr(const Register& rs, const Register& rt, const MemOperand& dst);
+
+  // Load exclusive byte.
+  void ldxrb(const Register& rt, const MemOperand& src);
+
+  // Load exclusive half-word.
+  void ldxrh(const Register& rt, const MemOperand& src);
+
+  // Load exclusive register.
+  void ldxr(const Register& rt, const MemOperand& src);
+
+  // Store exclusive register pair.
+  void stxp(const Register& rs,
+            const Register& rt,
+            const Register& rt2,
+            const MemOperand& dst);
+
+  // Load exclusive register pair.
+  void ldxp(const Register& rt, const Register& rt2, const MemOperand& src);
+
+  // Store-release exclusive byte.
+  void stlxrb(const Register& rs, const Register& rt, const MemOperand& dst);
+
+  // Store-release exclusive half-word.
+  void stlxrh(const Register& rs, const Register& rt, const MemOperand& dst);
+
+  // Store-release exclusive register.
+  void stlxr(const Register& rs, const Register& rt, const MemOperand& dst);
+
+  // Load-acquire exclusive byte.
+  void ldaxrb(const Register& rt, const MemOperand& src);
+
+  // Load-acquire exclusive half-word.
+  void ldaxrh(const Register& rt, const MemOperand& src);
+
+  // Load-acquire exclusive register.
+  void ldaxr(const Register& rt, const MemOperand& src);
+
+  // Store-release exclusive register pair.
+  void stlxp(const Register& rs,
+             const Register& rt,
+             const Register& rt2,
+             const MemOperand& dst);
+
+  // Load-acquire exclusive register pair.
+  void ldaxp(const Register& rt, const Register& rt2, const MemOperand& src);
+
+  // Store-release byte.
+  void stlrb(const Register& rt, const MemOperand& dst);
+
+  // Store-release half-word.
+  void stlrh(const Register& rt, const MemOperand& dst);
+
+  // Store-release register.
+  void stlr(const Register& rt, const MemOperand& dst);
+
+  // Load-acquire byte.
+  void ldarb(const Register& rt, const MemOperand& src);
+
+  // Load-acquire half-word.
+  void ldarh(const Register& rt, const MemOperand& src);
+
+  // Load-acquire register.
+  void ldar(const Register& rt, const MemOperand& src);
+
 
   // Move instructions. The default shift of -1 indicates that the move
   // instruction will calculate an appropriate 16-bit immediate and left shift
@@ -1213,6 +1453,9 @@ class Assembler {
 
   // System hint.
   void hint(SystemHint code);
+
+  // Clear exclusive monitor.
+  void clrex(int imm4 = 0xf);
 
   // Data memory barrier.
   void dmb(BarrierDomain domain, BarrierType type);
@@ -1429,6 +1672,11 @@ class Assembler {
     return rt2.code() << Rt2_offset;
   }
 
+  static Instr Rs(CPURegister rs) {
+    VIXL_ASSERT(rs.code() != kSPRegInternalCode);
+    return rs.code() << Rs_offset;
+  }
+
   // These encoding functions allow the stack pointer to be encoded, and
   // disallow the zero register.
   static Instr RdSP(Register rd) {
@@ -1619,6 +1867,11 @@ class Assembler {
     return imm7 << ImmHint_offset;
   }
 
+  static Instr CRm(int imm4) {
+    VIXL_ASSERT(is_uint4(imm4));
+    return imm4 << CRm_offset;
+  }
+
   static Instr ImmBarrierDomain(int imm2) {
     VIXL_ASSERT(is_uint2(imm2));
     return imm2 << ImmBarrierDomain_offset;
@@ -1660,16 +1913,20 @@ class Assembler {
   }
 
   // Size of the code generated in bytes
-  uint64_t SizeOfCodeGenerated() const {
+  size_t SizeOfCodeGenerated() const {
     VIXL_ASSERT((pc_ >= buffer_) && (pc_ < (buffer_ + buffer_size_)));
     return pc_ - buffer_;
   }
 
   // Size of the code generated since label to the current position.
-  uint64_t SizeOfCodeGeneratedSince(Label* label) const {
+  size_t SizeOfCodeGeneratedSince(Label* label) const {
+    size_t pc_offset = SizeOfCodeGenerated();
+
     VIXL_ASSERT(label->IsBound());
-    VIXL_ASSERT((pc_ >= label->target()) && (pc_ < (buffer_ + buffer_size_)));
-    return pc_ - label->target();
+    VIXL_ASSERT(pc_offset >= static_cast<size_t>(label->location()));
+    VIXL_ASSERT(pc_offset < buffer_size_);
+
+    return pc_offset - label->location();
   }
 
 
@@ -1693,6 +1950,15 @@ class Assembler {
   void EmitLiteralPool(LiteralPoolEmitOption option = NoJumpRequired);
   size_t LiteralPoolSize();
 
+  inline PositionIndependentCodeOption pic() {
+    return pic_;
+  }
+
+  inline bool AllowPageOffsetDependentCode() {
+    return (pic() == PageOffsetDependentCode) ||
+           (pic() == PositionDependentCode);
+  }
+
  protected:
   inline const Register& AppropriateZeroRegFor(const CPURegister& reg) const {
     return reg.Is64Bits() ? xzr : wzr;
@@ -1701,7 +1967,8 @@ class Assembler {
 
   void LoadStore(const CPURegister& rt,
                  const MemOperand& addr,
-                 LoadStoreOp op);
+                 LoadStoreOp op,
+                 LoadStoreScalingOption option = PreferScaledOffset);
   static bool IsImmLSUnscaled(ptrdiff_t offset);
   static bool IsImmLSScaled(ptrdiff_t offset, LSDataSize size);
 
@@ -1717,9 +1984,9 @@ class Assembler {
                         LogicalOp op);
   static bool IsImmLogical(uint64_t value,
                            unsigned width,
-                           unsigned* n,
-                           unsigned* imm_s,
-                           unsigned* imm_r);
+                           unsigned* n = NULL,
+                           unsigned* imm_s = NULL,
+                           unsigned* imm_r = NULL);
 
   void ConditionalCompare(const Register& rn,
                           const Operand& operand,
@@ -1823,6 +2090,17 @@ class Assembler {
 
   void RecordLiteral(int64_t imm, unsigned size);
 
+  // Link the current (not-yet-emitted) instruction to the specified label, then
+  // return an offset to be encoded in the instruction. If the label is not yet
+  // bound, an offset of 0 is returned.
+  ptrdiff_t LinkAndGetByteOffsetTo(Label * label);
+  ptrdiff_t LinkAndGetInstructionOffsetTo(Label * label);
+  ptrdiff_t LinkAndGetPageOffsetTo(Label * label);
+
+  // A common implementation for the LinkAndGet<Type>OffsetTo helpers.
+  template <int element_size>
+  ptrdiff_t LinkAndGetOffsetTo(Label* label);
+
   // Emit the instruction at pc_.
   void Emit(Instr instruction) {
     VIXL_STATIC_ASSERT(sizeof(*pc_) == 1);
@@ -1864,12 +2142,15 @@ class Assembler {
   // The buffer into which code and relocation info are generated.
   Instruction* buffer_;
   // Buffer size, in bytes.
-  unsigned buffer_size_;
+  size_t buffer_size_;
   Instruction* pc_;
   std::list<Literal*> literals_;
   Instruction* next_literal_pool_check_;
   unsigned literal_pool_monitor_;
 
+  PositionIndependentCodeOption pic_;
+
+  friend class Label;
   friend class BlockLiteralPoolScope;
 
 #ifdef DEBUG

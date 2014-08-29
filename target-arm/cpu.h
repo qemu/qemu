@@ -191,8 +191,8 @@ typedef struct CPUARMState {
         uint64_t par_el1;  /* Translation result. */
         uint32_t c9_insn; /* Cache lockdown registers.  */
         uint32_t c9_data;
-        uint32_t c9_pmcr; /* performance monitor control register */
-        uint32_t c9_pmcnten; /* perf monitor counter enables */
+        uint64_t c9_pmcr; /* performance monitor control register */
+        uint64_t c9_pmcnten; /* perf monitor counter enables */
         uint32_t c9_pmovsr; /* perf monitor overflow status */
         uint32_t c9_pmxevtyper; /* perf monitor event type */
         uint32_t c9_pmuserenr; /* perf monitor user enable */
@@ -224,7 +224,8 @@ typedef struct CPUARMState {
         /* If the counter is enabled, this stores the last time the counter
          * was reset. Otherwise it stores the counter value
          */
-        uint32_t c15_ccnt;
+        uint64_t c15_ccnt;
+        uint64_t pmccfiltr_el0; /* Performance Monitor Filter Register */
     } cp15;
 
     struct {
@@ -351,6 +352,17 @@ int cpu_arm_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 int arm_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
                              int mmu_idx);
+
+/**
+ * pmccntr_sync
+ * @env: CPUARMState
+ *
+ * Synchronises the counter in the PMCCNTR. This must always be called twice,
+ * once before any action that might affect the timer and again afterwards.
+ * The function is used to swap the state of the register if required.
+ * This only happens when not in user mode (!CONFIG_USER_ONLY)
+ */
+void pmccntr_sync(CPUARMState *env);
 
 /* SCTLR bit meanings. Several bits have been reused in newer
  * versions of the architecture; in that case we define constants
@@ -1255,7 +1267,14 @@ static inline bool arm_singlestep_active(CPUARMState *env)
 static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
-    int fpen = extract32(env->cp15.c1_coproc, 20, 2);
+    int fpen;
+
+    if (arm_feature(env, ARM_FEATURE_V6)) {
+        fpen = extract32(env->cp15.c1_coproc, 20, 2);
+    } else {
+        /* CPACR doesn't exist before v6, so VFP is always accessible */
+        fpen = 3;
+    }
 
     if (is_a64(env)) {
         *pc = env->pc;
