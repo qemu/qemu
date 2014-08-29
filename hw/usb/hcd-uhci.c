@@ -1279,9 +1279,14 @@ static void usb_uhci_exit(PCIDevice *dev)
     }
 }
 
-static Property uhci_properties[] = {
+static Property uhci_properties_companion[] = {
     DEFINE_PROP_STRING("masterbus", UHCIState, masterbus),
     DEFINE_PROP_UINT32("firstport", UHCIState, firstport, 0),
+    DEFINE_PROP_UINT32("bandwidth", UHCIState, frame_bandwidth, 1280),
+    DEFINE_PROP_UINT32("maxframes", UHCIState, maxframes, 128),
+    DEFINE_PROP_END_OF_LIST(),
+};
+static Property uhci_properties_standalone[] = {
     DEFINE_PROP_UINT32("bandwidth", UHCIState, frame_bandwidth, 1280),
     DEFINE_PROP_UINT32("maxframes", UHCIState, maxframes, 128),
     DEFINE_PROP_END_OF_LIST(),
@@ -1300,9 +1305,14 @@ static void uhci_class_init(ObjectClass *klass, void *data)
     k->device_id = info->device_id;
     k->revision  = info->revision;
     k->class_id  = PCI_CLASS_SERIAL_USB;
-    dc->hotpluggable = false;
     dc->vmsd = &vmstate_uhci;
-    dc->props = uhci_properties;
+    if (!info->unplug) {
+        /* uhci controllers in companion setups can't be hotplugged */
+        dc->hotpluggable = false;
+        dc->props = uhci_properties_companion;
+    } else {
+        dc->props = uhci_properties_standalone;
+    }
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
     u->info = *info;
 }
