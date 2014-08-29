@@ -41,7 +41,7 @@ int s390_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
     case S390_PSWA_REGNUM:
         return gdb_get_regl(mem_buf, env->psw.addr);
     case S390_R0_REGNUM ... S390_R15_REGNUM:
-        return gdb_get_regl(mem_buf, env->regs[n-S390_R0_REGNUM]);
+        return gdb_get_regl(mem_buf, env->regs[n - S390_R0_REGNUM]);
     }
     return 0;
 }
@@ -63,7 +63,7 @@ int s390_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->psw.addr = tmpl;
         break;
     case S390_R0_REGNUM ... S390_R15_REGNUM:
-        env->regs[n-S390_R0_REGNUM] = tmpl;
+        env->regs[n - S390_R0_REGNUM] = tmpl;
         break;
     default:
         return 0;
