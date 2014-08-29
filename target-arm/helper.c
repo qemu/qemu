@@ -650,6 +650,14 @@ void pmccntr_sync(CPUARMState *env)
 
 #endif
 
+static void pmccfiltr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    pmccntr_sync(env);
+    env->cp15.pmccfiltr_el0 = value & 0x7E000000;
+    pmccntr_sync(env);
+}
+
 static void pmcntenset_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
 {
@@ -801,6 +809,7 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
 #endif
     { .name = "PMCCFILTR_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 15, .opc2 = 7,
+      .writefn = pmccfiltr_write,
       .access = PL0_RW, .accessfn = pmreg_access,
       .type = ARM_CP_IO,
       .fieldoffset = offsetof(CPUARMState, cp15.pmccfiltr_el0),
