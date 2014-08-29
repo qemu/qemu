@@ -2352,6 +2352,11 @@ multiple of 512 bytes. It defaults to 256k.
 Whether to verify the remote server's certificate when connecting over SSL. It
 can have the value 'on' or 'off'. It defaults to 'on'.
 
+@item cookie
+Send this cookie (it can also be a list of cookies separated by ';') with
+each outgoing request.  Only supported when using protocols such as HTTP
+which support cookies, otherwise ignored.
+
 @item timeout
 Set the timeout in seconds of the CURL connection. This timeout is the time
 that CURL waits for a response from the remote server to get the size of the

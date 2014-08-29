@@ -73,6 +73,7 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define CURL_BLOCK_OPT_READAHEAD "readahead"
 #define CURL_BLOCK_OPT_SSLVERIFY "sslverify"
 #define CURL_BLOCK_OPT_TIMEOUT "timeout"
+#define CURL_BLOCK_OPT_COOKIE    "cookie"
 
 struct BDRVCURLState;
 
@@ -112,6 +113,7 @@ typedef struct BDRVCURLState {
     size_t readahead_size;
     bool sslverify;
     int timeout;
+    char *cookie;
     bool accept_range;
     AioContext *aio_context;
 } BDRVCURLState;
@@ -385,6 +387,9 @@ static CURLState *curl_init_state(BDRVCURLState *s)
         curl_easy_setopt(state->curl, CURLOPT_URL, s->url);
         curl_easy_setopt(state->curl, CURLOPT_SSL_VERIFYPEER,
                          (long) s->sslverify);
+        if (s->cookie) {
+            curl_easy_setopt(state->curl, CURLOPT_COOKIE, s->cookie);
+        }
         curl_easy_setopt(state->curl, CURLOPT_TIMEOUT, s->timeout);
         curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION,
                          (void *)curl_read_cb);
@@ -497,6 +502,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_NUMBER,
             .help = "Curl timeout"
         },
+        {
+            .name = CURL_BLOCK_OPT_COOKIE,
+            .type = QEMU_OPT_STRING,
+            .help = "Pass the cookie or list of cookies with each request"
+        },
         { /* end of list */ }
     },
 };
@@ -509,6 +519,7 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     QemuOpts *opts;
     Error *local_err = NULL;
     const char *file;
+    const char *cookie;
     double d;
 
     static int inited = 0;
@@ -537,6 +548,9 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
                                      CURL_TIMEOUT_DEFAULT);
 
     s->sslverify = qemu_opt_get_bool(opts, CURL_BLOCK_OPT_SSLVERIFY, true);
+
+    cookie = qemu_opt_get(opts, CURL_BLOCK_OPT_COOKIE);
+    s->cookie = g_strdup(cookie);
 
     file = qemu_opt_get(opts, CURL_BLOCK_OPT_URL);
     if (file == NULL) {
@@ -593,6 +607,7 @@ out:
     curl_easy_cleanup(state->curl);
     state->curl = NULL;
 out_noclean:
+    g_free(s->cookie);
     g_free(s->url);
     qemu_opts_del(opts);
     return -EINVAL;
@@ -695,6 +710,7 @@ static void curl_close(BlockDriverState *bs)
     DPRINTF("CURL: Close\n");
     curl_detach_aio_context(bs);
 
+    g_free(s->cookie);
     g_free(s->url);
 }
 
