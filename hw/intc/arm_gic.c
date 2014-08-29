@@ -372,7 +372,7 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset)
         }
     } else if (offset < 0xf00) {
         /* Interrupt Configuration.  */
-        irq = (offset - 0xc00) * 2 + GIC_BASE_IRQ;
+        irq = (offset - 0xc00) * 4 + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
         res = 0;
