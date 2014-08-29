@@ -222,7 +222,6 @@ static void ipl_eckd_cdl(void)
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(1, ipl2, "Cannot read IPL2 record at block 1");
-    IPL_assert(magic_match(ipl2, IPL2_MAGIC), "No IPL2 record");
 
     mbr = &ipl2->u.x.mbr;
     IPL_assert(magic_match(mbr, ZIPL_MAGIC), "No zIPL section in IPL2 record.");
@@ -246,12 +245,10 @@ static void ipl_eckd_cdl(void)
     /* no return */
 }
 
-static void ipl_eckd_ldl(ECKD_IPL_mode_t mode)
+static void print_eckd_ldl_msg(ECKD_IPL_mode_t mode)
 {
     LDL_VTOC *vlbl = (void *)sec; /* already read, 3rd block */
     char msg[4] = { '?', '.', '\n', '\0' };
-    block_number_t block_nr;
-    BootInfo *bip;
 
     sclp_print((mode == ECKD_CMS) ? "CMS" : "LDL");
     sclp_print(" version ");
@@ -271,30 +268,32 @@ static void ipl_eckd_ldl(ECKD_IPL_mode_t mode)
     }
     sclp_print(msg);
     print_volser(vlbl->volser);
+}
+
+static void ipl_eckd_ldl(ECKD_IPL_mode_t mode)
+{
+    block_number_t block_nr;
+    BootInfo *bip = (void *)(sec + 0x70); /* BootInfo is MBR for LDL */
+
+    if (mode != ECKD_LDL_UNLABELED) {
+        print_eckd_ldl_msg(mode);
+    }
 
     /* DO NOT read BootMap pointer (only one, xECKD) at block #2 */
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
-    read_block(0, sec, "Cannot read block 0");
-    bip = (void *)(sec + 0x70); /* "boot info" is "eckd mbr" for LDL */
+    read_block(0, sec, "Cannot read block 0 to grab boot info.");
+    if (mode == ECKD_LDL_UNLABELED) {
+        if (!magic_match(bip->magic, ZIPL_MAGIC)) {
+            return; /* not applicable layout */
+        }
+        sclp_print("unlabeled LDL.\n");
+    }
     verify_boot_info(bip);
 
     block_nr = eckd_block_num((void *)&(bip->bp.ipl.bm_ptr.eckd.bptr));
     run_eckd_boot_script(block_nr);
     /* no return */
-}
-
-static void ipl_eckd(ECKD_IPL_mode_t mode)
-{
-    switch (mode) {
-    case ECKD_CDL:
-        ipl_eckd_cdl(); /* no return */
-    case ECKD_CMS:
-    case ECKD_LDL:
-        ipl_eckd_ldl(mode); /* no return */
-    default:
-        virtio_panic("\n! Unknown ECKD IPL mode !\n");
-    }
 }
 
 static void print_eckd_msg(void)
@@ -471,7 +470,7 @@ void zipl_load(void)
     }
     print_eckd_msg();
     if (magic_match(mbr->magic, IPL1_MAGIC)) {
-        ipl_eckd(ECKD_CDL); /* no return */
+        ipl_eckd_cdl(); /* no return */
     }
 
     /* LDL/CMS? */
@@ -479,11 +478,18 @@ void zipl_load(void)
     read_block(2, vlbl, "Cannot read block 2");
 
     if (magic_match(vlbl->magic, CMS1_MAGIC)) {
-        ipl_eckd(ECKD_CMS); /* no return */
+        ipl_eckd_ldl(ECKD_CMS); /* no return */
     }
     if (magic_match(vlbl->magic, LNX1_MAGIC)) {
-        ipl_eckd(ECKD_LDL); /* no return */
+        ipl_eckd_ldl(ECKD_LDL); /* no return */
     }
 
-    virtio_panic("\n* invalid MBR magic *\n");
+    ipl_eckd_ldl(ECKD_LDL_UNLABELED); /* it still may return */
+    /*
+     * Ok, it is not a LDL by any means.
+     * It still might be a CDL with zero record keys for IPL1 and IPL2
+     */
+    ipl_eckd_cdl();
+
+    virtio_panic("\n* this can never happen *\n");
 }
