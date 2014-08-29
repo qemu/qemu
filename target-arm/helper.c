@@ -736,16 +736,28 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
      * or PL0_RO as appropriate and then check PMUSERENR in the helper fn.
      */
     { .name = "PMCNTENSET", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 1,
-      .access = PL0_RW, .resetvalue = 0,
-      .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcnten),
+      .access = PL0_RW, .type = ARM_CP_NO_MIGRATE,
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.c9_pmcnten),
       .writefn = pmcntenset_write,
       .accessfn = pmreg_access,
       .raw_writefn = raw_write },
+    { .name = "PMCNTENSET_EL0", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .crn = 9, .crm = 12, .opc2 = 1,
+      .access = PL0_RW, .accessfn = pmreg_access,
+      .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcnten), .resetvalue = 0,
+      .writefn = pmcntenset_write, .raw_writefn = raw_write },
     { .name = "PMCNTENCLR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 2,
-      .access = PL0_RW, .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcnten),
+      .access = PL0_RW,
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.c9_pmcnten),
       .accessfn = pmreg_access,
       .writefn = pmcntenclr_write,
       .type = ARM_CP_NO_MIGRATE },
+    { .name = "PMCNTENCLR_EL0", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .crn = 9, .crm = 12, .opc2 = 2,
+      .access = PL0_RW, .accessfn = pmreg_access,
+      .type = ARM_CP_NO_MIGRATE,
+      .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcnten),
+      .writefn = pmcntenclr_write },
     { .name = "PMOVSR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 3,
       .access = PL0_RW, .fieldoffset = offsetof(CPUARMState, cp15.c9_pmovsr),
       .accessfn = pmreg_access,
@@ -765,7 +777,18 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .access = PL0_RW, .resetvalue = 0, .type = ARM_CP_IO,
       .readfn = pmccntr_read, .writefn = pmccntr_write32,
       .accessfn = pmreg_access },
+    { .name = "PMCCNTR_EL0", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .crn = 9, .crm = 13, .opc2 = 0,
+      .access = PL0_RW, .accessfn = pmreg_access,
+      .type = ARM_CP_IO,
+      .readfn = pmccntr_read, .writefn = pmccntr_write, },
 #endif
+    { .name = "PMCCFILTR_EL0", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 15, .opc2 = 7,
+      .access = PL0_RW, .accessfn = pmreg_access,
+      .type = ARM_CP_IO,
+      .fieldoffset = offsetof(CPUARMState, cp15.pmccfiltr_el0),
+      .resetvalue = 0, },
     { .name = "PMXEVTYPER", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 1,
       .access = PL0_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pmxevtyper),
@@ -2394,13 +2417,23 @@ void register_cp_regs_for_features(ARMCPU *cpu)
 #ifndef CONFIG_USER_ONLY
         ARMCPRegInfo pmcr = {
             .name = "PMCR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 0,
-            .access = PL0_RW, .resetvalue = cpu->midr & 0xff000000,
-            .type = ARM_CP_IO,
-            .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcr),
+            .access = PL0_RW,
+            .type = ARM_CP_IO | ARM_CP_NO_MIGRATE,
+            .fieldoffset = offsetoflow32(CPUARMState, cp15.c9_pmcr),
             .accessfn = pmreg_access, .writefn = pmcr_write,
             .raw_writefn = raw_write,
         };
+        ARMCPRegInfo pmcr64 = {
+            .name = "PMCR_EL0", .state = ARM_CP_STATE_AA64,
+            .opc0 = 3, .opc1 = 3, .crn = 9, .crm = 12, .opc2 = 0,
+            .access = PL0_RW, .accessfn = pmreg_access,
+            .type = ARM_CP_IO,
+            .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcr),
+            .resetvalue = cpu->midr & 0xff000000,
+            .writefn = pmcr_write, .raw_writefn = raw_write,
+        };
         define_one_arm_cp_reg(cpu, &pmcr);
+        define_one_arm_cp_reg(cpu, &pmcr64);
 #endif
         ARMCPRegInfo clidr = {
             .name = "CLIDR", .state = ARM_CP_STATE_BOTH,
