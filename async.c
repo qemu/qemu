@@ -152,39 +152,48 @@ void qemu_bh_delete(QEMUBH *bh)
     bh->deleted = 1;
 }
 
-static gboolean
-aio_ctx_prepare(GSource *source, gint    *timeout)
+int64_t
+aio_compute_timeout(AioContext *ctx)
 {
-    AioContext *ctx = (AioContext *) source;
+    int64_t deadline;
+    int timeout = -1;
     QEMUBH *bh;
-    int deadline;
 
-    /* We assume there is no timeout already supplied */
-    *timeout = -1;
     for (bh = ctx->first_bh; bh; bh = bh->next) {
         if (!bh->deleted && bh->scheduled) {
             if (bh->idle) {
                 /* idle bottom halves will be polled at least
                  * every 10ms */
-                *timeout = 10;
+                timeout = 10000000;
             } else {
                 /* non-idle bottom halves will be executed
                  * immediately */
-                *timeout = 0;
-                return true;
+                return 0;
             }
         }
     }
 
-    deadline = qemu_timeout_ns_to_ms(timerlistgroup_deadline_ns(&ctx->tlg));
+    deadline = timerlistgroup_deadline_ns(&ctx->tlg);
     if (deadline == 0) {
-        *timeout = 0;
-        return true;
+        return 0;
     } else {
-        *timeout = qemu_soonest_timeout(*timeout, deadline);
+        return qemu_soonest_timeout(timeout, deadline);
+    }
+}
+
+static gboolean
+aio_ctx_prepare(GSource *source, gint    *timeout)
+{
+    AioContext *ctx = (AioContext *) source;
+
+    /* We assume there is no timeout already supplied */
+    *timeout = qemu_timeout_ns_to_ms(aio_compute_timeout(ctx));
+
+    if (aio_prepare(ctx)) {
+        *timeout = 0;
     }
 
-    return false;
+    return *timeout == 0;
 }
 
 static gboolean
@@ -209,7 +218,7 @@ aio_ctx_dispatch(GSource     *source,
     AioContext *ctx = (AioContext *) source;
 
     assert(callback == NULL);
-    aio_poll(ctx, false);
+    aio_dispatch(ctx);
     return true;
 }
 

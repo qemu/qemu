@@ -752,7 +752,7 @@ static int img_commit(int argc, char **argv)
     ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
-        return -1;
+        return 1;
     }
 
     bs = bdrv_new_open("image", filename, fmt, flags, true, quiet);
@@ -999,6 +999,9 @@ static int img_compare(int argc, char **argv)
     filename1 = argv[optind++];
     filename2 = argv[optind++];
 
+    /* Initialize before goto out */
+    qemu_progress_init(progress, 2.0);
+
     flags = BDRV_O_FLAGS;
     ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
@@ -1006,9 +1009,6 @@ static int img_compare(int argc, char **argv)
         ret = 2;
         goto out3;
     }
-
-    /* Initialize before goto out */
-    qemu_progress_init(progress, 2.0);
 
     bs1 = bdrv_new_open("image 1", filename1, fmt1, flags, true, quiet);
     if (!bs1) {
@@ -2304,7 +2304,7 @@ static int img_snapshot(int argc, char **argv)
 
 static int img_rebase(int argc, char **argv)
 {
-    BlockDriverState *bs, *bs_old_backing = NULL, *bs_new_backing = NULL;
+    BlockDriverState *bs = NULL, *bs_old_backing = NULL, *bs_new_backing = NULL;
     BlockDriver *old_backing_drv, *new_backing_drv;
     char *filename;
     const char *fmt, *cache, *src_cache, *out_basefmt, *out_baseimg;
@@ -2376,14 +2376,14 @@ static int img_rebase(int argc, char **argv)
     ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
-        return -1;
+        goto out;
     }
 
     src_flags = BDRV_O_FLAGS;
     ret = bdrv_parse_cache_flags(src_cache, &src_flags);
     if (ret < 0) {
         error_report("Invalid source cache option: %s", src_cache);
-        return -1;
+        goto out;
     }
 
     /*
@@ -2394,7 +2394,8 @@ static int img_rebase(int argc, char **argv)
      */
     bs = bdrv_new_open("image", filename, fmt, flags, true, quiet);
     if (!bs) {
-        return 1;
+        ret = -1;
+        goto out;
     }
 
     /* Find the right drivers for the backing files */
@@ -2420,11 +2421,7 @@ static int img_rebase(int argc, char **argv)
     }
 
     /* For safe rebasing we need to compare old and new backing file */
-    if (unsafe) {
-        /* Make the compiler happy */
-        bs_old_backing = NULL;
-        bs_new_backing = NULL;
-    } else {
+    if (!unsafe) {
         char backing_name[1024];
 
         bs_old_backing = bdrv_new("old_backing", &error_abort);

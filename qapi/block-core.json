@@ -1419,6 +1419,19 @@
             'raw': 'BlockdevRef' } }
 
 ##
+# @QuorumReadPattern
+#
+# An enumeration of quorum read patterns.
+#
+# @quorum: read all the children and do a quorum vote on reads
+#
+# @fifo: read only from the first child that has not failed
+#
+# Since: 2.2
+##
+{ 'enum': 'QuorumReadPattern', 'data': [ 'quorum', 'fifo' ] }
+
+##
 # @BlockdevOptionsQuorum
 #
 # Driver specific block device options for Quorum
@@ -1433,12 +1446,17 @@
 # @rewrite-corrupted: #optional rewrite corrupted data when quorum is reached
 #                     (Since 2.1)
 #
+# @read-pattern: #optional choose read pattern and set to quorum by default
+#                (Since 2.2)
+#
 # Since: 2.0
 ##
 { 'type': 'BlockdevOptionsQuorum',
   'data': { '*blkverify': 'bool',
             'children': [ 'BlockdevRef' ],
-            'vote-threshold': 'int', '*rewrite-corrupted': 'bool' } }
+            'vote-threshold': 'int',
+            '*rewrite-corrupted': 'bool',
+            '*read-pattern': 'QuorumReadPattern' } }
 
 ##
 # @BlockdevOptions

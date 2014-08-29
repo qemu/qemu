@@ -294,6 +294,15 @@ typedef struct BlockLimits {
 
 typedef struct BdrvOpBlocker BdrvOpBlocker;
 
+typedef struct BdrvAioNotifier {
+    void (*attached_aio_context)(AioContext *new_context, void *opaque);
+    void (*detach_aio_context)(void *opaque);
+
+    void *opaque;
+
+    QLIST_ENTRY(BdrvAioNotifier) list;
+} BdrvAioNotifier;
+
 /*
  * Note: the function bdrv_append() copies and swaps contents of
  * BlockDriverStates, so if you add new fields to this struct, please
@@ -320,6 +329,10 @@ struct BlockDriverState {
     void *dev_opaque;
 
     AioContext *aio_context; /* event loop used for fd handlers, timers, etc */
+    /* long-running tasks intended to always use the same AioContext as this
+     * BDS may register themselves in this list to be notified of changes
+     * regarding this BDS's context */
+    QLIST_HEAD(, BdrvAioNotifier) aio_notifiers;
 
     char filename[1024];
     char backing_file[1024]; /* if non zero, the image is a diff of
@@ -436,6 +449,34 @@ void bdrv_detach_aio_context(BlockDriverState *bs);
  */
 void bdrv_attach_aio_context(BlockDriverState *bs,
                              AioContext *new_context);
+
+/**
+ * bdrv_add_aio_context_notifier:
+ *
+ * If a long-running job intends to be always run in the same AioContext as a
+ * certain BDS, it may use this function to be notified of changes regarding the
+ * association of the BDS to an AioContext.
+ *
+ * attached_aio_context() is called after the target BDS has been attached to a
+ * new AioContext; detach_aio_context() is called before the target BDS is being
+ * detached from its old AioContext.
+ */
+void bdrv_add_aio_context_notifier(BlockDriverState *bs,
+        void (*attached_aio_context)(AioContext *new_context, void *opaque),
+        void (*detach_aio_context)(void *opaque), void *opaque);
+
+/**
+ * bdrv_remove_aio_context_notifier:
+ *
+ * Unsubscribe of change notifications regarding the BDS's AioContext. The
+ * parameters given here have to be the same as those given to
+ * bdrv_add_aio_context_notifier().
+ */
+void bdrv_remove_aio_context_notifier(BlockDriverState *bs,
+                                      void (*aio_context_attached)(AioContext *,
+                                                                   void *),
+                                      void (*aio_context_detached)(void *),
+                                      void *opaque);
 
 #ifdef _WIN32
 int is_windows_drive(const char *filename);

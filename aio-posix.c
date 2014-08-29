@@ -100,6 +100,11 @@ void aio_set_event_notifier(AioContext *ctx,
                        (IOHandler *)io_read, NULL, notifier);
 }
 
+bool aio_prepare(AioContext *ctx)
+{
+    return false;
+}
+
 bool aio_pending(AioContext *ctx)
 {
     AioHandler *node;
@@ -119,10 +124,19 @@ bool aio_pending(AioContext *ctx)
     return false;
 }
 
-static bool aio_dispatch(AioContext *ctx)
+bool aio_dispatch(AioContext *ctx)
 {
     AioHandler *node;
     bool progress = false;
+
+    /*
+     * If there are callbacks left that have been queued, we need to call them.
+     * Do not call select in this case, because it is possible that the caller
+     * does not need a complete flush (as is the case for aio_poll loops).
+     */
+    if (aio_bh_poll(ctx)) {
+        progress = true;
+    }
 
     /*
      * We have to walk very carefully in case aio_set_fd_handler is
@@ -184,48 +198,15 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     /* aio_notify can avoid the expensive event_notifier_set if
      * everything (file descriptors, bottom halves, timers) will
-     * be re-evaluated before the next blocking poll().  This happens
-     * in two cases:
-     *
-     * 1) when aio_poll is called with blocking == false
-     *
-     * 2) when we are called after poll().  If we are called before
-     *    poll(), bottom halves will not be re-evaluated and we need
-     *    aio_notify() if blocking == true.
-     *
-     * The first aio_dispatch() only does something when AioContext is
-     * running as a GSource, and in that case aio_poll is used only
-     * with blocking == false, so this optimization is already quite
-     * effective.  However, the code is ugly and should be restructured
-     * to have a single aio_dispatch() call.  To do this, we need to
-     * reorganize aio_poll into a prepare/poll/dispatch model like
-     * glib's.
+     * be re-evaluated before the next blocking poll().  This is
+     * already true when aio_poll is called with blocking == false;
+     * if blocking == true, it is only true after poll() returns.
      *
      * If we're in a nested event loop, ctx->dispatching might be true.
      * In that case we can restore it just before returning, but we
      * have to clear it now.
      */
     aio_set_dispatching(ctx, !blocking);
-
-    /*
-     * If there are callbacks left that have been queued, we need to call them.
-     * Do not call select in this case, because it is possible that the caller
-     * does not need a complete flush (as is the case for aio_poll loops).
-     */
-    if (aio_bh_poll(ctx)) {
-        blocking = false;
-        progress = true;
-    }
-
-    /* Re-evaluate condition (1) above.  */
-    aio_set_dispatching(ctx, !blocking);
-    if (aio_dispatch(ctx)) {
-        progress = true;
-    }
-
-    if (progress && !blocking) {
-        goto out;
-    }
 
     ctx->walking_handlers++;
 
@@ -249,7 +230,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     /* wait until next event */
     ret = qemu_poll_ns((GPollFD *)ctx->pollfds->data,
                          ctx->pollfds->len,
-                         blocking ? timerlistgroup_deadline_ns(&ctx->tlg) : 0);
+                         blocking ? aio_compute_timeout(ctx) : 0);
 
     /* if we have any readable fds, dispatch event */
     if (ret > 0) {
@@ -268,7 +249,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
         progress = true;
     }
 
-out:
     aio_set_dispatching(ctx, was_dispatching);
     return progress;
 }

@@ -203,14 +203,6 @@ void qemu_co_rwlock_unlock(CoRwlock *lock);
 /**
  * Yield the coroutine for a given duration
  *
- * Note this function uses timers and hence only works when a main loop is in
- * use.  See main-loop.h and do not use from qemu-tool programs.
- */
-void coroutine_fn co_sleep_ns(QEMUClockType type, int64_t ns);
-
-/**
- * Yield the coroutine for a given duration
- *
  * Behaves similarly to co_sleep_ns(), but the sleeping coroutine will be
  * resumed when using aio_poll().
  */

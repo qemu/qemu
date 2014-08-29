@@ -1819,6 +1819,8 @@ void bdrv_reopen_abort(BDRVReopenState *reopen_state)
 
 void bdrv_close(BlockDriverState *bs)
 {
+    BdrvAioNotifier *ban, *ban_next;
+
     if (bs->job) {
         block_job_cancel_sync(bs->job);
     }
@@ -1863,6 +1865,11 @@ void bdrv_close(BlockDriverState *bs)
     if (bs->io_limits_enabled) {
         bdrv_io_limits_disable(bs);
     }
+
+    QLIST_FOREACH_SAFE(ban, &bs->aio_notifiers, list, ban_next) {
+        g_free(ban);
+    }
+    QLIST_INIT(&bs->aio_notifiers);
 }
 
 void bdrv_close_all(void)
@@ -4546,6 +4553,12 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
             // Add the second request
             qemu_iovec_concat(qiov, reqs[i].qiov, 0, reqs[i].qiov->size);
 
+            // Add tail of first request, if necessary
+            if (qiov->size < reqs[outidx].qiov->size) {
+                qemu_iovec_concat(qiov, reqs[outidx].qiov, qiov->size,
+                                  reqs[outidx].qiov->size - qiov->size);
+            }
+
             reqs[outidx].nb_sectors = qiov->size >> 9;
             reqs[outidx].qiov = qiov;
 
@@ -5729,8 +5742,14 @@ AioContext *bdrv_get_aio_context(BlockDriverState *bs)
 
 void bdrv_detach_aio_context(BlockDriverState *bs)
 {
+    BdrvAioNotifier *baf;
+
     if (!bs->drv) {
         return;
+    }
+
+    QLIST_FOREACH(baf, &bs->aio_notifiers, list) {
+        baf->detach_aio_context(baf->opaque);
     }
 
     if (bs->io_limits_enabled) {
@@ -5752,6 +5771,8 @@ void bdrv_detach_aio_context(BlockDriverState *bs)
 void bdrv_attach_aio_context(BlockDriverState *bs,
                              AioContext *new_context)
 {
+    BdrvAioNotifier *ban;
+
     if (!bs->drv) {
         return;
     }
@@ -5770,6 +5791,10 @@ void bdrv_attach_aio_context(BlockDriverState *bs,
     if (bs->io_limits_enabled) {
         throttle_attach_aio_context(&bs->throttle_state, new_context);
     }
+
+    QLIST_FOREACH(ban, &bs->aio_notifiers, list) {
+        ban->attached_aio_context(new_context, ban->opaque);
+    }
 }
 
 void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
@@ -5784,6 +5809,43 @@ void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
     aio_context_acquire(new_context);
     bdrv_attach_aio_context(bs, new_context);
     aio_context_release(new_context);
+}
+
+void bdrv_add_aio_context_notifier(BlockDriverState *bs,
+        void (*attached_aio_context)(AioContext *new_context, void *opaque),
+        void (*detach_aio_context)(void *opaque), void *opaque)
+{
+    BdrvAioNotifier *ban = g_new(BdrvAioNotifier, 1);
+    *ban = (BdrvAioNotifier){
+        .attached_aio_context = attached_aio_context,
+        .detach_aio_context   = detach_aio_context,
+        .opaque               = opaque
+    };
+
+    QLIST_INSERT_HEAD(&bs->aio_notifiers, ban, list);
+}
+
+void bdrv_remove_aio_context_notifier(BlockDriverState *bs,
+                                      void (*attached_aio_context)(AioContext *,
+                                                                   void *),
+                                      void (*detach_aio_context)(void *),
+                                      void *opaque)
+{
+    BdrvAioNotifier *ban, *ban_next;
+
+    QLIST_FOREACH_SAFE(ban, &bs->aio_notifiers, list, ban_next) {
+        if (ban->attached_aio_context == attached_aio_context &&
+            ban->detach_aio_context   == detach_aio_context   &&
+            ban->opaque               == opaque)
+        {
+            QLIST_REMOVE(ban, list);
+            g_free(ban);
+
+            return;
+        }
+    }
+
+    abort();
 }
 
 void bdrv_add_before_write_notifier(BlockDriverState *bs,
