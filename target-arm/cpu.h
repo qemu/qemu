@@ -353,6 +353,17 @@ int cpu_arm_signal_handler(int host_signum, void *pinfo,
 int arm_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
                              int mmu_idx);
 
+/**
+ * pmccntr_sync
+ * @env: CPUARMState
+ *
+ * Synchronises the counter in the PMCCNTR. This must always be called twice,
+ * once before any action that might affect the timer and again afterwards.
+ * The function is used to swap the state of the register if required.
+ * This only happens when not in user mode (!CONFIG_USER_ONLY)
+ */
+void pmccntr_sync(CPUARMState *env);
+
 /* SCTLR bit meanings. Several bits have been reused in newer
  * versions of the architecture; in that case we define constants
  * for both old and new bit meanings. Code which tests against those
