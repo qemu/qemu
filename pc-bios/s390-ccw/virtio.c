@@ -275,12 +275,14 @@ void virtio_assume_scsi(void)
 {
     guessed_disk_nature = true;
     blk_cfg.blk_size = 512;
+    blk_cfg.physical_block_exp = 0;
 }
 
 void virtio_assume_eckd(void)
 {
     guessed_disk_nature = true;
     blk_cfg.blk_size = 4096;
+    blk_cfg.physical_block_exp = 0;
 
     /* this must be here to calculate code segment position */
     blk_cfg.geometry.heads = 15;
@@ -290,31 +292,31 @@ void virtio_assume_eckd(void)
 bool virtio_disk_is_scsi(void)
 {
     if (guessed_disk_nature) {
-        return (blk_cfg.blk_size  == 512);
+        return (virtio_get_block_size()  == 512);
     }
     return (blk_cfg.geometry.heads == 255)
         && (blk_cfg.geometry.sectors == 63)
-        && (blk_cfg.blk_size  == 512);
+        && (virtio_get_block_size()  == 512);
 }
 
 bool virtio_disk_is_eckd(void)
 {
     if (guessed_disk_nature) {
-        return (blk_cfg.blk_size  == 4096);
+        return (virtio_get_block_size()  == 4096);
     }
     return (blk_cfg.geometry.heads == 15)
         && (blk_cfg.geometry.sectors == 12)
-        && (blk_cfg.blk_size  == 4096);
+        && (virtio_get_block_size()  == 4096);
 }
 
 bool virtio_ipl_disk_is_valid(void)
 {
-    return blk_cfg.blk_size && (virtio_disk_is_scsi() || virtio_disk_is_eckd());
+    return virtio_disk_is_scsi() || virtio_disk_is_eckd();
 }
 
 int virtio_get_block_size(void)
 {
-    return blk_cfg.blk_size;
+    return blk_cfg.blk_size << blk_cfg.physical_block_exp;
 }
 
 uint16_t virtio_get_cylinders(void)
