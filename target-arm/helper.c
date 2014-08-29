@@ -580,20 +580,7 @@ void pmccntr_sync(CPUARMState *env)
 static void pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                        uint64_t value)
 {
-    uint64_t temp_ticks;
-
-    temp_ticks = muldiv64(qemu_clock_get_us(QEMU_CLOCK_VIRTUAL),
-                          get_ticks_per_sec(), 1000000);
-
-    if (env->cp15.c9_pmcr & PMCRE) {
-        /* If the counter is enabled */
-        if (env->cp15.c9_pmcr & PMCRD) {
-            /* Increment once every 64 processor clock cycles */
-            env->cp15.c15_ccnt = (temp_ticks/64) - env->cp15.c15_ccnt;
-        } else {
-            env->cp15.c15_ccnt = temp_ticks - env->cp15.c15_ccnt;
-        }
-    }
+    pmccntr_sync(env);
 
     if (value & PMCRC) {
         /* The counter has been reset */
@@ -604,20 +591,14 @@ static void pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     env->cp15.c9_pmcr &= ~0x39;
     env->cp15.c9_pmcr |= (value & 0x39);
 
-    if (env->cp15.c9_pmcr & PMCRE) {
-        if (env->cp15.c9_pmcr & PMCRD) {
-            /* Increment once every 64 processor clock cycles */
-            temp_ticks /= 64;
-        }
-        env->cp15.c15_ccnt = temp_ticks - env->cp15.c15_ccnt;
-    }
+    pmccntr_sync(env);
 }
 
 static uint64_t pmccntr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     uint64_t total_ticks;
 
-    if (!(env->cp15.c9_pmcr & PMCRE)) {
+    if (!arm_ccnt_enabled(env)) {
         /* Counter is disabled, do not change value */
         return env->cp15.c15_ccnt;
     }
@@ -637,7 +618,7 @@ static void pmccntr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     uint64_t total_ticks;
 
-    if (!(env->cp15.c9_pmcr & PMCRE)) {
+    if (!arm_ccnt_enabled(env)) {
         /* Counter is disabled, set the absolute value */
         env->cp15.c15_ccnt = value;
         return;
