@@ -40,11 +40,6 @@ static void jump_to_IPL_2(void)
     ResetInfo *current = 0;
 
     void (*ipl)(void) = (void *) (uint64_t) current->ipl_continue;
-    debug_print_addr("set IPL addr to", ipl);
-
-    /* Ensure the guest output starts fresh */
-    sclp_print("\n");
-
     *current = save;
     ipl(); /* should not return */
 }
@@ -63,6 +58,11 @@ static void jump_to_IPL_code(uint64_t address)
     save = *current;
     current->ipl_addr = (uint32_t) (uint64_t) &jump_to_IPL_2;
     current->ipl_continue = address & 0x7fffffff;
+
+    debug_print_int("set IPL addr to", current->ipl_continue);
+
+    /* Ensure the guest output starts fresh */
+    sclp_print("\n");
 
     /*
      * HACK ALERT.
