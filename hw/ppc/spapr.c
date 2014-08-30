@@ -363,10 +363,6 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     _FDT((fdt_property_string(fdt, "model", "IBM pSeries (emulated by qemu)")));
     _FDT((fdt_property_string(fdt, "compatible", "qemu,pseries")));
 
-    if (kvm_enabled()) {
-        _FDT((fdt_property_string(fdt, "hypervisor", "kvm")));
-    }
-
     /*
      * Add info to guest to indentify which host is it being run on
      * and what is the uuid of the guest
