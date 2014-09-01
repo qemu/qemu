@@ -107,6 +107,26 @@ void tricore_cpu_dump_state(CPUState *cs, FILE *f,
  * Functions to generate micro-ops
  */
 
+/* Functions for load/save to/from memory */
+
+static inline void gen_offset_ld(DisasContext *ctx, TCGv r1, TCGv r2,
+                                 int16_t con, TCGMemOp mop)
+{
+    TCGv temp = tcg_temp_new();
+    tcg_gen_addi_tl(temp, r2, con);
+    tcg_gen_qemu_ld_tl(r1, temp, ctx->mem_idx, mop);
+    tcg_temp_free(temp);
+}
+
+static inline void gen_offset_st(DisasContext *ctx, TCGv r1, TCGv r2,
+                                 int16_t con, TCGMemOp mop)
+{
+    TCGv temp = tcg_temp_new();
+    tcg_gen_addi_tl(temp, r2, con);
+    tcg_gen_qemu_st_tl(r1, temp, ctx->mem_idx, mop);
+    tcg_temp_free(temp);
+}
+
 /* Functions for arithmetic instructions  */
 
 static inline void gen_add_d(TCGv ret, TCGv r1, TCGv r2)
@@ -513,8 +533,16 @@ static void decode_ssr_opc(DisasContext *ctx, int op1)
 static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
+    int r1, r2;
+    int32_t const16;
+    TCGv temp;
 
     op1 = MASK_OP_MAJOR(ctx->opcode);
+
+    /* handle ADDSC.A opcode only being 6 bit long */
+    if (unlikely((op1 & 0x3f) == OPC1_16_SRRS_ADDSC_A)) {
+        op1 = OPC1_16_SRRS_ADDSC_A;
+    }
 
     switch (op1) {
     case OPC1_16_SRC_ADD:
@@ -567,6 +595,37 @@ static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     case OPC1_16_SSR_ST_W:
     case OPC1_16_SSR_ST_W_POSTINC:
         decode_ssr_opc(ctx, op1);
+        break;
+/* SRRS-format */
+    case OPC1_16_SRRS_ADDSC_A:
+        r2 = MASK_OP_SRRS_S2(ctx->opcode);
+        r1 = MASK_OP_SRRS_S1D(ctx->opcode);
+        const16 = MASK_OP_SRRS_N(ctx->opcode);
+        temp = tcg_temp_new();
+        tcg_gen_shli_tl(temp, cpu_gpr_d[15], const16);
+        tcg_gen_add_tl(cpu_gpr_a[r1], cpu_gpr_a[r2], temp);
+        tcg_temp_free(temp);
+        break;
+/* SLRO-format */
+    case OPC1_16_SLRO_LD_A:
+        r1 = MASK_OP_SLRO_D(ctx->opcode);
+        const16 = MASK_OP_SLRO_OFF4(ctx->opcode);
+        gen_offset_ld(ctx, cpu_gpr_a[r1], cpu_gpr_a[15], const16 * 4, MO_LESL);
+        break;
+    case OPC1_16_SLRO_LD_BU:
+        r1 = MASK_OP_SLRO_D(ctx->opcode);
+        const16 = MASK_OP_SLRO_OFF4(ctx->opcode);
+        gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[15], const16, MO_UB);
+        break;
+    case OPC1_16_SLRO_LD_H:
+        r1 = MASK_OP_SLRO_D(ctx->opcode);
+        const16 = MASK_OP_SLRO_OFF4(ctx->opcode);
+        gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[15], const16 * 2, MO_LESW);
+        break;
+    case OPC1_16_SLRO_LD_W:
+        r1 = MASK_OP_SLRO_D(ctx->opcode);
+        const16 = MASK_OP_SLRO_OFF4(ctx->opcode);
+        gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[15], const16 * 4, MO_LESL);
         break;
     }
 }
