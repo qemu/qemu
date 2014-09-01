@@ -391,6 +391,8 @@ static inline void gen_branch_condi(DisasContext *ctx, TCGCond cond, TCGv r1,
 static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
                                int r2 , int32_t constant , int32_t offset)
 {
+    TCGv temp;
+
     switch (opc) {
 /* SB-format jumps */
     case OPC1_16_SB_J:
@@ -406,6 +408,26 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
         break;
     case OPC1_16_SB_JNZ:
         gen_branch_condi(ctx, TCG_COND_NE, cpu_gpr_d[15], 0, offset);
+        break;
+/* SBC-format jumps */
+    case OPC1_16_SBC_JEQ:
+        gen_branch_condi(ctx, TCG_COND_EQ, cpu_gpr_d[15], constant, offset);
+        break;
+    case OPC1_16_SBC_JNE:
+        gen_branch_condi(ctx, TCG_COND_NE, cpu_gpr_d[15], constant, offset);
+        break;
+/* SBRN-format jumps */
+    case OPC1_16_SBRN_JZ_T:
+        temp = tcg_temp_new();
+        tcg_gen_andi_tl(temp, cpu_gpr_d[15], 0x1u << constant);
+        gen_branch_condi(ctx, TCG_COND_EQ, temp, 0, offset);
+        tcg_temp_free(temp);
+        break;
+    case OPC1_16_SBRN_JNZ_T:
+        temp = tcg_temp_new();
+        tcg_gen_andi_tl(temp, cpu_gpr_d[15], 0x1u << constant);
+        gen_branch_condi(ctx, TCG_COND_NE, temp, 0, offset);
+        tcg_temp_free(temp);
         break;
     default:
             printf("Branch Error at %x\n", ctx->pc);
@@ -715,6 +737,20 @@ static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     case OPC1_16_SB_JZ:
         address = MASK_OP_SB_DISP8_SEXT(ctx->opcode);
         gen_compute_branch(ctx, op1, 0, 0, 0, address);
+        break;
+/* SBC-format */
+    case OPC1_16_SBC_JEQ:
+    case OPC1_16_SBC_JNE:
+        address = MASK_OP_SBC_DISP4(ctx->opcode);
+        const16 = MASK_OP_SBC_CONST4_SEXT(ctx->opcode);
+        gen_compute_branch(ctx, op1, 0, 0, const16, address);
+        break;
+/* SBRN-format */
+    case OPC1_16_SBRN_JNZ_T:
+    case OPC1_16_SBRN_JZ_T:
+        address = MASK_OP_SBRN_DISP4(ctx->opcode);
+        const16 = MASK_OP_SBRN_N(ctx->opcode);
+        gen_compute_branch(ctx, op1, 0, 0, const16, address);
         break;
     }
 }
