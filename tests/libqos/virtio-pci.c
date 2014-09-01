@@ -14,6 +14,8 @@
 #include "libqos/virtio-pci.h"
 #include "libqos/pci.h"
 #include "libqos/pci-pc.h"
+#include "libqos/malloc.h"
+#include "libqos/malloc-pc.h"
 
 #include "hw/pci/pci_regs.h"
 
@@ -93,6 +95,18 @@ static uint64_t qvirtio_pci_config_readq(QVirtioDevice *d, void *addr)
     return u64;
 }
 
+static uint32_t qvirtio_pci_get_features(QVirtioDevice *d)
+{
+    QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
+    return qpci_io_readl(dev->pdev, dev->addr + QVIRTIO_DEVICE_FEATURES);
+}
+
+static void qvirtio_pci_set_features(QVirtioDevice *d, uint32_t features)
+{
+    QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
+    qpci_io_writel(dev->pdev, dev->addr + QVIRTIO_GUEST_FEATURES, features);
+}
+
 static uint8_t qvirtio_pci_get_status(QVirtioDevice *d)
 {
     QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
@@ -105,13 +119,81 @@ static void qvirtio_pci_set_status(QVirtioDevice *d, uint8_t status)
     qpci_io_writeb(dev->pdev, dev->addr + QVIRTIO_DEVICE_STATUS, status);
 }
 
+static uint8_t qvirtio_pci_get_isr_status(QVirtioDevice *d)
+{
+    QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
+    return qpci_io_readb(dev->pdev, dev->addr + QVIRTIO_ISR_STATUS);
+}
+
+static void qvirtio_pci_queue_select(QVirtioDevice *d, uint16_t index)
+{
+    QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
+    qpci_io_writeb(dev->pdev, dev->addr + QVIRTIO_QUEUE_SELECT, index);
+}
+
+static uint16_t qvirtio_pci_get_queue_size(QVirtioDevice *d)
+{
+    QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
+    return qpci_io_readw(dev->pdev, dev->addr + QVIRTIO_QUEUE_SIZE);
+}
+
+static void qvirtio_pci_set_queue_address(QVirtioDevice *d, uint32_t pfn)
+{
+    QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
+    qpci_io_writel(dev->pdev, dev->addr + QVIRTIO_QUEUE_ADDRESS, pfn);
+}
+
+static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
+                                        QGuestAllocator *alloc, uint16_t index)
+{
+    uint64_t addr;
+    QVirtQueue *vq;
+
+    vq = g_malloc0(sizeof(*vq));
+
+    qvirtio_pci_queue_select(d, index);
+    vq->index = index;
+    vq->size = qvirtio_pci_get_queue_size(d);
+    vq->free_head = 0;
+    vq->num_free = vq->size;
+    vq->align = QVIRTIO_PCI_ALIGN;
+
+    /* Check different than 0 */
+    g_assert_cmpint(vq->size, !=, 0);
+
+    /* Check power of 2 */
+    g_assert_cmpint(vq->size & (vq->size - 1), ==, 0);
+
+    addr = guest_alloc(alloc, qvring_size(vq->size, QVIRTIO_PCI_ALIGN));
+    qvring_init(alloc, vq, addr);
+    qvirtio_pci_set_queue_address(d, vq->desc / QVIRTIO_PCI_ALIGN);
+
+    /* TODO: MSI-X configuration */
+
+    return vq;
+}
+
+static void qvirtio_pci_virtqueue_kick(QVirtioDevice *d, QVirtQueue *vq)
+{
+    QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
+    qpci_io_writew(dev->pdev, dev->addr + QVIRTIO_QUEUE_NOTIFY, vq->index);
+}
+
 const QVirtioBus qvirtio_pci = {
     .config_readb = qvirtio_pci_config_readb,
     .config_readw = qvirtio_pci_config_readw,
     .config_readl = qvirtio_pci_config_readl,
     .config_readq = qvirtio_pci_config_readq,
+    .get_features = qvirtio_pci_get_features,
+    .set_features = qvirtio_pci_set_features,
     .get_status = qvirtio_pci_get_status,
     .set_status = qvirtio_pci_set_status,
+    .get_isr_status = qvirtio_pci_get_isr_status,
+    .queue_select = qvirtio_pci_queue_select,
+    .get_queue_size = qvirtio_pci_get_queue_size,
+    .set_queue_address = qvirtio_pci_set_queue_address,
+    .virtqueue_setup = qvirtio_pci_virtqueue_setup,
+    .virtqueue_kick = qvirtio_pci_virtqueue_kick,
 };
 
 void qvirtio_pci_foreach(QPCIBus *bus, uint16_t device_type,

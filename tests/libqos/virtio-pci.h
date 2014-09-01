@@ -26,6 +26,8 @@
 #define QVIRTIO_DEVICE_SPECIFIC_MSIX    0x18
 #define QVIRTIO_DEVICE_SPECIFIC_NO_MSIX 0x14
 
+#define QVIRTIO_PCI_ALIGN   4096
+
 typedef struct QVirtioPCIDevice {
     QVirtioDevice vdev;
     QPCIDevice *pdev;
