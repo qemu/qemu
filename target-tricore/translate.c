@@ -27,6 +27,7 @@
 #include "exec/helper-gen.h"
 
 #include "tricore-opcodes.h"
+
 /*
  * TCG registers
  */
@@ -102,8 +103,258 @@ void tricore_cpu_dump_state(CPUState *cs, FILE *f,
 
 }
 
+/*
+ * Functions to generate micro-ops
+ */
+
+/* Functions for arithmetic instructions  */
+
+static inline void gen_add_d(TCGv ret, TCGv r1, TCGv r2)
+{
+    TCGv t0 = tcg_temp_new_i32();
+    TCGv result = tcg_temp_new_i32();
+    /* Addition and set V/SV bits */
+    tcg_gen_add_tl(result, r1, r2);
+    /* calc V bit */
+    tcg_gen_xor_tl(cpu_PSW_V, result, r1);
+    tcg_gen_xor_tl(t0, r1, r2);
+    tcg_gen_andc_tl(cpu_PSW_V, cpu_PSW_V, t0);
+    /* Calc SV bit */
+    tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);
+    /* Calc AV/SAV bits */
+    tcg_gen_add_tl(cpu_PSW_AV, result, result);
+    tcg_gen_xor_tl(cpu_PSW_AV, result, cpu_PSW_AV);
+    /* calc SAV */
+    tcg_gen_or_tl(cpu_PSW_SAV, cpu_PSW_SAV, cpu_PSW_AV);
+    /* write back result */
+    tcg_gen_mov_tl(ret, result);
+
+    tcg_temp_free(result);
+    tcg_temp_free(t0);
+}
+
+static inline void gen_addi_d(TCGv ret, TCGv r1, target_ulong r2)
+{
+    TCGv temp = tcg_const_i32(r2);
+    gen_add_d(ret, r1, temp);
+    tcg_temp_free(temp);
+}
+
+static inline void gen_cond_add(TCGCond cond, TCGv r1, TCGv r2, TCGv r3,
+                                TCGv r4)
+{
+    TCGv temp = tcg_temp_new();
+    TCGv temp2 = tcg_temp_new();
+    TCGv result = tcg_temp_new();
+    TCGv mask = tcg_temp_new();
+    TCGv t0 = tcg_const_i32(0);
+
+    /* create mask for sticky bits */
+    tcg_gen_setcond_tl(cond, mask, r4, t0);
+    tcg_gen_shli_tl(mask, mask, 31);
+
+    tcg_gen_add_tl(result, r1, r2);
+    /* Calc PSW_V */
+    tcg_gen_xor_tl(temp, result, r1);
+    tcg_gen_xor_tl(temp2, r1, r2);
+    tcg_gen_andc_tl(temp, temp, temp2);
+    tcg_gen_movcond_tl(cond, cpu_PSW_V, r4, t0, temp, cpu_PSW_V);
+    /* Set PSW_SV */
+    tcg_gen_and_tl(temp, temp, mask);
+    tcg_gen_or_tl(cpu_PSW_SV, temp, cpu_PSW_SV);
+    /* calc AV bit */
+    tcg_gen_add_tl(temp, result, result);
+    tcg_gen_xor_tl(temp, temp, result);
+    tcg_gen_movcond_tl(cond, cpu_PSW_AV, r4, t0, temp, cpu_PSW_AV);
+    /* calc SAV bit */
+    tcg_gen_and_tl(temp, temp, mask);
+    tcg_gen_or_tl(cpu_PSW_SAV, temp, cpu_PSW_SAV);
+    /* write back result */
+    tcg_gen_movcond_tl(cond, r3, r4, t0, result, r3);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(temp);
+    tcg_temp_free(temp2);
+    tcg_temp_free(result);
+    tcg_temp_free(mask);
+}
+
+static inline void gen_condi_add(TCGCond cond, TCGv r1, int32_t r2,
+                                 TCGv r3, TCGv r4)
+{
+    TCGv temp = tcg_const_i32(r2);
+    gen_cond_add(cond, r1, temp, r3, r4);
+    tcg_temp_free(temp);
+}
+
+static void gen_shi(TCGv ret, TCGv r1, int32_t shift_count)
+{
+    if (shift_count == -32) {
+        tcg_gen_movi_tl(ret, 0);
+    } else if (shift_count >= 0) {
+        tcg_gen_shli_tl(ret, r1, shift_count);
+    } else {
+        tcg_gen_shri_tl(ret, r1, -shift_count);
+    }
+}
+
+static void gen_shaci(TCGv ret, TCGv r1, int32_t shift_count)
+{
+    uint32_t msk, msk_start;
+    TCGv temp = tcg_temp_new();
+    TCGv temp2 = tcg_temp_new();
+    TCGv t_0 = tcg_const_i32(0);
+
+    if (shift_count == 0) {
+        /* Clear PSW.C and PSW.V */
+        tcg_gen_movi_tl(cpu_PSW_C, 0);
+        tcg_gen_mov_tl(cpu_PSW_V, cpu_PSW_C);
+        tcg_gen_mov_tl(ret, r1);
+    } else if (shift_count == -32) {
+        /* set PSW.C */
+        tcg_gen_mov_tl(cpu_PSW_C, r1);
+        /* fill ret completly with sign bit */
+        tcg_gen_sari_tl(ret, r1, 31);
+        /* clear PSW.V */
+        tcg_gen_movi_tl(cpu_PSW_V, 0);
+    } else if (shift_count > 0) {
+        TCGv t_max = tcg_const_i32(0x7FFFFFFF >> shift_count);
+        TCGv t_min = tcg_const_i32(((int32_t) -0x80000000) >> shift_count);
+
+        /* calc carry */
+        msk_start = 32 - shift_count;
+        msk = ((1 << shift_count) - 1) << msk_start;
+        tcg_gen_andi_tl(cpu_PSW_C, r1, msk);
+        /* calc v/sv bits */
+        tcg_gen_setcond_tl(TCG_COND_GT, temp, r1, t_max);
+        tcg_gen_setcond_tl(TCG_COND_LT, temp2, r1, t_min);
+        tcg_gen_or_tl(cpu_PSW_V, temp, temp2);
+        tcg_gen_shli_tl(cpu_PSW_V, cpu_PSW_V, 31);
+        /* calc sv */
+        tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_V, cpu_PSW_SV);
+        /* do shift */
+        tcg_gen_shli_tl(ret, r1, shift_count);
+
+        tcg_temp_free(t_max);
+        tcg_temp_free(t_min);
+    } else {
+        /* clear PSW.V */
+        tcg_gen_movi_tl(cpu_PSW_V, 0);
+        /* calc carry */
+        msk = (1 << -shift_count) - 1;
+        tcg_gen_andi_tl(cpu_PSW_C, r1, msk);
+        /* do shift */
+        tcg_gen_sari_tl(ret, r1, -shift_count);
+    }
+    /* calc av overflow bit */
+    tcg_gen_add_tl(cpu_PSW_AV, ret, ret);
+    tcg_gen_xor_tl(cpu_PSW_AV, ret, cpu_PSW_AV);
+    /* calc sav overflow bit */
+    tcg_gen_or_tl(cpu_PSW_SAV, cpu_PSW_SAV, cpu_PSW_AV);
+
+    tcg_temp_free(temp);
+    tcg_temp_free(temp2);
+    tcg_temp_free(t_0);
+}
+
+/*
+ * Functions for decoding instructions
+ */
+
+static void decode_src_opc(DisasContext *ctx, int op1)
+{
+    int r1;
+    int32_t const4;
+    TCGv temp, temp2;
+
+    r1 = MASK_OP_SRC_S1D(ctx->opcode);
+    const4 = MASK_OP_SRC_CONST4_SEXT(ctx->opcode);
+
+    switch (op1) {
+    case OPC1_16_SRC_ADD:
+        gen_addi_d(cpu_gpr_d[r1], cpu_gpr_d[r1], const4);
+        break;
+    case OPC1_16_SRC_ADD_A15:
+        gen_addi_d(cpu_gpr_d[r1], cpu_gpr_d[15], const4);
+        break;
+    case OPC1_16_SRC_ADD_15A:
+        gen_addi_d(cpu_gpr_d[15], cpu_gpr_d[r1], const4);
+        break;
+    case OPC1_16_SRC_ADD_A:
+        tcg_gen_addi_tl(cpu_gpr_a[r1], cpu_gpr_a[r1], const4);
+        break;
+    case OPC1_16_SRC_CADD:
+        gen_condi_add(TCG_COND_NE, cpu_gpr_d[r1], const4, cpu_gpr_d[r1],
+                      cpu_gpr_d[15]);
+        break;
+    case OPC1_16_SRC_CADDN:
+        gen_condi_add(TCG_COND_EQ, cpu_gpr_d[r1], const4, cpu_gpr_d[r1],
+                      cpu_gpr_d[15]);
+        break;
+    case OPC1_16_SRC_CMOV:
+        temp = tcg_const_tl(0);
+        temp2 = tcg_const_tl(const4);
+        tcg_gen_movcond_tl(TCG_COND_NE, cpu_gpr_d[r1], cpu_gpr_d[15], temp,
+                           temp2, cpu_gpr_d[r1]);
+        tcg_temp_free(temp);
+        tcg_temp_free(temp2);
+        break;
+    case OPC1_16_SRC_CMOVN:
+        temp = tcg_const_tl(0);
+        temp2 = tcg_const_tl(const4);
+        tcg_gen_movcond_tl(TCG_COND_EQ, cpu_gpr_d[r1], cpu_gpr_d[15], temp,
+                           temp2, cpu_gpr_d[r1]);
+        tcg_temp_free(temp);
+        tcg_temp_free(temp2);
+        break;
+    case OPC1_16_SRC_EQ:
+        tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_gpr_d[15], cpu_gpr_d[r1],
+                            const4);
+        break;
+    case OPC1_16_SRC_LT:
+        tcg_gen_setcondi_tl(TCG_COND_LT, cpu_gpr_d[15], cpu_gpr_d[r1],
+                            const4);
+        break;
+    case OPC1_16_SRC_MOV:
+        tcg_gen_movi_tl(cpu_gpr_d[r1], const4);
+        break;
+    case OPC1_16_SRC_MOV_A:
+        const4 = MASK_OP_SRC_CONST4(ctx->opcode);
+        tcg_gen_movi_tl(cpu_gpr_a[r1], const4);
+        break;
+    case OPC1_16_SRC_SH:
+        gen_shi(cpu_gpr_d[r1], cpu_gpr_d[r1], const4);
+        break;
+    case OPC1_16_SRC_SHA:
+        gen_shaci(cpu_gpr_d[r1], cpu_gpr_d[r1], const4);
+        break;
+    }
+}
+
 static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
+    int op1;
+
+    op1 = MASK_OP_MAJOR(ctx->opcode);
+
+    switch (op1) {
+    case OPC1_16_SRC_ADD:
+    case OPC1_16_SRC_ADD_A15:
+    case OPC1_16_SRC_ADD_15A:
+    case OPC1_16_SRC_ADD_A:
+    case OPC1_16_SRC_CADD:
+    case OPC1_16_SRC_CADDN:
+    case OPC1_16_SRC_CMOV:
+    case OPC1_16_SRC_CMOVN:
+    case OPC1_16_SRC_EQ:
+    case OPC1_16_SRC_LT:
+    case OPC1_16_SRC_MOV:
+    case OPC1_16_SRC_MOV_A:
+    case OPC1_16_SRC_SH:
+    case OPC1_16_SRC_SHA:
+        decode_src_opc(ctx, op1);
+        break;
+    }
 }
 
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
