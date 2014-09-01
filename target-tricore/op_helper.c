@@ -20,6 +20,49 @@
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
 
+#define SSOV(env, ret, arg, len) do {               \
+    int64_t max_pos = INT##len ##_MAX;              \
+    int64_t max_neg = INT##len ##_MIN;              \
+    if (arg > max_pos) {                            \
+        env->PSW_USB_V = (1 << 31);                 \
+        env->PSW_USB_SV = (1 << 31);                \
+        ret = (target_ulong)max_pos;                \
+    } else {                                        \
+        if (arg < max_neg) {                        \
+            env->PSW_USB_V = (1 << 31);             \
+            env->PSW_USB_SV = (1 << 31);            \
+            ret = (target_ulong)max_neg;            \
+        } else {                                    \
+            env->PSW_USB_V = 0;                     \
+            ret = (target_ulong)arg;                \
+        }                                           \
+    }                                               \
+    env->PSW_USB_AV = arg ^ arg * 2u;               \
+    env->PSW_USB_SAV |= env->PSW_USB_AV;            \
+} while (0)
+
+target_ulong helper_add_ssov(CPUTriCoreState *env, target_ulong r1,
+                             target_ulong r2)
+{
+    target_ulong ret;
+    int64_t t1 = sextract64(r1, 0, 32);
+    int64_t t2 = sextract64(r2, 0, 32);
+    int64_t result = t1 + t2;
+    SSOV(env, ret, result, 32);
+    return ret;
+}
+
+target_ulong helper_sub_ssov(CPUTriCoreState *env, target_ulong r1,
+                             target_ulong r2)
+{
+    target_ulong ret;
+    int64_t t1 = sextract64(r1, 0, 32);
+    int64_t t2 = sextract64(r2, 0, 32);
+    int64_t result = t1 - t2;
+    SSOV(env, ret, result, 32);
+    return ret;
+}
+
 static inline void QEMU_NORETURN do_raise_exception_err(CPUTriCoreState *env,
                                                         uint32_t exception,
                                                         int error_code,
