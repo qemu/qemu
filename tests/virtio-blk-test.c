@@ -377,6 +377,39 @@ static void pci_indirect(void)
     test_end();
 }
 
+static void pci_config(void)
+{
+    QVirtioPCIDevice *dev;
+    QPCIBus *bus;
+    int n_size = TEST_IMAGE_SIZE / 2;
+    void *addr;
+    uint64_t capacity;
+
+    bus = test_start();
+
+    dev = virtio_blk_init(bus);
+
+    /* MSI-X is not enabled */
+    addr = dev->addr + QVIRTIO_DEVICE_SPECIFIC_NO_MSIX;
+
+    capacity = qvirtio_config_readq(&qvirtio_pci, &dev->vdev, addr);
+    g_assert_cmpint(capacity, ==, TEST_IMAGE_SIZE / 512);
+
+    qvirtio_set_driver_ok(&qvirtio_pci, &dev->vdev);
+
+    qmp("{ 'execute': 'block_resize', 'arguments': { 'device': 'drive0', "
+                                                    " 'size': %d } }", n_size);
+    g_assert(qvirtio_wait_isr(&qvirtio_pci, &dev->vdev, 0x2,
+                                                        QVIRTIO_BLK_TIMEOUT));
+
+    capacity = qvirtio_config_readq(&qvirtio_pci, &dev->vdev, addr);
+    g_assert_cmpint(capacity, ==, n_size / 512);
+
+    qvirtio_pci_device_disable(dev);
+    g_free(dev);
+    test_end();
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -385,6 +418,7 @@ int main(int argc, char **argv)
 
     g_test_add_func("/virtio/blk/pci/basic", pci_basic);
     g_test_add_func("/virtio/blk/pci/indirect", pci_indirect);
+    g_test_add_func("/virtio/blk/pci/config", pci_config);
 
     ret = g_test_run();
 
