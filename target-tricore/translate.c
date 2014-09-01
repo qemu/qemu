@@ -26,6 +26,7 @@
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
+#include "tricore-opcodes.h"
 /*
  * TCG registers
  */
