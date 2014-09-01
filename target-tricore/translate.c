@@ -716,6 +716,84 @@ static void decode_sc_opc(DisasContext *ctx, int op1)
         break;
     }
 }
+
+static void decode_slr_opc(DisasContext *ctx, int op1)
+{
+    int r1, r2;
+
+    r1 = MASK_OP_SLR_D(ctx->opcode);
+    r2 = MASK_OP_SLR_S2(ctx->opcode);
+
+    switch (op1) {
+/* SLR-format */
+    case OPC1_16_SLR_LD_A:
+        tcg_gen_qemu_ld_tl(cpu_gpr_a[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LESL);
+        break;
+    case OPC1_16_SLR_LD_A_POSTINC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_a[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LESL);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], 4);
+        break;
+    case OPC1_16_SLR_LD_BU:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_UB);
+        break;
+    case OPC1_16_SLR_LD_BU_POSTINC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_UB);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], 1);
+        break;
+    case OPC1_16_SLR_LD_H:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LESW);
+        break;
+    case OPC1_16_SLR_LD_H_POSTINC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LESW);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], 2);
+        break;
+    case OPC1_16_SLR_LD_W:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LESW);
+        break;
+    case OPC1_16_SLR_LD_W_POSTINC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LESW);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], 4);
+        break;
+    }
+}
+
+static void decode_sro_opc(DisasContext *ctx, int op1)
+{
+    int r2;
+    int32_t address;
+
+    r2 = MASK_OP_SRO_S2(ctx->opcode);
+    address = MASK_OP_SRO_OFF4(ctx->opcode);
+
+/* SRO-format */
+    switch (op1) {
+    case OPC1_16_SRO_LD_A:
+        gen_offset_ld(ctx, cpu_gpr_a[15], cpu_gpr_a[r2], address * 4, MO_LESL);
+        break;
+    case OPC1_16_SRO_LD_BU:
+        gen_offset_ld(ctx, cpu_gpr_d[15], cpu_gpr_a[r2], address, MO_UB);
+        break;
+    case OPC1_16_SRO_LD_H:
+        gen_offset_ld(ctx, cpu_gpr_d[15], cpu_gpr_a[r2], address, MO_LESW);
+        break;
+    case OPC1_16_SRO_LD_W:
+        gen_offset_ld(ctx, cpu_gpr_d[15], cpu_gpr_a[r2], address * 4, MO_LESL);
+        break;
+    case OPC1_16_SRO_ST_A:
+        gen_offset_st(ctx, cpu_gpr_a[15], cpu_gpr_a[r2], address * 4, MO_LESL);
+        break;
+    case OPC1_16_SRO_ST_B:
+        gen_offset_st(ctx, cpu_gpr_d[15], cpu_gpr_a[r2], address, MO_UB);
+        break;
+    case OPC1_16_SRO_ST_H:
+        gen_offset_st(ctx, cpu_gpr_d[15], cpu_gpr_a[r2], address * 2, MO_LESW);
+        break;
+    case OPC1_16_SRO_ST_W:
+        gen_offset_st(ctx, cpu_gpr_d[15], cpu_gpr_a[r2], address * 4, MO_LESL);
+        break;
+    }
+}
+
 static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -863,6 +941,49 @@ static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     case OPC1_16_SC_ST_W:
     case OPC1_16_SC_SUB_A:
         decode_sc_opc(ctx, op1);
+        break;
+/* SLR-format */
+    case OPC1_16_SLR_LD_A:
+    case OPC1_16_SLR_LD_A_POSTINC:
+    case OPC1_16_SLR_LD_BU:
+    case OPC1_16_SLR_LD_BU_POSTINC:
+    case OPC1_16_SLR_LD_H:
+    case OPC1_16_SLR_LD_H_POSTINC:
+    case OPC1_16_SLR_LD_W:
+    case OPC1_16_SLR_LD_W_POSTINC:
+        decode_slr_opc(ctx, op1);
+        break;
+/* SRO-format */
+    case OPC1_16_SRO_LD_A:
+    case OPC1_16_SRO_LD_BU:
+    case OPC1_16_SRO_LD_H:
+    case OPC1_16_SRO_LD_W:
+    case OPC1_16_SRO_ST_A:
+    case OPC1_16_SRO_ST_B:
+    case OPC1_16_SRO_ST_H:
+    case OPC1_16_SRO_ST_W:
+        decode_sro_opc(ctx, op1);
+        break;
+/* SSRO-format */
+    case OPC1_16_SSRO_ST_A:
+        r1 = MASK_OP_SSRO_S1(ctx->opcode);
+        const16 = MASK_OP_SSRO_OFF4(ctx->opcode);
+        gen_offset_st(ctx, cpu_gpr_a[r1], cpu_gpr_a[15], const16 * 4, MO_LESL);
+        break;
+    case OPC1_16_SSRO_ST_B:
+        r1 = MASK_OP_SSRO_S1(ctx->opcode);
+        const16 = MASK_OP_SSRO_OFF4(ctx->opcode);
+        gen_offset_st(ctx, cpu_gpr_d[r1], cpu_gpr_a[15], const16, MO_UB);
+        break;
+    case OPC1_16_SSRO_ST_H:
+        r1 = MASK_OP_SSRO_S1(ctx->opcode);
+        const16 = MASK_OP_SSRO_OFF4(ctx->opcode);
+        gen_offset_st(ctx, cpu_gpr_d[r1], cpu_gpr_a[15], const16 * 2, MO_LESW);
+        break;
+    case OPC1_16_SSRO_ST_W:
+        r1 = MASK_OP_SSRO_S1(ctx->opcode);
+        const16 = MASK_OP_SSRO_OFF4(ctx->opcode);
+        gen_offset_st(ctx, cpu_gpr_d[r1], cpu_gpr_a[15], const16 * 4, MO_LESL);
         break;
     }
 }
