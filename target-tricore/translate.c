@@ -388,6 +388,18 @@ static inline void gen_branch_condi(DisasContext *ctx, TCGCond cond, TCGv r1,
     tcg_temp_free(temp);
 }
 
+static void gen_loop(DisasContext *ctx, int r1, int32_t offset)
+{
+    int l1;
+    l1 = gen_new_label();
+
+    tcg_gen_subi_tl(cpu_gpr_a[r1], cpu_gpr_a[r1], 1);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_gpr_a[r1], -1, l1);
+    gen_goto_tb(ctx, 1, ctx->pc + offset);
+    gen_set_label(l1);
+    gen_goto_tb(ctx, 0, ctx->next_pc);
+}
+
 static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
                                int r2 , int32_t constant , int32_t offset)
 {
@@ -429,8 +441,44 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
         gen_branch_condi(ctx, TCG_COND_NE, temp, 0, offset);
         tcg_temp_free(temp);
         break;
+/* SBR-format jumps */
+    case OPC1_16_SBR_JEQ:
+        gen_branch_cond(ctx, TCG_COND_EQ, cpu_gpr_d[r1], cpu_gpr_d[15],
+                        offset);
+        break;
+    case OPC1_16_SBR_JNE:
+        gen_branch_cond(ctx, TCG_COND_NE, cpu_gpr_d[r1], cpu_gpr_d[15],
+                        offset);
+        break;
+    case OPC1_16_SBR_JNZ:
+        gen_branch_condi(ctx, TCG_COND_NE, cpu_gpr_d[r1], 0, offset);
+        break;
+    case OPC1_16_SBR_JNZ_A:
+        gen_branch_condi(ctx, TCG_COND_NE, cpu_gpr_a[r1], 0, offset);
+        break;
+    case OPC1_16_SBR_JGEZ:
+        gen_branch_condi(ctx, TCG_COND_GE, cpu_gpr_d[r1], 0, offset);
+        break;
+    case OPC1_16_SBR_JGTZ:
+        gen_branch_condi(ctx, TCG_COND_GT, cpu_gpr_d[r1], 0, offset);
+        break;
+    case OPC1_16_SBR_JLEZ:
+        gen_branch_condi(ctx, TCG_COND_LE, cpu_gpr_d[r1], 0, offset);
+        break;
+    case OPC1_16_SBR_JLTZ:
+        gen_branch_condi(ctx, TCG_COND_LT, cpu_gpr_d[r1], 0, offset);
+        break;
+    case OPC1_16_SBR_JZ:
+        gen_branch_condi(ctx, TCG_COND_EQ, cpu_gpr_d[r1], 0, offset);
+        break;
+    case OPC1_16_SBR_JZ_A:
+        gen_branch_condi(ctx, TCG_COND_EQ, cpu_gpr_a[r1], 0, offset);
+        break;
+    case OPC1_16_SBR_LOOP:
+        gen_loop(ctx, r1, offset * 2 - 32);
+        break;
     default:
-            printf("Branch Error at %x\n", ctx->pc);
+        printf("Branch Error at %x\n", ctx->pc);
     }
     ctx->bstate = BS_BRANCH;
 }
@@ -751,6 +799,22 @@ static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         address = MASK_OP_SBRN_DISP4(ctx->opcode);
         const16 = MASK_OP_SBRN_N(ctx->opcode);
         gen_compute_branch(ctx, op1, 0, 0, const16, address);
+        break;
+/* SBR-format */
+    case OPC1_16_SBR_JEQ:
+    case OPC1_16_SBR_JGEZ:
+    case OPC1_16_SBR_JGTZ:
+    case OPC1_16_SBR_JLEZ:
+    case OPC1_16_SBR_JLTZ:
+    case OPC1_16_SBR_JNE:
+    case OPC1_16_SBR_JNZ:
+    case OPC1_16_SBR_JNZ_A:
+    case OPC1_16_SBR_JZ:
+    case OPC1_16_SBR_JZ_A:
+    case OPC1_16_SBR_LOOP:
+        r1 = MASK_OP_SBR_S2(ctx->opcode);
+        address = MASK_OP_SBR_DISP4(ctx->opcode);
+        gen_compute_branch(ctx, op1, r1, 0, 0, address);
         break;
     }
 }
