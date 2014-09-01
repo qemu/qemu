@@ -4334,6 +4334,7 @@ int main(int argc, char **argv, char **envp)
     qemu_spice_init();
 #endif
 
+    cpu_ticks_init();
     if (icount_opts) {
         if (kvm_enabled() || xen_enabled()) {
             fprintf(stderr, "-icount is not allowed with kvm or xen\n");

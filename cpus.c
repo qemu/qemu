@@ -493,13 +493,17 @@ static const VMStateDescription vmstate_timers = {
     }
 };
 
+void cpu_ticks_init(void)
+{
+    seqlock_init(&timers_state.vm_clock_seqlock, NULL);
+    vmstate_register(NULL, 0, &vmstate_timers, &timers_state);
+}
+
 void configure_icount(QemuOpts *opts, Error **errp)
 {
     const char *option;
     char *rem_str = NULL;
 
-    seqlock_init(&timers_state.vm_clock_seqlock, NULL);
-    vmstate_register(NULL, 0, &vmstate_timers, &timers_state);
     option = qemu_opt_get(opts, "shift");
     if (!option) {
         if (qemu_opt_get(opts, "align") != NULL) {
