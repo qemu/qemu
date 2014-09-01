@@ -99,6 +99,21 @@ static int cdc_decrement(target_ulong *psw)
     return 0;
 }
 
+static bool cdc_zero(target_ulong *psw)
+{
+    int cdc = *psw & MASK_PSW_CDC;
+    /* Returns TRUE if PSW.CDC.COUNT == 0 or if PSW.CDC ==
+       7'b1111111, otherwise returns FALSE. */
+    if (cdc == 0x7f) {
+        return true;
+    }
+    /* find CDC.COUNT */
+    int lo = clo32((*psw & MASK_PSW_CDC) << (32 - 7));
+    int mask = (1u << (7 - lo)) - 1;
+    int count = *psw & mask;
+    return count == 0;
+}
+
 static void save_context_upper(CPUTriCoreState *env, int ea,
                                target_ulong *new_FCX)
 {
@@ -300,6 +315,43 @@ void helper_bisr(CPUTriCoreState *env, uint32_t const9)
     if (tmp_FCX == env->LCX) {
         /* FCD trap */
     }
+}
+
+void helper_rfe(CPUTriCoreState *env)
+{
+    target_ulong ea;
+    target_ulong new_PCXI;
+    target_ulong new_PSW;
+    /* if (PCXI[19: 0] == 0) then trap(CSU); */
+    if ((env->PCXI & 0xfffff) == 0) {
+        /* raise csu trap */
+    }
+    /* if (PCXI.UL == 0) then trap(CTYP); */
+    if ((env->PCXI & MASK_PCXI_UL) == 0) {
+        /* raise CTYP trap */
+    }
+    /* if (!cdc_zero() AND PSW.CDE) then trap(NEST); */
+    if (!cdc_zero(&(env->PSW)) && (env->PSW & MASK_PSW_CDE)) {
+        /* raise MNG trap */
+    }
+    /* ICR.IE = PCXI.PIE; */
+    env->ICR = (env->ICR & ~MASK_ICR_IE) + ((env->PCXI & MASK_PCXI_PIE) >> 15);
+    /* ICR.CCPN = PCXI.PCPN; */
+    env->ICR = (env->ICR & ~MASK_ICR_CCPN) +
+               ((env->PCXI & MASK_PCXI_PCPN) >> 24);
+    /*EA = {PCXI.PCXS, 6'b0, PCXI.PCXO, 6'b0};*/
+    ea = ((env->PCXI & MASK_PCXI_PCXS) << 12) +
+         ((env->PCXI & MASK_PCXI_PCXO) << 6);
+    /*{new_PCXI, PSW, A[10], A[11], D[8], D[9], D[10], D[11], A[12],
+      A[13], A[14], A[15], D[12], D[13], D[14], D[15]} = M(EA, 16 * word);
+      M(EA, word) = FCX;*/
+    restore_context_upper(env, ea, &new_PCXI, &new_PSW);
+    /* FCX[19: 0] = PCXI[19: 0]; */
+    env->FCX = (env->FCX & 0xfff00000) + (env->PCXI & 0x000fffff);
+    /* PCXI = new_PCXI; */
+    env->PCXI = new_PCXI;
+    /* write psw */
+    psw_write(env, new_PSW);
 }
 
 static inline void QEMU_NORETURN do_raise_exception_err(CPUTriCoreState *env,

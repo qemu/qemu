@@ -262,6 +262,29 @@ static inline void gen_mul_i32s(TCGv ret, TCGv r1, TCGv r2)
     tcg_temp_free(low);
 }
 
+static void gen_saturate(TCGv ret, TCGv arg, int32_t up, int32_t low)
+{
+    TCGv sat_neg = tcg_const_i32(low);
+    TCGv temp = tcg_const_i32(up);
+
+    /* sat_neg = (arg < low ) ? low : arg; */
+    tcg_gen_movcond_tl(TCG_COND_LT, sat_neg, arg, sat_neg, sat_neg, arg);
+
+    /* ret = (sat_neg > up ) ? up  : sat_neg; */
+    tcg_gen_movcond_tl(TCG_COND_GT, ret, sat_neg, temp, temp, sat_neg);
+
+    tcg_temp_free(sat_neg);
+    tcg_temp_free(temp);
+}
+
+static void gen_saturate_u(TCGv ret, TCGv arg, int32_t up)
+{
+    TCGv temp = tcg_const_i32(up);
+    /* sat_neg = (arg > up ) ? up : arg; */
+    tcg_gen_movcond_tl(TCG_COND_GTU, ret, arg, temp, temp, arg);
+    tcg_temp_free(temp);
+}
+
 static void gen_shi(TCGv ret, TCGv r1, int32_t shift_count)
 {
     if (shift_count == -32) {
@@ -476,6 +499,15 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
         break;
     case OPC1_16_SBR_LOOP:
         gen_loop(ctx, r1, offset * 2 - 32);
+        break;
+/* SR-format jumps */
+    case OPC1_16_SR_JI:
+        tcg_gen_andi_tl(cpu_PC, cpu_gpr_a[r1], 0xfffffffe);
+        tcg_gen_exit_tb(0);
+        break;
+    case OPC2_16_SR_RET:
+        gen_helper_ret(cpu_env);
+        tcg_gen_exit_tb(0);
         break;
     default:
         printf("Branch Error at %x\n", ctx->pc);
@@ -794,6 +826,70 @@ static void decode_sro_opc(DisasContext *ctx, int op1)
     }
 }
 
+static void decode_sr_system(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    op2 = MASK_OP_SR_OP2(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_16_SR_NOP:
+        break;
+    case OPC2_16_SR_RET:
+        gen_compute_branch(ctx, op2, 0, 0, 0, 0);
+        break;
+    case OPC2_16_SR_RFE:
+        gen_helper_rfe(cpu_env);
+        tcg_gen_exit_tb(0);
+        ctx->bstate = BS_BRANCH;
+        break;
+    case OPC2_16_SR_DEBUG:
+        /* raise EXCP_DEBUG */
+        break;
+    }
+}
+
+static void decode_sr_accu(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    uint32_t r1;
+    TCGv temp;
+
+    r1 = MASK_OP_SR_S1D(ctx->opcode);
+    op2 = MASK_OP_SR_OP2(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_16_SR_RSUB:
+        /* overflow only if r1 = -0x80000000 */
+        temp = tcg_const_i32(-0x80000000);
+        /* calc V bit */
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_PSW_V, cpu_gpr_d[r1], temp);
+        tcg_gen_shli_tl(cpu_PSW_V, cpu_PSW_V, 31);
+        /* calc SV bit */
+        tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);
+        /* sub */
+        tcg_gen_neg_tl(cpu_gpr_d[r1], cpu_gpr_d[r1]);
+        /* calc av */
+        tcg_gen_add_tl(cpu_PSW_AV, cpu_gpr_d[r1], cpu_gpr_d[r1]);
+        tcg_gen_xor_tl(cpu_PSW_AV, cpu_gpr_d[r1], cpu_PSW_AV);
+        /* calc sav */
+        tcg_gen_or_tl(cpu_PSW_SAV, cpu_PSW_SAV, cpu_PSW_AV);
+        tcg_temp_free(temp);
+        break;
+    case OPC2_16_SR_SAT_B:
+        gen_saturate(cpu_gpr_d[r1], cpu_gpr_d[r1], 0x7f, -0x80);
+        break;
+    case OPC2_16_SR_SAT_BU:
+        gen_saturate_u(cpu_gpr_d[r1], cpu_gpr_d[r1], 0xff);
+        break;
+    case OPC2_16_SR_SAT_H:
+        gen_saturate(cpu_gpr_d[r1], cpu_gpr_d[r1], 0x7fff, -0x8000);
+        break;
+    case OPC2_16_SR_SAT_HU:
+        gen_saturate_u(cpu_gpr_d[r1], cpu_gpr_d[r1], 0xffff);
+        break;
+    }
+}
+
 static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -984,6 +1080,21 @@ static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         r1 = MASK_OP_SSRO_S1(ctx->opcode);
         const16 = MASK_OP_SSRO_OFF4(ctx->opcode);
         gen_offset_st(ctx, cpu_gpr_d[r1], cpu_gpr_a[15], const16 * 4, MO_LESL);
+        break;
+/* SR-format */
+    case OPCM_16_SR_SYSTEM:
+        decode_sr_system(env, ctx);
+        break;
+    case OPCM_16_SR_ACCU:
+        decode_sr_accu(env, ctx);
+        break;
+    case OPC1_16_SR_JI:
+        r1 = MASK_OP_SR_S1D(ctx->opcode);
+        gen_compute_branch(ctx, op1, r1, 0, 0, 0);
+        break;
+    case OPC1_16_SR_NOT:
+        r1 = MASK_OP_SR_S1D(ctx->opcode);
+        tcg_gen_not_tl(cpu_gpr_d[r1], cpu_gpr_d[r1]);
         break;
     }
 }
