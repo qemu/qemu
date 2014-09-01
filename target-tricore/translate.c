@@ -107,6 +107,14 @@ void tricore_cpu_dump_state(CPUState *cs, FILE *f,
  * Functions to generate micro-ops
  */
 
+/* Makros for generating helpers */
+
+#define gen_helper_1arg(name, arg) do {                           \
+    TCGv_i32 helper_tmp = tcg_const_i32(arg);                     \
+    gen_helper_##name(cpu_env, helper_tmp);                       \
+    tcg_temp_free_i32(helper_tmp);                                \
+    } while (0)
+
 /* Functions for load/save to/from memory */
 
 static inline void gen_offset_ld(DisasContext *ctx, TCGv r1, TCGv r2,
@@ -334,6 +342,78 @@ static inline void gen_subs(TCGv ret, TCGv r1, TCGv r2)
     gen_helper_sub_ssov(ret, cpu_env, r1, r2);
 }
 
+/* helpers for generating program flow micro-ops */
+
+static inline void gen_save_pc(target_ulong pc)
+{
+    tcg_gen_movi_tl(cpu_PC, pc);
+}
+
+static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
+{
+    TranslationBlock *tb;
+    tb = ctx->tb;
+    if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK) &&
+        likely(!ctx->singlestep_enabled)) {
+        tcg_gen_goto_tb(n);
+        gen_save_pc(dest);
+        tcg_gen_exit_tb((uintptr_t)tb + n);
+    } else {
+        gen_save_pc(dest);
+        if (ctx->singlestep_enabled) {
+            /* raise exception debug */
+        }
+        tcg_gen_exit_tb(0);
+    }
+}
+
+static inline void gen_branch_cond(DisasContext *ctx, TCGCond cond, TCGv r1,
+                                   TCGv r2, int16_t address)
+{
+    int jumpLabel;
+    jumpLabel = gen_new_label();
+    tcg_gen_brcond_tl(cond, r1, r2, jumpLabel);
+
+    gen_goto_tb(ctx, 1, ctx->next_pc);
+
+    gen_set_label(jumpLabel);
+    gen_goto_tb(ctx, 0, ctx->pc + address * 2);
+}
+
+static inline void gen_branch_condi(DisasContext *ctx, TCGCond cond, TCGv r1,
+                                    int r2, int16_t address)
+{
+    TCGv temp = tcg_const_i32(r2);
+    gen_branch_cond(ctx, cond, r1, temp, address);
+    tcg_temp_free(temp);
+}
+
+static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
+                               int r2 , int32_t constant , int32_t offset)
+{
+    switch (opc) {
+/* SB-format jumps */
+    case OPC1_16_SB_J:
+    case OPC1_32_B_J:
+        gen_goto_tb(ctx, 0, ctx->pc + offset * 2);
+        break;
+    case OPC1_16_SB_CALL:
+        gen_helper_1arg(call, ctx->next_pc);
+        gen_goto_tb(ctx, 0, ctx->pc + offset * 2);
+        break;
+    case OPC1_16_SB_JZ:
+        gen_branch_condi(ctx, TCG_COND_EQ, cpu_gpr_d[15], 0, offset);
+        break;
+    case OPC1_16_SB_JNZ:
+        gen_branch_condi(ctx, TCG_COND_NE, cpu_gpr_d[15], 0, offset);
+        break;
+    default:
+            printf("Branch Error at %x\n", ctx->pc);
+    }
+    ctx->bstate = BS_BRANCH;
+}
+
+
 /*
  * Functions for decoding instructions
  */
@@ -535,6 +615,7 @@ static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     int op1;
     int r1, r2;
     int32_t const16;
+    int32_t address;
     TCGv temp;
 
     op1 = MASK_OP_MAJOR(ctx->opcode);
@@ -627,6 +708,14 @@ static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         const16 = MASK_OP_SLRO_OFF4(ctx->opcode);
         gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[15], const16 * 4, MO_LESL);
         break;
+/* SB-format */
+    case OPC1_16_SB_CALL:
+    case OPC1_16_SB_J:
+    case OPC1_16_SB_JNZ:
+    case OPC1_16_SB_JZ:
+        address = MASK_OP_SB_DISP8_SEXT(ctx->opcode);
+        gen_compute_branch(ctx, op1, 0, 0, 0, address);
+        break;
     }
 }
 
@@ -681,9 +770,13 @@ gen_intermediate_code_internal(TriCoreCPU *cpu, struct TranslationBlock *tb,
         num_insns++;
 
         if (tcg_ctx.gen_opc_ptr >= gen_opc_end) {
+            gen_save_pc(ctx.next_pc);
+            tcg_gen_exit_tb(0);
             break;
         }
         if (singlestep) {
+            gen_save_pc(ctx.next_pc);
+            tcg_gen_exit_tb(0);
             break;
         }
         ctx.pc = ctx.next_pc;
