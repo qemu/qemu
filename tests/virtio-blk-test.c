@@ -496,6 +496,129 @@ static void pci_msix(void)
 
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
+
+    g_assert(qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
+                                                        QVIRTIO_BLK_TIMEOUT));
+
+    status = readb(req_addr + 528);
+    g_assert_cmpint(status, ==, 0);
+
+    data = g_malloc0(512);
+    memread(req_addr + 16, data, 512);
+    g_assert_cmpstr(data, ==, "TEST");
+    g_free(data);
+
+    guest_free(alloc, req_addr);
+
+    /* End test */
+    guest_free(alloc, (uint64_t)vqpci->vq.desc);
+    qpci_msix_disable(dev->pdev);
+    qvirtio_pci_device_disable(dev);
+    g_free(dev);
+    test_end();
+}
+
+static void pci_idx(void)
+{
+    QVirtioPCIDevice *dev;
+    QPCIBus *bus;
+    QVirtQueuePCI *vqpci;
+    QGuestAllocator *alloc;
+    QVirtioBlkReq req;
+    void *addr;
+    uint64_t req_addr;
+    uint64_t capacity;
+    uint32_t features;
+    uint32_t free_head;
+    uint8_t status;
+    char *data;
+
+    bus = test_start();
+    alloc = pc_alloc_init();
+
+    dev = virtio_blk_init(bus);
+    qpci_msix_enable(dev->pdev);
+
+    qvirtio_pci_set_msix_configuration_vector(dev, alloc, 0);
+
+    /* MSI-X is enabled */
+    addr = dev->addr + QVIRTIO_DEVICE_SPECIFIC_MSIX;
+
+    capacity = qvirtio_config_readq(&qvirtio_pci, &dev->vdev, addr);
+    g_assert_cmpint(capacity, ==, TEST_IMAGE_SIZE / 512);
+
+    features = qvirtio_get_features(&qvirtio_pci, &dev->vdev);
+    features = features & ~(QVIRTIO_F_BAD_FEATURE |
+                            QVIRTIO_F_RING_INDIRECT_DESC |
+                            QVIRTIO_F_NOTIFY_ON_EMPTY | QVIRTIO_BLK_F_SCSI);
+    qvirtio_set_features(&qvirtio_pci, &dev->vdev, features);
+
+    vqpci = (QVirtQueuePCI *)qvirtqueue_setup(&qvirtio_pci, &dev->vdev,
+                                                                    alloc, 0);
+    qvirtqueue_pci_msix_setup(dev, vqpci, alloc, 1);
+
+    qvirtio_set_driver_ok(&qvirtio_pci, &dev->vdev);
+
+    /* Write request */
+    req.type = QVIRTIO_BLK_T_OUT;
+    req.ioprio = 1;
+    req.sector = 0;
+    req.data = g_malloc0(512);
+    strcpy(req.data, "TEST");
+
+    req_addr = virtio_blk_request(alloc, &req, 512);
+
+    g_free(req.data);
+
+    free_head = qvirtqueue_add(&vqpci->vq, req_addr, 528, false, true);
+    qvirtqueue_add(&vqpci->vq, req_addr + 528, 1, true, false);
+    qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
+
+    g_assert(qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
+                                                        QVIRTIO_BLK_TIMEOUT));
+
+    /* Write request */
+    req.type = QVIRTIO_BLK_T_OUT;
+    req.ioprio = 1;
+    req.sector = 1;
+    req.data = g_malloc0(512);
+    strcpy(req.data, "TEST");
+
+    req_addr = virtio_blk_request(alloc, &req, 512);
+
+    g_free(req.data);
+
+    /* Notify after processing the third request */
+    qvirtqueue_set_used_event(&vqpci->vq, 2);
+    free_head = qvirtqueue_add(&vqpci->vq, req_addr, 528, false, true);
+    qvirtqueue_add(&vqpci->vq, req_addr + 528, 1, true, false);
+    qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
+
+    /* No notification expected */
+    g_assert(!qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
+                                                        QVIRTIO_BLK_TIMEOUT));
+
+    status = readb(req_addr + 528);
+    g_assert_cmpint(status, ==, 0);
+
+    guest_free(alloc, req_addr);
+
+    /* Read request */
+    req.type = QVIRTIO_BLK_T_IN;
+    req.ioprio = 1;
+    req.sector = 1;
+    req.data = g_malloc0(512);
+
+    req_addr = virtio_blk_request(alloc, &req, 512);
+
+    g_free(req.data);
+
+    free_head = qvirtqueue_add(&vqpci->vq, req_addr, 16, false, true);
+    qvirtqueue_add(&vqpci->vq, req_addr + 16, 513, true, false);
+
+    qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
+
+
     g_assert(qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
                                                         QVIRTIO_BLK_TIMEOUT));
 
@@ -527,6 +650,7 @@ int main(int argc, char **argv)
     g_test_add_func("/virtio/blk/pci/indirect", pci_indirect);
     g_test_add_func("/virtio/blk/pci/config", pci_config);
     g_test_add_func("/virtio/blk/pci/msix", pci_msix);
+    g_test_add_func("/virtio/blk/pci/idx", pci_idx);
 
     ret = g_test_run();
 

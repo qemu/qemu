@@ -124,9 +124,13 @@ void qvring_init(const QGuestAllocator *alloc, QVirtQueue *vq, uint64_t addr)
     writew(vq->avail, 0);
     /* vq->avail->idx */
     writew(vq->avail + 2, 0);
+    /* vq->avail->used_event */
+    writew(vq->avail + 4 + (2 * vq->size), 0);
 
     /* vq->used->flags */
     writew(vq->used, 0);
+    /* vq->used->avail_event */
+    writew(vq->used+2+(sizeof(struct QVRingUsedElem)*vq->size), 0);
 }
 
 QVRingIndirectDesc *qvring_indirect_desc_setup(QVirtioDevice *d,
@@ -222,11 +226,32 @@ void qvirtqueue_kick(const QVirtioBus *bus, QVirtioDevice *d, QVirtQueue *vq,
 {
     /* vq->avail->idx */
     uint16_t idx = readl(vq->avail + 2);
+    /* vq->used->flags */
+    uint16_t flags;
+    /* vq->used->avail_event */
+    uint16_t avail_event;
 
     /* vq->avail->ring[idx % vq->size] */
     writel(vq->avail + 4 + (2 * (idx % vq->size)), free_head);
     /* vq->avail->idx */
     writel(vq->avail + 2, idx + 1);
 
-    bus->virtqueue_kick(d, vq);
+    /* Must read after idx is updated */
+    flags = readw(vq->avail);
+    avail_event = readw(vq->used + 4 +
+                                (sizeof(struct QVRingUsedElem) * vq->size));
+
+    /* < 1 because we add elements to avail queue one by one */
+    if ((flags & QVRING_USED_F_NO_NOTIFY) == 0 &&
+                            (!vq->event || (uint16_t)(idx-avail_event) < 1)) {
+        bus->virtqueue_kick(d, vq);
+    }
+}
+
+void qvirtqueue_set_used_event(QVirtQueue *vq, uint16_t idx)
+{
+    g_assert(vq->event);
+
+    /* vq->avail->used_event */
+    writew(vq->avail + 4 + (2 * vq->size), idx);
 }

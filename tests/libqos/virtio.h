@@ -26,6 +26,7 @@
 #define QVIRTIO_F_ANY_LAYOUT            0x08000000
 #define QVIRTIO_F_RING_INDIRECT_DESC    0x10000000
 #define QVIRTIO_F_RING_EVENT_IDX        0x20000000
+#define QVIRTIO_F_BAD_FEATURE           0x40000000
 
 #define QVRING_DESC_F_NEXT      0x1
 #define QVRING_DESC_F_WRITE     0x2
@@ -57,6 +58,7 @@ typedef struct QVRingAvail {
     uint16_t flags;
     uint16_t idx;
     uint16_t ring[0]; /* This is an array of uint16_t */
+    uint16_t used_event;
 } QVRingAvail;
 
 typedef struct QVRingUsedElem {
@@ -68,6 +70,7 @@ typedef struct QVRingUsed {
     uint16_t flags;
     uint16_t idx;
     QVRingUsedElem ring[0]; /* This is an array of QVRingUsedElem structs */
+    uint16_t avail_event;
 } QVRingUsed;
 
 typedef struct QVirtQueue {
@@ -80,6 +83,7 @@ typedef struct QVirtQueue {
     uint32_t num_free;
     uint32_t align;
     bool indirect;
+    bool event;
 } QVirtQueue;
 
 typedef struct QVRingIndirectDesc {
@@ -174,4 +178,5 @@ uint32_t qvirtqueue_add_indirect(QVirtQueue *vq, QVRingIndirectDesc *indirect);
 void qvirtqueue_kick(const QVirtioBus *bus, QVirtioDevice *d, QVirtQueue *vq,
                                                             uint32_t free_head);
 
+void qvirtqueue_set_used_event(QVirtQueue *vq, uint16_t idx);
 #endif

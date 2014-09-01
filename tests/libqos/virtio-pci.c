@@ -203,6 +203,7 @@ static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
     vqpci->vq.num_free = vqpci->vq.size;
     vqpci->vq.align = QVIRTIO_PCI_ALIGN;
     vqpci->vq.indirect = (feat & QVIRTIO_F_RING_INDIRECT_DESC) != 0;
+    vqpci->vq.event = (feat & QVIRTIO_F_RING_EVENT_IDX) != 0;
 
     vqpci->msix_entry = -1;
     vqpci->msix_addr = 0;
