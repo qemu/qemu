@@ -5045,6 +5045,8 @@ case "$target_name" in
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN64=y" >> $config_target_mak
   ;;
+  tricore)
+  ;;
   moxie)
   ;;
   or32)
