@@ -680,6 +680,42 @@ static void decode_ssr_opc(DisasContext *ctx, int op1)
     }
 }
 
+static void decode_sc_opc(DisasContext *ctx, int op1)
+{
+    int32_t const16;
+
+    const16 = MASK_OP_SC_CONST8(ctx->opcode);
+
+    switch (op1) {
+    case OPC1_16_SC_AND:
+        tcg_gen_andi_tl(cpu_gpr_d[15], cpu_gpr_d[15], const16);
+        break;
+    case OPC1_16_SC_BISR:
+        gen_helper_1arg(bisr, const16 & 0xff);
+        break;
+    case OPC1_16_SC_LD_A:
+        gen_offset_ld(ctx, cpu_gpr_a[15], cpu_gpr_a[10], const16 * 4, MO_LESL);
+        break;
+    case OPC1_16_SC_LD_W:
+        gen_offset_ld(ctx, cpu_gpr_d[15], cpu_gpr_a[10], const16 * 4, MO_LESL);
+        break;
+    case OPC1_16_SC_MOV:
+        tcg_gen_movi_tl(cpu_gpr_d[15], const16);
+        break;
+    case OPC1_16_SC_OR:
+        tcg_gen_ori_tl(cpu_gpr_d[15], cpu_gpr_d[15], const16);
+        break;
+    case OPC1_16_SC_ST_A:
+        gen_offset_st(ctx, cpu_gpr_a[15], cpu_gpr_a[10], const16 * 4, MO_LESL);
+        break;
+    case OPC1_16_SC_ST_W:
+        gen_offset_st(ctx, cpu_gpr_d[15], cpu_gpr_a[10], const16 * 4, MO_LESL);
+        break;
+    case OPC1_16_SC_SUB_A:
+        tcg_gen_subi_tl(cpu_gpr_a[10], cpu_gpr_a[10], const16);
+        break;
+    }
+}
 static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -815,6 +851,18 @@ static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         r1 = MASK_OP_SBR_S2(ctx->opcode);
         address = MASK_OP_SBR_DISP4(ctx->opcode);
         gen_compute_branch(ctx, op1, r1, 0, 0, address);
+        break;
+/* SC-format */
+    case OPC1_16_SC_AND:
+    case OPC1_16_SC_BISR:
+    case OPC1_16_SC_LD_A:
+    case OPC1_16_SC_LD_W:
+    case OPC1_16_SC_MOV:
+    case OPC1_16_SC_OR:
+    case OPC1_16_SC_ST_A:
+    case OPC1_16_SC_ST_W:
+    case OPC1_16_SC_SUB_A:
+        decode_sc_opc(ctx, op1);
         break;
     }
 }

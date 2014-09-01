@@ -122,6 +122,28 @@ static void save_context_upper(CPUTriCoreState *env, int ea,
 
 }
 
+static void save_context_lower(CPUTriCoreState *env, int ea,
+                               target_ulong *new_FCX)
+{
+    *new_FCX = cpu_ldl_data(env, ea);
+    cpu_stl_data(env, ea, env->PCXI);
+    cpu_stl_data(env, ea+4, env->PSW);
+    cpu_stl_data(env, ea+8, env->gpr_a[2]);
+    cpu_stl_data(env, ea+12, env->gpr_a[3]);
+    cpu_stl_data(env, ea+16, env->gpr_d[0]);
+    cpu_stl_data(env, ea+20, env->gpr_d[1]);
+    cpu_stl_data(env, ea+24, env->gpr_d[2]);
+    cpu_stl_data(env, ea+28, env->gpr_d[3]);
+    cpu_stl_data(env, ea+32, env->gpr_a[4]);
+    cpu_stl_data(env, ea+36, env->gpr_a[5]);
+    cpu_stl_data(env, ea+40, env->gpr_a[6]);
+    cpu_stl_data(env, ea+44, env->gpr_a[7]);
+    cpu_stl_data(env, ea+48, env->gpr_d[4]);
+    cpu_stl_data(env, ea+52, env->gpr_d[5]);
+    cpu_stl_data(env, ea+56, env->gpr_d[6]);
+    cpu_stl_data(env, ea+60, env->gpr_d[7]);
+}
+
 static void restore_context_upper(CPUTriCoreState *env, int ea,
                                   target_ulong *new_PCXI, target_ulong *new_PSW)
 {
@@ -240,6 +262,43 @@ void helper_ret(CPUTriCoreState *env)
     } else {
         /* PSW = {new_PSW[31:26], PSW[25:24], new_PSW[23:0]}; */
         psw_write(env, (new_PSW & ~(0x3000000)) + (psw & (0x3000000)));
+    }
+}
+
+void helper_bisr(CPUTriCoreState *env, uint32_t const9)
+{
+    target_ulong tmp_FCX;
+    target_ulong ea;
+    target_ulong new_FCX;
+
+    if (env->FCX == 0) {
+        /* FCU trap */
+    }
+
+    tmp_FCX = env->FCX;
+    ea = ((env->FCX & 0xf0000) << 12) + ((env->FCX & 0xffff) << 6);
+
+    save_context_lower(env, ea, &new_FCX);
+
+    /* PCXI.PCPN = ICR.CCPN */
+    env->PCXI = (env->PCXI & 0xffffff) +
+                 ((env->ICR & MASK_ICR_CCPN) << 24);
+    /* PCXI.PIE  = ICR.IE */
+    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE) +
+                 ((env->ICR & MASK_ICR_IE) << 15));
+    /* PCXI.UL = 0 */
+    env->PCXI &= ~(MASK_PCXI_UL);
+    /* PCXI[19: 0] = FCX[19: 0] */
+    env->PCXI = (env->PCXI & 0xfff00000) + (env->FCX & 0xfffff);
+    /* FXC[19: 0] = new_FCX[19: 0] */
+    env->FCX = (env->FCX & 0xfff00000) + (new_FCX & 0xfffff);
+    /* ICR.IE = 1 */
+    env->ICR |= MASK_ICR_IE;
+
+    env->ICR |= const9; /* ICR.CCPN = const9[7: 0];*/
+
+    if (tmp_FCX == env->LCX) {
+        /* FCD trap */
     }
 }
 
