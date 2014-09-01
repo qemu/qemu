@@ -49,18 +49,41 @@ static void test_end(void)
     qtest_end();
 }
 
-static void pci_basic(void)
+static QVirtioPCIDevice *virtio_blk_init(QPCIBus *bus)
 {
     QVirtioPCIDevice *dev;
-    QPCIBus *bus;
-
-    bus = test_start();
 
     dev = qvirtio_pci_device_find(bus, QVIRTIO_BLK_DEVICE_ID);
     g_assert(dev != NULL);
     g_assert_cmphex(dev->vdev.device_type, ==, QVIRTIO_BLK_DEVICE_ID);
     g_assert_cmphex(dev->pdev->devfn, ==, ((PCI_SLOT << 3) | PCI_FN));
 
+    qvirtio_pci_device_enable(dev);
+    qvirtio_reset(&qvirtio_pci, &dev->vdev);
+    qvirtio_set_acknowledge(&qvirtio_pci, &dev->vdev);
+    qvirtio_set_driver(&qvirtio_pci, &dev->vdev);
+
+    return dev;
+}
+
+static void pci_basic(void)
+{
+    QVirtioPCIDevice *dev;
+    QPCIBus *bus;
+    void *addr;
+    uint64_t capacity;
+
+    bus = test_start();
+
+    dev = virtio_blk_init(bus);
+
+    /* MSI-X is not enabled */
+    addr = dev->addr + QVIRTIO_DEVICE_SPECIFIC_NO_MSIX;
+
+    capacity = qvirtio_config_readq(&qvirtio_pci, &dev->vdev, addr);
+    g_assert_cmpint(capacity, ==, TEST_IMAGE_SIZE / 512);
+
+    qvirtio_pci_device_disable(dev);
     g_free(dev);
     test_end();
 }
