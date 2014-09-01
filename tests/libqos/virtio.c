@@ -116,6 +116,51 @@ void qvring_init(const QGuestAllocator *alloc, QVirtQueue *vq, uint64_t addr)
     writew(vq->used, 0);
 }
 
+QVRingIndirectDesc *qvring_indirect_desc_setup(QVirtioDevice *d,
+                                        QGuestAllocator *alloc, uint16_t elem)
+{
+    int i;
+    QVRingIndirectDesc *indirect = g_malloc(sizeof(*indirect));
+
+    indirect->index = 0;
+    indirect->elem = elem;
+    indirect->desc = guest_alloc(alloc, sizeof(QVRingDesc)*elem);
+
+    for (i = 0; i < elem - 1; ++i) {
+        /* indirect->desc[i].addr */
+        writeq(indirect->desc + (16 * i), 0);
+        /* indirect->desc[i].flags */
+        writew(indirect->desc + (16 * i) + 12, QVRING_DESC_F_NEXT);
+        /* indirect->desc[i].next */
+        writew(indirect->desc + (16 * i) + 14, i + 1);
+    }
+
+    return indirect;
+}
+
+void qvring_indirect_desc_add(QVRingIndirectDesc *indirect, uint64_t data,
+                                                    uint32_t len, bool write)
+{
+    uint16_t flags;
+
+    g_assert_cmpint(indirect->index, <, indirect->elem);
+
+    flags = readw(indirect->desc + (16 * indirect->index) + 12);
+
+    if (write) {
+        flags |= QVRING_DESC_F_WRITE;
+    }
+
+    /* indirect->desc[indirect->index].addr */
+    writeq(indirect->desc + (16 * indirect->index), data);
+    /* indirect->desc[indirect->index].len */
+    writel(indirect->desc + (16 * indirect->index) + 8, len);
+    /* indirect->desc[indirect->index].flags */
+    writew(indirect->desc + (16 * indirect->index) + 12, flags);
+
+    indirect->index++;
+}
+
 uint32_t qvirtqueue_add(QVirtQueue *vq, uint64_t data, uint32_t len, bool write,
                                                                     bool next)
 {
@@ -136,6 +181,25 @@ uint32_t qvirtqueue_add(QVirtQueue *vq, uint64_t data, uint32_t len, bool write,
     writel(vq->desc + (16 * vq->free_head) + 8, len);
     /* vq->desc[vq->free_head].flags */
     writew(vq->desc + (16 * vq->free_head) + 12, flags);
+
+    return vq->free_head++; /* Return and increase, in this order */
+}
+
+uint32_t qvirtqueue_add_indirect(QVirtQueue *vq, QVRingIndirectDesc *indirect)
+{
+    g_assert(vq->indirect);
+    g_assert_cmpint(vq->size, >=, indirect->elem);
+    g_assert_cmpint(indirect->index, ==, indirect->elem);
+
+    vq->num_free--;
+
+    /* vq->desc[vq->free_head].addr */
+    writeq(vq->desc + (16 * vq->free_head), indirect->desc);
+    /* vq->desc[vq->free_head].len */
+    writel(vq->desc + (16 * vq->free_head) + 8,
+                                        sizeof(QVRingDesc) * indirect->elem);
+    /* vq->desc[vq->free_head].flags */
+    writew(vq->desc + (16 * vq->free_head) + 12, QVRING_DESC_F_INDIRECT);
 
     return vq->free_head++; /* Return and increase, in this order */
 }

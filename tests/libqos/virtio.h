@@ -22,6 +22,11 @@
 #define QVIRTIO_NET_DEVICE_ID   0x1
 #define QVIRTIO_BLK_DEVICE_ID   0x2
 
+#define QVIRTIO_F_NOTIFY_ON_EMPTY       0x01000000
+#define QVIRTIO_F_ANY_LAYOUT            0x08000000
+#define QVIRTIO_F_RING_INDIRECT_DESC    0x10000000
+#define QVIRTIO_F_RING_EVENT_IDX        0x20000000
+
 #define QVRING_DESC_F_NEXT      0x1
 #define QVRING_DESC_F_WRITE     0x2
 #define QVRING_DESC_F_INDIRECT  0x4
@@ -74,7 +79,14 @@ typedef struct QVirtQueue {
     uint32_t free_head;
     uint32_t num_free;
     uint32_t align;
+    bool indirect;
 } QVirtQueue;
+
+typedef struct QVRingIndirectDesc {
+    uint64_t desc; /* This points to an array fo QVRingDesc */
+    uint16_t index;
+    uint16_t elem;
+} QVRingIndirectDesc;
 
 typedef struct QVirtioBus {
     uint8_t (*config_readb)(QVirtioDevice *d, void *addr);
@@ -85,8 +97,11 @@ typedef struct QVirtioBus {
     /* Get features of the device */
     uint32_t (*get_features)(QVirtioDevice *d);
 
-    /* Get features of the device */
+    /* Set features of the device */
     void (*set_features)(QVirtioDevice *d, uint32_t features);
+
+    /* Get features of the guest */
+    uint32_t (*get_guest_features)(QVirtioDevice *d);
 
     /* Get status of the device */
     uint8_t (*get_status)(QVirtioDevice *d);
@@ -144,8 +159,13 @@ QVirtQueue *qvirtqueue_setup(const QVirtioBus *bus, QVirtioDevice *d,
                                         QGuestAllocator *alloc, uint16_t index);
 
 void qvring_init(const QGuestAllocator *alloc, QVirtQueue *vq, uint64_t addr);
+QVRingIndirectDesc *qvring_indirect_desc_setup(QVirtioDevice *d,
+                                        QGuestAllocator *alloc, uint16_t elem);
+void qvring_indirect_desc_add(QVRingIndirectDesc *indirect, uint64_t data,
+                                                    uint32_t len, bool write);
 uint32_t qvirtqueue_add(QVirtQueue *vq, uint64_t data, uint32_t len, bool write,
                                                                     bool next);
+uint32_t qvirtqueue_add_indirect(QVirtQueue *vq, QVRingIndirectDesc *indirect);
 void qvirtqueue_kick(const QVirtioBus *bus, QVirtioDevice *d, QVirtQueue *vq,
                                                             uint32_t free_head);
 

@@ -107,6 +107,12 @@ static void qvirtio_pci_set_features(QVirtioDevice *d, uint32_t features)
     qpci_io_writel(dev->pdev, dev->addr + QVIRTIO_GUEST_FEATURES, features);
 }
 
+static uint32_t qvirtio_pci_get_guest_features(QVirtioDevice *d)
+{
+    QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
+    return qpci_io_readl(dev->pdev, dev->addr + QVIRTIO_GUEST_FEATURES);
+}
+
 static uint8_t qvirtio_pci_get_status(QVirtioDevice *d)
 {
     QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
@@ -146,10 +152,12 @@ static void qvirtio_pci_set_queue_address(QVirtioDevice *d, uint32_t pfn)
 static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
                                         QGuestAllocator *alloc, uint16_t index)
 {
+    uint32_t feat;
     uint64_t addr;
     QVirtQueue *vq;
 
     vq = g_malloc0(sizeof(*vq));
+    feat = qvirtio_pci_get_guest_features(d);
 
     qvirtio_pci_queue_select(d, index);
     vq->index = index;
@@ -157,6 +165,7 @@ static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
     vq->free_head = 0;
     vq->num_free = vq->size;
     vq->align = QVIRTIO_PCI_ALIGN;
+    vq->indirect = (feat & QVIRTIO_F_RING_INDIRECT_DESC) != 0;
 
     /* Check different than 0 */
     g_assert_cmpint(vq->size, !=, 0);
@@ -186,6 +195,7 @@ const QVirtioBus qvirtio_pci = {
     .config_readq = qvirtio_pci_config_readq,
     .get_features = qvirtio_pci_get_features,
     .set_features = qvirtio_pci_set_features,
+    .get_guest_features = qvirtio_pci_get_guest_features,
     .get_status = qvirtio_pci_get_status,
     .set_status = qvirtio_pci_set_status,
     .get_isr_status = qvirtio_pci_get_isr_status,
