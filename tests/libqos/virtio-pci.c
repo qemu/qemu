@@ -36,6 +36,8 @@ static QVirtioPCIDevice *qpcidevice_to_qvirtiodevice(QPCIDevice *pdev)
                             qpci_config_readw(vpcidev->pdev, PCI_SUBSYSTEM_ID);
     }
 
+    vpcidev->config_msix_entry = -1;
+
     return vpcidev;
 }
 
@@ -125,10 +127,45 @@ static void qvirtio_pci_set_status(QVirtioDevice *d, uint8_t status)
     qpci_io_writeb(dev->pdev, dev->addr + QVIRTIO_DEVICE_STATUS, status);
 }
 
-static uint8_t qvirtio_pci_get_isr_status(QVirtioDevice *d)
+static bool qvirtio_pci_get_queue_isr_status(QVirtioDevice *d, QVirtQueue *vq)
 {
     QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
-    return qpci_io_readb(dev->pdev, dev->addr + QVIRTIO_ISR_STATUS);
+    QVirtQueuePCI *vqpci = (QVirtQueuePCI *)vq;
+    uint32_t data;
+
+    if (dev->pdev->msix_enabled) {
+        g_assert_cmpint(vqpci->msix_entry, !=, -1);
+        if (qpci_msix_masked(dev->pdev, vqpci->msix_entry)) {
+            /* No ISR checking should be done if masked, but read anyway */
+            return qpci_msix_pending(dev->pdev, vqpci->msix_entry);
+        } else {
+            data = readl(vqpci->msix_addr);
+            writel(vqpci->msix_addr, 0);
+            return data == vqpci->msix_data;
+        }
+    } else {
+        return qpci_io_readb(dev->pdev, dev->addr + QVIRTIO_ISR_STATUS) & 1;
+    }
+}
+
+static bool qvirtio_pci_get_config_isr_status(QVirtioDevice *d)
+{
+    QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
+    uint32_t data;
+
+    if (dev->pdev->msix_enabled) {
+        g_assert_cmpint(dev->config_msix_entry, !=, -1);
+        if (qpci_msix_masked(dev->pdev, dev->config_msix_entry)) {
+            /* No ISR checking should be done if masked, but read anyway */
+            return qpci_msix_pending(dev->pdev, dev->config_msix_entry);
+        } else {
+            data = readl(dev->config_msix_addr);
+            writel(dev->config_msix_addr, 0);
+            return data == dev->config_msix_data;
+        }
+    } else {
+        return qpci_io_readb(dev->pdev, dev->addr + QVIRTIO_ISR_STATUS) & 2;
+    }
 }
 
 static void qvirtio_pci_queue_select(QVirtioDevice *d, uint16_t index)
@@ -154,32 +191,34 @@ static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
 {
     uint32_t feat;
     uint64_t addr;
-    QVirtQueue *vq;
+    QVirtQueuePCI *vqpci;
 
-    vq = g_malloc0(sizeof(*vq));
+    vqpci = g_malloc0(sizeof(*vqpci));
     feat = qvirtio_pci_get_guest_features(d);
 
     qvirtio_pci_queue_select(d, index);
-    vq->index = index;
-    vq->size = qvirtio_pci_get_queue_size(d);
-    vq->free_head = 0;
-    vq->num_free = vq->size;
-    vq->align = QVIRTIO_PCI_ALIGN;
-    vq->indirect = (feat & QVIRTIO_F_RING_INDIRECT_DESC) != 0;
+    vqpci->vq.index = index;
+    vqpci->vq.size = qvirtio_pci_get_queue_size(d);
+    vqpci->vq.free_head = 0;
+    vqpci->vq.num_free = vqpci->vq.size;
+    vqpci->vq.align = QVIRTIO_PCI_ALIGN;
+    vqpci->vq.indirect = (feat & QVIRTIO_F_RING_INDIRECT_DESC) != 0;
+
+    vqpci->msix_entry = -1;
+    vqpci->msix_addr = 0;
+    vqpci->msix_data = 0x12345678;
 
     /* Check different than 0 */
-    g_assert_cmpint(vq->size, !=, 0);
+    g_assert_cmpint(vqpci->vq.size, !=, 0);
 
     /* Check power of 2 */
-    g_assert_cmpint(vq->size & (vq->size - 1), ==, 0);
+    g_assert_cmpint(vqpci->vq.size & (vqpci->vq.size - 1), ==, 0);
 
-    addr = guest_alloc(alloc, qvring_size(vq->size, QVIRTIO_PCI_ALIGN));
-    qvring_init(alloc, vq, addr);
-    qvirtio_pci_set_queue_address(d, vq->desc / QVIRTIO_PCI_ALIGN);
+    addr = guest_alloc(alloc, qvring_size(vqpci->vq.size, QVIRTIO_PCI_ALIGN));
+    qvring_init(alloc, &vqpci->vq, addr);
+    qvirtio_pci_set_queue_address(d, vqpci->vq.desc / QVIRTIO_PCI_ALIGN);
 
-    /* TODO: MSI-X configuration */
-
-    return vq;
+    return &vqpci->vq;
 }
 
 static void qvirtio_pci_virtqueue_kick(QVirtioDevice *d, QVirtQueue *vq)
@@ -198,7 +237,8 @@ const QVirtioBus qvirtio_pci = {
     .get_guest_features = qvirtio_pci_get_guest_features,
     .get_status = qvirtio_pci_get_status,
     .set_status = qvirtio_pci_set_status,
-    .get_isr_status = qvirtio_pci_get_isr_status,
+    .get_queue_isr_status = qvirtio_pci_get_queue_isr_status,
+    .get_config_isr_status = qvirtio_pci_get_config_isr_status,
     .queue_select = qvirtio_pci_queue_select,
     .get_queue_size = qvirtio_pci_get_queue_size,
     .set_queue_address = qvirtio_pci_set_queue_address,
@@ -235,4 +275,68 @@ void qvirtio_pci_device_enable(QVirtioPCIDevice *d)
 void qvirtio_pci_device_disable(QVirtioPCIDevice *d)
 {
     qpci_iounmap(d->pdev, d->addr);
+    d->addr = NULL;
+}
+
+void qvirtqueue_pci_msix_setup(QVirtioPCIDevice *d, QVirtQueuePCI *vqpci,
+                                        QGuestAllocator *alloc, uint16_t entry)
+{
+    uint16_t vector;
+    uint32_t control;
+    void *addr;
+
+    g_assert(d->pdev->msix_enabled);
+    addr = d->pdev->msix_table + (entry * 16);
+
+    g_assert_cmpint(entry, >=, 0);
+    g_assert_cmpint(entry, <, qpci_msix_table_size(d->pdev));
+    vqpci->msix_entry = entry;
+
+    vqpci->msix_addr = guest_alloc(alloc, 4);
+    qpci_io_writel(d->pdev, addr + PCI_MSIX_ENTRY_LOWER_ADDR,
+                                                    vqpci->msix_addr & ~0UL);
+    qpci_io_writel(d->pdev, addr + PCI_MSIX_ENTRY_UPPER_ADDR,
+                                            (vqpci->msix_addr >> 32) & ~0UL);
+    qpci_io_writel(d->pdev, addr + PCI_MSIX_ENTRY_DATA, vqpci->msix_data);
+
+    control = qpci_io_readl(d->pdev, addr + PCI_MSIX_ENTRY_VECTOR_CTRL);
+    qpci_io_writel(d->pdev, addr + PCI_MSIX_ENTRY_VECTOR_CTRL,
+                                        control & ~PCI_MSIX_ENTRY_CTRL_MASKBIT);
+
+    qvirtio_pci_queue_select(&d->vdev, vqpci->vq.index);
+    qpci_io_writew(d->pdev, d->addr + QVIRTIO_MSIX_QUEUE_VECTOR, entry);
+    vector = qpci_io_readw(d->pdev, d->addr + QVIRTIO_MSIX_QUEUE_VECTOR);
+    g_assert_cmphex(vector, !=, QVIRTIO_MSI_NO_VECTOR);
+}
+
+void qvirtio_pci_set_msix_configuration_vector(QVirtioPCIDevice *d,
+                                        QGuestAllocator *alloc, uint16_t entry)
+{
+    uint16_t vector;
+    uint32_t control;
+    void *addr;
+
+    g_assert(d->pdev->msix_enabled);
+    addr = d->pdev->msix_table + (entry * 16);
+
+    g_assert_cmpint(entry, >=, 0);
+    g_assert_cmpint(entry, <, qpci_msix_table_size(d->pdev));
+    d->config_msix_entry = entry;
+
+    d->config_msix_data = 0x12345678;
+    d->config_msix_addr = guest_alloc(alloc, 4);
+
+    qpci_io_writel(d->pdev, addr + PCI_MSIX_ENTRY_LOWER_ADDR,
+                                                    d->config_msix_addr & ~0UL);
+    qpci_io_writel(d->pdev, addr + PCI_MSIX_ENTRY_UPPER_ADDR,
+                                            (d->config_msix_addr >> 32) & ~0UL);
+    qpci_io_writel(d->pdev, addr + PCI_MSIX_ENTRY_DATA, d->config_msix_data);
+
+    control = qpci_io_readl(d->pdev, addr + PCI_MSIX_ENTRY_VECTOR_CTRL);
+    qpci_io_writel(d->pdev, addr + PCI_MSIX_ENTRY_VECTOR_CTRL,
+                                        control & ~PCI_MSIX_ENTRY_CTRL_MASKBIT);
+
+    qpci_io_writew(d->pdev, d->addr + QVIRTIO_MSIX_CONF_VECTOR, entry);
+    vector = qpci_io_readw(d->pdev, d->addr + QVIRTIO_MSIX_CONF_VECTOR);
+    g_assert_cmphex(vector, !=, QVIRTIO_MSI_NO_VECTOR);
 }

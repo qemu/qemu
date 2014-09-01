@@ -109,8 +109,11 @@ typedef struct QVirtioBus {
     /* Set status of the device  */
     void (*set_status)(QVirtioDevice *d, uint8_t status);
 
-    /* Get the ISR status of the device */
-    uint8_t (*get_isr_status)(QVirtioDevice *d);
+    /* Get the queue ISR status of the device */
+    bool (*get_queue_isr_status)(QVirtioDevice *d, QVirtQueue *vq);
+
+    /* Get the configuration ISR status of the device */
+    bool (*get_config_isr_status)(QVirtioDevice *d);
 
     /* Select a queue to work on */
     void (*queue_select)(QVirtioDevice *d, uint16_t index);
@@ -153,7 +156,9 @@ void qvirtio_set_acknowledge(const QVirtioBus *bus, QVirtioDevice *d);
 void qvirtio_set_driver(const QVirtioBus *bus, QVirtioDevice *d);
 void qvirtio_set_driver_ok(const QVirtioBus *bus, QVirtioDevice *d);
 
-bool qvirtio_wait_isr(const QVirtioBus *bus, QVirtioDevice *d, uint8_t mask,
+bool qvirtio_wait_queue_isr(const QVirtioBus *bus, QVirtioDevice *d,
+                                            QVirtQueue *vq, uint64_t timeout);
+bool qvirtio_wait_config_isr(const QVirtioBus *bus, QVirtioDevice *d,
                                                             uint64_t timeout);
 QVirtQueue *qvirtqueue_setup(const QVirtioBus *bus, QVirtioDevice *d,
                                         QGuestAllocator *alloc, uint16_t index);

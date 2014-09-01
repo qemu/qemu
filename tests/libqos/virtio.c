@@ -78,12 +78,25 @@ void qvirtio_set_driver_ok(const QVirtioBus *bus, QVirtioDevice *d)
                 QVIRTIO_DRIVER_OK | QVIRTIO_DRIVER | QVIRTIO_ACKNOWLEDGE);
 }
 
-bool qvirtio_wait_isr(const QVirtioBus *bus, QVirtioDevice *d, uint8_t mask,
+bool qvirtio_wait_queue_isr(const QVirtioBus *bus, QVirtioDevice *d,
+                                            QVirtQueue *vq, uint64_t timeout)
+{
+    do {
+        clock_step(10);
+        if (bus->get_queue_isr_status(d, vq)) {
+            break; /* It has ended */
+        }
+    } while (--timeout);
+
+    return timeout != 0;
+}
+
+bool qvirtio_wait_config_isr(const QVirtioBus *bus, QVirtioDevice *d,
                                                             uint64_t timeout)
 {
     do {
         clock_step(10);
-        if (bus->get_isr_status(d) & mask) {
+        if (bus->get_config_isr_status(d)) {
             break; /* It has ended */
         }
     } while (--timeout);

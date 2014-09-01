@@ -14,6 +14,7 @@
 #define LIBQOS_PCI_H
 
 #include <stdint.h>
+#include "libqtest.h"
 
 #define QPCI_DEVFN(dev, fn) (((dev) << 3) | (fn))
 
@@ -49,6 +50,9 @@ struct QPCIDevice
 {
     QPCIBus *bus;
     int devfn;
+    bool msix_enabled;
+    void *msix_table;
+    void *msix_pba;
 };
 
 void qpci_device_foreach(QPCIBus *bus, int vendor_id, int device_id,
@@ -57,6 +61,12 @@ void qpci_device_foreach(QPCIBus *bus, int vendor_id, int device_id,
 QPCIDevice *qpci_device_find(QPCIBus *bus, int devfn);
 
 void qpci_device_enable(QPCIDevice *dev);
+uint8_t qpci_find_capability(QPCIDevice *dev, uint8_t id);
+void qpci_msix_enable(QPCIDevice *dev);
+void qpci_msix_disable(QPCIDevice *dev);
+bool qpci_msix_pending(QPCIDevice *dev, uint16_t entry);
+bool qpci_msix_masked(QPCIDevice *dev, uint16_t entry);
+uint16_t qpci_msix_table_size(QPCIDevice *dev);
 
 uint8_t qpci_config_readb(QPCIDevice *dev, uint8_t offset);
 uint16_t qpci_config_readw(QPCIDevice *dev, uint8_t offset);
