@@ -89,5 +89,6 @@ hwaddr s390_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 hwaddr s390_cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr);
 int s390_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int s390_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+void s390_cpu_gdb_init(CPUState *cs);
 
 #endif

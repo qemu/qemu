@@ -230,18 +230,21 @@ static void s390_init(MachineState *machine)
     ram_addr_t my_ram_size = machine->ram_size;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    int shift = 0;
+    int increment_size = 20;
     uint8_t *storage_keys;
     void *virtio_region;
     hwaddr virtio_region_len;
     hwaddr virtio_region_start;
 
-    /* s390x ram size detection needs a 16bit multiplier + an increment. So
-       guests > 64GB can be specified in 2MB steps etc. */
-    while ((my_ram_size >> (20 + shift)) > 65535) {
-        shift++;
+    /*
+     * The storage increment size is a multiple of 1M and is a power of 2.
+     * The number of storage increments must be MAX_STORAGE_INCREMENTS or
+     * fewer.
+     */
+    while ((my_ram_size >> increment_size) > MAX_STORAGE_INCREMENTS) {
+        increment_size++;
     }
-    my_ram_size = my_ram_size >> (20 + shift) << (20 + shift);
+    my_ram_size = my_ram_size >> increment_size << increment_size;
 
     /* let's propagate the changed ram size into the global variable. */
     ram_size = my_ram_size;

@@ -17,6 +17,7 @@
 #include "ioinst.h"
 #include "css.h"
 #include "virtio-ccw.h"
+#include "qemu/config-file.h"
 
 #define TYPE_S390_CCW_MACHINE               "s390-ccw-machine"
 
@@ -86,17 +87,35 @@ static void ccw_init(MachineState *machine)
     ram_addr_t my_ram_size = machine->ram_size;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    int shift = 0;
+    sclpMemoryHotplugDev *mhd = init_sclp_memory_hotplug_dev();
     uint8_t *storage_keys;
     int ret;
     VirtualCssBus *css_bus;
+    QemuOpts *opts = qemu_opts_find(qemu_find_opts("memory"), NULL);
+    ram_addr_t pad_size = 0;
+    ram_addr_t maxmem = qemu_opt_get_size(opts, "maxmem", my_ram_size);
+    ram_addr_t standby_mem_size = maxmem - my_ram_size;
 
-    /* s390x ram size detection needs a 16bit multiplier + an increment. So
-       guests > 64GB can be specified in 2MB steps etc. */
-    while ((my_ram_size >> (20 + shift)) > 65535) {
-        shift++;
+    /* The storage increment size is a multiple of 1M and is a power of 2.
+     * The number of storage increments must be MAX_STORAGE_INCREMENTS or fewer.
+     * The variable 'mhd->increment_size' is an exponent of 2 that can be
+     * used to calculate the size (in bytes) of an increment. */
+    mhd->increment_size = 20;
+    while ((my_ram_size >> mhd->increment_size) > MAX_STORAGE_INCREMENTS) {
+        mhd->increment_size++;
     }
-    my_ram_size = my_ram_size >> (20 + shift) << (20 + shift);
+    while ((standby_mem_size >> mhd->increment_size) > MAX_STORAGE_INCREMENTS) {
+        mhd->increment_size++;
+    }
+
+    /* The core and standby memory areas need to be aligned with
+     * the increment size.  In effect, this can cause the
+     * user-specified memory size to be rounded down to align
+     * with the nearest increment boundary. */
+    standby_mem_size = standby_mem_size >> mhd->increment_size
+                                        << mhd->increment_size;
+    my_ram_size = my_ram_size >> mhd->increment_size
+                              << mhd->increment_size;
 
     /* let's propagate the changed ram size into the global variable. */
     ram_size = my_ram_size;
@@ -111,10 +130,21 @@ static void ccw_init(MachineState *machine)
     /* register hypercalls */
     virtio_ccw_register_hcalls();
 
-    /* allocate RAM */
+    /* allocate RAM for core */
     memory_region_init_ram(ram, NULL, "s390.ram", my_ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(sysmem, 0, ram);
+
+    /* If the size of ram is not on a MEM_SECTION_SIZE boundary,
+       calculate the pad size necessary to force this boundary. */
+    if (standby_mem_size) {
+        if (my_ram_size % MEM_SECTION_SIZE) {
+            pad_size = MEM_SECTION_SIZE - my_ram_size % MEM_SECTION_SIZE;
+        }
+        my_ram_size += standby_mem_size + pad_size;
+        mhd->pad_size = pad_size;
+        mhd->standby_mem_size = standby_mem_size;
+    }
 
     /* allocate storage keys */
     storage_keys = g_malloc0(my_ram_size / TARGET_PAGE_SIZE);

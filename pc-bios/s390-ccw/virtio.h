@@ -192,9 +192,9 @@ extern bool virtio_disk_is_scsi(void);
 extern bool virtio_disk_is_eckd(void);
 extern bool virtio_ipl_disk_is_valid(void);
 extern int virtio_get_block_size(void);
-extern uint16_t virtio_get_cylinders(void);
 extern uint8_t virtio_get_heads(void);
 extern uint8_t virtio_get_sectors(void);
+extern uint64_t virtio_get_blocks(void);
 extern int virtio_read_many(ulong sector, void *load_addr, int sec_num);
 
 #define VIRTIO_SECTOR_SIZE 512

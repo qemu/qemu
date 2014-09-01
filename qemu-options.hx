@@ -225,7 +225,8 @@ DEF("m", HAS_ARG, QEMU_OPTION_m,
     "                size: initial amount of guest memory (default: "
     stringify(DEFAULT_RAM_SIZE) "MiB)\n"
     "                slots: number of hotplug slots (default: none)\n"
-    "                maxmem: maximum amount of guest memory (default: none)\n",
+    "                maxmem: maximum amount of guest memory (default: none)\n"
+    "NOTE: Some architectures might enforce a specific granularity\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -m [size=]@var{megs}

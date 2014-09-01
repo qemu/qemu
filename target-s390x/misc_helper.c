@@ -114,33 +114,16 @@ uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 }
 
 #ifndef CONFIG_USER_ONLY
-static void cpu_reset_all(void)
-{
-    CPUState *cs;
-    S390CPUClass *scc;
-
-    CPU_FOREACH(cs) {
-        scc = S390_CPU_GET_CLASS(cs);
-        scc->cpu_reset(cs);
-    }
-}
-
-static void cpu_full_reset_all(void)
-{
-    CPUState *cpu;
-
-    CPU_FOREACH(cpu) {
-        cpu_reset(cpu);
-    }
-}
-
 static int modified_clear_reset(S390CPU *cpu)
 {
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
+    CPUState *t;
 
     pause_all_vcpus();
     cpu_synchronize_all_states();
-    cpu_full_reset_all();
+    CPU_FOREACH(t) {
+        run_on_cpu(t, s390_do_cpu_full_reset, t);
+    }
     cmma_reset(cpu);
     io_subsystem_reset();
     scc->load_normal(CPU(cpu));
@@ -152,10 +135,13 @@ static int modified_clear_reset(S390CPU *cpu)
 static int load_normal_reset(S390CPU *cpu)
 {
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
+    CPUState *t;
 
     pause_all_vcpus();
     cpu_synchronize_all_states();
-    cpu_reset_all();
+    CPU_FOREACH(t) {
+        run_on_cpu(t, s390_do_cpu_reset, t);
+    }
     cmma_reset(cpu);
     io_subsystem_reset();
     scc->initial_cpu_reset(CPU(cpu));

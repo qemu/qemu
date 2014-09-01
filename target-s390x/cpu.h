@@ -353,6 +353,21 @@ static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb)
 /* Base/displacement are at the same locations. */
 #define decode_basedisp_rs decode_basedisp_s
 
+/* helper functions for run_on_cpu() */
+static inline void s390_do_cpu_reset(void *arg)
+{
+    CPUState *cs = arg;
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cs);
+
+    scc->cpu_reset(cs);
+}
+static inline void s390_do_cpu_full_reset(void *arg)
+{
+    CPUState *cs = arg;
+
+    cpu_reset(cs);
+}
+
 void s390x_tod_timer(void *opaque);
 void s390x_cpu_timer(void *opaque);
 
@@ -551,44 +566,8 @@ void s390_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 #define S390_R13_REGNUM 15
 #define S390_R14_REGNUM 16
 #define S390_R15_REGNUM 17
-/* Access Registers.  */
-#define S390_A0_REGNUM 18
-#define S390_A1_REGNUM 19
-#define S390_A2_REGNUM 20
-#define S390_A3_REGNUM 21
-#define S390_A4_REGNUM 22
-#define S390_A5_REGNUM 23
-#define S390_A6_REGNUM 24
-#define S390_A7_REGNUM 25
-#define S390_A8_REGNUM 26
-#define S390_A9_REGNUM 27
-#define S390_A10_REGNUM 28
-#define S390_A11_REGNUM 29
-#define S390_A12_REGNUM 30
-#define S390_A13_REGNUM 31
-#define S390_A14_REGNUM 32
-#define S390_A15_REGNUM 33
-/* Floating Point Control Word.  */
-#define S390_FPC_REGNUM 34
-/* Floating Point Registers.  */
-#define S390_F0_REGNUM 35
-#define S390_F1_REGNUM 36
-#define S390_F2_REGNUM 37
-#define S390_F3_REGNUM 38
-#define S390_F4_REGNUM 39
-#define S390_F5_REGNUM 40
-#define S390_F6_REGNUM 41
-#define S390_F7_REGNUM 42
-#define S390_F8_REGNUM 43
-#define S390_F9_REGNUM 44
-#define S390_F10_REGNUM 45
-#define S390_F11_REGNUM 46
-#define S390_F12_REGNUM 47
-#define S390_F13_REGNUM 48
-#define S390_F14_REGNUM 49
-#define S390_F15_REGNUM 50
-/* Total.  */
-#define S390_NUM_REGS 51
+/* Total Core Registers. */
+#define S390_NUM_CORE_REGS 18
 
 /* CC optimization */
 
@@ -1045,6 +1024,10 @@ static inline void cpu_inject_crw_mchk(S390CPU *cpu)
     cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
+/* from s390-virtio-ccw */
+#define MEM_SECTION_SIZE             0x10000000UL
+#define MAX_AVAIL_SLOTS              32
+
 /* fpu_helper.c */
 uint32_t set_cc_nz_f32(float32 v);
 uint32_t set_cc_nz_f64(float64 v);
@@ -1067,6 +1050,7 @@ void kvm_s390_enable_css_support(S390CPU *cpu);
 int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
                                     int vq, bool assign);
 int kvm_s390_cpu_restart(S390CPU *cpu);
+int kvm_s390_get_memslot_count(KVMState *s);
 void kvm_s390_clear_cmma_callback(void *opaque);
 #else
 static inline void kvm_s390_io_interrupt(uint16_t subchannel_id,
@@ -1094,6 +1078,10 @@ static inline int kvm_s390_cpu_restart(S390CPU *cpu)
 static inline void kvm_s390_clear_cmma_callback(void *opaque)
 {
 }
+static inline int kvm_s390_get_memslot_count(KVMState *s)
+{
+  return MAX_AVAIL_SLOTS;
+}
 #endif
 
 static inline void cmma_reset(S390CPU *cpu)
@@ -1110,6 +1098,15 @@ static inline int s390_cpu_restart(S390CPU *cpu)
         return kvm_s390_cpu_restart(cpu);
     }
     return -ENOSYS;
+}
+
+static inline int s390_get_memslot_count(KVMState *s)
+{
+    if (kvm_enabled()) {
+        return kvm_s390_get_memslot_count(s);
+    } else {
+        return MAX_AVAIL_SLOTS;
+    }
 }
 
 void s390_io_interrupt(uint16_t subchannel_id, uint16_t subchannel_nr,
