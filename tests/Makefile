@@ -299,6 +299,7 @@ libqos-obj-y += tests/libqos/i2c.o
 libqos-pc-obj-y = $(libqos-obj-y) tests/libqos/pci-pc.o
 libqos-pc-obj-y += tests/libqos/malloc-pc.o
 libqos-omap-obj-y = $(libqos-obj-y) tests/libqos/i2c-omap.o
+libqos-virtio-obj-y = $(libqos-obj-y) $(libqos-pc-obj-y) tests/libqos/virtio-pci.o
 
 tests/rtc-test$(EXESUF): tests/rtc-test.o
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o
@@ -320,7 +321,7 @@ tests/vmxnet3-test$(EXESUF): tests/vmxnet3-test.o
 tests/ne2000-test$(EXESUF): tests/ne2000-test.o
 tests/wdt_ib700-test$(EXESUF): tests/wdt_ib700-test.o
 tests/virtio-balloon-test$(EXESUF): tests/virtio-balloon-test.o
-tests/virtio-blk-test$(EXESUF): tests/virtio-blk-test.o
+tests/virtio-blk-test$(EXESUF): tests/virtio-blk-test.o $(libqos-virtio-obj-y)
 tests/virtio-net-test$(EXESUF): tests/virtio-net-test.o
 tests/virtio-rng-test$(EXESUF): tests/virtio-rng-test.o
 tests/virtio-scsi-test$(EXESUF): tests/virtio-scsi-test.o
