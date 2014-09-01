@@ -1410,6 +1410,9 @@ CpuInfoList *qmp_query_cpus(Error **errp)
 #elif defined(TARGET_MIPS)
         MIPSCPU *mips_cpu = MIPS_CPU(cpu);
         CPUMIPSState *env = &mips_cpu->env;
+#elif defined(TARGET_TRICORE)
+        TriCoreCPU *tricore_cpu = TRICORE_CPU(cpu);
+        CPUTriCoreState *env = &tricore_cpu->env;
 #endif
 
         cpu_synchronize_state(cpu);
@@ -1434,6 +1437,9 @@ CpuInfoList *qmp_query_cpus(Error **errp)
 #elif defined(TARGET_MIPS)
         info->value->has_PC = true;
         info->value->PC = env->active_tc.PC;
+#elif defined(TARGET_TRICORE)
+        info->value->has_PC = true;
+        info->value->PC = env->PC;
 #endif
 
         /* XXX: waiting for the qapi to support GSList */

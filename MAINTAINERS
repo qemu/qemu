@@ -161,6 +161,12 @@ S: Maintained
 F: target-xtensa/
 F: hw/xtensa/
 
+TriCore
+M: Bastian Koppelmann <kbastian@mail.uni-paderborn.de>
+S: Maintained
+F: target-tricore/
+F: hw/tricore/
+
 Guest CPU Cores (KVM):
 ----------------------
 
