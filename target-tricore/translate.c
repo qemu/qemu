@@ -471,6 +471,45 @@ static void decode_srr_opc(DisasContext *ctx, int op1)
     }
 }
 
+static void decode_ssr_opc(DisasContext *ctx, int op1)
+{
+    int r1, r2;
+
+    r1 = MASK_OP_SSR_S1(ctx->opcode);
+    r2 = MASK_OP_SSR_S2(ctx->opcode);
+
+    switch (op1) {
+    case OPC1_16_SSR_ST_A:
+        tcg_gen_qemu_st_tl(cpu_gpr_a[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LEUL);
+        break;
+    case OPC1_16_SSR_ST_A_POSTINC:
+        tcg_gen_qemu_st_tl(cpu_gpr_a[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LEUL);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], 4);
+        break;
+    case OPC1_16_SSR_ST_B:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_UB);
+        break;
+    case OPC1_16_SSR_ST_B_POSTINC:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_UB);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], 1);
+        break;
+    case OPC1_16_SSR_ST_H:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LEUW);
+        break;
+    case OPC1_16_SSR_ST_H_POSTINC:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LEUW);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], 2);
+        break;
+    case OPC1_16_SSR_ST_W:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LEUL);
+        break;
+    case OPC1_16_SSR_ST_W_POSTINC:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LEUL);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], 4);
+        break;
+    }
+}
+
 static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -517,6 +556,17 @@ static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     case OPC1_16_SRR_SUBS:
     case OPC1_16_SRR_XOR:
         decode_srr_opc(ctx, op1);
+        break;
+/* SSR-format */
+    case OPC1_16_SSR_ST_A:
+    case OPC1_16_SSR_ST_A_POSTINC:
+    case OPC1_16_SSR_ST_B:
+    case OPC1_16_SSR_ST_B_POSTINC:
+    case OPC1_16_SSR_ST_H:
+    case OPC1_16_SSR_ST_H_POSTINC:
+    case OPC1_16_SSR_ST_W:
+    case OPC1_16_SSR_ST_W_POSTINC:
+        decode_ssr_opc(ctx, op1);
         break;
     }
 }
