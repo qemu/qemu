@@ -59,8 +59,6 @@
 /* The cluster reads as all zeros */
 #define QCOW_OFLAG_ZERO (1ULL << 0)
 
-#define REFCOUNT_SHIFT 1 /* refcount size is 2 bytes */
-
 #define MIN_CLUSTER_BITS 9
 #define MAX_CLUSTER_BITS 21
 

@@ -1874,7 +1874,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         .l1_size                    = cpu_to_be32(0),
         .refcount_table_offset      = cpu_to_be64(cluster_size),
         .refcount_table_clusters    = cpu_to_be32(1),
-        .refcount_order             = cpu_to_be32(3 + REFCOUNT_SHIFT),
+        .refcount_order             = cpu_to_be32(4),
         .header_length              = cpu_to_be32(sizeof(*header)),
     };
 
