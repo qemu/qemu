@@ -73,8 +73,9 @@ specifies the cache mode that should be used with the (destination) file. See
 the documentation of the emulator's @code{-drive cache=...} option for allowed
 values.
 @item -T @var{src_cache}
-in contrast specifies the cache mode that should be used with the source
-file(s).
+specifies the cache mode that should be used with the source file(s). See
+the documentation of the emulator's @code{-drive cache=...} option for allowed
+values.
 @end table
 
 Parameters to snapshot subcommand:
