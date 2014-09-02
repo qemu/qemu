@@ -79,7 +79,7 @@ CharDriverState *qemu_chr_open_msmouse(void)
 
 static void register_types(void)
 {
-    register_char_driver_qapi("msmouse", CHARDEV_BACKEND_KIND_MSMOUSE, NULL);
+    register_char_driver("msmouse", CHARDEV_BACKEND_KIND_MSMOUSE, NULL);
 }
 
 type_init(register_types);

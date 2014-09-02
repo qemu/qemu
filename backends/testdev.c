@@ -125,7 +125,7 @@ CharDriverState *chr_testdev_init(void)
 
 static void register_types(void)
 {
-    register_char_driver_qapi("testdev", CHARDEV_BACKEND_KIND_TESTDEV, NULL);
+    register_char_driver("testdev", CHARDEV_BACKEND_KIND_TESTDEV, NULL);
 }
 
 type_init(register_types);

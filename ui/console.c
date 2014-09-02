@@ -2035,8 +2035,7 @@ static const TypeInfo qemu_console_info = {
 static void register_types(void)
 {
     type_register_static(&qemu_console_info);
-    register_char_driver_qapi("vc", CHARDEV_BACKEND_KIND_VC,
-                              qemu_chr_parse_vc);
+    register_char_driver("vc", CHARDEV_BACKEND_KIND_VC, qemu_chr_parse_vc);
 }
 
 type_init(register_types);
