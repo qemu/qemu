@@ -966,8 +966,7 @@ int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp)
     opts = qemu_opts_create(&socket_optslist, NULL, 0, &error_abort);
     switch (remote->kind) {
     case SOCKET_ADDRESS_KIND_INET:
-        qemu_opt_set(opts, "host", remote->inet->host);
-        qemu_opt_set(opts, "port", remote->inet->port);
+        inet_addr_to_opts(opts, remote->inet);
         if (local) {
             qemu_opt_set(opts, "localaddr", local->inet->host);
             qemu_opt_set(opts, "localport", local->inet->port);
