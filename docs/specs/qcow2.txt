@@ -183,7 +183,7 @@ blocks and are exactly one cluster in size.
 Given a offset into the image file, the refcount of its cluster can be obtained
 as follows:
 
-    refcount_block_entries = (cluster_size / sizeof(uint16_t))
+    refcount_block_entries = (cluster_size * 8 / refcount_bits)
 
     refcount_block_index = (offset / cluster_size) % refcount_block_entries
     refcount_table_index = (offset / cluster_size) / refcount_block_entries
