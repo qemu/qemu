@@ -1224,7 +1224,12 @@ static void virtio_net_tx_timer(void *opaque)
     VirtIONetQueue *q = opaque;
     VirtIONet *n = q->n;
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
-    assert(vdev->vm_running);
+    /* This happens when device was stopped but BH wasn't. */
+    if (!vdev->vm_running) {
+        /* Make sure tx waiting is set, so we'll run when restarted. */
+        assert(q->tx_waiting);
+        return;
+    }
 
     q->tx_waiting = 0;
 
@@ -1244,7 +1249,12 @@ static void virtio_net_tx_bh(void *opaque)
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
     int32_t ret;
 
-    assert(vdev->vm_running);
+    /* This happens when device was stopped but BH wasn't. */
+    if (!vdev->vm_running) {
+        /* Make sure tx waiting is set, so we'll run when restarted. */
+        assert(q->tx_waiting);
+        return;
+    }
 
     q->tx_waiting = 0;
 
