@@ -344,7 +344,6 @@ bool chr_is_ringbuf(const CharDriverState *chr);
 
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
 
-void register_char_driver(const char *name, CharDriverState *(*open)(QemuOpts *));
 void register_char_driver_qapi(const char *name, ChardevBackendKind kind,
         void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp));
 

@@ -3489,25 +3489,11 @@ static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
 
 typedef struct CharDriver {
     const char *name;
-    /* old, pre qapi */
-    CharDriverState *(*open)(QemuOpts *opts);
-    /* new, qapi-based */
     ChardevBackendKind kind;
     void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
 } CharDriver;
 
 static GSList *backends;
-
-void register_char_driver(const char *name, CharDriverState *(*open)(QemuOpts *))
-{
-    CharDriver *s;
-
-    s = g_malloc0(sizeof(*s));
-    s->name = g_strdup(name);
-    s->open = open;
-
-    backends = g_slist_append(backends, s);
-}
 
 void register_char_driver_qapi(const char *name, ChardevBackendKind kind,
         void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp))
@@ -3530,8 +3516,12 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
     CharDriver *cd;
     CharDriverState *chr;
     GSList *i;
+    ChardevReturn *ret = NULL;
+    ChardevBackend *backend;
+    const char *id = qemu_opts_id(opts);
+    char *bid = NULL;
 
-    if (qemu_opts_id(opts) == NULL) {
+    if (id == NULL) {
         error_setg(errp, "chardev: no id specified");
         goto err;
     }
@@ -3554,89 +3544,49 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
         goto err;
     }
 
-    if (!cd->open) {
-        /* using new, qapi init */
-        ChardevBackend *backend = g_new0(ChardevBackend, 1);
-        ChardevReturn *ret = NULL;
-        const char *id = qemu_opts_id(opts);
-        char *bid = NULL;
-
-        if (qemu_opt_get_bool(opts, "mux", 0)) {
-            bid = g_strdup_printf("%s-base", id);
-        }
-
-        chr = NULL;
-        backend->kind = cd->kind;
-        if (cd->parse) {
-            cd->parse(opts, backend, &local_err);
-            if (local_err) {
-                error_propagate(errp, local_err);
-                goto qapi_out;
-            }
-        }
-        ret = qmp_chardev_add(bid ? bid : id, backend, errp);
-        if (!ret) {
-            goto qapi_out;
-        }
-
-        if (bid) {
-            qapi_free_ChardevBackend(backend);
-            qapi_free_ChardevReturn(ret);
-            backend = g_new0(ChardevBackend, 1);
-            backend->mux = g_new0(ChardevMux, 1);
-            backend->kind = CHARDEV_BACKEND_KIND_MUX;
-            backend->mux->chardev = g_strdup(bid);
-            ret = qmp_chardev_add(id, backend, errp);
-            if (!ret) {
-                chr = qemu_chr_find(bid);
-                qemu_chr_delete(chr);
-                chr = NULL;
-                goto qapi_out;
-            }
-        }
-
-        chr = qemu_chr_find(id);
-        chr->opts = opts;
-
-    qapi_out:
-        qapi_free_ChardevBackend(backend);
-        qapi_free_ChardevReturn(ret);
-        g_free(bid);
-        return chr;
-    }
-
-    chr = cd->open(opts);
-    if (!chr) {
-        error_setg(errp, "chardev: opening backend \"%s\" failed",
-                   qemu_opt_get(opts, "backend"));
-        goto err;
-    }
-
-    if (!chr->filename)
-        chr->filename = g_strdup(qemu_opt_get(opts, "backend"));
-    chr->init = init;
-    /* if we didn't create the chardev via qmp_chardev_add, we
-     * need to send the OPENED event here
-     */
-    if (!chr->explicit_be_open) {
-        qemu_chr_be_event(chr, CHR_EVENT_OPENED);
-    }
-    QTAILQ_INSERT_TAIL(&chardevs, chr, next);
+    backend = g_new0(ChardevBackend, 1);
 
     if (qemu_opt_get_bool(opts, "mux", 0)) {
-        CharDriverState *base = chr;
-        int len = strlen(qemu_opts_id(opts)) + 6;
-        base->label = g_malloc(len);
-        snprintf(base->label, len, "%s-base", qemu_opts_id(opts));
-        chr = qemu_chr_open_mux(base);
-        chr->filename = base->filename;
-        chr->avail_connections = MAX_MUX;
-        QTAILQ_INSERT_TAIL(&chardevs, chr, next);
-    } else {
-        chr->avail_connections = 1;
+        bid = g_strdup_printf("%s-base", id);
     }
-    chr->label = g_strdup(qemu_opts_id(opts));
+
+    chr = NULL;
+    backend->kind = cd->kind;
+    if (cd->parse) {
+        cd->parse(opts, backend, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            goto qapi_out;
+        }
+    }
+    ret = qmp_chardev_add(bid ? bid : id, backend, errp);
+    if (!ret) {
+        goto qapi_out;
+    }
+
+    if (bid) {
+        qapi_free_ChardevBackend(backend);
+        qapi_free_ChardevReturn(ret);
+        backend = g_new0(ChardevBackend, 1);
+        backend->mux = g_new0(ChardevMux, 1);
+        backend->kind = CHARDEV_BACKEND_KIND_MUX;
+        backend->mux->chardev = g_strdup(bid);
+        ret = qmp_chardev_add(id, backend, errp);
+        if (!ret) {
+            chr = qemu_chr_find(bid);
+            qemu_chr_delete(chr);
+            chr = NULL;
+            goto qapi_out;
+        }
+    }
+
+    chr = qemu_chr_find(id);
     chr->opts = opts;
+
+qapi_out:
+    qapi_free_ChardevBackend(backend);
+    qapi_free_ChardevReturn(ret);
+    g_free(bid);
     return chr;
 
 err:
