@@ -341,7 +341,7 @@ string), then the image is rebased onto no backing file (i.e. it will exist
 independently of any backing file).
 
 @var{cache} specifies the cache mode to be used for @var{filename}, whereas
-@var{src_cache} specifies the cache mode for reading the new backing file.
+@var{src_cache} specifies the cache mode for reading backing files.
 
 There are two different modes in which @code{rebase} can operate:
 @table @option
