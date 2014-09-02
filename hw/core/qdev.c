@@ -820,13 +820,13 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
     }
 
     if (value && !dev->realized) {
-        if (!obj->parent && local_err == NULL) {
+        if (!obj->parent) {
             static int unattached_count;
             gchar *name = g_strdup_printf("device[%d]", unattached_count++);
 
             object_property_add_child(container_get(qdev_get_machine(),
                                                     "/unattached"),
-                                      name, obj, &local_err);
+                                      name, obj, &error_abort);
             g_free(name);
         }
 
