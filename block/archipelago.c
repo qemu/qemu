@@ -57,6 +57,7 @@
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qjson.h"
+#include "qemu/atomic.h"
 
 #include <inttypes.h>
 #include <xseg/xseg.h>
@@ -214,7 +215,7 @@ static void xseg_request_handler(void *state)
 
                 xseg_put_request(s->xseg, req, s->srcport);
 
-                if ((__sync_add_and_fetch(&segreq->ref, -1)) == 0) {
+                if (atomic_fetch_dec(&segreq->ref) == 1) {
                     if (!segreq->failed) {
                         reqdata->aio_cb->ret = segreq->count;
                         archipelago_finish_aiocb(reqdata);
@@ -233,7 +234,7 @@ static void xseg_request_handler(void *state)
                 segreq->count += req->serviced;
                 xseg_put_request(s->xseg, req, s->srcport);
 
-                if ((__sync_add_and_fetch(&segreq->ref, -1)) == 0) {
+                if (atomic_fetch_dec(&segreq->ref) == 1) {
                     if (!segreq->failed) {
                         reqdata->aio_cb->ret = segreq->count;
                         archipelago_finish_aiocb(reqdata);
@@ -824,78 +825,47 @@ static int archipelago_aio_segmented_rw(BDRVArchipelagoState *s,
                                         ArchipelagoAIOCB *aio_cb,
                                         int op)
 {
-    int i, ret, segments_nr, last_segment_size;
+    int ret, segments_nr;
+    size_t pos = 0;
     ArchipelagoSegmentedRequest *segreq;
 
-    segreq = g_new(ArchipelagoSegmentedRequest, 1);
+    segreq = g_new0(ArchipelagoSegmentedRequest, 1);
 
     if (op == ARCHIP_OP_FLUSH) {
         segments_nr = 1;
-        segreq->ref = segments_nr;
-        segreq->total = count;
-        segreq->count = 0;
-        segreq->failed = 0;
-        ret = archipelago_submit_request(s, 0, count, offset, aio_cb,
-                                           segreq, ARCHIP_OP_FLUSH);
-        if (ret < 0) {
-            goto err_exit;
-        }
-        return 0;
+    } else {
+        segments_nr = (int)(count / MAX_REQUEST_SIZE) + \
+                      ((count % MAX_REQUEST_SIZE) ? 1 : 0);
     }
-
-    segments_nr = (int)(count / MAX_REQUEST_SIZE) + \
-                  ((count % MAX_REQUEST_SIZE) ? 1 : 0);
-    last_segment_size = (int)(count % MAX_REQUEST_SIZE);
-
-    segreq->ref = segments_nr;
     segreq->total = count;
-    segreq->count = 0;
-    segreq->failed = 0;
+    atomic_mb_set(&segreq->ref, segments_nr);
 
-    for (i = 0; i < segments_nr - 1; i++) {
-        ret = archipelago_submit_request(s, i * MAX_REQUEST_SIZE,
-                                           MAX_REQUEST_SIZE,
-                                           offset + i * MAX_REQUEST_SIZE,
-                                           aio_cb, segreq, op);
+    while (segments_nr > 1) {
+        ret = archipelago_submit_request(s, pos,
+                                            MAX_REQUEST_SIZE,
+                                            offset + pos,
+                                            aio_cb, segreq, op);
 
         if (ret < 0) {
             goto err_exit;
         }
+        count -= MAX_REQUEST_SIZE;
+        pos += MAX_REQUEST_SIZE;
+        segments_nr--;
     }
-
-    if ((segments_nr > 1) && last_segment_size) {
-        ret = archipelago_submit_request(s, i * MAX_REQUEST_SIZE,
-                                           last_segment_size,
-                                           offset + i * MAX_REQUEST_SIZE,
-                                           aio_cb, segreq, op);
-    } else if ((segments_nr > 1) && !last_segment_size) {
-        ret = archipelago_submit_request(s, i * MAX_REQUEST_SIZE,
-                                           MAX_REQUEST_SIZE,
-                                           offset + i * MAX_REQUEST_SIZE,
-                                           aio_cb, segreq, op);
-    } else if (segments_nr == 1) {
-            ret = archipelago_submit_request(s, 0, count, offset, aio_cb,
-                                               segreq, op);
-    }
+    ret = archipelago_submit_request(s, pos, count, offset + pos,
+                                     aio_cb, segreq, op);
 
     if (ret < 0) {
         goto err_exit;
     }
-
     return 0;
 
 err_exit:
-    __sync_add_and_fetch(&segreq->failed, 1);
-    if (segments_nr == 1) {
-        if (__sync_add_and_fetch(&segreq->ref, -1) == 0) {
-            g_free(segreq);
-        }
-    } else {
-        if ((__sync_add_and_fetch(&segreq->ref, -segments_nr + i)) == 0) {
-            g_free(segreq);
-        }
+    segreq->failed = 1;
+    if (atomic_fetch_sub(&segreq->ref, segments_nr) == segments_nr) {
+        g_free(segreq);
     }
-
     return ret;
 }
 
