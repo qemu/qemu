@@ -1810,6 +1810,13 @@ static void gd_set_keycode_type(GtkDisplayState *s)
             fprintf(stderr, "unknown keycodes `%s', please report to "
                     "qemu-devel@nongnu.org\n", keycodes);
         }
+
+        if (desc) {
+            XkbFreeKeyboard(desc, XkbGBN_AllComponentsMask, True);
+        }
+        if (keycodes) {
+            XFree(keycodes);
+        }
     }
 #endif
 }
