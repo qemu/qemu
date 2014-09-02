@@ -325,4 +325,44 @@ struct Acpi20Tcpa {
 } QEMU_PACKED;
 typedef struct Acpi20Tcpa Acpi20Tcpa;
 
+/* DMAR - DMA Remapping table r2.2 */
+struct AcpiTableDmar {
+    ACPI_TABLE_HEADER_DEF
+    uint8_t host_address_width; /* Maximum DMA physical addressability */
+    uint8_t flags;
+    uint8_t reserved[10];
+} QEMU_PACKED;
+typedef struct AcpiTableDmar AcpiTableDmar;
+
+/* Masks for Flags field above */
+#define ACPI_DMAR_INTR_REMAP        1
+#define ACPI_DMAR_X2APIC_OPT_OUT    (1 << 1)
+
+/* Values for sub-structure type for DMAR */
+enum {
+    ACPI_DMAR_TYPE_HARDWARE_UNIT = 0,       /* DRHD */
+    ACPI_DMAR_TYPE_RESERVED_MEMORY = 1,     /* RMRR */
+    ACPI_DMAR_TYPE_ATSR = 2,                /* ATSR */
+    ACPI_DMAR_TYPE_HARDWARE_AFFINITY = 3,   /* RHSR */
+    ACPI_DMAR_TYPE_ANDD = 4,                /* ANDD */
+    ACPI_DMAR_TYPE_RESERVED = 5             /* Reserved for furture use */
+};
+
+/*
+ * Sub-structures for DMAR
+ */
+/* Type 0: Hardware Unit Definition */
+struct AcpiDmarHardwareUnit {
+    uint16_t type;
+    uint16_t length;
+    uint8_t flags;
+    uint8_t reserved;
+    uint16_t pci_segment;   /* The PCI Segment associated with this unit */
+    uint64_t address;   /* Base address of remapping hardware register-set */
+} QEMU_PACKED;
+typedef struct AcpiDmarHardwareUnit AcpiDmarHardwareUnit;
+
+/* Masks for Flags field above */
+#define ACPI_DMAR_INCLUDE_PCI_ALL   1
+
 #endif

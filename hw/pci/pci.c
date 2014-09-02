@@ -1146,9 +1146,10 @@ uint32_t pci_default_read_config(PCIDevice *d,
     return le32_to_cpu(val);
 }
 
-void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
+void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val_in, int l)
 {
     int i, was_irq_disabled = pci_irq_disabled(d);
+    uint32_t val = val_in;
 
     for (i = 0; i < l; val >>= 8, ++i) {
         uint8_t wmask = d->wmask[addr + i];
@@ -1170,8 +1171,8 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
                                     & PCI_COMMAND_MASTER);
     }
 
-    msi_write_config(d, addr, val, l);
-    msix_write_config(d, addr, val, l);
+    msi_write_config(d, addr, val_in, l);
+    msix_write_config(d, addr, val_in, l);
 }
 
 /***********************************************************/

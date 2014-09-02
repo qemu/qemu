@@ -49,6 +49,7 @@
 #include "hw/i386/ich9.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci-host/q35.h"
+#include "hw/i386/intel_iommu.h"
 
 #include "hw/i386/q35-acpi-dsdt.hex"
 #include "hw/i386/acpi-dsdt.hex"
@@ -1388,6 +1389,30 @@ build_mcfg_q35(GArray *table_data, GArray *linker, AcpiMcfgInfo *info)
 }
 
 static void
+build_dmar_q35(GArray *table_data, GArray *linker)
+{
+    int dmar_start = table_data->len;
+
+    AcpiTableDmar *dmar;
+    AcpiDmarHardwareUnit *drhd;
+
+    dmar = acpi_data_push(table_data, sizeof(*dmar));
+    dmar->host_address_width = VTD_HOST_ADDRESS_WIDTH - 1;
+    dmar->flags = 0;    /* No intr_remap for now */
+
+    /* DMAR Remapping Hardware Unit Definition structure */
+    drhd = acpi_data_push(table_data, sizeof(*drhd));
+    drhd->type = cpu_to_le16(ACPI_DMAR_TYPE_HARDWARE_UNIT);
+    drhd->length = cpu_to_le16(sizeof(*drhd));   /* No device scope now */
+    drhd->flags = ACPI_DMAR_INCLUDE_PCI_ALL;
+    drhd->pci_segment = cpu_to_le16(0);
+    drhd->address = cpu_to_le64(Q35_HOST_BRIDGE_IOMMU_ADDR);
+
+    build_header(linker, table_data, (void *)(table_data->data + dmar_start),
+                 "DMAR", table_data->len - dmar_start, 1);
+}
+
+static void
 build_dsdt(GArray *table_data, GArray *linker, AcpiMiscInfo *misc)
 {
     AcpiTableHeader *dsdt;
@@ -1508,6 +1533,16 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
     return true;
 }
 
+static bool acpi_has_iommu(void)
+{
+    bool ambiguous;
+    Object *intel_iommu;
+
+    intel_iommu = object_resolve_path_type("", TYPE_INTEL_IOMMU_DEVICE,
+                                           &ambiguous);
+    return intel_iommu && !ambiguous;
+}
+
 static
 void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
 {
@@ -1583,6 +1618,10 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
     if (acpi_get_mcfg(&mcfg)) {
         acpi_add_table(table_offsets, tables->table_data);
         build_mcfg_q35(tables->table_data, tables->linker, &mcfg);
+    }
+    if (acpi_has_iommu()) {
+        acpi_add_table(table_offsets, tables->table_data);
+        build_dmar_q35(tables->table_data, tables->linker);
     }
 
     /* Add tables supplied by user (if any) */
