@@ -238,6 +238,7 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
     s->dev.nvqs = VHOST_SCSI_VQ_NUM_FIXED + vs->conf.num_queues;
     s->dev.vqs = g_new(struct vhost_virtqueue, s->dev.nvqs);
     s->dev.vq_index = 0;
+    s->dev.backend_features = 0;
 
     ret = vhost_dev_init(&s->dev, (void *)(uintptr_t)vhostfd,
                          VHOST_BACKEND_TYPE_KERNEL, true);
@@ -246,7 +247,6 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
                    strerror(-ret));
         return;
     }
-    s->dev.backend_features = 0;
 
     error_setg(&s->migration_blocker,
             "vhost-scsi does not support migration");
