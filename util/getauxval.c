@@ -98,4 +98,12 @@ unsigned long qemu_getauxval(unsigned long type)
 
     return 0;
 }
+
+#else
+
+unsigned long qemu_getauxval(unsigned long type)
+{
+    return 0;
+}
+
 #endif
