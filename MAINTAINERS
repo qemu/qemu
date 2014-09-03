@@ -980,7 +980,7 @@ S: Supported
 F: block/rbd.c
 
 Sheepdog
-M: MORITA Kazutaka <morita.kazutaka@lab.ntt.co.jp>
+M: Hitoshi Mitake <mitake.hitoshi@lab.ntt.co.jp>
 M: Liu Yuan <namei.unix@gmail.com>
 L: sheepdog@lists.wpkg.org
 S: Supported
