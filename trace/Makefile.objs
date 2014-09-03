@@ -140,8 +140,7 @@ $(obj)/generated-tcg-tracers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/
 ######################################################################
 # Backend code
 
-util-obj-$(CONFIG_TRACE_SIMPLE) += simple.o
+util-obj-$(CONFIG_TRACE_SIMPLE) += simple.o generated-tracers.o
 util-obj-$(CONFIG_TRACE_FTRACE) += ftrace.o
 util-obj-$(CONFIG_TRACE_UST) += generated-ust.o
 util-obj-y += control.o
-util-obj-y += generated-tracers.o
