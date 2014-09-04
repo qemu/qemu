@@ -976,6 +976,7 @@ void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
 bool vhost_virtqueue_pending(struct vhost_dev *hdev, int n)
 {
     struct vhost_virtqueue *vq = hdev->vqs + n - hdev->vq_index;
+    assert(hdev->started);
     assert(n >= hdev->vq_index && n < hdev->vq_index + hdev->nvqs);
     return event_notifier_test_and_clear(&vq->masked_notifier);
 }
@@ -987,6 +988,7 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
     struct VirtQueue *vvq = virtio_get_queue(vdev, n);
     int r, index = n - hdev->vq_index;
 
+    assert(hdev->started);
     assert(n >= hdev->vq_index && n < hdev->vq_index + hdev->nvqs);
 
     struct vhost_vring_file file = {
