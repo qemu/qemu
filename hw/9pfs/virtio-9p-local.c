@@ -135,17 +135,17 @@ static int local_lstat(FsContext *fs_ctx, V9fsPath *fs_path, struct stat *stbuf)
         mode_t tmp_mode;
         dev_t tmp_dev;
         if (getxattr(buffer, "user.virtfs.uid", &tmp_uid, sizeof(uid_t)) > 0) {
-            stbuf->st_uid = tmp_uid;
+            stbuf->st_uid = le32_to_cpu(tmp_uid);
         }
         if (getxattr(buffer, "user.virtfs.gid", &tmp_gid, sizeof(gid_t)) > 0) {
-            stbuf->st_gid = tmp_gid;
+            stbuf->st_gid = le32_to_cpu(tmp_gid);
         }
         if (getxattr(buffer, "user.virtfs.mode",
                     &tmp_mode, sizeof(mode_t)) > 0) {
-            stbuf->st_mode = tmp_mode;
+            stbuf->st_mode = le32_to_cpu(tmp_mode);
         }
         if (getxattr(buffer, "user.virtfs.rdev", &tmp_dev, sizeof(dev_t)) > 0) {
-                stbuf->st_rdev = tmp_dev;
+            stbuf->st_rdev = le64_to_cpu(tmp_dev);
         }
     } else if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         local_mapped_file_attr(fs_ctx, path, stbuf);
@@ -255,29 +255,29 @@ static int local_set_xattr(const char *path, FsCred *credp)
     int err;
 
     if (credp->fc_uid != -1) {
-        err = setxattr(path, "user.virtfs.uid", &credp->fc_uid, sizeof(uid_t),
-                0);
+        uint32_t tmp_uid = cpu_to_le32(credp->fc_uid);
+        err = setxattr(path, "user.virtfs.uid", &tmp_uid, sizeof(uid_t), 0);
         if (err) {
             return err;
         }
     }
     if (credp->fc_gid != -1) {
-        err = setxattr(path, "user.virtfs.gid", &credp->fc_gid, sizeof(gid_t),
-                0);
+        uint32_t tmp_gid = cpu_to_le32(credp->fc_gid);
+        err = setxattr(path, "user.virtfs.gid", &tmp_gid, sizeof(gid_t), 0);
         if (err) {
             return err;
         }
     }
     if (credp->fc_mode != -1) {
-        err = setxattr(path, "user.virtfs.mode", &credp->fc_mode,
-                sizeof(mode_t), 0);
+        uint32_t tmp_mode = cpu_to_le32(credp->fc_mode);
+        err = setxattr(path, "user.virtfs.mode", &tmp_mode, sizeof(mode_t), 0);
         if (err) {
             return err;
         }
     }
     if (credp->fc_rdev != -1) {
-        err = setxattr(path, "user.virtfs.rdev", &credp->fc_rdev,
-                sizeof(dev_t), 0);
+        uint64_t tmp_rdev = cpu_to_le64(credp->fc_rdev);
+        err = setxattr(path, "user.virtfs.rdev", &tmp_rdev, sizeof(dev_t), 0);
         if (err) {
             return err;
         }
@@ -397,12 +397,15 @@ static int local_readdir_r(FsContext *ctx, V9fsFidOpenState *fs,
 
 again:
     ret = readdir_r(fs->dir, entry, result);
-    if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
+    if (ctx->export_flags & V9FS_SM_MAPPED) {
+        entry->d_type = DT_UNKNOWN;
+    } else if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         if (!ret && *result != NULL &&
             !strcmp(entry->d_name, VIRTFS_META_DIR)) {
             /* skp the meta data directory */
             goto again;
         }
+        entry->d_type = DT_UNKNOWN;
     }
     return ret;
 }
@@ -630,21 +633,17 @@ static int local_fstat(FsContext *fs_ctx, int fid_type,
         mode_t tmp_mode;
         dev_t tmp_dev;
 
-        if (fgetxattr(fd, "user.virtfs.uid",
-                      &tmp_uid, sizeof(uid_t)) > 0) {
-            stbuf->st_uid = tmp_uid;
+        if (fgetxattr(fd, "user.virtfs.uid", &tmp_uid, sizeof(uid_t)) > 0) {
+            stbuf->st_uid = le32_to_cpu(tmp_uid);
         }
-        if (fgetxattr(fd, "user.virtfs.gid",
-                      &tmp_gid, sizeof(gid_t)) > 0) {
-            stbuf->st_gid = tmp_gid;
+        if (fgetxattr(fd, "user.virtfs.gid", &tmp_gid, sizeof(gid_t)) > 0) {
+            stbuf->st_gid = le32_to_cpu(tmp_gid);
         }
-        if (fgetxattr(fd, "user.virtfs.mode",
-                      &tmp_mode, sizeof(mode_t)) > 0) {
-            stbuf->st_mode = tmp_mode;
+        if (fgetxattr(fd, "user.virtfs.mode", &tmp_mode, sizeof(mode_t)) > 0) {
+            stbuf->st_mode = le32_to_cpu(tmp_mode);
         }
-        if (fgetxattr(fd, "user.virtfs.rdev",
-                      &tmp_dev, sizeof(dev_t)) > 0) {
-                stbuf->st_rdev = tmp_dev;
+        if (fgetxattr(fd, "user.virtfs.rdev", &tmp_dev, sizeof(dev_t)) > 0) {
+            stbuf->st_rdev = le64_to_cpu(tmp_dev);
         }
     } else if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         errno = EOPNOTSUPP;
