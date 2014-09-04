@@ -2,109 +2,368 @@
 # QAPI helper library
 #
 # Copyright IBM, Corp. 2011
+# Copyright (c) 2013 Red Hat Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
+#  Markus Armbruster <armbru@redhat.com>
 #
-# This work is licensed under the terms of the GNU GPLv2.
-# See the COPYING.LIB file in the top-level directory.
+# This work is licensed under the terms of the GNU GPL, version 2.
+# See the COPYING file in the top-level directory.
 
+import re
 from ordereddict import OrderedDict
+import os
+import sys
 
-def tokenize(data):
-    while len(data):
-        ch = data[0]
-        data = data[1:]
-        if ch in ['{', '}', ':', ',', '[', ']']:
-            yield ch
-        elif ch in ' \n':
-            None
-        elif ch == "'":
-            string = ''
-            esc = False
-            while True:
-                if (data == ''):
-                    raise Exception("Mismatched quotes")
-                ch = data[0]
-                data = data[1:]
-                if esc:
-                    string += ch
-                    esc = False
-                elif ch == "\\":
-                    esc = True
-                elif ch == "'":
-                    break
-                else:
-                    string += ch
-            yield string
+builtin_types = [
+    'str', 'int', 'number', 'bool',
+    'int8', 'int16', 'int32', 'int64',
+    'uint8', 'uint16', 'uint32', 'uint64'
+]
 
-def parse(tokens):
-    if tokens[0] == '{':
-        ret = OrderedDict()
-        tokens = tokens[1:]
-        while tokens[0] != '}':
-            key = tokens[0]
-            tokens = tokens[1:]
+builtin_type_qtypes = {
+    'str':      'QTYPE_QSTRING',
+    'int':      'QTYPE_QINT',
+    'number':   'QTYPE_QFLOAT',
+    'bool':     'QTYPE_QBOOL',
+    'int8':     'QTYPE_QINT',
+    'int16':    'QTYPE_QINT',
+    'int32':    'QTYPE_QINT',
+    'int64':    'QTYPE_QINT',
+    'uint8':    'QTYPE_QINT',
+    'uint16':   'QTYPE_QINT',
+    'uint32':   'QTYPE_QINT',
+    'uint64':   'QTYPE_QINT',
+}
 
-            tokens = tokens[1:] # :
+def error_path(parent):
+    res = ""
+    while parent:
+        res = ("In file included from %s:%d:\n" % (parent['file'],
+                                                   parent['line'])) + res
+        parent = parent['parent']
+    return res
 
-            value, tokens = parse(tokens)
+class QAPISchemaError(Exception):
+    def __init__(self, schema, msg):
+        self.input_file = schema.input_file
+        self.msg = msg
+        self.col = 1
+        self.line = schema.line
+        for ch in schema.src[schema.line_pos:schema.pos]:
+            if ch == '\t':
+                self.col = (self.col + 7) % 8 + 1
+            else:
+                self.col += 1
+        self.info = schema.parent_info
 
-            if tokens[0] == ',':
-                tokens = tokens[1:]
+    def __str__(self):
+        return error_path(self.info) + \
+            "%s:%d:%d: %s" % (self.input_file, self.line, self.col, self.msg)
 
-            ret[key] = value
-        tokens = tokens[1:]
-        return ret, tokens
-    elif tokens[0] == '[':
-        ret = []
-        tokens = tokens[1:]
-        while tokens[0] != ']':
-            value, tokens = parse(tokens)
-            if tokens[0] == ',':
-                tokens = tokens[1:]
-            ret.append(value)
-        tokens = tokens[1:]
-        return ret, tokens
-    else:
-        return tokens[0], tokens[1:]
+class QAPIExprError(Exception):
+    def __init__(self, expr_info, msg):
+        self.info = expr_info
+        self.msg = msg
 
-def evaluate(string):
-    return parse(map(lambda x: x, tokenize(string)))[0]
+    def __str__(self):
+        return error_path(self.info['parent']) + \
+            "%s:%d: %s" % (self.info['file'], self.info['line'], self.msg)
 
-def parse_schema(fp):
-    exprs = []
-    expr = ''
-    expr_eval = None
+class QAPISchema:
 
-    for line in fp:
-        if line.startswith('#') or line == '\n':
-            continue
+    def __init__(self, fp, input_relname=None, include_hist=[],
+                 previously_included=[], parent_info=None):
+        """ include_hist is a stack used to detect inclusion cycles
+            previously_included is a global state used to avoid multiple
+                                inclusions of the same file"""
+        input_fname = os.path.abspath(fp.name)
+        if input_relname is None:
+            input_relname = fp.name
+        self.input_dir = os.path.dirname(input_fname)
+        self.input_file = input_relname
+        self.include_hist = include_hist + [(input_relname, input_fname)]
+        previously_included.append(input_fname)
+        self.parent_info = parent_info
+        self.src = fp.read()
+        if self.src == '' or self.src[-1] != '\n':
+            self.src += '\n'
+        self.cursor = 0
+        self.line = 1
+        self.line_pos = 0
+        self.exprs = []
+        self.accept()
 
-        if line.startswith(' '):
-            expr += line
-        elif expr:
-            expr_eval = evaluate(expr)
-            if expr_eval.has_key('enum'):
-                add_enum(expr_eval['enum'])
-            elif expr_eval.has_key('union'):
-                add_enum('%sKind' % expr_eval['union'])
-            exprs.append(expr_eval)
-            expr = line
+        while self.tok != None:
+            expr_info = {'file': input_relname, 'line': self.line, 'parent': self.parent_info}
+            expr = self.get_expr(False)
+            if isinstance(expr, dict) and "include" in expr:
+                if len(expr) != 1:
+                    raise QAPIExprError(expr_info, "Invalid 'include' directive")
+                include = expr["include"]
+                if not isinstance(include, str):
+                    raise QAPIExprError(expr_info,
+                                        'Expected a file name (string), got: %s'
+                                        % include)
+                include_path = os.path.join(self.input_dir, include)
+                if any(include_path == elem[1]
+                       for elem in self.include_hist):
+                    raise QAPIExprError(expr_info, "Inclusion loop for %s"
+                                        % include)
+                # skip multiple include of the same file
+                if include_path in previously_included:
+                    continue
+                try:
+                    fobj = open(include_path, 'r')
+                except IOError, e:
+                    raise QAPIExprError(expr_info,
+                                        '%s: %s' % (e.strerror, include))
+                exprs_include = QAPISchema(fobj, include, self.include_hist,
+                                           previously_included, expr_info)
+                self.exprs.extend(exprs_include.exprs)
+            else:
+                expr_elem = {'expr': expr,
+                             'info': expr_info}
+                self.exprs.append(expr_elem)
+
+    def accept(self):
+        while True:
+            self.tok = self.src[self.cursor]
+            self.pos = self.cursor
+            self.cursor += 1
+            self.val = None
+
+            if self.tok == '#':
+                self.cursor = self.src.find('\n', self.cursor)
+            elif self.tok in ['{', '}', ':', ',', '[', ']']:
+                return
+            elif self.tok == "'":
+                string = ''
+                esc = False
+                while True:
+                    ch = self.src[self.cursor]
+                    self.cursor += 1
+                    if ch == '\n':
+                        raise QAPISchemaError(self,
+                                              'Missing terminating "\'"')
+                    if esc:
+                        string += ch
+                        esc = False
+                    elif ch == "\\":
+                        esc = True
+                    elif ch == "'":
+                        self.val = string
+                        return
+                    else:
+                        string += ch
+            elif self.tok == '\n':
+                if self.cursor == len(self.src):
+                    self.tok = None
+                    return
+                self.line += 1
+                self.line_pos = self.cursor
+            elif not self.tok.isspace():
+                raise QAPISchemaError(self, 'Stray "%s"' % self.tok)
+
+    def get_members(self):
+        expr = OrderedDict()
+        if self.tok == '}':
+            self.accept()
+            return expr
+        if self.tok != "'":
+            raise QAPISchemaError(self, 'Expected string or "}"')
+        while True:
+            key = self.val
+            self.accept()
+            if self.tok != ':':
+                raise QAPISchemaError(self, 'Expected ":"')
+            self.accept()
+            if key in expr:
+                raise QAPISchemaError(self, 'Duplicate key "%s"' % key)
+            expr[key] = self.get_expr(True)
+            if self.tok == '}':
+                self.accept()
+                return expr
+            if self.tok != ',':
+                raise QAPISchemaError(self, 'Expected "," or "}"')
+            self.accept()
+            if self.tok != "'":
+                raise QAPISchemaError(self, 'Expected string')
+
+    def get_values(self):
+        expr = []
+        if self.tok == ']':
+            self.accept()
+            return expr
+        if not self.tok in [ '{', '[', "'" ]:
+            raise QAPISchemaError(self, 'Expected "{", "[", "]" or string')
+        while True:
+            expr.append(self.get_expr(True))
+            if self.tok == ']':
+                self.accept()
+                return expr
+            if self.tok != ',':
+                raise QAPISchemaError(self, 'Expected "," or "]"')
+            self.accept()
+
+    def get_expr(self, nested):
+        if self.tok != '{' and not nested:
+            raise QAPISchemaError(self, 'Expected "{"')
+        if self.tok == '{':
+            self.accept()
+            expr = self.get_members()
+        elif self.tok == '[':
+            self.accept()
+            expr = self.get_values()
+        elif self.tok == "'":
+            expr = self.val
+            self.accept()
         else:
-            expr += line
+            raise QAPISchemaError(self, 'Expected "{", "[" or string')
+        return expr
 
-    if expr:
-        expr_eval = evaluate(expr)
-        if expr_eval.has_key('enum'):
-            add_enum(expr_eval['enum'])
-        elif expr_eval.has_key('union'):
-            add_enum('%sKind' % expr_eval['union'])
-        exprs.append(expr_eval)
+def find_base_fields(base):
+    base_struct_define = find_struct(base)
+    if not base_struct_define:
+        return None
+    return base_struct_define['data']
+
+# Return the discriminator enum define if discriminator is specified as an
+# enum type, otherwise return None.
+def discriminator_find_enum_define(expr):
+    base = expr.get('base')
+    discriminator = expr.get('discriminator')
+
+    if not (discriminator and base):
+        return None
+
+    base_fields = find_base_fields(base)
+    if not base_fields:
+        return None
+
+    discriminator_type = base_fields.get(discriminator)
+    if not discriminator_type:
+        return None
+
+    return find_enum(discriminator_type)
+
+def check_event(expr, expr_info):
+    params = expr.get('data')
+    if params:
+        for argname, argentry, optional, structured in parse_args(params):
+            if structured:
+                raise QAPIExprError(expr_info,
+                                    "Nested structure define in event is not "
+                                    "supported, event '%s', argname '%s'"
+                                    % (expr['event'], argname))
+
+def check_union(expr, expr_info):
+    name = expr['union']
+    base = expr.get('base')
+    discriminator = expr.get('discriminator')
+    members = expr['data']
+
+    # If the object has a member 'base', its value must name a complex type.
+    if base:
+        base_fields = find_base_fields(base)
+        if not base_fields:
+            raise QAPIExprError(expr_info,
+                                "Base '%s' is not a valid type"
+                                % base)
+
+    # If the union object has no member 'discriminator', it's an
+    # ordinary union.
+    if not discriminator:
+        enum_define = None
+
+    # Else if the value of member 'discriminator' is {}, it's an
+    # anonymous union.
+    elif discriminator == {}:
+        enum_define = None
+
+    # Else, it's a flat union.
+    else:
+        # The object must have a member 'base'.
+        if not base:
+            raise QAPIExprError(expr_info,
+                                "Flat union '%s' must have a base field"
+                                % name)
+        # The value of member 'discriminator' must name a member of the
+        # base type.
+        discriminator_type = base_fields.get(discriminator)
+        if not discriminator_type:
+            raise QAPIExprError(expr_info,
+                                "Discriminator '%s' is not a member of base "
+                                "type '%s'"
+                                % (discriminator, base))
+        enum_define = find_enum(discriminator_type)
+        # Do not allow string discriminator
+        if not enum_define:
+            raise QAPIExprError(expr_info,
+                                "Discriminator '%s' must be of enumeration "
+                                "type" % discriminator)
+
+    # Check every branch
+    for (key, value) in members.items():
+        # If this named member's value names an enum type, then all members
+        # of 'data' must also be members of the enum type.
+        if enum_define and not key in enum_define['enum_values']:
+            raise QAPIExprError(expr_info,
+                                "Discriminator value '%s' is not found in "
+                                "enum '%s'" %
+                                (key, enum_define["enum_name"]))
+        # Todo: add checking for values. Key is checked as above, value can be
+        # also checked here, but we need more functions to handle array case.
+
+def check_exprs(schema):
+    for expr_elem in schema.exprs:
+        expr = expr_elem['expr']
+        if expr.has_key('union'):
+            check_union(expr, expr_elem['info'])
+        if expr.has_key('event'):
+            check_event(expr, expr_elem['info'])
+
+def parse_schema(input_file):
+    try:
+        schema = QAPISchema(open(input_file, "r"))
+    except (QAPISchemaError, QAPIExprError), e:
+        print >>sys.stderr, e
+        exit(1)
+
+    exprs = []
+
+    for expr_elem in schema.exprs:
+        expr = expr_elem['expr']
+        if expr.has_key('enum'):
+            add_enum(expr['enum'], expr['data'])
+        elif expr.has_key('union'):
+            add_union(expr)
+        elif expr.has_key('type'):
+            add_struct(expr)
+        exprs.append(expr)
+
+    # Try again for hidden UnionKind enum
+    for expr_elem in schema.exprs:
+        expr = expr_elem['expr']
+        if expr.has_key('union'):
+            if not discriminator_find_enum_define(expr):
+                add_enum('%sKind' % expr['union'])
+
+    try:
+        check_exprs(schema)
+    except QAPIExprError, e:
+        print >>sys.stderr, e
+        exit(1)
 
     return exprs
 
 def parse_args(typeinfo):
+    if isinstance(typeinfo, basestring):
+        struct = find_struct(typeinfo)
+        assert struct != None
+        typeinfo = struct['data']
+
     for member in typeinfo:
         argname = member
         argentry = typeinfo[member]
@@ -156,9 +415,19 @@ def c_var(name, protect=True):
     # GCC http://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/C-Extensions.html
     # excluding _.*
     gcc_words = set(['asm', 'typeof'])
+    # C++ ISO/IEC 14882:2003 2.11
+    cpp_words = set(['bool', 'catch', 'class', 'const_cast', 'delete',
+                     'dynamic_cast', 'explicit', 'false', 'friend', 'mutable',
+                     'namespace', 'new', 'operator', 'private', 'protected',
+                     'public', 'reinterpret_cast', 'static_cast', 'template',
+                     'this', 'throw', 'true', 'try', 'typeid', 'typename',
+                     'using', 'virtual', 'wchar_t',
+                     # alternative representations
+                     'and', 'and_eq', 'bitand', 'bitor', 'compl', 'not',
+                     'not_eq', 'or', 'or_eq', 'xor', 'xor_eq'])
     # namespace pollution:
-    polluted_words = set(['unix'])
-    if protect and (name in c89_words | c99_words | c11_words | gcc_words | polluted_words):
+    polluted_words = set(['unix', 'errno'])
+    if protect and (name in c89_words | c99_words | c11_words | gcc_words | cpp_words | polluted_words):
         return "q_" + name
     return name.replace('-', '_').lstrip("*")
 
@@ -174,18 +443,56 @@ def type_name(name):
     return name
 
 enum_types = []
+struct_types = []
+union_types = []
 
-def add_enum(name):
+def add_struct(definition):
+    global struct_types
+    struct_types.append(definition)
+
+def find_struct(name):
+    global struct_types
+    for struct in struct_types:
+        if struct['type'] == name:
+            return struct
+    return None
+
+def add_union(definition):
+    global union_types
+    union_types.append(definition)
+
+def find_union(name):
+    global union_types
+    for union in union_types:
+        if union['union'] == name:
+            return union
+    return None
+
+def add_enum(name, enum_values = None):
     global enum_types
-    enum_types.append(name)
+    enum_types.append({"enum_name": name, "enum_values": enum_values})
+
+def find_enum(name):
+    global enum_types
+    for enum in enum_types:
+        if enum['enum_name'] == name:
+            return enum
+    return None
 
 def is_enum(name):
-    global enum_types
-    return (name in enum_types)
+    return find_enum(name) != None
 
-def c_type(name):
+eatspace = '\033EATSPACE.'
+
+# A special suffix is added in c_type() for pointer types, and it's
+# stripped in mcgen(). So please notice this when you check the return
+# value of c_type() outside mcgen().
+def c_type(name, is_param=False):
     if name == 'str':
-        return 'char *'
+        if is_param:
+            return 'const char *' + eatspace
+        return 'char *' + eatspace
+
     elif name == 'int':
         return 'int64_t'
     elif (name == 'int8' or name == 'int16' or name == 'int32' or
@@ -199,15 +506,19 @@ def c_type(name):
     elif name == 'number':
         return 'double'
     elif type(name) == list:
-        return '%s *' % c_list_type(name[0])
+        return '%s *%s' % (c_list_type(name[0]), eatspace)
     elif is_enum(name):
         return name
     elif name == None or len(name) == 0:
         return 'void'
     elif name == name.upper():
-        return '%sEvent *' % camel_case(name)
+        return '%sEvent *%s' % (camel_case(name), eatspace)
     else:
-        return '%s *' % name
+        return '%s *%s' % (name, eatspace)
+
+def is_c_ptr(name):
+    suffix = "*" + eatspace
+    return c_type(name).endswith(suffix)
 
 def genindent(count):
     ret = ""
@@ -232,7 +543,8 @@ def cgen(code, **kwds):
     return '\n'.join(lines) % kwds + '\n'
 
 def mcgen(code, **kwds):
-    return cgen('\n'.join(code.split('\n')[1:-1]), **kwds)
+    raw = cgen('\n'.join(code.split('\n')[1:-1]), **kwds)
+    return re.sub(re.escape(eatspace) + ' *', '', raw)
 
 def basename(filename):
     return filename.split("/")[-1]
@@ -242,3 +554,47 @@ def guardname(filename):
     for substr in [".", " ", "-"]:
         guard = guard.replace(substr, "_")
     return guard.upper() + '_H'
+
+def guardstart(name):
+    return mcgen('''
+
+#ifndef %(name)s
+#define %(name)s
+
+''',
+                 name=guardname(name))
+
+def guardend(name):
+    return mcgen('''
+
+#endif /* %(name)s */
+
+''',
+                 name=guardname(name))
+
+# ENUMName -> ENUM_NAME, EnumName1 -> ENUM_NAME1
+# ENUM_NAME -> ENUM_NAME, ENUM_NAME1 -> ENUM_NAME1, ENUM_Name2 -> ENUM_NAME2
+# ENUM24_Name -> ENUM24_NAME
+def _generate_enum_string(value):
+    c_fun_str = c_fun(value, False)
+    if value.isupper():
+        return c_fun_str
+
+    new_name = ''
+    l = len(c_fun_str)
+    for i in range(l):
+        c = c_fun_str[i]
+        # When c is upper and no "_" appears before, do more checks
+        if c.isupper() and (i > 0) and c_fun_str[i - 1] != "_":
+            # Case 1: next string is lower
+            # Case 2: previous string is digit
+            if (i < (l - 1) and c_fun_str[i + 1].islower()) or \
+            c_fun_str[i - 1].isdigit():
+                new_name += '_'
+        new_name += c
+    return new_name.lstrip('_').upper()
+
+def generate_enum_full_value(enum_name, enum_value):
+    abbrev_string = _generate_enum_string(enum_name)
+    value_string = _generate_enum_string(enum_value)
+    return "%s_%s" % (abbrev_string, value_string)

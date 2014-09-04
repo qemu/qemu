@@ -32,10 +32,10 @@
 #include "exec/exec-all.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
+#include "exec/cpu_ldst.h"
 
-#include "helper.h"
-#define GEN_HELPER 1
-#include "helper.h"
+#include "exec/helper-proto.h"
+#include "exec/helper-gen.h"
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {
@@ -74,9 +74,11 @@ static int extract_branch_offset(int opcode)
   return (((signed short)((opcode & ((1 << 10) - 1)) << 6)) >> 6) << 1;
 }
 
-void cpu_dump_state(CPUArchState *env, FILE *f, fprintf_function cpu_fprintf,
-                    int flags)
+void moxie_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                          int flags)
 {
+    MoxieCPU *cpu = MOXIE_CPU(cs);
+    CPUMoxieState *env = &cpu->env;
     int i;
     cpu_fprintf(f, "pc=0x%08x\n", env->pc);
     cpu_fprintf(f, "$fp=0x%08x $sp=0x%08x $r0=0x%08x $r1=0x%08x\n",
@@ -133,7 +135,7 @@ static inline void gen_goto_tb(CPUMoxieState *env, DisasContext *ctx,
         !ctx->singlestep_enabled) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_i32(cpu_pc, dest);
-        tcg_gen_exit_tb((tcg_target_long)tb + n);
+        tcg_gen_exit_tb((uintptr_t)tb + n);
     } else {
         tcg_gen_movi_i32(cpu_pc, dest);
         if (ctx->singlestep_enabled) {
@@ -818,10 +820,11 @@ static int decode_opc(MoxieCPU *cpu, DisasContext *ctx)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-static void
+static inline void
 gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
                                bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
     DisasContext ctx;
     target_ulong pc_start;
     uint16_t *gen_opc_end;
@@ -842,8 +845,8 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
 
     gen_tb_start();
     do {
-        if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
-            QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
+            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (ctx.pc == bp->pc) {
                     tcg_gen_movi_i32(cpu_pc, ctx.pc);
                     gen_helper_debug(cpu_env);
@@ -869,7 +872,7 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
         ctx.pc += decode_opc(cpu, &ctx);
         num_insns++;
 
-        if (env->singlestep_enabled) {
+        if (cs->singlestep_enabled) {
             break;
         }
 
@@ -878,7 +881,7 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
         }
     } while (ctx.bstate == BS_NONE && tcg_ctx.gen_opc_ptr < gen_opc_end);
 
-    if (env->singlestep_enabled) {
+    if (cs->singlestep_enabled) {
         tcg_gen_movi_tl(cpu_pc, ctx.pc);
         gen_helper_debug(cpu_env);
     } else {

@@ -89,7 +89,7 @@ static int prepare_binprm(struct linux_binprm *bprm)
 abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
                               abi_ulong stringp, int push_ptr)
 {
-    TaskState *ts = (TaskState *)thread_env->opaque;
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
     int n = sizeof(abi_ulong);
     abi_ulong envp;
     abi_ulong argv;
@@ -130,7 +130,7 @@ abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
     return sp;
 }
 
-int loader_exec(const char * filename, char ** argv, char ** envp,
+int loader_exec(int fdexec, const char *filename, char **argv, char **envp,
              struct target_pt_regs * regs, struct image_info *infop,
              struct linux_binprm *bprm)
 {
@@ -139,11 +139,7 @@ int loader_exec(const char * filename, char ** argv, char ** envp,
 
     bprm->p = TARGET_PAGE_SIZE*MAX_ARG_PAGES-sizeof(unsigned int);
     memset(bprm->page, 0, sizeof(bprm->page));
-    retval = open(filename, O_RDONLY);
-    if (retval < 0) {
-        return -errno;
-    }
-    bprm->fd = retval;
+    bprm->fd = fdexec;
     bprm->filename = (char *)filename;
     bprm->argc = count(argv);
     bprm->argv = argv;
@@ -157,13 +153,13 @@ int loader_exec(const char * filename, char ** argv, char ** envp,
                 && bprm->buf[1] == 'E'
                 && bprm->buf[2] == 'L'
                 && bprm->buf[3] == 'F') {
-            retval = load_elf_binary(bprm, regs, infop);
+            retval = load_elf_binary(bprm, infop);
 #if defined(TARGET_HAS_BFLT)
         } else if (bprm->buf[0] == 'b'
                 && bprm->buf[1] == 'F'
                 && bprm->buf[2] == 'L'
                 && bprm->buf[3] == 'T') {
-            retval = load_flt_binary(bprm,regs,infop);
+            retval = load_flt_binary(bprm, infop);
 #endif
         } else {
             return -ENOEXEC;

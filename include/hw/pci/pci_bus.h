@@ -10,14 +10,12 @@
 
 struct PCIBus {
     BusState qbus;
-    PCIDMAContextFunc dma_context_fn;
-    void *dma_context_opaque;
+    PCIIOMMUFunc iommu_fn;
+    void *iommu_opaque;
     uint8_t devfn_min;
     pci_set_irq_fn set_irq;
     pci_map_irq_fn map_irq;
     pci_route_irq_fn route_intx_to_irq;
-    pci_hotplug_fn hotplug;
-    DeviceState *hotplug_qdev;
     void *irq_opaque;
     PCIDevice *devices[PCI_SLOT_MAX * PCI_FUNC_MAX];
     PCIDevice *parent_dev;
@@ -53,8 +51,13 @@ struct PCIBridgeWindows {
     MemoryRegion alias_vga[QEMU_PCI_VGA_NUM_REGIONS];
 };
 
+#define TYPE_PCI_BRIDGE "base-pci-bridge"
+#define PCI_BRIDGE(obj) OBJECT_CHECK(PCIBridge, (obj), TYPE_PCI_BRIDGE)
+
 struct PCIBridge {
-    PCIDevice dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
 
     /* private member */
     PCIBus sec_bus;

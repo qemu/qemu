@@ -21,7 +21,9 @@
 static ssize_t mp_user_getxattr(FsContext *ctx, const char *path,
                                 const char *name, void *value, size_t size)
 {
-    char buffer[PATH_MAX];
+    char *buffer;
+    ssize_t ret;
+
     if (strncmp(name, "user.virtfs.", 12) == 0) {
         /*
          * Don't allow fetch of user.virtfs namesapce
@@ -30,7 +32,10 @@ static ssize_t mp_user_getxattr(FsContext *ctx, const char *path,
         errno = ENOATTR;
         return -1;
     }
-    return lgetxattr(rpath(ctx, path, buffer), name, value, size);
+    buffer = rpath(ctx, path);
+    ret = lgetxattr(buffer, name, value, size);
+    g_free(buffer);
+    return ret;
 }
 
 static ssize_t mp_user_listxattr(FsContext *ctx, const char *path,
@@ -69,7 +74,9 @@ static ssize_t mp_user_listxattr(FsContext *ctx, const char *path,
 static int mp_user_setxattr(FsContext *ctx, const char *path, const char *name,
                             void *value, size_t size, int flags)
 {
-    char buffer[PATH_MAX];
+    char *buffer;
+    int ret;
+
     if (strncmp(name, "user.virtfs.", 12) == 0) {
         /*
          * Don't allow fetch of user.virtfs namesapce
@@ -78,13 +85,18 @@ static int mp_user_setxattr(FsContext *ctx, const char *path, const char *name,
         errno = EACCES;
         return -1;
     }
-    return lsetxattr(rpath(ctx, path, buffer), name, value, size, flags);
+    buffer = rpath(ctx, path);
+    ret = lsetxattr(buffer, name, value, size, flags);
+    g_free(buffer);
+    return ret;
 }
 
 static int mp_user_removexattr(FsContext *ctx,
                                const char *path, const char *name)
 {
-    char buffer[PATH_MAX];
+    char *buffer;
+    int ret;
+
     if (strncmp(name, "user.virtfs.", 12) == 0) {
         /*
          * Don't allow fetch of user.virtfs namesapce
@@ -93,7 +105,10 @@ static int mp_user_removexattr(FsContext *ctx,
         errno = EACCES;
         return -1;
     }
-    return lremovexattr(rpath(ctx, path, buffer), name);
+    buffer = rpath(ctx, path);
+    ret = lremovexattr(buffer, name);
+    g_free(buffer);
+    return ret;
 }
 
 XattrOperations mapped_user_xattr = {

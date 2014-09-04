@@ -32,6 +32,7 @@
 #include "hw/arm/arm.h"
 #include "hw/block/flash.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/qtest.h"
 #include "exec/address-spaces.h"
 
 /*****************************************************************************/
@@ -97,7 +98,7 @@ static struct arm_boot_info sx1_binfo = {
     .board_id = 0x265,
 };
 
-static void sx1_init(QEMUMachineInitArgs *args, const int version)
+static void sx1_init(MachineState *machine, const int version)
 {
     struct omap_mpu_state_s *mpu;
     MemoryRegion *address_space = get_system_memory();
@@ -117,26 +118,27 @@ static void sx1_init(QEMUMachineInitArgs *args, const int version)
         flash_size = flash2_size;
     }
 
-    mpu = omap310_mpu_init(address_space, sx1_binfo.ram_size, args->cpu_model);
+    mpu = omap310_mpu_init(address_space, sx1_binfo.ram_size,
+                           machine->cpu_model);
 
     /* External Flash (EMIFS) */
-    memory_region_init_ram(flash, "omap_sx1.flash0-0", flash_size);
+    memory_region_init_ram(flash, NULL, "omap_sx1.flash0-0", flash_size);
     vmstate_register_ram_global(flash);
     memory_region_set_readonly(flash, true);
     memory_region_add_subregion(address_space, OMAP_CS0_BASE, flash);
 
-    memory_region_init_io(&cs[0], &static_ops, &cs0val,
+    memory_region_init_io(&cs[0], NULL, &static_ops, &cs0val,
                           "sx1.cs0", OMAP_CS0_SIZE - flash_size);
     memory_region_add_subregion(address_space,
                                 OMAP_CS0_BASE + flash_size, &cs[0]);
 
 
-    memory_region_init_io(&cs[2], &static_ops, &cs2val,
+    memory_region_init_io(&cs[2], NULL, &static_ops, &cs2val,
                           "sx1.cs2", OMAP_CS2_SIZE);
     memory_region_add_subregion(address_space,
                                 OMAP_CS2_BASE, &cs[2]);
 
-    memory_region_init_io(&cs[3], &static_ops, &cs3val,
+    memory_region_init_io(&cs[3], NULL, &static_ops, &cs3val,
                           "sx1.cs3", OMAP_CS3_SIZE);
     memory_region_add_subregion(address_space,
                                 OMAP_CS2_BASE, &cs[3]);
@@ -162,12 +164,12 @@ static void sx1_init(QEMUMachineInitArgs *args, const int version)
 
     if ((version == 1) &&
             (dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
-        memory_region_init_ram(flash_1, "omap_sx1.flash1-0", flash1_size);
+        memory_region_init_ram(flash_1, NULL, "omap_sx1.flash1-0", flash1_size);
         vmstate_register_ram_global(flash_1);
         memory_region_set_readonly(flash_1, true);
         memory_region_add_subregion(address_space, OMAP_CS1_BASE, flash_1);
 
-        memory_region_init_io(&cs[1], &static_ops, &cs1val,
+        memory_region_init_io(&cs[1], NULL, &static_ops, &cs1val,
                               "sx1.cs1", OMAP_CS1_SIZE - flash1_size);
         memory_region_add_subregion(address_space,
                                 OMAP_CS1_BASE + flash1_size, &cs[1]);
@@ -182,51 +184,47 @@ static void sx1_init(QEMUMachineInitArgs *args, const int version)
         }
         fl_idx++;
     } else {
-        memory_region_init_io(&cs[1], &static_ops, &cs1val,
+        memory_region_init_io(&cs[1], NULL, &static_ops, &cs1val,
                               "sx1.cs1", OMAP_CS1_SIZE);
         memory_region_add_subregion(address_space,
                                 OMAP_CS1_BASE, &cs[1]);
     }
 
-    if (!args->kernel_filename && !fl_idx) {
+    if (!machine->kernel_filename && !fl_idx && !qtest_enabled()) {
         fprintf(stderr, "Kernel or Flash image must be specified\n");
         exit(1);
     }
 
     /* Load the kernel.  */
-    if (args->kernel_filename) {
-        sx1_binfo.kernel_filename = args->kernel_filename;
-        sx1_binfo.kernel_cmdline = args->kernel_cmdline;
-        sx1_binfo.initrd_filename = args->initrd_filename;
-        arm_load_kernel(mpu->cpu, &sx1_binfo);
-    }
+    sx1_binfo.kernel_filename = machine->kernel_filename;
+    sx1_binfo.kernel_cmdline = machine->kernel_cmdline;
+    sx1_binfo.initrd_filename = machine->initrd_filename;
+    arm_load_kernel(mpu->cpu, &sx1_binfo);
 
     /* TODO: fix next line */
     //~ qemu_console_resize(ds, 640, 480);
 }
 
-static void sx1_init_v1(QEMUMachineInitArgs *args)
+static void sx1_init_v1(MachineState *machine)
 {
-    sx1_init(args, 1);
+    sx1_init(machine, 1);
 }
 
-static void sx1_init_v2(QEMUMachineInitArgs *args)
+static void sx1_init_v2(MachineState *machine)
 {
-    sx1_init(args, 2);
+    sx1_init(machine, 2);
 }
 
 static QEMUMachine sx1_machine_v2 = {
     .name = "sx1",
     .desc = "Siemens SX1 (OMAP310) V2",
     .init = sx1_init_v2,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine sx1_machine_v1 = {
     .name = "sx1-v1",
     .desc = "Siemens SX1 (OMAP310) V1",
     .init = sx1_init_v1,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void sx1_machine_init(void)

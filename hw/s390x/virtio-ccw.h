@@ -22,6 +22,7 @@
 #include <hw/virtio/virtio-balloon.h>
 #include <hw/virtio/virtio-rng.h>
 #include <hw/virtio/virtio-bus.h>
+#include <hw/s390x/s390_flic.h>
 
 #define VIRTUAL_CSSID 0xfe
 
@@ -38,6 +39,7 @@
 #define CCW_CMD_SET_IND      0x43
 #define CCW_CMD_SET_CONF_IND 0x53
 #define CCW_CMD_READ_VQ_CONF 0x32
+#define CCW_CMD_SET_IND_ADAPTER 0x73
 
 #define TYPE_VIRTIO_CCW_DEVICE "virtio-ccw-device"
 #define VIRTIO_CCW_DEVICE(obj) \
@@ -69,16 +71,35 @@ typedef struct VirtIOCCWDeviceClass {
 /* Change here if we want to support more feature bits. */
 #define VIRTIO_CCW_FEATURE_SIZE 1
 
+/* Performance improves when virtqueue kick processing is decoupled from the
+ * vcpu thread using ioeventfd for some devices. */
+#define VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT 1
+#define VIRTIO_CCW_FLAG_USE_IOEVENTFD   (1 << VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT)
+
+typedef struct IndAddr {
+    hwaddr addr;
+    uint64_t map;
+    unsigned long refcnt;
+    int len;
+    QTAILQ_ENTRY(IndAddr) sibling;
+} IndAddr;
+
 struct VirtioCcwDevice {
     DeviceState parent_obj;
     SubchDev *sch;
-    VirtIODevice *vdev;
     char *bus_id;
     uint32_t host_features[VIRTIO_CCW_FEATURE_SIZE];
     VirtioBusState bus;
+    bool ioeventfd_started;
+    bool ioeventfd_disabled;
+    uint32_t flags;
+    uint8_t thinint_isc;
+    AdapterRoutes routes;
     /* Guest provided values: */
-    hwaddr indicators;
-    hwaddr indicators2;
+    IndAddr *indicators;
+    IndAddr *indicators2;
+    IndAddr *summary_indicator;
+    uint64_t ind_bit;
 };
 
 /* virtual css bus type */
@@ -123,7 +144,6 @@ typedef struct VHostSCSICcw {
 typedef struct VirtIOBlkCcw {
     VirtioCcwDevice parent_obj;
     VirtIOBlock vdev;
-    VirtIOBlkConf blk;
 } VirtIOBlkCcw;
 
 /* virtio-balloon-ccw */

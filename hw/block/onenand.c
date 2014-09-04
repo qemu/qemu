@@ -34,8 +34,12 @@
 /* Fixed */
 #define BLOCK_SHIFT	(PAGE_SHIFT + 6)
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_ONE_NAND "onenand"
+#define ONE_NAND(obj) OBJECT_CHECK(OneNANDState, (obj), TYPE_ONE_NAND)
+
+typedef struct OneNANDState {
+    SysBusDevice parent_obj;
+
     struct {
         uint16_t man;
         uint16_t dev;
@@ -113,9 +117,10 @@ static void onenand_mem_setup(OneNANDState *s)
     /* XXX: We should use IO_MEM_ROMD but we broke it earlier...
      * Both 0x0000 ... 0x01ff and 0x8000 ... 0x800f can be used to
      * write boot commands.  Also take note of the BWPS bit.  */
-    memory_region_init(&s->container, "onenand", 0x10000 << s->shift);
+    memory_region_init(&s->container, OBJECT(s), "onenand",
+                       0x10000 << s->shift);
     memory_region_add_subregion(&s->container, 0, &s->iomem);
-    memory_region_init_alias(&s->mapped_ram, "onenand-mapped-ram",
+    memory_region_init_alias(&s->mapped_ram, OBJECT(s), "onenand-mapped-ram",
                              &s->ram, 0x0200 << s->shift,
                              0xbe00 << s->shift);
     memory_region_add_subregion_overlap(&s->container,
@@ -164,7 +169,6 @@ static const VMStateDescription vmstate_onenand = {
     .name = "onenand",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .pre_save = onenand_pre_save,
     .post_load = onenand_post_load,
     .fields = (VMStateField[]) {
@@ -225,7 +229,9 @@ static void onenand_reset(OneNANDState *s, int cold)
 
 static void onenand_system_reset(DeviceState *dev)
 {
-    onenand_reset(FROM_SYSBUS(OneNANDState, SYS_BUS_DEVICE(dev)), 1);
+    OneNANDState *s = ONE_NAND(dev);
+
+    onenand_reset(s, 1);
 }
 
 static inline int onenand_load_main(OneNANDState *s, int sec, int secn,
@@ -329,9 +335,7 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
                                     dp, 1) < 0;
             }
         }
-        if (dp) {
-            g_free(dp);
-        }
+        g_free(dp);
     }
     return result;
 }
@@ -756,11 +760,13 @@ static const MemoryRegionOps onenand_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int onenand_initfn(SysBusDevice *dev)
+static int onenand_initfn(SysBusDevice *sbd)
 {
-    OneNANDState *s = (OneNANDState *)dev;
+    DeviceState *dev = DEVICE(sbd);
+    OneNANDState *s = ONE_NAND(dev);
     uint32_t size = 1 << (24 + ((s->id.dev >> 4) & 7));
     void *ram;
+
     s->base = (hwaddr)-1;
     s->rdy = NULL;
     s->blocks = size >> BLOCK_SHIFT;
@@ -768,7 +774,7 @@ static int onenand_initfn(SysBusDevice *dev)
     s->blockwp = g_malloc(s->blocks);
     s->density_mask = (s->id.dev & 0x08)
         ? (1 << (6 + ((s->id.dev >> 4) & 7))) : 0;
-    memory_region_init_io(&s->iomem, &onenand_ops, s, "onenand",
+    memory_region_init_io(&s->iomem, OBJECT(s), &onenand_ops, s, "onenand",
                           0x10000 << s->shift);
     if (!s->bdrv) {
         s->image = memset(g_malloc(size + (size >> 5)),
@@ -782,7 +788,8 @@ static int onenand_initfn(SysBusDevice *dev)
     }
     s->otp = memset(g_malloc((64 + 2) << PAGE_SHIFT),
                     0xff, (64 + 2) << PAGE_SHIFT);
-    memory_region_init_ram(&s->ram, "onenand.ram", 0xc000 << s->shift);
+    memory_region_init_ram(&s->ram, OBJECT(s), "onenand.ram",
+                           0xc000 << s->shift);
     vmstate_register_ram_global(&s->ram);
     ram = memory_region_get_ram_ptr(&s->ram);
     s->boot[0] = ram + (0x0000 << s->shift);
@@ -792,9 +799,9 @@ static int onenand_initfn(SysBusDevice *dev)
     s->data[1][0] = ram + ((0x0200 + (1 << (PAGE_SHIFT - 1))) << s->shift);
     s->data[1][1] = ram + ((0x8010 + (1 << (PAGE_SHIFT - 6))) << s->shift);
     onenand_mem_setup(s);
-    sysbus_init_irq(dev, &s->intr);
-    sysbus_init_mmio(dev, &s->container);
-    vmstate_register(&dev->qdev,
+    sysbus_init_irq(sbd, &s->intr);
+    sysbus_init_mmio(sbd, &s->container);
+    vmstate_register(dev,
                      ((s->shift & 0x7f) << 24)
                      | ((s->id.man & 0xff) << 16)
                      | ((s->id.dev & 0xff) << 8)
@@ -823,7 +830,7 @@ static void onenand_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo onenand_info = {
-    .name          = "onenand",
+    .name          = TYPE_ONE_NAND,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OneNANDState),
     .class_init    = onenand_class_init,
@@ -836,7 +843,9 @@ static void onenand_register_types(void)
 
 void *onenand_raw_otp(DeviceState *onenand_device)
 {
-    return FROM_SYSBUS(OneNANDState, SYS_BUS_DEVICE(onenand_device))->otp;
+    OneNANDState *s = ONE_NAND(onenand_device);
+
+    return s->otp;
 }
 
 type_init(onenand_register_types)

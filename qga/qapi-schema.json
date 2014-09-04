@@ -96,8 +96,8 @@
 ##
 # @guest-get-time:
 #
-# Get the information about guest time relative to the Epoch
-# of 1970-01-01 in UTC.
+# Get the information about guest's System Time relative to
+# the Epoch of 1970-01-01 in UTC.
 #
 # Returns: Time in nanoseconds.
 #
@@ -117,20 +117,21 @@
 # gap was, NTP might not be able to resynchronize the
 # guest.
 #
-# This command tries to set guest time to the given value,
-# then sets the Hardware Clock to the current System Time.
-# This will make it easier for a guest to resynchronize
-# without waiting for NTP.
+# This command tries to set guest's System Time to the
+# given value, then sets the Hardware Clock (RTC) to the
+# current System Time. This will make it easier for a guest
+# to resynchronize without waiting for NTP. If no @time is
+# specified, then the time to set is read from RTC.
 #
-# @time: time of nanoseconds, relative to the Epoch of
-#        1970-01-01 in UTC.
+# @time: #optional time of nanoseconds, relative to the Epoch
+#        of 1970-01-01 in UTC.
 #
 # Returns: Nothing on success.
 #
 # Since: 1.5
 ##
 { 'command': 'guest-set-time',
-  'data': { 'time': 'int' } }
+  'data': { '*time': 'int' } }
 
 ##
 # @GuestAgentCommandInfo:
@@ -141,10 +142,13 @@
 #
 # @enabled: whether command is currently enabled by guest admin
 #
+# @success-response: whether command returns a response on success
+#                    (since 1.7)
+#
 # Since 1.1.0
 ##
 { 'type': 'GuestAgentCommandInfo',
-  'data': { 'name': 'str', 'enabled': 'bool' } }
+  'data': { 'name': 'str', 'enabled': 'bool', 'success-response': 'bool' } }
 
 ##
 # @GuestAgentInfo

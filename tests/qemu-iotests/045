@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Tests for fdsets.
+# Tests for fdsets and getfd.
 #
 # Copyright (C) 2012 IBM Corp.
 #
@@ -124,6 +124,55 @@ class TestFdSets(iotests.QMPTestCase):
         self.assert_qmp(result, 'error/desc',
                 'No file descriptor supplied via SCM_RIGHTS')
         self.vm.shutdown()
+
+# Add fd at runtime, there are two ways: monitor related or fdset related
+class TestSCMFd(iotests.QMPTestCase):
+    def setUp(self):
+        self.vm = iotests.VM()
+        qemu_img('create', '-f', iotests.imgfmt, image0, '128K')
+        # Add an unused monitor, to verify it works fine when two monitor
+        # instances present
+        self.vm.add_monitor_telnet("0",4445)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(image0)
+
+    def _send_fd_by_SCM(self):
+        ret = self.vm.send_fd_scm(image0)
+        self.assertEqual(ret, 0, 'Failed to send fd with UNIX SCM')
+
+    def test_add_fd(self):
+        self._send_fd_by_SCM()
+        result = self.vm.qmp('add-fd', fdset_id=2, opaque='image0:r')
+        self.assert_qmp(result, 'return/fdset-id', 2)
+
+    def test_getfd(self):
+        self._send_fd_by_SCM()
+        result = self.vm.qmp('getfd', fdname='image0:r')
+        self.assert_qmp(result, 'return', {})
+
+    def test_getfd_invalid_fdname(self):
+        self._send_fd_by_SCM()
+        result = self.vm.qmp('getfd', fdname='0image0:r')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Parameter 'fdname' expects a name not starting with a digit")
+
+    def test_closefd(self):
+        self._send_fd_by_SCM()
+        result = self.vm.qmp('getfd', fdname='image0:r')
+        self.assert_qmp(result, 'return', {})
+        result = self.vm.qmp('closefd', fdname='image0:r')
+        self.assert_qmp(result, 'return', {})
+
+    def test_closefd_fd_not_found(self):
+        fdname = 'image0:r'
+        result = self.vm.qmp('closefd', fdname=fdname)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "File descriptor named '%s' not found" % fdname)
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['raw'])

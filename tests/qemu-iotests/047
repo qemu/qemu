@@ -66,7 +66,7 @@ read -P 0x55 1M 128k
 EOF
 }
 
-qemu_io_cmds | $QEMU_IO $TEST_IMG | _filter_qemu_io
+qemu_io_cmds | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
 _check_test_img
 
 # success, all done

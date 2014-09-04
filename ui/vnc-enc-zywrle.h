@@ -305,7 +305,7 @@ static inline void harr(int8_t *px0, int8_t *px1)
    |L1H0H1H0|L1H0H1H0|L1H0H1H0|L1H0H1H0| : level 1
 
  In this method, H/L and X0/X1 is always same position.
- This lead us to more speed and less memory.
+ This leads us to more speed and less memory.
  Of cause, the result of both method is quite same
  because it's only difference that coefficient position.
 */

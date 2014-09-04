@@ -48,7 +48,7 @@ struct HDACodecDevice {
     uint32_t            cad;    /* codec address */
 };
 
-void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus,
+void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus, size_t bus_size,
                         hda_codec_response_func response,
                         hda_codec_xfer_func xfer);
 HDACodecDevice *hda_codec_find(HDACodecBus *bus, uint32_t cad);

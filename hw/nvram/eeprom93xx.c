@@ -125,8 +125,7 @@ static const VMStateDescription vmstate_eeprom = {
     .name = "eeprom",
     .version_id = EEPROM_VERSION,
     .minimum_version_id = OLD_EEPROM_VERSION,
-    .minimum_version_id_old = OLD_EEPROM_VERSION,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT8(tick, eeprom_t),
         VMSTATE_UINT8(address, eeprom_t),
         VMSTATE_UINT8(command, eeprom_t),
@@ -157,13 +156,13 @@ void eeprom93xx_write(eeprom_t *eeprom, int eecs, int eesk, int eedi)
     logout("CS=%u SK=%u DI=%u DO=%u, tick = %u\n",
            eecs, eesk, eedi, eedo, tick);
 
-    if (! eeprom->eecs && eecs) {
+    if (!eeprom->eecs && eecs) {
         /* Start chip select cycle. */
         logout("Cycle start, waiting for 1st start bit (0)\n");
         tick = 0;
         command = 0x0;
         address = 0x0;
-    } else if (eeprom->eecs && ! eecs) {
+    } else if (eeprom->eecs && !eecs) {
         /* End chip select cycle. This triggers write / erase. */
         if (eeprom->writable) {
             uint8_t subcommand = address >> (eeprom->addrbits - 2);
@@ -189,7 +188,7 @@ void eeprom93xx_write(eeprom_t *eeprom, int eecs, int eesk, int eedi)
         }
         /* Output DO is tristate, read results in 1. */
         eedo = 1;
-    } else if (eecs && ! eeprom->eesk && eesk) {
+    } else if (eecs && !eeprom->eesk && eesk) {
         /* Raising edge of clock shifts data in. */
         if (tick == 0) {
             /* Wait for 1st start bit. */
@@ -230,20 +229,20 @@ void eeprom93xx_write(eeprom_t *eeprom, int eecs, int eesk, int eedi)
                 if (command == 0) {
                     /* Command code in upper 2 bits of address. */
                     switch (address >> (eeprom->addrbits - 2)) {
-                        case 0:
-                            logout("write disable command\n");
-                            eeprom->writable = 0;
-                            break;
-                        case 1:
-                            logout("write all command\n");
-                            break;
-                        case 2:
-                            logout("erase all command\n");
-                            break;
-                        case 3:
-                            logout("write enable command\n");
-                            eeprom->writable = 1;
-                            break;
+                    case 0:
+                        logout("write disable command\n");
+                        eeprom->writable = 0;
+                        break;
+                    case 1:
+                        logout("write all command\n");
+                        break;
+                    case 2:
+                        logout("erase all command\n");
+                        break;
+                    case 3:
+                        logout("write enable command\n");
+                        eeprom->writable = 1;
+                        break;
                     }
                 } else {
                     /* Read, write or erase word. */
@@ -276,7 +275,7 @@ uint16_t eeprom93xx_read(eeprom_t *eeprom)
 {
     /* Return status of pin DO (0 or 1). */
     logout("CS=%u DO=%u\n", eeprom->eecs, eeprom->eedo);
-    return (eeprom->eedo);
+    return eeprom->eedo;
 }
 
 #if 0
@@ -296,18 +295,18 @@ eeprom_t *eeprom93xx_new(DeviceState *dev, uint16_t nwords)
     uint8_t addrbits;
 
     switch (nwords) {
-        case 16:
-        case 64:
-            addrbits = 6;
-            break;
-        case 128:
-        case 256:
-            addrbits = 8;
-            break;
-        default:
-            assert(!"Unsupported EEPROM size, fallback to 64 words!");
-            nwords = 64;
-            addrbits = 6;
+    case 16:
+    case 64:
+        addrbits = 6;
+        break;
+    case 128:
+    case 256:
+        addrbits = 8;
+        break;
+    default:
+        assert(!"Unsupported EEPROM size, fallback to 64 words!");
+        nwords = 64;
+        addrbits = 6;
     }
 
     eeprom = (eeprom_t *)g_malloc0(sizeof(*eeprom) + nwords * 2);

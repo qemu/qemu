@@ -19,16 +19,9 @@
 #ifndef TRANSLATE_ALL_H
 #define TRANSLATE_ALL_H
 
-/* Size of the L2 (and L3, etc) page tables.  */
-#define L2_BITS 10
-#define L2_SIZE (1 << L2_BITS)
-
-#define P_L2_LEVELS \
-    (((TARGET_PHYS_ADDR_SPACE_BITS - TARGET_PAGE_BITS - 1) / L2_BITS) + 1)
-
 /* translate-all.c */
 void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len);
 void cpu_unlink_tb(CPUState *cpu);
-void tb_check_watchpoint(CPUArchState *env);
+void tb_check_watchpoint(CPUState *cpu);
 
 #endif /* TRANSLATE_ALL_H */

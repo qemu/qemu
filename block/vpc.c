@@ -29,6 +29,13 @@
 #if defined(CONFIG_UUID)
 #include <uuid/uuid.h>
 #endif
+#ifdef __linux__
+#include <linux/fs.h>
+#include <sys/ioctl.h>
+#ifndef FS_NOCOW_FL
+#define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
+#endif
+#endif
 
 /**************************************************************/
 
@@ -45,8 +52,10 @@ enum vhd_type {
 // Seconds since Jan 1, 2000 0:00:00 (UTC)
 #define VHD_TIMESTAMP_BASE 946684800
 
+#define VHD_MAX_SECTORS       (65535LL * 255 * 255)
+
 // always big-endian
-struct vhd_footer {
+typedef struct vhd_footer {
     char        creator[8]; // "conectix"
     uint32_t    features;
     uint32_t    version;
@@ -79,9 +88,9 @@ struct vhd_footer {
     uint8_t     uuid[16];
 
     uint8_t     in_saved_state;
-};
+} QEMU_PACKED VHDFooter;
 
-struct vhd_dyndisk_header {
+typedef struct vhd_dyndisk_header {
     char        magic[8]; // "cxsparse"
 
     // Offset of next header structure, 0xFFFFFFFF if none
@@ -111,7 +120,7 @@ struct vhd_dyndisk_header {
         uint32_t    reserved;
         uint64_t    data_offset;
     } parent_locator[8];
-};
+} QEMU_PACKED VHDDynDiskHeader;
 
 typedef struct BDRVVPCState {
     CoMutex lock;
@@ -155,14 +164,16 @@ static int vpc_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 0;
 }
 
-static int vpc_open(BlockDriverState *bs, QDict *options, int flags)
+static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
+                    Error **errp)
 {
     BDRVVPCState *s = bs->opaque;
     int i;
-    struct vhd_footer* footer;
-    struct vhd_dyndisk_header* dyndisk_header;
+    VHDFooter *footer;
+    VHDDynDiskHeader *dyndisk_header;
     uint8_t buf[HEADER_SIZE];
     uint32_t checksum;
+    uint64_t computed_size;
     int disk_type = VHD_DYNAMIC;
     int ret;
 
@@ -171,7 +182,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags)
         goto fail;
     }
 
-    footer = (struct vhd_footer*) s->footer_buf;
+    footer = (VHDFooter *) s->footer_buf;
     if (strncmp(footer->creator, "conectix", 8)) {
         int64_t offset = bdrv_getlength(bs->file);
         if (offset < 0) {
@@ -189,7 +200,8 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags)
             goto fail;
         }
         if (strncmp(footer->creator, "conectix", 8)) {
-            ret = -EMEDIUMTYPE;
+            error_setg(errp, "invalid VPC image");
+            ret = -EINVAL;
             goto fail;
         }
         disk_type = VHD_FIXED;
@@ -210,8 +222,17 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags)
     bs->total_sectors = (int64_t)
         be16_to_cpu(footer->cyls) * footer->heads * footer->secs_per_cyl;
 
+    /* images created with disk2vhd report a far higher virtual size
+     * than expected with the cyls * heads * sectors_per_cyl formula.
+     * use the footer->size instead if the image was created with
+     * disk2vhd.
+     */
+    if (!strncmp(footer->creator_app, "d2v", 4)) {
+        bs->total_sectors = be64_to_cpu(footer->size) / BDRV_SECTOR_SIZE;
+    }
+
     /* Allow a maximum disk size of approximately 2 TB */
-    if (bs->total_sectors >= 65535LL * 255 * 255) {
+    if (bs->total_sectors >= VHD_MAX_SECTORS) {
         ret = -EFBIG;
         goto fail;
     }
@@ -223,7 +244,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags)
             goto fail;
         }
 
-        dyndisk_header = (struct vhd_dyndisk_header *) buf;
+        dyndisk_header = (VHDDynDiskHeader *) buf;
 
         if (strncmp(dyndisk_header->magic, "cxsparse", 8)) {
             ret = -EINVAL;
@@ -231,10 +252,31 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags)
         }
 
         s->block_size = be32_to_cpu(dyndisk_header->block_size);
+        if (!is_power_of_2(s->block_size) || s->block_size < BDRV_SECTOR_SIZE) {
+            error_setg(errp, "Invalid block size %" PRIu32, s->block_size);
+            ret = -EINVAL;
+            goto fail;
+        }
         s->bitmap_size = ((s->block_size / (8 * 512)) + 511) & ~511;
 
         s->max_table_entries = be32_to_cpu(dyndisk_header->max_table_entries);
-        s->pagetable = g_malloc(s->max_table_entries * 4);
+
+        if ((bs->total_sectors * 512) / s->block_size > 0xffffffffU) {
+            ret = -EINVAL;
+            goto fail;
+        }
+        if (s->max_table_entries > (VHD_MAX_SECTORS * 512) / s->block_size) {
+            ret = -EINVAL;
+            goto fail;
+        }
+
+        computed_size = (uint64_t) s->max_table_entries * s->block_size;
+        if (computed_size < bs->total_sectors * 512) {
+            ret = -EINVAL;
+            goto fail;
+        }
+
+        s->pagetable = qemu_blockalign(bs, s->max_table_entries * 4);
 
         s->bat_offset = be64_to_cpu(dyndisk_header->table_offset);
 
@@ -259,6 +301,13 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags)
             }
         }
 
+        if (s->free_data_block_offset > bdrv_getlength(bs->file)) {
+            error_setg(errp, "block-vpc: free_data_block_offset points after "
+                             "the end of file. The image has been truncated.");
+            ret = -EINVAL;
+            goto fail;
+        }
+
         s->last_bitmap_offset = (int64_t) -1;
 
 #ifdef CACHE
@@ -280,7 +329,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags)
     return 0;
 
 fail:
-    g_free(s->pagetable);
+    qemu_vfree(s->pagetable);
 #ifdef CACHE
     g_free(s->pageentry_u8);
 #endif
@@ -438,6 +487,19 @@ fail:
     return -1;
 }
 
+static int vpc_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+{
+    BDRVVPCState *s = (BDRVVPCState *)bs->opaque;
+    VHDFooter *footer = (VHDFooter *) s->footer_buf;
+
+    if (cpu_to_be32(footer->type) != VHD_FIXED) {
+        bdi->cluster_size = s->block_size;
+    }
+
+    bdi->unallocated_blocks_are_zero = true;
+    return 0;
+}
+
 static int vpc_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
@@ -445,7 +507,7 @@ static int vpc_read(BlockDriverState *bs, int64_t sector_num,
     int ret;
     int64_t offset;
     int64_t sectors, sectors_per_block;
-    struct vhd_footer *footer = (struct vhd_footer *) s->footer_buf;
+    VHDFooter *footer = (VHDFooter *) s->footer_buf;
 
     if (cpu_to_be32(footer->type) == VHD_FIXED) {
         return bdrv_read(bs->file, sector_num, buf, nb_sectors);
@@ -494,7 +556,7 @@ static int vpc_write(BlockDriverState *bs, int64_t sector_num,
     int64_t offset;
     int64_t sectors, sectors_per_block;
     int ret;
-    struct vhd_footer *footer =  (struct vhd_footer *) s->footer_buf;
+    VHDFooter *footer =  (VHDFooter *) s->footer_buf;
 
     if (cpu_to_be32(footer->type) == VHD_FIXED) {
         return bdrv_write(bs->file, sector_num, buf, nb_sectors);
@@ -596,8 +658,8 @@ static int calculate_geometry(int64_t total_sectors, uint16_t* cyls,
 
 static int create_dynamic_disk(int fd, uint8_t *buf, int64_t total_sectors)
 {
-    struct vhd_dyndisk_header* dyndisk_header =
-        (struct vhd_dyndisk_header*) buf;
+    VHDDynDiskHeader *dyndisk_header =
+        (VHDDynDiskHeader *) buf;
     size_t block_size, num_bat_entries;
     int i;
     int ret = -EIO;
@@ -683,11 +745,11 @@ static int create_fixed_disk(int fd, uint8_t *buf, int64_t total_size)
     return ret;
 }
 
-static int vpc_create(const char *filename, QEMUOptionParameter *options)
+static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     uint8_t buf[1024];
-    struct vhd_footer *footer = (struct vhd_footer *) buf;
-    QEMUOptionParameter *disk_type_param;
+    VHDFooter *footer = (VHDFooter *) buf;
+    char *disk_type_param;
     int fd, i;
     uint16_t cyls = 0;
     uint8_t heads = 0;
@@ -696,27 +758,45 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
     int64_t total_size;
     int disk_type;
     int ret = -EIO;
+    bool nocow = false;
 
     /* Read out options */
-    total_size = get_option_parameter(options, BLOCK_OPT_SIZE)->value.n;
-
-    disk_type_param = get_option_parameter(options, BLOCK_OPT_SUBFMT);
-    if (disk_type_param && disk_type_param->value.s) {
-        if (!strcmp(disk_type_param->value.s, "dynamic")) {
+    total_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    disk_type_param = qemu_opt_get_del(opts, BLOCK_OPT_SUBFMT);
+    if (disk_type_param) {
+        if (!strcmp(disk_type_param, "dynamic")) {
             disk_type = VHD_DYNAMIC;
-        } else if (!strcmp(disk_type_param->value.s, "fixed")) {
+        } else if (!strcmp(disk_type_param, "fixed")) {
             disk_type = VHD_FIXED;
         } else {
-            return -EINVAL;
+            ret = -EINVAL;
+            goto out;
         }
     } else {
         disk_type = VHD_DYNAMIC;
     }
+    nocow = qemu_opt_get_bool_del(opts, BLOCK_OPT_NOCOW, false);
 
     /* Create the file */
     fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0644);
     if (fd < 0) {
-        return -EIO;
+        ret = -EIO;
+        goto out;
+    }
+
+    if (nocow) {
+#ifdef __linux__
+        /* Set NOCOW flag to solve performance issue on fs like btrfs.
+         * This is an optimisation. The FS_IOC_SETFLAGS ioctl return value will
+         * be ignored since any failure of this operation should not block the
+         * left work.
+         */
+        int attr;
+        if (ioctl(fd, FS_IOC_GETFLAGS, &attr) == 0) {
+            attr |= FS_NOCOW_FL;
+            ioctl(fd, FS_IOC_SETFLAGS, &attr);
+        }
+#endif
     }
 
     /*
@@ -781,15 +861,29 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
         ret = create_fixed_disk(fd, buf, total_size);
     }
 
- fail:
+fail:
     qemu_close(fd);
+out:
+    g_free(disk_type_param);
     return ret;
+}
+
+static int vpc_has_zero_init(BlockDriverState *bs)
+{
+    BDRVVPCState *s = bs->opaque;
+    VHDFooter *footer =  (VHDFooter *) s->footer_buf;
+
+    if (cpu_to_be32(footer->type) == VHD_FIXED) {
+        return bdrv_has_zero_init(bs->file);
+    } else {
+        return 1;
+    }
 }
 
 static void vpc_close(BlockDriverState *bs)
 {
     BDRVVPCState *s = bs->opaque;
-    g_free(s->pagetable);
+    qemu_vfree(s->pagetable);
 #ifdef CACHE
     g_free(s->pageentry_u8);
 #endif
@@ -798,36 +892,48 @@ static void vpc_close(BlockDriverState *bs)
     error_free(s->migration_blocker);
 }
 
-static QEMUOptionParameter vpc_create_options[] = {
-    {
-        .name = BLOCK_OPT_SIZE,
-        .type = OPT_SIZE,
-        .help = "Virtual disk size"
-    },
-    {
-        .name = BLOCK_OPT_SUBFMT,
-        .type = OPT_STRING,
-        .help =
-            "Type of virtual hard disk format. Supported formats are "
-            "{dynamic (default) | fixed} "
-    },
-    { NULL }
+static QemuOptsList vpc_create_opts = {
+    .name = "vpc-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(vpc_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
+        {
+            .name = BLOCK_OPT_SUBFMT,
+            .type = QEMU_OPT_STRING,
+            .help =
+                "Type of virtual hard disk format. Supported formats are "
+                "{dynamic (default) | fixed} "
+        },
+        {
+            .name = BLOCK_OPT_NOCOW,
+            .type = QEMU_OPT_BOOL,
+            .help = "Turn off copy-on-write (valid only on btrfs)"
+        },
+        { /* end of list */ }
+    }
 };
 
 static BlockDriver bdrv_vpc = {
     .format_name    = "vpc",
     .instance_size  = sizeof(BDRVVPCState),
 
-    .bdrv_probe     = vpc_probe,
-    .bdrv_open      = vpc_open,
-    .bdrv_close     = vpc_close,
-    .bdrv_reopen_prepare = vpc_reopen_prepare,
-    .bdrv_create    = vpc_create,
+    .bdrv_probe             = vpc_probe,
+    .bdrv_open              = vpc_open,
+    .bdrv_close             = vpc_close,
+    .bdrv_reopen_prepare    = vpc_reopen_prepare,
+    .bdrv_create            = vpc_create,
 
     .bdrv_read              = vpc_co_read,
     .bdrv_write             = vpc_co_write,
 
-    .create_options = vpc_create_options,
+    .bdrv_get_info          = vpc_get_info,
+
+    .create_opts            = &vpc_create_opts,
+    .bdrv_has_zero_init     = vpc_has_zero_init,
 };
 
 static void bdrv_vpc_init(void)

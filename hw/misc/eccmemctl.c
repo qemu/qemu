@@ -120,8 +120,12 @@
 #define ECC_DIAG_SIZE  4
 #define ECC_DIAG_MASK  (ECC_DIAG_SIZE - 1)
 
+#define TYPE_ECC_MEMCTL "eccmemctl"
+#define ECC_MEMCTL(obj) OBJECT_CHECK(ECCState, (obj), TYPE_ECC_MEMCTL)
+
 typedef struct ECCState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem, iomem_diag;
     qemu_irq irq;
     uint32_t regs[ECC_NREGS];
@@ -262,8 +266,7 @@ static const VMStateDescription vmstate_ecc = {
     .name ="ECC",
     .version_id = 3,
     .minimum_version_id = 3,
-    .minimum_version_id_old = 3,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, ECCState, ECC_NREGS),
         VMSTATE_BUFFER(diag, ECCState),
         VMSTATE_UINT32(version, ECCState),
@@ -273,13 +276,14 @@ static const VMStateDescription vmstate_ecc = {
 
 static void ecc_reset(DeviceState *d)
 {
-    ECCState *s = container_of(d, ECCState, busdev.qdev);
+    ECCState *s = ECC_MEMCTL(d);
 
-    if (s->version == ECC_MCC)
+    if (s->version == ECC_MCC) {
         s->regs[ECC_MER] &= ECC_MER_REU;
-    else
+    } else {
         s->regs[ECC_MER] &= (ECC_MER_VER | ECC_MER_IMPL | ECC_MER_MRR |
                              ECC_MER_DCI);
+    }
     s->regs[ECC_MDR] = 0x20;
     s->regs[ECC_MFSR] = 0;
     s->regs[ECC_VCR] = 0;
@@ -292,15 +296,15 @@ static void ecc_reset(DeviceState *d)
 
 static int ecc_init1(SysBusDevice *dev)
 {
-    ECCState *s = FROM_SYSBUS(ECCState, dev);
+    ECCState *s = ECC_MEMCTL(dev);
 
     sysbus_init_irq(dev, &s->irq);
     s->regs[0] = s->version;
-    memory_region_init_io(&s->iomem, &ecc_mem_ops, s, "ecc", ECC_SIZE);
+    memory_region_init_io(&s->iomem, OBJECT(dev), &ecc_mem_ops, s, "ecc", ECC_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 
     if (s->version == ECC_MCC) { // SS-600MP only
-        memory_region_init_io(&s->iomem_diag, &ecc_diag_mem_ops, s,
+        memory_region_init_io(&s->iomem_diag, OBJECT(dev), &ecc_diag_mem_ops, s,
                               "ecc.diag", ECC_DIAG_SIZE);
         sysbus_init_mmio(dev, &s->iomem_diag);
     }
@@ -309,7 +313,7 @@ static int ecc_init1(SysBusDevice *dev)
 }
 
 static Property ecc_properties[] = {
-    DEFINE_PROP_HEX32("version", ECCState, version, -1),
+    DEFINE_PROP_UINT32("version", ECCState, version, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -325,7 +329,7 @@ static void ecc_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ecc_info = {
-    .name          = "eccmemctl",
+    .name          = TYPE_ECC_MEMCTL,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ECCState),
     .class_init    = ecc_class_init,

@@ -1,3 +1,5 @@
+#include "core-isa.h"
+
 .macro test_suite name
 .data
 status: .word result
@@ -43,8 +45,12 @@ main:
     simcall
 .endm
 
+.macro test_init
+.endm
+
 .macro test name
     //print test_\name
+    test_init
 test_\name:
 .global test_\name
 .endm

@@ -34,7 +34,7 @@
 #include "qemu/bswap.h"
 #ifdef _WIN32
 #include "qga/service-win32.h"
-#include <windows.h>
+#include "qga/vss-win32.h"
 #endif
 #ifdef __linux__
 #include <linux/fs.h>
@@ -45,15 +45,22 @@
 
 #ifndef _WIN32
 #define QGA_VIRTIO_PATH_DEFAULT "/dev/virtio-ports/org.qemu.guest_agent.0"
+#define QGA_STATE_RELATIVE_DIR  "run"
+#define QGA_SERIAL_PATH_DEFAULT "/dev/ttyS0"
 #else
 #define QGA_VIRTIO_PATH_DEFAULT "\\\\.\\Global\\org.qemu.guest_agent.0"
+#define QGA_STATE_RELATIVE_DIR  "qemu-ga"
+#define QGA_SERIAL_PATH_DEFAULT "COM1"
 #endif
-#define QGA_STATEDIR_DEFAULT CONFIG_QEMU_LOCALSTATEDIR "/run"
-#define QGA_PIDFILE_DEFAULT QGA_STATEDIR_DEFAULT "/qemu-ga.pid"
 #ifdef CONFIG_FSFREEZE
 #define QGA_FSFREEZE_HOOK_DEFAULT CONFIG_QEMU_CONFDIR "/fsfreeze-hook"
 #endif
 #define QGA_SENTINEL_BYTE 0xFF
+
+static struct {
+    const char *state_dir;
+    const char *pidfile;
+} dfl_pathnames;
 
 typedef struct GAPersistentState {
 #define QGA_PSTATE_DEFAULT_FD_COUNTER 1000
@@ -105,6 +112,17 @@ DWORD WINAPI service_ctrl_handler(DWORD ctrl, DWORD type, LPVOID data,
                                   LPVOID ctx);
 VOID WINAPI service_main(DWORD argc, TCHAR *argv[]);
 #endif
+
+static void
+init_dfl_pathnames(void)
+{
+    g_assert(dfl_pathnames.state_dir == NULL);
+    g_assert(dfl_pathnames.pidfile == NULL);
+    dfl_pathnames.state_dir = qemu_get_local_state_pathname(
+      QGA_STATE_RELATIVE_DIR);
+    dfl_pathnames.pidfile   = qemu_get_local_state_pathname(
+      QGA_STATE_RELATIVE_DIR G_DIR_SEPARATOR_S "qemu-ga.pid");
+}
 
 static void quit_handler(int sig)
 {
@@ -172,6 +190,8 @@ static void usage(const char *cmd)
 "  -m, --method      transport method: one of unix-listen, virtio-serial, or\n"
 "                    isa-serial (virtio-serial is the default)\n"
 "  -p, --path        device/socket path (the default for virtio-serial is:\n"
+"                    %s,\n"
+"                    the default for isa-serial is:\n"
 "                    %s)\n"
 "  -l, --logfile     set logfile path, logs to stderr by default\n"
 "  -f, --pidfile     specify pidfile (default is %s)\n"
@@ -198,11 +218,12 @@ static void usage(const char *cmd)
 "  -h, --help        display this help and exit\n"
 "\n"
 "Report bugs to <mdroth@linux.vnet.ibm.com>\n"
-    , cmd, QEMU_VERSION, QGA_VIRTIO_PATH_DEFAULT, QGA_PIDFILE_DEFAULT,
+    , cmd, QEMU_VERSION, QGA_VIRTIO_PATH_DEFAULT, QGA_SERIAL_PATH_DEFAULT,
+    dfl_pathnames.pidfile,
 #ifdef CONFIG_FSFREEZE
     QGA_FSFREEZE_HOOK_DEFAULT,
 #endif
-    QGA_STATEDIR_DEFAULT);
+    dfl_pathnames.state_dir);
 }
 
 static const char *ga_log_level_str(GLogLevelFlags level)
@@ -330,48 +351,35 @@ static gint ga_strcmp(gconstpointer str1, gconstpointer str2)
 }
 
 /* disable commands that aren't safe for fsfreeze */
-static void ga_disable_non_whitelisted(void)
+static void ga_disable_non_whitelisted(QmpCommand *cmd, void *opaque)
 {
-    char **list_head, **list;
-    bool whitelisted;
-    int i;
+    bool whitelisted = false;
+    int i = 0;
+    const char *name = qmp_command_name(cmd);
 
-    list_head = list = qmp_get_command_list();
-    while (*list != NULL) {
-        whitelisted = false;
-        i = 0;
-        while (ga_freeze_whitelist[i] != NULL) {
-            if (strcmp(*list, ga_freeze_whitelist[i]) == 0) {
-                whitelisted = true;
-            }
-            i++;
+    while (ga_freeze_whitelist[i] != NULL) {
+        if (strcmp(name, ga_freeze_whitelist[i]) == 0) {
+            whitelisted = true;
         }
-        if (!whitelisted) {
-            g_debug("disabling command: %s", *list);
-            qmp_disable_command(*list);
-        }
-        g_free(*list);
-        list++;
+        i++;
     }
-    g_free(list_head);
+    if (!whitelisted) {
+        g_debug("disabling command: %s", name);
+        qmp_disable_command(name);
+    }
 }
 
 /* [re-]enable all commands, except those explicitly blacklisted by user */
-static void ga_enable_non_blacklisted(GList *blacklist)
+static void ga_enable_non_blacklisted(QmpCommand *cmd, void *opaque)
 {
-    char **list_head, **list;
+    GList *blacklist = opaque;
+    const char *name = qmp_command_name(cmd);
 
-    list_head = list = qmp_get_command_list();
-    while (*list != NULL) {
-        if (g_list_find_custom(blacklist, *list, ga_strcmp) == NULL &&
-            !qmp_command_is_enabled(*list)) {
-            g_debug("enabling command: %s", *list);
-            qmp_enable_command(*list);
-        }
-        g_free(*list);
-        list++;
+    if (g_list_find_custom(blacklist, name, ga_strcmp) == NULL &&
+        !qmp_command_is_enabled(cmd)) {
+        g_debug("enabling command: %s", name);
+        qmp_enable_command(name);
     }
-    g_free(list_head);
 }
 
 static bool ga_create_file(const char *path)
@@ -407,7 +415,7 @@ void ga_set_frozen(GAState *s)
         return;
     }
     /* disable all non-whitelisted (for frozen state) commands */
-    ga_disable_non_whitelisted();
+    qmp_for_each_command(ga_disable_non_whitelisted, NULL);
     g_warning("disabling logging due to filesystem freeze");
     ga_disable_logging(s);
     s->frozen = true;
@@ -443,7 +451,7 @@ void ga_unset_frozen(GAState *s)
     }
 
     /* enable all disabled, non-blacklisted commands */
-    ga_enable_non_blacklisted(s->blacklist);
+    qmp_for_each_command(ga_enable_non_blacklisted, s->blacklist);
     s->frozen = false;
     if (!ga_delete_file(s->state_filepath_isfrozen)) {
         g_warning("unable to delete %s, fsfreeze may not function properly",
@@ -655,12 +663,16 @@ static gboolean channel_init(GAState *s, const gchar *method, const gchar *path)
     }
 
     if (path == NULL) {
-        if (strcmp(method, "virtio-serial") != 0) {
+        if (strcmp(method, "virtio-serial") == 0 ) {
+            /* try the default path for the virtio-serial port */
+            path = QGA_VIRTIO_PATH_DEFAULT;
+        } else if (strcmp(method, "isa-serial") == 0){
+            /* try the default path for the serial port - COM1 */
+            path = QGA_SERIAL_PATH_DEFAULT;
+        } else {
             g_critical("must specify a path for this channel");
             return false;
         }
-        /* try the default path for the virtio-serial port */
-        path = QGA_VIRTIO_PATH_DEFAULT;
     }
 
     if (strcmp(method, "virtio-serial") == 0) {
@@ -898,9 +910,15 @@ int64_t ga_get_fd_handle(GAState *s, Error **errp)
 
     if (!write_persistent_state(&s->pstate, s->pstate_filepath)) {
         error_setg(errp, "failed to commit persistent state to disk");
+        return -1;
     }
 
     return handle;
+}
+
+static void ga_print_cmd(QmpCommand *cmd, void *opaque)
+{
+    printf("%s\n", qmp_command_name(cmd));
 }
 
 int main(int argc, char **argv)
@@ -908,11 +926,11 @@ int main(int argc, char **argv)
     const char *sopt = "hVvdm:p:l:f:F::b:s:t:";
     const char *method = NULL, *path = NULL;
     const char *log_filepath = NULL;
-    const char *pid_filepath = QGA_PIDFILE_DEFAULT;
+    const char *pid_filepath;
 #ifdef CONFIG_FSFREEZE
     const char *fsfreeze_hook = NULL;
 #endif
-    const char *state_dir = QGA_STATEDIR_DEFAULT;
+    const char *state_dir;
 #ifdef _WIN32
     const char *service = NULL;
 #endif
@@ -941,6 +959,10 @@ int main(int argc, char **argv)
     GAState *s;
 
     module_call_init(MODULE_INIT_QAPI);
+
+    init_dfl_pathnames();
+    pid_filepath = dfl_pathnames.pidfile;
+    state_dir = dfl_pathnames.state_dir;
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
@@ -975,15 +997,8 @@ int main(int argc, char **argv)
             daemonize = 1;
             break;
         case 'b': {
-            char **list_head, **list;
             if (is_help_option(optarg)) {
-                list_head = list = qmp_get_command_list();
-                while (*list != NULL) {
-                    printf("%s\n", *list);
-                    g_free(*list);
-                    list++;
-                }
-                g_free(list_head);
+                qmp_for_each_command(ga_print_cmd, NULL);
                 return 0;
             }
             for (j = 0, i = 0, len = strlen(optarg); i < len; i++) {
@@ -1002,8 +1017,24 @@ int main(int argc, char **argv)
         case 's':
             service = optarg;
             if (strcmp(service, "install") == 0) {
-                return ga_install_service(path, log_filepath);
+                const char *fixed_state_dir;
+
+                /* If the user passed the "-t" option, we save that state dir
+                 * in the service. Otherwise we let the service fetch the state
+                 * dir from the environment when it starts.
+                 */
+                fixed_state_dir = (state_dir == dfl_pathnames.state_dir) ?
+                                  NULL :
+                                  state_dir;
+                if (ga_install_vss_provider()) {
+                    return EXIT_FAILURE;
+                }
+                if (ga_install_service(path, log_filepath, fixed_state_dir)) {
+                    return EXIT_FAILURE;
+                }
+                return 0;
             } else if (strcmp(service, "uninstall") == 0) {
+                ga_uninstall_vss_provider();
                 return ga_uninstall_service();
             } else {
                 printf("Unknown service command.\n");
@@ -1020,6 +1051,20 @@ int main(int argc, char **argv)
             return EXIT_FAILURE;
         }
     }
+
+#ifdef _WIN32
+    /* On win32 the state directory is application specific (be it the default
+     * or a user override). We got past the command line parsing; let's create
+     * the directory (with any intermediate directories). If we run into an
+     * error later on, we won't try to clean up the directory, it is considered
+     * persistent.
+     */
+    if (g_mkdir_with_parents(state_dir, S_IRWXU) == -1) {
+        g_critical("unable to create (an ancestor of) the state directory"
+                   " '%s': %s", state_dir, strerror(errno));
+        return EXIT_FAILURE;
+    }
+#endif
 
     s = g_malloc0(sizeof(GAState));
     s->log_level = log_level;
@@ -1066,7 +1111,7 @@ int main(int argc, char **argv)
 
     if (ga_is_frozen(s)) {
         if (daemonize) {
-            /* delay opening/locking of pidfile till filesystem are unfrozen */
+            /* delay opening/locking of pidfile till filesystems are unfrozen */
             s->deferred_options.pid_filepath = pid_filepath;
             become_daemon(NULL);
         }
@@ -1075,7 +1120,7 @@ int main(int argc, char **argv)
             s->deferred_options.log_filepath = log_filepath;
         }
         ga_disable_logging(s);
-        ga_disable_non_whitelisted();
+        qmp_for_each_command(ga_disable_non_whitelisted, NULL);
     } else {
         if (daemonize) {
             become_daemon(pid_filepath);

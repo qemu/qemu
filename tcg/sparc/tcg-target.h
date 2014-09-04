@@ -24,8 +24,9 @@
 #ifndef TCG_TARGET_SPARC 
 #define TCG_TARGET_SPARC 1
 
-#define TCG_TARGET_WORDS_BIGENDIAN
+#define TCG_TARGET_REG_BITS 64
 
+#define TCG_TARGET_INSN_UNIT_SIZE 4
 #define TCG_TARGET_NB_REGS 32
 
 typedef enum {
@@ -70,7 +71,7 @@ typedef enum {
 /* used for function call generation */
 #define TCG_REG_CALL_STACK TCG_REG_O6
 
-#if TCG_TARGET_REG_BITS == 64
+#ifdef __arch64__
 #define TCG_TARGET_STACK_BIAS           2047
 #define TCG_TARGET_STACK_ALIGN          16
 #define TCG_TARGET_CALL_STACK_OFFSET    (128 + 6*8 + TCG_TARGET_STACK_BIAS)
@@ -80,12 +81,13 @@ typedef enum {
 #define TCG_TARGET_CALL_STACK_OFFSET    (64 + 4 + 6*4)
 #endif
 
-#if TCG_TARGET_REG_BITS == 64
+#ifdef __arch64__
 #define TCG_TARGET_EXTEND_ARGS 1
 #endif
 
 /* optional instructions */
 #define TCG_TARGET_HAS_div_i32		1
+#define TCG_TARGET_HAS_rem_i32		0
 #define TCG_TARGET_HAS_rot_i32          0
 #define TCG_TARGET_HAS_ext8s_i32        0
 #define TCG_TARGET_HAS_ext16s_i32       0
@@ -105,10 +107,13 @@ typedef enum {
 #define TCG_TARGET_HAS_add2_i32         1
 #define TCG_TARGET_HAS_sub2_i32         1
 #define TCG_TARGET_HAS_mulu2_i32        1
-#define TCG_TARGET_HAS_muls2_i32        0
+#define TCG_TARGET_HAS_muls2_i32        1
+#define TCG_TARGET_HAS_muluh_i32        0
+#define TCG_TARGET_HAS_mulsh_i32        0
 
-#if TCG_TARGET_REG_BITS == 64
+#define TCG_TARGET_HAS_trunc_shr_i32    1
 #define TCG_TARGET_HAS_div_i64          1
+#define TCG_TARGET_HAS_rem_i64          0
 #define TCG_TARGET_HAS_rot_i64          0
 #define TCG_TARGET_HAS_ext8s_i64        0
 #define TCG_TARGET_HAS_ext16s_i64       0
@@ -132,20 +137,17 @@ typedef enum {
 #define TCG_TARGET_HAS_sub2_i64         0
 #define TCG_TARGET_HAS_mulu2_i64        0
 #define TCG_TARGET_HAS_muls2_i64        0
-#endif
+#define TCG_TARGET_HAS_muluh_i64        0
+#define TCG_TARGET_HAS_mulsh_i64        0
 
 #define TCG_AREG0 TCG_REG_I0
 
-static inline void flush_icache_range(tcg_target_ulong start,
-                                      tcg_target_ulong stop)
+static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
-    unsigned long p;
-
-    p = start & ~(8UL - 1UL);
-    stop = (stop + (8UL - 1UL)) & ~(8UL - 1UL);
-
-    for (; p < stop; p += 8)
+    uintptr_t p;
+    for (p = start & -8; p < ((stop + 7) & -8); p += 8) {
         __asm__ __volatile__("flush\t%0" : : "r" (p));
+    }
 }
 
 #endif

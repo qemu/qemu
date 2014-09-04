@@ -36,6 +36,9 @@
 
 static IOAPICCommonState *ioapics[MAX_IOAPICS];
 
+/* global variable from ioapic_common.c */
+extern int ioapic_no;
+
 static void ioapic_service(IOAPICCommonState *s)
 {
     uint8_t i;
@@ -90,9 +93,6 @@ static void ioapic_set_irq(void *opaque, int vector, int level)
         uint32_t mask = 1 << vector;
         uint64_t entry = s->ioredtbl[vector];
 
-        if (entry & (1 << IOAPIC_LVT_POLARITY_SHIFT)) {
-            level = !level;
-        }
         if (((entry >> IOAPIC_LVT_TRIGGER_MODE_SHIFT) & 1) ==
             IOAPIC_TRIGGER_LEVEL) {
             /* level triggered */
@@ -225,13 +225,16 @@ static const MemoryRegionOps ioapic_io_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void ioapic_init(IOAPICCommonState *s, int instance_no)
+static void ioapic_realize(DeviceState *dev, Error **errp)
 {
-    memory_region_init_io(&s->io_memory, &ioapic_io_ops, s, "ioapic", 0x1000);
+    IOAPICCommonState *s = IOAPIC_COMMON(dev);
 
-    qdev_init_gpio_in(&s->busdev.qdev, ioapic_set_irq, IOAPIC_NUM_PINS);
+    memory_region_init_io(&s->io_memory, OBJECT(s), &ioapic_io_ops, s,
+                          "ioapic", 0x1000);
 
-    ioapics[instance_no] = s;
+    qdev_init_gpio_in(dev, ioapic_set_irq, IOAPIC_NUM_PINS);
+
+    ioapics[ioapic_no] = s;
 }
 
 static void ioapic_class_init(ObjectClass *klass, void *data)
@@ -239,7 +242,7 @@ static void ioapic_class_init(ObjectClass *klass, void *data)
     IOAPICCommonClass *k = IOAPIC_COMMON_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = ioapic_init;
+    k->realize = ioapic_realize;
     dc->reset = ioapic_reset_common;
 }
 

@@ -547,11 +547,11 @@ static int qpa_init_out (HWVoiceOut *hw, struct audsettings *as)
     ss.rate = as->freq;
 
     /*
-     * qemu audio tick runs at 250 Hz (by default), so processing
-     * data chunks worth 4 ms of sound should be a good fit.
+     * qemu audio tick runs at 100 Hz (by default), so processing
+     * data chunks worth 10 ms of sound should be a good fit.
      */
-    ba.tlength = pa_usec_to_bytes (4 * 1000, &ss);
-    ba.minreq = pa_usec_to_bytes (2 * 1000, &ss);
+    ba.tlength = pa_usec_to_bytes (10 * 1000, &ss);
+    ba.minreq = pa_usec_to_bytes (5 * 1000, &ss);
     ba.maxlength = -1;
     ba.prebuf = -1;
 

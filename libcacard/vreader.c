@@ -9,10 +9,8 @@
 #undef G_LOG_DOMAIN
 #endif
 #define G_LOG_DOMAIN "libcacard"
-#include <glib.h>
 
 #include "qemu-common.h"
-#include "qemu/thread.h"
 
 #include "vcard.h"
 #include "vcard_emul.h"
@@ -28,7 +26,7 @@ struct VReaderStruct {
     VCard *card;
     char *name;
     vreader_id_t id;
-    QemuMutex lock;
+    CompatGMutex lock;
     VReaderEmul  *reader_private;
     VReaderEmulFree reader_private_free;
 };
@@ -97,13 +95,13 @@ apdu_ins_to_string(int ins)
 static inline void
 vreader_lock(VReader *reader)
 {
-    qemu_mutex_lock(&reader->lock);
+    g_mutex_lock(&reader->lock);
 }
 
 static inline void
 vreader_unlock(VReader *reader)
 {
-    qemu_mutex_unlock(&reader->lock);
+    g_mutex_unlock(&reader->lock);
 }
 
 /*
@@ -115,8 +113,8 @@ vreader_new(const char *name, VReaderEmul *private,
 {
     VReader *reader;
 
-    reader = (VReader *)g_malloc(sizeof(VReader));
-    qemu_mutex_init(&reader->lock);
+    reader = g_new(VReader, 1);
+    g_mutex_init(&reader->lock);
     reader->reference_count = 1;
     reader->name = g_strdup(name);
     reader->card = NULL;
@@ -152,12 +150,11 @@ vreader_free(VReader *reader)
         return;
     }
     vreader_unlock(reader);
+    g_mutex_clear(&reader->lock);
     if (reader->card) {
         vcard_free(reader->card);
     }
-    if (reader->name) {
-        g_free(reader->name);
-    }
+    g_free(reader->name);
     if (reader->reader_private_free) {
         reader->reader_private_free(reader->reader_private);
     }
@@ -273,22 +270,20 @@ vreader_xfr_bytes(VReader *reader,
         response = vcard_make_response(status);
         card_status = VCARD_DONE;
     } else {
-        g_debug("%s: CLS=0x%x,INS=0x%x,P1=0x%x,P2=0x%x,Lc=%d,Le=%d %s\n",
+        g_debug("%s: CLS=0x%x,INS=0x%x,P1=0x%x,P2=0x%x,Lc=%d,Le=%d %s",
               __func__, apdu->a_cla, apdu->a_ins, apdu->a_p1, apdu->a_p2,
               apdu->a_Lc, apdu->a_Le, apdu_ins_to_string(apdu->a_ins));
         card_status = vcard_process_apdu(card, apdu, &response);
         if (response) {
-            g_debug("%s: status=%d sw1=0x%x sw2=0x%x len=%d (total=%d)\n",
+            g_debug("%s: status=%d sw1=0x%x sw2=0x%x len=%d (total=%d)",
                   __func__, response->b_status, response->b_sw1,
                   response->b_sw2, response->b_len, response->b_total_len);
         }
     }
-    assert(card_status == VCARD_DONE);
-    if (card_status == VCARD_DONE) {
-        int size = MIN(*receive_buf_len, response->b_total_len);
-        memcpy(receive_buf, response->b_data, size);
-        *receive_buf_len = size;
-    }
+    assert(card_status == VCARD_DONE && response);
+    int size = MIN(*receive_buf_len, response->b_total_len);
+    memcpy(receive_buf, response->b_data, size);
+    *receive_buf_len = size;
     vcard_response_delete(response);
     vcard_apdu_delete(apdu);
     vcard_free(card); /* free our reference */
@@ -312,10 +307,7 @@ vreader_list_entry_new(VReader *reader)
 {
     VReaderListEntry *new_reader_list_entry;
 
-    new_reader_list_entry = (VReaderListEntry *)
-                               g_malloc(sizeof(VReaderListEntry));
-    new_reader_list_entry->next = NULL;
-    new_reader_list_entry->prev = NULL;
+    new_reader_list_entry = g_new0(VReaderListEntry, 1);
     new_reader_list_entry->reader = vreader_reference(reader);
     return new_reader_list_entry;
 }
@@ -336,9 +328,7 @@ vreader_list_new(void)
 {
     VReaderList *new_reader_list;
 
-    new_reader_list = (VReaderList *)g_malloc(sizeof(VReaderList));
-    new_reader_list->head = NULL;
-    new_reader_list->tail = NULL;
+    new_reader_list = g_new0(VReaderList, 1);
     return new_reader_list;
 }
 
@@ -346,14 +336,12 @@ void
 vreader_list_delete(VReaderList *list)
 {
     VReaderListEntry *current_entry;
-    VReaderListEntry *next_entry = NULL;
+    VReaderListEntry *next_entry;
     for (current_entry = vreader_list_get_first(list); current_entry;
          current_entry = next_entry) {
         next_entry = vreader_list_get_next(current_entry);
         vreader_list_entry_delete(current_entry);
     }
-    list->head = NULL;
-    list->tail = NULL;
     g_free(list);
 }
 
@@ -413,32 +401,31 @@ vreader_dequeue(VReaderList *list, VReaderListEntry *entry)
 }
 
 static VReaderList *vreader_list;
-static QemuMutex vreader_list_mutex;
+static CompatGMutex vreader_list_mutex;
 
 static void
 vreader_list_init(void)
 {
     vreader_list = vreader_list_new();
-    qemu_mutex_init(&vreader_list_mutex);
 }
 
 static void
 vreader_list_lock(void)
 {
-    qemu_mutex_lock(&vreader_list_mutex);
+    g_mutex_lock(&vreader_list_mutex);
 }
 
 static void
 vreader_list_unlock(void)
 {
-    qemu_mutex_unlock(&vreader_list_mutex);
+    g_mutex_unlock(&vreader_list_mutex);
 }
 
 static VReaderList *
 vreader_copy_list(VReaderList *list)
 {
-    VReaderList *new_list = NULL;
-    VReaderListEntry *current_entry = NULL;
+    VReaderList *new_list;
+    VReaderListEntry *current_entry;
 
     new_list = vreader_list_new();
     if (new_list == NULL) {
@@ -470,7 +457,7 @@ VReader *
 vreader_get_reader_by_id(vreader_id_t id)
 {
     VReader *reader = NULL;
-    VReaderListEntry *current_entry = NULL;
+    VReaderListEntry *current_entry;
 
     if (id == (vreader_id_t) -1) {
         return NULL;
@@ -494,7 +481,7 @@ VReader *
 vreader_get_reader_by_name(const char *name)
 {
     VReader *reader = NULL;
-    VReaderListEntry *current_entry = NULL;
+    VReaderListEntry *current_entry;
 
     vreader_list_lock();
     for (current_entry = vreader_list_get_first(vreader_list); current_entry;

@@ -73,7 +73,7 @@ eth_get_gso_type(uint16_t l3_proto, uint8_t *l3_hdr, uint8_t l4proto)
     }
 
     /* Unsupported offload */
-    assert(false);
+    g_assert_not_reached();
 
     return VIRTIO_NET_HDR_GSO_NONE | ecn_state;
 }

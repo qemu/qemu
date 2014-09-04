@@ -47,7 +47,7 @@
 #ifdef PFLASH_DEBUG
 #define DPRINTF(fmt, ...)                                  \
 do {                                                       \
-    fprintf(stderr "PFLASH: " fmt , ## __VA_ARGS__);       \
+    fprintf(stderr, "PFLASH: " fmt , ## __VA_ARGS__);       \
 } while (0)
 #else
 #define DPRINTF(fmt, ...) do { } while (0)
@@ -55,8 +55,14 @@ do {                                                       \
 
 #define PFLASH_LAZY_ROMD_THRESHOLD 42
 
+#define TYPE_CFI_PFLASH02 "cfi.pflash02"
+#define CFI_PFLASH02(obj) OBJECT_CHECK(pflash_t, (obj), TYPE_CFI_PFLASH02)
+
 struct pflash_t {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     BlockDriverState *bs;
     uint32_t sector_len;
     uint32_t nb_blocs;
@@ -100,18 +106,18 @@ static void pflash_setup_mappings(pflash_t *pfl)
     unsigned i;
     hwaddr size = memory_region_size(&pfl->orig_mem);
 
-    memory_region_init(&pfl->mem, "pflash", pfl->mappings * size);
+    memory_region_init(&pfl->mem, OBJECT(pfl), "pflash", pfl->mappings * size);
     pfl->mem_mappings = g_new(MemoryRegion, pfl->mappings);
     for (i = 0; i < pfl->mappings; ++i) {
-        memory_region_init_alias(&pfl->mem_mappings[i], "pflash-alias",
-                                 &pfl->orig_mem, 0, size);
+        memory_region_init_alias(&pfl->mem_mappings[i], OBJECT(pfl),
+                                 "pflash-alias", &pfl->orig_mem, 0, size);
         memory_region_add_subregion(&pfl->mem, i * size, &pfl->mem_mappings[i]);
     }
 }
 
 static void pflash_register_memory(pflash_t *pfl, int rom_mode)
 {
-    memory_region_rom_device_set_readable(&pfl->orig_mem, rom_mode);
+    memory_region_rom_device_set_romd(&pfl->orig_mem, rom_mode);
     pfl->rom_mode = rom_mode;
 }
 
@@ -424,8 +430,8 @@ static void pflash_write (pflash_t *pfl, hwaddr offset,
             }
             pfl->status = 0x00;
             /* Let's wait 5 seconds before chip erase is done */
-            qemu_mod_timer(pfl->timer,
-                           qemu_get_clock_ns(vm_clock) + (get_ticks_per_sec() * 5));
+            timer_mod(pfl->timer,
+                           qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + (get_ticks_per_sec() * 5));
             break;
         case 0x30:
             /* Sector erase */
@@ -439,8 +445,8 @@ static void pflash_write (pflash_t *pfl, hwaddr offset,
             }
             pfl->status = 0x00;
             /* Let's wait 1/2 second before sector erase is done */
-            qemu_mod_timer(pfl->timer,
-                           qemu_get_clock_ns(vm_clock) + (get_ticks_per_sec() / 2));
+            timer_mod(pfl->timer,
+                           qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + (get_ticks_per_sec() / 2));
             break;
         default:
             DPRINTF("%s: invalid command %02x (wc 5)\n", __func__, cmd);
@@ -586,9 +592,9 @@ static const MemoryRegionOps pflash_cfi02_ops_le = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int pflash_cfi02_init(SysBusDevice *dev)
+static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
 {
-    pflash_t *pfl = FROM_SYSBUS(typeof(*pfl), dev);
+    pflash_t *pfl = CFI_PFLASH02(dev);
     uint32_t chip_len;
     int ret;
 
@@ -600,7 +606,7 @@ static int pflash_cfi02_init(SysBusDevice *dev)
         return NULL;
 #endif
 
-    memory_region_init_rom_device(&pfl->orig_mem, pfl->be ?
+    memory_region_init_rom_device(&pfl->orig_mem, OBJECT(pfl), pfl->be ?
                                   &pflash_cfi02_ops_be : &pflash_cfi02_ops_le,
                                   pfl, pfl->name, chip_len);
     vmstate_register_ram(&pfl->orig_mem, DEVICE(pfl));
@@ -610,14 +616,16 @@ static int pflash_cfi02_init(SysBusDevice *dev)
         /* read the initial flash content */
         ret = bdrv_read(pfl->bs, 0, pfl->storage, chip_len >> 9);
         if (ret < 0) {
-            g_free(pfl);
-            return 1;
+            vmstate_unregister_ram(&pfl->orig_mem, DEVICE(pfl));
+            memory_region_destroy(&pfl->orig_mem);
+            error_setg(errp, "failed to read the initial flash content");
+            return;
         }
     }
 
     pflash_setup_mappings(pfl);
     pfl->rom_mode = 1;
-    sysbus_init_mmio(dev, &pfl->mem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
 
     if (pfl->bs) {
         pfl->ro = bdrv_is_read_only(pfl->bs);
@@ -625,7 +633,7 @@ static int pflash_cfi02_init(SysBusDevice *dev)
         pfl->ro = 0;
     }
 
-    pfl->timer = qemu_new_timer_ns(vm_clock, pflash_timer, pfl);
+    pfl->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, pflash_timer, pfl);
     pfl->wcycle = 0;
     pfl->cmd = 0;
     pfl->status = 0;
@@ -706,8 +714,6 @@ static int pflash_cfi02_init(SysBusDevice *dev)
 
     pfl->cfi_table[0x3b] = 0x00;
     pfl->cfi_table[0x3c] = 0x00;
-
-    return 0;
 }
 
 static Property pflash_cfi02_properties[] = {
@@ -730,14 +736,13 @@ static Property pflash_cfi02_properties[] = {
 static void pflash_cfi02_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = pflash_cfi02_init;
+    dc->realize = pflash_cfi02_realize;
     dc->props = pflash_cfi02_properties;
 }
 
 static const TypeInfo pflash_cfi02_info = {
-    .name           = "cfi.pflash02",
+    .name           = TYPE_CFI_PFLASH02,
     .parent         = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(struct pflash_t),
     .class_init     = pflash_cfi02_class_init,
@@ -760,10 +765,7 @@ pflash_t *pflash_cfi02_register(hwaddr base,
                                 uint16_t unlock_addr0, uint16_t unlock_addr1,
                                 int be)
 {
-    DeviceState *dev = qdev_create(NULL, "cfi.pflash02");
-    SysBusDevice *busdev = SYS_BUS_DEVICE(dev);
-    pflash_t *pfl = (pflash_t *)object_dynamic_cast(OBJECT(dev),
-                                                    "cfi.pflash02");
+    DeviceState *dev = qdev_create(NULL, TYPE_CFI_PFLASH02);
 
     if (bs && qdev_prop_set_drive(dev, "drive", bs)) {
         abort();
@@ -782,6 +784,6 @@ pflash_t *pflash_cfi02_register(hwaddr base,
     qdev_prop_set_string(dev, "name", name);
     qdev_init_nofail(dev);
 
-    sysbus_mmio_map(busdev, 0, base);
-    return pfl;
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    return CFI_PFLASH02(dev);
 }

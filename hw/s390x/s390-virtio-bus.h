@@ -124,7 +124,6 @@ void s390_virtio_reset_idx(VirtIOS390Device *dev);
 typedef struct VirtIOBlkS390 {
     VirtIOS390Device parent_obj;
     VirtIOBlock vdev;
-    VirtIOBlkConf blk;
 } VirtIOBlkS390;
 
 /* virtio-scsi-s390 */

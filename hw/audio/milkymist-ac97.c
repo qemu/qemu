@@ -51,8 +51,13 @@ enum {
     CTRL_EN = (1<<0),
 };
 
+#define TYPE_MILKYMIST_AC97 "milkymist-ac97"
+#define MILKYMIST_AC97(obj) \
+    OBJECT_CHECK(MilkymistAC97State, (obj), TYPE_MILKYMIST_AC97)
+
 struct MilkymistAC97State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion regs_region;
 
     QEMUSoundCard card;
@@ -258,7 +263,7 @@ static void ac97_out_cb(void *opaque, int free_b)
 
 static void milkymist_ac97_reset(DeviceState *d)
 {
-    MilkymistAC97State *s = container_of(d, MilkymistAC97State, busdev.qdev);
+    MilkymistAC97State *s = MILKYMIST_AC97(d);
     int i;
 
     for (i = 0; i < R_MAX; i++) {
@@ -280,7 +285,7 @@ static int ac97_post_load(void *opaque, int version_id)
 
 static int milkymist_ac97_init(SysBusDevice *dev)
 {
-    MilkymistAC97State *s = FROM_SYSBUS(typeof(*s), dev);
+    MilkymistAC97State *s = MILKYMIST_AC97(dev);
 
     struct audsettings as;
     sysbus_init_irq(dev, &s->crrequest_irq);
@@ -300,7 +305,7 @@ static int milkymist_ac97_init(SysBusDevice *dev)
     s->voice_out = AUD_open_out(&s->card, s->voice_out,
             "mm_ac97.out", s, ac97_out_cb, &as);
 
-    memory_region_init_io(&s->regs_region, &ac97_mmio_ops, s,
+    memory_region_init_io(&s->regs_region, OBJECT(s), &ac97_mmio_ops, s,
             "milkymist-ac97", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 
@@ -311,9 +316,8 @@ static const VMStateDescription vmstate_milkymist_ac97 = {
     .name = "milkymist-ac97",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = ac97_post_load,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, MilkymistAC97State, R_MAX),
         VMSTATE_END_OF_LIST()
     }
@@ -330,7 +334,7 @@ static void milkymist_ac97_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo milkymist_ac97_info = {
-    .name          = "milkymist-ac97",
+    .name          = TYPE_MILKYMIST_AC97,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistAC97State),
     .class_init    = milkymist_ac97_class_init,

@@ -22,11 +22,11 @@
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "hw/acpi/acpi.h"
-#include "monitor/monitor.h"
 #include "qemu/config-file.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/dealloc-visitor.h"
 #include "qapi-visit.h"
+#include "qapi-event.h"
 
 struct acpi_table_header {
     uint16_t _length;         /* our length, not actual part of the hdr */
@@ -170,8 +170,7 @@ static void acpi_table_install(const char unsigned *blob, size_t bloblen,
     }
 
     /* increase number of tables */
-    cpu_to_le16wu((uint16_t *)acpi_tables,
-                  le16_to_cpupu((uint16_t *)acpi_tables) + 1u);
+    stw_le_p(acpi_tables, lduw_le_p(acpi_tables) + 1u);
 
     /* Update the header fields. The strings need not be NUL-terminated. */
     changed_fields = 0;
@@ -309,6 +308,46 @@ out:
     error_propagate(errp, err);
 }
 
+static bool acpi_table_builtin = false;
+
+void acpi_table_add_builtin(const QemuOpts *opts, Error **errp)
+{
+    acpi_table_builtin = true;
+    acpi_table_add(opts, errp);
+}
+
+unsigned acpi_table_len(void *current)
+{
+    struct acpi_table_header *hdr = current - sizeof(hdr->_length);
+    return hdr->_length;
+}
+
+static
+void *acpi_table_hdr(void *h)
+{
+    struct acpi_table_header *hdr = h;
+    return &hdr->sig;
+}
+
+uint8_t *acpi_table_first(void)
+{
+    if (acpi_table_builtin || !acpi_tables) {
+        return NULL;
+    }
+    return acpi_table_hdr(acpi_tables + ACPI_TABLE_PFX_SIZE);
+}
+
+uint8_t *acpi_table_next(uint8_t *current)
+{
+    uint8_t *next = current + acpi_table_len(current);
+
+    if (next - acpi_tables >= acpi_tables_len) {
+        return NULL;
+    } else {
+        return acpi_table_hdr(next);
+    }
+}
+
 static void acpi_notify_wakeup(Notifier *notifier, void *data)
 {
     ACPIREGS *ar = container_of(notifier, ACPIREGS, wakeup);
@@ -324,11 +363,12 @@ static void acpi_notify_wakeup(Notifier *notifier, void *data)
             (ACPI_BITMASK_WAKE_STATUS | ACPI_BITMASK_TIMER_STATUS);
         break;
     case QEMU_WAKEUP_REASON_OTHER:
-    default:
         /* ACPI_BITMASK_WAKE_STATUS should be set on resume.
            Pretend that resume was caused by power button */
         ar->pm1.evt.sts |=
             (ACPI_BITMASK_WAKE_STATUS | ACPI_BITMASK_POWER_BUTTON_STATUS);
+        break;
+    default:
         break;
     }
 }
@@ -419,7 +459,8 @@ void acpi_pm1_evt_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
                        MemoryRegion *parent)
 {
     ar->pm1.evt.update_sci = update_sci;
-    memory_region_init_io(&ar->pm1.evt.io, &acpi_pm_evt_ops, ar, "acpi-evt", 4);
+    memory_region_init_io(&ar->pm1.evt.io, memory_region_owner(parent),
+                          &acpi_pm_evt_ops, ar, "acpi-evt", 4);
     memory_region_add_subregion(parent, 0, &ar->pm1.evt.io);
 }
 
@@ -432,9 +473,9 @@ void acpi_pm_tmr_update(ACPIREGS *ar, bool enable)
     if (enable) {
         expire_time = muldiv64(ar->tmr.overflow_time, get_ticks_per_sec(),
                                PM_TIMER_FREQUENCY);
-        qemu_mod_timer(ar->tmr.timer, expire_time);
+        timer_mod(ar->tmr.timer, expire_time);
     } else {
-        qemu_del_timer(ar->tmr.timer);
+        timer_del(ar->tmr.timer);
     }
 }
 
@@ -480,15 +521,16 @@ void acpi_pm_tmr_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
                       MemoryRegion *parent)
 {
     ar->tmr.update_sci = update_sci;
-    ar->tmr.timer = qemu_new_timer_ns(vm_clock, acpi_pm_tmr_timer, ar);
-    memory_region_init_io(&ar->tmr.io, &acpi_pm_tmr_ops, ar, "acpi-tmr", 4);
+    ar->tmr.timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, acpi_pm_tmr_timer, ar);
+    memory_region_init_io(&ar->tmr.io, memory_region_owner(parent),
+                          &acpi_pm_tmr_ops, ar, "acpi-tmr", 4);
     memory_region_add_subregion(parent, 8, &ar->tmr.io);
 }
 
 void acpi_pm_tmr_reset(ACPIREGS *ar)
 {
     ar->tmr.overflow_time = 0;
-    qemu_del_timer(ar->tmr.timer);
+    timer_del(ar->tmr.timer);
 }
 
 /* ACPI PM1aCNT */
@@ -508,7 +550,7 @@ static void acpi_pm1_cnt_write(ACPIREGS *ar, uint16_t val)
             break;
         default:
             if (sus_typ == ar->pm1.cnt.s4_val) { /* S4 request */
-                monitor_protocol_event(QEVENT_SUSPEND_DISK, NULL);
+                qapi_event_send_suspend_disk(&error_abort);
                 qemu_system_shutdown_request();
             }
             break;
@@ -552,7 +594,8 @@ void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent, uint8_t s4_val)
     ar->pm1.cnt.s4_val = s4_val;
     ar->wakeup.notify = acpi_notify_wakeup;
     qemu_register_wakeup_notifier(&ar->wakeup);
-    memory_region_init_io(&ar->pm1.cnt.io, &acpi_pm_cnt_ops, ar, "acpi-cnt", 2);
+    memory_region_init_io(&ar->pm1.cnt.io, memory_region_owner(parent),
+                          &acpi_pm_cnt_ops, ar, "acpi-cnt", 2);
     memory_region_add_subregion(parent, 4, &ar->pm1.cnt.io);
 }
 
@@ -618,4 +661,22 @@ uint32_t acpi_gpe_ioport_readb(ACPIREGS *ar, uint32_t addr)
     }
 
     return val;
+}
+
+void acpi_update_sci(ACPIREGS *regs, qemu_irq irq)
+{
+    int sci_level, pm1a_sts;
+
+    pm1a_sts = acpi_pm1_evt_get_sts(regs);
+
+    sci_level = ((pm1a_sts &
+                  regs->pm1.evt.en & ACPI_BITMASK_PM1_COMMON_ENABLED) != 0) ||
+                ((regs->gpe.sts[0] & regs->gpe.en[0]) != 0);
+
+    qemu_set_irq(irq, sci_level);
+
+    /* schedule a timer interruption if needed */
+    acpi_pm_tmr_update(regs,
+                       (regs->pm1.evt.en & ACPI_BITMASK_TIMER_ENABLE) &&
+                       !(pm1a_sts & ACPI_BITMASK_TIMER_STATUS));
 }

@@ -8,7 +8,7 @@
  * later version.
  */
 
-#include "ipack.h"
+#include "hw/ipack/ipack.h"
 #include "qemu/bitops.h"
 #include "sysemu/char.h"
 
@@ -108,7 +108,8 @@ struct SCC2698Block {
 };
 
 struct IPOctalState {
-    IPackDevice dev;
+    IPackDevice parent_obj;
+
     SCC2698Channel ch[N_CHANNELS];
     SCC2698Block blk[N_BLOCKS];
     uint8_t irq_vector;
@@ -123,8 +124,7 @@ static const VMStateDescription vmstate_scc2698_channel = {
     .name = "scc2698_channel",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_BOOL(rx_enabled, SCC2698Channel),
         VMSTATE_UINT8_ARRAY(mr, SCC2698Channel, 2),
         VMSTATE_UINT8(mr_idx, SCC2698Channel),
@@ -140,8 +140,7 @@ static const VMStateDescription vmstate_scc2698_block = {
     .name = "scc2698_block",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT8(imr, SCC2698Block),
         VMSTATE_UINT8(isr, SCC2698Block),
         VMSTATE_END_OF_LIST()
@@ -152,9 +151,8 @@ static const VMStateDescription vmstate_ipoctal = {
     .name = "ipoctal232",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
-        VMSTATE_IPACK_DEVICE(dev, IPOctalState),
+    .fields = (VMStateField[]) {
+        VMSTATE_IPACK_DEVICE(parent_obj, IPOctalState),
         VMSTATE_STRUCT_ARRAY(ch, IPOctalState, N_CHANNELS, 1,
                              vmstate_scc2698_channel, SCC2698Channel),
         VMSTATE_STRUCT_ARRAY(blk, IPOctalState, N_BLOCKS, 1,
@@ -172,6 +170,7 @@ static const uint8_t id_prom_data[] = {
 
 static void update_irq(IPOctalState *dev, unsigned block)
 {
+    IPackDevice *idev = IPACK_DEVICE(dev);
     /* Blocks A and B interrupt on INT0#, C and D on INT1#.
        Thus, to get the status we have to check two blocks. */
     SCC2698Block *blk0 = &dev->blk[block];
@@ -179,9 +178,9 @@ static void update_irq(IPOctalState *dev, unsigned block)
     unsigned intno = block / 2;
 
     if ((blk0->isr & blk0->imr) || (blk1->isr & blk1->imr)) {
-        qemu_irq_raise(dev->dev.irq[intno]);
+        qemu_irq_raise(idev->irq[intno]);
     } else {
-        qemu_irq_lower(dev->dev.irq[intno]);
+        qemu_irq_lower(idev->irq[intno]);
     }
 }
 
@@ -534,9 +533,9 @@ static void hostdev_event(void *opaque, int event)
     }
 }
 
-static int ipoctal_init(IPackDevice *ip)
+static void ipoctal_realize(DeviceState *dev, Error **errp)
 {
-    IPOctalState *s = IPOCTAL(ip);
+    IPOctalState *s = IPOCTAL(dev);
     unsigned i;
 
     for (i = 0; i < N_CHANNELS; i++) {
@@ -552,8 +551,6 @@ static int ipoctal_init(IPackDevice *ip)
             DPRINTF("Could not redirect channel %u, no chardev set\n", i);
         }
     }
-
-    return 0;
 }
 
 static Property ipoctal_properties[] = {
@@ -573,7 +570,7 @@ static void ipoctal_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     IPackDeviceClass *ic = IPACK_DEVICE_CLASS(klass);
 
-    ic->init        = ipoctal_init;
+    ic->realize     = ipoctal_realize;
     ic->io_read     = io_read;
     ic->io_write    = io_write;
     ic->id_read     = id_read;
@@ -585,6 +582,7 @@ static void ipoctal_class_init(ObjectClass *klass, void *data)
     ic->mem_read8   = mem_read8;
     ic->mem_write8  = mem_write8;
 
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc    = "GE IP-Octal 232 8-channel RS-232 IndustryPack";
     dc->props   = ipoctal_properties;
     dc->vmsd    = &vmstate_ipoctal;

@@ -50,27 +50,27 @@ _make_test_img $size
 
 echo
 echo "== reading whole image =="
-$QEMU_IO -c "readv 0 $size" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "readv 0 $size" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== rewriting whole image =="
-$QEMU_IO -c "writev -P 0xa 0 $size" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "writev -P 0xa 0 $size" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== verify pattern =="
-$QEMU_IO -c "readv -P 0xa 0 $size" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "readv -P 0xa 0 $size" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== vectored write =="
 $QEMU_IO -c "writev -P 0xb $offset $chunksize $chunksize \
 	$chunksize $chunksize $chunksize $chunksize $chunksize" \
-	$TEST_IMG | _filter_qemu_io
+	"$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== verify pattern =="
 $QEMU_IO -c "readv -P 0xb $offset $chunksize $chunksize \
 	$chunksize $chunksize $chunksize $chunksize $chunksize" \
-	$TEST_IMG | _filter_qemu_io
+	"$TEST_IMG" | _filter_qemu_io
 
 # success, all done
 echo "*** done"

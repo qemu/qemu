@@ -1,0 +1,215 @@
+#!/bin/bash
+#
+# Test case for image option amendment in qcow2.
+#
+# Copyright (C) 2013 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+# This tests qocw2-specific low-level functionality
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+echo
+echo "=== Testing version downgrade with zero expansion ==="
+echo
+IMGOPTS="compat=1.1,lazy_refcounts=on" _make_test_img 64M
+$QEMU_IO -c "write -z 0 128k" "$TEST_IMG" | _filter_qemu_io
+$PYTHON qcow2.py "$TEST_IMG" dump-header
+$QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
+$PYTHON qcow2.py "$TEST_IMG" dump-header
+$QEMU_IO -c "read -P 0 0 128k" "$TEST_IMG" | _filter_qemu_io
+_check_test_img
+
+echo
+echo "=== Testing dirty version downgrade ==="
+echo
+IMGOPTS="compat=1.1,lazy_refcounts=on" _make_test_img 64M
+$QEMU_IO -c "write -P 0x2a 0 128k" -c flush -c abort "$TEST_IMG" | _filter_qemu_io
+$PYTHON qcow2.py "$TEST_IMG" dump-header
+$QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
+$PYTHON qcow2.py "$TEST_IMG" dump-header
+$QEMU_IO -c "read -P 0x2a 0 128k" "$TEST_IMG" | _filter_qemu_io
+_check_test_img
+
+echo
+echo "=== Testing version downgrade with unknown compat/autoclear flags ==="
+echo
+IMGOPTS="compat=1.1" _make_test_img 64M
+$PYTHON qcow2.py "$TEST_IMG" set-feature-bit compatible 42
+$PYTHON qcow2.py "$TEST_IMG" set-feature-bit autoclear 42
+$PYTHON qcow2.py "$TEST_IMG" dump-header
+$QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
+$PYTHON qcow2.py "$TEST_IMG" dump-header
+_check_test_img
+
+echo
+echo "=== Testing version upgrade and resize ==="
+echo
+IMGOPTS="compat=0.10" _make_test_img 64M
+$QEMU_IO -c "write -P 0x2a 42M 64k" "$TEST_IMG" | _filter_qemu_io
+$PYTHON qcow2.py "$TEST_IMG" dump-header
+$QEMU_IMG amend -o "compat=1.1,lazy_refcounts=on,size=128M" "$TEST_IMG"
+$PYTHON qcow2.py "$TEST_IMG" dump-header
+$QEMU_IO -c "read -P 0x2a 42M 64k" "$TEST_IMG" | _filter_qemu_io
+_check_test_img
+
+echo
+echo "=== Testing dirty lazy_refcounts=off ==="
+echo
+IMGOPTS="compat=1.1,lazy_refcounts=on" _make_test_img 64M
+$QEMU_IO -c "write -P 0x2a 0 128k" -c flush -c abort "$TEST_IMG" | _filter_qemu_io
+$PYTHON qcow2.py "$TEST_IMG" dump-header
+$QEMU_IMG amend -o "lazy_refcounts=off" "$TEST_IMG"
+$PYTHON qcow2.py "$TEST_IMG" dump-header
+$QEMU_IO -c "read -P 0x2a 0 128k" "$TEST_IMG" | _filter_qemu_io
+_check_test_img
+
+echo
+echo "=== Testing backing file ==="
+echo
+IMGOPTS="compat=1.1" _make_test_img 64M
+IMGOPTS="compat=1.1" TEST_IMG="$TEST_IMG.base" _make_test_img 64M
+$QEMU_IO -c "write -P 0x2a 0 128k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG amend -o "backing_file=$TEST_IMG.base,backing_fmt=qcow2" "$TEST_IMG"
+$QEMU_IO -c "read -P 0x2a 0 128k" "$TEST_IMG" | _filter_qemu_io
+_check_test_img
+
+echo
+echo "=== Testing invalid configurations ==="
+echo
+IMGOPTS="compat=0.10" _make_test_img 64M
+$QEMU_IMG amend -o "lazy_refcounts=on" "$TEST_IMG"
+$QEMU_IMG amend -o "compat=1.1" "$TEST_IMG" # actually valid
+$QEMU_IMG amend -o "compat=0.10,lazy_refcounts=on" "$TEST_IMG"
+$QEMU_IMG amend -o "compat=0.42" "$TEST_IMG"
+$QEMU_IMG amend -o "foo=bar" "$TEST_IMG"
+$QEMU_IMG amend -o "cluster_size=1k" "$TEST_IMG"
+$QEMU_IMG amend -o "encryption=on" "$TEST_IMG"
+$QEMU_IMG amend -o "preallocation=on" "$TEST_IMG"
+
+echo
+echo "=== Testing correct handling of unset value ==="
+echo
+IMGOPTS="compat=1.1,cluster_size=1k" _make_test_img 64M
+echo "Should work:"
+$QEMU_IMG amend -o "lazy_refcounts=on" "$TEST_IMG"
+echo "Should not work:" # Just to know which of these tests actually fails
+$QEMU_IMG amend -o "cluster_size=64k" "$TEST_IMG"
+
+echo
+echo "=== Testing zero expansion on inactive clusters ==="
+echo
+IMGOPTS="compat=1.1" _make_test_img 64M
+$QEMU_IO -c "write -z 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -c foo "$TEST_IMG"
+$QEMU_IO -c "write -P 0x2a 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
+_check_test_img
+$QEMU_IO -c "read -P 0x2a 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -a foo "$TEST_IMG"
+_check_test_img
+$QEMU_IO -c "read -P 0 0 128k" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "=== Testing zero expansion on shared L2 table ==="
+echo
+IMGOPTS="compat=1.1" _make_test_img 64M
+$QEMU_IO -c "write -z 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -c foo "$TEST_IMG"
+$QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
+_check_test_img
+$QEMU_IO -c "read -P 0 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -a foo "$TEST_IMG"
+_check_test_img
+$QEMU_IO -c "read -P 0 0 128k" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "=== Testing zero expansion on backed image ==="
+echo
+IMGOPTS="compat=1.1" TEST_IMG="$TEST_IMG.base" _make_test_img 64M
+$QEMU_IO -c "write -P 0x2a 0 128k" "$TEST_IMG.base" | _filter_qemu_io
+IMGOPTS="compat=1.1" _make_test_img -b "$TEST_IMG.base" 64M
+$QEMU_IO -c "read -P 0x2a 0 128k" -c "write -z 0 64k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
+_check_test_img
+$QEMU_IO -c "read -P 0 0 64k" -c "read -P 0x2a 64k 64k" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "=== Testing zero expansion on backed inactive clusters ==="
+echo
+IMGOPTS="compat=1.1" TEST_IMG="$TEST_IMG.base" _make_test_img 64M
+$QEMU_IO -c "write -P 0x2a 0 128k" "$TEST_IMG.base" | _filter_qemu_io
+IMGOPTS="compat=1.1" _make_test_img -b "$TEST_IMG.base" 64M
+$QEMU_IO -c "write -z 0 64k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -c foo "$TEST_IMG"
+$QEMU_IO -c "write -P 0x42 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
+_check_test_img
+$QEMU_IO -c "read -P 0x42 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -a foo "$TEST_IMG"
+_check_test_img
+$QEMU_IO -c "read -P 0 0 64k" -c "read -P 0x2a 64k 64k" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "=== Testing zero expansion on backed image with shared L2 table ==="
+echo
+IMGOPTS="compat=1.1" TEST_IMG="$TEST_IMG.base" _make_test_img 64M
+$QEMU_IO -c "write -P 0x2a 0 128k" "$TEST_IMG.base" | _filter_qemu_io
+IMGOPTS="compat=1.1" _make_test_img -b "$TEST_IMG.base" 64M
+$QEMU_IO -c "write -z 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -c foo "$TEST_IMG"
+$QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
+_check_test_img
+$QEMU_IO -c "read -P 0 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -a foo "$TEST_IMG"
+_check_test_img
+$QEMU_IO -c "read -P 0 0 128k" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "=== Testing preallocated zero expansion on full image ==="
+echo
+IMGOPTS="compat=1.1" TEST_IMG="$TEST_IMG" _make_test_img 64M
+$QEMU_IO -c "write -P 0x2a 0 64M" "$TEST_IMG" -c "write -z 0 64M" | _filter_qemu_io
+$QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
+_check_test_img
+$QEMU_IO -c "read -P 0 0 64M" "$TEST_IMG" | _filter_qemu_io
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

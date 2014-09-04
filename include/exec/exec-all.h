@@ -44,7 +44,7 @@ struct TranslationBlock;
 typedef struct TranslationBlock TranslationBlock;
 
 /* XXX: make safe guess about sizes */
-#define MAX_OP_PER_INSTR 208
+#define MAX_OP_PER_INSTR 266
 
 #if HOST_LONG_BITS == 32
 #define MAX_OPC_PARAM_PER_ARG 2
@@ -80,34 +80,36 @@ void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb,
 void cpu_gen_init(void);
 int cpu_gen_code(CPUArchState *env, struct TranslationBlock *tb,
                  int *gen_code_size_ptr);
-bool cpu_restore_state(CPUArchState *env, uintptr_t searched_pc);
+bool cpu_restore_state(CPUState *cpu, uintptr_t searched_pc);
+void page_size_init(void);
 
-void QEMU_NORETURN cpu_resume_from_signal(CPUArchState *env1, void *puc);
-void QEMU_NORETURN cpu_io_recompile(CPUArchState *env, uintptr_t retaddr);
-TranslationBlock *tb_gen_code(CPUArchState *env, 
+void QEMU_NORETURN cpu_resume_from_signal(CPUState *cpu, void *puc);
+void QEMU_NORETURN cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
+TranslationBlock *tb_gen_code(CPUState *cpu,
                               target_ulong pc, target_ulong cs_base, int flags,
                               int cflags);
 void cpu_exec_init(CPUArchState *env);
-void QEMU_NORETURN cpu_loop_exit(CPUArchState *env1);
+void QEMU_NORETURN cpu_loop_exit(CPUState *cpu);
 int page_unprotect(target_ulong address, uintptr_t pc, void *puc);
 void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access);
 void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end,
                               int is_cpu_write_access);
 #if !defined(CONFIG_USER_ONLY)
+void tcg_cpu_address_space_init(CPUState *cpu, AddressSpace *as);
 /* cputlb.c */
-void tlb_flush_page(CPUArchState *env, target_ulong addr);
-void tlb_flush(CPUArchState *env, int flush_global);
-void tlb_set_page(CPUArchState *env, target_ulong vaddr,
+void tlb_flush_page(CPUState *cpu, target_ulong addr);
+void tlb_flush(CPUState *cpu, int flush_global);
+void tlb_set_page(CPUState *cpu, target_ulong vaddr,
                   hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size);
-void tb_invalidate_phys_addr(hwaddr addr);
+void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr);
 #else
-static inline void tlb_flush_page(CPUArchState *env, target_ulong addr)
+static inline void tlb_flush_page(CPUState *cpu, target_ulong addr)
 {
 }
 
-static inline void tlb_flush(CPUArchState *env, int flush_global)
+static inline void tlb_flush(CPUState *cpu, int flush_global)
 {
 }
 #endif
@@ -128,7 +130,8 @@ static inline void tlb_flush(CPUArchState *env, int flush_global)
 
 #if defined(__arm__) || defined(_ARCH_PPC) \
     || defined(__x86_64__) || defined(__i386__) \
-    || defined(__sparc__) \
+    || defined(__sparc__) || defined(__aarch64__) \
+    || defined(__s390x__) || defined(__mips__) \
     || defined(CONFIG_TCG_INTERPRETER)
 #define USE_DIRECT_JUMP
 #endif
@@ -143,7 +146,7 @@ struct TranslationBlock {
 #define CF_COUNT_MASK  0x7fff
 #define CF_LAST_IO     0x8000 /* Last insn may be an IO access.  */
 
-    uint8_t *tc_ptr;    /* pointer to the translated code */
+    void *tc_ptr;    /* pointer to the translated code */
     /* next matching tb for physical address. */
     struct TranslationBlock *phys_hash_next;
     /* first and second physical page containing code. The lower bit
@@ -221,15 +224,26 @@ static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
     /* no need to flush icache explicitly */
 }
 #elif defined(_ARCH_PPC)
-void ppc_tb_set_jmp_target(unsigned long jmp_addr, unsigned long addr);
+void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
 #define tb_set_jmp_target1 ppc_tb_set_jmp_target
 #elif defined(__i386__) || defined(__x86_64__)
 static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
     /* patch the branch destination */
-    *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
+    stl_le_p((void*)jmp_addr, addr - (jmp_addr + 4));
     /* no need to flush icache explicitly */
 }
+#elif defined(__s390x__)
+static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
+{
+    /* patch the branch destination */
+    intptr_t disp = addr - (jmp_addr - 2);
+    stl_be_p((void*)jmp_addr, disp / 2);
+    /* no need to flush icache explicitly */
+}
+#elif defined(__aarch64__)
+void aarch64_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
+#define tb_set_jmp_target1 aarch64_tb_set_jmp_target
 #elif defined(__arm__)
 static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
@@ -254,7 +268,7 @@ static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
     __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
 #endif
 }
-#elif defined(__sparc__)
+#elif defined(__sparc__) || defined(__mips__)
 void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr);
 #else
 #error tb_set_jmp_target1 is missing
@@ -292,108 +306,43 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
     }
 }
 
-/* The return address may point to the start of the next instruction.
-   Subtracting one gets us the call instruction itself.  */
+/* GETRA is the true target of the return instruction that we'll execute,
+   defined here for simplicity of defining the follow-up macros.  */
 #if defined(CONFIG_TCG_INTERPRETER)
 extern uintptr_t tci_tb_ptr;
-# define GETPC() tci_tb_ptr
-#elif defined(__s390__) && !defined(__s390x__)
-# define GETPC() \
-    (((uintptr_t)__builtin_return_address(0) & 0x7fffffffUL) - 1)
-#elif defined(__arm__)
-/* Thumb return addresses have the low bit set, so we need to subtract two.
-   This is still safe in ARM mode because instructions are 4 bytes.  */
-# define GETPC() ((uintptr_t)__builtin_return_address(0) - 2)
+# define GETRA() tci_tb_ptr
 #else
-# define GETPC() ((uintptr_t)__builtin_return_address(0) - 1)
+# define GETRA() \
+    ((uintptr_t)__builtin_extract_return_addr(__builtin_return_address(0)))
 #endif
 
-#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
-/* qemu_ld/st optimization split code generation to fast and slow path, thus,
-   it needs special handling for an MMU helper which is called from the slow
-   path, to get the fast path's pc without any additional argument.
-   It uses a tricky solution which embeds the fast path pc into the slow path.
-
-   Code flow in slow path:
-   (1) pre-process
-   (2) call MMU helper
-   (3) jump to (5)
-   (4) fast path information (implementation specific)
-   (5) post-process (e.g. stack adjust)
-   (6) jump to corresponding code of the next of fast path
- */
-# if defined(__i386__) || defined(__x86_64__)
-/* To avoid broken disassembling, long jmp is used for embedding fast path pc,
-   so that the destination is the next code of fast path, though this jmp is
-   never executed.
-
-   call MMU helper
-   jmp POST_PROC (2byte)    <- GETRA()
-   jmp NEXT_CODE (5byte)
-   POST_PROCESS ...         <- GETRA() + 7
- */
-#  define GETRA() ((uintptr_t)__builtin_return_address(0))
-#  define GETPC_LDST() ((uintptr_t)(GETRA() + 7 + \
-                                    *(int32_t *)((void *)GETRA() + 3) - 1))
-# elif defined (_ARCH_PPC) && !defined (_ARCH_PPC64)
-#  define GETRA() ((uintptr_t)__builtin_return_address(0))
-#  define GETPC_LDST() ((uintptr_t) ((*(int32_t *)(GETRA() - 4)) - 1))
-# elif defined(__arm__)
-/* We define two insns between the return address and the branch back to
-   straight-line.  Find and decode that branch insn.  */
-#  define GETRA()       ((uintptr_t)__builtin_return_address(0))
-#  define GETPC_LDST()  tcg_getpc_ldst(GETRA())
-static inline uintptr_t tcg_getpc_ldst(uintptr_t ra)
-{
-    int32_t b;
-    ra += 8;                    /* skip the two insns */
-    b = *(int32_t *)ra;         /* load the branch insn */
-    b = (b << 8) >> (8 - 2);    /* extract the displacement */
-    ra += 8;                    /* branches are relative to pc+8 */
-    ra += b;                    /* apply the displacement */
-    ra -= 4;                    /* return a pointer into the current opcode,
-                                   not the start of the next opcode  */
-    return ra;
-}
-# else
-#  error "CONFIG_QEMU_LDST_OPTIMIZATION needs GETPC_LDST() implementation!"
-# endif
-bool is_tcg_gen_code(uintptr_t pc_ptr);
-# define GETPC_EXT() (is_tcg_gen_code(GETRA()) ? GETPC_LDST() : GETPC())
+/* The true return address will often point to a host insn that is part of
+   the next translated guest insn.  Adjust the address backward to point to
+   the middle of the call insn.  Subtracting one would do the job except for
+   several compressed mode architectures (arm, mips) which set the low bit
+   to indicate the compressed mode; subtracting two works around that.  It
+   is also the case that there are no host isas that contain a call insn
+   smaller than 4 bytes, so we don't worry about special-casing this.  */
+#if defined(CONFIG_TCG_INTERPRETER)
+# define GETPC_ADJ   0
 #else
-# define GETPC_EXT() GETPC()
+# define GETPC_ADJ   2
 #endif
+
+#define GETPC()  (GETRA() - GETPC_ADJ)
 
 #if !defined(CONFIG_USER_ONLY)
 
-struct MemoryRegion *iotlb_to_region(hwaddr index);
-uint64_t io_mem_read(struct MemoryRegion *mr, hwaddr addr,
-                     unsigned size);
-void io_mem_write(struct MemoryRegion *mr, hwaddr addr,
+void phys_mem_set_alloc(void *(*alloc)(size_t));
+
+struct MemoryRegion *iotlb_to_region(AddressSpace *as, hwaddr index);
+bool io_mem_read(struct MemoryRegion *mr, hwaddr addr,
+                 uint64_t *pvalue, unsigned size);
+bool io_mem_write(struct MemoryRegion *mr, hwaddr addr,
                   uint64_t value, unsigned size);
 
-void tlb_fill(CPUArchState *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUState *cpu, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr);
-
-#include "exec/softmmu_defs.h"
-
-#define ACCESS_TYPE (NB_MMU_MODES + 1)
-#define MEMSUFFIX _code
-
-#define DATA_SIZE 1
-#include "exec/softmmu_header.h"
-
-#define DATA_SIZE 2
-#include "exec/softmmu_header.h"
-
-#define DATA_SIZE 4
-#include "exec/softmmu_header.h"
-
-#define DATA_SIZE 8
-#include "exec/softmmu_header.h"
-
-#undef ACCESS_TYPE
-#undef MEMSUFFIX
 
 #endif
 
@@ -417,20 +366,25 @@ extern int singlestep;
 /* cpu-exec.c */
 extern volatile sig_atomic_t exit_request;
 
-/* Deterministic execution requires that IO only be performed on the last
-   instruction of a TB so that interrupts take effect immediately.  */
-static inline int can_do_io(CPUArchState *env)
+/**
+ * cpu_can_do_io:
+ * @cpu: The CPU for which to check IO.
+ *
+ * Deterministic execution requires that IO only be performed on the last
+ * instruction of a TB so that interrupts take effect immediately.
+ *
+ * Returns: %true if memory-mapped IO is safe, %false otherwise.
+ */
+static inline bool cpu_can_do_io(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
     if (!use_icount) {
-        return 1;
+        return true;
     }
     /* If not executing code then assume we are ok.  */
     if (cpu->current_tb == NULL) {
-        return 1;
+        return true;
     }
-    return env->can_do_io != 0;
+    return cpu->can_do_io != 0;
 }
 
 #endif

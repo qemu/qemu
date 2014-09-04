@@ -37,17 +37,18 @@ static const uint8_t special_ethaddr[ETH_ALEN] = {
     0x52, 0x55, 0x00, 0x00, 0x00, 0x00
 };
 
-static const uint8_t zero_ethaddr[ETH_ALEN] = { 0, 0, 0, 0, 0, 0 };
-
 u_int curtime;
-static u_int time_fasttimo, last_slowtimo;
-static int do_slowtimo;
 
 static QTAILQ_HEAD(slirp_instances, Slirp) slirp_instances =
     QTAILQ_HEAD_INITIALIZER(slirp_instances);
 
 static struct in_addr dns_addr;
 static u_int dns_addr_time;
+
+#define TIMEOUT_FAST 2  /* milliseconds */
+#define TIMEOUT_SLOW 499  /* milliseconds */
+/* for the aging of certain requests like DNS */
+#define TIMEOUT_DEFAULT 1000  /* milliseconds */
 
 #ifdef _WIN32
 
@@ -59,7 +60,7 @@ int get_dns_addr(struct in_addr *pdns_addr)
     IP_ADDR_STRING *pIPAddr;
     struct in_addr tmp_addr;
 
-    if (dns_addr.s_addr != 0 && (curtime - dns_addr_time) < 1000) {
+    if (dns_addr.s_addr != 0 && (curtime - dns_addr_time) < TIMEOUT_DEFAULT) {
         *pdns_addr = dns_addr;
         return 0;
     }
@@ -115,7 +116,7 @@ int get_dns_addr(struct in_addr *pdns_addr)
 
     if (dns_addr.s_addr != 0) {
         struct stat old_stat;
-        if ((curtime - dns_addr_time) < 1000) {
+        if ((curtime - dns_addr_time) < TIMEOUT_DEFAULT) {
             *pdns_addr = dns_addr;
             return 0;
         }
@@ -136,7 +137,7 @@ int get_dns_addr(struct in_addr *pdns_addr)
         return -1;
 
 #ifdef DEBUG
-    lprint("IP address of your DNS(s): ");
+    fprintf(stderr, "IP address of your DNS(s): ");
 #endif
     while (fgets(buff, 512, f) != NULL) {
         if (sscanf(buff, "nameserver%*[ \t]%256s", buff2) == 1) {
@@ -150,17 +151,17 @@ int get_dns_addr(struct in_addr *pdns_addr)
             }
 #ifdef DEBUG
             else
-                lprint(", ");
+                fprintf(stderr, ", ");
 #endif
             if (++found > 3) {
 #ifdef DEBUG
-                lprint("(more)");
+                fprintf(stderr, "(more)");
 #endif
                 break;
             }
 #ifdef DEBUG
             else
-                lprint("%s", inet_ntoa(tmp_addr));
+                fprintf(stderr, "%s", inet_ntoa(tmp_addr));
 #endif
         }
     }
@@ -259,14 +260,33 @@ void slirp_cleanup(Slirp *slirp)
 #define CONN_CANFSEND(so) (((so)->so_state & (SS_FCANTSENDMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)
 #define CONN_CANFRCV(so) (((so)->so_state & (SS_FCANTRCVMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)
 
-void slirp_update_timeout(uint32_t *timeout)
+static void slirp_update_timeout(uint32_t *timeout)
 {
-    if (!QTAILQ_EMPTY(&slirp_instances)) {
-        *timeout = MIN(1000, *timeout);
+    Slirp *slirp;
+    uint32_t t;
+
+    if (*timeout <= TIMEOUT_FAST) {
+        return;
     }
+
+    t = MIN(1000, *timeout);
+
+    /* If we have tcp timeout with slirp, then we will fill @timeout with
+     * more precise value.
+     */
+    QTAILQ_FOREACH(slirp, &slirp_instances, entry) {
+        if (slirp->time_fasttimo) {
+            *timeout = TIMEOUT_FAST;
+            return;
+        }
+        if (slirp->do_slowtimo) {
+            t = MIN(TIMEOUT_SLOW, t);
+        }
+    }
+    *timeout = t;
 }
 
-void slirp_pollfds_fill(GArray *pollfds)
+void slirp_pollfds_fill(GArray *pollfds, uint32_t *timeout)
 {
     Slirp *slirp;
     struct socket *so, *so_next;
@@ -278,14 +298,13 @@ void slirp_pollfds_fill(GArray *pollfds)
     /*
      * First, TCP sockets
      */
-    do_slowtimo = 0;
 
     QTAILQ_FOREACH(slirp, &slirp_instances, entry) {
         /*
          * *_slowtimo needs calling if there are IP fragments
          * in the fragment queue, or there are TCP connections active
          */
-        do_slowtimo |= ((slirp->tcb.so_next != &slirp->tcb) ||
+        slirp->do_slowtimo = ((slirp->tcb.so_next != &slirp->tcb) ||
                 (&slirp->ipq.ip_link != slirp->ipq.ip_link.next));
 
         for (so = slirp->tcb.so_next; so != &slirp->tcb;
@@ -299,8 +318,9 @@ void slirp_pollfds_fill(GArray *pollfds)
             /*
              * See if we need a tcp_fasttimo
              */
-            if (time_fasttimo == 0 && so->so_tcpcb->t_flags & TF_DELACK) {
-                time_fasttimo = curtime; /* Flag when we want a fasttimo */
+            if (slirp->time_fasttimo == 0 &&
+                so->so_tcpcb->t_flags & TF_DELACK) {
+                slirp->time_fasttimo = curtime; /* Flag when want a fasttimo */
             }
 
             /*
@@ -381,7 +401,7 @@ void slirp_pollfds_fill(GArray *pollfds)
                     udp_detach(so);
                     continue;
                 } else {
-                    do_slowtimo = 1; /* Let socket expire */
+                    slirp->do_slowtimo = true; /* Let socket expire */
                 }
             }
 
@@ -422,7 +442,7 @@ void slirp_pollfds_fill(GArray *pollfds)
                     icmp_detach(so);
                     continue;
                 } else {
-                    do_slowtimo = 1; /* Let socket expire */
+                    slirp->do_slowtimo = true; /* Let socket expire */
                 }
             }
 
@@ -436,6 +456,7 @@ void slirp_pollfds_fill(GArray *pollfds)
             }
         }
     }
+    slirp_update_timeout(timeout);
 }
 
 void slirp_pollfds_poll(GArray *pollfds, int select_error)
@@ -448,20 +469,22 @@ void slirp_pollfds_poll(GArray *pollfds, int select_error)
         return;
     }
 
-    curtime = qemu_get_clock_ms(rt_clock);
+    curtime = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 
     QTAILQ_FOREACH(slirp, &slirp_instances, entry) {
         /*
          * See if anything has timed out
          */
-        if (time_fasttimo && ((curtime - time_fasttimo) >= 2)) {
+        if (slirp->time_fasttimo &&
+            ((curtime - slirp->time_fasttimo) >= TIMEOUT_FAST)) {
             tcp_fasttimo(slirp);
-            time_fasttimo = 0;
+            slirp->time_fasttimo = 0;
         }
-        if (do_slowtimo && ((curtime - last_slowtimo) >= 499)) {
+        if (slirp->do_slowtimo &&
+            ((curtime - slirp->last_slowtimo) >= TIMEOUT_SLOW)) {
             ip_slowtimo(slirp);
             tcp_slowtimo(slirp);
-            last_slowtimo = curtime;
+            slirp->last_slowtimo = curtime;
         }
 
         /*
@@ -753,6 +776,11 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
         return 1;
     }
 
+    if (iph->ip_dst.s_addr == 0) {
+        /* 0.0.0.0 can not be a destination address, something went wrong,
+         * avoid making it worse */
+        return 1;
+    }
     if (!arp_table_search(slirp, iph->ip_dst.s_addr, ethaddr)) {
         uint8_t arp_req[ETH_HLEN + sizeof(struct arphdr)];
         struct ethhdr *reh = (struct ethhdr *)arp_req;
@@ -787,7 +815,7 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
             ifm->arp_requested = true;
 
             /* Expire request and drop outgoing packet after 1 second */
-            ifm->expiration_date = qemu_get_clock_ns(rt_clock) + 1000000000ULL;
+            ifm->expiration_date = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + 1000000000ULL;
         }
         return 0;
     } else {

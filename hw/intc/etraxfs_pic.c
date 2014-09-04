@@ -36,9 +36,14 @@
 #define R_R_GURU    4
 #define R_MAX       5
 
+#define TYPE_ETRAX_FS_PIC "etraxfs,pic"
+#define ETRAX_FS_PIC(obj) \
+    OBJECT_CHECK(struct etrax_pic, (obj), TYPE_ETRAX_FS_PIC)
+
 struct etrax_pic
 {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion mmio;
     void *interrupt_vector;
     qemu_irq parent_irq;
@@ -138,16 +143,18 @@ static void irq_handler(void *opaque, int irq, int level)
     pic_update(fs);
 }
 
-static int etraxfs_pic_init(SysBusDevice *dev)
+static int etraxfs_pic_init(SysBusDevice *sbd)
 {
-    struct etrax_pic *s = FROM_SYSBUS(typeof (*s), dev);
+    DeviceState *dev = DEVICE(sbd);
+    struct etrax_pic *s = ETRAX_FS_PIC(dev);
 
-    qdev_init_gpio_in(&dev->qdev, irq_handler, 32);
-    sysbus_init_irq(dev, &s->parent_irq);
-    sysbus_init_irq(dev, &s->parent_nmi);
+    qdev_init_gpio_in(dev, irq_handler, 32);
+    sysbus_init_irq(sbd, &s->parent_irq);
+    sysbus_init_irq(sbd, &s->parent_nmi);
 
-    memory_region_init_io(&s->mmio, &pic_ops, s, "etraxfs-pic", R_MAX * 4);
-    sysbus_init_mmio(dev, &s->mmio);
+    memory_region_init_io(&s->mmio, OBJECT(s), &pic_ops, s,
+                          "etraxfs-pic", R_MAX * 4);
+    sysbus_init_mmio(sbd, &s->mmio);
     return 0;
 }
 
@@ -163,10 +170,14 @@ static void etraxfs_pic_class_init(ObjectClass *klass, void *data)
 
     k->init = etraxfs_pic_init;
     dc->props = etraxfs_pic_properties;
+    /*
+     * Note: pointer property "interrupt_vector" may remain null, thus
+     * no need for dc->cannot_instantiate_with_device_add_yet = true;
+     */
 }
 
 static const TypeInfo etraxfs_pic_info = {
-    .name          = "etraxfs,pic",
+    .name          = TYPE_ETRAX_FS_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct etrax_pic),
     .class_init    = etraxfs_pic_class_init,

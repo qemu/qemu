@@ -285,7 +285,7 @@ static void pcie_aer_root_notify(PCIDevice *dev)
     } else if (msi_enabled(dev)) {
         msi_notify(dev, pcie_aer_root_get_vector(dev));
     } else {
-        qemu_set_irq(dev->irq[dev->exp.aer_intx], 1);
+        pci_irq_assert(dev);
     }
 }
 
@@ -425,7 +425,7 @@ static void pcie_aer_update_log(PCIDevice *dev, const PCIEAERErr *err)
             /* 7.10.8 Header Log Register */
             uint8_t *header_log =
                 aer_cap + PCI_ERR_HEADER_LOG + i * sizeof err->header[0];
-            cpu_to_be32wu((uint32_t*)header_log, err->header[i]);
+            stl_be_p(header_log, err->header[i]);
         }
     } else {
         assert(!(err->flags & PCIE_AER_ERR_TLP_PREFIX_PRESENT));
@@ -439,7 +439,7 @@ static void pcie_aer_update_log(PCIDevice *dev, const PCIEAERErr *err)
             /* 7.10.12 tlp prefix log register */
             uint8_t *prefix_log =
                 aer_cap + PCI_ERR_TLP_PREFIX_LOG + i * sizeof err->prefix[0];
-            cpu_to_be32wu((uint32_t*)prefix_log, err->prefix[i]);
+            stl_be_p(prefix_log, err->prefix[i]);
         }
         errcap |= PCI_ERR_CAP_TLP;
     } else {
@@ -768,7 +768,7 @@ void pcie_aer_root_write_config(PCIDevice *dev,
     uint32_t root_cmd = pci_get_long(aer_cap + PCI_ERR_ROOT_COMMAND);
     /* 6.2.4.1.2 Interrupt Generation */
     if (!msix_enabled(dev) && !msi_enabled(dev)) {
-        qemu_set_irq(dev->irq[dev->exp.aer_intx], !!(root_cmd & enabled_cmd));
+        pci_set_irq(dev, !!(root_cmd & enabled_cmd));
         return;
     }
 
@@ -784,8 +784,7 @@ static const VMStateDescription vmstate_pcie_aer_err = {
     .name = "PCIE_AER_ERROR",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields     = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(status, PCIEAERErr),
         VMSTATE_UINT16(source_id, PCIEAERErr),
         VMSTATE_UINT16(flags, PCIEAERErr),
@@ -795,14 +794,21 @@ static const VMStateDescription vmstate_pcie_aer_err = {
     }
 };
 
+static bool pcie_aer_state_log_num_valid(void *opaque, int version_id)
+{
+    PCIEAERLog *s = opaque;
+
+    return s->log_num <= s->log_max;
+}
+
 const VMStateDescription vmstate_pcie_aer_log = {
     .name = "PCIE_AER_ERROR_LOG",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields     = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT16(log_num, PCIEAERLog),
-        VMSTATE_UINT16(log_max, PCIEAERLog),
+        VMSTATE_UINT16_EQUAL(log_max, PCIEAERLog),
+        VMSTATE_VALIDATE("log_num <= log_max", pcie_aer_state_log_num_valid),
         VMSTATE_STRUCT_VARRAY_POINTER_UINT16(log, PCIEAERLog, log_num,
                               vmstate_pcie_aer_err, PCIEAERErr),
         VMSTATE_END_OF_LIST()
@@ -817,9 +823,9 @@ void pcie_aer_inject_error_print(Monitor *mon, const QObject *data)
     qdict = qobject_to_qdict(data);
 
     devfn = (int)qdict_get_int(qdict, "devfn");
-    monitor_printf(mon, "OK id: %s domain: %x, bus: %x devfn: %x.%x\n",
+    monitor_printf(mon, "OK id: %s root bus: %s, bus: %x devfn: %x.%x\n",
                    qdict_get_str(qdict, "id"),
-                   (int) qdict_get_int(qdict, "domain"),
+                   qdict_get_str(qdict, "root_bus"),
                    (int) qdict_get_int(qdict, "bus"),
                    PCI_SLOT(devfn), PCI_FUNC(devfn));
 }
@@ -1020,10 +1026,9 @@ int do_pcie_aer_inject_error(Monitor *mon,
 
     ret = pcie_aer_inject_error(dev, &err);
     *ret_data = qobject_from_jsonf("{'id': %s, "
-                                   "'domain': %d, 'bus': %d, 'devfn': %d, "
+                                   "'root_bus': %s, 'bus': %d, 'devfn': %d, "
                                    "'ret': %d}",
-                                   id,
-                                   pci_find_domain(dev->bus),
+                                   id, pci_root_bus_path(dev),
                                    pci_bus_num(dev->bus), dev->devfn,
                                    ret);
     assert(*ret_data);

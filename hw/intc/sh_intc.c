@@ -42,16 +42,15 @@ void sh_intc_toggle_source(struct intc_source *source,
         pending_changed = 1;
 
     if (pending_changed) {
-        CPUState *cpu = CPU(sh_env_get_cpu(first_cpu));
         if (source->pending) {
             source->parent->pending++;
             if (source->parent->pending == 1) {
-                cpu_interrupt(cpu, CPU_INTERRUPT_HARD);
+                cpu_interrupt(first_cpu, CPU_INTERRUPT_HARD);
             }
         } else {
             source->parent->pending--;
             if (source->parent->pending == 0) {
-                cpu_reset_interrupt(cpu, CPU_INTERRUPT_HARD);
+                cpu_reset_interrupt(first_cpu, CPU_INTERRUPT_HARD);
             }
 	}
     }
@@ -319,11 +318,11 @@ static unsigned int sh_intc_register(MemoryRegion *sysmem,
 
 #define SH_INTC_IOMEM_FORMAT "interrupt-controller-%s-%s-%s"
     snprintf(name, sizeof(name), SH_INTC_IOMEM_FORMAT, type, action, "p4");
-    memory_region_init_alias(iomem_p4, name, iomem, INTC_A7(address), 4);
+    memory_region_init_alias(iomem_p4, NULL, name, iomem, INTC_A7(address), 4);
     memory_region_add_subregion(sysmem, P4ADDR(address), iomem_p4);
 
     snprintf(name, sizeof(name), SH_INTC_IOMEM_FORMAT, type, action, "a7");
-    memory_region_init_alias(iomem_a7, name, iomem, INTC_A7(address), 4);
+    memory_region_init_alias(iomem_a7, NULL, name, iomem, INTC_A7(address), 4);
     memory_region_add_subregion(sysmem, A7ADDR(address), iomem_a7);
 #undef SH_INTC_IOMEM_FORMAT
 
@@ -466,7 +465,7 @@ int sh_intc_init(MemoryRegion *sysmem,
 
     desc->irqs = qemu_allocate_irqs(sh_intc_set_irq, desc, nr_sources);
  
-    memory_region_init_io(&desc->iomem, &sh_intc_ops, desc,
+    memory_region_init_io(&desc->iomem, NULL, &sh_intc_ops, desc,
                           "interrupt-controller", 0x100000000ULL);
 
 #define INT_REG_PARAMS(reg_struct, type, action, j) \

@@ -347,3 +347,9 @@
 #define TARGET_NR_open_by_handle_at     342
 #define TARGET_NR_clock_adjtime         343
 #define TARGET_NR_syncfs                344
+#define TARGET_NR_sendmmsg              345
+#define TARGET_NR_setns                 346
+#define TARGET_NR_process_vm_readv      347
+#define TARGET_NR_process_vm_writev     348
+#define TARGET_NR_kcmp                  349
+#define TARGET_NR_finit_module          350

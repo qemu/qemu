@@ -1,160 +1,242 @@
 QA output created by 051
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file='TEST_DIR/t.IMGFMT.base' 
 
 === Unknown option ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=: could not open disk image TEST_DIR/t.qcow2: Invalid argument
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=on
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=on: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=on: could not open disk image TEST_DIR/t.qcow2: Invalid argument
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=on: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=1234
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=1234: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=1234: could not open disk image TEST_DIR/t.qcow2: Invalid argument
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=1234: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo: could not open disk image TEST_DIR/t.qcow2: Invalid argument
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
+
+
+=== Unknown protocol option ===
+
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=on
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=on: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=1234
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=1234: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=foo
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=foo: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+
+
+=== Invalid format ===
+
+Testing: -drive file=TEST_DIR/t.qcow2,format=foo
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=foo: 'foo' invalid format
+
+Testing: -drive file=TEST_DIR/t.qcow2,driver=foo
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=foo: could not open disk image TEST_DIR/t.qcow2: Unknown driver 'foo'
+
+Testing: -drive file=TEST_DIR/t.qcow2,driver=raw,format=qcow2
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=raw,format=qcow2: could not open disk image TEST_DIR/t.qcow2: Driver specified twice
+
+
+=== Overriding backing file ===
+
+Testing: -drive file=TEST_DIR/t.qcow2,driver=qcow2,backing.file.filename=TEST_DIR/t.qcow2.orig -nodefaults
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) i[K[Din[K[D[Dinf[K[D[D[Dinfo[K[D[D[D[Dinfo [K[D[D[D[D[Dinfo b[K[D[D[D[D[D[Dinfo bl[K[D[D[D[D[D[D[Dinfo blo[K[D[D[D[D[D[D[D[Dinfo bloc[K[D[D[D[D[D[D[D[D[Dinfo block[K
+ide0-hd0: TEST_DIR/t.qcow2 (qcow2)
+    Backing file:     TEST_DIR/t.qcow2.orig (chain depth: 1)
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,driver=raw,backing.file.filename=TEST_DIR/t.qcow2.orig
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=raw,backing.file.filename=TEST_DIR/t.qcow2.orig: could not open disk image TEST_DIR/t.qcow2: Driver doesn't support backing files
+
+Testing: -drive file=TEST_DIR/t.qcow2,file.backing.driver=file,file.backing.filename=TEST_DIR/t.qcow2.orig
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.backing.driver=file,file.backing.filename=TEST_DIR/t.qcow2.orig: could not open disk image TEST_DIR/t.qcow2: Driver doesn't support backing files
+
+Testing: -drive file=TEST_DIR/t.qcow2,file.backing.driver=qcow2,file.backing.file.filename=TEST_DIR/t.qcow2.orig
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.backing.driver=qcow2,file.backing.file.filename=TEST_DIR/t.qcow2.orig: could not open disk image TEST_DIR/t.qcow2: Driver doesn't support backing files
 
 
 === Enable and disable lazy refcounting on the command line, plus some invalid values ===
 
-Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=on
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=on
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
-Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=off
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=off
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
-Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=: Parameter 'lazy_refcounts' expects 'on' or 'off'
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=: could not open disk image TEST_DIR/t.qcow2: Invalid argument
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=: could not open disk image TEST_DIR/t.qcow2: Parameter 'lazy-refcounts' expects 'on' or 'off'
 
-Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=42
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=42: Parameter 'lazy_refcounts' expects 'on' or 'off'
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=42: could not open disk image TEST_DIR/t.qcow2: Invalid argument
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=42
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=42: could not open disk image TEST_DIR/t.qcow2: Parameter 'lazy-refcounts' expects 'on' or 'off'
 
-Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=foo
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=foo: Parameter 'lazy_refcounts' expects 'on' or 'off'
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=foo: could not open disk image TEST_DIR/t.qcow2: Invalid argument
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=foo
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=foo: could not open disk image TEST_DIR/t.qcow2: Parameter 'lazy-refcounts' expects 'on' or 'off'
 
 
 === With version 2 images enabling lazy refcounts must fail ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
-Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=on
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=on: Lazy refcounts require a qcow2 image with at least qemu 1.1 compatibility level
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=on: could not open disk image TEST_DIR/t.qcow2: Invalid argument
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=on
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=on: could not open disk image TEST_DIR/t.qcow2: Lazy refcounts require a qcow2 image with at least qemu 1.1 compatibility level
 
-Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=off
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=off
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 
 === No medium ===
 
 Testing: -drive if=floppy
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=ide,media=cdrom
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=scsi,media=cdrom
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=ide
-QEMU_PROG: Device needs media, but drive is empty
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: Device needs media, but drive is empty
+QEMU_PROG: Device initialization failed.
 QEMU_PROG: Initialization of device ide-hd failed
 
 Testing: -drive if=virtio
-QEMU_PROG: -drive if=virtio: Device needs media, but drive is empty
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -drive if=virtio: Device needs media, but drive is empty
+QEMU_PROG: -drive if=virtio: Device initialization failed.
 QEMU_PROG: -drive if=virtio: Device 'virtio-blk-pci' could not be initialized
 
 Testing: -drive if=scsi
-QEMU_PROG: -drive if=scsi: Device needs media, but drive is empty
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -drive if=scsi: Device needs media, but drive is empty
+QEMU_PROG: Device initialization failed.
 QEMU_PROG: Initialization of device lsi53c895a failed
 
 Testing: -drive if=none,id=disk -device ide-cd,drive=disk
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-cd,drive=disk
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=none,id=disk -device ide-drive,drive=disk
-QEMU_PROG: -device ide-drive,drive=disk: Device needs media, but drive is empty
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device ide-drive,drive=disk: Device needs media, but drive is empty
+QEMU_PROG: -device ide-drive,drive=disk: Device initialization failed.
 QEMU_PROG: -device ide-drive,drive=disk: Device 'ide-drive' could not be initialized
 
 Testing: -drive if=none,id=disk -device ide-hd,drive=disk
-QEMU_PROG: -device ide-hd,drive=disk: Device needs media, but drive is empty
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device ide-hd,drive=disk: Device needs media, but drive is empty
+QEMU_PROG: -device ide-hd,drive=disk: Device initialization failed.
 QEMU_PROG: -device ide-hd,drive=disk: Device 'ide-hd' could not be initialized
 
 Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-disk,drive=disk
-QEMU_PROG: -device scsi-disk,drive=disk: Device needs media, but drive is empty
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device scsi-disk,drive=disk: Device needs media, but drive is empty
+QEMU_PROG: -device scsi-disk,drive=disk: Device initialization failed.
 QEMU_PROG: -device scsi-disk,drive=disk: Device 'scsi-disk' could not be initialized
 
 Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-hd,drive=disk
-QEMU_PROG: -device scsi-hd,drive=disk: Device needs media, but drive is empty
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device scsi-hd,drive=disk: Device needs media, but drive is empty
+QEMU_PROG: -device scsi-hd,drive=disk: Device initialization failed.
 QEMU_PROG: -device scsi-hd,drive=disk: Device 'scsi-hd' could not be initialized
 
 
 === Read-only ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=floppy,readonly=on
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=ide,media=cdrom,readonly=on
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=scsi,media=cdrom,readonly=on
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on: readonly not supported by this bus type
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: Can't use a read-only drive
+QEMU_PROG: Device initialization failed.
+QEMU_PROG: Initialization of device ide-hd failed
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=virtio,readonly=on
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=scsi,readonly=on
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-cd,drive=disk
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-cd,drive=disk
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-drive,drive=disk
-QEMU_PROG: -device ide-drive,drive=disk: Can't use a read-only drive
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device ide-drive,drive=disk: Can't use a read-only drive
+QEMU_PROG: -device ide-drive,drive=disk: Device initialization failed.
 QEMU_PROG: -device ide-drive,drive=disk: Device 'ide-drive' could not be initialized
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-hd,drive=disk
-QEMU_PROG: -device ide-hd,drive=disk: Can't use a read-only drive
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device ide-hd,drive=disk: Can't use a read-only drive
+QEMU_PROG: -device ide-hd,drive=disk: Device initialization failed.
 QEMU_PROG: -device ide-hd,drive=disk: Device 'ide-hd' could not be initialized
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-disk,drive=disk
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-hd,drive=disk
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 
 === Cache modes ===
 
 Testing: -drive media=cdrom,cache=none
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive media=cdrom,cache=directsync
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive media=cdrom,cache=writeback
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive media=cdrom,cache=writethrough
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive media=cdrom,cache=unsafe
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive media=cdrom,cache=invalid_value
 QEMU_PROG: -drive media=cdrom,cache=invalid_value: invalid cache option
@@ -163,10 +245,139 @@ QEMU_PROG: -drive media=cdrom,cache=invalid_value: invalid cache option
 === Specifying the protocol layer ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,file.driver=file
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: Can't use 'qcow2' as a block driver for the protocol level
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: could not open disk image TEST_DIR/t.qcow2: Invalid argument
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device '' doesn't support the option 'filename'
 
+
+=== Leaving out required options ===
+
+Testing: -drive driver=file
+QEMU_PROG: -drive driver=file: could not open disk image ide0-hd0: The 'file' block driver requires a file name
+
+Testing: -drive driver=nbd
+QEMU_PROG: -drive driver=nbd: could not open disk image ide0-hd0: one of path and host must be specified.
+
+Testing: -drive driver=raw
+QEMU_PROG: -drive driver=raw: could not open disk image ide0-hd0: Can't use 'raw' as a block driver for the protocol level
+
+Testing: -drive file.driver=file
+QEMU_PROG: -drive file.driver=file: could not open disk image ide0-hd0: The 'file' block driver requires a file name
+
+Testing: -drive file.driver=nbd
+QEMU_PROG: -drive file.driver=nbd: could not open disk image ide0-hd0: one of path and host must be specified.
+
+Testing: -drive file.driver=raw
+QEMU_PROG: -drive file.driver=raw: could not open disk image ide0-hd0: Can't use 'raw' as a block driver for the protocol level
+
+Testing: -drive foo=bar
+QEMU_PROG: -drive foo=bar: could not open disk image ide0-hd0: Must specify either driver or file
+
+
+=== Parsing protocol from file name ===
+
+Testing: -hda foo:bar
+QEMU_PROG: -hda foo:bar: could not open disk image foo:bar: Unknown protocol
+
+Testing: -drive file=foo:bar
+QEMU_PROG: -drive file=foo:bar: could not open disk image foo:bar: Unknown protocol
+
+Testing: -drive file.filename=foo:bar
+QEMU_PROG: -drive file.filename=foo:bar: could not open disk image ide0-hd0: Could not open 'foo:bar': No such file or directory
+
+Testing: -hda file:TEST_DIR/t.qcow2
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=file:TEST_DIR/t.qcow2
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file.filename=file:TEST_DIR/t.qcow2
+QEMU_PROG: -drive file.filename=file:TEST_DIR/t.qcow2: could not open disk image ide0-hd0: Could not open 'file:TEST_DIR/t.qcow2': No such file or directory
+
+
+=== Snapshot mode ===
+
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Testing: -drive file=TEST_DIR/t.qcow2 -snapshot
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqe[K[D[Dqem[K[D[D[Dqemu[K[D[D[D[Dqemu-[K[D[D[D[D[Dqemu-i[K[D[D[D[D[D[Dqemu-io[K[D[D[D[D[D[D[Dqemu-io [K[D[D[D[D[D[D[D[Dqemu-io i[K[D[D[D[D[D[D[D[D[Dqemu-io id[K[D[D[D[D[D[D[D[D[D[Dqemu-io ide[K[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0[K[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-[K[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-h[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "w[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wr[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wri[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "writ[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x2[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k"[K
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,snapshot=on
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqe[K[D[Dqem[K[D[D[Dqemu[K[D[D[D[Dqemu-[K[D[D[D[D[Dqemu-i[K[D[D[D[D[D[Dqemu-io[K[D[D[D[D[D[D[Dqemu-io [K[D[D[D[D[D[D[D[Dqemu-io i[K[D[D[D[D[D[D[D[D[Dqemu-io id[K[D[D[D[D[D[D[D[D[D[Dqemu-io ide[K[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0[K[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-[K[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-h[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "w[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wr[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wri[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "writ[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x2[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k"[K
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file.filename=TEST_DIR/t.qcow2,driver=qcow2,snapshot=on
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqe[K[D[Dqem[K[D[D[Dqemu[K[D[D[D[Dqemu-[K[D[D[D[D[Dqemu-i[K[D[D[D[D[D[Dqemu-io[K[D[D[D[D[D[D[Dqemu-io [K[D[D[D[D[D[D[D[Dqemu-io i[K[D[D[D[D[D[D[D[D[Dqemu-io id[K[D[D[D[D[D[D[D[D[D[Dqemu-io ide[K[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0[K[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-[K[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-h[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "w[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wr[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wri[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "writ[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x2[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k"[K
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file.filename=TEST_DIR/t.qcow2,driver=qcow2 -snapshot
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqe[K[D[Dqem[K[D[D[Dqemu[K[D[D[D[Dqemu-[K[D[D[D[D[Dqemu-i[K[D[D[D[D[D[Dqemu-io[K[D[D[D[D[D[D[Dqemu-io [K[D[D[D[D[D[D[D[Dqemu-io i[K[D[D[D[D[D[D[D[D[Dqemu-io id[K[D[D[D[D[D[D[D[D[D[Dqemu-io ide[K[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0[K[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-[K[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-h[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "w[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wr[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wri[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "writ[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x2[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k"[K
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=file:TEST_DIR/t.qcow2 -snapshot
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqe[K[D[Dqem[K[D[D[Dqemu[K[D[D[D[Dqemu-[K[D[D[D[D[Dqemu-i[K[D[D[D[D[D[Dqemu-io[K[D[D[D[D[D[D[Dqemu-io [K[D[D[D[D[D[D[D[Dqemu-io i[K[D[D[D[D[D[D[D[D[Dqemu-io id[K[D[D[D[D[D[D[D[D[D[Dqemu-io ide[K[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0[K[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-[K[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-h[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "w[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wr[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wri[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "writ[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x2[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k"[K
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=file:TEST_DIR/t.qcow2,snapshot=on
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqe[K[D[Dqem[K[D[D[Dqemu[K[D[D[D[Dqemu-[K[D[D[D[D[Dqemu-i[K[D[D[D[D[D[Dqemu-io[K[D[D[D[D[D[D[Dqemu-io [K[D[D[D[D[D[D[D[Dqemu-io i[K[D[D[D[D[D[D[D[D[Dqemu-io id[K[D[D[D[D[D[D[D[D[D[Dqemu-io ide[K[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0[K[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-[K[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-h[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "w[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wr[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wri[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "writ[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x2[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k"[K
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2 -snapshot
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqe[K[D[Dqem[K[D[D[Dqemu[K[D[D[D[Dqemu-[K[D[D[D[D[Dqemu-i[K[D[D[D[D[D[Dqemu-io[K[D[D[D[D[D[D[Dqemu-io [K[D[D[D[D[D[D[D[Dqemu-io i[K[D[D[D[D[D[D[D[D[Dqemu-io id[K[D[D[D[D[D[D[D[D[D[Dqemu-io ide[K[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0[K[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-[K[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-h[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "w[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wr[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wri[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "writ[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x2[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k"[K
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,snapshot=on
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqe[K[D[Dqem[K[D[D[Dqemu[K[D[D[D[Dqemu-[K[D[D[D[D[Dqemu-i[K[D[D[D[D[D[Dqemu-io[K[D[D[D[D[D[D[Dqemu-io [K[D[D[D[D[D[D[D[Dqemu-io i[K[D[D[D[D[D[D[D[D[Dqemu-io id[K[D[D[D[D[D[D[D[D[D[Dqemu-io ide[K[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0[K[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-[K[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-h[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "w[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wr[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wri[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "writ[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x2[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k"[K
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+read 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Testing: -drive file=TEST_DIR/t.qcow2,snapshot=off
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqe[K[D[Dqem[K[D[D[Dqemu[K[D[D[D[Dqemu-[K[D[D[D[D[Dqemu-i[K[D[D[D[D[D[Dqemu-io[K[D[D[D[D[D[D[Dqemu-io [K[D[D[D[D[D[D[D[Dqemu-io i[K[D[D[D[D[D[D[D[D[Dqemu-io id[K[D[D[D[D[D[D[D[D[D[Dqemu-io ide[K[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0[K[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-[K[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-h[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "w[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wr[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wri[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "writ[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x2[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x22 0 4k"[K
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+read 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Testing: -drive file=TEST_DIR/t.qcow2,snapshot=on
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqe[K[D[Dqem[K[D[D[Dqemu[K[D[D[D[Dqemu-[K[D[D[D[D[Dqemu-i[K[D[D[D[D[D[Dqemu-io[K[D[D[D[D[D[D[Dqemu-io [K[D[D[D[D[D[D[D[Dqemu-io i[K[D[D[D[D[D[D[D[D[Dqemu-io id[K[D[D[D[D[D[D[D[D[D[Dqemu-io ide[K[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0[K[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-[K[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-h[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "w[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wr[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "wri[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "writ[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x3[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x33[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x33 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x33 0[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x33 0 [K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x33 0 4[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x33 0 4k[K[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[Dqemu-io ide0-hd0 "write -P 0x33 0 4k"[K
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) c[K[Dco[K[D[Dcom[K[D[D[Dcomm[K[D[D[D[Dcommi[K[D[D[D[D[Dcommit[K[D[D[D[D[D[Dcommit [K[D[D[D[D[D[D[Dcommit i[K[D[D[D[D[D[D[D[Dcommit id[K[D[D[D[D[D[D[D[D[Dcommit ide[K[D[D[D[D[D[D[D[D[D[Dcommit ide0[K[D[D[D[D[D[D[D[D[D[D[Dcommit ide0-[K[D[D[D[D[D[D[D[D[D[D[D[Dcommit ide0-h[K[D[D[D[D[D[D[D[D[D[D[D[D[Dcommit ide0-hd[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dcommit ide0-hd0[K
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+read 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 *** done

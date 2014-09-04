@@ -30,6 +30,7 @@
 #include "hw/sysbus.h"
 #include "qemu/range.h"
 #include "ui/pixel_ops.h"
+#include "exec/address-spaces.h"
 
 /*
  * Status: 2010/05/07
@@ -1408,23 +1409,23 @@ void sm501_init(MemoryRegion *address_space_mem, uint32_t base,
     s->dc_crt_control = 0x00010000;
 
     /* allocate local memory */
-    memory_region_init_ram(&s->local_mem_region, "sm501.local",
+    memory_region_init_ram(&s->local_mem_region, NULL, "sm501.local",
                            local_mem_bytes);
     vmstate_register_ram_global(&s->local_mem_region);
     s->local_mem = memory_region_get_ram_ptr(&s->local_mem_region);
     memory_region_add_subregion(address_space_mem, base, &s->local_mem_region);
 
     /* map mmio */
-    memory_region_init_io(sm501_system_config, &sm501_system_config_ops, s,
+    memory_region_init_io(sm501_system_config, NULL, &sm501_system_config_ops, s,
                           "sm501-system-config", 0x6c);
     memory_region_add_subregion(address_space_mem, base + MMIO_BASE_OFFSET,
                                 sm501_system_config);
-    memory_region_init_io(sm501_disp_ctrl, &sm501_disp_ctrl_ops, s,
+    memory_region_init_io(sm501_disp_ctrl, NULL, &sm501_disp_ctrl_ops, s,
                           "sm501-disp-ctrl", 0x1000);
     memory_region_add_subregion(address_space_mem,
                                 base + MMIO_BASE_OFFSET + SM501_DC,
                                 sm501_disp_ctrl);
-    memory_region_init_io(sm501_2d_engine, &sm501_2d_engine_ops, s,
+    memory_region_init_io(sm501_2d_engine, NULL, &sm501_2d_engine_ops, s,
                           "sm501-2d-engine", 0x54);
     memory_region_add_subregion(address_space_mem,
                                 base + MMIO_BASE_OFFSET + SM501_2D_ENGINE,
@@ -1448,5 +1449,5 @@ void sm501_init(MemoryRegion *address_space_mem, uint32_t base,
     }
 
     /* create qemu graphic console */
-    s->con = graphic_console_init(DEVICE(dev), &sm501_ops, s);
+    s->con = graphic_console_init(DEVICE(dev), 0, &sm501_ops, s);
 }

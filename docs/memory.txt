@@ -52,6 +52,15 @@ MemoryRegion):
   hole".  Aliases may point to any type of region, including other aliases,
   but an alias may not point back to itself, directly or indirectly.
 
+It is valid to add subregions to a region which is not a pure container
+(that is, to an MMIO, RAM or ROM region). This means that the region
+will act like a container, except that any addresses within the container's
+region which are not claimed by any subregion are handled by the
+container itself (ie by its MMIO callbacks or RAM backing). However
+it is generally possible to achieve the same effect with a pure container
+one of whose subregions is a low priority "background" region covering
+the whole address range; this is often clearer and is preferred.
+Subregions cannot be added to an alias region.
 
 Region names
 ------------
@@ -80,6 +89,53 @@ guest.  This is done with memory_region_add_subregion_overlap(), which
 allows the region to overlap any other region in the same container, and
 specifies a priority that allows the core to decide which of two regions at
 the same address are visible (highest wins).
+Priority values are signed, and the default value is zero. This means that
+you can use memory_region_add_subregion_overlap() both to specify a region
+that must sit 'above' any others (with a positive priority) and also a
+background region that sits 'below' others (with a negative priority).
+
+If the higher priority region in an overlap is a container or alias, then
+the lower priority region will appear in any "holes" that the higher priority
+region has left by not mapping subregions to that area of its address range.
+(This applies recursively -- if the subregions are themselves containers or
+aliases that leave holes then the lower priority region will appear in these
+holes too.)
+
+For example, suppose we have a container A of size 0x8000 with two subregions
+B and C. B is a container mapped at 0x2000, size 0x4000, priority 1; C is
+an MMIO region mapped at 0x0, size 0x6000, priority 2. B currently has two
+of its own subregions: D of size 0x1000 at offset 0 and E of size 0x1000 at
+offset 0x2000. As a diagram:
+
+        0      1000   2000   3000   4000   5000   6000   7000    8000
+        |------|------|------|------|------|------|------|-------|
+  A:    [                                                       ]
+  C:    [CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC]
+  B:                  [                          ]
+  D:                  [DDDDD]
+  E:                                [EEEEE]
+
+The regions that will be seen within this address range then are:
+        [CCCCCCCCCCCC][DDDDD][CCCCC][EEEEE][CCCCC]
+
+Since B has higher priority than C, its subregions appear in the flat map
+even where they overlap with C. In ranges where B has not mapped anything
+C's region appears.
+
+If B had provided its own MMIO operations (ie it was not a pure container)
+then these would be used for any addresses in its range not handled by
+D or E, and the result would be:
+        [CCCCCCCCCCCC][DDDDD][BBBBB][EEEEE][BBBBB]
+
+Priority values are local to a container, because the priorities of two
+regions are only compared when they are both children of the same container.
+This means that the device in charge of the container (typically modelling
+a bus or a memory controller) can use them to manage the interaction of
+its child regions without any side effects on other parts of the system.
+In the example above, the priorities of D and E are unimportant because
+they do not overlap each other. It is the relative priority of B and C
+that causes D and E to appear on top of C: D and E's priorities are never
+compared against the priority of C.
 
 Visibility
 ----------
@@ -90,11 +146,19 @@ guest accesses an address:
   descending priority order
   - if the address lies outside the region offset/size, the subregion is
     discarded
-  - if the subregion is a leaf (RAM or MMIO), the search terminates
+  - if the subregion is a leaf (RAM or MMIO), the search terminates, returning
+    this leaf region
   - if the subregion is a container, the same algorithm is used within the
     subregion (after the address is adjusted by the subregion offset)
-  - if the subregion is an alias, the search is continues at the alias target
+  - if the subregion is an alias, the search is continued at the alias target
     (after the address is adjusted by the subregion offset and alias offset)
+  - if a recursive search within a container or alias subregion does not
+    find a match (because of a "hole" in the container's coverage of its
+    address range), then if this is a container with its own MMIO or RAM
+    backing the search terminates, returning the container itself. Otherwise
+    we continue with the next subregion in priority order
+- if none of the subregions match the address then the search terminates
+  with no match found
 
 Example memory map
 ------------------
@@ -168,8 +232,8 @@ various constraints can be supplied to control how these callbacks are called:
    (in bytes) supported by the *implementation*; other access sizes will be
    emulated using the ones available.  For example a 4-byte write will be
    emulated using four 1-byte writes, if .impl.max_access_size = 1.
- - .impl.valid specifies that the *implementation* only supports unaligned
-   accesses; unaligned accesses will be emulated by two aligned accesses.
- - .old_portio and .old_mmio can be used to ease porting from code using
-   cpu_register_io_memory() and register_ioport().  They should not be used
-   in new code.
+ - .impl.unaligned specifies that the *implementation* supports unaligned
+   accesses; if false, unaligned accesses will be emulated by two aligned
+   accesses.
+ - .old_mmio can be used to ease porting from code using
+   cpu_register_io_memory(). It should not be used in new code.

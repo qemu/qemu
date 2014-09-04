@@ -1,0 +1,103 @@
+# *-*- Mode: Python -*-*
+
+# for testing enums
+{ 'enum': 'EnumOne',
+  'data': [ 'value1', 'value2', 'value3' ] }
+{ 'type': 'NestedEnumsOne',
+  'data': { 'enum1': 'EnumOne', '*enum2': 'EnumOne', 'enum3': 'EnumOne', '*enum4': 'EnumOne' } }
+
+# for testing nested structs
+{ 'type': 'UserDefZero',
+  'data': { 'integer': 'int' } }
+
+{ 'type': 'UserDefOne',
+  'base': 'UserDefZero',
+  'data': { 'string': 'str', '*enum1': 'EnumOne' } }
+
+{ 'type': 'UserDefTwo',
+  'data': { 'string': 'str',
+            'dict': { 'string': 'str',
+                      'dict': { 'userdef': 'UserDefOne', 'string': 'str' },
+                      '*dict2': { 'userdef': 'UserDefOne', 'string': 'str' } } } }
+
+{ 'type': 'UserDefNested',
+  'data': { 'string0': 'str',
+            'dict1': { 'string1': 'str',
+                       'dict2': { 'userdef1': 'UserDefOne', 'string2': 'str' },
+                       '*dict3': { 'userdef2': 'UserDefOne', 'string3': 'str' } } } }
+
+# for testing unions
+{ 'type': 'UserDefA',
+  'data': { 'boolean': 'bool' } }
+
+{ 'type': 'UserDefB',
+  'data': { 'integer': 'int' } }
+
+{ 'union': 'UserDefUnion',
+  'base': 'UserDefZero',
+  'data': { 'a' : 'UserDefA', 'b' : 'UserDefB' } }
+
+{ 'type': 'UserDefUnionBase',
+  'data': { 'string': 'str', 'enum1': 'EnumOne' } }
+
+{ 'union': 'UserDefFlatUnion',
+  'base': 'UserDefUnionBase',
+  'discriminator': 'enum1',
+  'data': { 'value1' : 'UserDefA', 'value2' : 'UserDefB', 'value3' : 'UserDefB' } }
+# FIXME generated struct UserDefFlatUnion has members for direct base
+# UserDefOne, but lacks members for indirect base UserDefZero
+
+{ 'union': 'UserDefAnonUnion',
+  'discriminator': {},
+  'data': { 'uda': 'UserDefA', 's': 'str', 'i': 'int' } }
+
+# for testing native lists
+{ 'union': 'UserDefNativeListUnion',
+  'data': { 'integer': ['int'],
+            's8': ['int8'],
+            's16': ['int16'],
+            's32': ['int32'],
+            's64': ['int64'],
+            'u8': ['uint8'],
+            'u16': ['uint16'],
+            'u32': ['uint32'],
+            'u64': ['uint64'],
+            'number': ['number'],
+            'boolean': ['bool'],
+            'string': ['str'] } }
+
+# testing commands
+{ 'command': 'user_def_cmd', 'data': {} }
+{ 'command': 'user_def_cmd1', 'data': {'ud1a': 'UserDefOne'} }
+{ 'command': 'user_def_cmd2',
+  'data': {'ud1a': 'UserDefOne', '*ud1b': 'UserDefOne'},
+  'returns': 'UserDefTwo' }
+{ 'command': 'user_def_cmd3', 'data': {'a': 'int', '*b': 'int' },
+  'returns': 'int' }
+
+# For testing integer range flattening in opts-visitor. The following schema
+# corresponds to the option format:
+#
+# -userdef i64=3-6,i64=-5--1,u64=2,u16=1,u16=7-12
+#
+# For simplicity, this example doesn't use [type=]discriminator nor optargs
+# specific to discriminator values.
+{ 'type': 'UserDefOptions',
+  'data': {
+    '*i64' : [ 'int'    ],
+    '*u64' : [ 'uint64' ],
+    '*u16' : [ 'uint16' ],
+    '*i64x':   'int'     ,
+    '*u64x':   'uint64'  } }
+
+# testing event
+{ 'type': 'EventStructOne',
+  'data': { 'struct1': 'UserDefOne', 'string': 'str', '*enum2': 'EnumOne' } }
+
+{ 'event': 'EVENT_A' }
+{ 'event': 'EVENT_B',
+  'data': { } }
+{ 'event': 'EVENT_C',
+  'data': { '*a': 'int', '*b': 'UserDefOne', 'c': 'str' } }
+{ 'event': 'EVENT_D',
+  'data': { 'a' : 'EventStructOne', 'b' : 'str', '*c': 'str', '*enum3': 'EnumOne' } }

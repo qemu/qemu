@@ -24,7 +24,9 @@
 
 #include "qemu-common.h"
 #include "qemu/timer.h"
-#include "slirp/slirp.h"
+#include "qemu/sockets.h"	// struct in_addr needed for libslirp.h
+#include "sysemu/qtest.h"
+#include "slirp/libslirp.h"
 #include "qemu/main-loop.h"
 #include "block/aio.h"
 
@@ -130,10 +132,6 @@ int qemu_init_main_loop(void)
     GSource *src;
 
     init_clocks();
-    if (init_timer_alarm() < 0) {
-        fprintf(stderr, "could not initialize alarm timer\n");
-        exit(1);
-    }
 
     ret = qemu_signal_init();
     if (ret) {
@@ -154,10 +152,11 @@ static int max_priority;
 static int glib_pollfds_idx;
 static int glib_n_poll_fds;
 
-static void glib_pollfds_fill(uint32_t *cur_timeout)
+static void glib_pollfds_fill(int64_t *cur_timeout)
 {
     GMainContext *context = g_main_context_default();
     int timeout = 0;
+    int64_t timeout_ns;
     int n;
 
     g_main_context_prepare(context, &max_priority);
@@ -173,9 +172,13 @@ static void glib_pollfds_fill(uint32_t *cur_timeout)
                                  glib_n_poll_fds);
     } while (n != glib_n_poll_fds);
 
-    if (timeout >= 0 && timeout < *cur_timeout) {
-        *cur_timeout = timeout;
+    if (timeout < 0) {
+        timeout_ns = -1;
+    } else {
+        timeout_ns = (int64_t)timeout * (int64_t)SCALE_MS;
     }
+
+    *cur_timeout = qemu_soonest_timeout(timeout_ns, *cur_timeout);
 }
 
 static void glib_pollfds_poll(void)
@@ -190,7 +193,7 @@ static void glib_pollfds_poll(void)
 
 #define MAX_MAIN_LOOP_SPIN (1000)
 
-static int os_host_main_loop_wait(uint32_t timeout)
+static int os_host_main_loop_wait(int64_t timeout)
 {
     int ret;
     static int spin_counter;
@@ -203,29 +206,29 @@ static int os_host_main_loop_wait(uint32_t timeout)
      * print a message to the screen.  If we run into this condition, create
      * a fake timeout in order to give the VCPU threads a chance to run.
      */
-    if (spin_counter > MAX_MAIN_LOOP_SPIN) {
+    if (!timeout && (spin_counter > MAX_MAIN_LOOP_SPIN)) {
         static bool notified;
 
-        if (!notified) {
+        if (!notified && !qtest_enabled()) {
             fprintf(stderr,
                     "main-loop: WARNING: I/O thread spun for %d iterations\n",
                     MAX_MAIN_LOOP_SPIN);
             notified = true;
         }
 
-        timeout = 1;
+        timeout = SCALE_MS;
     }
 
-    if (timeout > 0) {
+    if (timeout) {
         spin_counter = 0;
         qemu_mutex_unlock_iothread();
     } else {
         spin_counter++;
     }
 
-    ret = g_poll((GPollFD *)gpollfds->data, gpollfds->len, timeout);
+    ret = qemu_poll_ns((GPollFD *)gpollfds->data, gpollfds->len, timeout);
 
-    if (timeout > 0) {
+    if (timeout) {
         qemu_mutex_lock_iothread();
     }
 
@@ -372,7 +375,7 @@ static void pollfds_poll(GArray *pollfds, int nfds, fd_set *rfds,
     }
 }
 
-static int os_host_main_loop_wait(uint32_t timeout)
+static int os_host_main_loop_wait(int64_t timeout)
 {
     GMainContext *context = g_main_context_default();
     GPollFD poll_fds[1024 * 2]; /* this is probably overkill */
@@ -381,6 +384,7 @@ static int os_host_main_loop_wait(uint32_t timeout)
     PollingEntry *pe;
     WaitObjects *w = &wait_objects;
     gint poll_timeout;
+    int64_t poll_timeout_ns;
     static struct timeval tv0;
     fd_set rfds, wfds, xfds;
     int nfds;
@@ -418,12 +422,17 @@ static int os_host_main_loop_wait(uint32_t timeout)
         poll_fds[n_poll_fds + i].events = G_IO_IN;
     }
 
-    if (poll_timeout < 0 || timeout < poll_timeout) {
-        poll_timeout = timeout;
+    if (poll_timeout < 0) {
+        poll_timeout_ns = -1;
+    } else {
+        poll_timeout_ns = (int64_t)poll_timeout * (int64_t)SCALE_MS;
     }
 
+    poll_timeout_ns = qemu_soonest_timeout(poll_timeout_ns, timeout);
+
     qemu_mutex_unlock_iothread();
-    g_poll_ret = g_poll(poll_fds, n_poll_fds + w->num, poll_timeout);
+    g_poll_ret = qemu_poll_ns(poll_fds, n_poll_fds + w->num, poll_timeout_ns);
+
     qemu_mutex_lock_iothread();
     if (g_poll_ret > 0) {
         for (i = 0; i < w->num; i++) {
@@ -448,6 +457,7 @@ int main_loop_wait(int nonblocking)
 {
     int ret;
     uint32_t timeout = UINT32_MAX;
+    int64_t timeout_ns;
 
     if (nonblocking) {
         timeout = 0;
@@ -457,17 +467,27 @@ int main_loop_wait(int nonblocking)
     g_array_set_size(gpollfds, 0); /* reset for new iteration */
     /* XXX: separate device handlers from system ones */
 #ifdef CONFIG_SLIRP
-    slirp_update_timeout(&timeout);
-    slirp_pollfds_fill(gpollfds);
+    slirp_pollfds_fill(gpollfds, &timeout);
 #endif
     qemu_iohandler_fill(gpollfds);
-    ret = os_host_main_loop_wait(timeout);
+
+    if (timeout == UINT32_MAX) {
+        timeout_ns = -1;
+    } else {
+        timeout_ns = (uint64_t)timeout * (int64_t)(SCALE_MS);
+    }
+
+    timeout_ns = qemu_soonest_timeout(timeout_ns,
+                                      timerlistgroup_deadline_ns(
+                                          &main_loop_tlg));
+
+    ret = os_host_main_loop_wait(timeout_ns);
     qemu_iohandler_poll(gpollfds, ret);
 #ifdef CONFIG_SLIRP
     slirp_pollfds_poll(gpollfds, (ret < 0));
 #endif
 
-    qemu_run_all_timers();
+    qemu_clock_run_all_timers();
 
     return ret;
 }
@@ -477,28 +497,4 @@ int main_loop_wait(int nonblocking)
 QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque)
 {
     return aio_bh_new(qemu_aio_context, cb, opaque);
-}
-
-bool qemu_aio_wait(void)
-{
-    return aio_poll(qemu_aio_context, true);
-}
-
-#ifdef CONFIG_POSIX
-void qemu_aio_set_fd_handler(int fd,
-                             IOHandler *io_read,
-                             IOHandler *io_write,
-                             AioFlushHandler *io_flush,
-                             void *opaque)
-{
-    aio_set_fd_handler(qemu_aio_context, fd, io_read, io_write, io_flush,
-                       opaque);
-}
-#endif
-
-void qemu_aio_set_event_notifier(EventNotifier *notifier,
-                                 EventNotifierHandler *io_read,
-                                 AioFlushEventNotifierHandler *io_flush)
-{
-    aio_set_event_notifier(qemu_aio_context, notifier, io_read, io_flush);
 }

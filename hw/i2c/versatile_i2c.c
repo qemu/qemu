@@ -24,8 +24,13 @@
 #include "hw/sysbus.h"
 #include "bitbang_i2c.h"
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_VERSATILE_I2C "versatile_i2c"
+#define VERSATILE_I2C(obj) \
+    OBJECT_CHECK(VersatileI2CState, (obj), TYPE_VERSATILE_I2C)
+
+typedef struct VersatileI2CState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     bitbang_i2c_interface *bitbang;
     int out;
@@ -72,16 +77,17 @@ static const MemoryRegionOps versatile_i2c_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int versatile_i2c_init(SysBusDevice *dev)
+static int versatile_i2c_init(SysBusDevice *sbd)
 {
-    VersatileI2CState *s = FROM_SYSBUS(VersatileI2CState, dev);
-    i2c_bus *bus;
+    DeviceState *dev = DEVICE(sbd);
+    VersatileI2CState *s = VERSATILE_I2C(dev);
+    I2CBus *bus;
 
-    bus = i2c_init_bus(&dev->qdev, "i2c");
+    bus = i2c_init_bus(dev, "i2c");
     s->bitbang = bitbang_i2c_init(bus);
-    memory_region_init_io(&s->iomem, &versatile_i2c_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &versatile_i2c_ops, s,
                           "versatile_i2c", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     return 0;
 }
 
@@ -93,7 +99,7 @@ static void versatile_i2c_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo versatile_i2c_info = {
-    .name          = "versatile_i2c",
+    .name          = TYPE_VERSATILE_I2C,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(VersatileI2CState),
     .class_init    = versatile_i2c_class_init,

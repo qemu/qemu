@@ -30,22 +30,22 @@
 #include "cpu.h"
 #include "sysemu/cpus.h"
 #include "sysemu/device_tree.h"
-#include "hw/sysbus.h"
-#include "hw/ppc/spapr.h"
 #include "mmu-hash64.h"
 
 #include "hw/sysbus.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
+#include "hw/ppc/ppc.h"
 #include "sysemu/watchdog.h"
+#include "trace.h"
 
 //#define DEBUG_KVM
 
 #ifdef DEBUG_KVM
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
 #else
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
 
@@ -62,11 +62,15 @@ static int cap_booke_sregs;
 static int cap_ppc_smt;
 static int cap_ppc_rma;
 static int cap_spapr_tce;
+static int cap_spapr_multitce;
+static int cap_spapr_vfio;
 static int cap_hior;
 static int cap_one_reg;
 static int cap_epr;
 static int cap_ppc_watchdog;
 static int cap_papr;
+static int cap_htab_fd;
+static int cap_fixup_hcalls;
 
 /* XXX We have a race condition where we actually have a level triggered
  *     interrupt, but the infrastructure can't expose that yet, so the guest
@@ -97,12 +101,16 @@ int kvm_arch_init(KVMState *s)
     cap_ppc_smt = kvm_check_extension(s, KVM_CAP_PPC_SMT);
     cap_ppc_rma = kvm_check_extension(s, KVM_CAP_PPC_RMA);
     cap_spapr_tce = kvm_check_extension(s, KVM_CAP_SPAPR_TCE);
+    cap_spapr_multitce = kvm_check_extension(s, KVM_CAP_SPAPR_MULTITCE);
+    cap_spapr_vfio = false;
     cap_one_reg = kvm_check_extension(s, KVM_CAP_ONE_REG);
     cap_hior = kvm_check_extension(s, KVM_CAP_PPC_HIOR);
     cap_epr = kvm_check_extension(s, KVM_CAP_PPC_EPR);
     cap_ppc_watchdog = kvm_check_extension(s, KVM_CAP_PPC_BOOKE_WATCHDOG);
     /* Note: we don't set cap_papr here, because this capability is
      * only activated after this by kvmppc_set_papr() */
+    cap_htab_fd = kvm_check_extension(s, KVM_CAP_PPC_HTAB_FD);
+    cap_fixup_hcalls = kvm_check_extension(s, KVM_CAP_PPC_FIXUP_HCALL);
 
     if (!cap_interrupt_level) {
         fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
@@ -150,7 +158,6 @@ static int kvm_booke206_tlb_init(PowerPCCPU *cpu)
     CPUState *cs = CPU(cpu);
     struct kvm_book3e_206_tlb_params params = {};
     struct kvm_config_tlb cfg = {};
-    struct kvm_enable_cap encap = {};
     unsigned int entries = 0;
     int ret, i;
 
@@ -177,10 +184,7 @@ static int kvm_booke206_tlb_init(PowerPCCPU *cpu)
     cfg.params = (uintptr_t)&params;
     cfg.mmu_type = KVM_MMU_FSL_BOOKE_NOHV;
 
-    encap.cap = KVM_CAP_SW_TLB;
-    encap.args[0] = (uintptr_t)&cfg;
-
-    ret = kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &encap);
+    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_SW_TLB, 0, (uintptr_t)&cfg);
     if (ret < 0) {
         fprintf(stderr, "%s: couldn't enable KVM_CAP_SW_TLB: %s\n",
                 __func__, strerror(-ret));
@@ -359,6 +363,10 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
     /* Convert to QEMU form */
     memset(&env->sps, 0, sizeof(env->sps));
 
+    /*
+     * XXX This loop should be an entry wide AND of the capabilities that
+     *     the selected CPU has with the capabilities that KVM supports.
+     */
     for (ik = iq = 0; ik < KVM_PPC_PAGE_SIZES_MAX_SZ; ik++) {
         struct ppc_one_seg_page_size *qsps = &env->sps.sps[iq];
         struct kvm_ppc_one_seg_page_size *ksps = &smmu_info.sps[ik];
@@ -385,9 +393,7 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
         }
     }
     env->slb_nr = smmu_info.slb_size;
-    if (smmu_info.flags & KVM_PPC_1T_SEGMENTS) {
-        env->mmu_model |= POWERPC_MMU_1TSEG;
-    } else {
+    if (!(smmu_info.flags & KVM_PPC_1T_SEGMENTS)) {
         env->mmu_model &= ~POWERPC_MMU_1TSEG;
     }
 }
@@ -401,7 +407,7 @@ static inline void kvm_fixup_page_sizes(PowerPCCPU *cpu)
 
 unsigned long kvm_arch_vcpu_id(CPUState *cpu)
 {
-    return cpu->cpu_index;
+    return ppc_get_vcpu_dt_id(POWERPC_CPU(cpu));
 }
 
 int kvm_arch_init_vcpu(CPUState *cs)
@@ -419,7 +425,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         return ret;
     }
 
-    idle_timer = qemu_new_timer_ns(vm_clock, kvm_kick_cpu, cpu);
+    idle_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, kvm_kick_cpu, cpu);
 
     /* Some targets support access to KVM's guest TLB. */
     switch (cenv->mmu_model) {
@@ -431,10 +437,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     return ret;
-}
-
-void kvm_arch_reset_vcpu(CPUState *cpu)
-{
 }
 
 static void kvm_sw_tlb_put(PowerPCCPU *cpu)
@@ -480,8 +482,7 @@ static void kvm_get_one_spr(CPUState *cs, uint64_t id, int spr)
 
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret != 0) {
-        fprintf(stderr, "Warning: Unable to retrieve SPR %d from KVM: %s\n",
-                spr, strerror(errno));
+        trace_kvm_failed_spr_get(spr, strerror(errno));
     } else {
         switch (id & KVM_REG_SIZE_MASK) {
         case KVM_REG_SIZE_U32:
@@ -529,8 +530,7 @@ static void kvm_put_one_spr(CPUState *cs, uint64_t id, int spr)
 
     ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
     if (ret != 0) {
-        fprintf(stderr, "Warning: Unable to set SPR %d to KVM: %s\n",
-                spr, strerror(errno));
+        trace_kvm_failed_spr_set(spr, strerror(errno));
     }
 }
 
@@ -550,7 +550,7 @@ static int kvm_put_fp(CPUState *cs)
         reg.addr = (uintptr_t)&fpscr;
         ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
         if (ret < 0) {
-            dprintf("Unable to set FPSCR to KVM: %s\n", strerror(errno));
+            DPRINTF("Unable to set FPSCR to KVM: %s\n", strerror(errno));
             return ret;
         }
 
@@ -564,7 +564,7 @@ static int kvm_put_fp(CPUState *cs)
 
             ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
             if (ret < 0) {
-                dprintf("Unable to set %s%d to KVM: %s\n", vsx ? "VSR" : "FPR",
+                DPRINTF("Unable to set %s%d to KVM: %s\n", vsx ? "VSR" : "FPR",
                         i, strerror(errno));
                 return ret;
             }
@@ -576,7 +576,7 @@ static int kvm_put_fp(CPUState *cs)
         reg.addr = (uintptr_t)&env->vscr;
         ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
         if (ret < 0) {
-            dprintf("Unable to set VSCR to KVM: %s\n", strerror(errno));
+            DPRINTF("Unable to set VSCR to KVM: %s\n", strerror(errno));
             return ret;
         }
 
@@ -585,7 +585,7 @@ static int kvm_put_fp(CPUState *cs)
             reg.addr = (uintptr_t)&env->avr[i];
             ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
             if (ret < 0) {
-                dprintf("Unable to set VR%d to KVM: %s\n", i, strerror(errno));
+                DPRINTF("Unable to set VR%d to KVM: %s\n", i, strerror(errno));
                 return ret;
             }
         }
@@ -610,7 +610,7 @@ static int kvm_get_fp(CPUState *cs)
         reg.addr = (uintptr_t)&fpscr;
         ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
         if (ret < 0) {
-            dprintf("Unable to get FPSCR from KVM: %s\n", strerror(errno));
+            DPRINTF("Unable to get FPSCR from KVM: %s\n", strerror(errno));
             return ret;
         } else {
             env->fpscr = fpscr;
@@ -624,7 +624,7 @@ static int kvm_get_fp(CPUState *cs)
 
             ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
             if (ret < 0) {
-                dprintf("Unable to get %s%d from KVM: %s\n",
+                DPRINTF("Unable to get %s%d from KVM: %s\n",
                         vsx ? "VSR" : "FPR", i, strerror(errno));
                 return ret;
             } else {
@@ -641,7 +641,7 @@ static int kvm_get_fp(CPUState *cs)
         reg.addr = (uintptr_t)&env->vscr;
         ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
         if (ret < 0) {
-            dprintf("Unable to get VSCR from KVM: %s\n", strerror(errno));
+            DPRINTF("Unable to get VSCR from KVM: %s\n", strerror(errno));
             return ret;
         }
 
@@ -650,7 +650,7 @@ static int kvm_get_fp(CPUState *cs)
             reg.addr = (uintptr_t)&env->avr[i];
             ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
             if (ret < 0) {
-                dprintf("Unable to get VR%d from KVM: %s\n",
+                DPRINTF("Unable to get VR%d from KVM: %s\n",
                         i, strerror(errno));
                 return ret;
             }
@@ -672,7 +672,7 @@ static int kvm_get_vpa(CPUState *cs)
     reg.addr = (uintptr_t)&env->vpa_addr;
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret < 0) {
-        dprintf("Unable to get VPA address from KVM: %s\n", strerror(errno));
+        DPRINTF("Unable to get VPA address from KVM: %s\n", strerror(errno));
         return ret;
     }
 
@@ -682,7 +682,7 @@ static int kvm_get_vpa(CPUState *cs)
     reg.addr = (uintptr_t)&env->slb_shadow_addr;
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret < 0) {
-        dprintf("Unable to get SLB shadow state from KVM: %s\n",
+        DPRINTF("Unable to get SLB shadow state from KVM: %s\n",
                 strerror(errno));
         return ret;
     }
@@ -692,7 +692,7 @@ static int kvm_get_vpa(CPUState *cs)
     reg.addr = (uintptr_t)&env->dtl_addr;
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret < 0) {
-        dprintf("Unable to get dispatch trace log state from KVM: %s\n",
+        DPRINTF("Unable to get dispatch trace log state from KVM: %s\n",
                 strerror(errno));
         return ret;
     }
@@ -718,7 +718,7 @@ static int kvm_put_vpa(CPUState *cs)
         reg.addr = (uintptr_t)&env->vpa_addr;
         ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
         if (ret < 0) {
-            dprintf("Unable to set VPA address to KVM: %s\n", strerror(errno));
+            DPRINTF("Unable to set VPA address to KVM: %s\n", strerror(errno));
             return ret;
         }
     }
@@ -729,7 +729,7 @@ static int kvm_put_vpa(CPUState *cs)
     reg.addr = (uintptr_t)&env->slb_shadow_addr;
     ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
     if (ret < 0) {
-        dprintf("Unable to set SLB shadow state to KVM: %s\n", strerror(errno));
+        DPRINTF("Unable to set SLB shadow state to KVM: %s\n", strerror(errno));
         return ret;
     }
 
@@ -738,7 +738,7 @@ static int kvm_put_vpa(CPUState *cs)
     reg.addr = (uintptr_t)&env->dtl_addr;
     ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
     if (ret < 0) {
-        dprintf("Unable to set dispatch trace log state to KVM: %s\n",
+        DPRINTF("Unable to set dispatch trace log state to KVM: %s\n",
                 strerror(errno));
         return ret;
     }
@@ -748,7 +748,7 @@ static int kvm_put_vpa(CPUState *cs)
         reg.addr = (uintptr_t)&env->vpa_addr;
         ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
         if (ret < 0) {
-            dprintf("Unable to set VPA address to KVM: %s\n", strerror(errno));
+            DPRINTF("Unable to set VPA address to KVM: %s\n", strerror(errno));
             return ret;
         }
     }
@@ -793,6 +793,11 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     for (i = 0;i < 32; i++)
         regs.gpr[i] = env->gpr[i];
 
+    regs.cr = 0;
+    for (i = 0; i < 8; i++) {
+        regs.cr |= (env->crf[i] & 15) << (4 * (7 - i));
+    }
+
     ret = kvm_vcpu_ioctl(cs, KVM_SET_REGS, &regs);
     if (ret < 0)
         return ret;
@@ -813,8 +818,11 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 
         /* Sync SLB */
 #ifdef TARGET_PPC64
-        for (i = 0; i < 64; i++) {
+        for (i = 0; i < ARRAY_SIZE(env->slb); i++) {
             sregs.u.s.ppc64.slb[i].slbe = env->slb[i].esid;
+            if (env->slb[i].esid & SLB_ESID_V) {
+                sregs.u.s.ppc64.slb[i].slbe |= i;
+            }
             sregs.u.s.ppc64.slb[i].slbv = env->slb[i].vsid;
         }
 #endif
@@ -859,11 +867,32 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
 
 #ifdef TARGET_PPC64
+        if (msr_ts) {
+            for (i = 0; i < ARRAY_SIZE(env->tm_gpr); i++) {
+                kvm_set_one_reg(cs, KVM_REG_PPC_TM_GPR(i), &env->tm_gpr[i]);
+            }
+            for (i = 0; i < ARRAY_SIZE(env->tm_vsr); i++) {
+                kvm_set_one_reg(cs, KVM_REG_PPC_TM_VSR(i), &env->tm_vsr[i]);
+            }
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_CR, &env->tm_cr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_LR, &env->tm_lr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_CTR, &env->tm_ctr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_FPSCR, &env->tm_fpscr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_AMR, &env->tm_amr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_PPR, &env->tm_ppr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_VRSAVE, &env->tm_vrsave);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_VSCR, &env->tm_vscr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_DSCR, &env->tm_dscr);
+            kvm_set_one_reg(cs, KVM_REG_PPC_TM_TAR, &env->tm_tar);
+        }
+
         if (cap_papr) {
             if (kvm_put_vpa(cs) < 0) {
-                dprintf("Warning: Unable to set VPA information to KVM\n");
+                DPRINTF("Warning: Unable to set VPA information to KVM\n");
             }
         }
+
+        kvm_set_one_reg(cs, KVM_REG_PPC_TB_OFFSET, &env->tb_env->tb_offset);
 #endif /* TARGET_PPC64 */
     }
 
@@ -1024,13 +1053,28 @@ int kvm_arch_get_registers(CPUState *cs)
             return ret;
         }
 
-        ppc_store_sdr1(env, sregs.u.s.sdr1);
+        if (!env->external_htab) {
+            ppc_store_sdr1(env, sregs.u.s.sdr1);
+        }
 
         /* Sync SLB */
 #ifdef TARGET_PPC64
-        for (i = 0; i < 64; i++) {
-            ppc_store_slb(env, sregs.u.s.ppc64.slb[i].slbe,
-                               sregs.u.s.ppc64.slb[i].slbv);
+        /*
+         * The packed SLB array we get from KVM_GET_SREGS only contains
+         * information about valid entries. So we flush our internal
+         * copy to get rid of stale ones, then put all valid SLB entries
+         * back in.
+         */
+        memset(env->slb, 0, sizeof(env->slb));
+        for (i = 0; i < ARRAY_SIZE(env->slb); i++) {
+            target_ulong rb = sregs.u.s.ppc64.slb[i].slbe;
+            target_ulong rs = sregs.u.s.ppc64.slb[i].slbv;
+            /*
+             * Only restore valid entries
+             */
+            if (rb & SLB_ESID_V) {
+                ppc_store_slb(env, rb, rs);
+            }
         }
 #endif
 
@@ -1068,11 +1112,32 @@ int kvm_arch_get_registers(CPUState *cs)
         }
 
 #ifdef TARGET_PPC64
+        if (msr_ts) {
+            for (i = 0; i < ARRAY_SIZE(env->tm_gpr); i++) {
+                kvm_get_one_reg(cs, KVM_REG_PPC_TM_GPR(i), &env->tm_gpr[i]);
+            }
+            for (i = 0; i < ARRAY_SIZE(env->tm_vsr); i++) {
+                kvm_get_one_reg(cs, KVM_REG_PPC_TM_VSR(i), &env->tm_vsr[i]);
+            }
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_CR, &env->tm_cr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_LR, &env->tm_lr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_CTR, &env->tm_ctr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_FPSCR, &env->tm_fpscr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_AMR, &env->tm_amr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_PPR, &env->tm_ppr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_VRSAVE, &env->tm_vrsave);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_VSCR, &env->tm_vscr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_DSCR, &env->tm_dscr);
+            kvm_get_one_reg(cs, KVM_REG_PPC_TM_TAR, &env->tm_tar);
+        }
+
         if (cap_papr) {
             if (kvm_get_vpa(cs) < 0) {
-                dprintf("Warning: Unable to get VPA information from KVM\n");
+                DPRINTF("Warning: Unable to get VPA information from KVM\n");
             }
         }
+
+        kvm_get_one_reg(cs, KVM_REG_PPC_TB_OFFSET, &env->tb_env->tb_offset);
 #endif
     }
 
@@ -1124,14 +1189,14 @@ void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
          */
         irq = KVM_INTERRUPT_SET;
 
-        dprintf("injected interrupt %d\n", irq);
+        DPRINTF("injected interrupt %d\n", irq);
         r = kvm_vcpu_ioctl(cs, KVM_INTERRUPT, &irq);
         if (r < 0) {
             printf("cpu %d fail inject %x\n", cs->cpu_index, irq);
         }
 
         /* Always wake up soon in case the interrupt was level based */
-        qemu_mod_timer(idle_timer, qemu_get_clock_ns(vm_clock) +
+        timer_mod(idle_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                        (get_ticks_per_sec() / 50));
     }
 
@@ -1156,7 +1221,7 @@ static int kvmppc_handle_halt(PowerPCCPU *cpu)
 
     if (!(cs->interrupt_request & CPU_INTERRUPT_HARD) && (msr_ee)) {
         cs->halted = 1;
-        env->exception_index = EXCP_HLT;
+        cs->exception_index = EXCP_HLT;
     }
 
     return 0;
@@ -1188,20 +1253,20 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
     switch (run->exit_reason) {
     case KVM_EXIT_DCR:
         if (run->dcr.is_write) {
-            dprintf("handle dcr write\n");
+            DPRINTF("handle dcr write\n");
             ret = kvmppc_handle_dcr_write(env, run->dcr.dcrn, run->dcr.data);
         } else {
-            dprintf("handle dcr read\n");
+            DPRINTF("handle dcr read\n");
             ret = kvmppc_handle_dcr_read(env, run->dcr.dcrn, &run->dcr.data);
         }
         break;
     case KVM_EXIT_HLT:
-        dprintf("handle halt\n");
+        DPRINTF("handle halt\n");
         ret = kvmppc_handle_halt(cpu);
         break;
 #if defined(TARGET_PPC64)
     case KVM_EXIT_PAPR_HCALL:
-        dprintf("handle PAPR hypercall\n");
+        DPRINTF("handle PAPR hypercall\n");
         run->papr_hcall.ret = spapr_hypercall(cpu,
                                               run->papr_hcall.nr,
                                               run->papr_hcall.args);
@@ -1209,12 +1274,12 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         break;
 #endif
     case KVM_EXIT_EPR:
-        dprintf("handle epr\n");
-        run->epr.epr = ldl_phys(env->mpic_iack);
+        DPRINTF("handle epr\n");
+        run->epr.epr = ldl_phys(cs->as, env->mpic_iack);
         ret = 0;
         break;
     case KVM_EXIT_WATCHDOG:
-        dprintf("handle watchdog expiry\n");
+        DPRINTF("handle watchdog expiry\n");
         watchdog_perform_action();
         ret = 0;
         break;
@@ -1270,7 +1335,6 @@ int kvmppc_set_tcr(PowerPCCPU *cpu)
 int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
-    struct kvm_enable_cap encap = {};
     int ret;
 
     if (!kvm_enabled()) {
@@ -1282,8 +1346,7 @@ int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu)
         return -1;
     }
 
-    encap.cap = KVM_CAP_PPC_BOOKE_WATCHDOG;
-    ret = kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &encap);
+    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_BOOKE_WATCHDOG, 0);
     if (ret < 0) {
         fprintf(stderr, "%s: couldn't enable KVM_CAP_PPC_BOOKE_WATCHDOG: %s\n",
                 __func__, strerror(-ret));
@@ -1464,34 +1527,30 @@ int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len)
     }
 
     /*
-     * Fallback to always fail hypercalls:
+     * Fallback to always fail hypercalls regardless of endianness:
      *
+     *     tdi 0,r0,72 (becomes b .+8 in wrong endian, nop in good endian)
      *     li r3, -1
-     *     nop
-     *     nop
-     *     nop
+     *     b .+8       (becomes nop in wrong endian)
+     *     bswap32(li r3, -1)
      */
 
-    hc[0] = 0x3860ffff;
-    hc[1] = 0x60000000;
-    hc[2] = 0x60000000;
-    hc[3] = 0x60000000;
+    hc[0] = cpu_to_be32(0x08000048);
+    hc[1] = cpu_to_be32(0x3860ffff);
+    hc[2] = cpu_to_be32(0x48000008);
+    hc[3] = cpu_to_be32(bswap32(0x3860ffff));
 
     return 0;
 }
 
 void kvmppc_set_papr(PowerPCCPU *cpu)
 {
-    CPUPPCState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
-    struct kvm_enable_cap cap = {};
     int ret;
 
-    cap.cap = KVM_CAP_PPC_PAPR;
-    ret = kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &cap);
-
+    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_PAPR, 0);
     if (ret) {
-        cpu_abort(env, "This KVM version does not support PAPR\n");
+        cpu_abort(cs, "This KVM version does not support PAPR\n");
     }
 
     /* Update the capability flag so we sync the right information
@@ -1499,19 +1558,19 @@ void kvmppc_set_papr(PowerPCCPU *cpu)
     cap_papr = 1;
 }
 
+int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version)
+{
+    return kvm_set_one_reg(CPU(cpu), KVM_REG_PPC_ARCH_COMPAT, &cpu_version);
+}
+
 void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
 {
-    CPUPPCState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
-    struct kvm_enable_cap cap = {};
     int ret;
 
-    cap.cap = KVM_CAP_PPC_EPR;
-    cap.args[0] = mpic_proxy;
-    ret = kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &cap);
-
+    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_EPR, 0, mpic_proxy);
     if (ret && mpic_proxy) {
-        cpu_abort(env, "This KVM version does not support EPR\n");
+        cpu_abort(cs, "This KVM version does not support EPR\n");
     }
 }
 
@@ -1521,13 +1580,11 @@ int kvmppc_smt_threads(void)
 }
 
 #ifdef TARGET_PPC64
-off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
+off_t kvmppc_alloc_rma(void **rma)
 {
-    void *rma;
     off_t size;
     int fd;
     struct kvm_allocate_rma ret;
-    MemoryRegion *rma_region;
 
     /* If cap_ppc_rma == 0, contiguous RMA allocation is not supported
      * if cap_ppc_rma == 1, contiguous RMA allocation is supported, but
@@ -1550,16 +1607,11 @@ off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
 
     size = MIN(ret.rma_size, 256ul << 20);
 
-    rma = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
-    if (rma == MAP_FAILED) {
+    *rma = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    if (*rma == MAP_FAILED) {
         fprintf(stderr, "KVM: Error mapping RMA: %s\n", strerror(errno));
         return -1;
     };
-
-    rma_region = g_new(MemoryRegion, 1);
-    memory_region_init_ram_ptr(rma_region, name, size, rma);
-    vmstate_register_ram_global(rma_region);
-    memory_region_add_subregion(sysmem, 0, rma_region);
 
     return size;
 }
@@ -1576,7 +1628,7 @@ uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift)
 
     /* Find the largest hardware supported page size that's less than
      * or equal to the (logical) backing page size of guest RAM */
-    kvm_get_smmu_info(ppc_env_get_cpu(first_cpu), &info);
+    kvm_get_smmu_info(POWERPC_CPU(first_cpu), &info);
     rampagesize = getrampagesize();
     best_page_shift = 0;
 
@@ -1598,7 +1650,13 @@ uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift)
 }
 #endif
 
-void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd)
+bool kvmppc_spapr_use_multitce(void)
+{
+    return cap_spapr_multitce;
+}
+
+void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd,
+                              bool vfio_accel)
 {
     struct kvm_create_spapr_tce args = {
         .liobn = liobn,
@@ -1612,7 +1670,7 @@ void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd)
      * destroying the table, which the upper layers -will- do
      */
     *pfd = -1;
-    if (!cap_spapr_tce) {
+    if (!cap_spapr_tce || (vfio_accel && !cap_spapr_vfio)) {
         return NULL;
     }
 
@@ -1623,7 +1681,7 @@ void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd)
         return NULL;
     }
 
-    len = (window_size / SPAPR_TCE_PAGE_SIZE) * sizeof(sPAPRTCE);
+    len = (window_size / SPAPR_TCE_PAGE_SIZE) * sizeof(uint64_t);
     /* FIXME: round this up to page size */
 
     table = mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
@@ -1638,7 +1696,7 @@ void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd)
     return table;
 }
 
-int kvmppc_remove_spapr_tce(void *table, int fd, uint32_t window_size)
+int kvmppc_remove_spapr_tce(void *table, int fd, uint32_t nb_table)
 {
     long len;
 
@@ -1646,7 +1704,7 @@ int kvmppc_remove_spapr_tce(void *table, int fd, uint32_t window_size)
         return -1;
     }
 
-    len = (window_size / SPAPR_TCE_PAGE_SIZE)*sizeof(sPAPRTCE);
+    len = nb_table * sizeof(uint64_t);
     if ((munmap(table, len) < 0) ||
         (close(fd) < 0)) {
         fprintf(stderr, "KVM: Unexpected error removing TCE table: %s",
@@ -1727,6 +1785,7 @@ static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
     uint32_t icache_size = kvmppc_read_int_cpu_dt("i-cache-size");
 
     /* Now fix up the class with information we can query from the host */
+    pcc->pvr = mfpvr();
 
     if (vmx != -1) {
         /* Only override when we know what the host supports */
@@ -1747,22 +1806,31 @@ static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
     }
 }
 
-int kvmppc_fixup_cpu(PowerPCCPU *cpu)
-{
-    CPUState *cs = CPU(cpu);
-    int smt;
-
-    /* Adjust cpu index for SMT */
-    smt = kvmppc_smt_threads();
-    cs->cpu_index = (cs->cpu_index / smp_threads) * smt
-        + (cs->cpu_index % smp_threads);
-
-    return 0;
-}
-
 bool kvmppc_has_cap_epr(void)
 {
     return cap_epr;
+}
+
+bool kvmppc_has_cap_htab_fd(void)
+{
+    return cap_htab_fd;
+}
+
+bool kvmppc_has_cap_fixup_hcalls(void)
+{
+    return cap_fixup_hcalls;
+}
+
+static PowerPCCPUClass *ppc_cpu_get_family_class(PowerPCCPUClass *pcc)
+{
+    ObjectClass *oc = OBJECT_CLASS(pcc);
+
+    while (oc && !object_class_is_abstract(oc)) {
+        oc = object_class_get_parent(oc);
+    }
+    assert(oc);
+
+    return POWERPC_CPU_CLASS(oc);
 }
 
 static int kvm_ppc_register_host_cpu_type(void)
@@ -1774,16 +1842,109 @@ static int kvm_ppc_register_host_cpu_type(void)
     };
     uint32_t host_pvr = mfpvr();
     PowerPCCPUClass *pvr_pcc;
+    DeviceClass *dc;
 
     pvr_pcc = ppc_cpu_class_by_pvr(host_pvr);
+    if (pvr_pcc == NULL) {
+        pvr_pcc = ppc_cpu_class_by_pvr_mask(host_pvr);
+    }
     if (pvr_pcc == NULL) {
         return -1;
     }
     type_info.parent = object_class_get_name(OBJECT_CLASS(pvr_pcc));
     type_register(&type_info);
+
+    /* Register generic family CPU class for a family */
+    pvr_pcc = ppc_cpu_get_family_class(pvr_pcc);
+    dc = DEVICE_CLASS(pvr_pcc);
+    type_info.parent = object_class_get_name(OBJECT_CLASS(pvr_pcc));
+    type_info.name = g_strdup_printf("%s-"TYPE_POWERPC_CPU, dc->desc);
+    type_register(&type_info);
+
     return 0;
 }
 
+int kvmppc_define_rtas_kernel_token(uint32_t token, const char *function)
+{
+    struct kvm_rtas_token_args args = {
+        .token = token,
+    };
+
+    if (!kvm_check_extension(kvm_state, KVM_CAP_PPC_RTAS)) {
+        return -ENOENT;
+    }
+
+    strncpy(args.name, function, sizeof(args.name));
+
+    return kvm_vm_ioctl(kvm_state, KVM_PPC_RTAS_DEFINE_TOKEN, &args);
+}
+
+int kvmppc_get_htab_fd(bool write)
+{
+    struct kvm_get_htab_fd s = {
+        .flags = write ? KVM_GET_HTAB_WRITE : 0,
+        .start_index = 0,
+    };
+
+    if (!cap_htab_fd) {
+        fprintf(stderr, "KVM version doesn't support saving the hash table\n");
+        return -1;
+    }
+
+    return kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &s);
+}
+
+int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns)
+{
+    int64_t starttime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    uint8_t buf[bufsize];
+    ssize_t rc;
+
+    do {
+        rc = read(fd, buf, bufsize);
+        if (rc < 0) {
+            fprintf(stderr, "Error reading data from KVM HTAB fd: %s\n",
+                    strerror(errno));
+            return rc;
+        } else if (rc) {
+            /* Kernel already retuns data in BE format for the file */
+            qemu_put_buffer(f, buf, rc);
+        }
+    } while ((rc != 0)
+             && ((max_ns < 0)
+                 || ((qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - starttime) < max_ns)));
+
+    return (rc == 0) ? 1 : 0;
+}
+
+int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
+                           uint16_t n_valid, uint16_t n_invalid)
+{
+    struct kvm_get_htab_header *buf;
+    size_t chunksize = sizeof(*buf) + n_valid*HASH_PTE_SIZE_64;
+    ssize_t rc;
+
+    buf = alloca(chunksize);
+    /* This is KVM on ppc, so this is all big-endian */
+    buf->index = index;
+    buf->n_valid = n_valid;
+    buf->n_invalid = n_invalid;
+
+    qemu_get_buffer(f, (void *)(buf + 1), HASH_PTE_SIZE_64*n_valid);
+
+    rc = write(fd, buf, chunksize);
+    if (rc < 0) {
+        fprintf(stderr, "Error writing KVM hash table: %s\n",
+                strerror(errno));
+        return rc;
+    }
+    if (rc != chunksize) {
+        /* We should never get a short write on a single chunk */
+        fprintf(stderr, "Short write, restoring KVM hash table\n");
+        return -1;
+    }
+    return 0;
+}
 
 bool kvm_arch_stop_on_emulation_error(CPUState *cpu)
 {
@@ -1798,4 +1959,121 @@ int kvm_arch_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 int kvm_arch_on_sigbus(int code, void *addr)
 {
     return 1;
+}
+
+void kvm_arch_init_irq_routing(KVMState *s)
+{
+}
+
+int kvm_arch_insert_sw_breakpoint(CPUState *cpu, struct kvm_sw_breakpoint *bp)
+{
+    return -EINVAL;
+}
+
+int kvm_arch_remove_sw_breakpoint(CPUState *cpu, struct kvm_sw_breakpoint *bp)
+{
+    return -EINVAL;
+}
+
+int kvm_arch_insert_hw_breakpoint(target_ulong addr, target_ulong len, int type)
+{
+    return -EINVAL;
+}
+
+int kvm_arch_remove_hw_breakpoint(target_ulong addr, target_ulong len, int type)
+{
+    return -EINVAL;
+}
+
+void kvm_arch_remove_all_hw_breakpoints(void)
+{
+}
+
+void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
+{
+}
+
+struct kvm_get_htab_buf {
+    struct kvm_get_htab_header header;
+    /*
+     * We require one extra byte for read
+     */
+    target_ulong hpte[(HPTES_PER_GROUP * 2) + 1];
+};
+
+uint64_t kvmppc_hash64_read_pteg(PowerPCCPU *cpu, target_ulong pte_index)
+{
+    int htab_fd;
+    struct kvm_get_htab_fd ghf;
+    struct kvm_get_htab_buf  *hpte_buf;
+
+    ghf.flags = 0;
+    ghf.start_index = pte_index;
+    htab_fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
+    if (htab_fd < 0) {
+        goto error_out;
+    }
+
+    hpte_buf = g_malloc0(sizeof(*hpte_buf));
+    /*
+     * Read the hpte group
+     */
+    if (read(htab_fd, hpte_buf, sizeof(*hpte_buf)) < 0) {
+        goto out_close;
+    }
+
+    close(htab_fd);
+    return (uint64_t)(uintptr_t) hpte_buf->hpte;
+
+out_close:
+    g_free(hpte_buf);
+    close(htab_fd);
+error_out:
+    return 0;
+}
+
+void kvmppc_hash64_free_pteg(uint64_t token)
+{
+    struct kvm_get_htab_buf *htab_buf;
+
+    htab_buf = container_of((void *)(uintptr_t) token, struct kvm_get_htab_buf,
+                            hpte);
+    g_free(htab_buf);
+    return;
+}
+
+void kvmppc_hash64_write_pte(CPUPPCState *env, target_ulong pte_index,
+                             target_ulong pte0, target_ulong pte1)
+{
+    int htab_fd;
+    struct kvm_get_htab_fd ghf;
+    struct kvm_get_htab_buf hpte_buf;
+
+    ghf.flags = 0;
+    ghf.start_index = 0;     /* Ignored */
+    htab_fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
+    if (htab_fd < 0) {
+        goto error_out;
+    }
+
+    hpte_buf.header.n_valid = 1;
+    hpte_buf.header.n_invalid = 0;
+    hpte_buf.header.index = pte_index;
+    hpte_buf.hpte[0] = pte0;
+    hpte_buf.hpte[1] = pte1;
+    /*
+     * Write the hpte entry.
+     * CAUTION: write() has the warn_unused_result attribute. Hence we
+     * need to check the return value, even though we do nothing.
+     */
+    if (write(htab_fd, &hpte_buf, sizeof(hpte_buf)) < 0) {
+        goto out_close;
+    }
+
+out_close:
+    close(htab_fd);
+    return;
+
+error_out:
+    return;
 }

@@ -43,15 +43,13 @@ static const TypeInfo icc_bus_info = {
 
 static void icc_device_realize(DeviceState *dev, Error **errp)
 {
-    ICCDevice *id = ICC_DEVICE(dev);
-    ICCDeviceClass *idc = ICC_DEVICE_GET_CLASS(id);
+    ICCDeviceClass *idc = ICC_DEVICE_GET_CLASS(dev);
 
-    if (idc->init) {
-        if (idc->init(id) < 0) {
-            error_setg(errp, "%s initialization failed.",
-                       object_get_typename(OBJECT(dev)));
-        }
+    /* convert to QOM */
+    if (idc->realize) {
+        idc->realize(dev, errp);
     }
+
 }
 
 static void icc_device_class_init(ObjectClass *oc, void *data)
@@ -90,15 +88,23 @@ static void icc_bridge_init(Object *obj)
     ICCBridgeState *s = ICC_BRIGDE(obj);
     SysBusDevice *sb = SYS_BUS_DEVICE(obj);
 
-    qbus_create_inplace(&s->icc_bus, TYPE_ICC_BUS, DEVICE(s), "icc");
+    qbus_create_inplace(&s->icc_bus, sizeof(s->icc_bus), TYPE_ICC_BUS,
+                        DEVICE(s), "icc");
 
     /* Do not change order of registering regions,
      * APIC must be first registered region, board maps it by 0 index
      */
-    memory_region_init(&s->apic_container, "icc-apic-container",
+    memory_region_init(&s->apic_container, obj, "icc-apic-container",
                        APIC_SPACE_SIZE);
     sysbus_init_mmio(sb, &s->apic_container);
     s->icc_bus.apic_address_space = &s->apic_container;
+}
+
+static void icc_bridge_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo icc_bridge_info = {
@@ -106,6 +112,7 @@ static const TypeInfo icc_bridge_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_init  = icc_bridge_init,
     .instance_size  = sizeof(ICCBridgeState),
+    .class_init = icc_bridge_class_init,
 };
 
 

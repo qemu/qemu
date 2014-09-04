@@ -103,7 +103,7 @@ void qpci_config_writew(QPCIDevice *dev, uint8_t offset, uint16_t value)
 
 void qpci_config_writel(QPCIDevice *dev, uint8_t offset, uint32_t value)
 {
-    dev->bus->config_writew(dev->bus, dev->devfn, offset, value);
+    dev->bus->config_writel(dev->bus, dev->devfn, offset, value);
 }
 
 

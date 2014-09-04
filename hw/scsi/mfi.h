@@ -164,6 +164,7 @@ typedef enum {
     MFI_DCMD_PD_BLINK =                 0x02070100,
     MFI_DCMD_PD_UNBLINK =               0x02070200,
     MFI_DCMD_LD_GET_LIST =              0x03010000,
+    MFI_DCMD_LD_LIST_QUERY =            0x03010100,
     MFI_DCMD_LD_GET_INFO =              0x03020000,
     MFI_DCMD_LD_GET_PROP =              0x03030000,
     MFI_DCMD_LD_SET_PROP =              0x03040000,
@@ -410,6 +411,14 @@ typedef enum {
     MR_PD_QUERY_TYPE_SPEED =            4,
     MR_PD_QUERY_TYPE_EXPOSED_TO_HOST =  5, /*query for system drives */
 } mfi_pd_query_type;
+
+typedef enum {
+    MR_LD_QUERY_TYPE_ALL =              0,
+    MR_LD_QUERY_TYPE_EXPOSED_TO_HOST =  1,
+    MR_LD_QUERY_TYPE_USED_TGT_IDS =     2,
+    MR_LD_QUERY_TYPE_CLUSTER_ACCESS =   3,
+    MR_LD_QUERY_TYPE_CLUSTER_LOCALE =   4,
+} mfi_ld_query_type;
 
 /*
  * Other propertities and definitions

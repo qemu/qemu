@@ -63,8 +63,13 @@ enum {
     CTRL_RESET = (1<<0),
 };
 
+#define TYPE_MILKYMIST_VGAFB "milkymist-vgafb"
+#define MILKYMIST_VGAFB(obj) \
+    OBJECT_CHECK(MilkymistVgafbState, (obj), TYPE_MILKYMIST_VGAFB)
+
 struct MilkymistVgafbState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion regs_region;
     QemuConsole *con;
 
@@ -84,6 +89,7 @@ static int vgafb_enabled(MilkymistVgafbState *s)
 static void vgafb_update_display(void *opaque)
 {
     MilkymistVgafbState *s = opaque;
+    SysBusDevice *sbd;
     DisplaySurface *surface = qemu_console_surface(s->con);
     int first = 0;
     int last = 0;
@@ -93,6 +99,7 @@ static void vgafb_update_display(void *opaque)
         return;
     }
 
+    sbd = SYS_BUS_DEVICE(s);
     int dest_width = s->regs[R_HRES];
 
     switch (surface_bits_per_pixel(surface)) {
@@ -122,7 +129,7 @@ static void vgafb_update_display(void *opaque)
         break;
     }
 
-    framebuffer_update_display(surface, sysbus_address_space(&s->busdev),
+    framebuffer_update_display(surface, sysbus_address_space(sbd),
                                s->regs[R_BASEADDRESS] + s->fb_offset,
                                s->regs[R_HRES],
                                s->regs[R_VRES],
@@ -256,7 +263,7 @@ static const MemoryRegionOps vgafb_mmio_ops = {
 
 static void milkymist_vgafb_reset(DeviceState *d)
 {
-    MilkymistVgafbState *s = container_of(d, MilkymistVgafbState, busdev.qdev);
+    MilkymistVgafbState *s = MILKYMIST_VGAFB(d);
     int i;
 
     for (i = 0; i < R_MAX; i++) {
@@ -277,13 +284,13 @@ static const GraphicHwOps vgafb_ops = {
 
 static int milkymist_vgafb_init(SysBusDevice *dev)
 {
-    MilkymistVgafbState *s = FROM_SYSBUS(typeof(*s), dev);
+    MilkymistVgafbState *s = MILKYMIST_VGAFB(dev);
 
-    memory_region_init_io(&s->regs_region, &vgafb_mmio_ops, s,
+    memory_region_init_io(&s->regs_region, OBJECT(s), &vgafb_mmio_ops, s,
             "milkymist-vgafb", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 
-    s->con = graphic_console_init(DEVICE(dev), &vgafb_ops, s);
+    s->con = graphic_console_init(DEVICE(dev), 0, &vgafb_ops, s);
 
     return 0;
 }
@@ -298,9 +305,8 @@ static const VMStateDescription vmstate_milkymist_vgafb = {
     .name = "milkymist-vgafb",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = vgafb_post_load,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, MilkymistVgafbState, R_MAX),
         VMSTATE_END_OF_LIST()
     }
@@ -324,7 +330,7 @@ static void milkymist_vgafb_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo milkymist_vgafb_info = {
-    .name          = "milkymist-vgafb",
+    .name          = TYPE_MILKYMIST_VGAFB,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistVgafbState),
     .class_init    = milkymist_vgafb_class_init,

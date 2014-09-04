@@ -765,7 +765,7 @@ void omap_mmc_handlers(struct omap_mmc_s *s, qemu_irq ro, qemu_irq cover);
 void omap_mmc_enable(struct omap_mmc_s *s, int enable);
 
 /* omap_i2c.c */
-i2c_bus *omap_i2c_bus(DeviceState *omap_i2c);
+I2CBus *omap_i2c_bus(DeviceState *omap_i2c);
 
 # define cpu_is_omap310(cpu)		(cpu->mpu_model == omap310)
 # define cpu_is_omap1510(cpu)		(cpu->mpu_model == omap1510)

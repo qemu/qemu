@@ -22,3 +22,4 @@ struct target_pt_regs {
 };
 
 #define UNAME_MACHINE "openrisc"
+#define UNAME_MINIMUM_RELEASE "2.6.32"

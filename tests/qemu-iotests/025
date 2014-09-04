@@ -40,7 +40,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.pattern
 
 _supported_fmt raw qcow2 qed
-_supported_proto file sheepdog rbd
+_supported_proto file sheepdog rbd nfs
 _supported_os Linux
 
 echo "=== Creating image"
@@ -56,7 +56,7 @@ _check_test_img
 
 echo
 echo "=== Resizing image"
-$QEMU_IO $TEST_IMG <<EOF
+$QEMU_IO "$TEST_IMG" <<EOF | _filter_qemu_io
 length
 truncate $big_size
 length
@@ -65,7 +65,7 @@ _check_test_img
 
 echo
 echo "=== Verifying image size after reopen"
-$QEMU_IO -c "length" $TEST_IMG
+$QEMU_IO -c "length" "$TEST_IMG"
 
 echo
 echo "=== Verifying resized image"

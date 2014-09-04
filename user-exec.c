@@ -20,6 +20,8 @@
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg.h"
+#include "qemu/bitops.h"
+#include "exec/cpu_ldst.h"
 
 #undef EAX
 #undef ECX
@@ -37,19 +39,22 @@
 
 //#define DEBUG_SIGNAL
 
-static void exception_action(CPUArchState *env1)
+static void exception_action(CPUState *cpu)
 {
 #if defined(TARGET_I386)
-    raise_exception_err(env1, env1->exception_index, env1->error_code);
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env1 = &x86_cpu->env;
+
+    raise_exception_err(env1, cpu->exception_index, env1->error_code);
 #else
-    cpu_loop_exit(env1);
+    cpu_loop_exit(cpu);
 #endif
 }
 
 /* exit the current TB from a signal handler. The host registers are
    restored in a state compatible with the CPU emulator
  */
-void cpu_resume_from_signal(CPUArchState *env1, void *puc)
+void cpu_resume_from_signal(CPUState *cpu, void *puc)
 {
 #ifdef __linux__
     struct ucontext *uc = puc;
@@ -69,8 +74,8 @@ void cpu_resume_from_signal(CPUArchState *env1, void *puc)
         sigprocmask(SIG_SETMASK, &uc->sc_mask, NULL);
 #endif
     }
-    env1->exception_index = -1;
-    siglongjmp(env1->jmp_env, 1);
+    cpu->exception_index = -1;
+    siglongjmp(cpu->jmp_env, 1);
 }
 
 /* 'pc' is the host PC at which the exception was raised. 'address' is
@@ -81,6 +86,8 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
                                     int is_write, sigset_t *old_set,
                                     void *puc)
 {
+    CPUState *cpu;
+    CPUClass *cc;
     int ret;
 
 #if defined(DEBUG_SIGNAL)
@@ -93,9 +100,15 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
         return 1;
     }
 
+    /* Convert forcefully to guest address space, invalid addresses
+       are still valid segv ones */
+    address = h2g_nocheck(address);
+
+    cpu = current_cpu;
+    cc = CPU_GET_CLASS(cpu);
     /* see if it is an MMU fault */
-    ret = cpu_handle_mmu_fault(cpu_single_env, address, is_write,
-                               MMU_USER_IDX);
+    g_assert(cc->handle_mmu_fault);
+    ret = cc->handle_mmu_fault(cpu, address, is_write, MMU_USER_IDX);
     if (ret < 0) {
         return 0; /* not an MMU fault */
     }
@@ -103,12 +116,12 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
         return 1; /* the MMU fault was handled without causing real CPU fault */
     }
     /* now we have a real cpu fault */
-    cpu_restore_state(cpu_single_env, pc);
+    cpu_restore_state(cpu, pc);
 
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */
     sigprocmask(SIG_SETMASK, old_set, NULL);
-    exception_action(cpu_single_env);
+    exception_action(cpu);
 
     /* never comes here */
     return 1;
@@ -441,11 +454,42 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 #else
     pc = uc->uc_mcontext.arm_pc;
 #endif
-    /* XXX: compute is_write */
-    is_write = 0;
+
+    /* error_code is the FSR value, in which bit 11 is WnR (assuming a v6 or
+     * later processor; on v5 we will always report this as a read).
+     */
+    is_write = extract32(uc->uc_mcontext.error_code, 11, 1);
     return handle_cpu_signal(pc, (unsigned long)info->si_addr,
                              is_write,
                              &uc->uc_sigmask, puc);
+}
+
+#elif defined(__aarch64__)
+
+int cpu_signal_handler(int host_signum, void *pinfo, void *puc)
+{
+    siginfo_t *info = pinfo;
+    struct ucontext *uc = puc;
+    uintptr_t pc = uc->uc_mcontext.pc;
+    uint32_t insn = *(uint32_t *)pc;
+    bool is_write;
+
+    /* XXX: need kernel patch to get write flag faster.  */
+    is_write = (   (insn & 0xbfff0000) == 0x0c000000   /* C3.3.1 */
+                || (insn & 0xbfe00000) == 0x0c800000   /* C3.3.2 */
+                || (insn & 0xbfdf0000) == 0x0d000000   /* C3.3.3 */
+                || (insn & 0xbfc00000) == 0x0d800000   /* C3.3.4 */
+                || (insn & 0x3f400000) == 0x08000000   /* C3.3.6 */
+                || (insn & 0x3bc00000) == 0x39000000   /* C3.3.13 */
+                || (insn & 0x3fc00000) == 0x3d800000   /* ... 128bit */
+                /* Ingore bits 10, 11 & 21, controlling indexing.  */
+                || (insn & 0x3bc00000) == 0x38000000   /* C3.3.8-12 */
+                || (insn & 0x3fe00000) == 0x3c800000   /* ... 128bit */
+                /* Ignore bits 23 & 24, controlling indexing.  */
+                || (insn & 0x3a400000) == 0x28000000); /* C3.3.7,14-16 */
+
+    return handle_cpu_signal(pc, (uintptr_t)info->si_addr,
+                             is_write, &uc->uc_sigmask, puc);
 }
 
 #elif defined(__mc68000)

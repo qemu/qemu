@@ -35,15 +35,9 @@
 
 static const XtensaConfig fsf = {
     .name = "fsf",
-    .options = XTENSA_OPTIONS,
     /* GDB for this core is not supported currently */
-    .nareg = XCHAL_NUM_AREGS,
-    .ndepc = 1,
-    EXCEPTIONS_SECTION,
-    INTERRUPTS_SECTION,
-    TLB_SECTION,
-    DEBUG_SECTION,
     .clock_freq_khz = 10000,
+    DEFAULT_SECTIONS
 };
 
 REGISTER_CORE(fsf)

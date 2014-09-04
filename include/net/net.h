@@ -24,13 +24,13 @@ struct MACAddr {
 
 typedef struct NICPeers {
     NetClientState *ncs[MAX_QUEUE_NUM];
+    int32_t queues;
 } NICPeers;
 
 typedef struct NICConf {
     MACAddr macaddr;
     NICPeers peers;
     int32_t bootindex;
-    int32_t queues;
 } NICConf;
 
 #define DEFINE_NIC_PROPERTIES(_state, _conf)                            \
@@ -49,6 +49,13 @@ typedef ssize_t (NetReceiveIOV)(NetClientState *, const struct iovec *, int);
 typedef void (NetCleanup) (NetClientState *);
 typedef void (LinkStatusChanged)(NetClientState *);
 typedef void (NetClientDestructor)(NetClientState *);
+typedef RxFilterInfo *(QueryRxFilter)(NetClientState *);
+typedef bool (HasUfo)(NetClientState *);
+typedef bool (HasVnetHdr)(NetClientState *);
+typedef bool (HasVnetHdrLen)(NetClientState *, int);
+typedef void (UsingVnetHdr)(NetClientState *, bool);
+typedef void (SetOffload)(NetClientState *, int, int, int, int, int);
+typedef void (SetVnetHdrLen)(NetClientState *, int);
 
 typedef struct NetClientInfo {
     NetClientOptionsKind type;
@@ -59,7 +66,14 @@ typedef struct NetClientInfo {
     NetCanReceive *can_receive;
     NetCleanup *cleanup;
     LinkStatusChanged *link_status_changed;
+    QueryRxFilter *query_rx_filter;
     NetPoll *poll;
+    HasUfo *has_ufo;
+    HasVnetHdr *has_vnet_hdr;
+    HasVnetHdrLen *has_vnet_hdr_len;
+    UsingVnetHdr *using_vnet_hdr;
+    SetOffload *set_offload;
+    SetVnetHdrLen *set_vnet_hdr_len;
 } NetClientInfo;
 
 struct NetClientState {
@@ -67,13 +81,14 @@ struct NetClientState {
     int link_down;
     QTAILQ_ENTRY(NetClientState) next;
     NetClientState *peer;
-    NetQueue *send_queue;
+    NetQueue *incoming_queue;
     char *model;
     char *name;
     char info_str[256];
     unsigned receive_disabled : 1;
     NetClientDestructor *destructor;
     unsigned int queue_index;
+    unsigned rxfilter_notify_enabled:1;
 };
 
 typedef struct NICState {
@@ -117,6 +132,13 @@ ssize_t qemu_send_packet_async(NetClientState *nc, const uint8_t *buf,
 void qemu_purge_queued_packets(NetClientState *nc);
 void qemu_flush_queued_packets(NetClientState *nc);
 void qemu_format_nic_info_str(NetClientState *nc, uint8_t macaddr[6]);
+bool qemu_has_ufo(NetClientState *nc);
+bool qemu_has_vnet_hdr(NetClientState *nc);
+bool qemu_has_vnet_hdr_len(NetClientState *nc, int len);
+void qemu_using_vnet_hdr(NetClientState *nc, bool enable);
+void qemu_set_offload(NetClientState *nc, int csum, int tso4, int tso6,
+                      int ecn, int ufo);
+void qemu_set_vnet_hdr_len(NetClientState *nc, int len);
 void qemu_macaddr_default_if_unset(MACAddr *macaddr);
 int qemu_show_nic_models(const char *arg, const char *const *models);
 void qemu_check_nic_model(NICInfo *nd, const char *model);
@@ -155,6 +177,7 @@ struct NICInfo {
 extern int nb_nics;
 extern NICInfo nd_table[MAX_NICS];
 extern int default_net;
+extern const char *host_net_devices[];
 
 /* from net.c */
 extern const char *legacy_tftp_prefix;

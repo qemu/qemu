@@ -11,10 +11,12 @@
 
 #include <hw/qdev.h>
 #include "qemu/bitops.h"
+#include "exec/address-spaces.h"
 #include "cpu.h"
 #include "ioinst.h"
 #include "css.h"
 #include "trace.h"
+#include "hw/s390x/s390_flic.h"
 
 typedef struct CrwContainer {
     CRW crw;
@@ -38,6 +40,13 @@ typedef struct CssImage {
     ChpInfo chpids[MAX_CHPID + 1];
 } CssImage;
 
+typedef struct IoAdapter {
+    uint32_t id;
+    uint8_t type;
+    uint8_t isc;
+    QTAILQ_ENTRY(IoAdapter) sibling;
+} IoAdapter;
+
 typedef struct ChannelSubSys {
     QTAILQ_HEAD(, CrwContainer) pending_crws;
     bool do_crw_mchk;
@@ -48,6 +57,7 @@ typedef struct ChannelSubSys {
     uint64_t chnmon_area;
     CssImage *css[MAX_CSSID + 1];
     uint8_t default_cssid;
+    QTAILQ_HEAD(, IoAdapter) io_adapters;
 } ChannelSubSys;
 
 static ChannelSubSys *channel_subsys;
@@ -68,7 +78,47 @@ int css_create_css_image(uint8_t cssid, bool default_image)
     return 0;
 }
 
-static uint16_t css_build_subchannel_id(SubchDev *sch)
+int css_register_io_adapter(uint8_t type, uint8_t isc, bool swap,
+                            bool maskable, uint32_t *id)
+{
+    IoAdapter *adapter;
+    bool found = false;
+    int ret;
+    S390FLICState *fs = s390_get_flic();
+    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
+
+    *id = 0;
+    QTAILQ_FOREACH(adapter, &channel_subsys->io_adapters, sibling) {
+        if ((adapter->type == type) && (adapter->isc == isc)) {
+            *id = adapter->id;
+            found = true;
+            ret = 0;
+            break;
+        }
+        if (adapter->id >= *id) {
+            *id = adapter->id + 1;
+        }
+    }
+    if (found) {
+        goto out;
+    }
+    adapter = g_new0(IoAdapter, 1);
+    ret = fsc->register_io_adapter(fs, *id, isc, swap, maskable);
+    if (ret == 0) {
+        adapter->id = *id;
+        adapter->isc = isc;
+        adapter->type = type;
+        QTAILQ_INSERT_TAIL(&channel_subsys->io_adapters, adapter, sibling);
+    } else {
+        g_free(adapter);
+        fprintf(stderr, "Unexpected error %d when registering adapter %d\n",
+                ret, *id);
+    }
+out:
+    return ret;
+}
+
+uint16_t css_build_subchannel_id(SubchDev *sch)
 {
     if (channel_subsys->max_cssid > 0) {
         return (sch->cssid << 8) | (1 << 3) | (sch->ssid << 1) | 1;
@@ -78,13 +128,11 @@ static uint16_t css_build_subchannel_id(SubchDev *sch)
 
 static void css_inject_io_interrupt(SubchDev *sch)
 {
-    S390CPU *cpu = s390_cpu_addr2state(0);
     uint8_t isc = (sch->curr_status.pmcw.flags & PMCW_FLAGS_MASK_ISC) >> 11;
 
     trace_css_io_interrupt(sch->cssid, sch->ssid, sch->schid,
                            sch->curr_status.pmcw.intparm, isc, "");
-    s390_io_interrupt(cpu,
-                      css_build_subchannel_id(sch),
+    s390_io_interrupt(css_build_subchannel_id(sch),
                       sch->schid,
                       sch->curr_status.pmcw.intparm,
                       isc << 27);
@@ -97,7 +145,6 @@ void css_conditional_io_interrupt(SubchDev *sch)
      * with alert status.
      */
     if (!(sch->curr_status.scsw.ctrl & SCSW_STCTL_STATUS_PEND)) {
-        S390CPU *cpu = s390_cpu_addr2state(0);
         uint8_t isc = (sch->curr_status.pmcw.flags & PMCW_FLAGS_MASK_ISC) >> 11;
 
         trace_css_io_interrupt(sch->cssid, sch->ssid, sch->schid,
@@ -107,12 +154,19 @@ void css_conditional_io_interrupt(SubchDev *sch)
         sch->curr_status.scsw.ctrl |=
             SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
         /* Inject an I/O interrupt. */
-        s390_io_interrupt(cpu,
-                          css_build_subchannel_id(sch),
+        s390_io_interrupt(css_build_subchannel_id(sch),
                           sch->schid,
                           sch->curr_status.pmcw.intparm,
                           isc << 27);
     }
+}
+
+void css_adapter_interrupt(uint8_t isc)
+{
+    uint32_t io_int_word = (isc << 27) | IO_INT_WORD_AI;
+
+    trace_css_adapter_interrupt(isc);
+    s390_io_interrupt(0, 0, 0, io_int_word);
 }
 
 static void sch_handle_clear_func(SubchDev *sch)
@@ -124,13 +178,12 @@ static void sch_handle_clear_func(SubchDev *sch)
     /* Path management: In our simple css, we always choose the only path. */
     path = 0x80;
 
-    /* Reset values prior to 'issueing the clear signal'. */
+    /* Reset values prior to 'issuing the clear signal'. */
     p->lpum = 0;
     p->pom = 0xff;
     s->flags &= ~SCSW_FLAGS_MASK_PNO;
 
     /* We always 'attempt to issue the clear signal', and we always succeed. */
-    sch->orb = NULL;
     sch->channel_prog = 0x0;
     sch->last_cmd_valid = false;
     s->ctrl &= ~SCSW_ACTL_CLEAR_PEND;
@@ -147,13 +200,13 @@ static void sch_handle_halt_func(SubchDev *sch)
 
     PMCW *p = &sch->curr_status.pmcw;
     SCSW *s = &sch->curr_status.scsw;
+    hwaddr curr_ccw = sch->channel_prog;
     int path;
 
     /* Path management: In our simple css, we always choose the only path. */
     path = 0x80;
 
     /* We always 'attempt to issue the halt signal', and we always succeed. */
-    sch->orb = NULL;
     sch->channel_prog = 0x0;
     sch->last_cmd_valid = false;
     s->ctrl &= ~SCSW_ACTL_HALT_PEND;
@@ -163,6 +216,10 @@ static void sch_handle_halt_func(SubchDev *sch)
         !((s->ctrl & SCSW_ACTL_START_PEND) ||
           (s->ctrl & SCSW_ACTL_SUSP))) {
         s->dstat = SCSW_DSTAT_DEVICE_END;
+    }
+    if ((s->ctrl & (SCSW_ACTL_SUBCH_ACTIVE | SCSW_ACTL_DEVICE_ACTIVE)) ||
+        (s->ctrl & SCSW_ACTL_SUSP)) {
+        s->cpa = curr_ccw + 8;
     }
     s->cstat = 0;
     p->lpum = path;
@@ -307,12 +364,11 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr)
     return ret;
 }
 
-static void sch_handle_start_func(SubchDev *sch)
+static void sch_handle_start_func(SubchDev *sch, ORB *orb)
 {
 
     PMCW *p = &sch->curr_status.pmcw;
     SCSW *s = &sch->curr_status.scsw;
-    ORB *orb = sch->orb;
     int path;
     int ret;
 
@@ -321,6 +377,7 @@ static void sch_handle_start_func(SubchDev *sch)
 
     if (!(s->ctrl & SCSW_ACTL_SUSP)) {
         /* Look at the orb and try to execute the channel program. */
+        assert(orb != NULL); /* resume does not pass an orb */
         p->intparm = orb->intparm;
         if (!(orb->lpm & path)) {
             /* Generate a deferred cc 3 condition. */
@@ -346,6 +403,7 @@ static void sch_handle_start_func(SubchDev *sch)
             s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
                     SCSW_STCTL_STATUS_PEND;
             s->dstat = SCSW_DSTAT_CHANNEL_END | SCSW_DSTAT_DEVICE_END;
+            s->cpa = sch->channel_prog + 8;
             break;
         case -ENOSYS:
             /* unsupported command, generate unit check (command reject) */
@@ -356,6 +414,7 @@ static void sch_handle_start_func(SubchDev *sch)
             s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
             s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
                     SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
+            s->cpa = sch->channel_prog + 8;
             break;
         case -EFAULT:
             /* memory problem, generate channel data check */
@@ -364,6 +423,7 @@ static void sch_handle_start_func(SubchDev *sch)
             s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
             s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
                     SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
+            s->cpa = sch->channel_prog + 8;
             break;
         case -EBUSY:
             /* subchannel busy, generate deferred cc 1 */
@@ -384,6 +444,7 @@ static void sch_handle_start_func(SubchDev *sch)
             s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
             s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
                     SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
+            s->cpa = sch->channel_prog + 8;
             break;
         }
     } while (ret == -EAGAIN);
@@ -396,7 +457,7 @@ static void sch_handle_start_func(SubchDev *sch)
  * read/writes) asynchronous later on if we start supporting more than
  * our current very simple devices.
  */
-static void do_subchannel_work(SubchDev *sch)
+static void do_subchannel_work(SubchDev *sch, ORB *orb)
 {
 
     SCSW *s = &sch->curr_status.scsw;
@@ -406,7 +467,7 @@ static void do_subchannel_work(SubchDev *sch)
     } else if (s->ctrl & SCSW_FCTL_HALT_FUNC) {
         sch_handle_halt_func(sch);
     } else if (s->ctrl & SCSW_FCTL_START_FUNC) {
-        sch_handle_start_func(sch);
+        sch_handle_start_func(sch, orb);
     } else {
         /* Cannot happen. */
         return;
@@ -584,7 +645,6 @@ int css_do_xsch(SubchDev *sch)
                  SCSW_ACTL_SUSP);
     sch->channel_prog = 0x0;
     sch->last_cmd_valid = false;
-    sch->orb = NULL;
     s->dstat = 0;
     s->cstat = 0;
     ret = 0;
@@ -608,7 +668,7 @@ int css_do_csch(SubchDev *sch)
     s->ctrl &= ~(SCSW_CTRL_MASK_FCTL | SCSW_CTRL_MASK_ACTL);
     s->ctrl |= SCSW_FCTL_CLEAR_FUNC | SCSW_FCTL_CLEAR_FUNC;
 
-    do_subchannel_work(sch);
+    do_subchannel_work(sch, NULL);
     ret = 0;
 
 out:
@@ -649,7 +709,7 @@ int css_do_hsch(SubchDev *sch)
     }
     s->ctrl |= SCSW_ACTL_HALT_PEND;
 
-    do_subchannel_work(sch);
+    do_subchannel_work(sch, NULL);
     ret = 0;
 
 out:
@@ -667,18 +727,20 @@ static void css_update_chnmon(SubchDev *sch)
         /* Format 1, per-subchannel area. */
         uint32_t count;
 
-        count = ldl_phys(sch->curr_status.mba);
+        count = ldl_phys(&address_space_memory, sch->curr_status.mba);
         count++;
-        stl_phys(sch->curr_status.mba, count);
+        stl_phys(&address_space_memory, sch->curr_status.mba, count);
     } else {
         /* Format 0, global area. */
         uint32_t offset;
         uint16_t count;
 
         offset = sch->curr_status.pmcw.mbi << 5;
-        count = lduw_phys(channel_subsys->chnmon_area + offset);
+        count = lduw_phys(&address_space_memory,
+                          channel_subsys->chnmon_area + offset);
         count++;
-        stw_phys(channel_subsys->chnmon_area + offset, count);
+        stw_phys(&address_space_memory,
+                 channel_subsys->chnmon_area + offset, count);
     }
 }
 
@@ -709,22 +771,23 @@ int css_do_ssch(SubchDev *sch, ORB *orb)
     if (channel_subsys->chnmon_active) {
         css_update_chnmon(sch);
     }
-    sch->orb = orb;
     sch->channel_prog = orb->cpa;
     /* Trigger the start function. */
     s->ctrl |= (SCSW_FCTL_START_FUNC | SCSW_ACTL_START_PEND);
     s->flags &= ~SCSW_FLAGS_MASK_PNO;
 
-    do_subchannel_work(sch);
+    do_subchannel_work(sch, orb);
     ret = 0;
 
 out:
     return ret;
 }
 
-static void copy_irb_to_guest(IRB *dest, const IRB *src)
+static void copy_irb_to_guest(IRB *dest, const IRB *src, PMCW *pmcw)
 {
     int i;
+    uint16_t stctl = src->scsw.ctrl & SCSW_CTRL_MASK_STCTL;
+    uint16_t actl = src->scsw.ctrl & SCSW_CTRL_MASK_ACTL;
 
     copy_scsw_to_guest(&dest->scsw, &src->scsw);
 
@@ -734,8 +797,22 @@ static void copy_irb_to_guest(IRB *dest, const IRB *src)
     for (i = 0; i < ARRAY_SIZE(dest->ecw); i++) {
         dest->ecw[i] = cpu_to_be32(src->ecw[i]);
     }
-    for (i = 0; i < ARRAY_SIZE(dest->emw); i++) {
-        dest->emw[i] = cpu_to_be32(src->emw[i]);
+    /* extended measurements enabled? */
+    if ((src->scsw.flags & SCSW_FLAGS_MASK_ESWF) ||
+        !(pmcw->flags & PMCW_FLAGS_MASK_TF) ||
+        !(pmcw->chars & PMCW_CHARS_MASK_XMWME)) {
+        return;
+    }
+    /* extended measurements pending? */
+    if (!(stctl & SCSW_STCTL_STATUS_PEND)) {
+        return;
+    }
+    if ((stctl & SCSW_STCTL_PRIMARY) ||
+        (stctl == SCSW_STCTL_SECONDARY) ||
+        ((stctl & SCSW_STCTL_INTERMEDIATE) && (actl & SCSW_ACTL_SUSP))) {
+        for (i = 0; i < ARRAY_SIZE(dest->emw); i++) {
+            dest->emw[i] = cpu_to_be32(src->emw[i]);
+        }
     }
 }
 
@@ -781,7 +858,7 @@ int css_do_tsch(SubchDev *sch, IRB *target_irb)
         }
     }
     /* Store the irb to the guest. */
-    copy_irb_to_guest(target_irb, &irb);
+    copy_irb_to_guest(target_irb, &irb, p);
 
     /* Clear conditions on subchannel, if applicable. */
     if (stctl & SCSW_STCTL_STATUS_PEND) {
@@ -945,7 +1022,7 @@ int css_do_rsch(SubchDev *sch)
     }
 
     s->ctrl |= SCSW_ACTL_RESUME_PEND;
-    do_subchannel_work(sch);
+    do_subchannel_work(sch, NULL);
     ret = 0;
 
 out:
@@ -1158,11 +1235,9 @@ void css_queue_crw(uint8_t rsc, uint8_t erc, int chain, uint16_t rsid)
     QTAILQ_INSERT_TAIL(&channel_subsys->pending_crws, crw_cont, sibling);
 
     if (channel_subsys->do_crw_mchk) {
-        S390CPU *cpu = s390_cpu_addr2state(0);
-
         channel_subsys->do_crw_mchk = false;
         /* Inject crw pending machine check. */
-        s390_crw_mchk(cpu);
+        s390_crw_mchk();
     }
 }
 
@@ -1220,6 +1295,117 @@ int css_enable_mss(void)
     return 0;
 }
 
+void subch_device_save(SubchDev *s, QEMUFile *f)
+{
+    int i;
+
+    qemu_put_byte(f, s->cssid);
+    qemu_put_byte(f, s->ssid);
+    qemu_put_be16(f, s->schid);
+    qemu_put_be16(f, s->devno);
+    qemu_put_byte(f, s->thinint_active);
+    /* SCHIB */
+    /*     PMCW */
+    qemu_put_be32(f, s->curr_status.pmcw.intparm);
+    qemu_put_be16(f, s->curr_status.pmcw.flags);
+    qemu_put_be16(f, s->curr_status.pmcw.devno);
+    qemu_put_byte(f, s->curr_status.pmcw.lpm);
+    qemu_put_byte(f, s->curr_status.pmcw.pnom);
+    qemu_put_byte(f, s->curr_status.pmcw.lpum);
+    qemu_put_byte(f, s->curr_status.pmcw.pim);
+    qemu_put_be16(f, s->curr_status.pmcw.mbi);
+    qemu_put_byte(f, s->curr_status.pmcw.pom);
+    qemu_put_byte(f, s->curr_status.pmcw.pam);
+    qemu_put_buffer(f, s->curr_status.pmcw.chpid, 8);
+    qemu_put_be32(f, s->curr_status.pmcw.chars);
+    /*     SCSW */
+    qemu_put_be16(f, s->curr_status.scsw.flags);
+    qemu_put_be16(f, s->curr_status.scsw.ctrl);
+    qemu_put_be32(f, s->curr_status.scsw.cpa);
+    qemu_put_byte(f, s->curr_status.scsw.dstat);
+    qemu_put_byte(f, s->curr_status.scsw.cstat);
+    qemu_put_be16(f, s->curr_status.scsw.count);
+    qemu_put_be64(f, s->curr_status.mba);
+    qemu_put_buffer(f, s->curr_status.mda, 4);
+    /* end SCHIB */
+    qemu_put_buffer(f, s->sense_data, 32);
+    qemu_put_be64(f, s->channel_prog);
+    /* last cmd */
+    qemu_put_byte(f, s->last_cmd.cmd_code);
+    qemu_put_byte(f, s->last_cmd.flags);
+    qemu_put_be16(f, s->last_cmd.count);
+    qemu_put_be32(f, s->last_cmd.cda);
+    qemu_put_byte(f, s->last_cmd_valid);
+    qemu_put_byte(f, s->id.reserved);
+    qemu_put_be16(f, s->id.cu_type);
+    qemu_put_byte(f, s->id.cu_model);
+    qemu_put_be16(f, s->id.dev_type);
+    qemu_put_byte(f, s->id.dev_model);
+    qemu_put_byte(f, s->id.unused);
+    for (i = 0; i < ARRAY_SIZE(s->id.ciw); i++) {
+        qemu_put_byte(f, s->id.ciw[i].type);
+        qemu_put_byte(f, s->id.ciw[i].command);
+        qemu_put_be16(f, s->id.ciw[i].count);
+    }
+    return;
+}
+
+int subch_device_load(SubchDev *s, QEMUFile *f)
+{
+    int i;
+
+    s->cssid = qemu_get_byte(f);
+    s->ssid = qemu_get_byte(f);
+    s->schid = qemu_get_be16(f);
+    s->devno = qemu_get_be16(f);
+    s->thinint_active = qemu_get_byte(f);
+    /* SCHIB */
+    /*     PMCW */
+    s->curr_status.pmcw.intparm = qemu_get_be32(f);
+    s->curr_status.pmcw.flags = qemu_get_be16(f);
+    s->curr_status.pmcw.devno = qemu_get_be16(f);
+    s->curr_status.pmcw.lpm = qemu_get_byte(f);
+    s->curr_status.pmcw.pnom  = qemu_get_byte(f);
+    s->curr_status.pmcw.lpum = qemu_get_byte(f);
+    s->curr_status.pmcw.pim = qemu_get_byte(f);
+    s->curr_status.pmcw.mbi = qemu_get_be16(f);
+    s->curr_status.pmcw.pom = qemu_get_byte(f);
+    s->curr_status.pmcw.pam = qemu_get_byte(f);
+    qemu_get_buffer(f, s->curr_status.pmcw.chpid, 8);
+    s->curr_status.pmcw.chars = qemu_get_be32(f);
+    /*     SCSW */
+    s->curr_status.scsw.flags = qemu_get_be16(f);
+    s->curr_status.scsw.ctrl = qemu_get_be16(f);
+    s->curr_status.scsw.cpa = qemu_get_be32(f);
+    s->curr_status.scsw.dstat = qemu_get_byte(f);
+    s->curr_status.scsw.cstat = qemu_get_byte(f);
+    s->curr_status.scsw.count = qemu_get_be16(f);
+    s->curr_status.mba = qemu_get_be64(f);
+    qemu_get_buffer(f, s->curr_status.mda, 4);
+    /* end SCHIB */
+    qemu_get_buffer(f, s->sense_data, 32);
+    s->channel_prog = qemu_get_be64(f);
+    /* last cmd */
+    s->last_cmd.cmd_code = qemu_get_byte(f);
+    s->last_cmd.flags = qemu_get_byte(f);
+    s->last_cmd.count = qemu_get_be16(f);
+    s->last_cmd.cda = qemu_get_be32(f);
+    s->last_cmd_valid = qemu_get_byte(f);
+    s->id.reserved = qemu_get_byte(f);
+    s->id.cu_type = qemu_get_be16(f);
+    s->id.cu_model = qemu_get_byte(f);
+    s->id.dev_type = qemu_get_be16(f);
+    s->id.dev_model = qemu_get_byte(f);
+    s->id.unused = qemu_get_byte(f);
+    for (i = 0; i < ARRAY_SIZE(s->id.ciw); i++) {
+        s->id.ciw[i].type = qemu_get_byte(f);
+        s->id.ciw[i].command = qemu_get_byte(f);
+        s->id.ciw[i].count = qemu_get_be16(f);
+    }
+    return 0;
+}
+
+
 static void css_init(void)
 {
     channel_subsys = g_malloc0(sizeof(*channel_subsys));
@@ -1227,6 +1413,7 @@ static void css_init(void)
     channel_subsys->do_crw_mchk = true;
     channel_subsys->crws_lost = false;
     channel_subsys->chnmon_active = false;
+    QTAILQ_INIT(&channel_subsys->io_adapters);
 }
 machine_init(css_init);
 
@@ -1255,7 +1442,7 @@ void css_reset_sch(SubchDev *sch)
 
     sch->channel_prog = 0x0;
     sch->last_cmd_valid = false;
-    sch->orb = NULL;
+    sch->thinint_active = false;
 }
 
 void css_reset(void)

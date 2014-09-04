@@ -93,17 +93,15 @@ cac_common_process_apdu(VCard *card, VCardAPDU *apdu, VCardResponse **response)
 static VCardStatus
 cac_applet_pki_reset(VCard *card, int channel)
 {
-    VCardAppletPrivate *applet_private = NULL;
-    CACPKIAppletData *pki_applet = NULL;
+    VCardAppletPrivate *applet_private;
+    CACPKIAppletData *pki_applet;
     applet_private = vcard_get_current_applet_private(card, channel);
     assert(applet_private);
     pki_applet = &(applet_private->u.pki_data);
 
     pki_applet->cert_buffer = NULL;
-    if (pki_applet->sign_buffer) {
-        g_free(pki_applet->sign_buffer);
-        pki_applet->sign_buffer = NULL;
-    }
+    g_free(pki_applet->sign_buffer);
+    pki_applet->sign_buffer = NULL;
     pki_applet->cert_buffer_len = 0;
     pki_applet->sign_buffer_len = 0;
     return VCARD_DONE;
@@ -113,8 +111,8 @@ static VCardStatus
 cac_applet_pki_process_apdu(VCard *card, VCardAPDU *apdu,
                             VCardResponse **response)
 {
-    CACPKIAppletData *pki_applet = NULL;
-    VCardAppletPrivate *applet_private = NULL;
+    CACPKIAppletData *pki_applet;
+    VCardAppletPrivate *applet_private;
     int size, next;
     unsigned char *sign_buffer;
     vcard_7816_status_t status;
@@ -169,17 +167,8 @@ cac_applet_pki_process_apdu(VCard *card, VCardAPDU *apdu,
         }
         size = apdu->a_Lc;
 
-        sign_buffer = realloc(pki_applet->sign_buffer,
-                      pki_applet->sign_buffer_len+size);
-        if (sign_buffer == NULL) {
-            g_free(pki_applet->sign_buffer);
-            pki_applet->sign_buffer = NULL;
-            pki_applet->sign_buffer_len = 0;
-            *response = vcard_make_response(
-                            VCARD7816_STATUS_EXC_ERROR_MEMORY_FAILURE);
-            ret = VCARD_DONE;
-            break;
-        }
+        sign_buffer = g_realloc(pki_applet->sign_buffer,
+                                pki_applet->sign_buffer_len + size);
         memcpy(sign_buffer+pki_applet->sign_buffer_len, apdu->a_body, size);
         size += pki_applet->sign_buffer_len;
         switch (apdu->a_p1) {
@@ -189,7 +178,6 @@ cac_applet_pki_process_apdu(VCard *card, VCardAPDU *apdu,
             pki_applet->sign_buffer = sign_buffer;
             pki_applet->sign_buffer_len = size;
             *response = vcard_make_response(VCARD7816_STATUS_SUCCESS);
-            ret = VCARD_DONE;
             break;
         case 0x00:
             /* we now have the whole buffer, do the operation, result will be
@@ -289,18 +277,14 @@ cac_applet_container_process_apdu(VCard *card, VCardAPDU *apdu,
 static void
 cac_delete_pki_applet_private(VCardAppletPrivate *applet_private)
 {
-    CACPKIAppletData *pki_applet_data = NULL;
+    CACPKIAppletData *pki_applet_data;
 
     if (applet_private == NULL) {
         return;
     }
     pki_applet_data = &(applet_private->u.pki_data);
-    if (pki_applet_data->cert != NULL) {
-        g_free(pki_applet_data->cert);
-    }
-    if (pki_applet_data->sign_buffer != NULL) {
-        g_free(pki_applet_data->sign_buffer);
-    }
+    g_free(pki_applet_data->cert);
+    g_free(pki_applet_data->sign_buffer);
     if (pki_applet_data->key != NULL) {
         vcard_emul_delete_key(pki_applet_data->key);
     }
@@ -311,16 +295,11 @@ static VCardAppletPrivate *
 cac_new_pki_applet_private(const unsigned char *cert,
                            int cert_len, VCardKey *key)
 {
-    CACPKIAppletData *pki_applet_data = NULL;
-    VCardAppletPrivate *applet_private = NULL;
-    applet_private = (VCardAppletPrivate *)g_malloc(sizeof(VCardAppletPrivate));
+    CACPKIAppletData *pki_applet_data;
+    VCardAppletPrivate *applet_private;
 
+    applet_private = g_new0(VCardAppletPrivate, 1);
     pki_applet_data = &(applet_private->u.pki_data);
-    pki_applet_data->cert_buffer = NULL;
-    pki_applet_data->cert_buffer_len = 0;
-    pki_applet_data->sign_buffer = NULL;
-    pki_applet_data->sign_buffer_len = 0;
-    pki_applet_data->key = NULL;
     pki_applet_data->cert = (unsigned char *)g_malloc(cert_len+1);
     /*
      * if we want to support compression, then we simply change the 0 to a 1
@@ -342,8 +321,8 @@ static VCardApplet *
 cac_new_pki_applet(int i, const unsigned char *cert,
                    int cert_len, VCardKey *key)
 {
-    VCardAppletPrivate *applet_private = NULL;
-    VCardApplet *applet = NULL;
+    VCardAppletPrivate *applet_private;
+    VCardApplet *applet;
     unsigned char pki_aid[] = { 0xa0, 0x00, 0x00, 0x00, 0x79, 0x01, 0x00 };
     int pki_aid_len = sizeof(pki_aid);
 

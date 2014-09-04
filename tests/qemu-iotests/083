@@ -1,0 +1,129 @@
+#!/bin/bash
+#
+# Test NBD client unexpected disconnect
+#
+# Copyright Red Hat, Inc. 2014
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=stefanha@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt generic
+_supported_proto nbd
+_supported_os Linux
+
+# Pick a TCP port based on our pid.  This way multiple instances of this test
+# can run in parallel without conflicting.
+choose_tcp_port() {
+	echo $((($$ % 31744) + 1024)) # 1024 <= port < 32768
+}
+
+wait_for_tcp_port() {
+	while ! (netstat --tcp --listening --numeric | \
+		 grep "$1.*0\\.0\\.0\\.0:\\*.*LISTEN") 2>&1 >/dev/null; do
+		sleep 0.1
+	done
+}
+
+filter_nbd() {
+	# nbd.c error messages contain function names and line numbers that are prone
+	# to change.  Message ordering depends on timing between send and receive
+	# callbacks sometimes, making them unreliable.
+	#
+	# Filter out the TCP port number since this changes between runs.
+	sed -e 's#^.*nbd\.c:.*##g' \
+	    -e 's#nbd:127\.0\.0\.1:[^:]*:#nbd:127\.0\.0\.1:PORT:#g'
+}
+
+check_disconnect() {
+	event=$1
+	when=$2
+	negotiation=$3
+	echo "=== Check disconnect $when $event ==="
+	echo
+
+	port=$(choose_tcp_port)
+
+	cat > "$TEST_DIR/nbd-fault-injector.conf" <<EOF
+[inject-error]
+event=$event
+when=$when
+EOF
+
+	if [ "$negotiation" = "--classic-negotiation" ]; then
+		extra_args=--classic-negotiation
+		nbd_url="nbd:127.0.0.1:$port"
+	else
+		nbd_url="nbd:127.0.0.1:$port:exportname=foo"
+	fi
+
+	$PYTHON nbd-fault-injector.py $extra_args "127.0.0.1:$port" "$TEST_DIR/nbd-fault-injector.conf" 2>&1 >/dev/null &
+	wait_for_tcp_port "127\\.0\\.0\\.1:$port"
+	$QEMU_IO -c "read 0 512" "$nbd_url" 2>&1 | _filter_qemu_io | filter_nbd
+
+	echo
+}
+
+for event in neg1 "export" neg2 request reply data; do
+	for when in before after; do
+		check_disconnect "$event" "$when"
+	done
+
+	# Also inject short replies from the NBD server
+	case "$event" in
+	neg1)
+		for when in 8 16; do
+			check_disconnect "$event" "$when"
+		done
+		;;
+	"export")
+		for when in 4 12 16; do
+			check_disconnect "$event" "$when"
+		done
+		;;
+	neg2)
+		for when in 8 10; do
+			check_disconnect "$event" "$when"
+		done
+		;;
+	reply)
+		for when in 4 8; do
+			check_disconnect "$event" "$when"
+		done
+		;;
+	esac
+done
+
+# Also check classic negotiation without export information
+for when in before 8 16 24 28 after; do
+	check_disconnect "neg-classic" "$when" --classic-negotiation
+done
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

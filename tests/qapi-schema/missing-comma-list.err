@@ -1,0 +1,1 @@
+tests/qapi-schema/missing-comma-list.json:2:20: Expected "," or "]"

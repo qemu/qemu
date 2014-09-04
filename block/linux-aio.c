@@ -25,6 +25,8 @@
  */
 #define MAX_EVENTS 128
 
+#define MAX_QUEUED_IO  128
+
 struct qemu_laiocb {
     BlockDriverAIOCB common;
     struct qemu_laio_state *ctx;
@@ -36,10 +38,19 @@ struct qemu_laiocb {
     QLIST_ENTRY(qemu_laiocb) node;
 };
 
+typedef struct {
+    struct iocb *iocbs[MAX_QUEUED_IO];
+    int plugged;
+    unsigned int size;
+    unsigned int idx;
+} LaioQueue;
+
 struct qemu_laio_state {
     io_context_t ctx;
     EventNotifier e;
-    int count;
+
+    /* io queue for submit at batch */
+    LaioQueue io_q;
 };
 
 static inline ssize_t io_event_ret(struct io_event *ev)
@@ -54,8 +65,6 @@ static void qemu_laio_process_completion(struct qemu_laio_state *s,
     struct qemu_laiocb *laiocb)
 {
     int ret;
-
-    s->count--;
 
     ret = laiocb->ret;
     if (ret != -ECANCELED) {
@@ -101,13 +110,6 @@ static void qemu_laio_completion_cb(EventNotifier *e)
     }
 }
 
-static int qemu_laio_flush_cb(EventNotifier *e)
-{
-    struct qemu_laio_state *s = container_of(e, struct qemu_laio_state, e);
-
-    return (s->count > 0) ? 1 : 0;
-}
-
 static void laio_cancel(BlockDriverAIOCB *blockacb)
 {
     struct qemu_laiocb *laiocb = (struct qemu_laiocb *)blockacb;
@@ -145,6 +147,79 @@ static const AIOCBInfo laio_aiocb_info = {
     .cancel             = laio_cancel,
 };
 
+static void ioq_init(LaioQueue *io_q)
+{
+    io_q->size = MAX_QUEUED_IO;
+    io_q->idx = 0;
+    io_q->plugged = 0;
+}
+
+static int ioq_submit(struct qemu_laio_state *s)
+{
+    int ret, i = 0;
+    int len = s->io_q.idx;
+
+    do {
+        ret = io_submit(s->ctx, len, s->io_q.iocbs);
+    } while (i++ < 3 && ret == -EAGAIN);
+
+    /* empty io queue */
+    s->io_q.idx = 0;
+
+    if (ret < 0) {
+        i = 0;
+    } else {
+        i = ret;
+    }
+
+    for (; i < len; i++) {
+        struct qemu_laiocb *laiocb =
+            container_of(s->io_q.iocbs[i], struct qemu_laiocb, iocb);
+
+        laiocb->ret = (ret < 0) ? ret : -EIO;
+        qemu_laio_process_completion(s, laiocb);
+    }
+    return ret;
+}
+
+static void ioq_enqueue(struct qemu_laio_state *s, struct iocb *iocb)
+{
+    unsigned int idx = s->io_q.idx;
+
+    s->io_q.iocbs[idx++] = iocb;
+    s->io_q.idx = idx;
+
+    /* submit immediately if queue is full */
+    if (idx == s->io_q.size) {
+        ioq_submit(s);
+    }
+}
+
+void laio_io_plug(BlockDriverState *bs, void *aio_ctx)
+{
+    struct qemu_laio_state *s = aio_ctx;
+
+    s->io_q.plugged++;
+}
+
+int laio_io_unplug(BlockDriverState *bs, void *aio_ctx, bool unplug)
+{
+    struct qemu_laio_state *s = aio_ctx;
+    int ret = 0;
+
+    assert(s->io_q.plugged > 0 || !unplug);
+
+    if (unplug && --s->io_q.plugged > 0) {
+        return 0;
+    }
+
+    if (s->io_q.idx > 0) {
+        ret = ioq_submit(s);
+    }
+
+    return ret;
+}
+
 BlockDriverAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque, int type)
@@ -177,17 +252,33 @@ BlockDriverAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
         goto out_free_aiocb;
     }
     io_set_eventfd(&laiocb->iocb, event_notifier_get_fd(&s->e));
-    s->count++;
 
-    if (io_submit(s->ctx, 1, &iocbs) < 0)
-        goto out_dec_count;
+    if (!s->io_q.plugged) {
+        if (io_submit(s->ctx, 1, &iocbs) < 0) {
+            goto out_free_aiocb;
+        }
+    } else {
+        ioq_enqueue(s, iocbs);
+    }
     return &laiocb->common;
 
-out_dec_count:
-    s->count--;
 out_free_aiocb:
     qemu_aio_release(laiocb);
     return NULL;
+}
+
+void laio_detach_aio_context(void *s_, AioContext *old_context)
+{
+    struct qemu_laio_state *s = s_;
+
+    aio_set_event_notifier(old_context, &s->e, NULL);
+}
+
+void laio_attach_aio_context(void *s_, AioContext *new_context)
+{
+    struct qemu_laio_state *s = s_;
+
+    aio_set_event_notifier(new_context, &s->e, qemu_laio_completion_cb);
 }
 
 void *laio_init(void)
@@ -203,8 +294,7 @@ void *laio_init(void)
         goto out_close_efd;
     }
 
-    qemu_aio_set_event_notifier(&s->e, qemu_laio_completion_cb,
-                                qemu_laio_flush_cb);
+    ioq_init(&s->io_q);
 
     return s;
 
@@ -213,4 +303,17 @@ out_close_efd:
 out_free_state:
     g_free(s);
     return NULL;
+}
+
+void laio_cleanup(void *s_)
+{
+    struct qemu_laio_state *s = s_;
+
+    event_notifier_cleanup(&s->e);
+
+    if (io_destroy(s->ctx) != 0) {
+        fprintf(stderr, "%s: destroy AIO context %p failed\n",
+                        __func__, &s->ctx);
+    }
+    g_free(s);
 }

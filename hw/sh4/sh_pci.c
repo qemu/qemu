@@ -28,9 +28,14 @@
 #include "qemu/bswap.h"
 #include "exec/address-spaces.h"
 
+#define TYPE_SH_PCI_HOST_BRIDGE "sh_pci"
+
+#define SH_PCI_HOST_BRIDGE(obj) \
+    OBJECT_CHECK(SHPCIState, (obj), TYPE_SH_PCI_HOST_BRIDGE)
+
 typedef struct SHPCIState {
-    SysBusDevice busdev;
-    PCIBus *bus;
+    PCIHostState parent_obj;
+
     PCIDevice *dev;
     qemu_irq irq[4];
     MemoryRegion memconfig_p4;
@@ -45,6 +50,8 @@ static void sh_pci_reg_write (void *p, hwaddr addr, uint64_t val,
                               unsigned size)
 {
     SHPCIState *pcic = p;
+    PCIHostState *phb = PCI_HOST_BRIDGE(pcic);
+
     switch(addr) {
     case 0 ... 0xfc:
         cpu_to_le32w((uint32_t*)(pcic->dev->config + addr), val);
@@ -64,7 +71,7 @@ static void sh_pci_reg_write (void *p, hwaddr addr, uint64_t val,
         }
         break;
     case 0x220:
-        pci_data_write(pcic->bus, pcic->par, val, 4);
+        pci_data_write(phb->bus, pcic->par, val, 4);
         break;
     }
 }
@@ -73,6 +80,8 @@ static uint64_t sh_pci_reg_read (void *p, hwaddr addr,
                                  unsigned size)
 {
     SHPCIState *pcic = p;
+    PCIHostState *phb = PCI_HOST_BRIDGE(pcic);
+
     switch(addr) {
     case 0 ... 0xfc:
         return le32_to_cpup((uint32_t*)(pcic->dev->config + addr));
@@ -83,7 +92,7 @@ static uint64_t sh_pci_reg_read (void *p, hwaddr addr,
     case 0x1c8:
         return pcic->iobr;
     case 0x220:
-        return pci_data_read(pcic->bus, pcic->par, 4);
+        return pci_data_read(phb->bus, pcic->par, 4);
     }
     return 0;
 }
@@ -112,30 +121,33 @@ static void sh_pci_set_irq(void *opaque, int irq_num, int level)
 
 static int sh_pci_device_init(SysBusDevice *dev)
 {
+    PCIHostState *phb;
     SHPCIState *s;
     int i;
 
-    s = FROM_SYSBUS(SHPCIState, dev);
+    s = SH_PCI_HOST_BRIDGE(dev);
+    phb = PCI_HOST_BRIDGE(s);
     for (i = 0; i < 4; i++) {
         sysbus_init_irq(dev, &s->irq[i]);
     }
-    s->bus = pci_register_bus(&s->busdev.qdev, "pci",
-                              sh_pci_set_irq, sh_pci_map_irq,
-                              s->irq,
-                              get_system_memory(),
-                              get_system_io(),
-                              PCI_DEVFN(0, 0), 4, TYPE_PCI_BUS);
-    memory_region_init_io(&s->memconfig_p4, &sh_pci_reg_ops, s,
+    phb->bus = pci_register_bus(DEVICE(dev), "pci",
+                                sh_pci_set_irq, sh_pci_map_irq,
+                                s->irq,
+                                get_system_memory(),
+                                get_system_io(),
+                                PCI_DEVFN(0, 0), 4, TYPE_PCI_BUS);
+    memory_region_init_io(&s->memconfig_p4, OBJECT(s), &sh_pci_reg_ops, s,
                           "sh_pci", 0x224);
-    memory_region_init_alias(&s->memconfig_a7, "sh_pci.2", &s->memconfig_p4,
-                             0, 0x224);
-    isa_mmio_setup(&s->isa, 0x40000);
+    memory_region_init_alias(&s->memconfig_a7, OBJECT(s), "sh_pci.2",
+                             &s->memconfig_p4, 0, 0x224);
+    memory_region_init_alias(&s->isa, OBJECT(s), "sh_pci.isa",
+                             get_system_io(), 0, 0x40000);
     sysbus_init_mmio(dev, &s->memconfig_p4);
     sysbus_init_mmio(dev, &s->memconfig_a7);
     s->iobr = 0xfe240000;
     memory_region_add_subregion(get_system_memory(), s->iobr, &s->isa);
 
-    s->dev = pci_create_simple(s->bus, PCI_DEVFN(0, 0), "sh_pci_host");
+    s->dev = pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "sh_pci_host");
     return 0;
 }
 
@@ -150,10 +162,16 @@ static int sh_pci_host_init(PCIDevice *d)
 static void sh_pci_host_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->init = sh_pci_host_init;
     k->vendor_id = PCI_VENDOR_ID_HITACHI;
     k->device_id = PCI_DEVICE_ID_HITACHI_SH7751R;
+    /*
+     * PCI-facing part of the host bridge, not usable without the
+     * host-facing part, which can't be device_add'ed, yet.
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo sh_pci_host_info = {
@@ -171,8 +189,8 @@ static void sh_pci_device_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo sh_pci_device_info = {
-    .name          = "sh_pci",
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .name          = TYPE_SH_PCI_HOST_BRIDGE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(SHPCIState),
     .class_init    = sh_pci_device_class_init,
 };

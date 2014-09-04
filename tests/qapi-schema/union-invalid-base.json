@@ -1,0 +1,10 @@
+{ 'type': 'TestTypeA',
+  'data': { 'string': 'str' } }
+
+{ 'type': 'TestTypeB',
+  'data': { 'integer': 'int' } }
+
+{ 'union': 'TestUnion',
+  'base': 'TestBaseWrong',
+  'data': { 'value1': 'TestTypeA',
+            'value2': 'TestTypeB' } }

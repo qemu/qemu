@@ -106,7 +106,7 @@ typedef struct MoxieCPU {
 
 static inline MoxieCPU *moxie_env_get_cpu(CPUMoxieState *env)
 {
-    return MOXIE_CPU(container_of(env, MoxieCPU, env));
+    return container_of(env, MoxieCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(moxie_env_get_cpu(e))
@@ -116,6 +116,9 @@ static inline MoxieCPU *moxie_env_get_cpu(CPUMoxieState *env)
 MoxieCPU *cpu_moxie_init(const char *cpu_model);
 int cpu_moxie_exec(CPUMoxieState *s);
 void moxie_cpu_do_interrupt(CPUState *cs);
+void moxie_cpu_dump_state(CPUState *cpu, FILE *f,
+                          fprintf_function cpu_fprintf, int flags);
+hwaddr moxie_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 void moxie_translate_init(void);
 int cpu_moxie_signal_handler(int host_signum, void *pinfo,
                              void *puc);
@@ -141,11 +144,6 @@ static inline int cpu_mmu_index(CPUMoxieState *env)
 #include "exec/cpu-all.h"
 #include "exec/exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUMoxieState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-}
-
 static inline void cpu_get_tb_cpu_state(CPUMoxieState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
@@ -154,12 +152,7 @@ static inline void cpu_get_tb_cpu_state(CPUMoxieState *env, target_ulong *pc,
     *flags = 0;
 }
 
-static inline int cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request & CPU_INTERRUPT_HARD;
-}
-
-int cpu_moxie_handle_mmu_fault(CPUMoxieState *env, target_ulong address,
+int moxie_cpu_handle_mmu_fault(CPUState *cpu, vaddr address,
                                int rw, int mmu_idx);
 
 #endif /* _CPU_MOXIE_H */

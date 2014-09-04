@@ -9,6 +9,8 @@
 #define MAX_SCSI_DEVS	255
 
 #define SCSI_CMD_BUF_SIZE     16
+#define SCSI_SENSE_LEN      18
+#define SCSI_INQUIRY_LEN    36
 
 typedef struct SCSIBus SCSIBus;
 typedef struct SCSIBusInfo SCSIBusInfo;
@@ -29,7 +31,8 @@ typedef struct SCSISense {
     uint8_t ascq;
 } SCSISense;
 
-#define SCSI_SENSE_BUF_SIZE 96
+#define SCSI_SENSE_BUF_SIZE_OLD 96
+#define SCSI_SENSE_BUF_SIZE 252
 
 struct SCSICommand {
     uint8_t buf[SCSI_CMD_BUF_SIZE];
@@ -152,8 +155,8 @@ struct SCSIBus {
     const SCSIBusInfo *info;
 };
 
-void scsi_bus_new(SCSIBus *bus, DeviceState *host, const SCSIBusInfo *info,
-                  const char *bus_name);
+void scsi_bus_new(SCSIBus *bus, size_t bus_size, DeviceState *host,
+                  const SCSIBusInfo *info, const char *bus_name);
 
 static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
 {
@@ -162,8 +165,8 @@ static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
 
 SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
                                       int unit, bool removable, int bootindex,
-                                      const char *serial);
-int scsi_bus_legacy_handle_cmdline(SCSIBus *bus);
+                                      const char *serial, Error **errp);
+void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, Error **errp);
 
 /*
  * Predefined sense codes
@@ -197,12 +200,16 @@ extern const struct SCSISense sense_code_SAVING_PARAMS_NOT_SUPPORTED;
 extern const struct SCSISense sense_code_INCOMPATIBLE_FORMAT;
 /* Illegal request, medium removal prevented */
 extern const struct SCSISense sense_code_ILLEGAL_REQ_REMOVAL_PREVENTED;
+/* Illegal request, Invalid Transfer Tag */
+extern const struct SCSISense sense_code_INVALID_TAG;
 /* Command aborted, I/O process terminated */
 extern const struct SCSISense sense_code_IO_ERROR;
 /* Command aborted, I_T Nexus loss occurred */
 extern const struct SCSISense sense_code_I_T_NEXUS_LOSS;
 /* Command aborted, Logical Unit failure */
 extern const struct SCSISense sense_code_LUN_FAILURE;
+/* Command aborted, Overlapped Commands Attempted */
+extern const struct SCSISense sense_code_OVERLAPPED_COMMANDS;
 /* LUN not ready, Capacity data has changed */
 extern const struct SCSISense sense_code_CAPACITY_CHANGED;
 /* LUN not ready, Medium not present */
@@ -217,6 +224,8 @@ extern const struct SCSISense sense_code_REPORTED_LUNS_CHANGED;
 extern const struct SCSISense sense_code_DEVICE_INTERNAL_RESET;
 /* Data Protection, Write Protected */
 extern const struct SCSISense sense_code_WRITE_PROTECTED;
+/* Data Protection, Space Allocation Failed Write Protect */
+extern const struct SCSISense sense_code_SPACE_ALLOC_FAILED;
 
 #define SENSE_CODE(x) sense_code_ ## x
 

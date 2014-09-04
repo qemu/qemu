@@ -186,7 +186,7 @@ static qemu_irq *r2d_fpga_init(MemoryRegion *sysmem,
 
     s->irl = irl;
 
-    memory_region_init_io(&s->iomem, &r2d_fpga_ops, s, "r2d-fpga", 0x40);
+    memory_region_init_io(&s->iomem, NULL, &r2d_fpga_ops, s, "r2d-fpga", 0x40);
     memory_region_add_subregion(sysmem, base, &s->iomem);
     return qemu_allocate_irqs(r2d_fpga_irq_set, s, NR_IRQS);
 }
@@ -219,12 +219,12 @@ static struct QEMU_PACKED
     char kernel_cmdline[256];
 } boot_params;
 
-static void r2d_init(QEMUMachineInitArgs *args)
+static void r2d_init(MachineState *machine)
 {
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     SuperHCPU *cpu;
     CPUSH4State *env;
     ResetData *reset_info;
@@ -236,6 +236,7 @@ static void r2d_init(QEMUMachineInitArgs *args)
     DeviceState *dev;
     SysBusDevice *busdev;
     MemoryRegion *address_space_mem = get_system_memory();
+    PCIBus *pci_bus;
 
     if (cpu_model == NULL) {
         cpu_model = "SH7751R";
@@ -254,7 +255,7 @@ static void r2d_init(QEMUMachineInitArgs *args)
     qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate memory space */
-    memory_region_init_ram(sdram, "r2d.sdram", SDRAM_SIZE);
+    memory_region_init_ram(sdram, NULL, "r2d.sdram", SDRAM_SIZE);
     vmstate_register_ram_global(sdram);
     memory_region_add_subregion(address_space_mem, SDRAM_BASE, sdram);
     /* Register peripherals */
@@ -264,6 +265,7 @@ static void r2d_init(QEMUMachineInitArgs *args)
     dev = qdev_create(NULL, "sh_pci");
     busdev = SYS_BUS_DEVICE(dev);
     qdev_init_nofail(dev);
+    pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci"));
     sysbus_mmio_map(busdev, 0, P4ADDR(0x1e200000));
     sysbus_mmio_map(busdev, 1, A7ADDR(0x1e200000));
     sysbus_connect_irq(busdev, 0, irq[PCI_INTA]);
@@ -295,7 +297,8 @@ static void r2d_init(QEMUMachineInitArgs *args)
 
     /* NIC: rtl8139 on-board, and 2 slots. */
     for (i = 0; i < nb_nics; i++)
-        pci_nic_init_nofail(&nd_table[i], "rtl8139", i==0 ? "2" : NULL);
+        pci_nic_init_nofail(&nd_table[i], pci_bus,
+                            "rtl8139", i==0 ? "2" : NULL);
 
     /* USB keyboard */
     usbdevice_create("keyboard");
@@ -315,8 +318,8 @@ static void r2d_init(QEMUMachineInitArgs *args)
         }
 
         /* initialization which should be done by firmware */
-        stl_phys(SH7750_BCR1, 1<<3); /* cs3 SDRAM */
-        stw_phys(SH7750_BCR2, 3<<(3*2)); /* cs3 32bit */
+        stl_phys(&address_space_memory, SH7750_BCR1, 1<<3); /* cs3 SDRAM */
+        stw_phys(&address_space_memory, SH7750_BCR2, 3<<(3*2)); /* cs3 32bit */
         reset_info->vector = (SDRAM_BASE + LINUX_LOAD_OFFSET) | 0xa0000000; /* Start from P2 area */
     }
 
@@ -353,7 +356,6 @@ static QEMUMachine r2d_machine = {
     .name = "r2d",
     .desc = "r2d-plus board",
     .init = r2d_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void r2d_machine_init(void)

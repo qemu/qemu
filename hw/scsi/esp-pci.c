@@ -31,6 +31,9 @@
 
 #define TYPE_AM53C974_DEVICE "am53c974"
 
+#define PCI_ESP(obj) \
+    OBJECT_CHECK(PCIESPState, (obj), TYPE_AM53C974_DEVICE)
+
 #define DMA_CMD   0x0
 #define DMA_STC   0x1
 #define DMA_SPA   0x2
@@ -57,7 +60,10 @@
 #define SBAC_STATUS 0x1000
 
 typedef struct PCIESPState {
-    PCIDevice dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion io;
     uint32_t dma_regs[8];
     uint32_t sbac;
@@ -257,7 +263,7 @@ static void esp_pci_dma_memory_rw(PCIESPState *pci, uint8_t *buf, int len,
         len = pci->dma_regs[DMA_WBC];
     }
 
-    pci_dma_rw(&pci->dev, addr, buf, len, dir);
+    pci_dma_rw(PCI_DEVICE(pci), addr, buf, len, dir);
 
     /* update status registers */
     pci->dma_regs[DMA_WBC] -= len;
@@ -288,7 +294,7 @@ static const MemoryRegionOps esp_pci_io_ops = {
 
 static void esp_pci_hard_reset(DeviceState *dev)
 {
-    PCIESPState *pci = DO_UPCAST(PCIESPState, dev.qdev, dev);
+    PCIESPState *pci = PCI_ESP(dev);
     esp_hard_reset(&pci->esp);
     pci->dma_regs[DMA_CMD] &= ~(DMA_CMD_DIR | DMA_CMD_INTE_D | DMA_CMD_INTE_P
                               | DMA_CMD_MDL | DMA_CMD_DIAG | DMA_CMD_MASK);
@@ -304,9 +310,8 @@ static const VMStateDescription vmstate_esp_pci_scsi = {
     .name = "pciespscsi",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, PCIESPState),
+        VMSTATE_PCI_DEVICE(parent_obj, PCIESPState),
         VMSTATE_BUFFER_UNSAFE(dma_regs, PCIESPState, 0, 8 * sizeof(uint32_t)),
         VMSTATE_STRUCT(esp, PCIESPState, 0, vmstate_esp, ESPState),
         VMSTATE_END_OF_LIST()
@@ -336,11 +341,13 @@ static const struct SCSIBusInfo esp_pci_scsi_info = {
 
 static int esp_pci_scsi_init(PCIDevice *dev)
 {
-    PCIESPState *pci = DO_UPCAST(PCIESPState, dev, dev);
+    PCIESPState *pci = PCI_ESP(dev);
+    DeviceState *d = DEVICE(dev);
     ESPState *s = &pci->esp;
     uint8_t *pci_conf;
+    Error *err = NULL;
 
-    pci_conf = pci->dev.config;
+    pci_conf = dev->config;
 
     /* Interrupt pin A */
     pci_conf[PCI_INTERRUPT_PIN] = 0x01;
@@ -349,22 +356,28 @@ static int esp_pci_scsi_init(PCIDevice *dev)
     s->dma_memory_write = esp_pci_dma_memory_write;
     s->dma_opaque = pci;
     s->chip_id = TCHI_AM53C974;
-    memory_region_init_io(&pci->io, &esp_pci_io_ops, pci, "esp-io", 0x80);
+    memory_region_init_io(&pci->io, OBJECT(pci), &esp_pci_io_ops, pci,
+                          "esp-io", 0x80);
 
-    pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->io);
-    s->irq = pci->dev.irq[0];
+    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->io);
+    s->irq = pci_allocate_irq(dev);
 
-    scsi_bus_new(&s->bus, &dev->qdev, &esp_pci_scsi_info, NULL);
-    if (!dev->qdev.hotplugged) {
-        return scsi_bus_legacy_handle_cmdline(&s->bus);
+    scsi_bus_new(&s->bus, sizeof(s->bus), d, &esp_pci_scsi_info, NULL);
+    if (!d->hotplugged) {
+        scsi_bus_legacy_handle_cmdline(&s->bus, &err);
+        if (err != NULL) {
+            error_free(err);
+            return -1;
+        }
     }
     return 0;
 }
 
 static void esp_pci_scsi_uninit(PCIDevice *d)
 {
-    PCIESPState *pci = DO_UPCAST(PCIESPState, dev, d);
+    PCIESPState *pci = PCI_ESP(d);
 
+    qemu_free_irq(pci->esp.irq);
     memory_region_destroy(&pci->io);
 }
 
@@ -379,6 +392,7 @@ static void esp_pci_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_AMD_SCSI;
     k->revision = 0x10;
     k->class_id = PCI_CLASS_STORAGE_SCSI;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->desc = "AMD Am53c974 PCscsi-PCI SCSI adapter";
     dc->reset = esp_pci_hard_reset;
     dc->vmsd = &vmstate_esp_pci_scsi;
@@ -499,6 +513,7 @@ static void dc390_class_init(ObjectClass *klass, void *data)
     k->init = dc390_scsi_init;
     k->config_read = dc390_read_config;
     k->config_write = dc390_write_config;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->desc = "Tekram DC-390 SCSI adapter";
 }
 

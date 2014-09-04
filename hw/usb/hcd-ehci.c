@@ -27,85 +27,9 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "hw/usb/ehci-regs.h"
 #include "hw/usb/hcd-ehci.h"
-
-/* Capability Registers Base Address - section 2.2 */
-#define CAPLENGTH        0x0000  /* 1-byte, 0x0001 reserved */
-#define HCIVERSION       0x0002  /* 2-bytes, i/f version # */
-#define HCSPARAMS        0x0004  /* 4-bytes, structural params */
-#define HCCPARAMS        0x0008  /* 4-bytes, capability params */
-#define EECP             HCCPARAMS + 1
-#define HCSPPORTROUTE1   0x000c
-#define HCSPPORTROUTE2   0x0010
-
-#define USBCMD           0x0000
-#define USBCMD_RUNSTOP   (1 << 0)      // run / Stop
-#define USBCMD_HCRESET   (1 << 1)      // HC Reset
-#define USBCMD_FLS       (3 << 2)      // Frame List Size
-#define USBCMD_FLS_SH    2             // Frame List Size Shift
-#define USBCMD_PSE       (1 << 4)      // Periodic Schedule Enable
-#define USBCMD_ASE       (1 << 5)      // Asynch Schedule Enable
-#define USBCMD_IAAD      (1 << 6)      // Int Asynch Advance Doorbell
-#define USBCMD_LHCR      (1 << 7)      // Light Host Controller Reset
-#define USBCMD_ASPMC     (3 << 8)      // Async Sched Park Mode Count
-#define USBCMD_ASPME     (1 << 11)     // Async Sched Park Mode Enable
-#define USBCMD_ITC       (0x7f << 16)  // Int Threshold Control
-#define USBCMD_ITC_SH    16            // Int Threshold Control Shift
-
-#define USBSTS           0x0004
-#define USBSTS_RO_MASK   0x0000003f
-#define USBSTS_INT       (1 << 0)      // USB Interrupt
-#define USBSTS_ERRINT    (1 << 1)      // Error Interrupt
-#define USBSTS_PCD       (1 << 2)      // Port Change Detect
-#define USBSTS_FLR       (1 << 3)      // Frame List Rollover
-#define USBSTS_HSE       (1 << 4)      // Host System Error
-#define USBSTS_IAA       (1 << 5)      // Interrupt on Async Advance
-#define USBSTS_HALT      (1 << 12)     // HC Halted
-#define USBSTS_REC       (1 << 13)     // Reclamation
-#define USBSTS_PSS       (1 << 14)     // Periodic Schedule Status
-#define USBSTS_ASS       (1 << 15)     // Asynchronous Schedule Status
-
-/*
- *  Interrupt enable bits correspond to the interrupt active bits in USBSTS
- *  so no need to redefine here.
- */
-#define USBINTR              0x0008
-#define USBINTR_MASK         0x0000003f
-
-#define FRINDEX              0x000c
-#define CTRLDSSEGMENT        0x0010
-#define PERIODICLISTBASE     0x0014
-#define ASYNCLISTADDR        0x0018
-#define ASYNCLISTADDR_MASK   0xffffffe0
-
-#define CONFIGFLAG           0x0040
-
-/*
- * Bits that are reserved or are read-only are masked out of values
- * written to us by software
- */
-#define PORTSC_RO_MASK       0x007001c0
-#define PORTSC_RWC_MASK      0x0000002a
-#define PORTSC_WKOC_E        (1 << 22)    // Wake on Over Current Enable
-#define PORTSC_WKDS_E        (1 << 21)    // Wake on Disconnect Enable
-#define PORTSC_WKCN_E        (1 << 20)    // Wake on Connect Enable
-#define PORTSC_PTC           (15 << 16)   // Port Test Control
-#define PORTSC_PTC_SH        16           // Port Test Control shift
-#define PORTSC_PIC           (3 << 14)    // Port Indicator Control
-#define PORTSC_PIC_SH        14           // Port Indicator Control Shift
-#define PORTSC_POWNER        (1 << 13)    // Port Owner
-#define PORTSC_PPOWER        (1 << 12)    // Port Power
-#define PORTSC_LINESTAT      (3 << 10)    // Port Line Status
-#define PORTSC_LINESTAT_SH   10           // Port Line Status Shift
-#define PORTSC_PRESET        (1 << 8)     // Port Reset
-#define PORTSC_SUSPEND       (1 << 7)     // Port Suspend
-#define PORTSC_FPRES         (1 << 6)     // Force Port Resume
-#define PORTSC_OCC           (1 << 5)     // Over Current Change
-#define PORTSC_OCA           (1 << 4)     // Over Current Active
-#define PORTSC_PEDC          (1 << 3)     // Port Enable/Disable Change
-#define PORTSC_PED           (1 << 2)     // Port Enable/Disable
-#define PORTSC_CSC           (1 << 1)     // Connect Status Change
-#define PORTSC_CONNECT       (1 << 0)     // Current Connect Status
+#include "trace.h"
 
 #define FRAME_TIMER_FREQ 1000
 #define FRAME_TIMER_NS   (1000000000 / FRAME_TIMER_FREQ)
@@ -150,7 +74,7 @@ typedef enum {
 #define NLPTR_TYPE_FSTN          3     // frame span traversal node
 
 #define SET_LAST_RUN_CLOCK(s) \
-    (s)->last_run_ns = qemu_get_clock_ns(vm_clock);
+    (s)->last_run_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
 /* nifty macros from Arnon's EHCI version  */
 #define get_field(data, field) \
@@ -446,7 +370,7 @@ static inline int get_dwords(EHCIState *ehci, uint32_t addr,
 {
     int i;
 
-    if (!ehci->dma) {
+    if (!ehci->as) {
         ehci_raise_irq(ehci, USBSTS_HSE);
         ehci->usbcmd &= ~USBCMD_RUNSTOP;
         trace_usb_ehci_dma_error();
@@ -454,7 +378,7 @@ static inline int get_dwords(EHCIState *ehci, uint32_t addr,
     }
 
     for (i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
-        dma_memory_read(ehci->dma, addr, buf, sizeof(*buf));
+        dma_memory_read(ehci->as, addr, buf, sizeof(*buf));
         *buf = le32_to_cpu(*buf);
     }
 
@@ -467,7 +391,7 @@ static inline int put_dwords(EHCIState *ehci, uint32_t addr,
 {
     int i;
 
-    if (!ehci->dma) {
+    if (!ehci->as) {
         ehci_raise_irq(ehci, USBSTS_HSE);
         ehci->usbcmd &= ~USBCMD_RUNSTOP;
         trace_usb_ehci_dma_error();
@@ -476,7 +400,7 @@ static inline int put_dwords(EHCIState *ehci, uint32_t addr,
 
     for (i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
         uint32_t tmp = cpu_to_le32(*buf);
-        dma_memory_write(ehci->dma, addr, &tmp, sizeof(tmp));
+        dma_memory_write(ehci->as, addr, &tmp, sizeof(tmp));
     }
 
     return num;
@@ -826,14 +750,20 @@ static void ehci_child_detach(USBPort *port, USBDevice *child)
 static void ehci_wakeup(USBPort *port)
 {
     EHCIState *s = port->opaque;
-    uint32_t portsc = s->portsc[port->index];
+    uint32_t *portsc = &s->portsc[port->index];
 
-    if (portsc & PORTSC_POWNER) {
+    if (*portsc & PORTSC_POWNER) {
         USBPort *companion = s->companion_ports[port->index];
         if (companion->ops->wakeup) {
             companion->ops->wakeup(companion);
         }
         return;
+    }
+
+    if (*portsc & PORTSC_SUSPEND) {
+        trace_usb_ehci_port_wakeup(port->index);
+        *portsc |= PORTSC_FPRES;
+        ehci_raise_irq(s, USBSTS_PCD);
     }
 
     qemu_bh_schedule(s->async_bh);
@@ -958,7 +888,7 @@ static void ehci_reset(void *opaque)
     }
     ehci_queues_rip_all(s, 0);
     ehci_queues_rip_all(s, 1);
-    qemu_del_timer(s->frame_timer);
+    timer_del(s->frame_timer);
     qemu_bh_cancel(s->async_bh);
 }
 
@@ -995,7 +925,7 @@ static uint64_t ehci_port_read(void *ptr, hwaddr addr,
     uint32_t val;
 
     val = s->portsc[addr >> 2];
-    trace_usb_ehci_portsc_read(addr + PORTSC_BEGIN, addr >> 2, val);
+    trace_usb_ehci_portsc_read(addr + s->portscbase, addr >> 2, val);
     return val;
 }
 
@@ -1036,7 +966,7 @@ static void ehci_port_write(void *ptr, hwaddr addr,
     uint32_t old = *portsc;
     USBDevice *dev = s->ports[port].dev;
 
-    trace_usb_ehci_portsc_write(addr + PORTSC_BEGIN, addr >> 2, val);
+    trace_usb_ehci_portsc_write(addr + s->portscbase, addr >> 2, val);
 
     /* Clear rwc bits */
     *portsc &= ~(val & PORTSC_RWC_MASK);
@@ -1067,9 +997,17 @@ static void ehci_port_write(void *ptr, hwaddr addr,
         }
     }
 
+    if ((val & PORTSC_SUSPEND) && !(*portsc & PORTSC_SUSPEND)) {
+        trace_usb_ehci_port_suspend(port);
+    }
+    if (!(val & PORTSC_FPRES) && (*portsc & PORTSC_FPRES)) {
+        trace_usb_ehci_port_resume(port);
+        val &= ~PORTSC_SUSPEND;
+    }
+
     *portsc &= ~PORTSC_RO_MASK;
     *portsc |= val;
-    trace_usb_ehci_portsc_change(addr + PORTSC_BEGIN, addr >> 2, *portsc, old);
+    trace_usb_ehci_portsc_change(addr + s->portscbase, addr >> 2, *portsc, old);
 }
 
 static void ehci_opreg_write(void *ptr, hwaddr addr,
@@ -1245,7 +1183,7 @@ static int ehci_init_transfer(EHCIPacket *p)
     cpage  = get_field(p->qtd.token, QTD_TOKEN_CPAGE);
     bytes  = get_field(p->qtd.token, QTD_TOKEN_TBYTES);
     offset = p->qtd.bufptr[0] & ~QTD_BUFPTR_MASK;
-    qemu_sglist_init(&p->sgl, 5, p->queue->ehci->dma);
+    qemu_sglist_init(&p->sgl, p->queue->ehci->device, 5, p->queue->ehci->as);
 
     while (bytes > 0) {
         if (cpage > 4) {
@@ -1355,7 +1293,7 @@ static void ehci_execute_complete(EHCIQueue *q)
     default:
         /* should not be triggerable */
         fprintf(stderr, "USB invalid response %d\n", p->packet.status);
-        assert(0);
+        g_assert_not_reached();
         break;
     }
 
@@ -1484,7 +1422,7 @@ static int ehci_process_itd(EHCIState *ehci,
                 return -1;
             }
 
-            qemu_sglist_init(&ehci->isgl, 2, ehci->dma);
+            qemu_sglist_init(&ehci->isgl, ehci->device, 2, ehci->as);
             if (off + len > 4096) {
                 /* transfer crosses page border */
                 uint32_t len2 = off + len - 4096;
@@ -2140,7 +2078,7 @@ static void ehci_advance_state(EHCIState *ehci, int async)
         default:
             fprintf(stderr, "Bad state!\n");
             again = -1;
-            assert(0);
+            g_assert_not_reached();
             break;
         }
 
@@ -2204,7 +2142,7 @@ static void ehci_advance_async_state(EHCIState *ehci)
         /* this should only be due to a developer mistake */
         fprintf(stderr, "ehci: Bad asynchronous state %d. "
                 "Resetting to active\n", ehci->astate);
-        assert(0);
+        g_assert_not_reached();
     }
 }
 
@@ -2254,7 +2192,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
         /* this should only be due to a developer mistake */
         fprintf(stderr, "ehci: Bad periodic state %d. "
                 "Resetting to active\n", ehci->pstate);
-        assert(0);
+        g_assert_not_reached();
     }
 }
 
@@ -2294,7 +2232,7 @@ static void ehci_frame_timer(void *opaque)
     int uframes, skipped_uframes;
     int i;
 
-    t_now = qemu_get_clock_ns(vm_clock);
+    t_now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     ns_elapsed = t_now - ehci->last_run_ns;
     uframes = ns_elapsed / UFRAME_TIMER_NS;
 
@@ -2372,7 +2310,7 @@ static void ehci_frame_timer(void *opaque)
             expire_time = t_now + (get_ticks_per_sec()
                                * (ehci->async_stepdown+1) / FRAME_TIMER_FREQ);
         }
-        qemu_mod_timer(ehci->frame_timer, expire_time);
+        timer_mod(ehci->frame_timer, expire_time);
     }
 }
 
@@ -2477,7 +2415,7 @@ const VMStateDescription vmstate_ehci = {
     .minimum_version_id  = 1,
     .pre_save    = usb_ehci_pre_save,
     .post_load   = usb_ehci_post_load,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         /* mmio registers */
         VMSTATE_UINT32(usbcmd, EHCIState),
         VMSTATE_UINT32(usbsts, EHCIState),
@@ -2508,16 +2446,39 @@ const VMStateDescription vmstate_ehci = {
     }
 };
 
-void usb_ehci_initfn(EHCIState *s, DeviceState *dev)
+void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
 {
     int i;
 
+    if (s->portnr > NB_PORTS) {
+        error_setg(errp, "Too many ports! Max. port number is %d.",
+                   NB_PORTS);
+        return;
+    }
+
+    usb_bus_new(&s->bus, sizeof(s->bus), &ehci_bus_ops, dev);
+    for (i = 0; i < s->portnr; i++) {
+        usb_register_port(&s->bus, &s->ports[i], s, i, &ehci_port_ops,
+                          USB_SPEED_MASK_HIGH);
+        s->ports[i].dev = 0;
+    }
+
+    s->frame_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ehci_frame_timer, s);
+    s->async_bh = qemu_bh_new(ehci_frame_timer, s);
+    s->device = dev;
+
+    qemu_register_reset(ehci_reset, s);
+    qemu_add_vm_change_state_handler(usb_ehci_vm_state_change, s);
+}
+
+void usb_ehci_init(EHCIState *s, DeviceState *dev)
+{
     /* 2.2 host controller interface version */
     s->caps[0x00] = (uint8_t)(s->opregbase - s->capsbase);
     s->caps[0x01] = 0x00;
     s->caps[0x02] = 0x00;
     s->caps[0x03] = 0x01;        /* HC version */
-    s->caps[0x04] = NB_PORTS;    /* Number of downstream ports */
+    s->caps[0x04] = s->portnr;   /* Number of downstream ports */
     s->caps[0x05] = 0x00;        /* No companion ports at present */
     s->caps[0x06] = 0x00;
     s->caps[0x07] = 0x00;
@@ -2525,33 +2486,21 @@ void usb_ehci_initfn(EHCIState *s, DeviceState *dev)
     s->caps[0x0a] = 0x00;
     s->caps[0x0b] = 0x00;
 
-    usb_bus_new(&s->bus, &ehci_bus_ops, dev);
-    for(i = 0; i < NB_PORTS; i++) {
-        usb_register_port(&s->bus, &s->ports[i], s, i, &ehci_port_ops,
-                          USB_SPEED_MASK_HIGH);
-        s->ports[i].dev = 0;
-    }
-
-    s->frame_timer = qemu_new_timer_ns(vm_clock, ehci_frame_timer, s);
-    s->async_bh = qemu_bh_new(ehci_frame_timer, s);
     QTAILQ_INIT(&s->aqueues);
     QTAILQ_INIT(&s->pqueues);
     usb_packet_init(&s->ipacket);
 
-    qemu_register_reset(ehci_reset, s);
-    qemu_add_vm_change_state_handler(usb_ehci_vm_state_change, s);
-
-    memory_region_init(&s->mem, "ehci", MMIO_SIZE);
-    memory_region_init_io(&s->mem_caps, &ehci_mmio_caps_ops, s,
+    memory_region_init(&s->mem, OBJECT(dev), "ehci", MMIO_SIZE);
+    memory_region_init_io(&s->mem_caps, OBJECT(dev), &ehci_mmio_caps_ops, s,
                           "capabilities", CAPA_SIZE);
-    memory_region_init_io(&s->mem_opreg, &ehci_mmio_opreg_ops, s,
-                          "operational", PORTSC_BEGIN);
-    memory_region_init_io(&s->mem_ports, &ehci_mmio_port_ops, s,
-                          "ports", PORTSC_END - PORTSC_BEGIN);
+    memory_region_init_io(&s->mem_opreg, OBJECT(dev), &ehci_mmio_opreg_ops, s,
+                          "operational", s->portscbase);
+    memory_region_init_io(&s->mem_ports, OBJECT(dev), &ehci_mmio_port_ops, s,
+                          "ports", 4 * s->portnr);
 
     memory_region_add_subregion(&s->mem, s->capsbase, &s->mem_caps);
     memory_region_add_subregion(&s->mem, s->opregbase, &s->mem_opreg);
-    memory_region_add_subregion(&s->mem, s->opregbase + PORTSC_BEGIN,
+    memory_region_add_subregion(&s->mem, s->opregbase + s->portscbase,
                                 &s->mem_ports);
 }
 

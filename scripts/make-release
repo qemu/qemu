@@ -18,7 +18,8 @@ git clone "${src}" ${destination}
 pushd ${destination}
 git checkout "v${version}"
 git submodule update --init
-rm -rf .git roms/*/.git
+(cd roms/seabios && git describe --tags --long --dirty > .version)
+rm -rf .git roms/*/.git dtc/.git pixman/.git
 popd
 tar cfj ${destination}.tar.bz2 ${destination}
 rm -rf ${destination}

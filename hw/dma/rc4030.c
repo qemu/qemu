@@ -107,7 +107,7 @@ static void set_next_tick(rc4030State *s)
 
     tm_hz = 1000 / (s->itr + 1);
 
-    qemu_mod_timer(s->periodic_timer, qemu_get_clock_ns(vm_clock) +
+    timer_mod(s->periodic_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                    get_ticks_per_sec() / tm_hz);
 }
 
@@ -806,7 +806,7 @@ void *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
     *irqs = qemu_allocate_irqs(rc4030_irq_jazz_request, s, 16);
     *dmas = rc4030_allocate_dmas(s, 4);
 
-    s->periodic_timer = qemu_new_timer_ns(vm_clock, rc4030_periodic_timer, s);
+    s->periodic_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, rc4030_periodic_timer, s);
     s->timer_irq = timer;
     s->jazz_bus_irq = jazz_bus;
 
@@ -814,10 +814,10 @@ void *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
     register_savevm(NULL, "rc4030", 0, 2, rc4030_save, rc4030_load, s);
     rc4030_reset(s);
 
-    memory_region_init_io(&s->iomem_chipset, &rc4030_ops, s,
+    memory_region_init_io(&s->iomem_chipset, NULL, &rc4030_ops, s,
                           "rc4030.chipset", 0x300);
     memory_region_add_subregion(sysmem, 0x80000000, &s->iomem_chipset);
-    memory_region_init_io(&s->iomem_jazzio, &jazzio_ops, s,
+    memory_region_init_io(&s->iomem_jazzio, NULL, &jazzio_ops, s,
                           "rc4030.jazzio", 0x00001000);
     memory_region_add_subregion(sysmem, 0xf0000000, &s->iomem_jazzio);
 

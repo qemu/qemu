@@ -56,8 +56,13 @@ typedef struct CombinerGroupState {
     uint8_t src_pending;        /* Pending source interrupts before masking */
 } CombinerGroupState;
 
+#define TYPE_EXYNOS4210_COMBINER "exynos4210.combiner"
+#define EXYNOS4210_COMBINER(obj) \
+    OBJECT_CHECK(Exynos4210CombinerState, (obj), TYPE_EXYNOS4210_COMBINER)
+
 typedef struct Exynos4210CombinerState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
 
     struct CombinerGroupState group[IIC_NGRP];
@@ -72,7 +77,6 @@ static const VMStateDescription vmstate_exynos4210_combiner_group_state = {
     .name = "exynos4210.combiner.groupstate",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(src_mask, CombinerGroupState),
         VMSTATE_UINT8(src_pending, CombinerGroupState),
@@ -84,7 +88,6 @@ static const VMStateDescription vmstate_exynos4210_combiner = {
     .name = "exynos4210.combiner",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(group, Exynos4210CombinerState, IIC_NGRP, 0,
                 vmstate_exynos4210_combiner_group_state, CombinerGroupState),
@@ -402,24 +405,24 @@ static const MemoryRegionOps exynos4210_combiner_ops = {
 /*
  * Internal Combiner initialization.
  */
-static int exynos4210_combiner_init(SysBusDevice *dev)
+static int exynos4210_combiner_init(SysBusDevice *sbd)
 {
+    DeviceState *dev = DEVICE(sbd);
+    Exynos4210CombinerState *s = EXYNOS4210_COMBINER(dev);
     unsigned int i;
-    struct Exynos4210CombinerState *s =
-            FROM_SYSBUS(struct Exynos4210CombinerState, dev);
 
     /* Allocate general purpose input signals and connect a handler to each of
      * them */
-    qdev_init_gpio_in(&s->busdev.qdev, exynos4210_combiner_handler, IIC_NIRQ);
+    qdev_init_gpio_in(dev, exynos4210_combiner_handler, IIC_NIRQ);
 
     /* Connect SysBusDev irqs to device specific irqs */
-    for (i = 0; i < IIC_NIRQ; i++) {
-        sysbus_init_irq(dev, &s->output_irq[i]);
+    for (i = 0; i < IIC_NGRP; i++) {
+        sysbus_init_irq(sbd, &s->output_irq[i]);
     }
 
-    memory_region_init_io(&s->iomem, &exynos4210_combiner_ops, s,
-            "exynos4210-combiner", IIC_REGION_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
+    memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_combiner_ops, s,
+                          "exynos4210-combiner", IIC_REGION_SIZE);
+    sysbus_init_mmio(sbd, &s->iomem);
 
     return 0;
 }
@@ -441,7 +444,7 @@ static void exynos4210_combiner_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo exynos4210_combiner_info = {
-    .name          = "exynos4210.combiner",
+    .name          = TYPE_EXYNOS4210_COMBINER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210CombinerState),
     .class_init    = exynos4210_combiner_class_init,

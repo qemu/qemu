@@ -304,10 +304,11 @@ typedef struct CPUOpenRISCState {
 
     CPU_COMMON
 
+    /* Fields from here on are preserved across CPU reset. */
 #ifndef CONFIG_USER_ONLY
     CPUOpenRISCTLBContext * tlb;
 
-    struct QEMUTimer *timer;
+    QEMUTimer *timer;
     uint32_t ttmr;          /* Timer tick mode register */
     uint32_t ttcr;          /* Timer tick count register */
 
@@ -335,7 +336,7 @@ typedef struct OpenRISCCPU {
 
 static inline OpenRISCCPU *openrisc_env_get_cpu(CPUOpenRISCState *env)
 {
-    return OPENRISC_CPU(container_of(env, OpenRISCCPU, env));
+    return container_of(env, OpenRISCCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(openrisc_env_get_cpu(e))
@@ -347,25 +348,31 @@ OpenRISCCPU *cpu_openrisc_init(const char *cpu_model);
 void cpu_openrisc_list(FILE *f, fprintf_function cpu_fprintf);
 int cpu_openrisc_exec(CPUOpenRISCState *s);
 void openrisc_cpu_do_interrupt(CPUState *cpu);
+void openrisc_cpu_dump_state(CPUState *cpu, FILE *f,
+                             fprintf_function cpu_fprintf, int flags);
+hwaddr openrisc_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+int openrisc_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int openrisc_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 void openrisc_translate_init(void);
-int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
-                                  target_ulong address,
+int openrisc_cpu_handle_mmu_fault(CPUState *cpu, vaddr address,
                                   int rw, int mmu_idx);
 int cpu_openrisc_signal_handler(int host_signum, void *pinfo, void *puc);
 
 #define cpu_list cpu_openrisc_list
 #define cpu_exec cpu_openrisc_exec
 #define cpu_gen_code cpu_openrisc_gen_code
-#define cpu_handle_mmu_fault cpu_openrisc_handle_mmu_fault
 #define cpu_signal_handler cpu_openrisc_signal_handler
 
 #ifndef CONFIG_USER_ONLY
+extern const struct VMStateDescription vmstate_openrisc_cpu;
+
 /* hw/openrisc_pic.c */
 void cpu_openrisc_pic_init(OpenRISCCPU *cpu);
 
 /* hw/openrisc_timer.c */
 void cpu_openrisc_clock_init(OpenRISCCPU *cpu);
 void cpu_openrisc_count_update(OpenRISCCPU *cpu);
+void cpu_openrisc_timer_update(OpenRISCCPU *cpu);
 void cpu_openrisc_count_start(OpenRISCCPU *cpu);
 void cpu_openrisc_count_stop(OpenRISCCPU *cpu);
 
@@ -390,16 +397,6 @@ static inline CPUOpenRISCState *cpu_init(const char *cpu_model)
     return NULL;
 }
 
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUOpenRISCState *env, target_ulong newsp)
-{
-    if (newsp) {
-        env->gpr[1] = newsp;
-    }
-    env->gpr[2] = 0;
-}
-#endif
-
 #include "exec/cpu-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUOpenRISCState *env,
@@ -421,22 +418,12 @@ static inline int cpu_mmu_index(CPUOpenRISCState *env)
 }
 
 #define CPU_INTERRUPT_TIMER   CPU_INTERRUPT_TGT_INT_0
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request & (CPU_INTERRUPT_HARD |
-                                     CPU_INTERRUPT_TIMER);
-}
 
 #include "exec/exec-all.h"
 
 static inline target_ulong cpu_get_pc(CPUOpenRISCState *env)
 {
     return env->pc;
-}
-
-static inline void cpu_pc_from_tb(CPUOpenRISCState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
 }
 
 #endif /* CPU_OPENRISC_H */

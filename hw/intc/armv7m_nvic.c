@@ -79,9 +79,9 @@ static inline int64_t systick_scale(nvic_state *s)
 static void systick_reload(nvic_state *s, int reset)
 {
     if (reset)
-        s->systick.tick = qemu_get_clock_ns(vm_clock);
+        s->systick.tick = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     s->systick.tick += (s->systick.reload + 1) * systick_scale(s);
-    qemu_mod_timer(s->systick.timer, s->systick.tick);
+    timer_mod(s->systick.timer, s->systick.tick);
 }
 
 static void systick_timer_tick(void * opaque)
@@ -104,7 +104,7 @@ static void systick_reset(nvic_state *s)
     s->systick.control = 0;
     s->systick.reload = 0;
     s->systick.tick = 0;
-    qemu_del_timer(s->systick.timer);
+    timer_del(s->systick.timer);
 }
 
 /* The external routines use the hardware vector numbering, ie. the first
@@ -141,6 +141,7 @@ void armv7m_nvic_complete_irq(void *opaque, int irq)
 
 static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
 {
+    ARMCPU *cpu;
     uint32_t val;
     int irq;
 
@@ -158,7 +159,7 @@ static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
             int64_t t;
             if ((s->systick.control & SYSTICK_ENABLE) == 0)
                 return 0;
-            t = qemu_get_clock_ns(vm_clock);
+            t = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
             if (t >= s->systick.tick)
                 return 0;
             val = ((s->systick.tick - (t + 1)) / systick_scale(s)) + 1;
@@ -172,7 +173,8 @@ static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
     case 0x1c: /* SysTick Calibration Value.  */
         return 10000;
     case 0xd00: /* CPUID Base.  */
-        return cpu_single_env->cp15.c0_cpuid;
+        cpu = ARM_CPU(current_cpu);
+        return cpu->midr;
     case 0xd04: /* Interrupt Control State.  */
         /* VECTACTIVE */
         val = s->gic.running_irq[0];
@@ -207,9 +209,10 @@ static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
             val |= (1 << 31);
         return val;
     case 0xd08: /* Vector Table Offset.  */
-        return cpu_single_env->v7m.vecbase;
+        cpu = ARM_CPU(current_cpu);
+        return cpu->env.v7m.vecbase;
     case 0xd0c: /* Application Interrupt/Reset Control.  */
-        return 0xfa05000;
+        return 0xfa050000;
     case 0xd10: /* System Control.  */
         /* TODO: Implement SLEEPONEXIT.  */
         return 0;
@@ -280,6 +283,7 @@ static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
 
 static void nvic_writel(nvic_state *s, uint32_t offset, uint32_t value)
 {
+    ARMCPU *cpu;
     uint32_t oldval;
     switch (offset) {
     case 0x10: /* SysTick Control and Status.  */
@@ -287,16 +291,16 @@ static void nvic_writel(nvic_state *s, uint32_t offset, uint32_t value)
         s->systick.control &= 0xfffffff8;
         s->systick.control |= value & 7;
         if ((oldval ^ value) & SYSTICK_ENABLE) {
-            int64_t now = qemu_get_clock_ns(vm_clock);
+            int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
             if (value & SYSTICK_ENABLE) {
                 if (s->systick.tick) {
                     s->systick.tick += now;
-                    qemu_mod_timer(s->systick.timer, s->systick.tick);
+                    timer_mod(s->systick.timer, s->systick.tick);
                 } else {
                     systick_reload(s, 1);
                 }
             } else {
-                qemu_del_timer(s->systick.timer);
+                timer_del(s->systick.timer);
                 s->systick.tick -= now;
                 if (s->systick.tick < 0)
                   s->systick.tick = 0;
@@ -332,7 +336,8 @@ static void nvic_writel(nvic_state *s, uint32_t offset, uint32_t value)
         }
         break;
     case 0xd08: /* Vector Table Offset.  */
-        cpu_single_env->v7m.vecbase = value & 0xffffff80;
+        cpu = ARM_CPU(current_cpu);
+        cpu->env.v7m.vecbase = value & 0xffffff80;
         break;
     case 0xd0c: /* Application Interrupt/Reset Control.  */
         if ((value >> 16) == 0x05fa) {
@@ -341,6 +346,9 @@ static void nvic_writel(nvic_state *s, uint32_t offset, uint32_t value)
             }
             if (value & 5) {
                 qemu_log_mask(LOG_UNIMP, "AIRCR system reset unimplemented\n");
+            }
+            if (value & 0x700) {
+                qemu_log_mask(LOG_UNIMP, "PRIGROUP unimplemented\n");
             }
         }
         break;
@@ -439,8 +447,7 @@ static const VMStateDescription vmstate_nvic = {
     .name = "armv7m_nvic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(systick.control, nvic_state),
         VMSTATE_UINT32(systick.reload, nvic_state),
         VMSTATE_INT64(systick.tick, nvic_state),
@@ -470,14 +477,16 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
 {
     nvic_state *s = NVIC(dev);
     NVICClass *nc = NVIC_GET_CLASS(s);
+    Error *local_err = NULL;
 
     /* The NVIC always has only one CPU */
     s->gic.num_cpu = 1;
     /* Tell the common code we're an NVIC */
     s->gic.revision = 0xffffffff;
     s->num_irq = s->gic.num_irq;
-    nc->parent_realize(dev, errp);
-    if (error_is_set(errp)) {
+    nc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
     gic_init_irqs_and_distributor(&s->gic, s->num_irq);
@@ -488,17 +497,18 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
      * We use overlaying to put the GIC like registers
      * over the top of the system control register region.
      */
-    memory_region_init(&s->container, "nvic", 0x1000);
+    memory_region_init(&s->container, OBJECT(s), "nvic", 0x1000);
     /* The system register region goes at the bottom of the priority
      * stack as it covers the whole page.
      */
-    memory_region_init_io(&s->sysregmem, &nvic_sysreg_ops, s,
+    memory_region_init_io(&s->sysregmem, OBJECT(s), &nvic_sysreg_ops, s,
                           "nvic_sysregs", 0x1000);
     memory_region_add_subregion(&s->container, 0, &s->sysregmem);
     /* Alias the GIC region so we can get only the section of it
      * we need, and layer it on top of the system register region.
      */
-    memory_region_init_alias(&s->gic_iomem_alias, "nvic-gic", &s->gic.iomem,
+    memory_region_init_alias(&s->gic_iomem_alias, OBJECT(s),
+                             "nvic-gic", &s->gic.iomem,
                              0x100, 0xc00);
     memory_region_add_subregion_overlap(&s->container, 0x100,
                                         &s->gic_iomem_alias, 1);
@@ -506,7 +516,7 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
      * by the v7M architecture.
      */
     memory_region_add_subregion(get_system_memory(), 0xe000e000, &s->container);
-    s->systick.timer = qemu_new_timer_ns(vm_clock, systick_timer_tick, s);
+    s->systick.timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, systick_timer_tick, s);
 }
 
 static void armv7m_nvic_instance_init(Object *obj)

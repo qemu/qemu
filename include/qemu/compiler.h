@@ -38,11 +38,9 @@
 #if defined __GNUC__
 # if !QEMU_GNUC_PREREQ(4, 4)
    /* gcc versions before 4.4.x don't support gnu_printf, so use printf. */
-#  define GCC_ATTR __attribute__((__unused__, format(printf, 1, 2)))
 #  define GCC_FMT_ATTR(n, m) __attribute__((format(printf, n, m)))
 # else
    /* Use gnu_printf when supported (qemu uses standard format strings). */
-#  define GCC_ATTR __attribute__((__unused__, format(gnu_printf, 1, 2)))
 #  define GCC_FMT_ATTR(n, m) __attribute__((format(gnu_printf, n, m)))
 #  if defined(_WIN32)
     /* Map __printf__ to __gnu_printf__ because we want standard format strings
@@ -51,7 +49,6 @@
 #  endif
 # endif
 #else
-#define GCC_ATTR /**/
 #define GCC_FMT_ATTR(n, m)
 #endif
 

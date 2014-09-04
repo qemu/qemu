@@ -1,18 +1,21 @@
 # shared objects
 obj-y += ppc.o ppc_booke.o
 # IBM pSeries (sPAPR)
-obj-$(CONFIG_PSERIES) += spapr.o xics.o spapr_vio.o spapr_events.o
+obj-$(CONFIG_PSERIES) += spapr.o spapr_vio.o spapr_events.o
 obj-$(CONFIG_PSERIES) += spapr_hcall.o spapr_iommu.o spapr_rtas.o
 obj-$(CONFIG_PSERIES) += spapr_pci.o
+ifeq ($(CONFIG_PCI)$(CONFIG_PSERIES)$(CONFIG_LINUX), yyy)
+obj-y += spapr_pci_vfio.o
+endif
 # PowerPC 4xx boards
 obj-y += ppc405_boards.o ppc4xx_devs.o ppc405_uc.o ppc440_bamboo.o
 obj-y += ppc4xx_pci.o
 # PReP
-obj-y += prep.o
+obj-$(CONFIG_PREP) += prep.o
 # OldWorld PowerMac
-obj-y += mac_oldworld.o
+obj-$(CONFIG_MAC) += mac_oldworld.o
 # NewWorld PowerMac
-obj-y += mac_newworld.o
+obj-$(CONFIG_MAC) += mac_newworld.o
 # e500
 obj-$(CONFIG_E500) += e500.o mpc8544ds.o e500plat.o
 obj-$(CONFIG_E500) += mpc8544_guts.o ppce500_spin.o

@@ -66,13 +66,14 @@ struct AppleSMCData {
     QLIST_ENTRY(AppleSMCData) node;
 };
 
-#define TYPE_APPLE_SMC "isa-applesmc"
 #define APPLE_SMC(obj) OBJECT_CHECK(AppleSMCState, (obj), TYPE_APPLE_SMC)
 
 typedef struct AppleSMCState AppleSMCState;
 struct AppleSMCState {
     ISADevice parent_obj;
 
+    MemoryRegion io_data;
+    MemoryRegion io_cmd;
     uint32_t iobase;
     uint8_t cmd;
     uint8_t status;
@@ -86,7 +87,8 @@ struct AppleSMCState {
     QLIST_HEAD(, AppleSMCData) data_def;
 };
 
-static void applesmc_io_cmd_writeb(void *opaque, uint32_t addr, uint32_t val)
+static void applesmc_io_cmd_write(void *opaque, hwaddr addr, uint64_t val,
+                                  unsigned size)
 {
     AppleSMCState *s = opaque;
 
@@ -115,7 +117,8 @@ static void applesmc_fill_data(AppleSMCState *s)
     }
 }
 
-static void applesmc_io_data_writeb(void *opaque, uint32_t addr, uint32_t val)
+static void applesmc_io_data_write(void *opaque, hwaddr addr, uint64_t val,
+                                   unsigned size)
 {
     AppleSMCState *s = opaque;
 
@@ -138,7 +141,8 @@ static void applesmc_io_data_writeb(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t applesmc_io_data_readb(void *opaque, uint32_t addr1)
+static uint64_t applesmc_io_data_read(void *opaque, hwaddr addr1,
+                                      unsigned size)
 {
     AppleSMCState *s = opaque;
     uint8_t retval = 0;
@@ -162,7 +166,7 @@ static uint32_t applesmc_io_data_readb(void *opaque, uint32_t addr1)
     return retval;
 }
 
-static uint32_t applesmc_io_cmd_readb(void *opaque, uint32_t addr1)
+static uint64_t applesmc_io_cmd_read(void *opaque, hwaddr addr1, unsigned size)
 {
     AppleSMCState *s = opaque;
 
@@ -201,18 +205,39 @@ static void qdev_applesmc_isa_reset(DeviceState *dev)
     applesmc_add_key(s, "MSSD", 1, "\0x3");
 }
 
-static int applesmc_isa_init(ISADevice *dev)
+static const MemoryRegionOps applesmc_data_io_ops = {
+    .write = applesmc_io_data_write,
+    .read = applesmc_io_data_read,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
+
+static const MemoryRegionOps applesmc_cmd_io_ops = {
+    .write = applesmc_io_cmd_write,
+    .read = applesmc_io_cmd_read,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
+
+static void applesmc_isa_realize(DeviceState *dev, Error **errp)
 {
     AppleSMCState *s = APPLE_SMC(dev);
 
-    register_ioport_read(s->iobase + APPLESMC_DATA_PORT, 4, 1,
-                         applesmc_io_data_readb, s);
-    register_ioport_read(s->iobase + APPLESMC_CMD_PORT, 4, 1,
-                         applesmc_io_cmd_readb, s);
-    register_ioport_write(s->iobase + APPLESMC_DATA_PORT, 4, 1,
-                          applesmc_io_data_writeb, s);
-    register_ioport_write(s->iobase + APPLESMC_CMD_PORT, 4, 1,
-                          applesmc_io_cmd_writeb, s);
+    memory_region_init_io(&s->io_data, OBJECT(s), &applesmc_data_io_ops, s,
+                          "applesmc-data", 4);
+    isa_register_ioport(&s->parent_obj, &s->io_data,
+                        s->iobase + APPLESMC_DATA_PORT);
+
+    memory_region_init_io(&s->io_cmd, OBJECT(s), &applesmc_cmd_io_ops, s,
+                          "applesmc-cmd", 4);
+    isa_register_ioport(&s->parent_obj, &s->io_cmd,
+                        s->iobase + APPLESMC_CMD_PORT);
 
     if (!s->osk || (strlen(s->osk) != 64)) {
         fprintf(stderr, "WARNING: Using AppleSMC with invalid key\n");
@@ -220,13 +245,11 @@ static int applesmc_isa_init(ISADevice *dev)
     }
 
     QLIST_INIT(&s->data_def);
-    qdev_applesmc_isa_reset(&dev->qdev);
-
-    return 0;
+    qdev_applesmc_isa_reset(dev);
 }
 
 static Property applesmc_isa_properties[] = {
-    DEFINE_PROP_HEX32("iobase", AppleSMCState, iobase,
+    DEFINE_PROP_UINT32("iobase", AppleSMCState, iobase,
                       APPLESMC_DEFAULT_IOBASE),
     DEFINE_PROP_STRING("osk", AppleSMCState, osk),
     DEFINE_PROP_END_OF_LIST(),
@@ -235,10 +258,11 @@ static Property applesmc_isa_properties[] = {
 static void qdev_applesmc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = applesmc_isa_init;
+
+    dc->realize = applesmc_isa_realize;
     dc->reset = qdev_applesmc_isa_reset;
     dc->props = applesmc_isa_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo applesmc_isa_info = {

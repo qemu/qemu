@@ -35,8 +35,13 @@ struct omap_gpio_s {
     uint16_t pins;
 };
 
+#define TYPE_OMAP1_GPIO "omap-gpio"
+#define OMAP1_GPIO(obj) \
+    OBJECT_CHECK(struct omap_gpif_s, (obj), TYPE_OMAP1_GPIO)
+
 struct omap_gpif_s {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     int mpu_model;
     void *clk;
@@ -203,8 +208,13 @@ struct omap2_gpio_s {
     uint8_t delay;
 };
 
+#define TYPE_OMAP2_GPIO "omap2-gpio"
+#define OMAP2_GPIO(obj) \
+    OBJECT_CHECK(struct omap2_gpif_s, (obj), TYPE_OMAP2_GPIO)
+
 struct omap2_gpif_s {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     int mpu_model;
     void *iclk;
@@ -587,16 +597,16 @@ static const MemoryRegionOps omap2_gpio_module_ops = {
 
 static void omap_gpif_reset(DeviceState *dev)
 {
-    struct omap_gpif_s *s = FROM_SYSBUS(struct omap_gpif_s,
-                    SYS_BUS_DEVICE(dev));
+    struct omap_gpif_s *s = OMAP1_GPIO(dev);
+
     omap_gpio_reset(&s->omap1);
 }
 
 static void omap2_gpif_reset(DeviceState *dev)
 {
+    struct omap2_gpif_s *s = OMAP2_GPIO(dev);
     int i;
-    struct omap2_gpif_s *s = FROM_SYSBUS(struct omap2_gpif_s,
-                    SYS_BUS_DEVICE(dev));
+
     for (i = 0; i < s->modulecount; i++) {
         omap2_gpio_module_reset(&s->modules[i]);
     }
@@ -648,7 +658,7 @@ static void omap2_gpif_top_write(void *opaque, hwaddr addr,
 
     case 0x10:	/* IPGENERICOCPSPL_SYSCONFIG */
         if (value & (1 << 1))					/* SOFTRESET */
-            omap2_gpif_reset(&s->busdev.qdev);
+            omap2_gpif_reset(DEVICE(s));
         s->autoidle = value & 1;
         break;
 
@@ -668,40 +678,44 @@ static const MemoryRegionOps omap2_gpif_top_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int omap_gpio_init(SysBusDevice *dev)
+static int omap_gpio_init(SysBusDevice *sbd)
 {
-    struct omap_gpif_s *s = FROM_SYSBUS(struct omap_gpif_s, dev);
+    DeviceState *dev = DEVICE(sbd);
+    struct omap_gpif_s *s = OMAP1_GPIO(dev);
+
     if (!s->clk) {
         hw_error("omap-gpio: clk not connected\n");
     }
-    qdev_init_gpio_in(&dev->qdev, omap_gpio_set, 16);
-    qdev_init_gpio_out(&dev->qdev, s->omap1.handler, 16);
-    sysbus_init_irq(dev, &s->omap1.irq);
-    memory_region_init_io(&s->iomem, &omap_gpio_ops, &s->omap1,
+    qdev_init_gpio_in(dev, omap_gpio_set, 16);
+    qdev_init_gpio_out(dev, s->omap1.handler, 16);
+    sysbus_init_irq(sbd, &s->omap1.irq);
+    memory_region_init_io(&s->iomem, OBJECT(s), &omap_gpio_ops, &s->omap1,
                           "omap.gpio", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     return 0;
 }
 
-static int omap2_gpio_init(SysBusDevice *dev)
+static int omap2_gpio_init(SysBusDevice *sbd)
 {
+    DeviceState *dev = DEVICE(sbd);
+    struct omap2_gpif_s *s = OMAP2_GPIO(dev);
     int i;
-    struct omap2_gpif_s *s = FROM_SYSBUS(struct omap2_gpif_s, dev);
+
     if (!s->iclk) {
         hw_error("omap2-gpio: iclk not connected\n");
     }
     if (s->mpu_model < omap3430) {
         s->modulecount = (s->mpu_model < omap2430) ? 4 : 5;
-        memory_region_init_io(&s->iomem, &omap2_gpif_top_ops, s,
+        memory_region_init_io(&s->iomem, OBJECT(s), &omap2_gpif_top_ops, s,
                               "omap2.gpio", 0x1000);
-        sysbus_init_mmio(dev, &s->iomem);
+        sysbus_init_mmio(sbd, &s->iomem);
     } else {
         s->modulecount = 6;
     }
     s->modules = g_malloc0(s->modulecount * sizeof(struct omap2_gpio_s));
     s->handler = g_malloc0(s->modulecount * 32 * sizeof(qemu_irq));
-    qdev_init_gpio_in(&dev->qdev, omap2_gpio_set, s->modulecount * 32);
-    qdev_init_gpio_out(&dev->qdev, s->handler, s->modulecount * 32);
+    qdev_init_gpio_in(dev, omap2_gpio_set, s->modulecount * 32);
+    qdev_init_gpio_out(dev, s->handler, s->modulecount * 32);
     for (i = 0; i < s->modulecount; i++) {
         struct omap2_gpio_s *m = &s->modules[i];
         if (!s->fclk[i]) {
@@ -709,12 +723,12 @@ static int omap2_gpio_init(SysBusDevice *dev)
         }
         m->revision = (s->mpu_model < omap3430) ? 0x18 : 0x25;
         m->handler = &s->handler[i * 32];
-        sysbus_init_irq(dev, &m->irq[0]); /* mpu irq */
-        sysbus_init_irq(dev, &m->irq[1]); /* dsp irq */
-        sysbus_init_irq(dev, &m->wkup);
-        memory_region_init_io(&m->iomem, &omap2_gpio_module_ops, m,
+        sysbus_init_irq(sbd, &m->irq[0]); /* mpu irq */
+        sysbus_init_irq(sbd, &m->irq[1]); /* dsp irq */
+        sysbus_init_irq(sbd, &m->wkup);
+        memory_region_init_io(&m->iomem, OBJECT(s), &omap2_gpio_module_ops, m,
                               "omap.gpio-module", 0x1000);
-        sysbus_init_mmio(dev, &m->iomem);
+        sysbus_init_mmio(sbd, &m->iomem);
     }
     return 0;
 }
@@ -745,10 +759,12 @@ static void omap_gpio_class_init(ObjectClass *klass, void *data)
     k->init = omap_gpio_init;
     dc->reset = omap_gpif_reset;
     dc->props = omap_gpio_properties;
+    /* Reason: pointer property "clk" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo omap_gpio_info = {
-    .name          = "omap-gpio",
+    .name          = TYPE_OMAP1_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct omap_gpif_s),
     .class_init    = omap_gpio_class_init,
@@ -774,10 +790,12 @@ static void omap2_gpio_class_init(ObjectClass *klass, void *data)
     k->init = omap2_gpio_init;
     dc->reset = omap2_gpif_reset;
     dc->props = omap2_gpio_properties;
+    /* Reason: pointer properties "iclk", "fclk0", ..., "fclk5" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo omap2_gpio_info = {
-    .name          = "omap2-gpio",
+    .name          = TYPE_OMAP2_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct omap2_gpif_s),
     .class_init    = omap2_gpio_class_init,

@@ -16,6 +16,19 @@
 #include "qemu-common.h"
 #include "migration/vmstate.h"
 
+static void uc32_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    UniCore32CPU *cpu = UNICORE32_CPU(cs);
+
+    cpu->env.regs[31] = value;
+}
+
+static bool uc32_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request &
+        (CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB);
+}
+
 static inline void set_feature(CPUUniCore32State *env, int feature)
 {
     env->features |= feature;
@@ -83,10 +96,9 @@ static const UniCore32CPUInfo uc32_cpus[] = {
 
 static void uc32_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    UniCore32CPU *cpu = UNICORE32_CPU(dev);
     UniCore32CPUClass *ucc = UNICORE32_CPU_GET_CLASS(dev);
 
-    qemu_init_vcpu(&cpu->env);
+    qemu_init_vcpu(CPU(dev));
 
     ucc->parent_realize(dev, errp);
 }
@@ -109,7 +121,7 @@ static void uc32_cpu_initfn(Object *obj)
     env->regs[31] = 0x03000000;
 #endif
 
-    tlb_flush(env, 1);
+    tlb_flush(cs, 1);
 
     if (tcg_enabled() && !inited) {
         inited = true;
@@ -132,7 +144,15 @@ static void uc32_cpu_class_init(ObjectClass *oc, void *data)
     dc->realize = uc32_cpu_realizefn;
 
     cc->class_by_name = uc32_cpu_class_by_name;
+    cc->has_work = uc32_cpu_has_work;
     cc->do_interrupt = uc32_cpu_do_interrupt;
+    cc->dump_state = uc32_cpu_dump_state;
+    cc->set_pc = uc32_cpu_set_pc;
+#ifdef CONFIG_USER_ONLY
+    cc->handle_mmu_fault = uc32_cpu_handle_mmu_fault;
+#else
+    cc->get_phys_page_debug = uc32_cpu_get_phys_page_debug;
+#endif
     dc->vmsd = &vmstate_uc32_cpu;
 }
 

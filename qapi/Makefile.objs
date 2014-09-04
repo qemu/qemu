@@ -3,3 +3,4 @@ util-obj-y += qmp-output-visitor.o qmp-registry.o qmp-dispatch.o
 util-obj-y += string-input-visitor.o string-output-visitor.o
 
 util-obj-y += opts-visitor.o
+util-obj-y += qmp-event.o

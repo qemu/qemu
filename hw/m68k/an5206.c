@@ -12,6 +12,7 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "exec/address-spaces.h"
+#include "sysemu/qtest.h"
 
 #define KERNEL_LOAD_ADDR 0x10000
 #define AN5206_MBAR_ADDR 0x10000000
@@ -19,11 +20,11 @@
 
 /* Board init.  */
 
-static void an5206_init(QEMUMachineInitArgs *args)
+static void an5206_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
     M68kCPU *cpu;
     CPUM68KState *env;
     int kernel_size;
@@ -49,12 +50,12 @@ static void an5206_init(QEMUMachineInitArgs *args)
     env->rambar0 = AN5206_RAMBAR_ADDR | 1;
 
     /* DRAM at address zero */
-    memory_region_init_ram(ram, "an5206.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "an5206.ram", ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space_mem, 0, ram);
 
     /* Internal SRAM.  */
-    memory_region_init_ram(sram, "an5206.sram", 512);
+    memory_region_init_ram(sram, NULL, "an5206.sram", 512);
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(address_space_mem, AN5206_RAMBAR_ADDR, sram);
 
@@ -62,6 +63,9 @@ static void an5206_init(QEMUMachineInitArgs *args)
 
     /* Load kernel.  */
     if (!kernel_filename) {
+        if (qtest_enabled()) {
+            return;
+        }
         fprintf(stderr, "Kernel image must be specified\n");
         exit(1);
     }
@@ -89,7 +93,6 @@ static QEMUMachine an5206_machine = {
     .name = "an5206",
     .desc = "Arnewsh 5206",
     .init = an5206_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void an5206_machine_init(void)

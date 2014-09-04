@@ -25,8 +25,10 @@
 #include <glib.h>
 
 #include "hw/hw.h"
+#include "hw/loader.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic.h"
+#include "hw/i386/smbios.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_ids.h"
 #include "hw/usb.h"
@@ -46,6 +48,7 @@
 #include "exec/address-spaces.h"
 #include "hw/acpi/acpi.h"
 #include "cpu.h"
+#include "qemu/error-report.h"
 #ifdef CONFIG_XEN
 #  include <xen/hvm/hvm_info_table.h>
 #endif
@@ -56,20 +59,26 @@ static const int ide_iobase[MAX_IDE_BUS] = { 0x1f0, 0x170 };
 static const int ide_iobase2[MAX_IDE_BUS] = { 0x3f6, 0x376 };
 static const int ide_irq[MAX_IDE_BUS] = { 14, 15 };
 
-static bool has_pvpanic = true;
+static bool has_pci_info;
+static bool has_acpi_build = true;
+static int legacy_acpi_table_size;
+static bool smbios_defaults = true;
+static bool smbios_legacy_mode;
+/* Make sure that guest addresses aligned at 1Gbyte boundaries get mapped to
+ * host addresses aligned at 1Gbyte boundaries.  This way we can use 1GByte
+ * pages in the host.
+ */
+static bool gigabyte_align = true;
+static bool has_reserved_memory = true;
 
 /* PC hardware initialisation */
-static void pc_init1(MemoryRegion *system_memory,
-                     MemoryRegion *system_io,
-                     ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename,
-                     const char *kernel_cmdline,
-                     const char *initrd_filename,
-                     const char *cpu_model,
+static void pc_init1(MachineState *machine,
                      int pci_enabled,
                      int kvmclock_enabled)
 {
+    PCMachineState *pc_machine = PC_MACHINE(machine);
+    MemoryRegion *system_memory = get_system_memory();
+    MemoryRegion *system_io = get_system_io();
     int i;
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
     PCIBus *pci_bus;
@@ -89,42 +98,90 @@ static void pc_init1(MemoryRegion *system_memory,
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
     DeviceState *icc_bridge;
-    void *fw_cfg = NULL;
+    FWCfgState *fw_cfg = NULL;
+    PcGuestInfo *guest_info;
+    ram_addr_t lowmem;
+
+    /* Check whether RAM fits below 4G (leaving 1/2 GByte for IO memory).
+     * If it doesn't, we need to split it in chunks below and above 4G.
+     * In any case, try to make sure that guest addresses aligned at
+     * 1G boundaries get mapped to host addresses aligned at 1G boundaries.
+     * For old machine types, use whatever split we used historically to avoid
+     * breaking migration.
+     */
+    if (machine->ram_size >= 0xe0000000) {
+        lowmem = gigabyte_align ? 0xc0000000 : 0xe0000000;
+    } else {
+        lowmem = 0xe0000000;
+    }
+
+    /* Handle the machine opt max-ram-below-4g.  It is basically doing
+     * min(qemu limit, user limit).
+     */
+    if (lowmem > pc_machine->max_ram_below_4g) {
+        lowmem = pc_machine->max_ram_below_4g;
+        if (machine->ram_size - lowmem > lowmem &&
+            lowmem & ((1ULL << 30) - 1)) {
+            error_report("Warning: Large machine and max_ram_below_4g(%"PRIu64
+                         ") not a multiple of 1G; possible bad performance.",
+                         pc_machine->max_ram_below_4g);
+        }
+    }
+
+    if (machine->ram_size >= lowmem) {
+        above_4g_mem_size = machine->ram_size - lowmem;
+        below_4g_mem_size = lowmem;
+    } else {
+        above_4g_mem_size = 0;
+        below_4g_mem_size = machine->ram_size;
+    }
+
+    if (xen_enabled() && xen_hvm_init(&below_4g_mem_size, &above_4g_mem_size,
+                                      &ram_memory) != 0) {
+        fprintf(stderr, "xen hardware virtual machine initialisation failed\n");
+        exit(1);
+    }
 
     icc_bridge = qdev_create(NULL, TYPE_ICC_BRIDGE);
     object_property_add_child(qdev_get_machine(), "icc-bridge",
                               OBJECT(icc_bridge), NULL);
 
-    pc_cpus_init(cpu_model, icc_bridge);
-    pc_acpi_init("acpi-dsdt.aml");
+    pc_cpus_init(machine->cpu_model, icc_bridge);
 
-    if (kvmclock_enabled) {
+    if (kvm_enabled() && kvmclock_enabled) {
         kvmclock_create();
-    }
-
-    if (ram_size >= QEMU_BELOW_4G_RAM_END ) {
-        above_4g_mem_size = ram_size - QEMU_BELOW_4G_RAM_END;
-        below_4g_mem_size = QEMU_BELOW_4G_RAM_END;
-    } else {
-        above_4g_mem_size = 0;
-        below_4g_mem_size = ram_size;
     }
 
     if (pci_enabled) {
         pci_memory = g_new(MemoryRegion, 1);
-        memory_region_init(pci_memory, "pci", INT64_MAX);
+        memory_region_init(pci_memory, NULL, "pci", UINT64_MAX);
         rom_memory = pci_memory;
     } else {
         pci_memory = NULL;
         rom_memory = system_memory;
     }
 
+    guest_info = pc_guest_info_init(below_4g_mem_size, above_4g_mem_size);
+
+    guest_info->has_acpi_build = has_acpi_build;
+    guest_info->legacy_acpi_table_size = legacy_acpi_table_size;
+
+    guest_info->has_pci_info = has_pci_info;
+    guest_info->isapc_ram_fw = !pci_enabled;
+    guest_info->has_reserved_memory = has_reserved_memory;
+
+    if (smbios_defaults) {
+        MachineClass *mc = MACHINE_GET_CLASS(machine);
+        /* These values are guest ABI, do not change */
+        smbios_set_defaults("QEMU", "Standard PC (i440FX + PIIX, 1996)",
+                            mc->name, smbios_legacy_mode);
+    }
+
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
-        fw_cfg = pc_memory_init(system_memory,
-                       kernel_filename, kernel_cmdline, initrd_filename,
-                       below_4g_mem_size, above_4g_mem_size,
-                       rom_memory, &ram_memory);
+        fw_cfg = pc_memory_init(machine, system_memory,
+                                below_4g_mem_size, above_4g_mem_size,
+                                rom_memory, &ram_memory, guest_info);
     }
 
     gsi_state = g_malloc0(sizeof(*gsi_state));
@@ -138,13 +195,9 @@ static void pc_init1(MemoryRegion *system_memory,
 
     if (pci_enabled) {
         pci_bus = i440fx_init(&i440fx_state, &piix3_devfn, &isa_bus, gsi,
-                              system_memory, system_io, ram_size,
+                              system_memory, system_io, machine->ram_size,
                               below_4g_mem_size,
-                              0x100000000ULL - below_4g_mem_size,
-                              0x100000000ULL + above_4g_mem_size,
-                              (sizeof(hwaddr) == 4
-                               ? 0
-                               : ((uint64_t)1 << 62)),
+                              above_4g_mem_size,
                               pci_memory, ram_memory);
     } else {
         pci_bus = NULL;
@@ -174,12 +227,10 @@ static void pc_init1(MemoryRegion *system_memory,
     pc_register_ferr_irq(gsi[13]);
 
     pc_vga_init(isa_bus, pci_enabled ? pci_bus : NULL);
-    if (xen_enabled()) {
-        pci_create_simple(pci_bus, -1, "xen-platform");
-    }
 
     /* init basic PC hardware */
-    pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, xen_enabled());
+    pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, xen_enabled(),
+        0x4);
 
     pc_nic_init(isa_bus, pci_bus);
 
@@ -196,14 +247,20 @@ static void pc_init1(MemoryRegion *system_memory,
     } else {
         for(i = 0; i < MAX_IDE_BUS; i++) {
             ISADevice *dev;
+            char busname[] = "ide.0";
             dev = isa_ide_init(isa_bus, ide_iobase[i], ide_iobase2[i],
                                ide_irq[i],
                                hd[MAX_IDE_DEVS * i], hd[MAX_IDE_DEVS * i + 1]);
-            idebus[i] = qdev_get_child_bus(&dev->qdev, "ide.0");
+            /*
+             * The ide bus name is ide.0 for the first bus and ide.1 for the
+             * second one.
+             */
+            busname[4] = '0' + i;
+            idebus[i] = qdev_get_child_bus(DEVICE(dev), busname);
         }
     }
 
-    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device,
+    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, machine->boot_order,
                  floppy, idebus[0], idebus[1], rtc_state);
 
     if (pci_enabled && usb_enabled(false)) {
@@ -211,144 +268,258 @@ static void pc_init1(MemoryRegion *system_memory,
     }
 
     if (pci_enabled && acpi_enabled) {
-        i2c_bus *smbus;
+        DeviceState *piix4_pm;
+        I2CBus *smbus;
 
-        smi_irq = qemu_allocate_irqs(pc_acpi_smi_interrupt,
-                                     x86_env_get_cpu(first_cpu), 1);
+        smi_irq = qemu_allocate_irqs(pc_acpi_smi_interrupt, first_cpu, 1);
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
                               gsi[9], *smi_irq,
-                              kvm_enabled(), fw_cfg);
+                              kvm_enabled(), fw_cfg, &piix4_pm);
         smbus_eeprom_init(smbus, 8, NULL, 0);
+
+        object_property_add_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
+                                 TYPE_HOTPLUG_HANDLER,
+                                 (Object **)&pc_machine->acpi_dev,
+                                 object_property_allow_set_link,
+                                 OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
+        object_property_set_link(OBJECT(machine), OBJECT(piix4_pm),
+                                 PC_MACHINE_ACPI_DEVICE_PROP, &error_abort);
     }
 
     if (pci_enabled) {
         pc_pci_device_init(pci_bus);
     }
-
-    if (has_pvpanic) {
-        pvpanic_init(isa_bus);
-    }
 }
 
-static void pc_init_pci(QEMUMachineInitArgs *args)
+static void pc_init_pci(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    pc_init1(get_system_memory(),
-             get_system_io(),
-             ram_size, boot_device,
-             kernel_filename, kernel_cmdline,
-             initrd_filename, cpu_model, 1, 1);
+    pc_init1(machine, 1, 1);
 }
 
-static void pc_init_pci_1_4(QEMUMachineInitArgs *args)
+static void pc_compat_2_0(MachineState *machine)
 {
-    has_pvpanic = false;
+    /* This value depends on the actual DSDT and SSDT compiled into
+     * the source QEMU; unfortunately it depends on the binary and
+     * not on the machine type, so we cannot make pc-i440fx-1.7 work on
+     * both QEMU 1.7 and QEMU 2.0.
+     *
+     * Large variations cause migration to fail for more than one
+     * consecutive value of the "-smp" maxcpus option.
+     *
+     * For small variations of the kind caused by different iasl versions,
+     * the 4k rounding usually leaves slack.  However, there could be still
+     * one or two values that break.  For QEMU 1.7 and QEMU 2.0 the
+     * slack is only ~10 bytes before one "-smp maxcpus" value breaks!
+     *
+     * 6652 is valid for QEMU 2.0, the right value for pc-i440fx-1.7 on
+     * QEMU 1.7 it is 6414.  For RHEL/CentOS 7.0 it is 6418.
+     */
+    legacy_acpi_table_size = 6652;
+    smbios_legacy_mode = true;
+    has_reserved_memory = false;
+}
+
+static void pc_compat_1_7(MachineState *machine)
+{
+    pc_compat_2_0(machine);
+    smbios_defaults = false;
+    gigabyte_align = false;
+    option_rom_has_mr = true;
+    legacy_acpi_table_size = 6414;
+    x86_cpu_compat_disable_kvm_features(FEAT_1_ECX, CPUID_EXT_X2APIC);
+}
+
+static void pc_compat_1_6(MachineState *machine)
+{
+    pc_compat_1_7(machine);
+    has_pci_info = false;
+    rom_file_has_mr = false;
+    has_acpi_build = false;
+}
+
+static void pc_compat_1_5(MachineState *machine)
+{
+    pc_compat_1_6(machine);
+}
+
+static void pc_compat_1_4(MachineState *machine)
+{
+    pc_compat_1_5(machine);
     x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
-    pc_init_pci(args);
+    x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
 }
 
-static void pc_init_pci_1_3(QEMUMachineInitArgs *args)
+static void pc_compat_1_3(MachineState *machine)
 {
+    pc_compat_1_4(machine);
     enable_compat_apic_id_mode();
-    has_pvpanic = false;
-    pc_init_pci(args);
 }
 
-/* PC machine init function for pc-1.1 to pc-1.2 */
-static void pc_init_pci_1_2(QEMUMachineInitArgs *args)
+/* PC compat function for pc-0.14 to pc-1.2 */
+static void pc_compat_1_2(MachineState *machine)
 {
-    disable_kvm_pv_eoi();
-    enable_compat_apic_id_mode();
-    has_pvpanic = false;
-    pc_init_pci(args);
+    pc_compat_1_3(machine);
+    x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
 }
 
-/* PC machine init function for pc-0.14 to pc-1.0 */
-static void pc_init_pci_1_0(QEMUMachineInitArgs *args)
+static void pc_init_pci_2_0(MachineState *machine)
 {
-    disable_kvm_pv_eoi();
-    enable_compat_apic_id_mode();
-    has_pvpanic = false;
-    pc_init_pci(args);
+    pc_compat_2_0(machine);
+    pc_init_pci(machine);
 }
 
-/* PC init function for pc-0.10 to pc-0.13, and reused by xenfv */
-static void pc_init_pci_no_kvmclock(QEMUMachineInitArgs *args)
+static void pc_init_pci_1_7(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    has_pvpanic = false;
-    disable_kvm_pv_eoi();
-    enable_compat_apic_id_mode();
-    pc_init1(get_system_memory(),
-             get_system_io(),
-             ram_size, boot_device,
-             kernel_filename, kernel_cmdline,
-             initrd_filename, cpu_model, 1, 0);
+    pc_compat_1_7(machine);
+    pc_init_pci(machine);
 }
 
-static void pc_init_isa(QEMUMachineInitArgs *args)
+static void pc_init_pci_1_6(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    has_pvpanic = false;
-    if (cpu_model == NULL)
-        cpu_model = "486";
-    disable_kvm_pv_eoi();
+    pc_compat_1_6(machine);
+    pc_init_pci(machine);
+}
+
+static void pc_init_pci_1_5(MachineState *machine)
+{
+    pc_compat_1_5(machine);
+    pc_init_pci(machine);
+}
+
+static void pc_init_pci_1_4(MachineState *machine)
+{
+    pc_compat_1_4(machine);
+    pc_init_pci(machine);
+}
+
+static void pc_init_pci_1_3(MachineState *machine)
+{
+    pc_compat_1_3(machine);
+    pc_init_pci(machine);
+}
+
+/* PC machine init function for pc-0.14 to pc-1.2 */
+static void pc_init_pci_1_2(MachineState *machine)
+{
+    pc_compat_1_2(machine);
+    pc_init_pci(machine);
+}
+
+/* PC init function for pc-0.10 to pc-0.13 */
+static void pc_init_pci_no_kvmclock(MachineState *machine)
+{
+    pc_compat_1_2(machine);
+    pc_init1(machine, 1, 0);
+}
+
+static void pc_init_isa(MachineState *machine)
+{
+    has_pci_info = false;
+    has_acpi_build = false;
+    smbios_defaults = false;
+    gigabyte_align = false;
+    smbios_legacy_mode = true;
+    has_reserved_memory = false;
+    option_rom_has_mr = true;
+    rom_file_has_mr = false;
+    if (!machine->cpu_model) {
+        machine->cpu_model = "486";
+    }
+    x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
     enable_compat_apic_id_mode();
-    pc_init1(get_system_memory(),
-             get_system_io(),
-             ram_size, boot_device,
-             kernel_filename, kernel_cmdline,
-             initrd_filename, cpu_model, 0, 1);
+    pc_init1(machine, 0, 1);
 }
 
 #ifdef CONFIG_XEN
-static void pc_xen_hvm_init(QEMUMachineInitArgs *args)
+static void pc_xen_hvm_init(MachineState *machine)
 {
-    if (xen_hvm_init() != 0) {
-        hw_error("xen hardware virtual machine initialisation failed");
+    PCIBus *bus;
+
+    pc_init_pci(machine);
+
+    bus = pci_find_primary_bus();
+    if (bus != NULL) {
+        pci_create_simple(bus, -1, "xen-platform");
     }
-    pc_init_pci_no_kvmclock(args);
-    xen_vcpu_init();
 }
 #endif
 
-static QEMUMachine pc_i440fx_machine_v1_5 = {
-    .name = "pc-i440fx-1.5",
+#define PC_I440FX_MACHINE_OPTIONS \
+    PC_DEFAULT_MACHINE_OPTIONS, \
+    .desc = "Standard PC (i440FX + PIIX, 1996)", \
+    .hot_add_cpu = pc_hot_add_cpu
+
+#define PC_I440FX_2_1_MACHINE_OPTIONS                           \
+    PC_I440FX_MACHINE_OPTIONS,                                  \
+    .default_machine_opts = "firmware=bios-256k.bin"
+
+static QEMUMachine pc_i440fx_machine_v2_1 = {
+    PC_I440FX_2_1_MACHINE_OPTIONS,
+    .name = "pc-i440fx-2.1",
     .alias = "pc",
-    .desc = "Standard PC (i440FX + PIIX, 1996)",
     .init = pc_init_pci,
-    .hot_add_cpu = pc_hot_add_cpu,
-    .max_cpus = 255,
     .is_default = 1,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
+#define PC_I440FX_2_0_MACHINE_OPTIONS PC_I440FX_2_1_MACHINE_OPTIONS
+
+static QEMUMachine pc_i440fx_machine_v2_0 = {
+    PC_I440FX_2_0_MACHINE_OPTIONS,
+    .name = "pc-i440fx-2.0",
+    .init = pc_init_pci_2_0,
+    .compat_props = (GlobalProperty[]) {
+        PC_COMPAT_2_0,
+        { /* end of list */ }
+    },
+};
+
+#define PC_I440FX_1_7_MACHINE_OPTIONS PC_I440FX_MACHINE_OPTIONS
+
+static QEMUMachine pc_i440fx_machine_v1_7 = {
+    PC_I440FX_1_7_MACHINE_OPTIONS,
+    .name = "pc-i440fx-1.7",
+    .init = pc_init_pci_1_7,
+    .compat_props = (GlobalProperty[]) {
+        PC_COMPAT_1_7,
+        { /* end of list */ }
+    },
+};
+
+#define PC_I440FX_1_6_MACHINE_OPTIONS PC_I440FX_MACHINE_OPTIONS
+
+static QEMUMachine pc_i440fx_machine_v1_6 = {
+    PC_I440FX_1_6_MACHINE_OPTIONS,
+    .name = "pc-i440fx-1.6",
+    .init = pc_init_pci_1_6,
+    .compat_props = (GlobalProperty[]) {
+        PC_COMPAT_1_6,
+        { /* end of list */ }
+    },
+};
+
+static QEMUMachine pc_i440fx_machine_v1_5 = {
+    PC_I440FX_1_6_MACHINE_OPTIONS,
+    .name = "pc-i440fx-1.5",
+    .init = pc_init_pci_1_5,
+    .compat_props = (GlobalProperty[]) {
+        PC_COMPAT_1_5,
+        { /* end of list */ }
+    },
+};
+
+#define PC_I440FX_1_4_MACHINE_OPTIONS \
+    PC_I440FX_1_6_MACHINE_OPTIONS, \
+    .hot_add_cpu = NULL
+
 static QEMUMachine pc_i440fx_machine_v1_4 = {
+    PC_I440FX_1_4_MACHINE_OPTIONS,
     .name = "pc-i440fx-1.4",
-    .desc = "Standard PC (i440FX + PIIX, 1996)",
     .init = pc_init_pci_1_4,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_4,
         { /* end of list */ }
     },
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_1_3 \
@@ -372,15 +543,13 @@ static QEMUMachine pc_i440fx_machine_v1_4 = {
         }
 
 static QEMUMachine pc_machine_v1_3 = {
+    PC_I440FX_1_4_MACHINE_OPTIONS,
     .name = "pc-1.3",
-    .desc = "Standard PC",
     .init = pc_init_pci_1_3,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_3,
         { /* end of list */ }
     },
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_1_2 \
@@ -411,16 +580,17 @@ static QEMUMachine pc_machine_v1_3 = {
             .value    = "off",\
         }
 
+#define PC_I440FX_1_2_MACHINE_OPTIONS \
+    PC_I440FX_1_4_MACHINE_OPTIONS, \
+    .init = pc_init_pci_1_2
+
 static QEMUMachine pc_machine_v1_2 = {
+    PC_I440FX_1_2_MACHINE_OPTIONS,
     .name = "pc-1.2",
-    .desc = "Standard PC",
-    .init = pc_init_pci_1_2,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_2,
         { /* end of list */ }
     },
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_1_1 \
@@ -456,24 +626,17 @@ static QEMUMachine pc_machine_v1_2 = {
         }
 
 static QEMUMachine pc_machine_v1_1 = {
+    PC_I440FX_1_2_MACHINE_OPTIONS,
     .name = "pc-1.1",
-    .desc = "Standard PC",
-    .init = pc_init_pci_1_2,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_1,
         { /* end of list */ }
     },
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_1_0 \
         PC_COMPAT_1_1,\
         {\
-            .driver   = "pc-sysfw",\
-            .property = "rom_only",\
-            .value    = stringify(1),\
-        }, {\
             .driver   = TYPE_ISA_FDC,\
             .property = "check_media_rate",\
             .value    = "off",\
@@ -492,32 +655,26 @@ static QEMUMachine pc_machine_v1_1 = {
         }
 
 static QEMUMachine pc_machine_v1_0 = {
+    PC_I440FX_1_2_MACHINE_OPTIONS,
     .name = "pc-1.0",
-    .desc = "Standard PC",
-    .init = pc_init_pci_1_0,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_0,
         { /* end of list */ }
     },
     .hw_version = "1.0",
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_0_15 \
         PC_COMPAT_1_0
 
 static QEMUMachine pc_machine_v0_15 = {
+    PC_I440FX_1_2_MACHINE_OPTIONS,
     .name = "pc-0.15",
-    .desc = "Standard PC",
-    .init = pc_init_pci_1_0,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_15,
         { /* end of list */ }
     },
     .hw_version = "0.15",
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_0_14 \
@@ -541,10 +698,8 @@ static QEMUMachine pc_machine_v0_15 = {
         }
 
 static QEMUMachine pc_machine_v0_14 = {
+    PC_I440FX_1_2_MACHINE_OPTIONS,
     .name = "pc-0.14",
-    .desc = "Standard PC",
-    .init = pc_init_pci_1_0,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_14, 
         {
@@ -559,7 +714,6 @@ static QEMUMachine pc_machine_v0_14 = {
         { /* end of list */ }
     },
     .hw_version = "0.14",
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_0_13 \
@@ -574,11 +728,13 @@ static QEMUMachine pc_machine_v0_14 = {
             .value    = stringify(1),\
         }
 
+#define PC_I440FX_0_13_MACHINE_OPTIONS \
+    PC_I440FX_1_2_MACHINE_OPTIONS, \
+    .init = pc_init_pci_no_kvmclock
+
 static QEMUMachine pc_machine_v0_13 = {
+    PC_I440FX_0_13_MACHINE_OPTIONS,
     .name = "pc-0.13",
-    .desc = "Standard PC",
-    .init = pc_init_pci_no_kvmclock,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_13,
         {
@@ -597,7 +753,6 @@ static QEMUMachine pc_machine_v0_13 = {
         { /* end of list */ }
     },
     .hw_version = "0.13",
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_0_12 \
@@ -610,13 +765,23 @@ static QEMUMachine pc_machine_v0_13 = {
             .driver   = "virtio-serial-pci",\
             .property = "vectors",\
             .value    = stringify(0),\
+        },{\
+            .driver   = "usb-mouse",\
+            .property = "serial",\
+            .value    = "1",\
+        },{\
+            .driver   = "usb-tablet",\
+            .property = "serial",\
+            .value    = "1",\
+        },{\
+            .driver   = "usb-kbd",\
+            .property = "serial",\
+            .value    = "1",\
         }
 
 static QEMUMachine pc_machine_v0_12 = {
+    PC_I440FX_0_13_MACHINE_OPTIONS,
     .name = "pc-0.12",
-    .desc = "Standard PC",
-    .init = pc_init_pci_no_kvmclock,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_12,
         {
@@ -631,7 +796,6 @@ static QEMUMachine pc_machine_v0_12 = {
         { /* end of list */ }
     },
     .hw_version = "0.12",
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_0_11 \
@@ -647,10 +811,8 @@ static QEMUMachine pc_machine_v0_12 = {
         }
 
 static QEMUMachine pc_machine_v0_11 = {
+    PC_I440FX_0_13_MACHINE_OPTIONS,
     .name = "pc-0.11",
-    .desc = "Standard PC, qemu 0.11",
-    .init = pc_init_pci_no_kvmclock,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_11,
         {
@@ -665,14 +827,11 @@ static QEMUMachine pc_machine_v0_11 = {
         { /* end of list */ }
     },
     .hw_version = "0.11",
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine pc_machine_v0_10 = {
+    PC_I440FX_0_13_MACHINE_OPTIONS,
     .name = "pc-0.10",
-    .desc = "Standard PC, qemu 0.10",
-    .init = pc_init_pci_no_kvmclock,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_11,
         {
@@ -699,53 +858,63 @@ static QEMUMachine pc_machine_v0_10 = {
         { /* end of list */ }
     },
     .hw_version = "0.10",
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine isapc_machine = {
+    PC_COMMON_MACHINE_OPTIONS,
     .name = "isapc",
     .desc = "ISA-only PC",
     .init = pc_init_isa,
     .max_cpus = 1,
     .compat_props = (GlobalProperty[]) {
-        {
-            .driver   = "pc-sysfw",
-            .property = "rom_only",
-            .value    = stringify(1),
-        },
         { /* end of list */ }
     },
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #ifdef CONFIG_XEN
 static QEMUMachine xenfv_machine = {
+    PC_COMMON_MACHINE_OPTIONS,
     .name = "xenfv",
     .desc = "Xen Fully-virtualized PC",
     .init = pc_xen_hvm_init,
     .max_cpus = HVM_MAX_VCPUS,
     .default_machine_opts = "accel=xen",
-    DEFAULT_MACHINE_OPTIONS,
+    .hot_add_cpu = pc_hot_add_cpu,
+    .compat_props = (GlobalProperty[]) {
+        /* xenfv has no fwcfg and so does not load acpi from QEMU.
+         * as such new acpi features don't work.
+         */
+        {
+            .driver   = "PIIX4_PM",
+            .property = "acpi-pci-hotplug-with-bridge-support",
+            .value    = "off",
+        },
+        { /* end of list */ }
+    },
 };
 #endif
 
 static void pc_machine_init(void)
 {
-    qemu_register_machine(&pc_i440fx_machine_v1_5);
-    qemu_register_machine(&pc_i440fx_machine_v1_4);
-    qemu_register_machine(&pc_machine_v1_3);
-    qemu_register_machine(&pc_machine_v1_2);
-    qemu_register_machine(&pc_machine_v1_1);
-    qemu_register_machine(&pc_machine_v1_0);
-    qemu_register_machine(&pc_machine_v0_15);
-    qemu_register_machine(&pc_machine_v0_14);
-    qemu_register_machine(&pc_machine_v0_13);
-    qemu_register_machine(&pc_machine_v0_12);
-    qemu_register_machine(&pc_machine_v0_11);
-    qemu_register_machine(&pc_machine_v0_10);
-    qemu_register_machine(&isapc_machine);
+    qemu_register_pc_machine(&pc_i440fx_machine_v2_1);
+    qemu_register_pc_machine(&pc_i440fx_machine_v2_0);
+    qemu_register_pc_machine(&pc_i440fx_machine_v1_7);
+    qemu_register_pc_machine(&pc_i440fx_machine_v1_6);
+    qemu_register_pc_machine(&pc_i440fx_machine_v1_5);
+    qemu_register_pc_machine(&pc_i440fx_machine_v1_4);
+    qemu_register_pc_machine(&pc_machine_v1_3);
+    qemu_register_pc_machine(&pc_machine_v1_2);
+    qemu_register_pc_machine(&pc_machine_v1_1);
+    qemu_register_pc_machine(&pc_machine_v1_0);
+    qemu_register_pc_machine(&pc_machine_v0_15);
+    qemu_register_pc_machine(&pc_machine_v0_14);
+    qemu_register_pc_machine(&pc_machine_v0_13);
+    qemu_register_pc_machine(&pc_machine_v0_12);
+    qemu_register_pc_machine(&pc_machine_v0_11);
+    qemu_register_pc_machine(&pc_machine_v0_10);
+    qemu_register_pc_machine(&isapc_machine);
 #ifdef CONFIG_XEN
-    qemu_register_machine(&xenfv_machine);
+    qemu_register_pc_machine(&xenfv_machine);
 #endif
 }
 

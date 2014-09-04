@@ -43,9 +43,16 @@
 //#define PCNET_DEBUG_TMD
 //#define PCNET_DEBUG_MATCH
 
+#define TYPE_PCI_PCNET "pcnet"
+
+#define PCI_PCNET(obj) \
+     OBJECT_CHECK(PCIPCNetState, (obj), TYPE_PCI_PCNET)
 
 typedef struct {
-    PCIDevice pci_dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     PCNetState state;
     MemoryRegion io_bar;
 } PCIPCNetState;
@@ -127,7 +134,7 @@ static void pcnet_ioport_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pcnet_io_ops = {
     .read = pcnet_ioport_read,
     .write = pcnet_ioport_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void pcnet_mmio_writeb(void *opaque, hwaddr addr, uint32_t val)
@@ -234,9 +241,8 @@ static const VMStateDescription vmstate_pci_pcnet = {
     .name = "pcnet",
     .version_id = 3,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
-    .fields      = (VMStateField []) {
-        VMSTATE_PCI_DEVICE(pci_dev, PCIPCNetState),
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(parent_obj, PCIPCNetState),
         VMSTATE_STRUCT(state, PCIPCNetState, 0, vmstate_pcnet, PCNetState),
         VMSTATE_END_OF_LIST()
     }
@@ -249,7 +255,7 @@ static const MemoryRegionOps pcnet_mmio_ops = {
         .read = { pcnet_mmio_readb, pcnet_mmio_readw, pcnet_mmio_readl },
         .write = { pcnet_mmio_writeb, pcnet_mmio_writew, pcnet_mmio_writel },
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void pci_physical_memory_write(void *dma_opaque, hwaddr addr,
@@ -273,12 +279,13 @@ static void pci_pcnet_cleanup(NetClientState *nc)
 
 static void pci_pcnet_uninit(PCIDevice *dev)
 {
-    PCIPCNetState *d = DO_UPCAST(PCIPCNetState, pci_dev, dev);
+    PCIPCNetState *d = PCI_PCNET(dev);
 
+    qemu_free_irq(d->state.irq);
     memory_region_destroy(&d->state.mmio);
     memory_region_destroy(&d->io_bar);
-    qemu_del_timer(d->state.poll_timer);
-    qemu_free_timer(d->state.poll_timer);
+    timer_del(d->state.poll_timer);
+    timer_free(d->state.poll_timer);
     qemu_del_nic(d->state.nic);
 }
 
@@ -293,7 +300,7 @@ static NetClientInfo net_pci_pcnet_info = {
 
 static int pci_pcnet_init(PCIDevice *pci_dev)
 {
-    PCIPCNetState *d = DO_UPCAST(PCIPCNetState, pci_dev, pci_dev);
+    PCIPCNetState *d = PCI_PCNET(pci_dev);
     PCNetState *s = &d->state;
     uint8_t *pci_conf;
 
@@ -315,26 +322,26 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     pci_conf[PCI_MAX_LAT] = 0xff;
 
     /* Handler for memory-mapped I/O */
-    memory_region_init_io(&d->state.mmio, &pcnet_mmio_ops, s, "pcnet-mmio",
-                          PCNET_PNPMMIO_SIZE);
+    memory_region_init_io(&d->state.mmio, OBJECT(d), &pcnet_mmio_ops, s,
+                          "pcnet-mmio", PCNET_PNPMMIO_SIZE);
 
-    memory_region_init_io(&d->io_bar, &pcnet_io_ops, s, "pcnet-io",
+    memory_region_init_io(&d->io_bar, OBJECT(d), &pcnet_io_ops, s, "pcnet-io",
                           PCNET_IOPORT_SIZE);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->io_bar);
 
     pci_register_bar(pci_dev, 1, 0, &s->mmio);
 
-    s->irq = pci_dev->irq[0];
+    s->irq = pci_allocate_irq(pci_dev);
     s->phys_mem_read = pci_physical_memory_read;
     s->phys_mem_write = pci_physical_memory_write;
     s->dma_opaque = pci_dev;
 
-    return pcnet_common_init(&pci_dev->qdev, s, &net_pci_pcnet_info);
+    return pcnet_common_init(DEVICE(pci_dev), s, &net_pci_pcnet_info);
 }
 
 static void pci_reset(DeviceState *dev)
 {
-    PCIPCNetState *d = DO_UPCAST(PCIPCNetState, pci_dev.qdev, dev);
+    PCIPCNetState *d = PCI_PCNET(dev);
 
     pcnet_h_reset(&d->state);
 }
@@ -359,10 +366,11 @@ static void pcnet_class_init(ObjectClass *klass, void *data)
     dc->reset = pci_reset;
     dc->vmsd = &vmstate_pci_pcnet;
     dc->props = pcnet_properties;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
 static const TypeInfo pcnet_info = {
-    .name          = "pcnet",
+    .name          = TYPE_PCI_PCNET,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIPCNetState),
     .class_init    = pcnet_class_init,

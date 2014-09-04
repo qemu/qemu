@@ -13,9 +13,16 @@
 
 #define PXA2XX_GPIO_BANKS	4
 
+#define TYPE_PXA2XX_GPIO "pxa2xx-gpio"
+#define PXA2XX_GPIO(obj) \
+    OBJECT_CHECK(PXA2xxGPIOInfo, (obj), TYPE_PXA2XX_GPIO)
+
 typedef struct PXA2xxGPIOInfo PXA2xxGPIOInfo;
 struct PXA2xxGPIOInfo {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     qemu_irq irq0, irq1, irqX;
     int lines;
@@ -29,7 +36,6 @@ struct PXA2xxGPIOInfo {
     uint32_t rising[PXA2XX_GPIO_BANKS];
     uint32_t falling[PXA2XX_GPIO_BANKS];
     uint32_t status[PXA2XX_GPIO_BANKS];
-    uint32_t gpsr[PXA2XX_GPIO_BANKS];
     uint32_t gafr[PXA2XX_GPIO_BANKS * 2];
 
     uint32_t prev_level[PXA2XX_GPIO_BANKS];
@@ -103,7 +109,7 @@ static void pxa2xx_gpio_set(void *opaque, int line, int level)
     }
 
     bank = line >> 5;
-    mask = 1 << (line & 31);
+    mask = 1U << (line & 31);
 
     if (level) {
         s->status[bank] |= s->rising[bank] & mask &
@@ -155,14 +161,14 @@ static uint64_t pxa2xx_gpio_read(void *opaque, hwaddr offset,
         return s->dir[bank];
 
     case GPSR:		/* GPIO Pin-Output Set registers */
-        printf("%s: Read from a write-only register " REG_FMT "\n",
-                        __FUNCTION__, offset);
-        return s->gpsr[bank];	/* Return last written value.  */
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pxa2xx GPIO: read from write only register GPSR\n");
+        return 0;
 
     case GPCR:		/* GPIO Pin-Output Clear registers */
-        printf("%s: Read from a write-only register " REG_FMT "\n",
-                        __FUNCTION__, offset);
-        return 31337;		/* Specified as unpredictable in the docs.  */
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pxa2xx GPIO: read from write only register GPCR\n");
+        return 0;
 
     case GRER:		/* GPIO Rising-Edge Detect Enable registers */
         return s->rising[bank];
@@ -210,7 +216,6 @@ static void pxa2xx_gpio_write(void *opaque, hwaddr offset,
     case GPSR:		/* GPIO Pin-Output Set registers */
         s->olevel[bank] |= value;
         pxa2xx_gpio_handler_update(s);
-        s->gpsr[bank] = value;
         break;
 
     case GPCR:		/* GPIO Pin-Output Clear registers */
@@ -256,7 +261,7 @@ DeviceState *pxa2xx_gpio_init(hwaddr base,
     CPUState *cs = CPU(cpu);
     DeviceState *dev;
 
-    dev = qdev_create(NULL, "pxa2xx-gpio");
+    dev = qdev_create(NULL, TYPE_PXA2XX_GPIO);
     qdev_prop_set_int32(dev, "lines", lines);
     qdev_prop_set_int32(dev, "ncpu", cs->cpu_index);
     qdev_init_nofail(dev);
@@ -272,22 +277,21 @@ DeviceState *pxa2xx_gpio_init(hwaddr base,
     return dev;
 }
 
-static int pxa2xx_gpio_initfn(SysBusDevice *dev)
+static int pxa2xx_gpio_initfn(SysBusDevice *sbd)
 {
-    PXA2xxGPIOInfo *s;
-
-    s = FROM_SYSBUS(PXA2xxGPIOInfo, dev);
+    DeviceState *dev = DEVICE(sbd);
+    PXA2xxGPIOInfo *s = PXA2XX_GPIO(dev);
 
     s->cpu = ARM_CPU(qemu_get_cpu(s->ncpu));
 
-    qdev_init_gpio_in(&dev->qdev, pxa2xx_gpio_set, s->lines);
-    qdev_init_gpio_out(&dev->qdev, s->handler, s->lines);
+    qdev_init_gpio_in(dev, pxa2xx_gpio_set, s->lines);
+    qdev_init_gpio_out(dev, s->handler, s->lines);
 
-    memory_region_init_io(&s->iomem, &pxa_gpio_ops, s, "pxa2xx-gpio", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq0);
-    sysbus_init_irq(dev, &s->irq1);
-    sysbus_init_irq(dev, &s->irqX);
+    memory_region_init_io(&s->iomem, OBJECT(s), &pxa_gpio_ops, s, "pxa2xx-gpio", 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq0);
+    sysbus_init_irq(sbd, &s->irq1);
+    sysbus_init_irq(sbd, &s->irqX);
 
     return 0;
 }
@@ -298,7 +302,8 @@ static int pxa2xx_gpio_initfn(SysBusDevice *dev)
  */
 void pxa2xx_gpio_read_notifier(DeviceState *dev, qemu_irq handler)
 {
-    PXA2xxGPIOInfo *s = FROM_SYSBUS(PXA2xxGPIOInfo, SYS_BUS_DEVICE(dev));
+    PXA2xxGPIOInfo *s = PXA2XX_GPIO(dev);
+
     s->read_notify = handler;
 }
 
@@ -306,9 +311,7 @@ static const VMStateDescription vmstate_pxa2xx_gpio_regs = {
     .name = "pxa2xx-gpio",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields = (VMStateField []) {
-        VMSTATE_INT32(lines, PXA2xxGPIOInfo),
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(ilevel, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
         VMSTATE_UINT32_ARRAY(olevel, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
         VMSTATE_UINT32_ARRAY(dir, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
@@ -316,6 +319,7 @@ static const VMStateDescription vmstate_pxa2xx_gpio_regs = {
         VMSTATE_UINT32_ARRAY(falling, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
         VMSTATE_UINT32_ARRAY(status, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
         VMSTATE_UINT32_ARRAY(gafr, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS * 2),
+        VMSTATE_UINT32_ARRAY(prev_level, PXA2xxGPIOInfo, PXA2XX_GPIO_BANKS),
         VMSTATE_END_OF_LIST(),
     },
 };
@@ -334,10 +338,11 @@ static void pxa2xx_gpio_class_init(ObjectClass *klass, void *data)
     k->init = pxa2xx_gpio_initfn;
     dc->desc = "PXA2xx GPIO controller";
     dc->props = pxa2xx_gpio_properties;
+    dc->vmsd = &vmstate_pxa2xx_gpio_regs;
 }
 
 static const TypeInfo pxa2xx_gpio_info = {
-    .name          = "pxa2xx-gpio",
+    .name          = TYPE_PXA2XX_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxGPIOInfo),
     .class_init    = pxa2xx_gpio_class_init,

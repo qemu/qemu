@@ -26,9 +26,9 @@ typedef struct TyphoonCchip {
 } TyphoonCchip;
 
 typedef struct TyphoonWindow {
-    uint32_t base_addr;
-    uint32_t mask;
-    uint32_t translated_base_pfn;
+    uint64_t wba;
+    uint64_t wsm;
+    uint64_t tba;
 } TyphoonWindow;
  
 typedef struct TyphoonPchip {
@@ -37,6 +37,10 @@ typedef struct TyphoonPchip {
     MemoryRegion reg_mem;
     MemoryRegion reg_io;
     MemoryRegion reg_conf;
+
+    AddressSpace iommu_as;
+    MemoryRegion iommu;
+
     uint64_t ctl;
     TyphoonWindow win[4];
 } TyphoonPchip;
@@ -51,9 +55,6 @@ typedef struct TyphoonState {
     TyphoonPchip pchip;
     MemoryRegion dchip_region;
     MemoryRegion ram_region;
-
-    /* QEMU emulation state.  */
-    uint32_t latch_tmp;
 } TyphoonState;
 
 /* Called when one of DRIR or DIM changes.  */
@@ -72,14 +73,9 @@ static void cpu_irq_change(AlphaCPU *cpu, uint64_t req)
 
 static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
 {
-    CPUAlphaState *env = cpu_single_env;
+    CPUState *cpu = current_cpu;
     TyphoonState *s = opaque;
-    CPUState *cpu;
     uint64_t ret = 0;
-
-    if (addr & 4) {
-        return s->latch_tmp;
-    }
 
     switch (addr) {
     case 0x0000:
@@ -95,7 +91,6 @@ static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
 
     case 0x0080:
         /* MISC: Miscellaneous Register.  */
-        cpu = ENV_GET_CPU(env);
         ret = s->cchip.misc | (cpu->cpu_index & 3);
         break;
 
@@ -197,11 +192,10 @@ static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
         break;
 
     default:
-        cpu_unassigned_access(cpu_single_env, addr, 0, 0, 0, size);
+        cpu_unassigned_access(cpu, addr, false, false, 0, size);
         return -1;
     }
 
-    s->latch_tmp = ret >> 32;
     return ret;
 }
 
@@ -216,60 +210,56 @@ static uint64_t pchip_read(void *opaque, hwaddr addr, unsigned size)
     TyphoonState *s = opaque;
     uint64_t ret = 0;
 
-    if (addr & 4) {
-        return s->latch_tmp;
-    }
-
     switch (addr) {
     case 0x0000:
         /* WSBA0: Window Space Base Address Register.  */
-        ret = s->pchip.win[0].base_addr;
+        ret = s->pchip.win[0].wba;
         break;
     case 0x0040:
         /* WSBA1 */
-        ret = s->pchip.win[1].base_addr;
+        ret = s->pchip.win[1].wba;
         break;
     case 0x0080:
         /* WSBA2 */
-        ret = s->pchip.win[2].base_addr;
+        ret = s->pchip.win[2].wba;
         break;
     case 0x00c0:
         /* WSBA3 */
-        ret = s->pchip.win[3].base_addr;
+        ret = s->pchip.win[3].wba;
         break;
 
     case 0x0100:
         /* WSM0: Window Space Mask Register.  */
-        ret = s->pchip.win[0].mask;
+        ret = s->pchip.win[0].wsm;
         break;
     case 0x0140:
         /* WSM1 */
-        ret = s->pchip.win[1].mask;
+        ret = s->pchip.win[1].wsm;
         break;
     case 0x0180:
         /* WSM2 */
-        ret = s->pchip.win[2].mask;
+        ret = s->pchip.win[2].wsm;
         break;
     case 0x01c0:
         /* WSM3 */
-        ret = s->pchip.win[3].mask;
+        ret = s->pchip.win[3].wsm;
         break;
 
     case 0x0200:
         /* TBA0: Translated Base Address Register.  */
-        ret = (uint64_t)s->pchip.win[0].translated_base_pfn << 10;
+        ret = s->pchip.win[0].tba;
         break;
     case 0x0240:
         /* TBA1 */
-        ret = (uint64_t)s->pchip.win[1].translated_base_pfn << 10;
+        ret = s->pchip.win[1].tba;
         break;
     case 0x0280:
         /* TBA2 */
-        ret = (uint64_t)s->pchip.win[2].translated_base_pfn << 10;
+        ret = s->pchip.win[2].tba;
         break;
     case 0x02c0:
         /* TBA3 */
-        ret = (uint64_t)s->pchip.win[3].translated_base_pfn << 10;
+        ret = s->pchip.win[3].tba;
         break;
 
     case 0x0300:
@@ -300,27 +290,18 @@ static uint64_t pchip_read(void *opaque, hwaddr addr, unsigned size)
         break;
 
     default:
-        cpu_unassigned_access(cpu_single_env, addr, 0, 0, 0, size);
+        cpu_unassigned_access(current_cpu, addr, false, false, 0, size);
         return -1;
     }
 
-    s->latch_tmp = ret >> 32;
     return ret;
 }
 
 static void cchip_write(void *opaque, hwaddr addr,
-                        uint64_t v32, unsigned size)
+                        uint64_t val, unsigned size)
 {
     TyphoonState *s = opaque;
-    uint64_t val, oldval, newval;
-
-    if (addr & 4) {
-        val = v32 << 32 | s->latch_tmp;
-        addr ^= 4;
-    } else {
-        s->latch_tmp = v32;
-        return;
-    }
+    uint64_t oldval, newval;
 
     switch (addr) {
     case 0x0000:
@@ -461,7 +442,7 @@ static void cchip_write(void *opaque, hwaddr addr,
         break;
 
     default:
-        cpu_unassigned_access(cpu_single_env, addr, 1, 0, 0, size);
+        cpu_unassigned_access(current_cpu, addr, true, false, 0, size);
         return;
     }
 }
@@ -473,69 +454,61 @@ static void dchip_write(void *opaque, hwaddr addr,
 }
 
 static void pchip_write(void *opaque, hwaddr addr,
-                        uint64_t v32, unsigned size)
+                        uint64_t val, unsigned size)
 {
     TyphoonState *s = opaque;
-    uint64_t val, oldval;
-
-    if (addr & 4) {
-        val = v32 << 32 | s->latch_tmp;
-        addr ^= 4;
-    } else {
-        s->latch_tmp = v32;
-        return;
-    }
+    uint64_t oldval;
 
     switch (addr) {
     case 0x0000:
         /* WSBA0: Window Space Base Address Register.  */
-        s->pchip.win[0].base_addr = val;
+        s->pchip.win[0].wba = val & 0xfff00003u;
         break;
     case 0x0040:
         /* WSBA1 */
-        s->pchip.win[1].base_addr = val;
+        s->pchip.win[1].wba = val & 0xfff00003u;
         break;
     case 0x0080:
         /* WSBA2 */
-        s->pchip.win[2].base_addr = val;
+        s->pchip.win[2].wba = val & 0xfff00003u;
         break;
     case 0x00c0:
         /* WSBA3 */
-        s->pchip.win[3].base_addr = val;
+        s->pchip.win[3].wba = (val & 0x80fff00001ull) | 2;
         break;
 
     case 0x0100:
         /* WSM0: Window Space Mask Register.  */
-        s->pchip.win[0].mask = val;
+        s->pchip.win[0].wsm = val & 0xfff00000u;
         break;
     case 0x0140:
         /* WSM1 */
-        s->pchip.win[1].mask = val;
+        s->pchip.win[1].wsm = val & 0xfff00000u;
         break;
     case 0x0180:
         /* WSM2 */
-        s->pchip.win[2].mask = val;
+        s->pchip.win[2].wsm = val & 0xfff00000u;
         break;
     case 0x01c0:
         /* WSM3 */
-        s->pchip.win[3].mask = val;
+        s->pchip.win[3].wsm = val & 0xfff00000u;
         break;
 
     case 0x0200:
         /* TBA0: Translated Base Address Register.  */
-        s->pchip.win[0].translated_base_pfn = val >> 10;
+        s->pchip.win[0].tba = val & 0x7fffffc00ull;
         break;
     case 0x0240:
         /* TBA1 */
-        s->pchip.win[1].translated_base_pfn = val >> 10;
+        s->pchip.win[1].tba = val & 0x7fffffc00ull;
         break;
     case 0x0280:
         /* TBA2 */
-        s->pchip.win[2].translated_base_pfn = val >> 10;
+        s->pchip.win[2].tba = val & 0x7fffffc00ull;
         break;
     case 0x02c0:
         /* TBA3 */
-        s->pchip.win[3].translated_base_pfn = val >> 10;
+        s->pchip.win[3].tba = val & 0x7fffffc00ull;
         break;
 
     case 0x0300:
@@ -543,7 +516,6 @@ static void pchip_write(void *opaque, hwaddr addr,
         oldval = s->pchip.ctl;
         oldval &= ~0x00001cff0fc7ffull;       /* RW fields */
         oldval |= val & 0x00001cff0fc7ffull;
-
         s->pchip.ctl = oldval;
         break;
 
@@ -577,7 +549,7 @@ static void pchip_write(void *opaque, hwaddr addr,
         break;
 
     default:
-        cpu_unassigned_access(cpu_single_env, addr, 1, 0, 0, size);
+        cpu_unassigned_access(current_cpu, addr, true, false, 0, size);
         return;
     }
 }
@@ -587,12 +559,12 @@ static const MemoryRegionOps cchip_ops = {
     .write = cchip_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
-        .min_access_size = 4,  /* ??? Should be 8.  */
+        .min_access_size = 8,
         .max_access_size = 8,
     },
     .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
+        .min_access_size = 8,
+        .max_access_size = 8,
     },
 };
 
@@ -601,11 +573,11 @@ static const MemoryRegionOps dchip_ops = {
     .write = dchip_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
-        .min_access_size = 4,  /* ??? Should be 8.  */
+        .min_access_size = 8,
         .max_access_size = 8,
     },
     .impl = {
-        .min_access_size = 4,
+        .min_access_size = 8,
         .max_access_size = 8,
     },
 };
@@ -615,14 +587,148 @@ static const MemoryRegionOps pchip_ops = {
     .write = pchip_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
-        .min_access_size = 4,  /* ??? Should be 8.  */
+        .min_access_size = 8,
         .max_access_size = 8,
     },
     .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
+        .min_access_size = 8,
+        .max_access_size = 8,
     },
 };
+
+/* A subroutine of typhoon_translate_iommu that builds an IOMMUTLBEntry
+   using the given translated address and mask.  */
+static bool make_iommu_tlbe(hwaddr taddr, hwaddr mask, IOMMUTLBEntry *ret)
+{
+    *ret = (IOMMUTLBEntry) {
+        .target_as = &address_space_memory,
+        .translated_addr = taddr,
+        .addr_mask = mask,
+        .perm = IOMMU_RW,
+    };
+    return true;
+}
+
+/* A subroutine of typhoon_translate_iommu that handles scatter-gather
+   translation, given the address of the PTE.  */
+static bool pte_translate(hwaddr pte_addr, IOMMUTLBEntry *ret)
+{
+    uint64_t pte = ldq_phys(&address_space_memory, pte_addr);
+
+    /* Check valid bit.  */
+    if ((pte & 1) == 0) {
+        return false;
+    }
+
+    return make_iommu_tlbe((pte & 0x3ffffe) << 12, 0x1fff, ret);
+}
+
+/* A subroutine of typhoon_translate_iommu that handles one of the
+   four single-address-cycle translation windows.  */
+static bool window_translate(TyphoonWindow *win, hwaddr addr,
+                             IOMMUTLBEntry *ret)
+{
+    uint32_t wba = win->wba;
+    uint64_t wsm = win->wsm;
+    uint64_t tba = win->tba;
+    uint64_t wsm_ext = wsm | 0xfffff;
+
+    /* Check for window disabled.  */
+    if ((wba & 1) == 0) {
+        return false;
+    }
+
+    /* Check for window hit.  */
+    if ((addr & ~wsm_ext) != (wba & 0xfff00000u)) {
+        return false;
+    }
+
+    if (wba & 2) {
+        /* Scatter-gather translation.  */
+        hwaddr pte_addr;
+
+        /* See table 10-6, Generating PTE address for PCI DMA Address.  */
+        pte_addr  = tba & ~(wsm >> 10);
+        pte_addr |= (addr & (wsm | 0xfe000)) >> 10;
+        return pte_translate(pte_addr, ret);
+    } else {
+	/* Direct-mapped translation.  */
+	return make_iommu_tlbe(tba & ~wsm_ext, wsm_ext, ret);
+    }
+}
+
+/* Handle PCI-to-system address translation.  */
+/* TODO: A translation failure here ought to set PCI error codes on the
+   Pchip and generate a machine check interrupt.  */
+static IOMMUTLBEntry typhoon_translate_iommu(MemoryRegion *iommu, hwaddr addr)
+{
+    TyphoonPchip *pchip = container_of(iommu, TyphoonPchip, iommu);
+    IOMMUTLBEntry ret;
+    int i;
+
+    if (addr <= 0xffffffffu) {
+        /* Single-address cycle.  */
+
+        /* Check for the Window Hole, inhibiting matching.  */
+        if ((pchip->ctl & 0x20)
+            && addr >= 0x80000
+            && addr <= 0xfffff) {
+            goto failure;
+        }
+
+        /* Check the first three windows.  */
+        for (i = 0; i < 3; ++i) {
+            if (window_translate(&pchip->win[i], addr, &ret)) {
+                goto success;
+            }
+        }
+
+        /* Check the fourth window for DAC disable.  */
+        if ((pchip->win[3].wba & 0x80000000000ull) == 0
+	    && window_translate(&pchip->win[3], addr, &ret)) {
+            goto success;
+        }
+    } else {
+        /* Double-address cycle.  */
+
+        if (addr >= 0x10000000000ull && addr < 0x20000000000ull) {
+            /* Check for the DMA monster window.  */
+            if (pchip->ctl & 0x40) {
+                /* See 10.1.4.4; in particular <39:35> is ignored.  */
+                make_iommu_tlbe(0, 0x007ffffffffull, &ret);
+		goto success;
+            }
+        }
+
+        if (addr >= 0x80000000000ull && addr <= 0xfffffffffffull) {
+            /* Check the fourth window for DAC enable and window enable.  */
+            if ((pchip->win[3].wba & 0x80000000001ull) == 0x80000000001ull) {
+                uint64_t pte_addr;
+
+                pte_addr  = pchip->win[3].tba & 0x7ffc00000ull;
+                pte_addr |= (addr & 0xffffe000u) >> 10;
+                if (pte_translate(pte_addr, &ret)) {
+			goto success;
+		}
+            }
+        }
+    }
+
+ failure:
+    ret = (IOMMUTLBEntry) { .perm = IOMMU_NONE };
+ success:
+    return ret;
+}
+
+static const MemoryRegionIOMMUOps typhoon_iommu_ops = {
+    .translate = typhoon_translate_iommu,
+};
+
+static AddressSpace *typhoon_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
+{
+    TyphoonState *s = opaque;
+    return &s->pchip.iommu_as;
+}
 
 static void typhoon_set_irq(void *opaque, int irq, int level)
 {
@@ -707,7 +813,6 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     const uint64_t MB = 1024 * 1024;
     const uint64_t GB = 1024 * MB;
     MemoryRegion *addr_space = get_system_memory();
-    MemoryRegion *addr_space_io = get_system_io();
     DeviceState *dev;
     TyphoonState *s;
     PCIHostState *phb;
@@ -720,12 +825,15 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     s = TYPHOON_PCI_HOST_BRIDGE(dev);
     phb = PCI_HOST_BRIDGE(dev);
 
+    s->cchip.misc = 0x800000000ull; /* Revision: Typhoon.  */
+    s->pchip.win[3].wba = 2;        /* Window 3 SG always enabled. */
+
     /* Remember the CPUs so that we can deliver interrupts to them.  */
     for (i = 0; i < 4; i++) {
         AlphaCPU *cpu = cpus[i];
         s->cchip.cpu[i] = cpu;
         if (cpu != NULL) {
-            cpu->alarm_timer = qemu_new_timer_ns(rtc_clock,
+            cpu->alarm_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                                  typhoon_alarm_timer,
                                                  (void *)((uintptr_t)s + i));
         }
@@ -735,7 +843,7 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
 
     /* Main memory region, 0x00.0000.0000.  Real hardware supports 32GB,
        but the address space hole reserved at this point is 8TB.  */
-    memory_region_init_ram(&s->ram_region, "ram", ram_size);
+    memory_region_init_ram(&s->ram_region, OBJECT(s), "ram", ram_size);
     vmstate_register_ram_global(&s->ram_region);
     memory_region_add_subregion(addr_space, 0, &s->ram_region);
 
@@ -744,48 +852,55 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
        the flash ROM.  I'm not sure that we need to implement it at all.  */
 
     /* Pchip0 CSRs, 0x801.8000.0000, 256MB.  */
-    memory_region_init_io(&s->pchip.region, &pchip_ops, s, "pchip0", 256*MB);
+    memory_region_init_io(&s->pchip.region, OBJECT(s), &pchip_ops, s, "pchip0",
+                          256*MB);
     memory_region_add_subregion(addr_space, 0x80180000000ULL,
                                 &s->pchip.region);
 
     /* Cchip CSRs, 0x801.A000.0000, 256MB.  */
-    memory_region_init_io(&s->cchip.region, &cchip_ops, s, "cchip0", 256*MB);
+    memory_region_init_io(&s->cchip.region, OBJECT(s), &cchip_ops, s, "cchip0",
+                          256*MB);
     memory_region_add_subregion(addr_space, 0x801a0000000ULL,
                                 &s->cchip.region);
 
     /* Dchip CSRs, 0x801.B000.0000, 256MB.  */
-    memory_region_init_io(&s->dchip_region, &dchip_ops, s, "dchip0", 256*MB);
+    memory_region_init_io(&s->dchip_region, OBJECT(s), &dchip_ops, s, "dchip0",
+                          256*MB);
     memory_region_add_subregion(addr_space, 0x801b0000000ULL,
                                 &s->dchip_region);
 
     /* Pchip0 PCI memory, 0x800.0000.0000, 4GB.  */
-    memory_region_init(&s->pchip.reg_mem, "pci0-mem", 4*GB);
+    memory_region_init(&s->pchip.reg_mem, OBJECT(s), "pci0-mem", 4*GB);
     memory_region_add_subregion(addr_space, 0x80000000000ULL,
                                 &s->pchip.reg_mem);
 
     /* Pchip0 PCI I/O, 0x801.FC00.0000, 32MB.  */
-    /* ??? Ideally we drop the "system" i/o space on the floor and give the
-       PCI subsystem the full address space reserved by the chipset.
-       We can't do that until the MEM and IO paths in memory.c are unified.  */
-    memory_region_init_io(&s->pchip.reg_io, &alpha_pci_bw_io_ops, NULL,
-                          "pci0-io", 32*MB);
+    memory_region_init_io(&s->pchip.reg_io, OBJECT(s), &alpha_pci_ignore_ops,
+                          NULL, "pci0-io", 32*MB);
     memory_region_add_subregion(addr_space, 0x801fc000000ULL,
                                 &s->pchip.reg_io);
 
     b = pci_register_bus(dev, "pci",
                          typhoon_set_irq, sys_map_irq, s,
-                         &s->pchip.reg_mem, addr_space_io, 0, 64, TYPE_PCI_BUS);
+                         &s->pchip.reg_mem, &s->pchip.reg_io,
+                         0, 64, TYPE_PCI_BUS);
     phb->bus = b;
 
+    /* Host memory as seen from the PCI side, via the IOMMU.  */
+    memory_region_init_iommu(&s->pchip.iommu, OBJECT(s), &typhoon_iommu_ops,
+                             "iommu-typhoon", UINT64_MAX);
+    address_space_init(&s->pchip.iommu_as, &s->pchip.iommu, "pchip0-pci");
+    pci_setup_iommu(b, typhoon_pci_dma_iommu, s);
+
     /* Pchip0 PCI special/interrupt acknowledge, 0x801.F800.0000, 64MB.  */
-    memory_region_init_io(&s->pchip.reg_iack, &alpha_pci_iack_ops, b,
-                          "pci0-iack", 64*MB);
+    memory_region_init_io(&s->pchip.reg_iack, OBJECT(s), &alpha_pci_iack_ops,
+                          b, "pci0-iack", 64*MB);
     memory_region_add_subregion(addr_space, 0x801f8000000ULL,
                                 &s->pchip.reg_iack);
 
     /* Pchip0 PCI configuration, 0x801.FE00.0000, 16MB.  */
-    memory_region_init_io(&s->pchip.reg_conf, &alpha_pci_conf1_ops, b,
-                          "pci0-conf", 16*MB);
+    memory_region_init_io(&s->pchip.reg_conf, OBJECT(s), &alpha_pci_conf1_ops,
+                          b, "pci0-conf", 16*MB);
     memory_region_add_subregion(addr_space, 0x801fe000000ULL,
                                 &s->pchip.reg_conf);
 
@@ -803,7 +918,7 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     {
         qemu_irq isa_pci_irq, *isa_irqs;
 
-        *isa_bus = isa_bus_new(NULL, addr_space_io);
+        *isa_bus = isa_bus_new(NULL, &s->pchip.reg_io);
         isa_pci_irq = *qemu_allocate_irqs(typhoon_set_isa_irq, s, 1);
         isa_irqs = i8259_init(*isa_bus, isa_pci_irq);
         isa_bus_irqs(*isa_bus, isa_irqs);
@@ -819,11 +934,9 @@ static int typhoon_pcihost_init(SysBusDevice *dev)
 
 static void typhoon_pcihost_class_init(ObjectClass *klass, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = typhoon_pcihost_init;
-    dc->no_user = 1;
 }
 
 static const TypeInfo typhoon_pcihost_info = {

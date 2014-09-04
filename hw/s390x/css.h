@@ -76,7 +76,7 @@ struct SubchDev {
     hwaddr channel_prog;
     CCW1 last_cmd;
     bool last_cmd_valid;
-    ORB *orb;
+    bool thinint_active;
     /* transport-provided data: */
     int (*ccw_cb) (SubchDev *, CCW1);
     SenseId id;
@@ -85,15 +85,23 @@ struct SubchDev {
 
 typedef SubchDev *(*css_subch_cb_func)(uint8_t m, uint8_t cssid, uint8_t ssid,
                                        uint16_t schid);
+void subch_device_save(SubchDev *s, QEMUFile *f);
+int subch_device_load(SubchDev *s, QEMUFile *f);
 int css_create_css_image(uint8_t cssid, bool default_image);
 bool css_devno_used(uint8_t cssid, uint8_t ssid, uint16_t devno);
 void css_subch_assign(uint8_t cssid, uint8_t ssid, uint16_t schid,
                       uint16_t devno, SubchDev *sch);
 void css_sch_build_virtual_schib(SubchDev *sch, uint8_t chpid, uint8_t type);
+uint16_t css_build_subchannel_id(SubchDev *sch);
 void css_reset(void);
 void css_reset_sch(SubchDev *sch);
 void css_queue_crw(uint8_t rsc, uint8_t erc, int chain, uint16_t rsid);
 void css_generate_sch_crws(uint8_t cssid, uint8_t ssid, uint16_t schid,
                            int hotplugged, int add);
 void css_generate_chp_crws(uint8_t cssid, uint8_t chpid);
+void css_adapter_interrupt(uint8_t isc);
+
+#define CSS_IO_ADAPTER_VIRTIO 1
+int css_register_io_adapter(uint8_t type, uint8_t isc, bool swap,
+                            bool maskable, uint32_t *id);
 #endif

@@ -28,8 +28,6 @@
 #include "net/net.h"
 #include "hw/cris/etraxfs_dma.h"
 
-qemu_irq *cris_pic_init_cpu(CPUCRISState *env);
-
 /* Instantiate an ETRAXFS Ethernet MAC.  */
 static inline DeviceState *
 etraxfs_eth_init(NICInfo *nd, hwaddr base, int phyaddr,

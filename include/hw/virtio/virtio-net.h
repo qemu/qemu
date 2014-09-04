@@ -31,6 +31,8 @@
 /* The feature bitmap for virtio net */
 #define VIRTIO_NET_F_CSUM       0       /* Host handles pkts w/ partial csum */
 #define VIRTIO_NET_F_GUEST_CSUM 1       /* Guest handles pkts w/ partial csum */
+#define VIRTIO_NET_F_CTRL_GUEST_OFFLOADS 2 /* Control channel offload
+                                         * configuration support */
 #define VIRTIO_NET_F_MAC        5       /* Host has given MAC address. */
 #define VIRTIO_NET_F_GSO        6       /* Host handles pkts w/ any GSO type */
 #define VIRTIO_NET_F_GUEST_TSO4 7       /* Guest can handle TSOv4 in. */
@@ -47,12 +49,14 @@
 #define VIRTIO_NET_F_CTRL_RX    18      /* Control channel RX mode support */
 #define VIRTIO_NET_F_CTRL_VLAN  19      /* Control channel VLAN filtering */
 #define VIRTIO_NET_F_CTRL_RX_EXTRA 20   /* Extra RX mode control support */
+#define VIRTIO_NET_F_GUEST_ANNOUNCE 21  /* Guest can announce itself */
 #define VIRTIO_NET_F_MQ         22      /* Device supports Receive Flow
                                          * Steering */
 
 #define VIRTIO_NET_F_CTRL_MAC_ADDR   23 /* Set MAC address */
 
 #define VIRTIO_NET_S_LINK_UP    1       /* Link is up */
+#define VIRTIO_NET_S_ANNOUNCE   2       /* Announcement is needed */
 
 #define TX_TIMER_INTERVAL 150000 /* 150 us */
 
@@ -174,8 +178,8 @@ typedef struct VirtIONet {
     uint8_t nobcast;
     uint8_t vhost_started;
     struct {
-        int in_use;
-        int first_multi;
+        uint32_t in_use;
+        uint32_t first_multi;
         uint8_t multi_overflow;
         uint8_t uni_overflow;
         uint8_t *macs;
@@ -190,6 +194,9 @@ typedef struct VirtIONet {
     size_t config_size;
     char *netclient_name;
     char *netclient_type;
+    uint64_t curr_guest_offloads;
+    QEMUTimer *announce_timer;
+    int announce_counter;
 } VirtIONet;
 
 #define VIRTIO_NET_CTRL_MAC    1
@@ -208,6 +215,18 @@ typedef struct VirtIONet {
 #define VIRTIO_NET_CTRL_VLAN       2
  #define VIRTIO_NET_CTRL_VLAN_ADD             0
  #define VIRTIO_NET_CTRL_VLAN_DEL             1
+
+/*
+ * Control link announce acknowledgement
+ *
+ * VIRTIO_NET_S_ANNOUNCE bit in the status field requests link announcement from
+ * guest driver. The driver is notified by config space change interrupt.  The
+ * command VIRTIO_NET_CTRL_ANNOUNCE_ACK is used to indicate that the driver has
+ * received the notification. It makes the device clear the bit
+ * VIRTIO_NET_S_ANNOUNCE in the status field.
+ */
+#define VIRTIO_NET_CTRL_ANNOUNCE       3
+ #define VIRTIO_NET_CTRL_ANNOUNCE_ACK         0
 
 /*
  * Control Multiqueue
@@ -229,8 +248,17 @@ struct virtio_net_ctrl_mq {
  #define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MIN        1
  #define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MAX        0x8000
 
+/*
+ * Control network offloads
+ *
+ * Dynamic offloads are available with the
+ * VIRTIO_NET_F_CTRL_GUEST_OFFLOADS feature bit.
+ */
+#define VIRTIO_NET_CTRL_GUEST_OFFLOADS   5
+ #define VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET        0
+
 #define DEFINE_VIRTIO_NET_FEATURES(_state, _field) \
-        DEFINE_VIRTIO_COMMON_FEATURES(_state, _field), \
+        DEFINE_PROP_BIT("any_layout", _state, _field, VIRTIO_F_ANY_LAYOUT, true), \
         DEFINE_PROP_BIT("csum", _state, _field, VIRTIO_NET_F_CSUM, true), \
         DEFINE_PROP_BIT("guest_csum", _state, _field, VIRTIO_NET_F_GUEST_CSUM, true), \
         DEFINE_PROP_BIT("gso", _state, _field, VIRTIO_NET_F_GSO, true), \
@@ -238,6 +266,7 @@ struct virtio_net_ctrl_mq {
         DEFINE_PROP_BIT("guest_tso6", _state, _field, VIRTIO_NET_F_GUEST_TSO6, true), \
         DEFINE_PROP_BIT("guest_ecn", _state, _field, VIRTIO_NET_F_GUEST_ECN, true), \
         DEFINE_PROP_BIT("guest_ufo", _state, _field, VIRTIO_NET_F_GUEST_UFO, true), \
+        DEFINE_PROP_BIT("guest_announce", _state, _field, VIRTIO_NET_F_GUEST_ANNOUNCE, true), \
         DEFINE_PROP_BIT("host_tso4", _state, _field, VIRTIO_NET_F_HOST_TSO4, true), \
         DEFINE_PROP_BIT("host_tso6", _state, _field, VIRTIO_NET_F_HOST_TSO6, true), \
         DEFINE_PROP_BIT("host_ecn", _state, _field, VIRTIO_NET_F_HOST_ECN, true), \
@@ -249,6 +278,7 @@ struct virtio_net_ctrl_mq {
         DEFINE_PROP_BIT("ctrl_vlan", _state, _field, VIRTIO_NET_F_CTRL_VLAN, true), \
         DEFINE_PROP_BIT("ctrl_rx_extra", _state, _field, VIRTIO_NET_F_CTRL_RX_EXTRA, true), \
         DEFINE_PROP_BIT("ctrl_mac_addr", _state, _field, VIRTIO_NET_F_CTRL_MAC_ADDR, true), \
+        DEFINE_PROP_BIT("ctrl_guest_offloads", _state, _field, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS, true), \
         DEFINE_PROP_BIT("mq", _state, _field, VIRTIO_NET_F_MQ, false)
 
 #define DEFINE_VIRTIO_NET_PROPERTIES(_state, _field)                           \

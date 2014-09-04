@@ -29,6 +29,7 @@ struct target_pt_regs {
 #define ARM_THUMB_SYSCALL	0
 
 #define ARM_NR_BASE	  0xf0000
+#define ARM_NR_breakpoint (ARM_NR_BASE + 1)
 #define ARM_NR_cacheflush (ARM_NR_BASE + 2)
 #define ARM_NR_set_tls	  (ARM_NR_BASE + 5)
 
@@ -40,3 +41,6 @@ struct target_pt_regs {
 #else
 #define UNAME_MACHINE "armv5tel"
 #endif
+#define UNAME_MINIMUM_RELEASE "2.6.32"
+
+#define TARGET_CLONE_BACKWARDS

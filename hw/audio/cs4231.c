@@ -33,8 +33,13 @@
 #define CS_DREGS 32
 #define CS_MAXDREG (CS_DREGS - 1)
 
+#define TYPE_CS4231 "SUNW,CS4231"
+#define CS4231(obj) \
+    OBJECT_CHECK(CSState, (obj), TYPE_CS4231)
+
 typedef struct CSState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq irq;
     uint32_t regs[CS_REGS];
@@ -47,7 +52,7 @@ typedef struct CSState {
 
 static void cs_reset(DeviceState *d)
 {
-    CSState *s = container_of(d, CSState, busdev.qdev);
+    CSState *s = CS4231(d);
 
     memset(s->regs, 0, CS_REGS * 4);
     memset(s->dregs, 0, CS_DREGS);
@@ -111,7 +116,7 @@ static void cs_mem_write(void *opaque, hwaddr addr,
         break;
     case 4:
         if (val & 1) {
-            cs_reset(&s->busdev.qdev);
+            cs_reset(DEVICE(s));
         }
         val &= 0x7f;
         s->regs[saddr] = val;
@@ -132,8 +137,7 @@ static const VMStateDescription vmstate_cs4231 = {
     .name ="cs4231",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, CSState, CS_REGS),
         VMSTATE_UINT8_ARRAY(dregs, CSState, CS_DREGS),
         VMSTATE_END_OF_LIST()
@@ -142,9 +146,10 @@ static const VMStateDescription vmstate_cs4231 = {
 
 static int cs4231_init1(SysBusDevice *dev)
 {
-    CSState *s = FROM_SYSBUS(CSState, dev);
+    CSState *s = CS4231(dev);
 
-    memory_region_init_io(&s->iomem, &cs_mem_ops, s, "cs4321", CS_SIZE);
+    memory_region_init_io(&s->iomem, OBJECT(s), &cs_mem_ops, s, "cs4321",
+                          CS_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
 
@@ -167,7 +172,7 @@ static void cs4231_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo cs4231_info = {
-    .name          = "SUNW,CS4231",
+    .name          = TYPE_CS4231,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(CSState),
     .class_init    = cs4231_class_init,

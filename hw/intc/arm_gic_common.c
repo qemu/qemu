@@ -51,30 +51,34 @@ static const VMStateDescription vmstate_gic_irq_state = {
         VMSTATE_UINT8(active, gic_irq_state),
         VMSTATE_UINT8(level, gic_irq_state),
         VMSTATE_BOOL(model, gic_irq_state),
-        VMSTATE_BOOL(trigger, gic_irq_state),
+        VMSTATE_BOOL(edge_trigger, gic_irq_state),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static const VMStateDescription vmstate_gic = {
     .name = "arm_gic",
-    .version_id = 4,
-    .minimum_version_id = 4,
+    .version_id = 7,
+    .minimum_version_id = 7,
     .pre_save = gic_pre_save,
     .post_load = gic_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_BOOL(enabled, GICState),
-        VMSTATE_BOOL_ARRAY(cpu_enabled, GICState, NCPU),
+        VMSTATE_BOOL_ARRAY(cpu_enabled, GICState, GIC_NCPU),
         VMSTATE_STRUCT_ARRAY(irq_state, GICState, GIC_MAXIRQ, 1,
                              vmstate_gic_irq_state, gic_irq_state),
         VMSTATE_UINT8_ARRAY(irq_target, GICState, GIC_MAXIRQ),
-        VMSTATE_UINT8_2DARRAY(priority1, GICState, GIC_INTERNAL, NCPU),
+        VMSTATE_UINT8_2DARRAY(priority1, GICState, GIC_INTERNAL, GIC_NCPU),
         VMSTATE_UINT8_ARRAY(priority2, GICState, GIC_MAXIRQ - GIC_INTERNAL),
-        VMSTATE_UINT16_2DARRAY(last_active, GICState, GIC_MAXIRQ, NCPU),
-        VMSTATE_UINT16_ARRAY(priority_mask, GICState, NCPU),
-        VMSTATE_UINT16_ARRAY(running_irq, GICState, NCPU),
-        VMSTATE_UINT16_ARRAY(running_priority, GICState, NCPU),
-        VMSTATE_UINT16_ARRAY(current_pending, GICState, NCPU),
+        VMSTATE_UINT16_2DARRAY(last_active, GICState, GIC_MAXIRQ, GIC_NCPU),
+        VMSTATE_UINT8_2DARRAY(sgi_pending, GICState, GIC_NR_SGIS, GIC_NCPU),
+        VMSTATE_UINT16_ARRAY(priority_mask, GICState, GIC_NCPU),
+        VMSTATE_UINT16_ARRAY(running_irq, GICState, GIC_NCPU),
+        VMSTATE_UINT16_ARRAY(running_priority, GICState, GIC_NCPU),
+        VMSTATE_UINT16_ARRAY(current_pending, GICState, GIC_NCPU),
+        VMSTATE_UINT8_ARRAY(bpr, GICState, GIC_NCPU),
+        VMSTATE_UINT8_ARRAY(abpr, GICState, GIC_NCPU),
+        VMSTATE_UINT32_2DARRAY(apr, GICState, GIC_NR_APRS, GIC_NCPU),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -84,9 +88,9 @@ static void arm_gic_common_realize(DeviceState *dev, Error **errp)
     GICState *s = ARM_GIC_COMMON(dev);
     int num_irq = s->num_irq;
 
-    if (s->num_cpu > NCPU) {
+    if (s->num_cpu > GIC_NCPU) {
         error_setg(errp, "requested %u CPUs exceeds GIC maximum %d",
-                   s->num_cpu, NCPU);
+                   s->num_cpu, GIC_NCPU);
         return;
     }
     s->num_irq += GIC_BASE_IRQ;
@@ -110,7 +114,7 @@ static void arm_gic_common_realize(DeviceState *dev, Error **errp)
 
 static void arm_gic_common_reset(DeviceState *dev)
 {
-    GICState *s = FROM_SYSBUS(GICState, SYS_BUS_DEVICE(dev));
+    GICState *s = ARM_GIC_COMMON(dev);
     int i;
     memset(s->irq_state, 0, GIC_MAXIRQ * sizeof(gic_irq_state));
     for (i = 0 ; i < s->num_cpu; i++) {
@@ -126,7 +130,7 @@ static void arm_gic_common_reset(DeviceState *dev)
     }
     for (i = 0; i < 16; i++) {
         GIC_SET_ENABLED(i, ALL_CPU_MASK);
-        GIC_SET_TRIGGER(i);
+        GIC_SET_EDGE_TRIGGER(i);
     }
     if (s->num_cpu == 1) {
         /* For uniprocessor GICs all interrupts always target the sole CPU */
@@ -156,7 +160,6 @@ static void arm_gic_common_class_init(ObjectClass *klass, void *data)
     dc->realize = arm_gic_common_realize;
     dc->props = arm_gic_common_properties;
     dc->vmsd = &vmstate_gic;
-    dc->no_user = 1;
 }
 
 static const TypeInfo arm_gic_common_type = {

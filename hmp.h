@@ -15,6 +15,7 @@
 #define HMP_H
 
 #include "qemu-common.h"
+#include "qemu/readline.h"
 #include "qapi-types.h"
 #include "qapi/qmp/qdict.h"
 
@@ -54,7 +55,10 @@ void hmp_block_passwd(Monitor *mon, const QDict *qdict);
 void hmp_balloon(Monitor *mon, const QDict *qdict);
 void hmp_block_resize(Monitor *mon, const QDict *qdict);
 void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict);
+void hmp_snapshot_blkdev_internal(Monitor *mon, const QDict *qdict);
+void hmp_snapshot_delete_blkdev_internal(Monitor *mon, const QDict *qdict);
 void hmp_drive_mirror(Monitor *mon, const QDict *qdict);
+void hmp_drive_backup(Monitor *mon, const QDict *qdict);
 void hmp_migrate_cancel(Monitor *mon, const QDict *qdict);
 void hmp_migrate_set_downtime(Monitor *mon, const QDict *qdict);
 void hmp_migrate_set_speed(Monitor *mon, const QDict *qdict);
@@ -85,5 +89,31 @@ void hmp_nbd_server_add(Monitor *mon, const QDict *qdict);
 void hmp_nbd_server_stop(Monitor *mon, const QDict *qdict);
 void hmp_chardev_add(Monitor *mon, const QDict *qdict);
 void hmp_chardev_remove(Monitor *mon, const QDict *qdict);
+void hmp_qemu_io(Monitor *mon, const QDict *qdict);
+void hmp_cpu_add(Monitor *mon, const QDict *qdict);
+void hmp_object_add(Monitor *mon, const QDict *qdict);
+void hmp_object_del(Monitor *mon, const QDict *qdict);
+void hmp_info_memdev(Monitor *mon, const QDict *qdict);
+void object_add_completion(ReadLineState *rs, int nb_args, const char *str);
+void object_del_completion(ReadLineState *rs, int nb_args, const char *str);
+void device_add_completion(ReadLineState *rs, int nb_args, const char *str);
+void device_del_completion(ReadLineState *rs, int nb_args, const char *str);
+void sendkey_completion(ReadLineState *rs, int nb_args, const char *str);
+void chardev_remove_completion(ReadLineState *rs, int nb_args, const char *str);
+void chardev_add_completion(ReadLineState *rs, int nb_args, const char *str);
+void set_link_completion(ReadLineState *rs, int nb_args, const char *str);
+void netdev_add_completion(ReadLineState *rs, int nb_args, const char *str);
+void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str);
+void ringbuf_write_completion(ReadLineState *rs, int nb_args, const char *str);
+void ringbuf_read_completion(ReadLineState *rs, int nb_args, const char *str);
+void watchdog_action_completion(ReadLineState *rs, int nb_args,
+                                const char *str);
+void migrate_set_capability_completion(ReadLineState *rs, int nb_args,
+                                       const char *str);
+void host_net_add_completion(ReadLineState *rs, int nb_args, const char *str);
+void host_net_remove_completion(ReadLineState *rs, int nb_args,
+                                const char *str);
+void delvm_completion(ReadLineState *rs, int nb_args, const char *str);
+void loadvm_completion(ReadLineState *rs, int nb_args, const char *str);
 
 #endif

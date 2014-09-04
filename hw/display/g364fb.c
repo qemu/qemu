@@ -459,7 +459,6 @@ static const VMStateDescription vmstate_g364fb = {
     .name = "g364fb",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = g364fb_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_VBUFFER_UINT32(vram, G364State, 1, NULL, 0, vram_size),
@@ -484,40 +483,47 @@ static void g364fb_init(DeviceState *dev, G364State *s)
 {
     s->vram = g_malloc0(s->vram_size);
 
-    s->con = graphic_console_init(dev, &g364fb_ops, s);
+    s->con = graphic_console_init(dev, 0, &g364fb_ops, s);
 
-    memory_region_init_io(&s->mem_ctrl, &g364fb_ctrl_ops, s, "ctrl", 0x180000);
-    memory_region_init_ram_ptr(&s->mem_vram, "vram",
+    memory_region_init_io(&s->mem_ctrl, NULL, &g364fb_ctrl_ops, s, "ctrl", 0x180000);
+    memory_region_init_ram_ptr(&s->mem_vram, NULL, "vram",
                                s->vram_size, s->vram);
     vmstate_register_ram(&s->mem_vram, dev);
     memory_region_set_coalescing(&s->mem_vram);
 }
 
+#define TYPE_G364 "sysbus-g364"
+#define G364(obj) OBJECT_CHECK(G364SysBusState, (obj), TYPE_G364)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     G364State g364;
 } G364SysBusState;
 
-static int g364fb_sysbus_init(SysBusDevice *dev)
+static int g364fb_sysbus_init(SysBusDevice *sbd)
 {
-    G364State *s = &FROM_SYSBUS(G364SysBusState, dev)->g364;
+    DeviceState *dev = DEVICE(sbd);
+    G364SysBusState *sbs = G364(dev);
+    G364State *s = &sbs->g364;
 
-    g364fb_init(&dev->qdev, s);
-    sysbus_init_irq(dev, &s->irq);
-    sysbus_init_mmio(dev, &s->mem_ctrl);
-    sysbus_init_mmio(dev, &s->mem_vram);
+    g364fb_init(dev, s);
+    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_mmio(sbd, &s->mem_ctrl);
+    sysbus_init_mmio(sbd, &s->mem_vram);
 
     return 0;
 }
 
 static void g364fb_sysbus_reset(DeviceState *d)
 {
-    G364SysBusState *s = DO_UPCAST(G364SysBusState, busdev.qdev, d);
+    G364SysBusState *s = G364(d);
+
     g364fb_reset(&s->g364);
 }
 
 static Property g364fb_sysbus_properties[] = {
-    DEFINE_PROP_HEX32("vram_size", G364SysBusState, g364.vram_size,
+    DEFINE_PROP_UINT32("vram_size", G364SysBusState, g364.vram_size,
     8 * 1024 * 1024),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -528,6 +534,7 @@ static void g364fb_sysbus_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = g364fb_sysbus_init;
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->desc = "G364 framebuffer";
     dc->reset = g364fb_sysbus_reset;
     dc->vmsd = &vmstate_g364fb;
@@ -535,7 +542,7 @@ static void g364fb_sysbus_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo g364fb_sysbus_info = {
-    .name          = "sysbus-g364",
+    .name          = TYPE_G364,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(G364SysBusState),
     .class_init    = g364fb_sysbus_class_init,

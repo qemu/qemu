@@ -159,8 +159,7 @@ static const VMStateDescription vmstate_heathrow_pic_one = {
     .name = "heathrow_pic_one",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(events, HeathrowPIC),
         VMSTATE_UINT32(mask, HeathrowPIC),
         VMSTATE_UINT32(levels, HeathrowPIC),
@@ -173,8 +172,7 @@ static const VMStateDescription vmstate_heathrow_pic = {
     .name = "heathrow_pic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(pics, HeathrowPICS, 2, 1,
                              vmstate_heathrow_pic_one, HeathrowPIC),
         VMSTATE_END_OF_LIST()
@@ -205,7 +203,7 @@ qemu_irq *heathrow_pic_init(MemoryRegion **pmem,
     s = g_malloc0(sizeof(HeathrowPICS));
     /* only 1 CPU */
     s->irqs = irqs[0];
-    memory_region_init_io(&s->mem, &heathrow_pic_ops, s,
+    memory_region_init_io(&s->mem, NULL, &heathrow_pic_ops, s,
                           "heathrow-pic", 0x1000);
     *pmem = &s->mem;
 

@@ -1,7 +1,7 @@
 /*
  * Interface for configuring and controlling the state of tracing events.
  *
- * Copyright (C) 2011-2012 Lluís Vilanova <vilanova@ac.upc.edu>
+ * Copyright (C) 2011-2014 Lluís Vilanova <vilanova@ac.upc.edu>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -146,26 +146,17 @@ static bool trace_event_get_state_dynamic(TraceEvent *ev);
  */
 static void trace_event_set_state_dynamic(TraceEvent *ev, bool state);
 
-/**
- * trace_event_set_state_dynamic_backend:
- *
- * Warning: This function must be implemented by each tracing backend.
- */
-void trace_event_set_state_dynamic_backend(TraceEvent *ev, bool state);
-
 
 
 /**
  * trace_print_events:
  *
  * Print the state of all events.
- *
- * Warning: This function must be implemented by each tracing backend.
  */
 void trace_print_events(FILE *stream, fprintf_function stream_printf);
 
 /**
- * trace_backend_init:
+ * trace_init_backends:
  * @events: Name of file with events to be enabled at startup; may be NULL.
  *          Corresponds to commandline option "-trace events=...".
  * @file:   Name of trace output file; may be NULL.
@@ -173,19 +164,9 @@ void trace_print_events(FILE *stream, fprintf_function stream_printf);
  *
  * Initialize the tracing backend.
  *
- * Warning: This function must be implemented by each tracing backend.
- *
- * Returns: Whether the backend could be successfully initialized.
+ * Returns: Whether the backends could be successfully initialized.
  */
-bool trace_backend_init(const char *events, const char *file);
-
-/**
- * trace_backend_init_events:
- * @fname: Name of file with events to enable; may be NULL.
- *
- * Generic function to initialize the state of events.
- */
-void trace_backend_init_events(const char *fname);
+bool trace_init_backends(const char *events, const char *file);
 
 
 #include "trace/control-internal.h"

@@ -41,8 +41,12 @@ enum ssd0303_cmd {
     SSD0303_CMD_SKIP1
 };
 
+#define TYPE_SSD0303 "ssd0303"
+#define SSD0303(obj) OBJECT_CHECK(ssd0303_state, (obj), TYPE_SSD0303)
+
 typedef struct {
-    I2CSlave i2c;
+    I2CSlave parent_obj;
+
     QemuConsole *con;
     int row;
     int col;
@@ -65,8 +69,9 @@ static int ssd0303_recv(I2CSlave *i2c)
 
 static int ssd0303_send(I2CSlave *i2c, uint8_t data)
 {
-    ssd0303_state *s = (ssd0303_state *)i2c;
+    ssd0303_state *s = SSD0303(i2c);
     enum ssd0303_cmd old_cmd_state;
+
     switch (s->mode) {
     case SSD0303_IDLE:
         DPRINTF("byte 0x%02x\n", data);
@@ -175,7 +180,8 @@ static int ssd0303_send(I2CSlave *i2c, uint8_t data)
 
 static void ssd0303_event(I2CSlave *i2c, enum i2c_event event)
 {
-    ssd0303_state *s = (ssd0303_state *)i2c;
+    ssd0303_state *s = SSD0303(i2c);
+
     switch (event) {
     case I2C_FINISH:
         s->mode = SSD0303_IDLE;
@@ -266,8 +272,7 @@ static const VMStateDescription vmstate_ssd0303 = {
     .name = "ssd0303_oled",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_INT32(row, ssd0303_state),
         VMSTATE_INT32(col, ssd0303_state),
         VMSTATE_INT32(start_line, ssd0303_state),
@@ -279,7 +284,7 @@ static const VMStateDescription vmstate_ssd0303 = {
         VMSTATE_UINT32(mode, ssd0303_state),
         VMSTATE_UINT32(cmd_state, ssd0303_state),
         VMSTATE_BUFFER(framebuffer, ssd0303_state),
-        VMSTATE_I2C_SLAVE(i2c, ssd0303_state),
+        VMSTATE_I2C_SLAVE(parent_obj, ssd0303_state),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -291,9 +296,9 @@ static const GraphicHwOps ssd0303_ops = {
 
 static int ssd0303_init(I2CSlave *i2c)
 {
-    ssd0303_state *s = FROM_I2C_SLAVE(ssd0303_state, i2c);
+    ssd0303_state *s = SSD0303(i2c);
 
-    s->con = graphic_console_init(DEVICE(i2c), &ssd0303_ops, s);
+    s->con = graphic_console_init(DEVICE(i2c), 0, &ssd0303_ops, s);
     qemu_console_resize(s->con, 96 * MAGNIFY, 16 * MAGNIFY);
     return 0;
 }
@@ -311,7 +316,7 @@ static void ssd0303_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ssd0303_info = {
-    .name          = "ssd0303",
+    .name          = TYPE_SSD0303,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(ssd0303_state),
     .class_init    = ssd0303_class_init,

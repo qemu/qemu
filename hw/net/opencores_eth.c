@@ -169,6 +169,7 @@ enum {
 };
 
 enum {
+    INT_SOURCE_BUSY = 0x10,
     INT_SOURCE_RXB = 0x4,
     INT_SOURCE_TXB = 0x1,
 };
@@ -267,8 +268,12 @@ typedef struct desc {
 
 #define DEFAULT_PHY 1
 
+#define TYPE_OPEN_ETH "open_eth"
+#define OPEN_ETH(obj) OBJECT_CHECK(OpenEthState, (obj), TYPE_OPEN_ETH)
+
 typedef struct OpenEthState {
-    SysBusDevice dev;
+    SysBusDevice parent_obj;
+
     NICState *nic;
     NICConf conf;
     MemoryRegion reg_io;
@@ -347,8 +352,7 @@ static int open_eth_can_receive(NetClientState *nc)
     OpenEthState *s = qemu_get_nic_opaque(nc);
 
     return GET_REGBIT(s, MODER, RXEN) &&
-        (s->regs[TX_BD_NUM] < 0x80) &&
-        (rx_desc(s)->len_flags & RXD_E);
+        (s->regs[TX_BD_NUM] < 0x80);
 }
 
 static ssize_t open_eth_receive(NetClientState *nc,
@@ -397,6 +401,12 @@ static ssize_t open_eth_receive(NetClientState *nc,
         static const uint8_t zero[64] = {0};
         desc *desc = rx_desc(s);
         size_t copy_size = GET_REGBIT(s, MODER, HUGEN) ? 65536 : maxfl;
+
+        if (!(desc->len_flags & RXD_E)) {
+            open_eth_int_source_write(s,
+                    s->regs[INT_SOURCE] | INT_SOURCE_BUSY);
+            return size;
+        }
 
         desc->len_flags &= ~(RXD_CF | RXD_M | RXD_OR |
                 RXD_IS | RXD_DN | RXD_TL | RXD_SF | RXD_CRC | RXD_LC);
@@ -547,6 +557,15 @@ static uint64_t open_eth_reg_read(void *opaque,
     return v;
 }
 
+static void open_eth_notify_can_receive(OpenEthState *s)
+{
+    NetClientState *nc = qemu_get_queue(s->nic);
+
+    if (open_eth_can_receive(nc)) {
+        qemu_flush_queued_packets(nc);
+    }
+}
+
 static void open_eth_ro(OpenEthState *s, uint32_t val)
 {
 }
@@ -563,6 +582,7 @@ static void open_eth_moder_host_write(OpenEthState *s, uint32_t val)
 
     if (set & MODER_RXEN) {
         s->rx_desc = s->regs[TX_BD_NUM];
+        open_eth_notify_can_receive(s);
     }
     if (set & MODER_TXEN) {
         s->tx_desc = 0;
@@ -586,6 +606,18 @@ static void open_eth_int_mask_host_write(OpenEthState *s, uint32_t val)
     s->regs[INT_MASK] = val;
     open_eth_update_irq(s, s->regs[INT_SOURCE] & old,
             s->regs[INT_SOURCE] & s->regs[INT_MASK]);
+}
+
+static void open_eth_tx_bd_num_host_write(OpenEthState *s, uint32_t val)
+{
+    if (val < 0x80) {
+        bool enable = s->regs[TX_BD_NUM] == 0x80;
+
+        s->regs[TX_BD_NUM] = val;
+        if (enable) {
+            open_eth_notify_can_receive(s);
+        }
+    }
 }
 
 static void open_eth_mii_command_host_write(OpenEthState *s, uint32_t val)
@@ -626,6 +658,7 @@ static void open_eth_reg_write(void *opaque,
         [MODER] = open_eth_moder_host_write,
         [INT_SOURCE] = open_eth_int_source_host_write,
         [INT_MASK] = open_eth_int_mask_host_write,
+        [TX_BD_NUM] = open_eth_tx_bd_num_host_write,
         [MIICOMMAND] = open_eth_mii_command_host_write,
         [MIITX_DATA] = open_eth_mii_tx_host_write,
         [MIISTATUS] = open_eth_ro,
@@ -677,28 +710,30 @@ static const MemoryRegionOps open_eth_desc_ops = {
     .write = open_eth_desc_write,
 };
 
-static int sysbus_open_eth_init(SysBusDevice *dev)
+static int sysbus_open_eth_init(SysBusDevice *sbd)
 {
-    OpenEthState *s = DO_UPCAST(OpenEthState, dev, dev);
+    DeviceState *dev = DEVICE(sbd);
+    OpenEthState *s = OPEN_ETH(dev);
 
-    memory_region_init_io(&s->reg_io, &open_eth_reg_ops, s,
+    memory_region_init_io(&s->reg_io, OBJECT(dev), &open_eth_reg_ops, s,
             "open_eth.regs", 0x54);
-    sysbus_init_mmio(dev, &s->reg_io);
+    sysbus_init_mmio(sbd, &s->reg_io);
 
-    memory_region_init_io(&s->desc_io, &open_eth_desc_ops, s,
+    memory_region_init_io(&s->desc_io, OBJECT(dev), &open_eth_desc_ops, s,
             "open_eth.desc", 0x400);
-    sysbus_init_mmio(dev, &s->desc_io);
+    sysbus_init_mmio(sbd, &s->desc_io);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
 
     s->nic = qemu_new_nic(&net_open_eth_info, &s->conf,
-                          object_get_typename(OBJECT(s)), s->dev.qdev.id, s);
+                          object_get_typename(OBJECT(s)), dev->id, s);
     return 0;
 }
 
 static void qdev_open_eth_reset(DeviceState *dev)
 {
-    OpenEthState *d = DO_UPCAST(OpenEthState, dev.qdev, dev);
+    OpenEthState *d = OPEN_ETH(dev);
+
     open_eth_reset(d);
 }
 
@@ -713,13 +748,14 @@ static void open_eth_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = sysbus_open_eth_init;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "Opencores 10/100 Mbit Ethernet";
     dc->reset = qdev_open_eth_reset;
     dc->props = open_eth_properties;
 }
 
 static const TypeInfo open_eth_info = {
-    .name          = "open_eth",
+    .name          = TYPE_OPEN_ETH,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OpenEthState),
     .class_init    = open_eth_class_init,

@@ -19,7 +19,7 @@
  */
 
 #include "cpu.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "mmu-hash32.h"
@@ -29,10 +29,10 @@
 
 #ifdef DEBUG_MMU
 #  define LOG_MMU(...) qemu_log(__VA_ARGS__)
-#  define LOG_MMU_STATE(env) log_cpu_state((env), 0)
+#  define LOG_MMU_STATE(cpu) log_cpu_state((cpu), 0)
 #else
 #  define LOG_MMU(...) do { } while (0)
-#  define LOG_MMU_STATE(...) do { } while (0)
+#  define LOG_MMU_STATE(cpu) do { } while (0)
 #endif
 
 #ifdef DEBUG_BATS
@@ -222,6 +222,7 @@ static int ppc_hash32_direct_store(CPUPPCState *env, target_ulong sr,
                                    target_ulong eaddr, int rwx,
                                    hwaddr *raddr, int *prot)
 {
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     int key = !!(msr_pr ? (sr & SR32_KP) : (sr & SR32_KS));
 
     LOG_MMU("direct store...\n");
@@ -238,7 +239,7 @@ static int ppc_hash32_direct_store(CPUPPCState *env, target_ulong sr,
 
     if (rwx == 2) {
         /* No code fetch is allowed in direct-store areas */
-        env->exception_index = POWERPC_EXCP_ISI;
+        cs->exception_index = POWERPC_EXCP_ISI;
         env->error_code = 0x10000000;
         return 1;
     }
@@ -249,7 +250,7 @@ static int ppc_hash32_direct_store(CPUPPCState *env, target_ulong sr,
         break;
     case ACCESS_FLOAT:
         /* Floating point load/store */
-        env->exception_index = POWERPC_EXCP_ALIGN;
+        cs->exception_index = POWERPC_EXCP_ALIGN;
         env->error_code = POWERPC_EXCP_ALIGN_FP;
         env->spr[SPR_DAR] = eaddr;
         return 1;
@@ -272,7 +273,7 @@ static int ppc_hash32_direct_store(CPUPPCState *env, target_ulong sr,
         return 0;
     case ACCESS_EXT:
         /* eciwx or ecowx */
-        env->exception_index = POWERPC_EXCP_DSI;
+        cs->exception_index = POWERPC_EXCP_DSI;
         env->error_code = 0;
         env->spr[SPR_DAR] = eaddr;
         if (rwx == 1) {
@@ -290,7 +291,7 @@ static int ppc_hash32_direct_store(CPUPPCState *env, target_ulong sr,
         *raddr = eaddr;
         return 0;
     } else {
-        env->exception_index = POWERPC_EXCP_DSI;
+        cs->exception_index = POWERPC_EXCP_DSI;
         env->error_code = 0;
         env->spr[SPR_DAR] = eaddr;
         if (rwx == 1) {
@@ -380,9 +381,11 @@ static hwaddr ppc_hash32_pte_raddr(target_ulong sr, ppc_hash_pte32_t pte,
     return (rpn & ~mask) | (eaddr & mask);
 }
 
-int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr, int rwx,
+int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr, int rwx,
                                 int mmu_idx)
 {
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
     target_ulong sr;
     hwaddr pte_offset;
     ppc_hash_pte32_t pte;
@@ -397,7 +400,7 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr, int rwx,
     if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
         /* Translation is off */
         raddr = eaddr;
-        tlb_set_page(env, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
+        tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
                      PAGE_READ | PAGE_WRITE | PAGE_EXEC, mmu_idx,
                      TARGET_PAGE_SIZE);
         return 0;
@@ -409,10 +412,10 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr, int rwx,
         if (raddr != -1) {
             if (need_prot[rwx] & ~prot) {
                 if (rwx == 2) {
-                    env->exception_index = POWERPC_EXCP_ISI;
+                    cs->exception_index = POWERPC_EXCP_ISI;
                     env->error_code = 0x08000000;
                 } else {
-                    env->exception_index = POWERPC_EXCP_DSI;
+                    cs->exception_index = POWERPC_EXCP_DSI;
                     env->error_code = 0;
                     env->spr[SPR_DAR] = eaddr;
                     if (rwx == 1) {
@@ -424,7 +427,7 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr, int rwx,
                 return 1;
             }
 
-            tlb_set_page(env, eaddr & TARGET_PAGE_MASK,
+            tlb_set_page(cs, eaddr & TARGET_PAGE_MASK,
                          raddr & TARGET_PAGE_MASK, prot, mmu_idx,
                          TARGET_PAGE_SIZE);
             return 0;
@@ -438,7 +441,7 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr, int rwx,
     if (sr & SR32_T) {
         if (ppc_hash32_direct_store(env, sr, eaddr, rwx,
                                     &raddr, &prot) == 0) {
-            tlb_set_page(env, eaddr & TARGET_PAGE_MASK,
+            tlb_set_page(cs, eaddr & TARGET_PAGE_MASK,
                          raddr & TARGET_PAGE_MASK, prot, mmu_idx,
                          TARGET_PAGE_SIZE);
             return 0;
@@ -449,7 +452,7 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr, int rwx,
 
     /* 5. Check for segment level no-execute violation */
     if ((rwx == 2) && (sr & SR32_NX)) {
-        env->exception_index = POWERPC_EXCP_ISI;
+        cs->exception_index = POWERPC_EXCP_ISI;
         env->error_code = 0x10000000;
         return 1;
     }
@@ -458,10 +461,10 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr, int rwx,
     pte_offset = ppc_hash32_htab_lookup(env, sr, eaddr, &pte);
     if (pte_offset == -1) {
         if (rwx == 2) {
-            env->exception_index = POWERPC_EXCP_ISI;
+            cs->exception_index = POWERPC_EXCP_ISI;
             env->error_code = 0x40000000;
         } else {
-            env->exception_index = POWERPC_EXCP_DSI;
+            cs->exception_index = POWERPC_EXCP_DSI;
             env->error_code = 0;
             env->spr[SPR_DAR] = eaddr;
             if (rwx == 1) {
@@ -483,10 +486,10 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr, int rwx,
         /* Access right violation */
         LOG_MMU("PTE access rejected\n");
         if (rwx == 2) {
-            env->exception_index = POWERPC_EXCP_ISI;
+            cs->exception_index = POWERPC_EXCP_ISI;
             env->error_code = 0x08000000;
         } else {
-            env->exception_index = POWERPC_EXCP_DSI;
+            cs->exception_index = POWERPC_EXCP_DSI;
             env->error_code = 0;
             env->spr[SPR_DAR] = eaddr;
             if (rwx == 1) {
@@ -519,7 +522,7 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr, int rwx,
 
     raddr = ppc_hash32_pte_raddr(sr, pte, eaddr);
 
-    tlb_set_page(env, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
+    tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
                  prot, mmu_idx, TARGET_PAGE_SIZE);
 
     return 0;

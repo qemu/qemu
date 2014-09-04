@@ -32,6 +32,18 @@
 #define SMBHSTDAT1      0x06
 #define SMBBLKDAT       0x07
 
+#define STS_HOST_BUSY   (1)
+#define STS_INTR        (1<<1)
+#define STS_DEV_ERR     (1<<2)
+#define STS_BUS_ERR     (1<<3)
+#define STS_FAILED      (1<<4)
+#define STS_SMBALERT    (1<<5)
+#define STS_INUSE_STS   (1<<6)
+#define STS_BYTE_DONE   (1<<7)
+/* Signs of successfully transaction end :
+*  ByteDoneStatus = 1 (STS_BYTE_DONE) and INTR = 1 (STS_INTR )
+*/
+
 //#define DEBUG
 
 #ifdef DEBUG
@@ -47,51 +59,79 @@ static void smb_transaction(PMSMBus *s)
     uint8_t read = s->smb_addr & 0x01;
     uint8_t cmd = s->smb_cmd;
     uint8_t addr = s->smb_addr >> 1;
-    i2c_bus *bus = s->smbus;
+    I2CBus *bus = s->smbus;
+    int ret;
 
     SMBUS_DPRINTF("SMBus trans addr=0x%02x prot=0x%02x\n", addr, prot);
+    /* Transaction isn't exec if STS_DEV_ERR bit set */
+    if ((s->smb_stat & STS_DEV_ERR) != 0)  {
+        goto error;
+    }
     switch(prot) {
     case 0x0:
-        smbus_quick_command(bus, addr, read);
-        break;
+        ret = smbus_quick_command(bus, addr, read);
+        goto done;
     case 0x1:
         if (read) {
-            s->smb_data0 = smbus_receive_byte(bus, addr);
+            ret = smbus_receive_byte(bus, addr);
+            goto data8;
         } else {
-            smbus_send_byte(bus, addr, cmd);
+            ret = smbus_send_byte(bus, addr, cmd);
+            goto done;
         }
-        break;
     case 0x2:
         if (read) {
-            s->smb_data0 = smbus_read_byte(bus, addr, cmd);
+            ret = smbus_read_byte(bus, addr, cmd);
+            goto data8;
         } else {
-            smbus_write_byte(bus, addr, cmd, s->smb_data0);
+            ret = smbus_write_byte(bus, addr, cmd, s->smb_data0);
+            goto done;
         }
         break;
     case 0x3:
         if (read) {
-            uint16_t val;
-            val = smbus_read_word(bus, addr, cmd);
-            s->smb_data0 = val;
-            s->smb_data1 = val >> 8;
+            ret = smbus_read_word(bus, addr, cmd);
+            goto data16;
         } else {
-            smbus_write_word(bus, addr, cmd, (s->smb_data1 << 8) | s->smb_data0);
+            ret = smbus_write_word(bus, addr, cmd, (s->smb_data1 << 8) | s->smb_data0);
+            goto done;
         }
         break;
     case 0x5:
         if (read) {
-            s->smb_data0 = smbus_read_block(bus, addr, cmd, s->smb_data);
+            ret = smbus_read_block(bus, addr, cmd, s->smb_data);
+            goto data8;
         } else {
-            smbus_write_block(bus, addr, cmd, s->smb_data, s->smb_data0);
+            ret = smbus_write_block(bus, addr, cmd, s->smb_data, s->smb_data0);
+            goto done;
         }
         break;
     default:
         goto error;
     }
+    abort();
+
+data16:
+    if (ret < 0) {
+        goto error;
+    }
+    s->smb_data1 = ret >> 8;
+data8:
+    if (ret < 0) {
+        goto error;
+    }
+    s->smb_data0 = ret;
+done:
+    if (ret < 0) {
+        goto error;
+    }
+    s->smb_stat |= STS_BYTE_DONE | STS_INTR;
     return;
 
-  error:
-    s->smb_stat |= 0x04;
+error:
+    s->smb_stat |= STS_DEV_ERR;
+    return;
+
 }
 
 static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
@@ -102,7 +142,7 @@ static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
     SMBUS_DPRINTF("SMB writeb port=0x%04x val=0x%02x\n", addr, val);
     switch(addr) {
     case SMBHSTSTS:
-        s->smb_stat = 0;
+        s->smb_stat = (~(val & 0xff)) & s->smb_stat;
         s->smb_index = 0;
         break;
     case SMBHSTCNT:
@@ -181,5 +221,6 @@ static const MemoryRegionOps pm_smbus_ops = {
 void pm_smbus_init(DeviceState *parent, PMSMBus *smb)
 {
     smb->smbus = i2c_init_bus(parent, "i2c");
-    memory_region_init_io(&smb->io, &pm_smbus_ops, smb, "pm-smbus", 64);
+    memory_region_init_io(&smb->io, OBJECT(parent), &pm_smbus_ops, smb,
+                          "pm-smbus", 64);
 }

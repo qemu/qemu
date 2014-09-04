@@ -25,6 +25,7 @@
 #include "hw/pci/pci_regs.h"
 #include "hw/pci/pcie_regs.h"
 #include "hw/pci/pcie_aer.h"
+#include "hw/hotplug.h"
 
 typedef enum {
     /* for attention and power indicator */
@@ -64,15 +65,6 @@ struct PCIExpressDevice {
     uint8_t exp_cap;
 
     /* SLOT */
-    unsigned int hpev_intx;     /* INTx for hot plug event (0-3:INT[A-D]#)
-                                 * default is 0 = INTA#
-                                 * If the chip wants to use other interrupt
-                                 * line, initialize this member with the
-                                 * desired number.
-                                 * If the chip dynamically changes this member,
-                                 * also initialize it when loaded as
-                                 * appropreately.
-                                 */
     bool hpev_notified; /* Logical AND of conditions for hot plug event.
                          Following 6.7.3.4:
                          Software Notification of Hot-Plug Events, an interrupt
@@ -82,16 +74,9 @@ struct PCIExpressDevice {
     /* AER */
     uint16_t aer_cap;
     PCIEAERLog aer_log;
-    unsigned int aer_intx;      /* INTx for error reporting
-                                 * default is 0 = INTA#
-                                 * If the chip wants to use other interrupt
-                                 * line, initialize this member with the
-                                 * desired number.
-                                 * If the chip dynamically changes this member,
-                                 * also initialize it when loaded as
-                                 * appropreately.
-                                 */
 };
+
+#define COMPAT_PROP_PCP "power_controller_present"
 
 /* PCI express capability helper functions */
 int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port);
@@ -140,4 +125,8 @@ extern const VMStateDescription vmstate_pcie_device;
     .offset     = vmstate_offset_value(_state, _field, PCIDevice),   \
 }
 
+void pcie_cap_slot_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+                              Error **errp);
+void pcie_cap_slot_hot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+                                 Error **errp);
 #endif /* QEMU_PCIE_H */

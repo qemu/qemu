@@ -31,8 +31,8 @@ status=1	# failure is the default!
 _cleanup()
 {
 	_cleanup_test_img
-    rm -f $TEST_IMG.base
-    rm -f $TEST_IMG.orig
+    rm -f "$TEST_IMG.base"
+    rm -f "$TEST_IMG.orig"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -45,6 +45,14 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow qcow2 vmdk qed
 _supported_proto generic
 _supported_os Linux
+_unsupported_imgopts "subformat=monolithicFlat" \
+                     "subformat=twoGbMaxExtentFlat" \
+                     "subformat=twoGbMaxExtentSparse"
+
+# NFS does not support bdrv_reopen_prepare thus qemu-img commit fails.
+if [ "$IMGPROTO" = "nfs" ]; then
+    _notrun "image protocol $IMGPROTO does not support bdrv_commit"
+fi
 
 TEST_OFFSETS="0 4294967296"
 
@@ -65,8 +73,8 @@ _check_test_img
 echo "Creating test image with backing file"
 echo
 
-mv $TEST_IMG $TEST_IMG.base
-_make_test_img -b $TEST_IMG.base 6G
+mv "$TEST_IMG" "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" 6G
 
 echo "Filling test image"
 echo
@@ -80,8 +88,8 @@ for offset in $TEST_OFFSETS; do
 done
 _check_test_img
 
-$QEMU_IMG commit $TEST_IMG
-mv $TEST_IMG.base $TEST_IMG
+$QEMU_IMG commit "$TEST_IMG"
+mv "$TEST_IMG.base" "$TEST_IMG"
 
 echo "Reading from the backing file"
 echo

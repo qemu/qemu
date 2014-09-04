@@ -37,33 +37,32 @@ struct DriveInfo {
     int bus;
     int unit;
     int auto_del;               /* see blockdev_mark_auto_del() */
+    bool enable_auto_del;       /* Only for legacy drive_new() */
     int media_cd;
     int cyls, heads, secs, trans;
     QemuOpts *opts;
     char *serial;
     QTAILQ_ENTRY(DriveInfo) next;
-    int refcount;
 };
 
 DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
 DriveInfo *drive_get_by_index(BlockInterfaceType type, int index);
 int drive_get_max_bus(BlockInterfaceType type);
 DriveInfo *drive_get_next(BlockInterfaceType type);
-void drive_get_ref(DriveInfo *dinfo);
-void drive_put_ref(DriveInfo *dinfo);
 DriveInfo *drive_get_by_blockdev(BlockDriverState *bs);
 
 QemuOpts *drive_def(const char *optstr);
 QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
                     const char *optstr);
-DriveInfo *drive_init(QemuOpts *arg, BlockInterfaceType block_default_type);
+DriveInfo *drive_new(QemuOpts *arg, BlockInterfaceType block_default_type);
+void drive_del(DriveInfo *dinfo);
 
 /* device-hotplug */
 
 DriveInfo *add_init_drive(const char *opts);
 
 void qmp_change_blockdev(const char *device, const char *filename,
-                         bool has_format, const char *format, Error **errp);
+                         const char *format, Error **errp);
 void do_commit(Monitor *mon, const QDict *qdict);
 int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data);
 #endif

@@ -1,0 +1,163 @@
+QA output created by 083
+=== Check disconnect before neg1 ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect after neg1 ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect 8 neg1 ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect 16 neg1 ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect before export ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect after export ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect 4 export ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect 12 export ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect 16 export ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect before neg2 ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect after neg2 ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
+no file open, try 'help open'
+
+=== Check disconnect 8 neg2 ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect 10 neg2 ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect before request ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
+no file open, try 'help open'
+
+=== Check disconnect after request ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
+no file open, try 'help open'
+
+=== Check disconnect before reply ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
+no file open, try 'help open'
+
+=== Check disconnect after reply ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
+no file open, try 'help open'
+
+=== Check disconnect 4 reply ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
+no file open, try 'help open'
+
+=== Check disconnect 8 reply ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
+no file open, try 'help open'
+
+=== Check disconnect before data ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
+no file open, try 'help open'
+
+=== Check disconnect after data ===
+
+
+read failed: Input/output error
+
+=== Check disconnect before neg-classic ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect 8 neg-classic ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect 16 neg-classic ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect 24 neg-classic ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect 28 neg-classic ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT: Could not open image: Invalid argument
+no file open, try 'help open'
+
+=== Check disconnect after neg-classic ===
+
+
+qemu-io: can't open device nbd:127.0.0.1:PORT: Could not read image for determining its format: Input/output error
+no file open, try 'help open'
+
+*** done

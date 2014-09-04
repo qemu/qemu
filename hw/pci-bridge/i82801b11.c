@@ -52,7 +52,9 @@
 #define I82801ba_SSVID_SSID     0
 
 typedef struct I82801b11Bridge {
-    PCIBridge br;
+    /*< private >*/
+    PCIBridge parent_obj;
+    /*< public >*/
 } I82801b11Bridge;
 
 static int i82801b11_bridge_initfn(PCIDevice *d)
@@ -69,7 +71,7 @@ static int i82801b11_bridge_initfn(PCIDevice *d)
     if (rc < 0) {
         goto err_bridge;
     }
-    pci_config_set_prog_interface(d->config, PCI_CLASS_BRDIGE_PCI_INF_SUB);
+    pci_config_set_prog_interface(d->config, PCI_CLASS_BRIDGE_PCI_INF_SUB);
     return 0;
 
 err_bridge:
@@ -81,17 +83,20 @@ err_bridge:
 static void i82801b11_bridge_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->is_bridge = 1;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82801BA_11;
     k->revision = ICH9_D2P_A2_REVISION;
     k->init = i82801b11_bridge_initfn;
+    k->config_write = pci_bridge_write_config;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo i82801b11_bridge_info = {
     .name          = "i82801b11-bridge",
-    .parent        = TYPE_PCI_DEVICE,
+    .parent        = TYPE_PCI_BRIDGE,
     .instance_size = sizeof(I82801b11Bridge),
     .class_init    = i82801b11_bridge_class_init,
 };
@@ -107,8 +112,8 @@ PCIBus *ich9_d2pbr_init(PCIBus *bus, int devfn, int sec_bus)
     if (!d) {
         return NULL;
     }
-    br = DO_UPCAST(PCIBridge, dev, d);
-    qdev = &br->dev.qdev;
+    br = PCI_BRIDGE(d);
+    qdev = DEVICE(d);
 
     snprintf(buf, sizeof(buf), "pci.%d", sec_bus);
     pci_bridge_map_irq(br, buf, pci_swizzle_map_irq_fn);

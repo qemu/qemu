@@ -46,15 +46,29 @@ extern int daemon(int, int);
 #else
 #  define QEMU_VMALLOC_ALIGN getpagesize()
 #endif
+#define HUGETLBFS_MAGIC       0x958458f6
+
+#include <termios.h>
+#include <unistd.h>
+
+#include <glib/gprintf.h>
 
 #include "config-host.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 #include "qemu/sockets.h"
 #include <sys/mman.h>
+#include <libgen.h>
+#include <setjmp.h>
+#include <sys/signal.h>
 
 #ifdef CONFIG_LINUX
 #include <sys/syscall.h>
+#include <sys/vfs.h>
+#endif
+
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
 #endif
 
 int qemu_get_thread_id(void)
@@ -83,6 +97,11 @@ void *qemu_oom_check(void *ptr)
 void *qemu_memalign(size_t alignment, size_t size)
 {
     void *ptr;
+
+    if (alignment < sizeof(void*)) {
+        alignment = sizeof(void*);
+    }
+
 #if defined(_POSIX_C_SOURCE) && !defined(__sun__)
     int ret;
     ret = posix_memalign(&ptr, alignment, size);
@@ -110,9 +129,7 @@ void *qemu_anon_ram_alloc(size_t size)
     size_t offset = QEMU_ALIGN_UP((uintptr_t)ptr, align) - (uintptr_t)ptr;
 
     if (ptr == MAP_FAILED) {
-        fprintf(stderr, "Failed to allocate %zu B: %s\n",
-                size, strerror(errno));
-        abort();
+        return NULL;
     }
 
     ptr += offset;
@@ -155,6 +172,18 @@ void qemu_set_nonblock(int fd)
     int f;
     f = fcntl(fd, F_GETFL);
     fcntl(fd, F_SETFL, f | O_NONBLOCK);
+}
+
+int socket_set_fast_reuse(int fd)
+{
+    int val = 1, ret;
+
+    ret = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+                     (const char *)&val, sizeof(val));
+
+    assert(ret == 0);
+
+    return ret;
 }
 
 void qemu_set_cloexec(int fd)
@@ -231,4 +260,150 @@ int qemu_utimens(const char *path, const struct timespec *times)
     }
 
     return utimes(path, &tv[0]);
+}
+
+char *
+qemu_get_local_state_pathname(const char *relative_pathname)
+{
+    return g_strdup_printf("%s/%s", CONFIG_QEMU_LOCALSTATEDIR,
+                           relative_pathname);
+}
+
+void qemu_set_tty_echo(int fd, bool echo)
+{
+    struct termios tty;
+
+    tcgetattr(fd, &tty);
+
+    if (echo) {
+        tty.c_lflag |= ECHO | ECHONL | ICANON | IEXTEN;
+    } else {
+        tty.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN);
+    }
+
+    tcsetattr(fd, TCSANOW, &tty);
+}
+
+static char exec_dir[PATH_MAX];
+
+void qemu_init_exec_dir(const char *argv0)
+{
+    char *dir;
+    char *p = NULL;
+    char buf[PATH_MAX];
+
+    assert(!exec_dir[0]);
+
+#if defined(__linux__)
+    {
+        int len;
+        len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+        if (len > 0) {
+            buf[len] = 0;
+            p = buf;
+        }
+    }
+#elif defined(__FreeBSD__)
+    {
+        static int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1};
+        size_t len = sizeof(buf) - 1;
+
+        *buf = '\0';
+        if (!sysctl(mib, ARRAY_SIZE(mib), buf, &len, NULL, 0) &&
+            *buf) {
+            buf[sizeof(buf) - 1] = '\0';
+            p = buf;
+        }
+    }
+#endif
+    /* If we don't have any way of figuring out the actual executable
+       location then try argv[0].  */
+    if (!p) {
+        if (!argv0) {
+            return;
+        }
+        p = realpath(argv0, buf);
+        if (!p) {
+            return;
+        }
+    }
+    dir = dirname(p);
+
+    pstrcpy(exec_dir, sizeof(exec_dir), dir);
+}
+
+char *qemu_get_exec_dir(void)
+{
+    return g_strdup(exec_dir);
+}
+
+static sigjmp_buf sigjump;
+
+static void sigbus_handler(int signal)
+{
+    siglongjmp(sigjump, 1);
+}
+
+static size_t fd_getpagesize(int fd)
+{
+#ifdef CONFIG_LINUX
+    struct statfs fs;
+    int ret;
+
+    if (fd != -1) {
+        do {
+            ret = fstatfs(fd, &fs);
+        } while (ret != 0 && errno == EINTR);
+
+        if (ret == 0 && fs.f_type == HUGETLBFS_MAGIC) {
+            return fs.f_bsize;
+        }
+    }
+#endif
+
+    return getpagesize();
+}
+
+void os_mem_prealloc(int fd, char *area, size_t memory)
+{
+    int ret;
+    struct sigaction act, oldact;
+    sigset_t set, oldset;
+
+    memset(&act, 0, sizeof(act));
+    act.sa_handler = &sigbus_handler;
+    act.sa_flags = 0;
+
+    ret = sigaction(SIGBUS, &act, &oldact);
+    if (ret) {
+        perror("os_mem_prealloc: failed to install signal handler");
+        exit(1);
+    }
+
+    /* unblock SIGBUS */
+    sigemptyset(&set);
+    sigaddset(&set, SIGBUS);
+    pthread_sigmask(SIG_UNBLOCK, &set, &oldset);
+
+    if (sigsetjmp(sigjump, 1)) {
+        fprintf(stderr, "os_mem_prealloc: failed to preallocate pages\n");
+        exit(1);
+    } else {
+        int i;
+        size_t hpagesize = fd_getpagesize(fd);
+
+        /* MAP_POPULATE silently ignores failures */
+        memory = (memory + hpagesize - 1) & -hpagesize;
+        for (i = 0; i < (memory / hpagesize); i++) {
+            memset(area + (hpagesize * i), 0, 1);
+        }
+
+        ret = sigaction(SIGBUS, &oldact, NULL);
+        if (ret) {
+            perror("os_mem_prealloc: failed to reinstall signal handler");
+            exit(1);
+        }
+
+        pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+    }
 }

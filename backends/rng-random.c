@@ -78,9 +78,8 @@ static void rng_random_opened(RngBackend *b, Error **errp)
                   "filename", "a valid filename");
     } else {
         s->fd = qemu_open(s->filename, O_RDONLY | O_NONBLOCK);
-
         if (s->fd == -1) {
-            error_set(errp, QERR_OPEN_FILE_FAILED, s->filename);
+            error_setg_file_open(errp, errno, s->filename);
         }
     }
 }
@@ -107,10 +106,7 @@ static void rng_random_set_filename(Object *obj, const char *filename,
         return;
     }
 
-    if (s->filename) {
-        g_free(s->filename);
-    }
-
+    g_free(s->filename);
     s->filename = g_strdup(filename);
 }
 
@@ -124,15 +120,15 @@ static void rng_random_init(Object *obj)
                             NULL);
 
     s->filename = g_strdup("/dev/random");
+    s->fd = -1;
 }
 
 static void rng_random_finalize(Object *obj)
 {
     RndRandom *s = RNG_RANDOM(obj);
 
-    qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
-
     if (s->fd != -1) {
+        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
         qemu_close(s->fd);
     }
 

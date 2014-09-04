@@ -66,42 +66,38 @@ static int pic_dispatch_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static int pic_init_common(ISADevice *dev)
+static void pic_common_realize(DeviceState *dev, Error **errp)
 {
     PICCommonState *s = PIC_COMMON(dev);
-    PICCommonClass *info = PIC_COMMON_GET_CLASS(s);
-
-    info->init(s);
 
     isa_register_ioport(NULL, &s->base_io, s->iobase);
     if (s->elcr_addr != -1) {
         isa_register_ioport(NULL, &s->elcr_io, s->elcr_addr);
     }
 
-    qdev_set_legacy_instance_id(DEVICE(dev), s->iobase, 1);
-
-    return 0;
+    qdev_set_legacy_instance_id(dev, s->iobase, 1);
 }
 
 ISADevice *i8259_init_chip(const char *name, ISABus *bus, bool master)
 {
-    ISADevice *dev;
+    DeviceState *dev;
+    ISADevice *isadev;
 
-    dev = isa_create(bus, name);
-    qdev_prop_set_uint32(&dev->qdev, "iobase", master ? 0x20 : 0xa0);
-    qdev_prop_set_uint32(&dev->qdev, "elcr_addr", master ? 0x4d0 : 0x4d1);
-    qdev_prop_set_uint8(&dev->qdev, "elcr_mask", master ? 0xf8 : 0xde);
-    qdev_prop_set_bit(&dev->qdev, "master", master);
-    qdev_init_nofail(&dev->qdev);
+    isadev = isa_create(bus, name);
+    dev = DEVICE(isadev);
+    qdev_prop_set_uint32(dev, "iobase", master ? 0x20 : 0xa0);
+    qdev_prop_set_uint32(dev, "elcr_addr", master ? 0x4d0 : 0x4d1);
+    qdev_prop_set_uint8(dev, "elcr_mask", master ? 0xf8 : 0xde);
+    qdev_prop_set_bit(dev, "master", master);
+    qdev_init_nofail(dev);
 
-    return dev;
+    return isadev;
 }
 
 static const VMStateDescription vmstate_pic_common = {
     .name = "i8259",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .pre_save = pic_dispatch_pre_save,
     .post_load = pic_dispatch_post_load,
     .fields = (VMStateField[]) {
@@ -126,22 +122,27 @@ static const VMStateDescription vmstate_pic_common = {
 };
 
 static Property pic_properties_common[] = {
-    DEFINE_PROP_HEX32("iobase", PICCommonState, iobase,  -1),
-    DEFINE_PROP_HEX32("elcr_addr", PICCommonState, elcr_addr,  -1),
-    DEFINE_PROP_HEX8("elcr_mask", PICCommonState, elcr_mask,  -1),
+    DEFINE_PROP_UINT32("iobase", PICCommonState, iobase,  -1),
+    DEFINE_PROP_UINT32("elcr_addr", PICCommonState, elcr_addr,  -1),
+    DEFINE_PROP_UINT8("elcr_mask", PICCommonState, elcr_mask,  -1),
     DEFINE_PROP_BIT("master", PICCommonState, master,  0, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pic_common_class_init(ObjectClass *klass, void *data)
 {
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_pic_common;
-    dc->no_user = 1;
     dc->props = pic_properties_common;
-    ic->init = pic_init_common;
+    dc->realize = pic_common_realize;
+    /*
+     * Reason: unlike ordinary ISA devices, the PICs need additional
+     * wiring: its IRQ input lines are set up by board code, and the
+     * wiring of the slave to the master is hard-coded in device model
+     * code.
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo pic_common_type = {

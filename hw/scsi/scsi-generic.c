@@ -37,8 +37,6 @@ do { fprintf(stderr, "scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
 #include <scsi/sg.h>
 #include "block/scsi.h"
 
-#define SCSI_SENSE_BUF_SIZE 96
-
 #define SG_ERR_DRIVER_TIMEOUT  0x06
 #define SG_ERR_DRIVER_SENSE    0x08
 
@@ -210,7 +208,7 @@ static void scsi_read_complete(void * opaque, int ret)
             s->blocksize = ldl_be_p(&r->buf[8]);
             s->max_lba = ldq_be_p(&r->buf[0]);
         }
-        bdrv_set_buffer_alignment(s->conf.bs, s->blocksize);
+        bdrv_set_guest_block_size(s->conf.bs, s->blocksize);
 
         scsi_req_data(&r->req, len);
         if (!r->req.io_canceled) {
@@ -396,6 +394,7 @@ static void scsi_destroy(SCSIDevice *s)
 
 static int scsi_generic_initfn(SCSIDevice *s)
 {
+    int rc;
     int sg_version;
     struct sg_scsi_id scsiid;
 
@@ -414,8 +413,11 @@ static int scsi_generic_initfn(SCSIDevice *s)
     }
 
     /* check we are using a driver managing SG_IO (version 3 and after */
-    if (bdrv_ioctl(s->conf.bs, SG_GET_VERSION_NUM, &sg_version) < 0) {
-        error_report("scsi generic interface not supported");
+    rc = bdrv_ioctl(s->conf.bs, SG_GET_VERSION_NUM, &sg_version);
+    if (rc < 0) {
+        error_report("cannot get SG_IO version number: %s.  "
+                     "Is this a SCSI device?",
+                     strerror(-rc));
         return -1;
     }
     if (sg_version < 30000) {

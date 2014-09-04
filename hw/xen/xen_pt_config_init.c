@@ -1123,8 +1123,8 @@ static int xen_pt_msgctrl_reg_write(XenPCIPassthroughState *s,
             msi->mapped = true;
         }
         msi->flags |= PCI_MSI_FLAGS_ENABLE;
-    } else {
-        msi->flags &= ~PCI_MSI_FLAGS_ENABLE;
+    } else if (msi->mapped) {
+        xen_pt_msi_disable(s);
     }
 
     /* pass through MSI_ENABLE bit */
@@ -1397,6 +1397,8 @@ static int xen_pt_msixctrl_reg_write(XenPCIPassthroughState *s,
     if ((*val & PCI_MSIX_FLAGS_ENABLE)
         && !(*val & PCI_MSIX_FLAGS_MASKALL)) {
         xen_pt_msix_update(s);
+    } else if (!(*val & PCI_MSIX_FLAGS_ENABLE) && s->msix->enabled) {
+        xen_pt_msix_disable(s);
     }
 
     debug_msix_enabled_old = s->msix->enabled;
@@ -1777,12 +1779,12 @@ static int xen_pt_config_reg_init(XenPCIPassthroughState *s,
         rc = reg->init(s, reg_entry->reg,
                        reg_grp->base_offset + reg->offset, &data);
         if (rc < 0) {
-            free(reg_entry);
+            g_free(reg_entry);
             return rc;
         }
         if (data == XEN_PT_INVALID_REG) {
             /* free unused BAR register entry */
-            free(reg_entry);
+            g_free(reg_entry);
             return 0;
         }
         /* set register value */

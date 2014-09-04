@@ -23,12 +23,12 @@ static struct arm_boot_info collie_binfo = {
     .ram_size = 0x20000000,
 };
 
-static void collie_init(QEMUMachineInitArgs *args)
+static void collie_init(MachineState *machine)
 {
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     StrongARMState *s;
     DriveInfo *dinfo;
     MemoryRegion *sysmem = get_system_memory();
@@ -62,7 +62,6 @@ static QEMUMachine collie_machine = {
     .name = "collie",
     .desc = "Collie PDA (SA-1110)",
     .init = collie_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void collie_machine_init(void)

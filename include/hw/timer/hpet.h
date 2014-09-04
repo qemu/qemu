@@ -13,6 +13,8 @@
 #ifndef QEMU_HPET_EMUL_H
 #define QEMU_HPET_EMUL_H
 
+#include "qom/object.h"
+
 #define HPET_BASE               0xfed00000
 #define HPET_CLK_PERIOD         10000000ULL /* 10000000 femtoseconds == 10ns*/
 
@@ -71,4 +73,12 @@ struct hpet_fw_config
 } QEMU_PACKED;
 
 extern struct hpet_fw_config hpet_cfg;
+
+#define TYPE_HPET "hpet"
+
+static inline bool hpet_find(void)
+{
+    return object_resolve_path_type("", TYPE_HPET, NULL);
+}
+
 #endif

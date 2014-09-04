@@ -2,33 +2,39 @@
 #
 # QAPI Schema
 
-##
-# @ErrorClass
-#
-# QEMU error classes
-#
-# @GenericError: this is used for errors that don't require a specific error
-#                class. This should be the default case for most errors
-#
-# @CommandNotFound: the requested command has not been found
-#
-# @DeviceEncrypted: the requested operation can't be fulfilled because the
-#                   selected device is encrypted
-#
-# @DeviceNotActive: a device has failed to be become active
-#
-# @DeviceNotFound: the requested device has not been found
-#
-# @KVMMissingCap: the requested operation can't be fulfilled because a
-#                 required KVM capability is missing
-#
-# Since: 1.2
-##
-{ 'enum': 'ErrorClass',
-  'data': [ 'GenericError', 'CommandNotFound', 'DeviceEncrypted',
-            'DeviceNotActive', 'DeviceNotFound', 'KVMMissingCap' ] }
+# QAPI common definitions
+{ 'include': 'qapi/common.json' }
+
+# QAPI block definitions
+{ 'include': 'qapi/block.json' }
+
+# QAPI event definitions
+{ 'include': 'qapi/event.json' }
 
 ##
+# LostTickPolicy:
+#
+# Policy for handling lost ticks in timer devices.
+#
+# @discard: throw away the missed tick(s) and continue with future injection
+#           normally.  Guest time may be delayed, unless the OS has explicit
+#           handling of lost ticks
+#
+# @delay: continue to deliver ticks at the normal rate.  Guest time will be
+#         delayed due to the late tick
+#
+# @merge: merge the missed tick(s) into one tick and inject.  Guest time
+#         may be delayed, depending on how the OS reacts to the merging
+#         of ticks
+#
+# @slew: deliver ticks at a higher rate to catch up with the missed tick. The
+#        guest time should not be delayed once catchup is complete.
+#
+# Since: 2.0
+##
+{ 'enum': 'LostTickPolicy',
+  'data': ['discard', 'delay', 'merge', 'slew' ] }
+
 # @add_client
 #
 # Allow client connections for VNC, Spice and socket based
@@ -74,43 +80,6 @@
 # Since 0.14.0
 ##
 { 'command': 'query-name', 'returns': 'NameInfo' }
-
-##
-# @VersionInfo:
-#
-# A description of QEMU's version.
-#
-# @qemu.major:  The major version of QEMU
-#
-# @qemu.minor:  The minor version of QEMU
-#
-# @qemu.micro:  The micro version of QEMU.  By current convention, a micro
-#               version of 50 signifies a development branch.  A micro version
-#               greater than or equal to 90 signifies a release candidate for
-#               the next minor version.  A micro version of less than 50
-#               signifies a stable release.
-#
-# @package:     QEMU will always set this field to an empty string.  Downstream
-#               versions of QEMU should set this to a non-empty string.  The
-#               exact format depends on the downstream however it highly
-#               recommended that a unique name is used.
-#
-# Since: 0.14.0
-##
-{ 'type': 'VersionInfo',
-  'data': {'qemu': {'major': 'int', 'minor': 'int', 'micro': 'int'},
-           'package': 'str'} }
-
-##
-# @query-version:
-#
-# Returns the current version of QEMU.
-#
-# Returns:  A @VersionInfo object describing the current version of QEMU.
-#
-# Since: 0.14.0
-##
-{ 'command': 'query-version', 'returns': 'VersionInfo' }
 
 ##
 # @KvmInfo:
@@ -184,120 +153,6 @@
             'guest-panicked' ] }
 
 ##
-# @SnapshotInfo
-#
-# @id: unique snapshot id
-#
-# @name: user chosen name
-#
-# @vm-state-size: size of the VM state
-#
-# @date-sec: UTC date of the snapshot in seconds
-#
-# @date-nsec: fractional part in nano seconds to be used with date-sec
-#
-# @vm-clock-sec: VM clock relative to boot in seconds
-#
-# @vm-clock-nsec: fractional part in nano seconds to be used with vm-clock-sec
-#
-# Since: 1.3
-#
-##
-
-{ 'type': 'SnapshotInfo',
-  'data': { 'id': 'str', 'name': 'str', 'vm-state-size': 'int',
-            'date-sec': 'int', 'date-nsec': 'int',
-            'vm-clock-sec': 'int', 'vm-clock-nsec': 'int' } }
-
-##
-# @ImageInfo:
-#
-# Information about a QEMU image file
-#
-# @filename: name of the image file
-#
-# @format: format of the image file
-#
-# @virtual-size: maximum capacity in bytes of the image
-#
-# @actual-size: #optional actual size on disk in bytes of the image
-#
-# @dirty-flag: #optional true if image is not cleanly closed
-#
-# @cluster-size: #optional size of a cluster in bytes
-#
-# @encrypted: #optional true if the image is encrypted
-#
-# @backing-filename: #optional name of the backing file
-#
-# @full-backing-filename: #optional full path of the backing file
-#
-# @backing-filename-format: #optional the format of the backing file
-#
-# @snapshots: #optional list of VM snapshots
-#
-# Since: 1.3
-#
-##
-
-{ 'type': 'ImageInfo',
-  'data': {'filename': 'str', 'format': 'str', '*dirty-flag': 'bool',
-           '*actual-size': 'int', 'virtual-size': 'int',
-           '*cluster-size': 'int', '*encrypted': 'bool',
-           '*backing-filename': 'str', '*full-backing-filename': 'str',
-           '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'] } }
-
-##
-# @ImageCheck:
-#
-# Information about a QEMU image file check
-#
-# @filename: name of the image file checked
-#
-# @format: format of the image file checked
-#
-# @check-errors: number of unexpected errors occurred during check
-#
-# @image-end-offset: #optional offset (in bytes) where the image ends, this
-#                    field is present if the driver for the image format
-#                    supports it
-#
-# @corruptions: #optional number of corruptions found during the check if any
-#
-# @leaks: #optional number of leaks found during the check if any
-#
-# @corruptions-fixed: #optional number of corruptions fixed during the check
-#                     if any
-#
-# @leaks-fixed: #optional number of leaks fixed during the check if any
-#
-# @total-clusters: #optional total number of clusters, this field is present
-#                  if the driver for the image format supports it
-#
-# @allocated-clusters: #optional total number of allocated clusters, this
-#                      field is present if the driver for the image format
-#                      supports it
-#
-# @fragmented-clusters: #optional total number of fragmented clusters, this
-#                       field is present if the driver for the image format
-#                       supports it
-#
-# @compressed-clusters: #optional total number of compressed clusters, this
-#                       field is present if the driver for the image format
-#                       supports it
-#
-# Since: 1.4
-#
-##
-
-{ 'type': 'ImageCheck',
-  'data': {'filename': 'str', 'format': 'str', 'check-errors': 'int',
-           '*image-end-offset': 'int', '*corruptions': 'int', '*leaks': 'int',
-           '*corruptions-fixed': 'int', '*leaks-fixed': 'int',
-           '*total-clusters': 'int', '*allocated-clusters': 'int',
-           '*fragmented-clusters': 'int', '*compressed-clusters': 'int' } }
-
-##
 # @StatusInfo:
 #
 # Information about VCPU run state
@@ -359,12 +214,18 @@
 #
 # @filename: the filename of the character device
 #
+# @frontend-open: shows whether the frontend device attached to this backend
+#                 (eg. with the chardev=... option) is in open or closed state
+#                 (since 2.1)
+#
 # Notes: @filename is encoded using the QEMU command line character device
 #        encoding.  See the QEMU man page for details.
 #
 # Since: 0.14.0
 ##
-{ 'type': 'ChardevInfo', 'data': {'label': 'str', 'filename': 'str'} }
+{ 'type': 'ChardevInfo', 'data': {'label': 'str',
+                                  'filename': 'str',
+                                  'frontend-open': 'bool'} }
 
 ##
 # @query-chardev:
@@ -378,6 +239,28 @@
 { 'command': 'query-chardev', 'returns': ['ChardevInfo'] }
 
 ##
+# @ChardevBackendInfo:
+#
+# Information about a character device backend
+#
+# @name: The backend name
+#
+# Since: 2.0
+##
+{ 'type': 'ChardevBackendInfo', 'data': {'name': 'str'} }
+
+##
+# @query-chardev-backends:
+#
+# Returns information about character device backends.
+#
+# Returns: a list of @ChardevBackendInfo
+#
+# Since: 2.0
+##
+{ 'command': 'query-chardev-backends', 'returns': ['ChardevBackendInfo'] }
+
+##
 # @DataFormat:
 #
 # An enumeration of data format.
@@ -388,7 +271,7 @@
 #
 # Since: 1.4
 ##
-{ 'enum': 'DataFormat'
+{ 'enum': 'DataFormat',
   'data': [ 'utf8', 'base64' ] }
 
 ##
@@ -445,28 +328,6 @@
   'returns': 'str' }
 
 ##
-# @CommandInfo:
-#
-# Information about a QMP command
-#
-# @name: The command name
-#
-# Since: 0.14.0
-##
-{ 'type': 'CommandInfo', 'data': {'name': 'str'} }
-
-##
-# @query-commands:
-#
-# Return a list of supported QMP commands by this server
-#
-# Returns: A list of @CommandInfo for all supported commands
-#
-# Since: 0.14.0
-##
-{ 'command': 'query-commands', 'returns': ['CommandInfo'] }
-
-##
 # @EventInfo:
 #
 # Information about a QMP event
@@ -510,12 +371,17 @@
 # @dirty-pages-rate: number of pages dirtied by second by the
 #        guest (since 1.3)
 #
+# @mbps: throughput in megabits/sec. (since 1.6)
+#
+# @dirty-sync-count: number of times that dirty ram was synchronized (since 2.1)
+#
 # Since: 0.14.0
 ##
 { 'type': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
            'duplicate': 'int', 'skipped': 'int', 'normal': 'int',
-           'normal-bytes': 'int', 'dirty-pages-rate' : 'int' } }
+           'normal-bytes': 'int', 'dirty-pages-rate' : 'int',
+           'mbps' : 'number', 'dirty-sync-count' : 'int' } }
 
 ##
 # @XBZRLECacheStats
@@ -530,13 +396,16 @@
 #
 # @cache-miss: number of cache miss
 #
+# @cache-miss-rate: rate of cache miss (since 2.1)
+#
 # @overflow: number of overflows
 #
 # Since: 1.2
 ##
 { 'type': 'XBZRLECacheStats',
   'data': {'cache-size': 'int', 'bytes': 'int', 'pages': 'int',
-           'cache-miss': 'int', 'overflow': 'int' } }
+           'cache-miss': 'int', 'cache-miss-rate': 'number',
+           'overflow': 'int' } }
 
 ##
 # @MigrationInfo
@@ -544,7 +413,7 @@
 # Information about current migration process.
 #
 # @status: #optional string describing the current migration status.
-#          As of 0.14.0 this can be 'active', 'completed', 'failed' or
+#          As of 0.14.0 this can be 'setup', 'active', 'completed', 'failed' or
 #          'cancelled'. If this field is not returned, no migration process
 #          has been initiated
 #
@@ -572,6 +441,12 @@
 #        expected downtime in milliseconds for the guest in last walk
 #        of the dirty bitmap. (since 1.3)
 #
+# @setup-time: #optional amount of setup time in milliseconds _before_ the
+#        iterations begin but _after_ the QMP command is issued. This is designed
+#        to provide an accounting of any activities (such as RDMA pinning) which
+#        may be expensive, but do not actually occur during the iterative
+#        migration rounds themselves. (since 1.6)
+#
 # Since: 0.14.0
 ##
 { 'type': 'MigrationInfo',
@@ -580,7 +455,8 @@
            '*xbzrle-cache': 'XBZRLECacheStats',
            '*total-time': 'int',
            '*expected-downtime': 'int',
-           '*downtime': 'int'} }
+           '*downtime': 'int',
+           '*setup-time': 'int'} }
 
 ##
 # @query-migrate
@@ -602,10 +478,23 @@
 #          This feature allows us to minimize migration traffic for certain work
 #          loads, by sending compressed difference of the pages
 #
+# @rdma-pin-all: Controls whether or not the entire VM memory footprint is
+#          mlock()'d on demand or all at once. Refer to docs/rdma.txt for usage.
+#          Disabled by default. (since 2.0)
+#
+# @zero-blocks: During storage migration encode blocks of zeroes efficiently. This
+#          essentially saves 1MB of zeroes per block on the wire. Enabling requires
+#          source and target VM to support this feature. To enable it is sufficient
+#          to enable the capability on the source VM. The feature is disabled by
+#          default. (since 1.6)
+#
+# @auto-converge: If enabled, QEMU will automatically throttle down the guest
+#          to speed up convergence of RAM migration. (since 1.6)
+#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
-  'data': ['xbzrle'] }
+  'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks'] }
 
 ##
 # @MigrationCapabilityStatus
@@ -721,211 +610,89 @@
 { 'command': 'query-cpus', 'returns': ['CpuInfo'] }
 
 ##
-# @BlockDeviceInfo:
+# @IOThreadInfo:
 #
-# Information about the backing device for a block device.
+# Information about an iothread
 #
-# @file: the filename of the backing device
+# @id: the identifier of the iothread
 #
-# @ro: true if the backing device was open read-only
+# @thread-id: ID of the underlying host thread
 #
-# @drv: the name of the block format used to open the backing device. As of
-#       0.14.0 this can be: 'blkdebug', 'bochs', 'cloop', 'cow', 'dmg',
-#       'file', 'file', 'ftp', 'ftps', 'host_cdrom', 'host_device',
-#       'host_floppy', 'http', 'https', 'nbd', 'parallels', 'qcow',
-#       'qcow2', 'raw', 'tftp', 'vdi', 'vmdk', 'vpc', 'vvfat'
-#
-# @backing_file: #optional the name of the backing file (for copy-on-write)
-#
-# @backing_file_depth: number of files in the backing file chain (since: 1.2)
-#
-# @encrypted: true if the backing device is encrypted
-#
-# @encryption_key_missing: true if the backing device is encrypted but an
-#                          valid encryption key is missing
-#
-# @bps: total throughput limit in bytes per second is specified
-#
-# @bps_rd: read throughput limit in bytes per second is specified
-#
-# @bps_wr: write throughput limit in bytes per second is specified
-#
-# @iops: total I/O operations per second is specified
-#
-# @iops_rd: read I/O operations per second is specified
-#
-# @iops_wr: write I/O operations per second is specified
-#
-# Since: 0.14.0
-#
-# Notes: This interface is only found in @BlockInfo.
+# Since: 2.0
 ##
-{ 'type': 'BlockDeviceInfo',
-  'data': { 'file': 'str', 'ro': 'bool', 'drv': 'str',
-            '*backing_file': 'str', 'backing_file_depth': 'int',
-            'encrypted': 'bool', 'encryption_key_missing': 'bool',
-            'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
-            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int'} }
+{ 'type': 'IOThreadInfo',
+  'data': {'id': 'str', 'thread-id': 'int'} }
 
 ##
-# @BlockDeviceIoStatus:
+# @query-iothreads:
 #
-# An enumeration of block device I/O status.
+# Returns a list of information about each iothread.
 #
-# @ok: The last I/O operation has succeeded
+# Note this list excludes the QEMU main loop thread, which is not declared
+# using the -object iothread command-line option.  It is always the main thread
+# of the process.
 #
-# @failed: The last I/O operation has failed
+# Returns: a list of @IOThreadInfo for each iothread
 #
-# @nospace: The last I/O operation has failed due to a no-space condition
-#
-# Since: 1.0
+# Since: 2.0
 ##
-{ 'enum': 'BlockDeviceIoStatus', 'data': [ 'ok', 'failed', 'nospace' ] }
+{ 'command': 'query-iothreads', 'returns': ['IOThreadInfo'] }
 
 ##
-# @BlockDirtyInfo:
+# @NetworkAddressFamily
 #
-# Block dirty bitmap information.
+# The network address family
 #
-# @count: number of dirty bytes according to the dirty bitmap
+# @ipv4: IPV4 family
 #
-# @granularity: granularity of the dirty bitmap in bytes (since 1.4)
+# @ipv6: IPV6 family
 #
-# Since: 1.3
+# @unix: unix socket
+#
+# @unknown: otherwise
+#
+# Since: 2.1
 ##
-{ 'type': 'BlockDirtyInfo',
-  'data': {'count': 'int', 'granularity': 'int'} }
+{ 'enum': 'NetworkAddressFamily',
+  'data': [ 'ipv4', 'ipv6', 'unix', 'unknown' ] }
 
 ##
-# @BlockInfo:
+# @VncBasicInfo
 #
-# Block device information.  This structure describes a virtual device and
-# the backing device associated with it.
+# The basic information for vnc network connection
 #
-# @device: The device name associated with the virtual device.
+# @host: IP address
 #
-# @type: This field is returned only for compatibility reasons, it should
-#        not be used (always returns 'unknown')
+# @service: The service name of the vnc port. This may depend on the host
+#           system's service database so symbolic names should not be relied
+#           on.
 #
-# @removable: True if the device supports removable media.
+# @family: address family
 #
-# @locked: True if the guest has locked this device from having its media
-#          removed
-#
-# @tray_open: #optional True if the device has a tray and it is open
-#             (only present if removable is true)
-#
-# @dirty: #optional dirty bitmap information (only present if the dirty
-#         bitmap is enabled)
-#
-# @io-status: #optional @BlockDeviceIoStatus. Only present if the device
-#             supports it and the VM is configured to stop on errors
-#
-# @inserted: #optional @BlockDeviceInfo describing the device if media is
-#            present
-#
-# Since:  0.14.0
+# Since: 2.1
 ##
-{ 'type': 'BlockInfo',
-  'data': {'device': 'str', 'type': 'str', 'removable': 'bool',
-           'locked': 'bool', '*inserted': 'BlockDeviceInfo',
-           '*tray_open': 'bool', '*io-status': 'BlockDeviceIoStatus',
-           '*dirty': 'BlockDirtyInfo' } }
+{ 'type': 'VncBasicInfo',
+  'data': { 'host': 'str',
+            'service': 'str',
+            'family': 'NetworkAddressFamily' } }
 
 ##
-# @query-block:
+# @VncServerInfo
 #
-# Get a list of BlockInfo for all virtual block devices.
+# The network connection information for server
 #
-# Returns: a list of @BlockInfo describing each virtual block device
+# @auth: #optional, authentication method
 #
-# Since: 0.14.0
+# Since: 2.1
 ##
-{ 'command': 'query-block', 'returns': ['BlockInfo'] }
-
-##
-# @BlockDeviceStats:
-#
-# Statistics of a virtual block device or a block backing device.
-#
-# @rd_bytes:      The number of bytes read by the device.
-#
-# @wr_bytes:      The number of bytes written by the device.
-#
-# @rd_operations: The number of read operations performed by the device.
-#
-# @wr_operations: The number of write operations performed by the device.
-#
-# @flush_operations: The number of cache flush operations performed by the
-#                    device (since 0.15.0)
-#
-# @flush_total_time_ns: Total time spend on cache flushes in nano-seconds
-#                       (since 0.15.0).
-#
-# @wr_total_time_ns: Total time spend on writes in nano-seconds (since 0.15.0).
-#
-# @rd_total_time_ns: Total_time_spend on reads in nano-seconds (since 0.15.0).
-#
-# @wr_highest_offset: The offset after the greatest byte written to the
-#                     device.  The intended use of this information is for
-#                     growable sparse files (like qcow2) that are used on top
-#                     of a physical device.
-#
-# Since: 0.14.0
-##
-{ 'type': 'BlockDeviceStats',
-  'data': {'rd_bytes': 'int', 'wr_bytes': 'int', 'rd_operations': 'int',
-           'wr_operations': 'int', 'flush_operations': 'int',
-           'flush_total_time_ns': 'int', 'wr_total_time_ns': 'int',
-           'rd_total_time_ns': 'int', 'wr_highest_offset': 'int' } }
-
-##
-# @BlockStats:
-#
-# Statistics of a virtual block device or a block backing device.
-#
-# @device: #optional If the stats are for a virtual block device, the name
-#          corresponding to the virtual block device.
-#
-# @stats:  A @BlockDeviceStats for the device.
-#
-# @parent: #optional This may point to the backing block device if this is a
-#          a virtual block device.  If it's a backing block, this will point
-#          to the backing file is one is present.
-#
-# Since: 0.14.0
-##
-{ 'type': 'BlockStats',
-  'data': {'*device': 'str', 'stats': 'BlockDeviceStats',
-           '*parent': 'BlockStats'} }
-
-##
-# @query-blockstats:
-#
-# Query the @BlockStats for all virtual block devices.
-#
-# Returns: A list of @BlockStats for each virtual block devices.
-#
-# Since: 0.14.0
-##
-{ 'command': 'query-blockstats', 'returns': ['BlockStats'] }
+{ 'type': 'VncServerInfo',
+  'base': 'VncBasicInfo',
+  'data': { '*auth': 'str' } }
 
 ##
 # @VncClientInfo:
 #
 # Information about a connected VNC client.
-#
-# @host: The host name of the client.  QEMU tries to resolve this to a DNS name
-#        when possible.
-#
-# @family: 'ipv6' if the client is connected via IPv6 and TCP
-#          'ipv4' if the client is connected via IPv4 and TCP
-#          'unix' if the client is connected via a unix domain socket
-#          'unknown' otherwise
-#
-# @service: The service name of the client's port.  This may depends on the
-#           host system's service database so symbolic names should not be
-#           relied on.
 #
 # @x509_dname: #optional If x509 authentication is in use, the Distinguished
 #              Name of the client.
@@ -936,8 +703,8 @@
 # Since: 0.14.0
 ##
 { 'type': 'VncClientInfo',
-  'data': {'host': 'str', 'family': 'str', 'service': 'str',
-           '*x509_dname': 'str', '*sasl_username': 'str'} }
+  'base': 'VncBasicInfo',
+  'data': { '*x509_dname': 'str', '*sasl_username': 'str' } }
 
 ##
 # @VncInfo:
@@ -976,7 +743,8 @@
 # Since: 0.14.0
 ##
 { 'type': 'VncInfo',
-  'data': {'enabled': 'bool', '*host': 'str', '*family': 'str',
+  'data': {'enabled': 'bool', '*host': 'str',
+           '*family': 'NetworkAddressFamily',
            '*service': 'str', '*auth': 'str', '*clients': ['VncClientInfo']} }
 
 ##
@@ -991,19 +759,40 @@
 { 'command': 'query-vnc', 'returns': 'VncInfo' }
 
 ##
+# @SpiceBasicInfo
+#
+# The basic information for SPICE network connection
+#
+# @host: IP address
+#
+# @port: port number
+#
+# @family: address family
+#
+# Since: 2.1
+##
+{ 'type': 'SpiceBasicInfo',
+  'data': { 'host': 'str',
+            'port': 'str',
+            'family': 'NetworkAddressFamily' } }
+
+##
+# @SpiceServerInfo
+#
+# Information about a SPICE server
+#
+# @auth: #optional, authentication method
+#
+# Since: 2.1
+##
+{ 'type': 'SpiceServerInfo',
+  'base': 'SpiceBasicInfo',
+  'data': { '*auth': 'str' } }
+
+##
 # @SpiceChannel
 #
 # Information about a SPICE client channel.
-#
-# @host: The host name of the client.  QEMU tries to resolve this to a DNS name
-#        when possible.
-#
-# @family: 'ipv6' if the client is connected via IPv6 and TCP
-#          'ipv4' if the client is connected via IPv4 and TCP
-#          'unix' if the client is connected via a unix domain socket
-#          'unknown' otherwise
-#
-# @port: The client's port number.
 #
 # @connection-id: SPICE connection id number.  All channels with the same id
 #                 belong to the same SPICE session.
@@ -1021,8 +810,8 @@
 # Since: 0.14.0
 ##
 { 'type': 'SpiceChannel',
-  'data': {'host': 'str', 'family': 'str', 'port': 'str',
-           'connection-id': 'int', 'channel-type': 'int', 'channel-id': 'int',
+  'base': 'SpiceBasicInfo',
+  'data': {'connection-id': 'int', 'channel-type': 'int', 'channel-id': 'int',
            'tls': 'bool'} }
 
 ##
@@ -1249,87 +1038,6 @@
 { 'command': 'query-pci', 'returns': ['PciInfo'] }
 
 ##
-# @BlockdevOnError:
-#
-# An enumeration of possible behaviors for errors on I/O operations.
-# The exact meaning depends on whether the I/O was initiated by a guest
-# or by a block job
-#
-# @report: for guest operations, report the error to the guest;
-#          for jobs, cancel the job
-#
-# @ignore: ignore the error, only report a QMP event (BLOCK_IO_ERROR
-#          or BLOCK_JOB_ERROR)
-#
-# @enospc: same as @stop on ENOSPC, same as @report otherwise.
-#
-# @stop: for guest operations, stop the virtual machine;
-#        for jobs, pause the job
-#
-# Since: 1.3
-##
-{ 'enum': 'BlockdevOnError',
-  'data': ['report', 'ignore', 'enospc', 'stop'] }
-
-##
-# @MirrorSyncMode:
-#
-# An enumeration of possible behaviors for the initial synchronization
-# phase of storage mirroring.
-#
-# @top: copies data in the topmost image to the destination
-#
-# @full: copies data from all images to the destination
-#
-# @none: only copy data written from now on
-#
-# Since: 1.3
-##
-{ 'enum': 'MirrorSyncMode',
-  'data': ['top', 'full', 'none'] }
-
-##
-# @BlockJobInfo:
-#
-# Information about a long-running block device operation.
-#
-# @type: the job type ('stream' for image streaming)
-#
-# @device: the block device name
-#
-# @len: the maximum progress value
-#
-# @busy: false if the job is known to be in a quiescent state, with
-#        no pending I/O.  Since 1.3.
-#
-# @paused: whether the job is paused or, if @busy is true, will
-#          pause itself as soon as possible.  Since 1.3.
-#
-# @offset: the current progress value
-#
-# @speed: the rate limit, bytes per second
-#
-# @io-status: the status of the job (since 1.3)
-#
-# Since: 1.1
-##
-{ 'type': 'BlockJobInfo',
-  'data': {'type': 'str', 'device': 'str', 'len': 'int',
-           'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
-           'io-status': 'BlockDeviceIoStatus'} }
-
-##
-# @query-block-jobs:
-#
-# Return information about long-running block device operations.
-#
-# Returns: a list of @BlockJobInfo for each active block job
-#
-# Since: 1.1
-##
-{ 'command': 'query-block-jobs', 'returns': ['BlockJobInfo'] }
-
-##
 # @quit:
 #
 # This command will cause the QEMU process to exit gracefully.  While every
@@ -1509,38 +1217,6 @@
 { 'command': 'set_link', 'data': {'name': 'str', 'up': 'bool'} }
 
 ##
-# @block_passwd:
-#
-# This command sets the password of a block device that has not been open
-# with a password and requires one.
-#
-# The two cases where this can happen are a block device is created through
-# QEMU's initial command line or a block device is changed through the legacy
-# @change interface.
-#
-# In the event that the block device is created through the initial command
-# line, the VM will start in the stopped state regardless of whether '-S' is
-# used.  The intention is for a management tool to query the block devices to
-# determine which ones are encrypted, set the passwords with this command, and
-# then start the guest with the @cont command.
-#
-# @device:   the name of the device to set the password on
-#
-# @password: the password to use for the device
-#
-# Returns: nothing on success
-#          If @device is not a valid block device, DeviceNotFound
-#          If @device is not encrypted, DeviceNotEncrypted
-#
-# Notes:  Not all block formats support encryption and some that do are not
-#         able to validate that a password is correct.  Disk corruption may
-#         occur if an invalid password is specified.
-#
-# Since: 0.14.0
-##
-{ 'command': 'block_passwd', 'data': {'device': 'str', 'password': 'str'} }
-
-##
 # @balloon:
 #
 # Request the balloon driver to change its balloon size.
@@ -1561,111 +1237,50 @@
 { 'command': 'balloon', 'data': {'value': 'int'} }
 
 ##
-# @block_resize
+# @Abort
 #
-# Resize a block image while a guest is running.
+# This action can be used to test transaction failure.
 #
-# @device:  the name of the device to get the image resized
-#
-# @size:  new image size in bytes
-#
-# Returns: nothing on success
-#          If @device is not a valid block device, DeviceNotFound
-#
-# Since: 0.14.0
-##
-{ 'command': 'block_resize', 'data': { 'device': 'str', 'size': 'int' }}
+# Since: 1.6
+###
+{ 'type': 'Abort',
+  'data': { } }
 
 ##
-# @NewImageMode
-#
-# An enumeration that tells QEMU how to set the backing file path in
-# a new image file.
-#
-# @existing: QEMU should look for an existing image file.
-#
-# @absolute-paths: QEMU should create a new image with absolute paths
-# for the backing file.
-#
-# Since: 1.1
-##
-{ 'enum': 'NewImageMode'
-  'data': [ 'existing', 'absolute-paths' ] }
-
-##
-# @BlockdevSnapshot
-#
-# @device:  the name of the device to generate the snapshot from.
-#
-# @snapshot-file: the target of the new image. A new file will be created.
-#
-# @format: #optional the format of the snapshot image, default is 'qcow2'.
-#
-# @mode: #optional whether and how QEMU should create a new image, default is
-#        'absolute-paths'.
-##
-{ 'type': 'BlockdevSnapshot',
-  'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str',
-            '*mode': 'NewImageMode' } }
-
-##
-# @BlockdevAction
+# @TransactionAction
 #
 # A discriminated record of operations that can be performed with
 # @transaction.
 ##
-{ 'union': 'BlockdevAction',
+{ 'union': 'TransactionAction',
   'data': {
-       'blockdev-snapshot-sync': 'BlockdevSnapshot'
+       'blockdev-snapshot-sync': 'BlockdevSnapshot',
+       'drive-backup': 'DriveBackup',
+       'abort': 'Abort',
+       'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternal'
    } }
 
 ##
 # @transaction
 #
-# Atomically operate on a group of one or more block devices.  If
-# any operation fails, then the entire set of actions will be
-# abandoned and the appropriate error returned.  The only operation
-# supported is currently blockdev-snapshot-sync.
+# Executes a number of transactionable QMP commands atomically. If any
+# operation fails, then the entire set of actions will be abandoned and the
+# appropriate error returned.
 #
 #  List of:
-#  @BlockdevAction: information needed for the device snapshot
+#  @TransactionAction: information needed for the respective operation
 #
 # Returns: nothing on success
-#          If @device is not a valid block device, DeviceNotFound
+#          Errors depend on the operations of the transaction
 #
-# Note: The transaction aborts on the first failure.  Therefore, there will
-# be only one device or snapshot file returned in an error condition, and
+# Note: The transaction aborts on the first failure.  Therefore, there will be
+# information on only one failed operation returned in an error condition, and
 # subsequent actions will not have been attempted.
 #
 # Since 1.1
 ##
 { 'command': 'transaction',
-  'data': { 'actions': [ 'BlockdevAction' ] } }
-
-##
-# @blockdev-snapshot-sync
-#
-# Generates a synchronous snapshot of a block device.
-#
-# @device:  the name of the device to generate the snapshot from.
-#
-# @snapshot-file: the target of the new image. If the file exists, or if it
-#                 is a device, the snapshot will be created in the existing
-#                 file/device. If does not exist, a new file will be created.
-#
-# @format: #optional the format of the snapshot image, default is 'qcow2'.
-#
-# @mode: #optional whether and how QEMU should create a new image, default is
-#        'absolute-paths'.
-#
-# Returns: nothing on success
-#          If @device is not a valid block device, DeviceNotFound
-#
-# Since 0.14.0
-##
-{ 'command': 'blockdev-snapshot-sync',
-  'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str',
-            '*mode': 'NewImageMode'} }
+  'data': { 'actions': [ 'TransactionAction' ] } }
 
 ##
 # @human-monitor-command:
@@ -1680,7 +1295,7 @@
 #
 # Since: 0.14.0
 #
-# Notes: This command only exists as a stop-gap.  It's use is highly
+# Notes: This command only exists as a stop-gap.  Its use is highly
 #        discouraged.  The semantics of this command are not guaranteed.
 #
 #        Known limitations:
@@ -1694,92 +1309,6 @@
 { 'command': 'human-monitor-command',
   'data': {'command-line': 'str', '*cpu-index': 'int'},
   'returns': 'str' }
-
-##
-# @block-commit
-#
-# Live commit of data from overlay image nodes into backing nodes - i.e.,
-# writes data between 'top' and 'base' into 'base'.
-#
-# @device:  the name of the device
-#
-# @base:   #optional The file name of the backing image to write data into.
-#                    If not specified, this is the deepest backing image
-#
-# @top:              The file name of the backing image within the image chain,
-#                    which contains the topmost data to be committed down.
-#                    Note, the active layer as 'top' is currently unsupported.
-#
-#                    If top == base, that is an error.
-#
-#
-# @speed:  #optional the maximum speed, in bytes per second
-#
-# Returns: Nothing on success
-#          If commit or stream is already active on this device, DeviceInUse
-#          If @device does not exist, DeviceNotFound
-#          If image commit is not supported by this device, NotSupported
-#          If @base or @top is invalid, a generic error is returned
-#          If @top is the active layer, or omitted, a generic error is returned
-#          If @speed is invalid, InvalidParameter
-#
-# Since: 1.3
-#
-##
-{ 'command': 'block-commit',
-  'data': { 'device': 'str', '*base': 'str', 'top': 'str',
-            '*speed': 'int' } }
-
-##
-# @drive-mirror
-#
-# Start mirroring a block device's writes to a new destination.
-#
-# @device:  the name of the device whose writes should be mirrored.
-#
-# @target: the target of the new image. If the file exists, or if it
-#          is a device, the existing file/device will be used as the new
-#          destination.  If it does not exist, a new file will be created.
-#
-# @format: #optional the format of the new destination, default is to
-#          probe if @mode is 'existing', else the format of the source
-#
-# @mode: #optional whether and how QEMU should create a new image, default is
-#        'absolute-paths'.
-#
-# @speed:  #optional the maximum speed, in bytes per second
-#
-# @sync: what parts of the disk image should be copied to the destination
-#        (all the disk, only the sectors allocated in the topmost image, or
-#        only new I/O).
-#
-# @granularity: #optional granularity of the dirty bitmap, default is 64K
-#               if the image format doesn't have clusters, 4K if the clusters
-#               are smaller than that, else the cluster size.  Must be a
-#               power of 2 between 512 and 64M (since 1.4).
-#
-# @buf-size: #optional maximum amount of data in flight from source to
-#            target (since 1.4).
-#
-# @on-source-error: #optional the action to take on an error on the source,
-#                   default 'report'.  'stop' and 'enospc' can only be used
-#                   if the block device supports io-status (see BlockInfo).
-#
-# @on-target-error: #optional the action to take on an error on the target,
-#                   default 'report' (no limitations, since this applies to
-#                   a different block device than @device).
-#
-# Returns: nothing on success
-#          If @device is not a valid block device, DeviceNotFound
-#
-# Since 1.3
-##
-{ 'command': 'drive-mirror',
-  'data': { 'device': 'str', 'target': 'str', '*format': 'str',
-            'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
-            '*speed': 'int', '*granularity': 'uint32',
-            '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
-            '*on-target-error': 'BlockdevOnError' } }
 
 ##
 # @migrate_cancel
@@ -1997,25 +1526,6 @@
 { 'command': 'expire_password', 'data': {'protocol': 'str', 'time': 'str'} }
 
 ##
-# @eject:
-#
-# Ejects a device from a removable drive.
-#
-# @device:  The name of the device
-#
-# @force:   @optional If true, eject regardless of whether the drive is locked.
-#           If not specified, the default value is false.
-#
-# Returns:  Nothing on success
-#           If @device is not a valid block device, DeviceNotFound
-#
-# Notes:    Ejecting a device will no media results in success
-#
-# Since: 0.14.0
-##
-{ 'command': 'eject', 'data': {'device': 'str', '*force': 'bool'} }
-
-##
 # @change-vnc-password:
 #
 # Change the VNC server password.
@@ -2063,193 +1573,6 @@
 ##
 { 'command': 'change',
   'data': {'device': 'str', 'target': 'str', '*arg': 'str'} }
-
-##
-# @block_set_io_throttle:
-#
-# Change I/O throttle limits for a block drive.
-#
-# @device: The name of the device
-#
-# @bps: total throughput limit in bytes per second
-#
-# @bps_rd: read throughput limit in bytes per second
-#
-# @bps_wr: write throughput limit in bytes per second
-#
-# @iops: total I/O operations per second
-#
-# @ops_rd: read I/O operations per second
-#
-# @iops_wr: write I/O operations per second
-#
-# Returns: Nothing on success
-#          If @device is not a valid block device, DeviceNotFound
-#
-# Since: 1.1
-##
-{ 'command': 'block_set_io_throttle',
-  'data': { 'device': 'str', 'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
-            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int' } }
-
-##
-# @block-stream:
-#
-# Copy data from a backing file into a block device.
-#
-# The block streaming operation is performed in the background until the entire
-# backing file has been copied.  This command returns immediately once streaming
-# has started.  The status of ongoing block streaming operations can be checked
-# with query-block-jobs.  The operation can be stopped before it has completed
-# using the block-job-cancel command.
-#
-# If a base file is specified then sectors are not copied from that base file and
-# its backing chain.  When streaming completes the image file will have the base
-# file as its backing file.  This can be used to stream a subset of the backing
-# file chain instead of flattening the entire image.
-#
-# On successful completion the image file is updated to drop the backing file
-# and the BLOCK_JOB_COMPLETED event is emitted.
-#
-# @device: the device name
-#
-# @base:   #optional the common backing file name
-#
-# @speed:  #optional the maximum speed, in bytes per second
-#
-# @on-error: #optional the action to take on an error (default report).
-#            'stop' and 'enospc' can only be used if the block device
-#            supports io-status (see BlockInfo).  Since 1.3.
-#
-# Returns: Nothing on success
-#          If @device does not exist, DeviceNotFound
-#
-# Since: 1.1
-##
-{ 'command': 'block-stream',
-  'data': { 'device': 'str', '*base': 'str', '*speed': 'int',
-            '*on-error': 'BlockdevOnError' } }
-
-##
-# @block-job-set-speed:
-#
-# Set maximum speed for a background block operation.
-#
-# This command can only be issued when there is an active block job.
-#
-# Throttling can be disabled by setting the speed to 0.
-#
-# @device: the device name
-#
-# @speed:  the maximum speed, in bytes per second, or 0 for unlimited.
-#          Defaults to 0.
-#
-# Returns: Nothing on success
-#          If no background operation is active on this device, DeviceNotActive
-#
-# Since: 1.1
-##
-{ 'command': 'block-job-set-speed',
-  'data': { 'device': 'str', 'speed': 'int' } }
-
-##
-# @block-job-cancel:
-#
-# Stop an active background block operation.
-#
-# This command returns immediately after marking the active background block
-# operation for cancellation.  It is an error to call this command if no
-# operation is in progress.
-#
-# The operation will cancel as soon as possible and then emit the
-# BLOCK_JOB_CANCELLED event.  Before that happens the job is still visible when
-# enumerated using query-block-jobs.
-#
-# For streaming, the image file retains its backing file unless the streaming
-# operation happens to complete just as it is being cancelled.  A new streaming
-# operation can be started at a later time to finish copying all data from the
-# backing file.
-#
-# @device: the device name
-#
-# @force: #optional whether to allow cancellation of a paused job (default
-#         false).  Since 1.3.
-#
-# Returns: Nothing on success
-#          If no background operation is active on this device, DeviceNotActive
-#
-# Since: 1.1
-##
-{ 'command': 'block-job-cancel', 'data': { 'device': 'str', '*force': 'bool' } }
-
-##
-# @block-job-pause:
-#
-# Pause an active background block operation.
-#
-# This command returns immediately after marking the active background block
-# operation for pausing.  It is an error to call this command if no
-# operation is in progress.  Pausing an already paused job has no cumulative
-# effect; a single block-job-resume command will resume the job.
-#
-# The operation will pause as soon as possible.  No event is emitted when
-# the operation is actually paused.  Cancelling a paused job automatically
-# resumes it.
-#
-# @device: the device name
-#
-# Returns: Nothing on success
-#          If no background operation is active on this device, DeviceNotActive
-#
-# Since: 1.3
-##
-{ 'command': 'block-job-pause', 'data': { 'device': 'str' } }
-
-##
-# @block-job-resume:
-#
-# Resume an active background block operation.
-#
-# This command returns immediately after resuming a paused background block
-# operation.  It is an error to call this command if no operation is in
-# progress.  Resuming an already running job is not an error.
-#
-# This command also clears the error status of the job.
-#
-# @device: the device name
-#
-# Returns: Nothing on success
-#          If no background operation is active on this device, DeviceNotActive
-#
-# Since: 1.3
-##
-{ 'command': 'block-job-resume', 'data': { 'device': 'str' } }
-
-##
-# @block-job-complete:
-#
-# Manually trigger completion of an active background block operation.  This
-# is supported for drive mirroring, where it also switches the device to
-# write to the target path only.  The ability to complete is signaled with
-# a BLOCK_JOB_READY event.
-#
-# This command completes an active background block operation synchronously.
-# The ordering of this command's return with the BLOCK_JOB_COMPLETED event
-# is not defined.  Note that if an I/O error occurs during the processing of
-# this command: 1) the command itself will fail; 2) the error will be processed
-# according to the rerror/werror arguments that were specified when starting
-# the operation.
-#
-# A cancelled or paused job cannot be completed.
-#
-# @device: the device name
-#
-# Returns: Nothing on success
-#          If no background operation is active on this device, DeviceNotActive
-#
-# Since: 1.3
-##
-{ 'command': 'block-job-complete', 'data': { 'device': 'str' } }
 
 ##
 # @ObjectTypeInfo:
@@ -2381,6 +1704,24 @@
 { 'command': 'device_del', 'data': {'id': 'str'} }
 
 ##
+# @DumpGuestMemoryFormat:
+#
+# An enumeration of guest-memory-dump's format.
+#
+# @elf: elf format
+#
+# @kdump-zlib: kdump-compressed format with zlib-compressed
+#
+# @kdump-lzo: kdump-compressed format with lzo-compressed
+#
+# @kdump-snappy: kdump-compressed format with snappy-compressed
+#
+# Since: 2.0
+##
+{ 'enum': 'DumpGuestMemoryFormat',
+  'data': [ 'elf', 'kdump-zlib', 'kdump-lzo', 'kdump-snappy' ] }
+
+##
 # @dump-guest-memory
 #
 # Dump guest's memory to vmcore. It is a synchronous operation that can take
@@ -2416,13 +1757,42 @@
 #          want to dump all guest's memory, please specify the start @begin
 #          and @length
 #
+# @format: #optional if specified, the format of guest memory dump. But non-elf
+#          format is conflict with paging and filter, ie. @paging, @begin and
+#          @length is not allowed to be specified with non-elf @format at the
+#          same time (since 2.0)
+#
 # Returns: nothing on success
 #
 # Since: 1.2
 ##
 { 'command': 'dump-guest-memory',
   'data': { 'paging': 'bool', 'protocol': 'str', '*begin': 'int',
-            '*length': 'int' } }
+            '*length': 'int', '*format': 'DumpGuestMemoryFormat' } }
+
+##
+# @DumpGuestMemoryCapability:
+#
+# A list of the available formats for dump-guest-memory
+#
+# Since: 2.0
+##
+{ 'type': 'DumpGuestMemoryCapability',
+  'data': {
+      'formats': ['DumpGuestMemoryFormat'] } }
+
+##
+# @query-dump-guest-memory-capability:
+#
+# Returns the available formats for dump-guest-memory
+#
+# Returns:  A @DumpGuestMemoryCapability object listing available formats for
+#           dump-guest-memory
+#
+# Since: 2.0
+##
+{ 'command': 'query-dump-guest-memory-capability',
+  'returns': 'DumpGuestMemoryCapability' }
 
 ##
 # @netdev_add:
@@ -2462,6 +1832,40 @@
 # Since: 0.14.0
 ##
 { 'command': 'netdev_del', 'data': {'id': 'str'} }
+
+##
+# @object-add:
+#
+# Create a QOM object.
+#
+# @qom-type: the class name for the object to be created
+#
+# @id: the name of the new object
+#
+# @props: #optional a dictionary of properties to be passed to the backend
+#
+# Returns: Nothing on success
+#          Error if @qom-type is not a valid class name
+#
+# Since: 2.0
+##
+{ 'command': 'object-add',
+  'data': {'qom-type': 'str', 'id': 'str', '*props': 'dict'},
+  'gen': 'no' }
+
+##
+# @object-del:
+#
+# Remove a QOM object.
+#
+# @id: the name of the QOM object to remove
+#
+# Returns: Nothing on success
+#          Error if @id is not a valid id for a QOM object
+#
+# Since: 2.0
+##
+{ 'command': 'object-del', 'data': {'id': 'str'} }
 
 ##
 # @NetdevNoneOptions
@@ -2646,6 +2050,62 @@
     '*udp':       'str' } }
 
 ##
+# @NetdevL2TPv3Options
+#
+# Connect the VLAN to Ethernet over L2TPv3 Static tunnel
+#
+# @src: source address
+#
+# @dst: destination address
+#
+# @srcport: #optional source port - mandatory for udp, optional for ip
+#
+# @dstport: #optional destination port - mandatory for udp, optional for ip
+#
+# @ipv6: #optional - force the use of ipv6
+#
+# @udp: #optional - use the udp version of l2tpv3 encapsulation
+#
+# @cookie64: #optional - use 64 bit coookies
+#
+# @counter: #optional have sequence counter
+#
+# @pincounter: #optional pin sequence counter to zero -
+#              workaround for buggy implementations or
+#              networks with packet reorder
+#
+# @txcookie: #optional 32 or 64 bit transmit cookie
+#
+# @rxcookie: #optional 32 or 64 bit receive cookie
+#
+# @txsession: 32 bit transmit session
+#
+# @rxsession: #optional 32 bit receive session - if not specified
+#             set to the same value as transmit
+#
+# @offset: #optional additional offset - allows the insertion of
+#          additional application-specific data before the packet payload
+#
+# Since 2.1
+##
+{ 'type': 'NetdevL2TPv3Options',
+  'data': {
+    'src':          'str',
+    'dst':          'str',
+    '*srcport':     'str',
+    '*dstport':     'str',
+    '*ipv6':        'bool',
+    '*udp':         'bool',
+    '*cookie64':    'bool',
+    '*counter':     'bool',
+    '*pincounter':  'bool',
+    '*txcookie':    'uint64',
+    '*rxcookie':    'uint64',
+    'txsession':    'uint32',
+    '*rxsession':   'uint32',
+    '*offset':      'uint32' } }
+
+##
 # @NetdevVdeOptions
 #
 # Connect the VLAN to a vde switch running on the host.
@@ -2714,11 +2174,51 @@
     'hubid':     'int32' } }
 
 ##
+# @NetdevNetmapOptions
+#
+# Connect a client to a netmap-enabled NIC or to a VALE switch port
+#
+# @ifname: Either the name of an existing network interface supported by
+#          netmap, or the name of a VALE port (created on the fly).
+#          A VALE port name is in the form 'valeXXX:YYY', where XXX and
+#          YYY are non-negative integers. XXX identifies a switch and
+#          YYY identifies a port of the switch. VALE ports having the
+#          same XXX are therefore connected to the same switch.
+#
+# @devname: #optional path of the netmap device (default: '/dev/netmap').
+#
+# Since 2.0
+##
+{ 'type': 'NetdevNetmapOptions',
+  'data': {
+    'ifname':     'str',
+    '*devname':    'str' } }
+
+##
+# @NetdevVhostUserOptions
+#
+# Vhost-user network backend
+#
+# @chardev: name of a unix socket chardev
+#
+# @vhostforce: #optional vhost on for non-MSIX virtio guests (default: false).
+#
+# Since 2.1
+##
+{ 'type': 'NetdevVhostUserOptions',
+  'data': {
+    'chardev':        'str',
+    '*vhostforce':    'bool' } }
+
+##
 # @NetClientOptions
 #
 # A discriminated record of network device traits.
 #
 # Since 1.2
+#
+# 'l2tpv3' - since 2.1
+#
 ##
 { 'union': 'NetClientOptions',
   'data': {
@@ -2726,11 +2226,14 @@
     'nic':      'NetLegacyNicOptions',
     'user':     'NetdevUserOptions',
     'tap':      'NetdevTapOptions',
+    'l2tpv3':   'NetdevL2TPv3Options',
     'socket':   'NetdevSocketOptions',
     'vde':      'NetdevVdeOptions',
     'dump':     'NetdevDumpOptions',
     'bridge':   'NetdevBridgeOptions',
-    'hubport':  'NetdevHubPortOptions' } }
+    'hubport':  'NetdevHubPortOptions',
+    'netmap':   'NetdevNetmapOptions',
+    'vhost-user': 'NetdevVhostUserOptions' } }
 
 ##
 # @NetLegacy
@@ -3008,22 +2511,6 @@
 { 'command': 'query-fdsets', 'returns': ['FdsetInfo'] }
 
 ##
-# @TargetType
-#
-# Target CPU emulation type
-#
-# These parameters correspond to the softmmu binary CPU name that is currently
-# running.
-#
-# Since: 1.2.0
-##
-{ 'enum': 'TargetType',
-  'data': [ 'alpha', 'arm', 'cris', 'i386', 'lm32', 'm68k', 'microblazeel',
-            'microblaze', 'mips64el', 'mips64', 'mipsel', 'mips', 'moxie',
-            'or32', 'ppc64', 'ppcemb', 'ppc', 's390x', 'sh4eb', 'sh4',
-            'sparc64', 'sparc', 'unicore32', 'x86_64', 'xtensaeb', 'xtensa' ] }
-
-##
 # @TargetInfo:
 #
 # Information describing the QEMU target.
@@ -3033,7 +2520,7 @@
 # Since: 1.2.0
 ##
 { 'type': 'TargetInfo',
-  'data': { 'arch': 'TargetType' } }
+  'data': { 'arch': 'str' } }
 
 ##
 # @query-target:
@@ -3054,9 +2541,12 @@
 # This is used by the send-key command.
 #
 # Since: 1.3.0
+#
+# 'unmapped' and 'pause' since 2.0
 ##
 { 'enum': 'QKeyCode',
-  'data': [ 'shift', 'shift_r', 'alt', 'alt_r', 'altgr', 'altgr_r', 'ctrl',
+  'data': [ 'unmapped',
+            'shift', 'shift_r', 'alt', 'alt_r', 'altgr', 'altgr_r', 'ctrl',
             'ctrl_r', 'menu', 'esc', '1', '2', '3', '4', '5', '6', '7', '8',
             '9', '0', 'minus', 'equal', 'backspace', 'tab', 'q', 'w', 'e',
             'r', 't', 'y', 'u', 'i', 'o', 'p', 'bracket_left', 'bracket_right',
@@ -3070,7 +2560,7 @@
             'kp_9', 'less', 'f11', 'f12', 'print', 'home', 'pgup', 'pgdn', 'end',
             'left', 'up', 'down', 'right', 'insert', 'delete', 'stop', 'again',
             'props', 'undo', 'front', 'copy', 'open', 'paste', 'find', 'cut',
-             'lf', 'help', 'meta_l', 'meta_r', 'compose' ] }
+             'lf', 'help', 'meta_l', 'meta_r', 'compose', 'pause' ] }
 
 ##
 # @KeyValue
@@ -3120,49 +2610,6 @@
 { 'command': 'screendump', 'data': {'filename': 'str'} }
 
 ##
-# @nbd-server-start:
-#
-# Start an NBD server listening on the given host and port.  Block
-# devices can then be exported using @nbd-server-add.  The NBD
-# server will present them as named exports; for example, another
-# QEMU instance could refer to them as "nbd:HOST:PORT:exportname=NAME".
-#
-# @addr: Address on which to listen.
-#
-# Returns: error if the server is already running.
-#
-# Since: 1.3.0
-##
-{ 'command': 'nbd-server-start',
-  'data': { 'addr': 'SocketAddress' } }
-
-##
-# @nbd-server-add:
-#
-# Export a device to QEMU's embedded NBD server.
-#
-# @device: Block device to be exported
-#
-# @writable: Whether clients should be able to write to the device via the
-#     NBD connection (default false). #optional
-#
-# Returns: error if the device is already marked for export.
-#
-# Since: 1.3.0
-##
-{ 'command': 'nbd-server-add', 'data': {'device': 'str', '*writable': 'bool'} }
-
-##
-# @nbd-server-stop:
-#
-# Stop QEMU's embedded NBD server, and unregister all devices previously
-# added via @nbd-server-add.
-#
-# Since: 1.3.0
-##
-{ 'command': 'nbd-server-stop' }
-
-##
 # @ChardevFile:
 #
 # Configuration info for file chardevs.
@@ -3196,10 +2643,11 @@
 # @addr: socket address to listen on (server=true)
 #        or connect to (server=false)
 # @server: #optional create server socket (default: true)
-# @wait: #optional wait for connect (not used for server
-#        sockets, default: false)
+# @wait: #optional wait for incoming connection on server
+#        sockets (default: false).
 # @nodelay: #optional set TCP_NODELAY socket option (default: false)
-# @telnet: #optional enable telnet protocol (default: false)
+# @telnet: #optional enable telnet protocol on server
+#          sockets (default: false)
 #
 # Since: 1.4
 ##
@@ -3288,9 +2736,9 @@
 ##
 # @ChardevRingbuf:
 #
-# Configuration info for memory chardevs
+# Configuration info for ring buffer chardevs.
 #
-# @size: #optional Ringbuffer size, must be power of two, default is 65536
+# @size: #optional ring buffer size, must be power of two, default is 65536
 #
 # Since: 1.5
 ##
@@ -3321,6 +2769,8 @@
                                        'spicevmc' : 'ChardevSpiceChannel',
                                        'spiceport' : 'ChardevSpicePort',
                                        'vc'     : 'ChardevVC',
+                                       'ringbuf': 'ChardevRingbuf',
+                                       # next one is just for compatibility
                                        'memory' : 'ChardevRingbuf' } }
 
 ##
@@ -3552,12 +3002,15 @@
 #
 # @help: #optional human readable text string, not suitable for parsing.
 #
+# @default: #optional default value string (since 2.1)
+#
 # Since 1.5
 ##
 { 'type': 'CommandLineParameterInfo',
   'data': { 'name': 'str',
             'type': 'CommandLineParameterType',
-            '*help': 'str' } }
+            '*help': 'str',
+            '*default': 'str' } }
 
 ##
 # @CommandLineOptionInfo:
@@ -3619,3 +3072,411 @@
             '*cpuid-input-ecx': 'int',
             'cpuid-register': 'X86CPURegister32',
             'features': 'int' } }
+
+##
+# @RxState:
+#
+# Packets receiving state
+#
+# @normal: filter assigned packets according to the mac-table
+#
+# @none: don't receive any assigned packet
+#
+# @all: receive all assigned packets
+#
+# Since: 1.6
+##
+{ 'enum': 'RxState', 'data': [ 'normal', 'none', 'all' ] }
+
+##
+# @RxFilterInfo:
+#
+# Rx-filter information for a NIC.
+#
+# @name: net client name
+#
+# @promiscuous: whether promiscuous mode is enabled
+#
+# @multicast: multicast receive state
+#
+# @unicast: unicast receive state
+#
+# @vlan: vlan receive state (Since 2.0)
+#
+# @broadcast-allowed: whether to receive broadcast
+#
+# @multicast-overflow: multicast table is overflowed or not
+#
+# @unicast-overflow: unicast table is overflowed or not
+#
+# @main-mac: the main macaddr string
+#
+# @vlan-table: a list of active vlan id
+#
+# @unicast-table: a list of unicast macaddr string
+#
+# @multicast-table: a list of multicast macaddr string
+#
+# Since 1.6
+##
+
+{ 'type': 'RxFilterInfo',
+  'data': {
+    'name':               'str',
+    'promiscuous':        'bool',
+    'multicast':          'RxState',
+    'unicast':            'RxState',
+    'vlan':               'RxState',
+    'broadcast-allowed':  'bool',
+    'multicast-overflow': 'bool',
+    'unicast-overflow':   'bool',
+    'main-mac':           'str',
+    'vlan-table':         ['int'],
+    'unicast-table':      ['str'],
+    'multicast-table':    ['str'] }}
+
+##
+# @query-rx-filter:
+#
+# Return rx-filter information for all NICs (or for the given NIC).
+#
+# @name: #optional net client name
+#
+# Returns: list of @RxFilterInfo for all NICs (or for the given NIC).
+#          Returns an error if the given @name doesn't exist, or given
+#          NIC doesn't support rx-filter querying, or given net client
+#          isn't a NIC.
+#
+# Since: 1.6
+##
+{ 'command': 'query-rx-filter', 'data': { '*name': 'str' },
+  'returns': ['RxFilterInfo'] }
+
+##
+# @InputButton
+#
+# Button of a pointer input device (mouse, tablet).
+#
+# Since: 2.0
+##
+{ 'enum'  : 'InputButton',
+  'data'  : [ 'Left', 'Middle', 'Right', 'WheelUp', 'WheelDown' ] }
+
+##
+# @InputButton
+#
+# Position axis of a pointer input device (mouse, tablet).
+#
+# Since: 2.0
+##
+{ 'enum'  : 'InputAxis',
+  'data'  : [ 'X', 'Y' ] }
+
+##
+# @InputKeyEvent
+#
+# Keyboard input event.
+#
+# @key:    Which key this event is for.
+# @down:   True for key-down and false for key-up events.
+#
+# Since: 2.0
+##
+{ 'type'  : 'InputKeyEvent',
+  'data'  : { 'key'     : 'KeyValue',
+              'down'    : 'bool' } }
+
+##
+# @InputBtnEvent
+#
+# Pointer button input event.
+#
+# @button: Which button this event is for.
+# @down:   True for key-down and false for key-up events.
+#
+# Since: 2.0
+##
+{ 'type'  : 'InputBtnEvent',
+  'data'  : { 'button'  : 'InputButton',
+              'down'    : 'bool' } }
+
+##
+# @InputMoveEvent
+#
+# Pointer motion input event.
+#
+# @axis:   Which axis is referenced by @value.
+# @value:  Pointer position.  For absolute coordinates the
+#          valid range is 0 -> 0x7ffff
+#
+# Since: 2.0
+##
+{ 'type'  : 'InputMoveEvent',
+  'data'  : { 'axis'    : 'InputAxis',
+              'value'   : 'int' } }
+
+##
+# @InputEvent
+#
+# Input event union.
+#
+# Since: 2.0
+##
+{ 'union' : 'InputEvent',
+  'data'  : { 'key'     : 'InputKeyEvent',
+              'btn'     : 'InputBtnEvent',
+              'rel'     : 'InputMoveEvent',
+              'abs'     : 'InputMoveEvent' } }
+
+##
+# @NumaOptions
+#
+# A discriminated record of NUMA options. (for OptsVisitor)
+#
+# Since 2.1
+##
+{ 'union': 'NumaOptions',
+  'data': {
+    'node': 'NumaNodeOptions' }}
+
+##
+# @NumaNodeOptions
+#
+# Create a guest NUMA node. (for OptsVisitor)
+#
+# @nodeid: #optional NUMA node ID (increase by 1 from 0 if omitted)
+#
+# @cpus: #optional VCPUs belonging to this node (assign VCPUS round-robin
+#         if omitted)
+#
+# @mem: #optional memory size of this node; mutually exclusive with @memdev.
+#       Equally divide total memory among nodes if both @mem and @memdev are
+#       omitted.
+#
+# @memdev: #optional memory backend object.  If specified for one node,
+#          it must be specified for all nodes.
+#
+# Since: 2.1
+##
+{ 'type': 'NumaNodeOptions',
+  'data': {
+   '*nodeid': 'uint16',
+   '*cpus':   ['uint16'],
+   '*mem':    'size',
+   '*memdev': 'str' }}
+
+##
+# @HostMemPolicy
+#
+# Host memory policy types
+#
+# @default: restore default policy, remove any nondefault policy
+#
+# @preferred: set the preferred host nodes for allocation
+#
+# @bind: a strict policy that restricts memory allocation to the
+#        host nodes specified
+#
+# @interleave: memory allocations are interleaved across the set
+#              of host nodes specified
+#
+# Since 2.1
+##
+{ 'enum': 'HostMemPolicy',
+  'data': [ 'default', 'preferred', 'bind', 'interleave' ] }
+
+##
+# @Memdev:
+#
+# Information about memory backend
+#
+# @size: memory backend size
+#
+# @merge: enables or disables memory merge support
+#
+# @dump: includes memory backend's memory in a core dump or not
+#
+# @prealloc: enables or disables memory preallocation
+#
+# @host-nodes: host nodes for its memory policy
+#
+# @policy: memory policy of memory backend
+#
+# Since: 2.1
+##
+
+{ 'type': 'Memdev',
+  'data': {
+    'size':       'size',
+    'merge':      'bool',
+    'dump':       'bool',
+    'prealloc':   'bool',
+    'host-nodes': ['uint16'],
+    'policy':     'HostMemPolicy' }}
+
+##
+# @query-memdev:
+#
+# Returns information for all memory backends.
+#
+# Returns: a list of @Memdev.
+#
+# Since: 2.1
+##
+{ 'command': 'query-memdev', 'returns': ['Memdev'] }
+
+##
+# @PCDIMMDeviceInfo:
+#
+# PCDIMMDevice state information
+#
+# @id: #optional device's ID
+#
+# @addr: physical address, where device is mapped
+#
+# @size: size of memory that the device provides
+#
+# @slot: slot number at which device is plugged in
+#
+# @node: NUMA node number where device is plugged in
+#
+# @memdev: memory backend linked with device
+#
+# @hotplugged: true if device was hotplugged
+#
+# @hotpluggable: true if device if could be added/removed while machine is running
+#
+# Since: 2.1
+##
+{ 'type': 'PCDIMMDeviceInfo',
+  'data': { '*id': 'str',
+            'addr': 'int',
+            'size': 'int',
+            'slot': 'int',
+            'node': 'int',
+            'memdev': 'str',
+            'hotplugged': 'bool',
+            'hotpluggable': 'bool'
+          }
+}
+
+##
+# @MemoryDeviceInfo:
+#
+# Union containing information about a memory device
+#
+# Since: 2.1
+##
+{ 'union': 'MemoryDeviceInfo', 'data': {'dimm': 'PCDIMMDeviceInfo'} }
+
+##
+# @query-memory-devices
+#
+# Lists available memory devices and their state
+#
+# Since: 2.1
+##
+{ 'command': 'query-memory-devices', 'returns': ['MemoryDeviceInfo'] }
+
+## @ACPISlotType
+#
+# @DIMM: memory slot
+#
+{ 'enum': 'ACPISlotType', 'data': [ 'DIMM' ] }
+
+## @ACPIOSTInfo
+#
+# OSPM Status Indication for a device
+# For description of possible values of @source and @status fields
+# see "_OST (OSPM Status Indication)" chapter of ACPI5.0 spec.
+#
+# @device: #optional device ID associated with slot
+#
+# @slot: slot ID, unique per slot of a given @slot-type
+#
+# @slot-type: type of the slot
+#
+# @source: an integer containing the source event
+#
+# @status: an integer containing the status code
+#
+# Since: 2.1
+##
+{ 'type': 'ACPIOSTInfo',
+  'data'  : { '*device': 'str',
+              'slot': 'str',
+              'slot-type': 'ACPISlotType',
+              'source': 'int',
+              'status': 'int' } }
+
+##
+# @query-acpi-ospm-status
+#
+# Lists ACPI OSPM status of ACPI device objects,
+# which might be reported via _OST method
+#
+# Since: 2.1
+##
+{ 'command': 'query-acpi-ospm-status', 'returns': ['ACPIOSTInfo'] }
+
+##
+# @WatchdogExpirationAction
+#
+# An enumeration of the actions taken when the watchdog device's timer is
+# expired
+#
+# @reset: system resets
+#
+# @shutdown: system shutdown, note that it is similar to @powerdown, which
+#            tries to set to system status and notify guest
+#
+# @poweroff: system poweroff, the emulator program exits
+#
+# @pause: system pauses, similar to @stop
+#
+# @debug: system enters debug state
+#
+# @none: nothing is done
+#
+# Since: 2.1
+##
+{ 'enum': 'WatchdogExpirationAction',
+  'data': [ 'reset', 'shutdown', 'poweroff', 'pause', 'debug', 'none' ] }
+
+##
+# @IoOperationType
+#
+# An enumeration of the I/O operation types
+#
+# @read: read operation
+#
+# @write: write operation
+#
+# Since: 2.1
+##
+{ 'enum': 'IoOperationType',
+  'data': [ 'read', 'write' ] }
+
+##
+# @GuestPanicAction
+#
+# An enumeration of the actions taken when guest OS panic is detected
+#
+# @pause: system pauses
+#
+# Since: 2.1
+##
+{ 'enum': 'GuestPanicAction',
+  'data': [ 'pause' ] }
+
+##
+# @rtc-reset-reinjection
+#
+# This command will reset the RTC interrupt reinjection backlog.
+# Can be used if another mechanism to synchronize guest time
+# is in effect, for example QEMU guest agent's guest-set-time
+# command.
+#
+# Since: 2.1
+##
+{ 'command': 'rtc-reset-reinjection' }

@@ -76,13 +76,13 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
     phb = PCI_HOST_BRIDGE(dev);
     d = GRACKLE_PCI_HOST_BRIDGE(dev);
 
-    memory_region_init(&d->pci_mmio, "pci-mmio", 0x100000000ULL);
-    memory_region_init_alias(&d->pci_hole, "pci-hole", &d->pci_mmio,
+    memory_region_init(&d->pci_mmio, OBJECT(s), "pci-mmio", 0x100000000ULL);
+    memory_region_init_alias(&d->pci_hole, OBJECT(s), "pci-hole", &d->pci_mmio,
                              0x80000000ULL, 0x7e000000ULL);
     memory_region_add_subregion(address_space_mem, 0x80000000ULL,
                                 &d->pci_hole);
 
-    phb->bus = pci_register_bus(dev, "pci",
+    phb->bus = pci_register_bus(dev, NULL,
                                 pci_grackle_set_irq,
                                 pci_grackle_map_irq,
                                 pic,
@@ -104,9 +104,9 @@ static int pci_grackle_init_device(SysBusDevice *dev)
 
     phb = PCI_HOST_BRIDGE(dev);
 
-    memory_region_init_io(&phb->conf_mem, &pci_host_conf_le_ops,
+    memory_region_init_io(&phb->conf_mem, OBJECT(dev), &pci_host_conf_le_ops,
                           dev, "pci-conf-idx", 0x1000);
-    memory_region_init_io(&phb->data_mem, &pci_host_data_le_ops,
+    memory_region_init_io(&phb->data_mem, OBJECT(dev), &pci_host_data_le_ops,
                           dev, "pci-data-idx", 0x1000);
     sysbus_init_mmio(dev, &phb->conf_mem);
     sysbus_init_mmio(dev, &phb->data_mem);
@@ -130,7 +130,11 @@ static void grackle_pci_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_MOTOROLA_MPC106;
     k->revision  = 0x00;
     k->class_id  = PCI_CLASS_BRIDGE_HOST;
-    dc->no_user = 1;
+    /*
+     * PCI-facing part of the host bridge, not usable without the
+     * host-facing part, which can't be device_add'ed, yet.
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo grackle_pci_info = {
@@ -143,10 +147,8 @@ static const TypeInfo grackle_pci_info = {
 static void pci_grackle_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->init = pci_grackle_init_device;
-    dc->no_user = 1;
 }
 
 static const TypeInfo grackle_pci_host_info = {

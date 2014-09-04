@@ -53,8 +53,13 @@ typedef struct SLAVIO_CPUINTCTLState {
     uint32_t irl_out;
 } SLAVIO_CPUINTCTLState;
 
+#define TYPE_SLAVIO_INTCTL "slavio_intctl"
+#define SLAVIO_INTCTL(obj) \
+    OBJECT_CHECK(SLAVIO_INTCTLState, (obj), TYPE_SLAVIO_INTCTL)
+
 typedef struct SLAVIO_INTCTLState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
 #ifdef DEBUG_IRQ_COUNT
     uint64_t irq_count[32];
@@ -206,12 +211,9 @@ static const MemoryRegionOps slavio_intctlm_mem_ops = {
 
 void slavio_pic_info(Monitor *mon, DeviceState *dev)
 {
-    SysBusDevice *sd;
-    SLAVIO_INTCTLState *s;
+    SLAVIO_INTCTLState *s = SLAVIO_INTCTL(dev);
     int i;
 
-    sd = SYS_BUS_DEVICE(dev);
-    s = FROM_SYSBUS(SLAVIO_INTCTLState, sd);
     for (i = 0; i < MAX_CPUS; i++) {
         monitor_printf(mon, "per-cpu %d: pending 0x%08x\n", i,
                        s->slaves[i].intreg_pending);
@@ -225,13 +227,11 @@ void slavio_irq_info(Monitor *mon, DeviceState *dev)
 #ifndef DEBUG_IRQ_COUNT
     monitor_printf(mon, "irq statistic code not compiled.\n");
 #else
-    SysBusDevice *sd;
-    SLAVIO_INTCTLState *s;
+    SLAVIO_INTCTLState *s = SLAVIO_INTCTL(dev);
     int i;
     int64_t count;
 
-    sd = SYS_BUS_DEVICE(dev);
-    s = FROM_SYSBUS(SLAVIO_INTCTLState, sd);
+    s = SLAVIO_INTCTL(dev);
     monitor_printf(mon, "IRQ statistics:\n");
     for (i = 0; i < 32; i++) {
         count = s->irq_count[i];
@@ -272,7 +272,7 @@ static void slavio_check_interrupts(SLAVIO_INTCTLState *s, int set_irqs)
             CPU_IRQ_TIMER_IN;
         if (i == s->target_cpu) {
             for (j = 0; j < 32; j++) {
-                if ((s->intregm_pending & (1 << j)) && intbit_to_level[j]) {
+                if ((s->intregm_pending & (1U << j)) && intbit_to_level[j]) {
                     s->slaves[i].intreg_pending |= 1 << intbit_to_level[j];
                 }
             }
@@ -381,8 +381,7 @@ static const VMStateDescription vmstate_intctl_cpu = {
     .name ="slavio_intctl_cpu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(intreg_pending, SLAVIO_CPUINTCTLState),
         VMSTATE_END_OF_LIST()
     }
@@ -392,9 +391,8 @@ static const VMStateDescription vmstate_intctl = {
     .name ="slavio_intctl",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = vmstate_intctl_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(slaves, SLAVIO_INTCTLState, MAX_CPUS, 1,
                              vmstate_intctl_cpu, SLAVIO_CPUINTCTLState),
         VMSTATE_UINT32(intregm_pending, SLAVIO_INTCTLState),
@@ -406,7 +404,7 @@ static const VMStateDescription vmstate_intctl = {
 
 static void slavio_intctl_reset(DeviceState *d)
 {
-    SLAVIO_INTCTLState *s = container_of(d, SLAVIO_INTCTLState, busdev.qdev);
+    SLAVIO_INTCTLState *s = SLAVIO_INTCTL(d);
     int i;
 
     for (i = 0; i < MAX_CPUS; i++) {
@@ -419,26 +417,28 @@ static void slavio_intctl_reset(DeviceState *d)
     slavio_check_interrupts(s, 0);
 }
 
-static int slavio_intctl_init1(SysBusDevice *dev)
+static int slavio_intctl_init1(SysBusDevice *sbd)
 {
-    SLAVIO_INTCTLState *s = FROM_SYSBUS(SLAVIO_INTCTLState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    SLAVIO_INTCTLState *s = SLAVIO_INTCTL(dev);
     unsigned int i, j;
     char slave_name[45];
 
-    qdev_init_gpio_in(&dev->qdev, slavio_set_irq_all, 32 + MAX_CPUS);
-    memory_region_init_io(&s->iomem, &slavio_intctlm_mem_ops, s,
+    qdev_init_gpio_in(dev, slavio_set_irq_all, 32 + MAX_CPUS);
+    memory_region_init_io(&s->iomem, OBJECT(s), &slavio_intctlm_mem_ops, s,
                           "master-interrupt-controller", INTCTLM_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
     for (i = 0; i < MAX_CPUS; i++) {
         snprintf(slave_name, sizeof(slave_name),
                  "slave-interrupt-controller-%i", i);
         for (j = 0; j < MAX_PILS; j++) {
-            sysbus_init_irq(dev, &s->cpu_irqs[i][j]);
+            sysbus_init_irq(sbd, &s->cpu_irqs[i][j]);
         }
-        memory_region_init_io(&s->slaves[i].iomem, &slavio_intctl_mem_ops,
+        memory_region_init_io(&s->slaves[i].iomem, OBJECT(s),
+                              &slavio_intctl_mem_ops,
                               &s->slaves[i], slave_name, INTCTL_SIZE);
-        sysbus_init_mmio(dev, &s->slaves[i].iomem);
+        sysbus_init_mmio(sbd, &s->slaves[i].iomem);
         s->slaves[i].cpu = i;
         s->slaves[i].master = s;
     }
@@ -457,7 +457,7 @@ static void slavio_intctl_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo slavio_intctl_info = {
-    .name          = "slavio_intctl",
+    .name          = TYPE_SLAVIO_INTCTL,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SLAVIO_INTCTLState),
     .class_init    = slavio_intctl_class_init,

@@ -1,0 +1,1 @@
+obj-y += xen_platform.o xen_apic.o xen_pvdevice.o

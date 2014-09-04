@@ -42,8 +42,12 @@ typedef struct spin_info {
     uint64_t reserved;
 } QEMU_PACKED SpinInfo;
 
-typedef struct spin_state {
-    SysBusDevice busdev;
+#define TYPE_E500_SPIN "e500-spin"
+#define E500_SPIN(obj) OBJECT_CHECK(SpinState, (obj), TYPE_E500_SPIN)
+
+typedef struct SpinState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     SpinInfo spin[MAX_CPUS];
 } SpinState;
@@ -61,9 +65,9 @@ static void spin_reset(void *opaque)
     for (i = 0; i < MAX_CPUS; i++) {
         SpinInfo *info = &s->spin[i];
 
-        info->pir = i;
-        info->r3 = i;
-        info->addr = 1;
+        stl_p(&info->pir, i);
+        stq_p(&info->r3, i);
+        stq_p(&info->addr, 1);
     }
 }
 
@@ -98,7 +102,7 @@ static void spin_kick(void *data)
     hwaddr map_size = 64 * 1024 * 1024;
     hwaddr map_start;
 
-    cpu_synchronize_state(env);
+    cpu_synchronize_state(cpu);
     stl_p(&curspin->pir, env->spr[SPR_PIR]);
     env->nip = ldq_p(&curspin->addr) & (map_size - 1);
     env->gpr[3] = ldq_p(&curspin->r3);
@@ -113,7 +117,7 @@ static void spin_kick(void *data)
     mmubooke_create_initial_mapping(env, 0, map_start, map_size);
 
     cpu->halted = 0;
-    env->exception_index = -1;
+    cpu->exception_index = -1;
     cpu->stopped = false;
     qemu_cpu_kick(cpu);
 }
@@ -187,12 +191,10 @@ static const MemoryRegionOps spin_rw_ops = {
 
 static int ppce500_spin_initfn(SysBusDevice *dev)
 {
-    SpinState *s;
+    SpinState *s = E500_SPIN(dev);
 
-    s = FROM_SYSBUS(SpinState, SYS_BUS_DEVICE(dev));
-
-    memory_region_init_io(&s->iomem, &spin_rw_ops, s, "e500 spin pv device",
-                          sizeof(SpinInfo) * MAX_CPUS);
+    memory_region_init_io(&s->iomem, OBJECT(s), &spin_rw_ops, s,
+                          "e500 spin pv device", sizeof(SpinInfo) * MAX_CPUS);
     sysbus_init_mmio(dev, &s->iomem);
 
     qemu_register_reset(spin_reset, s);
@@ -208,7 +210,7 @@ static void ppce500_spin_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ppce500_spin_info = {
-    .name          = "e500-spin",
+    .name          = TYPE_E500_SPIN,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SpinState),
     .class_init    = ppce500_spin_class_init,

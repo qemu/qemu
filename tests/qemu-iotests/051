@@ -45,7 +45,14 @@ _supported_os Linux
 function do_run_qemu()
 {
     echo Testing: "$@"
-    echo quit | $QEMU -nographic -monitor stdio -serial none "$@"
+    (
+        if ! test -t 0; then
+            while read cmd; do
+                echo $cmd
+            done
+        fi
+        echo quit
+    ) | $QEMU -nographic -monitor stdio -serial none "$@"
     echo
 }
 
@@ -57,26 +64,56 @@ function run_qemu()
 size=128M
 
 _make_test_img $size
+cp "$TEST_IMG" "$TEST_IMG.orig"
+mv "$TEST_IMG" "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" $size
 
 echo
 echo === Unknown option ===
 echo
 
-run_qemu -drive file=$TEST_IMG,format=qcow2,unknown_opt=
-run_qemu -drive file=$TEST_IMG,format=qcow2,unknown_opt=on
-run_qemu -drive file=$TEST_IMG,format=qcow2,unknown_opt=1234
-run_qemu -drive file=$TEST_IMG,format=qcow2,unknown_opt=foo
+run_qemu -drive file="$TEST_IMG",format=qcow2,unknown_opt=
+run_qemu -drive file="$TEST_IMG",format=qcow2,unknown_opt=on
+run_qemu -drive file="$TEST_IMG",format=qcow2,unknown_opt=1234
+run_qemu -drive file="$TEST_IMG",format=qcow2,unknown_opt=foo
 
+echo
+echo === Unknown protocol option ===
+echo
+
+run_qemu -drive file="$TEST_IMG",format=qcow2,file.unknown_opt=
+run_qemu -drive file="$TEST_IMG",format=qcow2,file.unknown_opt=on
+run_qemu -drive file="$TEST_IMG",format=qcow2,file.unknown_opt=1234
+run_qemu -drive file="$TEST_IMG",format=qcow2,file.unknown_opt=foo
+
+echo
+echo === Invalid format ===
+echo
+
+run_qemu -drive file="$TEST_IMG",format=foo
+run_qemu -drive file="$TEST_IMG",driver=foo
+run_qemu -drive file="$TEST_IMG",driver=raw,format=qcow2
+
+echo
+echo === Overriding backing file ===
+echo
+
+echo "info block" | run_qemu -drive file="$TEST_IMG",driver=qcow2,backing.file.filename="$TEST_IMG.orig" -nodefaults
+
+# Drivers that don't support backing files
+run_qemu -drive file="$TEST_IMG",driver=raw,backing.file.filename="$TEST_IMG.orig"
+run_qemu -drive file="$TEST_IMG",file.backing.driver=file,file.backing.filename="$TEST_IMG.orig"
+run_qemu -drive file="$TEST_IMG",file.backing.driver=qcow2,file.backing.file.filename="$TEST_IMG.orig"
 
 echo
 echo === Enable and disable lazy refcounting on the command line, plus some invalid values ===
 echo
 
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=on
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=off
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=42
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=foo
+run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=on
+run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=off
+run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=
+run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=42
+run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=foo
 
 
 echo
@@ -85,8 +122,8 @@ echo
 
 _make_test_img -ocompat=0.10 $size
 
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=on
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=off
+run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=on
+run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=off
 
 echo
 echo === No medium ===
@@ -112,21 +149,21 @@ echo
 echo === Read-only ===
 echo
 
-run_qemu -drive file=$TEST_IMG,if=floppy,readonly=on
-run_qemu -drive file=$TEST_IMG,if=ide,media=cdrom,readonly=on
-run_qemu -drive file=$TEST_IMG,if=scsi,media=cdrom,readonly=on
+run_qemu -drive file="$TEST_IMG",if=floppy,readonly=on
+run_qemu -drive file="$TEST_IMG",if=ide,media=cdrom,readonly=on
+run_qemu -drive file="$TEST_IMG",if=scsi,media=cdrom,readonly=on
 
-run_qemu -drive file=$TEST_IMG,if=ide,readonly=on
-run_qemu -drive file=$TEST_IMG,if=virtio,readonly=on
-run_qemu -drive file=$TEST_IMG,if=scsi,readonly=on
+run_qemu -drive file="$TEST_IMG",if=ide,readonly=on
+run_qemu -drive file="$TEST_IMG",if=virtio,readonly=on
+run_qemu -drive file="$TEST_IMG",if=scsi,readonly=on
 
-run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device ide-cd,drive=disk
-run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-cd,drive=disk
+run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device ide-cd,drive=disk
+run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device lsi53c895a -device scsi-cd,drive=disk
 
-run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device ide-drive,drive=disk
-run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device ide-hd,drive=disk
-run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-disk,drive=disk
-run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-hd,drive=disk
+run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device ide-drive,drive=disk
+run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device ide-hd,drive=disk
+run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device lsi53c895a -device scsi-disk,drive=disk
+run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device lsi53c895a -device scsi-hd,drive=disk
 
 echo
 echo === Cache modes ===
@@ -146,8 +183,65 @@ echo
 echo === Specifying the protocol layer ===
 echo
 
-run_qemu -drive file=$TEST_IMG,file.driver=file
-run_qemu -drive file=$TEST_IMG,file.driver=qcow2
+run_qemu -drive file="$TEST_IMG",file.driver=file
+run_qemu -drive file="$TEST_IMG",file.driver=qcow2
+
+echo
+echo === Leaving out required options ===
+echo
+
+run_qemu -drive driver=file
+run_qemu -drive driver=nbd
+run_qemu -drive driver=raw
+run_qemu -drive file.driver=file
+run_qemu -drive file.driver=nbd
+run_qemu -drive file.driver=raw
+run_qemu -drive foo=bar
+
+echo
+echo === Parsing protocol from file name ===
+echo
+
+# Protocol strings are supposed to be parsed from traditional option strings,
+# but not when using driver-specific options. We can distinguish them by the
+# error message for non-existing files.
+
+run_qemu -hda foo:bar
+run_qemu -drive file=foo:bar
+run_qemu -drive file.filename=foo:bar
+
+run_qemu -hda "file:$TEST_IMG"
+run_qemu -drive file="file:$TEST_IMG"
+run_qemu -drive file.filename="file:$TEST_IMG"
+
+echo
+echo === Snapshot mode ===
+echo
+
+$QEMU_IO -c "write -P 0x11 0 4k" "$TEST_IMG" | _filter_qemu_io
+
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG" -snapshot | _filter_qemu_io
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG",snapshot=on | _filter_qemu_io
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file.filename="$TEST_IMG",driver=qcow2,snapshot=on | _filter_qemu_io
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file.filename="$TEST_IMG",driver=qcow2 -snapshot | _filter_qemu_io
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="file:$TEST_IMG" -snapshot | _filter_qemu_io
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="file:$TEST_IMG",snapshot=on | _filter_qemu_io
+
+# Opening a read-only file r/w with snapshot=on
+chmod u-w "$TEST_IMG"
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG" -snapshot | _filter_qemu_io
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG",snapshot=on | _filter_qemu_io
+chmod u+w "$TEST_IMG"
+
+$QEMU_IO -c "read -P 0x11 0 4k" "$TEST_IMG" | _filter_qemu_io
+
+echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG",snapshot=off | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0x22 0 4k" "$TEST_IMG" | _filter_qemu_io
+
+echo -e 'qemu-io ide0-hd0 "write -P 0x33 0 4k"\ncommit ide0-hd0' | run_qemu -drive file="$TEST_IMG",snapshot=on | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0x33 0 4k" "$TEST_IMG" | _filter_qemu_io
 
 # success, all done
 echo "*** done"

@@ -54,62 +54,89 @@ static void test_visitor_in_int(TestInputVisitorData *data,
                                 const void *unused)
 {
     int64_t res = 0, value = -42;
-    Error *errp = NULL;
+    Error *err = NULL;
     Visitor *v;
 
     v = visitor_input_test_init(data, "-42");
 
-    visit_type_int(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    visit_type_int(v, &res, NULL, &err);
+    g_assert(!err);
     g_assert_cmpint(res, ==, value);
+}
+
+static void test_visitor_in_intList(TestInputVisitorData *data,
+                                    const void *unused)
+{
+    int64_t value[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 20};
+    int16List *res = NULL, *tmp;
+    Visitor *v;
+    int i = 0;
+
+    v = visitor_input_test_init(data, "1,2,0,2-4,20,5-9,1-8");
+
+    visit_type_int16List(v, &res, NULL, &error_abort);
+    tmp = res;
+    while (i < sizeof(value) / sizeof(value[0])) {
+        g_assert(tmp);
+        g_assert_cmpint(tmp->value, ==, value[i++]);
+        tmp = tmp->next;
+    }
+    g_assert(!tmp);
+
+    tmp = res;
+    while (tmp) {
+        res = res->next;
+        g_free(tmp);
+        tmp = res;
+    }
 }
 
 static void test_visitor_in_bool(TestInputVisitorData *data,
                                  const void *unused)
 {
-    Error *errp = NULL;
+    Error *err = NULL;
     bool res = false;
     Visitor *v;
 
     v = visitor_input_test_init(data, "true");
 
-    visit_type_bool(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    visit_type_bool(v, &res, NULL, &err);
+    g_assert(!err);
     g_assert_cmpint(res, ==, true);
     visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "yes");
 
-    visit_type_bool(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    visit_type_bool(v, &res, NULL, &err);
+    g_assert(!err);
     g_assert_cmpint(res, ==, true);
     visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "on");
 
-    visit_type_bool(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    visit_type_bool(v, &res, NULL, &err);
+    g_assert(!err);
     g_assert_cmpint(res, ==, true);
     visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "false");
 
-    visit_type_bool(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    visit_type_bool(v, &res, NULL, &err);
+    g_assert(!err);
     g_assert_cmpint(res, ==, false);
     visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "no");
 
-    visit_type_bool(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    visit_type_bool(v, &res, NULL, &err);
+    g_assert(!err);
     g_assert_cmpint(res, ==, false);
     visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "off");
 
-    visit_type_bool(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    visit_type_bool(v, &res, NULL, &err);
+    g_assert(!err);
     g_assert_cmpint(res, ==, false);
 }
 
@@ -117,13 +144,13 @@ static void test_visitor_in_number(TestInputVisitorData *data,
                                    const void *unused)
 {
     double res = 0, value = 3.14;
-    Error *errp = NULL;
+    Error *err = NULL;
     Visitor *v;
 
     v = visitor_input_test_init(data, "3.14");
 
-    visit_type_number(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    visit_type_number(v, &res, NULL, &err);
+    g_assert(!err);
     g_assert_cmpfloat(res, ==, value);
 }
 
@@ -131,13 +158,13 @@ static void test_visitor_in_string(TestInputVisitorData *data,
                                    const void *unused)
 {
     char *res = NULL, *value = (char *) "Q E M U";
-    Error *errp = NULL;
+    Error *err = NULL;
     Visitor *v;
 
     v = visitor_input_test_init(data, value);
 
-    visit_type_str(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    visit_type_str(v, &res, NULL, &err);
+    g_assert(!err);
     g_assert_cmpstr(res, ==, value);
 
     g_free(res);
@@ -146,7 +173,7 @@ static void test_visitor_in_string(TestInputVisitorData *data,
 static void test_visitor_in_enum(TestInputVisitorData *data,
                                  const void *unused)
 {
-    Error *errp = NULL;
+    Error *err = NULL;
     Visitor *v;
     EnumOne i;
 
@@ -155,8 +182,8 @@ static void test_visitor_in_enum(TestInputVisitorData *data,
 
         v = visitor_input_test_init(data, EnumOne_lookup[i]);
 
-        visit_type_EnumOne(v, &res, NULL, &errp);
-        g_assert(!error_is_set(&errp));
+        visit_type_EnumOne(v, &res, NULL, &err);
+        g_assert(!err);
         g_assert_cmpint(i, ==, res);
 
         visitor_input_teardown(data, NULL);
@@ -170,6 +197,7 @@ static void test_visitor_in_fuzz(TestInputVisitorData *data,
                                  const void *unused)
 {
     int64_t ires;
+    intList *ilres;
     bool bres;
     double nres;
     char *sres;
@@ -193,6 +221,11 @@ static void test_visitor_in_fuzz(TestInputVisitorData *data,
 
         v = visitor_input_test_init(data, buf);
         visit_type_int(v, &ires, NULL, NULL);
+        visitor_input_teardown(data, NULL);
+
+        v = visitor_input_test_init(data, buf);
+        visit_type_intList(v, &ilres, NULL, NULL);
+        visitor_input_teardown(data, NULL);
 
         v = visitor_input_test_init(data, buf);
         visit_type_bool(v, &bres, NULL, NULL);
@@ -200,11 +233,13 @@ static void test_visitor_in_fuzz(TestInputVisitorData *data,
 
         v = visitor_input_test_init(data, buf);
         visit_type_number(v, &nres, NULL, NULL);
+        visitor_input_teardown(data, NULL);
 
         v = visitor_input_test_init(data, buf);
         sres = NULL;
         visit_type_str(v, &sres, NULL, NULL);
         g_free(sres);
+        visitor_input_teardown(data, NULL);
 
         v = visitor_input_test_init(data, buf);
         visit_type_EnumOne(v, &eres, NULL, NULL);
@@ -228,6 +263,8 @@ int main(int argc, char **argv)
 
     input_visitor_test_add("/string-visitor/input/int",
                            &in_visitor_data, test_visitor_in_int);
+    input_visitor_test_add("/string-visitor/input/intList",
+                           &in_visitor_data, test_visitor_in_intList);
     input_visitor_test_add("/string-visitor/input/bool",
                            &in_visitor_data, test_visitor_in_bool);
     input_visitor_test_add("/string-visitor/input/number",

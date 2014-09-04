@@ -35,10 +35,35 @@
 
 static struct XtensaConfigList *xtensa_cores;
 
+static void xtensa_core_class_init(ObjectClass *oc, void *data)
+{
+    CPUClass *cc = CPU_CLASS(oc);
+    XtensaCPUClass *xcc = XTENSA_CPU_CLASS(oc);
+    const XtensaConfig *config = data;
+
+    xcc->config = config;
+
+    /* Use num_core_regs to see only non-privileged registers in an unmodified
+     * gdb. Use num_regs to see all registers. gdb modification is required
+     * for that: reset bit 0 in the 'flags' field of the registers definitions
+     * in the gdb/xtensa-config.c inside gdb source tree or inside gdb overlay.
+     */
+    cc->gdb_num_core_regs = config->gdb_regmap.num_regs;
+}
+
 void xtensa_register_core(XtensaConfigList *node)
 {
+    TypeInfo type = {
+        .parent = TYPE_XTENSA_CPU,
+        .class_init = xtensa_core_class_init,
+        .class_data = (void *)node->config,
+    };
+
     node->next = xtensa_cores;
     xtensa_cores = node;
+    type.name = g_strdup_printf("%s-" TYPE_XTENSA_CPU, node->config->name);
+    type_register(&type);
+    g_free((gpointer)type.name);
 }
 
 static uint32_t check_hw_breakpoints(CPUXtensaState *env)
@@ -56,40 +81,35 @@ static uint32_t check_hw_breakpoints(CPUXtensaState *env)
 
 void xtensa_breakpoint_handler(CPUXtensaState *env)
 {
-    if (env->watchpoint_hit) {
-        if (env->watchpoint_hit->flags & BP_CPU) {
+    CPUState *cs = CPU(xtensa_env_get_cpu(env));
+
+    if (cs->watchpoint_hit) {
+        if (cs->watchpoint_hit->flags & BP_CPU) {
             uint32_t cause;
 
-            env->watchpoint_hit = NULL;
+            cs->watchpoint_hit = NULL;
             cause = check_hw_breakpoints(env);
             if (cause) {
                 debug_exception_env(env, cause);
             }
-            cpu_resume_from_signal(env, NULL);
+            cpu_resume_from_signal(cs, NULL);
         }
     }
 }
 
 XtensaCPU *cpu_xtensa_init(const char *cpu_model)
 {
+    ObjectClass *oc;
     XtensaCPU *cpu;
     CPUXtensaState *env;
-    const XtensaConfig *config = NULL;
-    XtensaConfigList *core = xtensa_cores;
 
-    for (; core; core = core->next)
-        if (strcmp(core->config->name, cpu_model) == 0) {
-            config = core->config;
-            break;
-        }
-
-    if (config == NULL) {
+    oc = cpu_class_by_name(TYPE_XTENSA_CPU, cpu_model);
+    if (oc == NULL) {
         return NULL;
     }
 
-    cpu = XTENSA_CPU(object_new(TYPE_XTENSA_CPU));
+    cpu = XTENSA_CPU(object_new(object_class_get_name(oc)));
     env = &cpu->env;
-    env->config = config;
 
     xtensa_irq_init(env);
 
@@ -108,17 +128,18 @@ void xtensa_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     }
 }
 
-hwaddr cpu_get_phys_page_debug(CPUXtensaState *env, target_ulong addr)
+hwaddr xtensa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    XtensaCPU *cpu = XTENSA_CPU(cs);
     uint32_t paddr;
     uint32_t page_size;
     unsigned access;
 
-    if (xtensa_get_physical_addr(env, false, addr, 0, 0,
+    if (xtensa_get_physical_addr(&cpu->env, false, addr, 0, 0,
                 &paddr, &page_size, &access) == 0) {
         return paddr;
     }
-    if (xtensa_get_physical_addr(env, false, addr, 2, 0,
+    if (xtensa_get_physical_addr(&cpu->env, false, addr, 2, 0,
                 &paddr, &page_size, &access) == 0) {
         return paddr;
     }
@@ -150,6 +171,8 @@ static void handle_interrupt(CPUXtensaState *env)
             (env->config->level_mask[level] &
              env->sregs[INTSET] &
              env->sregs[INTENABLE])) {
+        CPUState *cs = CPU(xtensa_env_get_cpu(env));
+
         if (level > 1) {
             env->sregs[EPC1 + level - 1] = env->pc;
             env->sregs[EPS2 + level - 2] = env->sregs[PS];
@@ -166,10 +189,10 @@ static void handle_interrupt(CPUXtensaState *env)
                 } else {
                     env->sregs[EPC1] = env->pc;
                 }
-                env->exception_index = EXC_DOUBLE;
+                cs->exception_index = EXC_DOUBLE;
             } else {
                 env->sregs[EPC1] = env->pc;
-                env->exception_index =
+                cs->exception_index =
                     (env->sregs[PS] & PS_UM) ? EXC_USER : EXC_KERNEL;
             }
             env->sregs[PS] |= PS_EXCM;
@@ -183,7 +206,7 @@ void xtensa_cpu_do_interrupt(CPUState *cs)
     XtensaCPU *cpu = XTENSA_CPU(cs);
     CPUXtensaState *env = &cpu->env;
 
-    if (env->exception_index == EXC_IRQ) {
+    if (cs->exception_index == EXC_IRQ) {
         qemu_log_mask(CPU_LOG_INT,
                 "%s(EXC_IRQ) level = %d, cintlevel = %d, "
                 "pc = %08x, a0 = %08x, ps = %08x, "
@@ -196,7 +219,7 @@ void xtensa_cpu_do_interrupt(CPUState *cs)
         handle_interrupt(env);
     }
 
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case EXC_WINDOW_OVERFLOW4:
     case EXC_WINDOW_UNDERFLOW4:
     case EXC_WINDOW_OVERFLOW8:
@@ -209,15 +232,15 @@ void xtensa_cpu_do_interrupt(CPUState *cs)
     case EXC_DEBUG:
         qemu_log_mask(CPU_LOG_INT, "%s(%d) "
                 "pc = %08x, a0 = %08x, ps = %08x, ccount = %08x\n",
-                __func__, env->exception_index,
+                __func__, cs->exception_index,
                 env->pc, env->regs[0], env->sregs[PS], env->sregs[CCOUNT]);
-        if (env->config->exception_vector[env->exception_index]) {
+        if (env->config->exception_vector[cs->exception_index]) {
             env->pc = relocated_vector(env,
-                    env->config->exception_vector[env->exception_index]);
+                    env->config->exception_vector[cs->exception_index]);
             env->exception_taken = 1;
         } else {
             qemu_log("%s(pc = %08x) bad exception_index: %d\n",
-                    __func__, env->pc, env->exception_index);
+                    __func__, env->pc, cs->exception_index);
         }
         break;
 
@@ -226,7 +249,7 @@ void xtensa_cpu_do_interrupt(CPUState *cs)
 
     default:
         qemu_log("%s(pc = %08x) unknown exception_index: %d\n",
-                __func__, env->pc, env->exception_index);
+                __func__, env->pc, cs->exception_index);
         break;
     }
     check_interrupts(env);
@@ -533,6 +556,7 @@ static int get_physical_addr_mmu(CPUXtensaState *env, bool update_tlb,
 
 static int get_pte(CPUXtensaState *env, uint32_t vaddr, uint32_t *pte)
 {
+    CPUState *cs = CPU(xtensa_env_get_cpu(env));
     uint32_t paddr;
     uint32_t page_size;
     unsigned access;
@@ -545,7 +569,7 @@ static int get_pte(CPUXtensaState *env, uint32_t vaddr, uint32_t *pte)
             vaddr, ret ? ~0 : paddr);
 
     if (ret == 0) {
-        *pte = ldl_phys(paddr);
+        *pte = ldl_phys(cs->as, paddr);
     }
     return ret;
 }

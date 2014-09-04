@@ -44,6 +44,19 @@ void fifo8_destroy(Fifo8 *fifo);
 void fifo8_push(Fifo8 *fifo, uint8_t data);
 
 /**
+ * fifo8_push_all:
+ * @fifo: FIFO to push to
+ * @data: data to push
+ * @size: number of bytes to push
+ *
+ * Push a byte array to the FIFO. Behaviour is undefined if the FIFO is full.
+ * Clients are responsible for checking the space left in the FIFO using
+ * fifo8_num_free().
+ */
+
+void fifo8_push_all(Fifo8 *fifo, const uint8_t *data, uint32_t num);
+
+/**
  * fifo8_pop:
  * @fifo: fifo to pop from
  *
@@ -54,6 +67,32 @@ void fifo8_push(Fifo8 *fifo, uint8_t data);
  */
 
 uint8_t fifo8_pop(Fifo8 *fifo);
+
+/**
+ * fifo8_pop_buf:
+ * @fifo: FIFO to pop from
+ * @max: maximum number of bytes to pop
+ * @num: actual number of returned bytes
+ *
+ * Pop a number of elements from the FIFO up to a maximum of max. The buffer
+ * containing the popped data is returned. This buffer points directly into
+ * the FIFO backing store and data is invalidated once any of the fifo8_* APIs
+ * are called on the FIFO.
+ *
+ * The function may return fewer bytes than requested when the data wraps
+ * around in the ring buffer; in this case only a contiguous part of the data
+ * is returned.
+ *
+ * The number of valid bytes returned is populated in *num; will always return
+ * at least 1 byte. max must not be 0 or greater than the number of bytes in
+ * the FIFO.
+ *
+ * Clients are responsible for checking the availability of requested data
+ * using fifo8_num_used().
+ *
+ * Returns: A pointer to popped data.
+ */
+const uint8_t *fifo8_pop_buf(Fifo8 *fifo, uint32_t max, uint32_t *num);
 
 /**
  * fifo8_reset:
@@ -85,6 +124,28 @@ bool fifo8_is_empty(Fifo8 *fifo);
  */
 
 bool fifo8_is_full(Fifo8 *fifo);
+
+/**
+ * fifo8_num_free:
+ * @fifo: FIFO to check
+ *
+ * Return the number of free bytes in the FIFO.
+ *
+ * Returns: Number of free bytes.
+ */
+
+uint32_t fifo8_num_free(Fifo8 *fifo);
+
+/**
+ * fifo8_num_used:
+ * @fifo: FIFO to check
+ *
+ * Return the number of used bytes in the FIFO.
+ *
+ * Returns: Number of used bytes.
+ */
+
+uint32_t fifo8_num_used(Fifo8 *fifo);
 
 extern const VMStateDescription vmstate_fifo8;
 

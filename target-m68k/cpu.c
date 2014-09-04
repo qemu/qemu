@@ -23,6 +23,18 @@
 #include "migration/vmstate.h"
 
 
+static void m68k_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    M68kCPU *cpu = M68K_CPU(cs);
+
+    cpu->env.pc = value;
+}
+
+static bool m68k_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request & CPU_INTERRUPT_HARD;
+}
+
 static void m68k_set_feature(CPUM68KState *env, int feature)
 {
     env->features |= (1u << feature);
@@ -35,14 +47,9 @@ static void m68k_cpu_reset(CPUState *s)
     M68kCPUClass *mcc = M68K_CPU_GET_CLASS(cpu);
     CPUM68KState *env = &cpu->env;
 
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
-        log_cpu_state(env, 0);
-    }
-
     mcc->parent_reset(s);
 
-    memset(env, 0, offsetof(CPUM68KState, breakpoints));
+    memset(env, 0, offsetof(CPUM68KState, features));
 #if !defined(CONFIG_USER_ONLY)
     env->sr = 0x2700;
 #endif
@@ -51,7 +58,7 @@ static void m68k_cpu_reset(CPUState *s)
     env->cc_op = CC_OP_FLAGS;
     /* TODO: We should set PC from the interrupt vector.  */
     env->pc = 0;
-    tlb_flush(env, 1);
+    tlb_flush(s, 1);
 }
 
 /* CPU models */
@@ -141,13 +148,14 @@ static const M68kCPUInfo m68k_cpus[] = {
 
 static void m68k_cpu_realizefn(DeviceState *dev, Error **errp)
 {
+    CPUState *cs = CPU(dev);
     M68kCPU *cpu = M68K_CPU(dev);
     M68kCPUClass *mcc = M68K_CPU_GET_CLASS(dev);
 
     m68k_cpu_init_gdb(cpu);
 
-    cpu_reset(CPU(cpu));
-    qemu_init_vcpu(&cpu->env);
+    cpu_reset(cs);
+    qemu_init_vcpu(cs);
 
     mcc->parent_realize(dev, errp);
 }
@@ -186,8 +194,20 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
     cc->reset = m68k_cpu_reset;
 
     cc->class_by_name = m68k_cpu_class_by_name;
+    cc->has_work = m68k_cpu_has_work;
     cc->do_interrupt = m68k_cpu_do_interrupt;
+    cc->dump_state = m68k_cpu_dump_state;
+    cc->set_pc = m68k_cpu_set_pc;
+    cc->gdb_read_register = m68k_cpu_gdb_read_register;
+    cc->gdb_write_register = m68k_cpu_gdb_write_register;
+#ifdef CONFIG_USER_ONLY
+    cc->handle_mmu_fault = m68k_cpu_handle_mmu_fault;
+#else
+    cc->get_phys_page_debug = m68k_cpu_get_phys_page_debug;
+#endif
     dc->vmsd = &vmstate_m68k_cpu;
+    cc->gdb_num_core_regs = 18;
+    cc->gdb_core_xml_file = "cf-core.xml";
 }
 
 static void register_cpu_type(const M68kCPUInfo *info)

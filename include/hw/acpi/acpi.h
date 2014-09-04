@@ -24,6 +24,12 @@
 #include "qemu/notify.h"
 #include "qemu/option.h"
 #include "exec/memory.h"
+#include "hw/irq.h"
+
+/*
+ * current device naming scheme supports up to 256 memory devices
+ */
+#define ACPI_MAX_RAM_SLOTS 256
 
 /* from linux include/acpi/actype.h */
 /* Default ACPI register widths */
@@ -68,6 +74,12 @@
 #define ACPI_BITMASK_SLEEP_BUTTON_ENABLE        0x0200
 #define ACPI_BITMASK_RT_CLOCK_ENABLE            0x0400
 #define ACPI_BITMASK_PCIEXP_WAKE_DISABLE        0x4000	/* ACPI 3.0 */
+
+#define ACPI_BITMASK_PM1_COMMON_ENABLED         ( \
+        ACPI_BITMASK_RT_CLOCK_ENABLE        | \
+        ACPI_BITMASK_POWER_BUTTON_ENABLE    | \
+        ACPI_BITMASK_GLOBAL_LOCK_ENABLE     | \
+        ACPI_BITMASK_TIMER_ENABLE)
 
 /* PM1x_CNT */
 #define ACPI_BITMASK_SCI_ENABLE                 0x0001
@@ -136,7 +148,7 @@ void acpi_pm_tmr_reset(ACPIREGS *ar);
 #include "qemu/timer.h"
 static inline int64_t acpi_pm_tmr_get_clock(void)
 {
-    return muldiv64(qemu_get_clock_ns(vm_clock), PM_TIMER_FREQUENCY,
+    return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), PM_TIMER_FREQUENCY,
                     get_ticks_per_sec());
 }
 
@@ -160,11 +172,17 @@ void acpi_gpe_reset(ACPIREGS *ar);
 void acpi_gpe_ioport_writeb(ACPIREGS *ar, uint32_t addr, uint32_t val);
 uint32_t acpi_gpe_ioport_readb(ACPIREGS *ar, uint32_t addr);
 
+void acpi_update_sci(ACPIREGS *acpi_regs, qemu_irq irq);
+
 /* acpi.c */
 extern int acpi_enabled;
 extern char unsigned *acpi_tables;
 extern size_t acpi_tables_len;
 
+uint8_t *acpi_table_first(void);
+uint8_t *acpi_table_next(uint8_t *current);
+unsigned acpi_table_len(void *current);
 void acpi_table_add(const QemuOpts *opts, Error **errp);
+void acpi_table_add_builtin(const QemuOpts *opts, Error **errp);
 
 #endif /* !QEMU_HW_ACPI_H */

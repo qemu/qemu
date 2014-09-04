@@ -21,14 +21,37 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
+#include "migration/vmstate.h"
 
+
+static void alpha_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    AlphaCPU *cpu = ALPHA_CPU(cs);
+
+    cpu->env.pc = value;
+}
+
+static bool alpha_cpu_has_work(CPUState *cs)
+{
+    /* Here we are checking to see if the CPU should wake up from HALT.
+       We will have gotten into this state only for WTINT from PALmode.  */
+    /* ??? I'm not sure how the IPL state works with WTINT to keep a CPU
+       asleep even if (some) interrupts have been asserted.  For now,
+       assume that if a CPU really wants to stay asleep, it will mask
+       interrupts at the chipset level, which will prevent these bits
+       from being set in the first place.  */
+    return cs->interrupt_request & (CPU_INTERRUPT_HARD
+                                    | CPU_INTERRUPT_TIMER
+                                    | CPU_INTERRUPT_SMP
+                                    | CPU_INTERRUPT_MCHK);
+}
 
 static void alpha_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    AlphaCPU *cpu = ALPHA_CPU(dev);
+    CPUState *cs = CPU(dev);
     AlphaCPUClass *acc = ALPHA_CPU_GET_CLASS(dev);
 
-    qemu_init_vcpu(&cpu->env);
+    qemu_init_vcpu(cs);
 
     acc->parent_realize(dev, errp);
 }
@@ -123,7 +146,6 @@ static ObjectClass *alpha_cpu_class_by_name(const char *cpu_model)
 AlphaCPU *cpu_alpha_init(const char *cpu_model)
 {
     AlphaCPU *cpu;
-    CPUAlphaState *env;
     ObjectClass *cpu_class;
 
     cpu_class = alpha_cpu_class_by_name(cpu_model);
@@ -132,9 +154,6 @@ AlphaCPU *cpu_alpha_init(const char *cpu_model)
         cpu_class = object_class_by_name(TYPE("ev67"));
     }
     cpu = ALPHA_CPU(object_new(object_class_get_name(cpu_class)));
-    env = &cpu->env;
-
-    env->cpu_model_str = cpu_model;
 
     object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 
@@ -239,7 +258,7 @@ static void alpha_cpu_initfn(Object *obj)
 
     cs->env_ptr = env;
     cpu_exec_init(env);
-    tlb_flush(env, 1);
+    tlb_flush(cs, 1);
 
     alpha_translate_init();
 
@@ -263,7 +282,21 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
     dc->realize = alpha_cpu_realizefn;
 
     cc->class_by_name = alpha_cpu_class_by_name;
+    cc->has_work = alpha_cpu_has_work;
     cc->do_interrupt = alpha_cpu_do_interrupt;
+    cc->dump_state = alpha_cpu_dump_state;
+    cc->set_pc = alpha_cpu_set_pc;
+    cc->gdb_read_register = alpha_cpu_gdb_read_register;
+    cc->gdb_write_register = alpha_cpu_gdb_write_register;
+#ifdef CONFIG_USER_ONLY
+    cc->handle_mmu_fault = alpha_cpu_handle_mmu_fault;
+#else
+    cc->do_unassigned_access = alpha_cpu_unassigned_access;
+    cc->do_unaligned_access = alpha_cpu_do_unaligned_access;
+    cc->get_phys_page_debug = alpha_cpu_get_phys_page_debug;
+    dc->vmsd = &vmstate_alpha_cpu;
+#endif
+    cc->gdb_num_core_regs = 67;
 }
 
 static const TypeInfo alpha_cpu_type_info = {

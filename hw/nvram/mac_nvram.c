@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/sparc/firmware_abi.h"
+#include "hw/nvram/openbios_firmware_abi.h"
 #include "sysemu/sysemu.h"
 #include "hw/ppc/mac.h"
 
@@ -96,8 +96,7 @@ static const VMStateDescription vmstate_macio_nvram = {
     .name = "macio_nvram",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_VBUFFER_UINT32(data, MacIONVRAMState, 0, NULL, 0, size),
         VMSTATE_END_OF_LIST()
     }
@@ -115,8 +114,8 @@ static void macio_nvram_realizefn(DeviceState *dev, Error **errp)
 
     s->data = g_malloc0(s->size);
 
-    memory_region_init_io(&s->mem, &macio_nvram_ops, s, "macio-nvram",
-                          s->size << s->it_shift);
+    memory_region_init_io(&s->mem, OBJECT(s), &macio_nvram_ops, s,
+                          "macio-nvram", s->size << s->it_shift);
     sysbus_init_mmio(d, &s->mem);
 }
 

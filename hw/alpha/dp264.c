@@ -43,13 +43,13 @@ static int clipper_pci_map_irq(PCIDevice *d, int irq_num)
     return (slot + 1) * 4 + irq_num;
 }
 
-static void clipper_init(QEMUMachineInitArgs *args)
+static void clipper_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     AlphaCPU *cpus[4];
     PCIBus *pci_bus;
     ISABus *isa_bus;
@@ -73,7 +73,9 @@ static void clipper_init(QEMUMachineInitArgs *args)
     pci_bus = typhoon_init(ram_size, &isa_bus, &rtc_irq, cpus,
                            clipper_pci_map_irq);
 
-    rtc_init(isa_bus, 1980, rtc_irq);
+    /* Since we have an SRM-compatible PALcode, use the SRM epoch.  */
+    rtc_init(isa_bus, 1900, rtc_irq);
+
     pit_init(isa_bus, 0x40, 0, NULL);
     isa_create_simple(isa_bus, "i8042");
 
@@ -89,7 +91,7 @@ static void clipper_init(QEMUMachineInitArgs *args)
 
     /* Network setup.  e1000 is good enough, failing Tulip support.  */
     for (i = 0; i < nb_nics; i++) {
-        pci_nic_init_nofail(&nd_table[i], "e1000", NULL);
+        pci_nic_init_nofail(&nd_table[i], pci_bus, "e1000", NULL);
     }
 
     /* IDE disk setup.  */
@@ -159,8 +161,9 @@ static void clipper_init(QEMUMachineInitArgs *args)
             load_image_targphys(initrd_filename, initrd_base,
                                 ram_size - initrd_base);
 
-            stq_phys(param_offset + 0x100, initrd_base + 0xfffffc0000000000ULL);
-            stq_phys(param_offset + 0x108, initrd_size);
+            stq_phys(&address_space_memory,
+                     param_offset + 0x100, initrd_base + 0xfffffc0000000000ULL);
+            stq_phys(&address_space_memory, param_offset + 0x108, initrd_size);
         }
     }
 }
@@ -171,7 +174,6 @@ static QEMUMachine clipper_machine = {
     .init = clipper_init,
     .max_cpus = 4,
     .is_default = 1,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void clipper_machine_init(void)

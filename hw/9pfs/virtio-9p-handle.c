@@ -498,7 +498,7 @@ static int handle_lremovexattr(FsContext *ctx, V9fsPath *fs_path,
 static int handle_name_to_path(FsContext *ctx, V9fsPath *dir_path,
                               const char *name, V9fsPath *target)
 {
-    char buffer[PATH_MAX];
+    char *buffer;
     struct file_handle *fh;
     int dirfd, ret, mnt_id;
     struct handle_data *data = (struct handle_data *)ctx->private;
@@ -513,7 +513,9 @@ static int handle_name_to_path(FsContext *ctx, V9fsPath *dir_path,
         dirfd = open_by_handle(data->mountfd, dir_path->data, O_PATH);
     } else {
         /* relative to export root */
-        dirfd = open(rpath(ctx, ".", buffer), O_DIRECTORY);
+        buffer = rpath(ctx, ".");
+        dirfd = open(buffer, O_DIRECTORY);
+        g_free(buffer);
     }
     if (dirfd < 0) {
         return dirfd;
@@ -521,7 +523,7 @@ static int handle_name_to_path(FsContext *ctx, V9fsPath *dir_path,
     fh = g_malloc(sizeof(struct file_handle) + data->handle_bytes);
     fh->handle_bytes = data->handle_bytes;
     /* add a "./" at the beginning of the path */
-    snprintf(buffer, PATH_MAX, "./%s", name);
+    buffer = g_strdup_printf("./%s", name);
     /* flag = 0 imply don't follow symlink */
     ret = name_to_handle(dirfd, buffer, fh, &mnt_id, 0);
     if (!ret) {
@@ -531,6 +533,7 @@ static int handle_name_to_path(FsContext *ctx, V9fsPath *dir_path,
         g_free(fh);
     }
     close(dirfd);
+    g_free(buffer);
     return ret;
 }
 
@@ -582,6 +585,7 @@ static int handle_unlinkat(FsContext *ctx, V9fsPath *dir,
 static int handle_ioc_getversion(FsContext *ctx, V9fsPath *path,
                                  mode_t st_mode, uint64_t *st_gen)
 {
+#ifdef FS_IOC_GETVERSION
     int err;
     V9fsFidOpenState fid_open;
 
@@ -590,7 +594,8 @@ static int handle_ioc_getversion(FsContext *ctx, V9fsPath *path,
      * We can get fd for regular files and directories only
      */
     if (!S_ISREG(st_mode) && !S_ISDIR(st_mode)) {
-            return 0;
+        errno = ENOTTY;
+        return -1;
     }
     err = handle_open(ctx, path, O_RDONLY, &fid_open);
     if (err < 0) {
@@ -599,6 +604,10 @@ static int handle_ioc_getversion(FsContext *ctx, V9fsPath *path,
     err = ioctl(fid_open.fd, FS_IOC_GETVERSION, st_gen);
     handle_close(ctx, &fid_open);
     return err;
+#else
+    errno = ENOTTY;
+    return -1;
+#endif
 }
 
 static int handle_init(FsContext *ctx)

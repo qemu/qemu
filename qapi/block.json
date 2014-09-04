@@ -1,0 +1,180 @@
+# -*- Mode: Python -*-
+#
+# QAPI block definitions (vm related)
+
+# QAPI block core definitions
+{ 'include': 'block-core.json' }
+
+##
+# BiosAtaTranslation:
+#
+# Policy that BIOS should use to interpret cylinder/head/sector
+# addresses.  Note that Bochs BIOS and SeaBIOS will not actually
+# translate logical CHS to physical; instead, they will use logical
+# block addressing.
+#
+# @auto: If cylinder/heads/sizes are passed, choose between none and LBA
+#        depending on the size of the disk.  If they are not passed,
+#        choose none if QEMU can guess that the disk had 16 or fewer
+#        heads, large if QEMU can guess that the disk had 131072 or
+#        fewer tracks across all heads (i.e. cylinders*heads<131072),
+#        otherwise LBA.
+#
+# @none: The physical disk geometry is equal to the logical geometry.
+#
+# @lba: Assume 63 sectors per track and one of 16, 32, 64, 128 or 255
+#       heads (if fewer than 255 are enough to cover the whole disk
+#       with 1024 cylinders/head).  The number of cylinders/head is
+#       then computed based on the number of sectors and heads.
+#
+# @large: The number of cylinders per head is scaled down to 1024
+#         by correspondingly scaling up the number of heads.
+#
+# @rechs: Same as @large, but first convert a 16-head geometry to
+#         15-head, by proportionally scaling up the number of
+#         cylinders/head.
+#
+# Since: 2.0
+##
+{ 'enum': 'BiosAtaTranslation',
+  'data': ['auto', 'none', 'lba', 'large', 'rechs']}
+
+##
+# @BlockdevSnapshotInternal
+#
+# @device: the name of the device to generate the snapshot from
+#
+# @name: the name of the internal snapshot to be created
+#
+# Notes: In transaction, if @name is empty, or any snapshot matching @name
+#        exists, the operation will fail. Only some image formats support it,
+#        for example, qcow2, rbd, and sheepdog.
+#
+# Since: 1.7
+##
+{ 'type': 'BlockdevSnapshotInternal',
+  'data': { 'device': 'str', 'name': 'str' } }
+
+##
+# @blockdev-snapshot-internal-sync
+#
+# Synchronously take an internal snapshot of a block device, when the format
+# of the image used supports it.
+#
+# For the arguments, see the documentation of BlockdevSnapshotInternal.
+#
+# Returns: nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#          If any snapshot matching @name exists, or @name is empty,
+#          GenericError
+#          If the format of the image used does not support it,
+#          BlockFormatFeatureNotSupported
+#
+# Since 1.7
+##
+{ 'command': 'blockdev-snapshot-internal-sync',
+  'data': 'BlockdevSnapshotInternal' }
+
+##
+# @blockdev-snapshot-delete-internal-sync
+#
+# Synchronously delete an internal snapshot of a block device, when the format
+# of the image used support it. The snapshot is identified by name or id or
+# both. One of the name or id is required. Return SnapshotInfo for the
+# successfully deleted snapshot.
+#
+# @device: the name of the device to delete the snapshot from
+#
+# @id: optional the snapshot's ID to be deleted
+#
+# @name: optional the snapshot's name to be deleted
+#
+# Returns: SnapshotInfo on success
+#          If @device is not a valid block device, DeviceNotFound
+#          If snapshot not found, GenericError
+#          If the format of the image used does not support it,
+#          BlockFormatFeatureNotSupported
+#          If @id and @name are both not specified, GenericError
+#
+# Since 1.7
+##
+{ 'command': 'blockdev-snapshot-delete-internal-sync',
+  'data': { 'device': 'str', '*id': 'str', '*name': 'str'},
+  'returns': 'SnapshotInfo' }
+
+##
+# @eject:
+#
+# Ejects a device from a removable drive.
+#
+# @device:  The name of the device
+#
+# @force:   @optional If true, eject regardless of whether the drive is locked.
+#           If not specified, the default value is false.
+#
+# Returns:  Nothing on success
+#           If @device is not a valid block device, DeviceNotFound
+#
+# Notes:    Ejecting a device will no media results in success
+#
+# Since: 0.14.0
+##
+{ 'command': 'eject', 'data': {'device': 'str', '*force': 'bool'} }
+
+##
+# @nbd-server-start:
+#
+# Start an NBD server listening on the given host and port.  Block
+# devices can then be exported using @nbd-server-add.  The NBD
+# server will present them as named exports; for example, another
+# QEMU instance could refer to them as "nbd:HOST:PORT:exportname=NAME".
+#
+# @addr: Address on which to listen.
+#
+# Returns: error if the server is already running.
+#
+# Since: 1.3.0
+##
+{ 'command': 'nbd-server-start',
+  'data': { 'addr': 'SocketAddress' } }
+
+##
+# @nbd-server-add:
+#
+# Export a device to QEMU's embedded NBD server.
+#
+# @device: Block device to be exported
+#
+# @writable: Whether clients should be able to write to the device via the
+#     NBD connection (default false). #optional
+#
+# Returns: error if the device is already marked for export.
+#
+# Since: 1.3.0
+##
+{ 'command': 'nbd-server-add', 'data': {'device': 'str', '*writable': 'bool'} }
+
+##
+# @nbd-server-stop:
+#
+# Stop QEMU's embedded NBD server, and unregister all devices previously
+# added via @nbd-server-add.
+#
+# Since: 1.3.0
+##
+{ 'command': 'nbd-server-stop' }
+
+##
+# @DEVICE_TRAY_MOVED
+#
+# Emitted whenever the tray of a removable device is moved by the guest or by
+# HMP/QMP commands
+#
+# @device: device name
+#
+# @tray-open: true if the tray has been opened or false if it has been closed
+#
+# Since: 1.1
+##
+{ 'event': 'DEVICE_TRAY_MOVED',
+  'data': { 'device': 'str', 'tray-open': 'bool' } }

@@ -35,6 +35,15 @@
 #define RW_STATE_WORD0 3
 #define RW_STATE_WORD1 4
 
+#define PIT_CLASS(class) OBJECT_CLASS_CHECK(PITClass, (class), TYPE_I8254)
+#define PIT_GET_CLASS(obj) OBJECT_GET_CLASS(PITClass, (obj), TYPE_I8254)
+
+typedef struct PITClass {
+    PITCommonClass parent_class;
+
+    DeviceRealize parent_realize;
+} PITClass;
+
 static void pit_irq_timer_update(PITChannelState *s, int64_t current_time);
 
 static int pit_get_count(PITChannelState *s)
@@ -42,7 +51,7 @@ static int pit_get_count(PITChannelState *s)
     uint64_t d;
     int counter;
 
-    d = muldiv64(qemu_get_clock_ns(vm_clock) - s->count_load_time, PIT_FREQ,
+    d = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - s->count_load_time, PIT_FREQ,
                  get_ticks_per_sec());
     switch(s->mode) {
     case 0:
@@ -76,7 +85,7 @@ static void pit_set_channel_gate(PITCommonState *s, PITChannelState *sc,
     case 5:
         if (sc->gate < val) {
             /* restart counting on rising edge */
-            sc->count_load_time = qemu_get_clock_ns(vm_clock);
+            sc->count_load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
             pit_irq_timer_update(sc, sc->count_load_time);
         }
         break;
@@ -84,7 +93,7 @@ static void pit_set_channel_gate(PITCommonState *s, PITChannelState *sc,
     case 3:
         if (sc->gate < val) {
             /* restart counting on rising edge */
-            sc->count_load_time = qemu_get_clock_ns(vm_clock);
+            sc->count_load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
             pit_irq_timer_update(sc, sc->count_load_time);
         }
         /* XXX: disable/enable counting */
@@ -97,7 +106,7 @@ static inline void pit_load_count(PITChannelState *s, int val)
 {
     if (val == 0)
         val = 0x10000;
-    s->count_load_time = qemu_get_clock_ns(vm_clock);
+    s->count_load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     s->count = val;
     pit_irq_timer_update(s, s->count_load_time);
 }
@@ -134,7 +143,7 @@ static void pit_ioport_write(void *opaque, hwaddr addr,
                         /* XXX: add BCD and null count */
                         s->status =
                             (pit_get_out(s,
-                                         qemu_get_clock_ns(vm_clock)) << 7) |
+                                         qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)) << 7) |
                             (s->rw_mode << 4) |
                             (s->mode << 1) |
                             s->bcd;
@@ -251,9 +260,9 @@ static void pit_irq_timer_update(PITChannelState *s, int64_t current_time)
 #endif
     s->next_transition_time = expire_time;
     if (expire_time != -1)
-        qemu_mod_timer(s->irq_timer, expire_time);
+        timer_mod(s->irq_timer, expire_time);
     else
-        qemu_del_timer(s->irq_timer);
+        timer_del(s->irq_timer);
 }
 
 static void pit_irq_timer(void *opaque)
@@ -265,14 +274,14 @@ static void pit_irq_timer(void *opaque)
 
 static void pit_reset(DeviceState *dev)
 {
-    PITCommonState *pit = DO_UPCAST(PITCommonState, dev.qdev, dev);
+    PITCommonState *pit = PIT_COMMON(dev);
     PITChannelState *s;
 
     pit_reset_common(pit);
 
     s = &pit->channels[0];
     if (!s->irq_disabled) {
-        qemu_mod_timer(s->irq_timer, s->next_transition_time);
+        timer_mod(s->irq_timer, s->next_transition_time);
     }
 }
 
@@ -285,10 +294,10 @@ static void pit_irq_control(void *opaque, int n, int enable)
 
     if (enable) {
         s->irq_disabled = 0;
-        pit_irq_timer_update(s, qemu_get_clock_ns(vm_clock));
+        pit_irq_timer_update(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
     } else {
         s->irq_disabled = 1;
-        qemu_del_timer(s->irq_timer);
+        timer_del(s->irq_timer);
     }
 }
 
@@ -307,39 +316,44 @@ static void pit_post_load(PITCommonState *s)
     PITChannelState *sc = &s->channels[0];
 
     if (sc->next_transition_time != -1) {
-        qemu_mod_timer(sc->irq_timer, sc->next_transition_time);
+        timer_mod(sc->irq_timer, sc->next_transition_time);
     } else {
-        qemu_del_timer(sc->irq_timer);
+        timer_del(sc->irq_timer);
     }
 }
 
-static int pit_initfn(PITCommonState *pit)
+static void pit_realizefn(DeviceState *dev, Error **errp)
 {
+    PITCommonState *pit = PIT_COMMON(dev);
+    PITClass *pc = PIT_GET_CLASS(dev);
     PITChannelState *s;
 
     s = &pit->channels[0];
     /* the timer 0 is connected to an IRQ */
-    s->irq_timer = qemu_new_timer_ns(vm_clock, pit_irq_timer, s);
-    qdev_init_gpio_out(&pit->dev.qdev, &s->irq, 1);
+    s->irq_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, pit_irq_timer, s);
+    qdev_init_gpio_out(dev, &s->irq, 1);
 
-    memory_region_init_io(&pit->ioports, &pit_ioport_ops, pit, "pit", 4);
+    memory_region_init_io(&pit->ioports, OBJECT(pit), &pit_ioport_ops,
+                          pit, "pit", 4);
 
-    qdev_init_gpio_in(&pit->dev.qdev, pit_irq_control, 1);
+    qdev_init_gpio_in(dev, pit_irq_control, 1);
 
-    return 0;
+    pc->parent_realize(dev, errp);
 }
 
 static Property pit_properties[] = {
-    DEFINE_PROP_HEX32("iobase", PITCommonState, iobase,  -1),
+    DEFINE_PROP_UINT32("iobase", PITCommonState, iobase,  -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pit_class_initfn(ObjectClass *klass, void *data)
 {
+    PITClass *pc = PIT_CLASS(klass);
     PITCommonClass *k = PIT_COMMON_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = pit_initfn;
+    pc->parent_realize = dc->realize;
+    dc->realize = pit_realizefn;
     k->set_channel_gate = pit_set_channel_gate;
     k->get_channel_info = pit_get_channel_info_common;
     k->post_load = pit_post_load;
@@ -348,10 +362,11 @@ static void pit_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pit_info = {
-    .name          = "isa-pit",
+    .name          = TYPE_I8254,
     .parent        = TYPE_PIT_COMMON,
     .instance_size = sizeof(PITCommonState),
     .class_init    = pit_class_initfn,
+    .class_size    = sizeof(PITClass),
 };
 
 static void pit_register_types(void)

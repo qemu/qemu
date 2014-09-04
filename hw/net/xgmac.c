@@ -135,8 +135,12 @@ typedef struct RxTxStats {
     uint64_t rx_mcast;
 } RxTxStats;
 
+#define TYPE_XGMAC "xgmac"
+#define XGMAC(obj) OBJECT_CHECK(XgmacState, (obj), TYPE_XGMAC)
+
 typedef struct XgmacState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq sbd_irq;
     qemu_irq pmt_irq;
@@ -148,11 +152,11 @@ typedef struct XgmacState {
     uint32_t regs[R_MAX];
 } XgmacState;
 
-const VMStateDescription vmstate_rxtx_stats = {
+static const VMStateDescription vmstate_rxtx_stats = {
     .name = "xgmac_stats",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT64(rx_bytes, RxTxStats),
         VMSTATE_UINT64(tx_bytes, RxTxStats),
         VMSTATE_UINT64(rx, RxTxStats),
@@ -173,14 +177,14 @@ static const VMStateDescription vmstate_xgmac = {
     }
 };
 
-static void xgmac_read_desc(struct XgmacState *s, struct desc *d, int rx)
+static void xgmac_read_desc(XgmacState *s, struct desc *d, int rx)
 {
     uint32_t addr = rx ? s->regs[DMA_CUR_RX_DESC_ADDR] :
         s->regs[DMA_CUR_TX_DESC_ADDR];
     cpu_physical_memory_read(addr, d, sizeof(*d));
 }
 
-static void xgmac_write_desc(struct XgmacState *s, struct desc *d, int rx)
+static void xgmac_write_desc(XgmacState *s, struct desc *d, int rx)
 {
     int reg = rx ? DMA_CUR_RX_DESC_ADDR : DMA_CUR_TX_DESC_ADDR;
     uint32_t addr = s->regs[reg];
@@ -195,7 +199,7 @@ static void xgmac_write_desc(struct XgmacState *s, struct desc *d, int rx)
     cpu_physical_memory_write(addr, d, sizeof(*d));
 }
 
-static void xgmac_enet_send(struct XgmacState *s)
+static void xgmac_enet_send(XgmacState *s)
 {
     struct desc bd;
     int frame_size;
@@ -246,7 +250,7 @@ static void xgmac_enet_send(struct XgmacState *s)
     }
 }
 
-static void enet_update_irq(struct XgmacState *s)
+static void enet_update_irq(XgmacState *s)
 {
     int stat = s->regs[DMA_STATUS] & s->regs[DMA_INTR_ENA];
     qemu_set_irq(s->sbd_irq, !!stat);
@@ -254,7 +258,7 @@ static void enet_update_irq(struct XgmacState *s)
 
 static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct XgmacState *s = opaque;
+    XgmacState *s = opaque;
     uint64_t r = 0;
     addr >>= 2;
 
@@ -274,7 +278,7 @@ static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
 static void enet_write(void *opaque, hwaddr addr,
                        uint64_t value, unsigned size)
 {
-    struct XgmacState *s = opaque;
+    XgmacState *s = opaque;
 
     addr >>= 2;
     switch (addr) {
@@ -310,7 +314,7 @@ static const MemoryRegionOps enet_mem_ops = {
 
 static int eth_can_rx(NetClientState *nc)
 {
-    struct XgmacState *s = qemu_get_nic_opaque(nc);
+    XgmacState *s = qemu_get_nic_opaque(nc);
 
     /* RX enabled?  */
     return s->regs[DMA_CONTROL] & DMA_CONTROL_SR;
@@ -318,7 +322,7 @@ static int eth_can_rx(NetClientState *nc)
 
 static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    struct XgmacState *s = qemu_get_nic_opaque(nc);
+    XgmacState *s = qemu_get_nic_opaque(nc);
     static const unsigned char sa_bcast[6] = {0xff, 0xff, 0xff,
                                               0xff, 0xff, 0xff};
     int unicast, broadcast, multicast;
@@ -366,7 +370,8 @@ out:
 
 static void eth_cleanup(NetClientState *nc)
 {
-    struct XgmacState *s = qemu_get_nic_opaque(nc);
+    XgmacState *s = qemu_get_nic_opaque(nc);
+
     s->nic = NULL;
 }
 
@@ -378,19 +383,21 @@ static NetClientInfo net_xgmac_enet_info = {
     .cleanup = eth_cleanup,
 };
 
-static int xgmac_enet_init(SysBusDevice *dev)
+static int xgmac_enet_init(SysBusDevice *sbd)
 {
-    struct XgmacState *s = FROM_SYSBUS(typeof(*s), dev);
+    DeviceState *dev = DEVICE(sbd);
+    XgmacState *s = XGMAC(dev);
 
-    memory_region_init_io(&s->iomem, &enet_mem_ops, s, "xgmac", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->sbd_irq);
-    sysbus_init_irq(dev, &s->pmt_irq);
-    sysbus_init_irq(dev, &s->mci_irq);
+    memory_region_init_io(&s->iomem, OBJECT(s), &enet_mem_ops, s,
+                          "xgmac", 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->sbd_irq);
+    sysbus_init_irq(sbd, &s->pmt_irq);
+    sysbus_init_irq(sbd, &s->mci_irq);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_xgmac_enet_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     s->regs[XGMAC_ADDR_HIGH(0)] = (s->conf.macaddr.a[5] << 8) |
@@ -404,7 +411,7 @@ static int xgmac_enet_init(SysBusDevice *dev)
 }
 
 static Property xgmac_properties[] = {
-    DEFINE_NIC_PROPERTIES(struct XgmacState, conf),
+    DEFINE_NIC_PROPERTIES(XgmacState, conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -419,9 +426,9 @@ static void xgmac_enet_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo xgmac_enet_info = {
-    .name          = "xgmac",
+    .name          = TYPE_XGMAC,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(struct XgmacState),
+    .instance_size = sizeof(XgmacState),
     .class_init    = xgmac_enet_class_init,
 };
 

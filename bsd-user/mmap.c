@@ -74,66 +74,6 @@ void mmap_unlock(void)
 }
 #endif
 
-static void *bsd_vmalloc(size_t size)
-{
-    void *p;
-    mmap_lock();
-    /* Use map and mark the pages as used.  */
-    p = mmap(NULL, size, PROT_READ | PROT_WRITE,
-             MAP_PRIVATE | MAP_ANON, -1, 0);
-
-    if (h2g_valid(p)) {
-        /* Allocated region overlaps guest address space.
-           This may recurse.  */
-        abi_ulong addr = h2g(p);
-        page_set_flags(addr & TARGET_PAGE_MASK, TARGET_PAGE_ALIGN(addr + size),
-                       PAGE_RESERVED);
-    }
-
-    mmap_unlock();
-    return p;
-}
-
-void *g_malloc(size_t size)
-{
-    char * p;
-    size += 16;
-    p = bsd_vmalloc(size);
-    *(size_t *)p = size;
-    return p + 16;
-}
-
-/* We use map, which is always zero initialized.  */
-void * g_malloc0(size_t size)
-{
-    return g_malloc(size);
-}
-
-void g_free(void *ptr)
-{
-    /* FIXME: We should unmark the reserved pages here.  However this gets
-       complicated when one target page spans multiple host pages, so we
-       don't bother.  */
-    size_t *p;
-    p = (size_t *)((char *)ptr - 16);
-    munmap(p, *p);
-}
-
-void *g_realloc(void *ptr, size_t size)
-{
-    size_t old_size, copy;
-    void *new_ptr;
-
-    if (!ptr)
-        return g_malloc(size);
-    old_size = *(size_t *)((char *)ptr - 16);
-    copy = old_size < size ? old_size : size;
-    new_ptr = g_malloc(size);
-    memcpy(new_ptr, ptr, copy);
-    g_free(ptr);
-    return new_ptr;
-}
-
 /* NOTE: all the constants are the HOST ones, but addresses are target. */
 int target_mprotect(abi_ulong start, abi_ulong len, int prot)
 {

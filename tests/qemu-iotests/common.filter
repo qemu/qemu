@@ -25,19 +25,19 @@
 # Outputs suitable message to stdout if it's not in range.
 #
 # A verbose option, -v, may be used as the LAST argument
-# 
-# e.g. 
+#
+# e.g.
 # foo: 0.0298 = 0.03 +/- 5%
-# _within_tolerance "foo" 0.0298 0.03 5%  
-# 
+# _within_tolerance "foo" 0.0298 0.03 5%
+#
 # foo: 0.0298 = 0.03 +/- 0.01
 # _within_tolerance "foo" 0.0298 0.03 0.01
 #
 # foo: 0.0298 = 0.03 -0.01 +0.002
 # _within_tolerance "foo" 0.0298 0.03 0.01 0.002
 #
-# foo: verbose output of 0.0298 = 0.03 +/- 5% 
-# _within_tolerance "foo" 0.0298 0.03 5% -v 
+# foo: verbose output of 0.0298 = 0.03 +/- 5%
+# _within_tolerance "foo" 0.0298 0.03 5% -v
 _within_tolerance()
 {
   _name=$1
@@ -51,10 +51,10 @@ _within_tolerance()
   # maxtol arg is optional
   # verbose arg is optional
   if [ $# -ge 5 ]
-  then 
+  then
      if [ "$5" = "-v" ]
      then
-	_verbose=1
+        _verbose=1
      else
         _maxtol=$5
      fi
@@ -65,18 +65,18 @@ _within_tolerance()
   fi
 
   # find min with or without %
-  _mintolerance=`echo $_mintol | sed -e 's/%//'` 
+  _mintolerance=`echo $_mintol | sed -e 's/%//'`
   if [ $_mintol = $_mintolerance ]
-  then 
+  then
       _min=`echo "scale=5; $_correct_val-$_mintolerance" | bc`
   else
       _min=`echo "scale=5; $_correct_val-$_mintolerance*0.01*$_correct_val" | bc`
   fi
 
   # find max with or without %
-  _maxtolerance=`echo $_maxtol | sed -e 's/%//'` 
+  _maxtolerance=`echo $_maxtol | sed -e 's/%//'`
   if [ $_maxtol = $_maxtolerance ]
-  then 
+  then
       _max=`echo "scale=5; $_correct_val+$_maxtolerance" | bc`
   else
       _max=`echo "scale=5; $_correct_val+$_maxtolerance*0.01*$_correct_val" | bc`
@@ -88,7 +88,7 @@ _within_tolerance()
   cat <<EOF >$tmp.bc.1
 scale=5;
 if ($_min <= $_given_val) 1;
-if ($_min > $_given_val) 0; 
+if ($_min > $_given_val) 0;
 EOF
 
   cat <<EOF >$tmp.bc.2
@@ -102,21 +102,21 @@ EOF
 
   rm -f $tmp.bc.[12]
 
-  _in_range=`expr $_above_min \& $_below_max` 
+  _in_range=`expr $_above_min \& $_below_max`
 
   # fix up min, max precision for output
   # can vary for 5.3, 6.2
   _min=`echo $_min | sed -e 's/0*$//'` # get rid of trailling zeroes
   _max=`echo $_max | sed -e 's/0*$//'` # get rid of trailling zeroes
 
-  if [ $_in_range -eq 1 ] 
+  if [ $_in_range -eq 1 ]
   then
-	[ $_verbose -eq 1 ] && echo $_name is in range
-	return 0
+        [ $_verbose -eq 1 ] && echo $_name is in range
+        return 0
   else
-	[ $_verbose -eq 1 ] && echo $_name has value of $_given_val
-	[ $_verbose -eq 1 ] && echo $_name is NOT in range $_min .. $_max	
-	return 1
+        [ $_verbose -eq 1 ] && echo $_name has value of $_given_val
+        [ $_verbose -eq 1 ] && echo $_name is NOT in range $_min .. $_max
+        return 1
   fi
 }
 
@@ -125,7 +125,7 @@ EOF
 _filter_date()
 {
     sed \
-	-e 's/[A-Z][a-z][a-z] [A-z][a-z][a-z]  *[0-9][0-9]* [0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9][0-9][0-9]$/DATE/'
+        -e 's/[A-Z][a-z][a-z] [A-z][a-z][a-z]  *[0-9][0-9]* [0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9][0-9][0-9]$/DATE/'
 }
 
 # replace occurrences of the actual TEST_DIR value with TEST_DIR
@@ -149,13 +149,25 @@ _filter_win32()
 # sanitize qemu-io output
 _filter_qemu_io()
 {
-    _filter_win32 | sed -e "s/[0-9]* ops\; [0-9/:. sec]* ([0-9/.inf]* [EPTGMKiBbytes]*\/sec and [0-9/.inf]* ops\/sec)/X ops\; XX:XX:XX.X (XXX YYY\/sec and XXX ops\/sec)/"
+    _filter_win32 | sed -e "s/[0-9]* ops\; [0-9/:. sec]* ([0-9/.inf]* [EPTGMKiBbytes]*\/sec and [0-9/.inf]* ops\/sec)/X ops\; XX:XX:XX.X (XXX YYY\/sec and XXX ops\/sec)/" \
+        -e "s/: line [0-9][0-9]*:  *[0-9][0-9]*\( Aborted\)/:\1/" \
+        -e "s/qemu-io> //g"
 }
 
 # replace occurrences of QEMU_PROG with "qemu"
 _filter_qemu()
 {
-    sed -e "s#^$(basename $QEMU_PROG):#QEMU_PROG:#"
+    sed -e "s#\\(^\\|(qemu) \\)$(basename $QEMU_PROG):#\1QEMU_PROG:#" \
+        -e 's#^QEMU [0-9]\+\.[0-9]\+\.[0-9]\+ monitor#QEMU X.Y.Z monitor#' \
+        -e $'s#\r##' # QEMU monitor uses \r\n line endings
+}
+
+# replace problematic QMP output like timestamps
+_filter_qmp()
+{
+    _filter_win32 | \
+    sed -e 's#\("\(micro\)\?seconds": \)[0-9]\+#\1 TIMESTAMP#g' \
+        -e 's#^{"QMP":.*}$#QMP_VERSION#'
 }
 
 # make sure this script returns success

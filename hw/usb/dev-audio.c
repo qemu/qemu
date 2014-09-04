@@ -224,7 +224,7 @@ static const USBDescDevice desc_device = {
             .bNumInterfaces        = 2,
             .bConfigurationValue   = DEV_CONFIG_VALUE,
             .iConfiguration        = STRING_CONFIG,
-            .bmAttributes          = 0xc0,
+            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
             .bMaxPower             = 0x32,
             .nif = ARRAY_SIZE(desc_iface),
             .ifs = desc_iface,
@@ -673,6 +673,7 @@ static void usb_audio_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd          = &vmstate_usb_audio;
     dc->props         = usb_audio_properties;
+    set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     k->product_desc   = "QEMU USB Audio Interface";
     k->usb_desc       = &desc_audio;
     k->init           = usb_audio_initfn;

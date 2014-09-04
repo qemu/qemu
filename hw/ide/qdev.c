@@ -47,9 +47,10 @@ static const TypeInfo ide_bus_info = {
     .class_init = ide_bus_class_init,
 };
 
-void ide_bus_new(IDEBus *idebus, DeviceState *dev, int bus_id, int max_units)
+void ide_bus_new(IDEBus *idebus, size_t idebus_size, DeviceState *dev,
+                 int bus_id, int max_units)
 {
-    qbus_create_inplace(&idebus->qbus, TYPE_IDE_BUS, dev, NULL);
+    qbus_create_inplace(idebus, idebus_size, TYPE_IDE_BUS, dev, NULL);
     idebus->bus_id = bus_id;
     idebus->max_units = max_units;
 }
@@ -205,7 +206,7 @@ static int ide_drive_initfn(IDEDevice *dev)
 #define DEFINE_IDE_DEV_PROPERTIES()                     \
     DEFINE_BLOCK_PROPERTIES(IDEDrive, dev.conf),        \
     DEFINE_PROP_STRING("ver",  IDEDrive, dev.version),  \
-    DEFINE_PROP_HEX64("wwn",  IDEDrive, dev.wwn, 0),    \
+    DEFINE_PROP_UINT64("wwn",  IDEDrive, dev.wwn, 0),    \
     DEFINE_PROP_STRING("serial",  IDEDrive, dev.serial),\
     DEFINE_PROP_STRING("model", IDEDrive, dev.model)
 
@@ -282,6 +283,7 @@ static void ide_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->init = ide_qdev_init;
+    set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
     k->bus_type = TYPE_IDE_BUS;
     k->props = ide_props;
 }

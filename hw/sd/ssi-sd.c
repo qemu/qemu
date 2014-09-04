@@ -230,23 +230,36 @@ static int ssi_sd_load(QEMUFile *f, void *opaque, int version_id)
     for (i = 0; i < 5; i++)
         s->response[i] = qemu_get_be32(f);
     s->arglen = qemu_get_be32(f);
+    if (s->mode == SSI_SD_CMDARG &&
+        (s->arglen < 0 || s->arglen >= ARRAY_SIZE(s->cmdarg))) {
+        return -EINVAL;
+    }
     s->response_pos = qemu_get_be32(f);
     s->stopping = qemu_get_be32(f);
+    if (s->mode == SSI_SD_RESPONSE &&
+        (s->response_pos < 0 || s->response_pos >= ARRAY_SIZE(s->response) ||
+        (!s->stopping && s->arglen > ARRAY_SIZE(s->response)))) {
+        return -EINVAL;
+    }
 
     ss->cs = qemu_get_be32(f);
 
     return 0;
 }
 
-static int ssi_sd_init(SSISlave *dev)
+static int ssi_sd_init(SSISlave *d)
 {
-    ssi_sd_state *s = FROM_SSI_SLAVE(ssi_sd_state, dev);
+    DeviceState *dev = DEVICE(d);
+    ssi_sd_state *s = FROM_SSI_SLAVE(ssi_sd_state, d);
     DriveInfo *dinfo;
 
     s->mode = SSI_SD_CMD;
     dinfo = drive_get_next(IF_SD);
-    s->sd = sd_init(dinfo ? dinfo->bdrv : NULL, 1);
-    register_savevm(&dev->qdev, "ssi_sd", -1, 1, ssi_sd_save, ssi_sd_load, s);
+    s->sd = sd_init(dinfo ? dinfo->bdrv : NULL, true);
+    if (s->sd == NULL) {
+        return -1;
+    }
+    register_savevm(dev, "ssi_sd", -1, 1, ssi_sd_save, ssi_sd_load, s);
     return 0;
 }
 

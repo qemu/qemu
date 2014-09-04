@@ -57,8 +57,13 @@ enum {
     R_MAX
 };
 
+#define TYPE_MILKYMIST_SYSCTL "milkymist-sysctl"
+#define MILKYMIST_SYSCTL(obj) \
+    OBJECT_CHECK(MilkymistSysctlState, (obj), TYPE_MILKYMIST_SYSCTL)
+
 struct MilkymistSysctlState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion regs_region;
 
     QEMUBH *bh0;
@@ -246,8 +251,7 @@ static void timer1_hit(void *opaque)
 
 static void milkymist_sysctl_reset(DeviceState *d)
 {
-    MilkymistSysctlState *s =
-            container_of(d, MilkymistSysctlState, busdev.qdev);
+    MilkymistSysctlState *s = MILKYMIST_SYSCTL(d);
     int i;
 
     for (i = 0; i < R_MAX; i++) {
@@ -267,7 +271,7 @@ static void milkymist_sysctl_reset(DeviceState *d)
 
 static int milkymist_sysctl_init(SysBusDevice *dev)
 {
-    MilkymistSysctlState *s = FROM_SYSBUS(typeof(*s), dev);
+    MilkymistSysctlState *s = MILKYMIST_SYSCTL(dev);
 
     sysbus_init_irq(dev, &s->gpio_irq);
     sysbus_init_irq(dev, &s->timer0_irq);
@@ -280,7 +284,7 @@ static int milkymist_sysctl_init(SysBusDevice *dev)
     ptimer_set_freq(s->ptimer0, s->freq_hz);
     ptimer_set_freq(s->ptimer1, s->freq_hz);
 
-    memory_region_init_io(&s->regs_region, &sysctl_mmio_ops, s,
+    memory_region_init_io(&s->regs_region, OBJECT(s), &sysctl_mmio_ops, s,
             "milkymist-sysctl", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 
@@ -291,8 +295,7 @@ static const VMStateDescription vmstate_milkymist_sysctl = {
     .name = "milkymist-sysctl",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, MilkymistSysctlState, R_MAX),
         VMSTATE_PTIMER(ptimer0, MilkymistSysctlState),
         VMSTATE_PTIMER(ptimer1, MilkymistSysctlState),
@@ -324,7 +327,7 @@ static void milkymist_sysctl_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo milkymist_sysctl_info = {
-    .name          = "milkymist-sysctl",
+    .name          = TYPE_MILKYMIST_SYSCTL,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistSysctlState),
     .class_init    = milkymist_sysctl_class_init,

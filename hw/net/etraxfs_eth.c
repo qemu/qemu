@@ -322,9 +322,14 @@ static void mdio_cycle(struct qemu_mdio *bus)
 #define R_STAT          0x0b
 #define FS_ETH_MAX_REGS      0x17
 
-struct fs_eth
+#define TYPE_ETRAX_FS_ETH "etraxfs-eth"
+#define ETRAX_FS_ETH(obj) \
+    OBJECT_CHECK(ETRAXFSEthState, (obj), TYPE_ETRAX_FS_ETH)
+
+typedef struct ETRAXFSEthState
 {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion mmio;
     NICState *nic;
     NICConf conf;
@@ -349,9 +354,9 @@ struct fs_eth
 
     /* PHY.     */
     struct qemu_phy phy;
-};
+} ETRAXFSEthState;
 
-static void eth_validate_duplex(struct fs_eth *eth)
+static void eth_validate_duplex(ETRAXFSEthState *eth)
 {
     struct qemu_phy *phy;
     unsigned int phy_duplex;
@@ -382,7 +387,7 @@ static void eth_validate_duplex(struct fs_eth *eth)
 static uint64_t
 eth_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    struct fs_eth *eth = opaque;
+    ETRAXFSEthState *eth = opaque;
     uint32_t r = 0;
 
     addr >>= 2;
@@ -399,7 +404,7 @@ eth_read(void *opaque, hwaddr addr, unsigned int size)
     return r;
 }
 
-static void eth_update_ma(struct fs_eth *eth, int ma)
+static void eth_update_ma(ETRAXFSEthState *eth, int ma)
 {
     int reg;
     int i = 0;
@@ -428,7 +433,7 @@ static void
 eth_write(void *opaque, hwaddr addr,
           uint64_t val64, unsigned int size)
 {
-    struct fs_eth *eth = opaque;
+    ETRAXFSEthState *eth = opaque;
     uint32_t value = val64;
 
     addr >>= 2;
@@ -472,7 +477,7 @@ eth_write(void *opaque, hwaddr addr,
 /* The ETRAX FS has a groupt address table (GAT) which works like a k=1 bloom
    filter dropping group addresses we have not joined.    The filter has 64
    bits (m). The has function is a simple nible xor of the group addr.    */
-static int eth_match_groupaddr(struct fs_eth *eth, const unsigned char *sa)
+static int eth_match_groupaddr(ETRAXFSEthState *eth, const unsigned char *sa)
 {
     unsigned int hsh;
     int m_individual = eth->regs[RW_REC_CTRL] & 4;
@@ -523,7 +528,7 @@ static int eth_can_receive(NetClientState *nc)
 static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     unsigned char sa_bcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-    struct fs_eth *eth = qemu_get_nic_opaque(nc);
+    ETRAXFSEthState *eth = qemu_get_nic_opaque(nc);
     int use_ma0 = eth->regs[RW_REC_CTRL] & 1;
     int use_ma1 = eth->regs[RW_REC_CTRL] & 2;
     int r_bcast = eth->regs[RW_REC_CTRL] & 8;
@@ -547,12 +552,12 @@ static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     /* FIXME: Find another way to pass on the fake csum.  */
     etraxfs_dmac_input(eth->dma_in, (void *)buf, size + 4, 1);
 
-        return size;
+    return size;
 }
 
 static int eth_tx_push(void *opaque, unsigned char *buf, int len, bool eop)
 {
-    struct fs_eth *eth = opaque;
+    ETRAXFSEthState *eth = opaque;
 
     D(printf("%s buf=%p len=%d\n", __func__, buf, len));
     qemu_send_packet(qemu_get_queue(eth->nic), buf, len);
@@ -561,7 +566,7 @@ static int eth_tx_push(void *opaque, unsigned char *buf, int len, bool eop)
 
 static void eth_set_link(NetClientState *nc)
 {
-    struct fs_eth *eth = qemu_get_nic_opaque(nc);
+    ETRAXFSEthState *eth = qemu_get_nic_opaque(nc);
     D(printf("%s %d\n", __func__, nc->link_down));
     eth->phy.link = !nc->link_down;
 }
@@ -578,7 +583,7 @@ static const MemoryRegionOps eth_ops = {
 
 static void eth_cleanup(NetClientState *nc)
 {
-    struct fs_eth *eth = qemu_get_nic_opaque(nc);
+    ETRAXFSEthState *eth = qemu_get_nic_opaque(nc);
 
     /* Disconnect the client.  */
     eth->dma_out->client.push = NULL;
@@ -597,9 +602,10 @@ static NetClientInfo net_etraxfs_info = {
     .link_status_changed = eth_set_link,
 };
 
-static int fs_eth_init(SysBusDevice *dev)
+static int fs_eth_init(SysBusDevice *sbd)
 {
-    struct fs_eth *s = FROM_SYSBUS(typeof(*s), dev);
+    DeviceState *dev = DEVICE(sbd);
+    ETRAXFSEthState *s = ETRAX_FS_ETH(dev);
 
     if (!s->dma_out || !s->dma_in) {
         hw_error("Unconnected ETRAX-FS Ethernet MAC.\n");
@@ -610,12 +616,13 @@ static int fs_eth_init(SysBusDevice *dev)
     s->dma_in->client.opaque = s;
     s->dma_in->client.pull = NULL;
 
-    memory_region_init_io(&s->mmio, &eth_ops, s, "etraxfs-eth", 0x5c);
-    sysbus_init_mmio(dev, &s->mmio);
+    memory_region_init_io(&s->mmio, OBJECT(dev), &eth_ops, s,
+                          "etraxfs-eth", 0x5c);
+    sysbus_init_mmio(sbd, &s->mmio);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_etraxfs_info, &s->conf,
-                          object_get_typename(OBJECT(s)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(s)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
 
@@ -625,10 +632,10 @@ static int fs_eth_init(SysBusDevice *dev)
 }
 
 static Property etraxfs_eth_properties[] = {
-    DEFINE_PROP_UINT32("phyaddr", struct fs_eth, phyaddr, 1),
-    DEFINE_PROP_PTR("dma_out", struct fs_eth, vdma_out),
-    DEFINE_PROP_PTR("dma_in", struct fs_eth, vdma_in),
-    DEFINE_NIC_PROPERTIES(struct fs_eth, conf),
+    DEFINE_PROP_UINT32("phyaddr", ETRAXFSEthState, phyaddr, 1),
+    DEFINE_PROP_PTR("dma_out", ETRAXFSEthState, vdma_out),
+    DEFINE_PROP_PTR("dma_in", ETRAXFSEthState, vdma_in),
+    DEFINE_NIC_PROPERTIES(ETRAXFSEthState, conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -639,12 +646,14 @@ static void etraxfs_eth_class_init(ObjectClass *klass, void *data)
 
     k->init = fs_eth_init;
     dc->props = etraxfs_eth_properties;
+    /* Reason: pointer properties "dma_out", "dma_in" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo etraxfs_eth_info = {
-    .name          = "etraxfs-eth",
+    .name          = TYPE_ETRAX_FS_ETH,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(struct fs_eth),
+    .instance_size = sizeof(ETRAXFSEthState),
     .class_init    = etraxfs_eth_class_init,
 };
 

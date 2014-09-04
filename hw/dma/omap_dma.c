@@ -248,7 +248,7 @@ static void omap_dma_deactivate_channel(struct omap_dma_s *s,
 
     /* Don't deactive the channel if it is synchronized and the DMA request is
        active */
-    if (ch->sync && ch->enable && (s->dma->drqbmp & (1 << ch->sync)))
+    if (ch->sync && ch->enable && (s->dma->drqbmp & (1ULL << ch->sync)))
         return;
 
     if (ch->active) {
@@ -268,8 +268,9 @@ static void omap_dma_enable_channel(struct omap_dma_s *s,
         /* TODO: theoretically if ch->sync && ch->prefetch &&
          * !s->dma->drqbmp[ch->sync], we should also activate and fetch
          * from source and then stall until signalled.  */
-        if ((!ch->sync) || (s->dma->drqbmp & (1 << ch->sync)))
+        if ((!ch->sync) || (s->dma->drqbmp & (1ULL << ch->sync))) {
             omap_dma_activate_channel(s, ch);
+        }
     }
 }
 
@@ -972,7 +973,7 @@ static int omap_dma_ch_reg_write(struct omap_dma_s *s,
 
     case 0x22:	/* DMA_COLOR_U */
         ch->color &= 0xffff;
-        ch->color |= value << 16;
+        ch->color |= (uint32_t)value << 16;
         break;
 
     case 0x24:	/* DMA_CCR2 */
@@ -1042,7 +1043,7 @@ static int omap_dma_3_2_lcd_write(struct omap_dma_lcd_channel_s *s, int offset,
 
     case 0xbca:	/* TOP_B1_U */
         s->src_f1_top &= 0x0000ffff;
-        s->src_f1_top |= value << 16;
+        s->src_f1_top |= (uint32_t)value << 16;
         break;
 
     case 0xbcc:	/* BOT_B1_L */
@@ -1264,7 +1265,7 @@ static int omap_dma_3_1_lcd_write(struct omap_dma_lcd_channel_s *s, int offset,
 
     case 0x304:	/* SYS_DMA_LCD_TOP_F1_U */
         s->src_f1_top &= 0x0000ffff;
-        s->src_f1_top |= value << 16;
+        s->src_f1_top |= (uint32_t)value << 16;
         break;
 
     case 0x306:	/* SYS_DMA_LCD_BOT_F1_L */
@@ -1274,7 +1275,7 @@ static int omap_dma_3_1_lcd_write(struct omap_dma_lcd_channel_s *s, int offset,
 
     case 0x308:	/* SYS_DMA_LCD_BOT_F1_U */
         s->src_f1_bottom &= 0x0000ffff;
-        s->src_f1_bottom |= value << 16;
+        s->src_f1_bottom |= (uint32_t)value << 16;
         break;
 
     case 0x30a:	/* SYS_DMA_LCD_TOP_F2_L */
@@ -1284,7 +1285,7 @@ static int omap_dma_3_1_lcd_write(struct omap_dma_lcd_channel_s *s, int offset,
 
     case 0x30c:	/* SYS_DMA_LCD_TOP_F2_U */
         s->src_f2_top &= 0x0000ffff;
-        s->src_f2_top |= value << 16;
+        s->src_f2_top |= (uint32_t)value << 16;
         break;
 
     case 0x30e:	/* SYS_DMA_LCD_BOT_F2_L */
@@ -1294,7 +1295,7 @@ static int omap_dma_3_1_lcd_write(struct omap_dma_lcd_channel_s *s, int offset,
 
     case 0x310:	/* SYS_DMA_LCD_BOT_F2_U */
         s->src_f2_bottom &= 0x0000ffff;
-        s->src_f2_bottom |= value << 16;
+        s->src_f2_bottom |= (uint32_t)value << 16;
         break;
 
     default:
@@ -1551,12 +1552,12 @@ static void omap_dma_request(void *opaque, int drq, int req)
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
     /* The request pins are level triggered in QEMU.  */
     if (req) {
-        if (~s->dma->drqbmp & (1 << drq)) {
-            s->dma->drqbmp |= 1 << drq;
+        if (~s->dma->drqbmp & (1ULL << drq)) {
+            s->dma->drqbmp |= 1ULL << drq;
             omap_dma_process_request(s, drq);
         }
     } else
-        s->dma->drqbmp &= ~(1 << drq);
+        s->dma->drqbmp &= ~(1ULL << drq);
 }
 
 /* XXX: this won't be needed once soc_dma knows about clocks.  */
@@ -1659,11 +1660,11 @@ struct soc_dma_s *omap_dma_init(hwaddr base, qemu_irq *irqs,
     }
 
     omap_dma_setcaps(s);
-    omap_clk_adduser(s->clk, qemu_allocate_irqs(omap_dma_clk_update, s, 1)[0]);
+    omap_clk_adduser(s->clk, qemu_allocate_irq(omap_dma_clk_update, s, 0));
     omap_dma_reset(s->dma);
     omap_dma_clk_update(s, 0, 1);
 
-    memory_region_init_io(&s->iomem, &omap_dma_ops, s, "omap.dma", memsize);
+    memory_region_init_io(&s->iomem, NULL, &omap_dma_ops, s, "omap.dma", memsize);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     mpu->drq = s->dma->drq;
@@ -2081,11 +2082,11 @@ struct soc_dma_s *omap_dma4_init(hwaddr base, qemu_irq *irqs,
     s->intr_update = omap_dma_interrupts_4_update;
 
     omap_dma_setcaps(s);
-    omap_clk_adduser(s->clk, qemu_allocate_irqs(omap_dma_clk_update, s, 1)[0]);
+    omap_clk_adduser(s->clk, qemu_allocate_irq(omap_dma_clk_update, s, 0));
     omap_dma_reset(s->dma);
     omap_dma_clk_update(s, 0, !!s->dma->freq);
 
-    memory_region_init_io(&s->iomem, &omap_dma4_ops, s, "omap.dma4", 0x1000);
+    memory_region_init_io(&s->iomem, NULL, &omap_dma4_ops, s, "omap.dma4", 0x1000);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     mpu->drq = s->dma->drq;

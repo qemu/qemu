@@ -33,7 +33,8 @@ status=1	# failure is the default!
 
 _cleanup()
 {
-	_cleanup_test_img
+    rm -f "${TEST_IMG}.copy"
+    _cleanup_test_img
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -41,11 +42,12 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.rc
 . ./common.filter
 . ./common.pattern
+. ./common.qemu
 
 # Any format supporting backing files except vmdk and qcow which do not support
 # smaller backing files.
 _supported_fmt qcow2 qed
-_supported_proto generic
+_supported_proto file
 _supported_os Linux
 
 # Choose a size that is not necessarily a cluster size multiple for image
@@ -71,8 +73,8 @@ _check_test_img
 echo "Creating test image with backing file"
 echo
 
-mv $TEST_IMG $TEST_IMG.base
-_make_test_img -b $TEST_IMG.base $image_size
+mv "$TEST_IMG" "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" $image_size
 
 echo "Filling test image"
 echo
@@ -97,7 +99,32 @@ io_zero readv $(( offset + 32 * 1024 )) 512 1024 32
 _check_test_img
 
 # Rebase it on top of its base image
-$QEMU_IMG rebase -b $TEST_IMG.base $TEST_IMG
+$QEMU_IMG rebase -b "$TEST_IMG.base" "$TEST_IMG"
+
+echo
+echo block-backup
+echo
+
+qemu_comm_method="monitor"
+_launch_qemu -drive file="${TEST_IMG}",cache=${CACHEMODE},id=disk
+h=$QEMU_HANDLE
+QEMU_COMM_TIMEOUT=1
+
+# Silence output since it contains the disk image path and QEMU's readline
+# character echoing makes it very hard to filter the output
+_send_qemu_cmd $h "drive_backup disk ${TEST_IMG}.copy" "(qemu)" >/dev/null
+qemu_cmd_repeat=20 _send_qemu_cmd $h "info block-jobs" "No active jobs"
+_send_qemu_cmd $h 'quit' ""
+
+# Base image sectors
+TEST_IMG="${TEST_IMG}.copy" io readv $(( offset )) 512 1024 32
+
+# Image sectors
+TEST_IMG="${TEST_IMG}.copy" io readv $(( offset + 512 )) 512 1024 64
+
+# Zero sectors beyond end of base image
+TEST_IMG="${TEST_IMG}.copy" io_zero readv $(( offset + 32 * 1024 )) 512 1024 32
+
 
 _check_test_img
 

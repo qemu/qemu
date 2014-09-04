@@ -17,6 +17,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
+#include "qemu/aes.h"
+
 #if SHIFT == 0
 #define Reg MMXReg
 #define XMM_ONLY(...)
@@ -2204,15 +2207,6 @@ void glue(helper_pclmulqdq, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
     d->Q(1) = resh;
 }
 
-/* AES-NI op helpers */
-static const uint8_t aes_shifts[16] = {
-    0, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12, 1, 6, 11
-};
-
-static const uint8_t aes_ishifts[16] = {
-    0, 13, 10, 7, 4, 1, 14, 11, 8, 5, 2, 15, 12, 9, 6, 3
-};
-
 void glue(helper_aesdec, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
 {
     int i;
@@ -2220,10 +2214,10 @@ void glue(helper_aesdec, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
     Reg rk = *s;
 
     for (i = 0 ; i < 4 ; i++) {
-        d->L(i) = rk.L(i) ^ bswap32(AES_Td0[st.B(aes_ishifts[4*i+0])] ^
-                                    AES_Td1[st.B(aes_ishifts[4*i+1])] ^
-                                    AES_Td2[st.B(aes_ishifts[4*i+2])] ^
-                                    AES_Td3[st.B(aes_ishifts[4*i+3])]);
+        d->L(i) = rk.L(i) ^ bswap32(AES_Td0[st.B(AES_ishifts[4*i+0])] ^
+                                    AES_Td1[st.B(AES_ishifts[4*i+1])] ^
+                                    AES_Td2[st.B(AES_ishifts[4*i+2])] ^
+                                    AES_Td3[st.B(AES_ishifts[4*i+3])]);
     }
 }
 
@@ -2234,7 +2228,7 @@ void glue(helper_aesdeclast, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
     Reg rk = *s;
 
     for (i = 0; i < 16; i++) {
-        d->B(i) = rk.B(i) ^ (AES_Td4[st.B(aes_ishifts[i])] & 0xff);
+        d->B(i) = rk.B(i) ^ (AES_Td4[st.B(AES_ishifts[i])] & 0xff);
     }
 }
 
@@ -2245,10 +2239,10 @@ void glue(helper_aesenc, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
     Reg rk = *s;
 
     for (i = 0 ; i < 4 ; i++) {
-        d->L(i) = rk.L(i) ^ bswap32(AES_Te0[st.B(aes_shifts[4*i+0])] ^
-                                    AES_Te1[st.B(aes_shifts[4*i+1])] ^
-                                    AES_Te2[st.B(aes_shifts[4*i+2])] ^
-                                    AES_Te3[st.B(aes_shifts[4*i+3])]);
+        d->L(i) = rk.L(i) ^ bswap32(AES_Te0[st.B(AES_shifts[4*i+0])] ^
+                                    AES_Te1[st.B(AES_shifts[4*i+1])] ^
+                                    AES_Te2[st.B(AES_shifts[4*i+2])] ^
+                                    AES_Te3[st.B(AES_shifts[4*i+3])]);
     }
 }
 
@@ -2259,7 +2253,7 @@ void glue(helper_aesenclast, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
     Reg rk = *s;
 
     for (i = 0; i < 16; i++) {
-        d->B(i) = rk.B(i) ^ (AES_Te4[st.B(aes_shifts[i])] & 0xff);
+        d->B(i) = rk.B(i) ^ (AES_Te4[st.B(AES_shifts[i])] & 0xff);
     }
 
 }

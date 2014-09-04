@@ -166,8 +166,13 @@ typedef struct {
     uint32_t    size;
 } Exynos4210UartFIFO;
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_EXYNOS4210_UART "exynos4210.uart"
+#define EXYNOS4210_UART(obj) \
+    OBJECT_CHECK(Exynos4210UartState, (obj), TYPE_EXYNOS4210_UART)
+
+typedef struct Exynos4210UartState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
 
     uint32_t             reg[EXYNOS4210_UART_REGS_MEM_SIZE / sizeof(uint32_t)];
@@ -187,10 +192,9 @@ typedef struct {
 static const char *exynos4210_uart_regname(hwaddr  offset)
 {
 
-    int regs_number = sizeof(exynos4210_uart_regs) / sizeof(Exynos4210UartReg);
     int i;
 
-    for (i = 0; i < regs_number; i++) {
+    for (i = 0; i < ARRAY_SIZE(exynos4210_uart_regs); i++) {
         if (offset == exynos4210_uart_regs[i].offset) {
             return exynos4210_uart_regs[i].name;
         }
@@ -538,12 +542,10 @@ static void exynos4210_uart_event(void *opaque, int event)
 
 static void exynos4210_uart_reset(DeviceState *dev)
 {
-    Exynos4210UartState *s =
-            container_of(dev, Exynos4210UartState, busdev.qdev);
-    int regs_number = sizeof(exynos4210_uart_regs)/sizeof(Exynos4210UartReg);
+    Exynos4210UartState *s = EXYNOS4210_UART(dev);
     int i;
 
-    for (i = 0; i < regs_number; i++) {
+    for (i = 0; i < ARRAY_SIZE(exynos4210_uart_regs); i++) {
         s->reg[I_(exynos4210_uart_regs[i].offset)] =
                 exynos4210_uart_regs[i].reset_value;
     }
@@ -558,7 +560,6 @@ static const VMStateDescription vmstate_exynos4210_uart_fifo = {
     .name = "exynos4210.uart.fifo",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(sp, Exynos4210UartFIFO),
         VMSTATE_UINT32(rp, Exynos4210UartFIFO),
@@ -571,7 +572,6 @@ static const VMStateDescription vmstate_exynos4210_uart = {
     .name = "exynos4210.uart",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT(rx, Exynos4210UartState, 1,
                        vmstate_exynos4210_uart_fifo, Exynos4210UartFIFO),
@@ -582,10 +582,10 @@ static const VMStateDescription vmstate_exynos4210_uart = {
 };
 
 DeviceState *exynos4210_uart_create(hwaddr addr,
-                                 int fifo_size,
-                                 int channel,
-                                 CharDriverState *chr,
-                                 qemu_irq irq)
+                                    int fifo_size,
+                                    int channel,
+                                    CharDriverState *chr,
+                                    qemu_irq irq)
 {
     DeviceState  *dev;
     SysBusDevice *bus;
@@ -593,7 +593,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
     const char chr_name[] = "serial";
     char label[ARRAY_SIZE(chr_name) + 1];
 
-    dev = qdev_create(NULL, "exynos4210.uart");
+    dev = qdev_create(NULL, TYPE_EXYNOS4210_UART);
 
     if (!chr) {
         if (channel >= MAX_SERIAL_PORTS) {
@@ -627,11 +627,11 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
 
 static int exynos4210_uart_init(SysBusDevice *dev)
 {
-    Exynos4210UartState *s = FROM_SYSBUS(Exynos4210UartState, dev);
+    Exynos4210UartState *s = EXYNOS4210_UART(dev);
 
     /* memory mapping */
-    memory_region_init_io(&s->iomem, &exynos4210_uart_ops, s, "exynos4210.uart",
-                          EXYNOS4210_UART_REGS_MEM_SIZE);
+    memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_uart_ops, s,
+                          "exynos4210.uart", EXYNOS4210_UART_REGS_MEM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 
     sysbus_init_irq(dev, &s->irq);
@@ -662,7 +662,7 @@ static void exynos4210_uart_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo exynos4210_uart_info = {
-    .name          = "exynos4210.uart",
+    .name          = TYPE_EXYNOS4210_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210UartState),
     .class_init    = exynos4210_uart_class_init,

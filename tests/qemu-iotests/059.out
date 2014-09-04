@@ -1,0 +1,2135 @@
+QA output created by 059
+
+=== Testing invalid granularity ===
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qemu-io: can't open device TEST_DIR/t.vmdk: Invalid granularity, image may be corrupt
+no file open, try 'help open'
+
+=== Testing too big L2 table size ===
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qemu-io: can't open device TEST_DIR/t.vmdk: L2 table size too big
+no file open, try 'help open'
+
+=== Testing too big L1 table size ===
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qemu-io: can't open device TEST_DIR/t.vmdk: L1 size too big
+no file open, try 'help open'
+
+=== Testing monolithicFlat creation and opening ===
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2147483648
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 2.0G (2147483648 bytes)
+
+=== Testing monolithicFlat with zeroed_grain ===
+qemu-img: TEST_DIR/t.IMGFMT: Flat image can't enable zeroed grain
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2147483648
+
+=== Testing big twoGbMaxExtentFlat ===
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824000
+image: TEST_DIR/t.vmdk
+file format: vmdk
+virtual size: 1.0T (1073741824000 bytes)
+disk size: 16K
+Format specific information:
+    cid: XXXXXXXX
+    parent cid: XXXXXXXX
+    create type: twoGbMaxExtentFlat
+    extents:
+        [0]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f001.vmdk
+            format: FLAT
+        [1]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f002.vmdk
+            format: FLAT
+        [2]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f003.vmdk
+            format: FLAT
+        [3]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f004.vmdk
+            format: FLAT
+        [4]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f005.vmdk
+            format: FLAT
+        [5]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f006.vmdk
+            format: FLAT
+        [6]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f007.vmdk
+            format: FLAT
+        [7]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f008.vmdk
+            format: FLAT
+        [8]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f009.vmdk
+            format: FLAT
+        [9]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f010.vmdk
+            format: FLAT
+        [10]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f011.vmdk
+            format: FLAT
+        [11]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f012.vmdk
+            format: FLAT
+        [12]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f013.vmdk
+            format: FLAT
+        [13]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f014.vmdk
+            format: FLAT
+        [14]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f015.vmdk
+            format: FLAT
+        [15]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f016.vmdk
+            format: FLAT
+        [16]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f017.vmdk
+            format: FLAT
+        [17]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f018.vmdk
+            format: FLAT
+        [18]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f019.vmdk
+            format: FLAT
+        [19]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f020.vmdk
+            format: FLAT
+        [20]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f021.vmdk
+            format: FLAT
+        [21]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f022.vmdk
+            format: FLAT
+        [22]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f023.vmdk
+            format: FLAT
+        [23]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f024.vmdk
+            format: FLAT
+        [24]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f025.vmdk
+            format: FLAT
+        [25]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f026.vmdk
+            format: FLAT
+        [26]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f027.vmdk
+            format: FLAT
+        [27]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f028.vmdk
+            format: FLAT
+        [28]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f029.vmdk
+            format: FLAT
+        [29]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f030.vmdk
+            format: FLAT
+        [30]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f031.vmdk
+            format: FLAT
+        [31]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f032.vmdk
+            format: FLAT
+        [32]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f033.vmdk
+            format: FLAT
+        [33]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f034.vmdk
+            format: FLAT
+        [34]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f035.vmdk
+            format: FLAT
+        [35]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f036.vmdk
+            format: FLAT
+        [36]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f037.vmdk
+            format: FLAT
+        [37]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f038.vmdk
+            format: FLAT
+        [38]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f039.vmdk
+            format: FLAT
+        [39]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f040.vmdk
+            format: FLAT
+        [40]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f041.vmdk
+            format: FLAT
+        [41]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f042.vmdk
+            format: FLAT
+        [42]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f043.vmdk
+            format: FLAT
+        [43]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f044.vmdk
+            format: FLAT
+        [44]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f045.vmdk
+            format: FLAT
+        [45]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f046.vmdk
+            format: FLAT
+        [46]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f047.vmdk
+            format: FLAT
+        [47]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f048.vmdk
+            format: FLAT
+        [48]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f049.vmdk
+            format: FLAT
+        [49]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f050.vmdk
+            format: FLAT
+        [50]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f051.vmdk
+            format: FLAT
+        [51]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f052.vmdk
+            format: FLAT
+        [52]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f053.vmdk
+            format: FLAT
+        [53]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f054.vmdk
+            format: FLAT
+        [54]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f055.vmdk
+            format: FLAT
+        [55]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f056.vmdk
+            format: FLAT
+        [56]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f057.vmdk
+            format: FLAT
+        [57]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f058.vmdk
+            format: FLAT
+        [58]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f059.vmdk
+            format: FLAT
+        [59]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f060.vmdk
+            format: FLAT
+        [60]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f061.vmdk
+            format: FLAT
+        [61]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f062.vmdk
+            format: FLAT
+        [62]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f063.vmdk
+            format: FLAT
+        [63]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f064.vmdk
+            format: FLAT
+        [64]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f065.vmdk
+            format: FLAT
+        [65]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f066.vmdk
+            format: FLAT
+        [66]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f067.vmdk
+            format: FLAT
+        [67]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f068.vmdk
+            format: FLAT
+        [68]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f069.vmdk
+            format: FLAT
+        [69]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f070.vmdk
+            format: FLAT
+        [70]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f071.vmdk
+            format: FLAT
+        [71]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f072.vmdk
+            format: FLAT
+        [72]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f073.vmdk
+            format: FLAT
+        [73]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f074.vmdk
+            format: FLAT
+        [74]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f075.vmdk
+            format: FLAT
+        [75]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f076.vmdk
+            format: FLAT
+        [76]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f077.vmdk
+            format: FLAT
+        [77]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f078.vmdk
+            format: FLAT
+        [78]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f079.vmdk
+            format: FLAT
+        [79]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f080.vmdk
+            format: FLAT
+        [80]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f081.vmdk
+            format: FLAT
+        [81]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f082.vmdk
+            format: FLAT
+        [82]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f083.vmdk
+            format: FLAT
+        [83]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f084.vmdk
+            format: FLAT
+        [84]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f085.vmdk
+            format: FLAT
+        [85]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f086.vmdk
+            format: FLAT
+        [86]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f087.vmdk
+            format: FLAT
+        [87]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f088.vmdk
+            format: FLAT
+        [88]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f089.vmdk
+            format: FLAT
+        [89]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f090.vmdk
+            format: FLAT
+        [90]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f091.vmdk
+            format: FLAT
+        [91]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f092.vmdk
+            format: FLAT
+        [92]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f093.vmdk
+            format: FLAT
+        [93]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f094.vmdk
+            format: FLAT
+        [94]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f095.vmdk
+            format: FLAT
+        [95]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f096.vmdk
+            format: FLAT
+        [96]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f097.vmdk
+            format: FLAT
+        [97]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f098.vmdk
+            format: FLAT
+        [98]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f099.vmdk
+            format: FLAT
+        [99]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f100.vmdk
+            format: FLAT
+        [100]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f101.vmdk
+            format: FLAT
+        [101]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f102.vmdk
+            format: FLAT
+        [102]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f103.vmdk
+            format: FLAT
+        [103]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f104.vmdk
+            format: FLAT
+        [104]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f105.vmdk
+            format: FLAT
+        [105]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f106.vmdk
+            format: FLAT
+        [106]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f107.vmdk
+            format: FLAT
+        [107]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f108.vmdk
+            format: FLAT
+        [108]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f109.vmdk
+            format: FLAT
+        [109]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f110.vmdk
+            format: FLAT
+        [110]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f111.vmdk
+            format: FLAT
+        [111]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f112.vmdk
+            format: FLAT
+        [112]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f113.vmdk
+            format: FLAT
+        [113]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f114.vmdk
+            format: FLAT
+        [114]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f115.vmdk
+            format: FLAT
+        [115]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f116.vmdk
+            format: FLAT
+        [116]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f117.vmdk
+            format: FLAT
+        [117]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f118.vmdk
+            format: FLAT
+        [118]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f119.vmdk
+            format: FLAT
+        [119]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f120.vmdk
+            format: FLAT
+        [120]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f121.vmdk
+            format: FLAT
+        [121]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f122.vmdk
+            format: FLAT
+        [122]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f123.vmdk
+            format: FLAT
+        [123]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f124.vmdk
+            format: FLAT
+        [124]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f125.vmdk
+            format: FLAT
+        [125]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f126.vmdk
+            format: FLAT
+        [126]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f127.vmdk
+            format: FLAT
+        [127]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f128.vmdk
+            format: FLAT
+        [128]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f129.vmdk
+            format: FLAT
+        [129]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f130.vmdk
+            format: FLAT
+        [130]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f131.vmdk
+            format: FLAT
+        [131]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f132.vmdk
+            format: FLAT
+        [132]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f133.vmdk
+            format: FLAT
+        [133]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f134.vmdk
+            format: FLAT
+        [134]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f135.vmdk
+            format: FLAT
+        [135]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f136.vmdk
+            format: FLAT
+        [136]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f137.vmdk
+            format: FLAT
+        [137]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f138.vmdk
+            format: FLAT
+        [138]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f139.vmdk
+            format: FLAT
+        [139]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f140.vmdk
+            format: FLAT
+        [140]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f141.vmdk
+            format: FLAT
+        [141]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f142.vmdk
+            format: FLAT
+        [142]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f143.vmdk
+            format: FLAT
+        [143]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f144.vmdk
+            format: FLAT
+        [144]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f145.vmdk
+            format: FLAT
+        [145]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f146.vmdk
+            format: FLAT
+        [146]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f147.vmdk
+            format: FLAT
+        [147]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f148.vmdk
+            format: FLAT
+        [148]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f149.vmdk
+            format: FLAT
+        [149]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f150.vmdk
+            format: FLAT
+        [150]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f151.vmdk
+            format: FLAT
+        [151]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f152.vmdk
+            format: FLAT
+        [152]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f153.vmdk
+            format: FLAT
+        [153]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f154.vmdk
+            format: FLAT
+        [154]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f155.vmdk
+            format: FLAT
+        [155]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f156.vmdk
+            format: FLAT
+        [156]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f157.vmdk
+            format: FLAT
+        [157]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f158.vmdk
+            format: FLAT
+        [158]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f159.vmdk
+            format: FLAT
+        [159]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f160.vmdk
+            format: FLAT
+        [160]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f161.vmdk
+            format: FLAT
+        [161]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f162.vmdk
+            format: FLAT
+        [162]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f163.vmdk
+            format: FLAT
+        [163]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f164.vmdk
+            format: FLAT
+        [164]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f165.vmdk
+            format: FLAT
+        [165]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f166.vmdk
+            format: FLAT
+        [166]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f167.vmdk
+            format: FLAT
+        [167]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f168.vmdk
+            format: FLAT
+        [168]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f169.vmdk
+            format: FLAT
+        [169]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f170.vmdk
+            format: FLAT
+        [170]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f171.vmdk
+            format: FLAT
+        [171]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f172.vmdk
+            format: FLAT
+        [172]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f173.vmdk
+            format: FLAT
+        [173]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f174.vmdk
+            format: FLAT
+        [174]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f175.vmdk
+            format: FLAT
+        [175]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f176.vmdk
+            format: FLAT
+        [176]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f177.vmdk
+            format: FLAT
+        [177]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f178.vmdk
+            format: FLAT
+        [178]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f179.vmdk
+            format: FLAT
+        [179]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f180.vmdk
+            format: FLAT
+        [180]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f181.vmdk
+            format: FLAT
+        [181]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f182.vmdk
+            format: FLAT
+        [182]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f183.vmdk
+            format: FLAT
+        [183]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f184.vmdk
+            format: FLAT
+        [184]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f185.vmdk
+            format: FLAT
+        [185]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f186.vmdk
+            format: FLAT
+        [186]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f187.vmdk
+            format: FLAT
+        [187]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f188.vmdk
+            format: FLAT
+        [188]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f189.vmdk
+            format: FLAT
+        [189]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f190.vmdk
+            format: FLAT
+        [190]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f191.vmdk
+            format: FLAT
+        [191]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f192.vmdk
+            format: FLAT
+        [192]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f193.vmdk
+            format: FLAT
+        [193]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f194.vmdk
+            format: FLAT
+        [194]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f195.vmdk
+            format: FLAT
+        [195]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f196.vmdk
+            format: FLAT
+        [196]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f197.vmdk
+            format: FLAT
+        [197]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f198.vmdk
+            format: FLAT
+        [198]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f199.vmdk
+            format: FLAT
+        [199]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f200.vmdk
+            format: FLAT
+        [200]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f201.vmdk
+            format: FLAT
+        [201]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f202.vmdk
+            format: FLAT
+        [202]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f203.vmdk
+            format: FLAT
+        [203]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f204.vmdk
+            format: FLAT
+        [204]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f205.vmdk
+            format: FLAT
+        [205]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f206.vmdk
+            format: FLAT
+        [206]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f207.vmdk
+            format: FLAT
+        [207]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f208.vmdk
+            format: FLAT
+        [208]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f209.vmdk
+            format: FLAT
+        [209]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f210.vmdk
+            format: FLAT
+        [210]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f211.vmdk
+            format: FLAT
+        [211]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f212.vmdk
+            format: FLAT
+        [212]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f213.vmdk
+            format: FLAT
+        [213]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f214.vmdk
+            format: FLAT
+        [214]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f215.vmdk
+            format: FLAT
+        [215]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f216.vmdk
+            format: FLAT
+        [216]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f217.vmdk
+            format: FLAT
+        [217]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f218.vmdk
+            format: FLAT
+        [218]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f219.vmdk
+            format: FLAT
+        [219]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f220.vmdk
+            format: FLAT
+        [220]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f221.vmdk
+            format: FLAT
+        [221]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f222.vmdk
+            format: FLAT
+        [222]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f223.vmdk
+            format: FLAT
+        [223]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f224.vmdk
+            format: FLAT
+        [224]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f225.vmdk
+            format: FLAT
+        [225]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f226.vmdk
+            format: FLAT
+        [226]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f227.vmdk
+            format: FLAT
+        [227]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f228.vmdk
+            format: FLAT
+        [228]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f229.vmdk
+            format: FLAT
+        [229]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f230.vmdk
+            format: FLAT
+        [230]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f231.vmdk
+            format: FLAT
+        [231]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f232.vmdk
+            format: FLAT
+        [232]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f233.vmdk
+            format: FLAT
+        [233]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f234.vmdk
+            format: FLAT
+        [234]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f235.vmdk
+            format: FLAT
+        [235]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f236.vmdk
+            format: FLAT
+        [236]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f237.vmdk
+            format: FLAT
+        [237]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f238.vmdk
+            format: FLAT
+        [238]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f239.vmdk
+            format: FLAT
+        [239]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f240.vmdk
+            format: FLAT
+        [240]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f241.vmdk
+            format: FLAT
+        [241]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f242.vmdk
+            format: FLAT
+        [242]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f243.vmdk
+            format: FLAT
+        [243]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f244.vmdk
+            format: FLAT
+        [244]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f245.vmdk
+            format: FLAT
+        [245]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f246.vmdk
+            format: FLAT
+        [246]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f247.vmdk
+            format: FLAT
+        [247]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f248.vmdk
+            format: FLAT
+        [248]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f249.vmdk
+            format: FLAT
+        [249]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f250.vmdk
+            format: FLAT
+        [250]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f251.vmdk
+            format: FLAT
+        [251]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f252.vmdk
+            format: FLAT
+        [252]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f253.vmdk
+            format: FLAT
+        [253]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f254.vmdk
+            format: FLAT
+        [254]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f255.vmdk
+            format: FLAT
+        [255]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f256.vmdk
+            format: FLAT
+        [256]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f257.vmdk
+            format: FLAT
+        [257]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f258.vmdk
+            format: FLAT
+        [258]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f259.vmdk
+            format: FLAT
+        [259]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f260.vmdk
+            format: FLAT
+        [260]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f261.vmdk
+            format: FLAT
+        [261]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f262.vmdk
+            format: FLAT
+        [262]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f263.vmdk
+            format: FLAT
+        [263]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f264.vmdk
+            format: FLAT
+        [264]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f265.vmdk
+            format: FLAT
+        [265]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f266.vmdk
+            format: FLAT
+        [266]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f267.vmdk
+            format: FLAT
+        [267]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f268.vmdk
+            format: FLAT
+        [268]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f269.vmdk
+            format: FLAT
+        [269]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f270.vmdk
+            format: FLAT
+        [270]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f271.vmdk
+            format: FLAT
+        [271]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f272.vmdk
+            format: FLAT
+        [272]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f273.vmdk
+            format: FLAT
+        [273]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f274.vmdk
+            format: FLAT
+        [274]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f275.vmdk
+            format: FLAT
+        [275]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f276.vmdk
+            format: FLAT
+        [276]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f277.vmdk
+            format: FLAT
+        [277]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f278.vmdk
+            format: FLAT
+        [278]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f279.vmdk
+            format: FLAT
+        [279]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f280.vmdk
+            format: FLAT
+        [280]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f281.vmdk
+            format: FLAT
+        [281]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f282.vmdk
+            format: FLAT
+        [282]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f283.vmdk
+            format: FLAT
+        [283]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f284.vmdk
+            format: FLAT
+        [284]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f285.vmdk
+            format: FLAT
+        [285]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f286.vmdk
+            format: FLAT
+        [286]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f287.vmdk
+            format: FLAT
+        [287]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f288.vmdk
+            format: FLAT
+        [288]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f289.vmdk
+            format: FLAT
+        [289]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f290.vmdk
+            format: FLAT
+        [290]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f291.vmdk
+            format: FLAT
+        [291]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f292.vmdk
+            format: FLAT
+        [292]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f293.vmdk
+            format: FLAT
+        [293]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f294.vmdk
+            format: FLAT
+        [294]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f295.vmdk
+            format: FLAT
+        [295]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f296.vmdk
+            format: FLAT
+        [296]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f297.vmdk
+            format: FLAT
+        [297]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f298.vmdk
+            format: FLAT
+        [298]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f299.vmdk
+            format: FLAT
+        [299]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f300.vmdk
+            format: FLAT
+        [300]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f301.vmdk
+            format: FLAT
+        [301]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f302.vmdk
+            format: FLAT
+        [302]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f303.vmdk
+            format: FLAT
+        [303]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f304.vmdk
+            format: FLAT
+        [304]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f305.vmdk
+            format: FLAT
+        [305]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f306.vmdk
+            format: FLAT
+        [306]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f307.vmdk
+            format: FLAT
+        [307]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f308.vmdk
+            format: FLAT
+        [308]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f309.vmdk
+            format: FLAT
+        [309]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f310.vmdk
+            format: FLAT
+        [310]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f311.vmdk
+            format: FLAT
+        [311]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f312.vmdk
+            format: FLAT
+        [312]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f313.vmdk
+            format: FLAT
+        [313]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f314.vmdk
+            format: FLAT
+        [314]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f315.vmdk
+            format: FLAT
+        [315]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f316.vmdk
+            format: FLAT
+        [316]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f317.vmdk
+            format: FLAT
+        [317]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f318.vmdk
+            format: FLAT
+        [318]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f319.vmdk
+            format: FLAT
+        [319]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f320.vmdk
+            format: FLAT
+        [320]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f321.vmdk
+            format: FLAT
+        [321]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f322.vmdk
+            format: FLAT
+        [322]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f323.vmdk
+            format: FLAT
+        [323]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f324.vmdk
+            format: FLAT
+        [324]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f325.vmdk
+            format: FLAT
+        [325]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f326.vmdk
+            format: FLAT
+        [326]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f327.vmdk
+            format: FLAT
+        [327]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f328.vmdk
+            format: FLAT
+        [328]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f329.vmdk
+            format: FLAT
+        [329]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f330.vmdk
+            format: FLAT
+        [330]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f331.vmdk
+            format: FLAT
+        [331]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f332.vmdk
+            format: FLAT
+        [332]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f333.vmdk
+            format: FLAT
+        [333]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f334.vmdk
+            format: FLAT
+        [334]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f335.vmdk
+            format: FLAT
+        [335]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f336.vmdk
+            format: FLAT
+        [336]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f337.vmdk
+            format: FLAT
+        [337]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f338.vmdk
+            format: FLAT
+        [338]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f339.vmdk
+            format: FLAT
+        [339]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f340.vmdk
+            format: FLAT
+        [340]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f341.vmdk
+            format: FLAT
+        [341]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f342.vmdk
+            format: FLAT
+        [342]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f343.vmdk
+            format: FLAT
+        [343]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f344.vmdk
+            format: FLAT
+        [344]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f345.vmdk
+            format: FLAT
+        [345]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f346.vmdk
+            format: FLAT
+        [346]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f347.vmdk
+            format: FLAT
+        [347]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f348.vmdk
+            format: FLAT
+        [348]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f349.vmdk
+            format: FLAT
+        [349]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f350.vmdk
+            format: FLAT
+        [350]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f351.vmdk
+            format: FLAT
+        [351]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f352.vmdk
+            format: FLAT
+        [352]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f353.vmdk
+            format: FLAT
+        [353]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f354.vmdk
+            format: FLAT
+        [354]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f355.vmdk
+            format: FLAT
+        [355]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f356.vmdk
+            format: FLAT
+        [356]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f357.vmdk
+            format: FLAT
+        [357]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f358.vmdk
+            format: FLAT
+        [358]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f359.vmdk
+            format: FLAT
+        [359]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f360.vmdk
+            format: FLAT
+        [360]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f361.vmdk
+            format: FLAT
+        [361]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f362.vmdk
+            format: FLAT
+        [362]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f363.vmdk
+            format: FLAT
+        [363]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f364.vmdk
+            format: FLAT
+        [364]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f365.vmdk
+            format: FLAT
+        [365]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f366.vmdk
+            format: FLAT
+        [366]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f367.vmdk
+            format: FLAT
+        [367]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f368.vmdk
+            format: FLAT
+        [368]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f369.vmdk
+            format: FLAT
+        [369]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f370.vmdk
+            format: FLAT
+        [370]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f371.vmdk
+            format: FLAT
+        [371]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f372.vmdk
+            format: FLAT
+        [372]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f373.vmdk
+            format: FLAT
+        [373]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f374.vmdk
+            format: FLAT
+        [374]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f375.vmdk
+            format: FLAT
+        [375]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f376.vmdk
+            format: FLAT
+        [376]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f377.vmdk
+            format: FLAT
+        [377]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f378.vmdk
+            format: FLAT
+        [378]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f379.vmdk
+            format: FLAT
+        [379]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f380.vmdk
+            format: FLAT
+        [380]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f381.vmdk
+            format: FLAT
+        [381]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f382.vmdk
+            format: FLAT
+        [382]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f383.vmdk
+            format: FLAT
+        [383]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f384.vmdk
+            format: FLAT
+        [384]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f385.vmdk
+            format: FLAT
+        [385]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f386.vmdk
+            format: FLAT
+        [386]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f387.vmdk
+            format: FLAT
+        [387]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f388.vmdk
+            format: FLAT
+        [388]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f389.vmdk
+            format: FLAT
+        [389]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f390.vmdk
+            format: FLAT
+        [390]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f391.vmdk
+            format: FLAT
+        [391]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f392.vmdk
+            format: FLAT
+        [392]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f393.vmdk
+            format: FLAT
+        [393]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f394.vmdk
+            format: FLAT
+        [394]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f395.vmdk
+            format: FLAT
+        [395]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f396.vmdk
+            format: FLAT
+        [396]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f397.vmdk
+            format: FLAT
+        [397]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f398.vmdk
+            format: FLAT
+        [398]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f399.vmdk
+            format: FLAT
+        [399]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f400.vmdk
+            format: FLAT
+        [400]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f401.vmdk
+            format: FLAT
+        [401]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f402.vmdk
+            format: FLAT
+        [402]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f403.vmdk
+            format: FLAT
+        [403]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f404.vmdk
+            format: FLAT
+        [404]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f405.vmdk
+            format: FLAT
+        [405]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f406.vmdk
+            format: FLAT
+        [406]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f407.vmdk
+            format: FLAT
+        [407]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f408.vmdk
+            format: FLAT
+        [408]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f409.vmdk
+            format: FLAT
+        [409]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f410.vmdk
+            format: FLAT
+        [410]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f411.vmdk
+            format: FLAT
+        [411]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f412.vmdk
+            format: FLAT
+        [412]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f413.vmdk
+            format: FLAT
+        [413]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f414.vmdk
+            format: FLAT
+        [414]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f415.vmdk
+            format: FLAT
+        [415]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f416.vmdk
+            format: FLAT
+        [416]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f417.vmdk
+            format: FLAT
+        [417]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f418.vmdk
+            format: FLAT
+        [418]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f419.vmdk
+            format: FLAT
+        [419]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f420.vmdk
+            format: FLAT
+        [420]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f421.vmdk
+            format: FLAT
+        [421]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f422.vmdk
+            format: FLAT
+        [422]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f423.vmdk
+            format: FLAT
+        [423]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f424.vmdk
+            format: FLAT
+        [424]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f425.vmdk
+            format: FLAT
+        [425]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f426.vmdk
+            format: FLAT
+        [426]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f427.vmdk
+            format: FLAT
+        [427]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f428.vmdk
+            format: FLAT
+        [428]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f429.vmdk
+            format: FLAT
+        [429]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f430.vmdk
+            format: FLAT
+        [430]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f431.vmdk
+            format: FLAT
+        [431]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f432.vmdk
+            format: FLAT
+        [432]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f433.vmdk
+            format: FLAT
+        [433]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f434.vmdk
+            format: FLAT
+        [434]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f435.vmdk
+            format: FLAT
+        [435]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f436.vmdk
+            format: FLAT
+        [436]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f437.vmdk
+            format: FLAT
+        [437]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f438.vmdk
+            format: FLAT
+        [438]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f439.vmdk
+            format: FLAT
+        [439]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f440.vmdk
+            format: FLAT
+        [440]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f441.vmdk
+            format: FLAT
+        [441]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f442.vmdk
+            format: FLAT
+        [442]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f443.vmdk
+            format: FLAT
+        [443]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f444.vmdk
+            format: FLAT
+        [444]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f445.vmdk
+            format: FLAT
+        [445]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f446.vmdk
+            format: FLAT
+        [446]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f447.vmdk
+            format: FLAT
+        [447]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f448.vmdk
+            format: FLAT
+        [448]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f449.vmdk
+            format: FLAT
+        [449]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f450.vmdk
+            format: FLAT
+        [450]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f451.vmdk
+            format: FLAT
+        [451]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f452.vmdk
+            format: FLAT
+        [452]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f453.vmdk
+            format: FLAT
+        [453]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f454.vmdk
+            format: FLAT
+        [454]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f455.vmdk
+            format: FLAT
+        [455]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f456.vmdk
+            format: FLAT
+        [456]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f457.vmdk
+            format: FLAT
+        [457]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f458.vmdk
+            format: FLAT
+        [458]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f459.vmdk
+            format: FLAT
+        [459]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f460.vmdk
+            format: FLAT
+        [460]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f461.vmdk
+            format: FLAT
+        [461]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f462.vmdk
+            format: FLAT
+        [462]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f463.vmdk
+            format: FLAT
+        [463]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f464.vmdk
+            format: FLAT
+        [464]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f465.vmdk
+            format: FLAT
+        [465]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f466.vmdk
+            format: FLAT
+        [466]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f467.vmdk
+            format: FLAT
+        [467]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f468.vmdk
+            format: FLAT
+        [468]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f469.vmdk
+            format: FLAT
+        [469]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f470.vmdk
+            format: FLAT
+        [470]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f471.vmdk
+            format: FLAT
+        [471]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f472.vmdk
+            format: FLAT
+        [472]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f473.vmdk
+            format: FLAT
+        [473]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f474.vmdk
+            format: FLAT
+        [474]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f475.vmdk
+            format: FLAT
+        [475]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f476.vmdk
+            format: FLAT
+        [476]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f477.vmdk
+            format: FLAT
+        [477]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f478.vmdk
+            format: FLAT
+        [478]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f479.vmdk
+            format: FLAT
+        [479]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f480.vmdk
+            format: FLAT
+        [480]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f481.vmdk
+            format: FLAT
+        [481]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f482.vmdk
+            format: FLAT
+        [482]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f483.vmdk
+            format: FLAT
+        [483]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f484.vmdk
+            format: FLAT
+        [484]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f485.vmdk
+            format: FLAT
+        [485]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f486.vmdk
+            format: FLAT
+        [486]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f487.vmdk
+            format: FLAT
+        [487]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f488.vmdk
+            format: FLAT
+        [488]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f489.vmdk
+            format: FLAT
+        [489]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f490.vmdk
+            format: FLAT
+        [490]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f491.vmdk
+            format: FLAT
+        [491]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f492.vmdk
+            format: FLAT
+        [492]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f493.vmdk
+            format: FLAT
+        [493]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f494.vmdk
+            format: FLAT
+        [494]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f495.vmdk
+            format: FLAT
+        [495]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f496.vmdk
+            format: FLAT
+        [496]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f497.vmdk
+            format: FLAT
+        [497]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f498.vmdk
+            format: FLAT
+        [498]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f499.vmdk
+            format: FLAT
+        [499]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t-f500.vmdk
+            format: FLAT
+
+=== Testing malformed VMFS extent description line ===
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Invalid extent lines:
+RW 12582912 VMFS "dummy.IMGFMT" 1
+
+
+=== Testing truncated sparse ===
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=107374182400
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': File truncated, expecting at least 13172736 bytes
+
+=== Converting to streamOptimized from image with small cluster size===
+Formatting 'TEST_DIR/t.vmdk.IMGFMT', fmt=IMGFMT size=1073741824
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 10240
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Testing version 3 ===
+image: TEST_DIR/iotest-version3.IMGFMT
+file format: IMGFMT
+virtual size: 1.0G (1073741824 bytes)
+cluster_size: 65536
+
+=== Testing 4TB monolithicFlat creation and IO ===
+Formatting 'TEST_DIR/iotest-version3.IMGFMT', fmt=IMGFMT size=4398046511104
+image: TEST_DIR/iotest-version3.IMGFMT
+file format: IMGFMT
+virtual size: 4.0T (4398046511104 bytes)
+wrote 512/512 bytes at offset 966367641600
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+e100000000:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000010:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000020:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000030:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000040:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000050:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000060:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000070:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000080:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000090:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e1000000a0:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e1000000b0:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e1000000c0:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e1000000d0:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e1000000e0:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e1000000f0:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000100:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000110:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000120:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000130:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000140:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000150:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000160:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000170:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000180:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000190:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e1000001a0:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e1000001b0:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e1000001c0:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e1000001d0:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e1000001e0:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e1000001f0:  0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a 0a  ................
+e100000200:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000210:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000220:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000230:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000240:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000250:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000260:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000270:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000280:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000290:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e1000002a0:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e1000002b0:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e1000002c0:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e1000002d0:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e1000002e0:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e1000002f0:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000300:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000310:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000320:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000330:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000340:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000350:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000360:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000370:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000380:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e100000390:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e1000003a0:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e1000003b0:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e1000003c0:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e1000003d0:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e1000003e0:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+e1000003f0:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+read 1024/1024 bytes at offset 966367641600
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+*** done

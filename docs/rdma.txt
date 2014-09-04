@@ -1,0 +1,420 @@
+(RDMA: Remote Direct Memory Access)
+RDMA Live Migration Specification, Version # 1
+==============================================
+Wiki: http://wiki.qemu-project.org/Features/RDMALiveMigration
+Github: git@github.com:hinesmr/qemu.git, 'rdma' branch
+
+Copyright (C) 2013 Michael R. Hines <mrhines@us.ibm.com>
+
+An *exhaustive* paper (2010) shows additional performance details
+linked on the QEMU wiki above.
+
+Contents:
+=========
+* Introduction
+* Before running
+* Running
+* Performance
+* RDMA Migration Protocol Description
+* Versioning and Capabilities
+* QEMUFileRDMA Interface
+* Migration of pc.ram
+* Error handling
+* TODO
+
+Introduction:
+=============
+
+RDMA helps make your migration more deterministic under heavy load because
+of the significantly lower latency and higher throughput over TCP/IP. This is
+because the RDMA I/O architecture reduces the number of interrupts and
+data copies by bypassing the host networking stack. In particular, a TCP-based
+migration, under certain types of memory-bound workloads, may take a more
+unpredicatable amount of time to complete the migration if the amount of
+memory tracked during each live migration iteration round cannot keep pace
+with the rate of dirty memory produced by the workload.
+
+RDMA currently comes in two flavors: both Ethernet based (RoCE, or RDMA
+over Converged Ethernet) as well as Infiniband-based. This implementation of
+migration using RDMA is capable of using both technologies because of
+the use of the OpenFabrics OFED software stack that abstracts out the
+programming model irrespective of the underlying hardware.
+
+Refer to openfabrics.org or your respective RDMA hardware vendor for
+an understanding on how to verify that you have the OFED software stack
+installed in your environment. You should be able to successfully link
+against the "librdmacm" and "libibverbs" libraries and development headers
+for a working build of QEMU to run successfully using RDMA Migration.
+
+BEFORE RUNNING:
+===============
+
+Use of RDMA during migration requires pinning and registering memory
+with the hardware. This means that memory must be physically resident
+before the hardware can transmit that memory to another machine.
+If this is not acceptable for your application or product, then the use
+of RDMA migration may in fact be harmful to co-located VMs or other
+software on the machine if there is not sufficient memory available to
+relocate the entire footprint of the virtual machine. If so, then the
+use of RDMA is discouraged and it is recommended to use standard TCP migration.
+
+Experimental: Next, decide if you want dynamic page registration.
+For example, if you have an 8GB RAM virtual machine, but only 1GB
+is in active use, then enabling this feature will cause all 8GB to
+be pinned and resident in memory. This feature mostly affects the
+bulk-phase round of the migration and can be enabled for extremely
+high-performance RDMA hardware using the following command:
+
+QEMU Monitor Command:
+$ migrate_set_capability rdma-pin-all on # disabled by default
+
+Performing this action will cause all 8GB to be pinned, so if that's
+not what you want, then please ignore this step altogether.
+
+On the other hand, this will also significantly speed up the bulk round
+of the migration, which can greatly reduce the "total" time of your migration.
+Example performance of this using an idle VM in the previous example
+can be found in the "Performance" section.
+
+Note: for very large virtual machines (hundreds of GBs), pinning all
+*all* of the memory of your virtual machine in the kernel is very expensive
+may extend the initial bulk iteration time by many seconds,
+and thus extending the total migration time. However, this will not
+affect the determinism or predictability of your migration you will
+still gain from the benefits of advanced pinning with RDMA.
+
+RUNNING:
+========
+
+First, set the migration speed to match your hardware's capabilities:
+
+QEMU Monitor Command:
+$ migrate_set_speed 40g # or whatever is the MAX of your RDMA device
+
+Next, on the destination machine, add the following to the QEMU command line:
+
+qemu ..... -incoming rdma:host:port
+
+Finally, perform the actual migration on the source machine:
+
+QEMU Monitor Command:
+$ migrate -d rdma:host:port
+
+PERFORMANCE
+===========
+
+Here is a brief summary of total migration time and downtime using RDMA:
+Using a 40gbps infiniband link performing a worst-case stress test,
+using an 8GB RAM virtual machine:
+
+Using the following command:
+$ apt-get install stress
+$ stress --vm-bytes 7500M --vm 1 --vm-keep
+
+1. Migration throughput: 26 gigabits/second.
+2. Downtime (stop time) varies between 15 and 100 milliseconds.
+
+EFFECTS of memory registration on bulk phase round:
+
+For example, in the same 8GB RAM example with all 8GB of memory in
+active use and the VM itself is completely idle using the same 40 gbps
+infiniband link:
+
+1. rdma-pin-all disabled total time: approximately 7.5 seconds @ 9.5 Gbps
+2. rdma-pin-all enabled total time: approximately 4 seconds @ 26 Gbps
+
+These numbers would of course scale up to whatever size virtual machine
+you have to migrate using RDMA.
+
+Enabling this feature does *not* have any measurable affect on
+migration *downtime*. This is because, without this feature, all of the
+memory will have already been registered already in advance during
+the bulk round and does not need to be re-registered during the successive
+iteration rounds.
+
+RDMA Protocol Description:
+==========================
+
+Migration with RDMA is separated into two parts:
+
+1. The transmission of the pages using RDMA
+2. Everything else (a control channel is introduced)
+
+"Everything else" is transmitted using a formal
+protocol now, consisting of infiniband SEND messages.
+
+An infiniband SEND message is the standard ibverbs
+message used by applications of infiniband hardware.
+The only difference between a SEND message and an RDMA
+message is that SEND messages cause notifications
+to be posted to the completion queue (CQ) on the
+infiniband receiver side, whereas RDMA messages (used
+for pc.ram) do not (to behave like an actual DMA).
+
+Messages in infiniband require two things:
+
+1. registration of the memory that will be transmitted
+2. (SEND only) work requests to be posted on both
+   sides of the network before the actual transmission
+   can occur.
+
+RDMA messages are much easier to deal with. Once the memory
+on the receiver side is registered and pinned, we're
+basically done. All that is required is for the sender
+side to start dumping bytes onto the link.
+
+(Memory is not released from pinning until the migration
+completes, given that RDMA migrations are very fast.)
+
+SEND messages require more coordination because the
+receiver must have reserved space (using a receive
+work request) on the receive queue (RQ) before QEMUFileRDMA
+can start using them to carry all the bytes as
+a control transport for migration of device state.
+
+To begin the migration, the initial connection setup is
+as follows (migration-rdma.c):
+
+1. Receiver and Sender are started (command line or libvirt):
+2. Both sides post two RQ work requests
+3. Receiver does listen()
+4. Sender does connect()
+5. Receiver accept()
+6. Check versioning and capabilities (described later)
+
+At this point, we define a control channel on top of SEND messages
+which is described by a formal protocol. Each SEND message has a
+header portion and a data portion (but together are transmitted
+as a single SEND message).
+
+Header:
+    * Length               (of the data portion, uint32, network byte order)
+    * Type                 (what command to perform, uint32, network byte order)
+    * Repeat               (Number of commands in data portion, same type only)
+
+The 'Repeat' field is here to support future multiple page registrations
+in a single message without any need to change the protocol itself
+so that the protocol is compatible against multiple versions of QEMU.
+Version #1 requires that all server implementations of the protocol must
+check this field and register all requests found in the array of commands located
+in the data portion and return an equal number of results in the response.
+The maximum number of repeats is hard-coded to 4096. This is a conservative
+limit based on the maximum size of a SEND message along with empirical
+observations on the maximum future benefit of simultaneous page registrations.
+
+The 'type' field has 12 different command values:
+     1. Unused
+     2. Error                      (sent to the source during bad things)
+     3. Ready                      (control-channel is available)
+     4. QEMU File                  (for sending non-live device state)
+     5. RAM Blocks request         (used right after connection setup)
+     6. RAM Blocks result          (used right after connection setup)
+     7. Compress page              (zap zero page and skip registration)
+     8. Register request           (dynamic chunk registration)
+     9. Register result            ('rkey' to be used by sender)
+    10. Register finished          (registration for current iteration finished)
+    11. Unregister request         (unpin previously registered memory)
+    12. Unregister finished        (confirmation that unpin completed)
+
+A single control message, as hinted above, can contain within the data
+portion an array of many commands of the same type. If there is more than
+one command, then the 'repeat' field will be greater than 1.
+
+After connection setup, message 5 & 6 are used to exchange ram block
+information and optionally pin all the memory if requested by the user.
+
+After ram block exchange is completed, we have two protocol-level
+functions, responsible for communicating control-channel commands
+using the above list of values:
+
+Logically:
+
+qemu_rdma_exchange_recv(header, expected command type)
+
+1. We transmit a READY command to let the sender know that
+   we are *ready* to receive some data bytes on the control channel.
+2. Before attempting to receive the expected command, we post another
+   RQ work request to replace the one we just used up.
+3. Block on a CQ event channel and wait for the SEND to arrive.
+4. When the send arrives, librdmacm will unblock us.
+5. Verify that the command-type and version received matches the one we expected.
+
+qemu_rdma_exchange_send(header, data, optional response header & data):
+
+1. Block on the CQ event channel waiting for a READY command
+   from the receiver to tell us that the receiver
+   is *ready* for us to transmit some new bytes.
+2. Optionally: if we are expecting a response from the command
+   (that we have not yet transmitted), let's post an RQ
+   work request to receive that data a few moments later.
+3. When the READY arrives, librdmacm will
+   unblock us and we immediately post a RQ work request
+   to replace the one we just used up.
+4. Now, we can actually post the work request to SEND
+   the requested command type of the header we were asked for.
+5. Optionally, if we are expecting a response (as before),
+   we block again and wait for that response using the additional
+   work request we previously posted. (This is used to carry
+   'Register result' commands #6 back to the sender which
+   hold the rkey need to perform RDMA. Note that the virtual address
+   corresponding to this rkey was already exchanged at the beginning
+   of the connection (described below).
+
+All of the remaining command types (not including 'ready')
+described above all use the aformentioned two functions to do the hard work:
+
+1. After connection setup, RAMBlock information is exchanged using
+   this protocol before the actual migration begins. This information includes
+   a description of each RAMBlock on the server side as well as the virtual addresses
+   and lengths of each RAMBlock. This is used by the client to determine the
+   start and stop locations of chunks and how to register them dynamically
+   before performing the RDMA operations.
+2. During runtime, once a 'chunk' becomes full of pages ready to
+   be sent with RDMA, the registration commands are used to ask the
+   other side to register the memory for this chunk and respond
+   with the result (rkey) of the registration.
+3. Also, the QEMUFile interfaces also call these functions (described below)
+   when transmitting non-live state, such as devices or to send
+   its own protocol information during the migration process.
+4. Finally, zero pages are only checked if a page has not yet been registered
+   using chunk registration (or not checked at all and unconditionally
+   written if chunk registration is disabled. This is accomplished using
+   the "Compress" command listed above. If the page *has* been registered
+   then we check the entire chunk for zero. Only if the entire chunk is
+   zero, then we send a compress command to zap the page on the other side.
+
+Versioning and Capabilities
+===========================
+Current version of the protocol is version #1.
+
+The same version applies to both for protocol traffic and capabilities
+negotiation. (i.e. There is only one version number that is referred to
+by all communication).
+
+librdmacm provides the user with a 'private data' area to be exchanged
+at connection-setup time before any infiniband traffic is generated.
+
+Header:
+    * Version (protocol version validated before send/recv occurs),
+                                               uint32, network byte order
+    * Flags   (bitwise OR of each capability),
+                                               uint32, network byte order
+
+There is no data portion of this header right now, so there is
+no length field. The maximum size of the 'private data' section
+is only 192 bytes per the Infiniband specification, so it's not
+very useful for data anyway. This structure needs to remain small.
+
+This private data area is a convenient place to check for protocol
+versioning because the user does not need to register memory to
+transmit a few bytes of version information.
+
+This is also a convenient place to negotiate capabilities
+(like dynamic page registration).
+
+If the version is invalid, we throw an error.
+
+If the version is new, we only negotiate the capabilities that the
+requested version is able to perform and ignore the rest.
+
+Currently there is only one capability in Version #1: dynamic page registration
+
+Finally: Negotiation happens with the Flags field: If the primary-VM
+sets a flag, but the destination does not support this capability, it
+will return a zero-bit for that flag and the primary-VM will understand
+that as not being an available capability and will thus disable that
+capability on the primary-VM side.
+
+QEMUFileRDMA Interface:
+=======================
+
+QEMUFileRDMA introduces a couple of new functions:
+
+1. qemu_rdma_get_buffer()               (QEMUFileOps rdma_read_ops)
+2. qemu_rdma_put_buffer()               (QEMUFileOps rdma_write_ops)
+
+These two functions are very short and simply use the protocol
+describe above to deliver bytes without changing the upper-level
+users of QEMUFile that depend on a bytestream abstraction.
+
+Finally, how do we handoff the actual bytes to get_buffer()?
+
+Again, because we're trying to "fake" a bytestream abstraction
+using an analogy not unlike individual UDP frames, we have
+to hold on to the bytes received from control-channel's SEND
+messages in memory.
+
+Each time we receive a complete "QEMU File" control-channel
+message, the bytes from SEND are copied into a small local holding area.
+
+Then, we return the number of bytes requested by get_buffer()
+and leave the remaining bytes in the holding area until get_buffer()
+comes around for another pass.
+
+If the buffer is empty, then we follow the same steps
+listed above and issue another "QEMU File" protocol command,
+asking for a new SEND message to re-fill the buffer.
+
+Migration of pc.ram:
+====================
+
+At the beginning of the migration, (migration-rdma.c),
+the sender and the receiver populate the list of RAMBlocks
+to be registered with each other into a structure.
+Then, using the aforementioned protocol, they exchange a
+description of these blocks with each other, to be used later
+during the iteration of main memory. This description includes
+a list of all the RAMBlocks, their offsets and lengths, virtual
+addresses and possibly includes pre-registered RDMA keys in case dynamic
+page registration was disabled on the server-side, otherwise not.
+
+Main memory is not migrated with the aforementioned protocol,
+but is instead migrated with normal RDMA Write operations.
+
+Pages are migrated in "chunks" (hard-coded to 1 Megabyte right now).
+Chunk size is not dynamic, but it could be in a future implementation.
+There's nothing to indicate that this is useful right now.
+
+When a chunk is full (or a flush() occurs), the memory backed by
+the chunk is registered with librdmacm is pinned in memory on
+both sides using the aforementioned protocol.
+After pinning, an RDMA Write is generated and transmitted
+for the entire chunk.
+
+Chunks are also transmitted in batches: This means that we
+do not request that the hardware signal the completion queue
+for the completion of *every* chunk. The current batch size
+is about 64 chunks (corresponding to 64 MB of memory).
+Only the last chunk in a batch must be signaled.
+This helps keep everything as asynchronous as possible
+and helps keep the hardware busy performing RDMA operations.
+
+Error-handling:
+===============
+
+Infiniband has what is called a "Reliable, Connected"
+link (one of 4 choices). This is the mode in which
+we use for RDMA migration.
+
+If a *single* message fails,
+the decision is to abort the migration entirely and
+cleanup all the RDMA descriptors and unregister all
+the memory.
+
+After cleanup, the Virtual Machine is returned to normal
+operation the same way that would happen if the TCP
+socket is broken during a non-RDMA based migration.
+
+TODO:
+=====
+1. Currently, 'ulimit -l' mlock() limits as well as cgroups swap limits
+   are not compatible with infinband memory pinning and will result in
+   an aborted migration (but with the source VM left unaffected).
+2. Use of the recent /proc/<pid>/pagemap would likely speed up
+   the use of KSM and ballooning while using RDMA.
+3. Also, some form of balloon-device usage tracking would also
+   help alleviate some issues.
+4. Use LRU to provide more fine-grained direction of UNREGISTER
+   requests for unpinning memory in an overcommitted environment.
+5. Expose UNREGISTER support to the user by way of workload-specific
+   hints about application behavior.

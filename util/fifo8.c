@@ -37,6 +37,27 @@ void fifo8_push(Fifo8 *fifo, uint8_t data)
     fifo->num++;
 }
 
+void fifo8_push_all(Fifo8 *fifo, const uint8_t *data, uint32_t num)
+{
+    uint32_t start, avail;
+
+    if (fifo->num + num > fifo->capacity) {
+        abort();
+    }
+
+    start = (fifo->head + fifo->num) % fifo->capacity;
+
+    if (start + num <= fifo->capacity) {
+        memcpy(&fifo->data[start], data, num);
+    } else {
+        avail = fifo->capacity - start;
+        memcpy(&fifo->data[start], data, avail);
+        memcpy(&fifo->data[0], &data[avail], num - avail);
+    }
+
+    fifo->num += num;
+}
+
 uint8_t fifo8_pop(Fifo8 *fifo)
 {
     uint8_t ret;
@@ -50,9 +71,25 @@ uint8_t fifo8_pop(Fifo8 *fifo)
     return ret;
 }
 
+const uint8_t *fifo8_pop_buf(Fifo8 *fifo, uint32_t max, uint32_t *num)
+{
+    uint8_t *ret;
+
+    if (max == 0 || max > fifo->num) {
+        abort();
+    }
+    *num = MIN(fifo->capacity - fifo->head, max);
+    ret = &fifo->data[fifo->head];
+    fifo->head += *num;
+    fifo->head %= fifo->capacity;
+    fifo->num -= *num;
+    return ret;
+}
+
 void fifo8_reset(Fifo8 *fifo)
 {
     fifo->num = 0;
+    fifo->head = 0;
 }
 
 bool fifo8_is_empty(Fifo8 *fifo)
@@ -65,12 +102,21 @@ bool fifo8_is_full(Fifo8 *fifo)
     return (fifo->num == fifo->capacity);
 }
 
+uint32_t fifo8_num_free(Fifo8 *fifo)
+{
+    return fifo->capacity - fifo->num;
+}
+
+uint32_t fifo8_num_used(Fifo8 *fifo)
+{
+    return fifo->num;
+}
+
 const VMStateDescription vmstate_fifo8 = {
     .name = "Fifo8",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_VBUFFER_UINT32(data, Fifo8, 1, NULL, 0, capacity),
         VMSTATE_UINT32(head, Fifo8),
         VMSTATE_UINT32(num, Fifo8),

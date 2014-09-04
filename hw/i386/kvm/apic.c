@@ -25,9 +25,9 @@ static inline uint32_t kvm_apic_get_reg(struct kvm_lapic_state *kapic,
     return *((uint32_t *)(kapic->regs + (reg_id << 4)));
 }
 
-void kvm_put_apic_state(DeviceState *d, struct kvm_lapic_state *kapic)
+void kvm_put_apic_state(DeviceState *dev, struct kvm_lapic_state *kapic)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonState *s = APIC_COMMON(dev);
     int i;
 
     memset(kapic, 0, sizeof(*kapic));
@@ -51,9 +51,9 @@ void kvm_put_apic_state(DeviceState *d, struct kvm_lapic_state *kapic)
     kvm_apic_set_reg(kapic, 0x3e, s->divide_conf);
 }
 
-void kvm_get_apic_state(DeviceState *d, struct kvm_lapic_state *kapic)
+void kvm_get_apic_state(DeviceState *dev, struct kvm_lapic_state *kapic)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonState *s = APIC_COMMON(dev);
     int i, v;
 
     s->id = kvm_apic_get_reg(kapic, 0x2) >> 24;
@@ -79,7 +79,7 @@ void kvm_get_apic_state(DeviceState *d, struct kvm_lapic_state *kapic)
     v = (s->divide_conf & 3) | ((s->divide_conf >> 1) & 4);
     s->count_shift = (v + 1) & 7;
 
-    s->initial_count_load_time = qemu_get_clock_ns(vm_clock);
+    s->initial_count_load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     apic_next_timer(s, s->initial_count_load_time);
 }
 
@@ -129,7 +129,7 @@ static void do_inject_external_nmi(void *data)
     uint32_t lvt;
     int ret;
 
-    cpu_synchronize_state(&s->cpu->env);
+    cpu_synchronize_state(cpu);
 
     lvt = s->lvt[APIC_LVT_LINT1];
     if (!(lvt & APIC_LVT_MASKED) && ((lvt >> 8) & 7) == APIC_DM_NMI) {
@@ -171,9 +171,11 @@ static const MemoryRegionOps kvm_apic_io_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void kvm_apic_init(APICCommonState *s)
+static void kvm_apic_realize(DeviceState *dev, Error **errp)
 {
-    memory_region_init_io(&s->io_memory, &kvm_apic_io_ops, s, "kvm-apic-msi",
+    APICCommonState *s = APIC_COMMON(dev);
+
+    memory_region_init_io(&s->io_memory, NULL, &kvm_apic_io_ops, s, "kvm-apic-msi",
                           APIC_SPACE_SIZE);
 
     if (kvm_has_gsi_routing()) {
@@ -185,7 +187,7 @@ static void kvm_apic_class_init(ObjectClass *klass, void *data)
 {
     APICCommonClass *k = APIC_COMMON_CLASS(klass);
 
-    k->init = kvm_apic_init;
+    k->realize = kvm_apic_realize;
     k->set_base = kvm_apic_set_base;
     k->set_tpr = kvm_apic_set_tpr;
     k->get_tpr = kvm_apic_get_tpr;

@@ -1,0 +1,73 @@
+#!/bin/bash
+#
+# Test VHDX read/write from a sample image created with Hyper-V
+#
+# Copyright (C) 2013 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=jcody@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt vhdx
+_supported_proto generic
+_supported_os Linux
+
+_use_sample_img iotest-dynamic-1G.vhdx.bz2
+
+echo
+echo "=== Verify pattern 0xa5, 0 - 33MB ==="
+$QEMU_IO -r -c "read -pP 0xa5 0 33M" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "=== Verify pattern 0x96, 33M - 66M ==="
+$QEMU_IO -r -c "read -pP 0x96 33M 33M" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "=== Verify pattern 0x00, 66M - 1024M ==="
+$QEMU_IO -r -c "read -pP 0x00 66M 958M" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "=== Verify pattern write, 0xc3 99M-157M ==="
+$QEMU_IO -c "write -pP 0xc3 99M 58M" "$TEST_IMG" | _filter_qemu_io
+# first verify we didn't write where we should not have
+$QEMU_IO -c "read -pP 0xa5 0 33M" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -pP 0x96 33M 33M" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -pP 0x00 66M 33M" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -pP 0x00 157MM 867MM" "$TEST_IMG" | _filter_qemu_io
+# now verify what we should have actually written
+$QEMU_IO -c "read -pP 0xc3 99M 58M" "$TEST_IMG" | _filter_qemu_io
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

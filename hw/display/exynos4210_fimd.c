@@ -292,8 +292,13 @@ struct Exynos4210fimdWindow {
     hwaddr fb_len;       /* Framebuffer length */
 };
 
+#define TYPE_EXYNOS4210_FIMD "exynos4210.fimd"
+#define EXYNOS4210_FIMD(obj) \
+    OBJECT_CHECK(Exynos4210fimdState, (obj), TYPE_EXYNOS4210_FIMD)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     QemuConsole *console;
     qemu_irq irq[3];
@@ -1108,6 +1113,7 @@ static inline int fimd_get_buffer_id(Exynos4210fimdWindow *w)
  * VIDOSDA, VIDOSDB, VIDWADDx and SHADOWCON registers */
 static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
 {
+    SysBusDevice *sbd = SYS_BUS_DEVICE(s);
     Exynos4210fimdWindow *w = &s->window[win];
     hwaddr fb_start_addr, fb_mapped_len;
 
@@ -1126,14 +1132,19 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
     /* Total number of bytes of virtual screen used by current window */
     w->fb_len = fb_mapped_len = (w->virtpage_width + w->virtpage_offsize) *
             (w->rightbot_y - w->lefttop_y + 1);
-    w->mem_section = memory_region_find(sysbus_address_space(&s->busdev),
-            fb_start_addr, w->fb_len);
+
+    /* TODO: add .exit and unref the region there.  Not needed yet since sysbus
+     * does not support hot-unplug.
+     */
+    memory_region_unref(w->mem_section.mr);
+    w->mem_section = memory_region_find(sysbus_address_space(sbd),
+                                        fb_start_addr, w->fb_len);
     assert(w->mem_section.mr);
     assert(w->mem_section.offset_within_address_space == fb_start_addr);
     DPRINT_TRACE("Window %u framebuffer changed: address=0x%08x, len=0x%x\n",
             win, fb_start_addr, w->fb_len);
 
-    if (w->mem_section.size != w->fb_len ||
+    if (int128_get64(w->mem_section.size) != w->fb_len ||
             !memory_region_is_ram(w->mem_section.mr)) {
         DPRINT_ERROR("Failed to find window %u framebuffer region\n", win);
         goto error_return;
@@ -1154,8 +1165,9 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
     return;
 
 error_return:
+    memory_region_unref(w->mem_section.mr);
     w->mem_section.mr = NULL;
-    w->mem_section.size = 0;
+    w->mem_section.size = int128_zero();
     w->host_fb_addr = NULL;
     w->fb_len = 0;
 }
@@ -1322,7 +1334,7 @@ static void exynos4210_fimd_update(void *opaque)
 
 static void exynos4210_fimd_reset(DeviceState *d)
 {
-    Exynos4210fimdState *s = DO_UPCAST(Exynos4210fimdState, busdev.qdev, d);
+    Exynos4210fimdState *s = EXYNOS4210_FIMD(d);
     unsigned w;
 
     DPRINT_TRACE("Display controller reset\n");
@@ -1833,7 +1845,7 @@ static const VMStateDescription exynos4210_fimd_window_vmstate = {
     .name = "exynos4210.fimd_window",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(wincon, Exynos4210fimdWindow),
         VMSTATE_UINT32_ARRAY(buf_start, Exynos4210fimdWindow, 3),
         VMSTATE_UINT32_ARRAY(buf_end, Exynos4210fimdWindow, 3),
@@ -1863,7 +1875,7 @@ static const VMStateDescription exynos4210_fimd_vmstate = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = exynos4210_fimd_load,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(vidcon, Exynos4210fimdState, 4),
         VMSTATE_UINT32_ARRAY(vidtcon, Exynos4210fimdState, 4),
         VMSTATE_UINT32(shadowcon, Exynos4210fimdState),
@@ -1894,7 +1906,7 @@ static const GraphicHwOps exynos4210_fimd_ops = {
 
 static int exynos4210_fimd_init(SysBusDevice *dev)
 {
-    Exynos4210fimdState *s = FROM_SYSBUS(Exynos4210fimdState, dev);
+    Exynos4210fimdState *s = EXYNOS4210_FIMD(dev);
 
     s->ifb = NULL;
 
@@ -1902,10 +1914,10 @@ static int exynos4210_fimd_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq[1]);
     sysbus_init_irq(dev, &s->irq[2]);
 
-    memory_region_init_io(&s->iomem, &exynos4210_fimd_mmio_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_fimd_mmio_ops, s,
             "exynos4210.fimd", FIMD_REGS_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
-    s->console = graphic_console_init(DEVICE(dev), &exynos4210_fimd_ops, s);
+    s->console = graphic_console_init(DEVICE(dev), 0, &exynos4210_fimd_ops, s);
 
     return 0;
 }
@@ -1921,7 +1933,7 @@ static void exynos4210_fimd_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo exynos4210_fimd_info = {
-    .name = "exynos4210.fimd",
+    .name = TYPE_EXYNOS4210_FIMD,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210fimdState),
     .class_init = exynos4210_fimd_class_init,

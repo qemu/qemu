@@ -93,6 +93,7 @@ struct XenBlkDev {
     char                *type;
     char                *dev;
     char                *devtype;
+    bool                directiosafe;
     const char          *fileproto;
     const char          *filename;
     int                 ring_ref;
@@ -113,6 +114,7 @@ struct XenBlkDev {
     int                 requests_finished;
 
     /* Persistent grants extension */
+    gboolean            feature_discard;
     gboolean            feature_persistent;
     GTree               *persistent_gnts;
     unsigned int        persistent_gnt_count;
@@ -252,6 +254,8 @@ static int ioreq_parse(struct ioreq *ioreq)
     case BLKIF_OP_WRITE:
         ioreq->prot = PROT_READ; /* from memory */
         break;
+    case BLKIF_OP_DISCARD:
+        return 0;
     default:
         xen_be_printf(&blkdev->xendev, 0, "error: unknown operation (%d)\n",
                       ioreq->req.operation);
@@ -404,6 +408,7 @@ static int ioreq_map(struct ioreq *ioreq)
                 xen_be_printf(&ioreq->blkdev->xendev, 0,
                               "can't map grant ref %d (%s, %d maps)\n",
                               refs[i], strerror(errno), ioreq->blkdev->cnt_map);
+                ioreq->mapped = 1;
                 ioreq_unmap(ioreq);
                 return -1;
             }
@@ -481,7 +486,19 @@ static void qemu_aio_complete(void *opaque, int ret)
     ioreq->status = ioreq->aio_errors ? BLKIF_RSP_ERROR : BLKIF_RSP_OKAY;
     ioreq_unmap(ioreq);
     ioreq_finish(ioreq);
-    bdrv_acct_done(ioreq->blkdev->bs, &ioreq->acct);
+    switch (ioreq->req.operation) {
+    case BLKIF_OP_WRITE:
+    case BLKIF_OP_FLUSH_DISKCACHE:
+        if (!ioreq->req.nr_segments) {
+            break;
+        }
+    case BLKIF_OP_READ:
+        bdrv_acct_done(ioreq->blkdev->bs, &ioreq->acct);
+        break;
+    case BLKIF_OP_DISCARD:
+    default:
+        break;
+    }
     qemu_bh_schedule(ioreq->blkdev->bh);
 }
 
@@ -519,6 +536,15 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
                         &ioreq->v, ioreq->v.size / BLOCK_SIZE,
                         qemu_aio_complete, ioreq);
         break;
+    case BLKIF_OP_DISCARD:
+    {
+        struct blkif_request_discard *discard_req = (void *)&ioreq->req;
+        ioreq->aio_inflight++;
+        bdrv_aio_discard(blkdev->bs,
+                        discard_req->sector_number, discard_req->nr_sectors,
+                        qemu_aio_complete, ioreq);
+        break;
+    }
     default:
         /* unknown operation (shouldn't happen -- parse catches this) */
         goto err;
@@ -697,10 +723,26 @@ static void blk_alloc(struct XenDevice *xendev)
     }
 }
 
+static void blk_parse_discard(struct XenBlkDev *blkdev)
+{
+    int enable;
+
+    blkdev->feature_discard = true;
+
+    if (xenstore_read_be_int(&blkdev->xendev, "discard-enable", &enable) == 0) {
+        blkdev->feature_discard = !!enable;
+    }
+
+    if (blkdev->feature_discard) {
+        xenstore_write_be_int(&blkdev->xendev, "feature-discard", 1);
+    }
+}
+
 static int blk_init(struct XenDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
     int info = 0;
+    char *directiosafe = NULL;
 
     /* read xenstore entries */
     if (blkdev->params == NULL) {
@@ -733,6 +775,8 @@ static int blk_init(struct XenDevice *xendev)
     if (blkdev->devtype == NULL) {
         blkdev->devtype = xenstore_read_be_str(&blkdev->xendev, "device-type");
     }
+    directiosafe = xenstore_read_be_str(&blkdev->xendev, "direct-io-safe");
+    blkdev->directiosafe = (directiosafe && atoi(directiosafe));
 
     /* do we have all we need? */
     if (blkdev->params == NULL ||
@@ -760,6 +804,10 @@ static int blk_init(struct XenDevice *xendev)
     xenstore_write_be_int(&blkdev->xendev, "feature-flush-cache", 1);
     xenstore_write_be_int(&blkdev->xendev, "feature-persistent", 1);
     xenstore_write_be_int(&blkdev->xendev, "info", info);
+
+    blk_parse_discard(blkdev);
+
+    g_free(directiosafe);
     return 0;
 
 out_error:
@@ -773,6 +821,8 @@ out_error:
     blkdev->dev = NULL;
     g_free(blkdev->devtype);
     blkdev->devtype = NULL;
+    g_free(directiosafe);
+    blkdev->directiosafe = false;
     return -1;
 }
 
@@ -780,24 +830,43 @@ static int blk_connect(struct XenDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
     int pers, index, qflags;
+    bool readonly = true;
 
     /* read-only ? */
-    qflags = BDRV_O_CACHE_WB | BDRV_O_NATIVE_AIO;
+    if (blkdev->directiosafe) {
+        qflags = BDRV_O_NOCACHE | BDRV_O_NATIVE_AIO;
+    } else {
+        qflags = BDRV_O_CACHE_WB;
+    }
     if (strcmp(blkdev->mode, "w") == 0) {
         qflags |= BDRV_O_RDWR;
+        readonly = false;
+    }
+    if (blkdev->feature_discard) {
+        qflags |= BDRV_O_UNMAP;
     }
 
     /* init qemu block driver */
     index = (blkdev->xendev.dev - 202 * 256) / 16;
     blkdev->dinfo = drive_get(IF_XEN, 0, index);
     if (!blkdev->dinfo) {
+        Error *local_err = NULL;
         /* setup via xenbus -> create new block driver instance */
         xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
-        blkdev->bs = bdrv_new(blkdev->dev);
+        blkdev->bs = bdrv_new(blkdev->dev, &local_err);
+        if (local_err) {
+            blkdev->bs = NULL;
+        }
         if (blkdev->bs) {
-            if (bdrv_open(blkdev->bs, blkdev->filename, NULL, qflags,
-                        bdrv_find_whitelisted_format(blkdev->fileproto)) != 0) {
-                bdrv_delete(blkdev->bs);
+            BlockDriver *drv = bdrv_find_whitelisted_format(blkdev->fileproto,
+                                                           readonly);
+            if (bdrv_open(&blkdev->bs, blkdev->filename, NULL, NULL, qflags,
+                          drv, &local_err) != 0)
+            {
+                xen_be_printf(&blkdev->xendev, 0, "error: %s\n",
+                              error_get_pretty(local_err));
+                error_free(local_err);
+                bdrv_unref(blkdev->bs);
                 blkdev->bs = NULL;
             }
         }
@@ -808,6 +877,14 @@ static int blk_connect(struct XenDevice *xendev)
         /* setup via qemu cmdline -> already setup for us */
         xen_be_printf(&blkdev->xendev, 2, "get configured bdrv (cmdline setup)\n");
         blkdev->bs = blkdev->dinfo->bdrv;
+        if (bdrv_is_read_only(blkdev->bs) && !readonly) {
+            xen_be_printf(&blkdev->xendev, 0, "Unexpected read-only drive");
+            blkdev->bs = NULL;
+            return -1;
+        }
+        /* blkdev->bs is not create by us, we get a reference
+         * so we can bdrv_unref() unconditionally */
+        bdrv_ref(blkdev->bs);
     }
     bdrv_attach_dev_nofail(blkdev->bs, blkdev);
     blkdev->file_size = bdrv_getlength(blkdev->bs);
@@ -906,12 +983,8 @@ static void blk_disconnect(struct XenDevice *xendev)
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
 
     if (blkdev->bs) {
-        if (!blkdev->dinfo) {
-            /* close/delete only if we created it ourself */
-            bdrv_close(blkdev->bs);
-            bdrv_detach_dev(blkdev->bs, blkdev);
-            bdrv_delete(blkdev->bs);
-        }
+        bdrv_detach_dev(blkdev->bs, blkdev);
+        bdrv_unref(blkdev->bs);
         blkdev->bs = NULL;
     }
     xen_be_unbind_evtchn(&blkdev->xendev);

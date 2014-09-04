@@ -1,0 +1,1 @@
+tests/qapi-schema/include-non-file.json:1: Expected a file name (string), got: ['foo', 'bar']

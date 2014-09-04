@@ -15,9 +15,9 @@
 
 #include "qemu-common.h"
 #include "qemu/compatfd.h"
+#include "qemu/thread.h"
 
 #include <sys/syscall.h>
-#include <pthread.h>
 
 struct sigfd_compat_info
 {
@@ -28,10 +28,6 @@ struct sigfd_compat_info
 static void *sigwait_compat(void *opaque)
 {
     struct sigfd_compat_info *info = opaque;
-    sigset_t all;
-
-    sigfillset(&all);
-    pthread_sigmask(SIG_BLOCK, &all, NULL);
 
     while (1) {
         int sig;
@@ -71,9 +67,8 @@ static void *sigwait_compat(void *opaque)
 
 static int qemu_signalfd_compat(const sigset_t *mask)
 {
-    pthread_attr_t attr;
-    pthread_t tid;
     struct sigfd_compat_info *info;
+    QemuThread thread;
     int fds[2];
 
     info = malloc(sizeof(*info));
@@ -93,12 +88,8 @@ static int qemu_signalfd_compat(const sigset_t *mask)
     memcpy(&info->mask, mask, sizeof(*mask));
     info->fd = fds[1];
 
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-
-    pthread_create(&tid, &attr, sigwait_compat, info);
-
-    pthread_attr_destroy(&attr);
+    qemu_thread_create(&thread, "signalfd_compat", sigwait_compat, info,
+                       QEMU_THREAD_DETACHED);
 
     return fds[0];
 }

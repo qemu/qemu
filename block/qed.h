@@ -43,7 +43,7 @@
  *
  * All fields are little-endian on disk.
  */
-
+#define  QED_DEFAULT_CLUSTER_SIZE  65536
 enum {
     QED_MAGIC = 'Q' | 'E' << 8 | 'D' << 16 | '\0' << 24,
 
@@ -69,7 +69,6 @@ enum {
      */
     QED_MIN_CLUSTER_SIZE = 4 * 1024, /* in bytes */
     QED_MAX_CLUSTER_SIZE = 64 * 1024 * 1024,
-    QED_DEFAULT_CLUSTER_SIZE = 64 * 1024,
 
     /* Allocated clusters are tracked using a 2-level pagetable.  Table size is
      * a multiple of clusters so large maximum image sizes can be supported
@@ -100,7 +99,7 @@ typedef struct {
     /* if (features & QED_F_BACKING_FILE) */
     uint32_t backing_filename_offset; /* in bytes from start of header */
     uint32_t backing_filename_size;   /* in bytes */
-} QEDHeader;
+} QEMU_PACKED QEDHeader;
 
 typedef struct {
     uint64_t offsets[0];            /* in bytes */
@@ -143,6 +142,7 @@ typedef struct QEDAIOCB {
 
     /* Current cluster scatter-gather list */
     QEMUIOVector cur_qiov;
+    QEMUIOVector *backing_qiov;
     uint64_t cur_pos;               /* position on block device, in bytes */
     uint64_t cur_cluster;           /* cluster offset in image file */
     unsigned int cur_nclusters;     /* number of clusters being accessed */

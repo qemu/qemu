@@ -1,4 +1,4 @@
-.include "macros.inc"
+#include "macros.inc"
 
 test_suite nsa
 

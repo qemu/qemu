@@ -29,6 +29,7 @@
 #define BLK_MIG_FLAG_DEVICE_BLOCK       0x01
 #define BLK_MIG_FLAG_EOS                0x02
 #define BLK_MIG_FLAG_PROGRESS           0x04
+#define BLK_MIG_FLAG_ZERO_BLOCK         0x08
 
 #define MAX_IS_ALLOCATED_SEARCH 65536
 
@@ -57,6 +58,8 @@ typedef struct BlkMigDevState {
     /* Protected by block migration lock.  */
     unsigned long *aio_bitmap;
     int64_t completed_sectors;
+    BdrvDirtyBitmap *dirty_bitmap;
+    Error *blocker;
 } BlkMigDevState;
 
 typedef struct BlkMigBlock {
@@ -80,6 +83,7 @@ typedef struct BlkMigState {
     int shared_base;
     QSIMPLEQ_HEAD(bmds_list, BlkMigDevState) bmds_list;
     int64_t total_sector_sum;
+    bool zero_blocks;
 
     /* Protected by lock.  */
     QSIMPLEQ_HEAD(blk_list, BlkMigBlock) blk_list;
@@ -114,15 +118,29 @@ static void blk_mig_unlock(void)
 static void blk_send(QEMUFile *f, BlkMigBlock * blk)
 {
     int len;
+    uint64_t flags = BLK_MIG_FLAG_DEVICE_BLOCK;
+
+    if (block_mig_state.zero_blocks &&
+        buffer_is_zero(blk->buf, BLOCK_SIZE)) {
+        flags |= BLK_MIG_FLAG_ZERO_BLOCK;
+    }
 
     /* sector number and flags */
     qemu_put_be64(f, (blk->sector << BDRV_SECTOR_BITS)
-                     | BLK_MIG_FLAG_DEVICE_BLOCK);
+                     | flags);
 
     /* device name */
     len = strlen(blk->bmds->bs->device_name);
     qemu_put_byte(f, len);
     qemu_put_buffer(f, (uint8_t *)blk->bmds->bs->device_name, len);
+
+    /* if a block is zero we need to flush here since the network
+     * bandwidth is now a lot higher than the storage device bandwidth.
+     * thus if we queue zero blocks we slow down the migration */
+    if (flags & BLK_MIG_FLAG_ZERO_BLOCK) {
+        qemu_fflush(f);
+        return;
+    }
 
     qemu_put_buffer(f, blk->buf, BLOCK_SIZE);
 }
@@ -293,12 +311,36 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
 
 /* Called with iothread lock taken.  */
 
-static void set_dirty_tracking(int enable)
+static int set_dirty_tracking(void)
+{
+    BlkMigDevState *bmds;
+    int ret;
+
+    QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
+        bmds->dirty_bitmap = bdrv_create_dirty_bitmap(bmds->bs, BLOCK_SIZE,
+                                                      NULL);
+        if (!bmds->dirty_bitmap) {
+            ret = -errno;
+            goto fail;
+        }
+    }
+    return 0;
+
+fail:
+    QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
+        if (bmds->dirty_bitmap) {
+            bdrv_release_dirty_bitmap(bmds->bs, bmds->dirty_bitmap);
+        }
+    }
+    return ret;
+}
+
+static void unset_dirty_tracking(void)
 {
     BlkMigDevState *bmds;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
-        bdrv_set_dirty_tracking(bmds->bs, enable ? BLOCK_SIZE : 0);
+        bdrv_release_dirty_bitmap(bmds->bs, bmds->dirty_bitmap);
     }
 }
 
@@ -320,8 +362,9 @@ static void init_blk_migration_it(void *opaque, BlockDriverState *bs)
         bmds->completed_sectors = 0;
         bmds->shared_base = block_mig_state.shared_base;
         alloc_aio_bitmap(bmds);
-        drive_get_ref(drive_get_by_blockdev(bs));
-        bdrv_set_in_use(bs, 1);
+        error_setg(&bmds->blocker, "block device is in use by migration");
+        bdrv_op_block_all(bs, bmds->blocker);
+        bdrv_ref(bs);
 
         block_mig_state.total_sector_sum += sectors;
 
@@ -344,6 +387,7 @@ static void init_blk_migration(QEMUFile *f)
     block_mig_state.total_sector_sum = 0;
     block_mig_state.prev_progress = -1;
     block_mig_state.bulk_completed = 0;
+    block_mig_state.zero_blocks = migrate_zero_blocks();
 
     bdrv_iterate(init_blk_migration_it, NULL);
 }
@@ -415,7 +459,7 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
         } else {
             blk_mig_unlock();
         }
-        if (bdrv_get_dirty(bmds->bs, sector)) {
+        if (bdrv_get_dirty(bmds->bs, bmds->dirty_bitmap, sector)) {
 
             if (total_sectors - sector < BDRV_SECTORS_PER_DIRTY_CHUNK) {
                 nr_sectors = total_sectors - sector;
@@ -537,7 +581,7 @@ static int64_t get_remaining_dirty(void)
     int64_t dirty = 0;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
-        dirty += bdrv_get_dirty_count(bmds->bs);
+        dirty += bdrv_get_dirty_count(bmds->bs, bmds->dirty_bitmap);
     }
 
     return dirty << BDRV_SECTOR_BITS;
@@ -552,13 +596,14 @@ static void blk_mig_cleanup(void)
 
     bdrv_drain_all();
 
-    set_dirty_tracking(0);
+    unset_dirty_tracking();
 
     blk_mig_lock();
     while ((bmds = QSIMPLEQ_FIRST(&block_mig_state.bmds_list)) != NULL) {
         QSIMPLEQ_REMOVE_HEAD(&block_mig_state.bmds_list, entry);
-        bdrv_set_in_use(bmds->bs, 0);
-        drive_put_ref(drive_get_by_blockdev(bmds->bs));
+        bdrv_op_unblock_all(bmds->bs, bmds->blocker);
+        error_free(bmds->blocker);
+        bdrv_unref(bmds->bs);
         g_free(bmds->aio_bitmap);
         g_free(bmds);
     }
@@ -587,7 +632,13 @@ static int block_save_setup(QEMUFile *f, void *opaque)
     init_blk_migration(f);
 
     /* start track dirty blocks */
-    set_dirty_tracking(1);
+    ret = set_dirty_tracking();
+
+    if (ret) {
+        qemu_mutex_unlock_iothread();
+        return ret;
+    }
+
     qemu_mutex_unlock_iothread();
 
     ret = flush_blks(f);
@@ -762,12 +813,16 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
                 nr_sectors = BDRV_SECTORS_PER_DIRTY_CHUNK;
             }
 
-            buf = g_malloc(BLOCK_SIZE);
+            if (flags & BLK_MIG_FLAG_ZERO_BLOCK) {
+                ret = bdrv_write_zeroes(bs, addr, nr_sectors,
+                                        BDRV_REQ_MAY_UNMAP);
+            } else {
+                buf = g_malloc(BLOCK_SIZE);
+                qemu_get_buffer(f, buf, BLOCK_SIZE);
+                ret = bdrv_write(bs, addr, buf, nr_sectors);
+                g_free(buf);
+            }
 
-            qemu_get_buffer(f, buf, BLOCK_SIZE);
-            ret = bdrv_write(bs, addr, buf, nr_sectors);
-
-            g_free(buf);
             if (ret < 0) {
                 return ret;
             }
@@ -806,7 +861,7 @@ static bool block_is_active(void *opaque)
     return block_mig_state.blk_enable == 1;
 }
 
-SaveVMHandlers savevm_block_handlers = {
+static SaveVMHandlers savevm_block_handlers = {
     .set_params = block_set_params,
     .save_live_setup = block_save_setup,
     .save_live_iterate = block_save_iterate,

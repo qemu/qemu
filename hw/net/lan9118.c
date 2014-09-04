@@ -170,8 +170,12 @@ static const VMStateDescription vmstate_lan9118_packet = {
     }
 };
 
+#define TYPE_LAN9118 "lan9118"
+#define LAN9118(obj) OBJECT_CHECK(lan9118_state, (obj), TYPE_LAN9118)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     NICState *nic;
     NICConf conf;
     qemu_irq irq;
@@ -401,7 +405,8 @@ static void phy_reset(lan9118_state *s)
 
 static void lan9118_reset(DeviceState *d)
 {
-    lan9118_state *s = FROM_SYSBUS(lan9118_state, SYS_BUS_DEVICE(d));
+    lan9118_state *s = LAN9118(d);
+
     s->irq_cfg &= (IRQ_TYPE | IRQ_POL);
     s->int_sts = 0;
     s->int_en = 0;
@@ -434,7 +439,7 @@ static void lan9118_reset(DeviceState *d)
     s->afc_cfg = 0;
     s->e2p_cmd = 0;
     s->e2p_data = 0;
-    s->free_timer_start = qemu_get_clock_ns(vm_clock) / 40;
+    s->free_timer_start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / 40;
 
     ptimer_stop(s->timer);
     ptimer_set_count(s->timer, 0xffff);
@@ -722,14 +727,14 @@ static void tx_fifo_push(lan9118_state *s, uint32_t val)
         s->txp->cmd_a = val & 0x831f37ff;
         s->txp->fifo_used++;
         s->txp->state = TX_B;
+        s->txp->buffer_size = extract32(s->txp->cmd_a, 0, 11);
+        s->txp->offset = extract32(s->txp->cmd_a, 16, 5);
         break;
     case TX_B:
         if (s->txp->cmd_a & 0x2000) {
             /* First segment */
             s->txp->cmd_b = val;
             s->txp->fifo_used++;
-            s->txp->buffer_size = s->txp->cmd_a & 0x7ff;
-            s->txp->offset = (s->txp->cmd_a >> 16) & 0x1f;
             /* End alignment does not include command words.  */
             n = (s->txp->buffer_size + s->txp->offset + 3) >> 2;
             switch ((n >> 24) & 3) {
@@ -758,7 +763,7 @@ static void tx_fifo_push(lan9118_state *s, uint32_t val)
         if (s->txp->buffer_size <= 0 && s->txp->pad != 0) {
             s->txp->pad--;
         } else {
-            n = 4;
+            n = MIN(4, s->txp->buffer_size + s->txp->offset);
             while (s->txp->offset) {
                 val >>= 8;
                 n--;
@@ -1053,7 +1058,7 @@ static void lan9118_writel(void *opaque, hwaddr offset,
     case CSR_HW_CFG:
         if (val & 1) {
             /* SRST */
-            lan9118_reset(&s->busdev.qdev);
+            lan9118_reset(DEVICE(s));
         } else {
             s->hw_cfg = (val & 0x003f300) | (s->hw_cfg & 0x4);
         }
@@ -1231,7 +1236,7 @@ static uint64_t lan9118_readl(void *opaque, hwaddr offset,
     case CSR_WORD_SWAP:
         return s->word_swap;
     case CSR_FREE_RUN:
-        return (qemu_get_clock_ns(vm_clock) / 40) - s->free_timer_start;
+        return (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / 40) - s->free_timer_start;
     case CSR_RX_DROP:
         /* TODO: Implement dropped frames counter.  */
         return 0;
@@ -1320,21 +1325,23 @@ static NetClientInfo net_lan9118_info = {
     .link_status_changed = lan9118_set_link,
 };
 
-static int lan9118_init1(SysBusDevice *dev)
+static int lan9118_init1(SysBusDevice *sbd)
 {
-    lan9118_state *s = FROM_SYSBUS(lan9118_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    lan9118_state *s = LAN9118(dev);
     QEMUBH *bh;
     int i;
     const MemoryRegionOps *mem_ops =
             s->mode_16bit ? &lan9118_16bit_mem_ops : &lan9118_mem_ops;
 
-    memory_region_init_io(&s->mmio, mem_ops, s, "lan9118-mmio", 0x100);
-    sysbus_init_mmio(dev, &s->mmio);
-    sysbus_init_irq(dev, &s->irq);
+    memory_region_init_io(&s->mmio, OBJECT(dev), mem_ops, s,
+                          "lan9118-mmio", 0x100);
+    sysbus_init_mmio(sbd, &s->mmio);
+    sysbus_init_irq(sbd, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 
     s->nic = qemu_new_nic(&net_lan9118_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
     s->eeprom[0] = 0xa5;
     for (i = 0; i < 6; i++) {
@@ -1369,7 +1376,7 @@ static void lan9118_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo lan9118_info = {
-    .name          = "lan9118",
+    .name          = TYPE_LAN9118,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(lan9118_state),
     .class_init    = lan9118_class_init,
@@ -1388,7 +1395,7 @@ void lan9118_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     SysBusDevice *s;
 
     qemu_check_nic_model(nd, "lan9118");
-    dev = qdev_create(NULL, "lan9118");
+    dev = qdev_create(NULL, TYPE_LAN9118);
     qdev_set_nic_properties(dev, nd);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);

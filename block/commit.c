@@ -37,6 +37,7 @@ typedef struct CommitBlockJob {
     BlockdevOnError on_error;
     int base_flags;
     int orig_overlay_flags;
+    char *backing_file_str;
 } CommitBlockJob;
 
 static int coroutine_fn commit_populate(BlockDriverState *bs,
@@ -103,14 +104,14 @@ wait:
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
          */
-        block_job_sleep_ns(&s->common, rt_clock, delay_ns);
+        block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, delay_ns);
         if (block_job_is_cancelled(&s->common)) {
             break;
         }
         /* Copy if allocated above the base */
-        ret = bdrv_co_is_allocated_above(top, base, sector_num,
-                                         COMMIT_BUFFER_SIZE / BDRV_SECTOR_SIZE,
-                                         &n);
+        ret = bdrv_is_allocated_above(top, base, sector_num,
+                                      COMMIT_BUFFER_SIZE / BDRV_SECTOR_SIZE,
+                                      &n);
         copy = (ret == 1);
         trace_commit_one_iteration(s, sector_num, n, ret);
         if (copy) {
@@ -141,7 +142,7 @@ wait:
 
     if (!block_job_is_cancelled(&s->common) && sector_num == end) {
         /* success */
-        ret = bdrv_drop_intermediate(active, top, base);
+        ret = bdrv_drop_intermediate(active, top, base, s->backing_file_str);
     }
 
 exit_free_buf:
@@ -158,7 +159,7 @@ exit_restore_reopen:
     if (overlay_bs && s->orig_overlay_flags != bdrv_get_flags(overlay_bs)) {
         bdrv_reopen(overlay_bs, s->orig_overlay_flags, NULL);
     }
-
+    g_free(s->backing_file_str);
     block_job_completed(&s->common, ret);
 }
 
@@ -173,16 +174,16 @@ static void commit_set_speed(BlockJob *job, int64_t speed, Error **errp)
     ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE, SLICE_TIME);
 }
 
-static BlockJobType commit_job_type = {
+static const BlockJobDriver commit_job_driver = {
     .instance_size = sizeof(CommitBlockJob),
-    .job_type      = "commit",
+    .job_type      = BLOCK_JOB_TYPE_COMMIT,
     .set_speed     = commit_set_speed,
 };
 
 void commit_start(BlockDriverState *bs, BlockDriverState *base,
                   BlockDriverState *top, int64_t speed,
                   BlockdevOnError on_error, BlockDriverCompletionFunc *cb,
-                  void *opaque, Error **errp)
+                  void *opaque, const char *backing_file_str, Error **errp)
 {
     CommitBlockJob *s;
     BlockReopenQueue *reopen_queue = NULL;
@@ -194,17 +195,11 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
     if ((on_error == BLOCKDEV_ON_ERROR_STOP ||
          on_error == BLOCKDEV_ON_ERROR_ENOSPC) &&
         !bdrv_iostatus_is_enabled(bs)) {
-        error_set(errp, QERR_INVALID_PARAMETER_COMBINATION);
+        error_setg(errp, "Invalid parameter combination");
         return;
     }
 
-    /* Once we support top == active layer, remove this check */
-    if (top == bs) {
-        error_setg(errp,
-                   "Top image as the active layer is currently unsupported");
-        return;
-    }
-
+    assert(top != bs);
     if (top == base) {
         error_setg(errp, "Invalid files for merge: top and base are the same");
         return;
@@ -238,7 +233,7 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
     }
 
 
-    s = block_job_create(&commit_job_type, bs, speed, cb, opaque, errp);
+    s = block_job_create(&commit_job_driver, bs, speed, cb, opaque, errp);
     if (!s) {
         return;
     }
@@ -249,6 +244,8 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
 
     s->base_flags          = orig_base_flags;
     s->orig_overlay_flags  = orig_overlay_flags;
+
+    s->backing_file_str = g_strdup(backing_file_str);
 
     s->on_error = on_error;
     s->common.co = qemu_coroutine_create(commit_run);

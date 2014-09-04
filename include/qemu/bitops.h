@@ -28,7 +28,7 @@
  * @nr: the bit to set
  * @addr: the address to start counting from
  */
-static inline void set_bit(int nr, unsigned long *addr)
+static inline void set_bit(long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
         unsigned long *p = addr + BIT_WORD(nr);
@@ -41,7 +41,7 @@ static inline void set_bit(int nr, unsigned long *addr)
  * @nr: Bit to clear
  * @addr: Address to start counting from
  */
-static inline void clear_bit(int nr, unsigned long *addr)
+static inline void clear_bit(long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
         unsigned long *p = addr + BIT_WORD(nr);
@@ -54,7 +54,7 @@ static inline void clear_bit(int nr, unsigned long *addr)
  * @nr: Bit to change
  * @addr: Address to start counting from
  */
-static inline void change_bit(int nr, unsigned long *addr)
+static inline void change_bit(long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
         unsigned long *p = addr + BIT_WORD(nr);
@@ -67,7 +67,7 @@ static inline void change_bit(int nr, unsigned long *addr)
  * @nr: Bit to set
  * @addr: Address to count from
  */
-static inline int test_and_set_bit(int nr, unsigned long *addr)
+static inline int test_and_set_bit(long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
         unsigned long *p = addr + BIT_WORD(nr);
@@ -82,7 +82,7 @@ static inline int test_and_set_bit(int nr, unsigned long *addr)
  * @nr: Bit to clear
  * @addr: Address to count from
  */
-static inline int test_and_clear_bit(int nr, unsigned long *addr)
+static inline int test_and_clear_bit(long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
         unsigned long *p = addr + BIT_WORD(nr);
@@ -97,7 +97,7 @@ static inline int test_and_clear_bit(int nr, unsigned long *addr)
  * @nr: Bit to change
  * @addr: Address to count from
  */
-static inline int test_and_change_bit(int nr, unsigned long *addr)
+static inline int test_and_change_bit(long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
         unsigned long *p = addr + BIT_WORD(nr);
@@ -112,7 +112,7 @@ static inline int test_and_change_bit(int nr, unsigned long *addr)
  * @nr: bit number to test
  * @addr: Address to start counting from
  */
-static inline int test_bit(int nr, const unsigned long *addr)
+static inline int test_bit(long nr, const unsigned long *addr)
 {
 	return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
 }
@@ -157,7 +157,17 @@ unsigned long find_next_zero_bit(const unsigned long *addr,
 static inline unsigned long find_first_bit(const unsigned long *addr,
                                            unsigned long size)
 {
-    return find_next_bit(addr, size, 0);
+    unsigned long result, tmp;
+
+    for (result = 0; result < size; result += BITS_PER_LONG) {
+        tmp = *addr++;
+        if (tmp) {
+            result += ctzl(tmp);
+            return result < size ? result : size;
+        }
+    }
+    /* Not found */
+    return size;
 }
 
 /**
@@ -181,6 +191,86 @@ static inline unsigned long hweight_long(unsigned long w)
         count += w & 1;
     }
     return count;
+}
+
+/**
+ * rol8 - rotate an 8-bit value left
+ * @word: value to rotate
+ * @shift: bits to roll
+ */
+static inline uint8_t rol8(uint8_t word, unsigned int shift)
+{
+    return (word << shift) | (word >> (8 - shift));
+}
+
+/**
+ * ror8 - rotate an 8-bit value right
+ * @word: value to rotate
+ * @shift: bits to roll
+ */
+static inline uint8_t ror8(uint8_t word, unsigned int shift)
+{
+    return (word >> shift) | (word << (8 - shift));
+}
+
+/**
+ * rol16 - rotate a 16-bit value left
+ * @word: value to rotate
+ * @shift: bits to roll
+ */
+static inline uint16_t rol16(uint16_t word, unsigned int shift)
+{
+    return (word << shift) | (word >> (16 - shift));
+}
+
+/**
+ * ror16 - rotate a 16-bit value right
+ * @word: value to rotate
+ * @shift: bits to roll
+ */
+static inline uint16_t ror16(uint16_t word, unsigned int shift)
+{
+    return (word >> shift) | (word << (16 - shift));
+}
+
+/**
+ * rol32 - rotate a 32-bit value left
+ * @word: value to rotate
+ * @shift: bits to roll
+ */
+static inline uint32_t rol32(uint32_t word, unsigned int shift)
+{
+    return (word << shift) | (word >> (32 - shift));
+}
+
+/**
+ * ror32 - rotate a 32-bit value right
+ * @word: value to rotate
+ * @shift: bits to roll
+ */
+static inline uint32_t ror32(uint32_t word, unsigned int shift)
+{
+    return (word >> shift) | (word << (32 - shift));
+}
+
+/**
+ * rol64 - rotate a 64-bit value left
+ * @word: value to rotate
+ * @shift: bits to roll
+ */
+static inline uint64_t rol64(uint64_t word, unsigned int shift)
+{
+    return (word << shift) | (word >> (64 - shift));
+}
+
+/**
+ * ror64 - rotate a 64-bit value right
+ * @word: value to rotate
+ * @shift: bits to roll
+ */
+static inline uint64_t ror64(uint64_t word, unsigned int shift)
+{
+    return (word >> shift) | (word << (64 - shift));
 }
 
 /**
@@ -219,6 +309,56 @@ static inline uint64_t extract64(uint64_t value, int start, int length)
 {
     assert(start >= 0 && length > 0 && length <= 64 - start);
     return (value >> start) & (~0ULL >> (64 - length));
+}
+
+/**
+ * sextract32:
+ * @value: the value to extract the bit field from
+ * @start: the lowest bit in the bit field (numbered from 0)
+ * @length: the length of the bit field
+ *
+ * Extract from the 32 bit input @value the bit field specified by the
+ * @start and @length parameters, and return it, sign extended to
+ * an int32_t (ie with the most significant bit of the field propagated
+ * to all the upper bits of the return value). The bit field must lie
+ * entirely within the 32 bit word. It is valid to request that
+ * all 32 bits are returned (ie @length 32 and @start 0).
+ *
+ * Returns: the sign extended value of the bit field extracted from the
+ * input value.
+ */
+static inline int32_t sextract32(uint32_t value, int start, int length)
+{
+    assert(start >= 0 && length > 0 && length <= 32 - start);
+    /* Note that this implementation relies on right shift of signed
+     * integers being an arithmetic shift.
+     */
+    return ((int32_t)(value << (32 - length - start))) >> (32 - length);
+}
+
+/**
+ * sextract64:
+ * @value: the value to extract the bit field from
+ * @start: the lowest bit in the bit field (numbered from 0)
+ * @length: the length of the bit field
+ *
+ * Extract from the 64 bit input @value the bit field specified by the
+ * @start and @length parameters, and return it, sign extended to
+ * an int64_t (ie with the most significant bit of the field propagated
+ * to all the upper bits of the return value). The bit field must lie
+ * entirely within the 64 bit word. It is valid to request that
+ * all 64 bits are returned (ie @length 64 and @start 0).
+ *
+ * Returns: the sign extended value of the bit field extracted from the
+ * input value.
+ */
+static inline uint64_t sextract64(uint64_t value, int start, int length)
+{
+    assert(start >= 0 && length > 0 && length <= 64 - start);
+    /* Note that this implementation relies on right shift of signed
+     * integers being an arithmetic shift.
+     */
+    return ((int64_t)(value << (64 - length - start))) >> (64 - length);
 }
 
 /**

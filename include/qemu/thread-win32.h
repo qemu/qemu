@@ -17,6 +17,10 @@ struct QemuSemaphore {
     HANDLE sema;
 };
 
+struct QemuEvent {
+    HANDLE event;
+};
+
 typedef struct QemuThreadData QemuThreadData;
 struct QemuThread {
     QemuThreadData *data;

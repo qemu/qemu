@@ -1,0 +1,128 @@
+#!/bin/bash
+#
+# Test case for vmdk
+#
+# Copyright (C) 2013 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=famz@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+# This tests vmdk-specific low-level functionality
+_supported_fmt vmdk
+_supported_proto file
+_supported_os Linux
+_unsupported_imgopts "subformat=monolithicFlat" \
+                     "subformat=twoGbMaxExtentFlat" \
+                     "subformat=twoGbMaxExtentSparse"
+
+capacity_offset=16
+granularity_offset=20
+grain_table_size_offset=44
+
+echo
+echo "=== Testing invalid granularity ==="
+_make_test_img 64M
+poke_file "$TEST_IMG" "$granularity_offset" "\xff\xff\xff\xff\xff\xff\xff\xff"
+{ $QEMU_IO -c "read 0 512" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "=== Testing too big L2 table size ==="
+_make_test_img 64M
+poke_file "$TEST_IMG" "$grain_table_size_offset" "\xff\xff\xff\xff"
+{ $QEMU_IO -c "read 0 512" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "=== Testing too big L1 table size ==="
+_make_test_img 64M
+poke_file "$TEST_IMG" "$capacity_offset" "\xff\xff\xff\xff"
+poke_file "$TEST_IMG" "$grain_table_size_offset" "\x01\x00\x00\x00"
+{ $QEMU_IO -c "read 0 512" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "=== Testing monolithicFlat creation and opening ==="
+IMGOPTS="subformat=monolithicFlat" _make_test_img 2G
+_img_info
+
+echo
+echo "=== Testing monolithicFlat with zeroed_grain ==="
+IMGOPTS="subformat=monolithicFlat,zeroed_grain=on" _make_test_img 2G
+
+echo
+echo "=== Testing big twoGbMaxExtentFlat ==="
+IMGOPTS="subformat=twoGbMaxExtentFlat" _make_test_img 1000G
+$QEMU_IMG info $TEST_IMG | _filter_testdir | sed -e 's/cid: [0-9]*/cid: XXXXXXXX/'
+
+echo
+echo "=== Testing malformed VMFS extent description line ==="
+cat >"$TEST_IMG" <<EOF
+# Disk DescriptorFile
+version=1
+CID=58ab4847
+parentCID=ffffffff
+createType="vmfs"
+
+# Extent description
+RW 12582912 VMFS "dummy.vmdk" 1
+EOF
+_img_info
+
+echo
+echo "=== Testing truncated sparse ==="
+IMGOPTS="subformat=monolithicSparse" _make_test_img 100G
+truncate -s 10M $TEST_IMG
+_img_info
+
+echo
+echo "=== Converting to streamOptimized from image with small cluster size==="
+TEST_IMG="$TEST_IMG.qcow2" IMGFMT=qcow2 IMGOPTS="cluster_size=4096" _make_test_img 1G
+$QEMU_IO -c "write -P 0xa 0 512" "$TEST_IMG.qcow2" | _filter_qemu_io
+$QEMU_IO -c "write -P 0xb 10240 512" "$TEST_IMG.qcow2" | _filter_qemu_io
+$QEMU_IMG convert -f qcow2 -O vmdk -o subformat=streamOptimized "$TEST_IMG.qcow2" "$TEST_IMG" 2>&1
+
+echo
+echo "=== Testing version 3 ==="
+_use_sample_img iotest-version3.vmdk.bz2
+_img_info
+
+echo
+echo "=== Testing 4TB monolithicFlat creation and IO ==="
+IMGOPTS="subformat=monolithicFlat" _make_test_img 4T
+_img_info
+$QEMU_IO -c "write -P 0xa 900G 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -v 900G 1024" "$TEST_IMG" | _filter_qemu_io
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

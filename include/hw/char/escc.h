@@ -2,6 +2,7 @@
 #define HW_ESCC_H 1
 
 /* escc.c */
+#define TYPE_ESCC "escc"
 #define ESCC_SIZE 4
 MemoryRegion *escc_init(hwaddr base, qemu_irq irqA, qemu_irq irqB,
               CharDriverState *chrA, CharDriverState *chrB,

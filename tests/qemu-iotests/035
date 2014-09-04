@@ -59,7 +59,7 @@ function generate_requests() {
     done
 }
 
-generate_requests | $QEMU_IO $TEST_IMG | _filter_qemu_io |\
+generate_requests | $QEMU_IO "$TEST_IMG" | _filter_qemu_io |\
 	sed -e 's/bytes at offset [0-9]*/bytes at offset XXX/g'
 
 echo

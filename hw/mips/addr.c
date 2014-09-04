@@ -25,10 +25,15 @@
 
 uint64_t cpu_mips_kseg0_to_phys(void *opaque, uint64_t addr)
 {
-    return addr & 0x7fffffffll;
+    return addr & 0x1fffffffll;
 }
 
 uint64_t cpu_mips_phys_to_kseg0(void *opaque, uint64_t addr)
 {
     return addr | ~0x7fffffffll;
+}
+
+uint64_t cpu_mips_kvm_um_phys_to_kseg0(void *opaque, uint64_t addr)
+{
+    return addr | 0x40000000ll;
 }

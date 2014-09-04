@@ -13,8 +13,12 @@
 #undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_PUV3_INTC "puv3_intc"
+#define PUV3_INTC(obj) OBJECT_CHECK(PUV3INTCState, (obj), TYPE_PUV3_INTC)
+
+typedef struct PUV3INTCState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq parent_irq;
 
@@ -96,19 +100,20 @@ static const MemoryRegionOps puv3_intc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int puv3_intc_init(SysBusDevice *dev)
+static int puv3_intc_init(SysBusDevice *sbd)
 {
-    PUV3INTCState *s = FROM_SYSBUS(PUV3INTCState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    PUV3INTCState *s = PUV3_INTC(dev);
 
-    qdev_init_gpio_in(&s->busdev.qdev, puv3_intc_handler, PUV3_IRQS_NR);
-    sysbus_init_irq(&s->busdev, &s->parent_irq);
+    qdev_init_gpio_in(dev, puv3_intc_handler, PUV3_IRQS_NR);
+    sysbus_init_irq(sbd, &s->parent_irq);
 
     s->reg_ICMR = 0;
     s->reg_ICPR = 0;
 
-    memory_region_init_io(&s->iomem, &puv3_intc_ops, s, "puv3_intc",
-            PUV3_REGS_OFFSET);
-    sysbus_init_mmio(dev, &s->iomem);
+    memory_region_init_io(&s->iomem, OBJECT(s), &puv3_intc_ops, s, "puv3_intc",
+                          PUV3_REGS_OFFSET);
+    sysbus_init_mmio(sbd, &s->iomem);
 
     return 0;
 }
@@ -121,7 +126,7 @@ static void puv3_intc_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo puv3_intc_info = {
-    .name = "puv3_intc",
+    .name = TYPE_PUV3_INTC,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PUV3INTCState),
     .class_init = puv3_intc_class_init,

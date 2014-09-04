@@ -26,6 +26,7 @@
 #include "qemu/sockets.h"
 #include "block/coroutine.h"
 #include "qemu/iov.h"
+#include "qemu/main-loop.h"
 
 ssize_t coroutine_fn
 qemu_co_sendv_recvv(int sockfd, struct iovec *iov, unsigned iov_cnt,
@@ -62,4 +63,27 @@ qemu_co_send_recv(int sockfd, void *buf, size_t bytes, bool do_send)
 {
     struct iovec iov = { .iov_base = buf, .iov_len = bytes };
     return qemu_co_sendv_recvv(sockfd, &iov, 1, 0, bytes, do_send);
+}
+
+typedef struct {
+    Coroutine *co;
+    int fd;
+} FDYieldUntilData;
+
+static void fd_coroutine_enter(void *opaque)
+{
+    FDYieldUntilData *data = opaque;
+    qemu_set_fd_handler(data->fd, NULL, NULL, NULL);
+    qemu_coroutine_enter(data->co, NULL);
+}
+
+void coroutine_fn yield_until_fd_readable(int fd)
+{
+    FDYieldUntilData data;
+
+    assert(qemu_in_coroutine());
+    data.co = qemu_coroutine_self();
+    data.fd = fd;
+    qemu_set_fd_handler(fd, fd_coroutine_enter, NULL, &data);
+    qemu_coroutine_yield();
 }

@@ -9,6 +9,8 @@
 #include "qapi-types.h"
 #include "qemu/notify.h"
 #include "qemu/main-loop.h"
+#include "qemu/bitmap.h"
+#include "qom/object.h"
 
 /* vl.c */
 
@@ -16,8 +18,11 @@ extern const char *bios_name;
 
 extern const char *qemu_name;
 extern uint8_t qemu_uuid[];
+extern bool qemu_uuid_set;
 int qemu_uuid_parse(const char *str, uint8_t *uuid);
+
 #define UUID_FMT "%02hhx%02hhx%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx"
+#define UUID_NONE "00000000-0000-0000-0000-000000000000"
 
 bool runstate_check(RunState state);
 void runstate_set(RunState new_state);
@@ -35,13 +40,15 @@ void vm_state_notify(int running, RunState state);
 #define VMRESET_REPORT   true
 
 void vm_start(void);
-void vm_stop(RunState state);
-void vm_stop_force_state(RunState state);
+int vm_stop(RunState state);
+int vm_stop_force_state(RunState state);
 
 typedef enum WakeupReason {
-    QEMU_WAKEUP_REASON_OTHER = 0,
+    /* Always keep QEMU_WAKEUP_REASON_NONE = 0 */
+    QEMU_WAKEUP_REASON_NONE = 0,
     QEMU_WAKEUP_REASON_RTC,
     QEMU_WAKEUP_REASON_PMTIMER,
+    QEMU_WAKEUP_REASON_OTHER,
 } WakeupReason;
 
 void qemu_system_reset_request(void);
@@ -55,6 +62,7 @@ void qemu_system_powerdown_request(void);
 void qemu_register_powerdown_notifier(Notifier *notifier);
 void qemu_system_debug_request(void);
 void qemu_system_vmstop_request(RunState reason);
+void qemu_system_vmstop_request_prepare(void);
 int qemu_shutdown_requested_get(void);
 int qemu_reset_requested_get(void);
 void qemu_system_killed(int signal, pid_t pid);
@@ -99,11 +107,11 @@ extern int autostart;
 
 typedef enum {
     VGA_NONE, VGA_STD, VGA_CIRRUS, VGA_VMWARE, VGA_XENFB, VGA_QXL,
+    VGA_TCX, VGA_CG3, VGA_DEVICE
 } VGAInterfaceType;
 
 extern int vga_interface_type;
 #define xenfb_enabled (vga_interface_type == VGA_XENFB)
-#define qxl_enabled (vga_interface_type == VGA_QXL)
 
 extern int graphic_width;
 extern int graphic_height;
@@ -125,13 +133,35 @@ extern int boot_menu;
 extern uint8_t *boot_splash_filedata;
 extern size_t boot_splash_filedata_size;
 extern uint8_t qemu_extra_params_fw[2];
-extern QEMUClock *rtc_clock;
+extern QEMUClockType rtc_clock;
+extern const char *mem_path;
+extern int mem_prealloc;
 
-#define MAX_NODES 64
+#define MAX_NODES 128
+
+/* The following shall be true for all CPUs:
+ *   cpu->cpu_index < max_cpus <= MAX_CPUMASK_BITS
+ *
+ * Note that cpu->get_arch_id() may be larger than MAX_CPUMASK_BITS.
+ */
 #define MAX_CPUMASK_BITS 255
-extern int nb_numa_nodes;
-extern uint64_t node_mem[MAX_NODES];
-extern unsigned long *node_cpumask[MAX_NODES];
+
+extern int nb_numa_nodes;   /* Number of NUMA nodes */
+extern int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
+                             * For all nodes, nodeid < max_numa_nodeid
+                             */
+
+typedef struct node_info {
+    uint64_t node_mem;
+    DECLARE_BITMAP(node_cpu, MAX_CPUMASK_BITS);
+    struct HostMemoryBackend *node_memdev;
+    bool present;
+} NodeInfo;
+extern NodeInfo numa_info[MAX_NODES];
+void set_numa_nodes(void);
+void set_numa_modes(void);
+extern QemuOptsList qemu_numa_opts;
+int numa_init_func(QemuOpts *opts, void *opaque);
 
 #define MAX_OPTION_ROMS 16
 typedef struct QEMUOptionRom {
@@ -177,16 +207,18 @@ void do_usb_add(Monitor *mon, const QDict *qdict);
 void do_usb_del(Monitor *mon, const QDict *qdict);
 void usb_info(Monitor *mon, const QDict *qdict);
 
-void rtc_change_mon_event(struct tm *tm);
-
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
                           const char *suffix);
-char *get_boot_devices_list(size_t *size);
+char *get_boot_devices_list(size_t *size, bool ignore_suffixes);
 
 DeviceState *get_boot_device(uint32_t position);
 
+QemuOpts *qemu_get_machine_opts(void);
+
 bool usb_enabled(bool default_usb);
 
+extern QemuOptsList qemu_legacy_drive_opts;
+extern QemuOptsList qemu_common_drive_opts;
 extern QemuOptsList qemu_drive_opts;
 extern QemuOptsList qemu_chardev_opts;
 extern QemuOptsList qemu_device_opts;

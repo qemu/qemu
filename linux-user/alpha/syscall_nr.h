@@ -20,7 +20,7 @@
 #define TARGET_NR_lseek		 19
 #define TARGET_NR_getxpid		 20
 #define TARGET_NR_osf_mount		 21
-#define TARGET_NR_umount		 22
+#define TARGET_NR_umount2		 22
 #define TARGET_NR_setuid		 23
 #define TARGET_NR_getxuid		 24
 #define TARGET_NR_exec_with_loader	 25	/* not implemented */
@@ -255,7 +255,7 @@
 #define TARGET_NR_sysinfo		318
 #define TARGET_NR__sysctl		319
 /* 320 was sys_idle.  */
-#define TARGET_NR_oldumount		321
+#define TARGET_NR_umount		321
 #define TARGET_NR_swapon		322
 #define TARGET_NR_times		323
 #define TARGET_NR_personality	324
@@ -433,3 +433,10 @@
 #define TARGET_NR_open_by_handle_at             498
 #define TARGET_NR_clock_adjtime                 499
 #define TARGET_NR_syncfs                        500
+#define TARGET_NR_setns                         501
+#define TARGET_NR_accept4                       502
+#define TARGET_NR_sendmmsg                      503
+#define TARGET_NR_process_vm_readv              504
+#define TARGET_NR_process_vm_writev             505
+#define TARGET_NR_kcmp                          506
+#define TARGET_NR_finit_module                  507

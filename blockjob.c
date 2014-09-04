@@ -26,7 +26,6 @@
 #include "config-host.h"
 #include "qemu-common.h"
 #include "trace.h"
-#include "monitor/monitor.h"
 #include "block/block.h"
 #include "block/blockjob.h"
 #include "block/block_int.h"
@@ -34,21 +33,25 @@
 #include "block/coroutine.h"
 #include "qmp-commands.h"
 #include "qemu/timer.h"
+#include "qapi-event.h"
 
-void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
+void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
                        int64_t speed, BlockDriverCompletionFunc *cb,
                        void *opaque, Error **errp)
 {
     BlockJob *job;
 
-    if (bs->job || bdrv_in_use(bs)) {
+    if (bs->job) {
         error_set(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
         return NULL;
     }
-    bdrv_set_in_use(bs, 1);
+    bdrv_ref(bs);
+    job = g_malloc0(driver->instance_size);
+    error_setg(&job->blocker, "block device is in use by block job: %s",
+               BlockJobType_lookup[driver->job_type]);
+    bdrv_op_block_all(bs, job->blocker);
 
-    job = g_malloc0(job_type->instance_size);
-    job->job_type      = job_type;
+    job->driver        = driver;
     job->bs            = bs;
     job->cb            = cb;
     job->opaque        = opaque;
@@ -60,10 +63,11 @@ void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
         Error *local_err = NULL;
 
         block_job_set_speed(job, speed, &local_err);
-        if (error_is_set(&local_err)) {
+        if (local_err) {
             bs->job = NULL;
+            bdrv_op_unblock_all(bs, job->blocker);
+            error_free(job->blocker);
             g_free(job);
-            bdrv_set_in_use(bs, 0);
             error_propagate(errp, local_err);
             return NULL;
         }
@@ -78,20 +82,21 @@ void block_job_completed(BlockJob *job, int ret)
     assert(bs->job == job);
     job->cb(job->opaque, ret);
     bs->job = NULL;
+    bdrv_op_unblock_all(bs, job->blocker);
+    error_free(job->blocker);
     g_free(job);
-    bdrv_set_in_use(bs, 0);
 }
 
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 {
     Error *local_err = NULL;
 
-    if (!job->job_type->set_speed) {
-        error_set(errp, QERR_NOT_SUPPORTED);
+    if (!job->driver->set_speed) {
+        error_set(errp, QERR_UNSUPPORTED);
         return;
     }
-    job->job_type->set_speed(job, speed, &local_err);
-    if (error_is_set(&local_err)) {
+    job->driver->set_speed(job, speed, &local_err);
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
@@ -101,12 +106,12 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 
 void block_job_complete(BlockJob *job, Error **errp)
 {
-    if (job->paused || job->cancelled || !job->job_type->complete) {
+    if (job->paused || job->cancelled || !job->driver->complete) {
         error_set(errp, QERR_BLOCK_JOB_NOT_READY, job->bs->device_name);
         return;
     }
 
-    job->job_type->complete(job, errp);
+    job->driver->complete(job, errp);
 }
 
 void block_job_pause(BlockJob *job)
@@ -142,8 +147,8 @@ bool block_job_is_cancelled(BlockJob *job)
 void block_job_iostatus_reset(BlockJob *job)
 {
     job->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
-    if (job->job_type->iostatus_reset) {
-        job->job_type->iostatus_reset(job);
+    if (job->driver->iostatus_reset) {
+        job->driver->iostatus_reset(job);
     }
 }
 
@@ -182,12 +187,12 @@ int block_job_cancel_sync(BlockJob *job)
     job->opaque = &data;
     block_job_cancel(job);
     while (data.ret == -EINPROGRESS) {
-        qemu_aio_wait();
+        aio_poll(bdrv_get_aio_context(bs), true);
     }
     return (data.cancelled && data.ret == 0) ? -ECANCELED : data.ret;
 }
 
-void block_job_sleep_ns(BlockJob *job, QEMUClock *clock, int64_t ns)
+void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
 {
     assert(job->busy);
 
@@ -200,15 +205,29 @@ void block_job_sleep_ns(BlockJob *job, QEMUClock *clock, int64_t ns)
     if (block_job_is_paused(job)) {
         qemu_coroutine_yield();
     } else {
-        co_sleep_ns(clock, ns);
+        co_sleep_ns(type, ns);
     }
+    job->busy = true;
+}
+
+void block_job_yield(BlockJob *job)
+{
+    assert(job->busy);
+
+    /* Check cancellation *before* setting busy = false, too!  */
+    if (block_job_is_cancelled(job)) {
+        return;
+    }
+
+    job->busy = false;
+    qemu_coroutine_yield();
     job->busy = true;
 }
 
 BlockJobInfo *block_job_query(BlockJob *job)
 {
     BlockJobInfo *info = g_new0(BlockJobInfo, 1);
-    info->type      = g_strdup(job->job_type->job_type);
+    info->type      = g_strdup(BlockJobType_lookup[job->driver->job_type]);
     info->device    = g_strdup(bdrv_get_device_name(job->bs));
     info->len       = job->len;
     info->busy      = job->busy;
@@ -227,26 +246,35 @@ static void block_job_iostatus_set_err(BlockJob *job, int error)
     }
 }
 
-
-QObject *qobject_from_block_job(BlockJob *job)
+void block_job_event_cancelled(BlockJob *job)
 {
-    return qobject_from_jsonf("{ 'type': %s,"
-                              "'device': %s,"
-                              "'len': %" PRId64 ","
-                              "'offset': %" PRId64 ","
-                              "'speed': %" PRId64 " }",
-                              job->job_type->job_type,
-                              bdrv_get_device_name(job->bs),
-                              job->len,
-                              job->offset,
-                              job->speed);
+    qapi_event_send_block_job_cancelled(job->driver->job_type,
+                                        bdrv_get_device_name(job->bs),
+                                        job->len,
+                                        job->offset,
+                                        job->speed,
+                                        &error_abort);
 }
 
-void block_job_ready(BlockJob *job)
+void block_job_event_completed(BlockJob *job, const char *msg)
 {
-    QObject *data = qobject_from_block_job(job);
-    monitor_protocol_event(QEVENT_BLOCK_JOB_READY, data);
-    qobject_decref(data);
+    qapi_event_send_block_job_completed(job->driver->job_type,
+                                        bdrv_get_device_name(job->bs),
+                                        job->len,
+                                        job->offset,
+                                        job->speed,
+                                        !!msg,
+                                        msg,
+                                        &error_abort);
+}
+
+void block_job_event_ready(BlockJob *job)
+{
+    qapi_event_send_block_job_ready(job->driver->job_type,
+                                    bdrv_get_device_name(job->bs),
+                                    job->len,
+                                    job->offset,
+                                    job->speed, &error_abort);
 }
 
 BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
@@ -257,22 +285,26 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
 
     switch (on_err) {
     case BLOCKDEV_ON_ERROR_ENOSPC:
-        action = (error == ENOSPC) ? BDRV_ACTION_STOP : BDRV_ACTION_REPORT;
+        action = (error == ENOSPC) ?
+                 BLOCK_ERROR_ACTION_STOP : BLOCK_ERROR_ACTION_REPORT;
         break;
     case BLOCKDEV_ON_ERROR_STOP:
-        action = BDRV_ACTION_STOP;
+        action = BLOCK_ERROR_ACTION_STOP;
         break;
     case BLOCKDEV_ON_ERROR_REPORT:
-        action = BDRV_ACTION_REPORT;
+        action = BLOCK_ERROR_ACTION_REPORT;
         break;
     case BLOCKDEV_ON_ERROR_IGNORE:
-        action = BDRV_ACTION_IGNORE;
+        action = BLOCK_ERROR_ACTION_IGNORE;
         break;
     default:
         abort();
     }
-    bdrv_emit_qmp_error_event(job->bs, QEVENT_BLOCK_JOB_ERROR, action, is_read);
-    if (action == BDRV_ACTION_STOP) {
+    qapi_event_send_block_job_error(bdrv_get_device_name(job->bs),
+                                    is_read ? IO_OPERATION_TYPE_READ :
+                                    IO_OPERATION_TYPE_WRITE,
+                                    action, &error_abort);
+    if (action == BLOCK_ERROR_ACTION_STOP) {
         block_job_pause(job);
         block_job_iostatus_set_err(job, error);
         if (bs != job->bs) {

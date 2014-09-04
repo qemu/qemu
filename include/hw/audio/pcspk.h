@@ -32,14 +32,16 @@
 
 static inline ISADevice *pcspk_init(ISABus *bus, ISADevice *pit)
 {
-    ISADevice *dev;
+    DeviceState *dev;
+    ISADevice *isadev;
 
-    dev = isa_create(bus, TYPE_PC_SPEAKER);
-    qdev_prop_set_uint32(&dev->qdev, "iobase", 0x61);
-    qdev_prop_set_ptr(&dev->qdev, "pit", pit);
-    qdev_init_nofail(&dev->qdev);
+    isadev = isa_create(bus, TYPE_PC_SPEAKER);
+    dev = DEVICE(isadev);
+    qdev_prop_set_uint32(dev, "iobase", 0x61);
+    qdev_prop_set_ptr(dev, "pit", pit);
+    qdev_init_nofail(dev);
 
-    return dev;
+    return isadev;
 }
 
 #endif /* !HW_PCSPK_H */

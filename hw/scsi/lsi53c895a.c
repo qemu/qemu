@@ -7,8 +7,11 @@
  * This code is licensed under the LGPL.
  */
 
-/* ??? Need to check if the {read,write}[wl] routines work properly on
-   big-endian targets.  */
+/* Note:
+ * LSI53C810 emulation is incorrect, in the sense that it supports
+ * features added in later evolutions. This should not be a problem,
+ * as well-behaved operating systems will not try to use them.
+ */
 
 #include <assert.h>
 
@@ -184,7 +187,10 @@ typedef struct lsi_request {
 } lsi_request;
 
 typedef struct {
-    PCIDevice dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion mmio_io;
     MemoryRegion ram_io;
     MemoryRegion io_io;
@@ -274,6 +280,12 @@ typedef struct {
     /* Script ram is stored as 32-bit words in host byteorder.  */
     uint32_t script_ram[2048];
 } LSIState;
+
+#define TYPE_LSI53C810  "lsi53c810"
+#define TYPE_LSI53C895A "lsi53c895a"
+
+#define LSI53C895A(obj) \
+    OBJECT_CHECK(LSIState, (obj), TYPE_LSI53C895A)
 
 static inline int lsi_irq_on_rsl(LSIState *s)
 {
@@ -382,7 +394,7 @@ static inline uint32_t read_dword(LSIState *s, uint32_t addr)
 {
     uint32_t buf;
 
-    pci_dma_read(&s->dev, addr, &buf, 4);
+    pci_dma_read(PCI_DEVICE(s), addr, &buf, 4);
     return cpu_to_le32(buf);
 }
 
@@ -393,6 +405,7 @@ static void lsi_stop_script(LSIState *s)
 
 static void lsi_update_irq(LSIState *s)
 {
+    PCIDevice *d = PCI_DEVICE(s);
     int level;
     static int last_level;
     lsi_request *p;
@@ -424,7 +437,7 @@ static void lsi_update_irq(LSIState *s)
                 level, s->dstat, s->sist1, s->sist0);
         last_level = level;
     }
-    qemu_set_irq(s->dev.irq[0], level);
+    pci_set_irq(d, level);
 
     if (!level && lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON)) {
         DPRINTF("Handled IRQs & disconnected, looking for pending "
@@ -520,6 +533,7 @@ static void lsi_bad_selection(LSIState *s, uint32_t id)
 /* Initiate a SCSI layer data transfer.  */
 static void lsi_do_dma(LSIState *s, int out)
 {
+    PCIDevice *pci_dev;
     uint32_t count;
     dma_addr_t addr;
     SCSIDevice *dev;
@@ -531,6 +545,7 @@ static void lsi_do_dma(LSIState *s, int out)
         return;
     }
 
+    pci_dev = PCI_DEVICE(s);
     dev = s->current->req->dev;
     assert(dev);
 
@@ -556,9 +571,9 @@ static void lsi_do_dma(LSIState *s, int out)
     }
     /* ??? Set SFBR to first data byte.  */
     if (out) {
-        pci_dma_read(&s->dev, addr, s->current->dma_buf, count);
+        pci_dma_read(pci_dev, addr, s->current->dma_buf, count);
     } else {
-        pci_dma_write(&s->dev, addr, s->current->dma_buf, count);
+        pci_dma_write(pci_dev, addr, s->current->dma_buf, count);
     }
     s->current->dma_len -= count;
     if (s->current->dma_len == 0) {
@@ -653,7 +668,7 @@ static void lsi_request_free(LSIState *s, lsi_request *p)
 
 static void lsi_request_cancelled(SCSIRequest *req)
 {
-    LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
+    LSIState *s = LSI53C895A(req->bus->qbus.parent);
     lsi_request *p = req->hba_private;
 
     req->hba_private = NULL;
@@ -692,7 +707,7 @@ static int lsi_queue_req(LSIState *s, SCSIRequest *req, uint32_t len)
  /* Callback to indicate that the SCSI layer has completed a command.  */
 static void lsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid)
 {
-    LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
+    LSIState *s = LSI53C895A(req->bus->qbus.parent);
     int out;
 
     out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
@@ -717,7 +732,7 @@ static void lsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid
  /* Callback to indicate that the SCSI layer has completed a transfer.  */
 static void lsi_transfer_data(SCSIRequest *req, uint32_t len)
 {
-    LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
+    LSIState *s = LSI53C895A(req->bus->qbus.parent);
     int out;
 
     assert(req->hba_private);
@@ -753,7 +768,7 @@ static void lsi_do_command(LSIState *s)
     DPRINTF("Send command len=%d\n", s->dbc);
     if (s->dbc > 16)
         s->dbc = 16;
-    pci_dma_read(&s->dev, s->dnad, buf, s->dbc);
+    pci_dma_read(PCI_DEVICE(s), s->dnad, buf, s->dbc);
     s->sfbr = buf[0];
     s->command_complete = 0;
 
@@ -804,7 +819,7 @@ static void lsi_do_status(LSIState *s)
     s->dbc = 1;
     status = s->status;
     s->sfbr = status;
-    pci_dma_write(&s->dev, s->dnad, &status, 1);
+    pci_dma_write(PCI_DEVICE(s), s->dnad, &status, 1);
     lsi_set_phase(s, PHASE_MI);
     s->msg_action = 1;
     lsi_add_msg_byte(s, 0); /* COMMAND COMPLETE */
@@ -818,7 +833,7 @@ static void lsi_do_msgin(LSIState *s)
     len = s->msg_len;
     if (len > s->dbc)
         len = s->dbc;
-    pci_dma_write(&s->dev, s->dnad, s->msg, len);
+    pci_dma_write(PCI_DEVICE(s), s->dnad, s->msg, len);
     /* Linux drivers rely on the last byte being in the SIDL.  */
     s->sidl = s->msg[len - 1];
     s->msg_len -= len;
@@ -850,7 +865,7 @@ static void lsi_do_msgin(LSIState *s)
 static uint8_t lsi_get_msgbyte(LSIState *s)
 {
     uint8_t data;
-    pci_dma_read(&s->dev, s->dnad, &data, 1);
+    pci_dma_read(PCI_DEVICE(s), s->dnad, &data, 1);
     s->dnad++;
     s->dbc--;
     return data;
@@ -987,23 +1002,18 @@ bad:
     s->msg_action = 0;
 }
 
-/* Sign extend a 24-bit value.  */
-static inline int32_t sxt24(int32_t n)
-{
-    return (n << 8) >> 8;
-}
-
 #define LSI_BUF_SIZE 4096
 static void lsi_memcpy(LSIState *s, uint32_t dest, uint32_t src, int count)
 {
+    PCIDevice *d = PCI_DEVICE(s);
     int n;
     uint8_t buf[LSI_BUF_SIZE];
 
     DPRINTF("memcpy dest 0x%08x src 0x%08x count %d\n", dest, src, count);
     while (count) {
         n = (count > LSI_BUF_SIZE) ? LSI_BUF_SIZE : count;
-        pci_dma_read(&s->dev, src, buf, n);
-        pci_dma_write(&s->dev, dest, buf, n);
+        pci_dma_read(d, src, buf, n);
+        pci_dma_write(d, dest, buf, n);
         src += n;
         dest += n;
         count -= n;
@@ -1029,6 +1039,7 @@ static void lsi_wait_reselect(LSIState *s)
 
 static void lsi_execute_script(LSIState *s)
 {
+    PCIDevice *pci_dev = PCI_DEVICE(s);
     uint32_t insn;
     uint32_t addr, addr_high;
     int opcode;
@@ -1070,8 +1081,8 @@ again:
             /* Table indirect addressing.  */
 
             /* 32-bit Table indirect */
-            offset = sxt24(addr);
-            pci_dma_read(&s->dev, s->dsa + offset, buf, 8);
+            offset = sextract32(addr, 0, 24);
+            pci_dma_read(pci_dev, s->dsa + offset, buf, 8);
             /* byte count is stored in bits 0:23 only */
             s->dbc = cpu_to_le32(buf[0]) & 0xffffff;
             s->rbc = s->dbc;
@@ -1170,13 +1181,13 @@ again:
             uint32_t id;
 
             if (insn & (1 << 25)) {
-                id = read_dword(s, s->dsa + sxt24(insn));
+                id = read_dword(s, s->dsa + sextract32(insn, 0, 24));
             } else {
                 id = insn;
             }
             id = (id >> 16) & 0xf;
             if (insn & (1 << 26)) {
-                addr = s->dsp + sxt24(addr);
+                addr = s->dsp + sextract32(addr, 0, 24);
             }
             s->dnad = addr;
             switch (opcode) {
@@ -1372,7 +1383,7 @@ again:
             if (cond == jmp) {
                 if (insn & (1 << 23)) {
                     /* Relative address.  */
-                    addr = s->dsp + sxt24(addr);
+                    addr = s->dsp + sextract32(addr, 0, 24);
                 }
                 switch ((insn >> 27) & 7) {
                 case 0: /* Jump */
@@ -1425,12 +1436,12 @@ again:
             int i;
 
             if (insn & (1 << 28)) {
-                addr = s->dsa + sxt24(addr);
+                addr = s->dsa + sextract32(addr, 0, 24);
             }
             n = (insn & 7);
             reg = (insn >> 16) & 0xff;
             if (insn & (1 << 24)) {
-                pci_dma_read(&s->dev, addr, data, n);
+                pci_dma_read(pci_dev, addr, data, n);
                 DPRINTF("Load reg 0x%x size %d addr 0x%08x = %08x\n", reg, n,
                         addr, *(int *)data);
                 for (i = 0; i < n; i++) {
@@ -1441,7 +1452,7 @@ again:
                 for (i = 0; i < n; i++) {
                     data[i] = lsi_reg_readb(s, reg + i);
                 }
-                pci_dma_write(&s->dev, addr, data, n);
+                pci_dma_write(pci_dev, addr, data, n);
             }
         }
     }
@@ -1508,7 +1519,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
            used for diagnostics, so should be ok.  */
         return 0;
     case 0xc: /* DSTAT */
-        tmp = s->dstat | 0x80;
+        tmp = s->dstat | LSI_DSTAT_DFE;
         if ((s->istat0 & LSI_ISTAT0_INTF) == 0)
             s->dstat = 0;
         lsi_update_irq(s);
@@ -1692,8 +1703,9 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         s->sxfer = val;
         break;
     case 0x06: /* SDID */
-        if ((val & 0xf) != (s->ssid & 0xf))
+        if ((s->ssid & 0x80) && (val & 0xf) != (s->ssid & 0xf)) {
             BADF("Destination ID does not match SSID\n");
+        }
         s->sdid = val & 0xf;
         break;
     case 0x07: /* GPREG0 */
@@ -1726,7 +1738,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
             lsi_execute_script(s);
         }
         if (val & LSI_ISTAT0_SRST) {
-            qdev_reset_all(&s->dev.qdev);
+            qdev_reset_all(DEVICE(s));
         }
         break;
     case 0x16: /* MBOX0 */
@@ -1734,6 +1746,9 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         break;
     case 0x17: /* MBOX1 */
         s->mbox1 = val;
+        break;
+    case 0x18: /* CTEST0 */
+        /* nothing to do */
         break;
     case 0x1a: /* CTEST2 */
 	s->ctest2 = val & LSI_CTEST2_PCICIE;
@@ -1863,8 +1878,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
             int shift;
             n = (offset - 0x58) >> 2;
             shift = (offset & 3) * 8;
-            s->scratch[n] &= ~(0xff << shift);
-            s->scratch[n] |= (val & 0xff) << shift;
+            s->scratch[n] = deposit32(s->scratch[n], shift, 8, val);
         } else {
             BADF("Unhandled writeb 0x%x = 0x%x\n", offset, val);
         }
@@ -1960,7 +1974,7 @@ static const MemoryRegionOps lsi_io_ops = {
 
 static void lsi_scsi_reset(DeviceState *dev)
 {
-    LSIState *s = DO_UPCAST(LSIState, dev.qdev, dev);
+    LSIState *s = LSI53C895A(dev);
 
     lsi_soft_reset(s);
 }
@@ -1980,10 +1994,9 @@ static const VMStateDescription vmstate_lsi_scsi = {
     .name = "lsiscsi",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .pre_save = lsi_pre_save,
-    .fields      = (VMStateField []) {
-        VMSTATE_PCI_DEVICE(dev, LSIState),
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(parent_obj, LSIState),
 
         VMSTATE_INT32(carry, LSIState),
         VMSTATE_INT32(status, LSIState),
@@ -2061,7 +2074,7 @@ static const VMStateDescription vmstate_lsi_scsi = {
 
 static void lsi_scsi_uninit(PCIDevice *d)
 {
-    LSIState *s = DO_UPCAST(LSIState, dev, d);
+    LSIState *s = LSI53C895A(d);
 
     memory_region_destroy(&s->mmio_io);
     memory_region_destroy(&s->ram_io);
@@ -2080,28 +2093,37 @@ static const struct SCSIBusInfo lsi_scsi_info = {
 
 static int lsi_scsi_init(PCIDevice *dev)
 {
-    LSIState *s = DO_UPCAST(LSIState, dev, dev);
+    LSIState *s = LSI53C895A(dev);
+    DeviceState *d = DEVICE(dev);
     uint8_t *pci_conf;
+    Error *err = NULL;
 
-    pci_conf = s->dev.config;
+    pci_conf = dev->config;
 
     /* PCI latency timer = 255 */
     pci_conf[PCI_LATENCY_TIMER] = 0xff;
     /* Interrupt pin A */
     pci_conf[PCI_INTERRUPT_PIN] = 0x01;
 
-    memory_region_init_io(&s->mmio_io, &lsi_mmio_ops, s, "lsi-mmio", 0x400);
-    memory_region_init_io(&s->ram_io, &lsi_ram_ops, s, "lsi-ram", 0x2000);
-    memory_region_init_io(&s->io_io, &lsi_io_ops, s, "lsi-io", 256);
+    memory_region_init_io(&s->mmio_io, OBJECT(s), &lsi_mmio_ops, s,
+                          "lsi-mmio", 0x400);
+    memory_region_init_io(&s->ram_io, OBJECT(s), &lsi_ram_ops, s,
+                          "lsi-ram", 0x2000);
+    memory_region_init_io(&s->io_io, OBJECT(s), &lsi_io_ops, s,
+                          "lsi-io", 256);
 
-    pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_io);
-    pci_register_bar(&s->dev, 1, 0, &s->mmio_io);
-    pci_register_bar(&s->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ram_io);
+    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_io);
+    pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio_io);
+    pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ram_io);
     QTAILQ_INIT(&s->queue);
 
-    scsi_bus_new(&s->bus, &dev->qdev, &lsi_scsi_info, NULL);
-    if (!dev->qdev.hotplugged) {
-        return scsi_bus_legacy_handle_cmdline(&s->bus);
+    scsi_bus_new(&s->bus, sizeof(s->bus), d, &lsi_scsi_info, NULL);
+    if (!d->hotplugged) {
+        scsi_bus_legacy_handle_cmdline(&s->bus, &err);
+        if (err != NULL) {
+            error_free(err);
+            return -1;
+        }
     }
     return 0;
 }
@@ -2119,18 +2141,33 @@ static void lsi_class_init(ObjectClass *klass, void *data)
     k->subsystem_id = 0x1000;
     dc->reset = lsi_scsi_reset;
     dc->vmsd = &vmstate_lsi_scsi;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo lsi_info = {
-    .name          = "lsi53c895a",
+    .name          = TYPE_LSI53C895A,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(LSIState),
     .class_init    = lsi_class_init,
 };
 
+static void lsi53c810_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->device_id = PCI_DEVICE_ID_LSI_53C810;
+}
+
+static TypeInfo lsi53c810_info = {
+    .name          = TYPE_LSI53C810,
+    .parent        = TYPE_LSI53C895A,
+    .class_init    = lsi53c810_class_init,
+};
+
 static void lsi53c895a_register_types(void)
 {
     type_register_static(&lsi_info);
+    type_register_static(&lsi53c810_info);
 }
 
 type_init(lsi53c895a_register_types)

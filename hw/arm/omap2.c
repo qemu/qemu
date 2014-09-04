@@ -603,7 +603,7 @@ static struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
 
     AUD_register_card("OMAP EAC", &s->codec.card);
 
-    memory_region_init_io(&s->iomem, &omap_eac_ops, s, "omap.eac",
+    memory_region_init_io(&s->iomem, NULL, &omap_eac_ops, s, "omap.eac",
                           omap_l4_region_size(ta, 0));
     omap_l4_attach(ta, 0, &s->iomem);
 
@@ -791,11 +791,11 @@ static struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
 
     s->chr = chr ?: qemu_chr_new("null", "null", NULL);
 
-    memory_region_init_io(&s->iomem, &omap_sti_ops, s, "omap.sti",
+    memory_region_init_io(&s->iomem, NULL, &omap_sti_ops, s, "omap.sti",
                           omap_l4_region_size(ta, 0));
     omap_l4_attach(ta, 0, &s->iomem);
 
-    memory_region_init_io(&s->iomem_fifo, &omap_sti_fifo_ops, s,
+    memory_region_init_io(&s->iomem_fifo, NULL, &omap_sti_fifo_ops, s,
                           "omap.sti.fifo", 0x10000);
     memory_region_add_subregion(sysmem, channel_base, &s->iomem_fifo);
 
@@ -1809,9 +1809,9 @@ static struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
     s->mpu = mpu;
     omap_prcm_coldreset(s);
 
-    memory_region_init_io(&s->iomem0, &omap_prcm_ops, s, "omap.pcrm0",
+    memory_region_init_io(&s->iomem0, NULL, &omap_prcm_ops, s, "omap.pcrm0",
                           omap_l4_region_size(ta, 0));
-    memory_region_init_io(&s->iomem1, &omap_prcm_ops, s, "omap.pcrm1",
+    memory_region_init_io(&s->iomem1, NULL, &omap_prcm_ops, s, "omap.pcrm1",
                           omap_l4_region_size(ta, 1));
     omap_l4_attach(ta, 0, &s->iomem0);
     omap_l4_attach(ta, 1, &s->iomem1);
@@ -2185,7 +2185,7 @@ static struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
     s->mpu = mpu;
     omap_sysctl_reset(s);
 
-    memory_region_init_io(&s->iomem, &omap_sysctl_ops, s, "omap.sysctl",
+    memory_region_init_io(&s->iomem, NULL, &omap_sysctl_ops, s, "omap.sysctl",
                           omap_l4_region_size(ta, 0));
     omap_l4_attach(ta, 0, &s->iomem);
 
@@ -2244,7 +2244,6 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *)
             g_malloc0(sizeof(struct omap_mpu_state_s));
-    qemu_irq *cpu_irq;
     qemu_irq dma_irqs[4];
     DriveInfo *dinfo;
     int i;
@@ -2261,31 +2260,32 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
     s->sdram_size = sdram_size;
     s->sram_size = OMAP242X_SRAM_SIZE;
 
-    s->wakeup = qemu_allocate_irqs(omap_mpu_wakeup, s, 1)[0];
+    s->wakeup = qemu_allocate_irq(omap_mpu_wakeup, s, 0);
 
     /* Clocks */
     omap_clk_init(s);
 
     /* Memory-mapped stuff */
-    memory_region_init_ram(&s->sdram, "omap2.dram", s->sdram_size);
+    memory_region_init_ram(&s->sdram, NULL, "omap2.dram", s->sdram_size);
     vmstate_register_ram_global(&s->sdram);
     memory_region_add_subregion(sysmem, OMAP2_Q2_BASE, &s->sdram);
-    memory_region_init_ram(&s->sram, "omap2.sram", s->sram_size);
+    memory_region_init_ram(&s->sram, NULL, "omap2.sram", s->sram_size);
     vmstate_register_ram_global(&s->sram);
     memory_region_add_subregion(sysmem, OMAP2_SRAM_BASE, &s->sram);
 
     s->l4 = omap_l4_init(sysmem, OMAP2_L4_BASE, 54);
 
     /* Actually mapped at any 2K boundary in the ARM11 private-peripheral if */
-    cpu_irq = arm_pic_init_cpu(s->cpu);
     s->ih[0] = qdev_create(NULL, "omap2-intc");
     qdev_prop_set_uint8(s->ih[0], "revision", 0x21);
     qdev_prop_set_ptr(s->ih[0], "fclk", omap_findclk(s, "mpu_intc_fclk"));
     qdev_prop_set_ptr(s->ih[0], "iclk", omap_findclk(s, "mpu_intc_iclk"));
     qdev_init_nofail(s->ih[0]);
     busdev = SYS_BUS_DEVICE(s->ih[0]);
-    sysbus_connect_irq(busdev, 0, cpu_irq[ARM_PIC_CPU_IRQ]);
-    sysbus_connect_irq(busdev, 1, cpu_irq[ARM_PIC_CPU_FIQ]);
+    sysbus_connect_irq(busdev, 0,
+                       qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_IRQ));
+    sysbus_connect_irq(busdev, 1,
+                       qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_FIQ));
     sysbus_mmio_map(busdev, 0, 0x480fe000);
     s->prcm = omap_prcm_init(omap_l4tao(s->l4, 3),
                              qdev_get_gpio_in(s->ih[0],

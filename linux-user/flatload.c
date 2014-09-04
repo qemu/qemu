@@ -633,7 +633,7 @@ static int load_flat_file(struct linux_binprm * bprm,
             /* Get the pointer's value.  */
             if (get_user_ual(addr, rp))
                 return -EFAULT;
-            addr = flat_get_addr_from_rp(rp, relval, flags, &persistent);
+            addr = flat_get_addr_from_rp(addr, relval, flags, &persistent);
             if (addr != 0) {
                 /*
                  * Do the relocation.  PIC relocs in the data section are
@@ -704,8 +704,7 @@ static int load_flat_shared_library(int id, struct lib_info *libs)
 
 #endif /* CONFIG_BINFMT_SHARED_FLAT */
 
-int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
-                    struct image_info * info)
+int load_flt_binary(struct linux_binprm *bprm, struct image_info *info)
 {
     struct lib_info libinfo[MAX_SHARED_LIBS];
     abi_ulong p = bprm->p;

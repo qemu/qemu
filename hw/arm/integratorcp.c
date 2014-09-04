@@ -11,12 +11,20 @@
 #include "hw/devices.h"
 #include "hw/boards.h"
 #include "hw/arm/arm.h"
+#include "hw/misc/arm_integrator_debug.h"
 #include "net/net.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_INTEGRATOR_CM "integrator_core"
+#define INTEGRATOR_CM(obj) \
+    OBJECT_CHECK(IntegratorCMState, (obj), TYPE_INTEGRATOR_CM)
+
+typedef struct IntegratorCMState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t memsz;
     MemoryRegion flash;
@@ -28,10 +36,11 @@ typedef struct {
     uint32_t cm_init;
     uint32_t cm_flags;
     uint32_t cm_nvflags;
+    uint32_t cm_refcnt_offset;
     uint32_t int_level;
     uint32_t irq_enabled;
     uint32_t fiq_enabled;
-} integratorcm_state;
+} IntegratorCMState;
 
 static uint8_t integrator_spd[128] = {
    128, 8, 4, 11, 9, 1, 64, 0,  2, 0xa0, 0xa0, 0, 0, 8, 0, 1,
@@ -41,7 +50,7 @@ static uint8_t integrator_spd[128] = {
 static uint64_t integratorcm_read(void *opaque, hwaddr offset,
                                   unsigned size)
 {
-    integratorcm_state *s = (integratorcm_state *)opaque;
+    IntegratorCMState *s = opaque;
     if (offset >= 0x100 && offset < 0x200) {
         /* CM_SPD */
         if (offset >= 0x180)
@@ -74,9 +83,13 @@ static uint64_t integratorcm_read(void *opaque, hwaddr offset,
         return s->cm_sdram;
     case 9: /* CM_INIT */
         return s->cm_init;
-    case 10: /* CM_REFCT */
-        /* ??? High frequency timer.  */
-        hw_error("integratorcm_read: CM_REFCT");
+    case 10: /* CM_REFCNT */
+        /* This register, CM_REFCNT, provides a 32-bit count value.
+         * The count increments at the fixed reference clock frequency of 24MHz
+         * and can be used as a real-time counter.
+         */
+        return (uint32_t)muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), 24,
+                                  1000) - s->cm_refcnt_offset;
     case 12: /* CM_FLAGS */
         return s->cm_flags;
     case 14: /* CM_NVFLAGS */
@@ -108,7 +121,7 @@ static uint64_t integratorcm_read(void *opaque, hwaddr offset,
     }
 }
 
-static void integratorcm_do_remap(integratorcm_state *s)
+static void integratorcm_do_remap(IntegratorCMState *s)
 {
     /* Sync memory region state with CM_CTRL REMAP bit:
      * bit 0 => flash at address 0; bit 1 => RAM
@@ -116,7 +129,7 @@ static void integratorcm_do_remap(integratorcm_state *s)
     memory_region_set_enabled(&s->flash, !(s->cm_ctrl & 4));
 }
 
-static void integratorcm_set_ctrl(integratorcm_state *s, uint32_t value)
+static void integratorcm_set_ctrl(IntegratorCMState *s, uint32_t value)
 {
     if (value & 8) {
         qemu_system_reset_request();
@@ -133,7 +146,7 @@ static void integratorcm_set_ctrl(integratorcm_state *s, uint32_t value)
     integratorcm_do_remap(s);
 }
 
-static void integratorcm_update(integratorcm_state *s)
+static void integratorcm_update(IntegratorCMState *s)
 {
     /* ??? The CPU irq/fiq is raised when either the core module or base PIC
        are active.  */
@@ -144,7 +157,7 @@ static void integratorcm_update(integratorcm_state *s)
 static void integratorcm_write(void *opaque, hwaddr offset,
                                uint64_t value, unsigned size)
 {
-    integratorcm_state *s = (integratorcm_state *)opaque;
+    IntegratorCMState *s = opaque;
     switch (offset >> 2) {
     case 2: /* CM_OSC */
         if (s->cm_lock == 0xa05f)
@@ -226,7 +239,7 @@ static const MemoryRegionOps integratorcm_ops = {
 
 static int integratorcm_init(SysBusDevice *dev)
 {
-    integratorcm_state *s = FROM_SYSBUS(integratorcm_state, dev);
+    IntegratorCMState *s = INTEGRATOR_CM(dev);
 
     s->cm_osc = 0x01000048;
     /* ??? What should the high bits of this value be?  */
@@ -249,10 +262,12 @@ static int integratorcm_init(SysBusDevice *dev)
     }
     memcpy(integrator_spd + 73, "QEMU-MEMORY", 11);
     s->cm_init = 0x00000112;
-    memory_region_init_ram(&s->flash, "integrator.flash", 0x100000);
+    s->cm_refcnt_offset = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), 24,
+                                   1000);
+    memory_region_init_ram(&s->flash, OBJECT(s), "integrator.flash", 0x100000);
     vmstate_register_ram_global(&s->flash);
 
-    memory_region_init_io(&s->iomem, &integratorcm_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &integratorcm_ops, s,
                           "integratorcm", 0x00800000);
     sysbus_init_mmio(dev, &s->iomem);
 
@@ -264,15 +279,21 @@ static int integratorcm_init(SysBusDevice *dev)
 /* Integrator/CP hardware emulation.  */
 /* Primary interrupt controller.  */
 
-typedef struct icp_pic_state
-{
-  SysBusDevice busdev;
-  MemoryRegion iomem;
-  uint32_t level;
-  uint32_t irq_enabled;
-  uint32_t fiq_enabled;
-  qemu_irq parent_irq;
-  qemu_irq parent_fiq;
+#define TYPE_INTEGRATOR_PIC "integrator_pic"
+#define INTEGRATOR_PIC(obj) \
+   OBJECT_CHECK(icp_pic_state, (obj), TYPE_INTEGRATOR_PIC)
+
+typedef struct icp_pic_state {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
+    MemoryRegion iomem;
+    uint32_t level;
+    uint32_t irq_enabled;
+    uint32_t fiq_enabled;
+    qemu_irq parent_irq;
+    qemu_irq parent_fiq;
 } icp_pic_state;
 
 static void icp_pic_update(icp_pic_state *s)
@@ -367,15 +388,17 @@ static const MemoryRegionOps icp_pic_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int icp_pic_init(SysBusDevice *dev)
+static int icp_pic_init(SysBusDevice *sbd)
 {
-    icp_pic_state *s = FROM_SYSBUS(icp_pic_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    icp_pic_state *s = INTEGRATOR_PIC(dev);
 
-    qdev_init_gpio_in(&dev->qdev, icp_pic_set_irq, 32);
-    sysbus_init_irq(dev, &s->parent_irq);
-    sysbus_init_irq(dev, &s->parent_fiq);
-    memory_region_init_io(&s->iomem, &icp_pic_ops, s, "icp-pic", 0x00800000);
-    sysbus_init_mmio(dev, &s->iomem);
+    qdev_init_gpio_in(dev, icp_pic_set_irq, 32);
+    sysbus_init_irq(sbd, &s->parent_irq);
+    sysbus_init_irq(sbd, &s->parent_fiq);
+    memory_region_init_io(&s->iomem, OBJECT(s), &icp_pic_ops, s,
+                          "icp-pic", 0x00800000);
+    sysbus_init_mmio(sbd, &s->iomem);
     return 0;
 }
 
@@ -424,7 +447,7 @@ static void icp_control_init(hwaddr base)
     MemoryRegion *io;
 
     io = (MemoryRegion *)g_malloc0(sizeof(MemoryRegion));
-    memory_region_init_io(io, &icp_control_ops, NULL,
+    memory_region_init_io(io, NULL, &icp_control_ops, NULL,
                           "control", 0x00800000);
     memory_region_add_subregion(get_system_memory(), base, io);
     /* ??? Save/restore.  */
@@ -438,19 +461,18 @@ static struct arm_boot_info integrator_binfo = {
     .board_id = 0x113,
 };
 
-static void integratorcp_init(QEMUMachineInitArgs *args)
+static void integratorcp_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     ARMCPU *cpu;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *ram_alias = g_new(MemoryRegion, 1);
     qemu_irq pic[32];
-    qemu_irq *cpu_pic;
     DeviceState *dev;
     int i;
 
@@ -463,29 +485,29 @@ static void integratorcp_init(QEMUMachineInitArgs *args)
         exit(1);
     }
 
-    memory_region_init_ram(ram, "integrator.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "integrator.ram", ram_size);
     vmstate_register_ram_global(ram);
     /* ??? On a real system the first 1Mb is mapped as SSRAM or boot flash.  */
     /* ??? RAM should repeat to fill physical memory space.  */
     /* SDRAM at address zero*/
     memory_region_add_subregion(address_space_mem, 0, ram);
     /* And again at address 0x80000000 */
-    memory_region_init_alias(ram_alias, "ram.alias", ram, 0, ram_size);
+    memory_region_init_alias(ram_alias, NULL, "ram.alias", ram, 0, ram_size);
     memory_region_add_subregion(address_space_mem, 0x80000000, ram_alias);
 
-    dev = qdev_create(NULL, "integrator_core");
+    dev = qdev_create(NULL, TYPE_INTEGRATOR_CM);
     qdev_prop_set_uint32(dev, "memsz", ram_size >> 20);
     qdev_init_nofail(dev);
     sysbus_mmio_map((SysBusDevice *)dev, 0, 0x10000000);
 
-    cpu_pic = arm_pic_init_cpu(cpu);
-    dev = sysbus_create_varargs("integrator_pic", 0x14000000,
-                                cpu_pic[ARM_PIC_CPU_IRQ],
-                                cpu_pic[ARM_PIC_CPU_FIQ], NULL);
+    dev = sysbus_create_varargs(TYPE_INTEGRATOR_PIC, 0x14000000,
+                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ),
+                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ),
+                                NULL);
     for (i = 0; i < 32; i++) {
         pic[i] = qdev_get_gpio_in(dev, i);
     }
-    sysbus_create_simple("integrator_pic", 0xca000000, pic[26]);
+    sysbus_create_simple(TYPE_INTEGRATOR_PIC, 0xca000000, pic[26]);
     sysbus_create_varargs("integrator_pit", 0x13000000,
                           pic[5], pic[6], pic[7], NULL);
     sysbus_create_simple("pl031", 0x15000000, pic[8]);
@@ -494,6 +516,7 @@ static void integratorcp_init(QEMUMachineInitArgs *args)
     icp_control_init(0xcb000000);
     sysbus_create_simple("pl050_keyboard", 0x18000000, pic[3]);
     sysbus_create_simple("pl050_mouse", 0x19000000, pic[4]);
+    sysbus_create_simple(TYPE_INTEGRATOR_DEBUG, 0x1a000000, 0);
     sysbus_create_varargs("pl181", 0x1c000000, pic[23], pic[24], NULL);
     if (nd_table[0].used)
         smc91c111_init(&nd_table[0], 0xc8000000, pic[27]);
@@ -511,8 +534,6 @@ static QEMUMachine integratorcp_machine = {
     .name = "integratorcp",
     .desc = "ARM Integrator/CP (ARM926EJ-S)",
     .init = integratorcp_init,
-    .is_default = 1,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void integratorcp_machine_init(void)
@@ -523,7 +544,7 @@ static void integratorcp_machine_init(void)
 machine_init(integratorcp_machine_init);
 
 static Property core_properties[] = {
-    DEFINE_PROP_UINT32("memsz", integratorcm_state, memsz, 0),
+    DEFINE_PROP_UINT32("memsz", IntegratorCMState, memsz, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -537,9 +558,9 @@ static void core_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo core_info = {
-    .name          = "integrator_core",
+    .name          = TYPE_INTEGRATOR_CM,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(integratorcm_state),
+    .instance_size = sizeof(IntegratorCMState),
     .class_init    = core_class_init,
 };
 
@@ -551,7 +572,7 @@ static void icp_pic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo icp_pic_info = {
-    .name          = "integrator_pic",
+    .name          = TYPE_INTEGRATOR_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(icp_pic_state),
     .class_init    = icp_pic_class_init,

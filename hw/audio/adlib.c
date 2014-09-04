@@ -86,6 +86,7 @@ typedef struct {
 #ifndef HAS_YMF262
     FM_OPL *opl;
 #endif
+    PortioList port_list;
 } AdlibState;
 
 static AdlibState *glob_adlib;
@@ -173,7 +174,7 @@ static void timer_handler (int c, double interval_Sec)
     s->ticking[n] = 1;
 #ifdef DEBUG
     interval = get_ticks_per_sec () * interval_Sec;
-    exp = qemu_get_clock_ns (vm_clock) + interval;
+    exp = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + interval;
     s->exp[n] = exp;
 #endif
 
@@ -274,30 +275,35 @@ static void Adlib_fini (AdlibState *s)
     }
 #endif
 
-    if (s->mixbuf) {
-        g_free (s->mixbuf);
-    }
+    g_free(s->mixbuf);
 
     s->active = 0;
     s->enabled = 0;
     AUD_remove_card (&s->card);
 }
 
-static int Adlib_initfn (ISADevice *dev)
+static MemoryRegionPortio adlib_portio_list[] = {
+    { 0, 4, 1, .read = adlib_read, .write = adlib_write, },
+    { 0, 2, 1, .read = adlib_read, .write = adlib_write, },
+    { 0x388, 4, 1, .read = adlib_read, .write = adlib_write, },
+    PORTIO_END_OF_LIST(),
+};
+
+static void adlib_realizefn (DeviceState *dev, Error **errp)
 {
     AdlibState *s = ADLIB(dev);
     struct audsettings as;
 
     if (glob_adlib) {
-        dolog ("Cannot create more than 1 adlib device\n");
-        return -1;
+        error_setg (errp, "Cannot create more than 1 adlib device");
+        return;
     }
     glob_adlib = s;
 
 #ifdef HAS_YMF262
     if (YMF262Init (1, 14318180, s->freq)) {
-        dolog ("YMF262Init %d failed\n", s->freq);
-        return -1;
+        error_setg (errp, "YMF262Init %d failed", s->freq);
+        return;
     }
     else {
         YMF262SetTimerHandler (0, timer_handler, 0);
@@ -306,8 +312,8 @@ static int Adlib_initfn (ISADevice *dev)
 #else
     s->opl = OPLCreate (OPL_TYPE_YM3812, 3579545, s->freq);
     if (!s->opl) {
-        dolog ("OPLCreate %d failed\n", s->freq);
-        return -1;
+        error_setg (errp, "OPLCreate %d failed", s->freq);
+        return;
     }
     else {
         OPLSetTimerHandler (s->opl, timer_handler, 0);
@@ -332,26 +338,21 @@ static int Adlib_initfn (ISADevice *dev)
         );
     if (!s->voice) {
         Adlib_fini (s);
-        return -1;
+        error_setg (errp, "Initializing audio voice failed");
+        return;
     }
 
     s->samples = AUD_get_buffer_size_out (s->voice) >> SHIFT;
     s->mixbuf = g_malloc0 (s->samples << SHIFT);
 
-    register_ioport_read (0x388, 4, 1, adlib_read, s);
-    register_ioport_write (0x388, 4, 1, adlib_write, s);
-
-    register_ioport_read (s->port, 4, 1, adlib_read, s);
-    register_ioport_write (s->port, 4, 1, adlib_write, s);
-
-    register_ioport_read (s->port + 8, 2, 1, adlib_read, s);
-    register_ioport_write (s->port + 8, 2, 1, adlib_write, s);
-
-    return 0;
+    adlib_portio_list[0].offset = s->port;
+    adlib_portio_list[1].offset = s->port + 8;
+    portio_list_init (&s->port_list, OBJECT(s), adlib_portio_list, s, "adlib");
+    portio_list_add (&s->port_list, isa_address_space_io(&s->parent_obj), 0);
 }
 
 static Property adlib_properties[] = {
-    DEFINE_PROP_HEX32  ("iobase",  AdlibState, port, 0x220),
+    DEFINE_PROP_UINT32 ("iobase",  AdlibState, port, 0x220),
     DEFINE_PROP_UINT32 ("freq",    AdlibState, freq,  44100),
     DEFINE_PROP_END_OF_LIST (),
 };
@@ -359,8 +360,9 @@ static Property adlib_properties[] = {
 static void adlib_class_initfn (ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS (klass);
-    ic->init = Adlib_initfn;
+
+    dc->realize = adlib_realizefn;
+    set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = ADLIB_DESC;
     dc->props = adlib_properties;
 }

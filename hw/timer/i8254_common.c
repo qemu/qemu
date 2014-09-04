@@ -136,7 +136,7 @@ void pit_get_channel_info_common(PITCommonState *s, PITChannelState *sc,
     info->gate = sc->gate;
     info->mode = sc->mode;
     info->initial_count = sc->count;
-    info->out = pit_get_out(sc, qemu_get_clock_ns(vm_clock));
+    info->out = pit_get_out(sc, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 }
 
 void pit_get_channel_info(ISADevice *dev, int channel, PITChannelInfo *info)
@@ -157,7 +157,7 @@ void pit_reset_common(PITCommonState *pit)
         s = &pit->channels[i];
         s->mode = 3;
         s->gate = (i != 2);
-        s->count_load_time = qemu_get_clock_ns(vm_clock);
+        s->count_load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         s->count = 0x10000;
         if (i == 0 && !s->irq_disabled) {
             s->next_transition_time =
@@ -166,29 +166,20 @@ void pit_reset_common(PITCommonState *pit)
     }
 }
 
-static int pit_init_common(ISADevice *dev)
+static void pit_common_realize(DeviceState *dev, Error **errp)
 {
+    ISADevice *isadev = ISA_DEVICE(dev);
     PITCommonState *pit = PIT_COMMON(dev);
-    PITCommonClass *c = PIT_COMMON_GET_CLASS(pit);
-    int ret;
 
-    ret = c->init(pit);
-    if (ret < 0) {
-        return ret;
-    }
+    isa_register_ioport(isadev, &pit->ioports, pit->iobase);
 
-    isa_register_ioport(dev, &pit->ioports, pit->iobase);
-
-    qdev_set_legacy_instance_id(&dev->qdev, pit->iobase, 2);
-
-    return 0;
+    qdev_set_legacy_instance_id(dev, pit->iobase, 2);
 }
 
 static const VMStateDescription vmstate_pit_channel = {
     .name = "pit channel",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(count, PITChannelState),
         VMSTATE_UINT16(latched_count, PITChannelState),
@@ -286,12 +277,16 @@ static const VMStateDescription vmstate_pit_common = {
 
 static void pit_common_class_init(ObjectClass *klass, void *data)
 {
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    ic->init = pit_init_common;
+    dc->realize = pit_common_realize;
     dc->vmsd = &vmstate_pit_common;
-    dc->no_user = 1;
+    /*
+     * Reason: unlike ordinary ISA devices, the PIT may need to be
+     * wired to the HPET, and because of that, some wiring is always
+     * done by board code.
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo pit_common_type = {

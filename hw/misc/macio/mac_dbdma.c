@@ -54,122 +54,10 @@
 /*
  */
 
-/*
- * DBDMA control/status registers.  All little-endian.
- */
-
-#define DBDMA_CONTROL         0x00
-#define DBDMA_STATUS          0x01
-#define DBDMA_CMDPTR_HI       0x02
-#define DBDMA_CMDPTR_LO       0x03
-#define DBDMA_INTR_SEL        0x04
-#define DBDMA_BRANCH_SEL      0x05
-#define DBDMA_WAIT_SEL        0x06
-#define DBDMA_XFER_MODE       0x07
-#define DBDMA_DATA2PTR_HI     0x08
-#define DBDMA_DATA2PTR_LO     0x09
-#define DBDMA_RES1            0x0A
-#define DBDMA_ADDRESS_HI      0x0B
-#define DBDMA_BRANCH_ADDR_HI  0x0C
-#define DBDMA_RES2            0x0D
-#define DBDMA_RES3            0x0E
-#define DBDMA_RES4            0x0F
-
-#define DBDMA_REGS            16
-#define DBDMA_SIZE            (DBDMA_REGS * sizeof(uint32_t))
-
-#define DBDMA_CHANNEL_SHIFT   7
-#define DBDMA_CHANNEL_SIZE    (1 << DBDMA_CHANNEL_SHIFT)
-
-#define DBDMA_CHANNELS        (0x1000 >> DBDMA_CHANNEL_SHIFT)
-
-/* Bits in control and status registers */
-
-#define RUN	0x8000
-#define PAUSE	0x4000
-#define FLUSH	0x2000
-#define WAKE	0x1000
-#define DEAD	0x0800
-#define ACTIVE	0x0400
-#define BT	0x0100
-#define DEVSTAT	0x00ff
-
-/*
- * DBDMA command structure.  These fields are all little-endian!
- */
-
-typedef struct dbdma_cmd {
-    uint16_t req_count;	  /* requested byte transfer count */
-    uint16_t command;	  /* command word (has bit-fields) */
-    uint32_t phy_addr;	  /* physical data address */
-    uint32_t cmd_dep;	  /* command-dependent field */
-    uint16_t res_count;	  /* residual count after completion */
-    uint16_t xfer_status; /* transfer status */
-} dbdma_cmd;
-
-/* DBDMA command values in command field */
-
-#define COMMAND_MASK    0xf000
-#define OUTPUT_MORE	0x0000	/* transfer memory data to stream */
-#define OUTPUT_LAST	0x1000	/* ditto followed by end marker */
-#define INPUT_MORE	0x2000	/* transfer stream data to memory */
-#define INPUT_LAST	0x3000	/* ditto, expect end marker */
-#define STORE_WORD	0x4000	/* write word (4 bytes) to device reg */
-#define LOAD_WORD	0x5000	/* read word (4 bytes) from device reg */
-#define DBDMA_NOP	0x6000	/* do nothing */
-#define DBDMA_STOP	0x7000	/* suspend processing */
-
-/* Key values in command field */
-
-#define KEY_MASK        0x0700
-#define KEY_STREAM0	0x0000	/* usual data stream */
-#define KEY_STREAM1	0x0100	/* control/status stream */
-#define KEY_STREAM2	0x0200	/* device-dependent stream */
-#define KEY_STREAM3	0x0300	/* device-dependent stream */
-#define KEY_STREAM4	0x0400	/* reserved */
-#define KEY_REGS	0x0500	/* device register space */
-#define KEY_SYSTEM	0x0600	/* system memory-mapped space */
-#define KEY_DEVICE	0x0700	/* device memory-mapped space */
-
-/* Interrupt control values in command field */
-
-#define INTR_MASK       0x0030
-#define INTR_NEVER	0x0000	/* don't interrupt */
-#define INTR_IFSET	0x0010	/* intr if condition bit is 1 */
-#define INTR_IFCLR	0x0020	/* intr if condition bit is 0 */
-#define INTR_ALWAYS	0x0030	/* always interrupt */
-
-/* Branch control values in command field */
-
-#define BR_MASK         0x000c
-#define BR_NEVER	0x0000	/* don't branch */
-#define BR_IFSET	0x0004	/* branch if condition bit is 1 */
-#define BR_IFCLR	0x0008	/* branch if condition bit is 0 */
-#define BR_ALWAYS	0x000c	/* always branch */
-
-/* Wait control values in command field */
-
-#define WAIT_MASK       0x0003
-#define WAIT_NEVER	0x0000	/* don't wait */
-#define WAIT_IFSET	0x0001	/* wait if condition bit is 1 */
-#define WAIT_IFCLR	0x0002	/* wait if condition bit is 0 */
-#define WAIT_ALWAYS	0x0003	/* always wait */
-
-typedef struct DBDMA_channel {
-    int channel;
-    uint32_t regs[DBDMA_REGS];
-    qemu_irq irq;
-    DBDMA_io io;
-    DBDMA_rw rw;
-    DBDMA_flush flush;
-    dbdma_cmd current;
-    int processing;
-} DBDMA_channel;
-
-typedef struct {
-    MemoryRegion mem;
-    DBDMA_channel channels[DBDMA_CHANNELS];
-} DBDMAState;
+static DBDMAState *dbdma_from_ch(DBDMA_channel *ch)
+{
+    return container_of(ch, DBDMAState, channels[ch->channel]);
+}
 
 #ifdef DEBUG_DBDMA
 static void dump_dbdma_cmd(dbdma_cmd *cmd)
@@ -224,7 +112,7 @@ static void conditional_interrupt(DBDMA_channel *ch)
     uint32_t status;
     int cond;
 
-    DBDMA_DPRINTF("conditional_interrupt\n");
+    DBDMA_DPRINTF("%s\n", __func__);
 
     intr = le16_to_cpu(current->command) & INTR_MASK;
 
@@ -233,6 +121,7 @@ static void conditional_interrupt(DBDMA_channel *ch)
         return;
     case INTR_ALWAYS: /* always interrupt */
         qemu_irq_raise(ch->irq);
+        DBDMA_DPRINTF("%s: raise\n", __func__);
         return;
     }
 
@@ -245,12 +134,16 @@ static void conditional_interrupt(DBDMA_channel *ch)
 
     switch(intr) {
     case INTR_IFSET:  /* intr if condition bit is 1 */
-        if (cond)
+        if (cond) {
             qemu_irq_raise(ch->irq);
+            DBDMA_DPRINTF("%s: raise\n", __func__);
+        }
         return;
     case INTR_IFCLR:  /* intr if condition bit is 0 */
-        if (!cond)
+        if (!cond) {
             qemu_irq_raise(ch->irq);
+            DBDMA_DPRINTF("%s: raise\n", __func__);
+        }
         return;
     }
 }
@@ -360,13 +253,14 @@ static void conditional_branch(DBDMA_channel *ch)
     }
 }
 
-static QEMUBH *dbdma_bh;
 static void channel_run(DBDMA_channel *ch);
 
 static void dbdma_end(DBDMA_io *io)
 {
     DBDMA_channel *ch = io->channel;
     dbdma_cmd *current = &ch->current;
+
+    DBDMA_DPRINTF("%s\n", __func__);
 
     if (conditional_wait(ch))
         goto wait;
@@ -381,7 +275,9 @@ static void dbdma_end(DBDMA_io *io)
     conditional_branch(ch);
 
 wait:
-    ch->processing = 0;
+    /* Indicate that we're ready for a new DMA round */
+    ch->io.processing = false;
+
     if ((ch->regs[DBDMA_STATUS] & RUN) &&
         (ch->regs[DBDMA_STATUS] & ACTIVE))
         channel_run(ch);
@@ -407,7 +303,7 @@ static void start_output(DBDMA_channel *ch, int key, uint32_t addr,
     ch->io.is_last = is_last;
     ch->io.dma_end = dbdma_end;
     ch->io.is_dma_out = 1;
-    ch->processing = 1;
+    ch->io.processing = true;
     if (ch->rw) {
         ch->rw(&ch->io);
     }
@@ -422,6 +318,7 @@ static void start_input(DBDMA_channel *ch, int key, uint32_t addr,
      * are not implemented in the mac-io chip
      */
 
+    DBDMA_DPRINTF("addr 0x%x key 0x%x\n", addr, key);
     if (!addr || key > KEY_STREAM3) {
         kill_channel(ch);
         return;
@@ -432,7 +329,7 @@ static void start_input(DBDMA_channel *ch, int key, uint32_t addr,
     ch->io.is_last = is_last;
     ch->io.dma_end = dbdma_end;
     ch->io.is_dma_out = 0;
-    ch->processing = 1;
+    ch->io.processing = true;
     if (ch->rw) {
         ch->rw(&ch->io);
     }
@@ -474,7 +371,7 @@ static void load_word(DBDMA_channel *ch, int key, uint32_t addr,
     next(ch);
 
 wait:
-    qemu_bh_schedule(dbdma_bh);
+    DBDMA_kick(dbdma_from_ch(ch));
 }
 
 static void store_word(DBDMA_channel *ch, int key, uint32_t addr,
@@ -512,7 +409,7 @@ static void store_word(DBDMA_channel *ch, int key, uint32_t addr,
     next(ch);
 
 wait:
-    qemu_bh_schedule(dbdma_bh);
+    DBDMA_kick(dbdma_from_ch(ch));
 }
 
 static void nop(DBDMA_channel *ch)
@@ -529,7 +426,7 @@ static void nop(DBDMA_channel *ch)
     conditional_branch(ch);
 
 wait:
-    qemu_bh_schedule(dbdma_bh);
+    DBDMA_kick(dbdma_from_ch(ch));
 }
 
 static void stop(DBDMA_channel *ch)
@@ -558,11 +455,11 @@ static void channel_run(DBDMA_channel *ch)
     switch (cmd) {
     case DBDMA_NOP:
         nop(ch);
-	return;
+        return;
 
     case DBDMA_STOP:
         stop(ch);
-	return;
+        return;
     }
 
     key = le16_to_cpu(current->command) & 0x0700;
@@ -578,19 +475,19 @@ static void channel_run(DBDMA_channel *ch)
     switch (cmd) {
     case OUTPUT_MORE:
         start_output(ch, key, phy_addr, req_count, 0);
-	return;
+        return;
 
     case OUTPUT_LAST:
         start_output(ch, key, phy_addr, req_count, 1);
-	return;
+        return;
 
     case INPUT_MORE:
         start_input(ch, key, phy_addr, req_count, 0);
-	return;
+        return;
 
     case INPUT_LAST:
         start_input(ch, key, phy_addr, req_count, 1);
-	return;
+        return;
     }
 
     if (key < KEY_REGS) {
@@ -615,11 +512,11 @@ static void channel_run(DBDMA_channel *ch)
     switch (cmd) {
     case LOAD_WORD:
         load_word(ch, key, phy_addr, req_count);
-	return;
+        return;
 
     case STORE_WORD:
         store_word(ch, key, phy_addr, req_count);
-	return;
+        return;
     }
 }
 
@@ -630,7 +527,7 @@ static void DBDMA_run(DBDMAState *s)
     for (channel = 0; channel < DBDMA_CHANNELS; channel++) {
         DBDMA_channel *ch = &s->channels[channel];
         uint32_t status = ch->regs[DBDMA_STATUS];
-        if (!ch->processing && (status & RUN) && (status & ACTIVE)) {
+        if (!ch->io.processing && (status & RUN) && (status & ACTIVE)) {
             channel_run(ch);
         }
     }
@@ -643,6 +540,11 @@ static void DBDMA_run_bh(void *opaque)
     DBDMA_DPRINTF("DBDMA_run_bh\n");
 
     DBDMA_run(s);
+}
+
+void DBDMA_kick(DBDMAState *dbdma)
+{
+    qemu_bh_schedule(dbdma->bh);
 }
 
 void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
@@ -698,10 +600,12 @@ dbdma_control_write(DBDMA_channel *ch)
 
     ch->regs[DBDMA_STATUS] = status;
 
-    if (status & ACTIVE)
-        qemu_bh_schedule(dbdma_bh);
-    if ((status & FLUSH) && ch->flush)
+    if (status & ACTIVE) {
+        DBDMA_kick(dbdma_from_ch(ch));
+    }
+    if ((status & FLUSH) && ch->flush) {
         ch->flush(&ch->io);
+    }
 }
 
 static void dbdma_write(void *opaque, hwaddr addr,
@@ -712,15 +616,16 @@ static void dbdma_write(void *opaque, hwaddr addr,
     DBDMA_channel *ch = &s->channels[channel];
     int reg = (addr - (channel << DBDMA_CHANNEL_SHIFT)) >> 2;
 
-    DBDMA_DPRINTF("writel 0x" TARGET_FMT_plx " <= 0x%08x\n", addr, value);
+    DBDMA_DPRINTF("writel 0x" TARGET_FMT_plx " <= 0x%08"PRIx64"\n",
+                  addr, value);
     DBDMA_DPRINTF("channel 0x%x reg 0x%x\n",
                   (uint32_t)addr >> DBDMA_CHANNEL_SHIFT, reg);
 
-    /* cmdptr cannot be modified if channel is RUN or ACTIVE */
+    /* cmdptr cannot be modified if channel is ACTIVE */
 
-    if (reg == DBDMA_CMDPTR_LO &&
-        (ch->regs[DBDMA_STATUS] & (RUN | ACTIVE)))
-	return;
+    if (reg == DBDMA_CMDPTR_LO && (ch->regs[DBDMA_STATUS] & ACTIVE)) {
+        return;
+    }
 
     ch->regs[reg] = value;
 
@@ -814,8 +719,7 @@ static const VMStateDescription vmstate_dbdma_channel = {
     .name = "dbdma_channel",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, struct DBDMA_channel, DBDMA_REGS),
         VMSTATE_END_OF_LIST()
     }
@@ -825,8 +729,7 @@ static const VMStateDescription vmstate_dbdma = {
     .name = "dbdma",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(channels, DBDMAState, DBDMA_CHANNELS, 1,
                              vmstate_dbdma_channel, DBDMA_channel),
         VMSTATE_END_OF_LIST()
@@ -845,15 +748,21 @@ static void dbdma_reset(void *opaque)
 void* DBDMA_init (MemoryRegion **dbdma_mem)
 {
     DBDMAState *s;
+    int i;
 
     s = g_malloc0(sizeof(DBDMAState));
 
-    memory_region_init_io(&s->mem, &dbdma_ops, s, "dbdma", 0x1000);
+    for (i = 0; i < DBDMA_CHANNELS; i++) {
+        DBDMA_io *io = &s->channels[i].io;
+        qemu_iovec_init(&io->iov, 1);
+    }
+
+    memory_region_init_io(&s->mem, NULL, &dbdma_ops, s, "dbdma", 0x1000);
     *dbdma_mem = &s->mem;
     vmstate_register(NULL, -1, &vmstate_dbdma, s);
     qemu_register_reset(dbdma_reset, s);
 
-    dbdma_bh = qemu_bh_new(DBDMA_run_bh, s);
+    s->bh = qemu_bh_new(DBDMA_run_bh, s);
 
     return s;
 }

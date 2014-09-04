@@ -7,6 +7,7 @@
 typedef struct QemuMutex QemuMutex;
 typedef struct QemuCond QemuCond;
 typedef struct QemuSemaphore QemuSemaphore;
+typedef struct QemuEvent QemuEvent;
 typedef struct QemuThread QemuThread;
 
 #ifdef _WIN32
@@ -45,12 +46,19 @@ void qemu_sem_wait(QemuSemaphore *sem);
 int qemu_sem_timedwait(QemuSemaphore *sem, int ms);
 void qemu_sem_destroy(QemuSemaphore *sem);
 
-void qemu_thread_create(QemuThread *thread,
+void qemu_event_init(QemuEvent *ev, bool init);
+void qemu_event_set(QemuEvent *ev);
+void qemu_event_reset(QemuEvent *ev);
+void qemu_event_wait(QemuEvent *ev);
+void qemu_event_destroy(QemuEvent *ev);
+
+void qemu_thread_create(QemuThread *thread, const char *name,
                         void *(*start_routine)(void *),
                         void *arg, int mode);
 void *qemu_thread_join(QemuThread *thread);
 void qemu_thread_get_self(QemuThread *thread);
 bool qemu_thread_is_self(QemuThread *thread);
 void qemu_thread_exit(void *retval);
+void qemu_thread_naming(bool enable);
 
 #endif

@@ -3,7 +3,9 @@
 
 /* CPU interfaces that are target independent.  */
 
+#ifndef CONFIG_USER_ONLY
 #include "exec/hwaddr.h"
+#endif
 
 #ifndef NEED_CPU_H
 #include "exec/poison.h"
@@ -43,19 +45,18 @@ typedef uintptr_t ram_addr_t;
 #  define RAM_ADDR_FMT "%" PRIxPTR
 #endif
 
+extern ram_addr_t ram_size;
+
 /* memory API */
 
 typedef void CPUWriteMemoryFunc(void *opaque, hwaddr addr, uint32_t value);
 typedef uint32_t CPUReadMemoryFunc(void *opaque, hwaddr addr);
 
 void qemu_ram_remap(ram_addr_t addr, ram_addr_t length);
-/* This should only be used for ram local to a device.  */
-void *qemu_get_ram_ptr(ram_addr_t addr);
-void qemu_put_ram_ptr(void *addr);
 /* This should not be used by devices.  */
-int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr);
-ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr);
+MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr);
 void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev);
+void qemu_ram_unset_idstr(ram_addr_t addr);
 
 void cpu_physical_memory_rw(hwaddr addr, uint8_t *buf,
                             int len, int is_write);
@@ -85,39 +86,42 @@ bool cpu_physical_memory_is_io(hwaddr phys_addr);
  */
 void qemu_flush_coalesced_mmio_buffer(void);
 
-uint32_t ldub_phys(hwaddr addr);
-uint32_t lduw_le_phys(hwaddr addr);
-uint32_t lduw_be_phys(hwaddr addr);
-uint32_t ldl_le_phys(hwaddr addr);
-uint32_t ldl_be_phys(hwaddr addr);
-uint64_t ldq_le_phys(hwaddr addr);
-uint64_t ldq_be_phys(hwaddr addr);
-void stb_phys(hwaddr addr, uint32_t val);
-void stw_le_phys(hwaddr addr, uint32_t val);
-void stw_be_phys(hwaddr addr, uint32_t val);
-void stl_le_phys(hwaddr addr, uint32_t val);
-void stl_be_phys(hwaddr addr, uint32_t val);
-void stq_le_phys(hwaddr addr, uint64_t val);
-void stq_be_phys(hwaddr addr, uint64_t val);
+uint32_t ldub_phys(AddressSpace *as, hwaddr addr);
+uint32_t lduw_le_phys(AddressSpace *as, hwaddr addr);
+uint32_t lduw_be_phys(AddressSpace *as, hwaddr addr);
+uint32_t ldl_le_phys(AddressSpace *as, hwaddr addr);
+uint32_t ldl_be_phys(AddressSpace *as, hwaddr addr);
+uint64_t ldq_le_phys(AddressSpace *as, hwaddr addr);
+uint64_t ldq_be_phys(AddressSpace *as, hwaddr addr);
+void stb_phys(AddressSpace *as, hwaddr addr, uint32_t val);
+void stw_le_phys(AddressSpace *as, hwaddr addr, uint32_t val);
+void stw_be_phys(AddressSpace *as, hwaddr addr, uint32_t val);
+void stl_le_phys(AddressSpace *as, hwaddr addr, uint32_t val);
+void stl_be_phys(AddressSpace *as, hwaddr addr, uint32_t val);
+void stq_le_phys(AddressSpace *as, hwaddr addr, uint64_t val);
+void stq_be_phys(AddressSpace *as, hwaddr addr, uint64_t val);
 
 #ifdef NEED_CPU_H
-uint32_t lduw_phys(hwaddr addr);
-uint32_t ldl_phys(hwaddr addr);
-uint64_t ldq_phys(hwaddr addr);
-void stl_phys_notdirty(hwaddr addr, uint32_t val);
-void stq_phys_notdirty(hwaddr addr, uint64_t val);
-void stw_phys(hwaddr addr, uint32_t val);
-void stl_phys(hwaddr addr, uint32_t val);
-void stq_phys(hwaddr addr, uint64_t val);
+uint32_t lduw_phys(AddressSpace *as, hwaddr addr);
+uint32_t ldl_phys(AddressSpace *as, hwaddr addr);
+uint64_t ldq_phys(AddressSpace *as, hwaddr addr);
+void stl_phys_notdirty(AddressSpace *as, hwaddr addr, uint32_t val);
+void stw_phys(AddressSpace *as, hwaddr addr, uint32_t val);
+void stl_phys(AddressSpace *as, hwaddr addr, uint32_t val);
+void stq_phys(AddressSpace *as, hwaddr addr, uint64_t val);
 #endif
 
-void cpu_physical_memory_write_rom(hwaddr addr,
+void cpu_physical_memory_write_rom(AddressSpace *as, hwaddr addr,
                                    const uint8_t *buf, int len);
+void cpu_flush_icache_range(hwaddr start, int len);
 
-extern struct MemoryRegion io_mem_ram;
 extern struct MemoryRegion io_mem_rom;
-extern struct MemoryRegion io_mem_unassigned;
 extern struct MemoryRegion io_mem_notdirty;
+
+typedef void (RAMBlockIterFunc)(void *host_addr,
+    ram_addr_t offset, ram_addr_t length, void *opaque);
+
+void qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque);
 
 #endif
 

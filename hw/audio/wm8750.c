@@ -23,8 +23,12 @@ typedef struct {
     int dac_hz;
 } WMRate;
 
-typedef struct {
-    I2CSlave i2c;
+#define TYPE_WM8750 "wm8750"
+#define WM8750(obj) OBJECT_CHECK(WM8750State, (obj), TYPE_WM8750)
+
+typedef struct WM8750State {
+    I2CSlave parent_obj;
+
     uint8_t i2c_data[2];
     int i2c_len;
     QEMUSoundCard card;
@@ -256,7 +260,8 @@ static void wm8750_clk_update(WM8750State *s, int ext)
 
 static void wm8750_reset(I2CSlave *i2c)
 {
-    WM8750State *s = (WM8750State *) i2c;
+    WM8750State *s = WM8750(i2c);
+
     s->rate = &wm_rate_table[0];
     s->enable = 0;
     wm8750_clk_update(s, 1);
@@ -299,7 +304,7 @@ static void wm8750_reset(I2CSlave *i2c)
 
 static void wm8750_event(I2CSlave *i2c, enum i2c_event event)
 {
-    WM8750State *s = (WM8750State *) i2c;
+    WM8750State *s = WM8750(i2c);
 
     switch (event) {
     case I2C_START_SEND:
@@ -356,7 +361,7 @@ static void wm8750_event(I2CSlave *i2c, enum i2c_event event)
 
 static int wm8750_tx(I2CSlave *i2c, uint8_t data)
 {
-    WM8750State *s = (WM8750State *) i2c;
+    WM8750State *s = WM8750(i2c);
     uint8_t cmd;
     uint16_t value;
 
@@ -542,7 +547,7 @@ static int wm8750_tx(I2CSlave *i2c, uint8_t data)
         break;
 
     case WM8750_RESET:	/* Reset */
-        wm8750_reset(&s->i2c);
+        wm8750_reset(I2C_SLAVE(s));
         break;
 
 #ifdef VERBOSE
@@ -578,10 +583,9 @@ static const VMStateDescription vmstate_wm8750 = {
     .name = CODEC,
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .pre_save = wm8750_pre_save,
     .post_load = wm8750_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT8_ARRAY(i2c_data, WM8750State, 2),
         VMSTATE_INT32(i2c_len, WM8750State),
         VMSTATE_INT32(enable, WM8750State),
@@ -604,17 +608,17 @@ static const VMStateDescription vmstate_wm8750 = {
         VMSTATE_UINT8(format, WM8750State),
         VMSTATE_UINT8(power, WM8750State),
         VMSTATE_UINT8(rate_vmstate, WM8750State),
-        VMSTATE_I2C_SLAVE(i2c, WM8750State),
+        VMSTATE_I2C_SLAVE(parent_obj, WM8750State),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static int wm8750_init(I2CSlave *i2c)
 {
-    WM8750State *s = FROM_I2C_SLAVE(WM8750State, i2c);
+    WM8750State *s = WM8750(i2c);
 
     AUD_register_card(CODEC, &s->card);
-    wm8750_reset(&s->i2c);
+    wm8750_reset(I2C_SLAVE(s));
 
     return 0;
 }
@@ -622,8 +626,9 @@ static int wm8750_init(I2CSlave *i2c)
 #if 0
 static void wm8750_fini(I2CSlave *i2c)
 {
-    WM8750State *s = (WM8750State *) i2c;
-    wm8750_reset(&s->i2c);
+    WM8750State *s = WM8750(i2c);
+
+    wm8750_reset(I2C_SLAVE(s));
     AUD_remove_card(&s->card);
     g_free(s);
 }
@@ -632,7 +637,8 @@ static void wm8750_fini(I2CSlave *i2c)
 void wm8750_data_req_set(DeviceState *dev,
                 void (*data_req)(void *, int, int), void *opaque)
 {
-    WM8750State *s = FROM_I2C_SLAVE(WM8750State, I2C_SLAVE(dev));
+    WM8750State *s = WM8750(dev);
+
     s->data_req = data_req;
     s->opaque = opaque;
 }
@@ -702,7 +708,7 @@ static void wm8750_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo wm8750_info = {
-    .name          = "wm8750",
+    .name          = TYPE_WM8750,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(WM8750State),
     .class_init    = wm8750_class_init,

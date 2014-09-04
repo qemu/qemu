@@ -42,10 +42,11 @@
 #include "hw/boards.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
+#include "sysemu/qtest.h"
 
 static const int sector_len = 128 * 1024;
 
-static void connex_init(QEMUMachineInitArgs *args)
+static void connex_init(MachineState *machine)
 {
     PXA2xxState *cpu;
     DriveInfo *dinfo;
@@ -58,7 +59,7 @@ static void connex_init(QEMUMachineInitArgs *args)
     cpu = pxa255_init(address_space_mem, connex_ram);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    if (!dinfo) {
+    if (!dinfo && !qtest_enabled()) {
         fprintf(stderr, "A flash image must be given with the "
                 "'pflash' parameter\n");
         exit(1);
@@ -70,7 +71,8 @@ static void connex_init(QEMUMachineInitArgs *args)
     be = 0;
 #endif
     if (!pflash_cfi01_register(0x00000000, NULL, "connext.rom", connex_rom,
-                               dinfo->bdrv, sector_len, connex_rom / sector_len,
+                               dinfo ? dinfo->bdrv : NULL,
+                               sector_len, connex_rom / sector_len,
                                2, 0, 0, 0, 0, be)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");
         exit(1);
@@ -81,9 +83,9 @@ static void connex_init(QEMUMachineInitArgs *args)
                     qdev_get_gpio_in(cpu->gpio, 36));
 }
 
-static void verdex_init(QEMUMachineInitArgs *args)
+static void verdex_init(MachineState *machine)
 {
-    const char *cpu_model = args->cpu_model;
+    const char *cpu_model = machine->cpu_model;
     PXA2xxState *cpu;
     DriveInfo *dinfo;
     int be;
@@ -95,7 +97,7 @@ static void verdex_init(QEMUMachineInitArgs *args)
     cpu = pxa270_init(address_space_mem, verdex_ram, cpu_model ?: "pxa270-c0");
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    if (!dinfo) {
+    if (!dinfo && !qtest_enabled()) {
         fprintf(stderr, "A flash image must be given with the "
                 "'pflash' parameter\n");
         exit(1);
@@ -107,7 +109,8 @@ static void verdex_init(QEMUMachineInitArgs *args)
     be = 0;
 #endif
     if (!pflash_cfi01_register(0x00000000, NULL, "verdex.rom", verdex_rom,
-                               dinfo->bdrv, sector_len, verdex_rom / sector_len,
+                               dinfo ? dinfo->bdrv : NULL,
+                               sector_len, verdex_rom / sector_len,
                                2, 0, 0, 0, 0, be)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");
         exit(1);
@@ -122,14 +125,12 @@ static QEMUMachine connex_machine = {
     .name = "connex",
     .desc = "Gumstix Connex (PXA255)",
     .init = connex_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine verdex_machine = {
     .name = "verdex",
     .desc = "Gumstix Verdex (PXA270)",
     .init = verdex_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void gumstix_machine_init(void)

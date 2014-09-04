@@ -61,20 +61,22 @@ typedef struct VirtioBusClass {
      * transport independent exit function.
      * This is called by virtio-bus just before the device is unplugged.
      */
-    void (*device_unplug)(DeviceState *d);
+    void (*device_unplugged)(DeviceState *d);
+    /*
+     * Does the transport have variable vring alignment?
+     * (ie can it ever call virtio_queue_set_align()?)
+     * Note that changing this will break migration for this transport.
+     */
+    bool has_variable_vring_alignment;
 } VirtioBusClass;
 
 struct VirtioBusState {
     BusState parent_obj;
-    /*
-     * Only one VirtIODevice can be plugged on the bus.
-     */
-    VirtIODevice *vdev;
 };
 
-int virtio_bus_plug_device(VirtIODevice *vdev);
+int virtio_bus_device_plugged(VirtIODevice *vdev);
 void virtio_bus_reset(VirtioBusState *bus);
-void virtio_bus_destroy_device(VirtioBusState *bus);
+void virtio_bus_device_unplugged(VirtIODevice *bus);
 /* Get the device id of the plugged device. */
 uint16_t virtio_bus_get_vdev_id(VirtioBusState *bus);
 /* Get the config_len field of the plugged device. */
@@ -91,5 +93,17 @@ uint32_t virtio_bus_get_vdev_bad_features(VirtioBusState *bus);
 void virtio_bus_get_vdev_config(VirtioBusState *bus, uint8_t *config);
 /* Set config of the plugged device. */
 void virtio_bus_set_vdev_config(VirtioBusState *bus, uint8_t *config);
+
+static inline VirtIODevice *virtio_bus_get_device(VirtioBusState *bus)
+{
+    BusState *qbus = &bus->parent_obj;
+    BusChild *kid = QTAILQ_FIRST(&qbus->children);
+    DeviceState *qdev = kid ? kid->child : NULL;
+
+    /* This is used on the data path, the cast is guaranteed
+     * to succeed by the qdev machinery.
+     */
+    return (VirtIODevice *)qdev;
+}
 
 #endif /* VIRTIO_BUS_H */

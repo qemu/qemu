@@ -1,0 +1,98 @@
+#!/bin/bash
+#
+# qcow1 format input validation tests
+#
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+    rm -f $TEST_IMG.snap
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow
+_supported_proto generic
+_supported_os Linux
+
+offset_backing_file_offset=8
+offset_backing_file_size=16
+offset_size=24
+offset_cluster_bits=32
+offset_l2_bits=33
+
+echo
+echo "== Invalid cluster size =="
+_make_test_img 64M
+poke_file "$TEST_IMG" "$offset_cluster_bits" "\xff"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+poke_file "$TEST_IMG" "$offset_cluster_bits" "\x1f"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+poke_file "$TEST_IMG" "$offset_cluster_bits" "\x08"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+poke_file "$TEST_IMG" "$offset_cluster_bits" "\x11"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== Invalid L2 table size =="
+_make_test_img 64M
+poke_file "$TEST_IMG" "$offset_l2_bits" "\xff"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+poke_file "$TEST_IMG" "$offset_l2_bits" "\x05"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+poke_file "$TEST_IMG" "$offset_l2_bits" "\x0e"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+# 1 << 0x1b = 2^31 / L2_CACHE_SIZE
+poke_file "$TEST_IMG" "$offset_l2_bits" "\x1b"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== Invalid size =="
+_make_test_img 64M
+poke_file "$TEST_IMG" "$offset_size" "\xee\xee\xee\xee\xee\xee\xee\xee"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+poke_file "$TEST_IMG" "$offset_size" "\x7f\xff\xff\xff\xff\xff\xff\xff"
+{ $QEMU_IO -c "write 0 64M" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== Invalid backing file length =="
+_make_test_img 64M
+poke_file "$TEST_IMG" "$offset_backing_file_offset" "\x00\x00\x00\xff"
+poke_file "$TEST_IMG" "$offset_backing_file_size" "\xff\xff\xff\xff"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+poke_file "$TEST_IMG" "$offset_backing_file_size" "\x7f\xff\xff\xff"
+{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

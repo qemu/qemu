@@ -383,11 +383,15 @@ static const Exynos4210PmuReg exynos4210_pmu_regs[] = {
     {"GPS_ALIVE_OPTION", GPS_ALIVE_OPTION, 0x00000001},
 };
 
-#define PMU_NUM_OF_REGISTERS     \
-    (sizeof(exynos4210_pmu_regs) / sizeof(Exynos4210PmuReg))
+#define PMU_NUM_OF_REGISTERS ARRAY_SIZE(exynos4210_pmu_regs)
+
+#define TYPE_EXYNOS4210_PMU "exynos4210.pmu"
+#define EXYNOS4210_PMU(obj) \
+    OBJECT_CHECK(Exynos4210PmuState, (obj), TYPE_EXYNOS4210_PMU)
 
 typedef struct Exynos4210PmuState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t reg[PMU_NUM_OF_REGISTERS];
 } Exynos4210PmuState;
@@ -443,8 +447,7 @@ static const MemoryRegionOps exynos4210_pmu_ops = {
 
 static void exynos4210_pmu_reset(DeviceState *dev)
 {
-    Exynos4210PmuState *s =
-            container_of(dev, Exynos4210PmuState, busdev.qdev);
+    Exynos4210PmuState *s = EXYNOS4210_PMU(dev);
     unsigned i;
 
     /* Set default values for registers */
@@ -455,11 +458,11 @@ static void exynos4210_pmu_reset(DeviceState *dev)
 
 static int exynos4210_pmu_init(SysBusDevice *dev)
 {
-    Exynos4210PmuState *s = FROM_SYSBUS(Exynos4210PmuState, dev);
+    Exynos4210PmuState *s = EXYNOS4210_PMU(dev);
 
     /* memory mapping */
-    memory_region_init_io(&s->iomem, &exynos4210_pmu_ops, s, "exynos4210.pmu",
-                          EXYNOS4210_PMU_REGS_MEM_SIZE);
+    memory_region_init_io(&s->iomem, OBJECT(dev), &exynos4210_pmu_ops, s,
+                          "exynos4210.pmu", EXYNOS4210_PMU_REGS_MEM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
@@ -468,7 +471,7 @@ static const VMStateDescription exynos4210_pmu_vmstate = {
     .name = "exynos4210.pmu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(reg, Exynos4210PmuState, PMU_NUM_OF_REGISTERS),
         VMSTATE_END_OF_LIST()
     }
@@ -485,7 +488,7 @@ static void exynos4210_pmu_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo exynos4210_pmu_info = {
-    .name          = "exynos4210.pmu",
+    .name          = TYPE_EXYNOS4210_PMU,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210PmuState),
     .class_init    = exynos4210_pmu_class_init,

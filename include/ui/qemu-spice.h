@@ -18,6 +18,8 @@
 #ifndef QEMU_SPICE_H
 #define QEMU_SPICE_H
 
+#include "config-host.h"
+
 #ifdef CONFIG_SPICE
 
 #include <spice.h>
@@ -31,9 +33,11 @@ extern int using_spice;
 void qemu_spice_init(void);
 void qemu_spice_input_init(void);
 void qemu_spice_audio_init(void);
-void qemu_spice_display_init(DisplayState *ds);
+void qemu_spice_display_init(void);
 int qemu_spice_display_add_client(int csock, int skipauth, int tls);
 int qemu_spice_add_interface(SpiceBaseInstance *sin);
+bool qemu_spice_have_display_interface(QemuConsole *con);
+int qemu_spice_add_display_interface(QXLInstance *qxlin, QemuConsole *con);
 int qemu_spice_set_passwd(const char *passwd,
                           bool fail_if_connected, bool disconnect_if_connected);
 int qemu_spice_set_pw_expire(time_t expires);
@@ -57,6 +61,7 @@ static inline CharDriverState *qemu_chr_open_spice_port(const char *name)
 #include "monitor/monitor.h"
 
 #define using_spice 0
+#define spice_displays 0
 static inline int qemu_spice_set_passwd(const char *passwd,
                                         bool fail_if_connected,
                                         bool disconnect_if_connected)

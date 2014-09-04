@@ -5,6 +5,8 @@
 #include "qemu-common.h"
 #include "qemu/bswap.h"
 
+#define ALIGNED_ONLY
+
 #if !defined(TARGET_SPARC64)
 #define TARGET_LONG_BITS 32
 #define TARGET_DPREGS 16
@@ -271,6 +273,7 @@ typedef struct sparc_def_t {
 #define CPU_FEATURE_ASR17        (1 << 15)
 #define CPU_FEATURE_CACHE_CTRL   (1 << 16)
 #define CPU_FEATURE_POWERDOWN    (1 << 17)
+#define CPU_FEATURE_CASA         (1 << 18)
 
 #ifndef TARGET_SPARC64
 #define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \
@@ -282,7 +285,8 @@ typedef struct sparc_def_t {
                               CPU_FEATURE_MUL | CPU_FEATURE_DIV |     \
                               CPU_FEATURE_FLUSH | CPU_FEATURE_FSQRT | \
                               CPU_FEATURE_FMUL | CPU_FEATURE_VIS1 |   \
-                              CPU_FEATURE_VIS2 | CPU_FEATURE_FSMULD)
+                              CPU_FEATURE_VIS2 | CPU_FEATURE_FSMULD | \
+                              CPU_FEATURE_CASA)
 enum {
     mmu_us_12, // Ultrasparc < III (64 entry TLB)
     mmu_us_3,  // Ultrasparc III (512 entry TLB)
@@ -370,7 +374,7 @@ struct CPUTimer
     uint32_t    disabled;
     uint64_t    disabled_mask;
     int64_t     clock_offset;
-    struct QEMUTimer  *qtimer;
+    QEMUTimer  *qtimer;
 };
 
 typedef struct CPUTimer CPUTimer;
@@ -421,6 +425,7 @@ struct CPUSPARCState {
 
     CPU_COMMON
 
+    /* Fields from here on are preserved across CPU reset. */
     target_ulong version;
     uint32_t nwindows;
 
@@ -519,16 +524,14 @@ SPARCCPU *cpu_sparc_init(const char *cpu_model);
 void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu);
 void sparc_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 /* mmu_helper.c */
-int cpu_sparc_handle_mmu_fault(CPUSPARCState *env1, target_ulong address, int rw,
+int sparc_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
                                int mmu_idx);
-#define cpu_handle_mmu_fault cpu_sparc_handle_mmu_fault
 target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev);
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUSPARCState *env);
 
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
-int target_memory_rw_debug(CPUSPARCState *env, target_ulong addr,
-                           uint8_t *buf, int len, int is_write);
-#define TARGET_CPU_MEMORY_RW_DEBUG
+int sparc_cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
+                              uint8_t *buf, int len, bool is_write);
 #endif
 
 
@@ -582,8 +585,9 @@ static inline int tlb_compare_context(const SparcTLBEntry *tlb,
 
 /* cpu-exec.c */
 #if !defined(CONFIG_USER_ONLY)
-void cpu_unassigned_access(CPUSPARCState *env1, hwaddr addr,
-                           int is_write, int is_exec, int is_asi, int size);
+void sparc_cpu_unassigned_access(CPUState *cpu, hwaddr addr,
+                                 bool is_write, bool is_exec, int is_asi,
+                                 unsigned size);
 #if defined(TARGET_SPARC64)
 hwaddr cpu_get_phys_page_nofault(CPUSPARCState *env, target_ulong addr,
                                            int mmu_idx);
@@ -689,18 +693,6 @@ static inline int cpu_pil_allowed(CPUSPARCState *env1, int pil)
 #endif
 }
 
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUSPARCState *env, target_ulong newsp)
-{
-    if (newsp)
-        env->regwptr[22] = newsp;
-    env->regwptr[0] = 0;
-    /* FIXME: Do we also need to clear CF?  */
-    /* XXXXX */
-    printf ("HELPME: %s:%d\n", __FILE__, __LINE__);
-}
-#endif
-
 #include "exec/cpu-all.h"
 
 #ifdef TARGET_SPARC64
@@ -759,21 +751,6 @@ static inline bool tb_am_enabled(int tb_flags)
 #endif
 }
 
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    SPARCCPU *sparc_cpu = SPARC_CPU(cpu);
-    CPUSPARCState *env1 = &sparc_cpu->env;
-
-    return (cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
-           cpu_interrupts_enabled(env1);
-}
-
 #include "exec/exec-all.h"
-
-static inline void cpu_pc_from_tb(CPUSPARCState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-    env->npc = tb->cs_base;
-}
 
 #endif

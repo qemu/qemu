@@ -166,9 +166,9 @@ static void l2cap_retransmission_timer_update(struct l2cap_chan_s *ch)
 {
 #if 0
     if (ch->mode != L2CAP_MODE_BASIC && ch->rexmit)
-        qemu_mod_timer(ch->retransmission_timer);
+        timer_mod(ch->retransmission_timer);
     else
-        qemu_del_timer(ch->retransmission_timer);
+        timer_del(ch->retransmission_timer);
 #endif
 }
 
@@ -176,9 +176,9 @@ static void l2cap_monitor_timer_update(struct l2cap_chan_s *ch)
 {
 #if 0
     if (ch->mode != L2CAP_MODE_BASIC && !ch->rexmit)
-        qemu_mod_timer(ch->monitor_timer);
+        timer_mod(ch->monitor_timer);
     else
-        qemu_del_timer(ch->monitor_timer);
+        timer_del(ch->monitor_timer);
 #endif
 }
 

@@ -24,7 +24,7 @@
 #ifndef TCG_TARGET_S390 
 #define TCG_TARGET_S390 1
 
-#define TCG_TARGET_WORDS_BIGENDIAN
+#define TCG_TARGET_INSN_UNIT_SIZE 2
 
 typedef enum TCGReg {
     TCG_REG_R0 = 0,
@@ -69,6 +69,9 @@ typedef enum TCGReg {
 #define TCG_TARGET_HAS_sub2_i32         1
 #define TCG_TARGET_HAS_mulu2_i32        0
 #define TCG_TARGET_HAS_muls2_i32        0
+#define TCG_TARGET_HAS_muluh_i32        0
+#define TCG_TARGET_HAS_mulsh_i32        0
+#define TCG_TARGET_HAS_trunc_shr_i32    0
 
 #define TCG_TARGET_HAS_div2_i64         1
 #define TCG_TARGET_HAS_rot_i64          1
@@ -94,6 +97,8 @@ typedef enum TCGReg {
 #define TCG_TARGET_HAS_sub2_i64         1
 #define TCG_TARGET_HAS_mulu2_i64        1
 #define TCG_TARGET_HAS_muls2_i64        0
+#define TCG_TARGET_HAS_muluh_i64        0
+#define TCG_TARGET_HAS_mulsh_i64        0
 
 extern bool tcg_target_deposit_valid(int ofs, int len);
 #define TCG_TARGET_deposit_i32_valid  tcg_target_deposit_valid
@@ -110,8 +115,7 @@ enum {
     TCG_AREG0 = TCG_REG_R10,
 };
 
-static inline void flush_icache_range(tcg_target_ulong start,
-                                      tcg_target_ulong stop)
+static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
 }
 

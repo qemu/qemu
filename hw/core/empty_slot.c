@@ -22,8 +22,12 @@
 #define DPRINTF(fmt, ...) do {} while (0)
 #endif
 
+#define TYPE_EMPTY_SLOT "empty_slot"
+#define EMPTY_SLOT(obj) OBJECT_CHECK(EmptySlot, (obj), TYPE_EMPTY_SLOT)
+
 typedef struct EmptySlot {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint64_t size;
 } EmptySlot;
@@ -55,9 +59,9 @@ void empty_slot_init(hwaddr addr, uint64_t slot_size)
         SysBusDevice *s;
         EmptySlot *e;
 
-        dev = qdev_create(NULL, "empty_slot");
+        dev = qdev_create(NULL, TYPE_EMPTY_SLOT);
         s = SYS_BUS_DEVICE(dev);
-        e = FROM_SYSBUS(EmptySlot, s);
+        e = EMPTY_SLOT(dev);
         e->size = slot_size;
 
         qdev_init_nofail(dev);
@@ -68,9 +72,9 @@ void empty_slot_init(hwaddr addr, uint64_t slot_size)
 
 static int empty_slot_init1(SysBusDevice *dev)
 {
-    EmptySlot *s = FROM_SYSBUS(EmptySlot, dev);
+    EmptySlot *s = EMPTY_SLOT(dev);
 
-    memory_region_init_io(&s->iomem, &empty_slot_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &empty_slot_ops, s,
                           "empty-slot", s->size);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;
@@ -84,7 +88,7 @@ static void empty_slot_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo empty_slot_info = {
-    .name          = "empty_slot",
+    .name          = TYPE_EMPTY_SLOT,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(EmptySlot),
     .class_init    = empty_slot_class_init,

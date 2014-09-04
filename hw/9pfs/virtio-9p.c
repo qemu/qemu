@@ -299,9 +299,7 @@ static int v9fs_xattr_fid_clunk(V9fsPDU *pdu, V9fsFidState *fidp)
 free_out:
     v9fs_string_free(&fidp->fs.xattr.name);
 free_value:
-    if (fidp->fs.xattr.value) {
-        g_free(fidp->fs.xattr.value);
-    }
+    g_free(fidp->fs.xattr.value);
     return retval;
 }
 
@@ -987,8 +985,9 @@ static void v9fs_attach(void *opaque)
      */
     if (!s->migration_blocker) {
         s->root_fid = fid;
-        error_set(&s->migration_blocker, QERR_VIRTFS_FEATURE_BLOCKS_MIGRATION,
-                  s->ctx.fs_root ? s->ctx.fs_root : "NULL", s->tag);
+        error_setg(&s->migration_blocker,
+                   "Migration is disabled when VirtFS export path '%s' is mounted in the guest using mount_tag '%s'",
+                   s->ctx.fs_root ? s->ctx.fs_root : "NULL", s->tag);
         migrate_add_blocker(s->migration_blocker);
     }
 out:
@@ -1080,10 +1079,18 @@ static void v9fs_getattr(void *opaque)
     /*  fill st_gen if requested and supported by underlying fs */
     if (request_mask & P9_STATS_GEN) {
         retval = v9fs_co_st_gen(pdu, &fidp->path, stbuf.st_mode, &v9stat_dotl);
-        if (retval < 0) {
+        switch (retval) {
+        case 0:
+            /* we have valid st_gen: update result mask */
+            v9stat_dotl.st_result_mask |= P9_STATS_GEN;
+            break;
+        case -EINTR:
+            /* request cancelled, e.g. by Tflush */
             goto out;
+        default:
+            /* failed to get st_gen: not fatal, ignore */
+            break;
         }
-        v9stat_dotl.st_result_mask |= P9_STATS_GEN;
     }
     retval = pdu_marshal(pdu, offset, "A", &v9stat_dotl);
     if (retval < 0) {

@@ -23,14 +23,29 @@ typedef struct SysBusDevice SysBusDevice;
 #define SYS_BUS_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(SysBusDeviceClass, (obj), TYPE_SYS_BUS_DEVICE)
 
+/**
+ * SysBusDeviceClass:
+ * @init: Callback function invoked when the #DeviceState.realized property
+ * is changed to %true. Deprecated, new types inheriting directly from
+ * TYPE_SYS_BUS_DEVICE should use #DeviceClass.realize instead, new leaf
+ * types should consult their respective parent type.
+ *
+ * SysBusDeviceClass is not overriding #DeviceClass.realize, so derived
+ * classes overriding it are not required to invoke its implementation.
+ */
 typedef struct SysBusDeviceClass {
+    /*< private >*/
     DeviceClass parent_class;
+    /*< public >*/
 
     int (*init)(SysBusDevice *dev);
 } SysBusDeviceClass;
 
 struct SysBusDevice {
-    DeviceState qdev;
+    /*< private >*/
+    DeviceState parent_obj;
+    /*< public >*/
+
     int num_irq;
     qemu_irq irqs[QDEV_MAX_IRQ];
     qemu_irq *irqp[QDEV_MAX_IRQ];
@@ -43,10 +58,6 @@ struct SysBusDevice {
     pio_addr_t pio[QDEV_MAX_PIO];
 };
 
-/* Macros to compensate for lack of type inheritance in C.  */
-#define FROM_SYSBUS(type, dev) DO_UPCAST(type, busdev, dev)
-
-void *sysbus_new(void);
 void sysbus_init_mmio(SysBusDevice *dev, MemoryRegion *memory);
 MemoryRegion *sysbus_mmio_get_region(SysBusDevice *dev, int n);
 void sysbus_init_irq(SysBusDevice *dev, qemu_irq *p);
@@ -57,7 +68,7 @@ void sysbus_init_ioports(SysBusDevice *dev, pio_addr_t ioport, pio_addr_t size);
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq);
 void sysbus_mmio_map(SysBusDevice *dev, int n, hwaddr addr);
 void sysbus_mmio_map_overlap(SysBusDevice *dev, int n, hwaddr addr,
-                             unsigned priority);
+                             int priority);
 void sysbus_add_io(SysBusDevice *dev, hwaddr addr,
                    MemoryRegion *mem);
 void sysbus_del_io(SysBusDevice *dev, MemoryRegion *mem);

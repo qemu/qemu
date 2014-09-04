@@ -108,12 +108,15 @@ struct bt_device_s {
     uint16_t clkoff;	/* Note: Always little-endian */
 };
 
+extern struct HCIInfo null_hci;
 /* bt.c */
 void bt_device_init(struct bt_device_s *dev, struct bt_scatternet_s *net);
 void bt_device_done(struct bt_device_s *dev);
+struct bt_scatternet_s *qemu_find_bt_vlan(int id);
 
 /* bt-hci.c */
 struct HCIInfo *bt_new_hci(struct bt_scatternet_s *net);
+struct HCIInfo *hci_init(const char *str);
 
 /* bt-vhci.c */
 void bt_vhci_init(struct HCIInfo *info);
@@ -640,8 +643,8 @@ typedef struct {
 #define OCF_SETUP_SYNC_CONN		0x0028
 typedef struct {
     uint16_t	handle;
-    uint32_t	tx_bandwith;
-    uint32_t	rx_bandwith;
+    uint32_t	tx_bandwidth;
+    uint32_t	rx_bandwidth;
     uint16_t	max_latency;
     uint16_t	voice_setting;
     uint8_t	retrans_effort;
@@ -652,8 +655,8 @@ typedef struct {
 #define OCF_ACCEPT_SYNC_CONN_REQ	0x0029
 typedef struct {
     bdaddr_t	bdaddr;
-    uint32_t	tx_bandwith;
-    uint32_t	rx_bandwith;
+    uint32_t	tx_bandwidth;
+    uint32_t	rx_bandwidth;
     uint16_t	max_latency;
     uint16_t	voice_setting;
     uint8_t	retrans_effort;

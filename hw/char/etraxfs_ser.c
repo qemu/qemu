@@ -44,9 +44,13 @@
 #define STAT_TR_IDLE 22
 #define STAT_TR_RDY  24
 
-struct etrax_serial
-{
-    SysBusDevice busdev;
+#define TYPE_ETRAX_FS_SERIAL "etraxfs,serial"
+#define ETRAX_SERIAL(obj) \
+    OBJECT_CHECK(ETRAXSerial, (obj), TYPE_ETRAX_FS_SERIAL)
+
+typedef struct ETRAXSerial {
+    SysBusDevice parent_obj;
+
     MemoryRegion mmio;
     CharDriverState *chr;
     qemu_irq irq;
@@ -59,9 +63,9 @@ struct etrax_serial
 
     /* Control registers.  */
     uint32_t regs[R_MAX];
-};
+} ETRAXSerial;
 
-static void ser_update_irq(struct etrax_serial *s)
+static void ser_update_irq(ETRAXSerial *s)
 {
 
     if (s->rx_fifo_len) {
@@ -77,7 +81,7 @@ static void ser_update_irq(struct etrax_serial *s)
 static uint64_t
 ser_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    struct etrax_serial *s = opaque;
+    ETRAXSerial *s = opaque;
     uint32_t r = 0;
 
     addr >>= 2;
@@ -112,7 +116,7 @@ static void
 ser_write(void *opaque, hwaddr addr,
           uint64_t val64, unsigned int size)
 {
-    struct etrax_serial *s = opaque;
+    ETRAXSerial *s = opaque;
     uint32_t value = val64;
     unsigned char ch = val64;
 
@@ -156,7 +160,7 @@ static const MemoryRegionOps ser_ops = {
 
 static void serial_receive(void *opaque, const uint8_t *buf, int size)
 {
-    struct etrax_serial *s = opaque;
+    ETRAXSerial *s = opaque;
     int i;
 
     /* Got a byte.  */
@@ -177,7 +181,7 @@ static void serial_receive(void *opaque, const uint8_t *buf, int size)
 
 static int serial_can_receive(void *opaque)
 {
-    struct etrax_serial *s = opaque;
+    ETRAXSerial *s = opaque;
     int r;
 
     /* Is the receiver enabled?  */
@@ -196,7 +200,7 @@ static void serial_event(void *opaque, int event)
 
 static void etraxfs_ser_reset(DeviceState *d)
 {
-    struct etrax_serial *s = container_of(d, typeof(*s), busdev.qdev);
+    ETRAXSerial *s = ETRAX_SERIAL(d);
 
     /* transmitter begins ready and idle.  */
     s->regs[RS_STAT_DIN] |= (1 << STAT_TR_RDY);
@@ -208,17 +212,19 @@ static void etraxfs_ser_reset(DeviceState *d)
 
 static int etraxfs_ser_init(SysBusDevice *dev)
 {
-    struct etrax_serial *s = FROM_SYSBUS(typeof (*s), dev);
+    ETRAXSerial *s = ETRAX_SERIAL(dev);
 
     sysbus_init_irq(dev, &s->irq);
-    memory_region_init_io(&s->mmio, &ser_ops, s, "etraxfs-serial", R_MAX * 4);
+    memory_region_init_io(&s->mmio, OBJECT(s), &ser_ops, s,
+                          "etraxfs-serial", R_MAX * 4);
     sysbus_init_mmio(dev, &s->mmio);
 
     s->chr = qemu_char_get_next_serial();
-    if (s->chr)
+    if (s->chr) {
         qemu_chr_add_handlers(s->chr,
-                      serial_can_receive, serial_receive,
-                      serial_event, s);
+                              serial_can_receive, serial_receive,
+                              serial_event, s);
+    }
     return 0;
 }
 
@@ -232,9 +238,9 @@ static void etraxfs_ser_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo etraxfs_ser_info = {
-    .name          = "etraxfs,serial",
+    .name          = TYPE_ETRAX_FS_SERIAL,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(struct etrax_serial),
+    .instance_size = sizeof(ETRAXSerial),
     .class_init    = etraxfs_ser_class_init,
 };
 

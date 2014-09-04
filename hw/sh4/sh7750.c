@@ -416,7 +416,7 @@ static void sh7750_mem_writel(void *opaque, hwaddr addr,
     case SH7750_PTEH_A7:
         /* If asid changes, clear all registered tlb entries. */
         if ((s->cpu->env.pteh & 0xff) != (mem_value & 0xff)) {
-            tlb_flush(&s->cpu->env, 1);
+            tlb_flush(CPU(s->cpu), 1);
         }
         s->cpu->env.pteh = mem_value;
         return;
@@ -730,34 +730,34 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
     s = g_malloc0(sizeof(SH7750State));
     s->cpu = cpu;
     s->periph_freq = 60000000;	/* 60MHz */
-    memory_region_init_io(&s->iomem, &sh7750_mem_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &sh7750_mem_ops, s,
                           "memory", 0x1fc01000);
 
-    memory_region_init_alias(&s->iomem_1f0, "memory-1f0",
+    memory_region_init_alias(&s->iomem_1f0, NULL, "memory-1f0",
                              &s->iomem, 0x1f000000, 0x1000);
     memory_region_add_subregion(sysmem, 0x1f000000, &s->iomem_1f0);
 
-    memory_region_init_alias(&s->iomem_ff0, "memory-ff0",
+    memory_region_init_alias(&s->iomem_ff0, NULL, "memory-ff0",
                              &s->iomem, 0x1f000000, 0x1000);
     memory_region_add_subregion(sysmem, 0xff000000, &s->iomem_ff0);
 
-    memory_region_init_alias(&s->iomem_1f8, "memory-1f8",
+    memory_region_init_alias(&s->iomem_1f8, NULL, "memory-1f8",
                              &s->iomem, 0x1f800000, 0x1000);
     memory_region_add_subregion(sysmem, 0x1f800000, &s->iomem_1f8);
 
-    memory_region_init_alias(&s->iomem_ff8, "memory-ff8",
+    memory_region_init_alias(&s->iomem_ff8, NULL, "memory-ff8",
                              &s->iomem, 0x1f800000, 0x1000);
     memory_region_add_subregion(sysmem, 0xff800000, &s->iomem_ff8);
 
-    memory_region_init_alias(&s->iomem_1fc, "memory-1fc",
+    memory_region_init_alias(&s->iomem_1fc, NULL, "memory-1fc",
                              &s->iomem, 0x1fc00000, 0x1000);
     memory_region_add_subregion(sysmem, 0x1fc00000, &s->iomem_1fc);
 
-    memory_region_init_alias(&s->iomem_ffc, "memory-ffc",
+    memory_region_init_alias(&s->iomem_ffc, NULL, "memory-ffc",
                              &s->iomem, 0x1fc00000, 0x1000);
     memory_region_add_subregion(sysmem, 0xffc00000, &s->iomem_ffc);
 
-    memory_region_init_io(&s->mmct_iomem, &sh7750_mmct_ops, s,
+    memory_region_init_io(&s->mmct_iomem, NULL, &sh7750_mmct_ops, s,
                           "cache-and-tlb", 0x08000000);
     memory_region_add_subregion(sysmem, 0xf0000000, &s->mmct_iomem);
 
@@ -838,6 +838,5 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
 qemu_irq sh7750_irl(SH7750State *s)
 {
     sh_intc_toggle_source(sh_intc_source(&s->intc, IRL), 1, 0); /* enable */
-    return qemu_allocate_irqs(sh_intc_set_irl, sh_intc_source(&s->intc, IRL),
-                               1)[0];
+    return qemu_allocate_irq(sh_intc_set_irl, sh_intc_source(&s->intc, IRL), 0);
 }

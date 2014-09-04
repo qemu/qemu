@@ -124,7 +124,7 @@ static void mb_add_mod(MultibootState *s,
     s->mb_mods_count++;
 }
 
-int load_multiboot(void *fw_cfg,
+int load_multiboot(FWCfgState *fw_cfg,
                    FILE *f,
                    const char *kernel_filename,
                    const char *initrd_filename,
@@ -315,8 +315,6 @@ int load_multiboot(void *fw_cfg,
                                 | MULTIBOOT_FLAGS_CMDLINE
                                 | MULTIBOOT_FLAGS_MODULES
                                 | MULTIBOOT_FLAGS_MMAP);
-    stl_p(bootinfo + MBI_MEM_LOWER,   640);
-    stl_p(bootinfo + MBI_MEM_UPPER,   (ram_size / 1024) - 1024);
     stl_p(bootinfo + MBI_BOOT_DEVICE, 0x8000ffff); /* XXX: use the -boot switch? */
     stl_p(bootinfo + MBI_MMAP_ADDR,   ADDR_E820_MAP);
 

@@ -1,0 +1,266 @@
+Vhost-user Protocol
+===================
+
+Copyright (c) 2014 Virtual Open Systems Sarl.
+
+This work is licensed under the terms of the GNU GPL, version 2 or later.
+See the COPYING file in the top-level directory.
+===================
+
+This protocol is aiming to complement the ioctl interface used to control the
+vhost implementation in the Linux kernel. It implements the control plane needed
+to establish virtqueue sharing with a user space process on the same host. It
+uses communication over a Unix domain socket to share file descriptors in the
+ancillary data of the message.
+
+The protocol defines 2 sides of the communication, master and slave. Master is
+the application that shares its virtqueues, in our case QEMU. Slave is the
+consumer of the virtqueues.
+
+In the current implementation QEMU is the Master, and the Slave is intended to
+be a software Ethernet switch running in user space, such as Snabbswitch.
+
+Master and slave can be either a client (i.e. connecting) or server (listening)
+in the socket communication.
+
+Message Specification
+---------------------
+
+Note that all numbers are in the machine native byte order. A vhost-user message
+consists of 3 header fields and a payload:
+
+------------------------------------
+| request | flags | size | payload |
+------------------------------------
+
+ * Request: 32-bit type of the request
+ * Flags: 32-bit bit field:
+   - Lower 2 bits are the version (currently 0x01)
+   - Bit 2 is the reply flag - needs to be sent on each reply from the slave
+ * Size - 32-bit size of the payload
+
+
+Depending on the request type, payload can be:
+
+ * A single 64-bit integer
+   -------
+   | u64 |
+   -------
+
+   u64: a 64-bit unsigned integer
+
+ * A vring state description
+   ---------------
+  | index | num |
+  ---------------
+
+   Index: a 32-bit index
+   Num: a 32-bit number
+
+ * A vring address description
+   --------------------------------------------------------------
+   | index | flags | size | descriptor | used | available | log |
+   --------------------------------------------------------------
+
+   Index: a 32-bit vring index
+   Flags: a 32-bit vring flags
+   Descriptor: a 64-bit user address of the vring descriptor table
+   Used: a 64-bit user address of the vring used ring
+   Available: a 64-bit user address of the vring available ring
+   Log: a 64-bit guest address for logging
+
+ * Memory regions description
+   ---------------------------------------------------
+   | num regions | padding | region0 | ... | region7 |
+   ---------------------------------------------------
+
+   Num regions: a 32-bit number of regions
+   Padding: 32-bit
+
+   A region is:
+   -----------------------------------------------------
+   | guest address | size | user address | mmap offset |
+   -----------------------------------------------------
+
+   Guest address: a 64-bit guest address of the region
+   Size: a 64-bit size
+   User address: a 64-bit user address
+   mmap offset: 64-bit offset where region starts in the mapped memory
+
+In QEMU the vhost-user message is implemented with the following struct:
+
+typedef struct VhostUserMsg {
+    VhostUserRequest request;
+    uint32_t flags;
+    uint32_t size;
+    union {
+        uint64_t u64;
+        struct vhost_vring_state state;
+        struct vhost_vring_addr addr;
+        VhostUserMemory memory;
+    };
+} QEMU_PACKED VhostUserMsg;
+
+Communication
+-------------
+
+The protocol for vhost-user is based on the existing implementation of vhost
+for the Linux Kernel. Most messages that can be sent via the Unix domain socket
+implementing vhost-user have an equivalent ioctl to the kernel implementation.
+
+The communication consists of master sending message requests and slave sending
+message replies. Most of the requests don't require replies. Here is a list of
+the ones that do:
+
+ * VHOST_GET_FEATURES
+ * VHOST_GET_VRING_BASE
+
+There are several messages that the master sends with file descriptors passed
+in the ancillary data:
+
+ * VHOST_SET_MEM_TABLE
+ * VHOST_SET_LOG_FD
+ * VHOST_SET_VRING_KICK
+ * VHOST_SET_VRING_CALL
+ * VHOST_SET_VRING_ERR
+
+If Master is unable to send the full message or receives a wrong reply it will
+close the connection. An optional reconnection mechanism can be implemented.
+
+Message types
+-------------
+
+ * VHOST_USER_GET_FEATURES
+
+      Id: 1
+      Equivalent ioctl: VHOST_GET_FEATURES
+      Master payload: N/A
+      Slave payload: u64
+
+      Get from the underlying vhost implementation the features bitmask.
+
+ * VHOST_USER_SET_FEATURES
+
+      Id: 2
+      Ioctl: VHOST_SET_FEATURES
+      Master payload: u64
+
+      Enable features in the underlying vhost implementation using a bitmask.
+
+ * VHOST_USER_SET_OWNER
+
+      Id: 3
+      Equivalent ioctl: VHOST_SET_OWNER
+      Master payload: N/A
+
+      Issued when a new connection is established. It sets the current Master
+      as an owner of the session. This can be used on the Slave as a
+      "session start" flag.
+
+ * VHOST_USER_RESET_OWNER
+
+      Id: 4
+      Equivalent ioctl: VHOST_RESET_OWNER
+      Master payload: N/A
+
+      Issued when a new connection is about to be closed. The Master will no
+      longer own this connection (and will usually close it).
+
+ * VHOST_USER_SET_MEM_TABLE
+
+      Id: 5
+      Equivalent ioctl: VHOST_SET_MEM_TABLE
+      Master payload: memory regions description
+
+      Sets the memory map regions on the slave so it can translate the vring
+      addresses. In the ancillary data there is an array of file descriptors
+      for each memory mapped region. The size and ordering of the fds matches
+      the number and ordering of memory regions.
+
+ * VHOST_USER_SET_LOG_BASE
+
+      Id: 6
+      Equivalent ioctl: VHOST_SET_LOG_BASE
+      Master payload: u64
+
+      Sets the logging base address.
+
+ * VHOST_USER_SET_LOG_FD
+
+      Id: 7
+      Equivalent ioctl: VHOST_SET_LOG_FD
+      Master payload: N/A
+
+      Sets the logging file descriptor, which is passed as ancillary data.
+
+ * VHOST_USER_SET_VRING_NUM
+
+      Id: 8
+      Equivalent ioctl: VHOST_SET_VRING_NUM
+      Master payload: vring state description
+
+      Sets the number of vrings for this owner.
+
+ * VHOST_USER_SET_VRING_ADDR
+
+      Id: 9
+      Equivalent ioctl: VHOST_SET_VRING_ADDR
+      Master payload: vring address description
+      Slave payload: N/A
+
+      Sets the addresses of the different aspects of the vring.
+
+ * VHOST_USER_SET_VRING_BASE
+
+      Id: 10
+      Equivalent ioctl: VHOST_SET_VRING_BASE
+      Master payload: vring state description
+
+      Sets the base offset in the available vring.
+
+ * VHOST_USER_GET_VRING_BASE
+
+      Id: 11
+      Equivalent ioctl: VHOST_USER_GET_VRING_BASE
+      Master payload: vring state description
+      Slave payload: vring state description
+
+      Get the available vring base offset.
+
+ * VHOST_USER_SET_VRING_KICK
+
+      Id: 12
+      Equivalent ioctl: VHOST_SET_VRING_KICK
+      Master payload: u64
+
+      Set the event file descriptor for adding buffers to the vring. It
+      is passed in the ancillary data.
+      Bits (0-7) of the payload contain the vring index. Bit 8 is the
+      invalid FD flag. This flag is set when there is no file descriptor
+      in the ancillary data. This signals that polling should be used
+      instead of waiting for a kick.
+
+ * VHOST_USER_SET_VRING_CALL
+
+      Id: 13
+      Equivalent ioctl: VHOST_SET_VRING_CALL
+      Master payload: u64
+
+      Set the event file descriptor to signal when buffers are used. It
+      is passed in the ancillary data.
+      Bits (0-7) of the payload contain the vring index. Bit 8 is the
+      invalid FD flag. This flag is set when there is no file descriptor
+      in the ancillary data. This signals that polling will be used
+      instead of waiting for the call.
+
+ * VHOST_USER_SET_VRING_ERR
+
+      Id: 14
+      Equivalent ioctl: VHOST_SET_VRING_ERR
+      Master payload: u64
+
+      Set the event file descriptor to signal when error occurs. It
+      is passed in the ancillary data.
+      Bits (0-7) of the payload contain the vring index. Bit 8 is the
+      invalid FD flag. This flag is set when there is no file descriptor
+      in the ancillary data.

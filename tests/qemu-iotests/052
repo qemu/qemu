@@ -39,21 +39,22 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 
 _supported_fmt generic
-_supported_proto generic
+_supported_proto file
 _supported_os Linux
-
+_default_cache_mode "writethrough"
+_supported_cache_modes "writethrough"
 
 size=128M
 _make_test_img $size
 
 echo
 echo "== reading whole image =="
-$QEMU_IO -s -c "read 0 $size" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -s -c "read 0 $size" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== writing whole image does not modify image =="
-$QEMU_IO -s -c "write -P 0xa 0 $size" $TEST_IMG | _filter_qemu_io
-$QEMU_IO -c "read -P 0 0 $size" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -s -c "write -P 0xa 0 $size" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 0 $size" "$TEST_IMG" | _filter_qemu_io
 
 # success, all done
 echo "*** done"

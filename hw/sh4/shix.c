@@ -30,16 +30,18 @@
 #include "hw/hw.h"
 #include "hw/sh4/sh.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
+#include "qemu/error-report.h"
 
 #define BIOS_FILENAME "shix_bios.bin"
 #define BIOS_ADDRESS 0xA0000000
 
-static void shix_init(QEMUMachineInitArgs *args)
+static void shix_init(MachineState *machine)
 {
-    const char *cpu_model = args->cpu_model;
+    const char *cpu_model = machine->cpu_model;
     int ret;
     SuperHCPU *cpu;
     struct SH7750State *s;
@@ -50,7 +52,6 @@ static void shix_init(QEMUMachineInitArgs *args)
     if (!cpu_model)
         cpu_model = "any";
 
-    printf("Initializing CPU\n");
     cpu = cpu_sh4_init(cpu_model);
     if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
@@ -58,37 +59,30 @@ static void shix_init(QEMUMachineInitArgs *args)
     }
 
     /* Allocate memory space */
-    printf("Allocating ROM\n");
-    memory_region_init_ram(rom, "shix.rom", 0x4000);
+    memory_region_init_ram(rom, NULL, "shix.rom", 0x4000);
     vmstate_register_ram_global(rom);
     memory_region_set_readonly(rom, true);
     memory_region_add_subregion(sysmem, 0x00000000, rom);
-    printf("Allocating SDRAM 1\n");
-    memory_region_init_ram(&sdram[0], "shix.sdram1", 0x01000000);
+    memory_region_init_ram(&sdram[0], NULL, "shix.sdram1", 0x01000000);
     vmstate_register_ram_global(&sdram[0]);
     memory_region_add_subregion(sysmem, 0x08000000, &sdram[0]);
-    printf("Allocating SDRAM 2\n");
-    memory_region_init_ram(&sdram[1], "shix.sdram2", 0x01000000);
+    memory_region_init_ram(&sdram[1], NULL, "shix.sdram2", 0x01000000);
     vmstate_register_ram_global(&sdram[1]);
     memory_region_add_subregion(sysmem, 0x0c000000, &sdram[1]);
 
     /* Load BIOS in 0 (and access it through P2, 0xA0000000) */
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
-    printf("%s: load BIOS '%s'\n", __func__, bios_name);
     ret = load_image_targphys(bios_name, 0, 0x4000);
-    if (ret < 0) {		/* Check bios size */
-	fprintf(stderr, "ret=%d\n", ret);
-	fprintf(stderr, "qemu: could not load SHIX bios '%s'\n",
-		bios_name);
-	exit(1);
+    if (ret < 0 && !qtest_enabled()) {
+        error_report("Could not load SHIX bios '%s'", bios_name);
+        exit(1);
     }
 
     /* Register peripherals */
     s = sh7750_init(cpu, sysmem);
     /* XXXXX Check success */
     tc58128_init(s, "shix_linux_nand.bin", NULL);
-    fprintf(stderr, "initialization terminated\n");
 }
 
 static QEMUMachine shix_machine = {
@@ -96,7 +90,6 @@ static QEMUMachine shix_machine = {
     .desc = "shix card",
     .init = shix_init,
     .is_default = 1,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void shix_machine_init(void)

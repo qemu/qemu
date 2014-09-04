@@ -17,6 +17,7 @@
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/i386/pc.h"
+#include "sysemu/qtest.h"
 
 #undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
@@ -73,7 +74,7 @@ static void puv3_board_init(CPUUniCore32State *env, ram_addr_t ram_size)
     MemoryRegion *ram_memory = g_new(MemoryRegion, 1);
 
     /* SDRAM at address zero.  */
-    memory_region_init_ram(ram_memory, "puv3.ram", ram_size);
+    memory_region_init_ram(ram_memory, NULL, "puv3.ram", ram_size);
     vmstate_register_ram_global(ram_memory);
     memory_region_add_subregion(get_system_memory(), 0, ram_memory);
 }
@@ -84,6 +85,9 @@ static void puv3_load_kernel(const char *kernel_filename)
 {
     int size;
 
+    if (kernel_filename == NULL && qtest_enabled()) {
+        return;
+    }
     assert(kernel_filename != NULL);
 
     /* only zImage format supported */
@@ -94,15 +98,15 @@ static void puv3_load_kernel(const char *kernel_filename)
     }
 
     /* cheat curses that we have a graphic console, only under ocd console */
-    graphic_console_init(NULL, &no_ops, NULL);
+    graphic_console_init(NULL, 0, &no_ops, NULL);
 }
 
-static void puv3_init(QEMUMachineInitArgs *args)
+static void puv3_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *initrd_filename = args->initrd_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *initrd_filename = machine->initrd_filename;
     CPUUniCore32State *env;
 
     if (initrd_filename) {
@@ -128,7 +132,6 @@ static QEMUMachine puv3_machine = {
     .desc = "PKUnity Version-3 based on UniCore32",
     .init = puv3_init,
     .is_default = 1,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void puv3_machine_init(void)

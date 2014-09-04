@@ -43,6 +43,8 @@
 #include "hw/timer/i8254.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
+#include "sysemu/qtest.h"
+#include "qemu/error-report.h"
 
 #define DEBUG_FULONG2E_INIT
 
@@ -126,7 +128,7 @@ static int64_t load_kernel (CPUMIPSState *env)
     if (loaderparams.initrd_filename) {
         initrd_size = get_image_size (loaderparams.initrd_filename);
         if (initrd_size > 0) {
-            initrd_offset = (kernel_high + ~TARGET_PAGE_MASK) & TARGET_PAGE_MASK;
+            initrd_offset = (kernel_high + ~INITRD_PAGE_MASK) & INITRD_PAGE_MASK;
             if (initrd_offset + initrd_size > ram_size) {
                 fprintf(stderr,
                         "qemu: memory too small for initial ram disk '%s'\n",
@@ -176,24 +178,24 @@ static void write_bootloader (CPUMIPSState *env, uint8_t *base, int64_t kernel_a
     /* Small bootloader */
     p = (uint32_t *) base;
 
-    stl_raw(p++, 0x0bf00010);                                      /* j 0x1fc00040 */
-    stl_raw(p++, 0x00000000);                                      /* nop */
+    stl_p(p++, 0x0bf00010);                                      /* j 0x1fc00040 */
+    stl_p(p++, 0x00000000);                                      /* nop */
 
     /* Second part of the bootloader */
     p = (uint32_t *) (base + 0x040);
 
-    stl_raw(p++, 0x3c040000);                                      /* lui a0, 0 */
-    stl_raw(p++, 0x34840002);                                      /* ori a0, a0, 2 */
-    stl_raw(p++, 0x3c050000 | ((ENVP_ADDR >> 16) & 0xffff));       /* lui a1, high(ENVP_ADDR) */
-    stl_raw(p++, 0x34a50000 | (ENVP_ADDR & 0xffff));               /* ori a1, a0, low(ENVP_ADDR) */
-    stl_raw(p++, 0x3c060000 | (((ENVP_ADDR + 8) >> 16) & 0xffff)); /* lui a2, high(ENVP_ADDR + 8) */
-    stl_raw(p++, 0x34c60000 | ((ENVP_ADDR + 8) & 0xffff));         /* ori a2, a2, low(ENVP_ADDR + 8) */
-    stl_raw(p++, 0x3c070000 | (loaderparams.ram_size >> 16));      /* lui a3, high(env->ram_size) */
-    stl_raw(p++, 0x34e70000 | (loaderparams.ram_size & 0xffff));   /* ori a3, a3, low(env->ram_size) */
-    stl_raw(p++, 0x3c1f0000 | ((kernel_addr >> 16) & 0xffff));     /* lui ra, high(kernel_addr) */;
-    stl_raw(p++, 0x37ff0000 | (kernel_addr & 0xffff));             /* ori ra, ra, low(kernel_addr) */
-    stl_raw(p++, 0x03e00008);                                      /* jr ra */
-    stl_raw(p++, 0x00000000);                                      /* nop */
+    stl_p(p++, 0x3c040000);                                      /* lui a0, 0 */
+    stl_p(p++, 0x34840002);                                      /* ori a0, a0, 2 */
+    stl_p(p++, 0x3c050000 | ((ENVP_ADDR >> 16) & 0xffff));       /* lui a1, high(ENVP_ADDR) */
+    stl_p(p++, 0x34a50000 | (ENVP_ADDR & 0xffff));               /* ori a1, a0, low(ENVP_ADDR) */
+    stl_p(p++, 0x3c060000 | (((ENVP_ADDR + 8) >> 16) & 0xffff)); /* lui a2, high(ENVP_ADDR + 8) */
+    stl_p(p++, 0x34c60000 | ((ENVP_ADDR + 8) & 0xffff));         /* ori a2, a2, low(ENVP_ADDR + 8) */
+    stl_p(p++, 0x3c070000 | (loaderparams.ram_size >> 16));      /* lui a3, high(env->ram_size) */
+    stl_p(p++, 0x34e70000 | (loaderparams.ram_size & 0xffff));   /* ori a3, a3, low(env->ram_size) */
+    stl_p(p++, 0x3c1f0000 | ((kernel_addr >> 16) & 0xffff));     /* lui ra, high(kernel_addr) */;
+    stl_p(p++, 0x37ff0000 | (kernel_addr & 0xffff));             /* ori ra, ra, low(kernel_addr) */
+    stl_p(p++, 0x03e00008);                                      /* jr ra */
+    stl_p(p++, 0x00000000);                                      /* nop */
 }
 
 
@@ -209,7 +211,7 @@ static void main_cpu_reset(void *opaque)
     }
 }
 
-uint8_t eeprom_spd[0x80] = {
+static const uint8_t eeprom_spd[0x80] = {
     0x80,0x08,0x07,0x0d,0x09,0x02,0x40,0x00,0x04,0x70,
     0x70,0x00,0x82,0x10,0x00,0x01,0x0e,0x04,0x0c,0x01,
     0x02,0x20,0x80,0x75,0x70,0x00,0x00,0x50,0x3c,0x50,
@@ -231,7 +233,7 @@ static void audio_init (PCIBus *pci_bus)
 }
 
 /* Network support */
-static void network_init (void)
+static void network_init (PCIBus *pci_bus)
 {
     int i;
 
@@ -244,26 +246,26 @@ static void network_init (void)
             default_devaddr = "07";
         }
 
-        pci_nic_init_nofail(nd, "rtl8139", default_devaddr);
+        pci_nic_init_nofail(nd, pci_bus, "rtl8139", default_devaddr);
     }
 }
 
 static void cpu_request_exit(void *opaque, int irq, int level)
 {
-    CPUMIPSState *env = cpu_single_env;
+    CPUState *cpu = current_cpu;
 
-    if (env && level) {
-        cpu_exit(env);
+    if (cpu && level) {
+        cpu_exit(cpu);
     }
 }
 
-static void mips_fulong2e_init(QEMUMachineInitArgs *args)
+static void mips_fulong2e_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     char *filename;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
@@ -274,7 +276,7 @@ static void mips_fulong2e_init(QEMUMachineInitArgs *args)
     qemu_irq *cpu_exit_irq;
     PCIBus *pci_bus;
     ISABus *isa_bus;
-    i2c_bus *smbus;
+    I2CBus *smbus;
     int i;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     MIPSCPU *cpu;
@@ -300,9 +302,9 @@ static void mips_fulong2e_init(QEMUMachineInitArgs *args)
     bios_size = 1024 * 1024;
 
     /* allocate RAM */
-    memory_region_init_ram(ram, "fulong2e.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "fulong2e.ram", ram_size);
     vmstate_register_ram_global(ram);
-    memory_region_init_ram(bios, "fulong2e.bios", bios_size);
+    memory_region_init_ram(bios, NULL, "fulong2e.bios", bios_size);
     vmstate_register_ram_global(bios);
     memory_region_set_readonly(bios, true);
 
@@ -332,8 +334,9 @@ static void mips_fulong2e_init(QEMUMachineInitArgs *args)
             bios_size = -1;
         }
 
-        if ((bios_size < 0 || bios_size > BIOS_SIZE) && !kernel_filename) {
-            fprintf(stderr, "qemu: Could not load MIPS bios '%s'\n", bios_name);
+        if ((bios_size < 0 || bios_size > BIOS_SIZE) &&
+            !kernel_filename && !qtest_enabled()) {
+            error_report("Could not load MIPS bios '%s'", bios_name);
             exit(1);
         }
     }
@@ -393,14 +396,13 @@ static void mips_fulong2e_init(QEMUMachineInitArgs *args)
     /* Sound card */
     audio_init(pci_bus);
     /* Network card */
-    network_init();
+    network_init(pci_bus);
 }
 
 static QEMUMachine mips_fulong2e_machine = {
     .name = "fulong2e",
     .desc = "Fulong 2e mini pc",
     .init = mips_fulong2e_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void mips_fulong2e_machine_init(void)

@@ -75,18 +75,9 @@ static bool qdev_class_has_alias(DeviceClass *dc)
     return (qdev_class_get_alias(dc) != NULL);
 }
 
-static void qdev_print_devinfo(ObjectClass *klass, void *opaque)
+static void qdev_print_devinfo(DeviceClass *dc)
 {
-    DeviceClass *dc;
-    bool *show_no_user = opaque;
-
-    dc = (DeviceClass *)object_class_dynamic_cast(klass, TYPE_DEVICE);
-
-    if (!dc || (show_no_user && !*show_no_user && dc->no_user)) {
-        return;
-    }
-
-    error_printf("name \"%s\"", object_class_get_name(klass));
+    error_printf("name \"%s\"", object_class_get_name(OBJECT_CLASS(dc)));
     if (dc->bus_type) {
         error_printf(", bus %s", dc->bus_type);
     }
@@ -96,15 +87,65 @@ static void qdev_print_devinfo(ObjectClass *klass, void *opaque)
     if (dc->desc) {
         error_printf(", desc \"%s\"", dc->desc);
     }
-    if (dc->no_user) {
+    if (dc->cannot_instantiate_with_device_add_yet) {
         error_printf(", no-user");
     }
     error_printf("\n");
 }
 
+static gint devinfo_cmp(gconstpointer a, gconstpointer b)
+{
+    return strcasecmp(object_class_get_name((ObjectClass *)a),
+                      object_class_get_name((ObjectClass *)b));
+}
+
+static void qdev_print_devinfos(bool show_no_user)
+{
+    static const char *cat_name[DEVICE_CATEGORY_MAX + 1] = {
+        [DEVICE_CATEGORY_BRIDGE]  = "Controller/Bridge/Hub",
+        [DEVICE_CATEGORY_USB]     = "USB",
+        [DEVICE_CATEGORY_STORAGE] = "Storage",
+        [DEVICE_CATEGORY_NETWORK] = "Network",
+        [DEVICE_CATEGORY_INPUT]   = "Input",
+        [DEVICE_CATEGORY_DISPLAY] = "Display",
+        [DEVICE_CATEGORY_SOUND]   = "Sound",
+        [DEVICE_CATEGORY_MISC]    = "Misc",
+        [DEVICE_CATEGORY_MAX]     = "Uncategorized",
+    };
+    GSList *list, *elt;
+    int i;
+    bool cat_printed;
+
+    list = g_slist_sort(object_class_get_list(TYPE_DEVICE, false),
+                        devinfo_cmp);
+
+    for (i = 0; i <= DEVICE_CATEGORY_MAX; i++) {
+        cat_printed = false;
+        for (elt = list; elt; elt = elt->next) {
+            DeviceClass *dc = OBJECT_CLASS_CHECK(DeviceClass, elt->data,
+                                                 TYPE_DEVICE);
+            if ((i < DEVICE_CATEGORY_MAX
+                 ? !test_bit(i, dc->categories)
+                 : !bitmap_empty(dc->categories, DEVICE_CATEGORY_MAX))
+                || (!show_no_user
+                    && dc->cannot_instantiate_with_device_add_yet)) {
+                continue;
+            }
+            if (!cat_printed) {
+                error_printf("%s%s devices:\n", i ? "\n" : "",
+                             cat_name[i]);
+                cat_printed = true;
+            }
+            qdev_print_devinfo(dc);
+        }
+    }
+
+    g_slist_free(list);
+}
+
 static int set_property(const char *name, const char *value, void *opaque)
 {
-    DeviceState *dev = opaque;
+    Object *obj = opaque;
     Error *err = NULL;
 
     if (strcmp(name, "driver") == 0)
@@ -112,7 +153,7 @@ static int set_property(const char *name, const char *value, void *opaque)
     if (strcmp(name, "bus") == 0)
         return 0;
 
-    qdev_prop_parse(dev, name, value, &err);
+    object_property_parse(obj, value, name, &err);
     if (err != NULL) {
         qerror_report_err(err);
         error_free(err);
@@ -147,8 +188,7 @@ int qdev_device_help(QemuOpts *opts)
 
     driver = qemu_opt_get(opts, "driver");
     if (driver && is_help_option(driver)) {
-        bool show_no_user = false;
-        object_class_foreach(qdev_print_devinfo, TYPE_DEVICE, false, &show_no_user);
+        qdev_print_devinfos(false);
         return 1;
     }
 
@@ -166,7 +206,7 @@ int qdev_device_help(QemuOpts *opts)
         }
     }
 
-    if (!klass) {
+    if (!object_class_dynamic_cast(klass, TYPE_DEVICE)) {
         return 0;
     }
     do {
@@ -360,7 +400,7 @@ static BusState *qbus_find(const char *path)
 
         /* find device */
         if (sscanf(path+pos, "%127[^/]%n", elem, &len) != 1) {
-            assert(0);
+            g_assert_not_reached();
             elem[0] = len = 0;
         }
         pos += len;
@@ -382,12 +422,14 @@ static BusState *qbus_find(const char *path)
              * one child bus accept it nevertheless */
             switch (dev->num_child_bus) {
             case 0:
-                qerror_report(QERR_DEVICE_NO_BUS, elem);
+                qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                              "Device '%s' has no child bus", elem);
                 return NULL;
             case 1:
                 return QLIST_FIRST(&dev->child_bus);
             default:
-                qerror_report(QERR_DEVICE_MULTIPLE_BUSSES, elem);
+                qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                              "Device '%s' has multiple child busses", elem);
                 if (!monitor_cur_is_qmp()) {
                     qbus_list_bus(dev);
                 }
@@ -397,7 +439,7 @@ static BusState *qbus_find(const char *path)
 
         /* find bus */
         if (sscanf(path+pos, "%127[^/]%n", elem, &len) != 1) {
-            assert(0);
+            g_assert_not_reached();
             elem[0] = len = 0;
         }
         pos += len;
@@ -414,11 +456,12 @@ static BusState *qbus_find(const char *path)
 
 DeviceState *qdev_device_add(QemuOpts *opts)
 {
-    ObjectClass *obj;
-    DeviceClass *k;
+    ObjectClass *oc;
+    DeviceClass *dc;
     const char *driver, *path, *id;
-    DeviceState *qdev;
+    DeviceState *dev;
     BusState *bus = NULL;
+    Error *err = NULL;
 
     driver = qemu_opt_get(opts, "driver");
     if (!driver) {
@@ -427,22 +470,34 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     }
 
     /* find driver */
-    obj = object_class_by_name(driver);
-    if (!obj) {
+    oc = object_class_by_name(driver);
+    if (!oc) {
         const char *typename = find_typename_by_alias(driver);
 
         if (typename) {
             driver = typename;
-            obj = object_class_by_name(driver);
+            oc = object_class_by_name(driver);
         }
     }
 
-    if (!obj) {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, "driver", "device type");
+    if (!object_class_dynamic_cast(oc, TYPE_DEVICE)) {
+        qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                      "'%s' is not a valid device model name", driver);
         return NULL;
     }
 
-    k = DEVICE_CLASS(obj);
+    if (object_class_is_abstract(oc)) {
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "driver",
+                      "non-abstract device type");
+        return NULL;
+    }
+
+    dc = DEVICE_CLASS(oc);
+    if (dc->cannot_instantiate_with_device_add_yet) {
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "driver",
+                      "pluggable device type");
+        return NULL;
+    }
 
     /* find bus */
     path = qemu_opt_get(opts, "bus");
@@ -451,16 +506,18 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         if (!bus) {
             return NULL;
         }
-        if (!object_dynamic_cast(OBJECT(bus), k->bus_type)) {
-            qerror_report(QERR_BAD_BUS_FOR_DEVICE,
+        if (!object_dynamic_cast(OBJECT(bus), dc->bus_type)) {
+            qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                          "Device '%s' can't go on a %s bus",
                           driver, object_get_typename(OBJECT(bus)));
             return NULL;
         }
-    } else if (k->bus_type != NULL) {
-        bus = qbus_find_recursive(sysbus_get_default(), NULL, k->bus_type);
+    } else if (dc->bus_type != NULL) {
+        bus = qbus_find_recursive(sysbus_get_default(), NULL, dc->bus_type);
         if (!bus) {
-            qerror_report(QERR_NO_BUS_FOR_DEVICE,
-                          k->bus_type, driver);
+            qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                          "No '%s' bus found for device '%s'",
+                          dc->bus_type, driver);
             return NULL;
         }
     }
@@ -469,37 +526,48 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         return NULL;
     }
 
-    /* create device, set properties */
-    qdev = DEVICE(object_new(driver));
+    /* create device */
+    dev = DEVICE(object_new(driver));
 
     if (bus) {
-        qdev_set_parent_bus(qdev, bus);
+        qdev_set_parent_bus(dev, bus);
     }
 
     id = qemu_opts_id(opts);
     if (id) {
-        qdev->id = id;
+        dev->id = id;
     }
-    if (qemu_opt_foreach(opts, set_property, qdev, 1) != 0) {
-        qdev_free(qdev);
-        return NULL;
-    }
-    if (qdev->id) {
-        object_property_add_child(qdev_get_peripheral(), qdev->id,
-                                  OBJECT(qdev), NULL);
+
+    if (dev->id) {
+        object_property_add_child(qdev_get_peripheral(), dev->id,
+                                  OBJECT(dev), NULL);
     } else {
         static int anon_count;
         gchar *name = g_strdup_printf("device[%d]", anon_count++);
         object_property_add_child(qdev_get_peripheral_anon(), name,
-                                  OBJECT(qdev), NULL);
+                                  OBJECT(dev), NULL);
         g_free(name);
-    }        
-    if (qdev_init(qdev) < 0) {
+    }
+
+    /* set properties */
+    if (qemu_opt_foreach(opts, set_property, dev, 1) != 0) {
+        object_unparent(OBJECT(dev));
+        object_unref(OBJECT(dev));
+        return NULL;
+    }
+
+    dev->opts = opts;
+    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    if (err != NULL) {
+        qerror_report_err(err);
+        error_free(err);
+        dev->opts = NULL;
+        object_unparent(OBJECT(dev));
+        object_unref(OBJECT(dev));
         qerror_report(QERR_DEVICE_INIT_FAILED, driver);
         return NULL;
     }
-    qdev->opts = opts;
-    return qdev;
+    return dev;
 }
 
 
@@ -518,7 +586,7 @@ static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
         if (object_property_get_type(OBJECT(dev), legacy_name, NULL)) {
             value = object_property_get_str(OBJECT(dev), legacy_name, &err);
         } else {
-            value = object_property_print(OBJECT(dev), props->name, &err);
+            value = object_property_print(OBJECT(dev), props->name, true, &err);
         }
         g_free(legacy_name);
 
@@ -545,14 +613,20 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     ObjectClass *class;
     BusState *child;
+    NamedGPIOList *ngl;
+
     qdev_printf("dev: %s, id \"%s\"\n", object_get_typename(OBJECT(dev)),
                 dev->id ? dev->id : "");
     indent += 2;
-    if (dev->num_gpio_in) {
-        qdev_printf("gpio-in %d\n", dev->num_gpio_in);
-    }
-    if (dev->num_gpio_out) {
-        qdev_printf("gpio-out %d\n", dev->num_gpio_out);
+    QLIST_FOREACH(ngl, &dev->gpios, node) {
+        if (ngl->num_in) {
+            qdev_printf("gpio-in \"%s\" %d\n", ngl->name ? ngl->name : "",
+                        ngl->num_in);
+        }
+        if (ngl->num_out) {
+            qdev_printf("gpio-out \"%s\" %d\n", ngl->name ? ngl->name : "",
+                        ngl->num_out);
+        }
     }
     class = object_get_class(OBJECT(dev));
     do {
@@ -587,7 +661,7 @@ void do_info_qtree(Monitor *mon, const QDict *qdict)
 
 void do_info_qdm(Monitor *mon, const QDict *qdict)
 {
-    object_class_foreach(qdev_print_devinfo, TYPE_DEVICE, false, NULL);
+    qdev_print_devinfos(true);
 }
 
 int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
@@ -597,7 +671,7 @@ int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
     DeviceState *dev;
 
     opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         qerror_report_err(local_err);
         error_free(local_err);
         return -1;
@@ -678,7 +752,7 @@ int qemu_global_option(const char *str)
         return -1;
     }
 
-    opts = qemu_opts_create_nofail(&qemu_global_opts);
+    opts = qemu_opts_create(&qemu_global_opts, NULL, 0, &error_abort);
     qemu_opt_set(opts, "driver", driver);
     qemu_opt_set(opts, "property", property);
     qemu_opt_set(opts, "value", str+offset+1);

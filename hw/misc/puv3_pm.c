@@ -14,8 +14,12 @@
 #undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_PUV3_PM "puv3_pm"
+#define PUV3_PM(obj) OBJECT_CHECK(PUV3PMState, (obj), TYPE_PUV3_PM)
+
+typedef struct PUV3PMState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
 
     uint32_t reg_PMCR;
@@ -116,11 +120,11 @@ static const MemoryRegionOps puv3_pm_ops = {
 
 static int puv3_pm_init(SysBusDevice *dev)
 {
-    PUV3PMState *s = FROM_SYSBUS(PUV3PMState, dev);
+    PUV3PMState *s = PUV3_PM(dev);
 
     s->reg_PCGR = 0x0;
 
-    memory_region_init_io(&s->iomem, &puv3_pm_ops, s, "puv3_pm",
+    memory_region_init_io(&s->iomem, OBJECT(s), &puv3_pm_ops, s, "puv3_pm",
             PUV3_REGS_OFFSET);
     sysbus_init_mmio(dev, &s->iomem);
 
@@ -135,7 +139,7 @@ static void puv3_pm_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo puv3_pm_info = {
-    .name = "puv3_pm",
+    .name = TYPE_PUV3_PM,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PUV3PMState),
     .class_init = puv3_pm_class_init,

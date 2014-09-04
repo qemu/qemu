@@ -46,7 +46,7 @@ typedef enum bitbang_i2c_state {
 } bitbang_i2c_state;
 
 struct bitbang_i2c_interface {
-    i2c_bus *bus;
+    I2CBus *bus;
     bitbang_i2c_state state;
     int last_data;
     int last_clock;
@@ -170,7 +170,7 @@ int bitbang_i2c_set(bitbang_i2c_interface *i2c, int line, int level)
     abort();
 }
 
-bitbang_i2c_interface *bitbang_i2c_init(i2c_bus *bus)
+bitbang_i2c_interface *bitbang_i2c_init(I2CBus *bus)
 {
     bitbang_i2c_interface *s;
 
@@ -185,8 +185,13 @@ bitbang_i2c_interface *bitbang_i2c_init(i2c_bus *bus)
 }
 
 /* GPIO interface.  */
-typedef struct {
-    SysBusDevice busdev;
+
+#define TYPE_GPIO_I2C "gpio_i2c"
+#define GPIO_I2C(obj) OBJECT_CHECK(GPIOI2CState, (obj), TYPE_GPIO_I2C)
+
+typedef struct GPIOI2CState {
+    SysBusDevice parent_obj;
+
     MemoryRegion dummy_iomem;
     bitbang_i2c_interface *bitbang;
     int last_level;
@@ -204,19 +209,20 @@ static void bitbang_i2c_gpio_set(void *opaque, int irq, int level)
     }
 }
 
-static int gpio_i2c_init(SysBusDevice *dev)
+static int gpio_i2c_init(SysBusDevice *sbd)
 {
-    GPIOI2CState *s = FROM_SYSBUS(GPIOI2CState, dev);
-    i2c_bus *bus;
+    DeviceState *dev = DEVICE(sbd);
+    GPIOI2CState *s = GPIO_I2C(dev);
+    I2CBus *bus;
 
-    memory_region_init(&s->dummy_iomem, "gpio_i2c", 0);
-    sysbus_init_mmio(dev, &s->dummy_iomem);
+    memory_region_init(&s->dummy_iomem, OBJECT(s), "gpio_i2c", 0);
+    sysbus_init_mmio(sbd, &s->dummy_iomem);
 
-    bus = i2c_init_bus(&dev->qdev, "i2c");
+    bus = i2c_init_bus(dev, "i2c");
     s->bitbang = bitbang_i2c_init(bus);
 
-    qdev_init_gpio_in(&dev->qdev, bitbang_i2c_gpio_set, 2);
-    qdev_init_gpio_out(&dev->qdev, &s->out, 1);
+    qdev_init_gpio_in(dev, bitbang_i2c_gpio_set, 2);
+    qdev_init_gpio_out(dev, &s->out, 1);
 
     return 0;
 }
@@ -227,11 +233,12 @@ static void gpio_i2c_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = gpio_i2c_init;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "Virtual GPIO to I2C bridge";
 }
 
 static const TypeInfo gpio_i2c_info = {
-    .name          = "gpio_i2c",
+    .name          = TYPE_GPIO_I2C,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GPIOI2CState),
     .class_init    = gpio_i2c_class_init,

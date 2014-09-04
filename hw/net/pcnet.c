@@ -718,7 +718,6 @@ static void pcnet_s_reset(PCNetState *s)
     s->csr[94]  = 0x0000;
     s->csr[100] = 0x0200;
     s->csr[103] = 0x0105;
-    s->csr[103] = 0x0105;
     s->csr[112] = 0x0000;
     s->csr[114] = 0x0000;
     s->csr[122] = 0x0000;
@@ -861,6 +860,8 @@ static void pcnet_init(PCNetState *s)
 
     s->csr[0] |= 0x0101;
     s->csr[0] &= ~0x0004;       /* clear STOP bit */
+
+    qemu_flush_queued_packets(qemu_get_queue(s->nic));
 }
 
 static void pcnet_start(PCNetState *s)
@@ -878,6 +879,8 @@ static void pcnet_start(PCNetState *s)
     s->csr[0] &= ~0x0004;       /* clear STOP bit */
     s->csr[0] |= 0x0002;
     pcnet_poll_timer(s);
+
+    qemu_flush_queued_packets(qemu_get_queue(s->nic));
 }
 
 static void pcnet_stop(PCNetState *s)
@@ -1327,7 +1330,7 @@ static void pcnet_poll_timer(void *opaque)
 {
     PCNetState *s = opaque;
 
-    qemu_del_timer(s->poll_timer);
+    timer_del(s->poll_timer);
 
     if (CSR_TDMD(s)) {
         pcnet_transmit(s);
@@ -1336,7 +1339,7 @@ static void pcnet_poll_timer(void *opaque)
     pcnet_update_irq(s);
 
     if (!CSR_STOP(s) && !CSR_SPND(s) && !CSR_DPOLL(s)) {
-        uint64_t now = qemu_get_clock_ns(vm_clock) * 33;
+        uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) * 33;
         if (!s->timer || !now)
             s->timer = now;
         else {
@@ -1347,8 +1350,8 @@ static void pcnet_poll_timer(void *opaque)
             } else
                 CSR_POLL(s) = t;
         }
-        qemu_mod_timer(s->poll_timer,
-            pcnet_get_next_poll_time(s,qemu_get_clock_ns(vm_clock)));
+        timer_mod(s->poll_timer,
+            pcnet_get_next_poll_time(s,qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)));
     }
 }
 
@@ -1697,8 +1700,7 @@ const VMStateDescription vmstate_pcnet = {
     .name = "pcnet",
     .version_id = 3,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_INT32(rap, PCNetState),
         VMSTATE_INT32(isr, PCNetState),
         VMSTATE_INT32(lnkst, PCNetState),
@@ -1727,7 +1729,7 @@ int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
     int i;
     uint16_t checksum;
 
-    s->poll_timer = qemu_new_timer_ns(vm_clock, pcnet_poll_timer, s);
+    s->poll_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, pcnet_poll_timer, s);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(info, &s->conf, object_get_typename(OBJECT(dev)), dev->id, s);

@@ -6,6 +6,7 @@
 #include <sys/time.h>
 #include <utime.h>
 #include <sys/resource.h>
+#include <glib.h>
 #include "hw/virtio/virtio.h"
 #include "fsdev/file-op-9p.h"
 #include "fsdev/virtio-9p-marshal.h"
@@ -112,10 +113,9 @@ enum p9_proto_version {
 
 #define FID_REFERENCED          0x1
 #define FID_NON_RECLAIMABLE     0x2
-static inline const char *rpath(FsContext *ctx, const char *path, char *buffer)
+static inline char *rpath(FsContext *ctx, const char *path)
 {
-    snprintf(buffer, PATH_MAX, "%s/%s", ctx->fs_root, path);
-    return buffer;
+    return g_strdup_printf("%s/%s", ctx->fs_root, path);
 }
 
 /*

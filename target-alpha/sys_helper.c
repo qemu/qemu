@@ -18,7 +18,7 @@
  */
 
 #include "cpu.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 
@@ -30,9 +30,9 @@ uint64_t helper_load_pcc(CPUAlphaState *env)
        In order to make OS-level time accounting work with the RPCC,
        present it with a well-timed clock fixed at 250MHz.  */
     return (((uint64_t)env->pcc_ofs << 32)
-            | (uint32_t)(qemu_get_clock_ns(vm_clock) >> 2));
+            | (uint32_t)(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >> 2));
 #else
-    /* In user-mode, vm_clock doesn't exist.  Just pass through the host cpu
+    /* In user-mode, QEMU_CLOCK_VIRTUAL doesn't exist.  Just pass through the host cpu
        clock ticks.  Also, don't bother taking PCC_OFS into account.  */
     return (uint32_t)cpu_get_real_ticks();
 #endif
@@ -51,14 +51,30 @@ void helper_hw_ret(CPUAlphaState *env, uint64_t a)
     }
 }
 
+void helper_call_pal(CPUAlphaState *env, uint64_t pc, uint64_t entry_ofs)
+{
+    int pal_mode = env->pal_mode;
+    env->exc_addr = pc | pal_mode;
+    env->pc = env->palbr + entry_ofs;
+    if (!pal_mode) {
+        env->pal_mode = 1;
+        swap_shadow_regs(env);
+    }
+}
+
 void helper_tbia(CPUAlphaState *env)
 {
-    tlb_flush(env, 1);
+    tlb_flush(CPU(alpha_env_get_cpu(env)), 1);
 }
 
 void helper_tbis(CPUAlphaState *env, uint64_t p)
 {
-    tlb_flush_page(env, p);
+    tlb_flush_page(CPU(alpha_env_get_cpu(env)), p);
+}
+
+void helper_tb_flush(CPUAlphaState *env)
+{
+    tb_flush(env);
 }
 
 void helper_halt(uint64_t restart)
@@ -70,9 +86,14 @@ void helper_halt(uint64_t restart)
     }
 }
 
-uint64_t helper_get_time(void)
+uint64_t helper_get_vmtime(void)
 {
-    return qemu_get_clock_ns(rtc_clock);
+    return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+}
+
+uint64_t helper_get_walltime(void)
+{
+    return qemu_clock_get_ns(rtc_clock);
 }
 
 void helper_set_alarm(CPUAlphaState *env, uint64_t expire)
@@ -81,9 +102,10 @@ void helper_set_alarm(CPUAlphaState *env, uint64_t expire)
 
     if (expire) {
         env->alarm_expire = expire;
-        qemu_mod_timer(cpu->alarm_timer, expire);
+        timer_mod(cpu->alarm_timer, expire);
     } else {
-        qemu_del_timer(cpu->alarm_timer);
+        timer_del(cpu->alarm_timer);
     }
 }
+
 #endif /* CONFIG_USER_ONLY */

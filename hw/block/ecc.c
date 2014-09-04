@@ -81,8 +81,7 @@ VMStateDescription vmstate_ecc_state = {
     .name = "ecc-state",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT8(cp, ECCState),
         VMSTATE_UINT16_ARRAY(lp, ECCState, 2),
         VMSTATE_UINT16(count, ECCState),

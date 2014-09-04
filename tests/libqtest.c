@@ -30,41 +30,33 @@
 
 #include "qemu/compiler.h"
 #include "qemu/osdep.h"
+#include "qapi/qmp/json-parser.h"
+#include "qapi/qmp/json-streamer.h"
+#include "qapi/qmp/qjson.h"
 
-#define MAX_GPIO_INTERCEPTS 20
 #define MAX_IRQ 256
+#define SOCKET_TIMEOUT 5
 
 QTestState *global_qtest;
 
-typedef struct SocketInfo
-{
-    int sock;
-    int fd;
-    const char *path;
-} SocketInfo;
-
 struct QTestState
 {
-    gpio_id last_intercept_gpio_id;
-    bool irq_level[MAX_GPIO_INTERCEPTS][MAX_IRQ];
+    int fd;
+    int qmp_fd;
+    bool irq_level[MAX_IRQ];
     GString *rx;
-    gchar *pid_file; /* QEMU PID file */
-    int child_pid;   /* Child process created to execute QEMU */
-    SocketInfo qtest_socket, qmp_socket;
-    int num_serial_ports;
-    SocketInfo *serial_port_sockets;
+    pid_t qemu_pid;  /* our child QEMU process */
+    struct sigaction sigact_old; /* restored on exit */
 };
+
+static GList *qtest_instances;
+static struct sigaction sigact_old;
 
 #define g_assert_no_errno(ret) do { \
     g_assert_cmpint(ret, !=, -1); \
 } while (0)
 
-static gchar *get_temp_file_path(const gchar *name)
-{
-   return g_strdup_printf("/tmp/qtest-%d.%s", getpid(), name);
-}
-
-static void init_socket(SocketInfo *socket_info)
+static int init_socket(const char *socket_path)
 {
     struct sockaddr_un addr;
     int sock;
@@ -74,177 +66,170 @@ static void init_socket(SocketInfo *socket_info)
     g_assert_no_errno(sock);
 
     addr.sun_family = AF_UNIX;
-    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", socket_info->path);
+    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", socket_path);
     qemu_set_cloexec(sock);
 
     do {
         ret = bind(sock, (struct sockaddr *)&addr, sizeof(addr));
     } while (ret == -1 && errno == EINTR);
     g_assert_no_errno(ret);
-    listen(sock, 1);
+    ret = listen(sock, 1);
+    g_assert_no_errno(ret);
 
-    socket_info->sock = sock;
+    return sock;
 }
 
-static void socket_accept(SocketInfo *socket_info)
+static int socket_accept(int sock)
 {
     struct sockaddr_un addr;
     socklen_t addrlen;
-    int sock = socket_info->sock;
     int ret;
+    struct timeval timeout = { .tv_sec = SOCKET_TIMEOUT,
+                               .tv_usec = 0 };
 
-    addrlen = sizeof(addr);
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (void *)&timeout,
+               sizeof(timeout));
+
     do {
+        addrlen = sizeof(addr);
         ret = accept(sock, (struct sockaddr *)&addr, &addrlen);
     } while (ret == -1 && errno == EINTR);
-    g_assert_no_errno(ret);
+    if (ret == -1) {
+        fprintf(stderr, "%s failed: %s\n", __func__, strerror(errno));
+    }
     close(sock);
 
-    socket_info->fd = ret;
+    return ret;
 }
 
-static pid_t qtest_qemu_pid(QTestState *s)
+static void kill_qemu(QTestState *s)
 {
-    FILE *f;
-    char buffer[1024];
-    pid_t pid = -1;
-
-    f = fopen(s->pid_file, "r");
-    if (f) {
-        if (fgets(buffer, sizeof(buffer), f)) {
-            pid = atoi(buffer);
-        }
-        fclose(f);
+    if (s->qemu_pid != -1) {
+        kill(s->qemu_pid, SIGTERM);
+        waitpid(s->qemu_pid, NULL, 0);
     }
-    return pid;
 }
 
-QTestState *qtest_init(const char *extra_args, int num_serial_ports)
+static void sigabrt_handler(int signo)
+{
+    GList *elem;
+    for (elem = qtest_instances; elem; elem = elem->next) {
+        kill_qemu(elem->data);
+    }
+}
+
+static void setup_sigabrt_handler(void)
+{
+    struct sigaction sigact;
+
+    /* Catch SIGABRT to clean up on g_assert() failure */
+    sigact = (struct sigaction){
+        .sa_handler = sigabrt_handler,
+        .sa_flags = SA_RESETHAND,
+    };
+    sigemptyset(&sigact.sa_mask);
+    sigaction(SIGABRT, &sigact, &sigact_old);
+}
+
+static void cleanup_sigabrt_handler(void)
+{
+    sigaction(SIGABRT, &sigact_old, NULL);
+}
+
+QTestState *qtest_init(const char *extra_args)
 {
     QTestState *s;
-    int i, j;
-    gchar *pid_file;
+    int sock, qmpsock, i;
+    gchar *socket_path;
+    gchar *qmp_socket_path;
     gchar *command;
-    GString *extra_socket_args;
-    const char *qemu_binary, *external_args, *qtest_log_path;
-    pid_t pid;
+    const char *qemu_binary;
 
     qemu_binary = getenv("QTEST_QEMU_BINARY");
     g_assert(qemu_binary != NULL);
 
-    external_args = getenv("QTEST_QEMU_ARGS");
-    qtest_log_path = getenv("QTEST_LOG_FILE");
-
     s = g_malloc(sizeof(*s));
 
-    s->qtest_socket.path = get_temp_file_path("sock");
-    s->qmp_socket.path = get_temp_file_path("qmp");
-    pid_file = get_temp_file_path("pid");
+    socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
+    qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
 
-    init_socket(&s->qtest_socket);
-    init_socket(&s->qmp_socket);
+    sock = init_socket(socket_path);
+    qmpsock = init_socket(qmp_socket_path);
 
-    s->num_serial_ports = num_serial_ports;
-    s->serial_port_sockets = g_malloc(num_serial_ports * sizeof(SocketInfo));
-    extra_socket_args = g_string_new("");
-    for(i = 0; i < num_serial_ports; i++) {
-        gchar *serial_socket_path;
-        gchar *socket_name = g_strdup_printf("serial%d", i);
-        serial_socket_path = get_temp_file_path(socket_name);
-        s->serial_port_sockets[i].path = serial_socket_path;
-        g_string_append_printf(extra_socket_args,
-                               "-serial unix:%s,nowait ",
-                               serial_socket_path);
-        init_socket(&s->serial_port_sockets[i]);
+    /* Only install SIGABRT handler once */
+    if (!qtest_instances) {
+        setup_sigabrt_handler();
     }
 
-    pid = fork();
-    if (pid == 0) {
-        command = g_strdup_printf("%s "
+    qtest_instances = g_list_prepend(qtest_instances, s);
+
+    s->qemu_pid = fork();
+    if (s->qemu_pid == 0) {
+        command = g_strdup_printf("exec %s "
                                   "-qtest unix:%s,nowait "
-                                  "-qtest-log %s "
+                                  "-qtest-log /dev/null "
                                   "-qmp unix:%s,nowait "
-                                  "-pidfile %s "
                                   "-machine accel=qtest "
-                                  "%s "
-                                  "%s "
-                                  "%s",
-                                  qemu_binary,
-                                  s->qtest_socket.path,
-                                  qtest_log_path ?: "/dev/null",
-                                  s->qmp_socket.path,
-                                  pid_file,
-                                  extra_socket_args->str,
-                                  extra_args ?: "",
-                                  external_args ?: "");
-        //printf("%s\n", command);
+                                  "-display none "
+                                  "%s", qemu_binary, socket_path,
+                                  qmp_socket_path,
+                                  extra_args ?: "");
         execlp("/bin/sh", "sh", "-c", command, NULL);
         exit(1);
     }
 
-    socket_accept(&s->qtest_socket);
-    socket_accept(&s->qmp_socket);
-    for(i = 0; i < num_serial_ports; i++) {
-        socket_accept(&s->serial_port_sockets[i]);
+    s->fd = socket_accept(sock);
+    if (s->fd >= 0) {
+        s->qmp_fd = socket_accept(qmpsock);
     }
+    unlink(socket_path);
+    unlink(qmp_socket_path);
+    g_free(socket_path);
+    g_free(qmp_socket_path);
+
+    g_assert(s->fd >= 0 && s->qmp_fd >= 0);
 
     s->rx = g_string_new("");
-    s->pid_file = pid_file;
-    s->child_pid = pid;
-
-    s->last_intercept_gpio_id = -1;
-    for(i = 0; i < MAX_GPIO_INTERCEPTS; i++) {
-        for (j = 0; j < MAX_IRQ; j++) {
-            s->irq_level[i][j] = false;
-        }
+    for (i = 0; i < MAX_IRQ; i++) {
+        s->irq_level[i] = false;
     }
 
     /* Read the QMP greeting and then do the handshake */
-    qtest_qmp(s, "");
-    qtest_qmp(s, "{ 'execute': 'qmp_capabilities' }");
+    qtest_qmp_discard_response(s, "");
+    qtest_qmp_discard_response(s, "{ 'execute': 'qmp_capabilities' }");
 
     if (getenv("QTEST_STOP")) {
-        kill(qtest_qemu_pid(s), SIGSTOP);
+        kill(s->qemu_pid, SIGSTOP);
     }
-
-    g_string_free(extra_socket_args, true);
 
     return s;
 }
 
 void qtest_quit(QTestState *s)
 {
-    int status, i;
-
-    pid_t pid = qtest_qemu_pid(s);
-    if (pid != -1) {
-        kill(pid, SIGTERM);
-        waitpid(pid, &status, 0);
+    /* Uninstall SIGABRT handler on last instance */
+    if (qtest_instances && !qtest_instances->next) {
+        cleanup_sigabrt_handler();
     }
 
-    unlink(s->pid_file);
-    unlink(s->qtest_socket.path);
-    unlink(s->qmp_socket.path);
-    for(i = 0; i < s->num_serial_ports; i++) {
-        unlink(s->serial_port_sockets[i].path);
-    }
-    g_free(s->pid_file);
-    g_free(s->serial_port_sockets);
+    qtest_instances = g_list_remove(qtest_instances, s);
+
+    kill_qemu(s);
+    close(s->fd);
+    close(s->qmp_fd);
+    g_string_free(s->rx, true);
+    g_free(s);
 }
 
-static void socket_sendf(SocketInfo *socket_info, const char *fmt, va_list ap)
+static void socket_send(int fd, const char *buf, size_t size)
 {
-    gchar *str;
-    size_t size, offset;
-
-    str = g_strdup_vprintf(fmt, ap);
-    size = strlen(str);
+    size_t offset;
 
     offset = 0;
     while (offset < size) {
         ssize_t len;
 
-        len = write(socket_info->fd, str + offset, size - offset);
+        len = write(fd, buf + offset, size - offset);
         if (len == -1 && errno == EINTR) {
             continue;
         }
@@ -256,12 +241,21 @@ static void socket_sendf(SocketInfo *socket_info, const char *fmt, va_list ap)
     }
 }
 
+static void socket_sendf(int fd, const char *fmt, va_list ap)
+{
+    gchar *str = g_strdup_vprintf(fmt, ap);
+    size_t size = strlen(str);
+
+    socket_send(fd, str, size);
+    g_free(str);
+}
+
 static void GCC_FMT_ATTR(2, 3) qtest_sendf(QTestState *s, const char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    socket_sendf(&s->qtest_socket, fmt, ap);
+    socket_sendf(s->fd, fmt, ap);
     va_end(ap);
 }
 
@@ -275,7 +269,7 @@ static GString *qtest_recv_line(QTestState *s)
         ssize_t len;
         char buffer[1024];
 
-        len = read(s->qtest_socket.fd, buffer, sizeof(buffer));
+        len = read(s->fd, buffer, sizeof(buffer));
         if (len == -1 && errno == EINTR) {
             continue;
         }
@@ -304,31 +298,22 @@ static gchar **qtest_rsp(QTestState *s, int expected_args)
 redo:
     line = qtest_recv_line(s);
     words = g_strsplit(line->str, " ", 0);
-    if (strcmp(words[0], "FAIL") == 0) {
-        g_assert_cmpstr(line->str, ==, "OK");
-    }
     g_string_free(line, TRUE);
 
     if (strcmp(words[0], "IRQ") == 0) {
         int irq;
-        gpio_id id;
 
         g_assert(words[1] != NULL);
         g_assert(words[2] != NULL);
-        g_assert(words[3] != NULL);
 
-        id = strtoul(words[2], NULL, 0);
-        g_assert_cmpint(id, >=, 0);
-        g_assert_cmpint(id, <, MAX_GPIO_INTERCEPTS);
-
-        irq = strtoul(words[3], NULL, 0);
+        irq = strtoul(words[2], NULL, 0);
         g_assert_cmpint(irq, >=, 0);
         g_assert_cmpint(irq, <, MAX_IRQ);
 
         if (strcmp(words[1], "raise") == 0) {
-            s->irq_level[id][irq] = true;
+            s->irq_level[irq] = true;
         } else {
-            s->irq_level[id][irq] = false;
+            s->irq_level[irq] = false;
         }
 
         g_strfreev(words);
@@ -349,20 +334,38 @@ redo:
     return words;
 }
 
-void qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
+typedef struct {
+    JSONMessageParser parser;
+    QDict *response;
+} QMPResponseParser;
+
+static void qmp_response(JSONMessageParser *parser, QList *tokens)
 {
-    bool has_reply = false;
-    int nesting = 0;
+    QMPResponseParser *qmp = container_of(parser, QMPResponseParser, parser);
+    QObject *obj;
 
-    /* Send QMP request */
-    socket_sendf(&s->qmp_socket, fmt, ap);
+    obj = json_parser_parse(tokens, NULL);
+    if (!obj) {
+        fprintf(stderr, "QMP JSON response parsing failed\n");
+        exit(1);
+    }
 
-    /* Receive reply */
-    while (!has_reply || nesting > 0) {
+    g_assert(qobject_type(obj) == QTYPE_QDICT);
+    g_assert(!qmp->response);
+    qmp->response = (QDict *)obj;
+}
+
+QDict *qtest_qmp_receive(QTestState *s)
+{
+    QMPResponseParser qmp;
+
+    qmp.response = NULL;
+    json_message_parser_init(&qmp.parser, qmp_response);
+    while (!qmp.response) {
         ssize_t len;
         char c;
 
-        len = read(s->qmp_socket.fd, &c, 1);
+        len = read(s->qmp_fd, &c, 1);
         if (len == -1 && errno == EINTR) {
             continue;
         }
@@ -372,25 +375,69 @@ void qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
             exit(1);
         }
 
-        switch (c) {
-        case '{':
-            nesting++;
-            has_reply = true;
-            break;
-        case '}':
-            nesting--;
-            break;
-        }
+        json_message_parser_feed(&qmp.parser, &c, 1);
     }
+    json_message_parser_destroy(&qmp.parser);
+
+    return qmp.response;
 }
 
-void qtest_qmp(QTestState *s, const char *fmt, ...)
+QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
+{
+    va_list ap_copy;
+    QObject *qobj;
+
+    /* Going through qobject ensures we escape strings properly.
+     * This seemingly unnecessary copy is required in case va_list
+     * is an array type.
+     */
+    va_copy(ap_copy, ap);
+    qobj = qobject_from_jsonv(fmt, &ap_copy);
+    va_end(ap_copy);
+
+    /* No need to send anything for an empty QObject.  */
+    if (qobj) {
+        QString *qstr = qobject_to_json(qobj);
+        const char *str = qstring_get_str(qstr);
+        size_t size = qstring_get_length(qstr);
+
+        /* Send QMP request */
+        socket_send(s->qmp_fd, str, size);
+
+        QDECREF(qstr);
+        qobject_decref(qobj);
+    }
+
+    /* Receive reply */
+    return qtest_qmp_receive(s);
+}
+
+QDict *qtest_qmp(QTestState *s, const char *fmt, ...)
 {
     va_list ap;
+    QDict *response;
 
     va_start(ap, fmt);
-    qtest_qmpv(s, fmt, ap);
+    response = qtest_qmpv(s, fmt, ap);
     va_end(ap);
+    return response;
+}
+
+void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap)
+{
+    QDict *response = qtest_qmpv(s, fmt, ap);
+    QDECREF(response);
+}
+
+void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...)
+{
+    va_list ap;
+    QDict *response;
+
+    va_start(ap, fmt);
+    response = qtest_qmpv(s, fmt, ap);
+    va_end(ap);
+    QDECREF(response);
 }
 
 const char *qtest_get_arch(void)
@@ -403,16 +450,10 @@ const char *qtest_get_arch(void)
 
 bool qtest_get_irq(QTestState *s, int num)
 {
-    g_assert(s->last_intercept_gpio_id >= 0);
-    return qtest_get_irq_for_gpio(s, 0, num);
-}
-
-bool qtest_get_irq_for_gpio(QTestState *s, gpio_id id, int num)
-{
     /* dummy operation in order to make sure irq is up to date */
     qtest_inb(s, 0);
 
-    return s->irq_level[id][num];
+    return s->irq_level[num];
 }
 
 static int64_t qtest_clock_rsp(QTestState *s)
@@ -443,76 +484,16 @@ int64_t qtest_clock_set(QTestState *s, int64_t val)
     return qtest_clock_rsp(s);
 }
 
-static gpio_id get_next_intercept_gpio_id(QTestState *s)
+void qtest_irq_intercept_out(QTestState *s, const char *qom_path)
 {
-    gpio_id next_gpio_id = ++(s->last_intercept_gpio_id);
-    g_assert(next_gpio_id < MAX_GPIO_INTERCEPTS);
-    return next_gpio_id;
-}
-
-gpio_id qtest_irq_intercept_out(QTestState *s, const char *qom_path)
-{
-    gpio_id next_gpio_id = get_next_intercept_gpio_id(s);
-    qtest_sendf(s, "irq_intercept_out %s %d\n", qom_path, next_gpio_id);
-    qtest_rsp(s, 0);
-    return next_gpio_id;
-}
-
-gpio_id qtest_irq_intercept_in(QTestState *s, const char *qom_path)
-{
-    gpio_id next_gpio_id = get_next_intercept_gpio_id(s);
-    qtest_sendf(s, "irq_intercept_in %s %d\n", qom_path, next_gpio_id);
-    qtest_rsp(s, 0);
-    return next_gpio_id;
-}
-
-void qtest_set_irq_in(QTestState *s, const char *string, int num, int level)
-{
-    qtest_sendf(s, "set_irq_in %s %d %s\n", string, num, level ? "raise" : "lower");
+    qtest_sendf(s, "irq_intercept_out %s\n", qom_path);
     qtest_rsp(s, 0);
 }
 
-static SocketInfo *get_serial_port_socket(QTestState *s, int serial_socket_num)
+void qtest_irq_intercept_in(QTestState *s, const char *qom_path)
 {
-    g_assert(serial_socket_num >= 0 &&
-             serial_socket_num < s->num_serial_ports);
-    return &s->serial_port_sockets[serial_socket_num];
-}
-
-void qtest_write_serial_port(QTestState *s,
-                             int serial_port_num,
-                             const char *fmt, ...)
-{
-    va_list ap;
-    SocketInfo *socket_info = get_serial_port_socket(s, serial_port_num);
-
-    va_start(ap, fmt);
-    socket_sendf(socket_info, fmt, ap);
-    va_end(ap);
-}
-
-uint8_t qtest_read_serial_port_byte(QTestState *s, int serial_port_num)
-{
-    ssize_t len;
-    uint8_t buffer;
-    SocketInfo *socket_info = get_serial_port_socket(s, serial_port_num);
-
-    do {
-        len = read(socket_info->fd, &buffer, sizeof(buffer));
-        if (errno == EINTR) {
-            continue;
-        }
-
-        if (len == -1 || len == 0) {
-            fprintf(stderr, "No character to read from socket %d\n",
-                               serial_port_num);
-            g_assert(false);
-        }
-    } while(len == -1);
-
-    g_assert_cmpint(len, ==, 1);
-
-    return buffer;
+    qtest_sendf(s, "irq_intercept_in %s\n", qom_path);
+    qtest_rsp(s, 0);
 }
 
 static void qtest_out(QTestState *s, const char *cmd, uint16_t addr, uint32_t value)
@@ -673,14 +654,22 @@ void qtest_memwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
     qtest_rsp(s, 0);
 }
 
-void write_serial_port(int serial_port_num, const char *fmt, ...)
+QDict *qmp(const char *fmt, ...)
 {
     va_list ap;
-    SocketInfo *socket_info = get_serial_port_socket(global_qtest,
-                                                     serial_port_num);
+    QDict *response;
 
     va_start(ap, fmt);
-    socket_sendf(socket_info, fmt, ap);
+    response = qtest_qmpv(global_qtest, fmt, ap);
     va_end(ap);
+    return response;
 }
 
+void qmp_discard_response(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    qtest_qmpv_discard_response(global_qtest, fmt, ap);
+    va_end(ap);
+}

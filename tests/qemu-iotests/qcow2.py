@@ -149,6 +149,22 @@ def cmd_dump_header(fd):
     h.dump()
     h.dump_extensions()
 
+def cmd_set_header(fd, name, value):
+    try:
+        value = int(value, 0)
+    except:
+        print "'%s' is not a valid number" % value
+        sys.exit(1)
+
+    fields = (field[2] for field in QcowHeader.fields)
+    if not name in fields:
+        print "'%s' is not a known header field" % name
+        sys.exit(1)
+
+    h = QcowHeader(fd)
+    h.__dict__[name] = value
+    h.update(fd)
+
 def cmd_add_header_ext(fd, magic, data):
     try:
         magic = int(magic, 0)
@@ -159,6 +175,10 @@ def cmd_add_header_ext(fd, magic, data):
     h = QcowHeader(fd)
     h.extensions.append(QcowHeaderExtension.create(magic, data))
     h.update(fd)
+
+def cmd_add_header_ext_stdio(fd, magic):
+    data = sys.stdin.read()
+    cmd_add_header_ext(fd, magic, data)
 
 def cmd_del_header_ext(fd, magic):
     try:
@@ -204,10 +224,12 @@ def cmd_set_feature_bit(fd, group, bit):
     h.update(fd)
 
 cmds = [
-    [ 'dump-header',    cmd_dump_header,    0, 'Dump image header and header extensions' ],
-    [ 'add-header-ext', cmd_add_header_ext, 2, 'Add a header extension' ],
-    [ 'del-header-ext', cmd_del_header_ext, 1, 'Delete a header extension' ],
-    [ 'set-feature-bit', cmd_set_feature_bit, 2, 'Set a feature bit'],
+    [ 'dump-header',          cmd_dump_header,          0, 'Dump image header and header extensions' ],
+    [ 'set-header',           cmd_set_header,           2, 'Set a field in the header'],
+    [ 'add-header-ext',       cmd_add_header_ext,       2, 'Add a header extension' ],
+    [ 'add-header-ext-stdio', cmd_add_header_ext_stdio, 1, 'Add a header extension, data from stdin' ],
+    [ 'del-header-ext',       cmd_del_header_ext,       1, 'Delete a header extension' ],
+    [ 'set-feature-bit',      cmd_set_feature_bit,      2, 'Set a feature bit'],
 ]
 
 def main(filename, cmd, args):

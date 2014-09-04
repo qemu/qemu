@@ -58,8 +58,13 @@ enum {
     R_MAX
 };
 
+#define TYPE_MILKYMIST_MEMCARD "milkymist-memcard"
+#define MILKYMIST_MEMCARD(obj) \
+    OBJECT_CHECK(MilkymistMemcardState, (obj), TYPE_MILKYMIST_MEMCARD)
+
 struct MilkymistMemcardState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion regs_region;
     SDState *card;
 
@@ -231,8 +236,7 @@ static const MemoryRegionOps memcard_mmio_ops = {
 
 static void milkymist_memcard_reset(DeviceState *d)
 {
-    MilkymistMemcardState *s =
-            container_of(d, MilkymistMemcardState, busdev.qdev);
+    MilkymistMemcardState *s = MILKYMIST_MEMCARD(d);
     int i;
 
     s->command_write_ptr = 0;
@@ -246,14 +250,18 @@ static void milkymist_memcard_reset(DeviceState *d)
 
 static int milkymist_memcard_init(SysBusDevice *dev)
 {
-    MilkymistMemcardState *s = FROM_SYSBUS(typeof(*s), dev);
+    MilkymistMemcardState *s = MILKYMIST_MEMCARD(dev);
     DriveInfo *dinfo;
 
     dinfo = drive_get_next(IF_SD);
-    s->card = sd_init(dinfo ? dinfo->bdrv : NULL, 0);
+    s->card = sd_init(dinfo ? dinfo->bdrv : NULL, false);
+    if (s->card == NULL) {
+        return -1;
+    }
+
     s->enabled = dinfo ? bdrv_is_inserted(dinfo->bdrv) : 0;
 
-    memory_region_init_io(&s->regs_region, &memcard_mmio_ops, s,
+    memory_region_init_io(&s->regs_region, OBJECT(s), &memcard_mmio_ops, s,
             "milkymist-memcard", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 
@@ -264,8 +272,7 @@ static const VMStateDescription vmstate_milkymist_memcard = {
     .name = "milkymist-memcard",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_INT32(command_write_ptr, MilkymistMemcardState),
         VMSTATE_INT32(response_read_ptr, MilkymistMemcardState),
         VMSTATE_INT32(response_len, MilkymistMemcardState),
@@ -289,7 +296,7 @@ static void milkymist_memcard_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo milkymist_memcard_info = {
-    .name          = "milkymist-memcard",
+    .name          = TYPE_MILKYMIST_MEMCARD,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistMemcardState),
     .class_init    = milkymist_memcard_class_init,

@@ -26,7 +26,6 @@
 #include "trace.h"
 
 typedef struct {
-    DeviceState qdev;
     MemoryRegion iomem;
     uint32_t chip_size;
     char *filename;
@@ -96,7 +95,6 @@ static const VMStateDescription vmstate_nvram = {
     .name = "nvram",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .post_load = nvram_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_VARRAY_UINT32(contents, NvRamState, chip_size, 0,
@@ -105,19 +103,25 @@ static const VMStateDescription vmstate_nvram = {
     }
 };
 
+#define TYPE_DS1225Y "ds1225y"
+#define DS1225Y(obj) OBJECT_CHECK(SysBusNvRamState, (obj), TYPE_DS1225Y)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     NvRamState nvram;
 } SysBusNvRamState;
 
 static int nvram_sysbus_initfn(SysBusDevice *dev)
 {
-    NvRamState *s = &FROM_SYSBUS(SysBusNvRamState, dev)->nvram;
+    SysBusNvRamState *sys = DS1225Y(dev);
+    NvRamState *s = &sys->nvram;
     FILE *file;
 
     s->contents = g_malloc0(s->chip_size);
 
-    memory_region_init_io(&s->iomem, &nvram_ops, s, "nvram", s->chip_size);
+    memory_region_init_io(&s->iomem, OBJECT(s), &nvram_ops, s,
+                          "nvram", s->chip_size);
     sysbus_init_mmio(dev, &s->iomem);
 
     /* Read current file */
@@ -151,7 +155,7 @@ static void nvram_sysbus_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo nvram_sysbus_info = {
-    .name          = "ds1225y",
+    .name          = TYPE_DS1225Y,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusNvRamState),
     .class_init    = nvram_sysbus_class_init,

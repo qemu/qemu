@@ -20,6 +20,7 @@
 
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
+#include "trace.h"
 
 /* debug PCI */
 //#define DEBUG_PCI
@@ -51,14 +52,22 @@ void pci_host_config_write_common(PCIDevice *pci_dev, uint32_t addr,
                                   uint32_t limit, uint32_t val, uint32_t len)
 {
     assert(len <= 4);
+    trace_pci_cfg_write(pci_dev->name, PCI_SLOT(pci_dev->devfn),
+                        PCI_FUNC(pci_dev->devfn), addr, val);
     pci_dev->config_write(pci_dev, addr, val, MIN(len, limit - addr));
 }
 
 uint32_t pci_host_config_read_common(PCIDevice *pci_dev, uint32_t addr,
                                      uint32_t limit, uint32_t len)
 {
+    uint32_t ret;
+
     assert(len <= 4);
-    return pci_dev->config_read(pci_dev, addr, MIN(len, limit - addr));
+    ret = pci_dev->config_read(pci_dev, addr, MIN(len, limit - addr));
+    trace_pci_cfg_read(pci_dev->name, PCI_SLOT(pci_dev->devfn),
+                       PCI_FUNC(pci_dev->devfn), addr, ret);
+
+    return ret;
 }
 
 void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len)
@@ -133,8 +142,9 @@ static uint64_t pci_host_data_read(void *opaque,
 {
     PCIHostState *s = opaque;
     uint32_t val;
-    if (!(s->config_reg & (1 << 31)))
+    if (!(s->config_reg & (1U << 31))) {
         return 0xffffffff;
+    }
     val = pci_data_read(s->bus, s->config_reg | (addr & 3), len);
     PCI_DPRINTF("read addr " TARGET_FMT_plx " len %d val %x\n",
                 addr, len, val);
@@ -169,6 +179,7 @@ static const TypeInfo pci_host_type_info = {
     .name = TYPE_PCI_HOST_BRIDGE,
     .parent = TYPE_SYS_BUS_DEVICE,
     .abstract = true,
+    .class_size = sizeof(PCIHostBridgeClass),
     .instance_size = sizeof(PCIHostState),
 };
 

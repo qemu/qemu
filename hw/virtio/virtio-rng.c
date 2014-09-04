@@ -15,6 +15,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-rng.h"
 #include "sysemu/rng.h"
+#include "qom/object_interfaces.h"
 
 static bool is_guest_ready(VirtIORNG *vrng)
 {
@@ -106,19 +107,20 @@ static void virtio_rng_save(QEMUFile *f, void *opaque)
 
 static int virtio_rng_load(QEMUFile *f, void *opaque, int version_id)
 {
-    VirtIORNG *vrng = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(vrng);
-
     if (version_id != 1) {
         return -EINVAL;
     }
-    virtio_load(vdev, f);
+    return virtio_load(VIRTIO_DEVICE(opaque), f, version_id);
+}
 
+static int virtio_rng_load_device(VirtIODevice *vdev, QEMUFile *f,
+                                  int version_id)
+{
     /* We may have an element ready but couldn't process it due to a quota
      * limit.  Make sure to try again after live migration when the quota may
      * have been reset.
      */
-    virtio_rng_process(vrng);
+    virtio_rng_process(VIRTIO_RNG(vdev));
 
     return 0;
 }
@@ -129,25 +131,42 @@ static void check_rate_limit(void *opaque)
 
     vrng->quota_remaining = vrng->conf.max_bytes;
     virtio_rng_process(vrng);
-    qemu_mod_timer(vrng->rate_limit_timer,
-                   qemu_get_clock_ms(vm_clock) + vrng->conf.period_ms);
+    timer_mod(vrng->rate_limit_timer,
+                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + vrng->conf.period_ms);
 }
 
-static int virtio_rng_device_init(VirtIODevice *vdev)
+static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *qdev = DEVICE(vdev);
-    VirtIORNG *vrng = VIRTIO_RNG(vdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIORNG *vrng = VIRTIO_RNG(dev);
     Error *local_err = NULL;
+
+    if (!vrng->conf.period_ms > 0) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "period",
+                  "a positive number");
+        return;
+    }
 
     if (vrng->conf.rng == NULL) {
         vrng->conf.default_backend = RNG_RANDOM(object_new(TYPE_RNG_RANDOM));
 
-        object_property_add_child(OBJECT(qdev),
+        user_creatable_complete(OBJECT(vrng->conf.default_backend),
+                                &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            object_unref(OBJECT(vrng->conf.default_backend));
+            return;
+        }
+
+        object_property_add_child(OBJECT(dev),
                                   "default-backend",
                                   OBJECT(vrng->conf.default_backend),
                                   NULL);
 
-        object_property_set_link(OBJECT(qdev),
+        /* The child property took a reference, we can safely drop ours now */
+        object_unref(OBJECT(vrng->conf.default_backend));
+
+        object_property_set_link(OBJECT(dev),
                                  OBJECT(vrng->conf.default_backend),
                                  "rng", NULL);
     }
@@ -156,44 +175,40 @@ static int virtio_rng_device_init(VirtIODevice *vdev)
 
     vrng->rng = vrng->conf.rng;
     if (vrng->rng == NULL) {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, "rng", "a valid object");
-        return -1;
-    }
-
-    rng_backend_open(vrng->rng, &local_err);
-    if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "rng", "a valid object");
+        return;
     }
 
     vrng->vq = virtio_add_queue(vdev, 8, handle_input);
 
-    assert(vrng->conf.max_bytes <= INT64_MAX);
+    /* Workaround: Property parsing does not enforce unsigned integers,
+     * So this is a hack to reject such numbers. */
+    if (vrng->conf.max_bytes > INT64_MAX) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "max-bytes",
+                  "a non-negative integer below 2^63");
+        return;
+    }
     vrng->quota_remaining = vrng->conf.max_bytes;
 
-    vrng->rate_limit_timer = qemu_new_timer_ms(vm_clock,
+    vrng->rate_limit_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                                check_rate_limit, vrng);
 
-    qemu_mod_timer(vrng->rate_limit_timer,
-                   qemu_get_clock_ms(vm_clock) + vrng->conf.period_ms);
+    timer_mod(vrng->rate_limit_timer,
+                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + vrng->conf.period_ms);
 
-    register_savevm(qdev, "virtio-rng", -1, 1, virtio_rng_save,
+    register_savevm(dev, "virtio-rng", -1, 1, virtio_rng_save,
                     virtio_rng_load, vrng);
-
-    return 0;
 }
 
-static int virtio_rng_device_exit(DeviceState *qdev)
+static void virtio_rng_device_unrealize(DeviceState *dev, Error **errp)
 {
-    VirtIORNG *vrng = VIRTIO_RNG(qdev);
-    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIORNG *vrng = VIRTIO_RNG(dev);
 
-    qemu_del_timer(vrng->rate_limit_timer);
-    qemu_free_timer(vrng->rate_limit_timer);
-    unregister_savevm(qdev, "virtio-rng", vrng);
+    timer_del(vrng->rate_limit_timer);
+    timer_free(vrng->rate_limit_timer);
+    unregister_savevm(dev, "virtio-rng", vrng);
     virtio_cleanup(vdev);
-    return 0;
 }
 
 static Property virtio_rng_properties[] = {
@@ -205,10 +220,13 @@ static void virtio_rng_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    dc->exit = virtio_rng_device_exit;
+
     dc->props = virtio_rng_properties;
-    vdc->init = virtio_rng_device_init;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    vdc->realize = virtio_rng_device_realize;
+    vdc->unrealize = virtio_rng_device_unrealize;
     vdc->get_features = get_features;
+    vdc->load = virtio_rng_load_device;
 }
 
 static void virtio_rng_initfn(Object *obj)
@@ -216,7 +234,9 @@ static void virtio_rng_initfn(Object *obj)
     VirtIORNG *vrng = VIRTIO_RNG(obj);
 
     object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
-                             (Object **)&vrng->conf.rng, NULL);
+                             (Object **)&vrng->conf.rng,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE, NULL);
 }
 
 static const TypeInfo virtio_rng_info = {

@@ -316,16 +316,6 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	m->m_data += sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
 	m->m_len  -= sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
 
-    if (slirp->restricted) {
-        for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
-            if (ex_ptr->ex_fport == ti->ti_dport &&
-                ti->ti_dst.s_addr == ex_ptr->ex_addr.s_addr) {
-                break;
-            }
-        }
-        if (!ex_ptr)
-            goto drop;
-    }
 	/*
 	 * Locate pcb for segment.
 	 */
@@ -355,6 +345,22 @@ findso:
 	 * as if it was LISTENING, and continue...
 	 */
         if (so == NULL) {
+          if (slirp->restricted) {
+            /* Any hostfwds will have an existing socket, so we only get here
+             * for non-hostfwd connections. These should be dropped, unless it
+             * happens to be a guestfwd.
+             */
+            for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
+                if (ex_ptr->ex_fport == ti->ti_dport &&
+                    ti->ti_dst.s_addr == ex_ptr->ex_addr.s_addr) {
+                    break;
+                }
+            }
+            if (!ex_ptr) {
+                goto dropwithreset;
+            }
+          }
+
 	  if ((tiflags & (TH_SYN|TH_FIN|TH_RST|TH_URG|TH_ACK)) != TH_SYN)
 	    goto dropwithreset;
 

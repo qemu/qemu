@@ -1,0 +1,178 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Getopt::Long;
+use FindBin;
+
+my @legacy = qw(qemu_clock_ptr qemu_get_clock_ns qemu_get_clock_ms qemu_register_clock_reset_notifier qemu_unregister_clock_reset_notifier qemu_new_timer qemu_free_timer qemu_del_timer qemu_mod_timer_ns qemu_mod_timer qemu_run_timers qemu_new_timer_ns qemu_new_timer_us qemu_new_timer_ms);
+my $legacyre = '\b('.join('|', @legacy).')\b';
+my $option_git;
+my $option_dryrun;
+my $option_quiet;
+my $option_rtc;
+my $suffix=".tmp.$$";
+my @files;
+my $getfiles = 'git grep -l -E \'\b((host|rt|vm|rtc)_clock\b|qemu_\w*timer)\' | egrep \'\.[ch]$\' | egrep -v \'qemu-timer\.c$|include/qemu/timer\.h$\'';
+
+sub Syntax
+{
+    print STDERR <<STOP;
+Usage: $FindBin::Script [options] FILE ...
+
+Translate each FILE to the new QEMU timer API. If no files
+are passed, a reasonable guess is taken.
+
+Options:
+  -q, --quiet     Do not show warnings etc
+  -d, --dry-run   Do a dry run
+  -g, --git       Generate a git commit for each change
+  -r, --rtc       Only fix up rtc usage
+  -h, --help      Print this message
+
+STOP
+return;
+}
+
+sub ParseOptions
+{
+    if (!GetOptions (
+	     "dry-run|d" => \$option_dryrun,
+             "git|g" => \$option_git,
+	     "quiet|q" => \$option_quiet,
+	     "rtc|r" => \$option_rtc,
+             "help|h" => sub { Syntax(); exit(0); }
+        ))
+    {
+        Syntax();
+        die "Bad options";
+    }
+
+    if ($#ARGV >=0)
+    {
+	@files = @ARGV;
+    }
+    else
+    {
+	@files = split(/\s+/, `$getfiles`);
+    }
+
+    foreach my $file (@files)
+    {
+	die "Cannot find $file" unless (-f $file && -r $file);
+    }
+}
+
+sub DoWarn
+{
+    my $text = shift @_;
+    my $line = shift @_;
+    return if ($option_quiet);
+    chomp ($line);
+    print STDERR "$text\n";
+    print STDERR "$line\n\n";
+}
+
+sub Process
+{
+    my $ifn = shift @_;
+    my $ofn = $ifn.$suffix;
+
+    my $intext;
+    my $outtext;
+    my $linenum = 0;
+
+    open my $input, "<", $ifn || die "Cannot open $ifn for read: $!";
+
+    while (<$input>)
+    {
+	my $line = $_;
+	$intext .= $line;
+	$linenum++;
+
+	# fix the specific uses
+	unless ($option_rtc)
+	{
+	    $line =~ s/\bqemu_new_timer(_[num]s)\s*\((vm_|rt_|host_)clock\b/timer_new$1(XXX_$2clock/g;
+	    $line =~ s/\bqemu_new_timer\s*\((vm_|rt_|host_)clock\b/timer_new(XXX_$1clock/g;
+	    $line =~ s/\bqemu_get_clock(_[num]s)\s*\((vm_|rt_|host_)clock\b/qemu_clock_get$1(XXX_$2clock/g;
+	}
+
+	# rtc is different
+	$line =~ s/\bqemu_new_timer(_[num]s)\s*\(rtc_clock\b/timer_new$1(rtc_clock/g;
+	$line =~ s/\bqemu_new_timer\s*\(rtc_clock\b/timer_new(rtc_clock/g;
+	$line =~ s/\bqemu_get_clock(_[num]s)\s*\(rtc_clock\b/qemu_clock_get$1(rtc_clock/g;
+	$line =~ s/\bqemu_register_clock_reset_notifier\s*\(rtc_clock\b/qemu_register_clock_reset_notifier(qemu_clock_ptr(rtc_clock)/g;
+
+	unless ($option_rtc)
+	{
+	    # fix up comments
+	    $line =~ s/\b(vm_|rt_|host_)clock\b/XXX_$1clock/g if ($line =~ m,^[/ ]+\*,);
+
+	    # spurious fprintf error reporting
+	    $line =~ s/: qemu_new_timer_ns failed/: timer_new_ns failed/g;
+
+	    # these have just changed name
+	    $line =~ s/\bqemu_mod_timer\b/timer_mod/g;
+	    $line =~ s/\bqemu_mod_timer_(ns|us|ms)\b/timer_mod_$1/g;
+	    $line =~ s/\bqemu_free_timer\b/timer_free/g;
+	    $line =~ s/\bqemu_del_timer\b/timer_del/g;
+	}
+
+	# fix up rtc_clock
+	$line =~ s/QEMUClock \*rtc_clock;/QEMUClockType rtc_clock;/g;
+	$line =~ s/\brtc_clock = (vm_|rt_|host_)clock\b/rtc_clock = XXX_$1clock/g;
+
+	unless ($option_rtc)
+	{
+	    # replace any more general uses
+	    $line =~ s/\b(vm_|rt_|host_)clock\b/qemu_clock_ptr(XXX_$1clock)/g;
+	}
+
+	# fix up the place holders
+	$line =~ s/\bXXX_vm_clock\b/QEMU_CLOCK_VIRTUAL/g;
+	$line =~ s/\bXXX_rt_clock\b/QEMU_CLOCK_REALTIME/g;
+	$line =~ s/\bXXX_host_clock\b/QEMU_CLOCK_HOST/g;
+
+	unless ($option_rtc)
+	{
+	    DoWarn("$ifn:$linenum WARNING: timer $1 not fixed up", $line) if ($line =~ /\b((vm_|rt_|host_)clock)\b/);
+	    DoWarn("$ifn:$linenum WARNING: function $1 not fixed up", $line) if ($line =~ /\b(qemu_new_timer\w+)\b/);
+	    DoWarn("$ifn:$linenum WARNING: legacy function $1 remains", $line) if ($line =~ /$legacyre/o);
+	}
+
+	$outtext .= $line;
+    }
+
+    close $input;
+
+    if ($intext ne $outtext)
+    {
+	print STDERR "Patching $ifn\n" unless ($option_quiet);
+	unless ($option_dryrun)
+	{
+	    open my $output, ">", $ofn || die "Cannot open $ofn for write: $!";
+	    print $output $outtext;
+	    close $output;
+	    rename ($ofn, $ifn) || die "Cannot rename temp file to $ifn: $!";
+	    return 1;
+	}
+    }
+    return 0;
+}
+
+sub DoCommit
+{
+    my $file = shift @_;
+    open (my $git, "| git commit -F - $file") || die "Cannot run git commit on $file: $!";
+    print $git "timers api: use new timer api in $file\n\nConvert $file to use new timer API.\nThis is an automated commit made by scripts/switch-timer-api\n";
+    close ($git);
+}
+
+ParseOptions;
+
+foreach my $file (@files)
+{
+    my $changed = Process ($file);
+    DoCommit($file) if ($changed && $option_git);
+}

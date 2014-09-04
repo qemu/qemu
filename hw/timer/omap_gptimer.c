@@ -103,7 +103,7 @@ static inline uint32_t omap_gp_timer_read(struct omap_gp_timer_s *timer)
     uint64_t distance;
 
     if (timer->st && timer->rate) {
-        distance = qemu_get_clock_ns(vm_clock) - timer->time;
+        distance = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - timer->time;
         distance = muldiv64(distance, timer->rate, timer->ticks_per_sec);
 
         if (distance >= 0xffffffff - timer->val)
@@ -118,7 +118,7 @@ static inline void omap_gp_timer_sync(struct omap_gp_timer_s *timer)
 {
     if (timer->st) {
         timer->val = omap_gp_timer_read(timer);
-        timer->time = qemu_get_clock_ns(vm_clock);
+        timer->time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     }
 }
 
@@ -129,17 +129,17 @@ static inline void omap_gp_timer_update(struct omap_gp_timer_s *timer)
     if (timer->st && timer->rate) {
         expires = muldiv64(0x100000000ll - timer->val,
                         timer->ticks_per_sec, timer->rate);
-        qemu_mod_timer(timer->timer, timer->time + expires);
+        timer_mod(timer->timer, timer->time + expires);
 
         if (timer->ce && timer->match_val >= timer->val) {
             matches = muldiv64(timer->match_val - timer->val,
                             timer->ticks_per_sec, timer->rate);
-            qemu_mod_timer(timer->match, timer->time + matches);
+            timer_mod(timer->match, timer->time + matches);
         } else
-            qemu_del_timer(timer->match);
+            timer_del(timer->match);
     } else {
-        qemu_del_timer(timer->timer);
-        qemu_del_timer(timer->match);
+        timer_del(timer->timer);
+        timer_del(timer->match);
         omap_gp_timer_out(timer, timer->scpwm);
     }
 }
@@ -164,7 +164,7 @@ static void omap_gp_timer_tick(void *opaque)
         timer->val = 0;
     } else {
         timer->val = timer->load_val;
-        timer->time = qemu_get_clock_ns(vm_clock);
+        timer->time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     }
 
     if (timer->trigger == gpt_trigger_overflow ||
@@ -227,7 +227,7 @@ static void omap_gp_timer_clk_update(void *opaque, int line, int on)
 static void omap_gp_timer_clk_setup(struct omap_gp_timer_s *timer)
 {
     omap_clk_adduser(timer->clk,
-                    qemu_allocate_irqs(omap_gp_timer_clk_update, timer, 1)[0]);
+                     qemu_allocate_irq(omap_gp_timer_clk_update, timer, 0));
     timer->rate = omap_clk_getrate(timer->clk);
 }
 
@@ -406,7 +406,7 @@ static void omap_gp_timer_write(void *opaque, hwaddr addr,
         break;
 
     case 0x28:	/* TCRR */
-        s->time = qemu_get_clock_ns(vm_clock);
+        s->time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         s->val = value;
         omap_gp_timer_update(s);
         break;
@@ -416,7 +416,7 @@ static void omap_gp_timer_write(void *opaque, hwaddr addr,
         break;
 
     case 0x30:	/* TTGR */
-        s->time = qemu_get_clock_ns(vm_clock);
+        s->time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         s->val = s->load_val;
         omap_gp_timer_update(s);
         break;
@@ -474,13 +474,13 @@ struct omap_gp_timer_s *omap_gp_timer_init(struct omap_target_agent_s *ta,
     s->ta = ta;
     s->irq = irq;
     s->clk = fclk;
-    s->timer = qemu_new_timer_ns(vm_clock, omap_gp_timer_tick, s);
-    s->match = qemu_new_timer_ns(vm_clock, omap_gp_timer_match, s);
-    s->in = qemu_allocate_irqs(omap_gp_timer_input, s, 1)[0];
+    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, omap_gp_timer_tick, s);
+    s->match = timer_new_ns(QEMU_CLOCK_VIRTUAL, omap_gp_timer_match, s);
+    s->in = qemu_allocate_irq(omap_gp_timer_input, s, 0);
     omap_gp_timer_reset(s);
     omap_gp_timer_clk_setup(s);
 
-    memory_region_init_io(&s->iomem, &omap_gp_timer_ops, s, "omap.gptimer",
+    memory_region_init_io(&s->iomem, NULL, &omap_gp_timer_ops, s, "omap.gptimer",
                           omap_l4_region_size(ta, 0));
     omap_l4_attach(ta, 0, &s->iomem);
 

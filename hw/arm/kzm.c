@@ -70,19 +70,18 @@ static struct arm_boot_info kzm_binfo = {
     .board_id = 1722,
 };
 
-static void kzm_init(QEMUMachineInitArgs *args)
+static void kzm_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     ARMCPU *cpu;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     MemoryRegion *ram_alias = g_new(MemoryRegion, 1);
-    qemu_irq *cpu_pic;
     DeviceState *dev;
     DeviceState *ccm;
 
@@ -98,21 +97,20 @@ static void kzm_init(QEMUMachineInitArgs *args)
 
     /* On a real system, the first 16k is a `secure boot rom' */
 
-    memory_region_init_ram(ram, "kzm.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "kzm.ram", ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space_mem, KZM_RAMADDRESS, ram);
 
-    memory_region_init_alias(ram_alias, "ram.alias", ram, 0, ram_size);
+    memory_region_init_alias(ram_alias, NULL, "ram.alias", ram, 0, ram_size);
     memory_region_add_subregion(address_space_mem, 0x88000000, ram_alias);
 
-    memory_region_init_ram(sram, "kzm.sram", 0x4000);
+    memory_region_init_ram(sram, NULL, "kzm.sram", 0x4000);
     memory_region_add_subregion(address_space_mem, 0x1FFFC000, sram);
 
-    cpu_pic = arm_pic_init_cpu(cpu);
     dev = sysbus_create_varargs("imx_avic", 0x68000000,
-                                cpu_pic[ARM_PIC_CPU_IRQ],
-                                cpu_pic[ARM_PIC_CPU_FIQ], NULL);
-
+                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ),
+                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ),
+                                NULL);
 
     imx_serial_create(0, 0x43f90000, qdev_get_gpio_in(dev, 45));
     imx_serial_create(1, 0x43f94000, qdev_get_gpio_in(dev, 32));
@@ -146,7 +144,6 @@ static QEMUMachine kzm_machine = {
     .name = "kzm",
     .desc = "ARM KZM Emulation Baseboard (ARM1136)",
     .init = kzm_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void kzm_machine_init(void)

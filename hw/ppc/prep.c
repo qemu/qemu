@@ -185,6 +185,7 @@ typedef struct sysctrl_t {
     uint8_t state;
     uint8_t syscontrol;
     int contiguous_map;
+    qemu_irq contiguous_map_irq;
     int endian;
 } sysctrl_t;
 
@@ -253,6 +254,7 @@ static void PREP_io_800_writeb (void *opaque, uint32_t addr, uint32_t val)
     case 0x0850:
         /* I/O map type register */
         sysctrl->contiguous_map = val & 0x01;
+        qemu_set_irq(sysctrl->contiguous_map_irq, sysctrl->contiguous_map);
         break;
     default:
         printf("ERROR: unaffected IO port write: %04" PRIx32
@@ -327,100 +329,15 @@ static uint32_t PREP_io_800_readb (void *opaque, uint32_t addr)
     return retval;
 }
 
-static inline hwaddr prep_IO_address(sysctrl_t *sysctrl,
-                                                 hwaddr addr)
-{
-    if (sysctrl->contiguous_map == 0) {
-        /* 64 KB contiguous space for IOs */
-        addr &= 0xFFFF;
-    } else {
-        /* 8 MB non-contiguous space for IOs */
-        addr = (addr & 0x1F) | ((addr & 0x007FFF000) >> 7);
-    }
-
-    return addr;
-}
-
-static void PPC_prep_io_writeb (void *opaque, hwaddr addr,
-                                uint32_t value)
-{
-    sysctrl_t *sysctrl = opaque;
-
-    addr = prep_IO_address(sysctrl, addr);
-    cpu_outb(addr, value);
-}
-
-static uint32_t PPC_prep_io_readb (void *opaque, hwaddr addr)
-{
-    sysctrl_t *sysctrl = opaque;
-    uint32_t ret;
-
-    addr = prep_IO_address(sysctrl, addr);
-    ret = cpu_inb(addr);
-
-    return ret;
-}
-
-static void PPC_prep_io_writew (void *opaque, hwaddr addr,
-                                uint32_t value)
-{
-    sysctrl_t *sysctrl = opaque;
-
-    addr = prep_IO_address(sysctrl, addr);
-    PPC_IO_DPRINTF("0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", addr, value);
-    cpu_outw(addr, value);
-}
-
-static uint32_t PPC_prep_io_readw (void *opaque, hwaddr addr)
-{
-    sysctrl_t *sysctrl = opaque;
-    uint32_t ret;
-
-    addr = prep_IO_address(sysctrl, addr);
-    ret = cpu_inw(addr);
-    PPC_IO_DPRINTF("0x" TARGET_FMT_plx " <= 0x%08" PRIx32 "\n", addr, ret);
-
-    return ret;
-}
-
-static void PPC_prep_io_writel (void *opaque, hwaddr addr,
-                                uint32_t value)
-{
-    sysctrl_t *sysctrl = opaque;
-
-    addr = prep_IO_address(sysctrl, addr);
-    PPC_IO_DPRINTF("0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", addr, value);
-    cpu_outl(addr, value);
-}
-
-static uint32_t PPC_prep_io_readl (void *opaque, hwaddr addr)
-{
-    sysctrl_t *sysctrl = opaque;
-    uint32_t ret;
-
-    addr = prep_IO_address(sysctrl, addr);
-    ret = cpu_inl(addr);
-    PPC_IO_DPRINTF("0x" TARGET_FMT_plx " <= 0x%08" PRIx32 "\n", addr, ret);
-
-    return ret;
-}
-
-static const MemoryRegionOps PPC_prep_io_ops = {
-    .old_mmio = {
-        .read = { PPC_prep_io_readb, PPC_prep_io_readw, PPC_prep_io_readl },
-        .write = { PPC_prep_io_writeb, PPC_prep_io_writew, PPC_prep_io_writel },
-    },
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
 
 #define NVRAM_SIZE        0x2000
 
 static void cpu_request_exit(void *opaque, int irq, int level)
 {
-    CPUPPCState *env = cpu_single_env;
+    CPUState *cpu = current_cpu;
 
-    if (env && level) {
-        cpu_exit(env);
+    if (cpu && level) {
+        cpu_exit(cpu);
     }
 }
 
@@ -429,33 +346,39 @@ static void ppc_prep_reset(void *opaque)
     PowerPCCPU *cpu = opaque;
 
     cpu_reset(CPU(cpu));
-
-    /* Reset address */
-    cpu->env.nip = 0xfffffffc;
 }
 
+static const MemoryRegionPortio prep_portio_list[] = {
+    /* System control ports */
+    { 0x0092, 1, 1, .read = PREP_io_800_readb, .write = PREP_io_800_writeb, },
+    { 0x0800, 0x52, 1,
+      .read = PREP_io_800_readb, .write = PREP_io_800_writeb, },
+    /* Special port to get debug messages from Open-Firmware */
+    { 0x0F00, 4, 1, .write = PPC_debug_write, },
+    PORTIO_END_OF_LIST(),
+};
+
+static PortioList prep_port_list;
+
 /* PowerPC PREP hardware initialisation */
-static void ppc_prep_init(QEMUMachineInitArgs *args)
+static void ppc_prep_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
+    const char *boot_device = machine->boot_order;
     MemoryRegion *sysmem = get_system_memory();
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
-    char *filename;
     nvram_t nvram;
     M48t59State *m48t59;
-    MemoryRegion *PPC_io_memory = g_new(MemoryRegion, 1);
 #if 0
     MemoryRegion *xcsr = g_new(MemoryRegion, 1);
 #endif
-    int linux_boot, i, nb_nics1, bios_size;
+    int linux_boot, i, nb_nics1;
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    MemoryRegion *bios = g_new(MemoryRegion, 1);
     uint32_t kernel_base, initrd_base;
     long kernel_size, initrd_size;
     DeviceState *dev;
@@ -494,46 +417,8 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     }
 
     /* allocate RAM */
-    memory_region_init_ram(ram, "ppc_prep.ram", ram_size);
-    vmstate_register_ram_global(ram);
+    memory_region_allocate_system_memory(ram, NULL, "ppc_prep.ram", ram_size);
     memory_region_add_subregion(sysmem, 0, ram);
-
-    /* allocate and load BIOS */
-    memory_region_init_ram(bios, "ppc_prep.bios", BIOS_SIZE);
-    memory_region_set_readonly(bios, true);
-    memory_region_add_subregion(sysmem, (uint32_t)(-BIOS_SIZE), bios);
-    vmstate_register_ram_global(bios);
-    if (bios_name == NULL)
-        bios_name = BIOS_FILENAME;
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-    if (filename) {
-        bios_size = load_elf(filename, NULL, NULL, NULL,
-                             NULL, NULL, 1, ELF_MACHINE, 0);
-        if (bios_size < 0) {
-            bios_size = get_image_size(filename);
-            if (bios_size > 0 && bios_size <= BIOS_SIZE) {
-                hwaddr bios_addr;
-                bios_size = (bios_size + 0xfff) & ~0xfff;
-                bios_addr = (uint32_t)(-bios_size);
-                bios_size = load_image_targphys(filename, bios_addr, bios_size);
-            }
-            if (bios_size > BIOS_SIZE) {
-                fprintf(stderr, "qemu: PReP bios '%s' is too large (0x%x)\n",
-                        bios_name, bios_size);
-                exit(1);
-            }
-        }
-    } else {
-        bios_size = -1;
-    }
-    if (bios_size < 0 && !qtest_enabled()) {
-        fprintf(stderr, "qemu: could not load PPC PReP bios '%s'\n",
-                bios_name);
-        exit(1);
-    }
-    if (filename) {
-        g_free(filename);
-    }
 
     if (linux_boot) {
         kernel_base = KERNEL_LOAD_ADDR;
@@ -582,6 +467,11 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     }
 
     dev = qdev_create(NULL, "raven-pcihost");
+    if (bios_name == NULL) {
+        bios_name = BIOS_FILENAME;
+    }
+    qdev_prop_set_string(dev, "bios-name", bios_name);
+    qdev_prop_set_uint32(dev, "elf-machine", ELF_MACHINE);
     pcihost = PCI_HOST_BRIDGE(dev);
     object_property_add_child(qdev_get_machine(), "raven", OBJECT(dev), NULL);
     qdev_init_nofail(dev);
@@ -590,28 +480,26 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
         fprintf(stderr, "Couldn't create PCI host controller.\n");
         exit(1);
     }
+    sysctrl->contiguous_map_irq = qdev_get_gpio_in(dev, 0);
 
     /* PCI -> ISA bridge */
     pci = pci_create_simple(pci_bus, PCI_DEVFN(1, 0), "i82378");
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
+    cpu = POWERPC_CPU(first_cpu);
     qdev_connect_gpio_out(&pci->qdev, 0,
-                          first_cpu->irq_inputs[PPC6xx_INPUT_INT]);
+                          cpu->env.irq_inputs[PPC6xx_INPUT_INT]);
     qdev_connect_gpio_out(&pci->qdev, 1, *cpu_exit_irq);
     sysbus_connect_irq(&pcihost->busdev, 0, qdev_get_gpio_in(&pci->qdev, 9));
     sysbus_connect_irq(&pcihost->busdev, 1, qdev_get_gpio_in(&pci->qdev, 11));
     sysbus_connect_irq(&pcihost->busdev, 2, qdev_get_gpio_in(&pci->qdev, 9));
     sysbus_connect_irq(&pcihost->busdev, 3, qdev_get_gpio_in(&pci->qdev, 11));
-    isa_bus = DO_UPCAST(ISABus, qbus, qdev_get_child_bus(&pci->qdev, "isa.0"));
+    isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(pci), "isa.0"));
 
     /* Super I/O (parallel + serial ports) */
     isa = isa_create(isa_bus, TYPE_PC87312);
-    qdev_prop_set_uint8(&isa->qdev, "config", 13); /* fdc, ser0, ser1, par0 */
-    qdev_init_nofail(&isa->qdev);
-
-    /* Register 8 MB of ISA IO space (needed for non-contiguous map) */
-    memory_region_init_io(PPC_io_memory, &PPC_prep_io_ops, sysctrl,
-                          "ppc-io", 0x00800000);
-    memory_region_add_subregion(sysmem, 0x80000000, PPC_io_memory);
+    dev = DEVICE(isa);
+    qdev_prop_set_uint8(dev, "config", 13); /* fdc, ser0, ser1, par0 */
+    qdev_init_nofail(dev);
 
     /* init basic PC hardware */
     pci_vga_init(pci_bus);
@@ -627,7 +515,7 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
             isa_ne2000_init(isa_bus, ne2000_io[i], ne2000_irq[i],
                             &nd_table[i]);
         } else {
-            pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
+            pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
         }
     }
 
@@ -639,15 +527,15 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     }
     isa_create_simple(isa_bus, "i8042");
 
-    sysctrl->reset_irq = first_cpu->irq_inputs[PPC6xx_INPUT_HRESET];
-    /* System control ports */
-    register_ioport_read(0x0092, 0x01, 1, &PREP_io_800_readb, sysctrl);
-    register_ioport_write(0x0092, 0x01, 1, &PREP_io_800_writeb, sysctrl);
-    register_ioport_read(0x0800, 0x52, 1, &PREP_io_800_readb, sysctrl);
-    register_ioport_write(0x0800, 0x52, 1, &PREP_io_800_writeb, sysctrl);
+    cpu = POWERPC_CPU(first_cpu);
+    sysctrl->reset_irq = cpu->env.irq_inputs[PPC6xx_INPUT_HRESET];
+
+    portio_list_init(&prep_port_list, NULL, prep_portio_list, sysctrl, "prep");
+    portio_list_add(&prep_port_list, isa_address_space_io(isa), 0x0);
+
     /* PowerPC control and status register group */
 #if 0
-    memory_region_init_io(xcsr, &PPC_XCSR_ops, NULL, "ppc-xcsr", 0x1000);
+    memory_region_init_io(xcsr, NULL, &PPC_XCSR_ops, NULL, "ppc-xcsr", 0x1000);
     memory_region_add_subregion(sysmem, 0xFEFF0000, xcsr);
 #endif
 
@@ -671,9 +559,6 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
                          /* XXX: need an option to load a NVRAM image */
                          0,
                          graphic_width, graphic_height, graphic_depth);
-
-    /* Special port to get debug messages from Open-Firmware */
-    register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
 }
 
 static QEMUMachine prep_machine = {
@@ -681,7 +566,7 @@ static QEMUMachine prep_machine = {
     .desc = "PowerPC PREP platform",
     .init = ppc_prep_init,
     .max_cpus = MAX_CPUS,
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "cad",
 };
 
 static void prep_machine_init(void)

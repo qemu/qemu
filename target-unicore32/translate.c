@@ -18,10 +18,10 @@
 #include "disas/disas.h"
 #include "tcg-op.h"
 #include "qemu/log.h"
+#include "exec/cpu_ldst.h"
 
-#include "helper.h"
-#define GEN_HELPER 1
-#include "helper.h"
+#include "exec/helper-proto.h"
+#include "exec/helper-gen.h"
 
 /* internal defines */
 typedef struct DisasContext {
@@ -74,9 +74,6 @@ void uc32_translate_init(void)
         cpu_R[i] = tcg_global_mem_new_i32(TCG_AREG0,
                                 offsetof(CPUUniCore32State, regs[i]), regnames[i]);
     }
-
-#define GEN_HELPER 2
-#include "helper.h"
 }
 
 static int num_temps;
@@ -179,7 +176,7 @@ static void store_reg(DisasContext *s, int reg, TCGv var)
 #define UCOP_SET_L              UCOP_SET(24)
 #define UCOP_SET_S              UCOP_SET(24)
 
-#define ILLEGAL         cpu_abort(env,                                  \
+#define ILLEGAL         cpu_abort(CPU(cpu),                             \
                         "Illegal UniCore32 instruction %x at line %d!", \
                         insn, __LINE__)
 
@@ -187,6 +184,7 @@ static void store_reg(DisasContext *s, int reg, TCGv var)
 static void disas_cp0_insn(CPUUniCore32State *env, DisasContext *s,
         uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     TCGv tmp, tmp2, tmp3;
     if ((insn & 0xfe000000) == 0xe0000000) {
         tmp2 = new_tmp();
@@ -212,6 +210,7 @@ static void disas_cp0_insn(CPUUniCore32State *env, DisasContext *s,
 static void disas_ocd_insn(CPUUniCore32State *env, DisasContext *s,
         uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     TCGv tmp;
 
     if ((insn & 0xff003fff) == 0xe1000400) {
@@ -577,13 +576,6 @@ static inline TCGv gen_ld32(TCGv addr, int index)
     return tmp;
 }
 
-static inline TCGv_i64 gen_ld64(TCGv addr, int index)
-{
-    TCGv_i64 tmp = tcg_temp_new_i64();
-    tcg_gen_qemu_ld64(tmp, addr, index);
-    return tmp;
-}
-
 static inline void gen_st8(TCGv val, TCGv addr, int index)
 {
     tcg_gen_qemu_st8(val, addr, index);
@@ -600,12 +592,6 @@ static inline void gen_st32(TCGv val, TCGv addr, int index)
 {
     tcg_gen_qemu_st32(val, addr, index);
     dead_tmp(val);
-}
-
-static inline void gen_st64(TCGv_i64 val, TCGv addr, int index)
-{
-    tcg_gen_qemu_st64(val, addr, index);
-    tcg_temp_free_i64(val);
 }
 
 static inline void gen_set_pc_im(uint32_t val)
@@ -692,6 +678,7 @@ static inline long ucf64_reg_offset(int reg)
 /* UniCore-F64 single load/store I_offset */
 static void do_ucf64_ldst_i(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     int offset;
     TCGv tmp;
     TCGv addr;
@@ -738,6 +725,7 @@ static void do_ucf64_ldst_i(CPUUniCore32State *env, DisasContext *s, uint32_t in
 /* UniCore-F64 load/store multiple words */
 static void do_ucf64_ldst_m(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     unsigned int i;
     int j, n, freg;
     TCGv tmp;
@@ -823,6 +811,7 @@ static void do_ucf64_ldst_m(CPUUniCore32State *env, DisasContext *s, uint32_t in
 /* UniCore-F64 mrc/mcr */
 static void do_ucf64_trans(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     TCGv tmp;
 
     if ((insn & 0xfe0003ff) == 0xe2000000) {
@@ -887,6 +876,8 @@ static void do_ucf64_trans(CPUUniCore32State *env, DisasContext *s, uint32_t ins
 /* UniCore-F64 convert instructions */
 static void do_ucf64_fcvt(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
+
     if (UCOP_UCF64_FMT == 3) {
         ILLEGAL;
     }
@@ -953,6 +944,8 @@ static void do_ucf64_fcvt(CPUUniCore32State *env, DisasContext *s, uint32_t insn
 /* UniCore-F64 compare instructions */
 static void do_ucf64_fcmp(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
+
     if (UCOP_SET(25)) {
         ILLEGAL;
     }
@@ -1031,6 +1024,8 @@ static void do_ucf64_fcmp(CPUUniCore32State *env, DisasContext *s, uint32_t insn
 /* UniCore-F64 data processing */
 static void do_ucf64_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
+
     if (UCOP_UCF64_FMT == 3) {
         ILLEGAL;
     }
@@ -1064,6 +1059,8 @@ static void do_ucf64_datap(CPUUniCore32State *env, DisasContext *s, uint32_t ins
 /* Disassemble an F64 instruction */
 static void disas_ucf64_insn(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
+
     if (!UCOP_SET(29)) {
         if (UCOP_SET(26)) {
             do_ucf64_ldst_m(env, s, insn);
@@ -1100,7 +1097,7 @@ static inline void gen_goto_tb(DisasContext *s, int n, uint32_t dest)
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
         tcg_gen_goto_tb(n);
         gen_set_pc_im(dest);
-        tcg_gen_exit_tb((tcg_target_long)tb + n);
+        tcg_gen_exit_tb((uintptr_t)tb + n);
     } else {
         gen_set_pc_im(dest);
         tcg_gen_exit_tb(0);
@@ -1116,21 +1113,6 @@ static inline void gen_jmp(DisasContext *s, uint32_t dest)
         gen_goto_tb(s, 0, dest);
         s->is_jmp = DISAS_TB_JUMP;
     }
-}
-
-static inline void gen_mulxy(TCGv t0, TCGv t1, int x, int y)
-{
-    if (x) {
-        tcg_gen_sari_i32(t0, t0, 16);
-    } else {
-        gen_sxth(t0);
-    }
-    if (y) {
-        tcg_gen_sari_i32(t1, t1, 16);
-    } else {
-        gen_sxth(t1);
-    }
-    tcg_gen_mul_i32(t0, t0, t1);
 }
 
 /* Returns nonzero if access to the PSR is not permitted. Marks t0 as dead. */
@@ -1170,6 +1152,8 @@ static void gen_exception_return(DisasContext *s, TCGv pc)
 static void disas_coproc_insn(CPUUniCore32State *env, DisasContext *s,
         uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
+
     switch (UCOP_CPNUM) {
 #ifndef CONFIG_USER_ONLY
     case 0:
@@ -1184,13 +1168,14 @@ static void disas_coproc_insn(CPUUniCore32State *env, DisasContext *s,
         break;
     default:
         /* Unknown coprocessor. */
-        cpu_abort(env, "Unknown coprocessor!");
+        cpu_abort(CPU(cpu), "Unknown coprocessor!");
     }
 }
 
 /* data processing instructions */
 static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     TCGv tmp;
     TCGv tmp2;
     int logic_cc;
@@ -1424,6 +1409,7 @@ static void do_mult(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 /* miscellaneous instructions */
 static void do_misc(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     unsigned int val;
     TCGv tmp;
 
@@ -1549,6 +1535,7 @@ static void do_ldst_ir(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 /* SWP instruction */
 static void do_swap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     TCGv addr;
     TCGv tmp;
     TCGv tmp2;
@@ -1576,6 +1563,7 @@ static void do_swap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 /* load/store hw/sb */
 static void do_ldst_hwsb(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     TCGv addr;
     TCGv tmp;
 
@@ -1628,6 +1616,7 @@ static void do_ldst_hwsb(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 /* load/store multiple words */
 static void do_ldst_m(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     unsigned int val, i, mmu_idx;
     int j, n, reg, user, loaded_base;
     TCGv tmp;
@@ -1769,6 +1758,7 @@ static void do_ldst_m(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 /* branch (and link) */
 static void do_branch(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     unsigned int val;
     int32_t offset;
     TCGv tmp;
@@ -1798,6 +1788,7 @@ static void do_branch(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 
 static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     unsigned int insn;
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
@@ -1876,9 +1867,11 @@ static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
    basic block 'tb'. If search_pc is TRUE, also generate PC
    information for each intermediate instruction. */
-static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
-        TranslationBlock *tb, int search_pc)
+static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
+        TranslationBlock *tb, bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
+    CPUUniCore32State *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
     CPUBreakpoint *bp;
     uint16_t *gen_opc_end;
@@ -1899,7 +1892,7 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
 
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
-    dc->singlestep_enabled = env->singlestep_enabled;
+    dc->singlestep_enabled = cs->singlestep_enabled;
     dc->condjmp = 0;
     cpu_F0s = tcg_temp_new_i32();
     cpu_F1s = tcg_temp_new_i32();
@@ -1923,8 +1916,8 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
 
     gen_tb_start();
     do {
-        if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
-            QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
+            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (bp->pc == dc->pc) {
                     gen_set_pc_im(dc->pc);
                     gen_exception(EXCP_DEBUG);
@@ -1933,7 +1926,6 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
                        invalidate this TB.  */
                     dc->pc += 2; /* FIXME */
                     goto done_generating;
-                    break;
                 }
             }
         }
@@ -1971,7 +1963,7 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
          * ensures prefetch aborts occur at the right place.  */
         num_insns++;
     } while (!dc->is_jmp && tcg_ctx.gen_opc_ptr < gen_opc_end &&
-             !env->singlestep_enabled &&
+             !cs->singlestep_enabled &&
              !singlestep &&
              dc->pc < next_page_start &&
              num_insns < max_insns);
@@ -1980,7 +1972,7 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
         if (dc->condjmp) {
             /* FIXME:  This can theoretically happen with self-modifying
                code.  */
-            cpu_abort(env, "IO on conditional branch instruction");
+            cpu_abort(cs, "IO on conditional branch instruction");
         }
         gen_io_end();
     }
@@ -1988,7 +1980,7 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
     /* At this stage dc->condjmp will only be set when the skipped
        instruction was a conditional branch or trap, and the PC has
        already been written.  */
-    if (unlikely(env->singlestep_enabled)) {
+    if (unlikely(cs->singlestep_enabled)) {
         /* Make sure the pc is updated, and raise a debug exception.  */
         if (dc->condjmp) {
             if (dc->is_jmp == DISAS_SYSCALL) {
@@ -2066,12 +2058,12 @@ done_generating:
 
 void gen_intermediate_code(CPUUniCore32State *env, TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(uc32_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc(CPUUniCore32State *env, TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(uc32_env_get_cpu(env), tb, true);
 }
 
 static const char *cpu_mode_names[16] = {
@@ -2114,9 +2106,11 @@ static void cpu_dump_state_ucf64(CPUUniCore32State *env, FILE *f,
 #define cpu_dump_state_ucf64(env, file, pr, flags)      do { } while (0)
 #endif
 
-void cpu_dump_state(CPUUniCore32State *env, FILE *f,
-        fprintf_function cpu_fprintf, int flags)
+void uc32_cpu_dump_state(CPUState *cs, FILE *f,
+                         fprintf_function cpu_fprintf, int flags)
 {
+    UniCore32CPU *cpu = UNICORE32_CPU(cs);
+    CPUUniCore32State *env = &cpu->env;
     int i;
     uint32_t psr;
 

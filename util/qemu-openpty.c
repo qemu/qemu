@@ -47,6 +47,8 @@
 #elif defined CONFIG_SOLARIS
 # include <termios.h>
 # include <stropts.h>
+#else
+# include <termios.h>
 #endif
 
 #ifdef __sun__

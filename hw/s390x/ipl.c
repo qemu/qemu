@@ -62,10 +62,10 @@ typedef struct S390IPLState {
 static int s390_ipl_init(SysBusDevice *dev)
 {
     S390IPLState *ipl = S390_IPL(dev);
-    ram_addr_t kernel_size = 0;
+    int kernel_size;
 
     if (!ipl->kernel) {
-        ram_addr_t bios_size = 0;
+        int bios_size;
         char *bios_filename;
 
         /* Load zipl bootloader */
@@ -80,7 +80,7 @@ static int s390_ipl_init(SysBusDevice *dev)
 
         bios_size = load_elf(bios_filename, NULL, NULL, &ipl->start_addr, NULL,
                              NULL, 1, ELF_MACHINE, 0);
-        if (bios_size == -1UL) {
+        if (bios_size < 0) {
             bios_size = load_image_targphys(bios_filename, ZIPL_IMAGE_START,
                                             4096);
             ipl->start_addr = ZIPL_IMAGE_START;
@@ -90,32 +90,38 @@ static int s390_ipl_init(SysBusDevice *dev)
         }
         g_free(bios_filename);
 
-        if ((long)bios_size < 0) {
+        if (bios_size == -1) {
             hw_error("could not load bootloader '%s'\n", bios_name);
         }
         return 0;
     } else {
-        kernel_size = load_elf(ipl->kernel, NULL, NULL, NULL, NULL,
+        uint64_t pentry = KERN_IMAGE_START;
+        kernel_size = load_elf(ipl->kernel, NULL, NULL, &pentry, NULL,
                                NULL, 1, ELF_MACHINE, 0);
-        if (kernel_size == -1UL) {
+        if (kernel_size < 0) {
             kernel_size = load_image_targphys(ipl->kernel, 0, ram_size);
         }
-        if (kernel_size == -1UL) {
+        if (kernel_size < 0) {
             fprintf(stderr, "could not load kernel '%s'\n", ipl->kernel);
             return -1;
         }
-        /* we have to overwrite values in the kernel image, which are "rom" */
-        strcpy(rom_ptr(KERN_PARM_AREA), ipl->cmdline);
-
         /*
-         * we can not rely on the ELF entry point, since up to 3.2 this
-         * value was 0x800 (the SALIPL loader) and it wont work. For
-         * all (Linux) cases 0x10000 (KERN_IMAGE_START) should be fine.
+         * Is it a Linux kernel (starting at 0x10000)? If yes, we fill in the
+         * kernel parameters here as well. Note: For old kernels (up to 3.2)
+         * we can not rely on the ELF entry point - it was 0x800 (the SALIPL
+         * loader) and it won't work. For this case we force it to 0x10000, too.
          */
-        ipl->start_addr = KERN_IMAGE_START;
+        if (pentry == KERN_IMAGE_START || pentry == 0x800) {
+            ipl->start_addr = KERN_IMAGE_START;
+            /* Overwrite parameters in the kernel image, which are "rom" */
+            strcpy(rom_ptr(KERN_PARM_AREA), ipl->cmdline);
+        } else {
+            ipl->start_addr = pentry;
+        }
     }
     if (ipl->initrd) {
-        ram_addr_t initrd_offset, initrd_size;
+        ram_addr_t initrd_offset;
+        int initrd_size;
 
         initrd_offset = INITRD_START;
         while (kernel_size + 0x100000 > initrd_offset) {
@@ -123,7 +129,7 @@ static int s390_ipl_init(SysBusDevice *dev)
         }
         initrd_size = load_image_targphys(ipl->initrd, initrd_offset,
                                           ram_size - initrd_offset);
-        if (initrd_size == -1UL) {
+        if (initrd_size == -1) {
             fprintf(stderr, "qemu: could not load initrd '%s'\n", ipl->initrd);
             exit(1);
         }
@@ -154,17 +160,19 @@ static void s390_ipl_reset(DeviceState *dev)
     env->psw.mask = IPL_PSW_MASK;
 
     if (!ipl->kernel) {
-        /* booting firmware, tell what device to boot from */
+        /* Tell firmware, if there is a preferred boot device */
+        env->regs[7] = -1;
         DeviceState *dev_st = get_boot_device(0);
-        VirtioCcwDevice *ccw_dev = (VirtioCcwDevice *) object_dynamic_cast(
-                OBJECT(&(dev_st->parent_obj)), "virtio-blk-ccw");
+        if (dev_st) {
+            VirtioCcwDevice *ccw_dev = (VirtioCcwDevice *) object_dynamic_cast(
+                OBJECT(qdev_get_parent_bus(dev_st)->parent),
+                TYPE_VIRTIO_CCW_DEVICE);
 
-        if (ccw_dev) {
-            env->regs[7] = ccw_dev->sch->cssid << 24 |
-                           ccw_dev->sch->ssid << 16 |
-                           ccw_dev->sch->devno;
-        } else {
-            env->regs[7] = -1;
+            if (ccw_dev) {
+                env->regs[7] = ccw_dev->sch->cssid << 24 |
+                               ccw_dev->sch->ssid << 16 |
+                               ccw_dev->sch->devno;
+            }
         }
     }
 
@@ -179,7 +187,6 @@ static void s390_ipl_class_init(ObjectClass *klass, void *data)
     k->init = s390_ipl_init;
     dc->props = s390_ipl_properties;
     dc->reset = s390_ipl_reset;
-    dc->no_user = 1;
 }
 
 static const TypeInfo s390_ipl_info = {

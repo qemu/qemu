@@ -27,8 +27,12 @@ enum qxl_mode {
 
 #define QXL_NUM_DIRTY_RECTS 64
 
+#define QXL_PAGE_BITS 12
+#define QXL_PAGE_SIZE (1 << QXL_PAGE_BITS);
+
 typedef struct PCIQXLDevice {
     PCIDevice          pci;
+    PortioList         vga_port_list;
     SimpleSpiceDisplay ssd;
     int                id;
     uint32_t           debug;
@@ -78,8 +82,7 @@ typedef struct PCIQXLDevice {
     QemuMutex          track_lock;
 
     /* thread signaling */
-    QemuThread         main;
-    int                pipe[2];
+    QEMUBH             *update_irq;
 
     /* ram pci bar */
     QXLRam             *ram;

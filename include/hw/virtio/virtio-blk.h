@@ -16,6 +16,8 @@
 
 #include "hw/virtio/virtio.h"
 #include "hw/block/block.h"
+#include "sysemu/iothread.h"
+#include "block/block.h"
 
 #define TYPE_VIRTIO_BLK "virtio-blk-device"
 #define VIRTIO_BLK(obj) \
@@ -106,6 +108,7 @@ struct virtio_scsi_inhdr
 struct VirtIOBlkConf
 {
     BlockConf conf;
+    IOThread *iothread;
     char *serial;
     uint32_t scsi;
     uint32_t config_wce;
@@ -114,6 +117,7 @@ struct VirtIOBlkConf
 
 struct VirtIOBlockDataPlane;
 
+struct VirtIOBlockReq;
 typedef struct VirtIOBlock {
     VirtIODevice parent_obj;
     BlockDriverState *bs;
@@ -123,30 +127,40 @@ typedef struct VirtIOBlock {
     BlockConf *conf;
     VirtIOBlkConf blk;
     unsigned short sector_mask;
+    bool original_wce;
     VMChangeStateEntry *change;
+    /* Function to push to vq and notify guest */
+    void (*complete_request)(struct VirtIOBlockReq *req, unsigned char status);
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+    Notifier migration_state_notifier;
     struct VirtIOBlockDataPlane *dataplane;
 #endif
 } VirtIOBlock;
 
-#define DEFINE_VIRTIO_BLK_FEATURES(_state, _field) \
-        DEFINE_VIRTIO_COMMON_FEATURES(_state, _field)
+typedef struct MultiReqBuffer {
+    BlockRequest        blkreq[32];
+    unsigned int        num_writes;
+} MultiReqBuffer;
 
-#ifdef __linux__
-#define DEFINE_VIRTIO_BLK_PROPERTIES(_state, _field)                          \
-        DEFINE_BLOCK_PROPERTIES(_state, _field.conf),                         \
-        DEFINE_BLOCK_CHS_PROPERTIES(_state, _field.conf),                     \
-        DEFINE_PROP_STRING("serial", _state, _field.serial),                  \
-        DEFINE_PROP_BIT("config-wce", _state, _field.config_wce, 0, true),    \
-        DEFINE_PROP_BIT("scsi", _state, _field.scsi, 0, true)
-#else
-#define DEFINE_VIRTIO_BLK_PROPERTIES(_state, _field)                          \
-        DEFINE_BLOCK_PROPERTIES(_state, _field.conf),                         \
-        DEFINE_BLOCK_CHS_PROPERTIES(_state, _field.conf),                     \
-        DEFINE_PROP_STRING("serial", _state, _field.serial),                  \
-        DEFINE_PROP_BIT("config-wce", _state, _field.config_wce, 0, true)
-#endif /* __linux__ */
+typedef struct VirtIOBlockReq {
+    VirtIOBlock *dev;
+    VirtQueueElement elem;
+    struct virtio_blk_inhdr *in;
+    struct virtio_blk_outhdr out;
+    QEMUIOVector qiov;
+    struct VirtIOBlockReq *next;
+    BlockAcctCookie acct;
+} VirtIOBlockReq;
 
-void virtio_blk_set_conf(DeviceState *dev, VirtIOBlkConf *blk);
+VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s);
+
+void virtio_blk_free_request(VirtIOBlockReq *req);
+
+int virtio_blk_handle_scsi_req(VirtIOBlock *blk,
+                               VirtQueueElement *elem);
+
+void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb);
+
+void virtio_submit_multiwrite(BlockDriverState *bs, MultiReqBuffer *mrb);
 
 #endif

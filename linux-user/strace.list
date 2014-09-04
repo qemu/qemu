@@ -114,6 +114,9 @@
 #ifdef TARGET_NR_epoll_create
 { TARGET_NR_epoll_create, "epoll_create" , NULL, NULL, NULL },
 #endif
+#ifdef TARGET_NR_epoll_create1
+{ TARGET_NR_epoll_create1, "epoll_create1" , NULL, NULL, NULL },
+#endif
 #ifdef TARGET_NR_epoll_ctl
 { TARGET_NR_epoll_ctl, "epoll_ctl" , NULL, NULL, NULL },
 #endif
@@ -611,9 +614,6 @@
 #endif
 #ifdef TARGET_NR_oldstat
 { TARGET_NR_oldstat, "oldstat" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_oldumount
-{ TARGET_NR_oldumount, "oldumount" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_olduname
 { TARGET_NR_olduname, "olduname" , NULL, NULL, NULL },
@@ -1523,4 +1523,10 @@
 #endif
 #ifdef TARGET_NR_pipe2
 { TARGET_NR_pipe2, "pipe2", NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_atomic_cmpxchg_32
+{ TARGET_NR_atomic_cmpxchg_32, "atomic_cmpxchg_32", NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_atomic_barrier
+{ TARGET_NR_atomic_barrier, "atomic_barrier", NULL, NULL, NULL },
 #endif

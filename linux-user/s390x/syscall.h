@@ -21,3 +21,6 @@ struct target_pt_regs {
 };
 
 #define UNAME_MACHINE "s390x"
+#define UNAME_MINIMUM_RELEASE "2.6.32"
+
+#define TARGET_CLONE_BACKWARDS2

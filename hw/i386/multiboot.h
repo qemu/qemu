@@ -1,7 +1,9 @@
 #ifndef QEMU_MULTIBOOT_H
 #define QEMU_MULTIBOOT_H
 
-int load_multiboot(void *fw_cfg,
+#include "hw/nvram/fw_cfg.h"
+
+int load_multiboot(FWCfgState *fw_cfg,
                    FILE *f,
                    const char *kernel_filename,
                    const char *initrd_filename,

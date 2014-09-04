@@ -19,8 +19,9 @@
 
 typedef struct VirtIOBlockDataPlane VirtIOBlockDataPlane;
 
-bool virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
-                                  VirtIOBlockDataPlane **dataplane);
+void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
+                                  VirtIOBlockDataPlane **dataplane,
+                                  Error **errp);
 void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s);
 void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s);
 void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s);

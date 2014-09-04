@@ -17,16 +17,14 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "cpu.h"
-#include "helpers.h"
+#include "exec/helper-proto.h"
+#include "exec/cpu_ldst.h"
 
 #if defined(CONFIG_USER_ONLY)
 
 void m68k_cpu_do_interrupt(CPUState *cs)
 {
-    M68kCPU *cpu = M68K_CPU(cs);
-    CPUM68KState *env = &cpu->env;
-
-    env->exception_index = -1;
+    cs->exception_index = -1;
 }
 
 void do_interrupt_m68k_hardirq(CPUM68KState *env)
@@ -37,37 +35,21 @@ void do_interrupt_m68k_hardirq(CPUM68KState *env)
 
 extern int semihosting_enabled;
 
-#include "exec/softmmu_exec.h"
-
-#define MMUSUFFIX _mmu
-
-#define SHIFT 0
-#include "exec/softmmu_template.h"
-
-#define SHIFT 1
-#include "exec/softmmu_template.h"
-
-#define SHIFT 2
-#include "exec/softmmu_template.h"
-
-#define SHIFT 3
-#include "exec/softmmu_template.h"
-
 /* Try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
-void tlb_fill(CPUM68KState *env, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
     int ret;
 
-    ret = cpu_m68k_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = m68k_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */
-            cpu_restore_state(env, retaddr);
+            cpu_restore_state(cs, retaddr);
         }
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 
@@ -87,7 +69,7 @@ static void do_rte(CPUM68KState *env)
 
 static void do_interrupt_all(CPUM68KState *env, int is_hw)
 {
-    CPUState *cs;
+    CPUState *cs = CPU(m68k_env_get_cpu(env));
     uint32_t sp;
     uint32_t fmt;
     uint32_t retaddr;
@@ -97,7 +79,7 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
     retaddr = env->pc;
 
     if (!is_hw) {
-        switch (env->exception_index) {
+        switch (cs->exception_index) {
         case EXCP_RTE:
             /* Return from an exception.  */
             do_rte(env);
@@ -112,20 +94,19 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
                 do_m68k_semihosting(env, env->dregs[0]);
                 return;
             }
-            cs = CPU(m68k_env_get_cpu(env));
             cs->halted = 1;
-            env->exception_index = EXCP_HLT;
-            cpu_loop_exit(env);
+            cs->exception_index = EXCP_HLT;
+            cpu_loop_exit(cs);
             return;
         }
-        if (env->exception_index >= EXCP_TRAP0
-            && env->exception_index <= EXCP_TRAP15) {
+        if (cs->exception_index >= EXCP_TRAP0
+            && cs->exception_index <= EXCP_TRAP15) {
             /* Move the PC after the trap instruction.  */
             retaddr += 2;
         }
     }
 
-    vector = env->exception_index << 2;
+    vector = cs->exception_index << 2;
 
     sp = env->aregs[7];
 
@@ -168,8 +149,10 @@ void do_interrupt_m68k_hardirq(CPUM68KState *env)
 
 static void raise_exception(CPUM68KState *env, int tt)
 {
-    env->exception_index = tt;
-    cpu_loop_exit(env);
+    CPUState *cs = CPU(m68k_env_get_cpu(env));
+
+    cs->exception_index = tt;
+    cpu_loop_exit(cs);
 }
 
 void HELPER(raise_exception)(CPUM68KState *env, uint32_t tt)

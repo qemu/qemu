@@ -5,8 +5,7 @@ const VMStateDescription vmstate_moxie_cpu = {
     .name = "cpu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(flags, CPUMoxieState),
         VMSTATE_UINT32_ARRAY(gregs, CPUMoxieState, 16),
         VMSTATE_UINT32_ARRAY(sregs, CPUMoxieState, 256),

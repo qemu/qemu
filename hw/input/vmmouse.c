@@ -240,9 +240,8 @@ static const VMStateDescription vmstate_vmmouse = {
     .name = "vmmouse",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .post_load = vmmouse_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_INT32_EQUAL(queue_size, VMMouseState),
         VMSTATE_UINT32_ARRAY(queue, VMMouseState, VMMOUSE_QUEUE_SIZE),
         VMSTATE_UINT16(nb_queue, VMMouseState),
@@ -261,7 +260,7 @@ static void vmmouse_reset(DeviceState *d)
     vmmouse_disable(s);
 }
 
-static int vmmouse_initfn(ISADevice *dev)
+static void vmmouse_realizefn(DeviceState *dev, Error **errp)
 {
     VMMouseState *s = VMMOUSE(dev);
 
@@ -270,8 +269,6 @@ static int vmmouse_initfn(ISADevice *dev)
     vmport_register(VMMOUSE_STATUS, vmmouse_ioport_read, s);
     vmport_register(VMMOUSE_COMMAND, vmmouse_ioport_read, s);
     vmport_register(VMMOUSE_DATA, vmmouse_ioport_read, s);
-
-    return 0;
 }
 
 static Property vmmouse_properties[] = {
@@ -282,12 +279,13 @@ static Property vmmouse_properties[] = {
 static void vmmouse_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = vmmouse_initfn;
-    dc->no_user = 1;
+
+    dc->realize = vmmouse_realizefn;
     dc->reset = vmmouse_reset;
     dc->vmsd = &vmstate_vmmouse;
     dc->props = vmmouse_properties;
+    /* Reason: pointer property "ps2_mouse" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo vmmouse_info = {

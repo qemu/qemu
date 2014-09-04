@@ -48,7 +48,7 @@ static void ptimer_reload(ptimer_state *s)
     if (s->period_frac) {
         s->next_event += ((int64_t)s->period_frac * s->delta) >> 32;
     }
-    qemu_mod_timer(s->timer, s->next_event);
+    timer_mod(s->timer, s->next_event);
 }
 
 static void ptimer_tick(void *opaque)
@@ -69,7 +69,7 @@ uint64_t ptimer_get_count(ptimer_state *s)
     uint64_t counter;
 
     if (s->enabled) {
-        now = qemu_get_clock_ns(vm_clock);
+        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         /* Figure out the current counter value.  */
         if (now - s->next_event > 0
             || s->period == 0) {
@@ -123,7 +123,7 @@ void ptimer_set_count(ptimer_state *s, uint64_t count)
 {
     s->delta = count;
     if (s->enabled) {
-        s->next_event = qemu_get_clock_ns(vm_clock);
+        s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         ptimer_reload(s);
     }
 }
@@ -138,7 +138,7 @@ void ptimer_run(ptimer_state *s, int oneshot)
         return;
     }
     s->enabled = oneshot ? 2 : 1;
-    s->next_event = qemu_get_clock_ns(vm_clock);
+    s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     ptimer_reload(s);
 }
 
@@ -150,7 +150,7 @@ void ptimer_stop(ptimer_state *s)
         return;
 
     s->delta = ptimer_get_count(s);
-    qemu_del_timer(s->timer);
+    timer_del(s->timer);
     s->enabled = 0;
 }
 
@@ -160,7 +160,7 @@ void ptimer_set_period(ptimer_state *s, int64_t period)
     s->period = period;
     s->period_frac = 0;
     if (s->enabled) {
-        s->next_event = qemu_get_clock_ns(vm_clock);
+        s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         ptimer_reload(s);
     }
 }
@@ -171,7 +171,7 @@ void ptimer_set_freq(ptimer_state *s, uint32_t freq)
     s->period = 1000000000ll / freq;
     s->period_frac = (1000000000ll << 32) / freq;
     if (s->enabled) {
-        s->next_event = qemu_get_clock_ns(vm_clock);
+        s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         ptimer_reload(s);
     }
 }
@@ -197,7 +197,7 @@ void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload)
     if (reload)
         s->delta = limit;
     if (s->enabled && reload) {
-        s->next_event = qemu_get_clock_ns(vm_clock);
+        s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         ptimer_reload(s);
     }
 }
@@ -206,8 +206,7 @@ const VMStateDescription vmstate_ptimer = {
     .name = "ptimer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT8(enabled, ptimer_state),
         VMSTATE_UINT64(limit, ptimer_state),
         VMSTATE_UINT64(delta, ptimer_state),
@@ -226,6 +225,6 @@ ptimer_state *ptimer_init(QEMUBH *bh)
 
     s = (ptimer_state *)g_malloc0(sizeof(ptimer_state));
     s->bh = bh;
-    s->timer = qemu_new_timer_ns(vm_clock, ptimer_tick, s);
+    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ptimer_tick, s);
     return s;
 }

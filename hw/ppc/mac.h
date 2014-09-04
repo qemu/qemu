@@ -34,7 +34,6 @@
 #define MAX_CPUS 1
 
 #define BIOS_SIZE     (1024 * 1024)
-#define BIOS_FILENAME "ppc_rom.bin"
 #define NVRAM_SIZE        0x2000
 #define PROM_FILENAME    "openbios-ppc"
 #define PROM_ADDR         0xfff00000
@@ -131,6 +130,9 @@ typedef struct MACIOIDEState {
     MemoryRegion mem;
     IDEBus bus;
     BlockDriverAIOCB *aiocb;
+    IDEDMA dma;
+    void *dbdma;
+    bool dma_active;
 } MACIOIDEState;
 
 void macio_ide_init_drives(MACIOIDEState *ide, DriveInfo **hd_table);

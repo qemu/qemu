@@ -43,13 +43,13 @@ typedef struct VMPortState
     ISADevice parent_obj;
 
     MemoryRegion io;
-    IOPortReadFunc *func[VMPORT_ENTRIES];
+    VMPortReadFunc *func[VMPORT_ENTRIES];
     void *opaque[VMPORT_ENTRIES];
 } VMPortState;
 
 static VMPortState *port_state;
 
-void vmport_register(unsigned char command, IOPortReadFunc *func, void *opaque)
+void vmport_register(unsigned char command, VMPortReadFunc *func, void *opaque)
 {
     if (command >= VMPORT_ENTRIES)
         return;
@@ -62,11 +62,13 @@ static uint64_t vmport_ioport_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     VMPortState *s = opaque;
-    CPUX86State *env = cpu_single_env;
+    CPUState *cs = current_cpu;
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
     unsigned char command;
     uint32_t eax;
 
-    cpu_synchronize_state(env);
+    cpu_synchronize_state(cs);
 
     eax = env->regs[R_EAX];
     if (eax != VMPORT_MAGIC)
@@ -89,29 +91,32 @@ static uint64_t vmport_ioport_read(void *opaque, hwaddr addr,
 static void vmport_ioport_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
-    CPUX86State *env = cpu_single_env;
+    X86CPU *cpu = X86_CPU(current_cpu);
 
-    env->regs[R_EAX] = vmport_ioport_read(opaque, addr, 4);
+    cpu->env.regs[R_EAX] = vmport_ioport_read(opaque, addr, 4);
 }
 
 static uint32_t vmport_cmd_get_version(void *opaque, uint32_t addr)
 {
-    CPUX86State *env = cpu_single_env;
-    env->regs[R_EBX] = VMPORT_MAGIC;
+    X86CPU *cpu = X86_CPU(current_cpu);
+
+    cpu->env.regs[R_EBX] = VMPORT_MAGIC;
     return 6;
 }
 
 static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
 {
-    CPUX86State *env = cpu_single_env;
-    env->regs[R_EBX] = 0x1177;
+    X86CPU *cpu = X86_CPU(current_cpu);
+
+    cpu->env.regs[R_EBX] = 0x1177;
     return ram_size;
 }
 
 /* vmmouse helpers */
 void vmmouse_get_data(uint32_t *data)
 {
-    CPUX86State *env = cpu_single_env;
+    X86CPU *cpu = X86_CPU(current_cpu);
+    CPUX86State *env = &cpu->env;
 
     data[0] = env->regs[R_EAX]; data[1] = env->regs[R_EBX];
     data[2] = env->regs[R_ECX]; data[3] = env->regs[R_EDX];
@@ -120,7 +125,8 @@ void vmmouse_get_data(uint32_t *data)
 
 void vmmouse_set_data(const uint32_t *data)
 {
-    CPUX86State *env = cpu_single_env;
+    X86CPU *cpu = X86_CPU(current_cpu);
+    CPUX86State *env = &cpu->env;
 
     env->regs[R_EAX] = data[0]; env->regs[R_EBX] = data[1];
     env->regs[R_ECX] = data[2]; env->regs[R_EDX] = data[3];
@@ -137,26 +143,27 @@ static const MemoryRegionOps vmport_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int vmport_initfn(ISADevice *dev)
+static void vmport_realizefn(DeviceState *dev, Error **errp)
 {
+    ISADevice *isadev = ISA_DEVICE(dev);
     VMPortState *s = VMPORT(dev);
 
-    memory_region_init_io(&s->io, &vmport_ops, s, "vmport", 1);
-    isa_register_ioport(dev, &s->io, 0x5658);
+    memory_region_init_io(&s->io, OBJECT(s), &vmport_ops, s, "vmport", 1);
+    isa_register_ioport(isadev, &s->io, 0x5658);
 
     port_state = s;
     /* Register some generic port commands */
     vmport_register(VMPORT_CMD_GETVERSION, vmport_cmd_get_version, NULL);
     vmport_register(VMPORT_CMD_GETRAMSIZE, vmport_cmd_ram_size, NULL);
-    return 0;
 }
 
 static void vmport_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = vmport_initfn;
-    dc->no_user = 1;
+
+    dc->realize = vmport_realizefn;
+    /* Reason: realize sets global port_state */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo vmport_info = {

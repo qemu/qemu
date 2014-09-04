@@ -14,12 +14,12 @@
 
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qjson.h"
-#include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"
 
 #include "hw/nvram/fw_cfg.h"
 #include "hw/i386/pc.h"
+#include "qapi-event.h"
 
 /* The bit of supported pv event */
 #define PVPANIC_F_PANICKED      0
@@ -31,15 +31,6 @@
 #define ISA_PVPANIC_DEVICE(obj)    \
     OBJECT_CHECK(PVPanicState, (obj), TYPE_ISA_PVPANIC_DEVICE)
 
-static void panicked_mon_event(const char *action)
-{
-    QObject *data;
-
-    data = qobject_from_jsonf("{ 'action': %s }", action);
-    monitor_protocol_event(QEVENT_GUEST_PANICKED, data);
-    qobject_decref(data);
-}
-
 static void handle_event(int event)
 {
     static bool logged;
@@ -50,7 +41,7 @@ static void handle_event(int event)
     }
 
     if (event & PVPANIC_PANICKED) {
-        panicked_mon_event("pause");
+        qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE, &error_abort);
         vm_stop(RUN_STATE_GUEST_PANICKED);
         return;
     }
@@ -86,53 +77,62 @@ static const MemoryRegionOps pvpanic_ops = {
     },
 };
 
-static int pvpanic_isa_initfn(ISADevice *dev)
+static void pvpanic_isa_initfn(Object *obj)
 {
-    PVPanicState *s = ISA_PVPANIC_DEVICE(dev);
-    static bool port_configured;
-    void *fw_cfg;
+    PVPanicState *s = ISA_PVPANIC_DEVICE(obj);
 
-    memory_region_init_io(&s->io, &pvpanic_ops, s, "pvpanic", 1);
-    isa_register_ioport(dev, &s->io, s->ioport);
-
-    if (!port_configured) {
-        fw_cfg = object_resolve_path("/machine/fw_cfg", NULL);
-        if (fw_cfg) {
-            fw_cfg_add_file(fw_cfg, "etc/pvpanic-port",
-                            g_memdup(&s->ioport, sizeof(s->ioport)),
-                            sizeof(s->ioport));
-            port_configured = true;
-        }
-    }
-
-    return 0;
+    memory_region_init_io(&s->io, OBJECT(s), &pvpanic_ops, s, "pvpanic", 1);
 }
 
-int pvpanic_init(ISABus *bus)
+static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
 {
-    isa_create_simple(bus, TYPE_ISA_PVPANIC_DEVICE);
-    return 0;
+    ISADevice *d = ISA_DEVICE(dev);
+    PVPanicState *s = ISA_PVPANIC_DEVICE(dev);
+    FWCfgState *fw_cfg = fw_cfg_find();
+    uint16_t *pvpanic_port;
+
+    if (!fw_cfg) {
+        return;
+    }
+
+    pvpanic_port = g_malloc(sizeof(*pvpanic_port));
+    *pvpanic_port = cpu_to_le16(s->ioport);
+    fw_cfg_add_file(fw_cfg, "etc/pvpanic-port", pvpanic_port,
+                    sizeof(*pvpanic_port));
+
+    isa_register_ioport(d, &s->io, s->ioport);
+}
+
+#define PVPANIC_IOPORT_PROP "ioport"
+
+uint16_t pvpanic_port(void)
+{
+    Object *o = object_resolve_path_type("", TYPE_ISA_PVPANIC_DEVICE, NULL);
+    if (!o) {
+        return 0;
+    }
+    return object_property_get_int(o, PVPANIC_IOPORT_PROP, NULL);
 }
 
 static Property pvpanic_isa_properties[] = {
-    DEFINE_PROP_UINT16("ioport", PVPanicState, ioport, 0x505),
+    DEFINE_PROP_UINT16(PVPANIC_IOPORT_PROP, PVPanicState, ioport, 0x505),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pvpanic_isa_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
 
-    ic->init = pvpanic_isa_initfn;
-    dc->no_user = 1;
+    dc->realize = pvpanic_isa_realizefn;
     dc->props = pvpanic_isa_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static TypeInfo pvpanic_isa_info = {
     .name          = TYPE_ISA_PVPANIC_DEVICE,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(PVPanicState),
+    .instance_init = pvpanic_isa_initfn,
     .class_init    = pvpanic_isa_class_init,
 };
 

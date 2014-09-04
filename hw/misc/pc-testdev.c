@@ -49,6 +49,7 @@ typedef struct PCTestdev {
     ISADevice parent_obj;
 
     MemoryRegion ioport;
+    MemoryRegion ioport_byte;
     MemoryRegion flush;
     MemoryRegion irq;
     MemoryRegion iomem;
@@ -80,18 +81,35 @@ static void test_ioport_write(void *opaque, hwaddr addr, uint64_t data,
                               unsigned len)
 {
     PCTestdev *dev = opaque;
-    dev->ioport_data = data;
+    int bits = len * 8;
+    int start_bit = (addr & 3) * 8;
+    uint32_t mask = ((uint32_t)-1 >> (32 - bits)) << start_bit;
+    dev->ioport_data &= ~mask;
+    dev->ioport_data |= data << start_bit;
 }
 
 static uint64_t test_ioport_read(void *opaque, hwaddr addr, unsigned len)
 {
     PCTestdev *dev = opaque;
-    return dev->ioport_data;
+    int bits = len * 8;
+    int start_bit = (addr & 3) * 8;
+    uint32_t mask = ((uint32_t)-1 >> (32 - bits)) << start_bit;
+    return (dev->ioport_data & mask) >> start_bit;
 }
 
 static const MemoryRegionOps test_ioport_ops = {
     .read = test_ioport_read,
     .write = test_ioport_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static const MemoryRegionOps test_ioport_byte_ops = {
+    .read = test_ioport_read,
+    .write = test_ioport_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 1,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -122,7 +140,6 @@ static uint64_t test_iomem_read(void *opaque, hwaddr addr, unsigned len)
     PCTestdev *dev = opaque;
     uint64_t ret = 0;
     memcpy(&ret, &dev->iomem_buf[addr], len);
-    ret = le64_to_cpu(ret);
 
     return ret;
 }
@@ -131,7 +148,6 @@ static void test_iomem_write(void *opaque, hwaddr addr, uint64_t val,
                              unsigned len)
 {
     PCTestdev *dev = opaque;
-    val = cpu_to_le64(val);
     memcpy(&dev->iomem_buf[addr], &val, len);
     dev->iomem_buf[addr] = val;
 }
@@ -142,34 +158,38 @@ static const MemoryRegionOps test_iomem_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int init_test_device(ISADevice *isa)
+static void testdev_realizefn(DeviceState *d, Error **errp)
 {
-    PCTestdev *dev = TESTDEV(isa);
+    ISADevice *isa = ISA_DEVICE(d);
+    PCTestdev *dev = TESTDEV(d);
     MemoryRegion *mem = isa_address_space(isa);
     MemoryRegion *io = isa_address_space_io(isa);
 
-    memory_region_init_io(&dev->ioport, &test_ioport_ops, dev,
+    memory_region_init_io(&dev->ioport, OBJECT(dev), &test_ioport_ops, dev,
                           "pc-testdev-ioport", 4);
-    memory_region_init_io(&dev->flush, &test_flush_ops, dev,
+    memory_region_init_io(&dev->ioport_byte, OBJECT(dev),
+                          &test_ioport_byte_ops, dev,
+                          "pc-testdev-ioport-byte", 4);
+    memory_region_init_io(&dev->flush, OBJECT(dev), &test_flush_ops, dev,
                           "pc-testdev-flush-page", 4);
-    memory_region_init_io(&dev->irq, &test_irq_ops, dev,
+    memory_region_init_io(&dev->irq, OBJECT(dev), &test_irq_ops, dev,
                           "pc-testdev-irq-line", 24);
-    memory_region_init_io(&dev->iomem, &test_iomem_ops, dev,
+    memory_region_init_io(&dev->iomem, OBJECT(dev), &test_iomem_ops, dev,
                           "pc-testdev-iomem", IOMEM_LEN);
 
     memory_region_add_subregion(io,  0xe0,       &dev->ioport);
     memory_region_add_subregion(io,  0xe4,       &dev->flush);
+    memory_region_add_subregion(io,  0xe8,       &dev->ioport_byte);
     memory_region_add_subregion(io,  0x2000,     &dev->irq);
     memory_region_add_subregion(mem, 0xff000000, &dev->iomem);
-
-    return 0;
 }
 
 static void testdev_class_init(ObjectClass *klass, void *data)
 {
-    ISADeviceClass *k = ISA_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = init_test_device;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    dc->realize = testdev_realizefn;
 }
 
 static const TypeInfo testdev_info = {

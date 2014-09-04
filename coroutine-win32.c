@@ -36,8 +36,17 @@ typedef struct
 static __thread CoroutineWin32 leader;
 static __thread Coroutine *current;
 
-CoroutineAction qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,
-                                      CoroutineAction action)
+/* This function is marked noinline to prevent GCC from inlining it
+ * into coroutine_trampoline(). If we allow it to do that then it
+ * hoists the code to get the address of the TLS variable "current"
+ * out of the while() loop. This is an invalid transformation because
+ * the SwitchToFiber() call may be called when running thread A but
+ * return in thread B, and so we might be in a different thread
+ * context each time round the loop.
+ */
+CoroutineAction __attribute__((noinline))
+qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,
+                      CoroutineAction action)
 {
     CoroutineWin32 *from = DO_UPCAST(CoroutineWin32, base, from_);
     CoroutineWin32 *to = DO_UPCAST(CoroutineWin32, base, to_);

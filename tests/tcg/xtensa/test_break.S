@@ -1,4 +1,4 @@
-.include "macros.inc"
+#include "macros.inc"
 
 #define debug_level 6
 #define debug_vector level6

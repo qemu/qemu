@@ -107,7 +107,7 @@ static const USBDescDevice desc_device_wacom = {
         {
             .bNumInterfaces        = 1,
             .bConfigurationValue   = 1,
-            .bmAttributes          = 0x80,
+            .bmAttributes          = USB_CFG_ATT_ONE,
             .bMaxPower             = 40,
             .nif = 1,
             .ifs = &desc_iface_wacom,
@@ -362,6 +362,7 @@ static void usb_wacom_class_init(ObjectClass *klass, void *data)
     uc->handle_control = usb_wacom_handle_control;
     uc->handle_data    = usb_wacom_handle_data;
     uc->handle_destroy = usb_wacom_handle_destroy;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "QEMU PenPartner Tablet";
     dc->vmsd = &vmstate_usb_wacom;
 }

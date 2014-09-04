@@ -248,11 +248,9 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
                     s->flags &= ~SH_SERIAL_FLAG_RDF;
             }
             break;
-#if 0
         case 0x18:
             ret = s->fcr;
             break;
-#endif
         case 0x1c:
             ret = s->rx_cnt;
             break;
@@ -383,14 +381,14 @@ void sh_serial_init(MemoryRegion *sysmem,
 
     sh_serial_clear_fifo(s);
 
-    memory_region_init_io(&s->iomem, &sh_serial_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &sh_serial_ops, s,
                           "serial", 0x100000000ULL);
 
-    memory_region_init_alias(&s->iomem_p4, "serial-p4", &s->iomem,
+    memory_region_init_alias(&s->iomem_p4, NULL, "serial-p4", &s->iomem,
                              0, 0x28);
     memory_region_add_subregion(sysmem, P4ADDR(base), &s->iomem_p4);
 
-    memory_region_init_alias(&s->iomem_a7, "serial-a7", &s->iomem,
+    memory_region_init_alias(&s->iomem_a7, NULL, "serial-a7", &s->iomem,
                              0, 0x28);
     memory_region_add_subregion(sysmem, A7ADDR(base), &s->iomem_a7);
 

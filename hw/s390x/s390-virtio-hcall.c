@@ -26,11 +26,15 @@ void s390_register_virtio_hypercall(uint64_t code, s390_virtio_fn fn)
 
 int s390_virtio_hypercall(CPUS390XState *env)
 {
-    s390_virtio_fn fn = s390_diag500_table[env->regs[1]];
+    s390_virtio_fn fn;
 
-    if (!fn) {
-        return -EINVAL;
+    if (env->regs[1] < MAX_DIAG_SUBCODES) {
+        fn = s390_diag500_table[env->regs[1]];
+        if (fn) {
+            env->regs[2] = fn(&env->regs[2]);
+            return 0;
+        }
     }
 
-    return fn(&env->regs[2]);
+    return -EINVAL;
 }

@@ -80,7 +80,12 @@ in the description of a field.
                                 tables to repair refcounts before accessing the
                                 image.
 
-                    Bits 1-63:  Reserved (set to 0)
+                    Bit 1:      Corrupt bit.  If this bit is set then any data
+                                structure may be corrupt and the image must not
+                                be written to (unless for regaining
+                                consistency).
+
+                    Bits 2-63:  Reserved (set to 0)
 
          80 -  87:  compatible_features
                     Bitmask of compatible features. An implementation can
@@ -102,8 +107,9 @@ in the description of a field.
 
          96 -  99:  refcount_order
                     Describes the width of a reference count block entry (width
-                    in bits = 1 << refcount_order). For version 2 images, the
-                    order is always assumed to be 4 (i.e. the width is 16 bits).
+                    in bits: refcount_bits = 1 << refcount_order). For version 2
+                    images, the order is always assumed to be 4
+                    (i.e. refcount_bits = 16).
 
         100 - 103:  header_length
                     Length of the header structure in bytes. For version 2
@@ -350,3 +356,6 @@ Snapshot table entry:
         variable:   Unique ID string for the snapshot (not null terminated)
 
         variable:   Name of the snapshot (not null terminated)
+
+        variable:   Padding to round up the snapshot table entry size to the
+                    next multiple of 8.

@@ -1,0 +1,32 @@
+QA output created by 079
+=== Check option preallocation and cluster_size ===
+
+qemu-img create -f qcow2 -o preallocation=metadata,cluster_size=16384 TEST_DIR/t.qcow2 4G
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=4294967296 encryption=off cluster_size=16384 preallocation='metadata' lazy_refcounts=off
+
+qemu-img create -f qcow2 -o preallocation=metadata,cluster_size=32768 TEST_DIR/t.qcow2 4G
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=4294967296 encryption=off cluster_size=32768 preallocation='metadata' lazy_refcounts=off
+
+qemu-img create -f qcow2 -o preallocation=metadata,cluster_size=65536 TEST_DIR/t.qcow2 4G
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=4294967296 encryption=off cluster_size=65536 preallocation='metadata' lazy_refcounts=off
+
+qemu-img create -f qcow2 -o preallocation=metadata,cluster_size=131072 TEST_DIR/t.qcow2 4G
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=4294967296 encryption=off cluster_size=131072 preallocation='metadata' lazy_refcounts=off
+
+qemu-img create -f qcow2 -o preallocation=metadata,cluster_size=262144 TEST_DIR/t.qcow2 4G
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=4294967296 encryption=off cluster_size=262144 preallocation='metadata' lazy_refcounts=off
+
+qemu-img create -f qcow2 -o preallocation=metadata,cluster_size=524288 TEST_DIR/t.qcow2 4G
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=4294967296 encryption=off cluster_size=524288 preallocation='metadata' lazy_refcounts=off
+
+qemu-img create -f qcow2 -o preallocation=metadata,cluster_size=1048576 TEST_DIR/t.qcow2 4G
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=4294967296 encryption=off cluster_size=1048576 preallocation='metadata' lazy_refcounts=off
+
+qemu-img create -f qcow2 -o preallocation=metadata,cluster_size=2097152 TEST_DIR/t.qcow2 4G
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=4294967296 encryption=off cluster_size=2097152 preallocation='metadata' lazy_refcounts=off
+
+qemu-img create -f qcow2 -o preallocation=metadata,cluster_size=4194304 TEST_DIR/t.qcow2 4G
+qemu-img: TEST_DIR/t.qcow2: Cluster size must be a power of two between 512 and 2048k
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=4294967296 encryption=off cluster_size=4194304 preallocation='metadata' lazy_refcounts=off
+
+*** done

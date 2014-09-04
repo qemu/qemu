@@ -31,10 +31,10 @@ def read_header(fobj, hfmt):
     return struct.unpack(hfmt, hdr)
 
 def get_record(edict, rechdr, fobj):
-    """Deserialize a trace record from a file into a tuple (event_num, timestamp, arg1, ..., arg6)."""
+    """Deserialize a trace record from a file into a tuple (event_num, timestamp, pid, arg1, ..., arg6)."""
     if rechdr is None:
         return None
-    rec = (rechdr[0], rechdr[1])
+    rec = (rechdr[0], rechdr[1], rechdr[3])
     if rechdr[0] != dropped_event_id:
         event_id = rechdr[0]
         event = edict[event_id]
@@ -54,24 +54,24 @@ def get_record(edict, rechdr, fobj):
 
 
 def read_record(edict, fobj):
-    """Deserialize a trace record from a file into a tuple (event_num, timestamp, arg1, ..., arg6)."""
+    """Deserialize a trace record from a file into a tuple (event_num, timestamp, pid, arg1, ..., arg6)."""
     rechdr = read_header(fobj, rec_header_fmt)
     return get_record(edict, rechdr, fobj) # return tuple of record elements
 
 def read_trace_file(edict, fobj):
-    """Deserialize trace records from a file, yielding record tuples (event_num, timestamp, arg1, ..., arg6)."""
+    """Deserialize trace records from a file, yielding record tuples (event_num, timestamp, pid, arg1, ..., arg6)."""
     header = read_header(fobj, log_header_fmt)
     if header is None or \
        header[0] != header_event_id or \
        header[1] != header_magic:
         raise ValueError('Not a valid trace file!')
-    if header[2] != 0 and \
-       header[2] != 2:
-        raise ValueError('Unknown version of tracelog format!')
 
     log_version = header[2]
-    if log_version == 0:
-        raise ValueError('Older log format, not supported with this QEMU release!')
+    if log_version not in [0, 2, 3]:
+        raise ValueError('Unknown version of tracelog format!')
+    if log_version != 3:
+        raise ValueError('Log format %d not supported with this QEMU release!'
+                         % log_version)
 
     while True:
         rec = read_record(edict, fobj)
@@ -109,14 +109,10 @@ def process(events, log, analyzer):
     if isinstance(log, str):
         log = open(log, 'rb')
 
-    enabled_events = []
     dropped_event = Event.build("Dropped_Event(uint64_t num_events_dropped)")
     edict = {dropped_event_id: dropped_event}
 
-    for e in events:
-        if 'disable' not in e.properties:
-            enabled_events.append(e)
-    for num, event in enumerate(enabled_events):
+    for num, event in enumerate(events):
         edict[num] = event
 
     def build_fn(analyzer, event):
@@ -131,10 +127,13 @@ def process(events, log, analyzer):
         fn_argcount = len(inspect.getargspec(fn)[0]) - 1
         if fn_argcount == event_argcount + 1:
             # Include timestamp as first argument
-            return lambda _, rec: fn(*rec[1:2 + event_argcount])
+            return lambda _, rec: fn(*((rec[1:2],) + rec[3:3 + event_argcount]))
+        elif fn_argcount == event_argcount + 2:
+            # Include timestamp and pid
+            return lambda _, rec: fn(*rec[1:3 + event_argcount])
         else:
-            # Just arguments, no timestamp
-            return lambda _, rec: fn(*rec[2:2 + event_argcount])
+            # Just arguments, no timestamp or pid
+            return lambda _, rec: fn(*rec[3:3 + event_argcount])
 
     analyzer.begin()
     fn_cache = {}
@@ -166,19 +165,20 @@ if __name__ == '__main__':
             self.last_timestamp = None
 
         def catchall(self, event, rec):
-            i = 1
             timestamp = rec[1]
             if self.last_timestamp is None:
                 self.last_timestamp = timestamp
             delta_ns = timestamp - self.last_timestamp
             self.last_timestamp = timestamp
 
-            fields = [event.name, '%0.3f' % (delta_ns / 1000.0)]
+            fields = [event.name, '%0.3f' % (delta_ns / 1000.0),
+                      'pid=%d' % rec[2]]
+            i = 3
             for type, name in event.args:
                 if is_string(type):
-                    fields.append('%s=%s' % (name, rec[i + 1]))
+                    fields.append('%s=%s' % (name, rec[i]))
                 else:
-                    fields.append('%s=0x%x' % (name, rec[i + 1]))
+                    fields.append('%s=0x%x' % (name, rec[i]))
                 i += 1
             print ' '.join(fields)
 

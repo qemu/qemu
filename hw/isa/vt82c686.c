@@ -43,10 +43,12 @@ typedef struct SuperIOConfig
 
 typedef struct VT82C686BState {
     PCIDevice dev;
+    MemoryRegion superio;
     SuperIOConfig superio_conf;
 } VT82C686BState;
 
-static void superio_ioport_writeb(void *opaque, uint32_t addr, uint32_t data)
+static void superio_ioport_writeb(void *opaque, hwaddr addr, uint64_t data,
+                                  unsigned size)
 {
     int can_write;
     SuperIOConfig *superio_conf = opaque;
@@ -93,13 +95,23 @@ static void superio_ioport_writeb(void *opaque, uint32_t addr, uint32_t data)
     }
 }
 
-static uint32_t superio_ioport_readb(void *opaque, uint32_t addr)
+static uint64_t superio_ioport_readb(void *opaque, hwaddr addr, unsigned size)
 {
     SuperIOConfig *superio_conf = opaque;
 
     DPRINTF("superio_ioport_readb  address 0x%x\n", addr);
     return (superio_conf->config[superio_conf->index]);
 }
+
+static const MemoryRegionOps superio_ops = {
+    .read = superio_ioport_readb,
+    .write = superio_ioport_writeb,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
 
 static void vt82c686b_reset(void * opaque)
 {
@@ -140,17 +152,7 @@ static void vt82c686b_write_config(PCIDevice * d, uint32_t address,
 
     pci_default_write_config(d, address, val, len);
     if (address == 0x85) {  /* enable or disable super IO configure */
-        if (val & 0x2) {
-            /* floppy also uses 0x3f0 and 0x3f1.
-             * But we do not emulate flopy,so just set it here. */
-            isa_unassign_ioport(0x3f0, 2);
-            register_ioport_read(0x3f0, 2, 1, superio_ioport_readb,
-                                 &vt686->superio_conf);
-            register_ioport_write(0x3f0, 2, 1, superio_ioport_writeb,
-                                  &vt686->superio_conf);
-        } else {
-            isa_unassign_ioport(0x3f0, 2);
-        }
+        memory_region_set_enabled(&vt686->superio, val & 0x2);
     }
 }
 
@@ -183,7 +185,7 @@ static void pm_update_sci(VT686PMState *s)
                    ACPI_BITMASK_POWER_BUTTON_ENABLE |
                    ACPI_BITMASK_GLOBAL_LOCK_ENABLE |
                    ACPI_BITMASK_TIMER_ENABLE)) != 0);
-    qemu_set_irq(s->dev.irq[0], sci_level);
+    pci_set_irq(&s->dev, sci_level);
     /* schedule a timer interruption if needed */
     acpi_pm_tmr_update(&s->ar, (s->ar.pm1.evt.en & ACPI_BITMASK_TIMER_ENABLE) &&
                        !(pmsts & ACPI_BITMASK_TIMER_STATUS));
@@ -228,9 +230,8 @@ static const VMStateDescription vmstate_acpi = {
     .name = "vt82c686b_pm",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = vmstate_acpi_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, VT686PMState),
         VMSTATE_UINT16(ar.pm1.evt.sts, VT686PMState),
         VMSTATE_UINT16(ar.pm1.evt.en, VT686PMState),
@@ -279,6 +280,7 @@ static void via_ac97_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIA_AC97;
     k->revision = 0x50;
     k->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;
+    set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "AC97";
 }
 
@@ -320,6 +322,7 @@ static void via_mc97_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIA_MC97;
     k->class_id = PCI_CLASS_COMMUNICATION_OTHER;
     k->revision = 0x30;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "MC97";
 }
 
@@ -354,7 +357,7 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
 
     apm_init(dev, &s->apm, NULL, s);
 
-    memory_region_init(&s->io, "vt82c686-pm", 64);
+    memory_region_init(&s->io, OBJECT(dev), "vt82c686-pm", 64);
     memory_region_set_enabled(&s->io, false);
     memory_region_add_subregion(get_system_io(), 0, &s->io);
 
@@ -365,8 +368,8 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
     return 0;
 }
 
-i2c_bus *vt82c686b_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                       qemu_irq sci_irq)
+I2CBus *vt82c686b_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
+                          qemu_irq sci_irq)
 {
     PCIDevice *dev;
     VT686PMState *s;
@@ -399,6 +402,7 @@ static void via_pm_class_init(ObjectClass *klass, void *data)
     k->revision = 0x40;
     dc->desc = "PM";
     dc->vmsd = &vmstate_acpi;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->props = via_pm_properties;
 }
 
@@ -413,8 +417,7 @@ static const VMStateDescription vmstate_via = {
     .name = "vt82c686b",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, VT82C686BState),
         VMSTATE_END_OF_LIST()
     }
@@ -423,11 +426,13 @@ static const VMStateDescription vmstate_via = {
 /* init the PCI-to-ISA bridge */
 static int vt82c686b_initfn(PCIDevice *d)
 {
+    VT82C686BState *vt82c = DO_UPCAST(VT82C686BState, dev, d);
     uint8_t *pci_conf;
+    ISABus *isa_bus;
     uint8_t *wmask;
     int i;
 
-    isa_bus_new(&d->qdev, pci_address_space_io(d));
+    isa_bus = isa_bus_new(&d->qdev, pci_address_space_io(d));
 
     pci_conf = d->config;
     pci_config_set_prog_interface(pci_conf, 0x0);
@@ -438,6 +443,14 @@ static int vt82c686b_initfn(PCIDevice *d)
            wmask[i] = 0x00;
        }
     }
+
+    memory_region_init_io(&vt82c->superio, OBJECT(d), &superio_ops,
+                          &vt82c->superio_conf, "superio", 2);
+    memory_region_set_enabled(&vt82c->superio, false);
+    /* The floppy also uses 0x3f0 and 0x3f1.
+     * But we do not emulate a floppy, so just set it here. */
+    memory_region_add_subregion(isa_bus->address_space_io, 0x3f0,
+                                &vt82c->superio);
 
     qemu_register_reset(vt82c686b_reset, d);
 
@@ -450,7 +463,7 @@ ISABus *vt82c686b_init(PCIBus *bus, int devfn)
 
     d = pci_create_simple_multifunction(bus, devfn, true, "VT82C686B");
 
-    return DO_UPCAST(ISABus, qbus, qdev_get_child_bus(&d->qdev, "isa.0"));
+    return ISA_BUS(qdev_get_child_bus(DEVICE(d), "isa.0"));
 }
 
 static void via_class_init(ObjectClass *klass, void *data)
@@ -465,8 +478,12 @@ static void via_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_BRIDGE_ISA;
     k->revision = 0x40;
     dc->desc = "ISA bridge";
-    dc->no_user = 1;
     dc->vmsd = &vmstate_via;
+    /*
+     * Reason: part of VIA VT82C686 southbridge, needs to be wired up,
+     * e.g. by mips_fulong2e_init()
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo via_info = {

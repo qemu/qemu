@@ -110,7 +110,7 @@ static void GCC_FMT_ATTR(3, 4) parse_error(JSONParserContext *ctxt,
         error_free(ctxt->err);
         ctxt->err = NULL;
     }
-    error_set(&ctxt->err, QERR_JSON_PARSE_ERROR, message);
+    error_setg(&ctxt->err, "JSON parse error, %s", message);
 }
 
 /**
@@ -423,7 +423,6 @@ static QObject *parse_object(JSONParserContext *ctxt, va_list *ap)
     if (!token_is_operator(token, '{')) {
         goto out;
     }
-    token = NULL;
 
     dict = qdict_new();
 
@@ -449,7 +448,6 @@ static QObject *parse_object(JSONParserContext *ctxt, va_list *ap)
                 parse_error(ctxt, token, "expected separator in dict");
                 goto out;
             }
-            token = NULL;
 
             if (parse_pair(ctxt, dict, ap) == -1) {
                 goto out;
@@ -461,10 +459,8 @@ static QObject *parse_object(JSONParserContext *ctxt, va_list *ap)
                 goto out;
             }
         }
-        token = NULL;
     } else {
-        token = parser_context_pop_token(ctxt);
-        token = NULL;
+        (void)parser_context_pop_token(ctxt);
     }
 
     return QOBJECT(dict);
@@ -487,10 +483,8 @@ static QObject *parse_array(JSONParserContext *ctxt, va_list *ap)
     }
 
     if (!token_is_operator(token, '[')) {
-        token = NULL;
         goto out;
     }
-    token = NULL;
 
     list = qlist_new();
 
@@ -523,8 +517,6 @@ static QObject *parse_array(JSONParserContext *ctxt, va_list *ap)
                 goto out;
             }
 
-            token = NULL;
-
             obj = parse_value(ctxt, ap);
             if (obj == NULL) {
                 parse_error(ctxt, token, "expecting value");
@@ -539,11 +531,8 @@ static QObject *parse_array(JSONParserContext *ctxt, va_list *ap)
                 goto out;
             }
         }
-
-        token = NULL;
     } else {
-        token = parser_context_pop_token(ctxt);
-        token = NULL;
+        (void)parser_context_pop_token(ctxt);
     }
 
     return QOBJECT(list);
@@ -640,9 +629,29 @@ static QObject *parse_literal(JSONParserContext *ctxt)
     case JSON_STRING:
         obj = QOBJECT(qstring_from_escaped_str(ctxt, token));
         break;
-    case JSON_INTEGER:
-        obj = QOBJECT(qint_from_int(strtoll(token_get_value(token), NULL, 10)));
-        break;
+    case JSON_INTEGER: {
+        /* A possibility exists that this is a whole-valued float where the
+         * fractional part was left out due to being 0 (.0). It's not a big
+         * deal to treat these as ints in the parser, so long as users of the
+         * resulting QObject know to expect a QInt in place of a QFloat in
+         * cases like these.
+         *
+         * However, in some cases these values will overflow/underflow a
+         * QInt/int64 container, thus we should assume these are to be handled
+         * as QFloats/doubles rather than silently changing their values.
+         *
+         * strtoll() indicates these instances by setting errno to ERANGE
+         */
+        int64_t value;
+
+        errno = 0; /* strtoll doesn't set errno on success */
+        value = strtoll(token_get_value(token), NULL, 10);
+        if (errno != ERANGE) {
+            obj = QOBJECT(qint_from_int(value));
+            break;
+        }
+        /* fall through to JSON_FLOAT */
+    }
     case JSON_FLOAT:
         /* FIXME dependent on locale */
         obj = QOBJECT(qfloat_from_double(strtod(token_get_value(token), NULL)));

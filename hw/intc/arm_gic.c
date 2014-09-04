@@ -20,6 +20,7 @@
 
 #include "hw/sysbus.h"
 #include "gic_internal.h"
+#include "qom/cpu.h"
 
 //#define DEBUG_GIC
 
@@ -39,8 +40,7 @@ static const uint8_t gic_id[] = {
 static inline int gic_get_current_cpu(GICState *s)
 {
     if (s->num_cpu > 1) {
-        CPUState *cpu = ENV_GET_CPU(cpu_single_env);
-        return cpu->cpu_index;
+        return current_cpu->cpu_index;
     }
     return 0;
 }
@@ -66,7 +66,7 @@ void gic_update(GICState *s)
         best_prio = 0x100;
         best_irq = 1023;
         for (irq = 0; irq < s->num_irq; irq++) {
-            if (GIC_TEST_ENABLED(irq, cm) && GIC_TEST_PENDING(irq, cm)) {
+            if (GIC_TEST_ENABLED(irq, cm) && gic_test_pending(s, irq, cm)) {
                 if (GIC_GET_PRIORITY(irq, cpu) < best_prio) {
                     best_prio = GIC_GET_PRIORITY(irq, cpu);
                     best_irq = irq;
@@ -89,12 +89,41 @@ void gic_set_pending_private(GICState *s, int cpu, int irq)
 {
     int cm = 1 << cpu;
 
-    if (GIC_TEST_PENDING(irq, cm))
+    if (gic_test_pending(s, irq, cm)) {
         return;
+    }
 
     DPRINTF("Set %d pending cpu %d\n", irq, cpu);
     GIC_SET_PENDING(irq, cm);
     gic_update(s);
+}
+
+static void gic_set_irq_11mpcore(GICState *s, int irq, int level,
+                                 int cm, int target)
+{
+    if (level) {
+        GIC_SET_LEVEL(irq, cm);
+        if (GIC_TEST_EDGE_TRIGGER(irq) || GIC_TEST_ENABLED(irq, cm)) {
+            DPRINTF("Set %d pending mask %x\n", irq, target);
+            GIC_SET_PENDING(irq, target);
+        }
+    } else {
+        GIC_CLEAR_LEVEL(irq, cm);
+    }
+}
+
+static void gic_set_irq_generic(GICState *s, int irq, int level,
+                                int cm, int target)
+{
+    if (level) {
+        GIC_SET_LEVEL(irq, cm);
+        DPRINTF("Set %d pending mask %x\n", irq, target);
+        if (GIC_TEST_EDGE_TRIGGER(irq)) {
+            GIC_SET_PENDING(irq, target);
+        }
+    } else {
+        GIC_CLEAR_LEVEL(irq, cm);
+    }
 }
 
 /* Process a change in an external IRQ input.  */
@@ -122,19 +151,18 @@ static void gic_set_irq(void *opaque, int irq, int level)
         target = cm;
     }
 
+    assert(irq >= GIC_NR_SGIS);
+
     if (level == GIC_TEST_LEVEL(irq, cm)) {
         return;
     }
 
-    if (level) {
-        GIC_SET_LEVEL(irq, cm);
-        if (GIC_TEST_TRIGGER(irq) || GIC_TEST_ENABLED(irq, cm)) {
-            DPRINTF("Set %d pending mask %x\n", irq, target);
-            GIC_SET_PENDING(irq, target);
-        }
+    if (s->revision == REV_11MPCORE || s->revision == REV_NVIC) {
+        gic_set_irq_11mpcore(s, irq, level, cm, target);
     } else {
-        GIC_CLEAR_LEVEL(irq, cm);
+        gic_set_irq_generic(s, irq, level, cm, target);
     }
+
     gic_update(s);
 }
 
@@ -151,21 +179,57 @@ static void gic_set_running_irq(GICState *s, int cpu, int irq)
 
 uint32_t gic_acknowledge_irq(GICState *s, int cpu)
 {
-    int new_irq;
+    int ret, irq, src;
     int cm = 1 << cpu;
-    new_irq = s->current_pending[cpu];
-    if (new_irq == 1023
-            || GIC_GET_PRIORITY(new_irq, cpu) >= s->running_priority[cpu]) {
+    irq = s->current_pending[cpu];
+    if (irq == 1023
+            || GIC_GET_PRIORITY(irq, cpu) >= s->running_priority[cpu]) {
         DPRINTF("ACK no pending IRQ\n");
         return 1023;
     }
-    s->last_active[new_irq][cpu] = s->running_irq[cpu];
-    /* Clear pending flags for both level and edge triggered interrupts.
-       Level triggered IRQs will be reasserted once they become inactive.  */
-    GIC_CLEAR_PENDING(new_irq, GIC_TEST_MODEL(new_irq) ? ALL_CPU_MASK : cm);
-    gic_set_running_irq(s, cpu, new_irq);
-    DPRINTF("ACK %d\n", new_irq);
-    return new_irq;
+    s->last_active[irq][cpu] = s->running_irq[cpu];
+
+    if (s->revision == REV_11MPCORE || s->revision == REV_NVIC) {
+        /* Clear pending flags for both level and edge triggered interrupts.
+         * Level triggered IRQs will be reasserted once they become inactive.
+         */
+        GIC_CLEAR_PENDING(irq, GIC_TEST_MODEL(irq) ? ALL_CPU_MASK : cm);
+        ret = irq;
+    } else {
+        if (irq < GIC_NR_SGIS) {
+            /* Lookup the source CPU for the SGI and clear this in the
+             * sgi_pending map.  Return the src and clear the overall pending
+             * state on this CPU if the SGI is not pending from any CPUs.
+             */
+            assert(s->sgi_pending[irq][cpu] != 0);
+            src = ctz32(s->sgi_pending[irq][cpu]);
+            s->sgi_pending[irq][cpu] &= ~(1 << src);
+            if (s->sgi_pending[irq][cpu] == 0) {
+                GIC_CLEAR_PENDING(irq, GIC_TEST_MODEL(irq) ? ALL_CPU_MASK : cm);
+            }
+            ret = irq | ((src & 0x7) << 10);
+        } else {
+            /* Clear pending state for both level and edge triggered
+             * interrupts. (level triggered interrupts with an active line
+             * remain pending, see gic_test_pending)
+             */
+            GIC_CLEAR_PENDING(irq, GIC_TEST_MODEL(irq) ? ALL_CPU_MASK : cm);
+            ret = irq;
+        }
+    }
+
+    gic_set_running_irq(s, cpu, irq);
+    DPRINTF("ACK %d\n", irq);
+    return ret;
+}
+
+void gic_set_priority(GICState *s, int cpu, int irq, uint8_t val)
+{
+    if (irq < GIC_INTERNAL) {
+        s->priority1[irq][cpu] = val;
+    } else {
+        s->priority2[(irq) - GIC_INTERNAL] = val;
+    }
 }
 
 void gic_complete_irq(GICState *s, int cpu, int irq)
@@ -186,14 +250,18 @@ void gic_complete_irq(GICState *s, int cpu, int irq)
     }
     if (s->running_irq[cpu] == 1023)
         return; /* No active IRQ.  */
-    /* Mark level triggered interrupts as pending if they are still
-       raised.  */
-    if (!GIC_TEST_TRIGGER(irq) && GIC_TEST_ENABLED(irq, cm)
-        && GIC_TEST_LEVEL(irq, cm) && (GIC_TARGET(irq) & cm) != 0) {
-        DPRINTF("Set %d pending mask %x\n", irq, cm);
-        GIC_SET_PENDING(irq, cm);
-        update = 1;
+
+    if (s->revision == REV_11MPCORE || s->revision == REV_NVIC) {
+        /* Mark level triggered interrupts as pending if they are still
+           raised.  */
+        if (!GIC_TEST_EDGE_TRIGGER(irq) && GIC_TEST_ENABLED(irq, cm)
+            && GIC_TEST_LEVEL(irq, cm) && (GIC_TARGET(irq) & cm) != 0) {
+            DPRINTF("Set %d pending mask %x\n", irq, cm);
+            GIC_SET_PENDING(irq, cm);
+            update = 1;
+        }
     }
+
     if (irq != s->running_irq[cpu]) {
         /* Complete an IRQ that is not currently running.  */
         int tmp = s->running_irq[cpu];
@@ -264,7 +332,7 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset)
         res = 0;
         mask = (irq < GIC_INTERNAL) ?  cm : ALL_CPU_MASK;
         for (i = 0; i < 8; i++) {
-            if (GIC_TEST_PENDING(irq + i, mask)) {
+            if (gic_test_pending(s, irq + i, mask)) {
                 res |= (1 << i);
             }
         }
@@ -311,9 +379,25 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset)
         for (i = 0; i < 4; i++) {
             if (GIC_TEST_MODEL(irq + i))
                 res |= (1 << (i * 2));
-            if (GIC_TEST_TRIGGER(irq + i))
+            if (GIC_TEST_EDGE_TRIGGER(irq + i))
                 res |= (2 << (i * 2));
         }
+    } else if (offset < 0xf10) {
+        goto bad_reg;
+    } else if (offset < 0xf30) {
+        if (s->revision == REV_11MPCORE || s->revision == REV_NVIC) {
+            goto bad_reg;
+        }
+
+        if (offset < 0xf20) {
+            /* GICD_CPENDSGIRn */
+            irq = (offset - 0xf10);
+        } else {
+            irq = (offset - 0xf20);
+            /* GICD_SPENDSGIRn */
+        }
+
+        res = s->sgi_pending[irq][cpu];
     } else if (offset < 0xfe0) {
         goto bad_reg;
     } else /* offset >= 0xfe0 */ {
@@ -371,8 +455,10 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         irq = (offset - 0x100) * 8 + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
-        if (irq < 16)
-          value = 0xff;
+        if (irq < GIC_NR_SGIS) {
+            value = 0xff;
+        }
+
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
                 int mask =
@@ -386,7 +472,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
                 /* If a raised level triggered IRQ enabled then mark
                    is as pending.  */
                 if (GIC_TEST_LEVEL(irq + i, mask)
-                        && !GIC_TEST_TRIGGER(irq + i)) {
+                        && !GIC_TEST_EDGE_TRIGGER(irq + i)) {
                     DPRINTF("Set %d pending mask %x\n", irq + i, mask);
                     GIC_SET_PENDING(irq + i, mask);
                 }
@@ -397,8 +483,10 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         irq = (offset - 0x180) * 8 + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
-        if (irq < 16)
-          value = 0;
+        if (irq < GIC_NR_SGIS) {
+            value = 0;
+        }
+
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
                 int cm = (irq < GIC_INTERNAL) ? (1 << cpu) : ALL_CPU_MASK;
@@ -414,8 +502,9 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         irq = (offset - 0x200) * 8 + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
-        if (irq < 16)
-          irq = 0;
+        if (irq < GIC_NR_SGIS) {
+            value = 0;
+        }
 
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
@@ -427,6 +516,10 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         irq = (offset - 0x280) * 8 + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
+        if (irq < GIC_NR_SGIS) {
+            value = 0;
+        }
+
         for (i = 0; i < 8; i++) {
             /* ??? This currently clears the pending bit for all CPUs, even
                for per-CPU interrupts.  It's unclear whether this is the
@@ -443,11 +536,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         irq = (offset - 0x400) + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
-        if (irq < GIC_INTERNAL) {
-            s->priority1[irq][cpu] = value;
-        } else {
-            s->priority2[irq - GIC_INTERNAL] = value;
-        }
+        gic_set_priority(s, cpu, irq, value);
     } else if (offset < 0xc00) {
         /* Interrupt CPU Target. RAZ/WI on uniprocessor GICs, with the
          * annoying exception of the 11MPCore's GIC.
@@ -478,13 +567,35 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
                 GIC_CLEAR_MODEL(irq + i);
             }
             if (value & (2 << (i * 2))) {
-                GIC_SET_TRIGGER(irq + i);
+                GIC_SET_EDGE_TRIGGER(irq + i);
             } else {
-                GIC_CLEAR_TRIGGER(irq + i);
+                GIC_CLEAR_EDGE_TRIGGER(irq + i);
             }
         }
-    } else {
+    } else if (offset < 0xf10) {
         /* 0xf00 is only handled for 32-bit writes.  */
+        goto bad_reg;
+    } else if (offset < 0xf20) {
+        /* GICD_CPENDSGIRn */
+        if (s->revision == REV_11MPCORE || s->revision == REV_NVIC) {
+            goto bad_reg;
+        }
+        irq = (offset - 0xf10);
+
+        s->sgi_pending[irq][cpu] &= ~value;
+        if (s->sgi_pending[irq][cpu] == 0) {
+            GIC_CLEAR_PENDING(irq, 1 << cpu);
+        }
+    } else if (offset < 0xf30) {
+        /* GICD_SPENDSGIRn */
+        if (s->revision == REV_11MPCORE || s->revision == REV_NVIC) {
+            goto bad_reg;
+        }
+        irq = (offset - 0xf20);
+
+        GIC_SET_PENDING(irq, 1 << cpu);
+        s->sgi_pending[irq][cpu] |= value;
+    } else {
         goto bad_reg;
     }
     gic_update(s);
@@ -509,6 +620,7 @@ static void gic_dist_writel(void *opaque, hwaddr offset,
         int cpu;
         int irq;
         int mask;
+        int target_cpu;
 
         cpu = gic_get_current_cpu(s);
         irq = value & 0x3ff;
@@ -528,6 +640,12 @@ static void gic_dist_writel(void *opaque, hwaddr offset,
             break;
         }
         GIC_SET_PENDING(irq, mask);
+        target_cpu = ctz32(mask);
+        while (target_cpu < GIC_NCPU) {
+            s->sgi_pending[irq][target_cpu] |= (1 << cpu);
+            mask &= ~(1 << target_cpu);
+            target_cpu = ctz32(mask);
+        }
         gic_update(s);
         return;
     }
@@ -551,14 +669,17 @@ static uint32_t gic_cpu_read(GICState *s, int cpu, int offset)
     case 0x04: /* Priority mask */
         return s->priority_mask[cpu];
     case 0x08: /* Binary Point */
-        /* ??? Not implemented.  */
-        return 0;
+        return s->bpr[cpu];
     case 0x0c: /* Acknowledge */
         return gic_acknowledge_irq(s, cpu);
     case 0x14: /* Running Priority */
         return s->running_priority[cpu];
     case 0x18: /* Highest Pending Interrupt */
         return s->current_pending[cpu];
+    case 0x1c: /* Aliased Binary Point */
+        return s->abpr[cpu];
+    case 0xd0: case 0xd4: case 0xd8: case 0xdc:
+        return s->apr[(offset - 0xd0) / 4][cpu];
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gic_cpu_read: Bad offset %x\n", (int)offset);
@@ -577,10 +698,18 @@ static void gic_cpu_write(GICState *s, int cpu, int offset, uint32_t value)
         s->priority_mask[cpu] = (value & 0xff);
         break;
     case 0x08: /* Binary Point */
-        /* ??? Not implemented.  */
+        s->bpr[cpu] = (value & 0x7);
         break;
     case 0x10: /* End Of Interrupt */
         return gic_complete_irq(s, cpu, value & 0x3ff);
+    case 0x1c: /* Aliased Binary Point */
+        if (s->revision >= 2) {
+            s->abpr[cpu] = (value & 0x7);
+        }
+        break;
+    case 0xd0: case 0xd4: case 0xd8: case 0xdc:
+        qemu_log_mask(LOG_UNIMP, "Writing APR not implemented\n");
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gic_cpu_write: Bad offset %x\n", (int)offset);
@@ -639,6 +768,7 @@ static const MemoryRegionOps gic_cpu_ops = {
 
 void gic_init_irqs_and_distributor(GICState *s, int num_irq)
 {
+    SysBusDevice *sbd = SYS_BUS_DEVICE(s);
     int i;
 
     i = s->num_irq - GIC_INTERNAL;
@@ -652,11 +782,12 @@ void gic_init_irqs_and_distributor(GICState *s, int num_irq)
     if (s->revision != REV_NVIC) {
         i += (GIC_INTERNAL * s->num_cpu);
     }
-    qdev_init_gpio_in(&s->busdev.qdev, gic_set_irq, i);
+    qdev_init_gpio_in(DEVICE(s), gic_set_irq, i);
     for (i = 0; i < NUM_CPU(s); i++) {
-        sysbus_init_irq(&s->busdev, &s->parent_irq[i]);
+        sysbus_init_irq(sbd, &s->parent_irq[i]);
     }
-    memory_region_init_io(&s->iomem, &gic_dist_ops, s, "gic_dist", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &gic_dist_ops, s,
+                          "gic_dist", 0x1000);
 }
 
 static void arm_gic_realize(DeviceState *dev, Error **errp)
@@ -666,9 +797,11 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
     GICState *s = ARM_GIC(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     ARMGICClass *agc = ARM_GIC_GET_CLASS(s);
+    Error *local_err = NULL;
 
-    agc->parent_realize(dev, errp);
-    if (error_is_set(errp)) {
+    agc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
@@ -682,12 +815,12 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
      * GIC v2 defines a larger memory region (0x1000) so this will need
      * to be extended when we implement A15.
      */
-    memory_region_init_io(&s->cpuiomem[0], &gic_thiscpu_ops, s,
+    memory_region_init_io(&s->cpuiomem[0], OBJECT(s), &gic_thiscpu_ops, s,
                           "gic_cpu", 0x100);
     for (i = 0; i < NUM_CPU(s); i++) {
         s->backref[i] = s;
-        memory_region_init_io(&s->cpuiomem[i+1], &gic_cpu_ops, &s->backref[i],
-                              "gic_cpu", 0x100);
+        memory_region_init_io(&s->cpuiomem[i+1], OBJECT(s), &gic_cpu_ops,
+                              &s->backref[i], "gic_cpu", 0x100);
     }
     /* Distributor */
     sysbus_init_mmio(sbd, &s->iomem);
@@ -702,7 +835,6 @@ static void arm_gic_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     ARMGICClass *agc = ARM_GIC_CLASS(klass);
 
-    dc->no_user = 1;
     agc->parent_realize = dc->realize;
     dc->realize = arm_gic_realize;
 }

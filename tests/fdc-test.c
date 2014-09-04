@@ -65,7 +65,7 @@ enum {
     DSKCHG  = 0x80,
 };
 
-char test_image[] = "/tmp/qtest.XXXXXX";
+static char test_image[] = "/tmp/qtest.XXXXXX";
 
 #define assert_bit_set(data, mask) g_assert_cmphex((data) & (mask), ==, (mask))
 #define assert_bit_clear(data, mask) g_assert_cmphex((data) & (mask), ==, 0)
@@ -290,10 +290,12 @@ static void test_media_insert(void)
 
     /* Insert media in drive. DSKCHK should not be reset until a step pulse
      * is sent. */
-    qmp("{'execute':'change', 'arguments':{ 'device':'floppy0', "
-        "'target': '%s' }}", test_image);
-    qmp(""); /* ignore event (FIXME open -> open transition?!) */
-    qmp(""); /* ignore event */
+    qmp_discard_response("{'execute':'change', 'arguments':{"
+                         " 'device':'floppy0', 'target': %s }}",
+                         test_image);
+    qmp_discard_response(""); /* ignore event
+                                 (FIXME open -> open transition?!) */
+    qmp_discard_response(""); /* ignore event */
 
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
@@ -322,8 +324,9 @@ static void test_media_change(void)
 
     /* Eject the floppy and check that DSKCHG is set. Reading it out doesn't
      * reset the bit. */
-    qmp("{'execute':'eject', 'arguments':{ 'device':'floppy0' }}");
-    qmp(""); /* ignore event */
+    qmp_discard_response("{'execute':'eject', 'arguments':{"
+                         " 'device':'floppy0' }}");
+    qmp_discard_response(""); /* ignore event */
 
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
@@ -515,7 +518,6 @@ static void fuzz_registers(void)
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
-    char *cmdline;
     int fd;
     int ret;
 
@@ -535,9 +537,7 @@ int main(int argc, char **argv)
     /* Run the tests */
     g_test_init(&argc, &argv, NULL);
 
-    cmdline = g_strdup_printf("-vnc none ");
-
-    qtest_start(cmdline);
+    qtest_start(NULL);
     qtest_irq_intercept_in(global_qtest, "ioapic");
     qtest_add_func("/fdc/cmos", test_cmos);
     qtest_add_func("/fdc/no_media_on_start", test_no_media_on_start);
@@ -556,7 +556,7 @@ int main(int argc, char **argv)
     ret = g_test_run();
 
     /* Cleanup */
-    qtest_quit(global_qtest);
+    qtest_end();
     unlink(test_image);
 
     return ret;

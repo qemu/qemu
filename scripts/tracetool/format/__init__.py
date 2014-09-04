@@ -20,21 +20,16 @@ All formats must generate their contents through the 'tracetool.out' routine.
 Format functions
 ----------------
 
-All the following functions are optional, and no output will be generated if
-they do not exist.
-
-======== =======================================================================
+======== ==================================================================
 Function Description
-======== =======================================================================
-begin    Called to generate the format-specific file header.
-end      Called to generate the format-specific file footer.
-nop      Called to generate the per-event contents when the event is disabled or
-         the selected backend is 'nop'.
-======== =======================================================================
+======== ==================================================================
+generate Called to generate a format-specific file.
+======== ==================================================================
+
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -53,7 +48,7 @@ def get_list():
     for filename in os.listdir(tracetool.format.__path__[0]):
         if filename.endswith('.py') and filename != '__init__.py':
             modnames.append(filename.rsplit('.', 1)[0])
-    for modname in modnames:
+    for modname in sorted(modnames):
         module = tracetool.try_import("tracetool.format." + modname)
 
         # just in case; should never fail unless non-module files are put there
@@ -79,25 +74,12 @@ def exists(name):
     return tracetool.try_import("tracetool.format." + name)[1]
 
 
-def _empty(events):
-    pass
-
-def generate_begin(name, events):
-    """Generate the header of the format-specific file."""
-    if not exists(name):
-        raise ValueError("unknown format: %s" % name)
-
-    name = name.replace("-", "_")
-    func = tracetool.try_import("tracetool.format." + name,
-                                "begin", _empty)[1]
-    func(events)
-
-def generate_end(name, events):
-    """Generate the footer of the format-specific file."""
-    if not exists(name):
-        raise ValueError("unknown format: %s" % name)
-
-    name = name.replace("-", "_")
-    func = tracetool.try_import("tracetool.format." + name,
-                                "end", _empty)[1]
-    func(events)
+def generate(events, format, backend):
+    if not exists(format):
+        raise ValueError("unknown format: %s" % format)
+    format = format.replace("-", "_")
+    func = tracetool.try_import("tracetool.format." + format,
+                                "generate")[1]
+    if func is None:
+        raise AttributeError("format has no 'generate': %s" % format)
+    func(events, backend)

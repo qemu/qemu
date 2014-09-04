@@ -28,16 +28,9 @@
 #include "hw/hw.h"
 #include "sysemu/sysemu.h"
 #include "exec/memory.h"
+#include "qemu/fifo8.h"
 
 #define UART_FIFO_LENGTH    16      /* 16550A Fifo Length */
-
-typedef struct SerialFIFO {
-    uint8_t data[UART_FIFO_LENGTH];
-    uint8_t count;
-    uint8_t itl;                        /* Interrupt Trigger Level */
-    uint8_t tail;
-    uint8_t head;
-} SerialFIFO;
 
 struct SerialState {
     uint16_t divider;
@@ -67,23 +60,25 @@ struct SerialState {
 
     /* Time when the last byte was successfully sent out of the tsr */
     uint64_t last_xmit_ts;
-    SerialFIFO recv_fifo;
-    SerialFIFO xmit_fifo;
+    Fifo8 recv_fifo;
+    Fifo8 xmit_fifo;
+    /* Interrupt trigger level for recv_fifo */
+    uint8_t recv_fifo_itl;
 
-    struct QEMUTimer *fifo_timeout_timer;
+    QEMUTimer *fifo_timeout_timer;
     int timeout_ipending;           /* timeout interrupt pending state */
 
     uint64_t char_transmit_time;    /* time to transmit a char in ticks */
     int poll_msl;
 
-    struct QEMUTimer *modem_status_poll;
+    QEMUTimer *modem_status_poll;
     MemoryRegion io;
 };
 
 extern const VMStateDescription vmstate_serial;
 extern const MemoryRegionOps serial_io_ops;
 
-void serial_init_core(SerialState *s);
+void serial_realize_core(SerialState *s, Error **errp);
 void serial_exit_core(SerialState *s);
 void serial_set_frequency(SerialState *s, uint32_t frequency);
 

@@ -23,7 +23,6 @@ extern int smp_threads;
 #define smp_threads 1
 #endif
 
-void set_numa_modes(void);
 void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg);
 
 #endif

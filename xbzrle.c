@@ -28,7 +28,7 @@ int xbzrle_encode_buffer(uint8_t *old_buf, uint8_t *new_buf, int slen,
 {
     uint32_t zrun_len = 0, nzrun_len = 0;
     int d = 0, i = 0;
-    long res, xor;
+    long res;
     uint8_t *nzrun_start = NULL;
 
     g_assert(!(((uintptr_t)old_buf | (uintptr_t)new_buf | slen) %
@@ -93,9 +93,11 @@ int xbzrle_encode_buffer(uint8_t *old_buf, uint8_t *new_buf, int slen,
         /* word at a time for speed, use of 32-bit long okay */
         if (!res) {
             /* truncation to 32-bit long okay */
-            long mask = (long)0x0101010101010101ULL;
+            unsigned long mask = (unsigned long)0x0101010101010101ULL;
             while (i < slen) {
-                xor = *(long *)(old_buf + i) ^ *(long *)(new_buf + i);
+                unsigned long xor;
+                xor = *(unsigned long *)(old_buf + i)
+                    ^ *(unsigned long *)(new_buf + i);
                 if ((xor - mask) & ~xor & (mask << 7)) {
                     /* found the end of an nzrun within the current long */
                     while (old_buf[i] != new_buf[i]) {

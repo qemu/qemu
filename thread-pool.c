@@ -23,6 +23,7 @@
 #include "block/block_int.h"
 #include "qemu/event_notifier.h"
 #include "block/thread-pool.h"
+#include "qemu/main-loop.h"
 
 static void do_spawn_thread(ThreadPool *pool);
 
@@ -139,7 +140,7 @@ static void do_spawn_thread(ThreadPool *pool)
     pool->new_threads--;
     pool->pending_threads++;
 
-    qemu_thread_create(&t, worker_thread, pool, QEMU_THREAD_DETACHED);
+    qemu_thread_create(&t, "worker", worker_thread, pool, QEMU_THREAD_DETACHED);
 }
 
 static void spawn_thread_bh_fn(void *opaque)
@@ -197,12 +198,6 @@ restart:
     }
 }
 
-static int thread_pool_active(EventNotifier *notifier)
-{
-    ThreadPool *pool = container_of(notifier, ThreadPool, notifier);
-    return !QLIST_EMPTY(&pool->head);
-}
-
 static void thread_pool_cancel(BlockDriverAIOCB *acb)
 {
     ThreadPoolElement *elem = (ThreadPoolElement *)acb;
@@ -229,6 +224,7 @@ static void thread_pool_cancel(BlockDriverAIOCB *acb)
         pool->pending_cancellations--;
     }
     qemu_mutex_unlock(&pool->lock);
+    event_notifier_ready(&pool->notifier);
 }
 
 static const AIOCBInfo thread_pool_aiocb_info = {
@@ -309,8 +305,7 @@ static void thread_pool_init_one(ThreadPool *pool, AioContext *ctx)
     QLIST_INIT(&pool->head);
     QTAILQ_INIT(&pool->request_list);
 
-    aio_set_event_notifier(ctx, &pool->notifier, event_notifier_ready,
-                           thread_pool_active);
+    aio_set_event_notifier(ctx, &pool->notifier, event_notifier_ready);
 }
 
 ThreadPool *thread_pool_new(AioContext *ctx)
@@ -344,7 +339,7 @@ void thread_pool_free(ThreadPool *pool)
 
     qemu_mutex_unlock(&pool->lock);
 
-    aio_set_event_notifier(pool->ctx, &pool->notifier, NULL, NULL);
+    aio_set_event_notifier(pool->ctx, &pool->notifier, NULL);
     qemu_sem_destroy(&pool->sem);
     qemu_cond_destroy(&pool->check_cancel);
     qemu_cond_destroy(&pool->worker_stopped);

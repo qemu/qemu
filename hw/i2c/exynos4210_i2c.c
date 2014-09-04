@@ -80,9 +80,10 @@ static const char *exynos4_i2c_get_regname(unsigned offset)
 #endif
 
 typedef struct Exynos4210I2CState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
-    i2c_bus *bus;
+    I2CBus *bus;
     qemu_irq irq;
 
     uint8_t i2ccon;
@@ -271,7 +272,7 @@ static const MemoryRegionOps exynos4210_i2c_ops = {
 };
 
 static const VMStateDescription exynos4210_i2c_vmstate = {
-    .name = TYPE_EXYNOS4_I2C,
+    .name = "exynos4210.i2c",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
@@ -297,15 +298,16 @@ static void exynos4210_i2c_reset(DeviceState *d)
     s->scl_free = true;
 }
 
-static int exynos4210_i2c_realize(SysBusDevice *dev)
+static int exynos4210_i2c_realize(SysBusDevice *sbd)
 {
+    DeviceState *dev = DEVICE(sbd);
     Exynos4210I2CState *s = EXYNOS4_I2C(dev);
 
-    memory_region_init_io(&s->iomem, &exynos4210_i2c_ops, s, TYPE_EXYNOS4_I2C,
-                          EXYNOS4_I2C_MEM_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
-    s->bus = i2c_init_bus(&dev->qdev, "i2c");
+    memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_i2c_ops, s,
+                          TYPE_EXYNOS4_I2C, EXYNOS4_I2C_MEM_SIZE);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
+    s->bus = i2c_init_bus(dev, "i2c");
     return 0;
 }
 

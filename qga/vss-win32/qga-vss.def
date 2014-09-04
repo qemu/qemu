@@ -1,0 +1,13 @@
+LIBRARY      "QGA-PROVIDER.DLL"
+
+EXPORTS
+	COMRegister		PRIVATE
+	COMUnregister		PRIVATE
+	DllCanUnloadNow		PRIVATE
+	DllGetClassObject	PRIVATE
+	DllRegisterServer	PRIVATE
+	DllUnregisterServer	PRIVATE
+	requester_init		PRIVATE
+	requester_deinit	PRIVATE
+	requester_freeze	PRIVATE
+	requester_thaw		PRIVATE

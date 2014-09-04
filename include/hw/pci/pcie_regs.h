@@ -57,6 +57,8 @@
 #define PCI_EXP_SLTCTL_PIC_SHIFT        (ffs(PCI_EXP_SLTCTL_PIC) - 1)
 #define PCI_EXP_SLTCTL_PIC_OFF                          \
     (PCI_EXP_SLTCTL_IND_OFF << PCI_EXP_SLTCTL_PIC_SHIFT)
+#define PCI_EXP_SLTCTL_PIC_ON                          \
+    (PCI_EXP_SLTCTL_IND_ON << PCI_EXP_SLTCTL_PIC_SHIFT)
 
 #define PCI_EXP_SLTCTL_SUPPORTED        \
             (PCI_EXP_SLTCTL_ABPE |      \

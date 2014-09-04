@@ -34,26 +34,176 @@ OrderedDicts so that ordering is preserved.
 There are two basic syntaxes used, type definitions and command definitions.
 
 The first syntax defines a type and is represented by a dictionary.  There are
-two kinds of types that are supported: complex user-defined types, and enums.
+three kinds of user-defined types that are supported: complex types,
+enumeration types and union types.
 
-A complex type is a dictionary containing a single key who's value is a
+Generally speaking, types definitions should always use CamelCase for the type
+names. Command names should be all lower case with words separated by a hyphen.
+
+
+=== Includes ===
+
+The QAPI schema definitions can be modularized using the 'include' directive:
+
+ { 'include': 'path/to/file.json'}
+
+The directive is evaluated recursively, and include paths are relative to the
+file using the directive. Multiple includes of the same file are safe.
+
+
+=== Complex types ===
+
+A complex type is a dictionary containing a single key whose value is a
 dictionary.  This corresponds to a struct in C or an Object in JSON.  An
 example of a complex type is:
 
  { 'type': 'MyType',
    'data': { 'member1': 'str', 'member2': 'int', '*member3': 'str' } }
 
-The use of '*' as a prefix to the name means the member is optional.  Optional
-members should always be added to the end of the dictionary to preserve
-backwards compatibility.
+The use of '*' as a prefix to the name means the member is optional.
 
-An enumeration type is a dictionary containing a single key who's value is a
+The default initialization value of an optional argument should not be changed
+between versions of QEMU unless the new default maintains backward
+compatibility to the user-visible behavior of the old default.
+
+With proper documentation, this policy still allows some flexibility; for
+example, documenting that a default of 0 picks an optimal buffer size allows
+one release to declare the optimal size at 512 while another release declares
+the optimal size at 4096 - the user-visible behavior is not the bytes used by
+the buffer, but the fact that the buffer was optimal size.
+
+On input structures (only mentioned in the 'data' side of a command), changing
+from mandatory to optional is safe (older clients will supply the option, and
+newer clients can benefit from the default); changing from optional to
+mandatory is backwards incompatible (older clients may be omitting the option,
+and must continue to work).
+
+On output structures (only mentioned in the 'returns' side of a command),
+changing from mandatory to optional is in general unsafe (older clients may be
+expecting the field, and could crash if it is missing), although it can be done
+if the only way that the optional argument will be omitted is when it is
+triggered by the presence of a new input flag to the command that older clients
+don't know to send.  Changing from optional to mandatory is safe.
+
+A structure that is used in both input and output of various commands
+must consider the backwards compatibility constraints of both directions
+of use.
+
+A complex type definition can specify another complex type as its base.
+In this case, the fields of the base type are included as top-level fields
+of the new complex type's dictionary in the QMP wire format. An example
+definition is:
+
+ { 'type': 'BlockdevOptionsGenericFormat', 'data': { 'file': 'str' } }
+ { 'type': 'BlockdevOptionsGenericCOWFormat',
+   'base': 'BlockdevOptionsGenericFormat',
+   'data': { '*backing': 'str' } }
+
+An example BlockdevOptionsGenericCOWFormat object on the wire could use
+both fields like this:
+
+ { "file": "/some/place/my-image",
+   "backing": "/some/place/my-backing-file" }
+
+=== Enumeration types ===
+
+An enumeration type is a dictionary containing a single key whose value is a
 list of strings.  An example enumeration is:
 
  { 'enum': 'MyEnum', 'data': [ 'value1', 'value2', 'value3' ] }
 
-Generally speaking, complex types and enums should always use CamelCase for
-the type names.
+=== Union types ===
+
+Union types are used to let the user choose between several different data
+types.  A union type is defined using a dictionary as explained in the
+following paragraphs.
+
+
+A simple union type defines a mapping from discriminator values to data types
+like in this example:
+
+ { 'type': 'FileOptions', 'data': { 'filename': 'str' } }
+ { 'type': 'Qcow2Options',
+   'data': { 'backing-file': 'str', 'lazy-refcounts': 'bool' } }
+
+ { 'union': 'BlockdevOptions',
+   'data': { 'file': 'FileOptions',
+             'qcow2': 'Qcow2Options' } }
+
+In the QMP wire format, a simple union is represented by a dictionary that
+contains the 'type' field as a discriminator, and a 'data' field that is of the
+specified data type corresponding to the discriminator value:
+
+ { "type": "qcow2", "data" : { "backing-file": "/some/place/my-image",
+                               "lazy-refcounts": true } }
+
+
+A union definition can specify a complex type as its base. In this case, the
+fields of the complex type are included as top-level fields of the union
+dictionary in the QMP wire format. An example definition is:
+
+ { 'type': 'BlockdevCommonOptions', 'data': { 'readonly': 'bool' } }
+ { 'union': 'BlockdevOptions',
+   'base': 'BlockdevCommonOptions',
+   'data': { 'raw': 'RawOptions',
+             'qcow2': 'Qcow2Options' } }
+
+And it looks like this on the wire:
+
+ { "type": "qcow2",
+   "readonly": false,
+   "data" : { "backing-file": "/some/place/my-image",
+              "lazy-refcounts": true } }
+
+
+Flat union types avoid the nesting on the wire. They are used whenever a
+specific field of the base type is declared as the discriminator ('type' is
+then no longer generated). The discriminator must be of enumeration type.
+The above example can then be modified as follows:
+
+ { 'enum': 'BlockdevDriver', 'data': [ 'raw', 'qcow2' ] }
+ { 'type': 'BlockdevCommonOptions',
+   'data': { 'driver': 'BlockdevDriver', 'readonly': 'bool' } }
+ { 'union': 'BlockdevOptions',
+   'base': 'BlockdevCommonOptions',
+   'discriminator': 'driver',
+   'data': { 'raw': 'RawOptions',
+             'qcow2': 'Qcow2Options' } }
+
+Resulting in this JSON object:
+
+ { "driver": "qcow2",
+   "readonly": false,
+   "backing-file": "/some/place/my-image",
+   "lazy-refcounts": true }
+
+
+A special type of unions are anonymous unions. They don't form a dictionary in
+the wire format but allow the direct use of different types in their place. As
+they aren't structured, they don't have any explicit discriminator but use
+the (QObject) data type of their value as an implicit discriminator. This means
+that they are restricted to using only one discriminator value per QObject
+type. For example, you cannot have two different complex types in an anonymous
+union, or two different integer types.
+
+Anonymous unions are declared using an empty dictionary as their discriminator.
+The discriminator values never appear on the wire, they are only used in the
+generated C code. Anonymous unions cannot have a base type.
+
+ { 'union': 'BlockRef',
+   'discriminator': {},
+   'data': { 'definition': 'BlockdevOptions',
+             'reference': 'str' } }
+
+This example allows using both of the following example objects:
+
+ { "file": "my_existing_block_device_id" }
+ { "file": { "driver": "file",
+             "readonly": false,
+             "filename": "/tmp/mydisk.qcow2" } }
+
+
+=== Commands ===
 
 Commands are defined by using a list containing three members.  The first
 member is the command name, the second member is a dictionary containing
@@ -65,8 +215,24 @@ An example command is:
    'data': { 'arg1': 'str', '*arg2': 'str' },
    'returns': 'str' }
 
-Command names should be all lower case with words separated by a hyphen.
+=== Events ===
 
+Events are defined with the keyword 'event'.  When 'data' is also specified,
+additional info will be included in the event.  Finally there will be C API
+generated in qapi-event.h; when called by QEMU code, a message with timestamp
+will be emitted on the wire.  If timestamp is -1, it means failure to retrieve
+host time.
+
+An example event is:
+
+{ 'event': 'EVENT_C',
+  'data': { '*a': 'int', 'b': 'str' } }
+
+Resulting in this JSON object:
+
+{ "event": "EVENT_C",
+  "data": { "b": "test string" },
+  "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
 
 == Code generation ==
 
@@ -82,14 +248,13 @@ node structure that can be used to chain together a list of such types in
 case we want to accept/return a list of this type with a command), and a
 command which takes that type as a parameter and returns the same type:
 
-    mdroth@illuin:~/w/qemu2.git$ cat example-schema.json
+    $ cat example-schema.json
     { 'type': 'UserDefOne',
       'data': { 'integer': 'int', 'string': 'str' } }
 
     { 'command': 'my-command',
       'data':    {'arg1': 'UserDefOne'},
       'returns': 'UserDefOne' }
-    mdroth@illuin:~/w/qemu2.git$
 
 === scripts/qapi-types.py ===
 
@@ -107,14 +272,25 @@ created code.
 
 Example:
 
-    mdroth@illuin:~/w/qemu2.git$ python scripts/qapi-types.py \
-      --output-dir="qapi-generated" --prefix="example-" < example-schema.json
-    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qapi-types.c
-    /* AUTOMATICALLY GENERATED, DO NOT MODIFY */
+    $ python scripts/qapi-types.py --output-dir="qapi-generated" \
+    --prefix="example-" --input-file=example-schema.json
+    $ cat qapi-generated/example-qapi-types.c
+[Uninteresting stuff omitted...]
 
-    #include "qapi/qapi-dealloc-visitor.h"
-    #include "example-qapi-types.h"
-    #include "example-qapi-visit.h"
+    void qapi_free_UserDefOneList(UserDefOneList * obj)
+    {
+        QapiDeallocVisitor *md;
+        Visitor *v;
+
+        if (!obj) {
+            return;
+        }
+
+        md = qapi_dealloc_visitor_new();
+        v = qapi_dealloc_get_visitor(md);
+        visit_type_UserDefOneList(v, &obj, NULL, NULL);
+        qapi_dealloc_visitor_cleanup(md);
+    }
 
     void qapi_free_UserDefOne(UserDefOne * obj)
     {
@@ -131,20 +307,26 @@ Example:
         qapi_dealloc_visitor_cleanup(md);
     }
 
-    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qapi-types.h
-    /* AUTOMATICALLY GENERATED, DO NOT MODIFY */
-    #ifndef QAPI_GENERATED_EXAMPLE_QAPI_TYPES
-    #define QAPI_GENERATED_EXAMPLE_QAPI_TYPES
+    $ cat qapi-generated/example-qapi-types.h
+[Uninteresting stuff omitted...]
 
-    #include "qapi/qapi-types-core.h"
+    #ifndef EXAMPLE_QAPI_TYPES_H
+    #define EXAMPLE_QAPI_TYPES_H
+
+[Builtin types omitted...]
 
     typedef struct UserDefOne UserDefOne;
 
     typedef struct UserDefOneList
     {
-        UserDefOne *value;
+        union {
+            UserDefOne *value;
+            uint64_t padding;
+        };
         struct UserDefOneList *next;
     } UserDefOneList;
+
+[Functions on builtin types omitted...]
 
     struct UserDefOne
     {
@@ -152,10 +334,10 @@ Example:
         char * string;
     };
 
+    void qapi_free_UserDefOneList(UserDefOneList * obj);
     void qapi_free_UserDefOne(UserDefOne * obj);
 
     #endif
-
 
 === scripts/qapi-visit.py ===
 
@@ -177,51 +359,78 @@ $(prefix)qapi-visit.h: declarations for previously mentioned visitor
 
 Example:
 
-    mdroth@illuin:~/w/qemu2.git$ python scripts/qapi-visit.py \
-        --output-dir="qapi-generated" --prefix="example-" < example-schema.json
-    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qapi-visit.c
-    /* THIS FILE IS AUTOMATICALLY GENERATED, DO NOT MODIFY */
+    $ python scripts/qapi-visit.py --output-dir="qapi-generated"
+    --prefix="example-" --input-file=example-schema.json
+    $ cat qapi-generated/example-qapi-visit.c
+[Uninteresting stuff omitted...]
 
-    #include "example-qapi-visit.h"
+    static void visit_type_UserDefOne_fields(Visitor *m, UserDefOne ** obj, Error **errp)
+    {
+        Error *err = NULL;
+        visit_type_int(m, &(*obj)->integer, "integer", &err);
+        if (err) {
+            goto out;
+        }
+        visit_type_str(m, &(*obj)->string, "string", &err);
+        if (err) {
+            goto out;
+        }
+
+    out:
+        error_propagate(errp, err);
+    }
 
     void visit_type_UserDefOne(Visitor *m, UserDefOne ** obj, const char *name, Error **errp)
     {
-        visit_start_struct(m, (void **)obj, "UserDefOne", name, sizeof(UserDefOne), errp);
-        visit_type_int(m, (obj && *obj) ? &(*obj)->integer : NULL, "integer", errp);
-        visit_type_str(m, (obj && *obj) ? &(*obj)->string : NULL, "string", errp);
-        visit_end_struct(m, errp);
+        Error *err = NULL;
+
+        visit_start_struct(m, (void **)obj, "UserDefOne", name, sizeof(UserDefOne), &err);
+        if (!err) {
+            if (*obj) {
+                visit_type_UserDefOne_fields(m, obj, errp);
+            }
+            visit_end_struct(m, &err);
+        }
+        error_propagate(errp, err);
     }
 
     void visit_type_UserDefOneList(Visitor *m, UserDefOneList ** obj, const char *name, Error **errp)
     {
-        GenericList *i, **prev = (GenericList **)obj;
+        Error *err = NULL;
+        GenericList *i, **prev;
 
-        visit_start_list(m, name, errp);
-
-        for (; (i = visit_next_list(m, prev, errp)) != NULL; prev = &i) {
-            UserDefOneList *native_i = (UserDefOneList *)i;
-            visit_type_UserDefOne(m, &native_i->value, NULL, errp);
+        visit_start_list(m, name, &err);
+        if (err) {
+            goto out;
         }
 
-        visit_end_list(m, errp);
+        for (prev = (GenericList **)obj;
+             !err && (i = visit_next_list(m, prev, &err)) != NULL;
+             prev = &i) {
+            UserDefOneList *native_i = (UserDefOneList *)i;
+            visit_type_UserDefOne(m, &native_i->value, NULL, &err);
+        }
+
+        error_propagate(errp, err);
+        err = NULL;
+        visit_end_list(m, &err);
+    out:
+        error_propagate(errp, err);
     }
-    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qapi-visit.h
-    /* THIS FILE IS AUTOMATICALLY GENERATED, DO NOT MODIFY */
+    $ python scripts/qapi-commands.py --output-dir="qapi-generated" \
+    --prefix="example-" --input-file=example-schema.json
+    $ cat qapi-generated/example-qapi-visit.h
+[Uninteresting stuff omitted...]
 
-    #ifndef QAPI_GENERATED_EXAMPLE_QAPI_VISIT
-    #define QAPI_GENERATED_EXAMPLE_QAPI_VISIT
+    #ifndef EXAMPLE_QAPI_VISIT_H
+    #define EXAMPLE_QAPI_VISIT_H
 
-    #include "qapi/qapi-visit-core.h"
-    #include "example-qapi-types.h"
+[Visitors for builtin types omitted...]
 
     void visit_type_UserDefOne(Visitor *m, UserDefOne ** obj, const char *name, Error **errp);
     void visit_type_UserDefOneList(Visitor *m, UserDefOneList ** obj, const char *name, Error **errp);
 
     #endif
-    mdroth@illuin:~/w/qemu2.git$
-
-(The actual structure of the visit_type_* functions is a bit more complex
-in order to propagate errors correctly and avoid leaking memory).
 
 === scripts/qapi-commands.py ===
 
@@ -242,77 +451,80 @@ $(prefix)qmp-commands.h: Function prototypes for the QMP commands
 
 Example:
 
-    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qmp-marshal.c
-    /* THIS FILE IS AUTOMATICALLY GENERATED, DO NOT MODIFY */
+    $ cat qapi-generated/example-qmp-marshal.c
+[Uninteresting stuff omitted...]
 
-    #include "qemu-objects.h"
-    #include "qapi/qmp-core.h"
-    #include "qapi/qapi-visit-core.h"
-    #include "qapi/qmp-output-visitor.h"
-    #include "qapi/qmp-input-visitor.h"
-    #include "qapi/qapi-dealloc-visitor.h"
-    #include "example-qapi-types.h"
-    #include "example-qapi-visit.h"
-
-    #include "example-qmp-commands.h"
     static void qmp_marshal_output_my_command(UserDefOne * ret_in, QObject **ret_out, Error **errp)
     {
-        QapiDeallocVisitor *md = qapi_dealloc_visitor_new();
+        Error *local_err = NULL;
         QmpOutputVisitor *mo = qmp_output_visitor_new();
+        QapiDeallocVisitor *md;
         Visitor *v;
 
         v = qmp_output_get_visitor(mo);
-        visit_type_UserDefOne(v, &ret_in, "unused", errp);
-        v = qapi_dealloc_get_visitor(md);
-        visit_type_UserDefOne(v, &ret_in, "unused", errp);
-        qapi_dealloc_visitor_cleanup(md);
-
-
+        visit_type_UserDefOne(v, &ret_in, "unused", &local_err);
+        if (local_err) {
+            goto out;
+        }
         *ret_out = qmp_output_get_qobject(mo);
+
+    out:
+        error_propagate(errp, local_err);
+        qmp_output_visitor_cleanup(mo);
+        md = qapi_dealloc_visitor_new();
+        v = qapi_dealloc_get_visitor(md);
+        visit_type_UserDefOne(v, &ret_in, "unused", NULL);
+        qapi_dealloc_visitor_cleanup(md);
     }
 
-    static void qmp_marshal_input_my_command(QmpState *qmp__sess, QDict *args, QObject **ret, Error **errp)
+    static void qmp_marshal_input_my_command(QDict *args, QObject **ret, Error **errp)
     {
+        Error *local_err = NULL;
         UserDefOne * retval = NULL;
-        QmpInputVisitor *mi;
+        QmpInputVisitor *mi = qmp_input_visitor_new_strict(QOBJECT(args));
         QapiDeallocVisitor *md;
         Visitor *v;
         UserDefOne * arg1 = NULL;
 
-        mi = qmp_input_visitor_new(QOBJECT(args));
         v = qmp_input_get_visitor(mi);
-        visit_type_UserDefOne(v, &arg1, "arg1", errp);
-
-        if (error_is_set(errp)) {
+        visit_type_UserDefOne(v, &arg1, "arg1", &local_err);
+        if (local_err) {
             goto out;
         }
-        retval = qmp_my_command(arg1, errp);
-        qmp_marshal_output_my_command(retval, ret, errp);
+
+        retval = qmp_my_command(arg1, &local_err);
+        if (local_err) {
+            goto out;
+        }
+
+        qmp_marshal_output_my_command(retval, ret, &local_err);
 
     out:
+        error_propagate(errp, local_err);
+        qmp_input_visitor_cleanup(mi);
         md = qapi_dealloc_visitor_new();
         v = qapi_dealloc_get_visitor(md);
-        visit_type_UserDefOne(v, &arg1, "arg1", errp);
+        visit_type_UserDefOne(v, &arg1, "arg1", NULL);
         qapi_dealloc_visitor_cleanup(md);
         return;
     }
 
     static void qmp_init_marshal(void)
     {
-        qmp_register_command("my-command", qmp_marshal_input_my_command);
+        qmp_register_command("my-command", qmp_marshal_input_my_command, QCO_NO_OPTIONS);
     }
 
     qapi_init(qmp_init_marshal);
-    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qmp-commands.h
-    /* THIS FILE IS AUTOMATICALLY GENERATED, DO NOT MODIFY */
+    $ cat qapi-generated/example-qmp-commands.h
+[Uninteresting stuff omitted...]
 
-    #ifndef QAPI_GENERATED_EXAMPLE_QMP_COMMANDS
-    #define QAPI_GENERATED_EXAMPLE_QMP_COMMANDS
+    #ifndef EXAMPLE_QMP_COMMANDS_H
+    #define EXAMPLE_QMP_COMMANDS_H
 
     #include "example-qapi-types.h"
-    #include "error.h"
+    #include "qapi/qmp/qdict.h"
+    #include "qapi/error.h"
 
     UserDefOne * qmp_my_command(UserDefOne * arg1, Error **errp);
 
     #endif
-    mdroth@illuin:~/w/qemu2.git$

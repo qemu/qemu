@@ -27,12 +27,14 @@
 
 #include "hw/char/serial.h"
 #include "hw/pci/pci.h"
+#include "qapi/qmp/qerror.h"
 
 #define PCI_SERIAL_MAX_PORTS 4
 
 typedef struct PCISerialState {
     PCIDevice dev;
     SerialState state;
+    uint8_t prog_if;
 } PCISerialState;
 
 typedef struct PCIMultiSerialState {
@@ -43,20 +45,28 @@ typedef struct PCIMultiSerialState {
     SerialState  state[PCI_SERIAL_MAX_PORTS];
     uint32_t     level[PCI_SERIAL_MAX_PORTS];
     qemu_irq     *irqs;
+    uint8_t      prog_if;
 } PCIMultiSerialState;
 
 static int serial_pci_init(PCIDevice *dev)
 {
     PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
     SerialState *s = &pci->state;
+    Error *err = NULL;
 
     s->baudbase = 115200;
-    serial_init_core(s);
+    serial_realize_core(s, &err);
+    if (err != NULL) {
+        qerror_report_err(err);
+        error_free(err);
+        return -1;
+    }
 
+    pci->dev.config[PCI_CLASS_PROG] = pci->prog_if;
     pci->dev.config[PCI_INTERRUPT_PIN] = 0x01;
-    s->irq = pci->dev.irq[0];
+    s->irq = pci_allocate_irq(&pci->dev);
 
-    memory_region_init_io(&s->io, &serial_io_ops, s, "serial", 8);
+    memory_region_init_io(&s->io, OBJECT(pci), &serial_io_ops, s, "serial", 8);
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
     return 0;
 }
@@ -72,7 +82,7 @@ static void multi_serial_irq_mux(void *opaque, int n, int level)
             pending = 1;
         }
     }
-    qemu_set_irq(pci->dev.irq[0], pending);
+    pci_set_irq(&pci->dev, pending);
 }
 
 static int multi_serial_pci_init(PCIDevice *dev)
@@ -80,6 +90,7 @@ static int multi_serial_pci_init(PCIDevice *dev)
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     PCIMultiSerialState *pci = DO_UPCAST(PCIMultiSerialState, dev, dev);
     SerialState *s;
+    Error *err = NULL;
     int i;
 
     switch (pc->device_id) {
@@ -93,8 +104,9 @@ static int multi_serial_pci_init(PCIDevice *dev)
     assert(pci->ports > 0);
     assert(pci->ports <= PCI_SERIAL_MAX_PORTS);
 
+    pci->dev.config[PCI_CLASS_PROG] = pci->prog_if;
     pci->dev.config[PCI_INTERRUPT_PIN] = 0x01;
-    memory_region_init(&pci->iobar, "multiserial", 8 * pci->ports);
+    memory_region_init(&pci->iobar, OBJECT(pci), "multiserial", 8 * pci->ports);
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->iobar);
     pci->irqs = qemu_allocate_irqs(multi_serial_irq_mux, pci,
                                    pci->ports);
@@ -102,10 +114,16 @@ static int multi_serial_pci_init(PCIDevice *dev)
     for (i = 0; i < pci->ports; i++) {
         s = pci->state + i;
         s->baudbase = 115200;
-        serial_init_core(s);
+        serial_realize_core(s, &err);
+        if (err != NULL) {
+            qerror_report_err(err);
+            error_free(err);
+            return -1;
+        }
         s->irq = pci->irqs[i];
         pci->name[i] = g_strdup_printf("uart #%d", i+1);
-        memory_region_init_io(&s->io, &serial_io_ops, s, pci->name[i], 8);
+        memory_region_init_io(&s->io, OBJECT(pci), &serial_io_ops, s,
+                              pci->name[i], 8);
         memory_region_add_subregion(&pci->iobar, 8 * i, &s->io);
     }
     return 0;
@@ -118,6 +136,7 @@ static void serial_pci_exit(PCIDevice *dev)
 
     serial_exit_core(s);
     memory_region_destroy(&s->io);
+    qemu_free_irq(s->irq);
 }
 
 static void multi_serial_pci_exit(PCIDevice *dev)
@@ -129,18 +148,19 @@ static void multi_serial_pci_exit(PCIDevice *dev)
     for (i = 0; i < pci->ports; i++) {
         s = pci->state + i;
         serial_exit_core(s);
+        memory_region_del_subregion(&pci->iobar, &s->io);
         memory_region_destroy(&s->io);
         g_free(pci->name[i]);
     }
     memory_region_destroy(&pci->iobar);
-    qemu_free_irqs(pci->irqs);
+    qemu_free_irqs(pci->irqs, pci->ports);
 }
 
 static const VMStateDescription vmstate_pci_serial = {
     .name = "pci-serial",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, PCISerialState),
         VMSTATE_STRUCT(state, PCISerialState, 0, vmstate_serial, SerialState),
         VMSTATE_END_OF_LIST()
@@ -151,7 +171,7 @@ static const VMStateDescription vmstate_pci_multi_serial = {
     .name = "pci-serial-multi",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, PCIMultiSerialState),
         VMSTATE_STRUCT_ARRAY(state, PCIMultiSerialState, PCI_SERIAL_MAX_PORTS,
                              0, vmstate_serial, SerialState),
@@ -162,12 +182,14 @@ static const VMStateDescription vmstate_pci_multi_serial = {
 
 static Property serial_pci_properties[] = {
     DEFINE_PROP_CHR("chardev",  PCISerialState, state.chr),
+    DEFINE_PROP_UINT8("prog_if",  PCISerialState, prog_if, 0x02),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static Property multi_2x_serial_pci_properties[] = {
     DEFINE_PROP_CHR("chardev1",  PCIMultiSerialState, state[0].chr),
     DEFINE_PROP_CHR("chardev2",  PCIMultiSerialState, state[1].chr),
+    DEFINE_PROP_UINT8("prog_if",  PCIMultiSerialState, prog_if, 0x02),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -176,6 +198,7 @@ static Property multi_4x_serial_pci_properties[] = {
     DEFINE_PROP_CHR("chardev2",  PCIMultiSerialState, state[1].chr),
     DEFINE_PROP_CHR("chardev3",  PCIMultiSerialState, state[2].chr),
     DEFINE_PROP_CHR("chardev4",  PCIMultiSerialState, state[3].chr),
+    DEFINE_PROP_UINT8("prog_if",  PCIMultiSerialState, prog_if, 0x02),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -191,6 +214,7 @@ static void serial_pci_class_initfn(ObjectClass *klass, void *data)
     pc->class_id = PCI_CLASS_COMMUNICATION_SERIAL;
     dc->vmsd = &vmstate_pci_serial;
     dc->props = serial_pci_properties;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static void multi_2x_serial_pci_class_initfn(ObjectClass *klass, void *data)
@@ -205,6 +229,7 @@ static void multi_2x_serial_pci_class_initfn(ObjectClass *klass, void *data)
     pc->class_id = PCI_CLASS_COMMUNICATION_SERIAL;
     dc->vmsd = &vmstate_pci_multi_serial;
     dc->props = multi_2x_serial_pci_properties;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static void multi_4x_serial_pci_class_initfn(ObjectClass *klass, void *data)
@@ -219,6 +244,7 @@ static void multi_4x_serial_pci_class_initfn(ObjectClass *klass, void *data)
     pc->class_id = PCI_CLASS_COMMUNICATION_SERIAL;
     dc->vmsd = &vmstate_pci_multi_serial;
     dc->props = multi_4x_serial_pci_properties;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo serial_pci_info = {

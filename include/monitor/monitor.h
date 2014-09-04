@@ -5,7 +5,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qdict.h"
 #include "block/block.h"
-#include "monitor/readline.h"
+#include "qemu/readline.h"
 
 extern Monitor *cur_mon;
 extern Monitor *default_mon;
@@ -19,44 +19,8 @@ extern Monitor *default_mon;
 /* flags for monitor commands */
 #define MONITOR_CMD_ASYNC       0x0001
 
-/* QMP events */
-typedef enum MonitorEvent {
-    QEVENT_SHUTDOWN,
-    QEVENT_RESET,
-    QEVENT_POWERDOWN,
-    QEVENT_STOP,
-    QEVENT_RESUME,
-    QEVENT_VNC_CONNECTED,
-    QEVENT_VNC_INITIALIZED,
-    QEVENT_VNC_DISCONNECTED,
-    QEVENT_BLOCK_IO_ERROR,
-    QEVENT_RTC_CHANGE,
-    QEVENT_WATCHDOG,
-    QEVENT_SPICE_CONNECTED,
-    QEVENT_SPICE_INITIALIZED,
-    QEVENT_SPICE_DISCONNECTED,
-    QEVENT_BLOCK_JOB_COMPLETED,
-    QEVENT_BLOCK_JOB_CANCELLED,
-    QEVENT_BLOCK_JOB_ERROR,
-    QEVENT_BLOCK_JOB_READY,
-    QEVENT_DEVICE_DELETED,
-    QEVENT_DEVICE_TRAY_MOVED,
-    QEVENT_SUSPEND,
-    QEVENT_SUSPEND_DISK,
-    QEVENT_WAKEUP,
-    QEVENT_BALLOON_CHANGE,
-    QEVENT_SPICE_MIGRATE_COMPLETED,
-    QEVENT_GUEST_PANICKED,
-
-    /* Add to 'monitor_event_names' array in monitor.c when
-     * defining new events here */
-
-    QEVENT_MAX,
-} MonitorEvent;
-
 int monitor_cur_is_qmp(void);
 
-void monitor_protocol_event(MonitorEvent event, QObject *data);
 void monitor_init(CharDriverState *chr, int flags);
 
 int monitor_suspend(Monitor *mon);
@@ -71,11 +35,11 @@ int monitor_read_block_device_key(Monitor *mon, const char *device,
 
 int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp);
 int monitor_handle_fd_param(Monitor *mon, const char *fdname);
+int monitor_handle_fd_param2(Monitor *mon, const char *fdname, Error **errp);
 
 void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
     GCC_FMT_ATTR(2, 0);
 void monitor_printf(Monitor *mon, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
-void monitor_print_filename(Monitor *mon, const char *filename);
 void monitor_flush(Monitor *mon);
 int monitor_set_cpu(int cpu_index);
 int monitor_get_cpu_index(void);
@@ -91,6 +55,9 @@ int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
 int qmp_qom_set(Monitor *mon, const QDict *qdict, QObject **ret);
 
 int qmp_qom_get(Monitor *mon, const QDict *qdict, QObject **ret);
+int qmp_object_add(Monitor *mon, const QDict *qdict, QObject **ret);
+void object_add(const char *type, const char *id, const QDict *qdict,
+                Visitor *v, Error **errp);
 
 AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
                                 bool has_opaque, const char *opaque,

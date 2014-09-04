@@ -21,15 +21,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "qemu-common.h"
 
-/* Target word size (must be identical to pointer size). */
-#if UINTPTR_MAX == UINT32_MAX
-# define TCG_TARGET_REG_BITS 32
-#elif UINTPTR_MAX == UINT64_MAX
-# define TCG_TARGET_REG_BITS 64
-#else
-# error Unknown pointer size for tcg target
+#ifndef TCG_H
+#define TCG_H
+
+#include "qemu-common.h"
+#include "qemu/bitops.h"
+#include "tcg-target.h"
+
+/* Default target word size to pointer size.  */
+#ifndef TCG_TARGET_REG_BITS
+# if UINTPTR_MAX == UINT32_MAX
+#  define TCG_TARGET_REG_BITS 32
+# elif UINTPTR_MAX == UINT64_MAX
+#  define TCG_TARGET_REG_BITS 64
+# else
+#  error Unknown pointer size for tcg target
+# endif
 #endif
 
 #if TCG_TARGET_REG_BITS == 32
@@ -46,9 +54,6 @@ typedef uint64_t tcg_target_ulong;
 #error unsupported
 #endif
 
-#include "tcg-target.h"
-#include "tcg-runtime.h"
-
 #if TCG_TARGET_NB_REGS <= 32
 typedef uint32_t TCGRegSet;
 #elif TCG_TARGET_NB_REGS <= 64
@@ -59,7 +64,9 @@ typedef uint64_t TCGRegSet;
 
 #if TCG_TARGET_REG_BITS == 32
 /* Turn some undef macros into false macros.  */
+#define TCG_TARGET_HAS_trunc_shr_i32    0
 #define TCG_TARGET_HAS_div_i64          0
+#define TCG_TARGET_HAS_rem_i64          0
 #define TCG_TARGET_HAS_div2_i64         0
 #define TCG_TARGET_HAS_rot_i64          0
 #define TCG_TARGET_HAS_ext8s_i64        0
@@ -84,10 +91,11 @@ typedef uint64_t TCGRegSet;
 #define TCG_TARGET_HAS_sub2_i64         0
 #define TCG_TARGET_HAS_mulu2_i64        0
 #define TCG_TARGET_HAS_muls2_i64        0
+#define TCG_TARGET_HAS_muluh_i64        0
+#define TCG_TARGET_HAS_mulsh_i64        0
 /* Turn some undef macros into true macros.  */
 #define TCG_TARGET_HAS_add2_i32         1
 #define TCG_TARGET_HAS_sub2_i32         1
-#define TCG_TARGET_HAS_mulu2_i32        1
 #endif
 
 #ifndef TCG_TARGET_deposit_i32_valid
@@ -102,11 +110,20 @@ typedef uint64_t TCGRegSet;
 #define TCG_TARGET_HAS_div2_i32         0
 #elif defined(TCG_TARGET_HAS_div2_i32)
 #define TCG_TARGET_HAS_div_i32          0
+#define TCG_TARGET_HAS_rem_i32          0
 #endif
 #if defined(TCG_TARGET_HAS_div_i64)
 #define TCG_TARGET_HAS_div2_i64         0
 #elif defined(TCG_TARGET_HAS_div2_i64)
 #define TCG_TARGET_HAS_div_i64          0
+#define TCG_TARGET_HAS_rem_i64          0
+#endif
+
+/* For 32-bit targets, some sort of unsigned widening multiply is required.  */
+#if TCG_TARGET_REG_BITS == 32 \
+    && !(defined(TCG_TARGET_HAS_mulu2_i32) \
+         || defined(TCG_TARGET_HAS_muluh_i32))
+# error "Missing unsigned widening multiply"
 #endif
 
 typedef enum TCGOpcode {
@@ -127,17 +144,33 @@ typedef enum TCGOpcode {
 #define tcg_regset_andnot(d, a, b) (d) = (a) & ~(b)
 #define tcg_regset_not(d, a) (d) = ~(a)
 
+#ifndef TCG_TARGET_INSN_UNIT_SIZE
+# error "Missing TCG_TARGET_INSN_UNIT_SIZE"
+#elif TCG_TARGET_INSN_UNIT_SIZE == 1
+typedef uint8_t tcg_insn_unit;
+#elif TCG_TARGET_INSN_UNIT_SIZE == 2
+typedef uint16_t tcg_insn_unit;
+#elif TCG_TARGET_INSN_UNIT_SIZE == 4
+typedef uint32_t tcg_insn_unit;
+#elif TCG_TARGET_INSN_UNIT_SIZE == 8
+typedef uint64_t tcg_insn_unit;
+#else
+/* The port better have done this.  */
+#endif
+
+
 typedef struct TCGRelocation {
     struct TCGRelocation *next;
     int type;
-    uint8_t *ptr;
-    tcg_target_long addend;
+    tcg_insn_unit *ptr;
+    intptr_t addend;
 } TCGRelocation; 
 
 typedef struct TCGLabel {
     int has_value;
     union {
-        tcg_target_ulong value;
+        uintptr_t value;
+        tcg_insn_unit *value_ptr;
         TCGRelocation *first_reloc;
     } u;
 } TCGLabel;
@@ -170,9 +203,12 @@ typedef enum TCGType {
     TCG_TYPE_REG = TCG_TYPE_I64,
 #endif
 
-    /* An alias for the size of the native pointer.  We don't currently
-       support any hosts with 64-bit registers and 32-bit pointers.  */
-    TCG_TYPE_PTR = TCG_TYPE_REG,
+    /* An alias for the size of the native pointer.  */
+#if UINTPTR_MAX == UINT32_MAX
+    TCG_TYPE_PTR = TCG_TYPE_I32,
+#else
+    TCG_TYPE_PTR = TCG_TYPE_I64,
+#endif
 
     /* An alias for the size of the target "long", aka register.  */
 #if TARGET_LONG_BITS == 64
@@ -181,6 +217,60 @@ typedef enum TCGType {
     TCG_TYPE_TL = TCG_TYPE_I32,
 #endif
 } TCGType;
+
+/* Constants for qemu_ld and qemu_st for the Memory Operation field.  */
+typedef enum TCGMemOp {
+    MO_8     = 0,
+    MO_16    = 1,
+    MO_32    = 2,
+    MO_64    = 3,
+    MO_SIZE  = 3,   /* Mask for the above.  */
+
+    MO_SIGN  = 4,   /* Sign-extended, otherwise zero-extended.  */
+
+    MO_BSWAP = 8,   /* Host reverse endian.  */
+#ifdef HOST_WORDS_BIGENDIAN
+    MO_LE    = MO_BSWAP,
+    MO_BE    = 0,
+#else
+    MO_LE    = 0,
+    MO_BE    = MO_BSWAP,
+#endif
+#ifdef TARGET_WORDS_BIGENDIAN
+    MO_TE    = MO_BE,
+#else
+    MO_TE    = MO_LE,
+#endif
+
+    /* Combinations of the above, for ease of use.  */
+    MO_UB    = MO_8,
+    MO_UW    = MO_16,
+    MO_UL    = MO_32,
+    MO_SB    = MO_SIGN | MO_8,
+    MO_SW    = MO_SIGN | MO_16,
+    MO_SL    = MO_SIGN | MO_32,
+    MO_Q     = MO_64,
+
+    MO_LEUW  = MO_LE | MO_UW,
+    MO_LEUL  = MO_LE | MO_UL,
+    MO_LESW  = MO_LE | MO_SW,
+    MO_LESL  = MO_LE | MO_SL,
+    MO_LEQ   = MO_LE | MO_Q,
+
+    MO_BEUW  = MO_BE | MO_UW,
+    MO_BEUL  = MO_BE | MO_UL,
+    MO_BESW  = MO_BE | MO_SW,
+    MO_BESL  = MO_BE | MO_SL,
+    MO_BEQ   = MO_BE | MO_Q,
+
+    MO_TEUW  = MO_TE | MO_UW,
+    MO_TEUL  = MO_TE | MO_UL,
+    MO_TESW  = MO_TE | MO_SW,
+    MO_TESL  = MO_TE | MO_SL,
+    MO_TEQ   = MO_TE | MO_Q,
+
+    MO_SSIZE = MO_SIZE | MO_SIGN,
+} TCGMemOp;
 
 typedef tcg_target_ulong TCGArg;
 
@@ -195,24 +285,6 @@ typedef tcg_target_ulong TCGArg;
    and TCGv_i64 are 32/64-bit variables respectively.  TCGv and TCGv_ptr
    are aliases for target_ulong and host pointer sized values respectively.
  */
-
-#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
-/* Macros/structures for qemu_ld/st IR code optimization:
-   TCG_MAX_HELPER_LABELS is defined as same as OPC_BUF_SIZE in exec-all.h. */
-#define TCG_MAX_QEMU_LDST       640
-
-typedef struct TCGLabelQemuLdst {
-    int is_ld:1;            /* qemu_ld: 1, qemu_st: 0 */
-    int opc:4;
-    int addrlo_reg;         /* reg index for low word of guest virtual addr */
-    int addrhi_reg;         /* reg index for high word of guest virtual addr */
-    int datalo_reg;         /* reg index for low word to be loaded or stored */
-    int datahi_reg;         /* reg index for high word to be loaded or stored */
-    int mem_index;          /* soft MMU memory index */
-    uint8_t *raddr;         /* gen code addr of the next IR of qemu_ld/st IR */
-    uint8_t *label_ptr[2];  /* label pointers to be updated */
-} TCGLabelQemuLdst;
-#endif
 
 #ifdef CONFIG_DEBUG_TCG
 #define DEBUG_TCGV 1
@@ -273,13 +345,16 @@ typedef int TCGv_i64;
 
 #define TCGV_EQUAL_I32(a, b) (GET_TCGV_I32(a) == GET_TCGV_I32(b))
 #define TCGV_EQUAL_I64(a, b) (GET_TCGV_I64(a) == GET_TCGV_I64(b))
+#define TCGV_EQUAL_PTR(a, b) (GET_TCGV_PTR(a) == GET_TCGV_PTR(b))
 
 /* Dummy definition to avoid compiler warnings.  */
 #define TCGV_UNUSED_I32(x) x = MAKE_TCGV_I32(-1)
 #define TCGV_UNUSED_I64(x) x = MAKE_TCGV_I64(-1)
+#define TCGV_UNUSED_PTR(x) x = MAKE_TCGV_PTR(-1)
 
 #define TCGV_IS_UNUSED_I32(x) (GET_TCGV_I32(x) == -1)
 #define TCGV_IS_UNUSED_I64(x) (GET_TCGV_I64(x) == -1)
+#define TCGV_IS_UNUSED_PTR(x) (GET_TCGV_PTR(x) == -1)
 
 /* call flags */
 /* Helper does not read globals (either directly or through an exception). It
@@ -377,7 +452,7 @@ typedef struct TCGTemp {
     int reg;
     tcg_target_long val;
     int mem_reg;
-    tcg_target_long mem_offset;
+    intptr_t mem_offset;
     unsigned int fixed_reg:1;
     unsigned int mem_coherent:1;
     unsigned int mem_allocated:1;
@@ -385,17 +460,14 @@ typedef struct TCGTemp {
                                   basic blocks. Otherwise, it is not
                                   preserved across basic blocks. */
     unsigned int temp_allocated:1; /* never used for code gen */
-    /* index of next free temp of same base type, -1 if end */
-    int next_free_temp;
     const char *name;
 } TCGTemp;
 
-typedef struct TCGHelperInfo {
-    tcg_target_ulong func;
-    const char *name;
-} TCGHelperInfo;
-
 typedef struct TCGContext TCGContext;
+
+typedef struct TCGTempSet {
+    unsigned long l[BITS_TO_LONGS(TCG_MAX_TEMPS)];
+} TCGTempSet;
 
 struct TCGContext {
     uint8_t *pool_cur, *pool_end;
@@ -404,11 +476,9 @@ struct TCGContext {
     int nb_labels;
     int nb_globals;
     int nb_temps;
-    /* index of free temps, -1 if none */
-    int first_free_temp[TCG_TYPE_COUNT * 2]; 
 
     /* goto_tb support */
-    uint8_t *code_buf;
+    tcg_insn_unit *code_buf;
     uintptr_t *tb_next;
     uint16_t *tb_next_offset;
     uint16_t *tb_jmp_offset; /* != NULL if USE_DIRECT_JUMP */
@@ -424,18 +494,16 @@ struct TCGContext {
        into account fixed registers */
     int reg_to_temp[TCG_TARGET_NB_REGS];
     TCGRegSet reserved_regs;
-    tcg_target_long current_frame_offset;
-    tcg_target_long frame_start;
-    tcg_target_long frame_end;
+    intptr_t current_frame_offset;
+    intptr_t frame_start;
+    intptr_t frame_end;
     int frame_reg;
 
-    uint8_t *code_ptr;
+    tcg_insn_unit *code_ptr;
     TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */
+    TCGTempSet free_temps[TCG_TYPE_COUNT * 2];
 
-    TCGHelperInfo *helpers;
-    int nb_helpers;
-    int allocated_helpers;
-    int helpers_sorted;
+    GHashTable *helpers;
 
 #ifdef CONFIG_PROFILER
     /* profiling info */
@@ -470,23 +538,22 @@ struct TCGContext {
     uint16_t gen_opc_icount[OPC_BUF_SIZE];
     uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 
-    /* Code generation */
+    /* Code generation.  Note that we specifically do not use tcg_insn_unit
+       here, because there's too much arithmetic throughout that relies
+       on addition and subtraction working on bytes.  Rely on the GCC
+       extension that allows arithmetic on void*.  */
     int code_gen_max_blocks;
-    uint8_t *code_gen_prologue;
-    uint8_t *code_gen_buffer;
+    void *code_gen_prologue;
+    void *code_gen_buffer;
     size_t code_gen_buffer_size;
     /* threshold to flush the translated code buffer */
     size_t code_gen_buffer_max_size;
-    uint8_t *code_gen_ptr;
+    void *code_gen_ptr;
 
     TBContext tb_ctx;
 
-#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
-    /* labels info for qemu_ld/st IRs
-       The labels help to generate TLB miss case codes at the end of TB */
-    TCGLabelQemuLdst *qemu_ldst_labels;
-    int nb_qemu_ldst_labels;
-#endif
+    /* The TCGBackendData structure is private to tcg-target.c.  */
+    struct TCGBackendData *be;
 };
 
 extern TCGContext tcg_ctx;
@@ -516,15 +583,14 @@ void tcg_context_init(TCGContext *s);
 void tcg_prologue_init(TCGContext *s);
 void tcg_func_start(TCGContext *s);
 
-int tcg_gen_code(TCGContext *s, uint8_t *gen_code_buf);
-int tcg_gen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset);
+int tcg_gen_code(TCGContext *s, tcg_insn_unit *gen_code_buf);
+int tcg_gen_code_search_pc(TCGContext *s, tcg_insn_unit *gen_code_buf,
+                           long offset);
 
-void tcg_set_frame(TCGContext *s, int reg,
-                   tcg_target_long start, tcg_target_long size);
+void tcg_set_frame(TCGContext *s, int reg, intptr_t start, intptr_t size);
 
 TCGv_i32 tcg_global_reg_new_i32(int reg, const char *name);
-TCGv_i32 tcg_global_mem_new_i32(int reg, tcg_target_long offset,
-                                const char *name);
+TCGv_i32 tcg_global_mem_new_i32(int reg, intptr_t offset, const char *name);
 TCGv_i32 tcg_temp_new_internal_i32(int temp_local);
 static inline TCGv_i32 tcg_temp_new_i32(void)
 {
@@ -538,8 +604,7 @@ void tcg_temp_free_i32(TCGv_i32 arg);
 char *tcg_get_arg_str_i32(TCGContext *s, char *buf, int buf_size, TCGv_i32 arg);
 
 TCGv_i64 tcg_global_reg_new_i64(int reg, const char *name);
-TCGv_i64 tcg_global_mem_new_i64(int reg, tcg_target_long offset,
-                                const char *name);
+TCGv_i64 tcg_global_mem_new_i64(int reg, intptr_t offset, const char *name);
 TCGv_i64 tcg_temp_new_internal_i64(int temp_local);
 static inline TCGv_i64 tcg_temp_new_i64(void)
 {
@@ -593,7 +658,8 @@ enum {
     TCG_OPF_SIDE_EFFECTS = 0x04,
     /* Instruction operands are 64-bits (otherwise 32-bits).  */
     TCG_OPF_64BIT        = 0x08,
-    /* Instruction is optional and not implemented by the host.  */
+    /* Instruction is optional and not implemented by the host, or insn
+       is generic and should not be implemened by the host.  */
     TCG_OPF_NOT_PRESENT  = 0x10,
 };
 
@@ -633,11 +699,11 @@ do {\
 
 void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs);
 
-#if TCG_TARGET_REG_BITS == 32
+#if UINTPTR_MAX == UINT32_MAX
 #define TCGV_NAT_TO_PTR(n) MAKE_TCGV_PTR(GET_TCGV_I32(n))
 #define TCGV_PTR_TO_NAT(n) MAKE_TCGV_I32(GET_TCGV_PTR(n))
 
-#define tcg_const_ptr(V) TCGV_NAT_TO_PTR(tcg_const_i32((tcg_target_long)(V)))
+#define tcg_const_ptr(V) TCGV_NAT_TO_PTR(tcg_const_i32((intptr_t)(V)))
 #define tcg_global_reg_new_ptr(R, N) \
     TCGV_NAT_TO_PTR(tcg_global_reg_new_i32((R), (N)))
 #define tcg_global_mem_new_ptr(R, O, N) \
@@ -648,7 +714,7 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs);
 #define TCGV_NAT_TO_PTR(n) MAKE_TCGV_PTR(GET_TCGV_I64(n))
 #define TCGV_PTR_TO_NAT(n) MAKE_TCGV_I64(GET_TCGV_PTR(n))
 
-#define tcg_const_ptr(V) TCGV_NAT_TO_PTR(tcg_const_i64((tcg_target_long)(V)))
+#define tcg_const_ptr(V) TCGV_NAT_TO_PTR(tcg_const_i64((intptr_t)(V)))
 #define tcg_global_reg_new_ptr(R, N) \
     TCGV_NAT_TO_PTR(tcg_global_reg_new_i64((R), (N)))
 #define tcg_global_mem_new_ptr(R, O, N) \
@@ -657,8 +723,8 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs);
 #define tcg_temp_free_ptr(T) tcg_temp_free_i64(TCGV_PTR_TO_NAT(T))
 #endif
 
-void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
-                   int sizemask, TCGArg ret, int nargs, TCGArg *args);
+void tcg_gen_callN(TCGContext *s, void *func,
+                   TCGArg ret, int nargs, TCGArg *args);
 
 void tcg_gen_shifti_i64(TCGv_i64 ret, TCGv_i64 arg1,
                         int c, int right, int arith);
@@ -667,8 +733,6 @@ TCGArg *tcg_optimize(TCGContext *s, uint16_t *tcg_opc_ptr, TCGArg *args,
                      TCGOpDef *tcg_op_def);
 
 /* only used for debugging purposes */
-void tcg_register_helper(void *func, const char *name);
-const char *tcg_helper_get_name(TCGContext *s, void *func);
 void tcg_dump_ops(TCGContext *s);
 
 void dump_ops(const uint16_t *opc_buf, const TCGArg *opparam_buf);
@@ -676,6 +740,51 @@ TCGv_i32 tcg_const_i32(int32_t val);
 TCGv_i64 tcg_const_i64(int64_t val);
 TCGv_i32 tcg_const_local_i32(int32_t val);
 TCGv_i64 tcg_const_local_i64(int64_t val);
+
+/**
+ * tcg_ptr_byte_diff
+ * @a, @b: addresses to be differenced
+ *
+ * There are many places within the TCG backends where we need a byte
+ * difference between two pointers.  While this can be accomplished
+ * with local casting, it's easy to get wrong -- especially if one is
+ * concerned with the signedness of the result.
+ *
+ * This version relies on GCC's void pointer arithmetic to get the
+ * correct result.
+ */
+
+static inline ptrdiff_t tcg_ptr_byte_diff(void *a, void *b)
+{
+    return a - b;
+}
+
+/**
+ * tcg_pcrel_diff
+ * @s: the tcg context
+ * @target: address of the target
+ *
+ * Produce a pc-relative difference, from the current code_ptr
+ * to the destination address.
+ */
+
+static inline ptrdiff_t tcg_pcrel_diff(TCGContext *s, void *target)
+{
+    return tcg_ptr_byte_diff(target, s->code_ptr);
+}
+
+/**
+ * tcg_current_code_size
+ * @s: the tcg context
+ *
+ * Compute the current code size within the translation block.
+ * This is used to fill in qemu's data structures for goto_tb.
+ */
+
+static inline size_t tcg_current_code_size(TCGContext *s)
+{
+    return tcg_ptr_byte_diff(s->code_ptr, s->code_buf);
+}
 
 /**
  * tcg_qemu_tb_exec:
@@ -727,13 +836,79 @@ TCGv_i64 tcg_const_local_i64(int64_t val);
 
 #if !defined(tcg_qemu_tb_exec)
 # define tcg_qemu_tb_exec(env, tb_ptr) \
-    ((tcg_target_ulong (*)(void *, void *))tcg_ctx.code_gen_prologue)(env, \
-                                                                      tb_ptr)
+    ((uintptr_t (*)(void *, void *))tcg_ctx.code_gen_prologue)(env, tb_ptr)
 #endif
 
 void tcg_register_jit(void *buf, size_t buf_size);
 
-#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
-/* Generate TB finalization at the end of block */
-void tcg_out_tb_finalize(TCGContext *s);
+/*
+ * Memory helpers that will be used by TCG generated code.
+ */
+#ifdef CONFIG_SOFTMMU
+/* Value zero-extended to tcg register size.  */
+tcg_target_ulong helper_ret_ldub_mmu(CPUArchState *env, target_ulong addr,
+                                     int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_le_lduw_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_le_ldul_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+uint64_t helper_le_ldq_mmu(CPUArchState *env, target_ulong addr,
+                           int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_be_lduw_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_be_ldul_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+uint64_t helper_be_ldq_mmu(CPUArchState *env, target_ulong addr,
+                           int mmu_idx, uintptr_t retaddr);
+
+/* Value sign-extended to tcg register size.  */
+tcg_target_ulong helper_ret_ldsb_mmu(CPUArchState *env, target_ulong addr,
+                                     int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_le_ldsw_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_le_ldsl_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_be_ldsw_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_be_ldsl_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+
+void helper_ret_stb_mmu(CPUArchState *env, target_ulong addr, uint8_t val,
+                        int mmu_idx, uintptr_t retaddr);
+void helper_le_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void helper_le_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void helper_le_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void helper_be_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void helper_be_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
+                       int mmu_idx, uintptr_t retaddr);
+
+/* Temporary aliases until backends are converted.  */
+#ifdef TARGET_WORDS_BIGENDIAN
+# define helper_ret_ldsw_mmu  helper_be_ldsw_mmu
+# define helper_ret_lduw_mmu  helper_be_lduw_mmu
+# define helper_ret_ldsl_mmu  helper_be_ldsl_mmu
+# define helper_ret_ldul_mmu  helper_be_ldul_mmu
+# define helper_ret_ldq_mmu   helper_be_ldq_mmu
+# define helper_ret_stw_mmu   helper_be_stw_mmu
+# define helper_ret_stl_mmu   helper_be_stl_mmu
+# define helper_ret_stq_mmu   helper_be_stq_mmu
+#else
+# define helper_ret_ldsw_mmu  helper_le_ldsw_mmu
+# define helper_ret_lduw_mmu  helper_le_lduw_mmu
+# define helper_ret_ldsl_mmu  helper_le_ldsl_mmu
+# define helper_ret_ldul_mmu  helper_le_ldul_mmu
+# define helper_ret_ldq_mmu   helper_le_ldq_mmu
+# define helper_ret_stw_mmu   helper_le_stw_mmu
+# define helper_ret_stl_mmu   helper_le_stl_mmu
+# define helper_ret_stq_mmu   helper_le_stq_mmu
 #endif
+
+#endif /* CONFIG_SOFTMMU */
+
+#endif /* TCG_H */

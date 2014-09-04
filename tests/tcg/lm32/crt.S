@@ -8,9 +8,9 @@ _reset_handler:
 	ori r1, r1, lo(_start)
 	wcsr eba, r1
 	wcsr deba, r1
+	mvhi sp, hi(_fstack)
+	ori sp, sp, lo(_fstack)
 	bi _main
-	nop
-	nop
 
 _breakpoint_handler:
 	ori r25, r25, 1

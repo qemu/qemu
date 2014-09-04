@@ -23,6 +23,7 @@ int kvmppc_get_hasidle(CPUPPCState *env);
 int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len);
 int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level);
 void kvmppc_set_papr(PowerPCCPU *cpu);
+int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version);
 void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy);
 int kvmppc_smt_threads(void);
 int kvmppc_clear_tsr_bits(PowerPCCPU *cpu, uint32_t tsr_bits);
@@ -30,14 +31,27 @@ int kvmppc_or_tsr_bits(PowerPCCPU *cpu, uint32_t tsr_bits);
 int kvmppc_set_tcr(PowerPCCPU *cpu);
 int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu);
 #ifndef CONFIG_USER_ONLY
-off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem);
-void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd);
+off_t kvmppc_alloc_rma(void **rma);
+bool kvmppc_spapr_use_multitce(void);
+void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd,
+                              bool vfio_accel);
 int kvmppc_remove_spapr_tce(void *table, int pfd, uint32_t window_size);
 int kvmppc_reset_htab(int shift_hint);
 uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift);
 #endif /* !CONFIG_USER_ONLY */
-int kvmppc_fixup_cpu(PowerPCCPU *cpu);
 bool kvmppc_has_cap_epr(void);
+int kvmppc_define_rtas_kernel_token(uint32_t token, const char *function);
+bool kvmppc_has_cap_htab_fd(void);
+int kvmppc_get_htab_fd(bool write);
+int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns);
+int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
+                           uint16_t n_valid, uint16_t n_invalid);
+uint64_t kvmppc_hash64_read_pteg(PowerPCCPU *cpu, target_ulong pte_index);
+void kvmppc_hash64_free_pteg(uint64_t token);
+
+void kvmppc_hash64_write_pte(CPUPPCState *env, target_ulong pte_index,
+                             target_ulong pte0, target_ulong pte1);
+bool kvmppc_has_cap_fixup_hcalls(void);
 
 #else
 
@@ -85,6 +99,11 @@ static inline void kvmppc_set_papr(PowerPCCPU *cpu)
 {
 }
 
+static inline int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version)
+{
+    return 0;
+}
+
 static inline void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
 {
 }
@@ -115,19 +134,25 @@ static inline int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu)
 }
 
 #ifndef CONFIG_USER_ONLY
-static inline off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
+static inline off_t kvmppc_alloc_rma(void **rma)
 {
     return 0;
 }
 
+static inline bool kvmppc_spapr_use_multitce(void)
+{
+    return false;
+}
+
 static inline void *kvmppc_create_spapr_tce(uint32_t liobn,
-                                            uint32_t window_size, int *fd)
+                                            uint32_t window_size, int *fd,
+                                            bool vfio_accel)
 {
     return NULL;
 }
 
 static inline int kvmppc_remove_spapr_tce(void *table, int pfd,
-                                          uint32_t window_size)
+                                          uint32_t nb_table)
 {
     return -1;
 }
@@ -150,15 +175,62 @@ static inline int kvmppc_update_sdr1(CPUPPCState *env)
 
 #endif /* !CONFIG_USER_ONLY */
 
-static inline int kvmppc_fixup_cpu(PowerPCCPU *cpu)
-{
-    return -1;
-}
-
 static inline bool kvmppc_has_cap_epr(void)
 {
     return false;
 }
+
+static inline int kvmppc_define_rtas_kernel_token(uint32_t token,
+                                                  const char *function)
+{
+    return -1;
+}
+
+static inline bool kvmppc_has_cap_htab_fd(void)
+{
+    return false;
+}
+
+static inline int kvmppc_get_htab_fd(bool write)
+{
+    return -1;
+}
+
+static inline int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize,
+                                   int64_t max_ns)
+{
+    abort();
+}
+
+static inline int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
+                                         uint16_t n_valid, uint16_t n_invalid)
+{
+    abort();
+}
+
+static inline uint64_t kvmppc_hash64_read_pteg(PowerPCCPU *cpu,
+                                               target_ulong pte_index)
+{
+    abort();
+}
+
+static inline void kvmppc_hash64_free_pteg(uint64_t token)
+{
+    abort();
+}
+
+static inline void kvmppc_hash64_write_pte(CPUPPCState *env,
+                                           target_ulong pte_index,
+                                           target_ulong pte0, target_ulong pte1)
+{
+    abort();
+}
+
+static inline bool kvmppc_has_cap_fixup_hcalls(void)
+{
+    abort();
+}
+
 #endif
 
 #ifndef CONFIG_KVM

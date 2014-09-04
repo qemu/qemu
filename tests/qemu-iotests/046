@@ -39,7 +39,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 
 _supported_fmt qcow2
-_supported_proto generic
+_supported_proto file
 _supported_os Linux
 
 CLUSTER_SIZE=64k
@@ -66,11 +66,11 @@ function backing_io()
     done
 }
 
-backing_io 0 32 write | $QEMU_IO $TEST_IMG | _filter_qemu_io
+backing_io 0 32 write | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
 
-mv $TEST_IMG $TEST_IMG.base
+mv "$TEST_IMG" "$TEST_IMG.base"
 
-_make_test_img -b $TEST_IMG.base 6G
+_make_test_img -b "$TEST_IMG.base" 6G
 
 echo
 echo "== Some concurrent requests touching the same cluster =="
@@ -185,7 +185,7 @@ aio_flush
 EOF
 }
 
-overlay_io | $QEMU_IO blkdebug::$TEST_IMG | _filter_qemu_io |\
+overlay_io | $QEMU_IO blkdebug::"$TEST_IMG" | _filter_qemu_io |\
 	sed -e 's/bytes at offset [0-9]*/bytes at offset XXX/g'
 
 echo
@@ -193,6 +193,16 @@ echo "== Verify image content =="
 
 function verify_io()
 {
+    if ($QEMU_IMG info -f "$IMGFMT" "$TEST_IMG" | grep "compat: 0.10" > /dev/null); then
+        # For v2 images, discarded clusters are read from the backing file
+        # Keep the variable empty so that the backing file value can be used as
+        # the default below
+        discarded=
+    else
+        # Discarded clusters are zeroed for v3 or later
+        discarded=0
+    fi
+
     echo read -P 0 0 0x10000
 
     echo read -P 1  0x10000 0x2000
@@ -221,16 +231,16 @@ function verify_io()
     echo read -P 70 0x78000 0x6000
     echo read -P 7  0x7e000 0x2000
 
-    echo read -P 8  0x80000 0x6000
+    echo read -P ${discarded:-8} 0x80000 0x6000
     echo read -P 80 0x86000 0x2000
-    echo read -P 8  0x88000 0x2000
+    echo read -P ${discarded:-8} 0x88000 0x2000
     echo read -P 81 0x8a000 0xe000
     echo read -P 90 0x98000 0x6000
     echo read -P 9  0x9e000 0x2000
 
-    echo read -P 10  0xa0000 0x6000
+    echo read -P ${discarded:-10} 0xa0000 0x6000
     echo read -P 100 0xa6000 0x2000
-    echo read -P 10  0xa8000 0x2000
+    echo read -P ${discarded:-10} 0xa8000 0x2000
     echo read -P 101 0xaa000 0xe000
     echo read -P 110 0xb8000 0x8000
 
@@ -252,7 +262,7 @@ function verify_io()
     echo read -P 17  0x11c000 0x4000
 }
 
-verify_io | $QEMU_IO $TEST_IMG | _filter_qemu_io
+verify_io | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
 
 _check_test_img
 

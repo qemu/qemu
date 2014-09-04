@@ -32,8 +32,12 @@ typedef enum {
     REDRAW_NONE = 0, REDRAW_SEGMENTS = 1, REDRAW_BACKGROUND = 2,
 } screen_state_t;
 
+#define TYPE_JAZZ_LED "jazz-led"
+#define JAZZ_LED(obj) OBJECT_CHECK(LedState, (obj), TYPE_JAZZ_LED)
+
 typedef struct LedState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint8_t segments;
     QemuConsole *con;
@@ -169,6 +173,7 @@ static void jazz_led_update_display(void *opaque)
             case 16:
                 color_segment = rgb_to_pixel16(0xaa, 0xaa, 0xaa);
                 color_led = rgb_to_pixel16(0x00, 0xff, 0x00);
+                break;
             case 24:
                 color_segment = rgb_to_pixel24(0xaa, 0xaa, 0xaa);
                 color_led = rgb_to_pixel24(0x00, 0xff, 0x00);
@@ -246,7 +251,6 @@ static const VMStateDescription vmstate_jazz_led = {
     .name = "jazz-led",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .post_load = jazz_led_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(segments, LedState),
@@ -262,19 +266,19 @@ static const GraphicHwOps jazz_led_ops = {
 
 static int jazz_led_init(SysBusDevice *dev)
 {
-    LedState *s = FROM_SYSBUS(LedState, dev);
+    LedState *s = JAZZ_LED(dev);
 
-    memory_region_init_io(&s->iomem, &led_ops, s, "led", 1);
+    memory_region_init_io(&s->iomem, OBJECT(s), &led_ops, s, "led", 1);
     sysbus_init_mmio(dev, &s->iomem);
 
-    s->con = graphic_console_init(DEVICE(dev), &jazz_led_ops, s);
+    s->con = graphic_console_init(DEVICE(dev), 0, &jazz_led_ops, s);
 
     return 0;
 }
 
 static void jazz_led_reset(DeviceState *d)
 {
-    LedState *s = DO_UPCAST(LedState, busdev.qdev, d);
+    LedState *s = JAZZ_LED(d);
 
     s->segments = 0;
     s->state = REDRAW_SEGMENTS | REDRAW_BACKGROUND;
@@ -293,7 +297,7 @@ static void jazz_led_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo jazz_led_info = {
-    .name          = "jazz-led",
+    .name          = TYPE_JAZZ_LED,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LedState),
     .class_init    = jazz_led_class_init,

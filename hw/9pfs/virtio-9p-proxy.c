@@ -1086,7 +1086,8 @@ static int proxy_ioc_getversion(FsContext *fs_ctx, V9fsPath *path,
      * we can get fd for regular files and directories only
      */
     if (!S_ISREG(st_mode) && !S_ISDIR(st_mode)) {
-        return 0;
+        errno = ENOTTY;
+        return -1;
     }
     err = v9fs_request(fs_ctx->private, T_GETVERSION, st_gen, "s", path);
     if (err < 0) {
@@ -1153,10 +1154,12 @@ static int proxy_init(FsContext *ctx)
         sock_id = atoi(ctx->fs_root);
         if (sock_id < 0) {
             fprintf(stderr, "socket descriptor not initialized\n");
+            g_free(proxy);
             return -1;
         }
     }
     g_free(ctx->fs_root);
+    ctx->fs_root = NULL;
 
     proxy->in_iovec.iov_base  = g_malloc(PROXY_MAX_IO_SZ + PROXY_HDR_SZ);
     proxy->in_iovec.iov_len   = PROXY_MAX_IO_SZ + PROXY_HDR_SZ;

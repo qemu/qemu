@@ -21,6 +21,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
+#include "sysemu/qtest.h"
 
 /* Device addresses */
 #define MST_FPGA_PHYS	0x08000000
@@ -44,7 +45,7 @@
 #define S1_STSCHG_IRQ 14
 #define S1_IRQ        15
 
-static struct keymap map[0xE0] = {
+static const struct keymap map[0xE0] = {
     [0 ... 0xDF] = { -1, -1 },
     [0x1e] = {0,0}, /* a */
     [0x30] = {0,1}, /* b */
@@ -74,9 +75,18 @@ static struct keymap map[0xE0] = {
     [0x2c] = {4,3}, /* z */
     [0xc7] = {5,0}, /* Home */
     [0x2a] = {5,1}, /* shift */
-    [0x39] = {5,2}, /* space */
+    /*
+     * There are two matrix positions which map to space,
+     * but QEMU can only use one of them for the reverse
+     * mapping, so simply use the second one.
+     */
+    /* [0x39] = {5,2}, space */
     [0x39] = {5,3}, /* space */
-    [0x1c] = {5,5}, /*  enter */
+    /*
+     * Matrix position {5,4} and other keys are missing here.
+     * TODO: Compare with Linux code and test real hardware.
+     */
+    [0x1c] = {5,5}, /* enter (TODO: might be wrong) */
     [0xc8] = {6,0}, /* up */
     [0xd0] = {6,1}, /* down */
     [0xcb] = {6,2}, /* left */
@@ -95,7 +105,7 @@ static struct arm_boot_info mainstone_binfo = {
 };
 
 static void mainstone_common_init(MemoryRegion *address_space_mem,
-                                  QEMUMachineInitArgs *args,
+                                  MachineState *machine,
                                   enum mainstone_model_e model, int arm_id)
 {
     uint32_t sector_len = 256 * 1024;
@@ -106,14 +116,14 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
     int i;
     int be;
     MemoryRegion *rom = g_new(MemoryRegion, 1);
-    const char *cpu_model = args->cpu_model;
+    const char *cpu_model = machine->cpu_model;
 
     if (!cpu_model)
         cpu_model = "pxa270-c5";
 
     /* Setup CPU & memory */
     mpu = pxa270_init(address_space_mem, mainstone_binfo.ram_size, cpu_model);
-    memory_region_init_ram(rom, "mainstone.rom", MAINSTONE_ROM);
+    memory_region_init_ram(rom, NULL, "mainstone.rom", MAINSTONE_ROM);
     vmstate_register_ram_global(rom);
     memory_region_set_readonly(rom, true);
     memory_region_add_subregion(address_space_mem, 0, rom);
@@ -127,6 +137,9 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
     for (i = 0; i < 2; i ++) {
         dinfo = drive_get(IF_PFLASH, 0, i);
         if (!dinfo) {
+            if (qtest_enabled()) {
+                break;
+            }
             fprintf(stderr, "Two flash images must be given with the "
                     "'pflash' parameter\n");
             exit(1);
@@ -147,7 +160,6 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
                     qdev_get_gpio_in(mpu->gpio, 0));
 
     /* setup keypad */
-    printf("map addr %p\n", &map);
     pxa27x_register_keypad(mpu->kp, map, 0xe0);
 
     /* MMC/SD host */
@@ -163,23 +175,22 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
     smc91c111_init(&nd_table[0], MST_ETH_PHYS,
                     qdev_get_gpio_in(mst_irq, ETHERNET_IRQ));
 
-    mainstone_binfo.kernel_filename = args->kernel_filename;
-    mainstone_binfo.kernel_cmdline = args->kernel_cmdline;
-    mainstone_binfo.initrd_filename = args->initrd_filename;
+    mainstone_binfo.kernel_filename = machine->kernel_filename;
+    mainstone_binfo.kernel_cmdline = machine->kernel_cmdline;
+    mainstone_binfo.initrd_filename = machine->initrd_filename;
     mainstone_binfo.board_id = arm_id;
     arm_load_kernel(mpu->cpu, &mainstone_binfo);
 }
 
-static void mainstone_init(QEMUMachineInitArgs *args)
+static void mainstone_init(MachineState *machine)
 {
-    mainstone_common_init(get_system_memory(), args, mainstone, 0x196);
+    mainstone_common_init(get_system_memory(), machine, mainstone, 0x196);
 }
 
 static QEMUMachine mainstone2_machine = {
     .name = "mainstone",
     .desc = "Mainstone II (PXA27x)",
     .init = mainstone_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void mainstone_machine_init(void)

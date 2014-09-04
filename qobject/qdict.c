@@ -476,3 +476,224 @@ static void qdict_destroy_obj(QObject *obj)
 
     g_free(qdict);
 }
+
+static void qdict_flatten_qdict(QDict *qdict, QDict *target,
+                                const char *prefix);
+
+static void qdict_flatten_qlist(QList *qlist, QDict *target, const char *prefix)
+{
+    QObject *value;
+    const QListEntry *entry;
+    char *new_key;
+    int i;
+
+    /* This function is never called with prefix == NULL, i.e., it is always
+     * called from within qdict_flatten_q(list|dict)(). Therefore, it does not
+     * need to remove list entries during the iteration (the whole list will be
+     * deleted eventually anyway from qdict_flatten_qdict()). */
+    assert(prefix);
+
+    entry = qlist_first(qlist);
+
+    for (i = 0; entry; entry = qlist_next(entry), i++) {
+        value = qlist_entry_obj(entry);
+        new_key = g_strdup_printf("%s.%i", prefix, i);
+
+        if (qobject_type(value) == QTYPE_QDICT) {
+            qdict_flatten_qdict(qobject_to_qdict(value), target, new_key);
+        } else if (qobject_type(value) == QTYPE_QLIST) {
+            qdict_flatten_qlist(qobject_to_qlist(value), target, new_key);
+        } else {
+            /* All other types are moved to the target unchanged. */
+            qobject_incref(value);
+            qdict_put_obj(target, new_key, value);
+        }
+
+        g_free(new_key);
+    }
+}
+
+static void qdict_flatten_qdict(QDict *qdict, QDict *target, const char *prefix)
+{
+    QObject *value;
+    const QDictEntry *entry, *next;
+    char *new_key;
+    bool delete;
+
+    entry = qdict_first(qdict);
+
+    while (entry != NULL) {
+
+        next = qdict_next(qdict, entry);
+        value = qdict_entry_value(entry);
+        new_key = NULL;
+        delete = false;
+
+        if (prefix) {
+            new_key = g_strdup_printf("%s.%s", prefix, entry->key);
+        }
+
+        if (qobject_type(value) == QTYPE_QDICT) {
+            /* Entries of QDicts are processed recursively, the QDict object
+             * itself disappears. */
+            qdict_flatten_qdict(qobject_to_qdict(value), target,
+                                new_key ? new_key : entry->key);
+            delete = true;
+        } else if (qobject_type(value) == QTYPE_QLIST) {
+            qdict_flatten_qlist(qobject_to_qlist(value), target,
+                                new_key ? new_key : entry->key);
+            delete = true;
+        } else if (prefix) {
+            /* All other objects are moved to the target unchanged. */
+            qobject_incref(value);
+            qdict_put_obj(target, new_key, value);
+            delete = true;
+        }
+
+        g_free(new_key);
+
+        if (delete) {
+            qdict_del(qdict, entry->key);
+
+            /* Restart loop after modifying the iterated QDict */
+            entry = qdict_first(qdict);
+            continue;
+        }
+
+        entry = next;
+    }
+}
+
+/**
+ * qdict_flatten(): For each nested QDict with key x, all fields with key y
+ * are moved to this QDict and their key is renamed to "x.y". For each nested
+ * QList with key x, the field at index y is moved to this QDict with the key
+ * "x.y" (i.e., the reverse of what qdict_array_split() does).
+ * This operation is applied recursively for nested QDicts and QLists.
+ */
+void qdict_flatten(QDict *qdict)
+{
+    qdict_flatten_qdict(qdict, qdict, NULL);
+}
+
+/* extract all the src QDict entries starting by start into dst */
+void qdict_extract_subqdict(QDict *src, QDict **dst, const char *start)
+
+{
+    const QDictEntry *entry, *next;
+    const char *p;
+
+    *dst = qdict_new();
+    entry = qdict_first(src);
+
+    while (entry != NULL) {
+        next = qdict_next(src, entry);
+        if (strstart(entry->key, start, &p)) {
+            qobject_incref(entry->value);
+            qdict_put_obj(*dst, p, entry->value);
+            qdict_del(src, entry->key);
+        }
+        entry = next;
+    }
+}
+
+static bool qdict_has_prefixed_entries(const QDict *src, const char *start)
+{
+    const QDictEntry *entry;
+
+    for (entry = qdict_first(src); entry; entry = qdict_next(src, entry)) {
+        if (strstart(entry->key, start, NULL)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * qdict_array_split(): This function moves array-like elements of a QDict into
+ * a new QList. Every entry in the original QDict with a key "%u" or one
+ * prefixed "%u.", where %u designates an unsigned integer starting at 0 and
+ * incrementally counting up, will be moved to a new QDict at index %u in the
+ * output QList with the key prefix removed, if that prefix is "%u.". If the
+ * whole key is just "%u", the whole QObject will be moved unchanged without
+ * creating a new QDict. The function terminates when there is no entry in the
+ * QDict with a prefix directly (incrementally) following the last one; it also
+ * returns if there are both entries with "%u" and "%u." for the same index %u.
+ * Example: {"0.a": 42, "0.b": 23, "1.x": 0, "4.y": 1, "o.o": 7, "2": 66}
+ *      (or {"1.x": 0, "4.y": 1, "0.a": 42, "o.o": 7, "0.b": 23, "2": 66})
+ *       => [{"a": 42, "b": 23}, {"x": 0}, 66]
+ *      and {"4.y": 1, "o.o": 7} (remainder of the old QDict)
+ */
+void qdict_array_split(QDict *src, QList **dst)
+{
+    unsigned i;
+
+    *dst = qlist_new();
+
+    for (i = 0; i < UINT_MAX; i++) {
+        QObject *subqobj;
+        bool is_subqdict;
+        QDict *subqdict;
+        char indexstr[32], prefix[32];
+        size_t snprintf_ret;
+
+        snprintf_ret = snprintf(indexstr, 32, "%u", i);
+        assert(snprintf_ret < 32);
+
+        subqobj = qdict_get(src, indexstr);
+
+        snprintf_ret = snprintf(prefix, 32, "%u.", i);
+        assert(snprintf_ret < 32);
+
+        is_subqdict = qdict_has_prefixed_entries(src, prefix);
+
+        // There may be either a single subordinate object (named "%u") or
+        // multiple objects (each with a key prefixed "%u."), but not both.
+        if (!subqobj == !is_subqdict) {
+            break;
+        }
+
+        if (is_subqdict) {
+            qdict_extract_subqdict(src, &subqdict, prefix);
+            assert(qdict_size(subqdict) > 0);
+        } else {
+            qobject_incref(subqobj);
+            qdict_del(src, indexstr);
+        }
+
+        qlist_append_obj(*dst, subqobj ?: QOBJECT(subqdict));
+    }
+}
+
+/**
+ * qdict_join(): Absorb the src QDict into the dest QDict, that is, move all
+ * elements from src to dest.
+ *
+ * If an element from src has a key already present in dest, it will not be
+ * moved unless overwrite is true.
+ *
+ * If overwrite is true, the conflicting values in dest will be discarded and
+ * replaced by the corresponding values from src.
+ *
+ * Therefore, with overwrite being true, the src QDict will always be empty when
+ * this function returns. If overwrite is false, the src QDict will be empty
+ * iff there were no conflicts.
+ */
+void qdict_join(QDict *dest, QDict *src, bool overwrite)
+{
+    const QDictEntry *entry, *next;
+
+    entry = qdict_first(src);
+    while (entry) {
+        next = qdict_next(src, entry);
+
+        if (overwrite || !qdict_haskey(dest, entry->key)) {
+            qobject_incref(entry->value);
+            qdict_put_obj(dest, entry->key, entry->value);
+            qdict_del(src, entry->key);
+        }
+
+        entry = next;
+    }
+}

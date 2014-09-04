@@ -45,7 +45,6 @@
 
 /* public */
 XenXC xen_xc = XC_HANDLER_INITIAL_VALUE;
-XenGnttab xen_xcg = XC_HANDLER_INITIAL_VALUE;
 struct xs_handle *xenstore = NULL;
 const char *xen_protocol;
 
@@ -112,6 +111,19 @@ int xenstore_read_int(const char *base, const char *node, int *ival)
     return rc;
 }
 
+int xenstore_read_uint64(const char *base, const char *node, uint64_t *uval)
+{
+    char *val;
+    int rc = -1;
+
+    val = xenstore_read_str(base, node);
+    if (val && 1 == sscanf(val, "%"SCNu64, uval)) {
+        rc = 0;
+    }
+    g_free(val);
+    return rc;
+}
+
 int xenstore_write_be_str(struct XenDevice *xendev, const char *node, const char *val)
 {
     return xenstore_write_str(xendev->be, node, val);
@@ -145,6 +157,11 @@ char *xenstore_read_fe_str(struct XenDevice *xendev, const char *node)
 int xenstore_read_fe_int(struct XenDevice *xendev, const char *node, int *ival)
 {
     return xenstore_read_int(xendev->fe, node, ival);
+}
+
+int xenstore_read_fe_uint64(struct XenDevice *xendev, const char *node, uint64_t *uval)
+{
+    return xenstore_read_uint64(xendev->fe, node, uval);
 }
 
 /* ------------------------------------------------------------- */
@@ -205,7 +222,6 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
                                            struct XenDevOps *ops)
 {
     struct XenDevice *xendev;
-    char *dom0;
 
     xendev = xen_be_find_xendev(type, dom, dev);
     if (xendev) {
@@ -219,12 +235,10 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
     xendev->dev   = dev;
     xendev->ops   = ops;
 
-    dom0 = xs_get_domain_path(xenstore, 0);
-    snprintf(xendev->be, sizeof(xendev->be), "%s/backend/%s/%d/%d",
-             dom0, xendev->type, xendev->dom, xendev->dev);
+    snprintf(xendev->be, sizeof(xendev->be), "backend/%s/%d/%d",
+             xendev->type, xendev->dom, xendev->dev);
     snprintf(xendev->name, sizeof(xendev->name), "%s-%d",
              xendev->type, xendev->dev);
-    free(dom0);
 
     xendev->debug      = debug;
     xendev->local_port = -1;
@@ -570,14 +584,12 @@ static int xenstore_scan(const char *type, int dom, struct XenDevOps *ops)
 {
     struct XenDevice *xendev;
     char path[XEN_BUFSIZE], token[XEN_BUFSIZE];
-    char **dev = NULL, *dom0;
+    char **dev = NULL;
     unsigned int cdev, j;
 
     /* setup watch */
-    dom0 = xs_get_domain_path(xenstore, 0);
     snprintf(token, sizeof(token), "be:%p:%d:%p", type, dom, ops);
-    snprintf(path, sizeof(path), "%s/backend/%s/%d", dom0, type, dom);
-    free(dom0);
+    snprintf(path, sizeof(path), "backend/%s/%d", type, dom);
     if (!xs_watch(xenstore, path, token)) {
         xen_be_printf(NULL, 0, "xen be: watching backend path (%s) failed\n", path);
         return -1;
@@ -603,12 +615,10 @@ static void xenstore_update_be(char *watch, char *type, int dom,
                                struct XenDevOps *ops)
 {
     struct XenDevice *xendev;
-    char path[XEN_BUFSIZE], *dom0, *bepath;
+    char path[XEN_BUFSIZE], *bepath;
     unsigned int len, dev;
 
-    dom0 = xs_get_domain_path(xenstore, 0);
-    len = snprintf(path, sizeof(path), "%s/backend/%s/%d", dom0, type, dom);
-    free(dom0);
+    len = snprintf(path, sizeof(path), "backend/%s/%d", type, dom);
     if (strncmp(path, watch, len) != 0) {
         return;
     }

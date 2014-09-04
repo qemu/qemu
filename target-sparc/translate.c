@@ -26,11 +26,11 @@
 
 #include "cpu.h"
 #include "disas/disas.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 #include "tcg-op.h"
+#include "exec/cpu_ldst.h"
 
-#define GEN_HELPER 1
-#include "helper.h"
+#include "exec/helper-gen.h"
 
 #define DEBUG_DISAS
 
@@ -322,7 +322,7 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num,
         tcg_gen_goto_tb(tb_num);
         tcg_gen_movi_tl(cpu_pc, pc);
         tcg_gen_movi_tl(cpu_npc, npc);
-        tcg_gen_exit_tb((tcg_target_long)tb + tb_num);
+        tcg_gen_exit_tb((uintptr_t)tb + tb_num);
     } else {
         /* jump to another page: currently not optimized */
         tcg_gen_movi_tl(cpu_pc, pc);
@@ -2107,18 +2107,6 @@ static inline void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
     tcg_temp_free_i64(t64);
 }
 
-static inline void gen_cas_asi(DisasContext *dc, TCGv addr,
-                               TCGv val2, int insn, int rd)
-{
-    TCGv val1 = gen_load_gpr(dc, rd);
-    TCGv dst = gen_dest_gpr(dc, rd);
-    TCGv_i32 r_asi = gen_get_asi(insn, addr);
-
-    gen_helper_cas_asi(dst, cpu_env, addr, val1, val2, r_asi);
-    tcg_temp_free_i32(r_asi);
-    gen_store_gpr(dc, rd, dst);
-}
-
 static inline void gen_casx_asi(DisasContext *dc, TCGv addr,
                                 TCGv val2, int insn, int rd)
 {
@@ -2229,6 +2217,22 @@ static inline void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
 #endif
 
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
+static inline void gen_cas_asi(DisasContext *dc, TCGv addr,
+                               TCGv val2, int insn, int rd)
+{
+    TCGv val1 = gen_load_gpr(dc, rd);
+    TCGv dst = gen_dest_gpr(dc, rd);
+#ifdef TARGET_SPARC64
+    TCGv_i32 r_asi = gen_get_asi(insn, addr);
+#else
+    TCGv_i32 r_asi = tcg_const_i32(GET_FIELD(insn, 19, 26));
+#endif
+
+    gen_helper_cas_asi(dst, cpu_env, addr, val1, val2, r_asi);
+    tcg_temp_free_i32(r_asi);
+    gen_store_gpr(dc, rd, dst);
+}
+
 static inline void gen_ldstub_asi(TCGv dst, TCGv addr, int insn)
 {
     TCGv_i64 r_val;
@@ -3626,6 +3630,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 if ((rd == 0x13) && (dc->def->features &
                                                      CPU_FEATURE_POWERDOWN)) {
                                     /* LEON3 power-down */
+                                    save_state(dc);
                                     gen_helper_power_down(cpu_env);
                                 }
                                 break;
@@ -5102,11 +5107,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     }
                     gen_stf_asi(cpu_addr, insn, 8, DFPREG(rd));
                     break;
-                case 0x3c: /* V9 casa */
-                    rs2 = GET_FIELD(insn, 27, 31);
-                    cpu_src2 = gen_load_gpr(dc, rs2);
-                    gen_cas_asi(dc, cpu_addr, cpu_src2, insn, rd);
-                    break;
                 case 0x3e: /* V9 casxa */
                     rs2 = GET_FIELD(insn, 27, 31);
                     cpu_src2 = gen_load_gpr(dc, rs2);
@@ -5118,6 +5118,22 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 case 0x36: /* stdcq */
                 case 0x37: /* stdc */
                     goto ncp_insn;
+#endif
+#if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
+                case 0x3c: /* V9 or LEON3 casa */
+#ifndef TARGET_SPARC64
+                    CHECK_IU_FEATURE(dc, CASA);
+                    if (IS_IMM) {
+                        goto illegal_insn;
+                    }
+                    if (!supervisor(dc)) {
+                        goto priv_insn;
+                    }
+#endif
+                    rs2 = GET_FIELD(insn, 27, 31);
+                    cpu_src2 = gen_load_gpr(dc, rs2);
+                    gen_cas_asi(dc, cpu_addr, cpu_src2, insn, rd);
+                    break;
 #endif
                 default:
                     goto illegal_insn;
@@ -5219,9 +5235,12 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     }
 }
 
-static inline void gen_intermediate_code_internal(TranslationBlock * tb,
-                                                  int spc, CPUSPARCState *env)
+static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
+                                                  TranslationBlock *tb,
+                                                  bool spc)
 {
+    CPUState *cs = CPU(cpu);
+    CPUSPARCState *env = &cpu->env;
     target_ulong pc_start, last_pc;
     uint16_t *gen_opc_end;
     DisasContext dc1, *dc = &dc1;
@@ -5242,7 +5261,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
     dc->def = env->def;
     dc->fpu_enabled = tb_fpu_enabled(tb->flags);
     dc->address_mask_32bit = tb_am_enabled(tb->flags);
-    dc->singlestep = (env->singlestep_enabled || singlestep);
+    dc->singlestep = (cs->singlestep_enabled || singlestep);
     gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     num_insns = 0;
@@ -5251,8 +5270,8 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         max_insns = CF_COUNT_MASK;
     gen_tb_start();
     do {
-        if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
-            QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
+            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (bp->pc == dc->pc) {
                     if (dc->pc != pc_start)
                         save_state(dc);
@@ -5347,12 +5366,12 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
 
 void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
 {
-    gen_intermediate_code_internal(tb, 0, env);
+    gen_intermediate_code_internal(sparc_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc(CPUSPARCState * env, TranslationBlock * tb)
 {
-    gen_intermediate_code_internal(tb, 1, env);
+    gen_intermediate_code_internal(sparc_env_get_cpu(env), tb, true);
 }
 
 void gen_intermediate_code_init(CPUSPARCState *env)
@@ -5453,11 +5472,6 @@ void gen_intermediate_code_init(CPUSPARCState *env)
                                                 offsetof(CPUSPARCState, fpr[i]),
                                                 fregnames[i]);
         }
-
-        /* register helpers */
-
-#define GEN_HELPER 2
-#include "helper.h"
     }
 }
 

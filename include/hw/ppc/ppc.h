@@ -24,10 +24,10 @@ struct ppc_tb_t {
     /* Decrementer management */
     uint64_t decr_next;    /* Tick for next decr interrupt    */
     uint32_t decr_freq;    /* decrementer frequency           */
-    struct QEMUTimer *decr_timer;
+    QEMUTimer *decr_timer;
     /* Hypervisor decrementer management */
     uint64_t hdecr_next;    /* Tick for next hdecr interrupt  */
-    struct QEMUTimer *hdecr_timer;
+    QEMUTimer *hdecr_timer;
     uint64_t purr_load;
     uint64_t purr_start;
     void *opaque;
@@ -43,6 +43,9 @@ struct ppc_tb_t {
                                                */
 #define PPC_DECR_ZERO_TRIGGERED      (1 << 3) /* Decr interrupt triggered when
                                                * the decrementer reaches zero.
+                                               */
+#define PPC_DECR_UNDERFLOW_LEVEL     (1 << 4) /* Decr interrupt active when
+                                               * the most significant bit is 1.
                                                */
 
 uint64_t cpu_ppc_get_tb(ppc_tb_t *tb_env, uint64_t vmclk, int64_t tb_offset);
@@ -73,8 +76,6 @@ void ppc6xx_irq_init (CPUPPCState *env);
 void ppc970_irq_init (CPUPPCState *env);
 void ppcPOWER7_irq_init (CPUPPCState *env);
 
-void ppce500_set_mpic_proxy(bool enabled);
-
 /* PPC machines for OpenBIOS */
 enum {
     ARCH_PREP = 0,
@@ -87,9 +88,12 @@ enum {
 #define FW_CFG_PPC_HEIGHT	(FW_CFG_ARCH_LOCAL + 0x01)
 #define FW_CFG_PPC_DEPTH	(FW_CFG_ARCH_LOCAL + 0x02)
 #define FW_CFG_PPC_TBFREQ	(FW_CFG_ARCH_LOCAL + 0x03)
+#define FW_CFG_PPC_CLOCKFREQ	(FW_CFG_ARCH_LOCAL + 0x04)
 #define FW_CFG_PPC_IS_KVM       (FW_CFG_ARCH_LOCAL + 0x05)
 #define FW_CFG_PPC_KVM_HC       (FW_CFG_ARCH_LOCAL + 0x06)
 #define FW_CFG_PPC_KVM_PID      (FW_CFG_ARCH_LOCAL + 0x07)
+/* OpenBIOS has FW_CFG_PPC_NVRAM_ADDR as +0x08 */
+#define FW_CFG_PPC_BUSFREQ      (FW_CFG_ARCH_LOCAL + 0x09)
 
 #define PPC_SERIAL_MM_BAUDBASE 399193
 

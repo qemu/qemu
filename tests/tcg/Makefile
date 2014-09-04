@@ -81,10 +81,8 @@ run-test_path: test_path
 # rules to compile tests
 
 test_path: test_path.o
-	$(CC_I386) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 test_path.o: test_path.c
-	$(CC_I386) $(QEMU_INCLUDES) $(GLIB_CFLAGS) $(CFLAGS) -c -o $@ $^
 
 hello-i386: hello-i386.c
 	$(CC_I386) -nostdlib $(CFLAGS) -static $(LDFLAGS) -o $@ $<

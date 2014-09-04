@@ -9,8 +9,8 @@ int main()
 
     rs      = 0xBC0123AD;
     rt      = 0x01643721;
-    resulth = 0x04;
-    resultl = 0xAEA3E09B;
+    resulth = 0x00000005;
+    resultl = 0x1CE5E09B;
     resultdsp = 0x00;
     __asm
         ("mthi  %0, $ac1\n\t"
@@ -27,12 +27,12 @@ int main()
     assert(ach == resulth);
     assert(acl == resultl);
 
-    ach = 0x99f13005;
+    ach = 0x99F13005;
     acl = 0x51730062;
     rs      = 0x80008000;
     rt      = 0x80008000;
 
-    resulth = 0x99f13004;
+    resulth = 0x99F13004;
     resultl = 0x51730064;
     resultdsp = 0x01;
     __asm

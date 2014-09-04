@@ -27,6 +27,7 @@
 #include "hw/ptimer.h"
 #include "hw/sysbus.h"
 #include "trace.h"
+#include "qemu/main-loop.h"
 
 /*
  * Registers of hardware timer in sun4m.
@@ -50,12 +51,17 @@ typedef struct CPUTimerState {
     ptimer_state *timer;
     uint32_t count, counthigh, reached;
     /* processor only */
-    uint32_t running;
+    uint32_t run;
     uint64_t limit;
 } CPUTimerState;
 
+#define TYPE_SLAVIO_TIMER "slavio_timer"
+#define SLAVIO_TIMER(obj) \
+    OBJECT_CHECK(SLAVIO_TIMERState, (obj), TYPE_SLAVIO_TIMER)
+
 typedef struct SLAVIO_TIMERState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     uint32_t num_cpus;
     uint32_t cputimer_mode;
     CPUTimerState cputimer[MAX_CPUS + 1];
@@ -171,7 +177,7 @@ static uint64_t slavio_timer_mem_readl(void *opaque, hwaddr addr,
         // only available in processor counter/timer
         // read start/stop status
         if (timer_index > 0) {
-            ret = t->running;
+            ret = t->run;
         } else {
             ret = 0;
         }
@@ -254,16 +260,15 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
     case TIMER_STATUS:
         if (slavio_timer_is_user(tc)) {
             // start/stop user counter
-            if ((val & 1) && !t->running) {
+            if (val & 1) {
                 trace_slavio_timer_mem_writel_status_start(timer_index);
                 ptimer_run(t->timer, 0);
-                t->running = 1;
-            } else if (!(val & 1) && t->running) {
+            } else {
                 trace_slavio_timer_mem_writel_status_stop(timer_index);
                 ptimer_stop(t->timer);
-                t->running = 0;
             }
         }
+        t->run = val & 1;
         break;
     case TIMER_MODE:
         if (timer_index == 0) {
@@ -278,8 +283,9 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
                     if (val & processor) { // counter -> user timer
                         qemu_irq_lower(curr_timer->irq);
                         // counters are always running
-                        ptimer_stop(curr_timer->timer);
-                        curr_timer->running = 0;
+                        if (!curr_timer->run) {
+                            ptimer_stop(curr_timer->timer);
+                        }
                         // user timer limit is always the same
                         curr_timer->limit = TIMER_MAX_COUNT64;
                         ptimer_set_limit(curr_timer->timer,
@@ -290,13 +296,8 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
                         s->cputimer_mode |= processor;
                         trace_slavio_timer_mem_writel_mode_user(timer_index);
                     } else { // user timer -> counter
-                        // stop the user timer if it is running
-                        if (curr_timer->running) {
-                            ptimer_stop(curr_timer->timer);
-                        }
                         // start the counter
                         ptimer_run(curr_timer->timer, 0);
-                        curr_timer->running = 1;
                         // clear this processors user timer bit in config
                         // register
                         s->cputimer_mode &= ~processor;
@@ -328,13 +329,12 @@ static const VMStateDescription vmstate_timer = {
     .name ="timer",
     .version_id = 3,
     .minimum_version_id = 3,
-    .minimum_version_id_old = 3,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT64(limit, CPUTimerState),
         VMSTATE_UINT32(count, CPUTimerState),
         VMSTATE_UINT32(counthigh, CPUTimerState),
         VMSTATE_UINT32(reached, CPUTimerState),
-        VMSTATE_UINT32(running, CPUTimerState),
+        VMSTATE_UINT32(run    , CPUTimerState),
         VMSTATE_PTIMER(timer, CPUTimerState),
         VMSTATE_END_OF_LIST()
     }
@@ -344,8 +344,7 @@ static const VMStateDescription vmstate_slavio_timer = {
     .name ="slavio_timer",
     .version_id = 3,
     .minimum_version_id = 3,
-    .minimum_version_id_old = 3,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(cputimer, SLAVIO_TIMERState, MAX_CPUS + 1, 3,
                              vmstate_timer, CPUTimerState),
         VMSTATE_END_OF_LIST()
@@ -354,7 +353,7 @@ static const VMStateDescription vmstate_slavio_timer = {
 
 static void slavio_timer_reset(DeviceState *d)
 {
-    SLAVIO_TIMERState *s = container_of(d, SLAVIO_TIMERState, busdev.qdev);
+    SLAVIO_TIMERState *s = SLAVIO_TIMER(d);
     unsigned int i;
     CPUTimerState *curr_timer;
 
@@ -367,7 +366,7 @@ static void slavio_timer_reset(DeviceState *d)
             ptimer_set_limit(curr_timer->timer,
                              LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 1);
             ptimer_run(curr_timer->timer, 0);
-            curr_timer->running = 1;
+            curr_timer->run = 1;
         }
     }
     s->cputimer_mode = 0;
@@ -375,7 +374,7 @@ static void slavio_timer_reset(DeviceState *d)
 
 static int slavio_timer_init1(SysBusDevice *dev)
 {
-    SLAVIO_TIMERState *s = FROM_SYSBUS(SLAVIO_TIMERState, dev);
+    SLAVIO_TIMERState *s = SLAVIO_TIMER(dev);
     QEMUBH *bh;
     unsigned int i;
     TimerContext *tc;
@@ -394,7 +393,7 @@ static int slavio_timer_init1(SysBusDevice *dev)
 
         size = i == 0 ? SYS_TIMER_SIZE : CPU_TIMER_SIZE;
         snprintf(timer_name, sizeof(timer_name), "timer-%i", i);
-        memory_region_init_io(&tc->iomem, &slavio_timer_mem_ops, tc,
+        memory_region_init_io(&tc->iomem, OBJECT(s), &slavio_timer_mem_ops, tc,
                               timer_name, size);
         sysbus_init_mmio(dev, &tc->iomem);
 
@@ -421,7 +420,7 @@ static void slavio_timer_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo slavio_timer_info = {
-    .name          = "slavio_timer",
+    .name          = TYPE_SLAVIO_TIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SLAVIO_TIMERState),
     .class_init    = slavio_timer_class_init,

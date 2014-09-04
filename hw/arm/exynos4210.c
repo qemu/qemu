@@ -79,6 +79,28 @@
 static uint8_t chipid_and_omr[] = { 0x11, 0x02, 0x21, 0x43,
                                     0x09, 0x00, 0x00, 0x00 };
 
+static uint64_t exynos4210_chipid_and_omr_read(void *opaque, hwaddr offset,
+                                               unsigned size)
+{
+    assert(offset < sizeof(chipid_and_omr));
+    return chipid_and_omr[offset];
+}
+
+static void exynos4210_chipid_and_omr_write(void *opaque, hwaddr offset,
+                                            uint64_t value, unsigned size)
+{
+    return;
+}
+
+static const MemoryRegionOps exynos4210_chipid_and_omr_ops = {
+    .read = exynos4210_chipid_and_omr_read,
+    .write = exynos4210_chipid_and_omr_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .max_access_size = 1,
+    }
+};
+
 void exynos4210_write_secondary(ARMCPU *cpu,
         const struct arm_boot_info *info)
 {
@@ -115,30 +137,29 @@ void exynos4210_write_secondary(ARMCPU *cpu,
 Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
         unsigned long ram_size)
 {
-    qemu_irq cpu_irq[EXYNOS4210_NCPUS];
     int i, n;
     Exynos4210State *s = g_new(Exynos4210State, 1);
-    qemu_irq *irqp;
     qemu_irq gate_irq[EXYNOS4210_NCPUS][EXYNOS4210_IRQ_GATE_NINPUTS];
     unsigned long mem_size;
     DeviceState *dev;
     SysBusDevice *busdev;
+    ObjectClass *cpu_oc;
+
+    cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, "cortex-a9");
+    assert(cpu_oc);
 
     for (n = 0; n < EXYNOS4210_NCPUS; n++) {
-        s->cpu[n] = cpu_arm_init("cortex-a9");
-        if (!s->cpu[n]) {
-            fprintf(stderr, "Unable to find CPU %d definition\n", n);
+        Object *cpuobj = object_new(object_class_get_name(cpu_oc));
+        Error *err = NULL;
+
+        s->cpu[n] = ARM_CPU(cpuobj);
+        object_property_set_int(cpuobj, EXYNOS4210_SMP_PRIVATE_BASE_ADDR,
+                                "reset-cbar", &error_abort);
+        object_property_set_bool(cpuobj, true, "realized", &err);
+        if (err) {
+            error_report("%s", error_get_pretty(err));
             exit(1);
         }
-
-        /* Create PIC controller for each processor instance */
-        irqp = arm_pic_init_cpu(s->cpu[n]);
-
-        /*
-         * Get GICs gpio_in cpu_irq to connect a combiner to them later.
-         * Use only IRQ for a while.
-         */
-        cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
     }
 
     /*** IRQs ***/
@@ -156,8 +177,9 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
         }
         busdev = SYS_BUS_DEVICE(dev);
 
-        /* Connect IRQ Gate output to cpu_irq */
-        sysbus_connect_irq(busdev, 0, cpu_irq[i]);
+        /* Connect IRQ Gate output to CPU's IRQ line */
+        sysbus_connect_irq(busdev, 0,
+                           qdev_get_gpio_in(DEVICE(s->cpu[i]), ARM_CPU_IRQ));
     }
 
     /* Private memory region and Internal GIC */
@@ -219,20 +241,20 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     /*** Memory ***/
 
     /* Chip-ID and OMR */
-    memory_region_init_ram_ptr(&s->chipid_mem, "exynos4210.chipid",
-            sizeof(chipid_and_omr), chipid_and_omr);
-    memory_region_set_readonly(&s->chipid_mem, true);
+    memory_region_init_io(&s->chipid_mem, NULL, &exynos4210_chipid_and_omr_ops,
+        NULL, "exynos4210.chipid", sizeof(chipid_and_omr));
     memory_region_add_subregion(system_mem, EXYNOS4210_CHIPID_ADDR,
                                 &s->chipid_mem);
 
     /* Internal ROM */
-    memory_region_init_ram(&s->irom_mem, "exynos4210.irom",
+    memory_region_init_ram(&s->irom_mem, NULL, "exynos4210.irom",
                            EXYNOS4210_IROM_SIZE);
+    vmstate_register_ram_global(&s->irom_mem);
     memory_region_set_readonly(&s->irom_mem, true);
     memory_region_add_subregion(system_mem, EXYNOS4210_IROM_BASE_ADDR,
                                 &s->irom_mem);
     /* mirror of iROM */
-    memory_region_init_alias(&s->irom_alias_mem, "exynos4210.irom_alias",
+    memory_region_init_alias(&s->irom_alias_mem, NULL, "exynos4210.irom_alias",
                              &s->irom_mem,
                              0,
                              EXYNOS4210_IROM_SIZE);
@@ -241,7 +263,7 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
                                 &s->irom_alias_mem);
 
     /* Internal RAM */
-    memory_region_init_ram(&s->iram_mem, "exynos4210.iram",
+    memory_region_init_ram(&s->iram_mem, NULL, "exynos4210.iram",
                            EXYNOS4210_IRAM_SIZE);
     vmstate_register_ram_global(&s->iram_mem);
     memory_region_add_subregion(system_mem, EXYNOS4210_IRAM_BASE_ADDR,
@@ -250,14 +272,14 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     /* DRAM */
     mem_size = ram_size;
     if (mem_size > EXYNOS4210_DRAM_MAX_SIZE) {
-        memory_region_init_ram(&s->dram1_mem, "exynos4210.dram1",
+        memory_region_init_ram(&s->dram1_mem, NULL, "exynos4210.dram1",
                 mem_size - EXYNOS4210_DRAM_MAX_SIZE);
         vmstate_register_ram_global(&s->dram1_mem);
         memory_region_add_subregion(system_mem, EXYNOS4210_DRAM1_BASE_ADDR,
                 &s->dram1_mem);
         mem_size = EXYNOS4210_DRAM_MAX_SIZE;
     }
-    memory_region_init_ram(&s->dram0_mem, "exynos4210.dram0", mem_size);
+    memory_region_init_ram(&s->dram0_mem, NULL, "exynos4210.dram0", mem_size);
     vmstate_register_ram_global(&s->dram0_mem);
     memory_region_add_subregion(system_mem, EXYNOS4210_DRAM0_BASE_ADDR,
             &s->dram0_mem);
@@ -314,7 +336,7 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
         busdev = SYS_BUS_DEVICE(dev);
         sysbus_connect_irq(busdev, 0, i2c_irq);
         sysbus_mmio_map(busdev, 0, addr);
-        s->i2c_if[n] = (i2c_bus *)qdev_get_child_bus(dev, "i2c");
+        s->i2c_if[n] = (I2CBus *)qdev_get_child_bus(dev, "i2c");
     }
 
 

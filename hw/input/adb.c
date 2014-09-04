@@ -303,8 +303,7 @@ static const VMStateDescription vmstate_adb_kbd = {
     .name = "adb_kbd",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_BUFFER(data, KBDState),
         VMSTATE_INT32(rptr, KBDState),
         VMSTATE_INT32(wptr, KBDState),
@@ -518,8 +517,7 @@ static const VMStateDescription vmstate_adb_mouse = {
     .name = "adb_mouse",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_INT32(buttons_state, MouseState),
         VMSTATE_INT32(last_buttons_state, MouseState),
         VMSTATE_INT32(dx, MouseState),

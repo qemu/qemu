@@ -28,7 +28,7 @@ struct omap_synctimer_s {
 
 /* 32-kHz Sync Timer of the OMAP2 */
 static uint32_t omap_synctimer_read(struct omap_synctimer_s *s) {
-    return muldiv64(qemu_get_clock_ns(vm_clock), 0x8000, get_ticks_per_sec());
+    return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), 0x8000, get_ticks_per_sec());
 }
 
 void omap_synctimer_reset(struct omap_synctimer_s *s)
@@ -94,7 +94,7 @@ struct omap_synctimer_s *omap_synctimer_init(struct omap_target_agent_s *ta,
     struct omap_synctimer_s *s = g_malloc0(sizeof(*s));
 
     omap_synctimer_reset(s);
-    memory_region_init_io(&s->iomem, &omap_synctimer_ops, s, "omap.synctimer",
+    memory_region_init_io(&s->iomem, NULL, &omap_synctimer_ops, s, "omap.synctimer",
                           omap_l4_region_size(ta, 0));
     omap_l4_attach(ta, 0, &s->iomem);
 

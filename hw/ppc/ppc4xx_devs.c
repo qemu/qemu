@@ -24,11 +24,10 @@
 #include "hw/hw.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc4xx.h"
+#include "hw/boards.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
 
-//#define DEBUG_MMIO
-//#define DEBUG_UNASSIGNED
 #define DEBUG_UIC
 
 
@@ -163,7 +162,7 @@ static void ppcuic_set_irq (void *opaque, int irq_num, int level)
     uint32_t mask, sr;
 
     uic = opaque;
-    mask = 1 << (31-irq_num);
+    mask = 1U << (31-irq_num);
     LOG_UIC("%s: irq %d level %d uicsr %08" PRIx32
                 " mask %08" PRIx32 " => %08" PRIx32 " %08" PRIx32 "\n",
                 __func__, irq_num, level,
@@ -431,7 +430,7 @@ static void sdram_set_bcr(ppc4xx_sdram_t *sdram,
         printf("%s: Map RAM area " TARGET_FMT_plx " " TARGET_FMT_lx "\n",
                __func__, sdram_base(bcr), sdram_size(bcr));
 #endif
-        memory_region_init(&sdram->containers[n], "sdram-containers",
+        memory_region_init(&sdram->containers[n], NULL, "sdram-containers",
                            sdram_size(bcr));
         memory_region_add_subregion(&sdram->containers[n], 0,
                                     &sdram->ram_memories[n]);
@@ -684,28 +683,20 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
                                hwaddr ram_sizes[],
                                const unsigned int sdram_bank_sizes[])
 {
+    MemoryRegion *ram = g_malloc0(sizeof(*ram));
     ram_addr_t size_left = ram_size;
     ram_addr_t base = 0;
+    unsigned int bank_size;
     int i;
     int j;
 
     for (i = 0; i < nr_banks; i++) {
         for (j = 0; sdram_bank_sizes[j] != 0; j++) {
-            unsigned int bank_size = sdram_bank_sizes[j];
-
+            bank_size = sdram_bank_sizes[j];
             if (bank_size <= size_left) {
-                char name[32];
-                snprintf(name, sizeof(name), "ppc4xx.sdram%d", i);
-                memory_region_init_ram(&ram_memories[i], name, bank_size);
-                vmstate_register_ram_global(&ram_memories[i]);
-                ram_bases[i] = base;
-                ram_sizes[i] = bank_size;
-                base += bank_size;
                 size_left -= bank_size;
-                break;
             }
         }
-
         if (!size_left) {
             /* No need to use the remaining banks. */
             break;
@@ -713,9 +704,31 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
     }
 
     ram_size -= size_left;
-    if (size_left)
+    if (size_left) {
         printf("Truncating memory to %d MiB to fit SDRAM controller limits.\n",
                (int)(ram_size >> 20));
+    }
+
+    memory_region_allocate_system_memory(ram, NULL, "ppc4xx.sdram", ram_size);
+
+    size_left = ram_size;
+    for (i = 0; i < nr_banks && size_left; i++) {
+        for (j = 0; sdram_bank_sizes[j] != 0; j++) {
+            bank_size = sdram_bank_sizes[j];
+
+            if (bank_size <= size_left) {
+                char name[32];
+                snprintf(name, sizeof(name), "ppc4xx.sdram%d", i);
+                memory_region_init_alias(&ram_memories[i], NULL, name, ram,
+                                         base, bank_size);
+                ram_bases[i] = base;
+                ram_sizes[i] = bank_size;
+                base += bank_size;
+                size_left -= bank_size;
+                break;
+            }
+        }
+    }
 
     return ram_size;
 }

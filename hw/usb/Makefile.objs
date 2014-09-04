@@ -1,5 +1,5 @@
 # usb subsystem core
-common-obj-y += core.o combined-packet.o bus.o desc.o
+common-obj-y += core.o combined-packet.o bus.o desc.o desc-msos.o
 common-obj-y += libhw.o
 
 # usb host adapters
@@ -18,15 +18,17 @@ common-obj-$(CONFIG_USB_STORAGE_UAS)  += dev-uas.o
 common-obj-$(CONFIG_USB_AUDIO)        += dev-audio.o
 common-obj-$(CONFIG_USB_SERIAL)       += dev-serial.o
 common-obj-$(CONFIG_USB_NETWORK)      += dev-network.o
-
-# FIXME: make configurable too
-CONFIG_USB_BLUETOOTH := y
 common-obj-$(CONFIG_USB_BLUETOOTH)    += dev-bluetooth.o
 
 ifeq ($(CONFIG_USB_SMARTCARD),y)
 common-obj-y                          += dev-smartcard-reader.o
 common-obj-y                          += ccid-card-passthru.o
 common-obj-$(CONFIG_SMARTCARD_NSS)    += ccid-card-emulated.o
+ccid-card-emulated.o-cflags := -I$(SRC_PATH)/libcacard
+endif
+
+ifeq ($(CONFIG_POSIX),y)
+common-obj-$(CONFIG_USB_STORAGE_MTP)  += dev-mtp.o
 endif
 
 # usb redirection

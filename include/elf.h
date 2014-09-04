@@ -129,6 +129,8 @@ typedef int64_t  Elf64_Sxword;
 
 #define EM_XTENSA   94      /* Tensilica Xtensa */
 
+#define EM_AARCH64  183
+
 /* This is the info that is needed to parse the dynamic section of the file */
 #define DT_NULL		0
 #define DT_NEEDED	1
@@ -252,6 +254,7 @@ typedef int64_t  Elf64_Sxword;
 #define AT_SECURE	23	/* boolean, was exec suid-like? */
 #define AT_BASE_PLATFORM 24	/* string identifying real platforms */
 #define AT_RANDOM	25	/* address of 16 random bytes */
+#define AT_HWCAP2       26      /* extension of AT_HWCAP */
 #define AT_EXECFN	31	/* filename of the executable */
 #define AT_SYSINFO	32	/* address of kernel entry point */
 #define AT_SYSINFO_EHDR	33	/* address of kernel vdso */
@@ -409,6 +412,65 @@ typedef struct {
 #define R_SPARC_5		44
 #define R_SPARC_6		45
 
+/* Bits present in AT_HWCAP for ARM.  */
+
+#define HWCAP_ARM_SWP           (1 << 0)
+#define HWCAP_ARM_HALF          (1 << 1)
+#define HWCAP_ARM_THUMB         (1 << 2)
+#define HWCAP_ARM_26BIT         (1 << 3)
+#define HWCAP_ARM_FAST_MULT     (1 << 4)
+#define HWCAP_ARM_FPA           (1 << 5)
+#define HWCAP_ARM_VFP           (1 << 6)
+#define HWCAP_ARM_EDSP          (1 << 7)
+#define HWCAP_ARM_JAVA          (1 << 8)
+#define HWCAP_ARM_IWMMXT        (1 << 9)
+#define HWCAP_ARM_CRUNCH        (1 << 10)
+#define HWCAP_ARM_THUMBEE       (1 << 11)
+#define HWCAP_ARM_NEON          (1 << 12)
+#define HWCAP_ARM_VFPv3         (1 << 13)
+#define HWCAP_ARM_VFPv3D16      (1 << 14)       /* also set for VFPv4-D16 */
+#define HWCAP_ARM_TLS           (1 << 15)
+#define HWCAP_ARM_VFPv4         (1 << 16)
+#define HWCAP_ARM_IDIVA         (1 << 17)
+#define HWCAP_ARM_IDIVT         (1 << 18)
+#define HWCAP_IDIV              (HWCAP_IDIVA | HWCAP_IDIVT)
+#define HWCAP_VFPD32            (1 << 19)       /* set if VFP has 32 regs */
+#define HWCAP_LPAE              (1 << 20)
+
+/* Bits present in AT_HWCAP for PowerPC.  */
+
+#define PPC_FEATURE_32                  0x80000000
+#define PPC_FEATURE_64                  0x40000000
+#define PPC_FEATURE_601_INSTR           0x20000000
+#define PPC_FEATURE_HAS_ALTIVEC         0x10000000
+#define PPC_FEATURE_HAS_FPU             0x08000000
+#define PPC_FEATURE_HAS_MMU             0x04000000
+#define PPC_FEATURE_HAS_4xxMAC          0x02000000
+#define PPC_FEATURE_UNIFIED_CACHE       0x01000000
+#define PPC_FEATURE_HAS_SPE             0x00800000
+#define PPC_FEATURE_HAS_EFP_SINGLE      0x00400000
+#define PPC_FEATURE_HAS_EFP_DOUBLE      0x00200000
+#define PPC_FEATURE_NO_TB               0x00100000
+#define PPC_FEATURE_POWER4              0x00080000
+#define PPC_FEATURE_POWER5              0x00040000
+#define PPC_FEATURE_POWER5_PLUS         0x00020000
+#define PPC_FEATURE_CELL                0x00010000
+#define PPC_FEATURE_BOOKE               0x00008000
+#define PPC_FEATURE_SMT                 0x00004000
+#define PPC_FEATURE_ICACHE_SNOOP        0x00002000
+#define PPC_FEATURE_ARCH_2_05           0x00001000
+#define PPC_FEATURE_PA6T                0x00000800
+#define PPC_FEATURE_HAS_DFP             0x00000400
+#define PPC_FEATURE_POWER6_EXT          0x00000200
+#define PPC_FEATURE_ARCH_2_06           0x00000100
+#define PPC_FEATURE_HAS_VSX             0x00000080
+
+#define PPC_FEATURE_PSERIES_PERFMON_COMPAT \
+                                        0x00000040
+
+#define PPC_FEATURE_TRUE_LE             0x00000002
+#define PPC_FEATURE_PPC_LE              0x00000001
+
 /* Bits present in AT_HWCAP, primarily for Sparc32.  */
 
 #define HWCAP_SPARC_FLUSH       1    /* CPU supports flush instruction. */
@@ -417,6 +479,20 @@ typedef struct {
 #define HWCAP_SPARC_MULDIV      8
 #define HWCAP_SPARC_V9		16
 #define HWCAP_SPARC_ULTRA3	32
+
+/* Bits present in AT_HWCAP for s390.  */
+
+#define HWCAP_S390_ESAN3        1
+#define HWCAP_S390_ZARCH        2
+#define HWCAP_S390_STFLE        4
+#define HWCAP_S390_MSA          8
+#define HWCAP_S390_LDISP        16
+#define HWCAP_S390_EIMM         32
+#define HWCAP_S390_DFP          64
+#define HWCAP_S390_HPAGE        128
+#define HWCAP_S390_ETF3EH       256
+#define HWCAP_S390_HIGH_GPRS    512
+#define HWCAP_S390_TE           1024
 
 /*
  * 68k ELF relocation types
@@ -484,6 +560,11 @@ typedef struct {
 
 #define SHF_ALPHA_GPREL		0x10000000
 
+
+/* PowerPC specific definitions.  */
+
+/* Processor specific flags for the ELF header e_flags field.  */
+#define EF_PPC64_ABI           0x3
 
 /* PowerPC relocations defined by the ABIs */
 #define R_PPC_NONE		0
@@ -615,6 +696,133 @@ typedef struct {
 #define R_ARM_RBASE		255
 /* Keep this the last entry.  */
 #define R_ARM_NUM		256
+
+/* ARM Aarch64 relocation types */
+#define R_AARCH64_NONE                256 /* also accepts R_ARM_NONE (0) */
+/* static data relocations */
+#define R_AARCH64_ABS64               257
+#define R_AARCH64_ABS32               258
+#define R_AARCH64_ABS16               259
+#define R_AARCH64_PREL64              260
+#define R_AARCH64_PREL32              261
+#define R_AARCH64_PREL16              262
+/* static aarch64 group relocations */
+/* group relocs to create unsigned data value or address inline */
+#define R_AARCH64_MOVW_UABS_G0        263
+#define R_AARCH64_MOVW_UABS_G0_NC     264
+#define R_AARCH64_MOVW_UABS_G1        265
+#define R_AARCH64_MOVW_UABS_G1_NC     266
+#define R_AARCH64_MOVW_UABS_G2        267
+#define R_AARCH64_MOVW_UABS_G2_NC     268
+#define R_AARCH64_MOVW_UABS_G3        269
+/* group relocs to create signed data or offset value inline */
+#define R_AARCH64_MOVW_SABS_G0        270
+#define R_AARCH64_MOVW_SABS_G1        271
+#define R_AARCH64_MOVW_SABS_G2        272
+/* relocs to generate 19, 21, and 33 bit PC-relative addresses */
+#define R_AARCH64_LD_PREL_LO19        273
+#define R_AARCH64_ADR_PREL_LO21       274
+#define R_AARCH64_ADR_PREL_PG_HI21    275
+#define R_AARCH64_ADR_PREL_PG_HI21_NC 276
+#define R_AARCH64_ADD_ABS_LO12_NC     277
+#define R_AARCH64_LDST8_ABS_LO12_NC   278
+#define R_AARCH64_LDST16_ABS_LO12_NC  284
+#define R_AARCH64_LDST32_ABS_LO12_NC  285
+#define R_AARCH64_LDST64_ABS_LO12_NC  286
+#define R_AARCH64_LDST128_ABS_LO12_NC 299
+/* relocs for control-flow - all offsets as multiple of 4 */
+#define R_AARCH64_TSTBR14             279
+#define R_AARCH64_CONDBR19            280
+#define R_AARCH64_JUMP26              282
+#define R_AARCH64_CALL26              283
+/* group relocs to create pc-relative offset inline */
+#define R_AARCH64_MOVW_PREL_G0        287
+#define R_AARCH64_MOVW_PREL_G0_NC     288
+#define R_AARCH64_MOVW_PREL_G1        289
+#define R_AARCH64_MOVW_PREL_G1_NC     290
+#define R_AARCH64_MOVW_PREL_G2        291
+#define R_AARCH64_MOVW_PREL_G2_NC     292
+#define R_AARCH64_MOVW_PREL_G3        293
+/* group relocs to create a GOT-relative offset inline */
+#define R_AARCH64_MOVW_GOTOFF_G0      300
+#define R_AARCH64_MOVW_GOTOFF_G0_NC   301
+#define R_AARCH64_MOVW_GOTOFF_G1      302
+#define R_AARCH64_MOVW_GOTOFF_G1_NC   303
+#define R_AARCH64_MOVW_GOTOFF_G2      304
+#define R_AARCH64_MOVW_GOTOFF_G2_NC   305
+#define R_AARCH64_MOVW_GOTOFF_G3      306
+/* GOT-relative data relocs */
+#define R_AARCH64_GOTREL64            307
+#define R_AARCH64_GOTREL32            308
+/* GOT-relative instr relocs */
+#define R_AARCH64_GOT_LD_PREL19       309
+#define R_AARCH64_LD64_GOTOFF_LO15    310
+#define R_AARCH64_ADR_GOT_PAGE        311
+#define R_AARCH64_LD64_GOT_LO12_NC    312
+#define R_AARCH64_LD64_GOTPAGE_LO15   313
+/* General Dynamic TLS relocations */
+#define R_AARCH64_TLSGD_ADR_PREL21            512
+#define R_AARCH64_TLSGD_ADR_PAGE21            513
+#define R_AARCH64_TLSGD_ADD_LO12_NC           514
+#define R_AARCH64_TLSGD_MOVW_G1               515
+#define R_AARCH64_TLSGD_MOVW_G0_NC            516
+/* Local Dynamic TLS relocations */
+#define R_AARCH64_TLSLD_ADR_PREL21            517
+#define R_AARCH64_TLSLD_ADR_PAGE21            518
+#define R_AARCH64_TLSLD_ADD_LO12_NC           519
+#define R_AARCH64_TLSLD_MOVW_G1               520
+#define R_AARCH64_TLSLD_MOVW_G0_NC            521
+#define R_AARCH64_TLSLD_LD_PREL19             522
+#define R_AARCH64_TLSLD_MOVW_DTPREL_G2        523
+#define R_AARCH64_TLSLD_MOVW_DTPREL_G1        524
+#define R_AARCH64_TLSLD_MOVW_DTPREL_G1_NC     525
+#define R_AARCH64_TLSLD_MOVW_DTPREL_G0        526
+#define R_AARCH64_TLSLD_MOVW_DTPREL_G0_NC     527
+#define R_AARCH64_TLSLD_ADD_DTPREL_HI12       528
+#define R_AARCH64_TLSLD_ADD_DTPREL_LO12       529
+#define R_AARCH64_TLSLD_ADD_DTPREL_LO12_NC    530
+#define R_AARCH64_TLSLD_LDST8_DTPREL_LO12     531
+#define R_AARCH64_TLSLD_LDST8_DTPREL_LO12_NC  532
+#define R_AARCH64_TLSLD_LDST16_DTPREL_LO12    533
+#define R_AARCH64_TLSLD_LDST16_DTPREL_LO12_NC 534
+#define R_AARCH64_TLSLD_LDST32_DTPREL_LO12    535
+#define R_AARCH64_TLSLD_LDST32_DTPREL_LO12_NC 536
+#define R_AARCH64_TLSLD_LDST64_DTPREL_LO12    537
+#define R_AARCH64_TLSLD_LDST64_DTPREL_LO12_NC 538
+/* initial exec TLS relocations */
+#define R_AARCH64_TLSIE_MOVW_GOTTPREL_G1      539
+#define R_AARCH64_TLSIE_MOVW_GOTTPREL_G0_NC   540
+#define R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21   541
+#define R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC 542
+#define R_AARCH64_TLSIE_LD_GOTTPREL_PREL19    543
+/* local exec TLS relocations */
+#define R_AARCH64_TLSLE_MOVW_TPREL_G2         544
+#define R_AARCH64_TLSLE_MOVW_TPREL_G1         545
+#define R_AARCH64_TLSLE_MOVW_TPREL_G1_NC      546
+#define R_AARCH64_TLSLE_MOVW_TPREL_G0         547
+#define R_AARCH64_TLSLE_MOVW_TPREL_G0_NC      548
+#define R_AARCH64_TLSLE_ADD_TPREL_HI12        549
+#define R_AARCH64_TLSLE_ADD_TPREL_LO12        550
+#define R_AARCH64_TLSLE_ADD_TPREL_LO12_NC     551
+#define R_AARCH64_TLSLE_LDST8_TPREL_LO12      552
+#define R_AARCH64_TLSLE_LDST8_TPREL_LO12_NC   553
+#define R_AARCH64_TLSLE_LDST16_TPREL_LO12     554
+#define R_AARCH64_TLSLE_LDST16_TPREL_LO12_NC  555
+#define R_AARCH64_TLSLE_LDST32_TPREL_LO12     556
+#define R_AARCH64_TLSLE_LDST32_TPREL_LO12_NC  557
+#define R_AARCH64_TLSLE_LDST64_TPREL_LO12     558
+#define R_AARCH64_TLSLE_LDST64_TPREL_LO12_NC  559
+/* Dynamic Relocations */
+#define R_AARCH64_COPY         1024
+#define R_AARCH64_GLOB_DAT     1025
+#define R_AARCH64_JUMP_SLOT    1026
+#define R_AARCH64_RELATIVE     1027
+#define R_AARCH64_TLS_DTPREL64 1028
+#define R_AARCH64_TLS_DTPMOD64 1029
+#define R_AARCH64_TLS_TPREL64  1030
+#define R_AARCH64_TLS_DTPREL32 1031
+#define R_AARCH64_TLS_DTPMOD32 1032
+#define R_AARCH64_TLS_TPREL32  1033
 
 /* s390 relocations defined by the ABIs */
 #define R_390_NONE		0	/* No reloc.  */
@@ -1219,11 +1427,20 @@ typedef struct elf64_shdr {
 
 /* Notes used in ET_CORE */
 #define NT_PRSTATUS	1
+#define NT_FPREGSET     2
 #define NT_PRFPREG	2
 #define NT_PRPSINFO	3
 #define NT_TASKSTRUCT	4
 #define NT_AUXV		6
 #define NT_PRXFPREG     0x46e62b7f      /* copied from gdb5.1/include/elf/common.h */
+#define NT_S390_PREFIX  0x305           /* s390 prefix register */
+#define NT_S390_CTRS    0x304           /* s390 control registers */
+#define NT_S390_TODPREG 0x303           /* s390 TOD programmable register */
+#define NT_S390_TODCMP  0x302           /* s390 TOD clock comparator register */
+#define NT_S390_TIMER   0x301           /* s390 timer register */
+#define NT_PPC_VMX       0x100          /* PowerPC Altivec/VMX registers */
+#define NT_PPC_SPE       0x101          /* PowerPC SPE/EVR registers */
+#define NT_PPC_VSX       0x102          /* PowerPC VSX registers */
 
 
 /* Note header in a PT_NOTE section */

@@ -277,7 +277,7 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
     qemu_irq_pulse(xics_get_qirq(spapr->icp, spapr->epow_irq));
 }
 
-static void check_exception(sPAPREnvironment *spapr,
+static void check_exception(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                             uint32_t token, uint32_t nargs,
                             target_ulong args,
                             uint32_t nret, target_ulong rets)
@@ -286,7 +286,7 @@ static void check_exception(sPAPREnvironment *spapr,
     uint64_t xinfo;
 
     if ((nargs < 6) || (nargs > 7) || nret != 1) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
@@ -306,16 +306,17 @@ static void check_exception(sPAPREnvironment *spapr,
         cpu_physical_memory_write(buf, pending_epow, len);
         g_free(pending_epow);
         pending_epow = NULL;
-        rtas_st(rets, 0, 0);
+        rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     } else {
-        rtas_st(rets, 0, 1);
+        rtas_st(rets, 0, RTAS_OUT_NO_ERRORS_FOUND);
     }
 }
 
 void spapr_events_init(sPAPREnvironment *spapr)
 {
-    spapr->epow_irq = spapr_allocate_msi(0);
+    spapr->epow_irq = xics_alloc(spapr->icp, 0, 0, false);
     spapr->epow_notifier.notify = spapr_powerdown_req;
     qemu_register_powerdown_notifier(&spapr->epow_notifier);
-    spapr_rtas_register("check-exception", check_exception);
+    spapr_rtas_register(RTAS_CHECK_EXCEPTION, "check-exception",
+                        check_exception);
 }

@@ -620,17 +620,6 @@ static void pxa2xx_palette_parse(PXA2xxLCDState *s, int ch, int bpp)
             src += 2;
             break;
         case 1: /* 16 bpp plus transparency */
-            alpha = *(uint16_t *) src & (1 << 24);
-            if (s->control[0] & LCCR0_CMS)
-                r = g = b = *(uint16_t *) src & 0xff;
-            else {
-                r = (*(uint16_t *) src & 0xf800) >> 8;
-                g = (*(uint16_t *) src & 0x07e0) >> 3;
-                b = (*(uint16_t *) src & 0x001f) << 3;
-            }
-            src += 2;
-            break;
-        case 2: /* 18 bpp plus transparency */
             alpha = *(uint32_t *) src & (1 << 24);
             if (s->control[0] & LCCR0_CMS)
                 r = g = b = *(uint32_t *) src & 0xff;
@@ -638,6 +627,17 @@ static void pxa2xx_palette_parse(PXA2xxLCDState *s, int ch, int bpp)
                 r = (*(uint32_t *) src & 0xf80000) >> 16;
                 g = (*(uint32_t *) src & 0x00fc00) >> 8;
                 b = (*(uint32_t *) src & 0x0000f8);
+            }
+            src += 4;
+            break;
+        case 2: /* 18 bpp plus transparency */
+            alpha = *(uint32_t *) src & (1 << 24);
+            if (s->control[0] & LCCR0_CMS)
+                r = g = b = *(uint32_t *) src & 0xff;
+            else {
+                r = (*(uint32_t *) src & 0xfc0000) >> 16;
+                g = (*(uint32_t *) src & 0x00fc00) >> 8;
+                b = (*(uint32_t *) src & 0x0000fc);
             }
             src += 4;
             break;
@@ -932,8 +932,7 @@ static const VMStateDescription vmstate_dma_channel = {
     .name = "dma_channel",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(branch, struct DMAChannel),
         VMSTATE_UINT8(up, struct DMAChannel),
         VMSTATE_BUFFER(pbuffer, struct DMAChannel),
@@ -959,9 +958,8 @@ static const VMStateDescription vmstate_pxa2xx_lcdc = {
     .name = "pxa2xx_lcdc",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .post_load = pxa2xx_lcdc_post_load,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_INT32(irqlevel, PXA2xxLCDState),
         VMSTATE_INT32(transp, PXA2xxLCDState),
         VMSTATE_UINT32_ARRAY(control, PXA2xxLCDState, 6),
@@ -1009,11 +1007,11 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
 
     pxa2xx_lcdc_orientation(s, graphic_rotate);
 
-    memory_region_init_io(&s->iomem, &pxa2xx_lcdc_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &pxa2xx_lcdc_ops, s,
                           "pxa2xx-lcd-controller", 0x00100000);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
-    s->con = graphic_console_init(NULL, &pxa2xx_ops, s);
+    s->con = graphic_console_init(NULL, 0, &pxa2xx_ops, s);
     surface = qemu_console_surface(s->con);
 
     switch (surface_bits_per_pixel(surface)) {

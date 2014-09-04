@@ -242,7 +242,7 @@ int qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext)
     if (!qxl->cmdlog) {
         return 0;
     }
-    fprintf(stderr, "%" PRId64 " qxl-%d/%s:", qemu_get_clock_ns(vm_clock),
+    fprintf(stderr, "%" PRId64 " qxl-%d/%s:", qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
             qxl->id, ring);
     fprintf(stderr, " cmd @ 0x%" PRIx64 " %s%s", ext->cmd.data,
             qxl_name(qxl_type, ext->cmd.type),

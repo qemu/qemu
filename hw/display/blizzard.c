@@ -956,7 +956,7 @@ void *s1d13745_init(qemu_irq gpio_int)
 
     s->fb = g_malloc(0x180000);
 
-    s->con = graphic_console_init(NULL, &blizzard_ops, s);
+    s->con = graphic_console_init(NULL, 0, &blizzard_ops, s);
     surface = qemu_console_surface(s->con);
 
     switch (surface_bits_per_pixel(surface)) {

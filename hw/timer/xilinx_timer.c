@@ -25,6 +25,7 @@
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
 #include "qemu/log.h"
+#include "qemu/main-loop.h"
 
 #define D(x)
 
@@ -57,9 +58,14 @@ struct xlx_timer
     uint32_t regs[R_MAX];
 };
 
+#define TYPE_XILINX_TIMER "xlnx.xps-timer"
+#define XILINX_TIMER(obj) \
+    OBJECT_CHECK(struct timerblock, (obj), TYPE_XILINX_TIMER)
+
 struct timerblock
 {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion mmio;
     qemu_irq irq;
     uint8_t one_timer_only;
@@ -163,7 +169,7 @@ timer_write(void *opaque, hwaddr addr,
             if (value & TCSR_TINT)
                 value &= ~TCSR_TINT;
 
-            xt->regs[addr] = value;
+            xt->regs[addr] = value & 0x7ff;
             if (value & TCSR_ENT)
                 timer_enable(xt);
             break;
@@ -198,13 +204,10 @@ static void timer_hit(void *opaque)
     timer_update_irq(t);
 }
 
-static int xilinx_timer_init(SysBusDevice *dev)
+static void xilinx_timer_realize(DeviceState *dev, Error **errp)
 {
-    struct timerblock *t = FROM_SYSBUS(typeof (*t), dev);
+    struct timerblock *t = XILINX_TIMER(dev);
     unsigned int i;
-
-    /* All timers share a single irq line.  */
-    sysbus_init_irq(dev, &t->irq);
 
     /* Init all the ptimers.  */
     t->timers = g_malloc0(sizeof t->timers[0] * num_timers(t));
@@ -218,10 +221,17 @@ static int xilinx_timer_init(SysBusDevice *dev)
         ptimer_set_freq(xt->ptimer, t->freq_hz);
     }
 
-    memory_region_init_io(&t->mmio, &timer_ops, t, "xlnx.xps-timer",
+    memory_region_init_io(&t->mmio, OBJECT(t), &timer_ops, t, "xlnx.xps-timer",
                           R_MAX * 4 * num_timers(t));
-    sysbus_init_mmio(dev, &t->mmio);
-    return 0;
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &t->mmio);
+}
+
+static void xilinx_timer_init(Object *obj)
+{
+    struct timerblock *t = XILINX_TIMER(obj);
+
+    /* All timers share a single irq line.  */
+    sysbus_init_irq(SYS_BUS_DEVICE(obj), &t->irq);
 }
 
 static Property xilinx_timer_properties[] = {
@@ -234,16 +244,16 @@ static Property xilinx_timer_properties[] = {
 static void xilinx_timer_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = xilinx_timer_init;
+    dc->realize = xilinx_timer_realize;
     dc->props = xilinx_timer_properties;
 }
 
 static const TypeInfo xilinx_timer_info = {
-    .name          = "xlnx.xps-timer",
+    .name          = TYPE_XILINX_TIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct timerblock),
+    .instance_init = xilinx_timer_init,
     .class_init    = xilinx_timer_class_init,
 };
 

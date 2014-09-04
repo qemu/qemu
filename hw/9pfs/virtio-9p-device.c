@@ -19,6 +19,7 @@
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-xattr.h"
 #include "virtio-9p-coth.h"
+#include "hw/virtio/virtio-access.h"
 
 static uint32_t virtio_9p_get_features(VirtIODevice *vdev, uint32_t features)
 {
@@ -34,22 +35,23 @@ static void virtio_9p_get_config(VirtIODevice *vdev, uint8_t *config)
 
     len = strlen(s->tag);
     cfg = g_malloc0(sizeof(struct virtio_9p_config) + len);
-    stw_raw(&cfg->tag_len, len);
+    virtio_stw_p(vdev, &cfg->tag_len, len);
     /* We don't copy the terminating null to config space */
     memcpy(cfg->tag, s->tag, len);
     memcpy(config, cfg, s->config_size);
     g_free(cfg);
 }
 
-static int virtio_9p_device_init(VirtIODevice *vdev)
+static void virtio_9p_device_realize(DeviceState *dev, Error **errp)
 {
-    V9fsState *s = VIRTIO_9P(vdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    V9fsState *s = VIRTIO_9P(dev);
     int i, len;
     struct stat stat;
     FsDriverEntry *fse;
     V9fsPath path;
 
-    virtio_init(VIRTIO_DEVICE(s), "virtio-9p", VIRTIO_ID_9P,
+    virtio_init(vdev, "virtio-9p", VIRTIO_ID_9P,
                 sizeof(struct virtio_9p_config) + MAX_TAG_LEN);
 
     /* initialize pdu allocator */
@@ -61,21 +63,23 @@ static int virtio_9p_device_init(VirtIODevice *vdev)
 
     s->vq = virtio_add_queue(vdev, MAX_REQ, handle_9p_output);
 
+    v9fs_path_init(&path);
+
     fse = get_fsdev_fsentry(s->fsconf.fsdev_id);
 
     if (!fse) {
         /* We don't have a fsdev identified by fsdev_id */
-        fprintf(stderr, "Virtio-9p device couldn't find fsdev with the "
-                "id = %s\n",
-                s->fsconf.fsdev_id ? s->fsconf.fsdev_id : "NULL");
-        return -1;
+        error_setg(errp, "Virtio-9p device couldn't find fsdev with the "
+                   "id = %s",
+                   s->fsconf.fsdev_id ? s->fsconf.fsdev_id : "NULL");
+        goto out;
     }
 
     if (!s->fsconf.tag) {
         /* we haven't specified a mount_tag */
-        fprintf(stderr, "fsdev with id %s needs mount_tag arguments\n",
-                s->fsconf.fsdev_id);
-        return -1;
+        error_setg(errp, "fsdev with id %s needs mount_tag arguments",
+                   s->fsconf.fsdev_id);
+        goto out;
     }
 
     s->ctx.export_flags = fse->export_flags;
@@ -83,12 +87,12 @@ static int virtio_9p_device_init(VirtIODevice *vdev)
     s->ctx.exops.get_st_gen = NULL;
     len = strlen(s->fsconf.tag);
     if (len > MAX_TAG_LEN - 1) {
-        fprintf(stderr, "mount tag '%s' (%d bytes) is longer than "
-                "maximum (%d bytes)", s->fsconf.tag, len, MAX_TAG_LEN - 1);
-        return -1;
+        error_setg(errp, "mount tag '%s' (%d bytes) is longer than "
+                   "maximum (%d bytes)", s->fsconf.tag, len, MAX_TAG_LEN - 1);
+        goto out;
     }
 
-    s->tag = strdup(s->fsconf.tag);
+    s->tag = g_strdup(s->fsconf.tag);
     s->ctx.uid = -1;
 
     s->ops = fse->ops;
@@ -97,13 +101,13 @@ static int virtio_9p_device_init(VirtIODevice *vdev)
     qemu_co_rwlock_init(&s->rename_lock);
 
     if (s->ops->init(&s->ctx) < 0) {
-        fprintf(stderr, "Virtio-9p Failed to initialize fs-driver with id:%s"
-                " and export path:%s\n", s->fsconf.fsdev_id, s->ctx.fs_root);
-        return -1;
+        error_setg(errp, "Virtio-9p Failed to initialize fs-driver with id:%s"
+                   " and export path:%s", s->fsconf.fsdev_id, s->ctx.fs_root);
+        goto out;
     }
     if (v9fs_init_worker_threads() < 0) {
-        fprintf(stderr, "worker thread initialization failed\n");
-        return -1;
+        error_setg(errp, "worker thread initialization failed");
+        goto out;
     }
 
     /*
@@ -111,22 +115,26 @@ static int virtio_9p_device_init(VirtIODevice *vdev)
      * call back to do that. Since we are in the init path, we don't
      * use co-routines here.
      */
-    v9fs_path_init(&path);
     if (s->ops->name_to_path(&s->ctx, NULL, "/", &path) < 0) {
-        fprintf(stderr,
-                "error in converting name to path %s", strerror(errno));
-        return -1;
+        error_setg(errp,
+                   "error in converting name to path %s", strerror(errno));
+        goto out;
     }
     if (s->ops->lstat(&s->ctx, &path, &stat)) {
-        fprintf(stderr, "share path %s does not exist\n", fse->path);
-        return -1;
+        error_setg(errp, "share path %s does not exist", fse->path);
+        goto out;
     } else if (!S_ISDIR(stat.st_mode)) {
-        fprintf(stderr, "share path %s is not a directory\n", fse->path);
-        return -1;
+        error_setg(errp, "share path %s is not a directory", fse->path);
+        goto out;
     }
     v9fs_path_free(&path);
 
-    return 0;
+    return;
+out:
+    g_free(s->ctx.fs_root);
+    g_free(s->tag);
+    virtio_cleanup(vdev);
+    v9fs_path_free(&path);
 }
 
 /* virtio-9p device */
@@ -140,8 +148,10 @@ static void virtio_9p_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
     dc->props = virtio_9p_properties;
-    vdc->init = virtio_9p_device_init;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    vdc->realize = virtio_9p_device_realize;
     vdc->get_features = virtio_9p_get_features;
     vdc->get_config = virtio_9p_get_config;
 }

@@ -1,0 +1,302 @@
+#!/usr/bin/env python
+#
+# Tests for drive-backup
+#
+# Copyright (C) 2013 Red Hat, Inc.
+#
+# Based on 041.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import time
+import os
+import iotests
+from iotests import qemu_img, qemu_io
+
+test_img = os.path.join(iotests.test_dir, 'test.img')
+target_img = os.path.join(iotests.test_dir, 'target.img')
+
+class TestSingleDrive(iotests.QMPTestCase):
+    image_len = 64 * 1024 * 1024 # MB
+
+    def setUp(self):
+        # Write data to the image so we can compare later
+        qemu_img('create', '-f', iotests.imgfmt, test_img, str(TestSingleDrive.image_len))
+        qemu_io('-c', 'write -P0x5d 0 64k', test_img)
+        qemu_io('-c', 'write -P0xd5 1M 32k', test_img)
+        qemu_io('-c', 'write -P0xdc 32M 124k', test_img)
+        qemu_io('-c', 'write -P0xdc 67043328 64k', test_img)
+
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        try:
+            os.remove(target_img)
+        except OSError:
+            pass
+
+    def test_cancel(self):
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp('drive-backup', device='drive0',
+                             target=target_img, sync='full')
+        self.assert_qmp(result, 'return', {})
+
+        event = self.cancel_and_wait()
+        self.assert_qmp(event, 'data/type', 'backup')
+
+    def test_pause(self):
+        self.assert_no_active_block_jobs()
+
+        self.vm.pause_drive('drive0')
+        result = self.vm.qmp('drive-backup', device='drive0',
+                             target=target_img, sync='full')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('block-job-pause', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        self.vm.resume_drive('drive0')
+        time.sleep(1)
+        result = self.vm.qmp('query-block-jobs')
+        offset = self.dictpath(result, 'return[0]/offset')
+
+        time.sleep(1)
+        result = self.vm.qmp('query-block-jobs')
+        self.assert_qmp(result, 'return[0]/offset', offset)
+
+        result = self.vm.qmp('block-job-resume', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        self.wait_until_completed()
+
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, target_img),
+                        'target image does not match source after backup')
+
+    def test_medium_not_found(self):
+        result = self.vm.qmp('drive-backup', device='ide1-cd0',
+                             target=target_img, sync='full')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+    def test_image_not_found(self):
+        result = self.vm.qmp('drive-backup', device='drive0',
+                             target=target_img, sync='full', mode='existing')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+    def test_invalid_format(self):
+        result = self.vm.qmp('drive-backup', device='drive0',
+                             target=target_img, sync='full',
+                             format='spaghetti-noodles')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+    def test_device_not_found(self):
+        result = self.vm.qmp('drive-backup', device='nonexistent',
+                             target=target_img, sync='full')
+        self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+
+class TestSetSpeed(iotests.QMPTestCase):
+    image_len = 80 * 1024 * 1024 # MB
+
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, test_img, str(TestSetSpeed.image_len))
+        qemu_io('-c', 'write -P1 0 512', test_img)
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        os.remove(target_img)
+
+    def test_set_speed(self):
+        self.assert_no_active_block_jobs()
+
+        self.vm.pause_drive('drive0')
+        result = self.vm.qmp('drive-backup', device='drive0',
+                             target=target_img, sync='full')
+        self.assert_qmp(result, 'return', {})
+
+        # Default speed is 0
+        result = self.vm.qmp('query-block-jobs')
+        self.assert_qmp(result, 'return[0]/device', 'drive0')
+        self.assert_qmp(result, 'return[0]/speed', 0)
+
+        result = self.vm.qmp('block-job-set-speed', device='drive0', speed=8 * 1024 * 1024)
+        self.assert_qmp(result, 'return', {})
+
+        # Ensure the speed we set was accepted
+        result = self.vm.qmp('query-block-jobs')
+        self.assert_qmp(result, 'return[0]/device', 'drive0')
+        self.assert_qmp(result, 'return[0]/speed', 8 * 1024 * 1024)
+
+        event = self.cancel_and_wait(resume=True)
+        self.assert_qmp(event, 'data/type', 'backup')
+
+        # Check setting speed in drive-backup works
+        self.vm.pause_drive('drive0')
+        result = self.vm.qmp('drive-backup', device='drive0',
+                             target=target_img, sync='full', speed=4*1024*1024)
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('query-block-jobs')
+        self.assert_qmp(result, 'return[0]/device', 'drive0')
+        self.assert_qmp(result, 'return[0]/speed', 4 * 1024 * 1024)
+
+        event = self.cancel_and_wait(resume=True)
+        self.assert_qmp(event, 'data/type', 'backup')
+
+    def test_set_speed_invalid(self):
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp('drive-backup', device='drive0',
+                             target=target_img, sync='full', speed=-1)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+        self.assert_no_active_block_jobs()
+
+        self.vm.pause_drive('drive0')
+        result = self.vm.qmp('drive-backup', device='drive0',
+                             target=target_img, sync='full')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('block-job-set-speed', device='drive0', speed=-1)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+        event = self.cancel_and_wait(resume=True)
+        self.assert_qmp(event, 'data/type', 'backup')
+
+class TestSingleTransaction(iotests.QMPTestCase):
+    image_len = 64 * 1024 * 1024 # MB
+
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, test_img, str(TestSingleTransaction.image_len))
+        qemu_io('-c', 'write -P0x5d 0 64k', test_img)
+        qemu_io('-c', 'write -P0xd5 1M 32k', test_img)
+        qemu_io('-c', 'write -P0xdc 32M 124k', test_img)
+        qemu_io('-c', 'write -P0xdc 67043328 64k', test_img)
+
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        try:
+            os.remove(target_img)
+        except OSError:
+            pass
+
+    def test_cancel(self):
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp('transaction', actions=[{
+                'type': 'drive-backup',
+                'data': { 'device': 'drive0',
+                          'target': target_img,
+                          'sync': 'full' },
+            }
+        ])
+        self.assert_qmp(result, 'return', {})
+
+        event = self.cancel_and_wait()
+        self.assert_qmp(event, 'data/type', 'backup')
+
+    def test_pause(self):
+        self.assert_no_active_block_jobs()
+
+        self.vm.pause_drive('drive0')
+        result = self.vm.qmp('transaction', actions=[{
+                'type': 'drive-backup',
+                'data': { 'device': 'drive0',
+                          'target': target_img,
+                          'sync': 'full' },
+            }
+        ])
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('block-job-pause', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        self.vm.resume_drive('drive0')
+        time.sleep(1)
+        result = self.vm.qmp('query-block-jobs')
+        offset = self.dictpath(result, 'return[0]/offset')
+
+        time.sleep(1)
+        result = self.vm.qmp('query-block-jobs')
+        self.assert_qmp(result, 'return[0]/offset', offset)
+
+        result = self.vm.qmp('block-job-resume', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        self.wait_until_completed()
+
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, target_img),
+                        'target image does not match source after backup')
+
+    def test_medium_not_found(self):
+        result = self.vm.qmp('transaction', actions=[{
+                'type': 'drive-backup',
+                'data': { 'device': 'ide1-cd0',
+                          'target': target_img,
+                          'sync': 'full' },
+            }
+        ])
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+    def test_image_not_found(self):
+        result = self.vm.qmp('transaction', actions=[{
+                'type': 'drive-backup',
+                'data': { 'device': 'drive0',
+                          'mode': 'existing',
+                          'target': target_img,
+                          'sync': 'full' },
+            }
+        ])
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+    def test_device_not_found(self):
+        result = self.vm.qmp('transaction', actions=[{
+                'type': 'drive-backup',
+                'data': { 'device': 'nonexistent',
+                          'mode': 'existing',
+                          'target': target_img,
+                          'sync': 'full' },
+            }
+        ])
+        self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+
+    def test_abort(self):
+        result = self.vm.qmp('transaction', actions=[{
+                'type': 'drive-backup',
+                'data': { 'device': 'nonexistent',
+                          'mode': 'existing',
+                          'target': target_img,
+                          'sync': 'full' },
+            }, {
+                'type': 'Abort',
+                'data': {},
+            }
+        ])
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_no_active_block_jobs()
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['raw', 'qcow2'])

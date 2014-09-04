@@ -121,9 +121,8 @@ static const VMStateDescription vmstate_ads7846 = {
     .name = "ads7846",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = ads7856_post_load,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_SSI_SLAVE(ssidev, ADS7846State),
         VMSTATE_INT32_ARRAY(input, ADS7846State, 8),
         VMSTATE_INT32(noise, ADS7846State),
@@ -133,11 +132,12 @@ static const VMStateDescription vmstate_ads7846 = {
     }
 };
 
-static int ads7846_init(SSISlave *dev)
+static int ads7846_init(SSISlave *d)
 {
-    ADS7846State *s = FROM_SSI_SLAVE(ADS7846State, dev);
+    DeviceState *dev = DEVICE(d);
+    ADS7846State *s = FROM_SSI_SLAVE(ADS7846State, d);
 
-    qdev_init_gpio_out(&dev->qdev, &s->interrupt, 1);
+    qdev_init_gpio_out(dev, &s->interrupt, 1);
 
     s->input[0] = ADS_TEMP0;	/* TEMP0 */
     s->input[2] = ADS_VBAT;	/* VBAT */

@@ -95,7 +95,7 @@ static struct {
         }
     },
 
-    .period = { .hertz = 250 },
+    .period = { .hertz = 100 },
     .plive = 0,
     .log_to_monitor = 0,
     .try_poll_in = 1,
@@ -1124,10 +1124,11 @@ static int audio_is_timer_needed (void)
 static void audio_reset_timer (AudioState *s)
 {
     if (audio_is_timer_needed ()) {
-        qemu_mod_timer (s->ts, qemu_get_clock_ns (vm_clock) + 1);
+        timer_mod (s->ts,
+            qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + conf.period.ticks);
     }
     else {
-        qemu_del_timer (s->ts);
+        timer_del (s->ts);
     }
 }
 
@@ -1811,8 +1812,7 @@ static const VMStateDescription vmstate_audio = {
     .name = "audio",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_END_OF_LIST()
     }
 };
@@ -1834,7 +1834,7 @@ static void audio_init (void)
     QLIST_INIT (&s->cap_head);
     atexit (audio_atexit);
 
-    s->ts = qemu_new_timer_ns (vm_clock, audio_timer, s);
+    s->ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, audio_timer, s);
     if (!s->ts) {
         hw_error("Could not create audio timer\n");
     }

@@ -28,6 +28,26 @@
 #include "qemu/iov.h"
 #include "trace.h"
 
+void usb_pick_speed(USBPort *port)
+{
+    static const int speeds[] = {
+        USB_SPEED_SUPER,
+        USB_SPEED_HIGH,
+        USB_SPEED_FULL,
+        USB_SPEED_LOW,
+    };
+    USBDevice *udev = port->dev;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(speeds); i++) {
+        if ((udev->speedmask & (1 << speeds[i])) &&
+            (port->speedmask & (1 << speeds[i]))) {
+            udev->speed = speeds[i];
+            return;
+        }
+    }
+}
+
 void usb_attach(USBPort *port)
 {
     USBDevice *dev = port->dev;
@@ -35,6 +55,7 @@ void usb_attach(USBPort *port)
     assert(dev != NULL);
     assert(dev->attached);
     assert(dev->state == USB_STATE_NOTATTACHED);
+    usb_pick_speed(port);
     port->ops->attach(port);
     dev->state = USB_STATE_ATTACHED;
     usb_device_handle_attach(dev);
@@ -403,7 +424,7 @@ void usb_handle_packet(USBDevice *dev, USBPacket *p)
         p->ep->halted = false;
     }
 
-    if (QTAILQ_EMPTY(&p->ep->queue) || p->ep->pipeline) {
+    if (QTAILQ_EMPTY(&p->ep->queue) || p->ep->pipeline || p->stream) {
         usb_process_one(p);
         if (p->status == USB_RET_ASYNC) {
             /* hcd drivers cannot handle async for isoc */
@@ -420,7 +441,8 @@ void usb_handle_packet(USBDevice *dev, USBPacket *p)
              * When pipelining is enabled usb-devices must always return async,
              * otherwise packets can complete out of order!
              */
-            assert(!p->ep->pipeline || QTAILQ_EMPTY(&p->ep->queue));
+            assert(p->stream || !p->ep->pipeline ||
+                   QTAILQ_EMPTY(&p->ep->queue));
             if (p->status != USB_RET_NAK) {
                 usb_packet_set_state(p, USB_PACKET_COMPLETE);
             }
@@ -434,7 +456,7 @@ void usb_packet_complete_one(USBDevice *dev, USBPacket *p)
 {
     USBEndpoint *ep = p->ep;
 
-    assert(QTAILQ_FIRST(&ep->queue) == p);
+    assert(p->stream || QTAILQ_FIRST(&ep->queue) == p);
     assert(p->status != USB_RET_ASYNC && p->status != USB_RET_NAK);
 
     if (p->status != USB_RET_SUCCESS ||
@@ -621,6 +643,8 @@ void usb_ep_reset(USBDevice *dev)
     dev->ep_ctl.nr = 0;
     dev->ep_ctl.type = USB_ENDPOINT_XFER_CONTROL;
     dev->ep_ctl.ifnum = 0;
+    dev->ep_ctl.max_packet_size = 64;
+    dev->ep_ctl.max_streams = 0;
     dev->ep_ctl.dev = dev;
     dev->ep_ctl.pipeline = false;
     for (ep = 0; ep < USB_MAX_ENDPOINTS; ep++) {
@@ -632,6 +656,10 @@ void usb_ep_reset(USBDevice *dev)
         dev->ep_out[ep].type = USB_ENDPOINT_XFER_INVALID;
         dev->ep_in[ep].ifnum = USB_INTERFACE_INVALID;
         dev->ep_out[ep].ifnum = USB_INTERFACE_INVALID;
+        dev->ep_in[ep].max_packet_size = 0;
+        dev->ep_out[ep].max_packet_size = 0;
+        dev->ep_in[ep].max_streams = 0;
+        dev->ep_out[ep].max_streams = 0;
         dev->ep_in[ep].dev = dev;
         dev->ep_out[ep].dev = dev;
         dev->ep_in[ep].pipeline = false;
@@ -758,6 +786,25 @@ int usb_ep_get_max_packet_size(USBDevice *dev, int pid, int ep)
 {
     struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
     return uep->max_packet_size;
+}
+
+void usb_ep_set_max_streams(USBDevice *dev, int pid, int ep, uint8_t raw)
+{
+    struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
+    int MaxStreams;
+
+    MaxStreams = raw & 0x1f;
+    if (MaxStreams) {
+        uep->max_streams = 1 << MaxStreams;
+    } else {
+        uep->max_streams = 0;
+    }
+}
+
+int usb_ep_get_max_streams(USBDevice *dev, int pid, int ep)
+{
+    struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
+    return uep->max_streams;
 }
 
 void usb_ep_set_pipeline(USBDevice *dev, int pid, int ep, bool enabled)

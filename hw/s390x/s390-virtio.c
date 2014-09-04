@@ -36,15 +36,16 @@
 
 #include "hw/s390x/s390-virtio-bus.h"
 #include "hw/s390x/sclp.h"
+#include "hw/s390x/s390_flic.h"
 #include "hw/s390x/s390-virtio.h"
 
 //#define DEBUG_S390
 
 #ifdef DEBUG_S390
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
 #else
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
 
@@ -91,7 +92,7 @@ static int s390_virtio_hcall_reset(const uint64_t *args)
         return -EINVAL;
     }
     virtio_reset(dev->vdev);
-    stb_phys(dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0);
+    stb_phys(&address_space_memory, dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0);
     s390_virtio_device_sync(dev);
     s390_virtio_reset_idx(dev);
 
@@ -134,25 +135,23 @@ static unsigned s390_running_cpus;
 void s390_add_running_cpu(S390CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
-    CPUS390XState *env = &cpu->env;
 
     if (cs->halted) {
         s390_running_cpus++;
         cs->halted = 0;
-        env->exception_index = -1;
+        cs->exception_index = -1;
     }
 }
 
 unsigned s390_del_running_cpu(S390CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
-    CPUS390XState *env = &cpu->env;
 
     if (cs->halted == 0) {
         assert(s390_running_cpus >= 1);
         s390_running_cpus--;
         cs->halted = 1;
-        env->exception_index = EXCP_HLT;
+        cs->exception_index = EXCP_HLT;
     }
     return s390_running_cpus;
 }
@@ -195,7 +194,7 @@ void s390_init_cpus(const char *cpu_model, uint8_t *storage_keys)
 
         ipi_states[i] = cpu;
         cs->halted = 1;
-        cpu->env.exception_index = EXCP_HLT;
+        cs->exception_index = EXCP_HLT;
         cpu->env.storage_keys = storage_keys;
     }
 }
@@ -225,9 +224,9 @@ void s390_create_virtio_net(BusState *bus, const char *name)
 }
 
 /* PC hardware initialisation */
-static void s390_init(QEMUMachineInitArgs *args)
+static void s390_init(MachineState *machine)
 {
-    ram_addr_t my_ram_size = args->ram_size;
+    ram_addr_t my_ram_size = machine->ram_size;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     int shift = 0;
@@ -249,14 +248,15 @@ static void s390_init(QEMUMachineInitArgs *args)
     /* get a BUS */
     s390_bus = s390_virtio_bus_init(&my_ram_size);
     s390_sclp_init();
-    s390_init_ipl_dev(args->kernel_filename, args->kernel_cmdline,
-                      args->initrd_filename, ZIPL_FILENAME);
+    s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
+                      machine->initrd_filename, ZIPL_FILENAME);
+    s390_flic_init();
 
     /* register hypercalls */
     s390_virtio_register_hcalls();
 
     /* allocate RAM */
-    memory_region_init_ram(ram, "s390.ram", my_ram_size);
+    memory_region_init_ram(ram, NULL, "s390.ram", my_ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(sysmem, 0, ram);
 
@@ -273,7 +273,7 @@ static void s390_init(QEMUMachineInitArgs *args)
     storage_keys = g_malloc0(my_ram_size / TARGET_PAGE_SIZE);
 
     /* init CPUs */
-    s390_init_cpus(args->cpu_model, storage_keys);
+    s390_init_cpus(machine->cpu_model, storage_keys);
 
     /* Create VirtIO network adapters */
     s390_create_virtio_net((BusState *)s390_bus, "virtio-net-s390");
@@ -293,7 +293,6 @@ static QEMUMachine s390_machine = {
     .use_virtcon = 1,
     .max_cpus = 255,
     .is_default = 1,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void s390_machine_init(void)

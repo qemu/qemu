@@ -55,8 +55,13 @@ do { printf("imx_avic: " fmt , ##args); } while (0)
 #define PRIO_PER_WORD (sizeof(uint32_t) * 8 / 4)
 #define PRIO_WORDS (IMX_AVIC_NUM_IRQS/PRIO_PER_WORD)
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_IMX_AVIC "imx_avic"
+#define IMX_AVIC(obj) \
+    OBJECT_CHECK(IMXAVICState, (obj), TYPE_IMX_AVIC)
+
+typedef struct IMXAVICState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint64_t pending;
     uint64_t enabled;
@@ -72,7 +77,6 @@ static const VMStateDescription vmstate_imx_avic = {
     .name = "imx-avic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(pending, IMXAVICState),
         VMSTATE_UINT64(enabled, IMXAVICState),
@@ -359,7 +363,8 @@ static const MemoryRegionOps imx_avic_ops = {
 
 static void imx_avic_reset(DeviceState *dev)
 {
-    IMXAVICState *s = container_of(dev, IMXAVICState, busdev.qdev);
+    IMXAVICState *s = IMX_AVIC(dev);
+
     s->pending = 0;
     s->enabled = 0;
     s->is_fiq = 0;
@@ -368,16 +373,18 @@ static void imx_avic_reset(DeviceState *dev)
     memset(s->prio, 0, sizeof s->prio);
 }
 
-static int imx_avic_init(SysBusDevice *dev)
+static int imx_avic_init(SysBusDevice *sbd)
 {
-    IMXAVICState *s = FROM_SYSBUS(IMXAVICState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    IMXAVICState *s = IMX_AVIC(dev);
 
-    memory_region_init_io(&s->iomem, &imx_avic_ops, s, "imx_avic", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    memory_region_init_io(&s->iomem, OBJECT(s), &imx_avic_ops, s,
+                          "imx_avic", 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem);
 
-    qdev_init_gpio_in(&dev->qdev, imx_avic_set_irq, IMX_AVIC_NUM_IRQS);
-    sysbus_init_irq(dev, &s->irq);
-    sysbus_init_irq(dev, &s->fiq);
+    qdev_init_gpio_in(dev, imx_avic_set_irq, IMX_AVIC_NUM_IRQS);
+    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &s->fiq);
 
     return 0;
 }
@@ -394,7 +401,7 @@ static void imx_avic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo imx_avic_info = {
-    .name = "imx_avic",
+    .name = TYPE_IMX_AVIC,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IMXAVICState),
     .class_init = imx_avic_class_init,

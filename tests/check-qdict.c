@@ -227,6 +227,309 @@ static void qdict_iterapi_test(void)
     QDECREF(tests_dict);
 }
 
+static void qdict_flatten_test(void)
+{
+    QList *list1 = qlist_new();
+    QList *list2 = qlist_new();
+    QDict *dict1 = qdict_new();
+    QDict *dict2 = qdict_new();
+    QDict *dict3 = qdict_new();
+
+    /*
+     * Test the flattening of
+     *
+     * {
+     *     "e": [
+     *         42,
+     *         [
+     *             23,
+     *             66,
+     *             {
+     *                 "a": 0,
+     *                 "b": 1
+     *             }
+     *         ]
+     *     ],
+     *     "f": {
+     *         "c": 2,
+     *         "d": 3,
+     *     },
+     *     "g": 4
+     * }
+     *
+     * to
+     *
+     * {
+     *     "e.0": 42,
+     *     "e.1.0": 23,
+     *     "e.1.1": 66,
+     *     "e.1.2.a": 0,
+     *     "e.1.2.b": 1,
+     *     "f.c": 2,
+     *     "f.d": 3,
+     *     "g": 4
+     * }
+     */
+
+    qdict_put(dict1, "a", qint_from_int(0));
+    qdict_put(dict1, "b", qint_from_int(1));
+
+    qlist_append_obj(list1, QOBJECT(qint_from_int(23)));
+    qlist_append_obj(list1, QOBJECT(qint_from_int(66)));
+    qlist_append_obj(list1, QOBJECT(dict1));
+    qlist_append_obj(list2, QOBJECT(qint_from_int(42)));
+    qlist_append_obj(list2, QOBJECT(list1));
+
+    qdict_put(dict2, "c", qint_from_int(2));
+    qdict_put(dict2, "d", qint_from_int(3));
+    qdict_put_obj(dict3, "e", QOBJECT(list2));
+    qdict_put_obj(dict3, "f", QOBJECT(dict2));
+    qdict_put(dict3, "g", qint_from_int(4));
+
+    qdict_flatten(dict3);
+
+    g_assert(qdict_get_int(dict3, "e.0") == 42);
+    g_assert(qdict_get_int(dict3, "e.1.0") == 23);
+    g_assert(qdict_get_int(dict3, "e.1.1") == 66);
+    g_assert(qdict_get_int(dict3, "e.1.2.a") == 0);
+    g_assert(qdict_get_int(dict3, "e.1.2.b") == 1);
+    g_assert(qdict_get_int(dict3, "f.c") == 2);
+    g_assert(qdict_get_int(dict3, "f.d") == 3);
+    g_assert(qdict_get_int(dict3, "g") == 4);
+
+    g_assert(qdict_size(dict3) == 8);
+
+    QDECREF(dict3);
+}
+
+static void qdict_array_split_test(void)
+{
+    QDict *test_dict = qdict_new();
+    QDict *dict1, *dict2;
+    QInt *int1;
+    QList *test_list;
+
+    /*
+     * Test the split of
+     *
+     * {
+     *     "1.x": 0,
+     *     "4.y": 1,
+     *     "0.a": 42,
+     *     "o.o": 7,
+     *     "0.b": 23,
+     *     "2": 66
+     * }
+     *
+     * to
+     *
+     * [
+     *     {
+     *         "a": 42,
+     *         "b": 23
+     *     },
+     *     {
+     *         "x": 0
+     *     },
+     *     66
+     * ]
+     *
+     * and
+     *
+     * {
+     *     "4.y": 1,
+     *     "o.o": 7
+     * }
+     *
+     * (remaining in the old QDict)
+     *
+     * This example is given in the comment of qdict_array_split().
+     */
+
+    qdict_put(test_dict, "1.x", qint_from_int(0));
+    qdict_put(test_dict, "4.y", qint_from_int(1));
+    qdict_put(test_dict, "0.a", qint_from_int(42));
+    qdict_put(test_dict, "o.o", qint_from_int(7));
+    qdict_put(test_dict, "0.b", qint_from_int(23));
+    qdict_put(test_dict, "2", qint_from_int(66));
+
+    qdict_array_split(test_dict, &test_list);
+
+    dict1 = qobject_to_qdict(qlist_pop(test_list));
+    dict2 = qobject_to_qdict(qlist_pop(test_list));
+    int1 = qobject_to_qint(qlist_pop(test_list));
+
+    g_assert(dict1);
+    g_assert(dict2);
+    g_assert(int1);
+    g_assert(qlist_empty(test_list));
+
+    QDECREF(test_list);
+
+    g_assert(qdict_get_int(dict1, "a") == 42);
+    g_assert(qdict_get_int(dict1, "b") == 23);
+
+    g_assert(qdict_size(dict1) == 2);
+
+    QDECREF(dict1);
+
+    g_assert(qdict_get_int(dict2, "x") == 0);
+
+    g_assert(qdict_size(dict2) == 1);
+
+    QDECREF(dict2);
+
+    g_assert(qint_get_int(int1) == 66);
+
+    QDECREF(int1);
+
+    g_assert(qdict_get_int(test_dict, "4.y") == 1);
+    g_assert(qdict_get_int(test_dict, "o.o") == 7);
+
+    g_assert(qdict_size(test_dict) == 2);
+
+    QDECREF(test_dict);
+
+
+    /*
+     * Test the split of
+     *
+     * {
+     *     "0": 42,
+     *     "1": 23,
+     *     "1.x": 84
+     * }
+     *
+     * to
+     *
+     * [
+     *     42
+     * ]
+     *
+     * and
+     *
+     * {
+     *     "1": 23,
+     *     "1.x": 84
+     * }
+     *
+     * That is, test whether splitting stops if there is both an entry with key
+     * of "%u" and other entries with keys prefixed "%u." for the same index.
+     */
+
+    test_dict = qdict_new();
+
+    qdict_put(test_dict, "0", qint_from_int(42));
+    qdict_put(test_dict, "1", qint_from_int(23));
+    qdict_put(test_dict, "1.x", qint_from_int(84));
+
+    qdict_array_split(test_dict, &test_list);
+
+    int1 = qobject_to_qint(qlist_pop(test_list));
+
+    g_assert(int1);
+    g_assert(qlist_empty(test_list));
+
+    QDECREF(test_list);
+
+    g_assert(qint_get_int(int1) == 42);
+
+    QDECREF(int1);
+
+    g_assert(qdict_get_int(test_dict, "1") == 23);
+    g_assert(qdict_get_int(test_dict, "1.x") == 84);
+
+    g_assert(qdict_size(test_dict) == 2);
+
+    QDECREF(test_dict);
+}
+
+static void qdict_join_test(void)
+{
+    QDict *dict1, *dict2;
+    bool overwrite = false;
+    int i;
+
+    dict1 = qdict_new();
+    dict2 = qdict_new();
+
+
+    /* Test everything once without overwrite and once with */
+    do
+    {
+        /* Test empty dicts */
+        qdict_join(dict1, dict2, overwrite);
+
+        g_assert(qdict_size(dict1) == 0);
+        g_assert(qdict_size(dict2) == 0);
+
+
+        /* First iteration: Test movement */
+        /* Second iteration: Test empty source and non-empty destination */
+        qdict_put(dict2, "foo", qint_from_int(42));
+
+        for (i = 0; i < 2; i++) {
+            qdict_join(dict1, dict2, overwrite);
+
+            g_assert(qdict_size(dict1) == 1);
+            g_assert(qdict_size(dict2) == 0);
+
+            g_assert(qdict_get_int(dict1, "foo") == 42);
+        }
+
+
+        /* Test non-empty source and destination without conflict */
+        qdict_put(dict2, "bar", qint_from_int(23));
+
+        qdict_join(dict1, dict2, overwrite);
+
+        g_assert(qdict_size(dict1) == 2);
+        g_assert(qdict_size(dict2) == 0);
+
+        g_assert(qdict_get_int(dict1, "foo") == 42);
+        g_assert(qdict_get_int(dict1, "bar") == 23);
+
+
+        /* Test conflict */
+        qdict_put(dict2, "foo", qint_from_int(84));
+
+        qdict_join(dict1, dict2, overwrite);
+
+        g_assert(qdict_size(dict1) == 2);
+        g_assert(qdict_size(dict2) == !overwrite);
+
+        g_assert(qdict_get_int(dict1, "foo") == overwrite ? 84 : 42);
+        g_assert(qdict_get_int(dict1, "bar") == 23);
+
+        if (!overwrite) {
+            g_assert(qdict_get_int(dict2, "foo") == 84);
+        }
+
+
+        /* Check the references */
+        g_assert(qdict_get(dict1, "foo")->refcnt == 1);
+        g_assert(qdict_get(dict1, "bar")->refcnt == 1);
+
+        if (!overwrite) {
+            g_assert(qdict_get(dict2, "foo")->refcnt == 1);
+        }
+
+
+        /* Clean up */
+        qdict_del(dict1, "foo");
+        qdict_del(dict1, "bar");
+
+        if (!overwrite) {
+            qdict_del(dict2, "foo");
+        }
+    }
+    while (overwrite ^= true);
+
+
+    QDECREF(dict1);
+    QDECREF(dict2);
+}
+
 /*
  * Errors test-cases
  */
@@ -365,6 +668,9 @@ int main(int argc, char **argv)
     g_test_add_func("/public/del", qdict_del_test);
     g_test_add_func("/public/to_qdict", qobject_to_qdict_test);
     g_test_add_func("/public/iterapi", qdict_iterapi_test);
+    g_test_add_func("/public/flatten", qdict_flatten_test);
+    g_test_add_func("/public/array_split", qdict_array_split_test);
+    g_test_add_func("/public/join", qdict_join_test);
 
     g_test_add_func("/errors/put_exists", qdict_put_exists_test);
     g_test_add_func("/errors/get_not_exists", qdict_get_not_exists_test);

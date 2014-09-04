@@ -19,8 +19,11 @@
 
 #define MAX_ETH_FRAME_SIZE	1514
 
+#define TYPE_MIPS_NET "mipsnet"
+#define MIPS_NET(obj) OBJECT_CHECK(MIPSnetState, (obj), TYPE_MIPS_NET)
+
 typedef struct MIPSnetState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
 
     uint32_t busy;
     uint32_t rx_count;
@@ -195,8 +198,7 @@ static const VMStateDescription vmstate_mipsnet = {
     .name = "mipsnet",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(busy, MIPSnetState),
         VMSTATE_UINT32(rx_count, MIPSnetState),
         VMSTATE_UINT32(rx_read, MIPSnetState),
@@ -231,16 +233,18 @@ static const MemoryRegionOps mipsnet_ioport_ops = {
     .impl.max_access_size = 4,
 };
 
-static int mipsnet_sysbus_init(SysBusDevice *dev)
+static int mipsnet_sysbus_init(SysBusDevice *sbd)
 {
-    MIPSnetState *s = DO_UPCAST(MIPSnetState, busdev, dev);
+    DeviceState *dev = DEVICE(sbd);
+    MIPSnetState *s = MIPS_NET(dev);
 
-    memory_region_init_io(&s->io, &mipsnet_ioport_ops, s, "mipsnet-io", 36);
-    sysbus_init_mmio(dev, &s->io);
-    sysbus_init_irq(dev, &s->irq);
+    memory_region_init_io(&s->io, OBJECT(dev), &mipsnet_ioport_ops, s,
+                          "mipsnet-io", 36);
+    sysbus_init_mmio(sbd, &s->io);
+    sysbus_init_irq(sbd, &s->irq);
 
     s->nic = qemu_new_nic(&net_mipsnet_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     return 0;
@@ -248,7 +252,7 @@ static int mipsnet_sysbus_init(SysBusDevice *dev)
 
 static void mipsnet_sysbus_reset(DeviceState *dev)
 {
-    MIPSnetState *s = DO_UPCAST(MIPSnetState, busdev.qdev, dev);
+    MIPSnetState *s = MIPS_NET(dev);
     mipsnet_reset(s);
 }
 
@@ -263,6 +267,7 @@ static void mipsnet_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = mipsnet_sysbus_init;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "MIPS Simulator network device";
     dc->reset = mipsnet_sysbus_reset;
     dc->vmsd = &vmstate_mipsnet;
@@ -270,7 +275,7 @@ static void mipsnet_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mipsnet_info = {
-    .name          = "mipsnet",
+    .name          = TYPE_MIPS_NET,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MIPSnetState),
     .class_init    = mipsnet_class_init,

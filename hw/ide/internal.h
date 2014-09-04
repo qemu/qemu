@@ -433,6 +433,7 @@ struct IDEDMAOps {
     DMAIntFunc *set_unit;
     DMAIntFunc *add_status;
     DMAFunc *set_inactive;
+    DMAFunc *async_cmd_done;
     DMARestartFunc *restart_cb;
     DMAFunc *reset;
 };
@@ -552,8 +553,6 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
                    uint32_t cylinders, uint32_t heads, uint32_t secs,
                    int chs_trans);
 void ide_init2(IDEBus *bus, qemu_irq irq);
-void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
-                                    DriveInfo *hd1, qemu_irq irq);
 void ide_init_ioport(IDEBus *bus, ISADevice *isa, int iobase, int iobase2);
 
 void ide_exec_cmd(IDEBus *bus, uint32_t val);
@@ -575,7 +574,8 @@ void ide_atapi_cmd(IDEState *s);
 void ide_atapi_cmd_reply_end(IDEState *s);
 
 /* hw/ide/qdev.c */
-void ide_bus_new(IDEBus *idebus, DeviceState *dev, int bus_id, int max_units);
+void ide_bus_new(IDEBus *idebus, size_t idebus_size, DeviceState *dev,
+                 int bus_id, int max_units);
 IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive);
 
 #endif /* HW_IDE_INTERNAL_H */

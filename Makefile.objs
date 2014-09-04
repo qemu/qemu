@@ -12,17 +12,15 @@ block-obj-y += main-loop.o iohandler.o qemu-timer.o
 block-obj-$(CONFIG_POSIX) += aio-posix.o
 block-obj-$(CONFIG_WIN32) += aio-win32.o
 block-obj-y += block/
-block-obj-y += qapi-types.o qapi-visit.o
+block-obj-y += qapi-types.o qapi-visit.o qapi-event.o
+block-obj-y += qemu-io-cmds.o
 
 block-obj-y += qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
 block-obj-y += qemu-coroutine-sleep.o
 block-obj-y += coroutine-$(CONFIG_COROUTINE_BACKEND).o
 
-ifeq ($(CONFIG_VIRTIO)$(CONFIG_VIRTFS)$(CONFIG_PCI),yyy)
-# Lots of the fsdev/9pcode is pulled in by vl.c via qemu_fsdev_add.
-# only pull in the actual virtio-9p device if we also enabled virtio.
-CONFIG_REALLY_VIRTFS=y
-endif
+block-obj-m = block/
+
 
 ######################################################################
 # smartcard
@@ -33,6 +31,8 @@ libcacard-y += libcacard/vcard_emul_nss.o
 libcacard-y += libcacard/vcard_emul_type.o
 libcacard-y += libcacard/card_7816.o
 libcacard-y += libcacard/vcardt.o
+libcacard/vcard_emul_nss.o-cflags := $(NSS_CFLAGS)
+libcacard/vcard_emul_nss.o-libs := $(NSS_LIBS)
 
 ######################################################################
 # Target independent part of system emulation. The long term path is to
@@ -40,9 +40,9 @@ libcacard-y += libcacard/vcardt.o
 # single QEMU executable should support all CPUs and machines.
 
 ifeq ($(CONFIG_SOFTMMU),y)
-common-obj-y = $(block-obj-y) blockdev.o blockdev-nbd.o block/
+common-obj-y = blockdev.o blockdev-nbd.o block/
+common-obj-y += iothread.o
 common-obj-y += net/
-common-obj-y += readline.o
 common-obj-y += qdev-monitor.o device-hotplug.o
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
@@ -50,6 +50,9 @@ common-obj-$(CONFIG_POSIX) += os-posix.o
 common-obj-$(CONFIG_LINUX) += fsdev/
 
 common-obj-y += migration.o migration-tcp.o
+common-obj-y += vmstate.o
+common-obj-y += qemu-file.o
+common-obj-$(CONFIG_RDMA) += migration-rdma.o
 common-obj-y += qemu-char.o #aio.o
 common-obj-y += block-migration.o
 common-obj-y += page_cache.o xbzrle.o
@@ -63,9 +66,11 @@ common-obj-y += hw/
 
 common-obj-y += ui/
 common-obj-y += bt-host.o bt-vhci.o
+bt-host.o-cflags := $(BLUEZ_CFLAGS)
 
 common-obj-y += dma-helpers.o
 common-obj-y += vl.o
+vl.o-cflags := $(GPROF_CFLAGS) $(SDL_CFLAGS)
 common-obj-y += tpm.o
 
 common-obj-$(CONFIG_SLIRP) += slirp/
@@ -97,22 +102,14 @@ common-obj-y += qom/
 common-obj-y += disas/
 
 ######################################################################
+# Resource file for Windows executables
+version-obj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.o
+version-lobj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.lo
+
+######################################################################
 # guest agent
 
 # FIXME: a few definitions from qapi-types.o/qapi-visit.o are needed
 # by libqemuutil.a.  These should be moved to a separate .json schema.
 qga-obj-y = qga/ qapi-types.o qapi-visit.o
-
-vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
-
-vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
-
-QEMU_CFLAGS+=$(GLIB_CFLAGS)
-
-nested-vars += \
-	stub-obj-y \
-	util-obj-y \
-	qga-obj-y \
-	block-obj-y \
-	common-obj-y
-dummy := $(call unnest-vars)
+qga-vss-dll-obj-y = qga/

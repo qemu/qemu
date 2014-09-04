@@ -26,6 +26,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pcie_regs.h"
 #include "qemu/range.h"
+#include "qapi/qmp/qerror.h"
 
 //#define DEBUG_PCIE
 #ifdef DEBUG_PCIE
@@ -187,7 +188,7 @@ static void hotplug_event_notify(PCIDevice *dev)
     } else if (msi_enabled(dev)) {
         msi_notify(dev, pcie_cap_flags_get_vector(dev));
     } else {
-        qemu_set_irq(dev->irq[dev->exp.hpev_intx], dev->exp.hpev_notified);
+        pci_set_irq(dev, dev->exp.hpev_notified);
     }
 }
 
@@ -195,7 +196,7 @@ static void hotplug_event_clear(PCIDevice *dev)
 {
     hotplug_event_update_event_status(dev);
     if (!msix_enabled(dev) && !msi_enabled(dev) && !dev->exp.hpev_notified) {
-        qemu_set_irq(dev->irq[dev->exp.hpev_intx], 0);
+        pci_irq_deassert(dev);
     }
 }
 
@@ -216,28 +217,37 @@ static void pcie_cap_slot_event(PCIDevice *dev, PCIExpressHotPlugEvent event)
     hotplug_event_notify(dev);
 }
 
-static int pcie_cap_slot_hotplug(DeviceState *qdev,
-                                 PCIDevice *pci_dev, PCIHotplugState state)
+static void pcie_cap_slot_hotplug_common(PCIDevice *hotplug_dev,
+                                         DeviceState *dev,
+                                         uint8_t **exp_cap, Error **errp)
 {
-    PCIDevice *d = PCI_DEVICE(qdev);
-    uint8_t *exp_cap = d->config + d->exp.exp_cap;
-    uint16_t sltsta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
+    *exp_cap = hotplug_dev->config + hotplug_dev->exp.exp_cap;
+    uint16_t sltsta = pci_get_word(*exp_cap + PCI_EXP_SLTSTA);
 
-    /* Don't send event when device is enabled during qemu machine creation:
-     * it is present on boot, no hotplug event is necessary. We do send an
-     * event when the device is disabled later. */
-    if (state == PCI_COLDPLUG_ENABLED) {
-        pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
-                                   PCI_EXP_SLTSTA_PDS);
-        return 0;
-    }
-
-    PCIE_DEV_PRINTF(pci_dev, "hotplug state: %d\n", state);
+    PCIE_DEV_PRINTF(PCI_DEVICE(dev), "hotplug state: 0x%x\n", sltsta);
     if (sltsta & PCI_EXP_SLTSTA_EIS) {
         /* the slot is electromechanically locked.
          * This error is propagated up to qdev and then to HMP/QMP.
          */
-        return -EBUSY;
+        error_setg_errno(errp, -EBUSY, "slot is electromechanically locked");
+    }
+}
+
+void pcie_cap_slot_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+                              Error **errp)
+{
+    uint8_t *exp_cap;
+    PCIDevice *pci_dev = PCI_DEVICE(dev);
+
+    pcie_cap_slot_hotplug_common(PCI_DEVICE(hotplug_dev), dev, &exp_cap, errp);
+
+    /* Don't send event when device is enabled during qemu machine creation:
+     * it is present on boot, no hotplug event is necessary. We do send an
+     * event when the device is disabled later. */
+    if (!dev->hotplugged) {
+        pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
+                                   PCI_EXP_SLTSTA_PDS);
+        return;
     }
 
     /* TODO: multifunction hot-plug.
@@ -246,17 +256,20 @@ static int pcie_cap_slot_hotplug(DeviceState *qdev,
      */
     assert(PCI_FUNC(pci_dev->devfn) == 0);
 
-    if (state == PCI_HOTPLUG_ENABLED) {
-        pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
-                                   PCI_EXP_SLTSTA_PDS);
-        pcie_cap_slot_event(d, PCI_EXP_HP_EV_PDC);
-    } else {
-        qdev_free(&pci_dev->qdev);
-        pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
-                                     PCI_EXP_SLTSTA_PDS);
-        pcie_cap_slot_event(d, PCI_EXP_HP_EV_PDC);
-    }
-    return 0;
+    pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
+                               PCI_EXP_SLTSTA_PDS);
+    pcie_cap_slot_event(PCI_DEVICE(hotplug_dev),
+                        PCI_EXP_HP_EV_PDC | PCI_EXP_HP_EV_ABP);
+}
+
+void pcie_cap_slot_hot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+                                 Error **errp)
+{
+    uint8_t *exp_cap;
+
+    pcie_cap_slot_hotplug_common(PCI_DEVICE(hotplug_dev), dev, &exp_cap, errp);
+
+    pcie_cap_slot_push_attention_button(PCI_DEVICE(hotplug_dev));
 }
 
 /* pci express slot for pci express root/downstream port
@@ -278,6 +291,15 @@ void pcie_cap_slot_init(PCIDevice *dev, uint16_t slot)
                                PCI_EXP_SLTCAP_PIP |
                                PCI_EXP_SLTCAP_AIP |
                                PCI_EXP_SLTCAP_ABP);
+
+    if (dev->cap_present & QEMU_PCIE_SLTCAP_PCP) {
+        pci_long_test_and_set_mask(dev->config + pos + PCI_EXP_SLTCAP,
+                                   PCI_EXP_SLTCAP_PCP);
+        pci_word_test_and_clear_mask(dev->config + pos + PCI_EXP_SLTCTL,
+                                     PCI_EXP_SLTCTL_PCC);
+        pci_word_test_and_set_mask(dev->wmask + pos + PCI_EXP_SLTCTL,
+                                   PCI_EXP_SLTCTL_PCC);
+    }
 
     pci_word_test_and_clear_mask(dev->config + pos + PCI_EXP_SLTCTL,
                                  PCI_EXP_SLTCTL_PIC |
@@ -305,13 +327,17 @@ void pcie_cap_slot_init(PCIDevice *dev, uint16_t slot)
 
     dev->exp.hpev_notified = false;
 
-    pci_bus_hotplug(pci_bridge_get_sec_bus(DO_UPCAST(PCIBridge, dev, dev)),
-                    pcie_cap_slot_hotplug, &dev->qdev);
+    qbus_set_hotplug_handler(BUS(pci_bridge_get_sec_bus(PCI_BRIDGE(dev))),
+                             DEVICE(dev), NULL);
 }
 
 void pcie_cap_slot_reset(PCIDevice *dev)
 {
     uint8_t *exp_cap = dev->config + dev->exp.exp_cap;
+    uint8_t port_type = pcie_cap_get_type(dev);
+
+    assert(port_type == PCI_EXP_TYPE_DOWNSTREAM ||
+           port_type == PCI_EXP_TYPE_ROOT_PORT);
 
     PCIE_DEV_PRINTF(dev, "reset\n");
 
@@ -324,8 +350,24 @@ void pcie_cap_slot_reset(PCIDevice *dev)
                                  PCI_EXP_SLTCTL_PDCE |
                                  PCI_EXP_SLTCTL_ABPE);
     pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTCTL,
-                               PCI_EXP_SLTCTL_PIC_OFF |
                                PCI_EXP_SLTCTL_AIC_OFF);
+
+    if (dev->cap_present & QEMU_PCIE_SLTCAP_PCP) {
+        /* Downstream ports enforce device number 0. */
+        bool populated = pci_bridge_get_sec_bus(PCI_BRIDGE(dev))->devices[0];
+        uint16_t pic;
+
+        if (populated) {
+            pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTCTL,
+                                         PCI_EXP_SLTCTL_PCC);
+        } else {
+            pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTCTL,
+                                       PCI_EXP_SLTCTL_PCC);
+        }
+
+        pic = populated ? PCI_EXP_SLTCTL_PIC_ON : PCI_EXP_SLTCTL_PIC_OFF;
+        pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTCTL, pic);
+    }
 
     pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
                                  PCI_EXP_SLTSTA_EIS |/* on reset,
@@ -335,6 +377,11 @@ void pcie_cap_slot_reset(PCIDevice *dev)
                                  PCI_EXP_SLTSTA_ABP);
 
     hotplug_event_update_event_status(dev);
+}
+
+static void pcie_unplug_device(PCIBus *bus, PCIDevice *dev, void *opaque)
+{
+    object_unparent(OBJECT(dev));
 }
 
 void pcie_cap_slot_write_config(PCIDevice *dev,
@@ -359,6 +406,22 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
         PCIE_DEV_PRINTF(dev, "PCI_EXP_SLTCTL_EIC: "
                         "sltsta -> 0x%02"PRIx16"\n",
                         sltsta);
+    }
+
+    /*
+     * If the slot is polulated, power indicator is off and power
+     * controller is off, it is safe to detach the devices.
+     */
+    if ((sltsta & PCI_EXP_SLTSTA_PDS) && (val & PCI_EXP_SLTCTL_PCC) &&
+        ((val & PCI_EXP_SLTCTL_PIC_OFF) == PCI_EXP_SLTCTL_PIC_OFF)) {
+            PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(dev));
+            pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
+                                pcie_unplug_device, NULL);
+
+            pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
+                                         PCI_EXP_SLTSTA_PDS);
+            pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
+                                       PCI_EXP_SLTSTA_PDC);
     }
 
     hotplug_event_notify(dev);

@@ -12,6 +12,7 @@
 #include "qemu-common.h"
 #include "hw/qdev.h"
 #include "hw/ptimer.h"
+#include "qemu/main-loop.h"
 
 /* Common timer implementation.  */
 
@@ -149,8 +150,7 @@ static const VMStateDescription vmstate_arm_timer = {
     .name = "arm_timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(control, arm_timer_state),
         VMSTATE_UINT32(limit, arm_timer_state),
         VMSTATE_INT32(int_level, arm_timer_state),
@@ -179,14 +179,18 @@ static arm_timer_state *arm_timer_init(uint32_t freq)
  * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0271d/index.html
 */
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_SP804 "sp804"
+#define SP804(obj) OBJECT_CHECK(SP804State, (obj), TYPE_SP804)
+
+typedef struct SP804State {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     arm_timer_state *timer[2];
     uint32_t freq0, freq1;
     int level[2];
     qemu_irq irq;
-} sp804_state;
+} SP804State;
 
 static const uint8_t sp804_ids[] = {
     /* Timer ID */
@@ -198,7 +202,7 @@ static const uint8_t sp804_ids[] = {
 /* Merge the IRQs from the two component devices.  */
 static void sp804_set_irq(void *opaque, int irq, int level)
 {
-    sp804_state *s = (sp804_state *)opaque;
+    SP804State *s = (SP804State *)opaque;
 
     s->level[irq] = level;
     qemu_set_irq(s->irq, s->level[0] || s->level[1]);
@@ -207,7 +211,7 @@ static void sp804_set_irq(void *opaque, int irq, int level)
 static uint64_t sp804_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    sp804_state *s = (sp804_state *)opaque;
+    SP804State *s = (SP804State *)opaque;
 
     if (offset < 0x20) {
         return arm_timer_read(s->timer[0], offset);
@@ -239,7 +243,7 @@ static uint64_t sp804_read(void *opaque, hwaddr offset,
 static void sp804_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    sp804_state *s = (sp804_state *)opaque;
+    SP804State *s = (SP804State *)opaque;
 
     if (offset < 0x20) {
         arm_timer_write(s->timer[0], offset, value);
@@ -266,34 +270,40 @@ static const VMStateDescription vmstate_sp804 = {
     .name = "sp804",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
-        VMSTATE_INT32_ARRAY(level, sp804_state, 2),
+    .fields = (VMStateField[]) {
+        VMSTATE_INT32_ARRAY(level, SP804State, 2),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static int sp804_init(SysBusDevice *dev)
+static int sp804_init(SysBusDevice *sbd)
 {
-    sp804_state *s = FROM_SYSBUS(sp804_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    SP804State *s = SP804(dev);
     qemu_irq *qi;
 
     qi = qemu_allocate_irqs(sp804_set_irq, s, 2);
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
     s->timer[0] = arm_timer_init(s->freq0);
     s->timer[1] = arm_timer_init(s->freq1);
     s->timer[0]->irq = qi[0];
     s->timer[1]->irq = qi[1];
-    memory_region_init_io(&s->iomem, &sp804_ops, s, "sp804", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    vmstate_register(&dev->qdev, -1, &vmstate_sp804, s);
+    memory_region_init_io(&s->iomem, OBJECT(s), &sp804_ops, s,
+                          "sp804", 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem);
+    vmstate_register(dev, -1, &vmstate_sp804, s);
     return 0;
 }
 
 /* Integrator/CP timer module.  */
 
+#define TYPE_INTEGRATOR_PIT "integrator_pit"
+#define INTEGRATOR_PIT(obj) \
+    OBJECT_CHECK(icp_pit_state, (obj), TYPE_INTEGRATOR_PIT)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     arm_timer_state *timer[3];
 } icp_pit_state;
@@ -308,6 +318,7 @@ static uint64_t icp_pit_read(void *opaque, hwaddr offset,
     n = offset >> 8;
     if (n > 2) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad timer %d\n", __func__, n);
+        return 0;
     }
 
     return arm_timer_read(s->timer[n], offset & 0xff);
@@ -322,6 +333,7 @@ static void icp_pit_write(void *opaque, hwaddr offset,
     n = offset >> 8;
     if (n > 2) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad timer %d\n", __func__, n);
+        return;
     }
 
     arm_timer_write(s->timer[n], offset & 0xff, value);
@@ -335,7 +347,7 @@ static const MemoryRegionOps icp_pit_ops = {
 
 static int icp_pit_init(SysBusDevice *dev)
 {
-    icp_pit_state *s = FROM_SYSBUS(icp_pit_state, dev);
+    icp_pit_state *s = INTEGRATOR_PIT(dev);
 
     /* Timer 0 runs at the system clock speed (40MHz).  */
     s->timer[0] = arm_timer_init(40000000);
@@ -347,7 +359,8 @@ static int icp_pit_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->timer[1]->irq);
     sysbus_init_irq(dev, &s->timer[2]->irq);
 
-    memory_region_init_io(&s->iomem, &icp_pit_ops, s, "icp_pit", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &icp_pit_ops, s,
+                          "icp_pit", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     /* This device has no state to save/restore.  The component timers will
        save themselves.  */
@@ -362,15 +375,15 @@ static void icp_pit_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo icp_pit_info = {
-    .name          = "integrator_pit",
+    .name          = TYPE_INTEGRATOR_PIT,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(icp_pit_state),
     .class_init    = icp_pit_class_init,
 };
 
 static Property sp804_properties[] = {
-    DEFINE_PROP_UINT32("freq0", sp804_state, freq0, 1000000),
-    DEFINE_PROP_UINT32("freq1", sp804_state, freq1, 1000000),
+    DEFINE_PROP_UINT32("freq0", SP804State, freq0, 1000000),
+    DEFINE_PROP_UINT32("freq1", SP804State, freq1, 1000000),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -384,9 +397,9 @@ static void sp804_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo sp804_info = {
-    .name          = "sp804",
+    .name          = TYPE_SP804,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(sp804_state),
+    .instance_size = sizeof(SP804State),
     .class_init    = sp804_class_init,
 };
 

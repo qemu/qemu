@@ -18,8 +18,12 @@
 #define PUV3_DMA_CH_MASK        (0xff)
 #define PUV3_DMA_CH(offset)     ((offset) >> 8)
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_PUV3_DMA "puv3_dma"
+#define PUV3_DMA(obj) OBJECT_CHECK(PUV3DMAState, (obj), TYPE_PUV3_DMA)
+
+typedef struct PUV3DMAState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t reg_CFG[PUV3_DMA_CH_NR];
 } PUV3DMAState;
@@ -73,14 +77,14 @@ static const MemoryRegionOps puv3_dma_ops = {
 
 static int puv3_dma_init(SysBusDevice *dev)
 {
-    PUV3DMAState *s = FROM_SYSBUS(PUV3DMAState, dev);
+    PUV3DMAState *s = PUV3_DMA(dev);
     int i;
 
     for (i = 0; i < PUV3_DMA_CH_NR; i++) {
         s->reg_CFG[i] = 0x0;
     }
 
-    memory_region_init_io(&s->iomem, &puv3_dma_ops, s, "puv3_dma",
+    memory_region_init_io(&s->iomem, OBJECT(s), &puv3_dma_ops, s, "puv3_dma",
             PUV3_REGS_OFFSET);
     sysbus_init_mmio(dev, &s->iomem);
 
@@ -95,7 +99,7 @@ static void puv3_dma_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo puv3_dma_info = {
-    .name = "puv3_dma",
+    .name = TYPE_PUV3_DMA,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PUV3DMAState),
     .class_init = puv3_dma_class_init,

@@ -36,9 +36,9 @@
  * endian architectures.
  */
 
-int slow_bitmap_empty(const unsigned long *bitmap, int bits)
+int slow_bitmap_empty(const unsigned long *bitmap, long bits)
 {
-    int k, lim = bits/BITS_PER_LONG;
+    long k, lim = bits/BITS_PER_LONG;
 
     for (k = 0; k < lim; ++k) {
         if (bitmap[k]) {
@@ -54,9 +54,9 @@ int slow_bitmap_empty(const unsigned long *bitmap, int bits)
     return 1;
 }
 
-int slow_bitmap_full(const unsigned long *bitmap, int bits)
+int slow_bitmap_full(const unsigned long *bitmap, long bits)
 {
-    int k, lim = bits/BITS_PER_LONG;
+    long k, lim = bits/BITS_PER_LONG;
 
     for (k = 0; k < lim; ++k) {
         if (~bitmap[k]) {
@@ -74,9 +74,9 @@ int slow_bitmap_full(const unsigned long *bitmap, int bits)
 }
 
 int slow_bitmap_equal(const unsigned long *bitmap1,
-                      const unsigned long *bitmap2, int bits)
+                      const unsigned long *bitmap2, long bits)
 {
-    int k, lim = bits/BITS_PER_LONG;
+    long k, lim = bits/BITS_PER_LONG;
 
     for (k = 0; k < lim; ++k) {
         if (bitmap1[k] != bitmap2[k]) {
@@ -94,9 +94,9 @@ int slow_bitmap_equal(const unsigned long *bitmap1,
 }
 
 void slow_bitmap_complement(unsigned long *dst, const unsigned long *src,
-                            int bits)
+                            long bits)
 {
-    int k, lim = bits/BITS_PER_LONG;
+    long k, lim = bits/BITS_PER_LONG;
 
     for (k = 0; k < lim; ++k) {
         dst[k] = ~src[k];
@@ -108,10 +108,10 @@ void slow_bitmap_complement(unsigned long *dst, const unsigned long *src,
 }
 
 int slow_bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
-                    const unsigned long *bitmap2, int bits)
+                    const unsigned long *bitmap2, long bits)
 {
-    int k;
-    int nr = BITS_TO_LONGS(bits);
+    long k;
+    long nr = BITS_TO_LONGS(bits);
     unsigned long result = 0;
 
     for (k = 0; k < nr; k++) {
@@ -121,10 +121,10 @@ int slow_bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
 }
 
 void slow_bitmap_or(unsigned long *dst, const unsigned long *bitmap1,
-                    const unsigned long *bitmap2, int bits)
+                    const unsigned long *bitmap2, long bits)
 {
-    int k;
-    int nr = BITS_TO_LONGS(bits);
+    long k;
+    long nr = BITS_TO_LONGS(bits);
 
     for (k = 0; k < nr; k++) {
         dst[k] = bitmap1[k] | bitmap2[k];
@@ -132,10 +132,10 @@ void slow_bitmap_or(unsigned long *dst, const unsigned long *bitmap1,
 }
 
 void slow_bitmap_xor(unsigned long *dst, const unsigned long *bitmap1,
-                     const unsigned long *bitmap2, int bits)
+                     const unsigned long *bitmap2, long bits)
 {
-    int k;
-    int nr = BITS_TO_LONGS(bits);
+    long k;
+    long nr = BITS_TO_LONGS(bits);
 
     for (k = 0; k < nr; k++) {
         dst[k] = bitmap1[k] ^ bitmap2[k];
@@ -143,10 +143,10 @@ void slow_bitmap_xor(unsigned long *dst, const unsigned long *bitmap1,
 }
 
 int slow_bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
-                       const unsigned long *bitmap2, int bits)
+                       const unsigned long *bitmap2, long bits)
 {
-    int k;
-    int nr = BITS_TO_LONGS(bits);
+    long k;
+    long nr = BITS_TO_LONGS(bits);
     unsigned long result = 0;
 
     for (k = 0; k < nr; k++) {
@@ -157,10 +157,10 @@ int slow_bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
 
 #define BITMAP_FIRST_WORD_MASK(start) (~0UL << ((start) % BITS_PER_LONG))
 
-void bitmap_set(unsigned long *map, int start, int nr)
+void bitmap_set(unsigned long *map, long start, long nr)
 {
     unsigned long *p = map + BIT_WORD(start);
-    const int size = start + nr;
+    const long size = start + nr;
     int bits_to_set = BITS_PER_LONG - (start % BITS_PER_LONG);
     unsigned long mask_to_set = BITMAP_FIRST_WORD_MASK(start);
 
@@ -177,10 +177,10 @@ void bitmap_set(unsigned long *map, int start, int nr)
     }
 }
 
-void bitmap_clear(unsigned long *map, int start, int nr)
+void bitmap_clear(unsigned long *map, long start, long nr)
 {
     unsigned long *p = map + BIT_WORD(start);
-    const int size = start + nr;
+    const long size = start + nr;
     int bits_to_clear = BITS_PER_LONG - (start % BITS_PER_LONG);
     unsigned long mask_to_clear = BITMAP_FIRST_WORD_MASK(start);
 
@@ -212,10 +212,10 @@ void bitmap_clear(unsigned long *map, int start, int nr)
  * power of 2. A @align_mask of 0 means no alignment is required.
  */
 unsigned long bitmap_find_next_zero_area(unsigned long *map,
-					 unsigned long size,
-					 unsigned long start,
-					 unsigned int nr,
-					 unsigned long align_mask)
+                                         unsigned long size,
+                                         unsigned long start,
+                                         unsigned long nr,
+                                         unsigned long align_mask)
 {
     unsigned long index, end, i;
 again:
@@ -237,9 +237,9 @@ again:
 }
 
 int slow_bitmap_intersects(const unsigned long *bitmap1,
-                           const unsigned long *bitmap2, int bits)
+                           const unsigned long *bitmap2, long bits)
 {
-    int k, lim = bits/BITS_PER_LONG;
+    long k, lim = bits/BITS_PER_LONG;
 
     for (k = 0; k < lim; ++k) {
         if (bitmap1[k] & bitmap2[k]) {

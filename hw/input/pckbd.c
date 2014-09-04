@@ -281,7 +281,7 @@ static void kbd_write_command(void *opaque, hwaddr addr,
         kbd_update_irq(s);
         break;
     case KBD_CCMD_READ_INPORT:
-        kbd_queue(s, 0x00, 0);
+        kbd_queue(s, 0x80, 0);
         break;
     case KBD_CCMD_READ_OUTPORT:
         kbd_queue(s, s->outport, 0);
@@ -373,8 +373,7 @@ static const VMStateDescription vmstate_kbd = {
     .name = "pckbd",
     .version_id = 3,
     .minimum_version_id = 3,
-    .minimum_version_id_old = 3,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT8(write_cmd, KBDState),
         VMSTATE_UINT8(status, KBDState),
         VMSTATE_UINT8(mode, KBDState),
@@ -424,7 +423,7 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
 
     vmstate_register(NULL, 0, &vmstate_kbd, s);
 
-    memory_region_init_io(region, &i8042_mmio_ops, s, "i8042", size);
+    memory_region_init_io(region, NULL, &i8042_mmio_ops, s, "i8042", size);
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
     s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);
@@ -462,8 +461,7 @@ static const VMStateDescription vmstate_kbd_isa = {
     .name = "pckbd",
     .version_id = 3,
     .minimum_version_id = 3,
-    .minimum_version_id_old = 3,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_STRUCT(kbd, ISAKBDState, 0, vmstate_kbd, KBDState),
         VMSTATE_END_OF_LIST()
     }
@@ -489,32 +487,39 @@ static const MemoryRegionOps i8042_cmd_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int i8042_initfn(ISADevice *dev)
+static void i8042_initfn(Object *obj)
 {
+    ISAKBDState *isa_s = I8042(obj);
+    KBDState *s = &isa_s->kbd;
+
+    memory_region_init_io(isa_s->io + 0, obj, &i8042_data_ops, s,
+                          "i8042-data", 1);
+    memory_region_init_io(isa_s->io + 1, obj, &i8042_cmd_ops, s,
+                          "i8042-cmd", 1);
+}
+
+static void i8042_realizefn(DeviceState *dev, Error **errp)
+{
+    ISADevice *isadev = ISA_DEVICE(dev);
     ISAKBDState *isa_s = I8042(dev);
     KBDState *s = &isa_s->kbd;
 
-    isa_init_irq(dev, &s->irq_kbd, 1);
-    isa_init_irq(dev, &s->irq_mouse, 12);
+    isa_init_irq(isadev, &s->irq_kbd, 1);
+    isa_init_irq(isadev, &s->irq_mouse, 12);
 
-    memory_region_init_io(isa_s->io + 0, &i8042_data_ops, s, "i8042-data", 1);
-    isa_register_ioport(dev, isa_s->io + 0, 0x60);
-
-    memory_region_init_io(isa_s->io + 1, &i8042_cmd_ops, s, "i8042-cmd", 1);
-    isa_register_ioport(dev, isa_s->io + 1, 0x64);
+    isa_register_ioport(isadev, isa_s->io + 0, 0x60);
+    isa_register_ioport(isadev, isa_s->io + 1, 0x64);
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
     s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);
     qemu_register_reset(kbd_reset, s);
-    return 0;
 }
 
 static void i8042_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = i8042_initfn;
-    dc->no_user = 1;
+
+    dc->realize = i8042_realizefn;
     dc->vmsd = &vmstate_kbd_isa;
 }
 
@@ -522,6 +527,7 @@ static const TypeInfo i8042_info = {
     .name          = TYPE_I8042,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAKBDState),
+    .instance_init = i8042_initfn,
     .class_init    = i8042_class_initfn,
 };
 

@@ -97,7 +97,7 @@ typedef struct Exynos4210State {
     MemoryRegion dram1_mem;
     MemoryRegion boot_secondary;
     MemoryRegion bootreg_mem;
-    i2c_bus *i2c_if[EXYNOS4210_I2C_NUMBER];
+    I2CBus *i2c_if[EXYNOS4210_I2C_NUMBER];
 } Exynos4210State;
 
 void exynos4210_write_secondary(ARMCPU *cpu,

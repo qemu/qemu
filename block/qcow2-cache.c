@@ -115,6 +115,21 @@ static int qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
     }
 
     if (c == s->refcount_block_cache) {
+        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_REFCOUNT_BLOCK,
+                c->entries[i].offset, s->cluster_size);
+    } else if (c == s->l2_table_cache) {
+        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_ACTIVE_L2,
+                c->entries[i].offset, s->cluster_size);
+    } else {
+        ret = qcow2_pre_write_overlap_check(bs, 0,
+                c->entries[i].offset, s->cluster_size);
+    }
+
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (c == s->refcount_block_cache) {
         BLKDBG_EVENT(bs->file, BLKDBG_REFBLOCK_UPDATE_PART);
     } else if (c == s->l2_table_cache) {
         BLKDBG_EVENT(bs->file, BLKDBG_L2_UPDATE);
@@ -183,6 +198,24 @@ int qcow2_cache_set_dependency(BlockDriverState *bs, Qcow2Cache *c,
 void qcow2_cache_depends_on_flush(Qcow2Cache *c)
 {
     c->depends_on_flush = true;
+}
+
+int qcow2_cache_empty(BlockDriverState *bs, Qcow2Cache *c)
+{
+    int ret, i;
+
+    ret = qcow2_cache_flush(bs, c);
+    if (ret < 0) {
+        return ret;
+    }
+
+    for (i = 0; i < c->size; i++) {
+        assert(c->entries[i].ref == 0);
+        c->entries[i].offset = 0;
+        c->entries[i].cache_hits = 0;
+    }
+
+    return 0;
 }
 
 static int qcow2_cache_find_entry_to_replace(Qcow2Cache *c)

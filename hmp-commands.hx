@@ -11,7 +11,7 @@ ETEXI
 
     {
         .name       = "help|?",
-        .args_type  = "name:s?",
+        .args_type  = "name:S?",
         .params     = "[cmd]",
         .help       = "show the help",
         .mhandler.cmd = do_help_cmd,
@@ -35,6 +35,11 @@ STEXI
 @item commit
 @findex commit
 Commit changes to the disk images (if -snapshot is used) or backing files.
+If the backing file is smaller than the snapshot, then the backing file will be
+resized to be the same size as the snapshot.  If the snapshot is smaller than
+the backing file, the backing file will not be truncated.  If you want the
+backing file to match the size of the smaller snapshot, you can safely truncate
+it yourself once the commit operation successfully completes.
 ETEXI
 
     {
@@ -171,7 +176,7 @@ ETEXI
 
     {
         .name       = "drive_del",
-        .args_type  = "id:s",
+        .args_type  = "id:B",
         .params     = "device",
         .help       = "remove host block device",
         .user_print = monitor_user_noop,
@@ -330,6 +335,7 @@ ETEXI
         .params     = "tag|id",
         .help       = "restore a VM snapshot from its tag or id",
         .mhandler.cmd = do_loadvm,
+        .command_completion = loadvm_completion,
     },
 
 STEXI
@@ -345,6 +351,7 @@ ETEXI
         .params     = "tag|id",
         .help       = "delete a VM snapshot from its tag or id",
         .mhandler.cmd = do_delvm,
+        .command_completion = delvm_completion,
     },
 
 STEXI
@@ -551,6 +558,7 @@ ETEXI
         .params     = "keys [hold_ms]",
         .help       = "send keys to the VM (e.g. 'sendkey ctrl-alt-f1', default hold time=100 ms)",
         .mhandler.cmd = hmp_send_key,
+        .command_completion = sendkey_completion,
     },
 
 STEXI
@@ -653,6 +661,7 @@ ETEXI
         .help       = "add device, like -device on the command line",
         .user_print = monitor_user_noop,
         .mhandler.cmd_new = do_device_add,
+        .command_completion = device_add_completion,
     },
 
 STEXI
@@ -668,6 +677,7 @@ ETEXI
         .params     = "device",
         .help       = "remove device",
         .mhandler.cmd = hmp_device_del,
+        .command_completion = device_del_completion,
     },
 
 STEXI
@@ -822,7 +832,7 @@ The values that can be specified here depend on the machine type, but are
 the same that can be specified in the @code{-boot} command line option.
 ETEXI
 
-#if defined(TARGET_I386)
+#if defined(TARGET_I386) || defined(TARGET_S390X)
     {
         .name       = "nmi",
         .args_type  = "",
@@ -834,7 +844,7 @@ ETEXI
 STEXI
 @item nmi @var{cpu}
 @findex nmi
-Inject an NMI on the given CPU (x86 only).
+Inject an NMI (x86) or RESTART (s390x) on the given CPU.
 
 ETEXI
 
@@ -844,6 +854,7 @@ ETEXI
         .params     = "device data",
         .help       = "Write to a ring buffer character device",
         .mhandler.cmd = hmp_ringbuf_write,
+        .command_completion = ringbuf_write_completion,
     },
 
 STEXI
@@ -860,6 +871,7 @@ ETEXI
         .params     = "device size",
         .help       = "Read from a ring buffer character device",
         .mhandler.cmd = hmp_ringbuf_read,
+        .command_completion = ringbuf_write_completion,
     },
 
 STEXI
@@ -965,6 +977,7 @@ ETEXI
         .params     = "capability state",
         .help       = "Enable/Disable the usage of a capability for migration",
         .mhandler.cmd = hmp_migrate_set_capability,
+        .command_completion = migrate_set_capability_completion,
     },
 
 STEXI
@@ -991,31 +1004,37 @@ server will ask the spice/vnc client to automatically reconnect using the
 new parameters (if specified) once the vm migration finished successfully.
 ETEXI
 
-#if defined(CONFIG_HAVE_CORE_DUMP)
     {
         .name       = "dump-guest-memory",
-        .args_type  = "paging:-p,filename:F,begin:i?,length:i?",
-        .params     = "[-p] filename [begin] [length]",
-        .help       = "dump guest memory to file"
-                      "\n\t\t\t begin(optional): the starting physical address"
-                      "\n\t\t\t length(optional): the memory size, in bytes",
+        .args_type  = "paging:-p,zlib:-z,lzo:-l,snappy:-s,filename:F,begin:i?,length:i?",
+        .params     = "[-p] [-z|-l|-s] filename [begin length]",
+        .help       = "dump guest memory into file 'filename'.\n\t\t\t"
+                      "-p: do paging to get guest's memory mapping.\n\t\t\t"
+                      "-z: dump in kdump-compressed format, with zlib compression.\n\t\t\t"
+                      "-l: dump in kdump-compressed format, with lzo compression.\n\t\t\t"
+                      "-s: dump in kdump-compressed format, with snappy compression.\n\t\t\t"
+                      "begin: the starting physical address.\n\t\t\t"
+                      "length: the memory size, in bytes.",
         .mhandler.cmd = hmp_dump_guest_memory,
     },
 
 
 STEXI
-@item dump-guest-memory [-p] @var{protocol} @var{begin} @var{length}
+@item dump-guest-memory [-p] @var{filename} @var{begin} @var{length}
+@item dump-guest-memory [-z|-l|-s] @var{filename}
 @findex dump-guest-memory
 Dump guest memory to @var{protocol}. The file can be processed with crash or
-gdb.
-  filename: dump file name
-    paging: do paging to get guest's memory mapping
+gdb. Without -z|-l|-s, the dump format is ELF.
+        -p: do paging to get guest's memory mapping.
+        -z: dump in kdump-compressed format, with zlib compression.
+        -l: dump in kdump-compressed format, with lzo compression.
+        -s: dump in kdump-compressed format, with snappy compression.
+  filename: dump file name.
      begin: the starting physical address. It's optional, and should be
-            specified with length together.
+            specified together with length.
     length: the memory size, in bytes. It's optional, and should be specified
-            with begin together.
+            together with begin.
 ETEXI
-#endif
 
     {
         .name       = "snapshot_blkdev",
@@ -1025,8 +1044,7 @@ ETEXI
                       "of device. If a new image file is specified, the\n\t\t\t"
                       "new image file will become the new root image.\n\t\t\t"
                       "If format is specified, the snapshot file will\n\t\t\t"
-                      "be created in that format. Otherwise the\n\t\t\t"
-                      "snapshot will be internal! (currently unsupported).\n\t\t\t"
+                      "be created in that format.\n\t\t\t"
                       "The default format is qcow2.  The -n flag requests QEMU\n\t\t\t"
                       "to reuse the image found in new-image-file, instead of\n\t\t\t"
                       "recreating it from scratch.",
@@ -1037,6 +1055,40 @@ STEXI
 @item snapshot_blkdev
 @findex snapshot_blkdev
 Snapshot device, using snapshot file as target if provided
+ETEXI
+
+    {
+        .name       = "snapshot_blkdev_internal",
+        .args_type  = "device:B,name:s",
+        .params     = "device name",
+        .help       = "take an internal snapshot of device.\n\t\t\t"
+                      "The format of the image used by device must\n\t\t\t"
+                      "support it, such as qcow2.\n\t\t\t",
+        .mhandler.cmd = hmp_snapshot_blkdev_internal,
+    },
+
+STEXI
+@item snapshot_blkdev_internal
+@findex snapshot_blkdev_internal
+Take an internal snapshot on device if it support
+ETEXI
+
+    {
+        .name       = "snapshot_delete_blkdev_internal",
+        .args_type  = "device:B,name:s,id:s?",
+        .params     = "device name [id]",
+        .help       = "delete an internal snapshot of device.\n\t\t\t"
+                      "If id is specified, qemu will try delete\n\t\t\t"
+                      "the snapshot matching both id and name.\n\t\t\t"
+                      "The format of the image used by device must\n\t\t\t"
+                      "support it, such as qcow2.\n\t\t\t",
+        .mhandler.cmd = hmp_snapshot_delete_blkdev_internal,
+    },
+
+STEXI
+@item snapshot_delete_blkdev_internal
+@findex snapshot_delete_blkdev_internal
+Delete an internal snapshot on device if it support
 ETEXI
 
     {
@@ -1061,6 +1113,26 @@ using the specified target.
 ETEXI
 
     {
+        .name       = "drive_backup",
+        .args_type  = "reuse:-n,full:-f,device:B,target:s,format:s?",
+        .params     = "[-n] [-f] device target [format]",
+        .help       = "initiates a point-in-time\n\t\t\t"
+                      "copy for a device. The device's contents are\n\t\t\t"
+                      "copied to the new image file, excluding data that\n\t\t\t"
+                      "is written after the command is started.\n\t\t\t"
+                      "The -n flag requests QEMU to reuse the image found\n\t\t\t"
+                      "in new-image-file, instead of recreating it from scratch.\n\t\t\t"
+                      "The -f flag requests QEMU to copy the whole disk,\n\t\t\t"
+                      "so that the result does not need a backing file.\n\t\t\t",
+        .mhandler.cmd = hmp_drive_backup,
+    },
+STEXI
+@item drive_backup
+@findex drive_backup
+Start a point-in-time copy of a block device to a specificed target.
+ETEXI
+
+    {
         .name       = "drive_add",
         .args_type  = "pci_addr:s,opts:s",
         .params     = "[[<domain>:]<bus>:]<slot>\n"
@@ -1079,7 +1151,7 @@ STEXI
 Add drive to PCI storage controller.
 ETEXI
 
-#if defined(TARGET_I386)
+#if defined(CONFIG_PCI_HOTPLUG_OLD)
     {
         .name       = "pci_add",
         .args_type  = "pci_addr:s,type:s,opts:s?",
@@ -1095,7 +1167,7 @@ STEXI
 Hot-add PCI device.
 ETEXI
 
-#if defined(TARGET_I386)
+#if defined(CONFIG_PCI_HOTPLUG_OLD)
     {
         .name       = "pci_del",
         .args_type  = "pci_addr:s",
@@ -1139,9 +1211,10 @@ ETEXI
     {
         .name       = "host_net_add",
         .args_type  = "device:s,opts:s?",
-        .params     = "tap|user|socket|vde|dump [options]",
+        .params     = "tap|user|socket|vde|netmap|bridge|vhost-user|dump [options]",
         .help       = "add host VLAN client",
         .mhandler.cmd = net_host_device_add,
+        .command_completion = host_net_add_completion,
     },
 
 STEXI
@@ -1156,6 +1229,7 @@ ETEXI
         .params     = "vlan_id name",
         .help       = "remove host VLAN client",
         .mhandler.cmd = net_host_device_remove,
+        .command_completion = host_net_remove_completion,
     },
 
 STEXI
@@ -1167,9 +1241,10 @@ ETEXI
     {
         .name       = "netdev_add",
         .args_type  = "netdev:O",
-        .params     = "[user|tap|socket|hubport],id=str[,prop=value][,...]",
+        .params     = "[user|tap|socket|vde|bridge|hubport|netmap|vhost-user],id=str[,prop=value][,...]",
         .help       = "add host network device",
         .mhandler.cmd = hmp_netdev_add,
+        .command_completion = netdev_add_completion,
     },
 
 STEXI
@@ -1184,12 +1259,43 @@ ETEXI
         .params     = "id",
         .help       = "remove host network device",
         .mhandler.cmd = hmp_netdev_del,
+        .command_completion = netdev_del_completion,
     },
 
 STEXI
 @item netdev_del
 @findex netdev_del
 Remove host network device.
+ETEXI
+
+    {
+        .name       = "object_add",
+        .args_type  = "object:O",
+        .params     = "[qom-type=]type,id=str[,prop=value][,...]",
+        .help       = "create QOM object",
+        .mhandler.cmd = hmp_object_add,
+        .command_completion = object_add_completion,
+    },
+
+STEXI
+@item object_add
+@findex object_add
+Create QOM object.
+ETEXI
+
+    {
+        .name       = "object_del",
+        .args_type  = "id:s",
+        .params     = "id",
+        .help       = "destroy QOM object",
+        .mhandler.cmd = hmp_object_del,
+        .command_completion = object_del_completion,
+    },
+
+STEXI
+@item object_del
+@findex object_del
+Destroy QOM object.
 ETEXI
 
 #ifdef CONFIG_SLIRP
@@ -1243,6 +1349,7 @@ ETEXI
         .params     = "name on|off",
         .help       = "change the link status of a network adapter",
         .mhandler.cmd = hmp_set_link,
+        .command_completion = set_link_completion,
     },
 
 STEXI
@@ -1257,6 +1364,7 @@ ETEXI
         .params     = "[reset|shutdown|poweroff|pause|debug|none]",
         .help       = "change watchdog action",
         .mhandler.cmd = do_watchdog_action,
+        .command_completion = watchdog_action_completion,
     },
 
 STEXI
@@ -1526,6 +1634,7 @@ ETEXI
         .params     = "args",
         .help       = "add chardev",
         .mhandler.cmd = hmp_chardev_add,
+        .command_completion = chardev_add_completion,
     },
 
 STEXI
@@ -1542,6 +1651,7 @@ ETEXI
         .params     = "id",
         .help       = "remove chardev",
         .mhandler.cmd = hmp_chardev_remove,
+        .command_completion = chardev_remove_completion,
     },
 
 STEXI
@@ -1550,6 +1660,35 @@ STEXI
 
 Removes the chardev @var{id}.
 
+ETEXI
+
+    {
+        .name       = "qemu-io",
+        .args_type  = "device:B,command:s",
+        .params     = "[device] \"[command]\"",
+        .help       = "run a qemu-io command on a block device",
+        .mhandler.cmd = hmp_qemu_io,
+    },
+
+STEXI
+@item qemu-io @var{device} @var{command}
+@findex qemu-io
+
+Executes a qemu-io command on the given block device.
+
+ETEXI
+
+    {
+        .name       = "cpu-add",
+        .args_type  = "id:i",
+        .params     = "id",
+        .help       = "add cpu",
+        .mhandler.cmd  = hmp_cpu_add,
+    },
+
+STEXI
+@item cpu-add @var{id}
+Add CPU with id @var{id}
 ETEXI
 
     {

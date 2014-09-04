@@ -128,7 +128,7 @@ static unsigned int get_counter(CUDATimer *s)
     int64_t d;
     unsigned int counter;
 
-    d = muldiv64(qemu_get_clock_ns(vm_clock) - s->load_time,
+    d = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - s->load_time,
                  CUDA_TIMER_FREQ, get_ticks_per_sec());
     if (s->index == 0) {
         /* the timer goes down from latch to -1 (period of latch + 2) */
@@ -147,7 +147,7 @@ static unsigned int get_counter(CUDATimer *s)
 static void set_counter(CUDAState *s, CUDATimer *ti, unsigned int val)
 {
     CUDA_DPRINTF("T%d.counter=%d\n", 1 + (ti->timer == NULL), val);
-    ti->load_time = qemu_get_clock_ns(vm_clock);
+    ti->load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     ti->counter_value = val;
     cuda_timer_update(s, ti, ti->load_time);
 }
@@ -191,10 +191,10 @@ static void cuda_timer_update(CUDAState *s, CUDATimer *ti,
     if (!ti->timer)
         return;
     if ((s->acr & T1MODE) != T1MODE_CONT) {
-        qemu_del_timer(ti->timer);
+        timer_del(ti->timer);
     } else {
         ti->next_irq_time = get_next_irq_time(ti, current_time);
-        qemu_mod_timer(ti->timer, ti->next_irq_time);
+        timer_mod(ti->timer, ti->next_irq_time);
     }
 }
 
@@ -304,7 +304,7 @@ static void cuda_writeb(void *opaque, hwaddr addr, uint32_t val)
         break;
     case 4:
         s->timers[0].latch = (s->timers[0].latch & 0xff00) | val;
-        cuda_timer_update(s, &s->timers[0], qemu_get_clock_ns(vm_clock));
+        cuda_timer_update(s, &s->timers[0], qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         break;
     case 5:
         s->timers[0].latch = (s->timers[0].latch & 0xff) | (val << 8);
@@ -313,12 +313,12 @@ static void cuda_writeb(void *opaque, hwaddr addr, uint32_t val)
         break;
     case 6:
         s->timers[0].latch = (s->timers[0].latch & 0xff00) | val;
-        cuda_timer_update(s, &s->timers[0], qemu_get_clock_ns(vm_clock));
+        cuda_timer_update(s, &s->timers[0], qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         break;
     case 7:
         s->timers[0].latch = (s->timers[0].latch & 0xff) | (val << 8);
         s->ifr &= ~T1_INT;
-        cuda_timer_update(s, &s->timers[0], qemu_get_clock_ns(vm_clock));
+        cuda_timer_update(s, &s->timers[0], qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         break;
     case 8:
         s->timers[1].latch = val;
@@ -332,7 +332,7 @@ static void cuda_writeb(void *opaque, hwaddr addr, uint32_t val)
         break;
     case 11:
         s->acr = val;
-        cuda_timer_update(s, &s->timers[0], qemu_get_clock_ns(vm_clock));
+        cuda_timer_update(s, &s->timers[0], qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         cuda_update(s);
         break;
     case 12:
@@ -463,8 +463,8 @@ static void cuda_adb_poll(void *opaque)
         obuf[1] = 0x40; /* polled data */
         cuda_send_packet_to_host(s, obuf, olen + 2);
     }
-    qemu_mod_timer(s->adb_poll_timer,
-                   qemu_get_clock_ns(vm_clock) +
+    timer_mod(s->adb_poll_timer,
+                   qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                    (get_ticks_per_sec() / CUDA_ADB_POLL_FREQ));
 }
 
@@ -481,11 +481,11 @@ static void cuda_receive_packet(CUDAState *s,
         if (autopoll != s->autopoll) {
             s->autopoll = autopoll;
             if (autopoll) {
-                qemu_mod_timer(s->adb_poll_timer,
-                               qemu_get_clock_ns(vm_clock) +
+                timer_mod(s->adb_poll_timer,
+                               qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                                (get_ticks_per_sec() / CUDA_ADB_POLL_FREQ));
             } else {
-                qemu_del_timer(s->adb_poll_timer);
+                timer_del(s->adb_poll_timer);
             }
         }
         obuf[0] = CUDA_PACKET;
@@ -494,14 +494,14 @@ static void cuda_receive_packet(CUDAState *s,
         break;
     case CUDA_SET_TIME:
         ti = (((uint32_t)data[1]) << 24) + (((uint32_t)data[2]) << 16) + (((uint32_t)data[3]) << 8) + data[4];
-        s->tick_offset = ti - (qemu_get_clock_ns(vm_clock) / get_ticks_per_sec());
+        s->tick_offset = ti - (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / get_ticks_per_sec());
         obuf[0] = CUDA_PACKET;
         obuf[1] = 0;
         obuf[2] = 0;
         cuda_send_packet_to_host(s, obuf, 3);
         break;
     case CUDA_GET_TIME:
-        ti = s->tick_offset + (qemu_get_clock_ns(vm_clock) / get_ticks_per_sec());
+        ti = s->tick_offset + (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / get_ticks_per_sec());
         obuf[0] = CUDA_PACKET;
         obuf[1] = 0;
         obuf[2] = 0;
@@ -617,8 +617,7 @@ static const VMStateDescription vmstate_cuda_timer = {
     .name = "cuda_timer",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT16(latch, CUDATimer),
         VMSTATE_UINT16(counter_value, CUDATimer),
         VMSTATE_INT64(load_time, CUDATimer),
@@ -632,8 +631,7 @@ static const VMStateDescription vmstate_cuda = {
     .name = "cuda",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT8(a, CUDAState),
         VMSTATE_UINT8(b, CUDAState),
         VMSTATE_UINT8(dira, CUDAState),
@@ -689,12 +687,12 @@ static void cuda_realizefn(DeviceState *dev, Error **errp)
     CUDAState *s = CUDA(dev);
     struct tm tm;
 
-    s->timers[0].timer = qemu_new_timer_ns(vm_clock, cuda_timer1, s);
+    s->timers[0].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_timer1, s);
 
     qemu_get_timedate(&tm, 0);
     s->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
 
-    s->adb_poll_timer = qemu_new_timer_ns(vm_clock, cuda_adb_poll, s);
+    s->adb_poll_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_adb_poll, s);
 }
 
 static void cuda_initfn(Object *obj)
@@ -703,7 +701,7 @@ static void cuda_initfn(Object *obj)
     CUDAState *s = CUDA(obj);
     int i;
 
-    memory_region_init_io(&s->mem, &cuda_ops, s, "cuda", 0x2000);
+    memory_region_init_io(&s->mem, NULL, &cuda_ops, s, "cuda", 0x2000);
     sysbus_init_mmio(d, &s->mem);
     sysbus_init_irq(d, &s->irq);
 
@@ -711,8 +709,8 @@ static void cuda_initfn(Object *obj)
         s->timers[i].index = i;
     }
 
-    qbus_create_inplace((BusState *)&s->adb_bus, TYPE_ADB_BUS, DEVICE(obj),
-                        "adb.0");
+    qbus_create_inplace(&s->adb_bus, sizeof(s->adb_bus), TYPE_ADB_BUS,
+                        DEVICE(obj), "adb.0");
 }
 
 static void cuda_class_init(ObjectClass *oc, void *data)

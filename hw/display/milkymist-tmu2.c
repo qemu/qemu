@@ -75,8 +75,13 @@ struct vertex {
     int y;
 } QEMU_PACKED;
 
+#define TYPE_MILKYMIST_TMU2 "milkymist-tmu2"
+#define MILKYMIST_TMU2(obj) \
+    OBJECT_CHECK(MilkymistTMU2State, (obj), TYPE_MILKYMIST_TMU2)
+
 struct MilkymistTMU2State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion regs_region;
     CharDriverState *chr;
     qemu_irq irq;
@@ -429,7 +434,7 @@ static const MemoryRegionOps tmu2_mmio_ops = {
 
 static void milkymist_tmu2_reset(DeviceState *d)
 {
-    MilkymistTMU2State *s = container_of(d, MilkymistTMU2State, busdev.qdev);
+    MilkymistTMU2State *s = MILKYMIST_TMU2(d);
     int i;
 
     for (i = 0; i < R_MAX; i++) {
@@ -439,7 +444,7 @@ static void milkymist_tmu2_reset(DeviceState *d)
 
 static int milkymist_tmu2_init(SysBusDevice *dev)
 {
-    MilkymistTMU2State *s = FROM_SYSBUS(typeof(*s), dev);
+    MilkymistTMU2State *s = MILKYMIST_TMU2(dev);
 
     if (tmu2_glx_init(s)) {
         return 1;
@@ -447,7 +452,7 @@ static int milkymist_tmu2_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    memory_region_init_io(&s->regs_region, &tmu2_mmio_ops, s,
+    memory_region_init_io(&s->regs_region, OBJECT(s), &tmu2_mmio_ops, s,
             "milkymist-tmu2", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 
@@ -458,8 +463,7 @@ static const VMStateDescription vmstate_milkymist_tmu2 = {
     .name = "milkymist-tmu2",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, MilkymistTMU2State, R_MAX),
         VMSTATE_END_OF_LIST()
     }
@@ -476,7 +480,7 @@ static void milkymist_tmu2_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo milkymist_tmu2_info = {
-    .name          = "milkymist-tmu2",
+    .name          = TYPE_MILKYMIST_TMU2,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistTMU2State),
     .class_init    = milkymist_tmu2_class_init,

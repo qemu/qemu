@@ -28,7 +28,8 @@ extern const uint32_t arch_type;
 
 void select_soundhw(const char *optarg);
 void do_acpitable_option(const QemuOpts *opts);
-void do_smbios_option(const char *optarg);
+void do_smbios_option(QemuOpts *opts);
+void ram_mig_init(void);
 void cpudef_init(void);
 void audio_init(void);
 int tcg_available(void);

@@ -53,7 +53,7 @@ extern char **environ;
 #endif
 #endif
 
-static void ga_wait_child(pid_t pid, int *status, Error **err)
+static void ga_wait_child(pid_t pid, int *status, Error **errp)
 {
     pid_t rpid;
 
@@ -64,14 +64,15 @@ static void ga_wait_child(pid_t pid, int *status, Error **err)
     } while (rpid == -1 && errno == EINTR);
 
     if (rpid == -1) {
-        error_setg_errno(err, errno, "failed to wait for child (pid: %d)", pid);
+        error_setg_errno(errp, errno, "failed to wait for child (pid: %d)",
+                         pid);
         return;
     }
 
     g_assert(rpid == pid);
 }
 
-void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
+void qmp_guest_shutdown(bool has_mode, const char *mode, Error **errp)
 {
     const char *shutdown_flag;
     Error *local_err = NULL;
@@ -86,7 +87,7 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
     } else if (strcmp(mode, "reboot") == 0) {
         shutdown_flag = "-r";
     } else {
-        error_setg(err,
+        error_setg(errp,
                    "mode is invalid (valid values are: halt|powerdown|reboot");
         return;
     }
@@ -99,27 +100,27 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
         reopen_fd_to_null(1);
         reopen_fd_to_null(2);
 
-        execle("/sbin/shutdown", "shutdown", shutdown_flag, "+0",
+        execle("/sbin/shutdown", "shutdown", "-h", shutdown_flag, "+0",
                "hypervisor initiated shutdown", (char*)NULL, environ);
         _exit(EXIT_FAILURE);
     } else if (pid < 0) {
-        error_setg_errno(err, errno, "failed to create child process");
+        error_setg_errno(errp, errno, "failed to create child process");
         return;
     }
 
     ga_wait_child(pid, &status, &local_err);
-    if (error_is_set(&local_err)) {
-        error_propagate(err, local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
     if (!WIFEXITED(status)) {
-        error_setg(err, "child process has terminated abnormally");
+        error_setg(errp, "child process has terminated abnormally");
         return;
     }
 
     if (WEXITSTATUS(status)) {
-        error_setg(err, "child process has failed to shutdown");
+        error_setg(errp, "child process has failed to shutdown");
         return;
     }
 
@@ -142,7 +143,7 @@ int64_t qmp_guest_get_time(Error **errp)
    return time_ns;
 }
 
-void qmp_guest_set_time(int64_t time_ns, Error **errp)
+void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 {
     int ret;
     int status;
@@ -150,22 +151,28 @@ void qmp_guest_set_time(int64_t time_ns, Error **errp)
     Error *local_err = NULL;
     struct timeval tv;
 
-    /* year-2038 will overflow in case time_t is 32bit */
-    if (time_ns / 1000000000 != (time_t)(time_ns / 1000000000)) {
-        error_setg(errp, "Time %" PRId64 " is too large", time_ns);
-        return;
+    /* If user has passed a time, validate and set it. */
+    if (has_time) {
+        /* year-2038 will overflow in case time_t is 32bit */
+        if (time_ns / 1000000000 != (time_t)(time_ns / 1000000000)) {
+            error_setg(errp, "Time %" PRId64 " is too large", time_ns);
+            return;
+        }
+
+        tv.tv_sec = time_ns / 1000000000;
+        tv.tv_usec = (time_ns % 1000000000) / 1000;
+
+        ret = settimeofday(&tv, NULL);
+        if (ret < 0) {
+            error_setg_errno(errp, errno, "Failed to set time to guest");
+            return;
+        }
     }
 
-    tv.tv_sec = time_ns / 1000000000;
-    tv.tv_usec = (time_ns % 1000000000) / 1000;
-
-    ret = settimeofday(&tv, NULL);
-    if (ret < 0) {
-        error_setg_errno(errp, errno, "Failed to set time to guest");
-        return;
-    }
-
-    /* Set the Hardware Clock to the current System Time. */
+    /* Now, if user has passed a time to set and the system time is set, we
+     * just need to synchronize the hardware clock. However, if no time was
+     * passed, user is requesting the opposite: set the system time from the
+     * hardware clock (RTC). */
     pid = fork();
     if (pid == 0) {
         setsid();
@@ -173,7 +180,10 @@ void qmp_guest_set_time(int64_t time_ns, Error **errp)
         reopen_fd_to_null(1);
         reopen_fd_to_null(2);
 
-        execle("/sbin/hwclock", "hwclock", "-w", NULL, environ);
+        /* Use '/sbin/hwclock -w' to set RTC from the system time,
+         * or '/sbin/hwclock -s' to set the system time from RTC. */
+        execle("/sbin/hwclock", "hwclock", has_time ? "-w" : "-s",
+               NULL, environ);
         _exit(EXIT_FAILURE);
     } else if (pid < 0) {
         error_setg_errno(errp, errno, "failed to create child process");
@@ -181,7 +191,7 @@ void qmp_guest_set_time(int64_t time_ns, Error **errp)
     }
 
     ga_wait_child(pid, &status, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
@@ -213,8 +223,8 @@ static int64_t guest_file_handle_add(FILE *fh, Error **errp)
     int64_t handle;
 
     handle = ga_get_fd_handle(ga_state, errp);
-    if (error_is_set(errp)) {
-        return 0;
+    if (handle < 0) {
+        return -1;
     }
 
     gfh = g_malloc0(sizeof(GuestFileHandle));
@@ -225,7 +235,7 @@ static int64_t guest_file_handle_add(FILE *fh, Error **errp)
     return handle;
 }
 
-static GuestFileHandle *guest_file_handle_find(int64_t id, Error **err)
+static GuestFileHandle *guest_file_handle_find(int64_t id, Error **errp)
 {
     GuestFileHandle *gfh;
 
@@ -236,7 +246,7 @@ static GuestFileHandle *guest_file_handle_find(int64_t id, Error **err)
         }
     }
 
-    error_setg(err, "handle '%" PRId64 "' has not been found", id);
+    error_setg(errp, "handle '%" PRId64 "' has not been found", id);
     return NULL;
 }
 
@@ -266,7 +276,7 @@ static const struct {
 };
 
 static int
-find_open_flag(const char *mode_str, Error **err)
+find_open_flag(const char *mode_str, Error **errp)
 {
     unsigned mode;
 
@@ -283,7 +293,7 @@ find_open_flag(const char *mode_str, Error **err)
     }
 
     if (mode == ARRAY_SIZE(guest_file_open_modes)) {
-        error_setg(err, "invalid file open mode '%s'", mode_str);
+        error_setg(errp, "invalid file open mode '%s'", mode_str);
         return -1;
     }
     return guest_file_open_modes[mode].oflag_base | O_NOCTTY | O_NONBLOCK;
@@ -294,7 +304,7 @@ find_open_flag(const char *mode_str, Error **err)
                                S_IROTH | S_IWOTH)
 
 static FILE *
-safe_open_or_create(const char *path, const char *mode, Error **err)
+safe_open_or_create(const char *path, const char *mode, Error **errp)
 {
     Error *local_err = NULL;
     int oflag;
@@ -361,11 +371,12 @@ safe_open_or_create(const char *path, const char *mode, Error **err)
         }
     }
 
-    error_propagate(err, local_err);
+    error_propagate(errp, local_err);
     return NULL;
 }
 
-int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode, Error **err)
+int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode,
+                            Error **errp)
 {
     FILE *fh;
     Error *local_err = NULL;
@@ -378,7 +389,7 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode, E
     slog("guest-file-open called, filepath: %s, mode: %s", path, mode);
     fh = safe_open_or_create(path, mode, &local_err);
     if (local_err != NULL) {
-        error_propagate(err, local_err);
+        error_propagate(errp, local_err);
         return -1;
     }
 
@@ -389,35 +400,35 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode, E
     ret = fcntl(fd, F_GETFL);
     ret = fcntl(fd, F_SETFL, ret | O_NONBLOCK);
     if (ret == -1) {
-        error_setg_errno(err, errno, "failed to make file '%s' non-blocking",
+        error_setg_errno(errp, errno, "failed to make file '%s' non-blocking",
                          path);
         fclose(fh);
         return -1;
     }
 
-    handle = guest_file_handle_add(fh, err);
-    if (error_is_set(err)) {
+    handle = guest_file_handle_add(fh, errp);
+    if (handle < 0) {
         fclose(fh);
         return -1;
     }
 
-    slog("guest-file-open, handle: %d", handle);
+    slog("guest-file-open, handle: %" PRId64, handle);
     return handle;
 }
 
-void qmp_guest_file_close(int64_t handle, Error **err)
+void qmp_guest_file_close(int64_t handle, Error **errp)
 {
-    GuestFileHandle *gfh = guest_file_handle_find(handle, err);
+    GuestFileHandle *gfh = guest_file_handle_find(handle, errp);
     int ret;
 
-    slog("guest-file-close called, handle: %ld", handle);
+    slog("guest-file-close called, handle: %" PRId64, handle);
     if (!gfh) {
         return;
     }
 
     ret = fclose(gfh->fh);
     if (ret == EOF) {
-        error_setg_errno(err, errno, "failed to close handle");
+        error_setg_errno(errp, errno, "failed to close handle");
         return;
     }
 
@@ -426,9 +437,9 @@ void qmp_guest_file_close(int64_t handle, Error **err)
 }
 
 struct GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
-                                          int64_t count, Error **err)
+                                          int64_t count, Error **errp)
 {
-    GuestFileHandle *gfh = guest_file_handle_find(handle, err);
+    GuestFileHandle *gfh = guest_file_handle_find(handle, errp);
     GuestFileRead *read_data = NULL;
     guchar *buf;
     FILE *fh;
@@ -441,7 +452,7 @@ struct GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
     if (!has_count) {
         count = QGA_READ_COUNT_DEFAULT;
     } else if (count < 0) {
-        error_setg(err, "value '%" PRId64 "' is invalid for argument count",
+        error_setg(errp, "value '%" PRId64 "' is invalid for argument count",
                    count);
         return NULL;
     }
@@ -450,8 +461,8 @@ struct GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
     buf = g_malloc0(count+1);
     read_count = fread(buf, 1, count, fh);
     if (ferror(fh)) {
-        error_setg_errno(err, errno, "failed to read file");
-        slog("guest-file-read failed, handle: %ld", handle);
+        error_setg_errno(errp, errno, "failed to read file");
+        slog("guest-file-read failed, handle: %" PRId64, handle);
     } else {
         buf[read_count] = 0;
         read_data = g_malloc0(sizeof(GuestFileRead));
@@ -468,13 +479,14 @@ struct GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
 }
 
 GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
-                                     bool has_count, int64_t count, Error **err)
+                                     bool has_count, int64_t count,
+                                     Error **errp)
 {
     GuestFileWrite *write_data = NULL;
     guchar *buf;
     gsize buf_len;
     int write_count;
-    GuestFileHandle *gfh = guest_file_handle_find(handle, err);
+    GuestFileHandle *gfh = guest_file_handle_find(handle, errp);
     FILE *fh;
 
     if (!gfh) {
@@ -487,7 +499,7 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
     if (!has_count) {
         count = buf_len;
     } else if (count < 0 || count > buf_len) {
-        error_setg(err, "value '%" PRId64 "' is invalid for argument count",
+        error_setg(errp, "value '%" PRId64 "' is invalid for argument count",
                    count);
         g_free(buf);
         return NULL;
@@ -495,8 +507,8 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
 
     write_count = fwrite(buf, 1, count, fh);
     if (ferror(fh)) {
-        error_setg_errno(err, errno, "failed to write to file");
-        slog("guest-file-write failed, handle: %ld", handle);
+        error_setg_errno(errp, errno, "failed to write to file");
+        slog("guest-file-write failed, handle: %" PRId64, handle);
     } else {
         write_data = g_malloc0(sizeof(GuestFileWrite));
         write_data->count = write_count;
@@ -509,9 +521,9 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
 }
 
 struct GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
-                                          int64_t whence, Error **err)
+                                          int64_t whence, Error **errp)
 {
-    GuestFileHandle *gfh = guest_file_handle_find(handle, err);
+    GuestFileHandle *gfh = guest_file_handle_find(handle, errp);
     GuestFileSeek *seek_data = NULL;
     FILE *fh;
     int ret;
@@ -523,9 +535,9 @@ struct GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
     fh = gfh->fh;
     ret = fseek(fh, offset, whence);
     if (ret == -1) {
-        error_setg_errno(err, errno, "failed to seek file");
+        error_setg_errno(errp, errno, "failed to seek file");
     } else {
-        seek_data = g_malloc0(sizeof(GuestFileRead));
+        seek_data = g_new0(GuestFileSeek, 1);
         seek_data->position = ftell(fh);
         seek_data->eof = feof(fh);
     }
@@ -534,9 +546,9 @@ struct GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
     return seek_data;
 }
 
-void qmp_guest_file_flush(int64_t handle, Error **err)
+void qmp_guest_file_flush(int64_t handle, Error **errp)
 {
-    GuestFileHandle *gfh = guest_file_handle_find(handle, err);
+    GuestFileHandle *gfh = guest_file_handle_find(handle, errp);
     FILE *fh;
     int ret;
 
@@ -547,7 +559,7 @@ void qmp_guest_file_flush(int64_t handle, Error **err)
     fh = gfh->fh;
     ret = fflush(fh);
     if (ret == EOF) {
-        error_setg_errno(err, errno, "failed to flush file");
+        error_setg_errno(errp, errno, "failed to flush file");
     }
 }
 
@@ -566,7 +578,7 @@ typedef struct FsMount {
     QTAILQ_ENTRY(FsMount) next;
 } FsMount;
 
-typedef QTAILQ_HEAD(, FsMount) FsMountList;
+typedef QTAILQ_HEAD(FsMountList, FsMount) FsMountList;
 
 static void free_fs_mount_list(FsMountList *mounts)
 {
@@ -587,7 +599,7 @@ static void free_fs_mount_list(FsMountList *mounts)
 /*
  * Walk the mount table and build a list of local file systems
  */
-static void build_fs_mount_list(FsMountList *mounts, Error **err)
+static void build_fs_mount_list(FsMountList *mounts, Error **errp)
 {
     struct mntent *ment;
     FsMount *mount;
@@ -596,7 +608,7 @@ static void build_fs_mount_list(FsMountList *mounts, Error **err)
 
     fp = setmntent(mtab, "r");
     if (!fp) {
-        error_setg(err, "failed to open mtab file: '%s'", mtab);
+        error_setg(errp, "failed to open mtab file: '%s'", mtab);
         return;
     }
 
@@ -631,12 +643,12 @@ typedef enum {
     FSFREEZE_HOOK_FREEZE,
 } FsfreezeHookArg;
 
-const char *fsfreeze_hook_arg_string[] = {
+static const char *fsfreeze_hook_arg_string[] = {
     "thaw",
     "freeze",
 };
 
-static void execute_fsfreeze_hook(FsfreezeHookArg arg, Error **err)
+static void execute_fsfreeze_hook(FsfreezeHookArg arg, Error **errp)
 {
     int status;
     pid_t pid;
@@ -649,7 +661,7 @@ static void execute_fsfreeze_hook(FsfreezeHookArg arg, Error **err)
         return;
     }
     if (access(hook, X_OK) != 0) {
-        error_setg_errno(err, errno, "can't access fsfreeze hook '%s'", hook);
+        error_setg_errno(errp, errno, "can't access fsfreeze hook '%s'", hook);
         return;
     }
 
@@ -664,24 +676,24 @@ static void execute_fsfreeze_hook(FsfreezeHookArg arg, Error **err)
         execle(hook, hook, arg_str, NULL, environ);
         _exit(EXIT_FAILURE);
     } else if (pid < 0) {
-        error_setg_errno(err, errno, "failed to create child process");
+        error_setg_errno(errp, errno, "failed to create child process");
         return;
     }
 
     ga_wait_child(pid, &status, &local_err);
-    if (error_is_set(&local_err)) {
-        error_propagate(err, local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
     if (!WIFEXITED(status)) {
-        error_setg(err, "fsfreeze hook has terminated abnormally");
+        error_setg(errp, "fsfreeze hook has terminated abnormally");
         return;
     }
 
     status = WEXITSTATUS(status);
     if (status) {
-        error_setg(err, "fsfreeze hook has failed with status %d", status);
+        error_setg(errp, "fsfreeze hook has failed with status %d", status);
         return;
     }
 }
@@ -689,7 +701,7 @@ static void execute_fsfreeze_hook(FsfreezeHookArg arg, Error **err)
 /*
  * Return status of freeze/thaw
  */
-GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
+GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
 {
     if (ga_is_frozen(ga_state)) {
         return GUEST_FSFREEZE_STATUS_FROZEN;
@@ -702,7 +714,7 @@ GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
  * Walk list of mounted file systems in the guest, and freeze the ones which
  * are real local file systems.
  */
-int64_t qmp_guest_fsfreeze_freeze(Error **err)
+int64_t qmp_guest_fsfreeze_freeze(Error **errp)
 {
     int ret = 0, i = 0;
     FsMountList mounts;
@@ -713,25 +725,25 @@ int64_t qmp_guest_fsfreeze_freeze(Error **err)
     slog("guest-fsfreeze called");
 
     execute_fsfreeze_hook(FSFREEZE_HOOK_FREEZE, &local_err);
-    if (error_is_set(&local_err)) {
-        error_propagate(err, local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return -1;
     }
 
     QTAILQ_INIT(&mounts);
     build_fs_mount_list(&mounts, &local_err);
-    if (error_is_set(&local_err)) {
-        error_propagate(err, local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return -1;
     }
 
     /* cannot risk guest agent blocking itself on a write in this state */
     ga_set_frozen(ga_state);
 
-    QTAILQ_FOREACH(mount, &mounts, next) {
+    QTAILQ_FOREACH_REVERSE(mount, &mounts, FsMountList, next) {
         fd = qemu_open(mount->dirname, O_RDONLY);
         if (fd == -1) {
-            error_setg_errno(err, errno, "failed to open %s", mount->dirname);
+            error_setg_errno(errp, errno, "failed to open %s", mount->dirname);
             goto error;
         }
 
@@ -747,7 +759,7 @@ int64_t qmp_guest_fsfreeze_freeze(Error **err)
         ret = ioctl(fd, FIFREEZE);
         if (ret == -1) {
             if (errno != EOPNOTSUPP) {
-                error_setg_errno(err, errno, "failed to freeze %s",
+                error_setg_errno(errp, errno, "failed to freeze %s",
                                  mount->dirname);
                 close(fd);
                 goto error;
@@ -770,7 +782,7 @@ error:
 /*
  * Walk list of frozen file systems in the guest, and thaw them.
  */
-int64_t qmp_guest_fsfreeze_thaw(Error **err)
+int64_t qmp_guest_fsfreeze_thaw(Error **errp)
 {
     int ret;
     FsMountList mounts;
@@ -780,8 +792,8 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
 
     QTAILQ_INIT(&mounts);
     build_fs_mount_list(&mounts, &local_err);
-    if (error_is_set(&local_err)) {
-        error_propagate(err, local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return 0;
     }
 
@@ -820,7 +832,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
     ga_unset_frozen(ga_state);
     free_fs_mount_list(&mounts);
 
-    execute_fsfreeze_hook(FSFREEZE_HOOK_THAW, err);
+    execute_fsfreeze_hook(FSFREEZE_HOOK_THAW, errp);
 
     return i;
 }
@@ -844,7 +856,7 @@ static void guest_fsfreeze_cleanup(void)
 /*
  * Walk list of mounted file systems in the guest, and trim them.
  */
-void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
+void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 {
     int ret = 0;
     FsMountList mounts;
@@ -861,15 +873,15 @@ void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
 
     QTAILQ_INIT(&mounts);
     build_fs_mount_list(&mounts, &local_err);
-    if (error_is_set(&local_err)) {
-        error_propagate(err, local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
     QTAILQ_FOREACH(mount, &mounts, next) {
         fd = qemu_open(mount->dirname, O_RDONLY);
         if (fd == -1) {
-            error_setg_errno(err, errno, "failed to open %s", mount->dirname);
+            error_setg_errno(errp, errno, "failed to open %s", mount->dirname);
             goto error;
         }
 
@@ -882,7 +894,7 @@ void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
         ret = ioctl(fd, FITRIM, &r);
         if (ret == -1) {
             if (errno != ENOTTY && errno != EOPNOTSUPP) {
-                error_setg_errno(err, errno, "failed to trim %s",
+                error_setg_errno(errp, errno, "failed to trim %s",
                                  mount->dirname);
                 close(fd);
                 goto error;
@@ -902,7 +914,7 @@ error:
 #define SUSPEND_NOT_SUPPORTED 1
 
 static void bios_supports_mode(const char *pmutils_bin, const char *pmutils_arg,
-                               const char *sysfile_str, Error **err)
+                               const char *sysfile_str, Error **errp)
 {
     Error *local_err = NULL;
     char *pmutils_path;
@@ -952,18 +964,18 @@ static void bios_supports_mode(const char *pmutils_bin, const char *pmutils_arg,
 
         _exit(SUSPEND_NOT_SUPPORTED);
     } else if (pid < 0) {
-        error_setg_errno(err, errno, "failed to create child process");
+        error_setg_errno(errp, errno, "failed to create child process");
         goto out;
     }
 
     ga_wait_child(pid, &status, &local_err);
-    if (error_is_set(&local_err)) {
-        error_propagate(err, local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         goto out;
     }
 
     if (!WIFEXITED(status)) {
-        error_setg(err, "child process has terminated abnormally");
+        error_setg(errp, "child process has terminated abnormally");
         goto out;
     }
 
@@ -971,11 +983,11 @@ static void bios_supports_mode(const char *pmutils_bin, const char *pmutils_arg,
     case SUSPEND_SUPPORTED:
         goto out;
     case SUSPEND_NOT_SUPPORTED:
-        error_setg(err,
+        error_setg(errp,
                    "the requested suspend mode is not supported by the guest");
         goto out;
     default:
-        error_setg(err,
+        error_setg(errp,
                    "the helper program '%s' returned an unexpected exit status"
                    " code (%d)", pmutils_path, WEXITSTATUS(status));
         goto out;
@@ -986,7 +998,7 @@ out:
 }
 
 static void guest_suspend(const char *pmutils_bin, const char *sysfile_str,
-                          Error **err)
+                          Error **errp)
 {
     Error *local_err = NULL;
     char *pmutils_path;
@@ -1029,23 +1041,23 @@ static void guest_suspend(const char *pmutils_bin, const char *sysfile_str,
 
         _exit(EXIT_SUCCESS);
     } else if (pid < 0) {
-        error_setg_errno(err, errno, "failed to create child process");
+        error_setg_errno(errp, errno, "failed to create child process");
         goto out;
     }
 
     ga_wait_child(pid, &status, &local_err);
-    if (error_is_set(&local_err)) {
-        error_propagate(err, local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         goto out;
     }
 
     if (!WIFEXITED(status)) {
-        error_setg(err, "child process has terminated abnormally");
+        error_setg(errp, "child process has terminated abnormally");
         goto out;
     }
 
     if (WEXITSTATUS(status)) {
-        error_setg(err, "child process has failed to suspend");
+        error_setg(errp, "child process has failed to suspend");
         goto out;
     }
 
@@ -1053,34 +1065,44 @@ out:
     g_free(pmutils_path);
 }
 
-void qmp_guest_suspend_disk(Error **err)
+void qmp_guest_suspend_disk(Error **errp)
 {
-    bios_supports_mode("pm-is-supported", "--hibernate", "disk", err);
-    if (error_is_set(err)) {
+    Error *local_err = NULL;
+
+    bios_supports_mode("pm-is-supported", "--hibernate", "disk", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
-    guest_suspend("pm-hibernate", "disk", err);
+    guest_suspend("pm-hibernate", "disk", errp);
 }
 
-void qmp_guest_suspend_ram(Error **err)
+void qmp_guest_suspend_ram(Error **errp)
 {
-    bios_supports_mode("pm-is-supported", "--suspend", "mem", err);
-    if (error_is_set(err)) {
+    Error *local_err = NULL;
+
+    bios_supports_mode("pm-is-supported", "--suspend", "mem", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
-    guest_suspend("pm-suspend", "mem", err);
+    guest_suspend("pm-suspend", "mem", errp);
 }
 
-void qmp_guest_suspend_hybrid(Error **err)
+void qmp_guest_suspend_hybrid(Error **errp)
 {
-    bios_supports_mode("pm-is-supported", "--suspend-hybrid", NULL, err);
-    if (error_is_set(err)) {
+    Error *local_err = NULL;
+
+    bios_supports_mode("pm-is-supported", "--suspend-hybrid", NULL,
+                       &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
-    guest_suspend("pm-suspend-hybrid", NULL, err);
+    guest_suspend("pm-suspend-hybrid", NULL, errp);
 }
 
 static GuestNetworkInterfaceList *
@@ -1243,9 +1265,9 @@ error:
     return NULL;
 }
 
-#define SYSCONF_EXACT(name, err) sysconf_exact((name), #name, (err))
+#define SYSCONF_EXACT(name, errp) sysconf_exact((name), #name, (errp))
 
-static long sysconf_exact(int name, const char *name_str, Error **err)
+static long sysconf_exact(int name, const char *name_str, Error **errp)
 {
     long ret;
 
@@ -1253,9 +1275,9 @@ static long sysconf_exact(int name, const char *name_str, Error **err)
     ret = sysconf(name);
     if (ret == -1) {
         if (errno == 0) {
-            error_setg(err, "sysconf(%s): value indefinite", name_str);
+            error_setg(errp, "sysconf(%s): value indefinite", name_str);
         } else {
-            error_setg_errno(err, errno, "sysconf(%s)", name_str);
+            error_setg_errno(errp, errno, "sysconf(%s)", name_str);
         }
     }
     return ret;
@@ -1401,19 +1423,19 @@ int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
 
 #else /* defined(__linux__) */
 
-void qmp_guest_suspend_disk(Error **err)
+void qmp_guest_suspend_disk(Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
 }
 
-void qmp_guest_suspend_ram(Error **err)
+void qmp_guest_suspend_ram(Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
 }
 
-void qmp_guest_suspend_hybrid(Error **err)
+void qmp_guest_suspend_hybrid(Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
 }
 
 GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
@@ -1438,32 +1460,32 @@ int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
 
 #if !defined(CONFIG_FSFREEZE)
 
-GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
+GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
 
     return 0;
 }
 
-int64_t qmp_guest_fsfreeze_freeze(Error **err)
+int64_t qmp_guest_fsfreeze_freeze(Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
 
     return 0;
 }
 
-int64_t qmp_guest_fsfreeze_thaw(Error **err)
+int64_t qmp_guest_fsfreeze_thaw(Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
 
     return 0;
 }
 #endif /* CONFIG_FSFREEZE */
 
 #if !defined(CONFIG_FSTRIM)
-void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
+void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    error_set(errp, QERR_UNSUPPORTED);
 }
 #endif
 

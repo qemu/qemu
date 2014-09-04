@@ -144,6 +144,13 @@ static inline int xen_xc_hvm_inject_msi(XenXC xen_xc, domid_t dom,
 {
     return -ENOSYS;
 }
+/* The followings are only to compile op_discard related code on older
+ * Xen releases. */
+#define BLKIF_OP_DISCARD 5
+struct blkif_request_discard {
+    uint64_t nr_sectors;
+    uint64_t sector_number;
+};
 #else
 static inline int xen_xc_hvm_inject_msi(XenXC xen_xc, domid_t dom,
         uint64_t addr, uint32_t data)

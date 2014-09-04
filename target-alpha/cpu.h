@@ -24,6 +24,7 @@
 #include "qemu-common.h"
 
 #define TARGET_LONG_BITS 64
+#define ALIGNED_ONLY
 
 #define CPUArchState struct CPUAlphaState
 
@@ -446,9 +447,8 @@ int cpu_alpha_exec(CPUAlphaState *s);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_alpha_signal_handler(int host_signum, void *pinfo,
                              void *puc);
-int cpu_alpha_handle_mmu_fault (CPUAlphaState *env, uint64_t address, int rw,
-                                int mmu_idx);
-#define cpu_handle_mmu_fault cpu_alpha_handle_mmu_fault
+int alpha_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
+                               int mmu_idx);
 void do_restore_state(CPUAlphaState *, uintptr_t retaddr);
 void QEMU_NORETURN dynamic_excp(CPUAlphaState *, uintptr_t, int, int);
 void QEMU_NORETURN arith_excp(CPUAlphaState *, uintptr_t, int, uint64_t);
@@ -457,9 +457,9 @@ uint64_t cpu_alpha_load_fpcr (CPUAlphaState *env);
 void cpu_alpha_store_fpcr (CPUAlphaState *env, uint64_t val);
 #ifndef CONFIG_USER_ONLY
 void swap_shadow_regs(CPUAlphaState *env);
-QEMU_NORETURN void cpu_unassigned_access(CPUAlphaState *env1,
-                                         hwaddr addr, int is_write,
-                                         int is_exec, int unused, int size);
+QEMU_NORETURN void alpha_cpu_unassigned_access(CPUState *cpu, hwaddr addr,
+                                               bool is_write, bool is_exec,
+                                               int unused, unsigned size);
 #endif
 
 /* Bits in TB->FLAGS that control how translation is processed.  */
@@ -498,42 +498,6 @@ static inline void cpu_get_tb_cpu_state(CPUAlphaState *env, target_ulong *pc,
     *pflags = flags;
 }
 
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUAlphaState *env, target_ulong newsp)
-{
-    if (newsp) {
-        env->ir[IR_SP] = newsp;
-    }
-    env->ir[IR_V0] = 0;
-    env->ir[IR_A3] = 0;
-}
-
-static inline void cpu_set_tls(CPUAlphaState *env, target_ulong newtls)
-{
-    env->unique = newtls;
-}
-#endif
-
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    /* Here we are checking to see if the CPU should wake up from HALT.
-       We will have gotten into this state only for WTINT from PALmode.  */
-    /* ??? I'm not sure how the IPL state works with WTINT to keep a CPU
-       asleep even if (some) interrupts have been asserted.  For now,
-       assume that if a CPU really wants to stay asleep, it will mask
-       interrupts at the chipset level, which will prevent these bits
-       from being set in the first place.  */
-    return cpu->interrupt_request & (CPU_INTERRUPT_HARD
-                                     | CPU_INTERRUPT_TIMER
-                                     | CPU_INTERRUPT_SMP
-                                     | CPU_INTERRUPT_MCHK);
-}
-
 #include "exec/exec-all.h"
-
-static inline void cpu_pc_from_tb(CPUAlphaState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-}
 
 #endif /* !defined (__CPU_ALPHA_H__) */

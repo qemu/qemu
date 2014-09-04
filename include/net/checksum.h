@@ -19,6 +19,7 @@
 #define QEMU_NET_CHECKSUM_H
 
 #include <stdint.h>
+struct iovec;
 
 uint32_t net_checksum_add_cont(int len, uint8_t *buf, int seq);
 uint16_t net_checksum_finish(uint32_t sum);

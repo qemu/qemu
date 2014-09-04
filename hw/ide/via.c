@@ -92,15 +92,15 @@ static void bmdma_setup_bar(PCIIDEState *d)
 {
     int i;
 
-    memory_region_init(&d->bmdma_bar, "via-bmdma-container", 16);
+    memory_region_init(&d->bmdma_bar, OBJECT(d), "via-bmdma-container", 16);
     for(i = 0;i < 2; i++) {
         BMDMAState *bm = &d->bmdma[i];
 
-        memory_region_init_io(&bm->extra_io, &via_bmdma_ops, bm,
+        memory_region_init_io(&bm->extra_io, OBJECT(d), &via_bmdma_ops, bm,
                               "via-bmdma", 4);
         memory_region_add_subregion(&d->bmdma_bar, i * 8, &bm->extra_io);
-        memory_region_init_io(&bm->addr_ioport, &bmdma_addr_ioport_ops, bm,
-                              "bmdma", 4);
+        memory_region_init_io(&bm->addr_ioport, OBJECT(d),
+                              &bmdma_addr_ioport_ops, bm, "bmdma", 4);
         memory_region_add_subregion(&d->bmdma_bar, i * 8 + 4, &bm->addr_ioport);
     }
 }
@@ -108,7 +108,8 @@ static void bmdma_setup_bar(PCIIDEState *d)
 static void via_reset(void *opaque)
 {
     PCIIDEState *d = opaque;
-    uint8_t *pci_conf = d->dev.config;
+    PCIDevice *pd = PCI_DEVICE(d);
+    uint8_t *pci_conf = pd->config;
     int i;
 
     for (i = 0; i < 2; i++) {
@@ -158,7 +159,7 @@ static void vt82c686b_init_ports(PCIIDEState *d) {
     int i;
 
     for (i = 0; i < 2; i++) {
-        ide_bus_new(&d->bus[i], &d->dev.qdev, i, 2);
+        ide_bus_new(&d->bus[i], sizeof(d->bus[i]), DEVICE(d), i, 2);
         ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
                         port_info[i].iobase2);
         ide_init2(&d->bus[i], isa_get_irq(NULL, port_info[i].isairq));
@@ -173,17 +174,17 @@ static void vt82c686b_init_ports(PCIIDEState *d) {
 /* via ide func */
 static int vt82c686b_ide_initfn(PCIDevice *dev)
 {
-    PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, dev);
-    uint8_t *pci_conf = d->dev.config;
+    PCIIDEState *d = PCI_IDE(dev);
+    uint8_t *pci_conf = dev->config;
 
     pci_config_set_prog_interface(pci_conf, 0x8a); /* legacy ATA mode */
     pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
 
     qemu_register_reset(via_reset, d);
     bmdma_setup_bar(d);
-    pci_register_bar(&d->dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
+    pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
 
-    vmstate_register(&dev->qdev, 0, &vmstate_ide_pci, d);
+    vmstate_register(DEVICE(dev), 0, &vmstate_ide_pci, d);
 
     vt82c686b_init_ports(d);
 
@@ -192,7 +193,7 @@ static int vt82c686b_ide_initfn(PCIDevice *dev)
 
 static void vt82c686b_ide_exitfn(PCIDevice *dev)
 {
-    PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, dev);
+    PCIIDEState *d = PCI_IDE(dev);
     unsigned i;
 
     for (i = 0; i < 2; ++i) {
@@ -223,13 +224,12 @@ static void via_ide_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIA_IDE;
     k->revision = 0x06;
     k->class_id = PCI_CLASS_STORAGE_IDE;
-    dc->no_user = 1;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo via_ide_info = {
     .name          = "via-ide",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIIDEState),
+    .parent        = TYPE_PCI_IDE,
     .class_init    = via_ide_class_init,
 };
 

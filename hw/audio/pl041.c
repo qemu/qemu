@@ -70,8 +70,12 @@ typedef struct {
     uint8_t rx_sample_size;
 } pl041_channel;
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_PL041 "pl041"
+#define PL041(obj) OBJECT_CHECK(PL041State, (obj), TYPE_PL041)
+
+typedef struct PL041State {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq irq;
 
@@ -80,7 +84,7 @@ typedef struct {
     pl041_regfile regs;
     pl041_channel fifo1;
     lm4549_state codec;
-} pl041_state;
+} PL041State;
 
 
 static const unsigned char pl041_default_id[8] = {
@@ -107,7 +111,7 @@ static const char *get_reg_name(hwaddr offset)
 }
 #endif
 
-static uint8_t pl041_compute_periphid3(pl041_state *s)
+static uint8_t pl041_compute_periphid3(PL041State *s)
 {
     uint8_t id3 = 1; /* One channel */
 
@@ -142,7 +146,7 @@ static uint8_t pl041_compute_periphid3(pl041_state *s)
     return id3;
 }
 
-static void pl041_reset(pl041_state *s)
+static void pl041_reset(PL041State *s)
 {
     DBG_L1("pl041_reset\n");
 
@@ -156,7 +160,7 @@ static void pl041_reset(pl041_state *s)
 }
 
 
-static void pl041_fifo1_write(pl041_state *s, uint32_t value)
+static void pl041_fifo1_write(PL041State *s, uint32_t value)
 {
     pl041_channel *channel = &s->fifo1;
     pl041_fifo *fifo = &s->fifo1.tx_fifo;
@@ -239,7 +243,7 @@ static void pl041_fifo1_write(pl041_state *s, uint32_t value)
     DBG_L2("fifo1_push sr1 = 0x%08x\n", s->regs.sr1);
 }
 
-static void pl041_fifo1_transmit(pl041_state *s)
+static void pl041_fifo1_transmit(PL041State *s)
 {
     pl041_channel *channel = &s->fifo1;
     pl041_fifo *fifo = &s->fifo1.tx_fifo;
@@ -291,7 +295,7 @@ static void pl041_fifo1_transmit(pl041_state *s)
     }
 }
 
-static void pl041_isr1_update(pl041_state *s)
+static void pl041_isr1_update(PL041State *s)
 {
     /* Update ISR1 */
     if (s->regs.sr1 & TXUNDERRUN) {
@@ -320,7 +324,7 @@ static void pl041_isr1_update(pl041_state *s)
 
 static void pl041_request_data(void *opaque)
 {
-    pl041_state *s = (pl041_state *)opaque;
+    PL041State *s = (PL041State *)opaque;
 
     /* Trigger pending transfers */
     pl041_fifo1_transmit(s);
@@ -330,7 +334,7 @@ static void pl041_request_data(void *opaque)
 static uint64_t pl041_read(void *opaque, hwaddr offset,
                                 unsigned size)
 {
-    pl041_state *s = (pl041_state *)opaque;
+    PL041State *s = (PL041State *)opaque;
     int value;
 
     if ((offset >= PL041_periphid0) && (offset <= PL041_pcellid3)) {
@@ -364,7 +368,7 @@ static uint64_t pl041_read(void *opaque, hwaddr offset,
 static void pl041_write(void *opaque, hwaddr offset,
                              uint64_t value, unsigned size)
 {
-    pl041_state *s = (pl041_state *)opaque;
+    PL041State *s = (PL041State *)opaque;
     uint16_t control, data;
     uint32_t result;
 
@@ -504,7 +508,7 @@ static void pl041_write(void *opaque, hwaddr offset,
 
 static void pl041_device_reset(DeviceState *d)
 {
-    pl041_state *s = DO_UPCAST(pl041_state, busdev.qdev, d);
+    PL041State *s = PL041(d);
 
     pl041_reset(s);
 }
@@ -517,7 +521,7 @@ static const MemoryRegionOps pl041_ops = {
 
 static int pl041_init(SysBusDevice *dev)
 {
-    pl041_state *s = FROM_SYSBUS(pl041_state, dev);
+    PL041State *s = PL041(dev);
 
     DBG_L1("pl041_init 0x%08x\n", (uint32_t)s);
 
@@ -543,7 +547,7 @@ static int pl041_init(SysBusDevice *dev)
     }
 
     /* Connect the device to the sysbus */
-    memory_region_init_io(&s->iomem, &pl041_ops, s, "pl041", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &pl041_ops, s, "pl041", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
 
@@ -557,8 +561,7 @@ static const VMStateDescription vmstate_pl041_regfile = {
     .name = "pl041_regfile",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
 #define REGISTER(name, offset) VMSTATE_UINT32(name, pl041_regfile),
         #include "pl041.hx"
 #undef REGISTER
@@ -570,8 +573,7 @@ static const VMStateDescription vmstate_pl041_fifo = {
     .name = "pl041_fifo",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(level, pl041_fifo),
         VMSTATE_UINT32_ARRAY(data, pl041_fifo, MAX_FIFO_DEPTH),
         VMSTATE_END_OF_LIST()
@@ -582,8 +584,7 @@ static const VMStateDescription vmstate_pl041_channel = {
     .name = "pl041_channel",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_STRUCT(tx_fifo, pl041_channel, 0,
                        vmstate_pl041_fifo, pl041_fifo),
         VMSTATE_UINT8(tx_enabled, pl041_channel),
@@ -603,12 +604,12 @@ static const VMStateDescription vmstate_pl041 = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(fifo_depth, pl041_state),
-        VMSTATE_STRUCT(regs, pl041_state, 0,
+        VMSTATE_UINT32(fifo_depth, PL041State),
+        VMSTATE_STRUCT(regs, PL041State, 0,
                        vmstate_pl041_regfile, pl041_regfile),
-        VMSTATE_STRUCT(fifo1, pl041_state, 0,
+        VMSTATE_STRUCT(fifo1, PL041State, 0,
                        vmstate_pl041_channel, pl041_channel),
-        VMSTATE_STRUCT(codec, pl041_state, 0,
+        VMSTATE_STRUCT(codec, PL041State, 0,
                        vmstate_lm4549_state, lm4549_state),
         VMSTATE_END_OF_LIST()
     }
@@ -616,7 +617,8 @@ static const VMStateDescription vmstate_pl041 = {
 
 static Property pl041_device_properties[] = {
     /* Non-compact FIFO depth property */
-    DEFINE_PROP_UINT32("nc_fifo_depth", pl041_state, fifo_depth, DEFAULT_FIFO_DEPTH),
+    DEFINE_PROP_UINT32("nc_fifo_depth", PL041State, fifo_depth,
+                       DEFAULT_FIFO_DEPTH),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -626,16 +628,16 @@ static void pl041_device_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pl041_init;
-    dc->no_user = 1;
+    set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->reset = pl041_device_reset;
     dc->vmsd = &vmstate_pl041;
     dc->props = pl041_device_properties;
 }
 
 static const TypeInfo pl041_device_info = {
-    .name          = "pl041",
+    .name          = TYPE_PL041,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(pl041_state),
+    .instance_size = sizeof(PL041State),
     .class_init    = pl041_device_class_init,
 };
 

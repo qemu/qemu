@@ -30,15 +30,22 @@
 
 #include <hw/ide/internal.h>
 
+#define TYPE_MICRODRIVE "microdrive"
+#define MICRODRIVE(obj) OBJECT_CHECK(MicroDriveState, (obj), TYPE_MICRODRIVE)
+
 /***********************************************************/
 /* CF-ATA Microdrive */
 
 #define METADATA_SIZE	0x20
 
 /* DSCM-1XXXX Microdrive hard disk with CF+ II / PCMCIA interface.  */
-typedef struct {
+
+typedef struct MicroDriveState {
+    /*< private >*/
+    PCMCIACardState parent_obj;
+    /*< public >*/
+
     IDEBus bus;
-    PCMCIACardState card;
     uint32_t attr_base;
     uint32_t io_base;
 
@@ -81,10 +88,13 @@ enum md_ctrl {
 
 static inline void md_interrupt_update(MicroDriveState *s)
 {
-    if (!s->card.slot)
-        return;
+    PCMCIACardState *card = PCMCIA_CARD(s);
 
-    qemu_set_irq(s->card.slot->irq,
+    if (card->slot == NULL) {
+        return;
+    }
+
+    qemu_set_irq(card->slot->irq,
                     !(s->stat & STAT_INT) &&	/* Inverted */
                     !(s->ctrl & (CTRL_IEN | CTRL_SRST)) &&
                     !(s->opt & OPT_SRESET));
@@ -93,16 +103,20 @@ static inline void md_interrupt_update(MicroDriveState *s)
 static void md_set_irq(void *opaque, int irq, int level)
 {
     MicroDriveState *s = opaque;
-    if (level)
+
+    if (level) {
         s->stat |= STAT_INT;
-    else
+    } else {
         s->stat &= ~STAT_INT;
+    }
 
     md_interrupt_update(s);
 }
 
-static void md_reset(MicroDriveState *s)
+static void md_reset(DeviceState *dev)
 {
+    MicroDriveState *s = MICRODRIVE(dev);
+
     s->opt = OPT_MODE_MMAP;
     s->stat = 0;
     s->pins = 0;
@@ -111,14 +125,17 @@ static void md_reset(MicroDriveState *s)
     ide_bus_reset(&s->bus);
 }
 
-static uint8_t md_attr_read(void *opaque, uint32_t at)
+static uint8_t md_attr_read(PCMCIACardState *card, uint32_t at)
 {
-    MicroDriveState *s = opaque;
+    MicroDriveState *s = MICRODRIVE(card);
+    PCMCIACardClass *pcc = PCMCIA_CARD_GET_CLASS(card);
+
     if (at < s->attr_base) {
-        if (at < s->card.cis_len)
-            return s->card.cis[at];
-        else
+        if (at < pcc->cis_len) {
+            return pcc->cis[at];
+        } else {
             return 0x00;
+        }
     }
 
     at -= s->attr_base;
@@ -127,10 +144,11 @@ static uint8_t md_attr_read(void *opaque, uint32_t at)
     case 0x00:	/* Configuration Option Register */
         return s->opt;
     case 0x02:	/* Card Configuration Status Register */
-        if (s->ctrl & CTRL_IEN)
+        if (s->ctrl & CTRL_IEN) {
             return s->stat & ~STAT_INT;
-        else
+        } else {
             return s->stat;
+        }
     case 0x04:	/* Pin Replacement Register */
         return (s->pins & PINS_CRDY) | 0x0c;
     case 0x06:	/* Socket and Copy Register */
@@ -144,21 +162,24 @@ static uint8_t md_attr_read(void *opaque, uint32_t at)
     return 0;
 }
 
-static void md_attr_write(void *opaque, uint32_t at, uint8_t value)
+static void md_attr_write(PCMCIACardState *card, uint32_t at, uint8_t value)
 {
-    MicroDriveState *s = opaque;
+    MicroDriveState *s = MICRODRIVE(card);
+
     at -= s->attr_base;
 
     switch (at) {
     case 0x00:	/* Configuration Option Register */
         s->opt = value & 0xcf;
-        if (value & OPT_SRESET)
-            md_reset(s);
+        if (value & OPT_SRESET) {
+            device_reset(DEVICE(s));
+        }
         md_interrupt_update(s);
         break;
     case 0x02:	/* Card Configuration Status Register */
-        if ((s->stat ^ value) & STAT_PWRDWN)
+        if ((s->stat ^ value) & STAT_PWRDWN) {
             s->pins |= PINS_CRDY;
+        }
         s->stat &= 0x82;
         s->stat |= value & 0x74;
         md_interrupt_update(s);
@@ -175,32 +196,35 @@ static void md_attr_write(void *opaque, uint32_t at, uint8_t value)
     }
 }
 
-static uint16_t md_common_read(void *opaque, uint32_t at)
+static uint16_t md_common_read(PCMCIACardState *card, uint32_t at)
 {
-    MicroDriveState *s = opaque;
+    MicroDriveState *s = MICRODRIVE(card);
     IDEState *ifs;
     uint16_t ret;
     at -= s->io_base;
 
     switch (s->opt & OPT_MODE) {
     case OPT_MODE_MMAP:
-        if ((at & ~0x3ff) == 0x400)
+        if ((at & ~0x3ff) == 0x400) {
             at = 0;
+        }
         break;
     case OPT_MODE_IOMAP16:
         at &= 0xf;
         break;
     case OPT_MODE_IOMAP1:
-        if ((at & ~0xf) == 0x3f0)
+        if ((at & ~0xf) == 0x3f0) {
             at -= 0x3e8;
-        else if ((at & ~0xf) == 0x1f0)
+        } else if ((at & ~0xf) == 0x1f0) {
             at -= 0x1f0;
+        }
         break;
     case OPT_MODE_IOMAP2:
-        if ((at & ~0xf) == 0x370)
+        if ((at & ~0xf) == 0x370) {
             at -= 0x368;
-        else if ((at & ~0xf) == 0x170)
+        } else if ((at & ~0xf) == 0x170) {
             at -= 0x170;
+        }
     }
 
     switch (at) {
@@ -209,9 +233,9 @@ static uint16_t md_common_read(void *opaque, uint32_t at)
         return ide_data_readw(&s->bus, 0);
 
         /* TODO: 8-bit accesses */
-        if (s->cycle)
+        if (s->cycle) {
             ret = s->io >> 8;
-        else {
+        } else {
             s->io = ide_data_readw(&s->bus, 0);
             ret = s->io & 0xff;
         }
@@ -223,10 +247,11 @@ static uint16_t md_common_read(void *opaque, uint32_t at)
         return ide_ioport_read(&s->bus, 0x1);
     case 0xe:	/* Alternate Status */
         ifs = idebus_active_if(&s->bus);
-        if (ifs->bs)
+        if (ifs->bs) {
             return ifs->status;
-        else
+        } else {
             return 0;
+        }
     case 0xf:	/* Device Address */
         ifs = idebus_active_if(&s->bus);
         return 0xc2 | ((~ifs->select << 2) & 0x3c);
@@ -237,30 +262,33 @@ static uint16_t md_common_read(void *opaque, uint32_t at)
     return 0;
 }
 
-static void md_common_write(void *opaque, uint32_t at, uint16_t value)
+static void md_common_write(PCMCIACardState *card, uint32_t at, uint16_t value)
 {
-    MicroDriveState *s = opaque;
+    MicroDriveState *s = MICRODRIVE(card);
     at -= s->io_base;
 
     switch (s->opt & OPT_MODE) {
     case OPT_MODE_MMAP:
-        if ((at & ~0x3ff) == 0x400)
+        if ((at & ~0x3ff) == 0x400) {
             at = 0;
+        }
         break;
     case OPT_MODE_IOMAP16:
         at &= 0xf;
         break;
     case OPT_MODE_IOMAP1:
-        if ((at & ~0xf) == 0x3f0)
+        if ((at & ~0xf) == 0x3f0) {
             at -= 0x3e8;
-        else if ((at & ~0xf) == 0x1f0)
+        } else if ((at & ~0xf) == 0x1f0) {
             at -= 0x1f0;
+        }
         break;
     case OPT_MODE_IOMAP2:
-        if ((at & ~0xf) == 0x370)
+        if ((at & ~0xf) == 0x370) {
             at -= 0x368;
-        else if ((at & ~0xf) == 0x170)
+        } else if ((at & ~0xf) == 0x170) {
             at -= 0x170;
+        }
     }
 
     switch (at) {
@@ -270,10 +298,11 @@ static void md_common_write(void *opaque, uint32_t at, uint16_t value)
         break;
 
         /* TODO: 8-bit accesses */
-        if (s->cycle)
+        if (s->cycle) {
             ide_data_writew(&s->bus, 0, s->io | (value << 8));
-        else
+        } else {
             s->io = value & 0xff;
+        }
         s->cycle = !s->cycle;
         break;
     case 0x9:
@@ -285,8 +314,9 @@ static void md_common_write(void *opaque, uint32_t at, uint16_t value)
         break;
     case 0xe:	/* Device Control */
         s->ctrl = value;
-        if (value & CTRL_SRST)
-            md_reset(s);
+        if (value & CTRL_SRST) {
+            device_reset(DEVICE(s));
+        }
         md_interrupt_update(s);
         break;
     default:
@@ -302,8 +332,7 @@ static const VMStateDescription vmstate_microdrive = {
     .name = "microdrive",
     .version_id = 3,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT8(opt, MicroDriveState),
         VMSTATE_UINT8(stat, MicroDriveState),
         VMSTATE_UINT8(pins, MicroDriveState),
@@ -501,49 +530,109 @@ static const uint8_t dscm1xxxx_cis[0x14a] = {
     [0x146] = CISTPL_END,	/* Tuple End */
 };
 
-static int dscm1xxxx_attach(void *opaque)
-{
-    MicroDriveState *md = opaque;
-    md->card.attr_read = md_attr_read;
-    md->card.attr_write = md_attr_write;
-    md->card.common_read = md_common_read;
-    md->card.common_write = md_common_write;
-    md->card.io_read = md_common_read;
-    md->card.io_write = md_common_write;
+#define TYPE_DSCM1XXXX "dscm1xxxx"
 
-    md->attr_base = md->card.cis[0x74] | (md->card.cis[0x76] << 8);
+static int dscm1xxxx_attach(PCMCIACardState *card)
+{
+    MicroDriveState *md = MICRODRIVE(card);
+    PCMCIACardClass *pcc = PCMCIA_CARD_GET_CLASS(card);
+
+    md->attr_base = pcc->cis[0x74] | (pcc->cis[0x76] << 8);
     md->io_base = 0x0;
 
-    md_reset(md);
+    device_reset(DEVICE(md));
     md_interrupt_update(md);
 
-    md->card.slot->card_string = "DSCM-1xxxx Hitachi Microdrive";
+    card->slot->card_string = "DSCM-1xxxx Hitachi Microdrive";
     return 0;
 }
 
-static int dscm1xxxx_detach(void *opaque)
+static int dscm1xxxx_detach(PCMCIACardState *card)
 {
-    MicroDriveState *md = opaque;
-    md_reset(md);
+    MicroDriveState *md = MICRODRIVE(card);
+
+    device_reset(DEVICE(md));
     return 0;
 }
 
-PCMCIACardState *dscm1xxxx_init(DriveInfo *bdrv)
+PCMCIACardState *dscm1xxxx_init(DriveInfo *dinfo)
 {
-    MicroDriveState *md = (MicroDriveState *) g_malloc0(sizeof(MicroDriveState));
-    md->card.state = md;
-    md->card.attach = dscm1xxxx_attach;
-    md->card.detach = dscm1xxxx_detach;
-    md->card.cis = dscm1xxxx_cis;
-    md->card.cis_len = sizeof(dscm1xxxx_cis);
+    MicroDriveState *md;
 
-    ide_init2_with_non_qdev_drives(&md->bus, bdrv, NULL,
-                                   qemu_allocate_irqs(md_set_irq, md, 1)[0]);
+    md = MICRODRIVE(object_new(TYPE_DSCM1XXXX));
+    qdev_init_nofail(DEVICE(md));
+
+    if (dinfo != NULL) {
+        ide_create_drive(&md->bus, 0, dinfo);
+    }
     md->bus.ifs[0].drive_kind = IDE_CFATA;
     md->bus.ifs[0].mdata_size = METADATA_SIZE;
     md->bus.ifs[0].mdata_storage = (uint8_t *) g_malloc0(METADATA_SIZE);
 
-    vmstate_register(NULL, -1, &vmstate_microdrive, md);
-
-    return &md->card;
+    return PCMCIA_CARD(md);
 }
+
+static void dscm1xxxx_class_init(ObjectClass *oc, void *data)
+{
+    PCMCIACardClass *pcc = PCMCIA_CARD_CLASS(oc);
+
+    pcc->cis = dscm1xxxx_cis;
+    pcc->cis_len = sizeof(dscm1xxxx_cis);
+
+    pcc->attach = dscm1xxxx_attach;
+    pcc->detach = dscm1xxxx_detach;
+}
+
+static const TypeInfo dscm1xxxx_type_info = {
+    .name = TYPE_DSCM1XXXX,
+    .parent = TYPE_MICRODRIVE,
+    .class_init = dscm1xxxx_class_init,
+};
+
+static void microdrive_realize(DeviceState *dev, Error **errp)
+{
+    MicroDriveState *md = MICRODRIVE(dev);
+
+    ide_init2(&md->bus, qemu_allocate_irq(md_set_irq, md, 0));
+}
+
+static void microdrive_init(Object *obj)
+{
+    MicroDriveState *md = MICRODRIVE(obj);
+
+    ide_bus_new(&md->bus, sizeof(md->bus), DEVICE(obj), 0, 1);
+}
+
+static void microdrive_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    PCMCIACardClass *pcc = PCMCIA_CARD_CLASS(oc);
+
+    pcc->attr_read = md_attr_read;
+    pcc->attr_write = md_attr_write;
+    pcc->common_read = md_common_read;
+    pcc->common_write = md_common_write;
+    pcc->io_read = md_common_read;
+    pcc->io_write = md_common_write;
+
+    dc->realize = microdrive_realize;
+    dc->reset = md_reset;
+    dc->vmsd = &vmstate_microdrive;
+}
+
+static const TypeInfo microdrive_type_info = {
+    .name = TYPE_MICRODRIVE,
+    .parent = TYPE_PCMCIA_CARD,
+    .instance_size = sizeof(MicroDriveState),
+    .instance_init = microdrive_init,
+    .abstract = true,
+    .class_init = microdrive_class_init,
+};
+
+static void microdrive_register_types(void)
+{
+    type_register_static(&microdrive_type_info);
+    type_register_static(&dscm1xxxx_type_info);
+}
+
+type_init(microdrive_register_types)

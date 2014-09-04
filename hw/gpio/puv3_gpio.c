@@ -14,8 +14,12 @@
 #undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_PUV3_GPIO "puv3_gpio"
+#define PUV3_GPIO(obj) OBJECT_CHECK(PUV3GPIOState, (obj), TYPE_PUV3_GPIO)
+
+typedef struct PUV3GPIOState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq irq[9];
 
@@ -96,7 +100,7 @@ static const MemoryRegionOps puv3_gpio_ops = {
 
 static int puv3_gpio_init(SysBusDevice *dev)
 {
-    PUV3GPIOState *s = FROM_SYSBUS(PUV3GPIOState, dev);
+    PUV3GPIOState *s = PUV3_GPIO(dev);
 
     s->reg_GPLR = 0;
     s->reg_GPDR = 0;
@@ -112,7 +116,7 @@ static int puv3_gpio_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq[PUV3_IRQS_GPIOLOW7]);
     sysbus_init_irq(dev, &s->irq[PUV3_IRQS_GPIOHIGH]);
 
-    memory_region_init_io(&s->iomem, &puv3_gpio_ops, s, "puv3_gpio",
+    memory_region_init_io(&s->iomem, OBJECT(s), &puv3_gpio_ops, s, "puv3_gpio",
             PUV3_REGS_OFFSET);
     sysbus_init_mmio(dev, &s->iomem);
 
@@ -127,7 +131,7 @@ static void puv3_gpio_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo puv3_gpio_info = {
-    .name = "puv3_gpio",
+    .name = TYPE_PUV3_GPIO,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PUV3GPIOState),
     .class_init = puv3_gpio_class_init,

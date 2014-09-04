@@ -22,34 +22,41 @@
 #include "migration/vmstate.h"
 #include "machine.h"
 
+static void moxie_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    MoxieCPU *cpu = MOXIE_CPU(cs);
+
+    cpu->env.pc = value;
+}
+
+static bool moxie_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request & CPU_INTERRUPT_HARD;
+}
+
 static void moxie_cpu_reset(CPUState *s)
 {
     MoxieCPU *cpu = MOXIE_CPU(s);
     MoxieCPUClass *mcc = MOXIE_CPU_GET_CLASS(cpu);
     CPUMoxieState *env = &cpu->env;
 
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
-        log_cpu_state(env, 0);
-    }
-
     mcc->parent_reset(s);
 
-    memset(env, 0, offsetof(CPUMoxieState, breakpoints));
+    memset(env, 0, sizeof(CPUMoxieState));
     env->pc = 0x1000;
 
-    tlb_flush(env, 1);
+    tlb_flush(s, 1);
 }
 
 static void moxie_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    MoxieCPU *cpu = MOXIE_CPU(dev);
-    MoxieCPUClass *occ = MOXIE_CPU_GET_CLASS(dev);
+    CPUState *cs = CPU(dev);
+    MoxieCPUClass *mcc = MOXIE_CPU_GET_CLASS(dev);
 
-    qemu_init_vcpu(&cpu->env);
-    cpu_reset(CPU(cpu));
+    qemu_init_vcpu(cs);
+    cpu_reset(cs);
 
-    occ->parent_realize(dev, errp);
+    mcc->parent_realize(dev, errp);
 }
 
 static void moxie_cpu_initfn(Object *obj)
@@ -97,8 +104,16 @@ static void moxie_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = moxie_cpu_class_by_name;
 
-    cpu_class_set_vmsd(cc, &vmstate_moxie_cpu);
+    cc->has_work = moxie_cpu_has_work;
     cc->do_interrupt = moxie_cpu_do_interrupt;
+    cc->dump_state = moxie_cpu_dump_state;
+    cc->set_pc = moxie_cpu_set_pc;
+#ifdef CONFIG_USER_ONLY
+    cc->handle_mmu_fault = moxie_cpu_handle_mmu_fault;
+#else
+    cc->get_phys_page_debug = moxie_cpu_get_phys_page_debug;
+    cc->vmsd = &vmstate_moxie_cpu;
+#endif
 }
 
 static void moxielite_initfn(Object *obj)
@@ -123,19 +138,7 @@ static const MoxieCPUInfo moxie_cpus[] = {
 
 MoxieCPU *cpu_moxie_init(const char *cpu_model)
 {
-    MoxieCPU *cpu;
-    ObjectClass *oc;
-
-    oc = moxie_cpu_class_by_name(cpu_model);
-    if (oc == NULL) {
-        return NULL;
-    }
-    cpu = MOXIE_CPU(object_new(object_class_get_name(oc)));
-    cpu->env.cpu_model_str = cpu_model;
-
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return cpu;
+    return MOXIE_CPU(cpu_generic_init(TYPE_MOXIE_CPU, cpu_model));
 }
 
 static void cpu_register(const MoxieCPUInfo *info)

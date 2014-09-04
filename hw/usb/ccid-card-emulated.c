@@ -126,7 +126,7 @@ struct EmulatedState {
     QemuMutex vreader_mutex; /* and guest_apdu_list mutex */
     QemuMutex handle_apdu_mutex;
     QemuCond handle_apdu_cond;
-    int      pipe[2];
+    EventNotifier notifier;
     int      quit_apdu_thread;
     QemuThread apdu_thread_id;
 };
@@ -162,9 +162,7 @@ static void emulated_push_event(EmulatedState *card, EmulEvent *event)
     qemu_mutex_lock(&card->event_list_mutex);
     QSIMPLEQ_INSERT_TAIL(&(card->event_list), event, entry);
     qemu_mutex_unlock(&card->event_list_mutex);
-    if (write(card->pipe[1], card, 1) != 1) {
-        DPRINTF(card, 1, "write to pipe failed\n");
-    }
+    event_notifier_set(&card->notifier);
 }
 
 static void emulated_push_type(EmulatedState *card, uint32_t type)
@@ -358,16 +356,12 @@ static void *event_thread(void *arg)
     return NULL;
 }
 
-static void pipe_read(void *opaque)
+static void card_event_handler(EventNotifier *notifier)
 {
-    EmulatedState *card = opaque;
+    EmulatedState *card = container_of(notifier, EmulatedState, notifier);
     EmulEvent *event, *next;
-    char dummy;
-    int len;
 
-    do {
-        len = read(card->pipe[0], &dummy, sizeof(dummy));
-    } while (len == sizeof(dummy));
+    event_notifier_test_and_clear(&card->notifier);
     qemu_mutex_lock(&card->event_list_mutex);
     QSIMPLEQ_FOREACH_SAFE(event, &card->event_list, entry, next) {
         DPRINTF(card, 2, "event %s\n", emul_event_to_string(event->p.gen.type));
@@ -404,16 +398,13 @@ static void pipe_read(void *opaque)
     qemu_mutex_unlock(&card->event_list_mutex);
 }
 
-static int init_pipe_signaling(EmulatedState *card)
+static int init_event_notifier(EmulatedState *card)
 {
-    if (pipe(card->pipe) < 0) {
-        DPRINTF(card, 2, "pipe creation failed\n");
+    if (event_notifier_init(&card->notifier, false) < 0) {
+        DPRINTF(card, 2, "event notifier creation failed\n");
         return -1;
     }
-    fcntl(card->pipe[0], F_SETFL, O_NONBLOCK);
-    fcntl(card->pipe[1], F_SETFL, O_NONBLOCK);
-    fcntl(card->pipe[0], F_SETOWN, getpid());
-    qemu_set_fd_handler(card->pipe[0], pipe_read, NULL, card);
+    event_notifier_set_handler(&card->notifier, card_event_handler);
     return 0;
 }
 
@@ -500,7 +491,7 @@ static int emulated_initfn(CCIDCardState *base)
     qemu_cond_init(&card->handle_apdu_cond);
     card->reader = NULL;
     card->quit_apdu_thread = 0;
-    if (init_pipe_signaling(card) < 0) {
+    if (init_event_notifier(card) < 0) {
         return -1;
     }
 
@@ -546,10 +537,10 @@ static int emulated_initfn(CCIDCardState *base)
         printf("%s: failed to initialize vcard\n", EMULATED_DEV_NAME);
         return -1;
     }
-    qemu_thread_create(&card->event_thread_id, event_thread, card,
-                       QEMU_THREAD_JOINABLE);
-    qemu_thread_create(&card->apdu_thread_id, handle_apdu_thread, card,
-                       QEMU_THREAD_JOINABLE);
+    qemu_thread_create(&card->event_thread_id, "ccid/event", event_thread,
+                       card, QEMU_THREAD_JOINABLE);
+    qemu_thread_create(&card->apdu_thread_id, "ccid/apdu", handle_apdu_thread,
+                       card, QEMU_THREAD_JOINABLE);
     return 0;
 }
 
@@ -592,6 +583,7 @@ static void emulated_class_initfn(ObjectClass *klass, void *data)
     cc->exitfn = emulated_exitfn;
     cc->get_atr = emulated_get_atr;
     cc->apdu_from_guest = emulated_apdu_from_guest;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "emulated smartcard";
     dc->props = emulated_card_properties;
 }

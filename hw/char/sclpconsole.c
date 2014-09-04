@@ -31,13 +31,11 @@ typedef struct ASCIIConsoleData {
 typedef struct SCLPConsole {
     SCLPEvent event;
     CharDriverState *chr;
-    /* io vector                                                       */
-    uint8_t *iov;           /* iov buffer pointer                      */
-    uint8_t *iov_sclp;      /* pointer to SCLP read offset             */
-    uint8_t *iov_bs;        /* pointer byte stream read offset         */
-    uint32_t iov_data_len;  /* length of byte stream in buffer         */
-    uint32_t iov_sclp_rest; /* length of byte stream not read via SCLP */
-    qemu_irq irq_read_vt220;
+    uint8_t iov[SIZE_BUFFER_VT220];
+    uint32_t iov_sclp;      /* offset in buf for SCLP read operation       */
+    uint32_t iov_bs;        /* offset in buf for char layer read operation */
+    uint32_t iov_data_len;  /* length of byte stream in buffer             */
+    uint32_t iov_sclp_rest; /* length of byte stream not read via SCLP     */
 } SCLPConsole;
 
 /* character layer call-back functions */
@@ -47,25 +45,7 @@ static int chr_can_read(void *opaque)
 {
     SCLPConsole *scon = opaque;
 
-    return scon->iov ? SIZE_BUFFER_VT220 - scon->iov_data_len : 0;
-}
-
-/* Receive n bytes from character layer, save in iov buffer,
- * and set event pending */
-static void receive_from_chr_layer(SCLPConsole *scon, const uint8_t *buf,
-                                   int size)
-{
-    assert(scon->iov);
-
-    /* read data must fit into current buffer */
-    assert(size <= SIZE_BUFFER_VT220 - scon->iov_data_len);
-
-    /* put byte-stream from character layer into buffer */
-    memcpy(scon->iov_bs, buf, size);
-    scon->iov_data_len += size;
-    scon->iov_sclp_rest += size;
-    scon->iov_bs += size;
-    scon->event.event_pending = true;
+    return SIZE_BUFFER_VT220 - scon->iov_data_len;
 }
 
 /* Send data from a char device over to the guest */
@@ -74,40 +54,23 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     SCLPConsole *scon = opaque;
 
     assert(scon);
+    /* read data must fit into current buffer */
+    assert(size <= SIZE_BUFFER_VT220 - scon->iov_data_len);
 
-    receive_from_chr_layer(scon, buf, size);
-    /* trigger SCLP read operation */
-    qemu_irq_raise(scon->irq_read_vt220);
-}
-
-static void chr_event(void *opaque, int event)
-{
-    SCLPConsole *scon = opaque;
-
-    switch (event) {
-    case CHR_EVENT_OPENED:
-        if (!scon->iov) {
-            scon->iov = g_malloc0(SIZE_BUFFER_VT220);
-            scon->iov_sclp = scon->iov;
-            scon->iov_bs = scon->iov;
-            scon->iov_data_len = 0;
-            scon->iov_sclp_rest = 0;
-        }
-        break;
-    case CHR_EVENT_CLOSED:
-        if (scon->iov) {
-            g_free(scon->iov);
-            scon->iov = NULL;
-        }
-        break;
-    }
+    /* put byte-stream from character layer into buffer */
+    memcpy(&scon->iov[scon->iov_bs], buf, size);
+    scon->iov_data_len += size;
+    scon->iov_sclp_rest += size;
+    scon->iov_bs += size;
+    scon->event.event_pending = true;
+    sclp_service_interrupt(0);
 }
 
 /* functions to be called by event facility */
 
-static int event_type(void)
+static bool can_handle_event(uint8_t type)
 {
-    return SCLP_EVENT_ASCII_CONSOLE_DATA;
+    return type == SCLP_EVENT_ASCII_CONSOLE_DATA;
 }
 
 static unsigned int send_mask(void)
@@ -134,17 +97,17 @@ static void get_console_data(SCLPEvent *event, uint8_t *buf, size_t *size,
     /* if all data fit into provided SCLP buffer */
     if (avail >= cons->iov_sclp_rest) {
         /* copy character byte-stream to SCLP buffer */
-        memcpy(buf, cons->iov_sclp, cons->iov_sclp_rest);
+        memcpy(buf, &cons->iov[cons->iov_sclp], cons->iov_sclp_rest);
         *size = cons->iov_sclp_rest + 1;
-        cons->iov_sclp = cons->iov;
-        cons->iov_bs = cons->iov;
+        cons->iov_sclp = 0;
+        cons->iov_bs = 0;
         cons->iov_data_len = 0;
         cons->iov_sclp_rest = 0;
         event->event_pending = false;
         /* data provided and no more data pending */
     } else {
         /* if provided buffer is too small, just copy part */
-        memcpy(buf, cons->iov_sclp, avail);
+        memcpy(buf, &cons->iov[cons->iov_sclp], avail);
         *size = avail + 1;
         cons->iov_sclp_rest -= avail;
         cons->iov_sclp += avail;
@@ -184,8 +147,6 @@ static int read_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr,
 static ssize_t write_console_data(SCLPEvent *event, const uint8_t *buf,
                                   size_t len)
 {
-    ssize_t ret = 0;
-    const uint8_t *iov_offset;
     SCLPConsole *scon = DO_UPCAST(SCLPConsole, event, event);
 
     if (!scon->chr) {
@@ -193,21 +154,7 @@ static ssize_t write_console_data(SCLPEvent *event, const uint8_t *buf,
         return len;
     }
 
-    iov_offset = buf;
-    while (len > 0) {
-        ret = qemu_chr_fe_write(scon->chr, buf, len);
-        if (ret == 0) {
-            /* a pty doesn't seem to be connected - no error */
-            len = 0;
-        } else if (ret == -EAGAIN || (ret > 0 && ret < len)) {
-            len -= ret;
-            iov_offset += ret;
-        } else {
-            len = 0;
-        }
-    }
-
-    return ret;
+    return qemu_chr_fe_write_all(scon->chr, buf, len);
 }
 
 static int write_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr)
@@ -234,14 +181,25 @@ static int write_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr)
     return rc;
 }
 
-static void trigger_ascii_console_data(void *opaque, int n, int level)
-{
-    sclp_service_interrupt(0);
-}
+static const VMStateDescription vmstate_sclpconsole = {
+    .name = "sclpconsole",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(event.event_pending, SCLPConsole),
+        VMSTATE_UINT8_ARRAY(iov, SCLPConsole, SIZE_BUFFER_VT220),
+        VMSTATE_UINT32(iov_sclp, SCLPConsole),
+        VMSTATE_UINT32(iov_bs, SCLPConsole),
+        VMSTATE_UINT32(iov_data_len, SCLPConsole),
+        VMSTATE_UINT32(iov_sclp_rest, SCLPConsole),
+        VMSTATE_END_OF_LIST()
+     }
+};
 
 /* qemu object creation and initialization functions */
 
 /* tell character layer our call-back functions */
+
 static int console_init(SCLPEvent *event)
 {
     static bool console_available;
@@ -253,15 +211,24 @@ static int console_init(SCLPEvent *event)
         return -1;
     }
     console_available = true;
-    event->event_type = SCLP_EVENT_ASCII_CONSOLE_DATA;
     if (scon->chr) {
         qemu_chr_add_handlers(scon->chr, chr_can_read,
-                              chr_read, chr_event, scon);
+                              chr_read, NULL, scon);
     }
-    scon->irq_read_vt220 = *qemu_allocate_irqs(trigger_ascii_console_data,
-                                               NULL, 1);
 
     return 0;
+}
+
+static void console_reset(DeviceState *dev)
+{
+   SCLPEvent *event = SCLP_EVENT(dev);
+   SCLPConsole *scon = DO_UPCAST(SCLPConsole, event, event);
+
+   event->event_pending = false;
+   scon->iov_sclp = 0;
+   scon->iov_bs = 0;
+   scon->iov_data_len = 0;
+   scon->iov_sclp_rest = 0;
 }
 
 static int console_exit(SCLPEvent *event)
@@ -280,11 +247,13 @@ static void console_class_init(ObjectClass *klass, void *data)
     SCLPEventClass *ec = SCLP_EVENT_CLASS(klass);
 
     dc->props = console_properties;
+    dc->reset = console_reset;
+    dc->vmsd = &vmstate_sclpconsole;
     ec->init = console_init;
     ec->exit = console_exit;
     ec->get_send_mask = send_mask;
     ec->get_receive_mask = receive_mask;
-    ec->event_type = event_type;
+    ec->can_handle_event = can_handle_event;
     ec->read_event_data = read_event_data;
     ec->write_event_data = write_event_data;
 }

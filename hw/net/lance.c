@@ -43,8 +43,13 @@
 #include "pcnet.h"
 #include "trace.h"
 
+#define TYPE_LANCE "lance"
+#define SYSBUS_PCNET(obj) \
+    OBJECT_CHECK(SysBusPCNetState, (obj), TYPE_LANCE)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     PCNetState state;
 } SysBusPCNetState;
 
@@ -105,34 +110,35 @@ static const VMStateDescription vmstate_lance = {
     .name = "pcnet",
     .version_id = 3,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_STRUCT(state, SysBusPCNetState, 0, vmstate_pcnet, PCNetState),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static int lance_init(SysBusDevice *dev)
+static int lance_init(SysBusDevice *sbd)
 {
-    SysBusPCNetState *d = FROM_SYSBUS(SysBusPCNetState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    SysBusPCNetState *d = SYSBUS_PCNET(dev);
     PCNetState *s = &d->state;
 
-    memory_region_init_io(&s->mmio, &lance_mem_ops, d, "lance-mmio", 4);
+    memory_region_init_io(&s->mmio, OBJECT(d), &lance_mem_ops, d,
+                          "lance-mmio", 4);
 
-    qdev_init_gpio_in(&dev->qdev, parent_lance_reset, 1);
+    qdev_init_gpio_in(dev, parent_lance_reset, 1);
 
-    sysbus_init_mmio(dev, &s->mmio);
+    sysbus_init_mmio(sbd, &s->mmio);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
 
     s->phys_mem_read = ledma_memory_read;
     s->phys_mem_write = ledma_memory_write;
-    return pcnet_common_init(&dev->qdev, s, &net_lance_info);
+    return pcnet_common_init(dev, s, &net_lance_info);
 }
 
 static void lance_reset(DeviceState *dev)
 {
-    SysBusPCNetState *d = DO_UPCAST(SysBusPCNetState, busdev.qdev, dev);
+    SysBusPCNetState *d = SYSBUS_PCNET(dev);
 
     pcnet_h_reset(&d->state);
 }
@@ -149,14 +155,17 @@ static void lance_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = lance_init;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->fw_name = "ethernet";
     dc->reset = lance_reset;
     dc->vmsd = &vmstate_lance;
     dc->props = lance_properties;
+    /* Reason: pointer property "dma" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo lance_info = {
-    .name          = "lance",
+    .name          = TYPE_LANCE,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusPCNetState),
     .class_init    = lance_class_init,

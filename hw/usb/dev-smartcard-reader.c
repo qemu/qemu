@@ -463,7 +463,8 @@ static const USBDescDevice desc_device = {
         {
             .bNumInterfaces        = 1,
             .bConfigurationValue   = 1,
-            .bmAttributes          = 0xe0,
+            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER |
+                                     USB_CFG_ATT_WAKEUP,
             .bMaxPower             = 50,
             .nif = 1,
             .ifs = &desc_iface0,
@@ -1309,7 +1310,8 @@ static int ccid_initfn(USBDevice *dev)
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
-    qbus_create_inplace(&s->bus.qbus, TYPE_CCID_BUS, &dev->qdev, NULL);
+    qbus_create_inplace(&s->bus, sizeof(s->bus), TYPE_CCID_BUS, DEVICE(dev),
+                        NULL);
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, CCID_INT_IN_EP);
     s->bus.qbus.allow_hotplug = 1;
     s->card = NULL;
@@ -1397,7 +1399,7 @@ static VMStateDescription usb_device_vmstate = {
 };
 
 static VMStateDescription ccid_vmstate = {
-    .name = CCID_DEV_NAME,
+    .name = "usb-ccid",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = ccid_post_load,
@@ -1449,6 +1451,7 @@ static void ccid_class_initfn(ObjectClass *klass, void *data)
     dc->desc = "CCID Rev 1.1 smartcard reader";
     dc->vmsd = &ccid_vmstate;
     dc->props = ccid_properties;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo ccid_info = {

@@ -76,7 +76,7 @@ typedef struct SuperHCPU {
 
 static inline SuperHCPU *sh_env_get_cpu(CPUSH4State *env)
 {
-    return SUPERH_CPU(container_of(env, SuperHCPU, env));
+    return container_of(env, SuperHCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(sh_env_get_cpu(e))
@@ -84,5 +84,10 @@ static inline SuperHCPU *sh_env_get_cpu(CPUSH4State *env)
 #define ENV_OFFSET offsetof(SuperHCPU, env)
 
 void superh_cpu_do_interrupt(CPUState *cpu);
+void superh_cpu_dump_state(CPUState *cpu, FILE *f,
+                           fprintf_function cpu_fprintf, int flags);
+hwaddr superh_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+int superh_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int superh_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 
 #endif

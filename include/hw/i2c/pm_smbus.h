@@ -2,7 +2,7 @@
 #define PM_SMBUS_H
 
 typedef struct PMSMBus {
-    i2c_bus *smbus;
+    I2CBus *smbus;
     MemoryRegion io;
 
     uint8_t smb_stat;

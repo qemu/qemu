@@ -48,7 +48,6 @@ static const VMStateDescription vmstate_ich9_smbus = {
     .name = "ich9_smb",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, struct ICH9SMBState),
         VMSTATE_END_OF_LIST()
@@ -97,14 +96,18 @@ static void ich9_smb_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_INTEL_ICH9_6;
     k->revision = ICH9_A2_SMB_REVISION;
     k->class_id = PCI_CLASS_SERIAL_SMBUS;
-    dc->no_user = 1;
     dc->vmsd = &vmstate_ich9_smbus;
     dc->desc = "ICH9 SMBUS Bridge";
     k->init = ich9_smbus_initfn;
     k->config_write = ich9_smbus_write_config;
+    /*
+     * Reason: part of ICH9 southbridge, needs to be wired up by
+     * pc_q35_init()
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
-i2c_bus *ich9_smb_init(PCIBus *bus, int devfn, uint32_t smb_io_base)
+I2CBus *ich9_smb_init(PCIBus *bus, int devfn, uint32_t smb_io_base)
 {
     PCIDevice *d =
         pci_create_simple_multifunction(bus, devfn, true, TYPE_ICH9_SMB_DEVICE);

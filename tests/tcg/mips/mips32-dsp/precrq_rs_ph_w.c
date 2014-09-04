@@ -12,18 +12,34 @@ int main()
     result = 0x12348765;
 
     __asm
-        ("precrq_rs.ph.w %0, %1, %2\n\t"
+        ("wrdsp $0\n\t"
+         "precrq_rs.ph.w %0, %1, %2\n\t"
          : "=r"(rd)
          : "r"(rs), "r"(rt)
         );
     assert(result == rd);
 
-    rs = 0x7fffC678;
+    rs = 0x7FFFC678;
     rt = 0x865432A0;
-    result = 0x7fff8654;
+    result = 0x7FFF8654;
 
     __asm
-        ("precrq_rs.ph.w %0, %2, %3\n\t"
+        ("wrdsp $0\n\t"
+         "precrq_rs.ph.w %0, %2, %3\n\t"
+         "rddsp %1\n\t"
+         : "=r"(rd), "=r"(dsp)
+         : "r"(rs), "r"(rt)
+        );
+    assert(((dsp >> 22) & 0x01) == 1);
+    assert(result == rd);
+
+    rs = 0xBEEFFEED;
+    rt = 0x7FFF8000;
+    result = 0xBEF07FFF;
+
+    __asm
+        ("wrdsp $0\n\t"
+         "precrq_rs.ph.w %0, %2, %3\n\t"
          "rddsp %1\n\t"
          : "=r"(rd), "=r"(dsp)
          : "r"(rs), "r"(rt)

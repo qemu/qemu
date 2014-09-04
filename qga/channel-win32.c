@@ -287,16 +287,32 @@ GIOStatus ga_channel_write_all(GAChannel *c, const char *buf, size_t size)
 static gboolean ga_channel_open(GAChannel *c, GAChannelMethod method,
                                 const gchar *path)
 {
-    if (method != GA_CHANNEL_VIRTIO_SERIAL) {
+    COMMTIMEOUTS comTimeOut = {0};
+    gchar newpath[MAXPATHLEN] = {0};
+    comTimeOut.ReadIntervalTimeout = 1;
+
+    if (method != GA_CHANNEL_VIRTIO_SERIAL && method != GA_CHANNEL_ISA_SERIAL) {
         g_critical("unsupported communication method");
         return false;
     }
 
-    c->handle = CreateFile(path, GENERIC_READ | GENERIC_WRITE, 0, NULL,
+    if (method == GA_CHANNEL_ISA_SERIAL){
+        snprintf(newpath, sizeof(newpath), "\\\\.\\%s", path);
+    }else {
+        g_strlcpy(newpath, path, sizeof(newpath));
+    }
+
+    c->handle = CreateFile(newpath, GENERIC_READ | GENERIC_WRITE, 0, NULL,
                            OPEN_EXISTING,
                            FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED, NULL);
     if (c->handle == INVALID_HANDLE_VALUE) {
         g_critical("error opening path");
+        return false;
+    }
+
+    if (method == GA_CHANNEL_ISA_SERIAL && !SetCommTimeouts(c->handle,&comTimeOut)) {
+        g_critical("error setting timeout for com port: %lu",GetLastError());
+        CloseHandle(c->handle);
         return false;
     }
 

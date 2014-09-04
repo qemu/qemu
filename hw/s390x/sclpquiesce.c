@@ -22,9 +22,9 @@ typedef struct SignalQuiesce {
     uint8_t unit;
 } QEMU_PACKED SignalQuiesce;
 
-static int event_type(void)
+static bool can_handle_event(uint8_t type)
 {
-    return SCLP_EVENT_SIGNAL_QUIESCE;
+    return type == SCLP_EVENT_SIGNAL_QUIESCE;
 }
 
 static unsigned int send_mask(void)
@@ -65,6 +65,16 @@ static int read_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr,
     return 1;
 }
 
+static const VMStateDescription vmstate_sclpquiesce = {
+    .name = "sclpquiesce",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(event_pending, SCLPEvent),
+        VMSTATE_END_OF_LIST()
+     }
+};
+
 typedef struct QuiesceNotifier QuiesceNotifier;
 
 static struct QuiesceNotifier {
@@ -84,8 +94,6 @@ static void quiesce_powerdown_req(Notifier *n, void *opaque)
 
 static int quiesce_init(SCLPEvent *event)
 {
-    event->event_type = SCLP_EVENT_SIGNAL_QUIESCE;
-
     qn.notifier.notify = quiesce_powerdown_req;
     qn.event = event;
 
@@ -94,15 +102,25 @@ static int quiesce_init(SCLPEvent *event)
     return 0;
 }
 
+static void quiesce_reset(DeviceState *dev)
+{
+   SCLPEvent *event = SCLP_EVENT(dev);
+
+   event->event_pending = false;
+}
+
 static void quiesce_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SCLPEventClass *k = SCLP_EVENT_CLASS(klass);
 
+    dc->reset = quiesce_reset;
+    dc->vmsd = &vmstate_sclpquiesce;
     k->init = quiesce_init;
 
     k->get_send_mask = send_mask;
     k->get_receive_mask = receive_mask;
-    k->event_type = event_type;
+    k->can_handle_event = can_handle_event;
     k->read_event_data = read_event_data;
     k->write_event_data = NULL;
 }

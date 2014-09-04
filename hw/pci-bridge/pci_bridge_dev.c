@@ -26,9 +26,17 @@
 #include "hw/pci/slotid_cap.h"
 #include "exec/memory.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/hotplug.h"
+
+#define TYPE_PCI_BRIDGE_DEV "pci-bridge"
+#define PCI_BRIDGE_DEV(obj) \
+    OBJECT_CHECK(PCIBridgeDev, (obj), TYPE_PCI_BRIDGE_DEV)
 
 struct PCIBridgeDev {
-    PCIBridge bridge;
+    /*< private >*/
+    PCIBridge parent_obj;
+    /*< public >*/
+
     MemoryRegion bar;
     uint8_t chassis_nr;
 #define PCI_BRIDGE_DEV_F_MSI_REQ 0
@@ -38,15 +46,16 @@ typedef struct PCIBridgeDev PCIBridgeDev;
 
 static int pci_bridge_dev_initfn(PCIDevice *dev)
 {
-    PCIBridge *br = DO_UPCAST(PCIBridge, dev, dev);
-    PCIBridgeDev *bridge_dev = DO_UPCAST(PCIBridgeDev, bridge, br);
+    PCIBridge *br = PCI_BRIDGE(dev);
+    PCIBridgeDev *bridge_dev = PCI_BRIDGE_DEV(dev);
     int err;
 
     err = pci_bridge_initfn(dev, TYPE_PCI_BUS);
     if (err) {
         goto bridge_error;
     }
-    memory_region_init(&bridge_dev->bar, "shpc-bar", shpc_bar_size(dev));
+    dev->config[PCI_INTERRUPT_PIN] = 0x1;
+    memory_region_init(&bridge_dev->bar, OBJECT(dev), "shpc-bar", shpc_bar_size(dev));
     err = shpc_init(dev, &br->sec_bus, &bridge_dev->bar, 0);
     if (err) {
         goto shpc_error;
@@ -66,7 +75,6 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
      * Check whether that works well. */
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY |
 		     PCI_BASE_ADDRESS_MEM_TYPE_64, &bridge_dev->bar);
-    dev->config[PCI_INTERRUPT_PIN] = 0x1;
     return 0;
 msi_error:
     slotid_cap_cleanup(dev);
@@ -81,8 +89,7 @@ bridge_error:
 
 static void pci_bridge_dev_exitfn(PCIDevice *dev)
 {
-    PCIBridge *br = DO_UPCAST(PCIBridge, dev, dev);
-    PCIBridgeDev *bridge_dev = DO_UPCAST(PCIBridgeDev, bridge, br);
+    PCIBridgeDev *bridge_dev = PCI_BRIDGE_DEV(dev);
     if (msi_present(dev)) {
         msi_uninit(dev);
     }
@@ -104,7 +111,7 @@ static void pci_bridge_dev_write_config(PCIDevice *d,
 
 static void qdev_pci_bridge_dev_reset(DeviceState *qdev)
 {
-    PCIDevice *dev = DO_UPCAST(PCIDevice, qdev, qdev);
+    PCIDevice *dev = PCI_DEVICE(qdev);
 
     pci_bridge_reset(qdev);
     shpc_reset(dev);
@@ -120,8 +127,8 @@ static Property pci_bridge_dev_properties[] = {
 static const VMStateDescription pci_bridge_dev_vmstate = {
     .name = "pci_bridge",
     .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(bridge.dev, PCIBridgeDev),
-        SHPC_VMSTATE(bridge.dev.shpc, PCIBridgeDev),
+        VMSTATE_PCI_DEVICE(parent_obj, PCIBridge),
+        SHPC_VMSTATE(shpc, PCIDevice),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -130,6 +137,8 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+
     k->init = pci_bridge_dev_initfn;
     k->exit = pci_bridge_dev_exitfn;
     k->config_write = pci_bridge_dev_write_config;
@@ -141,13 +150,20 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, void *data)
     dc->reset = qdev_pci_bridge_dev_reset;
     dc->props = pci_bridge_dev_properties;
     dc->vmsd = &pci_bridge_dev_vmstate;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    hc->plug = shpc_device_hotplug_cb;
+    hc->unplug = shpc_device_hot_unplug_cb;
 }
 
 static const TypeInfo pci_bridge_dev_info = {
-    .name = "pci-bridge",
-    .parent        = TYPE_PCI_DEVICE,
+    .name          = TYPE_PCI_BRIDGE_DEV,
+    .parent        = TYPE_PCI_BRIDGE,
     .instance_size = sizeof(PCIBridgeDev),
     .class_init = pci_bridge_dev_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
 };
 
 static void pci_bridge_dev_register(void)

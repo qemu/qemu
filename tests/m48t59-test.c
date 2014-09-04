@@ -11,13 +11,14 @@
  * See the COPYING file in the top-level directory.
  *
  */
-#include "libqtest.h"
 
 #include <glib.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include "libqtest.h"
 
 #define RTC_SECONDS             0x9
 #define RTC_MINUTES             0xa
@@ -249,7 +250,7 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
-    s = qtest_start("-display none -rtc clock=vm");
+    s = qtest_start("-rtc clock=vm");
 
     qtest_add_func("/rtc/bcd/check-time", bcd_check_time);
     qtest_add_func("/rtc/fuzz-registers", fuzz_registers);

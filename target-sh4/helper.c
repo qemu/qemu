@@ -33,26 +33,26 @@
 
 void superh_cpu_do_interrupt(CPUState *cs)
 {
+    cs->exception_index = -1;
+}
+
+int superh_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                                int mmu_idx)
+{
     SuperHCPU *cpu = SUPERH_CPU(cs);
     CPUSH4State *env = &cpu->env;
 
-    env->exception_index = -1;
-}
-
-int cpu_sh4_handle_mmu_fault(CPUSH4State * env, target_ulong address, int rw,
-                             int mmu_idx)
-{
     env->tea = address;
-    env->exception_index = -1;
+    cs->exception_index = -1;
     switch (rw) {
     case 0:
-        env->exception_index = 0x0a0;
+        cs->exception_index = 0x0a0;
         break;
     case 1:
-        env->exception_index = 0x0c0;
+        cs->exception_index = 0x0c0;
         break;
     case 2:
-        env->exception_index = 0x0a0;
+        cs->exception_index = 0x0a0;
         break;
     }
     return 1;
@@ -86,16 +86,16 @@ void superh_cpu_do_interrupt(CPUState *cs)
     SuperHCPU *cpu = SUPERH_CPU(cs);
     CPUSH4State *env = &cpu->env;
     int do_irq = cs->interrupt_request & CPU_INTERRUPT_HARD;
-    int do_exp, irq_vector = env->exception_index;
+    int do_exp, irq_vector = cs->exception_index;
 
     /* prioritize exceptions over interrupts */
 
-    do_exp = env->exception_index != -1;
-    do_irq = do_irq && (env->exception_index == -1);
+    do_exp = cs->exception_index != -1;
+    do_irq = do_irq && (cs->exception_index == -1);
 
     if (env->sr & SR_BL) {
-        if (do_exp && env->exception_index != 0x1e0) {
-            env->exception_index = 0x000; /* masked exception -> reset */
+        if (do_exp && cs->exception_index != 0x1e0) {
+            cs->exception_index = 0x000; /* masked exception -> reset */
         }
         if (do_irq && !env->in_sleep) {
             return; /* masked */
@@ -113,7 +113,7 @@ void superh_cpu_do_interrupt(CPUState *cs)
 
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
 	const char *expname;
-	switch (env->exception_index) {
+        switch (cs->exception_index) {
 	case 0x0e0:
 	    expname = "addr_error";
 	    break;
@@ -159,7 +159,7 @@ void superh_cpu_do_interrupt(CPUState *cs)
 	}
 	qemu_log("exception 0x%03x [%s] raised\n",
 		  irq_vector, expname);
-	log_cpu_state(env, 0);
+        log_cpu_state(cs, 0);
     }
 
     env->ssr = env->sr;
@@ -177,8 +177,8 @@ void superh_cpu_do_interrupt(CPUState *cs)
         env->flags = 0;
 
     if (do_exp) {
-        env->expevt = env->exception_index;
-        switch (env->exception_index) {
+        env->expevt = cs->exception_index;
+        switch (cs->exception_index) {
         case 0x000:
         case 0x020:
         case 0x140:
@@ -234,15 +234,21 @@ static void update_itlb_use(CPUSH4State * env, int itlbnb)
 
 static int itlb_replacement(CPUSH4State * env)
 {
-    if ((env->mmucr & 0xe0000000) == 0xe0000000)
+    SuperHCPU *cpu = sh_env_get_cpu(env);
+
+    if ((env->mmucr & 0xe0000000) == 0xe0000000) {
 	return 0;
-    if ((env->mmucr & 0x98000000) == 0x18000000)
+    }
+    if ((env->mmucr & 0x98000000) == 0x18000000) {
 	return 1;
-    if ((env->mmucr & 0x54000000) == 0x04000000)
+    }
+    if ((env->mmucr & 0x54000000) == 0x04000000) {
 	return 2;
-    if ((env->mmucr & 0x2c000000) == 0x00000000)
+    }
+    if ((env->mmucr & 0x2c000000) == 0x00000000) {
 	return 3;
-    cpu_abort(env, "Unhandled itlb_replacement");
+    }
+    cpu_abort(CPU(cpu), "Unhandled itlb_replacement");
 }
 
 /* Find the corresponding entry in the right TLB
@@ -298,7 +304,7 @@ static int copy_utlb_entry_itlb(CPUSH4State *env, int utlb)
     itlb = itlb_replacement(env);
     ientry = &env->itlb[itlb];
     if (ientry->v) {
-        tlb_flush_page(env, ientry->vpn << 10);
+        tlb_flush_page(CPU(sh_env_get_cpu(env)), ientry->vpn << 10);
     }
     *ientry = env->utlb[utlb];
     update_itlb_use(env, itlb);
@@ -447,9 +453,11 @@ static int get_physical_address(CPUSH4State * env, target_ulong * physical,
     return get_mmu_address(env, physical, prot, address, rw, access_type);
 }
 
-int cpu_sh4_handle_mmu_fault(CPUSH4State * env, target_ulong address, int rw,
-                             int mmu_idx)
+int superh_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                                int mmu_idx)
 {
+    SuperHCPU *cpu = SUPERH_CPU(cs);
+    CPUSH4State *env = &cpu->env;
     target_ulong physical;
     int prot, ret, access_type;
 
@@ -467,36 +475,36 @@ int cpu_sh4_handle_mmu_fault(CPUSH4State * env, target_ulong address, int rw,
 	switch (ret) {
 	case MMU_ITLB_MISS:
 	case MMU_DTLB_MISS_READ:
-	    env->exception_index = 0x040;
+            cs->exception_index = 0x040;
 	    break;
 	case MMU_DTLB_MULTIPLE:
 	case MMU_ITLB_MULTIPLE:
-	    env->exception_index = 0x140;
+            cs->exception_index = 0x140;
 	    break;
 	case MMU_ITLB_VIOLATION:
-	    env->exception_index = 0x0a0;
+            cs->exception_index = 0x0a0;
 	    break;
 	case MMU_DTLB_MISS_WRITE:
-	    env->exception_index = 0x060;
+            cs->exception_index = 0x060;
 	    break;
 	case MMU_DTLB_INITIAL_WRITE:
-	    env->exception_index = 0x080;
+            cs->exception_index = 0x080;
 	    break;
 	case MMU_DTLB_VIOLATION_READ:
-	    env->exception_index = 0x0a0;
+            cs->exception_index = 0x0a0;
 	    break;
 	case MMU_DTLB_VIOLATION_WRITE:
-	    env->exception_index = 0x0c0;
+            cs->exception_index = 0x0c0;
 	    break;
 	case MMU_IADDR_ERROR:
 	case MMU_DADDR_ERROR_READ:
-	    env->exception_index = 0x0e0;
+            cs->exception_index = 0x0e0;
 	    break;
 	case MMU_DADDR_ERROR_WRITE:
-	    env->exception_index = 0x100;
+            cs->exception_index = 0x100;
 	    break;
 	default:
-            cpu_abort(env, "Unhandled MMU fault");
+            cpu_abort(cs, "Unhandled MMU fault");
 	}
 	return 1;
     }
@@ -504,28 +512,30 @@ int cpu_sh4_handle_mmu_fault(CPUSH4State * env, target_ulong address, int rw,
     address &= TARGET_PAGE_MASK;
     physical &= TARGET_PAGE_MASK;
 
-    tlb_set_page(env, address, physical, prot, mmu_idx, TARGET_PAGE_SIZE);
+    tlb_set_page(cs, address, physical, prot, mmu_idx, TARGET_PAGE_SIZE);
     return 0;
 }
 
-hwaddr cpu_get_phys_page_debug(CPUSH4State * env, target_ulong addr)
+hwaddr superh_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    SuperHCPU *cpu = SUPERH_CPU(cs);
     target_ulong physical;
     int prot;
 
-    get_physical_address(env, &physical, &prot, addr, 0, 0);
+    get_physical_address(&cpu->env, &physical, &prot, addr, 0, 0);
     return physical;
 }
 
 void cpu_load_tlb(CPUSH4State * env)
 {
+    SuperHCPU *cpu = sh_env_get_cpu(env);
     int n = cpu_mmucr_urc(env->mmucr);
     tlb_t * entry = &env->utlb[n];
 
     if (entry->v) {
         /* Overwriting valid entry in utlb. */
         target_ulong address = entry->vpn << 10;
-	tlb_flush_page(env, address);
+        tlb_flush_page(CPU(cpu), address);
     }
 
     /* Take values into cpu status from registers. */
@@ -548,7 +558,7 @@ void cpu_load_tlb(CPUSH4State * env)
         entry->size = 1024 * 1024; /* 1M */
         break;
     default:
-        cpu_abort(env, "Unhandled load_tlb");
+        cpu_abort(CPU(cpu), "Unhandled load_tlb");
         break;
     }
     entry->sh   = (uint8_t)cpu_ptel_sh(env->ptel);
@@ -575,7 +585,7 @@ void cpu_load_tlb(CPUSH4State * env)
         entry->v = 0;
     }
 
-    tlb_flush(s, 1);
+    tlb_flush(CPU(sh_env_get_cpu(s)), 1);
 }
 
 uint32_t cpu_sh4_read_mmaped_itlb_addr(CPUSH4State *s,
@@ -601,7 +611,7 @@ void cpu_sh4_write_mmaped_itlb_addr(CPUSH4State *s, hwaddr addr,
     if (entry->v) {
         /* Overwriting valid entry in itlb. */
         target_ulong address = entry->vpn << 10;
-        tlb_flush_page(s, address);
+        tlb_flush_page(CPU(sh_env_get_cpu(s)), address);
     }
     entry->asid = asid;
     entry->vpn = vpn;
@@ -643,7 +653,7 @@ void cpu_sh4_write_mmaped_itlb_data(CPUSH4State *s, hwaddr addr,
         if (entry->v) {
             /* Overwriting valid entry in utlb. */
             target_ulong address = entry->vpn << 10;
-            tlb_flush_page(s, address);
+            tlb_flush_page(CPU(sh_env_get_cpu(s)), address);
         }
         entry->ppn = (mem_value & 0x1ffffc00) >> 10;
         entry->v   = (mem_value & 0x00000100) >> 8;
@@ -696,8 +706,10 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, hwaddr addr,
             if (entry->vpn == vpn
                 && (!use_asid || entry->asid == asid || entry->sh)) {
 	        if (utlb_match_entry) {
+                    CPUState *cs = CPU(sh_env_get_cpu(s));
+
 		    /* Multiple TLB Exception */
-		    s->exception_index = 0x140;
+                    cs->exception_index = 0x140;
 		    s->tea = addr;
 		    break;
 	        }
@@ -725,16 +737,19 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, hwaddr addr,
 	    }
 	}
 
-	if (needs_tlb_flush)
-	    tlb_flush_page(s, vpn << 10);
+        if (needs_tlb_flush) {
+            tlb_flush_page(CPU(sh_env_get_cpu(s)), vpn << 10);
+        }
         
     } else {
         int index = (addr & 0x00003f00) >> 8;
         tlb_t * entry = &s->utlb[index];
 	if (entry->v) {
+            CPUState *cs = CPU(sh_env_get_cpu(s));
+
 	    /* Overwriting valid entry in utlb. */
             target_ulong address = entry->vpn << 10;
-	    tlb_flush_page(s, address);
+            tlb_flush_page(cs, address);
 	}
 	entry->asid = asid;
 	entry->vpn = vpn;
@@ -785,7 +800,7 @@ void cpu_sh4_write_mmaped_utlb_data(CPUSH4State *s, hwaddr addr,
         if (entry->v) {
             /* Overwriting valid entry in utlb. */
             target_ulong address = entry->vpn << 10;
-            tlb_flush_page(s, address);
+            tlb_flush_page(CPU(sh_env_get_cpu(s)), address);
         }
         entry->ppn = (mem_value & 0x1ffffc00) >> 10;
         entry->v   = (mem_value & 0x00000100) >> 8;

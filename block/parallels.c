@@ -49,9 +49,9 @@ typedef struct BDRVParallelsState {
     CoMutex lock;
 
     uint32_t *catalog_bitmap;
-    int catalog_size;
+    unsigned int catalog_size;
 
-    int tracks;
+    unsigned int tracks;
 } BDRVParallelsState;
 
 static int parallels_probe(const uint8_t *buf, int buf_size, const char *filename)
@@ -68,7 +68,8 @@ static int parallels_probe(const uint8_t *buf, int buf_size, const char *filenam
     return 0;
 }
 
-static int parallels_open(BlockDriverState *bs, QDict *options, int flags)
+static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
+                          Error **errp)
 {
     BDRVParallelsState *s = bs->opaque;
     int i;
@@ -84,15 +85,26 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags)
 
     if (memcmp(ph.magic, HEADER_MAGIC, 16) ||
         (le32_to_cpu(ph.version) != HEADER_VERSION)) {
-        ret = -EMEDIUMTYPE;
+        error_setg(errp, "Image not in Parallels format");
+        ret = -EINVAL;
         goto fail;
     }
 
     bs->total_sectors = le32_to_cpu(ph.nb_sectors);
 
     s->tracks = le32_to_cpu(ph.tracks);
+    if (s->tracks == 0) {
+        error_setg(errp, "Invalid image: Zero sectors per track");
+        ret = -EINVAL;
+        goto fail;
+    }
 
     s->catalog_size = le32_to_cpu(ph.catalog_entries);
+    if (s->catalog_size > INT_MAX / 4) {
+        error_setg(errp, "Catalog too large");
+        ret = -EFBIG;
+        goto fail;
+    }
     s->catalog_bitmap = g_malloc(s->catalog_size * 4);
 
     ret = bdrv_pread(bs->file, 64, s->catalog_bitmap, s->catalog_size * 4);

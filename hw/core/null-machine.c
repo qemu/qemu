@@ -15,7 +15,7 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
 
-static void machine_none_init(QEMUMachineInitArgs *args)
+static void machine_none_init(MachineState *machine)
 {
 }
 
@@ -24,7 +24,6 @@ static QEMUMachine machine_none = {
     .desc = "empty machine",
     .init = machine_none_init,
     .max_cpus = 0,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void register_machines(void)

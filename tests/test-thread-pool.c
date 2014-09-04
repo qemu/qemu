@@ -3,6 +3,7 @@
 #include "block/aio.h"
 #include "block/thread-pool.h"
 #include "block/block.h"
+#include "qemu/timer.h"
 
 static AioContext *ctx;
 static ThreadPool *pool;
@@ -17,15 +18,15 @@ typedef struct {
 static int worker_cb(void *opaque)
 {
     WorkerTestData *data = opaque;
-    return __sync_fetch_and_add(&data->n, 1);
+    return atomic_fetch_inc(&data->n);
 }
 
 static int long_cb(void *opaque)
 {
     WorkerTestData *data = opaque;
-    __sync_fetch_and_add(&data->n, 1);
+    atomic_inc(&data->n);
     g_usleep(2000000);
-    __sync_fetch_and_add(&data->n, 1);
+    atomic_inc(&data->n);
     return 0;
 }
 
@@ -40,19 +41,13 @@ static void done_cb(void *opaque, int ret)
     active--;
 }
 
-/* Wait until all aio and bh activity has finished */
-static void qemu_aio_wait_all(void)
-{
-    while (aio_poll(ctx, true)) {
-        /* Do nothing */
-    }
-}
-
 static void test_submit(void)
 {
     WorkerTestData data = { .n = 0 };
     thread_pool_submit(pool, worker_cb, &data);
-    qemu_aio_wait_all();
+    while (data.n == 0) {
+        aio_poll(ctx, true);
+    }
     g_assert_cmpint(data.n, ==, 1);
 }
 
@@ -65,7 +60,9 @@ static void test_submit_aio(void)
     /* The callbacks are not called until after the first wait.  */
     active = 1;
     g_assert_cmpint(data.ret, ==, -EINPROGRESS);
-    qemu_aio_wait_all();
+    while (data.ret == -EINPROGRESS) {
+        aio_poll(ctx, true);
+    }
     g_assert_cmpint(active, ==, 0);
     g_assert_cmpint(data.n, ==, 1);
     g_assert_cmpint(data.ret, ==, 0);
@@ -86,7 +83,7 @@ static void co_test_cb(void *opaque)
     data->ret = 0;
     active--;
 
-    /* The test continues in test_submit_co, after qemu_aio_wait_all... */
+    /* The test continues in test_submit_co, after aio_poll... */
 }
 
 static void test_submit_co(void)
@@ -101,9 +98,11 @@ static void test_submit_co(void)
     g_assert_cmpint(active, ==, 1);
     g_assert_cmpint(data.ret, ==, -EINPROGRESS);
 
-    /* qemu_aio_wait_all will execute the rest of the coroutine.  */
+    /* aio_poll will execute the rest of the coroutine.  */
 
-    qemu_aio_wait_all();
+    while (data.ret == -EINPROGRESS) {
+        aio_poll(ctx, true);
+    }
 
     /* Back here after the coroutine has finished.  */
 
@@ -169,7 +168,7 @@ static void test_cancel(void)
     /* Cancel the jobs that haven't been started yet.  */
     num_canceled = 0;
     for (i = 0; i < 100; i++) {
-        if (__sync_val_compare_and_swap(&data[i].n, 0, 3) == 0) {
+        if (atomic_cmpxchg(&data[i].n, 0, 3) == 0) {
             data[i].ret = -ECANCELED;
             bdrv_aio_cancel(data[i].aiocb);
             active--;
@@ -181,13 +180,15 @@ static void test_cancel(void)
 
     /* Canceling the others will be a blocking operation.  */
     for (i = 0; i < 100; i++) {
-        if (data[i].n != 3) {
+        if (data[i].aiocb && data[i].n != 3) {
             bdrv_aio_cancel(data[i].aiocb);
         }
     }
 
     /* Finish execution and execute any remaining callbacks.  */
-    qemu_aio_wait_all();
+    while (active > 0) {
+        aio_poll(ctx, true);
+    }
     g_assert_cmpint(active, ==, 0);
     for (i = 0; i < 100; i++) {
         if (data[i].n == 3) {
@@ -204,6 +205,8 @@ static void test_cancel(void)
 int main(int argc, char **argv)
 {
     int ret;
+
+    init_clocks();
 
     ctx = aio_context_new();
     pool = aio_get_thread_pool(ctx);

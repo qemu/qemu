@@ -14,12 +14,16 @@
 #if BITS == 8
 #define COPY_PIXEL(to, from) *(to++) = from
 #elif BITS == 15 || BITS == 16
-#define COPY_PIXEL(to, from) *(uint16_t *)to = from; to += 2;
+#define COPY_PIXEL(to, from) do { *(uint16_t *)to = from; to += 2; } while (0)
 #elif BITS == 24
-#define COPY_PIXEL(to, from) \
-  *(to++) = from; *(to++) = (from) >> 8; *(to++) = (from) >> 16
+#define COPY_PIXEL(to, from)    \
+    do {                        \
+        *(to++) = from;         \
+        *(to++) = (from) >> 8;  \
+        *(to++) = (from) >> 16; \
+    } while (0)
 #elif BITS == 32
-#define COPY_PIXEL(to, from) *(uint32_t *)to = from; to += 4;
+#define COPY_PIXEL(to, from) do { *(uint32_t *)to = from; to += 4; } while (0)
 #else
 #error unknown bit depth
 #endif

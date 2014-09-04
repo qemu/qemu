@@ -52,14 +52,17 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
     memset(&ifr, 0, sizeof(ifr));
     ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
 
-    if (ioctl(fd, TUNGETFEATURES, &features) == 0 &&
-        features & IFF_ONE_QUEUE) {
+    if (ioctl(fd, TUNGETFEATURES, &features) == -1) {
+        error_report("warning: TUNGETFEATURES failed: %s", strerror(errno));
+        features = 0;
+    }
+
+    if (features & IFF_ONE_QUEUE) {
         ifr.ifr_flags |= IFF_ONE_QUEUE;
     }
 
     if (*vnet_hdr) {
-        if (ioctl(fd, TUNGETFEATURES, &features) == 0 &&
-            features & IFF_VNET_HDR) {
+        if (features & IFF_VNET_HDR) {
             *vnet_hdr = 1;
             ifr.ifr_flags |= IFF_VNET_HDR;
         } else {
@@ -82,8 +85,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
     }
 
     if (mq_required) {
-        if ((ioctl(fd, TUNGETFEATURES, &features) != 0) ||
-            !(features & IFF_MULTI_QUEUE)) {
+        if (!(features & IFF_MULTI_QUEUE)) {
             error_report("multiqueue required, but no kernel "
                          "support for IFF_MULTI_QUEUE available");
             close(fd);

@@ -1,0 +1,273 @@
+                      QEMU Machine Protocol Specification
+
+1. Introduction
+===============
+
+This document specifies the QEMU Machine Protocol (QMP), a JSON-based protocol
+which is available for applications to operate QEMU at the machine-level.
+
+2. Protocol Specification
+=========================
+
+This section details the protocol format. For the purpose of this document
+"Client" is any application which is using QMP to communicate with QEMU and
+"Server" is QEMU itself.
+
+JSON data structures, when mentioned in this document, are always in the
+following format:
+
+    json-DATA-STRUCTURE-NAME
+
+Where DATA-STRUCTURE-NAME is any valid JSON data structure, as defined by
+the JSON standard:
+
+http://www.ietf.org/rfc/rfc4627.txt
+
+For convenience, json-object members and json-array elements mentioned in
+this document will be in a certain order. However, in real protocol usage
+they can be in ANY order, thus no particular order should be assumed.
+
+2.1 General Definitions
+-----------------------
+
+2.1.1 All interactions transmitted by the Server are json-objects, always
+      terminating with CRLF
+
+2.1.2 All json-objects members are mandatory when not specified otherwise
+
+2.2 Server Greeting
+-------------------
+
+Right when connected the Server will issue a greeting message, which signals
+that the connection has been successfully established and that the Server is
+ready for capabilities negotiation (for more information refer to section
+'4. Capabilities Negotiation').
+
+The greeting message format is:
+
+{ "QMP": { "version": json-object, "capabilities": json-array } }
+
+ Where,
+
+- The "version" member contains the Server's version information (the format
+  is the same of the query-version command)
+- The "capabilities" member specify the availability of features beyond the
+  baseline specification
+
+2.3 Issuing Commands
+--------------------
+
+The format for command execution is:
+
+{ "execute": json-string, "arguments": json-object, "id": json-value }
+
+ Where,
+
+- The "execute" member identifies the command to be executed by the Server
+- The "arguments" member is used to pass any arguments required for the
+  execution of the command, it is optional when no arguments are required
+- The "id" member is a transaction identification associated with the
+  command execution, it is optional and will be part of the response if
+  provided
+
+2.4 Commands Responses
+----------------------
+
+There are two possible responses which the Server will issue as the result
+of a command execution: success or error.
+
+2.4.1 success
+-------------
+
+The format of a success response is:
+
+{ "return": json-object, "id": json-value }
+
+ Where,
+
+- The "return" member contains the command returned data, which is defined
+  in a per-command basis or an empty json-object if the command does not
+  return data
+- The "id" member contains the transaction identification associated
+  with the command execution if issued by the Client
+
+2.4.2 error
+-----------
+
+The format of an error response is:
+
+{ "error": { "class": json-string, "desc": json-string }, "id": json-value }
+
+ Where,
+
+- The "class" member contains the error class name (eg. "GenericError")
+- The "desc" member is a human-readable error message. Clients should
+  not attempt to parse this message.
+- The "id" member contains the transaction identification associated with
+  the command execution if issued by the Client
+
+NOTE: Some errors can occur before the Server is able to read the "id" member,
+in these cases the "id" member will not be part of the error response, even
+if provided by the client.
+
+2.5 Asynchronous events
+-----------------------
+
+As a result of state changes, the Server may send messages unilaterally
+to the Client at any time. They are called "asynchronous events".
+
+The format of asynchronous events is:
+
+{ "event": json-string, "data": json-object,
+  "timestamp": { "seconds": json-number, "microseconds": json-number } }
+
+ Where,
+
+- The "event" member contains the event's name
+- The "data" member contains event specific data, which is defined in a
+  per-event basis, it is optional
+- The "timestamp" member contains the exact time of when the event occurred
+  in the Server. It is a fixed json-object with time in seconds and
+  microseconds
+
+For a listing of supported asynchronous events, please, refer to the
+qmp-events.txt file.
+
+3. QMP Examples
+===============
+
+This section provides some examples of real QMP usage, in all of them
+"C" stands for "Client" and "S" stands for "Server".
+
+3.1 Server greeting
+-------------------
+
+S: { "QMP": { "version": { "qemu": { "micro": 50, "minor": 6, "major": 1 },
+     "package": ""}, "capabilities": []}}
+
+3.2 Simple 'stop' execution
+---------------------------
+
+C: { "execute": "stop" }
+S: { "return": {} }
+
+3.3 KVM information
+-------------------
+
+C: { "execute": "query-kvm", "id": "example" }
+S: { "return": { "enabled": true, "present": true }, "id": "example"}
+
+3.4 Parsing error
+------------------
+
+C: { "execute": }
+S: { "error": { "class": "GenericError", "desc": "Invalid JSON syntax" } }
+
+3.5 Powerdown event
+-------------------
+
+S: { "timestamp": { "seconds": 1258551470, "microseconds": 802384 },
+    "event": "POWERDOWN" }
+
+4. Capabilities Negotiation
+----------------------------
+
+When a Client successfully establishes a connection, the Server is in
+Capabilities Negotiation mode.
+
+In this mode only the qmp_capabilities command is allowed to run, all
+other commands will return the CommandNotFound error. Asynchronous
+messages are not delivered either.
+
+Clients should use the qmp_capabilities command to enable capabilities
+advertised in the Server's greeting (section '2.2 Server Greeting') they
+support.
+
+When the qmp_capabilities command is issued, and if it does not return an
+error, the Server enters in Command mode where capabilities changes take
+effect, all commands (except qmp_capabilities) are allowed and asynchronous
+messages are delivered.
+
+5 Compatibility Considerations
+------------------------------
+
+All protocol changes or new features which modify the protocol format in an
+incompatible way are disabled by default and will be advertised by the
+capabilities array (section '2.2 Server Greeting'). Thus, Clients can check
+that array and enable the capabilities they support.
+
+The QMP Server performs a type check on the arguments to a command.  It
+generates an error if a value does not have the expected type for its
+key, or if it does not understand a key that the Client included.  The
+strictness of the Server catches wrong assumptions of Clients about
+the Server's schema.  Clients can assume that, when such validation
+errors occur, they will be reported before the command generated any
+side effect.
+
+However, Clients must not assume any particular:
+
+- Length of json-arrays
+- Size of json-objects; in particular, future versions of QEMU may add
+  new keys and Clients should be able to ignore them.
+- Order of json-object members or json-array elements
+- Amount of errors generated by a command, that is, new errors can be added
+  to any existing command in newer versions of the Server
+
+Of course, the Server does guarantee to send valid JSON.  But apart from
+this, a Client should be "conservative in what they send, and liberal in
+what they accept".
+
+6. Downstream extension of QMP
+------------------------------
+
+We recommend that downstream consumers of QEMU do *not* modify QMP.
+Management tools should be able to support both upstream and downstream
+versions of QMP without special logic, and downstream extensions are
+inherently at odds with that.
+
+However, we recognize that it is sometimes impossible for downstreams to
+avoid modifying QMP.  Both upstream and downstream need to take care to
+preserve long-term compatibility and interoperability.
+
+To help with that, QMP reserves JSON object member names beginning with
+'__' (double underscore) for downstream use ("downstream names").  This
+means upstream will never use any downstream names for its commands,
+arguments, errors, asynchronous events, and so forth.
+
+Any new names downstream wishes to add must begin with '__'.  To
+ensure compatibility with other downstreams, it is strongly
+recommended that you prefix your downstream names with '__RFQDN_' where
+RFQDN is a valid, reverse fully qualified domain name which you
+control.  For example, a qemu-kvm specific monitor command would be:
+
+    (qemu) __org.linux-kvm_enable_irqchip
+
+Downstream must not change the server greeting (section 2.2) other than
+to offer additional capabilities.  But see below for why even that is
+discouraged.
+
+Section '5 Compatibility Considerations' applies to downstream as well
+as to upstream, obviously.  It follows that downstream must behave
+exactly like upstream for any input not containing members with
+downstream names ("downstream members"), except it may add members
+with downstream names to its output.
+
+Thus, a client should not be able to distinguish downstream from
+upstream as long as it doesn't send input with downstream members, and
+properly ignores any downstream members in the output it receives.
+
+Advice on downstream modifications:
+
+1. Introducing new commands is okay.  If you want to extend an existing
+   command, consider introducing a new one with the new behaviour
+   instead.
+
+2. Introducing new asynchronous messages is okay.  If you want to extend
+   an existing message, consider adding a new one instead.
+
+3. Introducing new errors for use in new commands is okay.  Adding new
+   errors to existing commands counts as extension, so 1. applies.
+
+4. New capabilities are strongly discouraged.  Capabilities are for
+   evolving the basic protocol, and multiple diverging basic protocol
+   dialects are most undesirable.

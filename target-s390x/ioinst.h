@@ -212,22 +212,24 @@ typedef struct IOIntCode {
 #define IO_INT_WORD_ISC(_int_word) ((_int_word & 0x38000000) >> 24)
 #define ISC_TO_ISC_BITS(_isc)      ((0x80 >> _isc) << 24)
 
+#define IO_INT_WORD_AI 0x80000000
+
 int ioinst_disassemble_sch_ident(uint32_t value, int *m, int *cssid, int *ssid,
                                  int *schid);
-int ioinst_handle_xsch(CPUS390XState *env, uint64_t reg1);
-int ioinst_handle_csch(CPUS390XState *env, uint64_t reg1);
-int ioinst_handle_hsch(CPUS390XState *env, uint64_t reg1);
-int ioinst_handle_msch(CPUS390XState *env, uint64_t reg1, uint32_t ipb);
-int ioinst_handle_ssch(CPUS390XState *env, uint64_t reg1, uint32_t ipb);
-int ioinst_handle_stcrw(CPUS390XState *env, uint32_t ipb);
-int ioinst_handle_stsch(CPUS390XState *env, uint64_t reg1, uint32_t ipb);
+void ioinst_handle_xsch(S390CPU *cpu, uint64_t reg1);
+void ioinst_handle_csch(S390CPU *cpu, uint64_t reg1);
+void ioinst_handle_hsch(S390CPU *cpu, uint64_t reg1);
+void ioinst_handle_msch(S390CPU *cpu, uint64_t reg1, uint32_t ipb);
+void ioinst_handle_ssch(S390CPU *cpu, uint64_t reg1, uint32_t ipb);
+void ioinst_handle_stcrw(S390CPU *cpu, uint32_t ipb);
+void ioinst_handle_stsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb);
 int ioinst_handle_tsch(CPUS390XState *env, uint64_t reg1, uint32_t ipb);
-int ioinst_handle_chsc(CPUS390XState *env, uint32_t ipb);
+void ioinst_handle_chsc(S390CPU *cpu, uint32_t ipb);
 int ioinst_handle_tpi(CPUS390XState *env, uint32_t ipb);
-int ioinst_handle_schm(CPUS390XState *env, uint64_t reg1, uint64_t reg2,
-                       uint32_t ipb);
-int ioinst_handle_rsch(CPUS390XState *env, uint64_t reg1);
-int ioinst_handle_rchp(CPUS390XState *env, uint64_t reg1);
-int ioinst_handle_sal(CPUS390XState *env, uint64_t reg1);
+void ioinst_handle_schm(S390CPU *cpu, uint64_t reg1, uint64_t reg2,
+                        uint32_t ipb);
+void ioinst_handle_rsch(S390CPU *cpu, uint64_t reg1);
+void ioinst_handle_rchp(S390CPU *cpu, uint64_t reg1);
+void ioinst_handle_sal(S390CPU *cpu, uint64_t reg1);
 
 #endif

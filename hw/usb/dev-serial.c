@@ -144,7 +144,7 @@ static const USBDescDevice desc_device = {
         {
             .bNumInterfaces        = 1,
             .bConfigurationValue   = 1,
-            .bmAttributes          = 0x80,
+            .bmAttributes          = USB_CFG_ATT_ONE,
             .bMaxPower             = 50,
             .nif = 1,
             .ifs = &desc_iface0,
@@ -590,6 +590,7 @@ static void usb_serial_class_initfn(ObjectClass *klass, void *data)
     uc->handle_data    = usb_serial_handle_data;
     dc->vmsd = &vmstate_usb_serial;
     dc->props = serial_properties;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo serial_info = {
@@ -617,6 +618,7 @@ static void usb_braille_class_initfn(ObjectClass *klass, void *data)
     uc->handle_data    = usb_serial_handle_data;
     dc->vmsd = &vmstate_usb_serial;
     dc->props = braille_properties;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo braille_info = {

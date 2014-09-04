@@ -4,6 +4,7 @@
  * Copyright (c) 2009 Edgar E. Iglesias
  * Copyright (c) 2009-2012 PetaLogix Qld Pty Ltd.
  * Copyright (c) 2012 SUSE LINUX Products GmbH
+ * Copyright (c) 2009 Edgar E. Iglesias, Axis Communications AB.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -26,6 +27,33 @@
 #include "migration/vmstate.h"
 
 
+static void mb_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+
+    cpu->env.sregs[SR_PC] = value;
+}
+
+static bool mb_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
+}
+
+#ifndef CONFIG_USER_ONLY
+static void microblaze_cpu_set_irq(void *opaque, int irq, int level)
+{
+    MicroBlazeCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
+    int type = irq ? CPU_INTERRUPT_NMI : CPU_INTERRUPT_HARD;
+
+    if (level) {
+        cpu_interrupt(cs, type);
+    } else {
+        cpu_reset_interrupt(cs, type);
+    }
+}
+#endif
+
 /* CPUClass::reset() */
 static void mb_cpu_reset(CPUState *s)
 {
@@ -33,16 +61,11 @@ static void mb_cpu_reset(CPUState *s)
     MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(cpu);
     CPUMBState *env = &cpu->env;
 
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
-        log_cpu_state(env, 0);
-    }
-
     mcc->parent_reset(s);
 
-    memset(env, 0, offsetof(CPUMBState, breakpoints));
+    memset(env, 0, sizeof(CPUMBState));
     env->res_addr = RES_ADDR_NONE;
-    tlb_flush(env, 1);
+    tlb_flush(s, 1);
 
     /* Disable stack protector.  */
     env->shr = ~0;
@@ -73,6 +96,8 @@ static void mb_cpu_reset(CPUState *s)
     env->pvr.regs[10] = 0x0c000000; /* Default to spartan 3a dsp family.  */
     env->pvr.regs[11] = PVR11_USE_MMU | (16 << 17);
 
+    env->sregs[SR_PC] = cpu->base_vectors;
+
 #if defined(CONFIG_USER_ONLY)
     /* start in user mode with interrupts enabled.  */
     env->sregs[SR_MSR] = MSR_EE | MSR_IE | MSR_VM | MSR_UM;
@@ -88,11 +113,11 @@ static void mb_cpu_reset(CPUState *s)
 
 static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    MicroBlazeCPU *cpu = MICROBLAZE_CPU(dev);
+    CPUState *cs = CPU(dev);
     MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(dev);
 
-    cpu_reset(CPU(cpu));
-    qemu_init_vcpu(&cpu->env);
+    cpu_reset(cs);
+    qemu_init_vcpu(cs);
 
     mcc->parent_realize(dev, errp);
 }
@@ -108,6 +133,11 @@ static void mb_cpu_initfn(Object *obj)
     cpu_exec_init(env);
 
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+
+#ifndef CONFIG_USER_ONLY
+    /* Inbound IRQ and FIR lines */
+    qdev_init_gpio_in(DEVICE(cpu), microblaze_cpu_set_irq, 2);
+#endif
 
     if (tcg_enabled() && !tcg_initialized) {
         tcg_initialized = true;
@@ -137,10 +167,21 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     mcc->parent_reset = cc->reset;
     cc->reset = mb_cpu_reset;
 
+    cc->has_work = mb_cpu_has_work;
     cc->do_interrupt = mb_cpu_do_interrupt;
+    cc->dump_state = mb_cpu_dump_state;
+    cc->set_pc = mb_cpu_set_pc;
+    cc->gdb_read_register = mb_cpu_gdb_read_register;
+    cc->gdb_write_register = mb_cpu_gdb_write_register;
+#ifdef CONFIG_USER_ONLY
+    cc->handle_mmu_fault = mb_cpu_handle_mmu_fault;
+#else
+    cc->do_unassigned_access = mb_cpu_unassigned_access;
+    cc->get_phys_page_debug = mb_cpu_get_phys_page_debug;
+#endif
     dc->vmsd = &vmstate_mb_cpu;
-
     dc->props = mb_properties;
+    cc->gdb_num_core_regs = 32 + 5;
 }
 
 static const TypeInfo mb_cpu_type_info = {

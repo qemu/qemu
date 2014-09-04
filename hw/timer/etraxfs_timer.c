@@ -42,8 +42,13 @@
 #define R_INTR        0x50
 #define R_MASKED_INTR 0x54
 
-struct etrax_timer {
-    SysBusDevice busdev;
+#define TYPE_ETRAX_FS_TIMER "etraxfs,timer"
+#define ETRAX_TIMER(obj) \
+    OBJECT_CHECK(ETRAXTimerState, (obj), TYPE_ETRAX_FS_TIMER)
+
+typedef struct ETRAXTimerState {
+    SysBusDevice parent_obj;
+
     MemoryRegion mmio;
     qemu_irq irq;
     qemu_irq nmi;
@@ -72,12 +77,12 @@ struct etrax_timer {
     uint32_t rw_ack_intr;
     uint32_t r_intr;
     uint32_t r_masked_intr;
-};
+} ETRAXTimerState;
 
 static uint64_t
 timer_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    struct etrax_timer *t = opaque;
+    ETRAXTimerState *t = opaque;
     uint32_t r = 0;
 
     switch (addr) {
@@ -88,7 +93,7 @@ timer_read(void *opaque, hwaddr addr, unsigned int size)
         r = ptimer_get_count(t->ptimer_t1);
         break;
     case R_TIME:
-        r = qemu_get_clock_ns(vm_clock) / 10;
+        r = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / 10;
         break;
     case RW_INTR_MASK:
         r = t->rw_intr_mask;
@@ -103,7 +108,7 @@ timer_read(void *opaque, hwaddr addr, unsigned int size)
     return r;
 }
 
-static void update_ctrl(struct etrax_timer *t, int tnum)
+static void update_ctrl(ETRAXTimerState *t, int tnum)
 {
     unsigned int op;
     unsigned int freq;
@@ -167,7 +172,7 @@ static void update_ctrl(struct etrax_timer *t, int tnum)
     }
 }
 
-static void timer_update_irq(struct etrax_timer *t)
+static void timer_update_irq(ETRAXTimerState *t)
 {
     t->r_intr &= ~(t->rw_ack_intr);
     t->r_masked_intr = t->r_intr & t->rw_intr_mask;
@@ -178,21 +183,21 @@ static void timer_update_irq(struct etrax_timer *t)
 
 static void timer0_hit(void *opaque)
 {
-    struct etrax_timer *t = opaque;
+    ETRAXTimerState *t = opaque;
     t->r_intr |= 1;
     timer_update_irq(t);
 }
 
 static void timer1_hit(void *opaque)
 {
-    struct etrax_timer *t = opaque;
+    ETRAXTimerState *t = opaque;
     t->r_intr |= 2;
     timer_update_irq(t);
 }
 
 static void watchdog_hit(void *opaque)
 {
-    struct etrax_timer *t = opaque;
+    ETRAXTimerState *t = opaque;
     if (t->wd_hits == 0) {
         /* real hw gives a single tick before reseting but we are
            a bit friendlier to compensate for our slower execution.  */
@@ -206,7 +211,7 @@ static void watchdog_hit(void *opaque)
     t->wd_hits++;
 }
 
-static inline void timer_watchdog_update(struct etrax_timer *t, uint32_t value)
+static inline void timer_watchdog_update(ETRAXTimerState *t, uint32_t value)
 {
     unsigned int wd_en = t->rw_wd_ctrl & (1 << 8);
     unsigned int wd_key = t->rw_wd_ctrl >> 9;
@@ -245,7 +250,7 @@ static void
 timer_write(void *opaque, hwaddr addr,
             uint64_t val64, unsigned int size)
 {
-    struct etrax_timer *t = opaque;
+    ETRAXTimerState *t = opaque;
     uint32_t value = val64;
 
     switch (addr)
@@ -298,7 +303,7 @@ static const MemoryRegionOps timer_ops = {
 
 static void etraxfs_timer_reset(void *opaque)
 {
-    struct etrax_timer *t = opaque;
+    ETRAXTimerState *t = opaque;
 
     ptimer_stop(t->ptimer_t0);
     ptimer_stop(t->ptimer_t1);
@@ -311,7 +316,7 @@ static void etraxfs_timer_reset(void *opaque)
 
 static int etraxfs_timer_init(SysBusDevice *dev)
 {
-    struct etrax_timer *t = FROM_SYSBUS(typeof (*t), dev);
+    ETRAXTimerState *t = ETRAX_TIMER(dev);
 
     t->bh_t0 = qemu_bh_new(timer0_hit, t);
     t->bh_t1 = qemu_bh_new(timer1_hit, t);
@@ -323,7 +328,8 @@ static int etraxfs_timer_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &t->irq);
     sysbus_init_irq(dev, &t->nmi);
 
-    memory_region_init_io(&t->mmio, &timer_ops, t, "etraxfs-timer", 0x5c);
+    memory_region_init_io(&t->mmio, OBJECT(t), &timer_ops, t,
+                          "etraxfs-timer", 0x5c);
     sysbus_init_mmio(dev, &t->mmio);
     qemu_register_reset(etraxfs_timer_reset, t);
     return 0;
@@ -337,9 +343,9 @@ static void etraxfs_timer_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo etraxfs_timer_info = {
-    .name          = "etraxfs,timer",
+    .name          = TYPE_ETRAX_FS_TIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof (struct etrax_timer),
+    .instance_size = sizeof(ETRAXTimerState),
     .class_init    = etraxfs_timer_class_init,
 };
 

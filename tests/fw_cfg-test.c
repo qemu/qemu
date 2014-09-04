@@ -10,14 +10,13 @@
  * See the COPYING file in the top-level directory.
  */
 
-#define NO_QEMU_PROTOS
-
-#include "libqtest.h"
-#include "hw/nvram/fw_cfg.h"
-#include "libqos/fw_cfg-pc.h"
-
 #include <string.h>
 #include <glib.h>
+
+#include "libqtest.h"
+#define NO_QEMU_PROTOS
+#include "hw/nvram/fw_cfg.h"
+#include "libqos/fw_cfg.h"
 
 static uint64_t ram_size = 128 << 20;
 static uint16_t nb_cpus = 1;
@@ -126,8 +125,7 @@ int main(int argc, char **argv)
     g_test_add_func("/fw_cfg/numa", test_fw_cfg_numa);
     g_test_add_func("/fw_cfg/boot_menu", test_fw_cfg_boot_menu);
 
-    cmdline = g_strdup_printf("-display none "
-                              "-uuid 4600cb32-38ec-4b2f-8acb-81c6ea54f2d8 ");
+    cmdline = g_strdup_printf("-uuid 4600cb32-38ec-4b2f-8acb-81c6ea54f2d8 ");
     s = qtest_start(cmdline);
     g_free(cmdline);
 

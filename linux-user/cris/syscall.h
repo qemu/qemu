@@ -1,8 +1,8 @@
 #ifndef CRIS_SYSCALL_H
 #define CRIS_SYSCALL_H 1
 
-
 #define UNAME_MACHINE "cris"
+#define UNAME_MINIMUM_RELEASE "2.6.32"
 
 /* pt_regs not only specifices the format in the user-struct during
  * ptrace but is also the frame format used in the kernel prologue/epilogues
@@ -37,5 +37,7 @@ struct target_pt_regs {
         unsigned long exs;
         unsigned long eda;
 };
+
+#define TARGET_CLONE_BACKWARDS2
 
 #endif

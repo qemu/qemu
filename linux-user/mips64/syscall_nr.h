@@ -310,6 +310,12 @@
 #define TARGET_NR_open_by_handle_at     (TARGET_NR_Linux + 304)
 #define TARGET_NR_clock_adjtime         (TARGET_NR_Linux + 305)
 #define TARGET_NR_syncfs                (TARGET_NR_Linux + 306)
+#define TARGET_NR_sendmmsg              (TARGET_NR_Linux + 307)
+#define TARGET_NR_setns                 (TARGET_NR_Linux + 308)
+#define TARGET_NR_process_vm_readv      (TARGET_NR_Linux + 309)
+#define TARGET_NR_process_vm_writev     (TARGET_NR_Linux + 310)
+#define TARGET_NR_kcmp                  (TARGET_NR_Linux + 311)
+#define TARGET_NR_finit_module          (TARGET_NR_Linux + 312)
 #else
 /*
  * Linux 64-bit syscalls are in the range from 5000 to 5999.
@@ -617,4 +623,11 @@
 #define TARGET_NR_open_by_handle_at     (TARGET_NR_Linux + 299)
 #define TARGET_NR_clock_adjtime         (TARGET_NR_Linux + 300)
 #define TARGET_NR_syncfs                (TARGET_NR_Linux + 301)
+#define TARGET_NR_sendmmsg              (TARGET_NR_Linux + 302)
+#define TARGET_NR_setns                 (TARGET_NR_Linux + 303)
+#define TARGET_NR_process_vm_readv      (TARGET_NR_Linux + 304)
+#define TARGET_NR_process_vm_writev     (TARGET_NR_Linux + 305)
+#define TARGET_NR_kcmp                  (TARGET_NR_Linux + 306)
+#define TARGET_NR_finit_module          (TARGET_NR_Linux + 307)
+#define TARGET_NR_getdents64            (TARGET_NR_Linux + 308)
 #endif

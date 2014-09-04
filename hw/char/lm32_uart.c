@@ -89,8 +89,12 @@ enum {
     MSR_DCD  = (1<<7),
 };
 
+#define TYPE_LM32_UART "lm32-uart"
+#define LM32_UART(obj) OBJECT_CHECK(LM32UartState, (obj), TYPE_LM32_UART)
+
 struct LM32UartState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     CharDriverState *chr;
     qemu_irq irq;
@@ -173,7 +177,7 @@ static void uart_write(void *opaque, hwaddr addr,
     switch (addr) {
     case R_RXTX:
         if (s->chr) {
-            qemu_chr_fe_write(s->chr, &ch, 1);
+            qemu_chr_fe_write_all(s->chr, &ch, 1);
         }
         break;
     case R_IER:
@@ -233,7 +237,7 @@ static void uart_event(void *opaque, int event)
 
 static void uart_reset(DeviceState *d)
 {
-    LM32UartState *s = container_of(d, LM32UartState, busdev.qdev);
+    LM32UartState *s = LM32_UART(d);
     int i;
 
     for (i = 0; i < R_MAX; i++) {
@@ -246,11 +250,12 @@ static void uart_reset(DeviceState *d)
 
 static int lm32_uart_init(SysBusDevice *dev)
 {
-    LM32UartState *s = FROM_SYSBUS(typeof(*s), dev);
+    LM32UartState *s = LM32_UART(dev);
 
     sysbus_init_irq(dev, &s->irq);
 
-    memory_region_init_io(&s->iomem, &uart_ops, s, "uart", R_MAX * 4);
+    memory_region_init_io(&s->iomem, OBJECT(s), &uart_ops, s,
+                          "uart", R_MAX * 4);
     sysbus_init_mmio(dev, &s->iomem);
 
     s->chr = qemu_char_get_next_serial();
@@ -265,8 +270,7 @@ static const VMStateDescription vmstate_lm32_uart = {
     .name = "lm32-uart",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, LM32UartState, R_MAX),
         VMSTATE_END_OF_LIST()
     }
@@ -283,7 +287,7 @@ static void lm32_uart_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo lm32_uart_info = {
-    .name          = "lm32-uart",
+    .name          = TYPE_LM32_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LM32UartState),
     .class_init    = lm32_uart_class_init,

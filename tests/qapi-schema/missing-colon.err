@@ -1,0 +1,1 @@
+tests/qapi-schema/missing-colon.json:1:10: Expected ":"

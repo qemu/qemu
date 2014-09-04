@@ -97,26 +97,26 @@ typedef struct PXA2xxPCMCIAState PXA2xxPCMCIAState;
 PXA2xxPCMCIAState *pxa2xx_pcmcia_init(MemoryRegion *sysmem,
                                       hwaddr base);
 int pxa2xx_pcmcia_attach(void *opaque, PCMCIACardState *card);
-int pxa2xx_pcmcia_dettach(void *opaque);
+int pxa2xx_pcmcia_detach(void *opaque);
 void pxa2xx_pcmcia_set_irq_cb(void *opaque, qemu_irq irq, qemu_irq cd_irq);
 
 /* pxa2xx_keypad.c */
 struct  keymap {
-    int column;
-    int row;
+    int8_t column;
+    int8_t row;
 };
 typedef struct PXA2xxKeyPadState PXA2xxKeyPadState;
 PXA2xxKeyPadState *pxa27x_keypad_init(MemoryRegion *sysmem,
                                       hwaddr base,
                                       qemu_irq irq);
-void pxa27x_register_keypad(PXA2xxKeyPadState *kp, struct keymap *map,
-                int size);
+void pxa27x_register_keypad(PXA2xxKeyPadState *kp,
+                            const struct keymap *map, int size);
 
 /* pxa2xx.c */
 typedef struct PXA2xxI2CState PXA2xxI2CState;
 PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
                 qemu_irq irq, uint32_t page_size);
-i2c_bus *pxa2xx_i2c_bus(PXA2xxI2CState *s);
+I2CBus *pxa2xx_i2c_bus(PXA2xxI2CState *s);
 
 typedef struct PXA2xxI2SState PXA2xxI2SState;
 typedef struct PXA2xxFIrState PXA2xxFIrState;

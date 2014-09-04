@@ -323,7 +323,7 @@ static void es1370_update_status (ES1370State *s, uint32_t new_status)
     else {
         s->status = new_status & ~STAT_INTR;
     }
-    qemu_set_irq (s->dev.irq[0], !!level);
+    pci_set_irq(&s->dev, !!level);
 }
 
 static void es1370_reset (ES1370State *s)
@@ -349,7 +349,7 @@ static void es1370_reset (ES1370State *s)
             s->dac_voice[i] = NULL;
         }
     }
-    qemu_irq_lower (s->dev.irq[0]);
+    pci_irq_deassert(&s->dev);
 }
 
 static void es1370_maybe_lower_irq (ES1370State *s, uint32_t sctl)
@@ -953,8 +953,7 @@ static const VMStateDescription vmstate_es1370_channel = {
     .name = "es1370_channel",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32 (shift, struct chan),
         VMSTATE_UINT32 (leftover, struct chan),
         VMSTATE_UINT32 (scount, struct chan),
@@ -997,9 +996,8 @@ static const VMStateDescription vmstate_es1370 = {
     .name = "es1370",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
     .post_load = es1370_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE (dev, ES1370State),
         VMSTATE_STRUCT_ARRAY (chan, ES1370State, NB_CHANNELS, 2,
                               vmstate_es1370_channel, struct chan),
@@ -1035,7 +1033,7 @@ static int es1370_initfn (PCIDevice *dev)
     c[PCI_MIN_GNT] = 0x0c;
     c[PCI_MAX_LAT] = 0x80;
 
-    memory_region_init_io (&s->io, &es1370_io_ops, s, "es1370", 256);
+    memory_region_init_io (&s->io, OBJECT(s), &es1370_io_ops, s, "es1370", 256);
     pci_register_bar (&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
     qemu_register_reset (es1370_on_reset, s);
 
@@ -1069,6 +1067,7 @@ static void es1370_class_init (ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;
     k->subsystem_vendor_id = 0x4942;
     k->subsystem_id = 0x4c4c;
+    set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "ENSONIQ AudioPCI ES1370";
     dc->vmsd = &vmstate_es1370;
 }

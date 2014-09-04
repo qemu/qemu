@@ -45,10 +45,14 @@
 #define FORCE_OFFSET     0x80
 #define EXTENDED_OFFSET  0xC0
 
+#define TYPE_GRLIB_IRQMP "grlib,irqmp"
+#define GRLIB_IRQMP(obj) OBJECT_CHECK(IRQMP, (obj), TYPE_GRLIB_IRQMP)
+
 typedef struct IRQMPState IRQMPState;
 
 typedef struct IRQMP {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
 
     void *set_pil_in;
@@ -102,18 +106,9 @@ static void grlib_irqmp_check_irqs(IRQMPState *state)
 
 void grlib_irqmp_ack(DeviceState *dev, int intno)
 {
-    SysBusDevice *sdev;
-    IRQMP        *irqmp;
+    IRQMP        *irqmp = GRLIB_IRQMP(dev);
     IRQMPState   *state;
     uint32_t      mask;
-
-    assert(dev != NULL);
-
-    sdev = SYS_BUS_DEVICE(dev);
-    assert(sdev != NULL);
-
-    irqmp = FROM_SYSBUS(typeof(*irqmp), sdev);
-    assert(irqmp != NULL);
 
     state = irqmp->state;
     assert(state != NULL);
@@ -132,14 +127,9 @@ void grlib_irqmp_ack(DeviceState *dev, int intno)
 
 void grlib_irqmp_set_irq(void *opaque, int irq, int level)
 {
-    IRQMP      *irqmp;
+    IRQMP      *irqmp = GRLIB_IRQMP(opaque);
     IRQMPState *s;
     int         i = 0;
-
-    assert(opaque != NULL);
-
-    irqmp = FROM_SYSBUS(typeof(*irqmp), SYS_BUS_DEVICE(opaque));
-    assert(irqmp != NULL);
 
     s = irqmp->state;
     assert(s         != NULL);
@@ -325,8 +315,7 @@ static const MemoryRegionOps grlib_irqmp_ops = {
 
 static void grlib_irqmp_reset(DeviceState *d)
 {
-    IRQMP *irqmp = container_of(d, IRQMP, busdev.qdev);
-    assert(irqmp        != NULL);
+    IRQMP *irqmp = GRLIB_IRQMP(d);
     assert(irqmp->state != NULL);
 
     memset(irqmp->state, 0, sizeof *irqmp->state);
@@ -335,16 +324,14 @@ static void grlib_irqmp_reset(DeviceState *d)
 
 static int grlib_irqmp_init(SysBusDevice *dev)
 {
-    IRQMP *irqmp = FROM_SYSBUS(typeof(*irqmp), dev);
-
-    assert(irqmp != NULL);
+    IRQMP *irqmp = GRLIB_IRQMP(dev);
 
     /* Check parameters */
     if (irqmp->set_pil_in == NULL) {
         return -1;
     }
 
-    memory_region_init_io(&irqmp->iomem, &grlib_irqmp_ops, irqmp,
+    memory_region_init_io(&irqmp->iomem, OBJECT(dev), &grlib_irqmp_ops, irqmp,
                           "irqmp", IRQMP_REG_SIZE);
 
     irqmp->state = g_malloc0(sizeof *irqmp->state);
@@ -368,10 +355,12 @@ static void grlib_irqmp_class_init(ObjectClass *klass, void *data)
     k->init = grlib_irqmp_init;
     dc->reset = grlib_irqmp_reset;
     dc->props = grlib_irqmp_properties;
+    /* Reason: pointer properties "set_pil_in", "set_pil_in_opaque" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo grlib_irqmp_info = {
-    .name          = "grlib,irqmp",
+    .name          = TYPE_GRLIB_IRQMP,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IRQMP),
     .class_init    = grlib_irqmp_class_init,

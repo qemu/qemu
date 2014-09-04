@@ -19,6 +19,7 @@
  */
 
 #include "qemu-common.h"
+#include "qemu/error-report.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "sysemu/bt.h"
@@ -229,7 +230,7 @@ static const USBDescDevice desc_device_bluetooth = {
         {
             .bNumInterfaces        = 2,
             .bConfigurationValue   = 1,
-            .bmAttributes          = 0xc0,
+            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
             .bMaxPower             = 0,
             .nif = ARRAY_SIZE(desc_iface_bluetooth),
             .ifs = desc_iface_bluetooth,
@@ -506,31 +507,45 @@ static int usb_bt_initfn(USBDevice *dev)
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
+    s->dev.opaque = s;
+    if (!s->hci) {
+        s->hci = bt_new_hci(qemu_find_bt_vlan(0));
+    }
+    s->hci->opaque = s;
+    s->hci->evt_recv = usb_bt_out_hci_packet_event;
+    s->hci->acl_recv = usb_bt_out_hci_packet_acl;
+    usb_bt_handle_reset(&s->dev);
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, USB_EVT_EP);
 
     return 0;
 }
 
-USBDevice *usb_bt_init(USBBus *bus, HCIInfo *hci)
+static USBDevice *usb_bt_init(USBBus *bus, const char *cmdline)
 {
     USBDevice *dev;
     struct USBBtState *s;
+    HCIInfo *hci;
+    const char *name = "usb-bt-dongle";
+
+    if (*cmdline) {
+        hci = hci_init(cmdline);
+    } else {
+        hci = bt_new_hci(qemu_find_bt_vlan(0));
+    }
 
     if (!hci)
         return NULL;
-    dev = usb_create_simple(bus, "usb-bt-dongle");
+    dev = usb_create(bus, name);
     if (!dev) {
+        error_report("Failed to create USB device '%s'", name);
         return NULL;
     }
     s = DO_UPCAST(struct USBBtState, dev, dev);
-    s->dev.opaque = s;
-
     s->hci = hci;
-    s->hci->opaque = s;
-    s->hci->evt_recv = usb_bt_out_hci_packet_event;
-    s->hci->acl_recv = usb_bt_out_hci_packet_acl;
-
-    usb_bt_handle_reset(&s->dev);
+    if (qdev_init(&dev->qdev) < 0) {
+        error_report("Failed to initialize USB device '%s'", name);
+        return NULL;
+    }
 
     return dev;
 }
@@ -553,6 +568,7 @@ static void usb_bt_class_initfn(ObjectClass *klass, void *data)
     uc->handle_data    = usb_bt_handle_data;
     uc->handle_destroy = usb_bt_handle_destroy;
     dc->vmsd = &vmstate_usb_bt;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
 static const TypeInfo bt_info = {
@@ -565,6 +581,7 @@ static const TypeInfo bt_info = {
 static void usb_bt_register_types(void)
 {
     type_register_static(&bt_info);
+    usb_legacy_register("usb-bt-dongle", "bt", usb_bt_init);
 }
 
 type_init(usb_bt_register_types)

@@ -132,15 +132,20 @@ static int tosa_ssp_init(SSISlave *dev)
     return 0;
 }
 
+#define TYPE_TOSA_DAC "tosa_dac"
+#define TOSA_DAC(obj) OBJECT_CHECK(TosaDACState, (obj), TYPE_TOSA_DAC)
+
 typedef struct {
-    I2CSlave i2c;
+    I2CSlave parent_obj;
+
     int len;
     char buf[3];
 } TosaDACState;
 
 static int tosa_dac_send(I2CSlave *i2c, uint8_t data)
 {
-    TosaDACState *s = FROM_I2C_SLAVE(TosaDACState, i2c);
+    TosaDACState *s = TOSA_DAC(i2c);
+
     s->buf[s->len] = data;
     if (s->len ++ > 2) {
 #ifdef VERBOSE
@@ -159,7 +164,8 @@ static int tosa_dac_send(I2CSlave *i2c, uint8_t data)
 
 static void tosa_dac_event(I2CSlave *i2c, enum i2c_event event)
 {
-    TosaDACState *s = FROM_I2C_SLAVE(TosaDACState, i2c);
+    TosaDACState *s = TOSA_DAC(i2c);
+
     s->len = 0;
     switch (event) {
     case I2C_START_SEND:
@@ -194,8 +200,8 @@ static int tosa_dac_init(I2CSlave *i2c)
 
 static void tosa_tg_init(PXA2xxState *cpu)
 {
-    i2c_bus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
-    i2c_create_slave(bus, "tosa_dac", DAC_BASE);
+    I2CBus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
+    i2c_create_slave(bus, TYPE_TOSA_DAC, DAC_BASE);
     ssi_create_slave(cpu->ssp[1], "tosa-ssp");
 }
 
@@ -205,12 +211,12 @@ static struct arm_boot_info tosa_binfo = {
     .ram_size = 0x04000000,
 };
 
-static void tosa_init(QEMUMachineInitArgs *args)
+static void tosa_init(MachineState *machine)
 {
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *rom = g_new(MemoryRegion, 1);
     PXA2xxState *mpu;
@@ -222,7 +228,7 @@ static void tosa_init(QEMUMachineInitArgs *args)
 
     mpu = pxa255_init(address_space_mem, tosa_binfo.ram_size);
 
-    memory_region_init_ram(rom, "tosa.rom", TOSA_ROM);
+    memory_region_init_ram(rom, NULL, "tosa.rom", TOSA_ROM);
     vmstate_register_ram_global(rom);
     memory_region_set_readonly(rom, true);
     memory_region_add_subregion(address_space_mem, 0, rom);
@@ -251,7 +257,6 @@ static QEMUMachine tosapda_machine = {
     .name = "tosa",
     .desc = "Tosa PDA (PXA255)",
     .init = tosa_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void tosapda_machine_init(void)
@@ -272,7 +277,7 @@ static void tosa_dac_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo tosa_dac_info = {
-    .name          = "tosa_dac",
+    .name          = TYPE_TOSA_DAC,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(TosaDACState),
     .class_init    = tosa_dac_class_init,

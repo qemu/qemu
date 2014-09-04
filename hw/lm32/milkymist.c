@@ -21,6 +21,7 @@
 #include "hw/hw.h"
 #include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "hw/devices.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
@@ -73,12 +74,12 @@ static void main_cpu_reset(void *opaque)
 }
 
 static void
-milkymist_init(QEMUMachineInitArgs *args)
+milkymist_init(MachineState *machine)
 {
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     LM32CPU *cpu;
     CPULM32State *env;
     int kernel_size;
@@ -107,12 +108,17 @@ milkymist_init(QEMUMachineInitArgs *args)
         cpu_model = "lm32-full";
     }
     cpu = cpu_lm32_init(cpu_model);
+    if (cpu == NULL) {
+        fprintf(stderr, "qemu: unable to find CPU '%s'\n", cpu_model);
+        exit(1);
+    }
+
     env = &cpu->env;
     reset_info->cpu = cpu;
 
     cpu_lm32_set_phys_msb_ignore(env, 1);
 
-    memory_region_init_ram(phys_sdram, "milkymist.sdram", sdram_size);
+    memory_region_init_ram(phys_sdram, NULL, "milkymist.sdram", sdram_size);
     vmstate_register_ram_global(phys_sdram);
     memory_region_add_subregion(address_space_mem, sdram_base, phys_sdram);
 
@@ -143,7 +149,7 @@ milkymist_init(QEMUMachineInitArgs *args)
     reset_info->bootstrap_pc = BIOS_OFFSET;
 
     /* if no kernel is given no valid bios rom is a fatal error */
-    if (!kernel_filename && !dinfo && !bios_filename) {
+    if (!kernel_filename && !dinfo && !bios_filename && !qtest_enabled()) {
         fprintf(stderr, "qemu: could not load Milkymist One bios '%s'\n",
                 bios_name);
         exit(1);
@@ -208,7 +214,6 @@ static QEMUMachine milkymist_machine = {
     .desc = "Milkymist One",
     .init = milkymist_init,
     .is_default = 0,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void milkymist_machine_init(void)

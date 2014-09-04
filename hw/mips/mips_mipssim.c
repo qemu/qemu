@@ -37,6 +37,8 @@
 #include "elf.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
+#include "qemu/error-report.h"
+#include "sysemu/qtest.h"
 
 static struct _loaderparams {
     int ram_size;
@@ -83,7 +85,7 @@ static int64_t load_kernel(void)
     if (loaderparams.initrd_filename) {
         initrd_size = get_image_size (loaderparams.initrd_filename);
         if (initrd_size > 0) {
-            initrd_offset = (kernel_high + ~TARGET_PAGE_MASK) & TARGET_PAGE_MASK;
+            initrd_offset = (kernel_high + ~INITRD_PAGE_MASK) & INITRD_PAGE_MASK;
             if (initrd_offset + initrd_size > loaderparams.ram_size) {
                 fprintf(stderr,
                         "qemu: memory too small for initial ram disk '%s'\n",
@@ -131,15 +133,16 @@ static void mipsnet_init(int base, qemu_irq irq, NICInfo *nd)
 }
 
 static void
-mips_mipssim_init(QEMUMachineInitArgs *args)
+mips_mipssim_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     char *filename;
     MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *isa = g_new(MemoryRegion, 1);
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios = g_new(MemoryRegion, 1);
     MIPSCPU *cpu;
@@ -168,9 +171,9 @@ mips_mipssim_init(QEMUMachineInitArgs *args)
     qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate RAM. */
-    memory_region_init_ram(ram, "mips_mipssim.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "mips_mipssim.ram", ram_size);
     vmstate_register_ram_global(ram);
-    memory_region_init_ram(bios, "mips_mipssim.bios", BIOS_SIZE);
+    memory_region_init_ram(bios, NULL, "mips_mipssim.bios", BIOS_SIZE);
     vmstate_register_ram_global(bios);
     memory_region_set_readonly(bios, true);
 
@@ -188,11 +191,11 @@ mips_mipssim_init(QEMUMachineInitArgs *args)
     } else {
         bios_size = -1;
     }
-    if ((bios_size < 0 || bios_size > BIOS_SIZE) && !kernel_filename) {
+    if ((bios_size < 0 || bios_size > BIOS_SIZE) &&
+        !kernel_filename && !qtest_enabled()) {
         /* Bail out if we have neither a kernel image nor boot vector code. */
-        fprintf(stderr,
-                "qemu: Could not load MIPS bios '%s', and no -kernel argument was specified\n",
-                filename);
+        error_report("Could not load MIPS bios '%s', and no "
+                     "-kernel argument was specified", filename);
         exit(1);
     } else {
         /* We have a boot vector start address. */
@@ -212,7 +215,9 @@ mips_mipssim_init(QEMUMachineInitArgs *args)
     cpu_mips_clock_init(env);
 
     /* Register 64 KB of ISA IO space at 0x1fd00000. */
-    isa_mmio_init(0x1fd00000, 0x00010000);
+    memory_region_init_alias(isa, NULL, "isa_mmio",
+                             get_system_io(), 0, 0x00010000);
+    memory_region_add_subregion(get_system_memory(), 0x1fd00000, isa);
 
     /* A single 16450 sits at offset 0x3f8. It is attached to
        MIPS CPU INT2, which is interrupt 4. */
@@ -229,7 +234,6 @@ static QEMUMachine mips_mipssim_machine = {
     .name = "mipssim",
     .desc = "MIPS MIPSsim platform",
     .init = mips_mipssim_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void mips_mipssim_machine_init(void)

@@ -28,7 +28,14 @@ CONFIG_ALL=y
 include $(SRC_PATH)/rules.mak
 config-host.mak: $(SRC_PATH)/configure
 	@echo $@ is out-of-date, running configure
-	@sed -n "/.*Configured with/s/[^:]*: //p" $@ | sh
+	@# TODO: The next lines include code which supports a smooth
+	@# transition from old configurations without config.status.
+	@# This code can be removed after QEMU 1.7.
+	@if test -x config.status; then \
+	    ./config.status; \
+        else \
+	    sed -n "/.*Configured with/s/[^:]*: //p" $@ | sh; \
+	fi
 else
 config-host.mak:
 ifneq ($(filter-out %clean,$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
@@ -38,17 +45,22 @@ endif
 endif
 
 GENERATED_HEADERS = config-host.h qemu-options.def
-GENERATED_HEADERS += qmp-commands.h qapi-types.h qapi-visit.h
-GENERATED_SOURCES += qmp-marshal.c qapi-types.c qapi-visit.c
+GENERATED_HEADERS += qmp-commands.h qapi-types.h qapi-visit.h qapi-event.h
+GENERATED_SOURCES += qmp-marshal.c qapi-types.c qapi-visit.c qapi-event.c
 
 GENERATED_HEADERS += trace/generated-events.h
 GENERATED_SOURCES += trace/generated-events.c
 
 GENERATED_HEADERS += trace/generated-tracers.h
-ifeq ($(TRACE_BACKEND),dtrace)
+ifeq ($(findstring dtrace,$(TRACE_BACKENDS)),dtrace)
 GENERATED_HEADERS += trace/generated-tracers-dtrace.h
 endif
 GENERATED_SOURCES += trace/generated-tracers.c
+
+ifeq ($(findstring ust,$(TRACE_BACKENDS)),ust)
+GENERATED_HEADERS += trace/generated-ust-provider.h
+GENERATED_SOURCES += trace/generated-ust.c
+endif
 
 # Don't try to regenerate Makefile or configure
 # We don't generate any of them
@@ -65,7 +77,7 @@ LIBS+=-lz $(LIBS_TOOLS)
 HELPERS-$(CONFIG_LINUX) = qemu-bridge-helper$(EXESUF)
 
 ifdef BUILD_DOCS
-DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1 qemu-nbd.8 QMP/qmp-commands.txt
+DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1 qemu-nbd.8 qmp-commands.txt
 ifdef CONFIG_VIRTFS
 DOCS+=fsdev/virtfs-proxy-helper.1
 endif
@@ -115,13 +127,26 @@ defconfig:
 
 ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/Makefile.objs
+endif
+
+dummy := $(call unnest-vars,, \
+                stub-obj-y \
+                util-obj-y \
+                qga-obj-y \
+                qga-vss-dll-obj-y \
+                block-obj-y \
+                block-obj-m \
+                common-obj-y \
+                common-obj-m)
+
+ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/tests/Makefile
 endif
 ifeq ($(CONFIG_SMARTCARD_NSS),y)
 include $(SRC_PATH)/libcacard/Makefile
 endif
 
-all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all
+all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all modules
 
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak
@@ -131,6 +156,7 @@ qemu-options.def: $(SRC_PATH)/qemu-options.hx
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 SOFTMMU_SUBDIR_RULES=$(filter %-softmmu,$(SUBDIR_RULES))
 
+$(SOFTMMU_SUBDIR_RULES): $(block-obj-y)
 $(SOFTMMU_SUBDIR_RULES): config-all-devices.mak
 
 subdir-%:
@@ -146,10 +172,11 @@ $(SRC_PATH)/pixman/configure:
 	(cd $(SRC_PATH)/pixman; autoreconf -v --install)
 
 DTC_MAKE_ARGS=-I$(SRC_PATH)/dtc VPATH=$(SRC_PATH)/dtc -C dtc V="$(V)" LIBFDT_srcdir=$(SRC_PATH)/dtc/libfdt
-DTC_CFLAGS=$(CFLAGS) $(QEMU_CFLAGS) -I$(BUILD_DIR)/dtc -I$(SRC_PATH)/dtc -I$(SRC_PATH)/dtc/libfdt
+DTC_CFLAGS=$(CFLAGS) $(QEMU_CFLAGS)
+DTC_CPPFLAGS=-I$(BUILD_DIR)/dtc -I$(SRC_PATH)/dtc -I$(SRC_PATH)/dtc/libfdt
 
 subdir-dtc:dtc/libfdt dtc/tests
-	$(call quiet-command,$(MAKE) $(DTC_MAKE_ARGS) CFLAGS="$(DTC_CFLAGS)" LDFLAGS="$(LDFLAGS)" ARFLAGS="$(ARFLAGS)" CC="$(CC)" AR="$(AR)" LD="$(LD)" $(SUBDIR_MAKEFLAGS) libfdt/libfdt.a,)
+	$(call quiet-command,$(MAKE) $(DTC_MAKE_ARGS) CPPFLAGS="$(DTC_CPPFLAGS)" CFLAGS="$(DTC_CFLAGS)" LDFLAGS="$(LDFLAGS)" ARFLAGS="$(ARFLAGS)" CC="$(CC)" AR="$(AR)" LD="$(LD)" $(SUBDIR_MAKEFLAGS) libfdt/libfdt.a,)
 
 dtc/%:
 	mkdir -p $@
@@ -164,13 +191,10 @@ ALL_SUBDIRS=$(TARGET_DIRS) $(patsubst %,pc-bios/%, $(ROMS))
 
 recurse-all: $(SUBDIR_RULES) $(ROMSUBDIR_RULES)
 
-bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
-
-version.o: $(SRC_PATH)/version.rc config-host.h | version.lo
-version.lo: $(SRC_PATH)/version.rc config-host.h
-
-version-obj-$(CONFIG_WIN32) += version.o
-version-lobj-$(CONFIG_WIN32) += version.lo
+$(BUILD_DIR)/version.o: $(SRC_PATH)/version.rc $(BUILD_DIR)/config-host.h | $(BUILD_DIR)/version.lo
+	$(call quiet-command,$(WINDRES) -I$(BUILD_DIR) -o $@ $<,"  RC    version.o")
+$(BUILD_DIR)/version.lo: $(SRC_PATH)/version.rc $(BUILD_DIR)/config-host.h
+	$(call quiet-command,$(WINDRES) -I$(BUILD_DIR) -o $@ $<,"  RC    version.lo")
 
 Makefile: $(version-obj-y) $(version-lobj-y)
 
@@ -178,7 +202,10 @@ Makefile: $(version-obj-y) $(version-lobj-y)
 # Build libraries
 
 libqemustub.a: $(stub-obj-y)
-libqemuutil.a: $(util-obj-y)
+libqemuutil.a: $(util-obj-y) qapi-types.o qapi-visit.o qapi-event.o
+
+block-modules = $(foreach o,$(block-obj-m),"$(basename $(subst /,-,$o))",) NULL
+util/module.o-cflags = -D'CONFIG_BLOCK_MODULES=$(block-modules)'
 
 ######################################################################
 
@@ -186,7 +213,7 @@ qemu-img.o: qemu-img-cmds.h
 
 qemu-img$(EXESUF): qemu-img.o $(block-obj-y) libqemuutil.a libqemustub.a
 qemu-nbd$(EXESUF): qemu-nbd.o $(block-obj-y) libqemuutil.a libqemustub.a
-qemu-io$(EXESUF): qemu-io.o cmd.o $(block-obj-y) libqemuutil.a libqemustub.a
+qemu-io$(EXESUF): qemu-io.o $(block-obj-y) libqemuutil.a libqemustub.a
 
 qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o
 
@@ -205,23 +232,44 @@ qapi-py = $(SRC_PATH)/scripts/qapi.py $(SRC_PATH)/scripts/ordereddict.py
 
 qga/qapi-generated/qga-qapi-types.c qga/qapi-generated/qga-qapi-types.h :\
 $(SRC_PATH)/qga/qapi-schema.json $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py $(gen-out-type) -o qga/qapi-generated -p "qga-" < $<, "  GEN   $@")
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py \
+		$(gen-out-type) -o qga/qapi-generated -p "qga-" -i $<, \
+		"  GEN   $@")
 qga/qapi-generated/qga-qapi-visit.c qga/qapi-generated/qga-qapi-visit.h :\
 $(SRC_PATH)/qga/qapi-schema.json $(SRC_PATH)/scripts/qapi-visit.py $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py $(gen-out-type) -o qga/qapi-generated -p "qga-" < $<, "  GEN   $@")
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py \
+		$(gen-out-type) -o qga/qapi-generated -p "qga-" -i $<, \
+		"  GEN   $@")
 qga/qapi-generated/qga-qmp-commands.h qga/qapi-generated/qga-qmp-marshal.c :\
 $(SRC_PATH)/qga/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py $(gen-out-type) -o qga/qapi-generated -p "qga-" < $<, "  GEN   $@")
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py \
+		$(gen-out-type) -o qga/qapi-generated -p "qga-" -i $<, \
+		"  GEN   $@")
+
+qapi-modules = $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/qapi/common.json \
+               $(SRC_PATH)/qapi/block.json $(SRC_PATH)/qapi/block-core.json \
+               $(SRC_PATH)/qapi/event.json
 
 qapi-types.c qapi-types.h :\
-$(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py $(gen-out-type) -o "." < $<, "  GEN   $@")
+$(qapi-modules) $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py \
+		$(gen-out-type) -o "." -b -i $<, \
+		"  GEN   $@")
 qapi-visit.c qapi-visit.h :\
-$(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-visit.py $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py $(gen-out-type) -o "."  < $<, "  GEN   $@")
+$(qapi-modules) $(SRC_PATH)/scripts/qapi-visit.py $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py \
+		$(gen-out-type) -o "." -b -i $<, \
+		"  GEN   $@")
+qapi-event.c qapi-event.h :\
+$(qapi-modules) $(SRC_PATH)/scripts/qapi-event.py $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-event.py \
+		$(gen-out-type) -o "." -b -i $<, \
+		"  GEN   $@")
 qmp-commands.h qmp-marshal.c :\
-$(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py $(gen-out-type) -m -o "." < $<, "  GEN   $@")
+$(qapi-modules) $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py \
+		$(gen-out-type) -o "." -m -i $<, \
+		"  GEN   $@")
 
 QGALIB_GEN=$(addprefix qga/qapi-generated/, qga-qapi-types.h qga-qapi-visit.h qga-qmp-commands.h)
 $(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
@@ -233,10 +281,10 @@ clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f qemu-options.def
-	find . -name '*.[oda]' -type f -exec rm -f {} +
-	find . -name '*.l[oa]' -type f -exec rm -f {} +
-	rm -f $(TOOLS) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
-	rm -Rf .libs
+	find . \( -name '*.l[oa]' -o -name '*.so' -o -name '*.dll' -o -name '*.mo' -o -name '*.[oda]' \) -type f -exec rm {} +
+	rm -f $(filter-out %.tlb,$(TOOLS)) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
+	rm -f fsdev/*.pod
+	rm -rf .libs */.libs
 	rm -f qemu-img-cmds.h
 	@# May not be present in GENERATED_HEADERS
 	rm -f trace/generated-tracers-dtrace.dtrace*
@@ -245,7 +293,6 @@ clean:
 	rm -f $(foreach f,$(GENERATED_SOURCES),$(f) $(f)-timestamp)
 	rm -rf qapi-generated
 	rm -rf qga/qapi-generated
-	$(MAKE) -C tests/tcg clean
 	for d in $(ALL_SUBDIRS); do \
 	if test -d $$d; then $(MAKE) -C $$d $@ || exit 1; fi; \
 	rm -f $$d/qemu-options.def; \
@@ -261,6 +308,7 @@ qemu-%.tar.bz2:
 distclean: clean
 	rm -f config-host.mak config-host.h* config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi qemu-monitor.texi
 	rm -f config-all-devices.mak config-all-disas.mak
+	rm -f po/*.mo
 	rm -f roms/seabios/config.mak roms/vgabios/config.mak
 	rm -f qemu-doc.info qemu-doc.aux qemu-doc.cp qemu-doc.cps qemu-doc.dvi
 	rm -f qemu-doc.fn qemu-doc.fns qemu-doc.info qemu-doc.ky qemu-doc.kys
@@ -272,30 +320,32 @@ distclean: clean
 	for d in $(TARGET_DIRS); do \
 	rm -rf $$d || exit 1 ; \
         done
+	rm -Rf .sdk
 	if test -f pixman/config.log; then make -C pixman distclean; fi
 	if test -f dtc/version_gen.h; then make $(DTC_MAKE_ARGS) clean; fi
 
 KEYMAPS=da     en-gb  et  fr     fr-ch  is  lt  modifiers  no  pt-br  sv \
 ar      de     en-us  fi  fr-be  hr     it  lv  nl         pl  ru     th \
 common  de-ch  es     fo  fr-ca  hu     ja  mk  nl-be      pt  sl     tr \
-bepo
+bepo    cz
 
 ifdef INSTALL_BLOBS
-BLOBS=bios.bin sgabios.bin vgabios.bin vgabios-cirrus.bin \
+BLOBS=bios.bin bios-256k.bin sgabios.bin vgabios.bin vgabios-cirrus.bin \
 vgabios-stdvga.bin vgabios-vmware.bin vgabios-qxl.bin \
 acpi-dsdt.aml q35-acpi-dsdt.aml \
-ppc_rom.bin openbios-sparc32 openbios-sparc64 openbios-ppc \
+ppc_rom.bin openbios-sparc32 openbios-sparc64 openbios-ppc QEMU,tcx.bin QEMU,cgthree.bin \
 pxe-e1000.rom pxe-eepro100.rom pxe-ne2k_pci.rom \
 pxe-pcnet.rom pxe-rtl8139.rom pxe-virtio.rom \
 efi-e1000.rom efi-eepro100.rom efi-ne2k_pci.rom \
 efi-pcnet.rom efi-rtl8139.rom efi-virtio.rom \
-qemu-icon.bmp \
+qemu-icon.bmp qemu_logo_no_text.svg \
 bamboo.dtb petalogix-s3adsp1800.dtb petalogix-ml605.dtb \
 multiboot.bin linuxboot.bin kvmvapic.bin \
 s390-zipl.rom \
 s390-ccw.img \
 spapr-rtas.bin slof.bin \
-palcode-clipper
+palcode-clipper \
+u-boot.e500
 else
 BLOBS=
 endif
@@ -303,7 +353,7 @@ endif
 install-doc: $(DOCS)
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_docdir)"
 	$(INSTALL_DATA) qemu-doc.html  qemu-tech.html "$(DESTDIR)$(qemu_docdir)"
-	$(INSTALL_DATA) QMP/qmp-commands.txt "$(DESTDIR)$(qemu_docdir)"
+	$(INSTALL_DATA) qmp-commands.txt "$(DESTDIR)$(qemu_docdir)"
 ifdef CONFIG_POSIX
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DATA) qemu.1 "$(DESTDIR)$(mandir)/man1"
@@ -321,20 +371,34 @@ endif
 install-datadir:
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)"
 
+install-localstatedir:
+ifdef CONFIG_POSIX
+ifneq (,$(findstring qemu-ga,$(TOOLS)))
+	$(INSTALL_DIR) "$(DESTDIR)$(qemu_localstatedir)"/run
+endif
+endif
+
 install-confdir:
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_confdir)"
 
 install-sysconfig: install-datadir install-confdir
 	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/target-x86_64.conf "$(DESTDIR)$(qemu_confdir)"
 
-install: all $(if $(BUILD_DOCS),install-doc) install-sysconfig install-datadir
-	$(INSTALL_DIR) "$(DESTDIR)$(bindir)"
+install: all $(if $(BUILD_DOCS),install-doc) install-sysconfig \
+install-datadir install-localstatedir
 ifneq ($(TOOLS),)
-	$(INSTALL_PROG) $(STRIP_OPT) $(TOOLS) "$(DESTDIR)$(bindir)"
+	$(call install-prog,$(TOOLS),$(DESTDIR)$(bindir))
+endif
+ifneq ($(CONFIG_MODULES),)
+	$(INSTALL_DIR) "$(DESTDIR)$(qemu_moddir)"
+	for s in $(modules-m:.mo=$(DSOSUF)); do \
+		t="$(DESTDIR)$(qemu_moddir)/$$(echo $$s | tr / -)"; \
+		$(INSTALL_LIB) $$s "$$t"; \
+		test -z "$(STRIP)" || $(STRIP) "$$t"; \
+	done
 endif
 ifneq ($(HELPERS-y),)
-	$(INSTALL_DIR) "$(DESTDIR)$(libexecdir)"
-	$(INSTALL_PROG) $(STRIP_OPT) $(HELPERS-y) "$(DESTDIR)$(libexecdir)"
+	$(call install-prog,$(HELPERS-y),$(DESTDIR)$(libexecdir))
 endif
 ifneq ($(BLOBS),)
 	set -e; for x in $(BLOBS); do \
@@ -349,7 +413,7 @@ endif
 		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/keymaps/$$x "$(DESTDIR)$(qemu_datadir)/keymaps"; \
 	done
 	for d in $(TARGET_DIRS); do \
-	$(MAKE) -C $$d $@ || exit 1 ; \
+	$(MAKE) $(SUBDIR_MAKEFLAGS) TARGET_DIR=$$d/ -C $$d $@ || exit 1 ; \
         done
 
 # various test targets
@@ -389,7 +453,7 @@ qemu-options.texi: $(SRC_PATH)/qemu-options.hx
 qemu-monitor.texi: $(SRC_PATH)/hmp-commands.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"  GEN   $@")
 
-QMP/qmp-commands.txt: $(SRC_PATH)/qmp-commands.hx
+qmp-commands.txt: $(SRC_PATH)/qmp-commands.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -q < $< > $@,"  GEN   $@")
 
 qemu-img-cmds.texi: $(SRC_PATH)/qemu-img-cmds.hx
@@ -427,6 +491,61 @@ pdf: qemu-doc.pdf qemu-tech.pdf
 qemu-doc.dvi qemu-doc.html qemu-doc.info qemu-doc.pdf: \
 	qemu-img.texi qemu-nbd.texi qemu-options.texi \
 	qemu-monitor.texi qemu-img-cmds.texi
+
+ifdef CONFIG_WIN32
+
+INSTALLER = qemu-setup-$(VERSION)$(EXESUF)
+
+nsisflags = -V2 -NOCD
+
+ifneq ($(wildcard $(SRC_PATH)/dll),)
+ifeq ($(ARCH),x86_64)
+# 64 bit executables
+DLL_PATH = $(SRC_PATH)/dll/w64
+nsisflags += -DW64
+else
+# 32 bit executables
+DLL_PATH = $(SRC_PATH)/dll/w32
+endif
+endif
+
+.PHONY: installer
+installer: $(INSTALLER)
+
+INSTDIR=/tmp/qemu-nsis
+
+$(INSTALLER): $(SRC_PATH)/qemu.nsi
+	make install prefix=${INSTDIR}
+ifdef SIGNCODE
+	(cd ${INSTDIR}; \
+         for i in *.exe; do \
+           $(SIGNCODE) $${i}; \
+         done \
+        )
+endif # SIGNCODE
+	(cd ${INSTDIR}; \
+         for i in qemu-system-*.exe; do \
+           arch=$${i%.exe}; \
+           arch=$${arch#qemu-system-}; \
+           echo Section \"$$arch\" Section_$$arch; \
+           echo SetOutPath \"\$$INSTDIR\"; \
+           echo File \"\$${BINDIR}\\$$i\"; \
+           echo SectionEnd; \
+         done \
+        ) >${INSTDIR}/system-emulations.nsh
+	makensis $(nsisflags) \
+                $(if $(BUILD_DOCS),-DCONFIG_DOCUMENTATION="y") \
+                $(if $(CONFIG_GTK),-DCONFIG_GTK="y") \
+                -DBINDIR="${INSTDIR}" \
+                $(if $(DLL_PATH),-DDLLDIR="$(DLL_PATH)") \
+                -DSRCDIR="$(SRC_PATH)" \
+                -DOUTFILE="$(INSTALLER)" \
+                $(SRC_PATH)/qemu.nsi
+	rm -r ${INSTDIR}
+ifdef SIGNCODE
+	$(SIGNCODE) $(INSTALLER)
+endif # SIGNCODE
+endif # CONFIG_WIN
 
 # Add a dependency on the generated files, so that they are always
 # rebuilt before other object files

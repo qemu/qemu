@@ -6,6 +6,7 @@
 #include "hw/qdev.h"
 #include "exec/memory.h"
 #include "sysemu/dma.h"
+#include "qapi/error.h"
 
 /* PCI includes legacy ISA access.  */
 #include "hw/isa/isa.h"
@@ -157,6 +158,9 @@ enum {
     QEMU_PCI_CAP_SHPC = (1 << QEMU_PCI_SHPC_BITNR),
 #define QEMU_PCI_SLOTID_BITNR 6
     QEMU_PCI_CAP_SLOTID = (1 << QEMU_PCI_SLOTID_BITNR),
+    /* PCI Express capability - Power Controller Present */
+#define QEMU_PCIE_SLTCAP_PCP_BITNR 7
+    QEMU_PCIE_SLTCAP_PCP = (1 << QEMU_PCIE_SLTCAP_PCP_BITNR),
 };
 
 #define TYPE_PCI_DEVICE "pci-device"
@@ -201,9 +205,6 @@ typedef struct PCIDeviceClass {
     /* pcie stuff */
     int is_express;   /* is this device pci express? */
 
-    /* device isn't hot-pluggable */
-    int no_hotplug;
-
     /* rom bar */
     const char *romfile;
 } PCIDeviceClass;
@@ -242,14 +243,10 @@ struct PCIDevice {
     PCIIORegion io_regions[PCI_NUM_REGIONS];
     AddressSpace bus_master_as;
     MemoryRegion bus_master_enable_region;
-    DMAContext *dma;
 
     /* do not access the following fields */
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
-
-    /* IRQ objects for the INTA-INTD pins.  */
-    qemu_irq *irq;
 
     /* Legacy PCI VGA regions */
     MemoryRegion *vga_regions[QEMU_PCI_VGA_NUM_REGIONS];
@@ -315,6 +312,9 @@ pcibus_t pci_get_bar_addr(PCIDevice *pci_dev, int region_num);
 
 int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
                        uint8_t offset, uint8_t size);
+int pci_add_capability2(PCIDevice *pdev, uint8_t cap_id,
+                       uint8_t offset, uint8_t size,
+                       Error **errp);
 
 void pci_del_capability(PCIDevice *pci_dev, uint8_t cap_id, uint8_t cap_size);
 
@@ -334,22 +334,13 @@ typedef void (*pci_set_irq_fn)(void *opaque, int irq_num, int level);
 typedef int (*pci_map_irq_fn)(PCIDevice *pci_dev, int irq_num);
 typedef PCIINTxRoute (*pci_route_irq_fn)(void *opaque, int pin);
 
-typedef enum {
-    PCI_HOTPLUG_DISABLED,
-    PCI_HOTPLUG_ENABLED,
-    PCI_COLDPLUG_ENABLED,
-} PCIHotplugState;
-
-typedef int (*pci_hotplug_fn)(DeviceState *qdev, PCIDevice *pci_dev,
-                              PCIHotplugState state);
-
 #define TYPE_PCI_BUS "PCI"
 #define PCI_BUS(obj) OBJECT_CHECK(PCIBus, (obj), TYPE_PCI_BUS)
 #define TYPE_PCIE_BUS "PCIE"
 
 bool pci_bus_is_express(PCIBus *bus);
 bool pci_bus_is_root(PCIBus *bus);
-void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
+void pci_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
                          const char *name,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io,
@@ -361,7 +352,6 @@ PCIBus *pci_bus_new(DeviceState *parent, const char *name,
 void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                   void *irq_opaque, int nirq);
 int pci_bus_get_irq_level(PCIBus *bus, int irq_num);
-void pci_bus_hotplug(PCIBus *bus, pci_hotplug_fn hotplug, DeviceState *dev);
 /* 0 <= pin <= 3 0 = INTA, 1 = INTB, 2 = INTC, 3 = INTD */
 int pci_swizzle_map_irq_fn(PCIDevice *pci_dev, int pin);
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
@@ -377,11 +367,12 @@ void pci_bus_fire_intx_routing_notifier(PCIBus *bus);
 void pci_device_set_intx_routing_notifier(PCIDevice *dev,
                                           PCIINTxRoutingNotifier notifier);
 void pci_device_reset(PCIDevice *dev);
-void pci_bus_reset(PCIBus *bus);
 
-PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
+PCIDevice *pci_nic_init(NICInfo *nd, PCIBus *rootbus,
+                        const char *default_model,
                         const char *default_devaddr);
-PCIDevice *pci_nic_init_nofail(NICInfo *nd, const char *default_model,
+PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
+                               const char *default_model,
                                const char *default_devaddr);
 
 PCIDevice *pci_vga_init(PCIBus *bus);
@@ -390,20 +381,37 @@ int pci_bus_num(PCIBus *s);
 void pci_for_each_device(PCIBus *bus, int bus_num,
                          void (*fn)(PCIBus *bus, PCIDevice *d, void *opaque),
                          void *opaque);
-PCIBus *pci_find_root_bus(int domain);
-int pci_find_domain(const PCIBus *bus);
+void pci_for_each_bus_depth_first(PCIBus *bus,
+                                  void *(*begin)(PCIBus *bus, void *parent_state),
+                                  void (*end)(PCIBus *bus, void *state),
+                                  void *parent_state);
+
+/* Use this wrapper when specific scan order is not required. */
+static inline
+void pci_for_each_bus(PCIBus *bus,
+                      void (*fn)(PCIBus *bus, void *opaque),
+                      void *opaque)
+{
+    pci_for_each_bus_depth_first(bus, NULL, fn, opaque);
+}
+
+PCIBus *pci_find_primary_bus(void);
+PCIBus *pci_device_root_bus(const PCIDevice *d);
+const char *pci_root_bus_path(PCIDevice *dev);
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn);
 int pci_qdev_find_device(const char *id, PCIDevice **pdev);
-PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr);
+PCIBus *pci_get_bus_devfn(int *devfnp, PCIBus *root, const char *devaddr);
+void pci_bus_get_w64_range(PCIBus *bus, Range *range);
 
-int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
-                     unsigned *slotp);
+int pci_parse_devaddr(const char *addr, int *domp, int *busp,
+                      unsigned int *slotp, unsigned int *funcp);
 
 void pci_device_deassert_intx(PCIDevice *dev);
 
-typedef DMAContext *(*PCIDMAContextFunc)(PCIBus *, void *, int);
+typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
 
-void pci_setup_iommu(PCIBus *bus, PCIDMAContextFunc fn, void *opaque);
+AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
+void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);
 
 static inline void
 pci_set_byte(uint8_t *config, uint8_t val)
@@ -420,25 +428,25 @@ pci_get_byte(const uint8_t *config)
 static inline void
 pci_set_word(uint8_t *config, uint16_t val)
 {
-    cpu_to_le16wu((uint16_t *)config, val);
+    stw_le_p(config, val);
 }
 
 static inline uint16_t
 pci_get_word(const uint8_t *config)
 {
-    return le16_to_cpupu((const uint16_t *)config);
+    return lduw_le_p(config);
 }
 
 static inline void
 pci_set_long(uint8_t *config, uint32_t val)
 {
-    cpu_to_le32wu((uint32_t *)config, val);
+    stl_le_p(config, val);
 }
 
 static inline uint32_t
 pci_get_long(const uint8_t *config)
 {
-    return le32_to_cpupu((const uint32_t *)config);
+    return ldl_le_p(config);
 }
 
 static inline void
@@ -628,6 +636,29 @@ PCIDevice *pci_create_simple_multifunction(PCIBus *bus, int devfn,
 PCIDevice *pci_create(PCIBus *bus, int devfn, const char *name);
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name);
 
+qemu_irq pci_allocate_irq(PCIDevice *pci_dev);
+void pci_set_irq(PCIDevice *pci_dev, int level);
+
+static inline void pci_irq_assert(PCIDevice *pci_dev)
+{
+    pci_set_irq(pci_dev, 1);
+}
+
+static inline void pci_irq_deassert(PCIDevice *pci_dev)
+{
+    pci_set_irq(pci_dev, 0);
+}
+
+/*
+ * FIXME: PCI does not work this way.
+ * All the callers to this method should be fixed.
+ */
+static inline void pci_irq_pulse(PCIDevice *pci_dev)
+{
+    pci_irq_assert(pci_dev);
+    pci_irq_deassert(pci_dev);
+}
+
 static inline int pci_is_express(const PCIDevice *d)
 {
     return d->cap_present & QEMU_PCI_CAP_EXPRESS;
@@ -639,15 +670,15 @@ static inline uint32_t pci_config_size(const PCIDevice *d)
 }
 
 /* DMA access functions */
-static inline DMAContext *pci_dma_context(PCIDevice *dev)
+static inline AddressSpace *pci_get_address_space(PCIDevice *dev)
 {
-    return dev->dma;
+    return &dev->bus_master_as;
 }
 
 static inline int pci_dma_rw(PCIDevice *dev, dma_addr_t addr,
                              void *buf, dma_addr_t len, DMADirection dir)
 {
-    dma_memory_rw(pci_dma_context(dev), addr, buf, len, dir);
+    dma_memory_rw(pci_get_address_space(dev), addr, buf, len, dir);
     return 0;
 }
 
@@ -667,12 +698,12 @@ static inline int pci_dma_write(PCIDevice *dev, dma_addr_t addr,
     static inline uint##_bits##_t ld##_l##_pci_dma(PCIDevice *dev,      \
                                                    dma_addr_t addr)     \
     {                                                                   \
-        return ld##_l##_dma(pci_dma_context(dev), addr);                \
+        return ld##_l##_dma(pci_get_address_space(dev), addr);          \
     }                                                                   \
     static inline void st##_s##_pci_dma(PCIDevice *dev,                 \
                                         dma_addr_t addr, uint##_bits##_t val) \
     {                                                                   \
-        st##_s##_dma(pci_dma_context(dev), addr, val);                  \
+        st##_s##_dma(pci_get_address_space(dev), addr, val);            \
     }
 
 PCI_DMA_DEFINE_LDST(ub, b, 8);
@@ -690,20 +721,20 @@ static inline void *pci_dma_map(PCIDevice *dev, dma_addr_t addr,
 {
     void *buf;
 
-    buf = dma_memory_map(pci_dma_context(dev), addr, plen, dir);
+    buf = dma_memory_map(pci_get_address_space(dev), addr, plen, dir);
     return buf;
 }
 
 static inline void pci_dma_unmap(PCIDevice *dev, void *buffer, dma_addr_t len,
                                  DMADirection dir, dma_addr_t access_len)
 {
-    dma_memory_unmap(pci_dma_context(dev), buffer, len, dir, access_len);
+    dma_memory_unmap(pci_get_address_space(dev), buffer, len, dir, access_len);
 }
 
 static inline void pci_dma_sglist_init(QEMUSGList *qsg, PCIDevice *dev,
                                        int alloc_hint)
 {
-    qemu_sglist_init(qsg, alloc_hint, pci_dma_context(dev));
+    qemu_sglist_init(qsg, DEVICE(dev), alloc_hint, pci_get_address_space(dev));
 }
 
 extern const VMStateDescription vmstate_pci_device;

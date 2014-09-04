@@ -36,7 +36,7 @@ ssize_t v9fs_get_xattr(FsContext *ctx, const char *path,
     if (xops) {
         return xops->getxattr(ctx, path, name, value, size);
     }
-    errno = -EOPNOTSUPP;
+    errno = EOPNOTSUPP;
     return -1;
 }
 
@@ -67,21 +67,24 @@ ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
                         void *value, size_t vsize)
 {
     ssize_t size = 0;
-    char buffer[PATH_MAX];
+    char *buffer;
     void *ovalue = value;
     XattrOperations *xops;
     char *orig_value, *orig_value_start;
     ssize_t xattr_len, parsed_len = 0, attr_len;
 
     /* Get the actual len */
-    xattr_len = llistxattr(rpath(ctx, path, buffer), value, 0);
+    buffer = rpath(ctx, path);
+    xattr_len = llistxattr(buffer, value, 0);
     if (xattr_len <= 0) {
+        g_free(buffer);
         return xattr_len;
     }
 
     /* Now fetch the xattr and find the actual size */
     orig_value = g_malloc(xattr_len);
-    xattr_len = llistxattr(rpath(ctx, path, buffer), orig_value, xattr_len);
+    xattr_len = llistxattr(buffer, orig_value, xattr_len);
+    g_free(buffer);
 
     /* store the orig pointer */
     orig_value_start = orig_value;
@@ -123,7 +126,7 @@ int v9fs_set_xattr(FsContext *ctx, const char *path, const char *name,
     if (xops) {
         return xops->setxattr(ctx, path, name, value, size, flags);
     }
-    errno = -EOPNOTSUPP;
+    errno = EOPNOTSUPP;
     return -1;
 
 }
@@ -135,7 +138,7 @@ int v9fs_remove_xattr(FsContext *ctx,
     if (xops) {
         return xops->removexattr(ctx, path, name);
     }
-    errno = -EOPNOTSUPP;
+    errno = EOPNOTSUPP;
     return -1;
 
 }

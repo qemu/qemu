@@ -16,6 +16,7 @@
 #define QEMU_COROUTINE_H
 
 #include <stdbool.h>
+#include "qemu/typedefs.h"
 #include "qemu/queue.h"
 #include "qemu/timer.h"
 
@@ -104,7 +105,6 @@ bool qemu_in_coroutine(void);
  */
 typedef struct CoQueue {
     QTAILQ_HEAD(, Coroutine) entries;
-    AioContext *ctx;
 } CoQueue;
 
 /**
@@ -120,22 +120,21 @@ void qemu_co_queue_init(CoQueue *queue);
 void coroutine_fn qemu_co_queue_wait(CoQueue *queue);
 
 /**
- * Adds the current coroutine to the head of the CoQueue and transfers control to the
- * caller of the coroutine.
- */
-void coroutine_fn qemu_co_queue_wait_insert_head(CoQueue *queue);
-
-/**
  * Restarts the next coroutine in the CoQueue and removes it from the queue.
  *
  * Returns true if a coroutine was restarted, false if the queue is empty.
  */
-bool qemu_co_queue_next(CoQueue *queue);
+bool coroutine_fn qemu_co_queue_next(CoQueue *queue);
 
 /**
  * Restarts all coroutines in the CoQueue and leaves the queue empty.
  */
-void qemu_co_queue_restart_all(CoQueue *queue);
+void coroutine_fn qemu_co_queue_restart_all(CoQueue *queue);
+
+/**
+ * Enter the next coroutine in the queue
+ */
+bool qemu_co_enter_next(CoQueue *queue);
 
 /**
  * Checks if the CoQueue is empty.
@@ -207,6 +206,21 @@ void qemu_co_rwlock_unlock(CoRwlock *lock);
  * Note this function uses timers and hence only works when a main loop is in
  * use.  See main-loop.h and do not use from qemu-tool programs.
  */
-void coroutine_fn co_sleep_ns(QEMUClock *clock, int64_t ns);
+void coroutine_fn co_sleep_ns(QEMUClockType type, int64_t ns);
 
+/**
+ * Yield the coroutine for a given duration
+ *
+ * Behaves similarly to co_sleep_ns(), but the sleeping coroutine will be
+ * resumed when using aio_poll().
+ */
+void coroutine_fn co_aio_sleep_ns(AioContext *ctx, QEMUClockType type,
+                                  int64_t ns);
+
+/**
+ * Yield until a file descriptor becomes readable
+ *
+ * Note that this function clobbers the handlers for the file descriptor.
+ */
+void coroutine_fn yield_until_fd_readable(int fd);
 #endif /* QEMU_COROUTINE_H */

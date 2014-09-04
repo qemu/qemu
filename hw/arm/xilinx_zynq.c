@@ -25,6 +25,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/loader.h"
 #include "hw/ssi.h"
+#include "qemu/error-report.h"
 
 #define NUM_SPI_FLASHES 4
 #define NUM_QSPI_FLASHES 2
@@ -34,6 +35,9 @@
 #define FLASH_SECTOR_SIZE (128 * 1024)
 
 #define IRQ_OFFSET 32 /* pic interrupts start from index 32 */
+
+#define MPCORE_PERIPHBASE 0xF8F00000
+#define ZYNQ_BOARD_MIDR 0x413FC090
 
 static const int dma_irqs[8] = {
     46, 47, 48, 49, 72, 73, 74, 75
@@ -46,9 +50,11 @@ static void gem_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     DeviceState *dev;
     SysBusDevice *s;
 
-    qemu_check_nic_model(nd, "cadence_gem");
     dev = qdev_create(NULL, "cadence_gem");
-    qdev_set_nic_properties(dev, nd);
+    if (nd->used) {
+        qemu_check_nic_model(nd, "cadence_gem");
+        qdev_set_nic_properties(dev, nd);
+    }
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(s, 0, base);
@@ -66,7 +72,7 @@ static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
     int num_busses =  is_qspi ? NUM_QSPI_BUSSES : 1;
     int num_ss = is_qspi ? NUM_QSPI_FLASHES : NUM_SPI_FLASHES;
 
-    dev = qdev_create(NULL, "xilinx,spips");
+    dev = qdev_create(NULL, is_qspi ? "xlnx.ps7-qspi" : "xlnx.ps7-spi");
     qdev_prop_set_uint8(dev, "num-txrx-bytes", is_qspi ? 4 : 1);
     qdev_prop_set_uint8(dev, "num-ss-bits", num_ss);
     qdev_prop_set_uint8(dev, "num-busses", num_busses);
@@ -88,43 +94,54 @@ static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
         for (j = 0; j < num_ss; ++j) {
             flash_dev = ssi_create_slave(spi, "n25q128");
 
-            cs_line = qdev_get_gpio_in(flash_dev, 0);
+            cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
             sysbus_connect_irq(busdev, i * num_ss + j + 1, cs_line);
         }
     }
 
 }
 
-static void zynq_init(QEMUMachineInitArgs *args)
+static void zynq_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
+    ObjectClass *cpu_oc;
     ARMCPU *cpu;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ext_ram = g_new(MemoryRegion, 1);
     MemoryRegion *ocm_ram = g_new(MemoryRegion, 1);
     DeviceState *dev;
     SysBusDevice *busdev;
-    qemu_irq *irqp;
     qemu_irq pic[64];
-    NICInfo *nd;
+    Error *err = NULL;
     int n;
-    qemu_irq cpu_irq;
 
     if (!cpu_model) {
         cpu_model = "cortex-a9";
     }
+    cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
 
-    cpu = cpu_arm_init(cpu_model);
-    if (!cpu) {
-        fprintf(stderr, "Unable to find CPU definition\n");
+    cpu = ARM_CPU(object_new(object_class_get_name(cpu_oc)));
+
+    object_property_set_int(OBJECT(cpu), ZYNQ_BOARD_MIDR, "midr", &err);
+    if (err) {
+        error_report("%s", error_get_pretty(err));
         exit(1);
     }
-    irqp = arm_pic_init_cpu(cpu);
-    cpu_irq = irqp[ARM_PIC_CPU_IRQ];
+
+    object_property_set_int(OBJECT(cpu), MPCORE_PERIPHBASE, "reset-cbar", &err);
+    if (err) {
+        error_report("%s", error_get_pretty(err));
+        exit(1);
+    }
+    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
+    if (err) {
+        error_report("%s", error_get_pretty(err));
+        exit(1);
+    }
 
     /* max 2GB ram */
     if (ram_size > 0x80000000) {
@@ -132,12 +149,12 @@ static void zynq_init(QEMUMachineInitArgs *args)
     }
 
     /* DDR remapped to address zero.  */
-    memory_region_init_ram(ext_ram, "zynq.ext_ram", ram_size);
+    memory_region_init_ram(ext_ram, NULL, "zynq.ext_ram", ram_size);
     vmstate_register_ram_global(ext_ram);
     memory_region_add_subregion(address_space_mem, 0, ext_ram);
 
     /* 256K of on-chip memory */
-    memory_region_init_ram(ocm_ram, "zynq.ocm_ram", 256 << 10);
+    memory_region_init_ram(ocm_ram, NULL, "zynq.ocm_ram", 256 << 10);
     vmstate_register_ram_global(ocm_ram);
     memory_region_add_subregion(address_space_mem, 0xFFFC0000, ocm_ram);
 
@@ -158,8 +175,9 @@ static void zynq_init(QEMUMachineInitArgs *args)
     qdev_prop_set_uint32(dev, "num-cpu", 1);
     qdev_init_nofail(dev);
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(busdev, 0, 0xF8F00000);
-    sysbus_connect_irq(busdev, 0, cpu_irq);
+    sysbus_mmio_map(busdev, 0, MPCORE_PERIPHBASE);
+    sysbus_connect_irq(busdev, 0,
+                       qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ));
 
     for (n = 0; n < 64; n++) {
         pic[n] = qdev_get_gpio_in(dev, n);
@@ -180,14 +198,8 @@ static void zynq_init(QEMUMachineInitArgs *args)
     sysbus_create_varargs("cadence_ttc", 0xF8002000,
             pic[69-IRQ_OFFSET], pic[70-IRQ_OFFSET], pic[71-IRQ_OFFSET], NULL);
 
-    for (n = 0; n < nb_nics; n++) {
-        nd = &nd_table[n];
-        if (n == 0) {
-            gem_init(nd, 0xE000B000, pic[54-IRQ_OFFSET]);
-        } else if (n == 1) {
-            gem_init(nd, 0xE000C000, pic[77-IRQ_OFFSET]);
-        }
-    }
+    gem_init(&nd_table[0], 0xE000B000, pic[54-IRQ_OFFSET]);
+    gem_init(&nd_table[1], 0xE000C000, pic[77-IRQ_OFFSET]);
 
     dev = qdev_create(NULL, "generic-sdhci");
     qdev_init_nofail(dev);
@@ -226,7 +238,7 @@ static void zynq_init(QEMUMachineInitArgs *args)
     zynq_binfo.nb_cpus = 1;
     zynq_binfo.board_id = 0xd32;
     zynq_binfo.loader_start = 0;
-    arm_load_kernel(arm_env_get_cpu(first_cpu), &zynq_binfo);
+    arm_load_kernel(ARM_CPU(first_cpu), &zynq_binfo);
 }
 
 static QEMUMachine zynq_machine = {
@@ -236,7 +248,6 @@ static QEMUMachine zynq_machine = {
     .block_default_type = IF_SCSI,
     .max_cpus = 1,
     .no_sdcard = 1,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void zynq_machine_init(void)

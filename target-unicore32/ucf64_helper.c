@@ -9,7 +9,7 @@
  * See the COPYING file in the top-level directory.
  */
 #include "cpu.h"
-#include "helper.h"
+#include "exec/helper-proto.h"
 
 /*
  * The convention used for UniCore-F64 instructions:
@@ -76,6 +76,7 @@ static inline int ucf64_exceptbits_to_host(int target_bits)
 
 void HELPER(ucf64_set_fpscr)(CPUUniCore32State *env, uint32_t val)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     int i;
     uint32_t changed;
 
@@ -99,7 +100,7 @@ void HELPER(ucf64_set_fpscr)(CPUUniCore32State *env, uint32_t val)
             i = float_round_down;
             break;
         default: /* 100 and 101 not implement */
-            cpu_abort(env, "Unsupported UniCore-F64 round mode");
+            cpu_abort(CPU(cpu), "Unsupported UniCore-F64 round mode");
         }
         set_float_rounding_mode(i, &env->ucf64.fp_status);
     }
@@ -286,28 +287,6 @@ static inline uint32_t ucf64_stoi(float32 s)
     } v;
 
     v.s = s;
-    return v.i;
-}
-
-static inline float64 ucf64_itod(uint64_t i)
-{
-    union {
-        uint64_t i;
-        float64 d;
-    } v;
-
-    v.i = i;
-    return v.d;
-}
-
-static inline uint64_t ucf64_dtoi(float64 d)
-{
-    union {
-        uint64_t i;
-        float64 d;
-    } v;
-
-    v.d = d;
     return v.i;
 }
 

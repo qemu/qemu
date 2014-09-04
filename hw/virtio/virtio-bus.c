@@ -37,16 +37,14 @@ do { printf("virtio_bus: " fmt , ## __VA_ARGS__); } while (0)
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
-/* Plug the VirtIODevice */
-int virtio_bus_plug_device(VirtIODevice *vdev)
+/* A VirtIODevice is being plugged */
+int virtio_bus_device_plugged(VirtIODevice *vdev)
 {
     DeviceState *qdev = DEVICE(vdev);
     BusState *qbus = BUS(qdev_get_parent_bus(qdev));
     VirtioBusState *bus = VIRTIO_BUS(qbus);
     VirtioBusClass *klass = VIRTIO_BUS_GET_CLASS(bus);
     DPRINTF("%s: plug device.\n", qbus->name);
-
-    bus->vdev = vdev;
 
     if (klass->device_plugged != NULL) {
         klass->device_plugged(qbus->parent);
@@ -58,75 +56,83 @@ int virtio_bus_plug_device(VirtIODevice *vdev)
 /* Reset the virtio_bus */
 void virtio_bus_reset(VirtioBusState *bus)
 {
+    VirtIODevice *vdev = virtio_bus_get_device(bus);
+
     DPRINTF("%s: reset device.\n", qbus->name);
-    if (bus->vdev != NULL) {
-        virtio_reset(bus->vdev);
+    if (vdev != NULL) {
+        virtio_reset(vdev);
     }
 }
 
-/* Destroy the VirtIODevice */
-void virtio_bus_destroy_device(VirtioBusState *bus)
+/* A VirtIODevice is being unplugged */
+void virtio_bus_device_unplugged(VirtIODevice *vdev)
 {
-    DeviceState *qdev;
-    BusState *qbus = BUS(bus);
-    VirtioBusClass *klass = VIRTIO_BUS_GET_CLASS(bus);
+    DeviceState *qdev = DEVICE(vdev);
+    BusState *qbus = BUS(qdev_get_parent_bus(qdev));
+    VirtioBusClass *klass = VIRTIO_BUS_GET_CLASS(qbus);
+
     DPRINTF("%s: remove device.\n", qbus->name);
 
-    if (bus->vdev != NULL) {
-        if (klass->device_unplug != NULL) {
-            klass->device_unplug(qbus->parent);
+    if (vdev != NULL) {
+        if (klass->device_unplugged != NULL) {
+            klass->device_unplugged(qbus->parent);
         }
-        qdev = DEVICE(bus->vdev);
-        qdev_free(qdev);
-        bus->vdev = NULL;
     }
 }
 
 /* Get the device id of the plugged device. */
 uint16_t virtio_bus_get_vdev_id(VirtioBusState *bus)
 {
-    assert(bus->vdev != NULL);
-    return bus->vdev->device_id;
+    VirtIODevice *vdev = virtio_bus_get_device(bus);
+    assert(vdev != NULL);
+    return vdev->device_id;
 }
 
 /* Get the config_len field of the plugged device. */
 size_t virtio_bus_get_vdev_config_len(VirtioBusState *bus)
 {
-    assert(bus->vdev != NULL);
-    return bus->vdev->config_len;
+    VirtIODevice *vdev = virtio_bus_get_device(bus);
+    assert(vdev != NULL);
+    return vdev->config_len;
 }
 
 /* Get the features of the plugged device. */
 uint32_t virtio_bus_get_vdev_features(VirtioBusState *bus,
                                     uint32_t requested_features)
 {
+    VirtIODevice *vdev = virtio_bus_get_device(bus);
     VirtioDeviceClass *k;
-    assert(bus->vdev != NULL);
-    k = VIRTIO_DEVICE_GET_CLASS(bus->vdev);
+
+    assert(vdev != NULL);
+    k = VIRTIO_DEVICE_GET_CLASS(vdev);
     assert(k->get_features != NULL);
-    return k->get_features(bus->vdev, requested_features);
+    return k->get_features(vdev, requested_features);
 }
 
 /* Set the features of the plugged device. */
 void virtio_bus_set_vdev_features(VirtioBusState *bus,
                                       uint32_t requested_features)
 {
+    VirtIODevice *vdev = virtio_bus_get_device(bus);
     VirtioDeviceClass *k;
-    assert(bus->vdev != NULL);
-    k = VIRTIO_DEVICE_GET_CLASS(bus->vdev);
+
+    assert(vdev != NULL);
+    k = VIRTIO_DEVICE_GET_CLASS(vdev);
     if (k->set_features != NULL) {
-        k->set_features(bus->vdev, requested_features);
+        k->set_features(vdev, requested_features);
     }
 }
 
 /* Get bad features of the plugged device. */
 uint32_t virtio_bus_get_vdev_bad_features(VirtioBusState *bus)
 {
+    VirtIODevice *vdev = virtio_bus_get_device(bus);
     VirtioDeviceClass *k;
-    assert(bus->vdev != NULL);
-    k = VIRTIO_DEVICE_GET_CLASS(bus->vdev);
+
+    assert(vdev != NULL);
+    k = VIRTIO_DEVICE_GET_CLASS(vdev);
     if (k->bad_features != NULL) {
-        return k->bad_features(bus->vdev);
+        return k->bad_features(vdev);
     } else {
         return 0;
     }
@@ -135,22 +141,26 @@ uint32_t virtio_bus_get_vdev_bad_features(VirtioBusState *bus)
 /* Get config of the plugged device. */
 void virtio_bus_get_vdev_config(VirtioBusState *bus, uint8_t *config)
 {
+    VirtIODevice *vdev = virtio_bus_get_device(bus);
     VirtioDeviceClass *k;
-    assert(bus->vdev != NULL);
-    k = VIRTIO_DEVICE_GET_CLASS(bus->vdev);
+
+    assert(vdev != NULL);
+    k = VIRTIO_DEVICE_GET_CLASS(vdev);
     if (k->get_config != NULL) {
-        k->get_config(bus->vdev, config);
+        k->get_config(vdev, config);
     }
 }
 
 /* Set config of the plugged device. */
 void virtio_bus_set_vdev_config(VirtioBusState *bus, uint8_t *config)
 {
+    VirtIODevice *vdev = virtio_bus_get_device(bus);
     VirtioDeviceClass *k;
-    assert(bus->vdev != NULL);
-    k = VIRTIO_DEVICE_GET_CLASS(bus->vdev);
+
+    assert(vdev != NULL);
+    k = VIRTIO_DEVICE_GET_CLASS(vdev);
     if (k->set_config != NULL) {
-        k->set_config(bus->vdev, config);
+        k->set_config(vdev, config);
     }
 }
 

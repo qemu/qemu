@@ -32,7 +32,7 @@ typedef struct StreamBlockJob {
     RateLimit limit;
     BlockDriverState *base;
     BlockdevOnError on_error;
-    char backing_file_id[1024];
+    char *backing_file_str;
 } StreamBlockJob;
 
 static int coroutine_fn stream_populate(BlockDriverState *bs,
@@ -57,6 +57,11 @@ static void close_unused_images(BlockDriverState *top, BlockDriverState *base,
     BlockDriverState *intermediate;
     intermediate = top->backing_hd;
 
+    /* Must assign before bdrv_delete() to prevent traversing dangling pointer
+     * while we delete backing image instances.
+     */
+    bdrv_set_backing_hd(top, base);
+
     while (intermediate) {
         BlockDriverState *unused;
 
@@ -67,10 +72,11 @@ static void close_unused_images(BlockDriverState *top, BlockDriverState *base,
 
         unused = intermediate;
         intermediate = intermediate->backing_hd;
-        unused->backing_hd = NULL;
-        bdrv_delete(unused);
+        bdrv_set_backing_hd(unused, NULL);
+        bdrv_unref(unused);
     }
-    top->backing_hd = base;
+
+    bdrv_refresh_limits(top, NULL);
 }
 
 static void coroutine_fn stream_run(void *opaque)
@@ -83,6 +89,11 @@ static void coroutine_fn stream_run(void *opaque)
     int ret = 0;
     int n = 0;
     void *buf;
+
+    if (!bs->backing_hd) {
+        block_job_completed(&s->common, 0);
+        return;
+    }
 
     s->common.len = bdrv_getlength(bs);
     if (s->common.len < 0) {
@@ -110,21 +121,22 @@ wait:
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
          */
-        block_job_sleep_ns(&s->common, rt_clock, delay_ns);
+        block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, delay_ns);
         if (block_job_is_cancelled(&s->common)) {
             break;
         }
 
-        ret = bdrv_co_is_allocated(bs, sector_num,
-                                   STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
+        copy = false;
+
+        ret = bdrv_is_allocated(bs, sector_num,
+                                STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
         if (ret == 1) {
             /* Allocated in the top, no need to copy.  */
-            copy = false;
-        } else {
+        } else if (ret >= 0) {
             /* Copy if allocated in the intermediate images.  Limit to the
              * known-unallocated area [sector_num, sector_num+n).  */
-            ret = bdrv_co_is_allocated_above(bs->backing_hd, base,
-                                             sector_num, n, &n);
+            ret = bdrv_is_allocated_above(bs->backing_hd, base,
+                                          sector_num, n, &n);
 
             /* Finish early if end of backing file has been reached */
             if (ret == 0 && n == 0) {
@@ -134,7 +146,7 @@ wait:
             copy = (ret == 1);
         }
         trace_stream_one_iteration(s, sector_num, n, ret);
-        if (ret >= 0 && copy) {
+        if (copy) {
             if (s->common.speed) {
                 delay_ns = ratelimit_calculate_delay(&s->limit, n);
                 if (delay_ns > 0) {
@@ -147,14 +159,14 @@ wait:
             BlockErrorAction action =
                 block_job_error_action(&s->common, s->common.bs, s->on_error,
                                        true, -ret);
-            if (action == BDRV_ACTION_STOP) {
+            if (action == BLOCK_ERROR_ACTION_STOP) {
                 n = 0;
                 continue;
             }
             if (error == 0) {
                 error = ret;
             }
-            if (action == BDRV_ACTION_REPORT) {
+            if (action == BLOCK_ERROR_ACTION_REPORT) {
                 break;
             }
         }
@@ -174,7 +186,7 @@ wait:
     if (!block_job_is_cancelled(&s->common) && sector_num == end && ret == 0) {
         const char *base_id = NULL, *base_fmt = NULL;
         if (base) {
-            base_id = s->backing_file_id;
+            base_id = s->backing_file_str;
             if (base->drv) {
                 base_fmt = base->drv->format_name;
             }
@@ -184,6 +196,7 @@ wait:
     }
 
     qemu_vfree(buf);
+    g_free(s->backing_file_str);
     block_job_completed(&s->common, ret);
 }
 
@@ -198,14 +211,14 @@ static void stream_set_speed(BlockJob *job, int64_t speed, Error **errp)
     ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE, SLICE_TIME);
 }
 
-static BlockJobType stream_job_type = {
+static const BlockJobDriver stream_job_driver = {
     .instance_size = sizeof(StreamBlockJob),
-    .job_type      = "stream",
+    .job_type      = BLOCK_JOB_TYPE_STREAM,
     .set_speed     = stream_set_speed,
 };
 
 void stream_start(BlockDriverState *bs, BlockDriverState *base,
-                  const char *base_id, int64_t speed,
+                  const char *backing_file_str, int64_t speed,
                   BlockdevOnError on_error,
                   BlockDriverCompletionFunc *cb,
                   void *opaque, Error **errp)
@@ -219,15 +232,13 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
         return;
     }
 
-    s = block_job_create(&stream_job_type, bs, speed, cb, opaque, errp);
+    s = block_job_create(&stream_job_driver, bs, speed, cb, opaque, errp);
     if (!s) {
         return;
     }
 
     s->base = base;
-    if (base_id) {
-        pstrcpy(s->backing_file_id, sizeof(s->backing_file_id), base_id);
-    }
+    s->backing_file_str = g_strdup(backing_file_str);
 
     s->on_error = on_error;
     s->common.co = qemu_coroutine_create(stream_run);

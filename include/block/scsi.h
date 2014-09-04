@@ -143,6 +143,8 @@
 #define READ_CD               0xbe
 #define SEND_DVD_STRUCTURE    0xbf
 
+const char *scsi_command_name(uint8_t cmd);
+
 /*
  * SERVICE ACTION IN subcodes
  */

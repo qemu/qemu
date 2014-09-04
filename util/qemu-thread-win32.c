@@ -16,6 +16,16 @@
 #include <assert.h>
 #include <limits.h>
 
+static bool name_threads;
+
+void qemu_thread_naming(bool enable)
+{
+    /* But note we don't actually name them on Windows yet */
+    name_threads = enable;
+
+    fprintf(stderr, "qemu: thread naming not supported on this host\n");
+}
+
 static void error_exit(int err, const char *msg)
 {
     char *pstr;
@@ -227,6 +237,32 @@ void qemu_sem_wait(QemuSemaphore *sem)
     }
 }
 
+void qemu_event_init(QemuEvent *ev, bool init)
+{
+    /* Manual reset.  */
+    ev->event = CreateEvent(NULL, TRUE, init, NULL);
+}
+
+void qemu_event_destroy(QemuEvent *ev)
+{
+    CloseHandle(ev->event);
+}
+
+void qemu_event_set(QemuEvent *ev)
+{
+    SetEvent(ev->event);
+}
+
+void qemu_event_reset(QemuEvent *ev)
+{
+    ResetEvent(ev->event);
+}
+
+void qemu_event_wait(QemuEvent *ev)
+{
+    WaitForSingleObject(ev->event, INFINITE);
+}
+
 struct QemuThreadData {
     /* Passed to win32_start_routine.  */
     void             *(*start_routine)(void *);
@@ -299,7 +335,7 @@ void *qemu_thread_join(QemuThread *thread)
     return ret;
 }
 
-void qemu_thread_create(QemuThread *thread,
+void qemu_thread_create(QemuThread *thread, const char *name,
                        void *(*start_routine)(void *),
                        void *arg, int mode)
 {

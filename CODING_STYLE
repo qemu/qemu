@@ -84,3 +84,10 @@ and clarity it comes on a line by itself:
 Rationale: a consistent (except for functions...) bracing style reduces
 ambiguity and avoids needless churn when lines are added or removed.
 Furthermore, it is the QEMU coding style.
+
+5. Declarations
+
+Mixed declarations (interleaving statements and declarations within blocks)
+are not allowed; declarations should be at the beginning of blocks.  In other
+words, the code should not generate warnings if using GCC's
+-Wdeclaration-after-statement option.

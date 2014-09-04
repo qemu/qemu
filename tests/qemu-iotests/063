@@ -1,0 +1,100 @@
+#!/bin/bash
+#
+# test of qemu-img convert -n - convert without creation
+#
+# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2013 Alex Bligh (alex@alex.org.uk)
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=alex@alex.org.uk
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+	rm -f "$TEST_IMG.orig" "$TEST_IMG.raw" "$TEST_IMG.raw2"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.pattern
+
+_supported_fmt qcow qcow2 vmdk qed raw
+_supported_proto file
+_supported_os Linux
+_unsupported_imgopts "subformat=monolithicFlat" \
+                     "subformat=twoGbMaxExtentFlat" \
+                     "subformat=twoGbMaxExtentSparse"
+
+_make_test_img 4M
+
+echo "== Testing conversion with -n fails with no target file =="
+# check .orig file does not exist
+rm -f "$TEST_IMG.orig"
+if $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n "$TEST_IMG" "$TEST_IMG.orig" >/dev/null 2>&1; then
+    exit 1
+fi
+
+echo "== Testing conversion with -n succeeds with a target file =="
+rm -f "$TEST_IMG.orig"
+cp "$TEST_IMG" "$TEST_IMG.orig"
+if ! $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n "$TEST_IMG" "$TEST_IMG.orig" ; then
+    exit 1
+fi
+
+echo "== Testing conversion to raw is the same after conversion with -n =="
+# compare the raw files
+if ! $QEMU_IMG convert -f $IMGFMT -O raw "$TEST_IMG" "$TEST_IMG.raw1" ; then
+    exit 1
+fi
+
+if ! $QEMU_IMG convert -f $IMGFMT -O raw "$TEST_IMG.orig" "$TEST_IMG.raw2" ; then
+    exit 1
+fi
+
+if ! cmp "$TEST_IMG.raw1" "$TEST_IMG.raw2" ; then
+    exit 1
+fi
+
+echo "== Testing conversion back to original format =="
+if ! $QEMU_IMG convert -f raw -O $IMGFMT -n "$TEST_IMG.raw2" "$TEST_IMG" ; then
+    exit 1
+fi
+_check_test_img
+
+echo "== Testing conversion to a smaller file fails =="
+rm -f "$TEST_IMG.orig"
+mv "$TEST_IMG" "$TEST_IMG.orig"
+_make_test_img 2M
+if $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n "$TEST_IMG.orig" "$TEST_IMG" >/dev/null 2>&1; then
+    exit 1
+fi
+
+rm -f "$TEST_IMG.orig" "$TEST_IMG.raw" "$TEST_IMG.raw2"
+
+echo "*** done"
+rm -f $seq.full
+status=0
+exit 0

@@ -11,6 +11,8 @@
 #include "hw/arm/arm.h"
 #include "hw/loader.h"
 #include "elf.h"
+#include "sysemu/qtest.h"
+#include "qemu/error-report.h"
 
 /* Bitbanded IO.  Each word corresponds to a single bit.  */
 
@@ -114,18 +116,24 @@ static const MemoryRegionOps bitband_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+#define TYPE_BITBAND "ARM,bitband-memory"
+#define BITBAND(obj) OBJECT_CHECK(BitBandState, (obj), TYPE_BITBAND)
+
 typedef struct {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t base;
 } BitBandState;
 
 static int bitband_init(SysBusDevice *dev)
 {
-    BitBandState *s = FROM_SYSBUS(BitBandState, dev);
+    BitBandState *s = BITBAND(dev);
 
-    memory_region_init_io(&s->iomem, &bitband_ops, &s->base, "bitband",
-                          0x02000000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &bitband_ops, &s->base,
+                          "bitband", 0x02000000);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
@@ -134,7 +142,7 @@ static void armv7m_bitband_init(Object *parent)
 {
     DeviceState *dev;
 
-    dev = qdev_create(NULL, "ARM,bitband-memory");
+    dev = qdev_create(NULL, TYPE_BITBAND);
     qdev_prop_set_uint32(dev, "base", 0x20000000);
     if(parent) {
         object_property_add_child(parent, "bitband-sram", OBJECT(dev), NULL);
@@ -142,7 +150,7 @@ static void armv7m_bitband_init(Object *parent)
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x22000000);
 
-    dev = qdev_create(NULL, "ARM,bitband-memory");
+    dev = qdev_create(NULL, TYPE_BITBAND);
     qdev_prop_set_uint32(dev, "base", 0x40000000);
     if(parent) {
         object_property_add_child(parent, "bitband-periph", OBJECT(dev), NULL);
@@ -173,7 +181,6 @@ qemu_irq *armv7m_init(Object *parent, MemoryRegion *address_space_mem,
     DeviceState *nvic;
     /* FIXME: make this local state.  */
     static qemu_irq pic[64];
-    qemu_irq *cpu_pic;
     int image_size;
     uint64_t entry;
     uint64_t lowaddr;
@@ -209,11 +216,11 @@ qemu_irq *armv7m_init(Object *parent, MemoryRegion *address_space_mem,
 #endif
 
     /* Flash programming is done via the SCU, so pretend it is ROM.  */
-    memory_region_init_ram(flash, "armv7m.flash", flash_size);
+    memory_region_init_ram(flash, NULL, "armv7m.flash", flash_size);
     vmstate_register_ram_global(flash);
     memory_region_set_readonly(flash, true);
     memory_region_add_subregion(address_space_mem, 0, flash);
-    memory_region_init_ram(sram, "armv7m.sram", sram_size);
+    memory_region_init_ram(sram, NULL, "armv7m.sram", sram_size);
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(address_space_mem, 0x20000000, sram);
     armv7m_bitband_init(parent);
@@ -224,8 +231,8 @@ qemu_irq *armv7m_init(Object *parent, MemoryRegion *address_space_mem,
         object_property_add_child(parent, "nvic", OBJECT(nvic), NULL);
     }
     qdev_init_nofail(nvic);
-    cpu_pic = arm_pic_init_cpu(cpu);
-    sysbus_connect_irq(SYS_BUS_DEVICE(nvic), 0, cpu_pic[ARM_PIC_CPU_IRQ]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(nvic), 0,
+                       qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ));
     for (i = 0; i < 64; i++) {
         pic[i] = qdev_get_gpio_in(nvic, i);
     }
@@ -236,27 +243,28 @@ qemu_irq *armv7m_init(Object *parent, MemoryRegion *address_space_mem,
     big_endian = 0;
 #endif
 
-    if (!kernel_filename) {
+    if (!kernel_filename && !qtest_enabled()) {
         fprintf(stderr, "Guest image must be specified (using -kernel)\n");
         exit(1);
     }
 
-    image_size = load_elf(kernel_filename, NULL, NULL, &entry, &lowaddr,
-                          NULL, big_endian, ELF_MACHINE, 1);
-    if (image_size < 0) {
-        image_size = load_image_targphys(kernel_filename, 0, flash_size);
-	lowaddr = 0;
-    }
-    if (image_size < 0) {
-        fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                kernel_filename);
-        exit(1);
+    if (kernel_filename) {
+        image_size = load_elf(kernel_filename, NULL, NULL, &entry, &lowaddr,
+                              NULL, big_endian, ELF_MACHINE, 1);
+        if (image_size < 0) {
+            image_size = load_image_targphys(kernel_filename, 0, flash_size);
+            lowaddr = 0;
+        }
+        if (image_size < 0) {
+            error_report("Could not load kernel '%s'", kernel_filename);
+            exit(1);
+        }
     }
 
     /* Hack to map an additional page of ram at the top of the address
        space.  This stops qemu complaining about executing code outside RAM
        when returning from an exception.  */
-    memory_region_init_ram(hack, "armv7m.hack", 0x1000);
+    memory_region_init_ram(hack, NULL, "armv7m.hack", 0x1000);
     vmstate_register_ram_global(hack);
     memory_region_add_subregion(address_space_mem, 0xfffff000, hack);
 
@@ -279,7 +287,7 @@ static void bitband_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo bitband_info = {
-    .name          = "ARM,bitband-memory",
+    .name          = TYPE_BITBAND,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BitBandState),
     .class_init    = bitband_class_init,

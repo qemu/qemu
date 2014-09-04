@@ -25,13 +25,15 @@
 #include <inttypes.h>
 
 #include "cpu.h"
+#include "internals.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
 #include "qemu/log.h"
+#include "qemu/bitops.h"
+#include "arm_ldst.h"
 
-#include "helper.h"
-#define GEN_HELPER 1
-#include "helper.h"
+#include "exec/helper-proto.h"
+#include "exec/helper-gen.h"
 
 #define ENABLE_ARCH_4T    arm_feature(env, ARM_FEATURE_V4T)
 #define ENABLE_ARCH_5     arm_feature(env, ARM_FEATURE_V5)
@@ -42,32 +44,11 @@
 #define ENABLE_ARCH_6K   arm_feature(env, ARM_FEATURE_V6K)
 #define ENABLE_ARCH_6T2   arm_feature(env, ARM_FEATURE_THUMB2)
 #define ENABLE_ARCH_7     arm_feature(env, ARM_FEATURE_V7)
+#define ENABLE_ARCH_8     arm_feature(env, ARM_FEATURE_V8)
 
 #define ARCH(x) do { if (!ENABLE_ARCH_##x) goto illegal_op; } while(0)
 
-/* internal defines */
-typedef struct DisasContext {
-    target_ulong pc;
-    int is_jmp;
-    /* Nonzero if this instruction has been conditionally skipped.  */
-    int condjmp;
-    /* The label that will be jumped to when the instruction is skipped.  */
-    int condlabel;
-    /* Thumb-2 conditional execution bits.  */
-    int condexec_mask;
-    int condexec_cond;
-    struct TranslationBlock *tb;
-    int singlestep_enabled;
-    int thumb;
-    int bswap_code;
-#if !defined(CONFIG_USER_ONLY)
-    int user;
-#endif
-    int vfp_enabled;
-    int vec_len;
-    int vec_stride;
-} DisasContext;
-
+#include "translate.h"
 static uint32_t gen_opc_condexec_bits[OPC_BUF_SIZE];
 
 #if defined(CONFIG_USER_ONLY)
@@ -76,26 +57,20 @@ static uint32_t gen_opc_condexec_bits[OPC_BUF_SIZE];
 #define IS_USER(s) (s->user)
 #endif
 
-/* These instructions trap after executing, so defer them until after the
-   conditional execution state has been updated.  */
-#define DISAS_WFI 4
-#define DISAS_SWI 5
-
-static TCGv_ptr cpu_env;
+TCGv_ptr cpu_env;
 /* We reuse the same 64-bit temporaries for efficiency.  */
 static TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
 static TCGv_i32 cpu_R[16];
 static TCGv_i32 cpu_CF, cpu_NF, cpu_VF, cpu_ZF;
-static TCGv_i32 cpu_exclusive_addr;
-static TCGv_i32 cpu_exclusive_val;
-static TCGv_i32 cpu_exclusive_high;
+static TCGv_i64 cpu_exclusive_addr;
+static TCGv_i64 cpu_exclusive_val;
 #ifdef CONFIG_USER_ONLY
-static TCGv_i32 cpu_exclusive_test;
+static TCGv_i64 cpu_exclusive_test;
 static TCGv_i32 cpu_exclusive_info;
 #endif
 
 /* FIXME:  These should be removed.  */
-static TCGv cpu_F0s, cpu_F1s;
+static TCGv_i32 cpu_F0s, cpu_F1s;
 static TCGv_i64 cpu_F0d, cpu_F1d;
 
 #include "exec/gen-icount.h"
@@ -121,33 +96,30 @@ void arm_translate_init(void)
     cpu_VF = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUARMState, VF), "VF");
     cpu_ZF = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUARMState, ZF), "ZF");
 
-    cpu_exclusive_addr = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_exclusive_addr = tcg_global_mem_new_i64(TCG_AREG0,
         offsetof(CPUARMState, exclusive_addr), "exclusive_addr");
-    cpu_exclusive_val = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_exclusive_val = tcg_global_mem_new_i64(TCG_AREG0,
         offsetof(CPUARMState, exclusive_val), "exclusive_val");
-    cpu_exclusive_high = tcg_global_mem_new_i32(TCG_AREG0,
-        offsetof(CPUARMState, exclusive_high), "exclusive_high");
 #ifdef CONFIG_USER_ONLY
-    cpu_exclusive_test = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_exclusive_test = tcg_global_mem_new_i64(TCG_AREG0,
         offsetof(CPUARMState, exclusive_test), "exclusive_test");
     cpu_exclusive_info = tcg_global_mem_new_i32(TCG_AREG0,
         offsetof(CPUARMState, exclusive_info), "exclusive_info");
 #endif
 
-#define GEN_HELPER 2
-#include "helper.h"
+    a64_translate_init();
 }
 
-static inline TCGv load_cpu_offset(int offset)
+static inline TCGv_i32 load_cpu_offset(int offset)
 {
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
     tcg_gen_ld_i32(tmp, cpu_env, offset);
     return tmp;
 }
 
 #define load_cpu_field(name) load_cpu_offset(offsetof(CPUARMState, name))
 
-static inline void store_cpu_offset(TCGv var, int offset)
+static inline void store_cpu_offset(TCGv_i32 var, int offset)
 {
     tcg_gen_st_i32(var, cpu_env, offset);
     tcg_temp_free_i32(var);
@@ -157,7 +129,7 @@ static inline void store_cpu_offset(TCGv var, int offset)
     store_cpu_offset(var, offsetof(CPUARMState, name))
 
 /* Set a variable to the value of a CPU register.  */
-static void load_reg_var(DisasContext *s, TCGv var, int reg)
+static void load_reg_var(DisasContext *s, TCGv_i32 var, int reg)
 {
     if (reg == 15) {
         uint32_t addr;
@@ -173,16 +145,16 @@ static void load_reg_var(DisasContext *s, TCGv var, int reg)
 }
 
 /* Create a new temporary and set it to the value of a CPU register.  */
-static inline TCGv load_reg(DisasContext *s, int reg)
+static inline TCGv_i32 load_reg(DisasContext *s, int reg)
 {
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
     load_reg_var(s, tmp, reg);
     return tmp;
 }
 
 /* Set a CPU register.  The source must be a temporary and will be
    marked as dead.  */
-static void store_reg(DisasContext *s, int reg, TCGv var)
+static void store_reg(DisasContext *s, int reg, TCGv_i32 var)
 {
     if (reg == 15) {
         tcg_gen_andi_i32(var, var, ~1);
@@ -202,27 +174,38 @@ static void store_reg(DisasContext *s, int reg, TCGv var)
 #define gen_uxtb16(var) gen_helper_uxtb16(var, var)
 
 
-static inline void gen_set_cpsr(TCGv var, uint32_t mask)
+static inline void gen_set_cpsr(TCGv_i32 var, uint32_t mask)
 {
-    TCGv tmp_mask = tcg_const_i32(mask);
+    TCGv_i32 tmp_mask = tcg_const_i32(mask);
     gen_helper_cpsr_write(cpu_env, var, tmp_mask);
     tcg_temp_free_i32(tmp_mask);
 }
 /* Set NZCV flags from the high 4 bits of var.  */
 #define gen_set_nzcv(var) gen_set_cpsr(var, CPSR_NZCV)
 
-static void gen_exception(int excp)
+static void gen_exception_internal(int excp)
 {
-    TCGv tmp = tcg_temp_new_i32();
-    tcg_gen_movi_i32(tmp, excp);
-    gen_helper_exception(cpu_env, tmp);
-    tcg_temp_free_i32(tmp);
+    TCGv_i32 tcg_excp = tcg_const_i32(excp);
+
+    assert(excp_is_internal(excp));
+    gen_helper_exception_internal(cpu_env, tcg_excp);
+    tcg_temp_free_i32(tcg_excp);
 }
 
-static void gen_smul_dual(TCGv a, TCGv b)
+static void gen_exception(int excp, uint32_t syndrome)
 {
-    TCGv tmp1 = tcg_temp_new_i32();
-    TCGv tmp2 = tcg_temp_new_i32();
+    TCGv_i32 tcg_excp = tcg_const_i32(excp);
+    TCGv_i32 tcg_syn = tcg_const_i32(syndrome);
+
+    gen_helper_exception_with_syndrome(cpu_env, tcg_excp, tcg_syn);
+    tcg_temp_free_i32(tcg_syn);
+    tcg_temp_free_i32(tcg_excp);
+}
+
+static void gen_smul_dual(TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i32 tmp1 = tcg_temp_new_i32();
+    TCGv_i32 tmp2 = tcg_temp_new_i32();
     tcg_gen_ext16s_i32(tmp1, a);
     tcg_gen_ext16s_i32(tmp2, b);
     tcg_gen_mul_i32(tmp1, tmp1, tmp2);
@@ -235,9 +218,9 @@ static void gen_smul_dual(TCGv a, TCGv b)
 }
 
 /* Byteswap each halfword.  */
-static void gen_rev16(TCGv var)
+static void gen_rev16(TCGv_i32 var)
 {
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
     tcg_gen_shri_i32(tmp, var, 8);
     tcg_gen_andi_i32(tmp, tmp, 0x00ff00ff);
     tcg_gen_shli_i32(var, var, 8);
@@ -247,7 +230,7 @@ static void gen_rev16(TCGv var)
 }
 
 /* Byteswap low halfword and sign extend.  */
-static void gen_revsh(TCGv var)
+static void gen_revsh(TCGv_i32 var)
 {
     tcg_gen_ext16u_i32(var, var);
     tcg_gen_bswap16_i32(var, var);
@@ -255,7 +238,7 @@ static void gen_revsh(TCGv var)
 }
 
 /* Unsigned bitfield extract.  */
-static void gen_ubfx(TCGv var, int shift, uint32_t mask)
+static void gen_ubfx(TCGv_i32 var, int shift, uint32_t mask)
 {
     if (shift)
         tcg_gen_shri_i32(var, var, shift);
@@ -263,7 +246,7 @@ static void gen_ubfx(TCGv var, int shift, uint32_t mask)
 }
 
 /* Signed bitfield extract.  */
-static void gen_sbfx(TCGv var, int shift, int width)
+static void gen_sbfx(TCGv_i32 var, int shift, int width)
 {
     uint32_t signbit;
 
@@ -278,7 +261,7 @@ static void gen_sbfx(TCGv var, int shift, int width)
 }
 
 /* Return (b << 32) + a. Mark inputs as dead */
-static TCGv_i64 gen_addq_msw(TCGv_i64 a, TCGv b)
+static TCGv_i64 gen_addq_msw(TCGv_i64 a, TCGv_i32 b)
 {
     TCGv_i64 tmp64 = tcg_temp_new_i64();
 
@@ -292,7 +275,7 @@ static TCGv_i64 gen_addq_msw(TCGv_i64 a, TCGv b)
 }
 
 /* Return (b << 32) - a. Mark inputs as dead. */
-static TCGv_i64 gen_subq_msw(TCGv_i64 a, TCGv b)
+static TCGv_i64 gen_subq_msw(TCGv_i64 a, TCGv_i32 b)
 {
     TCGv_i64 tmp64 = tcg_temp_new_i64();
 
@@ -306,10 +289,10 @@ static TCGv_i64 gen_subq_msw(TCGv_i64 a, TCGv b)
 }
 
 /* 32x32->64 multiply.  Marks inputs as dead.  */
-static TCGv_i64 gen_mulu_i64_i32(TCGv a, TCGv b)
+static TCGv_i64 gen_mulu_i64_i32(TCGv_i32 a, TCGv_i32 b)
 {
-    TCGv lo = tcg_temp_new_i32();
-    TCGv hi = tcg_temp_new_i32();
+    TCGv_i32 lo = tcg_temp_new_i32();
+    TCGv_i32 hi = tcg_temp_new_i32();
     TCGv_i64 ret;
 
     tcg_gen_mulu2_i32(lo, hi, a, b);
@@ -318,16 +301,16 @@ static TCGv_i64 gen_mulu_i64_i32(TCGv a, TCGv b)
 
     ret = tcg_temp_new_i64();
     tcg_gen_concat_i32_i64(ret, lo, hi);
-    tcg_temp_free(lo);
-    tcg_temp_free(hi);
+    tcg_temp_free_i32(lo);
+    tcg_temp_free_i32(hi);
 
     return ret;
 }
 
-static TCGv_i64 gen_muls_i64_i32(TCGv a, TCGv b)
+static TCGv_i64 gen_muls_i64_i32(TCGv_i32 a, TCGv_i32 b)
 {
-    TCGv lo = tcg_temp_new_i32();
-    TCGv hi = tcg_temp_new_i32();
+    TCGv_i32 lo = tcg_temp_new_i32();
+    TCGv_i32 hi = tcg_temp_new_i32();
     TCGv_i64 ret;
 
     tcg_gen_muls2_i32(lo, hi, a, b);
@@ -336,16 +319,16 @@ static TCGv_i64 gen_muls_i64_i32(TCGv a, TCGv b)
 
     ret = tcg_temp_new_i64();
     tcg_gen_concat_i32_i64(ret, lo, hi);
-    tcg_temp_free(lo);
-    tcg_temp_free(hi);
+    tcg_temp_free_i32(lo);
+    tcg_temp_free_i32(hi);
 
     return ret;
 }
 
 /* Swap low and high halfwords.  */
-static void gen_swap_half(TCGv var)
+static void gen_swap_half(TCGv_i32 var)
 {
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
     tcg_gen_shri_i32(tmp, var, 16);
     tcg_gen_shli_i32(var, var, 16);
     tcg_gen_or_i32(var, var, tmp);
@@ -359,9 +342,9 @@ static void gen_swap_half(TCGv var)
     t0 = (t0 + t1) ^ tmp;
  */
 
-static void gen_add16(TCGv t0, TCGv t1)
+static void gen_add16(TCGv_i32 t0, TCGv_i32 t1)
 {
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
     tcg_gen_xor_i32(tmp, t0, t1);
     tcg_gen_andi_i32(tmp, tmp, 0x8000);
     tcg_gen_andi_i32(t0, t0, ~0x8000);
@@ -373,34 +356,34 @@ static void gen_add16(TCGv t0, TCGv t1)
 }
 
 /* Set CF to the top bit of var.  */
-static void gen_set_CF_bit31(TCGv var)
+static void gen_set_CF_bit31(TCGv_i32 var)
 {
     tcg_gen_shri_i32(cpu_CF, var, 31);
 }
 
 /* Set N and Z flags from var.  */
-static inline void gen_logic_CC(TCGv var)
+static inline void gen_logic_CC(TCGv_i32 var)
 {
     tcg_gen_mov_i32(cpu_NF, var);
     tcg_gen_mov_i32(cpu_ZF, var);
 }
 
 /* T0 += T1 + CF.  */
-static void gen_adc(TCGv t0, TCGv t1)
+static void gen_adc(TCGv_i32 t0, TCGv_i32 t1)
 {
     tcg_gen_add_i32(t0, t0, t1);
     tcg_gen_add_i32(t0, t0, cpu_CF);
 }
 
 /* dest = T0 + T1 + CF. */
-static void gen_add_carry(TCGv dest, TCGv t0, TCGv t1)
+static void gen_add_carry(TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
     tcg_gen_add_i32(dest, t0, t1);
     tcg_gen_add_i32(dest, dest, cpu_CF);
 }
 
 /* dest = T0 - T1 + CF - 1.  */
-static void gen_sub_carry(TCGv dest, TCGv t0, TCGv t1)
+static void gen_sub_carry(TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
     tcg_gen_sub_i32(dest, t0, t1);
     tcg_gen_add_i32(dest, dest, cpu_CF);
@@ -408,9 +391,9 @@ static void gen_sub_carry(TCGv dest, TCGv t0, TCGv t1)
 }
 
 /* dest = T0 + T1. Compute C, N, V and Z flags */
-static void gen_add_CC(TCGv dest, TCGv t0, TCGv t1)
+static void gen_add_CC(TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
     tcg_gen_movi_i32(tmp, 0);
     tcg_gen_add2_i32(cpu_NF, cpu_CF, t0, tmp, t1, tmp);
     tcg_gen_mov_i32(cpu_ZF, cpu_NF);
@@ -422,9 +405,9 @@ static void gen_add_CC(TCGv dest, TCGv t0, TCGv t1)
 }
 
 /* dest = T0 + T1 + CF.  Compute C, N, V and Z flags */
-static void gen_adc_CC(TCGv dest, TCGv t0, TCGv t1)
+static void gen_adc_CC(TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
     if (TCG_TARGET_HAS_add2_i32) {
         tcg_gen_movi_i32(tmp, 0);
         tcg_gen_add2_i32(cpu_NF, cpu_CF, t0, tmp, cpu_CF, tmp);
@@ -450,9 +433,9 @@ static void gen_adc_CC(TCGv dest, TCGv t0, TCGv t1)
 }
 
 /* dest = T0 - T1. Compute C, N, V and Z flags */
-static void gen_sub_CC(TCGv dest, TCGv t0, TCGv t1)
+static void gen_sub_CC(TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
-    TCGv tmp;
+    TCGv_i32 tmp;
     tcg_gen_sub_i32(cpu_NF, t0, t1);
     tcg_gen_mov_i32(cpu_ZF, cpu_NF);
     tcg_gen_setcond_i32(TCG_COND_GEU, cpu_CF, t0, t1);
@@ -465,18 +448,18 @@ static void gen_sub_CC(TCGv dest, TCGv t0, TCGv t1)
 }
 
 /* dest = T0 + ~T1 + CF.  Compute C, N, V and Z flags */
-static void gen_sbc_CC(TCGv dest, TCGv t0, TCGv t1)
+static void gen_sbc_CC(TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
     tcg_gen_not_i32(tmp, t1);
     gen_adc_CC(dest, t0, tmp);
-    tcg_temp_free(tmp);
+    tcg_temp_free_i32(tmp);
 }
 
 #define GEN_SHIFT(name)                                               \
-static void gen_##name(TCGv dest, TCGv t0, TCGv t1)                   \
+static void gen_##name(TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)       \
 {                                                                     \
-    TCGv tmp1, tmp2, tmp3;                                            \
+    TCGv_i32 tmp1, tmp2, tmp3;                                        \
     tmp1 = tcg_temp_new_i32();                                        \
     tcg_gen_andi_i32(tmp1, t1, 0xff);                                 \
     tmp2 = tcg_const_i32(0);                                          \
@@ -492,9 +475,9 @@ GEN_SHIFT(shl)
 GEN_SHIFT(shr)
 #undef GEN_SHIFT
 
-static void gen_sar(TCGv dest, TCGv t0, TCGv t1)
+static void gen_sar(TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
-    TCGv tmp1, tmp2;
+    TCGv_i32 tmp1, tmp2;
     tmp1 = tcg_temp_new_i32();
     tcg_gen_andi_i32(tmp1, t1, 0xff);
     tmp2 = tcg_const_i32(0x1f);
@@ -504,17 +487,17 @@ static void gen_sar(TCGv dest, TCGv t0, TCGv t1)
     tcg_temp_free_i32(tmp1);
 }
 
-static void tcg_gen_abs_i32(TCGv dest, TCGv src)
+static void tcg_gen_abs_i32(TCGv_i32 dest, TCGv_i32 src)
 {
-    TCGv c0 = tcg_const_i32(0);
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 c0 = tcg_const_i32(0);
+    TCGv_i32 tmp = tcg_temp_new_i32();
     tcg_gen_neg_i32(tmp, src);
     tcg_gen_movcond_i32(TCG_COND_GT, dest, src, c0, src, tmp);
     tcg_temp_free_i32(c0);
     tcg_temp_free_i32(tmp);
 }
 
-static void shifter_out_im(TCGv var, int shift)
+static void shifter_out_im(TCGv_i32 var, int shift)
 {
     if (shift == 0) {
         tcg_gen_andi_i32(cpu_CF, var, 1);
@@ -527,7 +510,8 @@ static void shifter_out_im(TCGv var, int shift)
 }
 
 /* Shift by immediate.  Includes special handling for shift == 0.  */
-static inline void gen_arm_shift_im(TCGv var, int shiftop, int shift, int flags)
+static inline void gen_arm_shift_im(TCGv_i32 var, int shiftop,
+                                    int shift, int flags)
 {
     switch (shiftop) {
     case 0: /* LSL */
@@ -564,7 +548,7 @@ static inline void gen_arm_shift_im(TCGv var, int shiftop, int shift, int flags)
                 shifter_out_im(var, shift - 1);
             tcg_gen_rotri_i32(var, var, shift); break;
         } else {
-            TCGv tmp = tcg_temp_new_i32();
+            TCGv_i32 tmp = tcg_temp_new_i32();
             tcg_gen_shli_i32(tmp, cpu_CF, 31);
             if (flags)
                 shifter_out_im(var, 0);
@@ -575,8 +559,8 @@ static inline void gen_arm_shift_im(TCGv var, int shiftop, int shift, int flags)
     }
 };
 
-static inline void gen_arm_shift_reg(TCGv var, int shiftop,
-                                     TCGv shift, int flags)
+static inline void gen_arm_shift_reg(TCGv_i32 var, int shiftop,
+                                     TCGv_i32 shift, int flags)
 {
     if (flags) {
         switch (shiftop) {
@@ -612,7 +596,7 @@ static inline void gen_arm_shift_reg(TCGv var, int shiftop,
     case 4: gen_pas_helper(glue(pfx,add8)); break; \
     case 7: gen_pas_helper(glue(pfx,sub8)); break; \
     }
-static void gen_arm_parallel_addsub(int op1, int op2, TCGv a, TCGv b)
+static void gen_arm_parallel_addsub(int op1, int op2, TCGv_i32 a, TCGv_i32 b)
 {
     TCGv_ptr tmp;
 
@@ -659,7 +643,7 @@ static void gen_arm_parallel_addsub(int op1, int op2, TCGv a, TCGv b)
     case 5: gen_pas_helper(glue(pfx,sub16)); break; \
     case 6: gen_pas_helper(glue(pfx,subaddx)); break; \
     }
-static void gen_thumb2_parallel_addsub(int op1, int op2, TCGv a, TCGv b)
+static void gen_thumb2_parallel_addsub(int op1, int op2, TCGv_i32 a, TCGv_i32 b)
 {
     TCGv_ptr tmp;
 
@@ -696,9 +680,13 @@ static void gen_thumb2_parallel_addsub(int op1, int op2, TCGv a, TCGv b)
 }
 #undef PAS_OP
 
-static void gen_test_cc(int cc, int label)
+/*
+ * generate a conditional branch based on ARM condition code cc.
+ * This is common between ARM and Aarch64 targets.
+ */
+void arm_gen_test_cc(int cc, int label)
 {
-    TCGv tmp;
+    TCGv_i32 tmp;
     int inv;
 
     switch (cc) {
@@ -792,7 +780,7 @@ static const uint8_t table_logic_cc[16] = {
 /* Set PC and Thumb state from an immediate address.  */
 static inline void gen_bx_im(DisasContext *s, uint32_t addr)
 {
-    TCGv tmp;
+    TCGv_i32 tmp;
 
     s->is_jmp = DISAS_UPDATE;
     if (s->thumb != (addr & 1)) {
@@ -805,7 +793,7 @@ static inline void gen_bx_im(DisasContext *s, uint32_t addr)
 }
 
 /* Set PC and Thumb state from var.  var is marked as dead.  */
-static inline void gen_bx(DisasContext *s, TCGv var)
+static inline void gen_bx(DisasContext *s, TCGv_i32 var)
 {
     s->is_jmp = DISAS_UPDATE;
     tcg_gen_andi_i32(cpu_R[15], var, ~1);
@@ -817,7 +805,7 @@ static inline void gen_bx(DisasContext *s, TCGv var)
    to r15 in ARM architecture v7 and above. The source must be a temporary
    and will be marked as dead. */
 static inline void store_reg_bx(CPUARMState *env, DisasContext *s,
-                                int reg, TCGv var)
+                                int reg, TCGv_i32 var)
 {
     if (reg == 15 && ENABLE_ARCH_7) {
         gen_bx(s, var);
@@ -831,7 +819,7 @@ static inline void store_reg_bx(CPUARMState *env, DisasContext *s,
  * the results of a LDR/LDM/POP into r15, and corresponds to the cases
  * in the ARM ARM which use the LoadWritePC() pseudocode function. */
 static inline void store_reg_from_load(CPUARMState *env, DisasContext *s,
-                                int reg, TCGv var)
+                                       int reg, TCGv_i32 var)
 {
     if (reg == 15 && ENABLE_ARCH_5) {
         gen_bx(s, var);
@@ -840,66 +828,114 @@ static inline void store_reg_from_load(CPUARMState *env, DisasContext *s,
     }
 }
 
-static inline TCGv gen_ld8s(TCGv addr, int index)
-{
-    TCGv tmp = tcg_temp_new_i32();
-    tcg_gen_qemu_ld8s(tmp, addr, index);
-    return tmp;
-}
-static inline TCGv gen_ld8u(TCGv addr, int index)
-{
-    TCGv tmp = tcg_temp_new_i32();
-    tcg_gen_qemu_ld8u(tmp, addr, index);
-    return tmp;
-}
-static inline TCGv gen_ld16s(TCGv addr, int index)
-{
-    TCGv tmp = tcg_temp_new_i32();
-    tcg_gen_qemu_ld16s(tmp, addr, index);
-    return tmp;
-}
-static inline TCGv gen_ld16u(TCGv addr, int index)
-{
-    TCGv tmp = tcg_temp_new_i32();
-    tcg_gen_qemu_ld16u(tmp, addr, index);
-    return tmp;
-}
-static inline TCGv gen_ld32(TCGv addr, int index)
-{
-    TCGv tmp = tcg_temp_new_i32();
-    tcg_gen_qemu_ld32u(tmp, addr, index);
-    return tmp;
-}
-static inline TCGv_i64 gen_ld64(TCGv addr, int index)
-{
-    TCGv_i64 tmp = tcg_temp_new_i64();
-    tcg_gen_qemu_ld64(tmp, addr, index);
-    return tmp;
-}
-static inline void gen_st8(TCGv val, TCGv addr, int index)
-{
-    tcg_gen_qemu_st8(val, addr, index);
-    tcg_temp_free_i32(val);
-}
-static inline void gen_st16(TCGv val, TCGv addr, int index)
-{
-    tcg_gen_qemu_st16(val, addr, index);
-    tcg_temp_free_i32(val);
-}
-static inline void gen_st32(TCGv val, TCGv addr, int index)
-{
-    tcg_gen_qemu_st32(val, addr, index);
-    tcg_temp_free_i32(val);
-}
-static inline void gen_st64(TCGv_i64 val, TCGv addr, int index)
-{
-    tcg_gen_qemu_st64(val, addr, index);
-    tcg_temp_free_i64(val);
+/* Abstractions of "generate code to do a guest load/store for
+ * AArch32", where a vaddr is always 32 bits (and is zero
+ * extended if we're a 64 bit core) and  data is also
+ * 32 bits unless specifically doing a 64 bit access.
+ * These functions work like tcg_gen_qemu_{ld,st}* except
+ * that the address argument is TCGv_i32 rather than TCGv.
+ */
+#if TARGET_LONG_BITS == 32
+
+#define DO_GEN_LD(SUFF, OPC)                                             \
+static inline void gen_aa32_ld##SUFF(TCGv_i32 val, TCGv_i32 addr, int index) \
+{                                                                        \
+    tcg_gen_qemu_ld_i32(val, addr, index, OPC);                          \
 }
 
-static inline void gen_set_pc_im(uint32_t val)
+#define DO_GEN_ST(SUFF, OPC)                                             \
+static inline void gen_aa32_st##SUFF(TCGv_i32 val, TCGv_i32 addr, int index) \
+{                                                                        \
+    tcg_gen_qemu_st_i32(val, addr, index, OPC);                          \
+}
+
+static inline void gen_aa32_ld64(TCGv_i64 val, TCGv_i32 addr, int index)
+{
+    tcg_gen_qemu_ld_i64(val, addr, index, MO_TEQ);
+}
+
+static inline void gen_aa32_st64(TCGv_i64 val, TCGv_i32 addr, int index)
+{
+    tcg_gen_qemu_st_i64(val, addr, index, MO_TEQ);
+}
+
+#else
+
+#define DO_GEN_LD(SUFF, OPC)                                             \
+static inline void gen_aa32_ld##SUFF(TCGv_i32 val, TCGv_i32 addr, int index) \
+{                                                                        \
+    TCGv addr64 = tcg_temp_new();                                        \
+    tcg_gen_extu_i32_i64(addr64, addr);                                  \
+    tcg_gen_qemu_ld_i32(val, addr64, index, OPC);                        \
+    tcg_temp_free(addr64);                                               \
+}
+
+#define DO_GEN_ST(SUFF, OPC)                                             \
+static inline void gen_aa32_st##SUFF(TCGv_i32 val, TCGv_i32 addr, int index) \
+{                                                                        \
+    TCGv addr64 = tcg_temp_new();                                        \
+    tcg_gen_extu_i32_i64(addr64, addr);                                  \
+    tcg_gen_qemu_st_i32(val, addr64, index, OPC);                        \
+    tcg_temp_free(addr64);                                               \
+}
+
+static inline void gen_aa32_ld64(TCGv_i64 val, TCGv_i32 addr, int index)
+{
+    TCGv addr64 = tcg_temp_new();
+    tcg_gen_extu_i32_i64(addr64, addr);
+    tcg_gen_qemu_ld_i64(val, addr64, index, MO_TEQ);
+    tcg_temp_free(addr64);
+}
+
+static inline void gen_aa32_st64(TCGv_i64 val, TCGv_i32 addr, int index)
+{
+    TCGv addr64 = tcg_temp_new();
+    tcg_gen_extu_i32_i64(addr64, addr);
+    tcg_gen_qemu_st_i64(val, addr64, index, MO_TEQ);
+    tcg_temp_free(addr64);
+}
+
+#endif
+
+DO_GEN_LD(8s, MO_SB)
+DO_GEN_LD(8u, MO_UB)
+DO_GEN_LD(16s, MO_TESW)
+DO_GEN_LD(16u, MO_TEUW)
+DO_GEN_LD(32u, MO_TEUL)
+DO_GEN_ST(8, MO_UB)
+DO_GEN_ST(16, MO_TEUW)
+DO_GEN_ST(32, MO_TEUL)
+
+static inline void gen_set_pc_im(DisasContext *s, target_ulong val)
 {
     tcg_gen_movi_i32(cpu_R[15], val);
+}
+
+static inline void
+gen_set_condexec (DisasContext *s)
+{
+    if (s->condexec_mask) {
+        uint32_t val = (s->condexec_cond << 4) | (s->condexec_mask >> 1);
+        TCGv_i32 tmp = tcg_temp_new_i32();
+        tcg_gen_movi_i32(tmp, val);
+        store_cpu_field(tmp, condexec_bits);
+    }
+}
+
+static void gen_exception_internal_insn(DisasContext *s, int offset, int excp)
+{
+    gen_set_condexec(s);
+    gen_set_pc_im(s, s->pc - offset);
+    gen_exception_internal(excp);
+    s->is_jmp = DISAS_JUMP;
+}
+
+static void gen_exception_insn(DisasContext *s, int offset, int excp, int syn)
+{
+    gen_set_condexec(s);
+    gen_set_pc_im(s, s->pc - offset);
+    gen_exception(excp, syn);
+    s->is_jmp = DISAS_JUMP;
 }
 
 /* Force a TB lookup after an instruction that changes the CPU state.  */
@@ -910,10 +946,10 @@ static inline void gen_lookup_tb(DisasContext *s)
 }
 
 static inline void gen_add_data_offset(DisasContext *s, unsigned int insn,
-                                       TCGv var)
+                                       TCGv_i32 var)
 {
     int val, rm, shift, shiftop;
-    TCGv offset;
+    TCGv_i32 offset;
 
     if (!(insn & (1 << 25))) {
         /* immediate */
@@ -938,10 +974,10 @@ static inline void gen_add_data_offset(DisasContext *s, unsigned int insn,
 }
 
 static inline void gen_add_datah_offset(DisasContext *s, unsigned int insn,
-                                        int extra, TCGv var)
+                                        int extra, TCGv_i32 var)
 {
     int val, rm;
-    TCGv offset;
+    TCGv_i32 offset;
 
     if (insn & (1 << 22)) {
         /* immediate */
@@ -1101,43 +1137,47 @@ VFP_GEN_FTOI(tosi)
 VFP_GEN_FTOI(tosiz)
 #undef VFP_GEN_FTOI
 
-#define VFP_GEN_FIX(name) \
+#define VFP_GEN_FIX(name, round) \
 static inline void gen_vfp_##name(int dp, int shift, int neon) \
 { \
-    TCGv tmp_shift = tcg_const_i32(shift); \
+    TCGv_i32 tmp_shift = tcg_const_i32(shift); \
     TCGv_ptr statusptr = get_fpstatus_ptr(neon); \
     if (dp) { \
-        gen_helper_vfp_##name##d(cpu_F0d, cpu_F0d, tmp_shift, statusptr); \
+        gen_helper_vfp_##name##d##round(cpu_F0d, cpu_F0d, tmp_shift, \
+                                        statusptr); \
     } else { \
-        gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, tmp_shift, statusptr); \
+        gen_helper_vfp_##name##s##round(cpu_F0s, cpu_F0s, tmp_shift, \
+                                        statusptr); \
     } \
     tcg_temp_free_i32(tmp_shift); \
     tcg_temp_free_ptr(statusptr); \
 }
-VFP_GEN_FIX(tosh)
-VFP_GEN_FIX(tosl)
-VFP_GEN_FIX(touh)
-VFP_GEN_FIX(toul)
-VFP_GEN_FIX(shto)
-VFP_GEN_FIX(slto)
-VFP_GEN_FIX(uhto)
-VFP_GEN_FIX(ulto)
+VFP_GEN_FIX(tosh, _round_to_zero)
+VFP_GEN_FIX(tosl, _round_to_zero)
+VFP_GEN_FIX(touh, _round_to_zero)
+VFP_GEN_FIX(toul, _round_to_zero)
+VFP_GEN_FIX(shto, )
+VFP_GEN_FIX(slto, )
+VFP_GEN_FIX(uhto, )
+VFP_GEN_FIX(ulto, )
 #undef VFP_GEN_FIX
 
-static inline void gen_vfp_ld(DisasContext *s, int dp, TCGv addr)
+static inline void gen_vfp_ld(DisasContext *s, int dp, TCGv_i32 addr)
 {
-    if (dp)
-        tcg_gen_qemu_ld64(cpu_F0d, addr, IS_USER(s));
-    else
-        tcg_gen_qemu_ld32u(cpu_F0s, addr, IS_USER(s));
+    if (dp) {
+        gen_aa32_ld64(cpu_F0d, addr, get_mem_index(s));
+    } else {
+        gen_aa32_ld32u(cpu_F0s, addr, get_mem_index(s));
+    }
 }
 
-static inline void gen_vfp_st(DisasContext *s, int dp, TCGv addr)
+static inline void gen_vfp_st(DisasContext *s, int dp, TCGv_i32 addr)
 {
-    if (dp)
-        tcg_gen_qemu_st64(cpu_F0d, addr, IS_USER(s));
-    else
-        tcg_gen_qemu_st32(cpu_F0s, addr, IS_USER(s));
+    if (dp) {
+        gen_aa32_st64(cpu_F0d, addr, get_mem_index(s));
+    } else {
+        gen_aa32_st32(cpu_F0s, addr, get_mem_index(s));
+    }
 }
 
 static inline long
@@ -1164,14 +1204,14 @@ neon_reg_offset (int reg, int n)
     return vfp_reg_offset(0, sreg);
 }
 
-static TCGv neon_load_reg(int reg, int pass)
+static TCGv_i32 neon_load_reg(int reg, int pass)
 {
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
     tcg_gen_ld_i32(tmp, cpu_env, neon_reg_offset(reg, pass));
     return tmp;
 }
 
-static void neon_store_reg(int reg, int pass, TCGv var)
+static void neon_store_reg(int reg, int pass, TCGv_i32 var)
 {
     tcg_gen_st_i32(var, cpu_env, neon_reg_offset(reg, pass));
     tcg_temp_free_i32(var);
@@ -1228,14 +1268,14 @@ static inline void iwmmxt_store_reg(TCGv_i64 var, int reg)
     tcg_gen_st_i64(var, cpu_env, offsetof(CPUARMState, iwmmxt.regs[reg]));
 }
 
-static inline TCGv iwmmxt_load_creg(int reg)
+static inline TCGv_i32 iwmmxt_load_creg(int reg)
 {
-    TCGv var = tcg_temp_new_i32();
+    TCGv_i32 var = tcg_temp_new_i32();
     tcg_gen_ld_i32(var, cpu_env, offsetof(CPUARMState, iwmmxt.cregs[reg]));
     return var;
 }
 
-static inline void iwmmxt_store_creg(int reg, TCGv var)
+static inline void iwmmxt_store_creg(int reg, TCGv_i32 var)
 {
     tcg_gen_st_i32(var, cpu_env, offsetof(CPUARMState, iwmmxt.cregs[reg]));
     tcg_temp_free_i32(var);
@@ -1342,8 +1382,6 @@ IWMMXT_OP_ENV(avgb1)
 IWMMXT_OP_ENV(avgw0)
 IWMMXT_OP_ENV(avgw1)
 
-IWMMXT_OP(msadb)
-
 IWMMXT_OP_ENV(packuw)
 IWMMXT_OP_ENV(packul)
 IWMMXT_OP_ENV(packuq)
@@ -1353,7 +1391,7 @@ IWMMXT_OP_ENV(packsq)
 
 static void gen_op_iwmmxt_set_mup(void)
 {
-    TCGv tmp;
+    TCGv_i32 tmp;
     tmp = load_cpu_field(iwmmxt.cregs[ARM_IWMMXT_wCon]);
     tcg_gen_ori_i32(tmp, tmp, 2);
     store_cpu_field(tmp, iwmmxt.cregs[ARM_IWMMXT_wCon]);
@@ -1361,7 +1399,7 @@ static void gen_op_iwmmxt_set_mup(void)
 
 static void gen_op_iwmmxt_set_cup(void)
 {
-    TCGv tmp;
+    TCGv_i32 tmp;
     tmp = load_cpu_field(iwmmxt.cregs[ARM_IWMMXT_wCon]);
     tcg_gen_ori_i32(tmp, tmp, 1);
     store_cpu_field(tmp, iwmmxt.cregs[ARM_IWMMXT_wCon]);
@@ -1369,7 +1407,7 @@ static void gen_op_iwmmxt_set_cup(void)
 
 static void gen_op_iwmmxt_setpsr_nz(void)
 {
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
     gen_helper_iwmmxt_setpsr_nz(tmp, cpu_M0);
     store_cpu_field(tmp, iwmmxt.cregs[ARM_IWMMXT_wCASF]);
 }
@@ -1381,11 +1419,12 @@ static inline void gen_op_iwmmxt_addl_M0_wRn(int rn)
     tcg_gen_add_i64(cpu_M0, cpu_M0, cpu_V1);
 }
 
-static inline int gen_iwmmxt_address(DisasContext *s, uint32_t insn, TCGv dest)
+static inline int gen_iwmmxt_address(DisasContext *s, uint32_t insn,
+                                     TCGv_i32 dest)
 {
     int rd;
     uint32_t offset;
-    TCGv tmp;
+    TCGv_i32 tmp;
 
     rd = (insn >> 16) & 0xf;
     tmp = load_reg(s, rd);
@@ -1415,10 +1454,10 @@ static inline int gen_iwmmxt_address(DisasContext *s, uint32_t insn, TCGv dest)
     return 0;
 }
 
-static inline int gen_iwmmxt_shift(uint32_t insn, uint32_t mask, TCGv dest)
+static inline int gen_iwmmxt_shift(uint32_t insn, uint32_t mask, TCGv_i32 dest)
 {
     int rd = (insn >> 0) & 0xf;
-    TCGv tmp;
+    TCGv_i32 tmp;
 
     if (insn & (1 << 8)) {
         if (rd < ARM_IWMMXT_wCGR0 || rd > ARM_IWMMXT_wCGR3) {
@@ -1443,8 +1482,8 @@ static int disas_iwmmxt_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
 {
     int rd, wrd;
     int rdhi, rdlo, rd0, rd1, i;
-    TCGv addr;
-    TCGv tmp, tmp2, tmp3;
+    TCGv_i32 addr;
+    TCGv_i32 tmp, tmp2, tmp3;
 
     if ((insn & 0x0e000e00) == 0x0c000000) {
         if ((insn & 0x0fe00ff0) == 0x0c400000) {
@@ -1473,22 +1512,24 @@ static int disas_iwmmxt_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
         if (insn & ARM_CP_RW_BIT) {
             if ((insn >> 28) == 0xf) {			/* WLDRW wCx */
                 tmp = tcg_temp_new_i32();
-                tcg_gen_qemu_ld32u(tmp, addr, IS_USER(s));
+                gen_aa32_ld32u(tmp, addr, get_mem_index(s));
                 iwmmxt_store_creg(wrd, tmp);
             } else {
                 i = 1;
                 if (insn & (1 << 8)) {
                     if (insn & (1 << 22)) {		/* WLDRD */
-                        tcg_gen_qemu_ld64(cpu_M0, addr, IS_USER(s));
+                        gen_aa32_ld64(cpu_M0, addr, get_mem_index(s));
                         i = 0;
                     } else {				/* WLDRW wRd */
-                        tmp = gen_ld32(addr, IS_USER(s));
+                        tmp = tcg_temp_new_i32();
+                        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
                     }
                 } else {
+                    tmp = tcg_temp_new_i32();
                     if (insn & (1 << 22)) {		/* WLDRH */
-                        tmp = gen_ld16u(addr, IS_USER(s));
+                        gen_aa32_ld16u(tmp, addr, get_mem_index(s));
                     } else {				/* WLDRB */
-                        tmp = gen_ld8u(addr, IS_USER(s));
+                        gen_aa32_ld8u(tmp, addr, get_mem_index(s));
                     }
                 }
                 if (i) {
@@ -1500,28 +1541,28 @@ static int disas_iwmmxt_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
         } else {
             if ((insn >> 28) == 0xf) {			/* WSTRW wCx */
                 tmp = iwmmxt_load_creg(wrd);
-                gen_st32(tmp, addr, IS_USER(s));
+                gen_aa32_st32(tmp, addr, get_mem_index(s));
             } else {
                 gen_op_iwmmxt_movq_M0_wRn(wrd);
                 tmp = tcg_temp_new_i32();
                 if (insn & (1 << 8)) {
                     if (insn & (1 << 22)) {		/* WSTRD */
-                        tcg_temp_free_i32(tmp);
-                        tcg_gen_qemu_st64(cpu_M0, addr, IS_USER(s));
+                        gen_aa32_st64(cpu_M0, addr, get_mem_index(s));
                     } else {				/* WSTRW wRd */
                         tcg_gen_trunc_i64_i32(tmp, cpu_M0);
-                        gen_st32(tmp, addr, IS_USER(s));
+                        gen_aa32_st32(tmp, addr, get_mem_index(s));
                     }
                 } else {
                     if (insn & (1 << 22)) {		/* WSTRH */
                         tcg_gen_trunc_i64_i32(tmp, cpu_M0);
-                        gen_st16(tmp, addr, IS_USER(s));
+                        gen_aa32_st16(tmp, addr, get_mem_index(s));
                     } else {				/* WSTRB */
                         tcg_gen_trunc_i64_i32(tmp, cpu_M0);
-                        gen_st8(tmp, addr, IS_USER(s));
+                        gen_aa32_st8(tmp, addr, get_mem_index(s));
                     }
                 }
             }
+            tcg_temp_free_i32(tmp);
         }
         tcg_temp_free_i32(addr);
         return 0;
@@ -1796,12 +1837,12 @@ static int disas_iwmmxt_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
             tmp3 = tcg_const_i32((insn & 1) << 5);
             break;
         default:
-            TCGV_UNUSED(tmp2);
-            TCGV_UNUSED(tmp3);
+            TCGV_UNUSED_I32(tmp2);
+            TCGV_UNUSED_I32(tmp3);
         }
         gen_helper_iwmmxt_insr(cpu_M0, cpu_M0, tmp, tmp2, tmp3);
-        tcg_temp_free(tmp3);
-        tcg_temp_free(tmp2);
+        tcg_temp_free_i32(tmp3);
+        tcg_temp_free_i32(tmp2);
         tcg_temp_free_i32(tmp);
         gen_op_iwmmxt_movq_wRn_M0(wrd);
         gen_op_iwmmxt_set_mup();
@@ -2260,7 +2301,7 @@ static int disas_iwmmxt_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
         tmp = tcg_const_i32((insn >> 20) & 3);
         iwmmxt_load_reg(cpu_V1, rd1);
         gen_helper_iwmmxt_align(cpu_M0, cpu_M0, cpu_V1, tmp);
-        tcg_temp_free(tmp);
+        tcg_temp_free_i32(tmp);
         gen_op_iwmmxt_movq_wRn_M0(wrd);
         gen_op_iwmmxt_set_mup();
         break;
@@ -2316,7 +2357,7 @@ static int disas_iwmmxt_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
         gen_op_iwmmxt_movq_M0_wRn(rd0);
         tmp = tcg_const_i32(((insn >> 16) & 0xf0) | (insn & 0x0f));
         gen_helper_iwmmxt_shufh(cpu_M0, cpu_env, cpu_M0, tmp);
-        tcg_temp_free(tmp);
+        tcg_temp_free_i32(tmp);
         gen_op_iwmmxt_movq_wRn_M0(wrd);
         gen_op_iwmmxt_set_mup();
         gen_op_iwmmxt_set_cup();
@@ -2446,7 +2487,7 @@ static int disas_iwmmxt_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
 static int disas_dsp_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
 {
     int acc, rd0, rd1, rdhi, rdlo;
-    TCGv tmp, tmp2;
+    TCGv_i32 tmp, tmp2;
 
     if ((insn & 0x0ff00f10) == 0x0e200010) {
         /* Multiply with Internal Accumulate Format */
@@ -2532,22 +2573,22 @@ static int disas_dsp_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
 #define VFP_DREG_M(reg, insn) VFP_DREG(reg, insn,  0,  5)
 
 /* Move between integer and VFP cores.  */
-static TCGv gen_vfp_mrs(void)
+static TCGv_i32 gen_vfp_mrs(void)
 {
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
     tcg_gen_mov_i32(tmp, cpu_F0s);
     return tmp;
 }
 
-static void gen_vfp_msr(TCGv tmp)
+static void gen_vfp_msr(TCGv_i32 tmp)
 {
     tcg_gen_mov_i32(cpu_F0s, tmp);
     tcg_temp_free_i32(tmp);
 }
 
-static void gen_neon_dup_u8(TCGv var, int shift)
+static void gen_neon_dup_u8(TCGv_i32 var, int shift)
 {
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
     if (shift)
         tcg_gen_shri_i32(var, var, shift);
     tcg_gen_ext8u_i32(var, var);
@@ -2558,44 +2599,342 @@ static void gen_neon_dup_u8(TCGv var, int shift)
     tcg_temp_free_i32(tmp);
 }
 
-static void gen_neon_dup_low16(TCGv var)
+static void gen_neon_dup_low16(TCGv_i32 var)
 {
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
     tcg_gen_ext16u_i32(var, var);
     tcg_gen_shli_i32(tmp, var, 16);
     tcg_gen_or_i32(var, var, tmp);
     tcg_temp_free_i32(tmp);
 }
 
-static void gen_neon_dup_high16(TCGv var)
+static void gen_neon_dup_high16(TCGv_i32 var)
 {
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
     tcg_gen_andi_i32(var, var, 0xffff0000);
     tcg_gen_shri_i32(tmp, var, 16);
     tcg_gen_or_i32(var, var, tmp);
     tcg_temp_free_i32(tmp);
 }
 
-static TCGv gen_load_and_replicate(DisasContext *s, TCGv addr, int size)
+static TCGv_i32 gen_load_and_replicate(DisasContext *s, TCGv_i32 addr, int size)
 {
     /* Load a single Neon element and replicate into a 32 bit TCG reg */
-    TCGv tmp;
+    TCGv_i32 tmp = tcg_temp_new_i32();
     switch (size) {
     case 0:
-        tmp = gen_ld8u(addr, IS_USER(s));
+        gen_aa32_ld8u(tmp, addr, get_mem_index(s));
         gen_neon_dup_u8(tmp, 0);
         break;
     case 1:
-        tmp = gen_ld16u(addr, IS_USER(s));
+        gen_aa32_ld16u(tmp, addr, get_mem_index(s));
         gen_neon_dup_low16(tmp);
         break;
     case 2:
-        tmp = gen_ld32(addr, IS_USER(s));
+        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
         break;
     default: /* Avoid compiler warnings.  */
         abort();
     }
     return tmp;
+}
+
+static int handle_vsel(uint32_t insn, uint32_t rd, uint32_t rn, uint32_t rm,
+                       uint32_t dp)
+{
+    uint32_t cc = extract32(insn, 20, 2);
+
+    if (dp) {
+        TCGv_i64 frn, frm, dest;
+        TCGv_i64 tmp, zero, zf, nf, vf;
+
+        zero = tcg_const_i64(0);
+
+        frn = tcg_temp_new_i64();
+        frm = tcg_temp_new_i64();
+        dest = tcg_temp_new_i64();
+
+        zf = tcg_temp_new_i64();
+        nf = tcg_temp_new_i64();
+        vf = tcg_temp_new_i64();
+
+        tcg_gen_extu_i32_i64(zf, cpu_ZF);
+        tcg_gen_ext_i32_i64(nf, cpu_NF);
+        tcg_gen_ext_i32_i64(vf, cpu_VF);
+
+        tcg_gen_ld_f64(frn, cpu_env, vfp_reg_offset(dp, rn));
+        tcg_gen_ld_f64(frm, cpu_env, vfp_reg_offset(dp, rm));
+        switch (cc) {
+        case 0: /* eq: Z */
+            tcg_gen_movcond_i64(TCG_COND_EQ, dest, zf, zero,
+                                frn, frm);
+            break;
+        case 1: /* vs: V */
+            tcg_gen_movcond_i64(TCG_COND_LT, dest, vf, zero,
+                                frn, frm);
+            break;
+        case 2: /* ge: N == V -> N ^ V == 0 */
+            tmp = tcg_temp_new_i64();
+            tcg_gen_xor_i64(tmp, vf, nf);
+            tcg_gen_movcond_i64(TCG_COND_GE, dest, tmp, zero,
+                                frn, frm);
+            tcg_temp_free_i64(tmp);
+            break;
+        case 3: /* gt: !Z && N == V */
+            tcg_gen_movcond_i64(TCG_COND_NE, dest, zf, zero,
+                                frn, frm);
+            tmp = tcg_temp_new_i64();
+            tcg_gen_xor_i64(tmp, vf, nf);
+            tcg_gen_movcond_i64(TCG_COND_GE, dest, tmp, zero,
+                                dest, frm);
+            tcg_temp_free_i64(tmp);
+            break;
+        }
+        tcg_gen_st_f64(dest, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i64(frn);
+        tcg_temp_free_i64(frm);
+        tcg_temp_free_i64(dest);
+
+        tcg_temp_free_i64(zf);
+        tcg_temp_free_i64(nf);
+        tcg_temp_free_i64(vf);
+
+        tcg_temp_free_i64(zero);
+    } else {
+        TCGv_i32 frn, frm, dest;
+        TCGv_i32 tmp, zero;
+
+        zero = tcg_const_i32(0);
+
+        frn = tcg_temp_new_i32();
+        frm = tcg_temp_new_i32();
+        dest = tcg_temp_new_i32();
+        tcg_gen_ld_f32(frn, cpu_env, vfp_reg_offset(dp, rn));
+        tcg_gen_ld_f32(frm, cpu_env, vfp_reg_offset(dp, rm));
+        switch (cc) {
+        case 0: /* eq: Z */
+            tcg_gen_movcond_i32(TCG_COND_EQ, dest, cpu_ZF, zero,
+                                frn, frm);
+            break;
+        case 1: /* vs: V */
+            tcg_gen_movcond_i32(TCG_COND_LT, dest, cpu_VF, zero,
+                                frn, frm);
+            break;
+        case 2: /* ge: N == V -> N ^ V == 0 */
+            tmp = tcg_temp_new_i32();
+            tcg_gen_xor_i32(tmp, cpu_VF, cpu_NF);
+            tcg_gen_movcond_i32(TCG_COND_GE, dest, tmp, zero,
+                                frn, frm);
+            tcg_temp_free_i32(tmp);
+            break;
+        case 3: /* gt: !Z && N == V */
+            tcg_gen_movcond_i32(TCG_COND_NE, dest, cpu_ZF, zero,
+                                frn, frm);
+            tmp = tcg_temp_new_i32();
+            tcg_gen_xor_i32(tmp, cpu_VF, cpu_NF);
+            tcg_gen_movcond_i32(TCG_COND_GE, dest, tmp, zero,
+                                dest, frm);
+            tcg_temp_free_i32(tmp);
+            break;
+        }
+        tcg_gen_st_f32(dest, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i32(frn);
+        tcg_temp_free_i32(frm);
+        tcg_temp_free_i32(dest);
+
+        tcg_temp_free_i32(zero);
+    }
+
+    return 0;
+}
+
+static int handle_vminmaxnm(uint32_t insn, uint32_t rd, uint32_t rn,
+                            uint32_t rm, uint32_t dp)
+{
+    uint32_t vmin = extract32(insn, 6, 1);
+    TCGv_ptr fpst = get_fpstatus_ptr(0);
+
+    if (dp) {
+        TCGv_i64 frn, frm, dest;
+
+        frn = tcg_temp_new_i64();
+        frm = tcg_temp_new_i64();
+        dest = tcg_temp_new_i64();
+
+        tcg_gen_ld_f64(frn, cpu_env, vfp_reg_offset(dp, rn));
+        tcg_gen_ld_f64(frm, cpu_env, vfp_reg_offset(dp, rm));
+        if (vmin) {
+            gen_helper_vfp_minnumd(dest, frn, frm, fpst);
+        } else {
+            gen_helper_vfp_maxnumd(dest, frn, frm, fpst);
+        }
+        tcg_gen_st_f64(dest, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i64(frn);
+        tcg_temp_free_i64(frm);
+        tcg_temp_free_i64(dest);
+    } else {
+        TCGv_i32 frn, frm, dest;
+
+        frn = tcg_temp_new_i32();
+        frm = tcg_temp_new_i32();
+        dest = tcg_temp_new_i32();
+
+        tcg_gen_ld_f32(frn, cpu_env, vfp_reg_offset(dp, rn));
+        tcg_gen_ld_f32(frm, cpu_env, vfp_reg_offset(dp, rm));
+        if (vmin) {
+            gen_helper_vfp_minnums(dest, frn, frm, fpst);
+        } else {
+            gen_helper_vfp_maxnums(dest, frn, frm, fpst);
+        }
+        tcg_gen_st_f32(dest, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i32(frn);
+        tcg_temp_free_i32(frm);
+        tcg_temp_free_i32(dest);
+    }
+
+    tcg_temp_free_ptr(fpst);
+    return 0;
+}
+
+static int handle_vrint(uint32_t insn, uint32_t rd, uint32_t rm, uint32_t dp,
+                        int rounding)
+{
+    TCGv_ptr fpst = get_fpstatus_ptr(0);
+    TCGv_i32 tcg_rmode;
+
+    tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rounding));
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+
+    if (dp) {
+        TCGv_i64 tcg_op;
+        TCGv_i64 tcg_res;
+        tcg_op = tcg_temp_new_i64();
+        tcg_res = tcg_temp_new_i64();
+        tcg_gen_ld_f64(tcg_op, cpu_env, vfp_reg_offset(dp, rm));
+        gen_helper_rintd(tcg_res, tcg_op, fpst);
+        tcg_gen_st_f64(tcg_res, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i64(tcg_op);
+        tcg_temp_free_i64(tcg_res);
+    } else {
+        TCGv_i32 tcg_op;
+        TCGv_i32 tcg_res;
+        tcg_op = tcg_temp_new_i32();
+        tcg_res = tcg_temp_new_i32();
+        tcg_gen_ld_f32(tcg_op, cpu_env, vfp_reg_offset(dp, rm));
+        gen_helper_rints(tcg_res, tcg_op, fpst);
+        tcg_gen_st_f32(tcg_res, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i32(tcg_op);
+        tcg_temp_free_i32(tcg_res);
+    }
+
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+    tcg_temp_free_i32(tcg_rmode);
+
+    tcg_temp_free_ptr(fpst);
+    return 0;
+}
+
+static int handle_vcvt(uint32_t insn, uint32_t rd, uint32_t rm, uint32_t dp,
+                       int rounding)
+{
+    bool is_signed = extract32(insn, 7, 1);
+    TCGv_ptr fpst = get_fpstatus_ptr(0);
+    TCGv_i32 tcg_rmode, tcg_shift;
+
+    tcg_shift = tcg_const_i32(0);
+
+    tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rounding));
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+
+    if (dp) {
+        TCGv_i64 tcg_double, tcg_res;
+        TCGv_i32 tcg_tmp;
+        /* Rd is encoded as a single precision register even when the source
+         * is double precision.
+         */
+        rd = ((rd << 1) & 0x1e) | ((rd >> 4) & 0x1);
+        tcg_double = tcg_temp_new_i64();
+        tcg_res = tcg_temp_new_i64();
+        tcg_tmp = tcg_temp_new_i32();
+        tcg_gen_ld_f64(tcg_double, cpu_env, vfp_reg_offset(1, rm));
+        if (is_signed) {
+            gen_helper_vfp_tosld(tcg_res, tcg_double, tcg_shift, fpst);
+        } else {
+            gen_helper_vfp_tould(tcg_res, tcg_double, tcg_shift, fpst);
+        }
+        tcg_gen_trunc_i64_i32(tcg_tmp, tcg_res);
+        tcg_gen_st_f32(tcg_tmp, cpu_env, vfp_reg_offset(0, rd));
+        tcg_temp_free_i32(tcg_tmp);
+        tcg_temp_free_i64(tcg_res);
+        tcg_temp_free_i64(tcg_double);
+    } else {
+        TCGv_i32 tcg_single, tcg_res;
+        tcg_single = tcg_temp_new_i32();
+        tcg_res = tcg_temp_new_i32();
+        tcg_gen_ld_f32(tcg_single, cpu_env, vfp_reg_offset(0, rm));
+        if (is_signed) {
+            gen_helper_vfp_tosls(tcg_res, tcg_single, tcg_shift, fpst);
+        } else {
+            gen_helper_vfp_touls(tcg_res, tcg_single, tcg_shift, fpst);
+        }
+        tcg_gen_st_f32(tcg_res, cpu_env, vfp_reg_offset(0, rd));
+        tcg_temp_free_i32(tcg_res);
+        tcg_temp_free_i32(tcg_single);
+    }
+
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+    tcg_temp_free_i32(tcg_rmode);
+
+    tcg_temp_free_i32(tcg_shift);
+
+    tcg_temp_free_ptr(fpst);
+
+    return 0;
+}
+
+/* Table for converting the most common AArch32 encoding of
+ * rounding mode to arm_fprounding order (which matches the
+ * common AArch64 order); see ARM ARM pseudocode FPDecodeRM().
+ */
+static const uint8_t fp_decode_rm[] = {
+    FPROUNDING_TIEAWAY,
+    FPROUNDING_TIEEVEN,
+    FPROUNDING_POSINF,
+    FPROUNDING_NEGINF,
+};
+
+static int disas_vfp_v8_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
+{
+    uint32_t rd, rn, rm, dp = extract32(insn, 8, 1);
+
+    if (!arm_feature(env, ARM_FEATURE_V8)) {
+        return 1;
+    }
+
+    if (dp) {
+        VFP_DREG_D(rd, insn);
+        VFP_DREG_N(rn, insn);
+        VFP_DREG_M(rm, insn);
+    } else {
+        rd = VFP_SREG_D(insn);
+        rn = VFP_SREG_N(insn);
+        rm = VFP_SREG_M(insn);
+    }
+
+    if ((insn & 0x0f800e50) == 0x0e000a00) {
+        return handle_vsel(insn, rd, rn, rm, dp);
+    } else if ((insn & 0x0fb00e10) == 0x0e800a00) {
+        return handle_vminmaxnm(insn, rd, rn, rm, dp);
+    } else if ((insn & 0x0fbc0ed0) == 0x0eb80a40) {
+        /* VRINTA, VRINTN, VRINTP, VRINTM */
+        int rounding = fp_decode_rm[extract32(insn, 16, 2)];
+        return handle_vrint(insn, rd, rm, dp, rounding);
+    } else if ((insn & 0x0fbc0e50) == 0x0ebc0a40) {
+        /* VCVTA, VCVTN, VCVTP, VCVTM */
+        int rounding = fp_decode_rm[extract32(insn, 16, 2)];
+        return handle_vcvt(insn, rd, rm, dp, rounding);
+    }
+    return 1;
 }
 
 /* Disassemble a VFP instruction.  Returns nonzero if an error occurred
@@ -2604,22 +2943,41 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
 {
     uint32_t rd, rn, rm, op, i, n, offset, delta_d, delta_m, bank_mask;
     int dp, veclen;
-    TCGv addr;
-    TCGv tmp;
-    TCGv tmp2;
+    TCGv_i32 addr;
+    TCGv_i32 tmp;
+    TCGv_i32 tmp2;
 
     if (!arm_feature(env, ARM_FEATURE_VFP))
         return 1;
+
+    /* FIXME: this access check should not take precedence over UNDEF
+     * for invalid encodings; we will generate incorrect syndrome information
+     * for attempts to execute invalid vfp/neon encodings with FP disabled.
+     */
+    if (!s->cpacr_fpen) {
+        gen_exception_insn(s, 4, EXCP_UDEF,
+                           syn_fp_access_trap(1, 0xe, s->thumb));
+        return 0;
+    }
 
     if (!s->vfp_enabled) {
         /* VFP disabled.  Only allow fmxr/fmrx to/from some control regs.  */
         if ((insn & 0x0fe00fff) != 0x0ee00a10)
             return 1;
         rn = (insn >> 16) & 0xf;
-        if (rn != ARM_VFP_FPSID && rn != ARM_VFP_FPEXC
-            && rn != ARM_VFP_MVFR1 && rn != ARM_VFP_MVFR0)
+        if (rn != ARM_VFP_FPSID && rn != ARM_VFP_FPEXC && rn != ARM_VFP_MVFR2
+            && rn != ARM_VFP_MVFR1 && rn != ARM_VFP_MVFR0) {
             return 1;
+        }
     }
+
+    if (extract32(insn, 28, 4) == 0xf) {
+        /* Encodings with T=1 (Thumb) or unconditional (ARM):
+         * only used in v8 and above.
+         */
+        return disas_vfp_v8_insn(env, s, insn);
+    }
+
     dp = ((insn & 0xf00) == 0xb00);
     switch ((insn >> 24) & 0xf) {
     case 0xe:
@@ -2756,6 +3114,11 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                                 gen_helper_vfp_get_fpscr(tmp, cpu_env);
                             }
                             break;
+                        case ARM_VFP_MVFR2:
+                            if (!arm_feature(env, ARM_FEATURE_V8)) {
+                                return 1;
+                            }
+                            /* fall through */
                         case ARM_VFP_MVFR0:
                         case ARM_VFP_MVFR1:
                             if (IS_USER(s)
@@ -2832,16 +3195,19 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                     VFP_DREG_N(rn, insn);
                 }
 
-                if (op == 15 && (rn == 15 || ((rn & 0x1c) == 0x18))) {
-                    /* Integer or single precision destination.  */
+                if (op == 15 && (rn == 15 || ((rn & 0x1c) == 0x18) ||
+                                 ((rn & 0x1e) == 0x6))) {
+                    /* Integer or single/half precision destination.  */
                     rd = VFP_SREG_D(insn);
                 } else {
                     VFP_DREG_D(rd, insn);
                 }
                 if (op == 15 &&
-                    (((rn & 0x1c) == 0x10) || ((rn & 0x14) == 0x14))) {
-                    /* VCVT from int is always from S reg regardless of dp bit.
-                     * VCVT with immediate frac_bits has same format as SREG_M
+                    (((rn & 0x1c) == 0x10) || ((rn & 0x14) == 0x14) ||
+                     ((rn & 0x1e) == 0x4))) {
+                    /* VCVT from int or half precision is always from S reg
+                     * regardless of dp bit. VCVT with immediate frac_bits
+                     * has same format as SREG_M.
                      */
                     rm = VFP_SREG_M(insn);
                 } else {
@@ -2931,11 +3297,18 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 case 5:
                 case 6:
                 case 7:
-                    /* VCVTB, VCVTT: only present with the halfprec extension,
-                     * UNPREDICTABLE if bit 8 is set (we choose to UNDEF)
+                    /* VCVTB, VCVTT: only present with the halfprec extension
+                     * UNPREDICTABLE if bit 8 is set prior to ARMv8
+                     * (we choose to UNDEF)
                      */
-                    if (dp || !arm_feature(env, ARM_FEATURE_VFP_FP16)) {
+                    if ((dp && !arm_feature(env, ARM_FEATURE_V8)) ||
+                        !arm_feature(env, ARM_FEATURE_VFP_FP16)) {
                         return 1;
+                    }
+                    if (!extract32(rn, 1, 1)) {
+                        /* Half precision source.  */
+                        gen_mov_F0_vreg(0, rm);
+                        break;
                     }
                     /* Otherwise fall through */
                 default:
@@ -3084,21 +3457,39 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                     case 3: /* sqrt */
                         gen_vfp_sqrt(dp);
                         break;
-                    case 4: /* vcvtb.f32.f16 */
+                    case 4: /* vcvtb.f32.f16, vcvtb.f64.f16 */
                         tmp = gen_vfp_mrs();
                         tcg_gen_ext16u_i32(tmp, tmp);
-                        gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp, cpu_env);
+                        if (dp) {
+                            gen_helper_vfp_fcvt_f16_to_f64(cpu_F0d, tmp,
+                                                           cpu_env);
+                        } else {
+                            gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp,
+                                                           cpu_env);
+                        }
                         tcg_temp_free_i32(tmp);
                         break;
-                    case 5: /* vcvtt.f32.f16 */
+                    case 5: /* vcvtt.f32.f16, vcvtt.f64.f16 */
                         tmp = gen_vfp_mrs();
                         tcg_gen_shri_i32(tmp, tmp, 16);
-                        gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp, cpu_env);
+                        if (dp) {
+                            gen_helper_vfp_fcvt_f16_to_f64(cpu_F0d, tmp,
+                                                           cpu_env);
+                        } else {
+                            gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp,
+                                                           cpu_env);
+                        }
                         tcg_temp_free_i32(tmp);
                         break;
-                    case 6: /* vcvtb.f16.f32 */
+                    case 6: /* vcvtb.f16.f32, vcvtb.f16.f64 */
                         tmp = tcg_temp_new_i32();
-                        gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s, cpu_env);
+                        if (dp) {
+                            gen_helper_vfp_fcvt_f64_to_f16(tmp, cpu_F0d,
+                                                           cpu_env);
+                        } else {
+                            gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s,
+                                                           cpu_env);
+                        }
                         gen_mov_F0_vreg(0, rd);
                         tmp2 = gen_vfp_mrs();
                         tcg_gen_andi_i32(tmp2, tmp2, 0xffff0000);
@@ -3106,9 +3497,15 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                         tcg_temp_free_i32(tmp2);
                         gen_vfp_msr(tmp);
                         break;
-                    case 7: /* vcvtt.f16.f32 */
+                    case 7: /* vcvtt.f16.f32, vcvtt.f16.f64 */
                         tmp = tcg_temp_new_i32();
-                        gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s, cpu_env);
+                        if (dp) {
+                            gen_helper_vfp_fcvt_f64_to_f16(tmp, cpu_F0d,
+                                                           cpu_env);
+                        } else {
+                            gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s,
+                                                           cpu_env);
+                        }
                         tcg_gen_shli_i32(tmp, tmp, 16);
                         gen_mov_F0_vreg(0, rd);
                         tmp2 = gen_vfp_mrs();
@@ -3130,6 +3527,44 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                         gen_vfp_F1_ld0(dp);
                         gen_vfp_cmpe(dp);
                         break;
+                    case 12: /* vrintr */
+                    {
+                        TCGv_ptr fpst = get_fpstatus_ptr(0);
+                        if (dp) {
+                            gen_helper_rintd(cpu_F0d, cpu_F0d, fpst);
+                        } else {
+                            gen_helper_rints(cpu_F0s, cpu_F0s, fpst);
+                        }
+                        tcg_temp_free_ptr(fpst);
+                        break;
+                    }
+                    case 13: /* vrintz */
+                    {
+                        TCGv_ptr fpst = get_fpstatus_ptr(0);
+                        TCGv_i32 tcg_rmode;
+                        tcg_rmode = tcg_const_i32(float_round_to_zero);
+                        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+                        if (dp) {
+                            gen_helper_rintd(cpu_F0d, cpu_F0d, fpst);
+                        } else {
+                            gen_helper_rints(cpu_F0s, cpu_F0s, fpst);
+                        }
+                        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+                        tcg_temp_free_i32(tcg_rmode);
+                        tcg_temp_free_ptr(fpst);
+                        break;
+                    }
+                    case 14: /* vrintx */
+                    {
+                        TCGv_ptr fpst = get_fpstatus_ptr(0);
+                        if (dp) {
+                            gen_helper_rintd_exact(cpu_F0d, cpu_F0d, fpst);
+                        } else {
+                            gen_helper_rints_exact(cpu_F0s, cpu_F0s, fpst);
+                        }
+                        tcg_temp_free_ptr(fpst);
+                        break;
+                    }
                     case 15: /* single<->double conversion */
                         if (dp)
                             gen_helper_vfp_fcvtsd(cpu_F0s, cpu_F0d, cpu_env);
@@ -3203,16 +3638,21 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 }
 
                 /* Write back the result.  */
-                if (op == 15 && (rn >= 8 && rn <= 11))
-                    ; /* Comparison, do nothing.  */
-                else if (op == 15 && dp && ((rn & 0x1c) == 0x18))
-                    /* VCVT double to int: always integer result. */
+                if (op == 15 && (rn >= 8 && rn <= 11)) {
+                    /* Comparison, do nothing.  */
+                } else if (op == 15 && dp && ((rn & 0x1c) == 0x18 ||
+                                              (rn & 0x1e) == 0x6)) {
+                    /* VCVT double to int: always integer result.
+                     * VCVT double to half precision is always a single
+                     * precision result.
+                     */
                     gen_mov_vreg_F0(0, rd);
-                else if (op == 15 && rn == 15)
+                } else if (op == 15 && rn == 15) {
                     /* conversion */
                     gen_mov_vreg_F0(!dp, rd);
-                else
+                } else {
                     gen_mov_vreg_F0(dp, rd);
+                }
 
                 /* break out of the loop if we have finished  */
                 if (veclen == 0)
@@ -3400,17 +3840,17 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
     return 0;
 }
 
-static inline void gen_goto_tb(DisasContext *s, int n, uint32_t dest)
+static inline void gen_goto_tb(DisasContext *s, int n, target_ulong dest)
 {
     TranslationBlock *tb;
 
     tb = s->tb;
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
         tcg_gen_goto_tb(n);
-        gen_set_pc_im(dest);
-        tcg_gen_exit_tb((tcg_target_long)tb + n);
+        gen_set_pc_im(s, dest);
+        tcg_gen_exit_tb((uintptr_t)tb + n);
     } else {
-        gen_set_pc_im(dest);
+        gen_set_pc_im(s, dest);
         tcg_gen_exit_tb(0);
     }
 }
@@ -3428,7 +3868,7 @@ static inline void gen_jmp (DisasContext *s, uint32_t dest)
     }
 }
 
-static inline void gen_mulxy(TCGv t0, TCGv t1, int x, int y)
+static inline void gen_mulxy(TCGv_i32 t0, TCGv_i32 t1, int x, int y)
 {
     if (x)
         tcg_gen_sari_i32(t0, t0, 16);
@@ -3475,9 +3915,9 @@ static uint32_t msr_mask(CPUARMState *env, DisasContext *s, int flags, int spsr)
 }
 
 /* Returns nonzero if access to the PSR is not permitted. Marks t0 as dead. */
-static int gen_set_psr(DisasContext *s, uint32_t mask, int spsr, TCGv t0)
+static int gen_set_psr(DisasContext *s, uint32_t mask, int spsr, TCGv_i32 t0)
 {
-    TCGv tmp;
+    TCGv_i32 tmp;
     if (spsr) {
         /* ??? This is also undefined in system mode.  */
         if (IS_USER(s))
@@ -3499,16 +3939,16 @@ static int gen_set_psr(DisasContext *s, uint32_t mask, int spsr, TCGv t0)
 /* Returns nonzero if access to the PSR is not permitted.  */
 static int gen_set_psr_im(DisasContext *s, uint32_t mask, int spsr, uint32_t val)
 {
-    TCGv tmp;
+    TCGv_i32 tmp;
     tmp = tcg_temp_new_i32();
     tcg_gen_movi_i32(tmp, val);
     return gen_set_psr(s, mask, spsr, tmp);
 }
 
 /* Generate an old-style exception return. Marks pc as dead. */
-static void gen_exception_return(DisasContext *s, TCGv pc)
+static void gen_exception_return(DisasContext *s, TCGv_i32 pc)
 {
-    TCGv tmp;
+    TCGv_i32 tmp;
     store_reg(s, 15, pc);
     tmp = load_cpu_field(spsr);
     gen_set_cpsr(tmp, 0xffffffff);
@@ -3517,7 +3957,7 @@ static void gen_exception_return(DisasContext *s, TCGv pc)
 }
 
 /* Generate a v6 exception return.  Marks both values as dead.  */
-static void gen_rfe(DisasContext *s, TCGv pc, TCGv cpsr)
+static void gen_rfe(DisasContext *s, TCGv_i32 pc, TCGv_i32 cpsr)
 {
     gen_set_cpsr(cpsr, 0xffffffff);
     tcg_temp_free_i32(cpsr);
@@ -3525,35 +3965,20 @@ static void gen_rfe(DisasContext *s, TCGv pc, TCGv cpsr)
     s->is_jmp = DISAS_UPDATE;
 }
 
-static inline void
-gen_set_condexec (DisasContext *s)
-{
-    if (s->condexec_mask) {
-        uint32_t val = (s->condexec_cond << 4) | (s->condexec_mask >> 1);
-        TCGv tmp = tcg_temp_new_i32();
-        tcg_gen_movi_i32(tmp, val);
-        store_cpu_field(tmp, condexec_bits);
-    }
-}
-
-static void gen_exception_insn(DisasContext *s, int offset, int excp)
-{
-    gen_set_condexec(s);
-    gen_set_pc_im(s->pc - offset);
-    gen_exception(excp);
-    s->is_jmp = DISAS_JUMP;
-}
-
 static void gen_nop_hint(DisasContext *s, int val)
 {
     switch (val) {
     case 3: /* wfi */
-        gen_set_pc_im(s->pc);
+        gen_set_pc_im(s, s->pc);
         s->is_jmp = DISAS_WFI;
         break;
     case 2: /* wfe */
+        gen_set_pc_im(s, s->pc);
+        s->is_jmp = DISAS_WFE;
+        break;
     case 4: /* sev */
-        /* TODO: Implement SEV and WFE.  May help SMP performance.  */
+    case 5: /* sevl */
+        /* TODO: Implement SEV, SEVL and WFE.  May help SMP performance.  */
     default: /* nop */
         break;
     }
@@ -3561,7 +3986,7 @@ static void gen_nop_hint(DisasContext *s, int val)
 
 #define CPU_V001 cpu_V0, cpu_V0, cpu_V1
 
-static inline void gen_neon_add(int size, TCGv t0, TCGv t1)
+static inline void gen_neon_add(int size, TCGv_i32 t0, TCGv_i32 t1)
 {
     switch (size) {
     case 0: gen_helper_neon_add_u8(t0, t0, t1); break;
@@ -3571,7 +3996,7 @@ static inline void gen_neon_add(int size, TCGv t0, TCGv t1)
     }
 }
 
-static inline void gen_neon_rsb(int size, TCGv t0, TCGv t1)
+static inline void gen_neon_rsb(int size, TCGv_i32 t0, TCGv_i32 t1)
 {
     switch (size) {
     case 0: gen_helper_neon_sub_u8(t0, t1, t0); break;
@@ -3633,22 +4058,22 @@ static inline void gen_neon_rsb(int size, TCGv t0, TCGv t1)
     default: return 1; \
     }} while (0)
 
-static TCGv neon_load_scratch(int scratch)
+static TCGv_i32 neon_load_scratch(int scratch)
 {
-    TCGv tmp = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
     tcg_gen_ld_i32(tmp, cpu_env, offsetof(CPUARMState, vfp.scratch[scratch]));
     return tmp;
 }
 
-static void neon_store_scratch(int scratch, TCGv var)
+static void neon_store_scratch(int scratch, TCGv_i32 var)
 {
     tcg_gen_st_i32(var, cpu_env, offsetof(CPUARMState, vfp.scratch[scratch]));
     tcg_temp_free_i32(var);
 }
 
-static inline TCGv neon_get_scalar(int size, int reg)
+static inline TCGv_i32 neon_get_scalar(int size, int reg)
 {
-    TCGv tmp;
+    TCGv_i32 tmp;
     if (size == 1) {
         tmp = neon_load_reg(reg & 7, reg >> 4);
         if (reg & 8) {
@@ -3664,7 +4089,7 @@ static inline TCGv neon_get_scalar(int size, int reg)
 
 static int gen_neon_unzip(int rd, int rm, int size, int q)
 {
-    TCGv tmp, tmp2;
+    TCGv_i32 tmp, tmp2;
     if (!q && size == 2) {
         return 1;
     }
@@ -3703,7 +4128,7 @@ static int gen_neon_unzip(int rd, int rm, int size, int q)
 
 static int gen_neon_zip(int rd, int rm, int size, int q)
 {
-    TCGv tmp, tmp2;
+    TCGv_i32 tmp, tmp2;
     if (!q && size == 2) {
         return 1;
     }
@@ -3740,9 +4165,9 @@ static int gen_neon_zip(int rd, int rm, int size, int q)
     return 0;
 }
 
-static void gen_neon_trn_u8(TCGv t0, TCGv t1)
+static void gen_neon_trn_u8(TCGv_i32 t0, TCGv_i32 t1)
 {
-    TCGv rd, tmp;
+    TCGv_i32 rd, tmp;
 
     rd = tcg_temp_new_i32();
     tmp = tcg_temp_new_i32();
@@ -3762,9 +4187,9 @@ static void gen_neon_trn_u8(TCGv t0, TCGv t1)
     tcg_temp_free_i32(rd);
 }
 
-static void gen_neon_trn_u16(TCGv t0, TCGv t1)
+static void gen_neon_trn_u16(TCGv_i32 t0, TCGv_i32 t1)
 {
-    TCGv rd, tmp;
+    TCGv_i32 rd, tmp;
 
     rd = tcg_temp_new_i32();
     tmp = tcg_temp_new_i32();
@@ -3816,10 +4241,20 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
     int load;
     int shift;
     int n;
-    TCGv addr;
-    TCGv tmp;
-    TCGv tmp2;
+    TCGv_i32 addr;
+    TCGv_i32 tmp;
+    TCGv_i32 tmp2;
     TCGv_i64 tmp64;
+
+    /* FIXME: this access check should not take precedence over UNDEF
+     * for invalid encodings; we will generate incorrect syndrome information
+     * for attempts to execute invalid vfp/neon encodings with FP disabled.
+     */
+    if (!s->cpacr_fpen) {
+        gen_exception_insn(s, 4, EXCP_UDEF,
+                           syn_fp_access_trap(1, 0xe, s->thumb));
+        return 0;
+    }
 
     if (!s->vfp_enabled)
       return 1;
@@ -3865,32 +4300,36 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 tcg_gen_addi_i32(addr, addr, 1 << size);
             }
             if (size == 3) {
+                tmp64 = tcg_temp_new_i64();
                 if (load) {
-                    tmp64 = gen_ld64(addr, IS_USER(s));
+                    gen_aa32_ld64(tmp64, addr, get_mem_index(s));
                     neon_store_reg64(tmp64, rd);
-                    tcg_temp_free_i64(tmp64);
                 } else {
-                    tmp64 = tcg_temp_new_i64();
                     neon_load_reg64(tmp64, rd);
-                    gen_st64(tmp64, addr, IS_USER(s));
+                    gen_aa32_st64(tmp64, addr, get_mem_index(s));
                 }
+                tcg_temp_free_i64(tmp64);
                 tcg_gen_addi_i32(addr, addr, stride);
             } else {
                 for (pass = 0; pass < 2; pass++) {
                     if (size == 2) {
                         if (load) {
-                            tmp = gen_ld32(addr, IS_USER(s));
+                            tmp = tcg_temp_new_i32();
+                            gen_aa32_ld32u(tmp, addr, get_mem_index(s));
                             neon_store_reg(rd, pass, tmp);
                         } else {
                             tmp = neon_load_reg(rd, pass);
-                            gen_st32(tmp, addr, IS_USER(s));
+                            gen_aa32_st32(tmp, addr, get_mem_index(s));
+                            tcg_temp_free_i32(tmp);
                         }
                         tcg_gen_addi_i32(addr, addr, stride);
                     } else if (size == 1) {
                         if (load) {
-                            tmp = gen_ld16u(addr, IS_USER(s));
+                            tmp = tcg_temp_new_i32();
+                            gen_aa32_ld16u(tmp, addr, get_mem_index(s));
                             tcg_gen_addi_i32(addr, addr, stride);
-                            tmp2 = gen_ld16u(addr, IS_USER(s));
+                            tmp2 = tcg_temp_new_i32();
+                            gen_aa32_ld16u(tmp2, addr, get_mem_index(s));
                             tcg_gen_addi_i32(addr, addr, stride);
                             tcg_gen_shli_i32(tmp2, tmp2, 16);
                             tcg_gen_or_i32(tmp, tmp, tmp2);
@@ -3900,16 +4339,19 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                             tmp = neon_load_reg(rd, pass);
                             tmp2 = tcg_temp_new_i32();
                             tcg_gen_shri_i32(tmp2, tmp, 16);
-                            gen_st16(tmp, addr, IS_USER(s));
+                            gen_aa32_st16(tmp, addr, get_mem_index(s));
+                            tcg_temp_free_i32(tmp);
                             tcg_gen_addi_i32(addr, addr, stride);
-                            gen_st16(tmp2, addr, IS_USER(s));
+                            gen_aa32_st16(tmp2, addr, get_mem_index(s));
+                            tcg_temp_free_i32(tmp2);
                             tcg_gen_addi_i32(addr, addr, stride);
                         }
                     } else /* size == 0 */ {
                         if (load) {
-                            TCGV_UNUSED(tmp2);
+                            TCGV_UNUSED_I32(tmp2);
                             for (n = 0; n < 4; n++) {
-                                tmp = gen_ld8u(addr, IS_USER(s));
+                                tmp = tcg_temp_new_i32();
+                                gen_aa32_ld8u(tmp, addr, get_mem_index(s));
                                 tcg_gen_addi_i32(addr, addr, stride);
                                 if (n == 0) {
                                     tmp2 = tmp;
@@ -3929,7 +4371,8 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                                 } else {
                                     tcg_gen_shri_i32(tmp, tmp2, n * 8);
                                 }
-                                gen_st8(tmp, addr, IS_USER(s));
+                                gen_aa32_st8(tmp, addr, get_mem_index(s));
+                                tcg_temp_free_i32(tmp);
                                 tcg_gen_addi_i32(addr, addr, stride);
                             }
                             tcg_temp_free_i32(tmp2);
@@ -4049,15 +4492,16 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
             load_reg_var(s, addr, rn);
             for (reg = 0; reg < nregs; reg++) {
                 if (load) {
+                    tmp = tcg_temp_new_i32();
                     switch (size) {
                     case 0:
-                        tmp = gen_ld8u(addr, IS_USER(s));
+                        gen_aa32_ld8u(tmp, addr, get_mem_index(s));
                         break;
                     case 1:
-                        tmp = gen_ld16u(addr, IS_USER(s));
+                        gen_aa32_ld16u(tmp, addr, get_mem_index(s));
                         break;
                     case 2:
-                        tmp = gen_ld32(addr, IS_USER(s));
+                        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
                         break;
                     default: /* Avoid compiler warnings.  */
                         abort();
@@ -4075,15 +4519,16 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                         tcg_gen_shri_i32(tmp, tmp, shift);
                     switch (size) {
                     case 0:
-                        gen_st8(tmp, addr, IS_USER(s));
+                        gen_aa32_st8(tmp, addr, get_mem_index(s));
                         break;
                     case 1:
-                        gen_st16(tmp, addr, IS_USER(s));
+                        gen_aa32_st16(tmp, addr, get_mem_index(s));
                         break;
                     case 2:
-                        gen_st32(tmp, addr, IS_USER(s));
+                        gen_aa32_st32(tmp, addr, get_mem_index(s));
                         break;
                     }
+                    tcg_temp_free_i32(tmp);
                 }
                 rd += stride;
                 tcg_gen_addi_i32(addr, addr, 1 << size);
@@ -4093,13 +4538,13 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
         }
     }
     if (rm != 15) {
-        TCGv base;
+        TCGv_i32 base;
 
         base = load_reg(s, rn);
         if (rm == 13) {
             tcg_gen_addi_i32(base, base, stride);
         } else {
-            TCGv index;
+            TCGv_i32 index;
             index = load_reg(s, rm);
             tcg_gen_add_i32(base, base, index);
             tcg_temp_free_i32(index);
@@ -4110,14 +4555,14 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
 }
 
 /* Bitwise select.  dest = c ? t : f.  Clobbers T and F.  */
-static void gen_neon_bsl(TCGv dest, TCGv t, TCGv f, TCGv c)
+static void gen_neon_bsl(TCGv_i32 dest, TCGv_i32 t, TCGv_i32 f, TCGv_i32 c)
 {
     tcg_gen_and_i32(t, t, c);
     tcg_gen_andc_i32(f, f, c);
     tcg_gen_or_i32(dest, t, f);
 }
 
-static inline void gen_neon_narrow(int size, TCGv dest, TCGv_i64 src)
+static inline void gen_neon_narrow(int size, TCGv_i32 dest, TCGv_i64 src)
 {
     switch (size) {
     case 0: gen_helper_neon_narrow_u8(dest, src); break;
@@ -4127,7 +4572,7 @@ static inline void gen_neon_narrow(int size, TCGv dest, TCGv_i64 src)
     }
 }
 
-static inline void gen_neon_narrow_sats(int size, TCGv dest, TCGv_i64 src)
+static inline void gen_neon_narrow_sats(int size, TCGv_i32 dest, TCGv_i64 src)
 {
     switch (size) {
     case 0: gen_helper_neon_narrow_sat_s8(dest, cpu_env, src); break;
@@ -4137,7 +4582,7 @@ static inline void gen_neon_narrow_sats(int size, TCGv dest, TCGv_i64 src)
     }
 }
 
-static inline void gen_neon_narrow_satu(int size, TCGv dest, TCGv_i64 src)
+static inline void gen_neon_narrow_satu(int size, TCGv_i32 dest, TCGv_i64 src)
 {
     switch (size) {
     case 0: gen_helper_neon_narrow_sat_u8(dest, cpu_env, src); break;
@@ -4147,7 +4592,7 @@ static inline void gen_neon_narrow_satu(int size, TCGv dest, TCGv_i64 src)
     }
 }
 
-static inline void gen_neon_unarrow_sats(int size, TCGv dest, TCGv_i64 src)
+static inline void gen_neon_unarrow_sats(int size, TCGv_i32 dest, TCGv_i64 src)
 {
     switch (size) {
     case 0: gen_helper_neon_unarrow_sat8(dest, cpu_env, src); break;
@@ -4157,7 +4602,7 @@ static inline void gen_neon_unarrow_sats(int size, TCGv dest, TCGv_i64 src)
     }
 }
 
-static inline void gen_neon_shift_narrow(int size, TCGv var, TCGv shift,
+static inline void gen_neon_shift_narrow(int size, TCGv_i32 var, TCGv_i32 shift,
                                          int q, int u)
 {
     if (q) {
@@ -4191,7 +4636,7 @@ static inline void gen_neon_shift_narrow(int size, TCGv var, TCGv shift,
     }
 }
 
-static inline void gen_neon_widen(TCGv_i64 dest, TCGv src, int size, int u)
+static inline void gen_neon_widen(TCGv_i64 dest, TCGv_i32 src, int size, int u)
 {
     if (u) {
         switch (size) {
@@ -4252,7 +4697,8 @@ static inline void gen_neon_addl_saturate(TCGv_i64 op0, TCGv_i64 op1, int size)
     }
 }
 
-static inline void gen_neon_mull(TCGv_i64 dest, TCGv a, TCGv b, int size, int u)
+static inline void gen_neon_mull(TCGv_i64 dest, TCGv_i32 a, TCGv_i32 b,
+                                 int size, int u)
 {
     TCGv_i64 tmp;
 
@@ -4282,7 +4728,8 @@ static inline void gen_neon_mull(TCGv_i64 dest, TCGv a, TCGv b, int size, int u)
     }
 }
 
-static void gen_neon_narrow_op(int op, int u, int size, TCGv dest, TCGv_i64 src)
+static void gen_neon_narrow_op(int op, int u, int size,
+                               TCGv_i32 dest, TCGv_i64 src)
 {
     if (op) {
         if (u) {
@@ -4327,13 +4774,14 @@ static void gen_neon_narrow_op(int op, int u, int size, TCGv dest, TCGv_i64 src)
 #define NEON_3R_VPMIN 21
 #define NEON_3R_VQDMULH_VQRDMULH 22
 #define NEON_3R_VPADD 23
+#define NEON_3R_SHA 24 /* SHA1C,SHA1P,SHA1M,SHA1SU0,SHA256H{2},SHA256SU1 */
 #define NEON_3R_VFM 25 /* VFMA, VFMS : float fused multiply-add */
 #define NEON_3R_FLOAT_ARITH 26 /* float VADD, VSUB, VPADD, VABD */
 #define NEON_3R_FLOAT_MULTIPLY 27 /* float VMLA, VMLS, VMUL */
 #define NEON_3R_FLOAT_CMP 28 /* float VCEQ, VCGE, VCGT */
 #define NEON_3R_FLOAT_ACMP 29 /* float VACGE, VACGT, VACLE, VACLT */
 #define NEON_3R_FLOAT_MINMAX 30 /* float VMIN, VMAX */
-#define NEON_3R_VRECPS_VRSQRTS 31 /* float VRECPS, VRSQRTS */
+#define NEON_3R_FLOAT_MISC 31 /* float VRECPS, VRSQRTS, VMAXNM/MINNM */
 
 static const uint8_t neon_3r_sizes[] = {
     [NEON_3R_VHADD] = 0x7,
@@ -4360,13 +4808,14 @@ static const uint8_t neon_3r_sizes[] = {
     [NEON_3R_VPMIN] = 0x7,
     [NEON_3R_VQDMULH_VQRDMULH] = 0x6,
     [NEON_3R_VPADD] = 0x7,
+    [NEON_3R_SHA] = 0xf, /* size field encodes op type */
     [NEON_3R_VFM] = 0x5, /* size bit 1 encodes op */
     [NEON_3R_FLOAT_ARITH] = 0x5, /* size bit 1 encodes op */
     [NEON_3R_FLOAT_MULTIPLY] = 0x5, /* size bit 1 encodes op */
     [NEON_3R_FLOAT_CMP] = 0x5, /* size bit 1 encodes op */
     [NEON_3R_FLOAT_ACMP] = 0x5, /* size bit 1 encodes op */
     [NEON_3R_FLOAT_MINMAX] = 0x5, /* size bit 1 encodes op */
-    [NEON_3R_VRECPS_VRSQRTS] = 0x5, /* size bit 1 encodes op */
+    [NEON_3R_FLOAT_MISC] = 0x5, /* size bit 1 encodes op */
 };
 
 /* Symbolic constants for op fields for Neon 2-register miscellaneous.
@@ -4378,6 +4827,8 @@ static const uint8_t neon_3r_sizes[] = {
 #define NEON_2RM_VREV16 2
 #define NEON_2RM_VPADDL 4
 #define NEON_2RM_VPADDL_U 5
+#define NEON_2RM_AESE 6 /* Includes AESD */
+#define NEON_2RM_AESMC 7 /* Includes AESIMC */
 #define NEON_2RM_VCLS 8
 #define NEON_2RM_VCLZ 9
 #define NEON_2RM_VCNT 10
@@ -4391,6 +4842,7 @@ static const uint8_t neon_3r_sizes[] = {
 #define NEON_2RM_VCEQ0 18
 #define NEON_2RM_VCLE0 19
 #define NEON_2RM_VCLT0 20
+#define NEON_2RM_SHA1H 21
 #define NEON_2RM_VABS 22
 #define NEON_2RM_VNEG 23
 #define NEON_2RM_VCGT0_F 24
@@ -4407,8 +4859,23 @@ static const uint8_t neon_3r_sizes[] = {
 #define NEON_2RM_VMOVN 36 /* Includes VQMOVN, VQMOVUN */
 #define NEON_2RM_VQMOVN 37 /* Includes VQMOVUN */
 #define NEON_2RM_VSHLL 38
+#define NEON_2RM_SHA1SU1 39 /* Includes SHA256SU0 */
+#define NEON_2RM_VRINTN 40
+#define NEON_2RM_VRINTX 41
+#define NEON_2RM_VRINTA 42
+#define NEON_2RM_VRINTZ 43
 #define NEON_2RM_VCVT_F16_F32 44
+#define NEON_2RM_VRINTM 45
 #define NEON_2RM_VCVT_F32_F16 46
+#define NEON_2RM_VRINTP 47
+#define NEON_2RM_VCVTAU 48
+#define NEON_2RM_VCVTAS 49
+#define NEON_2RM_VCVTNU 50
+#define NEON_2RM_VCVTNS 51
+#define NEON_2RM_VCVTPU 52
+#define NEON_2RM_VCVTPS 53
+#define NEON_2RM_VCVTMU 54
+#define NEON_2RM_VCVTMS 55
 #define NEON_2RM_VRECPE 56
 #define NEON_2RM_VRSQRTE 57
 #define NEON_2RM_VRECPE_F 58
@@ -4422,6 +4889,9 @@ static int neon_2rm_is_float_op(int op)
 {
     /* Return true if this neon 2reg-misc op is float-to-float */
     return (op == NEON_2RM_VABS_F || op == NEON_2RM_VNEG_F ||
+            (op >= NEON_2RM_VRINTN && op <= NEON_2RM_VRINTZ) ||
+            op == NEON_2RM_VRINTM ||
+            (op >= NEON_2RM_VRINTP && op <= NEON_2RM_VCVTMS) ||
             op >= NEON_2RM_VRECPE_F);
 }
 
@@ -4435,6 +4905,8 @@ static const uint8_t neon_2rm_sizes[] = {
     [NEON_2RM_VREV16] = 0x1,
     [NEON_2RM_VPADDL] = 0x7,
     [NEON_2RM_VPADDL_U] = 0x7,
+    [NEON_2RM_AESE] = 0x1,
+    [NEON_2RM_AESMC] = 0x1,
     [NEON_2RM_VCLS] = 0x7,
     [NEON_2RM_VCLZ] = 0x7,
     [NEON_2RM_VCNT] = 0x1,
@@ -4448,6 +4920,7 @@ static const uint8_t neon_2rm_sizes[] = {
     [NEON_2RM_VCEQ0] = 0x7,
     [NEON_2RM_VCLE0] = 0x7,
     [NEON_2RM_VCLT0] = 0x7,
+    [NEON_2RM_SHA1H] = 0x4,
     [NEON_2RM_VABS] = 0x7,
     [NEON_2RM_VNEG] = 0x7,
     [NEON_2RM_VCGT0_F] = 0x4,
@@ -4464,8 +4937,23 @@ static const uint8_t neon_2rm_sizes[] = {
     [NEON_2RM_VMOVN] = 0x7,
     [NEON_2RM_VQMOVN] = 0x7,
     [NEON_2RM_VSHLL] = 0x7,
+    [NEON_2RM_SHA1SU1] = 0x4,
+    [NEON_2RM_VRINTN] = 0x4,
+    [NEON_2RM_VRINTX] = 0x4,
+    [NEON_2RM_VRINTA] = 0x4,
+    [NEON_2RM_VRINTZ] = 0x4,
     [NEON_2RM_VCVT_F16_F32] = 0x2,
+    [NEON_2RM_VRINTM] = 0x4,
     [NEON_2RM_VCVT_F32_F16] = 0x2,
+    [NEON_2RM_VRINTP] = 0x4,
+    [NEON_2RM_VCVTAU] = 0x4,
+    [NEON_2RM_VCVTAS] = 0x4,
+    [NEON_2RM_VCVTNU] = 0x4,
+    [NEON_2RM_VCVTNS] = 0x4,
+    [NEON_2RM_VCVTPU] = 0x4,
+    [NEON_2RM_VCVTPS] = 0x4,
+    [NEON_2RM_VCVTMU] = 0x4,
+    [NEON_2RM_VCVTMS] = 0x4,
     [NEON_2RM_VRECPE] = 0x4,
     [NEON_2RM_VRSQRTE] = 0x4,
     [NEON_2RM_VRECPE_F] = 0x4,
@@ -4493,8 +4981,18 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
     int pairwise;
     int u;
     uint32_t imm, mask;
-    TCGv tmp, tmp2, tmp3, tmp4, tmp5;
+    TCGv_i32 tmp, tmp2, tmp3, tmp4, tmp5;
     TCGv_i64 tmp64;
+
+    /* FIXME: this access check should not take precedence over UNDEF
+     * for invalid encodings; we will generate incorrect syndrome information
+     * for attempts to execute invalid vfp/neon encodings with FP disabled.
+     */
+    if (!s->cpacr_fpen) {
+        gen_exception_insn(s, 4, EXCP_UDEF,
+                           syn_fp_access_trap(1, 0xe, s->thumb));
+        return 0;
+    }
 
     if (!s->vfp_enabled)
       return 1;
@@ -4516,6 +5014,49 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
          */
         if (q && ((rd | rn | rm) & 1)) {
             return 1;
+        }
+        /*
+         * The SHA-1/SHA-256 3-register instructions require special treatment
+         * here, as their size field is overloaded as an op type selector, and
+         * they all consume their input in a single pass.
+         */
+        if (op == NEON_3R_SHA) {
+            if (!q) {
+                return 1;
+            }
+            if (!u) { /* SHA-1 */
+                if (!arm_feature(env, ARM_FEATURE_V8_SHA1)) {
+                    return 1;
+                }
+                tmp = tcg_const_i32(rd);
+                tmp2 = tcg_const_i32(rn);
+                tmp3 = tcg_const_i32(rm);
+                tmp4 = tcg_const_i32(size);
+                gen_helper_crypto_sha1_3reg(cpu_env, tmp, tmp2, tmp3, tmp4);
+                tcg_temp_free_i32(tmp4);
+            } else { /* SHA-256 */
+                if (!arm_feature(env, ARM_FEATURE_V8_SHA256) || size == 3) {
+                    return 1;
+                }
+                tmp = tcg_const_i32(rd);
+                tmp2 = tcg_const_i32(rn);
+                tmp3 = tcg_const_i32(rm);
+                switch (size) {
+                case 0:
+                    gen_helper_crypto_sha256h(cpu_env, tmp, tmp2, tmp3);
+                    break;
+                case 1:
+                    gen_helper_crypto_sha256h2(cpu_env, tmp, tmp2, tmp3);
+                    break;
+                case 2:
+                    gen_helper_crypto_sha256su1(cpu_env, tmp, tmp2, tmp3);
+                    break;
+                }
+            }
+            tcg_temp_free_i32(tmp);
+            tcg_temp_free_i32(tmp2);
+            tcg_temp_free_i32(tmp3);
+            return 0;
         }
         if (size == 3 && op != NEON_3R_LOGIC) {
             /* 64-bit element instructions. */
@@ -4627,8 +5168,9 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                 return 1;
             }
             break;
-        case NEON_3R_VRECPS_VRSQRTS:
-            if (u) {
+        case NEON_3R_FLOAT_MISC:
+            /* VMAXNM/VMINNM in ARMv8 */
+            if (u && !arm_feature(env, ARM_FEATURE_V8)) {
                 return 1;
             }
             break;
@@ -4910,18 +5452,30 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
         {
             TCGv_ptr fpstatus = get_fpstatus_ptr(1);
             if (size == 0) {
-                gen_helper_neon_max_f32(tmp, tmp, tmp2, fpstatus);
+                gen_helper_vfp_maxs(tmp, tmp, tmp2, fpstatus);
             } else {
-                gen_helper_neon_min_f32(tmp, tmp, tmp2, fpstatus);
+                gen_helper_vfp_mins(tmp, tmp, tmp2, fpstatus);
             }
             tcg_temp_free_ptr(fpstatus);
             break;
         }
-        case NEON_3R_VRECPS_VRSQRTS:
-            if (size == 0)
-                gen_helper_recps_f32(tmp, tmp, tmp2, cpu_env);
-            else
-                gen_helper_rsqrts_f32(tmp, tmp, tmp2, cpu_env);
+        case NEON_3R_FLOAT_MISC:
+            if (u) {
+                /* VMAXNM/VMINNM */
+                TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                if (size == 0) {
+                    gen_helper_vfp_maxnums(tmp, tmp, tmp2, fpstatus);
+                } else {
+                    gen_helper_vfp_minnums(tmp, tmp, tmp2, fpstatus);
+                }
+                tcg_temp_free_ptr(fpstatus);
+            } else {
+                if (size == 0) {
+                    gen_helper_recps_f32(tmp, tmp, tmp2, cpu_env);
+                } else {
+                    gen_helper_rsqrts_f32(tmp, tmp, tmp2, cpu_env);
+              }
+            }
             break;
         case NEON_3R_VFM:
         {
@@ -5398,10 +5952,11 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                 int src1_wide;
                 int src2_wide;
                 int prewiden;
-                /* undefreq: bit 0 : UNDEF if size != 0
-                 *           bit 1 : UNDEF if size == 0
-                 *           bit 2 : UNDEF if U == 1
-                 * Note that [1:0] set implies 'always UNDEF'
+                /* undefreq: bit 0 : UNDEF if size == 0
+                 *           bit 1 : UNDEF if size == 1
+                 *           bit 2 : UNDEF if size == 2
+                 *           bit 3 : UNDEF if U == 1
+                 * Note that [2:0] set implies 'always UNDEF'
                  */
                 int undefreq;
                 /* prewiden, src1_wide, src2_wide, undefreq */
@@ -5415,13 +5970,13 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     {0, 1, 1, 0}, /* VSUBHN */
                     {0, 0, 0, 0}, /* VABDL */
                     {0, 0, 0, 0}, /* VMLAL */
-                    {0, 0, 0, 6}, /* VQDMLAL */
+                    {0, 0, 0, 9}, /* VQDMLAL */
                     {0, 0, 0, 0}, /* VMLSL */
-                    {0, 0, 0, 6}, /* VQDMLSL */
+                    {0, 0, 0, 9}, /* VQDMLSL */
                     {0, 0, 0, 0}, /* Integer VMULL */
-                    {0, 0, 0, 2}, /* VQDMULL */
-                    {0, 0, 0, 5}, /* Polynomial VMULL */
-                    {0, 0, 0, 3}, /* Reserved: always UNDEF */
+                    {0, 0, 0, 1}, /* VQDMULL */
+                    {0, 0, 0, 0xa}, /* Polynomial VMULL */
+                    {0, 0, 0, 7}, /* Reserved: always UNDEF */
                 };
 
                 prewiden = neon_3reg_wide[op][0];
@@ -5429,15 +5984,38 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                 src2_wide = neon_3reg_wide[op][2];
                 undefreq = neon_3reg_wide[op][3];
 
-                if (((undefreq & 1) && (size != 0)) ||
-                    ((undefreq & 2) && (size == 0)) ||
-                    ((undefreq & 4) && u)) {
+                if ((undefreq & (1 << size)) ||
+                    ((undefreq & 8) && u)) {
                     return 1;
                 }
                 if ((src1_wide && (rn & 1)) ||
                     (src2_wide && (rm & 1)) ||
                     (!src2_wide && (rd & 1))) {
                     return 1;
+                }
+
+                /* Handle VMULL.P64 (Polynomial 64x64 to 128 bit multiply)
+                 * outside the loop below as it only performs a single pass.
+                 */
+                if (op == 14 && size == 2) {
+                    TCGv_i64 tcg_rn, tcg_rm, tcg_rd;
+
+                    if (!arm_feature(env, ARM_FEATURE_V8_PMULL)) {
+                        return 1;
+                    }
+                    tcg_rn = tcg_temp_new_i64();
+                    tcg_rm = tcg_temp_new_i64();
+                    tcg_rd = tcg_temp_new_i64();
+                    neon_load_reg64(tcg_rn, rn);
+                    neon_load_reg64(tcg_rm, rm);
+                    gen_helper_neon_pmull_64_lo(tcg_rd, tcg_rn, tcg_rm);
+                    neon_store_reg64(tcg_rd, rd);
+                    gen_helper_neon_pmull_64_hi(tcg_rd, tcg_rn, tcg_rm);
+                    neon_store_reg64(tcg_rd, rd + 1);
+                    tcg_temp_free_i64(tcg_rn);
+                    tcg_temp_free_i64(tcg_rm);
+                    tcg_temp_free_i64(tcg_rd);
+                    return 0;
                 }
 
                 /* Avoid overlapping operands.  Wide source operands are
@@ -5450,11 +6028,11 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     tmp = neon_load_reg(rn, 1);
                     neon_store_scratch(2, tmp);
                 }
-                TCGV_UNUSED(tmp3);
+                TCGV_UNUSED_I32(tmp3);
                 for (pass = 0; pass < 2; pass++) {
                     if (src1_wide) {
                         neon_load_reg64(cpu_V0, rn + pass);
-                        TCGV_UNUSED(tmp);
+                        TCGV_UNUSED_I32(tmp);
                     } else {
                         if (pass == 1 && rd == rn) {
                             tmp = neon_load_scratch(2);
@@ -5467,7 +6045,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     }
                     if (src2_wide) {
                         neon_load_reg64(cpu_V1, rm + pass);
-                        TCGV_UNUSED(tmp2);
+                        TCGV_UNUSED_I32(tmp2);
                     } else {
                         if (pass == 1 && rd == rm) {
                             tmp2 = neon_load_scratch(2);
@@ -5881,7 +6459,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     if (rm & 1) {
                         return 1;
                     }
-                    TCGV_UNUSED(tmp2);
+                    TCGV_UNUSED_I32(tmp2);
                     for (pass = 0; pass < 2; pass++) {
                         neon_load_reg64(cpu_V0, rm + pass);
                         tmp = tcg_temp_new_i32();
@@ -5957,13 +6535,70 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     tcg_temp_free_i32(tmp2);
                     tcg_temp_free_i32(tmp3);
                     break;
+                case NEON_2RM_AESE: case NEON_2RM_AESMC:
+                    if (!arm_feature(env, ARM_FEATURE_V8_AES)
+                        || ((rm | rd) & 1)) {
+                        return 1;
+                    }
+                    tmp = tcg_const_i32(rd);
+                    tmp2 = tcg_const_i32(rm);
+
+                     /* Bit 6 is the lowest opcode bit; it distinguishes between
+                      * encryption (AESE/AESMC) and decryption (AESD/AESIMC)
+                      */
+                    tmp3 = tcg_const_i32(extract32(insn, 6, 1));
+
+                    if (op == NEON_2RM_AESE) {
+                        gen_helper_crypto_aese(cpu_env, tmp, tmp2, tmp3);
+                    } else {
+                        gen_helper_crypto_aesmc(cpu_env, tmp, tmp2, tmp3);
+                    }
+                    tcg_temp_free_i32(tmp);
+                    tcg_temp_free_i32(tmp2);
+                    tcg_temp_free_i32(tmp3);
+                    break;
+                case NEON_2RM_SHA1H:
+                    if (!arm_feature(env, ARM_FEATURE_V8_SHA1)
+                        || ((rm | rd) & 1)) {
+                        return 1;
+                    }
+                    tmp = tcg_const_i32(rd);
+                    tmp2 = tcg_const_i32(rm);
+
+                    gen_helper_crypto_sha1h(cpu_env, tmp, tmp2);
+
+                    tcg_temp_free_i32(tmp);
+                    tcg_temp_free_i32(tmp2);
+                    break;
+                case NEON_2RM_SHA1SU1:
+                    if ((rm | rd) & 1) {
+                            return 1;
+                    }
+                    /* bit 6 (q): set -> SHA256SU0, cleared -> SHA1SU1 */
+                    if (q) {
+                        if (!arm_feature(env, ARM_FEATURE_V8_SHA256)) {
+                            return 1;
+                        }
+                    } else if (!arm_feature(env, ARM_FEATURE_V8_SHA1)) {
+                        return 1;
+                    }
+                    tmp = tcg_const_i32(rd);
+                    tmp2 = tcg_const_i32(rm);
+                    if (q) {
+                        gen_helper_crypto_sha256su0(cpu_env, tmp, tmp2);
+                    } else {
+                        gen_helper_crypto_sha1su1(cpu_env, tmp, tmp2);
+                    }
+                    tcg_temp_free_i32(tmp);
+                    tcg_temp_free_i32(tmp2);
+                    break;
                 default:
                 elementwise:
                     for (pass = 0; pass < (q ? 4 : 2); pass++) {
                         if (neon_2rm_is_float_op(op)) {
                             tcg_gen_ld_f32(cpu_F0s, cpu_env,
                                            neon_reg_offset(rm, pass));
-                            TCGV_UNUSED(tmp);
+                            TCGV_UNUSED_I32(tmp);
                         } else {
                             tmp = neon_load_reg(rm, pass);
                         }
@@ -6036,7 +6671,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                             case 2: gen_helper_neon_cgt_s32(tmp, tmp, tmp2); break;
                             default: abort();
                             }
-                            tcg_temp_free(tmp2);
+                            tcg_temp_free_i32(tmp2);
                             if (op == NEON_2RM_VCLE0) {
                                 tcg_gen_not_i32(tmp, tmp);
                             }
@@ -6049,7 +6684,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                             case 2: gen_helper_neon_cge_s32(tmp, tmp, tmp2); break;
                             default: abort();
                             }
-                            tcg_temp_free(tmp2);
+                            tcg_temp_free_i32(tmp2);
                             if (op == NEON_2RM_VCLT0) {
                                 tcg_gen_not_i32(tmp, tmp);
                             }
@@ -6062,7 +6697,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                             case 2: gen_helper_neon_ceq_u32(tmp, tmp, tmp2); break;
                             default: abort();
                             }
-                            tcg_temp_free(tmp2);
+                            tcg_temp_free_i32(tmp2);
                             break;
                         case NEON_2RM_VABS:
                             switch(size) {
@@ -6075,14 +6710,14 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                         case NEON_2RM_VNEG:
                             tmp2 = tcg_const_i32(0);
                             gen_neon_rsb(size, tmp, tmp2);
-                            tcg_temp_free(tmp2);
+                            tcg_temp_free_i32(tmp2);
                             break;
                         case NEON_2RM_VCGT0_F:
                         {
                             TCGv_ptr fpstatus = get_fpstatus_ptr(1);
                             tmp2 = tcg_const_i32(0);
                             gen_helper_neon_cgt_f32(tmp, tmp, tmp2, fpstatus);
-                            tcg_temp_free(tmp2);
+                            tcg_temp_free_i32(tmp2);
                             tcg_temp_free_ptr(fpstatus);
                             break;
                         }
@@ -6091,7 +6726,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                             TCGv_ptr fpstatus = get_fpstatus_ptr(1);
                             tmp2 = tcg_const_i32(0);
                             gen_helper_neon_cge_f32(tmp, tmp, tmp2, fpstatus);
-                            tcg_temp_free(tmp2);
+                            tcg_temp_free_i32(tmp2);
                             tcg_temp_free_ptr(fpstatus);
                             break;
                         }
@@ -6100,7 +6735,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                             TCGv_ptr fpstatus = get_fpstatus_ptr(1);
                             tmp2 = tcg_const_i32(0);
                             gen_helper_neon_ceq_f32(tmp, tmp, tmp2, fpstatus);
-                            tcg_temp_free(tmp2);
+                            tcg_temp_free_i32(tmp2);
                             tcg_temp_free_ptr(fpstatus);
                             break;
                         }
@@ -6109,7 +6744,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                             TCGv_ptr fpstatus = get_fpstatus_ptr(1);
                             tmp2 = tcg_const_i32(0);
                             gen_helper_neon_cge_f32(tmp, tmp2, tmp, fpstatus);
-                            tcg_temp_free(tmp2);
+                            tcg_temp_free_i32(tmp2);
                             tcg_temp_free_ptr(fpstatus);
                             break;
                         }
@@ -6118,7 +6753,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                             TCGv_ptr fpstatus = get_fpstatus_ptr(1);
                             tmp2 = tcg_const_i32(0);
                             gen_helper_neon_cgt_f32(tmp, tmp2, tmp, fpstatus);
-                            tcg_temp_free(tmp2);
+                            tcg_temp_free_i32(tmp2);
                             tcg_temp_free_ptr(fpstatus);
                             break;
                         }
@@ -6141,18 +6776,101 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                             }
                             neon_store_reg(rm, pass, tmp2);
                             break;
+                        case NEON_2RM_VRINTN:
+                        case NEON_2RM_VRINTA:
+                        case NEON_2RM_VRINTM:
+                        case NEON_2RM_VRINTP:
+                        case NEON_2RM_VRINTZ:
+                        {
+                            TCGv_i32 tcg_rmode;
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            int rmode;
+
+                            if (op == NEON_2RM_VRINTZ) {
+                                rmode = FPROUNDING_ZERO;
+                            } else {
+                                rmode = fp_decode_rm[((op & 0x6) >> 1) ^ 1];
+                            }
+
+                            tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
+                            gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
+                                                      cpu_env);
+                            gen_helper_rints(cpu_F0s, cpu_F0s, fpstatus);
+                            gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
+                                                      cpu_env);
+                            tcg_temp_free_ptr(fpstatus);
+                            tcg_temp_free_i32(tcg_rmode);
+                            break;
+                        }
+                        case NEON_2RM_VRINTX:
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            gen_helper_rints_exact(cpu_F0s, cpu_F0s, fpstatus);
+                            tcg_temp_free_ptr(fpstatus);
+                            break;
+                        }
+                        case NEON_2RM_VCVTAU:
+                        case NEON_2RM_VCVTAS:
+                        case NEON_2RM_VCVTNU:
+                        case NEON_2RM_VCVTNS:
+                        case NEON_2RM_VCVTPU:
+                        case NEON_2RM_VCVTPS:
+                        case NEON_2RM_VCVTMU:
+                        case NEON_2RM_VCVTMS:
+                        {
+                            bool is_signed = !extract32(insn, 7, 1);
+                            TCGv_ptr fpst = get_fpstatus_ptr(1);
+                            TCGv_i32 tcg_rmode, tcg_shift;
+                            int rmode = fp_decode_rm[extract32(insn, 8, 2)];
+
+                            tcg_shift = tcg_const_i32(0);
+                            tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
+                            gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
+                                                      cpu_env);
+
+                            if (is_signed) {
+                                gen_helper_vfp_tosls(cpu_F0s, cpu_F0s,
+                                                     tcg_shift, fpst);
+                            } else {
+                                gen_helper_vfp_touls(cpu_F0s, cpu_F0s,
+                                                     tcg_shift, fpst);
+                            }
+
+                            gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
+                                                      cpu_env);
+                            tcg_temp_free_i32(tcg_rmode);
+                            tcg_temp_free_i32(tcg_shift);
+                            tcg_temp_free_ptr(fpst);
+                            break;
+                        }
                         case NEON_2RM_VRECPE:
-                            gen_helper_recpe_u32(tmp, tmp, cpu_env);
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            gen_helper_recpe_u32(tmp, tmp, fpstatus);
+                            tcg_temp_free_ptr(fpstatus);
                             break;
+                        }
                         case NEON_2RM_VRSQRTE:
-                            gen_helper_rsqrte_u32(tmp, tmp, cpu_env);
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            gen_helper_rsqrte_u32(tmp, tmp, fpstatus);
+                            tcg_temp_free_ptr(fpstatus);
                             break;
+                        }
                         case NEON_2RM_VRECPE_F:
-                            gen_helper_recpe_f32(cpu_F0s, cpu_F0s, cpu_env);
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            gen_helper_recpe_f32(cpu_F0s, cpu_F0s, fpstatus);
+                            tcg_temp_free_ptr(fpstatus);
                             break;
+                        }
                         case NEON_2RM_VRSQRTE_F:
-                            gen_helper_rsqrte_f32(cpu_F0s, cpu_F0s, cpu_env);
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            gen_helper_rsqrte_f32(cpu_F0s, cpu_F0s, fpstatus);
+                            tcg_temp_free_ptr(fpstatus);
                             break;
+                        }
                         case NEON_2RM_VCVT_FS: /* VCVT.F32.S32 */
                             gen_vfp_sito(0, 1);
                             break;
@@ -6250,7 +6968,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
 {
     int cpnum, is64, crn, crm, opc1, opc2, isread, rt, rt2;
     const ARMCPRegInfo *ri;
-    ARMCPU *cpu = arm_env_get_cpu(env);
 
     cpnum = (insn >> 8) & 0xf;
     if (arm_feature(env, ARM_FEATURE_XSCALE)
@@ -6267,9 +6984,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
 	    return disas_dsp_insn(env, s, insn);
 	}
 	return 1;
-    case 10:
-    case 11:
-	return disas_vfp_insn (env, s, insn);
     default:
         break;
     }
@@ -6296,12 +7010,66 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
     isread = (insn >> 20) & 1;
     rt = (insn >> 12) & 0xf;
 
-    ri = get_arm_cp_reginfo(cpu,
+    ri = get_arm_cp_reginfo(s->cp_regs,
                             ENCODE_CP_REG(cpnum, is64, crn, crm, opc1, opc2));
     if (ri) {
         /* Check access permissions */
-        if (!cp_access_ok(env, ri, isread)) {
+        if (!cp_access_ok(s->current_pl, ri, isread)) {
             return 1;
+        }
+
+        if (ri->accessfn) {
+            /* Emit code to perform further access permissions checks at
+             * runtime; this may result in an exception.
+             */
+            TCGv_ptr tmpptr;
+            TCGv_i32 tcg_syn;
+            uint32_t syndrome;
+
+            /* Note that since we are an implementation which takes an
+             * exception on a trapped conditional instruction only if the
+             * instruction passes its condition code check, we can take
+             * advantage of the clause in the ARM ARM that allows us to set
+             * the COND field in the instruction to 0xE in all cases.
+             * We could fish the actual condition out of the insn (ARM)
+             * or the condexec bits (Thumb) but it isn't necessary.
+             */
+            switch (cpnum) {
+            case 14:
+                if (is64) {
+                    syndrome = syn_cp14_rrt_trap(1, 0xe, opc1, crm, rt, rt2,
+                                                 isread, s->thumb);
+                } else {
+                    syndrome = syn_cp14_rt_trap(1, 0xe, opc1, opc2, crn, crm,
+                                                rt, isread, s->thumb);
+                }
+                break;
+            case 15:
+                if (is64) {
+                    syndrome = syn_cp15_rrt_trap(1, 0xe, opc1, crm, rt, rt2,
+                                                 isread, s->thumb);
+                } else {
+                    syndrome = syn_cp15_rt_trap(1, 0xe, opc1, opc2, crn, crm,
+                                                rt, isread, s->thumb);
+                }
+                break;
+            default:
+                /* ARMv8 defines that only coprocessors 14 and 15 exist,
+                 * so this can only happen if this is an ARMv7 or earlier CPU,
+                 * in which case the syndrome information won't actually be
+                 * guest visible.
+                 */
+                assert(!arm_feature(env, ARM_FEATURE_V8));
+                syndrome = syn_uncategorized();
+                break;
+            }
+
+            gen_set_pc_im(s, s->pc);
+            tmpptr = tcg_const_ptr(ri);
+            tcg_syn = tcg_const_i32(syndrome);
+            gen_helper_access_check_cp_reg(cpu_env, tmpptr, tcg_syn);
+            tcg_temp_free_ptr(tmpptr);
+            tcg_temp_free_i32(tcg_syn);
         }
 
         /* Handle special cases first */
@@ -6312,11 +7080,15 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
             if (isread) {
                 return 1;
             }
-            gen_set_pc_im(s->pc);
+            gen_set_pc_im(s, s->pc);
             s->is_jmp = DISAS_WFI;
             return 0;
         default:
             break;
+        }
+
+        if (use_icount && (ri->type & ARM_CP_IO)) {
+            gen_io_start();
         }
 
         if (isread) {
@@ -6328,7 +7100,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                     tmp64 = tcg_const_i64(ri->resetvalue);
                 } else if (ri->readfn) {
                     TCGv_ptr tmpptr;
-                    gen_set_pc_im(s->pc);
                     tmp64 = tcg_temp_new_i64();
                     tmpptr = tcg_const_ptr(ri);
                     gen_helper_get_cp_reg64(tmp64, cpu_env, tmpptr);
@@ -6346,12 +7117,11 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 tcg_temp_free_i64(tmp64);
                 store_reg(s, rt2, tmp);
             } else {
-                TCGv tmp;
+                TCGv_i32 tmp;
                 if (ri->type & ARM_CP_CONST) {
                     tmp = tcg_const_i32(ri->resetvalue);
                 } else if (ri->readfn) {
                     TCGv_ptr tmpptr;
-                    gen_set_pc_im(s->pc);
                     tmp = tcg_temp_new_i32();
                     tmpptr = tcg_const_ptr(ri);
                     gen_helper_get_cp_reg(tmp, cpu_env, tmpptr);
@@ -6377,7 +7147,7 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
             }
 
             if (is64) {
-                TCGv tmplo, tmphi;
+                TCGv_i32 tmplo, tmphi;
                 TCGv_i64 tmp64 = tcg_temp_new_i64();
                 tmplo = load_reg(s, rt);
                 tmphi = load_reg(s, rt2);
@@ -6386,7 +7156,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 tcg_temp_free_i32(tmphi);
                 if (ri->writefn) {
                     TCGv_ptr tmpptr = tcg_const_ptr(ri);
-                    gen_set_pc_im(s->pc);
                     gen_helper_set_cp_reg64(cpu_env, tmpptr, tmp64);
                     tcg_temp_free_ptr(tmpptr);
                 } else {
@@ -6395,28 +7164,46 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 tcg_temp_free_i64(tmp64);
             } else {
                 if (ri->writefn) {
-                    TCGv tmp;
+                    TCGv_i32 tmp;
                     TCGv_ptr tmpptr;
-                    gen_set_pc_im(s->pc);
                     tmp = load_reg(s, rt);
                     tmpptr = tcg_const_ptr(ri);
                     gen_helper_set_cp_reg(cpu_env, tmpptr, tmp);
                     tcg_temp_free_ptr(tmpptr);
                     tcg_temp_free_i32(tmp);
                 } else {
-                    TCGv tmp = load_reg(s, rt);
+                    TCGv_i32 tmp = load_reg(s, rt);
                     store_cpu_offset(tmp, ri->fieldoffset);
                 }
             }
+        }
+
+        if (use_icount && (ri->type & ARM_CP_IO)) {
+            /* I/O operations must end the TB here (whether read or write) */
+            gen_io_end();
+            gen_lookup_tb(s);
+        } else if (!isread && !(ri->type & ARM_CP_SUPPRESS_TB_END)) {
             /* We default to ending the TB on a coprocessor register write,
              * but allow this to be suppressed by the register definition
              * (usually only necessary to work around guest bugs).
              */
-            if (!(ri->type & ARM_CP_SUPPRESS_TB_END)) {
-                gen_lookup_tb(s);
-            }
+            gen_lookup_tb(s);
         }
+
         return 0;
+    }
+
+    /* Unknown register; this might be a guest error or a QEMU
+     * unimplemented feature.
+     */
+    if (is64) {
+        qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch32 "
+                      "64 bit system register cp:%d opc1: %d crm:%d\n",
+                      isread ? "read" : "write", cpnum, opc1, crm);
+    } else {
+        qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch32 "
+                      "system register cp:%d opc1:%d crn:%d crm:%d opc2:%d\n",
+                      isread ? "read" : "write", cpnum, opc1, crn, crm, opc2);
     }
 
     return 1;
@@ -6426,7 +7213,7 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
 /* Store a 64-bit value to a register pair.  Clobbers val.  */
 static void gen_storeq_reg(DisasContext *s, int rlow, int rhigh, TCGv_i64 val)
 {
-    TCGv tmp;
+    TCGv_i32 tmp;
     tmp = tcg_temp_new_i32();
     tcg_gen_trunc_i64_i32(tmp, val);
     store_reg(s, rlow, tmp);
@@ -6440,7 +7227,7 @@ static void gen_storeq_reg(DisasContext *s, int rlow, int rhigh, TCGv_i64 val)
 static void gen_addq_lo(DisasContext *s, TCGv_i64 val, int rlow)
 {
     TCGv_i64 tmp;
-    TCGv tmp2;
+    TCGv_i32 tmp2;
 
     /* Load value and extend to 64 bits.  */
     tmp = tcg_temp_new_i64();
@@ -6455,8 +7242,8 @@ static void gen_addq_lo(DisasContext *s, TCGv_i64 val, int rlow)
 static void gen_addq(DisasContext *s, TCGv_i64 val, int rlow, int rhigh)
 {
     TCGv_i64 tmp;
-    TCGv tmpl;
-    TCGv tmph;
+    TCGv_i32 tmpl;
+    TCGv_i32 tmph;
 
     /* Load 64-bit value rd:rn.  */
     tmpl = load_reg(s, rlow);
@@ -6470,7 +7257,7 @@ static void gen_addq(DisasContext *s, TCGv_i64 val, int rlow, int rhigh)
 }
 
 /* Set N and Z flags from hi|lo.  */
-static void gen_logicq_cc(TCGv lo, TCGv hi)
+static void gen_logicq_cc(TCGv_i32 lo, TCGv_i32 hi)
 {
     tcg_gen_mov_i32(cpu_NF, hi);
     tcg_gen_or_i32(cpu_ZF, lo, hi);
@@ -6486,56 +7273,62 @@ static void gen_logicq_cc(TCGv lo, TCGv hi)
    this sequence is effectively atomic.  In user emulation mode we
    throw an exception and handle the atomic operation elsewhere.  */
 static void gen_load_exclusive(DisasContext *s, int rt, int rt2,
-                               TCGv addr, int size)
+                               TCGv_i32 addr, int size)
 {
-    TCGv tmp;
+    TCGv_i32 tmp = tcg_temp_new_i32();
 
     switch (size) {
     case 0:
-        tmp = gen_ld8u(addr, IS_USER(s));
+        gen_aa32_ld8u(tmp, addr, get_mem_index(s));
         break;
     case 1:
-        tmp = gen_ld16u(addr, IS_USER(s));
+        gen_aa32_ld16u(tmp, addr, get_mem_index(s));
         break;
     case 2:
     case 3:
-        tmp = gen_ld32(addr, IS_USER(s));
+        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
         break;
     default:
         abort();
     }
-    tcg_gen_mov_i32(cpu_exclusive_val, tmp);
-    store_reg(s, rt, tmp);
+
     if (size == 3) {
-        TCGv tmp2 = tcg_temp_new_i32();
+        TCGv_i32 tmp2 = tcg_temp_new_i32();
+        TCGv_i32 tmp3 = tcg_temp_new_i32();
+
         tcg_gen_addi_i32(tmp2, addr, 4);
-        tmp = gen_ld32(tmp2, IS_USER(s));
+        gen_aa32_ld32u(tmp3, tmp2, get_mem_index(s));
         tcg_temp_free_i32(tmp2);
-        tcg_gen_mov_i32(cpu_exclusive_high, tmp);
-        store_reg(s, rt2, tmp);
+        tcg_gen_concat_i32_i64(cpu_exclusive_val, tmp, tmp3);
+        store_reg(s, rt2, tmp3);
+    } else {
+        tcg_gen_extu_i32_i64(cpu_exclusive_val, tmp);
     }
-    tcg_gen_mov_i32(cpu_exclusive_addr, addr);
+
+    store_reg(s, rt, tmp);
+    tcg_gen_extu_i32_i64(cpu_exclusive_addr, addr);
 }
 
 static void gen_clrex(DisasContext *s)
 {
-    tcg_gen_movi_i32(cpu_exclusive_addr, -1);
+    tcg_gen_movi_i64(cpu_exclusive_addr, -1);
 }
 
 #ifdef CONFIG_USER_ONLY
 static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
-                                TCGv addr, int size)
+                                TCGv_i32 addr, int size)
 {
-    tcg_gen_mov_i32(cpu_exclusive_test, addr);
+    tcg_gen_extu_i32_i64(cpu_exclusive_test, addr);
     tcg_gen_movi_i32(cpu_exclusive_info,
                      size | (rd << 4) | (rt << 8) | (rt2 << 12));
-    gen_exception_insn(s, 4, EXCP_STREX);
+    gen_exception_internal_insn(s, 4, EXCP_STREX);
 }
 #else
 static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
-                                TCGv addr, int size)
+                                TCGv_i32 addr, int size)
 {
-    TCGv tmp;
+    TCGv_i32 tmp;
+    TCGv_i64 val64, extaddr;
     int done_label;
     int fail_label;
 
@@ -6547,57 +7340,72 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
        } */
     fail_label = gen_new_label();
     done_label = gen_new_label();
-    tcg_gen_brcond_i32(TCG_COND_NE, addr, cpu_exclusive_addr, fail_label);
+    extaddr = tcg_temp_new_i64();
+    tcg_gen_extu_i32_i64(extaddr, addr);
+    tcg_gen_brcond_i64(TCG_COND_NE, extaddr, cpu_exclusive_addr, fail_label);
+    tcg_temp_free_i64(extaddr);
+
+    tmp = tcg_temp_new_i32();
     switch (size) {
     case 0:
-        tmp = gen_ld8u(addr, IS_USER(s));
+        gen_aa32_ld8u(tmp, addr, get_mem_index(s));
         break;
     case 1:
-        tmp = gen_ld16u(addr, IS_USER(s));
+        gen_aa32_ld16u(tmp, addr, get_mem_index(s));
         break;
     case 2:
     case 3:
-        tmp = gen_ld32(addr, IS_USER(s));
+        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
         break;
     default:
         abort();
     }
-    tcg_gen_brcond_i32(TCG_COND_NE, tmp, cpu_exclusive_val, fail_label);
-    tcg_temp_free_i32(tmp);
+
+    val64 = tcg_temp_new_i64();
     if (size == 3) {
-        TCGv tmp2 = tcg_temp_new_i32();
+        TCGv_i32 tmp2 = tcg_temp_new_i32();
+        TCGv_i32 tmp3 = tcg_temp_new_i32();
         tcg_gen_addi_i32(tmp2, addr, 4);
-        tmp = gen_ld32(tmp2, IS_USER(s));
+        gen_aa32_ld32u(tmp3, tmp2, get_mem_index(s));
         tcg_temp_free_i32(tmp2);
-        tcg_gen_brcond_i32(TCG_COND_NE, tmp, cpu_exclusive_high, fail_label);
-        tcg_temp_free_i32(tmp);
+        tcg_gen_concat_i32_i64(val64, tmp, tmp3);
+        tcg_temp_free_i32(tmp3);
+    } else {
+        tcg_gen_extu_i32_i64(val64, tmp);
     }
+    tcg_temp_free_i32(tmp);
+
+    tcg_gen_brcond_i64(TCG_COND_NE, val64, cpu_exclusive_val, fail_label);
+    tcg_temp_free_i64(val64);
+
     tmp = load_reg(s, rt);
     switch (size) {
     case 0:
-        gen_st8(tmp, addr, IS_USER(s));
+        gen_aa32_st8(tmp, addr, get_mem_index(s));
         break;
     case 1:
-        gen_st16(tmp, addr, IS_USER(s));
+        gen_aa32_st16(tmp, addr, get_mem_index(s));
         break;
     case 2:
     case 3:
-        gen_st32(tmp, addr, IS_USER(s));
+        gen_aa32_st32(tmp, addr, get_mem_index(s));
         break;
     default:
         abort();
     }
+    tcg_temp_free_i32(tmp);
     if (size == 3) {
         tcg_gen_addi_i32(addr, addr, 4);
         tmp = load_reg(s, rt2);
-        gen_st32(tmp, addr, IS_USER(s));
+        gen_aa32_st32(tmp, addr, get_mem_index(s));
+        tcg_temp_free_i32(tmp);
     }
     tcg_gen_movi_i32(cpu_R[rd], 0);
     tcg_gen_br(done_label);
     gen_set_label(fail_label);
     tcg_gen_movi_i32(cpu_R[rd], 1);
     gen_set_label(done_label);
-    tcg_gen_movi_i32(cpu_exclusive_addr, -1);
+    tcg_gen_movi_i64(cpu_exclusive_addr, -1);
 }
 #endif
 
@@ -6636,10 +7444,12 @@ static void gen_srs(DisasContext *s,
     }
     tcg_gen_addi_i32(addr, addr, offset);
     tmp = load_reg(s, 14);
-    gen_st32(tmp, addr, 0);
+    gen_aa32_st32(tmp, addr, get_mem_index(s));
+    tcg_temp_free_i32(tmp);
     tmp = load_cpu_field(spsr);
     tcg_gen_addi_i32(addr, addr, 4);
-    gen_st32(tmp, addr, 0);
+    gen_aa32_st32(tmp, addr, get_mem_index(s));
+    tcg_temp_free_i32(tmp);
     if (writeback) {
         switch (amode) {
         case 0:
@@ -6668,10 +7478,10 @@ static void gen_srs(DisasContext *s,
 static void disas_arm_insn(CPUARMState * env, DisasContext *s)
 {
     unsigned int cond, insn, val, op1, i, shift, rm, rs, rn, rd, sh;
-    TCGv tmp;
-    TCGv tmp2;
-    TCGv tmp3;
-    TCGv addr;
+    TCGv_i32 tmp;
+    TCGv_i32 tmp2;
+    TCGv_i32 tmp3;
+    TCGv_i32 addr;
     TCGv_i64 tmp64;
 
     insn = arm_ldl_code(env, s->pc, s->bswap_code);
@@ -6707,6 +7517,13 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                 goto illegal_op;
             return;
         }
+        if ((insn & 0x0f000e10) == 0x0e000a00) {
+            /* VFP.  */
+            if (disas_vfp_insn(env, s, insn)) {
+                goto illegal_op;
+            }
+            return;
+        }
         if (((insn & 0x0f30f000) == 0x0510f000) ||
             ((insn & 0x0f30f010) == 0x0710f000)) {
             if ((insn & (1 << 22)) == 0) {
@@ -6737,6 +7554,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             /* setend */
             if (((insn >> 9) & 1) != s->bswap_code) {
                 /* Dynamic endianness switching not implemented. */
+                qemu_log_mask(LOG_UNIMP, "arm: unimplemented setend\n");
                 goto illegal_op;
             }
             return;
@@ -6782,9 +7600,11 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             if (offset)
                 tcg_gen_addi_i32(addr, addr, offset);
             /* Load PC into tmp and CPSR into tmp2.  */
-            tmp = gen_ld32(addr, 0);
+            tmp = tcg_temp_new_i32();
+            gen_aa32_ld32u(tmp, addr, get_mem_index(s));
             tcg_gen_addi_i32(addr, addr, 4);
-            tmp2 = gen_ld32(addr, 0);
+            tmp2 = tcg_temp_new_i32();
+            gen_aa32_ld32u(tmp2, addr, get_mem_index(s));
             if (insn & (1 << 21)) {
                 /* Base writeback.  */
                 switch (i) {
@@ -6863,7 +7683,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
         /* if not always execute, we generate a conditional jump to
            next instruction */
         s->condlabel = gen_new_label();
-        gen_test_cc(cond ^ 1, s->condlabel);
+        arm_gen_test_cc(cond ^ 1, s->condlabel);
         s->condjmp = 1;
     }
     if ((insn & 0x0f900000) == 0x03000000) {
@@ -6965,6 +7785,41 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             store_reg(s, 14, tmp2);
             gen_bx(s, tmp);
             break;
+        case 0x4:
+        {
+            /* crc32/crc32c */
+            uint32_t c = extract32(insn, 8, 4);
+
+            /* Check this CPU supports ARMv8 CRC instructions.
+             * op1 == 3 is UNPREDICTABLE but handle as UNDEFINED.
+             * Bits 8, 10 and 11 should be zero.
+             */
+            if (!arm_feature(env, ARM_FEATURE_CRC) || op1 == 0x3 ||
+                (c & 0xd) != 0) {
+                goto illegal_op;
+            }
+
+            rn = extract32(insn, 16, 4);
+            rd = extract32(insn, 12, 4);
+
+            tmp = load_reg(s, rn);
+            tmp2 = load_reg(s, rm);
+            if (op1 == 0) {
+                tcg_gen_andi_i32(tmp2, tmp2, 0xff);
+            } else if (op1 == 1) {
+                tcg_gen_andi_i32(tmp2, tmp2, 0xffff);
+            }
+            tmp3 = tcg_const_i32(1 << op1);
+            if (c & 0x2) {
+                gen_helper_crc32c(tmp, tmp, tmp2, tmp3);
+            } else {
+                gen_helper_crc32(tmp, tmp, tmp2, tmp3);
+            }
+            tcg_temp_free_i32(tmp2);
+            tcg_temp_free_i32(tmp3);
+            store_reg(s, rd, tmp);
+            break;
+        }
         case 0x5: /* saturating add/subtract */
             ARCH(5TE);
             rd = (insn >> 12) & 0xf;
@@ -6981,6 +7836,8 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             store_reg(s, rd, tmp);
             break;
         case 7:
+        {
+            int imm16 = extract32(insn, 0, 4) | (extract32(insn, 8, 12) << 4);
             /* SMC instruction (op1 == 3)
                and undefined instructions (op1 == 0 || op1 == 2)
                will trap */
@@ -6989,8 +7846,9 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             }
             /* bkpt */
             ARCH(5);
-            gen_exception_insn(s, 4, EXCP_BKPT);
+            gen_exception_insn(s, 4, EXCP_BKPT, syn_aa32_bkpt(imm16, false));
             break;
+        }
         case 0x8: /* signed multiply */
         case 0xa:
         case 0xc:
@@ -7084,7 +7942,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             rn = (insn >> 16) & 0xf;
             tmp = load_reg(s, rn);
         } else {
-            TCGV_UNUSED(tmp);
+            TCGV_UNUSED_I32(tmp);
         }
         rd = (insn >> 12) & 0xf;
         switch(op1) {
@@ -7285,11 +8143,11 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                             tcg_gen_mulu2_i32(tmp, tmp2, tmp, tmp2);
                         }
                         if (insn & (1 << 21)) { /* mult accumulate */
-                            TCGv al = load_reg(s, rn);
-                            TCGv ah = load_reg(s, rd);
+                            TCGv_i32 al = load_reg(s, rn);
+                            TCGv_i32 ah = load_reg(s, rd);
                             tcg_gen_add2_i32(tmp, tmp2, tmp, tmp2, al, ah);
-                            tcg_temp_free(al);
-                            tcg_temp_free(ah);
+                            tcg_temp_free_i32(al);
+                            tcg_temp_free_i32(ah);
                         }
                         if (insn & (1 << 20)) {
                             gen_logicq_cc(tmp, tmp2);
@@ -7305,14 +8163,72 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                     rd = (insn >> 12) & 0xf;
                     if (insn & (1 << 23)) {
                         /* load/store exclusive */
+                        int op2 = (insn >> 8) & 3;
                         op1 = (insn >> 21) & 0x3;
-                        if (op1)
-                            ARCH(6K);
-                        else
-                            ARCH(6);
+
+                        switch (op2) {
+                        case 0: /* lda/stl */
+                            if (op1 == 1) {
+                                goto illegal_op;
+                            }
+                            ARCH(8);
+                            break;
+                        case 1: /* reserved */
+                            goto illegal_op;
+                        case 2: /* ldaex/stlex */
+                            ARCH(8);
+                            break;
+                        case 3: /* ldrex/strex */
+                            if (op1) {
+                                ARCH(6K);
+                            } else {
+                                ARCH(6);
+                            }
+                            break;
+                        }
+
                         addr = tcg_temp_local_new_i32();
                         load_reg_var(s, addr, rn);
-                        if (insn & (1 << 20)) {
+
+                        /* Since the emulation does not have barriers,
+                           the acquire/release semantics need no special
+                           handling */
+                        if (op2 == 0) {
+                            if (insn & (1 << 20)) {
+                                tmp = tcg_temp_new_i32();
+                                switch (op1) {
+                                case 0: /* lda */
+                                    gen_aa32_ld32u(tmp, addr, get_mem_index(s));
+                                    break;
+                                case 2: /* ldab */
+                                    gen_aa32_ld8u(tmp, addr, get_mem_index(s));
+                                    break;
+                                case 3: /* ldah */
+                                    gen_aa32_ld16u(tmp, addr, get_mem_index(s));
+                                    break;
+                                default:
+                                    abort();
+                                }
+                                store_reg(s, rd, tmp);
+                            } else {
+                                rm = insn & 0xf;
+                                tmp = load_reg(s, rm);
+                                switch (op1) {
+                                case 0: /* stl */
+                                    gen_aa32_st32(tmp, addr, get_mem_index(s));
+                                    break;
+                                case 2: /* stlb */
+                                    gen_aa32_st8(tmp, addr, get_mem_index(s));
+                                    break;
+                                case 3: /* stlh */
+                                    gen_aa32_st16(tmp, addr, get_mem_index(s));
+                                    break;
+                                default:
+                                    abort();
+                                }
+                                tcg_temp_free_i32(tmp);
+                            }
+                        } else if (insn & (1 << 20)) {
                             switch (op1) {
                             case 0: /* ldrex */
                                 gen_load_exclusive(s, rd, 15, addr, 2);
@@ -7348,7 +8264,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                                 abort();
                             }
                         }
-                        tcg_temp_free(addr);
+                        tcg_temp_free_i32(addr);
                     } else {
                         /* SWP instruction */
                         rm = (insn) & 0xf;
@@ -7358,13 +8274,15 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                            so it is good enough.  */
                         addr = load_reg(s, rn);
                         tmp = load_reg(s, rm);
+                        tmp2 = tcg_temp_new_i32();
                         if (insn & (1 << 22)) {
-                            tmp2 = gen_ld8u(addr, IS_USER(s));
-                            gen_st8(tmp, addr, IS_USER(s));
+                            gen_aa32_ld8u(tmp2, addr, get_mem_index(s));
+                            gen_aa32_st8(tmp, addr, get_mem_index(s));
                         } else {
-                            tmp2 = gen_ld32(addr, IS_USER(s));
-                            gen_st32(tmp, addr, IS_USER(s));
+                            gen_aa32_ld32u(tmp2, addr, get_mem_index(s));
+                            gen_aa32_st32(tmp, addr, get_mem_index(s));
                         }
+                        tcg_temp_free_i32(tmp);
                         tcg_temp_free_i32(addr);
                         store_reg(s, rd, tmp2);
                     }
@@ -7381,16 +8299,17 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                 address_offset = 0;
                 if (insn & (1 << 20)) {
                     /* load */
+                    tmp = tcg_temp_new_i32();
                     switch(sh) {
                     case 1:
-                        tmp = gen_ld16u(addr, IS_USER(s));
+                        gen_aa32_ld16u(tmp, addr, get_mem_index(s));
                         break;
                     case 2:
-                        tmp = gen_ld8s(addr, IS_USER(s));
+                        gen_aa32_ld8s(tmp, addr, get_mem_index(s));
                         break;
                     default:
                     case 3:
-                        tmp = gen_ld16s(addr, IS_USER(s));
+                        gen_aa32_ld16s(tmp, addr, get_mem_index(s));
                         break;
                     }
                     load = 1;
@@ -7400,17 +8319,21 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                     if (sh & 1) {
                         /* store */
                         tmp = load_reg(s, rd);
-                        gen_st32(tmp, addr, IS_USER(s));
+                        gen_aa32_st32(tmp, addr, get_mem_index(s));
+                        tcg_temp_free_i32(tmp);
                         tcg_gen_addi_i32(addr, addr, 4);
                         tmp = load_reg(s, rd + 1);
-                        gen_st32(tmp, addr, IS_USER(s));
+                        gen_aa32_st32(tmp, addr, get_mem_index(s));
+                        tcg_temp_free_i32(tmp);
                         load = 0;
                     } else {
                         /* load */
-                        tmp = gen_ld32(addr, IS_USER(s));
+                        tmp = tcg_temp_new_i32();
+                        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
                         store_reg(s, rd, tmp);
                         tcg_gen_addi_i32(addr, addr, 4);
-                        tmp = gen_ld32(addr, IS_USER(s));
+                        tmp = tcg_temp_new_i32();
+                        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
                         rd++;
                         load = 1;
                     }
@@ -7418,7 +8341,8 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                 } else {
                     /* store */
                     tmp = load_reg(s, rd);
-                    gen_st16(tmp, addr, IS_USER(s));
+                    gen_aa32_st16(tmp, addr, get_mem_index(s));
+                    tcg_temp_free_i32(tmp);
                     load = 0;
                 }
                 /* Perform base writeback before the loaded value to
@@ -7617,27 +8541,39 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                         if (insn & (1 << 5))
                             gen_swap_half(tmp2);
                         gen_smul_dual(tmp, tmp2);
-                        if (insn & (1 << 6)) {
-                            /* This subtraction cannot overflow. */
-                            tcg_gen_sub_i32(tmp, tmp, tmp2);
-                        } else {
-                            /* This addition cannot overflow 32 bits;
-                             * however it may overflow considered as a signed
-                             * operation, in which case we must set the Q flag.
-                             */
-                            gen_helper_add_setq(tmp, cpu_env, tmp, tmp2);
-                        }
-                        tcg_temp_free_i32(tmp2);
                         if (insn & (1 << 22)) {
                             /* smlald, smlsld */
+                            TCGv_i64 tmp64_2;
+
                             tmp64 = tcg_temp_new_i64();
+                            tmp64_2 = tcg_temp_new_i64();
                             tcg_gen_ext_i32_i64(tmp64, tmp);
+                            tcg_gen_ext_i32_i64(tmp64_2, tmp2);
                             tcg_temp_free_i32(tmp);
+                            tcg_temp_free_i32(tmp2);
+                            if (insn & (1 << 6)) {
+                                tcg_gen_sub_i64(tmp64, tmp64, tmp64_2);
+                            } else {
+                                tcg_gen_add_i64(tmp64, tmp64, tmp64_2);
+                            }
+                            tcg_temp_free_i64(tmp64_2);
                             gen_addq(s, tmp64, rd, rn);
                             gen_storeq_reg(s, rd, rn, tmp64);
                             tcg_temp_free_i64(tmp64);
                         } else {
                             /* smuad, smusd, smlad, smlsd */
+                            if (insn & (1 << 6)) {
+                                /* This subtraction cannot overflow. */
+                                tcg_gen_sub_i32(tmp, tmp, tmp2);
+                            } else {
+                                /* This addition cannot overflow 32 bits;
+                                 * however it may overflow considered as a
+                                 * signed operation, in which case we must set
+                                 * the Q flag.
+                                 */
+                                gen_helper_add_setq(tmp, cpu_env, tmp, tmp2);
+                            }
+                            tcg_temp_free_i32(tmp2);
                             if (rd != 15)
                               {
                                 tmp2 = load_reg(s, rd);
@@ -7743,23 +8679,31 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             rn = (insn >> 16) & 0xf;
             rd = (insn >> 12) & 0xf;
             tmp2 = load_reg(s, rn);
-            i = (IS_USER(s) || (insn & 0x01200000) == 0x00200000);
+            if ((insn & 0x01200000) == 0x00200000) {
+                /* ldrt/strt */
+                i = MMU_USER_IDX;
+            } else {
+                i = get_mem_index(s);
+            }
             if (insn & (1 << 24))
                 gen_add_data_offset(s, insn, tmp2);
             if (insn & (1 << 20)) {
                 /* load */
+                tmp = tcg_temp_new_i32();
                 if (insn & (1 << 22)) {
-                    tmp = gen_ld8u(tmp2, i);
+                    gen_aa32_ld8u(tmp, tmp2, i);
                 } else {
-                    tmp = gen_ld32(tmp2, i);
+                    gen_aa32_ld32u(tmp, tmp2, i);
                 }
             } else {
                 /* store */
                 tmp = load_reg(s, rd);
-                if (insn & (1 << 22))
-                    gen_st8(tmp, tmp2, i);
-                else
-                    gen_st32(tmp, tmp2, i);
+                if (insn & (1 << 22)) {
+                    gen_aa32_st8(tmp, tmp2, i);
+                } else {
+                    gen_aa32_st32(tmp, tmp2, i);
+                }
+                tcg_temp_free_i32(tmp);
             }
             if (!(insn & (1 << 24))) {
                 gen_add_data_offset(s, insn, tmp2);
@@ -7778,7 +8722,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
         case 0x09:
             {
                 int j, n, user, loaded_base;
-                TCGv loaded_var;
+                TCGv_i32 loaded_var;
                 /* load/store multiple words */
                 /* XXX: store correct base if write back */
                 user = 0;
@@ -7794,7 +8738,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
 
                 /* compute total size */
                 loaded_base = 0;
-                TCGV_UNUSED(loaded_var);
+                TCGV_UNUSED_I32(loaded_var);
                 n = 0;
                 for(i=0;i<16;i++) {
                     if (insn & (1 << i))
@@ -7823,7 +8767,8 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                     if (insn & (1 << i)) {
                         if (insn & (1 << 20)) {
                             /* load */
-                            tmp = gen_ld32(addr, IS_USER(s));
+                            tmp = tcg_temp_new_i32();
+                            gen_aa32_ld32u(tmp, addr, get_mem_index(s));
                             if (user) {
                                 tmp2 = tcg_const_i32(i);
                                 gen_helper_set_user_reg(cpu_env, tmp2, tmp);
@@ -7850,7 +8795,8 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                             } else {
                                 tmp = load_reg(s, i);
                             }
-                            gen_st32(tmp, addr, IS_USER(s));
+                            gen_aa32_st32(tmp, addr, get_mem_index(s));
+                            tcg_temp_free_i32(tmp);
                         }
                         j++;
                         /* no need to add after the last transfer */
@@ -7905,26 +8851,33 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                     tcg_gen_movi_i32(tmp, val);
                     store_reg(s, 14, tmp);
                 }
-                offset = (((int32_t)insn << 8) >> 8);
-                val += (offset << 2) + 4;
+                offset = sextract32(insn << 2, 0, 26);
+                val += offset + 4;
                 gen_jmp(s, val);
             }
             break;
         case 0xc:
         case 0xd:
         case 0xe:
-            /* Coprocessor.  */
-            if (disas_coproc_insn(env, s, insn))
+            if (((insn >> 8) & 0xe) == 10) {
+                /* VFP.  */
+                if (disas_vfp_insn(env, s, insn)) {
+                    goto illegal_op;
+                }
+            } else if (disas_coproc_insn(env, s, insn)) {
+                /* Coprocessor.  */
                 goto illegal_op;
+            }
             break;
         case 0xf:
             /* swi */
-            gen_set_pc_im(s->pc);
+            gen_set_pc_im(s, s->pc);
+            s->svc_imm = extract32(insn, 0, 24);
             s->is_jmp = DISAS_SWI;
             break;
         default:
         illegal_op:
-            gen_exception_insn(s, 4, EXCP_UDEF);
+            gen_exception_insn(s, 4, EXCP_UDEF, syn_uncategorized());
             break;
         }
     }
@@ -7944,7 +8897,8 @@ thumb2_logic_op(int op)
    Returns zero if the opcode is valid.  */
 
 static int
-gen_thumb2_data_op(DisasContext *s, int op, int conds, uint32_t shifter_out, TCGv t0, TCGv t1)
+gen_thumb2_data_op(DisasContext *s, int op, int conds, uint32_t shifter_out,
+                   TCGv_i32 t0, TCGv_i32 t1)
 {
     int logic_cc;
 
@@ -8018,10 +8972,10 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
 {
     uint32_t insn, imm, shift, offset;
     uint32_t rd, rn, rm, rs;
-    TCGv tmp;
-    TCGv tmp2;
-    TCGv tmp3;
-    TCGv addr;
+    TCGv_i32 tmp;
+    TCGv_i32 tmp2;
+    TCGv_i32 tmp3;
+    TCGv_i32 addr;
     TCGv_i64 tmp64;
     int op;
     int shiftop;
@@ -8106,18 +9060,22 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 }
                 if (insn & (1 << 20)) {
                     /* ldrd */
-                    tmp = gen_ld32(addr, IS_USER(s));
+                    tmp = tcg_temp_new_i32();
+                    gen_aa32_ld32u(tmp, addr, get_mem_index(s));
                     store_reg(s, rs, tmp);
                     tcg_gen_addi_i32(addr, addr, 4);
-                    tmp = gen_ld32(addr, IS_USER(s));
+                    tmp = tcg_temp_new_i32();
+                    gen_aa32_ld32u(tmp, addr, get_mem_index(s));
                     store_reg(s, rd, tmp);
                 } else {
                     /* strd */
                     tmp = load_reg(s, rs);
-                    gen_st32(tmp, addr, IS_USER(s));
+                    gen_aa32_st32(tmp, addr, get_mem_index(s));
+                    tcg_temp_free_i32(tmp);
                     tcg_gen_addi_i32(addr, addr, 4);
                     tmp = load_reg(s, rd);
-                    gen_st32(tmp, addr, IS_USER(s));
+                    gen_aa32_st32(tmp, addr, get_mem_index(s));
+                    tcg_temp_free_i32(tmp);
                 }
                 if (insn & (1 << 21)) {
                     /* Base writeback.  */
@@ -8130,7 +9088,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 }
             } else if ((insn & (1 << 23)) == 0) {
                 /* Load/store exclusive word.  */
-                addr = tcg_temp_local_new();
+                addr = tcg_temp_local_new_i32();
                 load_reg_var(s, addr, rn);
                 tcg_gen_addi_i32(addr, addr, (insn & 0xff) << 2);
                 if (insn & (1 << 20)) {
@@ -8138,8 +9096,8 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 } else {
                     gen_store_exclusive(s, rd, rs, 15, addr, 2);
                 }
-                tcg_temp_free(addr);
-            } else if ((insn & (1 << 6)) == 0) {
+                tcg_temp_free_i32(addr);
+            } else if ((insn & (7 << 5)) == 0) {
                 /* Table Branch.  */
                 if (rn == 15) {
                     addr = tcg_temp_new_i32();
@@ -8153,30 +9111,83 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     /* tbh */
                     tcg_gen_add_i32(addr, addr, tmp);
                     tcg_temp_free_i32(tmp);
-                    tmp = gen_ld16u(addr, IS_USER(s));
+                    tmp = tcg_temp_new_i32();
+                    gen_aa32_ld16u(tmp, addr, get_mem_index(s));
                 } else { /* tbb */
                     tcg_temp_free_i32(tmp);
-                    tmp = gen_ld8u(addr, IS_USER(s));
+                    tmp = tcg_temp_new_i32();
+                    gen_aa32_ld8u(tmp, addr, get_mem_index(s));
                 }
                 tcg_temp_free_i32(addr);
                 tcg_gen_shli_i32(tmp, tmp, 1);
                 tcg_gen_addi_i32(tmp, tmp, s->pc);
                 store_reg(s, 15, tmp);
             } else {
-                /* Load/store exclusive byte/halfword/doubleword.  */
-                ARCH(7);
+                int op2 = (insn >> 6) & 0x3;
                 op = (insn >> 4) & 0x3;
-                if (op == 2) {
+                switch (op2) {
+                case 0:
                     goto illegal_op;
+                case 1:
+                    /* Load/store exclusive byte/halfword/doubleword */
+                    if (op == 2) {
+                        goto illegal_op;
+                    }
+                    ARCH(7);
+                    break;
+                case 2:
+                    /* Load-acquire/store-release */
+                    if (op == 3) {
+                        goto illegal_op;
+                    }
+                    /* Fall through */
+                case 3:
+                    /* Load-acquire/store-release exclusive */
+                    ARCH(8);
+                    break;
                 }
-                addr = tcg_temp_local_new();
+                addr = tcg_temp_local_new_i32();
                 load_reg_var(s, addr, rn);
-                if (insn & (1 << 20)) {
+                if (!(op2 & 1)) {
+                    if (insn & (1 << 20)) {
+                        tmp = tcg_temp_new_i32();
+                        switch (op) {
+                        case 0: /* ldab */
+                            gen_aa32_ld8u(tmp, addr, get_mem_index(s));
+                            break;
+                        case 1: /* ldah */
+                            gen_aa32_ld16u(tmp, addr, get_mem_index(s));
+                            break;
+                        case 2: /* lda */
+                            gen_aa32_ld32u(tmp, addr, get_mem_index(s));
+                            break;
+                        default:
+                            abort();
+                        }
+                        store_reg(s, rs, tmp);
+                    } else {
+                        tmp = load_reg(s, rs);
+                        switch (op) {
+                        case 0: /* stlb */
+                            gen_aa32_st8(tmp, addr, get_mem_index(s));
+                            break;
+                        case 1: /* stlh */
+                            gen_aa32_st16(tmp, addr, get_mem_index(s));
+                            break;
+                        case 2: /* stl */
+                            gen_aa32_st32(tmp, addr, get_mem_index(s));
+                            break;
+                        default:
+                            abort();
+                        }
+                        tcg_temp_free_i32(tmp);
+                    }
+                } else if (insn & (1 << 20)) {
                     gen_load_exclusive(s, rs, rd, addr, op);
                 } else {
                     gen_store_exclusive(s, rm, rs, rd, addr, op);
                 }
-                tcg_temp_free(addr);
+                tcg_temp_free_i32(addr);
             }
         } else {
             /* Load/store multiple, RFE, SRS.  */
@@ -8191,9 +9202,11 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     if ((insn & (1 << 24)) == 0)
                         tcg_gen_addi_i32(addr, addr, -8);
                     /* Load PC into tmp and CPSR into tmp2.  */
-                    tmp = gen_ld32(addr, 0);
+                    tmp = tcg_temp_new_i32();
+                    gen_aa32_ld32u(tmp, addr, get_mem_index(s));
                     tcg_gen_addi_i32(addr, addr, 4);
-                    tmp2 = gen_ld32(addr, 0);
+                    tmp2 = tcg_temp_new_i32();
+                    gen_aa32_ld32u(tmp2, addr, get_mem_index(s));
                     if (insn & (1 << 21)) {
                         /* Base writeback.  */
                         if (insn & (1 << 24)) {
@@ -8213,7 +9226,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 }
             } else {
                 int i, loaded_base = 0;
-                TCGv loaded_var;
+                TCGv_i32 loaded_var;
                 /* Load/store multiple.  */
                 addr = load_reg(s, rn);
                 offset = 0;
@@ -8225,13 +9238,14 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     tcg_gen_addi_i32(addr, addr, -offset);
                 }
 
-                TCGV_UNUSED(loaded_var);
+                TCGV_UNUSED_I32(loaded_var);
                 for (i = 0; i < 16; i++) {
                     if ((insn & (1 << i)) == 0)
                         continue;
                     if (insn & (1 << 20)) {
                         /* Load.  */
-                        tmp = gen_ld32(addr, IS_USER(s));
+                        tmp = tcg_temp_new_i32();
+                        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
                         if (i == 15) {
                             gen_bx(s, tmp);
                         } else if (i == rn) {
@@ -8243,7 +9257,8 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     } else {
                         /* Store.  */
                         tmp = load_reg(s, i);
-                        gen_st32(tmp, addr, IS_USER(s));
+                        gen_aa32_st32(tmp, addr, get_mem_index(s));
+                        tcg_temp_free_i32(tmp);
                     }
                     tcg_gen_addi_i32(addr, addr, 4);
                 }
@@ -8410,6 +9425,37 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 case 0x18: /* clz */
                     gen_helper_clz(tmp, tmp);
                     break;
+                case 0x20:
+                case 0x21:
+                case 0x22:
+                case 0x28:
+                case 0x29:
+                case 0x2a:
+                {
+                    /* crc32/crc32c */
+                    uint32_t sz = op & 0x3;
+                    uint32_t c = op & 0x8;
+
+                    if (!arm_feature(env, ARM_FEATURE_CRC)) {
+                        goto illegal_op;
+                    }
+
+                    tmp2 = load_reg(s, rm);
+                    if (sz == 0) {
+                        tcg_gen_andi_i32(tmp2, tmp2, 0xff);
+                    } else if (sz == 1) {
+                        tcg_gen_andi_i32(tmp2, tmp2, 0xffff);
+                    }
+                    tmp3 = tcg_const_i32(1 << sz);
+                    if (c) {
+                        gen_helper_crc32c(tmp, tmp, tmp2, tmp3);
+                    } else {
+                        gen_helper_crc32(tmp, tmp, tmp2, tmp3);
+                    }
+                    tcg_temp_free_i32(tmp2);
+                    tcg_temp_free_i32(tmp3);
+                    break;
+                }
                 default:
                     goto illegal_op;
                 }
@@ -8583,6 +9629,10 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
             insn = (insn & 0xe2ffffff) | ((insn & (1 << 28)) >> 4) | (1 << 28);
             if (disas_neon_data_insn(env, s, insn))
                 goto illegal_op;
+        } else if (((insn >> 8) & 0xe) == 10) {
+            if (disas_vfp_insn(env, s, insn)) {
+                goto illegal_op;
+            }
         } else {
             if (insn & (1 << 28))
                 goto illegal_op;
@@ -8627,6 +9677,8 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
 
                 if (insn & (1 << 26)) {
                     /* Secure monitor call (v6Z) */
+                    qemu_log_mask(LOG_UNIMP,
+                                  "arm: unimplemented secure monitor call\n");
                     goto illegal_op; /* not implemented.  */
                 } else {
                     op = (insn >> 20) & 7;
@@ -8735,7 +9787,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 op = (insn >> 22) & 0xf;
                 /* Generate a conditional jump to next instruction.  */
                 s->condlabel = gen_new_label();
-                gen_test_cc(op ^ 1, s->condlabel);
+                arm_gen_test_cc(op ^ 1, s->condlabel);
                 s->condjmp = 1;
 
                 /* offset[11:1] = insn[10:0] */
@@ -8910,7 +9962,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
         {
         int postinc = 0;
         int writeback = 0;
-        int user;
+        int memidx;
         if ((insn & 0x01100000) == 0x01000000) {
             if (disas_neon_ls_insn(env, s, insn))
                 goto illegal_op;
@@ -8954,7 +10006,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 return 1;
             }
         }
-        user = IS_USER(s);
+        memidx = get_mem_index(s);
         if (rn == 15) {
             addr = tcg_temp_new_i32();
             /* PC relative.  */
@@ -8991,7 +10043,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     break;
                 case 0xe: /* User privilege.  */
                     tcg_gen_addi_i32(addr, addr, imm);
-                    user = 1;
+                    memidx = MMU_USER_IDX;
                     break;
                 case 0x9: /* Post-decrement.  */
                     imm = -imm;
@@ -9015,13 +10067,25 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
         }
         if (insn & (1 << 20)) {
             /* Load.  */
+            tmp = tcg_temp_new_i32();
             switch (op) {
-            case 0: tmp = gen_ld8u(addr, user); break;
-            case 4: tmp = gen_ld8s(addr, user); break;
-            case 1: tmp = gen_ld16u(addr, user); break;
-            case 5: tmp = gen_ld16s(addr, user); break;
-            case 2: tmp = gen_ld32(addr, user); break;
+            case 0:
+                gen_aa32_ld8u(tmp, addr, memidx);
+                break;
+            case 4:
+                gen_aa32_ld8s(tmp, addr, memidx);
+                break;
+            case 1:
+                gen_aa32_ld16u(tmp, addr, memidx);
+                break;
+            case 5:
+                gen_aa32_ld16s(tmp, addr, memidx);
+                break;
+            case 2:
+                gen_aa32_ld32u(tmp, addr, memidx);
+                break;
             default:
+                tcg_temp_free_i32(tmp);
                 tcg_temp_free_i32(addr);
                 goto illegal_op;
             }
@@ -9034,13 +10098,21 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
             /* Store.  */
             tmp = load_reg(s, rs);
             switch (op) {
-            case 0: gen_st8(tmp, addr, user); break;
-            case 1: gen_st16(tmp, addr, user); break;
-            case 2: gen_st32(tmp, addr, user); break;
+            case 0:
+                gen_aa32_st8(tmp, addr, memidx);
+                break;
+            case 1:
+                gen_aa32_st16(tmp, addr, memidx);
+                break;
+            case 2:
+                gen_aa32_st32(tmp, addr, memidx);
+                break;
             default:
+                tcg_temp_free_i32(tmp);
                 tcg_temp_free_i32(addr);
                 goto illegal_op;
             }
+            tcg_temp_free_i32(tmp);
         }
         if (postinc)
             tcg_gen_addi_i32(addr, addr, imm);
@@ -9064,15 +10136,15 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
     uint32_t val, insn, op, rm, rn, rd, shift, cond;
     int32_t offset;
     int i;
-    TCGv tmp;
-    TCGv tmp2;
-    TCGv addr;
+    TCGv_i32 tmp;
+    TCGv_i32 tmp2;
+    TCGv_i32 addr;
 
     if (s->condexec_mask) {
         cond = s->condexec_cond;
         if (cond != 0x0e) {     /* Skip conditional when condition is AL. */
           s->condlabel = gen_new_label();
-          gen_test_cc(cond ^ 1, s->condlabel);
+          arm_gen_test_cc(cond ^ 1, s->condlabel);
           s->condjmp = 1;
         }
     }
@@ -9169,7 +10241,8 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
             val &= ~(uint32_t)2;
             addr = tcg_temp_new_i32();
             tcg_gen_movi_i32(addr, val);
-            tmp = gen_ld32(addr, IS_USER(s));
+            tmp = tcg_temp_new_i32();
+            gen_aa32_ld32u(tmp, addr, get_mem_index(s));
             tcg_temp_free_i32(addr);
             store_reg(s, rd, tmp);
             break;
@@ -9234,7 +10307,7 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
         } else if (op != 0xf) { /* mvn doesn't read its first operand */
             tmp = load_reg(s, rd);
         } else {
-            TCGV_UNUSED(tmp);
+            TCGV_UNUSED_I32(tmp);
         }
 
         tmp2 = load_reg(s, rm);
@@ -9364,37 +10437,43 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
         tcg_gen_add_i32(addr, addr, tmp);
         tcg_temp_free_i32(tmp);
 
-        if (op < 3) /* store */
+        if (op < 3) { /* store */
             tmp = load_reg(s, rd);
+        } else {
+            tmp = tcg_temp_new_i32();
+        }
 
         switch (op) {
         case 0: /* str */
-            gen_st32(tmp, addr, IS_USER(s));
+            gen_aa32_st32(tmp, addr, get_mem_index(s));
             break;
         case 1: /* strh */
-            gen_st16(tmp, addr, IS_USER(s));
+            gen_aa32_st16(tmp, addr, get_mem_index(s));
             break;
         case 2: /* strb */
-            gen_st8(tmp, addr, IS_USER(s));
+            gen_aa32_st8(tmp, addr, get_mem_index(s));
             break;
         case 3: /* ldrsb */
-            tmp = gen_ld8s(addr, IS_USER(s));
+            gen_aa32_ld8s(tmp, addr, get_mem_index(s));
             break;
         case 4: /* ldr */
-            tmp = gen_ld32(addr, IS_USER(s));
+            gen_aa32_ld32u(tmp, addr, get_mem_index(s));
             break;
         case 5: /* ldrh */
-            tmp = gen_ld16u(addr, IS_USER(s));
+            gen_aa32_ld16u(tmp, addr, get_mem_index(s));
             break;
         case 6: /* ldrb */
-            tmp = gen_ld8u(addr, IS_USER(s));
+            gen_aa32_ld8u(tmp, addr, get_mem_index(s));
             break;
         case 7: /* ldrsh */
-            tmp = gen_ld16s(addr, IS_USER(s));
+            gen_aa32_ld16s(tmp, addr, get_mem_index(s));
             break;
         }
-        if (op >= 3) /* load */
+        if (op >= 3) { /* load */
             store_reg(s, rd, tmp);
+        } else {
+            tcg_temp_free_i32(tmp);
+        }
         tcg_temp_free_i32(addr);
         break;
 
@@ -9408,12 +10487,14 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
 
         if (insn & (1 << 11)) {
             /* load */
-            tmp = gen_ld32(addr, IS_USER(s));
+            tmp = tcg_temp_new_i32();
+            gen_aa32_ld32u(tmp, addr, get_mem_index(s));
             store_reg(s, rd, tmp);
         } else {
             /* store */
             tmp = load_reg(s, rd);
-            gen_st32(tmp, addr, IS_USER(s));
+            gen_aa32_st32(tmp, addr, get_mem_index(s));
+            tcg_temp_free_i32(tmp);
         }
         tcg_temp_free_i32(addr);
         break;
@@ -9428,12 +10509,14 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
 
         if (insn & (1 << 11)) {
             /* load */
-            tmp = gen_ld8u(addr, IS_USER(s));
+            tmp = tcg_temp_new_i32();
+            gen_aa32_ld8u(tmp, addr, get_mem_index(s));
             store_reg(s, rd, tmp);
         } else {
             /* store */
             tmp = load_reg(s, rd);
-            gen_st8(tmp, addr, IS_USER(s));
+            gen_aa32_st8(tmp, addr, get_mem_index(s));
+            tcg_temp_free_i32(tmp);
         }
         tcg_temp_free_i32(addr);
         break;
@@ -9448,12 +10531,14 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
 
         if (insn & (1 << 11)) {
             /* load */
-            tmp = gen_ld16u(addr, IS_USER(s));
+            tmp = tcg_temp_new_i32();
+            gen_aa32_ld16u(tmp, addr, get_mem_index(s));
             store_reg(s, rd, tmp);
         } else {
             /* store */
             tmp = load_reg(s, rd);
-            gen_st16(tmp, addr, IS_USER(s));
+            gen_aa32_st16(tmp, addr, get_mem_index(s));
+            tcg_temp_free_i32(tmp);
         }
         tcg_temp_free_i32(addr);
         break;
@@ -9467,12 +10552,14 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
 
         if (insn & (1 << 11)) {
             /* load */
-            tmp = gen_ld32(addr, IS_USER(s));
+            tmp = tcg_temp_new_i32();
+            gen_aa32_ld32u(tmp, addr, get_mem_index(s));
             store_reg(s, rd, tmp);
         } else {
             /* store */
             tmp = load_reg(s, rd);
-            gen_st32(tmp, addr, IS_USER(s));
+            gen_aa32_st32(tmp, addr, get_mem_index(s));
+            tcg_temp_free_i32(tmp);
         }
         tcg_temp_free_i32(addr);
         break;
@@ -9538,28 +10625,32 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
                 if (insn & (1 << i)) {
                     if (insn & (1 << 11)) {
                         /* pop */
-                        tmp = gen_ld32(addr, IS_USER(s));
+                        tmp = tcg_temp_new_i32();
+                        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
                         store_reg(s, i, tmp);
                     } else {
                         /* push */
                         tmp = load_reg(s, i);
-                        gen_st32(tmp, addr, IS_USER(s));
+                        gen_aa32_st32(tmp, addr, get_mem_index(s));
+                        tcg_temp_free_i32(tmp);
                     }
                     /* advance to the next address.  */
                     tcg_gen_addi_i32(addr, addr, 4);
                 }
             }
-            TCGV_UNUSED(tmp);
+            TCGV_UNUSED_I32(tmp);
             if (insn & (1 << 8)) {
                 if (insn & (1 << 11)) {
                     /* pop pc */
-                    tmp = gen_ld32(addr, IS_USER(s));
+                    tmp = tcg_temp_new_i32();
+                    gen_aa32_ld32u(tmp, addr, get_mem_index(s));
                     /* don't set the pc until the rest of the instruction
                        has completed */
                 } else {
                     /* push lr */
                     tmp = load_reg(s, 14);
-                    gen_st32(tmp, addr, IS_USER(s));
+                    gen_aa32_st32(tmp, addr, get_mem_index(s));
+                    tcg_temp_free_i32(tmp);
                 }
                 tcg_gen_addi_i32(addr, addr, 4);
             }
@@ -9602,9 +10693,12 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
             break;
 
         case 0xe: /* bkpt */
+        {
+            int imm8 = extract32(insn, 0, 8);
             ARCH(5);
-            gen_exception_insn(s, 2, EXCP_BKPT);
+            gen_exception_insn(s, 2, EXCP_BKPT, syn_aa32_bkpt(imm8, true));
             break;
+        }
 
         case 0xa: /* rev */
             ARCH(6);
@@ -9627,6 +10721,7 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
                 ARCH(6);
                 if (((insn >> 3) & 1) != s->bswap_code) {
                     /* Dynamic endianness switching not implemented. */
+                    qemu_log_mask(LOG_UNIMP, "arm: unimplemented setend\n");
                     goto illegal_op;
                 }
                 break;
@@ -9674,15 +10769,16 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
     case 12:
     {
         /* load/store multiple */
-        TCGv loaded_var;
-        TCGV_UNUSED(loaded_var);
+        TCGv_i32 loaded_var;
+        TCGV_UNUSED_I32(loaded_var);
         rn = (insn >> 8) & 0x7;
         addr = load_reg(s, rn);
         for (i = 0; i < 8; i++) {
             if (insn & (1 << i)) {
                 if (insn & (1 << 11)) {
                     /* load */
-                    tmp = gen_ld32(addr, IS_USER(s));
+                    tmp = tcg_temp_new_i32();
+                    gen_aa32_ld32u(tmp, addr, get_mem_index(s));
                     if (i == rn) {
                         loaded_var = tmp;
                     } else {
@@ -9691,7 +10787,8 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
                 } else {
                     /* store */
                     tmp = load_reg(s, i);
-                    gen_st32(tmp, addr, IS_USER(s));
+                    gen_aa32_st32(tmp, addr, get_mem_index(s));
+                    tcg_temp_free_i32(tmp);
                 }
                 /* advance to the next address */
                 tcg_gen_addi_i32(addr, addr, 4);
@@ -9717,13 +10814,14 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
 
         if (cond == 0xf) {
             /* swi */
-            gen_set_pc_im(s->pc);
+            gen_set_pc_im(s, s->pc);
+            s->svc_imm = extract32(insn, 0, 8);
             s->is_jmp = DISAS_SWI;
             break;
         }
         /* generate a conditional jump to next instruction */
         s->condlabel = gen_new_label();
-        gen_test_cc(cond ^ 1, s->condlabel);
+        arm_gen_test_cc(cond ^ 1, s->condlabel);
         s->condjmp = 1;
 
         /* jump to the offset */
@@ -9753,30 +10851,41 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
     }
     return;
 undef32:
-    gen_exception_insn(s, 4, EXCP_UDEF);
+    gen_exception_insn(s, 4, EXCP_UDEF, syn_uncategorized());
     return;
 illegal_op:
 undef:
-    gen_exception_insn(s, 2, EXCP_UDEF);
+    gen_exception_insn(s, 2, EXCP_UDEF, syn_uncategorized());
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
    basic block 'tb'. If search_pc is TRUE, also generate PC
    information for each intermediate instruction. */
-static inline void gen_intermediate_code_internal(CPUARMState *env,
+static inline void gen_intermediate_code_internal(ARMCPU *cpu,
                                                   TranslationBlock *tb,
-                                                  int search_pc)
+                                                  bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
+    CPUARMState *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
     CPUBreakpoint *bp;
     uint16_t *gen_opc_end;
     int j, lj;
     target_ulong pc_start;
-    uint32_t next_page_start;
+    target_ulong next_page_start;
     int num_insns;
     int max_insns;
 
     /* generate intermediate code */
+
+    /* The A64 decoder has its own top level loop, because it doesn't need
+     * the A32/T32 complexity to do with conditional execution/IT blocks/etc.
+     */
+    if (ARM_TBFLAG_AARCH64_STATE(tb->flags)) {
+        gen_intermediate_code_internal_a64(cpu, tb, search_pc);
+        return;
+    }
+
     pc_start = tb->pc;
 
     dc->tb = tb;
@@ -9785,8 +10894,10 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
 
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
-    dc->singlestep_enabled = env->singlestep_enabled;
+    dc->singlestep_enabled = cs->singlestep_enabled;
     dc->condjmp = 0;
+
+    dc->aarch64 = 0;
     dc->thumb = ARM_TBFLAG_THUMB(tb->flags);
     dc->bswap_code = ARM_TBFLAG_BSWAP_CODE(tb->flags);
     dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;
@@ -9794,9 +10905,14 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
 #if !defined(CONFIG_USER_ONLY)
     dc->user = (ARM_TBFLAG_PRIV(tb->flags) == 0);
 #endif
+    dc->cpacr_fpen = ARM_TBFLAG_CPACR_FPEN(tb->flags);
     dc->vfp_enabled = ARM_TBFLAG_VFPEN(tb->flags);
     dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);
     dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
+    dc->cp_regs = cpu->cp_regs;
+    dc->current_pl = arm_current_pl(env);
+    dc->features = env->features;
+
     cpu_F0s = tcg_temp_new_i32();
     cpu_F1s = tcg_temp_new_i32();
     cpu_F0d = tcg_temp_new_i64();
@@ -9851,7 +10967,7 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
        complications trying to do it at the end of the block.  */
     if (dc->condexec_mask || dc->condexec_cond)
       {
-        TCGv tmp = tcg_temp_new_i32();
+        TCGv_i32 tmp = tcg_temp_new_i32();
         tcg_gen_movi_i32(tmp, 0);
         store_cpu_field(tmp, condexec_bits);
       }
@@ -9861,7 +10977,7 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
         if (dc->pc >= 0xffff0000) {
             /* We always get here via a jump, so know we are not in a
                conditional execution block.  */
-            gen_exception(EXCP_KERNEL_TRAP);
+            gen_exception_internal(EXCP_KERNEL_TRAP);
             dc->is_jmp = DISAS_UPDATE;
             break;
         }
@@ -9869,21 +10985,20 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
         if (dc->pc >= 0xfffffff0 && IS_M(env)) {
             /* We always get here via a jump, so know we are not in a
                conditional execution block.  */
-            gen_exception(EXCP_EXCEPTION_EXIT);
+            gen_exception_internal(EXCP_EXCEPTION_EXIT);
             dc->is_jmp = DISAS_UPDATE;
             break;
         }
 #endif
 
-        if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
-            QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
+            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (bp->pc == dc->pc) {
-                    gen_exception_insn(dc, 0, EXCP_DEBUG);
+                    gen_exception_internal_insn(dc, 0, EXCP_DEBUG);
                     /* Advance PC so that clearing the breakpoint will
                        invalidate this TB.  */
                     dc->pc += 2;
                     goto done_generating;
-                    break;
                 }
             }
         }
@@ -9927,7 +11042,8 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
         }
 
         if (tcg_check_temp_count()) {
-            fprintf(stderr, "TCG temporary leak before %08x\n", dc->pc);
+            fprintf(stderr, "TCG temporary leak before "TARGET_FMT_lx"\n",
+                    dc->pc);
         }
 
         /* Translation stops when a conditional branch is encountered.
@@ -9936,7 +11052,7 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
          * ensures prefetch aborts occur at the right place.  */
         num_insns ++;
     } while (!dc->is_jmp && tcg_ctx.gen_opc_ptr < gen_opc_end &&
-             !env->singlestep_enabled &&
+             !cs->singlestep_enabled &&
              !singlestep &&
              dc->pc < next_page_start &&
              num_insns < max_insns);
@@ -9945,7 +11061,7 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
         if (dc->condjmp) {
             /* FIXME:  This can theoretically happen with self-modifying
                code.  */
-            cpu_abort(env, "IO on conditional branch instruction");
+            cpu_abort(cs, "IO on conditional branch instruction");
         }
         gen_io_end();
     }
@@ -9953,28 +11069,28 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
     /* At this stage dc->condjmp will only be set when the skipped
        instruction was a conditional branch or trap, and the PC has
        already been written.  */
-    if (unlikely(env->singlestep_enabled)) {
+    if (unlikely(cs->singlestep_enabled)) {
         /* Make sure the pc is updated, and raise a debug exception.  */
         if (dc->condjmp) {
             gen_set_condexec(dc);
             if (dc->is_jmp == DISAS_SWI) {
-                gen_exception(EXCP_SWI);
+                gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb));
             } else {
-                gen_exception(EXCP_DEBUG);
+                gen_exception_internal(EXCP_DEBUG);
             }
             gen_set_label(dc->condlabel);
         }
         if (dc->condjmp || !dc->is_jmp) {
-            gen_set_pc_im(dc->pc);
+            gen_set_pc_im(dc, dc->pc);
             dc->condjmp = 0;
         }
         gen_set_condexec(dc);
         if (dc->is_jmp == DISAS_SWI && !dc->condjmp) {
-            gen_exception(EXCP_SWI);
+            gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb));
         } else {
             /* FIXME: Single stepping a WFI insn will not halt
                the CPU.  */
-            gen_exception(EXCP_DEBUG);
+            gen_exception_internal(EXCP_DEBUG);
         }
     } else {
         /* While branches must always occur at the end of an IT block,
@@ -10002,8 +11118,11 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
         case DISAS_WFI:
             gen_helper_wfi(cpu_env);
             break;
+        case DISAS_WFE:
+            gen_helper_wfe(cpu_env);
+            break;
         case DISAS_SWI:
-            gen_exception(EXCP_SWI);
+            gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb));
             break;
         }
         if (dc->condjmp) {
@@ -10040,24 +11159,31 @@ done_generating:
 
 void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(arm_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc(CPUARMState *env, TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(arm_env_get_cpu(env), tb, true);
 }
 
 static const char *cpu_mode_names[16] = {
-  "usr", "fiq", "irq", "svc", "???", "???", "???", "abt",
-  "???", "???", "???", "und", "???", "???", "???", "sys"
+  "usr", "fiq", "irq", "svc", "???", "???", "mon", "abt",
+  "???", "???", "hyp", "und", "???", "???", "???", "sys"
 };
 
-void cpu_dump_state(CPUARMState *env, FILE *f, fprintf_function cpu_fprintf,
-                    int flags)
+void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                        int flags)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
     int i;
     uint32_t psr;
+
+    if (is_a64(env)) {
+        aarch64_cpu_dump_state(cs, f, cpu_fprintf, flags);
+        return;
+    }
 
     for(i=0;i<16;i++) {
         cpu_fprintf(f, "R%02d=%08x", i, env->regs[i]);
@@ -10097,6 +11223,11 @@ void cpu_dump_state(CPUARMState *env, FILE *f, fprintf_function cpu_fprintf,
 
 void restore_state_to_opc(CPUARMState *env, TranslationBlock *tb, int pc_pos)
 {
-    env->regs[15] = tcg_ctx.gen_opc_pc[pc_pos];
-    env->condexec_bits = gen_opc_condexec_bits[pc_pos];
+    if (is_a64(env)) {
+        env->pc = tcg_ctx.gen_opc_pc[pc_pos];
+        env->condexec_bits = 0;
+    } else {
+        env->regs[15] = tcg_ctx.gen_opc_pc[pc_pos];
+        env->condexec_bits = gen_opc_condexec_bits[pc_pos];
+    }
 }

@@ -274,7 +274,7 @@ static void do_read_rra(dp8393xState *s)
 
 static void do_software_reset(dp8393xState *s)
 {
-    qemu_del_timer(s->watchdog);
+    timer_del(s->watchdog);
 
     s->regs[SONIC_CR] &= ~(SONIC_CR_LCAM | SONIC_CR_RRRA | SONIC_CR_TXP | SONIC_CR_HTX);
     s->regs[SONIC_CR] |= SONIC_CR_RST | SONIC_CR_RXDIS;
@@ -286,14 +286,14 @@ static void set_next_tick(dp8393xState *s)
     int64_t delay;
 
     if (s->regs[SONIC_CR] & SONIC_CR_STP) {
-        qemu_del_timer(s->watchdog);
+        timer_del(s->watchdog);
         return;
     }
 
     ticks = s->regs[SONIC_WT1] << 16 | s->regs[SONIC_WT0];
-    s->wt_last_update = qemu_get_clock_ns(vm_clock);
+    s->wt_last_update = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     delay = get_ticks_per_sec() * ticks / 5000000;
-    qemu_mod_timer(s->watchdog, s->wt_last_update + delay);
+    timer_mod(s->watchdog, s->wt_last_update + delay);
 }
 
 static void update_wt_regs(dp8393xState *s)
@@ -302,11 +302,11 @@ static void update_wt_regs(dp8393xState *s)
     uint32_t val;
 
     if (s->regs[SONIC_CR] & SONIC_CR_STP) {
-        qemu_del_timer(s->watchdog);
+        timer_del(s->watchdog);
         return;
     }
 
-    elapsed = s->wt_last_update - qemu_get_clock_ns(vm_clock);
+    elapsed = s->wt_last_update - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     val = s->regs[SONIC_WT1] << 16 | s->regs[SONIC_WT0];
     val -= elapsed / 5000000;
     s->regs[SONIC_WT1] = (val >> 16) & 0xffff;
@@ -838,7 +838,7 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
 static void nic_reset(void *opaque)
 {
     dp8393xState *s = opaque;
-    qemu_del_timer(s->watchdog);
+    timer_del(s->watchdog);
 
     s->regs[SONIC_CR] = SONIC_CR_RST | SONIC_CR_STP | SONIC_CR_RXDIS;
     s->regs[SONIC_DCR] &= ~(SONIC_DCR_EXBUS | SONIC_DCR_LBR);
@@ -866,8 +866,8 @@ static void nic_cleanup(NetClientState *nc)
     memory_region_del_subregion(s->address_space, &s->mmio);
     memory_region_destroy(&s->mmio);
 
-    qemu_del_timer(s->watchdog);
-    qemu_free_timer(s->watchdog);
+    timer_del(s->watchdog);
+    timer_free(s->watchdog);
 
     g_free(s);
 }
@@ -896,7 +896,7 @@ void dp83932_init(NICInfo *nd, hwaddr base, int it_shift,
     s->memory_rw = memory_rw;
     s->it_shift = it_shift;
     s->irq = irq;
-    s->watchdog = qemu_new_timer_ns(vm_clock, dp8393x_watchdog, s);
+    s->watchdog = timer_new_ns(QEMU_CLOCK_VIRTUAL, dp8393x_watchdog, s);
     s->regs[SONIC_SR] = 0x0004; /* only revision recognized by Linux */
 
     s->conf.macaddr = nd->macaddr;
@@ -908,7 +908,7 @@ void dp83932_init(NICInfo *nd, hwaddr base, int it_shift,
     qemu_register_reset(nic_reset, s);
     nic_reset(s);
 
-    memory_region_init_io(&s->mmio, &dp8393x_ops, s,
+    memory_region_init_io(&s->mmio, NULL, &dp8393x_ops, s,
                           "dp8393x", 0x40 << it_shift);
     memory_region_add_subregion(address_space, base, &s->mmio);
 }

@@ -49,22 +49,6 @@
  * free the m_ext.  This is inefficient memory-wise, but who cares.
  */
 
-/* XXX should union some of these! */
-/* header at beginning of each mbuf: */
-struct m_hdr {
-	struct	mbuf *mh_next;		/* Linked list of mbufs */
-	struct	mbuf *mh_prev;
-	struct	mbuf *mh_nextpkt;	/* Next packet in queue/record */
-	struct	mbuf *mh_prevpkt; /* Flags aren't used in the output queue */
-	int	mh_flags;	  /* Misc flags */
-
-	int	mh_size;		/* Size of data */
-	struct	socket *mh_so;
-
-	caddr_t	mh_data;		/* Location of data */
-	int	mh_len;			/* Amount of data in this mbuf */
-};
-
 /*
  * How much room is in the mbuf, from m_data to the end of the mbuf
  */
@@ -80,28 +64,29 @@ struct m_hdr {
 #define M_TRAILINGSPACE M_FREEROOM
 
 struct mbuf {
-	struct	m_hdr m_hdr;
+	/* XXX should union some of these! */
+	/* header at beginning of each mbuf: */
+	struct	mbuf *m_next;		/* Linked list of mbufs */
+	struct	mbuf *m_prev;
+	struct	mbuf *m_nextpkt;	/* Next packet in queue/record */
+	struct	mbuf *m_prevpkt;	/* Flags aren't used in the output queue */
+	int	m_flags;		/* Misc flags */
+
+	int	m_size;			/* Size of data */
+	struct	socket *m_so;
+
+	caddr_t	m_data;			/* Location of data */
+	int	m_len;			/* Amount of data in this mbuf */
+
 	Slirp *slirp;
 	bool	arp_requested;
 	uint64_t expiration_date;
 	/* start of dynamic buffer area, must be last element */
-	union M_dat {
-		char	m_dat_[1]; /* ANSI don't like 0 sized arrays */
-		char	*m_ext_;
-	} M_dat;
+	union {
+		char	m_dat[1]; /* ANSI don't like 0 sized arrays */
+		char	*m_ext;
+	};
 };
-
-#define m_next		m_hdr.mh_next
-#define m_prev		m_hdr.mh_prev
-#define m_nextpkt	m_hdr.mh_nextpkt
-#define m_prevpkt	m_hdr.mh_prevpkt
-#define m_flags		m_hdr.mh_flags
-#define	m_len		m_hdr.mh_len
-#define	m_data		m_hdr.mh_data
-#define m_size		m_hdr.mh_size
-#define m_dat		M_dat.m_dat_
-#define m_ext		M_dat.m_ext_
-#define m_so		m_hdr.mh_so
 
 #define ifq_prev m_prev
 #define ifq_next m_next

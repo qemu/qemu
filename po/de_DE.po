@@ -6,59 +6,80 @@ msgid ""
 msgstr ""
 "Project-Id-Version: QEMU 1.4.50\n"
 "Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
-"POT-Creation-Date: 2013-03-31 20:42+0200\n"
+"POT-Creation-Date: 2014-07-17 20:39+0200\n"
 "PO-Revision-Date: 2012-02-28 16:00+0100\n"
 "Last-Translator: Kevin Wolf <kwolf@redhat.com>\n"
 "Language-Team: Deutsch <de@li.org>\n"
-"Language: \n"
+"Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n!=1);\n"
 
-#: ../ui/gtk.c:213
+#: ui/gtk.c:321
 msgid " - Press Ctrl+Alt+G to release grab"
 msgstr " - Strg+Alt+G drücken, um Eingabegeräte freizugeben"
 
-#: ../ui/gtk.c:217
+#: ui/gtk.c:325
 msgid " [Paused]"
 msgstr " [Angehalten]"
 
-#: ../ui/gtk.c:1250
-msgid "_Machine"
-msgstr "_Maschine"
-
-#: ../ui/gtk.c:1252
+#: ui/gtk.c:1601
 msgid "_Pause"
 msgstr "_Angehalten"
 
-#: ../ui/gtk.c:1258
+#: ui/gtk.c:1607
 msgid "_Reset"
 msgstr "_Reset"
 
-#: ../ui/gtk.c:1261
+#: ui/gtk.c:1610
 msgid "Power _Down"
 msgstr "_Herunterfahren"
 
-#: ../ui/gtk.c:1276
-msgid "_View"
-msgstr "_Ansicht"
+#: ui/gtk.c:1616
+msgid "_Quit"
+msgstr "_Beenden"
 
-#: ../ui/gtk.c:1306
+#: ui/gtk.c:1692
+msgid "_Fullscreen"
+msgstr "_Vollbild"
+
+#: ui/gtk.c:1702
+msgid "Zoom _In"
+msgstr "_Heranzoomen"
+
+#: ui/gtk.c:1709
+msgid "Zoom _Out"
+msgstr "_Wegzoomen"
+
+#: ui/gtk.c:1716
+msgid "Best _Fit"
+msgstr "_Einpassen"
+
+#: ui/gtk.c:1723
 msgid "Zoom To _Fit"
 msgstr "Auf _Fenstergröße skalieren"
 
-#: ../ui/gtk.c:1312
+#: ui/gtk.c:1729
 msgid "Grab On _Hover"
 msgstr "Tastatur _automatisch einfangen"
 
-#: ../ui/gtk.c:1315
+#: ui/gtk.c:1732
 msgid "_Grab Input"
 msgstr "_Eingabegeräte einfangen"
 
-#: ../ui/gtk.c:1341
+#: ui/gtk.c:1761
 msgid "Show _Tabs"
-msgstr "_Tableiste anzeigen"
+msgstr "Reiter anzeigen"
 
-#~ msgid "_File"
-#~ msgstr "_Datei"
+#: ui/gtk.c:1764
+msgid "Detach Tab"
+msgstr "Reiter abtrennen"
+
+#: ui/gtk.c:1778
+msgid "_Machine"
+msgstr "_Maschine"
+
+#: ui/gtk.c:1783
+msgid "_View"
+msgstr "_Ansicht"

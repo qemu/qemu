@@ -322,6 +322,7 @@ void net_hub_check_clients(void)
             case NET_CLIENT_OPTIONS_KIND_TAP:
             case NET_CLIENT_OPTIONS_KIND_SOCKET:
             case NET_CLIENT_OPTIONS_KIND_VDE:
+            case NET_CLIENT_OPTIONS_KIND_VHOST_USER:
                 has_host_dev = 1;
                 break;
             default:
@@ -347,7 +348,7 @@ bool net_hub_flush(NetClientState *nc)
 
     QLIST_FOREACH(port, &source_port->hub->ports, next) {
         if (port != source_port) {
-            ret += qemu_net_queue_flush(port->nc.send_queue);
+            ret += qemu_net_queue_flush(port->nc.incoming_queue);
         }
     }
     return ret ? true : false;

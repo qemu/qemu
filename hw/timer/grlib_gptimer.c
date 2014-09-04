@@ -25,6 +25,8 @@
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
+#include "qemu/timer.h"
+#include "qemu/main-loop.h"
 
 #include "trace.h"
 
@@ -50,6 +52,10 @@
 #define COUNTER_RELOAD_OFFSET 0x04
 #define TIMER_BASE            0x10
 
+#define TYPE_GRLIB_GPTIMER "grlib,gptimer"
+#define GRLIB_GPTIMER(obj) \
+    OBJECT_CHECK(GPTimerUnit, (obj), TYPE_GRLIB_GPTIMER)
+
 typedef struct GPTimer     GPTimer;
 typedef struct GPTimerUnit GPTimerUnit;
 
@@ -68,7 +74,8 @@ struct GPTimer {
 };
 
 struct GPTimerUnit {
-    SysBusDevice  busdev;
+    SysBusDevice  parent_obj;
+
     MemoryRegion iomem;
 
     uint32_t nr_timers;         /* Number of timers available */
@@ -99,9 +106,9 @@ static void grlib_gptimer_enable(GPTimer *timer)
     /* ptimer is triggered when the counter reach 0 but GPTimer is triggered at
        underflow. Set count + 1 to simulate the GPTimer behavior. */
 
-    trace_grlib_gptimer_enable(timer->id, timer->counter + 1);
+    trace_grlib_gptimer_enable(timer->id, timer->counter);
 
-    ptimer_set_count(timer->ptimer, timer->counter + 1);
+    ptimer_set_count(timer->ptimer, (uint64_t)timer->counter + 1);
     ptimer_run(timer->ptimer, 1);
 }
 
@@ -314,14 +321,13 @@ static const MemoryRegionOps grlib_gptimer_ops = {
 
 static void grlib_gptimer_reset(DeviceState *d)
 {
-    GPTimerUnit *unit = container_of(d, GPTimerUnit, busdev.qdev);
+    GPTimerUnit *unit = GRLIB_GPTIMER(d);
     int          i    = 0;
 
     assert(unit != NULL);
 
     unit->scaler = 0;
     unit->reload = 0;
-    unit->config = 0;
 
     unit->config  = unit->nr_timers;
     unit->config |= unit->irq_line << 3;
@@ -343,7 +349,7 @@ static void grlib_gptimer_reset(DeviceState *d)
 
 static int grlib_gptimer_init(SysBusDevice *dev)
 {
-    GPTimerUnit  *unit = FROM_SYSBUS(typeof(*unit), dev);
+    GPTimerUnit  *unit = GRLIB_GPTIMER(dev);
     unsigned int  i;
 
     assert(unit->nr_timers > 0);
@@ -365,7 +371,8 @@ static int grlib_gptimer_init(SysBusDevice *dev)
         ptimer_set_freq(timer->ptimer, unit->freq_hz);
     }
 
-    memory_region_init_io(&unit->iomem, &grlib_gptimer_ops, unit, "gptimer",
+    memory_region_init_io(&unit->iomem, OBJECT(unit), &grlib_gptimer_ops,
+                          unit, "gptimer",
                           UNIT_REG_SIZE + GPTIMER_REG_SIZE * unit->nr_timers);
 
     sysbus_init_mmio(dev, &unit->iomem);
@@ -390,7 +397,7 @@ static void grlib_gptimer_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo grlib_gptimer_info = {
-    .name          = "grlib,gptimer",
+    .name          = TYPE_GRLIB_GPTIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GPTimerUnit),
     .class_init    = grlib_gptimer_class_init,

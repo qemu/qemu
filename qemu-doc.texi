@@ -214,7 +214,7 @@ PCI UHCI USB controller and a virtual USB hub.
 
 SMP is supported with up to 255 CPUs.
 
-QEMU uses the PC BIOS from the Bochs project and the Plex86/Bochs LGPL
+QEMU uses the PC BIOS from the Seabios project and the Plex86/Bochs LGPL
 VGA BIOS.
 
 QEMU uses YM3812 emulation by Tatsuyuki Satoh.
@@ -536,21 +536,38 @@ support of multiple VM snapshots.
 Supported options:
 @table @code
 @item compat
-Determines the qcow2 version to use. @code{compat=0.10} uses the traditional
-image format that can be read by any QEMU since 0.10 (this is the default).
+Determines the qcow2 version to use. @code{compat=0.10} uses the
+traditional image format that can be read by any QEMU since 0.10.
 @code{compat=1.1} enables image format extensions that only QEMU 1.1 and
-newer understand. Amongst others, this includes zero clusters, which allow
-efficient copy-on-read for sparse images.
+newer understand (this is the default). Amongst others, this includes
+zero clusters, which allow efficient copy-on-read for sparse images.
 
 @item backing_file
 File name of a base image (see @option{create} subcommand)
 @item backing_fmt
 Image format of the base image
 @item encryption
-If this option is set to @code{on}, the image is encrypted.
+If this option is set to @code{on}, the image is encrypted with 128-bit AES-CBC.
 
-Encryption uses the AES format which is very secure (128 bit keys). Use
-a long password (16 characters) to get maximum protection.
+The use of encryption in qcow and qcow2 images is considered to be flawed by
+modern cryptography standards, suffering from a number of design problems:
+
+@itemize @minus
+@item The AES-CBC cipher is used with predictable initialization vectors based
+on the sector number. This makes it vulnerable to chosen plaintext attacks
+which can reveal the existence of encrypted data.
+@item The user passphrase is directly used as the encryption key. A poorly
+chosen or short passphrase will compromise the security of the encryption.
+@item In the event of the passphrase being compromised there is no way to
+change the passphrase to protect data in any qcow images. The files must
+be cloned, using a different encryption passphrase in the new file. The
+original file must then be securely erased using a program like shred,
+though even this is ineffective with many modern storage technologies.
+@end itemize
+
+Use of qcow / qcow2 encryption is thus strongly discouraged. Users are
+recommended to use an alternative encryption technology such as the
+Linux dm-crypt / LUKS system.
 
 @item cluster_size
 Changes the qcow2 cluster size (must be between 512 and 2M). Smaller cluster
@@ -571,6 +588,22 @@ tables must be rebuilt, i.e. on the next open an (automatic) @code{qemu-img
 check -r all} is required, which may take some time.
 
 This option can only be enabled if @code{compat=1.1} is specified.
+
+@item nocow
+If this option is set to @code{on}, it will turn off COW of the file. It's only
+valid on btrfs, no effect on other file systems.
+
+Btrfs has low performance when hosting a VM image file, even more when the guest
+on the VM also using btrfs as file system. Turning off COW is a way to mitigate
+this bad performance. Generally there are two ways to turn off COW on btrfs:
+a) Disable it by mounting with nodatacow, then all newly created files will be
+NOCOW. b) For an empty file, add the NOCOW file attribute. That's what this option
+does.
+
+Note: this option is only valid to new or empty files. If there is an existing
+file which is COW and has data blocks already, it couldn't be changed to NOCOW
+by setting @code{nocow=on}. One can issue @code{lsattr filename} to check if
+the NOCOW flag is set or not (Capital 'C' is NOCOW flag).
 
 @end table
 
@@ -653,6 +686,21 @@ Supported options:
 @item subformat
 Specifies which VHD subformat to use. Valid options are
 @code{dynamic} (default) and @code{fixed}.
+@end table
+
+@item VHDX
+Hyper-V compatible image format (VHDX).
+Supported options:
+@table @code
+@item subformat
+Specifies which VHDX subformat to use. Valid options are
+@code{dynamic} (default) and @code{fixed}.
+@item block_state_zero
+Force use of payload blocks of type 'ZERO'.
+@item block_size
+Block size; min 1 MB, max 256 MB.  0 means auto-calculate based on image size.
+@item log_size
+Log size; min 1 MB.
 @end table
 @end table
 
@@ -791,7 +839,7 @@ In this case, the block device must be exported using qemu-nbd:
 qemu-nbd --socket=/tmp/my_socket my_disk.qcow2
 @end example
 
-The use of qemu-nbd allows to share a disk between several guests:
+The use of qemu-nbd allows sharing of a disk between several guests:
 @example
 qemu-nbd --socket=/tmp/my_socket --share=2 my_disk.qcow2
 @end example
@@ -1157,9 +1205,16 @@ In order to check that the user mode network is working, you can ping
 the address 10.0.2.2 and verify that you got an address in the range
 10.0.2.x from the QEMU virtual DHCP server.
 
-Note that @code{ping} is not supported reliably to the internet as it
-would require root privileges. It means you can only ping the local
-router (10.0.2.2).
+Note that ICMP traffic in general does not work with user mode networking.
+@code{ping}, aka. ICMP echo, to the local router (10.0.2.2) shall work,
+however. If you're using QEMU on Linux >= 3.0, it can use unprivileged ICMP
+ping sockets to allow @code{ping} to the Internet. The host admin has to set
+the ping_group_range in order to grant access to those sockets. To allow ping
+for GID 100 (usually users group):
+
+@example
+echo 100 100 > /proc/sys/net/ipv4/ping_group_range
+@end example
 
 When using the built-in TFTP server, the router is also the TFTP
 server.
@@ -1906,7 +1961,7 @@ The following options are specific to the PowerPC emulation:
 
 @item -g @var{W}x@var{H}[x@var{DEPTH}]
 
-Set the initial VGA graphic mode. The default is 800x600x15.
+Set the initial VGA graphic mode. The default is 800x600x32.
 
 @item -prom-env @var{string}
 
@@ -1958,17 +2013,13 @@ SPARCbook
 The emulation is somewhat complete. SMP up to 16 CPUs is supported,
 but Linux limits the number of usable CPUs to 4.
 
-It's also possible to simulate a SPARCstation 2 (sun4c architecture),
-SPARCserver 1000, or SPARCcenter 2000 (sun4d architecture), but these
-emulators are not usable yet.
-
-QEMU emulates the following sun4m/sun4c/sun4d peripherals:
+QEMU emulates the following sun4m peripherals:
 
 @itemize @minus
 @item
-IOMMU or IO-UNITs
+IOMMU
 @item
-TCX Frame buffer
+TCX or cgthree Frame buffer
 @item
 Lance (Am7990) Ethernet
 @item
@@ -1995,7 +2046,7 @@ firmware implementation. The goal is to implement a 100% IEEE
 
 A sample Linux 2.6 series kernel and ram disk image are available on
 the QEMU web site. There are still issues with NetBSD and OpenBSD, but
-some kernel versions work. Please note that currently Solaris kernels
+some kernel versions work. Please note that currently older Solaris kernels
 don't work probably due to interface issues between OpenBIOS and
 Solaris.
 
@@ -2007,8 +2058,9 @@ The following options are specific to the Sparc32 emulation:
 
 @item -g @var{W}x@var{H}x[x@var{DEPTH}]
 
-Set the initial TCX graphic mode. The default is 1024x768x8, currently
-the only other possible mode is 1024x768x24.
+Set the initial graphics mode. For TCX, the default is 1024x768x8 with the
+option of 1024x768x24. For cgthree, the default is 1024x768x8 with the option
+of 1152x900x8 for people who wish to use OBP.
 
 @item -prom-env @var{string}
 
@@ -2019,7 +2071,7 @@ qemu-system-sparc -prom-env 'auto-boot?=false' \
  -prom-env 'boot-device=sd(0,2,0):d' -prom-env 'boot-args=linux single'
 @end example
 
-@item -M [SS-4|SS-5|SS-10|SS-20|SS-600MP|LX|Voyager|SPARCClassic] [|SPARCbook|SS-2|SS-1000|SS-2000]
+@item -M [SS-4|SS-5|SS-10|SS-20|SS-600MP|LX|Voyager|SPARCClassic] [|SPARCbook]
 
 Set the emulated machine type. Default is SS-5.
 

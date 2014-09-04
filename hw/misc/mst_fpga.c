@@ -35,25 +35,30 @@
 #define MST_PCMCIA_CD0_IRQ	9
 #define MST_PCMCIA_CD1_IRQ	13
 
+#define TYPE_MAINSTONE_FPGA "mainstone-fpga"
+#define MAINSTONE_FPGA(obj) \
+    OBJECT_CHECK(mst_irq_state, (obj), TYPE_MAINSTONE_FPGA)
+
 typedef struct mst_irq_state{
-	SysBusDevice busdev;
-	MemoryRegion iomem;
+    SysBusDevice parent_obj;
 
-	qemu_irq parent;
+    MemoryRegion iomem;
 
-	uint32_t prev_level;
-	uint32_t leddat1;
-	uint32_t leddat2;
-	uint32_t ledctrl;
-	uint32_t gpswr;
-	uint32_t mscwr1;
-	uint32_t mscwr2;
-	uint32_t mscwr3;
-	uint32_t mscrd;
-	uint32_t intmskena;
-	uint32_t intsetclr;
-	uint32_t pcmcia0;
-	uint32_t pcmcia1;
+    qemu_irq parent;
+
+    uint32_t prev_level;
+    uint32_t leddat1;
+    uint32_t leddat2;
+    uint32_t ledctrl;
+    uint32_t gpswr;
+    uint32_t mscwr1;
+    uint32_t mscwr2;
+    uint32_t mscwr3;
+    uint32_t mscrd;
+    uint32_t intmskena;
+    uint32_t intsetclr;
+    uint32_t pcmcia0;
+    uint32_t pcmcia1;
 }mst_irq_state;
 
 static void
@@ -194,33 +199,31 @@ static int mst_fpga_post_load(void *opaque, int version_id)
 	return 0;
 }
 
-static int mst_fpga_init(SysBusDevice *dev)
+static int mst_fpga_init(SysBusDevice *sbd)
 {
-	mst_irq_state *s;
+    DeviceState *dev = DEVICE(sbd);
+    mst_irq_state *s = MAINSTONE_FPGA(dev);
 
-	s = FROM_SYSBUS(mst_irq_state, dev);
+    s->pcmcia0 = MST_PCMCIAx_READY | MST_PCMCIAx_nCD;
+    s->pcmcia1 = MST_PCMCIAx_READY | MST_PCMCIAx_nCD;
 
-	s->pcmcia0 = MST_PCMCIAx_READY | MST_PCMCIAx_nCD;
-	s->pcmcia1 = MST_PCMCIAx_READY | MST_PCMCIAx_nCD;
+    sysbus_init_irq(sbd, &s->parent);
 
-	sysbus_init_irq(dev, &s->parent);
+    /* alloc the external 16 irqs */
+    qdev_init_gpio_in(dev, mst_fpga_set_irq, MST_NUM_IRQS);
 
-	/* alloc the external 16 irqs */
-	qdev_init_gpio_in(&dev->qdev, mst_fpga_set_irq, MST_NUM_IRQS);
-
-	memory_region_init_io(&s->iomem, &mst_fpga_ops, s,
-			    "fpga", 0x00100000);
-	sysbus_init_mmio(dev, &s->iomem);
-	return 0;
+    memory_region_init_io(&s->iomem, OBJECT(s), &mst_fpga_ops, s,
+                          "fpga", 0x00100000);
+    sysbus_init_mmio(sbd, &s->iomem);
+    return 0;
 }
 
 static VMStateDescription vmstate_mst_fpga_regs = {
-	.name = "mainstone_fpga",
-	.version_id = 0,
-	.minimum_version_id = 0,
-	.minimum_version_id_old = 0,
-	.post_load = mst_fpga_post_load,
-	.fields = (VMStateField []) {
+    .name = "mainstone_fpga",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .post_load = mst_fpga_post_load,
+    .fields = (VMStateField[]) {
 		VMSTATE_UINT32(prev_level, mst_irq_state),
 		VMSTATE_UINT32(leddat1, mst_irq_state),
 		VMSTATE_UINT32(leddat2, mst_irq_state),
@@ -249,7 +252,7 @@ static void mst_fpga_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mst_fpga_info = {
-    .name          = "mainstone-fpga",
+    .name          = TYPE_MAINSTONE_FPGA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mst_irq_state),
     .class_init    = mst_fpga_class_init,

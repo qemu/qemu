@@ -73,8 +73,12 @@
 
 #define FIFO_CAPACITY 256
 
+#define TYPE_XILINX_SPI "xlnx.xps-spi"
+#define XILINX_SPI(obj) OBJECT_CHECK(XilinxSPI, (obj), TYPE_XILINX_SPI)
+
 typedef struct XilinxSPI {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion mmio;
 
     qemu_irq irq;
@@ -109,7 +113,7 @@ static void rxfifo_reset(XilinxSPI *s)
 
 static void xlx_spi_update_cs(XilinxSPI *s)
 {
-   int i;
+    int i;
 
     for (i = 0; i < s->num_cs; ++i) {
         qemu_set_irq(s->cs_lines[i], !(~s->regs[R_SPISSR] & 1 << i));
@@ -154,7 +158,7 @@ static void xlx_spi_do_reset(XilinxSPI *s)
 
 static void xlx_spi_reset(DeviceState *d)
 {
-    xlx_spi_do_reset(DO_UPCAST(XilinxSPI, busdev.qdev, d));
+    xlx_spi_do_reset(XILINX_SPI(d));
 }
 
 static inline int spi_master_enabled(XilinxSPI *s)
@@ -314,24 +318,26 @@ static const MemoryRegionOps spi_ops = {
     }
 };
 
-static int xilinx_spi_init(SysBusDevice *dev)
+static int xilinx_spi_init(SysBusDevice *sbd)
 {
+    DeviceState *dev = DEVICE(sbd);
+    XilinxSPI *s = XILINX_SPI(dev);
     int i;
-    XilinxSPI *s = FROM_SYSBUS(typeof(*s), dev);
 
     DB_PRINT("\n");
 
-    s->spi = ssi_create_bus(&dev->qdev, "spi");
+    s->spi = ssi_create_bus(dev, "spi");
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
     s->cs_lines = g_new(qemu_irq, s->num_cs);
-    ssi_auto_connect_slaves(DEVICE(s), s->cs_lines, s->spi);
+    ssi_auto_connect_slaves(dev, s->cs_lines, s->spi);
     for (i = 0; i < s->num_cs; ++i) {
-        sysbus_init_irq(dev, &s->cs_lines[i]);
+        sysbus_init_irq(sbd, &s->cs_lines[i]);
     }
 
-    memory_region_init_io(&s->mmio, &spi_ops, s, "xilinx-spi", R_MAX * 4);
-    sysbus_init_mmio(dev, &s->mmio);
+    memory_region_init_io(&s->mmio, OBJECT(s), &spi_ops, s,
+                          "xilinx-spi", R_MAX * 4);
+    sysbus_init_mmio(sbd, &s->mmio);
 
     s->irqline = -1;
 
@@ -345,7 +351,6 @@ static const VMStateDescription vmstate_xilinx_spi = {
     .name = "xilinx_spi",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_FIFO8(tx_fifo, XilinxSPI),
         VMSTATE_FIFO8(rx_fifo, XilinxSPI),
@@ -371,7 +376,7 @@ static void xilinx_spi_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo xilinx_spi_info = {
-    .name           = "xlnx.xps-spi",
+    .name           = TYPE_XILINX_SPI,
     .parent         = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(XilinxSPI),
     .class_init     = xilinx_spi_class_init,

@@ -12,9 +12,7 @@ extern PropertyInfo qdev_prop_uint16;
 extern PropertyInfo qdev_prop_uint32;
 extern PropertyInfo qdev_prop_int32;
 extern PropertyInfo qdev_prop_uint64;
-extern PropertyInfo qdev_prop_hex8;
-extern PropertyInfo qdev_prop_hex32;
-extern PropertyInfo qdev_prop_hex64;
+extern PropertyInfo qdev_prop_size;
 extern PropertyInfo qdev_prop_string;
 extern PropertyInfo qdev_prop_chr;
 extern PropertyInfo qdev_prop_ptr;
@@ -110,17 +108,30 @@ extern PropertyInfo qdev_prop_arraylen;
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_int32, int32_t)
 #define DEFINE_PROP_UINT64(_n, _s, _f, _d)                      \
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_uint64, uint64_t)
-#define DEFINE_PROP_HEX8(_n, _s, _f, _d)                       \
-    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_hex8, uint8_t)
-#define DEFINE_PROP_HEX32(_n, _s, _f, _d)                       \
-    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_hex32, uint32_t)
-#define DEFINE_PROP_HEX64(_n, _s, _f, _d)                       \
-    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_hex64, uint64_t)
+#define DEFINE_PROP_SIZE(_n, _s, _f, _d)                       \
+    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_size, uint64_t)
 #define DEFINE_PROP_PCI_DEVFN(_n, _s, _f, _d)                   \
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_pci_devfn, int32_t)
 
+/*
+ * Please avoid pointer properties.  If you must use them, you must
+ * cover them in their device's class init function as follows:
+ *
+ * - If the property must be set, the device cannot be used with
+ *   device_add, so add code like this:
+ *   |* Reason: pointer property "NAME-OF-YOUR-PROP" *|
+ *   DeviceClass *dc = DEVICE_CLASS(class);
+ *   dc->cannot_instantiate_with_device_add_yet = true;
+ *
+ * - If the property may safely remain null, document it like this:
+ *   |*
+ *    * Note: pointer property "interrupt_vector" may remain null, thus
+ *    * no need for dc->cannot_instantiate_with_device_add_yet = true;
+ *    *|
+ */
 #define DEFINE_PROP_PTR(_n, _s, _f)             \
     DEFINE_PROP(_n, _s, _f, qdev_prop_ptr, void*)
+
 #define DEFINE_PROP_CHR(_n, _s, _f)             \
     DEFINE_PROP(_n, _s, _f, qdev_prop_chr, CharDriverState*)
 #define DEFINE_PROP_STRING(_n, _s, _f)             \
@@ -148,8 +159,6 @@ extern PropertyInfo qdev_prop_arraylen;
 
 /* Set properties between creation and init.  */
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop);
-void qdev_prop_parse(DeviceState *dev, const char *name, const char *value,
-                     Error **errp);
 void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value);
 void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value);
 void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value);
@@ -168,6 +177,7 @@ void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value);
 
 void qdev_prop_register_global(GlobalProperty *prop);
 void qdev_prop_register_global_list(GlobalProperty *props);
+int qdev_prop_check_global(void);
 void qdev_prop_set_globals(DeviceState *dev, Error **errp);
 void qdev_prop_set_globals_for_type(DeviceState *dev, const char *typename,
                                     Error **errp);
@@ -179,6 +189,8 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
  * field in a struct.
  */
 void qdev_property_add_static(DeviceState *dev, Property *prop, Error **errp);
+
+void qdev_alias_all_properties(DeviceState *target, Object *source);
 
 /**
  * @qdev_prop_set_after_realize:
@@ -192,4 +204,15 @@ void qdev_property_add_static(DeviceState *dev, Property *prop, Error **errp);
  */
 void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
                                  Error **errp);
+
+/**
+ * qdev_prop_allow_set_link_before_realize:
+ *
+ * Set the #Error object if an attempt is made to set the link after realize.
+ * This function should be used as the check() argument to
+ * object_property_add_link().
+ */
+void qdev_prop_allow_set_link_before_realize(Object *obj, const char *name,
+                                             Object *val, Error **errp);
+
 #endif

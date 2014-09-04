@@ -27,6 +27,7 @@
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 
 #define DEFAULT_FREQUENCY (50*1000000)
 
@@ -50,8 +51,12 @@ enum {
     CR_STOP  = (1 << 3),
 };
 
+#define TYPE_LM32_TIMER "lm32-timer"
+#define LM32_TIMER(obj) OBJECT_CHECK(LM32TimerState, (obj), TYPE_LM32_TIMER)
+
 struct LM32TimerState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
 
     QEMUBH *bh;
@@ -161,7 +166,7 @@ static void timer_hit(void *opaque)
 
 static void timer_reset(DeviceState *d)
 {
-    LM32TimerState *s = container_of(d, LM32TimerState, busdev.qdev);
+    LM32TimerState *s = LM32_TIMER(d);
     int i;
 
     for (i = 0; i < R_MAX; i++) {
@@ -172,7 +177,7 @@ static void timer_reset(DeviceState *d)
 
 static int lm32_timer_init(SysBusDevice *dev)
 {
-    LM32TimerState *s = FROM_SYSBUS(typeof(*s), dev);
+    LM32TimerState *s = LM32_TIMER(dev);
 
     sysbus_init_irq(dev, &s->irq);
 
@@ -180,7 +185,8 @@ static int lm32_timer_init(SysBusDevice *dev)
     s->ptimer = ptimer_init(s->bh);
     ptimer_set_freq(s->ptimer, s->freq_hz);
 
-    memory_region_init_io(&s->iomem, &timer_ops, s, "timer", R_MAX * 4);
+    memory_region_init_io(&s->iomem, OBJECT(s), &timer_ops, s,
+                          "timer", R_MAX * 4);
     sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
@@ -190,8 +196,7 @@ static const VMStateDescription vmstate_lm32_timer = {
     .name = "lm32-timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (VMStateField[]) {
         VMSTATE_PTIMER(ptimer, LM32TimerState),
         VMSTATE_UINT32(freq_hz, LM32TimerState),
         VMSTATE_UINT32_ARRAY(regs, LM32TimerState, R_MAX),
@@ -216,7 +221,7 @@ static void lm32_timer_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo lm32_timer_info = {
-    .name          = "lm32-timer",
+    .name          = TYPE_LM32_TIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LM32TimerState),
     .class_init    = lm32_timer_class_init,

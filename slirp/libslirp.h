@@ -16,8 +16,7 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
                   void *opaque);
 void slirp_cleanup(Slirp *slirp);
 
-void slirp_update_timeout(uint32_t *timeout);
-void slirp_pollfds_fill(GArray *pollfds);
+void slirp_pollfds_fill(GArray *pollfds, uint32_t *timeout);
 
 void slirp_pollfds_poll(GArray *pollfds, int select_error);
 

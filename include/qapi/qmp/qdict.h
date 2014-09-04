@@ -16,6 +16,7 @@
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qlist.h"
 #include "qemu/queue.h"
+#include <stdbool.h>
 #include <stdint.h>
 
 #define QDICT_BUCKET_MAX 512
@@ -65,5 +66,11 @@ int qdict_get_try_bool(const QDict *qdict, const char *key, int def_value);
 const char *qdict_get_try_str(const QDict *qdict, const char *key);
 
 QDict *qdict_clone_shallow(const QDict *src);
+void qdict_flatten(QDict *qdict);
+
+void qdict_extract_subqdict(QDict *src, QDict **dst, const char *start);
+void qdict_array_split(QDict *src, QList **dst);
+
+void qdict_join(QDict *dest, QDict *src, bool overwrite);
 
 #endif /* QDICT_H */

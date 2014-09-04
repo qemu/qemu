@@ -31,7 +31,7 @@
  * Allocation of blocks could be optimized (less writes to block map and
  * header).
  *
- * Read and write of adjacents blocks could be done in one operation
+ * Read and write of adjacent blocks could be done in one operation
  * (current code uses one operation per block (1 MiB).
  *
  * The code is not thread safe (missing locks for changes in header and
@@ -53,6 +53,13 @@
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include "migration/migration.h"
+#ifdef __linux__
+#include <linux/fs.h>
+#include <sys/ioctl.h>
+#ifndef FS_NOCOW_FL
+#define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
+#endif
+#endif
 
 #if defined(CONFIG_UUID)
 #include <uuid/uuid.h>
@@ -120,6 +127,11 @@ typedef unsigned char uuid_t[16];
 
 #define VDI_IS_ALLOCATED(X) ((X) < VDI_DISCARDED)
 
+/* max blocks in image is (0xffffffff / 4) */
+#define VDI_BLOCKS_IN_IMAGE_MAX  0x3fffffff
+#define VDI_DISK_SIZE_MAX        ((uint64_t)VDI_BLOCKS_IN_IMAGE_MAX * \
+                                  (uint64_t)DEFAULT_CLUSTER_SIZE)
+
 #if !defined(CONFIG_UUID)
 static inline void uuid_generate(uuid_t out)
 {
@@ -165,7 +177,7 @@ typedef struct {
     uuid_t uuid_link;
     uuid_t uuid_parent;
     uint64_t unused2[7];
-} VdiHeader;
+} QEMU_PACKED VdiHeader;
 
 typedef struct {
     /* The block map entries are little endian (even in memory). */
@@ -233,7 +245,6 @@ static void vdi_header_to_le(VdiHeader *header)
     cpu_to_le32s(&header->block_size);
     cpu_to_le32s(&header->block_extra);
     cpu_to_le32s(&header->blocks_in_image);
-    cpu_to_le32s(&header->blocks_allocated);
     cpu_to_le32s(&header->blocks_allocated);
     uuid_convert(header->uuid_image);
     uuid_convert(header->uuid_last_snap);
@@ -331,6 +342,7 @@ static int vdi_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     logout("\n");
     bdi->cluster_size = s->block_size;
     bdi->vm_state_offset = 0;
+    bdi->unallocated_blocks_are_zero = true;
     return 0;
 }
 
@@ -364,7 +376,8 @@ static int vdi_probe(const uint8_t *buf, int buf_size, const char *filename)
     return result;
 }
 
-static int vdi_open(BlockDriverState *bs, QDict *options, int flags)
+static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
+                    Error **errp)
 {
     BDRVVdiState *s = bs->opaque;
     VdiHeader header;
@@ -383,6 +396,14 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags)
     vdi_header_print(&header);
 #endif
 
+    if (header.disk_size > VDI_DISK_SIZE_MAX) {
+        error_setg(errp, "Unsupported VDI image size (size is 0x%" PRIx64
+                          ", max supported is 0x%" PRIx64 ")",
+                          header.disk_size, VDI_DISK_SIZE_MAX);
+        ret = -ENOTSUP;
+        goto fail;
+    }
+
     if (header.disk_size % SECTOR_SIZE != 0) {
         /* 'VBoxManage convertfromraw' can create images with odd disk sizes.
            We accept them but round the disk size to the next multiple of
@@ -393,43 +414,57 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags)
     }
 
     if (header.signature != VDI_SIGNATURE) {
-        logout("bad vdi signature %08x\n", header.signature);
-        ret = -EMEDIUMTYPE;
+        error_setg(errp, "Image not in VDI format (bad signature %08" PRIx32
+                   ")", header.signature);
+        ret = -EINVAL;
         goto fail;
     } else if (header.version != VDI_VERSION_1_1) {
-        logout("unsupported version %u.%u\n",
-               header.version >> 16, header.version & 0xffff);
+        error_setg(errp, "unsupported VDI image (version %" PRIu32 ".%" PRIu32
+                   ")", header.version >> 16, header.version & 0xffff);
         ret = -ENOTSUP;
         goto fail;
     } else if (header.offset_bmap % SECTOR_SIZE != 0) {
         /* We only support block maps which start on a sector boundary. */
-        logout("unsupported block map offset 0x%x B\n", header.offset_bmap);
+        error_setg(errp, "unsupported VDI image (unaligned block map offset "
+                   "0x%" PRIx32 ")", header.offset_bmap);
         ret = -ENOTSUP;
         goto fail;
     } else if (header.offset_data % SECTOR_SIZE != 0) {
         /* We only support data blocks which start on a sector boundary. */
-        logout("unsupported data offset 0x%x B\n", header.offset_data);
+        error_setg(errp, "unsupported VDI image (unaligned data offset 0x%"
+                   PRIx32 ")", header.offset_data);
         ret = -ENOTSUP;
         goto fail;
     } else if (header.sector_size != SECTOR_SIZE) {
-        logout("unsupported sector size %u B\n", header.sector_size);
+        error_setg(errp, "unsupported VDI image (sector size %" PRIu32
+                   " is not %u)", header.sector_size, SECTOR_SIZE);
         ret = -ENOTSUP;
         goto fail;
-    } else if (header.block_size != 1 * MiB) {
-        logout("unsupported block size %u B\n", header.block_size);
+    } else if (header.block_size != DEFAULT_CLUSTER_SIZE) {
+        error_setg(errp, "unsupported VDI image (block size %" PRIu32
+                   " is not %u)", header.block_size, DEFAULT_CLUSTER_SIZE);
         ret = -ENOTSUP;
         goto fail;
     } else if (header.disk_size >
                (uint64_t)header.blocks_in_image * header.block_size) {
-        logout("unsupported disk size %" PRIu64 " B\n", header.disk_size);
+        error_setg(errp, "unsupported VDI image (disk size %" PRIu64 ", "
+                   "image bitmap has room for %" PRIu64 ")",
+                   header.disk_size,
+                   (uint64_t)header.blocks_in_image * header.block_size);
         ret = -ENOTSUP;
         goto fail;
     } else if (!uuid_is_null(header.uuid_link)) {
-        logout("link uuid != 0, unsupported\n");
+        error_setg(errp, "unsupported VDI image (non-NULL link UUID)");
         ret = -ENOTSUP;
         goto fail;
     } else if (!uuid_is_null(header.uuid_parent)) {
-        logout("parent uuid != 0, unsupported\n");
+        error_setg(errp, "unsupported VDI image (non-NULL parent UUID)");
+        ret = -ENOTSUP;
+        goto fail;
+    } else if (header.blocks_in_image > VDI_BLOCKS_IN_IMAGE_MAX) {
+        error_setg(errp, "unsupported VDI image "
+                         "(too many blocks %u, max is %u)",
+                          header.blocks_in_image, VDI_BLOCKS_IN_IMAGE_MAX);
         ret = -ENOTSUP;
         goto fail;
     }
@@ -470,7 +505,7 @@ static int vdi_reopen_prepare(BDRVReopenState *state,
     return 0;
 }
 
-static int coroutine_fn vdi_co_is_allocated(BlockDriverState *bs,
+static int64_t coroutine_fn vdi_co_get_block_status(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum)
 {
     /* TODO: Check for too large sector_num (in bdrv_is_allocated or here). */
@@ -479,12 +514,23 @@ static int coroutine_fn vdi_co_is_allocated(BlockDriverState *bs,
     size_t sector_in_block = sector_num % s->block_sectors;
     int n_sectors = s->block_sectors - sector_in_block;
     uint32_t bmap_entry = le32_to_cpu(s->bmap[bmap_index]);
+    uint64_t offset;
+    int result;
+
     logout("%p, %" PRId64 ", %d, %p\n", bs, sector_num, nb_sectors, pnum);
     if (n_sectors > nb_sectors) {
         n_sectors = nb_sectors;
     }
     *pnum = n_sectors;
-    return VDI_IS_ALLOCATED(bmap_entry);
+    result = VDI_IS_ALLOCATED(bmap_entry);
+    if (!result) {
+        return 0;
+    }
+
+    offset = s->header.offset_data +
+                              (uint64_t)bmap_entry * s->block_size +
+                              sector_in_block * SECTOR_SIZE;
+    return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | offset;
 }
 
 static int vdi_co_read(BlockDriverState *bs,
@@ -633,7 +679,7 @@ static int vdi_co_write(BlockDriverState *bs,
     return ret;
 }
 
-static int vdi_create(const char *filename, QEMUOptionParameter *options)
+static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     int fd;
     int result = 0;
@@ -644,35 +690,54 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     VdiHeader header;
     size_t i;
     size_t bmap_size;
+    bool nocow = false;
 
     logout("\n");
 
     /* Read out options. */
-    while (options && options->name) {
-        if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
-            bytes = options->value.n;
+    bytes = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
 #if defined(CONFIG_VDI_BLOCK_SIZE)
-        } else if (!strcmp(options->name, BLOCK_OPT_CLUSTER_SIZE)) {
-            if (options->value.n) {
-                /* TODO: Additional checks (SECTOR_SIZE * 2^n, ...). */
-                block_size = options->value.n;
-            }
+    /* TODO: Additional checks (SECTOR_SIZE * 2^n, ...). */
+    block_size = qemu_opt_get_size_del(opts,
+                                       BLOCK_OPT_CLUSTER_SIZE,
+                                       DEFAULT_CLUSTER_SIZE);
 #endif
 #if defined(CONFIG_VDI_STATIC_IMAGE)
-        } else if (!strcmp(options->name, BLOCK_OPT_STATIC)) {
-            if (options->value.n) {
-                image_type = VDI_TYPE_STATIC;
-            }
+    if (qemu_opt_get_bool_del(opts, BLOCK_OPT_STATIC, false)) {
+        image_type = VDI_TYPE_STATIC;
+    }
 #endif
-        }
-        options++;
+    nocow = qemu_opt_get_bool_del(opts, BLOCK_OPT_NOCOW, false);
+
+    if (bytes > VDI_DISK_SIZE_MAX) {
+        result = -ENOTSUP;
+        error_setg(errp, "Unsupported VDI image size (size is 0x%" PRIx64
+                          ", max supported is 0x%" PRIx64 ")",
+                          bytes, VDI_DISK_SIZE_MAX);
+        goto exit;
     }
 
     fd = qemu_open(filename,
                    O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE,
                    0644);
     if (fd < 0) {
-        return -errno;
+        result = -errno;
+        goto exit;
+    }
+
+    if (nocow) {
+#ifdef __linux__
+        /* Set NOCOW flag to solve performance issue on fs like btrfs.
+         * This is an optimisation. The FS_IOC_SETFLAGS ioctl return value will
+         * be ignored since any failure of this operation should not block the
+         * left work.
+         */
+        int attr;
+        if (ioctl(fd, FS_IOC_GETFLAGS, &attr) == 0) {
+            attr |= FS_NOCOW_FL;
+            ioctl(fd, FS_IOC_SETFLAGS, &attr);
+        }
+#endif
     }
 
     /* We need enough blocks to store the given disk size,
@@ -706,6 +771,7 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     vdi_header_to_le(&header);
     if (write(fd, &header, sizeof(header)) < 0) {
         result = -errno;
+        goto close_and_exit;
     }
 
     if (bmap_size > 0) {
@@ -719,6 +785,8 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
         }
         if (write(fd, bmap, bmap_size) < 0) {
             result = -errno;
+            g_free(bmap);
+            goto close_and_exit;
         }
         g_free(bmap);
     }
@@ -726,13 +794,16 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     if (image_type == VDI_TYPE_STATIC) {
         if (ftruncate(fd, sizeof(header) + bmap_size + blocks * block_size)) {
             result = -errno;
+            goto close_and_exit;
         }
     }
 
-    if (close(fd) < 0) {
+close_and_exit:
+    if ((close(fd) < 0) && !result) {
         result = -errno;
     }
 
+exit:
     return result;
 }
 
@@ -746,29 +817,39 @@ static void vdi_close(BlockDriverState *bs)
     error_free(s->migration_blocker);
 }
 
-static QEMUOptionParameter vdi_create_options[] = {
-    {
-        .name = BLOCK_OPT_SIZE,
-        .type = OPT_SIZE,
-        .help = "Virtual disk size"
-    },
+static QemuOptsList vdi_create_opts = {
+    .name = "vdi-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(vdi_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
 #if defined(CONFIG_VDI_BLOCK_SIZE)
-    {
-        .name = BLOCK_OPT_CLUSTER_SIZE,
-        .type = OPT_SIZE,
-        .help = "VDI cluster (block) size",
-        .value = { .n = DEFAULT_CLUSTER_SIZE },
-    },
+        {
+            .name = BLOCK_OPT_CLUSTER_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "VDI cluster (block) size",
+            .def_value_str = stringify(DEFAULT_CLUSTER_SIZE)
+        },
 #endif
 #if defined(CONFIG_VDI_STATIC_IMAGE)
-    {
-        .name = BLOCK_OPT_STATIC,
-        .type = OPT_FLAG,
-        .help = "VDI static (pre-allocated) image"
-    },
+        {
+            .name = BLOCK_OPT_STATIC,
+            .type = QEMU_OPT_BOOL,
+            .help = "VDI static (pre-allocated) image",
+            .def_value_str = "off"
+        },
 #endif
-    /* TODO: An additional option to set UUID values might be useful. */
-    { NULL }
+        {
+            .name = BLOCK_OPT_NOCOW,
+            .type = QEMU_OPT_BOOL,
+            .help = "Turn off copy-on-write (valid only on btrfs)"
+        },
+        /* TODO: An additional option to set UUID values might be useful. */
+        { /* end of list */ }
+    }
 };
 
 static BlockDriver bdrv_vdi = {
@@ -779,7 +860,8 @@ static BlockDriver bdrv_vdi = {
     .bdrv_close = vdi_close,
     .bdrv_reopen_prepare = vdi_reopen_prepare,
     .bdrv_create = vdi_create,
-    .bdrv_co_is_allocated = vdi_co_is_allocated,
+    .bdrv_has_zero_init = bdrv_has_zero_init_1,
+    .bdrv_co_get_block_status = vdi_co_get_block_status,
     .bdrv_make_empty = vdi_make_empty,
 
     .bdrv_read = vdi_co_read,
@@ -789,7 +871,7 @@ static BlockDriver bdrv_vdi = {
 
     .bdrv_get_info = vdi_get_info,
 
-    .create_options = vdi_create_options,
+    .create_opts = &vdi_create_opts,
     .bdrv_check = vdi_check,
 };
 

@@ -32,7 +32,7 @@
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "hw/sparc/firmware_abi.h"
+#include "hw/nvram/openbios_firmware_abi.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/sysbus.h"
 #include "hw/ide.h"
@@ -363,7 +363,7 @@ void cpu_put_timer(QEMUFile *f, CPUTimer *s)
     qemu_put_be64s(f, &s->disabled_mask);
     qemu_put_sbe64s(f, &s->clock_offset);
 
-    qemu_put_timer(f, s->qtimer);
+    timer_put(f, s->qtimer);
 }
 
 void cpu_get_timer(QEMUFile *f, CPUTimer *s)
@@ -373,7 +373,7 @@ void cpu_get_timer(QEMUFile *f, CPUTimer *s)
     qemu_get_be64s(f, &s->disabled_mask);
     qemu_get_sbe64s(f, &s->clock_offset);
 
-    qemu_get_timer(f, s->qtimer);
+    timer_get(f, s->qtimer);
 }
 
 static CPUTimer *cpu_timer_create(const char *name, SPARCCPU *cpu,
@@ -387,9 +387,9 @@ static CPUTimer *cpu_timer_create(const char *name, SPARCCPU *cpu,
     timer->disabled_mask = disabled_mask;
 
     timer->disabled = 1;
-    timer->clock_offset = qemu_get_clock_ns(vm_clock);
+    timer->clock_offset = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    timer->qtimer = qemu_new_timer_ns(vm_clock, cb, cpu);
+    timer->qtimer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cb, cpu);
 
     return timer;
 }
@@ -397,9 +397,9 @@ static CPUTimer *cpu_timer_create(const char *name, SPARCCPU *cpu,
 static void cpu_timer_reset(CPUTimer *timer)
 {
     timer->disabled = 1;
-    timer->clock_offset = qemu_get_clock_ns(vm_clock);
+    timer->clock_offset = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    qemu_del_timer(timer->qtimer);
+    timer_del(timer->qtimer);
 }
 
 static void main_cpu_reset(void *opaque)
@@ -495,7 +495,7 @@ void cpu_tick_set_count(CPUTimer *timer, uint64_t count)
     uint64_t real_count = count & ~timer->disabled_mask;
     uint64_t disabled_bit = count & timer->disabled_mask;
 
-    int64_t vm_clock_offset = qemu_get_clock_ns(vm_clock) -
+    int64_t vm_clock_offset = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) -
                     cpu_to_timer_ticks(real_count, timer->frequency);
 
     TIMER_DPRINTF("%s set_count count=0x%016lx (%s) p=%p\n",
@@ -509,7 +509,7 @@ void cpu_tick_set_count(CPUTimer *timer, uint64_t count)
 uint64_t cpu_tick_get_count(CPUTimer *timer)
 {
     uint64_t real_count = timer_to_cpu_ticks(
-                    qemu_get_clock_ns(vm_clock) - timer->clock_offset,
+                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - timer->clock_offset,
                     timer->frequency);
 
     TIMER_DPRINTF("%s get_count count=0x%016lx (%s) p=%p\n",
@@ -524,7 +524,7 @@ uint64_t cpu_tick_get_count(CPUTimer *timer)
 
 void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit)
 {
-    int64_t now = qemu_get_clock_ns(vm_clock);
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     uint64_t real_limit = limit & ~timer->disabled_mask;
     timer->disabled = (limit & timer->disabled_mask) ? 1 : 0;
@@ -548,11 +548,11 @@ void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit)
     if (!real_limit) {
         TIMER_DPRINTF("%s set_limit limit=ZERO - not starting timer\n",
                 timer->name);
-        qemu_del_timer(timer->qtimer);
+        timer_del(timer->qtimer);
     } else if (timer->disabled) {
-        qemu_del_timer(timer->qtimer);
+        timer_del(timer->qtimer);
     } else {
-        qemu_mod_timer(timer->qtimer, expires);
+        timer_mod(timer->qtimer, expires);
     }
 }
 
@@ -585,8 +585,7 @@ pci_ebus_init(PCIBus *bus, int devfn, qemu_irq *irqs)
     ISABus *isa_bus;
 
     pci_dev = pci_create_simple(bus, devfn, "ebus");
-    isa_bus = DO_UPCAST(ISABus, qbus,
-                        qdev_get_child_bus(&pci_dev->qdev, "isa.0"));
+    isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(pci_dev), "isa.0"));
     isa_irq = qemu_allocate_irqs(isa_irq_handler, irqs, 16);
     isa_bus_irqs(isa_bus, isa_irq);
     return isa_bus;
@@ -606,9 +605,11 @@ pci_ebus_init1(PCIDevice *pci_dev)
     pci_dev->config[0x09] = 0x00; // programming i/f
     pci_dev->config[0x0D] = 0x0a; // latency_timer
 
-    isa_mmio_setup(&s->bar0, 0x1000000);
+    memory_region_init_alias(&s->bar0, OBJECT(s), "bar0", get_system_io(),
+                             0, 0x1000000);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar0);
-    isa_mmio_setup(&s->bar1, 0x800000);
+    memory_region_init_alias(&s->bar1, OBJECT(s), "bar1", get_system_io(),
+                             0, 0x800000);
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar1);
     return 0;
 }
@@ -631,8 +632,12 @@ static const TypeInfo ebus_info = {
     .class_init    = ebus_class_init,
 };
 
+#define TYPE_OPENPROM "openprom"
+#define OPENPROM(obj) OBJECT_CHECK(PROMState, (obj), TYPE_OPENPROM)
+
 typedef struct PROMState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion prom;
 } PROMState;
 
@@ -650,7 +655,7 @@ static void prom_init(hwaddr addr, const char *bios_name)
     char *filename;
     int ret;
 
-    dev = qdev_create(NULL, "openprom");
+    dev = qdev_create(NULL, TYPE_OPENPROM);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
 
@@ -679,9 +684,9 @@ static void prom_init(hwaddr addr, const char *bios_name)
 
 static int prom_init1(SysBusDevice *dev)
 {
-    PROMState *s = FROM_SYSBUS(PROMState, dev);
+    PROMState *s = OPENPROM(dev);
 
-    memory_region_init_ram(&s->prom, "sun4u.prom", PROM_SIZE_MAX);
+    memory_region_init_ram(&s->prom, OBJECT(s), "sun4u.prom", PROM_SIZE_MAX);
     vmstate_register_ram_global(&s->prom);
     memory_region_set_readonly(&s->prom, true);
     sysbus_init_mmio(dev, &s->prom);
@@ -702,16 +707,19 @@ static void prom_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo prom_info = {
-    .name          = "openprom",
+    .name          = TYPE_OPENPROM,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PROMState),
     .class_init    = prom_class_init,
 };
 
 
-typedef struct RamDevice
-{
-    SysBusDevice busdev;
+#define TYPE_SUN4U_MEMORY "memory"
+#define SUN4U_RAM(obj) OBJECT_CHECK(RamDevice, (obj), TYPE_SUN4U_MEMORY)
+
+typedef struct RamDevice {
+    SysBusDevice parent_obj;
+
     MemoryRegion ram;
     uint64_t size;
 } RamDevice;
@@ -719,9 +727,9 @@ typedef struct RamDevice
 /* System RAM */
 static int ram_init1(SysBusDevice *dev)
 {
-    RamDevice *d = FROM_SYSBUS(RamDevice, dev);
+    RamDevice *d = SUN4U_RAM(dev);
 
-    memory_region_init_ram(&d->ram, "sun4u.ram", d->size);
+    memory_region_init_ram(&d->ram, OBJECT(d), "sun4u.ram", d->size);
     vmstate_register_ram_global(&d->ram);
     sysbus_init_mmio(dev, &d->ram);
     return 0;
@@ -734,10 +742,10 @@ static void ram_init(hwaddr addr, ram_addr_t RAM_size)
     RamDevice *d;
 
     /* allocate RAM */
-    dev = qdev_create(NULL, "memory");
+    dev = qdev_create(NULL, TYPE_SUN4U_MEMORY);
     s = SYS_BUS_DEVICE(dev);
 
-    d = FROM_SYSBUS(RamDevice, s);
+    d = SUN4U_RAM(dev);
     d->size = RAM_size;
     qdev_init_nofail(dev);
 
@@ -759,7 +767,7 @@ static void ram_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ram_info = {
-    .name          = "memory",
+    .name          = TYPE_SUN4U_MEMORY,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RamDevice),
     .class_init    = ram_class_init,
@@ -803,10 +811,7 @@ static SPARCCPU *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
 }
 
 static void sun4uv_init(MemoryRegion *address_space_mem,
-                        ram_addr_t RAM_size,
-                        const char *boot_devices,
-                        const char *kernel_filename, const char *kernel_cmdline,
-                        const char *initrd_filename, const char *cpu_model,
+                        MachineState *machine,
                         const struct hwdef *hwdef)
 {
     SPARCCPU *cpu;
@@ -818,13 +823,13 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     qemu_irq *ivec_irqs, *pbm_irqs;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
-    void *fw_cfg;
+    FWCfgState *fw_cfg;
 
     /* init CPUs */
-    cpu = cpu_devinit(cpu_model, hwdef);
+    cpu = cpu_devinit(machine->cpu_model, hwdef);
 
     /* set up devices */
-    ram_init(0, RAM_size);
+    ram_init(0, machine->ram_size);
 
     prom_init(hwdef->prom_addr, bios_name);
 
@@ -855,7 +860,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     }
 
     for(i = 0; i < nb_nics; i++)
-        pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
+        pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
 
     ide_drive_get(hd, MAX_IDE_BUS);
 
@@ -870,13 +875,15 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     initrd_size = 0;
     initrd_addr = 0;
-    kernel_size = sun4u_load_kernel(kernel_filename, initrd_filename,
+    kernel_size = sun4u_load_kernel(machine->kernel_filename,
+                                    machine->initrd_filename,
                                     ram_size, &initrd_size, &initrd_addr,
                                     &kernel_addr, &kernel_entry);
 
-    sun4u_NVRAM_set_params(nvram, NVRAM_SIZE, "Sun4u", RAM_size, boot_devices,
+    sun4u_NVRAM_set_params(nvram, NVRAM_SIZE, "Sun4u", machine->ram_size,
+                           machine->boot_order,
                            kernel_addr, kernel_size,
-                           kernel_cmdline,
+                           machine->kernel_cmdline,
                            initrd_addr, initrd_size,
                            /* XXX: need an option to load a NVRAM image */
                            0,
@@ -890,16 +897,16 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, hwdef->machine_id);
     fw_cfg_add_i64(fw_cfg, FW_CFG_KERNEL_ADDR, kernel_entry);
     fw_cfg_add_i64(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
-    if (kernel_cmdline) {
+    if (machine->kernel_cmdline) {
         fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE,
-                       strlen(kernel_cmdline) + 1);
-        fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline);
+                       strlen(machine->kernel_cmdline) + 1);
+        fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, machine->kernel_cmdline);
     } else {
         fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE, 0);
     }
     fw_cfg_add_i64(fw_cfg, FW_CFG_INITRD_ADDR, initrd_addr);
     fw_cfg_add_i64(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
-    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, boot_devices[0]);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, machine->boot_order[0]);
 
     fw_cfg_add_i16(fw_cfg, FW_CFG_SPARC64_WIDTH, graphic_width);
     fw_cfg_add_i16(fw_cfg, FW_CFG_SPARC64_HEIGHT, graphic_height);
@@ -939,42 +946,21 @@ static const struct hwdef hwdefs[] = {
 };
 
 /* Sun4u hardware initialisation */
-static void sun4u_init(QEMUMachineInitArgs *args)
+static void sun4u_init(MachineState *machine)
 {
-    ram_addr_t RAM_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_devices = args->boot_device;
-    sun4uv_init(get_system_memory(), RAM_size, boot_devices, kernel_filename,
-                kernel_cmdline, initrd_filename, cpu_model, &hwdefs[0]);
+    sun4uv_init(get_system_memory(), machine, &hwdefs[0]);
 }
 
 /* Sun4v hardware initialisation */
-static void sun4v_init(QEMUMachineInitArgs *args)
+static void sun4v_init(MachineState *machine)
 {
-    ram_addr_t RAM_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_devices = args->boot_device;
-    sun4uv_init(get_system_memory(), RAM_size, boot_devices, kernel_filename,
-                kernel_cmdline, initrd_filename, cpu_model, &hwdefs[1]);
+    sun4uv_init(get_system_memory(), machine, &hwdefs[1]);
 }
 
 /* Niagara hardware initialisation */
-static void niagara_init(QEMUMachineInitArgs *args)
+static void niagara_init(MachineState *machine)
 {
-    ram_addr_t RAM_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_devices = args->boot_device;
-    sun4uv_init(get_system_memory(), RAM_size, boot_devices, kernel_filename,
-                kernel_cmdline, initrd_filename, cpu_model, &hwdefs[2]);
+    sun4uv_init(get_system_memory(), machine, &hwdefs[2]);
 }
 
 static QEMUMachine sun4u_machine = {
@@ -983,7 +969,7 @@ static QEMUMachine sun4u_machine = {
     .init = sun4u_init,
     .max_cpus = 1, // XXX for now
     .is_default = 1,
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "c",
 };
 
 static QEMUMachine sun4v_machine = {
@@ -991,7 +977,7 @@ static QEMUMachine sun4v_machine = {
     .desc = "Sun4v platform",
     .init = sun4v_init,
     .max_cpus = 1, // XXX for now
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "c",
 };
 
 static QEMUMachine niagara_machine = {
@@ -999,7 +985,7 @@ static QEMUMachine niagara_machine = {
     .desc = "Sun4v platform, Niagara",
     .init = niagara_init,
     .max_cpus = 1, // XXX for now
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "c",
 };
 
 static void sun4u_register_types(void)

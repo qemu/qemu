@@ -32,8 +32,13 @@ struct omap_intr_handler_bank_s {
     unsigned char priority[32];
 };
 
+#define TYPE_OMAP_INTC "common-omap-intc"
+#define OMAP_INTC(obj) \
+    OBJECT_CHECK(struct omap_intr_handler_s, (obj), TYPE_OMAP_INTC)
+
 struct omap_intr_handler_s {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     qemu_irq *pins;
     qemu_irq parent_intr[2];
     MemoryRegion mmio;
@@ -328,8 +333,7 @@ static const MemoryRegionOps omap_inth_mem_ops = {
 
 static void omap_inth_reset(DeviceState *dev)
 {
-    struct omap_intr_handler_s *s = FROM_SYSBUS(struct omap_intr_handler_s,
-                                                SYS_BUS_DEVICE(dev));
+    struct omap_intr_handler_s *s = OMAP_INTC(dev);
     int i;
 
     for (i = 0; i < s->nbanks; ++i){
@@ -356,20 +360,21 @@ static void omap_inth_reset(DeviceState *dev)
     qemu_set_irq(s->parent_intr[1], 0);
 }
 
-static int omap_intc_init(SysBusDevice *dev)
+static int omap_intc_init(SysBusDevice *sbd)
 {
-    struct omap_intr_handler_s *s;
-    s = FROM_SYSBUS(struct omap_intr_handler_s, dev);
+    DeviceState *dev = DEVICE(sbd);
+    struct omap_intr_handler_s *s = OMAP_INTC(dev);
+
     if (!s->iclk) {
         hw_error("omap-intc: clk not connected\n");
     }
     s->nbanks = 1;
-    sysbus_init_irq(dev, &s->parent_intr[0]);
-    sysbus_init_irq(dev, &s->parent_intr[1]);
-    qdev_init_gpio_in(&dev->qdev, omap_set_intr, s->nbanks * 32);
-    memory_region_init_io(&s->mmio, &omap_inth_mem_ops, s,
+    sysbus_init_irq(sbd, &s->parent_intr[0]);
+    sysbus_init_irq(sbd, &s->parent_intr[1]);
+    qdev_init_gpio_in(dev, omap_set_intr, s->nbanks * 32);
+    memory_region_init_io(&s->mmio, OBJECT(s), &omap_inth_mem_ops, s,
                           "omap-intc", s->size);
-    sysbus_init_mmio(dev, &s->mmio);
+    sysbus_init_mmio(sbd, &s->mmio);
     return 0;
 }
 
@@ -387,12 +392,13 @@ static void omap_intc_class_init(ObjectClass *klass, void *data)
     k->init = omap_intc_init;
     dc->reset = omap_inth_reset;
     dc->props = omap_intc_properties;
+    /* Reason: pointer property "clk" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo omap_intc_info = {
     .name          = "omap-intc",
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(struct omap_intr_handler_s),
+    .parent        = TYPE_OMAP_INTC,
     .class_init    = omap_intc_class_init,
 };
 
@@ -500,8 +506,9 @@ static void omap2_inth_write(void *opaque, hwaddr addr,
     case 0x10:	/* INTC_SYSCONFIG */
         s->autoidle &= 4;
         s->autoidle |= (value & 1) << 2;
-        if (value & 2)						/* SOFTRESET */
-            omap_inth_reset(&s->busdev.qdev);
+        if (value & 2) {                                        /* SOFTRESET */
+            omap_inth_reset(DEVICE(s));
+        }
         return;
 
     case 0x48:	/* INTC_CONTROL */
@@ -594,10 +601,11 @@ static const MemoryRegionOps omap2_inth_mem_ops = {
     },
 };
 
-static int omap2_intc_init(SysBusDevice *dev)
+static int omap2_intc_init(SysBusDevice *sbd)
 {
-    struct omap_intr_handler_s *s;
-    s = FROM_SYSBUS(struct omap_intr_handler_s, dev);
+    DeviceState *dev = DEVICE(sbd);
+    struct omap_intr_handler_s *s = OMAP_INTC(dev);
+
     if (!s->iclk) {
         hw_error("omap2-intc: iclk not connected\n");
     }
@@ -606,12 +614,12 @@ static int omap2_intc_init(SysBusDevice *dev)
     }
     s->level_only = 1;
     s->nbanks = 3;
-    sysbus_init_irq(dev, &s->parent_intr[0]);
-    sysbus_init_irq(dev, &s->parent_intr[1]);
-    qdev_init_gpio_in(&dev->qdev, omap_set_intr_noedge, s->nbanks * 32);
-    memory_region_init_io(&s->mmio, &omap2_inth_mem_ops, s,
+    sysbus_init_irq(sbd, &s->parent_intr[0]);
+    sysbus_init_irq(sbd, &s->parent_intr[1]);
+    qdev_init_gpio_in(dev, omap_set_intr_noedge, s->nbanks * 32);
+    memory_region_init_io(&s->mmio, OBJECT(s), &omap2_inth_mem_ops, s,
                           "omap2-intc", 0x1000);
-    sysbus_init_mmio(dev, &s->mmio);
+    sysbus_init_mmio(sbd, &s->mmio);
     return 0;
 }
 
@@ -631,17 +639,26 @@ static void omap2_intc_class_init(ObjectClass *klass, void *data)
     k->init = omap2_intc_init;
     dc->reset = omap_inth_reset;
     dc->props = omap2_intc_properties;
+    /* Reason: pointer property "iclk", "fclk" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo omap2_intc_info = {
     .name          = "omap2-intc",
+    .parent        = TYPE_OMAP_INTC,
+    .class_init    = omap2_intc_class_init,
+};
+
+static const TypeInfo omap_intc_type_info = {
+    .name          = TYPE_OMAP_INTC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct omap_intr_handler_s),
-    .class_init    = omap2_intc_class_init,
+    .abstract      = true,
 };
 
 static void omap_intc_register_types(void)
 {
+    type_register_static(&omap_intc_type_info);
     type_register_static(&omap_intc_info);
     type_register_static(&omap2_intc_info);
 }

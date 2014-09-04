@@ -1,0 +1,96 @@
+QA output created by 060
+
+=== Testing L2 reference into L1 ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+ERROR cluster 3 refcount=1 reference=3
+
+1 errors were found on the image.
+Data may be corrupted, or further writes to the image may corrupt it.
+incompatible_features     0x0
+qcow2: Preventing invalid write on metadata (overlaps with active L1 table); image marked as corrupt.
+write failed: Input/output error
+incompatible_features     0x2
+qemu-io: can't open device TEST_DIR/t.IMGFMT: IMGFMT: Image is corrupt; cannot be opened read/write
+read 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Testing cluster data reference into refcount block ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+ERROR refcount block 0 refcount=2
+ERROR cluster 2 refcount=1 reference=2
+
+2 errors were found on the image.
+Data may be corrupted, or further writes to the image may corrupt it.
+incompatible_features     0x0
+qcow2: Preventing invalid write on metadata (overlaps with refcount block); image marked as corrupt.
+write failed: Input/output error
+incompatible_features     0x2
+Repairing refcount block 0 refcount=2
+The following inconsistencies were found and repaired:
+
+    0 leaked clusters
+    1 corruptions
+
+Double checking the fixed image now...
+No errors were found on the image.
+incompatible_features     0x0
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+incompatible_features     0x0
+
+=== Testing cluster data reference into inactive L2 table ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+ERROR cluster 4 refcount=1 reference=2
+Leaked cluster 9 refcount=1 reference=0
+
+1 errors were found on the image.
+Data may be corrupted, or further writes to the image may corrupt it.
+
+1 leaked clusters were found on the image.
+This means waste of disk space, but no harm to data.
+incompatible_features     0x0
+qcow2: Preventing invalid write on metadata (overlaps with inactive L2 table); image marked as corrupt.
+write failed: Input/output error
+incompatible_features     0x2
+Repairing cluster 4 refcount=1 reference=2
+Repairing cluster 9 refcount=1 reference=0
+Repairing OFLAG_COPIED data cluster: l2_entry=8000000000040000 refcount=2
+The following inconsistencies were found and repaired:
+
+    1 leaked clusters
+    2 corruptions
+
+Double checking the fixed image now...
+No errors were found on the image.
+incompatible_features     0x0
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+incompatible_features     0x0
+read 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+read 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Testing overlap while COW is in flight ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 536870912
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+discard 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qcow2: Preventing invalid write on metadata (overlaps with active L2 table); image marked as corrupt.
+blkdebug: Suspended request '0'
+write failed: Input/output error
+blkdebug: Resuming request '0'
+aio_write failed: No medium found
+*** done

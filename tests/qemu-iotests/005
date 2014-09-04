@@ -44,6 +44,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt generic
 _supported_proto generic
 _supported_os Linux
+_unsupported_imgopts "subformat=twoGbMaxExtentFlat" \
+                     "subformat=twoGbMaxExtentSparse"
 
 # vpc is limited to 127GB, so we can't test it here
 if [ "$IMGFMT" = "vpc" ]; then
@@ -61,11 +63,11 @@ _make_test_img 5000G
 
 echo
 echo "small read"
-$QEMU_IO -c "read 1024 4096" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "read 1024 4096" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "small write"
-$QEMU_IO -c "write 8192 4096" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "write 8192 4096" "$TEST_IMG" | _filter_qemu_io
 
 # success, all done
 echo "*** done"

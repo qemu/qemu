@@ -23,75 +23,85 @@
  */
 #include <stdint.h>
 #include "qemu/host-utils.h"
-#include "tcg/tcg-runtime.h"
+
+/* This file is compiled once, and thus we can't include the standard
+   "exec/helper-proto.h", which has includes that are target specific.  */
+
+#include "exec/helper-head.h"
+
+#define DEF_HELPER_FLAGS_2(name, flags, ret, t1, t2) \
+  dh_ctype(ret) HELPER(name) (dh_ctype(t1), dh_ctype(t2));
+
+#include "tcg-runtime.h"
+
 
 /* 32-bit helpers */
 
-int32_t tcg_helper_div_i32(int32_t arg1, int32_t arg2)
+int32_t HELPER(div_i32)(int32_t arg1, int32_t arg2)
 {
     return arg1 / arg2;
 }
 
-int32_t tcg_helper_rem_i32(int32_t arg1, int32_t arg2)
+int32_t HELPER(rem_i32)(int32_t arg1, int32_t arg2)
 {
     return arg1 % arg2;
 }
 
-uint32_t tcg_helper_divu_i32(uint32_t arg1, uint32_t arg2)
+uint32_t HELPER(divu_i32)(uint32_t arg1, uint32_t arg2)
 {
     return arg1 / arg2;
 }
 
-uint32_t tcg_helper_remu_i32(uint32_t arg1, uint32_t arg2)
+uint32_t HELPER(remu_i32)(uint32_t arg1, uint32_t arg2)
 {
     return arg1 % arg2;
 }
 
 /* 64-bit helpers */
 
-int64_t tcg_helper_shl_i64(int64_t arg1, int64_t arg2)
+uint64_t HELPER(shl_i64)(uint64_t arg1, uint64_t arg2)
 {
     return arg1 << arg2;
 }
 
-int64_t tcg_helper_shr_i64(int64_t arg1, int64_t arg2)
-{
-    return (uint64_t)arg1 >> arg2;
-}
-
-int64_t tcg_helper_sar_i64(int64_t arg1, int64_t arg2)
+uint64_t HELPER(shr_i64)(uint64_t arg1, uint64_t arg2)
 {
     return arg1 >> arg2;
 }
 
-int64_t tcg_helper_div_i64(int64_t arg1, int64_t arg2)
+int64_t HELPER(sar_i64)(int64_t arg1, int64_t arg2)
+{
+    return arg1 >> arg2;
+}
+
+int64_t HELPER(div_i64)(int64_t arg1, int64_t arg2)
 {
     return arg1 / arg2;
 }
 
-int64_t tcg_helper_rem_i64(int64_t arg1, int64_t arg2)
+int64_t HELPER(rem_i64)(int64_t arg1, int64_t arg2)
 {
     return arg1 % arg2;
 }
 
-uint64_t tcg_helper_divu_i64(uint64_t arg1, uint64_t arg2)
+uint64_t HELPER(divu_i64)(uint64_t arg1, uint64_t arg2)
 {
     return arg1 / arg2;
 }
 
-uint64_t tcg_helper_remu_i64(uint64_t arg1, uint64_t arg2)
+uint64_t HELPER(remu_i64)(uint64_t arg1, uint64_t arg2)
 {
     return arg1 % arg2;
 }
 
-uint64_t tcg_helper_muluh_i64(uint64_t arg1, uint64_t arg2)
+uint64_t HELPER(muluh_i64)(uint64_t arg1, uint64_t arg2)
 {
     uint64_t l, h;
     mulu64(&l, &h, arg1, arg2);
     return h;
 }
 
-int64_t tcg_helper_mulsh_i64(int64_t arg1, int64_t arg2)
+int64_t HELPER(mulsh_i64)(int64_t arg1, int64_t arg2)
 {
     uint64_t l, h;
     muls64(&l, &h, arg1, arg2);

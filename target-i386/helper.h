@@ -1,5 +1,3 @@
-#include "exec/def-helper.h"
-
 DEF_HELPER_FLAGS_4(cc_compute_all, TCG_CALL_NO_RWG_SE, tl, tl, tl, tl, int)
 DEF_HELPER_FLAGS_4(cc_compute_c, TCG_CALL_NO_RWG_SE, tl, tl, tl, tl, int)
 
@@ -58,6 +56,7 @@ DEF_HELPER_2(sysret, void, env, int)
 DEF_HELPER_2(hlt, void, env, int)
 DEF_HELPER_2(monitor, void, env, tl)
 DEF_HELPER_2(mwait, void, env, int)
+DEF_HELPER_2(pause, void, env, int)
 DEF_HELPER_1(debug, void, env)
 DEF_HELPER_1(reset_rf, void, env)
 DEF_HELPER_3(raise_interrupt, void, env, int, int)
@@ -218,5 +217,3 @@ DEF_HELPER_3(rcrl, tl, env, tl, tl)
 DEF_HELPER_3(rclq, tl, env, tl, tl)
 DEF_HELPER_3(rcrq, tl, env, tl, tl)
 #endif
-
-#include "exec/def-helper.h"

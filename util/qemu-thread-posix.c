@@ -20,7 +20,26 @@
 #include <limits.h>
 #include <unistd.h>
 #include <sys/time.h>
+#ifdef __linux__
+#include <sys/syscall.h>
+#include <linux/futex.h>
+#endif
 #include "qemu/thread.h"
+#include "qemu/atomic.h"
+
+static bool name_threads;
+
+void qemu_thread_naming(bool enable)
+{
+    name_threads = enable;
+
+#ifndef CONFIG_THREAD_SETNAME_BYTHREAD
+    /* This is a debugging option, not fatal */
+    if (enable) {
+        fprintf(stderr, "qemu: thread naming not supported on this host\n");
+    }
+#endif
+}
 
 static void error_exit(int err, const char *msg)
 {
@@ -170,12 +189,11 @@ void qemu_sem_post(QemuSemaphore *sem)
 
 #if defined(__APPLE__) || defined(__NetBSD__)
     pthread_mutex_lock(&sem->lock);
-    if (sem->count == INT_MAX) {
+    if (sem->count == UINT_MAX) {
         rc = EINVAL;
-    } else if (sem->count++ < 0) {
-        rc = pthread_cond_signal(&sem->cond);
     } else {
-        rc = 0;
+        sem->count++;
+        rc = pthread_cond_signal(&sem->cond);
     }
     pthread_mutex_unlock(&sem->lock);
     if (rc != 0) {
@@ -207,18 +225,20 @@ int qemu_sem_timedwait(QemuSemaphore *sem, int ms)
     struct timespec ts;
 
 #if defined(__APPLE__) || defined(__NetBSD__)
+    rc = 0;
     compute_abs_deadline(&ts, ms);
     pthread_mutex_lock(&sem->lock);
-    --sem->count;
-    while (sem->count < 0) {
+    while (sem->count == 0) {
         rc = pthread_cond_timedwait(&sem->cond, &sem->lock, &ts);
         if (rc == ETIMEDOUT) {
-            ++sem->count;
             break;
         }
         if (rc != 0) {
             error_exit(rc, __func__);
         }
+    }
+    if (rc != ETIMEDOUT) {
+        --sem->count;
     }
     pthread_mutex_unlock(&sem->lock);
     return (rc == ETIMEDOUT ? -1 : 0);
@@ -249,16 +269,19 @@ int qemu_sem_timedwait(QemuSemaphore *sem, int ms)
 
 void qemu_sem_wait(QemuSemaphore *sem)
 {
-#if defined(__APPLE__) || defined(__NetBSD__)
-    pthread_mutex_lock(&sem->lock);
-    --sem->count;
-    while (sem->count < 0) {
-        pthread_cond_wait(&sem->cond, &sem->lock);
-    }
-    pthread_mutex_unlock(&sem->lock);
-#else
     int rc;
 
+#if defined(__APPLE__) || defined(__NetBSD__)
+    pthread_mutex_lock(&sem->lock);
+    while (sem->count == 0) {
+        rc = pthread_cond_wait(&sem->cond, &sem->lock);
+        if (rc != 0) {
+            error_exit(rc, __func__);
+        }
+    }
+    --sem->count;
+    pthread_mutex_unlock(&sem->lock);
+#else
     do {
         rc = sem_wait(&sem->sem);
     } while (rc == -1 && errno == EINTR);
@@ -268,7 +291,127 @@ void qemu_sem_wait(QemuSemaphore *sem)
 #endif
 }
 
-void qemu_thread_create(QemuThread *thread,
+#ifdef __linux__
+#define futex(...)              syscall(__NR_futex, __VA_ARGS__)
+
+static inline void futex_wake(QemuEvent *ev, int n)
+{
+    futex(ev, FUTEX_WAKE, n, NULL, NULL, 0);
+}
+
+static inline void futex_wait(QemuEvent *ev, unsigned val)
+{
+    futex(ev, FUTEX_WAIT, (int) val, NULL, NULL, 0);
+}
+#else
+static inline void futex_wake(QemuEvent *ev, int n)
+{
+    if (n == 1) {
+        pthread_cond_signal(&ev->cond);
+    } else {
+        pthread_cond_broadcast(&ev->cond);
+    }
+}
+
+static inline void futex_wait(QemuEvent *ev, unsigned val)
+{
+    pthread_mutex_lock(&ev->lock);
+    if (ev->value == val) {
+        pthread_cond_wait(&ev->cond, &ev->lock);
+    }
+    pthread_mutex_unlock(&ev->lock);
+}
+#endif
+
+/* Valid transitions:
+ * - free->set, when setting the event
+ * - busy->set, when setting the event, followed by futex_wake
+ * - set->free, when resetting the event
+ * - free->busy, when waiting
+ *
+ * set->busy does not happen (it can be observed from the outside but
+ * it really is set->free->busy).
+ *
+ * busy->free provably cannot happen; to enforce it, the set->free transition
+ * is done with an OR, which becomes a no-op if the event has concurrently
+ * transitioned to free or busy.
+ */
+
+#define EV_SET         0
+#define EV_FREE        1
+#define EV_BUSY       -1
+
+void qemu_event_init(QemuEvent *ev, bool init)
+{
+#ifndef __linux__
+    pthread_mutex_init(&ev->lock, NULL);
+    pthread_cond_init(&ev->cond, NULL);
+#endif
+
+    ev->value = (init ? EV_SET : EV_FREE);
+}
+
+void qemu_event_destroy(QemuEvent *ev)
+{
+#ifndef __linux__
+    pthread_mutex_destroy(&ev->lock);
+    pthread_cond_destroy(&ev->cond);
+#endif
+}
+
+void qemu_event_set(QemuEvent *ev)
+{
+    if (atomic_mb_read(&ev->value) != EV_SET) {
+        if (atomic_xchg(&ev->value, EV_SET) == EV_BUSY) {
+            /* There were waiters, wake them up.  */
+            futex_wake(ev, INT_MAX);
+        }
+    }
+}
+
+void qemu_event_reset(QemuEvent *ev)
+{
+    if (atomic_mb_read(&ev->value) == EV_SET) {
+        /*
+         * If there was a concurrent reset (or even reset+wait),
+         * do nothing.  Otherwise change EV_SET->EV_FREE.
+         */
+        atomic_or(&ev->value, EV_FREE);
+    }
+}
+
+void qemu_event_wait(QemuEvent *ev)
+{
+    unsigned value;
+
+    value = atomic_mb_read(&ev->value);
+    if (value != EV_SET) {
+        if (value == EV_FREE) {
+            /*
+             * Leave the event reset and tell qemu_event_set that there
+             * are waiters.  No need to retry, because there cannot be
+             * a concurent busy->free transition.  After the CAS, the
+             * event will be either set or busy.
+             */
+            if (atomic_cmpxchg(&ev->value, EV_FREE, EV_BUSY) == EV_SET) {
+                return;
+            }
+        }
+        futex_wait(ev, EV_BUSY);
+    }
+}
+
+/* Attempt to set the threads name; note that this is for debug, so
+ * we're not going to fail if we can't set it.
+ */
+static void qemu_thread_set_name(QemuThread *thread, const char *name)
+{
+#ifdef CONFIG_PTHREAD_SETNAME_NP
+    pthread_setname_np(thread->thread, name);
+#endif
+}
+
+void qemu_thread_create(QemuThread *thread, const char *name,
                        void *(*start_routine)(void*),
                        void *arg, int mode)
 {
@@ -293,6 +436,10 @@ void qemu_thread_create(QemuThread *thread,
     err = pthread_create(&thread->thread, &attr, start_routine, arg);
     if (err)
         error_exit(err, __func__);
+
+    if (name_threads) {
+        qemu_thread_set_name(thread, name);
+    }
 
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 

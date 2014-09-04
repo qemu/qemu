@@ -10,13 +10,18 @@
  */
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
+#include "qemu/main-loop.h"
 
 #undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
 
+#define TYPE_PUV3_OST "puv3_ost"
+#define PUV3_OST(obj) OBJECT_CHECK(PUV3OSTState, (obj), TYPE_PUV3_OST)
+
 /* puv3 ostimer implementation. */
-typedef struct {
-    SysBusDevice busdev;
+typedef struct PUV3OSTState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     QEMUBH *bh;
     qemu_irq irq;
@@ -109,7 +114,7 @@ static void puv3_ost_tick(void *opaque)
 
 static int puv3_ost_init(SysBusDevice *dev)
 {
-    PUV3OSTState *s = FROM_SYSBUS(PUV3OSTState, dev);
+    PUV3OSTState *s = PUV3_OST(dev);
 
     s->reg_OIER = 0;
     s->reg_OSSR = 0;
@@ -122,7 +127,7 @@ static int puv3_ost_init(SysBusDevice *dev)
     s->ptimer = ptimer_init(s->bh);
     ptimer_set_freq(s->ptimer, 50 * 1000 * 1000);
 
-    memory_region_init_io(&s->iomem, &puv3_ost_ops, s, "puv3_ost",
+    memory_region_init_io(&s->iomem, OBJECT(s), &puv3_ost_ops, s, "puv3_ost",
             PUV3_REGS_OFFSET);
     sysbus_init_mmio(dev, &s->iomem);
 
@@ -137,7 +142,7 @@ static void puv3_ost_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo puv3_ost_info = {
-    .name = "puv3_ost",
+    .name = TYPE_PUV3_OST,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PUV3OSTState),
     .class_init = puv3_ost_class_init,

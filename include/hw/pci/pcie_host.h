@@ -28,6 +28,12 @@
 #define PCIE_HOST_BRIDGE(obj) \
     OBJECT_CHECK(PCIExpressHost, (obj), TYPE_PCIE_HOST_BRIDGE)
 
+#define PCIE_HOST_MCFG_BASE "MCFG"
+#define PCIE_HOST_MCFG_SIZE "mcfg_size"
+
+/* pcie_host::base_addr == PCIE_BASE_ADDR_UNMAPPED when it isn't mapped. */
+#define PCIE_BASE_ADDR_UNMAPPED  ((hwaddr)-1ULL)
+
 struct PCIExpressHost {
     PCIHostState pci;
 
@@ -43,12 +49,32 @@ struct PCIExpressHost {
     MemoryRegion mmio;
 };
 
-int pcie_host_init(PCIExpressHost *e);
 void pcie_host_mmcfg_unmap(PCIExpressHost *e);
 void pcie_host_mmcfg_map(PCIExpressHost *e, hwaddr addr, uint32_t size);
 void pcie_host_mmcfg_update(PCIExpressHost *e,
                             int enable,
                             hwaddr addr,
                             uint32_t size);
+
+/*
+ * PCI express ECAM (Enhanced Configuration Address Mapping) format.
+ * AKA mmcfg address
+ * bit 20 - 28: bus number
+ * bit 15 - 19: device number
+ * bit 12 - 14: function number
+ * bit  0 - 11: offset in configuration space of a given device
+ */
+#define PCIE_MMCFG_SIZE_MAX             (1ULL << 28)
+#define PCIE_MMCFG_SIZE_MIN             (1ULL << 20)
+#define PCIE_MMCFG_BUS_BIT              20
+#define PCIE_MMCFG_BUS_MASK             0x1ff
+#define PCIE_MMCFG_DEVFN_BIT            12
+#define PCIE_MMCFG_DEVFN_MASK           0xff
+#define PCIE_MMCFG_CONFOFFSET_MASK      0xfff
+#define PCIE_MMCFG_BUS(addr)            (((addr) >> PCIE_MMCFG_BUS_BIT) & \
+                                         PCIE_MMCFG_BUS_MASK)
+#define PCIE_MMCFG_DEVFN(addr)          (((addr) >> PCIE_MMCFG_DEVFN_BIT) & \
+                                         PCIE_MMCFG_DEVFN_MASK)
+#define PCIE_MMCFG_CONFOFFSET(addr)     ((addr) & PCIE_MMCFG_CONFOFFSET_MASK)
 
 #endif /* PCIE_HOST_H */

@@ -26,6 +26,7 @@
 #include "hw/ptimer.h"
 #include "sysemu/char.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "elf.h"
@@ -44,6 +45,7 @@
 typedef struct ResetData {
     SPARCCPU *cpu;
     uint32_t  entry;            /* save kernel entry in case of reset */
+    target_ulong sp;            /* initial stack pointer */
 } ResetData;
 
 static void main_cpu_reset(void *opaque)
@@ -57,6 +59,7 @@ static void main_cpu_reset(void *opaque)
     cpu->halted = 0;
     env->pc     = s->entry;
     env->npc    = s->entry + 4;
+    env->regbase[6] = s->sp;
 }
 
 void leon3_irq_ack(void *irq_manager, int intno)
@@ -98,11 +101,11 @@ static void leon3_set_pil_in(void *opaque, uint32_t pil_in)
     }
 }
 
-static void leon3_generic_hw_init(QEMUMachineInitArgs *args)
+static void leon3_generic_hw_init(MachineState *machine)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
+    ram_addr_t ram_size = machine->ram_size;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
     SPARCCPU *cpu;
     CPUSPARCState   *env;
     MemoryRegion *address_space_mem = get_system_memory();
@@ -132,6 +135,7 @@ static void leon3_generic_hw_init(QEMUMachineInitArgs *args)
     /* Reset data */
     reset_info        = g_malloc0(sizeof(ResetData));
     reset_info->cpu   = cpu;
+    reset_info->sp    = 0x40000000 + ram_size;
     qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate IRQ manager */
@@ -147,13 +151,13 @@ static void leon3_generic_hw_init(QEMUMachineInitArgs *args)
         exit(1);
     }
 
-    memory_region_init_ram(ram, "leon3.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "leon3.ram", ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space_mem, 0x40000000, ram);
 
     /* Allocate BIOS */
     prom_size = 8 * 1024 * 1024; /* 8Mb */
-    memory_region_init_ram(prom, "Leon3.bios", prom_size);
+    memory_region_init_ram(prom, NULL, "Leon3.bios", prom_size);
     vmstate_register_ram_global(prom);
     memory_region_set_readonly(prom, true);
     memory_region_add_subregion(address_space_mem, 0x00000000, prom);
@@ -178,7 +182,7 @@ static void leon3_generic_hw_init(QEMUMachineInitArgs *args)
             fprintf(stderr, "qemu: could not load prom '%s'\n", filename);
             exit(1);
         }
-    } else if (kernel_filename == NULL) {
+    } else if (kernel_filename == NULL && !qtest_enabled()) {
         fprintf(stderr, "Can't read bios image %s\n", filename);
         exit(1);
     }
@@ -216,7 +220,6 @@ static QEMUMachine leon3_generic_machine = {
     .name     = "leon3_generic",
     .desc     = "Leon-3 generic",
     .init     = leon3_generic_hw_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void leon3_machine_init(void)

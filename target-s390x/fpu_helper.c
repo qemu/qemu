@@ -19,11 +19,8 @@
  */
 
 #include "cpu.h"
-#include "helper.h"
-
-#if !defined(CONFIG_USER_ONLY)
-#include "exec/softmmu_exec.h"
-#endif
+#include "exec/cpu_ldst.h"
+#include "exec/helper-proto.h"
 
 /* #define DEBUG_HELPER */
 #ifdef DEBUG_HELPER
@@ -80,6 +77,8 @@ static void handle_exceptions(CPUS390XState *env, uintptr_t retaddr)
 
 static inline int float_comp_to_cc(CPUS390XState *env, int float_compare)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
+
     switch (float_compare) {
     case float_relation_equal:
         return 0;
@@ -90,7 +89,7 @@ static inline int float_comp_to_cc(CPUS390XState *env, int float_compare)
     case float_relation_unordered:
         return 3;
     default:
-        cpu_abort(env, "unknown return value for float compare\n");
+        cpu_abort(CPU(cpu), "unknown return value for float compare\n");
     }
 }
 

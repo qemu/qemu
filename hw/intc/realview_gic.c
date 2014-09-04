@@ -7,62 +7,75 @@
  * This code is licensed under the GPL.
  */
 
-#include "hw/sysbus.h"
-
-typedef struct {
-    SysBusDevice busdev;
-    DeviceState *gic;
-    MemoryRegion container;
-} RealViewGICState;
+#include "hw/intc/realview_gic.h"
 
 static void realview_gic_set_irq(void *opaque, int irq, int level)
 {
     RealViewGICState *s = (RealViewGICState *)opaque;
-    qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
+
+    qemu_set_irq(qdev_get_gpio_in(DEVICE(&s->gic), irq), level);
 }
 
-static int realview_gic_init(SysBusDevice *dev)
+static void realview_gic_realize(DeviceState *dev, Error **errp)
 {
-    RealViewGICState *s = FROM_SYSBUS(RealViewGICState, dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    RealViewGICState *s = REALVIEW_GIC(dev);
     SysBusDevice *busdev;
+    Error *err = NULL;
     /* The GICs on the RealView boards have a fixed nonconfigurable
      * number of interrupt lines, so we don't need to expose this as
      * a qdev property.
      */
     int numirq = 96;
 
-    s->gic = qdev_create(NULL, "arm_gic");
-    qdev_prop_set_uint32(s->gic, "num-cpu", 1);
-    qdev_prop_set_uint32(s->gic, "num-irq", numirq);
-    qdev_init_nofail(s->gic);
-    busdev = SYS_BUS_DEVICE(s->gic);
+    qdev_prop_set_uint32(DEVICE(&s->gic), "num-irq", numirq);
+    object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+    busdev = SYS_BUS_DEVICE(&s->gic);
 
     /* Pass through outbound IRQ lines from the GIC */
-    sysbus_pass_irq(dev, busdev);
+    sysbus_pass_irq(sbd, busdev);
 
     /* Pass through inbound GPIO lines to the GIC */
-    qdev_init_gpio_in(&s->busdev.qdev, realview_gic_set_irq, numirq - 32);
+    qdev_init_gpio_in(dev, realview_gic_set_irq, numirq - 32);
 
-    memory_region_init(&s->container, "realview-gic-container", 0x2000);
     memory_region_add_subregion(&s->container, 0,
                                 sysbus_mmio_get_region(busdev, 1));
     memory_region_add_subregion(&s->container, 0x1000,
                                 sysbus_mmio_get_region(busdev, 0));
-    sysbus_init_mmio(dev, &s->container);
-    return 0;
 }
 
-static void realview_gic_class_init(ObjectClass *klass, void *data)
+static void realview_gic_init(Object *obj)
 {
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    RealViewGICState *s = REALVIEW_GIC(obj);
+    DeviceState *gicdev;
 
-    sdc->init = realview_gic_init;
+    memory_region_init(&s->container, OBJECT(s),
+                       "realview-gic-container", 0x2000);
+    sysbus_init_mmio(sbd, &s->container);
+
+    object_initialize(&s->gic, sizeof(s->gic), TYPE_ARM_GIC);
+    gicdev = DEVICE(&s->gic);
+    qdev_set_parent_bus(gicdev, sysbus_get_default());
+    qdev_prop_set_uint32(gicdev, "num-cpu", 1);
+}
+
+static void realview_gic_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = realview_gic_realize;
 }
 
 static const TypeInfo realview_gic_info = {
-    .name          = "realview_gic",
+    .name          = TYPE_REALVIEW_GIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RealViewGICState),
+    .instance_init = realview_gic_init,
     .class_init    = realview_gic_class_init,
 };
 

@@ -54,23 +54,38 @@ ssize_t pt_listxattr(FsContext *ctx, const char *path, char *name, void *value,
 static inline ssize_t pt_getxattr(FsContext *ctx, const char *path,
                                   const char *name, void *value, size_t size)
 {
-    char buffer[PATH_MAX];
-    return lgetxattr(rpath(ctx, path, buffer), name, value, size);
+    char *buffer;
+    ssize_t ret;
+
+    buffer = rpath(ctx, path);
+    ret = lgetxattr(buffer, name, value, size);
+    g_free(buffer);
+    return ret;
 }
 
 static inline int pt_setxattr(FsContext *ctx, const char *path,
                               const char *name, void *value,
                               size_t size, int flags)
 {
-    char buffer[PATH_MAX];
-    return lsetxattr(rpath(ctx, path, buffer), name, value, size, flags);
+    char *buffer;
+    int ret;
+
+    buffer = rpath(ctx, path);
+    ret = lsetxattr(buffer, name, value, size, flags);
+    g_free(buffer);
+    return ret;
 }
 
 static inline int pt_removexattr(FsContext *ctx,
                                  const char *path, const char *name)
 {
-    char buffer[PATH_MAX];
-    return lremovexattr(rpath(ctx, path, buffer), name);
+    char *buffer;
+    int ret;
+
+    buffer = rpath(ctx, path);
+    ret = lremovexattr(path, name);
+    g_free(buffer);
+    return ret;
 }
 
 static inline ssize_t notsup_getxattr(FsContext *ctx, const char *path,

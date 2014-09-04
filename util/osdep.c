@@ -46,7 +46,6 @@ extern int madvise(caddr_t, size_t, int);
 #endif
 
 #include "qemu-common.h"
-#include "trace.h"
 #include "qemu/sockets.h"
 #include "monitor/monitor.h"
 
@@ -206,6 +205,13 @@ int qemu_open(const char *name, int flags, ...)
         qemu_set_cloexec(ret);
     }
 #endif
+
+#ifdef O_DIRECT
+    if (ret == -1 && errno == EINVAL && (flags & O_DIRECT)) {
+        error_report("file system may not support O_DIRECT");
+        errno = EINVAL; /* in case it was clobbered */
+    }
+#endif /* O_DIRECT */
 
     return ret;
 }
@@ -429,6 +435,21 @@ int socket_init(void)
 #endif
     return 0;
 }
+
+#if !GLIB_CHECK_VERSION(2, 31, 0)
+/* Ensure that glib is running in multi-threaded mode
+ * Old versions of glib require explicit initialization.  Failure to do
+ * this results in the single-threaded code paths being taken inside
+ * glib.  For example, the g_slice allocator will not be thread-safe
+ * and cause crashes.
+ */
+static void __attribute__((constructor)) thread_init(void)
+{
+    if (!g_thread_supported()) {
+       g_thread_init(NULL);
+    }
+}
+#endif
 
 #ifndef CONFIG_IOVEC
 /* helper function for iov_send_recv() */

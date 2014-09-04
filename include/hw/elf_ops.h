@@ -201,6 +201,7 @@ static int glue(load_elf, SZ)(const char *name, int fd,
     uint64_t addr, low = (uint64_t)-1, high = 0;
     uint8_t *data = NULL;
     char label[128];
+    int ret = ELF_LOAD_FAILED;
 
     if (read(fd, &ehdr, sizeof(ehdr)) != sizeof(ehdr))
         goto fail;
@@ -211,22 +212,30 @@ static int glue(load_elf, SZ)(const char *name, int fd,
     switch (elf_machine) {
         case EM_PPC64:
             if (EM_PPC64 != ehdr.e_machine)
-                if (EM_PPC != ehdr.e_machine)
+                if (EM_PPC != ehdr.e_machine) {
+                    ret = ELF_LOAD_WRONG_ARCH;
                     goto fail;
+                }
             break;
         case EM_X86_64:
             if (EM_X86_64 != ehdr.e_machine)
-                if (EM_386 != ehdr.e_machine)
+                if (EM_386 != ehdr.e_machine) {
+                    ret = ELF_LOAD_WRONG_ARCH;
                     goto fail;
+                }
             break;
         case EM_MICROBLAZE:
             if (EM_MICROBLAZE != ehdr.e_machine)
-                if (EM_MICROBLAZE_OLD != ehdr.e_machine)
+                if (EM_MICROBLAZE_OLD != ehdr.e_machine) {
+                    ret = ELF_LOAD_WRONG_ARCH;
                     goto fail;
+                }
             break;
         default:
-            if (elf_machine != ehdr.e_machine)
+            if (elf_machine != ehdr.e_machine) {
+                ret = ELF_LOAD_WRONG_ARCH;
                 goto fail;
+            }
     }
 
     if (pentry)
@@ -305,5 +314,5 @@ static int glue(load_elf, SZ)(const char *name, int fd,
  fail:
     g_free(data);
     g_free(phdr);
-    return -1;
+    return ret;
 }

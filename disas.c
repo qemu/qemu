@@ -39,7 +39,7 @@ target_read_memory (bfd_vma memaddr,
 {
     CPUDebug *s = container_of(info, CPUDebug, info);
 
-    cpu_memory_rw_debug(s->env, memaddr, myaddr, length, 0);
+    cpu_memory_rw_debug(ENV_GET_CPU(s->env), memaddr, myaddr, length, 0);
     return 0;
 }
 
@@ -158,11 +158,41 @@ print_insn_thumb1(bfd_vma pc, disassemble_info *info)
 }
 #endif
 
+static int print_insn_objdump(bfd_vma pc, disassemble_info *info,
+                              const char *prefix)
+{
+    int i, n = info->buffer_length;
+    uint8_t *buf = g_malloc(n);
+
+    info->read_memory_func(pc, buf, n, info);
+
+    for (i = 0; i < n; ++i) {
+        if (i % 32 == 0) {
+            info->fprintf_func(info->stream, "\n%s: ", prefix);
+        }
+        info->fprintf_func(info->stream, "%02x", buf[i]);
+    }
+
+    g_free(buf);
+    return n;
+}
+
+static int print_insn_od_host(bfd_vma pc, disassemble_info *info)
+{
+    return print_insn_objdump(pc, info, "OBJD-H");
+}
+
+static int print_insn_od_target(bfd_vma pc, disassemble_info *info)
+{
+    return print_insn_objdump(pc, info, "OBJD-T");
+}
+
 /* Disassemble this for me please... (debugging). 'flags' has the following
    values:
     i386 - 1 means 16 bit code, 2 means 64 bit code
-    arm  - bit 0 = thumb, bit 1 = reverse endian
-    ppc  - nonzero means little endian
+    arm  - bit 0 = thumb, bit 1 = reverse endian, bit 2 = A64
+    ppc  - bits 0:15 specify (optionally) the machine instruction set;
+           bit 16 indicates little endian.
     other targets - unused
  */
 void target_disas(FILE *out, CPUArchState *env, target_ulong code,
@@ -171,7 +201,7 @@ void target_disas(FILE *out, CPUArchState *env, target_ulong code,
     target_ulong pc;
     int count;
     CPUDebug s;
-    int (*print_insn)(bfd_vma pc, disassemble_info *info);
+    int (*print_insn)(bfd_vma pc, disassemble_info *info) = NULL;
 
     INIT_DISASSEMBLE_INFO(s.info, out, fprintf);
 
@@ -196,7 +226,15 @@ void target_disas(FILE *out, CPUArchState *env, target_ulong code,
     }
     print_insn = print_insn_i386;
 #elif defined(TARGET_ARM)
-    if (flags & 1) {
+    if (flags & 4) {
+        /* We might not be compiled with the A64 disassembler
+         * because it needs a C++ compiler; in that case we will
+         * fall through to the default print_insn_od case.
+         */
+#if defined(CONFIG_ARM_A64_DIS)
+        print_insn = print_insn_arm_a64;
+#endif
+    } else if (flags & 1) {
         print_insn = print_insn_thumb1;
     } else {
         print_insn = print_insn_arm;
@@ -214,11 +252,11 @@ void target_disas(FILE *out, CPUArchState *env, target_ulong code,
     s.info.mach = bfd_mach_sparc_v9b;
 #endif
 #elif defined(TARGET_PPC)
-    if (flags >> 16) {
+    if ((flags >> 16) & 1) {
         s.info.endian = BFD_ENDIAN_LITTLE;
     }
     if (flags & 0xFFFF) {
-        /* If we have a precise definitions of the instructions set, use it */
+        /* If we have a precise definition of the instruction set, use it. */
         s.info.mach = flags & 0xFFFF;
     } else {
 #ifdef TARGET_PPC64
@@ -263,11 +301,10 @@ void target_disas(FILE *out, CPUArchState *env, target_ulong code,
 #elif defined(TARGET_LM32)
     s.info.mach = bfd_mach_lm32;
     print_insn = print_insn_lm32;
-#else
-    fprintf(out, "0x" TARGET_FMT_lx
-	    ": Asm output not supported on this arch\n", code);
-    return;
 #endif
+    if (print_insn == NULL) {
+        print_insn = print_insn_od_target;
+    }
 
     for (pc = code; size > 0; pc += count, size -= count) {
 	fprintf(out, "0x" TARGET_FMT_lx ":  ", pc);
@@ -303,7 +340,7 @@ void disas(FILE *out, void *code, unsigned long size)
     uintptr_t pc;
     int count;
     CPUDebug s;
-    int (*print_insn)(bfd_vma pc, disassemble_info *info);
+    int (*print_insn)(bfd_vma pc, disassemble_info *info) = NULL;
 
     INIT_DISASSEMBLE_INFO(s.info, out, fprintf);
     s.info.print_address_func = generic_print_host_address;
@@ -328,6 +365,8 @@ void disas(FILE *out, void *code, unsigned long size)
 #elif defined(_ARCH_PPC)
     s.info.disassembler_options = (char *)"any";
     print_insn = print_insn_ppc;
+#elif defined(__aarch64__) && defined(CONFIG_ARM_A64_DIS)
+    print_insn = print_insn_arm_a64;
 #elif defined(__alpha__)
     print_insn = print_insn_alpha;
 #elif defined(__sparc__)
@@ -347,11 +386,10 @@ void disas(FILE *out, void *code, unsigned long size)
     print_insn = print_insn_hppa;
 #elif defined(__ia64__)
     print_insn = print_insn_ia64;
-#else
-    fprintf(out, "0x%lx: Asm output not supported on this arch\n",
-	    (long) code);
-    return;
 #endif
+    if (print_insn == NULL) {
+        print_insn = print_insn_od_host;
+    }
     for (pc = (uintptr_t)code; size > 0; pc += count, size -= count) {
         fprintf(out, "0x%08" PRIxPTR ":  ", pc);
         count = print_insn(pc, &s.info);
@@ -392,7 +430,7 @@ monitor_read_memory (bfd_vma memaddr, bfd_byte *myaddr, int length,
     if (monitor_disas_is_physical) {
         cpu_physical_memory_read(memaddr, myaddr, length);
     } else {
-        cpu_memory_rw_debug(s->env, memaddr,myaddr, length, 0);
+        cpu_memory_rw_debug(ENV_GET_CPU(s->env), memaddr, myaddr, length, 0);
     }
     return 0;
 }
@@ -407,6 +445,8 @@ monitor_fprintf(FILE *stream, const char *fmt, ...)
     return 0;
 }
 
+/* Disassembler for the monitor.
+   See target_disas for a description of flags. */
 void monitor_disas(Monitor *mon, CPUArchState *env,
                    target_ulong pc, int nb_insn, int is_physical, int flags)
 {
@@ -447,11 +487,19 @@ void monitor_disas(Monitor *mon, CPUArchState *env,
     s.info.mach = bfd_mach_sparc_v9b;
 #endif
 #elif defined(TARGET_PPC)
+    if (flags & 0xFFFF) {
+        /* If we have a precise definition of the instruction set, use it. */
+        s.info.mach = flags & 0xFFFF;
+    } else {
 #ifdef TARGET_PPC64
-    s.info.mach = bfd_mach_ppc64;
+        s.info.mach = bfd_mach_ppc64;
 #else
-    s.info.mach = bfd_mach_ppc;
+        s.info.mach = bfd_mach_ppc;
 #endif
+    }
+    if ((flags >> 16) & 1) {
+        s.info.endian = BFD_ENDIAN_LITTLE;
+    }
     print_insn = print_insn_ppc;
 #elif defined(TARGET_M68K)
     print_insn = print_insn_m68k;

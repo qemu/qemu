@@ -33,6 +33,20 @@
 #include "migration/vmstate.h"
 
 
+static void xtensa_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+
+    cpu->env.pc = value;
+}
+
+static bool xtensa_cpu_has_work(CPUState *cs)
+{
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+
+    return cpu->env.pending_irq_level;
+}
+
 /* CPUClass::reset() */
 static void xtensa_cpu_reset(CPUState *s)
 {
@@ -52,17 +66,40 @@ static void xtensa_cpu_reset(CPUState *s)
     env->sregs[CACHEATTR] = 0x22222222;
     env->sregs[ATOMCTL] = xtensa_option_enabled(env->config,
             XTENSA_OPTION_ATOMCTL) ? 0x28 : 0x15;
+    env->sregs[CONFIGID0] = env->config->configid[0];
+    env->sregs[CONFIGID1] = env->config->configid[1];
 
     env->pending_irq_level = 0;
     reset_mmu(env);
 }
 
+static ObjectClass *xtensa_cpu_class_by_name(const char *cpu_model)
+{
+    ObjectClass *oc;
+    char *typename;
+
+    if (cpu_model == NULL) {
+        return NULL;
+    }
+
+    typename = g_strdup_printf("%s-" TYPE_XTENSA_CPU, cpu_model);
+    oc = object_class_by_name(typename);
+    g_free(typename);
+    if (oc == NULL || !object_class_dynamic_cast(oc, TYPE_XTENSA_CPU) ||
+        object_class_is_abstract(oc)) {
+        return NULL;
+    }
+    return oc;
+}
+
 static void xtensa_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    XtensaCPU *cpu = XTENSA_CPU(dev);
+    CPUState *cs = CPU(dev);
     XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(dev);
 
-    qemu_init_vcpu(&cpu->env);
+    cs->gdb_num_regs = xcc->config->gdb_regmap.num_regs;
+
+    qemu_init_vcpu(cs);
 
     xcc->parent_realize(dev, errp);
 }
@@ -71,10 +108,12 @@ static void xtensa_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
     XtensaCPU *cpu = XTENSA_CPU(obj);
+    XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(obj);
     CPUXtensaState *env = &cpu->env;
     static bool tcg_inited;
 
     cs->env_ptr = env;
+    env->config = xcc->config;
     cpu_exec_init(env);
 
     if (tcg_enabled() && !tcg_inited) {
@@ -101,7 +140,17 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
     xcc->parent_reset = cc->reset;
     cc->reset = xtensa_cpu_reset;
 
+    cc->class_by_name = xtensa_cpu_class_by_name;
+    cc->has_work = xtensa_cpu_has_work;
     cc->do_interrupt = xtensa_cpu_do_interrupt;
+    cc->dump_state = xtensa_cpu_dump_state;
+    cc->set_pc = xtensa_cpu_set_pc;
+    cc->gdb_read_register = xtensa_cpu_gdb_read_register;
+    cc->gdb_write_register = xtensa_cpu_gdb_write_register;
+#ifndef CONFIG_USER_ONLY
+    cc->do_unaligned_access = xtensa_cpu_do_unaligned_access;
+    cc->get_phys_page_debug = xtensa_cpu_get_phys_page_debug;
+#endif
     dc->vmsd = &vmstate_xtensa_cpu;
 }
 
@@ -110,7 +159,7 @@ static const TypeInfo xtensa_cpu_type_info = {
     .parent = TYPE_CPU,
     .instance_size = sizeof(XtensaCPU),
     .instance_init = xtensa_cpu_initfn,
-    .abstract = false,
+    .abstract = true,
     .class_size = sizeof(XtensaCPUClass),
     .class_init = xtensa_cpu_class_init,
 };

@@ -20,7 +20,7 @@
  */
 void error_vprintf(const char *fmt, va_list ap)
 {
-    if (cur_mon) {
+    if (cur_mon && !monitor_cur_is_qmp()) {
         monitor_vprintf(cur_mon, fmt, ap);
     } else {
         vfprintf(stderr, fmt, ap);
@@ -165,7 +165,7 @@ const char *error_get_progname(void)
 /*
  * Print current location to current monitor if we have one, else to stderr.
  */
-void error_print_loc(void)
+static void error_print_loc(void)
 {
     const char *sep = "";
     int i;
@@ -196,6 +196,7 @@ void error_print_loc(void)
     }
 }
 
+bool enable_timestamp_msg;
 /*
  * Print an error message to current monitor if we have one, else to stderr.
  * Format arguments like sprintf().  The result should not contain
@@ -206,6 +207,15 @@ void error_print_loc(void)
 void error_report(const char *fmt, ...)
 {
     va_list ap;
+    GTimeVal tv;
+    gchar *timestr;
+
+    if (enable_timestamp_msg) {
+        g_get_current_time(&tv);
+        timestr = g_time_val_to_iso8601(&tv);
+        error_printf("%s ", timestr);
+        g_free(timestr);
+    }
 
     error_print_loc();
     va_start(ap, fmt);

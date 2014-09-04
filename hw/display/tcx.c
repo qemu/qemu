@@ -25,7 +25,11 @@
 #include "qemu-common.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
+#include "hw/loader.h"
 #include "hw/sysbus.h"
+
+#define TCX_ROM_FILE "QEMU,tcx.bin"
+#define FCODE_MAX_ROM_SIZE 0x10000
 
 #define MAXX 1024
 #define MAXY 768
@@ -34,11 +38,17 @@
 #define TCX_THC_NREGS_24 0x1000
 #define TCX_TEC_NREGS    0x1000
 
+#define TYPE_TCX "SUNW,tcx"
+#define TCX(obj) OBJECT_CHECK(TCXState, (obj), TYPE_TCX)
+
 typedef struct TCXState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     QemuConsole *con;
     uint8_t *vram;
     uint32_t *vram24, *cplane;
+    hwaddr prom_addr;
+    MemoryRegion rom;
     MemoryRegion vram_mem;
     MemoryRegion vram_8bit;
     MemoryRegion vram_24bit;
@@ -193,15 +203,16 @@ static inline void reset_dirty(TCXState *ts, ram_addr_t page_min,
                               ram_addr_t cpage)
 {
     memory_region_reset_dirty(&ts->vram_mem,
-                              page_min, page_max + TARGET_PAGE_SIZE,
+                              page_min,
+                              (page_max - page_min) + TARGET_PAGE_SIZE,
                               DIRTY_MEMORY_VGA);
     memory_region_reset_dirty(&ts->vram_mem,
                               page24 + page_min * 4,
-                              page24 + page_max * 4 + TARGET_PAGE_SIZE,
+                              (page_max - page_min) * 4 + TARGET_PAGE_SIZE,
                               DIRTY_MEMORY_VGA);
     memory_region_reset_dirty(&ts->vram_mem,
                               cpage + page_min * 4,
-                              cpage + page_max * 4 + TARGET_PAGE_SIZE,
+                              (page_max - page_min) * 4 + TARGET_PAGE_SIZE,
                               DIRTY_MEMORY_VGA);
 }
 
@@ -285,7 +296,8 @@ static void tcx_update_display(void *opaque)
     /* reset modified pages */
     if (page_max >= page_min) {
         memory_region_reset_dirty(&ts->vram_mem,
-                                  page_min, page_max + TARGET_PAGE_SIZE,
+                                  page_min,
+                                  (page_max - page_min) + TARGET_PAGE_SIZE,
                                   DIRTY_MEMORY_VGA);
     }
 }
@@ -404,9 +416,8 @@ static const VMStateDescription vmstate_tcx = {
     .name ="tcx",
     .version_id = 4,
     .minimum_version_id = 4,
-    .minimum_version_id_old = 4,
     .post_load = vmstate_tcx_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT16(height, TCXState),
         VMSTATE_UINT16(width, TCXState),
         VMSTATE_UINT16(depth, TCXState),
@@ -421,7 +432,7 @@ static const VMStateDescription vmstate_tcx = {
 
 static void tcx_reset(DeviceState *d)
 {
-    TCXState *s = container_of(d, TCXState, busdev.qdev);
+    TCXState *s = TCX(d);
 
     /* Initialize palette */
     memset(s->r, 0, 256);
@@ -519,47 +530,75 @@ static const GraphicHwOps tcx24_ops = {
     .gfx_update = tcx24_update_display,
 };
 
-static int tcx_init1(SysBusDevice *dev)
+static void tcx_initfn(Object *obj)
 {
-    TCXState *s = FROM_SYSBUS(TCXState, dev);
-    ram_addr_t vram_offset = 0;
-    int size;
-    uint8_t *vram_base;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    TCXState *s = TCX(obj);
 
-    memory_region_init_ram(&s->vram_mem, "tcx.vram",
+    memory_region_init_ram(&s->rom, NULL, "tcx.prom", FCODE_MAX_ROM_SIZE);
+    memory_region_set_readonly(&s->rom, true);
+    sysbus_init_mmio(sbd, &s->rom);
+
+    /* DAC */
+    memory_region_init_io(&s->dac, OBJECT(s), &tcx_dac_ops, s,
+                          "tcx.dac", TCX_DAC_NREGS);
+    sysbus_init_mmio(sbd, &s->dac);
+
+    /* TEC (dummy) */
+    memory_region_init_io(&s->tec, OBJECT(s), &dummy_ops, s,
+                          "tcx.tec", TCX_TEC_NREGS);
+    sysbus_init_mmio(sbd, &s->tec);
+
+    /* THC: NetBSD writes here even with 8-bit display: dummy */
+    memory_region_init_io(&s->thc24, OBJECT(s), &dummy_ops, s, "tcx.thc24",
+                          TCX_THC_NREGS_24);
+    sysbus_init_mmio(sbd, &s->thc24);
+
+    return;
+}
+
+static void tcx_realizefn(DeviceState *dev, Error **errp)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    TCXState *s = TCX(dev);
+    ram_addr_t vram_offset = 0;
+    int size, ret;
+    uint8_t *vram_base;
+    char *fcode_filename;
+
+    memory_region_init_ram(&s->vram_mem, OBJECT(s), "tcx.vram",
                            s->vram_size * (1 + 4 + 4));
     vmstate_register_ram_global(&s->vram_mem);
     vram_base = memory_region_get_ram_ptr(&s->vram_mem);
 
+    /* FCode ROM */
+    vmstate_register_ram_global(&s->rom);
+    fcode_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, TCX_ROM_FILE);
+    if (fcode_filename) {
+        ret = load_image_targphys(fcode_filename, s->prom_addr,
+                                  FCODE_MAX_ROM_SIZE);
+        if (ret < 0 || ret > FCODE_MAX_ROM_SIZE) {
+            error_report("tcx: could not load prom '%s'", TCX_ROM_FILE);
+        }
+    }
+
     /* 8-bit plane */
     s->vram = vram_base;
     size = s->vram_size;
-    memory_region_init_alias(&s->vram_8bit, "tcx.vram.8bit",
+    memory_region_init_alias(&s->vram_8bit, OBJECT(s), "tcx.vram.8bit",
                              &s->vram_mem, vram_offset, size);
-    sysbus_init_mmio(dev, &s->vram_8bit);
+    sysbus_init_mmio(sbd, &s->vram_8bit);
     vram_offset += size;
     vram_base += size;
-
-    /* DAC */
-    memory_region_init_io(&s->dac, &tcx_dac_ops, s, "tcx.dac", TCX_DAC_NREGS);
-    sysbus_init_mmio(dev, &s->dac);
-
-    /* TEC (dummy) */
-    memory_region_init_io(&s->tec, &dummy_ops, s, "tcx.tec", TCX_TEC_NREGS);
-    sysbus_init_mmio(dev, &s->tec);
-    /* THC: NetBSD writes here even with 8-bit display: dummy */
-    memory_region_init_io(&s->thc24, &dummy_ops, s, "tcx.thc24",
-                          TCX_THC_NREGS_24);
-    sysbus_init_mmio(dev, &s->thc24);
 
     if (s->depth == 24) {
         /* 24-bit plane */
         size = s->vram_size * 4;
         s->vram24 = (uint32_t *)vram_base;
         s->vram24_offset = vram_offset;
-        memory_region_init_alias(&s->vram_24bit, "tcx.vram.24bit",
+        memory_region_init_alias(&s->vram_24bit, OBJECT(s), "tcx.vram.24bit",
                                  &s->vram_mem, vram_offset, size);
-        sysbus_init_mmio(dev, &s->vram_24bit);
+        sysbus_init_mmio(sbd, &s->vram_24bit);
         vram_offset += size;
         vram_base += size;
 
@@ -567,47 +606,47 @@ static int tcx_init1(SysBusDevice *dev)
         size = s->vram_size * 4;
         s->cplane = (uint32_t *)vram_base;
         s->cplane_offset = vram_offset;
-        memory_region_init_alias(&s->vram_cplane, "tcx.vram.cplane",
+        memory_region_init_alias(&s->vram_cplane, OBJECT(s), "tcx.vram.cplane",
                                  &s->vram_mem, vram_offset, size);
-        sysbus_init_mmio(dev, &s->vram_cplane);
+        sysbus_init_mmio(sbd, &s->vram_cplane);
 
-        s->con = graphic_console_init(DEVICE(dev), &tcx24_ops, s);
+        s->con = graphic_console_init(DEVICE(dev), 0, &tcx24_ops, s);
     } else {
         /* THC 8 bit (dummy) */
-        memory_region_init_io(&s->thc8, &dummy_ops, s, "tcx.thc8",
+        memory_region_init_io(&s->thc8, OBJECT(s), &dummy_ops, s, "tcx.thc8",
                               TCX_THC_NREGS_8);
-        sysbus_init_mmio(dev, &s->thc8);
+        sysbus_init_mmio(sbd, &s->thc8);
 
-        s->con = graphic_console_init(DEVICE(dev), &tcx_ops, s);
+        s->con = graphic_console_init(DEVICE(dev), 0, &tcx_ops, s);
     }
 
     qemu_console_resize(s->con, s->width, s->height);
-    return 0;
 }
 
 static Property tcx_properties[] = {
-    DEFINE_PROP_HEX32("vram_size", TCXState, vram_size, -1),
+    DEFINE_PROP_UINT32("vram_size", TCXState, vram_size, -1),
     DEFINE_PROP_UINT16("width",    TCXState, width,     -1),
     DEFINE_PROP_UINT16("height",   TCXState, height,    -1),
     DEFINE_PROP_UINT16("depth",    TCXState, depth,     -1),
+    DEFINE_PROP_UINT64("prom_addr", TCXState, prom_addr, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static void tcx_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = tcx_init1;
+    dc->realize = tcx_realizefn;
     dc->reset = tcx_reset;
     dc->vmsd = &vmstate_tcx;
     dc->props = tcx_properties;
 }
 
 static const TypeInfo tcx_info = {
-    .name          = "SUNW,tcx",
+    .name          = TYPE_TCX,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(TCXState),
+    .instance_init = tcx_initfn,
     .class_init    = tcx_class_init,
 };
 

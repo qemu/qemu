@@ -467,7 +467,7 @@ static inline void ne2000_mem_writel(NE2000State *s, uint32_t addr,
     addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
-        cpu_to_le32wu((uint32_t *)(s->mem + addr), val);
+        stl_le_p(s->mem + addr, val);
     }
 }
 
@@ -497,7 +497,7 @@ static inline uint32_t ne2000_mem_readl(NE2000State *s, uint32_t addr)
     addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
-        return le32_to_cpupu((uint32_t *)(s->mem + addr));
+        return ldl_le_p(s->mem + addr);
     } else {
         return 0xffffffff;
     }
@@ -615,9 +615,8 @@ const VMStateDescription vmstate_ne2000 = {
     .name = "ne2000",
     .version_id = 2,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .post_load = ne2000_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT8_V(rxcr, NE2000State, 2),
         VMSTATE_UINT8(cmd, NE2000State),
         VMSTATE_UINT32(start, NE2000State),
@@ -645,8 +644,7 @@ static const VMStateDescription vmstate_pci_ne2000 = {
     .name = "ne2000",
     .version_id = 3,
     .minimum_version_id = 3,
-    .minimum_version_id_old = 3,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, PCINE2000State),
         VMSTATE_STRUCT(ne2000, PCINE2000State, 0, vmstate_ne2000, NE2000State),
         VMSTATE_END_OF_LIST()
@@ -693,15 +691,15 @@ static void ne2000_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps ne2000_ops = {
     .read = ne2000_read,
     .write = ne2000_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 /***********************************************************/
 /* PCI NE2000 definitions */
 
-void ne2000_setup_io(NE2000State *s, unsigned size)
+void ne2000_setup_io(NE2000State *s, DeviceState *dev, unsigned size)
 {
-    memory_region_init_io(&s->io, &ne2000_ops, s, "ne2000", size);
+    memory_region_init_io(&s->io, OBJECT(dev), &ne2000_ops, s, "ne2000", size);
 }
 
 static void ne2000_cleanup(NetClientState *nc)
@@ -729,9 +727,9 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
     pci_conf[PCI_INTERRUPT_PIN] = 1; /* interrupt pin A */
 
     s = &d->ne2000;
-    ne2000_setup_io(s, 0x100);
+    ne2000_setup_io(s, DEVICE(pci_dev), 0x100);
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
-    s->irq = d->dev.irq[0];
+    s->irq = pci_allocate_irq(&d->dev);
 
     qemu_macaddr_default_if_unset(&s->c.macaddr);
     ne2000_reset(s);
@@ -752,6 +750,7 @@ static void pci_ne2000_exit(PCIDevice *pci_dev)
 
     memory_region_destroy(&s->io);
     qemu_del_nic(s->nic);
+    qemu_free_irq(s->irq);
 }
 
 static Property ne2000_properties[] = {
@@ -772,6 +771,7 @@ static void ne2000_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     dc->vmsd = &vmstate_pci_ne2000;
     dc->props = ne2000_properties;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
 static const TypeInfo ne2000_info = {

@@ -14,11 +14,31 @@
 #ifndef QEMU_MODULE_H
 #define QEMU_MODULE_H
 
+#include "qemu/osdep.h"
+
+#define DSO_STAMP_FUN         glue(qemu_stamp, CONFIG_STAMP)
+#define DSO_STAMP_FUN_STR     stringify(DSO_STAMP_FUN)
+
+#ifdef BUILD_DSO
+void DSO_STAMP_FUN(void);
+/* This is a dummy symbol to identify a loaded DSO as a QEMU module, so we can
+ * distinguish "version mismatch" from "not a QEMU module", when the stamp
+ * check fails during module loading */
+void qemu_module_dummy(void);
+
+#define module_init(function, type)                                         \
+static void __attribute__((constructor)) do_qemu_init_ ## function(void)    \
+{                                                                           \
+    register_dso_module_init(function, type);                               \
+}
+#else
 /* This should not be used directly.  Use block_init etc. instead.  */
 #define module_init(function, type)                                         \
-static void __attribute__((constructor)) do_qemu_init_ ## function(void) {  \
+static void __attribute__((constructor)) do_qemu_init_ ## function(void)    \
+{                                                                           \
     register_module_init(function, type);                                   \
 }
+#endif
 
 typedef enum {
     MODULE_INIT_BLOCK,
@@ -34,6 +54,7 @@ typedef enum {
 #define type_init(function) module_init(function, MODULE_INIT_QOM)
 
 void register_module_init(void (*fn)(void), module_init_type type);
+void register_dso_module_init(void (*fn)(void), module_init_type type);
 
 void module_call_init(module_init_type type);
 

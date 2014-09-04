@@ -287,7 +287,7 @@ void vmxnet_tx_pkt_build_vheader(struct VmxnetTxPkt *pkt, bool tso_enable,
         break;
 
     default:
-        assert(false);
+        g_assert_not_reached();
     }
 
     if (csum_enable) {

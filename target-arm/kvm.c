@@ -27,45 +27,143 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
 
+int kvm_arm_vcpu_init(CPUState *cs)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    struct kvm_vcpu_init init;
+
+    init.target = cpu->kvm_target;
+    memcpy(init.features, cpu->kvm_init_features, sizeof(init.features));
+
+    return kvm_vcpu_ioctl(cs, KVM_ARM_VCPU_INIT, &init);
+}
+
+bool kvm_arm_create_scratch_host_vcpu(const uint32_t *cpus_to_try,
+                                      int *fdarray,
+                                      struct kvm_vcpu_init *init)
+{
+    int ret, kvmfd = -1, vmfd = -1, cpufd = -1;
+
+    kvmfd = qemu_open("/dev/kvm", O_RDWR);
+    if (kvmfd < 0) {
+        goto err;
+    }
+    vmfd = ioctl(kvmfd, KVM_CREATE_VM, 0);
+    if (vmfd < 0) {
+        goto err;
+    }
+    cpufd = ioctl(vmfd, KVM_CREATE_VCPU, 0);
+    if (cpufd < 0) {
+        goto err;
+    }
+
+    ret = ioctl(vmfd, KVM_ARM_PREFERRED_TARGET, init);
+    if (ret >= 0) {
+        ret = ioctl(cpufd, KVM_ARM_VCPU_INIT, init);
+        if (ret < 0) {
+            goto err;
+        }
+    } else {
+        /* Old kernel which doesn't know about the
+         * PREFERRED_TARGET ioctl: we know it will only support
+         * creating one kind of guest CPU which is its preferred
+         * CPU type.
+         */
+        while (*cpus_to_try != QEMU_KVM_ARM_TARGET_NONE) {
+            init->target = *cpus_to_try++;
+            memset(init->features, 0, sizeof(init->features));
+            ret = ioctl(cpufd, KVM_ARM_VCPU_INIT, init);
+            if (ret >= 0) {
+                break;
+            }
+        }
+        if (ret < 0) {
+            goto err;
+        }
+    }
+
+    fdarray[0] = kvmfd;
+    fdarray[1] = vmfd;
+    fdarray[2] = cpufd;
+
+    return true;
+
+err:
+    if (cpufd >= 0) {
+        close(cpufd);
+    }
+    if (vmfd >= 0) {
+        close(vmfd);
+    }
+    if (kvmfd >= 0) {
+        close(kvmfd);
+    }
+
+    return false;
+}
+
+void kvm_arm_destroy_scratch_host_vcpu(int *fdarray)
+{
+    int i;
+
+    for (i = 2; i >= 0; i--) {
+        close(fdarray[i]);
+    }
+}
+
+static void kvm_arm_host_cpu_class_init(ObjectClass *oc, void *data)
+{
+    ARMHostCPUClass *ahcc = ARM_HOST_CPU_CLASS(oc);
+
+    /* All we really need to set up for the 'host' CPU
+     * is the feature bits -- we rely on the fact that the
+     * various ID register values in ARMCPU are only used for
+     * TCG CPUs.
+     */
+    if (!kvm_arm_get_host_cpu_features(ahcc)) {
+        fprintf(stderr, "Failed to retrieve host CPU features!\n");
+        abort();
+    }
+}
+
+static void kvm_arm_host_cpu_initfn(Object *obj)
+{
+    ARMHostCPUClass *ahcc = ARM_HOST_CPU_GET_CLASS(obj);
+    ARMCPU *cpu = ARM_CPU(obj);
+    CPUARMState *env = &cpu->env;
+
+    cpu->kvm_target = ahcc->target;
+    cpu->dtb_compatible = ahcc->dtb_compatible;
+    env->features = ahcc->features;
+}
+
+static const TypeInfo host_arm_cpu_type_info = {
+    .name = TYPE_ARM_HOST_CPU,
+#ifdef TARGET_AARCH64
+    .parent = TYPE_AARCH64_CPU,
+#else
+    .parent = TYPE_ARM_CPU,
+#endif
+    .instance_init = kvm_arm_host_cpu_initfn,
+    .class_init = kvm_arm_host_cpu_class_init,
+    .class_size = sizeof(ARMHostCPUClass),
+};
+
 int kvm_arch_init(KVMState *s)
 {
     /* For ARM interrupt delivery is always asynchronous,
      * whether we are using an in-kernel VGIC or not.
      */
     kvm_async_interrupts_allowed = true;
+
+    type_register_static(&host_arm_cpu_type_info);
+
     return 0;
 }
 
 unsigned long kvm_arch_vcpu_id(CPUState *cpu)
 {
     return cpu->cpu_index;
-}
-
-int kvm_arch_init_vcpu(CPUState *cs)
-{
-    struct kvm_vcpu_init init;
-    int ret;
-    uint64_t v;
-    struct kvm_one_reg r;
-
-    init.target = KVM_ARM_TARGET_CORTEX_A15;
-    memset(init.features, 0, sizeof(init.features));
-    ret = kvm_vcpu_ioctl(cs, KVM_ARM_VCPU_INIT, &init);
-    if (ret) {
-        return ret;
-    }
-    /* Query the kernel to make sure it supports 32 VFP
-     * registers: QEMU's "cortex-a15" CPU is always a
-     * VFP-D32 core. The simplest way to do this is just
-     * to attempt to read register d31.
-     */
-    r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | KVM_REG_ARM_VFP | 31;
-    r.addr = (uintptr_t)(&v);
-    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
-    if (ret == -ENOENT) {
-        return -EINVAL;
-    }
-    return ret;
 }
 
 /* We track all the KVM devices which need their memory addresses
@@ -78,8 +176,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
  */
 typedef struct KVMDevice {
     struct kvm_arm_device_addr kda;
+    struct kvm_device_attr kdattr;
     MemoryRegion *mr;
     QSLIST_ENTRY(KVMDevice) entries;
+    int dev_fd;
 } KVMDevice;
 
 static QSLIST_HEAD(kvm_devices_head, KVMDevice) kvm_devices_head;
@@ -113,6 +213,29 @@ static MemoryListener devlistener = {
     .region_del = kvm_arm_devlistener_del,
 };
 
+static void kvm_arm_set_device_addr(KVMDevice *kd)
+{
+    struct kvm_device_attr *attr = &kd->kdattr;
+    int ret;
+
+    /* If the device control API is available and we have a device fd on the
+     * KVMDevice struct, let's use the newer API
+     */
+    if (kd->dev_fd >= 0) {
+        uint64_t addr = kd->kda.addr;
+        attr->addr = (uintptr_t)&addr;
+        ret = kvm_device_ioctl(kd->dev_fd, KVM_SET_DEVICE_ATTR, attr);
+    } else {
+        ret = kvm_vm_ioctl(kvm_state, KVM_ARM_SET_DEVICE_ADDR, &kd->kda);
+    }
+
+    if (ret < 0) {
+        fprintf(stderr, "Failed to set device address: %s\n",
+                strerror(-ret));
+        abort();
+    }
+}
+
 static void kvm_arm_machine_init_done(Notifier *notifier, void *data)
 {
     KVMDevice *kd, *tkd;
@@ -120,13 +243,9 @@ static void kvm_arm_machine_init_done(Notifier *notifier, void *data)
     memory_listener_unregister(&devlistener);
     QSLIST_FOREACH_SAFE(kd, &kvm_devices_head, entries, tkd) {
         if (kd->kda.addr != -1) {
-            if (kvm_vm_ioctl(kvm_state, KVM_ARM_SET_DEVICE_ADDR,
-                             &kd->kda) < 0) {
-                fprintf(stderr, "KVM_ARM_SET_DEVICE_ADDRESS failed: %s\n",
-                        strerror(errno));
-                abort();
-            }
+            kvm_arm_set_device_addr(kd);
         }
+        memory_region_unref(kd->mr);
         g_free(kd);
     }
 }
@@ -135,7 +254,8 @@ static Notifier notify = {
     .notify = kvm_arm_machine_init_done,
 };
 
-void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid)
+void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid, uint64_t group,
+                             uint64_t attr, int dev_fd)
 {
     KVMDevice *kd;
 
@@ -151,270 +271,84 @@ void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid)
     kd->mr = mr;
     kd->kda.id = devid;
     kd->kda.addr = -1;
+    kd->kdattr.flags = 0;
+    kd->kdattr.group = group;
+    kd->kdattr.attr = attr;
+    kd->dev_fd = dev_fd;
     QSLIST_INSERT_HEAD(&kvm_devices_head, kd, entries);
+    memory_region_ref(kd->mr);
 }
 
-typedef struct Reg {
-    uint64_t id;
-    int offset;
-} Reg;
-
-#define COREREG(KERNELNAME, QEMUFIELD)                       \
-    {                                                        \
-        KVM_REG_ARM | KVM_REG_SIZE_U32 |                     \
-        KVM_REG_ARM_CORE | KVM_REG_ARM_CORE_REG(KERNELNAME), \
-        offsetof(CPUARMState, QEMUFIELD)                     \
-    }
-
-#define CP15REG(CRN, CRM, OPC1, OPC2, QEMUFIELD) \
-    {                                            \
-        KVM_REG_ARM | KVM_REG_SIZE_U32 |         \
-        (15 << KVM_REG_ARM_COPROC_SHIFT) |       \
-        ((CRN) << KVM_REG_ARM_32_CRN_SHIFT) |    \
-        ((CRM) << KVM_REG_ARM_CRM_SHIFT) |       \
-        ((OPC1) << KVM_REG_ARM_OPC1_SHIFT) |     \
-        ((OPC2) << KVM_REG_ARM_32_OPC2_SHIFT),   \
-        offsetof(CPUARMState, QEMUFIELD)         \
-    }
-
-#define VFPSYSREG(R)                                       \
-    {                                                      \
-        KVM_REG_ARM | KVM_REG_SIZE_U32 | KVM_REG_ARM_VFP | \
-        KVM_REG_ARM_VFP_##R,                               \
-        offsetof(CPUARMState, vfp.xregs[ARM_VFP_##R])      \
-    }
-
-static const Reg regs[] = {
-    /* R0_usr .. R14_usr */
-    COREREG(usr_regs.uregs[0], regs[0]),
-    COREREG(usr_regs.uregs[1], regs[1]),
-    COREREG(usr_regs.uregs[2], regs[2]),
-    COREREG(usr_regs.uregs[3], regs[3]),
-    COREREG(usr_regs.uregs[4], regs[4]),
-    COREREG(usr_regs.uregs[5], regs[5]),
-    COREREG(usr_regs.uregs[6], regs[6]),
-    COREREG(usr_regs.uregs[7], regs[7]),
-    COREREG(usr_regs.uregs[8], usr_regs[0]),
-    COREREG(usr_regs.uregs[9], usr_regs[1]),
-    COREREG(usr_regs.uregs[10], usr_regs[2]),
-    COREREG(usr_regs.uregs[11], usr_regs[3]),
-    COREREG(usr_regs.uregs[12], usr_regs[4]),
-    COREREG(usr_regs.uregs[13], banked_r13[0]),
-    COREREG(usr_regs.uregs[14], banked_r14[0]),
-    /* R13, R14, SPSR for SVC, ABT, UND, IRQ banks */
-    COREREG(svc_regs[0], banked_r13[1]),
-    COREREG(svc_regs[1], banked_r14[1]),
-    COREREG(svc_regs[2], banked_spsr[1]),
-    COREREG(abt_regs[0], banked_r13[2]),
-    COREREG(abt_regs[1], banked_r14[2]),
-    COREREG(abt_regs[2], banked_spsr[2]),
-    COREREG(und_regs[0], banked_r13[3]),
-    COREREG(und_regs[1], banked_r14[3]),
-    COREREG(und_regs[2], banked_spsr[3]),
-    COREREG(irq_regs[0], banked_r13[4]),
-    COREREG(irq_regs[1], banked_r14[4]),
-    COREREG(irq_regs[2], banked_spsr[4]),
-    /* R8_fiq .. R14_fiq and SPSR_fiq */
-    COREREG(fiq_regs[0], fiq_regs[0]),
-    COREREG(fiq_regs[1], fiq_regs[1]),
-    COREREG(fiq_regs[2], fiq_regs[2]),
-    COREREG(fiq_regs[3], fiq_regs[3]),
-    COREREG(fiq_regs[4], fiq_regs[4]),
-    COREREG(fiq_regs[5], banked_r13[5]),
-    COREREG(fiq_regs[6], banked_r14[5]),
-    COREREG(fiq_regs[7], banked_spsr[5]),
-    /* R15 */
-    COREREG(usr_regs.uregs[15], regs[15]),
-    /* A non-comprehensive set of cp15 registers.
-     * TODO: drive this from the cp_regs hashtable instead.
-     */
-    CP15REG(1, 0, 0, 0, cp15.c1_sys), /* SCTLR */
-    CP15REG(2, 0, 0, 2, cp15.c2_control), /* TTBCR */
-    CP15REG(3, 0, 0, 0, cp15.c3), /* DACR */
-    /* VFP system registers */
-    VFPSYSREG(FPSID),
-    VFPSYSREG(MVFR1),
-    VFPSYSREG(MVFR0),
-    VFPSYSREG(FPEXC),
-    VFPSYSREG(FPINST),
-    VFPSYSREG(FPINST2),
-};
-
-int kvm_arch_put_registers(CPUState *cs, int level)
+bool write_kvmstate_to_list(ARMCPU *cpu)
 {
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
-    struct kvm_one_reg r;
-    int mode, bn;
-    int ret, i;
-    uint32_t cpsr, fpscr;
-    uint64_t ttbr;
+    CPUState *cs = CPU(cpu);
+    int i;
+    bool ok = true;
 
-    /* Make sure the banked regs are properly set */
-    mode = env->uncached_cpsr & CPSR_M;
-    bn = bank_number(mode);
-    if (mode == ARM_CPU_MODE_FIQ) {
-        memcpy(env->fiq_regs, env->regs + 8, 5 * sizeof(uint32_t));
-    } else {
-        memcpy(env->usr_regs, env->regs + 8, 5 * sizeof(uint32_t));
-    }
-    env->banked_r13[bn] = env->regs[13];
-    env->banked_r14[bn] = env->regs[14];
-    env->banked_spsr[bn] = env->spsr;
+    for (i = 0; i < cpu->cpreg_array_len; i++) {
+        struct kvm_one_reg r;
+        uint64_t regidx = cpu->cpreg_indexes[i];
+        uint32_t v32;
+        int ret;
 
-    /* Now we can safely copy stuff down to the kernel */
-    for (i = 0; i < ARRAY_SIZE(regs); i++) {
-        r.id = regs[i].id;
-        r.addr = (uintptr_t)(env) + regs[i].offset;
-        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
+        r.id = regidx;
+
+        switch (regidx & KVM_REG_SIZE_MASK) {
+        case KVM_REG_SIZE_U32:
+            r.addr = (uintptr_t)&v32;
+            ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
+            if (!ret) {
+                cpu->cpreg_values[i] = v32;
+            }
+            break;
+        case KVM_REG_SIZE_U64:
+            r.addr = (uintptr_t)(cpu->cpreg_values + i);
+            ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
+            break;
+        default:
+            abort();
+        }
         if (ret) {
-            return ret;
+            ok = false;
         }
     }
-
-    /* Special cases which aren't a single CPUARMState field */
-    cpsr = cpsr_read(env);
-    r.id = KVM_REG_ARM | KVM_REG_SIZE_U32 |
-        KVM_REG_ARM_CORE | KVM_REG_ARM_CORE_REG(usr_regs.ARM_cpsr);
-    r.addr = (uintptr_t)(&cpsr);
-    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
-    if (ret) {
-        return ret;
-    }
-
-    /* TTBR0: cp15 crm=2 opc1=0 */
-    ttbr = ((uint64_t)env->cp15.c2_base0_hi << 32) | env->cp15.c2_base0;
-    r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | (15 << KVM_REG_ARM_COPROC_SHIFT) |
-        (2 << KVM_REG_ARM_CRM_SHIFT) | (0 << KVM_REG_ARM_OPC1_SHIFT);
-    r.addr = (uintptr_t)(&ttbr);
-    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
-    if (ret) {
-        return ret;
-    }
-
-    /* TTBR1: cp15 crm=2 opc1=1 */
-    ttbr = ((uint64_t)env->cp15.c2_base1_hi << 32) | env->cp15.c2_base1;
-    r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | (15 << KVM_REG_ARM_COPROC_SHIFT) |
-        (2 << KVM_REG_ARM_CRM_SHIFT) | (1 << KVM_REG_ARM_OPC1_SHIFT);
-    r.addr = (uintptr_t)(&ttbr);
-    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
-    if (ret) {
-        return ret;
-    }
-
-    /* VFP registers */
-    r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | KVM_REG_ARM_VFP;
-    for (i = 0; i < 32; i++) {
-        r.addr = (uintptr_t)(&env->vfp.regs[i]);
-        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
-        if (ret) {
-            return ret;
-        }
-        r.id++;
-    }
-
-    r.id = KVM_REG_ARM | KVM_REG_SIZE_U32 | KVM_REG_ARM_VFP |
-        KVM_REG_ARM_VFP_FPSCR;
-    fpscr = vfp_get_fpscr(env);
-    r.addr = (uintptr_t)&fpscr;
-    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
-
-    return ret;
+    return ok;
 }
 
-int kvm_arch_get_registers(CPUState *cs)
+bool write_list_to_kvmstate(ARMCPU *cpu)
 {
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
-    struct kvm_one_reg r;
-    int mode, bn;
-    int ret, i;
-    uint32_t cpsr, fpscr;
-    uint64_t ttbr;
+    CPUState *cs = CPU(cpu);
+    int i;
+    bool ok = true;
 
-    for (i = 0; i < ARRAY_SIZE(regs); i++) {
-        r.id = regs[i].id;
-        r.addr = (uintptr_t)(env) + regs[i].offset;
-        ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
+    for (i = 0; i < cpu->cpreg_array_len; i++) {
+        struct kvm_one_reg r;
+        uint64_t regidx = cpu->cpreg_indexes[i];
+        uint32_t v32;
+        int ret;
+
+        r.id = regidx;
+        switch (regidx & KVM_REG_SIZE_MASK) {
+        case KVM_REG_SIZE_U32:
+            v32 = cpu->cpreg_values[i];
+            r.addr = (uintptr_t)&v32;
+            break;
+        case KVM_REG_SIZE_U64:
+            r.addr = (uintptr_t)(cpu->cpreg_values + i);
+            break;
+        default:
+            abort();
+        }
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
         if (ret) {
-            return ret;
+            /* We might fail for "unknown register" and also for
+             * "you tried to set a register which is constant with
+             * a different value from what it actually contains".
+             */
+            ok = false;
         }
     }
-
-    /* Special cases which aren't a single CPUARMState field */
-    r.id = KVM_REG_ARM | KVM_REG_SIZE_U32 |
-        KVM_REG_ARM_CORE | KVM_REG_ARM_CORE_REG(usr_regs.ARM_cpsr);
-    r.addr = (uintptr_t)(&cpsr);
-    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
-    if (ret) {
-        return ret;
-    }
-    cpsr_write(env, cpsr, 0xffffffff);
-
-    /* TTBR0: cp15 crm=2 opc1=0 */
-    r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | (15 << KVM_REG_ARM_COPROC_SHIFT) |
-        (2 << KVM_REG_ARM_CRM_SHIFT) | (0 << KVM_REG_ARM_OPC1_SHIFT);
-    r.addr = (uintptr_t)(&ttbr);
-    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
-    if (ret) {
-        return ret;
-    }
-    env->cp15.c2_base0_hi = ttbr >> 32;
-    env->cp15.c2_base0 = ttbr;
-
-    /* TTBR1: cp15 crm=2 opc1=1 */
-    r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | (15 << KVM_REG_ARM_COPROC_SHIFT) |
-        (2 << KVM_REG_ARM_CRM_SHIFT) | (1 << KVM_REG_ARM_OPC1_SHIFT);
-    r.addr = (uintptr_t)(&ttbr);
-    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
-    if (ret) {
-        return ret;
-    }
-    env->cp15.c2_base1_hi = ttbr >> 32;
-    env->cp15.c2_base1 = ttbr;
-
-    /* Make sure the current mode regs are properly set */
-    mode = env->uncached_cpsr & CPSR_M;
-    bn = bank_number(mode);
-    if (mode == ARM_CPU_MODE_FIQ) {
-        memcpy(env->regs + 8, env->fiq_regs, 5 * sizeof(uint32_t));
-    } else {
-        memcpy(env->regs + 8, env->usr_regs, 5 * sizeof(uint32_t));
-    }
-    env->regs[13] = env->banked_r13[bn];
-    env->regs[14] = env->banked_r14[bn];
-    env->spsr = env->banked_spsr[bn];
-
-    /* The main GET_ONE_REG loop above set c2_control, but we need to
-     * update some extra cached precomputed values too.
-     * When this is driven from the cp_regs hashtable then this ugliness
-     * can disappear because we'll use the access function which sets
-     * these values automatically.
-     */
-    env->cp15.c2_mask = ~(0xffffffffu >> env->cp15.c2_control);
-    env->cp15.c2_base_mask = ~(0x3fffu >> env->cp15.c2_control);
-
-    /* VFP registers */
-    r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | KVM_REG_ARM_VFP;
-    for (i = 0; i < 32; i++) {
-        r.addr = (uintptr_t)(&env->vfp.regs[i]);
-        ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
-        if (ret) {
-            return ret;
-        }
-        r.id++;
-    }
-
-    r.id = KVM_REG_ARM | KVM_REG_SIZE_U32 | KVM_REG_ARM_VFP |
-        KVM_REG_ARM_VFP_FPSCR;
-    r.addr = (uintptr_t)&fpscr;
-    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
-    if (ret) {
-        return ret;
-    }
-    vfp_set_fpscr(env, fpscr);
-
-    return 0;
+    return ok;
 }
 
 void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
@@ -428,10 +362,6 @@ void kvm_arch_post_run(CPUState *cs, struct kvm_run *run)
 int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 {
     return 0;
-}
-
-void kvm_arch_reset_vcpu(CPUState *cs)
-{
 }
 
 bool kvm_arch_stop_on_emulation_error(CPUState *cs)
@@ -490,4 +420,24 @@ int kvm_arch_remove_sw_breakpoint(CPUState *cs,
 void kvm_arch_remove_all_hw_breakpoints(void)
 {
     qemu_log_mask(LOG_UNIMP, "%s: not implemented\n", __func__);
+}
+
+void kvm_arch_init_irq_routing(KVMState *s)
+{
+}
+
+int kvm_arch_irqchip_create(KVMState *s)
+{
+    int ret;
+
+    /* If we can create the VGIC using the newer device control API, we
+     * let the device do this when it initializes itself, otherwise we
+     * fall back to the old API */
+
+    ret = kvm_create_device(s, KVM_DEV_TYPE_ARM_VGIC_V2, true);
+    if (ret == 0) {
+        return 1;
+    }
+
+    return 0;
 }

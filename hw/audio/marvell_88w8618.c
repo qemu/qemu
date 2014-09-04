@@ -12,7 +12,6 @@
 #include "hw/sysbus.h"
 #include "hw/hw.h"
 #include "hw/i2c/i2c.h"
-#include "hw/sysbus.h"
 #include "audio/audio.h"
 
 #define MP_AUDIO_SIZE           0x00001000
@@ -37,8 +36,13 @@
 #define MP_AUDIO_CLOCK_24MHZ    (1 << 9)
 #define MP_AUDIO_MONO           (1 << 14)
 
+#define TYPE_MV88W8618_AUDIO "mv88w8618_audio"
+#define MV88W8618_AUDIO(obj) \
+    OBJECT_CHECK(mv88w8618_audio_state, (obj), TYPE_MV88W8618_AUDIO)
+
 typedef struct mv88w8618_audio_state {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq irq;
     uint32_t playback_mode;
@@ -220,8 +224,7 @@ static void mv88w8618_audio_write(void *opaque, hwaddr offset,
 
 static void mv88w8618_audio_reset(DeviceState *d)
 {
-    mv88w8618_audio_state *s = FROM_SYSBUS(mv88w8618_audio_state,
-                                           SYS_BUS_DEVICE(d));
+    mv88w8618_audio_state *s = MV88W8618_AUDIO(d);
 
     s->playback_mode = 0;
     s->status = 0;
@@ -239,13 +242,13 @@ static const MemoryRegionOps mv88w8618_audio_ops = {
 
 static int mv88w8618_audio_init(SysBusDevice *dev)
 {
-    mv88w8618_audio_state *s = FROM_SYSBUS(mv88w8618_audio_state, dev);
+    mv88w8618_audio_state *s = MV88W8618_AUDIO(dev);
 
     sysbus_init_irq(dev, &s->irq);
 
     wm8750_data_req_set(s->wm, mv88w8618_audio_callback, s);
 
-    memory_region_init_io(&s->iomem, &mv88w8618_audio_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &mv88w8618_audio_ops, s,
                           "audio", MP_AUDIO_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 
@@ -256,7 +259,6 @@ static const VMStateDescription mv88w8618_audio_vmsd = {
     .name = "mv88w8618_audio",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(playback_mode, mv88w8618_audio_state),
         VMSTATE_UINT32(status, mv88w8618_audio_state),
@@ -285,10 +287,12 @@ static void mv88w8618_audio_class_init(ObjectClass *klass, void *data)
     dc->reset = mv88w8618_audio_reset;
     dc->vmsd = &mv88w8618_audio_vmsd;
     dc->props = mv88w8618_audio_properties;
+    /* Reason: pointer property "wm8750" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo mv88w8618_audio_info = {
-    .name          = "mv88w8618_audio",
+    .name          = TYPE_MV88W8618_AUDIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_audio_state),
     .class_init    = mv88w8618_audio_class_init,

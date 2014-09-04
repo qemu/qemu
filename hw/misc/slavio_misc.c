@@ -34,8 +34,12 @@
  * This also includes the PMC CPU idle controller.
  */
 
+#define TYPE_SLAVIO_MISC "slavio_misc"
+#define SLAVIO_MISC(obj) OBJECT_CHECK(MiscState, (obj), TYPE_SLAVIO_MISC)
+
 typedef struct MiscState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion cfg_iomem;
     MemoryRegion diag_iomem;
     MemoryRegion mdm_iomem;
@@ -53,8 +57,12 @@ typedef struct MiscState {
     uint16_t leds;
 } MiscState;
 
+#define TYPE_APC "apc"
+#define APC(obj) OBJECT_CHECK(APCState, (obj), TYPE_APC)
+
 typedef struct APCState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq cpu_halt;
 } APCState;
@@ -88,7 +96,7 @@ static void slavio_misc_update_irq(void *opaque)
 
 static void slavio_misc_reset(DeviceState *d)
 {
-    MiscState *s = container_of(d, MiscState, busdev.qdev);
+    MiscState *s = SLAVIO_MISC(d);
 
     // Diagnostic and system control registers not cleared in reset
     s->config = s->aux1 = s->aux2 = s->mctrl = 0;
@@ -368,7 +376,7 @@ static void slavio_led_mem_writew(void *opaque, hwaddr addr,
 {
     MiscState *s = opaque;
 
-    trace_slavio_led_mem_readw(val & 0xffff);
+    trace_slavio_led_mem_writew(val & 0xffff);
     switch (addr) {
     case 0:
         s->leds = val;
@@ -392,8 +400,7 @@ static const VMStateDescription vmstate_misc = {
     .name ="slavio_misc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(dummy, MiscState),
         VMSTATE_UINT8(config, MiscState),
         VMSTATE_UINT8(aux1, MiscState),
@@ -407,63 +414,64 @@ static const VMStateDescription vmstate_misc = {
 
 static int apc_init1(SysBusDevice *dev)
 {
-    APCState *s = FROM_SYSBUS(APCState, dev);
+    APCState *s = APC(dev);
 
     sysbus_init_irq(dev, &s->cpu_halt);
 
     /* Power management (APC) XXX: not a Slavio device */
-    memory_region_init_io(&s->iomem, &apc_mem_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &apc_mem_ops, s,
                           "apc", MISC_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
 
-static int slavio_misc_init1(SysBusDevice *dev)
+static int slavio_misc_init1(SysBusDevice *sbd)
 {
-    MiscState *s = FROM_SYSBUS(MiscState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    MiscState *s = SLAVIO_MISC(dev);
 
-    sysbus_init_irq(dev, &s->irq);
-    sysbus_init_irq(dev, &s->fdc_tc);
+    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &s->fdc_tc);
 
     /* 8 bit registers */
     /* Slavio control */
-    memory_region_init_io(&s->cfg_iomem, &slavio_cfg_mem_ops, s,
+    memory_region_init_io(&s->cfg_iomem, OBJECT(s), &slavio_cfg_mem_ops, s,
                           "configuration", MISC_SIZE);
-    sysbus_init_mmio(dev, &s->cfg_iomem);
+    sysbus_init_mmio(sbd, &s->cfg_iomem);
 
     /* Diagnostics */
-    memory_region_init_io(&s->diag_iomem, &slavio_diag_mem_ops, s,
+    memory_region_init_io(&s->diag_iomem, OBJECT(s), &slavio_diag_mem_ops, s,
                           "diagnostic", MISC_SIZE);
-    sysbus_init_mmio(dev, &s->diag_iomem);
+    sysbus_init_mmio(sbd, &s->diag_iomem);
 
     /* Modem control */
-    memory_region_init_io(&s->mdm_iomem, &slavio_mdm_mem_ops, s,
+    memory_region_init_io(&s->mdm_iomem, OBJECT(s), &slavio_mdm_mem_ops, s,
                           "modem", MISC_SIZE);
-    sysbus_init_mmio(dev, &s->mdm_iomem);
+    sysbus_init_mmio(sbd, &s->mdm_iomem);
 
     /* 16 bit registers */
     /* ss600mp diag LEDs */
-    memory_region_init_io(&s->led_iomem, &slavio_led_mem_ops, s,
+    memory_region_init_io(&s->led_iomem, OBJECT(s), &slavio_led_mem_ops, s,
                           "leds", MISC_SIZE);
-    sysbus_init_mmio(dev, &s->led_iomem);
+    sysbus_init_mmio(sbd, &s->led_iomem);
 
     /* 32 bit registers */
     /* System control */
-    memory_region_init_io(&s->sysctrl_iomem, &slavio_sysctrl_mem_ops, s,
+    memory_region_init_io(&s->sysctrl_iomem, OBJECT(s), &slavio_sysctrl_mem_ops, s,
                           "system-control", MISC_SIZE);
-    sysbus_init_mmio(dev, &s->sysctrl_iomem);
+    sysbus_init_mmio(sbd, &s->sysctrl_iomem);
 
     /* AUX 1 (Misc System Functions) */
-    memory_region_init_io(&s->aux1_iomem, &slavio_aux1_mem_ops, s,
+    memory_region_init_io(&s->aux1_iomem, OBJECT(s), &slavio_aux1_mem_ops, s,
                           "misc-system-functions", MISC_SIZE);
-    sysbus_init_mmio(dev, &s->aux1_iomem);
+    sysbus_init_mmio(sbd, &s->aux1_iomem);
 
     /* AUX 2 (Software Powerdown Control) */
-    memory_region_init_io(&s->aux2_iomem, &slavio_aux2_mem_ops, s,
+    memory_region_init_io(&s->aux2_iomem, OBJECT(s), &slavio_aux2_mem_ops, s,
                           "software-powerdown-control", MISC_SIZE);
-    sysbus_init_mmio(dev, &s->aux2_iomem);
+    sysbus_init_mmio(sbd, &s->aux2_iomem);
 
-    qdev_init_gpio_in(&dev->qdev, slavio_set_power_fail, 1);
+    qdev_init_gpio_in(dev, slavio_set_power_fail, 1);
 
     return 0;
 }
@@ -479,7 +487,7 @@ static void slavio_misc_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo slavio_misc_info = {
-    .name          = "slavio_misc",
+    .name          = TYPE_SLAVIO_MISC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MiscState),
     .class_init    = slavio_misc_class_init,
@@ -493,7 +501,7 @@ static void apc_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo apc_info = {
-    .name          = "apc",
+    .name          = TYPE_APC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MiscState),
     .class_init    = apc_class_init,

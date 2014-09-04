@@ -37,29 +37,36 @@ typedef struct PITChannelInfo {
     int out;
 } PITChannelInfo;
 
+#define TYPE_I8254 "isa-pit"
+#define TYPE_KVM_I8254 "kvm-pit"
+
 static inline ISADevice *pit_init(ISABus *bus, int base, int isa_irq,
                                   qemu_irq alt_irq)
 {
-    ISADevice *dev;
+    DeviceState *dev;
+    ISADevice *d;
 
-    dev = isa_create(bus, "isa-pit");
-    qdev_prop_set_uint32(&dev->qdev, "iobase", base);
-    qdev_init_nofail(&dev->qdev);
-    qdev_connect_gpio_out(&dev->qdev, 0,
-                          isa_irq >= 0 ? isa_get_irq(dev, isa_irq) : alt_irq);
+    d = isa_create(bus, TYPE_I8254);
+    dev = DEVICE(d);
+    qdev_prop_set_uint32(dev, "iobase", base);
+    qdev_init_nofail(dev);
+    qdev_connect_gpio_out(dev, 0,
+                          isa_irq >= 0 ? isa_get_irq(d, isa_irq) : alt_irq);
 
-    return dev;
+    return d;
 }
 
 static inline ISADevice *kvm_pit_init(ISABus *bus, int base)
 {
-    ISADevice *dev;
+    DeviceState *dev;
+    ISADevice *d;
 
-    dev = isa_create(bus, "kvm-pit");
-    qdev_prop_set_uint32(&dev->qdev, "iobase", base);
-    qdev_init_nofail(&dev->qdev);
+    d = isa_create(bus, TYPE_KVM_I8254);
+    dev = DEVICE(d);
+    qdev_prop_set_uint32(dev, "iobase", base);
+    qdev_init_nofail(dev);
 
-    return dev;
+    return d;
 }
 
 void pit_set_gate(ISADevice *dev, int channel, int val);

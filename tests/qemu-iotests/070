@@ -1,0 +1,85 @@
+#!/bin/bash
+#
+# Test VHDX log replay from an image with a journal that needs to be
+# replayed
+#
+# Copyright (C) 2013 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=jcody@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt vhdx
+_supported_proto generic
+_supported_os Linux
+
+# With the log replayed, the pattern 0xa5 extends to 0xc025000
+# If the log was not replayed, it would only extend to 0xc000000
+#
+# This image is a 10G dynamic image, with 4M block size, and 1 unplayed
+# data sector in the log
+#
+# This image was created with qemu-img, however it was verified using
+# Hyper-V to properly replay the logs and give the same post-replay
+# image as qemu.
+_use_sample_img iotest-dirtylog-10G-4M.vhdx.bz2
+
+echo
+echo "=== Verify open image read-only fails, due to dirty log ==="
+$QEMU_IO -r -c "read -pP 0xa5 0 18M" "$TEST_IMG" 2>&1 | _filter_testdir \
+                                                      | _filter_qemu_io
+
+echo "=== Verify open image replays log  ==="
+$QEMU_IO  -c "read -pP 0xa5 0 18M" "$TEST_IMG" | _filter_qemu_io
+
+# extract fresh sample image again
+_use_sample_img iotest-dirtylog-10G-4M.vhdx.bz2
+
+echo "=== Verify qemu-img check -r all replays log  ==="
+$QEMU_IMG check -r all "$TEST_IMG" 2>&1 | _filter_testdir | _filter_qemu
+
+echo "=== Verify open image read-only succeeds after log replay ==="
+$QEMU_IO -r -c "read -pP 0xa5 0 18M" "$TEST_IMG" 2>&1 | _filter_testdir \
+                                                      | _filter_qemu_io
+
+_cleanup_test_img
+_use_sample_img test-disk2vhd.vhdx.bz2
+
+echo
+echo "=== Verify image created by Disk2VHD can be opened ==="
+$QEMU_IMG info "$TEST_IMG" 2>&1 | _filter_testdir | _filter_qemu
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

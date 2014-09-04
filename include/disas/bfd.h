@@ -379,6 +379,7 @@ int print_insn_h8300            (bfd_vma, disassemble_info*);
 int print_insn_h8300h           (bfd_vma, disassemble_info*);
 int print_insn_h8300s           (bfd_vma, disassemble_info*);
 int print_insn_h8500            (bfd_vma, disassemble_info*);
+int print_insn_arm_a64          (bfd_vma, disassemble_info*);
 int print_insn_alpha            (bfd_vma, disassemble_info*);
 disassembler_ftype arc_get_disassembler (int, int);
 int print_insn_arm              (bfd_vma, disassemble_info*);

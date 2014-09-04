@@ -15,39 +15,27 @@
 #define QTEST_H
 
 #include "qemu-common.h"
+#include "qapi/error.h"
 
-#if !defined(CONFIG_USER_ONLY)
 extern bool qtest_allowed;
-extern const char *qtest_chrdev;
-extern const char *qtest_log;
 
 static inline bool qtest_enabled(void)
 {
     return qtest_allowed;
 }
 
+bool qtest_driver(void);
+
+int qtest_init_accel(MachineClass *mc);
+void qtest_init(const char *qtest_chrdev, const char *qtest_log, Error **errp);
+
 static inline int qtest_available(void)
 {
+#ifdef CONFIG_POSIX
     return 1;
-}
-
-int qtest_init(void);
 #else
-static inline bool qtest_enabled(void)
-{
-    return false;
-}
-
-static inline int qtest_available(void)
-{
     return 0;
-}
-
-static inline int qtest_init(void)
-{
-    return 0;
-}
-
 #endif
+}
 
 #endif

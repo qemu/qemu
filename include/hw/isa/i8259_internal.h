@@ -42,7 +42,7 @@ typedef struct PICCommonState PICCommonState;
 typedef struct PICCommonClass
 {
     ISADeviceClass parent_class;
-    void (*init)(PICCommonState *s);
+
     void (*pre_save)(PICCommonState *s);
     void (*post_load)(PICCommonState *s);
 } PICCommonClass;

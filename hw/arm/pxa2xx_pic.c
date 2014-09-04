@@ -31,8 +31,15 @@
 
 #define PXA2XX_PIC_SRCS	40
 
+#define TYPE_PXA2XX_PIC "pxa2xx_pic"
+#define PXA2XX_PIC(obj) \
+    OBJECT_CHECK(PXA2xxPICState, (obj), TYPE_PXA2XX_PIC)
+
 typedef struct {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     ARMCPU *cpu;
     uint32_t int_enabled[2];
@@ -98,7 +105,7 @@ static inline uint32_t pxa2xx_pic_highest(PXA2xxPICState *s) {
 
     for (i = PXA2XX_PIC_SRCS - 1; i >= 0; i --) {
         irq = s->priority[i] & 0x3f;
-        if ((s->priority[i] & (1 << 31)) && irq < PXA2XX_PIC_SRCS) {
+        if ((s->priority[i] & (1U << 31)) && irq < PXA2XX_PIC_SRCS) {
             /* Source peripheral ID is valid.  */
             bit = 1 << (irq & 31);
             int_set = (irq >= 32);
@@ -112,7 +119,7 @@ static inline uint32_t pxa2xx_pic_highest(PXA2xxPICState *s) {
             if (mask[int_set] & bit & ~s->is_fiq[int_set]) {
                 /* IRQ asserted */
                 ichp &= 0x0000ffff;
-                ichp |= (1 << 31) | (irq << 16);
+                ichp |= (1U << 31) | (irq << 16);
             }
         }
     }
@@ -210,20 +217,17 @@ static const int pxa2xx_cp_reg_map[0x10] = {
     [0xa] = ICPR2,
 };
 
-static int pxa2xx_pic_cp_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                              uint64_t *value)
+static uint64_t pxa2xx_pic_cp_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     int offset = pxa2xx_cp_reg_map[ri->crn];
-    *value = pxa2xx_pic_mem_read(ri->opaque, offset, 4);
-    return 0;
+    return pxa2xx_pic_mem_read(ri->opaque, offset, 4);
 }
 
-static int pxa2xx_pic_cp_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                               uint64_t value)
+static void pxa2xx_pic_cp_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
 {
     int offset = pxa2xx_cp_reg_map[ri->crn];
     pxa2xx_pic_mem_write(ri->opaque, offset, value, 4);
-    return 0;
 }
 
 #define REGINFO_FOR_PIC_CP(NAME, CRN) \
@@ -260,9 +264,8 @@ static int pxa2xx_pic_post_load(void *opaque, int version_id)
 
 DeviceState *pxa2xx_pic_init(hwaddr base, ARMCPU *cpu)
 {
-    CPUARMState *env = &cpu->env;
-    DeviceState *dev = qdev_create(NULL, "pxa2xx_pic");
-    PXA2xxPICState *s = FROM_SYSBUS(PXA2xxPICState, SYS_BUS_DEVICE(dev));
+    DeviceState *dev = qdev_create(NULL, TYPE_PXA2XX_PIC);
+    PXA2xxPICState *s = PXA2XX_PIC(dev);
 
     s->cpu = cpu;
 
@@ -278,13 +281,13 @@ DeviceState *pxa2xx_pic_init(hwaddr base, ARMCPU *cpu)
     qdev_init_gpio_in(dev, pxa2xx_pic_set_irq, PXA2XX_PIC_SRCS);
 
     /* Enable IC memory-mapped registers access.  */
-    memory_region_init_io(&s->iomem, &pxa2xx_pic_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &pxa2xx_pic_ops, s,
                           "pxa2xx-pic", 0x00100000);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
 
     /* Enable IC coprocessor access.  */
-    define_arm_cp_regs_with_opaque(arm_env_get_cpu(env), pxa_pic_cp_reginfo, s);
+    define_arm_cp_regs_with_opaque(cpu, pxa_pic_cp_reginfo, s);
 
     return dev;
 }
@@ -293,7 +296,6 @@ static VMStateDescription vmstate_pxa2xx_pic_regs = {
     .name = "pxa2xx_pic",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .post_load = pxa2xx_pic_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(int_enabled, PXA2xxPICState, 2),
@@ -321,7 +323,7 @@ static void pxa2xx_pic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pxa2xx_pic_info = {
-    .name          = "pxa2xx_pic",
+    .name          = TYPE_PXA2XX_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxPICState),
     .class_init    = pxa2xx_pic_class_init,

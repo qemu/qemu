@@ -43,22 +43,30 @@
      OBJECT_CHECK(MCHPCIState, (obj), TYPE_MCH_PCI_DEVICE)
 
 typedef struct MCHPCIState {
-    PCIDevice d;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion *ram_memory;
     MemoryRegion *pci_address_space;
     MemoryRegion *system_memory;
     MemoryRegion *address_space_io;
     PAMMemoryRegion pam_regions[13];
     MemoryRegion smram_region;
-    MemoryRegion pci_hole;
-    MemoryRegion pci_hole_64bit;
+    PcPciInfo pci_info;
     uint8_t smm_enabled;
     ram_addr_t below_4g_mem_size;
     ram_addr_t above_4g_mem_size;
+    uint64_t pci_hole64_size;
+    PcGuestInfo *guest_info;
+    uint32_t short_root_bus;
 } MCHPCIState;
 
 typedef struct Q35PCIHost {
-    PCIExpressHost host;
+    /*< private >*/
+    PCIExpressHost parent_obj;
+    /*< public >*/
+
     MCHPCIState mch;
 } Q35PCIHost;
 
@@ -76,11 +84,12 @@ typedef struct Q35PCIHost {
 #define MCH_HOST_BRIDGE_CONFIG_DATA            0xcfc
 
 /* D0:F0 configuration space */
-#define MCH_HOST_BRIDGE_REVISION_DEFUALT       0x0
+#define MCH_HOST_BRIDGE_REVISION_DEFAULT       0x0
 
 #define MCH_HOST_BRIDGE_PCIEXBAR               0x60    /* 64bit register */
 #define MCH_HOST_BRIDGE_PCIEXBAR_SIZE          8       /* 64bit register */
 #define MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT       0xb0000000
+#define MCH_HOST_BRIDGE_PCIEXBAR_MAX           (0x10000000) /* 256M */
 #define MCH_HOST_BRIDGE_PCIEXBAR_ADMSK         Q35_MASK(64, 35, 28)
 #define MCH_HOST_BRIDGE_PCIEXBAR_128ADMSK      ((uint64_t)(1 << 26))
 #define MCH_HOST_BRIDGE_PCIEXBAR_64ADMSK       ((uint64_t)(1 << 25))
@@ -116,8 +125,8 @@ typedef struct Q35PCIHost {
 #define MCH_HOST_BRIDGE_PAM_RE                 ((uint8_t)0x1)
 #define MCH_HOST_BRIDGE_PAM_MASK               ((uint8_t)0x3)
 
-#define MCH_HOST_BRDIGE_SMRAM                  0x9d
-#define MCH_HOST_BRDIGE_SMRAM_SIZE             1
+#define MCH_HOST_BRIDGE_SMRAM                  0x9d
+#define MCH_HOST_BRIDGE_SMRAM_SIZE             1
 #define MCH_HOST_BRIDGE_SMRAM_DEFAULT          ((uint8_t)0x2)
 #define MCH_HOST_BRIDGE_SMRAM_D_OPEN           ((uint8_t)(1 << 6))
 #define MCH_HOST_BRIDGE_SMRAM_D_CLS            ((uint8_t)(1 << 5))
@@ -131,19 +140,21 @@ typedef struct Q35PCIHost {
 #define MCH_HOST_BRIDGE_UPPER_SYSTEM_BIOS_END  0x100000
 
 #define MCH_HOST_BRIDGE_ESMRAMC                0x9e
-#define MCH_HOST_BRDIGE_ESMRAMC_H_SMRAME       ((uint8_t)(1 << 6))
-#define MCH_HOST_BRDIGE_ESMRAMC_E_SMERR        ((uint8_t)(1 << 5))
-#define MCH_HOST_BRDIGE_ESMRAMC_SM_CACHE       ((uint8_t)(1 << 4))
-#define MCH_HOST_BRDIGE_ESMRAMC_SM_L1          ((uint8_t)(1 << 3))
-#define MCH_HOST_BRDIGE_ESMRAMC_SM_L2          ((uint8_t)(1 << 2))
-#define MCH_HOST_BRDIGE_ESMRAMC_TSEG_SZ_MASK   ((uint8_t)(0x3 << 1))
-#define MCH_HOST_BRDIGE_ESMRAMC_TSEG_SZ_1MB    ((uint8_t)(0x0 << 1))
-#define MCH_HOST_BRDIGE_ESMRAMC_TSEG_SZ_2MB    ((uint8_t)(0x1 << 1))
-#define MCH_HOST_BRDIGE_ESMRAMC_TSEG_SZ_8MB    ((uint8_t)(0x2 << 1))
-#define MCH_HOST_BRDIGE_ESMRAMC_T_EN           ((uint8_t)1)
+#define MCH_HOST_BRIDGE_ESMRAMC_H_SMRAME       ((uint8_t)(1 << 6))
+#define MCH_HOST_BRIDGE_ESMRAMC_E_SMERR        ((uint8_t)(1 << 5))
+#define MCH_HOST_BRIDGE_ESMRAMC_SM_CACHE       ((uint8_t)(1 << 4))
+#define MCH_HOST_BRIDGE_ESMRAMC_SM_L1          ((uint8_t)(1 << 3))
+#define MCH_HOST_BRIDGE_ESMRAMC_SM_L2          ((uint8_t)(1 << 2))
+#define MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_MASK   ((uint8_t)(0x3 << 1))
+#define MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_1MB    ((uint8_t)(0x0 << 1))
+#define MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_2MB    ((uint8_t)(0x1 << 1))
+#define MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_8MB    ((uint8_t)(0x2 << 1))
+#define MCH_HOST_BRIDGE_ESMRAMC_T_EN           ((uint8_t)1)
 
 /* D1:F0 PCIE* port*/
 #define MCH_PCIE_DEV                           1
 #define MCH_PCIE_FUNC                          0
+
+uint64_t mch_mcfg_base(void);
 
 #endif /* HW_Q35_H */

@@ -54,12 +54,16 @@ typedef struct {
 typedef void IOEventHandler(void *opaque, int event);
 
 struct CharDriverState {
+    QemuMutex chr_write_lock;
     void (*init)(struct CharDriverState *s);
     int (*chr_write)(struct CharDriverState *s, const uint8_t *buf, int len);
+    int (*chr_sync_read)(struct CharDriverState *s,
+                         const uint8_t *buf, int len);
     GSource *(*chr_add_watch)(struct CharDriverState *s, GIOCondition cond);
     void (*chr_update_read_handler)(struct CharDriverState *s);
     int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
-    int (*get_msgfd)(struct CharDriverState *s);
+    int (*get_msgfds)(struct CharDriverState *s, int* fds, int num);
+    int (*set_msgfds)(struct CharDriverState *s, int *fds, int num);
     int (*chr_add_client)(struct CharDriverState *chr, int fd);
     IOEventHandler *chr_event;
     IOCanReadHandler *chr_can_read;
@@ -69,6 +73,7 @@ struct CharDriverState {
     void (*chr_accept_input)(struct CharDriverState *chr);
     void (*chr_set_echo)(struct CharDriverState *chr, bool echo);
     void (*chr_set_fe_open)(struct CharDriverState *chr, int fe_open);
+    void (*chr_fe_event)(struct CharDriverState *chr, int event);
     void *opaque;
     char *label;
     char *filename;
@@ -77,9 +82,20 @@ struct CharDriverState {
     int explicit_fe_open;
     int explicit_be_open;
     int avail_connections;
+    int is_mux;
+    guint fd_in_tag;
     QemuOpts *opts;
     QTAILQ_ENTRY(CharDriverState) next;
 };
+
+/**
+ * @qemu_chr_alloc:
+ *
+ * Allocate and initialize a new CharDriverState.
+ *
+ * Returns: a newly allocated CharDriverState.
+ */
+CharDriverState *qemu_chr_alloc(void);
 
 /**
  * @qemu_chr_new_from_opts:
@@ -136,9 +152,19 @@ void qemu_chr_fe_set_echo(struct CharDriverState *chr, bool echo);
 void qemu_chr_fe_set_open(struct CharDriverState *chr, int fe_open);
 
 /**
+ * @qemu_chr_fe_event:
+ *
+ * Send an event from the front end to the back end.
+ *
+ * @event the event to send
+ */
+void qemu_chr_fe_event(CharDriverState *s, int event);
+
+/**
  * @qemu_chr_fe_printf:
  *
  * Write to a character backend using a printf style interface.
+ * This function is thread-safe.
  *
  * @fmt see #printf
  */
@@ -151,8 +177,9 @@ int qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
 /**
  * @qemu_chr_fe_write:
  *
- * Write data to a character backend from the front end.  This function will
- * send data from the front end to the back end.
+ * Write data to a character backend from the front end.  This function
+ * will send data from the front end to the back end.  This function
+ * is thread-safe.
  *
  * @buf the data
  * @len the number of bytes to send
@@ -167,7 +194,7 @@ int qemu_chr_fe_write(CharDriverState *s, const uint8_t *buf, int len);
  * Write data to a character backend from the front end.  This function will
  * send data from the front end to the back end.  Unlike @qemu_chr_fe_write,
  * this function will block if the back end cannot consume all of the data
- * attempted to be written.
+ * attempted to be written.  This function is thread-safe.
  *
  * @buf the data
  * @len the number of bytes to send
@@ -177,9 +204,21 @@ int qemu_chr_fe_write(CharDriverState *s, const uint8_t *buf, int len);
 int qemu_chr_fe_write_all(CharDriverState *s, const uint8_t *buf, int len);
 
 /**
+ * @qemu_chr_fe_read_all:
+ *
+ * Read data to a buffer from the back end.
+ *
+ * @buf the data buffer
+ * @len the number of bytes to read
+ *
+ * Returns: the number of bytes read
+ */
+int qemu_chr_fe_read_all(CharDriverState *s, uint8_t *buf, int len);
+
+/**
  * @qemu_chr_fe_ioctl:
  *
- * Issue a device specific ioctl to a backend.
+ * Issue a device specific ioctl to a backend.  This function is thread-safe.
  *
  * @cmd see CHR_IOCTL_*
  * @arg the data associated with @cmd
@@ -201,6 +240,32 @@ int qemu_chr_fe_ioctl(CharDriverState *s, int cmd, void *arg);
  *          descriptor.
  */
 int qemu_chr_fe_get_msgfd(CharDriverState *s);
+
+/**
+ * @qemu_chr_fe_get_msgfds:
+ *
+ * For backends capable of fd passing, return the number of file received
+ * descriptors and fills the fds array up to num elements
+ *
+ * Returns: -1 if fd passing isn't supported or there are no pending file
+ *          descriptors.  If file descriptors are returned, subsequent calls to
+ *          this function will return -1 until a client sends a new set of file
+ *          descriptors.
+ */
+int qemu_chr_fe_get_msgfds(CharDriverState *s, int *fds, int num);
+
+/**
+ * @qemu_chr_fe_set_msgfds:
+ *
+ * For backends capable of fd passing, set an array of fds to be passed with
+ * the next send operation.
+ * A subsequent call to this function before calling a write function will
+ * result in overwriting the fd array with the new value without being send.
+ * Upon writing the message the fd array is freed.
+ *
+ * Returns: -1 if fd passing isn't supported.
+ */
+int qemu_chr_fe_set_msgfds(CharDriverState *s, int *fds, int num);
 
 /**
  * @qemu_chr_fe_claim:
@@ -274,14 +339,13 @@ void qemu_chr_add_handlers(CharDriverState *s,
 void qemu_chr_be_generic_open(CharDriverState *s);
 void qemu_chr_accept_input(CharDriverState *s);
 int qemu_chr_add_client(CharDriverState *s, int fd);
-void qemu_chr_info_print(Monitor *mon, const QObject *ret_data);
-void qemu_chr_info(Monitor *mon, QObject **ret_data);
 CharDriverState *qemu_chr_find(const char *name);
+bool chr_is_ringbuf(const CharDriverState *chr);
 
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
 
 void register_char_driver(const char *name, CharDriverState *(*open)(QemuOpts *));
-void register_char_driver_qapi(const char *name, int kind,
+void register_char_driver_qapi(const char *name, ChardevBackendKind kind,
         void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp));
 
 /* add an eventfd to the qemu devices that are polled */
@@ -297,4 +361,9 @@ CharDriverState *qemu_chr_open_msmouse(void);
 /* baum.c */
 CharDriverState *chr_baum_init(void);
 
+/* console.c */
+typedef CharDriverState *(VcHandler)(ChardevVC *vc);
+
+void register_vc_handler(VcHandler *handler);
+CharDriverState *vc_init(ChardevVC *vc);
 #endif

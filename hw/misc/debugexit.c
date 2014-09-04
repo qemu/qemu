@@ -35,29 +35,30 @@ static const MemoryRegionOps debug_exit_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int debug_exit_initfn(ISADevice *dev)
+static void debug_exit_realizefn(DeviceState *d, Error **errp)
 {
-    ISADebugExitState *isa = ISA_DEBUG_EXIT_DEVICE(dev);
+    ISADevice *dev = ISA_DEVICE(d);
+    ISADebugExitState *isa = ISA_DEBUG_EXIT_DEVICE(d);
 
-    memory_region_init_io(&isa->io, &debug_exit_ops, isa,
+    memory_region_init_io(&isa->io, OBJECT(dev), &debug_exit_ops, isa,
                           TYPE_ISA_DEBUG_EXIT_DEVICE, isa->iosize);
     memory_region_add_subregion(isa_address_space_io(dev),
                                 isa->iobase, &isa->io);
-    return 0;
 }
 
 static Property debug_exit_properties[] = {
-    DEFINE_PROP_HEX32("iobase", ISADebugExitState, iobase, 0x501),
-    DEFINE_PROP_HEX32("iosize", ISADebugExitState, iosize, 0x02),
+    DEFINE_PROP_UINT32("iobase", ISADebugExitState, iobase, 0x501),
+    DEFINE_PROP_UINT32("iosize", ISADebugExitState, iosize, 0x02),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static void debug_exit_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = debug_exit_initfn;
+
+    dc->realize = debug_exit_realizefn;
     dc->props = debug_exit_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo debug_exit_info = {

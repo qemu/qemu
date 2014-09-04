@@ -30,6 +30,7 @@
 
 #include "qemu-common.h"
 #include "ui/console.h"
+#include "ui/input.h"
 #include "sysemu/sysemu.h"
 
 #define FONT_HEIGHT 16
@@ -106,9 +107,9 @@ static void curses_resize(DisplayChangeListener *dcl,
     curses_calc_pad();
 }
 
-#ifndef _WIN32
-#if defined(SIGWINCH) && defined(KEY_RESIZE)
-static void curses_winch_handler(int signum)
+#if !defined(_WIN32) && defined(SIGWINCH) && defined(KEY_RESIZE)
+static volatile sig_atomic_t got_sigwinch;
+static void curses_winch_check(void)
 {
     struct winsize {
         unsigned short ws_row;
@@ -117,18 +118,34 @@ static void curses_winch_handler(int signum)
         unsigned short ws_ypixel;   /* unused */
     } ws;
 
-    /* terminal size changed */
-    if (ioctl(1, TIOCGWINSZ, &ws) == -1)
+    if (!got_sigwinch) {
         return;
+    }
+    got_sigwinch = false;
+
+    if (ioctl(1, TIOCGWINSZ, &ws) == -1) {
+        return;
+    }
 
     resize_term(ws.ws_row, ws.ws_col);
-    curses_calc_pad();
     invalidate = 1;
-
-    /* some systems require this */
-    signal(SIGWINCH, curses_winch_handler);
 }
-#endif
+
+static void curses_winch_handler(int signum)
+{
+    got_sigwinch = true;
+}
+
+static void curses_winch_init(void)
+{
+    struct sigaction old, winch = {
+        .sa_handler  = curses_winch_handler,
+    };
+    sigaction(SIGWINCH, &winch, &old);
+}
+#else
+static void curses_winch_check(void) {}
+static void curses_winch_init(void) {}
 #endif
 
 static void curses_cursor_position(DisplayChangeListener *dcl,
@@ -162,6 +179,8 @@ static kbd_layout_t *kbd_layout = NULL;
 static void curses_refresh(DisplayChangeListener *dcl)
 {
     int chr, nextchr, keysym, keycode, keycode_alt;
+
+    curses_winch_check();
 
     if (invalidate) {
         clear();
@@ -256,32 +275,44 @@ static void curses_refresh(DisplayChangeListener *dcl)
         if (qemu_console_is_graphic(NULL)) {
             /* since terminals don't know about key press and release
              * events, we need to emit both for each key received */
-            if (keycode & SHIFT)
-                kbd_put_keycode(SHIFT_CODE);
-            if (keycode & CNTRL)
-                kbd_put_keycode(CNTRL_CODE);
-            if (keycode & ALT)
-                kbd_put_keycode(ALT_CODE);
-            if (keycode & ALTGR) {
-                kbd_put_keycode(SCANCODE_EMUL0);
-                kbd_put_keycode(ALT_CODE);
+            if (keycode & SHIFT) {
+                qemu_input_event_send_key_number(NULL, SHIFT_CODE, true);
+                qemu_input_event_send_key_delay(0);
             }
-            if (keycode & GREY)
-                kbd_put_keycode(GREY_CODE);
-            kbd_put_keycode(keycode & KEY_MASK);
-            if (keycode & GREY)
-                kbd_put_keycode(GREY_CODE);
-            kbd_put_keycode((keycode & KEY_MASK) | KEY_RELEASE);
-            if (keycode & ALTGR) {
-                kbd_put_keycode(SCANCODE_EMUL0);
-                kbd_put_keycode(ALT_CODE | KEY_RELEASE);
+            if (keycode & CNTRL) {
+                qemu_input_event_send_key_number(NULL, CNTRL_CODE, true);
+                qemu_input_event_send_key_delay(0);
             }
-            if (keycode & ALT)
-                kbd_put_keycode(ALT_CODE | KEY_RELEASE);
-            if (keycode & CNTRL)
-                kbd_put_keycode(CNTRL_CODE | KEY_RELEASE);
-            if (keycode & SHIFT)
-                kbd_put_keycode(SHIFT_CODE | KEY_RELEASE);
+            if (keycode & ALT) {
+                qemu_input_event_send_key_number(NULL, ALT_CODE, true);
+                qemu_input_event_send_key_delay(0);
+            }
+            if (keycode & ALTGR) {
+                qemu_input_event_send_key_number(NULL, GREY | ALT_CODE, true);
+                qemu_input_event_send_key_delay(0);
+            }
+
+            qemu_input_event_send_key_number(NULL, keycode & KEY_MASK, true);
+            qemu_input_event_send_key_delay(0);
+            qemu_input_event_send_key_number(NULL, keycode & KEY_MASK, false);
+            qemu_input_event_send_key_delay(0);
+
+            if (keycode & ALTGR) {
+                qemu_input_event_send_key_number(NULL, GREY | ALT_CODE, false);
+                qemu_input_event_send_key_delay(0);
+            }
+            if (keycode & ALT) {
+                qemu_input_event_send_key_number(NULL, ALT_CODE, false);
+                qemu_input_event_send_key_delay(0);
+            }
+            if (keycode & CNTRL) {
+                qemu_input_event_send_key_number(NULL, CNTRL_CODE, false);
+                qemu_input_event_send_key_delay(0);
+            }
+            if (keycode & SHIFT) {
+                qemu_input_event_send_key_number(NULL, SHIFT_CODE, false);
+                qemu_input_event_send_key_delay(0);
+            }
         } else {
             keysym = curses2qemu[chr];
             if (keysym == -1)
@@ -349,13 +380,7 @@ void curses_display_init(DisplayState *ds, int full_screen)
     curses_keyboard_setup();
     atexit(curses_atexit);
 
-#ifndef _WIN32
-#if defined(SIGWINCH) && defined(KEY_RESIZE)
-    /* some curses implementations provide a handler, but we
-     * want to be sure this is handled regardless of the library */
-    signal(SIGWINCH, curses_winch_handler);
-#endif
-#endif
+    curses_winch_init();
 
     dcl = (DisplayChangeListener *) g_malloc0(sizeof(DisplayChangeListener));
     dcl->ops = &dcl_ops;

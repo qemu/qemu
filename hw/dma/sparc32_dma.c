@@ -60,10 +60,14 @@
 /* XXX SCSI and ethernet should have different read-only bit masks */
 #define DMA_CSR_RO_MASK 0xfe000007
 
+#define TYPE_SPARC32_DMA "sparc32_dma"
+#define SPARC32_DMA(obj) OBJECT_CHECK(DMAState, (obj), TYPE_SPARC32_DMA)
+
 typedef struct DMAState DMAState;
 
 struct DMAState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t dmaregs[DMA_REGS];
     qemu_irq irq;
@@ -249,7 +253,7 @@ static const MemoryRegionOps dma_mem_ops = {
 
 static void dma_reset(DeviceState *d)
 {
-    DMAState *s = container_of(d, DMAState, busdev.qdev);
+    DMAState *s = SPARC32_DMA(d);
 
     memset(s->dmaregs, 0, DMA_SIZE);
     s->dmaregs[0] = DMA_VER;
@@ -259,26 +263,27 @@ static const VMStateDescription vmstate_dma = {
     .name ="sparc32_dma",
     .version_id = 2,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(dmaregs, DMAState, DMA_REGS),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static int sparc32_dma_init1(SysBusDevice *dev)
+static int sparc32_dma_init1(SysBusDevice *sbd)
 {
-    DMAState *s = FROM_SYSBUS(DMAState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    DMAState *s = SPARC32_DMA(dev);
     int reg_size;
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
 
     reg_size = s->is_ledma ? DMA_ETH_SIZE : DMA_SIZE;
-    memory_region_init_io(&s->iomem, &dma_mem_ops, s, "dma", reg_size);
-    sysbus_init_mmio(dev, &s->iomem);
+    memory_region_init_io(&s->iomem, OBJECT(s), &dma_mem_ops, s,
+                          "dma", reg_size);
+    sysbus_init_mmio(sbd, &s->iomem);
 
-    qdev_init_gpio_in(&dev->qdev, dma_set_irq, 1);
-    qdev_init_gpio_out(&dev->qdev, s->gpio, 2);
+    qdev_init_gpio_in(dev, dma_set_irq, 1);
+    qdev_init_gpio_out(dev, s->gpio, 2);
 
     return 0;
 }
@@ -298,10 +303,12 @@ static void sparc32_dma_class_init(ObjectClass *klass, void *data)
     dc->reset = dma_reset;
     dc->vmsd = &vmstate_dma;
     dc->props = sparc32_dma_properties;
+    /* Reason: pointer property "iommu_opaque" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo sparc32_dma_info = {
-    .name          = "sparc32_dma",
+    .name          = TYPE_SPARC32_DMA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(DMAState),
     .class_init    = sparc32_dma_class_init,

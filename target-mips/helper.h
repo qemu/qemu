@@ -1,5 +1,3 @@
-#include "exec/def-helper.h"
-
 DEF_HELPER_3(raise_exception_err, noreturn, env, i32, int)
 DEF_HELPER_2(raise_exception, noreturn, env, i32)
 
@@ -134,6 +132,8 @@ DEF_HELPER_2(mtc0_ebase, void, env, tl)
 DEF_HELPER_2(mttc0_ebase, void, env, tl)
 DEF_HELPER_2(mtc0_config0, void, env, tl)
 DEF_HELPER_2(mtc0_config2, void, env, tl)
+DEF_HELPER_2(mtc0_config4, void, env, tl)
+DEF_HELPER_2(mtc0_config5, void, env, tl)
 DEF_HELPER_2(mtc0_lladdr, void, env, tl)
 DEF_HELPER_3(mtc0_watchlo, void, env, tl, i32)
 DEF_HELPER_3(mtc0_watchhi, void, env, tl, i32)
@@ -148,7 +148,7 @@ DEF_HELPER_2(mtc0_taghi, void, env, tl)
 DEF_HELPER_2(mtc0_datahi, void, env, tl)
 
 /* MIPS MT functions */
-DEF_HELPER_2(mftgpr, tl, env, i32);
+DEF_HELPER_2(mftgpr, tl, env, i32)
 DEF_HELPER_2(mftlo, tl, env, i32)
 DEF_HELPER_2(mfthi, tl, env, i32)
 DEF_HELPER_2(mftacx, tl, env, i32)
@@ -165,11 +165,11 @@ DEF_HELPER_1(evpe, tl, env)
 #endif /* !CONFIG_USER_ONLY */
 
 /* microMIPS functions */
-DEF_HELPER_4(lwm, void, env, tl, tl, i32);
-DEF_HELPER_4(swm, void, env, tl, tl, i32);
+DEF_HELPER_4(lwm, void, env, tl, tl, i32)
+DEF_HELPER_4(swm, void, env, tl, tl, i32)
 #ifdef TARGET_MIPS64
-DEF_HELPER_4(ldm, void, env, tl, tl, i32);
-DEF_HELPER_4(sdm, void, env, tl, tl, i32);
+DEF_HELPER_4(ldm, void, env, tl, tl, i32)
+DEF_HELPER_4(sdm, void, env, tl, tl, i32)
 #endif
 
 DEF_HELPER_2(fork, void, tl, tl)
@@ -177,7 +177,7 @@ DEF_HELPER_2(yield, tl, env, tl)
 
 /* CP1 functions */
 DEF_HELPER_2(cfc1, tl, env, i32)
-DEF_HELPER_3(ctc1, void, env, tl, i32)
+DEF_HELPER_4(ctc1, void, env, tl, i32, i32)
 
 DEF_HELPER_2(float_cvtd_s, i64, env, i32)
 DEF_HELPER_2(float_cvtd_w, i64, env, i32)
@@ -615,7 +615,7 @@ DEF_HELPER_FLAGS_4(dmsubu, 0, void, tl, tl, i32, env)
 DEF_HELPER_FLAGS_1(bitrev, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_3(insv, 0, tl, env, tl, tl)
 #if defined(TARGET_MIPS64)
-DEF_HELPER_FLAGS_3(dinsv, 0, tl, env, tl, tl);
+DEF_HELPER_FLAGS_3(dinsv, 0, tl, env, tl, tl)
 #endif
 
 /* DSP Compare-Pick Sub-class insns */
@@ -689,7 +689,3 @@ DEF_HELPER_FLAGS_3(dmthlip, 0, void, tl, tl, env)
 #endif
 DEF_HELPER_FLAGS_3(wrdsp, 0, void, tl, tl, env)
 DEF_HELPER_FLAGS_2(rddsp, 0, tl, tl, env)
-
-
-
-#include "exec/def-helper.h"

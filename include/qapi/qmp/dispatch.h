@@ -47,9 +47,12 @@ QmpCommand *qmp_find_command(const char *name);
 QObject *qmp_dispatch(QObject *request);
 void qmp_disable_command(const char *name);
 void qmp_enable_command(const char *name);
-bool qmp_command_is_enabled(const char *name);
-char **qmp_get_command_list(void);
-QObject *qmp_build_error_object(Error *errp);
+bool qmp_command_is_enabled(const QmpCommand *cmd);
+const char *qmp_command_name(const QmpCommand *cmd);
+bool qmp_has_success_response(const QmpCommand *cmd);
+QObject *qmp_build_error_object(Error *err);
+typedef void (*qmp_cmd_callback_fn)(QmpCommand *cmd, void *opaque);
+void qmp_for_each_command(qmp_cmd_callback_fn fn, void *opaque);
 
 #endif
 

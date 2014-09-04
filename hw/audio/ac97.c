@@ -280,12 +280,12 @@ static void update_sr (AC97LinkState *s, AC97BusMasterRegs *r, uint32_t new_sr)
     if (level) {
         s->glob_sta |= masks[r - s->bm_regs];
         dolog ("set irq level=1\n");
-        qemu_set_irq (s->dev.irq[0], 1);
+        pci_irq_assert(&s->dev);
     }
     else {
         s->glob_sta &= ~masks[r - s->bm_regs];
         dolog ("set irq level=0\n");
-        qemu_set_irq (s->dev.irq[0], 0);
+        pci_irq_deassert(&s->dev);
     }
 }
 
@@ -1163,8 +1163,7 @@ static const VMStateDescription vmstate_ac97_bm_regs = {
     .name = "ac97_bm_regs",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32 (bdbar, AC97BusMasterRegs),
         VMSTATE_UINT8 (civ, AC97BusMasterRegs),
         VMSTATE_UINT8 (lvi, AC97BusMasterRegs),
@@ -1211,9 +1210,8 @@ static const VMStateDescription vmstate_ac97 = {
     .name = "ac97",
     .version_id = 3,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
     .post_load = ac97_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE (dev, AC97LinkState),
         VMSTATE_UINT32 (glob_cnt, AC97LinkState),
         VMSTATE_UINT32 (glob_sta, AC97LinkState),
@@ -1378,8 +1376,10 @@ static int ac97_initfn (PCIDevice *dev)
     c[PCI_INTERRUPT_LINE] = 0x00;      /* intr_ln interrupt line rw */
     c[PCI_INTERRUPT_PIN] = 0x01;      /* intr_pn interrupt pin ro */
 
-    memory_region_init_io (&s->io_nam, &ac97_io_nam_ops, s, "ac97-nam", 1024);
-    memory_region_init_io (&s->io_nabm, &ac97_io_nabm_ops, s, "ac97-nabm", 256);
+    memory_region_init_io (&s->io_nam, OBJECT(s), &ac97_io_nam_ops, s,
+                           "ac97-nam", 1024);
+    memory_region_init_io (&s->io_nabm, OBJECT(s), &ac97_io_nabm_ops, s,
+                           "ac97-nabm", 256);
     pci_register_bar (&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_nam);
     pci_register_bar (&s->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->io_nabm);
     qemu_register_reset (ac97_on_reset, s);
@@ -1418,6 +1418,7 @@ static void ac97_class_init (ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_INTEL_82801AA_5;
     k->revision = 0x01;
     k->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;
+    set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "Intel 82801AA AC97 Audio";
     dc->vmsd = &vmstate_ac97;
     dc->props = ac97_properties;

@@ -19,6 +19,7 @@
 #include "hw/hw.h"
 #include "audio/audio.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "ui/console.h"
 #include "hw/arm/omap.h"
 #include "hw/boards.h"
@@ -190,12 +191,12 @@ static struct arm_boot_info palmte_binfo = {
     .board_id = 0x331,
 };
 
-static void palmte_init(QEMUMachineInitArgs *args)
+static void palmte_init(MachineState *machine)
 {
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
+    const char *cpu_model = machine->cpu_model;
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
     MemoryRegion *address_space_mem = get_system_memory();
     struct omap_mpu_state_s *mpu;
     int flash_size = 0x00800000;
@@ -211,22 +212,22 @@ static void palmte_init(QEMUMachineInitArgs *args)
     mpu = omap310_mpu_init(address_space_mem, sdram_size, cpu_model);
 
     /* External Flash (EMIFS) */
-    memory_region_init_ram(flash, "palmte.flash", flash_size);
+    memory_region_init_ram(flash, NULL, "palmte.flash", flash_size);
     vmstate_register_ram_global(flash);
     memory_region_set_readonly(flash, true);
     memory_region_add_subregion(address_space_mem, OMAP_CS0_BASE, flash);
 
-    memory_region_init_io(&cs[0], &static_ops, &cs0val, "palmte-cs0",
+    memory_region_init_io(&cs[0], NULL, &static_ops, &cs0val, "palmte-cs0",
                           OMAP_CS0_SIZE - flash_size);
     memory_region_add_subregion(address_space_mem, OMAP_CS0_BASE + flash_size,
                                 &cs[0]);
-    memory_region_init_io(&cs[1], &static_ops, &cs1val, "palmte-cs1",
+    memory_region_init_io(&cs[1], NULL, &static_ops, &cs1val, "palmte-cs1",
                           OMAP_CS1_SIZE);
     memory_region_add_subregion(address_space_mem, OMAP_CS1_BASE, &cs[1]);
-    memory_region_init_io(&cs[2], &static_ops, &cs2val, "palmte-cs2",
+    memory_region_init_io(&cs[2], NULL, &static_ops, &cs2val, "palmte-cs2",
                           OMAP_CS2_SIZE);
     memory_region_add_subregion(address_space_mem, OMAP_CS2_BASE, &cs[2]);
-    memory_region_init_io(&cs[3], &static_ops, &cs3val, "palmte-cs3",
+    memory_region_init_io(&cs[3], NULL, &static_ops, &cs3val, "palmte-cs3",
                           OMAP_CS3_SIZE);
     memory_region_add_subregion(address_space_mem, OMAP_CS3_BASE, &cs[3]);
 
@@ -255,25 +256,22 @@ static void palmte_init(QEMUMachineInitArgs *args)
         }
     }
 
-    if (!rom_loaded && !kernel_filename) {
+    if (!rom_loaded && !kernel_filename && !qtest_enabled()) {
         fprintf(stderr, "Kernel or ROM image must be specified\n");
         exit(1);
     }
 
     /* Load the kernel.  */
-    if (kernel_filename) {
-        palmte_binfo.kernel_filename = kernel_filename;
-        palmte_binfo.kernel_cmdline = kernel_cmdline;
-        palmte_binfo.initrd_filename = initrd_filename;
-        arm_load_kernel(mpu->cpu, &palmte_binfo);
-    }
+    palmte_binfo.kernel_filename = kernel_filename;
+    palmte_binfo.kernel_cmdline = kernel_cmdline;
+    palmte_binfo.initrd_filename = initrd_filename;
+    arm_load_kernel(mpu->cpu, &palmte_binfo);
 }
 
 static QEMUMachine palmte_machine = {
     .name = "cheetah",
     .desc = "Palm Tungsten|E aka. Cheetah PDA (OMAP310)",
     .init = palmte_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void palmte_machine_init(void)

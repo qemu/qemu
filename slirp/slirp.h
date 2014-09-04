@@ -203,6 +203,9 @@ bool arp_table_search(Slirp *slirp, uint32_t ip_addr,
 
 struct Slirp {
     QTAILQ_ENTRY(Slirp) entry;
+    u_int time_fasttimo;
+    u_int last_slowtimo;
+    bool do_slowtimo;
 
     /* virtual network configuration */
     struct in_addr vnetwork_addr;
@@ -283,8 +286,6 @@ void if_start(struct ttys *);
 #ifndef HAVE_GETHOSTID
  long gethostid(void);
 #endif
-
-void lprint(const char *, ...) GCC_FMT_ATTR(1, 2);
 
 #ifndef _WIN32
 #include <netdb.h>

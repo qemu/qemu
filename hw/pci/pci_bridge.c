@@ -141,33 +141,35 @@ static void pci_bridge_init_alias(PCIBridge *bridge, MemoryRegion *alias,
                                   MemoryRegion *parent_space,
                                   bool enabled)
 {
-    pcibus_t base = pci_bridge_get_base(&bridge->dev, type);
-    pcibus_t limit = pci_bridge_get_limit(&bridge->dev, type);
+    PCIDevice *bridge_dev = PCI_DEVICE(bridge);
+    pcibus_t base = pci_bridge_get_base(bridge_dev, type);
+    pcibus_t limit = pci_bridge_get_limit(bridge_dev, type);
     /* TODO: this doesn't handle base = 0 limit = 2^64 - 1 correctly.
      * Apparently no way to do this with existing memory APIs. */
     pcibus_t size = enabled && limit >= base ? limit + 1 - base : 0;
 
-    memory_region_init_alias(alias, name, space, base, size);
+    memory_region_init_alias(alias, OBJECT(bridge), name, space, base, size);
     memory_region_add_subregion_overlap(parent_space, base, alias, 1);
 }
 
 static void pci_bridge_init_vga_aliases(PCIBridge *br, PCIBus *parent,
                                         MemoryRegion *alias_vga)
 {
-    uint16_t brctl = pci_get_word(br->dev.config + PCI_BRIDGE_CONTROL);
+    PCIDevice *pd = PCI_DEVICE(br);
+    uint16_t brctl = pci_get_word(pd->config + PCI_BRIDGE_CONTROL);
 
-    memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_IO_LO],
+    memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_IO_LO], OBJECT(br),
                              "pci_bridge_vga_io_lo", &br->address_space_io,
                              QEMU_PCI_VGA_IO_LO_BASE, QEMU_PCI_VGA_IO_LO_SIZE);
-    memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_IO_HI],
+    memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_IO_HI], OBJECT(br),
                              "pci_bridge_vga_io_hi", &br->address_space_io,
                              QEMU_PCI_VGA_IO_HI_BASE, QEMU_PCI_VGA_IO_HI_SIZE);
-    memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_MEM],
+    memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_MEM], OBJECT(br),
                              "pci_bridge_vga_mem", &br->address_space_mem,
                              QEMU_PCI_VGA_MEM_BASE, QEMU_PCI_VGA_MEM_SIZE);
 
     if (brctl & PCI_BRIDGE_CTL_VGA) {
-        pci_register_vga(&br->dev, &alias_vga[QEMU_PCI_VGA_MEM],
+        pci_register_vga(pd, &alias_vga[QEMU_PCI_VGA_MEM],
                          &alias_vga[QEMU_PCI_VGA_IO_LO],
                          &alias_vga[QEMU_PCI_VGA_IO_HI]);
     }
@@ -175,9 +177,10 @@ static void pci_bridge_init_vga_aliases(PCIBridge *br, PCIBus *parent,
 
 static PCIBridgeWindows *pci_bridge_region_init(PCIBridge *br)
 {
-    PCIBus *parent = br->dev.bus;
+    PCIDevice *pd = PCI_DEVICE(br);
+    PCIBus *parent = pd->bus;
     PCIBridgeWindows *w = g_new(PCIBridgeWindows, 1);
-    uint16_t cmd = pci_get_word(br->dev.config + PCI_COMMAND);
+    uint16_t cmd = pci_get_word(pd->config + PCI_COMMAND);
 
     pci_bridge_init_alias(br, &w->alias_pref_mem,
                           PCI_BASE_ADDRESS_MEM_PREFETCH,
@@ -205,12 +208,13 @@ static PCIBridgeWindows *pci_bridge_region_init(PCIBridge *br)
 
 static void pci_bridge_region_del(PCIBridge *br, PCIBridgeWindows *w)
 {
-    PCIBus *parent = br->dev.bus;
+    PCIDevice *pd = PCI_DEVICE(br);
+    PCIBus *parent = pd->bus;
 
     memory_region_del_subregion(parent->address_space_io, &w->alias_io);
     memory_region_del_subregion(parent->address_space_mem, &w->alias_mem);
     memory_region_del_subregion(parent->address_space_mem, &w->alias_pref_mem);
-    pci_unregister_vga(&br->dev);
+    pci_unregister_vga(pd);
 }
 
 static void pci_bridge_region_cleanup(PCIBridge *br, PCIBridgeWindows *w)
@@ -224,7 +228,7 @@ static void pci_bridge_region_cleanup(PCIBridge *br, PCIBridgeWindows *w)
     g_free(w);
 }
 
-static void pci_bridge_update_mappings(PCIBridge *br)
+void pci_bridge_update_mappings(PCIBridge *br)
 {
     PCIBridgeWindows *w = br->windows;
 
@@ -241,7 +245,7 @@ static void pci_bridge_update_mappings(PCIBridge *br)
 void pci_bridge_write_config(PCIDevice *d,
                              uint32_t address, uint32_t val, int len)
 {
-    PCIBridge *s = container_of(d, PCIBridge, dev);
+    PCIBridge *s = PCI_BRIDGE(d);
     uint16_t oldctl = pci_get_word(d->config + PCI_BRIDGE_CONTROL);
     uint16_t newctl;
 
@@ -264,7 +268,7 @@ void pci_bridge_write_config(PCIDevice *d,
     newctl = pci_get_word(d->config + PCI_BRIDGE_CONTROL);
     if (~oldctl & newctl & PCI_BRIDGE_CTL_BUS_RESET) {
         /* Trigger hot reset on 0->1 transition. */
-        pci_bus_reset(&s->sec_bus);
+        qbus_reset_all(&s->sec_bus.qbus);
     }
 }
 
@@ -331,7 +335,7 @@ void pci_bridge_reset(DeviceState *qdev)
 int pci_bridge_initfn(PCIDevice *dev, const char *typename)
 {
     PCIBus *parent = dev->bus;
-    PCIBridge *br = DO_UPCAST(PCIBridge, dev, dev);
+    PCIBridge *br = PCI_BRIDGE(dev);
     PCIBus *sec_bus = &br->sec_bus;
 
     pci_word_test_and_set_mask(dev->config + PCI_STATUS,
@@ -363,13 +367,14 @@ int pci_bridge_initfn(PCIDevice *dev, const char *typename)
 	    br->bus_name = dev->qdev.id;
     }
 
-    qbus_create_inplace(&sec_bus->qbus, typename, &dev->qdev, br->bus_name);
+    qbus_create_inplace(sec_bus, sizeof(br->sec_bus), typename, DEVICE(dev),
+                        br->bus_name);
     sec_bus->parent_dev = dev;
     sec_bus->map_irq = br->map_irq ? br->map_irq : pci_swizzle_map_irq_fn;
     sec_bus->address_space_mem = &br->address_space_mem;
-    memory_region_init(&br->address_space_mem, "pci_bridge_pci", INT64_MAX);
+    memory_region_init(&br->address_space_mem, OBJECT(br), "pci_bridge_pci", UINT64_MAX);
     sec_bus->address_space_io = &br->address_space_io;
-    memory_region_init(&br->address_space_io, "pci_bridge_io", 65536);
+    memory_region_init(&br->address_space_io, OBJECT(br), "pci_bridge_io", 65536);
     br->windows = pci_bridge_region_init(br);
     QLIST_INIT(&sec_bus->child);
     QLIST_INSERT_HEAD(&parent->child, sec_bus, sibling);
@@ -379,14 +384,14 @@ int pci_bridge_initfn(PCIDevice *dev, const char *typename)
 /* default qdev clean up function for PCI-to-PCI bridge */
 void pci_bridge_exitfn(PCIDevice *pci_dev)
 {
-    PCIBridge *s = DO_UPCAST(PCIBridge, dev, pci_dev);
+    PCIBridge *s = PCI_BRIDGE(pci_dev);
     assert(QLIST_EMPTY(&s->sec_bus.child));
     QLIST_REMOVE(&s->sec_bus, sibling);
     pci_bridge_region_del(s, s->windows);
     pci_bridge_region_cleanup(s, s->windows);
     memory_region_destroy(&s->address_space_mem);
     memory_region_destroy(&s->address_space_io);
-    /* qbus_free() is called automatically by qdev_free() */
+    /* object_unparent() is called automatically during device deletion */
 }
 
 /*
@@ -400,3 +405,17 @@ void pci_bridge_map_irq(PCIBridge *br, const char* bus_name,
     br->map_irq = map_irq;
     br->bus_name = bus_name;
 }
+
+static const TypeInfo pci_bridge_type_info = {
+    .name = TYPE_PCI_BRIDGE,
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIBridge),
+    .abstract = true,
+};
+
+static void pci_bridge_register_types(void)
+{
+    type_register_static(&pci_bridge_type_info);
+}
+
+type_init(pci_bridge_register_types)

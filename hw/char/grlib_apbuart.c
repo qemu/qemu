@@ -67,8 +67,13 @@
 
 #define FIFO_LENGTH 1024
 
+#define TYPE_GRLIB_APB_UART "grlib,apbuart"
+#define GRLIB_APB_UART(obj) \
+    OBJECT_CHECK(UART, (obj), TYPE_GRLIB_APB_UART)
+
 typedef struct UART {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq irq;
 
@@ -232,7 +237,7 @@ static const MemoryRegionOps grlib_apbuart_ops = {
 
 static int grlib_apbuart_init(SysBusDevice *dev)
 {
-    UART *uart = FROM_SYSBUS(typeof(*uart), dev);
+    UART *uart = GRLIB_APB_UART(dev);
 
     qemu_chr_add_handlers(uart->chr,
                           grlib_apbuart_can_receive,
@@ -242,7 +247,7 @@ static int grlib_apbuart_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &uart->irq);
 
-    memory_region_init_io(&uart->iomem, &grlib_apbuart_ops, uart,
+    memory_region_init_io(&uart->iomem, OBJECT(uart), &grlib_apbuart_ops, uart,
                           "uart", UART_REG_SIZE);
 
     sysbus_init_mmio(dev, &uart->iomem);
@@ -252,7 +257,7 @@ static int grlib_apbuart_init(SysBusDevice *dev)
 
 static void grlib_apbuart_reset(DeviceState *d)
 {
-    UART *uart = container_of(d, UART, busdev.qdev);
+    UART *uart = GRLIB_APB_UART(d);
 
     /* Transmitter FIFO and shift registers are always empty in QEMU */
     uart->status =  UART_TRANSMIT_FIFO_EMPTY | UART_TRANSMIT_SHIFT_EMPTY;
@@ -279,7 +284,7 @@ static void grlib_apbuart_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo grlib_apbuart_info = {
-    .name          = "grlib,apbuart",
+    .name          = TYPE_GRLIB_APB_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(UART),
     .class_init    = grlib_apbuart_class_init,
