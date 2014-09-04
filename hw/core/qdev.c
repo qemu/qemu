@@ -1094,11 +1094,6 @@ static char *default_bus_get_fw_dev_path(DeviceState *dev)
     return g_strdup(object_get_typename(OBJECT(dev)));
 }
 
-static char *default_bus_get_fw_dev_path(DeviceState *dev)
-{
-    return g_strdup(object_get_typename(OBJECT(dev)));
-}
-
 static void bus_class_init(ObjectClass *class, void *data)
 {
     BusClass *bc = BUS_CLASS(class);
