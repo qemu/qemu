@@ -834,12 +834,14 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             dc->realize(dev, &local_err);
         }
 
-        if (dev->parent_bus && dev->parent_bus->hotplug_handler &&
-            local_err == NULL) {
+        if (local_err != NULL) {
+            goto fail;
+        }
+
+        if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
             hotplug_handler_plug(dev->parent_bus->hotplug_handler,
                                  dev, &local_err);
-        } else if (local_err == NULL &&
-                   object_dynamic_cast(qdev_get_machine(), TYPE_MACHINE)) {
+        } else if (object_dynamic_cast(qdev_get_machine(), TYPE_MACHINE)) {
             HotplugHandler *hotplug_ctrl;
             MachineState *machine = MACHINE(qdev_get_machine());
             MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -852,21 +854,24 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             }
         }
 
-        if (qdev_get_vmsd(dev) && local_err == NULL) {
+        if (local_err != NULL) {
+            goto post_realize_fail;
+        }
+
+        if (qdev_get_vmsd(dev)) {
             vmstate_register_with_alias_id(dev, -1, qdev_get_vmsd(dev), dev,
                                            dev->instance_id_alias,
                                            dev->alias_required_for_version);
         }
-        if (local_err == NULL) {
-            QLIST_FOREACH(bus, &dev->child_bus, sibling) {
-                object_property_set_bool(OBJECT(bus), true, "realized",
+
+        QLIST_FOREACH(bus, &dev->child_bus, sibling) {
+            object_property_set_bool(OBJECT(bus), true, "realized",
                                          &local_err);
-                if (local_err != NULL) {
-                    break;
-                }
+            if (local_err != NULL) {
+                goto child_realize_fail;
             }
         }
-        if (dev->hotplugged && local_err == NULL) {
+        if (dev->hotplugged) {
             device_reset(dev);
         }
         dev->pending_deleted_event = false;
@@ -888,11 +893,30 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
     }
 
     if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return;
+        goto fail;
     }
 
     dev->realized = value;
+    return;
+
+child_realize_fail:
+    QLIST_FOREACH(bus, &dev->child_bus, sibling) {
+        object_property_set_bool(OBJECT(bus), false, "realized",
+                                 NULL);
+    }
+
+    if (qdev_get_vmsd(dev)) {
+        vmstate_unregister(dev, qdev_get_vmsd(dev), dev);
+    }
+
+post_realize_fail:
+    if (dc->unrealize) {
+        dc->unrealize(dev, NULL);
+    }
+
+fail:
+    error_propagate(errp, local_err);
+    return;
 }
 
 static bool device_get_hotpluggable(Object *obj, Error **errp)
