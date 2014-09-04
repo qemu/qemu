@@ -846,8 +846,8 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             } else {
                 ret = vmdk_open_sparse(bs, extent_file, bs->open_flags, buf, errp);
             }
+            g_free(buf);
             if (ret) {
-                g_free(buf);
                 bdrv_unref(extent_file);
                 return ret;
             }
