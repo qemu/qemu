@@ -551,6 +551,12 @@ static void fadt_setup(AcpiFadtDescriptorRev1 *fadt, AcpiPmInfo *pm)
                               (1 << ACPI_FADT_F_SLP_BUTTON) |
                               (1 << ACPI_FADT_F_RTC_S4));
     fadt->flags |= cpu_to_le32(1 << ACPI_FADT_F_USE_PLATFORM_CLOCK);
+    /* APIC destination mode ("Flat Logical") has an upper limit of 8 CPUs
+     * For more than 8 CPUs, "Clustered Logical" mode has to be used
+     */
+    if (max_cpus > 8) {
+        fadt->flags |= cpu_to_le32(1 << ACPI_FADT_F_FORCE_APIC_CLUSTER_MODEL);
+    }
 }
 
 
