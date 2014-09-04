@@ -871,18 +871,18 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         }
         dev->pending_deleted_event = false;
     } else if (!value && dev->realized) {
+        Error **local_errp = NULL;
         QLIST_FOREACH(bus, &dev->child_bus, sibling) {
+            local_errp = local_err ? NULL : &local_err;
             object_property_set_bool(OBJECT(bus), false, "realized",
-                                     &local_err);
-            if (local_err != NULL) {
-                break;
-            }
+                                     local_errp);
         }
-        if (qdev_get_vmsd(dev) && local_err == NULL) {
+        if (qdev_get_vmsd(dev)) {
             vmstate_unregister(dev, qdev_get_vmsd(dev), dev);
         }
-        if (dc->unrealize && local_err == NULL) {
-            dc->unrealize(dev, &local_err);
+        if (dc->unrealize) {
+            local_errp = local_err ? NULL : &local_err;
+            dc->unrealize(dev, local_errp);
         }
         dev->pending_deleted_event = true;
     }
