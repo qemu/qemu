@@ -75,6 +75,17 @@ static void put_le16(uint16_t *p, unsigned int v)
     *p = cpu_to_le16(v);
 }
 
+static void ide_identify_size(IDEState *s)
+{
+    uint16_t *p = (uint16_t *)s->identify_data;
+    put_le16(p + 60, s->nb_sectors);
+    put_le16(p + 61, s->nb_sectors >> 16);
+    put_le16(p + 100, s->nb_sectors);
+    put_le16(p + 101, s->nb_sectors >> 16);
+    put_le16(p + 102, s->nb_sectors >> 32);
+    put_le16(p + 103, s->nb_sectors >> 48);
+}
+
 static void ide_identify(IDEState *s)
 {
     uint16_t *p;
@@ -115,8 +126,8 @@ static void ide_identify(IDEState *s)
     put_le16(p + 58, oldsize >> 16);
     if (s->mult_sectors)
         put_le16(p + 59, 0x100 | s->mult_sectors);
-    put_le16(p + 60, s->nb_sectors);
-    put_le16(p + 61, s->nb_sectors >> 16);
+    /* *(p + 60) := nb_sectors       -- see ide_identify_size */
+    /* *(p + 61) := nb_sectors >> 16 -- see ide_identify_size */
     put_le16(p + 62, 0x07); /* single word dma0-2 supported */
     put_le16(p + 63, 0x07); /* mdma0-2 supported */
     put_le16(p + 64, 0x03); /* pio3-4 supported */
@@ -161,10 +172,10 @@ static void ide_identify(IDEState *s)
     }
     put_le16(p + 88, 0x3f | (1 << 13)); /* udma5 set and supported */
     put_le16(p + 93, 1 | (1 << 14) | 0x2000);
-    put_le16(p + 100, s->nb_sectors);
-    put_le16(p + 101, s->nb_sectors >> 16);
-    put_le16(p + 102, s->nb_sectors >> 32);
-    put_le16(p + 103, s->nb_sectors >> 48);
+    /* *(p + 100) := nb_sectors       -- see ide_identify_size */
+    /* *(p + 101) := nb_sectors >> 16 -- see ide_identify_size */
+    /* *(p + 102) := nb_sectors >> 32 -- see ide_identify_size */
+    /* *(p + 103) := nb_sectors >> 48 -- see ide_identify_size */
 
     if (dev && dev->conf.physical_block_size)
         put_le16(p + 106, 0x6000 | get_physical_block_exp(&dev->conf));
@@ -179,6 +190,7 @@ static void ide_identify(IDEState *s)
         put_le16(p + 169, 1); /* TRIM support */
     }
 
+    ide_identify_size(s);
     s->identify_set = 1;
 
 fill_buffer:
@@ -253,6 +265,15 @@ fill_buffer:
     memcpy(s->io_buffer, p, sizeof(s->identify_data));
 }
 
+static void ide_cfata_identify_size(IDEState *s)
+{
+    uint16_t *p = (uint16_t *)s->identify_data;
+    put_le16(p + 7, s->nb_sectors >> 16);  /* Sectors per card */
+    put_le16(p + 8, s->nb_sectors);        /* Sectors per card */
+    put_le16(p + 60, s->nb_sectors);       /* Total LBA sectors */
+    put_le16(p + 61, s->nb_sectors >> 16); /* Total LBA sectors */
+}
+
 static void ide_cfata_identify(IDEState *s)
 {
     uint16_t *p;
@@ -270,8 +291,8 @@ static void ide_cfata_identify(IDEState *s)
     put_le16(p + 1, s->cylinders);		/* Default cylinders */
     put_le16(p + 3, s->heads);			/* Default heads */
     put_le16(p + 6, s->sectors);		/* Default sectors per track */
-    put_le16(p + 7, s->nb_sectors >> 16);	/* Sectors per card */
-    put_le16(p + 8, s->nb_sectors);		/* Sectors per card */
+    /* *(p + 7) := nb_sectors >> 16 -- see ide_cfata_identify_size */
+    /* *(p + 8) := nb_sectors       -- see ide_cfata_identify_size */
     padstr((char *)(p + 10), s->drive_serial_str, 20); /* serial number */
     put_le16(p + 22, 0x0004);			/* ECC bytes */
     padstr((char *) (p + 23), s->version, 8);	/* Firmware Revision */
@@ -292,8 +313,8 @@ static void ide_cfata_identify(IDEState *s)
     put_le16(p + 58, cur_sec >> 16);		/* Current capacity */
     if (s->mult_sectors)			/* Multiple sector setting */
         put_le16(p + 59, 0x100 | s->mult_sectors);
-    put_le16(p + 60, s->nb_sectors);		/* Total LBA sectors */
-    put_le16(p + 61, s->nb_sectors >> 16);	/* Total LBA sectors */
+    /* *(p + 60) := nb_sectors       -- see ide_cfata_identify_size */
+    /* *(p + 61) := nb_sectors >> 16 -- see ide_cfata_identify_size */
     put_le16(p + 63, 0x0203);			/* Multiword DMA capability */
     put_le16(p + 64, 0x0001);			/* Flow Control PIO support */
     put_le16(p + 65, 0x0096);			/* Min. Multiword DMA cycle */
@@ -313,6 +334,7 @@ static void ide_cfata_identify(IDEState *s)
     put_le16(p + 160, 0x8100);			/* Power requirement */
     put_le16(p + 161, 0x8001);			/* CF command set */
 
+    ide_cfata_identify_size(s);
     s->identify_set = 1;
 
 fill_buffer:
@@ -2131,11 +2153,37 @@ static bool ide_cd_is_medium_locked(void *opaque)
     return ((IDEState *)opaque)->tray_locked;
 }
 
+static void ide_resize_cb(void *opaque)
+{
+    IDEState *s = opaque;
+    uint64_t nb_sectors;
+
+    if (!s->identify_set) {
+        return;
+    }
+
+    bdrv_get_geometry(s->bs, &nb_sectors);
+    s->nb_sectors = nb_sectors;
+
+    /* Update the identify data buffer. */
+    if (s->drive_kind == IDE_CFATA) {
+        ide_cfata_identify_size(s);
+    } else {
+        /* IDE_CD uses a different set of callbacks entirely. */
+        assert(s->drive_kind != IDE_CD);
+        ide_identify_size(s);
+    }
+}
+
 static const BlockDevOps ide_cd_block_ops = {
     .change_media_cb = ide_cd_change_cb,
     .eject_request_cb = ide_cd_eject_request_cb,
     .is_tray_open = ide_cd_is_tray_open,
     .is_medium_locked = ide_cd_is_medium_locked,
+};
+
+static const BlockDevOps ide_hd_block_ops = {
+    .resize_cb = ide_resize_cb,
 };
 
 int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
@@ -2174,6 +2222,7 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
             error_report("Can't use a read-only drive");
             return -1;
         }
+        bdrv_set_dev_ops(bs, &ide_hd_block_ops, s);
     }
     if (serial) {
         pstrcpy(s->drive_serial_str, sizeof(s->drive_serial_str), serial);
