@@ -81,13 +81,12 @@ static void ide_identify(IDEState *s)
     unsigned int oldsize;
     IDEDevice *dev = s->unit ? s->bus->slave : s->bus->master;
 
+    p = (uint16_t *)s->identify_data;
     if (s->identify_set) {
-	memcpy(s->io_buffer, s->identify_data, sizeof(s->identify_data));
-	return;
+        goto fill_buffer;
     }
+    memset(p, 0, sizeof(s->identify_data));
 
-    memset(s->io_buffer, 0, 512);
-    p = (uint16_t *)s->io_buffer;
     put_le16(p + 0, 0x0040);
     put_le16(p + 1, s->cylinders);
     put_le16(p + 3, s->heads);
@@ -180,21 +179,22 @@ static void ide_identify(IDEState *s)
         put_le16(p + 169, 1); /* TRIM support */
     }
 
-    memcpy(s->identify_data, p, sizeof(s->identify_data));
     s->identify_set = 1;
+
+fill_buffer:
+    memcpy(s->io_buffer, p, sizeof(s->identify_data));
 }
 
 static void ide_atapi_identify(IDEState *s)
 {
     uint16_t *p;
 
+    p = (uint16_t *)s->identify_data;
     if (s->identify_set) {
-	memcpy(s->io_buffer, s->identify_data, sizeof(s->identify_data));
-	return;
+        goto fill_buffer;
     }
+    memset(p, 0, sizeof(s->identify_data));
 
-    memset(s->io_buffer, 0, 512);
-    p = (uint16_t *)s->io_buffer;
     /* Removable CDROM, 50us response, 12 byte packets */
     put_le16(p + 0, (2 << 14) | (5 << 8) | (1 << 7) | (2 << 5) | (0 << 0));
     padstr((char *)(p + 10), s->drive_serial_str, 20); /* serial number */
@@ -247,8 +247,10 @@ static void ide_atapi_identify(IDEState *s)
         put_le16(p + 111, s->wwn);
     }
 
-    memcpy(s->identify_data, p, sizeof(s->identify_data));
     s->identify_set = 1;
+
+fill_buffer:
+    memcpy(s->io_buffer, p, sizeof(s->identify_data));
 }
 
 static void ide_cfata_identify(IDEState *s)
@@ -256,10 +258,10 @@ static void ide_cfata_identify(IDEState *s)
     uint16_t *p;
     uint32_t cur_sec;
 
-    p = (uint16_t *) s->identify_data;
-    if (s->identify_set)
+    p = (uint16_t *)s->identify_data;
+    if (s->identify_set) {
         goto fill_buffer;
-
+    }
     memset(p, 0, sizeof(s->identify_data));
 
     cur_sec = s->cylinders * s->heads * s->sectors;
