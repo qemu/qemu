@@ -142,6 +142,7 @@ typedef struct APBState {
     IOMMUState iommu;
     uint32_t pci_control[16];
     uint32_t pci_irq_map[8];
+    uint32_t pci_err_irq_map[4];
     uint32_t obio_irq_map[32];
     qemu_irq *pbm_irqs;
     qemu_irq *ivec_irqs;
@@ -437,7 +438,7 @@ static void apb_config_writel (void *opaque, hwaddr addr,
             pbm_check_irqs(s);
         }
         break;
-    case 0x1000 ... 0x1080: /* OBIO interrupt control */
+    case 0x1000 ... 0x107f: /* OBIO interrupt control */
         if (addr & 4) {
             unsigned int ino = ((addr & 0xff) >> 3);
             s->obio_irq_map[ino] &= PBM_PCI_IMR_MASK;
@@ -515,9 +516,16 @@ static uint64_t apb_config_readl (void *opaque,
             val = 0;
         }
         break;
-    case 0x1000 ... 0x1080: /* OBIO interrupt control */
+    case 0x1000 ... 0x107f: /* OBIO interrupt control */
         if (addr & 4) {
             val = s->obio_irq_map[(addr & 0xff) >> 3];
+        } else {
+            val = 0;
+        }
+        break;
+    case 0x1080 ... 0x108f: /* PCI bus error */
+        if (addr & 4) {
+            val = s->pci_err_irq_map[(addr & 0xf) >> 3];
         } else {
             val = 0;
         }
@@ -752,6 +760,9 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     s = APB_DEVICE(dev);
     for (i = 0; i < 8; i++) {
         s->pci_irq_map[i] = (0x1f << 6) | (i << 2);
+    }
+    for (i = 0; i < 2; i++) {
+        s->pci_err_irq_map[i] = (0x1f << 6) | 0x30;
     }
     for (i = 0; i < 32; i++) {
         s->obio_irq_map[i] = ((0x1f << 6) | 0x20) + i;
