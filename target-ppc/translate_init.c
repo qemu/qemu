@@ -9137,7 +9137,7 @@ int ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version)
         break;
     }
 
-    if (kvm_enabled() && kvmppc_set_compat(cpu, cpu->max_compat) < 0) {
+    if (kvm_enabled() && kvmppc_set_compat(cpu, cpu->cpu_version) < 0) {
         error_report("Unable to set compatibility mode in KVM");
         ret = -1;
     }
