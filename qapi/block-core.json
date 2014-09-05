@@ -1570,7 +1570,7 @@
 ##
 # @BLOCK_IMAGE_CORRUPTED
 #
-# Emitted when a disk image is being marked corrupt
+# Emitted when a corruption has been detected in a disk image
 #
 # @device: device name
 #
@@ -1584,13 +1584,18 @@
 # @size: #optional, if the corruption resulted from an image access, this is
 #        the access size
 #
+# fatal: if set, the image is marked corrupt and therefore unusable after this
+#        event and must be repaired (Since 2.2; before, every
+#        BLOCK_IMAGE_CORRUPTED event was fatal)
+#
 # Since: 1.7
 ##
 { 'event': 'BLOCK_IMAGE_CORRUPTED',
   'data': { 'device' : 'str',
             'msg'    : 'str',
             '*offset': 'int',
-            '*size'  : 'int' } }
+            '*size'  : 'int',
+            'fatal'  : 'bool' } }
 
 ##
 # @BLOCK_IO_ERROR

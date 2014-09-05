@@ -1853,6 +1853,7 @@ int qcow2_pre_write_overlap_check(BlockDriverState *bs, int ign, int64_t offset,
                                               offset,
                                               true,
                                               size,
+                                              true,
                                               &error_abort);
         g_free(message);
 
