@@ -197,7 +197,7 @@ static void nvme_rw_cb(void *opaque, int ret)
     NvmeCtrl *n = sq->ctrl;
     NvmeCQueue *cq = n->cq[sq->cqid];
 
-    bdrv_acct_done(n->conf.bs, &req->acct);
+    block_acct_done(bdrv_get_stats(n->conf.bs), &req->acct);
     if (!ret) {
         req->status = NVME_SUCCESS;
     } else {

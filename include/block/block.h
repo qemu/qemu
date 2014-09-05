@@ -5,6 +5,7 @@
 #include "qemu-common.h"
 #include "qemu/option.h"
 #include "block/coroutine.h"
+#include "block/accounting.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi-types.h"
 
@@ -573,5 +574,7 @@ void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context);
 void bdrv_io_plug(BlockDriverState *bs);
 void bdrv_io_unplug(BlockDriverState *bs);
 void bdrv_flush_io_queue(BlockDriverState *bs);
+
+BlockAcctStats *bdrv_get_stats(BlockDriverState *bs);
 
 #endif

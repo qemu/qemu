@@ -3363,7 +3363,7 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
 
     bdrv_set_dirty(bs, sector_num, nb_sectors);
 
-    bdrv_acct_highest_sector(bs, sector_num, nb_sectors);
+    block_acct_highest_sector(&bs->stats, sector_num, nb_sectors);
 
     if (bs->growable && ret >= 0) {
         bs->total_sectors = MAX(bs->total_sectors, sector_num + nb_sectors);
@@ -6086,4 +6086,15 @@ void bdrv_refresh_filename(BlockDriverState *bs)
                  qstring_get_str(json));
         QDECREF(json);
     }
+}
+
+/* This accessor function purpose is to allow the device models to access the
+ * BlockAcctStats structure embedded inside a BlockDriverState without being
+ * aware of the BlockDriverState structure layout.
+ * It will go away when the BlockAcctStats structure will be moved inside
+ * the device models.
+ */
+BlockAcctStats *bdrv_get_stats(BlockDriverState *bs)
+{
+    return &bs->stats;
 }

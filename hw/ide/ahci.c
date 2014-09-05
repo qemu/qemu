@@ -809,7 +809,8 @@ static void ncq_cb(void *opaque, int ret)
     DPRINTF(ncq_tfs->drive->port_no, "NCQ transfer tag %d finished\n",
             ncq_tfs->tag);
 
-    bdrv_acct_done(ncq_tfs->drive->port.ifs[0].bs, &ncq_tfs->acct);
+    block_acct_done(bdrv_get_stats(ncq_tfs->drive->port.ifs[0].bs),
+                    &ncq_tfs->acct);
     qemu_sglist_destroy(&ncq_tfs->sglist);
     ncq_tfs->used = 0;
 }

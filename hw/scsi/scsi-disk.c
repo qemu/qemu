@@ -183,7 +183,7 @@ static void scsi_aio_complete(void *opaque, int ret)
 
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
-    bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+    block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     if (r->req.io_canceled) {
         goto done;
     }
@@ -237,7 +237,8 @@ static void scsi_write_do_fua(SCSIDiskReq *r)
     }
 
     if (scsi_is_cmd_fua(&r->req.cmd)) {
-        bdrv_acct_start(s->qdev.conf.bs, &r->acct, 0, BLOCK_ACCT_FLUSH);
+        block_acct_start(bdrv_get_stats(s->qdev.conf.bs), &r->acct, 0,
+                         BLOCK_ACCT_FLUSH);
         r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_aio_complete, r);
         return;
     }
@@ -257,7 +258,7 @@ static void scsi_dma_complete_noio(void *opaque, int ret)
 
     if (r->req.aiocb != NULL) {
         r->req.aiocb = NULL;
-        bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+        block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     }
     if (r->req.io_canceled) {
         goto done;
@@ -300,7 +301,7 @@ static void scsi_read_complete(void * opaque, int ret)
 
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
-    bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+    block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     if (r->req.io_canceled) {
         goto done;
     }
@@ -333,7 +334,7 @@ static void scsi_do_read(void *opaque, int ret)
 
     if (r->req.aiocb != NULL) {
         r->req.aiocb = NULL;
-        bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+        block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     }
     if (r->req.io_canceled) {
         goto done;
@@ -355,8 +356,8 @@ static void scsi_do_read(void *opaque, int ret)
                                      scsi_dma_complete, r);
     } else {
         n = scsi_init_iovec(r, SCSI_DMA_BUF_SIZE);
-        bdrv_acct_start(s->qdev.conf.bs, &r->acct, n * BDRV_SECTOR_SIZE,
-                        BLOCK_ACCT_READ);
+        block_acct_start(bdrv_get_stats(s->qdev.conf.bs), &r->acct,
+                         n * BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
         r->req.aiocb = bdrv_aio_readv(s->qdev.conf.bs, r->sector, &r->qiov, n,
                                       scsi_read_complete, r);
     }
@@ -400,7 +401,8 @@ static void scsi_read_data(SCSIRequest *req)
     first = !r->started;
     r->started = true;
     if (first && scsi_is_cmd_fua(&r->req.cmd)) {
-        bdrv_acct_start(s->qdev.conf.bs, &r->acct, 0, BLOCK_ACCT_FLUSH);
+        block_acct_start(bdrv_get_stats(s->qdev.conf.bs), &r->acct, 0,
+                         BLOCK_ACCT_FLUSH);
         r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_do_read, r);
     } else {
         scsi_do_read(r, 0);
@@ -454,7 +456,7 @@ static void scsi_write_complete(void * opaque, int ret)
 
     if (r->req.aiocb != NULL) {
         r->req.aiocb = NULL;
-        bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+        block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     }
     if (r->req.io_canceled) {
         goto done;
@@ -529,8 +531,8 @@ static void scsi_write_data(SCSIRequest *req)
                                       scsi_dma_complete, r);
     } else {
         n = r->qiov.size / 512;
-        bdrv_acct_start(s->qdev.conf.bs, &r->acct, n * BDRV_SECTOR_SIZE,
-                        BLOCK_ACCT_WRITE);
+        block_acct_start(bdrv_get_stats(s->qdev.conf.bs), &r->acct,
+                         n * BDRV_SECTOR_SIZE, BLOCK_ACCT_WRITE);
         r->req.aiocb = bdrv_aio_writev(s->qdev.conf.bs, r->sector, &r->qiov, n,
                                        scsi_write_complete, r);
     }
@@ -1498,7 +1500,8 @@ static void scsi_disk_emulate_mode_select(SCSIDiskReq *r, uint8_t *inbuf)
     if (!bdrv_enable_write_cache(s->qdev.conf.bs)) {
         /* The request is used as the AIO opaque value, so add a ref.  */
         scsi_req_ref(&r->req);
-        bdrv_acct_start(s->qdev.conf.bs, &r->acct, 0, BLOCK_ACCT_FLUSH);
+        block_acct_start(bdrv_get_stats(s->qdev.conf.bs), &r->acct, 0,
+                         BLOCK_ACCT_FLUSH);
         r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_aio_complete, r);
         return;
     }
@@ -1649,7 +1652,7 @@ static void scsi_write_same_complete(void *opaque, int ret)
 
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
-    bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+    block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     if (r->req.io_canceled) {
         goto done;
     }
@@ -1664,8 +1667,8 @@ static void scsi_write_same_complete(void *opaque, int ret)
     data->sector += data->iov.iov_len / 512;
     data->iov.iov_len = MIN(data->nb_sectors * 512, data->iov.iov_len);
     if (data->iov.iov_len) {
-        bdrv_acct_start(s->qdev.conf.bs, &r->acct, data->iov.iov_len,
-                        BLOCK_ACCT_WRITE);
+        block_acct_start(bdrv_get_stats(s->qdev.conf.bs), &r->acct,
+                         data->iov.iov_len, BLOCK_ACCT_WRITE);
         r->req.aiocb = bdrv_aio_writev(s->qdev.conf.bs, data->sector,
                                        &data->qiov, data->iov.iov_len / 512,
                                        scsi_write_same_complete, data);
@@ -1711,8 +1714,9 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
 
         /* The request is used as the AIO opaque value, so add a ref.  */
         scsi_req_ref(&r->req);
-        bdrv_acct_start(s->qdev.conf.bs, &r->acct,
-                        nb_sectors * s->qdev.blocksize, BLOCK_ACCT_WRITE);
+        block_acct_start(bdrv_get_stats(s->qdev.conf.bs), &r->acct,
+                         nb_sectors * s->qdev.blocksize,
+                        BLOCK_ACCT_WRITE);
         r->req.aiocb = bdrv_aio_write_zeroes(s->qdev.conf.bs,
                                              r->req.cmd.lba * (s->qdev.blocksize / 512),
                                              nb_sectors * (s->qdev.blocksize / 512),
@@ -1733,8 +1737,8 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
     }
 
     scsi_req_ref(&r->req);
-    bdrv_acct_start(s->qdev.conf.bs, &r->acct, data->iov.iov_len,
-                    BLOCK_ACCT_WRITE);
+    block_acct_start(bdrv_get_stats(s->qdev.conf.bs), &r->acct,
+                     data->iov.iov_len, BLOCK_ACCT_WRITE);
     r->req.aiocb = bdrv_aio_writev(s->qdev.conf.bs, data->sector,
                                    &data->qiov, data->iov.iov_len / 512,
                                    scsi_write_same_complete, data);
@@ -1998,7 +2002,8 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
     case SYNCHRONIZE_CACHE:
         /* The request is used as the AIO opaque value, so add a ref.  */
         scsi_req_ref(&r->req);
-        bdrv_acct_start(s->qdev.conf.bs, &r->acct, 0, BLOCK_ACCT_FLUSH);
+        block_acct_start(bdrv_get_stats(s->qdev.conf.bs), &r->acct, 0,
+                         BLOCK_ACCT_FLUSH);
         r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_aio_complete, r);
         return 0;
     case SEEK_10:

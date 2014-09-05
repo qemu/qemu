@@ -25,9 +25,8 @@
 #include "block/accounting.h"
 #include "block/block_int.h"
 
-void
-bdrv_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie, int64_t bytes,
-        enum BlockAcctType type)
+void block_acct_start(BlockAcctStats *stats, BlockAcctCookie *cookie,
+                      int64_t bytes, enum BlockAcctType type)
 {
     assert(type < BLOCK_MAX_IOTYPE);
 
@@ -36,22 +35,20 @@ bdrv_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie, int64_t bytes,
     cookie->type = type;
 }
 
-void
-bdrv_acct_done(BlockDriverState *bs, BlockAcctCookie *cookie)
+void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
 {
     assert(cookie->type < BLOCK_MAX_IOTYPE);
 
-    bs->stats.nr_bytes[cookie->type] += cookie->bytes;
-    bs->stats.nr_ops[cookie->type]++;
-    bs->stats.total_time_ns[cookie->type] += get_clock() -
-                                             cookie->start_time_ns;
+    stats->nr_bytes[cookie->type] += cookie->bytes;
+    stats->nr_ops[cookie->type]++;
+    stats->total_time_ns[cookie->type] += get_clock() - cookie->start_time_ns;
 }
 
 
-void bdrv_acct_highest_sector(BlockDriverState *bs, int64_t sector_num,
-                              unsigned int nb_sectors)
+void block_acct_highest_sector(BlockAcctStats *stats, int64_t sector_num,
+                               unsigned int nb_sectors)
 {
-    if (bs->stats.wr_highest_sector < sector_num + nb_sectors - 1) {
-        bs->stats.wr_highest_sector = sector_num + nb_sectors - 1;
+    if (stats->wr_highest_sector < sector_num + nb_sectors - 1) {
+        stats->wr_highest_sector = sector_num + nb_sectors - 1;
     }
 }

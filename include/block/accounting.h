@@ -48,10 +48,10 @@ typedef struct BlockAcctCookie {
     enum BlockAcctType type;
 } BlockAcctCookie;
 
-void bdrv_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
-        int64_t bytes, enum BlockAcctType type);
-void bdrv_acct_done(BlockDriverState *bs, BlockAcctCookie *cookie);
-void bdrv_acct_highest_sector(BlockDriverState *bs, int64_t sector_num,
-                              unsigned int nb_sectors);
+void block_acct_start(BlockAcctStats *stats, BlockAcctCookie *cookie,
+                      int64_t bytes, enum BlockAcctType type);
+void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie);
+void block_acct_highest_sector(BlockAcctStats *stats, int64_t sector_num,
+                               unsigned int nb_sectors);
 
 #endif
