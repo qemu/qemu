@@ -294,6 +294,13 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr)
 
     check_len = !((ccw.flags & CCW_FLAG_SLI) && !(ccw.flags & CCW_FLAG_DC));
 
+    if (!ccw.cda) {
+        if (sch->ccw_no_data_cnt == 255) {
+            return -EINVAL;
+        }
+        sch->ccw_no_data_cnt++;
+    }
+
     /* Look at the command. */
     switch (ccw.cmd_code) {
     case CCW_CMD_NOOP:
@@ -396,6 +403,7 @@ static void sch_handle_start_func(SubchDev *sch, ORB *orb)
             return;
         }
         sch->ccw_fmt_1 = !!(orb->ctrl0 & ORB_CTRL0_MASK_FMT);
+        sch->ccw_no_data_cnt = 0;
     } else {
         s->ctrl &= ~(SCSW_ACTL_SUSP | SCSW_ACTL_RESUME_PEND);
     }
@@ -1358,6 +1366,7 @@ void subch_device_save(SubchDev *s, QEMUFile *f)
         qemu_put_be16(f, s->id.ciw[i].count);
     }
     qemu_put_byte(f, s->ccw_fmt_1);
+    qemu_put_byte(f, s->ccw_no_data_cnt);
     return;
 }
 
@@ -1414,6 +1423,7 @@ int subch_device_load(SubchDev *s, QEMUFile *f)
         s->id.ciw[i].count = qemu_get_be16(f);
     }
     s->ccw_fmt_1 = qemu_get_byte(f);
+    s->ccw_no_data_cnt = qemu_get_byte(f);
     return 0;
 }
 
