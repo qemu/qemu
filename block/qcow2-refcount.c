@@ -108,6 +108,13 @@ static int get_refcount(BlockDriverState *bs, int64_t cluster_index)
     if (!refcount_block_offset)
         return 0;
 
+    if (offset_into_cluster(s, refcount_block_offset)) {
+        qcow2_signal_corruption(bs, true, -1, -1, "Refblock offset %#" PRIx64
+                                " unaligned (reftable index: %#" PRIx64 ")",
+                                refcount_block_offset, refcount_table_index);
+        return -EIO;
+    }
+
     ret = qcow2_cache_get(bs, s->refcount_block_cache, refcount_block_offset,
         (void**) &refcount_block);
     if (ret < 0) {
@@ -181,6 +188,14 @@ static int alloc_refcount_block(BlockDriverState *bs,
 
         /* If it's already there, we're done */
         if (refcount_block_offset) {
+            if (offset_into_cluster(s, refcount_block_offset)) {
+                qcow2_signal_corruption(bs, true, -1, -1, "Refblock offset %#"
+                                        PRIx64 " unaligned (reftable index: "
+                                        "%#x)", refcount_block_offset,
+                                        refcount_table_index);
+                return -EIO;
+            }
+
              return load_refcount_block(bs, refcount_block_offset,
                  (void**) refcount_block);
         }
@@ -836,8 +851,14 @@ void qcow2_free_any_clusters(BlockDriverState *bs, uint64_t l2_entry,
     case QCOW2_CLUSTER_NORMAL:
     case QCOW2_CLUSTER_ZERO:
         if (l2_entry & L2E_OFFSET_MASK) {
-            qcow2_free_clusters(bs, l2_entry & L2E_OFFSET_MASK,
-                                nb_clusters << s->cluster_bits, type);
+            if (offset_into_cluster(s, l2_entry & L2E_OFFSET_MASK)) {
+                qcow2_signal_corruption(bs, false, -1, -1,
+                                        "Cannot free unaligned cluster %#llx",
+                                        l2_entry & L2E_OFFSET_MASK);
+            } else {
+                qcow2_free_clusters(bs, l2_entry & L2E_OFFSET_MASK,
+                                    nb_clusters << s->cluster_bits, type);
+            }
         }
         break;
     case QCOW2_CLUSTER_UNALLOCATED:
@@ -901,6 +922,14 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
             old_l2_offset = l2_offset;
             l2_offset &= L1E_OFFSET_MASK;
 
+            if (offset_into_cluster(s, l2_offset)) {
+                qcow2_signal_corruption(bs, true, -1, -1, "L2 table offset %#"
+                                        PRIx64 " unaligned (L1 index: %#x)",
+                                        l2_offset, i);
+                ret = -EIO;
+                goto fail;
+            }
+
             ret = qcow2_cache_get(bs, s->l2_table_cache, l2_offset,
                 (void**) &l2_table);
             if (ret < 0) {
@@ -933,6 +962,17 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
 
                     case QCOW2_CLUSTER_NORMAL:
                     case QCOW2_CLUSTER_ZERO:
+                        if (offset_into_cluster(s, offset & L2E_OFFSET_MASK)) {
+                            qcow2_signal_corruption(bs, true, -1, -1, "Data "
+                                                    "cluster offset %#llx "
+                                                    "unaligned (L2 offset: %#"
+                                                    PRIx64 ", L2 index: %#x)",
+                                                    offset & L2E_OFFSET_MASK,
+                                                    l2_offset, j);
+                            ret = -EIO;
+                            goto fail;
+                        }
+
                         cluster_index = (offset & L2E_OFFSET_MASK) >> s->cluster_bits;
                         if (!cluster_index) {
                             /* unallocated */
