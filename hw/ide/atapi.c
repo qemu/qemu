@@ -110,12 +110,12 @@ static int cd_read_sector(IDEState *s, int lba, uint8_t *buf, int sector_size)
 
     switch(sector_size) {
     case 2048:
-        bdrv_acct_start(s->bs, &s->acct, 4 * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
+        bdrv_acct_start(s->bs, &s->acct, 4 * BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
         ret = bdrv_read(s->bs, (int64_t)lba << 2, buf, 4);
         bdrv_acct_done(s->bs, &s->acct);
         break;
     case 2352:
-        bdrv_acct_start(s->bs, &s->acct, 4 * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
+        bdrv_acct_start(s->bs, &s->acct, 4 * BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
         ret = bdrv_read(s->bs, (int64_t)lba << 2, buf + 16, 4);
         bdrv_acct_done(s->bs, &s->acct);
         if (ret < 0)
@@ -253,7 +253,7 @@ static void ide_atapi_cmd_reply(IDEState *s, int size, int max_size)
     s->io_buffer_index = 0;
 
     if (s->atapi_dma) {
-        bdrv_acct_start(s->bs, &s->acct, size, BDRV_ACCT_READ);
+        bdrv_acct_start(s->bs, &s->acct, size, BLOCK_ACCT_READ);
         s->status = READY_STAT | SEEK_STAT | DRQ_STAT;
         ide_start_dma(s, ide_atapi_cmd_read_dma_cb);
     } else {
@@ -369,7 +369,7 @@ static void ide_atapi_cmd_read_dma(IDEState *s, int lba, int nb_sectors,
     s->io_buffer_size = 0;
     s->cd_sector_size = sector_size;
 
-    bdrv_acct_start(s->bs, &s->acct, s->packet_transfer_size, BDRV_ACCT_READ);
+    bdrv_acct_start(s->bs, &s->acct, s->packet_transfer_size, BLOCK_ACCT_READ);
 
     /* XXX: check if BUSY_STAT should be set */
     s->status = READY_STAT | SEEK_STAT | DRQ_STAT | BUSY_STAT;

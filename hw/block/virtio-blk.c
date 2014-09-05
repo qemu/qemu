@@ -279,7 +279,7 @@ void virtio_submit_multiwrite(BlockDriverState *bs, MultiReqBuffer *mrb)
 
 static void virtio_blk_handle_flush(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 {
-    bdrv_acct_start(req->dev->bs, &req->acct, 0, BDRV_ACCT_FLUSH);
+    bdrv_acct_start(req->dev->bs, &req->acct, 0, BLOCK_ACCT_FLUSH);
 
     /*
      * Make sure all outstanding writes are posted to the backing device.
@@ -322,7 +322,7 @@ static void virtio_blk_handle_write(VirtIOBlockReq *req, MultiReqBuffer *mrb)
         return;
     }
 
-    bdrv_acct_start(req->dev->bs, &req->acct, req->qiov.size, BDRV_ACCT_WRITE);
+    bdrv_acct_start(req->dev->bs, &req->acct, req->qiov.size, BLOCK_ACCT_WRITE);
 
     if (mrb->num_writes == 32) {
         virtio_submit_multiwrite(req->dev->bs, mrb);
@@ -353,7 +353,7 @@ static void virtio_blk_handle_read(VirtIOBlockReq *req)
         return;
     }
 
-    bdrv_acct_start(req->dev->bs, &req->acct, req->qiov.size, BDRV_ACCT_READ);
+    bdrv_acct_start(req->dev->bs, &req->acct, req->qiov.size, BLOCK_ACCT_READ);
     bdrv_aio_readv(req->dev->bs, sector, &req->qiov,
                    req->qiov.size / BDRV_SECTOR_SIZE,
                    virtio_blk_rw_complete, req);

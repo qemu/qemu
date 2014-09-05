@@ -232,7 +232,7 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     assert((nlb << data_shift) == req->qsg.size);
 
     dma_acct_start(n->conf.bs, &req->acct, &req->qsg, is_write ?
-        BDRV_ACCT_WRITE : BDRV_ACCT_READ);
+        BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
     req->aiocb = is_write ?
         dma_bdrv_write(n->conf.bs, &req->qsg, aio_slba, nvme_rw_cb, req) :
         dma_bdrv_read(n->conf.bs, &req->qsg, aio_slba, nvme_rw_cb, req);

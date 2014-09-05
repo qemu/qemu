@@ -518,7 +518,8 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
 
     switch (ioreq->req.operation) {
     case BLKIF_OP_READ:
-        bdrv_acct_start(blkdev->bs, &ioreq->acct, ioreq->v.size, BDRV_ACCT_READ);
+        bdrv_acct_start(blkdev->bs, &ioreq->acct, ioreq->v.size,
+                        BLOCK_ACCT_READ);
         ioreq->aio_inflight++;
         bdrv_aio_readv(blkdev->bs, ioreq->start / BLOCK_SIZE,
                        &ioreq->v, ioreq->v.size / BLOCK_SIZE,
@@ -530,7 +531,8 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
             break;
         }
 
-        bdrv_acct_start(blkdev->bs, &ioreq->acct, ioreq->v.size, BDRV_ACCT_WRITE);
+        bdrv_acct_start(blkdev->bs, &ioreq->acct, ioreq->v.size,
+                        BLOCK_ACCT_WRITE);
         ioreq->aio_inflight++;
         bdrv_aio_writev(blkdev->bs, ioreq->start / BLOCK_SIZE,
                         &ioreq->v, ioreq->v.size / BLOCK_SIZE,

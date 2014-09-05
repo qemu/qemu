@@ -624,7 +624,7 @@ void ide_sector_read(IDEState *s)
     s->iov.iov_len  = n * BDRV_SECTOR_SIZE;
     qemu_iovec_init_external(&s->qiov, &s->iov, 1);
 
-    bdrv_acct_start(s->bs, &s->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
+    bdrv_acct_start(s->bs, &s->acct, n * BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
     s->pio_aiocb = bdrv_aio_readv(s->bs, sector_num, &s->qiov, n,
                                   ide_sector_read_cb, s);
 }
@@ -771,11 +771,11 @@ static void ide_sector_start_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
     switch (dma_cmd) {
     case IDE_DMA_READ:
         bdrv_acct_start(s->bs, &s->acct, s->nsector * BDRV_SECTOR_SIZE,
-                        BDRV_ACCT_READ);
+                        BLOCK_ACCT_READ);
         break;
     case IDE_DMA_WRITE:
         bdrv_acct_start(s->bs, &s->acct, s->nsector * BDRV_SECTOR_SIZE,
-                        BDRV_ACCT_WRITE);
+                        BLOCK_ACCT_WRITE);
         break;
     default:
         break;
@@ -869,7 +869,7 @@ void ide_sector_write(IDEState *s)
     s->iov.iov_len  = n * BDRV_SECTOR_SIZE;
     qemu_iovec_init_external(&s->qiov, &s->iov, 1);
 
-    bdrv_acct_start(s->bs, &s->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
+    bdrv_acct_start(s->bs, &s->acct, n * BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
     s->pio_aiocb = bdrv_aio_writev(s->bs, sector_num, &s->qiov, n,
                                    ide_sector_write_cb, s);
 }
@@ -903,7 +903,7 @@ void ide_flush_cache(IDEState *s)
     }
 
     s->status |= BUSY_STAT;
-    bdrv_acct_start(s->bs, &s->acct, 0, BDRV_ACCT_FLUSH);
+    bdrv_acct_start(s->bs, &s->acct, 0, BLOCK_ACCT_FLUSH);
     s->pio_aiocb = bdrv_aio_flush(s->bs, ide_flush_cb, s);
 }
 

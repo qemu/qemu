@@ -371,7 +371,7 @@ static void pmac_ide_transfer(DBDMA_io *io)
         if (s->lba == -1) {
             s->io_buffer_size = MIN(io->len, s->packet_transfer_size);
             bdrv_acct_start(s->bs, &s->acct, s->io_buffer_size,
-                            BDRV_ACCT_READ);
+                            BLOCK_ACCT_READ);
             MACIO_DPRINTF("non-block ATAPI DMA transfer size: %d\n",
                           s->io_buffer_size);
 
@@ -387,17 +387,17 @@ static void pmac_ide_transfer(DBDMA_io *io)
             return;
         }
 
-        bdrv_acct_start(s->bs, &s->acct, io->len, BDRV_ACCT_READ);
+        bdrv_acct_start(s->bs, &s->acct, io->len, BLOCK_ACCT_READ);
         pmac_ide_atapi_transfer_cb(io, 0);
         return;
     }
 
     switch (s->dma_cmd) {
     case IDE_DMA_READ:
-        bdrv_acct_start(s->bs, &s->acct, io->len, BDRV_ACCT_READ);
+        bdrv_acct_start(s->bs, &s->acct, io->len, BLOCK_ACCT_READ);
         break;
     case IDE_DMA_WRITE:
-        bdrv_acct_start(s->bs, &s->acct, io->len, BDRV_ACCT_WRITE);
+        bdrv_acct_start(s->bs, &s->acct, io->len, BLOCK_ACCT_WRITE);
         break;
     default:
         break;

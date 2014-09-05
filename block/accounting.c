@@ -29,7 +29,7 @@ void
 bdrv_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie, int64_t bytes,
         enum BlockAcctType type)
 {
-    assert(type < BDRV_MAX_IOTYPE);
+    assert(type < BLOCK_MAX_IOTYPE);
 
     cookie->bytes = bytes;
     cookie->start_time_ns = get_clock();
@@ -39,7 +39,7 @@ bdrv_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie, int64_t bytes,
 void
 bdrv_acct_done(BlockDriverState *bs, BlockAcctCookie *cookie)
 {
-    assert(cookie->type < BDRV_MAX_IOTYPE);
+    assert(cookie->type < BLOCK_MAX_IOTYPE);
 
     bs->stats.nr_bytes[cookie->type] += cookie->bytes;
     bs->stats.nr_ops[cookie->type]++;

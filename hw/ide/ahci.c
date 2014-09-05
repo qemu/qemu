@@ -860,7 +860,7 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
                     ncq_tfs->tag, ncq_tfs->lba);
 
             dma_acct_start(ncq_tfs->drive->port.ifs[0].bs, &ncq_tfs->acct,
-                           &ncq_tfs->sglist, BDRV_ACCT_READ);
+                           &ncq_tfs->sglist, BLOCK_ACCT_READ);
             ncq_tfs->aiocb = dma_bdrv_read(ncq_tfs->drive->port.ifs[0].bs,
                                            &ncq_tfs->sglist, ncq_tfs->lba,
                                            ncq_cb, ncq_tfs);
@@ -873,7 +873,7 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
                     ncq_tfs->tag, ncq_tfs->lba);
 
             dma_acct_start(ncq_tfs->drive->port.ifs[0].bs, &ncq_tfs->acct,
-                           &ncq_tfs->sglist, BDRV_ACCT_WRITE);
+                           &ncq_tfs->sglist, BLOCK_ACCT_WRITE);
             ncq_tfs->aiocb = dma_bdrv_write(ncq_tfs->drive->port.ifs[0].bs,
                                             &ncq_tfs->sglist, ncq_tfs->lba,
                                             ncq_cb, ncq_tfs);
