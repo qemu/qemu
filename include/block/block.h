@@ -492,6 +492,13 @@ enum BlockAcctType {
     BDRV_MAX_IOTYPE,
 };
 
+typedef struct BlockAcctStats {
+    uint64_t nr_bytes[BDRV_MAX_IOTYPE];
+    uint64_t nr_ops[BDRV_MAX_IOTYPE];
+    uint64_t total_time_ns[BDRV_MAX_IOTYPE];
+    uint64_t wr_highest_sector;
+} BlockAcctStats;
+
 typedef struct BlockAcctCookie {
     int64_t bytes;
     int64_t start_time_ns;

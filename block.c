@@ -3363,8 +3363,8 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
 
     bdrv_set_dirty(bs, sector_num, nb_sectors);
 
-    if (bs->wr_highest_sector < sector_num + nb_sectors - 1) {
-        bs->wr_highest_sector = sector_num + nb_sectors - 1;
+    if (bs->stats.wr_highest_sector < sector_num + nb_sectors - 1) {
+        bs->stats.wr_highest_sector = sector_num + nb_sectors - 1;
     }
     if (bs->growable && ret >= 0) {
         bs->total_sectors = MAX(bs->total_sectors, sector_num + nb_sectors);
@@ -5588,9 +5588,10 @@ bdrv_acct_done(BlockDriverState *bs, BlockAcctCookie *cookie)
 {
     assert(cookie->type < BDRV_MAX_IOTYPE);
 
-    bs->nr_bytes[cookie->type] += cookie->bytes;
-    bs->nr_ops[cookie->type]++;
-    bs->total_time_ns[cookie->type] += get_clock() - cookie->start_time_ns;
+    bs->stats.nr_bytes[cookie->type] += cookie->bytes;
+    bs->stats.nr_ops[cookie->type]++;
+    bs->stats.total_time_ns[cookie->type] += get_clock() -
+                                             cookie->start_time_ns;
 }
 
 void bdrv_img_create(const char *filename, const char *fmt,
