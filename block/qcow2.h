@@ -261,6 +261,7 @@ typedef struct BDRVQcowState {
     bool discard_passthrough[QCOW2_DISCARD_MAX];
 
     int overlap_check; /* bitmask of Qcow2MetadataOverlap values */
+    bool signaled_corruption;
 
     uint64_t incompatible_features;
     uint64_t compatible_features;
@@ -476,6 +477,10 @@ int qcow2_mark_dirty(BlockDriverState *bs);
 int qcow2_mark_corrupt(BlockDriverState *bs);
 int qcow2_mark_consistent(BlockDriverState *bs);
 int qcow2_update_header(BlockDriverState *bs);
+
+void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
+                             int64_t size, const char *message_format, ...)
+                             GCC_FMT_ATTR(5, 6);
 
 /* qcow2-refcount.c functions */
 int qcow2_refcount_init(BlockDriverState *bs);
