@@ -243,17 +243,25 @@ static void copy_sense_id_to_guest(SenseId *dest, SenseId *src)
     }
 }
 
-static CCW1 copy_ccw_from_guest(hwaddr addr)
+static CCW1 copy_ccw_from_guest(hwaddr addr, bool fmt1)
 {
-    CCW1 tmp;
+    CCW0 tmp0;
+    CCW1 tmp1;
     CCW1 ret;
 
-    cpu_physical_memory_read(addr, &tmp, sizeof(tmp));
-    ret.cmd_code = tmp.cmd_code;
-    ret.flags = tmp.flags;
-    ret.count = be16_to_cpu(tmp.count);
-    ret.cda = be32_to_cpu(tmp.cda);
-
+    if (fmt1) {
+        cpu_physical_memory_read(addr, &tmp1, sizeof(tmp1));
+        ret.cmd_code = tmp1.cmd_code;
+        ret.flags = tmp1.flags;
+        ret.count = be16_to_cpu(tmp1.count);
+        ret.cda = be32_to_cpu(tmp1.cda);
+    } else {
+        cpu_physical_memory_read(addr, &tmp0, sizeof(tmp0));
+        ret.cmd_code = tmp0.cmd_code;
+        ret.flags = tmp0.flags;
+        ret.count = be16_to_cpu(tmp0.count);
+        ret.cda = be16_to_cpu(tmp0.cda1) | (tmp0.cda0 << 16);
+    }
     return ret;
 }
 
@@ -268,7 +276,8 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr)
         return -EIO;
     }
 
-    ccw = copy_ccw_from_guest(ccw_addr);
+    /* Translate everything to format-1 ccws - the information is the same. */
+    ccw = copy_ccw_from_guest(ccw_addr, sch->ccw_fmt_1);
 
     /* Check for invalid command codes. */
     if ((ccw.cmd_code & 0x0f) == 0) {
@@ -386,6 +395,7 @@ static void sch_handle_start_func(SubchDev *sch, ORB *orb)
             s->ctrl |= (SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND);
             return;
         }
+        sch->ccw_fmt_1 = !!(orb->ctrl0 & ORB_CTRL0_MASK_FMT);
     } else {
         s->ctrl &= ~(SCSW_ACTL_SUSP | SCSW_ACTL_RESUME_PEND);
     }
@@ -1347,6 +1357,7 @@ void subch_device_save(SubchDev *s, QEMUFile *f)
         qemu_put_byte(f, s->id.ciw[i].command);
         qemu_put_be16(f, s->id.ciw[i].count);
     }
+    qemu_put_byte(f, s->ccw_fmt_1);
     return;
 }
 
@@ -1402,6 +1413,7 @@ int subch_device_load(SubchDev *s, QEMUFile *f)
         s->id.ciw[i].command = qemu_get_byte(f);
         s->id.ciw[i].count = qemu_get_be16(f);
     }
+    s->ccw_fmt_1 = qemu_get_byte(f);
     return 0;
 }
 
