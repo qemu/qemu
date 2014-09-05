@@ -16,6 +16,7 @@
 #include "qemu-common.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
+#include "sysemu/cpus.h"
 #include "hw/sysbus.h"
 #include "hw/kvm/clock.h"
 
@@ -75,6 +76,9 @@ static void kvmclock_vm_state_change(void *opaque, int running,
         if (s->clock_valid) {
             return;
         }
+
+        cpu_synchronize_all_states();
+        cpu_clean_all_dirty();
         ret = kvm_vm_ioctl(kvm_state, KVM_GET_CLOCK, &data);
         if (ret < 0) {
             fprintf(stderr, "KVM_GET_CLOCK failed: %s\n", strerror(ret));
