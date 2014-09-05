@@ -24,6 +24,7 @@
 #ifndef BLOCK_INT_H
 #define BLOCK_INT_H
 
+#include "block/accounting.h"
 #include "block/block.h"
 #include "qemu/option.h"
 #include "qemu/queue.h"

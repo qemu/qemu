@@ -485,30 +485,6 @@ void bdrv_op_block_all(BlockDriverState *bs, Error *reason);
 void bdrv_op_unblock_all(BlockDriverState *bs, Error *reason);
 bool bdrv_op_blocker_is_empty(BlockDriverState *bs);
 
-enum BlockAcctType {
-    BDRV_ACCT_READ,
-    BDRV_ACCT_WRITE,
-    BDRV_ACCT_FLUSH,
-    BDRV_MAX_IOTYPE,
-};
-
-typedef struct BlockAcctStats {
-    uint64_t nr_bytes[BDRV_MAX_IOTYPE];
-    uint64_t nr_ops[BDRV_MAX_IOTYPE];
-    uint64_t total_time_ns[BDRV_MAX_IOTYPE];
-    uint64_t wr_highest_sector;
-} BlockAcctStats;
-
-typedef struct BlockAcctCookie {
-    int64_t bytes;
-    int64_t start_time_ns;
-    enum BlockAcctType type;
-} BlockAcctCookie;
-
-void bdrv_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
-        int64_t bytes, enum BlockAcctType type);
-void bdrv_acct_done(BlockDriverState *bs, BlockAcctCookie *cookie);
-
 typedef enum {
     BLKDBG_L1_UPDATE,
 
