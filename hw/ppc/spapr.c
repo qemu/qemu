@@ -1660,9 +1660,6 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
 
-    mc->name = "pseries";
-    mc->desc = "pSeries Logical Partition (PAPR compliant)";
-    mc->is_default = 1;
     mc->init = ppc_spapr_init;
     mc->reset = ppc_spapr_reset;
     mc->block_default_type = IF_SCSI;
@@ -1678,6 +1675,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
 static const TypeInfo spapr_machine_info = {
     .name          = TYPE_SPAPR_MACHINE,
     .parent        = TYPE_MACHINE,
+    .abstract      = true,
     .instance_size = sizeof(sPAPRMachineState),
     .instance_init = spapr_machine_initfn,
     .class_init    = spapr_machine_class_init,
@@ -1698,7 +1696,6 @@ static void spapr_machine_2_1_class_init(ObjectClass *oc, void *data)
 
     mc->name = "pseries-2.1";
     mc->desc = "pSeries Logical Partition (PAPR compliant) v2.1";
-    mc->is_default = 0;
     mc->compat_props = compat_props;
 }
 
@@ -1708,10 +1705,27 @@ static const TypeInfo spapr_machine_2_1_info = {
     .class_init    = spapr_machine_2_1_class_init,
 };
 
+static void spapr_machine_2_2_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->name = "pseries-2.2";
+    mc->desc = "pSeries Logical Partition (PAPR compliant) v2.2";
+    mc->alias = "pseries";
+    mc->is_default = 1;
+}
+
+static const TypeInfo spapr_machine_2_2_info = {
+    .name          = TYPE_SPAPR_MACHINE "2.2",
+    .parent        = TYPE_SPAPR_MACHINE,
+    .class_init    = spapr_machine_2_2_class_init,
+};
+
 static void spapr_machine_register_types(void)
 {
     type_register_static(&spapr_machine_info);
     type_register_static(&spapr_machine_2_1_info);
+    type_register_static(&spapr_machine_2_2_info);
 }
 
 type_init(spapr_machine_register_types)
