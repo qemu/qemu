@@ -1266,9 +1266,13 @@ is qemu.git/contrib/ivshmem-server.  An example syntax when using the shared
 memory server is:
 
 @example
-qemu-system-i386 -device ivshmem,size=<size in format accepted by -m>[,chardev=<id>]
-                 [,msi=on][,ioeventfd=on][,vectors=n][,role=peer|master]
-qemu-system-i386 -chardev socket,path=<path>,id=<id>
+# First start the ivshmem server once and for all
+ivshmem-server -p <pidfile> -S <path> -m <shm name> -l <shm size> -n <vectors n>
+
+# Then start your qemu instances with matching arguments
+qemu-system-i386 -device ivshmem,size=<shm size>,vectors=<vectors n>,chardev=<id>
+                 [,msi=on][,ioeventfd=on][,role=peer|master]
+                 -chardev socket,path=<path>,id=<id>
 @end example
 
 When using the server, the guest will be assigned a VM ID (>=0) that allows guests
