@@ -126,6 +126,8 @@ static void ide_test_start(const char *cmdline_fmt, ...)
 
 static void ide_test_quit(void)
 {
+    pc_alloc_uninit(guest_malloc);
+    guest_malloc = NULL;
     qtest_end();
 }
 

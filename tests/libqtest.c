@@ -696,3 +696,51 @@ void qmp_discard_response(const char *fmt, ...)
     qtest_qmpv_discard_response(global_qtest, fmt, ap);
     va_end(ap);
 }
+
+bool qtest_big_endian(void)
+{
+    const char *arch = qtest_get_arch();
+    int i;
+
+    static const struct {
+        const char *arch;
+        bool big_endian;
+    } endianness[] = {
+        { "aarch64", false },
+        { "alpha", false },
+        { "arm", false },
+        { "cris", false },
+        { "i386", false },
+        { "lm32", true },
+        { "m68k", true },
+        { "microblaze", true },
+        { "microblazeel", false },
+        { "mips", true },
+        { "mips64", true },
+        { "mips64el", false },
+        { "mipsel", false },
+        { "moxie", true },
+        { "or32", true },
+        { "ppc", true },
+        { "ppc64", true },
+        { "ppcemb", true },
+        { "s390x", true },
+        { "sh4", false },
+        { "sh4eb", true },
+        { "sparc", true },
+        { "sparc64", true },
+        { "unicore32", false },
+        { "x86_64", false },
+        { "xtensa", false },
+        { "xtensaeb", true },
+        {},
+    };
+
+    for (i = 0; endianness[i].arch; i++) {
+        if (strcmp(endianness[i].arch, arch) == 0) {
+            return endianness[i].big_endian;
+        }
+    }
+
+    return false;
+}

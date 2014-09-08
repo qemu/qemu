@@ -682,4 +682,11 @@ static inline int64_t clock_set(int64_t val)
     return qtest_clock_set(global_qtest, val);
 }
 
+/**
+ * qtest_big_endian:
+ *
+ * Returns: True if the architecture under test has a big endian configuration.
+ */
+bool qtest_big_endian(void);
+
 #endif

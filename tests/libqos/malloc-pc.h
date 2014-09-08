@@ -15,6 +15,15 @@
 
 #include "libqos/malloc.h"
 
+typedef enum {
+    PC_ALLOC_NO_FLAGS    = 0x00,
+    PC_ALLOC_LEAK_WARN   = 0x01,
+    PC_ALLOC_LEAK_ASSERT = 0x02,
+    PC_ALLOC_PARANOID    = 0x04
+} PCAllocOpts;
+
 QGuestAllocator *pc_alloc_init(void);
+QGuestAllocator *pc_alloc_init_flags(PCAllocOpts flags);
+void             pc_alloc_uninit(QGuestAllocator *allocator);
 
 #endif
