@@ -1660,30 +1660,30 @@ void cpu_interrupt(CPUState *cpu, int mask)
 struct walk_memory_regions_data {
     walk_memory_regions_fn fn;
     void *priv;
-    uintptr_t start;
+    target_ulong start;
     int prot;
 };
 
 static int walk_memory_regions_end(struct walk_memory_regions_data *data,
-                                   abi_ulong end, int new_prot)
+                                   target_ulong end, int new_prot)
 {
-    if (data->start != -1ul) {
+    if (data->start != -1u) {
         int rc = data->fn(data->priv, data->start, end, data->prot);
         if (rc != 0) {
             return rc;
         }
     }
 
-    data->start = (new_prot ? end : -1ul);
+    data->start = (new_prot ? end : -1u);
     data->prot = new_prot;
 
     return 0;
 }
 
 static int walk_memory_regions_1(struct walk_memory_regions_data *data,
-                                 abi_ulong base, int level, void **lp)
+                                 target_ulong base, int level, void **lp)
 {
-    abi_ulong pa;
+    target_ulong pa;
     int i, rc;
 
     if (*lp == NULL) {
@@ -1708,7 +1708,7 @@ static int walk_memory_regions_1(struct walk_memory_regions_data *data,
         void **pp = *lp;
 
         for (i = 0; i < V_L2_SIZE; ++i) {
-            pa = base | ((abi_ulong)i <<
+            pa = base | ((target_ulong)i <<
                 (TARGET_PAGE_BITS + V_L2_BITS * level));
             rc = walk_memory_regions_1(data, pa, level - 1, pp + i);
             if (rc != 0) {
@@ -1727,13 +1727,12 @@ int walk_memory_regions(void *priv, walk_memory_regions_fn fn)
 
     data.fn = fn;
     data.priv = priv;
-    data.start = -1ul;
+    data.start = -1u;
     data.prot = 0;
 
     for (i = 0; i < V_L1_SIZE; i++) {
-        int rc = walk_memory_regions_1(&data, (abi_ulong)i << V_L1_SHIFT,
+        int rc = walk_memory_regions_1(&data, (target_ulong)i << (V_L1_SHIFT + TARGET_PAGE_BITS),
                                        V_L1_SHIFT / V_L2_BITS - 1, l1_map + i);
-
         if (rc != 0) {
             return rc;
         }
@@ -1742,13 +1741,13 @@ int walk_memory_regions(void *priv, walk_memory_regions_fn fn)
     return walk_memory_regions_end(&data, 0, 0);
 }
 
-static int dump_region(void *priv, abi_ulong start,
-    abi_ulong end, unsigned long prot)
+static int dump_region(void *priv, target_ulong start,
+    target_ulong end, unsigned long prot)
 {
     FILE *f = (FILE *)priv;
 
-    (void) fprintf(f, TARGET_ABI_FMT_lx"-"TARGET_ABI_FMT_lx
-        " "TARGET_ABI_FMT_lx" %c%c%c\n",
+    (void) fprintf(f, TARGET_FMT_lx"-"TARGET_FMT_lx
+        " "TARGET_FMT_lx" %c%c%c\n",
         start, end, end - start,
         ((prot & PAGE_READ) ? 'r' : '-'),
         ((prot & PAGE_WRITE) ? 'w' : '-'),
@@ -1760,7 +1759,7 @@ static int dump_region(void *priv, abi_ulong start,
 /* dump memory mappings */
 void page_dump(FILE *f)
 {
-    const int length = sizeof(abi_ulong) * 2;
+    const int length = sizeof(target_ulong) * 2;
     (void) fprintf(f, "%-*s %-*s %-*s %s\n",
             length, "start", length, "end", length, "size", "prot");
     walk_memory_regions(f, dump_region);
@@ -1788,7 +1787,7 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
        guest address space.  If this assert fires, it probably indicates
        a missing call to h2g_valid.  */
 #if TARGET_ABI_BITS > L1_MAP_ADDR_SPACE_BITS
-    assert(end < ((abi_ulong)1 << L1_MAP_ADDR_SPACE_BITS));
+    assert(end < ((target_ulong)1 << L1_MAP_ADDR_SPACE_BITS));
 #endif
     assert(start < end);
 
@@ -1825,7 +1824,7 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
        guest address space.  If this assert fires, it probably indicates
        a missing call to h2g_valid.  */
 #if TARGET_ABI_BITS > L1_MAP_ADDR_SPACE_BITS
-    assert(start < ((abi_ulong)1 << L1_MAP_ADDR_SPACE_BITS));
+    assert(start < ((target_ulong)1 << L1_MAP_ADDR_SPACE_BITS));
 #endif
 
     if (len == 0) {
