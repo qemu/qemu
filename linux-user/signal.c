@@ -4325,15 +4325,7 @@ badframe:
     return 0;
 }
 
-#elif defined(TARGET_PPC) && !defined(TARGET_PPC64)
-
-/* FIXME: Many of the structures are defined for both PPC and PPC64, but
-   the signal handling is different enough that we haven't implemented
-   support for PPC64 yet.  Hence the restriction above.
-
-   There are various #if'd blocks for code for TARGET_PPC64.  These
-   blocks should go away so that we can successfully run 32-bit and
-   64-bit binaries on a QEMU configured for PPC64.  */
+#elif defined(TARGET_PPC)
 
 /* Size of dummy stack frame allocated when calling signal handler.
    See arch/powerpc/include/asm/ptrace.h.  */
@@ -4342,6 +4334,33 @@ badframe:
 #else
 #define SIGNAL_FRAMESIZE 64
 #endif
+
+/* See arch/powerpc/include/asm/ucontext.h.  Only used for 32-bit PPC;
+   on 64-bit PPC, sigcontext and mcontext are one and the same.  */
+struct target_mcontext {
+    target_ulong mc_gregs[48];
+    /* Includes fpscr.  */
+    uint64_t mc_fregs[33];
+    target_ulong mc_pad[2];
+    /* We need to handle Altivec and SPE at the same time, which no
+       kernel needs to do.  Fortunately, the kernel defines this bit to
+       be Altivec-register-large all the time, rather than trying to
+       twiddle it based on the specific platform.  */
+    union {
+        /* SPE vector registers.  One extra for SPEFSCR.  */
+        uint32_t spe[33];
+        /* Altivec vector registers.  The packing of VSCR and VRSAVE
+           varies depending on whether we're PPC64 or not: PPC64 splits
+           them apart; PPC32 stuffs them together.  */
+#if defined(TARGET_PPC64)
+#define QEMU_NVRREG 34
+#else
+#define QEMU_NVRREG 33
+#endif
+        ppc_avr_t altivec[QEMU_NVRREG];
+#undef QEMU_NVRREG
+    } mc_vregs __attribute__((__aligned__(16)));
+};
 
 /* See arch/powerpc/include/asm/sigcontext.h.  */
 struct target_sigcontext {
@@ -4353,7 +4372,9 @@ struct target_sigcontext {
     target_ulong handler;
     target_ulong oldmask;
     target_ulong regs;      /* struct pt_regs __user * */
-    /* TODO: PPC64 includes extra bits here.  */
+#if defined(TARGET_PPC64)
+    struct target_mcontext mcontext;
+#endif
 };
 
 /* Indices for target_mcontext.mc_gregs, below.
@@ -4408,32 +4429,6 @@ enum {
     TARGET_PT_REGS_COUNT = 44
 };
 
-/* See arch/powerpc/include/asm/ucontext.h.  Only used for 32-bit PPC;
-   on 64-bit PPC, sigcontext and mcontext are one and the same.  */
-struct target_mcontext {
-    target_ulong mc_gregs[48];
-    /* Includes fpscr.  */
-    uint64_t mc_fregs[33];
-    target_ulong mc_pad[2];
-    /* We need to handle Altivec and SPE at the same time, which no
-       kernel needs to do.  Fortunately, the kernel defines this bit to
-       be Altivec-register-large all the time, rather than trying to
-       twiddle it based on the specific platform.  */
-    union {
-        /* SPE vector registers.  One extra for SPEFSCR.  */
-        uint32_t spe[33];
-        /* Altivec vector registers.  The packing of VSCR and VRSAVE
-           varies depending on whether we're PPC64 or not: PPC64 splits
-           them apart; PPC32 stuffs them together.  */
-#if defined(TARGET_PPC64)
-#define QEMU_NVRREG 34
-#else
-#define QEMU_NVRREG 33
-#endif
-        ppc_avr_t altivec[QEMU_NVRREG];
-#undef QEMU_NVRREG
-    } mc_vregs __attribute__((__aligned__(16)));
-};
 
 struct target_ucontext {
     target_ulong tuc_flags;
@@ -4447,7 +4442,7 @@ struct target_ucontext {
     target_sigset_t tuc_sigmask;
 #if defined(TARGET_PPC64)
     target_sigset_t unused[15]; /* Allow for uc_sigmask growth */
-    struct target_sigcontext tuc_mcontext;
+    struct target_sigcontext tuc_sigcontext;
 #else
     int32_t tuc_maskext[30];
     int32_t tuc_pad2[3];
@@ -4462,11 +4457,40 @@ struct target_sigframe {
     int32_t abigap[56];
 };
 
+#if defined(TARGET_PPC64)
+
+#define TARGET_TRAMP_SIZE 6
+
+struct target_rt_sigframe {
+        /* sys_rt_sigreturn requires the ucontext be the first field */
+        struct target_ucontext uc;
+        target_ulong  _unused[2];
+        uint32_t trampoline[TARGET_TRAMP_SIZE];
+        target_ulong pinfo; /* struct siginfo __user * */
+        target_ulong puc; /* void __user * */
+        struct target_siginfo info;
+        /* 64 bit ABI allows for 288 bytes below sp before decrementing it. */
+        char abigap[288];
+} __attribute__((aligned(16)));
+
+#else
+
 struct target_rt_sigframe {
     struct target_siginfo info;
     struct target_ucontext uc;
     int32_t abigap[56];
 };
+
+#endif
+
+#if defined(TARGET_PPC64)
+
+struct target_func_ptr {
+    target_ulong entry;
+    target_ulong toc;
+};
+
+#endif
 
 /* We use the mc_pad field for the signal return trampoline.  */
 #define tramp mc_pad
@@ -4491,8 +4515,7 @@ static target_ulong get_sigframe(struct target_sigaction *ka,
     return newsp;
 }
 
-static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame,
-                          int sigret)
+static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame)
 {
     target_ulong msr = env->msr;
     int i;
@@ -4559,11 +4582,14 @@ static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame,
 
     /* Store MSR.  */
     __put_user(msr, &frame->mc_gregs[TARGET_PT_MSR]);
+}
 
+static void encode_trampoline(int sigret, uint32_t *tramp)
+{
     /* Set up the sigreturn trampoline: li r0,sigret; sc.  */
     if (sigret) {
-        __put_user(0x38000000UL | sigret, &frame->tramp[0]);
-        __put_user(0x44000002UL, &frame->tramp[1]);
+        __put_user(0x38000000 | sigret, &tramp[0]);
+        __put_user(0x44000002, &tramp[1]);
     }
 }
 
@@ -4655,6 +4681,9 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     target_ulong frame_addr, newsp;
     int err = 0;
     int signal;
+#if defined(TARGET_PPC64)
+    struct image_info *image = ((TaskState *)thread_cpu->opaque)->info;
+#endif
 
     frame_addr = get_sigframe(ka, env, sizeof(*frame));
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 1))
@@ -4665,7 +4694,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
     __put_user(ka->_sa_handler, &sc->handler);
     __put_user(set->sig[0], &sc->oldmask);
-#if defined(TARGET_PPC64)
+#if TARGET_ABI_BITS == 64
     __put_user(set->sig[0] >> 32, &sc->_unused[3]);
 #else
     __put_user(set->sig[1], &sc->_unused[3]);
@@ -4674,7 +4703,10 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     __put_user(sig, &sc->signal);
 
     /* Save user regs.  */
-    save_user_regs(env, &frame->mctx, TARGET_NR_sigreturn);
+    save_user_regs(env, &frame->mctx);
+
+    /* Construct the trampoline code on the stack. */
+    encode_trampoline(TARGET_NR_sigreturn, (uint32_t *)&frame->mctx.tramp);
 
     /* The kernel checks for the presence of a VDSO here.  We don't
        emulate a vdso, so use a sigreturn system call.  */
@@ -4694,7 +4726,24 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     env->gpr[1] = newsp;
     env->gpr[3] = signal;
     env->gpr[4] = frame_addr + offsetof(struct target_sigframe, sctx);
+
+#if defined(TARGET_PPC64)
+    if (get_ppc64_abi(image) < 2) {
+        /* ELFv1 PPC64 function pointers are pointers to OPD entries. */
+        struct target_func_ptr *handler =
+            (struct target_func_ptr *)g2h(ka->_sa_handler);
+        env->nip = tswapl(handler->entry);
+        env->gpr[2] = tswapl(handler->toc);
+    } else {
+        /* ELFv2 PPC64 function pointers are entry points, but R12
+         * must also be set */
+        env->nip = tswapl((target_ulong) ka->_sa_handler);
+        env->gpr[12] = env->nip;
+    }
+#else
     env->nip = (target_ulong) ka->_sa_handler;
+#endif
+
     /* Signal handlers are entered in big-endian mode.  */
     env->msr &= ~MSR_LE;
 
@@ -4712,10 +4761,14 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
                            target_sigset_t *set, CPUPPCState *env)
 {
     struct target_rt_sigframe *rt_sf;
-    struct target_mcontext *frame;
+    uint32_t *trampptr = 0;
+    struct target_mcontext *mctx = 0;
     target_ulong rt_sf_addr, newsp = 0;
     int i, err = 0;
     int signal;
+#if defined(TARGET_PPC64)
+    struct image_info *image = ((TaskState *)thread_cpu->opaque)->info;
+#endif
 
     rt_sf_addr = get_sigframe(ka, env, sizeof(*rt_sf));
     if (!lock_user_struct(VERIFY_WRITE, rt_sf, rt_sf_addr, 1))
@@ -4733,25 +4786,35 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
                &rt_sf->uc.tuc_stack.ss_flags);
     __put_user(target_sigaltstack_used.ss_size,
                &rt_sf->uc.tuc_stack.ss_size);
+#if !defined(TARGET_PPC64)
     __put_user(h2g (&rt_sf->uc.tuc_mcontext),
                &rt_sf->uc.tuc_regs);
+#endif
     for(i = 0; i < TARGET_NSIG_WORDS; i++) {
         __put_user(set->sig[i], &rt_sf->uc.tuc_sigmask.sig[i]);
     }
 
-    frame = &rt_sf->uc.tuc_mcontext;
-    save_user_regs(env, frame, TARGET_NR_rt_sigreturn);
+#if defined(TARGET_PPC64)
+    mctx = &rt_sf->uc.tuc_sigcontext.mcontext;
+    trampptr = &rt_sf->trampoline[0];
+#else
+    mctx = &rt_sf->uc.tuc_mcontext;
+    trampptr = (uint32_t *)&rt_sf->uc.tuc_mcontext.tramp;
+#endif
+
+    save_user_regs(env, mctx);
+    encode_trampoline(TARGET_NR_rt_sigreturn, trampptr);
 
     /* The kernel checks for the presence of a VDSO here.  We don't
        emulate a vdso, so use a sigreturn system call.  */
-    env->lr = (target_ulong) h2g(frame->tramp);
+    env->lr = (target_ulong) h2g(trampptr);
 
     /* Turn off all fp exceptions.  */
     env->fpscr = 0;
 
     /* Create a stack frame for the caller of the handler.  */
     newsp = rt_sf_addr - (SIGNAL_FRAMESIZE + 16);
-    __put_user(env->gpr[1], (target_ulong *)(uintptr_t) newsp);
+    err |= put_user(env->gpr[1], newsp, target_ulong);
 
     if (err)
         goto sigsegv;
@@ -4762,7 +4825,24 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     env->gpr[4] = (target_ulong) h2g(&rt_sf->info);
     env->gpr[5] = (target_ulong) h2g(&rt_sf->uc);
     env->gpr[6] = (target_ulong) h2g(rt_sf);
+
+#if defined(TARGET_PPC64)
+    if (get_ppc64_abi(image) < 2) {
+        /* ELFv1 PPC64 function pointers are pointers to OPD entries. */
+        struct target_func_ptr *handler =
+            (struct target_func_ptr *)g2h(ka->_sa_handler);
+        env->nip = tswapl(handler->entry);
+        env->gpr[2] = tswapl(handler->toc);
+    } else {
+        /* ELFv2 PPC64 function pointers are entry points, but R12
+         * must also be set */
+        env->nip = tswapl((target_ulong) ka->_sa_handler);
+        env->gpr[12] = env->nip;
+    }
+#else
     env->nip = (target_ulong) ka->_sa_handler;
+#endif
+
     /* Signal handlers are entered in big-endian mode.  */
     env->msr &= ~MSR_LE;
 
@@ -4789,7 +4869,7 @@ long do_sigreturn(CPUPPCState *env)
         goto sigsegv;
 
 #if defined(TARGET_PPC64)
-    set.sig[0] = sc->oldmask + ((long)(sc->_unused[3]) << 32);
+    set.sig[0] = sc->oldmask + ((uint64_t)(sc->_unused[3]) << 32);
 #else
     __get_user(set.sig[0], &sc->oldmask);
     __get_user(set.sig[1], &sc->_unused[3]);
@@ -4827,10 +4907,11 @@ static int do_setcontext(struct target_ucontext *ucp, CPUPPCState *env, int sig)
         return 1;
 
 #if defined(TARGET_PPC64)
-    fprintf (stderr, "do_setcontext: not implemented\n");
-    return 0;
+    mcp_addr = h2g(ucp) +
+        offsetof(struct target_ucontext, tuc_sigcontext.mcontext);
 #else
     __get_user(mcp_addr, &ucp->tuc_regs);
+#endif
 
     if (!lock_user_struct(VERIFY_READ, mcp, mcp_addr, 1))
         return 1;
@@ -4841,7 +4922,6 @@ static int do_setcontext(struct target_ucontext *ucp, CPUPPCState *env, int sig)
 
     unlock_user_struct(mcp, mcp_addr, 1);
     return 0;
-#endif
 }
 
 long do_rt_sigreturn(CPUPPCState *env)

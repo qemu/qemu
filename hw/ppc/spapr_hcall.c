@@ -712,10 +712,10 @@ static target_ulong h_logical_dcbf(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_set_mode_resouce_le(PowerPCCPU *cpu,
-                                          target_ulong mflags,
-                                          target_ulong value1,
-                                          target_ulong value2)
+static target_ulong h_set_mode_resource_le(PowerPCCPU *cpu,
+                                           target_ulong mflags,
+                                           target_ulong value1,
+                                           target_ulong value2)
 {
     CPUState *cs;
 
@@ -743,10 +743,10 @@ static target_ulong h_set_mode_resouce_le(PowerPCCPU *cpu,
     return H_UNSUPPORTED_FLAG;
 }
 
-static target_ulong h_set_mode_resouce_addr_trans_mode(PowerPCCPU *cpu,
-                                                       target_ulong mflags,
-                                                       target_ulong value1,
-                                                       target_ulong value2)
+static target_ulong h_set_mode_resource_addr_trans_mode(PowerPCCPU *cpu,
+                                                        target_ulong mflags,
+                                                        target_ulong value1,
+                                                        target_ulong value2)
 {
     CPUState *cs;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
@@ -794,11 +794,11 @@ static target_ulong h_set_mode(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
     switch (resource) {
     case H_SET_MODE_RESOURCE_LE:
-        ret = h_set_mode_resouce_le(cpu, args[0], args[2], args[3]);
+        ret = h_set_mode_resource_le(cpu, args[0], args[2], args[3]);
         break;
     case H_SET_MODE_RESOURCE_ADDR_TRANS_MODE:
-        ret = h_set_mode_resouce_addr_trans_mode(cpu, args[0],
-                                                 args[2], args[3]);
+        ret = h_set_mode_resource_addr_trans_mode(cpu, args[0],
+                                                  args[2], args[3]);
         break;
     }
 

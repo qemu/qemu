@@ -13,8 +13,6 @@ struct sPAPRNVRAM;
 typedef struct sPAPREnvironment {
     struct VIOsPAPRBus *vio_bus;
     QLIST_HEAD(, sPAPRPHBState) phbs;
-    hwaddr msi_win_addr;
-    MemoryRegion msiwindow;
     struct sPAPRNVRAM *nvram;
     XICSState *icp;
 
@@ -24,7 +22,8 @@ typedef struct sPAPREnvironment {
     hwaddr rma_size;
     int vrma_adjust;
     hwaddr fdt_addr, rtas_addr;
-    long rtas_size;
+    ssize_t rtas_size;
+    void *rtas_blob;
     void *fdt_skel;
     target_ulong entry_point;
     uint64_t rtc_offset;
@@ -382,9 +381,8 @@ int spapr_allocate_irq_block(int num, bool lsi, bool msi);
 #define RTAS_GET_SENSOR_STATE                   (RTAS_TOKEN_BASE + 0x1D)
 #define RTAS_IBM_CONFIGURE_CONNECTOR            (RTAS_TOKEN_BASE + 0x1E)
 #define RTAS_IBM_OS_TERM                        (RTAS_TOKEN_BASE + 0x1F)
-#define RTAS_IBM_EXTENDED_OS_TERM               (RTAS_TOKEN_BASE + 0x20)
 
-#define RTAS_TOKEN_MAX                          (RTAS_TOKEN_BASE + 0x21)
+#define RTAS_TOKEN_MAX                          (RTAS_TOKEN_BASE + 0x20)
 
 /* RTAS ibm,get-system-parameter token values */
 #define RTAS_SYSPARM_SPLPAR_CHARACTERISTICS      20

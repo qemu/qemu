@@ -103,6 +103,7 @@ static void ppc_heathrow_init(MachineState *machine)
     uint16_t ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
+    uint64_t tbfreq;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -250,6 +251,13 @@ static void ppc_heathrow_init(MachineState *machine)
         }
     }
 
+    /* Timebase Frequency */
+    if (kvm_enabled()) {
+        tbfreq = kvmppc_get_tbfreq();
+    } else {
+        tbfreq = TBFREQ;
+    }
+
     /* init basic PC hardware */
     if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
         hw_error("Only 6xx bus is supported on heathrow machine\n");
@@ -278,6 +286,7 @@ static void ppc_heathrow_init(MachineState *machine)
     qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE-0 DMA */
     qdev_connect_gpio_out(dev, 3, pic[0x0E]); /* IDE-1 */
     qdev_connect_gpio_out(dev, 4, pic[0x03]); /* IDE-1 DMA */
+    qdev_prop_set_uint64(dev, "frequency", tbfreq);
     macio_init(macio, pic_mem, escc_bar);
 
     macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
@@ -330,20 +339,24 @@ static void ppc_heathrow_init(MachineState *machine)
 #ifdef CONFIG_KVM
         uint8_t *hypercall;
 
-        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, kvmppc_get_tbfreq());
         hypercall = g_malloc(16);
         kvmppc_get_hypercall(env, hypercall, 16);
         fw_cfg_add_bytes(fw_cfg, FW_CFG_PPC_KVM_HC, hypercall, 16);
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_KVM_PID, getpid());
 #endif
-    } else {
-        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, TBFREQ);
     }
+    fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, tbfreq);
     /* Mac OS X requires a "known good" clock-frequency value; pass it one. */
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_CLOCKFREQ, CLOCKFREQ);
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_BUSFREQ, BUSFREQ);
 
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
+}
+
+static int heathrow_kvm_type(const char *arg)
+{
+    /* Always force PR KVM */
+    return 2;
 }
 
 static QEMUMachine heathrow_machine = {
@@ -355,6 +368,7 @@ static QEMUMachine heathrow_machine = {
     .is_default = 1,
 #endif
     .default_boot_order = "cd", /* TOFIX "cad" when Mac floppy is implemented */
+    .kvm_type = heathrow_kvm_type,
 };
 
 static void heathrow_machine_init(void)

@@ -24,23 +24,6 @@
 #include "helper_regs.h"
 /*****************************************************************************/
 /* Fixed point operations helpers */
-#if defined(TARGET_PPC64)
-
-uint64_t helper_mulldo(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
-{
-    int64_t th;
-    uint64_t tl;
-
-    muls64(&tl, (uint64_t *)&th, arg1, arg2);
-    /* If th != 0 && th != -1, then we had an overflow */
-    if (likely((uint64_t)(th + 1) <= 1)) {
-        env->ov = 0;
-    } else {
-        env->so = env->ov = 1;
-    }
-    return (int64_t)tl;
-}
-#endif
 
 target_ulong helper_divweu(CPUPPCState *env, target_ulong ra, target_ulong rb,
                            uint32_t oe)
@@ -238,7 +221,7 @@ target_ulong helper_srad(CPUPPCState *env, target_ulong value,
         if (likely((uint64_t)shift != 0)) {
             shift &= 0x3f;
             ret = (int64_t)value >> shift;
-            if (likely(ret >= 0 || (value & ((1 << shift) - 1)) == 0)) {
+            if (likely(ret >= 0 || (value & ((1ULL << shift) - 1)) == 0)) {
                 env->ca = 0;
             } else {
                 env->ca = 1;

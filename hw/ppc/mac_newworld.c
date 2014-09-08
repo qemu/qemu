@@ -176,6 +176,8 @@ static void ppc_core99_init(MachineState *machine)
     SysBusDevice *s;
     DeviceState *dev;
     int *token = g_new(int, 1);
+    hwaddr nvram_addr = 0xFFF04000;
+    uint64_t tbfreq;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -372,6 +374,14 @@ static void ppc_core99_init(MachineState *machine)
         pci_bus = pci_pmac_init(pic, get_system_memory(), get_system_io());
         machine_arch = ARCH_MAC99;
     }
+
+    /* Timebase Frequency */
+    if (kvm_enabled()) {
+        tbfreq = kvmppc_get_tbfreq();
+    } else {
+        tbfreq = TBFREQ;
+    }
+
     /* init basic PC hardware */
     escc_mem = escc_init(0, pic[0x25], pic[0x24],
                          serial_hds[0], serial_hds[1], ESCC_CLOCK, 4);
@@ -385,6 +395,7 @@ static void ppc_core99_init(MachineState *machine)
     qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE DMA */
     qdev_connect_gpio_out(dev, 3, pic[0x0e]); /* IDE */
     qdev_connect_gpio_out(dev, 4, pic[0x03]); /* IDE DMA */
+    qdev_prop_set_uint64(dev, "frequency", tbfreq);
     macio_init(macio, pic_mem, escc_bar);
 
     /* We only emulate 2 out of 3 IDE controllers for now */
@@ -426,11 +437,18 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     /* The NewWorld NVRAM is not located in the MacIO device */
+#ifdef CONFIG_KVM
+    if (kvm_enabled() && getpagesize() > 4096) {
+        /* We can't combine read-write and read-only in a single page, so
+           move the NVRAM out of ROM again for KVM */
+        nvram_addr = 0xFFE00000;
+    }
+#endif
     dev = qdev_create(NULL, TYPE_MACIO_NVRAM);
     qdev_prop_set_uint32(dev, "size", 0x2000);
     qdev_prop_set_uint32(dev, "it_shift", 1);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xFFF04000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, nvram_addr);
     nvr = MACIO_NVRAM(dev);
     pmac_format_nvram_partition(nvr, 0x2000);
     /* No PCI init: the BIOS will do it */
@@ -461,20 +479,25 @@ static void ppc_core99_init(MachineState *machine)
 #ifdef CONFIG_KVM
         uint8_t *hypercall;
 
-        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, kvmppc_get_tbfreq());
         hypercall = g_malloc(16);
         kvmppc_get_hypercall(env, hypercall, 16);
         fw_cfg_add_bytes(fw_cfg, FW_CFG_PPC_KVM_HC, hypercall, 16);
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_KVM_PID, getpid());
 #endif
-    } else {
-        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, TBFREQ);
     }
+    fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, tbfreq);
     /* Mac OS X requires a "known good" clock-frequency value; pass it one. */
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_CLOCKFREQ, CLOCKFREQ);
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_BUSFREQ, BUSFREQ);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_NVRAM_ADDR, nvram_addr);
 
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
+}
+
+static int core99_kvm_type(const char *arg)
+{
+    /* Always force PR KVM */
+    return 2;
 }
 
 static QEMUMachine core99_machine = {
@@ -483,6 +506,7 @@ static QEMUMachine core99_machine = {
     .init = ppc_core99_init,
     .max_cpus = MAX_CPUS,
     .default_boot_order = "cd",
+    .kvm_type = core99_kvm_type,
 };
 
 static void core99_machine_init(void)
