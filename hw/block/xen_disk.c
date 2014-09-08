@@ -852,26 +852,23 @@ static int blk_connect(struct XenDevice *xendev)
     blkdev->dinfo = drive_get(IF_XEN, 0, index);
     if (!blkdev->dinfo) {
         Error *local_err = NULL;
+        BlockDriver *drv;
+
         /* setup via xenbus -> create new block driver instance */
         xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
-        blkdev->bs = bdrv_new(blkdev->dev, &local_err);
-        if (local_err) {
-            blkdev->bs = NULL;
-        }
-        if (blkdev->bs) {
-            BlockDriver *drv = bdrv_find_whitelisted_format(blkdev->fileproto,
-                                                           readonly);
-            if (bdrv_open(&blkdev->bs, blkdev->filename, NULL, NULL, qflags,
-                          drv, &local_err) != 0)
-            {
-                xen_be_printf(&blkdev->xendev, 0, "error: %s\n",
-                              error_get_pretty(local_err));
-                error_free(local_err);
-                bdrv_unref(blkdev->bs);
-                blkdev->bs = NULL;
-            }
-        }
+        blkdev->bs = bdrv_new(blkdev->dev, NULL);
         if (!blkdev->bs) {
+            return -1;
+        }
+
+        drv = bdrv_find_whitelisted_format(blkdev->fileproto, readonly);
+        if (bdrv_open(&blkdev->bs, blkdev->filename, NULL, NULL, qflags,
+                      drv, &local_err) != 0) {
+            xen_be_printf(&blkdev->xendev, 0, "error: %s\n",
+                          error_get_pretty(local_err));
+            error_free(local_err);
+            bdrv_unref(blkdev->bs);
+            blkdev->bs = NULL;
             return -1;
         }
     } else {
