@@ -182,7 +182,6 @@ int pci_piix3_xen_ide_unplug(DeviceState *dev)
             if (ds) {
                 bdrv_detach_dev(di->bdrv, ds);
             }
-            bdrv_close(di->bdrv);
             pci_ide->bus[di->bus].ifs[di->unit].bs = NULL;
             drive_del(di);
         }
