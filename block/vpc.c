@@ -489,7 +489,7 @@ static int vpc_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     BDRVVPCState *s = (BDRVVPCState *)bs->opaque;
     VHDFooter *footer = (VHDFooter *) s->footer_buf;
 
-    if (cpu_to_be32(footer->type) != VHD_FIXED) {
+    if (be32_to_cpu(footer->type) != VHD_FIXED) {
         bdi->cluster_size = s->block_size;
     }
 
@@ -506,7 +506,7 @@ static int vpc_read(BlockDriverState *bs, int64_t sector_num,
     int64_t sectors, sectors_per_block;
     VHDFooter *footer = (VHDFooter *) s->footer_buf;
 
-    if (cpu_to_be32(footer->type) == VHD_FIXED) {
+    if (be32_to_cpu(footer->type) == VHD_FIXED) {
         return bdrv_read(bs->file, sector_num, buf, nb_sectors);
     }
     while (nb_sectors > 0) {
@@ -555,7 +555,7 @@ static int vpc_write(BlockDriverState *bs, int64_t sector_num,
     int ret;
     VHDFooter *footer =  (VHDFooter *) s->footer_buf;
 
-    if (cpu_to_be32(footer->type) == VHD_FIXED) {
+    if (be32_to_cpu(footer->type) == VHD_FIXED) {
         return bdrv_write(bs->file, sector_num, buf, nb_sectors);
     }
     while (nb_sectors > 0) {
@@ -857,7 +857,7 @@ static int vpc_has_zero_init(BlockDriverState *bs)
     BDRVVPCState *s = bs->opaque;
     VHDFooter *footer =  (VHDFooter *) s->footer_buf;
 
-    if (cpu_to_be32(footer->type) == VHD_FIXED) {
+    if (be32_to_cpu(footer->type) == VHD_FIXED) {
         return bdrv_has_zero_init(bs->file);
     } else {
         return 1;
