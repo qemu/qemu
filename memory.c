@@ -1148,7 +1148,7 @@ void memory_region_init_ram(MemoryRegion *mr,
     mr->ram = true;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
-    mr->ram_addr = qemu_ram_alloc(size, mr);
+    mr->ram_addr = qemu_ram_alloc(size, mr, &error_abort);
 }
 
 #ifdef __linux__
@@ -1178,7 +1178,10 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
     mr->ram = true;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram_from_ptr;
-    mr->ram_addr = qemu_ram_alloc_from_ptr(size, ptr, mr);
+
+    /* qemu_ram_alloc_from_ptr cannot fail with ptr != NULL.  */
+    assert(ptr != NULL);
+    mr->ram_addr = qemu_ram_alloc_from_ptr(size, ptr, mr, &error_abort);
 }
 
 void memory_region_init_alias(MemoryRegion *mr,
@@ -1208,7 +1211,7 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     mr->terminates = true;
     mr->rom_device = true;
     mr->destructor = memory_region_destructor_rom_device;
-    mr->ram_addr = qemu_ram_alloc(size, mr);
+    mr->ram_addr = qemu_ram_alloc(size, mr, &error_abort);
 }
 
 void memory_region_init_iommu(MemoryRegion *mr,
