@@ -1031,7 +1031,7 @@ void qemu_mutex_unlock_ramlist(void)
 
 #define HUGETLBFS_MAGIC       0x958458f6
 
-static long gethugepagesize(const char *path)
+static long gethugepagesize(const char *path, Error **errp)
 {
     struct statfs fs;
     int ret;
@@ -1041,7 +1041,8 @@ static long gethugepagesize(const char *path)
     } while (ret != 0 && errno == EINTR);
 
     if (ret != 0) {
-        perror(path);
+        error_setg_errno(errp, errno, "failed to get page size of file %s",
+                         path);
         return 0;
     }
 
@@ -1062,9 +1063,11 @@ static void *file_ram_alloc(RAMBlock *block,
     void *area = NULL;
     int fd;
     uint64_t hpagesize;
+    Error *local_err = NULL;
 
-    hpagesize = gethugepagesize(path);
-    if (!hpagesize) {
+    hpagesize = gethugepagesize(path, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         goto error;
     }
 
