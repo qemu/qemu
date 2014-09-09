@@ -1721,11 +1721,11 @@ void qemu_del_vm_change_state_handler(VMChangeStateEntry *e)
 
 void vm_state_notify(int running, RunState state)
 {
-    VMChangeStateEntry *e;
+    VMChangeStateEntry *e, *next;
 
     trace_vm_state_notify(running, state);
 
-    for (e = vm_change_state_head.lh_first; e; e = e->entries.le_next) {
+    QLIST_FOREACH_SAFE(e, &vm_change_state_head, entries, next) {
         e->cb(e->opaque, running, state);
     }
 }
