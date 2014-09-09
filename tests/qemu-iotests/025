@@ -40,7 +40,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.pattern
 
 _supported_fmt raw qcow2 qed
-_supported_proto file sheepdog rbd nfs
+_supported_proto file sheepdog rbd nfs archipelago
 _supported_os Linux
 
 echo "=== Creating image"
