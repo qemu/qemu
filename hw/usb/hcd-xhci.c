@@ -499,6 +499,7 @@ enum xhci_flags {
     XHCI_FLAG_USE_MSI = 1,
     XHCI_FLAG_USE_MSI_X,
     XHCI_FLAG_SS_FIRST,
+    XHCI_FLAG_FORCE_PCIE_ENDCAP,
 };
 
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
@@ -3626,7 +3627,8 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
                      PCI_BASE_ADDRESS_SPACE_MEMORY|PCI_BASE_ADDRESS_MEM_TYPE_64,
                      &xhci->mem);
 
-    if (pci_bus_is_express(dev->bus)) {
+    if (pci_bus_is_express(dev->bus) ||
+        xhci_get_flag(xhci, XHCI_FLAG_FORCE_PCIE_ENDCAP)) {
         ret = pcie_endpoint_cap_init(dev, 0xa0);
         assert(ret >= 0);
     }
@@ -3855,6 +3857,8 @@ static Property xhci_properties[] = {
     DEFINE_PROP_BIT("msix",     XHCIState, flags, XHCI_FLAG_USE_MSI_X, true),
     DEFINE_PROP_BIT("superspeed-ports-first",
                     XHCIState, flags, XHCI_FLAG_SS_FIRST, true),
+    DEFINE_PROP_BIT("force-pcie-endcap", XHCIState, flags,
+                    XHCI_FLAG_FORCE_PCIE_ENDCAP, false),
     DEFINE_PROP_UINT32("intrs", XHCIState, numintrs, MAXINTRS),
     DEFINE_PROP_UINT32("slots", XHCIState, numslots, MAXSLOTS),
     DEFINE_PROP_UINT32("p2",    XHCIState, numports_2, 4),

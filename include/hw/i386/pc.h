@@ -330,6 +330,11 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .value    = "off",\
         },\
         {\
+            .driver   = "nec-usb-xhci",\
+            .property = "force-pcie-endcap",\
+            .value    = "on",\
+        },\
+        {\
             .driver   = "pci-serial",\
             .property = "prog_if",\
             .value    = stringify(0),\
