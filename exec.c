@@ -1059,9 +1059,9 @@ static void *file_ram_alloc(RAMBlock *block,
     char *filename;
     char *sanitized_name;
     char *c;
-    void *area;
+    void *area = NULL;
     int fd;
-    unsigned long hpagesize;
+    uint64_t hpagesize;
 
     hpagesize = gethugepagesize(path);
     if (!hpagesize) {
@@ -1069,7 +1069,10 @@ static void *file_ram_alloc(RAMBlock *block,
     }
 
     if (memory < hpagesize) {
-        return NULL;
+        error_setg(errp, "memory size 0x" RAM_ADDR_FMT " must be equal to "
+                   "or larger than huge page size 0x%" PRIx64,
+                   memory, hpagesize);
+        goto error;
     }
 
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
