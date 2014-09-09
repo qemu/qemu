@@ -386,13 +386,15 @@ void memory_region_init_alias(MemoryRegion *mr,
  * @ops: callbacks for write access handling.
  * @name: the name of the region.
  * @size: size of the region.
+ * @errp: pointer to Error*, to store an error if it happens.
  */
 void memory_region_init_rom_device(MemoryRegion *mr,
                                    struct Object *owner,
                                    const MemoryRegionOps *ops,
                                    void *opaque,
                                    const char *name,
-                                   uint64_t size);
+                                   uint64_t size,
+                                   Error **errp);
 
 /**
  * memory_region_init_reservation: Initialize a memory region that reserves
