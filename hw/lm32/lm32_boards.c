@@ -111,7 +111,8 @@ static void lm32_evr_init(MachineState *machine)
 
     reset_info->flash_base = flash_base;
 
-    memory_region_init_ram(phys_ram, NULL, "lm32_evr.sdram", ram_size);
+    memory_region_init_ram(phys_ram, NULL, "lm32_evr.sdram", ram_size,
+                           &error_abort);
     vmstate_register_ram_global(phys_ram);
     memory_region_add_subregion(address_space_mem, ram_base, phys_ram);
 
@@ -213,7 +214,8 @@ static void lm32_uclinux_init(MachineState *machine)
 
     reset_info->flash_base = flash_base;
 
-    memory_region_init_ram(phys_ram, NULL, "lm32_uclinux.sdram", ram_size);
+    memory_region_init_ram(phys_ram, NULL, "lm32_uclinux.sdram", ram_size,
+                           &error_abort);
     vmstate_register_ram_global(phys_ram);
     memory_region_add_subregion(address_space_mem, ram_base, phys_ram);
 

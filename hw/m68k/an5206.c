@@ -50,12 +50,12 @@ static void an5206_init(MachineState *machine)
     env->rambar0 = AN5206_RAMBAR_ADDR | 1;
 
     /* DRAM at address zero */
-    memory_region_init_ram(ram, NULL, "an5206.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "an5206.ram", ram_size, &error_abort);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space_mem, 0, ram);
 
     /* Internal SRAM.  */
-    memory_region_init_ram(sram, NULL, "an5206.sram", 512);
+    memory_region_init_ram(sram, NULL, "an5206.sram", 512, &error_abort);
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(address_space_mem, AN5206_RAMBAR_ADDR, sram);
 

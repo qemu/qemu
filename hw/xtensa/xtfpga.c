@@ -143,7 +143,7 @@ static void lx60_net_init(MemoryRegion *address_space,
             sysbus_mmio_get_region(s, 1));
 
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, OBJECT(s), "open_eth.ram", 16384);
+    memory_region_init_ram(ram, OBJECT(s), "open_eth.ram", 16384, &error_abort);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space, buffers, ram);
 }
@@ -205,7 +205,8 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
     }
 
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, NULL, "lx60.dram", machine->ram_size);
+    memory_region_init_ram(ram, NULL, "lx60.dram", machine->ram_size,
+                           &error_abort);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(system_memory, 0, ram);
 
@@ -254,7 +255,8 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
         uint32_t cur_lowmem = QEMU_ALIGN_UP(lowmem_end / 2, 4096);
 
         rom = g_malloc(sizeof(*rom));
-        memory_region_init_ram(rom, NULL, "lx60.sram", board->sram_size);
+        memory_region_init_ram(rom, NULL, "lx60.sram", board->sram_size,
+                               &error_abort);
         vmstate_register_ram_global(rom);
         memory_region_add_subregion(system_memory, 0xfe000000, rom);
 

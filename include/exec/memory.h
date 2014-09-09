@@ -311,11 +311,13 @@ void memory_region_init_io(MemoryRegion *mr,
  * @owner: the object that tracks the region's reference count
  * @name: the name of the region.
  * @size: size of the region.
+ * @errp: pointer to Error*, to store an error if it happens.
  */
 void memory_region_init_ram(MemoryRegion *mr,
                             struct Object *owner,
                             const char *name,
-                            uint64_t size);
+                            uint64_t size,
+                            Error **errp);
 
 #ifdef __linux__
 /**

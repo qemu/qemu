@@ -214,7 +214,7 @@ static void ref405ep_init(MachineState *machine)
                         33333333, &pic, kernel_filename == NULL ? 0 : 1);
     /* allocate SRAM */
     sram_size = 512 * 1024;
-    memory_region_init_ram(sram, NULL, "ef405ep.sram", sram_size);
+    memory_region_init_ram(sram, NULL, "ef405ep.sram", sram_size, &error_abort);
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(sysmem, 0xFFF00000, sram);
     /* allocate and load BIOS */
@@ -246,7 +246,8 @@ static void ref405ep_init(MachineState *machine)
         printf("Load BIOS from file\n");
 #endif
         bios = g_new(MemoryRegion, 1);
-        memory_region_init_ram(bios, NULL, "ef405ep.bios", BIOS_SIZE);
+        memory_region_init_ram(bios, NULL, "ef405ep.bios", BIOS_SIZE,
+                               &error_abort);
         vmstate_register_ram_global(bios);
 
         if (bios_name == NULL)
@@ -572,7 +573,8 @@ static void taihu_405ep_init(MachineState *machine)
         if (bios_name == NULL)
             bios_name = BIOS_FILENAME;
         bios = g_new(MemoryRegion, 1);
-        memory_region_init_ram(bios, NULL, "taihu_405ep.bios", BIOS_SIZE);
+        memory_region_init_ram(bios, NULL, "taihu_405ep.bios", BIOS_SIZE,
+                               &error_abort);
         vmstate_register_ram_global(bios);
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (filename) {
