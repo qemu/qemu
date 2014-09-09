@@ -1017,6 +1017,7 @@ static CharDriverState *qemu_chr_open_pipe(ChardevHostdev *opts)
 /* init terminal so that we can grab keys */
 static struct termios oldtty;
 static int old_fd0_flags;
+static bool stdio_in_use;
 static bool stdio_allow_signal;
 
 static void term_exit(void)
@@ -1060,8 +1061,15 @@ static CharDriverState *qemu_chr_open_stdio(ChardevStdio *opts)
         error_report("cannot use stdio with -daemonize");
         return NULL;
     }
+
+    if (stdio_in_use) {
+        error_report("cannot use stdio by multiple character devices");
+        exit(1);
+    }
+
+    stdio_in_use = true;
     old_fd0_flags = fcntl(0, F_GETFL);
-    tcgetattr (0, &oldtty);
+    tcgetattr(0, &oldtty);
     qemu_set_nonblock(0);
     atexit(term_exit);
 
