@@ -24,6 +24,7 @@
 #include "hw/hw.h"
 #include "hw/isa/isa.h"
 #include "qemu/main-loop.h"
+#include "trace.h"
 
 /* #define DEBUG_DMA */
 
@@ -473,8 +474,7 @@ static void dma_reset(void *opaque)
 
 static int dma_phony_handler (void *opaque, int nchan, int dma_pos, int dma_len)
 {
-    dolog ("unregistered DMA channel used nchan=%d dma_pos=%d dma_len=%d\n",
-           nchan, dma_pos, dma_len);
+    trace_i8257_unregistered_dma(nchan, dma_pos, dma_len);
     return dma_pos;
 }
 
