@@ -1103,7 +1103,7 @@ Rotate graphical output some deg left (only PXA LCD).
 ETEXI
 
 DEF("vga", HAS_ARG, QEMU_OPTION_vga,
-    "-vga [std|cirrus|vmware|qxl|xenfb|tcx|cg3|none]\n"
+    "-vga [std|cirrus|vmware|qxl|xenfb|tcx|cg3|virtio|none]\n"
     "                select video card type\n", QEMU_ARCH_ALL)
 STEXI
 @item -vga @var{type}
@@ -1136,6 +1136,8 @@ fixed resolution of 1024x768.
 (sun4m only) Sun cgthree framebuffer. This is a simple 8-bit framebuffer
 for sun4m machines available in both 1024x768 (OpenBIOS) and 1152x900 (OBP)
 resolutions aimed at people wishing to run older Solaris versions.
+@item virtio
+Virtio VGA card.
 @item none
 Disable VGA card.
 @end table
