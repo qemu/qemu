@@ -419,6 +419,15 @@ Linux or NTFS on Windows), then only the written sectors will reserve
 space. Use @code{qemu-img info} to know the real size used by the
 image or @code{ls -ls} on Unix/Linux.
 
+Supported options:
+@table @code
+@item preallocation
+Preallocation mode (allowed values: @code{off}, @code{falloc}, @code{full}).
+@code{falloc} mode preallocates space for image by calling posix_fallocate().
+@code{full} mode preallocates space for image by writing zeros to underlying
+storage.
+@end table
+
 @item qcow2
 QEMU image format, the most versatile format. Use it to have smaller
 images (useful if your filesystem does not supports holes, for example
