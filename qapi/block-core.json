@@ -1708,3 +1708,20 @@
             'len'   : 'int',
             'offset': 'int',
             'speed' : 'int' } }
+
+# @PreallocMode
+#
+# Preallocation mode of QEMU image file
+#
+# @off: no preallocation
+# @metadata: preallocate only for metadata
+# @falloc: like @full preallocation but allocate disk space by
+#          posix_fallocate() rather than writing zeros.
+# @full: preallocate all data by writing zeros to device to ensure disk
+#        space is really available. @full preallocation also sets up
+#        metadata correctly.
+#
+# Since 2.2
+##
+{ 'enum': 'PreallocMode',
+  'data': [ 'off', 'metadata', 'falloc', 'full' ] }
