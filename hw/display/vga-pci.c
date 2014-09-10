@@ -204,10 +204,10 @@ static const MemoryRegionOps pci_vga_qext_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void pci_std_vga_mmio_region_init(VGACommonState *s,
-                                         MemoryRegion *parent,
-                                         MemoryRegion *subs,
-                                         bool qext)
+void pci_std_vga_mmio_region_init(VGACommonState *s,
+                                  MemoryRegion *parent,
+                                  MemoryRegion *subs,
+                                  bool qext)
 {
     memory_region_init_io(&subs[0], NULL, &pci_vga_ioport_ops, s,
                           "vga ioports remapped", PCI_VGA_IOPORT_SIZE);

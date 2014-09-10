@@ -37,3 +37,4 @@ common-obj-$(CONFIG_QXL) += qxl.o qxl-logger.o qxl-render.o
 
 obj-$(CONFIG_VIRTIO) += virtio-gpu.o
 obj-$(CONFIG_VIRTIO_PCI) += virtio-gpu-pci.o
+obj-$(CONFIG_VIRTIO_VGA) += virtio-vga.o
