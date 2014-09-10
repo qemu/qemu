@@ -64,7 +64,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -76,7 +76,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -88,7 +88,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -100,7 +100,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -112,7 +112,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -124,7 +124,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -136,7 +136,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -148,7 +148,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -175,7 +175,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 
 Testing: create -o help
@@ -253,7 +253,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -265,7 +265,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -277,7 +277,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -289,7 +289,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -301,7 +301,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -313,7 +313,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -325,7 +325,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -337,7 +337,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -364,7 +364,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 
 Testing: convert -o help
@@ -431,7 +431,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -443,7 +443,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -455,7 +455,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -467,7 +467,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -479,7 +479,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -491,7 +491,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -503,7 +503,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -515,7 +515,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
@@ -544,7 +544,7 @@ backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image
 cluster_size     qcow2 cluster size
-preallocation    Preallocation mode (allowed values: off, metadata)
+preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
 
 Testing: convert -o help

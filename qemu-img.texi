@@ -476,9 +476,11 @@ sizes can improve the image file size whereas larger cluster sizes generally
 provide better performance.
 
 @item preallocation
-Preallocation mode (allowed values: off, metadata). An image with preallocated
-metadata is initially larger but can improve performance when the image needs
-to grow.
+Preallocation mode (allowed values: @code{off}, @code{metadata}, @code{falloc},
+@code{full}). An image with preallocated metadata is initially larger but can
+improve performance when the image needs to grow. @code{falloc} and @code{full}
+preallocations are like the same options of @code{raw} format, but sets up
+metadata also.
 
 @item lazy_refcounts
 If this option is set to @code{on}, reference count updates are postponed with
