@@ -1369,8 +1369,8 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
     strstart(filename, "file:", &filename);
 
     /* Read out options */
-    total_size = DIV_ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                              BDRV_SECTOR_SIZE);
+    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                          BDRV_SECTOR_SIZE);
     nocow = qemu_opt_get_bool(opts, BLOCK_OPT_NOCOW, false);
 
     fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY,
@@ -1394,7 +1394,7 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
 #endif
         }
 
-        if (ftruncate(fd, total_size * BDRV_SECTOR_SIZE) != 0) {
+        if (ftruncate(fd, total_size) != 0) {
             result = -errno;
             error_setg_errno(errp, -result, "Could not resize file");
         }
@@ -1966,8 +1966,8 @@ static int hdev_create(const char *filename, QemuOpts *opts,
     (void)has_prefix;
 
     /* Read out options */
-    total_size = DIV_ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                              BDRV_SECTOR_SIZE);
+    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                          BDRV_SECTOR_SIZE);
 
     fd = qemu_open(filename, O_WRONLY | O_BINARY);
     if (fd < 0) {
@@ -1983,7 +1983,7 @@ static int hdev_create(const char *filename, QemuOpts *opts,
         error_setg(errp,
                    "The given file is neither a block nor a character device");
         ret = -ENODEV;
-    } else if (lseek(fd, 0, SEEK_END) < total_size * BDRV_SECTOR_SIZE) {
+    } else if (lseek(fd, 0, SEEK_END) < total_size) {
         error_setg(errp, "Device is too small");
         ret = -ENOSPC;
     }

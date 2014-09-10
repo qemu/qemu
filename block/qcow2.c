@@ -1859,7 +1859,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     }
 
     /* Okay, now that we have a valid image, let's give it the right size */
-    ret = bdrv_truncate(bs, total_size * BDRV_SECTOR_SIZE);
+    ret = bdrv_truncate(bs, total_size);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not resize image");
         goto out;
@@ -1912,7 +1912,7 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
     char *backing_file = NULL;
     char *backing_fmt = NULL;
     char *buf = NULL;
-    uint64_t sectors = 0;
+    uint64_t size = 0;
     int flags = 0;
     size_t cluster_size = DEFAULT_CLUSTER_SIZE;
     int prealloc = 0;
@@ -1921,8 +1921,8 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
     int ret;
 
     /* Read out options */
-    sectors = DIV_ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                           BDRV_SECTOR_SIZE);
+    size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                    BDRV_SECTOR_SIZE);
     backing_file = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
     backing_fmt = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FMT);
     if (qemu_opt_get_bool_del(opts, BLOCK_OPT_ENCRYPT, false)) {
@@ -1972,7 +1972,7 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
         goto finish;
     }
 
-    ret = qcow2_create2(filename, sectors, backing_file, backing_fmt, flags,
+    ret = qcow2_create2(filename, size, backing_file, backing_fmt, flags,
                         cluster_size, prealloc, opts, version, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
