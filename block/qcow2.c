@@ -1921,7 +1921,8 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
     int ret;
 
     /* Read out options */
-    sectors = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0) / 512;
+    sectors = DIV_ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                           BDRV_SECTOR_SIZE);
     backing_file = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
     backing_fmt = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FMT);
     if (qemu_opt_get_bool_del(opts, BLOCK_OPT_ENCRYPT, false)) {

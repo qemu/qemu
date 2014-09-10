@@ -708,7 +708,8 @@ static int qemu_archipelago_create(const char *filename,
 
     parse_filename_opts(filename, errp, &volname, &segment_name, &mport,
                         &vport);
-    total_size = qemu_opt_get_size_del(options, BLOCK_OPT_SIZE, 0);
+    total_size = ROUND_UP(qemu_opt_get_size_del(options, BLOCK_OPT_SIZE, 0),
+                          BDRV_SECTOR_SIZE);
 
     if (segment_name == NULL) {
         segment_name = g_strdup("archipelago");

@@ -335,7 +335,8 @@ static int cow_create(const char *filename, QemuOpts *opts, Error **errp)
     BlockDriverState *cow_bs = NULL;
 
     /* Read out options */
-    image_sectors = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0) / 512;
+    image_sectors = DIV_ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                                 BDRV_SECTOR_SIZE);
     image_filename = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
 
     ret = bdrv_create_file(filename, opts, &local_err);

@@ -757,7 +757,8 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     BlockDriverState *bs = NULL;
 
     /* Read out options */
-    total_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                          BDRV_SECTOR_SIZE);
     disk_type_param = qemu_opt_get_del(opts, BLOCK_OPT_SUBFMT);
     if (disk_type_param) {
         if (!strcmp(disk_type_param, "dynamic")) {

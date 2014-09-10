@@ -725,7 +725,8 @@ static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
     BlockDriverState *qcow_bs;
 
     /* Read out options */
-    total_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0) / 512;
+    total_size = DIV_ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                              BDRV_SECTOR_SIZE);
     backing_file = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
     if (qemu_opt_get_bool_del(opts, BLOCK_OPT_ENCRYPT, false)) {
         flags |= BLOCK_FLAG_ENCRYPT;

@@ -1702,7 +1702,8 @@ static int sd_create(const char *filename, QemuOpts *opts,
         goto out;
     }
 
-    s->inode.vdi_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    s->inode.vdi_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                                 BDRV_SECTOR_SIZE);
     backing_file = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
     buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
     if (!buf || !strcmp(buf, "off")) {

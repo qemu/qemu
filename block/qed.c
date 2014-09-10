@@ -648,7 +648,8 @@ static int bdrv_qed_create(const char *filename, QemuOpts *opts, Error **errp)
     char *backing_fmt = NULL;
     int ret;
 
-    image_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    image_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                          BDRV_SECTOR_SIZE);
     backing_file = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
     backing_fmt = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FMT);
     cluster_size = qemu_opt_get_size_del(opts,

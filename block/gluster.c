@@ -494,8 +494,8 @@ static int qemu_gluster_create(const char *filename,
         goto out;
     }
 
-    total_size =
-        qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0) / BDRV_SECTOR_SIZE;
+    total_size = DIV_ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                              BDRV_SECTOR_SIZE);
 
     tmp = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
     if (!tmp || !strcmp(tmp, "off")) {
