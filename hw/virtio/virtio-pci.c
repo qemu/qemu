@@ -314,6 +314,16 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             msix_unuse_all_vectors(&proxy->pci_dev);
         }
 
+        /* Linux before 2.6.34 drives the device without enabling
+           the PCI device bus master bit. Enable it automatically
+           for the guest. This is a PCI spec violation but so is
+           initiating DMA with bus master bit clear. */
+        if (val == (VIRTIO_CONFIG_S_ACKNOWLEDGE | VIRTIO_CONFIG_S_DRIVER)) {
+            pci_default_write_config(&proxy->pci_dev, PCI_COMMAND,
+                                     proxy->pci_dev.config[PCI_COMMAND] |
+                                     PCI_COMMAND_MASTER, 1);
+        }
+
         /* Linux before 2.6.34 sets the device as OK without enabling
            the PCI device bus master bit. In this case we need to disable
            some safety checks. */
