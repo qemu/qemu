@@ -88,7 +88,6 @@ typedef struct IscsiAIOCB {
     struct scsi_task *task;
     uint8_t *buf;
     int status;
-    int canceled;
     int64_t sector_num;
     int nb_sectors;
 #ifdef __linux__
@@ -120,9 +119,7 @@ iscsi_bh_cb(void *p)
     g_free(acb->buf);
     acb->buf = NULL;
 
-    if (acb->canceled == 0) {
-        acb->common.cb(acb->common.opaque, acb->status);
-    }
+    acb->common.cb(acb->common.opaque, acb->status);
 
     if (acb->task != NULL) {
         scsi_free_scsi_task(acb->task);
@@ -240,20 +237,15 @@ iscsi_aio_cancel(BlockDriverAIOCB *blockacb)
         return;
     }
 
-    acb->canceled = 1;
-
     /* send a task mgmt call to the target to cancel the task on the target */
     iscsi_task_mgmt_abort_task_async(iscsilun->iscsi, acb->task,
                                      iscsi_abort_task_cb, acb);
 
-    while (acb->status == -EINPROGRESS) {
-        aio_poll(iscsilun->aio_context, true);
-    }
 }
 
 static const AIOCBInfo iscsi_aiocb_info = {
     .aiocb_size         = sizeof(IscsiAIOCB),
-    .cancel             = iscsi_aio_cancel,
+    .cancel_async       = iscsi_aio_cancel,
 };
 
 
@@ -638,10 +630,6 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
     g_free(acb->buf);
     acb->buf = NULL;
 
-    if (acb->canceled != 0) {
-        return;
-    }
-
     acb->status = 0;
     if (status < 0) {
         error_report("Failed to ioctl(SG_IO) to iSCSI lun. %s",
@@ -683,7 +671,6 @@ static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     acb = qemu_aio_get(&iscsi_aiocb_info, bs, cb, opaque);
 
     acb->iscsilun = iscsilun;
-    acb->canceled    = 0;
     acb->bh          = NULL;
     acb->status      = -EINPROGRESS;
     acb->buf         = NULL;
