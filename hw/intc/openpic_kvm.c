@@ -45,6 +45,7 @@ typedef struct KVMOpenPICState {
     MemoryListener mem_listener;
     uint32_t fd;
     uint32_t model;
+    hwaddr mapped;
 } KVMOpenPICState;
 
 static void kvm_openpic_set_irq(void *opaque, int n_IRQ, int level)
@@ -128,7 +129,16 @@ static void kvm_openpic_region_add(MemoryListener *listener,
         return;
     }
 
+    if (opp->mapped) {
+        /*
+         * We can only map the MPIC once. Since we are already mapped,
+         * the best we can do is ignore new maps.
+         */
+        return;
+    }
+
     reg_base = section->offset_within_address_space;
+    opp->mapped = reg_base;
 
     attr.group = KVM_DEV_MPIC_GRP_MISC;
     attr.attr = KVM_DEV_MPIC_BASE_ADDR;
@@ -154,6 +164,15 @@ static void kvm_openpic_region_del(MemoryListener *listener,
     if (section->mr != &opp->mem) {
         return;
     }
+
+    if (section->offset_within_address_space != opp->mapped) {
+        /*
+         * We can only map the MPIC once. This mapping was a secondary
+         * one that we couldn't fulfill. Ignore it.
+         */
+        return;
+    }
+    opp->mapped = 0;
 
     attr.group = KVM_DEV_MPIC_GRP_MISC;
     attr.attr = KVM_DEV_MPIC_BASE_ADDR;
