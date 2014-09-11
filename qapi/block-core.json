@@ -1484,41 +1484,41 @@
   'discriminator': 'driver',
   'data': {
       'archipelago':'BlockdevOptionsArchipelago',
-      'file':       'BlockdevOptionsFile',
-      'host_device':'BlockdevOptionsFile',
-      'host_cdrom': 'BlockdevOptionsFile',
-      'host_floppy':'BlockdevOptionsFile',
-      'http':       'BlockdevOptionsFile',
-      'https':      'BlockdevOptionsFile',
-      'ftp':        'BlockdevOptionsFile',
-      'ftps':       'BlockdevOptionsFile',
-      'tftp':       'BlockdevOptionsFile',
-# TODO gluster: Wait for structured options
-# TODO iscsi: Wait for structured options
-# TODO nbd: Should take InetSocketAddress for 'host'?
-# TODO nfs: Wait for structured options
-# TODO rbd: Wait for structured options
-# TODO sheepdog: Wait for structured options
-# TODO ssh: Should take InetSocketAddress for 'host'?
-      'vvfat':      'BlockdevOptionsVVFAT',
       'blkdebug':   'BlockdevOptionsBlkdebug',
       'blkverify':  'BlockdevOptionsBlkverify',
       'bochs':      'BlockdevOptionsGenericFormat',
       'cloop':      'BlockdevOptionsGenericFormat',
       'cow':        'BlockdevOptionsGenericCOWFormat',
       'dmg':        'BlockdevOptionsGenericFormat',
+      'file':       'BlockdevOptionsFile',
+      'ftp':        'BlockdevOptionsFile',
+      'ftps':       'BlockdevOptionsFile',
+# TODO gluster: Wait for structured options
+      'host_cdrom': 'BlockdevOptionsFile',
+      'host_device':'BlockdevOptionsFile',
+      'host_floppy':'BlockdevOptionsFile',
+      'http':       'BlockdevOptionsFile',
+      'https':      'BlockdevOptionsFile',
+# TODO iscsi: Wait for structured options
+# TODO nbd: Should take InetSocketAddress for 'host'?
+# TODO nfs: Wait for structured options
+      'null-aio':   'BlockdevOptionsNull',
+      'null-co':    'BlockdevOptionsNull',
       'parallels':  'BlockdevOptionsGenericFormat',
-      'qcow':       'BlockdevOptionsGenericCOWFormat',
       'qcow2':      'BlockdevOptionsQcow2',
+      'qcow':       'BlockdevOptionsGenericCOWFormat',
       'qed':        'BlockdevOptionsGenericCOWFormat',
+      'quorum':     'BlockdevOptionsQuorum',
       'raw':        'BlockdevOptionsGenericFormat',
+# TODO rbd: Wait for structured options
+# TODO sheepdog: Wait for structured options
+# TODO ssh: Should take InetSocketAddress for 'host'?
+      'tftp':       'BlockdevOptionsFile',
       'vdi':        'BlockdevOptionsGenericFormat',
       'vhdx':       'BlockdevOptionsGenericFormat',
       'vmdk':       'BlockdevOptionsGenericCOWFormat',
       'vpc':        'BlockdevOptionsGenericFormat',
-      'quorum':     'BlockdevOptionsQuorum',
-      'null-aio':   'BlockdevOptionsNull',
-      'null-co':    'BlockdevOptionsNull'
+      'vvfat':      'BlockdevOptionsVVFAT'
   } }
 
 ##
