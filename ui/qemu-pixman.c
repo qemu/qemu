@@ -6,6 +6,87 @@
 #include "qemu-common.h"
 #include "ui/console.h"
 
+PixelFormat qemu_pixelformat_from_pixman(pixman_format_code_t format)
+{
+    PixelFormat pf;
+    uint8_t bpp;
+
+    bpp = pf.bits_per_pixel = PIXMAN_FORMAT_BPP(format);
+    pf.bytes_per_pixel = PIXMAN_FORMAT_BPP(format) / 8;
+    pf.depth = PIXMAN_FORMAT_DEPTH(format);
+
+    pf.abits = PIXMAN_FORMAT_A(format);
+    pf.rbits = PIXMAN_FORMAT_R(format);
+    pf.gbits = PIXMAN_FORMAT_G(format);
+    pf.bbits = PIXMAN_FORMAT_B(format);
+
+    switch (PIXMAN_FORMAT_TYPE(format)) {
+    case PIXMAN_TYPE_ARGB:
+        pf.ashift = pf.bbits + pf.gbits + pf.rbits;
+        pf.rshift = pf.bbits + pf.gbits;
+        pf.gshift = pf.bbits;
+        pf.bshift = 0;
+        break;
+    case PIXMAN_TYPE_ABGR:
+        pf.ashift = pf.rbits + pf.gbits + pf.bbits;
+        pf.bshift = pf.rbits + pf.gbits;
+        pf.gshift = pf.rbits;
+        pf.rshift = 0;
+        break;
+    case PIXMAN_TYPE_BGRA:
+	pf.bshift = bpp - pf.bbits;
+        pf.gshift = bpp - (pf.bbits + pf.gbits);
+        pf.rshift = bpp - (pf.bbits + pf.gbits + pf.rbits);
+        pf.ashift = 0;
+        break;
+    case PIXMAN_TYPE_RGBA:
+        pf.rshift = bpp - pf.rbits;
+        pf.gshift = bpp - (pf.rbits + pf.gbits);
+        pf.bshift = bpp - (pf.rbits + pf.gbits + pf.bbits);
+        pf.ashift = 0;
+        break;
+    default:
+        g_assert_not_reached();
+        break;
+    }
+
+    pf.amax = (1 << pf.abits) - 1;
+    pf.rmax = (1 << pf.rbits) - 1;
+    pf.gmax = (1 << pf.gbits) - 1;
+    pf.bmax = (1 << pf.bbits) - 1;
+    pf.amask = pf.amax << pf.ashift;
+    pf.rmask = pf.rmax << pf.rshift;
+    pf.gmask = pf.gmax << pf.gshift;
+    pf.bmask = pf.bmax << pf.bshift;
+
+    return pf;
+}
+
+pixman_format_code_t qemu_default_pixman_format(int bpp, bool native_endian)
+{
+    if (native_endian) {
+        switch (bpp) {
+        case 15:
+            return PIXMAN_x1r5g5b5;
+        case 16:
+            return PIXMAN_r5g6b5;
+        case 24:
+            return PIXMAN_r8g8b8;
+        case 32:
+            return PIXMAN_x8r8g8b8;
+        }
+    } else {
+        switch (bpp) {
+        case 24:
+            return PIXMAN_b8g8r8;
+        case 32:
+            return PIXMAN_b8g8r8a8;
+        break;
+        }
+    }
+    g_assert_not_reached();
+}
+
 int qemu_pixman_get_type(int rshift, int gshift, int bshift)
 {
     int type = PIXMAN_TYPE_OTHER;
@@ -52,11 +133,20 @@ pixman_image_t *qemu_pixman_linebuf_create(pixman_format_code_t format,
     return image;
 }
 
+/* fill linebuf from framebuffer */
 void qemu_pixman_linebuf_fill(pixman_image_t *linebuf, pixman_image_t *fb,
                               int width, int x, int y)
 {
     pixman_image_composite(PIXMAN_OP_SRC, fb, NULL, linebuf,
                            x, y, 0, 0, 0, 0, width, 1);
+}
+
+/* copy linebuf to framebuffer */
+void qemu_pixman_linebuf_copy(pixman_image_t *fb, int width, int x, int y,
+                              pixman_image_t *linebuf)
+{
+    pixman_image_composite(PIXMAN_OP_SRC, linebuf, NULL, fb,
+                           0, 0, 0, 0, x, y, width, 1);
 }
 
 pixman_image_t *qemu_pixman_mirror_create(pixman_format_code_t format,

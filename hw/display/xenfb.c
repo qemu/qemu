@@ -713,15 +713,17 @@ static void xenfb_update(void *opaque)
 
     /* resize if needed */
     if (xenfb->do_resize) {
+        pixman_format_code_t format;
+
         xenfb->do_resize = 0;
         switch (xenfb->depth) {
         case 16:
         case 32:
             /* console.c supported depth -> buffer can be used directly */
+            format = qemu_default_pixman_format(xenfb->depth, true);
             surface = qemu_create_displaysurface_from
-                (xenfb->width, xenfb->height, xenfb->depth,
-                 xenfb->row_stride, xenfb->pixels + xenfb->offset,
-                 false);
+                (xenfb->width, xenfb->height, format,
+                 xenfb->row_stride, xenfb->pixels + xenfb->offset);
             break;
         default:
             /* we must convert stuff */

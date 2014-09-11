@@ -28,6 +28,7 @@
 #include "qmp-commands.h"
 #include "sysemu/char.h"
 #include "trace.h"
+#include "exec/memory.h"
 
 #define DEFAULT_BACKSCROLL 512
 #define CONSOLE_CURSOR_PERIOD 500
@@ -1224,61 +1225,77 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type,
     return s;
 }
 
-static void qemu_alloc_display(DisplaySurface *surface, int width, int height,
-                               int linesize, PixelFormat pf, int newflags)
+static void qemu_alloc_display(DisplaySurface *surface, int width, int height)
 {
-    surface->pf = pf;
-
     qemu_pixman_image_unref(surface->image);
     surface->image = NULL;
 
-    surface->format = qemu_pixman_get_format(&pf);
-    assert(surface->format != 0);
+    surface->format = PIXMAN_x8r8g8b8;
     surface->image = pixman_image_create_bits(surface->format,
                                               width, height,
-                                              NULL, linesize);
+                                              NULL, width * 4);
     assert(surface->image != NULL);
 
-    surface->flags = newflags | QEMU_ALLOCATED_FLAG;
-#ifdef HOST_WORDS_BIGENDIAN
-    surface->flags |= QEMU_BIG_ENDIAN_FLAG;
-#endif
+    surface->flags = QEMU_ALLOCATED_FLAG;
 }
 
 DisplaySurface *qemu_create_displaysurface(int width, int height)
 {
     DisplaySurface *surface = g_new0(DisplaySurface, 1);
-    int linesize = width * 4;
 
     trace_displaysurface_create(surface, width, height);
-    qemu_alloc_display(surface, width, height, linesize,
-                       qemu_default_pixelformat(32), 0);
+    qemu_alloc_display(surface, width, height);
     return surface;
 }
 
-DisplaySurface *qemu_create_displaysurface_from(int width, int height, int bpp,
-                                                int linesize, uint8_t *data,
-                                                bool byteswap)
+DisplaySurface *qemu_create_displaysurface_from(int width, int height,
+                                                pixman_format_code_t format,
+                                                int linesize, uint8_t *data)
 {
     DisplaySurface *surface = g_new0(DisplaySurface, 1);
 
-    trace_displaysurface_create_from(surface, width, height, bpp, byteswap);
-    if (byteswap) {
-        surface->pf = qemu_different_endianness_pixelformat(bpp);
-    } else {
-        surface->pf = qemu_default_pixelformat(bpp);
-    }
-
-    surface->format = qemu_pixman_get_format(&surface->pf);
-    assert(surface->format != 0);
+    trace_displaysurface_create_from(surface, width, height, format);
+    surface->format = format;
     surface->image = pixman_image_create_bits(surface->format,
                                               width, height,
                                               (void *)data, linesize);
     assert(surface->image != NULL);
 
-#ifdef HOST_WORDS_BIGENDIAN
-    surface->flags = QEMU_BIG_ENDIAN_FLAG;
-#endif
+    return surface;
+}
+
+static void qemu_unmap_displaysurface_guestmem(pixman_image_t *image,
+                                               void *unused)
+{
+    void *data = pixman_image_get_data(image);
+    uint32_t size = pixman_image_get_stride(image) *
+        pixman_image_get_height(image);
+    cpu_physical_memory_unmap(data, size, 0, 0);
+}
+
+DisplaySurface *qemu_create_displaysurface_guestmem(int width, int height,
+                                                    pixman_format_code_t format,
+                                                    int linesize, uint64_t addr)
+{
+    DisplaySurface *surface;
+    hwaddr size;
+    void *data;
+
+    if (linesize == 0) {
+        linesize = width * PIXMAN_FORMAT_BPP(format) / 8;
+    }
+
+    size = linesize * height;
+    data = cpu_physical_memory_map(addr, &size, 0);
+    if (size != linesize * height) {
+        cpu_physical_memory_unmap(data, size, 0, 0);
+        return NULL;
+    }
+
+    surface = qemu_create_displaysurface_from
+        (width, height, format, linesize, data);
+    pixman_image_set_destroy_function
+        (surface->image, qemu_unmap_displaysurface_guestmem, NULL);
 
     return surface;
 }
@@ -1555,6 +1572,67 @@ bool dpy_cursor_define_supported(QemuConsole *con)
         }
     }
     return false;
+}
+
+/*
+ * Call dpy_gfx_update for all dirity scanlines.  Works for
+ * DisplaySurfaces backed by guest memory (i.e. the ones created
+ * using qemu_create_displaysurface_guestmem).
+ */
+void dpy_gfx_update_dirty(QemuConsole *con,
+                          MemoryRegion *address_space,
+                          hwaddr base,
+                          bool invalidate)
+{
+    DisplaySurface *ds = qemu_console_surface(con);
+    int width = surface_stride(ds);
+    int height = surface_height(ds);
+    hwaddr size = width * height;
+    MemoryRegionSection mem_section;
+    MemoryRegion *mem;
+    ram_addr_t addr;
+    int first, last, i;
+    bool dirty;
+
+    mem_section = memory_region_find(address_space, base, size);
+    mem = mem_section.mr;
+    if (int128_get64(mem_section.size) != size ||
+        !memory_region_is_ram(mem_section.mr)) {
+        goto out;
+    }
+    assert(mem);
+
+    memory_region_sync_dirty_bitmap(mem);
+    addr = mem_section.offset_within_region;
+
+    first = -1;
+    last = -1;
+    for (i = 0; i < height; i++, addr += width) {
+        dirty = invalidate ||
+            memory_region_get_dirty(mem, addr, width, DIRTY_MEMORY_VGA);
+        if (dirty) {
+            if (first == -1) {
+                first = i;
+            }
+            last = i;
+        }
+        if (first != -1 && !dirty) {
+            assert(last != -1 && last >= first);
+            dpy_gfx_update(con, 0, first, surface_width(ds),
+                           last - first + 1);
+            first = -1;
+        }
+    }
+    if (first != -1) {
+        assert(last != -1 && last >= first);
+        dpy_gfx_update(con, 0, first, surface_width(ds),
+                       last - first + 1);
+    }
+
+    memory_region_reset_dirty(mem, mem_section.offset_within_region, size,
+                              DIRTY_MEMORY_VGA);
+out:
+    memory_region_unref(mem);
 }
 
 /***********************************************************/
@@ -1902,124 +1980,15 @@ DisplayState *qemu_console_displaystate(QemuConsole *console)
 
 PixelFormat qemu_different_endianness_pixelformat(int bpp)
 {
-    PixelFormat pf;
-
-    memset(&pf, 0x00, sizeof(PixelFormat));
-
-    pf.bits_per_pixel = bpp;
-    pf.bytes_per_pixel = DIV_ROUND_UP(bpp, 8);
-    pf.depth = bpp == 32 ? 24 : bpp;
-
-    switch (bpp) {
-        case 24:
-            pf.rmask = 0x000000FF;
-            pf.gmask = 0x0000FF00;
-            pf.bmask = 0x00FF0000;
-            pf.rmax = 255;
-            pf.gmax = 255;
-            pf.bmax = 255;
-            pf.rshift = 0;
-            pf.gshift = 8;
-            pf.bshift = 16;
-            pf.rbits = 8;
-            pf.gbits = 8;
-            pf.bbits = 8;
-            break;
-        case 32:
-            pf.rmask = 0x0000FF00;
-            pf.gmask = 0x00FF0000;
-            pf.bmask = 0xFF000000;
-            pf.amask = 0x00000000;
-            pf.amax = 255;
-            pf.rmax = 255;
-            pf.gmax = 255;
-            pf.bmax = 255;
-            pf.ashift = 0;
-            pf.rshift = 8;
-            pf.gshift = 16;
-            pf.bshift = 24;
-            pf.rbits = 8;
-            pf.gbits = 8;
-            pf.bbits = 8;
-            pf.abits = 8;
-            break;
-        default:
-            break;
-    }
+    pixman_format_code_t fmt = qemu_default_pixman_format(bpp, false);
+    PixelFormat pf = qemu_pixelformat_from_pixman(fmt);
     return pf;
 }
 
 PixelFormat qemu_default_pixelformat(int bpp)
 {
-    PixelFormat pf;
-
-    memset(&pf, 0x00, sizeof(PixelFormat));
-
-    pf.bits_per_pixel = bpp;
-    pf.bytes_per_pixel = DIV_ROUND_UP(bpp, 8);
-    pf.depth = bpp == 32 ? 24 : bpp;
-
-    switch (bpp) {
-        case 15:
-            pf.bits_per_pixel = 16;
-            pf.rmask = 0x00007c00;
-            pf.gmask = 0x000003E0;
-            pf.bmask = 0x0000001F;
-            pf.rmax = 31;
-            pf.gmax = 31;
-            pf.bmax = 31;
-            pf.rshift = 10;
-            pf.gshift = 5;
-            pf.bshift = 0;
-            pf.rbits = 5;
-            pf.gbits = 5;
-            pf.bbits = 5;
-            break;
-        case 16:
-            pf.rmask = 0x0000F800;
-            pf.gmask = 0x000007E0;
-            pf.bmask = 0x0000001F;
-            pf.rmax = 31;
-            pf.gmax = 63;
-            pf.bmax = 31;
-            pf.rshift = 11;
-            pf.gshift = 5;
-            pf.bshift = 0;
-            pf.rbits = 5;
-            pf.gbits = 6;
-            pf.bbits = 5;
-            break;
-        case 24:
-            pf.rmask = 0x00FF0000;
-            pf.gmask = 0x0000FF00;
-            pf.bmask = 0x000000FF;
-            pf.rmax = 255;
-            pf.gmax = 255;
-            pf.bmax = 255;
-            pf.rshift = 16;
-            pf.gshift = 8;
-            pf.bshift = 0;
-            pf.rbits = 8;
-            pf.gbits = 8;
-            pf.bbits = 8;
-            break;
-        case 32:
-            pf.rmask = 0x00FF0000;
-            pf.gmask = 0x0000FF00;
-            pf.bmask = 0x000000FF;
-            pf.rmax = 255;
-            pf.gmax = 255;
-            pf.bmax = 255;
-            pf.rshift = 16;
-            pf.gshift = 8;
-            pf.bshift = 0;
-            pf.rbits = 8;
-            pf.gbits = 8;
-            pf.bbits = 8;
-            break;
-        default:
-            break;
-    }
+    pixman_format_code_t fmt = qemu_default_pixman_format(bpp, true);
+    PixelFormat pf = qemu_pixelformat_from_pixman(fmt);
     return pf;
 }
 

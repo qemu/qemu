@@ -127,6 +127,7 @@ static void do_sdl_resize(int width, int height, int bpp)
 static void sdl_switch(DisplayChangeListener *dcl,
                        DisplaySurface *new_surface)
 {
+    PixelFormat pf = qemu_pixelformat_from_pixman(new_surface->format);
 
     /* temporary hack: allows to call sdl_switch to handle scaling changes */
     if (new_surface) {
@@ -148,8 +149,8 @@ static void sdl_switch(DisplayChangeListener *dcl,
         (surface_data(surface),
          surface_width(surface), surface_height(surface),
          surface_bits_per_pixel(surface), surface_stride(surface),
-         surface->pf.rmask, surface->pf.gmask,
-         surface->pf.bmask, surface->pf.amask);
+         pf.rmask, pf.gmask,
+         pf.bmask, pf.amask);
 }
 
 /* generic keyboard conversion */
