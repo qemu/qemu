@@ -317,7 +317,7 @@ static void qemu_archipelago_complete_aio(void *opaque)
     aio_cb->common.cb(aio_cb->common.opaque, aio_cb->ret);
     aio_cb->status = 0;
 
-    qemu_aio_release(aio_cb);
+    qemu_aio_unref(aio_cb);
     g_free(reqdata);
 }
 
@@ -890,7 +890,7 @@ static BlockDriverAIOCB *qemu_archipelago_aio_rw(BlockDriverState *bs,
 
 err_exit:
     error_report("qemu_archipelago_aio_rw(): I/O Error\n");
-    qemu_aio_release(aio_cb);
+    qemu_aio_unref(aio_cb);
     return NULL;
 }
 

@@ -126,7 +126,7 @@ iscsi_bh_cb(void *p)
         acb->task = NULL;
     }
 
-    qemu_aio_release(acb);
+    qemu_aio_unref(acb);
 }
 
 static void
@@ -680,7 +680,7 @@ static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     if (acb->task == NULL) {
         error_report("iSCSI: Failed to allocate task for scsi command. %s",
                      iscsi_get_error(iscsi));
-        qemu_aio_release(acb);
+        qemu_aio_unref(acb);
         return NULL;
     }
     memset(acb->task, 0, sizeof(struct scsi_task));
@@ -718,7 +718,7 @@ static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
                                  (data.size > 0) ? &data : NULL,
                                  acb) != 0) {
         scsi_free_scsi_task(acb->task);
-        qemu_aio_release(acb);
+        qemu_aio_unref(acb);
         return NULL;
     }
 

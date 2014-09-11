@@ -407,7 +407,7 @@ static void qemu_rbd_complete_aio(RADOSCB *rcb)
     acb->common.cb(acb->common.opaque, (acb->ret > 0 ? 0 : acb->ret));
     acb->status = 0;
 
-    qemu_aio_release(acb);
+    qemu_aio_unref(acb);
 }
 
 /* TODO Convert to fine grained options */
@@ -671,7 +671,7 @@ failed_completion:
 failed:
     g_free(rcb);
     qemu_vfree(acb->bounce);
-    qemu_aio_release(acb);
+    qemu_aio_unref(acb);
     return NULL;
 }
 

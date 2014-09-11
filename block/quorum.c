@@ -168,7 +168,7 @@ static void quorum_aio_finalize(QuorumAIOCB *acb)
     }
 
     g_free(acb->qcrs);
-    qemu_aio_release(acb);
+    qemu_aio_unref(acb);
 }
 
 static bool quorum_sha256_compare(QuorumVoteValue *a, QuorumVoteValue *b)

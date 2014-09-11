@@ -192,7 +192,7 @@ static void blkverify_aio_bh(void *opaque)
         qemu_vfree(acb->buf);
     }
     acb->common.cb(acb->common.opaque, acb->ret);
-    qemu_aio_release(acb);
+    qemu_aio_unref(acb);
 }
 
 static void blkverify_aio_cb(void *opaque, int ret)

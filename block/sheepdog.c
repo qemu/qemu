@@ -445,7 +445,7 @@ static inline void free_aio_req(BDRVSheepdogState *s, AIOReq *aio_req)
 static void coroutine_fn sd_finish_aiocb(SheepdogAIOCB *acb)
 {
     qemu_coroutine_enter(acb->coroutine, NULL);
-    qemu_aio_release(acb);
+    qemu_aio_unref(acb);
 }
 
 /*
@@ -2130,7 +2130,7 @@ static coroutine_fn int sd_co_writev(BlockDriverState *bs, int64_t sector_num,
 
     ret = sd_co_rw_vector(acb);
     if (ret <= 0) {
-        qemu_aio_release(acb);
+        qemu_aio_unref(acb);
         return ret;
     }
 
@@ -2151,7 +2151,7 @@ static coroutine_fn int sd_co_readv(BlockDriverState *bs, int64_t sector_num,
 
     ret = sd_co_rw_vector(acb);
     if (ret <= 0) {
-        qemu_aio_release(acb);
+        qemu_aio_unref(acb);
         return ret;
     }
 
@@ -2510,7 +2510,7 @@ static coroutine_fn int sd_co_discard(BlockDriverState *bs, int64_t sector_num,
 
     ret = sd_co_rw_vector(acb);
     if (ret <= 0) {
-        qemu_aio_release(acb);
+        qemu_aio_unref(acb);
         return ret;
     }
 

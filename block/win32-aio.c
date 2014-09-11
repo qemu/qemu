@@ -88,7 +88,7 @@ static void win32_aio_process_completion(QEMUWin32AIOState *s,
 
 
     waiocb->common.cb(waiocb->common.opaque, ret);
-    qemu_aio_release(waiocb);
+    qemu_aio_unref(waiocb);
 }
 
 static void win32_aio_completion_cb(EventNotifier *e)
@@ -158,7 +158,7 @@ BlockDriverAIOCB *win32_aio_submit(BlockDriverState *bs,
 out_dec_count:
     aio->count--;
 out:
-    qemu_aio_release(waiocb);
+    qemu_aio_unref(waiocb);
     return NULL;
 }
 

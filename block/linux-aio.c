@@ -88,7 +88,7 @@ static void qemu_laio_process_completion(struct qemu_laio_state *s,
     }
     laiocb->common.cb(laiocb->common.opaque, ret);
 
-    qemu_aio_release(laiocb);
+    qemu_aio_unref(laiocb);
 }
 
 /* The completion BH fetches completed I/O requests and invokes their
@@ -286,7 +286,7 @@ BlockDriverAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
     return &laiocb->common;
 
 out_free_aiocb:
-    qemu_aio_release(laiocb);
+    qemu_aio_unref(laiocb);
     return NULL;
 }
 

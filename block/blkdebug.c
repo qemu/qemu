@@ -444,7 +444,7 @@ static void error_callback_bh(void *opaque)
     struct BlkdebugAIOCB *acb = opaque;
     qemu_bh_delete(acb->bh);
     acb->common.cb(acb->common.opaque, acb->ret);
-    qemu_aio_release(acb);
+    qemu_aio_unref(acb);
 }
 
 static BlockDriverAIOCB *inject_error(BlockDriverState *bs,

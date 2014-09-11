@@ -185,12 +185,12 @@ restart:
             qemu_bh_schedule(pool->completion_bh);
 
             elem->common.cb(elem->common.opaque, elem->ret);
-            qemu_aio_release(elem);
+            qemu_aio_unref(elem);
             goto restart;
         } else {
             /* remove the request */
             QLIST_REMOVE(elem, all);
-            qemu_aio_release(elem);
+            qemu_aio_unref(elem);
         }
     }
 }

@@ -397,7 +397,7 @@ static void ide_trim_bh_cb(void *opaque)
 
     qemu_bh_delete(iocb->bh);
     iocb->bh = NULL;
-    qemu_aio_release(iocb);
+    qemu_aio_unref(iocb);
 }
 
 static void ide_issue_trim_cb(void *opaque, int ret)

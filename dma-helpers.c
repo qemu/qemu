@@ -124,7 +124,7 @@ static void dma_complete(DMAAIOCB *dbs, int ret)
         qemu_bh_delete(dbs->bh);
         dbs->bh = NULL;
     }
-    qemu_aio_release(dbs);
+    qemu_aio_unref(dbs);
 }
 
 static void dma_bdrv_cb(void *opaque, int ret)

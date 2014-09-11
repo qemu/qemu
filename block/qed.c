@@ -907,7 +907,7 @@ static void qed_aio_complete_bh(void *opaque)
     int ret = acb->bh_ret;
 
     qemu_bh_delete(acb->bh);
-    qemu_aio_release(acb);
+    qemu_aio_unref(acb);
 
     /* Invoke callback */
     cb(user_opaque, ret);
