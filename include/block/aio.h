@@ -27,6 +27,8 @@ typedef void BlockDriverCompletionFunc(void *opaque, int ret);
 
 typedef struct AIOCBInfo {
     void (*cancel)(BlockDriverAIOCB *acb);
+    void (*cancel_async)(BlockDriverAIOCB *acb);
+    AioContext *(*get_aio_context)(BlockDriverAIOCB *acb);
     size_t aiocb_size;
 } AIOCBInfo;
 
