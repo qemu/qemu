@@ -4640,22 +4640,18 @@ int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs, int num_reqs)
 
 void bdrv_aio_cancel(BlockDriverAIOCB *acb)
 {
-    if (acb->aiocb_info->cancel) {
-        acb->aiocb_info->cancel(acb);
-    } else {
-        qemu_aio_ref(acb);
-        bdrv_aio_cancel_async(acb);
-        while (acb->refcnt > 1) {
-            if (acb->aiocb_info->get_aio_context) {
-                aio_poll(acb->aiocb_info->get_aio_context(acb), true);
-            } else if (acb->bs) {
-                aio_poll(bdrv_get_aio_context(acb->bs), true);
-            } else {
-                abort();
-            }
+    qemu_aio_ref(acb);
+    bdrv_aio_cancel_async(acb);
+    while (acb->refcnt > 1) {
+        if (acb->aiocb_info->get_aio_context) {
+            aio_poll(acb->aiocb_info->get_aio_context(acb), true);
+        } else if (acb->bs) {
+            aio_poll(bdrv_get_aio_context(acb->bs), true);
+        } else {
+            abort();
         }
-        qemu_aio_release(acb);
     }
+    qemu_aio_release(acb);
 }
 
 /* Async version of aio cancel. The caller is not blocked if the acb implements
