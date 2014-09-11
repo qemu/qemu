@@ -1151,7 +1151,8 @@
   'data': [ 'archipelago', 'file', 'host_device', 'host_cdrom', 'host_floppy',
             'http', 'https', 'ftp', 'ftps', 'tftp', 'vvfat', 'blkdebug',
             'blkverify', 'bochs', 'cloop', 'cow', 'dmg', 'parallels', 'qcow',
-            'qcow2', 'qed', 'raw', 'vdi', 'vhdx', 'vmdk', 'vpc', 'quorum' ] }
+            'qcow2', 'qed', 'raw', 'vdi', 'vhdx', 'vmdk', 'vpc', 'quorum',
+            'null-aio', 'null-co' ] }
 
 ##
 # @BlockdevOptionsBase
@@ -1202,6 +1203,18 @@
 ##
 { 'type': 'BlockdevOptionsFile',
   'data': { 'filename': 'str' } }
+
+##
+# @BlockdevOptionsNull
+#
+# Driver specific block device options for the null backend.
+#
+# @size:    #optional size of the device in bytes.
+#
+# Since: 2.2
+##
+{ 'type': 'BlockdevOptionsNull',
+  'data': { '*size': 'int' } }
 
 ##
 # @BlockdevOptionsVVFAT
@@ -1503,7 +1516,9 @@
       'vhdx':       'BlockdevOptionsGenericFormat',
       'vmdk':       'BlockdevOptionsGenericCOWFormat',
       'vpc':        'BlockdevOptionsGenericFormat',
-      'quorum':     'BlockdevOptionsQuorum'
+      'quorum':     'BlockdevOptionsQuorum',
+      'null-aio':   'BlockdevOptionsNull',
+      'null-co':    'BlockdevOptionsNull'
   } }
 
 ##
