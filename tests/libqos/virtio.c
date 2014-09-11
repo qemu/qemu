@@ -82,7 +82,7 @@ bool qvirtio_wait_queue_isr(const QVirtioBus *bus, QVirtioDevice *d,
                                             QVirtQueue *vq, uint64_t timeout)
 {
     do {
-        clock_step(10);
+        clock_step(100);
         if (bus->get_queue_isr_status(d, vq)) {
             break; /* It has ended */
         }
@@ -95,7 +95,7 @@ bool qvirtio_wait_config_isr(const QVirtioBus *bus, QVirtioDevice *d,
                                                             uint64_t timeout)
 {
     do {
-        clock_step(10);
+        clock_step(100);
         if (bus->get_config_isr_status(d)) {
             break; /* It has ended */
         }
