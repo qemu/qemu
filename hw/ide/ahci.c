@@ -791,6 +791,9 @@ static void ncq_cb(void *opaque, int ret)
     NCQTransferState *ncq_tfs = (NCQTransferState *)opaque;
     IDEState *ide_state = &ncq_tfs->drive->port.ifs[0];
 
+    if (ret == -ECANCELED) {
+        return;
+    }
     /* Clear bit for this tag in SActive */
     ncq_tfs->drive->port_regs.scr_act &= ~(1 << ncq_tfs->tag);
 
