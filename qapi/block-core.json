@@ -1148,11 +1148,11 @@
 # Since: 2.0
 ##
 { 'enum': 'BlockdevDriver',
-  'data': [ 'archipelago', 'file', 'host_device', 'host_cdrom', 'host_floppy',
-            'http', 'https', 'ftp', 'ftps', 'tftp', 'vvfat', 'blkdebug',
-            'blkverify', 'bochs', 'cloop', 'cow', 'dmg', 'parallels', 'qcow',
-            'qcow2', 'qed', 'raw', 'vdi', 'vhdx', 'vmdk', 'vpc', 'quorum',
-            'null-aio', 'null-co' ] }
+  'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop', 'cow',
+            'dmg', 'file', 'ftp', 'ftps', 'host_cdrom', 'host_device',
+            'host_floppy', 'http', 'https', 'null-aio', 'null-co', 'parallels',
+            'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'tftp', 'vdi', 'vhdx',
+            'vmdk', 'vpc', 'vvfat' ] }
 
 ##
 # @BlockdevOptionsBase
