@@ -1593,6 +1593,10 @@
 #           io-status is present, please see query-block documentation
 #           for more information (since: 2.2)
 #
+# @reason: human readable string describing the error cause.
+#          (This field is a debugging aid for humans, it should not
+#           be parsed by applications) (since: 2.2)
+#
 # Note: If action is "stop", a STOP event will eventually follow the
 # BLOCK_IO_ERROR event
 #
@@ -1600,7 +1604,8 @@
 ##
 { 'event': 'BLOCK_IO_ERROR',
   'data': { 'device': 'str', 'operation': 'IoOperationType',
-            'action': 'BlockErrorAction', '*nospace': 'bool' } }
+            'action': 'BlockErrorAction', '*nospace': 'bool',
+            'reason': 'str' } }
 
 ##
 # @BLOCK_JOB_COMPLETED

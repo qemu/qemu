@@ -3647,7 +3647,8 @@ static void send_qmp_error_event(BlockDriverState *bs,
     ac = is_read ? IO_OPERATION_TYPE_READ : IO_OPERATION_TYPE_WRITE;
     qapi_event_send_block_io_error(bdrv_get_device_name(bs), ac, action,
                                    bdrv_iostatus_is_enabled(bs),
-                                   error == ENOSPC, &error_abort);
+                                   error == ENOSPC, strerror(error),
+                                   &error_abort);
 }
 
 /* This is done by device models because, while the block layer knows
