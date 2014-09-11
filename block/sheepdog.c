@@ -315,7 +315,6 @@ struct SheepdogAIOCB {
     void (*aio_done_func)(SheepdogAIOCB *);
 
     bool cancelable;
-    bool *finished;
     int nr_pending;
 };
 
@@ -446,9 +445,6 @@ static inline void free_aio_req(BDRVSheepdogState *s, AIOReq *aio_req)
 static void coroutine_fn sd_finish_aiocb(SheepdogAIOCB *acb)
 {
     qemu_coroutine_enter(acb->coroutine, NULL);
-    if (acb->finished) {
-        *acb->finished = true;
-    }
     qemu_aio_release(acb);
 }
 
@@ -482,36 +478,33 @@ static void sd_aio_cancel(BlockDriverAIOCB *blockacb)
     SheepdogAIOCB *acb = (SheepdogAIOCB *)blockacb;
     BDRVSheepdogState *s = acb->common.bs->opaque;
     AIOReq *aioreq, *next;
-    bool finished = false;
 
-    acb->finished = &finished;
-    while (!finished) {
-        if (sd_acb_cancelable(acb)) {
-            /* Remove outstanding requests from pending and failed queues.  */
-            QLIST_FOREACH_SAFE(aioreq, &s->pending_aio_head, aio_siblings,
-                               next) {
-                if (aioreq->aiocb == acb) {
-                    free_aio_req(s, aioreq);
-                }
+    if (sd_acb_cancelable(acb)) {
+        /* Remove outstanding requests from pending and failed queues.  */
+        QLIST_FOREACH_SAFE(aioreq, &s->pending_aio_head, aio_siblings,
+                           next) {
+            if (aioreq->aiocb == acb) {
+                free_aio_req(s, aioreq);
             }
-            QLIST_FOREACH_SAFE(aioreq, &s->failed_aio_head, aio_siblings,
-                               next) {
-                if (aioreq->aiocb == acb) {
-                    free_aio_req(s, aioreq);
-                }
-            }
-
-            assert(acb->nr_pending == 0);
-            sd_finish_aiocb(acb);
-            return;
         }
-        aio_poll(s->aio_context, true);
+        QLIST_FOREACH_SAFE(aioreq, &s->failed_aio_head, aio_siblings,
+                           next) {
+            if (aioreq->aiocb == acb) {
+                free_aio_req(s, aioreq);
+            }
+        }
+
+        assert(acb->nr_pending == 0);
+        if (acb->common.cb) {
+            acb->common.cb(acb->common.opaque, -ECANCELED);
+        }
+        sd_finish_aiocb(acb);
     }
 }
 
 static const AIOCBInfo sd_aiocb_info = {
-    .aiocb_size = sizeof(SheepdogAIOCB),
-    .cancel = sd_aio_cancel,
+    .aiocb_size     = sizeof(SheepdogAIOCB),
+    .cancel_async   = sd_aio_cancel,
 };
 
 static SheepdogAIOCB *sd_aio_setup(BlockDriverState *bs, QEMUIOVector *qiov,
@@ -528,7 +521,6 @@ static SheepdogAIOCB *sd_aio_setup(BlockDriverState *bs, QEMUIOVector *qiov,
 
     acb->aio_done_func = NULL;
     acb->cancelable = true;
-    acb->finished = NULL;
     acb->coroutine = qemu_coroutine_self();
     acb->ret = 0;
     acb->nr_pending = 0;
