@@ -139,17 +139,14 @@ static void quorum_aio_cancel(BlockDriverAIOCB *blockacb)
     /* cancel all callbacks */
     for (i = 0; i < s->num_children; i++) {
         if (acb->qcrs[i].aiocb) {
-            bdrv_aio_cancel(acb->qcrs[i].aiocb);
+            bdrv_aio_cancel_async(acb->qcrs[i].aiocb);
         }
     }
-
-    g_free(acb->qcrs);
-    qemu_aio_release(acb);
 }
 
 static AIOCBInfo quorum_aiocb_info = {
     .aiocb_size         = sizeof(QuorumAIOCB),
-    .cancel             = quorum_aio_cancel,
+    .cancel_async       = quorum_aio_cancel,
 };
 
 static void quorum_aio_finalize(QuorumAIOCB *acb)
