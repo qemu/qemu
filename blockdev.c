@@ -2218,7 +2218,7 @@ void qmp_block_commit(const char *device,
     /* drain all i/o before commits */
     bdrv_drain_all();
 
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT, errp)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT_SOURCE, errp)) {
         goto out;
     }
 
@@ -2250,6 +2250,10 @@ void qmp_block_commit(const char *device,
     }
 
     assert(bdrv_get_aio_context(base_bs) == aio_context);
+
+    if (bdrv_op_is_blocked(base_bs, BLOCK_OP_TYPE_COMMIT_TARGET, errp)) {
+        goto out;
+    }
 
     /* Do not allow attempts to commit an image into itself */
     if (top_bs == base_bs) {

@@ -1200,7 +1200,7 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
 
     bdrv_op_block_all(bs->backing_hd, bs->backing_blocker);
     /* Otherwise we won't be able to commit due to check in bdrv_commit */
-    bdrv_op_unblock(bs->backing_hd, BLOCK_OP_TYPE_COMMIT,
+    bdrv_op_unblock(bs->backing_hd, BLOCK_OP_TYPE_COMMIT_TARGET,
                     bs->backing_blocker);
 out:
     bdrv_refresh_limits(bs, NULL);
@@ -2216,8 +2216,8 @@ int bdrv_commit(BlockDriverState *bs)
         return -ENOTSUP;
     }
 
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT, NULL) ||
-        bdrv_op_is_blocked(bs->backing_hd, BLOCK_OP_TYPE_COMMIT, NULL)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT_SOURCE, NULL) ||
+        bdrv_op_is_blocked(bs->backing_hd, BLOCK_OP_TYPE_COMMIT_TARGET, NULL)) {
         return -EBUSY;
     }
 
