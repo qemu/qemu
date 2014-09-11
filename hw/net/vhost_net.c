@@ -163,11 +163,11 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     if (r < 0) {
         goto fail;
     }
-    if (!qemu_has_vnet_hdr_len(options->net_backend,
-                               sizeof(struct virtio_net_hdr_mrg_rxbuf))) {
-        net->dev.features &= ~(1 << VIRTIO_NET_F_MRG_RXBUF);
-    }
     if (backend_kernel) {
+        if (!qemu_has_vnet_hdr_len(options->net_backend,
+                               sizeof(struct virtio_net_hdr_mrg_rxbuf))) {
+            net->dev.features &= ~(1 << VIRTIO_NET_F_MRG_RXBUF);
+        }
         if (~net->dev.features & net->dev.backend_features) {
             fprintf(stderr, "vhost lacks feature mask %" PRIu64
                    " for backend\n",
