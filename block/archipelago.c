@@ -91,7 +91,6 @@ typedef struct ArchipelagoAIOCB {
     struct BDRVArchipelagoState *s;
     QEMUIOVector *qiov;
     ARCHIPCmd cmd;
-    bool cancelled;
     int status;
     int64_t size;
     int64_t ret;
@@ -318,9 +317,7 @@ static void qemu_archipelago_complete_aio(void *opaque)
     aio_cb->common.cb(aio_cb->common.opaque, aio_cb->ret);
     aio_cb->status = 0;
 
-    if (!aio_cb->cancelled) {
-        qemu_aio_release(aio_cb);
-    }
+    qemu_aio_release(aio_cb);
     g_free(reqdata);
 }
 
@@ -725,19 +722,8 @@ static int qemu_archipelago_create(const char *filename,
     return ret;
 }
 
-static void qemu_archipelago_aio_cancel(BlockDriverAIOCB *blockacb)
-{
-    ArchipelagoAIOCB *aio_cb = (ArchipelagoAIOCB *) blockacb;
-    aio_cb->cancelled = true;
-    while (aio_cb->status == -EINPROGRESS) {
-        aio_poll(bdrv_get_aio_context(aio_cb->common.bs), true);
-    }
-    qemu_aio_release(aio_cb);
-}
-
 static const AIOCBInfo archipelago_aiocb_info = {
     .aiocb_size = sizeof(ArchipelagoAIOCB),
-    .cancel = qemu_archipelago_aio_cancel,
 };
 
 static int archipelago_submit_request(BDRVArchipelagoState *s,
@@ -889,7 +875,6 @@ static BlockDriverAIOCB *qemu_archipelago_aio_rw(BlockDriverState *bs,
 
     aio_cb->ret = 0;
     aio_cb->s = s;
-    aio_cb->cancelled = false;
     aio_cb->status = -EINPROGRESS;
 
     off = sector_num * BDRV_SECTOR_SIZE;
