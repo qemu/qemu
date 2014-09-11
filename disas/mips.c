@@ -2238,6 +2238,8 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"ceil.l.s", "D,S",	0x4600000a, 0xffff003f, WR_D|RD_S|FP_S|FP_D,	0,		I3|I33	},
 {"ceil.w.d", "D,S",	0x4620000e, 0xffff003f, WR_D|RD_S|FP_S|FP_D,	0,		I2	},
 {"ceil.w.s", "D,S",	0x4600000e, 0xffff003f, WR_D|RD_S|FP_S,		0,		I2	},
+{"mfhc0",   "t,G,H",    0x40400000, 0xffe007f8, LCD|WR_t|RD_C0,       0, I33},
+{"mthc0",   "t,G,H",    0x40c00000, 0xffe007f8, COD|RD_t|WR_C0|WR_CC, 0, I33},
 {"cfc0",    "t,G",	0x40400000, 0xffe007ff,	LCD|WR_t|RD_C0,		0,		I1	},
 {"cfc1",    "t,G",	0x44400000, 0xffe007ff,	LCD|WR_t|RD_C1|FP_S,	0,		I1	},
 {"cfc1",    "t,S",	0x44400000, 0xffe007ff,	LCD|WR_t|RD_C1|FP_S,	0,		I1	},

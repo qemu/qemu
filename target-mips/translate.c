@@ -868,8 +868,10 @@ enum {
 enum {
     OPC_MFC0     = (0x00 << 21) | OPC_CP0,
     OPC_DMFC0    = (0x01 << 21) | OPC_CP0,
+    OPC_MFHC0    = (0x02 << 21) | OPC_CP0,
     OPC_MTC0     = (0x04 << 21) | OPC_CP0,
     OPC_DMTC0    = (0x05 << 21) | OPC_CP0,
+    OPC_MTHC0    = (0x06 << 21) | OPC_CP0,
     OPC_MFTR     = (0x08 << 21) | OPC_CP0,
     OPC_RDPGPR   = (0x0A << 21) | OPC_CP0,
     OPC_MFMC0    = (0x0B << 21) | OPC_CP0,
@@ -1424,6 +1426,9 @@ typedef struct DisasContext {
     int ie;
     bool bi;
     bool bp;
+    uint64_t PAMask;
+    bool mvh;
+    int CP0_LLAddr_shift;
 } DisasContext;
 
 enum {
@@ -1818,6 +1823,15 @@ static inline void check_mips_64(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_64)))
         generate_exception(ctx, EXCP_RI);
+}
+#endif
+
+#ifndef CONFIG_USER_ONLY
+static inline void check_mvh(DisasContext *ctx)
+{
+    if (unlikely(!ctx->mvh)) {
+        generate_exception(ctx, EXCP_RI);
+    }
 }
 #endif
 
@@ -4842,6 +4856,60 @@ static inline void gen_move_low32(TCGv ret, TCGv_i64 arg)
 #endif
 }
 
+static inline void gen_mthc0_entrylo(TCGv arg, target_ulong off)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+
+    tcg_gen_ext_tl_i64(t0, arg);
+    tcg_gen_ld_i64(t1, cpu_env, off);
+#if defined(TARGET_MIPS64)
+    tcg_gen_deposit_i64(t1, t1, t0, 30, 32);
+#else
+    tcg_gen_concat32_i64(t1, t1, t0);
+#endif
+    tcg_gen_st_i64(t1, cpu_env, off);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t0);
+}
+
+static inline void gen_mthc0_store64(TCGv arg, target_ulong off)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+
+    tcg_gen_ext_tl_i64(t0, arg);
+    tcg_gen_ld_i64(t1, cpu_env, off);
+    tcg_gen_concat32_i64(t1, t1, t0);
+    tcg_gen_st_i64(t1, cpu_env, off);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t0);
+}
+
+static inline void gen_mfhc0_entrylo(TCGv arg, target_ulong off)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+
+    tcg_gen_ld_i64(t0, cpu_env, off);
+#if defined(TARGET_MIPS64)
+    tcg_gen_shri_i64(t0, t0, 30);
+#else
+    tcg_gen_shri_i64(t0, t0, 32);
+#endif
+    gen_move_low32(arg, t0);
+    tcg_temp_free_i64(t0);
+}
+
+static inline void gen_mfhc0_load64(TCGv arg, target_ulong off, int shift)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+
+    tcg_gen_ld_i64(t0, cpu_env, off);
+    tcg_gen_shri_i64(t0, t0, 32 + shift);
+    gen_move_low32(arg, t0);
+    tcg_temp_free_i64(t0);
+}
+
 static inline void gen_mfc0_load32 (TCGv arg, target_ulong off)
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
@@ -4870,6 +4938,140 @@ static inline void gen_mtc0_store64 (TCGv arg, target_ulong off)
 {
     tcg_gen_ext32s_tl(arg, arg);
     tcg_gen_st_tl(arg, cpu_env, off);
+}
+
+static void gen_mfhc0(DisasContext *ctx, TCGv arg, int reg, int sel)
+{
+    const char *rn = "invalid";
+
+    if (!(ctx->hflags & MIPS_HFLAG_ELPA)) {
+        goto mfhc0_read_zero;
+    }
+
+    switch (reg) {
+    case 2:
+        switch (sel) {
+        case 0:
+            gen_mfhc0_entrylo(arg, offsetof(CPUMIPSState, CP0_EntryLo0));
+            rn = "EntryLo0";
+            break;
+        default:
+            goto mfhc0_read_zero;
+        }
+        break;
+    case 3:
+        switch (sel) {
+        case 0:
+            gen_mfhc0_entrylo(arg, offsetof(CPUMIPSState, CP0_EntryLo1));
+            rn = "EntryLo1";
+            break;
+        default:
+            goto mfhc0_read_zero;
+        }
+        break;
+    case 17:
+        switch (sel) {
+        case 0:
+            gen_mfhc0_load64(arg, offsetof(CPUMIPSState, lladdr),
+                             ctx->CP0_LLAddr_shift);
+            rn = "LLAddr";
+            break;
+        default:
+            goto mfhc0_read_zero;
+        }
+        break;
+    case 28:
+        switch (sel) {
+        case 0:
+        case 2:
+        case 4:
+        case 6:
+            gen_mfhc0_load64(arg, offsetof(CPUMIPSState, CP0_TagLo), 0);
+            rn = "TagLo";
+            break;
+        default:
+            goto mfhc0_read_zero;
+        }
+        break;
+    default:
+        goto mfhc0_read_zero;
+    }
+
+    (void)rn; /* avoid a compiler warning */
+    LOG_DISAS("mfhc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    return;
+
+mfhc0_read_zero:
+    LOG_DISAS("mfhc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    tcg_gen_movi_tl(arg, 0);
+}
+
+static void gen_mthc0(DisasContext *ctx, TCGv arg, int reg, int sel)
+{
+    const char *rn = "invalid";
+    uint64_t mask = ctx->PAMask >> 36;
+
+    if (!(ctx->hflags & MIPS_HFLAG_ELPA)) {
+        goto mthc0_nop;
+    }
+
+    switch (reg) {
+    case 2:
+        switch (sel) {
+        case 0:
+            tcg_gen_andi_tl(arg, arg, mask);
+            gen_mthc0_entrylo(arg, offsetof(CPUMIPSState, CP0_EntryLo0));
+            rn = "EntryLo0";
+            break;
+        default:
+            goto mthc0_nop;
+        }
+        break;
+    case 3:
+        switch (sel) {
+        case 0:
+            tcg_gen_andi_tl(arg, arg, mask);
+            gen_mthc0_entrylo(arg, offsetof(CPUMIPSState, CP0_EntryLo1));
+            rn = "EntryLo1";
+            break;
+        default:
+            goto mthc0_nop;
+        }
+        break;
+    case 17:
+        switch (sel) {
+        case 0:
+            /* LLAddr is read-only (the only exception is bit 0 if LLB is
+               supported); the CP0_LLAddr_rw_bitmask does not seem to be
+               relevant for modern MIPS cores supporting MTHC0, therefore
+               treating MTHC0 to LLAddr as NOP. */
+            rn = "LLAddr";
+            break;
+        default:
+            goto mthc0_nop;
+        }
+        break;
+    case 28:
+        switch (sel) {
+        case 0:
+        case 2:
+        case 4:
+        case 6:
+            tcg_gen_andi_tl(arg, arg, mask);
+            gen_mthc0_store64(arg, offsetof(CPUMIPSState, CP0_TagLo));
+            rn = "TagLo";
+            break;
+        default:
+            goto mthc0_nop;
+        }
+        break;
+    default:
+        goto mthc0_nop;
+    }
+
+    (void)rn; /* avoid a compiler warning */
+mthc0_nop:
+    LOG_DISAS("mthc0 %s (reg %d sel %d)\n", rn, reg, sel);
 }
 
 static inline void gen_mfc0_unimplemented(DisasContext *ctx, TCGv arg)
@@ -7880,6 +8082,25 @@ static void gen_cp0 (CPUMIPSState *env, DisasContext *ctx, uint32_t opc, int rt,
         opn = "dmtc0";
         break;
 #endif
+    case OPC_MFHC0:
+        check_mvh(ctx);
+        if (rt == 0) {
+            /* Treat as NOP. */
+            return;
+        }
+        gen_mfhc0(ctx, cpu_gpr[rt], rd, ctx->opcode & 0x7);
+        opn = "mfhc0";
+        break;
+    case OPC_MTHC0:
+        check_mvh(ctx);
+        {
+            TCGv t0 = tcg_temp_new();
+            gen_load_gpr(t0, rt);
+            gen_mthc0(ctx, t0, rd, ctx->opcode & 0x7);
+            tcg_temp_free(t0);
+        }
+        opn = "mthc0";
+        break;
     case OPC_MFTR:
         check_insn(ctx, ASE_MT);
         if (rd == 0) {
@@ -18621,6 +18842,8 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         case OPC_MTC0:
         case OPC_MFTR:
         case OPC_MTTR:
+        case OPC_MFHC0:
+        case OPC_MTHC0:
 #if defined(TARGET_MIPS64)
         case OPC_DMFC0:
         case OPC_DMTC0:
@@ -19191,6 +19414,9 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     ctx.ie = (env->CP0_Config4 >> CP0C4_IE) & 3;
     ctx.bi = (env->CP0_Config3 >> CP0C3_BI) & 1;
     ctx.bp = (env->CP0_Config3 >> CP0C3_BP) & 1;
+    ctx.PAMask = env->PAMask;
+    ctx.mvh = (env->CP0_Config5 >> CP0C5_MVH) & 1;
+    ctx.CP0_LLAddr_shift = env->CP0_LLAddr_shift;
     /* Restore delay slot state from the tb context.  */
     ctx.hflags = (uint32_t)tb->flags; /* FIXME: maybe use 64 bits here? */
     ctx.ulri = (env->CP0_Config3 >> CP0C3_ULRI) & 1;
