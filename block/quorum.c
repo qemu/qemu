@@ -138,7 +138,9 @@ static void quorum_aio_cancel(BlockDriverAIOCB *blockacb)
 
     /* cancel all callbacks */
     for (i = 0; i < s->num_children; i++) {
-        bdrv_aio_cancel(acb->qcrs[i].aiocb);
+        if (acb->qcrs[i].aiocb) {
+            bdrv_aio_cancel(acb->qcrs[i].aiocb);
+        }
     }
 
     g_free(acb->qcrs);
