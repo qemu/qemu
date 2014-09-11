@@ -4891,13 +4891,23 @@ void *qemu_aio_get(const AIOCBInfo *aiocb_info, BlockDriverState *bs,
     acb->bs = bs;
     acb->cb = cb;
     acb->opaque = opaque;
+    acb->refcnt = 1;
     return acb;
+}
+
+void qemu_aio_ref(void *p)
+{
+    BlockDriverAIOCB *acb = p;
+    acb->refcnt++;
 }
 
 void qemu_aio_release(void *p)
 {
     BlockDriverAIOCB *acb = p;
-    g_slice_free1(acb->aiocb_info->aiocb_size, acb);
+    assert(acb->refcnt > 0);
+    if (--acb->refcnt == 0) {
+        g_slice_free1(acb->aiocb_info->aiocb_size, acb);
+    }
 }
 
 /**************************************************************/
