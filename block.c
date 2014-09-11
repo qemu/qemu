@@ -4681,18 +4681,8 @@ typedef struct BlockDriverAIOCBSync {
     int is_write;
 } BlockDriverAIOCBSync;
 
-static void bdrv_aio_cancel_em(BlockDriverAIOCB *blockacb)
-{
-    BlockDriverAIOCBSync *acb =
-        container_of(blockacb, BlockDriverAIOCBSync, common);
-    qemu_bh_delete(acb->bh);
-    acb->bh = NULL;
-    qemu_aio_release(acb);
-}
-
 static const AIOCBInfo bdrv_em_aiocb_info = {
     .aiocb_size         = sizeof(BlockDriverAIOCBSync),
-    .cancel             = bdrv_aio_cancel_em,
 };
 
 static void bdrv_aio_bh_cb(void *opaque)
