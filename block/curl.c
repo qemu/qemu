@@ -613,14 +613,8 @@ out_noclean:
     return -EINVAL;
 }
 
-static void curl_aio_cancel(BlockDriverAIOCB *blockacb)
-{
-    // Do we have to implement canceling? Seems to work without...
-}
-
 static const AIOCBInfo curl_aiocb_info = {
     .aiocb_size         = sizeof(CURLAIOCB),
-    .cancel             = curl_aio_cancel,
 };
 
 
