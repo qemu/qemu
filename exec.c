@@ -1673,7 +1673,12 @@ static void check_watchpoint(int offset, int len, int flags)
     QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
         if (cpu_watchpoint_address_matches(wp, vaddr, len)
             && (wp->flags & flags)) {
-            wp->flags |= BP_WATCHPOINT_HIT;
+            if (flags == BP_MEM_READ) {
+                wp->flags |= BP_WATCHPOINT_HIT_READ;
+            } else {
+                wp->flags |= BP_WATCHPOINT_HIT_WRITE;
+            }
+            wp->hitaddr = vaddr;
             if (!cpu->watchpoint_hit) {
                 cpu->watchpoint_hit = wp;
                 tb_check_watchpoint(cpu);

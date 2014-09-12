@@ -170,6 +170,7 @@ typedef struct CPUBreakpoint {
 typedef struct CPUWatchpoint {
     vaddr vaddr;
     vaddr len;
+    vaddr hitaddr;
     int flags; /* BP_* */
     QTAILQ_ENTRY(CPUWatchpoint) entry;
 } CPUWatchpoint;
@@ -622,9 +623,12 @@ void cpu_single_step(CPUState *cpu, int enabled);
 #define BP_MEM_WRITE          0x02
 #define BP_MEM_ACCESS         (BP_MEM_READ | BP_MEM_WRITE)
 #define BP_STOP_BEFORE_ACCESS 0x04
-#define BP_WATCHPOINT_HIT     0x08
+/* 0x08 currently unused */
 #define BP_GDB                0x10
 #define BP_CPU                0x20
+#define BP_WATCHPOINT_HIT_READ 0x40
+#define BP_WATCHPOINT_HIT_WRITE 0x80
+#define BP_WATCHPOINT_HIT (BP_WATCHPOINT_HIT_READ | BP_WATCHPOINT_HIT_WRITE)
 
 int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
                           CPUBreakpoint **breakpoint);
