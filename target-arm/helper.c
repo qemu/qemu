@@ -2399,14 +2399,18 @@ static void define_debug_regs(ARMCPU *cpu)
      * These are just dummy implementations for now.
      */
     int i;
-    int wrps, brps;
+    int wrps, brps, ctx_cmps;
     ARMCPRegInfo dbgdidr = {
         .name = "DBGDIDR", .cp = 14, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 0,
         .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = cpu->dbgdidr,
     };
 
+    /* Note that all these register fields hold "number of Xs minus 1". */
     brps = extract32(cpu->dbgdidr, 24, 4);
     wrps = extract32(cpu->dbgdidr, 28, 4);
+    ctx_cmps = extract32(cpu->dbgdidr, 20, 4);
+
+    assert(ctx_cmps <= brps);
 
     /* The DBGDIDR and ID_AA64DFR0_EL1 define various properties
      * of the debug registers such as number of breakpoints;
@@ -2415,6 +2419,7 @@ static void define_debug_regs(ARMCPU *cpu)
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         assert(extract32(cpu->id_aa64dfr0, 12, 4) == brps);
         assert(extract32(cpu->id_aa64dfr0, 20, 4) == wrps);
+        assert(extract32(cpu->id_aa64dfr0, 28, 4) == ctx_cmps);
     }
 
     define_one_arm_cp_reg(cpu, &dbgdidr);

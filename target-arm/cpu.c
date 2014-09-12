@@ -1065,6 +1065,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 #endif
     cc->gdb_num_core_regs = 26;
     cc->gdb_core_xml_file = "arm-core.xml";
+    cc->debug_excp_handler = arm_debug_excp_handler;
 }
 
 static void cpu_register(const ARMCPUInfo *info)

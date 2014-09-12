@@ -307,6 +307,12 @@ static inline uint32_t syn_swstep(int same_el, int isv, int ex)
         | (isv << 24) | (ex << 6) | 0x22;
 }
 
+static inline uint32_t syn_watchpoint(int same_el, int cm, int wnr)
+{
+    return (EC_WATCHPOINT << ARM_EL_EC_SHIFT) | (same_el << ARM_EL_EC_SHIFT)
+        | (cm << 8) | (wnr << 6) | 0x22;
+}
+
 /* Update a QEMU watchpoint based on the information the guest has set in the
  * DBGWCR<n>_EL1 and DBGWVR<n>_EL1 registers.
  */
@@ -316,5 +322,8 @@ void hw_watchpoint_update(ARMCPU *cpu, int n);
  * suitable for use after migration or on reset.
  */
 void hw_watchpoint_update_all(ARMCPU *cpu);
+
+/* Callback function for when a watchpoint or breakpoint triggers. */
+void arm_debug_excp_handler(CPUState *cs);
 
 #endif

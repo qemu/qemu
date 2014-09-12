@@ -456,6 +456,194 @@ illegal_return:
     }
 }
 
+/* Return true if the linked breakpoint entry lbn passes its checks */
+static bool linked_bp_matches(ARMCPU *cpu, int lbn)
+{
+    CPUARMState *env = &cpu->env;
+    uint64_t bcr = env->cp15.dbgbcr[lbn];
+    int brps = extract32(cpu->dbgdidr, 24, 4);
+    int ctx_cmps = extract32(cpu->dbgdidr, 20, 4);
+    int bt;
+    uint32_t contextidr;
+
+    /* Links to unimplemented or non-context aware breakpoints are
+     * CONSTRAINED UNPREDICTABLE: either behave as if disabled, or
+     * as if linked to an UNKNOWN context-aware breakpoint (in which
+     * case DBGWCR<n>_EL1.LBN must indicate that breakpoint).
+     * We choose the former.
+     */
+    if (lbn > brps || lbn < (brps - ctx_cmps)) {
+        return false;
+    }
+
+    bcr = env->cp15.dbgbcr[lbn];
+
+    if (extract64(bcr, 0, 1) == 0) {
+        /* Linked breakpoint disabled : generate no events */
+        return false;
+    }
+
+    bt = extract64(bcr, 20, 4);
+
+    /* We match the whole register even if this is AArch32 using the
+     * short descriptor format (in which case it holds both PROCID and ASID),
+     * since we don't implement the optional v7 context ID masking.
+     */
+    contextidr = extract64(env->cp15.contextidr_el1, 0, 32);
+
+    switch (bt) {
+    case 3: /* linked context ID match */
+        if (arm_current_pl(env) > 1) {
+            /* Context matches never fire in EL2 or (AArch64) EL3 */
+            return false;
+        }
+        return (contextidr == extract64(env->cp15.dbgbvr[lbn], 0, 32));
+    case 5: /* linked address mismatch (reserved in AArch64) */
+    case 9: /* linked VMID match (reserved if no EL2) */
+    case 11: /* linked context ID and VMID match (reserved if no EL2) */
+    default:
+        /* Links to Unlinked context breakpoints must generate no
+         * events; we choose to do the same for reserved values too.
+         */
+        return false;
+    }
+
+    return false;
+}
+
+static bool wp_matches(ARMCPU *cpu, int n)
+{
+    CPUARMState *env = &cpu->env;
+    uint64_t wcr = env->cp15.dbgwcr[n];
+    int pac, hmc, ssc, wt, lbn;
+    /* TODO: check against CPU security state when we implement TrustZone */
+    bool is_secure = false;
+
+    if (!env->cpu_watchpoint[n]
+        || !(env->cpu_watchpoint[n]->flags & BP_WATCHPOINT_HIT)) {
+        return false;
+    }
+
+    /* The WATCHPOINT_HIT flag guarantees us that the watchpoint is
+     * enabled and that the address and access type match; check the
+     * remaining fields, including linked breakpoints.
+     * Note that some combinations of {PAC, HMC SSC} are reserved and
+     * must act either like some valid combination or as if the watchpoint
+     * were disabled. We choose the former, and use this together with
+     * the fact that EL3 must always be Secure and EL2 must always be
+     * Non-Secure to simplify the code slightly compared to the full
+     * table in the ARM ARM.
+     */
+    pac = extract64(wcr, 1, 2);
+    hmc = extract64(wcr, 13, 1);
+    ssc = extract64(wcr, 14, 2);
+
+    switch (ssc) {
+    case 0:
+        break;
+    case 1:
+    case 3:
+        if (is_secure) {
+            return false;
+        }
+        break;
+    case 2:
+        if (!is_secure) {
+            return false;
+        }
+        break;
+    }
+
+    /* TODO: this is not strictly correct because the LDRT/STRT/LDT/STT
+     * "unprivileged access" instructions should match watchpoints as if
+     * they were accesses done at EL0, even if the CPU is at EL1 or higher.
+     * Implementing this would require reworking the core watchpoint code
+     * to plumb the mmu_idx through to this point. Luckily Linux does not
+     * rely on this behaviour currently.
+     */
+    switch (arm_current_pl(env)) {
+    case 3:
+    case 2:
+        if (!hmc) {
+            return false;
+        }
+        break;
+    case 1:
+        if (extract32(pac, 0, 1) == 0) {
+            return false;
+        }
+        break;
+    case 0:
+        if (extract32(pac, 1, 1) == 0) {
+            return false;
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    wt = extract64(wcr, 20, 1);
+    lbn = extract64(wcr, 16, 4);
+
+    if (wt && !linked_bp_matches(cpu, lbn)) {
+        return false;
+    }
+
+    return true;
+}
+
+static bool check_watchpoints(ARMCPU *cpu)
+{
+    CPUARMState *env = &cpu->env;
+    int n;
+
+    /* If watchpoints are disabled globally or we can't take debug
+     * exceptions here then watchpoint firings are ignored.
+     */
+    if (extract32(env->cp15.mdscr_el1, 15, 1) == 0
+        || !arm_generate_debug_exceptions(env)) {
+        return false;
+    }
+
+    for (n = 0; n < ARRAY_SIZE(env->cpu_watchpoint); n++) {
+        if (wp_matches(cpu, n)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void arm_debug_excp_handler(CPUState *cs)
+{
+    /* Called by core code when a watchpoint or breakpoint fires;
+     * need to check which one and raise the appropriate exception.
+     */
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    CPUWatchpoint *wp_hit = cs->watchpoint_hit;
+
+    if (wp_hit) {
+        if (wp_hit->flags & BP_CPU) {
+            cs->watchpoint_hit = NULL;
+            if (check_watchpoints(cpu)) {
+                bool wnr = (wp_hit->flags & BP_WATCHPOINT_HIT_WRITE) != 0;
+                bool same_el = arm_debug_target_el(env) == arm_current_pl(env);
+
+                env->exception.syndrome = syn_watchpoint(same_el, 0, wnr);
+                if (extended_addresses_enabled(env)) {
+                    env->exception.fsr = (1 << 9) | 0x22;
+                } else {
+                    env->exception.fsr = 0x2;
+                }
+                env->exception.vaddress = wp_hit->hitaddr;
+                raise_exception(env, EXCP_DATA_ABORT);
+            } else {
+                cpu_resume_from_signal(cs, NULL);
+            }
+        }
+    }
+}
+
 /* ??? Flag setting arithmetic is awkward because we need to do comparisons.
    The only way to do that in TCG is a conditional branch, which clobbers
    all our temporaries.  For now implement these as helper functions.  */
