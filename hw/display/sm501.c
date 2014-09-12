@@ -1410,7 +1410,7 @@ void sm501_init(MemoryRegion *address_space_mem, uint32_t base,
 
     /* allocate local memory */
     memory_region_init_ram(&s->local_mem_region, NULL, "sm501.local",
-                           local_mem_bytes);
+                           local_mem_bytes, &error_abort);
     vmstate_register_ram_global(&s->local_mem_region);
     s->local_mem = memory_region_get_ram_ptr(&s->local_mem_region);
     memory_region_add_subregion(address_space_mem, base, &s->local_mem_region);

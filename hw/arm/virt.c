@@ -580,7 +580,8 @@ static void machvirt_init(MachineState *machine)
     fdt_add_cpu_nodes(vbi);
     fdt_add_psci_node(vbi);
 
-    memory_region_init_ram(ram, NULL, "mach-virt.ram", machine->ram_size);
+    memory_region_init_ram(ram, NULL, "mach-virt.ram", machine->ram_size,
+                           &error_abort);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(sysmem, vbi->memmap[VIRT_MEM].base, ram);
 

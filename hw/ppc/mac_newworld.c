@@ -206,7 +206,8 @@ static void ppc_core99_init(MachineState *machine)
     memory_region_add_subregion(get_system_memory(), 0, ram);
 
     /* allocate and load BIOS */
-    memory_region_init_ram(bios, NULL, "ppc_core99.bios", BIOS_SIZE);
+    memory_region_init_ram(bios, NULL, "ppc_core99.bios", BIOS_SIZE,
+                           &error_abort);
     vmstate_register_ram_global(bios);
 
     if (bios_name == NULL)

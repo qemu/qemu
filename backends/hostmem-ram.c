@@ -27,7 +27,7 @@ ram_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
 
     path = object_get_canonical_path_component(OBJECT(backend));
     memory_region_init_ram(&backend->mr, OBJECT(backend), path,
-                           backend->size);
+                           backend->size, errp);
     g_free(path);
 }
 

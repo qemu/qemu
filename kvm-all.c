@@ -1751,7 +1751,8 @@ int kvm_cpu_exec(CPUState *cpu)
             }
             fprintf(stderr, "error: kvm run failed %s\n",
                     strerror(-run_ret));
-            abort();
+            ret = -1;
+            break;
         }
 
         trace_kvm_run_exit(cpu->cpu_index, run->exit_reason);

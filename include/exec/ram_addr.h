@@ -26,8 +26,8 @@ ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
                                     bool share, const char *mem_path,
                                     Error **errp);
 ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
-                                   MemoryRegion *mr);
-ram_addr_t qemu_ram_alloc(ram_addr_t size, MemoryRegion *mr);
+                                   MemoryRegion *mr, Error **errp);
+ram_addr_t qemu_ram_alloc(ram_addr_t size, MemoryRegion *mr, Error **errp);
 int qemu_get_ram_fd(ram_addr_t addr);
 void *qemu_get_ram_block_host_ptr(ram_addr_t addr);
 void *qemu_get_ram_ptr(ram_addr_t addr);

@@ -99,11 +99,12 @@ petalogix_ml605_init(MachineState *machine)
 
     /* Attach emulated BRAM through the LMB.  */
     memory_region_init_ram(phys_lmb_bram, NULL, "petalogix_ml605.lmb_bram",
-                           LMB_BRAM_SIZE);
+                           LMB_BRAM_SIZE, &error_abort);
     vmstate_register_ram_global(phys_lmb_bram);
     memory_region_add_subregion(address_space_mem, 0x00000000, phys_lmb_bram);
 
-    memory_region_init_ram(phys_ram, NULL, "petalogix_ml605.ram", ram_size);
+    memory_region_init_ram(phys_ram, NULL, "petalogix_ml605.ram", ram_size,
+                           &error_abort);
     vmstate_register_ram_global(phys_ram);
     memory_region_add_subregion(address_space_mem, MEMORY_BASEADDR, phys_ram);
 

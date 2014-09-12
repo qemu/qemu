@@ -246,11 +246,7 @@ char *qemu_get_exec_dir(void);
  * Search the auxiliary vector for @type, returning the value
  * or 0 if @type is not present.
  */
-#if defined(CONFIG_GETAUXVAL) || defined(__linux__)
 unsigned long qemu_getauxval(unsigned long type);
-#else
-static inline unsigned long qemu_getauxval(unsigned long type) { return 0; }
-#endif
 
 void qemu_set_tty_echo(int fd, bool echo);
 

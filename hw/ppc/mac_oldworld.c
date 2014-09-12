@@ -136,7 +136,8 @@ static void ppc_heathrow_init(MachineState *machine)
     memory_region_add_subregion(sysmem, 0, ram);
 
     /* allocate and load BIOS */
-    memory_region_init_ram(bios, NULL, "ppc_heathrow.bios", BIOS_SIZE);
+    memory_region_init_ram(bios, NULL, "ppc_heathrow.bios", BIOS_SIZE,
+                           &error_abort);
     vmstate_register_ram_global(bios);
 
     if (bios_name == NULL)

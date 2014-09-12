@@ -477,6 +477,23 @@ static const MemoryRegionPortio isa_parallel_portio_sw_list[] = {
     PORTIO_END_OF_LIST(),
 };
 
+
+static const VMStateDescription vmstate_parallel_isa = {
+    .name = "parallel_isa",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT8(state.dataw, ISAParallelState),
+        VMSTATE_UINT8(state.datar, ISAParallelState),
+        VMSTATE_UINT8(state.status, ISAParallelState),
+        VMSTATE_UINT8(state.control, ISAParallelState),
+        VMSTATE_INT32(state.irq_pending, ISAParallelState),
+        VMSTATE_INT32(state.epp_timeout, ISAParallelState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+
 static void parallel_isa_realizefn(DeviceState *dev, Error **errp)
 {
     static int index;
@@ -606,6 +623,7 @@ static void parallel_isa_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = parallel_isa_realizefn;
+    dc->vmsd = &vmstate_parallel_isa;
     dc->props = parallel_isa_properties;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }

@@ -22,6 +22,32 @@ QEMU_DGFLAGS += -MMD -MP -MT $@ -MF $(*D)/$(*F).d
 # Same as -I$(SRC_PATH) -I., but for the nested source/object directories
 QEMU_INCLUDES += -I$(<D) -I$(@D)
 
+WL_U := -Wl,-u,
+find-symbols = $(if $1, $(sort $(shell nm -P -g $1 | $2)))
+defined-symbols = $(call find-symbols,$1,awk '$$2!="U"{print $$1}')
+undefined-symbols = $(call find-symbols,$1,awk '$$2=="U"{print $$1}')
+
+# All the .mo objects in -m variables are also added into corresponding -y
+# variable in unnest-vars, but filtered out here, when LINK is called.
+#
+# The .mo objects are supposed to be linked as a DSO, for module build. So here
+# they are only used as a placeholders to generate those "archive undefined"
+# symbol options (-Wl,-u,$symbol_name), which are the archive functions
+# referenced by the code in the DSO.
+#
+# Also the presence in -y variables will also guarantee they are built before
+# linking executables that will load them. So we can look up symbol reference
+# in LINK.
+#
+# This is necessary because the exectuable itself may not use the function, in
+# which case the function would not be linked in. Then the DSO loading will
+# fail because of the missing symbol.
+process-archive-undefs = $(filter-out %.a %.mo,$1) \
+                $(addprefix $(WL_U), \
+                     $(filter $(call defined-symbols,$(filter %.a, $1)), \
+                              $(call undefined-symbols,$(filter %.mo,$1)))) \
+                $(filter %.a,$1)
+
 extract-libs = $(strip $(foreach o,$1,$($o-libs)))
 expand-objs = $(strip $(sort $(filter %.o,$1)) \
                   $(foreach o,$(filter %.mo,$1),$($o-objs)) \
@@ -38,7 +64,8 @@ LINKPROG = $(or $(CXX),$(CC))
 
 ifeq ($(LIBTOOL),)
 LINK = $(call quiet-command, $(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
-       $1 $(version-obj-y) $(call extract-libs,$1) $(LIBS),"  LINK  $(TARGET_DIR)$@")
+       $(call process-archive-undefs, $1) \
+       $(version-obj-y) $(call extract-libs,$1) $(LIBS),"  LINK  $(TARGET_DIR)$@")
 else
 LIBTOOL += $(if $(V),,--quiet)
 %.lo: %.c
@@ -50,7 +77,8 @@ LIBTOOL += $(if $(V),,--quiet)
 
 LINK = $(call quiet-command,\
        $(if $(filter %.lo %.la,$1),$(LIBTOOL) --mode=link --tag=CC \
-       )$(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $1 \
+       )$(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
+       $(call process-archive-undefs, $1)\
        $(if $(filter %.lo %.la,$1),$(version-lobj-y),$(version-obj-y)) \
        $(if $(filter %.lo %.la,$1),$(LIBTOOLFLAGS)) \
        $(call extract-libs,$(1:.lo=.o)) $(LIBS),$(if $(filter %.lo %.la,$1),"lt LINK ", "  LINK  ")"$(TARGET_DIR)$@")
@@ -76,10 +104,16 @@ endif
 
 %$(DSOSUF): CFLAGS += -fPIC -DBUILD_DSO
 %$(DSOSUF): LDFLAGS += $(LDFLAGS_SHARED)
-%$(DSOSUF):
+%$(DSOSUF): %.mo
 	$(call LINK,$^)
 	@# Copy to build root so modules can be loaded when program started without install
 	$(if $(findstring /,$@),$(call quiet-command,cp $@ $(subst /,-,$@), "  CP    $(subst /,-,$@)"))
+
+
+LD_REL := $(CC) -nostdlib -Wl,-r
+
+%.mo:
+	$(call quiet-command,$(LD_REL) -o $@ $^,"  LD -r $(TARGET_DIR)$@")
 
 .PHONY: modules
 modules:
@@ -306,6 +340,9 @@ define unnest-vars
         # For module build, build shared libraries during "make modules"
         # For non-module build, add -m to -y
         $(if $(CONFIG_MODULES),
+             $(foreach o,$($v),
+                   $(eval $o: $($o-objs)))
+             $(eval $(patsubst %-m,%-y,$v) += $($v))
              $(eval modules: $($v:%.mo=%$(DSOSUF))),
              $(eval $(patsubst %-m,%-y,$v) += $(call expand-objs, $($v)))))
 

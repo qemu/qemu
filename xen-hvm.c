@@ -188,7 +188,8 @@ static void xen_ram_init(ram_addr_t *below_4g_mem_size,
          */
         block_len = (1ULL << 32) + *above_4g_mem_size;
     }
-    memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len);
+    memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len,
+                           &error_abort);
     *ram_memory_p = &ram_memory;
     vmstate_register_ram_global(&ram_memory);
 

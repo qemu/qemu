@@ -992,7 +992,8 @@ void mips_malta_init(MachineState *machine)
     }
 
     /* register RAM at high address where it is undisturbed by IO */
-    memory_region_init_ram(ram_high, NULL, "mips_malta.ram", ram_size);
+    memory_region_init_ram(ram_high, NULL, "mips_malta.ram", ram_size,
+                           &error_abort);
     vmstate_register_ram_global(ram_high);
     memory_region_add_subregion(system_memory, 0x80000000, ram_high);
 
@@ -1116,7 +1117,8 @@ void mips_malta_init(MachineState *machine)
      * handled by an overlapping region as the resulting ROM code subpage
      * regions are not executable.
      */
-    memory_region_init_ram(bios_copy, NULL, "bios.1fc", BIOS_SIZE);
+    memory_region_init_ram(bios_copy, NULL, "bios.1fc", BIOS_SIZE,
+                           &error_abort);
     if (!rom_copy(memory_region_get_ram_ptr(bios_copy),
                   FLASH_ADDRESS, BIOS_SIZE)) {
         memcpy(memory_region_get_ram_ptr(bios_copy),

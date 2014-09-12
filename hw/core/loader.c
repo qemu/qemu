@@ -701,7 +701,7 @@ static void *rom_set_mr(Rom *rom, Object *owner, const char *name)
     void *data;
 
     rom->mr = g_malloc(sizeof(*rom->mr));
-    memory_region_init_ram(rom->mr, owner, name, rom->datasize);
+    memory_region_init_ram(rom->mr, owner, name, rom->datasize, &error_abort);
     memory_region_set_readonly(rom->mr, true);
     vmstate_register_ram_global(rom->mr);
 
