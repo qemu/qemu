@@ -744,7 +744,7 @@ static int stm32_uart_init(SysBusDevice *dev)
     s->stm32_gpio = (Stm32Gpio **)s->stm32_gpio_prop;
     s->stm32_afio = (Stm32Afio *)s->stm32_afio_prop;
 
-    memory_region_init_io(&s->iomem, &stm32_uart_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &stm32_uart_ops, s,
                           "uart", 0x03ff);
     sysbus_init_mmio(dev, &s->iomem);
 

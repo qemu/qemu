@@ -240,7 +240,7 @@ static int stm32_afio_init(SysBusDevice *dev)
 
     s->stm32_rcc = (Stm32Rcc *)s->stm32_rcc_prop;
 
-    memory_region_init_io(&s->iomem, &stm32_afio_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &stm32_afio_ops, s,
                           "afio", 0x03ff);
     sysbus_init_mmio(dev, &s->iomem);
 

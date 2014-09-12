@@ -170,6 +170,7 @@ void stm32_init(
     /* TODO: Parameterize the base address of the aliased memory. */
     memory_region_init_alias(
             flash_alias_mem,
+            NULL,
             "stm32-flash-alias-mem",
             address_space_mem,
             0,

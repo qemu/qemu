@@ -292,7 +292,7 @@ static int stm32_exti_init(SysBusDevice *dev)
 
     Stm32Exti *s = STM32_EXTI(dev);
 
-    memory_region_init_io(&s->iomem, &stm32_exti_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &stm32_exti_ops, s,
             "exti", 0x03ff);
     sysbus_init_mmio(dev, &s->iomem);
 

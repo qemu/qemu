@@ -873,7 +873,7 @@ static int stm32_rcc_init(SysBusDevice *dev)
 {
     Stm32Rcc *s = STM32_RCC(dev);
 
-    memory_region_init_io(&s->iomem, &stm32_rcc_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &stm32_rcc_ops, s,
                           "rcc", 0x1000);
 
     sysbus_init_mmio(dev, &s->iomem);
