@@ -184,6 +184,8 @@ static void arm_cpu_reset(CPUState *s)
         kvm_arm_reset_vcpu(cpu);
     }
 #endif
+
+    hw_watchpoint_update_all(cpu);
 }
 
 #ifndef CONFIG_USER_ONLY

@@ -296,4 +296,14 @@ static inline uint32_t syn_swstep(int same_el, int isv, int ex)
         | (isv << 24) | (ex << 6) | 0x22;
 }
 
+/* Update a QEMU watchpoint based on the information the guest has set in the
+ * DBGWCR<n>_EL1 and DBGWVR<n>_EL1 registers.
+ */
+void hw_watchpoint_update(ARMCPU *cpu, int n);
+/* Update the QEMU watchpoints for every guest watchpoint. This does a
+ * complete delete-and-reinstate of the QEMU watchpoint list and so is
+ * suitable for use after migration or on reset.
+ */
+void hw_watchpoint_update_all(ARMCPU *cpu);
+
 #endif

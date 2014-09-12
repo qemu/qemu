@@ -323,6 +323,8 @@ typedef struct CPUARMState {
     int eabi;
 #endif
 
+    struct CPUWatchpoint *cpu_watchpoint[16];
+
     CPU_COMMON
 
     /* These fields after the common ones so they are preserved on reset.  */
