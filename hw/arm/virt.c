@@ -376,6 +376,8 @@ static void create_uart(const VirtBoardInfo *vbi, qemu_irq *pic)
                                vbi->clock_phandle, vbi->clock_phandle);
     qemu_fdt_setprop(vbi->fdt, nodename, "clock-names",
                          clocknames, sizeof(clocknames));
+
+    qemu_fdt_setprop_string(vbi->fdt, "/chosen", "linux,stdout-path", nodename);
     g_free(nodename);
 }
 
