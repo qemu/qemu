@@ -115,9 +115,9 @@ static void stm32_maple_key_event(void *opaque, int keycode)
 }
 
 
-static void stm32_maple_init(QEMUMachineInitArgs *args)
+static void stm32_maple_init(MachineState *machine)
 {
-        const char *kernel_filename = args->kernel_filename;
+        const char *kernel_filename = machine->kernel_filename;
         qemu_irq *led_irq, *led_err_irq;
         Stm32Maple *s;
 
@@ -164,7 +164,6 @@ static QEMUMachine stm32_maple_machine = {
         .name = "stm32-maple",
         .desc = "OPEN SOURCE HARDWARE MAPLE / ARDUINO LIKE DEVELOPMENT BOARD",
         .init = stm32_maple_init,
-        DEFAULT_MACHINE_OPTIONS,
 };
 
 

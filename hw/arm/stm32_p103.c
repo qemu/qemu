@@ -92,9 +92,9 @@ static void stm32_p103_key_event(void *opaque, int keycode)
 }
 
 
-static void stm32_p103_init(QEMUMachineInitArgs *args)
+static void stm32_p103_init(MachineState *machine)
 {
-    const char* kernel_filename = args->kernel_filename;
+    const char* kernel_filename = machine->kernel_filename;
     qemu_irq *led_irq;
     Stm32P103 *s;
 
@@ -133,7 +133,6 @@ static QEMUMachine stm32_p103_machine = {
     .name = "stm32-p103",
     .desc = "Olimex STM32 p103 Dev Board",
     .init = stm32_p103_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 
