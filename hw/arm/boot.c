@@ -312,7 +312,26 @@ static void set_kernel_args_old(const struct arm_boot_info *info)
     }
 }
 
-static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
+/**
+ * load_dtb() - load a device tree binary image into memory
+ * @addr:       the address to load the image at
+ * @binfo:      struct describing the boot environment
+ * @addr_limit: upper limit of the available memory area at @addr
+ *
+ * Load a device tree supplied by the machine or by the user  with the
+ * '-dtb' command line option, and put it at offset @addr in target
+ * memory.
+ *
+ * If @addr_limit contains a meaningful value (i.e., it is strictly greater
+ * than @addr), the device tree is only loaded if its size does not exceed
+ * the limit.
+ *
+ * Returns: the size of the device tree image on success,
+ *          0 if the image size exceeds the limit,
+ *          -1 on errors.
+ */
+static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
+                    hwaddr addr_limit)
 {
     void *fdt = NULL;
     int size, rc;
@@ -339,6 +358,15 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
             fprintf(stderr, "Board was unable to create a dtb blob\n");
             goto fail;
         }
+    }
+
+    if (addr_limit > addr && size > (addr_limit - addr)) {
+        /* Installing the device tree blob at addr would exceed addr_limit.
+         * Whether this constitutes failure is up to the caller to decide,
+         * so just return 0 as size, i.e., no error.
+         */
+        g_free(fdt);
+        return 0;
     }
 
     acells = qemu_fdt_getprop_cell(fdt, "/", "#address-cells");
@@ -403,7 +431,7 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
 
     g_free(fdt);
 
-    return 0;
+    return size;
 
 fail:
     g_free(fdt);
@@ -572,7 +600,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
              */
             hwaddr dtb_start = QEMU_ALIGN_UP(info->initrd_start + initrd_size,
                                              4096);
-            if (load_dtb(dtb_start, info)) {
+            if (load_dtb(dtb_start, info, 0) < 0) {
                 exit(1);
             }
             fixupcontext[FIXUP_ARGPTR] = dtb_start;
