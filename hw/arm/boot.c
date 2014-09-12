@@ -482,7 +482,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     int kernel_size;
     int initrd_size;
     int is_linux = 0;
-    uint64_t elf_entry;
+    uint64_t elf_entry, elf_low_addr, elf_high_addr;
     int elf_machine;
     hwaddr entry, kernel_load_offset;
     int big_endian;
@@ -549,7 +549,25 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 
     /* Assume that raw images are linux kernels, and ELF images are not.  */
     kernel_size = load_elf(info->kernel_filename, NULL, NULL, &elf_entry,
-                           NULL, NULL, big_endian, elf_machine, 1);
+                           &elf_low_addr, &elf_high_addr, big_endian,
+                           elf_machine, 1);
+    if (kernel_size > 0 && have_dtb(info)) {
+        /* If there is still some room left at the base of RAM, try and put
+         * the DTB there like we do for images loaded with -bios or -pflash.
+         */
+        if (elf_low_addr > info->loader_start
+            || elf_high_addr < info->loader_start) {
+            /* Pass elf_low_addr as address limit to load_dtb if it may be
+             * pointing into RAM, otherwise pass '0' (no limit)
+             */
+            if (elf_low_addr < info->loader_start) {
+                elf_low_addr = 0;
+            }
+            if (load_dtb(info->loader_start, info, elf_low_addr) < 0) {
+                exit(1);
+            }
+        }
+    }
     entry = elf_entry;
     if (kernel_size < 0) {
         kernel_size = load_uimage(info->kernel_filename, &entry, NULL,
