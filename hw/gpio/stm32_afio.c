@@ -255,7 +255,9 @@ static Property stm32_afio_properties[] = {
 static void add_gpio_link(Stm32Afio *s, int gpio_index, const char *link_name)
 {
     object_property_add_link(OBJECT(s), link_name, TYPE_STM32_GPIO,
-                                     (Object **)&s->gpio[gpio_index], NULL);
+                                 (Object **)&s->gpio[gpio_index],
+                                 object_property_allow_set_link,
+                                 OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
 }
 
 static void stm32_afio_instance_init(Object *obj)
@@ -271,7 +273,9 @@ static void stm32_afio_instance_init(Object *obj)
     add_gpio_link(s, 6, "gpio[g]");
 
     object_property_add_link(obj, "exti", TYPE_STM32_EXTI,
-                                     (Object **)&s->exti, NULL);
+                                 (Object **)&s->exti,
+                                 object_property_allow_set_link,
+                                 OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
 
 }
 
