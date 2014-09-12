@@ -546,6 +546,12 @@ static void fadt_setup(AcpiFadtDescriptorRev1 *fadt, AcpiPmInfo *pm)
                               (1 << ACPI_FADT_F_SLP_BUTTON) |
                               (1 << ACPI_FADT_F_RTC_S4));
     fadt->flags |= cpu_to_le32(1 << ACPI_FADT_F_USE_PLATFORM_CLOCK);
+    /* APIC destination mode ("Flat Logical") has an upper limit of 8 CPUs
+     * For more than 8 CPUs, "Clustered Logical" mode has to be used
+     */
+    if (max_cpus > 8) {
+        fadt->flags |= cpu_to_le32(1 << ACPI_FADT_F_FORCE_APIC_CLUSTER_MODEL);
+    }
 }
 
 
@@ -1393,7 +1399,7 @@ build_rsdp(GArray *rsdp_table, GArray *linker, unsigned rsdt)
 {
     AcpiRsdpDescriptor *rsdp = acpi_data_push(rsdp_table, sizeof *rsdp);
 
-    bios_linker_loader_alloc(linker, ACPI_BUILD_RSDP_FILE, 1,
+    bios_linker_loader_alloc(linker, ACPI_BUILD_RSDP_FILE, 16,
                              true /* fseg memory */);
 
     memcpy(&rsdp->signature, "RSD PTR ", 8);

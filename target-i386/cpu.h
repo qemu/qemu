@@ -337,6 +337,8 @@
 #define MSR_MTRRphysBase(reg)           (0x200 + 2 * (reg))
 #define MSR_MTRRphysMask(reg)           (0x200 + 2 * (reg) + 1)
 
+#define MSR_MTRRphysIndex(addr)         ((((addr) & ~1u) - 0x200) / 2)
+
 #define MSR_MTRRfix64K_00000            0x250
 #define MSR_MTRRfix16K_80000            0x258
 #define MSR_MTRRfix16K_A0000            0x259
@@ -930,7 +932,7 @@ typedef struct CPUX86State {
     /* MTRRs */
     uint64_t mtrr_fixed[11];
     uint64_t mtrr_deftype;
-    MTRRVar mtrr_var[8];
+    MTRRVar mtrr_var[MSR_MTRRcap_VCNT];
 
     /* For KVM */
     uint32_t mp_state;

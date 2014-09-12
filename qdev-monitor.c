@@ -182,9 +182,10 @@ static const char *find_typename_by_alias(const char *alias)
 
 int qdev_device_help(QemuOpts *opts)
 {
+    Error *local_err = NULL;
     const char *driver;
-    Property *prop;
-    ObjectClass *klass;
+    DevicePropertyInfoList *prop_list;
+    DevicePropertyInfoList *prop;
 
     driver = qemu_opt_get(opts, "driver");
     if (driver && is_help_option(driver)) {
@@ -196,35 +197,28 @@ int qdev_device_help(QemuOpts *opts)
         return 0;
     }
 
-    klass = object_class_by_name(driver);
-    if (!klass) {
+    if (!object_class_by_name(driver)) {
         const char *typename = find_typename_by_alias(driver);
 
         if (typename) {
             driver = typename;
-            klass = object_class_by_name(driver);
         }
     }
 
-    if (!object_class_dynamic_cast(klass, TYPE_DEVICE)) {
-        return 0;
+    prop_list = qmp_device_list_properties(driver, &local_err);
+    if (!prop_list) {
+        error_printf("%s\n", error_get_pretty(local_err));
+        error_free(local_err);
+        return 1;
     }
-    do {
-        for (prop = DEVICE_CLASS(klass)->props; prop && prop->name; prop++) {
-            /*
-             * TODO Properties without a parser are just for dirty hacks.
-             * qdev_prop_ptr is the only such PropertyInfo.  It's marked
-             * for removal.  This conditional should be removed along with
-             * it.
-             */
-            if (!prop->info->set) {
-                continue;           /* no way to set it, don't show */
-            }
-            error_printf("%s.%s=%s\n", driver, prop->name,
-                         prop->info->legacy_name ?: prop->info->name);
-        }
-        klass = object_class_get_parent(klass);
-    } while (klass != object_class_by_name(TYPE_DEVICE));
+
+    for (prop = prop_list; prop; prop = prop->next) {
+        error_printf("%s.%s=%s\n", driver,
+                     prop->value->name,
+                     prop->value->type);
+    }
+
+    qapi_free_DevicePropertyInfoList(prop_list);
     return 1;
 }
 

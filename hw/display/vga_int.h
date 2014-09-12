@@ -93,6 +93,7 @@ typedef struct VGACommonState {
     MemoryRegion vram_vbe;
     uint32_t vram_size;
     uint32_t vram_size_mb; /* property */
+    uint32_t vbe_size;
     uint32_t latch;
     MemoryRegion *chain4_alias;
     uint8_t sr_index;
