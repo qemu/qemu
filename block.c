@@ -347,7 +347,8 @@ BlockDriverState *bdrv_new(const char *device_name, Error **errp)
         return NULL;
     }
     if (bdrv_find_node(device_name)) {
-        error_setg(errp, "Device with node-name '%s' already exists",
+        error_setg(errp,
+                   "Device name '%s' conflicts with an existing node name",
                    device_name);
         return NULL;
     }
