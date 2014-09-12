@@ -29,6 +29,7 @@
 #include "qemu/module.h"
 #include "qapi/qmp/qjson.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/blockdev.h"    /* FIXME layering violation */
 #include "qemu/notify.h"
 #include "block/coroutine.h"
 #include "block/qapi.h"
@@ -2110,6 +2111,7 @@ static void bdrv_delete(BlockDriverState *bs)
     /* remove from list, if necessary */
     bdrv_make_anon(bs);
 
+    drive_info_del(drive_get_by_blockdev(bs));
     g_free(bs);
 }
 

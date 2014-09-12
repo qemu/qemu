@@ -216,11 +216,17 @@ static void bdrv_format_print(void *opaque, const char *name)
 
 void drive_del(DriveInfo *dinfo)
 {
+    bdrv_unref(dinfo->bdrv);
+}
+
+void drive_info_del(DriveInfo *dinfo)
+{
+    if (!dinfo) {
+        return;
+    }
     if (dinfo->opts) {
         qemu_opts_del(dinfo->opts);
     }
-
-    bdrv_unref(dinfo->bdrv);
     g_free(dinfo->id);
     QTAILQ_REMOVE(&drives, dinfo, next);
     g_free(dinfo->serial);
@@ -525,9 +531,6 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
 
 err:
     bdrv_unref(bs);
-    QTAILQ_REMOVE(&drives, dinfo, next);
-    g_free(dinfo->id);
-    g_free(dinfo);
 early_err:
     qemu_opts_del(opts);
 err_no_opts:
