@@ -403,21 +403,6 @@ static const ARMCPRegInfo not_v8_cp_reginfo[] = {
      */
     { .name = "TLB_LOCKDOWN", .cp = 15, .crn = 10, .crm = CP_ANY,
       .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_NOP },
-    /* MMU TLB control. Note that the wildcarding means we cover not just
-     * the unified TLB ops but also the dside/iside/inner-shareable variants.
-     */
-    { .name = "TLBIALL", .cp = 15, .crn = 8, .crm = CP_ANY,
-      .opc1 = CP_ANY, .opc2 = 0, .access = PL1_W, .writefn = tlbiall_write,
-      .type = ARM_CP_NO_MIGRATE },
-    { .name = "TLBIMVA", .cp = 15, .crn = 8, .crm = CP_ANY,
-      .opc1 = CP_ANY, .opc2 = 1, .access = PL1_W, .writefn = tlbimva_write,
-      .type = ARM_CP_NO_MIGRATE },
-    { .name = "TLBIASID", .cp = 15, .crn = 8, .crm = CP_ANY,
-      .opc1 = CP_ANY, .opc2 = 2, .access = PL1_W, .writefn = tlbiasid_write,
-      .type = ARM_CP_NO_MIGRATE },
-    { .name = "TLBIMVAA", .cp = 15, .crn = 8, .crm = CP_ANY,
-      .opc1 = CP_ANY, .opc2 = 3, .access = PL1_W, .writefn = tlbimvaa_write,
-      .type = ARM_CP_NO_MIGRATE },
     /* Cache maintenance ops; some of this space may be overridden later. */
     { .name = "CACHEMAINT", .cp = 15, .crn = 7, .crm = CP_ANY,
       .opc1 = 0, .opc2 = CP_ANY, .access = PL1_W,
@@ -461,6 +446,21 @@ static const ARMCPRegInfo not_v7_cp_reginfo[] = {
      */
     { .name = "DBGDIDR", .cp = 14, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    /* MMU TLB control. Note that the wildcarding means we cover not just
+     * the unified TLB ops but also the dside/iside/inner-shareable variants.
+     */
+    { .name = "TLBIALL", .cp = 15, .crn = 8, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = 0, .access = PL1_W, .writefn = tlbiall_write,
+      .type = ARM_CP_NO_MIGRATE },
+    { .name = "TLBIMVA", .cp = 15, .crn = 8, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = 1, .access = PL1_W, .writefn = tlbimva_write,
+      .type = ARM_CP_NO_MIGRATE },
+    { .name = "TLBIASID", .cp = 15, .crn = 8, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = 2, .access = PL1_W, .writefn = tlbiasid_write,
+      .type = ARM_CP_NO_MIGRATE },
+    { .name = "TLBIMVAA", .cp = 15, .crn = 8, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = 3, .access = PL1_W, .writefn = tlbimvaa_write,
+      .type = ARM_CP_NO_MIGRATE },
     REGINFO_SENTINEL
 };
 
@@ -879,6 +879,42 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     { .name = "ISR_EL1", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 1, .opc2 = 0,
       .type = ARM_CP_NO_MIGRATE, .access = PL1_R, .readfn = isr_read },
+    /* 32 bit ITLB invalidates */
+    { .name = "ITLBIALL", .cp = 15, .opc1 = 0, .crn = 8, .crm = 5, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiall_write },
+    { .name = "ITLBIMVA", .cp = 15, .opc1 = 0, .crn = 8, .crm = 5, .opc2 = 1,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
+    { .name = "ITLBIASID", .cp = 15, .opc1 = 0, .crn = 8, .crm = 5, .opc2 = 2,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiasid_write },
+    /* 32 bit DTLB invalidates */
+    { .name = "DTLBIALL", .cp = 15, .opc1 = 0, .crn = 8, .crm = 6, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiall_write },
+    { .name = "DTLBIMVA", .cp = 15, .opc1 = 0, .crn = 8, .crm = 6, .opc2 = 1,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
+    { .name = "DTLBIASID", .cp = 15, .opc1 = 0, .crn = 8, .crm = 6, .opc2 = 2,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiasid_write },
+    /* 32 bit TLB invalidates */
+    { .name = "TLBIALL", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiall_write },
+    { .name = "TLBIMVA", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 1,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
+    { .name = "TLBIASID", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 2,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiasid_write },
+    { .name = "TLBIMVAA", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 3,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimvaa_write },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo v7mp_cp_reginfo[] = {
+    /* 32 bit TLB invalidates, Inner Shareable */
+    { .name = "TLBIALLIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiall_write },
+    { .name = "TLBIMVAIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 1,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
+    { .name = "TLBIASIDIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 2,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiasid_write },
+    { .name = "TLBIMVAAIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 3,
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimvaa_write },
     REGINFO_SENTINEL
 };
 
@@ -2045,41 +2081,10 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 3,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE, .writefn = ats_write },
 #endif
-    /* 32 bit TLB invalidates, Inner Shareable */
-    { .name = "TLBIALLIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 0,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiall_write },
-    { .name = "TLBIMVAIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 1,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
-    { .name = "TLBIASIDIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 2,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiasid_write },
-    { .name = "TLBIMVAAIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 3,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimvaa_write },
+    /* TLB invalidate last level of translation table walk */
     { .name = "TLBIMVALIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 5,
       .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
     { .name = "TLBIMVAALIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 7,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimvaa_write },
-    /* 32 bit ITLB invalidates */
-    { .name = "ITLBIALL", .cp = 15, .opc1 = 0, .crn = 8, .crm = 5, .opc2 = 0,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiall_write },
-    { .name = "ITLBIMVA", .cp = 15, .opc1 = 0, .crn = 8, .crm = 5, .opc2 = 1,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
-    { .name = "ITLBIASID", .cp = 15, .opc1 = 0, .crn = 8, .crm = 5, .opc2 = 2,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiasid_write },
-    /* 32 bit DTLB invalidates */
-    { .name = "DTLBIALL", .cp = 15, .opc1 = 0, .crn = 8, .crm = 6, .opc2 = 0,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiall_write },
-    { .name = "DTLBIMVA", .cp = 15, .opc1 = 0, .crn = 8, .crm = 6, .opc2 = 1,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
-    { .name = "DTLBIASID", .cp = 15, .opc1 = 0, .crn = 8, .crm = 6, .opc2 = 2,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiasid_write },
-    /* 32 bit TLB invalidates */
-    { .name = "TLBIALL", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 0,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiall_write },
-    { .name = "TLBIMVA", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 1,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
-    { .name = "TLBIASID", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 2,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiasid_write },
-    { .name = "TLBIMVAA", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 3,
       .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimvaa_write },
     { .name = "TLBIMVAL", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 5,
       .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
@@ -2573,6 +2578,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
     if (arm_feature(env, ARM_FEATURE_V6K)) {
         define_arm_cp_regs(cpu, v6k_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_V7MP)) {
+        define_arm_cp_regs(cpu, v7mp_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_V7)) {
         /* v7 performance monitor control register: same implementor
