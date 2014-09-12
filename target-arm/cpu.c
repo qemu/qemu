@@ -160,7 +160,7 @@ static void arm_cpu_reset(CPUState *s)
     }
 
     if (env->cp15.c1_sys & SCTLR_V) {
-            env->regs[15] = 0xFFFF0000;
+        env->regs[15] = 0xFFFF0000;
     }
 
     env->vfp.xregs[ARM_VFP_FPEXC] = 0;
