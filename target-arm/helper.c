@@ -3629,10 +3629,36 @@ void arm_cpu_do_interrupt(CPUState *cs)
     uint32_t mask;
     int new_mode;
     uint32_t offset;
+    uint32_t moe;
 
     assert(!IS_M(env));
 
     arm_log_exception(cs->exception_index);
+
+    /* If this is a debug exception we must update the DBGDSCR.MOE bits */
+    switch (env->exception.syndrome >> ARM_EL_EC_SHIFT) {
+    case EC_BREAKPOINT:
+    case EC_BREAKPOINT_SAME_EL:
+        moe = 1;
+        break;
+    case EC_WATCHPOINT:
+    case EC_WATCHPOINT_SAME_EL:
+        moe = 10;
+        break;
+    case EC_AA32_BKPT:
+        moe = 3;
+        break;
+    case EC_VECTORCATCH:
+        moe = 5;
+        break;
+    default:
+        moe = 0;
+        break;
+    }
+
+    if (moe) {
+        env->cp15.mdscr_el1 = deposit64(env->cp15.mdscr_el1, 2, 4, moe);
+    }
 
     /* TODO: Vectored interrupt controller.  */
     switch (cs->exception_index) {
