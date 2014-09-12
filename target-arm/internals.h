@@ -142,6 +142,17 @@ static inline void update_spsel(CPUARMState *env, uint32_t imm)
     aarch64_restore_sp(env, cur_el);
 }
 
+/* Return true if extended addresses are enabled.
+ * This is always the case if our translation regime is 64 bit,
+ * but depends on TTBCR.EAE for 32 bit.
+ */
+static inline bool extended_addresses_enabled(CPUARMState *env)
+{
+    return arm_el_is_aa64(env, 1)
+        || ((arm_feature(env, ARM_FEATURE_LPAE)
+             && (env->cp15.c2_control & TTBCR_EAE)));
+}
+
 /* Valid Syndrome Register EC field values */
 enum arm_exception_class {
     EC_UNCATEGORIZED          = 0x00,
