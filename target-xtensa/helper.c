@@ -79,9 +79,10 @@ static uint32_t check_hw_breakpoints(CPUXtensaState *env)
     return 0;
 }
 
-void xtensa_breakpoint_handler(CPUXtensaState *env)
+void xtensa_breakpoint_handler(CPUState *cs)
 {
-    CPUState *cs = CPU(xtensa_env_get_cpu(env));
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+    CPUXtensaState *env = &cpu->env;
 
     if (cs->watchpoint_hit) {
         if (cs->watchpoint_hit->flags & BP_CPU) {

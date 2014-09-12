@@ -158,7 +158,6 @@ static void lm32_cpu_initfn(Object *obj)
     if (tcg_enabled() && !tcg_initialized) {
         tcg_initialized = true;
         lm32_translate_init();
-        cpu_set_debug_excp_handler(lm32_debug_excp_handler);
     }
 }
 
@@ -273,6 +272,7 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
     cc->vmsd = &vmstate_lm32_cpu;
 #endif
     cc->gdb_num_core_regs = 32 + 7;
+    cc->debug_excp_handler = lm32_debug_excp_handler;
 }
 
 static void lm32_register_cpu_type(const LM32CPUInfo *info)
