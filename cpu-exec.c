@@ -618,8 +618,8 @@ int cpu_exec(CPUArchState *env)
                        We avoid this by disabling interrupts when
                        pc contains a magic address.  */
                     if (interrupt_request & CPU_INTERRUPT_HARD
-                        && ((IS_M(env) && env->regs[15] < 0xfffffff0)
-                            || !(env->daif & PSTATE_I))) {
+                        && !(env->daif & PSTATE_I)
+                        && (!IS_M(env) || env->regs[15] < 0xfffffff0)) {
                         cpu->exception_index = EXCP_IRQ;
                         cc->do_interrupt(cpu);
                         next_tb = 0;
