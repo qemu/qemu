@@ -490,6 +490,16 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 
     /* Load the kernel.  */
     if (!info->kernel_filename) {
+
+        if (have_dtb(info)) {
+            /* If we have a device tree blob, but no kernel to supply it to,
+             * copy it to the base of RAM for a bootloader to pick up.
+             */
+            if (load_dtb(info->loader_start, info, 0) < 0) {
+                exit(1);
+            }
+        }
+
         /* If no kernel specified, do nothing; we will start from address 0
          * (typically a boot ROM image) in the same way as hardware.
          */
