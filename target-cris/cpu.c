@@ -291,6 +291,7 @@ static void cris_cpu_class_init(ObjectClass *oc, void *data)
 #endif
 
     cc->gdb_num_core_regs = 49;
+    cc->gdb_stop_before_watchpoint = true;
 }
 
 static const TypeInfo cris_cpu_type_info = {

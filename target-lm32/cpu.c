@@ -273,6 +273,7 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
     cc->vmsd = &vmstate_lm32_cpu;
 #endif
     cc->gdb_num_core_regs = 32 + 7;
+    cc->gdb_stop_before_watchpoint = true;
     cc->debug_excp_handler = lm32_debug_excp_handler;
 }
 

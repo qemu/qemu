@@ -625,11 +625,23 @@ void gdb_register_coprocessor(CPUState *cpu,
 }
 
 #ifndef CONFIG_USER_ONLY
-static const int xlat_gdb_type[] = {
-    [GDB_WATCHPOINT_WRITE]  = BP_GDB | BP_MEM_WRITE,
-    [GDB_WATCHPOINT_READ]   = BP_GDB | BP_MEM_READ,
-    [GDB_WATCHPOINT_ACCESS] = BP_GDB | BP_MEM_ACCESS,
-};
+/* Translate GDB watchpoint type to a flags value for cpu_watchpoint_* */
+static inline int xlat_gdb_type(CPUState *cpu, int gdbtype)
+{
+    static const int xlat[] = {
+        [GDB_WATCHPOINT_WRITE]  = BP_GDB | BP_MEM_WRITE,
+        [GDB_WATCHPOINT_READ]   = BP_GDB | BP_MEM_READ,
+        [GDB_WATCHPOINT_ACCESS] = BP_GDB | BP_MEM_ACCESS,
+    };
+
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    int cputype = xlat[gdbtype];
+
+    if (cc->gdb_stop_before_watchpoint) {
+        cputype |= BP_STOP_BEFORE_ACCESS;
+    }
+    return cputype;
+}
 #endif
 
 static int gdb_breakpoint_insert(target_ulong addr, target_ulong len, int type)
@@ -656,10 +668,11 @@ static int gdb_breakpoint_insert(target_ulong addr, target_ulong len, int type)
     case GDB_WATCHPOINT_READ:
     case GDB_WATCHPOINT_ACCESS:
         CPU_FOREACH(cpu) {
-            err = cpu_watchpoint_insert(cpu, addr, len, xlat_gdb_type[type],
-                                        NULL);
-            if (err)
+            err = cpu_watchpoint_insert(cpu, addr, len,
+                                        xlat_gdb_type(cpu, type), NULL);
+            if (err) {
                 break;
+            }
         }
         return err;
 #endif
@@ -692,7 +705,8 @@ static int gdb_breakpoint_remove(target_ulong addr, target_ulong len, int type)
     case GDB_WATCHPOINT_READ:
     case GDB_WATCHPOINT_ACCESS:
         CPU_FOREACH(cpu) {
-            err = cpu_watchpoint_remove(cpu, addr, len, xlat_gdb_type[type]);
+            err = cpu_watchpoint_remove(cpu, addr, len,
+                                        xlat_gdb_type(cpu, type));
             if (err)
                 break;
         }

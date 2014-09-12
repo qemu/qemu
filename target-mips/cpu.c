@@ -151,6 +151,7 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
 #endif
 
     cc->gdb_num_core_regs = 73;
+    cc->gdb_stop_before_watchpoint = true;
 }
 
 static const TypeInfo mips_cpu_type_info = {
