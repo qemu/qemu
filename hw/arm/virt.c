@@ -37,6 +37,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
 #include "hw/boards.h"
+#include "hw/loader.h"
 #include "exec/address-spaces.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
@@ -439,6 +440,73 @@ static void create_virtio_devices(const VirtBoardInfo *vbi, qemu_irq *pic)
     }
 }
 
+static void create_one_flash(const char *name, hwaddr flashbase,
+                             hwaddr flashsize)
+{
+    /* Create and map a single flash device. We use the same
+     * parameters as the flash devices on the Versatile Express board.
+     */
+    DriveInfo *dinfo = drive_get_next(IF_PFLASH);
+    DeviceState *dev = qdev_create(NULL, "cfi.pflash01");
+    const uint64_t sectorlength = 256 * 1024;
+
+    if (dinfo && qdev_prop_set_drive(dev, "drive", dinfo->bdrv)) {
+        abort();
+    }
+
+    qdev_prop_set_uint32(dev, "num-blocks", flashsize / sectorlength);
+    qdev_prop_set_uint64(dev, "sector-length", sectorlength);
+    qdev_prop_set_uint8(dev, "width", 4);
+    qdev_prop_set_uint8(dev, "device-width", 2);
+    qdev_prop_set_uint8(dev, "big-endian", 0);
+    qdev_prop_set_uint16(dev, "id0", 0x89);
+    qdev_prop_set_uint16(dev, "id1", 0x18);
+    qdev_prop_set_uint16(dev, "id2", 0x00);
+    qdev_prop_set_uint16(dev, "id3", 0x00);
+    qdev_prop_set_string(dev, "name", name);
+    qdev_init_nofail(dev);
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, flashbase);
+}
+
+static void create_flash(const VirtBoardInfo *vbi)
+{
+    /* Create two flash devices to fill the VIRT_FLASH space in the memmap.
+     * Any file passed via -bios goes in the first of these.
+     */
+    hwaddr flashsize = vbi->memmap[VIRT_FLASH].size / 2;
+    hwaddr flashbase = vbi->memmap[VIRT_FLASH].base;
+    char *nodename;
+
+    if (bios_name) {
+        const char *fn;
+
+        if (drive_get(IF_PFLASH, 0, 0)) {
+            error_report("The contents of the first flash device may be "
+                         "specified with -bios or with -drive if=pflash... "
+                         "but you cannot use both options at once");
+            exit(1);
+        }
+        fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+        if (!fn || load_image_targphys(fn, flashbase, flashsize) < 0) {
+            error_report("Could not load ROM image '%s'", bios_name);
+            exit(1);
+        }
+    }
+
+    create_one_flash("virt.flash0", flashbase, flashsize);
+    create_one_flash("virt.flash1", flashbase + flashsize, flashsize);
+
+    nodename = g_strdup_printf("/flash@%" PRIx64, flashbase);
+    qemu_fdt_add_subnode(vbi->fdt, nodename);
+    qemu_fdt_setprop_string(vbi->fdt, nodename, "compatible", "cfi-flash");
+    qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
+                                 2, flashbase, 2, flashsize,
+                                 2, flashbase + flashsize, 2, flashsize);
+    qemu_fdt_setprop_cell(vbi->fdt, nodename, "bank-width", 4);
+    g_free(nodename);
+}
+
 static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
 {
     const VirtBoardInfo *board = (const VirtBoardInfo *)binfo;
@@ -515,6 +583,8 @@ static void machvirt_init(MachineState *machine)
     memory_region_init_ram(ram, NULL, "mach-virt.ram", machine->ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(sysmem, vbi->memmap[VIRT_MEM].base, ram);
+
+    create_flash(vbi);
 
     create_gic(vbi, pic);
 
