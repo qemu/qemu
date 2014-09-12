@@ -396,7 +396,10 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
 
     qemu_fdt_dumpdtb(fdt, size);
 
-    cpu_physical_memory_write(addr, fdt, size);
+    /* Put the DTB into the memory map as a ROM image: this will ensure
+     * the DTB is copied again upon reset, even if addr points into RAM.
+     */
+    rom_add_blob_fixed("dtb", fdt, size, addr);
 
     g_free(fdt);
 
