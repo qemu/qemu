@@ -198,7 +198,7 @@ static const MemoryRegionOps stm32_afio_ops = {
 
 static void stm32_afio_reset(DeviceState *dev)
 {
-    Stm32Afio *s = FROM_SYSBUS(Stm32Afio, SYS_BUS_DEVICE(dev));
+    Stm32Afio *s = STM32_AFIO(dev);
 
     stm32_afio_AFIO_MAPR_write(s, 0x00000000, true);
     stm32_afio_AFIO_EXTICR_write(s, 0, 0x00000000, true);

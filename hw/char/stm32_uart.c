@@ -738,7 +738,7 @@ void stm32_uart_connect(Stm32Uart *s, CharDriverState *chr,
 static int stm32_uart_init(SysBusDevice *dev)
 {
     qemu_irq *clk_irq;
-    Stm32Uart *s = FROM_SYSBUS(Stm32Uart, dev);
+    Stm32Uart *s = STM32_UART(dev);
 
     s->stm32_rcc = (Stm32Rcc *)s->stm32_rcc_prop;
     s->stm32_gpio = (Stm32Gpio **)s->stm32_gpio_prop;

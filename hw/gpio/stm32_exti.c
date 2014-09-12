@@ -274,7 +274,7 @@ static const MemoryRegionOps stm32_exti_ops = {
 
 static void stm32_exti_reset(DeviceState *dev)
 {
-    Stm32Exti *s = FROM_SYSBUS(Stm32Exti, SYS_BUS_DEVICE(dev));
+    Stm32Exti *s = STM32_EXTI(dev);
 
     s->EXTI_IMR = 0x00000000;
     s->EXTI_RTSR = 0x00000000;
@@ -290,7 +290,7 @@ static int stm32_exti_init(SysBusDevice *dev)
 {
     int i;
 
-    Stm32Exti *s = FROM_SYSBUS(Stm32Exti, dev);
+    Stm32Exti *s = STM32_EXTI(dev);
 
     memory_region_init_io(&s->iomem, &stm32_exti_ops, s,
             "exti", 0x03ff);
@@ -301,7 +301,7 @@ static int stm32_exti_init(SysBusDevice *dev)
     }
 
     /* Create the handlers to handle GPIO input pin changes. */
-    qdev_init_gpio_in(&dev->qdev, stm32_exti_gpio_in_handler, STM32_GPIO_PIN_COUNT);
+    qdev_init_gpio_in(DEVICE(dev), stm32_exti_gpio_in_handler, STM32_GPIO_PIN_COUNT);
 
     return 0;
 }

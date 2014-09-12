@@ -301,7 +301,7 @@ uint8_t stm32_gpio_get_mode_bits(Stm32Gpio *s, unsigned pin) {
 static int stm32_gpio_init(SysBusDevice *dev)
 {
     unsigned pin;
-    Stm32Gpio *s = FROM_SYSBUS(Stm32Gpio, dev);
+    Stm32Gpio *s = STM32_GPIO(dev);
 
     s->stm32_rcc = (Stm32Rcc *)s->stm32_rcc_prop;
 
@@ -309,8 +309,8 @@ static int stm32_gpio_init(SysBusDevice *dev)
                           "gpio", 0x03ff);
     sysbus_init_mmio(dev, &s->iomem);
 
-    qdev_init_gpio_in(&dev->qdev, stm32_gpio_in_trigger, STM32_GPIO_PIN_COUNT);
-    qdev_init_gpio_out(&dev->qdev, s->out_irq, STM32_GPIO_PIN_COUNT);
+    qdev_init_gpio_in(DEVICE(dev), stm32_gpio_in_trigger, STM32_GPIO_PIN_COUNT);
+    qdev_init_gpio_out(DEVICE(dev), s->out_irq, STM32_GPIO_PIN_COUNT);
 
     for(pin = 0; pin < STM32_GPIO_PIN_COUNT; pin++) {
         sysbus_init_irq(dev, &s->in_irq[pin]);

@@ -694,7 +694,7 @@ static const MemoryRegionOps stm32_rcc_ops = {
 
 static void stm32_rcc_reset(DeviceState *dev)
 {
-    Stm32Rcc *s = FROM_SYSBUS(Stm32Rcc, SYS_BUS_DEVICE(dev));
+    Stm32Rcc *s = STM32_RCC(dev);
 
     stm32_rcc_RCC_CR_write(s, 0x00000083, true);
     stm32_rcc_RCC_CFGR_write(s, 0x00000000, true);
@@ -871,7 +871,7 @@ static void stm32_rcc_init_clk(Stm32Rcc *s)
 
 static int stm32_rcc_init(SysBusDevice *dev)
 {
-    Stm32Rcc *s = FROM_SYSBUS(Stm32Rcc, dev);
+    Stm32Rcc *s = STM32_RCC(dev);
 
     memory_region_init_io(&s->iomem, &stm32_rcc_ops, s,
                           "rcc", 0x1000);

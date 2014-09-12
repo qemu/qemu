@@ -57,7 +57,7 @@ typedef int32_t stm32_periph_t;
 #define QDEV_PROP_SET_PERIPH_T qdev_prop_set_int32
 
 #define STM32_PERIPH_UNDEFINED -1
-#define STM32_RCC 0
+#define STM32_RCC_PERIPH 0
 #define STM32_GPIOA 1
 #define STM32_GPIOB 2
 #define STM32_GPIOC 3
@@ -97,7 +97,7 @@ typedef int32_t stm32_periph_t;
 #define STM32_SPI1 37
 #define STM32_SPI2 38
 #define STM32_SPI3 39
-#define STM32_EXTI 40
+#define STM32_EXTI_PERIPH 40
 #define STM32_SDIO 41
 #define STM32_FSMC 42
 #define STM32_PERIPH_COUNT 43
@@ -181,7 +181,7 @@ uint32_t stm32_afio_get_periph_map(Stm32Afio *s, int32_t periph_num);
 typedef struct Stm32Exti Stm32Exti;
 
 #define TYPE_STM32_EXTI "stm32-exti"
-
+#define STM32_EXTI(obj) OBJECT_CHECK(Stm32Exti, (obj), TYPE_STM32_EXTI)
 
 
 
@@ -189,11 +189,11 @@ typedef struct Stm32Exti Stm32Exti;
 /* GPIO */
 typedef struct Stm32Gpio Stm32Gpio;
 
-#define STM32_GPIO_COUNT (STM32_GPIOG - STM32_GPIOA + 1)
-#define STM32_GPIO_PIN_COUNT 16
-
 #define TYPE_STM32_GPIO "stm32-gpio"
 #define STM32_GPIO(obj) OBJECT_CHECK(Stm32Gpio, (obj), TYPE_STM32_GPIO)
+
+#define STM32_GPIO_COUNT (STM32_GPIOG - STM32_GPIOA + 1)
+#define STM32_GPIO_PIN_COUNT 16
 
 /* GPIO pin mode */
 #define STM32_GPIO_MODE_IN 0
@@ -220,6 +220,9 @@ uint8_t stm32_gpio_get_config_bits(Stm32Gpio *s, unsigned pin);
 
 /* RCC */
 typedef struct Stm32Rcc Stm32Rcc;
+
+#define TYPE_STM32_RCC "stm32-rcc"
+#define STM32_RCC(obj) OBJECT_CHECK(Stm32Rcc, (obj), TYPE_STM32_RCC)
 
 /* Checks if the specified peripheral clock is enabled.
  * Generates a hardware error if not.
@@ -250,6 +253,9 @@ uint32_t stm32_rcc_get_periph_freq(
 #define STM32_UART_COUNT 5
 
 typedef struct Stm32Uart Stm32Uart;
+
+#define TYPE_STM32_UART "stm32-uart"
+#define STM32_UART(obj) OBJECT_CHECK(Stm32Uart, (obj), TYPE_STM32_UART)
 
 /* Connects the character driver to the specified UART.  The
  * board's pin mapping should be passed in.  This will be used to

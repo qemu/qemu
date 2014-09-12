@@ -180,7 +180,7 @@ void stm32_init(
     qdev_prop_set_uint32(rcc_dev, "osc_freq", osc_freq);
     qdev_prop_set_uint32(rcc_dev, "osc32_freq", osc32_freq);
     object_property_add_child(stm32_container, "rcc", OBJECT(rcc_dev), NULL);
-    stm32_init_periph(rcc_dev, STM32_RCC, 0x40021000, pic[STM32_RCC_IRQ]);
+    stm32_init_periph(rcc_dev, STM32_RCC_PERIPH, 0x40021000, pic[STM32_RCC_IRQ]);
 
     DeviceState **gpio_dev = (DeviceState **)g_malloc0(sizeof(DeviceState *) * STM32_GPIO_COUNT);
     for(i = 0; i < STM32_GPIO_COUNT; i++) {
@@ -196,7 +196,7 @@ void stm32_init(
 
     DeviceState *exti_dev = qdev_create(NULL, TYPE_STM32_EXTI);
     object_property_add_child(stm32_container, "exti", OBJECT(exti_dev), NULL);
-    stm32_init_periph(exti_dev, STM32_EXTI, 0x40010400, NULL);
+    stm32_init_periph(exti_dev, STM32_EXTI_PERIPH, 0x40010400, NULL);
     SysBusDevice *exti_busdev = SYS_BUS_DEVICE(exti_dev);
     sysbus_connect_irq(exti_busdev, 0, pic[STM32_EXTI0_IRQ]);
     sysbus_connect_irq(exti_busdev, 1, pic[STM32_EXTI1_IRQ]);
