@@ -125,9 +125,10 @@ static bool check_watchpoints(CPULM32State *env)
     return false;
 }
 
-void lm32_debug_excp_handler(CPULM32State *env)
+void lm32_debug_excp_handler(CPUState *cs)
 {
-    CPUState *cs = CPU(lm32_env_get_cpu(env));
+    LM32CPU *cpu = LM32_CPU(cs);
+    CPULM32State *env = &cpu->env;
     CPUBreakpoint *bp;
 
     if (cs->watchpoint_hit) {

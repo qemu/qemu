@@ -312,7 +312,26 @@ static void set_kernel_args_old(const struct arm_boot_info *info)
     }
 }
 
-static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
+/**
+ * load_dtb() - load a device tree binary image into memory
+ * @addr:       the address to load the image at
+ * @binfo:      struct describing the boot environment
+ * @addr_limit: upper limit of the available memory area at @addr
+ *
+ * Load a device tree supplied by the machine or by the user  with the
+ * '-dtb' command line option, and put it at offset @addr in target
+ * memory.
+ *
+ * If @addr_limit contains a meaningful value (i.e., it is strictly greater
+ * than @addr), the device tree is only loaded if its size does not exceed
+ * the limit.
+ *
+ * Returns: the size of the device tree image on success,
+ *          0 if the image size exceeds the limit,
+ *          -1 on errors.
+ */
+static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
+                    hwaddr addr_limit)
 {
     void *fdt = NULL;
     int size, rc;
@@ -339,6 +358,15 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
             fprintf(stderr, "Board was unable to create a dtb blob\n");
             goto fail;
         }
+    }
+
+    if (addr_limit > addr && size > (addr_limit - addr)) {
+        /* Installing the device tree blob at addr would exceed addr_limit.
+         * Whether this constitutes failure is up to the caller to decide,
+         * so just return 0 as size, i.e., no error.
+         */
+        g_free(fdt);
+        return 0;
     }
 
     acells = qemu_fdt_getprop_cell(fdt, "/", "#address-cells");
@@ -396,11 +424,14 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
 
     qemu_fdt_dumpdtb(fdt, size);
 
-    cpu_physical_memory_write(addr, fdt, size);
+    /* Put the DTB into the memory map as a ROM image: this will ensure
+     * the DTB is copied again upon reset, even if addr points into RAM.
+     */
+    rom_add_blob_fixed("dtb", fdt, size, addr);
 
     g_free(fdt);
 
-    return 0;
+    return size;
 
 fail:
     g_free(fdt);
@@ -451,7 +482,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     int kernel_size;
     int initrd_size;
     int is_linux = 0;
-    uint64_t elf_entry;
+    uint64_t elf_entry, elf_low_addr, elf_high_addr;
     int elf_machine;
     hwaddr entry, kernel_load_offset;
     int big_endian;
@@ -459,6 +490,16 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 
     /* Load the kernel.  */
     if (!info->kernel_filename) {
+
+        if (have_dtb(info)) {
+            /* If we have a device tree blob, but no kernel to supply it to,
+             * copy it to the base of RAM for a bootloader to pick up.
+             */
+            if (load_dtb(info->loader_start, info, 0) < 0) {
+                exit(1);
+            }
+        }
+
         /* If no kernel specified, do nothing; we will start from address 0
          * (typically a boot ROM image) in the same way as hardware.
          */
@@ -508,7 +549,25 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 
     /* Assume that raw images are linux kernels, and ELF images are not.  */
     kernel_size = load_elf(info->kernel_filename, NULL, NULL, &elf_entry,
-                           NULL, NULL, big_endian, elf_machine, 1);
+                           &elf_low_addr, &elf_high_addr, big_endian,
+                           elf_machine, 1);
+    if (kernel_size > 0 && have_dtb(info)) {
+        /* If there is still some room left at the base of RAM, try and put
+         * the DTB there like we do for images loaded with -bios or -pflash.
+         */
+        if (elf_low_addr > info->loader_start
+            || elf_high_addr < info->loader_start) {
+            /* Pass elf_low_addr as address limit to load_dtb if it may be
+             * pointing into RAM, otherwise pass '0' (no limit)
+             */
+            if (elf_low_addr < info->loader_start) {
+                elf_low_addr = 0;
+            }
+            if (load_dtb(info->loader_start, info, elf_low_addr) < 0) {
+                exit(1);
+            }
+        }
+    }
     entry = elf_entry;
     if (kernel_size < 0) {
         kernel_size = load_uimage(info->kernel_filename, &entry, NULL,
@@ -569,7 +628,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
              */
             hwaddr dtb_start = QEMU_ALIGN_UP(info->initrd_start + initrd_size,
                                              4096);
-            if (load_dtb(dtb_start, info)) {
+            if (load_dtb(dtb_start, info, 0) < 0) {
                 exit(1);
             }
             fixupcontext[FIXUP_ARGPTR] = dtb_start;

@@ -295,16 +295,10 @@ static inline TranslationBlock *tb_find_fast(CPUArchState *env)
     return tb;
 }
 
-static CPUDebugExcpHandler *debug_excp_handler;
-
-void cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler)
-{
-    debug_excp_handler = handler;
-}
-
 static void cpu_handle_debug_exception(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
+    CPUClass *cc = CPU_GET_CLASS(cpu);
     CPUWatchpoint *wp;
 
     if (!cpu->watchpoint_hit) {
@@ -312,9 +306,8 @@ static void cpu_handle_debug_exception(CPUArchState *env)
             wp->flags &= ~BP_WATCHPOINT_HIT;
         }
     }
-    if (debug_excp_handler) {
-        debug_excp_handler(env);
-    }
+
+    cc->debug_excp_handler(cpu);
 }
 
 /* main execution loop */
@@ -618,8 +611,8 @@ int cpu_exec(CPUArchState *env)
                        We avoid this by disabling interrupts when
                        pc contains a magic address.  */
                     if (interrupt_request & CPU_INTERRUPT_HARD
-                        && ((IS_M(env) && env->regs[15] < 0xfffffff0)
-                            || !(env->daif & PSTATE_I))) {
+                        && !(env->daif & PSTATE_I)
+                        && (!IS_M(env) || env->regs[15] < 0xfffffff0)) {
                         cpu->exception_index = EXCP_IRQ;
                         cc->do_interrupt(cpu);
                         next_tb = 0;

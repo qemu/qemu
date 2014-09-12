@@ -119,7 +119,6 @@ static void xtensa_cpu_initfn(Object *obj)
     if (tcg_enabled() && !tcg_inited) {
         tcg_inited = true;
         xtensa_translate_init();
-        cpu_set_debug_excp_handler(xtensa_breakpoint_handler);
     }
 }
 
@@ -151,6 +150,7 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
     cc->do_unaligned_access = xtensa_cpu_do_unaligned_access;
     cc->get_phys_page_debug = xtensa_cpu_get_phys_page_debug;
 #endif
+    cc->debug_excp_handler = xtensa_breakpoint_handler;
     dc->vmsd = &vmstate_xtensa_cpu;
 }
 
