@@ -158,7 +158,15 @@ static void stm32_gpio_GPIOx_ODR_write(Stm32Gpio *s, uint32_t new_value)
              */
             if (changed_out & BIT(pin)) {
                 qemu_set_irq(
-                        DEVICE(s)->gpio_out[pin],
+                        /* The "irq_intercept_out" command in the qtest
+                           framework overwrites the out IRQ array in the
+                           NamedGPIOList structure (via the
+                           qemu_irq_intercept_out procedure).  So we need
+                           to reference this structure directly (rather than
+                           use our local s->out_irq array) in order for
+                           the unit tests to work. This is something of a hack,
+                           but I don't have a solution yet. */
+                        s->busdev.parent_obj.gpios.lh_first->out[pin],
                         (s->GPIOx_ODR & BIT(pin)) ? 1 : 0);
             }
         }
