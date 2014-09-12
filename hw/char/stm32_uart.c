@@ -605,7 +605,7 @@ static void stm32_uart_USART_CR3_write(Stm32Uart *s, uint32_t new_value,
 
 static void stm32_uart_reset(DeviceState *dev)
 {
-    Stm32Uart *s = FROM_SYSBUS(Stm32Uart, SYS_BUS_DEVICE(dev));
+    Stm32Uart *s = STM32_UART(dev);
 
     /* Initialize the status registers.  These are mostly
      * read-only, so we do not call the "write" routine
