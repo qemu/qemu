@@ -377,6 +377,47 @@ static void tlbimvaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
     tlb_flush_page(CPU(cpu), value & TARGET_PAGE_MASK);
 }
 
+/* IS variants of TLB operations must affect all cores */
+static void tlbiall_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
+{
+    CPUState *other_cs;
+
+    CPU_FOREACH(other_cs) {
+        tlb_flush(other_cs, 1);
+    }
+}
+
+static void tlbiasid_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
+{
+    CPUState *other_cs;
+
+    CPU_FOREACH(other_cs) {
+        tlb_flush(other_cs, value == 0);
+    }
+}
+
+static void tlbimva_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
+{
+    CPUState *other_cs;
+
+    CPU_FOREACH(other_cs) {
+        tlb_flush_page(other_cs, value & TARGET_PAGE_MASK);
+    }
+}
+
+static void tlbimvaa_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
+{
+    CPUState *other_cs;
+
+    CPU_FOREACH(other_cs) {
+        tlb_flush_page(other_cs, value & TARGET_PAGE_MASK);
+    }
+}
+
 static const ARMCPRegInfo cp_reginfo[] = {
     { .name = "FCSEIDR", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c13_fcse),
@@ -908,13 +949,15 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
 static const ARMCPRegInfo v7mp_cp_reginfo[] = {
     /* 32 bit TLB invalidates, Inner Shareable */
     { .name = "TLBIALLIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 0,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiall_write },
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiall_is_write },
     { .name = "TLBIMVAIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 1,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_is_write },
     { .name = "TLBIASIDIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 2,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbiasid_write },
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W,
+      .writefn = tlbiasid_is_write },
     { .name = "TLBIMVAAIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 3,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimvaa_write },
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W,
+      .writefn = tlbimvaa_is_write },
     REGINFO_SENTINEL
 };
 
@@ -1904,6 +1947,39 @@ static void tlbi_aa64_asid_write(CPUARMState *env, const ARMCPRegInfo *ri,
     tlb_flush(CPU(cpu), asid == 0);
 }
 
+static void tlbi_aa64_va_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                  uint64_t value)
+{
+    CPUState *other_cs;
+    uint64_t pageaddr = sextract64(value << 12, 0, 56);
+
+    CPU_FOREACH(other_cs) {
+        tlb_flush_page(other_cs, pageaddr);
+    }
+}
+
+static void tlbi_aa64_vaa_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                  uint64_t value)
+{
+    CPUState *other_cs;
+    uint64_t pageaddr = sextract64(value << 12, 0, 56);
+
+    CPU_FOREACH(other_cs) {
+        tlb_flush_page(other_cs, pageaddr);
+    }
+}
+
+static void tlbi_aa64_asid_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                  uint64_t value)
+{
+    CPUState *other_cs;
+    int asid = extract64(value, 48, 16);
+
+    CPU_FOREACH(other_cs) {
+        tlb_flush(other_cs, asid == 0);
+    }
+}
+
 static CPAccessResult aa64_zva_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     /* We don't implement EL2, so the only control on DC ZVA is the
@@ -2021,27 +2097,27 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "TLBI_VMALLE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 0,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
-      .writefn = tlbiall_write },
+      .writefn = tlbiall_is_write },
     { .name = "TLBI_VAE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 1,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
-      .writefn = tlbi_aa64_va_write },
+      .writefn = tlbi_aa64_va_is_write },
     { .name = "TLBI_ASIDE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 2,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
-      .writefn = tlbi_aa64_asid_write },
+      .writefn = tlbi_aa64_asid_is_write },
     { .name = "TLBI_VAAE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 3,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
-      .writefn = tlbi_aa64_vaa_write },
+      .writefn = tlbi_aa64_vaa_is_write },
     { .name = "TLBI_VALE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 5,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
-      .writefn = tlbi_aa64_va_write },
+      .writefn = tlbi_aa64_va_is_write },
     { .name = "TLBI_VAALE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 7,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
-      .writefn = tlbi_aa64_vaa_write },
+      .writefn = tlbi_aa64_vaa_is_write },
     { .name = "TLBI_VMALLE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 0,
       .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
@@ -2083,9 +2159,10 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
 #endif
     /* TLB invalidate last level of translation table walk */
     { .name = "TLBIMVALIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 5,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_is_write },
     { .name = "TLBIMVAALIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 7,
-      .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimvaa_write },
+      .type = ARM_CP_NO_MIGRATE, .access = PL1_W,
+      .writefn = tlbimvaa_is_write },
     { .name = "TLBIMVAL", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 5,
       .type = ARM_CP_NO_MIGRATE, .access = PL1_W, .writefn = tlbimva_write },
     { .name = "TLBIMVAAL", .cp = 15, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 7,
