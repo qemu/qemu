@@ -283,9 +283,9 @@ bool aio_poll(AioContext *ctx, bool blocking)
     int count;
     int timeout;
 
-    if (aio_prepare(ctx)) {
+    have_select_revents = aio_prepare(ctx);
+    if (have_select_revents) {
         blocking = false;
-        have_select_revents = true;
     }
 
     was_dispatching = ctx->dispatching;
