@@ -352,13 +352,7 @@ int cpu_exec(CPUArchState *env)
         cpu->exit_request = 1;
     }
 
-#if defined(TARGET_I386)
-    /* put eflags in CPU temporary format */
-    CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-    env->df = 1 - (2 * ((env->eflags >> 10) & 1));
-    CC_OP = CC_OP_EFLAGS;
-    env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-#elif defined(TARGET_M68K)
+#if defined(TARGET_M68K)
     env->cc_op = CC_OP_FLAGS;
     env->cc_dest = env->sr & 0xf;
     env->cc_x = (env->sr >> 4) & 1;
@@ -811,11 +805,7 @@ int cpu_exec(CPUArchState *env)
     } /* for(;;) */
 
 
-#if defined(TARGET_I386)
-    /* restore flags in standard format */
-    env->eflags = env->eflags | cpu_cc_compute_all(env, CC_OP)
-        | (env->df & DF_MASK);
-#elif defined(TARGET_M68K)
+#if defined(TARGET_M68K)
     cpu_m68k_flush_flags(env, env->cc_op);
     env->cc_op = CC_OP_FLAGS;
     env->sr = (env->sr & 0xffe0)
