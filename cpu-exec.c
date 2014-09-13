@@ -505,15 +505,6 @@ int cpu_exec(CPUArchState *env)
                         cc->do_interrupt(cpu);
                         next_tb = 0;
                     }
-#elif defined(TARGET_MICROBLAZE)
-                    if ((interrupt_request & CPU_INTERRUPT_HARD)
-                        && (env->sregs[SR_MSR] & MSR_IE)
-                        && !(env->sregs[SR_MSR] & (MSR_EIP | MSR_BIP))
-                        && !(env->iflags & (D_FLAG | IMM_FLAG))) {
-                        cpu->exception_index = EXCP_IRQ;
-                        cc->do_interrupt(cpu);
-                        next_tb = 0;
-                    }
 #endif
                     /* The target hook has 3 exit conditions:
                        False when the interrupt isn't processed,
