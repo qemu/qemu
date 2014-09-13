@@ -676,8 +676,15 @@ int cpu_exec(CPUArchState *env)
                         next_tb = 0;
                     }
 #endif
-                   /* Don't use the cached interrupt_request value,
-                      do_interrupt may have updated the EXITTB flag. */
+                    /* The target hook has 3 exit conditions:
+                       False when the interrupt isn't processed,
+                       True when it is, and we should restart on a new TB,
+                       and via longjmp via cpu_loop_exit.  */
+                    if (cc->cpu_exec_interrupt(cpu, interrupt_request)) {
+                        next_tb = 0;
+                    }
+                    /* Don't use the cached interrupt_request value,
+                       do_interrupt may have updated the EXITTB flag. */
                     if (cpu->interrupt_request & CPU_INTERRUPT_EXITTB) {
                         cpu->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
                         /* ensure that no TB jump will be modified as
@@ -783,10 +790,7 @@ int cpu_exec(CPUArchState *env)
              * local variables as longjmp is marked 'noreturn'. */
             cpu = current_cpu;
             env = cpu->env_ptr;
-#if !(defined(CONFIG_USER_ONLY) && \
-      (defined(TARGET_M68K) || defined(TARGET_PPC) || defined(TARGET_S390X)))
             cc = CPU_GET_CLASS(cpu);
-#endif
 #ifdef TARGET_I386
             x86_cpu = X86_CPU(cpu);
 #endif

@@ -101,6 +101,7 @@ struct TranslationBlock;
  * @gdb_core_xml_file: File name for core registers GDB XML description.
  * @cpu_exec_enter: Callback for cpu_exec preparation.
  * @cpu_exec_exit: Callback for cpu_exec cleanup.
+ * @cpu_exec_interrupt: Callback for processing interrupts in cpu_exec.
  *
  * Represents a CPU family or model.
  */
@@ -154,6 +155,7 @@ typedef struct CPUClass {
 
     void (*cpu_exec_enter)(CPUState *cpu);
     void (*cpu_exec_exit)(CPUState *cpu);
+    bool (*cpu_exec_interrupt)(CPUState *cpu, int interrupt_request);
 } CPUClass;
 
 #ifdef HOST_WORDS_BIGENDIAN

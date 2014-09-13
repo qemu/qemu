@@ -206,6 +206,11 @@ static void cpu_common_noop(CPUState *cpu)
 {
 }
 
+static bool cpu_common_exec_interrupt(CPUState *cpu, int int_req)
+{
+    return false;
+}
+
 void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
                     int flags)
 {
@@ -347,6 +352,7 @@ static void cpu_class_init(ObjectClass *klass, void *data)
     k->debug_excp_handler = cpu_common_noop;
     k->cpu_exec_enter = cpu_common_noop;
     k->cpu_exec_exit = cpu_common_noop;
+    k->cpu_exec_interrupt = cpu_common_exec_interrupt;
     dc->realize = cpu_common_realizefn;
     /*
      * Reason: CPUs still need special care by board code: wiring up
