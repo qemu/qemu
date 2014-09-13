@@ -546,22 +546,6 @@ int cpu_exec(CPUArchState *env)
                             next_tb = 0;
                         }
                     }
-#elif defined(TARGET_SPARC)
-                    if (interrupt_request & CPU_INTERRUPT_HARD) {
-                        if (cpu_interrupts_enabled(env) &&
-                            env->interrupt_index > 0) {
-                            int pil = env->interrupt_index & 0xf;
-                            int type = env->interrupt_index & 0xf0;
-
-                            if (((type == TT_EXTINT) &&
-                                  cpu_pil_allowed(env, pil)) ||
-                                  type != TT_EXTINT) {
-                                cpu->exception_index = env->interrupt_index;
-                                cc->do_interrupt(cpu);
-                                next_tb = 0;
-                            }
-                        }
-                    }
 #endif
                     /* The target hook has 3 exit conditions:
                        False when the interrupt isn't processed,
