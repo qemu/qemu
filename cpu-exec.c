@@ -352,9 +352,6 @@ int cpu_exec(CPUArchState *env)
         cpu->exit_request = 1;
     }
 
-#if defined(TARGET_PPC)
-    env->reserve_addr = -1;
-#endif
     cc->cpu_exec_enter(cpu);
     cpu->exception_index = -1;
 
