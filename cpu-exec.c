@@ -663,12 +663,6 @@ int cpu_exec(CPUArchState *env)
                         do_interrupt_m68k_hardirq(env);
                         next_tb = 0;
                     }
-#elif defined(TARGET_S390X) && !defined(CONFIG_USER_ONLY)
-                    if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-                        (env->psw.mask & PSW_MASK_EXT)) {
-                        cc->do_interrupt(cpu);
-                        next_tb = 0;
-                    }
 #endif
                     /* The target hook has 3 exit conditions:
                        False when the interrupt isn't processed,

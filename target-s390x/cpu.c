@@ -262,6 +262,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->get_phys_page_debug = s390_cpu_get_phys_page_debug;
     cc->write_elf64_note = s390_cpu_write_elf64_note;
     cc->write_elf64_qemunote = s390_cpu_write_elf64_qemunote;
+    cc->cpu_exec_interrupt = s390_cpu_exec_interrupt;
 #endif
     dc->vmsd = &vmstate_s390_cpu;
     cc->gdb_num_core_regs = S390_NUM_CORE_REGS;
