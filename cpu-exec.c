@@ -317,10 +317,7 @@ volatile sig_atomic_t exit_request;
 int cpu_exec(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
-#if !(defined(CONFIG_USER_ONLY) && \
-      (defined(TARGET_M68K) || defined(TARGET_PPC) || defined(TARGET_S390X)))
     CPUClass *cc = CPU_GET_CLASS(cpu);
-#endif
 #ifdef TARGET_I386
     X86CPU *x86_cpu = X86_CPU(cpu);
 #endif
@@ -382,9 +379,8 @@ int cpu_exec(CPUArchState *env)
 #elif defined(TARGET_XTENSA)
 #elif defined(TARGET_TRICORE)
     /* XXXXX */
-#else
-#error unsupported target CPU
 #endif
+    cc->cpu_exec_enter(cpu);
     cpu->exception_index = -1;
 
     /* Calculate difference between guest clock and host clock.
@@ -856,9 +852,8 @@ int cpu_exec(CPUArchState *env)
 #elif defined(TARGET_S390X)
 #elif defined(TARGET_XTENSA)
     /* XXXXX */
-#else
-#error unsupported target CPU
 #endif
+    cc->cpu_exec_exit(cpu);
 
     /* fail safe : never use current_cpu outside cpu_exec() */
     current_cpu = NULL;
