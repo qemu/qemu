@@ -562,29 +562,6 @@ int cpu_exec(CPUArchState *env)
                             }
                         }
                     }
-#elif defined(TARGET_ARM)
-                    if (interrupt_request & CPU_INTERRUPT_FIQ
-                        && !(env->daif & PSTATE_F)) {
-                        cpu->exception_index = EXCP_FIQ;
-                        cc->do_interrupt(cpu);
-                        next_tb = 0;
-                    }
-                    /* ARMv7-M interrupt return works by loading a magic value
-                       into the PC.  On real hardware the load causes the
-                       return to occur.  The qemu implementation performs the
-                       jump normally, then does the exception return when the
-                       CPU tries to execute code at the magic address.
-                       This will cause the magic PC value to be pushed to
-                       the stack if an interrupt occurred at the wrong time.
-                       We avoid this by disabling interrupts when
-                       pc contains a magic address.  */
-                    if (interrupt_request & CPU_INTERRUPT_HARD
-                        && !(env->daif & PSTATE_I)
-                        && (!IS_M(env) || env->regs[15] < 0xfffffff0)) {
-                        cpu->exception_index = EXCP_IRQ;
-                        cc->do_interrupt(cpu);
-                        next_tb = 0;
-                    }
 #endif
                     /* The target hook has 3 exit conditions:
                        False when the interrupt isn't processed,
