@@ -863,3 +863,12 @@ int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr)
 }
 
 #endif
+
+bool superh_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+{
+    if (interrupt_request & CPU_INTERRUPT_HARD) {
+        superh_cpu_do_interrupt(cs);
+        return true;
+    }
+    return false;
+}

@@ -592,11 +592,6 @@ int cpu_exec(CPUArchState *env)
                         cc->do_interrupt(cpu);
                         next_tb = 0;
                     }
-#elif defined(TARGET_SH4)
-                    if (interrupt_request & CPU_INTERRUPT_HARD) {
-                        cc->do_interrupt(cpu);
-                        next_tb = 0;
-                    }
 #endif
                     /* The target hook has 3 exit conditions:
                        False when the interrupt isn't processed,
