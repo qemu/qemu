@@ -352,11 +352,7 @@ int cpu_exec(CPUArchState *env)
         cpu->exit_request = 1;
     }
 
-#if defined(TARGET_M68K)
-    env->cc_op = CC_OP_FLAGS;
-    env->cc_dest = env->sr & 0xf;
-    env->cc_x = (env->sr >> 4) & 1;
-#elif defined(TARGET_PPC)
+#if defined(TARGET_PPC)
     env->reserve_addr = -1;
 #endif
     cc->cpu_exec_enter(cpu);
@@ -804,13 +800,6 @@ int cpu_exec(CPUArchState *env)
         }
     } /* for(;;) */
 
-
-#if defined(TARGET_M68K)
-    cpu_m68k_flush_flags(env, env->cc_op);
-    env->cc_op = CC_OP_FLAGS;
-    env->sr = (env->sr & 0xffe0)
-              | env->cc_dest | (env->cc_x << 4);
-#endif
     cc->cpu_exec_exit(cpu);
 
     /* fail safe : never use current_cpu outside cpu_exec() */

@@ -77,4 +77,7 @@ hwaddr m68k_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int m68k_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int m68k_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 
+void m68k_cpu_exec_enter(CPUState *cs);
+void m68k_cpu_exec_exit(CPUState *cs);
+
 #endif
