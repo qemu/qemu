@@ -629,27 +629,6 @@ int cpu_exec(CPUArchState *env)
                             next_tb = 0;
                         }
                     }
-#elif defined(TARGET_CRIS)
-                    if (interrupt_request & CPU_INTERRUPT_HARD
-                        && (env->pregs[PR_CCS] & I_FLAG)
-                        && !env->locked_irq) {
-                        cpu->exception_index = EXCP_IRQ;
-                        cc->do_interrupt(cpu);
-                        next_tb = 0;
-                    }
-                    if (interrupt_request & CPU_INTERRUPT_NMI) {
-                        unsigned int m_flag_archval;
-                        if (env->pregs[PR_VR] < 32) {
-                            m_flag_archval = M_FLAG_V10;
-                        } else {
-                            m_flag_archval = M_FLAG_V32;
-                        }
-                        if ((env->pregs[PR_CCS] & m_flag_archval)) {
-                            cpu->exception_index = EXCP_NMI;
-                            cc->do_interrupt(cpu);
-                            next_tb = 0;
-                        }
-                    }
 #endif
                     /* The target hook has 3 exit conditions:
                        False when the interrupt isn't processed,
