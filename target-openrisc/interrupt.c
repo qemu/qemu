@@ -63,3 +63,23 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
 
     cs->exception_index = -1;
 }
+
+bool openrisc_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+{
+    OpenRISCCPU *cpu = OPENRISC_CPU(cs);
+    CPUOpenRISCState *env = &cpu->env;
+    int idx = -1;
+
+    if ((interrupt_request & CPU_INTERRUPT_HARD) && (env->sr & SR_IEE)) {
+        idx = EXCP_INT;
+    }
+    if ((interrupt_request & CPU_INTERRUPT_TIMER) && (env->sr & SR_TEE)) {
+        idx = EXCP_TICK;
+    }
+    if (idx >= 0) {
+        cs->exception_index = idx;
+        openrisc_cpu_do_interrupt(cs);
+        return true;
+    }
+    return false;
+}

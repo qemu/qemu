@@ -528,24 +528,6 @@ int cpu_exec(CPUArchState *env)
                         cc->do_interrupt(cpu);
                         next_tb = 0;
                     }
-
-#elif defined(TARGET_OPENRISC)
-                    {
-                        int idx = -1;
-                        if ((interrupt_request & CPU_INTERRUPT_HARD)
-                            && (env->sr & SR_IEE)) {
-                            idx = EXCP_INT;
-                        }
-                        if ((interrupt_request & CPU_INTERRUPT_TIMER)
-                            && (env->sr & SR_TEE)) {
-                            idx = EXCP_TICK;
-                        }
-                        if (idx >= 0) {
-                            cpu->exception_index = idx;
-                            cc->do_interrupt(cpu);
-                            next_tb = 0;
-                        }
-                    }
 #endif
                     /* The target hook has 3 exit conditions:
                        False when the interrupt isn't processed,
