@@ -597,38 +597,6 @@ int cpu_exec(CPUArchState *env)
                         cc->do_interrupt(cpu);
                         next_tb = 0;
                     }
-#elif defined(TARGET_ALPHA)
-                    {
-                        int idx = -1;
-                        /* ??? This hard-codes the OSF/1 interrupt levels.  */
-                        switch (env->pal_mode ? 7 : env->ps & PS_INT_MASK) {
-                        case 0 ... 3:
-                            if (interrupt_request & CPU_INTERRUPT_HARD) {
-                                idx = EXCP_DEV_INTERRUPT;
-                            }
-                            /* FALLTHRU */
-                        case 4:
-                            if (interrupt_request & CPU_INTERRUPT_TIMER) {
-                                idx = EXCP_CLK_INTERRUPT;
-                            }
-                            /* FALLTHRU */
-                        case 5:
-                            if (interrupt_request & CPU_INTERRUPT_SMP) {
-                                idx = EXCP_SMP_INTERRUPT;
-                            }
-                            /* FALLTHRU */
-                        case 6:
-                            if (interrupt_request & CPU_INTERRUPT_MCHK) {
-                                idx = EXCP_MCHK;
-                            }
-                        }
-                        if (idx >= 0) {
-                            cpu->exception_index = idx;
-                            env->error_code = 0;
-                            cc->do_interrupt(cpu);
-                            next_tb = 0;
-                        }
-                    }
 #endif
                     /* The target hook has 3 exit conditions:
                        False when the interrupt isn't processed,

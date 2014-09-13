@@ -470,6 +470,50 @@ void alpha_cpu_do_interrupt(CPUState *cs)
 #endif /* !USER_ONLY */
 }
 
+bool alpha_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+{
+    AlphaCPU *cpu = ALPHA_CPU(cs);
+    CPUAlphaState *env = &cpu->env;
+    int idx = -1;
+
+    /* We never take interrupts while in PALmode.  */
+    if (env->pal_mode) {
+        return false;
+    }
+
+    /* Fall through the switch, collecting the highest priority
+       interrupt that isn't masked by the processor status IPL.  */
+    /* ??? This hard-codes the OSF/1 interrupt levels.  */
+    switch (env->ps & PS_INT_MASK) {
+    case 0 ... 3:
+        if (interrupt_request & CPU_INTERRUPT_HARD) {
+            idx = EXCP_DEV_INTERRUPT;
+        }
+        /* FALLTHRU */
+    case 4:
+        if (interrupt_request & CPU_INTERRUPT_TIMER) {
+            idx = EXCP_CLK_INTERRUPT;
+        }
+        /* FALLTHRU */
+    case 5:
+        if (interrupt_request & CPU_INTERRUPT_SMP) {
+            idx = EXCP_SMP_INTERRUPT;
+        }
+        /* FALLTHRU */
+    case 6:
+        if (interrupt_request & CPU_INTERRUPT_MCHK) {
+            idx = EXCP_MCHK;
+        }
+    }
+    if (idx >= 0) {
+        cs->exception_index = idx;
+        env->error_code = 0;
+        alpha_cpu_do_interrupt(cs);
+        return true;
+    }
+    return false;
+}
+
 void alpha_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                           int flags)
 {
