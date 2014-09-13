@@ -585,13 +585,6 @@ int cpu_exec(CPUArchState *env)
                         cc->do_interrupt(cpu);
                         next_tb = 0;
                     }
-#elif defined(TARGET_UNICORE32)
-                    if (interrupt_request & CPU_INTERRUPT_HARD
-                        && !(env->uncached_asr & ASR_I)) {
-                        cpu->exception_index = UC32_EXCP_INTR;
-                        cc->do_interrupt(cpu);
-                        next_tb = 0;
-                    }
 #endif
                     /* The target hook has 3 exit conditions:
                        False when the interrupt isn't processed,
