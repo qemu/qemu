@@ -490,14 +490,6 @@ int cpu_exec(CPUArchState *env)
 #endif
                         }
                     }
-#elif defined(TARGET_PPC)
-                    if (interrupt_request & CPU_INTERRUPT_HARD) {
-                        ppc_hw_interrupt(env);
-                        if (env->pending_interrupts == 0) {
-                            cpu->interrupt_request &= ~CPU_INTERRUPT_HARD;
-                        }
-                        next_tb = 0;
-                    }
 #endif
                     /* The target hook has 3 exit conditions:
                        False when the interrupt isn't processed,

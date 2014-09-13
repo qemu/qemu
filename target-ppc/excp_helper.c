@@ -48,7 +48,7 @@ void ppc_cpu_do_interrupt(CPUState *cs)
     env->error_code = 0;
 }
 
-void ppc_hw_interrupt(CPUPPCState *env)
+static void ppc_hw_interrupt(CPUPPCState *env)
 {
     CPUState *cs = CPU(ppc_env_get_cpu(env));
 
@@ -692,7 +692,7 @@ void ppc_cpu_do_interrupt(CPUState *cs)
     powerpc_excp(cpu, env->excp_model, cs->exception_index);
 }
 
-void ppc_hw_interrupt(CPUPPCState *env)
+static void ppc_hw_interrupt(CPUPPCState *env)
 {
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
     int hdice;
@@ -819,6 +819,21 @@ void ppc_cpu_do_system_reset(CPUState *cs)
     powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_RESET);
 }
 #endif /* !CONFIG_USER_ONLY */
+
+bool ppc_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
+    if (interrupt_request & CPU_INTERRUPT_HARD) {
+        ppc_hw_interrupt(env);
+        if (env->pending_interrupts == 0) {
+            cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
+        }
+        return true;
+    }
+    return false;
+}
 
 #if defined(DEBUG_OP)
 static void cpu_dump_rfi(target_ulong RA, target_ulong msr)
