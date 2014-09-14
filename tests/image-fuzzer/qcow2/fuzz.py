@@ -332,9 +332,8 @@ def l1_entry(current):
     constraints = UINT64_V
     # Reserved bits are ignored
     # Added a possibility when only flags are fuzzed
-    offset = 0x7fffffffffffffff & random.choice([selector(current,
-                                                          constraints),
-                                                 current])
+    offset = 0x7fffffffffffffff & \
+             random.choice([selector(current, constraints), current])
     is_cow = random.randint(0, 1)
     return offset + (is_cow << UINT64_M)
 
@@ -344,9 +343,8 @@ def l2_entry(current):
     constraints = UINT64_V
     # Reserved bits are ignored
     # Add a possibility when only flags are fuzzed
-    offset = 0x3ffffffffffffffe & random.choice([selector(current,
-                                                          constraints),
-                                                 current])
+    offset = 0x3ffffffffffffffe & \
+             random.choice([selector(current, constraints), current])
     is_compressed = random.randint(0, 1)
     is_cow = random.randint(0, 1)
     is_zero = random.randint(0, 1)
