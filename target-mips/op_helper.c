@@ -90,7 +90,6 @@ static inline type do_##name(CPUMIPSState *env, target_ulong addr,      \
     }                                                                   \
 }
 #endif
-HELPER_LD(lbu, ldub, uint8_t)
 HELPER_LD(lw, ldl, int32_t)
 #ifdef TARGET_MIPS64
 HELPER_LD(ld, ldq, int64_t)
