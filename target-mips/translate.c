@@ -1548,6 +1548,7 @@ static inline void check_insn_opc_removed(DisasContext *ctx, int flags)
     }
 }
 
+#ifdef TARGET_MIPS64
 /* This code generates a "reserved instruction" exception if 64-bit
    instructions are not enabled. */
 static inline void check_mips_64(DisasContext *ctx)
@@ -1555,6 +1556,7 @@ static inline void check_mips_64(DisasContext *ctx)
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_64)))
         generate_exception(ctx, EXCP_RI);
 }
+#endif
 
 /* Define small wrappers for gen_load_fpr* so that we have a uniform
    calling interface for 32 and 64-bit FPRs.  No sense in changing
