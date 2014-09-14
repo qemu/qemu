@@ -99,7 +99,8 @@ static const MSGUID logical_sector_guid = { .data1 = 0x8141bf1d,
 /* Each parent type must have a valid GUID; this is for parent images
  * of type 'VHDX'.  If we were to allow e.g. a QCOW2 parent, we would
  * need to make up our own QCOW2 GUID type */
-static const MSGUID parent_vhdx_guid = { .data1 = 0xb04aefb7,
+static const MSGUID parent_vhdx_guid __attribute__((unused))
+                                     = { .data1 = 0xb04aefb7,
                                          .data2 = 0xd19e,
                                          .data3 = 0x4a81,
                                          .data4 = { 0xb7, 0x89, 0x25, 0xb8,
