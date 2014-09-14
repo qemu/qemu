@@ -76,15 +76,6 @@ static inline void set_DSPControl_24(uint32_t flag, int len, CPUMIPSState *env)
   env->active_tc.DSPControl |= (target_ulong)flag << 24;
 }
 
-static inline uint32_t get_DSPControl_24(int len, CPUMIPSState *env)
-{
-  uint32_t filter;
-
-  filter = (0x01 << len) - 1;
-
-  return (env->active_tc.DSPControl >> 24) & filter;
-}
-
 static inline void set_DSPControl_pos(uint32_t pos, CPUMIPSState *env)
 {
     target_ulong dspc;
