@@ -1104,7 +1104,7 @@ enum {
 /* global register indices */
 static TCGv_ptr cpu_env;
 static TCGv cpu_gpr[32], cpu_PC;
-static TCGv cpu_HI[MIPS_DSP_ACC], cpu_LO[MIPS_DSP_ACC], cpu_ACX[MIPS_DSP_ACC];
+static TCGv cpu_HI[MIPS_DSP_ACC], cpu_LO[MIPS_DSP_ACC];
 static TCGv cpu_dspctrl, btarget, bcond;
 static TCGv_i32 hflags;
 static TCGv_i32 fpu_fcr0, fpu_fcr31;
@@ -1195,10 +1195,6 @@ static const char * const regnames_LO[] = {
     "LO0", "LO1", "LO2", "LO3",
 };
 
-static const char * const regnames_ACX[] = {
-    "ACX0", "ACX1", "ACX2", "ACX3",
-};
-
 static const char * const fregnames[] = {
     "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",
     "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",
@@ -1239,17 +1235,6 @@ static inline void gen_store_gpr (TCGv t, int reg)
 {
     if (reg != 0)
         tcg_gen_mov_tl(cpu_gpr[reg], t);
-}
-
-/* Moves to/from ACX register.  */
-static inline void gen_load_ACX (TCGv t, int reg)
-{
-    tcg_gen_mov_tl(t, cpu_ACX[reg]);
-}
-
-static inline void gen_store_ACX (TCGv t, int reg)
-{
-    tcg_gen_mov_tl(cpu_ACX[reg], t);
 }
 
 /* Moves to/from shadow registers. */
@@ -17716,9 +17701,6 @@ void mips_tcg_init(void)
         cpu_LO[i] = tcg_global_mem_new(TCG_AREG0,
                                        offsetof(CPUMIPSState, active_tc.LO[i]),
                                        regnames_LO[i]);
-        cpu_ACX[i] = tcg_global_mem_new(TCG_AREG0,
-                                        offsetof(CPUMIPSState, active_tc.ACX[i]),
-                                        regnames_ACX[i]);
     }
     cpu_dspctrl = tcg_global_mem_new(TCG_AREG0,
                                      offsetof(CPUMIPSState, active_tc.DSPControl),
