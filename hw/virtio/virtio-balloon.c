@@ -87,7 +87,7 @@ static void balloon_stats_destroy_timer(VirtIOBalloon *s)
     }
 }
 
-static void balloon_stats_change_timer(VirtIOBalloon *s, int secs)
+static void balloon_stats_change_timer(VirtIOBalloon *s, int64_t secs)
 {
     timer_mod(s->stats_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + secs * 1000);
 }
@@ -167,6 +167,11 @@ static void balloon_stats_set_poll_interval(Object *obj, struct Visitor *v,
 
     if (value < 0) {
         error_setg(errp, "timer value must be greater than zero");
+        return;
+    }
+
+    if (value > UINT_MAX) {
+        error_setg(errp, "timer value is too big");
         return;
     }
 
