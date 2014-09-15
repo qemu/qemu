@@ -512,6 +512,7 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     if (incoming_fd == -1) {
         fprintf(stderr, "could not allocate file descriptor %s\n",
                                                             strerror(errno));
+        close(tmp_fd);
         return;
     }
 
