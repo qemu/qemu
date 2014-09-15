@@ -2737,7 +2737,7 @@ fi
 if test "$pixman" = ""; then
   if test "$want_tools" = "no" -a "$softmmu" = "no"; then
     pixman="none"
-  elif $pkg_config pixman-1 > /dev/null 2>&1; then
+  elif $pkg_config --atleast-version=0.21.8 pixman-1 > /dev/null 2>&1; then
     pixman="system"
   else
     pixman="internal"
@@ -2753,11 +2753,12 @@ if test "$pixman" = "none"; then
   pixman_cflags=
   pixman_libs=
 elif test "$pixman" = "system"; then
+  # pixman version has been checked above
   pixman_cflags=`$pkg_config --cflags pixman-1`
   pixman_libs=`$pkg_config --libs pixman-1`
 else
   if test ! -d ${source_path}/pixman/pixman; then
-    error_exit "pixman not present. Your options:" \
+    error_exit "pixman >= 0.21.8 not present. Your options:" \
         "  (1) Preferred: Install the pixman devel package (any recent" \
         "      distro should have packages as Xorg needs pixman too)." \
         "  (2) Fetch the pixman submodule, using:" \
