@@ -4747,8 +4747,11 @@ static void monitor_find_completion(void *opaque,
         return;
     }
 #ifdef DEBUG_COMPLETION
-    for (i = 0; i < nb_args; i++) {
-        monitor_printf(mon, "arg%d = '%s'\n", i, args[i]);
+    {
+        int i;
+        for (i = 0; i < nb_args; i++) {
+            monitor_printf(mon, "arg%d = '%s'\n", i, args[i]);
+        }
     }
 #endif
 
