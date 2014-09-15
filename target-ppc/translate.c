@@ -189,6 +189,7 @@ typedef struct DisasContext {
     uint32_t opcode;
     uint32_t exception;
     /* Routine used to access memory */
+    bool pr, hv;
     int mem_idx;
     int access_type;
     /* Translation flags */
@@ -642,20 +643,6 @@ static opc_handler_t invalid_handler = {
     .type2   = PPC_NONE,
     .handler = gen_invalid,
 };
-
-#if defined(TARGET_PPC64)
-/* NOTE: as this time, the only use of is_user_mode() is in 64 bit code.  And */
-/*       so the function is wrapped in the standard 64-bit ifdef in order to  */
-/*       avoid compiler warnings in 32-bit implementations.                   */
-static bool is_user_mode(DisasContext *ctx)
-{
-#if defined(CONFIG_USER_ONLY)
-    return true;
-#else
-    return ctx->mem_idx == 0;
-#endif
-}
-#endif
 
 /***                           Integer comparison                          ***/
 
@@ -1456,25 +1443,25 @@ static void gen_or(DisasContext *ctx)
             break;
 #if !defined(CONFIG_USER_ONLY)
         case 31:
-            if (ctx->mem_idx > 0) {
+            if (!ctx->pr) {
                 /* Set process priority to very low */
                 prio = 1;
             }
             break;
         case 5:
-            if (ctx->mem_idx > 0) {
+            if (!ctx->pr) {
                 /* Set process priority to medium-hight */
                 prio = 5;
             }
             break;
         case 3:
-            if (ctx->mem_idx > 0) {
+            if (!ctx->pr) {
                 /* Set process priority to high */
                 prio = 6;
             }
             break;
         case 7:
-            if (ctx->mem_idx > 1) {
+            if (ctx->hv) {
                 /* Set process priority to very high */
                 prio = 7;
             }
@@ -2901,7 +2888,7 @@ static void gen_lq(DisasContext *ctx)
     bool legal_in_user_mode = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
     bool le_is_supported = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
 
-    if (!legal_in_user_mode && is_user_mode(ctx)) {
+    if (!legal_in_user_mode && ctx->pr) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -3024,7 +3011,7 @@ static void gen_std(DisasContext *ctx)
         bool legal_in_user_mode = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
         bool le_is_supported = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
 
-        if (!legal_in_user_mode && is_user_mode(ctx)) {
+        if (!legal_in_user_mode && ctx->pr) {
             gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
             return;
         }
@@ -4002,14 +3989,14 @@ static void gen_mcrf(DisasContext *ctx)
 
 /***                           System linkage                              ***/
 
-/* rfi (mem_idx only) */
+/* rfi (supervisor only) */
 static void gen_rfi(DisasContext *ctx)
 {
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
     /* Restore CPU state */
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -4026,7 +4013,7 @@ static void gen_rfid(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
     /* Restore CPU state */
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -4042,7 +4029,7 @@ static void gen_hrfid(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
     /* Restore CPU state */
-    if (unlikely(ctx->mem_idx <= 1)) {
+    if (unlikely(!ctx->hv)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -4211,7 +4198,7 @@ static void gen_mfmsr(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -4235,9 +4222,9 @@ static inline void gen_op_mfspr(DisasContext *ctx)
     uint32_t sprn = SPR(ctx->opcode);
 
 #if !defined(CONFIG_USER_ONLY)
-    if (ctx->mem_idx == 2)
+    if (ctx->hv)
         read_cb = ctx->spr_cb[sprn].hea_read;
-    else if (ctx->mem_idx)
+    else if (!ctx->pr)
         read_cb = ctx->spr_cb[sprn].oea_read;
     else
 #endif
@@ -4315,7 +4302,7 @@ static void gen_mtmsrd(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -4346,7 +4333,7 @@ static void gen_mtmsr(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -4386,9 +4373,9 @@ static void gen_mtspr(DisasContext *ctx)
     uint32_t sprn = SPR(ctx->opcode);
 
 #if !defined(CONFIG_USER_ONLY)
-    if (ctx->mem_idx == 2)
+    if (ctx->hv)
         write_cb = ctx->spr_cb[sprn].hea_write;
-    else if (ctx->mem_idx)
+    else if (!ctx->pr)
         write_cb = ctx->spr_cb[sprn].oea_write;
     else
 #endif
@@ -4435,7 +4422,7 @@ static void gen_dcbi(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
     TCGv EA, val;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -4572,7 +4559,7 @@ static void gen_mfsr(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -4589,7 +4576,7 @@ static void gen_mfsrin(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -4608,7 +4595,7 @@ static void gen_mtsr(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -4625,7 +4612,7 @@ static void gen_mtsrin(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -4647,7 +4634,7 @@ static void gen_mfsr_64b(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -4664,7 +4651,7 @@ static void gen_mfsrin_64b(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -4683,7 +4670,7 @@ static void gen_mtsr_64b(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -4700,7 +4687,7 @@ static void gen_mtsrin_64b(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -4718,7 +4705,7 @@ static void gen_slbmte(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -4732,7 +4719,7 @@ static void gen_slbmfee(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -4746,7 +4733,7 @@ static void gen_slbmfev(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -4757,7 +4744,7 @@ static void gen_slbmfev(DisasContext *ctx)
 #endif /* defined(TARGET_PPC64) */
 
 /***                      Lookaside buffer management                      ***/
-/* Optional & mem_idx only: */
+/* Optional & supervisor only: */
 
 /* tlbia */
 static void gen_tlbia(DisasContext *ctx)
@@ -4765,7 +4752,7 @@ static void gen_tlbia(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -4779,7 +4766,7 @@ static void gen_tlbiel(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -4793,7 +4780,7 @@ static void gen_tlbie(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -4814,7 +4801,7 @@ static void gen_tlbsync(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -4832,7 +4819,7 @@ static void gen_slbia(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -4846,7 +4833,7 @@ static void gen_slbie(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -5554,7 +5541,7 @@ static void gen_mfrom(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -5570,7 +5557,7 @@ static void gen_tlbld_6xx(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -5584,7 +5571,7 @@ static void gen_tlbli_6xx(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -5600,7 +5587,7 @@ static void gen_tlbld_74xx(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -5614,7 +5601,7 @@ static void gen_tlbli_74xx(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -5637,7 +5624,7 @@ static void gen_cli(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -5658,7 +5645,7 @@ static void gen_mfsri(DisasContext *ctx)
     int ra = rA(ctx->opcode);
     int rd = rD(ctx->opcode);
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -5679,7 +5666,7 @@ static void gen_rac(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -5695,7 +5682,7 @@ static void gen_rfsvc(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -5857,7 +5844,7 @@ static void gen_tlbiva(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6090,7 +6077,7 @@ static void gen_mfdcr(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
     TCGv dcrn;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -6109,7 +6096,7 @@ static void gen_mtdcr(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
     TCGv dcrn;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -6128,7 +6115,7 @@ static void gen_mfdcrx(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -6147,7 +6134,7 @@ static void gen_mtdcrx(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
@@ -6185,7 +6172,7 @@ static void gen_dccci(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6200,7 +6187,7 @@ static void gen_dcread(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
     TCGv EA, val;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6230,7 +6217,7 @@ static void gen_iccci(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6244,7 +6231,7 @@ static void gen_icread(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6252,13 +6239,13 @@ static void gen_icread(DisasContext *ctx)
 #endif
 }
 
-/* rfci (mem_idx only) */
+/* rfci (supervisor only) */
 static void gen_rfci_40x(DisasContext *ctx)
 {
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6273,7 +6260,7 @@ static void gen_rfci(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6291,7 +6278,7 @@ static void gen_rfdi(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6307,7 +6294,7 @@ static void gen_rfmci(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6325,7 +6312,7 @@ static void gen_tlbre_40x(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6352,7 +6339,7 @@ static void gen_tlbsx_40x(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6376,7 +6363,7 @@ static void gen_tlbwe_40x(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6404,7 +6391,7 @@ static void gen_tlbre_440(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6433,7 +6420,7 @@ static void gen_tlbsx_440(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6457,7 +6444,7 @@ static void gen_tlbwe_440(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6487,7 +6474,7 @@ static void gen_tlbre_booke206(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6503,7 +6490,7 @@ static void gen_tlbsx_booke206(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6527,7 +6514,7 @@ static void gen_tlbwe_booke206(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6542,7 +6529,7 @@ static void gen_tlbivax_booke206(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6561,7 +6548,7 @@ static void gen_tlbilx_booke206(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6596,7 +6583,7 @@ static void gen_wrtee(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
     TCGv t0;
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6618,7 +6605,7 @@ static void gen_wrteei(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(!ctx->mem_idx)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6671,7 +6658,7 @@ static void gen_msgclr(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(ctx->mem_idx == 0)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -6685,7 +6672,7 @@ static void gen_msgsnd(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
-    if (unlikely(ctx->mem_idx == 0)) {
+    if (unlikely(ctx->pr)) {
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
@@ -11298,6 +11285,8 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
     ctx.tb = tb;
     ctx.exception = POWERPC_EXCP_NONE;
     ctx.spr_cb = env->spr_cb;
+    ctx.pr = msr_pr;
+    ctx.hv = !msr_pr && msr_hv;
     ctx.mem_idx = env->mmu_idx;
     ctx.insns_flags = env->insns_flags;
     ctx.insns_flags2 = env->insns_flags2;
