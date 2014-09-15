@@ -403,10 +403,18 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
 void hmp_info_block(Monitor *mon, const QDict *qdict)
 {
     BlockInfoList *block_list, *info;
+    BlockDeviceInfoList *blockdev_list, *blockdev;
     const char *device = qdict_get_try_str(qdict, "device");
     bool verbose = qdict_get_try_bool(qdict, "verbose", 0);
+    bool nodes = qdict_get_try_bool(qdict, "nodes", 0);
+    bool printed = false;
 
-    block_list = qmp_query_block(false);
+    /* Print BlockBackend information */
+    if (!nodes) {
+        block_list = qmp_query_block(false);
+    } else {
+        block_list = NULL;
+    }
 
     for (info = block_list; info; info = info->next) {
         if (device && strcmp(device, info->value->device)) {
@@ -420,9 +428,30 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
         print_block_info(mon, info->value, info->value->has_inserted
                                            ? info->value->inserted : NULL,
                          verbose);
+        printed = true;
     }
 
     qapi_free_BlockInfoList(block_list);
+
+    if ((!device && !nodes) || printed) {
+        return;
+    }
+
+    /* Print node information */
+    blockdev_list = qmp_query_named_block_nodes(NULL);
+    for (blockdev = blockdev_list; blockdev; blockdev = blockdev->next) {
+        assert(blockdev->value->has_node_name);
+        if (device && strcmp(device, blockdev->value->node_name)) {
+            continue;
+        }
+
+        if (blockdev != blockdev_list) {
+            monitor_printf(mon, "\n");
+        }
+
+        print_block_info(mon, NULL, blockdev->value, verbose);
+    }
+    qapi_free_BlockDeviceInfoList(blockdev_list);
 }
 
 void hmp_info_blockstats(Monitor *mon, const QDict *qdict)
