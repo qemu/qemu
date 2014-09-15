@@ -3363,9 +3363,8 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
 
     bdrv_set_dirty(bs, sector_num, nb_sectors);
 
-    if (bs->wr_highest_sector < sector_num + nb_sectors - 1) {
-        bs->wr_highest_sector = sector_num + nb_sectors - 1;
-    }
+    block_acct_highest_sector(&bs->stats, sector_num, nb_sectors);
+
     if (bs->growable && ret >= 0) {
         bs->total_sectors = MAX(bs->total_sectors, sector_num + nb_sectors);
     }
@@ -3639,6 +3638,19 @@ BlockErrorAction bdrv_get_error_action(BlockDriverState *bs, bool is_read, int e
     }
 }
 
+static void send_qmp_error_event(BlockDriverState *bs,
+                                 BlockErrorAction action,
+                                 bool is_read, int error)
+{
+    BlockErrorAction ac;
+
+    ac = is_read ? IO_OPERATION_TYPE_READ : IO_OPERATION_TYPE_WRITE;
+    qapi_event_send_block_io_error(bdrv_get_device_name(bs), ac, action,
+                                   bdrv_iostatus_is_enabled(bs),
+                                   error == ENOSPC, strerror(error),
+                                   &error_abort);
+}
+
 /* This is done by device models because, while the block layer knows
  * about the error, it does not know whether an operation comes from
  * the device or the block layer (from a job, for example).
@@ -3664,16 +3676,10 @@ void bdrv_error_action(BlockDriverState *bs, BlockErrorAction action,
          * also ensures that the STOP/RESUME pair of events is emitted.
          */
         qemu_system_vmstop_request_prepare();
-        qapi_event_send_block_io_error(bdrv_get_device_name(bs),
-                                       is_read ? IO_OPERATION_TYPE_READ :
-                                       IO_OPERATION_TYPE_WRITE,
-                                       action, &error_abort);
+        send_qmp_error_event(bs, action, is_read, error);
         qemu_system_vmstop_request(RUN_STATE_IO_ERROR);
     } else {
-        qapi_event_send_block_io_error(bdrv_get_device_name(bs),
-                                       is_read ? IO_OPERATION_TYPE_READ :
-                                       IO_OPERATION_TYPE_WRITE,
-                                       action, &error_abort);
+        send_qmp_error_event(bs, action, is_read, error);
     }
 }
 
@@ -5566,27 +5572,6 @@ void bdrv_iostatus_set_err(BlockDriverState *bs, int error)
     }
 }
 
-void
-bdrv_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie, int64_t bytes,
-        enum BlockAcctType type)
-{
-    assert(type < BDRV_MAX_IOTYPE);
-
-    cookie->bytes = bytes;
-    cookie->start_time_ns = get_clock();
-    cookie->type = type;
-}
-
-void
-bdrv_acct_done(BlockDriverState *bs, BlockAcctCookie *cookie)
-{
-    assert(cookie->type < BDRV_MAX_IOTYPE);
-
-    bs->nr_bytes[cookie->type] += cookie->bytes;
-    bs->nr_ops[cookie->type]++;
-    bs->total_time_ns[cookie->type] += get_clock() - cookie->start_time_ns;
-}
-
 void bdrv_img_create(const char *filename, const char *fmt,
                      const char *base_filename, const char *base_fmt,
                      char *options, uint64_t img_size, int flags,
@@ -6102,4 +6087,15 @@ void bdrv_refresh_filename(BlockDriverState *bs)
                  qstring_get_str(json));
         QDECREF(json);
     }
+}
+
+/* This accessor function purpose is to allow the device models to access the
+ * BlockAcctStats structure embedded inside a BlockDriverState without being
+ * aware of the BlockDriverState structure layout.
+ * It will go away when the BlockAcctStats structure will be moved inside
+ * the device models.
+ */
+BlockAcctStats *bdrv_get_stats(BlockDriverState *bs)
+{
+    return &bs->stats;
 }

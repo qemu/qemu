@@ -700,7 +700,8 @@ static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
     logout("\n");
 
     /* Read out options. */
-    bytes = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    bytes = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                     BDRV_SECTOR_SIZE);
 #if defined(CONFIG_VDI_BLOCK_SIZE)
     /* TODO: Additional checks (SECTOR_SIZE * 2^n, ...). */
     block_size = qemu_opt_get_size_del(opts,

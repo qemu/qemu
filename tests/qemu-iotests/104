@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# Resizing images
+# Test image creation with aligned and unaligned sizes
 #
-# Copyright (C) 2010 IBM, Corp.
+# Copyright (C) 2014 Fujitsu.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #
 
 # creator
-owner=stefanha@linux.vnet.ibm.com
+owner=hutao@cn.fujitsu.com
 
 seq=`basename $0`
 echo "QA output created by $seq"
@@ -37,40 +37,19 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # get standard environment, filters and checks
 . ./common.rc
 . ./common.filter
-. ./common.pattern
 
-_supported_fmt raw qcow2 qed
-_supported_proto file sheepdog rbd nfs archipelago
+_supported_fmt generic
+_supported_proto generic
 _supported_os Linux
 
-echo "=== Creating image"
+echo "=== Check qemu-img info output ==="
 echo
-small_size=$((128 * 1024 * 1024))
-big_size=$((384 * 1024 * 1024))
-_make_test_img $small_size
+image_sizes="1024 1234"
 
-echo
-echo "=== Writing whole image"
-io_pattern write 0 $small_size 0 1 0xc5
-_check_test_img
-
-echo
-echo "=== Resizing image"
-$QEMU_IO "$TEST_IMG" <<EOF | _filter_qemu_io
-length
-truncate $big_size
-length
-EOF
-_check_test_img
-
-echo
-echo "=== Verifying image size after reopen"
-$QEMU_IO -c "length" "$TEST_IMG"
-
-echo
-echo "=== Verifying resized image"
-io_pattern read 0 $small_size 0 1 0xc5
-io_pattern read $small_size $(($big_size - $small_size)) 0 1 0
+for s in $image_sizes; do
+    _make_test_img $s | _filter_img_create
+    _img_info | _filter_img_info
+done
 
 # success, all done
 echo "*** done"

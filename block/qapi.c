@@ -333,15 +333,16 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs)
     }
 
     s->stats = g_malloc0(sizeof(*s->stats));
-    s->stats->rd_bytes = bs->nr_bytes[BDRV_ACCT_READ];
-    s->stats->wr_bytes = bs->nr_bytes[BDRV_ACCT_WRITE];
-    s->stats->rd_operations = bs->nr_ops[BDRV_ACCT_READ];
-    s->stats->wr_operations = bs->nr_ops[BDRV_ACCT_WRITE];
-    s->stats->wr_highest_offset = bs->wr_highest_sector * BDRV_SECTOR_SIZE;
-    s->stats->flush_operations = bs->nr_ops[BDRV_ACCT_FLUSH];
-    s->stats->wr_total_time_ns = bs->total_time_ns[BDRV_ACCT_WRITE];
-    s->stats->rd_total_time_ns = bs->total_time_ns[BDRV_ACCT_READ];
-    s->stats->flush_total_time_ns = bs->total_time_ns[BDRV_ACCT_FLUSH];
+    s->stats->rd_bytes = bs->stats.nr_bytes[BLOCK_ACCT_READ];
+    s->stats->wr_bytes = bs->stats.nr_bytes[BLOCK_ACCT_WRITE];
+    s->stats->rd_operations = bs->stats.nr_ops[BLOCK_ACCT_READ];
+    s->stats->wr_operations = bs->stats.nr_ops[BLOCK_ACCT_WRITE];
+    s->stats->wr_highest_offset =
+        bs->stats.wr_highest_sector * BDRV_SECTOR_SIZE;
+    s->stats->flush_operations = bs->stats.nr_ops[BLOCK_ACCT_FLUSH];
+    s->stats->wr_total_time_ns = bs->stats.total_time_ns[BLOCK_ACCT_WRITE];
+    s->stats->rd_total_time_ns = bs->stats.total_time_ns[BLOCK_ACCT_READ];
+    s->stats->flush_total_time_ns = bs->stats.total_time_ns[BLOCK_ACCT_FLUSH];
 
     if (bs->file) {
         s->has_parent = true;

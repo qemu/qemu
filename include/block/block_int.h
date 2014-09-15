@@ -24,6 +24,7 @@
 #ifndef BLOCK_INT_H
 #define BLOCK_INT_H
 
+#include "block/accounting.h"
 #include "block/block.h"
 #include "qemu/option.h"
 #include "qemu/queue.h"
@@ -359,10 +360,7 @@ struct BlockDriverState {
     bool         io_limits_enabled;
 
     /* I/O stats (display with "info blockstats"). */
-    uint64_t nr_bytes[BDRV_MAX_IOTYPE];
-    uint64_t nr_ops[BDRV_MAX_IOTYPE];
-    uint64_t total_time_ns[BDRV_MAX_IOTYPE];
-    uint64_t wr_highest_sector;
+    BlockAcctStats stats;
 
     /* I/O Limits */
     BlockLimits bl;

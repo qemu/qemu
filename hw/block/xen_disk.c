@@ -493,7 +493,7 @@ static void qemu_aio_complete(void *opaque, int ret)
             break;
         }
     case BLKIF_OP_READ:
-        bdrv_acct_done(ioreq->blkdev->bs, &ioreq->acct);
+        block_acct_done(bdrv_get_stats(ioreq->blkdev->bs), &ioreq->acct);
         break;
     case BLKIF_OP_DISCARD:
     default:
@@ -518,7 +518,8 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
 
     switch (ioreq->req.operation) {
     case BLKIF_OP_READ:
-        bdrv_acct_start(blkdev->bs, &ioreq->acct, ioreq->v.size, BDRV_ACCT_READ);
+        block_acct_start(bdrv_get_stats(blkdev->bs), &ioreq->acct,
+                         ioreq->v.size, BLOCK_ACCT_READ);
         ioreq->aio_inflight++;
         bdrv_aio_readv(blkdev->bs, ioreq->start / BLOCK_SIZE,
                        &ioreq->v, ioreq->v.size / BLOCK_SIZE,
@@ -530,7 +531,8 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
             break;
         }
 
-        bdrv_acct_start(blkdev->bs, &ioreq->acct, ioreq->v.size, BDRV_ACCT_WRITE);
+        block_acct_start(bdrv_get_stats(blkdev->bs), &ioreq->acct,
+                         ioreq->v.size, BLOCK_ACCT_WRITE);
         ioreq->aio_inflight++;
         bdrv_aio_writev(blkdev->bs, ioreq->start / BLOCK_SIZE,
                         &ioreq->v, ioreq->v.size / BLOCK_SIZE,
@@ -852,26 +854,23 @@ static int blk_connect(struct XenDevice *xendev)
     blkdev->dinfo = drive_get(IF_XEN, 0, index);
     if (!blkdev->dinfo) {
         Error *local_err = NULL;
+        BlockDriver *drv;
+
         /* setup via xenbus -> create new block driver instance */
         xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
-        blkdev->bs = bdrv_new(blkdev->dev, &local_err);
-        if (local_err) {
-            blkdev->bs = NULL;
-        }
-        if (blkdev->bs) {
-            BlockDriver *drv = bdrv_find_whitelisted_format(blkdev->fileproto,
-                                                           readonly);
-            if (bdrv_open(&blkdev->bs, blkdev->filename, NULL, NULL, qflags,
-                          drv, &local_err) != 0)
-            {
-                xen_be_printf(&blkdev->xendev, 0, "error: %s\n",
-                              error_get_pretty(local_err));
-                error_free(local_err);
-                bdrv_unref(blkdev->bs);
-                blkdev->bs = NULL;
-            }
-        }
+        blkdev->bs = bdrv_new(blkdev->dev, NULL);
         if (!blkdev->bs) {
+            return -1;
+        }
+
+        drv = bdrv_find_whitelisted_format(blkdev->fileproto, readonly);
+        if (bdrv_open(&blkdev->bs, blkdev->filename, NULL, NULL, qflags,
+                      drv, &local_err) != 0) {
+            xen_be_printf(&blkdev->xendev, 0, "error: %s\n",
+                          error_get_pretty(local_err));
+            error_free(local_err);
+            bdrv_unref(blkdev->bs);
+            blkdev->bs = NULL;
             return -1;
         }
     } else {

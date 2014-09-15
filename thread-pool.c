@@ -20,7 +20,6 @@
 #include "qemu/osdep.h"
 #include "block/coroutine.h"
 #include "trace.h"
-#include "block/block_int.h"
 #include "block/thread-pool.h"
 #include "qemu/main-loop.h"
 

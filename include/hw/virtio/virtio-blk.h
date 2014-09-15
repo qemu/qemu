@@ -18,6 +18,7 @@
 #include "hw/block/block.h"
 #include "sysemu/iothread.h"
 #include "block/block.h"
+#include "block/accounting.h"
 
 #define TYPE_VIRTIO_BLK "virtio-blk-device"
 #define VIRTIO_BLK(obj) \

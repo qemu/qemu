@@ -1739,12 +1739,20 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");
     BlockDriverState *bs;
+    DriveInfo *dinfo;
     AioContext *aio_context;
     Error *local_err = NULL;
 
     bs = bdrv_find(id);
     if (!bs) {
         error_report("Device '%s' not found", id);
+        return -1;
+    }
+
+    dinfo = drive_get_by_blockdev(bs);
+    if (dinfo && !dinfo->enable_auto_del) {
+        error_report("Deleting device added with blockdev-add"
+                     " is not supported");
         return -1;
     }
 
@@ -1775,7 +1783,7 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
         bdrv_set_on_error(bs, BLOCKDEV_ON_ERROR_REPORT,
                           BLOCKDEV_ON_ERROR_REPORT);
     } else {
-        drive_del(drive_get_by_blockdev(bs));
+        drive_del(dinfo);
     }
 
     aio_context_release(aio_context);

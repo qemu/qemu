@@ -192,5 +192,26 @@ _filter_img_create()
         -e "s/archipelago:a/TEST_DIR\//g"
 }
 
+_filter_img_info()
+{
+    sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
+        -e "s#$TEST_DIR#TEST_DIR#g" \
+        -e "s#$IMGFMT#IMGFMT#g" \
+        -e "/encrypted: yes/d" \
+        -e "/cluster_size: [0-9]\\+/d" \
+        -e "/table_size: [0-9]\\+/d" \
+        -e "/compat: '[^']*'/d" \
+        -e "/compat6: \\(on\\|off\\)/d" \
+        -e "/static: \\(on\\|off\\)/d" \
+        -e "/zeroed_grain: \\(on\\|off\\)/d" \
+        -e "/subformat: '[^']*'/d" \
+        -e "/adapter_type: '[^']*'/d" \
+        -e "/lazy_refcounts: \\(on\\|off\\)/d" \
+        -e "/block_size: [0-9]\\+/d" \
+        -e "/block_state_zero: \\(on\\|off\\)/d" \
+        -e "/log_size: [0-9]\\+/d" \
+        -e "s/archipelago:a/TEST_DIR\//g"
+}
+
 # make sure this script returns success
 /bin/true

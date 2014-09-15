@@ -30,6 +30,7 @@
 #include "block/thread-pool.h"
 #include "qemu/iov.h"
 #include "raw-aio.h"
+#include "qapi/util.h"
 
 #if defined(__APPLE__) && (__MACH__)
 #include <paths.h>
@@ -1365,44 +1366,92 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
     int result = 0;
     int64_t total_size = 0;
     bool nocow = false;
+    PreallocMode prealloc;
+    char *buf = NULL;
+    Error *local_err = NULL;
 
     strstart(filename, "file:", &filename);
 
     /* Read out options */
-    total_size =
-        qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0) / BDRV_SECTOR_SIZE;
+    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                          BDRV_SECTOR_SIZE);
     nocow = qemu_opt_get_bool(opts, BLOCK_OPT_NOCOW, false);
+    buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
+    prealloc = qapi_enum_parse(PreallocMode_lookup, buf,
+                               PREALLOC_MODE_MAX, PREALLOC_MODE_OFF,
+                               &local_err);
+    g_free(buf);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        result = -EINVAL;
+        goto out;
+    }
 
     fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY,
                    0644);
     if (fd < 0) {
         result = -errno;
         error_setg_errno(errp, -result, "Could not create file");
-    } else {
-        if (nocow) {
-#ifdef __linux__
-            /* Set NOCOW flag to solve performance issue on fs like btrfs.
-             * This is an optimisation. The FS_IOC_SETFLAGS ioctl return value
-             * will be ignored since any failure of this operation should not
-             * block the left work.
-             */
-            int attr;
-            if (ioctl(fd, FS_IOC_GETFLAGS, &attr) == 0) {
-                attr |= FS_NOCOW_FL;
-                ioctl(fd, FS_IOC_SETFLAGS, &attr);
-            }
-#endif
-        }
-
-        if (ftruncate(fd, total_size * BDRV_SECTOR_SIZE) != 0) {
-            result = -errno;
-            error_setg_errno(errp, -result, "Could not resize file");
-        }
-        if (qemu_close(fd) != 0) {
-            result = -errno;
-            error_setg_errno(errp, -result, "Could not close the new file");
-        }
+        goto out;
     }
+
+    if (nocow) {
+#ifdef __linux__
+        /* Set NOCOW flag to solve performance issue on fs like btrfs.
+         * This is an optimisation. The FS_IOC_SETFLAGS ioctl return value
+         * will be ignored since any failure of this operation should not
+         * block the left work.
+         */
+        int attr;
+        if (ioctl(fd, FS_IOC_GETFLAGS, &attr) == 0) {
+            attr |= FS_NOCOW_FL;
+            ioctl(fd, FS_IOC_SETFLAGS, &attr);
+        }
+#endif
+    }
+
+    if (ftruncate(fd, total_size) != 0) {
+        result = -errno;
+        error_setg_errno(errp, -result, "Could not resize file");
+        goto out_close;
+    }
+
+    if (prealloc == PREALLOC_MODE_FALLOC) {
+        /* posix_fallocate() doesn't set errno. */
+        result = -posix_fallocate(fd, 0, total_size);
+        if (result != 0) {
+            error_setg_errno(errp, -result,
+                             "Could not preallocate data for the new file");
+        }
+    } else if (prealloc == PREALLOC_MODE_FULL) {
+        buf = g_malloc0(65536);
+        int64_t num = 0, left = total_size;
+
+        while (left > 0) {
+            num = MIN(left, 65536);
+            result = write(fd, buf, num);
+            if (result < 0) {
+                result = -errno;
+                error_setg_errno(errp, -result,
+                                 "Could not write to the new file");
+                break;
+            }
+            left -= num;
+        }
+        fsync(fd);
+        g_free(buf);
+    } else if (prealloc != PREALLOC_MODE_OFF) {
+        result = -EINVAL;
+        error_setg(errp, "Unsupported preallocation mode: %s",
+                   PreallocMode_lookup[prealloc]);
+    }
+
+out_close:
+    if (qemu_close(fd) != 0 && result == 0) {
+        result = -errno;
+        error_setg_errno(errp, -result, "Could not close the new file");
+    }
+out:
     return result;
 }
 
@@ -1584,6 +1633,11 @@ static QemuOptsList raw_create_opts = {
             .name = BLOCK_OPT_NOCOW,
             .type = QEMU_OPT_BOOL,
             .help = "Turn off copy-on-write (valid only on btrfs)"
+        },
+        {
+            .name = BLOCK_OPT_PREALLOC,
+            .type = QEMU_OPT_STRING,
+            .help = "Preallocation mode (allowed values: off, falloc, full)"
         },
         { /* end of list */ }
     }
@@ -1966,8 +2020,8 @@ static int hdev_create(const char *filename, QemuOpts *opts,
     (void)has_prefix;
 
     /* Read out options */
-    total_size =
-        qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0) / BDRV_SECTOR_SIZE;
+    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                          BDRV_SECTOR_SIZE);
 
     fd = qemu_open(filename, O_WRONLY | O_BINARY);
     if (fd < 0) {
@@ -1983,7 +2037,7 @@ static int hdev_create(const char *filename, QemuOpts *opts,
         error_setg(errp,
                    "The given file is neither a block nor a character device");
         ret = -ENODEV;
-    } else if (lseek(fd, 0, SEEK_END) < total_size * BDRV_SECTOR_SIZE) {
+    } else if (lseek(fd, 0, SEEK_END) < total_size) {
         error_setg(errp, "Device is too small");
         ret = -ENOSPC;
     }

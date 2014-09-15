@@ -494,8 +494,8 @@ static int qemu_gluster_create(const char *filename,
         goto out;
     }
 
-    total_size =
-        qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0) / BDRV_SECTOR_SIZE;
+    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                          BDRV_SECTOR_SIZE);
 
     tmp = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
     if (!tmp || !strcmp(tmp, "off")) {
@@ -516,9 +516,8 @@ static int qemu_gluster_create(const char *filename,
     if (!fd) {
         ret = -errno;
     } else {
-        if (!glfs_ftruncate(fd, total_size * BDRV_SECTOR_SIZE)) {
-            if (prealloc && qemu_gluster_zerofill(fd, 0,
-                    total_size * BDRV_SECTOR_SIZE)) {
+        if (!glfs_ftruncate(fd, total_size)) {
+            if (prealloc && qemu_gluster_zerofill(fd, 0, total_size)) {
                 ret = -errno;
             }
         } else {

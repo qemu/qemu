@@ -5,6 +5,7 @@
 #include "qemu-common.h"
 #include "qemu/option.h"
 #include "block/coroutine.h"
+#include "block/accounting.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi-types.h"
 
@@ -485,23 +486,6 @@ void bdrv_op_block_all(BlockDriverState *bs, Error *reason);
 void bdrv_op_unblock_all(BlockDriverState *bs, Error *reason);
 bool bdrv_op_blocker_is_empty(BlockDriverState *bs);
 
-enum BlockAcctType {
-    BDRV_ACCT_READ,
-    BDRV_ACCT_WRITE,
-    BDRV_ACCT_FLUSH,
-    BDRV_MAX_IOTYPE,
-};
-
-typedef struct BlockAcctCookie {
-    int64_t bytes;
-    int64_t start_time_ns;
-    enum BlockAcctType type;
-} BlockAcctCookie;
-
-void bdrv_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
-        int64_t bytes, enum BlockAcctType type);
-void bdrv_acct_done(BlockDriverState *bs, BlockAcctCookie *cookie);
-
 typedef enum {
     BLKDBG_L1_UPDATE,
 
@@ -590,5 +574,7 @@ void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context);
 void bdrv_io_plug(BlockDriverState *bs);
 void bdrv_io_unplug(BlockDriverState *bs);
 void bdrv_flush_io_queue(BlockDriverState *bs);
+
+BlockAcctStats *bdrv_get_stats(BlockDriverState *bs);
 
 #endif

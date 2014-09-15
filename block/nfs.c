@@ -418,7 +418,8 @@ static int nfs_file_create(const char *url, QemuOpts *opts, Error **errp)
     client->aio_context = qemu_get_aio_context();
 
     /* Read out options */
-    total_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                          BDRV_SECTOR_SIZE);
 
     ret = nfs_client_open(client, url, O_CREAT, errp);
     if (ret < 0) {

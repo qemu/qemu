@@ -18,6 +18,7 @@ block-obj-$(CONFIG_RBD) += rbd.o
 block-obj-$(CONFIG_GLUSTERFS) += gluster.o
 block-obj-$(CONFIG_ARCHIPELAGO) += archipelago.o
 block-obj-$(CONFIG_LIBSSH2) += ssh.o
+block-obj-y += accounting.o
 
 common-obj-y += stream.o
 common-obj-y += commit.o

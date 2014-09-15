@@ -74,7 +74,7 @@ static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
         s->rq = req;
     } else if (action == BLOCK_ERROR_ACTION_REPORT) {
         virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
-        bdrv_acct_done(s->bs, &req->acct);
+        block_acct_done(bdrv_get_stats(s->bs), &req->acct);
         virtio_blk_free_request(req);
     }
 
@@ -96,7 +96,7 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
     }
 
     virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
-    bdrv_acct_done(req->dev->bs, &req->acct);
+    block_acct_done(bdrv_get_stats(req->dev->bs), &req->acct);
     virtio_blk_free_request(req);
 }
 
@@ -111,7 +111,7 @@ static void virtio_blk_flush_complete(void *opaque, int ret)
     }
 
     virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
-    bdrv_acct_done(req->dev->bs, &req->acct);
+    block_acct_done(bdrv_get_stats(req->dev->bs), &req->acct);
     virtio_blk_free_request(req);
 }
 
@@ -279,7 +279,8 @@ void virtio_submit_multiwrite(BlockDriverState *bs, MultiReqBuffer *mrb)
 
 static void virtio_blk_handle_flush(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 {
-    bdrv_acct_start(req->dev->bs, &req->acct, 0, BDRV_ACCT_FLUSH);
+    block_acct_start(bdrv_get_stats(req->dev->bs), &req->acct, 0,
+                     BLOCK_ACCT_FLUSH);
 
     /*
      * Make sure all outstanding writes are posted to the backing device.
@@ -322,7 +323,8 @@ static void virtio_blk_handle_write(VirtIOBlockReq *req, MultiReqBuffer *mrb)
         return;
     }
 
-    bdrv_acct_start(req->dev->bs, &req->acct, req->qiov.size, BDRV_ACCT_WRITE);
+    block_acct_start(bdrv_get_stats(req->dev->bs), &req->acct, req->qiov.size,
+                     BLOCK_ACCT_WRITE);
 
     if (mrb->num_writes == 32) {
         virtio_submit_multiwrite(req->dev->bs, mrb);
@@ -353,7 +355,8 @@ static void virtio_blk_handle_read(VirtIOBlockReq *req)
         return;
     }
 
-    bdrv_acct_start(req->dev->bs, &req->acct, req->qiov.size, BDRV_ACCT_READ);
+    block_acct_start(bdrv_get_stats(req->dev->bs), &req->acct, req->qiov.size,
+                     BLOCK_ACCT_READ);
     bdrv_aio_readv(req->dev->bs, sector, &req->qiov,
                    req->qiov.size / BDRV_SECTOR_SIZE,
                    virtio_blk_rw_complete, req);

@@ -197,7 +197,7 @@ static void nvme_rw_cb(void *opaque, int ret)
     NvmeCtrl *n = sq->ctrl;
     NvmeCQueue *cq = n->cq[sq->cqid];
 
-    bdrv_acct_done(n->conf.bs, &req->acct);
+    block_acct_done(bdrv_get_stats(n->conf.bs), &req->acct);
     if (!ret) {
         req->status = NVME_SUCCESS;
     } else {
@@ -232,7 +232,7 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     assert((nlb << data_shift) == req->qsg.size);
 
     dma_acct_start(n->conf.bs, &req->acct, &req->qsg, is_write ?
-        BDRV_ACCT_WRITE : BDRV_ACCT_READ);
+        BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
     req->aiocb = is_write ?
         dma_bdrv_write(n->conf.bs, &req->qsg, aio_slba, nvme_rw_cb, req) :
         dma_bdrv_read(n->conf.bs, &req->qsg, aio_slba, nvme_rw_cb, req);
