@@ -80,7 +80,7 @@ pixman_format_code_t qemu_default_pixman_format(int bpp, bool native_endian)
         case 24:
             return PIXMAN_b8g8r8;
         case 32:
-            return PIXMAN_b8g8r8a8;
+            return PIXMAN_b8g8r8x8;
         break;
         }
     }
