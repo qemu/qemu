@@ -389,6 +389,9 @@ static void close_guest_eventfds(IVShmemState *s, int posn)
     if (!ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
         return;
     }
+    if (posn < 0 || posn >= s->nb_peers) {
+        return;
+    }
 
     guest_curr_max = s->peers[posn].nb_eventfds;
 
@@ -453,6 +456,11 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
         if (size > 0) {
             fifo8_push_all(&s->incoming_fifo, buf, size);
         }
+    }
+
+    if (incoming_posn < -1) {
+        IVSHMEM_DPRINTF("invalid incoming_posn %ld\n", incoming_posn);
+        return;
     }
 
     /* pick off s->server_chr->msgfd and store it, posn should accompany msg */
