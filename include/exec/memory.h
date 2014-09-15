@@ -150,6 +150,7 @@ struct MemoryRegion {
     bool terminates;
     bool romd_mode;
     bool ram;
+    bool skip_dump;
     bool readonly; /* For RAM regions */
     bool enabled;
     bool rom_device;
@@ -455,6 +456,24 @@ uint64_t memory_region_size(MemoryRegion *mr);
  * @mr: the memory region being queried
  */
 bool memory_region_is_ram(MemoryRegion *mr);
+
+/**
+ * memory_region_is_skip_dump: check whether a memory region should not be
+ *                             dumped
+ *
+ * Returns %true is a memory region should not be dumped(e.g. VFIO BAR MMAP).
+ *
+ * @mr: the memory region being queried
+ */
+bool memory_region_is_skip_dump(MemoryRegion *mr);
+
+/**
+ * memory_region_set_skip_dump: Set skip_dump flag, dump will ignore this memory
+ *                              region
+ *
+ * @mr: the memory region being queried
+ */
+void memory_region_set_skip_dump(MemoryRegion *mr);
 
 /**
  * memory_region_is_romd: check whether a memory region is in ROMD mode
