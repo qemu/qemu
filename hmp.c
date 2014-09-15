@@ -295,7 +295,21 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
 {
     ImageInfo *image_info;
 
-    monitor_printf(mon, "%s", info->device);
+    assert(!info || !info->has_inserted || info->inserted == inserted);
+
+    if (info) {
+        monitor_printf(mon, "%s", info->device);
+        if (inserted && inserted->has_node_name) {
+            monitor_printf(mon, " (%s)", inserted->node_name);
+        }
+    } else {
+        assert(inserted);
+        monitor_printf(mon, "%s",
+                       inserted->has_node_name
+                       ? inserted->node_name
+                       : "<anonymous>");
+    }
+
     if (inserted) {
         monitor_printf(mon, ": %s (%s%s%s)\n",
                        inserted->file,
@@ -306,15 +320,17 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
         monitor_printf(mon, ": [not inserted]\n");
     }
 
-    if (info->has_io_status && info->io_status != BLOCK_DEVICE_IO_STATUS_OK) {
-        monitor_printf(mon, "    I/O status:       %s\n",
-                       BlockDeviceIoStatus_lookup[info->io_status]);
-    }
+    if (info) {
+        if (info->has_io_status && info->io_status != BLOCK_DEVICE_IO_STATUS_OK) {
+            monitor_printf(mon, "    I/O status:       %s\n",
+                           BlockDeviceIoStatus_lookup[info->io_status]);
+        }
 
-    if (info->removable) {
-        monitor_printf(mon, "    Removable device: %slocked, tray %s\n",
-                       info->locked ? "" : "not ",
-                       info->tray_open ? "open" : "closed");
+        if (info->removable) {
+            monitor_printf(mon, "    Removable device: %slocked, tray %s\n",
+                           info->locked ? "" : "not ",
+                           info->tray_open ? "open" : "closed");
+        }
     }
 
 
