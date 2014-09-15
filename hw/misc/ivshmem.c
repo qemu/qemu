@@ -29,6 +29,7 @@
 
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <limits.h>
 
 #define PCI_VENDOR_ID_IVSHMEM   PCI_VENDOR_ID_REDHAT_QUMRANET
 #define PCI_DEVICE_ID_IVSHMEM   0x1110
@@ -410,14 +411,24 @@ static void close_guest_eventfds(IVShmemState *s, int posn)
 
 /* this function increase the dynamic storage need to store data about other
  * guests */
-static void increase_dynamic_storage(IVShmemState *s, int new_min_size) {
+static int increase_dynamic_storage(IVShmemState *s, int new_min_size)
+{
 
     int j, old_nb_alloc;
 
+    /* check for integer overflow */
+    if (new_min_size >= INT_MAX / sizeof(Peer) - 1 || new_min_size <= 0) {
+        return -1;
+    }
+
     old_nb_alloc = s->nb_peers;
 
-    while (new_min_size >= s->nb_peers)
-        s->nb_peers = s->nb_peers * 2;
+    if (new_min_size >= s->nb_peers) {
+        /* +1 because #new_min_size is used as last array index */
+        s->nb_peers = new_min_size + 1;
+    } else {
+        return 0;
+    }
 
     IVSHMEM_DPRINTF("bumping storage to %d guests\n", s->nb_peers);
     s->peers = g_realloc(s->peers, s->nb_peers * sizeof(Peer));
@@ -427,6 +438,8 @@ static void increase_dynamic_storage(IVShmemState *s, int new_min_size) {
         s->peers[j].eventfds = NULL;
         s->peers[j].nb_eventfds = 0;
     }
+
+    return 0;
 }
 
 static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
@@ -469,7 +482,13 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 
     /* make sure we have enough space for this guest */
     if (incoming_posn >= s->nb_peers) {
-        increase_dynamic_storage(s, incoming_posn);
+        if (increase_dynamic_storage(s, incoming_posn) < 0) {
+            error_report("increase_dynamic_storage() failed");
+            if (tmp_fd != -1) {
+                close(tmp_fd);
+            }
+            return;
+        }
     }
 
     if (tmp_fd == -1) {
