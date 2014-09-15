@@ -335,6 +335,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
         event = NULL;
         if ((DWORD) (ret - WAIT_OBJECT_0) < count) {
             event = events[ret - WAIT_OBJECT_0];
+            events[ret - WAIT_OBJECT_0] = events[--count];
         } else if (!have_select_revents) {
             break;
         }
@@ -343,9 +344,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
         blocking = false;
 
         progress |= aio_dispatch_handlers(ctx, event);
-
-        /* Try again, but only call each handler once.  */
-        events[ret - WAIT_OBJECT_0] = events[--count];
     }
 
     progress |= timerlistgroup_run_timers(&ctx->tlg);
