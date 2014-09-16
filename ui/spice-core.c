@@ -733,7 +733,7 @@ void qemu_spice_init(void)
                              tls_ciphers);
     }
     if (password) {
-        spice_server_set_ticket(spice_server, password, 0, 0, 0);
+        qemu_spice_set_passwd(password, false, false);
     }
     if (qemu_opt_get_bool(opts, "sasl", 0)) {
         if (spice_server_set_sasl_appname(spice_server, "qemu") == -1 ||
