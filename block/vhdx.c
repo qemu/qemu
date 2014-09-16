@@ -1408,6 +1408,12 @@ exit:
     return ret;
 }
 
+#define VHDX_METADATA_ENTRY_BUFFER_SIZE \
+                                    (sizeof(VHDXFileParameters)               +\
+                                     sizeof(VHDXVirtualDiskSize)              +\
+                                     sizeof(VHDXPage83Data)                   +\
+                                     sizeof(VHDXVirtualDiskLogicalSectorSize) +\
+                                     sizeof(VHDXVirtualDiskPhysicalSectorSize))
 
 /*
  * Create the Metadata entries.
@@ -1446,11 +1452,7 @@ static int vhdx_create_new_metadata(BlockDriverState *bs,
     VHDXVirtualDiskLogicalSectorSize  *mt_log_sector_size;
     VHDXVirtualDiskPhysicalSectorSize *mt_phys_sector_size;
 
-    entry_buffer = g_malloc0(sizeof(VHDXFileParameters)               +
-                             sizeof(VHDXVirtualDiskSize)              +
-                             sizeof(VHDXPage83Data)                   +
-                             sizeof(VHDXVirtualDiskLogicalSectorSize) +
-                             sizeof(VHDXVirtualDiskPhysicalSectorSize));
+    entry_buffer = g_malloc0(VHDX_METADATA_ENTRY_BUFFER_SIZE);
 
     mt_file_params = entry_buffer;
     offset += sizeof(VHDXFileParameters);
@@ -1531,7 +1533,7 @@ static int vhdx_create_new_metadata(BlockDriverState *bs,
     }
 
     ret = bdrv_pwrite(bs, metadata_offset + (64 * KiB), entry_buffer,
-                      VHDX_HEADER_BLOCK_SIZE);
+                      VHDX_METADATA_ENTRY_BUFFER_SIZE);
     if (ret < 0) {
         goto exit;
     }
@@ -1726,7 +1728,6 @@ static int vhdx_create_new_region_table(BlockDriverState *bs,
         goto exit;
     }
 
-
 exit:
     g_free(s);
     g_free(buffer);
@@ -1875,7 +1876,6 @@ static int vhdx_create(const char *filename, QemuOpts *opts, Error **errp)
     if (ret < 0) {
         goto delete_and_exit;
     }
-
 
 
 delete_and_exit:
