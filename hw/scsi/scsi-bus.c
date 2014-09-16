@@ -551,8 +551,11 @@ SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
     SCSIRequest *req;
     SCSIBus *bus = scsi_bus_from_device(d);
     BusState *qbus = BUS(bus);
+    const int memset_off = offsetof(SCSIRequest, sense)
+                           + sizeof(req->sense);
 
-    req = g_malloc0(reqops->size);
+    req = g_slice_alloc(reqops->size);
+    memset((uint8_t *)req + memset_off, 0, reqops->size - memset_off);
     req->refcount = 1;
     req->bus = bus;
     req->dev = d;
@@ -560,7 +563,6 @@ SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
     req->lun = lun;
     req->hba_private = hba_private;
     req->status = -1;
-    req->sense_len = 0;
     req->ops = reqops;
     object_ref(OBJECT(d));
     object_ref(OBJECT(qbus->parent));
@@ -1603,7 +1605,7 @@ void scsi_req_unref(SCSIRequest *req)
         }
         object_unref(OBJECT(req->dev));
         object_unref(OBJECT(qbus->parent));
-        g_free(req);
+        g_slice_free1(req->ops->size, req);
     }
 }
 

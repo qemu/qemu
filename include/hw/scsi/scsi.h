@@ -50,17 +50,24 @@ struct SCSIRequest {
     uint32_t          tag;
     uint32_t          lun;
     uint32_t          status;
+    void              *hba_private;
     size_t            resid;
     SCSICommand       cmd;
+
+    /* Note:
+     * - fields before sense are initialized by scsi_req_alloc;
+     * - sense[] is uninitialized;
+     * - fields after sense are memset to 0 by scsi_req_alloc.
+     * */
+
+    uint8_t           sense[SCSI_SENSE_BUF_SIZE];
+    uint32_t          sense_len;
+    bool              enqueued;
+    bool              io_canceled;
+    bool              retry;
+    bool              dma_started;
     BlockDriverAIOCB  *aiocb;
     QEMUSGList        *sg;
-    bool              dma_started;
-    uint8_t sense[SCSI_SENSE_BUF_SIZE];
-    uint32_t sense_len;
-    bool enqueued;
-    bool io_canceled;
-    bool retry;
-    void *hba_private;
     QTAILQ_ENTRY(SCSIRequest) next;
 };
 
