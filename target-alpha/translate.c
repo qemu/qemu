@@ -42,6 +42,9 @@ typedef struct DisasContext DisasContext;
 struct DisasContext {
     struct TranslationBlock *tb;
     uint64_t pc;
+#ifndef CONFIG_USER_ONLY
+    uint64_t palbr;
+#endif
     int mem_idx;
 
     /* Current rounding mode for this TB.  */
@@ -1206,15 +1209,24 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
     return gen_excp(ctx, EXCP_CALL_PAL, palcode);
 #else
     {
-        TCGv pc = tcg_const_i64(ctx->pc);
-        TCGv entry = tcg_const_i64(palcode & 0x80
-                                   ? 0x2000 + (palcode - 0x80) * 64
-                                   : 0x1000 + palcode * 64);
+        TCGv tmp = tcg_temp_new();
+        uint64_t exc_addr = ctx->pc;
+        uint64_t entry = ctx->palbr;
 
-        gen_helper_call_pal(cpu_env, pc, entry);
+        if (ctx->tb->flags & TB_FLAGS_PAL_MODE) {
+            exc_addr |= 1;
+        } else {
+            tcg_gen_movi_i64(tmp, 1);
+            tcg_gen_st8_i64(tmp, cpu_env, offsetof(CPUAlphaState, pal_mode));
+        }
 
-        tcg_temp_free(entry);
-        tcg_temp_free(pc);
+        tcg_gen_movi_i64(tmp, exc_addr);
+        tcg_gen_st_i64(tmp, cpu_env, offsetof(CPUAlphaState, exc_addr));
+        tcg_temp_free(tmp);
+
+        entry += (palcode & 0x80
+                  ? 0x2000 + (palcode - 0x80) * 64
+                  : 0x1000 + palcode * 64);
 
         /* Since the destination is running in PALmode, we don't really
            need the page permissions check.  We'll see the existence of
@@ -1222,11 +1234,13 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
            we change the PAL base register.  */
         if (!ctx->singlestep_enabled && !(ctx->tb->cflags & CF_LAST_IO)) {
             tcg_gen_goto_tb(0);
+            tcg_gen_movi_i64(cpu_pc, entry);
             tcg_gen_exit_tb((uintptr_t)ctx->tb);
             return EXIT_GOTO_TB;
+        } else {
+            tcg_gen_movi_i64(cpu_pc, entry);
+            return EXIT_PC_UPDATED;
         }
-
-        return EXIT_PC_UPDATED;
     }
 #endif
 }
@@ -2861,6 +2875,7 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
 #ifdef CONFIG_USER_ONLY
     ctx.ir = cpu_std_ir;
 #else
+    ctx.palbr = env->palbr;
     ctx.ir = (tb->flags & TB_FLAGS_PAL_MODE ? cpu_pal_ir : cpu_std_ir);
 #endif
 

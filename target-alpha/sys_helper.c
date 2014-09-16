@@ -48,14 +48,6 @@ void helper_hw_ret(CPUAlphaState *env, uint64_t a)
     env->pal_mode = a & 1;
 }
 
-void helper_call_pal(CPUAlphaState *env, uint64_t pc, uint64_t entry_ofs)
-{
-    int pal_mode = env->pal_mode;
-    env->exc_addr = pc | pal_mode;
-    env->pc = env->palbr + entry_ofs;
-    env->pal_mode = 1;
-}
-
 void helper_tbia(CPUAlphaState *env)
 {
     tlb_flush(CPU(alpha_env_get_cpu(env)), 1);
