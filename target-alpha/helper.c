@@ -79,6 +79,30 @@ void helper_store_fpcr(CPUAlphaState *env, uint64_t val)
     cpu_alpha_store_fpcr(env, val);
 }
 
+static uint64_t *cpu_alpha_addr_gr(CPUAlphaState *env, unsigned reg)
+{
+#ifndef CONFIG_USER_ONLY
+    if (env->pal_mode) {
+        if (reg >= 8 && reg <= 14) {
+            return &env->shadow[reg - 8];
+        } else if (reg == 25) {
+            return &env->shadow[7];
+        }
+    }
+#endif
+    return &env->ir[reg];
+}
+
+uint64_t cpu_alpha_load_gr(CPUAlphaState *env, unsigned reg)
+{
+    return *cpu_alpha_addr_gr(env, reg);
+}
+
+void cpu_alpha_store_gr(CPUAlphaState *env, unsigned reg, uint64_t val)
+{
+    *cpu_alpha_addr_gr(env, reg) = val;
+}
+
 #if defined(CONFIG_USER_ONLY)
 int alpha_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
                                int rw, int mmu_idx)
@@ -90,38 +114,6 @@ int alpha_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
     return 1;
 }
 #else
-void swap_shadow_regs(CPUAlphaState *env)
-{
-    uint64_t i0, i1, i2, i3, i4, i5, i6, i7;
-
-    i0 = env->ir[8];
-    i1 = env->ir[9];
-    i2 = env->ir[10];
-    i3 = env->ir[11];
-    i4 = env->ir[12];
-    i5 = env->ir[13];
-    i6 = env->ir[14];
-    i7 = env->ir[25];
-
-    env->ir[8]  = env->shadow[0];
-    env->ir[9]  = env->shadow[1];
-    env->ir[10] = env->shadow[2];
-    env->ir[11] = env->shadow[3];
-    env->ir[12] = env->shadow[4];
-    env->ir[13] = env->shadow[5];
-    env->ir[14] = env->shadow[6];
-    env->ir[25] = env->shadow[7];
-
-    env->shadow[0] = i0;
-    env->shadow[1] = i1;
-    env->shadow[2] = i2;
-    env->shadow[3] = i3;
-    env->shadow[4] = i4;
-    env->shadow[5] = i5;
-    env->shadow[6] = i6;
-    env->shadow[7] = i7;
-}
-
 /* Returns the OSF/1 entMM failure indication, or -1 on success.  */
 static int get_physical_address(CPUAlphaState *env, target_ulong addr,
                                 int prot_need, int mmu_idx,
@@ -375,10 +367,7 @@ void alpha_cpu_do_interrupt(CPUState *cs)
     env->pc = env->palbr + i;
 
     /* Switch to PALmode.  */
-    if (!env->pal_mode) {
-        env->pal_mode = 1;
-        swap_shadow_regs(env);
-    }
+    env->pal_mode = 1;
 #endif /* !USER_ONLY */
 }
 
@@ -443,7 +432,7 @@ void alpha_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                 env->pc, env->ps);
     for (i = 0; i < 31; i++) {
         cpu_fprintf(f, "IR%02d %s " TARGET_FMT_lx " ", i,
-                    linux_reg_names[i], env->ir[i]);
+                    linux_reg_names[i], cpu_alpha_load_gr(env, i));
         if ((i % 3) == 2)
             cpu_fprintf(f, "\n");
     }

@@ -45,10 +45,7 @@ void helper_hw_ret(CPUAlphaState *env, uint64_t a)
     env->pc = a & ~3;
     env->intr_flag = 0;
     env->lock_addr = -1;
-    if ((a & 1) == 0) {
-        env->pal_mode = 0;
-        swap_shadow_regs(env);
-    }
+    env->pal_mode = a & 1;
 }
 
 void helper_call_pal(CPUAlphaState *env, uint64_t pc, uint64_t entry_ofs)
@@ -56,10 +53,7 @@ void helper_call_pal(CPUAlphaState *env, uint64_t pc, uint64_t entry_ofs)
     int pal_mode = env->pal_mode;
     env->exc_addr = pc | pal_mode;
     env->pc = env->palbr + entry_ofs;
-    if (!pal_mode) {
-        env->pal_mode = 1;
-        swap_shadow_regs(env);
-    }
+    env->pal_mode = 1;
 }
 
 void helper_tbia(CPUAlphaState *env)

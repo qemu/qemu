@@ -52,6 +52,9 @@ struct DisasContext {
     /* implver value for this CPU.  */
     int implver;
 
+    /* The set of registers active in the current context.  */
+    TCGv *ir;
+
     /* Temporaries for $31 and $f31 as source and destination.  */
     TCGv zero;
     TCGv sink;
@@ -86,12 +89,16 @@ typedef enum {
 
 /* global register indexes */
 static TCGv_ptr cpu_env;
-static TCGv cpu_ir[31];
+static TCGv cpu_std_ir[31];
 static TCGv cpu_fir[31];
 static TCGv cpu_pc;
 static TCGv cpu_lock_addr;
 static TCGv cpu_lock_st_addr;
 static TCGv cpu_lock_value;
+
+#ifndef CONFIG_USER_ONLY
+static TCGv cpu_pal_ir[31];
+#endif
 
 #include "exec/gen-icount.h"
 
@@ -122,6 +129,12 @@ void alpha_translate_init(void)
         "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
         "f24", "f25", "f26", "f27", "f28", "f29", "f30"
     };
+#ifndef CONFIG_USER_ONLY
+    static const char shadow_names[8][8] = {
+        "pal_t7", "pal_s0", "pal_s1", "pal_s2",
+        "pal_s3", "pal_s4", "pal_s5", "pal_t11"
+    };
+#endif
 
     static bool done_init = 0;
     int i;
@@ -134,9 +147,9 @@ void alpha_translate_init(void)
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 
     for (i = 0; i < 31; i++) {
-        cpu_ir[i] = tcg_global_mem_new_i64(TCG_AREG0,
-                                           offsetof(CPUAlphaState, ir[i]),
-                                           greg_names[i]);
+        cpu_std_ir[i] = tcg_global_mem_new_i64(TCG_AREG0,
+                                               offsetof(CPUAlphaState, ir[i]),
+                                               greg_names[i]);
     }
 
     for (i = 0; i < 31; i++) {
@@ -144,6 +157,17 @@ void alpha_translate_init(void)
                                             offsetof(CPUAlphaState, fir[i]),
                                             freg_names[i]);
     }
+
+#ifndef CONFIG_USER_ONLY
+    memcpy(cpu_pal_ir, cpu_std_ir, sizeof(cpu_pal_ir));
+    for (i = 0; i < 8; i++) {
+        int r = (i == 7 ? 25 : i + 8);
+        cpu_pal_ir[r] = tcg_global_mem_new_i64(TCG_AREG0,
+                                               offsetof(CPUAlphaState,
+                                                        shadow[i]),
+                                               shadow_names[i]);
+    }
+#endif
 
     for (i = 0; i < ARRAY_SIZE(vars); ++i) {
         const GlobalVar *v = &vars[i];
@@ -170,7 +194,7 @@ static TCGv dest_sink(DisasContext *ctx)
 static TCGv load_gpr(DisasContext *ctx, unsigned reg)
 {
     if (likely(reg < 31)) {
-        return cpu_ir[reg];
+        return ctx->ir[reg];
     } else {
         return load_zero(ctx);
     }
@@ -183,7 +207,7 @@ static TCGv load_gpr_lit(DisasContext *ctx, unsigned reg,
         ctx->lit = tcg_const_i64(lit);
         return ctx->lit;
     } else if (likely(reg < 31)) {
-        return cpu_ir[reg];
+        return ctx->ir[reg];
     } else {
         return load_zero(ctx);
     }
@@ -192,7 +216,7 @@ static TCGv load_gpr_lit(DisasContext *ctx, unsigned reg,
 static TCGv dest_gpr(DisasContext *ctx, unsigned reg)
 {
     if (likely(reg < 31)) {
-        return cpu_ir[reg];
+        return ctx->ir[reg];
     } else {
         return dest_sink(ctx);
     }
@@ -304,7 +328,7 @@ static inline void gen_load_mem(DisasContext *ctx,
         addr = tmp;
     }
 
-    va = (fp ? cpu_fir[ra] : cpu_ir[ra]);
+    va = (fp ? cpu_fir[ra] : ctx->ir[ra]);
     tcg_gen_qemu_load(va, addr, ctx->mem_idx);
 
     tcg_temp_free(tmp);
@@ -399,13 +423,13 @@ static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
         tcg_gen_qemu_ld_i64(val, addr, ctx->mem_idx, quad ? MO_LEQ : MO_LESL);
         tcg_gen_brcond_i64(TCG_COND_NE, val, cpu_lock_value, lab_fail);
 
-        tcg_gen_qemu_st_i64(cpu_ir[ra], addr, ctx->mem_idx,
+        tcg_gen_qemu_st_i64(ctx->ir[ra], addr, ctx->mem_idx,
                             quad ? MO_LEQ : MO_LEUL);
-        tcg_gen_movi_i64(cpu_ir[ra], 1);
+        tcg_gen_movi_i64(ctx->ir[ra], 1);
         tcg_gen_br(lab_done);
 
         gen_set_label(lab_fail);
-        tcg_gen_movi_i64(cpu_ir[ra], 0);
+        tcg_gen_movi_i64(ctx->ir[ra], 0);
 
         gen_set_label(lab_done);
         tcg_gen_movi_i64(cpu_lock_addr, -1);
@@ -444,7 +468,7 @@ static ExitStatus gen_bdirect(DisasContext *ctx, int ra, int32_t disp)
     uint64_t dest = ctx->pc + (disp << 2);
 
     if (ra != 31) {
-        tcg_gen_movi_i64(cpu_ir[ra], ctx->pc);
+        tcg_gen_movi_i64(ctx->ir[ra], ctx->pc);
     }
 
     /* Notice branch-to-next; used to initialize RA with the PC.  */
@@ -1059,12 +1083,13 @@ static void gen_msk_l(DisasContext *ctx, TCGv vc, TCGv va, int rb, bool islit,
     }
 }
 
-static void gen_rx(int ra, int set)
+static void gen_rx(DisasContext *ctx, int ra, int set)
 {
     TCGv_i32 tmp;
 
     if (ra != 31) {
-        tcg_gen_ld8u_i64(cpu_ir[ra], cpu_env, offsetof(CPUAlphaState, intr_flag));
+        tcg_gen_ld8u_i64(ctx->ir[ra], cpu_env,
+                         offsetof(CPUAlphaState, intr_flag));
     }
 
     tmp = tcg_const_i32(set);
@@ -1086,12 +1111,12 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             break;
         case 0x9E:
             /* RDUNIQUE */
-            tcg_gen_ld_i64(cpu_ir[IR_V0], cpu_env,
+            tcg_gen_ld_i64(ctx->ir[IR_V0], cpu_env,
                            offsetof(CPUAlphaState, unique));
             break;
         case 0x9F:
             /* WRUNIQUE */
-            tcg_gen_st_i64(cpu_ir[IR_A0], cpu_env,
+            tcg_gen_st_i64(ctx->ir[IR_A0], cpu_env,
                            offsetof(CPUAlphaState, unique));
             break;
         default:
@@ -1115,17 +1140,17 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             break;
         case 0x2D:
             /* WRVPTPTR */
-            tcg_gen_st_i64(cpu_ir[IR_A0], cpu_env,
+            tcg_gen_st_i64(ctx->ir[IR_A0], cpu_env,
                            offsetof(CPUAlphaState, vptptr));
             break;
         case 0x31:
             /* WRVAL */
-            tcg_gen_st_i64(cpu_ir[IR_A0], cpu_env,
+            tcg_gen_st_i64(ctx->ir[IR_A0], cpu_env,
                            offsetof(CPUAlphaState, sysval));
             break;
         case 0x32:
             /* RDVAL */
-            tcg_gen_ld_i64(cpu_ir[IR_V0], cpu_env,
+            tcg_gen_ld_i64(ctx->ir[IR_V0], cpu_env,
                            offsetof(CPUAlphaState, sysval));
             break;
 
@@ -1135,12 +1160,12 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
 
             /* Note that we already know we're in kernel mode, so we know
                that PS only contains the 3 IPL bits.  */
-            tcg_gen_ld8u_i64(cpu_ir[IR_V0], cpu_env,
+            tcg_gen_ld8u_i64(ctx->ir[IR_V0], cpu_env,
                              offsetof(CPUAlphaState, ps));
 
             /* But make sure and store only the 3 IPL bits from the user.  */
             tmp = tcg_temp_new();
-            tcg_gen_andi_i64(tmp, cpu_ir[IR_A0], PS_INT_MASK);
+            tcg_gen_andi_i64(tmp, ctx->ir[IR_A0], PS_INT_MASK);
             tcg_gen_st8_i64(tmp, cpu_env, offsetof(CPUAlphaState, ps));
             tcg_temp_free(tmp);
             break;
@@ -1148,22 +1173,22 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
 
         case 0x36:
             /* RDPS */
-            tcg_gen_ld8u_i64(cpu_ir[IR_V0], cpu_env,
+            tcg_gen_ld8u_i64(ctx->ir[IR_V0], cpu_env,
                              offsetof(CPUAlphaState, ps));
             break;
         case 0x38:
             /* WRUSP */
-            tcg_gen_st_i64(cpu_ir[IR_A0], cpu_env,
+            tcg_gen_st_i64(ctx->ir[IR_A0], cpu_env,
                            offsetof(CPUAlphaState, usp));
             break;
         case 0x3A:
             /* RDUSP */
-            tcg_gen_ld_i64(cpu_ir[IR_V0], cpu_env,
+            tcg_gen_ld_i64(ctx->ir[IR_V0], cpu_env,
                            offsetof(CPUAlphaState, usp));
             break;
         case 0x3C:
             /* WHAMI */
-            tcg_gen_ld32s_i64(cpu_ir[IR_V0], cpu_env,
+            tcg_gen_ld32s_i64(ctx->ir[IR_V0], cpu_env,
                 -offsetof(AlphaCPU, env) + offsetof(CPUState, cpu_index));
             break;
 
@@ -1228,8 +1253,6 @@ static int cpu_pr_data(int pr)
     case 11: return offsetof(CPUAlphaState, sysval);
     case 12: return offsetof(CPUAlphaState, usp);
 
-    case 32 ... 39:
-        return offsetof(CPUAlphaState, shadow[pr - 32]);
     case 40 ... 63:
         return offsetof(CPUAlphaState, scratch[pr - 40]);
 
@@ -1241,36 +1264,48 @@ static int cpu_pr_data(int pr)
 
 static ExitStatus gen_mfpr(DisasContext *ctx, TCGv va, int regno)
 {
-    int data = cpu_pr_data(regno);
+    void (*helper)(TCGv);
+    int data;
 
-    /* Special help for VMTIME and WALLTIME.  */
-    if (regno == 250 || regno == 249) {
-	void (*helper)(TCGv) = gen_helper_get_walltime;
-	if (regno == 249) {
-		helper = gen_helper_get_vmtime;
-	}
-        if (ctx->tb->cflags & CF_USE_ICOUNT) {
+    switch (regno) {
+    case 32 ... 39:
+        /* Accessing the "non-shadow" general registers.  */
+        regno = regno == 39 ? 25 : regno - 32 + 8;
+        tcg_gen_mov_i64(va, cpu_std_ir[regno]);
+        break;
+
+    case 250: /* WALLTIME */
+        helper = gen_helper_get_walltime;
+        goto do_helper;
+    case 249: /* VMTIME */
+        helper = gen_helper_get_vmtime;
+    do_helper:
+        if (use_icount) {
             gen_io_start();
             helper(va);
             gen_io_end();
             return EXIT_PC_STALE;
         } else {
             helper(va);
-            return NO_EXIT;
         }
+        break;
+
+    default:
+        /* The basic registers are data only, and unknown registers
+           are read-zero, write-ignore.  */
+        data = cpu_pr_data(regno);
+        if (data == 0) {
+            tcg_gen_movi_i64(va, 0);
+        } else if (data & PR_BYTE) {
+            tcg_gen_ld8u_i64(va, cpu_env, data & ~PR_BYTE);
+        } else if (data & PR_LONG) {
+            tcg_gen_ld32s_i64(va, cpu_env, data & ~PR_LONG);
+        } else {
+            tcg_gen_ld_i64(va, cpu_env, data);
+        }
+        break;
     }
 
-    /* The basic registers are data only, and unknown registers
-       are read-zero, write-ignore.  */
-    if (data == 0) {
-        tcg_gen_movi_i64(va, 0);
-    } else if (data & PR_BYTE) {
-        tcg_gen_ld8u_i64(va, cpu_env, data & ~PR_BYTE);
-    } else if (data & PR_LONG) {
-        tcg_gen_ld32s_i64(va, cpu_env, data & ~PR_LONG);
-    } else {
-        tcg_gen_ld_i64(va, cpu_env, data);
-    }
     return NO_EXIT;
 }
 
@@ -1315,6 +1350,12 @@ static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
            changes during boot, flushing everything works well.  */
         gen_helper_tb_flush(cpu_env);
         return EXIT_PC_STALE;
+
+    case 32 ... 39:
+        /* Accessing the "non-shadow" general registers.  */
+        regno = regno == 39 ? 25 : regno - 32 + 8;
+        tcg_gen_mov_i64(cpu_std_ir[regno], vb);
+        break;
 
     default:
         /* The basic registers are data only, and unknown registers
@@ -2295,14 +2336,14 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0xE000:
             /* RC */
-            gen_rx(ra, 0);
+            gen_rx(ctx, ra, 0);
             break;
         case 0xE800:
             /* ECB */
             break;
         case 0xF000:
             /* RS */
-            gen_rx(ra, 1);
+            gen_rx(ctx, ra, 1);
             break;
         case 0xF800:
             /* WH64 */
@@ -2334,7 +2375,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         vb = load_gpr(ctx, rb);
         tcg_gen_andi_i64(cpu_pc, vb, ~3);
         if (ra != 31) {
-            tcg_gen_movi_i64(cpu_ir[ra], ctx->pc);
+            tcg_gen_movi_i64(ctx->ir[ra], ctx->pc);
         }
         ret = EXIT_PC_UPDATED;
         break;
@@ -2374,10 +2415,10 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                 goto invalid_opc;
                 break;
             case 0x6:
-                /* Incpu_ir[ra]id */
+                /* Invalid */
                 goto invalid_opc;
             case 0x7:
-                /* Incpu_ir[ra]id */
+                /* Invaliid */
                 goto invalid_opc;
             case 0x8:
                 /* Longword virtual access (hw_ldl) */
@@ -2816,6 +2857,12 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
     ctx.mem_idx = cpu_mmu_index(env);
     ctx.implver = env->implver;
     ctx.singlestep_enabled = cs->singlestep_enabled;
+
+#ifdef CONFIG_USER_ONLY
+    ctx.ir = cpu_std_ir;
+#else
+    ctx.ir = (tb->flags & TB_FLAGS_PAL_MODE ? cpu_pal_ir : cpu_std_ir);
+#endif
 
     /* ??? Every TB begins with unset rounding mode, to be initialized on
        the first fp insn of the TB.  Alternately we could define a proper
