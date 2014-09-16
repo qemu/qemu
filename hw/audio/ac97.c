@@ -1321,9 +1321,9 @@ static const MemoryRegionOps ac97_io_nabm_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void ac97_on_reset (void *opaque)
+static void ac97_on_reset (DeviceState *dev)
 {
-    AC97LinkState *s = opaque;
+    AC97LinkState *s = container_of(dev, AC97LinkState, dev.qdev);
 
     reset_bm_regs (s, &s->bm_regs[0]);
     reset_bm_regs (s, &s->bm_regs[1]);
@@ -1382,9 +1382,8 @@ static int ac97_initfn (PCIDevice *dev)
                            "ac97-nabm", 256);
     pci_register_bar (&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_nam);
     pci_register_bar (&s->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->io_nabm);
-    qemu_register_reset (ac97_on_reset, s);
     AUD_register_card ("ac97", &s->card);
-    ac97_on_reset (s);
+    ac97_on_reset (&s->dev.qdev);
     return 0;
 }
 
@@ -1413,6 +1412,7 @@ static void ac97_class_init (ObjectClass *klass, void *data)
     dc->desc = "Intel 82801AA AC97 Audio";
     dc->vmsd = &vmstate_ac97;
     dc->props = ac97_properties;
+    dc->reset = ac97_on_reset;
 }
 
 static const TypeInfo ac97_info = {
