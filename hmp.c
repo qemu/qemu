@@ -679,6 +679,8 @@ void hmp_info_block_jobs(Monitor *mon, const QDict *qdict)
         }
         list = list->next;
     }
+
+    qapi_free_BlockJobInfoList(list);
 }
 
 void hmp_info_tpm(Monitor *mon, const QDict *qdict)
