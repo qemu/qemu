@@ -150,8 +150,7 @@ class TestEnv(object):
                           'discard $off $len'],
                          ['qemu-io', '$test_img', '-c',
                           'truncate $off']]
-        for fmt in ['raw', 'vmdk', 'vdi', 'cow', 'qcow2', 'file',
-                    'qed', 'vpc']:
+        for fmt in ['raw', 'vmdk', 'vdi', 'qcow2', 'file', 'qed', 'vpc']:
             self.commands.append(
                 ['qemu-img', 'convert', '-f', 'qcow2', '-O', fmt,
                  '$test_img', 'converted_image.' + fmt])
@@ -178,7 +177,7 @@ class TestEnv(object):
         by 'qemu-img create'.
         """
         # All formats supported by the 'qemu-img create' command.
-        backing_file_fmt = random.choice(['raw', 'vmdk', 'vdi', 'cow', 'qcow2',
+        backing_file_fmt = random.choice(['raw', 'vmdk', 'vdi', 'qcow2',
                                           'file', 'qed', 'vpc'])
         backing_file_name = 'backing_img.' + backing_file_fmt
         backing_file_size = random.randint(MIN_BACKING_FILE_SIZE,

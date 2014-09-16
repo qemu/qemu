@@ -197,7 +197,7 @@
 #       'file', 'file', 'ftp', 'ftps', 'host_cdrom', 'host_device',
 #       'host_floppy', 'http', 'https', 'nbd', 'parallels', 'qcow',
 #       'qcow2', 'raw', 'tftp', 'vdi', 'vmdk', 'vpc', 'vvfat'
-#       2.2: 'archipelago'
+#       2.2: 'archipelago' added, 'cow' dropped
 #
 # @backing_file: #optional the name of the backing file (for copy-on-write)
 #
@@ -1148,7 +1148,7 @@
 # Since: 2.0
 ##
 { 'enum': 'BlockdevDriver',
-  'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop', 'cow',
+  'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop',
             'dmg', 'file', 'ftp', 'ftps', 'host_cdrom', 'host_device',
             'host_floppy', 'http', 'https', 'null-aio', 'null-co', 'parallels',
             'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'tftp', 'vdi', 'vhdx',
@@ -1565,7 +1565,6 @@
       'blkverify':  'BlockdevOptionsBlkverify',
       'bochs':      'BlockdevOptionsGenericFormat',
       'cloop':      'BlockdevOptionsGenericFormat',
-      'cow':        'BlockdevOptionsGenericCOWFormat',
       'dmg':        'BlockdevOptionsGenericFormat',
       'file':       'BlockdevOptionsFile',
       'ftp':        'BlockdevOptionsFile',

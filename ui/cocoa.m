@@ -857,7 +857,7 @@ QemuCocoaView *cocoaView;
         [op setPrompt:@"Boot image"];
         [op setMessage:@"Select the disk image you want to boot.\n\nHit the \"Cancel\" button to quit"];
         NSArray *filetypes = [NSArray arrayWithObjects:@"img", @"iso", @"dmg",
-                                 @"qcow", @"qcow2", @"cow", @"cloop", @"vmdk", nil];
+                                 @"qcow", @"qcow2", @"cloop", @"vmdk", nil];
 #if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
         [op setAllowedFileTypes:filetypes];
         [op beginSheetModalForWindow:normalWindow

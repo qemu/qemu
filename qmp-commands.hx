@@ -2081,7 +2081,7 @@ Each json-object contain the following:
          - "file": device file name (json-string)
          - "ro": true if read-only, false otherwise (json-bool)
          - "drv": driver format name (json-string)
-             - Possible values: "blkdebug", "bochs", "cloop", "cow", "dmg",
+             - Possible values: "blkdebug", "bochs", "cloop", "dmg",
                                 "file", "file", "ftp", "ftps", "host_cdrom",
                                 "host_device", "host_floppy", "http", "https",
                                 "nbd", "parallels", "qcow", "qcow2", "raw",
