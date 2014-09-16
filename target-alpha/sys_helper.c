@@ -40,14 +40,6 @@ uint64_t helper_load_pcc(CPUAlphaState *env)
 
 /* PALcode support special instructions */
 #ifndef CONFIG_USER_ONLY
-void helper_hw_ret(CPUAlphaState *env, uint64_t a)
-{
-    env->pc = a & ~3;
-    env->intr_flag = 0;
-    env->lock_addr = -1;
-    env->pal_mode = a & 1;
-}
-
 void helper_tbia(CPUAlphaState *env)
 {
     tlb_flush(CPU(alpha_env_get_cpu(env)), 1);

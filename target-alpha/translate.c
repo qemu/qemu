@@ -2635,13 +2635,18 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* Pre-EV6 CPUs interpreted this as HW_REI, loading the return
                address from EXC_ADDR.  This turns out to be useful for our
                emulation PALcode, so continue to accept it.  */
-            tmp = tcg_temp_new();
-            tcg_gen_ld_i64(tmp, cpu_env, offsetof(CPUAlphaState, exc_addr));
-            gen_helper_hw_ret(cpu_env, tmp);
-            tcg_temp_free(tmp);
+            ctx->lit = vb = tcg_temp_new();
+            tcg_gen_ld_i64(vb, cpu_env, offsetof(CPUAlphaState, exc_addr));
         } else {
-            gen_helper_hw_ret(cpu_env, load_gpr(ctx, rb));
+            vb = load_gpr(ctx, rb);
         }
+        tmp = tcg_temp_new();
+        tcg_gen_movi_i64(tmp, 0);
+        tcg_gen_st8_i64(tmp, cpu_env, offsetof(CPUAlphaState, intr_flag));
+        tcg_gen_movi_i64(cpu_lock_addr, -1);
+        tcg_gen_andi_i64(tmp, vb, 1);
+        tcg_gen_st8_i64(tmp, cpu_env, offsetof(CPUAlphaState, pal_mode));
+        tcg_gen_andi_i64(cpu_pc, vb, ~3);
         ret = EXIT_PC_UPDATED;
         break;
 #else
