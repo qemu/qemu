@@ -993,7 +993,7 @@ static int qemu_archipelago_truncate(BlockDriverState *bs, int64_t offset)
     req = xseg_get_request(s->xseg, s->srcport, s->mportno, X_ALLOC);
     if (!req) {
         archipelagolog("Cannot get XSEG request\n");
-        return err_exit2;
+        goto err_exit2;
     }
 
     ret = xseg_prep_request(s->xseg, req, targetlen, 0);
