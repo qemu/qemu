@@ -24,12 +24,19 @@
 typedef struct VirtIOSCSIReq {
     VirtIOSCSI *dev;
     VirtQueue *vq;
-    VirtQueueElement elem;
     QEMUSGList qsgl;
+    QEMUIOVector resp_iov;
+
+    /* Note:
+     * - fields before elem are initialized by virtio_scsi_init_req;
+     * - elem is uninitialized at the time of allocation.
+     * - fields after elem are zeroed by virtio_scsi_init_req.
+     * */
+
+    VirtQueueElement elem;
     SCSIRequest *sreq;
     size_t resp_size;
     enum SCSIXferMode mode;
-    QEMUIOVector resp_iov;
     union {
         VirtIOSCSICmdResp     cmd;
         VirtIOSCSICtrlTMFResp tmf;
@@ -68,23 +75,26 @@ static inline SCSIDevice *virtio_scsi_device_find(VirtIOSCSI *s, uint8_t *lun)
 static VirtIOSCSIReq *virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq)
 {
     VirtIOSCSIReq *req;
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
+    VirtIOSCSICommon *vs = (VirtIOSCSICommon *)s;
+    const size_t zero_skip = offsetof(VirtIOSCSIReq, elem)
+                             + sizeof(VirtQueueElement);
 
-    req = g_malloc0(sizeof(*req) + vs->cdb_size);
-
+    req = g_slice_alloc(sizeof(*req) + vs->cdb_size);
     req->vq = vq;
     req->dev = s;
-    req->sreq = NULL;
     qemu_sglist_init(&req->qsgl, DEVICE(s), 8, &address_space_memory);
     qemu_iovec_init(&req->resp_iov, 1);
+    memset((uint8_t *)req + zero_skip, 0, sizeof(*req) - zero_skip);
     return req;
 }
 
 static void virtio_scsi_free_req(VirtIOSCSIReq *req)
 {
+    VirtIOSCSICommon *vs = (VirtIOSCSICommon *)req->dev;
+
     qemu_iovec_destroy(&req->resp_iov);
     qemu_sglist_destroy(&req->qsgl);
-    g_free(req);
+    g_slice_free1(sizeof(*req) + vs->cdb_size, req);
 }
 
 static void virtio_scsi_complete_req(VirtIOSCSIReq *req)
