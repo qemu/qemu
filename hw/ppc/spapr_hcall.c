@@ -7,6 +7,7 @@
 #include "mmu-hash64.h"
 #include "cpu-models.h"
 #include "trace.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 
 struct SPRSyncState {

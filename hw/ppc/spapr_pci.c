@@ -44,6 +44,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/ppc/spapr_drc.h"
 #include "sysemu/device_tree.h"
+#include "sysemu/kvm.h"
 
 #include "hw/vfio/vfio.h"
 

@@ -21,6 +21,7 @@
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "qemu/event_notifier.h"
+#include "sysemu/kvm.h"
 
 typedef struct PCITestDevHdr {
     uint8_t test;

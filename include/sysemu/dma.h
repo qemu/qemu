@@ -15,7 +15,6 @@
 #include "hw/hw.h"
 #include "block/block.h"
 #include "block/accounting.h"
-#include "sysemu/kvm.h"
 
 typedef struct ScatterGatherEntry ScatterGatherEntry;
 
@@ -67,9 +66,7 @@ static inline void dma_barrier(AddressSpace *as, DMADirection dir)
      * use lighter barriers based on the direction of the
      * transfer, the DMA context, etc...
      */
-    if (kvm_enabled()) {
-        smp_mb();
-    }
+    smp_mb();
 }
 
 /* Checks that the given range of addresses is valid for DMA.  This is
