@@ -2580,7 +2580,7 @@ static void x86_cpu_reset(CPUState *s)
     for (i = 0; i < 8; i++) {
         env->fptags[i] = 1;
     }
-    env->fpuc = 0x37f;
+    cpu_set_fpuc(env, 0x37f);
 
     env->mxcsr = 0x1f80;
     env->xstate_bv = XSTATE_FP | XSTATE_SSE;

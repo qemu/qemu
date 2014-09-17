@@ -537,7 +537,7 @@ uint32_t helper_fnstcw(CPUX86State *env)
     return env->fpuc;
 }
 
-static void update_fp_status(CPUX86State *env)
+void update_fp_status(CPUX86State *env)
 {
     int rnd_type;
 
@@ -575,8 +575,7 @@ static void update_fp_status(CPUX86State *env)
 
 void helper_fldcw(CPUX86State *env, uint32_t val)
 {
-    env->fpuc = val;
-    update_fp_status(env);
+    cpu_set_fpuc(env, val);
 }
 
 void helper_fclex(CPUX86State *env)
@@ -595,7 +594,7 @@ void helper_fninit(CPUX86State *env)
 {
     env->fpus = 0;
     env->fpstt = 0;
-    env->fpuc = 0x37f;
+    cpu_set_fpuc(env, 0x37f);
     env->fptags[0] = 1;
     env->fptags[1] = 1;
     env->fptags[2] = 1;
@@ -1013,11 +1012,11 @@ void helper_fldenv(CPUX86State *env, target_ulong ptr, int data32)
     int i, fpus, fptag;
 
     if (data32) {
-        env->fpuc = cpu_lduw_data(env, ptr);
+        cpu_set_fpuc(env, cpu_lduw_data(env, ptr));
         fpus = cpu_lduw_data(env, ptr + 4);
         fptag = cpu_lduw_data(env, ptr + 8);
     } else {
-        env->fpuc = cpu_lduw_data(env, ptr);
+        cpu_set_fpuc(env, cpu_lduw_data(env, ptr));
         fpus = cpu_lduw_data(env, ptr + 2);
         fptag = cpu_lduw_data(env, ptr + 4);
     }
@@ -1046,7 +1045,7 @@ void helper_fsave(CPUX86State *env, target_ulong ptr, int data32)
     /* fninit */
     env->fpus = 0;
     env->fpstt = 0;
-    env->fpuc = 0x37f;
+    cpu_set_fpuc(env, 0x37f);
     env->fptags[0] = 1;
     env->fptags[1] = 1;
     env->fptags[2] = 1;
@@ -1157,7 +1156,7 @@ void helper_fxrstor(CPUX86State *env, target_ulong ptr, int data64)
         raise_exception(env, EXCP0D_GPF);
     }
 
-    env->fpuc = cpu_lduw_data(env, ptr);
+    cpu_set_fpuc(env, cpu_lduw_data(env, ptr));
     fpus = cpu_lduw_data(env, ptr + 2);
     fptag = cpu_lduw_data(env, ptr + 4);
     env->fpstt = (fpus >> 11) & 7;
@@ -1255,6 +1254,12 @@ void cpu_set_mxcsr(CPUX86State *env, uint32_t mxcsr)
 
     /* set flush to zero */
     set_flush_to_zero((mxcsr & SSE_FZ) ? 1 : 0, &env->fp_status);
+}
+
+void cpu_set_fpuc(CPUX86State *env, uint16_t val)
+{
+    env->fpuc = val;
+    update_fp_status(env);
 }
 
 void helper_ldmxcsr(CPUX86State *env, uint32_t val)
