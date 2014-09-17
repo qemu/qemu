@@ -430,13 +430,7 @@ static int virtio_scsi_parse_cdb(SCSIDevice *dev, SCSICommand *cmd,
      * host device passthrough.
      */
     cmd->xfer = req->qsgl.size;
-    if (cmd->xfer == 0) {
-        cmd->mode = SCSI_XFER_NONE;
-    } else if (iov_size(req->elem.in_sg, req->elem.in_num) > req->resp_size) {
-        cmd->mode = SCSI_XFER_FROM_DEV;
-    } else {
-        cmd->mode = SCSI_XFER_TO_DEV;
-    }
+    cmd->mode = req->mode;
     return 0;
 }
 
