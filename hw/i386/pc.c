@@ -72,8 +72,10 @@
 #define DPRINTF(fmt, ...)
 #endif
 
-/* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables.  */
-unsigned acpi_data_size = 0x20000;
+/* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables
+ * (128K) and other BIOS datastructures (less than 4K reported to be used at
+ * the moment, 32K should be enough for a while).  */
+unsigned acpi_data_size = 0x20000 + 0x8000;
 void pc_set_legacy_acpi_data_size(void)
 {
     acpi_data_size = 0x10000;
