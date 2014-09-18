@@ -1593,7 +1593,7 @@ static int vhdx_create_bat(BlockDriverState *bs, BDRVVHDXState *s,
                 bdrv_has_zero_init(bs) == 0) {
         /* for a fixed file, the default BAT entry is not zero */
         s->bat = g_try_malloc0(length);
-        if (length && s->bat != NULL) {
+        if (length && s->bat == NULL) {
             ret = -ENOMEM;
             goto exit;
         }
