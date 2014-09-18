@@ -275,12 +275,14 @@ void virtio_assume_scsi(void)
 {
     guessed_disk_nature = true;
     blk_cfg.blk_size = 512;
+    blk_cfg.physical_block_exp = 0;
 }
 
 void virtio_assume_eckd(void)
 {
     guessed_disk_nature = true;
     blk_cfg.blk_size = 4096;
+    blk_cfg.physical_block_exp = 0;
 
     /* this must be here to calculate code segment position */
     blk_cfg.geometry.heads = 15;
@@ -290,36 +292,52 @@ void virtio_assume_eckd(void)
 bool virtio_disk_is_scsi(void)
 {
     if (guessed_disk_nature) {
-        return (blk_cfg.blk_size  == 512);
+        return (virtio_get_block_size()  == 512);
     }
     return (blk_cfg.geometry.heads == 255)
         && (blk_cfg.geometry.sectors == 63)
-        && (blk_cfg.blk_size  == 512);
+        && (virtio_get_block_size()  == 512);
+}
+
+/*
+ * Other supported value pairs, if any, would need to be added here.
+ * Note: head count is always 15.
+ */
+static inline u8 virtio_eckd_sectors_for_block_size(int size)
+{
+    switch (size) {
+    case 512:
+        return 49;
+    case 1024:
+        return 33;
+    case 2048:
+        return 21;
+    case 4096:
+        return 12;
+    }
+    return 0;
 }
 
 bool virtio_disk_is_eckd(void)
 {
+    const int block_size = virtio_get_block_size();
+
     if (guessed_disk_nature) {
-        return (blk_cfg.blk_size  == 4096);
+        return (block_size  == 4096);
     }
     return (blk_cfg.geometry.heads == 15)
-        && (blk_cfg.geometry.sectors == 12)
-        && (blk_cfg.blk_size  == 4096);
+        && (blk_cfg.geometry.sectors ==
+            virtio_eckd_sectors_for_block_size(block_size));
 }
 
 bool virtio_ipl_disk_is_valid(void)
 {
-    return blk_cfg.blk_size && (virtio_disk_is_scsi() || virtio_disk_is_eckd());
+    return virtio_disk_is_scsi() || virtio_disk_is_eckd();
 }
 
 int virtio_get_block_size(void)
 {
-    return blk_cfg.blk_size;
-}
-
-uint16_t virtio_get_cylinders(void)
-{
-    return blk_cfg.geometry.cylinders;
+    return blk_cfg.blk_size << blk_cfg.physical_block_exp;
 }
 
 uint8_t virtio_get_heads(void)
@@ -330,6 +348,12 @@ uint8_t virtio_get_heads(void)
 uint8_t virtio_get_sectors(void)
 {
     return blk_cfg.geometry.sectors;
+}
+
+uint64_t virtio_get_blocks(void)
+{
+    return blk_cfg.capacity /
+           (virtio_get_block_size() / VIRTIO_SECTOR_SIZE);
 }
 
 void virtio_setup_block(struct subchannel_id schid)

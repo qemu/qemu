@@ -302,9 +302,10 @@ static void mips_fulong2e_init(MachineState *machine)
     bios_size = 1024 * 1024;
 
     /* allocate RAM */
-    memory_region_init_ram(ram, NULL, "fulong2e.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "fulong2e.ram", ram_size, &error_abort);
     vmstate_register_ram_global(ram);
-    memory_region_init_ram(bios, NULL, "fulong2e.bios", bios_size);
+    memory_region_init_ram(bios, NULL, "fulong2e.bios", bios_size,
+                           &error_abort);
     vmstate_register_ram_global(bios);
     memory_region_set_readonly(bios, true);
 

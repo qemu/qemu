@@ -1979,14 +1979,14 @@ static int qxl_init_common(PCIQXLDevice *qxl)
 
     qxl->rom_size = qxl_rom_size();
     memory_region_init_ram(&qxl->rom_bar, OBJECT(qxl), "qxl.vrom",
-                           qxl->rom_size);
+                           qxl->rom_size, &error_abort);
     vmstate_register_ram(&qxl->rom_bar, &qxl->pci.qdev);
     init_qxl_rom(qxl);
     init_qxl_ram(qxl);
 
     qxl->guest_surfaces.cmds = g_new0(QXLPHYSICAL, qxl->ssd.num_surfaces);
     memory_region_init_ram(&qxl->vram_bar, OBJECT(qxl), "qxl.vram",
-                           qxl->vram_size);
+                           qxl->vram_size, &error_abort);
     vmstate_register_ram(&qxl->vram_bar, &qxl->pci.qdev);
     memory_region_init_alias(&qxl->vram32_bar, OBJECT(qxl), "qxl.vram32",
                              &qxl->vram_bar, 0, qxl->vram32_size);
@@ -2063,6 +2063,7 @@ static int qxl_init_primary(PCIDevice *dev)
 
     qxl->id = 0;
     qxl_init_ramsize(qxl);
+    vga->vbe_size = qxl->vgamem_size;
     vga->vram_size_mb = qxl->vga.vram_size >> 20;
     vga_common_init(vga, OBJECT(dev), true);
     vga_init(vga, OBJECT(dev),
@@ -2094,7 +2095,7 @@ static int qxl_init_secondary(PCIDevice *dev)
     qxl->id = device_id++;
     qxl_init_ramsize(qxl);
     memory_region_init_ram(&qxl->vga.vram, OBJECT(dev), "qxl.vgavram",
-                           qxl->vga.vram_size);
+                           qxl->vga.vram_size, &error_abort);
     vmstate_register_ram(&qxl->vga.vram, &qxl->pci.qdev);
     qxl->vga.vram_ptr = memory_region_get_ram_ptr(&qxl->vga.vram);
     qxl->vga.con = graphic_console_init(DEVICE(dev), 0, &qxl_ops, qxl);

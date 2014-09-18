@@ -31,6 +31,9 @@
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
+#include "trace-tcg.h"
+
+
 #define OPENRISC_DISAS
 
 #ifdef OPENRISC_DISAS

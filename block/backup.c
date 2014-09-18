@@ -307,7 +307,7 @@ static void coroutine_fn backup_run(void *opaque)
                                 BACKUP_SECTORS_PER_CLUSTER - i, &n);
                     i += n;
 
-                    if (alloced == 1) {
+                    if (alloced == 1 || n == 0) {
                         break;
                     }
                 }

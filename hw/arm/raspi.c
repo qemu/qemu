@@ -114,10 +114,12 @@ static void raspi_init(MachineState *args)
     /* Write real RAM size in ATAG structure */
     bootloader_100[7] = bcm2835_vcram_base;
 
-    memory_region_init_ram(bcm2835_ram, NULL, "raspi.ram", bcm2835_vcram_base);
+    memory_region_init_ram(bcm2835_ram, NULL, "raspi.ram", bcm2835_vcram_base,
+        &error_abort);
     vmstate_register_ram_global(bcm2835_ram);
 
-    memory_region_init_ram(bcm2835_vcram, NULL, "vcram.ram", VCRAM_SIZE);
+    memory_region_init_ram(bcm2835_vcram, NULL, "vcram.ram", VCRAM_SIZE,
+        &error_abort);
     vmstate_register_ram_global(bcm2835_vcram);
 
     memory_region_add_subregion(sysmem, (0 << 30), bcm2835_ram);

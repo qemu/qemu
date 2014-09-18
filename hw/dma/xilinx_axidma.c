@@ -553,10 +553,12 @@ static void xilinx_axidma_realize(DeviceState *dev, Error **errp)
     int i;
 
     for (i = 0; i < 2; i++) {
-        s->streams[i].nr = i;
-        s->streams[i].bh = qemu_bh_new(timer_hit, &s->streams[i]);
-        s->streams[i].ptimer = ptimer_init(s->streams[i].bh);
-        ptimer_set_freq(s->streams[i].ptimer, s->freqhz);
+        struct Stream *st = &s->streams[i];
+
+        st->nr = i;
+        st->bh = qemu_bh_new(timer_hit, st);
+        st->ptimer = ptimer_init(st->bh);
+        ptimer_set_freq(st->ptimer, s->freqhz);
     }
     return;
 

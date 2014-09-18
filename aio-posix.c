@@ -100,6 +100,11 @@ void aio_set_event_notifier(AioContext *ctx,
                        (IOHandler *)io_read, NULL, notifier);
 }
 
+bool aio_prepare(AioContext *ctx)
+{
+    return false;
+}
+
 bool aio_pending(AioContext *ctx)
 {
     AioHandler *node;
@@ -119,13 +124,22 @@ bool aio_pending(AioContext *ctx)
     return false;
 }
 
-static bool aio_dispatch(AioContext *ctx)
+bool aio_dispatch(AioContext *ctx)
 {
     AioHandler *node;
     bool progress = false;
 
     /*
-     * We have to walk very carefully in case qemu_aio_set_fd_handler is
+     * If there are callbacks left that have been queued, we need to call them.
+     * Do not call select in this case, because it is possible that the caller
+     * does not need a complete flush (as is the case for aio_poll loops).
+     */
+    if (aio_bh_poll(ctx)) {
+        progress = true;
+    }
+
+    /*
+     * We have to walk very carefully in case aio_set_fd_handler is
      * called while we're walking.
      */
     node = QLIST_FIRST(&ctx->aio_handlers);
@@ -175,28 +189,24 @@ static bool aio_dispatch(AioContext *ctx)
 bool aio_poll(AioContext *ctx, bool blocking)
 {
     AioHandler *node;
+    bool was_dispatching;
     int ret;
     bool progress;
 
+    was_dispatching = ctx->dispatching;
     progress = false;
 
-    /*
-     * If there are callbacks left that have been queued, we need to call them.
-     * Do not call select in this case, because it is possible that the caller
-     * does not need a complete flush (as is the case for qemu_aio_wait loops).
+    /* aio_notify can avoid the expensive event_notifier_set if
+     * everything (file descriptors, bottom halves, timers) will
+     * be re-evaluated before the next blocking poll().  This is
+     * already true when aio_poll is called with blocking == false;
+     * if blocking == true, it is only true after poll() returns.
+     *
+     * If we're in a nested event loop, ctx->dispatching might be true.
+     * In that case we can restore it just before returning, but we
+     * have to clear it now.
      */
-    if (aio_bh_poll(ctx)) {
-        blocking = false;
-        progress = true;
-    }
-
-    if (aio_dispatch(ctx)) {
-        progress = true;
-    }
-
-    if (progress && !blocking) {
-        return true;
-    }
+    aio_set_dispatching(ctx, !blocking);
 
     ctx->walking_handlers++;
 
@@ -220,7 +230,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     /* wait until next event */
     ret = qemu_poll_ns((GPollFD *)ctx->pollfds->data,
                          ctx->pollfds->len,
-                         blocking ? timerlistgroup_deadline_ns(&ctx->tlg) : 0);
+                         blocking ? aio_compute_timeout(ctx) : 0);
 
     /* if we have any readable fds, dispatch event */
     if (ret > 0) {
@@ -234,9 +244,11 @@ bool aio_poll(AioContext *ctx, bool blocking)
     }
 
     /* Run dispatch even if there were no readable fds to run timers */
+    aio_set_dispatching(ctx, true);
     if (aio_dispatch(ctx)) {
         progress = true;
     }
 
+    aio_set_dispatching(ctx, was_dispatching);
     return progress;
 }

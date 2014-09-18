@@ -494,6 +494,7 @@ static unsigned virtio_s390_get_features(DeviceState *d)
 
 static Property s390_virtio_net_properties[] = {
     DEFINE_NIC_PROPERTIES(VirtIONetS390, vdev.nic_conf),
+    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOS390Device, host_features),
     DEFINE_VIRTIO_NET_FEATURES(VirtIOS390Device, host_features),
     DEFINE_VIRTIO_NET_PROPERTIES(VirtIONetS390, vdev.net_conf),
     DEFINE_PROP_END_OF_LIST(),
@@ -614,6 +615,7 @@ static const TypeInfo virtio_s390_device_info = {
 
 static Property s390_virtio_scsi_properties[] = {
     DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOSCSIS390, vdev.parent_obj.conf),
+    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOS390Device, host_features),
     DEFINE_VIRTIO_SCSI_FEATURES(VirtIOS390Device, host_features),
     DEFINE_PROP_END_OF_LIST(),
 };

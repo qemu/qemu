@@ -139,7 +139,8 @@ static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
 {
     PMSMBus *s = opaque;
 
-    SMBUS_DPRINTF("SMB writeb port=0x%04x val=0x%02x\n", addr, val);
+    SMBUS_DPRINTF("SMB writeb port=0x%04" HWADDR_PRIx
+                  " val=0x%02" PRIx64 "\n", addr, val);
     switch(addr) {
     case SMBHSTSTS:
         s->smb_stat = (~(val & 0xff)) & s->smb_stat;
@@ -206,7 +207,7 @@ static uint64_t smb_ioport_readb(void *opaque, hwaddr addr, unsigned width)
         val = 0;
         break;
     }
-    SMBUS_DPRINTF("SMB readb port=0x%04x val=0x%02x\n", addr, val);
+    SMBUS_DPRINTF("SMB readb port=0x%04" HWADDR_PRIx " val=0x%02x\n", addr, val);
     return val;
 }
 

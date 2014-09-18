@@ -5,6 +5,7 @@
 #include "qemu-common.h"
 #include "qemu/option.h"
 #include "block/coroutine.h"
+#include "block/accounting.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi-types.h"
 
@@ -274,11 +275,13 @@ int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
 BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
     const char *backing_file);
 int bdrv_get_backing_file_depth(BlockDriverState *bs);
+void bdrv_refresh_filename(BlockDriverState *bs);
 int bdrv_truncate(BlockDriverState *bs, int64_t offset);
+int64_t bdrv_nb_sectors(BlockDriverState *bs);
 int64_t bdrv_getlength(BlockDriverState *bs);
 int64_t bdrv_get_allocated_file_size(BlockDriverState *bs);
 void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr);
-int bdrv_refresh_limits(BlockDriverState *bs);
+void bdrv_refresh_limits(BlockDriverState *bs, Error **errp);
 int bdrv_commit(BlockDriverState *bs);
 int bdrv_commit_all(void);
 int bdrv_change_backing_file(BlockDriverState *bs,
@@ -454,6 +457,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
 size_t bdrv_opt_mem_align(BlockDriverState *bs);
 void bdrv_set_guest_block_size(BlockDriverState *bs, int align);
 void *qemu_blockalign(BlockDriverState *bs, size_t size);
+void *qemu_try_blockalign(BlockDriverState *bs, size_t size);
 bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov);
 
 struct HBitmapIter;
@@ -481,23 +485,6 @@ void bdrv_op_unblock(BlockDriverState *bs, BlockOpType op, Error *reason);
 void bdrv_op_block_all(BlockDriverState *bs, Error *reason);
 void bdrv_op_unblock_all(BlockDriverState *bs, Error *reason);
 bool bdrv_op_blocker_is_empty(BlockDriverState *bs);
-
-enum BlockAcctType {
-    BDRV_ACCT_READ,
-    BDRV_ACCT_WRITE,
-    BDRV_ACCT_FLUSH,
-    BDRV_MAX_IOTYPE,
-};
-
-typedef struct BlockAcctCookie {
-    int64_t bytes;
-    int64_t start_time_ns;
-    enum BlockAcctType type;
-} BlockAcctCookie;
-
-void bdrv_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
-        int64_t bytes, enum BlockAcctType type);
-void bdrv_acct_done(BlockDriverState *bs, BlockAcctCookie *cookie);
 
 typedef enum {
     BLKDBG_L1_UPDATE,
@@ -583,5 +570,11 @@ AioContext *bdrv_get_aio_context(BlockDriverState *bs);
  * the old #AioContext is not executing.
  */
 void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context);
+
+void bdrv_io_plug(BlockDriverState *bs);
+void bdrv_io_unplug(BlockDriverState *bs);
+void bdrv_flush_io_queue(BlockDriverState *bs);
+
+BlockAcctStats *bdrv_get_stats(BlockDriverState *bs);
 
 #endif

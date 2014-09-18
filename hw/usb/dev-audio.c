@@ -371,7 +371,7 @@ static void output_callback(void *opaque, int avail)
             return;
         }
         data = streambuf_get(&s->out.buf);
-        if (NULL == data) {
+        if (!data) {
             return;
         }
         AUD_write(s->out.voice, data, USBAUDIO_PACKET_SIZE);

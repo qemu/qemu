@@ -94,10 +94,13 @@ struct pflash_t {
     void *storage;
 };
 
+static int pflash_post_load(void *opaque, int version_id);
+
 static const VMStateDescription vmstate_pflash = {
     .name = "pflash_cfi01",
     .version_id = 1,
     .minimum_version_id = 1,
+    .post_load = pflash_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(wcycle, pflash_t),
         VMSTATE_UINT8(cmd, pflash_t),
@@ -209,11 +212,11 @@ static uint32_t pflash_devid_query(pflash_t *pfl, hwaddr offset)
     switch (boff & 0xFF) {
     case 0:
         resp = pfl->ident0;
-        DPRINTF("%s: Manufacturer Code %04x\n", __func__, ret);
+        DPRINTF("%s: Manufacturer Code %04x\n", __func__, resp);
         break;
     case 1:
         resp = pfl->ident1;
-        DPRINTF("%s: Device ID Code %04x\n", __func__, ret);
+        DPRINTF("%s: Device ID Code %04x\n", __func__, resp);
         break;
     default:
         DPRINTF("%s: Read Device Information offset=%x\n", __func__,
@@ -750,6 +753,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     int ret;
     uint64_t blocks_per_device, device_len;
     int num_devices;
+    Error *local_err = NULL;
 
     total_len = pfl->sector_len * pfl->nb_blocs;
 
@@ -770,7 +774,12 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     memory_region_init_rom_device(
         &pfl->mem, OBJECT(dev),
         pfl->be ? &pflash_cfi01_ops_be : &pflash_cfi01_ops_le, pfl,
-        pfl->name, total_len);
+        pfl->name, total_len, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     vmstate_register_ram(&pfl->mem, DEVICE(pfl));
     pfl->storage = memory_region_get_ram_ptr(&pfl->mem);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
@@ -781,7 +790,6 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
 
         if (ret < 0) {
             vmstate_unregister_ram(&pfl->mem, DEVICE(pfl));
-            memory_region_destroy(&pfl->mem);
             error_setg(errp, "failed to read the initial flash content");
             return;
         }
@@ -982,4 +990,15 @@ pflash_t *pflash_cfi01_register(hwaddr base,
 MemoryRegion *pflash_cfi01_get_memory(pflash_t *fl)
 {
     return &fl->mem;
+}
+
+static int pflash_post_load(void *opaque, int version_id)
+{
+    pflash_t *pfl = opaque;
+
+    if (!pfl->ro) {
+        DPRINTF("%s: updating bdrv for %s\n", __func__, pfl->name);
+        pflash_update(pfl, 0, pfl->sector_len * pfl->nb_blocs);
+    }
+    return 0;
 }

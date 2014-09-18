@@ -67,6 +67,7 @@ static const VMStateDescription vmstate_imx_ccm = {
         VMSTATE_UINT32(pmcr0, IMXCCMState),
         VMSTATE_UINT32(pmcr1, IMXCCMState),
         VMSTATE_UINT32(pll_refclk_freq, IMXCCMState),
+        VMSTATE_END_OF_LIST()
     },
     .post_load = imx_ccm_post_load,
 };

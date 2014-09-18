@@ -550,3 +550,16 @@ size_t iov_discard_back(struct iovec *iov, unsigned int *iov_cnt,
 
     return total;
 }
+
+void qemu_iovec_discard_back(QEMUIOVector *qiov, size_t bytes)
+{
+    size_t total;
+    unsigned int niov = qiov->niov;
+
+    assert(qiov->size >= bytes);
+    total = iov_discard_back(qiov->iov, &niov, bytes);
+    assert(total == bytes);
+
+    qiov->niov = niov;
+    qiov->size -= bytes;
+}

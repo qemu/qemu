@@ -19,6 +19,7 @@ typedef struct GAState GAState;
 typedef struct GACommandState GACommandState;
 extern GAState *ga_state;
 
+GList *ga_command_blacklist_init(GList *blacklist);
 void ga_command_state_init(GAState *s, GACommandState *cs);
 void ga_command_state_add(GACommandState *cs,
                           void (*init)(void),

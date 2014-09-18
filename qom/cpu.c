@@ -202,6 +202,10 @@ static bool cpu_common_virtio_is_big_endian(CPUState *cpu)
     return target_words_bigendian();
 }
 
+static void cpu_common_debug_excp_handler(CPUState *cpu)
+{
+}
+
 void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
                     int flags)
 {
@@ -340,6 +344,7 @@ static void cpu_class_init(ObjectClass *klass, void *data)
     k->gdb_read_register = cpu_common_gdb_read_register;
     k->gdb_write_register = cpu_common_gdb_write_register;
     k->virtio_is_big_endian = cpu_common_virtio_is_big_endian;
+    k->debug_excp_handler = cpu_common_debug_excp_handler;
     dc->realize = cpu_common_realizefn;
     /*
      * Reason: CPUs still need special care by board code: wiring up

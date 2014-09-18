@@ -210,8 +210,8 @@ void set_numa_nodes(void)
             numa_total += numa_info[i].node_mem;
         }
         if (numa_total != ram_size) {
-            error_report("total memory for NUMA nodes (%" PRIu64 ")"
-                         " should equal RAM size (" RAM_ADDR_FMT ")",
+            error_report("total memory for NUMA nodes (0x%" PRIx64 ")"
+                         " should equal RAM size (0x" RAM_ADDR_FMT ")",
                          numa_total, ram_size);
             exit(1);
         }
@@ -263,14 +263,14 @@ static void allocate_system_memory_nonnuma(MemoryRegion *mr, Object *owner,
         if (err) {
             qerror_report_err(err);
             error_free(err);
-            memory_region_init_ram(mr, owner, name, ram_size);
+            memory_region_init_ram(mr, owner, name, ram_size, &error_abort);
         }
 #else
         fprintf(stderr, "-mem-path not supported on this host\n");
         exit(1);
 #endif
     } else {
-        memory_region_init_ram(mr, owner, name, ram_size);
+        memory_region_init_ram(mr, owner, name, ram_size, &error_abort);
     }
     vmstate_register_ram_global(mr);
 }
@@ -301,6 +301,14 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
             exit(1);
         }
 
+        if (memory_region_is_mapped(seg)) {
+            char *path = object_get_canonical_path_component(OBJECT(backend));
+            error_report("memory backend %s is used multiple times. Each "
+                         "-numa option must use a different memdev value.",
+                         path);
+            exit(1);
+        }
+
         memory_region_add_subregion(mr, addr, seg);
         vmstate_register_ram_global(seg);
         addr += size;
@@ -310,10 +318,11 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
 static int query_memdev(Object *obj, void *opaque)
 {
     MemdevList **list = opaque;
+    MemdevList *m = NULL;
     Error *err = NULL;
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_BACKEND)) {
-        MemdevList *m = g_malloc0(sizeof(*m));
+        m = g_malloc0(sizeof(*m));
 
         m->value = g_malloc0(sizeof(*m->value));
 
@@ -361,13 +370,16 @@ static int query_memdev(Object *obj, void *opaque)
 
     return 0;
 error:
+    g_free(m->value);
+    g_free(m);
+
     return -1;
 }
 
 MemdevList *qmp_query_memdev(Error **errp)
 {
     Object *obj;
-    MemdevList *list = NULL, *m;
+    MemdevList *list = NULL;
 
     obj = object_resolve_path("/objects", NULL);
     if (obj == NULL) {
@@ -381,11 +393,6 @@ MemdevList *qmp_query_memdev(Error **errp)
     return list;
 
 error:
-    while (list) {
-        m = list;
-        list = list->next;
-        g_free(m->value);
-        g_free(m);
-    }
+    qapi_free_MemdevList(list);
     return NULL;
 }

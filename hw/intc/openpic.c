@@ -1627,7 +1627,7 @@ static void openpic_realize(DeviceState *dev, Error **errp)
     }
 
     for (i = 0; i < opp->nb_cpus; i++) {
-        opp->dst[i].irqs = g_new(qemu_irq, OPENPIC_OUTPUT_NB);
+        opp->dst[i].irqs = g_new0(qemu_irq, OPENPIC_OUTPUT_NB);
         for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
             sysbus_init_irq(d, &opp->dst[i].irqs[j]);
         }

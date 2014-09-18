@@ -35,7 +35,8 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                kernel_irqchip=on|off controls accelerated irqchip support\n"
     "                kvm_shadow_mem=size of KVM shadow MMU\n"
     "                dump-guest-core=on|off include guest memory in a core dump (default=on)\n"
-    "                mem-merge=on|off controls memory merge support (default: on)\n",
+    "                mem-merge=on|off controls memory merge support (default: on)\n"
+    "                iommu=on|off controls emulated Intel IOMMU (VT-d) support (default=off)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -machine [type=]@var{name}[,prop=@var{value}[,...]]
@@ -58,6 +59,8 @@ Include guest memory in a core dump. The default is on.
 Enables or disables memory merge support. This feature, when supported by
 the host, de-duplicates identical memory pages among VMs instances
 (enabled by default).
+@item iommu=on|off
+Enables or disables emulated Intel IOMMU (VT-d) support. The default is off.
 @end table
 ETEXI
 
@@ -225,7 +228,8 @@ DEF("m", HAS_ARG, QEMU_OPTION_m,
     "                size: initial amount of guest memory (default: "
     stringify(DEFAULT_RAM_SIZE) "MiB)\n"
     "                slots: number of hotplug slots (default: none)\n"
-    "                maxmem: maximum amount of guest memory (default: none)\n",
+    "                maxmem: maximum amount of guest memory (default: none)\n"
+    "NOTE: Some architectures might enforce a specific granularity\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -m [size=]@var{megs}
@@ -427,7 +431,7 @@ DEF("drive", HAS_ARG, QEMU_OPTION_drive,
     "       [,serial=s][,addr=A][,rerror=ignore|stop|report]\n"
     "       [,werror=ignore|stop|report|enospc][,id=name][,aio=threads|native]\n"
     "       [,readonly=on|off][,copy-on-read=on|off]\n"
-    "       [,detect-zeroes=on|off|unmap]\n"
+    "       [,discard=ignore|unmap][,detect-zeroes=on|off|unmap]\n"
     "       [[,bps=b]|[[,bps_rd=r][,bps_wr=w]]]\n"
     "       [[,iops=i]|[[,iops_rd=r][,iops_wr=w]]]\n"
     "       [[,bps_max=bm]|[[,bps_rd_max=rm][,bps_wr_max=wm]]]\n"
@@ -1437,14 +1441,14 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net l2tpv3[,vlan=n][,name=str],src=srcaddr,dst=dstaddr[,srcport=srcport][,dstport=dstport],txsession=txsession[,rxsession=rxsession][,ipv6=on/off][,udp=on/off][,cookie64=on/off][,counter][,pincounter][,txcookie=txcookie][,rxcookie=rxcookie][,offset=offset]\n"
     "                connect the VLAN to an Ethernet over L2TPv3 pseudowire\n"
     "                Linux kernel 3.3+ as well as most routers can talk\n"
-    "                L2TPv3. This transport allows to connect a VM to a VM,\n"
+    "                L2TPv3. This transport allows connecting a VM to a VM,\n"
     "                VM to a router and even VM to Host. It is a nearly-universal\n"
     "                standard (RFC3391). Note - this implementation uses static\n"
     "                pre-configured tunnels (same as the Linux kernel).\n"
     "                use 'src=' to specify source address\n"
     "                use 'dst=' to specify destination address\n"
     "                use 'udp=on' to specify udp encapsulation\n"
-    "                use 'dstport=' to specify destination udp port\n"
+    "                use 'srcport=' to specify source udp port\n"
     "                use 'dstport=' to specify destination udp port\n"
     "                use 'ipv6=on' to force v6\n"
     "                L2TPv3 uses cookies to prevent misconfiguration as\n"
@@ -1926,7 +1930,7 @@ ETEXI
 
 DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
     "-chardev null,id=id[,mux=on|off]\n"
-    "-chardev socket,id=id[,host=host],port=host[,to=to][,ipv4][,ipv6][,nodelay]\n"
+    "-chardev socket,id=id[,host=host],port=port[,to=to][,ipv4][,ipv6][,nodelay]\n"
     "         [,server][,nowait][,telnet][,mux=on|off] (tcp)\n"
     "-chardev socket,id=id,path=path[,server][,nowait][,telnet],[mux=on|off] (unix)\n"
     "-chardev udp,id=id[,host=host],port=port[,localaddr=localaddr]\n"
@@ -2351,6 +2355,16 @@ multiple of 512 bytes. It defaults to 256k.
 @item sslverify
 Whether to verify the remote server's certificate when connecting over SSL. It
 can have the value 'on' or 'off'. It defaults to 'on'.
+
+@item cookie
+Send this cookie (it can also be a list of cookies separated by ';') with
+each outgoing request.  Only supported when using protocols such as HTTP
+which support cookies, otherwise ignored.
+
+@item timeout
+Set the timeout in seconds of the CURL connection. This timeout is the time
+that CURL waits for a response from the remote server to get the size of the
+image to be downloaded. If not set, the default timeout of 5 seconds is used.
 @end table
 
 Note that when passing options to qemu explicitly, @option{driver} is the value
@@ -2372,9 +2386,10 @@ qemu-system-x86_64 -drive file=/tmp/Fedora-x86_64-20-20131211.1-sda.qcow2,copy-o
 @end example
 
 Example: boot from an image stored on a VMware vSphere server with a self-signed
-certificate using a local overlay for writes and a readahead of 64k
+certificate using a local overlay for writes, a readahead of 64k and a timeout
+of 10 seconds.
 @example
-qemu-img create -f qcow2 -o backing_file='json:@{"file.driver":"https",, "file.url":"https://user:password@@vsphere.example.com/folder/test/test-flat.vmdk?dcPath=Datacenter&dsName=datastore1",, "file.sslverify":"off",, "file.readahead":"64k"@}' /tmp/test.qcow2
+qemu-img create -f qcow2 -o backing_file='json:@{"file.driver":"https",, "file.url":"https://user:password@@vsphere.example.com/folder/test/test-flat.vmdk?dcPath=Datacenter&dsName=datastore1",, "file.sslverify":"off",, "file.readahead":"64k",, "file.timeout":10@}' /tmp/test.qcow2
 
 qemu-system-x86_64 -drive file=/tmp/test.qcow2
 @end example
@@ -3011,11 +3026,11 @@ re-inject them.
 ETEXI
 
 DEF("icount", HAS_ARG, QEMU_OPTION_icount, \
-    "-icount [N|auto]\n" \
+    "-icount [shift=N|auto][,align=on|off]\n" \
     "                enable virtual instruction counter with 2^N clock ticks per\n" \
-    "                instruction\n", QEMU_ARCH_ALL)
+    "                instruction and enable aligning the host and virtual clocks\n", QEMU_ARCH_ALL)
 STEXI
-@item -icount [@var{N}|auto]
+@item -icount [shift=@var{N}|auto]
 @findex -icount
 Enable virtual instruction counter.  The virtual cpu will execute one
 instruction every 2^@var{N} ns of virtual time.  If @code{auto} is specified
@@ -3026,6 +3041,17 @@ Note that while this option can give deterministic behavior, it does not
 provide cycle accurate emulation.  Modern CPUs contain superscalar out of
 order cores with complex cache hierarchies.  The number of instructions
 executed often has little or no correlation with actual performance.
+
+@option{align=on} will activate the delay algorithm which will try to
+to synchronise the host clock and the virtual clock. The goal is to
+have a guest running at the real frequency imposed by the shift option.
+Whenever the guest clock is behind the host clock and if
+@option{align=on} is specified then we print a messsage to the user
+to inform about the delay.
+Currently this option does not work when @option{shift} is @code{auto}.
+Note: The sync algorithm will work for those shift values for which
+the guest clock runs ahead of the host clock. Typically this happens
+when the shift value is high (how high depends on the host machine).
 ETEXI
 
 DEF("watchdog", HAS_ARG, QEMU_OPTION_watchdog, \

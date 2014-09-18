@@ -39,6 +39,7 @@
 #include "qapi/qmp/types.h"
 #include "qapi-visit.h"
 #include "qapi/qmp-output-visitor.h"
+#include "qapi/util.h"
 #include "sysemu/sysemu.h"
 #include "block/block_int.h"
 #include "qmp-commands.h"
@@ -274,25 +275,6 @@ static int parse_block_error_action(const char *buf, bool is_read, Error **errp)
     }
 }
 
-static inline int parse_enum_option(const char *lookup[], const char *buf,
-                                    int max, int def, Error **errp)
-{
-    int i;
-
-    if (!buf) {
-        return def;
-    }
-
-    for (i = 0; i < max; i++) {
-        if (!strcmp(buf, lookup[i])) {
-            return i;
-        }
-    }
-
-    error_setg(errp, "invalid parameter value: %s", buf);
-    return def;
-}
-
 static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
 {
     if (throttle_conflicting(cfg)) {
@@ -456,11 +438,11 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     }
 
     detect_zeroes =
-        parse_enum_option(BlockdevDetectZeroesOptions_lookup,
-                          qemu_opt_get(opts, "detect-zeroes"),
-                          BLOCKDEV_DETECT_ZEROES_OPTIONS_MAX,
-                          BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
-                          &error);
+        qapi_enum_parse(BlockdevDetectZeroesOptions_lookup,
+                        qemu_opt_get(opts, "detect-zeroes"),
+                        BLOCKDEV_DETECT_ZEROES_OPTIONS_MAX,
+                        BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
+                        &error);
     if (error) {
         error_propagate(errp, error);
         goto early_err;
@@ -1094,7 +1076,7 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
         return NULL;
     }
 
-    info = g_malloc0(sizeof(SnapshotInfo));
+    info = g_new0(SnapshotInfo, 1);
     info->id = g_strdup(sn.id_str);
     info->name = g_strdup(sn.name);
     info->date_nsec = sn.date_nsec;
@@ -1757,6 +1739,8 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");
     BlockDriverState *bs;
+    DriveInfo *dinfo;
+    AioContext *aio_context;
     Error *local_err = NULL;
 
     bs = bdrv_find(id);
@@ -1764,9 +1748,21 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
         error_report("Device '%s' not found", id);
         return -1;
     }
+
+    dinfo = drive_get_by_blockdev(bs);
+    if (dinfo && !dinfo->enable_auto_del) {
+        error_report("Deleting device added with blockdev-add"
+                     " is not supported");
+        return -1;
+    }
+
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, &local_err)) {
         error_report("%s", error_get_pretty(local_err));
         error_free(local_err);
+        aio_context_release(aio_context);
         return -1;
     }
 
@@ -1787,9 +1783,10 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
         bdrv_set_on_error(bs, BLOCKDEV_ON_ERROR_REPORT,
                           BLOCKDEV_ON_ERROR_REPORT);
     } else {
-        drive_del(drive_get_by_blockdev(bs));
+        drive_del(dinfo);
     }
 
+    aio_context_release(aio_context);
     return 0;
 }
 
@@ -1799,6 +1796,7 @@ void qmp_block_resize(bool has_device, const char *device,
 {
     Error *local_err = NULL;
     BlockDriverState *bs;
+    AioContext *aio_context;
     int ret;
 
     bs = bdrv_lookup_bs(has_device ? device : NULL,
@@ -1809,19 +1807,22 @@ void qmp_block_resize(bool has_device, const char *device,
         return;
     }
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
     if (!bdrv_is_first_non_filter(bs)) {
         error_set(errp, QERR_FEATURE_DISABLED, "resize");
-        return;
+        goto out;
     }
 
     if (size < 0) {
         error_set(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
-        return;
+        goto out;
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_RESIZE, NULL)) {
         error_set(errp, QERR_DEVICE_IN_USE, device);
-        return;
+        goto out;
     }
 
     /* complete all in-flight operations before resizing the device */
@@ -1847,6 +1848,9 @@ void qmp_block_resize(bool has_device, const char *device,
         error_setg_errno(errp, -ret, "Could not resize");
         break;
     }
+
+out:
+    aio_context_release(aio_context);
 }
 
 static void block_job_cb(void *opaque, int ret)
@@ -2172,11 +2176,12 @@ void qmp_drive_mirror(const char *device, const char *target,
     }
 
     if (granularity != 0 && (granularity < 512 || granularity > 1048576 * 64)) {
-        error_set(errp, QERR_INVALID_PARAMETER, device);
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
+                  "a value in range [512B, 64MB]");
         return;
     }
     if (granularity & (granularity - 1)) {
-        error_set(errp, QERR_INVALID_PARAMETER, device);
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "granularity", "power of 2");
         return;
     }
 

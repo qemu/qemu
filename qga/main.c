@@ -1144,6 +1144,7 @@ int main(int argc, char **argv)
         goto out_bad;
     }
 
+    blacklist = ga_command_blacklist_init(blacklist);
     if (blacklist) {
         s->blacklist = blacklist;
         do {

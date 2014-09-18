@@ -52,10 +52,6 @@
 
 #define DLOG(a) a
 
-#undef stderr
-#define stderr STDERR
-FILE* stderr = NULL;
-
 static void checkpoint(void);
 
 #ifdef __MINGW32__
@@ -732,7 +728,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 	if(first_cluster == 0 && (is_dotdot || is_dot))
 	    continue;
 
-	buffer=(char*)g_malloc(length);
+	buffer = g_malloc(length);
 	snprintf(buffer,length,"%s/%s",dirname,entry->d_name);
 
 	if(stat(buffer,&st)<0) {
@@ -767,7 +763,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 
 	/* create mapping for this file */
 	if(!is_dot && !is_dotdot && (S_ISDIR(st.st_mode) || st.st_size)) {
-	    s->current_mapping=(mapping_t*)array_get_next(&(s->mapping));
+	    s->current_mapping = array_get_next(&(s->mapping));
 	    s->current_mapping->begin=0;
 	    s->current_mapping->end=st.st_size;
 	    /*
@@ -811,12 +807,12 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
     }
 
      /* reget the mapping, since s->mapping was possibly realloc()ed */
-    mapping = (mapping_t*)array_get(&(s->mapping), mapping_index);
+    mapping = array_get(&(s->mapping), mapping_index);
     first_cluster += (s->directory.next - mapping->info.dir.first_dir_index)
 	* 0x20 / s->cluster_size;
     mapping->end = first_cluster;
 
-    direntry = (direntry_t*)array_get(&(s->directory), mapping->dir_index);
+    direntry = array_get(&(s->directory), mapping->dir_index);
     set_begin_of_direntry(direntry, mapping->begin);
 
     return 0;
@@ -1081,11 +1077,6 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 #ifdef DEBUG
     vvv = s;
 #endif
-
-DLOG(if (stderr == NULL) {
-    stderr = fopen("vvfat.log", "a");
-    setbuf(stderr, NULL);
-})
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
@@ -2950,7 +2941,7 @@ static int enable_write_target(BDRVVVFATState *s, Error **errp)
 
     bdrv_set_backing_hd(s->bs, bdrv_new("", &error_abort));
     s->bs->backing_hd->drv = &vvfat_write_target;
-    s->bs->backing_hd->opaque = g_malloc(sizeof(void*));
+    s->bs->backing_hd->opaque = g_new(void *, 1);
     *(void**)s->bs->backing_hd->opaque = s;
 
     return 0;

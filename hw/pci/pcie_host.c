@@ -94,7 +94,6 @@ void pcie_host_mmcfg_unmap(PCIExpressHost *e)
 {
     if (e->base_addr != PCIE_BASE_ADDR_UNMAPPED) {
         memory_region_del_subregion(get_system_memory(), &e->mmio);
-        memory_region_destroy(&e->mmio);
         e->base_addr = PCIE_BASE_ADDR_UNMAPPED;
     }
 }

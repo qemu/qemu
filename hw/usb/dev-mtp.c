@@ -145,6 +145,7 @@ enum {
     STR_MANUFACTURER = 1,
     STR_PRODUCT,
     STR_SERIALNUMBER,
+    STR_MTP,
     STR_CONFIG_FULL,
     STR_CONFIG_HIGH,
     STR_CONFIG_SUPER,
@@ -154,6 +155,7 @@ static const USBDescStrings desc_strings = {
     [STR_MANUFACTURER] = MTP_MANUFACTURER,
     [STR_PRODUCT]      = MTP_PRODUCT,
     [STR_SERIALNUMBER] = "34617",
+    [STR_MTP]          = "MTP",
     [STR_CONFIG_FULL]  = "Full speed config (usb 1.1)",
     [STR_CONFIG_HIGH]  = "High speed config (usb 2.0)",
     [STR_CONFIG_SUPER] = "Super speed config (usb 3.0)",
@@ -165,6 +167,7 @@ static const USBDescIface desc_iface_full = {
     .bInterfaceClass               = USB_CLASS_STILL_IMAGE,
     .bInterfaceSubClass            = 0x01,
     .bInterfaceProtocol            = 0x01,
+    .iInterface                    = STR_MTP,
     .eps = (USBDescEndpoint[]) {
         {
             .bEndpointAddress      = USB_DIR_IN | EP_DATA_IN,
@@ -206,6 +209,7 @@ static const USBDescIface desc_iface_high = {
     .bInterfaceClass               = USB_CLASS_STILL_IMAGE,
     .bInterfaceSubClass            = 0x01,
     .bInterfaceProtocol            = 0x01,
+    .iInterface                    = STR_MTP,
     .eps = (USBDescEndpoint[]) {
         {
             .bEndpointAddress      = USB_DIR_IN | EP_DATA_IN,
@@ -828,7 +832,7 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
             return;
         }
         data_in = usb_mtp_get_object(s, c, o);
-        if (NULL == data_in) {
+        if (data_in == NULL) {
             usb_mtp_queue_result(s, RES_GENERAL_ERROR,
                                  c->trans, 0, 0, 0);
             return;
@@ -847,7 +851,7 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
             return;
         }
         data_in = usb_mtp_get_partial_object(s, c, o);
-        if (NULL == data_in) {
+        if (data_in == NULL) {
             usb_mtp_queue_result(s, RES_GENERAL_ERROR,
                                  c->trans, 0, 0, 0);
             return;
@@ -1086,7 +1090,7 @@ static const VMStateDescription vmstate_usb_mtp = {
 };
 
 static Property mtp_properties[] = {
-    DEFINE_PROP_STRING("root", MTPState, root),
+    DEFINE_PROP_STRING("x-root", MTPState, root),
     DEFINE_PROP_STRING("desc", MTPState, desc),
     DEFINE_PROP_END_OF_LIST(),
 };

@@ -799,7 +799,6 @@ static void do_pci_unregister_device(PCIDevice *pci_dev)
     pci_config_free(pci_dev);
 
     address_space_destroy(&pci_dev->bus_master_as);
-    memory_region_destroy(&pci_dev->bus_master_enable_region);
 }
 
 /* -1 for devfn means auto assign */
@@ -827,6 +826,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     }
 
     pci_dev->bus = bus;
+    pci_dev->devfn = devfn;
     dma_as = pci_device_iommu_address_space(pci_dev);
 
     memory_region_init_alias(&pci_dev->bus_master_enable_region,
@@ -836,7 +836,6 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     address_space_init(&pci_dev->bus_master_as, &pci_dev->bus_master_enable_region,
                        name);
 
-    pci_dev->devfn = devfn;
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
     pci_dev->irq_state = 0;
     pci_config_alloc(pci_dev);
@@ -1147,9 +1146,10 @@ uint32_t pci_default_read_config(PCIDevice *d,
     return le32_to_cpu(val);
 }
 
-void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
+void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val_in, int l)
 {
     int i, was_irq_disabled = pci_irq_disabled(d);
+    uint32_t val = val_in;
 
     for (i = 0; i < l; val >>= 8, ++i) {
         uint8_t wmask = d->wmask[addr + i];
@@ -1171,8 +1171,8 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
                                     & PCI_COMMAND_MASTER);
     }
 
-    msi_write_config(d, addr, val, l);
-    msix_write_config(d, addr, val, l);
+    msi_write_config(d, addr, val_in, l);
+    msix_write_config(d, addr, val_in, l);
 }
 
 /***********************************************************/
@@ -1996,7 +1996,7 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
         snprintf(name, sizeof(name), "%s.rom", object_get_typename(OBJECT(pdev)));
     }
     pdev->has_rom = true;
-    memory_region_init_ram(&pdev->rom, OBJECT(pdev), name, size);
+    memory_region_init_ram(&pdev->rom, OBJECT(pdev), name, size, &error_abort);
     vmstate_register_ram(&pdev->rom, &pdev->qdev);
     ptr = memory_region_get_ram_ptr(&pdev->rom);
     load_image(path, ptr);
@@ -2018,7 +2018,6 @@ static void pci_del_option_rom(PCIDevice *pdev)
         return;
 
     vmstate_unregister_ram(&pdev->rom, &pdev->qdev);
-    memory_region_destroy(&pdev->rom);
     pdev->has_rom = false;
 }
 

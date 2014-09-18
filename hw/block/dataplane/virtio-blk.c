@@ -28,12 +28,14 @@ struct VirtIOBlockDataPlane {
     bool started;
     bool starting;
     bool stopping;
+    bool disabled;
 
     VirtIOBlkConf *blk;
 
     VirtIODevice *vdev;
     Vring vring;                    /* virtqueue vring */
     EventNotifier *guest_notifier;  /* irq */
+    QEMUBH *bh;                     /* bh for guest notification */
 
     /* Note that these EventNotifiers are assigned by value.  This is
      * fine as long as you do not call event_notifier_cleanup on them
@@ -61,46 +63,60 @@ static void notify_guest(VirtIOBlockDataPlane *s)
     event_notifier_set(s->guest_notifier);
 }
 
+static void notify_guest_bh(void *opaque)
+{
+    VirtIOBlockDataPlane *s = opaque;
+
+    notify_guest(s);
+}
+
 static void complete_request_vring(VirtIOBlockReq *req, unsigned char status)
 {
+    VirtIOBlockDataPlane *s = req->dev->dataplane;
     stb_p(&req->in->status, status);
 
-    vring_push(&req->dev->dataplane->vring, req->elem,
+    vring_push(&req->dev->dataplane->vring, &req->elem,
                req->qiov.size + sizeof(*req->in));
-    notify_guest(req->dev->dataplane);
-    g_slice_free(VirtIOBlockReq, req);
+
+    /* Suppress notification to guest by BH and its scheduled
+     * flag because requests are completed as a batch after io
+     * plug & unplug is introduced, and the BH can still be
+     * executed in dataplane aio context even after it is
+     * stopped, so needn't worry about notification loss with BH.
+     */
+    qemu_bh_schedule(s->bh);
 }
 
 static void handle_notify(EventNotifier *e)
 {
     VirtIOBlockDataPlane *s = container_of(e, VirtIOBlockDataPlane,
                                            host_notifier);
-
-    VirtQueueElement *elem;
-    VirtIOBlockReq *req;
-    int ret;
-    MultiReqBuffer mrb = {
-        .num_writes = 0,
-    };
+    VirtIOBlock *vblk = VIRTIO_BLK(s->vdev);
 
     event_notifier_test_and_clear(&s->host_notifier);
+    bdrv_io_plug(s->blk->conf.bs);
     for (;;) {
+        MultiReqBuffer mrb = {
+            .num_writes = 0,
+        };
+        int ret;
+
         /* Disable guest->host notifies to avoid unnecessary vmexits */
         vring_disable_notification(s->vdev, &s->vring);
 
         for (;;) {
-            ret = vring_pop(s->vdev, &s->vring, &elem);
+            VirtIOBlockReq *req = virtio_blk_alloc_request(vblk);
+
+            ret = vring_pop(s->vdev, &s->vring, &req->elem);
             if (ret < 0) {
-                assert(elem == NULL);
+                virtio_blk_free_request(req);
                 break; /* no more requests */
             }
 
-            trace_virtio_blk_data_plane_process_request(s, elem->out_num,
-                                                        elem->in_num, elem->index);
+            trace_virtio_blk_data_plane_process_request(s, req->elem.out_num,
+                                                        req->elem.in_num,
+                                                        req->elem.index);
 
-            req = g_slice_new(VirtIOBlockReq);
-            req->dev = VIRTIO_BLK(s->vdev);
-            req->elem = elem;
             virtio_blk_handle_request(req, &mrb);
         }
 
@@ -117,6 +133,7 @@ static void handle_notify(EventNotifier *e)
             break;
         }
     }
+    bdrv_io_unplug(s->blk->conf.bs);
 }
 
 /* Context: QEMU global mutex held */
@@ -125,7 +142,6 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
                                   Error **errp)
 {
     VirtIOBlockDataPlane *s;
-    VirtIOBlock *vblk = VIRTIO_BLK(vdev);
     Error *local_err = NULL;
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
@@ -148,8 +164,8 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
      * block jobs that can conflict.
      */
     if (bdrv_op_is_blocked(blk->conf.bs, BLOCK_OP_TYPE_DATAPLANE, &local_err)) {
-        error_report("cannot start dataplane thread: %s",
-                      error_get_pretty(local_err));
+        error_setg(errp, "cannot start dataplane thread: %s",
+                   error_get_pretty(local_err));
         error_free(local_err);
         return;
     }
@@ -173,13 +189,14 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
         s->iothread = &s->internal_iothread_obj;
     }
     s->ctx = iothread_get_aio_context(s->iothread);
+    s->bh = aio_bh_new(s->ctx, notify_guest_bh, s);
 
     error_setg(&s->blocker, "block device is in use by data plane");
     bdrv_op_block_all(blk->conf.bs, s->blocker);
+    bdrv_op_unblock(blk->conf.bs, BLOCK_OP_TYPE_RESIZE, s->blocker);
+    bdrv_op_unblock(blk->conf.bs, BLOCK_OP_TYPE_DRIVE_DEL, s->blocker);
 
     *dataplane = s;
-    s->saved_complete_request = vblk->complete_request;
-    vblk->complete_request = complete_request_vring;
 }
 
 /* Context: QEMU global mutex held */
@@ -193,6 +210,7 @@ void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
     bdrv_op_unblock_all(s->blk->conf.bs, s->blocker);
     error_free(s->blocker);
     object_unref(OBJECT(s->iothread));
+    qemu_bh_delete(s->bh);
     g_free(s);
 }
 
@@ -201,9 +219,11 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s->vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    VirtIOBlock *vblk = VIRTIO_BLK(s->vdev);
     VirtQueue *vq;
+    int r;
 
-    if (s->started) {
+    if (s->started || s->disabled) {
         return;
     }
 
@@ -215,24 +235,28 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
 
     vq = virtio_get_queue(s->vdev, 0);
     if (!vring_setup(&s->vring, s->vdev, 0)) {
-        s->starting = false;
-        return;
+        goto fail_vring;
     }
 
     /* Set up guest notifier (irq) */
-    if (k->set_guest_notifiers(qbus->parent, 1, true) != 0) {
-        fprintf(stderr, "virtio-blk failed to set guest notifier, "
-                "ensure -enable-kvm is set\n");
-        exit(1);
+    r = k->set_guest_notifiers(qbus->parent, 1, true);
+    if (r != 0) {
+        fprintf(stderr, "virtio-blk failed to set guest notifier (%d), "
+                "ensure -enable-kvm is set\n", r);
+        goto fail_guest_notifiers;
     }
     s->guest_notifier = virtio_queue_get_guest_notifier(vq);
 
     /* Set up virtqueue notify */
-    if (k->set_host_notifier(qbus->parent, 0, true) != 0) {
-        fprintf(stderr, "virtio-blk failed to set host notifier\n");
-        exit(1);
+    r = k->set_host_notifier(qbus->parent, 0, true);
+    if (r != 0) {
+        fprintf(stderr, "virtio-blk failed to set host notifier (%d)\n", r);
+        goto fail_host_notifier;
     }
     s->host_notifier = *virtio_queue_get_host_notifier(vq);
+
+    s->saved_complete_request = vblk->complete_request;
+    vblk->complete_request = complete_request_vring;
 
     s->starting = false;
     s->started = true;
@@ -247,6 +271,15 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
     aio_context_acquire(s->ctx);
     aio_set_event_notifier(s->ctx, &s->host_notifier, handle_notify);
     aio_context_release(s->ctx);
+    return;
+
+  fail_host_notifier:
+    k->set_guest_notifiers(qbus->parent, 1, false);
+  fail_guest_notifiers:
+    vring_teardown(&s->vring, s->vdev, 0);
+    s->disabled = true;
+  fail_vring:
+    s->starting = false;
 }
 
 /* Context: QEMU global mutex held */
@@ -255,6 +288,13 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s->vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtIOBlock *vblk = VIRTIO_BLK(s->vdev);
+
+
+    /* Better luck next time. */
+    if (s->disabled) {
+        s->disabled = false;
+        return;
+    }
     if (!s->started || s->stopping) {
         return;
     }

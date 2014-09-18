@@ -129,7 +129,7 @@ typedef struct MemoryRegionIOMMUOps MemoryRegionIOMMUOps;
 
 struct MemoryRegionIOMMUOps {
     /* Return a TLB entry that contains a given address. */
-    IOMMUTLBEntry (*translate)(MemoryRegion *iommu, hwaddr addr);
+    IOMMUTLBEntry (*translate)(MemoryRegion *iommu, hwaddr addr, bool is_write);
 };
 
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
@@ -311,11 +311,13 @@ void memory_region_init_io(MemoryRegion *mr,
  * @owner: the object that tracks the region's reference count
  * @name: the name of the region.
  * @size: size of the region.
+ * @errp: pointer to Error*, to store an error if it happens.
  */
 void memory_region_init_ram(MemoryRegion *mr,
                             struct Object *owner,
                             const char *name,
-                            uint64_t size);
+                            uint64_t size,
+                            Error **errp);
 
 #ifdef __linux__
 /**
@@ -384,13 +386,15 @@ void memory_region_init_alias(MemoryRegion *mr,
  * @ops: callbacks for write access handling.
  * @name: the name of the region.
  * @size: size of the region.
+ * @errp: pointer to Error*, to store an error if it happens.
  */
 void memory_region_init_rom_device(MemoryRegion *mr,
                                    struct Object *owner,
                                    const MemoryRegionOps *ops,
                                    void *opaque,
                                    const char *name,
-                                   uint64_t size);
+                                   uint64_t size,
+                                   Error **errp);
 
 /**
  * memory_region_init_reservation: Initialize a memory region that reserves
@@ -428,15 +432,6 @@ void memory_region_init_iommu(MemoryRegion *mr,
                               const MemoryRegionIOMMUOps *ops,
                               const char *name,
                               uint64_t size);
-
-/**
- * memory_region_destroy: Destroy a memory region and reclaim all resources.
- *
- * @mr: the region to be destroyed.  May not currently be a subregion
- *      (see memory_region_add_subregion()) or referenced in an alias
- *      (see memory_region_init_alias()).
- */
-void memory_region_destroy(MemoryRegion *mr);
 
 /**
  * memory_region_owner: get a memory region's owner.
@@ -520,7 +515,7 @@ void memory_region_unregister_iommu_notifier(Notifier *n);
  *
  * @mr: the memory region being queried
  */
-const char *memory_region_name(MemoryRegion *mr);
+const char *memory_region_name(const MemoryRegion *mr);
 
 /**
  * memory_region_is_logging: return whether a memory region is logging writes

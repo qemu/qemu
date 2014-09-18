@@ -50,7 +50,7 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io)
         fprintf(stderr, "Can't create a second ISA bus\n");
         return NULL;
     }
-    if (NULL == dev) {
+    if (!dev) {
         dev = qdev_create(NULL, "isabus-bridge");
         qdev_init_nofail(dev);
     }

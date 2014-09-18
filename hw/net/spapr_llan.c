@@ -72,7 +72,14 @@ typedef uint64_t vlan_bd_t;
 #define VLAN_RXQ_BD_OFF      0
 #define VLAN_FILTER_BD_OFF   8
 #define VLAN_RX_BDS_OFF      16
-#define VLAN_MAX_BUFS        ((SPAPR_TCE_PAGE_SIZE - VLAN_RX_BDS_OFF) / 8)
+/*
+ * The final 8 bytes of the buffer list is a counter of frames dropped
+ * because there was not a buffer in the buffer list capable of holding
+ * the frame. We must avoid it, or the operating system will report garbage
+ * for this statistic.
+ */
+#define VLAN_RX_BDS_LEN      (SPAPR_TCE_PAGE_SIZE - VLAN_RX_BDS_OFF - 8)
+#define VLAN_MAX_BUFS        (VLAN_RX_BDS_LEN / 8)
 
 #define TYPE_VIO_SPAPR_VLAN_DEVICE "spapr-vlan"
 #define VIO_SPAPR_VLAN_DEVICE(obj) \
@@ -119,7 +126,7 @@ static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
 
     do {
         buf_ptr += 8;
-        if (buf_ptr >= SPAPR_TCE_PAGE_SIZE) {
+        if (buf_ptr >= (VLAN_RX_BDS_LEN + VLAN_RX_BDS_OFF)) {
             buf_ptr = VLAN_RX_BDS_OFF;
         }
 
@@ -397,7 +404,7 @@ static target_ulong h_add_logical_lan_buffer(PowerPCCPU *cpu,
 
     do {
         dev->add_buf_ptr += 8;
-        if (dev->add_buf_ptr >= SPAPR_TCE_PAGE_SIZE) {
+        if (dev->add_buf_ptr >= (VLAN_RX_BDS_LEN + VLAN_RX_BDS_OFF)) {
             dev->add_buf_ptr = VLAN_RX_BDS_OFF;
         }
 

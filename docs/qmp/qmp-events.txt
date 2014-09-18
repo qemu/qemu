@@ -243,6 +243,19 @@ Data:
   "timestamp": { "seconds": 1368697518, "microseconds": 326866 } }
 }
 
+POWERDOWN
+---------
+
+Emitted when the Virtual Machine is powered down through the power
+control system, such as via ACPI.
+
+Data: None.
+
+Example:
+
+{ "event": "POWERDOWN",
+    "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
+
 QUORUM_FAILURE
 --------------
 
@@ -285,7 +298,7 @@ Example:
 RESET
 -----
 
-Emitted when the Virtual Machine is reseted.
+Emitted when the Virtual Machine is reset.
 
 Data: None.
 
@@ -325,7 +338,8 @@ Example:
 SHUTDOWN
 --------
 
-Emitted when the Virtual Machine is powered down.
+Emitted when the Virtual Machine has shut down, indicating that qemu
+is about to exit.
 
 Data: None.
 
@@ -337,10 +351,10 @@ Example:
 Note: If the command-line option "-no-shutdown" has been specified, a STOP
 event will eventually follow the SHUTDOWN event.
 
-SPICE_CONNECTED, SPICE_DISCONNECTED
------------------------------------
+SPICE_CONNECTED
+---------------
 
-Emitted when a SPICE client connects or disconnects.
+Emitted when a SPICE client connects.
 
 Data:
 
@@ -362,11 +376,36 @@ Example:
     "client": {"port": "52873", "family": "ipv4", "host": "127.0.0.1"}
 }}
 
+SPICE_DISCONNECTED
+------------------
+
+Emitted when a SPICE client disconnects.
+
+Data:
+
+- "server": Server information (json-object)
+  - "host": IP address (json-string)
+  - "port": port number (json-string)
+  - "family": address family (json-string, "ipv4" or "ipv6")
+- "client": Client information (json-object)
+  - "host": IP address (json-string)
+  - "port": port number (json-string)
+  - "family": address family (json-string, "ipv4" or "ipv6")
+
+Example:
+
+{ "timestamp": {"seconds": 1290688046, "microseconds": 388707},
+  "event": "SPICE_DISCONNECTED",
+  "data": {
+    "server": { "port": "5920", "family": "ipv4", "host": "127.0.0.1"},
+    "client": {"port": "52873", "family": "ipv4", "host": "127.0.0.1"}
+}}
+
 SPICE_INITIALIZED
 -----------------
 
 Emitted after initial handshake and authentication takes place (if any)
-and the SPICE channel is up'n'running
+and the SPICE channel is up and running
 
 Data:
 
@@ -398,6 +437,19 @@ Example:
                       "connection-id": 1804289383, "host": "127.0.0.1",
                       "channel-id": 0, "tls": true}
 }}
+
+SPICE_MIGRATE_COMPLETED
+-----------------------
+
+Emitted when SPICE migration has completed
+
+Data: None.
+
+Example:
+
+{ "timestamp": {"seconds": 1290688046, "microseconds": 417172},
+  "event": "SPICE_MIGRATE_COMPLETED" }
+
 
 STOP
 ----
@@ -526,6 +578,22 @@ Example:
         "client": { "family": "ipv4", "service": "46089",
                     "host": "127.0.0.1", "sasl_username": "luiz" } },
         "timestamp": { "seconds": 1263475302, "microseconds": 150772 } }
+
+VSERPORT_CHANGE
+---------------
+
+Emitted when the guest opens or closes a virtio-serial port.
+
+Data:
+
+- "id": device identifier of the virtio-serial port (json-string)
+- "open": true if the guest has opened the virtio-serial port (json-bool)
+
+Example:
+
+{ "event": "VSERPORT_CHANGE",
+    "data": { "id": "channel0", "open": true },
+    "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
 
 WAKEUP
 ------

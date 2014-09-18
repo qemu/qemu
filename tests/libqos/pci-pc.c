@@ -41,7 +41,7 @@ static uint8_t qpci_pc_io_readb(QPCIBus *bus, void *addr)
     if (port < 0x10000) {
         value = inb(port);
     } else {
-        memread(port, &value, sizeof(value));
+        value = readb(port);
     }
 
     return value;
@@ -55,7 +55,7 @@ static uint16_t qpci_pc_io_readw(QPCIBus *bus, void *addr)
     if (port < 0x10000) {
         value = inw(port);
     } else {
-        memread(port, &value, sizeof(value));
+        value = readw(port);
     }
 
     return value;
@@ -69,7 +69,7 @@ static uint32_t qpci_pc_io_readl(QPCIBus *bus, void *addr)
     if (port < 0x10000) {
         value = inl(port);
     } else {
-        memread(port, &value, sizeof(value));
+        value = readl(port);
     }
 
     return value;
@@ -82,7 +82,7 @@ static void qpci_pc_io_writeb(QPCIBus *bus, void *addr, uint8_t value)
     if (port < 0x10000) {
         outb(port, value);
     } else {
-        memwrite(port, &value, sizeof(value));
+        writeb(port, value);
     }
 }
 
@@ -93,7 +93,7 @@ static void qpci_pc_io_writew(QPCIBus *bus, void *addr, uint16_t value)
     if (port < 0x10000) {
         outw(port, value);
     } else {
-        memwrite(port, &value, sizeof(value));
+        writew(port, value);
     }
 }
 
@@ -104,7 +104,7 @@ static void qpci_pc_io_writel(QPCIBus *bus, void *addr, uint32_t value)
     if (port < 0x10000) {
         outl(port, value);
     } else {
-        memwrite(port, &value, sizeof(value));
+        writel(port, value);
     }
 }
 
@@ -144,7 +144,7 @@ static void qpci_pc_config_writel(QPCIBus *bus, int devfn, uint8_t offset, uint3
     outl(0xcfc, value);
 }
 
-static void *qpci_pc_iomap(QPCIBus *bus, QPCIDevice *dev, int barno)
+static void *qpci_pc_iomap(QPCIBus *bus, QPCIDevice *dev, int barno, uint64_t *sizeptr)
 {
     QPCIBusPC *s = container_of(bus, QPCIBusPC, bus);
     static const int bar_reg_map[] = {
@@ -172,6 +172,9 @@ static void *qpci_pc_iomap(QPCIBus *bus, QPCIDevice *dev, int barno)
     size = (1ULL << ctzl(addr));
     if (size == 0) {
         return NULL;
+    }
+    if (sizeptr) {
+        *sizeptr = size;
     }
 
     if (io_type == PCI_BASE_ADDRESS_SPACE_IO) {
@@ -236,4 +239,11 @@ QPCIBus *qpci_init_pc(void)
     ret->pci_iohole_alloc = 0;
 
     return &ret->bus;
+}
+
+void qpci_free_pc(QPCIBus *bus)
+{
+    QPCIBusPC *s = container_of(bus, QPCIBusPC, bus);
+
+    g_free(s);
 }

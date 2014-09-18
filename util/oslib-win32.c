@@ -50,16 +50,21 @@ void *qemu_oom_check(void *ptr)
     return ptr;
 }
 
-void *qemu_memalign(size_t alignment, size_t size)
+void *qemu_try_memalign(size_t alignment, size_t size)
 {
     void *ptr;
 
     if (!size) {
         abort();
     }
-    ptr = qemu_oom_check(VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE));
+    ptr = VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE);
     trace_qemu_memalign(alignment, size, ptr);
     return ptr;
+}
+
+void *qemu_memalign(size_t alignment, size_t size)
+{
+    return qemu_oom_check(qemu_try_memalign(alignment, size));
 }
 
 void *qemu_anon_ram_alloc(size_t size)

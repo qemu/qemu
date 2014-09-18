@@ -498,24 +498,3 @@ QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque)
 {
     return aio_bh_new(qemu_aio_context, cb, opaque);
 }
-
-bool qemu_aio_wait(void)
-{
-    return aio_poll(qemu_aio_context, true);
-}
-
-#ifdef CONFIG_POSIX
-void qemu_aio_set_fd_handler(int fd,
-                             IOHandler *io_read,
-                             IOHandler *io_write,
-                             void *opaque)
-{
-    aio_set_fd_handler(qemu_aio_context, fd, io_read, io_write, opaque);
-}
-#endif
-
-void qemu_aio_set_event_notifier(EventNotifier *notifier,
-                                 EventNotifierHandler *io_read)
-{
-    aio_set_event_notifier(qemu_aio_context, notifier, io_read);
-}

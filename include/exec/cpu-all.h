@@ -198,6 +198,8 @@ extern unsigned long reserved_va;
 #define RESERVED_VA 0ul
 #endif
 
+#define GUEST_ADDR_MAX (RESERVED_VA ? RESERVED_VA : \
+                                    (1ul << TARGET_VIRT_ADDR_SPACE_BITS) - 1)
 #endif
 
 /* page related stuff */

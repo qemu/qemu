@@ -65,7 +65,7 @@ enum {
     DSKCHG  = 0x80,
 };
 
-char test_image[] = "/tmp/qtest.XXXXXX";
+static char test_image[] = "/tmp/qtest.XXXXXX";
 
 #define assert_bit_set(data, mask) g_assert_cmphex((data) & (mask), ==, (mask))
 #define assert_bit_clear(data, mask) g_assert_cmphex((data) & (mask), ==, 0)

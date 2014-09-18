@@ -87,6 +87,13 @@ void usb_bus_new(USBBus *bus, size_t bus_size,
     QTAILQ_INSERT_TAIL(&busses, bus, next);
 }
 
+void usb_bus_release(USBBus *bus)
+{
+    assert(next_usb_bus > 0);
+
+    QTAILQ_REMOVE(&busses, bus, next);
+}
+
 USBBus *usb_bus_find(int busnr)
 {
     USBBus *bus;
@@ -589,11 +596,11 @@ static char *usb_get_fw_dev_path(DeviceState *qdev)
         nr = strtol(in, &in, 10);
         if (in[0] == '.') {
             /* some hub between root port and device */
-            pos += snprintf(fw_path + pos, fw_len - pos, "hub@%ld/", nr);
+            pos += snprintf(fw_path + pos, fw_len - pos, "hub@%lx/", nr);
             in++;
         } else {
             /* the device itself */
-            pos += snprintf(fw_path + pos, fw_len - pos, "%s@%ld",
+            pos += snprintf(fw_path + pos, fw_len - pos, "%s@%lx",
                             qdev_fw_name(qdev), nr);
             break;
         }

@@ -50,6 +50,7 @@ void disabled_wait(void);
 
 /* main.c */
 void virtio_panic(const char *string);
+void write_subsystem_identification(void);
 
 /* sclp-ascii.c */
 void sclp_print(const char *string);

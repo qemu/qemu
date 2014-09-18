@@ -1260,7 +1260,23 @@ static void usb_uhci_exit(PCIDevice *dev)
 {
     UHCIState *s = DO_UPCAST(UHCIState, dev, dev);
 
-    memory_region_destroy(&s->io_bar);
+    trace_usb_uhci_exit();
+
+    if (s->frame_timer) {
+        timer_del(s->frame_timer);
+        timer_free(s->frame_timer);
+        s->frame_timer = NULL;
+    }
+
+    if (s->bh) {
+        qemu_bh_delete(s->bh);
+    }
+
+    uhci_async_cancel_all(s);
+
+    if (!s->masterbus) {
+        usb_bus_release(&s->bus);
+    }
 }
 
 static Property uhci_properties[] = {

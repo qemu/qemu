@@ -26,6 +26,10 @@
 #include "hw/virtio/virtio-serial.h"
 #include "hw/virtio/virtio-access.h"
 
+struct VirtIOSerialDevices {
+    QLIST_HEAD(, VirtIOSerial) devices;
+} vserdevices;
+
 static VirtIOSerialPort *find_port_by_id(VirtIOSerial *vser, uint32_t id)
 {
     VirtIOSerialPort *port;
@@ -48,6 +52,22 @@ static VirtIOSerialPort *find_port_by_vq(VirtIOSerial *vser, VirtQueue *vq)
     QTAILQ_FOREACH(port, &vser->ports, next) {
         if (port->ivq == vq || port->ovq == vq)
             return port;
+    }
+    return NULL;
+}
+
+static VirtIOSerialPort *find_port_by_name(char *name)
+{
+    VirtIOSerial *vser;
+
+    QLIST_FOREACH(vser, &vserdevices.devices, next) {
+        VirtIOSerialPort *port;
+
+        QTAILQ_FOREACH(port, &vser->ports, next) {
+            if (!strcmp(port->name, name)) {
+                return port;
+            }
+        }
     }
     return NULL;
 }
@@ -797,10 +817,18 @@ static void add_port(VirtIOSerial *vser, uint32_t port_id)
 static void remove_port(VirtIOSerial *vser, uint32_t port_id)
 {
     VirtIOSerialPort *port;
-    unsigned int i;
 
-    i = port_id / 32;
-    vser->ports_map[i] &= ~(1U << (port_id % 32));
+    /*
+     * Don't mark port 0 removed -- we explicitly reserve it for
+     * backward compat with older guests, ensure a virtconsole device
+     * unplug retains the reservation.
+     */
+    if (port_id) {
+        unsigned int i;
+
+        i = port_id / 32;
+        vser->ports_map[i] &= ~(1U << (port_id % 32));
+    }
 
     port = find_port_by_id(vser, port_id);
     /*
@@ -840,6 +868,12 @@ static void virtser_port_device_realize(DeviceState *dev, Error **errp)
     if (find_port_by_id(port->vser, port->id)) {
         error_setg(errp, "virtio-serial-bus: A port already exists at id %u",
                    port->id);
+        return;
+    }
+
+    if (find_port_by_name(port->name)) {
+        error_setg(errp, "virtio-serial-bus: A port already exists by name %s",
+                   port->name);
         return;
     }
 
@@ -975,6 +1009,8 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
      */
     register_savevm(dev, "virtio-console", -1, 3, virtio_serial_save,
                     virtio_serial_load, vser);
+
+    QLIST_INSERT_HEAD(&vserdevices.devices, vser, next);
 }
 
 static void virtio_serial_port_class_init(ObjectClass *klass, void *data)
@@ -1003,6 +1039,8 @@ static void virtio_serial_device_unrealize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOSerial *vser = VIRTIO_SERIAL(dev);
 
+    QLIST_REMOVE(vser, next);
+
     unregister_savevm(dev, "virtio-console", vser);
 
     g_free(vser->ivqs);
@@ -1026,6 +1064,8 @@ static void virtio_serial_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
+    QLIST_INIT(&vserdevices.devices);
 
     dc->props = virtio_serial_properties;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);

@@ -2,6 +2,7 @@
 #include "hw/boards.h"
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
+#include "internals.h"
 
 static bool vfp_needed(void *opaque)
 {
@@ -212,6 +213,8 @@ static int cpu_post_load(void *opaque, int version_id)
             return -1;
         }
     }
+
+    hw_watchpoint_update_all(cpu);
 
     return 0;
 }

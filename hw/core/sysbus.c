@@ -242,11 +242,6 @@ void sysbus_add_io(SysBusDevice *dev, hwaddr addr,
     memory_region_add_subregion(get_system_io(), addr, mem);
 }
 
-void sysbus_del_io(SysBusDevice *dev, MemoryRegion *mem)
-{
-    memory_region_del_subregion(get_system_io(), mem);
-}
-
 MemoryRegion *sysbus_address_space(SysBusDevice *dev)
 {
     return get_system_memory();

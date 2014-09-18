@@ -15,10 +15,10 @@
 #include "block/aio.h"
 #include "qemu/throttle.h"
 
-AioContext     *ctx;
-LeakyBucket    bkt;
-ThrottleConfig cfg;
-ThrottleState  ts;
+static AioContext     *ctx;
+static LeakyBucket    bkt;
+static ThrottleConfig cfg;
+static ThrottleState  ts;
 
 /* useful function */
 static bool double_cmp(double x, double y)

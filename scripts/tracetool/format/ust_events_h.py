@@ -63,13 +63,20 @@ def generate(events, backend):
                 name=e.name,
                 args=", ".join(", ".join(i) for i in e.args))
 
-            for t, n in e.args:
-                if ('int' in t) or ('long' in t) or ('unsigned' in t) or ('size_t' in t):
+            types = e.args.types()
+            names = e.args.names()
+            fmts = e.arg_fmts
+            for t,n,f in zip(types, names, fmts):
+                if ('char *' in t) or ('char*' in t):
+                    out('       ctf_string(' + n + ', ' + n + ')')
+                elif ("%p" in f) or ("x" in f) or ("PRIx" in f):
+                    out('       ctf_integer_hex('+ t + ', ' + n + ', ' + n + ')')
+                elif ("ptr" in t) or ("*" in t):
+                    out('       ctf_integer_hex('+ t + ', ' + n + ', ' + n + ')')
+                elif ('int' in t) or ('long' in t) or ('unsigned' in t) or ('size_t' in t):
                     out('       ctf_integer(' + t + ', ' + n + ', ' + n + ')')
                 elif ('double' in t) or ('float' in t):
                     out('       ctf_float(' + t + ', ' + n + ', ' + n + ')')
-                elif ('char *' in t) or ('char*' in t):
-                    out('       ctf_string(' + n + ', ' + n + ')')
                 elif ('void *' in t) or ('void*' in t):
                     out('       ctf_integer_hex(unsigned long, ' + n + ', ' + n + ')')
 

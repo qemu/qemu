@@ -319,7 +319,6 @@ int msix_init_exclusive_bar(PCIDevice *dev, unsigned short nentries,
                     bar_nr, MSIX_EXCLUSIVE_BAR_PBA_OFFSET,
                     MSIX_EXCLUSIVE_CAP_OFFSET);
     if (ret) {
-        memory_region_destroy(&dev->msix_exclusive_bar);
         return ret;
     }
 
@@ -359,11 +358,9 @@ void msix_uninit(PCIDevice *dev, MemoryRegion *table_bar, MemoryRegion *pba_bar)
     msix_free_irq_entries(dev);
     dev->msix_entries_nr = 0;
     memory_region_del_subregion(pba_bar, &dev->msix_pba_mmio);
-    memory_region_destroy(&dev->msix_pba_mmio);
     g_free(dev->msix_pba);
     dev->msix_pba = NULL;
     memory_region_del_subregion(table_bar, &dev->msix_table_mmio);
-    memory_region_destroy(&dev->msix_table_mmio);
     g_free(dev->msix_table);
     dev->msix_table = NULL;
     g_free(dev->msix_entry_used);
@@ -375,7 +372,6 @@ void msix_uninit_exclusive_bar(PCIDevice *dev)
 {
     if (msix_present(dev)) {
         msix_uninit(dev, &dev->msix_exclusive_bar, &dev->msix_exclusive_bar);
-        memory_region_destroy(&dev->msix_exclusive_bar);
     }
 }
 
@@ -439,7 +435,7 @@ void msix_notify(PCIDevice *dev, unsigned vector)
 
     msg = msix_get_message(dev, vector);
 
-    stl_le_phys(&address_space_memory, msg.address, msg.data);
+    stl_le_phys(&dev->bus_master_as, msg.address, msg.data);
 }
 
 void msix_reset(PCIDevice *dev)

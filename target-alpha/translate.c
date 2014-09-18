@@ -26,6 +26,9 @@
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
+#include "trace-tcg.h"
+
+
 #undef ALPHA_DEBUG_DISAS
 #define CONFIG_SOFTFLOAT_INLINE
 

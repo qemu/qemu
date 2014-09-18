@@ -57,6 +57,12 @@ GENERATED_HEADERS += trace/generated-tracers-dtrace.h
 endif
 GENERATED_SOURCES += trace/generated-tracers.c
 
+GENERATED_HEADERS += trace/generated-tcg-tracers.h
+
+GENERATED_HEADERS += trace/generated-helpers-wrappers.h
+GENERATED_HEADERS += trace/generated-helpers.h
+GENERATED_SOURCES += trace/generated-helpers.c
+
 ifeq ($(findstring ust,$(TRACE_BACKENDS)),ust)
 GENERATED_HEADERS += trace/generated-ust-provider.h
 GENERATED_SOURCES += trace/generated-ust.c
@@ -199,7 +205,7 @@ Makefile: $(version-obj-y) $(version-lobj-y)
 # Build libraries
 
 libqemustub.a: $(stub-obj-y)
-libqemuutil.a: $(util-obj-y) qapi-types.o qapi-visit.o qapi-event.o
+libqemuutil.a: $(util-obj-y)
 
 block-modules = $(foreach o,$(block-obj-m),"$(basename $(subst /,-,$o))",) NULL
 util/module.o-cflags = -D'CONFIG_BLOCK_MODULES=$(block-modules)'
@@ -341,7 +347,8 @@ multiboot.bin linuxboot.bin kvmvapic.bin \
 s390-zipl.rom \
 s390-ccw.img \
 spapr-rtas.bin slof.bin \
-palcode-clipper
+palcode-clipper \
+u-boot.e500
 else
 BLOBS=
 endif

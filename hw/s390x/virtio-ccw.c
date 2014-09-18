@@ -1402,7 +1402,6 @@ static const TypeInfo virtio_ccw_net = {
 
 static Property virtio_ccw_blk_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
-    DEFINE_VIRTIO_BLK_FEATURES(VirtioCcwDevice, host_features[0]),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
@@ -1430,7 +1429,6 @@ static const TypeInfo virtio_ccw_blk = {
 static Property virtio_ccw_serial_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_VIRTIO_SERIAL_PROPERTIES(VirtioSerialCcw, vdev.serial),
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtioCcwDevice, host_features[0]),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
@@ -1457,7 +1455,6 @@ static const TypeInfo virtio_ccw_serial = {
 
 static Property virtio_ccw_balloon_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtioCcwDevice, host_features[0]),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
@@ -1514,7 +1511,6 @@ static const TypeInfo virtio_ccw_scsi = {
 static Property vhost_ccw_scsi_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_VHOST_SCSI_PROPERTIES(VirtIOSCSICcw, vdev.parent_obj.conf),
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtioCcwDevice, host_features[0]),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1551,7 +1547,6 @@ static void virtio_ccw_rng_instance_init(Object *obj)
 
 static Property virtio_ccw_rng_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtioCcwDevice, host_features[0]),
     DEFINE_VIRTIO_RNG_PROPERTIES(VirtIORNGCcw, vdev.conf),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
@@ -1617,10 +1612,16 @@ static int virtio_ccw_busdev_unplug(DeviceState *dev)
     return 0;
 }
 
+static Property virtio_ccw_properties[] = {
+    DEFINE_VIRTIO_COMMON_FEATURES(VirtioCcwDevice, host_features[0]),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void virtio_ccw_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->props = virtio_ccw_properties;
     dc->init = virtio_ccw_busdev_init;
     dc->exit = virtio_ccw_busdev_exit;
     dc->unplug = virtio_ccw_busdev_unplug;

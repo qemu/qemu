@@ -39,10 +39,10 @@ ACPI_EXTRACT_ALL_CODE ssdm_mem_aml
 DefinitionBlock ("ssdt-mem.aml", "SSDT", 0x02, "BXPC", "CSSDT", 0x1)
 {
 
-    External(\_SB.PCI0.MEMORY_HOPTLUG_DEVICE.MEMORY_SLOT_CRS_METHOD, MethodObj)
-    External(\_SB.PCI0.MEMORY_HOPTLUG_DEVICE.MEMORY_SLOT_STATUS_METHOD, MethodObj)
-    External(\_SB.PCI0.MEMORY_HOPTLUG_DEVICE.MEMORY_SLOT_OST_METHOD, MethodObj)
-    External(\_SB.PCI0.MEMORY_HOPTLUG_DEVICE.MEMORY_SLOT_PROXIMITY_METHOD, MethodObj)
+    External(\_SB.PCI0.MEMORY_HOTPLUG_DEVICE.MEMORY_SLOT_CRS_METHOD, MethodObj)
+    External(\_SB.PCI0.MEMORY_HOTPLUG_DEVICE.MEMORY_SLOT_STATUS_METHOD, MethodObj)
+    External(\_SB.PCI0.MEMORY_HOTPLUG_DEVICE.MEMORY_SLOT_OST_METHOD, MethodObj)
+    External(\_SB.PCI0.MEMORY_HOTPLUG_DEVICE.MEMORY_SLOT_PROXIMITY_METHOD, MethodObj)
 
     Scope(\_SB) {
 /*  v------------------ DO NOT EDIT ------------------v */
@@ -58,19 +58,19 @@ DefinitionBlock ("ssdt-mem.aml", "SSDT", 0x02, "BXPC", "CSSDT", 0x1)
             Name(_HID, EISAID("PNP0C80"))
 
             Method(_CRS, 0) {
-                Return(\_SB.PCI0.MEMORY_HOPTLUG_DEVICE.MEMORY_SLOT_CRS_METHOD(_UID))
+                Return(\_SB.PCI0.MEMORY_HOTPLUG_DEVICE.MEMORY_SLOT_CRS_METHOD(_UID))
             }
 
             Method(_STA, 0) {
-                Return(\_SB.PCI0.MEMORY_HOPTLUG_DEVICE.MEMORY_SLOT_STATUS_METHOD(_UID))
+                Return(\_SB.PCI0.MEMORY_HOTPLUG_DEVICE.MEMORY_SLOT_STATUS_METHOD(_UID))
             }
 
             Method(_PXM, 0) {
-                Return(\_SB.PCI0.MEMORY_HOPTLUG_DEVICE.MEMORY_SLOT_PROXIMITY_METHOD(_UID))
+                Return(\_SB.PCI0.MEMORY_HOTPLUG_DEVICE.MEMORY_SLOT_PROXIMITY_METHOD(_UID))
             }
 
             Method(_OST, 3) {
-                \_SB.PCI0.MEMORY_HOPTLUG_DEVICE.MEMORY_SLOT_OST_METHOD(_UID, Arg0, Arg1, Arg2)
+                \_SB.PCI0.MEMORY_HOTPLUG_DEVICE.MEMORY_SLOT_OST_METHOD(_UID, Arg0, Arg1, Arg2)
             }
         }
     }

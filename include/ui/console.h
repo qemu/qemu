@@ -102,8 +102,7 @@ struct QemuConsoleClass {
     ObjectClass parent_class;
 };
 
-#define QEMU_BIG_ENDIAN_FLAG    0x01
-#define QEMU_ALLOCATED_FLAG     0x02
+#define QEMU_ALLOCATED_FLAG     0x01
 
 struct PixelFormat {
     uint8_t bits_per_pixel;
@@ -119,8 +118,6 @@ struct DisplaySurface {
     pixman_format_code_t format;
     pixman_image_t *image;
     uint8_t flags;
-
-    struct PixelFormat pf;
 };
 
 typedef struct QemuUIInfo {
@@ -188,9 +185,13 @@ struct DisplayChangeListener {
 };
 
 DisplayState *init_displaystate(void);
-DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
-                                                int linesize, uint8_t *data,
-                                                bool byteswap);
+DisplaySurface *qemu_create_displaysurface_from(int width, int height,
+                                                pixman_format_code_t format,
+                                                int linesize, uint8_t *data);
+DisplaySurface *qemu_create_displaysurface_guestmem(int width, int height,
+                                                    pixman_format_code_t format,
+                                                    int linesize,
+                                                    uint64_t addr);
 PixelFormat qemu_different_endianness_pixelformat(int bpp);
 PixelFormat qemu_default_pixelformat(int bpp);
 
@@ -199,10 +200,12 @@ void qemu_free_displaysurface(DisplaySurface *surface);
 
 static inline int is_surface_bgr(DisplaySurface *surface)
 {
-    if (surface->pf.bits_per_pixel == 32 && surface->pf.rshift == 0)
+    if (PIXMAN_FORMAT_BPP(surface->format) == 32 &&
+        PIXMAN_FORMAT_TYPE(surface->format) == PIXMAN_TYPE_ABGR) {
         return 1;
-    else
+    } else {
         return 0;
+    }
 }
 
 static inline int is_buffer_shared(DisplaySurface *surface)
@@ -228,6 +231,10 @@ void dpy_text_resize(QemuConsole *con, int w, int h);
 void dpy_mouse_set(QemuConsole *con, int x, int y, int on);
 void dpy_cursor_define(QemuConsole *con, QEMUCursor *cursor);
 bool dpy_cursor_define_supported(QemuConsole *con);
+void dpy_gfx_update_dirty(QemuConsole *con,
+                          MemoryRegion *address_space,
+                          uint64_t base,
+                          bool invalidate);
 
 static inline int surface_stride(DisplaySurface *s)
 {

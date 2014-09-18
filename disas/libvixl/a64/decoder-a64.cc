@@ -171,9 +171,9 @@ void Decoder::DecodePCRelAddressing(Instruction* instr) {
 
 void Decoder::DecodeBranchSystemException(Instruction* instr) {
   VIXL_ASSERT((instr->Bits(27, 24) == 0x4) ||
-         (instr->Bits(27, 24) == 0x5) ||
-         (instr->Bits(27, 24) == 0x6) ||
-         (instr->Bits(27, 24) == 0x7) );
+              (instr->Bits(27, 24) == 0x5) ||
+              (instr->Bits(27, 24) == 0x6) ||
+              (instr->Bits(27, 24) == 0x7) );
 
   switch (instr->Bits(31, 29)) {
     case 0:
@@ -272,16 +272,15 @@ void Decoder::DecodeBranchSystemException(Instruction* instr) {
 
 void Decoder::DecodeLoadStore(Instruction* instr) {
   VIXL_ASSERT((instr->Bits(27, 24) == 0x8) ||
-         (instr->Bits(27, 24) == 0x9) ||
-         (instr->Bits(27, 24) == 0xC) ||
-         (instr->Bits(27, 24) == 0xD) );
+              (instr->Bits(27, 24) == 0x9) ||
+              (instr->Bits(27, 24) == 0xC) ||
+              (instr->Bits(27, 24) == 0xD) );
 
   if (instr->Bit(24) == 0) {
     if (instr->Bit(28) == 0) {
       if (instr->Bit(29) == 0) {
         if (instr->Bit(26) == 0) {
-          // TODO: VisitLoadStoreExclusive.
-          VisitUnimplemented(instr);
+          VisitLoadStoreExclusive(instr);
         } else {
           DecodeAdvSIMDLoadStore(instr);
         }

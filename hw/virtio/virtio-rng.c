@@ -16,6 +16,7 @@
 #include "hw/virtio/virtio-rng.h"
 #include "sysemu/rng.h"
 #include "qom/object_interfaces.h"
+#include "trace.h"
 
 static bool is_guest_ready(VirtIORNG *vrng)
 {
@@ -24,6 +25,7 @@ static bool is_guest_ready(VirtIORNG *vrng)
         && (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
         return true;
     }
+    trace_virtio_rng_guest_not_ready(vrng);
     return false;
 }
 
@@ -62,6 +64,7 @@ static void chr_read(void *opaque, const void *buf, size_t size)
         offset += len;
 
         virtqueue_push(vrng->vq, &elem, len);
+        trace_virtio_rng_pushed(vrng, len);
     }
     virtio_notify(vdev, vrng->vq);
 }
@@ -81,6 +84,9 @@ static void virtio_rng_process(VirtIORNG *vrng)
         quota = MIN((uint64_t)vrng->quota_remaining, (uint64_t)UINT32_MAX);
     }
     size = get_request_size(vrng->vq, quota);
+
+    trace_virtio_rng_request(vrng, size, quota);
+
     size = MIN(vrng->quota_remaining, size);
     if (size) {
         rng_backend_request_entropy(vrng->rng, size, chr_read, vrng);
@@ -142,8 +148,15 @@ static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
     Error *local_err = NULL;
 
     if (!vrng->conf.period_ms > 0) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "period",
-                  "a positive number");
+        error_setg(errp, "'period' parameter expects a positive integer");
+        return;
+    }
+
+    /* Workaround: Property parsing does not enforce unsigned integers,
+     * So this is a hack to reject such numbers. */
+    if (vrng->conf.max_bytes > INT64_MAX) {
+        error_setg(errp, "'max-bytes' parameter must be non-negative, "
+                   "and less than 2^63");
         return;
     }
 
@@ -171,17 +184,15 @@ static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
                                  "rng", NULL);
     }
 
-    virtio_init(vdev, "virtio-rng", VIRTIO_ID_RNG, 0);
-
     vrng->rng = vrng->conf.rng;
     if (vrng->rng == NULL) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "rng", "a valid object");
+        error_setg(errp, "'rng' parameter expects a valid object");
         return;
     }
 
-    vrng->vq = virtio_add_queue(vdev, 8, handle_input);
+    virtio_init(vdev, "virtio-rng", VIRTIO_ID_RNG, 0);
 
-    assert(vrng->conf.max_bytes <= INT64_MAX);
+    vrng->vq = virtio_add_queue(vdev, 8, handle_input);
     vrng->quota_remaining = vrng->conf.max_bytes;
 
     vrng->rate_limit_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,

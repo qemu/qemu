@@ -1,0 +1,12 @@
+QA output created by 104
+=== Check qemu-img info output ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1024 
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 1.0K (1024 bytes)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1234 
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 1.5K (1536 bytes)
+***done

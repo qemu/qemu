@@ -327,6 +327,7 @@ seccomp=""
 glusterfs=""
 glusterfs_discard="no"
 glusterfs_zerofill="no"
+archipelago=""
 virtio_blk_data_plane=""
 gtk=""
 gtkabi=""
@@ -1103,6 +1104,10 @@ for opt do
   ;;
   --enable-glusterfs) glusterfs="yes"
   ;;
+  --disable-archipelago) archipelago="no"
+  ;;
+  --enable-archipelago) archipelago="yes"
+  ;;
   --disable-virtio-blk-data-plane) virtio_blk_data_plane="no"
   ;;
   --enable-virtio-blk-data-plane) virtio_blk_data_plane="yes"
@@ -1398,6 +1403,8 @@ Advanced options (experts only):
   --enable-coroutine-pool  enable coroutine freelist (better performance)
   --enable-glusterfs       enable GlusterFS backend
   --disable-glusterfs      disable GlusterFS backend
+  --enable-archipelago     enable Archipelago backend
+  --disable-archipelago    disable Archipelago backend
   --enable-gcov            enable test coverage analysis with gcov
   --gcov=GCOV              use specified gcov [$gcov_tool]
   --disable-tpm            disable TPM support
@@ -1506,8 +1513,9 @@ for flag in $gcc_flags; do
     fi
 done
 
-if test "$stack_protector" != "no" ; then
+if test "$stack_protector" != "no"; then
   gcc_flags="-fstack-protector-strong -fstack-protector-all"
+  sp_on=0
   for flag in $gcc_flags; do
     # We need to check both a compile and a link, since some compiler
     # setups fail only on a .c->.o compile and some only at link time
@@ -1515,9 +1523,15 @@ if test "$stack_protector" != "no" ; then
        compile_prog "-Werror $flag" ""; then
       QEMU_CFLAGS="$QEMU_CFLAGS $flag"
       LIBTOOLFLAGS="$LIBTOOLFLAGS -Wc,$flag"
+      sp_on=1
       break
     fi
   done
+  if test "$stack_protector" = yes; then
+    if test $sp_on = 0; then
+      error_exit "Stack protector not supported"
+    fi
+  fi
 fi
 
 # Workaround for http://gcc.gnu.org/PR55489.  Happens with -fPIE/-fPIC and
@@ -1733,6 +1747,7 @@ fi
 
 cat > $TMPC <<EOF
 #include <sys/socket.h>
+#include <linux/ip.h>
 int main(void) { return sizeof(struct mmsghdr); }
 EOF
 if compile_prog "" "" ; then
@@ -2745,7 +2760,7 @@ fi
 if test "$pixman" = ""; then
   if test "$want_tools" = "no" -a "$softmmu" = "no"; then
     pixman="none"
-  elif $pkg_config pixman-1 > /dev/null 2>&1; then
+  elif $pkg_config --atleast-version=0.21.8 pixman-1 > /dev/null 2>&1; then
     pixman="system"
   else
     pixman="internal"
@@ -2761,11 +2776,12 @@ if test "$pixman" = "none"; then
   pixman_cflags=
   pixman_libs=
 elif test "$pixman" = "system"; then
+  # pixman version has been checked above
   pixman_cflags=`$pkg_config --cflags pixman-1`
   pixman_libs=`$pkg_config --libs pixman-1`
 else
   if test ! -d ${source_path}/pixman/pixman; then
-    error_exit "pixman not present. Your options:" \
+    error_exit "pixman >= 0.21.8 not present. Your options:" \
         "  (1) Preferred: Install the pixman devel package (any recent" \
         "      distro should have packages as Xorg needs pixman too)." \
         "  (2) Fetch the pixman submodule, using:" \
@@ -3087,6 +3103,33 @@ EOF
   fi
 fi
 
+
+##########################################
+# archipelago probe
+if test "$archipelago" != "no" ; then
+    cat > $TMPC <<EOF
+#include <stdio.h>
+#include <xseg/xseg.h>
+#include <xseg/protocol.h>
+int main(void) {
+    xseg_initialize();
+    return 0;
+}
+EOF
+    archipelago_libs=-lxseg
+    if compile_prog "" "$archipelago_libs"; then
+        archipelago="yes"
+        libs_tools="$archipelago_libs $libs_tools"
+        libs_softmmu="$archipelago_libs $libs_softmmu"
+    else
+      if test "$archipelago" = "yes" ; then
+        feature_not_found "Archipelago backend support" "Install libxseg devel"
+      fi
+      archipelago="no"
+    fi
+fi
+
+
 ##########################################
 # glusterfs probe
 if test "$glusterfs" != "no" ; then
@@ -3102,7 +3145,8 @@ if test "$glusterfs" != "no" ; then
     fi
   else
     if test "$glusterfs" = "yes" ; then
-      feature_not_found "GlusterFS backend support" "Install glusterfs-api devel"
+      feature_not_found "GlusterFS backend support" \
+          "Install glusterfs-api devel >= 3"
     fi
     glusterfs="no"
   fi
@@ -3436,6 +3480,37 @@ if compile_prog "" "" ; then
   sendfile=yes
 fi
 
+# check for timerfd support (glibc 2.8 and newer)
+timerfd=no
+cat > $TMPC << EOF
+#include <sys/timerfd.h>
+
+int main(void)
+{
+    return(timerfd_create(CLOCK_REALTIME, 0));
+}
+EOF
+if compile_prog "" "" ; then
+  timerfd=yes
+fi
+
+# check for setns and unshare support
+setns=no
+cat > $TMPC << EOF
+#include <sched.h>
+
+int main(void)
+{
+    int ret;
+    ret = setns(0, 0);
+    ret = unshare(0);
+    return ret;
+}
+EOF
+if compile_prog "" "" ; then
+  setns=yes
+fi
+
 # Check if tools are available to build documentation.
 if test "$docs" != "no" ; then
   if has makeinfo && has pod2man; then
@@ -3555,7 +3630,8 @@ EOF
     spice_server_version=$($pkg_config --modversion spice-server)
   else
     if test "$spice" = "yes" ; then
-      feature_not_found "spice" "Install spice-server and spice-protocol devel"
+      feature_not_found "spice" \
+          "Install spice-server(>=0.12.0) and spice-protocol(>=0.12.3) devel"
     fi
     spice="no"
   fi
@@ -3586,7 +3662,7 @@ EOF
         smartcard_nss="yes"
     else
         if test "$smartcard_nss" = "yes"; then
-            feature_not_found "nss"
+            feature_not_found "nss" "Install nss devel >= 3.12.8"
         fi
         smartcard_nss="no"
     fi
@@ -3602,7 +3678,7 @@ if test "$libusb" != "no" ; then
         libs_softmmu="$libs_softmmu $libusb_libs"
     else
         if test "$libusb" = "yes"; then
-            feature_not_found "libusb" "Install libusb devel"
+            feature_not_found "libusb" "Install libusb devel >= 1.0.13"
         fi
         libusb="no"
     fi
@@ -4025,7 +4101,7 @@ if test "$libnfs" != "no" ; then
     LIBS="$LIBS $libnfs_libs"
   else
     if test "$libnfs" = "yes" ; then
-      feature_not_found "libnfs"
+      feature_not_found "libnfs" "Install libnfs devel >= 1.9.3"
     fi
     libnfs="no"
   fi
@@ -4273,6 +4349,7 @@ echo "seccomp support   $seccomp"
 echo "coroutine backend $coroutine"
 echo "coroutine pool    $coroutine_pool"
 echo "GlusterFS support $glusterfs"
+echo "Archipelago support $archipelago"
 echo "virtio-blk-data-plane $virtio_blk_data_plane"
 echo "gcov              $gcov_tool"
 echo "gcov enabled      $gcov"
@@ -4510,6 +4587,12 @@ fi
 if test "$sendfile" = "yes" ; then
   echo "CONFIG_SENDFILE=y" >> $config_host_mak
 fi
+if test "$timerfd" = "yes" ; then
+  echo "CONFIG_TIMERFD=y" >> $config_host_mak
+fi
+if test "$setns" = "yes" ; then
+  echo "CONFIG_SETNS=y" >> $config_host_mak
+fi
 if test "$inotify" = "yes" ; then
   echo "CONFIG_INOTIFY=y" >> $config_host_mak
 fi
@@ -4710,6 +4793,11 @@ fi
 
 if test "$glusterfs_zerofill" = "yes" ; then
   echo "CONFIG_GLUSTERFS_ZEROFILL=y" >> $config_host_mak
+fi
+
+if test "$archipelago" = "yes" ; then
+  echo "CONFIG_ARCHIPELAGO=m" >> $config_host_mak
+  echo "ARCHIPELAGO_LIBS=$archipelago_libs" >> $config_host_mak
 fi
 
 if test "$libssh2" = "yes" ; then
@@ -4989,6 +5077,8 @@ case "$target_name" in
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN64=y" >> $config_target_mak
   ;;
+  tricore)
+  ;;
   moxie)
   ;;
   or32)
@@ -5037,6 +5127,7 @@ case "$target_name" in
     echo "TARGET_ABI32=y" >> $config_target_mak
   ;;
   s390x)
+    gdb_xml_files="s390x-core64.xml s390-acr.xml s390-fpr.xml"
   ;;
   unicore32)
   ;;
@@ -5315,10 +5406,6 @@ for rom in seabios vgabios ; do
     echo "IASL=$iasl" >> $config_mak
     echo "LD=$ld" >> $config_mak
 done
-
-if test "$docs" = "yes" ; then
-  mkdir -p QMP
-fi
 
 # set up qemu-iotests in this build directory
 iotests_common_env="tests/qemu-iotests/common.env"

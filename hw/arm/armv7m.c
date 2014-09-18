@@ -166,7 +166,7 @@ static void armv7m_reset(void *opaque)
    flash_size and sram_size are in kb.
    Returns the NVIC array.  */
 
-qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
+qemu_irq *armv7m_init(MemoryRegion *system_memory,
                       int flash_size, int sram_size,
                       const char *kernel_filename, const char *cpu_model)
 {
@@ -210,13 +210,14 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
 #endif
 
     /* Flash programming is done via the SCU, so pretend it is ROM.  */
-    memory_region_init_ram(flash, NULL, "armv7m.flash", flash_size);
+    memory_region_init_ram(flash, NULL, "armv7m.flash", flash_size,
+                           &error_abort);
     vmstate_register_ram_global(flash);
     memory_region_set_readonly(flash, true);
-    memory_region_add_subregion(address_space_mem, 0, flash);
-    memory_region_init_ram(sram, NULL, "armv7m.sram", sram_size);
+    memory_region_add_subregion(system_memory, 0, flash);
+    memory_region_init_ram(sram, NULL, "armv7m.sram", sram_size, &error_abort);
     vmstate_register_ram_global(sram);
-    memory_region_add_subregion(address_space_mem, 0x20000000, sram);
+    memory_region_add_subregion(system_memory, 0x20000000, sram);
     armv7m_bitband_init();
 
     nvic = qdev_create(NULL, "armv7m_nvic");
@@ -255,9 +256,9 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
     /* Hack to map an additional page of ram at the top of the address
        space.  This stops qemu complaining about executing code outside RAM
        when returning from an exception.  */
-    memory_region_init_ram(hack, NULL, "armv7m.hack", 0x1000);
+    memory_region_init_ram(hack, NULL, "armv7m.hack", 0x1000, &error_abort);
     vmstate_register_ram_global(hack);
-    memory_region_add_subregion(address_space_mem, 0xfffff000, hack);
+    memory_region_add_subregion(system_memory, 0xfffff000, hack);
 
     qemu_register_reset(armv7m_reset, cpu);
     return pic;

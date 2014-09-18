@@ -314,7 +314,8 @@ static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     /* Read out options */
-    bytes = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    bytes = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                     BDRV_SECTOR_SIZE);
     objsize = qemu_opt_get_size_del(opts, BLOCK_OPT_CLUSTER_SIZE, 0);
     if (objsize) {
         if ((objsize - 1) & objsize) {    /* not a power of 2? */
@@ -617,7 +618,7 @@ static BlockDriverAIOCB *rbd_start_aio(BlockDriverState *bs,
                                        RBDAIOCmd cmd)
 {
     RBDAIOCB *acb;
-    RADOSCB *rcb;
+    RADOSCB *rcb = NULL;
     rbd_completion_t c;
     int64_t off, size;
     char *buf;
@@ -631,7 +632,10 @@ static BlockDriverAIOCB *rbd_start_aio(BlockDriverState *bs,
     if (cmd == RBD_AIO_DISCARD || cmd == RBD_AIO_FLUSH) {
         acb->bounce = NULL;
     } else {
-        acb->bounce = qemu_blockalign(bs, qiov->size);
+        acb->bounce = qemu_try_blockalign(bs, qiov->size);
+        if (acb->bounce == NULL) {
+            goto failed;
+        }
     }
     acb->ret = 0;
     acb->error = 0;
@@ -649,7 +653,7 @@ static BlockDriverAIOCB *rbd_start_aio(BlockDriverState *bs,
     off = sector_num * BDRV_SECTOR_SIZE;
     size = nb_sectors * BDRV_SECTOR_SIZE;
 
-    rcb = g_malloc(sizeof(RADOSCB));
+    rcb = g_new(RADOSCB, 1);
     rcb->done = 0;
     rcb->acb = acb;
     rcb->buf = buf;
@@ -859,7 +863,7 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
     int max_snaps = RBD_MAX_SNAPS;
 
     do {
-        snaps = g_malloc(sizeof(*snaps) * max_snaps);
+        snaps = g_new(rbd_snap_info_t, max_snaps);
         snap_count = rbd_snap_list(s->image, snaps, &max_snaps);
         if (snap_count <= 0) {
             g_free(snaps);
@@ -870,7 +874,7 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
         goto done;
     }
 
-    sn_tab = g_malloc0(snap_count * sizeof(QEMUSnapshotInfo));
+    sn_tab = g_new0(QEMUSnapshotInfo, snap_count);
 
     for (i = 0; i < snap_count; i++) {
         const char *snap_name = snaps[i].name;

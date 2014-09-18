@@ -378,7 +378,6 @@ static void esp_pci_scsi_uninit(PCIDevice *d)
     PCIESPState *pci = PCI_ESP(d);
 
     qemu_free_irq(pci->esp.irq);
-    memory_region_destroy(&pci->io);
 }
 
 static void esp_pci_class_init(ObjectClass *klass, void *data)

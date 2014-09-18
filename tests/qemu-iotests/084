@@ -1,6 +1,7 @@
 #!/bin/bash
 #
-# Test case for VDI header corruption; image too large, and too many blocks
+# Test case for VDI header corruption; image too large, and too many blocks.
+# Also simple test for creating dynamic and static VDI images.
 #
 # Copyright (C) 2013 Red Hat, Inc.
 #
@@ -43,14 +44,25 @@ _supported_fmt vdi
 _supported_proto generic
 _supported_os Linux
 
+size=64M
 ds_offset=368  # disk image size field offset
 bs_offset=376  # block size field offset
 bii_offset=384 # block in image field offset
 
 echo
+echo "=== Statically allocated image creation ==="
+echo
+_make_test_img $size -o static
+_img_info
+stat -c"disk image file size in bytes: %s" "${TEST_IMG}"
+_cleanup_test_img
+
+echo
 echo "=== Testing image size bounds ==="
 echo
-_make_test_img 64M
+_make_test_img $size
+_img_info
+stat -c"disk image file size in bytes: %s" "${TEST_IMG}"
 
 # check for image size too large
 # poke max image size, and appropriate blocks_in_image value

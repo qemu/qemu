@@ -832,19 +832,17 @@ The values that can be specified here depend on the machine type, but are
 the same that can be specified in the @code{-boot} command line option.
 ETEXI
 
-#if defined(TARGET_I386) || defined(TARGET_S390X)
     {
         .name       = "nmi",
         .args_type  = "",
         .params     = "",
-        .help       = "inject an NMI on all guest's CPUs",
+        .help       = "inject an NMI",
         .mhandler.cmd = hmp_inject_nmi,
     },
-#endif
 STEXI
 @item nmi @var{cpu}
 @findex nmi
-Inject an NMI (x86) or RESTART (s390x) on the given CPU.
+Inject an NMI on the default CPU (x86/s390) or all CPUs (ppc64).
 
 ETEXI
 

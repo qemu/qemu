@@ -41,6 +41,10 @@ const unsigned kLiteralEntrySize = 4;
 const unsigned kLiteralEntrySizeLog2 = 2;
 const unsigned kMaxLoadLiteralRange = 1 * MBytes;
 
+// This is the nominal page size (as used by the adrp instruction); the actual
+// size of the memory pages allocated by the kernel is likely to differ.
+const unsigned kPageSize = 4 * KBytes;
+
 const unsigned kWRegSize = 32;
 const unsigned kWRegSizeLog2 = 5;
 const unsigned kWRegSizeInBytes = kWRegSize / 8;
@@ -78,6 +82,12 @@ const unsigned kLinkRegCode = 30;
 const unsigned kZeroRegCode = 31;
 const unsigned kSPRegInternalCode = 63;
 const unsigned kRegCodeMask = 0x1f;
+
+const unsigned kAddressTagOffset = 56;
+const unsigned kAddressTagWidth = 8;
+const uint64_t kAddressTagMask =
+    ((UINT64_C(1) << kAddressTagWidth) - 1) << kAddressTagOffset;
+VIXL_STATIC_ASSERT(kAddressTagMask == UINT64_C(0xff00000000000000));
 
 // AArch64 floating-point specifics. These match IEEE-754.
 const unsigned kDoubleMantissaBits = 52;

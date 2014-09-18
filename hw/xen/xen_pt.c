@@ -453,25 +453,6 @@ static int xen_pt_register_regions(XenPCIPassthroughState *s)
     return 0;
 }
 
-static void xen_pt_unregister_regions(XenPCIPassthroughState *s)
-{
-    XenHostPCIDevice *d = &s->real_device;
-    int i;
-
-    for (i = 0; i < PCI_NUM_REGIONS - 1; i++) {
-        XenHostPCIIORegion *r = &d->io_regions[i];
-
-        if (r->base_addr == 0 || r->size == 0) {
-            continue;
-        }
-
-        memory_region_destroy(&s->bar[i]);
-    }
-    if (d->rom.base_addr && d->rom.size) {
-        memory_region_destroy(&s->rom);
-    }
-}
-
 /* region mapping */
 
 static int xen_pt_bar_from_region(XenPCIPassthroughState *s, MemoryRegion *mr)
@@ -810,7 +791,6 @@ static void xen_pt_unregister_device(PCIDevice *d)
     /* delete all emulated config registers */
     xen_pt_config_delete(s);
 
-    xen_pt_unregister_regions(s);
     memory_listener_unregister(&s->memory_listener);
     memory_listener_unregister(&s->io_listener);
 

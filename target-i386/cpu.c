@@ -238,7 +238,7 @@ static const char *kvm_feature_name[] = {
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
+    "kvmclock-stable-bit", NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
 };
 
@@ -254,8 +254,8 @@ static const char *svm_feature_name[] = {
 };
 
 static const char *cpuid_7_0_ebx_feature_name[] = {
-    "fsgsbase", NULL, NULL, "bmi1", "hle", "avx2", NULL, "smep",
-    "bmi2", "erms", "invpcid", "rtm", NULL, NULL, NULL, NULL,
+    "fsgsbase", "tsc_adjust", NULL, "bmi1", "hle", "avx2", NULL, "smep",
+    "bmi2", "erms", "invpcid", "rtm", NULL, NULL, "mpx", NULL,
     NULL, NULL, "rdseed", "adx", "smap", NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 };
@@ -589,7 +589,8 @@ static bool lookup_feature(uint32_t *pval, const char *s, const char *e,
 }
 
 static void add_flagname_to_bitmaps(const char *flagname,
-                                    FeatureWordArray words)
+                                    FeatureWordArray words,
+                                    Error **errp)
 {
     FeatureWord w;
     for (w = 0; w < FEATURE_WORDS; w++) {
@@ -600,7 +601,7 @@ static void add_flagname_to_bitmaps(const char *flagname,
         }
     }
     if (w == FEATURE_WORDS) {
-        fprintf(stderr, "CPU feature %s not found\n", flagname);
+        error_setg(errp, "CPU feature %s not found", flagname);
     }
 }
 
@@ -1251,6 +1252,9 @@ void x86_cpu_compat_set_features(const char *cpu_model, FeatureWord w,
     }
 }
 
+static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
+                                                   bool migratable_only);
+
 #ifdef CONFIG_KVM
 
 static int cpu_x86_fill_model_id(char *str)
@@ -1307,26 +1311,23 @@ static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
     dc->props = host_x86_cpu_properties;
 }
 
-static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
-                                                   bool migratable_only);
-
 static void host_x86_cpu_initfn(Object *obj)
 {
     X86CPU *cpu = X86_CPU(obj);
     CPUX86State *env = &cpu->env;
     KVMState *s = kvm_state;
-    FeatureWord w;
 
     assert(kvm_enabled());
+
+    /* We can't fill the features array here because we don't know yet if
+     * "migratable" is true or false.
+     */
+    cpu->host_features = true;
 
     env->cpuid_level = kvm_arch_get_supported_cpuid(s, 0x0, 0, R_EAX);
     env->cpuid_xlevel = kvm_arch_get_supported_cpuid(s, 0x80000000, 0, R_EAX);
     env->cpuid_xlevel2 = kvm_arch_get_supported_cpuid(s, 0xC0000000, 0, R_EAX);
 
-    for (w = 0; w < FEATURE_WORDS; w++) {
-        env->features[w] =
-            x86_cpu_get_supported_feature_word(w, cpu->migratable);
-    }
     object_property_set_bool(OBJECT(cpu), true, "pmu", &error_abort);
 }
 
@@ -1713,9 +1714,9 @@ static void x86_set_hv_spinlocks(Object *obj, Visitor *v, void *opaque,
 
     if (value < min || value > max) {
         error_setg(errp, "Property %s.%s doesn't take value %" PRId64
-                  " (minimum: %" PRId64 ", maximum: %" PRId64 ")",
-                  object_get_typename(obj), name ? name : "null",
-                  value, min, max);
+                   " (minimum: %" PRId64 ", maximum: %" PRId64 ")",
+                   object_get_typename(obj), name ? name : "null",
+                   value, min, max);
         return;
     }
     cpu->hyperv_spinlock_attempts = value;
@@ -1758,9 +1759,9 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
     while (featurestr) {
         char *val;
         if (featurestr[0] == '+') {
-            add_flagname_to_bitmaps(featurestr + 1, plus_features);
+            add_flagname_to_bitmaps(featurestr + 1, plus_features, &local_err);
         } else if (featurestr[0] == '-') {
-            add_flagname_to_bitmaps(featurestr + 1, minus_features);
+            add_flagname_to_bitmaps(featurestr + 1, minus_features, &local_err);
         } else if ((val = strchr(featurestr, '='))) {
             *val = 0; val++;
             feat2prop(featurestr);
@@ -1805,8 +1806,8 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
                 }
                 if (numvalue < min) {
                     error_report("hv-spinlocks value shall always be >= 0x%x"
-                            ", fixup will be removed in future versions",
-                            min);
+                                 ", fixup will be removed in future versions",
+                                 min);
                     numvalue = min;
                 }
                 snprintf(num, sizeof(num), "%" PRId32, numvalue);
@@ -1823,6 +1824,13 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
             return;
         }
         featurestr = strtok(NULL, ",");
+    }
+
+    if (cpu->host_features) {
+        for (w = 0; w < FEATURE_WORDS; w++) {
+            env->features[w] =
+                x86_cpu_get_supported_feature_word(w, cpu->migratable);
+        }
     }
 
     for (w = 0; w < FEATURE_WORDS; w++) {
@@ -2585,6 +2593,16 @@ static void x86_cpu_reset(CPUState *s)
 
     env->xcr0 = 1;
 
+    /*
+     * SDM 11.11.5 requires:
+     *  - IA32_MTRR_DEF_TYPE MSR.E = 0
+     *  - IA32_MTRR_PHYSMASKn.V = 0
+     * All other bits are undefined.  For simplification, zero it all.
+     */
+    env->mtrr_deftype = 0;
+    memset(env->mtrr_var, 0, sizeof(env->mtrr_var));
+    memset(env->mtrr_fixed, 0, sizeof(env->mtrr_fixed));
+
 #if !defined(CONFIG_USER_ONLY)
     /* We hard-wire the BSP to the first CPU. */
     if (s->cpu_index == 0) {
@@ -2822,9 +2840,6 @@ static void x86_cpu_initfn(Object *obj)
     if (tcg_enabled() && !inited) {
         inited = 1;
         optimize_flags_init();
-#ifndef CONFIG_USER_ONLY
-        cpu_set_debug_excp_handler(breakpoint_handler);
-#endif
     }
 }
 
@@ -2921,6 +2936,9 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->vmsd = &vmstate_x86_cpu;
 #endif
     cc->gdb_num_core_regs = CPU_NB_REGS * 2 + 25;
+#ifndef CONFIG_USER_ONLY
+    cc->debug_excp_handler = breakpoint_handler;
+#endif
 }
 
 static const TypeInfo x86_cpu_type_info = {

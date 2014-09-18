@@ -196,16 +196,11 @@ static void test_visitor_out_enum(TestOutputVisitorData *data,
 
     for (i = 0; i < ENUM_ONE_MAX; i++) {
         char *str_human;
-        int len;
 
         visit_type_EnumOne(data->ov, &i, "unused", &err);
         g_assert(!err);
 
-        len = strlen(EnumOne_lookup[i]) + 2;
-        str_human = g_malloc0(len);
-        str_human[0] = '"';
-        strncpy(str_human + 1, EnumOne_lookup[i], strlen(EnumOne_lookup[i]));
-        str_human[len - 1] = '"';
+        str_human = g_strdup_printf("\"%s\"", EnumOne_lookup[i]);
 
         str = string_output_get_string(data->sov);
         g_assert(str != NULL);

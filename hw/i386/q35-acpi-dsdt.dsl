@@ -410,7 +410,7 @@ DefinitionBlock (
 /****************************************************************
  * General purpose events
  ****************************************************************/
-    External(\_SB.PCI0.MEMORY_HOPTLUG_DEVICE.MEMORY_SLOT_SCAN_METHOD, MethodObj)
+    External(\_SB.PCI0.MEMORY_HOTPLUG_DEVICE.MEMORY_SLOT_SCAN_METHOD, MethodObj)
 
     Scope(\_GPE) {
         Name(_HID, "ACPI0006")
@@ -425,7 +425,7 @@ DefinitionBlock (
         }
         Method(_E03) {
             // Memory hotplug event
-            \_SB.PCI0.MEMORY_HOPTLUG_DEVICE.MEMORY_SLOT_SCAN_METHOD()
+            \_SB.PCI0.MEMORY_HOTPLUG_DEVICE.MEMORY_SLOT_SCAN_METHOD()
         }
         Method(_L04) {
         }

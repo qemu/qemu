@@ -24,6 +24,7 @@
 #ifndef BLOCK_INT_H
 #define BLOCK_INT_H
 
+#include "block/accounting.h"
 #include "block/block.h"
 #include "qemu/option.h"
 #include "qemu/queue.h"
@@ -123,6 +124,9 @@ struct BlockDriver {
     int (*bdrv_create)(const char *filename, QemuOpts *opts, Error **errp);
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);
     int (*bdrv_make_empty)(BlockDriverState *bs);
+
+    void (*bdrv_refresh_filename)(BlockDriverState *bs);
+
     /* aio */
     BlockDriverAIOCB *(*bdrv_aio_readv)(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
@@ -241,7 +245,7 @@ struct BlockDriver {
     int (*bdrv_debug_resume)(BlockDriverState *bs, const char *tag);
     bool (*bdrv_debug_is_suspended)(BlockDriverState *bs, const char *tag);
 
-    int (*bdrv_refresh_limits)(BlockDriverState *bs);
+    void (*bdrv_refresh_limits)(BlockDriverState *bs, Error **errp);
 
     /*
      * Returns 1 if newly created images are guaranteed to contain only
@@ -261,6 +265,11 @@ struct BlockDriver {
      */
     void (*bdrv_attach_aio_context)(BlockDriverState *bs,
                                     AioContext *new_context);
+
+    /* io queue for linux-aio */
+    void (*bdrv_io_plug)(BlockDriverState *bs);
+    void (*bdrv_io_unplug)(BlockDriverState *bs);
+    void (*bdrv_flush_io_queue)(BlockDriverState *bs);
 
     QLIST_ENTRY(BlockDriver) list;
 };
@@ -286,6 +295,15 @@ typedef struct BlockLimits {
 } BlockLimits;
 
 typedef struct BdrvOpBlocker BdrvOpBlocker;
+
+typedef struct BdrvAioNotifier {
+    void (*attached_aio_context)(AioContext *new_context, void *opaque);
+    void (*detach_aio_context)(void *opaque);
+
+    void *opaque;
+
+    QLIST_ENTRY(BdrvAioNotifier) list;
+} BdrvAioNotifier;
 
 /*
  * Note: the function bdrv_append() copies and swaps contents of
@@ -313,11 +331,18 @@ struct BlockDriverState {
     void *dev_opaque;
 
     AioContext *aio_context; /* event loop used for fd handlers, timers, etc */
+    /* long-running tasks intended to always use the same AioContext as this
+     * BDS may register themselves in this list to be notified of changes
+     * regarding this BDS's context */
+    QLIST_HEAD(, BdrvAioNotifier) aio_notifiers;
 
     char filename[1024];
     char backing_file[1024]; /* if non zero, the image is a diff of
                                 this file image */
     char backing_format[16]; /* if non-zero and backing_file exists */
+
+    QDict *full_open_options;
+    char exact_filename[1024];
 
     BlockDriverState *backing_hd;
     BlockDriverState *file;
@@ -336,10 +361,7 @@ struct BlockDriverState {
     bool         io_limits_enabled;
 
     /* I/O stats (display with "info blockstats"). */
-    uint64_t nr_bytes[BDRV_MAX_IOTYPE];
-    uint64_t nr_ops[BDRV_MAX_IOTYPE];
-    uint64_t total_time_ns[BDRV_MAX_IOTYPE];
-    uint64_t wr_highest_sector;
+    BlockAcctStats stats;
 
     /* I/O Limits */
     BlockLimits bl;
@@ -426,6 +448,34 @@ void bdrv_detach_aio_context(BlockDriverState *bs);
  */
 void bdrv_attach_aio_context(BlockDriverState *bs,
                              AioContext *new_context);
+
+/**
+ * bdrv_add_aio_context_notifier:
+ *
+ * If a long-running job intends to be always run in the same AioContext as a
+ * certain BDS, it may use this function to be notified of changes regarding the
+ * association of the BDS to an AioContext.
+ *
+ * attached_aio_context() is called after the target BDS has been attached to a
+ * new AioContext; detach_aio_context() is called before the target BDS is being
+ * detached from its old AioContext.
+ */
+void bdrv_add_aio_context_notifier(BlockDriverState *bs,
+        void (*attached_aio_context)(AioContext *new_context, void *opaque),
+        void (*detach_aio_context)(void *opaque), void *opaque);
+
+/**
+ * bdrv_remove_aio_context_notifier:
+ *
+ * Unsubscribe of change notifications regarding the BDS's AioContext. The
+ * parameters given here have to be the same as those given to
+ * bdrv_add_aio_context_notifier().
+ */
+void bdrv_remove_aio_context_notifier(BlockDriverState *bs,
+                                      void (*aio_context_attached)(AioContext *,
+                                                                   void *),
+                                      void (*aio_context_detached)(void *),
+                                      void *opaque);
 
 #ifdef _WIN32
 int is_windows_drive(const char *filename);

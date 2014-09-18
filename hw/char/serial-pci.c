@@ -135,7 +135,6 @@ static void serial_pci_exit(PCIDevice *dev)
     SerialState *s = &pci->state;
 
     serial_exit_core(s);
-    memory_region_destroy(&s->io);
     qemu_free_irq(s->irq);
 }
 
@@ -148,10 +147,9 @@ static void multi_serial_pci_exit(PCIDevice *dev)
     for (i = 0; i < pci->ports; i++) {
         s = pci->state + i;
         serial_exit_core(s);
-        memory_region_destroy(&s->io);
+        memory_region_del_subregion(&pci->iobar, &s->io);
         g_free(pci->name[i]);
     }
-    memory_region_destroy(&pci->iobar);
     qemu_free_irqs(pci->irqs, pci->ports);
 }
 

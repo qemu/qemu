@@ -807,9 +807,23 @@ static int64_t load_kernel(int big_endian)
                 loaderparams.kernel_filename);
         exit(1);
     }
+
+    /* Sanity check where the kernel has been linked */
     if (kvm_enabled()) {
+        if (kernel_entry & 0x80000000ll) {
+            error_report("KVM guest kernels must be linked in useg. "
+                         "Did you forget to enable CONFIG_KVM_GUEST?");
+            exit(1);
+        }
+
         xlate_to_kseg0 = cpu_mips_kvm_um_phys_to_kseg0;
     } else {
+        if (!(kernel_entry & 0x80000000ll)) {
+            error_report("KVM guest kernels aren't supported with TCG. "
+                         "Did you unintentionally enable CONFIG_KVM_GUEST?");
+            exit(1);
+        }
+
         xlate_to_kseg0 = cpu_mips_phys_to_kseg0;
     }
 
@@ -992,7 +1006,8 @@ void mips_malta_init(MachineState *machine)
     }
 
     /* register RAM at high address where it is undisturbed by IO */
-    memory_region_init_ram(ram_high, NULL, "mips_malta.ram", ram_size);
+    memory_region_init_ram(ram_high, NULL, "mips_malta.ram", ram_size,
+                           &error_abort);
     vmstate_register_ram_global(ram_high);
     memory_region_add_subregion(system_memory, 0x80000000, ram_high);
 
@@ -1038,7 +1053,7 @@ void mips_malta_init(MachineState *machine)
     fl_idx++;
     if (kernel_filename) {
         ram_low_size = MIN(ram_size, 256 << 20);
-        /* For KVM T&E we reserve 1MB of RAM for running bootloader */
+        /* For KVM we reserve 1MB of RAM for running bootloader */
         if (kvm_enabled()) {
             ram_low_size -= 0x100000;
             bootloader_run_addr = 0x40000000 + ram_low_size;
@@ -1062,10 +1077,10 @@ void mips_malta_init(MachineState *machine)
                              bootloader_run_addr, kernel_entry);
         }
     } else {
-        /* The flash region isn't executable from a KVM T&E guest */
+        /* The flash region isn't executable from a KVM guest */
         if (kvm_enabled()) {
             error_report("KVM enabled but no -kernel argument was specified. "
-                         "Booting from flash is not supported with KVM T&E.");
+                         "Booting from flash is not supported with KVM.");
             exit(1);
         }
         /* Load firmware from flash. */
@@ -1113,7 +1128,8 @@ void mips_malta_init(MachineState *machine)
      * handled by an overlapping region as the resulting ROM code subpage
      * regions are not executable.
      */
-    memory_region_init_ram(bios_copy, NULL, "bios.1fc", BIOS_SIZE);
+    memory_region_init_ram(bios_copy, NULL, "bios.1fc", BIOS_SIZE,
+                           &error_abort);
     if (!rom_copy(memory_region_get_ram_ptr(bios_copy),
                   FLASH_ADDRESS, BIOS_SIZE)) {
         memcpy(memory_region_get_ram_ptr(bios_copy),

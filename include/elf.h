@@ -92,6 +92,8 @@ typedef int64_t  Elf64_Sxword;
 
 #define EM_SPARCV9     43	/* SPARC v9 64-bit */
 
+#define EM_TRICORE      44      /* Infineon TriCore */
+
 #define EM_IA_64	50	/* HP/Intel IA-64 */
 
 #define EM_X86_64	62	/* AMD x86-64 */

@@ -7,7 +7,7 @@
  *               VA Linux Systems Japan K.K.
  * Copyright (C) 2012 Jason Baron <jbaron@redhat.com>
  *
- * This is based on piix_pci.c, but heavily modified.
+ * This is based on piix.c, but heavily modified.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

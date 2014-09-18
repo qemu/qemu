@@ -202,6 +202,8 @@ struct VirtIOSerial {
 
     QTAILQ_HEAD(, VirtIOSerialPort) ports;
 
+    QLIST_ENTRY(VirtIOSerial) next;
+
     /* bitmap for identifying active ports */
     uint32_t *ports_map;
 

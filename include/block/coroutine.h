@@ -203,16 +203,8 @@ void qemu_co_rwlock_unlock(CoRwlock *lock);
 /**
  * Yield the coroutine for a given duration
  *
- * Note this function uses timers and hence only works when a main loop is in
- * use.  See main-loop.h and do not use from qemu-tool programs.
- */
-void coroutine_fn co_sleep_ns(QEMUClockType type, int64_t ns);
-
-/**
- * Yield the coroutine for a given duration
- *
  * Behaves similarly to co_sleep_ns(), but the sleeping coroutine will be
- * resumed when using qemu_aio_wait().
+ * resumed when using aio_poll().
  */
 void coroutine_fn co_aio_sleep_ns(AioContext *ctx, QEMUClockType type,
                                   int64_t ns);
@@ -223,4 +215,15 @@ void coroutine_fn co_aio_sleep_ns(AioContext *ctx, QEMUClockType type,
  * Note that this function clobbers the handlers for the file descriptor.
  */
 void coroutine_fn yield_until_fd_readable(int fd);
+
+/**
+ * Add or subtract from the coroutine pool size
+ *
+ * The coroutine implementation keeps a pool of coroutines to be reused by
+ * qemu_coroutine_create().  This makes coroutine creation cheap.  Heavy
+ * coroutine users should call this to reserve pool space.  Call it again with
+ * a negative number to release pool space.
+ */
+void qemu_coroutine_adjust_pool_size(int n);
+
 #endif /* QEMU_COROUTINE_H */

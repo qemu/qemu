@@ -157,7 +157,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     BlockDriverState *source = s->common.bs;
     int nb_sectors, sectors_per_chunk, nb_chunks;
     int64_t end, sector_num, next_chunk, next_sector, hbitmap_next_sector;
-    uint64_t delay_ns;
+    uint64_t delay_ns = 0;
     MirrorOp *op;
 
     s->sector_num = hbitmap_iter_next(&s->hbi);
@@ -247,8 +247,6 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         next_chunk += added_chunks;
         if (!s->synced && s->common.speed) {
             delay_ns = ratelimit_calculate_delay(&s->limit, added_sectors);
-        } else {
-            delay_ns = 0;
         }
     } while (delay_ns == 0 && next_sector < end);
 
@@ -265,9 +263,11 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     next_sector = sector_num;
     while (nb_chunks-- > 0) {
         MirrorBuffer *buf = QSIMPLEQ_FIRST(&s->buf_free);
+        size_t remaining = (nb_sectors * BDRV_SECTOR_SIZE) - op->qiov.size;
+
         QSIMPLEQ_REMOVE_HEAD(&s->buf_free, next);
         s->buf_free_count--;
-        qemu_iovec_add(&op->qiov, buf, s->granularity);
+        qemu_iovec_add(&op->qiov, buf, MIN(s->granularity, remaining));
 
         /* Advance the HBitmapIter in parallel, so that we do not examine
          * the same sector twice.
@@ -365,7 +365,12 @@ static void coroutine_fn mirror_run(void *opaque)
     }
 
     end = s->common.len >> BDRV_SECTOR_BITS;
-    s->buf = qemu_blockalign(bs, s->buf_size);
+    s->buf = qemu_try_blockalign(bs, s->buf_size);
+    if (s->buf == NULL) {
+        ret = -ENOMEM;
+        goto immediate_exit;
+    }
+
     sectors_per_chunk = s->granularity >> BDRV_SECTOR_BITS;
     mirror_free_init(s);
 

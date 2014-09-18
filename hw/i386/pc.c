@@ -73,7 +73,12 @@
 #endif
 
 /* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables.  */
-#define ACPI_DATA_SIZE       0x10000
+unsigned acpi_data_size = 0x20000;
+void pc_set_legacy_acpi_data_size(void)
+{
+    acpi_data_size = 0x10000;
+}
+
 #define BIOS_CFG_IOPORT 0x510
 #define FW_CFG_ACPI_TABLES (FW_CFG_ARCH_LOCAL + 0)
 #define FW_CFG_SMBIOS_ENTRIES (FW_CFG_ARCH_LOCAL + 1)
@@ -476,7 +481,7 @@ static void port92_write(void *opaque, hwaddr addr, uint64_t val,
     Port92State *s = opaque;
     int oldval = s->outport;
 
-    DPRINTF("port92: write 0x%02x\n", val);
+    DPRINTF("port92: write 0x%02" PRIx64 "\n", val);
     s->outport = val;
     qemu_set_irq(*s->a20_out, (val >> 1) & 1);
     if ((val & 1) && !(oldval & 1)) {
@@ -811,8 +816,9 @@ static void load_linux(FWCfgState *fw_cfg,
         initrd_max = 0x37ffffff;
     }
 
-    if (initrd_max >= max_ram_size-ACPI_DATA_SIZE)
-    	initrd_max = max_ram_size-ACPI_DATA_SIZE-1;
+    if (initrd_max >= max_ram_size - acpi_data_size) {
+        initrd_max = max_ram_size - acpi_data_size - 1;
+    }
 
     fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_ADDR, cmdline_addr);
     fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE, strlen(kernel_cmdline)+1);
@@ -1066,35 +1072,6 @@ typedef struct PcRomPciInfo {
     uint64_t w64_max;
 } PcRomPciInfo;
 
-static void pc_fw_cfg_guest_info(PcGuestInfo *guest_info)
-{
-    PcRomPciInfo *info;
-    Object *pci_info;
-    bool ambiguous = false;
-
-    if (!guest_info->has_pci_info || !guest_info->fw_cfg) {
-        return;
-    }
-    pci_info = object_resolve_path_type("", TYPE_PCI_HOST_BRIDGE, &ambiguous);
-    g_assert(!ambiguous);
-    if (!pci_info) {
-        return;
-    }
-
-    info = g_malloc(sizeof *info);
-    info->w32_min = cpu_to_le64(object_property_get_int(pci_info,
-                                PCI_HOST_PROP_PCI_HOLE_START, NULL));
-    info->w32_max = cpu_to_le64(object_property_get_int(pci_info,
-                                PCI_HOST_PROP_PCI_HOLE_END, NULL));
-    info->w64_min = cpu_to_le64(object_property_get_int(pci_info,
-                                PCI_HOST_PROP_PCI_HOLE64_START, NULL));
-    info->w64_max = cpu_to_le64(object_property_get_int(pci_info,
-                                PCI_HOST_PROP_PCI_HOLE64_END, NULL));
-    /* Pass PCI hole info to guest via a side channel.
-     * Required so guest PCI enumeration does the right thing. */
-    fw_cfg_add_file(guest_info->fw_cfg, "etc/pci-info", info, sizeof *info);
-}
-
 typedef struct PcGuestInfoState {
     PcGuestInfo info;
     Notifier machine_done;
@@ -1106,7 +1083,6 @@ void pc_guest_info_machine_done(Notifier *notifier, void *data)
     PcGuestInfoState *guest_info_state = container_of(notifier,
                                                       PcGuestInfoState,
                                                       machine_done);
-    pc_fw_cfg_guest_info(&guest_info_state->info);
     acpi_setup(&guest_info_state->info);
 }
 
@@ -1188,6 +1164,31 @@ void pc_acpi_init(const char *default_dsdt)
         g_free(arg);
         g_free(filename);
     }
+}
+
+FWCfgState *xen_load_linux(const char *kernel_filename,
+                           const char *kernel_cmdline,
+                           const char *initrd_filename,
+                           ram_addr_t below_4g_mem_size,
+                           PcGuestInfo *guest_info)
+{
+    int i;
+    FWCfgState *fw_cfg;
+
+    assert(kernel_filename != NULL);
+
+    fw_cfg = fw_cfg_init(BIOS_CFG_IOPORT, BIOS_CFG_IOPORT + 1, 0, 0);
+    rom_set_fw(fw_cfg);
+
+    load_linux(fw_cfg, kernel_filename, initrd_filename,
+               kernel_cmdline, below_4g_mem_size);
+    for (i = 0; i < nb_option_roms; i++) {
+        assert(!strcmp(option_rom[i].name, "linuxboot.bin") ||
+               !strcmp(option_rom[i].name, "multiboot.bin"));
+        rom_add_option(option_rom[i].name, option_rom[i].bootindex);
+    }
+    guest_info->fw_cfg = fw_cfg;
+    return fw_cfg;
 }
 
 FWCfgState *pc_memory_init(MachineState *machine,
@@ -1272,7 +1273,8 @@ FWCfgState *pc_memory_init(MachineState *machine,
     pc_system_firmware_init(rom_memory, guest_info->isapc_ram_fw);
 
     option_rom_mr = g_malloc(sizeof(*option_rom_mr));
-    memory_region_init_ram(option_rom_mr, NULL, "pc.rom", PC_ROM_SIZE);
+    memory_region_init_ram(option_rom_mr, NULL, "pc.rom", PC_ROM_SIZE,
+                           &error_abort);
     vmstate_register_ram_global(option_rom_mr);
     memory_region_add_subregion_overlap(rom_memory,
                                         PC_ROM_MIN_VGA,

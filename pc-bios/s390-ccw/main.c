@@ -13,6 +13,22 @@
 
 char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 uint64_t boot_value;
+struct subchannel_id blk_schid = { .one = 1 };
+
+/*
+ * Priniciples of Operations (SA22-7832-09) chapter 17 requires that
+ * a subsystem-identification is at 184-187 and bytes 188-191 are zero
+ * after list-directed-IPL and ccw-IPL.
+ */
+void write_subsystem_identification(void)
+{
+    struct subchannel_id *schid = (struct subchannel_id *) 184;
+    uint32_t *zeroes = (uint32_t *) 188;
+
+    *schid = blk_schid;
+    *zeroes = 0;
+}
+
 
 void virtio_panic(const char *string)
 {
@@ -23,7 +39,6 @@ void virtio_panic(const char *string)
 
 static void virtio_setup(uint64_t dev_info)
 {
-    struct subchannel_id blk_schid = { .one = 1 };
     struct schib schib;
     int i;
     int r;

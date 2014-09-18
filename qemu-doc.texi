@@ -528,6 +528,15 @@ Linux or NTFS on Windows), then only the written sectors will reserve
 space. Use @code{qemu-img info} to know the real size used by the
 image or @code{ls -ls} on Unix/Linux.
 
+Supported options:
+@table @code
+@item preallocation
+Preallocation mode (allowed values: @code{off}, @code{falloc}, @code{full}).
+@code{falloc} mode preallocates space for image by calling posix_fallocate().
+@code{full} mode preallocates space for image by writing zeros to underlying
+storage.
+@end table
+
 @item qcow2
 QEMU image format, the most versatile format. Use it to have smaller
 images (useful if your filesystem does not supports holes, for example
@@ -576,9 +585,11 @@ sizes can improve the image file size whereas larger cluster sizes generally
 provide better performance.
 
 @item preallocation
-Preallocation mode (allowed values: off, metadata). An image with preallocated
-metadata is initially larger but can improve performance when the image needs
-to grow.
+Preallocation mode (allowed values: @code{off}, @code{metadata}, @code{falloc},
+@code{full}). An image with preallocated metadata is initially larger but can
+improve performance when the image needs to grow. @code{falloc} and @code{full}
+preallocations are like the same options of @code{raw} format, but sets up
+metadata also.
 
 @item lazy_refcounts
 If this option is set to @code{on}, reference count updates are postponed with
@@ -591,7 +602,7 @@ check -r all} is required, which may take some time.
 This option can only be enabled if @code{compat=1.1} is specified.
 
 @item nocow
-If this option is set to @code{on}, it will trun off COW of the file. It's only
+If this option is set to @code{on}, it will turn off COW of the file. It's only
 valid on btrfs, no effect on other file systems.
 
 Btrfs has low performance when hosting a VM image file, even more when the guest
@@ -604,7 +615,7 @@ does.
 Note: this option is only valid to new or empty files. If there is an existing
 file which is COW and has data blocks already, it couldn't be changed to NOCOW
 by setting @code{nocow=on}. One can issue @code{lsattr filename} to check if
-the NOCOW flag is set or not (Capitabl 'C' is NOCOW flag).
+the NOCOW flag is set or not (Capital 'C' is NOCOW flag).
 
 @end table
 
@@ -1208,9 +1219,16 @@ In order to check that the user mode network is working, you can ping
 the address 10.0.2.2 and verify that you got an address in the range
 10.0.2.x from the QEMU virtual DHCP server.
 
-Note that @code{ping} is not supported reliably to the internet as it
-would require root privileges. It means you can only ping the local
-router (10.0.2.2).
+Note that ICMP traffic in general does not work with user mode networking.
+@code{ping}, aka. ICMP echo, to the local router (10.0.2.2) shall work,
+however. If you're using QEMU on Linux >= 3.0, it can use unprivileged ICMP
+ping sockets to allow @code{ping} to the Internet. The host admin has to set
+the ping_group_range in order to grant access to those sockets. To allow ping
+for GID 100 (usually users group):
+
+@example
+echo 100 100 > /proc/sys/net/ipv4/ping_group_range
+@end example
 
 When using the built-in TFTP server, the router is also the TFTP
 server.

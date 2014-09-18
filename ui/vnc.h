@@ -263,6 +263,7 @@ struct VncState
     VncDisplay *vd;
     int need_update;
     int force_update;
+    int has_dirty;
     uint32_t features;
     int absolute;
     int last_x;

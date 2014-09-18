@@ -282,9 +282,6 @@ static void tusb_gpio_intr_update(TUSBState *s)
     /* TODO: How is this signalled?  */
 }
 
-extern CPUReadMemoryFunc * const musb_read[];
-extern CPUWriteMemoryFunc * const musb_write[];
-
 static uint32_t tusb_async_readb(void *opaque, hwaddr addr)
 {
     TUSBState *s = (TUSBState *) opaque;

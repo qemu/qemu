@@ -2154,7 +2154,6 @@ void helper_stf_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
     unsigned int i;
     target_ulong val;
 
-    helper_check_align(env, addr, 3);
     addr = asi_address_mask(env, asi, addr);
 
     switch (asi) {
@@ -2192,7 +2191,21 @@ void helper_stf_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
         }
 
         return;
+    case 0xd2: /* 16-bit floating point load primary */
+    case 0xd3: /* 16-bit floating point load secondary */
+    case 0xda: /* 16-bit floating point load primary, LE */
+    case 0xdb: /* 16-bit floating point load secondary, LE */
+        helper_check_align(env, addr, 1);
+        /* Fall through */
+    case 0xd0: /* 8-bit floating point load primary */
+    case 0xd1: /* 8-bit floating point load secondary */
+    case 0xd8: /* 8-bit floating point load primary, LE */
+    case 0xd9: /* 8-bit floating point load secondary, LE */
+        val = env->fpr[rd / 2].l.lower;
+        helper_st_asi(env, addr, val, asi & 0x8d, ((asi & 2) >> 1) + 1);
+        return;
     default:
+        helper_check_align(env, addr, 3);
         break;
     }
 

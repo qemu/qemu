@@ -171,7 +171,7 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
 
 done:
     MACIO_DPRINTF("done DMA\n");
-    bdrv_acct_done(s->bs, &s->acct);
+    block_acct_done(bdrv_get_stats(s->bs), &s->acct);
     io->dma_end(opaque);
 }
 
@@ -352,7 +352,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
 
 done:
     if (s->dma_cmd == IDE_DMA_READ || s->dma_cmd == IDE_DMA_WRITE) {
-        bdrv_acct_done(s->bs, &s->acct);
+        block_acct_done(bdrv_get_stats(s->bs), &s->acct);
     }
     io->dma_end(io);
 }
@@ -370,8 +370,8 @@ static void pmac_ide_transfer(DBDMA_io *io)
         /* Handle non-block ATAPI DMA transfers */
         if (s->lba == -1) {
             s->io_buffer_size = MIN(io->len, s->packet_transfer_size);
-            bdrv_acct_start(s->bs, &s->acct, s->io_buffer_size,
-                            BDRV_ACCT_READ);
+            block_acct_start(bdrv_get_stats(s->bs), &s->acct, s->io_buffer_size,
+                             BLOCK_ACCT_READ);
             MACIO_DPRINTF("non-block ATAPI DMA transfer size: %d\n",
                           s->io_buffer_size);
 
@@ -382,22 +382,25 @@ static void pmac_ide_transfer(DBDMA_io *io)
             m->dma_active = false;
 
             MACIO_DPRINTF("end of non-block ATAPI DMA transfer\n");
-            bdrv_acct_done(s->bs, &s->acct);
+            block_acct_done(bdrv_get_stats(s->bs), &s->acct);
             io->dma_end(io);
             return;
         }
 
-        bdrv_acct_start(s->bs, &s->acct, io->len, BDRV_ACCT_READ);
+        block_acct_start(bdrv_get_stats(s->bs), &s->acct, io->len,
+                         BLOCK_ACCT_READ);
         pmac_ide_atapi_transfer_cb(io, 0);
         return;
     }
 
     switch (s->dma_cmd) {
     case IDE_DMA_READ:
-        bdrv_acct_start(s->bs, &s->acct, io->len, BDRV_ACCT_READ);
+        block_acct_start(bdrv_get_stats(s->bs), &s->acct, io->len,
+                         BLOCK_ACCT_READ);
         break;
     case IDE_DMA_WRITE:
-        bdrv_acct_start(s->bs, &s->acct, io->len, BDRV_ACCT_WRITE);
+        block_acct_start(bdrv_get_stats(s->bs), &s->acct, io->len,
+                         BLOCK_ACCT_WRITE);
         break;
     default:
         break;
@@ -545,11 +548,6 @@ static void macio_ide_reset(DeviceState *dev)
     ide_bus_reset(&d->bus);
 }
 
-static int ide_nop(IDEDMA *dma)
-{
-    return 0;
-}
-
 static int ide_nop_int(IDEDMA *dma, int x)
 {
     return 0;
@@ -571,14 +569,10 @@ static void ide_dbdma_start(IDEDMA *dma, IDEState *s,
 
 static const IDEDMAOps dbdma_ops = {
     .start_dma      = ide_dbdma_start,
-    .start_transfer = ide_nop,
     .prepare_buf    = ide_nop_int,
     .rw_buf         = ide_nop_int,
     .set_unit       = ide_nop_int,
-    .add_status     = ide_nop_int,
-    .set_inactive   = ide_nop,
     .restart_cb     = ide_nop_restart,
-    .reset          = ide_nop,
 };
 
 static void macio_ide_realizefn(DeviceState *dev, Error **errp)

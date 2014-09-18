@@ -159,7 +159,7 @@ void acpi_memory_hotplug_init(MemoryRegion *as, Object *owner,
 
     state->devs = g_malloc0(sizeof(*state->devs) * state->dev_count);
     memory_region_init_io(&state->io, owner, &acpi_memory_hotplug_ops, state,
-                          "apci-mem-hotplug", ACPI_MEMORY_HOTPLUG_IO_LEN);
+                          "acpi-mem-hotplug", ACPI_MEMORY_HOTPLUG_IO_LEN);
     memory_region_add_subregion(as, ACPI_MEMORY_HOTPLUG_BASE, &state->io);
 }
 

@@ -660,7 +660,8 @@ static bool window_translate(TyphoonWindow *win, hwaddr addr,
 /* Handle PCI-to-system address translation.  */
 /* TODO: A translation failure here ought to set PCI error codes on the
    Pchip and generate a machine check interrupt.  */
-static IOMMUTLBEntry typhoon_translate_iommu(MemoryRegion *iommu, hwaddr addr)
+static IOMMUTLBEntry typhoon_translate_iommu(MemoryRegion *iommu, hwaddr addr,
+                                             bool is_write)
 {
     TyphoonPchip *pchip = container_of(iommu, TyphoonPchip, iommu);
     IOMMUTLBEntry ret;
@@ -843,7 +844,8 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
 
     /* Main memory region, 0x00.0000.0000.  Real hardware supports 32GB,
        but the address space hole reserved at this point is 8TB.  */
-    memory_region_init_ram(&s->ram_region, OBJECT(s), "ram", ram_size);
+    memory_region_init_ram(&s->ram_region, OBJECT(s), "ram", ram_size,
+                           &error_abort);
     vmstate_register_ram_global(&s->ram_region);
     memory_region_add_subregion(addr_space, 0, &s->ram_region);
 

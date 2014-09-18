@@ -71,7 +71,7 @@ static inline ioreq_t *xen_vcpu_ioreq(shared_iopage_t *shared_page, int vcpu)
 typedef struct XenPhysmap {
     hwaddr start_addr;
     ram_addr_t size;
-    char *name;
+    const char *name;
     hwaddr phys_offset;
 
     QLIST_ENTRY(XenPhysmap) list;
@@ -165,7 +165,7 @@ static void xen_ram_init(ram_addr_t *below_4g_mem_size,
                                                    PC_MACHINE_MAX_RAM_BELOW_4G,
                                                    &error_abort);
 
-    /* Handle the machine opt max-ram-below-4g.  It is basicly doing
+    /* Handle the machine opt max-ram-below-4g.  It is basically doing
      * min(xen limit, user limit).
      */
     if (HVM_BELOW_4G_RAM_END <= user_lowmem) {
@@ -188,7 +188,8 @@ static void xen_ram_init(ram_addr_t *below_4g_mem_size,
          */
         block_len = (1ULL << 32) + *above_4g_mem_size;
     }
-    memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len);
+    memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len,
+                           &error_abort);
     *ram_memory_p = &ram_memory;
     vmstate_register_ram_global(&ram_memory);
 
@@ -291,6 +292,7 @@ static int xen_add_to_physmap(XenIOState *state,
     hwaddr pfn, start_gpfn;
     hwaddr phys_offset = memory_region_get_ram_addr(mr);
     char path[80], value[17];
+    const char *mr_name;
 
     if (get_physmapping(state, start_addr, size)) {
         return 0;
@@ -326,11 +328,13 @@ go_physmap:
         }
     }
 
+    mr_name = memory_region_name(mr);
+
     physmap = g_malloc(sizeof (XenPhysmap));
 
     physmap->start_addr = start_addr;
     physmap->size = size;
-    physmap->name = (char *)mr->name;
+    physmap->name = mr_name;
     physmap->phys_offset = phys_offset;
 
     QLIST_INSERT_HEAD(&state->physmap, physmap, list);
@@ -354,11 +358,11 @@ go_physmap:
     if (!xs_write(state->xenstore, 0, path, value, strlen(value))) {
         return -1;
     }
-    if (mr->name) {
+    if (mr_name) {
         snprintf(path, sizeof(path),
                 "/local/domain/0/device-model/%d/physmap/%"PRIx64"/name",
                 xen_domid, (uint64_t)phys_offset);
-        if (!xs_write(state->xenstore, 0, path, mr->name, strlen(mr->name))) {
+        if (!xs_write(state->xenstore, 0, path, mr_name, strlen(mr_name))) {
             return -1;
         }
     }
@@ -390,7 +394,7 @@ static int xen_remove_from_physmap(XenIOState *state,
     start_addr >>= TARGET_PAGE_BITS;
     phys_offset >>= TARGET_PAGE_BITS;
     for (i = 0; i < size; i++) {
-        unsigned long idx = start_addr + i;
+        xen_pfn_t idx = start_addr + i;
         xen_pfn_t gpfn = phys_offset + i;
 
         rc = xc_domain_add_to_physmap(xen_xc, xen_domid, XENMAPSPACE_gmfn, idx, gpfn);
@@ -513,11 +517,14 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
                                  start_addr >> TARGET_PAGE_BITS, npages,
                                  bitmap);
     if (rc < 0) {
-        if (rc != -ENODATA) {
+#ifndef ENODATA
+#define ENODATA  ENOENT
+#endif
+        if (errno == ENODATA) {
             memory_region_set_dirty(framebuffer, 0, size);
             DPRINTF("xen: track_dirty_vram failed (0x" TARGET_FMT_plx
                     ", 0x" TARGET_FMT_plx "): %s\n",
-                    start_addr, start_addr + size, strerror(-rc));
+                    start_addr, start_addr + size, strerror(errno));
         }
         return;
     }

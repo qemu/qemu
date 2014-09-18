@@ -629,7 +629,7 @@ fail_handle:
 
 static void register_types(void)
 {
-    register_char_driver_qapi("braille", CHARDEV_BACKEND_KIND_BRAILLE, NULL);
+    register_char_driver("braille", CHARDEV_BACKEND_KIND_BRAILLE, NULL);
 }
 
 type_init(register_types);

@@ -120,11 +120,19 @@ typedef struct VFIOINTx {
 } VFIOINTx;
 
 typedef struct VFIOMSIVector {
-    EventNotifier interrupt; /* eventfd triggered on interrupt */
-    EventNotifier kvm_interrupt; /* eventfd triggered for KVM irqfd bypass */
+    /*
+     * Two interrupt paths are configured per vector.  The first, is only used
+     * for interrupts injected via QEMU.  This is typically the non-accel path,
+     * but may also be used when we want QEMU to handle masking and pending
+     * bits.  The KVM path bypasses QEMU and is therefore higher performance,
+     * but requires masking at the device.  virq is used to track the MSI route
+     * through KVM, thus kvm_interrupt is only available when virq is set to a
+     * valid (>= 0) value.
+     */
+    EventNotifier interrupt;
+    EventNotifier kvm_interrupt;
     struct VFIODevice *vdev; /* back pointer to device */
-    MSIMessage msg; /* cache the MSI message so we know when it changes */
-    int virq; /* KVM irqchip route for QEMU bypass */
+    int virq;
     bool use;
 } VFIOMSIVector;
 
@@ -681,13 +689,24 @@ static int vfio_enable_vectors(VFIODevice *vdev, bool msix)
     fds = (int32_t *)&irq_set->data;
 
     for (i = 0; i < vdev->nr_vectors; i++) {
-        if (!vdev->msi_vectors[i].use) {
-            fds[i] = -1;
-        } else if (vdev->msi_vectors[i].virq >= 0) {
-            fds[i] = event_notifier_get_fd(&vdev->msi_vectors[i].kvm_interrupt);
-        } else {
-            fds[i] = event_notifier_get_fd(&vdev->msi_vectors[i].interrupt);
+        int fd = -1;
+
+        /*
+         * MSI vs MSI-X - The guest has direct access to MSI mask and pending
+         * bits, therefore we always use the KVM signaling path when setup.
+         * MSI-X mask and pending bits are emulated, so we want to use the
+         * KVM signaling path only when configured and unmasked.
+         */
+        if (vdev->msi_vectors[i].use) {
+            if (vdev->msi_vectors[i].virq < 0 ||
+                (msix && msix_is_masked(&vdev->pdev, i))) {
+                fd = event_notifier_get_fd(&vdev->msi_vectors[i].interrupt);
+            } else {
+                fd = event_notifier_get_fd(&vdev->msi_vectors[i].kvm_interrupt);
+            }
         }
+
+        fds[i] = fd;
     }
 
     ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
@@ -724,7 +743,6 @@ static void vfio_add_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage *msg,
         return;
     }
 
-    vector->msg = *msg;
     vector->virq = virq;
 }
 
@@ -740,7 +758,6 @@ static void vfio_remove_kvm_msi_virq(VFIOMSIVector *vector)
 static void vfio_update_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage msg)
 {
     kvm_irqchip_update_msi_route(kvm_state, vector->virq, msg);
-    vector->msg = msg;
 }
 
 static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
@@ -919,6 +936,7 @@ retry:
 
     for (i = 0; i < vdev->nr_vectors; i++) {
         VFIOMSIVector *vector = &vdev->msi_vectors[i];
+        MSIMessage msg = msi_get_message(&vdev->pdev, i);
 
         vector->vdev = vdev;
         vector->virq = -1;
@@ -931,13 +949,11 @@ retry:
         qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
                             vfio_msi_interrupt, NULL, vector);
 
-        vector->msg = msi_get_message(&vdev->pdev, i);
-
         /*
          * Attempt to enable route through KVM irqchip,
          * default to userspace handling if unavailable.
          */
-        vfio_add_kvm_msi_virq(vector, &vector->msg, false);
+        vfio_add_kvm_msi_virq(vector, &msg, false);
     }
 
     /* Set interrupt type prior to possible interrupts */
@@ -2178,9 +2194,13 @@ static void vfio_probe_nvidia_bar0_88000_quirk(VFIODevice *vdev, int nr)
 {
     PCIDevice *pdev = &vdev->pdev;
     VFIOQuirk *quirk;
+    uint16_t vendor, class;
 
-    if (!vdev->has_vga || nr != 0 ||
-        pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_NVIDIA) {
+    vendor = pci_get_word(pdev->config + PCI_VENDOR_ID);
+    class = pci_get_word(pdev->config + PCI_CLASS_DEVICE);
+
+    if (nr != 0 || vendor != PCI_VENDOR_ID_NVIDIA ||
+        class != PCI_CLASS_DISPLAY_VGA) {
         return;
     }
 
@@ -2266,7 +2286,7 @@ static void vfio_vga_quirk_teardown(VFIODevice *vdev)
         while (!QLIST_EMPTY(&vdev->vga.region[i].quirks)) {
             VFIOQuirk *quirk = QLIST_FIRST(&vdev->vga.region[i].quirks);
             memory_region_del_subregion(&vdev->vga.region[i].mem, &quirk->mem);
-            memory_region_destroy(&quirk->mem);
+            object_unparent(OBJECT(&quirk->mem));
             QLIST_REMOVE(quirk, next);
             g_free(quirk);
         }
@@ -2290,7 +2310,7 @@ static void vfio_bar_quirk_teardown(VFIODevice *vdev, int nr)
     while (!QLIST_EMPTY(&bar->quirks)) {
         VFIOQuirk *quirk = QLIST_FIRST(&bar->quirks);
         memory_region_del_subregion(&bar->mem, &quirk->mem);
-        memory_region_destroy(&quirk->mem);
+        object_unparent(OBJECT(&quirk->mem));
         QLIST_REMOVE(quirk, next);
         g_free(quirk);
     }
@@ -2489,7 +2509,7 @@ static void vfio_iommu_map_notify(Notifier *n, void *data)
         return;
     }
 
-    if (iotlb->perm != IOMMU_NONE) {
+    if ((iotlb->perm & IOMMU_RW) != IOMMU_NONE) {
         vaddr = memory_region_get_ram_ptr(mr) + xlat;
 
         ret = vfio_dma_map(container, iotlb->iova,
@@ -2857,15 +2877,11 @@ static void vfio_unmap_bar(VFIODevice *vdev, int nr)
 
     memory_region_del_subregion(&bar->mem, &bar->mmap_mem);
     munmap(bar->mmap, memory_region_size(&bar->mmap_mem));
-    memory_region_destroy(&bar->mmap_mem);
 
     if (vdev->msix && vdev->msix->table_bar == nr) {
         memory_region_del_subregion(&bar->mem, &vdev->msix->mmap_mem);
         munmap(vdev->msix->mmap, memory_region_size(&vdev->msix->mmap_mem));
-        memory_region_destroy(&vdev->msix->mmap_mem);
     }
-
-    memory_region_destroy(&bar->mem);
 }
 
 static int vfio_mmap_bar(VFIODevice *vdev, VFIOBAR *bar,
@@ -3018,9 +3034,6 @@ static void vfio_unmap_bars(VFIODevice *vdev)
     if (vdev->has_vga) {
         vfio_vga_quirk_teardown(vdev);
         pci_unregister_vga(&vdev->pdev);
-        memory_region_destroy(&vdev->vga.region[QEMU_PCI_VGA_MEM].mem);
-        memory_region_destroy(&vdev->vga.region[QEMU_PCI_VGA_IO_LO].mem);
-        memory_region_destroy(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem);
     }
 }
 

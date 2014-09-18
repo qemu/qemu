@@ -80,11 +80,11 @@ static char const *imx_gpt_reg_name(uint32_t reg)
  * GPT : General purpose timer
  *
  * This timer counts up continuously while it is enabled, resetting itself
- * to 0 when it reaches TIMER_MAX (in freerun mode) or when it
+ * to 0 when it reaches GPT_TIMER_MAX (in freerun mode) or when it
  * reaches the value of one of the ocrX (in periodic mode).
  */
 
-#define TIMER_MAX  0XFFFFFFFFUL
+#define GPT_TIMER_MAX  0XFFFFFFFFUL
 
 /* Control register.  Not all of these bits have any effect (yet) */
 #define GPT_CR_EN     (1 << 0)  /* GPT Enable */
@@ -218,7 +218,7 @@ static inline uint32_t imx_gpt_find_limit(uint32_t count, uint32_t reg,
 
 static void imx_gpt_compute_next_timeout(IMXGPTState *s, bool event)
 {
-    uint32_t timeout = TIMER_MAX;
+    uint32_t timeout = GPT_TIMER_MAX;
     uint32_t count = 0;
     long long limit;
 
@@ -230,10 +230,10 @@ static void imx_gpt_compute_next_timeout(IMXGPTState *s, bool event)
     if (event) {
         /* This is a timer event  */
 
-        if ((s->cr & GPT_CR_FRR)  && (s->next_timeout != TIMER_MAX)) {
+        if ((s->cr & GPT_CR_FRR)  && (s->next_timeout != GPT_TIMER_MAX)) {
             /*
              * if we are in free running mode and we have not reached
-             * the TIMER_MAX limit, then update the count
+             * the GPT_TIMER_MAX limit, then update the count
              */
             count = imx_gpt_update_count(s);
         }
@@ -267,7 +267,7 @@ static void imx_gpt_compute_next_timeout(IMXGPTState *s, bool event)
     if ((s->ir & GPT_IR_OF3IE) && (timeout == s->ocr3)) {
         s->next_int |= GPT_SR_OF3;
     }
-    if ((s->ir & GPT_IR_ROVIE) && (timeout == TIMER_MAX)) {
+    if ((s->ir & GPT_IR_ROVIE) && (timeout == GPT_TIMER_MAX)) {
         s->next_int |= GPT_SR_ROV;
     }
 
@@ -370,20 +370,20 @@ static void imx_gpt_reset(DeviceState *dev)
     s->pr = 0;
     s->ir = 0;
     s->cnt = 0;
-    s->ocr1 = TIMER_MAX;
-    s->ocr2 = TIMER_MAX;
-    s->ocr3 = TIMER_MAX;
+    s->ocr1 = GPT_TIMER_MAX;
+    s->ocr2 = GPT_TIMER_MAX;
+    s->ocr3 = GPT_TIMER_MAX;
     s->icr1 = 0;
     s->icr2 = 0;
 
-    s->next_timeout = TIMER_MAX;
+    s->next_timeout = GPT_TIMER_MAX;
     s->next_int = 0;
 
     /* compute new freq */
     imx_gpt_set_freq(s);
 
-    /* reset the limit to TIMER_MAX */
-    ptimer_set_limit(s->timer, TIMER_MAX, 1);
+    /* reset the limit to GPT_TIMER_MAX */
+    ptimer_set_limit(s->timer, GPT_TIMER_MAX, 1);
 
     /* if the timer is still enabled, restart it */
     if (s->freq && (s->cr & GPT_CR_EN)) {
@@ -415,8 +415,8 @@ static void imx_gpt_write(void *opaque, hwaddr offset, uint64_t value,
             if ((oldreg ^ s->cr) & GPT_CR_EN) {
                 if (s->cr & GPT_CR_EN) {
                     if (s->cr & GPT_CR_ENMOD) {
-                        s->next_timeout = TIMER_MAX;
-                        ptimer_set_count(s->timer, TIMER_MAX);
+                        s->next_timeout = GPT_TIMER_MAX;
+                        ptimer_set_count(s->timer, GPT_TIMER_MAX);
                         imx_gpt_compute_next_timeout(s, false);
                     }
                     ptimer_run(s->timer, 1);
@@ -451,8 +451,8 @@ static void imx_gpt_write(void *opaque, hwaddr offset, uint64_t value,
 
         /* In non-freerun mode, reset count when this register is written */
         if (!(s->cr & GPT_CR_FRR)) {
-            s->next_timeout = TIMER_MAX;
-            ptimer_set_limit(s->timer, TIMER_MAX, 1);
+            s->next_timeout = GPT_TIMER_MAX;
+            ptimer_set_limit(s->timer, GPT_TIMER_MAX, 1);
         }
 
         /* compute the new timeout */

@@ -26,6 +26,9 @@
 #include "exec/cpu_ldst.h"
 #include "exec/helper-gen.h"
 
+#include "trace-tcg.h"
+
+
 #define SIM_COMPAT 0
 #define DISAS_GNU 1
 #define DISAS_MB 1

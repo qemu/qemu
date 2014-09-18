@@ -16,10 +16,6 @@ struct ex_list {
 	struct ex_list *ex_next;
 };
 
-#ifndef HAVE_STRDUP
-char *strdup(const char *);
-#endif
-
 #define EMU_NONE 0x0
 
 /* TCP emulations */

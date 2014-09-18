@@ -28,6 +28,9 @@
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
+#include "trace-tcg.h"
+
+
 typedef struct DisasContext {
     struct TranslationBlock *tb;
     target_ulong pc;

@@ -21,6 +21,7 @@
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
 #include "cpu.h"
+#include "internals.h"
 #include "hw/arm/arm.h"
 
 static inline void set_feature(uint64_t *features, int feature)
@@ -132,11 +133,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     /* KVM puts SP_EL0 in regs.sp and SP_EL1 in regs.sp_el1. On the
      * QEMU side we keep the current SP in xregs[31] as well.
      */
-    if (env->pstate & PSTATE_SP) {
-        env->sp_el[1] = env->xregs[31];
-    } else {
-        env->sp_el[0] = env->xregs[31];
-    }
+    aarch64_save_sp(env, 1);
 
     reg.id = AARCH64_CORE_REG(regs.sp);
     reg.addr = (uintptr_t) &env->sp_el[0];
@@ -235,11 +232,7 @@ int kvm_arch_get_registers(CPUState *cs)
     /* KVM puts SP_EL0 in regs.sp and SP_EL1 in regs.sp_el1. On the
      * QEMU side we keep the current SP in xregs[31] as well.
      */
-    if (env->pstate & PSTATE_SP) {
-        env->xregs[31] = env->sp_el[1];
-    } else {
-        env->xregs[31] = env->sp_el[0];
-    }
+    aarch64_restore_sp(env, 1);
 
     reg.id = AARCH64_CORE_REG(regs.pc);
     reg.addr = (uintptr_t) &env->pc;

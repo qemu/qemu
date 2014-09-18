@@ -153,7 +153,7 @@
 
 
   /* ---------------------------------------------------------------- */
-  /* Definitions for arbitary-precision modules (only valid after     */
+  /* Definitions for arbitrary-precision modules (only valid after    */
   /* decNumber.h has been included)				      */
   /* ---------------------------------------------------------------- */
 

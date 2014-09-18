@@ -1,0 +1,86 @@
+# Chinese translation for QEMU.
+# This file is put in the public domain.
+#
+# Fam Zheng <famz@redhat.com>, 2014
+msgid ""
+msgstr ""
+"Project-Id-Version: QEMU 2.2\n"
+"Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
+"POT-Creation-Date: 2014-07-31 10:03+0800\n"
+"PO-Revision-Date: 2014-07-31 10:00+0800\n"
+"Last-Translator: Fam Zheng <famz@redhat.com>\n"
+"Language-Team: Chinese <zh@li.org>\n"
+"Language: zh\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Lokalize 1.4\n"
+
+#: ui/gtk.c:321
+msgid " - Press Ctrl+Alt+G to release grab"
+msgstr " - 按下 Ctrl+Alt+G 取消捕获"
+
+#: ui/gtk.c:325
+msgid " [Paused]"
+msgstr " [已暂停]"
+
+#: ui/gtk.c:1601
+msgid "_Pause"
+msgstr "暂停(_P)"
+
+#: ui/gtk.c:1607
+msgid "_Reset"
+msgstr "重置(_R)"
+
+#: ui/gtk.c:1610
+msgid "Power _Down"
+msgstr "关闭电源(_D)"
+
+#: ui/gtk.c:1616
+msgid "_Quit"
+msgstr "退出(_Q)"
+
+#: ui/gtk.c:1692
+msgid "_Fullscreen"
+msgstr "全屏(_F)"
+
+#: ui/gtk.c:1702
+msgid "Zoom _In"
+msgstr "放大(_I)"
+
+#: ui/gtk.c:1709
+msgid "Zoom _Out"
+msgstr "缩小(_O)"
+
+#: ui/gtk.c:1716
+msgid "Best _Fit"
+msgstr "最合适大小(_F)"
+
+#: ui/gtk.c:1723
+msgid "Zoom To _Fit"
+msgstr "缩放以适应大小(_F)"
+
+#: ui/gtk.c:1729
+msgid "Grab On _Hover"
+msgstr "鼠标经过时捕获(_H)"
+
+#: ui/gtk.c:1732
+msgid "_Grab Input"
+msgstr "捕获输入(_G)"
+
+#: ui/gtk.c:1761
+msgid "Show _Tabs"
+msgstr "显示标签页(_T)"
+
+#: ui/gtk.c:1764
+msgid "Detach Tab"
+msgstr "分离标签页"
+
+#: ui/gtk.c:1778
+msgid "_Machine"
+msgstr "虚拟机(_M)"
+
+#: ui/gtk.c:1783
+msgid "_View"
+msgstr "视图(_V)"

@@ -1388,14 +1388,6 @@ static int ac97_initfn (PCIDevice *dev)
     return 0;
 }
 
-static void ac97_exitfn (PCIDevice *dev)
-{
-    AC97LinkState *s = DO_UPCAST (AC97LinkState, dev, dev);
-
-    memory_region_destroy (&s->io_nam);
-    memory_region_destroy (&s->io_nabm);
-}
-
 static int ac97_init (PCIBus *bus)
 {
     pci_create_simple (bus, -1, "AC97");
@@ -1413,7 +1405,6 @@ static void ac97_class_init (ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS (klass);
 
     k->init = ac97_initfn;
-    k->exit = ac97_exitfn;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82801AA_5;
     k->revision = 0x01;

@@ -182,7 +182,6 @@ int pci_piix3_xen_ide_unplug(DeviceState *dev)
             if (ds) {
                 bdrv_detach_dev(di->bdrv, ds);
             }
-            bdrv_close(di->bdrv);
             pci_ide->bus[di->bus].ifs[di->unit].bs = NULL;
             drive_del(di);
         }
@@ -207,11 +206,8 @@ static void pci_piix_ide_exitfn(PCIDevice *dev)
 
     for (i = 0; i < 2; ++i) {
         memory_region_del_subregion(&d->bmdma_bar, &d->bmdma[i].extra_io);
-        memory_region_destroy(&d->bmdma[i].extra_io);
         memory_region_del_subregion(&d->bmdma_bar, &d->bmdma[i].addr_ioport);
-        memory_region_destroy(&d->bmdma[i].addr_ioport);
     }
-    memory_region_destroy(&d->bmdma_bar);
 }
 
 /* hd_table must contain 4 block drivers */

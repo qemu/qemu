@@ -64,6 +64,7 @@ DEF_HELPER_3(set_cp_reg64, void, env, ptr, i64)
 DEF_HELPER_2(get_cp_reg64, i64, env, ptr)
 
 DEF_HELPER_3(msr_i_pstate, void, env, i32, i32)
+DEF_HELPER_1(clear_pstate_ss, void, env)
 DEF_HELPER_1(exception_return, void, env)
 
 DEF_HELPER_2(get_r13_banked, i32, env, i32)

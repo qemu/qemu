@@ -264,7 +264,8 @@ static int integratorcm_init(SysBusDevice *dev)
     s->cm_init = 0x00000112;
     s->cm_refcnt_offset = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), 24,
                                    1000);
-    memory_region_init_ram(&s->flash, OBJECT(s), "integrator.flash", 0x100000);
+    memory_region_init_ram(&s->flash, OBJECT(s), "integrator.flash", 0x100000,
+                           &error_abort);
     vmstate_register_ram_global(&s->flash);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &integratorcm_ops, s,
@@ -485,7 +486,7 @@ static void integratorcp_init(MachineState *machine)
         exit(1);
     }
 
-    memory_region_init_ram(ram, NULL, "integrator.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "integrator.ram", ram_size, &error_abort);
     vmstate_register_ram_global(ram);
     /* ??? On a real system the first 1Mb is mapped as SSRAM or boot flash.  */
     /* ??? RAM should repeat to fill physical memory space.  */

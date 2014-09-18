@@ -1052,10 +1052,12 @@ static inline void vmsvga_check_size(struct vmsvga_state_s *s)
         s->new_height != surface_height(surface) ||
         s->new_depth != surface_bits_per_pixel(surface)) {
         int stride = (s->new_depth * s->new_width) / 8;
+        pixman_format_code_t format =
+            qemu_default_pixman_format(s->new_depth, true);
         trace_vmware_setmode(s->new_width, s->new_height, s->new_depth);
         surface = qemu_create_displaysurface_from(s->new_width, s->new_height,
-                                                  s->new_depth, stride,
-                                                  s->vga.vram_ptr, false);
+                                                  format, stride,
+                                                  s->vga.vram_ptr);
         dpy_gfx_replace_surface(s->vga.con, surface);
         s->invalidated = 1;
     }
@@ -1201,7 +1203,8 @@ static void vmsvga_init(DeviceState *dev, struct vmsvga_state_s *s,
     s->vga.con = graphic_console_init(dev, 0, &vmsvga_ops, s);
 
     s->fifo_size = SVGA_FIFO_SIZE;
-    memory_region_init_ram(&s->fifo_ram, NULL, "vmsvga.fifo", s->fifo_size);
+    memory_region_init_ram(&s->fifo_ram, NULL, "vmsvga.fifo", s->fifo_size,
+                           &error_abort);
     vmstate_register_ram_global(&s->fifo_ram);
     s->fifo_ptr = memory_region_get_ram_ptr(&s->fifo_ram);
 

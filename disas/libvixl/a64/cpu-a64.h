@@ -28,6 +28,7 @@
 #define VIXL_CPU_A64_H
 
 #include "globals.h"
+#include "instructions-a64.h"
 
 namespace vixl {
 
@@ -41,6 +42,32 @@ class CPU {
   // so this operation is required before any dynamically generated code can
   // safely run.
   static void EnsureIAndDCacheCoherency(void *address, size_t length);
+
+  // Handle tagged pointers.
+  template <typename T>
+  static T SetPointerTag(T pointer, uint64_t tag) {
+    VIXL_ASSERT(is_uintn(kAddressTagWidth, tag));
+
+    // Use C-style casts to get static_cast behaviour for integral types (T),
+    // and reinterpret_cast behaviour for other types.
+
+    uint64_t raw = (uint64_t)pointer;
+    VIXL_STATIC_ASSERT(sizeof(pointer) == sizeof(raw));
+
+    raw = (raw & ~kAddressTagMask) | (tag << kAddressTagOffset);
+    return (T)raw;
+  }
+
+  template <typename T>
+  static uint64_t GetPointerTag(T pointer) {
+    // Use C-style casts to get static_cast behaviour for integral types (T),
+    // and reinterpret_cast behaviour for other types.
+
+    uint64_t raw = (uint64_t)pointer;
+    VIXL_STATIC_ASSERT(sizeof(pointer) == sizeof(raw));
+
+    return (raw & kAddressTagMask) >> kAddressTagOffset;
+  }
 
  private:
   // Return the content of the cache type register.

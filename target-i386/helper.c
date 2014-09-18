@@ -615,8 +615,8 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             if (!(pdpe & PG_PRESENT_MASK)) {
                 goto do_fault;
             }
-            rsvd_mask |= PG_HI_USER_MASK | PG_NX_MASK;
-            if (pdpe & rsvd_mask) {
+            rsvd_mask |= PG_HI_USER_MASK;
+            if (pdpe & (rsvd_mask | PG_NX_MASK)) {
                 goto do_fault_rsvd;
             }
             ptep = PG_NX_MASK | PG_USER_MASK | PG_RW_MASK;
@@ -750,7 +750,8 @@ do_check_protect_pse36:
     /* the page can be put in the TLB */
     prot = PAGE_READ;
     if (!(ptep & PG_NX_MASK) &&
-        !((env->cr[4] & CR4_SMEP_MASK) && (ptep & PG_USER_MASK))) {
+        (mmu_idx == MMU_USER_IDX ||
+         !((env->cr[4] & CR4_SMEP_MASK) && (ptep & PG_USER_MASK)))) {
         prot |= PAGE_EXEC;
     }
     if (pte & PG_DIRTY_MASK) {
@@ -1010,9 +1011,10 @@ bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update)
     return hit_enabled;
 }
 
-void breakpoint_handler(CPUX86State *env)
+void breakpoint_handler(CPUState *cs)
 {
-    CPUState *cs = CPU(x86_env_get_cpu(env));
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
     CPUBreakpoint *bp;
 
     if (cs->watchpoint_hit) {

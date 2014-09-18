@@ -197,7 +197,7 @@ static void nvme_rw_cb(void *opaque, int ret)
     NvmeCtrl *n = sq->ctrl;
     NvmeCQueue *cq = n->cq[sq->cqid];
 
-    bdrv_acct_done(n->conf.bs, &req->acct);
+    block_acct_done(bdrv_get_stats(n->conf.bs), &req->acct);
     if (!ret) {
         req->status = NVME_SUCCESS;
     } else {
@@ -232,7 +232,7 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     assert((nlb << data_shift) == req->qsg.size);
 
     dma_acct_start(n->conf.bs, &req->acct, &req->qsg, is_write ?
-        BDRV_ACCT_WRITE : BDRV_ACCT_READ);
+        BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
     req->aiocb = is_write ?
         dma_bdrv_write(n->conf.bs, &req->qsg, aio_slba, nvme_rw_cb, req) :
         dma_bdrv_read(n->conf.bs, &req->qsg, aio_slba, nvme_rw_cb, req);
@@ -319,7 +319,7 @@ static void nvme_init_sq(NvmeSQueue *sq, NvmeCtrl *n, uint64_t dma_addr,
     sq->size = size;
     sq->cqid = cqid;
     sq->head = sq->tail = 0;
-    sq->io_req = g_malloc(sq->size * sizeof(*sq->io_req));
+    sq->io_req = g_new(NvmeRequest, sq->size);
 
     QTAILQ_INIT(&sq->req_list);
     QTAILQ_INIT(&sq->out_req_list);
@@ -773,9 +773,9 @@ static int nvme_init(PCIDevice *pci_dev)
     n->reg_size = 1 << qemu_fls(0x1004 + 2 * (n->num_queues + 1) * 4);
     n->ns_size = bs_size / (uint64_t)n->num_namespaces;
 
-    n->namespaces = g_malloc0(sizeof(*n->namespaces)*n->num_namespaces);
-    n->sq = g_malloc0(sizeof(*n->sq)*n->num_queues);
-    n->cq = g_malloc0(sizeof(*n->cq)*n->num_queues);
+    n->namespaces = g_new0(NvmeNamespace, n->num_namespaces);
+    n->sq = g_new0(NvmeSQueue *, n->num_queues);
+    n->cq = g_new0(NvmeCQueue *, n->num_queues);
 
     memory_region_init_io(&n->iomem, OBJECT(n), &nvme_mmio_ops, n,
                           "nvme", n->reg_size);
@@ -839,7 +839,6 @@ static void nvme_exit(PCIDevice *pci_dev)
     g_free(n->cq);
     g_free(n->sq);
     msix_uninit_exclusive_bar(pci_dev);
-    memory_region_destroy(&n->iomem);
 }
 
 static Property nvme_props[] = {

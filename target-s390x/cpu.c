@@ -165,7 +165,7 @@ static void s390_cpu_machine_reset_cb(void *opaque)
 {
     S390CPU *cpu = opaque;
 
-    cpu_reset(CPU(cpu));
+    run_on_cpu(CPU(cpu), s390_do_cpu_full_reset, CPU(cpu));
 }
 #endif
 
@@ -174,8 +174,13 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     CPUState *cs = CPU(dev);
     S390CPUClass *scc = S390_CPU_GET_CLASS(dev);
 
+    s390_cpu_gdb_init(cs);
     qemu_init_vcpu(cs);
+#if !defined(CONFIG_USER_ONLY)
+    run_on_cpu(cs, s390_do_cpu_full_reset, cs);
+#else
     cpu_reset(cs);
+#endif
 
     scc->parent_realize(dev, errp);
 }
@@ -259,7 +264,8 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->write_elf64_qemunote = s390_cpu_write_elf64_qemunote;
 #endif
     dc->vmsd = &vmstate_s390_cpu;
-    cc->gdb_num_core_regs = S390_NUM_REGS;
+    cc->gdb_num_core_regs = S390_NUM_CORE_REGS;
+    cc->gdb_core_xml_file = "s390x-core64.xml";
 }
 
 static const TypeInfo s390_cpu_type_info = {

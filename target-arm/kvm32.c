@@ -270,13 +270,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
         goto out;
     }
 
-    /* Save a copy of the initial register values so that we can
-     * feed it back to the kernel on VCPU reset.
-     */
-    cpu->cpreg_reset_values = g_memdup(cpu->cpreg_values,
-                                       cpu->cpreg_array_len *
-                                       sizeof(cpu->cpreg_values[0]));
-
 out:
     g_free(rlp);
     return ret;
@@ -518,11 +511,9 @@ int kvm_arch_get_registers(CPUState *cs)
 
 void kvm_arm_reset_vcpu(ARMCPU *cpu)
 {
-    /* Feed the kernel back its initial register state */
-    memmove(cpu->cpreg_values, cpu->cpreg_reset_values,
-            cpu->cpreg_array_len * sizeof(cpu->cpreg_values[0]));
-
-    if (!write_list_to_kvmstate(cpu)) {
-        abort();
-    }
+    /* Re-init VCPU so that all registers are set to
+     * their respective reset values.
+     */
+    kvm_arm_vcpu_init(CPU(cpu));
+    write_kvmstate_to_list(cpu);
 }

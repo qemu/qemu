@@ -95,6 +95,7 @@ typedef signed int              int_fast16_t;
 #define qemu_printf printf
 
 int qemu_daemon(int nochdir, int noclose);
+void *qemu_try_memalign(size_t alignment, size_t size);
 void *qemu_memalign(size_t alignment, size_t size);
 void *qemu_anon_ram_alloc(size_t size);
 void qemu_vfree(void *ptr);
@@ -245,11 +246,7 @@ char *qemu_get_exec_dir(void);
  * Search the auxiliary vector for @type, returning the value
  * or 0 if @type is not present.
  */
-#if defined(CONFIG_GETAUXVAL) || defined(__linux__)
 unsigned long qemu_getauxval(unsigned long type);
-#else
-static inline unsigned long qemu_getauxval(unsigned long type) { return 0; }
-#endif
 
 void qemu_set_tty_echo(int fd, bool echo);
 

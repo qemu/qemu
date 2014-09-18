@@ -19,6 +19,7 @@
 #include "hw/pci/pci.h"
 #include "hw/scsi/scsi.h"
 #include "sysemu/dma.h"
+#include "qemu/error-report.h"
 
 //#define DEBUG_LSI
 //#define DEBUG_LSI_REG
@@ -2072,15 +2073,6 @@ static const VMStateDescription vmstate_lsi_scsi = {
     }
 };
 
-static void lsi_scsi_uninit(PCIDevice *d)
-{
-    LSIState *s = LSI53C895A(d);
-
-    memory_region_destroy(&s->mmio_io);
-    memory_region_destroy(&s->ram_io);
-    memory_region_destroy(&s->io_io);
-}
-
 static const struct SCSIBusInfo lsi_scsi_info = {
     .tcq = true,
     .max_target = LSI_MAX_DEVS,
@@ -2134,7 +2126,6 @@ static void lsi_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = lsi_scsi_init;
-    k->exit = lsi_scsi_uninit;
     k->vendor_id = PCI_VENDOR_ID_LSI_LOGIC;
     k->device_id = PCI_DEVICE_ID_LSI_53C895A;
     k->class_id = PCI_CLASS_STORAGE_SCSI;

@@ -89,6 +89,27 @@ int load_image(const char *filename, uint8_t *addr)
     return size;
 }
 
+/* return the size or -1 if error */
+ssize_t load_image_size(const char *filename, void *addr, size_t size)
+{
+    int fd;
+    ssize_t actsize;
+
+    fd = open(filename, O_RDONLY | O_BINARY);
+    if (fd < 0) {
+        return -1;
+    }
+
+    actsize = read(fd, addr, size);
+    if (actsize < 0) {
+        close(fd);
+        return -1;
+    }
+    close(fd);
+
+    return actsize;
+}
+
 /* read()-like version */
 ssize_t read_targphys(const char *name,
                       int fd, hwaddr dst_addr, size_t nbytes)
@@ -577,6 +598,54 @@ int load_ramdisk(const char *filename, hwaddr addr, uint64_t max_sz)
     return load_uboot_image(filename, NULL, &addr, NULL, IH_TYPE_RAMDISK);
 }
 
+/* This simply prevents g_malloc in the function below from allocating
+ * a huge amount of memory, by placing a limit on the maximum
+ * uncompressed image size that load_image_gzipped will read.
+ */
+#define LOAD_IMAGE_MAX_GUNZIP_BYTES (256 << 20)
+
+/* Load a gzip-compressed kernel. */
+int load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz)
+{
+    uint8_t *compressed_data = NULL;
+    uint8_t *data = NULL;
+    gsize len;
+    ssize_t bytes;
+    int ret = -1;
+
+    if (!g_file_get_contents(filename, (char **) &compressed_data, &len,
+                             NULL)) {
+        goto out;
+    }
+
+    /* Is it a gzip-compressed file? */
+    if (len < 2 ||
+        compressed_data[0] != 0x1f ||
+        compressed_data[1] != 0x8b) {
+        goto out;
+    }
+
+    if (max_sz > LOAD_IMAGE_MAX_GUNZIP_BYTES) {
+        max_sz = LOAD_IMAGE_MAX_GUNZIP_BYTES;
+    }
+
+    data = g_malloc(max_sz);
+    bytes = gunzip(data, max_sz, compressed_data, len);
+    if (bytes < 0) {
+        fprintf(stderr, "%s: unable to decompress gzipped kernel file\n",
+                filename);
+        goto out;
+    }
+
+    rom_add_blob_fixed(filename, data, bytes, addr);
+    ret = bytes;
+
+ out:
+    g_free(compressed_data);
+    g_free(data);
+    return ret;
+}
+
 /*
  * Functions for reboot-persistent memory regions.
  *  - used for vga bios and option roms.
@@ -632,7 +701,7 @@ static void *rom_set_mr(Rom *rom, Object *owner, const char *name)
     void *data;
 
     rom->mr = g_malloc(sizeof(*rom->mr));
-    memory_region_init_ram(rom->mr, owner, name, rom->datasize);
+    memory_region_init_ram(rom->mr, owner, name, rom->datasize, &error_abort);
     memory_region_set_readonly(rom->mr, true);
     vmstate_register_ram_global(rom->mr);
 
@@ -955,7 +1024,7 @@ void do_info_roms(Monitor *mon, const QDict *qdict)
         if (rom->mr) {
             monitor_printf(mon, "%s"
                            " size=0x%06zx name=\"%s\"\n",
-                           rom->mr->name,
+                           memory_region_name(rom->mr),
                            rom->romsize,
                            rom->name);
         } else if (!rom->fw_file) {

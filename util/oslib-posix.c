@@ -94,7 +94,7 @@ void *qemu_oom_check(void *ptr)
     return ptr;
 }
 
-void *qemu_memalign(size_t alignment, size_t size)
+void *qemu_try_memalign(size_t alignment, size_t size)
 {
     void *ptr;
 
@@ -106,17 +106,21 @@ void *qemu_memalign(size_t alignment, size_t size)
     int ret;
     ret = posix_memalign(&ptr, alignment, size);
     if (ret != 0) {
-        fprintf(stderr, "Failed to allocate %zu B: %s\n",
-                size, strerror(ret));
-        abort();
+        errno = ret;
+        ptr = NULL;
     }
 #elif defined(CONFIG_BSD)
-    ptr = qemu_oom_check(valloc(size));
+    ptr = valloc(size);
 #else
-    ptr = qemu_oom_check(memalign(alignment, size));
+    ptr = memalign(alignment, size);
 #endif
     trace_qemu_memalign(alignment, size, ptr);
     return ptr;
+}
+
+void *qemu_memalign(size_t alignment, size_t size)
+{
+    return qemu_oom_check(qemu_try_memalign(alignment, size));
 }
 
 /* alloc shared memory pages */
@@ -366,10 +370,9 @@ static size_t fd_getpagesize(int fd)
 
 void os_mem_prealloc(int fd, char *area, size_t memory)
 {
-    int ret, i;
+    int ret;
     struct sigaction act, oldact;
     sigset_t set, oldset;
-    size_t hpagesize = fd_getpagesize(fd);
 
     memset(&act, 0, sizeof(act));
     act.sa_handler = &sigbus_handler;
@@ -389,19 +392,22 @@ void os_mem_prealloc(int fd, char *area, size_t memory)
     if (sigsetjmp(sigjump, 1)) {
         fprintf(stderr, "os_mem_prealloc: failed to preallocate pages\n");
         exit(1);
-    }
+    } else {
+        int i;
+        size_t hpagesize = fd_getpagesize(fd);
 
-    /* MAP_POPULATE silently ignores failures */
-    memory = (memory + hpagesize - 1) & -hpagesize;
-    for (i = 0; i < (memory/hpagesize); i++) {
-        memset(area + (hpagesize*i), 0, 1);
-    }
+        /* MAP_POPULATE silently ignores failures */
+        memory = (memory + hpagesize - 1) & -hpagesize;
+        for (i = 0; i < (memory / hpagesize); i++) {
+            memset(area + (hpagesize * i), 0, 1);
+        }
 
-    ret = sigaction(SIGBUS, &oldact, NULL);
-    if (ret) {
-        perror("os_mem_prealloc: failed to reinstall signal handler");
-        exit(1);
-    }
+        ret = sigaction(SIGBUS, &oldact, NULL);
+        if (ret) {
+            perror("os_mem_prealloc: failed to reinstall signal handler");
+            exit(1);
+        }
 
-    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+        pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+    }
 }

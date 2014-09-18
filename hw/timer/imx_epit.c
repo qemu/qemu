@@ -83,7 +83,7 @@ static char const *imx_epit_reg_name(uint32_t reg)
 #define CR_CLKSRC_SHIFT (24)
 #define CR_CLKSRC_MASK  (0x3 << CR_CLKSRC_SHIFT)
 
-#define TIMER_MAX  0XFFFFFFFFUL
+#define EPIT_TIMER_MAX  0XFFFFFFFFUL
 
 /*
  * Exact clock frequencies vary from board to board.
@@ -155,7 +155,7 @@ static void imx_epit_reset(DeviceState *dev)
      */
     s->cr &= (CR_EN|CR_ENMOD|CR_STOPEN|CR_DOZEN|CR_WAITEN|CR_DBGEN);
     s->sr = 0;
-    s->lr = TIMER_MAX;
+    s->lr = EPIT_TIMER_MAX;
     s->cmp = 0;
     s->cnt = 0;
     /* stop both timers */
@@ -163,9 +163,9 @@ static void imx_epit_reset(DeviceState *dev)
     ptimer_stop(s->timer_reload);
     /* compute new frequency */
     imx_epit_set_freq(s);
-    /* init both timers to TIMER_MAX */
-    ptimer_set_limit(s->timer_cmp, TIMER_MAX, 1);
-    ptimer_set_limit(s->timer_reload, TIMER_MAX, 1);
+    /* init both timers to EPIT_TIMER_MAX */
+    ptimer_set_limit(s->timer_cmp, EPIT_TIMER_MAX, 1);
+    ptimer_set_limit(s->timer_reload, EPIT_TIMER_MAX, 1);
     if (s->freq && (s->cr & CR_EN)) {
         /* if the timer is still enabled, restart it */
         ptimer_run(s->timer_reload, 0);
@@ -227,7 +227,7 @@ static void imx_epit_reload_compare_timer(IMXEPITState *s)
             /* It'll fire in this round of the timer */
             next = tmp - s->cmp;
         } else { /* catch it next time around */
-            next = tmp - s->cmp + ((s->cr & CR_RLD) ? TIMER_MAX : s->lr);
+            next = tmp - s->cmp + ((s->cr & CR_RLD) ? EPIT_TIMER_MAX : s->lr);
         }
         ptimer_set_count(s->timer_cmp, next);
     }
@@ -260,8 +260,8 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
                     ptimer_set_limit(s->timer_reload, s->lr, 1);
                     ptimer_set_limit(s->timer_cmp, s->lr, 1);
                 } else {
-                    ptimer_set_limit(s->timer_reload, TIMER_MAX, 1);
-                    ptimer_set_limit(s->timer_cmp, TIMER_MAX, 1);
+                    ptimer_set_limit(s->timer_reload, EPIT_TIMER_MAX, 1);
+                    ptimer_set_limit(s->timer_cmp, EPIT_TIMER_MAX, 1);
                 }
             }
 

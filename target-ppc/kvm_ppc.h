@@ -19,6 +19,8 @@ uint32_t kvmppc_get_tbfreq(void);
 uint64_t kvmppc_get_clockfreq(void);
 uint32_t kvmppc_get_vmx(void);
 uint32_t kvmppc_get_dfp(void);
+bool kvmppc_get_host_model(char **buf);
+bool kvmppc_get_host_serial(char **buf);
 int kvmppc_get_hasidle(CPUPPCState *env);
 int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len);
 int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level);
@@ -31,7 +33,7 @@ int kvmppc_or_tsr_bits(PowerPCCPU *cpu, uint32_t tsr_bits);
 int kvmppc_set_tcr(PowerPCCPU *cpu);
 int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu);
 #ifndef CONFIG_USER_ONLY
-off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem);
+off_t kvmppc_alloc_rma(void **rma);
 bool kvmppc_spapr_use_multitce(void);
 void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd,
                               bool vfio_accel);
@@ -58,6 +60,16 @@ bool kvmppc_has_cap_fixup_hcalls(void);
 static inline uint32_t kvmppc_get_tbfreq(void)
 {
     return 0;
+}
+
+static inline bool kvmppc_get_host_model(char **buf)
+{
+    return false;
+}
+
+static inline bool kvmppc_get_host_serial(char **buf)
+{
+    return false;
 }
 
 static inline uint64_t kvmppc_get_clockfreq(void)
@@ -134,7 +146,7 @@ static inline int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu)
 }
 
 #ifndef CONFIG_USER_ONLY
-static inline off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
+static inline off_t kvmppc_alloc_rma(void **rma)
 {
     return 0;
 }

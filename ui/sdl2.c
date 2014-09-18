@@ -35,7 +35,6 @@
 #include "ui/console.h"
 #include "ui/input.h"
 #include "sysemu/sysemu.h"
-#include "sdl_zoom.h"
 
 #include "sdl2-keymap.h"
 

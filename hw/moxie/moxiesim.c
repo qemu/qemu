@@ -123,11 +123,11 @@ static void moxiesim_init(MachineState *machine)
     qemu_register_reset(main_cpu_reset, cpu);
 
     /* Allocate RAM. */
-    memory_region_init_ram(ram, NULL, "moxiesim.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "moxiesim.ram", ram_size, &error_abort);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space_mem, ram_base, ram);
 
-    memory_region_init_ram(rom, NULL, "moxie.rom", 128*0x1000);
+    memory_region_init_ram(rom, NULL, "moxie.rom", 128*0x1000, &error_abort);
     vmstate_register_ram_global(rom);
     memory_region_add_subregion(get_system_memory(), 0x1000, rom);
 

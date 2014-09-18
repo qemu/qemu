@@ -27,6 +27,9 @@
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
+#include "trace-tcg.h"
+
+
 //#define DEBUG_DISPATCH 1
 
 /* Fake floating point.  */

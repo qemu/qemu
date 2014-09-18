@@ -149,13 +149,11 @@ QEMU_PROG: -device ide-hd,drive=disk: Device 'ide-hd' could not be initialized
 Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-disk,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device scsi-disk,drive=disk: Device needs media, but drive is empty
-QEMU_PROG: -device scsi-disk,drive=disk: Device initialization failed.
 QEMU_PROG: -device scsi-disk,drive=disk: Device 'scsi-disk' could not be initialized
 
 Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-hd,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device scsi-hd,drive=disk: Device needs media, but drive is empty
-QEMU_PROG: -device scsi-hd,drive=disk: Device initialization failed.
 QEMU_PROG: -device scsi-hd,drive=disk: Device 'scsi-hd' could not be initialized
 
 

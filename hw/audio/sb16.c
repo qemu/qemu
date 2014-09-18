@@ -928,7 +928,7 @@ static IO_WRITE_PROTO (dsp_write)
 /*         if (s->highspeed) */
 /*             break; */
 
-        if (0 == s->needed_bytes) {
+        if (s->needed_bytes == 0) {
             command (s, val);
 #if 0
             if (0 == s->needed_bytes) {
@@ -1212,7 +1212,7 @@ static int SB_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
 #endif
 
     if (till <= copy) {
-        if (0 == s->dma_auto) {
+        if (s->dma_auto == 0) {
             copy = till;
         }
     }
@@ -1224,7 +1224,7 @@ static int SB_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
     if (s->left_till_irq <= 0) {
         s->mixer_regs[0x82] |= (nchan & 4) ? 2 : 1;
         qemu_irq_raise (s->pic);
-        if (0 == s->dma_auto) {
+        if (s->dma_auto == 0) {
             control (s, 0);
             speaker (s, 0);
         }

@@ -187,7 +187,7 @@ int block_job_cancel_sync(BlockJob *job)
     job->opaque = &data;
     block_job_cancel(job);
     while (data.ret == -EINPROGRESS) {
-        qemu_aio_wait();
+        aio_poll(bdrv_get_aio_context(bs), true);
     }
     return (data.cancelled && data.ret == 0) ? -ECANCELED : data.ret;
 }
@@ -205,7 +205,7 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
     if (block_job_is_paused(job)) {
         qemu_coroutine_yield();
     } else {
-        co_sleep_ns(type, ns);
+        co_aio_sleep_ns(bdrv_get_aio_context(job->bs), type, ns);
     }
     job->busy = true;
 }

@@ -93,4 +93,12 @@ blkdebug: Suspended request '0'
 write failed: Input/output error
 blkdebug: Resuming request '0'
 aio_write failed: No medium found
+
+=== Testing unallocated image header ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qcow2: Preventing invalid write on metadata (overlaps with qcow2_header); image marked as corrupt.
+write failed: Input/output error
 *** done

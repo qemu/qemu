@@ -425,13 +425,6 @@ static int i6300esb_init(PCIDevice *dev)
     return 0;
 }
 
-static void i6300esb_exit(PCIDevice *dev)
-{
-    I6300State *d = DO_UPCAST(I6300State, dev, dev);
-
-    memory_region_destroy(&d->io_mem);
-}
-
 static WatchdogTimerModel model = {
     .wdt_name = "i6300esb",
     .wdt_description = "Intel 6300ESB",
@@ -445,7 +438,6 @@ static void i6300esb_class_init(ObjectClass *klass, void *data)
     k->config_read = i6300esb_config_read;
     k->config_write = i6300esb_config_write;
     k->init = i6300esb_init;
-    k->exit = i6300esb_exit;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_ESB_9;
     k->class_id = PCI_CLASS_SYSTEM_OTHER;

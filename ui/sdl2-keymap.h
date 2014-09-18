@@ -105,9 +105,10 @@ static const int sdl2_scancode_to_qcode[SDL_NUM_SCANCODES] = {
     [SDL_SCANCODE_KP_9]              = Q_KEY_CODE_KP_9,
     [SDL_SCANCODE_KP_0]              = Q_KEY_CODE_KP_0,
     [SDL_SCANCODE_KP_PERIOD]         = Q_KEY_CODE_KP_DECIMAL,
+
+    [SDL_SCANCODE_NONUSBACKSLASH]    = Q_KEY_CODE_LESS,
+    [SDL_SCANCODE_APPLICATION]       = Q_KEY_CODE_MENU,
 #if 0
-    [SDL_SCANCODE_NONUSBACKSLASH]    = Q_KEY_CODE_NONUSBACKSLASH,
-    [SDL_SCANCODE_APPLICATION]       = Q_KEY_CODE_APPLICATION,
     [SDL_SCANCODE_POWER]             = Q_KEY_CODE_POWER,
     [SDL_SCANCODE_KP_EQUALS]         = Q_KEY_CODE_KP_EQUALS,
 
@@ -231,7 +232,7 @@ static const int sdl2_scancode_to_qcode[SDL_NUM_SCANCODES] = {
     [SDL_SCANCODE_LGUI]              = Q_KEY_CODE_META_L,
     [SDL_SCANCODE_RCTRL]             = Q_KEY_CODE_CTRL_R,
     [SDL_SCANCODE_RSHIFT]            = Q_KEY_CODE_SHIFT_R,
-    [SDL_SCANCODE_RALT]              = Q_KEY_CODE_ALTGR,
+    [SDL_SCANCODE_RALT]              = Q_KEY_CODE_ALT_R,
     [SDL_SCANCODE_RGUI]              = Q_KEY_CODE_META_R,
 #if 0
     [SDL_SCANCODE_MODE]              = Q_KEY_CODE_MODE,

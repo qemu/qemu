@@ -1,8 +1,22 @@
 QA output created by 084
 
+=== Statically allocated image creation ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+cluster_size: 1048576
+disk image file size in bytes: 67109888
+
 === Testing image size bounds ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+cluster_size: 1048576
+disk image file size in bytes: 1024
 Test 1: Maximum size (1024 TB):
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Could not open 'TEST_DIR/t.IMGFMT': Invalid argument
 

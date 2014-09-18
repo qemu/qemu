@@ -172,7 +172,11 @@ static int coroutine_fn nfs_co_writev(BlockDriverState *bs,
 
     nfs_co_init_task(client, &task);
 
-    buf = g_malloc(nb_sectors * BDRV_SECTOR_SIZE);
+    buf = g_try_malloc(nb_sectors * BDRV_SECTOR_SIZE);
+    if (nb_sectors && buf == NULL) {
+        return -ENOMEM;
+    }
+
     qemu_iovec_to_buf(iov, 0, buf, nb_sectors * BDRV_SECTOR_SIZE);
 
     if (nfs_pwrite_async(client->context, client->fh,
@@ -389,28 +393,33 @@ static int nfs_file_open(BlockDriverState *bs, QDict *options, int flags,
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out;
     }
     ret = nfs_client_open(client, qemu_opt_get(opts, "filename"),
                           (flags & BDRV_O_RDWR) ? O_RDWR : O_RDONLY,
                           errp);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     bs->total_sectors = ret;
-    return 0;
+    ret = 0;
+out:
+    qemu_opts_del(opts);
+    return ret;
 }
 
 static int nfs_file_create(const char *url, QemuOpts *opts, Error **errp)
 {
     int ret = 0;
     int64_t total_size = 0;
-    NFSClient *client = g_malloc0(sizeof(NFSClient));
+    NFSClient *client = g_new0(NFSClient, 1);
 
     client->aio_context = qemu_get_aio_context();
 
     /* Read out options */
-    total_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                          BDRV_SECTOR_SIZE);
 
     ret = nfs_client_open(client, url, O_CREAT, errp);
     if (ret < 0) {

@@ -198,11 +198,8 @@ static void vt82c686b_ide_exitfn(PCIDevice *dev)
 
     for (i = 0; i < 2; ++i) {
         memory_region_del_subregion(&d->bmdma_bar, &d->bmdma[i].extra_io);
-        memory_region_destroy(&d->bmdma[i].extra_io);
         memory_region_del_subregion(&d->bmdma_bar, &d->bmdma[i].addr_ioport);
-        memory_region_destroy(&d->bmdma[i].addr_ioport);
     }
-    memory_region_destroy(&d->bmdma_bar);
 }
 
 void vt82c686b_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)

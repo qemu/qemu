@@ -37,7 +37,8 @@ typedef struct PL061State {
     MemoryRegion iomem;
     uint32_t locked;
     uint32_t data;
-    uint32_t old_data;
+    uint32_t old_out_data;
+    uint32_t old_in_data;
     uint32_t dir;
     uint32_t isense;
     uint32_t ibe;
@@ -63,12 +64,13 @@ typedef struct PL061State {
 
 static const VMStateDescription vmstate_pl061 = {
     .name = "pl061",
-    .version_id = 2,
-    .minimum_version_id = 1,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(locked, PL061State),
         VMSTATE_UINT32(data, PL061State),
-        VMSTATE_UINT32(old_data, PL061State),
+        VMSTATE_UINT32(old_out_data, PL061State),
+        VMSTATE_UINT32(old_in_data, PL061State),
         VMSTATE_UINT32(dir, PL061State),
         VMSTATE_UINT32(isense, PL061State),
         VMSTATE_UINT32(ibe, PL061State),
@@ -98,23 +100,52 @@ static void pl061_update(PL061State *s)
     uint8_t out;
     int i;
 
+    DPRINTF("dir = %d, data = %d\n", s->dir, s->data);
+
     /* Outputs float high.  */
     /* FIXME: This is board dependent.  */
     out = (s->data & s->dir) | ~s->dir;
-    changed = s->old_data ^ out;
-    if (!changed)
-        return;
-
-    s->old_data = out;
-    for (i = 0; i < 8; i++) {
-        mask = 1 << i;
-        if (changed & mask) {
-            DPRINTF("Set output %d = %d\n", i, (out & mask) != 0);
-            qemu_set_irq(s->out[i], (out & mask) != 0);
+    changed = s->old_out_data ^ out;
+    if (changed) {
+        s->old_out_data = out;
+        for (i = 0; i < 8; i++) {
+            mask = 1 << i;
+            if (changed & mask) {
+                DPRINTF("Set output %d = %d\n", i, (out & mask) != 0);
+                qemu_set_irq(s->out[i], (out & mask) != 0);
+            }
         }
     }
 
-    /* FIXME: Implement input interrupts.  */
+    /* Inputs */
+    changed = (s->old_in_data ^ s->data) & ~s->dir;
+    if (changed) {
+        s->old_in_data = s->data;
+        for (i = 0; i < 8; i++) {
+            mask = 1 << i;
+            if (changed & mask) {
+                DPRINTF("Changed input %d = %d\n", i, (s->data & mask) != 0);
+
+                if (!(s->isense & mask)) {
+                    /* Edge interrupt */
+                    if (s->ibe & mask) {
+                        /* Any edge triggers the interrupt */
+                        s->istate |= mask;
+                    } else {
+                        /* Edge is selected by IEV */
+                        s->istate |= ~(s->data ^ s->iev) & mask;
+                    }
+                }
+            }
+        }
+    }
+
+    /* Level interrupt */
+    s->istate |= ~(s->data ^ s->iev) & s->isense;
+
+    DPRINTF("istate = %02X\n", s->istate);
+
+    qemu_set_irq(s->irq, (s->istate & s->im) != 0);
 }
 
 static uint64_t pl061_read(void *opaque, hwaddr offset,

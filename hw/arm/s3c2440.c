@@ -385,7 +385,7 @@ s3c2440_init(int sdram_size)
 
     /* S3C2440X SDRAM memory is always at the same physical location. */
     memory_region_init_ram(&s->sdram0, OBJECT(s), "s3c2440.sdram0",
-                           sdram_size);
+                           sdram_size, &error_abort);
     memory_region_init_alias(&s->sdram1, NULL, "s3c2440.sdram1",
                              &s->sdram0, 0, sdram_size);
     memory_region_init_alias(&s->sdram2, NULL, "s3c2440.sdram2",
@@ -398,7 +398,7 @@ s3c2440_init(int sdram_size)
 
     /* S3C2440 SRAM */
     memory_region_init_ram(&s->sram, OBJECT(s), "s3c2440.sram",
-                           CPU_S3C2440_SRAM_SIZE);
+                           CPU_S3C2440_SRAM_SIZE, &error_abort);
     memory_region_add_subregion(sysmem, CPU_S3C2440_SRAM_BASE, &s->sram);
 
     /* SDRAM memory controller */

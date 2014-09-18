@@ -257,9 +257,9 @@ typedef struct IplVolumeLabel {
 
 typedef enum {
     ECKD_NO_IPL,
-    ECKD_CDL,
     ECKD_CMS,
     ECKD_LDL,
+    ECKD_LDL_UNLABELED,
 } ECKD_IPL_mode_t;
 
 /* utility code below */

@@ -52,7 +52,7 @@ static int send_fd(int fd, int fd_to_send)
     cmsg->cmsg_len = CMSG_LEN(sizeof(int));
     cmsg->cmsg_level = SOL_SOCKET;
     cmsg->cmsg_type = SCM_RIGHTS;
-    memcpy(CMSG_DATA(cmsg), &fd, sizeof(int));
+    memcpy(CMSG_DATA(cmsg), &fd_to_send, sizeof(int));
 
     do {
         ret = sendmsg(fd, &msg, 0);

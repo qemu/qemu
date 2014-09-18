@@ -149,17 +149,24 @@ LSDataSize CalcLSPairDataSize(LoadStorePairOp op) {
 
 
 Instruction* Instruction::ImmPCOffsetTarget() {
+  Instruction * base = this;
   ptrdiff_t offset;
   if (IsPCRelAddressing()) {
-    // PC-relative addressing. Only ADR is supported.
+    // ADR and ADRP.
     offset = ImmPCRel();
+    if (Mask(PCRelAddressingMask) == ADRP) {
+      base = AlignDown(base, kPageSize);
+      offset *= kPageSize;
+    } else {
+      VIXL_ASSERT(Mask(PCRelAddressingMask) == ADR);
+    }
   } else {
     // All PC-relative branches.
     VIXL_ASSERT(BranchType() != UnknownBranchType);
     // Relative branch offsets are instruction-size-aligned.
     offset = ImmBranch() << kInstructionSizeLog2;
   }
-  return this + offset;
+  return base + offset;
 }
 
 
@@ -185,10 +192,16 @@ void Instruction::SetImmPCOffsetTarget(Instruction* target) {
 
 
 void Instruction::SetPCRelImmTarget(Instruction* target) {
-  // ADRP is not supported, so 'this' must point to an ADR instruction.
-  VIXL_ASSERT(Mask(PCRelAddressingMask) == ADR);
-
-  Instr imm = Assembler::ImmPCRelAddress(target - this);
+  int32_t imm21;
+  if ((Mask(PCRelAddressingMask) == ADR)) {
+    imm21 = target - this;
+  } else {
+    VIXL_ASSERT(Mask(PCRelAddressingMask) == ADRP);
+    uintptr_t this_page = reinterpret_cast<uintptr_t>(this) / kPageSize;
+    uintptr_t target_page = reinterpret_cast<uintptr_t>(target) / kPageSize;
+    imm21 = target_page - this_page;
+  }
+  Instr imm = Assembler::ImmPCRelAddress(imm21);
 
   SetInstructionBits(Mask(~ImmPCRel_mask) | imm);
 }

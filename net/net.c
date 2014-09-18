@@ -41,12 +41,14 @@
 #include "qapi-visit.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/dealloc-visitor.h"
+#include "sysemu/sysemu.h"
 
 /* Net bridge is currently not supported for W32. */
 #if !defined(_WIN32)
 # define CONFIG_NET_BRIDGE
 #endif
 
+static VMChangeStateEntry *net_change_state_entry;
 static QTAILQ_HEAD(, NetClientState) net_clients;
 
 const char *host_net_devices[] = {
@@ -452,6 +454,12 @@ void qemu_set_vnet_hdr_len(NetClientState *nc, int len)
 
 int qemu_can_send_packet(NetClientState *sender)
 {
+    int vm_running = runstate_is_running();
+
+    if (!vm_running) {
+        return 0;
+    }
+
     if (!sender->peer) {
         return 1;
     }
@@ -504,7 +512,8 @@ void qemu_purge_queued_packets(NetClientState *nc)
     qemu_net_queue_purge(nc->peer->incoming_queue, nc);
 }
 
-void qemu_flush_queued_packets(NetClientState *nc)
+static
+void qemu_flush_or_purge_queued_packets(NetClientState *nc, bool purge)
 {
     nc->receive_disabled = 0;
 
@@ -518,7 +527,15 @@ void qemu_flush_queued_packets(NetClientState *nc)
          * the file descriptor (for tap, for example).
          */
         qemu_notify_event();
+    } else if (purge) {
+        /* Unable to empty the queue, purge remaining packets */
+        qemu_net_queue_purge(nc->incoming_queue, nc);
     }
+}
+
+void qemu_flush_queued_packets(NetClientState *nc)
+{
+    qemu_flush_or_purge_queued_packets(nc, false);
 }
 
 static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
@@ -1168,6 +1185,22 @@ void qmp_set_link(const char *name, bool up, Error **errp)
     }
 }
 
+static void net_vm_change_state_handler(void *opaque, int running,
+                                        RunState state)
+{
+    /* Complete all queued packets, to guarantee we don't modify
+     * state later when VM is not running.
+     */
+    if (!running) {
+        NetClientState *nc;
+        NetClientState *tmp;
+
+        QTAILQ_FOREACH_SAFE(nc, &net_clients, next, tmp) {
+            qemu_flush_or_purge_queued_packets(nc, true);
+        }
+    }
+}
+
 void net_cleanup(void)
 {
     NetClientState *nc;
@@ -1183,6 +1216,8 @@ void net_cleanup(void)
             qemu_del_net_client(nc);
         }
     }
+
+    qemu_del_vm_change_state_handler(net_change_state_entry);
 }
 
 void net_check_clients(void)
@@ -1267,6 +1302,9 @@ int net_init_clients(void)
         qemu_opts_set(net, NULL, "type", "user");
 #endif
     }
+
+    net_change_state_entry =
+        qemu_add_vm_change_state_handler(net_vm_change_state_handler, NULL);
 
     QTAILQ_INIT(&net_clients);
 

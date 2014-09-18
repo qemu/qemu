@@ -583,7 +583,7 @@ static qemu_irq *ppce500_init_mpic(PPCE500Params *params, MemoryRegion *ccsr,
     SysBusDevice *s;
     int i;
 
-    mpic = g_new(qemu_irq, 256);
+    mpic = g_new0(qemu_irq, 256);
 
     if (kvm_enabled()) {
         QemuOpts *machine_opts = qemu_get_machine_opts();
@@ -701,8 +701,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     machine->ram_size = ram_size;
 
     /* Register Memory */
-    memory_region_init_ram(ram, NULL, "mpc8544ds.ram", ram_size);
-    vmstate_register_ram_global(ram);
+    memory_region_allocate_system_memory(ram, NULL, "mpc8544ds.ram", ram_size);
     memory_region_add_subregion(address_space_mem, 0, ram);
 
     dev = qdev_create(NULL, "e500-ccsr");

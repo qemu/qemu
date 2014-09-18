@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Test that qcow2 unknown autoclear feature bits are cleared
+# Test qcow2 feature bits
 #
 # Copyright (C) 2011 Red Hat, Inc.
 # Copyright IBM, Corp. 2010
@@ -49,6 +49,56 @@ _supported_os Linux
 
 # Only qcow2v3 and later supports feature bits
 IMGOPTS="compat=1.1"
+
+echo
+echo === Image with unknown incompatible feature bit ===
+echo
+_make_test_img 64M
+$PYTHON qcow2.py "$TEST_IMG" set-feature-bit incompatible 63
+
+# Without feature table
+$PYTHON qcow2.py "$TEST_IMG" dump-header
+_img_info
+
+# With feature table containing bit 63
+printf "\x00\x3f%s" "Test feature" | $PYTHON qcow2.py "$TEST_IMG" add-header-ext-stdio 0x6803f857
+_img_info
+
+echo
+echo === Image with multiple incompatible feature bits ===
+echo
+_make_test_img 64M
+$PYTHON qcow2.py "$TEST_IMG" set-feature-bit incompatible 61
+$PYTHON qcow2.py "$TEST_IMG" set-feature-bit incompatible 62
+$PYTHON qcow2.py "$TEST_IMG" set-feature-bit incompatible 63
+
+# Without feature table
+_img_info
+
+# With feature table containing bit 63
+printf "\x00\x3f%s" "Test feature" | $PYTHON qcow2.py "$TEST_IMG" add-header-ext-stdio 0x6803f857
+_img_info
+
+# With feature table containing bit 61
+$PYTHON qcow2.py "$TEST_IMG" del-header-ext 0x6803f857
+printf "\x00\x3d%s" "Test feature" | $PYTHON qcow2.py "$TEST_IMG" add-header-ext-stdio 0x6803f857
+_img_info
+
+# With feature table containing bits 61 and 62
+$PYTHON qcow2.py "$TEST_IMG" del-header-ext 0x6803f857
+printf "\x00\x3d%s\x00%40s\x00\x3e%s\x00%40s" "test1" "" "test2" "" | $PYTHON qcow2.py "$TEST_IMG" add-header-ext-stdio 0x6803f857
+_img_info
+
+# With feature table containing all bits
+$PYTHON qcow2.py "$TEST_IMG" del-header-ext 0x6803f857
+printf "\x00\x3d%s\x00%40s\x00\x3e%s\x00%40s\x00\x3f%s\x00%40s" "test1" "" "test2" "" "test3" "" | $PYTHON qcow2.py "$TEST_IMG" add-header-ext-stdio 0x6803f857
+_img_info
+
+# With feature table containing unrelated bits, including compatible/autoclear
+$PYTHON qcow2.py "$TEST_IMG" del-header-ext 0x6803f857
+printf "\x01\x3d%s\x00%40s\x00\x3e%s\x00%40s\x02\x3f%s\x00%40s\x00\x3c%s\x00%40s" "test1" "" "test2" "" "test3" "" "test4" "" | $PYTHON qcow2.py "$TEST_IMG" add-header-ext-stdio 0x6803f857
+_img_info
+
 
 echo === Create image with unknown autoclear feature bit ===
 echo

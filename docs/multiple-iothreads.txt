@@ -1,0 +1,134 @@
+Copyright (c) 2014 Red Hat Inc.
+
+This work is licensed under the terms of the GNU GPL, version 2 or later.  See
+the COPYING file in the top-level directory.
+
+
+This document explains the IOThread feature and how to write code that runs
+outside the QEMU global mutex.
+
+The main loop and IOThreads
+---------------------------
+QEMU is an event-driven program that can do several things at once using an
+event loop.  The VNC server and the QMP monitor are both processed from the
+same event loop, which monitors their file descriptors until they become
+readable and then invokes a callback.
+
+The default event loop is called the main loop (see main-loop.c).  It is
+possible to create additional event loop threads using -object
+iothread,id=my-iothread.
+
+Side note: The main loop and IOThread are both event loops but their code is
+not shared completely.  Sometimes it is useful to remember that although they
+are conceptually similar they are currently not interchangeable.
+
+Why IOThreads are useful
+------------------------
+IOThreads allow the user to control the placement of work.  The main loop is a
+scalability bottleneck on hosts with many CPUs.  Work can be spread across
+several IOThreads instead of just one main loop.  When set up correctly this
+can improve I/O latency and reduce jitter seen by the guest.
+
+The main loop is also deeply associated with the QEMU global mutex, which is a
+scalability bottleneck in itself.  vCPU threads and the main loop use the QEMU
+global mutex to serialize execution of QEMU code.  This mutex is necessary
+because a lot of QEMU's code historically was not thread-safe.
+
+The fact that all I/O processing is done in a single main loop and that the
+QEMU global mutex is contended by all vCPU threads and the main loop explain
+why it is desirable to place work into IOThreads.
+
+The experimental virtio-blk data-plane implementation has been benchmarked and
+shows these effects:
+ftp://public.dhe.ibm.com/linux/pdfs/KVM_Virtualized_IO_Performance_Paper.pdf
+
+How to program for IOThreads
+----------------------------
+The main difference between legacy code and new code that can run in an
+IOThread is dealing explicitly with the event loop object, AioContext
+(see include/block/aio.h).  Code that only works in the main loop
+implicitly uses the main loop's AioContext.  Code that supports running
+in IOThreads must be aware of its AioContext.
+
+AioContext supports the following services:
+ * File descriptor monitoring (read/write/error on POSIX hosts)
+ * Event notifiers (inter-thread signalling)
+ * Timers
+ * Bottom Halves (BH) deferred callbacks
+
+There are several old APIs that use the main loop AioContext:
+ * LEGACY qemu_aio_set_fd_handler() - monitor a file descriptor
+ * LEGACY qemu_aio_set_event_notifier() - monitor an event notifier
+ * LEGACY timer_new_ms() - create a timer
+ * LEGACY qemu_bh_new() - create a BH
+ * LEGACY qemu_aio_wait() - run an event loop iteration
+
+Since they implicitly work on the main loop they cannot be used in code that
+runs in an IOThread.  They might cause a crash or deadlock if called from an
+IOThread since the QEMU global mutex is not held.
+
+Instead, use the AioContext functions directly (see include/block/aio.h):
+ * aio_set_fd_handler() - monitor a file descriptor
+ * aio_set_event_notifier() - monitor an event notifier
+ * aio_timer_new() - create a timer
+ * aio_bh_new() - create a BH
+ * aio_poll() - run an event loop iteration
+
+The AioContext can be obtained from the IOThread using
+iothread_get_aio_context() or for the main loop using qemu_get_aio_context().
+Code that takes an AioContext argument works both in IOThreads or the main
+loop, depending on which AioContext instance the caller passes in.
+
+How to synchronize with an IOThread
+-----------------------------------
+AioContext is not thread-safe so some rules must be followed when using file
+descriptors, event notifiers, timers, or BHs across threads:
+
+1. AioContext functions can be called safely from file descriptor, event
+notifier, timer, or BH callbacks invoked by the AioContext.  No locking is
+necessary.
+
+2. Other threads wishing to access the AioContext must use
+aio_context_acquire()/aio_context_release() for mutual exclusion.  Once the
+context is acquired no other thread can access it or run event loop iterations
+in this AioContext.
+
+aio_context_acquire()/aio_context_release() calls may be nested.  This
+means you can call them if you're not sure whether #1 applies.
+
+There is currently no lock ordering rule if a thread needs to acquire multiple
+AioContexts simultaneously.  Therefore, it is only safe for code holding the
+QEMU global mutex to acquire other AioContexts.
+
+Side note: the best way to schedule a function call across threads is to create
+a BH in the target AioContext beforehand and then call qemu_bh_schedule().  No
+acquire/release or locking is needed for the qemu_bh_schedule() call.  But be
+sure to acquire the AioContext for aio_bh_new() if necessary.
+
+The relationship between AioContext and the block layer
+-------------------------------------------------------
+The AioContext originates from the QEMU block layer because it provides a
+scoped way of running event loop iterations until all work is done.  This
+feature is used to complete all in-flight block I/O requests (see
+bdrv_drain_all()).  Nowadays AioContext is a generic event loop that can be
+used by any QEMU subsystem.
+
+The block layer has support for AioContext integrated.  Each BlockDriverState
+is associated with an AioContext using bdrv_set_aio_context() and
+bdrv_get_aio_context().  This allows block layer code to process I/O inside the
+right AioContext.  Other subsystems may wish to follow a similar approach.
+
+Block layer code must therefore expect to run in an IOThread and avoid using
+old APIs that implicitly use the main loop.  See the "How to program for
+IOThreads" above for information on how to do that.
+
+If main loop code such as a QMP function wishes to access a BlockDriverState it
+must first call aio_context_acquire(bdrv_get_aio_context(bs)) to ensure the
+IOThread does not run in parallel.
+
+Long-running jobs (usually in the form of coroutines) are best scheduled in the
+BlockDriverState's AioContext to avoid the need to acquire/release around each
+bdrv_*() call.  Be aware that there is currently no mechanism to get notified
+when bdrv_set_aio_context() moves this BlockDriverState to a different
+AioContext (see bdrv_detach_aio_context()/bdrv_attach_aio_context()), so you
+may need to add this if you want to support long-running jobs.

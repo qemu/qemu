@@ -27,6 +27,13 @@ RESERVED_WORDS = (
     )
 
 
+def stap_escape(identifier):
+    # Append underscore to reserved keywords
+    if identifier in RESERVED_WORDS:
+        return identifier + '_'
+    return identifier
+
+
 def generate(events, backend):
     events = [e for e in events
               if "disable" not in e.properties]
@@ -45,9 +52,7 @@ def generate(events, backend):
         i = 1
         if len(e.args) > 0:
             for name in e.args.names():
-                # Append underscore to reserved keywords
-                if name in RESERVED_WORDS:
-                    name += '_'
+                name = stap_escape(name)
                 out('  %s = $arg%d;' % (name, i))
                 i += 1
 

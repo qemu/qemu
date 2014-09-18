@@ -141,6 +141,8 @@ check-qtest-i386-y += tests/i440fx-test$(EXESUF)
 check-qtest-i386-y += tests/fw_cfg-test$(EXESUF)
 check-qtest-i386-y += tests/blockdev-test$(EXESUF)
 check-qtest-i386-y += tests/qdev-monitor-test$(EXESUF)
+check-qtest-i386-y += tests/wdt_ib700-test$(EXESUF)
+gcov-files-i386-y += hw/watchdog/watchdog.c hw/watchdog/wdt_ib700.c
 check-qtest-i386-y += $(check-qtest-pci-y)
 gcov-files-i386-y += $(gcov-files-pci-y)
 check-qtest-i386-y += tests/vmxnet3-test$(EXESUF)
@@ -153,12 +155,17 @@ check-qtest-i386-y += tests/i82801b11-test$(EXESUF)
 gcov-files-i386-y += hw/pci-bridge/i82801b11.c
 check-qtest-i386-y += tests/ioh3420-test$(EXESUF)
 gcov-files-i386-y += hw/pci-bridge/ioh3420.c
+check-qtest-i386-y += tests/usb-hcd-ohci-test$(EXESUF)
+gcov-files-i386-y += hw/usb/hcd-ohci.c
+check-qtest-i386-y += tests/usb-hcd-uhci-test$(EXESUF)
+gcov-files-i386-y += hw/usb/hcd-uhci.c
 check-qtest-i386-y += tests/usb-hcd-ehci-test$(EXESUF)
 gcov-files-i386-y += hw/usb/hcd-ehci.c
-gcov-files-i386-y += hw/usb/hcd-uhci.c
 gcov-files-i386-y += hw/usb/dev-hid.c
 gcov-files-i386-y += hw/usb/dev-storage.c
-#check-qtest-i386-y += tests/vhost-user-test$(EXESUF)
+check-qtest-i386-y += tests/usb-hcd-xhci-test$(EXESUF)
+gcov-files-i386-y += hw/usb/hcd-xhci.c
+check-qtest-i386-$(CONFIG_LINUX) += tests/vhost-user-test$(EXESUF)
 check-qtest-x86_64-y = $(check-qtest-i386-y)
 gcov-files-i386-y += i386-softmmu/hw/timer/mc146818rtc.c
 gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y))
@@ -280,7 +287,7 @@ tests/test-qmp-event$(EXESUF): tests/test-qmp-event.o $(test-qapi-obj-y) libqemu
 tests/test-qmp-output-visitor$(EXESUF): tests/test-qmp-output-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 tests/test-qmp-input-visitor$(EXESUF): tests/test-qmp-input-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 tests/test-qmp-input-strict$(EXESUF): tests/test-qmp-input-strict.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
-tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y) qapi-types.o qapi-visit.o libqemuutil.a libqemustub.a
+tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 tests/test-opts-visitor$(EXESUF): tests/test-opts-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 
@@ -292,6 +299,7 @@ libqos-obj-y += tests/libqos/i2c.o
 libqos-pc-obj-y = $(libqos-obj-y) tests/libqos/pci-pc.o
 libqos-pc-obj-y += tests/libqos/malloc-pc.o
 libqos-omap-obj-y = $(libqos-obj-y) tests/libqos/i2c-omap.o
+libqos-virtio-obj-y = $(libqos-obj-y) $(libqos-pc-obj-y) tests/libqos/virtio.o tests/libqos/virtio-pci.o
 
 tests/rtc-test$(EXESUF): tests/rtc-test.o
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o
@@ -311,8 +319,9 @@ tests/pcnet-test$(EXESUF): tests/pcnet-test.o
 tests/eepro100-test$(EXESUF): tests/eepro100-test.o
 tests/vmxnet3-test$(EXESUF): tests/vmxnet3-test.o
 tests/ne2000-test$(EXESUF): tests/ne2000-test.o
+tests/wdt_ib700-test$(EXESUF): tests/wdt_ib700-test.o
 tests/virtio-balloon-test$(EXESUF): tests/virtio-balloon-test.o
-tests/virtio-blk-test$(EXESUF): tests/virtio-blk-test.o
+tests/virtio-blk-test$(EXESUF): tests/virtio-blk-test.o $(libqos-virtio-obj-y)
 tests/virtio-net-test$(EXESUF): tests/virtio-net-test.o
 tests/virtio-rng-test$(EXESUF): tests/virtio-rng-test.o
 tests/virtio-scsi-test$(EXESUF): tests/virtio-scsi-test.o
@@ -332,12 +341,17 @@ tests/ac97-test$(EXESUF): tests/ac97-test.o
 tests/es1370-test$(EXESUF): tests/es1370-test.o
 tests/intel-hda-test$(EXESUF): tests/intel-hda-test.o
 tests/ioh3420-test$(EXESUF): tests/ioh3420-test.o
+tests/usb-hcd-ohci-test$(EXESUF): tests/usb-hcd-ohci-test.o
+tests/usb-hcd-uhci-test$(EXESUF): tests/usb-hcd-uhci-test.o
 tests/usb-hcd-ehci-test$(EXESUF): tests/usb-hcd-ehci-test.o $(libqos-pc-obj-y)
-tests/vhost-user-test$(EXESUF): tests/vhost-user-test.o qemu-char.o qemu-timer.o libqemuutil.a libqemustub.a
+tests/usb-hcd-xhci-test$(EXESUF): tests/usb-hcd-xhci-test.o
+tests/vhost-user-test$(EXESUF): tests/vhost-user-test.o qemu-char.o qemu-timer.o $(qtest-obj-y)
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
 tests/test-qemu-opts$(EXESUF): tests/test-qemu-opts.o libqemuutil.a libqemustub.a
 
-#LIBS+= -lutil
+ifeq ($(CONFIG_POSIX),y)
+LIBS += -lutil
+endif
 
 # QTest rules
 

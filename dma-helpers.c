@@ -170,6 +170,10 @@ static void dma_bdrv_cb(void *opaque, int ret)
         return;
     }
 
+    if (dbs->iov.size & ~BDRV_SECTOR_MASK) {
+        qemu_iovec_discard_back(&dbs->iov, dbs->iov.size & ~BDRV_SECTOR_MASK);
+    }
+
     dbs->acb = dbs->io_func(dbs->bs, dbs->sector_num, &dbs->iov,
                             dbs->iov.size / 512, dma_bdrv_cb, dbs);
     assert(dbs->acb);
@@ -273,5 +277,5 @@ uint64_t dma_buf_write(uint8_t *ptr, int32_t len, QEMUSGList *sg)
 void dma_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
                     QEMUSGList *sg, enum BlockAcctType type)
 {
-    bdrv_acct_start(bs, cookie, sg->size, type);
+    block_acct_start(bdrv_get_stats(bs), cookie, sg->size, type);
 }

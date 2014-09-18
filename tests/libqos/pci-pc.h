@@ -16,5 +16,6 @@
 #include "libqos/pci.h"
 
 QPCIBus *qpci_init_pc(void);
+void     qpci_free_pc(QPCIBus *bus);
 
 #endif

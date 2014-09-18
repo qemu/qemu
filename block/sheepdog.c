@@ -103,6 +103,9 @@
 #define SD_INODE_SIZE (sizeof(SheepdogInode))
 #define CURRENT_VDI_ID 0
 
+#define LOCK_TYPE_NORMAL 0
+#define LOCK_TYPE_SHARED 1      /* for iSCSI multipath */
+
 typedef struct SheepdogReq {
     uint8_t proto_ver;
     uint8_t opcode;
@@ -166,7 +169,8 @@ typedef struct SheepdogVdiReq {
     uint8_t copy_policy;
     uint8_t reserved[2];
     uint32_t snapid;
-    uint32_t pad[3];
+    uint32_t type;
+    uint32_t pad[2];
 } SheepdogVdiReq;
 
 typedef struct SheepdogVdiRsp {
@@ -712,7 +716,6 @@ static void coroutine_fn send_pending_req(BDRVSheepdogState *s, uint64_t oid)
 
 static coroutine_fn void reconnect_to_sdog(void *opaque)
 {
-    Error *local_err = NULL;
     BDRVSheepdogState *s = opaque;
     AIOReq *aio_req, *next;
 
@@ -727,6 +730,7 @@ static coroutine_fn void reconnect_to_sdog(void *opaque)
 
     /* Try to reconnect the sheepdog server every one second. */
     while (s->fd < 0) {
+        Error *local_err = NULL;
         s->fd = get_sheep_fd(s, &local_err);
         if (s->fd < 0) {
             DPRINTF("Wait for connection to be established\n");
@@ -1090,6 +1094,7 @@ static int find_vdi_name(BDRVSheepdogState *s, const char *filename,
     memset(&hdr, 0, sizeof(hdr));
     if (lock) {
         hdr.opcode = SD_OP_LOCK_VDI;
+        hdr.type = LOCK_TYPE_NORMAL;
     } else {
         hdr.opcode = SD_OP_GET_VDI_INFO;
     }
@@ -1110,6 +1115,8 @@ static int find_vdi_name(BDRVSheepdogState *s, const char *filename,
                    sd_strerror(rsp->result), filename, snapid, tag);
         if (rsp->result == SD_RES_NO_VDI) {
             ret = -ENOENT;
+        } else if (rsp->result == SD_RES_VDI_LOCKED) {
+            ret = -EBUSY;
         } else {
             ret = -EIO;
         }
@@ -1682,7 +1689,7 @@ static int sd_create(const char *filename, QemuOpts *opts,
     uint32_t snapid;
     bool prealloc = false;
 
-    s = g_malloc0(sizeof(BDRVSheepdogState));
+    s = g_new0(BDRVSheepdogState, 1);
 
     memset(tag, 0, sizeof(tag));
     if (strstr(filename, "://")) {
@@ -1695,7 +1702,8 @@ static int sd_create(const char *filename, QemuOpts *opts,
         goto out;
     }
 
-    s->inode.vdi_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    s->inode.vdi_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                                 BDRV_SECTOR_SIZE);
     backing_file = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
     buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
     if (!buf || !strcmp(buf, "off")) {
@@ -1793,6 +1801,7 @@ static void sd_close(BlockDriverState *bs)
     memset(&hdr, 0, sizeof(hdr));
 
     hdr.opcode = SD_OP_RELEASE_VDI;
+    hdr.type = LOCK_TYPE_NORMAL;
     hdr.base_vdi_id = s->inode.vdi_id;
     wlen = strlen(s->name) + 1;
     hdr.data_length = wlen;
@@ -2273,7 +2282,7 @@ static int sd_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     uint32_t snapid = 0;
     int ret = 0;
 
-    old_s = g_malloc(sizeof(BDRVSheepdogState));
+    old_s = g_new(BDRVSheepdogState, 1);
 
     memcpy(old_s, s, sizeof(BDRVSheepdogState));
 
@@ -2357,7 +2366,7 @@ static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
         goto out;
     }
 
-    sn_tab = g_malloc0(nr * sizeof(*sn_tab));
+    sn_tab = g_new0(QEMUSnapshotInfo, nr);
 
     /* calculate a vdi id with hash function */
     hval = fnv_64a_buf(s->name, strlen(s->name), FNV1A_64_INIT);

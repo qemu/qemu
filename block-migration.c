@@ -186,7 +186,7 @@ static int bmds_aio_inflight(BlkMigDevState *bmds, int64_t sector)
 {
     int64_t chunk = sector / (int64_t)BDRV_SECTORS_PER_DIRTY_CHUNK;
 
-    if ((sector << BDRV_SECTOR_BITS) < bdrv_getlength(bmds->bs)) {
+    if (sector < bdrv_nb_sectors(bmds->bs)) {
         return !!(bmds->aio_bitmap[chunk / (sizeof(unsigned long) * 8)] &
             (1UL << (chunk % (sizeof(unsigned long) * 8))));
     } else {
@@ -223,8 +223,7 @@ static void alloc_aio_bitmap(BlkMigDevState *bmds)
     BlockDriverState *bs = bmds->bs;
     int64_t bitmap_size;
 
-    bitmap_size = (bdrv_getlength(bs) >> BDRV_SECTOR_BITS) +
-            BDRV_SECTORS_PER_DIRTY_CHUNK * 8 - 1;
+    bitmap_size = bdrv_nb_sectors(bs) + BDRV_SECTORS_PER_DIRTY_CHUNK * 8 - 1;
     bitmap_size /= BDRV_SECTORS_PER_DIRTY_CHUNK * 8;
 
     bmds->aio_bitmap = g_malloc0(bitmap_size);
@@ -284,7 +283,7 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
         nr_sectors = total_sectors - cur_sector;
     }
 
-    blk = g_malloc(sizeof(BlkMigBlock));
+    blk = g_new(BlkMigBlock, 1);
     blk->buf = g_malloc(BLOCK_SIZE);
     blk->bmds = bmds;
     blk->sector = cur_sector;
@@ -350,12 +349,12 @@ static void init_blk_migration_it(void *opaque, BlockDriverState *bs)
     int64_t sectors;
 
     if (!bdrv_is_read_only(bs)) {
-        sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
+        sectors = bdrv_nb_sectors(bs);
         if (sectors <= 0) {
             return;
         }
 
-        bmds = g_malloc0(sizeof(BlkMigDevState));
+        bmds = g_new0(BlkMigDevState, 1);
         bmds->bs = bs;
         bmds->bulk_completed = 0;
         bmds->total_sectors = sectors;
@@ -466,7 +465,7 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
             } else {
                 nr_sectors = BDRV_SECTORS_PER_DIRTY_CHUNK;
             }
-            blk = g_malloc(sizeof(BlkMigBlock));
+            blk = g_new(BlkMigBlock, 1);
             blk->buf = g_malloc(BLOCK_SIZE);
             blk->bmds = bmds;
             blk->sector = sector;
@@ -799,7 +798,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
 
             if (bs != bs_prev) {
                 bs_prev = bs;
-                total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
+                total_sectors = bdrv_nb_sectors(bs);
                 if (total_sectors <= 0) {
                     error_report("Error getting length of block device %s",
                                  device_name);
@@ -861,7 +860,7 @@ static bool block_is_active(void *opaque)
     return block_mig_state.blk_enable == 1;
 }
 
-SaveVMHandlers savevm_block_handlers = {
+static SaveVMHandlers savevm_block_handlers = {
     .set_params = block_set_params,
     .save_live_setup = block_save_setup,
     .save_live_iterate = block_save_iterate,

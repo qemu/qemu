@@ -42,7 +42,7 @@ static gboolean ga_channel_listen_accept(GIOChannel *channel,
         g_warning("error converting fd to gsocket: %s", strerror(errno));
         goto out;
     }
-    fcntl(client_fd, F_SETFL, O_NONBLOCK);
+    qemu_set_nonblock(client_fd);
     ret = ga_channel_client_add(c, client_fd);
     if (ret) {
         g_warning("error setting up connection");

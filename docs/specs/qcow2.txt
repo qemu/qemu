@@ -135,12 +135,12 @@ be stored. Each extension has a structure like the following:
 Unless stated otherwise, each header extension type shall appear at most once
 in the same image.
 
-The remaining space between the end of the header extension area and the end of
-the first cluster can be used for the backing file name. It is not allowed to
-store other data here, so that an implementation can safely modify the header
-and add extensions without harming data of compatible features that it
-doesn't support. Compatible features that need space for additional data can
-use a header extension.
+If the image has a backing file then the backing file name should be stored in
+the remaining space between the end of the header extension area and the end of
+the first cluster. It is not allowed to store other data here, so that an
+implementation can safely modify the header and add extensions without harming
+data of compatible features that it doesn't support. Compatible features that
+need space for additional data can use a header extension.
 
 
 == Feature name table ==

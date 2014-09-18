@@ -121,6 +121,16 @@ struct target_sockaddr {
     uint8_t sa_data[14];
 };
 
+struct target_sockaddr_ll {
+    uint16_t sll_family;   /* Always AF_PACKET */
+    uint16_t sll_protocol; /* Physical layer protocol */
+    int      sll_ifindex;  /* Interface number */
+    uint16_t sll_hatype;   /* ARP hardware type */
+    uint8_t  sll_pkttype;  /* Packet type */
+    uint8_t  sll_halen;    /* Length of address */
+    uint8_t  sll_addr[8];  /* Physical layer address */
+};
+
 struct target_sock_filter {
     abi_ushort code;
     uint8_t jt;

@@ -129,26 +129,38 @@ static void arm_cpu_reset(CPUState *s)
     env->uncached_cpsr = ARM_CPU_MODE_SVC;
     env->daif = PSTATE_D | PSTATE_A | PSTATE_I | PSTATE_F;
     /* On ARMv7-M the CPSR_I is the value of the PRIMASK register, and is
-       clear at reset.  Initial SP and PC are loaded from ROM.  */
+     * clear at reset. Initial SP and PC are loaded from ROM.
+     */
     if (IS_M(env)) {
-        uint32_t pc;
+        uint32_t initial_msp; /* Loaded from 0x0 */
+        uint32_t initial_pc; /* Loaded from 0x4 */
         uint8_t *rom;
+
         env->daif &= ~PSTATE_I;
         rom = rom_ptr(0);
         if (rom) {
-            /* We should really use ldl_phys here, in case the guest
-               modified flash and reset itself.  However images
-               loaded via -kernel have not been copied yet, so load the
-               values directly from there.  */
-            env->regs[13] = ldl_p(rom) & 0xFFFFFFFC;
-            pc = ldl_p(rom + 4);
-            env->thumb = pc & 1;
-            env->regs[15] = pc & ~1;
+            /* Address zero is covered by ROM which hasn't yet been
+             * copied into physical memory.
+             */
+            initial_msp = ldl_p(rom);
+            initial_pc = ldl_p(rom + 4);
+        } else {
+            /* Address zero not covered by a ROM blob, or the ROM blob
+             * is in non-modifiable memory and this is a second reset after
+             * it got copied into memory. In the latter case, rom_ptr
+             * will return a NULL pointer and we should use ldl_phys instead.
+             */
+            initial_msp = ldl_phys(s->as, 0);
+            initial_pc = ldl_phys(s->as, 4);
         }
+
+        env->regs[13] = initial_msp & 0xFFFFFFFC;
+        env->regs[15] = initial_pc & ~1;
+        env->thumb = initial_pc & 1;
     }
 
     if (env->cp15.c1_sys & SCTLR_V) {
-            env->regs[15] = 0xFFFF0000;
+        env->regs[15] = 0xFFFF0000;
     }
 
     env->vfp.xregs[ARM_VFP_FPEXC] = 0;
@@ -172,6 +184,8 @@ static void arm_cpu_reset(CPUState *s)
         kvm_arm_reset_vcpu(cpu);
     }
 #endif
+
+    hw_watchpoint_update_all(cpu);
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -457,7 +471,7 @@ static void arm1026_initfn(Object *obj)
         ARMCPRegInfo ifar = {
             .name = "IFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 1,
             .access = PL1_RW,
-            .fieldoffset = offsetofhigh32(CPUARMState, cp15.far_el1),
+            .fieldoffset = offsetofhigh32(CPUARMState, cp15.far_el[1]),
             .resetvalue = 0
         };
         define_one_arm_cp_reg(cpu, &ifar);
@@ -651,6 +665,7 @@ static void cortex_a8_initfn(Object *obj)
     cpu->id_isar2 = 0x21232031;
     cpu->id_isar3 = 0x11112131;
     cpu->id_isar4 = 0x00111142;
+    cpu->dbgdidr = 0x15141000;
     cpu->clidr = (1 << 27) | (2 << 24) | 3;
     cpu->ccsidr[0] = 0xe007e01a; /* 16k L1 dcache. */
     cpu->ccsidr[1] = 0x2007e01a; /* 16k L1 icache. */
@@ -723,9 +738,10 @@ static void cortex_a9_initfn(Object *obj)
     cpu->id_isar2 = 0x21232041;
     cpu->id_isar3 = 0x11112131;
     cpu->id_isar4 = 0x00111142;
+    cpu->dbgdidr = 0x35141000;
     cpu->clidr = (1 << 27) | (1 << 24) | 3;
-    cpu->ccsidr[0] = 0xe00fe015; /* 16k L1 dcache. */
-    cpu->ccsidr[1] = 0x200fe015; /* 16k L1 icache. */
+    cpu->ccsidr[0] = 0xe00fe019; /* 16k L1 dcache. */
+    cpu->ccsidr[1] = 0x200fe019; /* 16k L1 icache. */
     define_arm_cp_regs(cpu, cortexa9_cp_reginfo);
 }
 
@@ -784,6 +800,7 @@ static void cortex_a15_initfn(Object *obj)
     cpu->id_isar2 = 0x21232041;
     cpu->id_isar3 = 0x11112131;
     cpu->id_isar4 = 0x10011142;
+    cpu->dbgdidr = 0x3515f021;
     cpu->clidr = 0x0a200023;
     cpu->ccsidr[0] = 0x701fe00a; /* 32K L1 dcache */
     cpu->ccsidr[1] = 0x201fe00a; /* 32K L1 icache */
@@ -1060,6 +1077,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 #endif
     cc->gdb_num_core_regs = 26;
     cc->gdb_core_xml_file = "arm-core.xml";
+    cc->debug_excp_handler = arm_debug_excp_handler;
 }
 
 static void cpu_register(const ARMCPUInfo *info)

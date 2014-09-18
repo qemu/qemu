@@ -32,7 +32,6 @@
 #include "block/block_int.h"
 #include "block/qapi.h"
 #include <getopt.h>
-#include <glib.h>
 
 #define QEMU_IMG_VERSION "qemu-img version " QEMU_VERSION \
                           ", Copyright (c) 2004-2008 Fabrice Bellard\n"
@@ -56,22 +55,9 @@ typedef enum OutputFormat {
 #define BDRV_O_FLAGS BDRV_O_CACHE_WB
 #define BDRV_DEFAULT_CACHE "writeback"
 
-static gint compare_data(gconstpointer a, gconstpointer b, gpointer user)
+static void format_print(void *opaque, const char *name)
 {
-    return g_strcmp0(a, b);
-}
-
-static void print_format(gpointer data, gpointer user)
-{
-    printf(" %s", (char *)data);
-}
-
-static void add_format_to_seq(void *opaque, const char *fmt_name)
-{
-    GSequence *seq = opaque;
-
-    g_sequence_insert_sorted(seq, (gpointer)fmt_name,
-                             compare_data, NULL);
+    printf(" %s", name);
 }
 
 static void QEMU_NORETURN GCC_FMT_ATTR(1, 2) error_exit(const char *fmt, ...)
@@ -109,6 +95,8 @@ static void QEMU_NORETURN help(void)
            "  'cache' is the cache mode used to write the output disk image, the valid\n"
            "    options are: 'none', 'writeback' (default, except for convert), 'writethrough',\n"
            "    'directsync' and 'unsafe' (default for convert)\n"
+           "  'src_cache' is the cache mode used to read input disk images, the valid\n"
+           "    options are the same as for the 'cache' option\n"
            "  'size' is the disk image size in bytes. Optional suffixes\n"
            "    'k' or 'K' (kilobyte, 1024), 'M' (megabyte, 1024k), 'G' (gigabyte, 1024M),\n"
            "    'T' (terabyte, 1024G), 'P' (petabyte, 1024T) and 'E' (exabyte, 1024P)  are\n"
@@ -156,15 +144,10 @@ static void QEMU_NORETURN help(void)
            "  '-f' first image format\n"
            "  '-F' second image format\n"
            "  '-s' run in Strict mode - fail on different image size or sector allocation\n";
-    GSequence *seq;
 
     printf("%s\nSupported formats:", help_msg);
-    seq = g_sequence_new(NULL);
-    bdrv_iterate_format(add_format_to_seq, seq);
-    g_sequence_foreach(seq, print_format, NULL);
+    bdrv_iterate_format(format_print, NULL);
     printf("\n");
-    g_sequence_free(seq);
-
     exit(EXIT_SUCCESS);
 }
 
@@ -185,15 +168,20 @@ static int GCC_FMT_ATTR(2, 3) qprintf(bool quiet, const char *fmt, ...)
 static int read_password(char *buf, int buf_size)
 {
     int c, i;
+
     printf("Password: ");
     fflush(stdout);
     i = 0;
     for(;;) {
         c = getchar();
-        if (c == '\n')
+        if (c < 0) {
+            buf[i] = '\0';
+            return -1;
+        } else if (c == '\n') {
             break;
-        if (i < (buf_size - 1))
+        } else if (i < (buf_size - 1)) {
             buf[i++] = c;
+        }
     }
     buf[i] = '\0';
     return 0;
@@ -246,7 +234,6 @@ static int read_password(char *buf, int buf_size)
             if (errno == EAGAIN || errno == EINTR) {
                 continue;
             } else {
-                ret = -1;
                 break;
             }
         } else if (ret == 0) {
@@ -587,7 +574,7 @@ static int img_check(int argc, char **argv)
 {
     int c, ret;
     OutputFormat output_format = OFORMAT_HUMAN;
-    const char *filename, *fmt, *output;
+    const char *filename, *fmt, *output, *cache;
     BlockDriverState *bs;
     int fix = 0;
     int flags = BDRV_O_FLAGS | BDRV_O_CHECK;
@@ -596,6 +583,7 @@ static int img_check(int argc, char **argv)
 
     fmt = NULL;
     output = NULL;
+    cache = BDRV_DEFAULT_CACHE;
     for(;;) {
         int option_index = 0;
         static const struct option long_options[] = {
@@ -605,7 +593,7 @@ static int img_check(int argc, char **argv)
             {"output", required_argument, 0, OPTION_OUTPUT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "f:hr:q",
+        c = getopt_long(argc, argv, "hf:r:T:q",
                         long_options, &option_index);
         if (c == -1) {
             break;
@@ -633,6 +621,9 @@ static int img_check(int argc, char **argv)
         case OPTION_OUTPUT:
             output = optarg;
             break;
+        case 'T':
+            cache = optarg;
+            break;
         case 'q':
             quiet = true;
             break;
@@ -649,6 +640,12 @@ static int img_check(int argc, char **argv)
         output_format = OFORMAT_HUMAN;
     } else if (output) {
         error_report("--output must be used with human or json as argument.");
+        return 1;
+    }
+
+    ret = bdrv_parse_cache_flags(cache, &flags);
+    if (ret < 0) {
+        error_report("Invalid source cache option: %s", cache);
         return 1;
     }
 
@@ -756,7 +753,7 @@ static int img_commit(int argc, char **argv)
     ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
-        return -1;
+        return 1;
     }
 
     bs = bdrv_new_open("image", filename, fmt, flags, true, quiet);
@@ -944,7 +941,7 @@ static int check_empty_sectors(BlockDriverState *bs, int64_t sect_num,
  */
 static int img_compare(int argc, char **argv)
 {
-    const char *fmt1 = NULL, *fmt2 = NULL, *filename1, *filename2;
+    const char *fmt1 = NULL, *fmt2 = NULL, *cache, *filename1, *filename2;
     BlockDriverState *bs1, *bs2;
     int64_t total_sectors1, total_sectors2;
     uint8_t *buf1 = NULL, *buf2 = NULL;
@@ -952,15 +949,16 @@ static int img_compare(int argc, char **argv)
     int allocated1, allocated2;
     int ret = 0; /* return value - 0 Ident, 1 Different, >1 Error */
     bool progress = false, quiet = false, strict = false;
+    int flags;
     int64_t total_sectors;
     int64_t sector_num = 0;
     int64_t nb_sectors;
     int c, pnum;
-    uint64_t bs_sectors;
     uint64_t progress_base;
 
+    cache = BDRV_DEFAULT_CACHE;
     for (;;) {
-        c = getopt(argc, argv, "hpf:F:sq");
+        c = getopt(argc, argv, "hf:F:T:pqs");
         if (c == -1) {
             break;
         }
@@ -974,6 +972,9 @@ static int img_compare(int argc, char **argv)
             break;
         case 'F':
             fmt2 = optarg;
+            break;
+        case 'T':
+            cache = optarg;
             break;
         case 'p':
             progress = true;
@@ -1002,14 +1003,22 @@ static int img_compare(int argc, char **argv)
     /* Initialize before goto out */
     qemu_progress_init(progress, 2.0);
 
-    bs1 = bdrv_new_open("image 1", filename1, fmt1, BDRV_O_FLAGS, true, quiet);
+    flags = BDRV_O_FLAGS;
+    ret = bdrv_parse_cache_flags(cache, &flags);
+    if (ret < 0) {
+        error_report("Invalid source cache option: %s", cache);
+        ret = 2;
+        goto out3;
+    }
+
+    bs1 = bdrv_new_open("image 1", filename1, fmt1, flags, true, quiet);
     if (!bs1) {
         error_report("Can't open file %s", filename1);
         ret = 2;
         goto out3;
     }
 
-    bs2 = bdrv_new_open("image 2", filename2, fmt2, BDRV_O_FLAGS, true, quiet);
+    bs2 = bdrv_new_open("image 2", filename2, fmt2, flags, true, quiet);
     if (!bs2) {
         error_report("Can't open file %s", filename2);
         ret = 2;
@@ -1018,10 +1027,20 @@ static int img_compare(int argc, char **argv)
 
     buf1 = qemu_blockalign(bs1, IO_BUF_SIZE);
     buf2 = qemu_blockalign(bs2, IO_BUF_SIZE);
-    bdrv_get_geometry(bs1, &bs_sectors);
-    total_sectors1 = bs_sectors;
-    bdrv_get_geometry(bs2, &bs_sectors);
-    total_sectors2 = bs_sectors;
+    total_sectors1 = bdrv_nb_sectors(bs1);
+    if (total_sectors1 < 0) {
+        error_report("Can't get size of %s: %s",
+                     filename1, strerror(-total_sectors1));
+        ret = 4;
+        goto out;
+    }
+    total_sectors2 = bdrv_nb_sectors(bs2);
+    if (total_sectors2 < 0) {
+        error_report("Can't get size of %s: %s",
+                     filename2, strerror(-total_sectors2));
+        ret = 4;
+        goto out;
+    }
     total_sectors = MIN(total_sectors1, total_sectors2);
     progress_base = MAX(total_sectors1, total_sectors2);
 
@@ -1178,12 +1197,12 @@ static int img_convert(int argc, char **argv)
 {
     int c, n, n1, bs_n, bs_i, compress, cluster_sectors, skip_create;
     int64_t ret = 0;
-    int progress = 0, flags;
-    const char *fmt, *out_fmt, *cache, *out_baseimg, *out_filename;
+    int progress = 0, flags, src_flags;
+    const char *fmt, *out_fmt, *cache, *src_cache, *out_baseimg, *out_filename;
     BlockDriver *drv, *proto_drv;
     BlockDriverState **bs = NULL, *out_bs = NULL;
     int64_t total_sectors, nb_sectors, sector_num, bs_offset;
-    uint64_t bs_sectors;
+    int64_t *bs_sectors = NULL;
     uint8_t * buf = NULL;
     size_t bufsectors = IO_BUF_SIZE / BDRV_SECTOR_SIZE;
     const uint8_t *buf1;
@@ -1201,11 +1220,12 @@ static int img_convert(int argc, char **argv)
     fmt = NULL;
     out_fmt = "raw";
     cache = "unsafe";
+    src_cache = BDRV_DEFAULT_CACHE;
     out_baseimg = NULL;
     compress = 0;
     skip_create = 0;
     for(;;) {
-        c = getopt(argc, argv, "f:O:B:s:hce6o:pS:t:qnl:");
+        c = getopt(argc, argv, "hf:O:B:ce6o:s:l:S:pt:T:qn");
         if (c == -1) {
             break;
         }
@@ -1286,6 +1306,9 @@ static int img_convert(int argc, char **argv)
         case 't':
             cache = optarg;
             break;
+        case 'T':
+            src_cache = optarg;
+            break;
         case 'q':
             quiet = true;
             break;
@@ -1322,15 +1345,23 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
+    src_flags = BDRV_O_FLAGS;
+    ret = bdrv_parse_cache_flags(src_cache, &src_flags);
+    if (ret < 0) {
+        error_report("Invalid source cache option: %s", src_cache);
+        goto out;
+    }
+
     qemu_progress_print(0, 100);
 
-    bs = g_malloc0(bs_n * sizeof(BlockDriverState *));
+    bs = g_new0(BlockDriverState *, bs_n);
+    bs_sectors = g_new(int64_t, bs_n);
 
     total_sectors = 0;
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
         char *id = bs_n > 1 ? g_strdup_printf("source %d", bs_i)
                             : g_strdup("source");
-        bs[bs_i] = bdrv_new_open(id, argv[optind + bs_i], fmt, BDRV_O_FLAGS,
+        bs[bs_i] = bdrv_new_open(id, argv[optind + bs_i], fmt, src_flags,
                                  true, quiet);
         g_free(id);
         if (!bs[bs_i]) {
@@ -1338,8 +1369,14 @@ static int img_convert(int argc, char **argv)
             ret = -1;
             goto out;
         }
-        bdrv_get_geometry(bs[bs_i], &bs_sectors);
-        total_sectors += bs_sectors;
+        bs_sectors[bs_i] = bdrv_nb_sectors(bs[bs_i]);
+        if (bs_sectors[bs_i] < 0) {
+            error_report("Could not get size of %s: %s",
+                         argv[optind + bs_i], strerror(-bs_sectors[bs_i]));
+            ret = -1;
+            goto out;
+        }
+        total_sectors += bs_sectors[bs_i];
     }
 
     if (sn_opts) {
@@ -1457,7 +1494,6 @@ static int img_convert(int argc, char **argv)
 
     bs_i = 0;
     bs_offset = 0;
-    bdrv_get_geometry(bs[0], &bs_sectors);
 
     /* increase bufsectors from the default 4096 (2M) if opt_transfer_length
      * or discard_alignment of the out_bs is greater. Limit to 32768 (16MB)
@@ -1470,13 +1506,13 @@ static int img_convert(int argc, char **argv)
     buf = qemu_blockalign(out_bs, bufsectors * BDRV_SECTOR_SIZE);
 
     if (skip_create) {
-        int64_t output_length = bdrv_getlength(out_bs);
-        if (output_length < 0) {
+        int64_t output_sectors = bdrv_nb_sectors(out_bs);
+        if (output_sectors < 0) {
             error_report("unable to get output image length: %s\n",
-                         strerror(-output_length));
+                         strerror(-output_sectors));
             ret = -1;
             goto out;
-        } else if (output_length < total_sectors << BDRV_SECTOR_BITS) {
+        } else if (output_sectors < total_sectors) {
             error_report("output file is smaller than input file");
             ret = -1;
             goto out;
@@ -1524,19 +1560,19 @@ static int img_convert(int argc, char **argv)
             buf2 = buf;
             while (remainder > 0) {
                 int nlow;
-                while (bs_num == bs_sectors) {
+                while (bs_num == bs_sectors[bs_i]) {
+                    bs_offset += bs_sectors[bs_i];
                     bs_i++;
                     assert (bs_i < bs_n);
-                    bs_offset += bs_sectors;
-                    bdrv_get_geometry(bs[bs_i], &bs_sectors);
                     bs_num = 0;
                     /* printf("changing part: sector_num=%" PRId64 ", "
                        "bs_i=%d, bs_offset=%" PRId64 ", bs_sectors=%" PRId64
-                       "\n", sector_num, bs_i, bs_offset, bs_sectors); */
+                       "\n", sector_num, bs_i, bs_offset, bs_sectors[bs_i]); */
                 }
-                assert (bs_num < bs_sectors);
+                assert (bs_num < bs_sectors[bs_i]);
 
-                nlow = (remainder > bs_sectors - bs_num) ? bs_sectors - bs_num : remainder;
+                nlow = remainder > bs_sectors[bs_i] - bs_num
+                    ? bs_sectors[bs_i] - bs_num : remainder;
 
                 ret = bdrv_read(bs[bs_i], bs_num, buf2, nlow);
                 if (ret < 0) {
@@ -1597,14 +1633,13 @@ restart:
                 break;
             }
 
-            while (sector_num - bs_offset >= bs_sectors) {
+            while (sector_num - bs_offset >= bs_sectors[bs_i]) {
+                bs_offset += bs_sectors[bs_i];
                 bs_i ++;
                 assert (bs_i < bs_n);
-                bs_offset += bs_sectors;
-                bdrv_get_geometry(bs[bs_i], &bs_sectors);
                 /* printf("changing part: sector_num=%" PRId64 ", bs_i=%d, "
                   "bs_offset=%" PRId64 ", bs_sectors=%" PRId64 "\n",
-                   sector_num, bs_i, bs_offset, bs_sectors); */
+                   sector_num, bs_i, bs_offset, bs_sectors[bs_i]); */
             }
 
             if ((out_baseimg || has_zero_init) &&
@@ -1657,7 +1692,7 @@ restart:
                 }
             }
 
-            n = MIN(n, bs_sectors - (sector_num - bs_offset));
+            n = MIN(n, bs_sectors[bs_i] - (sector_num - bs_offset));
 
             sectors_read += n;
             if (count_allocated_sectors) {
@@ -1715,6 +1750,7 @@ out:
         }
         g_free(bs);
     }
+    g_free(bs_sectors);
 fail_getopt:
     g_free(options);
 
@@ -2269,11 +2305,11 @@ static int img_snapshot(int argc, char **argv)
 
 static int img_rebase(int argc, char **argv)
 {
-    BlockDriverState *bs, *bs_old_backing = NULL, *bs_new_backing = NULL;
+    BlockDriverState *bs = NULL, *bs_old_backing = NULL, *bs_new_backing = NULL;
     BlockDriver *old_backing_drv, *new_backing_drv;
     char *filename;
-    const char *fmt, *cache, *out_basefmt, *out_baseimg;
-    int c, flags, ret;
+    const char *fmt, *cache, *src_cache, *out_basefmt, *out_baseimg;
+    int c, flags, src_flags, ret;
     int unsafe = 0;
     int progress = 0;
     bool quiet = false;
@@ -2282,10 +2318,11 @@ static int img_rebase(int argc, char **argv)
     /* Parse commandline parameters */
     fmt = NULL;
     cache = BDRV_DEFAULT_CACHE;
+    src_cache = BDRV_DEFAULT_CACHE;
     out_baseimg = NULL;
     out_basefmt = NULL;
     for(;;) {
-        c = getopt(argc, argv, "uhf:F:b:pt:q");
+        c = getopt(argc, argv, "hf:F:b:upt:T:q");
         if (c == -1) {
             break;
         }
@@ -2312,6 +2349,9 @@ static int img_rebase(int argc, char **argv)
         case 't':
             cache = optarg;
             break;
+        case 'T':
+            src_cache = optarg;
+            break;
         case 'q':
             quiet = true;
             break;
@@ -2337,7 +2377,14 @@ static int img_rebase(int argc, char **argv)
     ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
-        return -1;
+        goto out;
+    }
+
+    src_flags = BDRV_O_FLAGS;
+    ret = bdrv_parse_cache_flags(src_cache, &src_flags);
+    if (ret < 0) {
+        error_report("Invalid source cache option: %s", src_cache);
+        goto out;
     }
 
     /*
@@ -2348,7 +2395,8 @@ static int img_rebase(int argc, char **argv)
      */
     bs = bdrv_new_open("image", filename, fmt, flags, true, quiet);
     if (!bs) {
-        return 1;
+        ret = -1;
+        goto out;
     }
 
     /* Find the right drivers for the backing files */
@@ -2374,16 +2422,12 @@ static int img_rebase(int argc, char **argv)
     }
 
     /* For safe rebasing we need to compare old and new backing file */
-    if (unsafe) {
-        /* Make the compiler happy */
-        bs_old_backing = NULL;
-        bs_new_backing = NULL;
-    } else {
+    if (!unsafe) {
         char backing_name[1024];
 
         bs_old_backing = bdrv_new("old_backing", &error_abort);
         bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
-        ret = bdrv_open(&bs_old_backing, backing_name, NULL, NULL, BDRV_O_FLAGS,
+        ret = bdrv_open(&bs_old_backing, backing_name, NULL, NULL, src_flags,
                         old_backing_drv, &local_err);
         if (ret) {
             error_report("Could not open old backing file '%s': %s",
@@ -2393,8 +2437,8 @@ static int img_rebase(int argc, char **argv)
         }
         if (out_baseimg[0]) {
             bs_new_backing = bdrv_new("new_backing", &error_abort);
-            ret = bdrv_open(&bs_new_backing, out_baseimg, NULL, NULL,
-                            BDRV_O_FLAGS, new_backing_drv, &local_err);
+            ret = bdrv_open(&bs_new_backing, out_baseimg, NULL, NULL, src_flags,
+                            new_backing_drv, &local_err);
             if (ret) {
                 error_report("Could not open new backing file '%s': %s",
                              out_baseimg, error_get_pretty(local_err));
@@ -2414,9 +2458,9 @@ static int img_rebase(int argc, char **argv)
      * the image is the same as the original one at any time.
      */
     if (!unsafe) {
-        uint64_t num_sectors;
-        uint64_t old_backing_num_sectors;
-        uint64_t new_backing_num_sectors = 0;
+        int64_t num_sectors;
+        int64_t old_backing_num_sectors;
+        int64_t new_backing_num_sectors = 0;
         uint64_t sector;
         int n;
         uint8_t * buf_old;
@@ -2426,10 +2470,31 @@ static int img_rebase(int argc, char **argv)
         buf_old = qemu_blockalign(bs, IO_BUF_SIZE);
         buf_new = qemu_blockalign(bs, IO_BUF_SIZE);
 
-        bdrv_get_geometry(bs, &num_sectors);
-        bdrv_get_geometry(bs_old_backing, &old_backing_num_sectors);
+        num_sectors = bdrv_nb_sectors(bs);
+        if (num_sectors < 0) {
+            error_report("Could not get size of '%s': %s",
+                         filename, strerror(-num_sectors));
+            ret = -1;
+            goto out;
+        }
+        old_backing_num_sectors = bdrv_nb_sectors(bs_old_backing);
+        if (old_backing_num_sectors < 0) {
+            char backing_name[1024];
+
+            bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
+            error_report("Could not get size of '%s': %s",
+                         backing_name, strerror(-old_backing_num_sectors));
+            ret = -1;
+            goto out;
+        }
         if (bs_new_backing) {
-            bdrv_get_geometry(bs_new_backing, &new_backing_num_sectors);
+            new_backing_num_sectors = bdrv_nb_sectors(bs_new_backing);
+            if (new_backing_num_sectors < 0) {
+                error_report("Could not get size of '%s': %s",
+                             out_baseimg, strerror(-new_backing_num_sectors));
+                ret = -1;
+                goto out;
+            }
         }
 
         if (num_sectors != 0) {
@@ -2692,12 +2757,14 @@ static int img_amend(int argc, char **argv)
     char *options = NULL;
     QemuOptsList *create_opts = NULL;
     QemuOpts *opts = NULL;
-    const char *fmt = NULL, *filename;
+    const char *fmt = NULL, *filename, *cache;
+    int flags;
     bool quiet = false;
     BlockDriverState *bs = NULL;
 
+    cache = BDRV_DEFAULT_CACHE;
     for (;;) {
-        c = getopt(argc, argv, "hqf:o:");
+        c = getopt(argc, argv, "ho:f:t:q");
         if (c == -1) {
             break;
         }
@@ -2724,6 +2791,9 @@ static int img_amend(int argc, char **argv)
             case 'f':
                 fmt = optarg;
                 break;
+            case 't':
+                cache = optarg;
+                break;
             case 'q':
                 quiet = true;
                 break;
@@ -2746,8 +2816,14 @@ static int img_amend(int argc, char **argv)
         error_exit("Expecting one image file name");
     }
 
-    bs = bdrv_new_open("image", filename, fmt,
-                       BDRV_O_FLAGS | BDRV_O_RDWR, true, quiet);
+    flags = BDRV_O_FLAGS | BDRV_O_RDWR;
+    ret = bdrv_parse_cache_flags(cache, &flags);
+    if (ret < 0) {
+        error_report("Invalid cache option: %s", cache);
+        goto out;
+    }
+
+    bs = bdrv_new_open("image", filename, fmt, flags, true, quiet);
     if (!bs) {
         error_report("Could not open image '%s'", filename);
         ret = -1;

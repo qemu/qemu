@@ -91,3 +91,17 @@ Mixed declarations (interleaving statements and declarations within blocks)
 are not allowed; declarations should be at the beginning of blocks.  In other
 words, the code should not generate warnings if using GCC's
 -Wdeclaration-after-statement option.
+
+6. Conditional statements
+
+When comparing a variable for (in)equality with a constant, list the
+constant on the right, as in:
+
+if (a == 1) {
+    /* Reads like: "If a equals 1" */
+    do_something();
+}
+
+Rationale: Yoda conditions (as in 'if (1 == a)') are awkward to read.
+Besides, good compilers already warn users when '==' is mis-typed as '=',
+even when the constant is on the right.

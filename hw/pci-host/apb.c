@@ -94,6 +94,7 @@ do { printf("IOMMU: " fmt , ## __VA_ARGS__); } while (0)
 #define IOMMU_CTRL_TSB_SHIFT    16
 
 #define IOMMU_BASE              0x8
+#define IOMMU_FLUSH             0x10
 
 #define IOMMU_TTE_DATA_V        (1ULL << 63)
 #define IOMMU_TTE_DATA_SIZE     (1ULL << 61)
@@ -141,6 +142,7 @@ typedef struct APBState {
     IOMMUState iommu;
     uint32_t pci_control[16];
     uint32_t pci_irq_map[8];
+    uint32_t pci_err_irq_map[4];
     uint32_t obio_irq_map[32];
     qemu_irq *pbm_irqs;
     qemu_irq *ivec_irqs;
@@ -203,7 +205,8 @@ static AddressSpace *pbm_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &is->iommu_as;
 }
 
-static IOMMUTLBEntry pbm_translate_iommu(MemoryRegion *iommu, hwaddr addr)
+static IOMMUTLBEntry pbm_translate_iommu(MemoryRegion *iommu, hwaddr addr,
+                                         bool is_write)
 {
     IOMMUState *is = container_of(iommu, IOMMUState, iommu);
     hwaddr baseaddr, offset;
@@ -352,6 +355,9 @@ static void iommu_config_write(void *opaque, hwaddr addr,
         is->regs[IOMMU_BASE >> 3] &= 0xffffffff00000000ULL;
         is->regs[IOMMU_BASE >> 3] |= val & 0xffffffffULL;
         break;
+    case IOMMU_FLUSH:
+    case IOMMU_FLUSH + 0x4:
+        break;
     default:
         qemu_log_mask(LOG_UNIMP,
                   "apb iommu: Unimplemented register write "
@@ -387,6 +393,10 @@ static uint64_t iommu_config_read(void *opaque, hwaddr addr, unsigned size)
     case IOMMU_BASE + 0x4:
         val = is->regs[IOMMU_BASE >> 3] & 0xffffffffULL;
         break;
+    case IOMMU_FLUSH:
+    case IOMMU_FLUSH + 0x4:
+        val = 0;
+        break;
     default:
         qemu_log_mask(LOG_UNIMP,
                       "apb iommu: Unimplemented register read "
@@ -415,7 +425,7 @@ static void apb_config_writel (void *opaque, hwaddr addr,
         /* XXX: not implemented yet */
         break;
     case 0x200 ... 0x217: /* IOMMU */
-        iommu_config_write(is, (addr & 0xf), val, size);
+        iommu_config_write(is, (addr & 0x1f), val, size);
         break;
     case 0xc00 ... 0xc3f: /* PCI interrupt control */
         if (addr & 4) {
@@ -428,7 +438,7 @@ static void apb_config_writel (void *opaque, hwaddr addr,
             pbm_check_irqs(s);
         }
         break;
-    case 0x1000 ... 0x1080: /* OBIO interrupt control */
+    case 0x1000 ... 0x107f: /* OBIO interrupt control */
         if (addr & 4) {
             unsigned int ino = ((addr & 0xff) >> 3);
             s->obio_irq_map[ino] &= PBM_PCI_IMR_MASK;
@@ -497,7 +507,7 @@ static uint64_t apb_config_readl (void *opaque,
         /* XXX: not implemented yet */
         break;
     case 0x200 ... 0x217: /* IOMMU */
-        val = iommu_config_read(is, (addr & 0xf), size);
+        val = iommu_config_read(is, (addr & 0x1f), size);
         break;
     case 0xc00 ... 0xc3f: /* PCI interrupt control */
         if (addr & 4) {
@@ -506,9 +516,16 @@ static uint64_t apb_config_readl (void *opaque,
             val = 0;
         }
         break;
-    case 0x1000 ... 0x1080: /* OBIO interrupt control */
+    case 0x1000 ... 0x107f: /* OBIO interrupt control */
         if (addr & 4) {
             val = s->obio_irq_map[(addr & 0xff) >> 3];
+        } else {
+            val = 0;
+        }
+        break;
+    case 0x1080 ... 0x108f: /* PCI bus error */
+        if (addr & 4) {
+            val = s->pci_err_irq_map[(addr & 0xf) >> 3];
         } else {
             val = 0;
         }
@@ -743,6 +760,9 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     s = APB_DEVICE(dev);
     for (i = 0; i < 8; i++) {
         s->pci_irq_map[i] = (0x1f << 6) | (i << 2);
+    }
+    for (i = 0; i < 2; i++) {
+        s->pci_err_irq_map[i] = (0x1f << 6) | 0x30;
     }
     for (i = 0; i < 32; i++) {
         s->obio_irq_map[i] = ((0x1f << 6) | 0x20) + i;

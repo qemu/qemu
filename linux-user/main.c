@@ -312,7 +312,6 @@ void cpu_loop(CPUX86State *env)
                                           env->regs[8],
                                           env->regs[9],
                                           0, 0);
-            env->eip = env->exception_next_eip;
             break;
 #endif
 #ifdef TARGET_X86_64
@@ -3499,8 +3498,7 @@ CPUArchState *cpu_copy(CPUArchState *env)
         cpu_breakpoint_insert(new_cpu, bp->pc, bp->flags, NULL);
     }
     QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
-        cpu_watchpoint_insert(new_cpu, wp->vaddr, (~wp->len_mask) + 1,
-                              wp->flags, NULL);
+        cpu_watchpoint_insert(new_cpu, wp->vaddr, wp->len, wp->flags, NULL);
     }
 #endif
 
@@ -3946,11 +3944,11 @@ int main(int argc, char **argv)
 #elif defined TARGET_OPENRISC
         cpu_model = "or1200";
 #elif defined(TARGET_PPC)
-#ifdef TARGET_PPC64
-        cpu_model = "970fx";
-#else
+# ifdef TARGET_PPC64
+        cpu_model = "POWER7";
+# else
         cpu_model = "750";
-#endif
+# endif
 #else
         cpu_model = "any";
 #endif

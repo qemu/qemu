@@ -475,7 +475,8 @@ void usb_host_info(Monitor *mon, const QDict *qdict);
 
 #define VM_USB_HUB_SIZE 8
 
-/* usb-musb.c */
+/* hw/usb/hdc-musb.c */
+
 enum musb_irq_source_e {
     musb_irq_suspend = 0,
     musb_irq_resume,
@@ -494,6 +495,10 @@ enum musb_irq_source_e {
 };
 
 typedef struct MUSBState MUSBState;
+
+extern CPUReadMemoryFunc * const musb_read[];
+extern CPUWriteMemoryFunc * const musb_write[];
+
 MUSBState *musb_init(DeviceState *parent_device, int gpio_base);
 void musb_reset(MUSBState *s);
 uint32_t musb_core_intr_get(MUSBState *s);
@@ -524,6 +529,7 @@ struct USBBusOps {
 
 void usb_bus_new(USBBus *bus, size_t bus_size,
                  USBBusOps *ops, DeviceState *host);
+void usb_bus_release(USBBus *bus);
 USBBus *usb_bus_find(int busnr);
 void usb_legacy_register(const char *typename, const char *usbdevice_name,
                          USBDevice *(*usbdevice_init)(USBBus *bus,

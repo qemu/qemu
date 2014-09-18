@@ -97,14 +97,14 @@ static void kzm_init(MachineState *machine)
 
     /* On a real system, the first 16k is a `secure boot rom' */
 
-    memory_region_init_ram(ram, NULL, "kzm.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "kzm.ram", ram_size, &error_abort);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space_mem, KZM_RAMADDRESS, ram);
 
     memory_region_init_alias(ram_alias, NULL, "ram.alias", ram, 0, ram_size);
     memory_region_add_subregion(address_space_mem, 0x88000000, ram_alias);
 
-    memory_region_init_ram(sram, NULL, "kzm.sram", 0x4000);
+    memory_region_init_ram(sram, NULL, "kzm.sram", 0x4000, &error_abort);
     memory_region_add_subregion(address_space_mem, 0x1FFFC000, sram);
 
     dev = sysbus_create_varargs("imx_avic", 0x68000000,

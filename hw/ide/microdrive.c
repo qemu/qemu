@@ -567,7 +567,7 @@ PCMCIACardState *dscm1xxxx_init(DriveInfo *dinfo)
     }
     md->bus.ifs[0].drive_kind = IDE_CFATA;
     md->bus.ifs[0].mdata_size = METADATA_SIZE;
-    md->bus.ifs[0].mdata_storage = (uint8_t *) g_malloc0(METADATA_SIZE);
+    md->bus.ifs[0].mdata_storage = g_malloc0(METADATA_SIZE);
 
     return PCMCIA_CARD(md);
 }

@@ -2266,10 +2266,12 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
     omap_clk_init(s);
 
     /* Memory-mapped stuff */
-    memory_region_init_ram(&s->sdram, NULL, "omap2.dram", s->sdram_size);
+    memory_region_init_ram(&s->sdram, NULL, "omap2.dram", s->sdram_size,
+                           &error_abort);
     vmstate_register_ram_global(&s->sdram);
     memory_region_add_subregion(sysmem, OMAP2_Q2_BASE, &s->sdram);
-    memory_region_init_ram(&s->sram, NULL, "omap2.sram", s->sram_size);
+    memory_region_init_ram(&s->sram, NULL, "omap2.sram", s->sram_size,
+                           &error_abort);
     vmstate_register_ram_global(&s->sram);
     memory_region_add_subregion(sysmem, OMAP2_SRAM_BASE, &s->sram);
 

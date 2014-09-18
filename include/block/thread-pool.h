@@ -18,11 +18,7 @@
 #ifndef QEMU_THREAD_POOL_H
 #define QEMU_THREAD_POOL_H 1
 
-#include "qemu-common.h"
-#include "qemu/queue.h"
-#include "qemu/thread.h"
-#include "block/coroutine.h"
-#include "block/block_int.h"
+#include "block/block.h"
 
 typedef int ThreadPoolFunc(void *opaque);
 

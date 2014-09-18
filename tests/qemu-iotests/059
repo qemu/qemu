@@ -114,6 +114,10 @@ echo
 echo "=== Testing version 3 ==="
 _use_sample_img iotest-version3.vmdk.bz2
 _img_info
+for i in {0..99}; do
+    $QEMU_IO -r -c "read -P $(( i % 10 + 0x30 )) $(( i * 64 * 1024 * 10 + i * 512 )) 512" $TEST_IMG \
+        | _filter_qemu_io
+done
 
 echo
 echo "=== Testing 4TB monolithicFlat creation and IO ==="

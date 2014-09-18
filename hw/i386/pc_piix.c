@@ -59,8 +59,8 @@ static const int ide_iobase[MAX_IDE_BUS] = { 0x1f0, 0x170 };
 static const int ide_iobase2[MAX_IDE_BUS] = { 0x3f6, 0x376 };
 static const int ide_irq[MAX_IDE_BUS] = { 14, 15 };
 
-static bool has_pci_info;
 static bool has_acpi_build = true;
+static int legacy_acpi_table_size;
 static bool smbios_defaults = true;
 static bool smbios_legacy_mode;
 /* Make sure that guest addresses aligned at 1Gbyte boundaries get mapped to
@@ -114,7 +114,7 @@ static void pc_init1(MachineState *machine,
         lowmem = 0xe0000000;
     }
 
-    /* Handle the machine opt max-ram-below-4g.  It is basicly doing
+    /* Handle the machine opt max-ram-below-4g.  It is basically doing
      * min(qemu limit, user limit).
      */
     if (lowmem > pc_machine->max_ram_below_4g) {
@@ -163,8 +163,8 @@ static void pc_init1(MachineState *machine,
     guest_info = pc_guest_info_init(below_4g_mem_size, above_4g_mem_size);
 
     guest_info->has_acpi_build = has_acpi_build;
+    guest_info->legacy_acpi_table_size = legacy_acpi_table_size;
 
-    guest_info->has_pci_info = has_pci_info;
     guest_info->isapc_ram_fw = !pci_enabled;
     guest_info->has_reserved_memory = has_reserved_memory;
 
@@ -180,6 +180,13 @@ static void pc_init1(MachineState *machine,
         fw_cfg = pc_memory_init(machine, system_memory,
                                 below_4g_mem_size, above_4g_mem_size,
                                 rom_memory, &ram_memory, guest_info);
+    } else if (machine->kernel_filename != NULL) {
+        /* For xen HVM direct kernel boot, load linux here */
+        fw_cfg = xen_load_linux(machine->kernel_filename,
+                                machine->kernel_cmdline,
+                                machine->initrd_filename,
+                                below_4g_mem_size,
+                                guest_info);
     }
 
     gsi_state = g_malloc0(sizeof(*gsi_state));
@@ -297,8 +304,26 @@ static void pc_init_pci(MachineState *machine)
 
 static void pc_compat_2_0(MachineState *machine)
 {
+    /* This value depends on the actual DSDT and SSDT compiled into
+     * the source QEMU; unfortunately it depends on the binary and
+     * not on the machine type, so we cannot make pc-i440fx-1.7 work on
+     * both QEMU 1.7 and QEMU 2.0.
+     *
+     * Large variations cause migration to fail for more than one
+     * consecutive value of the "-smp" maxcpus option.
+     *
+     * For small variations of the kind caused by different iasl versions,
+     * the 4k rounding usually leaves slack.  However, there could be still
+     * one or two values that break.  For QEMU 1.7 and QEMU 2.0 the
+     * slack is only ~10 bytes before one "-smp maxcpus" value breaks!
+     *
+     * 6652 is valid for QEMU 2.0, the right value for pc-i440fx-1.7 on
+     * QEMU 1.7 it is 6414.  For RHEL/CentOS 7.0 it is 6418.
+     */
+    legacy_acpi_table_size = 6652;
     smbios_legacy_mode = true;
     has_reserved_memory = false;
+    pc_set_legacy_acpi_data_size();
 }
 
 static void pc_compat_1_7(MachineState *machine)
@@ -307,13 +332,13 @@ static void pc_compat_1_7(MachineState *machine)
     smbios_defaults = false;
     gigabyte_align = false;
     option_rom_has_mr = true;
+    legacy_acpi_table_size = 6414;
     x86_cpu_compat_disable_kvm_features(FEAT_1_ECX, CPUID_EXT_X2APIC);
 }
 
 static void pc_compat_1_6(MachineState *machine)
 {
     pc_compat_1_7(machine);
-    has_pci_info = false;
     rom_file_has_mr = false;
     has_acpi_build = false;
 }
@@ -386,25 +411,15 @@ static void pc_init_pci_1_2(MachineState *machine)
     pc_init_pci(machine);
 }
 
-/* PC init function for pc-0.10 to pc-0.13, and reused by xenfv */
+/* PC init function for pc-0.10 to pc-0.13 */
 static void pc_init_pci_no_kvmclock(MachineState *machine)
 {
-    has_pci_info = false;
-    has_acpi_build = false;
-    smbios_defaults = false;
-    gigabyte_align = false;
-    smbios_legacy_mode = true;
-    has_reserved_memory = false;
-    option_rom_has_mr = true;
-    rom_file_has_mr = false;
-    x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
-    enable_compat_apic_id_mode();
+    pc_compat_1_2(machine);
     pc_init1(machine, 1, 0);
 }
 
 static void pc_init_isa(MachineState *machine)
 {
-    has_pci_info = false;
     has_acpi_build = false;
     smbios_defaults = false;
     gigabyte_align = false;
@@ -439,16 +454,28 @@ static void pc_xen_hvm_init(MachineState *machine)
     .desc = "Standard PC (i440FX + PIIX, 1996)", \
     .hot_add_cpu = pc_hot_add_cpu
 
-#define PC_I440FX_2_1_MACHINE_OPTIONS                           \
+#define PC_I440FX_2_2_MACHINE_OPTIONS                           \
     PC_I440FX_MACHINE_OPTIONS,                                  \
     .default_machine_opts = "firmware=bios-256k.bin"
+
+static QEMUMachine pc_i440fx_machine_v2_2 = {
+    PC_I440FX_2_2_MACHINE_OPTIONS,
+    .name = "pc-i440fx-2.2",
+    .alias = "pc",
+    .init = pc_init_pci,
+    .is_default = 1,
+};
+
+#define PC_I440FX_2_1_MACHINE_OPTIONS PC_I440FX_2_2_MACHINE_OPTIONS
 
 static QEMUMachine pc_i440fx_machine_v2_1 = {
     PC_I440FX_2_1_MACHINE_OPTIONS,
     .name = "pc-i440fx-2.1",
-    .alias = "pc",
     .init = pc_init_pci,
-    .is_default = 1,
+    .compat_props = (GlobalProperty[]) {
+        PC_COMPAT_2_1,
+        { /* end of list */ }
+    },
 };
 
 #define PC_I440FX_2_0_MACHINE_OPTIONS PC_I440FX_2_1_MACHINE_OPTIONS
@@ -885,6 +912,7 @@ static QEMUMachine xenfv_machine = {
 
 static void pc_machine_init(void)
 {
+    qemu_register_pc_machine(&pc_i440fx_machine_v2_2);
     qemu_register_pc_machine(&pc_i440fx_machine_v2_1);
     qemu_register_pc_machine(&pc_i440fx_machine_v2_0);
     qemu_register_pc_machine(&pc_i440fx_machine_v1_7);

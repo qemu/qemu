@@ -55,6 +55,7 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "trace.h"
+#include "hw/nmi.h"
 
 #include <libfdt.h>
 
@@ -70,6 +71,7 @@
  */
 #define FDT_MAX_SIZE            0x40000
 #define RTAS_MAX_SIZE           0x10000
+#define RTAS_MAX_ADDR           0x80000000 /* RTAS must stay below that */
 #define FW_MAX_SIZE             0x400000
 #define FW_FILE_NAME            "slof.bin"
 #define FW_OVERHEAD             0x2800000
@@ -79,7 +81,7 @@
 
 #define TIMEBASE_FREQ           512000000ULL
 
-#define MAX_CPUS                256
+#define MAX_CPUS                255
 
 #define PHANDLE_XICP            0x00001111
 
@@ -160,8 +162,7 @@ static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,
     int index = ppc_get_vcpu_dt_id(cpu);
 
     if (cpu->cpu_version) {
-        ret = fdt_setprop(fdt, offset, "cpu-version",
-                          &cpu->cpu_version, sizeof(cpu->cpu_version));
+        ret = fdt_setprop_cell(fdt, offset, "cpu-version", cpu->cpu_version);
         if (ret < 0) {
             return ret;
         }
@@ -283,6 +284,19 @@ static size_t create_page_sizes_prop(CPUPPCState *env, uint32_t *prop,
     return (p - prop) * sizeof(uint32_t);
 }
 
+static hwaddr spapr_node0_size(void)
+{
+    if (nb_numa_nodes) {
+        int i;
+        for (i = 0; i < nb_numa_nodes; ++i) {
+            if (numa_info[i].node_mem) {
+                return MIN(pow2floor(numa_info[i].node_mem), ram_size);
+            }
+        }
+    }
+    return ram_size;
+}
+
 #define _FDT(exp) \
     do { \
         int ret = (exp);                                           \
@@ -319,6 +333,7 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     QemuOpts *opts = qemu_opts_find(qemu_find_opts("smp-opts"), NULL);
     unsigned sockets = opts ? qemu_opt_get_number(opts, "sockets", 0) : 0;
     uint32_t cpus_per_socket = sockets ? (smp_cpus / sockets) : 1;
+    char *buf;
 
     add_str(hypertas, "hcall-pft");
     add_str(hypertas, "hcall-term");
@@ -347,6 +362,29 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     _FDT((fdt_property_string(fdt, "device_type", "chrp")));
     _FDT((fdt_property_string(fdt, "model", "IBM pSeries (emulated by qemu)")));
     _FDT((fdt_property_string(fdt, "compatible", "qemu,pseries")));
+
+    /*
+     * Add info to guest to indentify which host is it being run on
+     * and what is the uuid of the guest
+     */
+    if (kvmppc_get_host_model(&buf)) {
+        _FDT((fdt_property_string(fdt, "host-model", buf)));
+        g_free(buf);
+    }
+    if (kvmppc_get_host_serial(&buf)) {
+        _FDT((fdt_property_string(fdt, "host-serial", buf)));
+        g_free(buf);
+    }
+
+    buf = g_strdup_printf(UUID_FMT, qemu_uuid[0], qemu_uuid[1],
+                          qemu_uuid[2], qemu_uuid[3], qemu_uuid[4],
+                          qemu_uuid[5], qemu_uuid[6], qemu_uuid[7],
+                          qemu_uuid[8], qemu_uuid[9], qemu_uuid[10],
+                          qemu_uuid[11], qemu_uuid[12], qemu_uuid[13],
+                          qemu_uuid[14], qemu_uuid[15]);
+
+    _FDT((fdt_property_string(fdt, "vm,uuid", buf)));
+    g_free(buf);
 
     _FDT((fdt_property_cell(fdt, "#address-cells", 0x2)));
     _FDT((fdt_property_cell(fdt, "#size-cells", 0x2)));
@@ -502,6 +540,15 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
 
     _FDT((fdt_property_cell(fdt, "rtas-error-log-max", RTAS_ERROR_LOG_MAX)));
 
+    /*
+     * According to PAPR, rtas ibm,os-term, does not gaurantee a return
+     * back to the guest cpu.
+     *
+     * While an additional ibm,extended-os-term property indicates that
+     * rtas call return will always occur. Set this property.
+     */
+    _FDT((fdt_property(fdt, "ibm,extended-os-term", NULL, 0)));
+
     _FDT((fdt_end_node(fdt)));
 
     /* interrupt controller */
@@ -597,72 +644,75 @@ int spapr_h_cas_compose_response(target_ulong addr, target_ulong size)
     return 0;
 }
 
-static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
+static void spapr_populate_memory_node(void *fdt, int nodeid, hwaddr start,
+                                       hwaddr size)
 {
-    uint32_t associativity[] = {cpu_to_be32(0x4), cpu_to_be32(0x0),
-                                cpu_to_be32(0x0), cpu_to_be32(0x0),
-                                cpu_to_be32(0x0)};
+    uint32_t associativity[] = {
+        cpu_to_be32(0x4), /* length */
+        cpu_to_be32(0x0), cpu_to_be32(0x0),
+        cpu_to_be32(0x0), cpu_to_be32(nodeid)
+    };
     char mem_name[32];
-    hwaddr node0_size, mem_start, node_size;
     uint64_t mem_reg_property[2];
-    int i, off;
+    int off;
 
-    /* memory node(s) */
-    if (nb_numa_nodes > 1 && numa_info[0].node_mem < ram_size) {
-        node0_size = numa_info[0].node_mem;
-    } else {
-        node0_size = ram_size;
-    }
+    mem_reg_property[0] = cpu_to_be64(start);
+    mem_reg_property[1] = cpu_to_be64(size);
 
-    /* RMA */
-    mem_reg_property[0] = 0;
-    mem_reg_property[1] = cpu_to_be64(spapr->rma_size);
-    off = fdt_add_subnode(fdt, 0, "memory@0");
+    sprintf(mem_name, "memory@" TARGET_FMT_lx, start);
+    off = fdt_add_subnode(fdt, 0, mem_name);
     _FDT(off);
     _FDT((fdt_setprop_string(fdt, off, "device_type", "memory")));
     _FDT((fdt_setprop(fdt, off, "reg", mem_reg_property,
                       sizeof(mem_reg_property))));
     _FDT((fdt_setprop(fdt, off, "ibm,associativity", associativity,
                       sizeof(associativity))));
+}
 
-    /* RAM: Node 0 */
-    if (node0_size > spapr->rma_size) {
-        mem_reg_property[0] = cpu_to_be64(spapr->rma_size);
-        mem_reg_property[1] = cpu_to_be64(node0_size - spapr->rma_size);
+static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
+{
+    hwaddr mem_start, node_size;
+    int i, nb_nodes = nb_numa_nodes;
+    NodeInfo *nodes = numa_info;
+    NodeInfo ramnode;
 
-        sprintf(mem_name, "memory@" TARGET_FMT_lx, spapr->rma_size);
-        off = fdt_add_subnode(fdt, 0, mem_name);
-        _FDT(off);
-        _FDT((fdt_setprop_string(fdt, off, "device_type", "memory")));
-        _FDT((fdt_setprop(fdt, off, "reg", mem_reg_property,
-                          sizeof(mem_reg_property))));
-        _FDT((fdt_setprop(fdt, off, "ibm,associativity", associativity,
-                          sizeof(associativity))));
+    /* No NUMA nodes, assume there is just one node with whole RAM */
+    if (!nb_numa_nodes) {
+        nb_nodes = 1;
+        ramnode.node_mem = ram_size;
+        nodes = &ramnode;
     }
 
-    /* RAM: Node 1 and beyond */
-    mem_start = node0_size;
-    for (i = 1; i < nb_numa_nodes; i++) {
-        mem_reg_property[0] = cpu_to_be64(mem_start);
+    for (i = 0, mem_start = 0; i < nb_nodes; ++i) {
+        if (!nodes[i].node_mem) {
+            continue;
+        }
         if (mem_start >= ram_size) {
             node_size = 0;
         } else {
-            node_size = numa_info[i].node_mem;
+            node_size = nodes[i].node_mem;
             if (node_size > ram_size - mem_start) {
                 node_size = ram_size - mem_start;
             }
         }
-        mem_reg_property[1] = cpu_to_be64(node_size);
-        associativity[3] = associativity[4] = cpu_to_be32(i);
-        sprintf(mem_name, "memory@" TARGET_FMT_lx, mem_start);
-        off = fdt_add_subnode(fdt, 0, mem_name);
-        _FDT(off);
-        _FDT((fdt_setprop_string(fdt, off, "device_type", "memory")));
-        _FDT((fdt_setprop(fdt, off, "reg", mem_reg_property,
-                          sizeof(mem_reg_property))));
-        _FDT((fdt_setprop(fdt, off, "ibm,associativity", associativity,
-                          sizeof(associativity))));
-        mem_start += node_size;
+        if (!mem_start) {
+            /* ppc_spapr_init() checks for rma_size <= node0_size already */
+            spapr_populate_memory_node(fdt, i, 0, spapr->rma_size);
+            mem_start += spapr->rma_size;
+            node_size -= spapr->rma_size;
+        }
+        for ( ; node_size; ) {
+            hwaddr sizetmp = pow2floor(node_size);
+
+            /* mem_start != 0 here */
+            if (ctzl(mem_start) < ctzl(sizetmp)) {
+                sizetmp = 1ULL << ctzl(mem_start);
+            }
+
+            spapr_populate_memory_node(fdt, i, mem_start, sizetmp);
+            node_size -= sizetmp;
+            mem_start += sizetmp;
+        }
     }
 
     return 0;
@@ -746,6 +796,7 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
 
     cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
 
+    g_free(bootlist);
     g_free(fdt);
 }
 
@@ -792,24 +843,37 @@ static void spapr_reset_htab(sPAPREnvironment *spapr)
 
     /* Update the RMA size if necessary */
     if (spapr->vrma_adjust) {
-        hwaddr node0_size = (nb_numa_nodes > 1) ?
-            numa_info[0].node_mem : ram_size;
-        spapr->rma_size = kvmppc_rma_size(node0_size, spapr->htab_shift);
+        spapr->rma_size = kvmppc_rma_size(spapr_node0_size(),
+                                          spapr->htab_shift);
     }
 }
 
 static void ppc_spapr_reset(void)
 {
     PowerPCCPU *first_ppc_cpu;
+    uint32_t rtas_limit;
 
     /* Reset the hash table & recalc the RMA */
     spapr_reset_htab(spapr);
 
     qemu_devices_reset();
 
+    /*
+     * We place the device tree and RTAS just below either the top of the RMA,
+     * or just below 2GB, whichever is lowere, so that it can be
+     * processed with 32-bit real mode code if necessary
+     */
+    rtas_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR);
+    spapr->rtas_addr = rtas_limit - RTAS_MAX_SIZE;
+    spapr->fdt_addr = spapr->rtas_addr - FDT_MAX_SIZE;
+
     /* Load the fdt */
     spapr_finalize_fdt(spapr, spapr->fdt_addr, spapr->rtas_addr,
                        spapr->rtas_size);
+
+    /* Copy RTAS over */
+    cpu_physical_memory_write(spapr->rtas_addr, spapr->rtas_blob,
+                              spapr->rtas_size);
 
     /* Set up the entry state */
     first_ppc_cpu = POWERPC_CPU(first_cpu);
@@ -1224,11 +1288,13 @@ static void ppc_spapr_init(MachineState *machine)
     int i;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
+    MemoryRegion *rma_region;
+    void *rma = NULL;
     hwaddr rma_alloc_size;
-    hwaddr node0_size = (nb_numa_nodes > 1) ? numa_info[0].node_mem : ram_size;
+    hwaddr node0_size = spapr_node0_size();
     uint32_t initrd_base = 0;
     long kernel_size = 0, initrd_size = 0;
-    long load_limit, rtas_limit, fw_size;
+    long load_limit, fw_size;
     bool kernel_le = false;
     char *filename;
 
@@ -1240,7 +1306,7 @@ static void ppc_spapr_init(MachineState *machine)
     cpu_ppc_hypercall = emulate_spapr_hypercall;
 
     /* Allocate RMA if necessary */
-    rma_alloc_size = kvmppc_alloc_rma("ppc_spapr.rma", sysmem);
+    rma_alloc_size = kvmppc_alloc_rma(&rma);
 
     if (rma_alloc_size == -1) {
         hw_error("qemu: Unable to create RMA\n");
@@ -1273,13 +1339,8 @@ static void ppc_spapr_init(MachineState *machine)
         exit(1);
     }
 
-    /* We place the device tree and RTAS just below either the top of the RMA,
-     * or just below 2GB, whichever is lowere, so that it can be
-     * processed with 32-bit real mode code if necessary */
-    rtas_limit = MIN(spapr->rma_size, 0x80000000);
-    spapr->rtas_addr = rtas_limit - RTAS_MAX_SIZE;
-    spapr->fdt_addr = spapr->rtas_addr - FDT_MAX_SIZE;
-    load_limit = spapr->fdt_addr - FW_OVERHEAD;
+    /* Setup a load limit for the ramdisk leaving room for SLOF and FDT */
+    load_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FW_OVERHEAD;
 
     /* We aim for a hash table of size 1/128 the size of RAM.  The
      * normal rule of thumb is 1/64 the size of RAM, but that's much
@@ -1334,24 +1395,27 @@ static void ppc_spapr_init(MachineState *machine)
 
     /* allocate RAM */
     spapr->ram_limit = ram_size;
-    if (spapr->ram_limit > rma_alloc_size) {
-        ram_addr_t nonrma_base = rma_alloc_size;
-        ram_addr_t nonrma_size = spapr->ram_limit - rma_alloc_size;
+    memory_region_allocate_system_memory(ram, NULL, "ppc_spapr.ram",
+                                         spapr->ram_limit);
+    memory_region_add_subregion(sysmem, 0, ram);
 
-        memory_region_init_ram(ram, NULL, "ppc_spapr.ram", nonrma_size);
-        vmstate_register_ram_global(ram);
-        memory_region_add_subregion(sysmem, nonrma_base, ram);
+    if (rma_alloc_size && rma) {
+        rma_region = g_new(MemoryRegion, 1);
+        memory_region_init_ram_ptr(rma_region, NULL, "ppc_spapr.rma",
+                                   rma_alloc_size, rma);
+        vmstate_register_ram_global(rma_region);
+        memory_region_add_subregion(sysmem, 0, rma_region);
     }
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
-    spapr->rtas_size = load_image_targphys(filename, spapr->rtas_addr,
-                                           rtas_limit - spapr->rtas_addr);
-    if (spapr->rtas_size < 0) {
+    spapr->rtas_size = get_image_size(filename);
+    spapr->rtas_blob = g_malloc(spapr->rtas_size);
+    if (load_image_size(filename, spapr->rtas_blob, spapr->rtas_size) < 0) {
         hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
         exit(1);
     }
     if (spapr->rtas_size > RTAS_MAX_SIZE) {
-        hw_error("RTAS too big ! 0x%lx bytes (max is 0x%x)\n",
+        hw_error("RTAS too big ! 0x%zx bytes (max is 0x%x)\n",
                  spapr->rtas_size, RTAS_MAX_SIZE);
         exit(1);
     }
@@ -1373,7 +1437,6 @@ static void ppc_spapr_init(MachineState *machine)
     spapr_create_nvram(spapr);
 
     /* Set up PCI */
-    spapr_pci_msi_init(spapr, SPAPR_PCI_MSI_WINDOW);
     spapr_pci_rtas_init();
 
     phb = spapr_create_phb(spapr, 0);
@@ -1572,10 +1635,28 @@ static void spapr_machine_initfn(Object *obj)
                             spapr_get_kvm_type, spapr_set_kvm_type, NULL);
 }
 
+static void ppc_cpu_do_nmi_on_cpu(void *arg)
+{
+    CPUState *cs = arg;
+
+    cpu_synchronize_state(cs);
+    ppc_cpu_do_system_reset(cs);
+}
+
+static void spapr_nmi(NMIState *n, int cpu_index, Error **errp)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        async_run_on_cpu(cs, ppc_cpu_do_nmi_on_cpu, cs);
+    }
+}
+
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
 
     mc->name = "pseries";
     mc->desc = "pSeries Logical Partition (PAPR compliant)";
@@ -1589,6 +1670,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->kvm_type = spapr_kvm_type;
 
     fwc->get_dev_path = spapr_get_fw_dev_path;
+    nc->nmi_monitor_handler = spapr_nmi;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -1599,6 +1681,7 @@ static const TypeInfo spapr_machine_info = {
     .class_init    = spapr_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_FW_PATH_PROVIDER },
+        { TYPE_NMI },
         { }
     },
 };

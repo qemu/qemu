@@ -220,8 +220,7 @@ tight_detect_smooth_image24(VncState *vs, int w, int h)
         unsigned int errors;                                            \
         unsigned char *buf = vs->tight.tight.buffer;                    \
                                                                         \
-        endian = 0; /* FIXME: ((vs->clientds.flags & QEMU_BIG_ENDIAN_FLAG) != \
-                      (vs->ds->surface->flags & QEMU_BIG_ENDIAN_FLAG)); */ \
+        endian = 0; /* FIXME */                                         \
                                                                         \
                                                                         \
         max[0] = vs->client_pf.rmax;                                  \
@@ -563,8 +562,7 @@ tight_filter_gradient24(VncState *vs, uint8_t *buf, int w, int h)
     buf32 = (uint32_t *)buf;
     memset(vs->tight.gradient.buffer, 0, w * 3 * sizeof(int));
 
-    if (1 /* FIXME: (vs->clientds.flags & QEMU_BIG_ENDIAN_FLAG) ==
-             (vs->ds->surface->flags & QEMU_BIG_ENDIAN_FLAG) */) {
+    if (1 /* FIXME */) {
         shift[0] = vs->client_pf.rshift;
         shift[1] = vs->client_pf.gshift;
         shift[2] = vs->client_pf.bshift;
@@ -621,8 +619,7 @@ tight_filter_gradient24(VncState *vs, uint8_t *buf, int w, int h)
                                                                         \
         memset (vs->tight.gradient.buffer, 0, w * 3 * sizeof(int));     \
                                                                         \
-        endian = 0; /* FIXME: ((vs->clientds.flags & QEMU_BIG_ENDIAN_FLAG) != \
-                       (vs->ds->surface->flags & QEMU_BIG_ENDIAN_FLAG)); */ \
+        endian = 0; /* FIXME */                                         \
                                                                         \
         max[0] = vs->client_pf.rmax;                                    \
         max[1] = vs->client_pf.gmax;                                    \
@@ -898,8 +895,7 @@ static void tight_pack24(VncState *vs, uint8_t *buf, size_t count, size_t *ret)
 
     buf32 = (uint32_t *)buf;
 
-    if (1 /* FIXME: (vs->clientds.flags & QEMU_BIG_ENDIAN_FLAG) ==
-             (vs->ds->surface->flags & QEMU_BIG_ENDIAN_FLAG) */) {
+    if (1 /* FIXME */) {
         rshift = vs->client_pf.rshift;
         gshift = vs->client_pf.gshift;
         bshift = vs->client_pf.bshift;

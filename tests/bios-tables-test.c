@@ -487,7 +487,11 @@ static GString *normalize_asl(gchar *asl_code)
     /* strip comments (different generation days) */
     comment = g_strstr_len(asl->str, asl->len, COMMENT_END);
     if (comment) {
-        asl = g_string_erase(asl, 0, comment + sizeof(COMMENT_END) - asl->str);
+        comment += strlen(COMMENT_END);
+        while (*comment == '\n') {
+            comment++;
+        }
+        asl = g_string_erase(asl, 0, comment - asl->str);
     }
 
     /* strip def block name (it has file path in it) */
@@ -786,6 +790,11 @@ int main(int argc, char *argv[])
     const char *arch = qtest_get_arch();
     FILE *f = fopen(disk, "w");
     int ret;
+
+    if (!f) {
+        fprintf(stderr, "Couldn't open \"%s\": %s", disk, strerror(errno));
+        return 1;
+    }
     fwrite(boot_sector, 1, sizeof boot_sector, f);
     fclose(f);
 

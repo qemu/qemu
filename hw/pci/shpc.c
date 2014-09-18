@@ -667,7 +667,6 @@ void shpc_cleanup(PCIDevice *d, MemoryRegion *bar)
     g_free(shpc->cmask);
     g_free(shpc->wmask);
     g_free(shpc->w1cmask);
-    memory_region_destroy(&shpc->mmio);
     g_free(shpc);
 }
 

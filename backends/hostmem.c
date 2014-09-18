@@ -257,15 +257,6 @@ static void host_memory_backend_init(Object *obj)
                         host_memory_backend_set_policy, NULL, NULL, NULL);
 }
 
-static void host_memory_backend_finalize(Object *obj)
-{
-    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
-
-    if (memory_region_size(&backend->mr)) {
-        memory_region_destroy(&backend->mr);
-    }
-}
-
 MemoryRegion *
 host_memory_backend_get_memory(HostMemoryBackend *backend, Error **errp)
 {
@@ -304,7 +295,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
         /* ensure policy won't be ignored in case memory is preallocated
          * before mbind(). note: MPOL_MF_STRICT is ignored on hugepages so
          * this doesn't catch hugepage case. */
-        unsigned flags = MPOL_MF_STRICT;
+        unsigned flags = MPOL_MF_STRICT | MPOL_MF_MOVE;
 
         /* check for invalid host-nodes and policies and give more verbose
          * error messages than mbind(). */
@@ -360,7 +351,6 @@ static const TypeInfo host_memory_backend_info = {
     .class_init = host_memory_backend_class_init,
     .instance_size = sizeof(HostMemoryBackend),
     .instance_init = host_memory_backend_init,
-    .instance_finalize = host_memory_backend_finalize,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }

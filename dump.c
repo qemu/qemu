@@ -71,18 +71,14 @@ uint64_t cpu_to_dump64(DumpState *s, uint64_t val)
 
 static int dump_cleanup(DumpState *s)
 {
-    int ret = 0;
-
     guest_phys_blocks_free(&s->guest_phys_blocks);
     memory_mapping_list_free(&s->list);
-    if (s->fd != -1) {
-        close(s->fd);
-    }
+    close(s->fd);
     if (s->resume) {
         vm_start();
     }
 
-    return ret;
+    return 0;
 }
 
 static void dump_error(DumpState *s, const char *reason)
@@ -1499,6 +1495,8 @@ static int dump_init(DumpState *s, int fd, bool has_format,
     s->begin = begin;
     s->length = length;
 
+    memory_mapping_list_init(&s->list);
+
     guest_phys_blocks_init(&s->guest_phys_blocks);
     guest_phys_blocks_append(&s->guest_phys_blocks);
 
@@ -1526,7 +1524,6 @@ static int dump_init(DumpState *s, int fd, bool has_format,
     }
 
     /* get memory mapping */
-    memory_mapping_list_init(&s->list);
     if (paging) {
         qemu_get_guest_memory_mapping(&s->list, &s->guest_phys_blocks, &err);
         if (err != NULL) {
@@ -1622,12 +1619,7 @@ static int dump_init(DumpState *s, int fd, bool has_format,
     return 0;
 
 cleanup:
-    guest_phys_blocks_free(&s->guest_phys_blocks);
-
-    if (s->resume) {
-        vm_start();
-    }
-
+    dump_cleanup(s);
     return -1;
 }
 

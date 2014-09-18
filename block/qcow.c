@@ -182,7 +182,12 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     s->l1_table_offset = header.l1_table_offset;
-    s->l1_table = g_malloc(s->l1_size * sizeof(uint64_t));
+    s->l1_table = g_try_new(uint64_t, s->l1_size);
+    if (s->l1_table == NULL) {
+        error_setg(errp, "Could not allocate memory for L1 table");
+        ret = -ENOMEM;
+        goto fail;
+    }
 
     ret = bdrv_pread(bs->file, s->l1_table_offset, s->l1_table,
                s->l1_size * sizeof(uint64_t));
@@ -193,8 +198,16 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     for(i = 0;i < s->l1_size; i++) {
         be64_to_cpus(&s->l1_table[i]);
     }
-    /* alloc L2 cache */
-    s->l2_cache = g_malloc(s->l2_size * L2_CACHE_SIZE * sizeof(uint64_t));
+
+    /* alloc L2 cache (max. 64k * 16 * 8 = 8 MB) */
+    s->l2_cache =
+        qemu_try_blockalign(bs->file,
+                            s->l2_size * L2_CACHE_SIZE * sizeof(uint64_t));
+    if (s->l2_cache == NULL) {
+        error_setg(errp, "Could not allocate L2 table cache");
+        ret = -ENOMEM;
+        goto fail;
+    }
     s->cluster_cache = g_malloc(s->cluster_size);
     s->cluster_data = g_malloc(s->cluster_size);
     s->cluster_cache_offset = -1;
@@ -226,7 +239,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
 
  fail:
     g_free(s->l1_table);
-    g_free(s->l2_cache);
+    qemu_vfree(s->l2_cache);
     g_free(s->cluster_cache);
     g_free(s->cluster_data);
     return ret;
@@ -517,7 +530,10 @@ static coroutine_fn int qcow_co_readv(BlockDriverState *bs, int64_t sector_num,
     void *orig_buf;
 
     if (qiov->niov > 1) {
-        buf = orig_buf = qemu_blockalign(bs, qiov->size);
+        buf = orig_buf = qemu_try_blockalign(bs, qiov->size);
+        if (buf == NULL) {
+            return -ENOMEM;
+        }
     } else {
         orig_buf = NULL;
         buf = (uint8_t *)qiov->iov->iov_base;
@@ -619,7 +635,10 @@ static coroutine_fn int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
     s->cluster_cache_offset = -1; /* disable compressed cache */
 
     if (qiov->niov > 1) {
-        buf = orig_buf = qemu_blockalign(bs, qiov->size);
+        buf = orig_buf = qemu_try_blockalign(bs, qiov->size);
+        if (buf == NULL) {
+            return -ENOMEM;
+        }
         qemu_iovec_to_buf(qiov, 0, buf, qiov->size);
     } else {
         orig_buf = NULL;
@@ -685,7 +704,7 @@ static void qcow_close(BlockDriverState *bs)
     BDRVQcowState *s = bs->opaque;
 
     g_free(s->l1_table);
-    g_free(s->l2_cache);
+    qemu_vfree(s->l2_cache);
     g_free(s->cluster_cache);
     g_free(s->cluster_data);
 
@@ -706,7 +725,8 @@ static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
     BlockDriverState *qcow_bs;
 
     /* Read out options */
-    total_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0) / 512;
+    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                          BDRV_SECTOR_SIZE);
     backing_file = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
     if (qemu_opt_get_bool_del(opts, BLOCK_OPT_ENCRYPT, false)) {
         flags |= BLOCK_FLAG_ENCRYPT;
@@ -734,7 +754,7 @@ static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
     memset(&header, 0, sizeof(header));
     header.magic = cpu_to_be32(QCOW_MAGIC);
     header.version = cpu_to_be32(QCOW_VERSION);
-    header.size = cpu_to_be64(total_size * 512);
+    header.size = cpu_to_be64(total_size);
     header_size = sizeof(header);
     backing_filename_len = 0;
     if (backing_file) {
@@ -756,7 +776,7 @@ static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
     }
     header_size = (header_size + 7) & ~7;
     shift = header.cluster_bits + header.l2_bits;
-    l1_size = ((total_size * 512) + (1LL << shift) - 1) >> shift;
+    l1_size = (total_size + (1LL << shift) - 1) >> shift;
 
     header.l1_table_offset = cpu_to_be64(header_size);
     if (flags & BLOCK_FLAG_ENCRYPT) {

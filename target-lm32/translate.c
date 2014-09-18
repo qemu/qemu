@@ -27,6 +27,9 @@
 
 #include "exec/helper-gen.h"
 
+#include "trace-tcg.h"
+
+
 #define DISAS_LM32 1
 #if DISAS_LM32
 #  define LOG_DIS(...) qemu_log_mask(CPU_LOG_TB_IN_ASM, ## __VA_ARGS__)
