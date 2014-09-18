@@ -193,7 +193,8 @@ check-qtest-xtensaeb-y = $(check-qtest-xtensa-y)
 
 # qom-test works for all sysemu architectures:
 $(foreach target,$(SYSEMU_TARGET_LIST), \
-    $(eval check-qtest-$(target)-y += tests/qom-test$(EXESUF)))
+	$(if $(findstring tests/qom-test$(EXESUF), $(check-qtest-$(target)-y)),, \
+		$(eval check-qtest-$(target)-y += tests/qom-test$(EXESUF))))
 
 check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
         comments.json empty.json funny-char.json indented-expr.json \
