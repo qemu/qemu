@@ -107,6 +107,7 @@ static int scsi_hot_add(Monitor *mon, DeviceState *adapter,
 {
     SCSIBus *scsibus;
     SCSIDevice *scsidev;
+    Error *local_err = NULL;
 
     scsibus = (SCSIBus *)
         object_dynamic_cast(OBJECT(QLIST_FIRST(&adapter->child_bus)),
@@ -127,8 +128,10 @@ static int scsi_hot_add(Monitor *mon, DeviceState *adapter,
     dinfo->unit = qemu_opt_get_number(dinfo->opts, "unit", -1);
     dinfo->bus = scsibus->busnr;
     scsidev = scsi_bus_legacy_add_drive(scsibus, dinfo->bdrv, dinfo->unit,
-                                        false, -1, NULL, NULL);
+                                        false, -1, NULL, &local_err);
     if (!scsidev) {
+        error_report("%s", error_get_pretty(local_err));
+        error_free(local_err);
         return -1;
     }
     dinfo->unit = scsidev->id;
