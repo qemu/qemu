@@ -4542,7 +4542,7 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-    qdev_prop_check_global();
+    qdev_prop_check_globals();
     if (vmstate_dump_file) {
         /* dump and exit */
         dump_vmstate_json_to_file(vmstate_dump_file);
