@@ -274,6 +274,51 @@ Testing: -drive foo=bar
 QEMU_PROG: -drive foo=bar: could not open disk image ide0-hd0: Must specify either driver or file
 
 
+=== Specifying both an option and its legacy alias ===
+
+Testing: -drive file=TEST_DIR/t.qcow2,iops=1234,throttling.iops-total=5678
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,iops=1234,throttling.iops-total=5678: 'throttling.iops-total' and its alias 'iops' can't be used at the same time
+
+Testing: -drive file=TEST_DIR/t.qcow2,iops_rd=1234,throttling.iops-read=5678
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,iops_rd=1234,throttling.iops-read=5678: 'throttling.iops-read' and its alias 'iops_rd' can't be used at the same time
+
+Testing: -drive file=TEST_DIR/t.qcow2,iops_wr=1234,throttling.iops-write=5678
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,iops_wr=1234,throttling.iops-write=5678: 'throttling.iops-write' and its alias 'iops_wr' can't be used at the same time
+
+Testing: -drive file=TEST_DIR/t.qcow2,bps=1234,throttling.bps-total=5678
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,bps=1234,throttling.bps-total=5678: 'throttling.bps-total' and its alias 'bps' can't be used at the same time
+
+Testing: -drive file=TEST_DIR/t.qcow2,bps_rd=1234,throttling.bps-read=5678
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,bps_rd=1234,throttling.bps-read=5678: 'throttling.bps-read' and its alias 'bps_rd' can't be used at the same time
+
+Testing: -drive file=TEST_DIR/t.qcow2,bps_wr=1234,throttling.bps-write=5678
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,bps_wr=1234,throttling.bps-write=5678: 'throttling.bps-write' and its alias 'bps_wr' can't be used at the same time
+
+Testing: -drive file=TEST_DIR/t.qcow2,iops_max=1234,throttling.iops-total-max=5678
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,iops_max=1234,throttling.iops-total-max=5678: 'throttling.iops-total-max' and its alias 'iops_max' can't be used at the same time
+
+Testing: -drive file=TEST_DIR/t.qcow2,iops_rd_max=1234,throttling.iops-read-max=5678
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,iops_rd_max=1234,throttling.iops-read-max=5678: 'throttling.iops-read-max' and its alias 'iops_rd_max' can't be used at the same time
+
+Testing: -drive file=TEST_DIR/t.qcow2,iops_wr_max=1234,throttling.iops-write-max=5678
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,iops_wr_max=1234,throttling.iops-write-max=5678: 'throttling.iops-write-max' and its alias 'iops_wr_max' can't be used at the same time
+
+Testing: -drive file=TEST_DIR/t.qcow2,bps_max=1234,throttling.bps-total-max=5678
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,bps_max=1234,throttling.bps-total-max=5678: 'throttling.bps-total-max' and its alias 'bps_max' can't be used at the same time
+
+Testing: -drive file=TEST_DIR/t.qcow2,bps_rd_max=1234,throttling.bps-read-max=5678
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,bps_rd_max=1234,throttling.bps-read-max=5678: 'throttling.bps-read-max' and its alias 'bps_rd_max' can't be used at the same time
+
+Testing: -drive file=TEST_DIR/t.qcow2,bps_wr_max=1234,throttling.bps-write-max=5678
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,bps_wr_max=1234,throttling.bps-write-max=5678: 'throttling.bps-write-max' and its alias 'bps_wr_max' can't be used at the same time
+
+Testing: -drive file=TEST_DIR/t.qcow2,iops_size=1234,throttling.iops-size=5678
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,iops_size=1234,throttling.iops-size=5678: 'throttling.iops-size' and its alias 'iops_size' can't be used at the same time
+
+Testing: -drive file=TEST_DIR/t.qcow2,readonly=on,read-only=off
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,readonly=on,read-only=off: 'read-only' and its alias 'readonly' can't be used at the same time
+
+
 === Parsing protocol from file name ===
 
 Testing: -hda foo:bar

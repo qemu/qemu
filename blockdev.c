@@ -538,12 +538,18 @@ err_no_opts:
     return NULL;
 }
 
-static void qemu_opt_rename(QemuOpts *opts, const char *from, const char *to)
+static void qemu_opt_rename(QemuOpts *opts, const char *from, const char *to,
+                            Error **errp)
 {
     const char *value;
 
     value = qemu_opt_get(opts, from);
     if (value) {
+        if (qemu_opt_find(opts, to)) {
+            error_setg(errp, "'%s' and its alias '%s' can't be used at the "
+                       "same time", to, from);
+            return;
+        }
         qemu_opt_set(opts, to, value);
         qemu_opt_unset(opts, from);
     }
@@ -676,7 +682,13 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     };
 
     for (i = 0; i < ARRAY_SIZE(opt_renames); i++) {
-        qemu_opt_rename(all_opts, opt_renames[i].from, opt_renames[i].to);
+        qemu_opt_rename(all_opts, opt_renames[i].from, opt_renames[i].to,
+                        &local_err);
+        if (local_err) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
+            return NULL;
+        }
     }
 
     value = qemu_opt_get(all_opts, "cache");
