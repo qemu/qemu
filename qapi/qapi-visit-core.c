@@ -58,6 +58,21 @@ void visit_end_list(Visitor *v, Error **errp)
     v->end_list(v, errp);
 }
 
+bool visit_start_union(Visitor *v, bool data_present, Error **errp)
+{
+    if (v->start_union) {
+        return v->start_union(v, data_present, errp);
+    }
+    return true;
+}
+
+void visit_end_union(Visitor *v, bool data_present, Error **errp)
+{
+    if (v->end_union) {
+        v->end_union(v, data_present, errp);
+    }
+}
+
 void visit_optional(Visitor *v, bool *present, const char *name,
                     Error **errp)
 {
