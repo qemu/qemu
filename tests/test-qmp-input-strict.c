@@ -260,6 +260,21 @@ static void test_validate_fail_union_flat(TestInputVisitorData *data,
     qapi_free_UserDefFlatUnion(tmp);
 }
 
+static void test_validate_fail_union_flat_no_discrim(TestInputVisitorData *data,
+                                                     const void *unused)
+{
+    UserDefFlatUnion2 *tmp = NULL;
+    Error *err = NULL;
+    Visitor *v;
+
+    /* test situation where discriminator field ('enum1' here) is missing */
+    v = validate_test_init(data, "{ 'string': 'c', 'string1': 'd', 'string2': 'e' }");
+
+    visit_type_UserDefFlatUnion2(v, &tmp, NULL, &err);
+    g_assert(err);
+    qapi_free_UserDefFlatUnion2(tmp);
+}
+
 static void test_validate_fail_union_anon(TestInputVisitorData *data,
                                           const void *unused)
 {
@@ -310,6 +325,8 @@ int main(int argc, char **argv)
                        &testdata, test_validate_fail_union);
     validate_test_add("/visitor/input-strict/fail/union-flat",
                        &testdata, test_validate_fail_union_flat);
+    validate_test_add("/visitor/input-strict/fail/union-flat-no-discriminator",
+                       &testdata, test_validate_fail_union_flat_no_discrim);
     validate_test_add("/visitor/input-strict/fail/union-anon",
                        &testdata, test_validate_fail_union_anon);
 
