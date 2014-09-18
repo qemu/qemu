@@ -27,6 +27,7 @@
 #include "vnc.h"
 #include "vnc-jobs.h"
 #include "trace.h"
+#include "hw/qdev.h"
 #include "sysemu/sysemu.h"
 #include "qemu/sockets.h"
 #include "qemu/timer.h"
@@ -1665,7 +1666,8 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
             vs->modifiers_state[keycode] = 0;
         break;
     case 0x02 ... 0x0a: /* '1' to '9' keys */
-        if (down && vs->modifiers_state[0x1d] && vs->modifiers_state[0x38]) {
+        if (vs->vd->dcl.con == NULL &&
+            down && vs->modifiers_state[0x1d] && vs->modifiers_state[0x38]) {
             /* Reset the modifiers sent to the current console */
             reset_keys(vs);
             console_select(keycode - 0x02);
@@ -2073,8 +2075,8 @@ static void set_pixel_format(VncState *vs,
 
     set_pixel_conversion(vs);
 
-    graphic_hw_invalidate(NULL);
-    graphic_hw_update(NULL);
+    graphic_hw_invalidate(vs->vd->dcl.con);
+    graphic_hw_update(vs->vd->dcl.con);
 }
 
 static void pixel_format_message (VncState *vs) {
@@ -2801,7 +2803,7 @@ static void vnc_refresh(DisplayChangeListener *dcl)
         return;
     }
 
-    graphic_hw_update(NULL);
+    graphic_hw_update(vd->dcl.con);
 
     if (vnc_trylock_display(vd)) {
         update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
@@ -2907,7 +2909,7 @@ void vnc_init_state(VncState *vs)
 
     QTAILQ_INSERT_HEAD(&vd->clients, vs, next);
 
-    graphic_hw_update(NULL);
+    graphic_hw_update(vd->dcl.con);
 
     vnc_write(vs, "RFB 003.008\n", 12);
     vnc_flush(vs);
@@ -2930,7 +2932,7 @@ static void vnc_listen_read(void *opaque, bool websocket)
     int csock;
 
     /* Catch-up */
-    graphic_hw_update(NULL);
+    graphic_hw_update(vs->dcl.con);
 #ifdef CONFIG_VNC_WS
     if (websocket) {
         csock = qemu_accept(vs->lwebsock, (struct sockaddr *)&addr, &addrlen);
@@ -3090,6 +3092,12 @@ static QemuOptsList qemu_vnc_opts = {
             .name = "share",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "display",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "head",
+            .type = QEMU_OPT_NUMBER,
+        },{
             .name = "password",
             .type = QEMU_OPT_BOOL,
         },{
@@ -3125,7 +3133,8 @@ void vnc_display_open(const char *id, Error **errp)
 {
     VncDisplay *vs = vnc_display_find(id);
     QemuOpts *opts = qemu_opts_find(&qemu_vnc_opts, id);
-    const char *display, *websocket, *share;
+    const char *display, *websocket, *share, *device_id;
+    QemuConsole *con;
     int password = 0;
     int reverse = 0;
 #ifdef CONFIG_VNC_TLS
@@ -3353,6 +3362,33 @@ void vnc_display_open(const char *id, Error **errp)
     }
 #endif
     vs->lock_key_sync = lock_key_sync;
+
+    device_id = qemu_opt_get(opts, "display");
+    if (device_id) {
+        DeviceState *dev;
+        int head = qemu_opt_get_number(opts, "head", 0);
+
+        dev = qdev_find_recursive(sysbus_get_default(), device_id);
+        if (dev == NULL) {
+            error_set(errp, QERR_DEVICE_NOT_FOUND, device_id);
+            goto fail;
+        }
+
+        con = qemu_console_lookup_by_device(dev, head);
+        if (con == NULL) {
+            error_setg(errp, "Device %s is not bound to a QemuConsole",
+                       device_id);
+            goto fail;
+        }
+    } else {
+        con = NULL;
+    }
+
+    if (con != vs->dcl.con) {
+        unregister_displaychangelistener(&vs->dcl);
+        vs->dcl.con = con;
+        register_displaychangelistener(&vs->dcl);
+    }
 
     if (reverse) {
         /* connect to viewer */
