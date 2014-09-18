@@ -4,6 +4,7 @@
 #include "block/thread-pool.h"
 #include "block/block.h"
 #include "qemu/timer.h"
+#include "qemu/error-report.h"
 
 static AioContext *ctx;
 static ThreadPool *pool;
@@ -222,10 +223,17 @@ static void test_cancel_async(void)
 int main(int argc, char **argv)
 {
     int ret;
+    Error *local_error = NULL;
 
     init_clocks();
 
-    ctx = aio_context_new();
+    ctx = aio_context_new(&local_error);
+    if (!ctx) {
+        error_report("Failed to create AIO Context: '%s'",
+                     error_get_pretty(local_error));
+        error_free(local_error);
+        exit(1);
+    }
     pool = aio_get_thread_pool(ctx);
 
     g_test_init(&argc, &argv, NULL);

@@ -17,6 +17,7 @@
 #include "block/aio.h"
 #include "sysemu/iothread.h"
 #include "qmp-commands.h"
+#include "qemu/error-report.h"
 
 #define IOTHREADS_PATH "/objects"
 
@@ -53,6 +54,9 @@ static void iothread_instance_finalize(Object *obj)
 {
     IOThread *iothread = IOTHREAD(obj);
 
+    if (!iothread->ctx) {
+        return;
+    }
     iothread->stopping = true;
     aio_notify(iothread->ctx);
     qemu_thread_join(&iothread->thread);
@@ -63,11 +67,16 @@ static void iothread_instance_finalize(Object *obj)
 
 static void iothread_complete(UserCreatable *obj, Error **errp)
 {
+    Error *local_error = NULL;
     IOThread *iothread = IOTHREAD(obj);
 
     iothread->stopping = false;
-    iothread->ctx = aio_context_new();
     iothread->thread_id = -1;
+    iothread->ctx = aio_context_new(&local_error);
+    if (!iothread->ctx) {
+        error_propagate(errp, local_error);
+        return;
+    }
 
     qemu_mutex_init(&iothread->init_done_lock);
     qemu_cond_init(&iothread->init_done_cond);

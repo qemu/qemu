@@ -102,7 +102,7 @@ void aio_set_dispatching(AioContext *ctx, bool dispatching);
  * They also provide bottom halves, a service to execute a piece of code
  * as soon as possible.
  */
-AioContext *aio_context_new(void);
+AioContext *aio_context_new(Error **errp);
 
 /**
  * aio_context_ref:
