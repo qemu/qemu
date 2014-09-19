@@ -834,6 +834,7 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev)
     int bus_num = libusb_get_bus_number(dev);
     int addr    = libusb_get_device_address(dev);
     int rc;
+    Error *local_err = NULL;
 
     trace_usb_host_open_started(bus_num, addr);
 
@@ -869,8 +870,10 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev)
                  "host:%d.%d", bus_num, addr);
     }
 
-    rc = usb_device_attach(udev);
-    if (rc) {
+    usb_device_attach(udev, &local_err);
+    if (local_err) {
+        error_report("%s", error_get_pretty(local_err));
+        error_free(local_err);
         goto fail;
     }
 

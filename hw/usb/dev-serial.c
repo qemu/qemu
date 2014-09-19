@@ -9,7 +9,7 @@
  */
 
 #include "qemu-common.h"
-#include "qemu/error-report.h"
+#include "monitor/monitor.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "sysemu/char.h"
@@ -451,6 +451,7 @@ static void usb_serial_read(void *opaque, const uint8_t *buf, int size)
 static void usb_serial_event(void *opaque, int event)
 {
     USBSerialState *s = opaque;
+    Error *local_err = NULL;
 
     switch (event) {
         case CHR_EVENT_BREAK:
@@ -460,7 +461,11 @@ static void usb_serial_event(void *opaque, int event)
             break;
         case CHR_EVENT_OPENED:
             if (!s->dev.attached) {
-                usb_device_attach(&s->dev);
+                usb_device_attach(&s->dev, &local_err);
+                if (local_err) {
+                    qerror_report_err(local_err);
+                    error_free(local_err);
+                }
             }
             break;
         case CHR_EVENT_CLOSED:
@@ -474,6 +479,7 @@ static void usb_serial_event(void *opaque, int event)
 static int usb_serial_initfn(USBDevice *dev)
 {
     USBSerialState *s = DO_UPCAST(USBSerialState, dev, dev);
+    Error *local_err = NULL;
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
@@ -489,7 +495,11 @@ static int usb_serial_initfn(USBDevice *dev)
     usb_serial_handle_reset(dev);
 
     if (s->cs->be_open && !dev->attached) {
-        usb_device_attach(dev);
+        usb_device_attach(dev, &local_err);
+        if (local_err) {
+            qerror_report_err(local_err);
+            error_free(local_err);
+        }
     }
     return 0;
 }

@@ -549,12 +549,17 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
 static void usb_msd_password_cb(void *opaque, int err)
 {
     MSDState *s = opaque;
+    Error *local_err = NULL;
 
-    if (!err)
-        err = usb_device_attach(&s->dev);
+    if (!err) {
+        usb_device_attach(&s->dev, &local_err);
+    }
 
-    if (err)
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         qdev_unplug(&s->dev.qdev, NULL);
+    }
 }
 
 static void *usb_msd_load_request(QEMUFile *f, SCSIRequest *req)

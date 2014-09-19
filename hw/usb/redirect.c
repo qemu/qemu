@@ -1256,6 +1256,7 @@ static void usbredir_device_reject_bh(void *opaque)
 static void usbredir_do_attach(void *opaque)
 {
     USBRedirDevice *dev = opaque;
+    Error *local_err = NULL;
 
     /* In order to work properly with XHCI controllers we need these caps */
     if ((dev->dev.port->speedmask & USB_SPEED_MASK_SUPER) && !(
@@ -1270,7 +1271,10 @@ static void usbredir_do_attach(void *opaque)
         return;
     }
 
-    if (usb_device_attach(&dev->dev) != 0) {
+    usb_device_attach(&dev->dev, &local_err);
+    if (local_err) {
+        error_report("%s", error_get_pretty(local_err));
+        error_free(local_err);
         WARNING("rejecting device due to speed mismatch\n");
         usbredir_reject_device(dev);
     }
