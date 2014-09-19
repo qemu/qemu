@@ -13,6 +13,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "trace.h"
+#include "qemu/error-report.h"
 
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
@@ -648,7 +649,7 @@ static void usb_uas_handle_control(USBDevice *dev, USBPacket *p,
     if (ret >= 0) {
         return;
     }
-    fprintf(stderr, "%s: unhandled control request\n", __func__);
+    error_report("%s: unhandled control request", __func__);
     p->status = USB_RET_STALL;
 }
 
@@ -814,8 +815,8 @@ static void usb_uas_handle_data(USBDevice *dev, USBPacket *p)
             usb_uas_task(uas, &iu);
             break;
         default:
-            fprintf(stderr, "%s: unknown command iu: id 0x%x\n",
-                    __func__, iu.hdr.id);
+            error_report("%s: unknown command iu: id 0x%x",
+                         __func__, iu.hdr.id);
             p->status = USB_RET_STALL;
             break;
         }
@@ -861,7 +862,7 @@ static void usb_uas_handle_data(USBDevice *dev, USBPacket *p)
                 p->status = USB_RET_ASYNC;
                 break;
             } else {
-                fprintf(stderr, "%s: no inflight request\n", __func__);
+                error_report("%s: no inflight request", __func__);
                 p->status = USB_RET_STALL;
                 break;
             }
@@ -879,7 +880,7 @@ static void usb_uas_handle_data(USBDevice *dev, USBPacket *p)
         usb_uas_start_next_transfer(uas);
         break;
     default:
-        fprintf(stderr, "%s: invalid endpoint %d\n", __func__, p->ep->nr);
+        error_report("%s: invalid endpoint %d", __func__, p->ep->nr);
         p->status = USB_RET_STALL;
         break;
     }
