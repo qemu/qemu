@@ -956,7 +956,7 @@ static void build_guest_fsinfo_for_virtual_device(char const *syspath,
 {
     DIR *dir;
     char *dirpath;
-    struct dirent entry, *result;
+    struct dirent *entry;
 
     dirpath = g_strdup_printf("%s/slaves", syspath);
     dir = opendir(dirpath);
@@ -965,22 +965,24 @@ static void build_guest_fsinfo_for_virtual_device(char const *syspath,
         g_free(dirpath);
         return;
     }
-    g_free(dirpath);
 
     for (;;) {
-        if (readdir_r(dir, &entry, &result) != 0) {
-            error_setg_errno(errp, errno, "readdir_r(\"%s\")", dirpath);
-            break;
-        }
-        if (!result) {
+        errno = 0;
+        entry = readdir(dir);
+        if (entry == NULL) {
+            if (errno) {
+                error_setg_errno(errp, errno, "readdir(\"%s\")", dirpath);
+            }
             break;
         }
 
-        if (entry.d_type == DT_LNK) {
-            g_debug(" slave device '%s'", entry.d_name);
-            dirpath = g_strdup_printf("%s/slaves/%s", syspath, entry.d_name);
-            build_guest_fsinfo_for_device(dirpath, fs, errp);
-            g_free(dirpath);
+        if (entry->d_type == DT_LNK) {
+            char *path;
+
+            g_debug(" slave device '%s'", entry->d_name);
+            path = g_strdup_printf("%s/slaves/%s", syspath, entry->d_name);
+            build_guest_fsinfo_for_device(path, fs, errp);
+            g_free(path);
 
             if (*errp) {
                 break;
@@ -988,6 +990,7 @@ static void build_guest_fsinfo_for_virtual_device(char const *syspath,
         }
     }
 
+    g_free(dirpath);
     closedir(dir);
 }
 
