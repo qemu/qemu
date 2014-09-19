@@ -892,7 +892,7 @@ static void usb_uas_handle_destroy(USBDevice *dev)
     qemu_bh_delete(uas->status_bh);
 }
 
-static int usb_uas_init(USBDevice *dev)
+static void usb_uas_realize(USBDevice *dev, Error **errp)
 {
     UASDevice *uas = DO_UPCAST(UASDevice, dev, dev);
 
@@ -905,8 +905,6 @@ static int usb_uas_init(USBDevice *dev)
 
     scsi_bus_new(&uas->bus, sizeof(uas->bus), DEVICE(dev),
                  &usb_uas_scsi_info, NULL);
-
-    return 0;
 }
 
 static const VMStateDescription vmstate_usb_uas = {
@@ -928,7 +926,7 @@ static void usb_uas_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->init           = usb_uas_init;
+    uc->realize        = usb_uas_realize;
     uc->product_desc   = desc_strings[STR_PRODUCT];
     uc->usb_desc       = &desc;
     uc->cancel_packet  = usb_uas_cancel_io;
