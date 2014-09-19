@@ -951,21 +951,21 @@ static void usb_host_exit_notifier(struct Notifier *n, void *data)
     }
 }
 
-static int usb_host_initfn(USBDevice *udev)
+static void usb_host_realize(USBDevice *udev, Error **errp)
 {
     USBHostDevice *s = USB_HOST_DEVICE(udev);
 
     if (s->match.vendor_id > 0xffff) {
-        error_report("vendorid out of range");
-        return -1;
+        error_setg(errp, "vendorid out of range");
+        return;
     }
     if (s->match.product_id > 0xffff) {
-        error_report("productid out of range");
-        return -1;
+        error_setg(errp, "productid out of range");
+        return;
     }
     if (s->match.addr > 127) {
-        error_report("hostaddr out of range");
-        return -1;
+        error_setg(errp, "hostaddr out of range");
+        return;
     }
 
     loglevel = s->loglevel;
@@ -980,7 +980,6 @@ static int usb_host_initfn(USBDevice *udev)
     QTAILQ_INSERT_TAIL(&hostdevs, s, next);
     add_boot_device_path(s->bootindex, &udev->qdev, NULL);
     usb_host_auto_check(NULL);
-    return 0;
 }
 
 static void usb_host_handle_destroy(USBDevice *udev)
@@ -1480,7 +1479,7 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->init           = usb_host_initfn;
+    uc->realize        = usb_host_realize;
     uc->product_desc   = "USB Host Device";
     uc->cancel_packet  = usb_host_cancel_packet;
     uc->handle_data    = usb_host_handle_data;
