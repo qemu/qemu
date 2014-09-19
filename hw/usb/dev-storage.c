@@ -624,6 +624,8 @@ static int usb_msd_initfn_storage(USBDevice *dev)
                                          s->conf.bootindex, dev->serial,
                                          &err);
     if (!scsi_dev) {
+        error_report("%s", error_get_pretty(err));
+        error_free(err);
         return -1;
     }
     s->bus.qbus.allow_hotplug = 0;
