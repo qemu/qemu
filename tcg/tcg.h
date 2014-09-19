@@ -706,9 +706,6 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs);
 void tcg_gen_callN(TCGContext *s, void *func,
                    TCGArg ret, int nargs, TCGArg *args);
 
-void tcg_gen_shifti_i64(TCGv_i64 ret, TCGv_i64 arg1,
-                        int c, int right, int arith);
-
 TCGArg *tcg_optimize(TCGContext *s, uint16_t *tcg_opc_ptr, TCGArg *args,
                      TCGOpDef *tcg_op_def);
 
