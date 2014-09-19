@@ -595,7 +595,7 @@ static const struct SCSIBusInfo usb_msd_scsi_info_bot = {
     .load_request = usb_msd_load_request,
 };
 
-static int usb_msd_initfn_storage(USBDevice *dev)
+static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
 {
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
     BlockDriverState *bs = s->conf.bs;
@@ -603,8 +603,8 @@ static int usb_msd_initfn_storage(USBDevice *dev)
     Error *err = NULL;
 
     if (!bs) {
-        error_report("drive property not set");
-        return -1;
+        error_setg(errp, "drive property not set");
+        return;
     }
 
     blkconf_serial(&s->conf, &dev->serial);
@@ -629,9 +629,8 @@ static int usb_msd_initfn_storage(USBDevice *dev)
                                          s->conf.bootindex, dev->serial,
                                          &err);
     if (!scsi_dev) {
-        error_report("%s", error_get_pretty(err));
-        error_free(err);
-        return -1;
+        error_propagate(errp, err);
+        return;
     }
     s->bus.qbus.allow_hotplug = 0;
     usb_msd_handle_reset(dev);
@@ -644,11 +643,9 @@ static int usb_msd_initfn_storage(USBDevice *dev)
             autostart = 0;
         }
     }
-
-    return 0;
 }
 
-static int usb_msd_initfn_bot(USBDevice *dev)
+static void usb_msd_realize_bot(USBDevice *dev, Error **errp)
 {
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
 
@@ -658,8 +655,6 @@ static int usb_msd_initfn_bot(USBDevice *dev)
                  &usb_msd_scsi_info_bot, NULL);
     s->bus.qbus.allow_hotplug = 0;
     usb_msd_handle_reset(dev);
-
-    return 0;
 }
 
 static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
@@ -767,7 +762,7 @@ static void usb_msd_class_initfn_storage(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->init = usb_msd_initfn_storage;
+    uc->realize = usb_msd_realize_storage;
     dc->props = msd_properties;
     usb_msd_class_initfn_common(klass);
 }
@@ -776,7 +771,7 @@ static void usb_msd_class_initfn_bot(ObjectClass *klass, void *data)
 {
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->init = usb_msd_initfn_bot;
+    uc->realize = usb_msd_realize_bot;
     usb_msd_class_initfn_common(klass);
 }
 
