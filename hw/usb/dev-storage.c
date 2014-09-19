@@ -409,19 +409,19 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
         switch (s->mode) {
         case USB_MSDM_CBW:
             if (p->iov.size != 31) {
-                fprintf(stderr, "usb-msd: Bad CBW size");
+                error_report("usb-msd: Bad CBW size");
                 goto fail;
             }
             usb_packet_copy(p, &cbw, 31);
             if (le32_to_cpu(cbw.sig) != 0x43425355) {
-                fprintf(stderr, "usb-msd: Bad signature %08x\n",
-                        le32_to_cpu(cbw.sig));
+                error_report("usb-msd: Bad signature %08x",
+                             le32_to_cpu(cbw.sig));
                 goto fail;
             }
             DPRINTF("Command on LUN %d\n", cbw.lun);
             scsi_dev = scsi_device_find(&s->bus, 0, 0, cbw.lun);
             if (scsi_dev == NULL) {
-                fprintf(stderr, "usb-msd: Bad LUN %d\n", cbw.lun);
+                error_report("usb-msd: Bad LUN %d", cbw.lun);
                 goto fail;
             }
             tag = le32_to_cpu(cbw.tag);
@@ -682,13 +682,13 @@ static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
             pstrcpy(fmt, len, p2);
             qemu_opt_set(opts, "format", fmt);
         } else if (*filename != ':') {
-            printf("unrecognized USB mass-storage option %s\n", filename);
+            error_report("unrecognized USB mass-storage option %s", filename);
             return NULL;
         }
         filename = p1;
     }
     if (!*filename) {
-        printf("block device specification needed\n");
+        error_report("block device specification needed");
         return NULL;
     }
     qemu_opt_set(opts, "file", filename);
