@@ -451,7 +451,6 @@ static void usb_serial_read(void *opaque, const uint8_t *buf, int size)
 static void usb_serial_event(void *opaque, int event)
 {
     USBSerialState *s = opaque;
-    Error *local_err = NULL;
 
     switch (event) {
         case CHR_EVENT_BREAK:
@@ -461,11 +460,7 @@ static void usb_serial_event(void *opaque, int event)
             break;
         case CHR_EVENT_OPENED:
             if (!s->dev.attached) {
-                usb_device_attach(&s->dev, &local_err);
-                if (local_err) {
-                    qerror_report_err(local_err);
-                    error_free(local_err);
-                }
+                usb_device_attach(&s->dev, &error_abort);
             }
             break;
         case CHR_EVENT_CLOSED:
@@ -479,6 +474,7 @@ static void usb_serial_event(void *opaque, int event)
 static void usb_serial_realize(USBDevice *dev, Error **errp)
 {
     USBSerialState *s = DO_UPCAST(USBSerialState, dev, dev);
+    Error *local_err = NULL;
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
@@ -489,12 +485,18 @@ static void usb_serial_realize(USBDevice *dev, Error **errp)
         return;
     }
 
+    usb_check_attach(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     qemu_chr_add_handlers(s->cs, usb_serial_can_read, usb_serial_read,
                           usb_serial_event, s);
     usb_serial_handle_reset(dev);
 
     if (s->cs->be_open && !dev->attached) {
-        usb_device_attach(dev, errp);
+        usb_device_attach(dev, &error_abort);
     }
 }
 
