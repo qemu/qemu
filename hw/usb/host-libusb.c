@@ -275,7 +275,7 @@ static void usb_host_libusb_error(const char *func, int rc)
     } else {
         errname = "?";
     }
-    fprintf(stderr, "%s: %d [%s]\n", func, rc, errname);
+    error_report("%s: %d [%s]", func, rc, errname);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1376,14 +1376,13 @@ static int usb_host_alloc_streams(USBDevice *udev, USBEndpoint **eps,
     if (rc < 0) {
         usb_host_libusb_error("libusb_alloc_streams", rc);
     } else if (rc != streams) {
-        fprintf(stderr,
-            "libusb_alloc_streams: got less streams then requested %d < %d\n",
-            rc, streams);
+        error_report("libusb_alloc_streams: got less streams "
+                     "then requested %d < %d", rc, streams);
     }
 
     return (rc == streams) ? 0 : -1;
 #else
-    fprintf(stderr, "libusb_alloc_streams: error not implemented\n");
+    error_report("libusb_alloc_streams: error not implemented");
     return -1;
 #endif
 }
