@@ -553,6 +553,7 @@ void usb_release_port(USBDevice *dev);
 void usb_device_attach(USBDevice *dev, Error **errp);
 int usb_device_detach(USBDevice *dev);
 int usb_device_delete_addr(int busnr, int addr);
+void usb_check_attach(USBDevice *dev, Error **errp);
 
 static inline USBBus *usb_bus_from_device(USBDevice *d)
 {

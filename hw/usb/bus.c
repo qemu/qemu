@@ -478,7 +478,7 @@ static void usb_mask_to_str(char *dest, size_t size,
     }
 }
 
-void usb_device_attach(USBDevice *dev, Error **errp)
+void usb_check_attach(USBDevice *dev, Error **errp)
 {
     USBBus *bus = usb_bus_from_device(dev);
     USBPort *port = dev->port;
@@ -497,6 +497,18 @@ void usb_device_attach(USBDevice *dev, Error **errp)
                    " to bus \"%s\", port \"%s\" (%s speed)",
                    dev->product_desc, devspeed,
                    bus->qbus.name, port->path, portspeed);
+        return;
+    }
+}
+
+void usb_device_attach(USBDevice *dev, Error **errp)
+{
+    USBPort *port = dev->port;
+    Error *local_err = NULL;
+
+    usb_check_attach(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
