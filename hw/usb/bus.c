@@ -113,8 +113,6 @@ static void usb_device_realize(USBDevice *dev, Error **errp)
 
     if (klass->realize) {
         klass->realize(dev, errp);
-    } else if (klass->init) {
-        klass->init(dev);
     }
 }
 
