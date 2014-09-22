@@ -451,6 +451,7 @@ static void pc_xen_hvm_init(MachineState *machine)
 
 #define PC_I440FX_MACHINE_OPTIONS \
     PC_DEFAULT_MACHINE_OPTIONS, \
+    .family = "pc_piix", \
     .desc = "Standard PC (i440FX + PIIX, 1996)", \
     .hot_add_cpu = pc_hot_add_cpu
 
