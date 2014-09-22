@@ -1416,6 +1416,7 @@ static void machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     QEMUMachine *qm = data;
 
+    mc->family = qm->family;
     mc->name = qm->name;
     mc->alias = qm->alias;
     mc->desc = qm->desc;
@@ -2488,7 +2489,41 @@ static int debugcon_parse(const char *devname)
     return 0;
 }
 
-static MachineClass *machine_parse(const char *name)
+static gint machine_class_cmp(gconstpointer a, gconstpointer b)
+{
+    const MachineClass *mc1 = a, *mc2 = b;
+    int res;
+
+    if (mc1->family == NULL) {
+        if (mc2->family == NULL) {
+            /* Compare standalone machine types against each other; they sort
+             * in increasing order.
+             */
+            return strcmp(object_class_get_name(OBJECT_CLASS(mc1)),
+                          object_class_get_name(OBJECT_CLASS(mc2)));
+        }
+
+        /* Standalone machine types sort after families. */
+        return 1;
+    }
+
+    if (mc2->family == NULL) {
+        /* Families sort before standalone machine types. */
+        return -1;
+    }
+
+    /* Families sort between each other alphabetically increasingly. */
+    res = strcmp(mc1->family, mc2->family);
+    if (res != 0) {
+        return res;
+    }
+
+    /* Within the same family, machine types sort in decreasing order. */
+    return strcmp(object_class_get_name(OBJECT_CLASS(mc2)),
+                  object_class_get_name(OBJECT_CLASS(mc1)));
+}
+
+ static MachineClass *machine_parse(const char *name)
 {
     MachineClass *mc = NULL;
     GSList *el, *machines = object_class_get_list(TYPE_MACHINE, false);
@@ -2504,6 +2539,7 @@ static MachineClass *machine_parse(const char *name)
         error_printf("Use -machine help to list supported machines!\n");
     } else {
         printf("Supported machines are:\n");
+        machines = g_slist_sort(machines, machine_class_cmp);
         for (el = machines; el; el = el->next) {
             MachineClass *mc = el->data;
             if (mc->alias) {

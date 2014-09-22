@@ -1516,6 +1516,7 @@ static void pc_generic_machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     QEMUMachine *qm = data;
 
+    mc->family = qm->family;
     mc->name = qm->name;
     mc->alias = qm->alias;
     mc->desc = qm->desc;

@@ -19,6 +19,7 @@ typedef void QEMUMachineHotAddCPUFunc(const int64_t id, Error **errp);
 typedef int QEMUMachineGetKvmtypeFunc(const char *arg);
 
 struct QEMUMachine {
+    const char *family; /* NULL iff @name identifies a standalone machtype */
     const char *name;
     const char *alias;
     const char *desc;
@@ -76,6 +77,7 @@ struct MachineClass {
     ObjectClass parent_class;
     /*< public >*/
 
+    const char *family; /* NULL iff @name identifies a standalone machtype */
     const char *name;
     const char *alias;
     const char *desc;
