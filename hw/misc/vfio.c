@@ -1250,7 +1250,13 @@ static void vfio_pci_load_rom(VFIODevice *vdev)
 static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
 {
     VFIODevice *vdev = opaque;
-    uint64_t val = ((uint64_t)1 << (size * 8)) - 1;
+    union {
+        uint8_t byte;
+        uint16_t word;
+        uint32_t dword;
+        uint64_t qword;
+    } val;
+    uint64_t data = 0;
 
     /* Load the ROM lazily when the guest tries to read it */
     if (unlikely(!vdev->rom && !vdev->rom_read_failed)) {
@@ -1260,11 +1266,26 @@ static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
     memcpy(&val, vdev->rom + addr,
            (addr < vdev->rom_size) ? MIN(size, vdev->rom_size - addr) : 0);
 
+    switch (size) {
+    case 1:
+        data = val.byte;
+        break;
+    case 2:
+        data = le16_to_cpu(val.word);
+        break;
+    case 4:
+        data = le32_to_cpu(val.dword);
+        break;
+    default:
+        hw_error("vfio: unsupported read size, %d bytes\n", size);
+        break;
+    }
+
     DPRINTF("%s(%04x:%02x:%02x.%x, 0x%"HWADDR_PRIx", 0x%x) = 0x%"PRIx64"\n",
             __func__, vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function, addr, size, val);
+            vdev->host.function, addr, size, data);
 
-    return val;
+    return data;
 }
 
 static void vfio_rom_write(void *opaque, hwaddr addr,
