@@ -502,7 +502,6 @@ usb_mtp_command(int dev, uint16_t code, uint32_t trans, uint32_t arg0, uint32_t 
 usb_mtp_success(int dev, uint32_t trans, uint32_t arg0, uint32_t arg1) "dev %d, trans 0x%x, args 0x%x, 0x%x"
 usb_mtp_error(int dev, uint16_t code, uint32_t trans, uint32_t arg0, uint32_t arg1) "dev %d, code 0x%x, trans 0x%x, args 0x%x, 0x%x"
 usb_mtp_data_in(int dev, uint32_t trans, uint32_t len) "dev %d, trans 0x%x, len %d"
-usb_mtp_data_out(int dev, uint32_t trans, uint32_t len) "dev %d, trans 0x%x, len %d"
 usb_mtp_xfer(int dev, uint32_t ep, uint32_t dlen, uint32_t plen) "dev %d, ep %d, %d/%d"
 usb_mtp_nak(int dev, uint32_t ep) "dev %d, ep %d"
 usb_mtp_stall(int dev, const char *reason) "dev %d, reason: %s"
