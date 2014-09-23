@@ -890,7 +890,7 @@ pvscsi_state(const char* state) "starting %s ..."
 pvscsi_tx_rings_ppn(const char* label, uint64_t ppn) "%s page: %"PRIx64""
 pvscsi_tx_rings_num_pages(const char* label, uint32_t num) "Number of %s pages: %u"
 
-# xen-all.c
+# xen-hvm.c
 xen_ram_alloc(unsigned long ram_addr, unsigned long size) "requested: %#lx, size %#lx"
 xen_client_set_memory(uint64_t start_addr, unsigned long size, bool log_dirty) "%#"PRIx64" size %#lx, log_dirty %i"
 
@@ -899,7 +899,7 @@ xen_map_cache(uint64_t phys_addr) "want %#"PRIx64
 xen_remap_bucket(uint64_t index) "index %#"PRIx64
 xen_map_cache_return(void* ptr) "%p"
 
-# hw/xen/xen_platform.c
+# hw/i386/xen/xen_platform.c
 xen_platform_log(char *s) "xen platform: %s"
 
 # qemu-coroutine.c
@@ -1137,8 +1137,10 @@ savevm_state_complete(void) ""
 savevm_state_cancel(void) ""
 vmstate_save(const char *idstr, const char *vmsd_name) "%s, %s"
 vmstate_load(const char *idstr, const char *vmsd_name) "%s, %s"
-vmstate_load_field_error(const char *field, int ret) "field \"%s\" load failed, ret = %d"
 qemu_announce_self_iter(const char *mac) "%s"
+
+# vmstate.c
+vmstate_load_field_error(const char *field, int ret) "field \"%s\" load failed, ret = %d"
 
 # qemu-file.c
 qemu_file_fclose(void) ""
@@ -1294,7 +1296,7 @@ css_adapter_interrupt(uint8_t isc) "CSS: adapter I/O interrupt (isc %x)"
 virtio_ccw_interpret_ccw(int cssid, int ssid, int schid, int cmd_code) "VIRTIO-CCW: %x.%x.%04x: interpret command %x"
 virtio_ccw_new_device(int cssid, int ssid, int schid, int devno, const char *devno_mode) "VIRTIO-CCW: add subchannel %x.%x.%04x, devno %04x (%s)"
 
-# hw/intc/s390_flic.c
+# hw/intc/s390_flic_kvm.c
 flic_create_device(int err) "flic: create device failed %d"
 flic_no_device_api(int err) "flic: no Device Contral API support %d"
 flic_reset_failed(int err) "flic: reset failed %d"
@@ -1313,10 +1315,12 @@ kvm_vm_ioctl(int type, void *arg) "type 0x%x, arg %p"
 kvm_vcpu_ioctl(int cpu_index, int type, void *arg) "cpu_index %d, type 0x%x, arg %p"
 kvm_run_exit(int cpu_index, uint32_t reason) "cpu_index %d, reason %d"
 kvm_device_ioctl(int fd, int type, void *arg) "dev fd %d, type 0x%x, arg %p"
-kvm_failed_spr_set(int str, const char *msg) "Warning: Unable to set SPR %d to KVM: %s"
-kvm_failed_spr_get(int str, const char *msg) "Warning: Unable to retrieve SPR %d from KVM: %s"
 kvm_failed_reg_get(uint64_t id, const char *msg) "Warning: Unable to retrieve ONEREG %" PRIu64 " from KVM: %s"
 kvm_failed_reg_set(uint64_t id, const char *msg) "Warning: Unable to set ONEREG %" PRIu64 " to KVM: %s"
+
+# target-ppc/kvm.c
+kvm_failed_spr_set(int str, const char *msg) "Warning: Unable to set SPR %d to KVM: %s"
+kvm_failed_spr_get(int str, const char *msg) "Warning: Unable to retrieve SPR %d from KVM: %s"
 
 # TCG related tracing (mostly disabled by default)
 # cpu-exec.c
@@ -1335,7 +1339,7 @@ memory_region_ops_write(void *mr, uint64_t addr, uint64_t value, unsigned size) 
 object_dynamic_cast_assert(const char *type, const char *target, const char *file, int line, const char *func) "%s->%s (%s:%d:%s)"
 object_class_dynamic_cast_assert(const char *type, const char *target, const char *file, int line, const char *func) "%s->%s (%s:%d:%s)"
 
-# hw/xen/xen_pvdevice.c
+# hw/i386/xen/xen_pvdevice.c
 xen_pv_mmio_read(uint64_t addr) "WARNING: read from Xen PV Device MMIO space (address %"PRIx64")"
 xen_pv_mmio_write(uint64_t addr) "WARNING: write to Xen PV Device MMIO space (address %"PRIx64")"
 
@@ -1343,7 +1347,7 @@ xen_pv_mmio_write(uint64_t addr) "WARNING: write to Xen PV Device MMIO space (ad
 pci_cfg_read(const char *dev, unsigned devid, unsigned fnid, unsigned offs, unsigned val) "%s %02u:%u @0x%x -> 0x%x"
 pci_cfg_write(const char *dev, unsigned devid, unsigned fnid, unsigned offs, unsigned val) "%s %02u:%u @0x%x <- 0x%x"
 
-#hw/acpi/memory_hotplug.c
+# hw/acpi/memory_hotplug.c
 mhp_acpi_invalid_slot_selected(uint32_t slot) "0x%"PRIx32
 mhp_acpi_read_addr_lo(uint32_t slot, uint32_t addr) "slot[0x%"PRIx32"] addr lo: 0x%"PRIx32
 mhp_acpi_read_addr_hi(uint32_t slot, uint32_t addr) "slot[0x%"PRIx32"] addr hi: 0x%"PRIx32
@@ -1356,7 +1360,7 @@ mhp_acpi_write_ost_ev(uint32_t slot, uint32_t ev) "slot[0x%"PRIx32"] OST EVENT: 
 mhp_acpi_write_ost_status(uint32_t slot, uint32_t st) "slot[0x%"PRIx32"] OST STATUS: 0x%"PRIx32
 mhp_acpi_clear_insert_evt(uint32_t slot) "slot[0x%"PRIx32"] clear insert event"
 
-#hw/i386/pc.c
+# hw/i386/pc.c
 mhp_pc_dimm_assigned_slot(int slot) "0x%d"
 mhp_pc_dimm_assigned_address(uint64_t addr) "0x%"PRIx64
 
