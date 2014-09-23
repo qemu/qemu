@@ -126,7 +126,9 @@ static void virtio_scsi_iothread_handle_cmd(EventNotifier *notifier)
 
     event_notifier_test_and_clear(notifier);
     while ((req = virtio_scsi_pop_req_vring(s, vring))) {
-        virtio_scsi_handle_cmd_req(s, req);
+        if (virtio_scsi_handle_cmd_req_prepare(s, req)) {
+            virtio_scsi_handle_cmd_req_submit(s, req);
+        }
     }
 }
 

@@ -449,10 +449,9 @@ static void virtio_scsi_fail_cmd_req(VirtIOSCSIReq *req)
     virtio_scsi_complete_cmd_req(req);
 }
 
-void virtio_scsi_handle_cmd_req(VirtIOSCSI *s, VirtIOSCSIReq *req)
+bool virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req)
 {
     VirtIOSCSICommon *vs = &s->parent_obj;
-    int n;
     SCSIDevice *d;
     int rc;
 
@@ -464,14 +463,14 @@ void virtio_scsi_handle_cmd_req(VirtIOSCSI *s, VirtIOSCSIReq *req)
         } else {
             virtio_scsi_bad_req();
         }
-        return;
+        return false;
     }
 
     d = virtio_scsi_device_find(s, req->req.cmd.lun);
     if (!d) {
         req->resp.cmd.response = VIRTIO_SCSI_S_BAD_TARGET;
         virtio_scsi_complete_cmd_req(req);
-        return;
+        return false;
     }
     if (s->dataplane_started && bdrv_get_aio_context(d->conf.bs) != s->ctx) {
         aio_context_acquire(s->ctx);
@@ -487,11 +486,14 @@ void virtio_scsi_handle_cmd_req(VirtIOSCSI *s, VirtIOSCSIReq *req)
             req->sreq->cmd.xfer > req->qsgl.size)) {
         req->resp.cmd.response = VIRTIO_SCSI_S_OVERRUN;
         virtio_scsi_complete_cmd_req(req);
-        return;
+        return false;
     }
+    return true;
+}
 
-    n = scsi_req_enqueue(req->sreq);
-    if (n) {
+void virtio_scsi_handle_cmd_req_submit(VirtIOSCSI *s, VirtIOSCSIReq *req)
+{
+    if (scsi_req_enqueue(req->sreq)) {
         scsi_req_continue(req->sreq);
     }
 }
@@ -507,7 +509,9 @@ static void virtio_scsi_handle_cmd(VirtIODevice *vdev, VirtQueue *vq)
         return;
     }
     while ((req = virtio_scsi_pop_req(s, vq))) {
-        virtio_scsi_handle_cmd_req(s, req);
+        if (virtio_scsi_handle_cmd_req_prepare(s, req)) {
+            virtio_scsi_handle_cmd_req_submit(s, req);
+        }
     }
 }
 
