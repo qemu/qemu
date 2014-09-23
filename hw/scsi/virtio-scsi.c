@@ -754,6 +754,10 @@ void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
         s->cmd_vqs[i] = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE,
                                          cmd);
     }
+
+    if (s->conf.iothread) {
+        virtio_scsi_set_iothread(VIRTIO_SCSI(s), s->conf.iothread);
+    }
 }
 
 /* Disable dataplane thread during live migration since it does not
