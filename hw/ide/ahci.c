@@ -78,8 +78,7 @@ static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
         val = pr->cmd;
         break;
     case PORT_TFDATA:
-        val = ((uint16_t)s->dev[port].port.ifs[0].error << 8) |
-              s->dev[port].port.ifs[0].status;
+        val = pr->tfdata;
         break;
     case PORT_SIG:
         val = pr->sig;
@@ -251,14 +250,13 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
             check_cmd(s, port);
             break;
         case PORT_TFDATA:
-            s->dev[port].port.ifs[0].error = (val >> 8) & 0xff;
-            s->dev[port].port.ifs[0].status = val & 0xff;
+            /* Read Only. */
             break;
         case PORT_SIG:
-            pr->sig = val;
+            /* Read Only */
             break;
         case PORT_SCR_STAT:
-            pr->scr_stat = val;
+            /* Read Only */
             break;
         case PORT_SCR_CTL:
             if (((pr->scr_ctl & AHCI_SCR_SCTL_DET) == 1) &&
@@ -497,6 +495,8 @@ static void ahci_reset_port(AHCIState *s, int port)
     pr->scr_stat = 0;
     pr->scr_err = 0;
     pr->scr_act = 0;
+    pr->tfdata = 0x7F;
+    pr->sig = 0xFFFFFFFF;
     d->busy_slot = -1;
     d->init_d2h_sent = false;
 
@@ -528,16 +528,16 @@ static void ahci_reset_port(AHCIState *s, int port)
 
     s->dev[port].port_state = STATE_RUN;
     if (!ide_state->bs) {
-        s->dev[port].port_regs.sig = 0;
+        pr->sig = 0;
         ide_state->status = SEEK_STAT | WRERR_STAT;
     } else if (ide_state->drive_kind == IDE_CD) {
-        s->dev[port].port_regs.sig = SATA_SIGNATURE_CDROM;
+        pr->sig = SATA_SIGNATURE_CDROM;
         ide_state->lcyl = 0x14;
         ide_state->hcyl = 0xeb;
         DPRINTF(port, "set lcyl = %d\n", ide_state->lcyl);
         ide_state->status = SEEK_STAT | WRERR_STAT | READY_STAT;
     } else {
-        s->dev[port].port_regs.sig = SATA_SIGNATURE_DISK;
+        pr->sig = SATA_SIGNATURE_DISK;
         ide_state->status = SEEK_STAT | WRERR_STAT;
     }
 
@@ -563,7 +563,8 @@ static void debug_print_fis(uint8_t *fis, int cmd_len)
 
 static void ahci_write_fis_sdb(AHCIState *s, int port, uint32_t finished)
 {
-    AHCIPortRegs *pr = &s->dev[port].port_regs;
+    AHCIDevice *ad = &s->dev[port];
+    AHCIPortRegs *pr = &ad->port_regs;
     IDEState *ide_state;
     uint8_t *sdb_fis;
 
@@ -572,8 +573,8 @@ static void ahci_write_fis_sdb(AHCIState *s, int port, uint32_t finished)
         return;
     }
 
-    sdb_fis = &s->dev[port].res_fis[RES_FIS_SDBFIS];
-    ide_state = &s->dev[port].port.ifs[0];
+    sdb_fis = &ad->res_fis[RES_FIS_SDBFIS];
+    ide_state = &ad->port.ifs[0];
 
     /* clear memory */
     *(uint32_t*)sdb_fis = 0;
@@ -582,9 +583,14 @@ static void ahci_write_fis_sdb(AHCIState *s, int port, uint32_t finished)
     sdb_fis[0] = ide_state->error;
     sdb_fis[2] = ide_state->status & 0x77;
     s->dev[port].finished |= finished;
-    *(uint32_t*)(sdb_fis + 4) = cpu_to_le32(s->dev[port].finished);
+    *(uint32_t*)(sdb_fis + 4) = cpu_to_le32(ad->finished);
 
-    ahci_trigger_irq(s, &s->dev[port], PORT_IRQ_SDB_FIS);
+    /* Update shadow registers (except BSY 0x80 and DRQ 0x08) */
+    pr->tfdata = (ad->port.ifs[0].error << 8) |
+        (ad->port.ifs[0].status & 0x77) |
+        (pr->tfdata & 0x88);
+
+    ahci_trigger_irq(s, ad, PORT_IRQ_SDB_FIS);
 }
 
 static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
@@ -642,6 +648,10 @@ static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
     pio_fis[18] = 0;
     pio_fis[19] = 0;
 
+    /* Update shadow registers: */
+    pr->tfdata = (ad->port.ifs[0].error << 8) |
+        ad->port.ifs[0].status;
+
     if (pio_fis[2] & ERR_STAT) {
         ahci_trigger_irq(ad->hba, ad, PORT_IRQ_TF_ERR);
     }
@@ -692,6 +702,10 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
     for (i = 14; i < 20; i++) {
         d2h_fis[i] = 0;
     }
+
+    /* Update shadow registers: */
+    pr->tfdata = (ad->port.ifs[0].error << 8) |
+        ad->port.ifs[0].status;
 
     if (d2h_fis[2] & ERR_STAT) {
         ahci_trigger_irq(ad->hba, ad, PORT_IRQ_TF_ERR);
@@ -791,6 +805,9 @@ static void ncq_cb(void *opaque, int ret)
     NCQTransferState *ncq_tfs = (NCQTransferState *)opaque;
     IDEState *ide_state = &ncq_tfs->drive->port.ifs[0];
 
+    if (ret == -ECANCELED) {
+        return;
+    }
     /* Clear bit for this tag in SActive */
     ncq_tfs->drive->port_regs.scr_act &= ~(1 << ncq_tfs->tag);
 

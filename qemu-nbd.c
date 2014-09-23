@@ -674,7 +674,11 @@ int main(int argc, char **argv)
         snprintf(sockpath, 128, SOCKET_PATH, basename(device));
     }
 
-    qemu_init_main_loop();
+    if (qemu_init_main_loop(&local_err)) {
+        error_report("%s", error_get_pretty(local_err));
+        error_free(local_err);
+        exit(EXIT_FAILURE);
+    }
     bdrv_init();
     atexit(bdrv_close_all);
 

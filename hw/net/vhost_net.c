@@ -28,7 +28,6 @@
 #include <sys/socket.h>
 #include <linux/kvm.h>
 #include <fcntl.h>
-#include <linux/virtio_ring.h>
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -36,6 +35,7 @@
 
 #include <stdio.h>
 
+#include "hw/virtio/virtio_ring.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/virtio-bus.h"
 

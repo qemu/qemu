@@ -73,7 +73,6 @@ typedef struct {
     QEMUSGList *sg;
     uint64_t sector_num;
     DMADirection dir;
-    bool in_cancel;
     int sg_cur_index;
     dma_addr_t sg_cur_byte;
     QEMUIOVector iov;
@@ -125,12 +124,7 @@ static void dma_complete(DMAAIOCB *dbs, int ret)
         qemu_bh_delete(dbs->bh);
         dbs->bh = NULL;
     }
-    if (!dbs->in_cancel) {
-        /* Requests may complete while dma_aio_cancel is in progress.  In
-         * this case, the AIOCB should not be released because it is still
-         * referenced by dma_aio_cancel.  */
-        qemu_aio_release(dbs);
-    }
+    qemu_aio_unref(dbs);
 }
 
 static void dma_bdrv_cb(void *opaque, int ret)
@@ -186,19 +180,14 @@ static void dma_aio_cancel(BlockDriverAIOCB *acb)
     trace_dma_aio_cancel(dbs);
 
     if (dbs->acb) {
-        BlockDriverAIOCB *acb = dbs->acb;
-        dbs->acb = NULL;
-        dbs->in_cancel = true;
-        bdrv_aio_cancel(acb);
-        dbs->in_cancel = false;
+        bdrv_aio_cancel_async(dbs->acb);
     }
-    dbs->common.cb = NULL;
-    dma_complete(dbs, 0);
 }
+
 
 static const AIOCBInfo dma_aiocb_info = {
     .aiocb_size         = sizeof(DMAAIOCB),
-    .cancel             = dma_aio_cancel,
+    .cancel_async       = dma_aio_cancel,
 };
 
 BlockDriverAIOCB *dma_bdrv_io(
@@ -217,7 +206,6 @@ BlockDriverAIOCB *dma_bdrv_io(
     dbs->sg_cur_index = 0;
     dbs->sg_cur_byte = 0;
     dbs->dir = dir;
-    dbs->in_cancel = false;
     dbs->io_func = io_func;
     dbs->bh = NULL;
     qemu_iovec_init(&dbs->iov, sg->nsg);

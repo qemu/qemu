@@ -327,7 +327,6 @@ glusterfs=""
 glusterfs_discard="no"
 glusterfs_zerofill="no"
 archipelago=""
-virtio_blk_data_plane=""
 gtk=""
 gtkabi=""
 vte=""
@@ -1093,9 +1092,8 @@ for opt do
   ;;
   --enable-archipelago) archipelago="yes"
   ;;
-  --disable-virtio-blk-data-plane) virtio_blk_data_plane="no"
-  ;;
-  --enable-virtio-blk-data-plane) virtio_blk_data_plane="yes"
+  --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
+      echo "$0: $opt is obsolete, virtio-blk data-plane is always on" >&2
   ;;
   --disable-gtk) gtk="no"
   ;;
@@ -2944,16 +2942,6 @@ else
 fi
 
 ##########################################
-# adjust virtio-blk-data-plane based on linux-aio
-
-if test "$virtio_blk_data_plane" = "yes" -a \
-	"$linux_aio" != "yes" ; then
-  error_exit "virtio-blk-data-plane requires Linux AIO, please try --enable-linux-aio"
-elif test -z "$virtio_blk_data_plane" ; then
-  virtio_blk_data_plane=$linux_aio
-fi
-
-##########################################
 # attr probe
 
 if test "$attr" != "no" ; then
@@ -4327,7 +4315,6 @@ echo "coroutine backend $coroutine"
 echo "coroutine pool    $coroutine_pool"
 echo "GlusterFS support $glusterfs"
 echo "Archipelago support $archipelago"
-echo "virtio-blk-data-plane $virtio_blk_data_plane"
 echo "gcov              $gcov_tool"
 echo "gcov enabled      $gcov"
 echo "TPM support       $tpm"
@@ -4787,10 +4774,6 @@ fi
 
 if test "$quorum" = "yes" ; then
   echo "CONFIG_QUORUM=y" >> $config_host_mak
-fi
-
-if test "$virtio_blk_data_plane" = "yes" ; then
-  echo 'CONFIG_VIRTIO_BLK_DATA_PLANE=$(CONFIG_VIRTIO)' >> $config_host_mak
 fi
 
 if test "$vhdx" = "yes" ; then

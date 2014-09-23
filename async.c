@@ -289,18 +289,24 @@ static void aio_rfifolock_cb(void *opaque)
     aio_notify(opaque);
 }
 
-AioContext *aio_context_new(void)
+AioContext *aio_context_new(Error **errp)
 {
+    int ret;
     AioContext *ctx;
     ctx = (AioContext *) g_source_new(&aio_source_funcs, sizeof(AioContext));
+    ret = event_notifier_init(&ctx->notifier, false);
+    if (ret < 0) {
+        g_source_destroy(&ctx->source);
+        error_setg_errno(errp, -ret, "Failed to initialize event notifier");
+        return NULL;
+    }
+    aio_set_event_notifier(ctx, &ctx->notifier,
+                           (EventNotifierHandler *)
+                           event_notifier_test_and_clear);
     ctx->pollfds = g_array_new(FALSE, FALSE, sizeof(GPollFD));
     ctx->thread_pool = NULL;
     qemu_mutex_init(&ctx->bh_lock);
     rfifolock_init(&ctx->lock, aio_rfifolock_cb, ctx);
-    event_notifier_init(&ctx->notifier, false);
-    aio_set_event_notifier(ctx, &ctx->notifier, 
-                           (EventNotifierHandler *)
-                           event_notifier_test_and_clear);
     timerlistgroup_init(&ctx->tlg, aio_timerlist_notify, ctx);
 
     return ctx;

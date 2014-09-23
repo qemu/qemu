@@ -14,6 +14,7 @@
 #include <math.h>
 #include "block/aio.h"
 #include "qemu/throttle.h"
+#include "qemu/error-report.h"
 
 static AioContext     *ctx;
 static LeakyBucket    bkt;
@@ -492,10 +493,17 @@ static void test_accounting(void)
 int main(int argc, char **argv)
 {
     GSource *src;
+    Error *local_error = NULL;
 
     init_clocks();
 
-    ctx = aio_context_new();
+    ctx = aio_context_new(&local_error);
+    if (!ctx) {
+        error_report("Failed to create AIO Context: '%s'",
+                     error_get_pretty(local_error));
+        error_free(local_error);
+        exit(1);
+    }
     src = aio_get_g_source(ctx);
     g_source_attach(src, NULL);
     g_source_unref(src);

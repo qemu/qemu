@@ -263,7 +263,8 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
     for key in members:
         assert (members[key] in builtin_types
             or find_struct(members[key])
-            or find_union(members[key])), "Invalid anonymous union member"
+            or find_union(members[key])
+            or find_enum(members[key])), "Invalid anonymous union member"
 
         enum_full_value = generate_enum_full_value(disc_type, key)
         ret += mcgen('''

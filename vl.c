@@ -2968,6 +2968,7 @@ int main(int argc, char **argv, char **envp)
     ram_addr_t maxram_size = default_ram_size;
     uint64_t ram_slots = 0;
     FILE *vmstate_dump_file = NULL;
+    Error *main_loop_err = NULL;
 
     atexit(qemu_run_exit_notifiers);
     error_set_progname(argv[0]);
@@ -3998,8 +3999,8 @@ int main(int argc, char **argv, char **envp)
 
     os_daemonize();
 
-    if (qemu_init_main_loop()) {
-        fprintf(stderr, "qemu_init_main_loop failed\n");
+    if (qemu_init_main_loop(&main_loop_err)) {
+        error_report("%s", error_get_pretty(main_loop_err));
         exit(1);
     }
 

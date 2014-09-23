@@ -14,7 +14,7 @@
 
 #include <linux/ioctl.h>
 #include <linux/virtio_config.h>
-#include <linux/virtio_ring.h>
+#include "hw/virtio/virtio_ring.h"
 
 struct vhost_vring_state {
 	unsigned int index;

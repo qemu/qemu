@@ -77,7 +77,6 @@ typedef struct RBDAIOCB {
     int64_t sector_num;
     int error;
     struct BDRVRBDState *s;
-    int cancelled;
     int status;
 } RBDAIOCB;
 
@@ -408,9 +407,7 @@ static void qemu_rbd_complete_aio(RADOSCB *rcb)
     acb->common.cb(acb->common.opaque, (acb->ret > 0 ? 0 : acb->ret));
     acb->status = 0;
 
-    if (!acb->cancelled) {
-        qemu_aio_release(acb);
-    }
+    qemu_aio_unref(acb);
 }
 
 /* TODO Convert to fine grained options */
@@ -539,25 +536,8 @@ static void qemu_rbd_close(BlockDriverState *bs)
     rados_shutdown(s->cluster);
 }
 
-/*
- * Cancel aio. Since we don't reference acb in a non qemu threads,
- * it is safe to access it here.
- */
-static void qemu_rbd_aio_cancel(BlockDriverAIOCB *blockacb)
-{
-    RBDAIOCB *acb = (RBDAIOCB *) blockacb;
-    acb->cancelled = 1;
-
-    while (acb->status == -EINPROGRESS) {
-        aio_poll(bdrv_get_aio_context(acb->common.bs), true);
-    }
-
-    qemu_aio_release(acb);
-}
-
 static const AIOCBInfo rbd_aiocb_info = {
     .aiocb_size = sizeof(RBDAIOCB),
-    .cancel = qemu_rbd_aio_cancel,
 };
 
 static void rbd_finish_bh(void *opaque)
@@ -640,7 +620,6 @@ static BlockDriverAIOCB *rbd_start_aio(BlockDriverState *bs,
     acb->ret = 0;
     acb->error = 0;
     acb->s = s;
-    acb->cancelled = 0;
     acb->bh = NULL;
     acb->status = -EINPROGRESS;
 
@@ -692,7 +671,7 @@ failed_completion:
 failed:
     g_free(rcb);
     qemu_vfree(acb->bounce);
-    qemu_aio_release(acb);
+    qemu_aio_unref(acb);
     return NULL;
 }
 

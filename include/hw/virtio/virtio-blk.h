@@ -132,10 +132,8 @@ typedef struct VirtIOBlock {
     VMChangeStateEntry *change;
     /* Function to push to vq and notify guest */
     void (*complete_request)(struct VirtIOBlockReq *req, unsigned char status);
-#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
     Notifier migration_state_notifier;
     struct VirtIOBlockDataPlane *dataplane;
-#endif
 } VirtIOBlock;
 
 typedef struct MultiReqBuffer {

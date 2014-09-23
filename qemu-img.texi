@@ -228,8 +228,8 @@ compression is read-only. It means that if a compressed sector is
 rewritten, then it is rewritten as uncompressed data.
 
 Image conversion is also useful to get smaller image when using a
-growable format such as @code{qcow} or @code{cow}: the empty sectors
-are detected and suppressed from the destination image.
+growable format such as @code{qcow}: the empty sectors are detected and
+suppressed from the destination image.
 
 @var{sparse_size} indicates the consecutive number of bytes (defaults to 4k)
 that must contain only zeros for qemu-img to create a sparse image during

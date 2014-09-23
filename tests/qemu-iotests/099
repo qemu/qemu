@@ -41,7 +41,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # Basically all formats, but "raw" has issues with _filter_imgfmt regarding the
 # raw comparison image for blkverify; also, all images have to support creation
-_supported_fmt cow qcow qcow2 qed vdi vhdx vmdk vpc
+_supported_fmt qcow qcow2 qed vdi vhdx vmdk vpc
 _supported_proto file
 _supported_os Linux
 

@@ -88,7 +88,7 @@ static void win32_aio_process_completion(QEMUWin32AIOState *s,
 
 
     waiocb->common.cb(waiocb->common.opaque, ret);
-    qemu_aio_release(waiocb);
+    qemu_aio_unref(waiocb);
 }
 
 static void win32_aio_completion_cb(EventNotifier *e)
@@ -106,22 +106,8 @@ static void win32_aio_completion_cb(EventNotifier *e)
     }
 }
 
-static void win32_aio_cancel(BlockDriverAIOCB *blockacb)
-{
-    QEMUWin32AIOCB *waiocb = (QEMUWin32AIOCB *)blockacb;
-
-    /*
-     * CancelIoEx is only supported in Vista and newer.  For now, just
-     * wait for completion.
-     */
-    while (!HasOverlappedIoCompleted(&waiocb->ov)) {
-        aio_poll(bdrv_get_aio_context(blockacb->bs), true);
-    }
-}
-
 static const AIOCBInfo win32_aiocb_info = {
     .aiocb_size         = sizeof(QEMUWin32AIOCB),
-    .cancel             = win32_aio_cancel,
 };
 
 BlockDriverAIOCB *win32_aio_submit(BlockDriverState *bs,
@@ -172,7 +158,7 @@ BlockDriverAIOCB *win32_aio_submit(BlockDriverState *bs,
 out_dec_count:
     aio->count--;
 out:
-    qemu_aio_release(waiocb);
+    qemu_aio_unref(waiocb);
     return NULL;
 }
 

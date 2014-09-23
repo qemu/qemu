@@ -177,6 +177,8 @@ const int %(name)s_qtypes[QTYPE_MAX] = {
             qtype = "QTYPE_QDICT"
         elif find_union(qapi_type):
             qtype = "QTYPE_QDICT"
+        elif find_enum(qapi_type):
+            qtype = "QTYPE_QSTRING"
         else:
             assert False, "Invalid anonymous union member"
 

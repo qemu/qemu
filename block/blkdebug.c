@@ -52,11 +52,8 @@ typedef struct BlkdebugSuspendedReq {
     QLIST_ENTRY(BlkdebugSuspendedReq) next;
 } BlkdebugSuspendedReq;
 
-static void blkdebug_aio_cancel(BlockDriverAIOCB *blockacb);
-
 static const AIOCBInfo blkdebug_aiocb_info = {
-    .aiocb_size = sizeof(BlkdebugAIOCB),
-    .cancel     = blkdebug_aio_cancel,
+    .aiocb_size    = sizeof(BlkdebugAIOCB),
 };
 
 enum {
@@ -447,17 +444,7 @@ static void error_callback_bh(void *opaque)
     struct BlkdebugAIOCB *acb = opaque;
     qemu_bh_delete(acb->bh);
     acb->common.cb(acb->common.opaque, acb->ret);
-    qemu_aio_release(acb);
-}
-
-static void blkdebug_aio_cancel(BlockDriverAIOCB *blockacb)
-{
-    BlkdebugAIOCB *acb = container_of(blockacb, BlkdebugAIOCB, common);
-    if (acb->bh) {
-        qemu_bh_delete(acb->bh);
-        acb->bh = NULL;
-    }
-    qemu_aio_release(acb);
+    qemu_aio_unref(acb);
 }
 
 static BlockDriverAIOCB *inject_error(BlockDriverState *bs,

@@ -2879,6 +2879,7 @@ int main(int argc, char **argv)
 {
     const img_cmd_t *cmd;
     const char *cmdname;
+    Error *local_error = NULL;
     int c;
     static const struct option long_options[] = {
         {"help", no_argument, 0, 'h'},
@@ -2893,7 +2894,12 @@ int main(int argc, char **argv)
     error_set_progname(argv[0]);
     qemu_init_exec_dir(argv[0]);
 
-    qemu_init_main_loop();
+    if (qemu_init_main_loop(&local_error)) {
+        error_report("%s", error_get_pretty(local_error));
+        error_free(local_error);
+        exit(EXIT_FAILURE);
+    }
+
     bdrv_init();
     if (argc < 2) {
         error_exit("Not enough arguments");

@@ -26,7 +26,8 @@ typedef struct BlockDriverAIOCB BlockDriverAIOCB;
 typedef void BlockDriverCompletionFunc(void *opaque, int ret);
 
 typedef struct AIOCBInfo {
-    void (*cancel)(BlockDriverAIOCB *acb);
+    void (*cancel_async)(BlockDriverAIOCB *acb);
+    AioContext *(*get_aio_context)(BlockDriverAIOCB *acb);
     size_t aiocb_size;
 } AIOCBInfo;
 
@@ -35,11 +36,13 @@ struct BlockDriverAIOCB {
     BlockDriverState *bs;
     BlockDriverCompletionFunc *cb;
     void *opaque;
+    int refcnt;
 };
 
 void *qemu_aio_get(const AIOCBInfo *aiocb_info, BlockDriverState *bs,
                    BlockDriverCompletionFunc *cb, void *opaque);
-void qemu_aio_release(void *p);
+void qemu_aio_unref(void *p);
+void qemu_aio_ref(void *p);
 
 typedef struct AioHandler AioHandler;
 typedef void QEMUBHFunc(void *opaque);
@@ -99,7 +102,7 @@ void aio_set_dispatching(AioContext *ctx, bool dispatching);
  * They also provide bottom halves, a service to execute a piece of code
  * as soon as possible.
  */
-AioContext *aio_context_new(void);
+AioContext *aio_context_new(Error **errp);
 
 /**
  * aio_context_ref:

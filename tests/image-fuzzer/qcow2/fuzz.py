@@ -18,8 +18,8 @@
 
 import random
 
-
 UINT8 = 0xff
+UINT16 = 0xffff
 UINT32 = 0xffffffff
 UINT64 = 0xffffffffffffffff
 # Most significant bit orders
@@ -28,6 +28,8 @@ UINT64_M = 63
 # Fuzz vectors
 UINT8_V = [0, 0x10, UINT8/4, UINT8/2 - 1, UINT8/2, UINT8/2 + 1, UINT8 - 1,
            UINT8]
+UINT16_V = [0, 0x100, 0x1000, UINT16/4, UINT16/2 - 1, UINT16/2, UINT16/2 + 1,
+            UINT16 - 1, UINT16]
 UINT32_V = [0, 0x100, 0x1000, 0x10000, 0x100000, UINT32/4, UINT32/2 - 1,
             UINT32/2, UINT32/2 + 1, UINT32 - 1, UINT32]
 UINT64_V = UINT32_V + [0x1000000, 0x10000000, 0x100000000, UINT64/4,
@@ -332,9 +334,8 @@ def l1_entry(current):
     constraints = UINT64_V
     # Reserved bits are ignored
     # Added a possibility when only flags are fuzzed
-    offset = 0x7fffffffffffffff & random.choice([selector(current,
-                                                          constraints),
-                                                 current])
+    offset = 0x7fffffffffffffff & \
+             random.choice([selector(current, constraints), current])
     is_cow = random.randint(0, 1)
     return offset + (is_cow << UINT64_M)
 
@@ -344,12 +345,23 @@ def l2_entry(current):
     constraints = UINT64_V
     # Reserved bits are ignored
     # Add a possibility when only flags are fuzzed
-    offset = 0x3ffffffffffffffe & random.choice([selector(current,
-                                                          constraints),
-                                                 current])
+    offset = 0x3ffffffffffffffe & \
+             random.choice([selector(current, constraints), current])
     is_compressed = random.randint(0, 1)
     is_cow = random.randint(0, 1)
     is_zero = random.randint(0, 1)
     value = offset + (is_cow << UINT64_M) + \
             (is_compressed << UINT64_M - 1) + is_zero
     return value
+
+
+def refcount_table_entry(current):
+    """Fuzz an entry of the refcount table."""
+    constraints = UINT64_V
+    return selector(current, constraints)
+
+
+def refcount_block_entry(current):
+    """Fuzz an entry of a refcount block."""
+    constraints = UINT16_V
+    return selector(current, constraints)

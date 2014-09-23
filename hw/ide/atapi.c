@@ -136,6 +136,7 @@ void ide_atapi_cmd_ok(IDEState *s)
     s->error = 0;
     s->status = READY_STAT | SEEK_STAT;
     s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO | ATAPI_INT_REASON_CD;
+    ide_transfer_stop(s);
     ide_set_irq(s->bus);
 }
 
@@ -149,6 +150,7 @@ void ide_atapi_cmd_error(IDEState *s, int sense_key, int asc)
     s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO | ATAPI_INT_REASON_CD;
     s->sense_key = sense_key;
     s->asc = asc;
+    ide_transfer_stop(s);
     ide_set_irq(s->bus);
 }
 
@@ -176,9 +178,7 @@ void ide_atapi_cmd_reply_end(IDEState *s)
 #endif
     if (s->packet_transfer_size <= 0) {
         /* end of transfer */
-        s->status = READY_STAT | SEEK_STAT;
-        s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO | ATAPI_INT_REASON_CD;
-        ide_transfer_stop(s);
+        ide_atapi_cmd_ok(s);
         ide_set_irq(s->bus);
 #ifdef DEBUG_IDE_ATAPI
         printf("status=0x%x\n", s->status);
@@ -188,7 +188,6 @@ void ide_atapi_cmd_reply_end(IDEState *s)
         if (s->lba != -1 && s->io_buffer_index >= s->cd_sector_size) {
             ret = cd_read_sector(s, s->lba, s->io_buffer, s->cd_sector_size);
             if (ret < 0) {
-                ide_transfer_stop(s);
                 ide_atapi_io_error(s, ret);
                 return;
             }
