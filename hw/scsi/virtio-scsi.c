@@ -20,6 +20,7 @@
 #include <block/scsi.h>
 #include <hw/virtio/virtio-bus.h>
 #include "hw/virtio/virtio-access.h"
+#include "migration/migration.h"
 
 static inline int virtio_scsi_get_lun(uint8_t *lun)
 {
@@ -357,7 +358,7 @@ static void virtio_scsi_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
     VirtIOSCSI *s = (VirtIOSCSI *)vdev;
     VirtIOSCSIReq *req;
 
-    if (s->ctx) {
+    if (s->ctx && !s->dataplane_disabled) {
         virtio_scsi_dataplane_start(s);
         return;
     }
@@ -501,7 +502,7 @@ static void virtio_scsi_handle_cmd(VirtIODevice *vdev, VirtQueue *vq)
     VirtIOSCSI *s = (VirtIOSCSI *)vdev;
     VirtIOSCSIReq *req;
 
-    if (s->ctx) {
+    if (s->ctx && !s->dataplane_disabled) {
         virtio_scsi_dataplane_start(s);
         return;
     }
@@ -651,7 +652,7 @@ static void virtio_scsi_handle_event(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 
-    if (s->ctx) {
+    if (s->ctx && !s->dataplane_disabled) {
         virtio_scsi_dataplane_start(s);
         return;
     }
@@ -742,6 +743,31 @@ void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
     }
 }
 
+/* Disable dataplane thread during live migration since it does not
+ * update the dirty memory bitmap yet.
+ */
+static void virtio_scsi_migration_state_changed(Notifier *notifier, void *data)
+{
+    VirtIOSCSI *s = container_of(notifier, VirtIOSCSI,
+                                 migration_state_notifier);
+    MigrationState *mig = data;
+
+    if (migration_in_setup(mig)) {
+        if (!s->dataplane_started) {
+            return;
+        }
+        virtio_scsi_dataplane_stop(s);
+        s->dataplane_disabled = true;
+    } else if (migration_has_finished(mig) ||
+               migration_has_failed(mig)) {
+        if (s->dataplane_started) {
+            return;
+        }
+        bdrv_drain_all(); /* complete in-flight non-dataplane requests */
+        s->dataplane_disabled = false;
+    }
+}
+
 static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -770,6 +796,8 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
 
     register_savevm(dev, "virtio-scsi", virtio_scsi_id++, 1,
                     virtio_scsi_save, virtio_scsi_load, s);
+    s->migration_state_notifier.notify = virtio_scsi_migration_state_changed;
+    add_migration_state_change_notifier(&s->migration_state_notifier);
 }
 
 static void virtio_scsi_instance_init(Object *obj)
@@ -796,6 +824,7 @@ static void virtio_scsi_device_unrealize(DeviceState *dev, Error **errp)
     VirtIOSCSI *s = VIRTIO_SCSI(dev);
 
     unregister_savevm(dev, "virtio-scsi", s);
+    remove_migration_state_change_notifier(&s->migration_state_notifier);
 
     virtio_scsi_common_unrealize(dev, errp);
 }
