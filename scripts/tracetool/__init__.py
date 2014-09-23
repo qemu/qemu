@@ -139,8 +139,8 @@ class Event(object):
 
     """
 
-    _CRE = re.compile("((?P<props>.*)\s+)?"
-                      "(?P<name>[^(\s]+)"
+    _CRE = re.compile("((?P<props>[\w\s]+)\s+)?"
+                      "(?P<name>\w+)"
                       "\((?P<args>[^)]*)\)"
                       "\s*"
                       "(?:(?:(?P<fmt_trans>\".+),)?\s*(?P<fmt>\".+))?"
