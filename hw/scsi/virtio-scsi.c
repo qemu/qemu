@@ -488,6 +488,8 @@ bool virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req)
         virtio_scsi_complete_cmd_req(req);
         return false;
     }
+    scsi_req_ref(req->sreq);
+    bdrv_io_plug(d->conf.bs);
     return true;
 }
 
@@ -496,6 +498,8 @@ void virtio_scsi_handle_cmd_req_submit(VirtIOSCSI *s, VirtIOSCSIReq *req)
     if (scsi_req_enqueue(req->sreq)) {
         scsi_req_continue(req->sreq);
     }
+    bdrv_io_unplug(req->sreq->dev->conf.bs);
+    scsi_req_unref(req->sreq);
 }
 
 static void virtio_scsi_handle_cmd(VirtIODevice *vdev, VirtQueue *vq)
