@@ -724,8 +724,6 @@ megasas_io_target_not_present(int cmd, const char *frame, int dev, int lun) "scm
 megasas_io_read_start(int cmd, unsigned long lba, unsigned long count, unsigned long len) "scmd %d: start LBA %lx %lu blocks (%lu bytes)"
 megasas_io_write_start(int cmd, unsigned long lba, unsigned long count, unsigned long len) "scmd %d: start LBA %lx %lu blocks (%lu bytes)"
 megasas_io_complete(int cmd, uint32_t len) "scmd %d: %d bytes completed"
-megasas_io_read(int cmd, int bytes, int len, unsigned long offset) "scmd %d: %d/%d bytes, iov offset %lu"
-megasas_io_write(int cmd, int bytes, int len, unsigned long offset) "scmd %d: %d/%d bytes, iov offset %lu"
 megasas_iovec_sgl_overflow(int cmd, int index, int limit) "scmd %d: iovec count %d limit %d"
 megasas_iovec_sgl_underflow(int cmd, int index) "scmd %d: iovec count %d"
 megasas_iovec_sgl_invalid(int cmd, int index, uint64_t pa, uint32_t len) "scmd %d: element %d pa %" PRIx64 " len %u"
