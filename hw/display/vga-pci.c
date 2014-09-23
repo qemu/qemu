@@ -35,10 +35,18 @@
 #define PCI_VGA_IOPORT_SIZE   (0x3e0 - 0x3c0)
 #define PCI_VGA_BOCHS_OFFSET  0x500
 #define PCI_VGA_BOCHS_SIZE    (0x0b * 2)
+#define PCI_VGA_QEXT_OFFSET   0x600
+#define PCI_VGA_QEXT_SIZE     (2 * 4)
 #define PCI_VGA_MMIO_SIZE     0x1000
+
+#define PCI_VGA_QEXT_REG_SIZE         (0 * 4)
+#define PCI_VGA_QEXT_REG_BYTEORDER    (1 * 4)
+#define  PCI_VGA_QEXT_LITTLE_ENDIAN   0x1e1e1e1e
+#define  PCI_VGA_QEXT_BIG_ENDIAN      0xbebebebe
 
 enum vga_pci_flags {
     PCI_VGA_FLAG_ENABLE_MMIO = 1,
+    PCI_VGA_FLAG_ENABLE_QEXT = 2,
 };
 
 typedef struct PCIVGAState {
@@ -48,6 +56,7 @@ typedef struct PCIVGAState {
     MemoryRegion mmio;
     MemoryRegion ioport;
     MemoryRegion bochs;
+    MemoryRegion qext;
 } PCIVGAState;
 
 static const VMStateDescription vmstate_vga_pci = {
@@ -140,6 +149,46 @@ static const MemoryRegionOps pci_vga_bochs_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static uint64_t pci_vga_qext_read(void *ptr, hwaddr addr, unsigned size)
+{
+    PCIVGAState *d = ptr;
+
+    switch (addr) {
+    case PCI_VGA_QEXT_REG_SIZE:
+        return PCI_VGA_QEXT_SIZE;
+    case PCI_VGA_QEXT_REG_BYTEORDER:
+        return d->vga.big_endian_fb ?
+            PCI_VGA_QEXT_BIG_ENDIAN : PCI_VGA_QEXT_LITTLE_ENDIAN;
+    default:
+        return 0;
+    }
+}
+
+static void pci_vga_qext_write(void *ptr, hwaddr addr,
+                               uint64_t val, unsigned size)
+{
+    PCIVGAState *d = ptr;
+
+    switch (addr) {
+    case PCI_VGA_QEXT_REG_BYTEORDER:
+        if (val == PCI_VGA_QEXT_BIG_ENDIAN) {
+            d->vga.big_endian_fb = true;
+        }
+        if (val == PCI_VGA_QEXT_LITTLE_ENDIAN) {
+            d->vga.big_endian_fb = false;
+        }
+        break;
+    }
+}
+
+static const MemoryRegionOps pci_vga_qext_ops = {
+    .read = pci_vga_qext_read,
+    .write = pci_vga_qext_write,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
 static int pci_std_vga_initfn(PCIDevice *dev)
 {
     PCIVGAState *d = DO_UPCAST(PCIVGAState, dev, dev);
@@ -167,6 +216,15 @@ static int pci_std_vga_initfn(PCIDevice *dev)
                                     &d->ioport);
         memory_region_add_subregion(&d->mmio, PCI_VGA_BOCHS_OFFSET,
                                     &d->bochs);
+
+        if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_QEXT)) {
+            memory_region_init_io(&d->qext, NULL, &pci_vga_qext_ops, d,
+                                  "qemu extended regs", PCI_VGA_QEXT_SIZE);
+            memory_region_add_subregion(&d->mmio, PCI_VGA_QEXT_OFFSET,
+                                        &d->qext);
+            pci_set_byte(&d->dev.config[PCI_REVISION_ID], 2);
+        }
+
         pci_register_bar(&d->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
     }
 
@@ -199,6 +257,14 @@ static int pci_secondary_vga_initfn(PCIDevice *dev)
     memory_region_add_subregion(&d->mmio, PCI_VGA_BOCHS_OFFSET,
                                 &d->bochs);
 
+    if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_QEXT)) {
+        memory_region_init_io(&d->qext, NULL, &pci_vga_qext_ops, d,
+                              "qemu extended regs", PCI_VGA_QEXT_SIZE);
+        memory_region_add_subregion(&d->mmio, PCI_VGA_QEXT_OFFSET,
+                                    &d->qext);
+        pci_set_byte(&d->dev.config[PCI_REVISION_ID], 2);
+    }
+
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->vram);
     pci_register_bar(&d->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
 
@@ -215,11 +281,15 @@ static void pci_secondary_vga_reset(DeviceState *dev)
 static Property vga_pci_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", PCIVGAState, vga.vram_size_mb, 16),
     DEFINE_PROP_BIT("mmio", PCIVGAState, flags, PCI_VGA_FLAG_ENABLE_MMIO, true),
+    DEFINE_PROP_BIT("qemu-extended-regs",
+                    PCIVGAState, flags, PCI_VGA_FLAG_ENABLE_QEXT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static Property secondary_pci_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", PCIVGAState, vga.vram_size_mb, 16),
+    DEFINE_PROP_BIT("qemu-extended-regs",
+                    PCIVGAState, flags, PCI_VGA_FLAG_ENABLE_QEXT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
