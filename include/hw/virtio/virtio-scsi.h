@@ -213,6 +213,10 @@ typedef struct VirtIOSCSIReq {
     VirtQueueElement elem;
     /* Set by dataplane code. */
     VirtIOSCSIVring *vring;
+
+    /* Used for two-stage request submission */
+    QTAILQ_ENTRY(VirtIOSCSIReq) next;
+
     SCSIRequest *sreq;
     size_t resp_size;
     enum SCSIXferMode mode;

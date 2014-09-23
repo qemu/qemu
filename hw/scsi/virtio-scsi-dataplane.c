@@ -122,13 +122,18 @@ static void virtio_scsi_iothread_handle_cmd(EventNotifier *notifier)
     VirtIOSCSIVring *vring = container_of(notifier,
                                           VirtIOSCSIVring, host_notifier);
     VirtIOSCSI *s = (VirtIOSCSI *)vring->parent;
-    VirtIOSCSIReq *req;
+    VirtIOSCSIReq *req, *next;
+    QTAILQ_HEAD(, VirtIOSCSIReq) reqs = QTAILQ_HEAD_INITIALIZER(reqs);
 
     event_notifier_test_and_clear(notifier);
     while ((req = virtio_scsi_pop_req_vring(s, vring))) {
         if (virtio_scsi_handle_cmd_req_prepare(s, req)) {
-            virtio_scsi_handle_cmd_req_submit(s, req);
+            QTAILQ_INSERT_TAIL(&reqs, req, next);
         }
+    }
+
+    QTAILQ_FOREACH_SAFE(req, &reqs, next, next) {
+        virtio_scsi_handle_cmd_req_submit(s, req);
     }
 }
 
