@@ -182,6 +182,18 @@ typedef struct VirtIOSCSI {
     SCSIBus bus;
     int resetting;
     bool events_dropped;
+
+    /* Fields for dataplane below */
+    AioContext *ctx; /* one iothread per virtio-scsi-pci for now */
+
+    /* Vring is used instead of vq in dataplane code, because of the underlying
+     * memory layer thread safety */
+    VirtIOSCSIVring *ctrl_vring;
+    VirtIOSCSIVring *event_vring;
+    VirtIOSCSIVring **cmd_vrings;
+    bool dataplane_started;
+    bool dataplane_starting;
+    bool dataplane_stopping;
 } VirtIOSCSI;
 
 typedef struct VirtIOSCSIReq {
@@ -247,5 +259,12 @@ VirtIOSCSIReq *virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq);
 void virtio_scsi_free_req(VirtIOSCSIReq *req);
 void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
                             uint32_t event, uint32_t reason);
+
+void virtio_scsi_set_iothread(VirtIOSCSI *s, IOThread *iothread);
+void virtio_scsi_dataplane_start(VirtIOSCSI *s);
+void virtio_scsi_dataplane_stop(VirtIOSCSI *s);
+void virtio_scsi_vring_push_notify(VirtIOSCSIReq *req);
+VirtIOSCSIReq *virtio_scsi_pop_req_vring(VirtIOSCSI *s,
+                                         VirtIOSCSIVring *vring);
 
 #endif /* _QEMU_VIRTIO_SCSI_H */

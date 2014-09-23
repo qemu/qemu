@@ -8,6 +8,6 @@ common-obj-$(CONFIG_ESP_PCI) += esp-pci.o
 obj-$(CONFIG_PSERIES) += spapr_vscsi.o
 
 ifeq ($(CONFIG_VIRTIO),y)
-obj-y += virtio-scsi.o
+obj-y += virtio-scsi.o virtio-scsi-dataplane.o
 obj-$(CONFIG_VHOST_SCSI) += vhost-scsi.o
 endif
