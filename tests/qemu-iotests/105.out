@@ -1,0 +1,21 @@
+QA output created by 105
+
+creating large image
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=17592186044416
+
+small read
+read 4096/4096 bytes at offset 1024
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+small write
+wrote 4096/4096 bytes at offset 8192
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+small read at high offset
+read 4096/4096 bytes at offset 15393162788864
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+small write at high offset
+wrote 4096/4096 bytes at offset 15393162788864
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+*** done
