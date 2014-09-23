@@ -18,7 +18,7 @@ Contents:
 * RDMA Migration Protocol Description
 * Versioning and Capabilities
 * QEMUFileRDMA Interface
-* Migration of pc.ram
+* Migration of VM's ram
 * Error handling
 * TODO
 
@@ -149,7 +149,7 @@ The only difference between a SEND message and an RDMA
 message is that SEND messages cause notifications
 to be posted to the completion queue (CQ) on the
 infiniband receiver side, whereas RDMA messages (used
-for pc.ram) do not (to behave like an actual DMA).
+for VM's ram) do not (to behave like an actual DMA).
 
 Messages in infiniband require two things:
 
@@ -355,7 +355,7 @@ If the buffer is empty, then we follow the same steps
 listed above and issue another "QEMU File" protocol command,
 asking for a new SEND message to re-fill the buffer.
 
-Migration of pc.ram:
+Migration of VM's ram:
 ====================
 
 At the beginning of the migration, (migration-rdma.c),
