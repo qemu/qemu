@@ -566,7 +566,7 @@ static void usb_hid_handle_destroy(USBDevice *dev)
     hid_free(&us->hid);
 }
 
-static int usb_hid_initfn(USBDevice *dev, int kind)
+static void usb_hid_initfn(USBDevice *dev, int kind)
 {
     USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
 
@@ -579,10 +579,9 @@ static int usb_hid_initfn(USBDevice *dev, int kind)
     if (us->display && us->hid.s) {
         qemu_input_handler_bind(us->hid.s, us->display, us->head, NULL);
     }
-    return 0;
 }
 
-static int usb_tablet_initfn(USBDevice *dev)
+static void usb_tablet_realize(USBDevice *dev, Error **errp)
 {
     USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
 
@@ -594,22 +593,22 @@ static int usb_tablet_initfn(USBDevice *dev)
         dev->usb_desc = &desc_tablet2;
         break;
     default:
-        error_report("Invalid usb version %d for usb-tabler (must be 1 or 2)",
-                     us->usb_version);
-        return -1;
+        error_setg(errp, "Invalid usb version %d for usb-tablet "
+                   "(must be 1 or 2)", us->usb_version);
+        return;
     }
 
-    return usb_hid_initfn(dev, HID_TABLET);
+    usb_hid_initfn(dev, HID_TABLET);
 }
 
-static int usb_mouse_initfn(USBDevice *dev)
+static void usb_mouse_realize(USBDevice *dev, Error **errp)
 {
-    return usb_hid_initfn(dev, HID_MOUSE);
+    usb_hid_initfn(dev, HID_MOUSE);
 }
 
-static int usb_keyboard_initfn(USBDevice *dev)
+static void usb_keyboard_realize(USBDevice *dev, Error **errp)
 {
-    return usb_hid_initfn(dev, HID_KEYBOARD);
+    usb_hid_initfn(dev, HID_KEYBOARD);
 }
 
 static int usb_ptr_post_load(void *opaque, int version_id)
@@ -669,7 +668,7 @@ static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     usb_hid_class_initfn(klass, data);
-    uc->init           = usb_tablet_initfn;
+    uc->realize        = usb_tablet_realize;
     uc->product_desc   = "QEMU USB Tablet";
     dc->vmsd = &vmstate_usb_ptr;
     dc->props = usb_tablet_properties;
@@ -689,7 +688,7 @@ static void usb_mouse_class_initfn(ObjectClass *klass, void *data)
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     usb_hid_class_initfn(klass, data);
-    uc->init           = usb_mouse_initfn;
+    uc->realize        = usb_mouse_realize;
     uc->product_desc   = "QEMU USB Mouse";
     uc->usb_desc       = &desc_mouse;
     dc->vmsd = &vmstate_usb_ptr;
@@ -714,7 +713,7 @@ static void usb_keyboard_class_initfn(ObjectClass *klass, void *data)
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     usb_hid_class_initfn(klass, data);
-    uc->init           = usb_keyboard_initfn;
+    uc->realize        = usb_keyboard_realize;
     uc->product_desc   = "QEMU USB Keyboard";
     uc->usb_desc       = &desc_keyboard;
     dc->vmsd = &vmstate_usb_kbd;

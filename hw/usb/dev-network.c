@@ -27,7 +27,7 @@
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "net/net.h"
-#include "qapi/qmp/qerror.h"
+#include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "qemu/config-file.h"
 #include "sysemu/sysemu.h"
@@ -1341,7 +1341,7 @@ static NetClientInfo net_usbnet_info = {
     .cleanup = usbnet_cleanup,
 };
 
-static int usb_net_initfn(USBDevice *dev)
+static void usb_net_realize(USBDevice *dev, Error **errrp)
 {
     USBNetState *s = DO_UPCAST(USBNetState, dev, dev);
 
@@ -1373,7 +1373,6 @@ static int usb_net_initfn(USBDevice *dev)
     usb_desc_set_string(dev, STRING_ETHADDR, s->usbstring_mac);
 
     add_boot_device_path(s->conf.bootindex, &dev->qdev, "/ethernet@0");
-    return 0;
 }
 
 static USBDevice *usb_net_init(USBBus *bus, const char *cmdline)
@@ -1392,7 +1391,7 @@ static USBDevice *usb_net_init(USBBus *bus, const char *cmdline)
 
     idx = net_client_init(opts, 0, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
+        error_report("%s", error_get_pretty(local_err));
         error_free(local_err);
         return NULL;
     }
@@ -1421,7 +1420,7 @@ static void usb_net_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->init           = usb_net_initfn;
+    uc->realize        = usb_net_realize;
     uc->product_desc   = "QEMU USB Network Interface";
     uc->usb_desc       = &desc_net;
     uc->handle_reset   = usb_net_handle_reset;

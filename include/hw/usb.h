@@ -267,10 +267,14 @@ struct USBDevice {
 #define USB_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(USBDeviceClass, (obj), TYPE_USB_DEVICE)
 
+typedef void (*USBDeviceRealize)(USBDevice *dev, Error **errp);
+typedef void (*USBDeviceUnrealize)(USBDevice *dev, Error **errp);
+
 typedef struct USBDeviceClass {
     DeviceClass parent_class;
 
-    int (*init)(USBDevice *dev);
+    USBDeviceRealize realize;
+    USBDeviceUnrealize unrealize;
 
     /*
      * Walk (enabled) downstream ports, check for a matching device.
@@ -544,11 +548,12 @@ int usb_register_companion(const char *masterbus, USBPort *ports[],
                            void *opaque, USBPortOps *ops, int speedmask);
 void usb_port_location(USBPort *downstream, USBPort *upstream, int portnr);
 void usb_unregister_port(USBBus *bus, USBPort *port);
-int usb_claim_port(USBDevice *dev);
+void usb_claim_port(USBDevice *dev, Error **errp);
 void usb_release_port(USBDevice *dev);
-int usb_device_attach(USBDevice *dev);
+void usb_device_attach(USBDevice *dev, Error **errp);
 int usb_device_detach(USBDevice *dev);
 int usb_device_delete_addr(int busnr, int addr);
+void usb_check_attach(USBDevice *dev, Error **errp);
 
 static inline USBBus *usb_bus_from_device(USBDevice *d)
 {

@@ -262,6 +262,7 @@ struct EHCIState {
     MemoryRegion mem_opreg;
     MemoryRegion mem_ports;
     int companion_count;
+    bool companion_enable;
     uint16_t capsbase;
     uint16_t opregbase;
     uint16_t portscbase;
