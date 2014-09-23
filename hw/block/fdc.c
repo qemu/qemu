@@ -699,6 +699,7 @@ static const VMStateDescription vmstate_fdrive_media_changed = {
     .name = "fdrive/media_changed",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = fdrive_media_changed_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(media_changed, FDrive),
         VMSTATE_END_OF_LIST()
@@ -716,6 +717,7 @@ static const VMStateDescription vmstate_fdrive_media_rate = {
     .name = "fdrive/media_rate",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = fdrive_media_rate_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(media_rate, FDrive),
         VMSTATE_END_OF_LIST()
@@ -733,6 +735,7 @@ static const VMStateDescription vmstate_fdrive_perpendicular = {
     .name = "fdrive/perpendicular",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = fdrive_perpendicular_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(perpendicular, FDrive),
         VMSTATE_END_OF_LIST()
@@ -756,19 +759,11 @@ static const VMStateDescription vmstate_fdrive = {
         VMSTATE_UINT8(sect, FDrive),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_fdrive_media_changed,
-            .needed = &fdrive_media_changed_needed,
-        } , {
-            .vmsd = &vmstate_fdrive_media_rate,
-            .needed = &fdrive_media_rate_needed,
-        } , {
-            .vmsd = &vmstate_fdrive_perpendicular,
-            .needed = &fdrive_perpendicular_needed,
-        } , {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_fdrive_media_changed,
+        &vmstate_fdrive_media_rate,
+        &vmstate_fdrive_perpendicular,
+        NULL
     }
 };
 
@@ -833,6 +828,7 @@ static const VMStateDescription vmstate_fdc_reset_sensei = {
     .name = "fdc/reset_sensei",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = fdc_reset_sensei_needed,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(reset_sensei, FDCtrl),
         VMSTATE_END_OF_LIST()
@@ -850,6 +846,7 @@ static const VMStateDescription vmstate_fdc_result_timer = {
     .name = "fdc/result_timer",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = fdc_result_timer_needed,
     .fields = (VMStateField[]) {
         VMSTATE_TIMER_PTR(result_timer, FDCtrl),
         VMSTATE_END_OF_LIST()
@@ -867,6 +864,7 @@ static const VMStateDescription vmstate_fdc_phase = {
     .name = "fdc/phase",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = fdc_phase_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(phase, FDCtrl),
         VMSTATE_END_OF_LIST()
@@ -911,19 +909,11 @@ static const VMStateDescription vmstate_fdc = {
                              vmstate_fdrive, FDrive),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_fdc_reset_sensei,
-            .needed = fdc_reset_sensei_needed,
-        } , {
-            .vmsd = &vmstate_fdc_result_timer,
-            .needed = fdc_result_timer_needed,
-        } , {
-            .vmsd = &vmstate_fdc_phase,
-            .needed = fdc_phase_needed,
-        } , {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_fdc_reset_sensei,
+        &vmstate_fdc_result_timer,
+        &vmstate_fdc_phase,
+        NULL
     }
 };
 

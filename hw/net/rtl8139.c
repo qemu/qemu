@@ -3240,6 +3240,7 @@ static const VMStateDescription vmstate_rtl8139_hotplug_ready ={
     .name = "rtl8139/hotplug_ready",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = rtl8139_hotplug_ready_needed,
     .fields = (VMStateField[]) {
         VMSTATE_END_OF_LIST()
     }
@@ -3335,13 +3336,9 @@ static const VMStateDescription vmstate_rtl8139 = {
         VMSTATE_UINT32_V(cplus_enabled, RTL8139State, 4),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection []) {
-        {
-            .vmsd = &vmstate_rtl8139_hotplug_ready,
-            .needed = rtl8139_hotplug_ready_needed,
-        }, {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_rtl8139_hotplug_ready,
+        NULL
     }
 };
 

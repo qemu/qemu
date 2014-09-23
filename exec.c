@@ -454,6 +454,7 @@ static const VMStateDescription vmstate_cpu_common_exception_index = {
     .name = "cpu_common/exception_index",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = cpu_common_exception_index_needed,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(exception_index, CPUState),
         VMSTATE_END_OF_LIST()
@@ -471,13 +472,9 @@ const VMStateDescription vmstate_cpu_common = {
         VMSTATE_UINT32(interrupt_request, CPUState),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_cpu_common_exception_index,
-            .needed = cpu_common_exception_index_needed,
-        } , {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_cpu_common_exception_index,
+        NULL
     }
 };
 

@@ -42,10 +42,17 @@ static void cpu_pre_save(void *opaque)
     }
 }
 
+static inline bool fpu_needed(void *opaque)
+{
+    /* This looks odd, but we might want to NOT transfer fprs in the future */
+    return true;
+}
+
 const VMStateDescription vmstate_fpu = {
     .name = "cpu/fpu",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = fpu_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(env.vregs[0][0].ll, S390CPU),
         VMSTATE_UINT64(env.vregs[1][0].ll, S390CPU),
@@ -68,16 +75,11 @@ const VMStateDescription vmstate_fpu = {
     }
 };
 
-static inline bool fpu_needed(void *opaque)
-{
-    /* This looks odd, but we might want to NOT transfer fprs in the future */
-    return true;
-}
-
 const VMStateDescription vmstate_vregs = {
     .name = "cpu/vregs",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = vregs_needed,
     .fields = (VMStateField[]) {
         /* vregs[0][0] -> vregs[15][0] and fregs are overlays */
         VMSTATE_UINT64(env.vregs[16][0].ll, S390CPU),
@@ -159,16 +161,10 @@ const VMStateDescription vmstate_s390_cpu = {
         VMSTATE_VBUFFER_UINT32(irqstate, S390CPU, 4, NULL, 0,
                                irqstate_saved_size),
         VMSTATE_END_OF_LIST()
-     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_fpu,
-            .needed = fpu_needed,
-        } , {
-            .vmsd = &vmstate_vregs,
-            .needed = vregs_needed,
-        } , {
-            /* empty */
-        }
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_fpu,
+        &vmstate_vregs,
+        NULL
     },
 };

@@ -120,11 +120,6 @@ typedef struct {
     bool (*field_exists)(void *opaque, int version_id);
 } VMStateField;
 
-typedef struct VMStateSubsection {
-    const VMStateDescription *vmsd;
-    bool (*needed)(void *opaque);
-} VMStateSubsection;
-
 struct VMStateDescription {
     const char *name;
     int unmigratable;
@@ -135,8 +130,9 @@ struct VMStateDescription {
     int (*pre_load)(void *opaque);
     int (*post_load)(void *opaque, int version_id);
     void (*pre_save)(void *opaque);
+    bool (*needed)(void *opaque);
     VMStateField *fields;
-    const VMStateSubsection *subsections;
+    const VMStateDescription **subsections;
 };
 
 extern const VMStateDescription vmstate_dummy;

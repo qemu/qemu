@@ -341,11 +341,11 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
 }
 
 static const VMStateDescription *
-    vmstate_get_subsection(const VMStateSubsection *sub, char *idstr)
+vmstate_get_subsection(const VMStateDescription **sub, char *idstr)
 {
-    while (sub && sub->needed) {
-        if (strcmp(idstr, sub->vmsd->name) == 0) {
-            return sub->vmsd;
+    while (sub && *sub && (*sub)->needed) {
+        if (strcmp(idstr, (*sub)->name) == 0) {
+            return *sub;
         }
         sub++;
     }
@@ -405,12 +405,12 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
 static void vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
                                     void *opaque, QJSON *vmdesc)
 {
-    const VMStateSubsection *sub = vmsd->subsections;
+    const VMStateDescription **sub = vmsd->subsections;
     bool subsection_found = false;
 
-    while (sub && sub->needed) {
-        if (sub->needed(opaque)) {
-            const VMStateDescription *vmsd = sub->vmsd;
+    while (sub && *sub && (*sub)->needed) {
+        if ((*sub)->needed(opaque)) {
+            const VMStateDescription *vmsd = *sub;
             uint8_t len;
 
             if (vmdesc) {

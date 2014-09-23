@@ -272,11 +272,11 @@ static void dump_vmstate_vmsf(FILE *out_file, const VMStateField *field,
 }
 
 static void dump_vmstate_vmss(FILE *out_file,
-                              const VMStateSubsection *subsection,
+                              const VMStateDescription **subsection,
                               int indent)
 {
-    if (subsection->vmsd != NULL) {
-        dump_vmstate_vmsd(out_file, subsection->vmsd, indent, true);
+    if (*subsection != NULL) {
+        dump_vmstate_vmsd(out_file, *subsection, indent, true);
     }
 }
 
@@ -317,12 +317,12 @@ static void dump_vmstate_vmsd(FILE *out_file,
         fprintf(out_file, "\n%*s]", indent, "");
     }
     if (vmsd->subsections != NULL) {
-        const VMStateSubsection *subsection = vmsd->subsections;
+        const VMStateDescription **subsection = vmsd->subsections;
         bool first;
 
         fprintf(out_file, ",\n%*s\"Subsections\": [\n", indent, "");
         first = true;
-        while (subsection->vmsd != NULL) {
+        while (*subsection != NULL) {
             if (!first) {
                 fprintf(out_file, ",\n");
             }

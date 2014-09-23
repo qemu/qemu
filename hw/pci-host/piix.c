@@ -582,6 +582,7 @@ static const VMStateDescription vmstate_piix3_rcr = {
     .name = "PIIX3/rcr",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = piix3_rcr_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(rcr, PIIX3State),
         VMSTATE_END_OF_LIST()
@@ -600,12 +601,9 @@ static const VMStateDescription vmstate_piix3 = {
                               PIIX_NUM_PIRQS, 3),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_piix3_rcr,
-            .needed = piix3_rcr_needed,
-        },
-        { 0 }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_piix3_rcr,
+        NULL
     }
 };
 

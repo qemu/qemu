@@ -2561,6 +2561,7 @@ static const VMStateDescription vmstate_ide_atapi_gesn_state = {
     .name ="ide_drive/atapi/gesn_state",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = ide_atapi_gesn_needed,
     .fields = (VMStateField[]) {
         VMSTATE_BOOL(events.new_media, IDEState),
         VMSTATE_BOOL(events.eject_request, IDEState),
@@ -2572,6 +2573,7 @@ static const VMStateDescription vmstate_ide_tray_state = {
     .name = "ide_drive/tray_state",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = ide_tray_state_needed,
     .fields = (VMStateField[]) {
         VMSTATE_BOOL(tray_open, IDEState),
         VMSTATE_BOOL(tray_locked, IDEState),
@@ -2585,6 +2587,7 @@ static const VMStateDescription vmstate_ide_drive_pio_state = {
     .minimum_version_id = 1,
     .pre_save = ide_drive_pio_pre_save,
     .post_load = ide_drive_pio_post_load,
+    .needed = ide_drive_pio_state_needed,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(req_nb_sectors, IDEState),
         VMSTATE_VARRAY_INT32(io_buffer, IDEState, io_buffer_total_len, 1,
@@ -2626,19 +2629,11 @@ const VMStateDescription vmstate_ide_drive = {
         VMSTATE_UINT8_V(cdrom_changed, IDEState, 3),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection []) {
-        {
-            .vmsd = &vmstate_ide_drive_pio_state,
-            .needed = ide_drive_pio_state_needed,
-        }, {
-            .vmsd = &vmstate_ide_tray_state,
-            .needed = ide_tray_state_needed,
-        }, {
-            .vmsd = &vmstate_ide_atapi_gesn_state,
-            .needed = ide_atapi_gesn_needed,
-        }, {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_ide_drive_pio_state,
+        &vmstate_ide_tray_state,
+        &vmstate_ide_atapi_gesn_state,
+        NULL
     }
 };
 
@@ -2646,6 +2641,7 @@ static const VMStateDescription vmstate_ide_error_status = {
     .name ="ide_bus/error",
     .version_id = 2,
     .minimum_version_id = 1,
+    .needed = ide_error_needed,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(error_status, IDEBus),
         VMSTATE_INT64_V(retry_sector_num, IDEBus, 2),
@@ -2664,13 +2660,9 @@ const VMStateDescription vmstate_ide_bus = {
         VMSTATE_UINT8(unit, IDEBus),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection []) {
-        {
-            .vmsd = &vmstate_ide_error_status,
-            .needed = ide_error_needed,
-        }, {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_ide_error_status,
+        NULL
     }
 };
 
