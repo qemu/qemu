@@ -156,6 +156,16 @@ typedef struct ORB {
 #define ORB_CTRL1_MASK_ORBX 0x01
 #define ORB_CTRL1_MASK_INVALID 0x3e
 
+/* channel command word (type 0) */
+typedef struct CCW0 {
+        uint8_t cmd_code;
+        uint8_t cda0;
+        uint16_t cda1;
+        uint8_t flags;
+        uint8_t reserved;
+        uint16_t count;
+} QEMU_PACKED CCW0;
+
 /* channel command word (type 1) */
 typedef struct CCW1 {
     uint8_t cmd_code;
