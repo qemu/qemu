@@ -137,9 +137,7 @@ static void scsi_command_complete(void *opaque, int ret)
 
     scsi_req_complete(&r->req, status);
 done:
-    if (!r->req.io_canceled) {
-        scsi_req_unref(&r->req);
-    }
+    scsi_req_unref(&r->req);
 }
 
 /* Cancel a pending data transfer.  */
@@ -150,11 +148,6 @@ static void scsi_cancel_io(SCSIRequest *req)
     DPRINTF("Cancel tag=0x%x\n", req->tag);
     if (r->req.aiocb) {
         bdrv_aio_cancel(r->req.aiocb);
-
-        /* This reference was left in by scsi_*_data.  We take ownership of
-         * it independent of whether bdrv_aio_cancel completes the request
-         * or not.  */
-        scsi_req_unref(&r->req);
     }
     r->req.aiocb = NULL;
 }
@@ -214,9 +207,7 @@ static void scsi_read_complete(void * opaque, int ret)
         bdrv_set_guest_block_size(s->conf.bs, s->blocksize);
 
         scsi_req_data(&r->req, len);
-        if (!r->req.io_canceled) {
-            scsi_req_unref(&r->req);
-        }
+        scsi_req_unref(&r->req);
     }
 }
 
