@@ -110,6 +110,12 @@ void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq)
     qdev_connect_gpio_out_named(DEVICE(dev), SYSBUS_DEVICE_GPIO_IRQ, n, irq);
 }
 
+/* Check whether an MMIO region exists */
+bool sysbus_has_mmio(SysBusDevice *dev, unsigned int n)
+{
+    return (n < dev->num_mmio);
+}
+
 static void sysbus_mmio_map_common(SysBusDevice *dev, int n, hwaddr addr,
                                    bool may_overlap, int priority)
 {
