@@ -140,18 +140,6 @@ done:
     scsi_req_unref(&r->req);
 }
 
-/* Cancel a pending data transfer.  */
-static void scsi_cancel_io(SCSIRequest *req)
-{
-    SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
-
-    DPRINTF("Cancel tag=0x%x\n", req->tag);
-    if (r->req.aiocb) {
-        bdrv_aio_cancel(r->req.aiocb);
-    }
-    r->req.aiocb = NULL;
-}
-
 static int execute_command(BlockDriverState *bdrv,
                            SCSIGenericReq *r, int direction,
 			   BlockDriverCompletionFunc *complete)
@@ -458,7 +446,6 @@ const SCSIReqOps scsi_generic_req_ops = {
     .send_command = scsi_send_command,
     .read_data    = scsi_read_data,
     .write_data   = scsi_write_data,
-    .cancel_io    = scsi_cancel_io,
     .get_buf      = scsi_get_buf,
     .load_request = scsi_generic_load_request,
     .save_request = scsi_generic_save_request,

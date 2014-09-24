@@ -105,18 +105,6 @@ static void scsi_check_condition(SCSIDiskReq *r, SCSISense sense)
     scsi_req_complete(&r->req, CHECK_CONDITION);
 }
 
-/* Cancel a pending data transfer.  */
-static void scsi_cancel_io(SCSIRequest *req)
-{
-    SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
-
-    DPRINTF("Cancel tag=0x%x\n", req->tag);
-    if (r->req.aiocb) {
-        bdrv_aio_cancel(r->req.aiocb);
-    }
-    r->req.aiocb = NULL;
-}
-
 static uint32_t scsi_init_iovec(SCSIDiskReq *r, size_t size)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
@@ -2325,7 +2313,6 @@ static const SCSIReqOps scsi_disk_emulate_reqops = {
     .send_command = scsi_disk_emulate_command,
     .read_data    = scsi_disk_emulate_read_data,
     .write_data   = scsi_disk_emulate_write_data,
-    .cancel_io    = scsi_cancel_io,
     .get_buf      = scsi_get_buf,
 };
 
@@ -2335,7 +2322,6 @@ static const SCSIReqOps scsi_disk_dma_reqops = {
     .send_command = scsi_disk_dma_command,
     .read_data    = scsi_read_data,
     .write_data   = scsi_write_data,
-    .cancel_io    = scsi_cancel_io,
     .get_buf      = scsi_get_buf,
     .load_request = scsi_disk_load_request,
     .save_request = scsi_disk_save_request,

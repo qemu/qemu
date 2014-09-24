@@ -130,7 +130,6 @@ struct SCSIReqOps {
     int32_t (*send_command)(SCSIRequest *req, uint8_t *buf);
     void (*read_data)(SCSIRequest *req);
     void (*write_data)(SCSIRequest *req);
-    void (*cancel_io)(SCSIRequest *req);
     uint8_t *(*get_buf)(SCSIRequest *req);
 
     void (*save_request)(QEMUFile *f, SCSIRequest *req);

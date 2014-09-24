@@ -1727,8 +1727,8 @@ void scsi_req_cancel(SCSIRequest *req)
     scsi_req_ref(req);
     scsi_req_dequeue(req);
     req->io_canceled = true;
-    if (req->ops->cancel_io) {
-        req->ops->cancel_io(req);
+    if (req->aiocb) {
+        bdrv_aio_cancel(req->aiocb);
     }
     if (req->bus->info->cancel) {
         req->bus->info->cancel(req);
