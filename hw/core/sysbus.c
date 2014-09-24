@@ -84,6 +84,27 @@ static const TypeInfo system_bus_info = {
     .class_init = system_bus_class_init,
 };
 
+/* Check whether an IRQ source exists */
+bool sysbus_has_irq(SysBusDevice *dev, int n)
+{
+    char *prop = g_strdup_printf("%s[%d]", SYSBUS_DEVICE_GPIO_IRQ, n);
+    ObjectProperty *r;
+
+    r = object_property_find(OBJECT(dev), prop, NULL);
+    return (r != NULL);
+}
+
+bool sysbus_is_irq_connected(SysBusDevice *dev, int n)
+{
+    return !!sysbus_get_connected_irq(dev, n);
+}
+
+qemu_irq sysbus_get_connected_irq(SysBusDevice *dev, int n)
+{
+    DeviceState *d = DEVICE(dev);
+    return qdev_get_gpio_out_connector(d, SYSBUS_DEVICE_GPIO_IRQ, n);
+}
+
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq)
 {
     qdev_connect_gpio_out_named(DEVICE(dev), SYSBUS_DEVICE_GPIO_IRQ, n, irq);

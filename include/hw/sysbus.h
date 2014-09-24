@@ -66,7 +66,10 @@ void sysbus_pass_irq(SysBusDevice *dev, SysBusDevice *target);
 void sysbus_init_ioports(SysBusDevice *dev, pio_addr_t ioport, pio_addr_t size);
 
 
+bool sysbus_has_irq(SysBusDevice *dev, int n);
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq);
+bool sysbus_is_irq_connected(SysBusDevice *dev, int n);
+qemu_irq sysbus_get_connected_irq(SysBusDevice *dev, int n);
 void sysbus_mmio_map(SysBusDevice *dev, int n, hwaddr addr);
 void sysbus_mmio_map_overlap(SysBusDevice *dev, int n, hwaddr addr,
                              int priority);
