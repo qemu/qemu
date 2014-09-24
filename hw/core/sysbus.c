@@ -24,6 +24,51 @@
 static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static char *sysbus_get_fw_dev_path(DeviceState *dev);
 
+typedef struct SysBusFind {
+    void *opaque;
+    FindSysbusDeviceFunc *func;
+} SysBusFind;
+
+/* Run func() for every sysbus device, traverse the tree for everything else */
+static int find_sysbus_device(Object *obj, void *opaque)
+{
+    SysBusFind *find = opaque;
+    Object *dev;
+    SysBusDevice *sbdev;
+
+    dev = object_dynamic_cast(obj, TYPE_SYS_BUS_DEVICE);
+    sbdev = (SysBusDevice *)dev;
+
+    if (!sbdev) {
+        /* Container, traverse it for children */
+        return object_child_foreach(obj, find_sysbus_device, opaque);
+    }
+
+    find->func(sbdev, find->opaque);
+
+    return 0;
+}
+
+/*
+ * Loop through all dynamically created sysbus devices and call
+ * func() for each instance.
+ */
+void foreach_dynamic_sysbus_device(FindSysbusDeviceFunc *func, void *opaque)
+{
+    Object *container;
+    SysBusFind find = {
+        .func = func,
+        .opaque = opaque,
+    };
+
+    /* Loop through all sysbus devices that were spawened outside the machine */
+    container = container_get(qdev_get_machine(), "/peripheral");
+    find_sysbus_device(container, &find);
+    container = container_get(qdev_get_machine(), "/peripheral-anon");
+    find_sysbus_device(container, &find);
+}
+
+
 static void system_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
