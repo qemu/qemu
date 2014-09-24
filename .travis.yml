@@ -37,7 +37,11 @@ env:
     - TARGETS=unicore32-softmmu,unicore32-linux-user
     # Group remaining softmmu only targets into one build
     - TARGETS=lm32-softmmu,moxie-softmmu,tricore-softmmu,xtensa-softmmu,xtensaeb-softmmu
+git:
+  # we want to do this ourselves
+  submodules: false
 before_install:
+  - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
   - git submodule update --init --recursive
   - sudo apt-get update -qq
   - sudo apt-get install -qq ${CORE_PKGS} ${NET_PKGS} ${GUI_PKGS} ${EXTRA_PKGS}
