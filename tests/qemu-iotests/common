@@ -376,10 +376,16 @@ BEGIN        { for (t='$start'; t<='$end'; t++) printf "%03d\n",t }' \
                     echo $id >>$tmp.list
                 else
                     # oops
-                    echo "$id - unknown test, ignored"
+                    if [ "$start" == "$end" -a "$id" == "$end" ]
+                    then
+                        echo "$id - unknown test"
+                        exit 1
+                    else
+                        echo "$id - unknown test, ignored"
+                    fi
                 fi
             fi
-        done
+        done || exit 1
     fi
 
 done
