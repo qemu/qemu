@@ -17,6 +17,8 @@
 #include "hw/virtio/virtio.h"
 #include "hw/pci/pci.h"
 #include "hw/scsi/scsi.h"
+#include "sysemu/iothread.h"
+#include "hw/virtio/dataplane/vring.h"
 
 #define TYPE_VIRTIO_SCSI_COMMON "virtio-scsi-common"
 #define VIRTIO_SCSI_COMMON(obj) \
@@ -154,6 +156,15 @@ struct VirtIOSCSIConf {
     IOThread *iothread;
 };
 
+struct VirtIOSCSI;
+
+typedef struct {
+    struct VirtIOSCSI *parent;
+    Vring vring;
+    EventNotifier host_notifier;
+    EventNotifier guest_notifier;
+} VirtIOSCSIVring;
+
 typedef struct VirtIOSCSICommon {
     VirtIODevice parent_obj;
     VirtIOSCSIConf conf;
@@ -165,7 +176,7 @@ typedef struct VirtIOSCSICommon {
     VirtQueue **cmd_vqs;
 } VirtIOSCSICommon;
 
-typedef struct {
+typedef struct VirtIOSCSI {
     VirtIOSCSICommon parent_obj;
 
     SCSIBus bus;
@@ -186,6 +197,8 @@ typedef struct VirtIOSCSIReq {
      * */
 
     VirtQueueElement elem;
+    /* Set by dataplane code. */
+    VirtIOSCSIVring *vring;
     SCSIRequest *sreq;
     size_t resp_size;
     enum SCSIXferMode mode;
