@@ -41,7 +41,10 @@ before_install:
   - git submodule update --init --recursive
   - sudo apt-get update -qq
   - sudo apt-get install -qq ${CORE_PKGS} ${NET_PKGS} ${GUI_PKGS} ${EXTRA_PKGS}
-script: "./configure --target-list=${TARGETS} ${EXTRA_CONFIG} && make && ${TEST_CMD}"
+before_script:
+  - ./configure --target-list=${TARGETS} --enable-debug-tcg ${EXTRA_CONFIG}
+script:
+  - make -j2 && {TEST_CMD}
 matrix:
   # We manually include a number of additional build for non-standard bits
   include:
