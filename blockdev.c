@@ -647,28 +647,37 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     const char *serial;
     const char *filename;
     Error *local_err = NULL;
+    int i;
 
     /* Change legacy command line options into QMP ones */
-    qemu_opt_rename(all_opts, "iops", "throttling.iops-total");
-    qemu_opt_rename(all_opts, "iops_rd", "throttling.iops-read");
-    qemu_opt_rename(all_opts, "iops_wr", "throttling.iops-write");
+    static const struct {
+        const char *from;
+        const char *to;
+    } opt_renames[] = {
+        { "iops",           "throttling.iops-total" },
+        { "iops_rd",        "throttling.iops-read" },
+        { "iops_wr",        "throttling.iops-write" },
 
-    qemu_opt_rename(all_opts, "bps", "throttling.bps-total");
-    qemu_opt_rename(all_opts, "bps_rd", "throttling.bps-read");
-    qemu_opt_rename(all_opts, "bps_wr", "throttling.bps-write");
+        { "bps",            "throttling.bps-total" },
+        { "bps_rd",         "throttling.bps-read" },
+        { "bps_wr",         "throttling.bps-write" },
 
-    qemu_opt_rename(all_opts, "iops_max", "throttling.iops-total-max");
-    qemu_opt_rename(all_opts, "iops_rd_max", "throttling.iops-read-max");
-    qemu_opt_rename(all_opts, "iops_wr_max", "throttling.iops-write-max");
+        { "iops_max",       "throttling.iops-total-max" },
+        { "iops_rd_max",    "throttling.iops-read-max" },
+        { "iops_wr_max",    "throttling.iops-write-max" },
 
-    qemu_opt_rename(all_opts, "bps_max", "throttling.bps-total-max");
-    qemu_opt_rename(all_opts, "bps_rd_max", "throttling.bps-read-max");
-    qemu_opt_rename(all_opts, "bps_wr_max", "throttling.bps-write-max");
+        { "bps_max",        "throttling.bps-total-max" },
+        { "bps_rd_max",     "throttling.bps-read-max" },
+        { "bps_wr_max",     "throttling.bps-write-max" },
 
-    qemu_opt_rename(all_opts,
-                    "iops_size", "throttling.iops-size");
+        { "iops_size",      "throttling.iops-size" },
 
-    qemu_opt_rename(all_opts, "readonly", "read-only");
+        { "readonly",       "read-only" },
+    };
+
+    for (i = 0; i < ARRAY_SIZE(opt_renames); i++) {
+        qemu_opt_rename(all_opts, opt_renames[i].from, opt_renames[i].to);
+    }
 
     value = qemu_opt_get(all_opts, "cache");
     if (value) {
