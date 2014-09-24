@@ -548,6 +548,10 @@ static void qemu_opt_rename(QemuOpts *opts, const char *from, const char *to,
                        "same time", to, from);
             return;
         }
+    }
+
+    /* rename all items in opts */
+    while ((value = qemu_opt_get(opts, from))) {
         qemu_opt_set(opts, to, value);
         qemu_opt_unset(opts, from);
     }
