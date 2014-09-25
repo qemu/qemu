@@ -1571,9 +1571,9 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
 
     start = sector_num * BDRV_SECTOR_SIZE;
 
-    ret = try_fiemap(bs, start, &data, &hole, nb_sectors, pnum);
+    ret = try_seek_hole(bs, start, &data, &hole, pnum);
     if (ret < 0) {
-        ret = try_seek_hole(bs, start, &data, &hole, pnum);
+        ret = try_fiemap(bs, start, &data, &hole, nb_sectors, pnum);
         if (ret < 0) {
             /* Assume everything is allocated. */
             data = 0;
