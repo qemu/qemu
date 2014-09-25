@@ -159,7 +159,7 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
         slisten = qemu_socket(e->ai_family, e->ai_socktype, e->ai_protocol);
         if (slisten < 0) {
             if (!e->ai_next) {
-                error_set_errno(errp, errno, QERR_SOCKET_CREATE_FAILED);
+                error_setg_errno(errp, errno, "Failed to create socket");
             }
             continue;
         }
@@ -183,7 +183,7 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
             }
             if (p == port_max) {
                 if (!e->ai_next) {
-                    error_set_errno(errp, errno, QERR_SOCKET_BIND_FAILED);
+                    error_setg_errno(errp, errno, "Failed to bind socket");
                 }
             }
         }
@@ -194,7 +194,7 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
 
 listen:
     if (listen(slisten,1) != 0) {
-        error_set_errno(errp, errno, QERR_SOCKET_LISTEN_FAILED);
+        error_setg_errno(errp, errno, "Failed to listen on socket");
         closesocket(slisten);
         freeaddrinfo(res);
         return -1;
@@ -281,7 +281,7 @@ static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
 
     sock = qemu_socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
     if (sock < 0) {
-        error_set_errno(errp, errno, QERR_SOCKET_CREATE_FAILED);
+        error_setg_errno(errp, errno, "Failed to create socket");
         return -1;
     }
     socket_set_fast_reuse(sock);
@@ -302,7 +302,7 @@ static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
                              connect_state);
         *in_progress = true;
     } else if (rc < 0) {
-        error_set_errno(errp, errno, QERR_SOCKET_CONNECT_FAILED);
+        error_setg_errno(errp, errno, "Failed to connect socket");
         closesocket(sock);
         return -1;
     }
@@ -466,20 +466,20 @@ int inet_dgram_opts(QemuOpts *opts, Error **errp)
     /* create socket */
     sock = qemu_socket(peer->ai_family, peer->ai_socktype, peer->ai_protocol);
     if (sock < 0) {
-        error_set_errno(errp, errno, QERR_SOCKET_CREATE_FAILED);
+        error_setg_errno(errp, errno, "Failed to create socket");
         goto err;
     }
     socket_set_fast_reuse(sock);
 
     /* bind socket */
     if (bind(sock, local->ai_addr, local->ai_addrlen) < 0) {
-        error_set_errno(errp, errno, QERR_SOCKET_BIND_FAILED);
+        error_setg_errno(errp, errno, "Failed to bind socket");
         goto err;
     }
 
     /* connect to peer */
     if (connect(sock,peer->ai_addr,peer->ai_addrlen) < 0) {
-        error_set_errno(errp, errno, QERR_SOCKET_CONNECT_FAILED);
+        error_setg_errno(errp, errno, "Failed to connect socket");
         goto err;
     }
 
@@ -684,7 +684,7 @@ int unix_listen_opts(QemuOpts *opts, Error **errp)
 
     sock = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
-        error_set_errno(errp, errno, QERR_SOCKET_CREATE_FAILED);
+        error_setg_errno(errp, errno, "Failed to create socket");
         return -1;
     }
 
@@ -709,11 +709,11 @@ int unix_listen_opts(QemuOpts *opts, Error **errp)
 
     unlink(un.sun_path);
     if (bind(sock, (struct sockaddr*) &un, sizeof(un)) < 0) {
-        error_set_errno(errp, errno, QERR_SOCKET_BIND_FAILED);
+        error_setg_errno(errp, errno, "Failed to bind socket");
         goto err;
     }
     if (listen(sock, 1) < 0) {
-        error_set_errno(errp, errno, QERR_SOCKET_LISTEN_FAILED);
+        error_setg_errno(errp, errno, "Failed to listen on socket");
         goto err;
     }
 
@@ -739,7 +739,7 @@ int unix_connect_opts(QemuOpts *opts, Error **errp,
 
     sock = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
-        error_set_errno(errp, errno, QERR_SOCKET_CREATE_FAILED);
+        error_setg_errno(errp, errno, "Failed to create socket");
         return -1;
     }
     if (callback != NULL) {
@@ -774,7 +774,7 @@ int unix_connect_opts(QemuOpts *opts, Error **errp,
     }
 
     if (rc < 0) {
-        error_set_errno(errp, -rc, QERR_SOCKET_CONNECT_FAILED);
+        error_setg_errno(errp, -rc, "Failed to connect socket");
         close(sock);
         sock = -1;
     }
