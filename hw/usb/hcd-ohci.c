@@ -724,8 +724,7 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
            ed->head & OHCI_DPTR_MASK, ed->tail & OHCI_DPTR_MASK,
            iso_td.flags, iso_td.bp, iso_td.next, iso_td.be,
            ohci->frame_number, starting_frame,
-           frame_count, relative_frame_number,
-           OHCI_BM(iso_td.flags, TD_DI), OHCI_BM(iso_td.flags, TD_CC));
+           frame_count, relative_frame_number);
     trace_usb_ohci_iso_td_head_offset(
            iso_td.offset[0], iso_td.offset[1],
            iso_td.offset[2], iso_td.offset[3],
