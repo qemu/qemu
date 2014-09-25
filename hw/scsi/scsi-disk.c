@@ -168,6 +168,7 @@ static void scsi_aio_complete(void *opaque, int ret)
     r->req.aiocb = NULL;
     block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
@@ -214,6 +215,7 @@ static void scsi_write_do_fua(SCSIDiskReq *r)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
 
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
@@ -240,6 +242,7 @@ static void scsi_dma_complete_noio(void *opaque, int ret)
         block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     }
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
@@ -280,6 +283,7 @@ static void scsi_read_complete(void * opaque, int ret)
     r->req.aiocb = NULL;
     block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
@@ -312,6 +316,7 @@ static void scsi_do_read(void *opaque, int ret)
         block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     }
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
@@ -432,6 +437,7 @@ static void scsi_write_complete(void * opaque, int ret)
         block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     }
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
@@ -1524,6 +1530,7 @@ static void scsi_unmap_complete(void *opaque, int ret)
 
     r->req.aiocb = NULL;
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
@@ -1623,6 +1630,7 @@ static void scsi_write_same_complete(void *opaque, int ret)
     r->req.aiocb = NULL;
     block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 

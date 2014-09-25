@@ -94,6 +94,7 @@ static void scsi_command_complete(void *opaque, int ret)
 
     r->req.aiocb = NULL;
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
     if (r->io_header.driver_status & SG_ERR_DRIVER_SENSE) {
