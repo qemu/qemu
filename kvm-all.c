@@ -44,10 +44,6 @@
 #include <sys/eventfd.h>
 #endif
 
-#ifdef CONFIG_VALGRIND_H
-#include <valgrind/memcheck.h>
-#endif
-
 /* KVM uses PAGE_SIZE in its definition of COALESCED_MMIO_MAX */
 #define PAGE_SIZE TARGET_PAGE_SIZE
 
@@ -1959,9 +1955,6 @@ int kvm_has_intx_set_mask(void)
 
 void kvm_setup_guest_memory(void *start, size_t size)
 {
-#ifdef CONFIG_VALGRIND_H
-    VALGRIND_MAKE_MEM_DEFINED(start, size);
-#endif
     if (!kvm_has_sync_mmu()) {
         int ret = qemu_madvise(start, size, QEMU_MADV_DONTFORK);
 
