@@ -1011,14 +1011,14 @@ static int img_compare(int argc, char **argv)
         goto out3;
     }
 
-    bs1 = bdrv_new_open("image 1", filename1, fmt1, flags, true, quiet);
+    bs1 = bdrv_new_open("image_1", filename1, fmt1, flags, true, quiet);
     if (!bs1) {
         error_report("Can't open file %s", filename1);
         ret = 2;
         goto out3;
     }
 
-    bs2 = bdrv_new_open("image 2", filename2, fmt2, flags, true, quiet);
+    bs2 = bdrv_new_open("image_2", filename2, fmt2, flags, true, quiet);
     if (!bs2) {
         error_report("Can't open file %s", filename2);
         ret = 2;
@@ -1359,7 +1359,7 @@ static int img_convert(int argc, char **argv)
 
     total_sectors = 0;
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
-        char *id = bs_n > 1 ? g_strdup_printf("source %d", bs_i)
+        char *id = bs_n > 1 ? g_strdup_printf("source_%d", bs_i)
                             : g_strdup("source");
         bs[bs_i] = bdrv_new_open(id, argv[optind + bs_i], fmt, src_flags,
                                  true, quiet);

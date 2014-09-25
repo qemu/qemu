@@ -641,7 +641,7 @@ QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id)
     return NULL;
 }
 
-static int id_wellformed(const char *id)
+int qemu_opts_id_wellformed(const char *id)
 {
     int i;
 
@@ -662,7 +662,7 @@ QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
     QemuOpts *opts = NULL;
 
     if (id) {
-        if (!id_wellformed(id)) {
+        if (!qemu_opts_id_wellformed(id)) {
             error_set(errp,QERR_INVALID_PARAMETER_VALUE, "id", "an identifier");
 #if 0 /* conversion from qerror_report() to error_set() broke this: */
             error_printf_unless_qmp("Identifiers consist of letters, digits, '-', '.', '_', starting with a letter.\n");
