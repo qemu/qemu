@@ -228,7 +228,7 @@ class Event(object):
                                           self.args,
                                           fmt)
 
-    _FMT = re.compile("(%\w+|%.*PRI\S+)")
+    _FMT = re.compile("(%[\d\.]*\w+|%.*PRI\S+)")
 
     def formats(self):
         """List of argument print formats."""
