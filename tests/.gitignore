@@ -14,11 +14,14 @@ test-int128
 test-iov
 test-mul64
 test-opts-visitor
+test-qapi-event.[ch]
 test-qapi-types.[ch]
 test-qapi-visit.[ch]
 test-qdev-global-props
+test-qemu-opts
 test-qmp-commands
 test-qmp-commands.h
+test-qmp-event
 test-qmp-input-strict
 test-qmp-input-visitor
 test-qmp-marshal.c
