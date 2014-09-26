@@ -55,11 +55,24 @@ static AccelType accel_list[] = {
     { "qtest", "QTest", qtest_available, qtest_init_accel, &qtest_allowed },
 };
 
+/* Lookup AccelType from opt_name. Returns NULL if not found */
+static AccelType *accel_find(const char *opt_name)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(accel_list); i++) {
+        AccelType *acc = &accel_list[i];
+        if (acc->opt_name && strcmp(acc->opt_name, opt_name) == 0) {
+            return acc;
+        }
+    }
+    return NULL;
+}
+
 int configure_accelerator(MachineClass *mc)
 {
     const char *p;
     char buf[10];
-    int i, ret;
+    int ret;
     bool accel_initialised = false;
     bool init_failed = false;
     AccelType *acc = NULL;
@@ -75,30 +88,26 @@ int configure_accelerator(MachineClass *mc)
             p++;
         }
         p = get_opt_name(buf, sizeof(buf), p, ':');
-        for (i = 0; i < ARRAY_SIZE(accel_list); i++) {
-            acc = &accel_list[i];
-            if (strcmp(acc->opt_name, buf) == 0) {
-                if (!acc->available()) {
-                    printf("%s not supported for this target\n",
-                           acc->name);
-                    break;
-                }
-                *(acc->allowed) = true;
-                ret = acc->init(mc);
-                if (ret < 0) {
-                    init_failed = true;
-                    fprintf(stderr, "failed to initialize %s: %s\n",
-                            acc->name,
-                            strerror(-ret));
-                    *(acc->allowed) = false;
-                } else {
-                    accel_initialised = true;
-                }
-                break;
-            }
-        }
-        if (i == ARRAY_SIZE(accel_list)) {
+        acc = accel_find(buf);
+        if (!acc) {
             fprintf(stderr, "\"%s\" accelerator does not exist.\n", buf);
+            continue;
+        }
+        if (!acc->available()) {
+            printf("%s not supported for this target\n",
+                   acc->name);
+            continue;
+        }
+        *(acc->allowed) = true;
+        ret = acc->init(mc);
+        if (ret < 0) {
+            init_failed = true;
+            fprintf(stderr, "failed to initialize %s: %s\n",
+                    acc->name,
+                    strerror(-ret));
+            *(acc->allowed) = false;
+        } else {
+            accel_initialised = true;
         }
     }
 
