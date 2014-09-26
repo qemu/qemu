@@ -32,6 +32,7 @@
 #include "sysemu/qtest.h"
 #include "hw/xen/xen.h"
 #include "qom/object.h"
+#include "hw/boards.h"
 
 int tcg_tb_size;
 static bool tcg_allowed = true;
@@ -60,11 +61,17 @@ static AccelClass *accel_find(const char *opt_name)
 
 static int accel_init_machine(AccelClass *acc, MachineState *ms)
 {
+    ObjectClass *oc = OBJECT_CLASS(acc);
+    const char *cname = object_class_get_name(oc);
+    AccelState *accel = ACCEL(object_new(cname));
     int ret;
+    ms->accelerator = accel;
     *(acc->allowed) = true;
     ret = acc->init_machine(ms);
     if (ret < 0) {
+        ms->accelerator = NULL;
         *(acc->allowed) = false;
+        object_unref(OBJECT(accel));
     }
     return ret;
 }
