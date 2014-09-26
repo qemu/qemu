@@ -286,6 +286,11 @@ int qdev_simple_unplug_cb(DeviceState *dev)
     return 0;
 }
 
+void qdev_simple_device_unplug_cb(HotplugHandler *hotplug_dev,
+                                  DeviceState *dev, Error **errp)
+{
+    qdev_simple_unplug_cb(dev);
+}
 
 /* Like qdev_init(), but terminate program via error_report() instead of
    returning an error value.  This is okay during machine creation.
