@@ -339,6 +339,7 @@ void qdev_init_gpio_in_named(DeviceState *dev, qemu_irq_handler handler,
 {
     NamedGPIOList *gpio_list = qdev_get_named_gpio_list(dev, name);
 
+    assert(gpio_list->num_out == 0 || !name);
     gpio_list->in = qemu_extend_irqs(gpio_list->in, gpio_list->num_in, handler,
                                      dev, n);
     gpio_list->num_in += n;
@@ -354,6 +355,7 @@ void qdev_init_gpio_out_named(DeviceState *dev, qemu_irq *pins,
 {
     NamedGPIOList *gpio_list = qdev_get_named_gpio_list(dev, name);
 
+    assert(gpio_list->num_in == 0 || !name);
     assert(gpio_list->num_out == 0);
     gpio_list->num_out = n;
     gpio_list->out = pins;
