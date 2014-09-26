@@ -8473,14 +8473,16 @@ enum {
     PPC_INDIRECT = 1, /* Indirect opcode table */
 };
 
+#define PPC_OPCODE_MASK 0x3
+
 static inline int is_indirect_opcode (void *handler)
 {
-    return ((uintptr_t)handler & 0x03) == PPC_INDIRECT;
+    return ((uintptr_t)handler & PPC_OPCODE_MASK) == PPC_INDIRECT;
 }
 
 static inline opc_handler_t **ind_table(void *handler)
 {
-    return (opc_handler_t **)((uintptr_t)handler & ~3);
+    return (opc_handler_t **)((uintptr_t)handler & ~PPC_OPCODE_MASK);
 }
 
 /* Instruction table creation */
@@ -8497,8 +8499,8 @@ static int create_new_table (opc_handler_t **table, unsigned char idx)
 {
     opc_handler_t **tmp;
 
-    tmp = g_new(opc_handler_t *, 0x20);
-    fill_new_table(tmp, 0x20);
+    tmp = g_new(opc_handler_t *, PPC_CPU_INDIRECT_OPCODES_LEN);
+    fill_new_table(tmp, PPC_CPU_INDIRECT_OPCODES_LEN);
     table[idx] = (opc_handler_t *)((uintptr_t)tmp | PPC_INDIRECT);
 
     return 0;
@@ -8625,7 +8627,8 @@ static int test_opcode_table (opc_handler_t **table, int len)
             table[i] = &invalid_handler;
         if (table[i] != &invalid_handler) {
             if (is_indirect_opcode(table[i])) {
-                tmp = test_opcode_table(ind_table(table[i]), 0x20);
+                tmp = test_opcode_table(ind_table(table[i]),
+                    PPC_CPU_INDIRECT_OPCODES_LEN);
                 if (tmp == 0) {
                     free(table[i]);
                     table[i] = &invalid_handler;
@@ -8643,7 +8646,7 @@ static int test_opcode_table (opc_handler_t **table, int len)
 
 static void fix_opcode_tables (opc_handler_t **ppc_opcodes)
 {
-    if (test_opcode_table(ppc_opcodes, 0x40) == 0)
+    if (test_opcode_table(ppc_opcodes, PPC_CPU_OPCODES_LEN) == 0)
         printf("*** WARNING: no opcode defined !\n");
 }
 
@@ -8654,7 +8657,7 @@ static void create_ppc_opcodes(PowerPCCPU *cpu, Error **errp)
     CPUPPCState *env = &cpu->env;
     opcode_t *opc;
 
-    fill_new_table(env->opcodes, 0x40);
+    fill_new_table(env->opcodes, PPC_CPU_OPCODES_LEN);
     for (opc = opcodes; opc < &opcodes[ARRAY_SIZE(opcodes)]; opc++) {
         if (((opc->handler.type & pcc->insns_flags) != 0) ||
             ((opc->handler.type2 & pcc->insns_flags2) != 0)) {
@@ -8680,12 +8683,12 @@ static void dump_ppc_insns (CPUPPCState *env)
 
     printf("Instructions set:\n");
     /* opc1 is 6 bits long */
-    for (opc1 = 0x00; opc1 < 0x40; opc1++) {
+    for (opc1 = 0x00; opc1 < PPC_CPU_OPCODES_LEN; opc1++) {
         table = env->opcodes;
         handler = table[opc1];
         if (is_indirect_opcode(handler)) {
             /* opc2 is 5 bits long */
-            for (opc2 = 0; opc2 < 0x20; opc2++) {
+            for (opc2 = 0; opc2 < PPC_CPU_INDIRECT_OPCODES_LEN; opc2++) {
                 table = env->opcodes;
                 handler = env->opcodes[opc1];
                 table = ind_table(handler);
@@ -8693,7 +8696,8 @@ static void dump_ppc_insns (CPUPPCState *env)
                 if (is_indirect_opcode(handler)) {
                     table = ind_table(handler);
                     /* opc3 is 5 bits long */
-                    for (opc3 = 0; opc3 < 0x20; opc3++) {
+                    for (opc3 = 0; opc3 < PPC_CPU_INDIRECT_OPCODES_LEN;
+                            opc3++) {
                         handler = table[opc3];
                         if (handler->handler != &gen_invalid) {
                             /* Special hack to properly dump SPE insns */

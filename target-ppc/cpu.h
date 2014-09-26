@@ -924,7 +924,8 @@ struct ppc_segment_page_sizes {
 /* The whole PowerPC CPU context */
 #define NB_MMU_MODES 3
 
-#define PPC_CPU_OPCODES_LEN 0x40
+#define PPC_CPU_OPCODES_LEN          0x40
+#define PPC_CPU_INDIRECT_OPCODES_LEN 0x20
 
 struct CPUPPCState {
     /* First are the most commonly used resources
