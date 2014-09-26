@@ -223,9 +223,28 @@ void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
     dev->alias_required_for_version = required_for_version;
 }
 
+static HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev)
+{
+    HotplugHandler *hotplug_ctrl = NULL;
+
+    if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_ctrl = dev->parent_bus->hotplug_handler;
+    } else if (object_dynamic_cast(qdev_get_machine(), TYPE_MACHINE)) {
+        MachineState *machine = MACHINE(qdev_get_machine());
+        MachineClass *mc = MACHINE_GET_CLASS(machine);
+
+        if (mc->get_hotplug_handler) {
+            hotplug_ctrl = mc->get_hotplug_handler(machine, dev);
+        }
+    }
+    return hotplug_ctrl;
+}
+
 void qdev_unplug(DeviceState *dev, Error **errp)
 {
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    HotplugHandler *hotplug_ctrl;
+    HotplugHandlerClass *hdc;
 
     if (dev->parent_bus && !qbus_is_hotpluggable(dev->parent_bus)) {
         error_set(errp, QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
@@ -240,20 +259,18 @@ void qdev_unplug(DeviceState *dev, Error **errp)
 
     qdev_hot_removed = true;
 
-    if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
-        HotplugHandlerClass *hdc;
+    hotplug_ctrl = qdev_get_hotplug_handler(dev);
+    /* hotpluggable device MUST have HotplugHandler, if it doesn't
+     * then something is very wrong with it */
+    g_assert(hotplug_ctrl);
 
-        /* If device supports async unplug just request it to be done,
-         * otherwise just remove it synchronously */
-        hdc = HOTPLUG_HANDLER_GET_CLASS(dev->parent_bus->hotplug_handler);
-        if (hdc->unplug_request) {
-            hotplug_handler_unplug_request(dev->parent_bus->hotplug_handler,
-                                           dev, errp);
-        } else {
-            hotplug_handler_unplug(dev->parent_bus->hotplug_handler, dev, errp);
-        }
+    /* If device supports async unplug just request it to be done,
+     * otherwise just remove it synchronously */
+    hdc = HOTPLUG_HANDLER_GET_CLASS(hotplug_ctrl);
+    if (hdc->unplug_request) {
+        hotplug_handler_unplug_request(hotplug_ctrl, dev, errp);
     } else {
-        assert(0);
+        hotplug_handler_unplug(hotplug_ctrl, dev, errp);
     }
 }
 
@@ -854,6 +871,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    HotplugHandler *hotplug_ctrl;
     BusState *bus;
     Error *local_err = NULL;
 
@@ -881,20 +899,9 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             goto fail;
         }
 
-        if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
-            hotplug_handler_plug(dev->parent_bus->hotplug_handler,
-                                 dev, &local_err);
-        } else if (object_dynamic_cast(qdev_get_machine(), TYPE_MACHINE)) {
-            HotplugHandler *hotplug_ctrl;
-            MachineState *machine = MACHINE(qdev_get_machine());
-            MachineClass *mc = MACHINE_GET_CLASS(machine);
-
-            if (mc->get_hotplug_handler) {
-                hotplug_ctrl = mc->get_hotplug_handler(machine, dev);
-                if (hotplug_ctrl) {
-                    hotplug_handler_plug(hotplug_ctrl, dev, &local_err);
-                }
-            }
+        hotplug_ctrl = qdev_get_hotplug_handler(dev);
+        if (hotplug_ctrl) {
+            hotplug_handler_plug(hotplug_ctrl, dev, &local_err);
         }
 
         if (local_err != NULL) {
