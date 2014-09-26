@@ -319,6 +319,8 @@ int qemu_create_pidfile(const char *filename)
         return -1;
     }
     if (lockf(fd, F_TLOCK, 0) == -1) {
+        fprintf(stderr, "lock file '%s' failed: %s\n",
+                filename, strerror(errno));
         close(fd);
         return -1;
     }
