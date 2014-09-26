@@ -89,7 +89,7 @@
 #define MASK_OP_ABSB_OFF18(op) MASK_OP_ABS_OFF18(op)
 #define MASK_OP_ABSB_OP2(op)   MASK_BITS_SHIFT(op, 26, 27)
 #define MASK_OP_ABSB_B(op)     MASK_BITS_SHIFT(op, 11, 11)
-#define MASK_OP_ABSB_BPOS(op)  MASK_BITS_SHIFT(op, 7, 10)
+#define MASK_OP_ABSB_BPOS(op)  MASK_BITS_SHIFT(op, 8, 10)
 
 /* B Format   */
 #define MASK_OP_B_DISP24(op)   (MASK_BITS_SHIFT(op, 16, 31) + \

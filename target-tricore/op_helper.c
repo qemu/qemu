@@ -114,10 +114,8 @@ static bool cdc_zero(target_ulong *psw)
     return count == 0;
 }
 
-static void save_context_upper(CPUTriCoreState *env, int ea,
-                               target_ulong *new_FCX)
+static void save_context_upper(CPUTriCoreState *env, int ea)
 {
-    *new_FCX = cpu_ldl_data(env, ea);
     cpu_stl_data(env, ea, env->PCXI);
     cpu_stl_data(env, ea+4, env->PSW);
     cpu_stl_data(env, ea+8, env->gpr_a[10]);
@@ -134,15 +132,12 @@ static void save_context_upper(CPUTriCoreState *env, int ea,
     cpu_stl_data(env, ea+52, env->gpr_d[13]);
     cpu_stl_data(env, ea+56, env->gpr_d[14]);
     cpu_stl_data(env, ea+60, env->gpr_d[15]);
-
 }
 
-static void save_context_lower(CPUTriCoreState *env, int ea,
-                               target_ulong *new_FCX)
+static void save_context_lower(CPUTriCoreState *env, int ea)
 {
-    *new_FCX = cpu_ldl_data(env, ea);
     cpu_stl_data(env, ea, env->PCXI);
-    cpu_stl_data(env, ea+4, env->PSW);
+    cpu_stl_data(env, ea+4, env->gpr_a[11]);
     cpu_stl_data(env, ea+8, env->gpr_a[2]);
     cpu_stl_data(env, ea+12, env->gpr_a[3]);
     cpu_stl_data(env, ea+16, env->gpr_d[0]);
@@ -178,7 +173,6 @@ static void restore_context_upper(CPUTriCoreState *env, int ea,
     env->gpr_d[13] = cpu_ldl_data(env, ea+52);
     env->gpr_d[14] = cpu_ldl_data(env, ea+56);
     env->gpr_d[15] = cpu_ldl_data(env, ea+60);
-    cpu_stl_data(env, ea, env->FCX);
 }
 
 void helper_call(CPUTriCoreState *env, uint32_t next_pc)
@@ -206,11 +200,12 @@ void helper_call(CPUTriCoreState *env, uint32_t next_pc)
     /* EA = {FCX.FCXS, 6'b0, FCX.FCXO, 6'b0}; */
     ea = ((env->FCX & MASK_FCX_FCXS) << 12) +
          ((env->FCX & MASK_FCX_FCXO) << 6);
-    /* new_FCX = M(EA, word);
-       M(EA, 16 * word) = {PCXI, PSW, A[10], A[11], D[8], D[9], D[10], D[11],
-                          A[12], A[13], A[14], A[15], D[12], D[13], D[14],
-                          D[15]}; */
-    save_context_upper(env, ea, &new_FCX);
+    /* new_FCX = M(EA, word); */
+    new_FCX = cpu_ldl_data(env, ea);
+    /* M(EA, 16 * word) = {PCXI, PSW, A[10], A[11], D[8], D[9], D[10], D[11],
+                           A[12], A[13], A[14], A[15], D[12], D[13], D[14],
+                           D[15]}; */
+    save_context_upper(env, ea);
 
     /* PCXI.PCPN = ICR.CCPN; */
     env->PCXI = (env->PCXI & 0xffffff) +
@@ -263,9 +258,10 @@ void helper_ret(CPUTriCoreState *env)
     ea = ((env->PCXI & MASK_PCXI_PCXS) << 12) +
          ((env->PCXI & MASK_PCXI_PCXO) << 6);
     /* {new_PCXI, new_PSW, A[10], A[11], D[8], D[9], D[10], D[11], A[12],
-        A[13], A[14], A[15], D[12], D[13], D[14], D[15]} = M(EA, 16 * word);
-        M(EA, word) = FCX; */
+        A[13], A[14], A[15], D[12], D[13], D[14], D[15]} = M(EA, 16 * word); */
     restore_context_upper(env, ea, &new_PCXI, &new_PSW);
+    /* M(EA, word) = FCX; */
+    cpu_stl_data(env, ea, env->FCX);
     /* FCX[19: 0] = PCXI[19: 0]; */
     env->FCX = (env->FCX & 0xfff00000) + (env->PCXI & 0x000fffff);
     /* PCXI = new_PCXI; */
@@ -293,7 +289,12 @@ void helper_bisr(CPUTriCoreState *env, uint32_t const9)
     tmp_FCX = env->FCX;
     ea = ((env->FCX & 0xf0000) << 12) + ((env->FCX & 0xffff) << 6);
 
-    save_context_lower(env, ea, &new_FCX);
+    /* new_FCX = M(EA, word); */
+    new_FCX = cpu_ldl_data(env, ea);
+    /* M(EA, 16 * word) = {PCXI, A[11], A[2], A[3], D[0], D[1], D[2], D[3], A[4]
+                           , A[5], A[6], A[7], D[4], D[5], D[6], D[7]}; */
+    save_context_lower(env, ea);
+
 
     /* PCXI.PCPN = ICR.CCPN */
     env->PCXI = (env->PCXI & 0xffffff) +
@@ -343,9 +344,10 @@ void helper_rfe(CPUTriCoreState *env)
     ea = ((env->PCXI & MASK_PCXI_PCXS) << 12) +
          ((env->PCXI & MASK_PCXI_PCXO) << 6);
     /*{new_PCXI, PSW, A[10], A[11], D[8], D[9], D[10], D[11], A[12],
-      A[13], A[14], A[15], D[12], D[13], D[14], D[15]} = M(EA, 16 * word);
-      M(EA, word) = FCX;*/
+      A[13], A[14], A[15], D[12], D[13], D[14], D[15]} = M(EA, 16 * word); */
     restore_context_upper(env, ea, &new_PCXI, &new_PSW);
+    /* M(EA, word) = FCX;*/
+    cpu_stl_data(env, ea, env->FCX);
     /* FCX[19: 0] = PCXI[19: 0]; */
     env->FCX = (env->FCX & 0xfff00000) + (env->PCXI & 0x000fffff);
     /* PCXI = new_PCXI; */
@@ -369,13 +371,6 @@ static inline void QEMU_NORETURN do_raise_exception_err(CPUTriCoreState *env,
     }
 
     cpu_loop_exit(cs);
-}
-
-static inline void QEMU_NORETURN do_raise_exception(CPUTriCoreState *env,
-                                                    uint32_t exception,
-                                                    uintptr_t pc)
-{
-    do_raise_exception_err(env, exception, 0, pc);
 }
 
 void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
