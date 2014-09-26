@@ -119,7 +119,6 @@ static void tcg_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
     ac->name = "tcg";
-    ac->available = tcg_available;
     ac->init = tcg_init;
     ac->allowed = &tcg_allowed;
 }
