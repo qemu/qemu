@@ -632,7 +632,6 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    s->bus.qbus.allow_hotplug = 0;
     usb_msd_handle_reset(dev);
 
     if (bdrv_key_required(bs)) {
