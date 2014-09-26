@@ -46,6 +46,35 @@ static void test_uhci_hotplug(void)
     usb_test_hotplug("uhci", 2, test_port_2);
 }
 
+static void test_usb_storage_hotplug(void)
+{
+    QDict *response;
+
+    response = qmp("{'execute': 'device_add',"
+                   " 'arguments': {"
+                   "   'driver': 'usb-storage',"
+                   "   'drive': 'drive0',"
+                   "   'id': 'usbdev0'"
+                   "}}");
+    g_assert(response);
+    g_assert(!qdict_haskey(response, "error"));
+    QDECREF(response);
+
+    response = qmp("{'execute': 'device_del',"
+                           " 'arguments': {"
+                           "   'id': 'usbdev0'"
+                           "}}");
+    g_assert(response);
+    g_assert(!qdict_haskey(response, "error"));
+    QDECREF(response);
+
+    response = qmp("");
+    g_assert(response);
+    g_assert(qdict_haskey(response, "event"));
+    g_assert(!strcmp(qdict_get_str(response, "event"), "DEVICE_DELETED"));
+    QDECREF(response);
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -55,8 +84,10 @@ int main(int argc, char **argv)
     qtest_add_func("/uhci/pci/init", test_uhci_init);
     qtest_add_func("/uhci/pci/port1", test_port_1);
     qtest_add_func("/uhci/pci/hotplug", test_uhci_hotplug);
+    qtest_add_func("/uhci/pci/hotplug/usb-storage", test_usb_storage_hotplug);
 
     qtest_start("-device piix3-usb-uhci,id=uhci,addr=1d.0"
+                " -drive id=drive0,if=none,file=/dev/null"
                 " -device usb-tablet,bus=uhci.0,port=1");
     ret = g_test_run();
     qtest_end();
