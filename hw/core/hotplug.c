@@ -34,6 +34,17 @@ void hotplug_handler_unplug_request(HotplugHandler *plug_handler,
     }
 }
 
+void hotplug_handler_unplug(HotplugHandler *plug_handler,
+                            DeviceState *plugged_dev,
+                            Error **errp)
+{
+    HotplugHandlerClass *hdc = HOTPLUG_HANDLER_GET_CLASS(plug_handler);
+
+    if (hdc->unplug) {
+        hdc->unplug(plug_handler, plugged_dev, errp);
+    }
+}
+
 static const TypeInfo hotplug_handler_info = {
     .name          = TYPE_HOTPLUG_HANDLER,
     .parent        = TYPE_INTERFACE,

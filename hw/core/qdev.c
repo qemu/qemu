@@ -227,8 +227,17 @@ void qdev_unplug(DeviceState *dev, Error **errp)
     qdev_hot_removed = true;
 
     if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
-        hotplug_handler_unplug_request(dev->parent_bus->hotplug_handler,
-                                       dev, errp);
+        HotplugHandlerClass *hdc;
+
+        /* If device supports async unplug just request it to be done,
+         * otherwise just remove it synchronously */
+        hdc = HOTPLUG_HANDLER_GET_CLASS(dev->parent_bus->hotplug_handler);
+        if (hdc->unplug_request) {
+            hotplug_handler_unplug_request(dev->parent_bus->hotplug_handler,
+                                           dev, errp);
+        } else {
+            hotplug_handler_unplug(dev->parent_bus->hotplug_handler, dev, errp);
+        }
     } else {
         assert(dc->unplug != NULL);
         if (dc->unplug(dev) < 0) { /* legacy handler */

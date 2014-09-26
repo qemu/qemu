@@ -50,6 +50,9 @@ typedef void (*hotplug_fn)(HotplugHandler *plug_handler,
  * @unplug_request: unplug request callback.
  *                  Used as a means to initiate device unplug for devices that
  *                  require asynchronous unplug handling.
+ * @unplug: unplug callback.
+ *          Used for device removal with devices that implement
+ *          asynchronous and synchronous (suprise) removal.
  */
 typedef struct HotplugHandlerClass {
     /* <private> */
@@ -58,6 +61,7 @@ typedef struct HotplugHandlerClass {
     /* <public> */
     hotplug_fn plug;
     hotplug_fn unplug_request;
+    hotplug_fn unplug;
 } HotplugHandlerClass;
 
 /**
@@ -77,4 +81,12 @@ void hotplug_handler_plug(HotplugHandler *plug_handler,
 void hotplug_handler_unplug_request(HotplugHandler *plug_handler,
                                     DeviceState *plugged_dev,
                                     Error **errp);
+/**
+ * hotplug_handler_unplug:
+ *
+ * Calls #HotplugHandlerClass.unplug callback of @plug_handler.
+ */
+void hotplug_handler_unplug(HotplugHandler *plug_handler,
+                            DeviceState *plugged_dev,
+                            Error **errp);
 #endif
