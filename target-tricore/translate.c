@@ -116,6 +116,8 @@ void tricore_cpu_dump_state(CPUState *cs, FILE *f,
     } while (0)
 
 #define EA_ABS_FORMAT(con) (((con & 0x3C000) << 14) + (con & 0x3FFF))
+#define EA_B_ABSOLUT(con) (((offset & 0xf00000) << 8) | \
+                           ((offset & 0x0fffff) << 1))
 
 /* Functions for load/save to/from memory */
 
@@ -492,6 +494,7 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
     case OPC1_32_B_J:
         gen_goto_tb(ctx, 0, ctx->pc + offset * 2);
         break;
+    case OPC1_32_B_CALL:
     case OPC1_16_SB_CALL:
         gen_helper_1arg(call, ctx->next_pc);
         gen_goto_tb(ctx, 0, ctx->pc + offset * 2);
@@ -566,6 +569,20 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
     case OPC2_16_SR_RET:
         gen_helper_ret(cpu_env);
         tcg_gen_exit_tb(0);
+        break;
+/* B-format */
+    case OPC1_32_B_CALLA:
+        gen_helper_1arg(call, ctx->next_pc);
+        gen_goto_tb(ctx, 0, EA_B_ABSOLUT(offset));
+        break;
+    case OPC1_32_B_JLA:
+        tcg_gen_movi_tl(cpu_gpr_a[11], ctx->next_pc);
+    case OPC1_32_B_JA:
+        gen_goto_tb(ctx, 0, EA_B_ABSOLUT(offset));
+        break;
+    case OPC1_32_B_JL:
+        tcg_gen_movi_tl(cpu_gpr_a[11], ctx->next_pc);
+        gen_goto_tb(ctx, 0, ctx->pc + offset * 2);
         break;
     default:
         printf("Branch Error at %x\n", ctx->pc);
@@ -1402,6 +1419,16 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 
         tcg_temp_free(temp);
         tcg_temp_free(temp2);
+        break;
+/* B-format */
+    case OPC1_32_B_CALL:
+    case OPC1_32_B_CALLA:
+    case OPC1_32_B_J:
+    case OPC1_32_B_JA:
+    case OPC1_32_B_JL:
+    case OPC1_32_B_JLA:
+        address = MASK_OP_B_DISP24(ctx->opcode);
+        gen_compute_branch(ctx, op1, 0, 0, 0, address);
         break;
     }
 }
