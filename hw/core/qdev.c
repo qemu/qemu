@@ -337,11 +337,20 @@ static NamedGPIOList *qdev_get_named_gpio_list(DeviceState *dev,
 void qdev_init_gpio_in_named(DeviceState *dev, qemu_irq_handler handler,
                              const char *name, int n)
 {
+    int i;
     NamedGPIOList *gpio_list = qdev_get_named_gpio_list(dev, name);
+    char *propname = g_strdup_printf("%s[*]", name ? name : "unnamed-gpio-in");
 
     assert(gpio_list->num_out == 0 || !name);
     gpio_list->in = qemu_extend_irqs(gpio_list->in, gpio_list->num_in, handler,
                                      dev, n);
+
+    for (i = gpio_list->num_in; i < gpio_list->num_in + n; i++) {
+        object_property_add_child(OBJECT(dev), propname,
+                                  OBJECT(gpio_list->in[i]), &error_abort);
+    }
+    g_free(propname);
+
     gpio_list->num_in += n;
 }
 
