@@ -40,13 +40,15 @@ static int tcg_init(MachineClass *mc)
     return 0;
 }
 
-static struct {
+typedef struct AccelType {
     const char *opt_name;
     const char *name;
     int (*available)(void);
     int (*init)(MachineClass *mc);
     bool *allowed;
-} accel_list[] = {
+} AccelType;
+
+static AccelType accel_list[] = {
     { "tcg", "tcg", tcg_available, tcg_init, &tcg_allowed },
     { "xen", "Xen", xen_available, xen_init, &xen_allowed },
     { "kvm", "KVM", kvm_available, kvm_init, &kvm_allowed },
