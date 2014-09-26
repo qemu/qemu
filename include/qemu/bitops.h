@@ -12,7 +12,9 @@
 #ifndef BITOPS_H
 #define BITOPS_H
 
-#include "qemu-common.h"
+#include <stdint.h>
+#include <assert.h>
+
 #include "host-utils.h"
 
 #define BITS_PER_BYTE           CHAR_BIT
