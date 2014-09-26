@@ -24,6 +24,36 @@
 #define HW_ACCEL_H
 
 #include "qemu/typedefs.h"
+#include "qom/object.h"
+
+typedef struct AccelState {
+    /*< private >*/
+    Object parent_obj;
+} AccelState;
+
+typedef struct AccelClass {
+    /*< private >*/
+    ObjectClass parent_class;
+    /*< public >*/
+
+    const char *opt_name;
+    const char *name;
+    int (*available)(void);
+    int (*init)(MachineClass *mc);
+    bool *allowed;
+} AccelClass;
+
+#define TYPE_ACCEL "accel"
+
+#define ACCEL_CLASS_SUFFIX  "-" TYPE_ACCEL
+#define ACCEL_CLASS_NAME(a) (a ACCEL_CLASS_SUFFIX)
+
+#define ACCEL_CLASS(klass) \
+    OBJECT_CLASS_CHECK(AccelClass, (klass), TYPE_ACCEL)
+#define ACCEL(obj) \
+    OBJECT_CHECK(AccelState, (obj), TYPE_ACCEL)
+#define ACCEL_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(AccelClass, (obj), TYPE_ACCEL)
 
 extern int tcg_tb_size;
 

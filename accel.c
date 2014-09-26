@@ -30,6 +30,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/qtest.h"
 #include "hw/xen/xen.h"
+#include "qom/object.h"
 
 int tcg_tb_size;
 static bool tcg_allowed = true;
@@ -40,32 +41,20 @@ static int tcg_init(MachineClass *mc)
     return 0;
 }
 
-typedef struct AccelType {
-    const char *opt_name;
-    const char *name;
-    int (*available)(void);
-    int (*init)(MachineClass *mc);
-    bool *allowed;
-} AccelType;
-
-static AccelType accel_list[] = {
-    { "tcg", "tcg", tcg_available, tcg_init, &tcg_allowed },
-    { "xen", "Xen", xen_available, xen_init, &xen_allowed },
-    { "kvm", "KVM", kvm_available, kvm_init, &kvm_allowed },
-    { "qtest", "QTest", qtest_available, qtest_init_accel, &qtest_allowed },
+static const TypeInfo accel_type = {
+    .name = TYPE_ACCEL,
+    .parent = TYPE_OBJECT,
+    .class_size = sizeof(AccelClass),
+    .instance_size = sizeof(AccelState),
 };
 
-/* Lookup AccelType from opt_name. Returns NULL if not found */
-static AccelType *accel_find(const char *opt_name)
+/* Lookup AccelClass from opt_name. Returns NULL if not found */
+static AccelClass *accel_find(const char *opt_name)
 {
-    int i;
-    for (i = 0; i < ARRAY_SIZE(accel_list); i++) {
-        AccelType *acc = &accel_list[i];
-        if (acc->opt_name && strcmp(acc->opt_name, opt_name) == 0) {
-            return acc;
-        }
-    }
-    return NULL;
+    char *class_name = g_strdup_printf(ACCEL_CLASS_NAME("%s"), opt_name);
+    AccelClass *ac = ACCEL_CLASS(object_class_by_name(class_name));
+    g_free(class_name);
+    return ac;
 }
 
 int configure_accelerator(MachineClass *mc)
@@ -75,7 +64,7 @@ int configure_accelerator(MachineClass *mc)
     int ret;
     bool accel_initialised = false;
     bool init_failed = false;
-    AccelType *acc = NULL;
+    AccelClass *acc = NULL;
 
     p = qemu_opt_get(qemu_get_machine_opts(), "accel");
     if (p == NULL) {
@@ -124,3 +113,83 @@ int configure_accelerator(MachineClass *mc)
 
     return !accel_initialised;
 }
+
+
+static void tcg_accel_class_init(ObjectClass *oc, void *data)
+{
+    AccelClass *ac = ACCEL_CLASS(oc);
+    ac->name = "tcg";
+    ac->available = tcg_available;
+    ac->init = tcg_init;
+    ac->allowed = &tcg_allowed;
+}
+
+#define TYPE_TCG_ACCEL ACCEL_CLASS_NAME("tcg")
+
+static const TypeInfo tcg_accel_type = {
+    .name = TYPE_TCG_ACCEL,
+    .parent = TYPE_ACCEL,
+    .class_init = tcg_accel_class_init,
+};
+
+static void xen_accel_class_init(ObjectClass *oc, void *data)
+{
+    AccelClass *ac = ACCEL_CLASS(oc);
+    ac->name = "Xen";
+    ac->available = xen_available;
+    ac->init = xen_init;
+    ac->allowed = &xen_allowed;
+}
+
+#define TYPE_XEN_ACCEL ACCEL_CLASS_NAME("xen")
+
+static const TypeInfo xen_accel_type = {
+    .name = TYPE_XEN_ACCEL,
+    .parent = TYPE_ACCEL,
+    .class_init = xen_accel_class_init,
+};
+
+static void kvm_accel_class_init(ObjectClass *oc, void *data)
+{
+    AccelClass *ac = ACCEL_CLASS(oc);
+    ac->name = "KVM";
+    ac->available = kvm_available;
+    ac->init = kvm_init;
+    ac->allowed = &kvm_allowed;
+}
+
+#define TYPE_KVM_ACCEL ACCEL_CLASS_NAME("kvm")
+
+static const TypeInfo kvm_accel_type = {
+    .name = TYPE_KVM_ACCEL,
+    .parent = TYPE_ACCEL,
+    .class_init = kvm_accel_class_init,
+};
+
+static void qtest_accel_class_init(ObjectClass *oc, void *data)
+{
+    AccelClass *ac = ACCEL_CLASS(oc);
+    ac->name = "QTest";
+    ac->available = qtest_available;
+    ac->init = qtest_init_accel;
+    ac->allowed = &qtest_allowed;
+}
+
+#define TYPE_QTEST_ACCEL ACCEL_CLASS_NAME("qtest")
+
+static const TypeInfo qtest_accel_type = {
+    .name = TYPE_QTEST_ACCEL,
+    .parent = TYPE_ACCEL,
+    .class_init = qtest_accel_class_init,
+};
+
+static void register_accel_types(void)
+{
+    type_register_static(&accel_type);
+    type_register_static(&tcg_accel_type);
+    type_register_static(&xen_accel_type);
+    type_register_static(&kvm_accel_type);
+    type_register_static(&qtest_accel_type);
+}
+
+type_init(register_accel_types);
