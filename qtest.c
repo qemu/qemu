@@ -564,7 +564,7 @@ static void qtest_accel_class_init(ObjectClass *oc, void *data)
     AccelClass *ac = ACCEL_CLASS(oc);
     ac->name = "QTest";
     ac->available = qtest_available;
-    ac->init = qtest_init_accel;
+    ac->init_machine = qtest_init_accel;
     ac->allowed = &qtest_allowed;
 }
 

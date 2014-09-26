@@ -2233,7 +2233,7 @@ static void kvm_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
     ac->name = "KVM";
-    ac->init = kvm_init;
+    ac->init_machine = kvm_init;
     ac->allowed = &kvm_allowed;
 }
 

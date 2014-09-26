@@ -57,11 +57,11 @@ static AccelClass *accel_find(const char *opt_name)
     return ac;
 }
 
-static int accel_init(AccelClass *acc, MachineClass *mc)
+static int accel_init_machine(AccelClass *acc, MachineClass *mc)
 {
     int ret;
     *(acc->allowed) = true;
-    ret = acc->init(mc);
+    ret = acc->init_machine(mc);
     if (ret < 0) {
         *(acc->allowed) = false;
     }
@@ -98,7 +98,7 @@ int configure_accelerator(MachineClass *mc)
                    acc->name);
             continue;
         }
-        ret = accel_init(acc, mc);
+        ret = accel_init_machine(acc, mc);
         if (ret < 0) {
             init_failed = true;
             fprintf(stderr, "failed to initialize %s: %s\n",
@@ -128,7 +128,7 @@ static void tcg_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
     ac->name = "tcg";
-    ac->init = tcg_init;
+    ac->init_machine = tcg_init;
     ac->allowed = &tcg_allowed;
 }
 

@@ -126,7 +126,7 @@ static void xen_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
     ac->name = "Xen";
-    ac->init = xen_init;
+    ac->init_machine = xen_init;
     ac->allowed = &xen_allowed;
 }
 
