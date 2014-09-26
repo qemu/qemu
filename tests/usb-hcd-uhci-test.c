@@ -19,17 +19,32 @@ static void test_uhci_init(void)
 {
 }
 
-static void test_port_1(void)
+static void test_port(int port)
 {
     QPCIBus *pcibus;
     struct qhc uhci;
 
+    g_assert(port > 0);
     pcibus = qpci_init_pc();
     g_assert(pcibus != NULL);
     qusb_pci_init_one(pcibus, &uhci, QPCI_DEVFN(0x1d, 0), 4);
-    uhci_port_test(&uhci, 0, UHCI_PORT_CCS);
+    uhci_port_test(&uhci, port - 1, UHCI_PORT_CCS);
 }
 
+static void test_port_1(void)
+{
+    test_port(1);
+}
+
+static void test_port_2(void)
+{
+    test_port(2);
+}
+
+static void test_uhci_hotplug(void)
+{
+    usb_test_hotplug("uhci", 2, test_port_2);
+}
 
 int main(int argc, char **argv)
 {
@@ -39,6 +54,7 @@ int main(int argc, char **argv)
 
     qtest_add_func("/uhci/pci/init", test_uhci_init);
     qtest_add_func("/uhci/pci/port1", test_port_1);
+    qtest_add_func("/uhci/pci/hotplug", test_uhci_hotplug);
 
     qtest_start("-device piix3-usb-uhci,id=uhci,addr=1d.0"
                 " -device usb-tablet,bus=uhci.0,port=1");

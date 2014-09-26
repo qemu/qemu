@@ -11,15 +11,17 @@
 #include <string.h>
 #include "libqtest.h"
 #include "qemu/osdep.h"
+#include "libqos/usb.h"
 
 
 static void test_xhci_init(void)
 {
-    qtest_start("-device nec-usb-xhci,id=xhci");
-
-    qtest_end();
 }
 
+static void test_xhci_hotplug(void)
+{
+    usb_test_hotplug("xhci", 1, NULL);
+}
 
 int main(int argc, char **argv)
 {
@@ -28,8 +30,11 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("/xhci/pci/init", test_xhci_init);
+    qtest_add_func("/xhci/pci/hotplug", test_xhci_hotplug);
 
+    qtest_start("-device nec-usb-xhci,id=xhci");
     ret = g_test_run();
+    qtest_end();
 
     return ret;
 }

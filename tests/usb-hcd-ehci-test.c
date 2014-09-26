@@ -128,6 +128,19 @@ static void pci_ehci_port_2(void)
     }
 }
 
+static void pci_ehci_port_3_hotplug(void)
+{
+    /* check for presence of hotplugged usb-tablet */
+    g_assert(pcibus != NULL);
+    ehci_port_test(&ehci1, 2, PORTSC_PPOWER | PORTSC_CONNECT);
+}
+
+static void pci_ehci_port_hotplug(void)
+{
+    usb_test_hotplug("ich9-ehci-1", 3, pci_ehci_port_3_hotplug);
+}
+
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -139,6 +152,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ehci/pci/ehci-config", pci_ehci_config);
     qtest_add_func("/ehci/pci/uhci-port-2", pci_uhci_port_2);
     qtest_add_func("/ehci/pci/ehci-port-2", pci_ehci_port_2);
+    qtest_add_func("/ehci/pci/ehci-port-3-hotplug", pci_ehci_port_hotplug);
 
     qtest_start("-machine q35 -device ich9-usb-ehci1,bus=pcie.0,addr=1d.7,"
                 "multifunction=on,id=ich9-ehci-1 "
