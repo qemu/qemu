@@ -770,9 +770,11 @@ static void usb_msd_class_initfn_storage(ObjectClass *klass, void *data)
 static void usb_msd_class_initfn_bot(ObjectClass *klass, void *data)
 {
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     uc->realize = usb_msd_realize_bot;
     usb_msd_class_initfn_common(klass);
+    dc->hotpluggable = false;
 }
 
 static const TypeInfo msd_info = {
