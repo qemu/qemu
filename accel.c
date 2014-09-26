@@ -132,28 +132,10 @@ static const TypeInfo tcg_accel_type = {
     .class_init = tcg_accel_class_init,
 };
 
-static void qtest_accel_class_init(ObjectClass *oc, void *data)
-{
-    AccelClass *ac = ACCEL_CLASS(oc);
-    ac->name = "QTest";
-    ac->available = qtest_available;
-    ac->init = qtest_init_accel;
-    ac->allowed = &qtest_allowed;
-}
-
-#define TYPE_QTEST_ACCEL ACCEL_CLASS_NAME("qtest")
-
-static const TypeInfo qtest_accel_type = {
-    .name = TYPE_QTEST_ACCEL,
-    .parent = TYPE_ACCEL,
-    .class_init = qtest_accel_class_init,
-};
-
 static void register_accel_types(void)
 {
     type_register_static(&accel_type);
     type_register_static(&tcg_accel_type);
-    type_register_static(&qtest_accel_type);
 }
 
 type_init(register_accel_types);
