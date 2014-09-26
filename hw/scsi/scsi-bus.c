@@ -208,10 +208,6 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
     }
     dev->vmsentry = qemu_add_vm_change_state_handler(scsi_dma_restart_cb,
                                                      dev);
-
-    if (bus->info->hotplug) {
-        bus->info->hotplug(bus, dev);
-    }
 }
 
 static void scsi_qdev_unrealize(DeviceState *qdev, Error **errp)
@@ -1943,17 +1939,6 @@ static int get_scsi_requests(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static int scsi_qdev_unplug(DeviceState *qdev)
-{
-    SCSIDevice *dev = SCSI_DEVICE(qdev);
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
-
-    if (bus->info->hot_unplug) {
-        bus->info->hot_unplug(bus, dev);
-    }
-    return qdev_simple_unplug_cb(qdev);
-}
-
 static const VMStateInfo vmstate_info_scsi_requests = {
     .name = "scsi-requests",
     .get  = get_scsi_requests,
@@ -2017,7 +2002,6 @@ static void scsi_device_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
     k->bus_type  = TYPE_SCSI_BUS;
     k->realize   = scsi_qdev_realize;
-    k->unplug    = scsi_qdev_unplug;
     k->unrealize = scsi_qdev_unrealize;
     k->props     = scsi_props;
 }
