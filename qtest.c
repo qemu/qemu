@@ -201,8 +201,8 @@ static void GCC_FMT_ATTR(2, 3) qtest_send(CharDriverState *chr,
 
 static void qtest_irq_handler(void *opaque, int n, int level)
 {
-    qemu_irq *old_irqs = opaque;
-    qemu_set_irq(old_irqs[n], level);
+    qemu_irq old_irq = *(qemu_irq *)opaque;
+    qemu_set_irq(old_irq, level);
 
     if (irq_levels[n] != level) {
         CharDriverState *chr = qtest_chr;
@@ -264,8 +264,15 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
                 continue;
             }
             if (words[0][14] == 'o') {
-                qemu_irq_intercept_out(&ngl->out, qtest_irq_handler,
-                                       ngl->num_out);
+                int i;
+                for (i = 0; i < ngl->num_out; ++i) {
+                    qemu_irq *disconnected = g_new0(qemu_irq, 1);
+                    qemu_irq icpt = qemu_allocate_irq(qtest_irq_handler,
+                                                      disconnected, i);
+
+                    *disconnected = qdev_intercept_gpio_out(dev, icpt,
+                                                            ngl->name, i);
+                }
             } else {
                 qemu_irq_intercept_in(ngl->in, qtest_irq_handler,
                                       ngl->num_in);

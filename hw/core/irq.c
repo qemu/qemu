@@ -140,7 +140,7 @@ void qemu_irq_intercept_in(qemu_irq *gpio_in, qemu_irq_handler handler, int n)
     for (i = 0; i < n; i++) {
         *old_irqs[i] = *gpio_in[i];
         gpio_in[i]->handler = handler;
-        gpio_in[i]->opaque = old_irqs;
+        gpio_in[i]->opaque = &old_irqs[i];
     }
 }
 
