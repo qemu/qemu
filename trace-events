@@ -1369,3 +1369,6 @@ mhp_pc_dimm_assigned_address(uint64_t addr) "0x%"PRIx64
 # target-s390x/kvm.c
 kvm_enable_cmma(int rc) "CMMA: enabling with result code %d"
 kvm_clear_cmma(int rc) "CMMA: clearing with result code %d"
+
+# hw/dma/i8257.c
+i8257_unregistered_dma(int nchan, int dma_pos, int dma_len) "unregistered DMA channel used nchan=%d dma_pos=%d dma_len=%d"

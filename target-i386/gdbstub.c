@@ -203,7 +203,7 @@ int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             return x86_cpu_gdb_load_seg(cpu, R_GS, mem_buf);
 
         case IDX_FP_REGS + 8:
-            env->fpuc = ldl_p(mem_buf);
+            cpu_set_fpuc(env, ldl_p(mem_buf));
             return 4;
         case IDX_FP_REGS + 9:
             tmp = ldl_p(mem_buf);
