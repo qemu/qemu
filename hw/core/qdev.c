@@ -112,6 +112,25 @@ void qdev_set_parent_bus(DeviceState *dev, BusState *bus)
     bus_add_child(bus, dev);
 }
 
+static void qbus_set_hotplug_handler_internal(BusState *bus, Object *handler,
+                                              Error **errp)
+{
+
+    object_property_set_link(OBJECT(bus), OBJECT(handler),
+                             QDEV_HOTPLUG_HANDLER_PROPERTY, errp);
+    bus->allow_hotplug = 1;
+}
+
+void qbus_set_hotplug_handler(BusState *bus, DeviceState *handler, Error **errp)
+{
+    qbus_set_hotplug_handler_internal(bus, OBJECT(handler), errp);
+}
+
+void qbus_set_bus_hotplug_handler(BusState *bus, Error **errp)
+{
+    qbus_set_hotplug_handler_internal(bus, OBJECT(bus), errp);
+}
+
 /* Create a new device.  This only initializes the device state structure
    and allows properties to be set.  qdev_init should be called to
    initialize the actual device emulation.  */

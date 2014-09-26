@@ -363,13 +363,10 @@ extern int qdev_hotplug;
 
 char *qdev_get_dev_path(DeviceState *dev);
 
-static inline void qbus_set_hotplug_handler(BusState *bus, DeviceState *handler,
-                                            Error **errp)
-{
-    object_property_set_link(OBJECT(bus), OBJECT(handler),
-                             QDEV_HOTPLUG_HANDLER_PROPERTY, errp);
-    bus->allow_hotplug = 1;
-}
+void qbus_set_hotplug_handler(BusState *bus, DeviceState *handler,
+                              Error **errp);
+
+void qbus_set_bus_hotplug_handler(BusState *bus, Error **errp);
 
 static inline bool qbus_is_hotpluggable(BusState *bus)
 {
