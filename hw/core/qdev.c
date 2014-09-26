@@ -362,12 +362,24 @@ void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n)
 void qdev_init_gpio_out_named(DeviceState *dev, qemu_irq *pins,
                               const char *name, int n)
 {
+    int i;
     NamedGPIOList *gpio_list = qdev_get_named_gpio_list(dev, name);
+    char *propname = g_strdup_printf("%s[*]", name ? name : "unnamed-gpio-out");
 
     assert(gpio_list->num_in == 0 || !name);
     assert(gpio_list->num_out == 0);
     gpio_list->num_out = n;
     gpio_list->out = pins;
+
+    for (i = 0; i < n; ++i) {
+        memset(&pins[i], 0, sizeof(*pins));
+        object_property_add_link(OBJECT(dev), propname, TYPE_IRQ,
+                                 (Object **)&pins[i],
+                                 object_property_allow_set_link,
+                                 OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                                 &error_abort);
+    }
+    g_free(propname);
 }
 
 void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n)
