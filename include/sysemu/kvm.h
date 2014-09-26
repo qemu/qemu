@@ -163,8 +163,6 @@ extern KVMState *kvm_state;
 
 /* external API */
 
-int kvm_init(MachineClass *mc);
-
 int kvm_has_sync_mmu(void);
 int kvm_has_vcpu_events(void);
 int kvm_has_robust_singlestep(void);

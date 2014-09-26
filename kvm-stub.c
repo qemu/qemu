@@ -35,11 +35,6 @@ int kvm_init_vcpu(CPUState *cpu)
     return -ENOSYS;
 }
 
-int kvm_init(MachineClass *mc)
-{
-    return -ENOSYS;
-}
-
 void kvm_flush_coalesced_mmio_buffer(void)
 {
 }

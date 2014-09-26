@@ -149,23 +149,6 @@ static const TypeInfo xen_accel_type = {
     .class_init = xen_accel_class_init,
 };
 
-static void kvm_accel_class_init(ObjectClass *oc, void *data)
-{
-    AccelClass *ac = ACCEL_CLASS(oc);
-    ac->name = "KVM";
-    ac->available = kvm_available;
-    ac->init = kvm_init;
-    ac->allowed = &kvm_allowed;
-}
-
-#define TYPE_KVM_ACCEL ACCEL_CLASS_NAME("kvm")
-
-static const TypeInfo kvm_accel_type = {
-    .name = TYPE_KVM_ACCEL,
-    .parent = TYPE_ACCEL,
-    .class_init = kvm_accel_class_init,
-};
-
 static void qtest_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
@@ -188,7 +171,6 @@ static void register_accel_types(void)
     type_register_static(&accel_type);
     type_register_static(&tcg_accel_type);
     type_register_static(&xen_accel_type);
-    type_register_static(&kvm_accel_type);
     type_register_static(&qtest_accel_type);
 }
 

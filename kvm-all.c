@@ -25,6 +25,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/accel.h"
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "hw/s390x/adapter.h"
@@ -105,6 +106,8 @@ struct KVMState
     bool direct_msi;
 #endif
 };
+
+#define TYPE_KVM_ACCEL ACCEL_CLASS_NAME("kvm")
 
 KVMState *kvm_state;
 bool kvm_kernel_irqchip;
@@ -1377,7 +1380,7 @@ static int kvm_max_vcpus(KVMState *s)
     return (ret) ? ret : kvm_recommended_vcpus(s);
 }
 
-int kvm_init(MachineClass *mc)
+static int kvm_init(MachineClass *mc)
 {
     static const char upgrade_note[] =
         "Please upgrade to at least kernel 2.6.29 or recent kvm-kmod\n"
@@ -2225,3 +2228,24 @@ int kvm_get_one_reg(CPUState *cs, uint64_t id, void *target)
     }
     return r;
 }
+
+static void kvm_accel_class_init(ObjectClass *oc, void *data)
+{
+    AccelClass *ac = ACCEL_CLASS(oc);
+    ac->name = "KVM";
+    ac->init = kvm_init;
+    ac->allowed = &kvm_allowed;
+}
+
+static const TypeInfo kvm_accel_type = {
+    .name = TYPE_KVM_ACCEL,
+    .parent = TYPE_ACCEL,
+    .class_init = kvm_accel_class_init,
+};
+
+static void kvm_type_init(void)
+{
+    type_register_static(&kvm_accel_type);
+}
+
+type_init(kvm_type_init);
