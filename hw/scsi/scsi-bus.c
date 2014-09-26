@@ -23,9 +23,11 @@ static Property scsi_props[] = {
 static void scsi_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     k->get_dev_path = scsibus_get_dev_path;
     k->get_fw_dev_path = scsibus_get_fw_dev_path;
+    hc->unplug = qdev_simple_device_unplug_cb;
 }
 
 static const TypeInfo scsi_bus_info = {
@@ -33,6 +35,10 @@ static const TypeInfo scsi_bus_info = {
     .parent = TYPE_BUS,
     .instance_size = sizeof(SCSIBus),
     .class_init = scsi_bus_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
 };
 static int next_scsi_bus;
 
@@ -92,7 +98,7 @@ void scsi_bus_new(SCSIBus *bus, size_t bus_size, DeviceState *host,
     qbus_create_inplace(bus, bus_size, TYPE_SCSI_BUS, host, bus_name);
     bus->busnr = next_scsi_bus++;
     bus->info = info;
-    bus->qbus.allow_hotplug = 1;
+    qbus_set_bus_hotplug_handler(BUS(bus), &error_abort);
 }
 
 static void scsi_dma_restart_bh(void *opaque)
