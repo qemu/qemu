@@ -175,6 +175,27 @@ static void restore_context_upper(CPUTriCoreState *env, int ea,
     env->gpr_d[15] = cpu_ldl_data(env, ea+60);
 }
 
+static void restore_context_lower(CPUTriCoreState *env, int ea,
+                                  target_ulong *ra, target_ulong *pcxi)
+{
+    *pcxi = cpu_ldl_data(env, ea);
+    *ra = cpu_ldl_data(env, ea+4);
+    env->gpr_a[2] = cpu_ldl_data(env, ea+8);
+    env->gpr_a[3] = cpu_ldl_data(env, ea+12);
+    env->gpr_d[0] = cpu_ldl_data(env, ea+16);
+    env->gpr_d[1] = cpu_ldl_data(env, ea+20);
+    env->gpr_d[2] = cpu_ldl_data(env, ea+24);
+    env->gpr_d[3] = cpu_ldl_data(env, ea+28);
+    env->gpr_a[4] = cpu_ldl_data(env, ea+32);
+    env->gpr_a[5] = cpu_ldl_data(env, ea+36);
+    env->gpr_a[6] = cpu_ldl_data(env, ea+40);
+    env->gpr_a[7] = cpu_ldl_data(env, ea+44);
+    env->gpr_d[4] = cpu_ldl_data(env, ea+48);
+    env->gpr_d[5] = cpu_ldl_data(env, ea+52);
+    env->gpr_d[6] = cpu_ldl_data(env, ea+56);
+    env->gpr_d[7] = cpu_ldl_data(env, ea+60);
+}
+
 void helper_call(CPUTriCoreState *env, uint32_t next_pc)
 {
     target_ulong tmp_FCX;
@@ -354,6 +375,30 @@ void helper_rfe(CPUTriCoreState *env)
     env->PCXI = new_PCXI;
     /* write psw */
     psw_write(env, new_PSW);
+}
+
+void helper_ldlcx(CPUTriCoreState *env, uint32_t ea)
+{
+    uint32_t dummy;
+    /* insn doesn't load PCXI and RA */
+    restore_context_lower(env, ea, &dummy, &dummy);
+}
+
+void helper_lducx(CPUTriCoreState *env, uint32_t ea)
+{
+    uint32_t dummy;
+    /* insn doesn't load PCXI and PSW */
+    restore_context_upper(env, ea, &dummy, &dummy);
+}
+
+void helper_stlcx(CPUTriCoreState *env, uint32_t ea)
+{
+    save_context_lower(env, ea);
+}
+
+void helper_stucx(CPUTriCoreState *env, uint32_t ea)
+{
+    save_context_upper(env, ea);
 }
 
 static inline void QEMU_NORETURN do_raise_exception_err(CPUTriCoreState *env,

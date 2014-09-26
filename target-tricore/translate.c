@@ -115,6 +115,8 @@ void tricore_cpu_dump_state(CPUState *cs, FILE *f,
     tcg_temp_free_i32(helper_tmp);                                \
     } while (0)
 
+#define EA_ABS_FORMAT(con) (((con & 0x3C000) << 14) + (con & 0x3FFF))
+
 /* Functions for load/save to/from memory */
 
 static inline void gen_offset_ld(DisasContext *ctx, TCGv r1, TCGv r2,
@@ -132,6 +134,62 @@ static inline void gen_offset_st(DisasContext *ctx, TCGv r1, TCGv r2,
     TCGv temp = tcg_temp_new();
     tcg_gen_addi_tl(temp, r2, con);
     tcg_gen_qemu_st_tl(r1, temp, ctx->mem_idx, mop);
+    tcg_temp_free(temp);
+}
+
+static void gen_st_2regs_64(TCGv rh, TCGv rl, TCGv address, DisasContext *ctx)
+{
+    TCGv_i64 temp = tcg_temp_new_i64();
+
+    tcg_gen_concat_i32_i64(temp, rl, rh);
+    tcg_gen_qemu_st_i64(temp, address, ctx->mem_idx, MO_LEQ);
+
+    tcg_temp_free_i64(temp);
+}
+
+static void gen_ld_2regs_64(TCGv rh, TCGv rl, TCGv address, DisasContext *ctx)
+{
+    TCGv_i64 temp = tcg_temp_new_i64();
+
+    tcg_gen_qemu_ld_i64(temp, address, ctx->mem_idx, MO_LEQ);
+    /* write back to two 32 bit regs */
+    tcg_gen_extr_i64_i32(rl, rh, temp);
+
+    tcg_temp_free_i64(temp);
+}
+
+/* M(EA, word) = (M(EA, word) & ~E[a][63:32]) | (E[a][31:0] & E[a][63:32]); */
+static void gen_ldmst(DisasContext *ctx, int ereg, TCGv ea)
+{
+    TCGv temp = tcg_temp_new();
+    TCGv temp2 = tcg_temp_new();
+
+    /* temp = (M(EA, word) */
+    tcg_gen_qemu_ld_tl(temp, ea, ctx->mem_idx, MO_LEUL);
+    /* temp = temp & ~E[a][63:32]) */
+    tcg_gen_andc_tl(temp, temp, cpu_gpr_d[ereg+1]);
+    /* temp2 = (E[a][31:0] & E[a][63:32]); */
+    tcg_gen_and_tl(temp2, cpu_gpr_d[ereg], cpu_gpr_d[ereg+1]);
+    /* temp = temp | temp2; */
+    tcg_gen_or_tl(temp, temp, temp2);
+    /* M(EA, word) = temp; */
+    tcg_gen_qemu_st_tl(temp, ea, ctx->mem_idx, MO_LEUL);
+
+    tcg_temp_free(temp);
+    tcg_temp_free(temp2);
+}
+
+/* tmp = M(EA, word);
+   M(EA, word) = D[a];
+   D[a] = tmp[31:0];*/
+static void gen_swap(DisasContext *ctx, int reg, TCGv ea)
+{
+    TCGv temp = tcg_temp_new();
+
+    tcg_gen_qemu_ld_tl(temp, ea, ctx->mem_idx, MO_LEUL);
+    tcg_gen_qemu_st_tl(cpu_gpr_d[reg], ea, ctx->mem_idx, MO_LEUL);
+    tcg_gen_mov_tl(cpu_gpr_d[reg], temp);
+
     tcg_temp_free(temp);
 }
 
@@ -1099,8 +1157,253 @@ static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     }
 }
 
+/*
+ * 32 bit instructions
+ */
+
+/* ABS-format */
+static void decode_abs_ldw(CPUTriCoreState *env, DisasContext *ctx)
+{
+    int32_t op2;
+    int32_t r1;
+    uint32_t address;
+    TCGv temp;
+
+    r1 = MASK_OP_ABS_S1D(ctx->opcode);
+    address = MASK_OP_ABS_OFF18(ctx->opcode);
+    op2 = MASK_OP_ABS_OP2(ctx->opcode);
+
+    temp = tcg_const_i32(EA_ABS_FORMAT(address));
+
+    switch (op2) {
+    case OPC2_32_ABS_LD_A:
+        tcg_gen_qemu_ld_tl(cpu_gpr_a[r1], temp, ctx->mem_idx, MO_LESL);
+        break;
+    case OPC2_32_ABS_LD_D:
+        gen_ld_2regs_64(cpu_gpr_d[r1+1], cpu_gpr_d[r1], temp, ctx);
+        break;
+    case OPC2_32_ABS_LD_DA:
+        gen_ld_2regs_64(cpu_gpr_a[r1+1], cpu_gpr_a[r1], temp, ctx);
+        break;
+    case OPC2_32_ABS_LD_W:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp, ctx->mem_idx, MO_LESL);
+        break;
+    }
+
+    tcg_temp_free(temp);
+}
+
+static void decode_abs_ldb(CPUTriCoreState *env, DisasContext *ctx)
+{
+    int32_t op2;
+    int32_t r1;
+    uint32_t address;
+    TCGv temp;
+
+    r1 = MASK_OP_ABS_S1D(ctx->opcode);
+    address = MASK_OP_ABS_OFF18(ctx->opcode);
+    op2 = MASK_OP_ABS_OP2(ctx->opcode);
+
+    temp = tcg_const_i32(EA_ABS_FORMAT(address));
+
+    switch (op2) {
+    case OPC2_32_ABS_LD_B:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp, ctx->mem_idx, MO_SB);
+        break;
+    case OPC2_32_ABS_LD_BU:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp, ctx->mem_idx, MO_UB);
+        break;
+    case OPC2_32_ABS_LD_H:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp, ctx->mem_idx, MO_LESW);
+        break;
+    case OPC2_32_ABS_LD_HU:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp, ctx->mem_idx, MO_LEUW);
+        break;
+    }
+
+    tcg_temp_free(temp);
+}
+
+static void decode_abs_ldst_swap(CPUTriCoreState *env, DisasContext *ctx)
+{
+    int32_t op2;
+    int32_t r1;
+    uint32_t address;
+    TCGv temp;
+
+    r1 = MASK_OP_ABS_S1D(ctx->opcode);
+    address = MASK_OP_ABS_OFF18(ctx->opcode);
+    op2 = MASK_OP_ABS_OP2(ctx->opcode);
+
+    temp = tcg_const_i32(EA_ABS_FORMAT(address));
+
+    switch (op2) {
+    case OPC2_32_ABS_LDMST:
+        gen_ldmst(ctx, r1, temp);
+        break;
+    case OPC2_32_ABS_SWAP_W:
+        gen_swap(ctx, r1, temp);
+        break;
+    }
+
+    tcg_temp_free(temp);
+}
+
+static void decode_abs_ldst_context(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    int32_t off18;
+
+    off18 = MASK_OP_ABS_OFF18(ctx->opcode);
+    op2   = MASK_OP_ABS_OP2(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_ABS_LDLCX:
+        gen_helper_1arg(ldlcx, EA_ABS_FORMAT(off18));
+        break;
+    case OPC2_32_ABS_LDUCX:
+        gen_helper_1arg(lducx, EA_ABS_FORMAT(off18));
+        break;
+    case OPC2_32_ABS_STLCX:
+        gen_helper_1arg(stlcx, EA_ABS_FORMAT(off18));
+        break;
+    case OPC2_32_ABS_STUCX:
+        gen_helper_1arg(stucx, EA_ABS_FORMAT(off18));
+        break;
+    }
+}
+
+static void decode_abs_store(CPUTriCoreState *env, DisasContext *ctx)
+{
+    int32_t op2;
+    int32_t r1;
+    uint32_t address;
+    TCGv temp;
+
+    r1 = MASK_OP_ABS_S1D(ctx->opcode);
+    address = MASK_OP_ABS_OFF18(ctx->opcode);
+    op2 = MASK_OP_ABS_OP2(ctx->opcode);
+
+    temp = tcg_const_i32(EA_ABS_FORMAT(address));
+
+    switch (op2) {
+    case OPC2_32_ABS_ST_A:
+        tcg_gen_qemu_st_tl(cpu_gpr_a[r1], temp, ctx->mem_idx, MO_LESL);
+        break;
+    case OPC2_32_ABS_ST_D:
+        gen_st_2regs_64(cpu_gpr_d[r1+1], cpu_gpr_d[r1], temp, ctx);
+        break;
+    case OPC2_32_ABS_ST_DA:
+        gen_st_2regs_64(cpu_gpr_a[r1+1], cpu_gpr_a[r1], temp, ctx);
+        break;
+    case OPC2_32_ABS_ST_W:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], temp, ctx->mem_idx, MO_LESL);
+        break;
+
+    }
+    tcg_temp_free(temp);
+}
+
+static void decode_abs_storeb_h(CPUTriCoreState *env, DisasContext *ctx)
+{
+    int32_t op2;
+    int32_t r1;
+    uint32_t address;
+    TCGv temp;
+
+    r1 = MASK_OP_ABS_S1D(ctx->opcode);
+    address = MASK_OP_ABS_OFF18(ctx->opcode);
+    op2 = MASK_OP_ABS_OP2(ctx->opcode);
+
+    temp = tcg_const_i32(EA_ABS_FORMAT(address));
+
+    switch (op2) {
+    case OPC2_32_ABS_ST_B:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], temp, ctx->mem_idx, MO_UB);
+        break;
+    case OPC2_32_ABS_ST_H:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], temp, ctx->mem_idx, MO_LEUW);
+        break;
+    }
+    tcg_temp_free(temp);
+}
+
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
+    int op1;
+    int32_t r1;
+    int32_t address;
+    int8_t b;
+    int32_t bpos;
+    TCGv temp, temp2;
+
+    op1 = MASK_OP_MAJOR(ctx->opcode);
+
+    switch (op1) {
+/* ABS-format */
+    case OPCM_32_ABS_LDW:
+        decode_abs_ldw(env, ctx);
+        break;
+    case OPCM_32_ABS_LDB:
+        decode_abs_ldb(env, ctx);
+        break;
+    case OPCM_32_ABS_LDMST_SWAP:
+        decode_abs_ldst_swap(env, ctx);
+        break;
+    case OPCM_32_ABS_LDST_CONTEXT:
+        decode_abs_ldst_context(env, ctx);
+        break;
+    case OPCM_32_ABS_STORE:
+        decode_abs_store(env, ctx);
+        break;
+    case OPCM_32_ABS_STOREB_H:
+        decode_abs_storeb_h(env, ctx);
+        break;
+    case OPC1_32_ABS_STOREQ:
+        address = MASK_OP_ABS_OFF18(ctx->opcode);
+        r1 = MASK_OP_ABS_S1D(ctx->opcode);
+        temp = tcg_const_i32(EA_ABS_FORMAT(address));
+        temp2 = tcg_temp_new();
+
+        tcg_gen_shri_tl(temp2, cpu_gpr_d[r1], 16);
+        tcg_gen_qemu_st_tl(temp2, temp, ctx->mem_idx, MO_LEUW);
+
+        tcg_temp_free(temp2);
+        tcg_temp_free(temp);
+        break;
+    case OPC1_32_ABS_LD_Q:
+        address = MASK_OP_ABS_OFF18(ctx->opcode);
+        r1 = MASK_OP_ABS_S1D(ctx->opcode);
+        temp = tcg_const_i32(EA_ABS_FORMAT(address));
+
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp, ctx->mem_idx, MO_LEUW);
+        tcg_gen_shli_tl(cpu_gpr_d[r1], cpu_gpr_d[r1], 16);
+
+        tcg_temp_free(temp);
+        break;
+    case OPC1_32_ABS_LEA:
+        address = MASK_OP_ABS_OFF18(ctx->opcode);
+        r1 = MASK_OP_ABS_S1D(ctx->opcode);
+        tcg_gen_movi_tl(cpu_gpr_a[r1], EA_ABS_FORMAT(address));
+        break;
+/* ABSB-format */
+    case OPC1_32_ABSB_ST_T:
+        address = MASK_OP_ABS_OFF18(ctx->opcode);
+        b = MASK_OP_ABSB_B(ctx->opcode);
+        bpos = MASK_OP_ABSB_BPOS(ctx->opcode);
+
+        temp = tcg_const_i32(EA_ABS_FORMAT(address));
+        temp2 = tcg_temp_new();
+
+        tcg_gen_qemu_ld_tl(temp2, temp, ctx->mem_idx, MO_UB);
+        tcg_gen_andi_tl(temp2, temp2, ~(0x1u << bpos));
+        tcg_gen_ori_tl(temp2, temp2, (b << bpos));
+        tcg_gen_qemu_st_tl(temp2, temp, ctx->mem_idx, MO_UB);
+
+        tcg_temp_free(temp);
+        tcg_temp_free(temp2);
+        break;
+    }
 }
 
 static void decode_opc(CPUTriCoreState *env, DisasContext *ctx, int *is_branch)
