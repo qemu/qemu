@@ -226,7 +226,7 @@ void os_daemonize(void)
                 exit(1);
             }
             else if (status == 1) {
-                fprintf(stderr, "Could not acquire pidfile: %s\n", strerror(errno));
+                fprintf(stderr, "Could not acquire pidfile\n");
                 exit(1);
             } else {
                 exit(0);
