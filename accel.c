@@ -57,6 +57,17 @@ static AccelClass *accel_find(const char *opt_name)
     return ac;
 }
 
+static int accel_init(AccelClass *acc, MachineClass *mc)
+{
+    int ret;
+    *(acc->allowed) = true;
+    ret = acc->init(mc);
+    if (ret < 0) {
+        *(acc->allowed) = false;
+    }
+    return ret;
+}
+
 int configure_accelerator(MachineClass *mc)
 {
     const char *p;
@@ -87,14 +98,12 @@ int configure_accelerator(MachineClass *mc)
                    acc->name);
             continue;
         }
-        *(acc->allowed) = true;
-        ret = acc->init(mc);
+        ret = accel_init(acc, mc);
         if (ret < 0) {
             init_failed = true;
             fprintf(stderr, "failed to initialize %s: %s\n",
                     acc->name,
                     strerror(-ret));
-            *(acc->allowed) = false;
         } else {
             accel_initialised = true;
         }
