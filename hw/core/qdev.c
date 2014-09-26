@@ -406,7 +406,6 @@ void qdev_init_gpio_out_named(DeviceState *dev, qemu_irq *pins,
     assert(gpio_list->num_in == 0 || !name);
     assert(gpio_list->num_out == 0);
     gpio_list->num_out = n;
-    gpio_list->out = pins;
 
     for (i = 0; i < n; ++i) {
         memset(&pins[i], 0, sizeof(*pins));
