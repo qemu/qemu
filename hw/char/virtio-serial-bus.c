@@ -904,6 +904,12 @@ static void virtser_port_device_realize(DeviceState *dev, Error **errp)
     }
 
     port->elem.out_num = 0;
+}
+
+static void virtser_port_device_plug(HotplugHandler *hotplug_dev,
+                                     DeviceState *dev, Error **errp)
+{
+    VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);
 
     QTAILQ_INSERT_TAIL(&port->vser->ports, port, next);
     port->ivq = port->vser->ivqs[port->id];
@@ -912,7 +918,7 @@ static void virtser_port_device_realize(DeviceState *dev, Error **errp)
     add_port(port->vser, port->id);
 
     /* Send an update to the guest about this new port added */
-    virtio_notify_config(vdev);
+    virtio_notify_config(VIRTIO_DEVICE(hotplug_dev));
 }
 
 static void virtser_port_device_unrealize(DeviceState *dev, Error **errp)
@@ -935,7 +941,6 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOSerial *vser = VIRTIO_SERIAL(dev);
-    BusState *bus;
     uint32_t i, max_supported_ports;
 
     if (!vser->serial.max_virtserial_ports) {
@@ -957,8 +962,7 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
     /* Spawn a new virtio-serial bus on which the ports will ride as devices */
     qbus_create_inplace(&vser->bus, sizeof(vser->bus), TYPE_VIRTIO_SERIAL_BUS,
                         dev, vdev->bus_name);
-    bus = BUS(&vser->bus);
-    bus->allow_hotplug = 1;
+    qbus_set_hotplug_handler(BUS(&vser->bus), DEVICE(vser), errp);
     vser->bus.vser = vser;
     QTAILQ_INIT(&vser->ports);
 
@@ -1021,7 +1025,6 @@ static void virtio_serial_port_class_init(ObjectClass *klass, void *data)
     k->bus_type = TYPE_VIRTIO_SERIAL_BUS;
     k->realize = virtser_port_device_realize;
     k->unrealize = virtser_port_device_unrealize;
-    k->unplug = qdev_simple_unplug_cb;
     k->props = virtser_props;
 }
 
@@ -1064,6 +1067,7 @@ static void virtio_serial_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     QLIST_INIT(&vserdevices.devices);
 
@@ -1077,6 +1081,8 @@ static void virtio_serial_class_init(ObjectClass *klass, void *data)
     vdc->reset = vser_reset;
     vdc->save = virtio_serial_save_device;
     vdc->load = virtio_serial_load_device;
+    hc->plug = virtser_port_device_plug;
+    hc->unplug = qdev_simple_device_unplug_cb;
 }
 
 static const TypeInfo virtio_device_info = {
@@ -1084,6 +1090,10 @@ static const TypeInfo virtio_device_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOSerial),
     .class_init = virtio_serial_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
 };
 
 static void virtio_serial_register_types(void)
