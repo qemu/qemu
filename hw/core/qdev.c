@@ -455,6 +455,31 @@ void qdev_connect_gpio_out_named(DeviceState *dev, const char *name, int n,
     g_free(propname);
 }
 
+/* disconnect a GPIO ouput, returning the disconnected input (if any) */
+
+static qemu_irq qdev_disconnect_gpio_out_named(DeviceState *dev,
+                                               const char *name, int n)
+{
+    char *propname = g_strdup_printf("%s[%d]",
+                                     name ? name : "unnamed-gpio-out", n);
+
+    qemu_irq ret = (qemu_irq)object_property_get_link(OBJECT(dev), propname,
+                                                      NULL);
+    if (ret) {
+        object_property_set_link(OBJECT(dev), NULL, propname, NULL);
+    }
+    g_free(propname);
+    return ret;
+}
+
+qemu_irq qdev_intercept_gpio_out(DeviceState *dev, qemu_irq icpt,
+                                 const char *name, int n)
+{
+    qemu_irq disconnected = qdev_disconnect_gpio_out_named(dev, name, n);
+    qdev_connect_gpio_out_named(dev, name, n, icpt);
+    return disconnected;
+}
+
 void qdev_connect_gpio_out(DeviceState * dev, int n, qemu_irq pin)
 {
     qdev_connect_gpio_out_named(dev, NULL, n, pin);
