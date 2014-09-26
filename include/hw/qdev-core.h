@@ -288,6 +288,9 @@ void qdev_init_gpio_in_named(DeviceState *dev, qemu_irq_handler handler,
 void qdev_init_gpio_out_named(DeviceState *dev, qemu_irq *pins,
                               const char *name, int n);
 
+void qdev_pass_gpios(DeviceState *dev, DeviceState *container,
+                     const char *name);
+
 BusState *qdev_get_parent_bus(DeviceState *dev);
 
 /*** BUS API. ***/
