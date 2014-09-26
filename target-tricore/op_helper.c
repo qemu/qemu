@@ -20,6 +20,42 @@
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
 
+/* Addressing mode helper */
+
+static uint16_t reverse16(uint16_t val)
+{
+    uint8_t high = (uint8_t)(val >> 8);
+    uint8_t low  = (uint8_t)(val & 0xff);
+
+    uint16_t rh, rl;
+
+    rl = (uint16_t)((high * 0x0202020202ULL & 0x010884422010ULL) % 1023);
+    rh = (uint16_t)((low * 0x0202020202ULL & 0x010884422010ULL) % 1023);
+
+    return (rh << 8) | rl;
+}
+
+uint32_t helper_br_update(uint32_t reg)
+{
+    uint32_t index = reg & 0xffff;
+    uint32_t incr  = reg >> 16;
+    uint32_t new_index = reverse16(reverse16(index) + reverse16(incr));
+    return reg - index + new_index;
+}
+
+uint32_t helper_circ_update(uint32_t reg, uint32_t off)
+{
+    uint32_t index = reg & 0xffff;
+    uint32_t length = reg >> 16;
+    int32_t new_index = index + off;
+    if (new_index < 0) {
+        new_index += length;
+    } else {
+        new_index %= length;
+    }
+    return reg - index + new_index;
+}
+
 #define SSOV(env, ret, arg, len) do {               \
     int64_t max_pos = INT##len ##_MAX;              \
     int64_t max_neg = INT##len ##_MIN;              \

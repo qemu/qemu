@@ -149,6 +149,15 @@ static void gen_st_2regs_64(TCGv rh, TCGv rl, TCGv address, DisasContext *ctx)
     tcg_temp_free_i64(temp);
 }
 
+static void gen_offset_st_2regs(TCGv rh, TCGv rl, TCGv base, int16_t con,
+                                DisasContext *ctx)
+{
+    TCGv temp = tcg_temp_new();
+    tcg_gen_addi_tl(temp, base, con);
+    gen_st_2regs_64(rh, rl, temp, ctx);
+    tcg_temp_free(temp);
+}
+
 static void gen_ld_2regs_64(TCGv rh, TCGv rl, TCGv address, DisasContext *ctx)
 {
     TCGv_i64 temp = tcg_temp_new_i64();
@@ -158,6 +167,35 @@ static void gen_ld_2regs_64(TCGv rh, TCGv rl, TCGv address, DisasContext *ctx)
     tcg_gen_extr_i64_i32(rl, rh, temp);
 
     tcg_temp_free_i64(temp);
+}
+
+static void gen_offset_ld_2regs(TCGv rh, TCGv rl, TCGv base, int16_t con,
+                                DisasContext *ctx)
+{
+    TCGv temp = tcg_temp_new();
+    tcg_gen_addi_tl(temp, base, con);
+    gen_ld_2regs_64(rh, rl, temp, ctx);
+    tcg_temp_free(temp);
+}
+
+static void gen_st_preincr(DisasContext *ctx, TCGv r1, TCGv r2, int16_t off,
+                           TCGMemOp mop)
+{
+    TCGv temp = tcg_temp_new();
+    tcg_gen_addi_tl(temp, r2, off);
+    tcg_gen_qemu_st_tl(r1, temp, ctx->mem_idx, mop);
+    tcg_gen_mov_tl(r2, temp);
+    tcg_temp_free(temp);
+}
+
+static void gen_ld_preincr(DisasContext *ctx, TCGv r1, TCGv r2, int16_t off,
+                           TCGMemOp mop)
+{
+    TCGv temp = tcg_temp_new();
+    tcg_gen_addi_tl(temp, r2, off);
+    tcg_gen_qemu_ld_tl(r1, temp, ctx->mem_idx, mop);
+    tcg_gen_mov_tl(r2, temp);
+    tcg_temp_free(temp);
 }
 
 /* M(EA, word) = (M(EA, word) & ~E[a][63:32]) | (E[a][31:0] & E[a][63:32]); */
@@ -1635,6 +1673,612 @@ static void decode_bit_sh_logic2(CPUTriCoreState *env, DisasContext *ctx)
     tcg_temp_free(temp);
 }
 
+/* BO-format */
+
+
+static void decode_bo_addrmode_post_pre_base(CPUTriCoreState *env,
+                                             DisasContext *ctx)
+{
+    uint32_t op2;
+    uint32_t off10;
+    int32_t r1, r2;
+    TCGv temp;
+
+    r1 = MASK_OP_BO_S1D(ctx->opcode);
+    r2  = MASK_OP_BO_S2(ctx->opcode);
+    off10 = MASK_OP_BO_OFF10_SEXT(ctx->opcode);
+    op2 = MASK_OP_BO_OP2(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_BO_CACHEA_WI_SHORTOFF:
+    case OPC2_32_BO_CACHEA_W_SHORTOFF:
+    case OPC2_32_BO_CACHEA_I_SHORTOFF:
+        /* instruction to access the cache */
+        break;
+    case OPC2_32_BO_CACHEA_WI_POSTINC:
+    case OPC2_32_BO_CACHEA_W_POSTINC:
+    case OPC2_32_BO_CACHEA_I_POSTINC:
+        /* instruction to access the cache, but we still need to handle
+           the addressing mode */
+        tcg_gen_addi_tl(cpu_gpr_d[r2], cpu_gpr_d[r2], off10);
+        break;
+    case OPC2_32_BO_CACHEA_WI_PREINC:
+    case OPC2_32_BO_CACHEA_W_PREINC:
+    case OPC2_32_BO_CACHEA_I_PREINC:
+        /* instruction to access the cache, but we still need to handle
+           the addressing mode */
+        tcg_gen_addi_tl(cpu_gpr_d[r2], cpu_gpr_d[r2], off10);
+        break;
+    case OPC2_32_BO_CACHEI_WI_SHORTOFF:
+    case OPC2_32_BO_CACHEI_W_SHORTOFF:
+        /* TODO: Raise illegal opcode trap,
+                 if tricore_feature(TRICORE_FEATURE_13) */
+        break;
+    case OPC2_32_BO_CACHEI_W_POSTINC:
+    case OPC2_32_BO_CACHEI_WI_POSTINC:
+        if (!tricore_feature(env, TRICORE_FEATURE_13)) {
+            tcg_gen_addi_tl(cpu_gpr_d[r2], cpu_gpr_d[r2], off10);
+        } /* TODO: else raise illegal opcode trap */
+        break;
+    case OPC2_32_BO_CACHEI_W_PREINC:
+    case OPC2_32_BO_CACHEI_WI_PREINC:
+        if (!tricore_feature(env, TRICORE_FEATURE_13)) {
+            tcg_gen_addi_tl(cpu_gpr_d[r2], cpu_gpr_d[r2], off10);
+        } /* TODO: else raise illegal opcode trap */
+        break;
+    case OPC2_32_BO_ST_A_SHORTOFF:
+        gen_offset_st(ctx, cpu_gpr_a[r1], cpu_gpr_a[r2], off10, MO_LESL);
+        break;
+    case OPC2_32_BO_ST_A_POSTINC:
+        tcg_gen_qemu_st_tl(cpu_gpr_a[r1], cpu_gpr_a[r2], ctx->mem_idx,
+                           MO_LESL);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_ST_A_PREINC:
+        gen_st_preincr(ctx, cpu_gpr_a[r1], cpu_gpr_a[r2], off10, MO_LESL);
+        break;
+    case OPC2_32_BO_ST_B_SHORTOFF:
+        gen_offset_st(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_UB);
+        break;
+    case OPC2_32_BO_ST_B_POSTINC:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx,
+                           MO_UB);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_ST_B_PREINC:
+        gen_st_preincr(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_UB);
+        break;
+    case OPC2_32_BO_ST_D_SHORTOFF:
+        gen_offset_st_2regs(cpu_gpr_d[r1+1], cpu_gpr_d[r1], cpu_gpr_a[r2],
+                            off10, ctx);
+        break;
+    case OPC2_32_BO_ST_D_POSTINC:
+        gen_st_2regs_64(cpu_gpr_d[r1+1], cpu_gpr_d[r1], cpu_gpr_a[r2], ctx);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_ST_D_PREINC:
+        temp = tcg_temp_new();
+        tcg_gen_addi_tl(temp, cpu_gpr_a[r2], off10);
+        gen_st_2regs_64(cpu_gpr_d[r1+1], cpu_gpr_d[r1], temp, ctx);
+        tcg_gen_mov_tl(cpu_gpr_a[r2], temp);
+        tcg_temp_free(temp);
+        break;
+    case OPC2_32_BO_ST_DA_SHORTOFF:
+        gen_offset_st_2regs(cpu_gpr_a[r1+1], cpu_gpr_a[r1], cpu_gpr_a[r2],
+                            off10, ctx);
+        break;
+    case OPC2_32_BO_ST_DA_POSTINC:
+        gen_st_2regs_64(cpu_gpr_a[r1+1], cpu_gpr_a[r1], cpu_gpr_a[r2], ctx);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_ST_DA_PREINC:
+        temp = tcg_temp_new();
+        tcg_gen_addi_tl(temp, cpu_gpr_a[r2], off10);
+        gen_st_2regs_64(cpu_gpr_a[r1+1], cpu_gpr_a[r1], temp, ctx);
+        tcg_gen_mov_tl(cpu_gpr_a[r2], temp);
+        tcg_temp_free(temp);
+        break;
+    case OPC2_32_BO_ST_H_SHORTOFF:
+        gen_offset_st(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_LEUW);
+        break;
+    case OPC2_32_BO_ST_H_POSTINC:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx,
+                           MO_LEUW);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_ST_H_PREINC:
+        gen_st_preincr(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_LEUW);
+        break;
+    case OPC2_32_BO_ST_Q_SHORTOFF:
+        temp = tcg_temp_new();
+        tcg_gen_shri_tl(temp, cpu_gpr_d[r1], 16);
+        gen_offset_st(ctx, temp, cpu_gpr_a[r2], off10, MO_LEUW);
+        tcg_temp_free(temp);
+        break;
+    case OPC2_32_BO_ST_Q_POSTINC:
+        temp = tcg_temp_new();
+        tcg_gen_shri_tl(temp, cpu_gpr_d[r1], 16);
+        tcg_gen_qemu_st_tl(temp, cpu_gpr_a[r2], ctx->mem_idx,
+                           MO_LEUW);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        tcg_temp_free(temp);
+        break;
+    case OPC2_32_BO_ST_Q_PREINC:
+        temp = tcg_temp_new();
+        tcg_gen_shri_tl(temp, cpu_gpr_d[r1], 16);
+        gen_st_preincr(ctx, temp, cpu_gpr_a[r2], off10, MO_LEUW);
+        tcg_temp_free(temp);
+        break;
+    case OPC2_32_BO_ST_W_SHORTOFF:
+        gen_offset_st(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_LEUL);
+        break;
+    case OPC2_32_BO_ST_W_POSTINC:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx,
+                           MO_LEUL);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_ST_W_PREINC:
+        gen_st_preincr(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_LEUL);
+        break;
+    }
+}
+
+static void decode_bo_addrmode_bitreverse_circular(CPUTriCoreState *env,
+                                                   DisasContext *ctx)
+{
+    uint32_t op2;
+    uint32_t off10;
+    int32_t r1, r2;
+    TCGv temp, temp2, temp3;
+
+    r1 = MASK_OP_BO_S1D(ctx->opcode);
+    r2  = MASK_OP_BO_S2(ctx->opcode);
+    off10 = MASK_OP_BO_OFF10_SEXT(ctx->opcode);
+    op2 = MASK_OP_BO_OP2(ctx->opcode);
+
+    temp = tcg_temp_new();
+    temp2 = tcg_temp_new();
+    temp3 = tcg_const_i32(off10);
+
+    tcg_gen_ext16u_tl(temp, cpu_gpr_a[r2+1]);
+    tcg_gen_add_tl(temp2, cpu_gpr_a[r2], temp);
+
+    switch (op2) {
+    case OPC2_32_BO_CACHEA_WI_BR:
+    case OPC2_32_BO_CACHEA_W_BR:
+    case OPC2_32_BO_CACHEA_I_BR:
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_CACHEA_WI_CIRC:
+    case OPC2_32_BO_CACHEA_W_CIRC:
+    case OPC2_32_BO_CACHEA_I_CIRC:
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_ST_A_BR:
+        tcg_gen_qemu_st_tl(cpu_gpr_a[r1], temp2, ctx->mem_idx, MO_LEUL);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_ST_A_CIRC:
+        tcg_gen_qemu_st_tl(cpu_gpr_a[r1], temp2, ctx->mem_idx, MO_LEUL);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_ST_B_BR:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_UB);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_ST_B_CIRC:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_UB);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_ST_D_BR:
+        gen_st_2regs_64(cpu_gpr_d[r1+1], cpu_gpr_d[r1], temp2, ctx);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_ST_D_CIRC:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_LEUL);
+        tcg_gen_shri_tl(temp2, cpu_gpr_a[r2+1], 16);
+        tcg_gen_addi_tl(temp, temp, 4);
+        tcg_gen_rem_tl(temp, temp, temp2);
+        tcg_gen_add_tl(temp2, cpu_gpr_a[r2], temp);
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1+1], temp2, ctx->mem_idx, MO_LEUL);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_ST_DA_BR:
+        gen_st_2regs_64(cpu_gpr_a[r1+1], cpu_gpr_a[r1], temp2, ctx);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_ST_DA_CIRC:
+        tcg_gen_qemu_st_tl(cpu_gpr_a[r1], temp2, ctx->mem_idx, MO_LEUL);
+        tcg_gen_shri_tl(temp2, cpu_gpr_a[r2+1], 16);
+        tcg_gen_addi_tl(temp, temp, 4);
+        tcg_gen_rem_tl(temp, temp, temp2);
+        tcg_gen_add_tl(temp2, cpu_gpr_a[r2], temp);
+        tcg_gen_qemu_st_tl(cpu_gpr_a[r1+1], temp2, ctx->mem_idx, MO_LEUL);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_ST_H_BR:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_LEUW);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_ST_H_CIRC:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_LEUW);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_ST_Q_BR:
+        tcg_gen_shri_tl(temp, cpu_gpr_d[r1], 16);
+        tcg_gen_qemu_st_tl(temp, temp2, ctx->mem_idx, MO_LEUW);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_ST_Q_CIRC:
+        tcg_gen_shri_tl(temp, cpu_gpr_d[r1], 16);
+        tcg_gen_qemu_st_tl(temp, temp2, ctx->mem_idx, MO_LEUW);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_ST_W_BR:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_LEUL);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_ST_W_CIRC:
+        tcg_gen_qemu_st_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_LEUL);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    }
+    tcg_temp_free(temp);
+    tcg_temp_free(temp2);
+    tcg_temp_free(temp3);
+}
+
+static void decode_bo_addrmode_ld_post_pre_base(CPUTriCoreState *env,
+                                                DisasContext *ctx)
+{
+    uint32_t op2;
+    uint32_t off10;
+    int32_t r1, r2;
+    TCGv temp;
+
+    r1 = MASK_OP_BO_S1D(ctx->opcode);
+    r2  = MASK_OP_BO_S2(ctx->opcode);
+    off10 = MASK_OP_BO_OFF10_SEXT(ctx->opcode);
+    op2 = MASK_OP_BO_OP2(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_BO_LD_A_SHORTOFF:
+        gen_offset_ld(ctx, cpu_gpr_a[r1], cpu_gpr_a[r2], off10, MO_LEUL);
+        break;
+    case OPC2_32_BO_LD_A_POSTINC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_a[r1], cpu_gpr_a[r2], ctx->mem_idx,
+                           MO_LEUL);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_LD_A_PREINC:
+        gen_ld_preincr(ctx, cpu_gpr_a[r1], cpu_gpr_a[r2], off10, MO_LEUL);
+        break;
+    case OPC2_32_BO_LD_B_SHORTOFF:
+        gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_SB);
+        break;
+    case OPC2_32_BO_LD_B_POSTINC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx,
+                           MO_SB);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_LD_B_PREINC:
+        gen_ld_preincr(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_SB);
+        break;
+    case OPC2_32_BO_LD_BU_SHORTOFF:
+        gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_UB);
+        break;
+    case OPC2_32_BO_LD_BU_POSTINC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx,
+                           MO_UB);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_LD_BU_PREINC:
+        gen_ld_preincr(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_SB);
+        break;
+    case OPC2_32_BO_LD_D_SHORTOFF:
+        gen_offset_ld_2regs(cpu_gpr_d[r1+1], cpu_gpr_d[r1], cpu_gpr_a[r2],
+                            off10, ctx);
+        break;
+    case OPC2_32_BO_LD_D_POSTINC:
+        gen_ld_2regs_64(cpu_gpr_d[r1+1], cpu_gpr_d[r1], cpu_gpr_a[r2], ctx);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_LD_D_PREINC:
+        temp = tcg_temp_new();
+        tcg_gen_addi_tl(temp, cpu_gpr_a[r2], off10);
+        gen_ld_2regs_64(cpu_gpr_d[r1+1], cpu_gpr_d[r1], temp, ctx);
+        tcg_gen_mov_tl(cpu_gpr_a[r2], temp);
+        tcg_temp_free(temp);
+        break;
+    case OPC2_32_BO_LD_DA_SHORTOFF:
+        gen_offset_ld_2regs(cpu_gpr_a[r1+1], cpu_gpr_a[r1], cpu_gpr_a[r2],
+                            off10, ctx);
+        break;
+    case OPC2_32_BO_LD_DA_POSTINC:
+        gen_ld_2regs_64(cpu_gpr_a[r1+1], cpu_gpr_a[r1], cpu_gpr_a[r2], ctx);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_LD_DA_PREINC:
+        temp = tcg_temp_new();
+        tcg_gen_addi_tl(temp, cpu_gpr_a[r2], off10);
+        gen_ld_2regs_64(cpu_gpr_a[r1+1], cpu_gpr_a[r1], temp, ctx);
+        tcg_gen_mov_tl(cpu_gpr_a[r2], temp);
+        tcg_temp_free(temp);
+        break;
+    case OPC2_32_BO_LD_H_SHORTOFF:
+        gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_LESW);
+        break;
+    case OPC2_32_BO_LD_H_POSTINC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx,
+                           MO_LESW);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_LD_H_PREINC:
+        gen_ld_preincr(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_LESW);
+        break;
+    case OPC2_32_BO_LD_HU_SHORTOFF:
+        gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_LEUW);
+        break;
+    case OPC2_32_BO_LD_HU_POSTINC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx,
+                           MO_LEUW);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_LD_HU_PREINC:
+        gen_ld_preincr(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_LEUW);
+        break;
+    case OPC2_32_BO_LD_Q_SHORTOFF:
+        gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_LEUW);
+        tcg_gen_shli_tl(cpu_gpr_d[r1], cpu_gpr_d[r1], 16);
+        break;
+    case OPC2_32_BO_LD_Q_POSTINC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx,
+                           MO_LEUW);
+        tcg_gen_shli_tl(cpu_gpr_d[r1], cpu_gpr_d[r1], 16);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_LD_Q_PREINC:
+        gen_ld_preincr(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_LEUW);
+        tcg_gen_shli_tl(cpu_gpr_d[r1], cpu_gpr_d[r1], 16);
+        break;
+    case OPC2_32_BO_LD_W_SHORTOFF:
+        gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_LEUL);
+        break;
+    case OPC2_32_BO_LD_W_POSTINC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx,
+                           MO_LEUL);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_LD_W_PREINC:
+        gen_ld_preincr(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_LEUL);
+        break;
+    }
+}
+
+static void decode_bo_addrmode_ld_bitreverse_circular(CPUTriCoreState *env,
+                                                DisasContext *ctx)
+{
+    uint32_t op2;
+    uint32_t off10;
+    int r1, r2;
+
+    TCGv temp, temp2, temp3;
+
+    r1 = MASK_OP_BO_S1D(ctx->opcode);
+    r2 = MASK_OP_BO_S2(ctx->opcode);
+    off10 = MASK_OP_BO_OFF10_SEXT(ctx->opcode);
+    op2 = MASK_OP_BO_OP2(ctx->opcode);
+
+    temp = tcg_temp_new();
+    temp2 = tcg_temp_new();
+    temp3 = tcg_const_i32(off10);
+
+    tcg_gen_ext16u_tl(temp, cpu_gpr_a[r2+1]);
+    tcg_gen_add_tl(temp2, cpu_gpr_a[r2], temp);
+
+
+    switch (op2) {
+    case OPC2_32_BO_LD_A_BR:
+        tcg_gen_qemu_ld_tl(cpu_gpr_a[r1], temp2, ctx->mem_idx, MO_LEUL);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_LD_A_CIRC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_a[r1], temp2, ctx->mem_idx, MO_LEUL);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_LD_B_BR:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_SB);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_LD_B_CIRC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_SB);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_LD_BU_BR:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_UB);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_LD_BU_CIRC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_UB);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_LD_D_BR:
+        gen_ld_2regs_64(cpu_gpr_d[r1+1], cpu_gpr_d[r1], temp2, ctx);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_LD_D_CIRC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_LEUL);
+        tcg_gen_shri_tl(temp2, cpu_gpr_a[r2+1], 16);
+        tcg_gen_addi_tl(temp, temp, 4);
+        tcg_gen_rem_tl(temp, temp, temp2);
+        tcg_gen_add_tl(temp2, cpu_gpr_a[r2], temp);
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1+1], temp2, ctx->mem_idx, MO_LEUL);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_LD_DA_BR:
+        gen_ld_2regs_64(cpu_gpr_a[r1+1], cpu_gpr_a[r1], temp2, ctx);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_LD_DA_CIRC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_a[r1], temp2, ctx->mem_idx, MO_LEUL);
+        tcg_gen_shri_tl(temp2, cpu_gpr_a[r2+1], 16);
+        tcg_gen_addi_tl(temp, temp, 4);
+        tcg_gen_rem_tl(temp, temp, temp2);
+        tcg_gen_add_tl(temp2, cpu_gpr_a[r2], temp);
+        tcg_gen_qemu_ld_tl(cpu_gpr_a[r1+1], temp2, ctx->mem_idx, MO_LEUL);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_LD_H_BR:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_LESW);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_LD_H_CIRC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_LESW);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_LD_HU_BR:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_LEUW);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_LD_HU_CIRC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_LEUW);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_LD_Q_BR:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_LEUW);
+        tcg_gen_shli_tl(cpu_gpr_d[r1], cpu_gpr_d[r1], 16);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_LD_Q_CIRC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_LEUW);
+        tcg_gen_shli_tl(cpu_gpr_d[r1], cpu_gpr_d[r1], 16);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_LD_W_BR:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_LEUL);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_LD_W_CIRC:
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp2, ctx->mem_idx, MO_LEUL);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    }
+    tcg_temp_free(temp);
+    tcg_temp_free(temp2);
+    tcg_temp_free(temp3);
+}
+
+static void decode_bo_addrmode_stctx_post_pre_base(CPUTriCoreState *env,
+                                                   DisasContext *ctx)
+{
+    uint32_t op2;
+    uint32_t off10;
+    int r1, r2;
+
+    TCGv temp, temp2;
+
+    r1 = MASK_OP_BO_S1D(ctx->opcode);
+    r2 = MASK_OP_BO_S2(ctx->opcode);
+    off10 = MASK_OP_BO_OFF10_SEXT(ctx->opcode);
+    op2 = MASK_OP_BO_OP2(ctx->opcode);
+
+
+    temp = tcg_temp_new();
+    temp2 = tcg_temp_new();
+
+    switch (op2) {
+    case OPC2_32_BO_LDLCX_SHORTOFF:
+        tcg_gen_addi_tl(temp, cpu_gpr_a[r2], off10);
+        gen_helper_ldlcx(cpu_env, temp);
+        break;
+    case OPC2_32_BO_LDMST_SHORTOFF:
+        tcg_gen_addi_tl(temp, cpu_gpr_a[r2], off10);
+        gen_ldmst(ctx, r1, temp);
+        break;
+    case OPC2_32_BO_LDMST_POSTINC:
+        gen_ldmst(ctx, r1, cpu_gpr_a[r2]);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_LDMST_PREINC:
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        gen_ldmst(ctx, r1, cpu_gpr_a[r2]);
+        break;
+    case OPC2_32_BO_LDUCX_SHORTOFF:
+        tcg_gen_addi_tl(temp, cpu_gpr_a[r2], off10);
+        gen_helper_lducx(cpu_env, temp);
+        break;
+    case OPC2_32_BO_LEA_SHORTOFF:
+        tcg_gen_addi_tl(cpu_gpr_a[r1], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_STLCX_SHORTOFF:
+        tcg_gen_addi_tl(temp, cpu_gpr_a[r2], off10);
+        gen_helper_stlcx(cpu_env, temp);
+        break;
+    case OPC2_32_BO_STUCX_SHORTOFF:
+        tcg_gen_addi_tl(temp, cpu_gpr_a[r2], off10);
+        gen_helper_stucx(cpu_env, temp);
+        break;
+    case OPC2_32_BO_SWAP_W_SHORTOFF:
+        tcg_gen_addi_tl(temp, cpu_gpr_a[r2], off10);
+        gen_swap(ctx, r1, temp);
+        break;
+    case OPC2_32_BO_SWAP_W_POSTINC:
+        gen_swap(ctx, r1, cpu_gpr_a[r2]);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_SWAP_W_PREINC:
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        gen_swap(ctx, r1, cpu_gpr_a[r2]);
+        break;
+    }
+    tcg_temp_free(temp);
+    tcg_temp_free(temp2);
+}
+
+static void decode_bo_addrmode_ldmst_bitreverse_circular(CPUTriCoreState *env,
+                                                         DisasContext *ctx)
+{
+    uint32_t op2;
+    uint32_t off10;
+    int r1, r2;
+
+    TCGv temp, temp2, temp3;
+
+    r1 = MASK_OP_BO_S1D(ctx->opcode);
+    r2 = MASK_OP_BO_S2(ctx->opcode);
+    off10 = MASK_OP_BO_OFF10_SEXT(ctx->opcode);
+    op2 = MASK_OP_BO_OP2(ctx->opcode);
+
+    temp = tcg_temp_new();
+    temp2 = tcg_temp_new();
+    temp3 = tcg_const_i32(off10);
+
+    tcg_gen_ext16u_tl(temp, cpu_gpr_a[r2+1]);
+    tcg_gen_add_tl(temp2, cpu_gpr_a[r2], temp);
+
+    switch (op2) {
+    case OPC2_32_BO_LDMST_BR:
+        gen_ldmst(ctx, r1, temp2);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_LDMST_CIRC:
+        gen_ldmst(ctx, r1, temp2);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    case OPC2_32_BO_SWAP_W_BR:
+        gen_swap(ctx, r1, temp2);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_SWAP_W_CIRC:
+        gen_swap(ctx, r1, temp2);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
+    }
+    tcg_temp_free(temp);
+    tcg_temp_free(temp2);
+    tcg_temp_free(temp3);
+}
+
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -1741,6 +2385,25 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         break;
     case OPCM_32_BIT_SH_LOGIC2:
         decode_bit_sh_logic2(env, ctx);
+        break;
+    /* BO Format */
+    case OPCM_32_BO_ADDRMODE_POST_PRE_BASE:
+        decode_bo_addrmode_post_pre_base(env, ctx);
+        break;
+    case OPCM_32_BO_ADDRMODE_BITREVERSE_CIRCULAR:
+        decode_bo_addrmode_bitreverse_circular(env, ctx);
+        break;
+    case OPCM_32_BO_ADDRMODE_LD_POST_PRE_BASE:
+        decode_bo_addrmode_ld_post_pre_base(env, ctx);
+        break;
+    case OPCM_32_BO_ADDRMODE_LD_BITREVERSE_CIRCULAR:
+        decode_bo_addrmode_ld_bitreverse_circular(env, ctx);
+        break;
+    case OPCM_32_BO_ADDRMODE_STCTX_POST_PRE_BASE:
+        decode_bo_addrmode_stctx_post_pre_base(env, ctx);
+        break;
+    case OPCM_32_BO_ADDRMODE_LDMST_BITREVERSE_CIRCULAR:
+        decode_bo_addrmode_ldmst_bitreverse_circular(env, ctx);
         break;
     }
 }
