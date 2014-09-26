@@ -47,7 +47,9 @@ typedef void (*hotplug_fn)(HotplugHandler *plug_handler,
  *
  * @parent: Opaque parent interface.
  * @plug: plug callback.
- * @unplug: unplug callback.
+ * @unplug_request: unplug request callback.
+ *                  Used as a means to initiate device unplug for devices that
+ *                  require asynchronous unplug handling.
  */
 typedef struct HotplugHandlerClass {
     /* <private> */
@@ -55,7 +57,7 @@ typedef struct HotplugHandlerClass {
 
     /* <public> */
     hotplug_fn plug;
-    hotplug_fn unplug;
+    hotplug_fn unplug_request;
 } HotplugHandlerClass;
 
 /**
@@ -68,11 +70,11 @@ void hotplug_handler_plug(HotplugHandler *plug_handler,
                           Error **errp);
 
 /**
- * hotplug_handler_unplug:
+ * hotplug_handler_unplug_request:
  *
- * Call #HotplugHandlerClass.unplug callback of @plug_handler.
+ * Calls #HotplugHandlerClass.unplug_request callback of @plug_handler.
  */
-void hotplug_handler_unplug(HotplugHandler *plug_handler,
-                            DeviceState *plugged_dev,
-                            Error **errp);
+void hotplug_handler_unplug_request(HotplugHandler *plug_handler,
+                                    DeviceState *plugged_dev,
+                                    Error **errp);
 #endif

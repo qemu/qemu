@@ -227,7 +227,8 @@ void qdev_unplug(DeviceState *dev, Error **errp)
     qdev_hot_removed = true;
 
     if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
-        hotplug_handler_unplug(dev->parent_bus->hotplug_handler, dev, errp);
+        hotplug_handler_unplug_request(dev->parent_bus->hotplug_handler,
+                                       dev, errp);
     } else {
         assert(dc->unplug != NULL);
         if (dc->unplug(dev) < 0) { /* legacy handler */
